@@ -1,0 +1,21 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: google-proxy
+  labels:
+    app: google-proxy
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: google-proxy
+  template:
+    metadata:
+      labels:
+        app: google-proxy
+    spec:
+      containers:
+        - name: google-proxy
+          image: google-proxy
+          ports:
+            - containerPort: 8080

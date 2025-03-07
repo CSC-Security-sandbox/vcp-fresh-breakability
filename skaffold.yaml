@@ -1,0 +1,33 @@
+apiVersion: skaffold/v4beta12
+kind: Config
+build:
+  artifacts:
+    - image: google-proxy
+      context: google-proxy
+      requires:
+        - image: base
+          alias: BASE
+    - image: core-api
+      context: core-api
+      requires:
+        - image: base
+          alias: BASE
+    - image: base
+      context: base
+manifests:
+  rawYaml:
+    - google-proxy/kubernetes/*
+    - core-api/kubernetes/*
+portForward:
+  - resourceType: deployment
+    resourceName: google-proxy
+    port: 8080
+    localPort: 9000
+  - resourceType: deployment
+    resourceName: core-api
+    port: http
+    localPort: 9001
+profiles:
+  - name: gcb
+    build:
+      googleCloudBuild: {}
