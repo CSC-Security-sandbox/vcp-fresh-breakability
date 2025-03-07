@@ -1,16 +1,24 @@
-package api
+package server
 
 import (
 	"net/http"
 
 	"github.com/labstack/echo/v4"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/common"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core-api/api"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core-api/datastores"
 )
 
 // ensure that we've conformed to the `ServerInterface` with a compile-time check
-var _ ServerInterface = (*Server)(nil)
+var _ api.ServerInterface = (*Server)(nil)
 
-type Server struct{}
+type Server struct {
+	d datastores.Datastore
+}
+
+func New(ds datastores.Datastore) *Server {
+	return &Server{d: ds}
+}
 
 func (s Server) GetPools(ctx echo.Context) error {
 	//TODO implement me

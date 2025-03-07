@@ -357,12 +357,19 @@ components:
 
     Pool:
       type: object
+      required:
+        - name
+        - id
       properties:
         id:
           type: string
+          nullable: false
         name:
           type: string
+          nullable: false
         svms:
           type: array
+          x-oapi-codegen-extra-tags:
+            firestore: svms,omitempty
           items:
             $ref: '#/components/schemas/SVM'

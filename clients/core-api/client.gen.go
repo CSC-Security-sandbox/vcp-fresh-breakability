@@ -18,9 +18,9 @@ import (
 
 // Pool defines model for Pool.
 type Pool struct {
-	Id   *string `json:"id,omitempty"`
-	Name *string `json:"name,omitempty"`
-	Svms *[]SVM  `json:"svms,omitempty"`
+	Id   string `json:"id"`
+	Name string `json:"name"`
+	Svms *[]SVM `firestore:"svms,omitempty" json:"svms,omitempty"`
 }
 
 // SVM defines model for SVM.

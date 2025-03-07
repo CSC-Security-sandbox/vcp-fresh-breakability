@@ -17,7 +17,7 @@ build:
         - image: base
           alias: BASE
     - image: base
-      context: base
+      context: ./common
 manifests:
   rawYaml:
     - google-proxy/kubernetes/*

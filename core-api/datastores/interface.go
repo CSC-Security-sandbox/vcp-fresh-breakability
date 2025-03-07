@@ -1,10 +1,10 @@
-package datastore
+package datastores
 
 import "github.com/vcp-vsa-control-Plane/vsa-control-plane/core-api/api"
 
 type Datastore interface {
 	GetPool(uuid string) (*api.Pool, error)
-	CreatePool(pool *api.Pool) error
+	CreatePool(pool api.Pool) error
 	UpdatePool(pool *api.Pool) error
 	DeletePool(uuid string) error
 

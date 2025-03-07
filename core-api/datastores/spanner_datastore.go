@@ -1,4 +1,4 @@
-package datastore
+package datastores
 
 import "github.com/vcp-vsa-control-Plane/vsa-control-plane/core-api/api"
 
@@ -12,7 +12,7 @@ func (s SpannerDatastore) GetPool(uuid string) (*api.Pool, error) {
 	panic("implement me")
 }
 
-func (s SpannerDatastore) CreatePool(pool *api.Pool) error {
+func (s SpannerDatastore) CreatePool(pool api.Pool) error {
 	//TODO implement me
 	panic("implement me")
 }
