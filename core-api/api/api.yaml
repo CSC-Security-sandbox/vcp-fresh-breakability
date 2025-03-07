@@ -1,26 +1,368 @@
 openapi: 3.0.4
 info:
-  title: Core API
-  description: Optional multiline or single-line description in [CommonMark](http://commonmark.org/help/) or HTML.
-  version: 0.0.1
+  title: CRUD API
+  description: API for managing Pools, SVMs, Volumes, and Snapshots.
+  version: 1.0.0
 
 servers:
-  - url: https://netappapi.netapp.com
+  - url: https://api.example.com
     description: Main (production) server
-  - url: http://netappapi-autopush.netapp.com
-    description: Internal staging server for testing
 
 paths:
-  /v1/pools:
+  /pools:
     get:
-      summary: Returns a list of pools.
-      description: Optional extended description in CommonMark or HTML.
+      summary: List all pools
       responses:
-        "200": # status code
-          description: A JSON array of user names
+        "200":
+          description: A list of pools
           content:
             application/json:
               schema:
                 type: array
                 items:
-                  type: string
+                  $ref: '#/components/schemas/Pool'
+    post:
+      summary: Create a new pool
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Pool'
+      responses:
+        "201":
+          description: Pool created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Pool'
+
+  /pools/{poolId}:
+    get:
+      summary: Get a pool by ID
+      parameters:
+        - name: poolId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: A single pool
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Pool'
+    put:
+      summary: Update a pool by ID
+      parameters:
+        - name: poolId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Pool'
+      responses:
+        "200":
+          description: Pool updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Pool'
+    delete:
+      summary: Delete a pool by ID
+      parameters:
+        - name: poolId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "204":
+          description: Pool deleted
+
+  /svms:
+    get:
+      summary: List all SVMs
+      responses:
+        "200":
+          description: A list of SVMs
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/SVM'
+    post:
+      summary: Create a new SVM
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SVM'
+      responses:
+        "201":
+          description: SVM created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SVM'
+
+  /svms/{svmId}:
+    get:
+      summary: Get an SVM by ID
+      parameters:
+        - name: svmId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: A single SVM
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SVM'
+    put:
+      summary: Update an SVM by ID
+      parameters:
+        - name: svmId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SVM'
+      responses:
+        "200":
+          description: SVM updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SVM'
+    delete:
+      summary: Delete an SVM by ID
+      parameters:
+        - name: svmId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "204":
+          description: SVM deleted
+
+  /volumes:
+    get:
+      summary: List all volumes
+      responses:
+        "200":
+          description: A list of volumes
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Volume'
+    post:
+      summary: Create a new volume
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Volume'
+      responses:
+        "201":
+          description: Volume created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Volume'
+
+  /volumes/{volumeId}:
+    get:
+      summary: Get a volume by ID
+      parameters:
+        - name: volumeId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: A single volume
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Volume'
+    put:
+      summary: Update a volume by ID
+      parameters:
+        - name: volumeId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Volume'
+      responses:
+        "200":
+          description: Volume updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Volume'
+    delete:
+      summary: Delete a volume by ID
+      parameters:
+        - name: volumeId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "204":
+          description: Volume deleted
+
+  /snapshots:
+    get:
+      summary: List all snapshots
+      responses:
+        "200":
+          description: A list of snapshots
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Snapshot'
+    post:
+      summary: Create a new snapshot
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Snapshot'
+      responses:
+        "201":
+          description: Snapshot created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Snapshot'
+
+  /snapshots/{snapshotId}:
+    get:
+      summary: Get a snapshot by ID
+      parameters:
+        - name: snapshotId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: A single snapshot
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Snapshot'
+    put:
+      summary: Update a snapshot by ID
+      parameters:
+        - name: snapshotId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Snapshot'
+      responses:
+        "200":
+          description: Snapshot updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Snapshot'
+    delete:
+      summary: Delete a snapshot by ID
+      parameters:
+        - name: snapshotId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "204":
+          description: Snapshot deleted
+
+components:
+  schemas:
+    Snapshot:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        time:
+          type: string
+
+    Volume:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        size:
+          type: integer
+        snapshots:
+          type: array
+          items:
+            $ref: '#/components/schemas/Snapshot'
+
+    SVM:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        volumes:
+          type: array
+          items:
+            $ref: '#/components/schemas/Volume'
+
+    Pool:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        svms:
+          type: array
+          items:
+            $ref: '#/components/schemas/SVM'

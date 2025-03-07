@@ -3,12 +3,16 @@ kind: Config
 build:
   artifacts:
     - image: google-proxy
-      context: google-proxy
+      context: .
+      docker:
+        dockerfile: google-proxy/Dockerfile
       requires:
         - image: base
           alias: BASE
     - image: core-api
-      context: core-api
+      context: .
+      docker:
+        dockerfile: core-api/Dockerfile
       requires:
         - image: base
           alias: BASE

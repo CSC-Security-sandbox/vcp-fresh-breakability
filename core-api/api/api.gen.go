@@ -4,14 +4,128 @@
 package api
 
 import (
+	"fmt"
+	"net/http"
+
 	"github.com/labstack/echo/v4"
+	"github.com/oapi-codegen/runtime"
 )
+
+// Pool defines model for Pool.
+type Pool struct {
+	Id   *string `json:"id,omitempty"`
+	Name *string `json:"name,omitempty"`
+	Svms *[]SVM  `json:"svms,omitempty"`
+}
+
+// SVM defines model for SVM.
+type SVM struct {
+	Id      *string   `json:"id,omitempty"`
+	Name    *string   `json:"name,omitempty"`
+	Volumes *[]Volume `json:"volumes,omitempty"`
+}
+
+// Snapshot defines model for Snapshot.
+type Snapshot struct {
+	Id   *string `json:"id,omitempty"`
+	Name *string `json:"name,omitempty"`
+	Time *string `json:"time,omitempty"`
+}
+
+// Volume defines model for Volume.
+type Volume struct {
+	Id        *string     `json:"id,omitempty"`
+	Name      *string     `json:"name,omitempty"`
+	Size      *int        `json:"size,omitempty"`
+	Snapshots *[]Snapshot `json:"snapshots,omitempty"`
+}
+
+// PostPoolsJSONRequestBody defines body for PostPools for application/json ContentType.
+type PostPoolsJSONRequestBody = Pool
+
+// PutPoolsPoolIdJSONRequestBody defines body for PutPoolsPoolId for application/json ContentType.
+type PutPoolsPoolIdJSONRequestBody = Pool
+
+// PostSnapshotsJSONRequestBody defines body for PostSnapshots for application/json ContentType.
+type PostSnapshotsJSONRequestBody = Snapshot
+
+// PutSnapshotsSnapshotIdJSONRequestBody defines body for PutSnapshotsSnapshotId for application/json ContentType.
+type PutSnapshotsSnapshotIdJSONRequestBody = Snapshot
+
+// PostSvmsJSONRequestBody defines body for PostSvms for application/json ContentType.
+type PostSvmsJSONRequestBody = SVM
+
+// PutSvmsSvmIdJSONRequestBody defines body for PutSvmsSvmId for application/json ContentType.
+type PutSvmsSvmIdJSONRequestBody = SVM
+
+// PostVolumesJSONRequestBody defines body for PostVolumes for application/json ContentType.
+type PostVolumesJSONRequestBody = Volume
+
+// PutVolumesVolumeIdJSONRequestBody defines body for PutVolumesVolumeId for application/json ContentType.
+type PutVolumesVolumeIdJSONRequestBody = Volume
 
 // ServerInterface represents all server handlers.
 type ServerInterface interface {
-	// Returns a list of pools.
-	// (GET /v1/pools)
-	GetV1Pools(ctx echo.Context) error
+	// List all pools
+	// (GET /pools)
+	GetPools(ctx echo.Context) error
+	// Create a new pool
+	// (POST /pools)
+	PostPools(ctx echo.Context) error
+	// Delete a pool by ID
+	// (DELETE /pools/{poolId})
+	DeletePoolsPoolId(ctx echo.Context, poolId string) error
+	// Get a pool by ID
+	// (GET /pools/{poolId})
+	GetPoolsPoolId(ctx echo.Context, poolId string) error
+	// Update a pool by ID
+	// (PUT /pools/{poolId})
+	PutPoolsPoolId(ctx echo.Context, poolId string) error
+	// List all snapshots
+	// (GET /snapshots)
+	GetSnapshots(ctx echo.Context) error
+	// Create a new snapshot
+	// (POST /snapshots)
+	PostSnapshots(ctx echo.Context) error
+	// Delete a snapshot by ID
+	// (DELETE /snapshots/{snapshotId})
+	DeleteSnapshotsSnapshotId(ctx echo.Context, snapshotId string) error
+	// Get a snapshot by ID
+	// (GET /snapshots/{snapshotId})
+	GetSnapshotsSnapshotId(ctx echo.Context, snapshotId string) error
+	// Update a snapshot by ID
+	// (PUT /snapshots/{snapshotId})
+	PutSnapshotsSnapshotId(ctx echo.Context, snapshotId string) error
+	// List all SVMs
+	// (GET /svms)
+	GetSvms(ctx echo.Context) error
+	// Create a new SVM
+	// (POST /svms)
+	PostSvms(ctx echo.Context) error
+	// Delete an SVM by ID
+	// (DELETE /svms/{svmId})
+	DeleteSvmsSvmId(ctx echo.Context, svmId string) error
+	// Get an SVM by ID
+	// (GET /svms/{svmId})
+	GetSvmsSvmId(ctx echo.Context, svmId string) error
+	// Update an SVM by ID
+	// (PUT /svms/{svmId})
+	PutSvmsSvmId(ctx echo.Context, svmId string) error
+	// List all volumes
+	// (GET /volumes)
+	GetVolumes(ctx echo.Context) error
+	// Create a new volume
+	// (POST /volumes)
+	PostVolumes(ctx echo.Context) error
+	// Delete a volume by ID
+	// (DELETE /volumes/{volumeId})
+	DeleteVolumesVolumeId(ctx echo.Context, volumeId string) error
+	// Get a volume by ID
+	// (GET /volumes/{volumeId})
+	GetVolumesVolumeId(ctx echo.Context, volumeId string) error
+	// Update a volume by ID
+	// (PUT /volumes/{volumeId})
+	PutVolumesVolumeId(ctx echo.Context, volumeId string) error
 }
 
 // ServerInterfaceWrapper converts echo contexts to parameters.
@@ -19,12 +133,267 @@ type ServerInterfaceWrapper struct {
 	Handler ServerInterface
 }
 
-// GetV1Pools converts echo context to params.
-func (w *ServerInterfaceWrapper) GetV1Pools(ctx echo.Context) error {
+// GetPools converts echo context to params.
+func (w *ServerInterfaceWrapper) GetPools(ctx echo.Context) error {
 	var err error
 
 	// Invoke the callback with all the unmarshaled arguments
-	err = w.Handler.GetV1Pools(ctx)
+	err = w.Handler.GetPools(ctx)
+	return err
+}
+
+// PostPools converts echo context to params.
+func (w *ServerInterfaceWrapper) PostPools(ctx echo.Context) error {
+	var err error
+
+	// Invoke the callback with all the unmarshaled arguments
+	err = w.Handler.PostPools(ctx)
+	return err
+}
+
+// DeletePoolsPoolId converts echo context to params.
+func (w *ServerInterfaceWrapper) DeletePoolsPoolId(ctx echo.Context) error {
+	var err error
+	// ------------- Path parameter "poolId" -------------
+	var poolId string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "poolId", ctx.Param("poolId"), &poolId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter poolId: %s", err))
+	}
+
+	// Invoke the callback with all the unmarshaled arguments
+	err = w.Handler.DeletePoolsPoolId(ctx, poolId)
+	return err
+}
+
+// GetPoolsPoolId converts echo context to params.
+func (w *ServerInterfaceWrapper) GetPoolsPoolId(ctx echo.Context) error {
+	var err error
+	// ------------- Path parameter "poolId" -------------
+	var poolId string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "poolId", ctx.Param("poolId"), &poolId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter poolId: %s", err))
+	}
+
+	// Invoke the callback with all the unmarshaled arguments
+	err = w.Handler.GetPoolsPoolId(ctx, poolId)
+	return err
+}
+
+// PutPoolsPoolId converts echo context to params.
+func (w *ServerInterfaceWrapper) PutPoolsPoolId(ctx echo.Context) error {
+	var err error
+	// ------------- Path parameter "poolId" -------------
+	var poolId string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "poolId", ctx.Param("poolId"), &poolId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter poolId: %s", err))
+	}
+
+	// Invoke the callback with all the unmarshaled arguments
+	err = w.Handler.PutPoolsPoolId(ctx, poolId)
+	return err
+}
+
+// GetSnapshots converts echo context to params.
+func (w *ServerInterfaceWrapper) GetSnapshots(ctx echo.Context) error {
+	var err error
+
+	// Invoke the callback with all the unmarshaled arguments
+	err = w.Handler.GetSnapshots(ctx)
+	return err
+}
+
+// PostSnapshots converts echo context to params.
+func (w *ServerInterfaceWrapper) PostSnapshots(ctx echo.Context) error {
+	var err error
+
+	// Invoke the callback with all the unmarshaled arguments
+	err = w.Handler.PostSnapshots(ctx)
+	return err
+}
+
+// DeleteSnapshotsSnapshotId converts echo context to params.
+func (w *ServerInterfaceWrapper) DeleteSnapshotsSnapshotId(ctx echo.Context) error {
+	var err error
+	// ------------- Path parameter "snapshotId" -------------
+	var snapshotId string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "snapshotId", ctx.Param("snapshotId"), &snapshotId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter snapshotId: %s", err))
+	}
+
+	// Invoke the callback with all the unmarshaled arguments
+	err = w.Handler.DeleteSnapshotsSnapshotId(ctx, snapshotId)
+	return err
+}
+
+// GetSnapshotsSnapshotId converts echo context to params.
+func (w *ServerInterfaceWrapper) GetSnapshotsSnapshotId(ctx echo.Context) error {
+	var err error
+	// ------------- Path parameter "snapshotId" -------------
+	var snapshotId string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "snapshotId", ctx.Param("snapshotId"), &snapshotId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter snapshotId: %s", err))
+	}
+
+	// Invoke the callback with all the unmarshaled arguments
+	err = w.Handler.GetSnapshotsSnapshotId(ctx, snapshotId)
+	return err
+}
+
+// PutSnapshotsSnapshotId converts echo context to params.
+func (w *ServerInterfaceWrapper) PutSnapshotsSnapshotId(ctx echo.Context) error {
+	var err error
+	// ------------- Path parameter "snapshotId" -------------
+	var snapshotId string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "snapshotId", ctx.Param("snapshotId"), &snapshotId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter snapshotId: %s", err))
+	}
+
+	// Invoke the callback with all the unmarshaled arguments
+	err = w.Handler.PutSnapshotsSnapshotId(ctx, snapshotId)
+	return err
+}
+
+// GetSvms converts echo context to params.
+func (w *ServerInterfaceWrapper) GetSvms(ctx echo.Context) error {
+	var err error
+
+	// Invoke the callback with all the unmarshaled arguments
+	err = w.Handler.GetSvms(ctx)
+	return err
+}
+
+// PostSvms converts echo context to params.
+func (w *ServerInterfaceWrapper) PostSvms(ctx echo.Context) error {
+	var err error
+
+	// Invoke the callback with all the unmarshaled arguments
+	err = w.Handler.PostSvms(ctx)
+	return err
+}
+
+// DeleteSvmsSvmId converts echo context to params.
+func (w *ServerInterfaceWrapper) DeleteSvmsSvmId(ctx echo.Context) error {
+	var err error
+	// ------------- Path parameter "svmId" -------------
+	var svmId string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "svmId", ctx.Param("svmId"), &svmId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter svmId: %s", err))
+	}
+
+	// Invoke the callback with all the unmarshaled arguments
+	err = w.Handler.DeleteSvmsSvmId(ctx, svmId)
+	return err
+}
+
+// GetSvmsSvmId converts echo context to params.
+func (w *ServerInterfaceWrapper) GetSvmsSvmId(ctx echo.Context) error {
+	var err error
+	// ------------- Path parameter "svmId" -------------
+	var svmId string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "svmId", ctx.Param("svmId"), &svmId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter svmId: %s", err))
+	}
+
+	// Invoke the callback with all the unmarshaled arguments
+	err = w.Handler.GetSvmsSvmId(ctx, svmId)
+	return err
+}
+
+// PutSvmsSvmId converts echo context to params.
+func (w *ServerInterfaceWrapper) PutSvmsSvmId(ctx echo.Context) error {
+	var err error
+	// ------------- Path parameter "svmId" -------------
+	var svmId string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "svmId", ctx.Param("svmId"), &svmId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter svmId: %s", err))
+	}
+
+	// Invoke the callback with all the unmarshaled arguments
+	err = w.Handler.PutSvmsSvmId(ctx, svmId)
+	return err
+}
+
+// GetVolumes converts echo context to params.
+func (w *ServerInterfaceWrapper) GetVolumes(ctx echo.Context) error {
+	var err error
+
+	// Invoke the callback with all the unmarshaled arguments
+	err = w.Handler.GetVolumes(ctx)
+	return err
+}
+
+// PostVolumes converts echo context to params.
+func (w *ServerInterfaceWrapper) PostVolumes(ctx echo.Context) error {
+	var err error
+
+	// Invoke the callback with all the unmarshaled arguments
+	err = w.Handler.PostVolumes(ctx)
+	return err
+}
+
+// DeleteVolumesVolumeId converts echo context to params.
+func (w *ServerInterfaceWrapper) DeleteVolumesVolumeId(ctx echo.Context) error {
+	var err error
+	// ------------- Path parameter "volumeId" -------------
+	var volumeId string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "volumeId", ctx.Param("volumeId"), &volumeId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter volumeId: %s", err))
+	}
+
+	// Invoke the callback with all the unmarshaled arguments
+	err = w.Handler.DeleteVolumesVolumeId(ctx, volumeId)
+	return err
+}
+
+// GetVolumesVolumeId converts echo context to params.
+func (w *ServerInterfaceWrapper) GetVolumesVolumeId(ctx echo.Context) error {
+	var err error
+	// ------------- Path parameter "volumeId" -------------
+	var volumeId string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "volumeId", ctx.Param("volumeId"), &volumeId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter volumeId: %s", err))
+	}
+
+	// Invoke the callback with all the unmarshaled arguments
+	err = w.Handler.GetVolumesVolumeId(ctx, volumeId)
+	return err
+}
+
+// PutVolumesVolumeId converts echo context to params.
+func (w *ServerInterfaceWrapper) PutVolumesVolumeId(ctx echo.Context) error {
+	var err error
+	// ------------- Path parameter "volumeId" -------------
+	var volumeId string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "volumeId", ctx.Param("volumeId"), &volumeId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter volumeId: %s", err))
+	}
+
+	// Invoke the callback with all the unmarshaled arguments
+	err = w.Handler.PutVolumesVolumeId(ctx, volumeId)
 	return err
 }
 
@@ -56,6 +425,25 @@ func RegisterHandlersWithBaseURL(router EchoRouter, si ServerInterface, baseURL 
 		Handler: si,
 	}
 
-	router.GET(baseURL+"/v1/pools", wrapper.GetV1Pools)
+	router.GET(baseURL+"/pools", wrapper.GetPools)
+	router.POST(baseURL+"/pools", wrapper.PostPools)
+	router.DELETE(baseURL+"/pools/:poolId", wrapper.DeletePoolsPoolId)
+	router.GET(baseURL+"/pools/:poolId", wrapper.GetPoolsPoolId)
+	router.PUT(baseURL+"/pools/:poolId", wrapper.PutPoolsPoolId)
+	router.GET(baseURL+"/snapshots", wrapper.GetSnapshots)
+	router.POST(baseURL+"/snapshots", wrapper.PostSnapshots)
+	router.DELETE(baseURL+"/snapshots/:snapshotId", wrapper.DeleteSnapshotsSnapshotId)
+	router.GET(baseURL+"/snapshots/:snapshotId", wrapper.GetSnapshotsSnapshotId)
+	router.PUT(baseURL+"/snapshots/:snapshotId", wrapper.PutSnapshotsSnapshotId)
+	router.GET(baseURL+"/svms", wrapper.GetSvms)
+	router.POST(baseURL+"/svms", wrapper.PostSvms)
+	router.DELETE(baseURL+"/svms/:svmId", wrapper.DeleteSvmsSvmId)
+	router.GET(baseURL+"/svms/:svmId", wrapper.GetSvmsSvmId)
+	router.PUT(baseURL+"/svms/:svmId", wrapper.PutSvmsSvmId)
+	router.GET(baseURL+"/volumes", wrapper.GetVolumes)
+	router.POST(baseURL+"/volumes", wrapper.PostVolumes)
+	router.DELETE(baseURL+"/volumes/:volumeId", wrapper.DeleteVolumesVolumeId)
+	router.GET(baseURL+"/volumes/:volumeId", wrapper.GetVolumesVolumeId)
+	router.PUT(baseURL+"/volumes/:volumeId", wrapper.PutVolumesVolumeId)
 
 }
