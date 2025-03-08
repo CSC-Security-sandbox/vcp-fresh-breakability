@@ -1,12 +1,16 @@
 package main
 
 import (
-	"github.com/labstack/gommon/log"
+	"log"
+
 	"go.temporal.io/server/temporal"
 )
 
 func main() {
-	s, err := temporal.NewServer()
+	s, err := temporal.NewServer(
+		temporal.ForServices(temporal.DefaultServices),
+		temporal.InterruptOn(temporal.InterruptCh()),
+	)
 	if err != nil {
 		log.Fatal(err)
 	}

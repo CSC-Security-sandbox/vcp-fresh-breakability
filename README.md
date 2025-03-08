@@ -1,19 +1,15 @@
-### Example: µSvcs with Skaffold
+### VSA Control Plane
 
-[![Open in Cloud Shell](https://gstatic.com/cloudssh/images/open-btn.svg)](https://ssh.cloud.google.com/cloudshell/editor?cloudshell_git_repo=https://github.com/GoogleContainerTools/skaffold&cloudshell_open_in_editor=README.md&cloudshell_workspace=examples/microservices)
+This repo hosts all the code for the VSA Control Plane. The VSA Control Plane is a set of microservices that are responsible for managing the lifecycle of a VSA.
 
-In this example:
+### Getting Started
+This project uses Skaffold to manage the development and deployment of the VSA Control Plane. To get started, you will need to install Skaffold and Docker.
 
-* Deploy multiple applications with skaffold
-* In development, only rebuild and redeploy the artifacts that have changed
-* Deploy multiple applications outside the working directory
-* Define dependencies between artifacts
+#### Install Skaffold
+To install Skaffold, follow the instructions in the [Skaffold documentation](https://skaffold.dev/docs/install/).
 
-In the real world, Kubernetes deployments will consist of multiple applications that work together.
-In this example, we'll walk through using skaffold to develop and deploy two applications, an exposed "web" frontend which calls an unexposed "app" backend.
-
-**WARNING: If you're running this on a cloud cluster, this example will create a service and expose a webserver.
-It's highly suggested that you only run this example on a local, private cluster like minikube or Kubernetes in Docker for Desktop.**
+#### Install Docker
+To install Docker, follow the instructions in the [Docker documentation](https://docs.docker.com/get-docker/).
 
 #### Running the example on minikube
 
@@ -23,73 +19,4 @@ From this directory, run
 skaffold dev
 ```
 
-Now, in a different terminal, hit the `leeroy-web` endpoint
-
-```bash
-$ curl $(minikube service google-proxy --url)
-leeroooooy app!
-```
-
-Now, let's change the message in `leeroy-app` without changing `leeroy-web`.
-Add a few exclamations points because this is exhilarating stuff.
-
-In `leeroy-app/app.go`, change the message here
-
-```golang
-func handler(w http.ResponseWriter, r *http.Request) {
-	fmt.Fprintf(w, "leeroooooy app!!!\n")
-}
-```
-
-Once you see the log message
-
-```
-[leeroy-app-5b4dfdcbc6-6vf6r leeroy-app] 2018/03/30 06:28:47 leeroy app server ready
-```
-
-Your service will be ready to hit again with
-
-```bash
-$ curl $(minikube service google-proxy --url)
-leeroooooy app!!!
-```
-
-#### Configuration walkthrough
-
-Let's walk through the first part of the skaffold.yaml
-
-```yaml
-artifacts:
-  - image: google-proxy
-    context: google-proxy
-    requires:
-     - image: base
-       alias: BASE
-  - image: core-api
-    context: core-api
-    requires:
-      - image: base
-        alias: BASE
-  - image: base
-    context: base
-```
-
-We're deploying a `leeroy-web` image, which we build in the context of its subdirectory and a `leeroy-app` image built similarly. Both of these artifacts depend on the `base` artifact which their `Dockerfile`s can reference as a build argument keyed on the alias `BASE`.
-
-```dockerfile
-ARG BASE
-...
-FROM $BASE
-COPY --from=builder /app .
-```
-`leeroy-web` will listen for requests, and then make a simple HTTP call to `leeroy-app` using Kubernetes service discovery and return that result.
-
-In the deploy stanza, we use the glob matching pattern to deploy all YAML and JSON files in the respective Kubernetes manifest directories.
-
-```yaml
-manifests:
-  rawYaml:
-  - ./google-proxy/kubernetes/*
-  - ./core-api/kubernetes/*
-```
-
+#### Services

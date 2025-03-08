@@ -31,6 +31,11 @@ spec:
       containers:
       - name: core-api
         image: core-api
+        env:
+          - name: FIRESTORE_EMULATOR_HOST
+            value: firestore_emulator:8200
+          - name: FIRESTORE_PROJECT_ID
+            value: dummy-project-id
         ports:
         - containerPort: 50051
           name: http

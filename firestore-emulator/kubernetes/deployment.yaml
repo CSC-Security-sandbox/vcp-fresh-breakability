@@ -1,0 +1,41 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: firestore-emulator
+  labels:
+    app: firestore-emulator
+spec:
+  clusterIP: None
+  ports:
+    - port: 8200
+      name: firestore-emulator
+  selector:
+    app: firestore-emulator
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: firestore-emulator
+  labels:
+    app: firestore-emulator
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: firestore-emulator
+  template:
+    metadata:
+      labels:
+        app: firestore-emulator
+    spec:
+      containers:
+      - name: sridhar-yalla
+        image: mtlynch/firestore-emulator
+        env:
+          - name: PORT
+            value: "8200"
+          - name: FIRESTORE_PROJECT_ID
+            value: sridhar-yalla
+        ports:
+        - containerPort: 8200
+          name: http
