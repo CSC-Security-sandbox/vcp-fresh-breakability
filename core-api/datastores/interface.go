@@ -2,6 +2,7 @@ package datastores
 
 import "github.com/vcp-vsa-control-Plane/vsa-control-plane/core-api/api"
 
+// Datastore is an interface that abstracts the data storage (Database) layer.
 type Datastore interface {
 	GetPool(uuid string) (*api.Pool, error)
 	CreatePool(pool api.Pool) error
