@@ -1,23 +1,39 @@
 package main
 
 import (
-	"log"
-
-	"github.com/labstack/echo/v4"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core-api/api"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core-api/datastores"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core-api/server"
+	"github.com/go-faster/errors"
+	api "github.com/vcp-vsa-control-Plane/vsa-control-plane/core-api/api/endpoints"
+	oasgenserver "github.com/vcp-vsa-control-Plane/vsa-control-plane/core-api/api/oasserver"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core-api/util/httpmiddleware"
+	"net/http"
+	"time"
 )
 
 // github.com/vcp-vsa-control-Plane/vsa-control-plane/core-api
 func main() {
-	// create a type that satisfies the `api.ServerInterface`, which contains an implementation of every operation from the generated code
-	apiServer := server.New(datastores.NewFireStoreDatastore("sridhar-yalla", "vsa-control-plane"))
+	//// create a type that satisfies the `api.ServerInterface`, which contains an implementation of every operation from the generated code
+	//apiServer := server.New(datastores.NewFireStoreDatastore("sridhar-yalla", "vsa-control-plane"))
+	//
+	//e := echo.New()
+	//
+	//api.RegisterHandlers(e, apiServer)
+	//
+	//// And we serve HTTP until the world ends.
+	//log.Fatal(e.Start("0.0.0.0:50051"))
 
-	e := echo.New()
+	oasserver, err := oasgenserver.NewServer(api.Handler{})
+	if err != nil {
+		panic(err)
+	}
 
-	api.RegisterHandlers(e, apiServer)
+	routeFinder := httpmiddleware.MakeRouteFinder(oasserver)
+	httpServer := http.Server{
+		Addr:              "localhost:8080",
+		ReadHeaderTimeout: time.Second,
+		Handler:           httpmiddleware.Wrap(oasserver, httpmiddleware.LogRequests(routeFinder)),
+	}
 
-	// And we serve HTTP until the world ends.
-	log.Fatal(e.Start("0.0.0.0:50051"))
+	if err := httpServer.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
+		return
+	}
 }
