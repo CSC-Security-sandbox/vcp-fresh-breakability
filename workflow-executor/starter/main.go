@@ -5,9 +5,8 @@ import (
 	"log"
 
 	"github.com/pborman/uuid"
+	choice_multi "github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow-executor"
 	"go.temporal.io/sdk/client"
-
-	choice_multi "github.com/temporalio/samples-go/choice-multi"
 )
 
 func main() {
@@ -25,7 +24,7 @@ func main() {
 		TaskQueue: "choice-multi",
 	}
 
-	we, err := c.ExecuteWorkflow(context.Background(), workflowOptions, choice_multi.MultiChoiceWorkflow)
+	we, err := c.ExecuteWorkflow(context.Background(), workflowOptions, choice_multi.MultiChoiceWorkflow1)
 	if err != nil {
 		log.Fatalln("Unable to execute workflow", err)
 	}

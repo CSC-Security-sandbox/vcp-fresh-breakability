@@ -33,6 +33,7 @@ manifests:
     - core-api/kubernetes/*
     - firestore-emulator/kubernetes/*
     - workflow-server/kubernetes/*
+    - spanner-emulator/kubernetes/*
 portForward:
   - resourceType: deployment
     resourceName: google-proxy

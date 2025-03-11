@@ -13,31 +13,34 @@ import (
 
 // Pool defines model for Pool.
 type Pool struct {
-	Id   string `json:"id"`
+	Id   string `gorm:"primaryKey" json:"id"`
 	Name string `json:"name"`
-	Svms *[]SVM `firestore:"svms,omitempty" json:"svms,omitempty"`
-}
-
-// SVM defines model for SVM.
-type SVM struct {
-	Id      *string   `json:"id,omitempty"`
-	Name    *string   `json:"name,omitempty"`
-	Volumes *[]Volume `json:"volumes,omitempty"`
+	Svms *[]Svm `firestore:"svms,omitempty" gorm:"ForeignKey:PoolId" json:"svms,omitempty"`
 }
 
 // Snapshot defines model for Snapshot.
 type Snapshot struct {
-	Id   *string `json:"id,omitempty"`
-	Name *string `json:"name,omitempty"`
-	Time *string `json:"time,omitempty"`
+	Id       *string `gorm:"primaryKey" json:"id,omitempty"`
+	Name     *string `json:"name,omitempty"`
+	Time     *string `json:"time,omitempty"`
+	VolumeId *string `json:"volumeId,omitempty"`
+}
+
+// Svm defines model for Svm.
+type Svm struct {
+	Id      *string   `gorm:"primaryKey" json:"id,omitempty"`
+	Name    *string   `json:"name,omitempty"`
+	PoolId  *string   `json:"poolId,omitempty"`
+	Volumes *[]Volume `firestore:"svms,omitempty" gorm:"ForeignKey:SvmId" json:"volumes,omitempty"`
 }
 
 // Volume defines model for Volume.
 type Volume struct {
-	Id        *string     `json:"id,omitempty"`
+	Id        *string     `gorm:"primaryKey" json:"id,omitempty"`
 	Name      *string     `json:"name,omitempty"`
 	Size      *int        `json:"size,omitempty"`
-	Snapshots *[]Snapshot `json:"snapshots,omitempty"`
+	SvmId     *string     `json:"svmId,omitempty"`
+	Snapshots *[]Snapshot `firestore:"svms,omitempty" gorm:"ForeignKey:VolumeId" json:"snapshots,omitempty"`
 }
 
 // PostPoolsJSONRequestBody defines body for PostPools for application/json ContentType.
@@ -53,10 +56,10 @@ type PostSnapshotsJSONRequestBody = Snapshot
 type PutSnapshotsSnapshotIdJSONRequestBody = Snapshot
 
 // PostSvmsJSONRequestBody defines body for PostSvms for application/json ContentType.
-type PostSvmsJSONRequestBody = SVM
+type PostSvmsJSONRequestBody = Svm
 
 // PutSvmsSvmIdJSONRequestBody defines body for PutSvmsSvmId for application/json ContentType.
-type PutSvmsSvmIdJSONRequestBody = SVM
+type PutSvmsSvmIdJSONRequestBody = Svm
 
 // PostVolumesJSONRequestBody defines body for PostVolumes for application/json ContentType.
 type PostVolumesJSONRequestBody = Volume
@@ -96,19 +99,19 @@ type ServerInterface interface {
 	// Update a snapshot by ID
 	// (PUT /snapshots/{snapshotId})
 	PutSnapshotsSnapshotId(ctx echo.Context, snapshotId string) error
-	// List all SVMs
+	// List all Svms
 	// (GET /svms)
 	GetSvms(ctx echo.Context) error
-	// Create a new SVM
+	// Create a new Svm
 	// (POST /svms)
 	PostSvms(ctx echo.Context) error
-	// Delete an SVM by ID
+	// Delete an Svm by ID
 	// (DELETE /svms/{svmId})
 	DeleteSvmsSvmId(ctx echo.Context, svmId string) error
-	// Get an SVM by ID
+	// Get an Svm by ID
 	// (GET /svms/{svmId})
 	GetSvmsSvmId(ctx echo.Context, svmId string) error
-	// Update an SVM by ID
+	// Update an Svm by ID
 	// (PUT /svms/{svmId})
 	PutSvmsSvmId(ctx echo.Context, svmId string) error
 	// List all volumes

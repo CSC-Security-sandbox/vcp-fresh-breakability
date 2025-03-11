@@ -3,10 +3,9 @@ package main
 import (
 	"log"
 
+	choice_multi "github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow-executor"
 	"go.temporal.io/sdk/client"
 	"go.temporal.io/sdk/worker"
-
-	choice_multi "github.com/temporalio/samples-go/choice-multi"
 )
 
 func main() {

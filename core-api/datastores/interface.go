@@ -9,9 +9,9 @@ type Datastore interface {
 	UpdatePool(pool *api.Pool) error
 	DeletePool(uuid string) error
 
-	GetSVM(uuid string) (*api.SVM, error)
-	CreateSVM(svm *api.SVM) error
-	UpdateSVM(svm *api.SVM) error
+	GetSVM(uuid string) (*api.Svm, error)
+	CreateSVM(svm *api.Svm) error
+	UpdateSVM(svm *api.Svm) error
 	DeleteSVM(uuid string) error
 
 	GetVolume(uuid string) (*api.Volume, error)

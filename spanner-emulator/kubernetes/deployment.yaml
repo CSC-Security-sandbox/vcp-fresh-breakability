@@ -1,0 +1,45 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: spanner-emulator
+  labels:
+    app: spanner-emulator
+spec:
+  clusterIP: None
+  ports:
+    - port: 9010
+      name: spanner-grpc
+    - port: 9020
+      name: spanner-rest
+  selector:
+    app: spanner-emulator
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: spanner-emulator
+  labels:
+    app: spanner-emulator
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: spanner-emulator
+  template:
+    metadata:
+      labels:
+        app: spanner-emulator
+    spec:
+      containers:
+      - name: sridhar-yalla
+        image: gcr.io/cloud-spanner-emulator/emulator
+        env:
+          - name: PORT
+            value: "8200"
+          - name: FIRESTORE_PROJECT_ID
+            value: sridhar-yalla
+        ports:
+        - containerPort: 9010
+          name: spanner-grpc
+        - containerPort: 9020
+          name: spanner-rest

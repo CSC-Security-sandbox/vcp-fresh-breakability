@@ -32,17 +32,17 @@ func NewFireStoreDatastore(projectID, databaseID string) *FireStoreDatastore {
 	}
 }
 
-func (d *FireStoreDatastore) GetSVM(uuid string) (*api.SVM, error) {
+func (d *FireStoreDatastore) GetSVM(uuid string) (*api.Svm, error) {
 	//TODO implement me
 	panic("implement me")
 }
 
-func (d *FireStoreDatastore) CreateSVM(svm *api.SVM) error {
+func (d *FireStoreDatastore) CreateSVM(svm *api.Svm) error {
 	//TODO implement me
 	panic("implement me")
 }
 
-func (d *FireStoreDatastore) UpdateSVM(svm *api.SVM) error {
+func (d *FireStoreDatastore) UpdateSVM(svm *api.Svm) error {
 	//TODO implement me
 	panic("implement me")
 }
