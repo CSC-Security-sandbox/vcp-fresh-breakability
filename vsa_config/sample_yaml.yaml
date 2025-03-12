@@ -11,7 +11,7 @@ resources:
         nonSharedHaDeployment:
           mediator:
             mediatorImage:
-              name: devn-250110-0200-mediator-debian-12
+              name: devn-mediator02072025
             virtualNetworkInterface0:
               subnet: vsa-vpc5
           virtualNetworkInterface3:
@@ -30,7 +30,7 @@ resources:
       platformSerialNumberNode1: '90920140000000000001'
       region: us-east1
       sourceImage:
-        name: dev2n-011520250314
+        name: rajneesc-20250214050705
       virtualNetworkInterface0:
         network: vsa-vpc8
         subnet: vsa-vpc8

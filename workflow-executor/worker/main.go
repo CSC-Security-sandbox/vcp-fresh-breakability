@@ -3,7 +3,7 @@ package main
 import (
 	"log"
 
-	choice_multi "github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow-executor"
+	executor "github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow-executor"
 	"go.temporal.io/sdk/client"
 	"go.temporal.io/sdk/worker"
 )
@@ -18,16 +18,10 @@ func main() {
 	}
 	defer c.Close()
 
-	w := worker.New(c, "choice-multi", worker.Options{})
+	w := worker.New(c, "JobsQueue", worker.Options{})
 
-	w.RegisterWorkflow(choice_multi.MultiChoiceWorkflow)
-
-	orderChoices := []string{
-		choice_multi.OrderChoiceApple,
-		choice_multi.OrderChoiceBanana,
-		choice_multi.OrderChoiceCherry,
-		choice_multi.OrderChoiceOrange}
-	w.RegisterActivity(&choice_multi.OrderActivities{OrderChoices: orderChoices})
+	w.RegisterWorkflow(executor.JobWorkflow)
+	w.RegisterActivity(&executor.Jobs{})
 
 	err = w.Run(worker.InterruptCh())
 	if err != nil {

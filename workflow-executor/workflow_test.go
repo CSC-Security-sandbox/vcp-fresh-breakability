@@ -1,4 +1,4 @@
-package choice_multi
+package executor
 
 import (
 	"testing"
@@ -19,13 +19,9 @@ func TestUnitTestSuite(t *testing.T) {
 func (s *UnitTestSuite) Test_MultiChoiceWorkflow() {
 	env := s.NewTestWorkflowEnvironment()
 
-	orderChoices := []string{
-		OrderChoiceApple,
-		OrderChoiceBanana,
-		OrderChoiceOrange}
-	env.RegisterActivity(&OrderActivities{OrderChoices: orderChoices})
+	env.RegisterActivity(&Jobs{})
 
-	env.ExecuteWorkflow(MultiChoiceWorkflow)
+	env.ExecuteWorkflow(JobWorkflow)
 
 	s.True(env.IsWorkflowCompleted())
 	s.NoError(env.GetWorkflowError())

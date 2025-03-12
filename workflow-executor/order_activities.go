@@ -1,29 +1,17 @@
-package choice_multi
+package executor
 
 import (
 	"context"
-	"fmt"
 	"log"
-	"math/rand"
 	"os"
 
-	"go.temporal.io/sdk/activity"
 	"google.golang.org/api/deploymentmanager/v2"
 )
 
-type OrderActivities struct {
-	OrderChoices []string
+type Jobs struct {
 }
 
-func (a *OrderActivities) GetOrder() (string, error) {
-	idx := rand.Intn(len(a.OrderChoices))
-	order := a.OrderChoices[idx]
-	fmt.Printf("Order is for %s\n", order)
-	return order, nil
-}
-
-func (a *OrderActivities) OrderApple(choice string) error {
-	fmt.Printf("Order choice-multi1111: %v\n", choice)
+func (j *Jobs) CreateVsaCluster(name string) error {
 	ctx := context.Background()
 	deploymentmanagerService, err := deploymentmanager.NewService(ctx)
 	if err != nil {
@@ -59,36 +47,4 @@ func (a *OrderActivities) OrderApple(choice string) error {
 	}
 	log.Println(res)
 	return nil
-}
-
-func (a *OrderActivities) OrderBanana(choice string) error {
-	fmt.Printf("Order choice-multi: %v\n", choice)
-	return nil
-}
-
-func (a *OrderActivities) OrderCherry(choice string) error {
-	fmt.Printf("Order choice-multi: %v\n", choice)
-	return nil
-}
-
-func (a *OrderActivities) OrderOrange(choice string) error {
-	fmt.Printf("Order choice-multi: %v\n", choice)
-	return nil
-}
-
-func (a *OrderActivities) GetBasketOrder(ctx context.Context) ([]string, error) {
-	var basket []string
-	for _, item := range a.OrderChoices {
-		// some random decision
-		if rand.Float32() <= 0.65 {
-			basket = append(basket, item)
-		}
-	}
-
-	if len(basket) == 0 {
-		basket = append(basket, a.OrderChoices[rand.Intn(len(a.OrderChoices))])
-	}
-
-	activity.GetLogger(ctx).Info("Get basket order.", "Orders", basket)
-	return basket, nil
 }
