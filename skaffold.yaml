@@ -43,6 +43,14 @@ portForward:
     resourceName: core-api
     port: http
     localPort: 9001
+  - resourceType: deployment
+    resourceName: spanner-emulator
+    port: 9020
+    localPort: 9002
+  - resourceType: deployment
+    resourceName: workflow-server
+    port: 50051
+    localPort: 9003
 profiles:
   - name: gcb
     build:
