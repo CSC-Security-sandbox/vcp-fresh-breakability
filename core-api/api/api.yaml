@@ -1,390 +1,1488 @@
 openapi: 3.0.4
 info:
-  title: CRUD API
-  description: API for managing Pools, Svms, Volumes, and Snapshots.
-  version: 1.0.0
-
+  title: Google Cloud NetApp Files API
+  description: '## Google Cloud NetApp Files This is the documentation and examples
+    for the "Google Cloud NetApp Files" or GNF for short'
+  version: "${major_version}.${minor_version}.${patch_version}"
+  x-logo:
+    url: nfsaas-logo.png
+    backgroundColor: '#FFFFFF'
 servers:
-  - url: https://api.example.com
-    description: Main (production) server
-
+  - url: http://netapp.googleapis.com/
+  - url: https://netapp.googleapis.com/
+tags:
+  - name: pools
+    description: Pool operations
 paths:
-  /pools:
+  /v1beta/projects/{projectNumber}/locations/{locationId}/pools:
     get:
+      tags:
+        - pools
       summary: List all pools
+      description: Returns descriptions of all pools owned by the caller.
+      operationId: v1beta_listPools
+      parameters:
+        - $ref: '#/components/parameters/projectNumberPathParameter'
+        - $ref: '#/components/parameters/locationIdPathParameter'
+        - $ref: '#/components/parameters/xCorrelationIdHeader'
+        - $ref: '#/components/parameters/includeDeletedQueryParameter'
       responses:
         "200":
-          description: A list of pools
+          description: OK
           content:
             application/json:
               schema:
-                type: array
-                items:
-                  $ref: '#/components/schemas/Pool'
+                allOf:
+                  - type: object
+                    properties:
+                      pools:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/Pool_v1beta'
+              example:
+                pools:
+                  - poolId: 9760acf5-4638-11e7-9bdb-020073ca7773
+                    activeDirectoryConfigId: 8064bdf5-4638-11e7-9bdb-020073ca7773
+                    kmsConfigId: 9235cgf5-4638-11e7-9bdb-020073ca7773
+                    network: projects/1234456789/global/networks/network-to-netapp2
+                    resourceId: my-pool
+                    serviceLevel: PREMIUM
+                    sizeInBytes: 2199023255552
+                    storagePoolState: READY
+                    createdAt: 2016-11-28T19:30:23.123Z
+                    updatedAt: 2016-11-28T19:30:23.123Z
+                    description: My pool description
+                    ldapEnabled: false
+                    labels:
+                      someKey: SomeValue
+                      someKey2: SomeValue2
+                    allowAutoTiering: true
+                  - poolId: 5fca0679-4638-11e7-9bdb-020073ca7773
+                    activeDirectoryConfigId: 8543bdf5-4638-11e7-9bdb-020073ca7773
+                    kmsConfigId: 9462cgf5-4638-11e7-9bdb-020073ca7773
+                    network: projects/1079058383248/global/networks/network-to-netapp2
+                    resourceId: my-other-pool
+                    serviceLevel: EXTREME
+                    sizeInBytes: 2199023255552
+                    storagePoolState: READY
+                    createdAt: 2016-11-28T19:30:23.123Z
+                    updatedAt: 2017-01-28T11:03:44.733Z
+                    description: My pool description
+                    ldapEnabled: false
+                    labels:
+                      someKey: SomeValue
+                      someKey2: SomeValue2
+                    allowAutoTiering: true
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                code: 400
+                message: Bad Request or Input
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                code: 401
+                message: Unauthorized access attempt
+        "403":
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                code: 403
+                message: Access to this resource forbidden
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                code: 404
+                message: The resource was not found
+        "429":
+          description: Too many requests
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                code: 429
+                message: Rate limit exceeded for this endpoint - try again later
+        "500":
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                code: 500
+                message: Internal server error
+        default:
+          description: Unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
     post:
+      tags:
+        - pools
       summary: Create a new pool
+      description: Create a new pool.
+      operationId: v1beta_createPool
+      parameters:
+        - $ref: '#/components/parameters/projectNumberPathParameter'
+        - $ref: '#/components/parameters/locationIdPathParameter'
+        - $ref: '#/components/parameters/xCorrelationIdHeader'
       requestBody:
-        required: true
+        description: The required parameters to create a new pool.
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/Pool'
-      responses:
-        "201":
-          description: Pool created
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Pool'
-
-  /pools/{poolId}:
-    get:
-      summary: Get a pool by ID
-      parameters:
-        - name: poolId
-          in: path
-          required: true
-          schema:
-            type: string
-      responses:
-        "200":
-          description: A single pool
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Pool'
-    put:
-      summary: Update a pool by ID
-      parameters:
-        - name: poolId
-          in: path
-          required: true
-          schema:
-            type: string
-      requestBody:
+              $ref: '#/components/schemas/Pool_v1beta'
         required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/Pool'
       responses:
-        "200":
-          description: Pool updated
+        "202":
+          description: Creating pool
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Pool'
-    delete:
-      summary: Delete a pool by ID
-      parameters:
-        - name: poolId
-          in: path
-          required: true
-          schema:
-            type: string
-      responses:
-        "204":
-          description: Pool deleted
-
-  /svms:
-    get:
-      summary: List all Svms
-      responses:
-        "200":
-          description: A list of Svms
+                $ref: '#/components/schemas/Operation_v1beta'
+              example:
+                done: true
+                name: /v1beta/projects/123456789/locations/some-location1/operations/ba2c8826-2627-057c-42ba-343ee7ab1ebe
+                response:
+                  activeDirectoryConfigId: 9760acf5-4638-11e7-9bdb-020073ca7773
+                  activeDirectoryResourceId: projects/123456789/locations/some-location1/activeDirectories/my-active-directory
+                  allocatedBytes: 0
+                  allowAutoTiering: false
+                  createdAt: 2024-01-24T13:54:14.374Z
+                  description: My Pool description
+                  encryptionType: SERVICE_MANAGED
+                  globalAccessAllowed: true
+                  kmsConfigId: 6aae31f1-f685-4fda-b875-db0ea99235fc
+                  kmsConfigResourceId: projects/123456789/locations/some-location1/kmsConfigs/my-resource
+                  ldapEnabled: false
+                  network: projects/123456789/global/networks/network-to-netapp2
+                  numberOfVolumes: 0
+                  poolId: bfa46013-1a1e-587b-ef9a-619bae6ba25d
+                  resourceId: some-pool-name
+                  serviceLevel: PREMIUM
+                  sizeInBytes: 2199023255552
+                  storageClass: HARDWARE
+                  storagePoolState: READY
+                  storagePoolStateDetails: Available for use
+                  updatedAt: 2024-01-24T13:54:14.374Z
+                  labels:
+                    someKey: SomeValue
+                    someKey2: SomeValue2
+                  zone: us-east1-b
+                  secondaryZone: us-east1-c
+        "400":
+          description: Bad request
           content:
             application/json:
               schema:
-                type: array
-                items:
-                  $ref: '#/components/schemas/Svm'
+                $ref: '#/components/schemas/Error'
+              example:
+                code: 400
+                message: Bad Request or Input
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                code: 401
+                message: Unauthorized access attempt
+        "403":
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                code: 403
+                message: Access to this resource forbidden
+        "409":
+          description: Conflict
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                code: 409
+                message: Conflict. Resource already exists
+        "422":
+          description: Unprocessable entity
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                code: 422
+                message: protocols in body is required
+        "429":
+          description: Too many requests
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                code: 429
+                message: Rate limit exceeded for this endpoint - try again later
+        "500":
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                code: 500
+                message: Internal server error
+        default:
+          description: Unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      x-codegen-request-body-name: body
+  /v1beta/projects/{projectNumber}/locations/{locationId}/getMultiplePools:
     post:
-      summary: Create a new Svm
+      tags:
+        - pools
+      summary: List specified pools
+      description: Returns descriptions of pools that is listed in request body.
+      operationId: v1beta_getMultiplePools
+      parameters:
+        - $ref: '#/components/parameters/projectNumberPathParameter'
+        - $ref: '#/components/parameters/locationIdPathParameter'
+        - $ref: '#/components/parameters/xCorrelationIdHeader'
       requestBody:
-        required: true
+        description: A list of pool UUIDs to return.
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/Svm'
-      responses:
-        "201":
-          description: Svm created
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Svm'
-
-  /svms/{svmId}:
-    get:
-      summary: Get an Svm by ID
-      parameters:
-        - name: svmId
-          in: path
-          required: true
-          schema:
-            type: string
+              $ref: '#/components/schemas/PoolIDList_v1beta'
+        required: true
       responses:
         "200":
-          description: A single Svm
+          description: OK
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Svm'
+                allOf:
+                  - type: object
+                    properties:
+                      pools:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/Pool_v1beta'
+              example:
+                pools:
+                  - poolId: 9760acf5-4638-11e7-9bdb-020073ca7773
+                    activeDirectoryConfigId: 9879acf5-4638-11e7-9bdb-020073ca7773
+                    kmsConfigId: 5378acf5-4638-11e7-9bdb-020073ca7773
+                    network: projects/1079058383248/global/networks/network-to-netapp2
+                    resourceId: my-pool
+                    serviceLevel: PREMIUM
+                    sizeInBytes: 2199023255552
+                    storagePoolState: READY
+                    createdAt: 2016-11-28T19:30:23.123Z
+                    updatedAt: 2016-11-28T19:30:23.123Z
+                    description: My pool description
+                    ldapEnabled: false
+                    allowAutoTiering: true
+                  - poolId: 5fca0679-4638-11e7-9bdb-020073ca7773
+                    activeDirectoryConfigId: 4892acf5-4638-11e7-9bdb-020073ca7773
+                    kmsConfigId: 9346acf5-4638-11e7-9bdb-020073ca7773
+                    network: projects/1079058383248/global/networks/network-to-netapp2
+                    resourceId: my-other-pool
+                    serviceLevel: EXTREME
+                    sizeInBytes: 2199023255552
+                    storagePoolState: READY
+                    createdAt: 2016-11-28T19:30:23.123Z
+                    updatedAt: 2017-01-28T11:03:44.733Z
+                    description: My pool description
+                    ldapEnabled: false
+                    allowAutoTiering: true
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                code: 400
+                message: Bad Request or Input
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                code: 401
+                message: Unauthorized access attempt
+        "403":
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                code: 403
+                message: Access to this resource forbidden
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                code: 404
+                message: The resource was not found
+        "422":
+          description: Unprocessable entity
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                code: 422
+                message: protocols in body is required
+        "429":
+          description: Too many requests
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                code: 429
+                message: Rate limit exceeded for this endpoint - try again later
+        "500":
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                code: 500
+                message: Internal server error
+        default:
+          description: Unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      x-codegen-request-body-name: body
+  /v1beta/projects/{projectNumber}/locations/{locationId}/pools/{poolId}:
+    get:
+      tags:
+        - pools
+      summary: Describe a pool
+      description: Returns the description of the specified pool by pool ID.
+      operationId: v1beta_describePool
+      parameters:
+        - $ref: '#/components/parameters/poolIdPathParameter'
+        - $ref: '#/components/parameters/projectNumberPathParameter'
+        - $ref: '#/components/parameters/locationIdPathParameter'
+        - $ref: '#/components/parameters/xCorrelationIdHeader'
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Pool_v1beta'
+              example:
+                PoolId: 9760acf5-4638-11e7-9bdb-020073ca7773
+                activeDirectoryConfigId: 9232dgf5-4638-11e7-9bdb-020073ca7773
+                kmsConfigId: 2653acf5-4638-11e7-9bdb-020073ca7773
+                network: projects/1079058383248/global/networks/network-to-netapp2
+                resourceId: my-pool
+                serviceLevel: PREMIUM
+                sizeInBytes: 2199023255552
+                storagePoolState: READY
+                createdAt: 2016-11-28T19:30:23.123Z
+                updatedAt: 2016-11-28T19:30:23.123Z
+                description: My pool description
+                ldapEnabled: false
+                labels:
+                  someKey: SomeValue
+                  someKey2: SomeValue2
+                allowAutoTiering: true
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                code: 400
+                message: Bad Request or Input
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                code: 401
+                message: Unauthorized access attempt
+        "403":
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                code: 403
+                message: Access to this resource forbidden
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                code: 404
+                message: The resource was not found
+        "422":
+          description: Unprocessable entity
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                code: 422
+                message: protocols in body is required
+        "429":
+          description: Too many requests
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                code: 429
+                message: Rate limit exceeded for this endpoint - try again later
+        "500":
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                code: 500
+                message: Internal server error
+        default:
+          description: Unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
     put:
-      summary: Update an Svm by ID
+      tags:
+        - pools
+      summary: Update a pool
+      description: Update the pool
+      operationId: v1beta_updatePool
       parameters:
-        - name: svmId
-          in: path
-          required: true
-          schema:
-            type: string
+        - $ref: '#/components/parameters/poolIdPathParameter'
+        - $ref: '#/components/parameters/projectNumberPathParameter'
+        - $ref: '#/components/parameters/locationIdPathParameter'
+        - $ref: '#/components/parameters/xCorrelationIdHeader'
       requestBody:
-        required: true
+        description: The parameters that can be updated
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/Svm'
+              $ref: '#/components/schemas/PoolUpdate_v1beta'
+        required: true
       responses:
-        "200":
-          description: Svm updated
+        "202":
+          description: Updating pool
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Svm'
-    delete:
-      summary: Delete an Svm by ID
-      parameters:
-        - name: svmId
-          in: path
-          required: true
-          schema:
-            type: string
-      responses:
+                $ref: '#/components/schemas/Operation_v1beta'
+              example:
+                done: true
+                name: /v1beta/projects/123456789/locations/some-location1/operations/ba2c8826-2627-057c-42ba-343ee7ab1ebe
+                response:
+                  activeDirectoryConfigId: 9760acf5-4638-11e7-9bdb-020073ca7773
+                  activeDirectoryResourceId: projects/123456789/locations/some-location1/activeDirectories/active-directory
+                  allocatedBytes: 10995116277760
+                  allowAutoTiering: false
+                  createdAt: 2024-01-24T13:54:14.374Z
+                  description: My Pool description
+                  encryptionType: SERVICE_MANAGED
+                  globalAccessAllowed: true
+                  ldapEnabled: false
+                  network: projects/123456789/global/networks/systemic-qa-vpc
+                  numberOfVolumes: 2
+                  poolId: bfa46013-1a1e-587b-ef9a-619bae6ba25d
+                  resourceId: my-pool
+                  serviceLevel: PREMIUM
+                  sizeInBytes: 12094627905536
+                  storageClass: HARDWARE
+                  storagePoolState: READY
+                  storagePoolStateDetails: Available for use
+                  updatedAt: 2024-01-24T13:54:14.374Z
+                  zone: us-east1-b
+                  labels:
+                    someKey: SomeValue
+                    someKey2: SomeValue2
         "204":
-          description: Svm deleted
-
-  /volumes:
-    get:
-      summary: List all volumes
-      responses:
-        "200":
-          description: A list of volumes
+          description: No content
+          content: {}
+        "400":
+          description: Bad request
           content:
             application/json:
               schema:
-                type: array
-                items:
-                  $ref: '#/components/schemas/Volume'
-    post:
-      summary: Create a new volume
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/Volume'
-      responses:
-        "201":
-          description: Volume created
+                $ref: '#/components/schemas/Error'
+              example:
+                code: 400
+                message: Bad Request or Input
+        "401":
+          description: Unauthorized
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Volume'
-
-  /volumes/{volumeId}:
-    get:
-      summary: Get a volume by ID
-      parameters:
-        - name: volumeId
-          in: path
-          required: true
-          schema:
-            type: string
-      responses:
-        "200":
-          description: A single volume
+                $ref: '#/components/schemas/Error'
+              example:
+                code: 401
+                message: Unauthorized access attempt
+        "403":
+          description: Forbidden
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Volume'
-    put:
-      summary: Update a volume by ID
-      parameters:
-        - name: volumeId
-          in: path
-          required: true
-          schema:
-            type: string
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/Volume'
-      responses:
-        "200":
-          description: Volume updated
+                $ref: '#/components/schemas/Error'
+              example:
+                code: 403
+                message: Access to this resource forbidden
+        "404":
+          description: Not found
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Volume'
+                $ref: '#/components/schemas/Error'
+              example:
+                code: 404
+                message: The resource was not found
+        "409":
+          description: Conflict
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                code: 409
+                message: Conflict. Resource already exists
+        "422":
+          description: Unprocessable entity
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                code: 422
+                message: protocols in body is required
+        "429":
+          description: Too many requests
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                code: 429
+                message: Rate limit exceeded for this endpoint - try again later
+        "500":
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                code: 500
+                message: Internal server error
+        default:
+          description: Unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      x-codegen-request-body-name: body
     delete:
-      summary: Delete a volume by ID
+      tags:
+        - pools
+      summary: Delete a storage pool
+      description: "Warning! This operation will permanently delete the pool. This\
+        \ operation will never return resource not found, since that could be interpreted\
+        \ as resource already deleted, and therefore will return operation done instead."
+      operationId: v1beta_deletePool
       parameters:
-        - name: volumeId
-          in: path
-          required: true
-          schema:
-            type: string
+        - $ref: '#/components/parameters/poolIdPathParameter'
+        - $ref: '#/components/parameters/projectNumberPathParameter'
+        - $ref: '#/components/parameters/locationIdPathParameter'
+        - $ref: '#/components/parameters/xCorrelationIdHeader'
       responses:
+        "202":
+          description: Deleting pool
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Operation_v1beta'
+              example:
+                done: true
+                name: /v1beta/projects/123456789/locations/some-location1/operations/ba2c8826-2627-057c-42ba-343ee7ab1ebe
         "204":
-          description: Volume deleted
-
-  /snapshots:
-    get:
-      summary: List all snapshots
-      responses:
-        "200":
-          description: A list of snapshots
+          description: No content
+          content: {}
+        "400":
+          description: Bad request
           content:
             application/json:
               schema:
-                type: array
-                items:
-                  $ref: '#/components/schemas/Snapshot'
-    post:
-      summary: Create a new snapshot
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/Snapshot'
-      responses:
-        "201":
-          description: Snapshot created
+                $ref: '#/components/schemas/Error'
+              example:
+                code: 400
+                message: Bad Request or Input
+        "401":
+          description: Unauthorized
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Snapshot'
-
-  /snapshots/{snapshotId}:
-    get:
-      summary: Get a snapshot by ID
-      parameters:
-        - name: snapshotId
-          in: path
-          required: true
-          schema:
-            type: string
-      responses:
-        "200":
-          description: A single snapshot
+                $ref: '#/components/schemas/Error'
+              example:
+                code: 401
+                message: Unauthorized access attempt
+        "403":
+          description: Forbidden
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Snapshot'
-    put:
-      summary: Update a snapshot by ID
-      parameters:
-        - name: snapshotId
-          in: path
-          required: true
-          schema:
-            type: string
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/Snapshot'
-      responses:
-        "200":
-          description: Snapshot updated
+                $ref: '#/components/schemas/Error'
+              example:
+                code: 403
+                message: Access to this resource forbidden
+        "409":
+          description: Conflict
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Snapshot'
-    delete:
-      summary: Delete a snapshot by ID
-      parameters:
-        - name: snapshotId
-          in: path
-          required: true
-          schema:
-            type: string
-      responses:
-        "204":
-          description: Snapshot deleted
-
+                $ref: '#/components/schemas/Error'
+              example:
+                code: 409
+                message: Conflict. Resource already exists
+        "422":
+          description: Unprocessable entity
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                code: 422
+                message: protocols in body is required
+        "429":
+          description: Too many requests
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                code: 429
+                message: Rate limit exceeded for this endpoint - try again later
+        "500":
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                code: 500
+                message: Internal server error
+        default:
+          description: Unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
 components:
   schemas:
-    Snapshot:
-      type: object
-      properties:
-        id:
-          type: string
-          x-oapi-codegen-extra-tags:
-            gorm: primaryKey
-        name:
-          type: string
-        time:
-          type: string
-
-    Volume:
-      type: object
-      properties:
-        id:
-          type: string
-          x-oapi-codegen-extra-tags:
-            gorm: primaryKey
-        name:
-          type: string
-        size:
-          type: integer
-        snapshots:
-          type: array
-          x-oapi-codegen-extra-tags:
-            firestore: svms,omitempty
-            gorm: foreignkey:PostId;references:id
-          items:
-            $ref: '#/components/schemas/Snapshot'
-
-    Svm:
-      type: object
-      properties:
-        id:
-          type: string
-          x-oapi-codegen-extra-tags:
-            gorm: primaryKey
-        name:
-          type: string
-        volumes:
-          type: array
-          x-oapi-codegen-extra-tags:
-            firestore: svms,omitempty
-            gorm: foreignKey:id
-          items:
-            $ref: '#/components/schemas/Volume'
-
-    Pool:
-      type: object
+    Error:
       required:
-        - name
-        - id
+        - code
+        - message
+      type: object
       properties:
-        id:
+        code:
+          type: number
+          format: double
+          nullable: false
+        message:
           type: string
           nullable: false
-          x-oapi-codegen-extra-tags:
-            gorm: primaryKey
+      description: Error response
+      example:
+        code: 1994.0
+        message: Out of cheese error! Please reboot the Universe
+    ServiceLevel_v1beta:
+      title: ServiceLevel
+      type: object
+      properties:
         name:
+          title: name
           type: string
-          nullable: false
-        svms:
+          description: The name of the service level
+          readOnly: true
+          example: PREMIUM
+          enum:
+            - SERVICE_LEVEL_UNSPECIFIED
+            - FLEX
+            - STANDARD
+            - PREMIUM
+            - EXTREME
+        performance:
+          title: performance
+          type: string
+          description: The performance of the service level
+          readOnly: true
+          example: high
+          enum:
+            - medium
+            - high
+    Any_v1Beta:
+      title: Any
+      required:
+        - '@type'
+      type: object
+      properties:
+        '@type':
+          title: '@type'
+          type: string
+          description: The URL of the type
+          example: type.googleapis.com/google.protobuf.Struct
+        AnyValue:
+          type: object
+          properties: {}
+    Status_v1Beta:
+      title: Status
+      type: object
+      properties:
+        code:
+          title: code
+          type: number
+          description: The status code
+          format: double
+          example: 7.0
+        message:
+          title: message
+          type: string
+          description: A developer-facing error message
+        details:
+          title: details
           type: array
-          x-oapi-codegen-extra-tags:
-            firestore: svms,omitempty
-            gorm: foreignKey:id
           items:
-            $ref: '#/components/schemas/Svm'
+            $ref: '#/components/schemas/Any_v1Beta'
+    Operation_v1beta:
+      title: Operation
+      type: object
+      properties:
+        name:
+          title: name
+          type: string
+          description: The full resource name of the operation
+          example: projects/123456789/locations/us-east4/operations/00000000-0000-0000-0000-000000000000
+        metadata:
+          $ref: '#/components/schemas/Any_v1Beta'
+        done:
+          title: done
+          type: boolean
+          description: Is the operation done yet
+          default: false
+        error:
+          $ref: '#/components/schemas/Status_v1Beta'
+        response:
+          title: response
+          type: object
+          properties: {}
+    PoolUpdate_v1beta:
+      title: Pool
+      type: object
+      properties:
+        sizeInBytes:
+          title: sizeInBytes
+          type: number
+          description: Maximum size allowed for a pool in bytes.
+          format: double
+          nullable: true
+          example: 12094627905536
+        description:
+          title: description
+          maxLength: 2048
+          type: string
+          description: Description of the pool
+          nullable: true
+          example: My Pool description
+        zone:
+          title: zone
+          type: string
+          description: The target zone to which the storage pool has to be migrated.
+          example: us-east1-b
+        globalAccessAllowed:
+          title: globalAccessAllowed
+          type: boolean
+          description: Flag indicating the enablement of global access on the load
+            balancers
+          nullable: true
+          example: true
+        labels:
+          title: labels
+          type: object
+          additionalProperties:
+            type: string
+          description: JSON dictionary of resource labels to allow linking of billing
+            labels to a pool
+          example:
+            someKey: SomeValue
+            someKey2: SomeValue2
+        activeDirectoryConfigId:
+          maxLength: 36
+          minLength: 36
+          pattern: "^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$"
+          type: string
+          description: UUID of Active Directory configuration
+          nullable: true
+          example: 9760acf5-4638-11e7-9bdb-020073ca7773
+        allowAutoTiering:
+          title: allowAutoTiering
+          type: boolean
+          description: Flag indicating if the pool supports auto tiering enabled volumes
+            or not.
+          nullable: true
+        hotTierSizeInBytes:
+          title: hotTierSizeInBytes
+          type: number
+          description: Hot-tier size of the pool (in bytes) if auto-tiering is enabled
+            (valid only for FLEX)
+          format: double
+          nullable: true
+          example: 1099511627776
+          x-omitempty: true
+        enableHotTierAutoResize:
+          title: enableHotTierAutoResize
+          type: boolean
+          description: Flag indicating if the pool supports hot-tier resize on reaching
+            the hot-tier threshold (not valid for FLEX)
+          nullable: true
+        qosType:
+          title: qosType
+          type: string
+          description: The type of QoS for the pool
+          nullable: true
+          example: auto
+          enum:
+            - auto
+            - manual
+        customPerformanceEnabled:
+          title: customPerformanceEnabled
+          type: boolean
+          description: Flag indicating if the custom performance is enabled for the
+            pool.
+          nullable: true
+        totalThroughputMibps:
+          title: totalThroughputMibps
+          type: number
+          description: Total throughput of a pool in MiBps
+          format: double
+          nullable: true
+          example: 164.0
+        totalIops:
+          title: totalIops
+          type: number
+          description: The total iops set for a pool.
+          format: double
+          nullable: true
+          example: 1600.0
+    Pool_v1beta:
+      title: Pool
+      required:
+        - network
+        - resourceId
+        - serviceLevel
+        - sizeInBytes
+      type: object
+      properties:
+        activeDirectoryConfigId:
+          maxLength: 36
+          minLength: 36
+          pattern: "^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$"
+          type: string
+          description: UUID of Active Directory configuration
+          nullable: true
+          example: 9760acf5-4638-11e7-9bdb-020073ca7773
+        activeDirectoryResourceId:
+          title: activeDirectoryResourceId
+          type: string
+          description: The resource ID for the connected Active Directory
+          readOnly: true
+          example: projects/my-project-1/locations/eu-west-1/activeDirectories/mydirectory
+        kmsConfigId:
+          maxLength: 36
+          minLength: 36
+          pattern: "^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$"
+          type: string
+          description: UUID of the key to be used for encryption.
+          nullable: true
+          example: 6aae31f1-f685-4fda-b875-db0ea99235fc
+        kmsConfigResourceId:
+          title: kmsConfigResourceId
+          type: string
+          description: The resource ID for the connected KMS configuration
+          readOnly: true
+          example: projects/my-project-1/locations/eu-west-1/kmsConfigs/myconfig
+        network:
+          title: network
+          pattern: "^projects\\/\\d+\\/global\\/networks\\/(![0-9]+$)?(!.*-$)?(!-)?[a-zA-Z0-9-]{1,63}$"
+          type: string
+          description: Servicenetworking.connections.network value that is returned
+            after creating a successful VPC peering connection via the GCP service-networking
+            API
+          example: projects/123456789/global/networks/network-to-netapp2
+        poolId:
+          title: PoolId
+          maxLength: 36
+          minLength: 36
+          pattern: "^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$"
+          type: string
+          description: UUID v4 used to identify the pool
+          readOnly: true
+          example: 9760acf5-4638-11e7-9bdb-020073ca7773
+        resourceId:
+          title: resourceId
+          maxLength: 63
+          pattern: "^[a-z]([a-z0-9-]{0,61}[a-z0-9])?$"
+          type: string
+          description: "A human readable label for the resource which is restricted\
+            \ to letters, numbers, and hyphen, with the first character a letter,\
+            \ the last a letter or a number, and a 63 character maximum"
+          example: some-pool-name
+        serviceLevel:
+          title: serviceLevel
+          type: string
+          description: "The service level of the storage pool can either be premium,\
+            \ standard, flex or extreme."
+          example: PREMIUM
+          enum:
+            - SERVICE_LEVEL_UNSPECIFIED
+            - FLEX
+            - STANDARD
+            - PREMIUM
+            - EXTREME
+        qosType:
+          title: qosType
+          type: string
+          description: The type of QoS for the pool
+          nullable: true
+          example: auto
+          default: auto
+          enum:
+            - auto
+            - manual
+        sizeInBytes:
+          title: size
+          type: number
+          description: Size of the pool in bytes
+          format: double
+          example: 2199023255552
+          default: 2199023255552
+        allocatedBytes:
+          title: allocatedBytes
+          type: number
+          description: Total size of allocated volumes in bytes.
+          format: double
+          nullable: true
+          readOnly: true
+          example: 100000000000000
+        totalThroughputMibps:
+          title: totalThroughputMibps
+          type: number
+          description: Total throughput of the pool in MiBps
+          format: double
+          nullable: true
+          example: 10.0
+        availableThroughputMibps:
+          title: availableThroughputMibps
+          type: number
+          description: Throughput available for the volumes in MiBps
+          format: double
+          nullable: true
+          readOnly: true
+          example: 10.0
+        numberOfVolumes:
+          title: numberOfVolumes
+          type: integer
+          description: Number of volumes in a pool
+          format: int32
+          nullable: true
+          readOnly: true
+          example: 20.0
+        storagePoolState:
+          type: string
+          description: The current lifecycle state of the resource
+          readOnly: true
+          example: READY
+          enum:
+            - STATE_UNSPECIFIED
+            - CREATING
+            - READY
+            - UPDATING
+            - RESTORING
+            - DISABLED
+            - DELETING
+            - ERROR
+        storagePoolStateDetails:
+          title: storagePoolStateDetails
+          type: string
+          description: Details about the current lifecycle state
+          readOnly: true
+          example: Error connecting to remote service
+        createdAt:
+          title: createdAt
+          type: string
+          description: Creation date of the resource
+          format: date-time
+          readOnly: true
+          example: 2016-11-28T19:30:23.123Z
+        updatedAt:
+          title: updatedAt
+          type: string
+          description: Date of last update of the resource
+          format: date-time
+          readOnly: true
+          example: 2016-11-29T20:32:50.459Z
+        deletedAt:
+          title: deletedAt
+          type: string
+          description: Date the resource was deleted
+          format: date-time
+          nullable: true
+          readOnly: true
+          example: 2016-11-30T23:59:59.999Z
+        storageClass:
+          $ref: '#/components/schemas/StorageClass_v1beta'
+        stateDetails:
+          title: StateDetails
+          type: string
+          description: Details about the current state
+          readOnly: true
+          example: Error connecting to remote service
+        description:
+          title: description
+          maxLength: 2048
+          type: string
+          description: Description of the pool
+          nullable: true
+          example: My Pool description
+        ldapEnabled:
+          title: ldapEnabled
+          type: boolean
+          description: Flag indicating if the pool supports LDAP enabled volumes or
+            not.
+          nullable: true
+          default: false
+        encryptionType:
+          title: encryptionType
+          type: string
+          description: "Type of encryption used for pool, Can either service managed\
+            \ key (service_managed) or cloud_kms"
+          readOnly: true
+          enum:
+            - SERVICE_MANAGED
+            - CLOUD_KMS
+        zone:
+          title: zone
+          type: string
+          description: The desired zone for the storage pool.
+          example: us-east1-b
+        secondaryZone:
+          title: secondaryZone
+          type: string
+          description: The desired zone for the failover.
+          example: us-east1-c
+        globalAccessAllowed:
+          title: globalAccessAllowed
+          type: boolean
+          description: Flag indicating the enablement of global access on the load
+            balancers
+          nullable: true
+          example: true
+        labels:
+          title: labels
+          type: object
+          additionalProperties:
+            type: string
+          description: JSON dictionary of resource labels to allow linking of billing
+            labels to a pool
+          example:
+            someKey: SomeValue
+            someKey2: SomeValue2
+        allowAutoTiering:
+          title: allowAutoTiering
+          type: boolean
+          description: Flag indicating if the pool supports auto tiering enabled volumes
+            or not.
+          nullable: true
+        hotTierSizeInBytes:
+          title: hotTierSizeInBytes
+          type: number
+          description: Hot-tier size of the pool (in bytes) if auto-tiering is enabled
+            (valid only for FLEX)
+          format: double
+          nullable: true
+          example: 1099511627776
+          x-omitempty: true
+        enableHotTierAutoResize:
+          title: enableHotTierAutoResize
+          type: boolean
+          description: Flag indicating if the pool supports hot-tier resize on reaching
+            the hot-tier threshold (not valid for FLEX)
+          nullable: true
+        hostUUID:
+          title: hostUUID
+          maxLength: 36
+          minLength: 36
+          pattern: "^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$"
+          type: string
+          description: UUID v4 used to identify the host
+          readOnly: true
+          example: 9760acf5-4638-11e7-9bdb-020073ca7773
+        satisfies_pzi:
+          title: satisfies_pzi
+          type: boolean
+          description: Flag indicating if the pool satisfies zonal isolation
+          nullable: true
+          readOnly: true
+        satisfies_pzs:
+          title: satisfies_pzs
+          type: boolean
+          description: Flag indicating if the pool satisfies zonal separation
+          nullable: true
+          readOnly: true
+        assetLocationMetadata:
+          title: assetLocationMetadata
+          type: object
+          properties:
+            child_assets:
+              title: child_assets
+              type: array
+              nullable: true
+              readOnly: true
+              items:
+                $ref: '#/components/schemas/ChildAsset'
+          nullable: true
+        customPerformanceEnabled:
+          title: customPerformanceEnabled
+          type: boolean
+          description: Flag indicating if the custom performance is enabled for the
+            pool.
+          nullable: false
+          default: false
+        totalIops:
+          title: totalIops
+          type: number
+          description: The total iops set for a pool.
+          format: double
+          nullable: true
+          example: 1600.0
+    ChildAsset:
+      title: child_asset
+      type: object
+      properties:
+        asset_type:
+          title: asset_type
+          type: string
+          example: container.googleapis.com/Cluster
+        asset_names:
+          title: asset_names
+          type: array
+          example:
+            - //container.googleapis.com/projects/xxxx/locations/xxxx/clusters/xxxx
+          items:
+            type: string
+    PoolIDList_v1beta:
+      title: PoolIDList
+      required:
+        - poolUUIDs
+      type: object
+      properties:
+        poolUUIDs:
+          title: poolUUIDs
+          minItems: 1
+          type: array
+          items:
+            pattern: "^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$"
+            type: string
+            description: UUID v4 used to identify the pool
+            example: 9760acf5-4638-11e7-9bdb-020073ca3333
+    StorageClass_v1beta:
+      title: StorageClass
+      type: string
+      description: Storage class to be provisioned. Currently hardware is the only
+        option.
+      default: HARDWARE
+      enum:
+        - STORAGE_CLASS_UNSPECIFIED
+        - SOFTWARE
+        - HARDWARE
+    Job_v1beta:
+      title: Job
+      type: object
+      properties:
+        jobId:
+          title: jobId
+          maxLength: 36
+          minLength: 36
+          pattern: "^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$"
+          type: string
+          description: UUID v4 used to identify the job
+          readOnly: true
+          example: 9760acf5-4638-11e7-9bdb-020073ca3333
+        created:
+          title: created
+          type: string
+          description: Creation date of the resource
+          format: date-time
+          readOnly: true
+          example: 2016-11-30T20:32:50.459Z
+        workerId:
+          title: workerId
+          maxLength: 36
+          minLength: 36
+          pattern: "^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$"
+          type: string
+          description: UUID v4 used to identify the worker performing the job
+          readOnly: true
+          example: 9760acf5-4638-11e7-9bdb-020073ca3333
+        objectId:
+          title: objectId
+          maxLength: 36
+          minLength: 36
+          pattern: "^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$"
+          type: string
+          description: UUID v4 used to identify the object to which the job relates
+          readOnly: true
+          example: 9760acf5-4638-11e7-9bdb-020073ca3333
+        objectType:
+          title: objectType
+          type: string
+          description: The type of the object to which the job relates
+          readOnly: true
+          example: Volume
+          enum:
+            - Volume
+            - Snapshot
+            - MountTarget
+            - Backup
+        action:
+          title: action
+          type: string
+          description: The type of action that the job is performing
+          readOnly: true
+          example: delete
+          enum:
+            - create
+            - update
+            - delete
+            - restore
+            - initialize
+            - break
+            - resync
+            - mount
+        state:
+          title: state
+          type: string
+          description: The state of the job
+          readOnly: true
+          example: ongoing
+          enum:
+            - ongoing
+            - done
+            - error
+        stateDetails:
+          title: stateDetails
+          type: string
+          description: Details about the current job state
+          readOnly: true
+          example: Error creating snapshot - operation timed out
+  responses:
+    StandardError-400:
+      description: Bad request
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            code: 400
+            message: Bad Request or Input
+    StandardError-401:
+      description: Unauthorized
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            code: 401
+            message: Unauthorized access attempt
+    StandardError-403:
+      description: Forbidden
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            code: 403
+            message: Access to this resource forbidden
+    StandardError-404:
+      description: Not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            code: 404
+            message: The resource was not found
+    StandardError-405:
+      description: Method not allowed
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            code: 405
+            message: The HTTP method is not allowed for this resource
+    StandardError-408:
+      description: Timeout
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            code: 408
+            message: Request Timeout
+    StandardError-409:
+      description: Conflict
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            code: 409
+            message: Conflict. Resource already exists
+    StandardError-422:
+      description: Unprocessable entity
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            code: 422
+            message: protocols in body is required
+    StandardError-429:
+      description: Too many requests
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            code: 429
+            message: Rate limit exceeded for this endpoint - try again later
+    StandardError-500:
+      description: Internal server error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            code: 500
+            message: Internal server error
+    StandardError-501:
+      description: Not implemented
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            code: 501
+            message: Not Implemented
+    StandardError-503:
+      description: Service unavailable
+      headers:
+        Retry-After:
+          description: A non-negative integer indicating the seconds to delay after
+            the response is received
+          schema:
+            type: integer
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            code: 503
+            message: Service is currently unavailable
+  parameters:
+    projectNumberPathParameter:
+      name: projectNumber
+      in: path
+      description: The project number of the GCP project owning the resource being
+        acted upon
+      required: true
+      schema:
+        maxLength: 18
+        pattern: "^[1-9][0-9]{0,18}$"
+        type: string
+    locationIdPathParameter:
+      name: locationId
+      in: path
+      description: The location/region to perform the operation in.
+      required: true
+      schema:
+        maxLength: 255
+        type: string
+    poolIdPathParameter:
+      name: poolId
+      in: path
+      description: UUID v4 used to identify the pool
+      required: true
+      schema:
+        maxLength: 36
+        minLength: 36
+        pattern: "^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$"
+        type: string
+    xCorrelationIdHeader:
+      name: x-correlation-id
+      in: header
+      description: Correlation identifier
+      schema:
+        type: string
+    includeDeletedQueryParameter:
+      name: includeDeleted
+      in: query
+      description: "If true, response will include deleted storage pools"
+      allowEmptyValue: true
+      schema:
+        type: boolean
+        default: false
