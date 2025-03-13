@@ -11,7 +11,7 @@ import (
 type Jobs struct {
 }
 
-func (j *Jobs) CreateVsaCluster(name string) error {
+func (j *Jobs) CreateVsaCluster() error {
 	ctx := context.Background()
 	deploymentmanagerService, err := deploymentmanager.NewService(ctx)
 	if err != nil {

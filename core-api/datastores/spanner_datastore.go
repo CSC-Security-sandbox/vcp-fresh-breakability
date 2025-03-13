@@ -7,7 +7,7 @@ import (
 
 	"cloud.google.com/go/spanner"
 	_ "github.com/googleapis/go-sql-spanner"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core-api/api"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core-api/datamodel"
 	"gorm.io/gorm"
 
 	spannergorm "github.com/googleapis/go-gorm-spanner"
@@ -31,10 +31,7 @@ func NewSpannerDatastore(projectID, instanceID, databaseID string) *SpannerDatas
 	}
 
 	tables := []interface{}{
-		&api.Pool{},
-		&api.Svm{},
-		&api.Volume{},
-		&api.Snapshot{},
+		&datamodel.Pool{},
 	}
 
 	// Unwrap the underlying SpannerMigrator interface. This interface supports
@@ -73,65 +70,25 @@ func NewSpannerDatastore(projectID, instanceID, databaseID string) *SpannerDatas
 
 }
 
-func (s SpannerDatastore) GetPool(uuid string) (*api.Pool, error) {
-	var pool api.Pool
+func (s SpannerDatastore) GetPool(uuid string) (*datamodel.Pool, error) {
+	var pool datamodel.Pool
 	if err := s.db.First(&pool, s.db.Where("id = ?", uuid)).Error; err != nil {
 		log.Fatal(err)
 	}
 	return &pool, nil
 }
 
-func (s SpannerDatastore) CreatePool(pool api.Pool) error {
+func (s SpannerDatastore) CreatePool(pool datamodel.Pool) error {
 	s.db.Save(&pool)
 	return nil
 }
 
-func (s SpannerDatastore) UpdatePool(pool *api.Pool) error {
+func (s SpannerDatastore) UpdatePool(pool datamodel.Pool) error {
 	//TODO implement me
 	panic("implement me")
 }
 
 func (s SpannerDatastore) DeletePool(uuid string) error {
-	//TODO implement me
-	panic("implement me")
-}
-
-func (s SpannerDatastore) GetSVM(uuid string) (*api.Svm, error) {
-	//TODO implement me
-	panic("implement me")
-}
-
-func (s SpannerDatastore) CreateSVM(svm *api.Svm) error {
-	//TODO implement me
-	panic("implement me")
-}
-
-func (s SpannerDatastore) UpdateSVM(svm *api.Svm) error {
-	//TODO implement me
-	panic("implement me")
-}
-
-func (s SpannerDatastore) DeleteSVM(uuid string) error {
-	//TODO implement me
-	panic("implement me")
-}
-
-func (s SpannerDatastore) GetVolume(uuid string) (*api.Volume, error) {
-	//TODO implement me
-	panic("implement me")
-}
-
-func (s SpannerDatastore) CreateVolume(volume *api.Volume) error {
-	//TODO implement me
-	panic("implement me")
-}
-
-func (s SpannerDatastore) UpdateVolume(volume *api.Volume) error {
-	//TODO implement me
-	panic("implement me")
-}
-
-func (s SpannerDatastore) DeleteVolume(uuid string) error {
 	//TODO implement me
 	panic("implement me")
 }

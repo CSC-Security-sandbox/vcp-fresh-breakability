@@ -7,13 +7,6 @@ import (
 	"go.temporal.io/sdk/workflow"
 )
 
-const (
-	DeployVsaJob      = "DeployVsaJob"
-	OrderChoiceBanana = "banana"
-	OrderChoiceCherry = "cherry"
-	OrderChoiceOrange = "orange"
-)
-
 // JobWorkflow Workflow definition.
 func JobWorkflow(ctx workflow.Context) error {
 	// Get basket order.

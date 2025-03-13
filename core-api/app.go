@@ -2,13 +2,14 @@ package main
 
 import (
 	"context"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core-api/util/middleware"
 	"log/slog"
 	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
 	"time"
+
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core-api/util/middleware"
 
 	"github.com/go-chi/chi/v5"
 	chimiddleware "github.com/go-chi/chi/v5/middleware"
@@ -62,7 +63,7 @@ func main() {
 
 	eg.Go(func() error {
 		if err := httpServer.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
-			logger.Error("Error in starting server", err)
+			logger.Error("Error in starting server", slog.Any("err", err))
 			return err
 		}
 		cancelFunc()
@@ -71,7 +72,8 @@ func main() {
 
 	err = eg.Wait()
 	if err != nil {
-		logger.Error("Error in server", err)
+
+		logger.Error("Error in server", slog.Any("err", err))
 		os.Exit(-1)
 		return
 	}

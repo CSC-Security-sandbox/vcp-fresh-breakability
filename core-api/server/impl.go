@@ -5,12 +5,8 @@ import (
 
 	"github.com/labstack/echo/v4"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/common"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core-api/api"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core-api/datastores"
 )
-
-// ensure that we've conformed to the `ServerInterface` with a compile-time check
-var _ api.ServerInterface = (*Server)(nil)
 
 type Server struct {
 	d datastores.Datastore

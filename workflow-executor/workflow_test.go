@@ -19,6 +19,8 @@ func TestUnitTestSuite(t *testing.T) {
 func (s *UnitTestSuite) Test_MultiChoiceWorkflow() {
 	env := s.NewTestWorkflowEnvironment()
 
+	jobs := Jobs{}
+	env.OnActivity(jobs.CreateVsaCluster).Return(nil)
 	env.RegisterActivity(&Jobs{})
 
 	env.ExecuteWorkflow(JobWorkflow)
