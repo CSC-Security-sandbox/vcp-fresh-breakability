@@ -9,10 +9,10 @@ build:
       requires:
         - image: base
           alias: BASE
-    - image: core-api
+    - image: core
       context: .
       docker:
-        dockerfile: core-api/Dockerfile
+        dockerfile: core/Dockerfile
       requires:
         - image: base
           alias: BASE
@@ -30,7 +30,7 @@ build:
 manifests:
   rawYaml:
     - google-proxy/kubernetes/*
-    - core-api/kubernetes/*
+    - core/kubernetes/*
     - firestore-emulator/kubernetes/*
     - workflow-server/kubernetes/*
     - spanner-emulator/kubernetes/*
@@ -40,7 +40,7 @@ portForward:
     port: 8080
     localPort: 9000
   - resourceType: deployment
-    resourceName: core-api
+    resourceName: core
     port: http
     localPort: 9001
   - resourceType: deployment

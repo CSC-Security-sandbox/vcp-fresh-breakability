@@ -21,8 +21,8 @@ The code is organized into the following directories:
 │   └── ontap-rest 
 ├── common -    This directory contains common code that is shared across the VSA Control Plane.
 ├── config -   This directory contains the configuration files for the VSA Control Plane.
-├── core-api -   This directory contains the code for the Core API (Hyperscaler Agnostic).
-│   ├── api -   This directory contains the API code.
+├── core -   This directory contains the code for the Core API (Hyperscaler Agnostic).
+│   ├── core-api -   This directory contains the core API code.
 │   ├── datastores -   This directory contains the code for the datastores ( Database Connectivity and Persistence).
 │   ├── kubernetes -   This directory contains the Kubernetes manifests for the Core API.
 │   ├── models -   This directory contains the models for the Core API.
@@ -31,6 +31,7 @@ The code is organized into the following directories:
 │   └── kubernetes -  
 ├── google-proxy -  This directory contains the code for the Google Proxy.
 │   └── kubernetes
+│   └── api - This directory contains the code for the Google Proxy API.
 ├── spanner-emulator -  This directory contains the code for the Spanner Emulator.
 │   └── kubernetes 
 ├── tools - This directory contains all the external tools used in the repo. For ex Swagger Generator
