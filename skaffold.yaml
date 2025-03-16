@@ -26,7 +26,9 @@ build:
         - image: base
           alias: BASE
     - image: base
-      context: ./common
+      context: .
+      docker:
+        dockerfile: common/Dockerfile
 manifests:
   rawYaml:
     - google-proxy/kubernetes/*
@@ -40,8 +42,8 @@ portForward:
     port: 8080
     localPort: 9000
   - resourceType: deployment
-    resourceName: core
-    port: http
+    resourceName: core-service
+    port: 8080
     localPort: 9001
   - resourceType: deployment
     resourceName: spanner-emulator

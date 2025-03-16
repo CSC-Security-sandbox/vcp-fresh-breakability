@@ -3,7 +3,6 @@ module github.com/vcp-vsa-control-Plane/vsa-control-plane
 go 1.24.1
 
 require (
-	cloud.google.com/go/firestore v1.18.0
 	cloud.google.com/go/spanner v1.77.0
 	github.com/go-chi/chi/v5 v5.2.1
 	github.com/go-faster/errors v0.7.1
@@ -18,11 +17,9 @@ require (
 	github.com/googleapis/go-sql-spanner v1.11.2
 	github.com/labstack/echo/v4 v4.13.3
 	github.com/labstack/gommon v0.4.2
-	github.com/mitchellh/mapstructure v1.5.0
 	github.com/ogen-go/ogen v1.10.0
 	github.com/pborman/uuid v1.2.1
 	github.com/stretchr/testify v1.10.0
-	github.com/temporalio/samples-go v1.3.0
 	go.opentelemetry.io/otel v1.34.0
 	go.opentelemetry.io/otel/metric v1.34.0
 	go.opentelemetry.io/otel/trace v1.34.0
@@ -113,6 +110,7 @@ require (
 	github.com/mailru/easyjson v0.9.0 // indirect
 	github.com/mattn/go-colorable v0.1.14 // indirect
 	github.com/mattn/go-isatty v0.0.20 // indirect
+	github.com/mitchellh/mapstructure v1.5.0 // indirect
 	github.com/mohae/deepcopy v0.0.0-20170929034955-c48cc78d4826 // indirect
 	github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822 // indirect
 	github.com/ncruces/go-strftime v0.1.9 // indirect
