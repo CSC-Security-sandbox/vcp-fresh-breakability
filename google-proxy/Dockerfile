@@ -3,6 +3,8 @@ FROM golang:1.24.1 as builder
 WORKDIR /code
 COPY google-proxy google-proxy/
 COPY common common/
+COPY util util/
+COPY core core/
 COPY go.mod go.mod
 COPY go.sum go.sum
 

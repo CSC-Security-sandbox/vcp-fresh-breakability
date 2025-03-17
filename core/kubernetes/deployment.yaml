@@ -1,36 +1,36 @@
 apiVersion: v1
 kind: Service
 metadata:
-  name: core-api
+  name: core-service
   labels:
-    app: core-api
+    app: core-service
 spec:
   clusterIP: None
   ports:
     - port: 50051
       name: core
   selector:
-    app: core-api
+    app: core-service
 ---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: core-api
+  name: core-service
   labels:
-    app: core-api
+    app: core-service
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: core-api
+      app: core-service
   template:
     metadata:
       labels:
-        app: core-api
+        app: core-service
     spec:
       containers:
       - name: core
-        image: core-api
+        image: core
         env:
           - name: FIRESTORE_EMULATOR_HOST
             value: firestore_emulator:8200
