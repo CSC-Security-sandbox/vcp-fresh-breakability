@@ -1,0 +1,336 @@
+info:
+  title: NetApp Cloud Volumes ONTAP (CVO) Deployment Template
+  author: NetApp Inc.
+  description: Creates and configures Google Cloud Platform (GCP) resources required to run NetApp Cloud Volumes ONTAP (CVO) solution in Google Cloud.
+  ONTAP version: 9.9.1
+
+required:
+- machineType
+- platformSerialNumberNode1
+- region
+- sourceImage
+- virtualNetworkInterface0
+- zone
+
+properties:
+  dataDisksStorageCapacityInGB:
+    type: integer
+    minimum: 1000
+    maximum: 256000
+    description: >-
+      Disk size for 4 data disks combined
+
+  enableFlashCache:
+    type: boolean
+    description: >-
+      Enable Flash-cache?
+    default: False
+
+  haDeployment:
+    type: object
+    description: >-
+      CVO HA deployment is requested.
+    required:
+    - platformSerialNumberNode2
+    - virtualNetworkInterface1
+    - virtualNetworkInterface2
+    properties:
+      nonSharedHaDeployment:
+        type: object
+        description: >-
+          CVO non-shared HA deployment is requested.
+        required:
+        - mediator
+        - virtualNetworkInterface3
+        properties:
+          mediator:
+            type: object
+            description: >-
+              This object describes parameters needed for deployment of CVO Mediator
+              Instance and is applicable to CVO non-shared HA deployments only.
+            properties:
+              mediatorImage:
+                type: object
+                description: >-
+                  Name and project-id of CVO Mediator boot image.
+                required:
+                - name
+                properties:
+                  name:
+                    type: string
+                    description: Name of CVO Mediator boot image.
+                  project:
+                    type: string
+                    description: GCP project-id where CVO Mediator boot image is located.
+              mediatorIp:
+                type: string
+                description: >-
+                  Primary Internal IP address of the existing CVO Mediator Instance.
+                  If this parameter is set, CVO Mediator Instance creation will
+                  be skipped.
+                pattern: '^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$'
+              mediatorMachineType:
+                type: string
+                description: >-
+                  The machine type for Mediator instance.
+                default: 'e2-micro'
+              mediatorTarget:
+                type: string
+                description: >-
+                  iSCSI target name in IQN (iSCSI Qualified Name) format.
+                default: 'iqn.2012-05.local:mailbox.target.ha'
+                pattern: 'iqn\.(\d{4}-\d{2})\.([^:]+)(:)([^,:]+)'
+              virtualNetworkInterface0:
+                type: object
+                description: >-
+                  Primary network interface properties for CVO Mediator instance.
+                properties:
+                  project:
+                    type: string
+                    description: >-
+                      GCP project-id where VPC network used by Primary Network Interface of CVO Mediator
+                      Instance resides. If project is not specified, current deployment project is used.
+                  subnet:
+                    type: string
+                    description: >-
+                      Subnetwork name to use to connect the primary network interface
+                      of CVO Mediator Instance.
+              zone:
+                type: string
+                description: >-
+                  This zone will be used for the deployment of CVO Mediator Instance.
+                  If this parameter is not provided, zone of second ONTAP Instance will be used.
+                pattern: '[a-z]+-[a-z]+[1-9]{1}-[a-z]'
+            oneOf:
+            - required:
+              - mediatorIp
+            - required:
+              - mediatorImage
+              - virtualNetworkInterface0
+          virtualNetworkInterface3:
+            type: object
+            description: >-
+              This interface is required for remote sync mirror (RSM) traffic
+              and is applicable to CVO non-shared HA deployments only.
+            required:
+            - subnet
+            properties:
+              project:
+                type: string
+                description: >-
+                  GCP project-id where VPC network used by remote sync mirror (RSM) iSCSI NIC of CVO
+                  Instance resides. If project is not specified, current deployment project is used.
+              subnet:
+                type: string
+                description: >-
+                  Subnetwork name to use to connect the network interface.
+      platformSerialNumberNode2:
+        type: string
+        description: >-
+          This field is only required for CVO HA deployments and is used as a license for
+          the second instance in CVO HA cluster.
+        pattern: '^9[0-9]{2}201(3|4)[0-9]{13}$'
+      virtualNetworkInterface1:
+        type: object
+        description: >-
+          This interface is required for intra-cluster traffic and is applicable to CVO HA
+          deployments only.
+        required:
+        - subnet
+        properties:
+          project:
+            type: string
+            description: >-
+              GCP project-id where VPC network used by Cluster NIC of CVO Instance resides.
+              If project is not specified, current deployment project is used.
+          subnet:
+            type: string
+            description: >-
+              Subnetwork name to use to connect the network interface.
+      virtualNetworkInterface2:
+        type: object
+        description: >-
+          This interface is required for interconnect traffic and is applicable to CVO HA
+          deployments only.
+        required:
+        - subnet
+        properties:
+          project:
+            type: string
+            description: >-
+              GCP project-id where VPC network used by Interconnect NIC of CVO Instance resides.
+              If project is not specified, current deployment project is used.
+          subnet:
+            type: string
+            description: >-
+              Subnetwork name to use to connect the network interface.
+      zone:
+        type: string
+        description: >-
+          This zone will at least be used for the deployment of second ONTAP Instance.
+          If this parameter is not provided, zone of first ONTAP Instance will be used.
+        pattern: '[a-z]+-[a-z]+[1-9]{1}-[a-z]'
+
+  interclusterLifIps:
+    type: array
+    items:
+      type: string
+    description: >-
+      "List of intercluster LIFs, for all nodes "
+
+  iscsiLifIps:
+    type: array
+    items:
+      type: string
+    description: >-
+      "List of ISCSI LIF IPs for all nodes"
+
+  ilbIps:
+    type: array
+    items:
+      type: string
+    description: >-
+      "List of ILB IPs (one per HA pair)"
+
+  isBlockDeployment:
+    type: boolean
+    description: >-
+      Enable block deployment? this skips out creating ilb resources.
+    default: False
+
+  labels:
+    type: object
+    description: >-
+      Labels (in the form of "key":"value" pairs) to apply to all resources created as
+      a part of this deployment.
+
+  machineType:
+    type: string
+    description: >-
+      The machine type for CVO instance(s).
+
+
+  metadata:
+    type: object
+    description: >-
+      Custom metadata, where, key is the key of the metadata object, value is the value
+      of metadata object. Interactive Serial Console and Serial Port Logging will be
+      enabled by default.
+
+  numberOfHaPairs:
+    type: integer
+    default: 1
+    minimum: 1
+    maximum: 12
+    description: >-
+      This will dictate the HA pair index for the deployment
+
+  nvLogMediaType:
+    type: string
+    description: Media used for NVlogs or Journaling.
+    default: "ephemeral-memory"
+    oneOf: [{"type": "string","enum": ["persistent-disk", "ephemeral-memory"]}]
+
+  platformSerialNumberNode1:
+    type: string
+    description: >-
+      Platform Serial Number to use for one of the instances in CVO cluster.
+      Single Node clusters consist of exactly one instance.
+    pattern: '^9[0-9]{2}201(3|4)[0-9]{13}$'
+
+  region:
+    type: string
+    description: >-
+      GCP region where Google Cloud Platform resources are to be created.
+
+  serviceAccount:
+    type: string
+    description: >-
+      The Service Account Name, optionally in email form, to associate with CVO instance(s).
+      (e.g. {service_account_name}[@{example_project}.{sa_type}.gserviceaccount.com])
+
+  soleTenantNode:
+    type: object
+    description: >-
+      Create VMs on Sole-tenant nodes
+    properties:
+      vm1NodeGroup:
+        type: string
+        description: >-
+          Node group name for vm1.
+          A node group is a homogeneous set of sole-tenant nodes in a specific zone.
+          Node groups can contain multiple VMs running on machine types of various sizes, as long as the machine type has 2 or more vCPUs.
+      vm2NodeGroup:
+        type: string
+        description: >-
+          Node Group name for vm2.
+          A node group is a homogeneous set of sole-tenant nodes in a specific zone.
+          Node groups can contain multiple VMs running on machine types of various sizes, as long as the machine type has 2 or more vCPUs.
+      nodeType:
+        type: string
+        description: >-
+          The sole-tenant node type, referenced by the node template, specifies the total amount of vCPU cores and memory for nodes created in node groups that use that template.
+          For example, the n2-node-80-640 node type has 80 vCPUs and 640 GB of memory.
+        default: "n2-node-80-640"
+
+  sourceImage:
+    type: object
+    description: >-
+      Name and project-id of CVO boot image.
+    required:
+    - name
+    properties:
+      name:
+        type: string
+        description: Name of CVO boot image.
+      project:
+        type: string
+        description: GCP project-id where CVO boot image is located.
+
+  virtualNetworkInterface0:
+    type: object
+    description: >-
+      Management network interface properties for CVO instance. These specify how interfaces
+      are configured to interact with other network services.
+    required:
+    - network
+    - subnet
+    properties:
+      network:
+        type: string
+        description: >-
+          Name of the Virtual Private Cloud for connecting the Instance Groups to.
+      project:
+        type: string
+        description: >-
+          GCP project-id where VPC network used by Primary Network Interface of CVO instance
+          resides. If project is not specified, current deployment project is used.
+      subnet:
+        type: string
+        description: >-
+          Subnetwork name to use to connect the network interface.
+
+  virtualNetworkInterfaceForData:
+    type: object
+    description: >-
+      This interface is optional and used for data traffic if management and data traffic separation is requested.
+    required:
+    - subnet
+    properties:
+      project:
+        type: string
+        description: >-
+          GCP project-id where VPC network used by data NIC of CVO Instance resides.
+          If project is not specified, current deployment project is used.
+      subnet:
+        type: string
+        description: >-
+          Subnetwork name to use to connect the network interface.
+
+  zone:
+    type: string
+    description: >-
+      GCP zone where Google Cloud Platform resources are to be created.
+      For CVO HA solution, this zone will at least be used for the deployment
+      of first ONTAP Instance.
+    pattern: '[a-z]+-[a-z]+[1-9]{1}-[a-z]'
