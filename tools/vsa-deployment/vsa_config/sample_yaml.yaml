@@ -13,18 +13,18 @@ resources:
             mediatorImage:
               name: devn-250315-0200-mediator-debian-12
             virtualNetworkInterface0:
-              subnet: vsa-vpc5 #needs to be replaced accordingly
+              subnet: my-subnet-1 #needs to be replaced accordingly
           virtualNetworkInterface3:
-            subnet: vsa-vpc5 #needs to be replaced accordingly
+            subnet: my-subnet-1 #needs to be replaced accordingly
         platformSerialNumberNode2: '90920140000000000002'
         virtualNetworkInterface1:
-          subnet: vsa-vpc6 #needs to be replaced accordingly
+          subnet: my-subnet-2 #needs to be replaced accordingly
         virtualNetworkInterface2:
-          subnet: vsa-vpc7 #needs to be replaced accordingly
+          subnet: my-subnet-3 #needs to be replaced accordingly
         zone: us-east1-b
       labels:
         key1: 'value1'
-        creator: '<creator-name>'
+        creator: 'mvinayku'
       machineType: n2-standard-8
       dataDisksStorageCapacityInGB: 2000 #update the storage capacity accordingly
       platformSerialNumberNode1: '90920140000000000001'
@@ -32,11 +32,11 @@ resources:
       sourceImage:
         name: rajneesc-20250317150332
       virtualNetworkInterface0:
-        network: vsa-vpc8 #needs to be replaced accordingly
-        subnet: vsa-vpc8 #needs to be replaced accordingly
+        network: my-vpc-4 #needs to be replaced accordingly
+        subnet: my-subnet-4 #needs to be replaced accordingly
       virtualNetworkInterfaceForData:
-        network: cvs-scale-optimized-dev3-network
-        subnet: data-subnet #needs to be replaced accordingly
+        network: my-vpc-5
+        subnet: my-subnet-5 #needs to be replaced accordingly
 #        attachmentName: block-test
       zone: us-east1-b
       numberOfHaPairs: 1

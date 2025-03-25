@@ -18,18 +18,12 @@ This guide provides instructions for configuring and deploying a VSA cluster on 
 
 ---
 
-### **2. Update Sample YAML**
+### **2. Setup VPC**
 
 1. Create required VPC and subnet configurations in your tenant project.
-2. Open the `vsa_config/sample_yaml.yaml` file.
-3. Update the VPC configuration to match your GCP setup:
-    - Ensure the **subnet details** (e.g., subnet name, region, and IP range) align with your GCP VPC configuration.
-    - Example:
-      ```yaml
-      network: "your-vpc-network-name"
-      subnet: "your-subnet-name"
-      ```
+      chmod +x setup-vpc.sh
 
+      ./setup-vpc.sh
 ---
 
 ### **3. Copy Machine Image to Tenant Project**

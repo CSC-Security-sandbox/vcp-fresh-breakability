@@ -16,7 +16,7 @@ func DeploymentsInsert(name string) error {
 		return err
 	}
 
-	projectId := "478271815769" // Replace with your project ID
+	projectId := "<replace project id>" // Replace with your project ID  //1082706288987
 	content, err := os.ReadFile("vsa_config/sample_yaml.yaml")
 	if err != nil {
 		return err
