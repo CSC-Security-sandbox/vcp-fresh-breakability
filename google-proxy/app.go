@@ -10,6 +10,7 @@ import (
 	coreapi "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/core-api/handler"
 	api "github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/api/endpoints"
 	gcpgenserver "github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/api/gcp-servergen"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/middleware"
 	"golang.org/x/exp/slog"
 	"golang.org/x/sync/errgroup"
 
@@ -40,6 +41,7 @@ func main() {
 
 	// Setup HTTP router
 	mux := chi.NewRouter()
+	mux.Use(middleware.AuthMiddleware)
 	mux.Use(chimiddleware.Logger) // replace with custom middleware
 	mux.Use(chimiddleware.Recoverer)
 
