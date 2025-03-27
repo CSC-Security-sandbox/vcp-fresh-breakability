@@ -22,3 +22,31 @@ jobs:
 
       - name: Run tests
         run: go test ./...
+
+  lint:
+    runs-on: [self-hosted,linux]
+    container:
+      image: ghcr.io/vcp-vsa-control-plane/vsa-builder:v1
+      options: --user root
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      - name: Set up Go
+        uses: actions/setup-go@v3
+        with:
+          go-version-file: go.mod
+
+      - name: Cache Go modules
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.cache/go-build
+            /go/pkg/mod
+          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+          restore-keys: |
+            ${{ runner.os }}-go-
+      - name: Run golangci-lint script
+        run: |
+          .github/scripts/lint.sh
