@@ -4,7 +4,7 @@ import (
 	"crypto/tls"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"log"
 	"net/http"
 	"os"
@@ -13,16 +13,7 @@ import (
 
 // Write analysis result to a markdown file
 func writeToMarkdown(filePath string, content string) error {
-	return ioutil.WriteFile(filePath, []byte(content), 0644)
-}
-
-// Read the prompt from a file
-func readPromptFromFile(filePath string) (string, error) {
-	content, err := ioutil.ReadFile(filePath)
-	if err != nil {
-		return "", fmt.Errorf("failed to read prompt file: %v", err)
-	}
-	return string(content), nil
+	return os.WriteFile(filePath, []byte(content), 0644)
 }
 
 func readPrompt() string {
@@ -94,9 +85,13 @@ func analyzeDiff(apiKey string, diffContent string, userName string, prompt stri
 	if err != nil {
 		return "", fmt.Errorf("failed to send request: %v", err)
 	}
-	defer resp.Body.Close()
+	defer func() {
+		if err := resp.Body.Close(); err != nil {
+			log.Printf("Error closing response body: %v", err)
+		}
+	}()
 
-	body, err := ioutil.ReadAll(resp.Body)
+	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return "", fmt.Errorf("failed to read response body: %v", err)
 	}
@@ -128,7 +123,7 @@ func main() {
 	}
 
 	// Load the diff content from the file
-	diffContent, err := ioutil.ReadFile(diffPath)
+	diffContent, err := os.ReadFile(diffPath)
 	if err != nil {
 		log.Fatalf("Failed to read diff file: %v", err)
 	}

@@ -10,17 +10,26 @@ import (
 func TestHasEnv(t *testing.T) {
 	key := "ENVUTIL_TEST_HAS_ENV"
 	t.Run("WhenEnvironmentVariableIsNotSet", func(tt *testing.T) {
-		os.Unsetenv(key)
+		err := os.Unsetenv(key)
+		if err != nil {
+			t.Errorf("Error unsetting environment variable %s: %v", key, err)
+		}
 		if IsEnvSet(key) {
 			tt.Fail()
 		}
 	})
 	t.Run("WhenEnvironmentVariableIsSet", func(tt *testing.T) {
-		os.Setenv(key, "")
+		err := os.Setenv(key, "")
+		if err != nil {
+			t.Errorf("Error setting environment variable %s: %v", key, err)
+		}
 		if !IsEnvSet(key) {
 			tt.Fail()
 		}
-		os.Unsetenv(key)
+		err = os.Unsetenv(key)
+		if err != nil {
+			t.Errorf("Error unsetting environment variable %s: %v", key, err)
+		}
 	})
 }
 
@@ -28,7 +37,10 @@ func TestGetStringFromEnvIfNil(t *testing.T) {
 	key := "ENVUTIL_TEST_GET_STRING"
 	def := "default value"
 	t.Run("WhenNotSpecifyingStringAndEnvironmentVariableIsNotSet", func(tt *testing.T) {
-		os.Unsetenv(key)
+		err := os.Unsetenv(key)
+		if err != nil {
+			t.Errorf("Error unsetting environment variable %s: %v", key, err)
+		}
 		val := GetStringFromEnvIfNil(nil, key, def)
 		if val == nil {
 			tt.Error("Value not returned")
@@ -37,17 +49,26 @@ func TestGetStringFromEnvIfNil(t *testing.T) {
 		}
 	})
 	t.Run("WhenNotSpecifyingStringAndEnvironmentVariableIsSet", func(tt *testing.T) {
-		os.Setenv(key, "non-default value")
+		err := os.Setenv(key, "non-default value")
+		if err != nil {
+			t.Errorf("Error setting environment variable %s: %v", key, err)
+		}
 		val := GetStringFromEnvIfNil(nil, key, def)
 		if val == nil {
 			tt.Error("Value not returned")
 		} else if *val != "non-default value" {
 			tt.Fail()
 		}
-		os.Unsetenv(key)
+		err = os.Unsetenv(key)
+		if err != nil {
+			t.Errorf("Error unsetting environment variable %s: %v", key, err)
+		}
 	})
 	t.Run("WhenSpecifyingStringAndEnvironmentVariableIsNotSet", func(tt *testing.T) {
-		os.Unsetenv(key)
+		err := os.Unsetenv(key)
+		if err != nil {
+			t.Errorf("Error unsetting environment variable %s: %v", key, err)
+		}
 		v := "valuable"
 		val := GetStringFromEnvIfNil(&v, key, def)
 		if val != &v {
@@ -55,13 +76,19 @@ func TestGetStringFromEnvIfNil(t *testing.T) {
 		}
 	})
 	t.Run("WhenSpecifyingStringAndEnvironmentVariableIsSet", func(tt *testing.T) {
-		os.Setenv(key, "non-default value")
+		err := os.Setenv(key, "non-default value")
+		if err != nil {
+			t.Errorf("Error setting environment variable %s: %v", key, err)
+		}
 		v := "valuable"
 		val := GetStringFromEnvIfNil(&v, key, def)
 		if val != &v {
 			tt.Fail()
 		}
-		os.Unsetenv(key)
+		err = os.Unsetenv(key)
+		if err != nil {
+			t.Errorf("Error unsetting environment variable %s: %v", key, err)
+		}
 	})
 }
 
@@ -69,24 +96,39 @@ func TestGetString(t *testing.T) {
 	key := "ENVUTIL_TEST_GET_STRING"
 	def := "default value"
 	t.Run("WhenEnvironmentVariableIsNotSet", func(tt *testing.T) {
-		os.Unsetenv(key)
+		err := os.Unsetenv(key)
+		if err != nil {
+			t.Errorf("Error unsetting environment variable %s: %v", key, err)
+		}
 		if GetString(key, def) != def {
 			tt.Fail()
 		}
 	})
 	t.Run("WhenEnvironmentVariableIsEmpty", func(tt *testing.T) {
-		os.Setenv(key, "")
+		err := os.Setenv(key, "")
+		if err != nil {
+			t.Errorf("Error setting environment variable %s: %v", key, err)
+		}
 		if GetString(key, def) != "" {
 			tt.Fail()
 		}
-		os.Unsetenv(key)
+		err = os.Unsetenv(key)
+		if err != nil {
+			t.Errorf("Error unsetting environment variable %s: %v", key, err)
+		}
 	})
 	t.Run("WhenEnvironmentVariableIsNotEmpty", func(tt *testing.T) {
-		os.Setenv(key, "non-default value")
+		err := os.Setenv(key, "non-default value")
+		if err != nil {
+			t.Errorf("Error setting environment variable %s: %v", key, err)
+		}
 		if GetString(key, def) != "non-default value" {
 			tt.Fail()
 		}
-		os.Unsetenv(key)
+		err = os.Unsetenv(key)
+		if err != nil {
+			t.Errorf("Error unsetting environment variable %s: %v", key, err)
+		}
 	})
 }
 
@@ -135,7 +177,10 @@ func TestGetIntFromEnvIfNil(t *testing.T) {
 	key := "ENVUTIL_TEST_GET_INT"
 	def := 9999
 	t.Run("WhenNotSpecifyingIntegerAndEnvironmentVariableIsNotSet", func(tt *testing.T) {
-		os.Unsetenv(key)
+		err := os.Unsetenv(key)
+		if err != nil {
+			t.Errorf("Error unsetting environment variable %s: %v", key, err)
+		}
 		val := GetIntFromEnvIfNil(nil, key, def)
 		if val == nil {
 			tt.Error("Value not returned")
@@ -144,17 +189,26 @@ func TestGetIntFromEnvIfNil(t *testing.T) {
 		}
 	})
 	t.Run("WhenNotSpecifyingIntegerAndEnvironmentVariableIsSet", func(tt *testing.T) {
-		os.Setenv(key, "1234")
+		err := os.Setenv(key, "1234")
+		if err != nil {
+			t.Errorf("Error setting environment variable %s: %v", key, err)
+		}
 		val := GetIntFromEnvIfNil(nil, key, def)
 		if val == nil {
 			tt.Error("Value not returned")
 		} else if *val != 1234 {
 			tt.Fail()
 		}
-		os.Unsetenv(key)
+		err = os.Unsetenv(key)
+		if err != nil {
+			t.Errorf("Error unsetting environment variable %s: %v", key, err)
+		}
 	})
 	t.Run("WhenSpecifyingIntegerAndEnvironmentVariableIsNotSet", func(tt *testing.T) {
-		os.Unsetenv(key)
+		err := os.Unsetenv(key)
+		if err != nil {
+			t.Errorf("Error unsetting environment variable %s: %v", key, err)
+		}
 		v := 1234
 		val := GetIntFromEnvIfNil(&v, key, def)
 		if val != &v {
@@ -162,13 +216,19 @@ func TestGetIntFromEnvIfNil(t *testing.T) {
 		}
 	})
 	t.Run("WhenSpecifyingIntegerAndEnvironmentVariableIsSet", func(tt *testing.T) {
-		os.Setenv(key, "non-default value")
+		err := os.Setenv(key, "non-default value")
+		if err != nil {
+			t.Errorf("Error setting environment variable %s: %v", key, err)
+		}
 		v := 1234
 		val := GetIntFromEnvIfNil(&v, key, def)
 		if val != &v {
 			tt.Fail()
 		}
-		os.Unsetenv(key)
+		err = os.Unsetenv(key)
+		if err != nil {
+			t.Errorf("Error unsetting environment variable %s: %v", key, err)
+		}
 	})
 }
 
@@ -176,7 +236,10 @@ func TestGetInt(t *testing.T) {
 	key := "ENVUTIL_TEST_GET_INT"
 	def := 9999
 	t.Run("WhenEnvironmentVariableIsNotSet", func(tt *testing.T) {
-		os.Unsetenv(key)
+		err := os.Unsetenv(key)
+		if err != nil {
+			t.Errorf("Error unsetting environment variable %s: %v", key, err)
+		}
 		if GetInt(key, def) != def {
 			tt.Fail()
 		}
@@ -198,12 +261,18 @@ func TestGetInt(t *testing.T) {
 		{env: "2147483647", expectedInt: 2147483647},
 	}
 	for _, td := range testData {
-		os.Setenv(key, td.env)
+		err := os.Setenv(key, td.env)
+		if err != nil {
+			t.Errorf("Error setting environment variable %s: %v", key, err)
+		}
 		val := GetInt(key, def)
 		if val != td.expectedInt {
 			t.Errorf("Returned value %v does not match expected one for env '%s'", val, td.env)
 		}
-		os.Unsetenv(key)
+		err = os.Unsetenv(key)
+		if err != nil {
+			t.Errorf("Error unsetting environment variable %s: %v", key, err)
+		}
 	}
 }
 
@@ -211,7 +280,10 @@ func TestGetUintFromEnvIfNil(t *testing.T) {
 	key := "ENVUTIL_TEST_GET_UINT"
 	var def uint = 9999
 	t.Run("WhenNotSpecifyingUnsignedIntegerAndEnvironmentVariableIsNotSet", func(tt *testing.T) {
-		os.Unsetenv(key)
+		err := os.Unsetenv(key)
+		if err != nil {
+			t.Errorf("Error unsetting environment variable %s: %v", key, err)
+		}
 		val := GetUintFromEnvIfNil(nil, key, def)
 		if val == nil {
 			tt.Error("Value not returned")
@@ -220,17 +292,26 @@ func TestGetUintFromEnvIfNil(t *testing.T) {
 		}
 	})
 	t.Run("WhenNotSpecifyingUnsignedIntegerAndEnvironmentVariableIsSet", func(tt *testing.T) {
-		os.Setenv(key, "1234")
+		err := os.Setenv(key, "1234")
+		if err != nil {
+			t.Errorf("Error setting environment variable %s: %v", key, err)
+		}
 		val := GetUintFromEnvIfNil(nil, key, def)
 		if val == nil {
 			tt.Error("Value not returned")
 		} else if *val != 1234 {
 			tt.Fail()
 		}
-		os.Unsetenv(key)
+		err = os.Unsetenv(key)
+		if err != nil {
+			t.Errorf("Error unsetting environment variable %s: %v", key, err)
+		}
 	})
 	t.Run("WhenSpecifyingUnsignedIntegerAndEnvironmentVariableIsNotSet", func(tt *testing.T) {
-		os.Unsetenv(key)
+		err := os.Unsetenv(key)
+		if err != nil {
+			t.Errorf("Error unsetting environment variable %s: %v", key, err)
+		}
 		var v uint = 1234
 		val := GetUintFromEnvIfNil(&v, key, def)
 		if val != &v {
@@ -238,13 +319,19 @@ func TestGetUintFromEnvIfNil(t *testing.T) {
 		}
 	})
 	t.Run("WhenSpecifyingUnsignedIntegerAndEnvironmentVariableIsSet", func(tt *testing.T) {
-		os.Setenv(key, "non-default value")
+		err := os.Setenv(key, "non-default value")
+		if err != nil {
+			t.Errorf("Error setting environment variable %s: %v", key, err)
+		}
 		var v uint = 1234
 		val := GetUintFromEnvIfNil(&v, key, def)
 		if val != &v {
 			tt.Fail()
 		}
-		os.Unsetenv(key)
+		err = os.Unsetenv(key)
+		if err != nil {
+			t.Errorf("Error unsetting environment variable %s: %v", key, err)
+		}
 	})
 }
 
@@ -252,7 +339,10 @@ func TestGetUint(t *testing.T) {
 	key := "ENVUTIL_TEST_GET_UINT"
 	var def uint = 9999
 	t.Run("WhenEnvironmentVariableIsNotSet", func(tt *testing.T) {
-		os.Unsetenv(key)
+		err := os.Unsetenv(key)
+		if err != nil {
+			t.Errorf("Error unsetting environment variable %s: %v", key, err)
+		}
 		if GetUint(key, def) != def {
 			tt.Fail()
 		}
@@ -274,12 +364,18 @@ func TestGetUint(t *testing.T) {
 		{env: "4294967295", expectedUint: 4294967295},
 	}
 	for _, td := range testData {
-		os.Setenv(key, td.env)
+		err := os.Setenv(key, td.env)
+		if err != nil {
+			t.Errorf("Error setting environment variable %s: %v", key, err)
+		}
 		val := GetUint(key, def)
 		if val != td.expectedUint {
 			t.Errorf("Returned value %v does not match expected one for env '%s'", val, td.env)
 		}
-		os.Unsetenv(key)
+		err = os.Unsetenv(key)
+		if err != nil {
+			t.Errorf("Error unsetting environment variable %s: %v", key, err)
+		}
 	}
 }
 
@@ -287,7 +383,10 @@ func TestGetIntNotNegative(t *testing.T) {
 	key := "ENVUTIL_TEST_GET_INT"
 	var def = 9999
 	t.Run("WhenEnvironmentVariableIsNotSet", func(tt *testing.T) {
-		os.Unsetenv(key)
+		err := os.Unsetenv(key)
+		if err != nil {
+			t.Errorf("Error unsetting environment variable %s: %v", key, err)
+		}
 		if GetIntNotNegative(key, def) != def {
 			tt.Fail()
 		}
@@ -309,12 +408,18 @@ func TestGetIntNotNegative(t *testing.T) {
 		{env: "4294967295", expectedInt: 4294967295},
 	}
 	for _, td := range testData {
-		os.Setenv(key, td.env)
+		err := os.Setenv(key, td.env)
+		if err != nil {
+			t.Errorf("Error setting environment variable %s: %v", key, err)
+		}
 		val := GetIntNotNegative(key, def)
 		if val != td.expectedInt {
 			t.Errorf("Returned value %v does not match expected one for env '%s'", val, td.env)
 		}
-		os.Unsetenv(key)
+		err = os.Unsetenv(key)
+		if err != nil {
+			t.Errorf("Error unsetting environment variable %s: %v", key, err)
+		}
 	}
 }
 
@@ -322,7 +427,10 @@ func TestGetUint16(t *testing.T) {
 	key := "ENVUTIL_TEST_GET_UINT16"
 	var def uint16 = 9999
 	t.Run("WhenEnvironmentVariableIsNotSet", func(tt *testing.T) {
-		os.Unsetenv(key)
+		err := os.Unsetenv(key)
+		if err != nil {
+			t.Errorf("Error unsetting environment variable %s: %v", key, err)
+		}
 		if GetUint16(key, def) != def {
 			tt.Fail()
 		}
@@ -344,12 +452,18 @@ func TestGetUint16(t *testing.T) {
 		{env: "4294967295", expectedUint16: def},
 	}
 	for _, td := range testData {
-		os.Setenv(key, td.env)
+		err := os.Setenv(key, td.env)
+		if err != nil {
+			t.Errorf("Error setting environment variable %s: %v", key, err)
+		}
 		val := GetUint16(key, def)
 		if val != td.expectedUint16 {
 			t.Errorf("Returned value %v does not match expected one for env '%s'", val, td.env)
 		}
-		os.Unsetenv(key)
+		err = os.Unsetenv(key)
+		if err != nil {
+			t.Errorf("Error unsetting environment variable %s: %v", key, err)
+		}
 	}
 }
 
@@ -357,7 +471,10 @@ func TestGetInt64FromEnvIfNil(t *testing.T) {
 	key := "ENVUTIL_TEST_GET_INT64"
 	var def int64 = 9999
 	t.Run("WhenNotSpecifying64bitIntegerAndEnvironmentVariableIsNotSet", func(tt *testing.T) {
-		os.Unsetenv(key)
+		err := os.Unsetenv(key)
+		if err != nil {
+			t.Errorf("Error unsetting environment variable %s: %v", key, err)
+		}
 		val := GetInt64FromEnvIfNil(nil, key, def)
 		if val == nil {
 			tt.Error("Value not returned")
@@ -366,17 +483,26 @@ func TestGetInt64FromEnvIfNil(t *testing.T) {
 		}
 	})
 	t.Run("WhenNotSpecifying64bitIntegerAndEnvironmentVariableIsSet", func(tt *testing.T) {
-		os.Setenv(key, "1234")
+		err := os.Setenv(key, "1234")
+		if err != nil {
+			t.Errorf("Error setting environment variable %s: %v", key, err)
+		}
 		val := GetInt64FromEnvIfNil(nil, key, def)
 		if val == nil {
 			tt.Error("Value not returned")
 		} else if *val != 1234 {
 			tt.Fail()
 		}
-		os.Unsetenv(key)
+		err = os.Unsetenv(key)
+		if err != nil {
+			t.Errorf("Error unsetting environment variable %s: %v", key, err)
+		}
 	})
 	t.Run("WhenSpecifying64bitIntegerAndEnvironmentVariableIsNotSet", func(tt *testing.T) {
-		os.Unsetenv(key)
+		err := os.Unsetenv(key)
+		if err != nil {
+			t.Errorf("Error unsetting environment variable %s: %v", key, err)
+		}
 		var v int64 = 1234
 		val := GetInt64FromEnvIfNil(&v, key, def)
 		if val != &v {
@@ -384,13 +510,19 @@ func TestGetInt64FromEnvIfNil(t *testing.T) {
 		}
 	})
 	t.Run("WhenSpecifying64bitIntegerAndEnvironmentVariableIsSet", func(tt *testing.T) {
-		os.Setenv(key, "non-default value")
+		err := os.Setenv(key, "non-default value")
+		if err != nil {
+			t.Errorf("Error setting environment variable %s: %v", key, err)
+		}
 		var v int64 = 1234
 		val := GetInt64FromEnvIfNil(&v, key, def)
 		if val != &v {
 			tt.Fail()
 		}
-		os.Unsetenv(key)
+		err = os.Unsetenv(key)
+		if err != nil {
+			t.Errorf("Error unsetting environment variable %s: %v", key, err)
+		}
 	})
 }
 
@@ -398,7 +530,10 @@ func TestGetInt64(t *testing.T) {
 	key := "ENVUTIL_TEST_GET_INT64"
 	var def int64 = 9999
 	t.Run("WhenEnvironmentVariableIsNotSet", func(tt *testing.T) {
-		os.Unsetenv(key)
+		err := os.Unsetenv(key)
+		if err != nil {
+			t.Errorf("Error unsetting environment variable %s: %v", key, err)
+		}
 		if GetInt64(key, def) != def {
 			tt.Fail()
 		}
@@ -420,12 +555,18 @@ func TestGetInt64(t *testing.T) {
 		{env: "2147483647", expectedInt64: 2147483647},
 	}
 	for _, td := range testData {
-		os.Setenv(key, td.env)
+		err := os.Setenv(key, td.env)
+		if err != nil {
+			t.Errorf("Error setting environment variable %s: %v", key, err)
+		}
 		val := GetInt64(key, def)
 		if val != td.expectedInt64 {
 			t.Errorf("Returned value %v does not match expected one for env '%s'", val, td.env)
 		}
-		os.Unsetenv(key)
+		err = os.Unsetenv(key)
+		if err != nil {
+			t.Errorf("Error unsetting environment variable %s: %v", key, err)
+		}
 	}
 }
 
@@ -433,7 +574,10 @@ func TestGetUint64FromEnvIfNil(t *testing.T) {
 	key := "ENVUTIL_TEST_GET_UINT64"
 	var def uint64 = 9999
 	t.Run("WhenNotSpecifying64bitUnsignedIntegerAndEnvironmentVariableIsNotSet", func(tt *testing.T) {
-		os.Unsetenv(key)
+		err := os.Unsetenv(key)
+		if err != nil {
+			t.Errorf("Error unsetting environment variable %s: %v", key, err)
+		}
 		val := GetUint64FromEnvIfNil(nil, key, def)
 		if val == nil {
 			tt.Error("Value not returned")
@@ -442,17 +586,26 @@ func TestGetUint64FromEnvIfNil(t *testing.T) {
 		}
 	})
 	t.Run("WhenNotSpecifying64bitUnsignedIntegerAndEnvironmentVariableIsSet", func(tt *testing.T) {
-		os.Setenv(key, "1234")
+		err := os.Setenv(key, "1234")
+		if err != nil {
+			t.Errorf("Error setting environment variable %s: %v", key, err)
+		}
 		val := GetUint64FromEnvIfNil(nil, key, def)
 		if val == nil {
 			tt.Error("Value not returned")
 		} else if *val != 1234 {
 			tt.Fail()
 		}
-		os.Unsetenv(key)
+		err = os.Unsetenv(key)
+		if err != nil {
+			t.Errorf("Error unsetting environment variable %s: %v", key, err)
+		}
 	})
 	t.Run("WhenSpecifying64bitUnsignedIntegerAndEnvironmentVariableIsNotSet", func(tt *testing.T) {
-		os.Unsetenv(key)
+		err := os.Unsetenv(key)
+		if err != nil {
+			t.Errorf("Error unsetting environment variable %s: %v", key, err)
+		}
 		var v uint64 = 1234
 		val := GetUint64FromEnvIfNil(&v, key, def)
 		if val != &v {
@@ -460,13 +613,19 @@ func TestGetUint64FromEnvIfNil(t *testing.T) {
 		}
 	})
 	t.Run("WhenSpecifying64bitUnsignedIntegerAndEnvironmentVariableIsSet", func(tt *testing.T) {
-		os.Setenv(key, "non-default value")
+		err := os.Setenv(key, "non-default value")
+		if err != nil {
+			t.Errorf("Error setting environment variable %s: %v", key, err)
+		}
 		var v uint64 = 1234
 		val := GetUint64FromEnvIfNil(&v, key, def)
 		if val != &v {
 			tt.Fail()
 		}
-		os.Unsetenv(key)
+		err = os.Unsetenv(key)
+		if err != nil {
+			t.Errorf("Error unsetting environment variable %s: %v", key, err)
+		}
 	})
 }
 
@@ -474,7 +633,10 @@ func TestGetUint64(t *testing.T) {
 	key := "ENVUTIL_TEST_GET_UINT64"
 	var def uint64 = 9999
 	t.Run("WhenEnvironmentVariableIsNotSet", func(tt *testing.T) {
-		os.Unsetenv(key)
+		err := os.Unsetenv(key)
+		if err != nil {
+			t.Errorf("Error unsetting environment variable %s: %v", key, err)
+		}
 		if GetUint64(key, def) != def {
 			tt.Fail()
 		}
@@ -496,12 +658,18 @@ func TestGetUint64(t *testing.T) {
 		{env: "4294967295", expectedUint64: 4294967295},
 	}
 	for _, td := range testData {
-		os.Setenv(key, td.env)
+		err := os.Setenv(key, td.env)
+		if err != nil {
+			t.Errorf("Error setting environment variable %s: %v", key, err)
+		}
 		val := GetUint64(key, def)
 		if val != td.expectedUint64 {
 			t.Errorf("Returned value %v does not match expected one for env '%s'", val, td.env)
 		}
-		os.Unsetenv(key)
+		err = os.Unsetenv(key)
+		if err != nil {
+			t.Errorf("Error unsetting environment variable %s: %v", key, err)
+		}
 	}
 }
 
@@ -509,7 +677,10 @@ func TestGetFloat64FromEnvIfNil(t *testing.T) {
 	key := "ENVUTIL_TEST_GET_FLOAT64"
 	def := 99.99
 	t.Run("WhenNotSpecifying64bitUnsignedIntegerAndEnvironmentVariableIsNotSet", func(tt *testing.T) {
-		os.Unsetenv(key)
+		err := os.Unsetenv(key)
+		if err != nil {
+			t.Errorf("Error unsetting environment variable %s: %v", key, err)
+		}
 		val := GetFloat64FromEnvIfNil(nil, key, def)
 		if val == nil {
 			tt.Error("Value not returned")
@@ -518,17 +689,26 @@ func TestGetFloat64FromEnvIfNil(t *testing.T) {
 		}
 	})
 	t.Run("WhenNotSpecifying64bitUnsignedIntegerAndEnvironmentVariableIsSet", func(tt *testing.T) {
-		os.Setenv(key, "12.34")
+		err := os.Setenv(key, "12.34")
+		if err != nil {
+			t.Errorf("Error setting environment variable %s: %v", key, err)
+		}
 		val := GetFloat64FromEnvIfNil(nil, key, def)
 		if val == nil {
 			tt.Error("Value not returned")
 		} else if *val != 12.34 {
 			tt.Fail()
 		}
-		os.Unsetenv(key)
+		err = os.Unsetenv(key)
+		if err != nil {
+			t.Errorf("Error unsetting environment variable %s: %v", key, err)
+		}
 	})
 	t.Run("WhenSpecifying64bitUnsignedIntegerAndEnvironmentVariableIsNotSet", func(tt *testing.T) {
-		os.Unsetenv(key)
+		err := os.Unsetenv(key)
+		if err != nil {
+			t.Errorf("Error unsetting environment variable %s: %v", key, err)
+		}
 		v := 12.34
 		val := GetFloat64FromEnvIfNil(&v, key, def)
 		if val != &v {
@@ -536,13 +716,19 @@ func TestGetFloat64FromEnvIfNil(t *testing.T) {
 		}
 	})
 	t.Run("WhenSpecifying64bitUnsignedIntegerAndEnvironmentVariableIsSet", func(tt *testing.T) {
-		os.Setenv(key, "non-default value")
+		err := os.Setenv(key, "non-default value")
+		if err != nil {
+			t.Errorf("Error setting environment variable %s: %v", key, err)
+		}
 		v := 12.34
 		val := GetFloat64FromEnvIfNil(&v, key, def)
 		if val != &v {
 			tt.Fail()
 		}
-		os.Unsetenv(key)
+		err = os.Unsetenv(key)
+		if err != nil {
+			t.Errorf("Error unsetting environment variable %s: %v", key, err)
+		}
 	})
 }
 
@@ -550,7 +736,10 @@ func TestGetFloat64(t *testing.T) {
 	key := "ENVUTIL_TEST_GET_FLOAT64"
 	def := 99.99
 	t.Run("WhenEnvironmentVariableIsNotSet", func(tt *testing.T) {
-		os.Unsetenv(key)
+		err := os.Unsetenv(key)
+		if err != nil {
+			t.Errorf("Error unsetting environment variable %s: %v", key, err)
+		}
 		if GetFloat64(key, def) != def {
 			tt.Fail()
 		}
@@ -572,12 +761,18 @@ func TestGetFloat64(t *testing.T) {
 		{env: "42949.67295", expectedFloat64: 42949.67295},
 	}
 	for _, td := range testData {
-		os.Setenv(key, td.env)
+		err := os.Setenv(key, td.env)
+		if err != nil {
+			t.Errorf("Error setting environment variable %s: %v", key, err)
+		}
 		val := GetFloat64(key, def)
 		if val != td.expectedFloat64 {
 			t.Errorf("Returned value %v does not match expected one for env '%s'", val, td.env)
 		}
-		os.Unsetenv(key)
+		err = os.Unsetenv(key)
+		if err != nil {
+			t.Errorf("Error unsetting environment variable %s: %v", key, err)
+		}
 	}
 }
 
@@ -585,7 +780,10 @@ func TestGetBoolFromEnvIfNil(t *testing.T) {
 	key := "ENVUTIL_TEST_GET_BOOL"
 	def := true
 	t.Run("WhenNotSpecifyingBoolAndEnvironmentVariableIsNotSet", func(tt *testing.T) {
-		os.Unsetenv(key)
+		err := os.Unsetenv(key)
+		if err != nil {
+			t.Errorf("Error unsetting environment variable %s: %v", key, err)
+		}
 		val := GetBoolFromEnvIfNil(nil, key, def)
 		if val == nil {
 			tt.Error("Value not returned")
@@ -594,17 +792,26 @@ func TestGetBoolFromEnvIfNil(t *testing.T) {
 		}
 	})
 	t.Run("WhenNotSpecifyingBoolAndEnvironmentVariableIsSet", func(tt *testing.T) {
-		os.Setenv(key, "false")
+		err := os.Setenv(key, "false")
+		if err != nil {
+			t.Errorf("Error setting environment variable %s: %v", key, err)
+		}
 		val := GetBoolFromEnvIfNil(nil, key, def)
 		if val == nil {
 			tt.Error("Value not returned")
 		} else if *val != false {
 			tt.Fail()
 		}
-		os.Unsetenv(key)
+		err = os.Unsetenv(key)
+		if err != nil {
+			t.Errorf("Error unsetting environment variable %s: %v", key, err)
+		}
 	})
 	t.Run("WhenSpecifyingBoolAndEnvironmentVariableIsNotSet", func(tt *testing.T) {
-		os.Unsetenv(key)
+		err := os.Unsetenv(key)
+		if err != nil {
+			t.Errorf("Error unsetting environment variable %s: %v", key, err)
+		}
 		v := false
 		val := GetBoolFromEnvIfNil(&v, key, def)
 		if val != &v {
@@ -612,13 +819,19 @@ func TestGetBoolFromEnvIfNil(t *testing.T) {
 		}
 	})
 	t.Run("WhenSpecifyingBoolAndEnvironmentVariableIsSet", func(tt *testing.T) {
-		os.Setenv(key, "non-default value")
+		err := os.Setenv(key, "non-default value")
+		if err != nil {
+			t.Errorf("Error setting environment variable %s: %v", key, err)
+		}
 		v := false
 		val := GetBoolFromEnvIfNil(&v, key, def)
 		if val != &v {
 			tt.Fail()
 		}
-		os.Unsetenv(key)
+		err = os.Unsetenv(key)
+		if err != nil {
+			t.Errorf("Error unsetting environment variable %s: %v", key, err)
+		}
 	})
 }
 
@@ -627,7 +840,10 @@ func TestGetBool(t *testing.T) {
 
 	// Test when the environment variable is not set
 	t.Run("WhenEnvironmentVariableIsNotSet", func(tt *testing.T) {
-		os.Unsetenv(key)
+		err := os.Unsetenv(key)
+		if err != nil {
+			t.Errorf("Error unsetting environment variable %s: %v", key, err)
+		}
 		if GetBool(key, false) {
 			tt.Error("Expected false when environment variable is not set and default is false")
 		}
@@ -684,7 +900,10 @@ func TestGetBool(t *testing.T) {
 
 	// Run tests for each case
 	for _, td := range testData {
-		os.Setenv(key, td.env)
+		err := os.Setenv(key, td.env)
+		if err != nil {
+			t.Errorf("Error setting environment variable %s: %v", key, err)
+		}
 		val := GetBool(key, false)
 		if val != td.expectedForFalseDefault {
 			t.Errorf("For env '%s' with default false: expected %v, got %v", td.env, td.expectedForFalseDefault, val)
@@ -693,6 +912,9 @@ func TestGetBool(t *testing.T) {
 		if val != td.expectedForTrueDefault {
 			t.Errorf("For env '%s' with default true: expected %v, got %v", td.env, td.expectedForTrueDefault, val)
 		}
-		os.Unsetenv(key)
+		err = os.Unsetenv(key)
+		if err != nil {
+			t.Errorf("Error unsetting environment variable %s: %v", key, err)
+		}
 	}
 }

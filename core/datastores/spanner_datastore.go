@@ -63,6 +63,10 @@ func NewSpannerDatastore(projectID, instanceID, databaseID string) *SpannerDatas
 	fmt.Println("Executed migrations on Spanner")
 
 	dataClient, err := spanner.NewClient(context.Background(), fmt.Sprintf("projects/%s/instances/%s/databases/%s", projectID, instanceID, databaseID))
+	if err != nil {
+		fmt.Printf("Failed to create Spanner client: %v", err)
+		return nil
+	}
 	return &SpannerDatastore{
 		dataClient: dataClient,
 		db:         db,
