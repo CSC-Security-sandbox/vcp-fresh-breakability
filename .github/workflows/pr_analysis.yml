@@ -6,7 +6,7 @@ on:
 
 jobs:
   pr-analysis-job:
-#    runs-on: ubuntu-latest
+    #    runs-on: ubuntu-latest
     runs-on: [self-hosted, pr-analysis]
     container:
       image: ghcr.io/greenqloud/common-images/builder2:latest
@@ -121,23 +121,38 @@ jobs:
         env:
           PR_URL: ${{ github.event.pull_request.html_url }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        shell: bash
         run: |
           ANALYSIS_OUTPUT=$(cat pr_analysis_output.txt)
           PR_NUMBER=${{ github.event.pull_request.number }}
-          
+
           # Get the current PR description
           PR_DESCRIPTION=$(gh pr view $PR_NUMBER --json body -q '.body')
-          
+
           # Define the start and end markers for the analysis section
-          START_MARKER="<!-- analysis-start -->"
-          END_MARKER="<!-- analysis-end -->"
-          
-          # Extract the content before and after the analysis section
-          BEFORE_ANALYSIS=$(echo "$PR_DESCRIPTION" | sed -n "1,/${START_MARKER}/p" | sed '$d')
-          AFTER_ANALYSIS=$(echo "$PR_DESCRIPTION" | sed -n "/${END_MARKER}/,\$p" | sed '1d')
+          START_MARKER='<!-- analysis-start -->'
+          END_MARKER='<!-- analysis-end -->'
+
+          # Get content before the marker (exclusive)
+          BEFORE_ANALYSIS=$(echo "$PR_DESCRIPTION" | awk -v marker="$START_MARKER" '
+            NR==1, $0 ~ marker {
+              if ($0 !~ marker) print
+            }
+          ')
+
+          # Get content after the marker (exclusive)
+          AFTER_ANALYSIS=$(echo "$PR_DESCRIPTION" | awk -v marker="$END_MARKER" '
+            $0 ~ marker, NR==$NR {
+              if ($0 !~ marker) print
+            }
+          ')
 
           # Construct the new PR description
-          NEW_PR_DESCRIPTION="${BEFORE_ANALYSIS} ${START_MARKER} ${ANALYSIS_OUTPUT} ${END_MARKER} ${AFTER_ANALYSIS}"
+          NEW_PR_DESCRIPTION="${BEFORE_ANALYSIS}
+          ${START_MARKER}
+          ${ANALYSIS_OUTPUT}
+          ${END_MARKER}
+          ${AFTER_ANALYSIS}"
 
           # Update the PR description
           gh pr edit $PR_NUMBER --body "$NEW_PR_DESCRIPTION"
