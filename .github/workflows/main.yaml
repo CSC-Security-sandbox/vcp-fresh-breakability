@@ -1,13 +1,17 @@
-name: Go CI
-
+name: Main Workflow
 on:
   push:
-    branches: [ main ]
+    branches:
+      - main
   pull_request:
+
+concurrency:
+  group: ${{ github.head_ref || github.run_id }}
+  cancel-in-progress: true
+
 jobs:
   build:
     runs-on: ubuntu-latest
-
     steps:
       - name: Checkout code
         uses: actions/checkout@v2
@@ -20,8 +24,21 @@ jobs:
       - name: Install dependencies
         run: go mod tidy
 
-      - name: Run tests
-        run: go test ./...
+      - name: Cache Go modules
+        uses: actions/cache/save@v4
+        with:
+          path: |
+            ~/go/pkg/mod
+            ~/.cache/go-build
+          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+
+  ut-and-coverage:
+    name: Unit Tests and Coverage
+    uses: ./.github/workflows/tests-coverage.yaml
+    secrets: inherit
+    with:
+      coverage-threshold: 80
+
 
   lint:
     runs-on: [self-hosted,linux]
@@ -38,15 +55,6 @@ jobs:
         with:
           go-version-file: go.mod
 
-      - name: Cache Go modules
-        uses: actions/cache@v3
-        with:
-          path: |
-            ~/.cache/go-build
-            /go/pkg/mod
-          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
-          restore-keys: |
-            ${{ runner.os }}-go-
       - name: Run golangci-lint script
         run: |
           .github/scripts/lint.sh

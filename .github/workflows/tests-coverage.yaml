@@ -1,0 +1,58 @@
+name: Unit Tests and Coverage
+
+on:
+  workflow_call:
+    inputs:
+      coverage-threshold:
+        type: string
+        description: 'Minimum required code coverage percentage'
+        required: true
+        default: 80
+
+jobs:
+  uts-and-coverage:
+    name: Unit Tests and Coverage
+    runs-on: [ self-hosted, Linux ]
+    container:
+      image: ghcr.io/vcp-vsa-control-plane/vsa-builder:v1
+      options: --user root
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          fetch-depth: 0
+          submodules: true
+          #token: ${{ secrets.GHVSA_PAT }}
+      - name: Set up Go
+        uses: actions/setup-go@v3
+        with:
+          go-version: '1.24.1'
+      - name: Restore Go modules cache
+        uses: actions/cache/restore@v4
+        with:
+          path: |
+            ~/go/pkg/mod
+            ~/.cache/go-build
+          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+          restore-keys: |
+            ${{ runner.os }}-go-
+      - name: "Run 'go mod tidy' on cache miss"
+        if: steps.restore-go-cache.outputs.cache-hit != 'true'
+        run: |
+          go mod tidy
+      - name: UTs with Coverage
+        run: |
+          make test-with-coverage
+      - name: Check coverage threshold
+        continue-on-error: true
+        run: |
+          coverage_int=$(printf "%.0f" $(echo "${{ env.coverage }} * 100" | awk '{printf "%.0f", $1}'))
+          threshold_int=$(printf "%.0f" $(echo "${{ inputs.coverage-threshold }} * 100" | awk '{printf "%.0f", $1}'))
+          if [ "$coverage_int" -lt "$threshold_int" ]; then
+            echo "Coverage ${{ env.coverage }}% is below the threshold of $COVERAGE_THRESHOLD%."
+            exit 1
+          else
+            echo "Coverage ${{ env.coverage }}% meets the threshold of $COVERAGE_THRESHOLD%."
+          fi
+        env:
+          COVERAGE_THRESHOLD: ${{ inputs.coverage-threshold }}
