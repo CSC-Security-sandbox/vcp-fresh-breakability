@@ -22,7 +22,8 @@ for i in {1..5}; do
     --network="$VPC_NAME" \
     --range="10.$i.0.0/23" \
     --region="$REGION" \
-    --project="$PROJECT_ID"
+    --project="$PROJECT_ID"\
+    --enable-private-ip-google-access
 
   echo "Creating firewall rule: $FIREWALL_NAME for VPC: $VPC_NAME..."
   gcloud compute firewall-rules create "$FIREWALL_NAME" \
