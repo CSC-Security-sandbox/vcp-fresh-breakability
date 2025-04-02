@@ -10,6 +10,7 @@ USER root
 COPY *.txt /tmp/
 
 COPY scripts/builder.sh /scripts/builder.sh
+RUN chmod +x /scripts/builder.sh
 RUN /scripts/builder.sh
 USER github
 RUN mkdir ~/.ssh && chmod 700 ~/.ssh && touch ~/.ssh/config && chmod 600 ~/.ssh/config && echo ${SSH_CONFIG} >~/.ssh/config

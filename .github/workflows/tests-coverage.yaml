@@ -9,6 +9,11 @@ on:
         required: true
         default: 80
 
+permissions:
+  contents: read
+  packages: read
+  actions: read
+
 jobs:
   uts-and-coverage:
     name: Unit Tests and Coverage
