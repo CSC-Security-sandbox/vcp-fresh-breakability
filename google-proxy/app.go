@@ -8,6 +8,8 @@ import (
 	"github.com/google/uuid"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/common"
 	coreapi "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/core-api/handler"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database"
+	_ "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/postgres"
 	api "github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/api/endpoints"
 	gcpgenserver "github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/api/gcp-servergen"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/middleware"
@@ -30,6 +32,15 @@ func main() {
 
 	logger := slog.New(slog.NewJSONHandler(os.Stdout, nil))
 	logger.Info("Starting gcp proxy API")
+	cfg := common.LoadConfig()
+
+	// initialize the database - this can be moved to a separate function
+	dbCon, err := initializeDatabase(ctx, cfg, logger)
+	if err != nil {
+		logger.Error("Failed to initialize database", slog.String("error", err.Error()))
+		os.Exit(1)
+	}
+	defer closeDatabase(dbCon, logger)
 
 	// Create GCP proxy server
 	newHandler := api.NewHandler(&coreapi.Handler{})
@@ -38,27 +49,7 @@ func main() {
 		logger.Error("Failed to create server", slog.String("error", err.Error()))
 		os.Exit(1)
 	}
-
-	// Setup HTTP router
-	mux := chi.NewRouter()
-	mux.Use(middleware.AuthMiddleware)
-	mux.Use(chimiddleware.Logger) // replace with custom middleware
-	mux.Use(chimiddleware.Recoverer)
-
-	// Mount the generated API handler
-	mux.Mount("/", http.Handler(gcpServer))
-
-	cfg := common.LoadConfig()
-	// Setup HTTP server with proper timeouts
-	httpServer := &http.Server{
-		Addr:              "localhost:" + cfg.GCPPort,
-		Handler:           mux,
-		ReadTimeout:       cfg.ReadTimeout,
-		WriteTimeout:      cfg.WriteTimeout,
-		IdleTimeout:       cfg.IdleTimeout,
-		ReadHeaderTimeout: cfg.ReadHeaderTimeout,
-	}
-
+	httpServer := setupHTTPServer(cfg, gcpServer)
 	// Use errgroup to manage goroutines and context
 	eg, ctx := errgroup.WithContext(ctx)
 
@@ -72,7 +63,69 @@ func main() {
 		return nil
 	})
 
-	// Handle graceful shutdown on signal or context cancellation
+	handleGracefulShutdown(eg, ctx, httpServer, logger)
+	// Wait for all goroutines to finish
+	if err := eg.Wait(); err != nil {
+		logger.Error("Server error", slog.String("error", err.Error()))
+		os.Exit(1)
+	}
+	logger.Info("Server stopped gracefully")
+}
+
+func initializeDatabase(ctx context.Context, cfg *common.Config, logger *slog.Logger) (database.Storage, error) {
+	dbConfig := database.DbConfig{
+		Type:            cfg.DBType,
+		Host:            cfg.DBHost,
+		Port:            cfg.DBPort,
+		User:            cfg.DBUser,
+		Password:        cfg.DBPassword,
+		Name:            cfg.DBName,
+		SSLMode:         cfg.DBSSLMode,
+		TimeZone:        cfg.DBTimeZone.String(),
+		MaxOpenConns:    cfg.DBMaxOpenConns,
+		MaxIdleConns:    cfg.DBMaxIdleConns,
+		ConnMaxLifetime: cfg.DBConnMaxLifetime,
+		MigrationPath:   cfg.MigrationPath,
+		AdminUser:       cfg.DBAdminUser,
+		AdminPassword:   cfg.DBAdminPassword,
+		Logger:          logger,
+	}
+	dbCon, err := database.New(dbConfig)
+	if err != nil {
+		return nil, err
+	}
+	if cfg.RunMigrationOnStart {
+		if err := dbCon.Migrate(ctx); err != nil {
+			return nil, err
+		}
+	}
+	return dbCon, nil
+}
+
+func closeDatabase(dbCon database.Storage, logger *slog.Logger) {
+	if err := dbCon.Close(); err != nil {
+		logger.Error("Failed to close database connection", slog.String("error", err.Error()))
+	}
+}
+
+func setupHTTPServer(cfg *common.Config, handler http.Handler) *http.Server {
+	mux := chi.NewRouter()
+	mux.Use(middleware.AuthMiddleware)
+	mux.Use(chimiddleware.Logger)
+	mux.Use(chimiddleware.Recoverer)
+	mux.Mount("/", handler)
+
+	return &http.Server{
+		Addr:              "localhost:" + cfg.GCPPort,
+		Handler:           mux,
+		ReadTimeout:       cfg.ReadTimeout,
+		WriteTimeout:      cfg.WriteTimeout,
+		IdleTimeout:       cfg.IdleTimeout,
+		ReadHeaderTimeout: cfg.ReadHeaderTimeout,
+	}
+}
+
+func handleGracefulShutdown(eg *errgroup.Group, ctx context.Context, httpServer *http.Server, logger *slog.Logger) {
 	eg.Go(func() error {
 		<-ctx.Done()
 		logger.Info("Shutting down server")
@@ -86,11 +139,4 @@ func main() {
 		}
 		return nil
 	})
-
-	// Wait for all goroutines to finish
-	if err := eg.Wait(); err != nil {
-		logger.Error("Server error", slog.String("error", err.Error()))
-		os.Exit(1)
-	}
-	logger.Info("Server stopped gracefully")
 }

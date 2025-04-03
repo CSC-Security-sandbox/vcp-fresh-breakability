@@ -8,12 +8,48 @@ import (
 )
 
 type Config struct {
-	GCPPort           string
-	CorePort          string
-	ReadTimeout       time.Duration
-	WriteTimeout      time.Duration
-	IdleTimeout       time.Duration
-	ReadHeaderTimeout time.Duration
+	// Server configuration
+	GCPPort             string
+	CorePort            string
+	ReadTimeout         time.Duration
+	WriteTimeout        time.Duration
+	IdleTimeout         time.Duration
+	ReadHeaderTimeout   time.Duration
+	RunMigrationOnStart bool
+
+	// Database connection details
+	DBType     string // Type of database (e.g., "postgres", "mysql", "sqlite", "mssql").
+	DBHost     string // Database hostname or IP (e.g., "localhost", "127.0.0.1", "db.example.com").
+	DBPort     string // Database port (e.g., "5432" for PostgreSQL, "3306" for MySQL, "1433" for MSSQL).
+	DBUser     string // Database username.
+	DBPassword string // Database password.
+	DBName     string // Database name.
+	DBSSLMode  string
+	// Possible values:
+	// "disable" - No SSL.
+	// "allow"   - Try SSL, fallback to non-SSL if unavailable.
+	// "prefer"  - Prefer SSL, but fallback to non-SSL if necessary.
+	// "require" - Always use SSL; no verification.
+	// "verify-ca" - Use SSL & verify CA certificate.
+	// "verify-full" - Use SSL, verify CA & hostname (most secure, recommended for production).
+
+	DBTimeZone *time.Location // Time zone for the database connection (e.g., "UTC", "Asia/Kolkata").
+	// Connection pool settings
+	DBMaxOpenConns    int           // Maximum number of open connections (0 = unlimited).
+	DBMaxIdleConns    int           // Maximum number of idle connections (default: 2).
+	DBConnMaxLifetime time.Duration // Maximum time a connection can be reused before closing (e.g., 30m, 1h).
+
+	// Credential files (used for security)
+	CredentialPath string // Path to a credentials file (e.g., service account JSON for GCP, AWS).
+	UsernameFile   string // Path to a file containing the database username.
+	PasswordFile   string // Path to a file containing the database password.
+
+	// Migration settings
+	MigrationPath string // Path to database migration files (e.g., "./migrations").
+
+	// Admin database credentials (Use only when necessary)
+	DBAdminUser     string // Admin user for privileged operations.
+	DBAdminPassword string // Admin password (Avoid hardcoding, use secret management tools).
 }
 
 func LoadConfig() *Config {
@@ -24,13 +60,51 @@ func LoadConfig() *Config {
 	idleTimeout := parseDuration(env.GetString("IDLE_TIMEOUT", "120s"))
 	readHeaderTimeout := parseDuration(env.GetString("READ_HEADER_TIMEOUT", "2s"))
 
+	runMigrationOnStart := env.GetBool("RUN_MIGRATION_ON_START", false)
+
+	dbType := env.GetString("DB_TYPE", "postgres")
+	dbHost := env.GetString("DB_HOST", "localhost")
+	dbPort := env.GetString("DB_PORT", "5432")
+	dbUser := env.GetString("DB_USER", "")
+	dbPassword := env.GetString("DB_PASSWORD", "")
+	dbName := env.GetString("DB_NAME", "vcp")
+	dbSSLMode := env.GetString("DB_SSL_MODE", "disable")
+	dbTimeZone := env.GetString("DB_TIMEZONE", "UTC")
+	dbMaxOpenConns := env.GetInt("DB_MAX_OPEN_CONNS", 25)
+	dbMaxIdleConns := env.GetInt("DB_MAX_IDLE_CONNS", 25)
+	dbConnMaxLifetime := parseDuration(env.GetString("DB_CONN_MAX_LIFETIME", "1h"))
+	MigrationPath := env.GetString("MIGRATION_PATH", "core/migrations")
+	dbAdminUser := env.GetString("DB_ADMIN_USER", "")
+	dbAdminPassword := env.GetString("DB_ADMIN_PASSWORD", "")
+
+	location, err := time.LoadLocation(dbTimeZone)
+	if err != nil {
+		slog.Error("Invalid timezone: %v", err)
+		return nil
+	}
+
 	return &Config{
-		GCPPort:           gcpPort,
-		CorePort:          corePort,
-		ReadTimeout:       readTimeout,
-		WriteTimeout:      writeTimeout,
-		IdleTimeout:       idleTimeout,
-		ReadHeaderTimeout: readHeaderTimeout,
+		GCPPort:             gcpPort,
+		CorePort:            corePort,
+		ReadTimeout:         readTimeout,
+		WriteTimeout:        writeTimeout,
+		IdleTimeout:         idleTimeout,
+		ReadHeaderTimeout:   readHeaderTimeout,
+		RunMigrationOnStart: runMigrationOnStart,
+		DBType:              dbType,
+		DBHost:              dbHost,
+		DBPort:              dbPort,
+		DBUser:              dbUser,
+		DBPassword:          dbPassword,
+		DBName:              dbName,
+		DBSSLMode:           dbSSLMode,
+		DBTimeZone:          location,
+		DBMaxOpenConns:      dbMaxOpenConns,
+		DBMaxIdleConns:      dbMaxIdleConns,
+		DBConnMaxLifetime:   dbConnMaxLifetime,
+		MigrationPath:       MigrationPath,
+		DBAdminUser:         dbAdminUser,
+		DBAdminPassword:     dbAdminPassword,
 	}
 }
 
