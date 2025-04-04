@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/common"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/util/middleware/log"
 	"log/slog"
 	"net/http"
 	"os"
@@ -27,7 +28,7 @@ func main() {
 	ctx, cancel := signal.NotifyContext(ctx, syscall.SIGINT, syscall.SIGTERM)
 	defer cancel()
 
-	logger := slog.New(slog.NewJSONHandler(os.Stdout, nil))
+	logger := log.NewLogger()
 	logger.Info("Starting VCP Core API")
 
 	oasserver, err := coregenserver.NewServer(api.Handler{})
@@ -38,7 +39,7 @@ func main() {
 
 	// Setup HTTP router
 	mux := chi.NewRouter()
-	mux.Use(chimiddleware.Logger) // replace with custom middleware
+	mux.Use(log.LoggingMiddleware)
 	mux.Use(chimiddleware.Recoverer)
 
 	// Mount the generated API handler
