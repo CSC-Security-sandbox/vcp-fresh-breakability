@@ -88,18 +88,21 @@ func initializeDatabase(ctx context.Context, cfg *common.Config, logger *slog.Lo
 		MigrationPath:   cfg.MigrationPath,
 		AdminUser:       cfg.DBAdminUser,
 		AdminPassword:   cfg.DBAdminPassword,
-		Logger:          logger,
 	}
-	dbCon, err := database.New(dbConfig)
+	db, err := database.New(dbConfig, logger)
+	if err != nil {
+		return nil, err
+	}
+	err = db.Connect()
 	if err != nil {
 		return nil, err
 	}
 	if cfg.RunMigrationOnStart {
-		if err := dbCon.Migrate(ctx); err != nil {
+		if err := db.Migrate(ctx); err != nil {
 			return nil, err
 		}
 	}
-	return dbCon, nil
+	return db, nil
 }
 
 func closeDatabase(dbCon database.Storage, logger *slog.Logger) {

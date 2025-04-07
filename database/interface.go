@@ -17,6 +17,7 @@ type (
 		Migrate(ctx context.Context) error
 		Rollback(ctx context.Context) error
 		DB() *gorm.DB
+		SetupDatabase(ctx context.Context) error
 
 		DataStore
 	}
@@ -43,7 +44,6 @@ type (
 		AdminUser         string
 		AdminPassword     string
 		MigrationPath     string
-		Logger            Logger
 	}
 )
 

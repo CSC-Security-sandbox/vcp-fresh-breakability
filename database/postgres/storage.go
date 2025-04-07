@@ -4,17 +4,18 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/repository"
 	"net/url"
 	"strconv"
 	"sync"
 	"time"
 
-	"github.com/jackc/pgconn"
+	"github.com/jackc/pgx/v5/pgconn"
+	"github.com/lib/pq"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/repository"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database"
 	gormwrapper "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/gorm"
 )
@@ -37,60 +38,31 @@ func init() {
 	database.Register("postgres", New)
 }
 
-func New(config database.DbConfig) (database.Storage, error) {
+func New(config database.DbConfig, logger database.Logger) (database.Storage, error) {
 	db := &Storage{
 		config: config,
-		logger: config.Logger,
+		logger: logger,
 	}
-
-	// First try to connect with application credentials
-	err := db.Connect()
-	if err == nil {
-		db.initRepositories()
-		return db, nil
-	}
-
-	// If connection fails, and it's a "database doesn't exist" error, initialize fresh
-	//if isDatabaseNotExistError(err) && config.Type == DatabaseTypePostgres {
-	if isDatabaseNotExistError(err) {
-		db.logger.Info("Database doesn't exist, attempting initialization")
-
-		// Temporarily switch to admin credentials
-		originalUser := config.User
-		originalPassword := config.Password
-		config.User = config.AdminUser
-		config.Password = config.AdminPassword
-
-		if err := db.connect(true); err != nil {
-			return nil, fmt.Errorf("database initialization failed: %w", err)
-		}
-
-		// Create database and user
-		if err := db.createDatabaseAndUser(originalUser, originalPassword); err != nil {
-			return nil, fmt.Errorf("failed to setup database: %w", err)
-		}
-
-		// Restore original credentials
-		config.User = originalUser
-		config.Password = originalPassword
-
-		// Reinitialize with application credentials
-		if err := db.Connect(); err != nil {
-			return nil, fmt.Errorf("failed to connect after initialization: %w", err)
-		}
-		return db, nil
-	}
-
-	return nil, fmt.Errorf("database connection failed: %w", err)
-
+	return db, nil
 }
 
 // initRepository initializes  repository
-func (s *Storage) initRepositories() {
+func (s *Storage) initRepository() {
+	s.dataStore = repository.NewDataStoreRepository(s.db.GORM())
+}
+
+func (s *Storage) SetupDatabase(ctx context.Context) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	s.dataStore = repository.NewDataStoreRepository(s.db.GORM())
+	if err := s.connect(true); err != nil {
+		return fmt.Errorf("database initialization failed: %w", err)
+	}
+	// Create database and user
+	if err := s.createDatabaseAndUser(); err != nil {
+		return fmt.Errorf("failed to setup database: %w", err)
+	}
+	return nil
 }
 
 func (s *Storage) Connect() error {
@@ -101,12 +73,17 @@ func (d *Storage) connect(isAdmin bool) error {
 	d.mu.Lock()
 	defer d.mu.Unlock()
 
+	if d.db != nil {
+		return nil // Already connected
+	}
+
 	db, err := d.createConnection(isAdmin)
 	if err != nil {
 		return fmt.Errorf("failed to create database connection: %w", err)
 	}
 
 	d.db = gormwrapper.New(db)
+	d.initRepository()
 	return nil
 }
 
@@ -189,10 +166,11 @@ func (s *Storage) getDSN(isAdmin bool) (string, error) {
 	return u.String(), nil
 }
 
-func (s *Storage) createDatabaseAndUser(appUser, appPassword string) error {
+func (s *Storage) createDatabaseAndUser() error {
 	createDBSQL := fmt.Sprintf(
-		`CREATE DATABASE %s WITH OWNER = %s ENCODING = 'UTF8' LC_COLLATE = 'en_US.UTF-8' LC_CTYPE = 'en_US.UTF-8' CONNECTION LIMIT = -1`,
-		s.config.Name, s.config.AdminUser)
+		`CREATE DATABASE %s WITH OWNER = %s  CONNECTION LIMIT = -1`,
+		pq.QuoteIdentifier(s.config.Name),
+		pq.QuoteIdentifier(s.config.AdminUser))
 
 	if err := s.db.Exec(createDBSQL).Error(); err != nil && !isDatabaseExistsError(err) {
 		return fmt.Errorf("create database failed: %w", err)
@@ -201,18 +179,30 @@ func (s *Storage) createDatabaseAndUser(appUser, appPassword string) error {
 	// TODO : explore different authentication methods
 	createUserSQL := fmt.Sprintf(
 		`DO $$ BEGIN IF NOT EXISTS (SELECT FROM pg_catalog.pg_roles WHERE rolname = '%s') THEN CREATE USER %s WITH PASSWORD '%s'; END IF; END $$`,
-		s.config.User, s.config.User, s.config.Password)
+		pq.QuoteIdentifier(s.config.User),
+		pq.QuoteIdentifier(s.config.User),
+		s.config.Password)
 
 	if err := s.db.Exec(createUserSQL).Error(); err != nil {
 		return fmt.Errorf("create user failed: %w", err)
 	}
 
-	grantSQL := fmt.Sprintf(
-		`GRANT ALL PRIVILEGES ON DATABASE %s TO %s; GRANT ALL PRIVILEGES ON SCHEMA public TO %s;`,
-		s.config.Name, s.config.User, s.config.User)
+	// Grant privileges - NEW FIXED VERSION
+	grantDatabaseSQL := fmt.Sprintf(
+		`GRANT ALL PRIVILEGES ON DATABASE %s TO %s`,
+		pq.QuoteIdentifier(s.config.Name),
+		pq.QuoteIdentifier(s.config.User))
 
-	if err := s.db.Exec(grantSQL).Error(); err != nil {
-		return fmt.Errorf("grant privileges failed: %w", err)
+	if err := s.db.Exec(grantDatabaseSQL).Error(); err != nil {
+		return fmt.Errorf("grant database privileges failed: %w", err)
+	}
+
+	grantSchemaSQL := fmt.Sprintf(
+		`GRANT ALL PRIVILEGES ON SCHEMA public TO %s`,
+		pq.QuoteIdentifier(s.config.User))
+
+	if err := s.db.Exec(grantSchemaSQL).Error(); err != nil {
+		return fmt.Errorf("grant schema privileges failed: %w", err)
 	}
 
 	return nil
@@ -279,11 +269,6 @@ func (s *Storage) WithTransaction(ctx context.Context, fn func(database.Transact
 
 func (s *Storage) DB() *gorm.DB {
 	return s.db.GORM()
-}
-
-func isDatabaseNotExistError(err error) bool {
-	var pgErr *pgconn.PgError
-	return errors.As(err, &pgErr) && pgErr.Code == pgInvalidCatalogName
 }
 
 func isDatabaseExistsError(err error) bool {
