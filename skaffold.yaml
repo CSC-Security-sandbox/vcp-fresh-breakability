@@ -33,9 +33,8 @@ manifests:
   rawYaml:
     - google-proxy/kubernetes/*
     - core/kubernetes/*
-    - firestore-emulator/kubernetes/*
+    - postgres/kubernetes/*
     - workflow-server/kubernetes/*
-    - spanner-emulator/kubernetes/*
 portForward:
   - resourceType: deployment
     resourceName: google-proxy
@@ -46,9 +45,9 @@ portForward:
     port: 8080
     localPort: 9001
   - resourceType: deployment
-    resourceName: spanner-emulator
-    port: 9020
-    localPort: 9002
+    resourceName: postgres
+    port: 5432
+    localPort: 5432
   - resourceType: deployment
     resourceName: workflow-server
     port: 50051
