@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+
 	"github.com/go-chi/chi/v5"
 	chimiddleware "github.com/go-chi/chi/v5/middleware"
 	"github.com/go-faster/errors"
@@ -93,10 +94,15 @@ func initializeDatabase(ctx context.Context, cfg *common.Config, logger *slog.Lo
 	if err != nil {
 		return nil, err
 	}
-	err = db.Connect()
-	if err != nil {
-		return nil, err
+	for {
+		err = db.Connect()
+		if err == nil {
+			break
+		}
+		logger.Error("Failed to connect to the database, retrying...", slog.String("error", err.Error()))
+		time.Sleep(2 * time.Second) // Add a delay between retries to avoid overwhelming the database
 	}
+
 	if cfg.RunMigrationOnStart {
 		if err := db.Migrate(ctx); err != nil {
 			return nil, err

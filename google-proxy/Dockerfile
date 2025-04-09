@@ -5,6 +5,8 @@ COPY google-proxy google-proxy/
 COPY common common/
 COPY util util/
 COPY core core/
+COPY config config/
+COPY database database/
 COPY go.mod go.mod
 COPY go.sum go.sum
 

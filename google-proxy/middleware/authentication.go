@@ -4,6 +4,13 @@ import (
 	"crypto/tls"
 	"encoding/json"
 	"errors"
+	"io"
+	"net/http"
+	"strconv"
+	"strings"
+	"sync"
+	"time"
+
 	"github.com/go-openapi/runtime"
 	"github.com/go-openapi/runtime/middleware"
 	"github.com/golang-jwt/jwt/v4"
@@ -11,12 +18,6 @@ import (
 	utils "github.com/vcp-vsa-control-Plane/vsa-control-plane/util"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/util/env"
 	logger "golang.org/x/exp/slog"
-	"io"
-	"net/http"
-	"strconv"
-	"strings"
-	"sync"
-	"time"
 )
 
 var (

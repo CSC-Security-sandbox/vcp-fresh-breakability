@@ -19,3 +19,18 @@ spec:
           image: google-proxy
           ports:
             - containerPort: 8080
+          env:
+            - name: DB_HOST
+              value: postgres
+            - name: DB_USER
+              value: postgres
+            - name: DB_PASSWORD
+              value: testpass
+            - name: DB_NAME
+              value: vcp
+            - name: DB_ADMIN_USER
+              value: postgres
+            - name: DB_ADMIN_PASSWORD
+              value: testpass
+            - name: RUN_MIGRATION_ON_START
+              value: "true"
