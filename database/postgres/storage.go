@@ -48,13 +48,10 @@ func New(config database.DbConfig, logger database.Logger) (database.Storage, er
 
 // initRepository initializes  repository
 func (s *Storage) initRepository() {
-	s.dataStore = repository.NewDataStoreRepository(s.db.GORM())
+	s.dataStore = repository.NewDataStoreRepository(s.db)
 }
 
 func (s *Storage) SetupDatabase(ctx context.Context) error {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
 	if err := s.connect(true); err != nil {
 		return fmt.Errorf("database initialization failed: %w", err)
 	}
@@ -73,7 +70,7 @@ func (d *Storage) connect(isAdmin bool) error {
 	d.mu.Lock()
 	defer d.mu.Unlock()
 
-	if d.db != nil {
+	if d.db != nil && d.HealthCheck() == nil {
 		return nil // Already connected
 	}
 

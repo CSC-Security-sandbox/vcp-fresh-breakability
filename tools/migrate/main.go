@@ -83,6 +83,12 @@ func performRollback(ctx context.Context, dbConfig database.DbConfig, logger *sl
 	if err != nil {
 		return err
 	}
+	defer func(storage database.Storage) {
+		err := storage.Close()
+		if err != nil {
+			logger.Error("Failed to close database connection", slog.String("error", err.Error()))
+		}
+	}(storage)
 	return storage.Rollback(ctx)
 }
 
@@ -94,5 +100,11 @@ func performMigration(ctx context.Context, dbConfig database.DbConfig, logger *s
 	if err != nil {
 		return err
 	}
+	defer func(storage database.Storage) {
+		err := storage.Close()
+		if err != nil {
+			logger.Error("Failed to close database connection", slog.String("error", err.Error()))
+		}
+	}(storage)
 	return storage.Migrate(ctx)
 }

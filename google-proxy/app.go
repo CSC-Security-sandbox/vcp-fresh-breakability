@@ -8,7 +8,7 @@ import (
 	"github.com/go-faster/errors"
 	"github.com/google/uuid"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/common"
-	coreapi "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/core-api/handler"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database"
 	_ "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/postgres"
 	api "github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/api/endpoints"
@@ -43,8 +43,9 @@ func main() {
 	}
 	defer closeDatabase(dbCon, logger)
 
-	// Create GCP proxy server
-	newHandler := api.NewHandler(&coreapi.Handler{})
+	// Create GCP proxy server and inject required dependencies
+	orch := orchestrator.NewOrchestrator(dbCon)
+	newHandler := api.Handler{Orchestrator: orch} // inject the orchestrator into the handler
 	gcpServer, err := gcpgenserver.NewServer(newHandler)
 	if err != nil {
 		logger.Error("Failed to create server", slog.String("error", err.Error()))

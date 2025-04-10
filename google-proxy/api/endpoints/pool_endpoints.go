@@ -2,32 +2,10 @@ package api
 
 import (
 	"context"
-	"golang.org/x/exp/slog"
-
-	coreapiModel "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/core-api/core-servergen"
 	gcpgenserver "github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/api/gcp-servergen"
 )
 
 func (h Handler) V1betaDescribePool(ctx context.Context, params gcpgenserver.V1betaDescribePoolParams) (gcpgenserver.V1betaDescribePoolRes, error) {
-
-	//logger := ctx.Value(common.ContextSLoggerKey).(*slog.Logger)
-	logger := &slog.Logger{}
-	poolHandler := h.CoreHandler
-
-	param := coreapiModel.V1GetPoolParams{
-		ProjectNumber: params.ProjectNumber,
-		LocationId:    params.LocationId,
-		PoolId:        params.PoolId,
-	}
-	_, err := poolHandler.V1betaDescribePool(ctx, param)
-	if err != nil {
-		logger.Error("Failed to describe pool", slog.String("error", err.Error()))
-		return &gcpgenserver.V1betaDescribePoolInternalServerError{}, err
-	}
-	//return &gcpgenserver.PoolV1beta{
-	//	Description: gcpgenserver.OptNilString{Value: "Pool description"},
-	//	PoolId:      gcpgenserver.OptString{Value: params.PoolId},
-	//}, nil
 	return nil, nil
 }
 

@@ -2,16 +2,16 @@ package repository
 
 import (
 	"context"
-	"gorm.io/gorm"
-	
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/gorm"
+
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 )
 
 type DataStoreRepository struct {
-	db *gorm.DB
+	db *gorm.Wrapper
 }
 
-func NewDataStoreRepository(db *gorm.DB) *DataStoreRepository {
+func NewDataStoreRepository(db *gorm.Wrapper) *DataStoreRepository {
 	return &DataStoreRepository{db: db}
 }
 
