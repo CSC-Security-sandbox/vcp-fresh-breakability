@@ -6,6 +6,7 @@ package storage
 // Editing this file might prove futile when you re-run the swagger generate command
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 
@@ -92,11 +93,13 @@ func (o *QuotaRuleDeleteOK) Code() int {
 }
 
 func (o *QuotaRuleDeleteOK) Error() string {
-	return fmt.Sprintf("[DELETE /storage/quota/rules/{uuid}][%d] quotaRuleDeleteOK  %+v", 200, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[DELETE /storage/quota/rules/{uuid}][%d] quotaRuleDeleteOK %s", 200, payload)
 }
 
 func (o *QuotaRuleDeleteOK) String() string {
-	return fmt.Sprintf("[DELETE /storage/quota/rules/{uuid}][%d] quotaRuleDeleteOK  %+v", 200, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[DELETE /storage/quota/rules/{uuid}][%d] quotaRuleDeleteOK %s", 200, payload)
 }
 
 func (o *QuotaRuleDeleteOK) GetPayload() *models.QuotaRuleJobLinkResponse {
@@ -160,11 +163,13 @@ func (o *QuotaRuleDeleteAccepted) Code() int {
 }
 
 func (o *QuotaRuleDeleteAccepted) Error() string {
-	return fmt.Sprintf("[DELETE /storage/quota/rules/{uuid}][%d] quotaRuleDeleteAccepted  %+v", 202, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[DELETE /storage/quota/rules/{uuid}][%d] quotaRuleDeleteAccepted %s", 202, payload)
 }
 
 func (o *QuotaRuleDeleteAccepted) String() string {
-	return fmt.Sprintf("[DELETE /storage/quota/rules/{uuid}][%d] quotaRuleDeleteAccepted  %+v", 202, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[DELETE /storage/quota/rules/{uuid}][%d] quotaRuleDeleteAccepted %s", 202, payload)
 }
 
 func (o *QuotaRuleDeleteAccepted) GetPayload() *models.QuotaRuleJobLinkResponse {
@@ -240,11 +245,13 @@ func (o *QuotaRuleDeleteDefault) Code() int {
 }
 
 func (o *QuotaRuleDeleteDefault) Error() string {
-	return fmt.Sprintf("[DELETE /storage/quota/rules/{uuid}][%d] quota_rule_delete default  %+v", o._statusCode, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[DELETE /storage/quota/rules/{uuid}][%d] quota_rule_delete default %s", o._statusCode, payload)
 }
 
 func (o *QuotaRuleDeleteDefault) String() string {
-	return fmt.Sprintf("[DELETE /storage/quota/rules/{uuid}][%d] quota_rule_delete default  %+v", o._statusCode, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[DELETE /storage/quota/rules/{uuid}][%d] quota_rule_delete default %s", o._statusCode, payload)
 }
 
 func (o *QuotaRuleDeleteDefault) GetPayload() *models.ErrorResponse {

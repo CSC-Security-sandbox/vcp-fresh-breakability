@@ -7,6 +7,7 @@ package storage
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"io"
 	"strconv"
@@ -89,11 +90,11 @@ func (o *SnapshotPolicyDeleteCollectionOK) Code() int {
 }
 
 func (o *SnapshotPolicyDeleteCollectionOK) Error() string {
-	return fmt.Sprintf("[DELETE /storage/snapshot-policies][%d] snapshotPolicyDeleteCollectionOK ", 200)
+	return fmt.Sprintf("[DELETE /storage/snapshot-policies][%d] snapshotPolicyDeleteCollectionOK", 200)
 }
 
 func (o *SnapshotPolicyDeleteCollectionOK) String() string {
-	return fmt.Sprintf("[DELETE /storage/snapshot-policies][%d] snapshotPolicyDeleteCollectionOK ", 200)
+	return fmt.Sprintf("[DELETE /storage/snapshot-policies][%d] snapshotPolicyDeleteCollectionOK", 200)
 }
 
 func (o *SnapshotPolicyDeleteCollectionOK) readResponse(response runtime.ClientResponse, consumer runtime.Consumer, formats strfmt.Registry) error {
@@ -157,11 +158,13 @@ func (o *SnapshotPolicyDeleteCollectionDefault) Code() int {
 }
 
 func (o *SnapshotPolicyDeleteCollectionDefault) Error() string {
-	return fmt.Sprintf("[DELETE /storage/snapshot-policies][%d] snapshot_policy_delete_collection default  %+v", o._statusCode, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[DELETE /storage/snapshot-policies][%d] snapshot_policy_delete_collection default %s", o._statusCode, payload)
 }
 
 func (o *SnapshotPolicyDeleteCollectionDefault) String() string {
-	return fmt.Sprintf("[DELETE /storage/snapshot-policies][%d] snapshot_policy_delete_collection default  %+v", o._statusCode, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[DELETE /storage/snapshot-policies][%d] snapshot_policy_delete_collection default %s", o._statusCode, payload)
 }
 
 func (o *SnapshotPolicyDeleteCollectionDefault) GetPayload() *models.ErrorResponse {
@@ -249,6 +252,11 @@ func (o *SnapshotPolicyDeleteCollectionBody) contextValidateSnapshotPolicyRespon
 	for i := 0; i < len(o.SnapshotPolicyResponseInlineRecords); i++ {
 
 		if o.SnapshotPolicyResponseInlineRecords[i] != nil {
+
+			if swag.IsZero(o.SnapshotPolicyResponseInlineRecords[i]) { // not required
+				return nil
+			}
+
 			if err := o.SnapshotPolicyResponseInlineRecords[i].ContextValidate(ctx, formats); err != nil {
 				if ve, ok := err.(*errors.Validation); ok {
 					return ve.ValidateName("info" + "." + "records" + "." + strconv.Itoa(i))

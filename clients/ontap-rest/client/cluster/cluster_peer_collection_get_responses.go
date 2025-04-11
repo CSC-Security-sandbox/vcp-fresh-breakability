@@ -6,6 +6,7 @@ package cluster
 // Editing this file might prove futile when you re-run the swagger generate command
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 
@@ -86,11 +87,13 @@ func (o *ClusterPeerCollectionGetOK) Code() int {
 }
 
 func (o *ClusterPeerCollectionGetOK) Error() string {
-	return fmt.Sprintf("[GET /cluster/peers][%d] clusterPeerCollectionGetOK  %+v", 200, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[GET /cluster/peers][%d] clusterPeerCollectionGetOK %s", 200, payload)
 }
 
 func (o *ClusterPeerCollectionGetOK) String() string {
-	return fmt.Sprintf("[GET /cluster/peers][%d] clusterPeerCollectionGetOK  %+v", 200, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[GET /cluster/peers][%d] clusterPeerCollectionGetOK %s", 200, payload)
 }
 
 func (o *ClusterPeerCollectionGetOK) GetPayload() *models.ClusterPeerResponse {
@@ -158,11 +161,13 @@ func (o *ClusterPeerCollectionGetDefault) Code() int {
 }
 
 func (o *ClusterPeerCollectionGetDefault) Error() string {
-	return fmt.Sprintf("[GET /cluster/peers][%d] cluster_peer_collection_get default  %+v", o._statusCode, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[GET /cluster/peers][%d] cluster_peer_collection_get default %s", o._statusCode, payload)
 }
 
 func (o *ClusterPeerCollectionGetDefault) String() string {
-	return fmt.Sprintf("[GET /cluster/peers][%d] cluster_peer_collection_get default  %+v", o._statusCode, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[GET /cluster/peers][%d] cluster_peer_collection_get default %s", o._statusCode, payload)
 }
 
 func (o *ClusterPeerCollectionGetDefault) GetPayload() *models.ErrorResponse {

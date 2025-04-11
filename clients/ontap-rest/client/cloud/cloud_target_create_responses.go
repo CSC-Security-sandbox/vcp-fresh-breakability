@@ -6,6 +6,7 @@ package cloud
 // Editing this file might prove futile when you re-run the swagger generate command
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 
@@ -97,11 +98,13 @@ func (o *CloudTargetCreateCreated) Code() int {
 }
 
 func (o *CloudTargetCreateCreated) Error() string {
-	return fmt.Sprintf("[POST /cloud/targets][%d] cloudTargetCreateCreated  %+v", 201, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[POST /cloud/targets][%d] cloudTargetCreateCreated %s", 201, payload)
 }
 
 func (o *CloudTargetCreateCreated) String() string {
-	return fmt.Sprintf("[POST /cloud/targets][%d] cloudTargetCreateCreated  %+v", 201, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[POST /cloud/targets][%d] cloudTargetCreateCreated %s", 201, payload)
 }
 
 func (o *CloudTargetCreateCreated) GetPayload() *models.CloudTargetJobLinkResponse {
@@ -177,11 +180,13 @@ func (o *CloudTargetCreateAccepted) Code() int {
 }
 
 func (o *CloudTargetCreateAccepted) Error() string {
-	return fmt.Sprintf("[POST /cloud/targets][%d] cloudTargetCreateAccepted  %+v", 202, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[POST /cloud/targets][%d] cloudTargetCreateAccepted %s", 202, payload)
 }
 
 func (o *CloudTargetCreateAccepted) String() string {
-	return fmt.Sprintf("[POST /cloud/targets][%d] cloudTargetCreateAccepted  %+v", 202, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[POST /cloud/targets][%d] cloudTargetCreateAccepted %s", 202, payload)
 }
 
 func (o *CloudTargetCreateAccepted) GetPayload() *models.CloudTargetJobLinkResponse {
@@ -317,11 +322,13 @@ func (o *CloudTargetCreateDefault) Code() int {
 }
 
 func (o *CloudTargetCreateDefault) Error() string {
-	return fmt.Sprintf("[POST /cloud/targets][%d] cloud_target_create default  %+v", o._statusCode, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[POST /cloud/targets][%d] cloud_target_create default %s", o._statusCode, payload)
 }
 
 func (o *CloudTargetCreateDefault) String() string {
-	return fmt.Sprintf("[POST /cloud/targets][%d] cloud_target_create default  %+v", o._statusCode, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[POST /cloud/targets][%d] cloud_target_create default %s", o._statusCode, payload)
 }
 
 func (o *CloudTargetCreateDefault) GetPayload() *models.ErrorResponse {

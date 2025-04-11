@@ -76,7 +76,7 @@ type Aggregate struct {
 	SidlEnabled *bool `json:"sidl_enabled,omitempty"`
 
 	// SnapLock type.
-	// Enum: [non_snaplock compliance enterprise]
+	// Enum: ["non_snaplock","compliance","enterprise"]
 	SnaplockType *string `json:"snaplock_type,omitempty"`
 
 	// snapshot
@@ -86,7 +86,7 @@ type Aggregate struct {
 	Space *AggregateInlineSpace `json:"space,omitempty"`
 
 	// Operational state of the aggregate.
-	// Enum: [online onlining offline offlining relocating unmounted restricted inconsistent failed unknown]
+	// Enum: ["online","onlining","offline","offlining","relocating","unmounted","restricted","inconsistent","failed","unknown"]
 	State *string `json:"state,omitempty"`
 
 	// statistics
@@ -628,6 +628,11 @@ func (m *Aggregate) ContextValidate(ctx context.Context, formats strfmt.Registry
 func (m *Aggregate) contextValidateLinks(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Links != nil {
+
+		if swag.IsZero(m.Links) { // not required
+			return nil
+		}
+
 		if err := m.Links.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("_links")
@@ -644,6 +649,11 @@ func (m *Aggregate) contextValidateLinks(ctx context.Context, formats strfmt.Reg
 func (m *Aggregate) contextValidateBlockStorage(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.BlockStorage != nil {
+
+		if swag.IsZero(m.BlockStorage) { // not required
+			return nil
+		}
+
 		if err := m.BlockStorage.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("block_storage")
@@ -660,6 +670,11 @@ func (m *Aggregate) contextValidateBlockStorage(ctx context.Context, formats str
 func (m *Aggregate) contextValidateCloudStorage(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.CloudStorage != nil {
+
+		if swag.IsZero(m.CloudStorage) { // not required
+			return nil
+		}
+
 		if err := m.CloudStorage.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("cloud_storage")
@@ -685,6 +700,11 @@ func (m *Aggregate) contextValidateCreateTime(ctx context.Context, formats strfm
 func (m *Aggregate) contextValidateDataEncryption(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.DataEncryption != nil {
+
+		if swag.IsZero(m.DataEncryption) { // not required
+			return nil
+		}
+
 		if err := m.DataEncryption.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("data_encryption")
@@ -701,6 +721,11 @@ func (m *Aggregate) contextValidateDataEncryption(ctx context.Context, formats s
 func (m *Aggregate) contextValidateDrHomeNode(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.DrHomeNode != nil {
+
+		if swag.IsZero(m.DrHomeNode) { // not required
+			return nil
+		}
+
 		if err := m.DrHomeNode.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("dr_home_node")
@@ -717,6 +742,11 @@ func (m *Aggregate) contextValidateDrHomeNode(ctx context.Context, formats strfm
 func (m *Aggregate) contextValidateHomeNode(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.HomeNode != nil {
+
+		if swag.IsZero(m.HomeNode) { // not required
+			return nil
+		}
+
 		if err := m.HomeNode.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("home_node")
@@ -733,6 +763,11 @@ func (m *Aggregate) contextValidateHomeNode(ctx context.Context, formats strfmt.
 func (m *Aggregate) contextValidateInactiveDataReporting(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.InactiveDataReporting != nil {
+
+		if swag.IsZero(m.InactiveDataReporting) { // not required
+			return nil
+		}
+
 		if err := m.InactiveDataReporting.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("inactive_data_reporting")
@@ -749,6 +784,11 @@ func (m *Aggregate) contextValidateInactiveDataReporting(ctx context.Context, fo
 func (m *Aggregate) contextValidateInodeAttributes(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.InodeAttributes != nil {
+
+		if swag.IsZero(m.InodeAttributes) { // not required
+			return nil
+		}
+
 		if err := m.InodeAttributes.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("inode_attributes")
@@ -774,6 +814,11 @@ func (m *Aggregate) contextValidateIsSpareLow(ctx context.Context, formats strfm
 func (m *Aggregate) contextValidateMetric(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Metric != nil {
+
+		if swag.IsZero(m.Metric) { // not required
+			return nil
+		}
+
 		if err := m.Metric.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("metric")
@@ -790,6 +835,11 @@ func (m *Aggregate) contextValidateMetric(ctx context.Context, formats strfmt.Re
 func (m *Aggregate) contextValidateNode(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Node != nil {
+
+		if swag.IsZero(m.Node) { // not required
+			return nil
+		}
+
 		if err := m.Node.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("node")
@@ -806,6 +856,11 @@ func (m *Aggregate) contextValidateNode(ctx context.Context, formats strfmt.Regi
 func (m *Aggregate) contextValidateSnapshot(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Snapshot != nil {
+
+		if swag.IsZero(m.Snapshot) { // not required
+			return nil
+		}
+
 		if err := m.Snapshot.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("snapshot")
@@ -822,6 +877,11 @@ func (m *Aggregate) contextValidateSnapshot(ctx context.Context, formats strfmt.
 func (m *Aggregate) contextValidateSpace(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Space != nil {
+
+		if swag.IsZero(m.Space) { // not required
+			return nil
+		}
+
 		if err := m.Space.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("space")
@@ -838,6 +898,11 @@ func (m *Aggregate) contextValidateSpace(ctx context.Context, formats strfmt.Reg
 func (m *Aggregate) contextValidateStatistics(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Statistics != nil {
+
+		if swag.IsZero(m.Statistics) { // not required
+			return nil
+		}
+
 		if err := m.Statistics.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("statistics")
@@ -907,7 +972,7 @@ type AggregateInlineBlockStorage struct {
 
 	// Type of aggregate.
 	// Read Only: true
-	// Enum: [hdd hybrid lun ssd vmdisk]
+	// Enum: ["hdd","hybrid","lun","ssd","vmdisk"]
 	StorageType *string `json:"storage_type,omitempty"`
 
 	// If true, aggregate is using shared disks.
@@ -1116,6 +1181,11 @@ func (m *AggregateInlineBlockStorage) ContextValidate(ctx context.Context, forma
 func (m *AggregateInlineBlockStorage) contextValidateHybridCache(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.HybridCache != nil {
+
+		if swag.IsZero(m.HybridCache) { // not required
+			return nil
+		}
+
 		if err := m.HybridCache.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("block_storage" + "." + "hybrid_cache")
@@ -1132,6 +1202,11 @@ func (m *AggregateInlineBlockStorage) contextValidateHybridCache(ctx context.Con
 func (m *AggregateInlineBlockStorage) contextValidateMirror(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Mirror != nil {
+
+		if swag.IsZero(m.Mirror) { // not required
+			return nil
+		}
+
 		if err := m.Mirror.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("block_storage" + "." + "mirror")
@@ -1154,6 +1229,11 @@ func (m *AggregateInlineBlockStorage) contextValidatePlexes(ctx context.Context,
 	for i := 0; i < len(m.Plexes); i++ {
 
 		if m.Plexes[i] != nil {
+
+			if swag.IsZero(m.Plexes[i]) { // not required
+				return nil
+			}
+
 			if err := m.Plexes[i].ContextValidate(ctx, formats); err != nil {
 				if ve, ok := err.(*errors.Validation); ok {
 					return ve.ValidateName("block_storage" + "." + "plexes" + "." + strconv.Itoa(i))
@@ -1172,6 +1252,11 @@ func (m *AggregateInlineBlockStorage) contextValidatePlexes(ctx context.Context,
 func (m *AggregateInlineBlockStorage) contextValidatePrimary(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Primary != nil {
+
+		if swag.IsZero(m.Primary) { // not required
+			return nil
+		}
+
 		if err := m.Primary.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("block_storage" + "." + "primary")
@@ -1232,7 +1317,7 @@ type AggregateInlineBlockStorageInlineHybridCache struct {
 
 	// Type of disk being used by the aggregate's cache tier.
 	// Read Only: true
-	// Enum: [fc lun nl_sas nvme_ssd sas sata scsi ssd ssd_cap ssd_zns vm_disk]
+	// Enum: ["fc","lun","nl_sas","nvme_ssd","sas","sata","scsi","ssd","ssd_cap","ssd_zns","vm_disk"]
 	DiskType *string `json:"disk_type,omitempty"`
 
 	// Specifies whether the aggregate uses HDDs with SSDs as a cache.
@@ -1244,7 +1329,7 @@ type AggregateInlineBlockStorageInlineHybridCache struct {
 	RaidSize *int64 `json:"raid_size,omitempty"`
 
 	// RAID type for SSD cache of the aggregate. Only provided when hybrid_cache.enabled is 'true'.
-	// Enum: [raid_dp raid_tec raid4]
+	// Enum: ["raid_dp","raid_tec","raid4"]
 	RaidType *string `json:"raid_type,omitempty"`
 
 	// simulated raid groups
@@ -1313,8 +1398,8 @@ const (
 	// AggregateInlineBlockStorageInlineHybridCacheDiskTypeNlSas captures enum value "nl_sas"
 	AggregateInlineBlockStorageInlineHybridCacheDiskTypeNlSas string = "nl_sas"
 
-	// AggregateInlineBlockStorageInlineHybridCacheDiskTypeNVMESsd captures enum value "nvme_ssd"
-	AggregateInlineBlockStorageInlineHybridCacheDiskTypeNVMESsd string = "nvme_ssd"
+	// AggregateInlineBlockStorageInlineHybridCacheDiskTypeNvmeSsd captures enum value "nvme_ssd"
+	AggregateInlineBlockStorageInlineHybridCacheDiskTypeNvmeSsd string = "nvme_ssd"
 
 	// AggregateInlineBlockStorageInlineHybridCacheDiskTypeSas captures enum value "sas"
 	AggregateInlineBlockStorageInlineHybridCacheDiskTypeSas string = "sas"
@@ -1513,6 +1598,11 @@ func (m *AggregateInlineBlockStorageInlineHybridCache) contextValidateSimulatedR
 	for i := 0; i < len(m.SimulatedRaidGroups); i++ {
 
 		if m.SimulatedRaidGroups[i] != nil {
+
+			if swag.IsZero(m.SimulatedRaidGroups[i]) { // not required
+				return nil
+			}
+
 			if err := m.SimulatedRaidGroups[i].ContextValidate(ctx, formats); err != nil {
 				if ve, ok := err.(*errors.Validation); ok {
 					return ve.ValidateName("block_storage" + "." + "hybrid_cache" + "." + "simulated_raid_groups" + "." + strconv.Itoa(i))
@@ -1542,6 +1632,11 @@ func (m *AggregateInlineBlockStorageInlineHybridCache) contextValidateStoragePoo
 	for i := 0; i < len(m.StoragePools); i++ {
 
 		if m.StoragePools[i] != nil {
+
+			if swag.IsZero(m.StoragePools[i]) { // not required
+				return nil
+			}
+
 			if err := m.StoragePools[i].ContextValidate(ctx, formats); err != nil {
 				if ve, ok := err.(*errors.Validation); ok {
 					return ve.ValidateName("block_storage" + "." + "hybrid_cache" + "." + "storage_pools" + "." + strconv.Itoa(i))
@@ -1701,6 +1796,11 @@ func (m *AggregateBlockStorageHybridCacheStoragePoolsItems0) ContextValidate(ctx
 func (m *AggregateBlockStorageHybridCacheStoragePoolsItems0) contextValidateStoragePool(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.StoragePool != nil {
+
+		if swag.IsZero(m.StoragePool) { // not required
+			return nil
+		}
+
 		if err := m.StoragePool.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("storage_pool")
@@ -1743,7 +1843,7 @@ type AggregateInlineBlockStorageInlineMirror struct {
 
 	// state
 	// Read Only: true
-	// Enum: [unmirrored normal degraded resynchronizing failed]
+	// Enum: ["unmirrored","normal","degraded","resynchronizing","failed"]
 	State *string `json:"state,omitempty"`
 }
 
@@ -1859,12 +1959,12 @@ func (m *AggregateInlineBlockStorageInlineMirror) UnmarshalBinary(b []byte) erro
 type AggregateInlineBlockStorageInlinePrimary struct {
 
 	// The checksum style used by the aggregate.
-	// Enum: [block advanced_zoned mixed]
+	// Enum: ["block","advanced_zoned","mixed"]
 	ChecksumStyle *string `json:"checksum_style,omitempty"`
 
 	// The class of disks being used by the aggregate.
 	// Example: performance
-	// Enum: [capacity performance archive solid_state array virtual data_center capacity_flash]
+	// Enum: ["capacity","performance","archive","solid_state","array","virtual","data_center","capacity_flash"]
 	DiskClass *string `json:"disk_class,omitempty"`
 
 	// Number of disks used in the aggregate. This includes parity disks, but excludes disks in the hybrid cache.
@@ -1873,7 +1973,7 @@ type AggregateInlineBlockStorageInlinePrimary struct {
 
 	// The type of disk being used by the aggregate.
 	// Read Only: true
-	// Enum: [fc lun nl_sas nvme_ssd sas sata scsi ssd ssd_cap ssd_zns vm_disk]
+	// Enum: ["fc","lun","nl_sas","nvme_ssd","sas","sata","scsi","ssd","ssd_cap","ssd_zns","vm_disk"]
 	DiskType *string `json:"disk_type,omitempty"`
 
 	// Option to specify the maximum number of disks that can be included in a RAID group.
@@ -1881,7 +1981,7 @@ type AggregateInlineBlockStorageInlinePrimary struct {
 	RaidSize *int64 `json:"raid_size,omitempty"`
 
 	// RAID type of the aggregate.
-	// Enum: [raid_dp raid_tec raid0 raid4 mixed_raid_type]
+	// Enum: ["raid_dp","raid_tec","raid0","raid4","mixed_raid_type"]
 	RaidType *string `json:"raid_type,omitempty"`
 
 	// simulated raid groups
@@ -2046,8 +2146,8 @@ const (
 	// AggregateInlineBlockStorageInlinePrimaryDiskTypeNlSas captures enum value "nl_sas"
 	AggregateInlineBlockStorageInlinePrimaryDiskTypeNlSas string = "nl_sas"
 
-	// AggregateInlineBlockStorageInlinePrimaryDiskTypeNVMESsd captures enum value "nvme_ssd"
-	AggregateInlineBlockStorageInlinePrimaryDiskTypeNVMESsd string = "nvme_ssd"
+	// AggregateInlineBlockStorageInlinePrimaryDiskTypeNvmeSsd captures enum value "nvme_ssd"
+	AggregateInlineBlockStorageInlinePrimaryDiskTypeNvmeSsd string = "nvme_ssd"
 
 	// AggregateInlineBlockStorageInlinePrimaryDiskTypeSas captures enum value "sas"
 	AggregateInlineBlockStorageInlinePrimaryDiskTypeSas string = "sas"
@@ -2201,6 +2301,11 @@ func (m *AggregateInlineBlockStorageInlinePrimary) contextValidateSimulatedRaidG
 	for i := 0; i < len(m.SimulatedRaidGroups); i++ {
 
 		if m.SimulatedRaidGroups[i] != nil {
+
+			if swag.IsZero(m.SimulatedRaidGroups[i]) { // not required
+				return nil
+			}
+
 			if err := m.SimulatedRaidGroups[i].ContextValidate(ctx, formats); err != nil {
 				if ve, ok := err.(*errors.Validation); ok {
 					return ve.ValidateName("block_storage" + "." + "primary" + "." + "simulated_raid_groups" + "." + strconv.Itoa(i))
@@ -2264,7 +2369,7 @@ type AggregateBlockStoragePrimarySimulatedRaidGroupsItems0 struct {
 	ParityDiskCount *int64 `json:"parity_disk_count,omitempty"`
 
 	// RAID type of the aggregate.
-	// Enum: [raid_dp raid_tec raid0 raid4]
+	// Enum: ["raid_dp","raid_tec","raid0","raid4"]
 	RaidType *string `json:"raid_type,omitempty"`
 
 	// Usable size of each disk, in bytes.
@@ -2456,6 +2561,11 @@ func (m *AggregateInlineCloudStorage) contextValidateStores(ctx context.Context,
 	for i := 0; i < len(m.Stores); i++ {
 
 		if m.Stores[i] != nil {
+
+			if swag.IsZero(m.Stores[i]) { // not required
+				return nil
+			}
+
 			if err := m.Stores[i].ContextValidate(ctx, formats); err != nil {
 				if ve, ok := err.(*errors.Validation); ok {
 					return ve.ValidateName("cloud_storage" + "." + "stores" + "." + strconv.Itoa(i))
@@ -2662,6 +2772,11 @@ func (m *AggregateInlineHomeNode) ContextValidate(ctx context.Context, formats s
 func (m *AggregateInlineHomeNode) contextValidateLinks(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Links != nil {
+
+		if swag.IsZero(m.Links) { // not required
+			return nil
+		}
+
 		if err := m.Links.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("home_node" + "." + "_links")
@@ -2752,6 +2867,11 @@ func (m *AggregateInlineHomeNodeInlineLinks) ContextValidate(ctx context.Context
 func (m *AggregateInlineHomeNodeInlineLinks) contextValidateSelf(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Self != nil {
+
+		if swag.IsZero(m.Self) { // not required
+			return nil
+		}
+
 		if err := m.Self.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("home_node" + "." + "_links" + "." + "self")
@@ -3038,6 +3158,11 @@ func (m *AggregateInlineLinks) ContextValidate(ctx context.Context, formats strf
 func (m *AggregateInlineLinks) contextValidateSelf(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Self != nil {
+
+		if swag.IsZero(m.Self) { // not required
+			return nil
+		}
+
 		if err := m.Self.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("_links" + "." + "self")
@@ -3081,7 +3206,7 @@ type AggregateInlineMetric struct {
 	//
 	// Example: PT15S
 	// Read Only: true
-	// Enum: [PT15S PT4M PT30M PT2H P1D PT5M]
+	// Enum: ["PT15S","PT4M","PT30M","PT2H","P1D","PT5M"]
 	Duration *string `json:"duration,omitempty"`
 
 	// iops
@@ -3093,7 +3218,7 @@ type AggregateInlineMetric struct {
 	// Errors associated with the sample. For example, if the aggregation of data over multiple nodes fails, then any partial errors might return "ok" on success or "error" on an internal uncategorized failure. Whenever a sample collection is missed but done at a later time, it is back filled to the previous 15 second timestamp and tagged with "backfilled_data". "Inconsistent_ delta_time" is encountered when the time between two collections is not the same for all nodes. Therefore, the aggregated value might be over or under inflated. "Negative_delta" is returned when an expected monotonically increasing value has decreased in value. "Inconsistent_old_data" is returned when one or more nodes do not have the latest data.
 	// Example: ok
 	// Read Only: true
-	// Enum: [ok error partial_no_data partial_no_response partial_other_error negative_delta not_found backfilled_data inconsistent_delta_time inconsistent_old_data partial_no_uuid]
+	// Enum: ["ok","error","partial_no_data","partial_no_response","partial_other_error","negative_delta","not_found","backfilled_data","inconsistent_delta_time","inconsistent_old_data","partial_no_uuid"]
 	Status *string `json:"status,omitempty"`
 
 	// throughput
@@ -3396,6 +3521,11 @@ func (m *AggregateInlineMetric) ContextValidate(ctx context.Context, formats str
 func (m *AggregateInlineMetric) contextValidateLinks(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Links != nil {
+
+		if swag.IsZero(m.Links) { // not required
+			return nil
+		}
+
 		if err := m.Links.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("metric" + "." + "_links")
@@ -3421,6 +3551,11 @@ func (m *AggregateInlineMetric) contextValidateDuration(ctx context.Context, for
 func (m *AggregateInlineMetric) contextValidateIops(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Iops != nil {
+
+		if swag.IsZero(m.Iops) { // not required
+			return nil
+		}
+
 		if err := m.Iops.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("metric" + "." + "iops")
@@ -3437,6 +3572,11 @@ func (m *AggregateInlineMetric) contextValidateIops(ctx context.Context, formats
 func (m *AggregateInlineMetric) contextValidateLatency(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Latency != nil {
+
+		if swag.IsZero(m.Latency) { // not required
+			return nil
+		}
+
 		if err := m.Latency.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("metric" + "." + "latency")
@@ -3462,6 +3602,11 @@ func (m *AggregateInlineMetric) contextValidateStatus(ctx context.Context, forma
 func (m *AggregateInlineMetric) contextValidateThroughput(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Throughput != nil {
+
+		if swag.IsZero(m.Throughput) { // not required
+			return nil
+		}
+
 		if err := m.Throughput.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("metric" + "." + "throughput")
@@ -3669,6 +3814,11 @@ func (m *AggregateInlineMetricInlineLinks) ContextValidate(ctx context.Context, 
 func (m *AggregateInlineMetricInlineLinks) contextValidateSelf(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Self != nil {
+
+		if swag.IsZero(m.Self) { // not required
+			return nil
+		}
+
 		if err := m.Self.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("metric" + "." + "_links" + "." + "self")
@@ -3821,6 +3971,11 @@ func (m *AggregateInlineNode) ContextValidate(ctx context.Context, formats strfm
 func (m *AggregateInlineNode) contextValidateLinks(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Links != nil {
+
+		if swag.IsZero(m.Links) { // not required
+			return nil
+		}
+
 		if err := m.Links.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("node" + "." + "_links")
@@ -3911,6 +4066,11 @@ func (m *AggregateInlineNodeInlineLinks) ContextValidate(ctx context.Context, fo
 func (m *AggregateInlineNodeInlineLinks) contextValidateSelf(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Self != nil {
+
+		if swag.IsZero(m.Self) { // not required
+			return nil
+		}
+
 		if err := m.Self.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("node" + "." + "_links" + "." + "self")
@@ -4273,6 +4433,11 @@ func (m *AggregateInlineSpace) ContextValidate(ctx context.Context, formats strf
 func (m *AggregateInlineSpace) contextValidateBlockStorage(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.BlockStorage != nil {
+
+		if swag.IsZero(m.BlockStorage) { // not required
+			return nil
+		}
+
 		if err := m.BlockStorage.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("space" + "." + "block_storage")
@@ -4289,6 +4454,11 @@ func (m *AggregateInlineSpace) contextValidateBlockStorage(ctx context.Context, 
 func (m *AggregateInlineSpace) contextValidateCloudStorage(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.CloudStorage != nil {
+
+		if swag.IsZero(m.CloudStorage) { // not required
+			return nil
+		}
+
 		if err := m.CloudStorage.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("space" + "." + "cloud_storage")
@@ -4305,6 +4475,11 @@ func (m *AggregateInlineSpace) contextValidateCloudStorage(ctx context.Context, 
 func (m *AggregateInlineSpace) contextValidateEfficiency(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Efficiency != nil {
+
+		if swag.IsZero(m.Efficiency) { // not required
+			return nil
+		}
+
 		if err := m.Efficiency.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("space" + "." + "efficiency")
@@ -4321,6 +4496,11 @@ func (m *AggregateInlineSpace) contextValidateEfficiency(ctx context.Context, fo
 func (m *AggregateInlineSpace) contextValidateEfficiencyWithoutSnapshots(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.EfficiencyWithoutSnapshots != nil {
+
+		if swag.IsZero(m.EfficiencyWithoutSnapshots) { // not required
+			return nil
+		}
+
 		if err := m.EfficiencyWithoutSnapshots.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("space" + "." + "efficiency_without_snapshots")
@@ -4337,6 +4517,11 @@ func (m *AggregateInlineSpace) contextValidateEfficiencyWithoutSnapshots(ctx con
 func (m *AggregateInlineSpace) contextValidateEfficiencyWithoutSnapshotsFlexclones(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.EfficiencyWithoutSnapshotsFlexclones != nil {
+
+		if swag.IsZero(m.EfficiencyWithoutSnapshotsFlexclones) { // not required
+			return nil
+		}
+
 		if err := m.EfficiencyWithoutSnapshotsFlexclones.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("space" + "." + "efficiency_without_snapshots_flexclones")
@@ -4362,6 +4547,11 @@ func (m *AggregateInlineSpace) contextValidateFootprint(ctx context.Context, for
 func (m *AggregateInlineSpace) contextValidateSnapshot(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Snapshot != nil {
+
+		if swag.IsZero(m.Snapshot) { // not required
+			return nil
+		}
+
 		if err := m.Snapshot.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("space" + "." + "snapshot")
@@ -5356,7 +5546,7 @@ type AggregateInlineStatistics struct {
 	// Errors associated with the sample. For example, if the aggregation of data over multiple nodes fails, then any partial errors might return "ok" on success or "error" on an internal uncategorized failure. Whenever a sample collection is missed but done at a later time, it is back filled to the previous 15 second timestamp and tagged with "backfilled_data". "Inconsistent_ delta_time" is encountered when the time between two collections is not the same for all nodes. Therefore, the aggregated value might be over or under inflated. "Negative_delta" is returned when an expected monotonically increasing value has decreased in value. "Inconsistent_old_data" is returned when one or more nodes do not have the latest data.
 	// Example: ok
 	// Read Only: true
-	// Enum: [ok error partial_no_data partial_no_response partial_other_error negative_delta not_found backfilled_data inconsistent_delta_time inconsistent_old_data partial_no_uuid]
+	// Enum: ["ok","error","partial_no_data","partial_no_response","partial_other_error","negative_delta","not_found","backfilled_data","inconsistent_delta_time","inconsistent_old_data","partial_no_uuid"]
 	Status *string `json:"status,omitempty"`
 
 	// throughput raw
@@ -5570,6 +5760,11 @@ func (m *AggregateInlineStatistics) ContextValidate(ctx context.Context, formats
 func (m *AggregateInlineStatistics) contextValidateIopsRaw(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.IopsRaw != nil {
+
+		if swag.IsZero(m.IopsRaw) { // not required
+			return nil
+		}
+
 		if err := m.IopsRaw.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("statistics" + "." + "iops_raw")
@@ -5586,6 +5781,11 @@ func (m *AggregateInlineStatistics) contextValidateIopsRaw(ctx context.Context, 
 func (m *AggregateInlineStatistics) contextValidateLatencyRaw(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.LatencyRaw != nil {
+
+		if swag.IsZero(m.LatencyRaw) { // not required
+			return nil
+		}
+
 		if err := m.LatencyRaw.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("statistics" + "." + "latency_raw")
@@ -5611,6 +5811,11 @@ func (m *AggregateInlineStatistics) contextValidateStatus(ctx context.Context, f
 func (m *AggregateInlineStatistics) contextValidateThroughputRaw(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.ThroughputRaw != nil {
+
+		if swag.IsZero(m.ThroughputRaw) { // not required
+			return nil
+		}
+
 		if err := m.ThroughputRaw.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("statistics" + "." + "throughput_raw")

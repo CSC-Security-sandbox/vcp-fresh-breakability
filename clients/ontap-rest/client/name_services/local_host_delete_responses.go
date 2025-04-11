@@ -6,6 +6,7 @@ package name_services
 // Editing this file might prove futile when you re-run the swagger generate command
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 
@@ -85,11 +86,11 @@ func (o *LocalHostDeleteOK) Code() int {
 }
 
 func (o *LocalHostDeleteOK) Error() string {
-	return fmt.Sprintf("[DELETE /name-services/local-hosts/{owner.uuid}/{address}][%d] localHostDeleteOK ", 200)
+	return fmt.Sprintf("[DELETE /name-services/local-hosts/{owner.uuid}/{address}][%d] localHostDeleteOK", 200)
 }
 
 func (o *LocalHostDeleteOK) String() string {
-	return fmt.Sprintf("[DELETE /name-services/local-hosts/{owner.uuid}/{address}][%d] localHostDeleteOK ", 200)
+	return fmt.Sprintf("[DELETE /name-services/local-hosts/{owner.uuid}/{address}][%d] localHostDeleteOK", 200)
 }
 
 func (o *LocalHostDeleteOK) readResponse(response runtime.ClientResponse, consumer runtime.Consumer, formats strfmt.Registry) error {
@@ -151,11 +152,13 @@ func (o *LocalHostDeleteDefault) Code() int {
 }
 
 func (o *LocalHostDeleteDefault) Error() string {
-	return fmt.Sprintf("[DELETE /name-services/local-hosts/{owner.uuid}/{address}][%d] local_host_delete default  %+v", o._statusCode, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[DELETE /name-services/local-hosts/{owner.uuid}/{address}][%d] local_host_delete default %s", o._statusCode, payload)
 }
 
 func (o *LocalHostDeleteDefault) String() string {
-	return fmt.Sprintf("[DELETE /name-services/local-hosts/{owner.uuid}/{address}][%d] local_host_delete default  %+v", o._statusCode, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[DELETE /name-services/local-hosts/{owner.uuid}/{address}][%d] local_host_delete default %s", o._statusCode, payload)
 }
 
 func (o *LocalHostDeleteDefault) GetPayload() *models.ErrorResponse {

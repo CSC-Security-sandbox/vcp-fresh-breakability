@@ -6,6 +6,7 @@ package cloud
 // Editing this file might prove futile when you re-run the swagger generate command
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 
@@ -86,11 +87,13 @@ func (o *CloudTargetCollectionGetOK) Code() int {
 }
 
 func (o *CloudTargetCollectionGetOK) Error() string {
-	return fmt.Sprintf("[GET /cloud/targets][%d] cloudTargetCollectionGetOK  %+v", 200, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[GET /cloud/targets][%d] cloudTargetCollectionGetOK %s", 200, payload)
 }
 
 func (o *CloudTargetCollectionGetOK) String() string {
-	return fmt.Sprintf("[GET /cloud/targets][%d] cloudTargetCollectionGetOK  %+v", 200, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[GET /cloud/targets][%d] cloudTargetCollectionGetOK %s", 200, payload)
 }
 
 func (o *CloudTargetCollectionGetOK) GetPayload() *models.CloudTargetResponse {
@@ -158,11 +161,13 @@ func (o *CloudTargetCollectionGetDefault) Code() int {
 }
 
 func (o *CloudTargetCollectionGetDefault) Error() string {
-	return fmt.Sprintf("[GET /cloud/targets][%d] cloud_target_collection_get default  %+v", o._statusCode, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[GET /cloud/targets][%d] cloud_target_collection_get default %s", o._statusCode, payload)
 }
 
 func (o *CloudTargetCollectionGetDefault) String() string {
-	return fmt.Sprintf("[GET /cloud/targets][%d] cloud_target_collection_get default  %+v", o._statusCode, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[GET /cloud/targets][%d] cloud_target_collection_get default %s", o._statusCode, payload)
 }
 
 func (o *CloudTargetCollectionGetDefault) GetPayload() *models.ErrorResponse {

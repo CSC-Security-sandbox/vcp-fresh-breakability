@@ -300,13 +300,13 @@ type BucketsCollectionGetParams struct {
 	*/
 	Name *string
 
-	/* NASPath.
+	/* NasPath.
 
 	   Filter by nas_path
 
 	   Format: string
 	*/
-	NASPath *string
+	NasPath *string
 
 	/* OrderBy.
 
@@ -418,13 +418,13 @@ type BucketsCollectionGetParams struct {
 	*/
 	ProtectionStatusDestinationIsExternalCloud *string
 
-	/* ProtectionStatusDestinationIsONTAP.
+	/* ProtectionStatusDestinationIsOntap.
 
 	   Filter by protection_status.destination.is_ontap
 
 	   Format: boolean
 	*/
-	ProtectionStatusDestinationIsONTAP *string
+	ProtectionStatusDestinationIsOntap *string
 
 	/* ProtectionStatusIsProtected.
 
@@ -999,15 +999,15 @@ func (o *BucketsCollectionGetParams) SetName(name *string) {
 	o.Name = name
 }
 
-// WithNASPath adds the nASPath to the buckets collection get params
-func (o *BucketsCollectionGetParams) WithNASPath(nASPath *string) *BucketsCollectionGetParams {
-	o.SetNASPath(nASPath)
+// WithNasPath adds the nasPath to the buckets collection get params
+func (o *BucketsCollectionGetParams) WithNasPath(nasPath *string) *BucketsCollectionGetParams {
+	o.SetNasPath(nasPath)
 	return o
 }
 
-// SetNASPath adds the nasPath to the buckets collection get params
-func (o *BucketsCollectionGetParams) SetNASPath(nASPath *string) {
-	o.NASPath = nASPath
+// SetNasPath adds the nasPath to the buckets collection get params
+func (o *BucketsCollectionGetParams) SetNasPath(nasPath *string) {
+	o.NasPath = nasPath
 }
 
 // WithOrderBy adds the orderBy to the buckets collection get params
@@ -1164,15 +1164,15 @@ func (o *BucketsCollectionGetParams) SetProtectionStatusDestinationIsExternalClo
 	o.ProtectionStatusDestinationIsExternalCloud = protectionStatusDestinationIsExternalCloud
 }
 
-// WithProtectionStatusDestinationIsONTAP adds the protectionStatusDestinationIsONTAP to the buckets collection get params
-func (o *BucketsCollectionGetParams) WithProtectionStatusDestinationIsONTAP(protectionStatusDestinationIsONTAP *string) *BucketsCollectionGetParams {
-	o.SetProtectionStatusDestinationIsONTAP(protectionStatusDestinationIsONTAP)
+// WithProtectionStatusDestinationIsOntap adds the protectionStatusDestinationIsOntap to the buckets collection get params
+func (o *BucketsCollectionGetParams) WithProtectionStatusDestinationIsOntap(protectionStatusDestinationIsOntap *string) *BucketsCollectionGetParams {
+	o.SetProtectionStatusDestinationIsOntap(protectionStatusDestinationIsOntap)
 	return o
 }
 
-// SetProtectionStatusDestinationIsONTAP adds the protectionStatusDestinationIsOntap to the buckets collection get params
-func (o *BucketsCollectionGetParams) SetProtectionStatusDestinationIsONTAP(protectionStatusDestinationIsONTAP *string) {
-	o.ProtectionStatusDestinationIsONTAP = protectionStatusDestinationIsONTAP
+// SetProtectionStatusDestinationIsOntap adds the protectionStatusDestinationIsOntap to the buckets collection get params
+func (o *BucketsCollectionGetParams) SetProtectionStatusDestinationIsOntap(protectionStatusDestinationIsOntap *string) {
+	o.ProtectionStatusDestinationIsOntap = protectionStatusDestinationIsOntap
 }
 
 // WithProtectionStatusIsProtected adds the protectionStatusIsProtected to the buckets collection get params
@@ -1929,18 +1929,18 @@ func (o *BucketsCollectionGetParams) WriteToRequest(r runtime.ClientRequest, reg
 		}
 	}
 
-	if o.NASPath != nil {
+	if o.NasPath != nil {
 
 		// query param nas_path
-		var qrNASPath string
+		var qrNasPath string
 
-		if o.NASPath != nil {
-			qrNASPath = *o.NASPath
+		if o.NasPath != nil {
+			qrNasPath = *o.NasPath
 		}
-		qNASPath := qrNASPath
-		if qNASPath != "" {
+		qNasPath := qrNasPath
+		if qNasPath != "" {
 
-			if err := r.SetQueryParam("nas_path", qNASPath); err != nil {
+			if err := r.SetQueryParam("nas_path", qNasPath); err != nil {
 				return err
 			}
 		}
@@ -2178,18 +2178,18 @@ func (o *BucketsCollectionGetParams) WriteToRequest(r runtime.ClientRequest, reg
 		}
 	}
 
-	if o.ProtectionStatusDestinationIsONTAP != nil {
+	if o.ProtectionStatusDestinationIsOntap != nil {
 
 		// query param protection_status.destination.is_ontap
-		var qrProtectionStatusDestinationIsONTAP string
+		var qrProtectionStatusDestinationIsOntap string
 
-		if o.ProtectionStatusDestinationIsONTAP != nil {
-			qrProtectionStatusDestinationIsONTAP = *o.ProtectionStatusDestinationIsONTAP
+		if o.ProtectionStatusDestinationIsOntap != nil {
+			qrProtectionStatusDestinationIsOntap = *o.ProtectionStatusDestinationIsOntap
 		}
-		qProtectionStatusDestinationIsONTAP := qrProtectionStatusDestinationIsONTAP
-		if qProtectionStatusDestinationIsONTAP != "" {
+		qProtectionStatusDestinationIsOntap := qrProtectionStatusDestinationIsOntap
+		if qProtectionStatusDestinationIsOntap != "" {
 
-			if err := r.SetQueryParam("protection_status.destination.is_ontap", qProtectionStatusDestinationIsONTAP); err != nil {
+			if err := r.SetQueryParam("protection_status.destination.is_ontap", qProtectionStatusDestinationIsOntap); err != nil {
 				return err
 			}
 		}

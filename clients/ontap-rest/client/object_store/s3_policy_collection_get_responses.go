@@ -6,6 +6,7 @@ package object_store
 // Editing this file might prove futile when you re-run the swagger generate command
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 
@@ -86,11 +87,13 @@ func (o *S3PolicyCollectionGetOK) Code() int {
 }
 
 func (o *S3PolicyCollectionGetOK) Error() string {
-	return fmt.Sprintf("[GET /protocols/s3/services/{svm.uuid}/policies][%d] s3PolicyCollectionGetOK  %+v", 200, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[GET /protocols/s3/services/{svm.uuid}/policies][%d] s3PolicyCollectionGetOK %s", 200, payload)
 }
 
 func (o *S3PolicyCollectionGetOK) String() string {
-	return fmt.Sprintf("[GET /protocols/s3/services/{svm.uuid}/policies][%d] s3PolicyCollectionGetOK  %+v", 200, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[GET /protocols/s3/services/{svm.uuid}/policies][%d] s3PolicyCollectionGetOK %s", 200, payload)
 }
 
 func (o *S3PolicyCollectionGetOK) GetPayload() *models.S3PolicyResponse {
@@ -158,11 +161,13 @@ func (o *S3PolicyCollectionGetDefault) Code() int {
 }
 
 func (o *S3PolicyCollectionGetDefault) Error() string {
-	return fmt.Sprintf("[GET /protocols/s3/services/{svm.uuid}/policies][%d] s3_policy_collection_get default  %+v", o._statusCode, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[GET /protocols/s3/services/{svm.uuid}/policies][%d] s3_policy_collection_get default %s", o._statusCode, payload)
 }
 
 func (o *S3PolicyCollectionGetDefault) String() string {
-	return fmt.Sprintf("[GET /protocols/s3/services/{svm.uuid}/policies][%d] s3_policy_collection_get default  %+v", o._statusCode, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[GET /protocols/s3/services/{svm.uuid}/policies][%d] s3_policy_collection_get default %s", o._statusCode, payload)
 }
 
 func (o *S3PolicyCollectionGetDefault) GetPayload() *models.ErrorResponse {

@@ -6,6 +6,7 @@ package name_services
 // Editing this file might prove futile when you re-run the swagger generate command
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 
@@ -89,11 +90,11 @@ func (o *UnixGroupCreateCreated) Code() int {
 }
 
 func (o *UnixGroupCreateCreated) Error() string {
-	return fmt.Sprintf("[POST /name-services/unix-groups][%d] unixGroupCreateCreated ", 201)
+	return fmt.Sprintf("[POST /name-services/unix-groups][%d] unixGroupCreateCreated", 201)
 }
 
 func (o *UnixGroupCreateCreated) String() string {
-	return fmt.Sprintf("[POST /name-services/unix-groups][%d] unixGroupCreateCreated ", 201)
+	return fmt.Sprintf("[POST /name-services/unix-groups][%d] unixGroupCreateCreated", 201)
 }
 
 func (o *UnixGroupCreateCreated) readResponse(response runtime.ClientResponse, consumer runtime.Consumer, formats strfmt.Registry) error {
@@ -166,11 +167,13 @@ func (o *UnixGroupCreateDefault) Code() int {
 }
 
 func (o *UnixGroupCreateDefault) Error() string {
-	return fmt.Sprintf("[POST /name-services/unix-groups][%d] unix_group_create default  %+v", o._statusCode, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[POST /name-services/unix-groups][%d] unix_group_create default %s", o._statusCode, payload)
 }
 
 func (o *UnixGroupCreateDefault) String() string {
-	return fmt.Sprintf("[POST /name-services/unix-groups][%d] unix_group_create default  %+v", o._statusCode, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[POST /name-services/unix-groups][%d] unix_group_create default %s", o._statusCode, payload)
 }
 
 func (o *UnixGroupCreateDefault) GetPayload() *models.ErrorResponse {

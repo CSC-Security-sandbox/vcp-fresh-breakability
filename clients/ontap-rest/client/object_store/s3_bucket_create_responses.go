@@ -6,6 +6,7 @@ package object_store
 // Editing this file might prove futile when you re-run the swagger generate command
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 
@@ -97,11 +98,13 @@ func (o *S3BucketCreateCreated) Code() int {
 }
 
 func (o *S3BucketCreateCreated) Error() string {
-	return fmt.Sprintf("[POST /protocols/s3/buckets][%d] s3BucketCreateCreated  %+v", 201, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[POST /protocols/s3/buckets][%d] s3BucketCreateCreated %s", 201, payload)
 }
 
 func (o *S3BucketCreateCreated) String() string {
-	return fmt.Sprintf("[POST /protocols/s3/buckets][%d] s3BucketCreateCreated  %+v", 201, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[POST /protocols/s3/buckets][%d] s3BucketCreateCreated %s", 201, payload)
 }
 
 func (o *S3BucketCreateCreated) GetPayload() *models.S3BucketJobLinkResponse {
@@ -177,11 +180,13 @@ func (o *S3BucketCreateAccepted) Code() int {
 }
 
 func (o *S3BucketCreateAccepted) Error() string {
-	return fmt.Sprintf("[POST /protocols/s3/buckets][%d] s3BucketCreateAccepted  %+v", 202, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[POST /protocols/s3/buckets][%d] s3BucketCreateAccepted %s", 202, payload)
 }
 
 func (o *S3BucketCreateAccepted) String() string {
-	return fmt.Sprintf("[POST /protocols/s3/buckets][%d] s3BucketCreateAccepted  %+v", 202, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[POST /protocols/s3/buckets][%d] s3BucketCreateAccepted %s", 202, payload)
 }
 
 func (o *S3BucketCreateAccepted) GetPayload() *models.S3BucketJobLinkResponse {
@@ -302,11 +307,13 @@ func (o *S3BucketCreateDefault) Code() int {
 }
 
 func (o *S3BucketCreateDefault) Error() string {
-	return fmt.Sprintf("[POST /protocols/s3/buckets][%d] s3_bucket_create default  %+v", o._statusCode, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[POST /protocols/s3/buckets][%d] s3_bucket_create default %s", o._statusCode, payload)
 }
 
 func (o *S3BucketCreateDefault) String() string {
-	return fmt.Sprintf("[POST /protocols/s3/buckets][%d] s3_bucket_create default  %+v", o._statusCode, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[POST /protocols/s3/buckets][%d] s3_bucket_create default %s", o._statusCode, payload)
 }
 
 func (o *S3BucketCreateDefault) GetPayload() *models.ErrorResponse {

@@ -153,6 +153,11 @@ func (m *AggregateSimulate) contextValidateAggregateSimulateInlineRecords(ctx co
 	for i := 0; i < len(m.AggregateSimulateInlineRecords); i++ {
 
 		if m.AggregateSimulateInlineRecords[i] != nil {
+
+			if swag.IsZero(m.AggregateSimulateInlineRecords[i]) { // not required
+				return nil
+			}
+
 			if err := m.AggregateSimulateInlineRecords[i].ContextValidate(ctx, formats); err != nil {
 				if ve, ok := err.(*errors.Validation); ok {
 					return ve.ValidateName("records" + "." + strconv.Itoa(i))
@@ -173,6 +178,11 @@ func (m *AggregateSimulate) contextValidateAggregateSimulateInlineWarnings(ctx c
 	for i := 0; i < len(m.AggregateSimulateInlineWarnings); i++ {
 
 		if m.AggregateSimulateInlineWarnings[i] != nil {
+
+			if swag.IsZero(m.AggregateSimulateInlineWarnings[i]) { // not required
+				return nil
+			}
+
 			if err := m.AggregateSimulateInlineWarnings[i].ContextValidate(ctx, formats); err != nil {
 				if ve, ok := err.(*errors.Validation); ok {
 					return ve.ValidateName("warnings" + "." + strconv.Itoa(i))
@@ -191,6 +201,11 @@ func (m *AggregateSimulate) contextValidateAggregateSimulateInlineWarnings(ctx c
 func (m *AggregateSimulate) contextValidateJob(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Job != nil {
+
+		if swag.IsZero(m.Job) { // not required
+			return nil
+		}
+
 		if err := m.Job.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("job")

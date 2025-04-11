@@ -6,6 +6,7 @@ package svm
 // Editing this file might prove futile when you re-run the swagger generate command
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 
@@ -86,11 +87,13 @@ func (o *SvmMigrationVolumeCollectionGetOK) Code() int {
 }
 
 func (o *SvmMigrationVolumeCollectionGetOK) Error() string {
-	return fmt.Sprintf("[GET /svm/migrations/{svm_migration.uuid}/volumes][%d] svmMigrationVolumeCollectionGetOK  %+v", 200, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[GET /svm/migrations/{svm_migration.uuid}/volumes][%d] svmMigrationVolumeCollectionGetOK %s", 200, payload)
 }
 
 func (o *SvmMigrationVolumeCollectionGetOK) String() string {
-	return fmt.Sprintf("[GET /svm/migrations/{svm_migration.uuid}/volumes][%d] svmMigrationVolumeCollectionGetOK  %+v", 200, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[GET /svm/migrations/{svm_migration.uuid}/volumes][%d] svmMigrationVolumeCollectionGetOK %s", 200, payload)
 }
 
 func (o *SvmMigrationVolumeCollectionGetOK) GetPayload() *models.SvmMigrationVolumeResponse {
@@ -163,11 +166,13 @@ func (o *SvmMigrationVolumeCollectionGetDefault) Code() int {
 }
 
 func (o *SvmMigrationVolumeCollectionGetDefault) Error() string {
-	return fmt.Sprintf("[GET /svm/migrations/{svm_migration.uuid}/volumes][%d] svm_migration_volume_collection_get default  %+v", o._statusCode, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[GET /svm/migrations/{svm_migration.uuid}/volumes][%d] svm_migration_volume_collection_get default %s", o._statusCode, payload)
 }
 
 func (o *SvmMigrationVolumeCollectionGetDefault) String() string {
-	return fmt.Sprintf("[GET /svm/migrations/{svm_migration.uuid}/volumes][%d] svm_migration_volume_collection_get default  %+v", o._statusCode, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[GET /svm/migrations/{svm_migration.uuid}/volumes][%d] svm_migration_volume_collection_get default %s", o._statusCode, payload)
 }
 
 func (o *SvmMigrationVolumeCollectionGetDefault) GetPayload() *models.ErrorResponse {

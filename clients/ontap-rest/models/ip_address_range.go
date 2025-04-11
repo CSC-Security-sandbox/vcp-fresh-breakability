@@ -132,6 +132,11 @@ func (m *IPAddressRange) ContextValidate(ctx context.Context, formats strfmt.Reg
 func (m *IPAddressRange) contextValidateEnd(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.End != nil {
+
+		if swag.IsZero(m.End) { // not required
+			return nil
+		}
+
 		if err := m.End.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("end")
@@ -148,6 +153,11 @@ func (m *IPAddressRange) contextValidateEnd(ctx context.Context, formats strfmt.
 func (m *IPAddressRange) contextValidateFamily(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Family != nil {
+
+		if swag.IsZero(m.Family) { // not required
+			return nil
+		}
+
 		if err := m.Family.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("family")
@@ -164,6 +174,11 @@ func (m *IPAddressRange) contextValidateFamily(ctx context.Context, formats strf
 func (m *IPAddressRange) contextValidateStart(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Start != nil {
+
+		if swag.IsZero(m.Start) { // not required
+			return nil
+		}
+
 		if err := m.Start.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("start")

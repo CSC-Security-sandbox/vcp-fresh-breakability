@@ -6,6 +6,7 @@ package object_store
 // Editing this file might prove futile when you re-run the swagger generate command
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 
@@ -92,11 +93,13 @@ func (o *S3BucketDeleteOK) Code() int {
 }
 
 func (o *S3BucketDeleteOK) Error() string {
-	return fmt.Sprintf("[DELETE /protocols/s3/buckets/{svm.uuid}/{uuid}][%d] s3BucketDeleteOK  %+v", 200, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[DELETE /protocols/s3/buckets/{svm.uuid}/{uuid}][%d] s3BucketDeleteOK %s", 200, payload)
 }
 
 func (o *S3BucketDeleteOK) String() string {
-	return fmt.Sprintf("[DELETE /protocols/s3/buckets/{svm.uuid}/{uuid}][%d] s3BucketDeleteOK  %+v", 200, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[DELETE /protocols/s3/buckets/{svm.uuid}/{uuid}][%d] s3BucketDeleteOK %s", 200, payload)
 }
 
 func (o *S3BucketDeleteOK) GetPayload() *models.S3BucketJobLinkResponse {
@@ -160,11 +163,13 @@ func (o *S3BucketDeleteAccepted) Code() int {
 }
 
 func (o *S3BucketDeleteAccepted) Error() string {
-	return fmt.Sprintf("[DELETE /protocols/s3/buckets/{svm.uuid}/{uuid}][%d] s3BucketDeleteAccepted  %+v", 202, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[DELETE /protocols/s3/buckets/{svm.uuid}/{uuid}][%d] s3BucketDeleteAccepted %s", 202, payload)
 }
 
 func (o *S3BucketDeleteAccepted) String() string {
-	return fmt.Sprintf("[DELETE /protocols/s3/buckets/{svm.uuid}/{uuid}][%d] s3BucketDeleteAccepted  %+v", 202, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[DELETE /protocols/s3/buckets/{svm.uuid}/{uuid}][%d] s3BucketDeleteAccepted %s", 202, payload)
 }
 
 func (o *S3BucketDeleteAccepted) GetPayload() *models.S3BucketJobLinkResponse {
@@ -241,11 +246,13 @@ func (o *S3BucketDeleteDefault) Code() int {
 }
 
 func (o *S3BucketDeleteDefault) Error() string {
-	return fmt.Sprintf("[DELETE /protocols/s3/buckets/{svm.uuid}/{uuid}][%d] s3_bucket_delete default  %+v", o._statusCode, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[DELETE /protocols/s3/buckets/{svm.uuid}/{uuid}][%d] s3_bucket_delete default %s", o._statusCode, payload)
 }
 
 func (o *S3BucketDeleteDefault) String() string {
-	return fmt.Sprintf("[DELETE /protocols/s3/buckets/{svm.uuid}/{uuid}][%d] s3_bucket_delete default  %+v", o._statusCode, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[DELETE /protocols/s3/buckets/{svm.uuid}/{uuid}][%d] s3_bucket_delete default %s", o._statusCode, payload)
 }
 
 func (o *S3BucketDeleteDefault) GetPayload() *models.ErrorResponse {

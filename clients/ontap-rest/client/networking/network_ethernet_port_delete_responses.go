@@ -6,6 +6,7 @@ package networking
 // Editing this file might prove futile when you re-run the swagger generate command
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 
@@ -91,11 +92,11 @@ func (o *NetworkEthernetPortDeleteOK) Code() int {
 }
 
 func (o *NetworkEthernetPortDeleteOK) Error() string {
-	return fmt.Sprintf("[DELETE /network/ethernet/ports/{uuid}][%d] networkEthernetPortDeleteOK ", 200)
+	return fmt.Sprintf("[DELETE /network/ethernet/ports/{uuid}][%d] networkEthernetPortDeleteOK", 200)
 }
 
 func (o *NetworkEthernetPortDeleteOK) String() string {
-	return fmt.Sprintf("[DELETE /network/ethernet/ports/{uuid}][%d] networkEthernetPortDeleteOK ", 200)
+	return fmt.Sprintf("[DELETE /network/ethernet/ports/{uuid}][%d] networkEthernetPortDeleteOK", 200)
 }
 
 func (o *NetworkEthernetPortDeleteOK) readResponse(response runtime.ClientResponse, consumer runtime.Consumer, formats strfmt.Registry) error {
@@ -114,6 +115,7 @@ NetworkEthernetPortDeleteAccepted describes a response with status code 202, wit
 Accepted
 */
 type NetworkEthernetPortDeleteAccepted struct {
+	Payload *models.PortJobLinkResponse
 }
 
 // IsSuccess returns true when this network ethernet port delete accepted response has a 2xx status code
@@ -147,14 +149,27 @@ func (o *NetworkEthernetPortDeleteAccepted) Code() int {
 }
 
 func (o *NetworkEthernetPortDeleteAccepted) Error() string {
-	return fmt.Sprintf("[DELETE /network/ethernet/ports/{uuid}][%d] networkEthernetPortDeleteAccepted ", 202)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[DELETE /network/ethernet/ports/{uuid}][%d] networkEthernetPortDeleteAccepted %s", 202, payload)
 }
 
 func (o *NetworkEthernetPortDeleteAccepted) String() string {
-	return fmt.Sprintf("[DELETE /network/ethernet/ports/{uuid}][%d] networkEthernetPortDeleteAccepted ", 202)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[DELETE /network/ethernet/ports/{uuid}][%d] networkEthernetPortDeleteAccepted %s", 202, payload)
+}
+
+func (o *NetworkEthernetPortDeleteAccepted) GetPayload() *models.PortJobLinkResponse {
+	return o.Payload
 }
 
 func (o *NetworkEthernetPortDeleteAccepted) readResponse(response runtime.ClientResponse, consumer runtime.Consumer, formats strfmt.Registry) error {
+
+	o.Payload = new(models.PortJobLinkResponse)
+
+	// response payload
+	if err := consumer.Consume(response.Body(), o.Payload); err != nil && err != io.EOF {
+		return err
+	}
 
 	return nil
 }
@@ -216,11 +231,13 @@ func (o *NetworkEthernetPortDeleteDefault) Code() int {
 }
 
 func (o *NetworkEthernetPortDeleteDefault) Error() string {
-	return fmt.Sprintf("[DELETE /network/ethernet/ports/{uuid}][%d] network_ethernet_port_delete default  %+v", o._statusCode, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[DELETE /network/ethernet/ports/{uuid}][%d] network_ethernet_port_delete default %s", o._statusCode, payload)
 }
 
 func (o *NetworkEthernetPortDeleteDefault) String() string {
-	return fmt.Sprintf("[DELETE /network/ethernet/ports/{uuid}][%d] network_ethernet_port_delete default  %+v", o._statusCode, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[DELETE /network/ethernet/ports/{uuid}][%d] network_ethernet_port_delete default %s", o._statusCode, payload)
 }
 
 func (o *NetworkEthernetPortDeleteDefault) GetPayload() *models.ErrorResponse {

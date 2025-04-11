@@ -6,6 +6,7 @@ package networking
 // Editing this file might prove futile when you re-run the swagger generate command
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 
@@ -91,11 +92,13 @@ func (o *NetworkIPInterfacesCreateCreated) Code() int {
 }
 
 func (o *NetworkIPInterfacesCreateCreated) Error() string {
-	return fmt.Sprintf("[POST /network/ip/interfaces][%d] networkIpInterfacesCreateCreated  %+v", 201, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[POST /network/ip/interfaces][%d] networkIpInterfacesCreateCreated %s", 201, payload)
 }
 
 func (o *NetworkIPInterfacesCreateCreated) String() string {
-	return fmt.Sprintf("[POST /network/ip/interfaces][%d] networkIpInterfacesCreateCreated  %+v", 201, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[POST /network/ip/interfaces][%d] networkIpInterfacesCreateCreated %s", 201, payload)
 }
 
 func (o *NetworkIPInterfacesCreateCreated) GetPayload() *models.IPInterfaceResponse {
@@ -254,11 +257,13 @@ func (o *NetworkIPInterfacesCreateDefault) Code() int {
 }
 
 func (o *NetworkIPInterfacesCreateDefault) Error() string {
-	return fmt.Sprintf("[POST /network/ip/interfaces][%d] network_ip_interfaces_create default  %+v", o._statusCode, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[POST /network/ip/interfaces][%d] network_ip_interfaces_create default %s", o._statusCode, payload)
 }
 
 func (o *NetworkIPInterfacesCreateDefault) String() string {
-	return fmt.Sprintf("[POST /network/ip/interfaces][%d] network_ip_interfaces_create default  %+v", o._statusCode, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[POST /network/ip/interfaces][%d] network_ip_interfaces_create default %s", o._statusCode, payload)
 }
 
 func (o *NetworkIPInterfacesCreateDefault) GetPayload() *models.ErrorResponse {

@@ -29,7 +29,7 @@ type SecurityKeystore struct {
 	// Indicates whether the keystore is onboard or external. * 'onboard' - Onboard Key Database * 'external' - External Key Database, including KMIP and Cloud Key Management Systems
 	//
 	// Read Only: true
-	// Enum: [onboard external]
+	// Enum: ["onboard","external"]
 	Location *string `json:"location,omitempty"`
 
 	// scope
@@ -38,7 +38,7 @@ type SecurityKeystore struct {
 	// State of the keystore: * 'active' - The key manager is active and serving new and existing keys. * 'mixed' - The key manager has a mixed configuration. New keys can't be created. * 'svm_kek_rekey' - An SVM key encryption key (KEK) rekey is in progress. New keys can't be created. * 'blocked' - The key manager is blocked and cannot serve new and existing keys. * 'switching' - Switching the enabled key manager keystore configuration. Some operations are blocked. * 'initializing' - The key manager is being initialized. All operations are blocked. * 'disabling' - The key manager is being disabled. All operations are blocked.
 	//
 	// Read Only: true
-	// Enum: [active mixed svm_kek_rekey blocked switching initializing disabling]
+	// Enum: ["active","mixed","svm_kek_rekey","blocked","switching","initializing","disabling"]
 	State *string `json:"state,omitempty"`
 
 	// svm
@@ -47,7 +47,7 @@ type SecurityKeystore struct {
 	// Type of keystore that is configured: * 'okm' - Onboard Key Manager * 'kmip' - External Key Manager * 'akv' - Azure Key Vault Key Management Service * 'gcp' - Google Cloud Platform Key Management Service * 'aws' - Amazon Web Service Key Management Service * 'ikp' - IBM Key Protect Key Management Service
 	//
 	// Read Only: true
-	// Enum: [okm kmip akv gcp aws ikp]
+	// Enum: ["okm","kmip","akv","gcp","aws","ikp"]
 	Type *string `json:"type,omitempty"`
 
 	// uuid
@@ -340,6 +340,11 @@ func (m *SecurityKeystore) ContextValidate(ctx context.Context, formats strfmt.R
 func (m *SecurityKeystore) contextValidateConfiguration(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Configuration != nil {
+
+		if swag.IsZero(m.Configuration) { // not required
+			return nil
+		}
+
 		if err := m.Configuration.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("configuration")
@@ -365,6 +370,11 @@ func (m *SecurityKeystore) contextValidateLocation(ctx context.Context, formats 
 func (m *SecurityKeystore) contextValidateScope(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Scope != nil {
+
+		if swag.IsZero(m.Scope) { // not required
+			return nil
+		}
+
 		if err := m.Scope.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("scope")
@@ -390,6 +400,11 @@ func (m *SecurityKeystore) contextValidateState(ctx context.Context, formats str
 func (m *SecurityKeystore) contextValidateSvm(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Svm != nil {
+
+		if swag.IsZero(m.Svm) { // not required
+			return nil
+		}
+
 		if err := m.Svm.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("svm")
@@ -506,6 +521,11 @@ func (m *SecurityKeystoreInlineConfiguration) ContextValidate(ctx context.Contex
 func (m *SecurityKeystoreInlineConfiguration) contextValidateLinks(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Links != nil {
+
+		if swag.IsZero(m.Links) { // not required
+			return nil
+		}
+
 		if err := m.Links.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("configuration" + "." + "_links")
@@ -596,6 +616,11 @@ func (m *SecurityKeystoreInlineConfigurationInlineLinks) ContextValidate(ctx con
 func (m *SecurityKeystoreInlineConfigurationInlineLinks) contextValidateSelf(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Self != nil {
+
+		if swag.IsZero(m.Self) { // not required
+			return nil
+		}
+
 		if err := m.Self.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("configuration" + "." + "_links" + "." + "self")
@@ -696,6 +721,11 @@ func (m *SecurityKeystoreInlineSvm) ContextValidate(ctx context.Context, formats
 func (m *SecurityKeystoreInlineSvm) contextValidateLinks(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Links != nil {
+
+		if swag.IsZero(m.Links) { // not required
+			return nil
+		}
+
 		if err := m.Links.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("svm" + "." + "_links")
@@ -786,6 +816,11 @@ func (m *SecurityKeystoreInlineSvmInlineLinks) ContextValidate(ctx context.Conte
 func (m *SecurityKeystoreInlineSvmInlineLinks) contextValidateSelf(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Self != nil {
+
+		if swag.IsZero(m.Self) { // not required
+			return nil
+		}
+
 		if err := m.Self.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("svm" + "." + "_links" + "." + "self")

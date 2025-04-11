@@ -76,6 +76,11 @@ func (m *NetworkRouteForSvm) ContextValidate(ctx context.Context, formats strfmt
 func (m *NetworkRouteForSvm) contextValidateDestination(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Destination != nil {
+
+		if swag.IsZero(m.Destination) { // not required
+			return nil
+		}
+
 		if err := m.Destination.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("destination")

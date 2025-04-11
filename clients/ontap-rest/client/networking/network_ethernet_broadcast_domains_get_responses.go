@@ -6,6 +6,7 @@ package networking
 // Editing this file might prove futile when you re-run the swagger generate command
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 
@@ -86,11 +87,13 @@ func (o *NetworkEthernetBroadcastDomainsGetOK) Code() int {
 }
 
 func (o *NetworkEthernetBroadcastDomainsGetOK) Error() string {
-	return fmt.Sprintf("[GET /network/ethernet/broadcast-domains][%d] networkEthernetBroadcastDomainsGetOK  %+v", 200, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[GET /network/ethernet/broadcast-domains][%d] networkEthernetBroadcastDomainsGetOK %s", 200, payload)
 }
 
 func (o *NetworkEthernetBroadcastDomainsGetOK) String() string {
-	return fmt.Sprintf("[GET /network/ethernet/broadcast-domains][%d] networkEthernetBroadcastDomainsGetOK  %+v", 200, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[GET /network/ethernet/broadcast-domains][%d] networkEthernetBroadcastDomainsGetOK %s", 200, payload)
 }
 
 func (o *NetworkEthernetBroadcastDomainsGetOK) GetPayload() *models.BroadcastDomainResponse {
@@ -158,11 +161,13 @@ func (o *NetworkEthernetBroadcastDomainsGetDefault) Code() int {
 }
 
 func (o *NetworkEthernetBroadcastDomainsGetDefault) Error() string {
-	return fmt.Sprintf("[GET /network/ethernet/broadcast-domains][%d] network_ethernet_broadcast_domains_get default  %+v", o._statusCode, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[GET /network/ethernet/broadcast-domains][%d] network_ethernet_broadcast_domains_get default %s", o._statusCode, payload)
 }
 
 func (o *NetworkEthernetBroadcastDomainsGetDefault) String() string {
-	return fmt.Sprintf("[GET /network/ethernet/broadcast-domains][%d] network_ethernet_broadcast_domains_get default  %+v", o._statusCode, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[GET /network/ethernet/broadcast-domains][%d] network_ethernet_broadcast_domains_get default %s", o._statusCode, payload)
 }
 
 func (o *NetworkEthernetBroadcastDomainsGetDefault) GetPayload() *models.ErrorResponse {

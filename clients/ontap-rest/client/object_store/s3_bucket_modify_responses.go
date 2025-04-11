@@ -6,6 +6,7 @@ package object_store
 // Editing this file might prove futile when you re-run the swagger generate command
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 
@@ -92,11 +93,13 @@ func (o *S3BucketModifyOK) Code() int {
 }
 
 func (o *S3BucketModifyOK) Error() string {
-	return fmt.Sprintf("[PATCH /protocols/s3/buckets/{svm.uuid}/{uuid}][%d] s3BucketModifyOK  %+v", 200, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[PATCH /protocols/s3/buckets/{svm.uuid}/{uuid}][%d] s3BucketModifyOK %s", 200, payload)
 }
 
 func (o *S3BucketModifyOK) String() string {
-	return fmt.Sprintf("[PATCH /protocols/s3/buckets/{svm.uuid}/{uuid}][%d] s3BucketModifyOK  %+v", 200, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[PATCH /protocols/s3/buckets/{svm.uuid}/{uuid}][%d] s3BucketModifyOK %s", 200, payload)
 }
 
 func (o *S3BucketModifyOK) GetPayload() *models.S3BucketJobLinkResponse {
@@ -160,11 +163,13 @@ func (o *S3BucketModifyAccepted) Code() int {
 }
 
 func (o *S3BucketModifyAccepted) Error() string {
-	return fmt.Sprintf("[PATCH /protocols/s3/buckets/{svm.uuid}/{uuid}][%d] s3BucketModifyAccepted  %+v", 202, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[PATCH /protocols/s3/buckets/{svm.uuid}/{uuid}][%d] s3BucketModifyAccepted %s", 202, payload)
 }
 
 func (o *S3BucketModifyAccepted) String() string {
-	return fmt.Sprintf("[PATCH /protocols/s3/buckets/{svm.uuid}/{uuid}][%d] s3BucketModifyAccepted  %+v", 202, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[PATCH /protocols/s3/buckets/{svm.uuid}/{uuid}][%d] s3BucketModifyAccepted %s", 202, payload)
 }
 
 func (o *S3BucketModifyAccepted) GetPayload() *models.S3BucketJobLinkResponse {
@@ -258,11 +263,13 @@ func (o *S3BucketModifyDefault) Code() int {
 }
 
 func (o *S3BucketModifyDefault) Error() string {
-	return fmt.Sprintf("[PATCH /protocols/s3/buckets/{svm.uuid}/{uuid}][%d] s3_bucket_modify default  %+v", o._statusCode, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[PATCH /protocols/s3/buckets/{svm.uuid}/{uuid}][%d] s3_bucket_modify default %s", o._statusCode, payload)
 }
 
 func (o *S3BucketModifyDefault) String() string {
-	return fmt.Sprintf("[PATCH /protocols/s3/buckets/{svm.uuid}/{uuid}][%d] s3_bucket_modify default  %+v", o._statusCode, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[PATCH /protocols/s3/buckets/{svm.uuid}/{uuid}][%d] s3_bucket_modify default %s", o._statusCode, payload)
 }
 
 func (o *S3BucketModifyDefault) GetPayload() *models.ErrorResponse {

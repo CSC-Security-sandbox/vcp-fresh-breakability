@@ -133,6 +133,11 @@ func (m *AntiRansomwareSuspect) ContextValidate(ctx context.Context, formats str
 func (m *AntiRansomwareSuspect) contextValidateLinks(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Links != nil {
+
+		if swag.IsZero(m.Links) { // not required
+			return nil
+		}
+
 		if err := m.Links.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("_links")
@@ -149,6 +154,11 @@ func (m *AntiRansomwareSuspect) contextValidateLinks(ctx context.Context, format
 func (m *AntiRansomwareSuspect) contextValidateFile(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.File != nil {
+
+		if swag.IsZero(m.File) { // not required
+			return nil
+		}
+
 		if err := m.File.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("file")
@@ -165,6 +175,11 @@ func (m *AntiRansomwareSuspect) contextValidateFile(ctx context.Context, formats
 func (m *AntiRansomwareSuspect) contextValidateVolume(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Volume != nil {
+
+		if swag.IsZero(m.Volume) { // not required
+			return nil
+		}
+
 		if err := m.Volume.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("volume")
@@ -350,6 +365,11 @@ func (m *AntiRansomwareSuspectInlineLinks) ContextValidate(ctx context.Context, 
 func (m *AntiRansomwareSuspectInlineLinks) contextValidateSelf(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Self != nil {
+
+		if swag.IsZero(m.Self) { // not required
+			return nil
+		}
+
 		if err := m.Self.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("_links" + "." + "self")
@@ -448,6 +468,11 @@ func (m *AntiRansomwareSuspectInlineVolume) ContextValidate(ctx context.Context,
 func (m *AntiRansomwareSuspectInlineVolume) contextValidateLinks(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Links != nil {
+
+		if swag.IsZero(m.Links) { // not required
+			return nil
+		}
+
 		if err := m.Links.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("volume" + "." + "_links")
@@ -538,6 +563,11 @@ func (m *AntiRansomwareSuspectInlineVolumeInlineLinks) ContextValidate(ctx conte
 func (m *AntiRansomwareSuspectInlineVolumeInlineLinks) contextValidateSelf(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Self != nil {
+
+		if swag.IsZero(m.Self) { // not required
+			return nil
+		}
+
 		if err := m.Self.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("volume" + "." + "_links" + "." + "self")

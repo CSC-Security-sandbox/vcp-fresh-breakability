@@ -6,6 +6,7 @@ package security
 // Editing this file might prove futile when you re-run the swagger generate command
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 
@@ -85,11 +86,11 @@ func (o *RolePrivilegeModifyOK) Code() int {
 }
 
 func (o *RolePrivilegeModifyOK) Error() string {
-	return fmt.Sprintf("[PATCH /security/roles/{owner.uuid}/{name}/privileges/{path}][%d] rolePrivilegeModifyOK ", 200)
+	return fmt.Sprintf("[PATCH /security/roles/{owner.uuid}/{name}/privileges/{path}][%d] rolePrivilegeModifyOK", 200)
 }
 
 func (o *RolePrivilegeModifyOK) String() string {
-	return fmt.Sprintf("[PATCH /security/roles/{owner.uuid}/{name}/privileges/{path}][%d] rolePrivilegeModifyOK ", 200)
+	return fmt.Sprintf("[PATCH /security/roles/{owner.uuid}/{name}/privileges/{path}][%d] rolePrivilegeModifyOK", 200)
 }
 
 func (o *RolePrivilegeModifyOK) readResponse(response runtime.ClientResponse, consumer runtime.Consumer, formats strfmt.Registry) error {
@@ -153,11 +154,13 @@ func (o *RolePrivilegeModifyDefault) Code() int {
 }
 
 func (o *RolePrivilegeModifyDefault) Error() string {
-	return fmt.Sprintf("[PATCH /security/roles/{owner.uuid}/{name}/privileges/{path}][%d] role_privilege_modify default  %+v", o._statusCode, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[PATCH /security/roles/{owner.uuid}/{name}/privileges/{path}][%d] role_privilege_modify default %s", o._statusCode, payload)
 }
 
 func (o *RolePrivilegeModifyDefault) String() string {
-	return fmt.Sprintf("[PATCH /security/roles/{owner.uuid}/{name}/privileges/{path}][%d] role_privilege_modify default  %+v", o._statusCode, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[PATCH /security/roles/{owner.uuid}/{name}/privileges/{path}][%d] role_privilege_modify default %s", o._statusCode, payload)
 }
 
 func (o *RolePrivilegeModifyDefault) GetPayload() *models.ErrorResponse {

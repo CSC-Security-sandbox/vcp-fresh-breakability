@@ -6,6 +6,7 @@ package snapmirror
 // Editing this file might prove futile when you re-run the swagger generate command
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 
@@ -92,11 +93,13 @@ func (o *SnapmirrorRelationshipModifyOK) Code() int {
 }
 
 func (o *SnapmirrorRelationshipModifyOK) Error() string {
-	return fmt.Sprintf("[PATCH /snapmirror/relationships/{uuid}][%d] snapmirrorRelationshipModifyOK  %+v", 200, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[PATCH /snapmirror/relationships/{uuid}][%d] snapmirrorRelationshipModifyOK %s", 200, payload)
 }
 
 func (o *SnapmirrorRelationshipModifyOK) String() string {
-	return fmt.Sprintf("[PATCH /snapmirror/relationships/{uuid}][%d] snapmirrorRelationshipModifyOK  %+v", 200, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[PATCH /snapmirror/relationships/{uuid}][%d] snapmirrorRelationshipModifyOK %s", 200, payload)
 }
 
 func (o *SnapmirrorRelationshipModifyOK) GetPayload() *models.SnapmirrorRelationshipJobLinkResponse {
@@ -160,11 +163,13 @@ func (o *SnapmirrorRelationshipModifyAccepted) Code() int {
 }
 
 func (o *SnapmirrorRelationshipModifyAccepted) Error() string {
-	return fmt.Sprintf("[PATCH /snapmirror/relationships/{uuid}][%d] snapmirrorRelationshipModifyAccepted  %+v", 202, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[PATCH /snapmirror/relationships/{uuid}][%d] snapmirrorRelationshipModifyAccepted %s", 202, payload)
 }
 
 func (o *SnapmirrorRelationshipModifyAccepted) String() string {
-	return fmt.Sprintf("[PATCH /snapmirror/relationships/{uuid}][%d] snapmirrorRelationshipModifyAccepted  %+v", 202, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[PATCH /snapmirror/relationships/{uuid}][%d] snapmirrorRelationshipModifyAccepted %s", 202, payload)
 }
 
 func (o *SnapmirrorRelationshipModifyAccepted) GetPayload() *models.SnapmirrorRelationshipJobLinkResponse {
@@ -254,6 +259,7 @@ func NewSnapmirrorRelationshipModifyDefault(code int) *SnapmirrorRelationshipMod
 | 13303951    | This SnapMirror policy is not supported for relationships with object store destination endpoints. |
 | 13304117    | Policy has snapshot_lock_mode set to compliance or enterprise and FlexGroup volume object store relationships require an effective cluster version of ONTAP 9.13.1 or later to support snapshot locking. |
 | 6621112     | The policy associated with the SnapMirror relationship cannot be changed because the value of the Snapshot Lock Mode field in the original policy does not match the value of the Snapshot Lock Mode field in the new policy. |
+| 13304149    | Value specified for the destination.uuid property does not match the relationship's destination.uuid property.|
 | 13304003    | IntraCluster flip operation is not supported. |
 | 6621125     | The policy is not valid for relationships with FlexGroup volume endpoints. Only policies without snapshot creation schedules are supported for these relationships. |
 | 13304093    | The property specified is not supported for the specified relationships. |
@@ -297,11 +303,13 @@ func (o *SnapmirrorRelationshipModifyDefault) Code() int {
 }
 
 func (o *SnapmirrorRelationshipModifyDefault) Error() string {
-	return fmt.Sprintf("[PATCH /snapmirror/relationships/{uuid}][%d] snapmirror_relationship_modify default  %+v", o._statusCode, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[PATCH /snapmirror/relationships/{uuid}][%d] snapmirror_relationship_modify default %s", o._statusCode, payload)
 }
 
 func (o *SnapmirrorRelationshipModifyDefault) String() string {
-	return fmt.Sprintf("[PATCH /snapmirror/relationships/{uuid}][%d] snapmirror_relationship_modify default  %+v", o._statusCode, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[PATCH /snapmirror/relationships/{uuid}][%d] snapmirror_relationship_modify default %s", o._statusCode, payload)
 }
 
 func (o *SnapmirrorRelationshipModifyDefault) GetPayload() *models.ErrorResponse {

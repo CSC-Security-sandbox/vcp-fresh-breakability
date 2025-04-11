@@ -114,6 +114,11 @@ func (m *S3BucketSvmResponse) ContextValidate(ctx context.Context, formats strfm
 func (m *S3BucketSvmResponse) contextValidateLinks(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Links != nil {
+
+		if swag.IsZero(m.Links) { // not required
+			return nil
+		}
+
 		if err := m.Links.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("_links")
@@ -132,6 +137,11 @@ func (m *S3BucketSvmResponse) contextValidateS3BucketSvmResponseInlineRecords(ct
 	for i := 0; i < len(m.S3BucketSvmResponseInlineRecords); i++ {
 
 		if m.S3BucketSvmResponseInlineRecords[i] != nil {
+
+			if swag.IsZero(m.S3BucketSvmResponseInlineRecords[i]) { // not required
+				return nil
+			}
+
 			if err := m.S3BucketSvmResponseInlineRecords[i].ContextValidate(ctx, formats); err != nil {
 				if ve, ok := err.(*errors.Validation); ok {
 					return ve.ValidateName("records" + "." + strconv.Itoa(i))

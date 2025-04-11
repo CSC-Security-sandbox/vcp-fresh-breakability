@@ -6,6 +6,7 @@ package object_store
 // Editing this file might prove futile when you re-run the swagger generate command
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 
@@ -86,11 +87,13 @@ func (o *BucketsCollectionGetOK) Code() int {
 }
 
 func (o *BucketsCollectionGetOK) Error() string {
-	return fmt.Sprintf("[GET /protocols/s3/services/{svm.uuid}/buckets][%d] bucketsCollectionGetOK  %+v", 200, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[GET /protocols/s3/services/{svm.uuid}/buckets][%d] bucketsCollectionGetOK %s", 200, payload)
 }
 
 func (o *BucketsCollectionGetOK) String() string {
-	return fmt.Sprintf("[GET /protocols/s3/services/{svm.uuid}/buckets][%d] bucketsCollectionGetOK  %+v", 200, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[GET /protocols/s3/services/{svm.uuid}/buckets][%d] bucketsCollectionGetOK %s", 200, payload)
 }
 
 func (o *BucketsCollectionGetOK) GetPayload() *models.S3BucketSvmResponse {
@@ -158,11 +161,13 @@ func (o *BucketsCollectionGetDefault) Code() int {
 }
 
 func (o *BucketsCollectionGetDefault) Error() string {
-	return fmt.Sprintf("[GET /protocols/s3/services/{svm.uuid}/buckets][%d] buckets_collection_get default  %+v", o._statusCode, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[GET /protocols/s3/services/{svm.uuid}/buckets][%d] buckets_collection_get default %s", o._statusCode, payload)
 }
 
 func (o *BucketsCollectionGetDefault) String() string {
-	return fmt.Sprintf("[GET /protocols/s3/services/{svm.uuid}/buckets][%d] buckets_collection_get default  %+v", o._statusCode, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[GET /protocols/s3/services/{svm.uuid}/buckets][%d] buckets_collection_get default %s", o._statusCode, payload)
 }
 
 func (o *BucketsCollectionGetDefault) GetPayload() *models.ErrorResponse {

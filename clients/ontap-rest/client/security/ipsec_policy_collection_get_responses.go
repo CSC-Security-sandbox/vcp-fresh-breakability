@@ -6,6 +6,7 @@ package security
 // Editing this file might prove futile when you re-run the swagger generate command
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 
@@ -86,11 +87,13 @@ func (o *IpsecPolicyCollectionGetOK) Code() int {
 }
 
 func (o *IpsecPolicyCollectionGetOK) Error() string {
-	return fmt.Sprintf("[GET /security/ipsec/policies][%d] ipsecPolicyCollectionGetOK  %+v", 200, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[GET /security/ipsec/policies][%d] ipsecPolicyCollectionGetOK %s", 200, payload)
 }
 
 func (o *IpsecPolicyCollectionGetOK) String() string {
-	return fmt.Sprintf("[GET /security/ipsec/policies][%d] ipsecPolicyCollectionGetOK  %+v", 200, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[GET /security/ipsec/policies][%d] ipsecPolicyCollectionGetOK %s", 200, payload)
 }
 
 func (o *IpsecPolicyCollectionGetOK) GetPayload() *models.IpsecPolicyResponse {
@@ -158,11 +161,13 @@ func (o *IpsecPolicyCollectionGetDefault) Code() int {
 }
 
 func (o *IpsecPolicyCollectionGetDefault) Error() string {
-	return fmt.Sprintf("[GET /security/ipsec/policies][%d] ipsec_policy_collection_get default  %+v", o._statusCode, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[GET /security/ipsec/policies][%d] ipsec_policy_collection_get default %s", o._statusCode, payload)
 }
 
 func (o *IpsecPolicyCollectionGetDefault) String() string {
-	return fmt.Sprintf("[GET /security/ipsec/policies][%d] ipsec_policy_collection_get default  %+v", o._statusCode, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[GET /security/ipsec/policies][%d] ipsec_policy_collection_get default %s", o._statusCode, payload)
 }
 
 func (o *IpsecPolicyCollectionGetDefault) GetPayload() *models.ErrorResponse {

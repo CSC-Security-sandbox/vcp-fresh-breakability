@@ -245,6 +245,11 @@ func (m *IPInterfaceSvm) ContextValidate(ctx context.Context, formats strfmt.Reg
 func (m *IPInterfaceSvm) contextValidateLinks(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Links != nil {
+
+		if swag.IsZero(m.Links) { // not required
+			return nil
+		}
+
 		if err := m.Links.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("_links")
@@ -261,6 +266,11 @@ func (m *IPInterfaceSvm) contextValidateLinks(ctx context.Context, formats strfm
 func (m *IPInterfaceSvm) contextValidateIP(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.IP != nil {
+
+		if swag.IsZero(m.IP) { // not required
+			return nil
+		}
+
 		if err := m.IP.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("ip")
@@ -283,6 +293,11 @@ func (m *IPInterfaceSvm) contextValidateIPInterfaceSvmInlineServices(ctx context
 	for i := 0; i < len(m.IPInterfaceSvmInlineServices); i++ {
 
 		if m.IPInterfaceSvmInlineServices[i] != nil {
+
+			if swag.IsZero(m.IPInterfaceSvmInlineServices[i]) { // not required
+				return nil
+			}
+
 			if err := m.IPInterfaceSvmInlineServices[i].ContextValidate(ctx, formats); err != nil {
 				if ve, ok := err.(*errors.Validation); ok {
 					return ve.ValidateName("services" + "." + strconv.Itoa(i))
@@ -301,6 +316,11 @@ func (m *IPInterfaceSvm) contextValidateIPInterfaceSvmInlineServices(ctx context
 func (m *IPInterfaceSvm) contextValidateLocation(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Location != nil {
+
+		if swag.IsZero(m.Location) { // not required
+			return nil
+		}
+
 		if err := m.Location.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("location")
@@ -317,6 +337,11 @@ func (m *IPInterfaceSvm) contextValidateLocation(ctx context.Context, formats st
 func (m *IPInterfaceSvm) contextValidateServicePolicy(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.ServicePolicy != nil {
+
+		if swag.IsZero(m.ServicePolicy) { // not required
+			return nil
+		}
+
 		if err := m.ServicePolicy.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("service_policy")
@@ -333,6 +358,11 @@ func (m *IPInterfaceSvm) contextValidateServicePolicy(ctx context.Context, forma
 func (m *IPInterfaceSvm) contextValidateSubnet(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Subnet != nil {
+
+		if swag.IsZero(m.Subnet) { // not required
+			return nil
+		}
+
 		if err := m.Subnet.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("subnet")
@@ -462,6 +492,11 @@ func (m *IPInterfaceSvmInlineIP) ContextValidate(ctx context.Context, formats st
 func (m *IPInterfaceSvmInlineIP) contextValidateAddress(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Address != nil {
+
+		if swag.IsZero(m.Address) { // not required
+			return nil
+		}
+
 		if err := m.Address.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("ip" + "." + "address")
@@ -478,6 +513,11 @@ func (m *IPInterfaceSvmInlineIP) contextValidateAddress(ctx context.Context, for
 func (m *IPInterfaceSvmInlineIP) contextValidateNetmask(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Netmask != nil {
+
+		if swag.IsZero(m.Netmask) { // not required
+			return nil
+		}
+
 		if err := m.Netmask.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("ip" + "." + "netmask")
@@ -568,6 +608,11 @@ func (m *IPInterfaceSvmInlineLinks) ContextValidate(ctx context.Context, formats
 func (m *IPInterfaceSvmInlineLinks) contextValidateSelf(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Self != nil {
+
+		if swag.IsZero(m.Self) { // not required
+			return nil
+		}
+
 		if err := m.Self.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("_links" + "." + "self")
@@ -718,6 +763,11 @@ func (m *IPInterfaceSvmInlineLocation) ContextValidate(ctx context.Context, form
 func (m *IPInterfaceSvmInlineLocation) contextValidateBroadcastDomain(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.BroadcastDomain != nil {
+
+		if swag.IsZero(m.BroadcastDomain) { // not required
+			return nil
+		}
+
 		if err := m.BroadcastDomain.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("location" + "." + "broadcast_domain")
@@ -734,6 +784,11 @@ func (m *IPInterfaceSvmInlineLocation) contextValidateBroadcastDomain(ctx contex
 func (m *IPInterfaceSvmInlineLocation) contextValidateHomeNode(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.HomeNode != nil {
+
+		if swag.IsZero(m.HomeNode) { // not required
+			return nil
+		}
+
 		if err := m.HomeNode.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("location" + "." + "home_node")
@@ -750,6 +805,11 @@ func (m *IPInterfaceSvmInlineLocation) contextValidateHomeNode(ctx context.Conte
 func (m *IPInterfaceSvmInlineLocation) contextValidateHomePort(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.HomePort != nil {
+
+		if swag.IsZero(m.HomePort) { // not required
+			return nil
+		}
+
 		if err := m.HomePort.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("location" + "." + "home_port")
@@ -848,6 +908,11 @@ func (m *IPInterfaceSvmInlineLocationInlineBroadcastDomain) ContextValidate(ctx 
 func (m *IPInterfaceSvmInlineLocationInlineBroadcastDomain) contextValidateLinks(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Links != nil {
+
+		if swag.IsZero(m.Links) { // not required
+			return nil
+		}
+
 		if err := m.Links.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("location" + "." + "broadcast_domain" + "." + "_links")
@@ -938,6 +1003,11 @@ func (m *IPInterfaceSvmInlineLocationInlineBroadcastDomainInlineLinks) ContextVa
 func (m *IPInterfaceSvmInlineLocationInlineBroadcastDomainInlineLinks) contextValidateSelf(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Self != nil {
+
+		if swag.IsZero(m.Self) { // not required
+			return nil
+		}
+
 		if err := m.Self.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("location" + "." + "broadcast_domain" + "." + "_links" + "." + "self")
@@ -1036,6 +1106,11 @@ func (m *IPInterfaceSvmInlineLocationInlineHomeNode) ContextValidate(ctx context
 func (m *IPInterfaceSvmInlineLocationInlineHomeNode) contextValidateLinks(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Links != nil {
+
+		if swag.IsZero(m.Links) { // not required
+			return nil
+		}
+
 		if err := m.Links.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("location" + "." + "home_node" + "." + "_links")
@@ -1126,6 +1201,11 @@ func (m *IPInterfaceSvmInlineLocationInlineHomeNodeInlineLinks) ContextValidate(
 func (m *IPInterfaceSvmInlineLocationInlineHomeNodeInlineLinks) contextValidateSelf(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Self != nil {
+
+		if swag.IsZero(m.Self) { // not required
+			return nil
+		}
+
 		if err := m.Self.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("location" + "." + "home_node" + "." + "_links" + "." + "self")

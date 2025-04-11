@@ -65,7 +65,7 @@ type IPInterface struct {
 	RdmaProtocols []*string `json:"rdma_protocols,omitempty"`
 
 	// Set to "svm" for interfaces owned by an SVM. Otherwise, set to "cluster".
-	// Enum: [svm cluster]
+	// Enum: ["svm","cluster"]
 	Scope *string `json:"scope,omitempty"`
 
 	// service policy
@@ -73,7 +73,7 @@ type IPInterface struct {
 
 	// The operational state of the interface.
 	// Read Only: true
-	// Enum: [up down]
+	// Enum: ["up","down"]
 	State *string `json:"state,omitempty"`
 
 	// statistics
@@ -537,6 +537,11 @@ func (m *IPInterface) ContextValidate(ctx context.Context, formats strfmt.Regist
 func (m *IPInterface) contextValidateLinks(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Links != nil {
+
+		if swag.IsZero(m.Links) { // not required
+			return nil
+		}
+
 		if err := m.Links.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("_links")
@@ -553,6 +558,11 @@ func (m *IPInterface) contextValidateLinks(ctx context.Context, formats strfmt.R
 func (m *IPInterface) contextValidateIP(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.IP != nil {
+
+		if swag.IsZero(m.IP) { // not required
+			return nil
+		}
+
 		if err := m.IP.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("ip")
@@ -575,6 +585,11 @@ func (m *IPInterface) contextValidateIPInterfaceInlineServices(ctx context.Conte
 	for i := 0; i < len(m.IPInterfaceInlineServices); i++ {
 
 		if m.IPInterfaceInlineServices[i] != nil {
+
+			if swag.IsZero(m.IPInterfaceInlineServices[i]) { // not required
+				return nil
+			}
+
 			if err := m.IPInterfaceInlineServices[i].ContextValidate(ctx, formats); err != nil {
 				if ve, ok := err.(*errors.Validation); ok {
 					return ve.ValidateName("services" + "." + strconv.Itoa(i))
@@ -593,6 +608,11 @@ func (m *IPInterface) contextValidateIPInterfaceInlineServices(ctx context.Conte
 func (m *IPInterface) contextValidateIpspace(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Ipspace != nil {
+
+		if swag.IsZero(m.Ipspace) { // not required
+			return nil
+		}
+
 		if err := m.Ipspace.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("ipspace")
@@ -609,6 +629,11 @@ func (m *IPInterface) contextValidateIpspace(ctx context.Context, formats strfmt
 func (m *IPInterface) contextValidateLocation(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Location != nil {
+
+		if swag.IsZero(m.Location) { // not required
+			return nil
+		}
+
 		if err := m.Location.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("location")
@@ -625,6 +650,11 @@ func (m *IPInterface) contextValidateLocation(ctx context.Context, formats strfm
 func (m *IPInterface) contextValidateMetric(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Metric != nil {
+
+		if swag.IsZero(m.Metric) { // not required
+			return nil
+		}
+
 		if err := m.Metric.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("metric")
@@ -641,6 +671,11 @@ func (m *IPInterface) contextValidateMetric(ctx context.Context, formats strfmt.
 func (m *IPInterface) contextValidateServicePolicy(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.ServicePolicy != nil {
+
+		if swag.IsZero(m.ServicePolicy) { // not required
+			return nil
+		}
+
 		if err := m.ServicePolicy.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("service_policy")
@@ -666,6 +701,11 @@ func (m *IPInterface) contextValidateState(ctx context.Context, formats strfmt.R
 func (m *IPInterface) contextValidateStatistics(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Statistics != nil {
+
+		if swag.IsZero(m.Statistics) { // not required
+			return nil
+		}
+
 		if err := m.Statistics.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("statistics")
@@ -682,6 +722,11 @@ func (m *IPInterface) contextValidateStatistics(ctx context.Context, formats str
 func (m *IPInterface) contextValidateSubnet(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Subnet != nil {
+
+		if swag.IsZero(m.Subnet) { // not required
+			return nil
+		}
+
 		if err := m.Subnet.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("subnet")
@@ -698,6 +743,11 @@ func (m *IPInterface) contextValidateSubnet(ctx context.Context, formats strfmt.
 func (m *IPInterface) contextValidateSvm(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Svm != nil {
+
+		if swag.IsZero(m.Svm) { // not required
+			return nil
+		}
+
 		if err := m.Svm.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("svm")
@@ -805,6 +855,11 @@ func (m *IPInterfaceInlineIpspace) ContextValidate(ctx context.Context, formats 
 func (m *IPInterfaceInlineIpspace) contextValidateLinks(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Links != nil {
+
+		if swag.IsZero(m.Links) { // not required
+			return nil
+		}
+
 		if err := m.Links.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("ipspace" + "." + "_links")
@@ -895,6 +950,11 @@ func (m *IPInterfaceInlineIpspaceInlineLinks) ContextValidate(ctx context.Contex
 func (m *IPInterfaceInlineIpspaceInlineLinks) contextValidateSelf(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Self != nil {
+
+		if swag.IsZero(m.Self) { // not required
+			return nil
+		}
+
 		if err := m.Self.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("ipspace" + "." + "_links" + "." + "self")
@@ -985,6 +1045,11 @@ func (m *IPInterfaceInlineLinks) ContextValidate(ctx context.Context, formats st
 func (m *IPInterfaceInlineLinks) contextValidateSelf(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Self != nil {
+
+		if swag.IsZero(m.Self) { // not required
+			return nil
+		}
+
 		if err := m.Self.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("_links" + "." + "self")
@@ -1231,6 +1296,11 @@ func (m *IPInterfaceInlineLocation) ContextValidate(ctx context.Context, formats
 func (m *IPInterfaceInlineLocation) contextValidateBroadcastDomain(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.BroadcastDomain != nil {
+
+		if swag.IsZero(m.BroadcastDomain) { // not required
+			return nil
+		}
+
 		if err := m.BroadcastDomain.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("location" + "." + "broadcast_domain")
@@ -1247,6 +1317,11 @@ func (m *IPInterfaceInlineLocation) contextValidateBroadcastDomain(ctx context.C
 func (m *IPInterfaceInlineLocation) contextValidateFailover(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Failover != nil {
+
+		if swag.IsZero(m.Failover) { // not required
+			return nil
+		}
+
 		if err := m.Failover.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("location" + "." + "failover")
@@ -1263,6 +1338,11 @@ func (m *IPInterfaceInlineLocation) contextValidateFailover(ctx context.Context,
 func (m *IPInterfaceInlineLocation) contextValidateHomeNode(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.HomeNode != nil {
+
+		if swag.IsZero(m.HomeNode) { // not required
+			return nil
+		}
+
 		if err := m.HomeNode.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("location" + "." + "home_node")
@@ -1279,6 +1359,11 @@ func (m *IPInterfaceInlineLocation) contextValidateHomeNode(ctx context.Context,
 func (m *IPInterfaceInlineLocation) contextValidateHomePort(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.HomePort != nil {
+
+		if swag.IsZero(m.HomePort) { // not required
+			return nil
+		}
+
 		if err := m.HomePort.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("location" + "." + "home_port")
@@ -1295,6 +1380,11 @@ func (m *IPInterfaceInlineLocation) contextValidateHomePort(ctx context.Context,
 func (m *IPInterfaceInlineLocation) contextValidateNode(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Node != nil {
+
+		if swag.IsZero(m.Node) { // not required
+			return nil
+		}
+
 		if err := m.Node.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("location" + "." + "node")
@@ -1311,6 +1401,11 @@ func (m *IPInterfaceInlineLocation) contextValidateNode(ctx context.Context, for
 func (m *IPInterfaceInlineLocation) contextValidatePort(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Port != nil {
+
+		if swag.IsZero(m.Port) { // not required
+			return nil
+		}
+
 		if err := m.Port.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("location" + "." + "port")
@@ -1409,6 +1504,11 @@ func (m *IPInterfaceInlineLocationInlineBroadcastDomain) ContextValidate(ctx con
 func (m *IPInterfaceInlineLocationInlineBroadcastDomain) contextValidateLinks(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Links != nil {
+
+		if swag.IsZero(m.Links) { // not required
+			return nil
+		}
+
 		if err := m.Links.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("location" + "." + "broadcast_domain" + "." + "_links")
@@ -1499,6 +1599,11 @@ func (m *IPInterfaceInlineLocationInlineBroadcastDomainInlineLinks) ContextValid
 func (m *IPInterfaceInlineLocationInlineBroadcastDomainInlineLinks) contextValidateSelf(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Self != nil {
+
+		if swag.IsZero(m.Self) { // not required
+			return nil
+		}
+
 		if err := m.Self.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("location" + "." + "broadcast_domain" + "." + "_links" + "." + "self")
@@ -1597,6 +1702,11 @@ func (m *IPInterfaceInlineLocationInlineHomeNode) ContextValidate(ctx context.Co
 func (m *IPInterfaceInlineLocationInlineHomeNode) contextValidateLinks(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Links != nil {
+
+		if swag.IsZero(m.Links) { // not required
+			return nil
+		}
+
 		if err := m.Links.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("location" + "." + "home_node" + "." + "_links")
@@ -1687,6 +1797,11 @@ func (m *IPInterfaceInlineLocationInlineHomeNodeInlineLinks) ContextValidate(ctx
 func (m *IPInterfaceInlineLocationInlineHomeNodeInlineLinks) contextValidateSelf(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Self != nil {
+
+		if swag.IsZero(m.Self) { // not required
+			return nil
+		}
+
 		if err := m.Self.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("location" + "." + "home_node" + "." + "_links" + "." + "self")
@@ -1815,6 +1930,11 @@ func (m *IPInterfaceInlineLocationInlineHomePort) ContextValidate(ctx context.Co
 func (m *IPInterfaceInlineLocationInlineHomePort) contextValidateLinks(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Links != nil {
+
+		if swag.IsZero(m.Links) { // not required
+			return nil
+		}
+
 		if err := m.Links.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("location" + "." + "home_port" + "." + "_links")
@@ -1831,6 +1951,11 @@ func (m *IPInterfaceInlineLocationInlineHomePort) contextValidateLinks(ctx conte
 func (m *IPInterfaceInlineLocationInlineHomePort) contextValidateNode(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Node != nil {
+
+		if swag.IsZero(m.Node) { // not required
+			return nil
+		}
+
 		if err := m.Node.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("location" + "." + "home_port" + "." + "node")
@@ -1921,6 +2046,11 @@ func (m *IPInterfaceInlineLocationInlineHomePortInlineLinks) ContextValidate(ctx
 func (m *IPInterfaceInlineLocationInlineHomePortInlineLinks) contextValidateSelf(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Self != nil {
+
+		if swag.IsZero(m.Self) { // not required
+			return nil
+		}
+
 		if err := m.Self.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("location" + "." + "home_port" + "." + "_links" + "." + "self")
@@ -2057,6 +2187,11 @@ func (m *IPInterfaceInlineLocationInlineNode) ContextValidate(ctx context.Contex
 func (m *IPInterfaceInlineLocationInlineNode) contextValidateLinks(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Links != nil {
+
+		if swag.IsZero(m.Links) { // not required
+			return nil
+		}
+
 		if err := m.Links.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("location" + "." + "node" + "." + "_links")
@@ -2147,6 +2282,11 @@ func (m *IPInterfaceInlineLocationInlineNodeInlineLinks) ContextValidate(ctx con
 func (m *IPInterfaceInlineLocationInlineNodeInlineLinks) contextValidateSelf(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Self != nil {
+
+		if swag.IsZero(m.Self) { // not required
+			return nil
+		}
+
 		if err := m.Self.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("location" + "." + "node" + "." + "_links" + "." + "self")
@@ -2275,6 +2415,11 @@ func (m *IPInterfaceInlineLocationInlinePort) ContextValidate(ctx context.Contex
 func (m *IPInterfaceInlineLocationInlinePort) contextValidateLinks(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Links != nil {
+
+		if swag.IsZero(m.Links) { // not required
+			return nil
+		}
+
 		if err := m.Links.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("location" + "." + "port" + "." + "_links")
@@ -2291,6 +2436,11 @@ func (m *IPInterfaceInlineLocationInlinePort) contextValidateLinks(ctx context.C
 func (m *IPInterfaceInlineLocationInlinePort) contextValidateNode(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Node != nil {
+
+		if swag.IsZero(m.Node) { // not required
+			return nil
+		}
+
 		if err := m.Node.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("location" + "." + "port" + "." + "node")
@@ -2381,6 +2531,11 @@ func (m *IPInterfaceInlineLocationInlinePortInlineLinks) ContextValidate(ctx con
 func (m *IPInterfaceInlineLocationInlinePortInlineLinks) contextValidateSelf(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Self != nil {
+
+		if swag.IsZero(m.Self) { // not required
+			return nil
+		}
+
 		if err := m.Self.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("location" + "." + "port" + "." + "_links" + "." + "self")
@@ -2461,12 +2616,12 @@ type IPInterfaceInlineMetric struct {
 	// The duration over which this sample is calculated. The time durations are represented in the ISO-8601 standard format. Samples can be calculated over the following durations:
 	//
 	// Example: PT15S
-	// Enum: [PT15S PT4M PT30M PT2H P1D PT5M]
+	// Enum: ["PT15S","PT4M","PT30M","PT2H","P1D","PT5M"]
 	Duration *string `json:"duration,omitempty"`
 
 	// Errors associated with the sample. For example, if the aggregation of data over multiple nodes fails, then any partial errors might return "ok" on success or "error" on an internal uncategorized failure. Whenever a sample collection is missed but done at a later time, it is back filled to the previous 15 second timestamp and tagged with "backfilled_data". "inconsistent_delta_time" is encountered when the time between two collections is not the same for all nodes. Therefore, the aggregated value might be over or under inflated. "Negative_delta" is returned when an expected monotonically increasing value has decreased in value. "inconsistent_old_data" is returned when one or more nodes do not have the latest data.
 	// Example: ok
-	// Enum: [ok error partial_no_data partial_no_uuid partial_no_response partial_other_error negative_delta backfilled_data inconsistent_delta_time inconsistent_old_data]
+	// Enum: ["ok","error","partial_no_data","partial_no_uuid","partial_no_response","partial_other_error","negative_delta","backfilled_data","inconsistent_delta_time","inconsistent_old_data"]
 	Status *string `json:"status,omitempty"`
 
 	// throughput
@@ -2699,6 +2854,11 @@ func (m *IPInterfaceInlineMetric) ContextValidate(ctx context.Context, formats s
 func (m *IPInterfaceInlineMetric) contextValidateLinks(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Links != nil {
+
+		if swag.IsZero(m.Links) { // not required
+			return nil
+		}
+
 		if err := m.Links.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("metric" + "." + "_links")
@@ -2715,6 +2875,11 @@ func (m *IPInterfaceInlineMetric) contextValidateLinks(ctx context.Context, form
 func (m *IPInterfaceInlineMetric) contextValidateThroughput(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Throughput != nil {
+
+		if swag.IsZero(m.Throughput) { // not required
+			return nil
+		}
+
 		if err := m.Throughput.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("metric" + "." + "throughput")
@@ -2805,6 +2970,11 @@ func (m *IPInterfaceInlineMetricInlineLinks) ContextValidate(ctx context.Context
 func (m *IPInterfaceInlineMetricInlineLinks) contextValidateSelf(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Self != nil {
+
+		if swag.IsZero(m.Self) { // not required
+			return nil
+		}
+
 		if err := m.Self.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("metric" + "." + "_links" + "." + "self")
@@ -2949,6 +3119,11 @@ func (m *IPInterfaceInlineServicePolicy) ContextValidate(ctx context.Context, fo
 func (m *IPInterfaceInlineServicePolicy) contextValidateLinks(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Links != nil {
+
+		if swag.IsZero(m.Links) { // not required
+			return nil
+		}
+
 		if err := m.Links.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("service_policy" + "." + "_links")
@@ -3039,6 +3214,11 @@ func (m *IPInterfaceInlineServicePolicyInlineLinks) ContextValidate(ctx context.
 func (m *IPInterfaceInlineServicePolicyInlineLinks) contextValidateSelf(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Self != nil {
+
+		if swag.IsZero(m.Self) { // not required
+			return nil
+		}
+
 		if err := m.Self.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("service_policy" + "." + "_links" + "." + "self")
@@ -3077,7 +3257,7 @@ type IPInterfaceInlineStatistics struct {
 
 	// Errors associated with the sample. For example, if the aggregation of data over multiple nodes fails, then any partial errors might return "ok" on success or "error" on an internal uncategorized failure. Whenever a sample collection is missed but done at a later time, it is back filled to the previous 15 second timestamp and tagged with "backfilled_data". "inconsistent_delta_time" is encountered when the time between two collections is not the same for all nodes. Therefore, the aggregated value might be over or under inflated. "Negative_delta" is returned when an expected monotonically increasing value has decreased in value. "inconsistent_old_data" is returned when one or more nodes do not have the latest data.
 	// Example: ok
-	// Enum: [ok error partial_no_data partial_no_uuid partial_no_response partial_other_error negative_delta backfilled_data inconsistent_delta_time inconsistent_old_data]
+	// Enum: ["ok","error","partial_no_data","partial_no_uuid","partial_no_response","partial_other_error","negative_delta","backfilled_data","inconsistent_delta_time","inconsistent_old_data"]
 	Status *string `json:"status,omitempty"`
 
 	// throughput raw
@@ -3225,6 +3405,11 @@ func (m *IPInterfaceInlineStatistics) ContextValidate(ctx context.Context, forma
 func (m *IPInterfaceInlineStatistics) contextValidateThroughputRaw(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.ThroughputRaw != nil {
+
+		if swag.IsZero(m.ThroughputRaw) { // not required
+			return nil
+		}
+
 		if err := m.ThroughputRaw.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("statistics" + "." + "throughput_raw")
@@ -3371,6 +3556,11 @@ func (m *IPInterfaceInlineSvm) ContextValidate(ctx context.Context, formats strf
 func (m *IPInterfaceInlineSvm) contextValidateLinks(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Links != nil {
+
+		if swag.IsZero(m.Links) { // not required
+			return nil
+		}
+
 		if err := m.Links.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("svm" + "." + "_links")
@@ -3461,6 +3651,11 @@ func (m *IPInterfaceInlineSvmInlineLinks) ContextValidate(ctx context.Context, f
 func (m *IPInterfaceInlineSvmInlineLinks) contextValidateSelf(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Self != nil {
+
+		if swag.IsZero(m.Self) { // not required
+			return nil
+		}
+
 		if err := m.Self.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("svm" + "." + "_links" + "." + "self")

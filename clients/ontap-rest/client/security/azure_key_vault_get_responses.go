@@ -6,6 +6,7 @@ package security
 // Editing this file might prove futile when you re-run the swagger generate command
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 
@@ -86,11 +87,13 @@ func (o *AzureKeyVaultGetOK) Code() int {
 }
 
 func (o *AzureKeyVaultGetOK) Error() string {
-	return fmt.Sprintf("[GET /security/azure-key-vaults/{uuid}][%d] azureKeyVaultGetOK  %+v", 200, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[GET /security/azure-key-vaults/{uuid}][%d] azureKeyVaultGetOK %s", 200, payload)
 }
 
 func (o *AzureKeyVaultGetOK) String() string {
-	return fmt.Sprintf("[GET /security/azure-key-vaults/{uuid}][%d] azureKeyVaultGetOK  %+v", 200, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[GET /security/azure-key-vaults/{uuid}][%d] azureKeyVaultGetOK %s", 200, payload)
 }
 
 func (o *AzureKeyVaultGetOK) GetPayload() *models.AzureKeyVault {
@@ -165,11 +168,13 @@ func (o *AzureKeyVaultGetDefault) Code() int {
 }
 
 func (o *AzureKeyVaultGetDefault) Error() string {
-	return fmt.Sprintf("[GET /security/azure-key-vaults/{uuid}][%d] azure_key_vault_get default  %+v", o._statusCode, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[GET /security/azure-key-vaults/{uuid}][%d] azure_key_vault_get default %s", o._statusCode, payload)
 }
 
 func (o *AzureKeyVaultGetDefault) String() string {
-	return fmt.Sprintf("[GET /security/azure-key-vaults/{uuid}][%d] azure_key_vault_get default  %+v", o._statusCode, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[GET /security/azure-key-vaults/{uuid}][%d] azure_key_vault_get default %s", o._statusCode, payload)
 }
 
 func (o *AzureKeyVaultGetDefault) GetPayload() *models.ErrorResponse {

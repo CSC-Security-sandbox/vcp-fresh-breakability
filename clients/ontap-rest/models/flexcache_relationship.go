@@ -40,7 +40,7 @@ type FlexcacheRelationship struct {
 
 	// Volume state
 	// Read Only: true
-	// Enum: [error mixed offline online]
+	// Enum: ["error","mixed","offline","online"]
 	State *string `json:"state,omitempty"`
 
 	// svm
@@ -238,6 +238,11 @@ func (m *FlexcacheRelationship) ContextValidate(ctx context.Context, formats str
 func (m *FlexcacheRelationship) contextValidateCluster(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Cluster != nil {
+
+		if swag.IsZero(m.Cluster) { // not required
+			return nil
+		}
+
 		if err := m.Cluster.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("cluster")
@@ -290,6 +295,11 @@ func (m *FlexcacheRelationship) contextValidateState(ctx context.Context, format
 func (m *FlexcacheRelationship) contextValidateSvm(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Svm != nil {
+
+		if swag.IsZero(m.Svm) { // not required
+			return nil
+		}
+
 		if err := m.Svm.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("svm")
@@ -306,6 +316,11 @@ func (m *FlexcacheRelationship) contextValidateSvm(ctx context.Context, formats 
 func (m *FlexcacheRelationship) contextValidateVolume(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Volume != nil {
+
+		if swag.IsZero(m.Volume) { // not required
+			return nil
+		}
+
 		if err := m.Volume.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("volume")
@@ -421,6 +436,11 @@ func (m *FlexcacheRelationshipInlineCluster) ContextValidate(ctx context.Context
 func (m *FlexcacheRelationshipInlineCluster) contextValidateLinks(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Links != nil {
+
+		if swag.IsZero(m.Links) { // not required
+			return nil
+		}
+
 		if err := m.Links.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("cluster" + "." + "_links")
@@ -511,6 +531,11 @@ func (m *FlexcacheRelationshipInlineClusterInlineLinks) ContextValidate(ctx cont
 func (m *FlexcacheRelationshipInlineClusterInlineLinks) contextValidateSelf(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Self != nil {
+
+		if swag.IsZero(m.Self) { // not required
+			return nil
+		}
+
 		if err := m.Self.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("cluster" + "." + "_links" + "." + "self")
@@ -611,6 +636,11 @@ func (m *FlexcacheRelationshipInlineSvm) ContextValidate(ctx context.Context, fo
 func (m *FlexcacheRelationshipInlineSvm) contextValidateLinks(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Links != nil {
+
+		if swag.IsZero(m.Links) { // not required
+			return nil
+		}
+
 		if err := m.Links.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("svm" + "." + "_links")
@@ -701,6 +731,11 @@ func (m *FlexcacheRelationshipInlineSvmInlineLinks) ContextValidate(ctx context.
 func (m *FlexcacheRelationshipInlineSvmInlineLinks) contextValidateSelf(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Self != nil {
+
+		if swag.IsZero(m.Self) { // not required
+			return nil
+		}
+
 		if err := m.Self.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("svm" + "." + "_links" + "." + "self")
@@ -799,6 +834,11 @@ func (m *FlexcacheRelationshipInlineVolume) ContextValidate(ctx context.Context,
 func (m *FlexcacheRelationshipInlineVolume) contextValidateLinks(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Links != nil {
+
+		if swag.IsZero(m.Links) { // not required
+			return nil
+		}
+
 		if err := m.Links.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("volume" + "." + "_links")
@@ -889,6 +929,11 @@ func (m *FlexcacheRelationshipInlineVolumeInlineLinks) ContextValidate(ctx conte
 func (m *FlexcacheRelationshipInlineVolumeInlineLinks) contextValidateSelf(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Self != nil {
+
+		if swag.IsZero(m.Self) { // not required
+			return nil
+		}
+
 		if err := m.Self.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("volume" + "." + "_links" + "." + "self")

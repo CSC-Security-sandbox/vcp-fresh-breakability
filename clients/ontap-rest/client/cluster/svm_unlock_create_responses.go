@@ -6,6 +6,7 @@ package cluster
 // Editing this file might prove futile when you re-run the swagger generate command
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 
@@ -86,11 +87,13 @@ func (o *SvmUnlockCreateOK) Code() int {
 }
 
 func (o *SvmUnlockCreateOK) Error() string {
-	return fmt.Sprintf("[POST /private/cli/vserver/unlock][%d] svmUnlockCreateOK  %+v", 200, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[POST /private/cli/vserver/unlock][%d] svmUnlockCreateOK %s", 200, payload)
 }
 
 func (o *SvmUnlockCreateOK) String() string {
-	return fmt.Sprintf("[POST /private/cli/vserver/unlock][%d] svmUnlockCreateOK  %+v", 200, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[POST /private/cli/vserver/unlock][%d] svmUnlockCreateOK %s", 200, payload)
 }
 
 func (o *SvmUnlockCreateOK) GetPayload() *models.VserverUnlock {
@@ -158,11 +161,13 @@ func (o *SvmUnlockCreateDefault) Code() int {
 }
 
 func (o *SvmUnlockCreateDefault) Error() string {
-	return fmt.Sprintf("[POST /private/cli/vserver/unlock][%d] svm_unlock_create default  %+v", o._statusCode, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[POST /private/cli/vserver/unlock][%d] svm_unlock_create default %s", o._statusCode, payload)
 }
 
 func (o *SvmUnlockCreateDefault) String() string {
-	return fmt.Sprintf("[POST /private/cli/vserver/unlock][%d] svm_unlock_create default  %+v", o._statusCode, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[POST /private/cli/vserver/unlock][%d] svm_unlock_create default %s", o._statusCode, payload)
 }
 
 func (o *SvmUnlockCreateDefault) GetPayload() *models.VserverUnlock {

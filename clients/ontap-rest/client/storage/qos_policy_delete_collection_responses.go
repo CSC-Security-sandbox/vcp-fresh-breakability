@@ -7,6 +7,7 @@ package storage
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"io"
 	"strconv"
@@ -89,11 +90,11 @@ func (o *QosPolicyDeleteCollectionOK) Code() int {
 }
 
 func (o *QosPolicyDeleteCollectionOK) Error() string {
-	return fmt.Sprintf("[DELETE /storage/qos/policies][%d] qosPolicyDeleteCollectionOK ", 200)
+	return fmt.Sprintf("[DELETE /storage/qos/policies][%d] qosPolicyDeleteCollectionOK", 200)
 }
 
 func (o *QosPolicyDeleteCollectionOK) String() string {
-	return fmt.Sprintf("[DELETE /storage/qos/policies][%d] qosPolicyDeleteCollectionOK ", 200)
+	return fmt.Sprintf("[DELETE /storage/qos/policies][%d] qosPolicyDeleteCollectionOK", 200)
 }
 
 func (o *QosPolicyDeleteCollectionOK) readResponse(response runtime.ClientResponse, consumer runtime.Consumer, formats strfmt.Registry) error {
@@ -155,11 +156,13 @@ func (o *QosPolicyDeleteCollectionDefault) Code() int {
 }
 
 func (o *QosPolicyDeleteCollectionDefault) Error() string {
-	return fmt.Sprintf("[DELETE /storage/qos/policies][%d] qos_policy_delete_collection default  %+v", o._statusCode, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[DELETE /storage/qos/policies][%d] qos_policy_delete_collection default %s", o._statusCode, payload)
 }
 
 func (o *QosPolicyDeleteCollectionDefault) String() string {
-	return fmt.Sprintf("[DELETE /storage/qos/policies][%d] qos_policy_delete_collection default  %+v", o._statusCode, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[DELETE /storage/qos/policies][%d] qos_policy_delete_collection default %s", o._statusCode, payload)
 }
 
 func (o *QosPolicyDeleteCollectionDefault) GetPayload() *models.ErrorResponse {
@@ -275,6 +278,11 @@ func (o *QosPolicyDeleteCollectionBody) ContextValidate(ctx context.Context, for
 func (o *QosPolicyDeleteCollectionBody) contextValidateError(ctx context.Context, formats strfmt.Registry) error {
 
 	if o.Error != nil {
+
+		if swag.IsZero(o.Error) { // not required
+			return nil
+		}
+
 		if err := o.Error.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("info" + "." + "error")
@@ -293,6 +301,11 @@ func (o *QosPolicyDeleteCollectionBody) contextValidateQosPolicyResponseInlineRe
 	for i := 0; i < len(o.QosPolicyResponseInlineRecords); i++ {
 
 		if o.QosPolicyResponseInlineRecords[i] != nil {
+
+			if swag.IsZero(o.QosPolicyResponseInlineRecords[i]) { // not required
+				return nil
+			}
+
 			if err := o.QosPolicyResponseInlineRecords[i].ContextValidate(ctx, formats); err != nil {
 				if ve, ok := err.(*errors.Validation); ok {
 					return ve.ValidateName("info" + "." + "records" + "." + strconv.Itoa(i))

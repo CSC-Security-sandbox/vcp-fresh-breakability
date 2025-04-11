@@ -6,6 +6,7 @@ package svm
 // Editing this file might prove futile when you re-run the swagger generate command
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 
@@ -92,11 +93,13 @@ func (o *SvmDeleteOK) Code() int {
 }
 
 func (o *SvmDeleteOK) Error() string {
-	return fmt.Sprintf("[DELETE /svm/svms/{uuid}][%d] svmDeleteOK  %+v", 200, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[DELETE /svm/svms/{uuid}][%d] svmDeleteOK %s", 200, payload)
 }
 
 func (o *SvmDeleteOK) String() string {
-	return fmt.Sprintf("[DELETE /svm/svms/{uuid}][%d] svmDeleteOK  %+v", 200, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[DELETE /svm/svms/{uuid}][%d] svmDeleteOK %s", 200, payload)
 }
 
 func (o *SvmDeleteOK) GetPayload() *models.SvmJobLinkResponse {
@@ -160,11 +163,13 @@ func (o *SvmDeleteAccepted) Code() int {
 }
 
 func (o *SvmDeleteAccepted) Error() string {
-	return fmt.Sprintf("[DELETE /svm/svms/{uuid}][%d] svmDeleteAccepted  %+v", 202, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[DELETE /svm/svms/{uuid}][%d] svmDeleteAccepted %s", 202, payload)
 }
 
 func (o *SvmDeleteAccepted) String() string {
-	return fmt.Sprintf("[DELETE /svm/svms/{uuid}][%d] svmDeleteAccepted  %+v", 202, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[DELETE /svm/svms/{uuid}][%d] svmDeleteAccepted %s", 202, payload)
 }
 
 func (o *SvmDeleteAccepted) GetPayload() *models.SvmJobLinkResponse {
@@ -241,11 +246,13 @@ func (o *SvmDeleteDefault) Code() int {
 }
 
 func (o *SvmDeleteDefault) Error() string {
-	return fmt.Sprintf("[DELETE /svm/svms/{uuid}][%d] svm_delete default  %+v", o._statusCode, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[DELETE /svm/svms/{uuid}][%d] svm_delete default %s", o._statusCode, payload)
 }
 
 func (o *SvmDeleteDefault) String() string {
-	return fmt.Sprintf("[DELETE /svm/svms/{uuid}][%d] svm_delete default  %+v", o._statusCode, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[DELETE /svm/svms/{uuid}][%d] svm_delete default %s", o._statusCode, payload)
 }
 
 func (o *SvmDeleteDefault) GetPayload() *models.ErrorResponse {

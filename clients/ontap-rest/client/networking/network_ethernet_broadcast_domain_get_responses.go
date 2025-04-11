@@ -6,6 +6,7 @@ package networking
 // Editing this file might prove futile when you re-run the swagger generate command
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 
@@ -86,11 +87,13 @@ func (o *NetworkEthernetBroadcastDomainGetOK) Code() int {
 }
 
 func (o *NetworkEthernetBroadcastDomainGetOK) Error() string {
-	return fmt.Sprintf("[GET /network/ethernet/broadcast-domains/{uuid}][%d] networkEthernetBroadcastDomainGetOK  %+v", 200, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[GET /network/ethernet/broadcast-domains/{uuid}][%d] networkEthernetBroadcastDomainGetOK %s", 200, payload)
 }
 
 func (o *NetworkEthernetBroadcastDomainGetOK) String() string {
-	return fmt.Sprintf("[GET /network/ethernet/broadcast-domains/{uuid}][%d] networkEthernetBroadcastDomainGetOK  %+v", 200, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[GET /network/ethernet/broadcast-domains/{uuid}][%d] networkEthernetBroadcastDomainGetOK %s", 200, payload)
 }
 
 func (o *NetworkEthernetBroadcastDomainGetOK) GetPayload() *models.BroadcastDomain {
@@ -158,11 +161,13 @@ func (o *NetworkEthernetBroadcastDomainGetDefault) Code() int {
 }
 
 func (o *NetworkEthernetBroadcastDomainGetDefault) Error() string {
-	return fmt.Sprintf("[GET /network/ethernet/broadcast-domains/{uuid}][%d] network_ethernet_broadcast_domain_get default  %+v", o._statusCode, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[GET /network/ethernet/broadcast-domains/{uuid}][%d] network_ethernet_broadcast_domain_get default %s", o._statusCode, payload)
 }
 
 func (o *NetworkEthernetBroadcastDomainGetDefault) String() string {
-	return fmt.Sprintf("[GET /network/ethernet/broadcast-domains/{uuid}][%d] network_ethernet_broadcast_domain_get default  %+v", o._statusCode, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[GET /network/ethernet/broadcast-domains/{uuid}][%d] network_ethernet_broadcast_domain_get default %s", o._statusCode, payload)
 }
 
 func (o *NetworkEthernetBroadcastDomainGetDefault) GetPayload() *models.ErrorResponse {

@@ -188,13 +188,13 @@ type SecurityKeyManagerCollectionGetParams struct {
 	*/
 	Fields []string
 
-	/* IsDefaultDataAtRESTEncryptionDisabled.
+	/* IsDefaultDataAtRestEncryptionDisabled.
 
 	   Filter by is_default_data_at_rest_encryption_disabled
 
 	   Format: boolean
 	*/
-	IsDefaultDataAtRESTEncryptionDisabled *string
+	IsDefaultDataAtRestEncryptionDisabled *string
 
 	/* MaxRecords.
 
@@ -567,15 +567,15 @@ func (o *SecurityKeyManagerCollectionGetParams) SetFields(fields []string) {
 	o.Fields = fields
 }
 
-// WithIsDefaultDataAtRESTEncryptionDisabled adds the isDefaultDataAtRESTEncryptionDisabled to the security key manager collection get params
-func (o *SecurityKeyManagerCollectionGetParams) WithIsDefaultDataAtRESTEncryptionDisabled(isDefaultDataAtRESTEncryptionDisabled *string) *SecurityKeyManagerCollectionGetParams {
-	o.SetIsDefaultDataAtRESTEncryptionDisabled(isDefaultDataAtRESTEncryptionDisabled)
+// WithIsDefaultDataAtRestEncryptionDisabled adds the isDefaultDataAtRestEncryptionDisabled to the security key manager collection get params
+func (o *SecurityKeyManagerCollectionGetParams) WithIsDefaultDataAtRestEncryptionDisabled(isDefaultDataAtRestEncryptionDisabled *string) *SecurityKeyManagerCollectionGetParams {
+	o.SetIsDefaultDataAtRestEncryptionDisabled(isDefaultDataAtRestEncryptionDisabled)
 	return o
 }
 
-// SetIsDefaultDataAtRESTEncryptionDisabled adds the isDefaultDataAtRestEncryptionDisabled to the security key manager collection get params
-func (o *SecurityKeyManagerCollectionGetParams) SetIsDefaultDataAtRESTEncryptionDisabled(isDefaultDataAtRESTEncryptionDisabled *string) {
-	o.IsDefaultDataAtRESTEncryptionDisabled = isDefaultDataAtRESTEncryptionDisabled
+// SetIsDefaultDataAtRestEncryptionDisabled adds the isDefaultDataAtRestEncryptionDisabled to the security key manager collection get params
+func (o *SecurityKeyManagerCollectionGetParams) SetIsDefaultDataAtRestEncryptionDisabled(isDefaultDataAtRestEncryptionDisabled *string) {
+	o.IsDefaultDataAtRestEncryptionDisabled = isDefaultDataAtRestEncryptionDisabled
 }
 
 // WithMaxRecords adds the maxRecords to the security key manager collection get params
@@ -1028,18 +1028,18 @@ func (o *SecurityKeyManagerCollectionGetParams) WriteToRequest(r runtime.ClientR
 		}
 	}
 
-	if o.IsDefaultDataAtRESTEncryptionDisabled != nil {
+	if o.IsDefaultDataAtRestEncryptionDisabled != nil {
 
 		// query param is_default_data_at_rest_encryption_disabled
-		var qrIsDefaultDataAtRESTEncryptionDisabled string
+		var qrIsDefaultDataAtRestEncryptionDisabled string
 
-		if o.IsDefaultDataAtRESTEncryptionDisabled != nil {
-			qrIsDefaultDataAtRESTEncryptionDisabled = *o.IsDefaultDataAtRESTEncryptionDisabled
+		if o.IsDefaultDataAtRestEncryptionDisabled != nil {
+			qrIsDefaultDataAtRestEncryptionDisabled = *o.IsDefaultDataAtRestEncryptionDisabled
 		}
-		qIsDefaultDataAtRESTEncryptionDisabled := qrIsDefaultDataAtRESTEncryptionDisabled
-		if qIsDefaultDataAtRESTEncryptionDisabled != "" {
+		qIsDefaultDataAtRestEncryptionDisabled := qrIsDefaultDataAtRestEncryptionDisabled
+		if qIsDefaultDataAtRestEncryptionDisabled != "" {
 
-			if err := r.SetQueryParam("is_default_data_at_rest_encryption_disabled", qIsDefaultDataAtRESTEncryptionDisabled); err != nil {
+			if err := r.SetQueryParam("is_default_data_at_rest_encryption_disabled", qIsDefaultDataAtRestEncryptionDisabled); err != nil {
 				return err
 			}
 		}

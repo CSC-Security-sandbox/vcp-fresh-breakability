@@ -6,6 +6,7 @@ package storage
 // Editing this file might prove futile when you re-run the swagger generate command
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 
@@ -86,11 +87,13 @@ func (o *QuotaRuleCollectionGetOK) Code() int {
 }
 
 func (o *QuotaRuleCollectionGetOK) Error() string {
-	return fmt.Sprintf("[GET /storage/quota/rules][%d] quotaRuleCollectionGetOK  %+v", 200, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[GET /storage/quota/rules][%d] quotaRuleCollectionGetOK %s", 200, payload)
 }
 
 func (o *QuotaRuleCollectionGetOK) String() string {
-	return fmt.Sprintf("[GET /storage/quota/rules][%d] quotaRuleCollectionGetOK  %+v", 200, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[GET /storage/quota/rules][%d] quotaRuleCollectionGetOK %s", 200, payload)
 }
 
 func (o *QuotaRuleCollectionGetOK) GetPayload() *models.QuotaRuleResponse {
@@ -158,11 +161,13 @@ func (o *QuotaRuleCollectionGetDefault) Code() int {
 }
 
 func (o *QuotaRuleCollectionGetDefault) Error() string {
-	return fmt.Sprintf("[GET /storage/quota/rules][%d] quota_rule_collection_get default  %+v", o._statusCode, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[GET /storage/quota/rules][%d] quota_rule_collection_get default %s", o._statusCode, payload)
 }
 
 func (o *QuotaRuleCollectionGetDefault) String() string {
-	return fmt.Sprintf("[GET /storage/quota/rules][%d] quota_rule_collection_get default  %+v", o._statusCode, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[GET /storage/quota/rules][%d] quota_rule_collection_get default %s", o._statusCode, payload)
 }
 
 func (o *QuotaRuleCollectionGetDefault) GetPayload() *models.ErrorResponse {

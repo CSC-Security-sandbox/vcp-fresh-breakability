@@ -34,7 +34,7 @@ type SecurityKeyManager struct {
 	External *SecurityKeyManagerInlineExternal `json:"external,omitempty"`
 
 	// Indicates whether default data-at-rest encryption is disabled in the cluster. This field is deprecated in ONTAP 9.8 and later. Use the "software_data_encryption.disabled_by_default" of /api/security endpoint.
-	IsDefaultDataAtRESTEncryptionDisabled *bool `json:"is_default_data_at_rest_encryption_disabled,omitempty"`
+	IsDefaultDataAtRestEncryptionDisabled *bool `json:"is_default_data_at_rest_encryption_disabled,omitempty"`
 
 	// onboard
 	Onboard *SecurityKeyManagerInlineOnboard `json:"onboard,omitempty"`
@@ -306,6 +306,11 @@ func (m *SecurityKeyManager) ContextValidate(ctx context.Context, formats strfmt
 func (m *SecurityKeyManager) contextValidateLinks(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Links != nil {
+
+		if swag.IsZero(m.Links) { // not required
+			return nil
+		}
+
 		if err := m.Links.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("_links")
@@ -322,6 +327,11 @@ func (m *SecurityKeyManager) contextValidateLinks(ctx context.Context, formats s
 func (m *SecurityKeyManager) contextValidateConfiguration(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Configuration != nil {
+
+		if swag.IsZero(m.Configuration) { // not required
+			return nil
+		}
+
 		if err := m.Configuration.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("configuration")
@@ -347,6 +357,11 @@ func (m *SecurityKeyManager) contextValidateEnabled(ctx context.Context, formats
 func (m *SecurityKeyManager) contextValidateExternal(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.External != nil {
+
+		if swag.IsZero(m.External) { // not required
+			return nil
+		}
+
 		if err := m.External.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("external")
@@ -363,6 +378,11 @@ func (m *SecurityKeyManager) contextValidateExternal(ctx context.Context, format
 func (m *SecurityKeyManager) contextValidateOnboard(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Onboard != nil {
+
+		if swag.IsZero(m.Onboard) { // not required
+			return nil
+		}
+
 		if err := m.Onboard.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("onboard")
@@ -379,6 +399,11 @@ func (m *SecurityKeyManager) contextValidateOnboard(ctx context.Context, formats
 func (m *SecurityKeyManager) contextValidateScope(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Scope != nil {
+
+		if swag.IsZero(m.Scope) { // not required
+			return nil
+		}
+
 		if err := m.Scope.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("scope")
@@ -395,6 +420,11 @@ func (m *SecurityKeyManager) contextValidateScope(ctx context.Context, formats s
 func (m *SecurityKeyManager) contextValidateStatus(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Status != nil {
+
+		if swag.IsZero(m.Status) { // not required
+			return nil
+		}
+
 		if err := m.Status.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("status")
@@ -411,6 +441,11 @@ func (m *SecurityKeyManager) contextValidateStatus(ctx context.Context, formats 
 func (m *SecurityKeyManager) contextValidateSvm(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Svm != nil {
+
+		if swag.IsZero(m.Svm) { // not required
+			return nil
+		}
+
 		if err := m.Svm.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("svm")
@@ -436,6 +471,11 @@ func (m *SecurityKeyManager) contextValidateUUID(ctx context.Context, formats st
 func (m *SecurityKeyManager) contextValidateVolumeEncryption(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.VolumeEncryption != nil {
+
+		if swag.IsZero(m.VolumeEncryption) { // not required
+			return nil
+		}
+
 		if err := m.VolumeEncryption.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("volume_encryption")
@@ -534,6 +574,11 @@ func (m *SecurityKeyManagerInlineConfiguration) ContextValidate(ctx context.Cont
 func (m *SecurityKeyManagerInlineConfiguration) contextValidateLinks(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Links != nil {
+
+		if swag.IsZero(m.Links) { // not required
+			return nil
+		}
+
 		if err := m.Links.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("configuration" + "." + "_links")
@@ -624,6 +669,11 @@ func (m *SecurityKeyManagerInlineConfigurationInlineLinks) ContextValidate(ctx c
 func (m *SecurityKeyManagerInlineConfigurationInlineLinks) contextValidateSelf(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Self != nil {
+
+		if swag.IsZero(m.Self) { // not required
+			return nil
+		}
+
 		if err := m.Self.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("configuration" + "." + "_links" + "." + "self")
@@ -795,6 +845,11 @@ func (m *SecurityKeyManagerInlineExternal) ContextValidate(ctx context.Context, 
 func (m *SecurityKeyManagerInlineExternal) contextValidateClientCertificate(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.ClientCertificate != nil {
+
+		if swag.IsZero(m.ClientCertificate) { // not required
+			return nil
+		}
+
 		if err := m.ClientCertificate.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("external" + "." + "client_certificate")
@@ -813,6 +868,11 @@ func (m *SecurityKeyManagerInlineExternal) contextValidateServerCaCertificates(c
 	for i := 0; i < len(m.ServerCaCertificates); i++ {
 
 		if m.ServerCaCertificates[i] != nil {
+
+			if swag.IsZero(m.ServerCaCertificates[i]) { // not required
+				return nil
+			}
+
 			if err := m.ServerCaCertificates[i].ContextValidate(ctx, formats); err != nil {
 				if ve, ok := err.(*errors.Validation); ok {
 					return ve.ValidateName("external" + "." + "server_ca_certificates" + "." + strconv.Itoa(i))
@@ -833,6 +893,11 @@ func (m *SecurityKeyManagerInlineExternal) contextValidateServers(ctx context.Co
 	for i := 0; i < len(m.Servers); i++ {
 
 		if m.Servers[i] != nil {
+
+			if swag.IsZero(m.Servers[i]) { // not required
+				return nil
+			}
+
 			if err := m.Servers[i].ContextValidate(ctx, formats); err != nil {
 				if ve, ok := err.(*errors.Validation); ok {
 					return ve.ValidateName("external" + "." + "servers" + "." + strconv.Itoa(i))
@@ -932,6 +997,11 @@ func (m *SecurityKeyManagerInlineExternalInlineClientCertificate) ContextValidat
 func (m *SecurityKeyManagerInlineExternalInlineClientCertificate) contextValidateLinks(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Links != nil {
+
+		if swag.IsZero(m.Links) { // not required
+			return nil
+		}
+
 		if err := m.Links.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("external" + "." + "client_certificate" + "." + "_links")
@@ -1022,6 +1092,11 @@ func (m *SecurityKeyManagerInlineExternalInlineClientCertificateInlineLinks) Con
 func (m *SecurityKeyManagerInlineExternalInlineClientCertificateInlineLinks) contextValidateSelf(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Self != nil {
+
+		if swag.IsZero(m.Self) { // not required
+			return nil
+		}
+
 		if err := m.Self.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("external" + "." + "client_certificate" + "." + "_links" + "." + "self")
@@ -1119,6 +1194,11 @@ func (m *SecurityKeyManagerExternalServerCaCertificatesItems0) ContextValidate(c
 func (m *SecurityKeyManagerExternalServerCaCertificatesItems0) contextValidateLinks(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Links != nil {
+
+		if swag.IsZero(m.Links) { // not required
+			return nil
+		}
+
 		if err := m.Links.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("_links")
@@ -1209,6 +1289,11 @@ func (m *SecurityKeyManagerExternalServerCaCertificatesItems0Links) ContextValid
 func (m *SecurityKeyManagerExternalServerCaCertificatesItems0Links) contextValidateSelf(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Self != nil {
+
+		if swag.IsZero(m.Self) { // not required
+			return nil
+		}
+
 		if err := m.Self.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("_links" + "." + "self")
@@ -1299,6 +1384,11 @@ func (m *SecurityKeyManagerInlineLinks) ContextValidate(ctx context.Context, for
 func (m *SecurityKeyManagerInlineLinks) contextValidateSelf(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Self != nil {
+
+		if swag.IsZero(m.Self) { // not required
+			return nil
+		}
+
 		if err := m.Self.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("_links" + "." + "self")
@@ -1565,6 +1655,11 @@ func (m *SecurityKeyManagerInlineSvm) ContextValidate(ctx context.Context, forma
 func (m *SecurityKeyManagerInlineSvm) contextValidateLinks(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Links != nil {
+
+		if swag.IsZero(m.Links) { // not required
+			return nil
+		}
+
 		if err := m.Links.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("svm" + "." + "_links")
@@ -1655,6 +1750,11 @@ func (m *SecurityKeyManagerInlineSvmInlineLinks) ContextValidate(ctx context.Con
 func (m *SecurityKeyManagerInlineSvmInlineLinks) contextValidateSelf(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Self != nil {
+
+		if swag.IsZero(m.Self) { // not required
+			return nil
+		}
+
 		if err := m.Self.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("svm" + "." + "_links" + "." + "self")

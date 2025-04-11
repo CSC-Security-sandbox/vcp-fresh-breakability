@@ -6,6 +6,7 @@ package networking
 // Editing this file might prove futile when you re-run the swagger generate command
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 
@@ -86,11 +87,13 @@ func (o *NetworkIPInterfaceGetOK) Code() int {
 }
 
 func (o *NetworkIPInterfaceGetOK) Error() string {
-	return fmt.Sprintf("[GET /network/ip/interfaces/{uuid}][%d] networkIpInterfaceGetOK  %+v", 200, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[GET /network/ip/interfaces/{uuid}][%d] networkIpInterfaceGetOK %s", 200, payload)
 }
 
 func (o *NetworkIPInterfaceGetOK) String() string {
-	return fmt.Sprintf("[GET /network/ip/interfaces/{uuid}][%d] networkIpInterfaceGetOK  %+v", 200, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[GET /network/ip/interfaces/{uuid}][%d] networkIpInterfaceGetOK %s", 200, payload)
 }
 
 func (o *NetworkIPInterfaceGetOK) GetPayload() *models.IPInterface {
@@ -158,11 +161,13 @@ func (o *NetworkIPInterfaceGetDefault) Code() int {
 }
 
 func (o *NetworkIPInterfaceGetDefault) Error() string {
-	return fmt.Sprintf("[GET /network/ip/interfaces/{uuid}][%d] network_ip_interface_get default  %+v", o._statusCode, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[GET /network/ip/interfaces/{uuid}][%d] network_ip_interface_get default %s", o._statusCode, payload)
 }
 
 func (o *NetworkIPInterfaceGetDefault) String() string {
-	return fmt.Sprintf("[GET /network/ip/interfaces/{uuid}][%d] network_ip_interface_get default  %+v", o._statusCode, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[GET /network/ip/interfaces/{uuid}][%d] network_ip_interface_get default %s", o._statusCode, payload)
 }
 
 func (o *NetworkIPInterfaceGetDefault) GetPayload() *models.ErrorResponse {

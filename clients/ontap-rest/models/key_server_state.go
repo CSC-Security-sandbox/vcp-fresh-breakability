@@ -25,7 +25,7 @@ type KeyServerState struct {
 
 	// Key server connectivity state
 	// Example: not_responding
-	// Enum: [available not_responding unknown]
+	// Enum: ["available","not_responding","unknown"]
 	State *string `json:"state,omitempty"`
 }
 
@@ -128,6 +128,11 @@ func (m *KeyServerState) ContextValidate(ctx context.Context, formats strfmt.Reg
 func (m *KeyServerState) contextValidateNode(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Node != nil {
+
+		if swag.IsZero(m.Node) { // not required
+			return nil
+		}
+
 		if err := m.Node.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("node")
@@ -226,6 +231,11 @@ func (m *KeyServerStateInlineNode) ContextValidate(ctx context.Context, formats 
 func (m *KeyServerStateInlineNode) contextValidateLinks(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Links != nil {
+
+		if swag.IsZero(m.Links) { // not required
+			return nil
+		}
+
 		if err := m.Links.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("node" + "." + "_links")
@@ -316,6 +326,11 @@ func (m *KeyServerStateInlineNodeInlineLinks) ContextValidate(ctx context.Contex
 func (m *KeyServerStateInlineNodeInlineLinks) contextValidateSelf(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Self != nil {
+
+		if swag.IsZero(m.Self) { // not required
+			return nil
+		}
+
 		if err := m.Self.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("node" + "." + "_links" + "." + "self")

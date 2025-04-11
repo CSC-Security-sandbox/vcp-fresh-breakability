@@ -210,6 +210,11 @@ func (m *KerberosInterface) ContextValidate(ctx context.Context, formats strfmt.
 func (m *KerberosInterface) contextValidateLinks(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Links != nil {
+
+		if swag.IsZero(m.Links) { // not required
+			return nil
+		}
+
 		if err := m.Links.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("_links")
@@ -243,6 +248,11 @@ func (m *KerberosInterface) contextValidateEncryptionTypes(ctx context.Context, 
 func (m *KerberosInterface) contextValidateInterface(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Interface != nil {
+
+		if swag.IsZero(m.Interface) { // not required
+			return nil
+		}
+
 		if err := m.Interface.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("interface")
@@ -259,6 +269,11 @@ func (m *KerberosInterface) contextValidateInterface(ctx context.Context, format
 func (m *KerberosInterface) contextValidateSvm(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Svm != nil {
+
+		if swag.IsZero(m.Svm) { // not required
+			return nil
+		}
+
 		if err := m.Svm.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("svm")
@@ -389,6 +404,11 @@ func (m *KerberosInterfaceInlineInterface) ContextValidate(ctx context.Context, 
 func (m *KerberosInterfaceInlineInterface) contextValidateLinks(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Links != nil {
+
+		if swag.IsZero(m.Links) { // not required
+			return nil
+		}
+
 		if err := m.Links.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("interface" + "." + "_links")
@@ -405,6 +425,11 @@ func (m *KerberosInterfaceInlineInterface) contextValidateLinks(ctx context.Cont
 func (m *KerberosInterfaceInlineInterface) contextValidateIP(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.IP != nil {
+
+		if swag.IsZero(m.IP) { // not required
+			return nil
+		}
+
 		if err := m.IP.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("interface" + "." + "ip")
@@ -495,6 +520,11 @@ func (m *KerberosInterfaceInlineInterfaceInlineIP) ContextValidate(ctx context.C
 func (m *KerberosInterfaceInlineInterfaceInlineIP) contextValidateAddress(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Address != nil {
+
+		if swag.IsZero(m.Address) { // not required
+			return nil
+		}
+
 		if err := m.Address.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("interface" + "." + "ip" + "." + "address")
@@ -585,6 +615,11 @@ func (m *KerberosInterfaceInlineInterfaceInlineLinks) ContextValidate(ctx contex
 func (m *KerberosInterfaceInlineInterfaceInlineLinks) contextValidateSelf(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Self != nil {
+
+		if swag.IsZero(m.Self) { // not required
+			return nil
+		}
+
 		if err := m.Self.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("interface" + "." + "_links" + "." + "self")
@@ -675,6 +710,11 @@ func (m *KerberosInterfaceInlineLinks) ContextValidate(ctx context.Context, form
 func (m *KerberosInterfaceInlineLinks) contextValidateSelf(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Self != nil {
+
+		if swag.IsZero(m.Self) { // not required
+			return nil
+		}
+
 		if err := m.Self.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("_links" + "." + "self")
@@ -775,6 +815,11 @@ func (m *KerberosInterfaceInlineSvm) ContextValidate(ctx context.Context, format
 func (m *KerberosInterfaceInlineSvm) contextValidateLinks(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Links != nil {
+
+		if swag.IsZero(m.Links) { // not required
+			return nil
+		}
+
 		if err := m.Links.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("svm" + "." + "_links")
@@ -865,6 +910,11 @@ func (m *KerberosInterfaceInlineSvmInlineLinks) ContextValidate(ctx context.Cont
 func (m *KerberosInterfaceInlineSvmInlineLinks) contextValidateSelf(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Self != nil {
+
+		if swag.IsZero(m.Self) { // not required
+			return nil
+		}
+
 		if err := m.Self.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("svm" + "." + "_links" + "." + "self")

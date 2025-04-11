@@ -6,6 +6,7 @@ package svm
 // Editing this file might prove futile when you re-run the swagger generate command
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 
@@ -86,11 +87,13 @@ func (o *SvmCollectionGetOK) Code() int {
 }
 
 func (o *SvmCollectionGetOK) Error() string {
-	return fmt.Sprintf("[GET /svm/svms][%d] svmCollectionGetOK  %+v", 200, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[GET /svm/svms][%d] svmCollectionGetOK %s", 200, payload)
 }
 
 func (o *SvmCollectionGetOK) String() string {
-	return fmt.Sprintf("[GET /svm/svms][%d] svmCollectionGetOK  %+v", 200, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[GET /svm/svms][%d] svmCollectionGetOK %s", 200, payload)
 }
 
 func (o *SvmCollectionGetOK) GetPayload() *models.SvmResponse {
@@ -158,11 +161,13 @@ func (o *SvmCollectionGetDefault) Code() int {
 }
 
 func (o *SvmCollectionGetDefault) Error() string {
-	return fmt.Sprintf("[GET /svm/svms][%d] svm_collection_get default  %+v", o._statusCode, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[GET /svm/svms][%d] svm_collection_get default %s", o._statusCode, payload)
 }
 
 func (o *SvmCollectionGetDefault) String() string {
-	return fmt.Sprintf("[GET /svm/svms][%d] svm_collection_get default  %+v", o._statusCode, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[GET /svm/svms][%d] svm_collection_get default %s", o._statusCode, payload)
 }
 
 func (o *SvmCollectionGetDefault) GetPayload() *models.ErrorResponse {

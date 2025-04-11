@@ -6,6 +6,7 @@ package cluster
 // Editing this file might prove futile when you re-run the swagger generate command
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 
@@ -89,11 +90,11 @@ func (o *ScheduleCreateCreated) Code() int {
 }
 
 func (o *ScheduleCreateCreated) Error() string {
-	return fmt.Sprintf("[POST /cluster/schedules][%d] scheduleCreateCreated ", 201)
+	return fmt.Sprintf("[POST /cluster/schedules][%d] scheduleCreateCreated", 201)
 }
 
 func (o *ScheduleCreateCreated) String() string {
-	return fmt.Sprintf("[POST /cluster/schedules][%d] scheduleCreateCreated ", 201)
+	return fmt.Sprintf("[POST /cluster/schedules][%d] scheduleCreateCreated", 201)
 }
 
 func (o *ScheduleCreateCreated) readResponse(response runtime.ClientResponse, consumer runtime.Consumer, formats strfmt.Registry) error {
@@ -168,11 +169,13 @@ func (o *ScheduleCreateDefault) Code() int {
 }
 
 func (o *ScheduleCreateDefault) Error() string {
-	return fmt.Sprintf("[POST /cluster/schedules][%d] schedule_create default  %+v", o._statusCode, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[POST /cluster/schedules][%d] schedule_create default %s", o._statusCode, payload)
 }
 
 func (o *ScheduleCreateDefault) String() string {
-	return fmt.Sprintf("[POST /cluster/schedules][%d] schedule_create default  %+v", o._statusCode, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[POST /cluster/schedules][%d] schedule_create default %s", o._statusCode, payload)
 }
 
 func (o *ScheduleCreateDefault) GetPayload() *models.ErrorResponse {

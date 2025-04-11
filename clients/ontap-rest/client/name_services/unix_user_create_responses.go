@@ -6,6 +6,7 @@ package name_services
 // Editing this file might prove futile when you re-run the swagger generate command
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 
@@ -91,11 +92,13 @@ func (o *UnixUserCreateCreated) Code() int {
 }
 
 func (o *UnixUserCreateCreated) Error() string {
-	return fmt.Sprintf("[POST /name-services/unix-users][%d] unixUserCreateCreated  %+v", 201, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[POST /name-services/unix-users][%d] unixUserCreateCreated %s", 201, payload)
 }
 
 func (o *UnixUserCreateCreated) String() string {
-	return fmt.Sprintf("[POST /name-services/unix-users][%d] unixUserCreateCreated  %+v", 201, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[POST /name-services/unix-users][%d] unixUserCreateCreated %s", 201, payload)
 }
 
 func (o *UnixUserCreateCreated) GetPayload() *models.UnixUserResponse {
@@ -182,11 +185,13 @@ func (o *UnixUserCreateDefault) Code() int {
 }
 
 func (o *UnixUserCreateDefault) Error() string {
-	return fmt.Sprintf("[POST /name-services/unix-users][%d] unix_user_create default  %+v", o._statusCode, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[POST /name-services/unix-users][%d] unix_user_create default %s", o._statusCode, payload)
 }
 
 func (o *UnixUserCreateDefault) String() string {
-	return fmt.Sprintf("[POST /name-services/unix-users][%d] unix_user_create default  %+v", o._statusCode, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[POST /name-services/unix-users][%d] unix_user_create default %s", o._statusCode, payload)
 }
 
 func (o *UnixUserCreateDefault) GetPayload() *models.ErrorResponse {

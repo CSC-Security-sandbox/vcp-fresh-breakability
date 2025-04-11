@@ -144,6 +144,11 @@ func (m *NetworkRouteResponse) ContextValidate(ctx context.Context, formats strf
 func (m *NetworkRouteResponse) contextValidateLinks(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Links != nil {
+
+		if swag.IsZero(m.Links) { // not required
+			return nil
+		}
+
 		if err := m.Links.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("_links")
@@ -160,6 +165,11 @@ func (m *NetworkRouteResponse) contextValidateLinks(ctx context.Context, formats
 func (m *NetworkRouteResponse) contextValidateError(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Error != nil {
+
+		if swag.IsZero(m.Error) { // not required
+			return nil
+		}
+
 		if err := m.Error.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("error")
@@ -178,6 +188,11 @@ func (m *NetworkRouteResponse) contextValidateNetworkRouteResponseInlineRecords(
 	for i := 0; i < len(m.NetworkRouteResponseInlineRecords); i++ {
 
 		if m.NetworkRouteResponseInlineRecords[i] != nil {
+
+			if swag.IsZero(m.NetworkRouteResponseInlineRecords[i]) { // not required
+				return nil
+			}
+
 			if err := m.NetworkRouteResponseInlineRecords[i].ContextValidate(ctx, formats); err != nil {
 				if ve, ok := err.(*errors.Validation); ok {
 					return ve.ValidateName("records" + "." + strconv.Itoa(i))
@@ -300,6 +315,11 @@ func (m *NetworkRouteResponseInlineLinks) ContextValidate(ctx context.Context, f
 func (m *NetworkRouteResponseInlineLinks) contextValidateNext(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Next != nil {
+
+		if swag.IsZero(m.Next) { // not required
+			return nil
+		}
+
 		if err := m.Next.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("_links" + "." + "next")
@@ -316,6 +336,11 @@ func (m *NetworkRouteResponseInlineLinks) contextValidateNext(ctx context.Contex
 func (m *NetworkRouteResponseInlineLinks) contextValidateSelf(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Self != nil {
+
+		if swag.IsZero(m.Self) { // not required
+			return nil
+		}
+
 		if err := m.Self.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("_links" + "." + "self")

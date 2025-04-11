@@ -6,6 +6,7 @@ package storage
 // Editing this file might prove futile when you re-run the swagger generate command
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 
@@ -97,11 +98,13 @@ func (o *CloudStoreCreateCreated) Code() int {
 }
 
 func (o *CloudStoreCreateCreated) Error() string {
-	return fmt.Sprintf("[POST /storage/aggregates/{aggregate.uuid}/cloud-stores][%d] cloudStoreCreateCreated  %+v", 201, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[POST /storage/aggregates/{aggregate.uuid}/cloud-stores][%d] cloudStoreCreateCreated %s", 201, payload)
 }
 
 func (o *CloudStoreCreateCreated) String() string {
-	return fmt.Sprintf("[POST /storage/aggregates/{aggregate.uuid}/cloud-stores][%d] cloudStoreCreateCreated  %+v", 201, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[POST /storage/aggregates/{aggregate.uuid}/cloud-stores][%d] cloudStoreCreateCreated %s", 201, payload)
 }
 
 func (o *CloudStoreCreateCreated) GetPayload() *models.CloudStoreJobLinkResponse {
@@ -177,11 +180,13 @@ func (o *CloudStoreCreateAccepted) Code() int {
 }
 
 func (o *CloudStoreCreateAccepted) Error() string {
-	return fmt.Sprintf("[POST /storage/aggregates/{aggregate.uuid}/cloud-stores][%d] cloudStoreCreateAccepted  %+v", 202, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[POST /storage/aggregates/{aggregate.uuid}/cloud-stores][%d] cloudStoreCreateAccepted %s", 202, payload)
 }
 
 func (o *CloudStoreCreateAccepted) String() string {
-	return fmt.Sprintf("[POST /storage/aggregates/{aggregate.uuid}/cloud-stores][%d] cloudStoreCreateAccepted  %+v", 202, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[POST /storage/aggregates/{aggregate.uuid}/cloud-stores][%d] cloudStoreCreateAccepted %s", 202, payload)
 }
 
 func (o *CloudStoreCreateAccepted) GetPayload() *models.CloudStoreJobLinkResponse {
@@ -265,11 +270,13 @@ func (o *CloudStoreCreateDefault) Code() int {
 }
 
 func (o *CloudStoreCreateDefault) Error() string {
-	return fmt.Sprintf("[POST /storage/aggregates/{aggregate.uuid}/cloud-stores][%d] cloud_store_create default  %+v", o._statusCode, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[POST /storage/aggregates/{aggregate.uuid}/cloud-stores][%d] cloud_store_create default %s", o._statusCode, payload)
 }
 
 func (o *CloudStoreCreateDefault) String() string {
-	return fmt.Sprintf("[POST /storage/aggregates/{aggregate.uuid}/cloud-stores][%d] cloud_store_create default  %+v", o._statusCode, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[POST /storage/aggregates/{aggregate.uuid}/cloud-stores][%d] cloud_store_create default %s", o._statusCode, payload)
 }
 
 func (o *CloudStoreCreateDefault) GetPayload() *models.ErrorResponse {

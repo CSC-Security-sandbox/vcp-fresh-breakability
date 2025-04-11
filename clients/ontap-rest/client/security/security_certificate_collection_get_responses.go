@@ -6,6 +6,7 @@ package security
 // Editing this file might prove futile when you re-run the swagger generate command
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 
@@ -86,11 +87,13 @@ func (o *SecurityCertificateCollectionGetOK) Code() int {
 }
 
 func (o *SecurityCertificateCollectionGetOK) Error() string {
-	return fmt.Sprintf("[GET /security/certificates][%d] securityCertificateCollectionGetOK  %+v", 200, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[GET /security/certificates][%d] securityCertificateCollectionGetOK %s", 200, payload)
 }
 
 func (o *SecurityCertificateCollectionGetOK) String() string {
-	return fmt.Sprintf("[GET /security/certificates][%d] securityCertificateCollectionGetOK  %+v", 200, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[GET /security/certificates][%d] securityCertificateCollectionGetOK %s", 200, payload)
 }
 
 func (o *SecurityCertificateCollectionGetOK) GetPayload() *models.SecurityCertificateResponse {
@@ -158,11 +161,13 @@ func (o *SecurityCertificateCollectionGetDefault) Code() int {
 }
 
 func (o *SecurityCertificateCollectionGetDefault) Error() string {
-	return fmt.Sprintf("[GET /security/certificates][%d] security_certificate_collection_get default  %+v", o._statusCode, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[GET /security/certificates][%d] security_certificate_collection_get default %s", o._statusCode, payload)
 }
 
 func (o *SecurityCertificateCollectionGetDefault) String() string {
-	return fmt.Sprintf("[GET /security/certificates][%d] security_certificate_collection_get default  %+v", o._statusCode, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[GET /security/certificates][%d] security_certificate_collection_get default %s", o._statusCode, payload)
 }
 
 func (o *SecurityCertificateCollectionGetDefault) GetPayload() *models.ErrorResponse {

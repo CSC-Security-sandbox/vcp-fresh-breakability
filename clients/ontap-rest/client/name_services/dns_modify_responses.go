@@ -6,6 +6,7 @@ package name_services
 // Editing this file might prove futile when you re-run the swagger generate command
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 
@@ -85,11 +86,11 @@ func (o *DNSModifyOK) Code() int {
 }
 
 func (o *DNSModifyOK) Error() string {
-	return fmt.Sprintf("[PATCH /name-services/dns/{uuid}][%d] dnsModifyOK ", 200)
+	return fmt.Sprintf("[PATCH /name-services/dns/{uuid}][%d] dnsModifyOK", 200)
 }
 
 func (o *DNSModifyOK) String() string {
-	return fmt.Sprintf("[PATCH /name-services/dns/{uuid}][%d] dnsModifyOK ", 200)
+	return fmt.Sprintf("[PATCH /name-services/dns/{uuid}][%d] dnsModifyOK", 200)
 }
 
 func (o *DNSModifyOK) readResponse(response runtime.ClientResponse, consumer runtime.Consumer, formats strfmt.Registry) error {
@@ -169,11 +170,13 @@ func (o *DNSModifyDefault) Code() int {
 }
 
 func (o *DNSModifyDefault) Error() string {
-	return fmt.Sprintf("[PATCH /name-services/dns/{uuid}][%d] dns_modify default  %+v", o._statusCode, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[PATCH /name-services/dns/{uuid}][%d] dns_modify default %s", o._statusCode, payload)
 }
 
 func (o *DNSModifyDefault) String() string {
-	return fmt.Sprintf("[PATCH /name-services/dns/{uuid}][%d] dns_modify default  %+v", o._statusCode, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[PATCH /name-services/dns/{uuid}][%d] dns_modify default %s", o._statusCode, payload)
 }
 
 func (o *DNSModifyDefault) GetPayload() *models.ErrorResponse {

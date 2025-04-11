@@ -41,7 +41,7 @@ type NameMapping struct {
 	//   * s3_win    - S3 user name to Windows user name mapping
 	//
 	// Example: win_unix
-	// Enum: [win_unix unix_win krb_unix s3_unix s3_win]
+	// Enum: ["win_unix","unix_win","krb_unix","s3_unix","s3_win"]
 	Direction *string `json:"direction,omitempty"`
 
 	// Position in the list of name mappings.
@@ -258,6 +258,11 @@ func (m *NameMapping) ContextValidate(ctx context.Context, formats strfmt.Regist
 func (m *NameMapping) contextValidateLinks(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Links != nil {
+
+		if swag.IsZero(m.Links) { // not required
+			return nil
+		}
+
 		if err := m.Links.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("_links")
@@ -274,6 +279,11 @@ func (m *NameMapping) contextValidateLinks(ctx context.Context, formats strfmt.R
 func (m *NameMapping) contextValidateSvm(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Svm != nil {
+
+		if swag.IsZero(m.Svm) { // not required
+			return nil
+		}
+
 		if err := m.Svm.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("svm")
@@ -364,6 +374,11 @@ func (m *NameMappingInlineLinks) ContextValidate(ctx context.Context, formats st
 func (m *NameMappingInlineLinks) contextValidateSelf(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Self != nil {
+
+		if swag.IsZero(m.Self) { // not required
+			return nil
+		}
+
 		if err := m.Self.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("_links" + "." + "self")
@@ -464,6 +479,11 @@ func (m *NameMappingInlineSvm) ContextValidate(ctx context.Context, formats strf
 func (m *NameMappingInlineSvm) contextValidateLinks(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Links != nil {
+
+		if swag.IsZero(m.Links) { // not required
+			return nil
+		}
+
 		if err := m.Links.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("svm" + "." + "_links")
@@ -554,6 +574,11 @@ func (m *NameMappingInlineSvmInlineLinks) ContextValidate(ctx context.Context, f
 func (m *NameMappingInlineSvmInlineLinks) contextValidateSelf(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Self != nil {
+
+		if swag.IsZero(m.Self) { // not required
+			return nil
+		}
+
 		if err := m.Self.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("svm" + "." + "_links" + "." + "self")

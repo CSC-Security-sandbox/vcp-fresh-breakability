@@ -6,6 +6,7 @@ package snapmirror
 // Editing this file might prove futile when you re-run the swagger generate command
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 
@@ -97,11 +98,13 @@ func (o *SnapmirrorRelationshipCreateCreated) Code() int {
 }
 
 func (o *SnapmirrorRelationshipCreateCreated) Error() string {
-	return fmt.Sprintf("[POST /snapmirror/relationships][%d] snapmirrorRelationshipCreateCreated  %+v", 201, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[POST /snapmirror/relationships][%d] snapmirrorRelationshipCreateCreated %s", 201, payload)
 }
 
 func (o *SnapmirrorRelationshipCreateCreated) String() string {
-	return fmt.Sprintf("[POST /snapmirror/relationships][%d] snapmirrorRelationshipCreateCreated  %+v", 201, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[POST /snapmirror/relationships][%d] snapmirrorRelationshipCreateCreated %s", 201, payload)
 }
 
 func (o *SnapmirrorRelationshipCreateCreated) GetPayload() *models.SnapmirrorRelationshipJobLinkResponse {
@@ -177,11 +180,13 @@ func (o *SnapmirrorRelationshipCreateAccepted) Code() int {
 }
 
 func (o *SnapmirrorRelationshipCreateAccepted) Error() string {
-	return fmt.Sprintf("[POST /snapmirror/relationships][%d] snapmirrorRelationshipCreateAccepted  %+v", 202, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[POST /snapmirror/relationships][%d] snapmirrorRelationshipCreateAccepted %s", 202, payload)
 }
 
 func (o *SnapmirrorRelationshipCreateAccepted) String() string {
-	return fmt.Sprintf("[POST /snapmirror/relationships][%d] snapmirrorRelationshipCreateAccepted  %+v", 202, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[POST /snapmirror/relationships][%d] snapmirrorRelationshipCreateAccepted %s", 202, payload)
 }
 
 func (o *SnapmirrorRelationshipCreateAccepted) GetPayload() *models.SnapmirrorRelationshipJobLinkResponse {
@@ -228,8 +233,8 @@ func NewSnapmirrorRelationshipCreateDefault(code int) *SnapmirrorRelationshipCre
 | 1115547 | Access token not valid until a time. |
 | 1115548 | Access token is malformed. |
 | 1115549 | Internal error. Failed to validate access token. |
-| 6619441 | The source volume cannot be the same as the destination volume.<personalities supports=asar2,unified> |
-| 6619599 | Only the \"none\" tiering policy is supported when creating a destination volume with \"snapshot_locking_enabled\" set to true or if \"snapshot_locking_enabled\" is set to true on the source volume.</personalities> |
+| 6619441 | The source volume cannot be the same as the destination volume. |
+| 6619599 | Only the \"none\" tiering policy is supported when creating a destination volume with \"snapshot_locking_enabled\" set to true or if \"snapshot_locking_enabled\" is set to true on the source volume. |
 | 6619637 | Relationship with specified destination volume already exists. |
 | 6619699 | Schedule not found. |
 | 6620374 | Internal error. Failed to get SVM information. |
@@ -249,9 +254,9 @@ func NewSnapmirrorRelationshipCreateDefault(code int) *SnapmirrorRelationshipCre
 | 13303853 | Restore relationships are not supported for SVM-DR endpoints. |
 | 13303866 | Associating the specified SnapMirror policy with this SnapMirror relationship is not supported. |
 | 13303868 | Create of destination endpoint and SnapMirror relationship failed. |
-| 13303869 | Creating a destination endpoint is not supported for restore relationships.<personalities supports=asar2,unified> |
+| 13303869 | Creating a destination endpoint is not supported for restore relationships. |
 | 13303870 | A tiering policy cannot be specified if tiering is not being set to supported. |
-| 13303871 | Storage service properties cannot be specified if the storage service is not being enabled.</personalities> |
+| 13303871 | Storage service properties cannot be specified if the storage service is not being enabled. |
 | 13303872 | Specified property requires a later effective cluster version. |
 | 13303873 | Specifying a state when creating a relationship is only supported when creating a destination endpoint. |
 | 13303874 | Specified state is not supported when creating this relationship. |
@@ -268,8 +273,8 @@ func NewSnapmirrorRelationshipCreateDefault(code int) *SnapmirrorRelationshipCre
 | 13303887 | Synchronous SnapMirror relationships between FlexGroup volumes are not supported. |
 | 13303888 | Synchronous SnapMirror relationships require an effective cluster version of 9.5 or later on both the source and destination clusters. |
 | 13303889 | Asynchronous SnapMirror relationships between FlexGroup volumes require an effective cluster version of 9.5 or later on both the source and destination clusters. |
-| 13303890 | Asynchronous SnapMirror relationships between FlexVol volumes require an effective cluster version of 9.3, 9.5, or later on both the source and destination clusters.<personalities supports=asar2,unified> |
-| 13303891 | Creating a destination endpoint with storage service requires an effective cluster version of 9.7 or later.</personalities> |
+| 13303890 | Asynchronous SnapMirror relationships between FlexVol volumes require an effective cluster version of 9.3, 9.5, or later on both the source and destination clusters. |
+| 13303891 | Creating a destination endpoint with storage service requires an effective cluster version of 9.7 or later. |
 | 13303892 | Fetching remote information from the destination cluster failed. |
 | 13303893 | Updating job description failed. |
 | 13303894 | Destination volume name is invalid. It must contain the source volume name and have a suffix when creating a destination endpoint on a cluster with an effective cluster version of 9.6 or earlier. |
@@ -283,8 +288,8 @@ func NewSnapmirrorRelationshipCreateDefault(code int) *SnapmirrorRelationshipCre
 | 13303922 | Specified source SVM is not a data SVM. |
 | 13303923 | Specified destination SVM is not a data SVM. |
 | 13303924 | Source SVM has an invalid snapshot policy. |
-| 13303925 | SnapMirror validation has failed.<personalities supports=asar2,unified> |
-| 13303930 | The specified tiering policy is not supported for destination volumes of Synchronous relationships.</personalities> |
+| 13303925 | SnapMirror validation has failed. |
+| 13303930 | The specified tiering policy is not supported for destination volumes of Synchronous relationships. |
 | 13303938 | Fetching information from the local cluster failed. |
 | 13303939 | Could not create an SVM peer relationship. |
 | 13303944 | An SVM-DR relationship is not supported because the source SVM has CIFS configured and the associated SnapMirror policy has either the "identity_preservation" property not set or set to "exclude_network_and_protocol_config". |
@@ -391,11 +396,13 @@ func (o *SnapmirrorRelationshipCreateDefault) Code() int {
 }
 
 func (o *SnapmirrorRelationshipCreateDefault) Error() string {
-	return fmt.Sprintf("[POST /snapmirror/relationships][%d] snapmirror_relationship_create default  %+v", o._statusCode, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[POST /snapmirror/relationships][%d] snapmirror_relationship_create default %s", o._statusCode, payload)
 }
 
 func (o *SnapmirrorRelationshipCreateDefault) String() string {
-	return fmt.Sprintf("[POST /snapmirror/relationships][%d] snapmirror_relationship_create default  %+v", o._statusCode, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[POST /snapmirror/relationships][%d] snapmirror_relationship_create default %s", o._statusCode, payload)
 }
 
 func (o *SnapmirrorRelationshipCreateDefault) GetPayload() *models.ErrorResponse {

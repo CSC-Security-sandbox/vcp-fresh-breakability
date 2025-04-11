@@ -6,6 +6,7 @@ package name_services
 // Editing this file might prove futile when you re-run the swagger generate command
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 
@@ -85,11 +86,11 @@ func (o *LdapSchemaModifyOK) Code() int {
 }
 
 func (o *LdapSchemaModifyOK) Error() string {
-	return fmt.Sprintf("[PATCH /name-services/ldap-schemas/{owner.uuid}/{name}][%d] ldapSchemaModifyOK ", 200)
+	return fmt.Sprintf("[PATCH /name-services/ldap-schemas/{owner.uuid}/{name}][%d] ldapSchemaModifyOK", 200)
 }
 
 func (o *LdapSchemaModifyOK) String() string {
-	return fmt.Sprintf("[PATCH /name-services/ldap-schemas/{owner.uuid}/{name}][%d] ldapSchemaModifyOK ", 200)
+	return fmt.Sprintf("[PATCH /name-services/ldap-schemas/{owner.uuid}/{name}][%d] ldapSchemaModifyOK", 200)
 }
 
 func (o *LdapSchemaModifyOK) readResponse(response runtime.ClientResponse, consumer runtime.Consumer, formats strfmt.Registry) error {
@@ -152,11 +153,13 @@ func (o *LdapSchemaModifyDefault) Code() int {
 }
 
 func (o *LdapSchemaModifyDefault) Error() string {
-	return fmt.Sprintf("[PATCH /name-services/ldap-schemas/{owner.uuid}/{name}][%d] ldap_schema_modify default  %+v", o._statusCode, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[PATCH /name-services/ldap-schemas/{owner.uuid}/{name}][%d] ldap_schema_modify default %s", o._statusCode, payload)
 }
 
 func (o *LdapSchemaModifyDefault) String() string {
-	return fmt.Sprintf("[PATCH /name-services/ldap-schemas/{owner.uuid}/{name}][%d] ldap_schema_modify default  %+v", o._statusCode, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[PATCH /name-services/ldap-schemas/{owner.uuid}/{name}][%d] ldap_schema_modify default %s", o._statusCode, payload)
 }
 
 func (o *LdapSchemaModifyDefault) GetPayload() *models.ErrorResponse {

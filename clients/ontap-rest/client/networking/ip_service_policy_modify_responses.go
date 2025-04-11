@@ -6,6 +6,7 @@ package networking
 // Editing this file might prove futile when you re-run the swagger generate command
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 
@@ -85,11 +86,11 @@ func (o *IPServicePolicyModifyOK) Code() int {
 }
 
 func (o *IPServicePolicyModifyOK) Error() string {
-	return fmt.Sprintf("[PATCH /network/ip/service-policies/{uuid}][%d] ipServicePolicyModifyOK ", 200)
+	return fmt.Sprintf("[PATCH /network/ip/service-policies/{uuid}][%d] ipServicePolicyModifyOK", 200)
 }
 
 func (o *IPServicePolicyModifyOK) String() string {
-	return fmt.Sprintf("[PATCH /network/ip/service-policies/{uuid}][%d] ipServicePolicyModifyOK ", 200)
+	return fmt.Sprintf("[PATCH /network/ip/service-policies/{uuid}][%d] ipServicePolicyModifyOK", 200)
 }
 
 func (o *IPServicePolicyModifyOK) readResponse(response runtime.ClientResponse, consumer runtime.Consumer, formats strfmt.Registry) error {
@@ -164,11 +165,13 @@ func (o *IPServicePolicyModifyDefault) Code() int {
 }
 
 func (o *IPServicePolicyModifyDefault) Error() string {
-	return fmt.Sprintf("[PATCH /network/ip/service-policies/{uuid}][%d] ip_service_policy_modify default  %+v", o._statusCode, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[PATCH /network/ip/service-policies/{uuid}][%d] ip_service_policy_modify default %s", o._statusCode, payload)
 }
 
 func (o *IPServicePolicyModifyDefault) String() string {
-	return fmt.Sprintf("[PATCH /network/ip/service-policies/{uuid}][%d] ip_service_policy_modify default  %+v", o._statusCode, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[PATCH /network/ip/service-policies/{uuid}][%d] ip_service_policy_modify default %s", o._statusCode, payload)
 }
 
 func (o *IPServicePolicyModifyDefault) GetPayload() *models.ErrorResponse {

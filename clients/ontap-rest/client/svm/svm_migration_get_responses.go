@@ -6,6 +6,7 @@ package svm
 // Editing this file might prove futile when you re-run the swagger generate command
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 
@@ -86,11 +87,13 @@ func (o *SvmMigrationGetOK) Code() int {
 }
 
 func (o *SvmMigrationGetOK) Error() string {
-	return fmt.Sprintf("[GET /svm/migrations/{uuid}][%d] svmMigrationGetOK  %+v", 200, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[GET /svm/migrations/{uuid}][%d] svmMigrationGetOK %s", 200, payload)
 }
 
 func (o *SvmMigrationGetOK) String() string {
-	return fmt.Sprintf("[GET /svm/migrations/{uuid}][%d] svmMigrationGetOK  %+v", 200, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[GET /svm/migrations/{uuid}][%d] svmMigrationGetOK %s", 200, payload)
 }
 
 func (o *SvmMigrationGetOK) GetPayload() *models.SvmMigration {
@@ -167,11 +170,13 @@ func (o *SvmMigrationGetDefault) Code() int {
 }
 
 func (o *SvmMigrationGetDefault) Error() string {
-	return fmt.Sprintf("[GET /svm/migrations/{uuid}][%d] svm_migration_get default  %+v", o._statusCode, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[GET /svm/migrations/{uuid}][%d] svm_migration_get default %s", o._statusCode, payload)
 }
 
 func (o *SvmMigrationGetDefault) String() string {
-	return fmt.Sprintf("[GET /svm/migrations/{uuid}][%d] svm_migration_get default  %+v", o._statusCode, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[GET /svm/migrations/{uuid}][%d] svm_migration_get default %s", o._statusCode, payload)
 }
 
 func (o *SvmMigrationGetDefault) GetPayload() *models.ErrorResponse {

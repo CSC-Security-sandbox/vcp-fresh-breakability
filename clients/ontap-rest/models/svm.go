@@ -53,7 +53,7 @@ type Svm struct {
 	AntiRansomwareAutoSwitchMinimumLearningPeriod *int64 `json:"anti_ransomware_auto_switch_minimum_learning_period,omitempty"`
 
 	// Specifies the default Anti-ransomware state of the volumes in the SVM. Default "anti_ransomware_default_volume_state" property is disabled for POST operation. If this value is "disabled", Anti-ransomware protection is disabled by default on the new volumes that are created in the SVM. If this value is "dry_run", Anti-ransomware protection is in learning mode by default on the new volumes that are created in the SVM.  When the Anti-ransomware license is not present, this property is ignored and volumes will be created with the "disabled" state.
-	// Enum: [disabled dry_run]
+	// Enum: ["disabled","dry_run"]
 	AntiRansomwareDefaultVolumeState *string `json:"anti_ransomware_default_volume_state,omitempty"`
 
 	// One of the many conditions to be satisfied to automatically switch the anti-ransomware state of the volumes in this SVM from “learning” (dry-run) to “enabled” is that the volume should have sufficient data ingested to do the learning. This parameter optionally specifies the minimum amount of data (in GB) to be written to a given volume during the learning period to automatically switch the anti-ransomware state from “learning” to “enabled”. The amount of data considered as ingested also includes the data that is deleted or overwritten after ingestion. This field is no longer supported.
@@ -99,7 +99,7 @@ type Svm struct {
 
 	// Default volume language code. UTF-8 encoded languages are valid in POST or PATCH. Non UTF-8 language encodings are for backward compatibility and are not valid input for POST and PATCH requests.
 	// Example: c.utf_8
-	// Enum: [c da de en en_us es fi fr he it ja ja_jp.pck ko no nl pt sv zh zh.gbk zh_tw zh_tw.big5 c.utf_8 ar ar.utf_8 cs cs.utf_8 da.utf_8 de.utf_8 en.utf_8 en_us.utf_8 es.utf_8 fi.utf_8 fr.utf_8 he.utf_8 hr hr.utf_8 hu hu.utf_8 it.utf_8 ja.utf_8 ja_v1 ja_v1.utf_8 ja_jp.pck.utf_8 ja_jp.932 ja_jp.932.utf_8 ja_jp.pck_v2 ja_jp.pck_v2.utf_8 ko.utf_8 no.utf_8 nl.utf_8 pl pl.utf_8 pt.utf_8 ro ro.utf_8 ru ru.utf_8 sk sk.utf_8 sl sl.utf_8 sv.utf_8 tr tr.utf_8 zh.utf_8 zh.gbk.utf_8 zh_tw.utf_8 zh_tw.big5.utf_8 utf8mb4]
+	// Enum: ["c","da","de","en","en_us","es","fi","fr","he","it","ja","ja_jp.pck","ko","no","nl","pt","sv","zh","zh.gbk","zh_tw","zh_tw.big5","c.utf_8","ar","ar.utf_8","cs","cs.utf_8","da.utf_8","de.utf_8","en.utf_8","en_us.utf_8","es.utf_8","fi.utf_8","fr.utf_8","he.utf_8","hr","hr.utf_8","hu","hu.utf_8","it.utf_8","ja.utf_8","ja_v1","ja_v1.utf_8","ja_jp.pck.utf_8","ja_jp.932","ja_jp.932.utf_8","ja_jp.pck_v2","ja_jp.pck_v2.utf_8","ko.utf_8","no.utf_8","nl.utf_8","pl","pl.utf_8","pt.utf_8","ro","ro.utf_8","ru","ru.utf_8","sk","sk.utf_8","sl","sl.utf_8","sv.utf_8","tr","tr.utf_8","zh.utf_8","zh.gbk.utf_8","zh_tw.utf_8","zh_tw.big5.utf_8","utf8mb4"]
 	Language *string `json:"language,omitempty"`
 
 	// ldap
@@ -130,7 +130,7 @@ type Svm struct {
 	NumberOfVolumesInRecoveryQueue *int64 `json:"number_of_volumes_in_recovery_queue,omitempty"`
 
 	// nvme
-	NVME *SvmInlineNVME `json:"nvme,omitempty"`
+	Nvme *SvmInlineNvme `json:"nvme,omitempty"`
 
 	// qos adaptive policy group template
 	QosAdaptivePolicyGroupTemplate *SvmInlineQosAdaptivePolicyGroupTemplate `json:"qos_adaptive_policy_group_template,omitempty"`
@@ -155,14 +155,14 @@ type Svm struct {
 
 	// SVM State
 	// Example: running
-	// Enum: [starting running stopping stopped deleting initializing]
+	// Enum: ["starting","running","stopping","stopped","deleting","initializing"]
 	State *string `json:"state,omitempty"`
 
 	// storage
 	Storage *SvmInlineStorage `json:"storage,omitempty"`
 
 	// SVM subtype. The SVM subtype sync_destination is created automatically when an SVM of subtype sync_source is created on the source MetroCluster cluster. A POST request with sync_destination as SVM subtype is invalid.
-	// Enum: [default dp_destination sync_source sync_destination]
+	// Enum: ["default","dp_destination","sync_source","sync_destination"]
 	Subtype *string `json:"subtype,omitempty"`
 
 	// List of allowed aggregates for SVM volumes. An administrator is allowed to create volumes on these aggregates.
@@ -260,7 +260,7 @@ func (m *Svm) Validate(formats strfmt.Registry) error {
 		res = append(res, err)
 	}
 
-	if err := m.validateNVME(formats); err != nil {
+	if err := m.validateNvme(formats); err != nil {
 		res = append(res, err)
 	}
 
@@ -889,13 +889,13 @@ func (m *Svm) validateNsswitch(formats strfmt.Registry) error {
 	return nil
 }
 
-func (m *Svm) validateNVME(formats strfmt.Registry) error {
-	if swag.IsZero(m.NVME) { // not required
+func (m *Svm) validateNvme(formats strfmt.Registry) error {
+	if swag.IsZero(m.Nvme) { // not required
 		return nil
 	}
 
-	if m.NVME != nil {
-		if err := m.NVME.Validate(formats); err != nil {
+	if m.Nvme != nil {
+		if err := m.Nvme.Validate(formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("nvme")
 			} else if ce, ok := err.(*errors.CompositeError); ok {
@@ -1315,7 +1315,7 @@ func (m *Svm) ContextValidate(ctx context.Context, formats strfmt.Registry) erro
 		res = append(res, err)
 	}
 
-	if err := m.contextValidateNVME(ctx, formats); err != nil {
+	if err := m.contextValidateNvme(ctx, formats); err != nil {
 		res = append(res, err)
 	}
 
@@ -1380,6 +1380,11 @@ func (m *Svm) ContextValidate(ctx context.Context, formats strfmt.Registry) erro
 func (m *Svm) contextValidateLinks(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Links != nil {
+
+		if swag.IsZero(m.Links) { // not required
+			return nil
+		}
+
 		if err := m.Links.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("_links")
@@ -1405,6 +1410,11 @@ func (m *Svm) contextValidateAggregatesDelegated(ctx context.Context, formats st
 func (m *Svm) contextValidateAnalytics(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Analytics != nil {
+
+		if swag.IsZero(m.Analytics) { // not required
+			return nil
+		}
+
 		if err := m.Analytics.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("analytics")
@@ -1421,6 +1431,11 @@ func (m *Svm) contextValidateAnalytics(ctx context.Context, formats strfmt.Regis
 func (m *Svm) contextValidateAntiRansomware(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.AntiRansomware != nil {
+
+		if swag.IsZero(m.AntiRansomware) { // not required
+			return nil
+		}
+
 		if err := m.AntiRansomware.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("anti_ransomware")
@@ -1437,6 +1452,11 @@ func (m *Svm) contextValidateAntiRansomware(ctx context.Context, formats strfmt.
 func (m *Svm) contextValidateCertificate(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Certificate != nil {
+
+		if swag.IsZero(m.Certificate) { // not required
+			return nil
+		}
+
 		if err := m.Certificate.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("certificate")
@@ -1453,6 +1473,11 @@ func (m *Svm) contextValidateCertificate(ctx context.Context, formats strfmt.Reg
 func (m *Svm) contextValidateCifs(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Cifs != nil {
+
+		if swag.IsZero(m.Cifs) { // not required
+			return nil
+		}
+
 		if err := m.Cifs.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("cifs")
@@ -1469,6 +1494,11 @@ func (m *Svm) contextValidateCifs(ctx context.Context, formats strfmt.Registry) 
 func (m *Svm) contextValidateDNS(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.DNS != nil {
+
+		if swag.IsZero(m.DNS) { // not required
+			return nil
+		}
+
 		if err := m.DNS.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("dns")
@@ -1485,6 +1515,11 @@ func (m *Svm) contextValidateDNS(ctx context.Context, formats strfmt.Registry) e
 func (m *Svm) contextValidateFcp(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Fcp != nil {
+
+		if swag.IsZero(m.Fcp) { // not required
+			return nil
+		}
+
 		if err := m.Fcp.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("fcp")
@@ -1501,6 +1536,11 @@ func (m *Svm) contextValidateFcp(ctx context.Context, formats strfmt.Registry) e
 func (m *Svm) contextValidateIpspace(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Ipspace != nil {
+
+		if swag.IsZero(m.Ipspace) { // not required
+			return nil
+		}
+
 		if err := m.Ipspace.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("ipspace")
@@ -1517,6 +1557,11 @@ func (m *Svm) contextValidateIpspace(ctx context.Context, formats strfmt.Registr
 func (m *Svm) contextValidateIscsi(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Iscsi != nil {
+
+		if swag.IsZero(m.Iscsi) { // not required
+			return nil
+		}
+
 		if err := m.Iscsi.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("iscsi")
@@ -1533,6 +1578,11 @@ func (m *Svm) contextValidateIscsi(ctx context.Context, formats strfmt.Registry)
 func (m *Svm) contextValidateLdap(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Ldap != nil {
+
+		if swag.IsZero(m.Ldap) { // not required
+			return nil
+		}
+
 		if err := m.Ldap.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("ldap")
@@ -1549,6 +1599,11 @@ func (m *Svm) contextValidateLdap(ctx context.Context, formats strfmt.Registry) 
 func (m *Svm) contextValidateNdmp(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Ndmp != nil {
+
+		if swag.IsZero(m.Ndmp) { // not required
+			return nil
+		}
+
 		if err := m.Ndmp.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("ndmp")
@@ -1565,6 +1620,11 @@ func (m *Svm) contextValidateNdmp(ctx context.Context, formats strfmt.Registry) 
 func (m *Svm) contextValidateNfs(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Nfs != nil {
+
+		if swag.IsZero(m.Nfs) { // not required
+			return nil
+		}
+
 		if err := m.Nfs.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("nfs")
@@ -1581,6 +1641,11 @@ func (m *Svm) contextValidateNfs(ctx context.Context, formats strfmt.Registry) e
 func (m *Svm) contextValidateNis(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Nis != nil {
+
+		if swag.IsZero(m.Nis) { // not required
+			return nil
+		}
+
 		if err := m.Nis.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("nis")
@@ -1597,6 +1662,11 @@ func (m *Svm) contextValidateNis(ctx context.Context, formats strfmt.Registry) e
 func (m *Svm) contextValidateNsswitch(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Nsswitch != nil {
+
+		if swag.IsZero(m.Nsswitch) { // not required
+			return nil
+		}
+
 		if err := m.Nsswitch.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("nsswitch")
@@ -1619,10 +1689,15 @@ func (m *Svm) contextValidateNumberOfVolumesInRecoveryQueue(ctx context.Context,
 	return nil
 }
 
-func (m *Svm) contextValidateNVME(ctx context.Context, formats strfmt.Registry) error {
+func (m *Svm) contextValidateNvme(ctx context.Context, formats strfmt.Registry) error {
 
-	if m.NVME != nil {
-		if err := m.NVME.ContextValidate(ctx, formats); err != nil {
+	if m.Nvme != nil {
+
+		if swag.IsZero(m.Nvme) { // not required
+			return nil
+		}
+
+		if err := m.Nvme.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("nvme")
 			} else if ce, ok := err.(*errors.CompositeError); ok {
@@ -1638,6 +1713,11 @@ func (m *Svm) contextValidateNVME(ctx context.Context, formats strfmt.Registry) 
 func (m *Svm) contextValidateQosAdaptivePolicyGroupTemplate(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.QosAdaptivePolicyGroupTemplate != nil {
+
+		if swag.IsZero(m.QosAdaptivePolicyGroupTemplate) { // not required
+			return nil
+		}
+
 		if err := m.QosAdaptivePolicyGroupTemplate.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("qos_adaptive_policy_group_template")
@@ -1654,6 +1734,11 @@ func (m *Svm) contextValidateQosAdaptivePolicyGroupTemplate(ctx context.Context,
 func (m *Svm) contextValidateQosPolicy(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.QosPolicy != nil {
+
+		if swag.IsZero(m.QosPolicy) { // not required
+			return nil
+		}
+
 		if err := m.QosPolicy.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("qos_policy")
@@ -1670,6 +1755,11 @@ func (m *Svm) contextValidateQosPolicy(ctx context.Context, formats strfmt.Regis
 func (m *Svm) contextValidateQosPolicyGroupTemplate(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.QosPolicyGroupTemplate != nil {
+
+		if swag.IsZero(m.QosPolicyGroupTemplate) { // not required
+			return nil
+		}
+
 		if err := m.QosPolicyGroupTemplate.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("qos_policy_group_template")
@@ -1686,6 +1776,11 @@ func (m *Svm) contextValidateQosPolicyGroupTemplate(ctx context.Context, formats
 func (m *Svm) contextValidateS3(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.S3 != nil {
+
+		if swag.IsZero(m.S3) { // not required
+			return nil
+		}
+
 		if err := m.S3.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("s3")
@@ -1702,6 +1797,11 @@ func (m *Svm) contextValidateS3(ctx context.Context, formats strfmt.Registry) er
 func (m *Svm) contextValidateSnapmirror(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Snapmirror != nil {
+
+		if swag.IsZero(m.Snapmirror) { // not required
+			return nil
+		}
+
 		if err := m.Snapmirror.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("snapmirror")
@@ -1718,6 +1818,11 @@ func (m *Svm) contextValidateSnapmirror(ctx context.Context, formats strfmt.Regi
 func (m *Svm) contextValidateSnapshotPolicy(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.SnapshotPolicy != nil {
+
+		if swag.IsZero(m.SnapshotPolicy) { // not required
+			return nil
+		}
+
 		if err := m.SnapshotPolicy.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("snapshot_policy")
@@ -1734,6 +1839,11 @@ func (m *Svm) contextValidateSnapshotPolicy(ctx context.Context, formats strfmt.
 func (m *Svm) contextValidateStorage(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Storage != nil {
+
+		if swag.IsZero(m.Storage) { // not required
+			return nil
+		}
+
 		if err := m.Storage.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("storage")
@@ -1752,6 +1862,11 @@ func (m *Svm) contextValidateSvmInlineAggregates(ctx context.Context, formats st
 	for i := 0; i < len(m.SvmInlineAggregates); i++ {
 
 		if m.SvmInlineAggregates[i] != nil {
+
+			if swag.IsZero(m.SvmInlineAggregates[i]) { // not required
+				return nil
+			}
+
 			if err := m.SvmInlineAggregates[i].ContextValidate(ctx, formats); err != nil {
 				if ve, ok := err.(*errors.Validation); ok {
 					return ve.ValidateName("aggregates" + "." + strconv.Itoa(i))
@@ -1772,6 +1887,11 @@ func (m *Svm) contextValidateSvmInlineFcInterfaces(ctx context.Context, formats 
 	for i := 0; i < len(m.SvmInlineFcInterfaces); i++ {
 
 		if m.SvmInlineFcInterfaces[i] != nil {
+
+			if swag.IsZero(m.SvmInlineFcInterfaces[i]) { // not required
+				return nil
+			}
+
 			if err := m.SvmInlineFcInterfaces[i].ContextValidate(ctx, formats); err != nil {
 				if ve, ok := err.(*errors.Validation); ok {
 					return ve.ValidateName("fc_interfaces" + "." + strconv.Itoa(i))
@@ -1792,6 +1912,11 @@ func (m *Svm) contextValidateSvmInlineIPInterfaces(ctx context.Context, formats 
 	for i := 0; i < len(m.SvmInlineIPInterfaces); i++ {
 
 		if m.SvmInlineIPInterfaces[i] != nil {
+
+			if swag.IsZero(m.SvmInlineIPInterfaces[i]) { // not required
+				return nil
+			}
+
 			if err := m.SvmInlineIPInterfaces[i].ContextValidate(ctx, formats); err != nil {
 				if ve, ok := err.(*errors.Validation); ok {
 					return ve.ValidateName("ip_interfaces" + "." + strconv.Itoa(i))
@@ -1812,6 +1937,11 @@ func (m *Svm) contextValidateSvmInlineRoutes(ctx context.Context, formats strfmt
 	for i := 0; i < len(m.SvmInlineRoutes); i++ {
 
 		if m.SvmInlineRoutes[i] != nil {
+
+			if swag.IsZero(m.SvmInlineRoutes[i]) { // not required
+				return nil
+			}
+
 			if err := m.SvmInlineRoutes[i].ContextValidate(ctx, formats); err != nil {
 				if ve, ok := err.(*errors.Validation); ok {
 					return ve.ValidateName("routes" + "." + strconv.Itoa(i))
@@ -1882,17 +2012,17 @@ type SvmInlineAggregatesInlineArrayItem struct {
 
 	// SnapLock type.
 	// Read Only: true
-	// Enum: [non_snaplock compliance enterprise]
+	// Enum: ["non_snaplock","compliance","enterprise"]
 	SnaplockType *string `json:"snaplock_type,omitempty"`
 
 	// Aggregate state.
 	// Read Only: true
-	// Enum: [online offline unknown]
+	// Enum: ["online","offline","unknown"]
 	State *string `json:"state,omitempty"`
 
 	// Type of aggregate.
 	// Read Only: true
-	// Enum: [hdd hybrid lun ssd vmdisk]
+	// Enum: ["hdd","hybrid","lun","ssd","vmdisk"]
 	Type *string `json:"type,omitempty"`
 
 	// uuid
@@ -2119,6 +2249,11 @@ func (m *SvmInlineAggregatesInlineArrayItem) ContextValidate(ctx context.Context
 func (m *SvmInlineAggregatesInlineArrayItem) contextValidateLinks(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Links != nil {
+
+		if swag.IsZero(m.Links) { // not required
+			return nil
+		}
+
 		if err := m.Links.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("_links")
@@ -2245,6 +2380,11 @@ func (m *SvmInlineAggregatesInlineArrayItemInlineLinks) ContextValidate(ctx cont
 func (m *SvmInlineAggregatesInlineArrayItemInlineLinks) contextValidateSelf(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Self != nil {
+
+		if swag.IsZero(m.Self) { // not required
+			return nil
+		}
+
 		if err := m.Self.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("_links" + "." + "self")
@@ -2400,6 +2540,11 @@ func (m *SvmInlineAnalytics) ContextValidate(ctx context.Context, formats strfmt
 func (m *SvmInlineAnalytics) contextValidateByAccessedTime(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.ByAccessedTime != nil {
+
+		if swag.IsZero(m.ByAccessedTime) { // not required
+			return nil
+		}
+
 		if err := m.ByAccessedTime.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("analytics" + "." + "by_accessed_time")
@@ -2416,6 +2561,11 @@ func (m *SvmInlineAnalytics) contextValidateByAccessedTime(ctx context.Context, 
 func (m *SvmInlineAnalytics) contextValidateByModifiedTime(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.ByModifiedTime != nil {
+
+		if swag.IsZero(m.ByModifiedTime) { // not required
+			return nil
+		}
+
 		if err := m.ByModifiedTime.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("analytics" + "." + "by_modified_time")
@@ -2506,6 +2656,11 @@ func (m *SvmInlineAnalyticsInlineByAccessedTime) ContextValidate(ctx context.Con
 func (m *SvmInlineAnalyticsInlineByAccessedTime) contextValidateBytesUsed(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.BytesUsed != nil {
+
+		if swag.IsZero(m.BytesUsed) { // not required
+			return nil
+		}
+
 		if err := m.BytesUsed.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("analytics" + "." + "by_accessed_time" + "." + "bytes_used")
@@ -2680,6 +2835,11 @@ func (m *SvmInlineAnalyticsInlineByAccessedTimeInlineBytesUsed) contextValidateL
 func (m *SvmInlineAnalyticsInlineByAccessedTimeInlineBytesUsed) contextValidateNewestLabel(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.NewestLabel != nil {
+
+		if swag.IsZero(m.NewestLabel) { // not required
+			return nil
+		}
+
 		if err := m.NewestLabel.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("analytics" + "." + "by_accessed_time" + "." + "bytes_used" + "." + "newest_label")
@@ -2696,6 +2856,11 @@ func (m *SvmInlineAnalyticsInlineByAccessedTimeInlineBytesUsed) contextValidateN
 func (m *SvmInlineAnalyticsInlineByAccessedTimeInlineBytesUsed) contextValidateOldestLabel(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.OldestLabel != nil {
+
+		if swag.IsZero(m.OldestLabel) { // not required
+			return nil
+		}
+
 		if err := m.OldestLabel.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("analytics" + "." + "by_accessed_time" + "." + "bytes_used" + "." + "oldest_label")
@@ -2786,6 +2951,11 @@ func (m *SvmInlineAnalyticsInlineByModifiedTime) ContextValidate(ctx context.Con
 func (m *SvmInlineAnalyticsInlineByModifiedTime) contextValidateBytesUsed(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.BytesUsed != nil {
+
+		if swag.IsZero(m.BytesUsed) { // not required
+			return nil
+		}
+
 		if err := m.BytesUsed.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("analytics" + "." + "by_modified_time" + "." + "bytes_used")
@@ -2960,6 +3130,11 @@ func (m *SvmInlineAnalyticsInlineByModifiedTimeInlineBytesUsed) contextValidateL
 func (m *SvmInlineAnalyticsInlineByModifiedTimeInlineBytesUsed) contextValidateNewestLabel(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.NewestLabel != nil {
+
+		if swag.IsZero(m.NewestLabel) { // not required
+			return nil
+		}
+
 		if err := m.NewestLabel.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("analytics" + "." + "by_modified_time" + "." + "bytes_used" + "." + "newest_label")
@@ -2976,6 +3151,11 @@ func (m *SvmInlineAnalyticsInlineByModifiedTimeInlineBytesUsed) contextValidateN
 func (m *SvmInlineAnalyticsInlineByModifiedTimeInlineBytesUsed) contextValidateOldestLabel(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.OldestLabel != nil {
+
+		if swag.IsZero(m.OldestLabel) { // not required
+			return nil
+		}
+
 		if err := m.OldestLabel.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("analytics" + "." + "by_modified_time" + "." + "bytes_used" + "." + "oldest_label")
@@ -3073,6 +3253,11 @@ func (m *SvmInlineCertificate) ContextValidate(ctx context.Context, formats strf
 func (m *SvmInlineCertificate) contextValidateLinks(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Links != nil {
+
+		if swag.IsZero(m.Links) { // not required
+			return nil
+		}
+
 		if err := m.Links.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("certificate" + "." + "_links")
@@ -3163,6 +3348,11 @@ func (m *SvmInlineCertificateInlineLinks) ContextValidate(ctx context.Context, f
 func (m *SvmInlineCertificateInlineLinks) contextValidateSelf(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Self != nil {
+
+		if swag.IsZero(m.Self) { // not required
+			return nil
+		}
+
 		if err := m.Self.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("certificate" + "." + "_links" + "." + "self")
@@ -3211,7 +3401,7 @@ type SvmInlineCifs struct {
 	// Authentication type.
 	// Example: domain
 	// Read Only: true
-	// Enum: [domain workgroup]
+	// Enum: ["domain","workgroup"]
 	AuthStyle *string `json:"auth-style,omitempty"`
 
 	// The NetBIOS name of the domain or workgroup associated with the CIFS server.
@@ -3406,6 +3596,11 @@ func (m *SvmInlineCifs) ContextValidate(ctx context.Context, formats strfmt.Regi
 func (m *SvmInlineCifs) contextValidateLinks(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Links != nil {
+
+		if swag.IsZero(m.Links) { // not required
+			return nil
+		}
+
 		if err := m.Links.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("cifs" + "." + "_links")
@@ -3422,6 +3617,11 @@ func (m *SvmInlineCifs) contextValidateLinks(ctx context.Context, formats strfmt
 func (m *SvmInlineCifs) contextValidateAdDomain(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.AdDomain != nil {
+
+		if swag.IsZero(m.AdDomain) { // not required
+			return nil
+		}
+
 		if err := m.AdDomain.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("cifs" + "." + "ad_domain")
@@ -3585,6 +3785,11 @@ func (m *SvmInlineCifsInlineLinks) ContextValidate(ctx context.Context, formats 
 func (m *SvmInlineCifsInlineLinks) contextValidateSelf(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Self != nil {
+
+		if swag.IsZero(m.Self) { // not required
+			return nil
+		}
+
 		if err := m.Self.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("cifs" + "." + "_links" + "." + "self")
@@ -3731,6 +3936,11 @@ func (m *SvmInlineDNS) ContextValidate(ctx context.Context, formats strfmt.Regis
 func (m *SvmInlineDNS) contextValidateLinks(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Links != nil {
+
+		if swag.IsZero(m.Links) { // not required
+			return nil
+		}
+
 		if err := m.Links.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("dns" + "." + "_links")
@@ -3849,6 +4059,11 @@ func (m *SvmInlineDNSInlineLinks) ContextValidate(ctx context.Context, formats s
 func (m *SvmInlineDNSInlineLinks) contextValidateSelf(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Self != nil {
+
+		if swag.IsZero(m.Self) { // not required
+			return nil
+		}
+
 		if err := m.Self.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("dns" + "." + "_links" + "." + "self")
@@ -3950,6 +4165,11 @@ func (m *SvmInlineFcp) ContextValidate(ctx context.Context, formats strfmt.Regis
 func (m *SvmInlineFcp) contextValidateLinks(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Links != nil {
+
+		if swag.IsZero(m.Links) { // not required
+			return nil
+		}
+
 		if err := m.Links.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("fcp" + "." + "_links")
@@ -4040,6 +4260,11 @@ func (m *SvmInlineFcpInlineLinks) ContextValidate(ctx context.Context, formats s
 func (m *SvmInlineFcpInlineLinks) contextValidateSelf(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Self != nil {
+
+		if swag.IsZero(m.Self) { // not required
+			return nil
+		}
+
 		if err := m.Self.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("fcp" + "." + "_links" + "." + "self")
@@ -4138,6 +4363,11 @@ func (m *SvmInlineIpspace) ContextValidate(ctx context.Context, formats strfmt.R
 func (m *SvmInlineIpspace) contextValidateLinks(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Links != nil {
+
+		if swag.IsZero(m.Links) { // not required
+			return nil
+		}
+
 		if err := m.Links.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("ipspace" + "." + "_links")
@@ -4228,6 +4458,11 @@ func (m *SvmInlineIpspaceInlineLinks) ContextValidate(ctx context.Context, forma
 func (m *SvmInlineIpspaceInlineLinks) contextValidateSelf(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Self != nil {
+
+		if swag.IsZero(m.Self) { // not required
+			return nil
+		}
+
 		if err := m.Self.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("ipspace" + "." + "_links" + "." + "self")
@@ -4329,6 +4564,11 @@ func (m *SvmInlineIscsi) ContextValidate(ctx context.Context, formats strfmt.Reg
 func (m *SvmInlineIscsi) contextValidateLinks(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Links != nil {
+
+		if swag.IsZero(m.Links) { // not required
+			return nil
+		}
+
 		if err := m.Links.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("iscsi" + "." + "_links")
@@ -4419,6 +4659,11 @@ func (m *SvmInlineIscsiInlineLinks) ContextValidate(ctx context.Context, formats
 func (m *SvmInlineIscsiInlineLinks) contextValidateSelf(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Self != nil {
+
+		if swag.IsZero(m.Self) { // not required
+			return nil
+		}
+
 		if err := m.Self.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("iscsi" + "." + "_links" + "." + "self")
@@ -4565,6 +4810,11 @@ func (m *SvmInlineLinks) ContextValidate(ctx context.Context, formats strfmt.Reg
 func (m *SvmInlineLinks) contextValidateSelf(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Self != nil {
+
+		if swag.IsZero(m.Self) { // not required
+			return nil
+		}
+
 		if err := m.Self.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("_links" + "." + "self")
@@ -4589,197 +4839,6 @@ func (m *SvmInlineLinks) MarshalBinary() ([]byte, error) {
 // UnmarshalBinary interface implementation
 func (m *SvmInlineLinks) UnmarshalBinary(b []byte) error {
 	var res SvmInlineLinks
-	if err := swag.ReadJSON(b, &res); err != nil {
-		return err
-	}
-	*m = res
-	return nil
-}
-
-// SvmInlineNVME <personalities supports=unified>
-// Available for GET, POST, and PATCH requests.
-// </personalities>
-// <personalities supports=asar2>
-// Available for GET requests. All SVMs are provisioned with the NVMe service configured.
-// </personalities>
-//
-// swagger:model svm_inline_nvme
-type SvmInlineNVME struct {
-
-	// links
-	Links *SvmInlineNVMEInlineLinks `json:"_links,omitempty"`
-
-	// If this is set to true, an SVM administrator can manage the NVMe service. If it is false, only the cluster administrator can manage the service.
-	Allowed *bool `json:"allowed,omitempty"`
-
-	// If allowed, setting to true enables the NVMe service.
-	Enabled *bool `json:"enabled,omitempty"`
-}
-
-// Validate validates this svm inline nvme
-func (m *SvmInlineNVME) Validate(formats strfmt.Registry) error {
-	var res []error
-
-	if err := m.validateLinks(formats); err != nil {
-		res = append(res, err)
-	}
-
-	if len(res) > 0 {
-		return errors.CompositeValidationError(res...)
-	}
-	return nil
-}
-
-func (m *SvmInlineNVME) validateLinks(formats strfmt.Registry) error {
-	if swag.IsZero(m.Links) { // not required
-		return nil
-	}
-
-	if m.Links != nil {
-		if err := m.Links.Validate(formats); err != nil {
-			if ve, ok := err.(*errors.Validation); ok {
-				return ve.ValidateName("nvme" + "." + "_links")
-			} else if ce, ok := err.(*errors.CompositeError); ok {
-				return ce.ValidateName("nvme" + "." + "_links")
-			}
-			return err
-		}
-	}
-
-	return nil
-}
-
-// ContextValidate validate this svm inline nvme based on the context it is used
-func (m *SvmInlineNVME) ContextValidate(ctx context.Context, formats strfmt.Registry) error {
-	var res []error
-
-	if err := m.contextValidateLinks(ctx, formats); err != nil {
-		res = append(res, err)
-	}
-
-	if len(res) > 0 {
-		return errors.CompositeValidationError(res...)
-	}
-	return nil
-}
-
-func (m *SvmInlineNVME) contextValidateLinks(ctx context.Context, formats strfmt.Registry) error {
-
-	if m.Links != nil {
-		if err := m.Links.ContextValidate(ctx, formats); err != nil {
-			if ve, ok := err.(*errors.Validation); ok {
-				return ve.ValidateName("nvme" + "." + "_links")
-			} else if ce, ok := err.(*errors.CompositeError); ok {
-				return ce.ValidateName("nvme" + "." + "_links")
-			}
-			return err
-		}
-	}
-
-	return nil
-}
-
-// MarshalBinary interface implementation
-func (m *SvmInlineNVME) MarshalBinary() ([]byte, error) {
-	if m == nil {
-		return nil, nil
-	}
-	return swag.WriteJSON(m)
-}
-
-// UnmarshalBinary interface implementation
-func (m *SvmInlineNVME) UnmarshalBinary(b []byte) error {
-	var res SvmInlineNVME
-	if err := swag.ReadJSON(b, &res); err != nil {
-		return err
-	}
-	*m = res
-	return nil
-}
-
-// SvmInlineNVMEInlineLinks svm inline nvme inline links
-//
-// swagger:model svm_inline_nvme_inline__links
-type SvmInlineNVMEInlineLinks struct {
-
-	// self
-	Self *Href `json:"self,omitempty"`
-}
-
-// Validate validates this svm inline nvme inline links
-func (m *SvmInlineNVMEInlineLinks) Validate(formats strfmt.Registry) error {
-	var res []error
-
-	if err := m.validateSelf(formats); err != nil {
-		res = append(res, err)
-	}
-
-	if len(res) > 0 {
-		return errors.CompositeValidationError(res...)
-	}
-	return nil
-}
-
-func (m *SvmInlineNVMEInlineLinks) validateSelf(formats strfmt.Registry) error {
-	if swag.IsZero(m.Self) { // not required
-		return nil
-	}
-
-	if m.Self != nil {
-		if err := m.Self.Validate(formats); err != nil {
-			if ve, ok := err.(*errors.Validation); ok {
-				return ve.ValidateName("nvme" + "." + "_links" + "." + "self")
-			} else if ce, ok := err.(*errors.CompositeError); ok {
-				return ce.ValidateName("nvme" + "." + "_links" + "." + "self")
-			}
-			return err
-		}
-	}
-
-	return nil
-}
-
-// ContextValidate validate this svm inline nvme inline links based on the context it is used
-func (m *SvmInlineNVMEInlineLinks) ContextValidate(ctx context.Context, formats strfmt.Registry) error {
-	var res []error
-
-	if err := m.contextValidateSelf(ctx, formats); err != nil {
-		res = append(res, err)
-	}
-
-	if len(res) > 0 {
-		return errors.CompositeValidationError(res...)
-	}
-	return nil
-}
-
-func (m *SvmInlineNVMEInlineLinks) contextValidateSelf(ctx context.Context, formats strfmt.Registry) error {
-
-	if m.Self != nil {
-		if err := m.Self.ContextValidate(ctx, formats); err != nil {
-			if ve, ok := err.(*errors.Validation); ok {
-				return ve.ValidateName("nvme" + "." + "_links" + "." + "self")
-			} else if ce, ok := err.(*errors.CompositeError); ok {
-				return ce.ValidateName("nvme" + "." + "_links" + "." + "self")
-			}
-			return err
-		}
-	}
-
-	return nil
-}
-
-// MarshalBinary interface implementation
-func (m *SvmInlineNVMEInlineLinks) MarshalBinary() ([]byte, error) {
-	if m == nil {
-		return nil, nil
-	}
-	return swag.WriteJSON(m)
-}
-
-// UnmarshalBinary interface implementation
-func (m *SvmInlineNVMEInlineLinks) UnmarshalBinary(b []byte) error {
-	var res SvmInlineNVMEInlineLinks
 	if err := swag.ReadJSON(b, &res); err != nil {
 		return err
 	}
@@ -4889,6 +4948,11 @@ func (m *SvmInlineNfs) ContextValidate(ctx context.Context, formats strfmt.Regis
 func (m *SvmInlineNfs) contextValidateLinks(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Links != nil {
+
+		if swag.IsZero(m.Links) { // not required
+			return nil
+		}
+
 		if err := m.Links.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("nfs" + "." + "_links")
@@ -4979,6 +5043,11 @@ func (m *SvmInlineNfsInlineLinks) ContextValidate(ctx context.Context, formats s
 func (m *SvmInlineNfsInlineLinks) contextValidateSelf(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Self != nil {
+
+		if swag.IsZero(m.Self) { // not required
+			return nil
+		}
+
 		if err := m.Self.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("nfs" + "." + "_links" + "." + "self")
@@ -5130,6 +5199,11 @@ func (m *SvmInlineNis) ContextValidate(ctx context.Context, formats strfmt.Regis
 func (m *SvmInlineNis) contextValidateLinks(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Links != nil {
+
+		if swag.IsZero(m.Links) { // not required
+			return nil
+		}
+
 		if err := m.Links.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("nis" + "." + "_links")
@@ -5146,6 +5220,11 @@ func (m *SvmInlineNis) contextValidateLinks(ctx context.Context, formats strfmt.
 func (m *SvmInlineNis) contextValidateDomain(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Domain != nil {
+
+		if swag.IsZero(m.Domain) { // not required
+			return nil
+		}
+
 		if err := m.Domain.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("nis" + "." + "domain")
@@ -5250,6 +5329,11 @@ func (m *SvmInlineNisInlineLinks) ContextValidate(ctx context.Context, formats s
 func (m *SvmInlineNisInlineLinks) contextValidateSelf(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Self != nil {
+
+		if swag.IsZero(m.Self) { // not required
+			return nil
+		}
+
 		if err := m.Self.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("nis" + "." + "_links" + "." + "self")
@@ -5497,6 +5581,11 @@ func (m *SvmInlineNsswitch) contextValidateGroup(ctx context.Context, formats st
 	for i := 0; i < len(m.Group); i++ {
 
 		if m.Group[i] != nil {
+
+			if swag.IsZero(m.Group[i]) { // not required
+				return nil
+			}
+
 			if err := m.Group[i].ContextValidate(ctx, formats); err != nil {
 				if ve, ok := err.(*errors.Validation); ok {
 					return ve.ValidateName("nsswitch" + "." + "group" + "." + strconv.Itoa(i))
@@ -5517,6 +5606,11 @@ func (m *SvmInlineNsswitch) contextValidateHosts(ctx context.Context, formats st
 	for i := 0; i < len(m.Hosts); i++ {
 
 		if m.Hosts[i] != nil {
+
+			if swag.IsZero(m.Hosts[i]) { // not required
+				return nil
+			}
+
 			if err := m.Hosts[i].ContextValidate(ctx, formats); err != nil {
 				if ve, ok := err.(*errors.Validation); ok {
 					return ve.ValidateName("nsswitch" + "." + "hosts" + "." + strconv.Itoa(i))
@@ -5537,6 +5631,11 @@ func (m *SvmInlineNsswitch) contextValidateNamemap(ctx context.Context, formats 
 	for i := 0; i < len(m.Namemap); i++ {
 
 		if m.Namemap[i] != nil {
+
+			if swag.IsZero(m.Namemap[i]) { // not required
+				return nil
+			}
+
 			if err := m.Namemap[i].ContextValidate(ctx, formats); err != nil {
 				if ve, ok := err.(*errors.Validation); ok {
 					return ve.ValidateName("nsswitch" + "." + "namemap" + "." + strconv.Itoa(i))
@@ -5557,6 +5656,11 @@ func (m *SvmInlineNsswitch) contextValidateNetgroup(ctx context.Context, formats
 	for i := 0; i < len(m.Netgroup); i++ {
 
 		if m.Netgroup[i] != nil {
+
+			if swag.IsZero(m.Netgroup[i]) { // not required
+				return nil
+			}
+
 			if err := m.Netgroup[i].ContextValidate(ctx, formats); err != nil {
 				if ve, ok := err.(*errors.Validation); ok {
 					return ve.ValidateName("nsswitch" + "." + "netgroup" + "." + strconv.Itoa(i))
@@ -5577,6 +5681,11 @@ func (m *SvmInlineNsswitch) contextValidatePasswd(ctx context.Context, formats s
 	for i := 0; i < len(m.Passwd); i++ {
 
 		if m.Passwd[i] != nil {
+
+			if swag.IsZero(m.Passwd[i]) { // not required
+				return nil
+			}
+
 			if err := m.Passwd[i].ContextValidate(ctx, formats); err != nil {
 				if ve, ok := err.(*errors.Validation); ok {
 					return ve.ValidateName("nsswitch" + "." + "passwd" + "." + strconv.Itoa(i))
@@ -5603,6 +5712,207 @@ func (m *SvmInlineNsswitch) MarshalBinary() ([]byte, error) {
 // UnmarshalBinary interface implementation
 func (m *SvmInlineNsswitch) UnmarshalBinary(b []byte) error {
 	var res SvmInlineNsswitch
+	if err := swag.ReadJSON(b, &res); err != nil {
+		return err
+	}
+	*m = res
+	return nil
+}
+
+// SvmInlineNvme <personalities supports=unified>
+// Available for GET, POST, and PATCH requests.
+// </personalities>
+// <personalities supports=asar2>
+// Available for GET requests. All SVMs are provisioned with the NVMe service configured.
+// </personalities>
+//
+// swagger:model svm_inline_nvme
+type SvmInlineNvme struct {
+
+	// links
+	Links *SvmInlineNvmeInlineLinks `json:"_links,omitempty"`
+
+	// If this is set to true, an SVM administrator can manage the NVMe service. If it is false, only the cluster administrator can manage the service.
+	Allowed *bool `json:"allowed,omitempty"`
+
+	// If allowed, setting to true enables the NVMe service.
+	Enabled *bool `json:"enabled,omitempty"`
+}
+
+// Validate validates this svm inline nvme
+func (m *SvmInlineNvme) Validate(formats strfmt.Registry) error {
+	var res []error
+
+	if err := m.validateLinks(formats); err != nil {
+		res = append(res, err)
+	}
+
+	if len(res) > 0 {
+		return errors.CompositeValidationError(res...)
+	}
+	return nil
+}
+
+func (m *SvmInlineNvme) validateLinks(formats strfmt.Registry) error {
+	if swag.IsZero(m.Links) { // not required
+		return nil
+	}
+
+	if m.Links != nil {
+		if err := m.Links.Validate(formats); err != nil {
+			if ve, ok := err.(*errors.Validation); ok {
+				return ve.ValidateName("nvme" + "." + "_links")
+			} else if ce, ok := err.(*errors.CompositeError); ok {
+				return ce.ValidateName("nvme" + "." + "_links")
+			}
+			return err
+		}
+	}
+
+	return nil
+}
+
+// ContextValidate validate this svm inline nvme based on the context it is used
+func (m *SvmInlineNvme) ContextValidate(ctx context.Context, formats strfmt.Registry) error {
+	var res []error
+
+	if err := m.contextValidateLinks(ctx, formats); err != nil {
+		res = append(res, err)
+	}
+
+	if len(res) > 0 {
+		return errors.CompositeValidationError(res...)
+	}
+	return nil
+}
+
+func (m *SvmInlineNvme) contextValidateLinks(ctx context.Context, formats strfmt.Registry) error {
+
+	if m.Links != nil {
+
+		if swag.IsZero(m.Links) { // not required
+			return nil
+		}
+
+		if err := m.Links.ContextValidate(ctx, formats); err != nil {
+			if ve, ok := err.(*errors.Validation); ok {
+				return ve.ValidateName("nvme" + "." + "_links")
+			} else if ce, ok := err.(*errors.CompositeError); ok {
+				return ce.ValidateName("nvme" + "." + "_links")
+			}
+			return err
+		}
+	}
+
+	return nil
+}
+
+// MarshalBinary interface implementation
+func (m *SvmInlineNvme) MarshalBinary() ([]byte, error) {
+	if m == nil {
+		return nil, nil
+	}
+	return swag.WriteJSON(m)
+}
+
+// UnmarshalBinary interface implementation
+func (m *SvmInlineNvme) UnmarshalBinary(b []byte) error {
+	var res SvmInlineNvme
+	if err := swag.ReadJSON(b, &res); err != nil {
+		return err
+	}
+	*m = res
+	return nil
+}
+
+// SvmInlineNvmeInlineLinks svm inline nvme inline links
+//
+// swagger:model svm_inline_nvme_inline__links
+type SvmInlineNvmeInlineLinks struct {
+
+	// self
+	Self *Href `json:"self,omitempty"`
+}
+
+// Validate validates this svm inline nvme inline links
+func (m *SvmInlineNvmeInlineLinks) Validate(formats strfmt.Registry) error {
+	var res []error
+
+	if err := m.validateSelf(formats); err != nil {
+		res = append(res, err)
+	}
+
+	if len(res) > 0 {
+		return errors.CompositeValidationError(res...)
+	}
+	return nil
+}
+
+func (m *SvmInlineNvmeInlineLinks) validateSelf(formats strfmt.Registry) error {
+	if swag.IsZero(m.Self) { // not required
+		return nil
+	}
+
+	if m.Self != nil {
+		if err := m.Self.Validate(formats); err != nil {
+			if ve, ok := err.(*errors.Validation); ok {
+				return ve.ValidateName("nvme" + "." + "_links" + "." + "self")
+			} else if ce, ok := err.(*errors.CompositeError); ok {
+				return ce.ValidateName("nvme" + "." + "_links" + "." + "self")
+			}
+			return err
+		}
+	}
+
+	return nil
+}
+
+// ContextValidate validate this svm inline nvme inline links based on the context it is used
+func (m *SvmInlineNvmeInlineLinks) ContextValidate(ctx context.Context, formats strfmt.Registry) error {
+	var res []error
+
+	if err := m.contextValidateSelf(ctx, formats); err != nil {
+		res = append(res, err)
+	}
+
+	if len(res) > 0 {
+		return errors.CompositeValidationError(res...)
+	}
+	return nil
+}
+
+func (m *SvmInlineNvmeInlineLinks) contextValidateSelf(ctx context.Context, formats strfmt.Registry) error {
+
+	if m.Self != nil {
+
+		if swag.IsZero(m.Self) { // not required
+			return nil
+		}
+
+		if err := m.Self.ContextValidate(ctx, formats); err != nil {
+			if ve, ok := err.(*errors.Validation); ok {
+				return ve.ValidateName("nvme" + "." + "_links" + "." + "self")
+			} else if ce, ok := err.(*errors.CompositeError); ok {
+				return ce.ValidateName("nvme" + "." + "_links" + "." + "self")
+			}
+			return err
+		}
+	}
+
+	return nil
+}
+
+// MarshalBinary interface implementation
+func (m *SvmInlineNvmeInlineLinks) MarshalBinary() ([]byte, error) {
+	if m == nil {
+		return nil, nil
+	}
+	return swag.WriteJSON(m)
+}
+
+// UnmarshalBinary interface implementation
+func (m *SvmInlineNvmeInlineLinks) UnmarshalBinary(b []byte) error {
+	var res SvmInlineNvmeInlineLinks
 	if err := swag.ReadJSON(b, &res); err != nil {
 		return err
 	}
@@ -5781,6 +6091,11 @@ func (m *SvmInlineQosAdaptivePolicyGroupTemplate) ContextValidate(ctx context.Co
 func (m *SvmInlineQosAdaptivePolicyGroupTemplate) contextValidateLinks(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Links != nil {
+
+		if swag.IsZero(m.Links) { // not required
+			return nil
+		}
+
 		if err := m.Links.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("qos_adaptive_policy_group_template" + "." + "_links")
@@ -5871,6 +6186,11 @@ func (m *SvmInlineQosAdaptivePolicyGroupTemplateInlineLinks) ContextValidate(ctx
 func (m *SvmInlineQosAdaptivePolicyGroupTemplateInlineLinks) contextValidateSelf(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Self != nil {
+
+		if swag.IsZero(m.Self) { // not required
+			return nil
+		}
+
 		if err := m.Self.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("qos_adaptive_policy_group_template" + "." + "_links" + "." + "self")
@@ -6073,6 +6393,11 @@ func (m *SvmInlineQosPolicy) ContextValidate(ctx context.Context, formats strfmt
 func (m *SvmInlineQosPolicy) contextValidateLinks(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Links != nil {
+
+		if swag.IsZero(m.Links) { // not required
+			return nil
+		}
+
 		if err := m.Links.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("qos_policy" + "." + "_links")
@@ -6275,6 +6600,11 @@ func (m *SvmInlineQosPolicyGroupTemplate) ContextValidate(ctx context.Context, f
 func (m *SvmInlineQosPolicyGroupTemplate) contextValidateLinks(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Links != nil {
+
+		if swag.IsZero(m.Links) { // not required
+			return nil
+		}
+
 		if err := m.Links.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("qos_policy_group_template" + "." + "_links")
@@ -6365,6 +6695,11 @@ func (m *SvmInlineQosPolicyGroupTemplateInlineLinks) ContextValidate(ctx context
 func (m *SvmInlineQosPolicyGroupTemplateInlineLinks) contextValidateSelf(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Self != nil {
+
+		if swag.IsZero(m.Self) { // not required
+			return nil
+		}
+
 		if err := m.Self.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("qos_policy_group_template" + "." + "_links" + "." + "self")
@@ -6455,6 +6790,11 @@ func (m *SvmInlineQosPolicyInlineLinks) ContextValidate(ctx context.Context, for
 func (m *SvmInlineQosPolicyInlineLinks) contextValidateSelf(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Self != nil {
+
+		if swag.IsZero(m.Self) { // not required
+			return nil
+		}
+
 		if err := m.Self.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("qos_policy" + "." + "_links" + "." + "self")
@@ -6625,6 +6965,11 @@ func (m *SvmInlineS3) ContextValidate(ctx context.Context, formats strfmt.Regist
 func (m *SvmInlineS3) contextValidateLinks(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Links != nil {
+
+		if swag.IsZero(m.Links) { // not required
+			return nil
+		}
+
 		if err := m.Links.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("s3" + "." + "_links")
@@ -6641,6 +6986,11 @@ func (m *SvmInlineS3) contextValidateLinks(ctx context.Context, formats strfmt.R
 func (m *SvmInlineS3) contextValidateCertificate(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Certificate != nil {
+
+		if swag.IsZero(m.Certificate) { // not required
+			return nil
+		}
+
 		if err := m.Certificate.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("s3" + "." + "certificate")
@@ -6738,6 +7088,11 @@ func (m *SvmInlineS3InlineCertificate) ContextValidate(ctx context.Context, form
 func (m *SvmInlineS3InlineCertificate) contextValidateLinks(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Links != nil {
+
+		if swag.IsZero(m.Links) { // not required
+			return nil
+		}
+
 		if err := m.Links.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("s3" + "." + "certificate" + "." + "_links")
@@ -6828,6 +7183,11 @@ func (m *SvmInlineS3InlineCertificateInlineLinks) ContextValidate(ctx context.Co
 func (m *SvmInlineS3InlineCertificateInlineLinks) contextValidateSelf(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Self != nil {
+
+		if swag.IsZero(m.Self) { // not required
+			return nil
+		}
+
 		if err := m.Self.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("s3" + "." + "certificate" + "." + "_links" + "." + "self")
@@ -6918,6 +7278,11 @@ func (m *SvmInlineS3InlineLinks) ContextValidate(ctx context.Context, formats st
 func (m *SvmInlineS3InlineLinks) contextValidateSelf(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Self != nil {
+
+		if swag.IsZero(m.Self) { // not required
+			return nil
+		}
+
 		if err := m.Self.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("s3" + "." + "_links" + "." + "self")
@@ -7106,6 +7471,11 @@ func (m *SvmInlineSnapshotPolicy) ContextValidate(ctx context.Context, formats s
 func (m *SvmInlineSnapshotPolicy) contextValidateLinks(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Links != nil {
+
+		if swag.IsZero(m.Links) { // not required
+			return nil
+		}
+
 		if err := m.Links.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("snapshot_policy" + "." + "_links")
@@ -7196,6 +7566,11 @@ func (m *SvmInlineSnapshotPolicyInlineLinks) ContextValidate(ctx context.Context
 func (m *SvmInlineSnapshotPolicyInlineLinks) contextValidateSelf(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Self != nil {
+
+		if swag.IsZero(m.Self) { // not required
+			return nil
+		}
+
 		if err := m.Self.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("snapshot_policy" + "." + "_links" + "." + "self")

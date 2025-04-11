@@ -98,11 +98,13 @@ func (o *QosPolicyModifyCollectionOK) Code() int {
 }
 
 func (o *QosPolicyModifyCollectionOK) Error() string {
-	return fmt.Sprintf("[PATCH /storage/qos/policies][%d] qosPolicyModifyCollectionOK  %+v", 200, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[PATCH /storage/qos/policies][%d] qosPolicyModifyCollectionOK %s", 200, payload)
 }
 
 func (o *QosPolicyModifyCollectionOK) String() string {
-	return fmt.Sprintf("[PATCH /storage/qos/policies][%d] qosPolicyModifyCollectionOK  %+v", 200, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[PATCH /storage/qos/policies][%d] qosPolicyModifyCollectionOK %s", 200, payload)
 }
 
 func (o *QosPolicyModifyCollectionOK) GetPayload() *models.QosPolicyJobLinkResponse {
@@ -166,11 +168,13 @@ func (o *QosPolicyModifyCollectionAccepted) Code() int {
 }
 
 func (o *QosPolicyModifyCollectionAccepted) Error() string {
-	return fmt.Sprintf("[PATCH /storage/qos/policies][%d] qosPolicyModifyCollectionAccepted  %+v", 202, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[PATCH /storage/qos/policies][%d] qosPolicyModifyCollectionAccepted %s", 202, payload)
 }
 
 func (o *QosPolicyModifyCollectionAccepted) String() string {
-	return fmt.Sprintf("[PATCH /storage/qos/policies][%d] qosPolicyModifyCollectionAccepted  %+v", 202, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[PATCH /storage/qos/policies][%d] qosPolicyModifyCollectionAccepted %s", 202, payload)
 }
 
 func (o *QosPolicyModifyCollectionAccepted) GetPayload() *models.QosPolicyJobLinkResponse {
@@ -254,11 +258,13 @@ func (o *QosPolicyModifyCollectionDefault) Code() int {
 }
 
 func (o *QosPolicyModifyCollectionDefault) Error() string {
-	return fmt.Sprintf("[PATCH /storage/qos/policies][%d] qos_policy_modify_collection default  %+v", o._statusCode, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[PATCH /storage/qos/policies][%d] qos_policy_modify_collection default %s", o._statusCode, payload)
 }
 
 func (o *QosPolicyModifyCollectionDefault) String() string {
-	return fmt.Sprintf("[PATCH /storage/qos/policies][%d] qos_policy_modify_collection default  %+v", o._statusCode, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[PATCH /storage/qos/policies][%d] qos_policy_modify_collection default %s", o._statusCode, payload)
 }
 
 func (o *QosPolicyModifyCollectionDefault) GetPayload() *models.ErrorResponse {
@@ -284,16 +290,16 @@ swagger:model QosPolicyModifyCollectionBody
 type QosPolicyModifyCollectionBody struct {
 
 	// links
-	Links *QosPolicyInlineLinks `json:"_links,omitempty"`
+	Links *models.QosPolicyInlineLinks `json:"_links,omitempty"`
 
 	// adaptive
-	Adaptive *QosPolicyInlineAdaptive `json:"adaptive,omitempty"`
+	Adaptive *models.QosPolicyInlineAdaptive `json:"adaptive,omitempty"`
 
 	// error
 	Error *models.Error `json:"error,omitempty"`
 
 	// fixed
-	Fixed *QosPolicyInlineFixed `json:"fixed,omitempty"`
+	Fixed *models.QosPolicyInlineFixed `json:"fixed,omitempty"`
 
 	// Name of the QoS policy.
 	// Example: extreme
@@ -309,7 +315,7 @@ type QosPolicyModifyCollectionBody struct {
 
 	// Class of the QoS policy.
 	// Read Only: true
-	// Enum: [undefined preset user_defined system_defined autovolume load_control]
+	// Enum: ["undefined","preset","user_defined","system_defined","autovolume","load_control"]
 	PolicyClass *string `json:"policy_class,omitempty"`
 
 	// qos policy response inline records
@@ -317,11 +323,11 @@ type QosPolicyModifyCollectionBody struct {
 
 	// Scope of the entity. Set to "cluster" for cluster owned objects and to "svm" for SVM owned objects.
 	// Read Only: true
-	// Enum: [cluster svm]
+	// Enum: ["cluster","svm"]
 	Scope *string `json:"scope,omitempty"`
 
 	// svm
-	Svm *QosPolicyInlineSvm `json:"svm,omitempty"`
+	Svm *models.QosPolicyInlineSvm `json:"svm,omitempty"`
 
 	// uuid
 	// Example: 1cd8a442-86d1-11e0-ae1c-123478563412
@@ -645,6 +651,11 @@ func (o *QosPolicyModifyCollectionBody) ContextValidate(ctx context.Context, for
 func (o *QosPolicyModifyCollectionBody) contextValidateLinks(ctx context.Context, formats strfmt.Registry) error {
 
 	if o.Links != nil {
+
+		if swag.IsZero(o.Links) { // not required
+			return nil
+		}
+
 		if err := o.Links.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("info" + "." + "_links")
@@ -661,6 +672,11 @@ func (o *QosPolicyModifyCollectionBody) contextValidateLinks(ctx context.Context
 func (o *QosPolicyModifyCollectionBody) contextValidateAdaptive(ctx context.Context, formats strfmt.Registry) error {
 
 	if o.Adaptive != nil {
+
+		if swag.IsZero(o.Adaptive) { // not required
+			return nil
+		}
+
 		if err := o.Adaptive.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("info" + "." + "adaptive")
@@ -677,6 +693,11 @@ func (o *QosPolicyModifyCollectionBody) contextValidateAdaptive(ctx context.Cont
 func (o *QosPolicyModifyCollectionBody) contextValidateError(ctx context.Context, formats strfmt.Registry) error {
 
 	if o.Error != nil {
+
+		if swag.IsZero(o.Error) { // not required
+			return nil
+		}
+
 		if err := o.Error.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("info" + "." + "error")
@@ -693,6 +714,11 @@ func (o *QosPolicyModifyCollectionBody) contextValidateError(ctx context.Context
 func (o *QosPolicyModifyCollectionBody) contextValidateFixed(ctx context.Context, formats strfmt.Registry) error {
 
 	if o.Fixed != nil {
+
+		if swag.IsZero(o.Fixed) { // not required
+			return nil
+		}
+
 		if err := o.Fixed.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("info" + "." + "fixed")
@@ -738,6 +764,11 @@ func (o *QosPolicyModifyCollectionBody) contextValidateQosPolicyResponseInlineRe
 	for i := 0; i < len(o.QosPolicyResponseInlineRecords); i++ {
 
 		if o.QosPolicyResponseInlineRecords[i] != nil {
+
+			if swag.IsZero(o.QosPolicyResponseInlineRecords[i]) { // not required
+				return nil
+			}
+
 			if err := o.QosPolicyResponseInlineRecords[i].ContextValidate(ctx, formats); err != nil {
 				if ve, ok := err.(*errors.Validation); ok {
 					return ve.ValidateName("info" + "." + "records" + "." + strconv.Itoa(i))
@@ -765,6 +796,11 @@ func (o *QosPolicyModifyCollectionBody) contextValidateScope(ctx context.Context
 func (o *QosPolicyModifyCollectionBody) contextValidateSvm(ctx context.Context, formats strfmt.Registry) error {
 
 	if o.Svm != nil {
+
+		if swag.IsZero(o.Svm) { // not required
+			return nil
+		}
+
 		if err := o.Svm.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("info" + "." + "svm")
@@ -865,6 +901,11 @@ func (o *QosPolicyInlineLinks) ContextValidate(ctx context.Context, formats strf
 func (o *QosPolicyInlineLinks) contextValidateSelf(ctx context.Context, formats strfmt.Registry) error {
 
 	if o.Self != nil {
+
+		if swag.IsZero(o.Self) { // not required
+			return nil
+		}
+
 		if err := o.Self.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("info" + "." + "_links" + "." + "self")
@@ -906,21 +947,21 @@ type QosPolicyInlineAdaptive struct {
 	AbsoluteMinIops *int64 `json:"absolute_min_iops,omitempty"`
 
 	// Specifies the block size
-	// Enum: [any 4k 8k 16k 32k 64k 128k]
+	// Enum: ["any","4k","8k","16k","32k","64k","128k"]
 	BlockSize *string `json:"block_size,omitempty"`
 
 	// Expected IOPS. Specifies the minimum expected IOPS per TB allocated based on the storage object allocated size. These floors are not guaranteed on non-AFF platforms or when FabricPool tiering policies are set.
 	ExpectedIops *int64 `json:"expected_iops,omitempty"`
 
 	// Specifies the size to be used to calculate expected IOPS per TB. The size options are either the storage object allocated space or the storage object used space.
-	// Enum: [used_space allocated_space]
+	// Enum: ["used_space","allocated_space"]
 	ExpectedIopsAllocation *string `json:"expected_iops_allocation,omitempty"`
 
 	// Peak IOPS. Specifies the maximum possible IOPS per TB allocated based on the storage object allocated size or the storage object used size.
 	PeakIops *int64 `json:"peak_iops,omitempty"`
 
 	// Specifies the size to be used to calculate peak IOPS per TB. The size options are either the storage object allocated space or the storage object used space.
-	// Enum: [used_space allocated_space]
+	// Enum: ["used_space","allocated_space"]
 	PeakIopsAllocation *string `json:"peak_iops_allocation,omitempty"`
 }
 
@@ -1260,7 +1301,7 @@ swagger:model qos_policy_inline_svm
 type QosPolicyInlineSvm struct {
 
 	// links
-	Links *QosPolicyInlineSvmInlineLinks `json:"_links,omitempty"`
+	Links *models.QosPolicyInlineSvmInlineLinks `json:"_links,omitempty"`
 
 	// The name of the SVM. This field cannot be specified in a PATCH method.
 	//
@@ -1323,6 +1364,11 @@ func (o *QosPolicyInlineSvm) ContextValidate(ctx context.Context, formats strfmt
 func (o *QosPolicyInlineSvm) contextValidateLinks(ctx context.Context, formats strfmt.Registry) error {
 
 	if o.Links != nil {
+
+		if swag.IsZero(o.Links) { // not required
+			return nil
+		}
+
 		if err := o.Links.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("info" + "." + "svm" + "." + "_links")
@@ -1414,6 +1460,11 @@ func (o *QosPolicyInlineSvmInlineLinks) ContextValidate(ctx context.Context, for
 func (o *QosPolicyInlineSvmInlineLinks) contextValidateSelf(ctx context.Context, formats strfmt.Registry) error {
 
 	if o.Self != nil {
+
+		if swag.IsZero(o.Self) { // not required
+			return nil
+		}
+
 		if err := o.Self.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("info" + "." + "svm" + "." + "_links" + "." + "self")

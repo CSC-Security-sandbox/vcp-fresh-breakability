@@ -34,7 +34,7 @@ type Disk struct {
 	// Disk class
 	// Example: solid_state
 	// Read Only: true
-	// Enum: [unknown capacity performance archive solid_state array virtual]
+	// Enum: ["unknown","capacity","performance","archive","solid_state","array","virtual"]
 	Class *string `json:"class,omitempty"`
 
 	// Security standard that the device is certified to.
@@ -45,7 +45,7 @@ type Disk struct {
 	// Type of overlying disk container
 	// Example: spare
 	// Read Only: true
-	// Enum: [aggregate broken foreign labelmaint maintenance shared spare unassigned unknown unsupported remote mediator]
+	// Enum: ["aggregate","broken","foreign","labelmaint","maintenance","shared","spare","unassigned","unknown","unsupported","remote","mediator"]
 	ContainerType *string `json:"container_type,omitempty"`
 
 	// Standard that the device supports for encryption control.
@@ -74,7 +74,7 @@ type Disk struct {
 	// Effective Disk type
 	// Example: vmdisk
 	// Read Only: true
-	// Enum: [ata fcal lun msata sas bsas ssd ssd_nvm ssd_zns ssd_cap fsas vmdisk unknown]
+	// Enum: ["ata","fcal","lun","msata","sas","bsas","ssd","ssd_nvm","ssd_zns","ssd_cap","fsas","vmdisk","unknown"]
 	EffectiveType *string `json:"effective_type,omitempty"`
 
 	// This field should only be set as a query parameter in a PATCH operation. It is input only and won't be returned by a subsequent GET.
@@ -136,7 +136,7 @@ type Disk struct {
 
 	// Pool to which disk is assigned
 	// Example: pool0
-	// Enum: [pool0 pool1 failed none]
+	// Enum: ["pool0","pool1","failed","none"]
 	Pool *string `json:"pool,omitempty"`
 
 	// Mode of drive data protection and FIPS compliance. Possible values are:
@@ -148,7 +148,7 @@ type Disk struct {
 	//
 	// Example: data
 	// Read Only: true
-	// Enum: [open data part full miss]
+	// Enum: ["open","data","part","full","miss"]
 	ProtectionMode *string `json:"protection_mode,omitempty"`
 
 	// Percentage of rated life used
@@ -188,7 +188,7 @@ type Disk struct {
 
 	// State
 	// Example: present
-	// Enum: [broken copy maintenance partner pending present reconstructing removed spare unfail zeroing]
+	// Enum: ["broken","copy","maintenance","partner","pending","present","reconstructing","removed","spare","unfail","zeroing"]
 	State *string `json:"state,omitempty"`
 
 	// stats
@@ -203,7 +203,7 @@ type Disk struct {
 	// Disk interface type
 	// Example: ssd
 	// Read Only: true
-	// Enum: [ata bsas fcal fsas lun sas msata ssd vmdisk unknown ssd_cap ssd_nvm ssd_zns]
+	// Enum: ["ata","bsas","fcal","fsas","lun","sas","msata","ssd","vmdisk","unknown","ssd_cap","ssd_nvm","ssd_zns"]
 	Type *string `json:"type,omitempty"`
 
 	// The unique identifier for a disk
@@ -1286,6 +1286,11 @@ func (m *Disk) contextValidateDiskInlineAggregates(ctx context.Context, formats 
 	for i := 0; i < len(m.DiskInlineAggregates); i++ {
 
 		if m.DiskInlineAggregates[i] != nil {
+
+			if swag.IsZero(m.DiskInlineAggregates[i]) { // not required
+				return nil
+			}
+
 			if err := m.DiskInlineAggregates[i].ContextValidate(ctx, formats); err != nil {
 				if ve, ok := err.(*errors.Validation); ok {
 					return ve.ValidateName("aggregates" + "." + strconv.Itoa(i))
@@ -1310,6 +1315,11 @@ func (m *Disk) contextValidateDiskInlineError(ctx context.Context, formats strfm
 	for i := 0; i < len(m.DiskInlineError); i++ {
 
 		if m.DiskInlineError[i] != nil {
+
+			if swag.IsZero(m.DiskInlineError[i]) { // not required
+				return nil
+			}
+
 			if err := m.DiskInlineError[i].ContextValidate(ctx, formats); err != nil {
 				if ve, ok := err.(*errors.Validation); ok {
 					return ve.ValidateName("error" + "." + strconv.Itoa(i))
@@ -1334,6 +1344,11 @@ func (m *Disk) contextValidateDiskInlinePaths(ctx context.Context, formats strfm
 	for i := 0; i < len(m.DiskInlinePaths); i++ {
 
 		if m.DiskInlinePaths[i] != nil {
+
+			if swag.IsZero(m.DiskInlinePaths[i]) { // not required
+				return nil
+			}
+
 			if err := m.DiskInlinePaths[i].ContextValidate(ctx, formats); err != nil {
 				if ve, ok := err.(*errors.Validation); ok {
 					return ve.ValidateName("paths" + "." + strconv.Itoa(i))
@@ -1352,6 +1367,11 @@ func (m *Disk) contextValidateDiskInlinePaths(ctx context.Context, formats strfm
 func (m *Disk) contextValidateDrNode(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.DrNode != nil {
+
+		if swag.IsZero(m.DrNode) { // not required
+			return nil
+		}
+
 		if err := m.DrNode.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("dr_node")
@@ -1368,6 +1388,11 @@ func (m *Disk) contextValidateDrNode(ctx context.Context, formats strfmt.Registr
 func (m *Disk) contextValidateDrawer(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Drawer != nil {
+
+		if swag.IsZero(m.Drawer) { // not required
+			return nil
+		}
+
 		if err := m.Drawer.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("drawer")
@@ -1411,6 +1436,11 @@ func (m *Disk) contextValidateFirmwareVersion(ctx context.Context, formats strfm
 func (m *Disk) contextValidateHomeNode(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.HomeNode != nil {
+
+		if swag.IsZero(m.HomeNode) { // not required
+			return nil
+		}
+
 		if err := m.HomeNode.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("home_node")
@@ -1427,6 +1457,11 @@ func (m *Disk) contextValidateHomeNode(ctx context.Context, formats strfmt.Regis
 func (m *Disk) contextValidateKeyID(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.KeyID != nil {
+
+		if swag.IsZero(m.KeyID) { // not required
+			return nil
+		}
+
 		if err := m.KeyID.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("key_id")
@@ -1479,6 +1514,11 @@ func (m *Disk) contextValidateName(ctx context.Context, formats strfmt.Registry)
 func (m *Disk) contextValidateNode(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Node != nil {
+
+		if swag.IsZero(m.Node) { // not required
+			return nil
+		}
+
 		if err := m.Node.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("node")
@@ -1495,6 +1535,11 @@ func (m *Disk) contextValidateNode(ctx context.Context, formats strfmt.Registry)
 func (m *Disk) contextValidateOutage(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Outage != nil {
+
+		if swag.IsZero(m.Outage) { // not required
+			return nil
+		}
+
 		if err := m.Outage.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("outage")
@@ -1592,6 +1637,11 @@ func (m *Disk) contextValidateSerialNumber(ctx context.Context, formats strfmt.R
 func (m *Disk) contextValidateShelf(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Shelf != nil {
+
+		if swag.IsZero(m.Shelf) { // not required
+			return nil
+		}
+
 		if err := m.Shelf.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("shelf")
@@ -1608,6 +1658,11 @@ func (m *Disk) contextValidateShelf(ctx context.Context, formats strfmt.Registry
 func (m *Disk) contextValidateStats(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Stats != nil {
+
+		if swag.IsZero(m.Stats) { // not required
+			return nil
+		}
+
 		if err := m.Stats.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("stats")
@@ -1624,6 +1679,11 @@ func (m *Disk) contextValidateStats(ctx context.Context, formats strfmt.Registry
 func (m *Disk) contextValidateStorageAvailabilityZone(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.StorageAvailabilityZone != nil {
+
+		if swag.IsZero(m.StorageAvailabilityZone) { // not required
+			return nil
+		}
+
 		if err := m.StorageAvailabilityZone.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("storage_availability_zone")
@@ -1640,6 +1700,11 @@ func (m *Disk) contextValidateStorageAvailabilityZone(ctx context.Context, forma
 func (m *Disk) contextValidateStoragePool(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.StoragePool != nil {
+
+		if swag.IsZero(m.StoragePool) { // not required
+			return nil
+		}
+
 		if err := m.StoragePool.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("storage_pool")
@@ -1692,6 +1757,11 @@ func (m *Disk) contextValidateVendor(ctx context.Context, formats strfmt.Registr
 func (m *Disk) contextValidateVirtual(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Virtual != nil {
+
+		if swag.IsZero(m.Virtual) { // not required
+			return nil
+		}
+
 		if err := m.Virtual.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("virtual")
@@ -1790,6 +1860,11 @@ func (m *DiskInlineAggregatesInlineArrayItem) ContextValidate(ctx context.Contex
 func (m *DiskInlineAggregatesInlineArrayItem) contextValidateLinks(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Links != nil {
+
+		if swag.IsZero(m.Links) { // not required
+			return nil
+		}
+
 		if err := m.Links.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("_links")
@@ -1880,6 +1955,11 @@ func (m *DiskInlineAggregatesInlineArrayItemInlineLinks) ContextValidate(ctx con
 func (m *DiskInlineAggregatesInlineArrayItemInlineLinks) contextValidateSelf(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Self != nil {
+
+		if swag.IsZero(m.Self) { // not required
+			return nil
+		}
+
 		if err := m.Self.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("_links" + "." + "self")
@@ -2070,6 +2150,11 @@ func (m *DiskInlineHomeNode) ContextValidate(ctx context.Context, formats strfmt
 func (m *DiskInlineHomeNode) contextValidateLinks(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Links != nil {
+
+		if swag.IsZero(m.Links) { // not required
+			return nil
+		}
+
 		if err := m.Links.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("home_node" + "." + "_links")
@@ -2160,6 +2245,11 @@ func (m *DiskInlineHomeNodeInlineLinks) ContextValidate(ctx context.Context, for
 func (m *DiskInlineHomeNodeInlineLinks) contextValidateSelf(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Self != nil {
+
+		if swag.IsZero(m.Self) { // not required
+			return nil
+		}
+
 		if err := m.Self.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("home_node" + "." + "_links" + "." + "self")
@@ -2303,6 +2393,11 @@ func (m *DiskInlineNode) ContextValidate(ctx context.Context, formats strfmt.Reg
 func (m *DiskInlineNode) contextValidateLinks(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Links != nil {
+
+		if swag.IsZero(m.Links) { // not required
+			return nil
+		}
+
 		if err := m.Links.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("node" + "." + "_links")
@@ -2393,6 +2488,11 @@ func (m *DiskInlineNodeInlineLinks) ContextValidate(ctx context.Context, formats
 func (m *DiskInlineNodeInlineLinks) contextValidateSelf(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Self != nil {
+
+		if swag.IsZero(m.Self) { // not required
+			return nil
+		}
+
 		if err := m.Self.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("node" + "." + "_links" + "." + "self")
@@ -2500,6 +2600,11 @@ func (m *DiskInlineOutage) contextValidatePersistentlyFailed(ctx context.Context
 func (m *DiskInlineOutage) contextValidateReason(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Reason != nil {
+
+		if swag.IsZero(m.Reason) { // not required
+			return nil
+		}
+
 		if err := m.Reason.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("outage" + "." + "reason")
@@ -2594,6 +2699,11 @@ func (m *DiskInlineShelf) ContextValidate(ctx context.Context, formats strfmt.Re
 func (m *DiskInlineShelf) contextValidateLinks(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Links != nil {
+
+		if swag.IsZero(m.Links) { // not required
+			return nil
+		}
+
 		if err := m.Links.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("shelf" + "." + "_links")
@@ -2684,6 +2794,11 @@ func (m *DiskInlineShelfInlineLinks) ContextValidate(ctx context.Context, format
 func (m *DiskInlineShelfInlineLinks) contextValidateSelf(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Self != nil {
+
+		if swag.IsZero(m.Self) { // not required
+			return nil
+		}
+
 		if err := m.Self.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("shelf" + "." + "_links" + "." + "self")
@@ -2911,6 +3026,11 @@ func (m *DiskInlineStorageAvailabilityZone) ContextValidate(ctx context.Context,
 func (m *DiskInlineStorageAvailabilityZone) contextValidateLinks(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Links != nil {
+
+		if swag.IsZero(m.Links) { // not required
+			return nil
+		}
+
 		if err := m.Links.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("storage_availability_zone" + "." + "_links")
@@ -3001,6 +3121,11 @@ func (m *DiskInlineStorageAvailabilityZoneInlineLinks) ContextValidate(ctx conte
 func (m *DiskInlineStorageAvailabilityZoneInlineLinks) contextValidateSelf(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Self != nil {
+
+		if swag.IsZero(m.Self) { // not required
+			return nil
+		}
+
 		if err := m.Self.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("storage_availability_zone" + "." + "_links" + "." + "self")
@@ -3099,6 +3224,11 @@ func (m *DiskInlineStoragePool) ContextValidate(ctx context.Context, formats str
 func (m *DiskInlineStoragePool) contextValidateLinks(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Links != nil {
+
+		if swag.IsZero(m.Links) { // not required
+			return nil
+		}
+
 		if err := m.Links.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("storage_pool" + "." + "_links")
@@ -3189,6 +3319,11 @@ func (m *DiskInlineStoragePoolInlineLinks) ContextValidate(ctx context.Context, 
 func (m *DiskInlineStoragePoolInlineLinks) contextValidateSelf(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Self != nil {
+
+		if swag.IsZero(m.Self) { // not required
+			return nil
+		}
+
 		if err := m.Self.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("storage_pool" + "." + "_links" + "." + "self")

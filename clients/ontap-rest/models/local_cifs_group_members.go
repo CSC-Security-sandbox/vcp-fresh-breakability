@@ -147,6 +147,11 @@ func (m *LocalCifsGroupMembers) ContextValidate(ctx context.Context, formats str
 func (m *LocalCifsGroupMembers) contextValidateLocalCifsGroup(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.LocalCifsGroup != nil {
+
+		if swag.IsZero(m.LocalCifsGroup) { // not required
+			return nil
+		}
+
 		if err := m.LocalCifsGroup.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("local_cifs_group")
@@ -165,6 +170,11 @@ func (m *LocalCifsGroupMembers) contextValidateLocalCifsGroupMembersInlineRecord
 	for i := 0; i < len(m.LocalCifsGroupMembersInlineRecords); i++ {
 
 		if m.LocalCifsGroupMembersInlineRecords[i] != nil {
+
+			if swag.IsZero(m.LocalCifsGroupMembersInlineRecords[i]) { // not required
+				return nil
+			}
+
 			if err := m.LocalCifsGroupMembersInlineRecords[i].ContextValidate(ctx, formats); err != nil {
 				if ve, ok := err.(*errors.Validation); ok {
 					return ve.ValidateName("records" + "." + strconv.Itoa(i))
@@ -183,6 +193,11 @@ func (m *LocalCifsGroupMembers) contextValidateLocalCifsGroupMembersInlineRecord
 func (m *LocalCifsGroupMembers) contextValidateSvm(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Svm != nil {
+
+		if swag.IsZero(m.Svm) { // not required
+			return nil
+		}
+
 		if err := m.Svm.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("svm")
@@ -379,6 +394,11 @@ func (m *LocalCifsGroupMembersInlineSvm) ContextValidate(ctx context.Context, fo
 func (m *LocalCifsGroupMembersInlineSvm) contextValidateLinks(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Links != nil {
+
+		if swag.IsZero(m.Links) { // not required
+			return nil
+		}
+
 		if err := m.Links.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("svm" + "." + "_links")
@@ -469,6 +489,11 @@ func (m *LocalCifsGroupMembersInlineSvmInlineLinks) ContextValidate(ctx context.
 func (m *LocalCifsGroupMembersInlineSvmInlineLinks) contextValidateSelf(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Self != nil {
+
+		if swag.IsZero(m.Self) { // not required
+			return nil
+		}
+
 		if err := m.Self.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("svm" + "." + "_links" + "." + "self")

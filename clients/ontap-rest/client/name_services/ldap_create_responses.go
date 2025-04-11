@@ -6,6 +6,7 @@ package name_services
 // Editing this file might prove futile when you re-run the swagger generate command
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 
@@ -91,11 +92,13 @@ func (o *LdapCreateCreated) Code() int {
 }
 
 func (o *LdapCreateCreated) Error() string {
-	return fmt.Sprintf("[POST /name-services/ldap][%d] ldapCreateCreated  %+v", 201, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[POST /name-services/ldap][%d] ldapCreateCreated %s", 201, payload)
 }
 
 func (o *LdapCreateCreated) String() string {
-	return fmt.Sprintf("[POST /name-services/ldap][%d] ldapCreateCreated  %+v", 201, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[POST /name-services/ldap][%d] ldapCreateCreated %s", 201, payload)
 }
 
 func (o *LdapCreateCreated) GetPayload() *models.LdapServiceResponse {
@@ -199,11 +202,13 @@ func (o *LdapCreateDefault) Code() int {
 }
 
 func (o *LdapCreateDefault) Error() string {
-	return fmt.Sprintf("[POST /name-services/ldap][%d] ldap_create default  %+v", o._statusCode, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[POST /name-services/ldap][%d] ldap_create default %s", o._statusCode, payload)
 }
 
 func (o *LdapCreateDefault) String() string {
-	return fmt.Sprintf("[POST /name-services/ldap][%d] ldap_create default  %+v", o._statusCode, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[POST /name-services/ldap][%d] ldap_create default %s", o._statusCode, payload)
 }
 
 func (o *LdapCreateDefault) GetPayload() *models.ErrorResponse {

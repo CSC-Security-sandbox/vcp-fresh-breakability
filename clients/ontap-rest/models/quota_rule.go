@@ -44,7 +44,7 @@ type QuotaRule struct {
 	Svm *QuotaRuleInlineSvm `json:"svm,omitempty"`
 
 	// This parameter specifies the quota policy rule type. This is required in POST only and can take either one of the \"user\", \"group\" or \"tree\" values.
-	// Enum: [tree user group]
+	// Enum: ["tree","user","group"]
 	Type *string `json:"type,omitempty"`
 
 	// This parameter enables user mapping for user quota policy rules. This is valid in POST or PATCH for user quota policy rules only.
@@ -358,6 +358,11 @@ func (m *QuotaRule) ContextValidate(ctx context.Context, formats strfmt.Registry
 func (m *QuotaRule) contextValidateLinks(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Links != nil {
+
+		if swag.IsZero(m.Links) { // not required
+			return nil
+		}
+
 		if err := m.Links.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("_links")
@@ -374,6 +379,11 @@ func (m *QuotaRule) contextValidateLinks(ctx context.Context, formats strfmt.Reg
 func (m *QuotaRule) contextValidateFiles(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Files != nil {
+
+		if swag.IsZero(m.Files) { // not required
+			return nil
+		}
+
 		if err := m.Files.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("files")
@@ -390,6 +400,11 @@ func (m *QuotaRule) contextValidateFiles(ctx context.Context, formats strfmt.Reg
 func (m *QuotaRule) contextValidateGroup(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Group != nil {
+
+		if swag.IsZero(m.Group) { // not required
+			return nil
+		}
+
 		if err := m.Group.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("group")
@@ -406,6 +421,11 @@ func (m *QuotaRule) contextValidateGroup(ctx context.Context, formats strfmt.Reg
 func (m *QuotaRule) contextValidateQtree(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Qtree != nil {
+
+		if swag.IsZero(m.Qtree) { // not required
+			return nil
+		}
+
 		if err := m.Qtree.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("qtree")
@@ -424,6 +444,11 @@ func (m *QuotaRule) contextValidateQuotaRuleInlineUsers(ctx context.Context, for
 	for i := 0; i < len(m.QuotaRuleInlineUsers); i++ {
 
 		if m.QuotaRuleInlineUsers[i] != nil {
+
+			if swag.IsZero(m.QuotaRuleInlineUsers[i]) { // not required
+				return nil
+			}
+
 			if err := m.QuotaRuleInlineUsers[i].ContextValidate(ctx, formats); err != nil {
 				if ve, ok := err.(*errors.Validation); ok {
 					return ve.ValidateName("users" + "." + strconv.Itoa(i))
@@ -442,6 +467,11 @@ func (m *QuotaRule) contextValidateQuotaRuleInlineUsers(ctx context.Context, for
 func (m *QuotaRule) contextValidateSpace(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Space != nil {
+
+		if swag.IsZero(m.Space) { // not required
+			return nil
+		}
+
 		if err := m.Space.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("space")
@@ -458,6 +488,11 @@ func (m *QuotaRule) contextValidateSpace(ctx context.Context, formats strfmt.Reg
 func (m *QuotaRule) contextValidateSvm(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Svm != nil {
+
+		if swag.IsZero(m.Svm) { // not required
+			return nil
+		}
+
 		if err := m.Svm.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("svm")
@@ -483,6 +518,11 @@ func (m *QuotaRule) contextValidateUUID(ctx context.Context, formats strfmt.Regi
 func (m *QuotaRule) contextValidateVolume(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Volume != nil {
+
+		if swag.IsZero(m.Volume) { // not required
+			return nil
+		}
+
 		if err := m.Volume.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("volume")
@@ -653,6 +693,11 @@ func (m *QuotaRuleInlineLinks) ContextValidate(ctx context.Context, formats strf
 func (m *QuotaRuleInlineLinks) contextValidateSelf(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Self != nil {
+
+		if swag.IsZero(m.Self) { // not required
+			return nil
+		}
+
 		if err := m.Self.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("_links" + "." + "self")
@@ -756,6 +801,11 @@ func (m *QuotaRuleInlineQtree) ContextValidate(ctx context.Context, formats strf
 func (m *QuotaRuleInlineQtree) contextValidateLinks(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Links != nil {
+
+		if swag.IsZero(m.Links) { // not required
+			return nil
+		}
+
 		if err := m.Links.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("qtree" + "." + "_links")
@@ -855,6 +905,11 @@ func (m *QuotaRuleInlineQtreeInlineLinks) ContextValidate(ctx context.Context, f
 func (m *QuotaRuleInlineQtreeInlineLinks) contextValidateSelf(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Self != nil {
+
+		if swag.IsZero(m.Self) { // not required
+			return nil
+		}
+
 		if err := m.Self.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("qtree" + "." + "_links" + "." + "self")
@@ -995,6 +1050,11 @@ func (m *QuotaRuleInlineSvm) ContextValidate(ctx context.Context, formats strfmt
 func (m *QuotaRuleInlineSvm) contextValidateLinks(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Links != nil {
+
+		if swag.IsZero(m.Links) { // not required
+			return nil
+		}
+
 		if err := m.Links.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("svm" + "." + "_links")
@@ -1085,6 +1145,11 @@ func (m *QuotaRuleInlineSvmInlineLinks) ContextValidate(ctx context.Context, for
 func (m *QuotaRuleInlineSvmInlineLinks) contextValidateSelf(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Self != nil {
+
+		if swag.IsZero(m.Self) { // not required
+			return nil
+		}
+
 		if err := m.Self.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("svm" + "." + "_links" + "." + "self")
@@ -1223,6 +1288,11 @@ func (m *QuotaRuleInlineVolume) ContextValidate(ctx context.Context, formats str
 func (m *QuotaRuleInlineVolume) contextValidateLinks(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Links != nil {
+
+		if swag.IsZero(m.Links) { // not required
+			return nil
+		}
+
 		if err := m.Links.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("volume" + "." + "_links")
@@ -1313,6 +1383,11 @@ func (m *QuotaRuleInlineVolumeInlineLinks) ContextValidate(ctx context.Context, 
 func (m *QuotaRuleInlineVolumeInlineLinks) contextValidateSelf(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Self != nil {
+
+		if swag.IsZero(m.Self) { // not required
+			return nil
+		}
+
 		if err := m.Self.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("volume" + "." + "_links" + "." + "self")

@@ -6,6 +6,7 @@ package name_services
 // Editing this file might prove futile when you re-run the swagger generate command
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 
@@ -86,11 +87,13 @@ func (o *DNSGetOK) Code() int {
 }
 
 func (o *DNSGetOK) Error() string {
-	return fmt.Sprintf("[GET /name-services/dns/{uuid}][%d] dnsGetOK  %+v", 200, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[GET /name-services/dns/{uuid}][%d] dnsGetOK %s", 200, payload)
 }
 
 func (o *DNSGetOK) String() string {
-	return fmt.Sprintf("[GET /name-services/dns/{uuid}][%d] dnsGetOK  %+v", 200, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[GET /name-services/dns/{uuid}][%d] dnsGetOK %s", 200, payload)
 }
 
 func (o *DNSGetOK) GetPayload() *models.DNS {
@@ -158,11 +161,13 @@ func (o *DNSGetDefault) Code() int {
 }
 
 func (o *DNSGetDefault) Error() string {
-	return fmt.Sprintf("[GET /name-services/dns/{uuid}][%d] dns_get default  %+v", o._statusCode, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[GET /name-services/dns/{uuid}][%d] dns_get default %s", o._statusCode, payload)
 }
 
 func (o *DNSGetDefault) String() string {
-	return fmt.Sprintf("[GET /name-services/dns/{uuid}][%d] dns_get default  %+v", o._statusCode, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[GET /name-services/dns/{uuid}][%d] dns_get default %s", o._statusCode, payload)
 }
 
 func (o *DNSGetDefault) GetPayload() *models.ErrorResponse {

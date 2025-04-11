@@ -6,6 +6,7 @@ package security
 // Editing this file might prove futile when you re-run the swagger generate command
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 
@@ -91,11 +92,11 @@ func (o *AzureKeyVaultDeleteOK) Code() int {
 }
 
 func (o *AzureKeyVaultDeleteOK) Error() string {
-	return fmt.Sprintf("[DELETE /security/azure-key-vaults/{uuid}][%d] azureKeyVaultDeleteOK ", 200)
+	return fmt.Sprintf("[DELETE /security/azure-key-vaults/{uuid}][%d] azureKeyVaultDeleteOK", 200)
 }
 
 func (o *AzureKeyVaultDeleteOK) String() string {
-	return fmt.Sprintf("[DELETE /security/azure-key-vaults/{uuid}][%d] azureKeyVaultDeleteOK ", 200)
+	return fmt.Sprintf("[DELETE /security/azure-key-vaults/{uuid}][%d] azureKeyVaultDeleteOK", 200)
 }
 
 func (o *AzureKeyVaultDeleteOK) readResponse(response runtime.ClientResponse, consumer runtime.Consumer, formats strfmt.Registry) error {
@@ -148,11 +149,13 @@ func (o *AzureKeyVaultDeleteAccepted) Code() int {
 }
 
 func (o *AzureKeyVaultDeleteAccepted) Error() string {
-	return fmt.Sprintf("[DELETE /security/azure-key-vaults/{uuid}][%d] azureKeyVaultDeleteAccepted  %+v", 202, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[DELETE /security/azure-key-vaults/{uuid}][%d] azureKeyVaultDeleteAccepted %s", 202, payload)
 }
 
 func (o *AzureKeyVaultDeleteAccepted) String() string {
-	return fmt.Sprintf("[DELETE /security/azure-key-vaults/{uuid}][%d] azureKeyVaultDeleteAccepted  %+v", 202, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[DELETE /security/azure-key-vaults/{uuid}][%d] azureKeyVaultDeleteAccepted %s", 202, payload)
 }
 
 func (o *AzureKeyVaultDeleteAccepted) GetPayload() *models.AzureKeyVaultJobLinkResponse {
@@ -237,11 +240,13 @@ func (o *AzureKeyVaultDeleteDefault) Code() int {
 }
 
 func (o *AzureKeyVaultDeleteDefault) Error() string {
-	return fmt.Sprintf("[DELETE /security/azure-key-vaults/{uuid}][%d] azure_key_vault_delete default  %+v", o._statusCode, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[DELETE /security/azure-key-vaults/{uuid}][%d] azure_key_vault_delete default %s", o._statusCode, payload)
 }
 
 func (o *AzureKeyVaultDeleteDefault) String() string {
-	return fmt.Sprintf("[DELETE /security/azure-key-vaults/{uuid}][%d] azure_key_vault_delete default  %+v", o._statusCode, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[DELETE /security/azure-key-vaults/{uuid}][%d] azure_key_vault_delete default %s", o._statusCode, payload)
 }
 
 func (o *AzureKeyVaultDeleteDefault) GetPayload() *models.ErrorResponse {

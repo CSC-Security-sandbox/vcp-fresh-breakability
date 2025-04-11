@@ -144,6 +144,11 @@ func (m *SnapshotPolicySchedule) ContextValidate(ctx context.Context, formats st
 func (m *SnapshotPolicySchedule) contextValidateLinks(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Links != nil {
+
+		if swag.IsZero(m.Links) { // not required
+			return nil
+		}
+
 		if err := m.Links.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("_links")
@@ -160,6 +165,11 @@ func (m *SnapshotPolicySchedule) contextValidateLinks(ctx context.Context, forma
 func (m *SnapshotPolicySchedule) contextValidateSchedule(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Schedule != nil {
+
+		if swag.IsZero(m.Schedule) { // not required
+			return nil
+		}
+
 		if err := m.Schedule.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("schedule")
@@ -176,6 +186,11 @@ func (m *SnapshotPolicySchedule) contextValidateSchedule(ctx context.Context, fo
 func (m *SnapshotPolicySchedule) contextValidateSnapshotPolicy(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.SnapshotPolicy != nil {
+
+		if swag.IsZero(m.SnapshotPolicy) { // not required
+			return nil
+		}
+
 		if err := m.SnapshotPolicy.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("snapshot_policy")
@@ -266,6 +281,11 @@ func (m *SnapshotPolicyScheduleInlineLinks) ContextValidate(ctx context.Context,
 func (m *SnapshotPolicyScheduleInlineLinks) contextValidateSelf(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Self != nil {
+
+		if swag.IsZero(m.Self) { // not required
+			return nil
+		}
+
 		if err := m.Self.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("_links" + "." + "self")
@@ -364,6 +384,11 @@ func (m *SnapshotPolicyScheduleInlineSchedule) ContextValidate(ctx context.Conte
 func (m *SnapshotPolicyScheduleInlineSchedule) contextValidateLinks(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Links != nil {
+
+		if swag.IsZero(m.Links) { // not required
+			return nil
+		}
+
 		if err := m.Links.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("schedule" + "." + "_links")
@@ -454,6 +479,11 @@ func (m *SnapshotPolicyScheduleInlineScheduleInlineLinks) ContextValidate(ctx co
 func (m *SnapshotPolicyScheduleInlineScheduleInlineLinks) contextValidateSelf(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Self != nil {
+
+		if swag.IsZero(m.Self) { // not required
+			return nil
+		}
+
 		if err := m.Self.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("schedule" + "." + "_links" + "." + "self")
@@ -552,6 +582,11 @@ func (m *SnapshotPolicyScheduleInlineSnapshotPolicy) ContextValidate(ctx context
 func (m *SnapshotPolicyScheduleInlineSnapshotPolicy) contextValidateLinks(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Links != nil {
+
+		if swag.IsZero(m.Links) { // not required
+			return nil
+		}
+
 		if err := m.Links.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("snapshot_policy" + "." + "_links")
@@ -642,6 +677,11 @@ func (m *SnapshotPolicyScheduleInlineSnapshotPolicyInlineLinks) ContextValidate(
 func (m *SnapshotPolicyScheduleInlineSnapshotPolicyInlineLinks) contextValidateSelf(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Self != nil {
+
+		if swag.IsZero(m.Self) { // not required
+			return nil
+		}
+
 		if err := m.Self.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("snapshot_policy" + "." + "_links" + "." + "self")

@@ -35,7 +35,7 @@ type SvmPeer struct {
 
 	// SVM peering state. To accept a pending SVM peer request, PATCH the state to "peered". To reject a pending SVM peer request, PATCH the state to "rejected". To suspend a peered SVM peer relationship, PATCH the state to "suspended". To resume a suspended SVM peer relationship, PATCH the state to "peered". The states "initiated", "pending", and "initializing" are system-generated and cannot be used for PATCH.
 	// Example: peered
-	// Enum: [peered rejected suspended initiated pending initializing]
+	// Enum: ["peered","rejected","suspended","initiated","pending","initializing"]
 	State *string `json:"state,omitempty"`
 
 	// svm
@@ -250,6 +250,11 @@ func (m *SvmPeer) ContextValidate(ctx context.Context, formats strfmt.Registry) 
 func (m *SvmPeer) contextValidateLinks(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Links != nil {
+
+		if swag.IsZero(m.Links) { // not required
+			return nil
+		}
+
 		if err := m.Links.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("_links")
@@ -266,6 +271,11 @@ func (m *SvmPeer) contextValidateLinks(ctx context.Context, formats strfmt.Regis
 func (m *SvmPeer) contextValidatePeer(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Peer != nil {
+
+		if swag.IsZero(m.Peer) { // not required
+			return nil
+		}
+
 		if err := m.Peer.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("peer")
@@ -282,6 +292,11 @@ func (m *SvmPeer) contextValidatePeer(ctx context.Context, formats strfmt.Regist
 func (m *SvmPeer) contextValidateSvm(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Svm != nil {
+
+		if swag.IsZero(m.Svm) { // not required
+			return nil
+		}
+
 		if err := m.Svm.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("svm")
@@ -300,6 +315,11 @@ func (m *SvmPeer) contextValidateSvmPeerInlineApplications(ctx context.Context, 
 	for i := 0; i < len(m.SvmPeerInlineApplications); i++ {
 
 		if m.SvmPeerInlineApplications[i] != nil {
+
+			if swag.IsZero(m.SvmPeerInlineApplications[i]) { // not required
+				return nil
+			}
+
 			if err := m.SvmPeerInlineApplications[i].ContextValidate(ctx, formats); err != nil {
 				if ve, ok := err.(*errors.Validation); ok {
 					return ve.ValidateName("applications" + "." + strconv.Itoa(i))
@@ -401,6 +421,11 @@ func (m *SvmPeerInlineLinks) ContextValidate(ctx context.Context, formats strfmt
 func (m *SvmPeerInlineLinks) contextValidateSelf(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Self != nil {
+
+		if swag.IsZero(m.Self) { // not required
+			return nil
+		}
+
 		if err := m.Self.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("_links" + "." + "self")
@@ -521,6 +546,11 @@ func (m *SvmPeerInlinePeer) ContextValidate(ctx context.Context, formats strfmt.
 func (m *SvmPeerInlinePeer) contextValidateCluster(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Cluster != nil {
+
+		if swag.IsZero(m.Cluster) { // not required
+			return nil
+		}
+
 		if err := m.Cluster.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("peer" + "." + "cluster")
@@ -537,6 +567,11 @@ func (m *SvmPeerInlinePeer) contextValidateCluster(ctx context.Context, formats 
 func (m *SvmPeerInlinePeer) contextValidateSvm(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Svm != nil {
+
+		if swag.IsZero(m.Svm) { // not required
+			return nil
+		}
+
 		if err := m.Svm.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("peer" + "." + "svm")
@@ -635,6 +670,11 @@ func (m *SvmPeerInlinePeerInlineCluster) ContextValidate(ctx context.Context, fo
 func (m *SvmPeerInlinePeerInlineCluster) contextValidateLinks(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Links != nil {
+
+		if swag.IsZero(m.Links) { // not required
+			return nil
+		}
+
 		if err := m.Links.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("peer" + "." + "cluster" + "." + "_links")
@@ -725,6 +765,11 @@ func (m *SvmPeerInlinePeerInlineClusterInlineLinks) ContextValidate(ctx context.
 func (m *SvmPeerInlinePeerInlineClusterInlineLinks) contextValidateSelf(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Self != nil {
+
+		if swag.IsZero(m.Self) { // not required
+			return nil
+		}
+
 		if err := m.Self.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("peer" + "." + "cluster" + "." + "_links" + "." + "self")
@@ -825,6 +870,11 @@ func (m *SvmPeerInlinePeerInlineSvm) ContextValidate(ctx context.Context, format
 func (m *SvmPeerInlinePeerInlineSvm) contextValidateLinks(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Links != nil {
+
+		if swag.IsZero(m.Links) { // not required
+			return nil
+		}
+
 		if err := m.Links.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("peer" + "." + "svm" + "." + "_links")
@@ -915,6 +965,11 @@ func (m *SvmPeerInlinePeerInlineSvmInlineLinks) ContextValidate(ctx context.Cont
 func (m *SvmPeerInlinePeerInlineSvmInlineLinks) contextValidateSelf(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Self != nil {
+
+		if swag.IsZero(m.Self) { // not required
+			return nil
+		}
+
 		if err := m.Self.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("peer" + "." + "svm" + "." + "_links" + "." + "self")
@@ -1015,6 +1070,11 @@ func (m *SvmPeerInlineSvm) ContextValidate(ctx context.Context, formats strfmt.R
 func (m *SvmPeerInlineSvm) contextValidateLinks(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Links != nil {
+
+		if swag.IsZero(m.Links) { // not required
+			return nil
+		}
+
 		if err := m.Links.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("svm" + "." + "_links")
@@ -1105,6 +1165,11 @@ func (m *SvmPeerInlineSvmInlineLinks) ContextValidate(ctx context.Context, forma
 func (m *SvmPeerInlineSvmInlineLinks) contextValidateSelf(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Self != nil {
+
+		if swag.IsZero(m.Self) { // not required
+			return nil
+		}
+
 		if err := m.Self.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("svm" + "." + "_links" + "." + "self")

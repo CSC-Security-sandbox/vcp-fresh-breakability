@@ -6,6 +6,7 @@ package snapmirror
 // Editing this file might prove futile when you re-run the swagger generate command
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 
@@ -92,11 +93,13 @@ func (o *SnapmirrorRelationshipDeleteOK) Code() int {
 }
 
 func (o *SnapmirrorRelationshipDeleteOK) Error() string {
-	return fmt.Sprintf("[DELETE /snapmirror/relationships/{uuid}][%d] snapmirrorRelationshipDeleteOK  %+v", 200, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[DELETE /snapmirror/relationships/{uuid}][%d] snapmirrorRelationshipDeleteOK %s", 200, payload)
 }
 
 func (o *SnapmirrorRelationshipDeleteOK) String() string {
-	return fmt.Sprintf("[DELETE /snapmirror/relationships/{uuid}][%d] snapmirrorRelationshipDeleteOK  %+v", 200, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[DELETE /snapmirror/relationships/{uuid}][%d] snapmirrorRelationshipDeleteOK %s", 200, payload)
 }
 
 func (o *SnapmirrorRelationshipDeleteOK) GetPayload() *models.SnapmirrorRelationshipJobLinkResponse {
@@ -160,11 +163,13 @@ func (o *SnapmirrorRelationshipDeleteAccepted) Code() int {
 }
 
 func (o *SnapmirrorRelationshipDeleteAccepted) Error() string {
-	return fmt.Sprintf("[DELETE /snapmirror/relationships/{uuid}][%d] snapmirrorRelationshipDeleteAccepted  %+v", 202, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[DELETE /snapmirror/relationships/{uuid}][%d] snapmirrorRelationshipDeleteAccepted %s", 202, payload)
 }
 
 func (o *SnapmirrorRelationshipDeleteAccepted) String() string {
-	return fmt.Sprintf("[DELETE /snapmirror/relationships/{uuid}][%d] snapmirrorRelationshipDeleteAccepted  %+v", 202, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[DELETE /snapmirror/relationships/{uuid}][%d] snapmirrorRelationshipDeleteAccepted %s", 202, payload)
 }
 
 func (o *SnapmirrorRelationshipDeleteAccepted) GetPayload() *models.SnapmirrorRelationshipJobLinkResponse {
@@ -206,6 +211,7 @@ func NewSnapmirrorRelationshipDeleteDefault(code int) *SnapmirrorRelationshipDel
 | 13303855    | DELETE call on a restore relationship does not support the given flags |
 | 13303865    | Deleting the specified SnapMirror policy is not supported. |
 | 6619715     | Modification of relationship is in progress. Retry the command after a few minutes. |
+| 6621470     | SnapMirror delete failed on the relationship because \"unmap-namespace\" is not set. Set the \"unmap-namespace\" to true for NVMe SnapMirror active sync relationships. |
 */
 type SnapmirrorRelationshipDeleteDefault struct {
 	_statusCode int
@@ -244,11 +250,13 @@ func (o *SnapmirrorRelationshipDeleteDefault) Code() int {
 }
 
 func (o *SnapmirrorRelationshipDeleteDefault) Error() string {
-	return fmt.Sprintf("[DELETE /snapmirror/relationships/{uuid}][%d] snapmirror_relationship_delete default  %+v", o._statusCode, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[DELETE /snapmirror/relationships/{uuid}][%d] snapmirror_relationship_delete default %s", o._statusCode, payload)
 }
 
 func (o *SnapmirrorRelationshipDeleteDefault) String() string {
-	return fmt.Sprintf("[DELETE /snapmirror/relationships/{uuid}][%d] snapmirror_relationship_delete default  %+v", o._statusCode, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[DELETE /snapmirror/relationships/{uuid}][%d] snapmirror_relationship_delete default %s", o._statusCode, payload)
 }
 
 func (o *SnapmirrorRelationshipDeleteDefault) GetPayload() *models.ErrorResponse {

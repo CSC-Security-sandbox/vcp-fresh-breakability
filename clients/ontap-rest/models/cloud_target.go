@@ -27,7 +27,7 @@ type CloudTarget struct {
 	AccessKey *string `json:"access_key,omitempty"`
 
 	// Authentication used to access the target. SnapMirror does not yet support CAP. Required in POST.
-	// Enum: [key cap ec2_iam gcp_sa azure_msi]
+	// Enum: ["key","cap","ec2_iam","gcp_sa","azure_msi"]
 	AuthenticationType *string `json:"authentication_type,omitempty"`
 
 	// Azure account
@@ -66,7 +66,7 @@ type CloudTarget struct {
 	Name *string `json:"name,omitempty"`
 
 	// Owner of the target. Allowed values are FabricPool, SnapMirror or S3_SnapMirror. A target can be used by only one feature.
-	// Enum: [fabricpool snapmirror s3_snapmirror]
+	// Enum: ["fabricpool","snapmirror","s3_snapmirror"]
 	Owner *string `json:"owner,omitempty"`
 
 	// Port number of the object store that ONTAP uses when establishing a connection. Required in POST.
@@ -80,7 +80,7 @@ type CloudTarget struct {
 
 	// If the cloud target is owned by a data SVM, then the scope is set to svm. Otherwise it will be set to cluster.
 	// Read Only: true
-	// Enum: [cluster svm]
+	// Enum: ["cluster","svm"]
 	Scope *string `json:"scope,omitempty"`
 
 	// Secret access key for AWS_S3 and other S3 compatible provider types.
@@ -91,11 +91,11 @@ type CloudTarget struct {
 	Server *string `json:"server,omitempty"`
 
 	// Encryption of data at rest by the object store server for AWS_S3 and other S3 compatible provider types. In most cases it is best not to change default value of "sse_s3" for object store servers which support SSE-S3 encryption. The encryption is in addition to any encryption done by ONTAP at a volume or at an aggregate level. Note that changing this option does not change encryption of data which already exist in the object store.
-	// Enum: [none sse_s3 sse_kms dsse_kms]
+	// Enum: ["none","sse_s3","sse_kms","dsse_kms"]
 	ServerSideEncryption *string `json:"server_side_encryption,omitempty"`
 
 	// Use of the cloud target by SnapMirror.
-	// Enum: [data metadata]
+	// Enum: ["data","metadata"]
 	SnapmirrorUse *string `json:"snapmirror_use,omitempty"`
 
 	// SSL/HTTPS enabled or not
@@ -105,7 +105,7 @@ type CloudTarget struct {
 	Svm *CloudTargetInlineSvm `json:"svm,omitempty"`
 
 	// URL style used to access S3 bucket.
-	// Enum: [path_style virtual_hosted_style]
+	// Enum: ["path_style","virtual_hosted_style"]
 	URLStyle *string `json:"url_style,omitempty"`
 
 	// Use HTTP proxy when connecting to the object store.
@@ -621,6 +621,11 @@ func (m *CloudTarget) ContextValidate(ctx context.Context, formats strfmt.Regist
 func (m *CloudTarget) contextValidateLinks(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Links != nil {
+
+		if swag.IsZero(m.Links) { // not required
+			return nil
+		}
+
 		if err := m.Links.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("_links")
@@ -637,6 +642,11 @@ func (m *CloudTarget) contextValidateLinks(ctx context.Context, formats strfmt.R
 func (m *CloudTarget) contextValidateCluster(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Cluster != nil {
+
+		if swag.IsZero(m.Cluster) { // not required
+			return nil
+		}
+
 		if err := m.Cluster.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("cluster")
@@ -653,6 +663,11 @@ func (m *CloudTarget) contextValidateCluster(ctx context.Context, formats strfmt
 func (m *CloudTarget) contextValidateIpspace(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Ipspace != nil {
+
+		if swag.IsZero(m.Ipspace) { // not required
+			return nil
+		}
+
 		if err := m.Ipspace.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("ipspace")
@@ -678,6 +693,11 @@ func (m *CloudTarget) contextValidateScope(ctx context.Context, formats strfmt.R
 func (m *CloudTarget) contextValidateSvm(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Svm != nil {
+
+		if swag.IsZero(m.Svm) { // not required
+			return nil
+		}
+
 		if err := m.Svm.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("svm")
@@ -834,6 +854,11 @@ func (m *CloudTargetInlineIpspace) ContextValidate(ctx context.Context, formats 
 func (m *CloudTargetInlineIpspace) contextValidateLinks(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Links != nil {
+
+		if swag.IsZero(m.Links) { // not required
+			return nil
+		}
+
 		if err := m.Links.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("ipspace" + "." + "_links")
@@ -924,6 +949,11 @@ func (m *CloudTargetInlineIpspaceInlineLinks) ContextValidate(ctx context.Contex
 func (m *CloudTargetInlineIpspaceInlineLinks) contextValidateSelf(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Self != nil {
+
+		if swag.IsZero(m.Self) { // not required
+			return nil
+		}
+
 		if err := m.Self.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("ipspace" + "." + "_links" + "." + "self")
@@ -1014,6 +1044,11 @@ func (m *CloudTargetInlineLinks) ContextValidate(ctx context.Context, formats st
 func (m *CloudTargetInlineLinks) contextValidateSelf(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Self != nil {
+
+		if swag.IsZero(m.Self) { // not required
+			return nil
+		}
+
 		if err := m.Self.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("_links" + "." + "self")
@@ -1114,6 +1149,11 @@ func (m *CloudTargetInlineSvm) ContextValidate(ctx context.Context, formats strf
 func (m *CloudTargetInlineSvm) contextValidateLinks(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Links != nil {
+
+		if swag.IsZero(m.Links) { // not required
+			return nil
+		}
+
 		if err := m.Links.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("svm" + "." + "_links")
@@ -1204,6 +1244,11 @@ func (m *CloudTargetInlineSvmInlineLinks) ContextValidate(ctx context.Context, f
 func (m *CloudTargetInlineSvmInlineLinks) contextValidateSelf(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Self != nil {
+
+		if swag.IsZero(m.Self) { // not required
+			return nil
+		}
+
 		if err := m.Self.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("svm" + "." + "_links" + "." + "self")

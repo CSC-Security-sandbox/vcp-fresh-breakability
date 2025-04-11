@@ -200,6 +200,11 @@ func (m *IscsiService) ContextValidate(ctx context.Context, formats strfmt.Regis
 func (m *IscsiService) contextValidateLinks(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Links != nil {
+
+		if swag.IsZero(m.Links) { // not required
+			return nil
+		}
+
 		if err := m.Links.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("_links")
@@ -216,6 +221,11 @@ func (m *IscsiService) contextValidateLinks(ctx context.Context, formats strfmt.
 func (m *IscsiService) contextValidateMetric(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Metric != nil {
+
+		if swag.IsZero(m.Metric) { // not required
+			return nil
+		}
+
 		if err := m.Metric.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("metric")
@@ -232,6 +242,11 @@ func (m *IscsiService) contextValidateMetric(ctx context.Context, formats strfmt
 func (m *IscsiService) contextValidateStatistics(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Statistics != nil {
+
+		if swag.IsZero(m.Statistics) { // not required
+			return nil
+		}
+
 		if err := m.Statistics.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("statistics")
@@ -248,6 +263,11 @@ func (m *IscsiService) contextValidateStatistics(ctx context.Context, formats st
 func (m *IscsiService) contextValidateSvm(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Svm != nil {
+
+		if swag.IsZero(m.Svm) { // not required
+			return nil
+		}
+
 		if err := m.Svm.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("svm")
@@ -264,6 +284,11 @@ func (m *IscsiService) contextValidateSvm(ctx context.Context, formats strfmt.Re
 func (m *IscsiService) contextValidateTarget(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Target != nil {
+
+		if swag.IsZero(m.Target) { // not required
+			return nil
+		}
+
 		if err := m.Target.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("target")
@@ -354,6 +379,11 @@ func (m *IscsiServiceInlineLinks) ContextValidate(ctx context.Context, formats s
 func (m *IscsiServiceInlineLinks) contextValidateSelf(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Self != nil {
+
+		if swag.IsZero(m.Self) { // not required
+			return nil
+		}
+
 		if err := m.Self.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("_links" + "." + "self")
@@ -397,7 +427,7 @@ type IscsiServiceInlineMetric struct {
 	//
 	// Example: PT15S
 	// Read Only: true
-	// Enum: [PT15S PT4M PT30M PT2H P1D PT5M]
+	// Enum: ["PT15S","PT4M","PT30M","PT2H","P1D","PT5M"]
 	Duration *string `json:"duration,omitempty"`
 
 	// iops
@@ -409,7 +439,7 @@ type IscsiServiceInlineMetric struct {
 	// Any errors associated with the sample. For example, if the aggregation of data over multiple nodes fails then any of the partial errors might be returned, "ok" on success, or "error" on any internal uncategorized failure. Whenever a sample collection is missed but done at a later time, it is back filled to the previous 15 second timestamp and tagged with "backfilled_data". "Inconsistent_ delta_time" is encountered when the time between two collections is not the same for all nodes. Therefore, the aggregated value might be over or under inflated. "Negative_delta" is returned when an expected monotonically increasing value has decreased in value. "Inconsistent_old_data" is returned when one or more nodes do not have the latest data.
 	// Example: ok
 	// Read Only: true
-	// Enum: [ok error partial_no_data partial_no_response partial_other_error negative_delta not_found backfilled_data inconsistent_delta_time inconsistent_old_data partial_no_uuid]
+	// Enum: ["ok","error","partial_no_data","partial_no_response","partial_other_error","negative_delta","not_found","backfilled_data","inconsistent_delta_time","inconsistent_old_data","partial_no_uuid"]
 	Status *string `json:"status,omitempty"`
 
 	// throughput
@@ -712,6 +742,11 @@ func (m *IscsiServiceInlineMetric) ContextValidate(ctx context.Context, formats 
 func (m *IscsiServiceInlineMetric) contextValidateLinks(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Links != nil {
+
+		if swag.IsZero(m.Links) { // not required
+			return nil
+		}
+
 		if err := m.Links.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("metric" + "." + "_links")
@@ -737,6 +772,11 @@ func (m *IscsiServiceInlineMetric) contextValidateDuration(ctx context.Context, 
 func (m *IscsiServiceInlineMetric) contextValidateIops(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Iops != nil {
+
+		if swag.IsZero(m.Iops) { // not required
+			return nil
+		}
+
 		if err := m.Iops.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("metric" + "." + "iops")
@@ -753,6 +793,11 @@ func (m *IscsiServiceInlineMetric) contextValidateIops(ctx context.Context, form
 func (m *IscsiServiceInlineMetric) contextValidateLatency(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Latency != nil {
+
+		if swag.IsZero(m.Latency) { // not required
+			return nil
+		}
+
 		if err := m.Latency.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("metric" + "." + "latency")
@@ -778,6 +823,11 @@ func (m *IscsiServiceInlineMetric) contextValidateStatus(ctx context.Context, fo
 func (m *IscsiServiceInlineMetric) contextValidateThroughput(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Throughput != nil {
+
+		if swag.IsZero(m.Throughput) { // not required
+			return nil
+		}
+
 		if err := m.Throughput.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("metric" + "." + "throughput")
@@ -985,6 +1035,11 @@ func (m *IscsiServiceInlineMetricInlineLinks) ContextValidate(ctx context.Contex
 func (m *IscsiServiceInlineMetricInlineLinks) contextValidateSelf(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Self != nil {
+
+		if swag.IsZero(m.Self) { // not required
+			return nil
+		}
+
 		if err := m.Self.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("metric" + "." + "_links" + "." + "self")
@@ -1081,7 +1136,7 @@ type IscsiServiceInlineStatistics struct {
 	// Any errors associated with the sample. For example, if the aggregation of data over multiple nodes fails then any of the partial errors might be returned, "ok" on success, or "error" on any internal uncategorized failure. Whenever a sample collection is missed but done at a later time, it is back filled to the previous 15 second timestamp and tagged with "backfilled_data". "Inconsistent_delta_time" is encountered when the time between two collections is not the same for all nodes. Therefore, the aggregated value might be over or under inflated. "Negative_delta" is returned when an expected monotonically increasing value has decreased in value. "Inconsistent_old_data" is returned when one or more nodes do not have the latest data.
 	// Example: ok
 	// Read Only: true
-	// Enum: [ok error partial_no_data partial_no_response partial_other_error negative_delta not_found backfilled_data inconsistent_delta_time inconsistent_old_data partial_no_uuid]
+	// Enum: ["ok","error","partial_no_data","partial_no_response","partial_other_error","negative_delta","not_found","backfilled_data","inconsistent_delta_time","inconsistent_old_data","partial_no_uuid"]
 	Status *string `json:"status,omitempty"`
 
 	// throughput raw
@@ -1295,6 +1350,11 @@ func (m *IscsiServiceInlineStatistics) ContextValidate(ctx context.Context, form
 func (m *IscsiServiceInlineStatistics) contextValidateIopsRaw(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.IopsRaw != nil {
+
+		if swag.IsZero(m.IopsRaw) { // not required
+			return nil
+		}
+
 		if err := m.IopsRaw.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("statistics" + "." + "iops_raw")
@@ -1311,6 +1371,11 @@ func (m *IscsiServiceInlineStatistics) contextValidateIopsRaw(ctx context.Contex
 func (m *IscsiServiceInlineStatistics) contextValidateLatencyRaw(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.LatencyRaw != nil {
+
+		if swag.IsZero(m.LatencyRaw) { // not required
+			return nil
+		}
+
 		if err := m.LatencyRaw.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("statistics" + "." + "latency_raw")
@@ -1336,6 +1401,11 @@ func (m *IscsiServiceInlineStatistics) contextValidateStatus(ctx context.Context
 func (m *IscsiServiceInlineStatistics) contextValidateThroughputRaw(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.ThroughputRaw != nil {
+
+		if swag.IsZero(m.ThroughputRaw) { // not required
+			return nil
+		}
+
 		if err := m.ThroughputRaw.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("statistics" + "." + "throughput_raw")
@@ -1604,6 +1674,11 @@ func (m *IscsiServiceInlineSvm) ContextValidate(ctx context.Context, formats str
 func (m *IscsiServiceInlineSvm) contextValidateLinks(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Links != nil {
+
+		if swag.IsZero(m.Links) { // not required
+			return nil
+		}
+
 		if err := m.Links.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("svm" + "." + "_links")
@@ -1694,6 +1769,11 @@ func (m *IscsiServiceInlineSvmInlineLinks) ContextValidate(ctx context.Context, 
 func (m *IscsiServiceInlineSvmInlineLinks) contextValidateSelf(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Self != nil {
+
+		if swag.IsZero(m.Self) { // not required
+			return nil
+		}
+
 		if err := m.Self.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("svm" + "." + "_links" + "." + "self")

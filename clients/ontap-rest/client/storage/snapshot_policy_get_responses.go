@@ -6,6 +6,7 @@ package storage
 // Editing this file might prove futile when you re-run the swagger generate command
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 
@@ -86,11 +87,13 @@ func (o *SnapshotPolicyGetOK) Code() int {
 }
 
 func (o *SnapshotPolicyGetOK) Error() string {
-	return fmt.Sprintf("[GET /storage/snapshot-policies/{uuid}][%d] snapshotPolicyGetOK  %+v", 200, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[GET /storage/snapshot-policies/{uuid}][%d] snapshotPolicyGetOK %s", 200, payload)
 }
 
 func (o *SnapshotPolicyGetOK) String() string {
-	return fmt.Sprintf("[GET /storage/snapshot-policies/{uuid}][%d] snapshotPolicyGetOK  %+v", 200, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[GET /storage/snapshot-policies/{uuid}][%d] snapshotPolicyGetOK %s", 200, payload)
 }
 
 func (o *SnapshotPolicyGetOK) GetPayload() *models.SnapshotPolicy {
@@ -158,11 +161,13 @@ func (o *SnapshotPolicyGetDefault) Code() int {
 }
 
 func (o *SnapshotPolicyGetDefault) Error() string {
-	return fmt.Sprintf("[GET /storage/snapshot-policies/{uuid}][%d] snapshot_policy_get default  %+v", o._statusCode, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[GET /storage/snapshot-policies/{uuid}][%d] snapshot_policy_get default %s", o._statusCode, payload)
 }
 
 func (o *SnapshotPolicyGetDefault) String() string {
-	return fmt.Sprintf("[GET /storage/snapshot-policies/{uuid}][%d] snapshot_policy_get default  %+v", o._statusCode, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[GET /storage/snapshot-policies/{uuid}][%d] snapshot_policy_get default %s", o._statusCode, payload)
 }
 
 func (o *SnapshotPolicyGetDefault) GetPayload() *models.ErrorResponse {

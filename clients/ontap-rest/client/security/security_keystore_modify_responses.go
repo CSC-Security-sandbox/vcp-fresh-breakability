@@ -6,6 +6,7 @@ package security
 // Editing this file might prove futile when you re-run the swagger generate command
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 
@@ -92,11 +93,13 @@ func (o *SecurityKeystoreModifyOK) Code() int {
 }
 
 func (o *SecurityKeystoreModifyOK) Error() string {
-	return fmt.Sprintf("[PATCH /security/key-stores/{uuid}][%d] securityKeystoreModifyOK  %+v", 200, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[PATCH /security/key-stores/{uuid}][%d] securityKeystoreModifyOK %s", 200, payload)
 }
 
 func (o *SecurityKeystoreModifyOK) String() string {
-	return fmt.Sprintf("[PATCH /security/key-stores/{uuid}][%d] securityKeystoreModifyOK  %+v", 200, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[PATCH /security/key-stores/{uuid}][%d] securityKeystoreModifyOK %s", 200, payload)
 }
 
 func (o *SecurityKeystoreModifyOK) GetPayload() *models.SecurityKeystoreJobLinkResponse {
@@ -160,11 +163,13 @@ func (o *SecurityKeystoreModifyAccepted) Code() int {
 }
 
 func (o *SecurityKeystoreModifyAccepted) Error() string {
-	return fmt.Sprintf("[PATCH /security/key-stores/{uuid}][%d] securityKeystoreModifyAccepted  %+v", 202, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[PATCH /security/key-stores/{uuid}][%d] securityKeystoreModifyAccepted %s", 202, payload)
 }
 
 func (o *SecurityKeystoreModifyAccepted) String() string {
-	return fmt.Sprintf("[PATCH /security/key-stores/{uuid}][%d] securityKeystoreModifyAccepted  %+v", 202, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[PATCH /security/key-stores/{uuid}][%d] securityKeystoreModifyAccepted %s", 202, payload)
 }
 
 func (o *SecurityKeystoreModifyAccepted) GetPayload() *models.SecurityKeystoreJobLinkResponse {
@@ -214,6 +219,7 @@ func NewSecurityKeystoreModifyDefault(code int) *SecurityKeystoreModifyDefault {
 | 65539585 | Cannot enable an external key manager on the admin SVM because an inactive external key manager already exists on the admin SVM. |
 | 65539590 | Cannot switch to the Onboard Key Manager if there are more than two NSE-AKs in the cluster. |
 | 65539591 | Cannot switch to the Onboard Key Manager if there are fewer than two NSE-AKs in the cluster. |
+| 65539704 | The key manager cannot be configured because the SVM has NAE volumes. |
 Also see the table of common errors in the <a href="#Response_body">Response body</a> overview section of this documentation.
 */
 type SecurityKeystoreModifyDefault struct {
@@ -253,11 +259,13 @@ func (o *SecurityKeystoreModifyDefault) Code() int {
 }
 
 func (o *SecurityKeystoreModifyDefault) Error() string {
-	return fmt.Sprintf("[PATCH /security/key-stores/{uuid}][%d] security_keystore_modify default  %+v", o._statusCode, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[PATCH /security/key-stores/{uuid}][%d] security_keystore_modify default %s", o._statusCode, payload)
 }
 
 func (o *SecurityKeystoreModifyDefault) String() string {
-	return fmt.Sprintf("[PATCH /security/key-stores/{uuid}][%d] security_keystore_modify default  %+v", o._statusCode, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[PATCH /security/key-stores/{uuid}][%d] security_keystore_modify default %s", o._statusCode, payload)
 }
 
 func (o *SecurityKeystoreModifyDefault) GetPayload() *models.ErrorResponse {

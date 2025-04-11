@@ -6,6 +6,7 @@ package security
 // Editing this file might prove futile when you re-run the swagger generate command
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 
@@ -89,11 +90,11 @@ func (o *RoleCreateCreated) Code() int {
 }
 
 func (o *RoleCreateCreated) Error() string {
-	return fmt.Sprintf("[POST /security/roles][%d] roleCreateCreated ", 201)
+	return fmt.Sprintf("[POST /security/roles][%d] roleCreateCreated", 201)
 }
 
 func (o *RoleCreateCreated) String() string {
-	return fmt.Sprintf("[POST /security/roles][%d] roleCreateCreated ", 201)
+	return fmt.Sprintf("[POST /security/roles][%d] roleCreateCreated", 201)
 }
 
 func (o *RoleCreateCreated) readResponse(response runtime.ClientResponse, consumer runtime.Consumer, formats strfmt.Registry) error {
@@ -180,11 +181,13 @@ func (o *RoleCreateDefault) Code() int {
 }
 
 func (o *RoleCreateDefault) Error() string {
-	return fmt.Sprintf("[POST /security/roles][%d] role_create default  %+v", o._statusCode, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[POST /security/roles][%d] role_create default %s", o._statusCode, payload)
 }
 
 func (o *RoleCreateDefault) String() string {
-	return fmt.Sprintf("[POST /security/roles][%d] role_create default  %+v", o._statusCode, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[POST /security/roles][%d] role_create default %s", o._statusCode, payload)
 }
 
 func (o *RoleCreateDefault) GetPayload() *models.ErrorResponse {

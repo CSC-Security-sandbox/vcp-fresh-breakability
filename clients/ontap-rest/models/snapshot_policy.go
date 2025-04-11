@@ -37,7 +37,7 @@ type SnapshotPolicy struct {
 
 	// Set to "svm" when the request is on a data SVM, otherwise set to "cluster".
 	// Read Only: true
-	// Enum: [svm cluster]
+	// Enum: ["svm","cluster"]
 	Scope *string `json:"scope,omitempty"`
 
 	// snapshot policy inline copies
@@ -217,6 +217,11 @@ func (m *SnapshotPolicy) ContextValidate(ctx context.Context, formats strfmt.Reg
 func (m *SnapshotPolicy) contextValidateLinks(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Links != nil {
+
+		if swag.IsZero(m.Links) { // not required
+			return nil
+		}
+
 		if err := m.Links.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("_links")
@@ -244,6 +249,11 @@ func (m *SnapshotPolicy) contextValidateSnapshotPolicyInlineCopies(ctx context.C
 	for i := 0; i < len(m.SnapshotPolicyInlineCopies); i++ {
 
 		if m.SnapshotPolicyInlineCopies[i] != nil {
+
+			if swag.IsZero(m.SnapshotPolicyInlineCopies[i]) { // not required
+				return nil
+			}
+
 			if err := m.SnapshotPolicyInlineCopies[i].ContextValidate(ctx, formats); err != nil {
 				if ve, ok := err.(*errors.Validation); ok {
 					return ve.ValidateName("copies" + "." + strconv.Itoa(i))
@@ -262,6 +272,11 @@ func (m *SnapshotPolicy) contextValidateSnapshotPolicyInlineCopies(ctx context.C
 func (m *SnapshotPolicy) contextValidateSvm(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Svm != nil {
+
+		if swag.IsZero(m.Svm) { // not required
+			return nil
+		}
+
 		if err := m.Svm.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("svm")
@@ -373,6 +388,11 @@ func (m *SnapshotPolicyInlineCopiesInlineArrayItem) ContextValidate(ctx context.
 func (m *SnapshotPolicyInlineCopiesInlineArrayItem) contextValidateSchedule(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Schedule != nil {
+
+		if swag.IsZero(m.Schedule) { // not required
+			return nil
+		}
+
 		if err := m.Schedule.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("schedule")
@@ -471,6 +491,11 @@ func (m *SnapshotPolicyInlineCopiesInlineArrayItemInlineSchedule) ContextValidat
 func (m *SnapshotPolicyInlineCopiesInlineArrayItemInlineSchedule) contextValidateLinks(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Links != nil {
+
+		if swag.IsZero(m.Links) { // not required
+			return nil
+		}
+
 		if err := m.Links.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("schedule" + "." + "_links")
@@ -561,6 +586,11 @@ func (m *SnapshotPolicyInlineCopiesInlineArrayItemInlineScheduleInlineLinks) Con
 func (m *SnapshotPolicyInlineCopiesInlineArrayItemInlineScheduleInlineLinks) contextValidateSelf(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Self != nil {
+
+		if swag.IsZero(m.Self) { // not required
+			return nil
+		}
+
 		if err := m.Self.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("schedule" + "." + "_links" + "." + "self")
@@ -651,6 +681,11 @@ func (m *SnapshotPolicyInlineLinks) ContextValidate(ctx context.Context, formats
 func (m *SnapshotPolicyInlineLinks) contextValidateSelf(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Self != nil {
+
+		if swag.IsZero(m.Self) { // not required
+			return nil
+		}
+
 		if err := m.Self.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("_links" + "." + "self")
@@ -751,6 +786,11 @@ func (m *SnapshotPolicyInlineSvm) ContextValidate(ctx context.Context, formats s
 func (m *SnapshotPolicyInlineSvm) contextValidateLinks(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Links != nil {
+
+		if swag.IsZero(m.Links) { // not required
+			return nil
+		}
+
 		if err := m.Links.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("svm" + "." + "_links")
@@ -841,6 +881,11 @@ func (m *SnapshotPolicyInlineSvmInlineLinks) ContextValidate(ctx context.Context
 func (m *SnapshotPolicyInlineSvmInlineLinks) contextValidateSelf(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Self != nil {
+
+		if swag.IsZero(m.Self) { // not required
+			return nil
+		}
+
 		if err := m.Self.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("svm" + "." + "_links" + "." + "self")

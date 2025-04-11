@@ -6,6 +6,7 @@ package security
 // Editing this file might prove futile when you re-run the swagger generate command
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 
@@ -97,11 +98,13 @@ func (o *AzureKeyVaultCreateCreated) Code() int {
 }
 
 func (o *AzureKeyVaultCreateCreated) Error() string {
-	return fmt.Sprintf("[POST /security/azure-key-vaults][%d] azureKeyVaultCreateCreated  %+v", 201, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[POST /security/azure-key-vaults][%d] azureKeyVaultCreateCreated %s", 201, payload)
 }
 
 func (o *AzureKeyVaultCreateCreated) String() string {
-	return fmt.Sprintf("[POST /security/azure-key-vaults][%d] azureKeyVaultCreateCreated  %+v", 201, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[POST /security/azure-key-vaults][%d] azureKeyVaultCreateCreated %s", 201, payload)
 }
 
 func (o *AzureKeyVaultCreateCreated) GetPayload() *models.AzureKeyVaultResponse {
@@ -177,11 +180,13 @@ func (o *AzureKeyVaultCreateAccepted) Code() int {
 }
 
 func (o *AzureKeyVaultCreateAccepted) Error() string {
-	return fmt.Sprintf("[POST /security/azure-key-vaults][%d] azureKeyVaultCreateAccepted  %+v", 202, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[POST /security/azure-key-vaults][%d] azureKeyVaultCreateAccepted %s", 202, payload)
 }
 
 func (o *AzureKeyVaultCreateAccepted) String() string {
-	return fmt.Sprintf("[POST /security/azure-key-vaults][%d] azureKeyVaultCreateAccepted  %+v", 202, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[POST /security/azure-key-vaults][%d] azureKeyVaultCreateAccepted %s", 202, payload)
 }
 
 func (o *AzureKeyVaultCreateAccepted) GetPayload() *models.AzureKeyVaultJobLinkResponse {
@@ -244,6 +249,7 @@ func NewAzureKeyVaultCreateDefault(code int) *AzureKeyVaultCreateDefault {
 | 65537595 | The configuration.name field can only be specified when the create_inactive flag is set to true. |
 | 65538902 | The configuration.name is reserved for use by the system. |
 | 65538903 | The configuration.name field cannot be an empty string. |
+| 65539704 | The key manager cannot be configured because the SVM has NAE volumes. |
 Also see the table of common errors in the <a href="#Response_body">Response body</a> overview section of this documentation.
 */
 type AzureKeyVaultCreateDefault struct {
@@ -283,11 +289,13 @@ func (o *AzureKeyVaultCreateDefault) Code() int {
 }
 
 func (o *AzureKeyVaultCreateDefault) Error() string {
-	return fmt.Sprintf("[POST /security/azure-key-vaults][%d] azure_key_vault_create default  %+v", o._statusCode, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[POST /security/azure-key-vaults][%d] azure_key_vault_create default %s", o._statusCode, payload)
 }
 
 func (o *AzureKeyVaultCreateDefault) String() string {
-	return fmt.Sprintf("[POST /security/azure-key-vaults][%d] azure_key_vault_create default  %+v", o._statusCode, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[POST /security/azure-key-vaults][%d] azure_key_vault_create default %s", o._statusCode, payload)
 }
 
 func (o *AzureKeyVaultCreateDefault) GetPayload() *models.ErrorResponse {

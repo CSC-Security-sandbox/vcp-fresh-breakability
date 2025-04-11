@@ -86,6 +86,11 @@ func (m *S3ServicePostResponse) contextValidateS3ServicePostResponseInlineRecord
 	for i := 0; i < len(m.S3ServicePostResponseInlineRecords); i++ {
 
 		if m.S3ServicePostResponseInlineRecords[i] != nil {
+
+			if swag.IsZero(m.S3ServicePostResponseInlineRecords[i]) { // not required
+				return nil
+			}
+
 			if err := m.S3ServicePostResponseInlineRecords[i].ContextValidate(ctx, formats); err != nil {
 				if ve, ok := err.(*errors.Validation); ok {
 					return ve.ValidateName("records" + "." + strconv.Itoa(i))
@@ -275,6 +280,11 @@ func (m *S3ServicePostResponseInlineRecordsInlineArrayItem) ContextValidate(ctx 
 func (m *S3ServicePostResponseInlineRecordsInlineArrayItem) contextValidateLinks(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Links != nil {
+
+		if swag.IsZero(m.Links) { // not required
+			return nil
+		}
+
 		if err := m.Links.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("_links")
@@ -291,6 +301,11 @@ func (m *S3ServicePostResponseInlineRecordsInlineArrayItem) contextValidateLinks
 func (m *S3ServicePostResponseInlineRecordsInlineArrayItem) contextValidateJob(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Job != nil {
+
+		if swag.IsZero(m.Job) { // not required
+			return nil
+		}
+
 		if err := m.Job.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("job")
@@ -309,6 +324,11 @@ func (m *S3ServicePostResponseInlineRecordsInlineArrayItem) contextValidateUsers
 	for i := 0; i < len(m.Users); i++ {
 
 		if m.Users[i] != nil {
+
+			if swag.IsZero(m.Users[i]) { // not required
+				return nil
+			}
+
 			if err := m.Users[i].ContextValidate(ctx, formats); err != nil {
 				if ve, ok := err.(*errors.Validation); ok {
 					return ve.ValidateName("users" + "." + strconv.Itoa(i))
@@ -327,6 +347,11 @@ func (m *S3ServicePostResponseInlineRecordsInlineArrayItem) contextValidateUsers
 func (m *S3ServicePostResponseInlineRecordsInlineArrayItem) contextValidateWarning(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Warning != nil {
+
+		if swag.IsZero(m.Warning) { // not required
+			return nil
+		}
+
 		if err := m.Warning.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("warning")

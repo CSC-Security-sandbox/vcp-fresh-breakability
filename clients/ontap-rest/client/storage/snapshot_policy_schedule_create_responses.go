@@ -6,6 +6,7 @@ package storage
 // Editing this file might prove futile when you re-run the swagger generate command
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 
@@ -89,11 +90,11 @@ func (o *SnapshotPolicyScheduleCreateCreated) Code() int {
 }
 
 func (o *SnapshotPolicyScheduleCreateCreated) Error() string {
-	return fmt.Sprintf("[POST /storage/snapshot-policies/{snapshot_policy.uuid}/schedules][%d] snapshotPolicyScheduleCreateCreated ", 201)
+	return fmt.Sprintf("[POST /storage/snapshot-policies/{snapshot_policy.uuid}/schedules][%d] snapshotPolicyScheduleCreateCreated", 201)
 }
 
 func (o *SnapshotPolicyScheduleCreateCreated) String() string {
-	return fmt.Sprintf("[POST /storage/snapshot-policies/{snapshot_policy.uuid}/schedules][%d] snapshotPolicyScheduleCreateCreated ", 201)
+	return fmt.Sprintf("[POST /storage/snapshot-policies/{snapshot_policy.uuid}/schedules][%d] snapshotPolicyScheduleCreateCreated", 201)
 }
 
 func (o *SnapshotPolicyScheduleCreateCreated) readResponse(response runtime.ClientResponse, consumer runtime.Consumer, formats strfmt.Registry) error {
@@ -169,11 +170,13 @@ func (o *SnapshotPolicyScheduleCreateDefault) Code() int {
 }
 
 func (o *SnapshotPolicyScheduleCreateDefault) Error() string {
-	return fmt.Sprintf("[POST /storage/snapshot-policies/{snapshot_policy.uuid}/schedules][%d] snapshot_policy_schedule_create default  %+v", o._statusCode, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[POST /storage/snapshot-policies/{snapshot_policy.uuid}/schedules][%d] snapshot_policy_schedule_create default %s", o._statusCode, payload)
 }
 
 func (o *SnapshotPolicyScheduleCreateDefault) String() string {
-	return fmt.Sprintf("[POST /storage/snapshot-policies/{snapshot_policy.uuid}/schedules][%d] snapshot_policy_schedule_create default  %+v", o._statusCode, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[POST /storage/snapshot-policies/{snapshot_policy.uuid}/schedules][%d] snapshot_policy_schedule_create default %s", o._statusCode, payload)
 }
 
 func (o *SnapshotPolicyScheduleCreateDefault) GetPayload() *models.ErrorResponse {

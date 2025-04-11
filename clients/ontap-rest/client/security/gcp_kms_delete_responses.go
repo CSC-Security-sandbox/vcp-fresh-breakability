@@ -6,6 +6,7 @@ package security
 // Editing this file might prove futile when you re-run the swagger generate command
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 
@@ -91,11 +92,11 @@ func (o *GcpKmsDeleteOK) Code() int {
 }
 
 func (o *GcpKmsDeleteOK) Error() string {
-	return fmt.Sprintf("[DELETE /security/gcp-kms/{uuid}][%d] gcpKmsDeleteOK ", 200)
+	return fmt.Sprintf("[DELETE /security/gcp-kms/{uuid}][%d] gcpKmsDeleteOK", 200)
 }
 
 func (o *GcpKmsDeleteOK) String() string {
-	return fmt.Sprintf("[DELETE /security/gcp-kms/{uuid}][%d] gcpKmsDeleteOK ", 200)
+	return fmt.Sprintf("[DELETE /security/gcp-kms/{uuid}][%d] gcpKmsDeleteOK", 200)
 }
 
 func (o *GcpKmsDeleteOK) readResponse(response runtime.ClientResponse, consumer runtime.Consumer, formats strfmt.Registry) error {
@@ -148,11 +149,13 @@ func (o *GcpKmsDeleteAccepted) Code() int {
 }
 
 func (o *GcpKmsDeleteAccepted) Error() string {
-	return fmt.Sprintf("[DELETE /security/gcp-kms/{uuid}][%d] gcpKmsDeleteAccepted  %+v", 202, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[DELETE /security/gcp-kms/{uuid}][%d] gcpKmsDeleteAccepted %s", 202, payload)
 }
 
 func (o *GcpKmsDeleteAccepted) String() string {
-	return fmt.Sprintf("[DELETE /security/gcp-kms/{uuid}][%d] gcpKmsDeleteAccepted  %+v", 202, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[DELETE /security/gcp-kms/{uuid}][%d] gcpKmsDeleteAccepted %s", 202, payload)
 }
 
 func (o *GcpKmsDeleteAccepted) GetPayload() *models.GcpKmsJobLinkResponse {
@@ -233,11 +236,13 @@ func (o *GcpKmsDeleteDefault) Code() int {
 }
 
 func (o *GcpKmsDeleteDefault) Error() string {
-	return fmt.Sprintf("[DELETE /security/gcp-kms/{uuid}][%d] gcp_kms_delete default  %+v", o._statusCode, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[DELETE /security/gcp-kms/{uuid}][%d] gcp_kms_delete default %s", o._statusCode, payload)
 }
 
 func (o *GcpKmsDeleteDefault) String() string {
-	return fmt.Sprintf("[DELETE /security/gcp-kms/{uuid}][%d] gcp_kms_delete default  %+v", o._statusCode, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[DELETE /security/gcp-kms/{uuid}][%d] gcp_kms_delete default %s", o._statusCode, payload)
 }
 
 func (o *GcpKmsDeleteDefault) GetPayload() *models.ErrorResponse {

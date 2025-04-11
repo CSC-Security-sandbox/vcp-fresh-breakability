@@ -54,7 +54,7 @@ type DNS struct {
 
 	// Set to "svm" for DNS owned by an SVM, otherwise set to "cluster".
 	//
-	// Enum: [svm cluster]
+	// Enum: ["svm","cluster"]
 	Scope *string `json:"scope,omitempty"`
 
 	// servers
@@ -366,6 +366,11 @@ func (m *DNS) ContextValidate(ctx context.Context, formats strfmt.Registry) erro
 func (m *DNS) contextValidateLinks(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Links != nil {
+
+		if swag.IsZero(m.Links) { // not required
+			return nil
+		}
+
 		if err := m.Links.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("_links")
@@ -397,6 +402,11 @@ func (m *DNS) contextValidateDNSInlineStatus(ctx context.Context, formats strfmt
 	for i := 0; i < len(m.DNSInlineStatus); i++ {
 
 		if m.DNSInlineStatus[i] != nil {
+
+			if swag.IsZero(m.DNSInlineStatus[i]) { // not required
+				return nil
+			}
+
 			if err := m.DNSInlineStatus[i].ContextValidate(ctx, formats); err != nil {
 				if ve, ok := err.(*errors.Validation); ok {
 					return ve.ValidateName("status" + "." + strconv.Itoa(i))
@@ -429,6 +439,11 @@ func (m *DNS) contextValidateDomains(ctx context.Context, formats strfmt.Registr
 func (m *DNS) contextValidateDynamicDNS(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.DynamicDNS != nil {
+
+		if swag.IsZero(m.DynamicDNS) { // not required
+			return nil
+		}
+
 		if err := m.DynamicDNS.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("dynamic_dns")
@@ -459,6 +474,11 @@ func (m *DNS) contextValidateServers(ctx context.Context, formats strfmt.Registr
 func (m *DNS) contextValidateSvm(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Svm != nil {
+
+		if swag.IsZero(m.Svm) { // not required
+			return nil
+		}
+
 		if err := m.Svm.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("svm")
@@ -606,6 +626,11 @@ func (m *DNSInlineLinks) ContextValidate(ctx context.Context, formats strfmt.Reg
 func (m *DNSInlineLinks) contextValidateSelf(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Self != nil {
+
+		if swag.IsZero(m.Self) { // not required
+			return nil
+		}
+
 		if err := m.Self.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("_links" + "." + "self")
@@ -706,6 +731,11 @@ func (m *DNSInlineSvm) ContextValidate(ctx context.Context, formats strfmt.Regis
 func (m *DNSInlineSvm) contextValidateLinks(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Links != nil {
+
+		if swag.IsZero(m.Links) { // not required
+			return nil
+		}
+
 		if err := m.Links.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("svm" + "." + "_links")
@@ -796,6 +826,11 @@ func (m *DNSInlineSvmInlineLinks) ContextValidate(ctx context.Context, formats s
 func (m *DNSInlineSvmInlineLinks) contextValidateSelf(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Self != nil {
+
+		if swag.IsZero(m.Self) { // not required
+			return nil
+		}
+
 		if err := m.Self.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("svm" + "." + "_links" + "." + "self")

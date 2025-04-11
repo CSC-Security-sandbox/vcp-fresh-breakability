@@ -60,7 +60,7 @@ type S3Bucket struct {
 
 	// Specifies the NAS path to which the nas bucket corresponds to.
 	// Example: /
-	NASPath *string `json:"nas_path,omitempty"`
+	NasPath *string `json:"nas_path,omitempty"`
 
 	// policy
 	Policy *S3BucketInlinePolicy `json:"policy,omitempty"`
@@ -76,7 +76,7 @@ type S3Bucket struct {
 
 	// Specifies the role of the bucket. This field cannot be specified using a POST method.
 	// Read Only: true
-	// Enum: [standalone active passive]
+	// Enum: ["standalone","active","passive"]
 	Role *string `json:"role,omitempty"`
 
 	// A list of aggregates for FlexGroup volume constituents where the bucket is hosted. If this option is not specified, the bucket is auto-provisioned as a FlexGroup volume.
@@ -93,7 +93,7 @@ type S3Bucket struct {
 
 	// Specifies the storage service level of the FlexGroup volume on which the bucket should be created. Valid values are "value", "performance" or "extreme".
 	// Example: value
-	// Enum: [value performance extreme]
+	// Enum: ["value","performance","extreme"]
 	StorageServiceLevel *string `json:"storage_service_level,omitempty"`
 
 	// svm
@@ -101,7 +101,7 @@ type S3Bucket struct {
 
 	// Specifies the bucket type. Valid values are "s3"and "nas".
 	// Example: s3
-	// Enum: [s3 nas]
+	// Enum: ["s3","nas"]
 	Type *string `json:"type,omitempty"`
 
 	// Specifies whether mirrored aggregates are selected when provisioning a FlexGroup. Only mirrored aggregates are used if this parameter is set to "true" and only unmirrored aggregates are used if this parameter is set to "false". The default value is "true" for a MetroCluster configuration and is "false" for a non-MetroCluster configuration.
@@ -115,7 +115,7 @@ type S3Bucket struct {
 
 	// Specifies the versioning state of the bucket. Valid values are "disabled", "enabled" or "suspended". Note that the versioning state cannot be modified to 'disabled' from any other state.
 	// Example: enabled
-	// Enum: [disabled enabled suspended]
+	// Enum: ["disabled","enabled","suspended"]
 	VersioningState *string `json:"versioning_state,omitempty"`
 
 	// volume
@@ -603,8 +603,8 @@ const (
 	// S3BucketTypeS3 captures enum value "s3"
 	S3BucketTypeS3 string = "s3"
 
-	// S3BucketTypeNAS captures enum value "nas"
-	S3BucketTypeNAS string = "nas"
+	// S3BucketTypeNas captures enum value "nas"
+	S3BucketTypeNas string = "nas"
 )
 
 // prop value enum
@@ -777,6 +777,11 @@ func (m *S3Bucket) ContextValidate(ctx context.Context, formats strfmt.Registry)
 func (m *S3Bucket) contextValidateAuditEventSelector(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.AuditEventSelector != nil {
+
+		if swag.IsZero(m.AuditEventSelector) { // not required
+			return nil
+		}
+
 		if err := m.AuditEventSelector.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("audit_event_selector")
@@ -793,6 +798,11 @@ func (m *S3Bucket) contextValidateAuditEventSelector(ctx context.Context, format
 func (m *S3Bucket) contextValidateCors(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Cors != nil {
+
+		if swag.IsZero(m.Cors) { // not required
+			return nil
+		}
+
 		if err := m.Cors.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("cors")
@@ -809,6 +819,11 @@ func (m *S3Bucket) contextValidateCors(ctx context.Context, formats strfmt.Regis
 func (m *S3Bucket) contextValidateEncryption(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Encryption != nil {
+
+		if swag.IsZero(m.Encryption) { // not required
+			return nil
+		}
+
 		if err := m.Encryption.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("encryption")
@@ -825,6 +840,11 @@ func (m *S3Bucket) contextValidateEncryption(ctx context.Context, formats strfmt
 func (m *S3Bucket) contextValidateLifecycleManagement(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.LifecycleManagement != nil {
+
+		if swag.IsZero(m.LifecycleManagement) { // not required
+			return nil
+		}
+
 		if err := m.LifecycleManagement.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("lifecycle_management")
@@ -850,6 +870,11 @@ func (m *S3Bucket) contextValidateLogicalUsedSize(ctx context.Context, formats s
 func (m *S3Bucket) contextValidatePolicy(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Policy != nil {
+
+		if swag.IsZero(m.Policy) { // not required
+			return nil
+		}
+
 		if err := m.Policy.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("policy")
@@ -866,6 +891,11 @@ func (m *S3Bucket) contextValidatePolicy(ctx context.Context, formats strfmt.Reg
 func (m *S3Bucket) contextValidateProtectionStatus(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.ProtectionStatus != nil {
+
+		if swag.IsZero(m.ProtectionStatus) { // not required
+			return nil
+		}
+
 		if err := m.ProtectionStatus.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("protection_status")
@@ -882,6 +912,11 @@ func (m *S3Bucket) contextValidateProtectionStatus(ctx context.Context, formats 
 func (m *S3Bucket) contextValidateQosPolicy(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.QosPolicy != nil {
+
+		if swag.IsZero(m.QosPolicy) { // not required
+			return nil
+		}
+
 		if err := m.QosPolicy.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("qos_policy")
@@ -898,6 +933,11 @@ func (m *S3Bucket) contextValidateQosPolicy(ctx context.Context, formats strfmt.
 func (m *S3Bucket) contextValidateRetention(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Retention != nil {
+
+		if swag.IsZero(m.Retention) { // not required
+			return nil
+		}
+
 		if err := m.Retention.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("retention")
@@ -925,6 +965,11 @@ func (m *S3Bucket) contextValidateS3BucketInlineAggregates(ctx context.Context, 
 	for i := 0; i < len(m.S3BucketInlineAggregates); i++ {
 
 		if m.S3BucketInlineAggregates[i] != nil {
+
+			if swag.IsZero(m.S3BucketInlineAggregates[i]) { // not required
+				return nil
+			}
+
 			if err := m.S3BucketInlineAggregates[i].ContextValidate(ctx, formats); err != nil {
 				if ve, ok := err.(*errors.Validation); ok {
 					return ve.ValidateName("aggregates" + "." + strconv.Itoa(i))
@@ -943,6 +988,11 @@ func (m *S3Bucket) contextValidateS3BucketInlineAggregates(ctx context.Context, 
 func (m *S3Bucket) contextValidateSnapshotPolicy(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.SnapshotPolicy != nil {
+
+		if swag.IsZero(m.SnapshotPolicy) { // not required
+			return nil
+		}
+
 		if err := m.SnapshotPolicy.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("snapshot_policy")
@@ -959,6 +1009,11 @@ func (m *S3Bucket) contextValidateSnapshotPolicy(ctx context.Context, formats st
 func (m *S3Bucket) contextValidateSvm(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Svm != nil {
+
+		if swag.IsZero(m.Svm) { // not required
+			return nil
+		}
+
 		if err := m.Svm.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("svm")
@@ -984,6 +1039,11 @@ func (m *S3Bucket) contextValidateUUID(ctx context.Context, formats strfmt.Regis
 func (m *S3Bucket) contextValidateVolume(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Volume != nil {
+
+		if swag.IsZero(m.Volume) { // not required
+			return nil
+		}
+
 		if err := m.Volume.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("volume")
@@ -1082,6 +1142,11 @@ func (m *S3BucketInlineAggregatesInlineArrayItem) ContextValidate(ctx context.Co
 func (m *S3BucketInlineAggregatesInlineArrayItem) contextValidateLinks(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Links != nil {
+
+		if swag.IsZero(m.Links) { // not required
+			return nil
+		}
+
 		if err := m.Links.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("_links")
@@ -1172,6 +1237,11 @@ func (m *S3BucketInlineAggregatesInlineArrayItemInlineLinks) ContextValidate(ctx
 func (m *S3BucketInlineAggregatesInlineArrayItemInlineLinks) contextValidateSelf(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Self != nil {
+
+		if swag.IsZero(m.Self) { // not required
+			return nil
+		}
+
 		if err := m.Self.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("_links" + "." + "self")
@@ -1210,12 +1280,12 @@ type S3BucketInlineAuditEventSelector struct {
 
 	// Specifies read and write access types.
 	//
-	// Enum: [read write all none]
+	// Enum: ["read","write","all","none"]
 	Access *string `json:"access,omitempty"`
 
 	// Specifies allow and deny permission types.
 	//
-	// Enum: [deny allow all none]
+	// Enum: ["deny","allow","all","none"]
 	Permission *string `json:"permission,omitempty"`
 }
 
@@ -1424,6 +1494,11 @@ func (m *S3BucketInlineCors) contextValidateRules(ctx context.Context, formats s
 	for i := 0; i < len(m.Rules); i++ {
 
 		if m.Rules[i] != nil {
+
+			if swag.IsZero(m.Rules[i]) { // not required
+				return nil
+			}
+
 			if err := m.Rules[i].ContextValidate(ctx, formats); err != nil {
 				if ve, ok := err.(*errors.Validation); ok {
 					return ve.ValidateName("cors" + "." + "rules" + "." + strconv.Itoa(i))
@@ -1565,6 +1640,11 @@ func (m *S3BucketCorsRulesItems0) ContextValidate(ctx context.Context, formats s
 func (m *S3BucketCorsRulesItems0) contextValidateLinks(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Links != nil {
+
+		if swag.IsZero(m.Links) { // not required
+			return nil
+		}
+
 		if err := m.Links.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("_links")
@@ -1655,6 +1735,11 @@ func (m *S3BucketCorsRulesItems0Links) ContextValidate(ctx context.Context, form
 func (m *S3BucketCorsRulesItems0Links) contextValidateSelf(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Self != nil {
+
+		if swag.IsZero(m.Self) { // not required
+			return nil
+		}
+
 		if err := m.Self.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("_links" + "." + "self")
@@ -1796,6 +1881,11 @@ func (m *S3BucketInlineLifecycleManagement) contextValidateRules(ctx context.Con
 	for i := 0; i < len(m.Rules); i++ {
 
 		if m.Rules[i] != nil {
+
+			if swag.IsZero(m.Rules[i]) { // not required
+				return nil
+			}
+
 			if err := m.Rules[i].ContextValidate(ctx, formats); err != nil {
 				if ve, ok := err.(*errors.Validation); ok {
 					return ve.ValidateName("lifecycle_management" + "." + "rules" + "." + strconv.Itoa(i))
@@ -2118,6 +2208,11 @@ func (m *S3BucketLifecycleManagementRulesItems0) ContextValidate(ctx context.Con
 func (m *S3BucketLifecycleManagementRulesItems0) contextValidateLinks(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Links != nil {
+
+		if swag.IsZero(m.Links) { // not required
+			return nil
+		}
+
 		if err := m.Links.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("_links")
@@ -2134,6 +2229,11 @@ func (m *S3BucketLifecycleManagementRulesItems0) contextValidateLinks(ctx contex
 func (m *S3BucketLifecycleManagementRulesItems0) contextValidateAbortIncompleteMultipartUpload(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.AbortIncompleteMultipartUpload != nil {
+
+		if swag.IsZero(m.AbortIncompleteMultipartUpload) { // not required
+			return nil
+		}
+
 		if err := m.AbortIncompleteMultipartUpload.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("abort_incomplete_multipart_upload")
@@ -2150,6 +2250,11 @@ func (m *S3BucketLifecycleManagementRulesItems0) contextValidateAbortIncompleteM
 func (m *S3BucketLifecycleManagementRulesItems0) contextValidateExpiration(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Expiration != nil {
+
+		if swag.IsZero(m.Expiration) { // not required
+			return nil
+		}
+
 		if err := m.Expiration.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("expiration")
@@ -2166,6 +2271,11 @@ func (m *S3BucketLifecycleManagementRulesItems0) contextValidateExpiration(ctx c
 func (m *S3BucketLifecycleManagementRulesItems0) contextValidateNonCurrentVersionExpiration(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.NonCurrentVersionExpiration != nil {
+
+		if swag.IsZero(m.NonCurrentVersionExpiration) { // not required
+			return nil
+		}
+
 		if err := m.NonCurrentVersionExpiration.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("non_current_version_expiration")
@@ -2182,6 +2292,11 @@ func (m *S3BucketLifecycleManagementRulesItems0) contextValidateNonCurrentVersio
 func (m *S3BucketLifecycleManagementRulesItems0) contextValidateObjectFilter(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.ObjectFilter != nil {
+
+		if swag.IsZero(m.ObjectFilter) { // not required
+			return nil
+		}
+
 		if err := m.ObjectFilter.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("object_filter")
@@ -2198,6 +2313,11 @@ func (m *S3BucketLifecycleManagementRulesItems0) contextValidateObjectFilter(ctx
 func (m *S3BucketLifecycleManagementRulesItems0) contextValidateSvm(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Svm != nil {
+
+		if swag.IsZero(m.Svm) { // not required
+			return nil
+		}
+
 		if err := m.Svm.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("svm")
@@ -2300,6 +2420,11 @@ func (m *S3BucketLifecycleManagementRulesItems0AbortIncompleteMultipartUpload) C
 func (m *S3BucketLifecycleManagementRulesItems0AbortIncompleteMultipartUpload) contextValidateLinks(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Links != nil {
+
+		if swag.IsZero(m.Links) { // not required
+			return nil
+		}
+
 		if err := m.Links.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("abort_incomplete_multipart_upload" + "." + "_links")
@@ -2390,6 +2515,11 @@ func (m *S3BucketLifecycleManagementRulesItems0AbortIncompleteMultipartUploadLin
 func (m *S3BucketLifecycleManagementRulesItems0AbortIncompleteMultipartUploadLinks) contextValidateSelf(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Self != nil {
+
+		if swag.IsZero(m.Self) { // not required
+			return nil
+		}
+
 		if err := m.Self.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("abort_incomplete_multipart_upload" + "." + "_links" + "." + "self")
@@ -2508,6 +2638,11 @@ func (m *S3BucketLifecycleManagementRulesItems0Expiration) ContextValidate(ctx c
 func (m *S3BucketLifecycleManagementRulesItems0Expiration) contextValidateLinks(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Links != nil {
+
+		if swag.IsZero(m.Links) { // not required
+			return nil
+		}
+
 		if err := m.Links.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("expiration" + "." + "_links")
@@ -2598,6 +2733,11 @@ func (m *S3BucketLifecycleManagementRulesItems0ExpirationLinks) ContextValidate(
 func (m *S3BucketLifecycleManagementRulesItems0ExpirationLinks) contextValidateSelf(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Self != nil {
+
+		if swag.IsZero(m.Self) { // not required
+			return nil
+		}
+
 		if err := m.Self.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("expiration" + "." + "_links" + "." + "self")
@@ -2688,6 +2828,11 @@ func (m *S3BucketLifecycleManagementRulesItems0Links) ContextValidate(ctx contex
 func (m *S3BucketLifecycleManagementRulesItems0Links) contextValidateSelf(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Self != nil {
+
+		if swag.IsZero(m.Self) { // not required
+			return nil
+		}
+
 		if err := m.Self.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("_links" + "." + "self")
@@ -2784,6 +2929,11 @@ func (m *S3BucketLifecycleManagementRulesItems0NonCurrentVersionExpiration) Cont
 func (m *S3BucketLifecycleManagementRulesItems0NonCurrentVersionExpiration) contextValidateLinks(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Links != nil {
+
+		if swag.IsZero(m.Links) { // not required
+			return nil
+		}
+
 		if err := m.Links.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("non_current_version_expiration" + "." + "_links")
@@ -2874,6 +3024,11 @@ func (m *S3BucketLifecycleManagementRulesItems0NonCurrentVersionExpirationLinks)
 func (m *S3BucketLifecycleManagementRulesItems0NonCurrentVersionExpirationLinks) contextValidateSelf(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Self != nil {
+
+		if swag.IsZero(m.Self) { // not required
+			return nil
+		}
+
 		if err := m.Self.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("non_current_version_expiration" + "." + "_links" + "." + "self")
@@ -2981,6 +3136,11 @@ func (m *S3BucketLifecycleManagementRulesItems0ObjectFilter) ContextValidate(ctx
 func (m *S3BucketLifecycleManagementRulesItems0ObjectFilter) contextValidateLinks(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Links != nil {
+
+		if swag.IsZero(m.Links) { // not required
+			return nil
+		}
+
 		if err := m.Links.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("object_filter" + "." + "_links")
@@ -3071,6 +3231,11 @@ func (m *S3BucketLifecycleManagementRulesItems0ObjectFilterLinks) ContextValidat
 func (m *S3BucketLifecycleManagementRulesItems0ObjectFilterLinks) contextValidateSelf(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Self != nil {
+
+		if swag.IsZero(m.Self) { // not required
+			return nil
+		}
+
 		if err := m.Self.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("object_filter" + "." + "_links" + "." + "self")
@@ -3171,6 +3336,11 @@ func (m *S3BucketLifecycleManagementRulesItems0Svm) ContextValidate(ctx context.
 func (m *S3BucketLifecycleManagementRulesItems0Svm) contextValidateLinks(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Links != nil {
+
+		if swag.IsZero(m.Links) { // not required
+			return nil
+		}
+
 		if err := m.Links.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("svm" + "." + "_links")
@@ -3261,6 +3431,11 @@ func (m *S3BucketLifecycleManagementRulesItems0SvmLinks) ContextValidate(ctx con
 func (m *S3BucketLifecycleManagementRulesItems0SvmLinks) contextValidateSelf(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Self != nil {
+
+		if swag.IsZero(m.Self) { // not required
+			return nil
+		}
+
 		if err := m.Self.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("svm" + "." + "_links" + "." + "self")
@@ -3360,6 +3535,11 @@ func (m *S3BucketInlinePolicy) contextValidateStatements(ctx context.Context, fo
 	for i := 0; i < len(m.Statements); i++ {
 
 		if m.Statements[i] != nil {
+
+			if swag.IsZero(m.Statements[i]) { // not required
+				return nil
+			}
+
 			if err := m.Statements[i].ContextValidate(ctx, formats); err != nil {
 				if ve, ok := err.(*errors.Validation); ok {
 					return ve.ValidateName("policy" + "." + "statements" + "." + strconv.Itoa(i))
@@ -3460,6 +3640,11 @@ func (m *S3BucketInlineProtectionStatus) ContextValidate(ctx context.Context, fo
 func (m *S3BucketInlineProtectionStatus) contextValidateDestination(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Destination != nil {
+
+		if swag.IsZero(m.Destination) { // not required
+			return nil
+		}
+
 		if err := m.Destination.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("protection_status" + "." + "destination")
@@ -3515,7 +3700,7 @@ type S3BucketInlineProtectionStatusInlineDestination struct {
 
 	// Specifies whether a bucket is protected within ONTAP. This field cannot be specified using a POST method.
 	// Read Only: true
-	IsONTAP *bool `json:"is_ontap,omitempty"`
+	IsOntap *bool `json:"is_ontap,omitempty"`
 }
 
 // Validate validates this s3 bucket inline protection status inline destination
@@ -3535,7 +3720,7 @@ func (m *S3BucketInlineProtectionStatusInlineDestination) ContextValidate(ctx co
 		res = append(res, err)
 	}
 
-	if err := m.contextValidateIsONTAP(ctx, formats); err != nil {
+	if err := m.contextValidateIsOntap(ctx, formats); err != nil {
 		res = append(res, err)
 	}
 
@@ -3563,9 +3748,9 @@ func (m *S3BucketInlineProtectionStatusInlineDestination) contextValidateIsExter
 	return nil
 }
 
-func (m *S3BucketInlineProtectionStatusInlineDestination) contextValidateIsONTAP(ctx context.Context, formats strfmt.Registry) error {
+func (m *S3BucketInlineProtectionStatusInlineDestination) contextValidateIsOntap(ctx context.Context, formats strfmt.Registry) error {
 
-	if err := validate.ReadOnly(ctx, "protection_status"+"."+"destination"+"."+"is_ontap", "body", m.IsONTAP); err != nil {
+	if err := validate.ReadOnly(ctx, "protection_status"+"."+"destination"+"."+"is_ontap", "body", m.IsOntap); err != nil {
 		return err
 	}
 
@@ -3761,6 +3946,11 @@ func (m *S3BucketInlineQosPolicy) ContextValidate(ctx context.Context, formats s
 func (m *S3BucketInlineQosPolicy) contextValidateLinks(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Links != nil {
+
+		if swag.IsZero(m.Links) { // not required
+			return nil
+		}
+
 		if err := m.Links.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("qos_policy" + "." + "_links")
@@ -3851,6 +4041,11 @@ func (m *S3BucketInlineQosPolicyInlineLinks) ContextValidate(ctx context.Context
 func (m *S3BucketInlineQosPolicyInlineLinks) contextValidateSelf(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Self != nil {
+
+		if swag.IsZero(m.Self) { // not required
+			return nil
+		}
+
 		if err := m.Self.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("qos_policy" + "." + "_links" + "." + "self")
@@ -3893,7 +4088,7 @@ type S3BucketInlineRetention struct {
 
 	// The lock mode of the bucket. <br>compliance &dash; A SnapLock Compliance (SLC) bucket provides the highest level of WORM protection and an administrator cannot destroy a compliance bucket if it contains unexpired WORM objects. <br> governance &dash; An administrator can delete a Governance bucket.<br> no_lock &dash; Indicates the bucket does not support object locking.
 	// Example: governance
-	// Enum: [no_lock compliance governance]
+	// Enum: ["no_lock","compliance","governance"]
 	Mode *string `json:"mode,omitempty"`
 }
 
@@ -4112,6 +4307,11 @@ func (m *S3BucketInlineSvm) ContextValidate(ctx context.Context, formats strfmt.
 func (m *S3BucketInlineSvm) contextValidateLinks(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Links != nil {
+
+		if swag.IsZero(m.Links) { // not required
+			return nil
+		}
+
 		if err := m.Links.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("svm" + "." + "_links")
@@ -4202,6 +4402,11 @@ func (m *S3BucketInlineSvmInlineLinks) ContextValidate(ctx context.Context, form
 func (m *S3BucketInlineSvmInlineLinks) contextValidateSelf(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Self != nil {
+
+		if swag.IsZero(m.Self) { // not required
+			return nil
+		}
+
 		if err := m.Self.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("svm" + "." + "_links" + "." + "self")
@@ -4300,6 +4505,11 @@ func (m *S3BucketInlineVolume) ContextValidate(ctx context.Context, formats strf
 func (m *S3BucketInlineVolume) contextValidateLinks(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Links != nil {
+
+		if swag.IsZero(m.Links) { // not required
+			return nil
+		}
+
 		if err := m.Links.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("volume" + "." + "_links")
@@ -4390,6 +4600,11 @@ func (m *S3BucketInlineVolumeInlineLinks) ContextValidate(ctx context.Context, f
 func (m *S3BucketInlineVolumeInlineLinks) contextValidateSelf(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Self != nil {
+
+		if swag.IsZero(m.Self) { // not required
+			return nil
+		}
+
 		if err := m.Self.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("volume" + "." + "_links" + "." + "self")

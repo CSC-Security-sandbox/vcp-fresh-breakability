@@ -44,6 +44,28 @@ jobs:
     with:
       coverage-threshold: 80
 
+  verify_generated:
+    name: Verify Generated
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      - name: Verify generated ONTAP Rest client code
+        run: |
+          # Get the PR branch name
+          PR_BRANCH=$(echo $GITHUB_HEAD_REF)
+          echo "Pull request branch: $PR_BRANCH"
+
+          # Fetch the PR branch
+          git fetch origin $PR_BRANCH
+
+          # Switch to the PR branch
+          git checkout $PR_BRANCH
+
+          # Verify ontap rest client code
+          cd ./scripts
+          ./verify-ontap.sh
 
   lint:
     runs-on: [self-hosted,linux]

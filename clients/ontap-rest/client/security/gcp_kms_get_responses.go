@@ -6,6 +6,7 @@ package security
 // Editing this file might prove futile when you re-run the swagger generate command
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 
@@ -86,11 +87,13 @@ func (o *GcpKmsGetOK) Code() int {
 }
 
 func (o *GcpKmsGetOK) Error() string {
-	return fmt.Sprintf("[GET /security/gcp-kms/{uuid}][%d] gcpKmsGetOK  %+v", 200, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[GET /security/gcp-kms/{uuid}][%d] gcpKmsGetOK %s", 200, payload)
 }
 
 func (o *GcpKmsGetOK) String() string {
-	return fmt.Sprintf("[GET /security/gcp-kms/{uuid}][%d] gcpKmsGetOK  %+v", 200, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[GET /security/gcp-kms/{uuid}][%d] gcpKmsGetOK %s", 200, payload)
 }
 
 func (o *GcpKmsGetOK) GetPayload() *models.GcpKms {
@@ -165,11 +168,13 @@ func (o *GcpKmsGetDefault) Code() int {
 }
 
 func (o *GcpKmsGetDefault) Error() string {
-	return fmt.Sprintf("[GET /security/gcp-kms/{uuid}][%d] gcp_kms_get default  %+v", o._statusCode, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[GET /security/gcp-kms/{uuid}][%d] gcp_kms_get default %s", o._statusCode, payload)
 }
 
 func (o *GcpKmsGetDefault) String() string {
-	return fmt.Sprintf("[GET /security/gcp-kms/{uuid}][%d] gcp_kms_get default  %+v", o._statusCode, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[GET /security/gcp-kms/{uuid}][%d] gcp_kms_get default %s", o._statusCode, payload)
 }
 
 func (o *GcpKmsGetDefault) GetPayload() *models.ErrorResponse {

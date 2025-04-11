@@ -25,7 +25,7 @@ type CifsServiceDelete struct {
 
 	// Specifies the type of user who can access the SMB Volume. The default is domain_user. In the case of a hybrid-user, ONTAP won't contact on-premise ADDS.
 	//
-	// Enum: [domain_user hybrid_user]
+	// Enum: ["domain_user","hybrid_user"]
 	AuthUserType *string `json:"auth_user_type,omitempty"`
 
 	// Specifies the authentication method.
@@ -33,7 +33,7 @@ type CifsServiceDelete struct {
 	//   * client_secret
 	//   * certificate
 	//
-	// Enum: [client_secret certificate]
+	// Enum: ["client_secret","certificate"]
 	AuthenticationMethod *string `json:"authentication_method,omitempty"`
 
 	// PKCS12 certificate used by the application to prove its identity to AKV.
@@ -72,7 +72,7 @@ type CifsServiceDelete struct {
 	ProxyPort *int64 `json:"proxy_port,omitempty"`
 
 	// Proxy type.
-	// Enum: [http https]
+	// Enum: ["http","https"]
 	ProxyType *string `json:"proxy_type,omitempty"`
 
 	// Proxy username.
@@ -353,6 +353,11 @@ func (m *CifsServiceDelete) ContextValidate(ctx context.Context, formats strfmt.
 func (m *CifsServiceDelete) contextValidateAdDomain(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.AdDomain != nil {
+
+		if swag.IsZero(m.AdDomain) { // not required
+			return nil
+		}
+
 		if err := m.AdDomain.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("ad_domain")

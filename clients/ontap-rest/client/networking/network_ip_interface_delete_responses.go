@@ -6,6 +6,7 @@ package networking
 // Editing this file might prove futile when you re-run the swagger generate command
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 
@@ -85,11 +86,11 @@ func (o *NetworkIPInterfaceDeleteOK) Code() int {
 }
 
 func (o *NetworkIPInterfaceDeleteOK) Error() string {
-	return fmt.Sprintf("[DELETE /network/ip/interfaces/{uuid}][%d] networkIpInterfaceDeleteOK ", 200)
+	return fmt.Sprintf("[DELETE /network/ip/interfaces/{uuid}][%d] networkIpInterfaceDeleteOK", 200)
 }
 
 func (o *NetworkIPInterfaceDeleteOK) String() string {
-	return fmt.Sprintf("[DELETE /network/ip/interfaces/{uuid}][%d] networkIpInterfaceDeleteOK ", 200)
+	return fmt.Sprintf("[DELETE /network/ip/interfaces/{uuid}][%d] networkIpInterfaceDeleteOK", 200)
 }
 
 func (o *NetworkIPInterfaceDeleteOK) readResponse(response runtime.ClientResponse, consumer runtime.Consumer, formats strfmt.Registry) error {
@@ -153,11 +154,13 @@ func (o *NetworkIPInterfaceDeleteDefault) Code() int {
 }
 
 func (o *NetworkIPInterfaceDeleteDefault) Error() string {
-	return fmt.Sprintf("[DELETE /network/ip/interfaces/{uuid}][%d] network_ip_interface_delete default  %+v", o._statusCode, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[DELETE /network/ip/interfaces/{uuid}][%d] network_ip_interface_delete default %s", o._statusCode, payload)
 }
 
 func (o *NetworkIPInterfaceDeleteDefault) String() string {
-	return fmt.Sprintf("[DELETE /network/ip/interfaces/{uuid}][%d] network_ip_interface_delete default  %+v", o._statusCode, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[DELETE /network/ip/interfaces/{uuid}][%d] network_ip_interface_delete default %s", o._statusCode, payload)
 }
 
 func (o *NetworkIPInterfaceDeleteDefault) GetPayload() *models.ErrorResponse {

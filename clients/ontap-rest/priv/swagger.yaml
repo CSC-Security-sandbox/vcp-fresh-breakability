@@ -885,7 +885,7 @@ paths:
         '202':
           description: Accepted
           schema:
-            $ref: '../swagger.yaml#/definitions/s3_service_job_link_response'
+            $ref: '#/definitions/s3_service_job_link_response'
         default:
           description: 'ONTAP Error Response Codes
 
@@ -1884,7 +1884,72 @@ definitions:
         type: integer
       records:
         items:
-          $ref: '../swagger.yaml#/definitions/anti_ransomware_suspect'
+          $ref: '#/definitions/anti_ransomware_suspect'
+        type: array
+    type: object
+    x-ntap-readOnly: true
+  anti_ransomware_suspect:
+    description: File suspected to be potentially attacked by ransomware.
+    properties:
+      _links:
+        properties:
+          self:
+            $ref: '../swagger.yaml#/definitions/href'
+            x-ntap-introduced: '9.6'
+            x-ntap-introduced-dark: '9.10'
+        type: object
+        x-go-name: anti_ransomware_suspect_inline__links
+        x-ntap-introduced: '9.10'
+        x-ntap-readOnly: true
+      file:
+        properties:
+          format:
+            description: File format of the suspected file.
+            example: pdf
+            type: string
+            x-ntap-introduced: '9.10'
+            x-nullable: true
+          name:
+            description: Name of the suspected file.
+            example: test_file
+            type: string
+            x-ntap-introduced: '9.10'
+            x-nullable: true
+          path:
+            description: Path of the suspected file.
+            example: d1/d2/d3
+            type: string
+            x-ntap-introduced: '9.10'
+            x-nullable: true
+          reason:
+            description: Reason behind this file being suspected
+            example: High Entropy
+            type: string
+            x-ntap-introduced: '9.11'
+            x-nullable: true
+          suspect_time:
+            description: Time when the file was detected as a potential suspect in
+              date-time format.
+            example: 2021-05-12 15:00:16
+            format: date-time
+            readOnly: true
+            type: string
+            x-ntap-introduced: '9.10'
+            x-nullable: true
+        type: object
+        x-go-name: anti_ransomware_suspect_inline_file
+        x-ntap-introduced: '9.10'
+  s3_service_job_link_response:
+    properties:
+      job:
+        $ref: '#/definitions/job_link'
+      num_records:
+        description: Number of records
+        example: 1
+        type: integer
+      records:
+        items:
+          $ref: '../swagger.yaml#/definitions/s3_service'
         type: array
     type: object
     x-ntap-readOnly: true

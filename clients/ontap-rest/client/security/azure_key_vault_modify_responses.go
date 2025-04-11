@@ -6,6 +6,7 @@ package security
 // Editing this file might prove futile when you re-run the swagger generate command
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 
@@ -91,11 +92,11 @@ func (o *AzureKeyVaultModifyOK) Code() int {
 }
 
 func (o *AzureKeyVaultModifyOK) Error() string {
-	return fmt.Sprintf("[PATCH /security/azure-key-vaults/{uuid}][%d] azureKeyVaultModifyOK ", 200)
+	return fmt.Sprintf("[PATCH /security/azure-key-vaults/{uuid}][%d] azureKeyVaultModifyOK", 200)
 }
 
 func (o *AzureKeyVaultModifyOK) String() string {
-	return fmt.Sprintf("[PATCH /security/azure-key-vaults/{uuid}][%d] azureKeyVaultModifyOK ", 200)
+	return fmt.Sprintf("[PATCH /security/azure-key-vaults/{uuid}][%d] azureKeyVaultModifyOK", 200)
 }
 
 func (o *AzureKeyVaultModifyOK) readResponse(response runtime.ClientResponse, consumer runtime.Consumer, formats strfmt.Registry) error {
@@ -148,11 +149,13 @@ func (o *AzureKeyVaultModifyAccepted) Code() int {
 }
 
 func (o *AzureKeyVaultModifyAccepted) Error() string {
-	return fmt.Sprintf("[PATCH /security/azure-key-vaults/{uuid}][%d] azureKeyVaultModifyAccepted  %+v", 202, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[PATCH /security/azure-key-vaults/{uuid}][%d] azureKeyVaultModifyAccepted %s", 202, payload)
 }
 
 func (o *AzureKeyVaultModifyAccepted) String() string {
-	return fmt.Sprintf("[PATCH /security/azure-key-vaults/{uuid}][%d] azureKeyVaultModifyAccepted  %+v", 202, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[PATCH /security/azure-key-vaults/{uuid}][%d] azureKeyVaultModifyAccepted %s", 202, payload)
 }
 
 func (o *AzureKeyVaultModifyAccepted) GetPayload() *models.AzureKeyVaultJobLinkResponse {
@@ -232,11 +235,13 @@ func (o *AzureKeyVaultModifyDefault) Code() int {
 }
 
 func (o *AzureKeyVaultModifyDefault) Error() string {
-	return fmt.Sprintf("[PATCH /security/azure-key-vaults/{uuid}][%d] azure_key_vault_modify default  %+v", o._statusCode, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[PATCH /security/azure-key-vaults/{uuid}][%d] azure_key_vault_modify default %s", o._statusCode, payload)
 }
 
 func (o *AzureKeyVaultModifyDefault) String() string {
-	return fmt.Sprintf("[PATCH /security/azure-key-vaults/{uuid}][%d] azure_key_vault_modify default  %+v", o._statusCode, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[PATCH /security/azure-key-vaults/{uuid}][%d] azure_key_vault_modify default %s", o._statusCode, payload)
 }
 
 func (o *AzureKeyVaultModifyDefault) GetPayload() *models.ErrorResponse {

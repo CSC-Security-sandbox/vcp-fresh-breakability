@@ -26,7 +26,7 @@ type SnapmirrorRelationship struct {
 
 	// Specifies the SnapMirror backoff level due to Client Ops for FlexVol SnapMirror relationships.
 	// Example: medium
-	// Enum: [high medium none]
+	// Enum: ["high","medium","none"]
 	BackoffLevel *string `json:"backoff_level,omitempty"`
 
 	// consistency group failover
@@ -48,7 +48,7 @@ type SnapmirrorRelationship struct {
 	// Specifies the group type of the top level SnapMirror relationship. The volume relationships are shown as _none_, the SVMDR relationships are shown as _svm_dr_, the Consistency Group relationships are shown as _consistency_group_, and the FlexGroup volume relationships are shown as _flexgroup_.
 	// Example: consistency_group
 	// Read Only: true
-	// Enum: [none svm_dr consistency_group flexgroup]
+	// Enum: ["none","svm_dr","consistency_group","flexgroup"]
 	GroupType *string `json:"group_type,omitempty"`
 
 	// Is the relationship healthy?
@@ -56,7 +56,7 @@ type SnapmirrorRelationship struct {
 	Healthy *bool `json:"healthy,omitempty"`
 
 	// Specifies which configuration of the source SVM is replicated to the destination SVM. This property is applicable only for SVM data protection with "async" policy type. This "identity_preservation" overrides the "identity_preservation" set on the SnapMirror relationship's policy.
-	// Enum: [full exclude_network_config exclude_network_and_protocol_config]
+	// Enum: ["full","exclude_network_config","exclude_network_and_protocol_config"]
 	IdentityPreservation *string `json:"identity_preservation,omitempty"`
 
 	// Specifies the sites serving I/O for the SnapMirror active sync relationship.
@@ -76,7 +76,7 @@ type SnapmirrorRelationship struct {
 	// Specifies the operation type of the last transfer that occurred on the relationship. The _initialize_ transfer occurs when the relationship state changes from uninitialized to snapmirrored or in_sync. The _update_ transfer occurs when the snapshots are transferred from the source endpoint to the destination endpoint as part of scheduled or manual update. The _resync_ transfer occurs when the relationship state changes from broken_off to snapmirrored or in_sync. The _restore_ transfer occurs when the snapshot is restored from a destination endpoint to another endpoint.
 	// Example: initialize
 	// Read Only: true
-	// Enum: [initialize update resync restore]
+	// Enum: ["initialize","update","resync","restore"]
 	LastTransferType *string `json:"last_transfer_type,omitempty"`
 
 	// Specifies the Master Bias Activated Site for the SnapMirror active sync relationship.
@@ -118,7 +118,7 @@ type SnapmirrorRelationship struct {
 
 	// State of the relationship.<br>To initialize the relationship, PATCH the state to "snapmirrored" for relationships with a policy of type "async" or to state "in_sync" for relationships with a policy of type "sync".<br>To break the relationship, PATCH the state to "broken_off" for relationships with a policy of type "async" or "sync". SnapMirror relationships with the policy type as "sync" and "sync_type" as "automated_failover" cannot be "broken_off".<br>To resync the relationship, PATCH the state to "snapmirrored" for relationships with a policy of type "async" or to state "in_sync" for relationships with a policy of type "sync". SnapMirror relationships with the policy type as "sync" and "sync_type" as "automated_failover" can be in "broken_off" state due to a failed attempt of SnapMirror failover.<br>To pause the relationship, suspending further transfers, PATCH the state to "paused" for relationships with a policy of type "async" or "sync". SnapMirror relationships with the policy type as "sync" and "sync_type" as "automated_failover" cannot be "paused".<br>To resume transfers for a paused relationship, PATCH the state to "snapmirrored" for relationships with a policy of type "async" or to state "in_sync" for relationships with a policy of type "sync".<br>The entries "in_sync", "out_of_sync", "synchronizing", and "expanding" are only applicable to relationships with a policy of type "sync". A PATCH call on the state change only triggers the transition to the specified state. You must poll on the "state", "healthy" and "unhealthy_reason" properties using a GET request to determine if the transition is successful. To automatically initialize the relationship when specifying "create_destination" property, set the state to "snapmirrored" for relationships with a policy of type "async" or to state "in_sync" for relationships with a policy of type "sync".
 	// Example: snapmirrored
-	// Enum: [broken_off paused snapmirrored uninitialized in_sync out_of_sync synchronizing expanding]
+	// Enum: ["broken_off","paused","snapmirrored","uninitialized","in_sync","out_of_sync","synchronizing","expanding"]
 	State *string `json:"state,omitempty"`
 
 	// Throttle, in KBs per second. This "throttle" overrides the "throttle" set on the SnapMirror relationship's policy. If neither of these are set, defaults to 0, which is interpreted as unlimited.
@@ -799,6 +799,11 @@ func (m *SnapmirrorRelationship) ContextValidate(ctx context.Context, formats st
 func (m *SnapmirrorRelationship) contextValidateLinks(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Links != nil {
+
+		if swag.IsZero(m.Links) { // not required
+			return nil
+		}
+
 		if err := m.Links.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("_links")
@@ -815,6 +820,11 @@ func (m *SnapmirrorRelationship) contextValidateLinks(ctx context.Context, forma
 func (m *SnapmirrorRelationship) contextValidateConsistencyGroupFailover(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.ConsistencyGroupFailover != nil {
+
+		if swag.IsZero(m.ConsistencyGroupFailover) { // not required
+			return nil
+		}
+
 		if err := m.ConsistencyGroupFailover.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("consistency_group_failover")
@@ -831,6 +841,11 @@ func (m *SnapmirrorRelationship) contextValidateConsistencyGroupFailover(ctx con
 func (m *SnapmirrorRelationship) contextValidateCreateDestination(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.CreateDestination != nil {
+
+		if swag.IsZero(m.CreateDestination) { // not required
+			return nil
+		}
+
 		if err := m.CreateDestination.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("create_destination")
@@ -847,6 +862,11 @@ func (m *SnapmirrorRelationship) contextValidateCreateDestination(ctx context.Co
 func (m *SnapmirrorRelationship) contextValidateDestination(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Destination != nil {
+
+		if swag.IsZero(m.Destination) { // not required
+			return nil
+		}
+
 		if err := m.Destination.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("destination")
@@ -872,6 +892,11 @@ func (m *SnapmirrorRelationship) contextValidateExportedSnapshot(ctx context.Con
 func (m *SnapmirrorRelationship) contextValidateFabriclink(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Fabriclink != nil {
+
+		if swag.IsZero(m.Fabriclink) { // not required
+			return nil
+		}
+
 		if err := m.Fabriclink.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("fabriclink")
@@ -933,6 +958,11 @@ func (m *SnapmirrorRelationship) contextValidateLastTransferType(ctx context.Con
 func (m *SnapmirrorRelationship) contextValidatePolicy(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Policy != nil {
+
+		if swag.IsZero(m.Policy) { // not required
+			return nil
+		}
+
 		if err := m.Policy.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("policy")
@@ -951,6 +981,11 @@ func (m *SnapmirrorRelationship) contextValidateSnapmirrorRelationshipInlineSvmd
 	for i := 0; i < len(m.SnapmirrorRelationshipInlineSvmdrVolumes); i++ {
 
 		if m.SnapmirrorRelationshipInlineSvmdrVolumes[i] != nil {
+
+			if swag.IsZero(m.SnapmirrorRelationshipInlineSvmdrVolumes[i]) { // not required
+				return nil
+			}
+
 			if err := m.SnapmirrorRelationshipInlineSvmdrVolumes[i].ContextValidate(ctx, formats); err != nil {
 				if ve, ok := err.(*errors.Validation); ok {
 					return ve.ValidateName("svmdr_volumes" + "." + strconv.Itoa(i))
@@ -975,6 +1010,11 @@ func (m *SnapmirrorRelationship) contextValidateSnapmirrorRelationshipInlineUnhe
 	for i := 0; i < len(m.SnapmirrorRelationshipInlineUnhealthyReason); i++ {
 
 		if m.SnapmirrorRelationshipInlineUnhealthyReason[i] != nil {
+
+			if swag.IsZero(m.SnapmirrorRelationshipInlineUnhealthyReason[i]) { // not required
+				return nil
+			}
+
 			if err := m.SnapmirrorRelationshipInlineUnhealthyReason[i].ContextValidate(ctx, formats); err != nil {
 				if ve, ok := err.(*errors.Validation); ok {
 					return ve.ValidateName("unhealthy_reason" + "." + strconv.Itoa(i))
@@ -993,6 +1033,11 @@ func (m *SnapmirrorRelationship) contextValidateSnapmirrorRelationshipInlineUnhe
 func (m *SnapmirrorRelationship) contextValidateSource(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Source != nil {
+
+		if swag.IsZero(m.Source) { // not required
+			return nil
+		}
+
 		if err := m.Source.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("source")
@@ -1027,6 +1072,11 @@ func (m *SnapmirrorRelationship) contextValidateTotalTransferDuration(ctx contex
 func (m *SnapmirrorRelationship) contextValidateTransfer(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Transfer != nil {
+
+		if swag.IsZero(m.Transfer) { // not required
+			return nil
+		}
+
 		if err := m.Transfer.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("transfer")
@@ -1043,6 +1093,11 @@ func (m *SnapmirrorRelationship) contextValidateTransfer(ctx context.Context, fo
 func (m *SnapmirrorRelationship) contextValidateTransferSchedule(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.TransferSchedule != nil {
+
+		if swag.IsZero(m.TransferSchedule) { // not required
+			return nil
+		}
+
 		if err := m.TransferSchedule.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("transfer_schedule")
@@ -1094,7 +1149,7 @@ type SnapmirrorRelationshipInlineFabriclink struct {
 
 	// This field represents the destination bucket's role within FabricLink. Possible values for this field are "active_mirror" and "backup". In a bi-directional ONTAP to ONTAP mirroring relationship, both FabricLink SnapMirror records will contain "active_mirror" in both the source-role and destination-role fields. This field conveys that both mirrors are capable of performing an active role at any time. In an ONTAP to Non-ONTAP FabricLink replication relationship, the source-role is "active_mirror" and the destination-role is "backup". This parameter is supported for FabricLink SnapMirror relationships with ONTAP or external object store vendor endpoints. This parameter is only available in ONTAP 9.10.1 or later.
 	// Read Only: true
-	// Enum: [active_mirror backup]
+	// Enum: ["active_mirror","backup"]
 	DestinationRole *string `json:"destination_role,omitempty"`
 
 	// Conveys how many discrete tasks the bucket in this unidirectional FabricLink SnapMirror relationship knows it will eventually have to perform to fully update the destination to reflect the source's state. Each work item might represent the need to push a newly created object from the source to the destination mirror, or perhaps to advise the destination mirror that an existing object has been modified or deleted. If the link is configured with an RPO of one hour and the user creates an object on the source bucket, that bucket will immediately show that it now has a pending work item to send that new object to the destination; FabricLink intentionally will not act on that work item until the hour has elapsed. This parameter is only available in ONTAP 9.10.1 or later.
@@ -1115,7 +1170,7 @@ type SnapmirrorRelationshipInlineFabriclink struct {
 
 	// This field represents the source bucket's role within FabricLink. One possible value for this field is "active_mirror". In a bi-directional ONTAP to ONTAP mirroring relationship, both FabricLink SnapMirror records will contain "active_mirror" in both the source-role and destination-role fields. This field conveys that both mirrors are capable of performing an active role at any time. In an ONTAP to Non-ONTAP FabricLink replication relationship, the source-role is "active_mirror" and the destination-role is "backup". This parameter is supported only for FabricLink SnapMirror relationships with an ONTAP endpoint. This parameter is only available in ONTAP 9.10.1 or later.
 	// Read Only: true
-	// Enum: [active_mirror]
+	// Enum: ["active_mirror"]
 	SourceRole *string `json:"source_role,omitempty"`
 
 	// Specifies the status of the FabricLink SnapMirror relationship. This parameter is only available in ONTAP 9.10.1 or later.
@@ -1447,6 +1502,11 @@ func (m *SnapmirrorRelationshipInlineLinks) ContextValidate(ctx context.Context,
 func (m *SnapmirrorRelationshipInlineLinks) contextValidateSelf(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Self != nil {
+
+		if swag.IsZero(m.Self) { // not required
+			return nil
+		}
+
 		if err := m.Self.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("_links" + "." + "self")
@@ -1495,7 +1555,7 @@ type SnapmirrorRelationshipInlinePolicy struct {
 
 	// type
 	// Read Only: true
-	// Enum: [async sync continuous]
+	// Enum: ["async","sync","continuous"]
 	Type *string `json:"type,omitempty"`
 
 	// Unique identifier of the SnapMirror policy.
@@ -1650,6 +1710,11 @@ func (m *SnapmirrorRelationshipInlinePolicy) ContextValidate(ctx context.Context
 func (m *SnapmirrorRelationshipInlinePolicy) contextValidateLinks(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Links != nil {
+
+		if swag.IsZero(m.Links) { // not required
+			return nil
+		}
+
 		if err := m.Links.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("policy" + "." + "_links")
@@ -1666,6 +1731,11 @@ func (m *SnapmirrorRelationshipInlinePolicy) contextValidateLinks(ctx context.Co
 func (m *SnapmirrorRelationshipInlinePolicy) contextValidateTransferSchedule(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.TransferSchedule != nil {
+
+		if swag.IsZero(m.TransferSchedule) { // not required
+			return nil
+		}
+
 		if err := m.TransferSchedule.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("policy" + "." + "transfer_schedule")
@@ -1765,6 +1835,11 @@ func (m *SnapmirrorRelationshipInlinePolicyInlineLinks) ContextValidate(ctx cont
 func (m *SnapmirrorRelationshipInlinePolicyInlineLinks) contextValidateSelf(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Self != nil {
+
+		if swag.IsZero(m.Self) { // not required
+			return nil
+		}
+
 		if err := m.Self.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("policy" + "." + "_links" + "." + "self")
@@ -1894,7 +1969,7 @@ type SnapmirrorRelationshipInlineTransfer struct {
 	LastUpdatedTime *strfmt.DateTime `json:"last_updated_time,omitempty"`
 
 	// state
-	// Enum: [aborted failed hard_aborted queued success transferring]
+	// Enum: ["aborted","failed","hard_aborted","queued","success","transferring"]
 	State *string `json:"state,omitempty"`
 
 	// Elapsed time to transfer all snapshots for the last successful transfer.
@@ -1903,7 +1978,7 @@ type SnapmirrorRelationshipInlineTransfer struct {
 
 	// Specifies the operation type of the current transfer on the relationship. The _initialize_ transfer occurs when the relationship state changes from "uninitialized" to "snapmirrored" or "in_sync". The _update_ transfer occurs when snapshots are being transferred from the source endpoint to the destination endpoint as part of a scheduled or manual update. The _resync_ transfer occurs when the relationship state changes from "broken_off" to "snapmirrored" or "in_sync". The _restore_ transfer occurs when a snapshot is being restored from a destination endpoint to another endpoint.
 	// Example: initialize
-	// Enum: [initialize update resync restore]
+	// Enum: ["initialize","update","resync","restore"]
 	Type *string `json:"type,omitempty"`
 
 	// Transfer UUID. This property is applicable only for active transfers.
@@ -2120,6 +2195,11 @@ func (m *SnapmirrorRelationshipInlineTransfer) ContextValidate(ctx context.Conte
 func (m *SnapmirrorRelationshipInlineTransfer) contextValidateLinks(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Links != nil {
+
+		if swag.IsZero(m.Links) { // not required
+			return nil
+		}
+
 		if err := m.Links.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("transfer" + "." + "_links")
@@ -2210,6 +2290,11 @@ func (m *SnapmirrorRelationshipInlineTransferInlineLinks) ContextValidate(ctx co
 func (m *SnapmirrorRelationshipInlineTransferInlineLinks) contextValidateSelf(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Self != nil {
+
+		if swag.IsZero(m.Self) { // not required
+			return nil
+		}
+
 		if err := m.Self.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("transfer" + "." + "_links" + "." + "self")
@@ -2308,6 +2393,11 @@ func (m *SnapmirrorRelationshipInlineTransferSchedule) ContextValidate(ctx conte
 func (m *SnapmirrorRelationshipInlineTransferSchedule) contextValidateLinks(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Links != nil {
+
+		if swag.IsZero(m.Links) { // not required
+			return nil
+		}
+
 		if err := m.Links.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("transfer_schedule" + "." + "_links")
@@ -2398,6 +2488,11 @@ func (m *SnapmirrorRelationshipInlineTransferScheduleInlineLinks) ContextValidat
 func (m *SnapmirrorRelationshipInlineTransferScheduleInlineLinks) contextValidateSelf(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Self != nil {
+
+		if swag.IsZero(m.Self) { // not required
+			return nil
+		}
+
 		if err := m.Self.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("transfer_schedule" + "." + "_links" + "." + "self")

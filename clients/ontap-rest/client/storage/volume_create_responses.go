@@ -6,6 +6,7 @@ package storage
 // Editing this file might prove futile when you re-run the swagger generate command
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 
@@ -97,11 +98,13 @@ func (o *VolumeCreateCreated) Code() int {
 }
 
 func (o *VolumeCreateCreated) Error() string {
-	return fmt.Sprintf("[POST /storage/volumes][%d] volumeCreateCreated  %+v", 201, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[POST /storage/volumes][%d] volumeCreateCreated %s", 201, payload)
 }
 
 func (o *VolumeCreateCreated) String() string {
-	return fmt.Sprintf("[POST /storage/volumes][%d] volumeCreateCreated  %+v", 201, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[POST /storage/volumes][%d] volumeCreateCreated %s", 201, payload)
 }
 
 func (o *VolumeCreateCreated) GetPayload() *models.VolumeJobLinkResponse {
@@ -177,11 +180,13 @@ func (o *VolumeCreateAccepted) Code() int {
 }
 
 func (o *VolumeCreateAccepted) Error() string {
-	return fmt.Sprintf("[POST /storage/volumes][%d] volumeCreateAccepted  %+v", 202, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[POST /storage/volumes][%d] volumeCreateAccepted %s", 202, payload)
 }
 
 func (o *VolumeCreateAccepted) String() string {
-	return fmt.Sprintf("[POST /storage/volumes][%d] volumeCreateAccepted  %+v", 202, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[POST /storage/volumes][%d] volumeCreateAccepted %s", 202, payload)
 }
 
 func (o *VolumeCreateAccepted) GetPayload() *models.VolumeJobLinkResponse {
@@ -241,6 +246,8 @@ func NewVolumeCreateDefault(code int) *VolumeCreateDefault {
 | 917835 | Maximum allowed snapshot.reserve_percent value during a volume creation is 90. Use PATCH to set it to a higher value after the volume has been created. |
 | 917886 | Volume name is too long. It must be 203 characters or less. |
 | 917887 | The first character of the volume name must be a letter or underscore. |
+| 918157 | Node  \\\"{0}\\\" in cluster \\\"{1}\\\" failed to allocate encryption resources. Wait a few minutes, and try the operation again. If the issue persists, reboot the node and try the operation again. |
+| 918162 | Node \\\"{0}\\\" in cluster \\\"{1}\\\" is not reachable. Creation of the first encrypted volume requires encryption resources to be allocated on both node \\\"{2}\\\" and its HA partner node \\\"{0}\\\". Make sure that the node and its partner are healthy, and then try the operation again. |
 | 918191 | Flexvol tiering min cooling days requires an effective cluster version of ONTAP 9.4 or later. |
 | 918194 | Tiering min cooling days not supported for SVMDR. |
 | 918195 | Tiering min cooling days not supported for non data volumes. |
@@ -317,6 +324,11 @@ func NewVolumeCreateDefault(code int) *VolumeCreateDefault {
 | 124518412 | Volume activity tracking is not supported on SnapLock volumes. |
 | 124518414 | Volume activity tracking is not supported on volumes that contain NVMe namespaces. |
 | 124518422 | Volume activity tracking is not supported on All SAN Array clusters. |
+| 196608308 | Node \\\"{0}\\\" in cluster \\\"{1}\\\" is not reachable. Creation of the first NAE (NetApp Aggregate Encryption) aggregate requires encryption resources to be allocated on both node \\\"{2}\\\" and its HA partner node \\\"{0}\\\". Make sure that the node and its partner are healthy, and then try the operation again. |
+| 196608399 | One or more nodes in cluster \\\"{0}\\\" are not reachable. Creation of the first NAE (NetApp Aggregate Encryption) aggregate requires encryption resources to be allocated on all nodes in DR group \\\"{1}\\\". Ensure that all the nodes are healthy and then try the operation again. |
+| 196608400 | One or more nodes in cluster \\\"{0}\\\" are not reachable. Creation of the first encrypted volume requires encryption resources to be allocated on all nodes in DR group \\\"{1}\\\". Ensure that all the nodes are healthy and then try the operation again. |
+| 196608401 | Node \\\"{0}\\\" in cluster \\\"{1}\\\" is not reachable. Creation of the first NAE (NetApp Aggregate Encryption) aggregate requires encryption resources to be allocated on node \\\"{0}\\\". Make sure that the node is healthy, and then try the operation again. |
+| 196608402 | Node \\\"{0}\\\" in cluster \\\"{1}\\\" is not reachable. Creation of the first encrypted volume requires encryption resources to be allocated on node \\\"{0}\\\". Make sure that the node is healthy, and then try the operation again. |
 Also see the table of common errors in the <a href="#Response_body">Response body</a> overview section of this documentation.
 */
 type VolumeCreateDefault struct {
@@ -356,11 +368,13 @@ func (o *VolumeCreateDefault) Code() int {
 }
 
 func (o *VolumeCreateDefault) Error() string {
-	return fmt.Sprintf("[POST /storage/volumes][%d] volume_create default  %+v", o._statusCode, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[POST /storage/volumes][%d] volume_create default %s", o._statusCode, payload)
 }
 
 func (o *VolumeCreateDefault) String() string {
-	return fmt.Sprintf("[POST /storage/volumes][%d] volume_create default  %+v", o._statusCode, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[POST /storage/volumes][%d] volume_create default %s", o._statusCode, payload)
 }
 
 func (o *VolumeCreateDefault) GetPayload() *models.ErrorResponse {

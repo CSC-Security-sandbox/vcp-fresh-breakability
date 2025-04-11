@@ -173,6 +173,11 @@ func (m *SnapmirrorDestinationCreation) ContextValidate(ctx context.Context, for
 func (m *SnapmirrorDestinationCreation) contextValidateBucketRetention(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.BucketRetention != nil {
+
+		if swag.IsZero(m.BucketRetention) { // not required
+			return nil
+		}
+
 		if err := m.BucketRetention.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("bucket_retention")
@@ -189,6 +194,11 @@ func (m *SnapmirrorDestinationCreation) contextValidateBucketRetention(ctx conte
 func (m *SnapmirrorDestinationCreation) contextValidateSnaplock(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Snaplock != nil {
+
+		if swag.IsZero(m.Snaplock) { // not required
+			return nil
+		}
+
 		if err := m.Snaplock.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("snaplock")
@@ -205,6 +215,11 @@ func (m *SnapmirrorDestinationCreation) contextValidateSnaplock(ctx context.Cont
 func (m *SnapmirrorDestinationCreation) contextValidateStorageService(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.StorageService != nil {
+
+		if swag.IsZero(m.StorageService) { // not required
+			return nil
+		}
+
 		if err := m.StorageService.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("storage_service")
@@ -221,6 +236,11 @@ func (m *SnapmirrorDestinationCreation) contextValidateStorageService(ctx contex
 func (m *SnapmirrorDestinationCreation) contextValidateTiering(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Tiering != nil {
+
+		if swag.IsZero(m.Tiering) { // not required
+			return nil
+		}
+
 		if err := m.Tiering.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("tiering")
@@ -263,7 +283,7 @@ type SnapmirrorDestinationCreationInlineBucketRetention struct {
 
 	// The lock mode of the bucket. <br>compliance &dash; A SnapLock Compliance (SLC) bucket provides the highest level of WORM protection and an administrator cannot destroy a compliance bucket if it contains unexpired WORM objects. <br> governance &dash; An administrator can delete a Governance bucket.<br> no_lock &dash; Indicates the bucket does not support object locking.
 	// Example: governance
-	// Enum: [no_lock compliance governance]
+	// Enum: ["no_lock","compliance","governance"]
 	Mode *string `json:"mode,omitempty"`
 }
 
@@ -359,7 +379,7 @@ type SnapmirrorDestinationCreationInlineSnaplock struct {
 
 	// Optional property to create the destination endpoint with a SnapLock type for establishing a SnapMirror relationship. This property is only supported for relationships with a policy of type "vault".
 	// Example: enterprise
-	// Enum: [compliance enterprise non_snaplock]
+	// Enum: ["compliance","enterprise","non_snaplock"]
 	Type *string `json:"type,omitempty"`
 }
 
@@ -462,6 +482,11 @@ func (m *SnapmirrorDestinationCreationInlineSnaplock) ContextValidate(ctx contex
 func (m *SnapmirrorDestinationCreationInlineSnaplock) contextValidateRetention(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Retention != nil {
+
+		if swag.IsZero(m.Retention) { // not required
+			return nil
+		}
+
 		if err := m.Retention.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("snaplock" + "." + "retention")
@@ -544,14 +569,14 @@ func (m *SnapmirrorDestinationCreationInlineSnaplockInlineRetention) UnmarshalBi
 // swagger:model snapmirror_destination_creation_inline_storage_service
 type SnapmirrorDestinationCreationInlineStorageService struct {
 
-	// This property indicates whether to create the destination endpoint using storage service.
+	// This property indicates whether to create the destination endpoint using storage service. This property is supported for Unified ONTAP destination endpoints only.
 	Enabled *bool `json:"enabled,omitempty"`
 
-	// Optional property to enforce storage service performance on the destination endpoint. This property is applicable to FlexVol volume, FlexGroup volume, and Consistency Group endpoints.
+	// Optional property to enforce storage service performance on the destination endpoint. This property is applicable to FlexVol volume, FlexGroup volume, and Consistency Group endpoints. This property is supported for Unified ONTAP destination endpoints only.
 	EnforcePerformance *bool `json:"enforce_performance,omitempty"`
 
-	// Optional property to specify the storage service name for the destination endpoint. This property is considered when the property "create_destination.storage_service.enabled" is set to "true". When the property "create_destination.storage_service.enabled" is set to "true" and the "create_destination.storage_service.name" for the endpoint is not specified, then ONTAP selects the highest storage service available on the cluster to provision the destination endpoint. This property is applicable to FlexVol volume, FlexGroup volume, and Consistency Group endpoints.
-	// Enum: [extreme performance value]
+	// Optional property to specify the storage service name for the destination endpoint. This property is considered when the property "create_destination.storage_service.enabled" is set to "true". When the property "create_destination.storage_service.enabled" is set to "true" and the "create_destination.storage_service.name" for the endpoint is not specified, then ONTAP selects the highest storage service available on the cluster to provision the destination endpoint. This property is applicable to FlexVol volume, FlexGroup volume, and Consistency Group endpoints. This property is supported for Unified ONTAP destination endpoints only.
+	// Enum: ["extreme","performance","value"]
 	Name *string `json:"name,omitempty"`
 }
 
@@ -642,14 +667,14 @@ func (m *SnapmirrorDestinationCreationInlineStorageService) UnmarshalBinary(b []
 // swagger:model snapmirror_destination_creation_inline_tiering
 type SnapmirrorDestinationCreationInlineTiering struct {
 
-	// Optional property that indicates whether or not all non-root aggregates are FabricPool aggregates. This property is set to "true" by default when the destination cluster has all non-root aggregates as FabricPool aggregates. It is set to "false" when at least one of the non-root aggregates is not a FabricPool aggregate.
+	// Optional property that indicates whether or not all non-root aggregates are FabricPool aggregates. This property is set to "true" by default when the destination cluster has all non-root aggregates as FabricPool aggregates. It is set to "false" when at least one of the non-root aggregates is not a FabricPool aggregate. This property is supported for Unified ONTAP destination endpoints only.
 	AggregatesAreFabricPool interface{} `json:"aggregates_are_fabric_pool,omitempty"`
 
-	// Optional property to specify the destination endpoint's tiering policy when "create_destination.tiering.supported" is set to "true". This property is applicable to FlexVol volume, FlexGroup volume, and Consistency Group endpoints. This property determines whether the user data blocks of the destination endpoint in a FabricPool will be tiered to the cloud store when they become cold. FabricPool combines flash (performance tier) with a cloud store into a single aggregate. Temperature of the destination endpoint volume blocks increases if they are accessed frequently and decreases when they are not.<br>all &dash; This policy allows tiering of both destination endpoint snapshots and the user transferred data blocks to the cloud store as soon as possible by ignoring the temperature on the volume blocks. This tiering policy is not applicable for Consistency Group destination endpoints or for synchronous relationships.<br>auto &dash; This policy allows tiering of both destination endpoint snapshots and the active file system user data to the cloud store<br>none &dash; Destination endpoint volume blocks will not be tiered to the cloud store.<br>snapshot_only &dash; This policy allows tiering of only the destination endpoint volume snapshots not associated with the active file system. The default tiering policy is "snapshot_only" for a FlexVol volume and "none" for a FlexGroup volume.
-	// Enum: [all auto none snapshot_only]
+	// Optional property to specify the destination endpoint's tiering policy when "create_destination.tiering.supported" is set to "true". This property is applicable to FlexVol volume, FlexGroup volume, and Consistency Group endpoints. This property determines whether the user data blocks of the destination endpoint in a FabricPool will be tiered to the cloud store when they become cold. FabricPool combines flash (performance tier) with a cloud store into a single aggregate. Temperature of the destination endpoint volume blocks increases if they are accessed frequently and decreases when they are not.<br>all &dash; This policy allows tiering of both destination endpoint snapshots and the user transferred data blocks to the cloud store as soon as possible by ignoring the temperature on the volume blocks. This tiering policy is not applicable for Consistency Group destination endpoints or for synchronous relationships.<br>auto &dash; This policy allows tiering of both destination endpoint snapshots and the active file system user data to the cloud store<br>none &dash; Destination endpoint volume blocks will not be tiered to the cloud store.<br>snapshot_only &dash; This policy allows tiering of only the destination endpoint volume snapshots not associated with the active file system. The default tiering policy is "snapshot_only" for a FlexVol volume and "none" for a FlexGroup volume. This property is supported for Unified ONTAP destination endpoints only.
+	// Enum: ["all","auto","none","snapshot_only"]
 	Policy *string `json:"policy,omitempty"`
 
-	// Optional property to enable provisioning of the destination endpoint volumes on FabricPool aggregates. This property is applicable to FlexVol volume, FlexGroup volume, and Consistency Group endpoints. Only FabricPool aggregates are used if this property is set to "true" and only non FabricPool aggregates are used if this property is set to "false". Tiering support for a FlexGroup volume can be changed by moving all of the constituents to the required aggregates. Note that in order to tier data, not only do the destination endpoint volumes need to support tiering by using FabricPools, the "create_destination.tiering.policy" must not be "none". A destination endpoint that uses FabricPools but has a tiering "policy" of "none" supports tiering but will not tier any data.
+	// Optional property to enable provisioning of the destination endpoint volumes on FabricPool aggregates. This property is applicable to FlexVol volume, FlexGroup volume, and Consistency Group endpoints. Only FabricPool aggregates are used if this property is set to "true" and only non FabricPool aggregates are used if this property is set to "false". Tiering support for a FlexGroup volume can be changed by moving all of the constituents to the required aggregates. Note that in order to tier data, not only do the destination endpoint volumes need to support tiering by using FabricPools, the "create_destination.tiering.policy" must not be "none". A destination endpoint that uses FabricPools but has a tiering "policy" of "none" supports tiering but will not tier any data. This property is supported for Unified ONTAP destination endpoints only.
 	Supported *bool `json:"supported,omitempty"`
 }
 

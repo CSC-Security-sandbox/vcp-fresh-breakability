@@ -6,6 +6,7 @@ package storage
 // Editing this file might prove futile when you re-run the swagger generate command
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 
@@ -92,11 +93,13 @@ func (o *AggregateModifyOK) Code() int {
 }
 
 func (o *AggregateModifyOK) Error() string {
-	return fmt.Sprintf("[PATCH /storage/aggregates/{uuid}][%d] aggregateModifyOK  %+v", 200, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[PATCH /storage/aggregates/{uuid}][%d] aggregateModifyOK %s", 200, payload)
 }
 
 func (o *AggregateModifyOK) String() string {
-	return fmt.Sprintf("[PATCH /storage/aggregates/{uuid}][%d] aggregateModifyOK  %+v", 200, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[PATCH /storage/aggregates/{uuid}][%d] aggregateModifyOK %s", 200, payload)
 }
 
 func (o *AggregateModifyOK) GetPayload() *models.AggregateSimulate {
@@ -160,11 +163,13 @@ func (o *AggregateModifyAccepted) Code() int {
 }
 
 func (o *AggregateModifyAccepted) Error() string {
-	return fmt.Sprintf("[PATCH /storage/aggregates/{uuid}][%d] aggregateModifyAccepted  %+v", 202, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[PATCH /storage/aggregates/{uuid}][%d] aggregateModifyAccepted %s", 202, payload)
 }
 
 func (o *AggregateModifyAccepted) String() string {
-	return fmt.Sprintf("[PATCH /storage/aggregates/{uuid}][%d] aggregateModifyAccepted  %+v", 202, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[PATCH /storage/aggregates/{uuid}][%d] aggregateModifyAccepted %s", 202, payload)
 }
 
 func (o *AggregateModifyAccepted) GetPayload() *models.AggregateSimulate {
@@ -351,11 +356,13 @@ func (o *AggregateModifyDefault) Code() int {
 }
 
 func (o *AggregateModifyDefault) Error() string {
-	return fmt.Sprintf("[PATCH /storage/aggregates/{uuid}][%d] aggregate_modify default  %+v", o._statusCode, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[PATCH /storage/aggregates/{uuid}][%d] aggregate_modify default %s", o._statusCode, payload)
 }
 
 func (o *AggregateModifyDefault) String() string {
-	return fmt.Sprintf("[PATCH /storage/aggregates/{uuid}][%d] aggregate_modify default  %+v", o._statusCode, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[PATCH /storage/aggregates/{uuid}][%d] aggregate_modify default %s", o._statusCode, payload)
 }
 
 func (o *AggregateModifyDefault) GetPayload() *models.ErrorResponse {

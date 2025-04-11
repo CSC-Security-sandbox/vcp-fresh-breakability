@@ -6,6 +6,7 @@ package networking
 // Editing this file might prove futile when you re-run the swagger generate command
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 
@@ -86,11 +87,13 @@ func (o *NetworkIPServicePoliciesGetOK) Code() int {
 }
 
 func (o *NetworkIPServicePoliciesGetOK) Error() string {
-	return fmt.Sprintf("[GET /network/ip/service-policies][%d] networkIpServicePoliciesGetOK  %+v", 200, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[GET /network/ip/service-policies][%d] networkIpServicePoliciesGetOK %s", 200, payload)
 }
 
 func (o *NetworkIPServicePoliciesGetOK) String() string {
-	return fmt.Sprintf("[GET /network/ip/service-policies][%d] networkIpServicePoliciesGetOK  %+v", 200, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[GET /network/ip/service-policies][%d] networkIpServicePoliciesGetOK %s", 200, payload)
 }
 
 func (o *NetworkIPServicePoliciesGetOK) GetPayload() *models.IPServicePolicyResponse {
@@ -158,11 +161,13 @@ func (o *NetworkIPServicePoliciesGetDefault) Code() int {
 }
 
 func (o *NetworkIPServicePoliciesGetDefault) Error() string {
-	return fmt.Sprintf("[GET /network/ip/service-policies][%d] network_ip_service_policies_get default  %+v", o._statusCode, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[GET /network/ip/service-policies][%d] network_ip_service_policies_get default %s", o._statusCode, payload)
 }
 
 func (o *NetworkIPServicePoliciesGetDefault) String() string {
-	return fmt.Sprintf("[GET /network/ip/service-policies][%d] network_ip_service_policies_get default  %+v", o._statusCode, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[GET /network/ip/service-policies][%d] network_ip_service_policies_get default %s", o._statusCode, payload)
 }
 
 func (o *NetworkIPServicePoliciesGetDefault) GetPayload() *models.ErrorResponse {

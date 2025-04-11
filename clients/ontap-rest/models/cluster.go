@@ -79,6 +79,9 @@ type Cluster struct {
 	// Example: ["time.nist.gov","10.98.19.20","2610:20:6F15:15::27"]
 	ClusterInlineNtpServers []*string `json:"ntp_servers,omitempty"`
 
+	// compute
+	Compute *ClusterInlineCompute `json:"compute,omitempty"`
+
 	// configuration backup
 	ConfigurationBackup *ClusterInlineConfigurationBackup `json:"configuration_backup,omitempty"`
 
@@ -121,7 +124,7 @@ type Cluster struct {
 
 	// Specifies if this cluster is an All SAN Array.
 	// Read Only: true
-	SANOptimized *bool `json:"san_optimized,omitempty"`
+	SanOptimized *bool `json:"san_optimized,omitempty"`
 
 	// statistics
 	Statistics *ClusterInlineStatistics `json:"statistics,omitempty"`
@@ -176,6 +179,10 @@ func (m *Cluster) Validate(formats strfmt.Registry) error {
 	}
 
 	if err := m.validateClusterInlineNodes(formats); err != nil {
+		res = append(res, err)
+	}
+
+	if err := m.validateCompute(formats); err != nil {
 		res = append(res, err)
 	}
 
@@ -410,6 +417,25 @@ func (m *Cluster) validateClusterInlineNodes(formats strfmt.Registry) error {
 	return nil
 }
 
+func (m *Cluster) validateCompute(formats strfmt.Registry) error {
+	if swag.IsZero(m.Compute) { // not required
+		return nil
+	}
+
+	if m.Compute != nil {
+		if err := m.Compute.Validate(formats); err != nil {
+			if ve, ok := err.(*errors.Validation); ok {
+				return ve.ValidateName("compute")
+			} else if ce, ok := err.(*errors.CompositeError); ok {
+				return ce.ValidateName("compute")
+			}
+			return err
+		}
+	}
+
+	return nil
+}
+
 func (m *Cluster) validateConfigurationBackup(formats strfmt.Registry) error {
 	if swag.IsZero(m.ConfigurationBackup) { // not required
 		return nil
@@ -614,6 +640,10 @@ func (m *Cluster) ContextValidate(ctx context.Context, formats strfmt.Registry) 
 		res = append(res, err)
 	}
 
+	if err := m.contextValidateCompute(ctx, formats); err != nil {
+		res = append(res, err)
+	}
+
 	if err := m.contextValidateConfigurationBackup(ctx, formats); err != nil {
 		res = append(res, err)
 	}
@@ -642,7 +672,7 @@ func (m *Cluster) ContextValidate(ctx context.Context, formats strfmt.Registry) 
 		res = append(res, err)
 	}
 
-	if err := m.contextValidateSANOptimized(ctx, formats); err != nil {
+	if err := m.contextValidateSanOptimized(ctx, formats); err != nil {
 		res = append(res, err)
 	}
 
@@ -671,6 +701,11 @@ func (m *Cluster) ContextValidate(ctx context.Context, formats strfmt.Registry) 
 func (m *Cluster) contextValidateLinks(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Links != nil {
+
+		if swag.IsZero(m.Links) { // not required
+			return nil
+		}
+
 		if err := m.Links.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("_links")
@@ -687,6 +722,11 @@ func (m *Cluster) contextValidateLinks(ctx context.Context, formats strfmt.Regis
 func (m *Cluster) contextValidateActiveDirectory(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.ActiveDirectory != nil {
+
+		if swag.IsZero(m.ActiveDirectory) { // not required
+			return nil
+		}
+
 		if err := m.ActiveDirectory.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("active_directory")
@@ -703,6 +743,11 @@ func (m *Cluster) contextValidateActiveDirectory(ctx context.Context, formats st
 func (m *Cluster) contextValidateAnalytics(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Analytics != nil {
+
+		if swag.IsZero(m.Analytics) { // not required
+			return nil
+		}
+
 		if err := m.Analytics.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("analytics")
@@ -719,6 +764,11 @@ func (m *Cluster) contextValidateAnalytics(ctx context.Context, formats strfmt.R
 func (m *Cluster) contextValidateCertificate(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Certificate != nil {
+
+		if swag.IsZero(m.Certificate) { // not required
+			return nil
+		}
+
 		if err := m.Certificate.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("certificate")
@@ -741,6 +791,11 @@ func (m *Cluster) contextValidateClusterInlineManagementInterfaces(ctx context.C
 	for i := 0; i < len(m.ClusterInlineManagementInterfaces); i++ {
 
 		if m.ClusterInlineManagementInterfaces[i] != nil {
+
+			if swag.IsZero(m.ClusterInlineManagementInterfaces[i]) { // not required
+				return nil
+			}
+
 			if err := m.ClusterInlineManagementInterfaces[i].ContextValidate(ctx, formats); err != nil {
 				if ve, ok := err.(*errors.Validation); ok {
 					return ve.ValidateName("management_interfaces" + "." + strconv.Itoa(i))
@@ -761,6 +816,11 @@ func (m *Cluster) contextValidateClusterInlineNodes(ctx context.Context, formats
 	for i := 0; i < len(m.ClusterInlineNodes); i++ {
 
 		if m.ClusterInlineNodes[i] != nil {
+
+			if swag.IsZero(m.ClusterInlineNodes[i]) { // not required
+				return nil
+			}
+
 			if err := m.ClusterInlineNodes[i].ContextValidate(ctx, formats); err != nil {
 				if ve, ok := err.(*errors.Validation); ok {
 					return ve.ValidateName("nodes" + "." + strconv.Itoa(i))
@@ -776,9 +836,35 @@ func (m *Cluster) contextValidateClusterInlineNodes(ctx context.Context, formats
 	return nil
 }
 
+func (m *Cluster) contextValidateCompute(ctx context.Context, formats strfmt.Registry) error {
+
+	if m.Compute != nil {
+
+		if swag.IsZero(m.Compute) { // not required
+			return nil
+		}
+
+		if err := m.Compute.ContextValidate(ctx, formats); err != nil {
+			if ve, ok := err.(*errors.Validation); ok {
+				return ve.ValidateName("compute")
+			} else if ce, ok := err.(*errors.CompositeError); ok {
+				return ce.ValidateName("compute")
+			}
+			return err
+		}
+	}
+
+	return nil
+}
+
 func (m *Cluster) contextValidateConfigurationBackup(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.ConfigurationBackup != nil {
+
+		if swag.IsZero(m.ConfigurationBackup) { // not required
+			return nil
+		}
+
 		if err := m.ConfigurationBackup.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("configuration_backup")
@@ -813,6 +899,11 @@ func (m *Cluster) contextValidateLargeVolumeSupported(ctx context.Context, forma
 func (m *Cluster) contextValidateLicense(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.License != nil {
+
+		if swag.IsZero(m.License) { // not required
+			return nil
+		}
+
 		if err := m.License.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("license")
@@ -829,6 +920,11 @@ func (m *Cluster) contextValidateLicense(ctx context.Context, formats strfmt.Reg
 func (m *Cluster) contextValidateManagementInterface(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.ManagementInterface != nil {
+
+		if swag.IsZero(m.ManagementInterface) { // not required
+			return nil
+		}
+
 		if err := m.ManagementInterface.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("management_interface")
@@ -845,6 +941,11 @@ func (m *Cluster) contextValidateManagementInterface(ctx context.Context, format
 func (m *Cluster) contextValidateMetric(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Metric != nil {
+
+		if swag.IsZero(m.Metric) { // not required
+			return nil
+		}
+
 		if err := m.Metric.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("metric")
@@ -861,6 +962,11 @@ func (m *Cluster) contextValidateMetric(ctx context.Context, formats strfmt.Regi
 func (m *Cluster) contextValidatePeeringPolicy(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.PeeringPolicy != nil {
+
+		if swag.IsZero(m.PeeringPolicy) { // not required
+			return nil
+		}
+
 		if err := m.PeeringPolicy.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("peering_policy")
@@ -874,9 +980,9 @@ func (m *Cluster) contextValidatePeeringPolicy(ctx context.Context, formats strf
 	return nil
 }
 
-func (m *Cluster) contextValidateSANOptimized(ctx context.Context, formats strfmt.Registry) error {
+func (m *Cluster) contextValidateSanOptimized(ctx context.Context, formats strfmt.Registry) error {
 
-	if err := validate.ReadOnly(ctx, "san_optimized", "body", m.SANOptimized); err != nil {
+	if err := validate.ReadOnly(ctx, "san_optimized", "body", m.SanOptimized); err != nil {
 		return err
 	}
 
@@ -886,6 +992,11 @@ func (m *Cluster) contextValidateSANOptimized(ctx context.Context, formats strfm
 func (m *Cluster) contextValidateStatistics(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Statistics != nil {
+
+		if swag.IsZero(m.Statistics) { // not required
+			return nil
+		}
+
 		if err := m.Statistics.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("statistics")
@@ -902,6 +1013,11 @@ func (m *Cluster) contextValidateStatistics(ctx context.Context, formats strfmt.
 func (m *Cluster) contextValidateTimezone(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Timezone != nil {
+
+		if swag.IsZero(m.Timezone) { // not required
+			return nil
+		}
+
 		if err := m.Timezone.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("timezone")
@@ -927,6 +1043,11 @@ func (m *Cluster) contextValidateUUID(ctx context.Context, formats strfmt.Regist
 func (m *Cluster) contextValidateVersion(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Version != nil {
+
+		if swag.IsZero(m.Version) { // not required
+			return nil
+		}
+
 		if err := m.Version.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("version")
@@ -986,6 +1107,9 @@ type ClusterInlineActiveDirectory struct {
 	// Min Length: 1
 	Password *string `json:"password,omitempty"`
 
+	// security
+	Security *ActiveDirectorySecurity `json:"security,omitempty"`
+
 	// Administrator username required for Active Directory account creation, modification, and deletion.
 	// Example: admin
 	// Min Length: 1
@@ -1005,6 +1129,10 @@ func (m *ClusterInlineActiveDirectory) Validate(formats strfmt.Registry) error {
 	}
 
 	if err := m.validatePassword(formats); err != nil {
+		res = append(res, err)
+	}
+
+	if err := m.validateSecurity(formats); err != nil {
 		res = append(res, err)
 	}
 
@@ -1054,6 +1182,25 @@ func (m *ClusterInlineActiveDirectory) validatePassword(formats strfmt.Registry)
 	return nil
 }
 
+func (m *ClusterInlineActiveDirectory) validateSecurity(formats strfmt.Registry) error {
+	if swag.IsZero(m.Security) { // not required
+		return nil
+	}
+
+	if m.Security != nil {
+		if err := m.Security.Validate(formats); err != nil {
+			if ve, ok := err.(*errors.Validation); ok {
+				return ve.ValidateName("active_directory" + "." + "security")
+			} else if ce, ok := err.(*errors.CompositeError); ok {
+				return ce.ValidateName("active_directory" + "." + "security")
+			}
+			return err
+		}
+	}
+
+	return nil
+}
+
 func (m *ClusterInlineActiveDirectory) validateUsername(formats strfmt.Registry) error {
 	if swag.IsZero(m.Username) { // not required
 		return nil
@@ -1066,8 +1213,38 @@ func (m *ClusterInlineActiveDirectory) validateUsername(formats strfmt.Registry)
 	return nil
 }
 
-// ContextValidate validates this cluster inline active directory based on context it is used
+// ContextValidate validate this cluster inline active directory based on the context it is used
 func (m *ClusterInlineActiveDirectory) ContextValidate(ctx context.Context, formats strfmt.Registry) error {
+	var res []error
+
+	if err := m.contextValidateSecurity(ctx, formats); err != nil {
+		res = append(res, err)
+	}
+
+	if len(res) > 0 {
+		return errors.CompositeValidationError(res...)
+	}
+	return nil
+}
+
+func (m *ClusterInlineActiveDirectory) contextValidateSecurity(ctx context.Context, formats strfmt.Registry) error {
+
+	if m.Security != nil {
+
+		if swag.IsZero(m.Security) { // not required
+			return nil
+		}
+
+		if err := m.Security.ContextValidate(ctx, formats); err != nil {
+			if ve, ok := err.(*errors.Validation); ok {
+				return ve.ValidateName("active_directory" + "." + "security")
+			} else if ce, ok := err.(*errors.CompositeError); ok {
+				return ce.ValidateName("active_directory" + "." + "security")
+			}
+			return err
+		}
+	}
+
 	return nil
 }
 
@@ -1213,6 +1390,11 @@ func (m *ClusterInlineAnalytics) ContextValidate(ctx context.Context, formats st
 func (m *ClusterInlineAnalytics) contextValidateByAccessedTime(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.ByAccessedTime != nil {
+
+		if swag.IsZero(m.ByAccessedTime) { // not required
+			return nil
+		}
+
 		if err := m.ByAccessedTime.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("analytics" + "." + "by_accessed_time")
@@ -1229,6 +1411,11 @@ func (m *ClusterInlineAnalytics) contextValidateByAccessedTime(ctx context.Conte
 func (m *ClusterInlineAnalytics) contextValidateByModifiedTime(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.ByModifiedTime != nil {
+
+		if swag.IsZero(m.ByModifiedTime) { // not required
+			return nil
+		}
+
 		if err := m.ByModifiedTime.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("analytics" + "." + "by_modified_time")
@@ -1319,6 +1506,11 @@ func (m *ClusterInlineAnalyticsInlineByAccessedTime) ContextValidate(ctx context
 func (m *ClusterInlineAnalyticsInlineByAccessedTime) contextValidateBytesUsed(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.BytesUsed != nil {
+
+		if swag.IsZero(m.BytesUsed) { // not required
+			return nil
+		}
+
 		if err := m.BytesUsed.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("analytics" + "." + "by_accessed_time" + "." + "bytes_used")
@@ -1493,6 +1685,11 @@ func (m *ClusterInlineAnalyticsInlineByAccessedTimeInlineBytesUsed) contextValid
 func (m *ClusterInlineAnalyticsInlineByAccessedTimeInlineBytesUsed) contextValidateNewestLabel(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.NewestLabel != nil {
+
+		if swag.IsZero(m.NewestLabel) { // not required
+			return nil
+		}
+
 		if err := m.NewestLabel.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("analytics" + "." + "by_accessed_time" + "." + "bytes_used" + "." + "newest_label")
@@ -1509,6 +1706,11 @@ func (m *ClusterInlineAnalyticsInlineByAccessedTimeInlineBytesUsed) contextValid
 func (m *ClusterInlineAnalyticsInlineByAccessedTimeInlineBytesUsed) contextValidateOldestLabel(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.OldestLabel != nil {
+
+		if swag.IsZero(m.OldestLabel) { // not required
+			return nil
+		}
+
 		if err := m.OldestLabel.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("analytics" + "." + "by_accessed_time" + "." + "bytes_used" + "." + "oldest_label")
@@ -1599,6 +1801,11 @@ func (m *ClusterInlineAnalyticsInlineByModifiedTime) ContextValidate(ctx context
 func (m *ClusterInlineAnalyticsInlineByModifiedTime) contextValidateBytesUsed(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.BytesUsed != nil {
+
+		if swag.IsZero(m.BytesUsed) { // not required
+			return nil
+		}
+
 		if err := m.BytesUsed.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("analytics" + "." + "by_modified_time" + "." + "bytes_used")
@@ -1773,6 +1980,11 @@ func (m *ClusterInlineAnalyticsInlineByModifiedTimeInlineBytesUsed) contextValid
 func (m *ClusterInlineAnalyticsInlineByModifiedTimeInlineBytesUsed) contextValidateNewestLabel(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.NewestLabel != nil {
+
+		if swag.IsZero(m.NewestLabel) { // not required
+			return nil
+		}
+
 		if err := m.NewestLabel.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("analytics" + "." + "by_modified_time" + "." + "bytes_used" + "." + "newest_label")
@@ -1789,6 +2001,11 @@ func (m *ClusterInlineAnalyticsInlineByModifiedTimeInlineBytesUsed) contextValid
 func (m *ClusterInlineAnalyticsInlineByModifiedTimeInlineBytesUsed) contextValidateOldestLabel(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.OldestLabel != nil {
+
+		if swag.IsZero(m.OldestLabel) { // not required
+			return nil
+		}
+
 		if err := m.OldestLabel.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("analytics" + "." + "by_modified_time" + "." + "bytes_used" + "." + "oldest_label")
@@ -1886,6 +2103,11 @@ func (m *ClusterInlineCertificate) ContextValidate(ctx context.Context, formats 
 func (m *ClusterInlineCertificate) contextValidateLinks(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Links != nil {
+
+		if swag.IsZero(m.Links) { // not required
+			return nil
+		}
+
 		if err := m.Links.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("certificate" + "." + "_links")
@@ -1976,6 +2198,11 @@ func (m *ClusterInlineCertificateInlineLinks) ContextValidate(ctx context.Contex
 func (m *ClusterInlineCertificateInlineLinks) contextValidateSelf(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Self != nil {
+
+		if swag.IsZero(m.Self) { // not required
+			return nil
+		}
+
 		if err := m.Self.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("certificate" + "." + "_links" + "." + "self")
@@ -2000,6 +2227,371 @@ func (m *ClusterInlineCertificateInlineLinks) MarshalBinary() ([]byte, error) {
 // UnmarshalBinary interface implementation
 func (m *ClusterInlineCertificateInlineLinks) UnmarshalBinary(b []byte) error {
 	var res ClusterInlineCertificateInlineLinks
+	if err := swag.ReadJSON(b, &res); err != nil {
+		return err
+	}
+	*m = res
+	return nil
+}
+
+// ClusterInlineCompute Compute cluster information
+//
+// swagger:model cluster_inline_compute
+type ClusterInlineCompute struct {
+
+	// links
+	Links *SelfLink `json:"_links,omitempty"`
+
+	// network pool
+	NetworkPool *ClusterInlineComputeInlineNetworkPool `json:"network_pool,omitempty"`
+
+	// nodes
+	Nodes []*AidpNode `json:"nodes,omitempty"`
+}
+
+// Validate validates this cluster inline compute
+func (m *ClusterInlineCompute) Validate(formats strfmt.Registry) error {
+	var res []error
+
+	if err := m.validateLinks(formats); err != nil {
+		res = append(res, err)
+	}
+
+	if err := m.validateNetworkPool(formats); err != nil {
+		res = append(res, err)
+	}
+
+	if err := m.validateNodes(formats); err != nil {
+		res = append(res, err)
+	}
+
+	if len(res) > 0 {
+		return errors.CompositeValidationError(res...)
+	}
+	return nil
+}
+
+func (m *ClusterInlineCompute) validateLinks(formats strfmt.Registry) error {
+	if swag.IsZero(m.Links) { // not required
+		return nil
+	}
+
+	if m.Links != nil {
+		if err := m.Links.Validate(formats); err != nil {
+			if ve, ok := err.(*errors.Validation); ok {
+				return ve.ValidateName("compute" + "." + "_links")
+			} else if ce, ok := err.(*errors.CompositeError); ok {
+				return ce.ValidateName("compute" + "." + "_links")
+			}
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (m *ClusterInlineCompute) validateNetworkPool(formats strfmt.Registry) error {
+	if swag.IsZero(m.NetworkPool) { // not required
+		return nil
+	}
+
+	if m.NetworkPool != nil {
+		if err := m.NetworkPool.Validate(formats); err != nil {
+			if ve, ok := err.(*errors.Validation); ok {
+				return ve.ValidateName("compute" + "." + "network_pool")
+			} else if ce, ok := err.(*errors.CompositeError); ok {
+				return ce.ValidateName("compute" + "." + "network_pool")
+			}
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (m *ClusterInlineCompute) validateNodes(formats strfmt.Registry) error {
+	if swag.IsZero(m.Nodes) { // not required
+		return nil
+	}
+
+	for i := 0; i < len(m.Nodes); i++ {
+		if swag.IsZero(m.Nodes[i]) { // not required
+			continue
+		}
+
+		if m.Nodes[i] != nil {
+			if err := m.Nodes[i].Validate(formats); err != nil {
+				if ve, ok := err.(*errors.Validation); ok {
+					return ve.ValidateName("compute" + "." + "nodes" + "." + strconv.Itoa(i))
+				} else if ce, ok := err.(*errors.CompositeError); ok {
+					return ce.ValidateName("compute" + "." + "nodes" + "." + strconv.Itoa(i))
+				}
+				return err
+			}
+		}
+
+	}
+
+	return nil
+}
+
+// ContextValidate validate this cluster inline compute based on the context it is used
+func (m *ClusterInlineCompute) ContextValidate(ctx context.Context, formats strfmt.Registry) error {
+	var res []error
+
+	if err := m.contextValidateLinks(ctx, formats); err != nil {
+		res = append(res, err)
+	}
+
+	if err := m.contextValidateNetworkPool(ctx, formats); err != nil {
+		res = append(res, err)
+	}
+
+	if err := m.contextValidateNodes(ctx, formats); err != nil {
+		res = append(res, err)
+	}
+
+	if len(res) > 0 {
+		return errors.CompositeValidationError(res...)
+	}
+	return nil
+}
+
+func (m *ClusterInlineCompute) contextValidateLinks(ctx context.Context, formats strfmt.Registry) error {
+
+	if m.Links != nil {
+
+		if swag.IsZero(m.Links) { // not required
+			return nil
+		}
+
+		if err := m.Links.ContextValidate(ctx, formats); err != nil {
+			if ve, ok := err.(*errors.Validation); ok {
+				return ve.ValidateName("compute" + "." + "_links")
+			} else if ce, ok := err.(*errors.CompositeError); ok {
+				return ce.ValidateName("compute" + "." + "_links")
+			}
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (m *ClusterInlineCompute) contextValidateNetworkPool(ctx context.Context, formats strfmt.Registry) error {
+
+	if m.NetworkPool != nil {
+
+		if swag.IsZero(m.NetworkPool) { // not required
+			return nil
+		}
+
+		if err := m.NetworkPool.ContextValidate(ctx, formats); err != nil {
+			if ve, ok := err.(*errors.Validation); ok {
+				return ve.ValidateName("compute" + "." + "network_pool")
+			} else if ce, ok := err.(*errors.CompositeError); ok {
+				return ce.ValidateName("compute" + "." + "network_pool")
+			}
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (m *ClusterInlineCompute) contextValidateNodes(ctx context.Context, formats strfmt.Registry) error {
+
+	for i := 0; i < len(m.Nodes); i++ {
+
+		if m.Nodes[i] != nil {
+
+			if swag.IsZero(m.Nodes[i]) { // not required
+				return nil
+			}
+
+			if err := m.Nodes[i].ContextValidate(ctx, formats); err != nil {
+				if ve, ok := err.(*errors.Validation); ok {
+					return ve.ValidateName("compute" + "." + "nodes" + "." + strconv.Itoa(i))
+				} else if ce, ok := err.(*errors.CompositeError); ok {
+					return ce.ValidateName("compute" + "." + "nodes" + "." + strconv.Itoa(i))
+				}
+				return err
+			}
+		}
+
+	}
+
+	return nil
+}
+
+// MarshalBinary interface implementation
+func (m *ClusterInlineCompute) MarshalBinary() ([]byte, error) {
+	if m == nil {
+		return nil, nil
+	}
+	return swag.WriteJSON(m)
+}
+
+// UnmarshalBinary interface implementation
+func (m *ClusterInlineCompute) UnmarshalBinary(b []byte) error {
+	var res ClusterInlineCompute
+	if err := swag.ReadJSON(b, &res); err != nil {
+		return err
+	}
+	*m = res
+	return nil
+}
+
+// ClusterInlineComputeInlineNetworkPool Pool of usable IP addresses for the compute cluster network
+//
+// swagger:model cluster_inline_compute_inline_network_pool
+type ClusterInlineComputeInlineNetworkPool struct {
+
+	// ip ranges
+	IPRanges []*IPAddressRange `json:"ip_ranges,omitempty"`
+
+	// subnet
+	Subnet *IPInfo `json:"subnet,omitempty"`
+}
+
+// Validate validates this cluster inline compute inline network pool
+func (m *ClusterInlineComputeInlineNetworkPool) Validate(formats strfmt.Registry) error {
+	var res []error
+
+	if err := m.validateIPRanges(formats); err != nil {
+		res = append(res, err)
+	}
+
+	if err := m.validateSubnet(formats); err != nil {
+		res = append(res, err)
+	}
+
+	if len(res) > 0 {
+		return errors.CompositeValidationError(res...)
+	}
+	return nil
+}
+
+func (m *ClusterInlineComputeInlineNetworkPool) validateIPRanges(formats strfmt.Registry) error {
+	if swag.IsZero(m.IPRanges) { // not required
+		return nil
+	}
+
+	for i := 0; i < len(m.IPRanges); i++ {
+		if swag.IsZero(m.IPRanges[i]) { // not required
+			continue
+		}
+
+		if m.IPRanges[i] != nil {
+			if err := m.IPRanges[i].Validate(formats); err != nil {
+				if ve, ok := err.(*errors.Validation); ok {
+					return ve.ValidateName("compute" + "." + "network_pool" + "." + "ip_ranges" + "." + strconv.Itoa(i))
+				} else if ce, ok := err.(*errors.CompositeError); ok {
+					return ce.ValidateName("compute" + "." + "network_pool" + "." + "ip_ranges" + "." + strconv.Itoa(i))
+				}
+				return err
+			}
+		}
+
+	}
+
+	return nil
+}
+
+func (m *ClusterInlineComputeInlineNetworkPool) validateSubnet(formats strfmt.Registry) error {
+	if swag.IsZero(m.Subnet) { // not required
+		return nil
+	}
+
+	if m.Subnet != nil {
+		if err := m.Subnet.Validate(formats); err != nil {
+			if ve, ok := err.(*errors.Validation); ok {
+				return ve.ValidateName("compute" + "." + "network_pool" + "." + "subnet")
+			} else if ce, ok := err.(*errors.CompositeError); ok {
+				return ce.ValidateName("compute" + "." + "network_pool" + "." + "subnet")
+			}
+			return err
+		}
+	}
+
+	return nil
+}
+
+// ContextValidate validate this cluster inline compute inline network pool based on the context it is used
+func (m *ClusterInlineComputeInlineNetworkPool) ContextValidate(ctx context.Context, formats strfmt.Registry) error {
+	var res []error
+
+	if err := m.contextValidateIPRanges(ctx, formats); err != nil {
+		res = append(res, err)
+	}
+
+	if err := m.contextValidateSubnet(ctx, formats); err != nil {
+		res = append(res, err)
+	}
+
+	if len(res) > 0 {
+		return errors.CompositeValidationError(res...)
+	}
+	return nil
+}
+
+func (m *ClusterInlineComputeInlineNetworkPool) contextValidateIPRanges(ctx context.Context, formats strfmt.Registry) error {
+
+	for i := 0; i < len(m.IPRanges); i++ {
+
+		if m.IPRanges[i] != nil {
+
+			if swag.IsZero(m.IPRanges[i]) { // not required
+				return nil
+			}
+
+			if err := m.IPRanges[i].ContextValidate(ctx, formats); err != nil {
+				if ve, ok := err.(*errors.Validation); ok {
+					return ve.ValidateName("compute" + "." + "network_pool" + "." + "ip_ranges" + "." + strconv.Itoa(i))
+				} else if ce, ok := err.(*errors.CompositeError); ok {
+					return ce.ValidateName("compute" + "." + "network_pool" + "." + "ip_ranges" + "." + strconv.Itoa(i))
+				}
+				return err
+			}
+		}
+
+	}
+
+	return nil
+}
+
+func (m *ClusterInlineComputeInlineNetworkPool) contextValidateSubnet(ctx context.Context, formats strfmt.Registry) error {
+
+	if m.Subnet != nil {
+
+		if swag.IsZero(m.Subnet) { // not required
+			return nil
+		}
+
+		if err := m.Subnet.ContextValidate(ctx, formats); err != nil {
+			if ve, ok := err.(*errors.Validation); ok {
+				return ve.ValidateName("compute" + "." + "network_pool" + "." + "subnet")
+			} else if ce, ok := err.(*errors.CompositeError); ok {
+				return ce.ValidateName("compute" + "." + "network_pool" + "." + "subnet")
+			}
+			return err
+		}
+	}
+
+	return nil
+}
+
+// MarshalBinary interface implementation
+func (m *ClusterInlineComputeInlineNetworkPool) MarshalBinary() ([]byte, error) {
+	if m == nil {
+		return nil, nil
+	}
+	return swag.WriteJSON(m)
+}
+
+// UnmarshalBinary interface implementation
+func (m *ClusterInlineComputeInlineNetworkPool) UnmarshalBinary(b []byte) error {
+	var res ClusterInlineComputeInlineNetworkPool
 	if err := swag.ReadJSON(b, &res); err != nil {
 		return err
 	}
@@ -2174,6 +2766,11 @@ func (m *ClusterInlineLinks) ContextValidate(ctx context.Context, formats strfmt
 func (m *ClusterInlineLinks) contextValidateSelf(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Self != nil {
+
+		if swag.IsZero(m.Self) { // not required
+			return nil
+		}
+
 		if err := m.Self.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("_links" + "." + "self")
@@ -2264,6 +2861,11 @@ func (m *ClusterInlineManagementInterface) ContextValidate(ctx context.Context, 
 func (m *ClusterInlineManagementInterface) contextValidateIP(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.IP != nil {
+
+		if swag.IsZero(m.IP) { // not required
+			return nil
+		}
+
 		if err := m.IP.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("management_interface" + "." + "ip")
@@ -2362,6 +2964,11 @@ func (m *ClusterInlineManagementInterfaceInlineIP) ContextValidate(ctx context.C
 func (m *ClusterInlineManagementInterfaceInlineIP) contextValidateNetmask(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Netmask != nil {
+
+		if swag.IsZero(m.Netmask) { // not required
+			return nil
+		}
+
 		if err := m.Netmask.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("management_interface" + "." + "ip" + "." + "netmask")
@@ -2492,6 +3099,11 @@ func (m *ClusterInlineManagementInterfacesInlineArrayItem) ContextValidate(ctx c
 func (m *ClusterInlineManagementInterfacesInlineArrayItem) contextValidateLinks(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Links != nil {
+
+		if swag.IsZero(m.Links) { // not required
+			return nil
+		}
+
 		if err := m.Links.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("_links")
@@ -2508,6 +3120,11 @@ func (m *ClusterInlineManagementInterfacesInlineArrayItem) contextValidateLinks(
 func (m *ClusterInlineManagementInterfacesInlineArrayItem) contextValidateIP(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.IP != nil {
+
+		if swag.IsZero(m.IP) { // not required
+			return nil
+		}
+
 		if err := m.IP.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("ip")
@@ -2598,6 +3215,11 @@ func (m *ClusterInlineManagementInterfacesInlineArrayItemInlineIP) ContextValida
 func (m *ClusterInlineManagementInterfacesInlineArrayItemInlineIP) contextValidateAddress(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Address != nil {
+
+		if swag.IsZero(m.Address) { // not required
+			return nil
+		}
+
 		if err := m.Address.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("ip" + "." + "address")
@@ -2688,6 +3310,11 @@ func (m *ClusterInlineManagementInterfacesInlineArrayItemInlineLinks) ContextVal
 func (m *ClusterInlineManagementInterfacesInlineArrayItemInlineLinks) contextValidateSelf(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Self != nil {
+
+		if swag.IsZero(m.Self) { // not required
+			return nil
+		}
+
 		if err := m.Self.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("_links" + "." + "self")
@@ -2731,7 +3358,7 @@ type ClusterInlineMetric struct {
 	//
 	// Example: PT15S
 	// Read Only: true
-	// Enum: [PT15S PT4M PT30M PT2H P1D PT5M]
+	// Enum: ["PT15S","PT4M","PT30M","PT2H","P1D","PT5M"]
 	Duration *string `json:"duration,omitempty"`
 
 	// iops
@@ -2743,7 +3370,7 @@ type ClusterInlineMetric struct {
 	// Errors associated with the sample. For example, if the aggregation of data over multiple nodes fails, then any partial errors might return "ok" on success or "error" on an internal uncategorized failure. Whenever a sample collection is missed but done at a later time, it is back filled to the previous 15 second timestamp and tagged with "backfilled_data". "Inconsistent_ delta_time" is encountered when the time between two collections is not the same for all nodes. Therefore, the aggregated value might be over or under inflated. "Negative_delta" is returned when an expected monotonically increasing value has decreased in value. "Inconsistent_old_data" is returned when one or more nodes do not have the latest data.
 	// Example: ok
 	// Read Only: true
-	// Enum: [ok error partial_no_data partial_no_response partial_other_error negative_delta not_found backfilled_data inconsistent_delta_time inconsistent_old_data partial_no_uuid]
+	// Enum: ["ok","error","partial_no_data","partial_no_response","partial_other_error","negative_delta","not_found","backfilled_data","inconsistent_delta_time","inconsistent_old_data","partial_no_uuid"]
 	Status *string `json:"status,omitempty"`
 
 	// throughput
@@ -3046,6 +3673,11 @@ func (m *ClusterInlineMetric) ContextValidate(ctx context.Context, formats strfm
 func (m *ClusterInlineMetric) contextValidateLinks(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Links != nil {
+
+		if swag.IsZero(m.Links) { // not required
+			return nil
+		}
+
 		if err := m.Links.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("metric" + "." + "_links")
@@ -3071,6 +3703,11 @@ func (m *ClusterInlineMetric) contextValidateDuration(ctx context.Context, forma
 func (m *ClusterInlineMetric) contextValidateIops(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Iops != nil {
+
+		if swag.IsZero(m.Iops) { // not required
+			return nil
+		}
+
 		if err := m.Iops.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("metric" + "." + "iops")
@@ -3087,6 +3724,11 @@ func (m *ClusterInlineMetric) contextValidateIops(ctx context.Context, formats s
 func (m *ClusterInlineMetric) contextValidateLatency(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Latency != nil {
+
+		if swag.IsZero(m.Latency) { // not required
+			return nil
+		}
+
 		if err := m.Latency.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("metric" + "." + "latency")
@@ -3112,6 +3754,11 @@ func (m *ClusterInlineMetric) contextValidateStatus(ctx context.Context, formats
 func (m *ClusterInlineMetric) contextValidateThroughput(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Throughput != nil {
+
+		if swag.IsZero(m.Throughput) { // not required
+			return nil
+		}
+
 		if err := m.Throughput.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("metric" + "." + "throughput")
@@ -3319,6 +3966,11 @@ func (m *ClusterInlineMetricInlineLinks) ContextValidate(ctx context.Context, fo
 func (m *ClusterInlineMetricInlineLinks) contextValidateSelf(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Self != nil {
+
+		if swag.IsZero(m.Self) { // not required
+			return nil
+		}
+
 		if err := m.Self.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("metric" + "." + "_links" + "." + "self")
@@ -3488,7 +4140,7 @@ type ClusterInlineNodesInlineArrayItem struct {
 	// * <i>member</i> - Nodes that are members have successfully joined the cluster.
 	//
 	// Read Only: true
-	// Enum: [available joining member]
+	// Enum: ["available","joining","member"]
 	Membership *string `json:"membership,omitempty"`
 
 	// metric
@@ -3515,7 +4167,7 @@ type ClusterInlineNodesInlineArrayItem struct {
 
 	// Specifies whether the node is SAN optimized.
 	// Read Only: true
-	SANOptimized *bool `json:"san_optimized,omitempty"`
+	SanOptimized *bool `json:"san_optimized,omitempty"`
 
 	// serial number
 	// Example: 4048820-60-9
@@ -3538,7 +4190,7 @@ type ClusterInlineNodesInlineArrayItem struct {
 	// * <i>unknown</i> - Node or its HA partner cannot be contacted and there is no information on the node's state.
 	//
 	// Read Only: true
-	// Enum: [up booting down taken_over waiting_for_giveback degraded unknown]
+	// Enum: ["up","booting","down","taken_over","waiting_for_giveback","degraded","unknown"]
 	State *string `json:"state,omitempty"`
 
 	// statistics
@@ -3563,7 +4215,7 @@ type ClusterInlineNodesInlineArrayItem struct {
 	// * <i>virtual</i>
 	//
 	// Read Only: true
-	// Enum: [unknown single_path multi_path mixed_path quad_path single_path_ha multi_path_ha mixed_path_ha quad_path_ha tri_path tri_path_ha virtual]
+	// Enum: ["unknown","single_path","multi_path","mixed_path","quad_path","single_path_ha","multi_path_ha","mixed_path_ha","quad_path_ha","tri_path","tri_path_ha","virtual"]
 	StorageConfiguration *string `json:"storage_configuration,omitempty"`
 
 	// system aggregate
@@ -4407,7 +5059,7 @@ func (m *ClusterInlineNodesInlineArrayItem) ContextValidate(ctx context.Context,
 		res = append(res, err)
 	}
 
-	if err := m.contextValidateSANOptimized(ctx, formats); err != nil {
+	if err := m.contextValidateSanOptimized(ctx, formats); err != nil {
 		res = append(res, err)
 	}
 
@@ -4480,6 +5132,11 @@ func (m *ClusterInlineNodesInlineArrayItem) ContextValidate(ctx context.Context,
 func (m *ClusterInlineNodesInlineArrayItem) contextValidateLinks(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Links != nil {
+
+		if swag.IsZero(m.Links) { // not required
+			return nil
+		}
+
 		if err := m.Links.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("_links")
@@ -4505,6 +5162,11 @@ func (m *ClusterInlineNodesInlineArrayItem) contextValidateAntiRansomwareVersion
 func (m *ClusterInlineNodesInlineArrayItem) contextValidateClusterInterface(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.ClusterInterface != nil {
+
+		if swag.IsZero(m.ClusterInterface) { // not required
+			return nil
+		}
+
 		if err := m.ClusterInterface.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("cluster_interface")
@@ -4527,6 +5189,11 @@ func (m *ClusterInlineNodesInlineArrayItem) contextValidateClusterInterfaces(ctx
 	for i := 0; i < len(m.ClusterInterfaces); i++ {
 
 		if m.ClusterInterfaces[i] != nil {
+
+			if swag.IsZero(m.ClusterInterfaces[i]) { // not required
+				return nil
+			}
+
 			if err := m.ClusterInterfaces[i].ContextValidate(ctx, formats); err != nil {
 				if ve, ok := err.(*errors.Validation); ok {
 					return ve.ValidateName("cluster_interfaces" + "." + strconv.Itoa(i))
@@ -4545,6 +5212,11 @@ func (m *ClusterInlineNodesInlineArrayItem) contextValidateClusterInterfaces(ctx
 func (m *ClusterInlineNodesInlineArrayItem) contextValidateController(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Controller != nil {
+
+		if swag.IsZero(m.Controller) { // not required
+			return nil
+		}
+
 		if err := m.Controller.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("controller")
@@ -4579,6 +5251,11 @@ func (m *ClusterInlineNodesInlineArrayItem) contextValidateDisaggregated(ctx con
 func (m *ClusterInlineNodesInlineArrayItem) contextValidateExternalCache(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.ExternalCache != nil {
+
+		if swag.IsZero(m.ExternalCache) { // not required
+			return nil
+		}
+
 		if err := m.ExternalCache.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("external_cache")
@@ -4595,6 +5272,11 @@ func (m *ClusterInlineNodesInlineArrayItem) contextValidateExternalCache(ctx con
 func (m *ClusterInlineNodesInlineArrayItem) contextValidateExternalCacheBypass(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.ExternalCacheBypass != nil {
+
+		if swag.IsZero(m.ExternalCacheBypass) { // not required
+			return nil
+		}
+
 		if err := m.ExternalCacheBypass.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("external_cache_bypass")
@@ -4611,6 +5293,11 @@ func (m *ClusterInlineNodesInlineArrayItem) contextValidateExternalCacheBypass(c
 func (m *ClusterInlineNodesInlineArrayItem) contextValidateHa(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Ha != nil {
+
+		if swag.IsZero(m.Ha) { // not required
+			return nil
+		}
+
 		if err := m.Ha.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("ha")
@@ -4627,6 +5314,11 @@ func (m *ClusterInlineNodesInlineArrayItem) contextValidateHa(ctx context.Contex
 func (m *ClusterInlineNodesInlineArrayItem) contextValidateHwAssist(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.HwAssist != nil {
+
+		if swag.IsZero(m.HwAssist) { // not required
+			return nil
+		}
+
 		if err := m.HwAssist.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("hw_assist")
@@ -4688,6 +5380,11 @@ func (m *ClusterInlineNodesInlineArrayItem) contextValidateIsSparesLow(ctx conte
 func (m *ClusterInlineNodesInlineArrayItem) contextValidateManagementInterface(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.ManagementInterface != nil {
+
+		if swag.IsZero(m.ManagementInterface) { // not required
+			return nil
+		}
+
 		if err := m.ManagementInterface.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("management_interface")
@@ -4710,6 +5407,11 @@ func (m *ClusterInlineNodesInlineArrayItem) contextValidateManagementInterfaces(
 	for i := 0; i < len(m.ManagementInterfaces); i++ {
 
 		if m.ManagementInterfaces[i] != nil {
+
+			if swag.IsZero(m.ManagementInterfaces[i]) { // not required
+				return nil
+			}
+
 			if err := m.ManagementInterfaces[i].ContextValidate(ctx, formats); err != nil {
 				if ve, ok := err.(*errors.Validation); ok {
 					return ve.ValidateName("management_interfaces" + "." + strconv.Itoa(i))
@@ -4737,6 +5439,11 @@ func (m *ClusterInlineNodesInlineArrayItem) contextValidateMembership(ctx contex
 func (m *ClusterInlineNodesInlineArrayItem) contextValidateMetric(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Metric != nil {
+
+		if swag.IsZero(m.Metric) { // not required
+			return nil
+		}
+
 		if err := m.Metric.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("metric")
@@ -4753,6 +5460,11 @@ func (m *ClusterInlineNodesInlineArrayItem) contextValidateMetric(ctx context.Co
 func (m *ClusterInlineNodesInlineArrayItem) contextValidateMetrocluster(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Metrocluster != nil {
+
+		if swag.IsZero(m.Metrocluster) { // not required
+			return nil
+		}
+
 		if err := m.Metrocluster.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("metrocluster")
@@ -4778,6 +5490,11 @@ func (m *ClusterInlineNodesInlineArrayItem) contextValidateModel(ctx context.Con
 func (m *ClusterInlineNodesInlineArrayItem) contextValidateNvram(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Nvram != nil {
+
+		if swag.IsZero(m.Nvram) { // not required
+			return nil
+		}
+
 		if err := m.Nvram.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("nvram")
@@ -4791,9 +5508,9 @@ func (m *ClusterInlineNodesInlineArrayItem) contextValidateNvram(ctx context.Con
 	return nil
 }
 
-func (m *ClusterInlineNodesInlineArrayItem) contextValidateSANOptimized(ctx context.Context, formats strfmt.Registry) error {
+func (m *ClusterInlineNodesInlineArrayItem) contextValidateSanOptimized(ctx context.Context, formats strfmt.Registry) error {
 
-	if err := validate.ReadOnly(ctx, "san_optimized", "body", m.SANOptimized); err != nil {
+	if err := validate.ReadOnly(ctx, "san_optimized", "body", m.SanOptimized); err != nil {
 		return err
 	}
 
@@ -4812,6 +5529,11 @@ func (m *ClusterInlineNodesInlineArrayItem) contextValidateSerialNumber(ctx cont
 func (m *ClusterInlineNodesInlineArrayItem) contextValidateServiceProcessor(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.ServiceProcessor != nil {
+
+		if swag.IsZero(m.ServiceProcessor) { // not required
+			return nil
+		}
+
 		if err := m.ServiceProcessor.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("service_processor")
@@ -4828,6 +5550,11 @@ func (m *ClusterInlineNodesInlineArrayItem) contextValidateServiceProcessor(ctx 
 func (m *ClusterInlineNodesInlineArrayItem) contextValidateSnaplock(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Snaplock != nil {
+
+		if swag.IsZero(m.Snaplock) { // not required
+			return nil
+		}
+
 		if err := m.Snaplock.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("snaplock")
@@ -4853,6 +5580,11 @@ func (m *ClusterInlineNodesInlineArrayItem) contextValidateState(ctx context.Con
 func (m *ClusterInlineNodesInlineArrayItem) contextValidateStatistics(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Statistics != nil {
+
+		if swag.IsZero(m.Statistics) { // not required
+			return nil
+		}
+
 		if err := m.Statistics.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("statistics")
@@ -4875,6 +5607,11 @@ func (m *ClusterInlineNodesInlineArrayItem) contextValidateStorageAvailabilityZo
 	for i := 0; i < len(m.StorageAvailabilityZones); i++ {
 
 		if m.StorageAvailabilityZones[i] != nil {
+
+			if swag.IsZero(m.StorageAvailabilityZones[i]) { // not required
+				return nil
+			}
+
 			if err := m.StorageAvailabilityZones[i].ContextValidate(ctx, formats); err != nil {
 				if ve, ok := err.(*errors.Validation); ok {
 					return ve.ValidateName("storage_availability_zones" + "." + strconv.Itoa(i))
@@ -4902,6 +5639,11 @@ func (m *ClusterInlineNodesInlineArrayItem) contextValidateStorageConfiguration(
 func (m *ClusterInlineNodesInlineArrayItem) contextValidateSystemAggregate(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.SystemAggregate != nil {
+
+		if swag.IsZero(m.SystemAggregate) { // not required
+			return nil
+		}
+
 		if err := m.SystemAggregate.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("system_aggregate")
@@ -4963,6 +5705,11 @@ func (m *ClusterInlineNodesInlineArrayItem) contextValidateVendorSerialNumber(ct
 func (m *ClusterInlineNodesInlineArrayItem) contextValidateVersion(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Version != nil {
+
+		if swag.IsZero(m.Version) { // not required
+			return nil
+		}
+
 		if err := m.Version.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("version")
@@ -4979,6 +5726,11 @@ func (m *ClusterInlineNodesInlineArrayItem) contextValidateVersion(ctx context.C
 func (m *ClusterInlineNodesInlineArrayItem) contextValidateVM(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.VM != nil {
+
+		if swag.IsZero(m.VM) { // not required
+			return nil
+		}
+
 		if err := m.VM.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("vm")
@@ -5069,6 +5821,11 @@ func (m *ClusterInlineNodesInlineArrayItemInlineClusterInterface) ContextValidat
 func (m *ClusterInlineNodesInlineArrayItemInlineClusterInterface) contextValidateIP(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.IP != nil {
+
+		if swag.IsZero(m.IP) { // not required
+			return nil
+		}
+
 		if err := m.IP.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("cluster_interface" + "." + "ip")
@@ -5199,6 +5956,11 @@ func (m *ClusterNodesItems0ClusterInterfacesItems0) ContextValidate(ctx context.
 func (m *ClusterNodesItems0ClusterInterfacesItems0) contextValidateLinks(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Links != nil {
+
+		if swag.IsZero(m.Links) { // not required
+			return nil
+		}
+
 		if err := m.Links.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("_links")
@@ -5215,6 +5977,11 @@ func (m *ClusterNodesItems0ClusterInterfacesItems0) contextValidateLinks(ctx con
 func (m *ClusterNodesItems0ClusterInterfacesItems0) contextValidateIP(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.IP != nil {
+
+		if swag.IsZero(m.IP) { // not required
+			return nil
+		}
+
 		if err := m.IP.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("ip")
@@ -5305,6 +6072,11 @@ func (m *ClusterNodesItems0ClusterInterfacesItems0IP) ContextValidate(ctx contex
 func (m *ClusterNodesItems0ClusterInterfacesItems0IP) contextValidateAddress(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Address != nil {
+
+		if swag.IsZero(m.Address) { // not required
+			return nil
+		}
+
 		if err := m.Address.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("ip" + "." + "address")
@@ -5395,6 +6167,11 @@ func (m *ClusterNodesItems0ClusterInterfacesItems0Links) ContextValidate(ctx con
 func (m *ClusterNodesItems0ClusterInterfacesItems0Links) contextValidateSelf(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Self != nil {
+
+		if swag.IsZero(m.Self) { // not required
+			return nil
+		}
+
 		if err := m.Self.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("_links" + "." + "self")
@@ -5459,7 +6236,7 @@ type ClusterInlineNodesInlineArrayItemInlineController struct {
 
 	// Specifies whether the hardware is currently operating outside of its recommended temperature range. The hardware shuts down if the temperature exceeds critical thresholds.
 	// Read Only: true
-	// Enum: [over normal]
+	// Enum: ["over","normal"]
 	OverTemperature *string `json:"over_temperature,omitempty"`
 }
 
@@ -5702,6 +6479,11 @@ func (m *ClusterInlineNodesInlineArrayItemInlineController) contextValidateBoard
 func (m *ClusterInlineNodesInlineArrayItemInlineController) contextValidateCPU(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.CPU != nil {
+
+		if swag.IsZero(m.CPU) { // not required
+			return nil
+		}
+
 		if err := m.CPU.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("controller" + "." + "cpu")
@@ -5718,6 +6500,11 @@ func (m *ClusterInlineNodesInlineArrayItemInlineController) contextValidateCPU(c
 func (m *ClusterInlineNodesInlineArrayItemInlineController) contextValidateFailedFan(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.FailedFan != nil {
+
+		if swag.IsZero(m.FailedFan) { // not required
+			return nil
+		}
+
 		if err := m.FailedFan.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("controller" + "." + "failed_fan")
@@ -5734,6 +6521,11 @@ func (m *ClusterInlineNodesInlineArrayItemInlineController) contextValidateFaile
 func (m *ClusterInlineNodesInlineArrayItemInlineController) contextValidateFailedPowerSupply(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.FailedPowerSupply != nil {
+
+		if swag.IsZero(m.FailedPowerSupply) { // not required
+			return nil
+		}
+
 		if err := m.FailedPowerSupply.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("controller" + "." + "failed_power_supply")
@@ -5756,6 +6548,11 @@ func (m *ClusterInlineNodesInlineArrayItemInlineController) contextValidateFlash
 	for i := 0; i < len(m.FlashCache); i++ {
 
 		if m.FlashCache[i] != nil {
+
+			if swag.IsZero(m.FlashCache[i]) { // not required
+				return nil
+			}
+
 			if err := m.FlashCache[i].ContextValidate(ctx, formats); err != nil {
 				if ve, ok := err.(*errors.Validation); ok {
 					return ve.ValidateName("controller" + "." + "flash_cache" + "." + strconv.Itoa(i))
@@ -5776,6 +6573,11 @@ func (m *ClusterInlineNodesInlineArrayItemInlineController) contextValidateFrus(
 	for i := 0; i < len(m.Frus); i++ {
 
 		if m.Frus[i] != nil {
+
+			if swag.IsZero(m.Frus[i]) { // not required
+				return nil
+			}
+
 			if err := m.Frus[i].ContextValidate(ctx, formats); err != nil {
 				if ve, ok := err.(*errors.Validation); ok {
 					return ve.ValidateName("controller" + "." + "frus" + "." + strconv.Itoa(i))
@@ -5995,6 +6797,11 @@ func (m *ClusterInlineNodesInlineArrayItemInlineControllerInlineFailedFan) conte
 func (m *ClusterInlineNodesInlineArrayItemInlineControllerInlineFailedFan) contextValidateMessage(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Message != nil {
+
+		if swag.IsZero(m.Message) { // not required
+			return nil
+		}
+
 		if err := m.Message.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("controller" + "." + "failed_fan" + "." + "message")
@@ -6178,6 +6985,11 @@ func (m *ClusterInlineNodesInlineArrayItemInlineControllerInlineFailedPowerSuppl
 func (m *ClusterInlineNodesInlineArrayItemInlineControllerInlineFailedPowerSupply) contextValidateMessage(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Message != nil {
+
+		if swag.IsZero(m.Message) { // not required
+			return nil
+		}
+
 		if err := m.Message.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("controller" + "." + "failed_power_supply" + "." + "message")
@@ -6336,7 +7148,7 @@ type ClusterNodesItems0ControllerFlashCacheItems0 struct {
 
 	// state
 	// Read Only: true
-	// Enum: [ok erasing erased failed removed]
+	// Enum: ["ok","erasing","erased","failed","removed"]
 	State *string `json:"state,omitempty"`
 }
 
@@ -6574,12 +7386,12 @@ type ClusterNodesItems0ControllerFrusItems0 struct {
 
 	// state
 	// Read Only: true
-	// Enum: [ok error]
+	// Enum: ["ok","error"]
 	State *string `json:"state,omitempty"`
 
 	// type
 	// Read Only: true
-	// Enum: [fan psu pcie disk nvs dimm controller]
+	// Enum: ["fan","psu","pcie","disk","nvs","dimm","controller"]
 	Type *string `json:"type,omitempty"`
 }
 
@@ -6875,7 +7687,14 @@ type ClusterInlineNodesInlineArrayItemInlineHa struct {
 	// Specifies whether giveback is automatically initiated when the node that owns the storage is ready.
 	AutoGiveback *bool `json:"auto_giveback,omitempty"`
 
-	// Specifies whether or not storage failover is enabled. This property is read-only on the OAM platform.
+	// Specifies whether giveback is automatically initiated when the node that owns the storage is ready.
+	AutoGivebackOf *bool `json:"auto_giveback_of,omitempty"`
+
+	// Specifies whether or not storage failover is enabled.
+	// Read Only: true
+	EnableTakeoverOf *bool `json:"enable_takeover_of,omitempty"`
+
+	// Specifies whether or not storage failover is enabled.
 	Enabled *bool `json:"enabled,omitempty"`
 
 	// giveback
@@ -6900,7 +7719,7 @@ type ClusterInlineNodesInlineArrayItemInlineHa struct {
 
 	// Type of storage.
 	// Read Only: true
-	// Enum: [shared_storage non_shared_storage]
+	// Enum: ["shared_storage","non_shared_storage"]
 	Type *string `json:"type,omitempty"`
 }
 
@@ -7116,6 +7935,10 @@ func (m *ClusterInlineNodesInlineArrayItemInlineHa) validateType(formats strfmt.
 func (m *ClusterInlineNodesInlineArrayItemInlineHa) ContextValidate(ctx context.Context, formats strfmt.Registry) error {
 	var res []error
 
+	if err := m.contextValidateEnableTakeoverOf(ctx, formats); err != nil {
+		res = append(res, err)
+	}
+
 	if err := m.contextValidateGiveback(ctx, formats); err != nil {
 		res = append(res, err)
 	}
@@ -7150,9 +7973,23 @@ func (m *ClusterInlineNodesInlineArrayItemInlineHa) ContextValidate(ctx context.
 	return nil
 }
 
+func (m *ClusterInlineNodesInlineArrayItemInlineHa) contextValidateEnableTakeoverOf(ctx context.Context, formats strfmt.Registry) error {
+
+	if err := validate.ReadOnly(ctx, "ha"+"."+"enable_takeover_of", "body", m.EnableTakeoverOf); err != nil {
+		return err
+	}
+
+	return nil
+}
+
 func (m *ClusterInlineNodesInlineArrayItemInlineHa) contextValidateGiveback(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Giveback != nil {
+
+		if swag.IsZero(m.Giveback) { // not required
+			return nil
+		}
+
 		if err := m.Giveback.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("ha" + "." + "giveback")
@@ -7169,6 +8006,11 @@ func (m *ClusterInlineNodesInlineArrayItemInlineHa) contextValidateGiveback(ctx 
 func (m *ClusterInlineNodesInlineArrayItemInlineHa) contextValidateInterconnect(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Interconnect != nil {
+
+		if swag.IsZero(m.Interconnect) { // not required
+			return nil
+		}
+
 		if err := m.Interconnect.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("ha" + "." + "interconnect")
@@ -7191,6 +8033,11 @@ func (m *ClusterInlineNodesInlineArrayItemInlineHa) contextValidatePartners(ctx 
 	for i := 0; i < len(m.Partners); i++ {
 
 		if m.Partners[i] != nil {
+
+			if swag.IsZero(m.Partners[i]) { // not required
+				return nil
+			}
+
 			if err := m.Partners[i].ContextValidate(ctx, formats); err != nil {
 				if ve, ok := err.(*errors.Validation); ok {
 					return ve.ValidateName("ha" + "." + "partners" + "." + strconv.Itoa(i))
@@ -7215,6 +8062,11 @@ func (m *ClusterInlineNodesInlineArrayItemInlineHa) contextValidatePorts(ctx con
 	for i := 0; i < len(m.Ports); i++ {
 
 		if m.Ports[i] != nil {
+
+			if swag.IsZero(m.Ports[i]) { // not required
+				return nil
+			}
+
 			if err := m.Ports[i].ContextValidate(ctx, formats); err != nil {
 				if ve, ok := err.(*errors.Validation); ok {
 					return ve.ValidateName("ha" + "." + "ports" + "." + strconv.Itoa(i))
@@ -7233,6 +8085,11 @@ func (m *ClusterInlineNodesInlineArrayItemInlineHa) contextValidatePorts(ctx con
 func (m *ClusterInlineNodesInlineArrayItemInlineHa) contextValidateTakeover(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Takeover != nil {
+
+		if swag.IsZero(m.Takeover) { // not required
+			return nil
+		}
+
 		if err := m.Takeover.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("ha" + "." + "takeover")
@@ -7249,6 +8106,11 @@ func (m *ClusterInlineNodesInlineArrayItemInlineHa) contextValidateTakeover(ctx 
 func (m *ClusterInlineNodesInlineArrayItemInlineHa) contextValidateTakeoverCheck(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.TakeoverCheck != nil {
+
+		if swag.IsZero(m.TakeoverCheck) { // not required
+			return nil
+		}
+
 		if err := m.TakeoverCheck.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("ha" + "." + "takeover_check")
@@ -7299,7 +8161,7 @@ type ClusterInlineNodesInlineArrayItemInlineHaInlineGiveback struct {
 
 	// state
 	// Example: failed
-	// Enum: [nothing_to_giveback not_attempted in_progress failed]
+	// Enum: ["nothing_to_giveback","not_attempted","in_progress","failed"]
 	State *string `json:"state,omitempty"`
 
 	// Giveback status of each aggregate. This property is not supported on the ASA r2 platform.
@@ -7443,6 +8305,11 @@ func (m *ClusterInlineNodesInlineArrayItemInlineHaInlineGiveback) ContextValidat
 func (m *ClusterInlineNodesInlineArrayItemInlineHaInlineGiveback) contextValidateFailure(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Failure != nil {
+
+		if swag.IsZero(m.Failure) { // not required
+			return nil
+		}
+
 		if err := m.Failure.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("ha" + "." + "giveback" + "." + "failure")
@@ -7465,6 +8332,11 @@ func (m *ClusterInlineNodesInlineArrayItemInlineHaInlineGiveback) contextValidat
 	for i := 0; i < len(m.Status); i++ {
 
 		if m.Status[i] != nil {
+
+			if swag.IsZero(m.Status[i]) { // not required
+				return nil
+			}
+
 			if err := m.Status[i].ContextValidate(ctx, formats); err != nil {
 				if ve, ok := err.(*errors.Validation); ok {
 					return ve.ValidateName("ha" + "." + "giveback" + "." + "status" + "." + strconv.Itoa(i))
@@ -7560,7 +8432,7 @@ type ClusterNodesItems0HaGivebackStatusItems0 struct {
 	// Possible values include no aggregates to giveback(nothing_to_giveback), failed to disable background disk firmware update(BDFU) on source node(failed_bdfu_source), <br/>
 	// giveback delayed as disk firmware update is in progress on source node(delayed_bdfu_source), performing veto checks(running_checks). <br/>
 	//
-	// Enum: [done failed in_progress not_started nothing_to_giveback failed_bdfu_source failed_bdfu_dest delayed_bdfu_source delayed_bdfu_dest running_checks]
+	// Enum: ["done","failed","in_progress","not_started","nothing_to_giveback","failed_bdfu_source","failed_bdfu_dest","delayed_bdfu_source","delayed_bdfu_dest","running_checks"]
 	State *string `json:"state,omitempty"`
 }
 
@@ -7711,6 +8583,11 @@ func (m *ClusterNodesItems0HaGivebackStatusItems0) ContextValidate(ctx context.C
 func (m *ClusterNodesItems0HaGivebackStatusItems0) contextValidateAggregate(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Aggregate != nil {
+
+		if swag.IsZero(m.Aggregate) { // not required
+			return nil
+		}
+
 		if err := m.Aggregate.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("aggregate")
@@ -7727,6 +8604,11 @@ func (m *ClusterNodesItems0HaGivebackStatusItems0) contextValidateAggregate(ctx 
 func (m *ClusterNodesItems0HaGivebackStatusItems0) contextValidateError(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Error != nil {
+
+		if swag.IsZero(m.Error) { // not required
+			return nil
+		}
+
 		if err := m.Error.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("error")
@@ -7825,6 +8707,11 @@ func (m *ClusterNodesItems0HaGivebackStatusItems0Aggregate) ContextValidate(ctx 
 func (m *ClusterNodesItems0HaGivebackStatusItems0Aggregate) contextValidateLinks(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Links != nil {
+
+		if swag.IsZero(m.Links) { // not required
+			return nil
+		}
+
 		if err := m.Links.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("aggregate" + "." + "_links")
@@ -7915,6 +8802,11 @@ func (m *ClusterNodesItems0HaGivebackStatusItems0AggregateLinks) ContextValidate
 func (m *ClusterNodesItems0HaGivebackStatusItems0AggregateLinks) contextValidateSelf(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Self != nil {
+
+		if swag.IsZero(m.Self) { // not required
+			return nil
+		}
+
 		if err := m.Self.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("aggregate" + "." + "_links" + "." + "self")
@@ -7958,7 +8850,7 @@ type ClusterNodesItems0HaGivebackStatusItems0Error struct {
 
 	// Detailed message based on the state.
 	// Read Only: true
-	// Enum: [shutdown not_homes_partner not_sfo failed_limbo offline_failed migrating veto communication_err online_timeout online_failed hdd_to_aff_dest]
+	// Enum: ["shutdown","not_homes_partner","not_sfo","failed_limbo","offline_failed","migrating","veto","communication_err","online_timeout","online_failed","hdd_to_aff_dest"]
 	Message *string `json:"message,omitempty"`
 }
 
@@ -8111,7 +9003,7 @@ type ClusterInlineNodesInlineArrayItemInlineHaInlineInterconnect struct {
 
 	// Indicates the HA interconnect status.
 	// Read Only: true
-	// Enum: [down up]
+	// Enum: ["down","up"]
 	State *string `json:"state,omitempty"`
 }
 
@@ -8292,6 +9184,11 @@ func (m *ClusterNodesItems0HaPartnersItems0) ContextValidate(ctx context.Context
 func (m *ClusterNodesItems0HaPartnersItems0) contextValidateLinks(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Links != nil {
+
+		if swag.IsZero(m.Links) { // not required
+			return nil
+		}
+
 		if err := m.Links.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("_links")
@@ -8382,6 +9279,11 @@ func (m *ClusterNodesItems0HaPartnersItems0Links) ContextValidate(ctx context.Co
 func (m *ClusterNodesItems0HaPartnersItems0Links) contextValidateSelf(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Self != nil {
+
+		if swag.IsZero(m.Self) { // not required
+			return nil
+		}
+
 		if err := m.Self.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("_links" + "." + "self")
@@ -8432,7 +9334,7 @@ type ClusterNodesItems0HaPortsItems0 struct {
 	//
 	// Example: active
 	// Read Only: true
-	// Enum: [down initialized armed active reserved]
+	// Enum: ["down","initialized","armed","active","reserved"]
 	State *string `json:"state,omitempty"`
 }
 
@@ -8565,7 +9467,7 @@ type ClusterInlineNodesInlineArrayItemInlineHaInlineTakeover struct {
 
 	// state
 	// Example: failed
-	// Enum: [not_possible not_attempted in_takeover in_progress failed]
+	// Enum: ["not_possible","not_attempted","in_takeover","in_progress","failed"]
 	State *string `json:"state,omitempty"`
 }
 
@@ -8674,6 +9576,11 @@ func (m *ClusterInlineNodesInlineArrayItemInlineHaInlineTakeover) ContextValidat
 func (m *ClusterInlineNodesInlineArrayItemInlineHaInlineTakeover) contextValidateFailure(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Failure != nil {
+
+		if swag.IsZero(m.Failure) { // not required
+			return nil
+		}
+
 		if err := m.Failure.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("ha" + "." + "takeover" + "." + "failure")
@@ -8892,6 +9799,11 @@ func (m *ClusterInlineNodesInlineArrayItemInlineHwAssist) ContextValidate(ctx co
 func (m *ClusterInlineNodesInlineArrayItemInlineHwAssist) contextValidateStatus(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Status != nil {
+
+		if swag.IsZero(m.Status) { // not required
+			return nil
+		}
+
 		if err := m.Status.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("hw_assist" + "." + "status")
@@ -9015,6 +9927,11 @@ func (m *ClusterInlineNodesInlineArrayItemInlineHwAssistInlineStatus) ContextVal
 func (m *ClusterInlineNodesInlineArrayItemInlineHwAssistInlineStatus) contextValidateLocal(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Local != nil {
+
+		if swag.IsZero(m.Local) { // not required
+			return nil
+		}
+
 		if err := m.Local.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("hw_assist" + "." + "status" + "." + "local")
@@ -9031,6 +9948,11 @@ func (m *ClusterInlineNodesInlineArrayItemInlineHwAssistInlineStatus) contextVal
 func (m *ClusterInlineNodesInlineArrayItemInlineHwAssistInlineStatus) contextValidatePartner(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Partner != nil {
+
+		if swag.IsZero(m.Partner) { // not required
+			return nil
+		}
+
 		if err := m.Partner.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("hw_assist" + "." + "status" + "." + "partner")
@@ -9074,7 +9996,7 @@ type ClusterInlineNodesInlineArrayItemInlineHwAssistInlineStatusInlineLocal stru
 	Port *int64 `json:"port,omitempty"`
 
 	// The hardware assist monitor status.
-	// Enum: [active inactive]
+	// Enum: ["active","inactive"]
 	State *string `json:"state,omitempty"`
 }
 
@@ -9169,7 +10091,7 @@ type ClusterInlineNodesInlineArrayItemInlineHwAssistInlineStatusInlinePartner st
 	Port *int64 `json:"port,omitempty"`
 
 	// The hardware assist monitor status.
-	// Enum: [active inactive]
+	// Enum: ["active","inactive"]
 	State *string `json:"state,omitempty"`
 }
 
@@ -9311,6 +10233,11 @@ func (m *ClusterInlineNodesInlineArrayItemInlineLinks) ContextValidate(ctx conte
 func (m *ClusterInlineNodesInlineArrayItemInlineLinks) contextValidateSelf(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Self != nil {
+
+		if swag.IsZero(m.Self) { // not required
+			return nil
+		}
+
 		if err := m.Self.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("_links" + "." + "self")
@@ -9401,6 +10328,11 @@ func (m *ClusterInlineNodesInlineArrayItemInlineManagementInterface) ContextVali
 func (m *ClusterInlineNodesInlineArrayItemInlineManagementInterface) contextValidateIP(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.IP != nil {
+
+		if swag.IsZero(m.IP) { // not required
+			return nil
+		}
+
 		if err := m.IP.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("management_interface" + "." + "ip")
@@ -9531,6 +10463,11 @@ func (m *ClusterNodesItems0ManagementInterfacesItems0) ContextValidate(ctx conte
 func (m *ClusterNodesItems0ManagementInterfacesItems0) contextValidateLinks(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Links != nil {
+
+		if swag.IsZero(m.Links) { // not required
+			return nil
+		}
+
 		if err := m.Links.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("_links")
@@ -9547,6 +10484,11 @@ func (m *ClusterNodesItems0ManagementInterfacesItems0) contextValidateLinks(ctx 
 func (m *ClusterNodesItems0ManagementInterfacesItems0) contextValidateIP(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.IP != nil {
+
+		if swag.IsZero(m.IP) { // not required
+			return nil
+		}
+
 		if err := m.IP.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("ip")
@@ -9637,6 +10579,11 @@ func (m *ClusterNodesItems0ManagementInterfacesItems0IP) ContextValidate(ctx con
 func (m *ClusterNodesItems0ManagementInterfacesItems0IP) contextValidateAddress(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Address != nil {
+
+		if swag.IsZero(m.Address) { // not required
+			return nil
+		}
+
 		if err := m.Address.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("ip" + "." + "address")
@@ -9727,6 +10674,11 @@ func (m *ClusterNodesItems0ManagementInterfacesItems0Links) ContextValidate(ctx 
 func (m *ClusterNodesItems0ManagementInterfacesItems0Links) contextValidateSelf(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Self != nil {
+
+		if swag.IsZero(m.Self) { // not required
+			return nil
+		}
+
 		if err := m.Self.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("_links" + "." + "self")
@@ -9769,7 +10721,7 @@ type ClusterInlineNodesInlineArrayItemInlineMetric struct {
 	// The duration over which this sample is calculated. The time durations are represented in the ISO-8601 standard format. Samples can be calculated over the following durations:
 	//
 	// Example: PT15S
-	// Enum: [PT15S PT5M PT30M PT2H P1D]
+	// Enum: ["PT15S","PT5M","PT30M","PT2H","P1D"]
 	Duration *string `json:"duration,omitempty"`
 
 	// Average CPU Utilization for the node
@@ -9778,7 +10730,7 @@ type ClusterInlineNodesInlineArrayItemInlineMetric struct {
 
 	// Errors associated with the sample. For example, if the aggregation of data over multiple nodes fails, then any partial errors might return "ok" on success or "error" on an internal uncategorized failure. Whenever a sample collection is missed but done at a later time, it is back filled to the previous 15 second timestamp and tagged with "backfilled_data". "inconsistent_delta_time" is encountered when the time between two collections is not the same for all nodes. Therefore, the aggregated value might be over or under inflated. "Negative_delta" is returned when an expected monotonically increasing value has decreased in value. "inconsistent_old_data" is returned when one or more nodes do not have the latest data.
 	// Example: ok
-	// Enum: [ok error partial_no_data partial_no_uuid partial_no_response partial_other_error negative_delta backfilled_data inconsistent_delta_time inconsistent_old_data]
+	// Enum: ["ok","error","partial_no_data","partial_no_uuid","partial_no_response","partial_other_error","negative_delta","backfilled_data","inconsistent_delta_time","inconsistent_old_data"]
 	Status *string `json:"status,omitempty"`
 
 	// The timestamp of the performance data.
@@ -9982,6 +10934,11 @@ func (m *ClusterInlineNodesInlineArrayItemInlineMetric) ContextValidate(ctx cont
 func (m *ClusterInlineNodesInlineArrayItemInlineMetric) contextValidateLinks(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Links != nil {
+
+		if swag.IsZero(m.Links) { // not required
+			return nil
+		}
+
 		if err := m.Links.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("metric" + "." + "_links")
@@ -10072,6 +11029,11 @@ func (m *ClusterInlineNodesInlineArrayItemInlineMetricInlineLinks) ContextValida
 func (m *ClusterInlineNodesInlineArrayItemInlineMetricInlineLinks) contextValidateSelf(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Self != nil {
+
+		if swag.IsZero(m.Self) { // not required
+			return nil
+		}
+
 		if err := m.Self.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("metric" + "." + "_links" + "." + "self")
@@ -10118,7 +11080,7 @@ type ClusterInlineNodesInlineArrayItemInlineMetrocluster struct {
 
 	// The Metrocluster configuration type
 	// Read Only: true
-	// Enum: [fc fc_2_node ip]
+	// Enum: ["fc","fc_2_node","ip"]
 	Type *string `json:"type,omitempty"`
 }
 
@@ -10251,6 +11213,11 @@ func (m *ClusterInlineNodesInlineArrayItemInlineMetrocluster) contextValidatePor
 	for i := 0; i < len(m.Ports); i++ {
 
 		if m.Ports[i] != nil {
+
+			if swag.IsZero(m.Ports[i]) { // not required
+				return nil
+			}
+
 			if err := m.Ports[i].ContextValidate(ctx, formats); err != nil {
 				if ve, ok := err.(*errors.Validation); ok {
 					return ve.ValidateName("metrocluster" + "." + "ports" + "." + strconv.Itoa(i))
@@ -10348,7 +11315,7 @@ type ClusterInlineNodesInlineArrayItemInlineNvram struct {
 	// * <i>battery_fully_charged</i>
 	//
 	// Read Only: true
-	// Enum: [battery_ok battery_partially_discharged battery_fully_discharged battery_not_present battery_near_end_of_life battery_at_end_of_life battery_unknown battery_over_charged battery_fully_charged]
+	// Enum: ["battery_ok","battery_partially_discharged","battery_fully_discharged","battery_not_present","battery_near_end_of_life","battery_at_end_of_life","battery_unknown","battery_over_charged","battery_fully_charged"]
 	BatteryState *string `json:"battery_state,omitempty"`
 
 	// Vendor specific NVRAM ID of the node.
@@ -10523,12 +11490,12 @@ type ClusterInlineNodesInlineArrayItemInlineServiceProcessor struct {
 
 	// Provides the "update status" of the last service processor update.
 	// Read Only: true
-	// Enum: [failed passed]
+	// Enum: ["failed","passed"]
 	LastUpdateState *string `json:"last_update_state,omitempty"`
 
 	// link status
 	// Read Only: true
-	// Enum: [up down disabled unknown]
+	// Enum: ["up","down","disabled","unknown"]
 	LinkStatus *string `json:"link_status,omitempty"`
 
 	// mac address
@@ -10543,12 +11510,12 @@ type ClusterInlineNodesInlineArrayItemInlineServiceProcessor struct {
 
 	// state
 	// Read Only: true
-	// Enum: [online offline degraded rebooting unknown updating node_offline sp_daemon_offline]
+	// Enum: ["online","offline","degraded","rebooting","unknown","updating","node_offline","sp_daemon_offline"]
 	State *string `json:"state,omitempty"`
 
 	// type
 	// Read Only: true
-	// Enum: [sp none bmc]
+	// Enum: ["sp","none","bmc"]
 	Type *string `json:"type,omitempty"`
 
 	// web service
@@ -11033,6 +12000,11 @@ func (m *ClusterInlineNodesInlineArrayItemInlineServiceProcessor) ContextValidat
 func (m *ClusterInlineNodesInlineArrayItemInlineServiceProcessor) contextValidateAPIService(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.APIService != nil {
+
+		if swag.IsZero(m.APIService) { // not required
+			return nil
+		}
+
 		if err := m.APIService.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("service_processor" + "." + "api_service")
@@ -11049,6 +12021,11 @@ func (m *ClusterInlineNodesInlineArrayItemInlineServiceProcessor) contextValidat
 func (m *ClusterInlineNodesInlineArrayItemInlineServiceProcessor) contextValidateAutoConfig(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.AutoConfig != nil {
+
+		if swag.IsZero(m.AutoConfig) { // not required
+			return nil
+		}
+
 		if err := m.AutoConfig.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("service_processor" + "." + "auto_config")
@@ -11065,6 +12042,11 @@ func (m *ClusterInlineNodesInlineArrayItemInlineServiceProcessor) contextValidat
 func (m *ClusterInlineNodesInlineArrayItemInlineServiceProcessor) contextValidateBackup(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Backup != nil {
+
+		if swag.IsZero(m.Backup) { // not required
+			return nil
+		}
+
 		if err := m.Backup.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("service_processor" + "." + "backup")
@@ -11090,6 +12072,11 @@ func (m *ClusterInlineNodesInlineArrayItemInlineServiceProcessor) contextValidat
 func (m *ClusterInlineNodesInlineArrayItemInlineServiceProcessor) contextValidateIPV4Interface(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.IPV4Interface != nil {
+
+		if swag.IsZero(m.IPV4Interface) { // not required
+			return nil
+		}
+
 		if err := m.IPV4Interface.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("service_processor" + "." + "ipv4_interface")
@@ -11106,6 +12093,11 @@ func (m *ClusterInlineNodesInlineArrayItemInlineServiceProcessor) contextValidat
 func (m *ClusterInlineNodesInlineArrayItemInlineServiceProcessor) contextValidateIPV6Interface(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.IPV6Interface != nil {
+
+		if swag.IsZero(m.IPV6Interface) { // not required
+			return nil
+		}
+
 		if err := m.IPV6Interface.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("service_processor" + "." + "ipv6_interface")
@@ -11158,6 +12150,11 @@ func (m *ClusterInlineNodesInlineArrayItemInlineServiceProcessor) contextValidat
 func (m *ClusterInlineNodesInlineArrayItemInlineServiceProcessor) contextValidatePrimary(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Primary != nil {
+
+		if swag.IsZero(m.Primary) { // not required
+			return nil
+		}
+
 		if err := m.Primary.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("service_processor" + "." + "primary")
@@ -11174,6 +12171,11 @@ func (m *ClusterInlineNodesInlineArrayItemInlineServiceProcessor) contextValidat
 func (m *ClusterInlineNodesInlineArrayItemInlineServiceProcessor) contextValidateSSHInfo(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.SSHInfo != nil {
+
+		if swag.IsZero(m.SSHInfo) { // not required
+			return nil
+		}
+
 		if err := m.SSHInfo.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("service_processor" + "." + "ssh_info")
@@ -11208,6 +12210,11 @@ func (m *ClusterInlineNodesInlineArrayItemInlineServiceProcessor) contextValidat
 func (m *ClusterInlineNodesInlineArrayItemInlineServiceProcessor) contextValidateWebService(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.WebService != nil {
+
+		if swag.IsZero(m.WebService) { // not required
+			return nil
+		}
+
 		if err := m.WebService.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("service_processor" + "." + "web_service")
@@ -11345,7 +12352,7 @@ type ClusterInlineNodesInlineArrayItemInlineServiceProcessorInlineBackup struct 
 
 	// Status of the backup partition.
 	// Read Only: true
-	// Enum: [installed corrupt updating auto_updating none]
+	// Enum: ["installed","corrupt","updating","auto_updating","none"]
 	State *string `json:"state,omitempty"`
 
 	// Firmware version of the backup partition.
@@ -11508,7 +12515,7 @@ type ClusterInlineNodesInlineArrayItemInlineServiceProcessorInlineIPV4Interface 
 
 	// Indicates the setup state of the interface.
 	// Read Only: true
-	// Enum: [not_setup succeeded in_progress failed]
+	// Enum: ["not_setup","succeeded","in_progress","failed"]
 	SetupState *string `json:"setup_state,omitempty"`
 }
 
@@ -11648,7 +12655,7 @@ type ClusterInlineNodesInlineArrayItemInlineServiceProcessorInlineIPV6Interface 
 
 	// Indicates the setup state of the interface.
 	// Read Only: true
-	// Enum: [not_setup succeeded in_progress failed]
+	// Enum: ["not_setup","succeeded","in_progress","failed"]
 	SetupState *string `json:"setup_state,omitempty"`
 }
 
@@ -11766,7 +12773,7 @@ type ClusterInlineNodesInlineArrayItemInlineServiceProcessorInlinePrimary struct
 
 	// Status of the primary partition.
 	// Read Only: true
-	// Enum: [installed corrupt updating auto_updating none]
+	// Enum: ["installed","corrupt","updating","auto_updating","none"]
 	State *string `json:"state,omitempty"`
 
 	// Firmware version of the primary partition.
@@ -11975,6 +12982,11 @@ func (m *ClusterInlineNodesInlineArrayItemInlineServiceProcessorInlineSSHInfo) c
 	for i := 0; i < len(m.AllowedAddresses); i++ {
 
 		if m.AllowedAddresses[i] != nil {
+
+			if swag.IsZero(m.AllowedAddresses[i]) { // not required
+				return nil
+			}
+
 			if err := m.AllowedAddresses[i].ContextValidate(ctx, formats); err != nil {
 				if ve, ok := err.(*errors.Validation); ok {
 					return ve.ValidateName("service_processor" + "." + "ssh_info" + "." + "allowed_addresses" + "." + strconv.Itoa(i))
@@ -12133,7 +13145,7 @@ type ClusterInlineNodesInlineArrayItemInlineStatistics struct {
 
 	// Errors associated with the sample. For example, if the aggregation of data over multiple nodes fails, then any partial errors might return "ok" on success or "error" on an internal uncategorized failure. Whenever a sample collection is missed but done at a later time, it is back filled to the previous 15 second timestamp and tagged with "backfilled_data". "inconsistent_delta_time" is encountered when the time between two collections is not the same for all nodes. Therefore, the aggregated value might be over or under inflated. "Negative_delta" is returned when an expected monotonically increasing value has decreased in value. "inconsistent_old_data" is returned when one or more nodes do not have the latest data.
 	// Example: ok
-	// Enum: [ok error partial_no_data partial_no_uuid partial_no_response partial_other_error negative_delta backfilled_data inconsistent_delta_time inconsistent_old_data]
+	// Enum: ["ok","error","partial_no_data","partial_no_uuid","partial_no_response","partial_other_error","negative_delta","backfilled_data","inconsistent_delta_time","inconsistent_old_data"]
 	Status *string `json:"status,omitempty"`
 
 	// The timestamp of the performance data.
@@ -12328,6 +13340,11 @@ func (m *ClusterInlineNodesInlineArrayItemInlineSystemAggregate) ContextValidate
 func (m *ClusterInlineNodesInlineArrayItemInlineSystemAggregate) contextValidateLinks(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Links != nil {
+
+		if swag.IsZero(m.Links) { // not required
+			return nil
+		}
+
 		if err := m.Links.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("system_aggregate" + "." + "_links")
@@ -12418,6 +13435,11 @@ func (m *ClusterInlineNodesInlineArrayItemInlineSystemAggregateInlineLinks) Cont
 func (m *ClusterInlineNodesInlineArrayItemInlineSystemAggregateInlineLinks) contextValidateSelf(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Self != nil {
+
+		if swag.IsZero(m.Self) { // not required
+			return nil
+		}
+
 		if err := m.Self.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("system_aggregate" + "." + "_links" + "." + "self")
@@ -12476,7 +13498,7 @@ type ClusterInlineNodesInlineArrayItemInlineVM struct {
 
 	// Cloud provider where the VM is hosted.
 	// Read Only: true
-	// Enum: [GoogleCloud AWS_S3 Azure_Cloud]
+	// Enum: ["GoogleCloud","AWS_S3","Azure_Cloud"]
 	ProviderType *string `json:"provider_type,omitempty"`
 
 	// The VM update domain.
@@ -12922,7 +13944,7 @@ type ClusterInlineStatistics struct {
 	// Errors associated with the sample. For example, if the aggregation of data over multiple nodes fails, then any partial errors might return "ok" on success or "error" on an internal uncategorized failure. Whenever a sample collection is missed but done at a later time, it is back filled to the previous 15 second timestamp and tagged with "backfilled_data". "Inconsistent_ delta_time" is encountered when the time between two collections is not the same for all nodes. Therefore, the aggregated value might be over or under inflated. "Negative_delta" is returned when an expected monotonically increasing value has decreased in value. "Inconsistent_old_data" is returned when one or more nodes do not have the latest data.
 	// Example: ok
 	// Read Only: true
-	// Enum: [ok error partial_no_data partial_no_response partial_other_error negative_delta not_found backfilled_data inconsistent_delta_time inconsistent_old_data partial_no_uuid]
+	// Enum: ["ok","error","partial_no_data","partial_no_response","partial_other_error","negative_delta","not_found","backfilled_data","inconsistent_delta_time","inconsistent_old_data","partial_no_uuid"]
 	Status *string `json:"status,omitempty"`
 
 	// throughput raw
@@ -13136,6 +14158,11 @@ func (m *ClusterInlineStatistics) ContextValidate(ctx context.Context, formats s
 func (m *ClusterInlineStatistics) contextValidateIopsRaw(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.IopsRaw != nil {
+
+		if swag.IsZero(m.IopsRaw) { // not required
+			return nil
+		}
+
 		if err := m.IopsRaw.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("statistics" + "." + "iops_raw")
@@ -13152,6 +14179,11 @@ func (m *ClusterInlineStatistics) contextValidateIopsRaw(ctx context.Context, fo
 func (m *ClusterInlineStatistics) contextValidateLatencyRaw(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.LatencyRaw != nil {
+
+		if swag.IsZero(m.LatencyRaw) { // not required
+			return nil
+		}
+
 		if err := m.LatencyRaw.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("statistics" + "." + "latency_raw")
@@ -13177,6 +14209,11 @@ func (m *ClusterInlineStatistics) contextValidateStatus(ctx context.Context, for
 func (m *ClusterInlineStatistics) contextValidateThroughputRaw(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.ThroughputRaw != nil {
+
+		if swag.IsZero(m.ThroughputRaw) { // not required
+			return nil
+		}
+
 		if err := m.ThroughputRaw.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("statistics" + "." + "throughput_raw")

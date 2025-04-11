@@ -51,7 +51,7 @@ type NfsClients struct {
 	//
 	// Example: nfs3
 	// Read Only: true
-	// Enum: [nfs nfs3 nfs4 nfs4.1 nfs4.2]
+	// Enum: ["nfs","nfs3","nfs4","nfs4.1","nfs4.2"]
 	Protocol *string `json:"protocol,omitempty"`
 
 	// A counter that tracks requests that are sent to the volume with slow-path to remote node.
@@ -290,6 +290,11 @@ func (m *NfsClients) ContextValidate(ctx context.Context, formats strfmt.Registr
 func (m *NfsClients) contextValidateLinks(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Links != nil {
+
+		if swag.IsZero(m.Links) { // not required
+			return nil
+		}
+
 		if err := m.Links.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("_links")
@@ -306,6 +311,11 @@ func (m *NfsClients) contextValidateLinks(ctx context.Context, formats strfmt.Re
 func (m *NfsClients) contextValidateExportPolicy(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.ExportPolicy != nil {
+
+		if swag.IsZero(m.ExportPolicy) { // not required
+			return nil
+		}
+
 		if err := m.ExportPolicy.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("export_policy")
@@ -322,6 +332,11 @@ func (m *NfsClients) contextValidateExportPolicy(ctx context.Context, formats st
 func (m *NfsClients) contextValidateNode(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Node != nil {
+
+		if swag.IsZero(m.Node) { // not required
+			return nil
+		}
+
 		if err := m.Node.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("node")
@@ -347,6 +362,11 @@ func (m *NfsClients) contextValidateProtocol(ctx context.Context, formats strfmt
 func (m *NfsClients) contextValidateSvm(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Svm != nil {
+
+		if swag.IsZero(m.Svm) { // not required
+			return nil
+		}
+
 		if err := m.Svm.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("svm")
@@ -363,6 +383,11 @@ func (m *NfsClients) contextValidateSvm(ctx context.Context, formats strfmt.Regi
 func (m *NfsClients) contextValidateVolume(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Volume != nil {
+
+		if swag.IsZero(m.Volume) { // not required
+			return nil
+		}
+
 		if err := m.Volume.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("volume")
@@ -461,6 +486,11 @@ func (m *NfsClientsInlineExportPolicy) ContextValidate(ctx context.Context, form
 func (m *NfsClientsInlineExportPolicy) contextValidateLinks(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Links != nil {
+
+		if swag.IsZero(m.Links) { // not required
+			return nil
+		}
+
 		if err := m.Links.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("export_policy" + "." + "_links")
@@ -551,6 +581,11 @@ func (m *NfsClientsInlineExportPolicyInlineLinks) ContextValidate(ctx context.Co
 func (m *NfsClientsInlineExportPolicyInlineLinks) contextValidateSelf(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Self != nil {
+
+		if swag.IsZero(m.Self) { // not required
+			return nil
+		}
+
 		if err := m.Self.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("export_policy" + "." + "_links" + "." + "self")
@@ -641,6 +676,11 @@ func (m *NfsClientsInlineLinks) ContextValidate(ctx context.Context, formats str
 func (m *NfsClientsInlineLinks) contextValidateSelf(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Self != nil {
+
+		if swag.IsZero(m.Self) { // not required
+			return nil
+		}
+
 		if err := m.Self.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("_links" + "." + "self")
@@ -739,6 +779,11 @@ func (m *NfsClientsInlineNode) ContextValidate(ctx context.Context, formats strf
 func (m *NfsClientsInlineNode) contextValidateLinks(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Links != nil {
+
+		if swag.IsZero(m.Links) { // not required
+			return nil
+		}
+
 		if err := m.Links.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("node" + "." + "_links")
@@ -829,6 +874,11 @@ func (m *NfsClientsInlineNodeInlineLinks) ContextValidate(ctx context.Context, f
 func (m *NfsClientsInlineNodeInlineLinks) contextValidateSelf(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Self != nil {
+
+		if swag.IsZero(m.Self) { // not required
+			return nil
+		}
+
 		if err := m.Self.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("node" + "." + "_links" + "." + "self")
@@ -929,6 +979,11 @@ func (m *NfsClientsInlineSvm) ContextValidate(ctx context.Context, formats strfm
 func (m *NfsClientsInlineSvm) contextValidateLinks(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Links != nil {
+
+		if swag.IsZero(m.Links) { // not required
+			return nil
+		}
+
 		if err := m.Links.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("svm" + "." + "_links")
@@ -1019,6 +1074,11 @@ func (m *NfsClientsInlineSvmInlineLinks) ContextValidate(ctx context.Context, fo
 func (m *NfsClientsInlineSvmInlineLinks) contextValidateSelf(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Self != nil {
+
+		if swag.IsZero(m.Self) { // not required
+			return nil
+		}
+
 		if err := m.Self.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("svm" + "." + "_links" + "." + "self")
@@ -1117,6 +1177,11 @@ func (m *NfsClientsInlineVolume) ContextValidate(ctx context.Context, formats st
 func (m *NfsClientsInlineVolume) contextValidateLinks(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Links != nil {
+
+		if swag.IsZero(m.Links) { // not required
+			return nil
+		}
+
 		if err := m.Links.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("volume" + "." + "_links")
@@ -1207,6 +1272,11 @@ func (m *NfsClientsInlineVolumeInlineLinks) ContextValidate(ctx context.Context,
 func (m *NfsClientsInlineVolumeInlineLinks) contextValidateSelf(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Self != nil {
+
+		if swag.IsZero(m.Self) { // not required
+			return nil
+		}
+
 		if err := m.Self.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("volume" + "." + "_links" + "." + "self")

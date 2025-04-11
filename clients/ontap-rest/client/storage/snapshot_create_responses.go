@@ -6,6 +6,7 @@ package storage
 // Editing this file might prove futile when you re-run the swagger generate command
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 
@@ -97,11 +98,13 @@ func (o *SnapshotCreateCreated) Code() int {
 }
 
 func (o *SnapshotCreateCreated) Error() string {
-	return fmt.Sprintf("[POST /storage/volumes/{volume.uuid}/snapshots][%d] snapshotCreateCreated  %+v", 201, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[POST /storage/volumes/{volume.uuid}/snapshots][%d] snapshotCreateCreated %s", 201, payload)
 }
 
 func (o *SnapshotCreateCreated) String() string {
-	return fmt.Sprintf("[POST /storage/volumes/{volume.uuid}/snapshots][%d] snapshotCreateCreated  %+v", 201, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[POST /storage/volumes/{volume.uuid}/snapshots][%d] snapshotCreateCreated %s", 201, payload)
 }
 
 func (o *SnapshotCreateCreated) GetPayload() *models.SnapshotJobLinkResponse {
@@ -177,11 +180,13 @@ func (o *SnapshotCreateAccepted) Code() int {
 }
 
 func (o *SnapshotCreateAccepted) Error() string {
-	return fmt.Sprintf("[POST /storage/volumes/{volume.uuid}/snapshots][%d] snapshotCreateAccepted  %+v", 202, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[POST /storage/volumes/{volume.uuid}/snapshots][%d] snapshotCreateAccepted %s", 202, payload)
 }
 
 func (o *SnapshotCreateAccepted) String() string {
-	return fmt.Sprintf("[POST /storage/volumes/{volume.uuid}/snapshots][%d] snapshotCreateAccepted  %+v", 202, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[POST /storage/volumes/{volume.uuid}/snapshots][%d] snapshotCreateAccepted %s", 202, payload)
 }
 
 func (o *SnapshotCreateAccepted) GetPayload() *models.SnapshotJobLinkResponse {
@@ -276,11 +281,13 @@ func (o *SnapshotCreateDefault) Code() int {
 }
 
 func (o *SnapshotCreateDefault) Error() string {
-	return fmt.Sprintf("[POST /storage/volumes/{volume.uuid}/snapshots][%d] snapshot_create default  %+v", o._statusCode, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[POST /storage/volumes/{volume.uuid}/snapshots][%d] snapshot_create default %s", o._statusCode, payload)
 }
 
 func (o *SnapshotCreateDefault) String() string {
-	return fmt.Sprintf("[POST /storage/volumes/{volume.uuid}/snapshots][%d] snapshot_create default  %+v", o._statusCode, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[POST /storage/volumes/{volume.uuid}/snapshots][%d] snapshot_create default %s", o._statusCode, payload)
 }
 
 func (o *SnapshotCreateDefault) GetPayload() *models.ErrorResponse {

@@ -6,6 +6,7 @@ package networking
 // Editing this file might prove futile when you re-run the swagger generate command
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 
@@ -85,11 +86,11 @@ func (o *IpspaceDeleteOK) Code() int {
 }
 
 func (o *IpspaceDeleteOK) Error() string {
-	return fmt.Sprintf("[DELETE /network/ipspaces/{uuid}][%d] ipspaceDeleteOK ", 200)
+	return fmt.Sprintf("[DELETE /network/ipspaces/{uuid}][%d] ipspaceDeleteOK", 200)
 }
 
 func (o *IpspaceDeleteOK) String() string {
-	return fmt.Sprintf("[DELETE /network/ipspaces/{uuid}][%d] ipspaceDeleteOK ", 200)
+	return fmt.Sprintf("[DELETE /network/ipspaces/{uuid}][%d] ipspaceDeleteOK", 200)
 }
 
 func (o *IpspaceDeleteOK) readResponse(response runtime.ClientResponse, consumer runtime.Consumer, formats strfmt.Registry) error {
@@ -153,11 +154,13 @@ func (o *IpspaceDeleteDefault) Code() int {
 }
 
 func (o *IpspaceDeleteDefault) Error() string {
-	return fmt.Sprintf("[DELETE /network/ipspaces/{uuid}][%d] ipspace_delete default  %+v", o._statusCode, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[DELETE /network/ipspaces/{uuid}][%d] ipspace_delete default %s", o._statusCode, payload)
 }
 
 func (o *IpspaceDeleteDefault) String() string {
-	return fmt.Sprintf("[DELETE /network/ipspaces/{uuid}][%d] ipspace_delete default  %+v", o._statusCode, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[DELETE /network/ipspaces/{uuid}][%d] ipspace_delete default %s", o._statusCode, payload)
 }
 
 func (o *IpspaceDeleteDefault) GetPayload() *models.ErrorResponse {

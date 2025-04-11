@@ -192,6 +192,11 @@ func (m *Rfc2307) ContextValidate(ctx context.Context, formats strfmt.Registry) 
 func (m *Rfc2307) contextValidateAttribute(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Attribute != nil {
+
+		if swag.IsZero(m.Attribute) { // not required
+			return nil
+		}
+
 		if err := m.Attribute.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("attribute")
@@ -208,6 +213,11 @@ func (m *Rfc2307) contextValidateAttribute(ctx context.Context, formats strfmt.R
 func (m *Rfc2307) contextValidateCn(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Cn != nil {
+
+		if swag.IsZero(m.Cn) { // not required
+			return nil
+		}
+
 		if err := m.Cn.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("cn")
@@ -224,6 +234,11 @@ func (m *Rfc2307) contextValidateCn(ctx context.Context, formats strfmt.Registry
 func (m *Rfc2307) contextValidateMember(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Member != nil {
+
+		if swag.IsZero(m.Member) { // not required
+			return nil
+		}
+
 		if err := m.Member.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("member")
@@ -240,6 +255,11 @@ func (m *Rfc2307) contextValidateMember(ctx context.Context, formats strfmt.Regi
 func (m *Rfc2307) contextValidateNis(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Nis != nil {
+
+		if swag.IsZero(m.Nis) { // not required
+			return nil
+		}
+
 		if err := m.Nis.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("nis")
@@ -256,6 +276,11 @@ func (m *Rfc2307) contextValidateNis(ctx context.Context, formats strfmt.Registr
 func (m *Rfc2307) contextValidatePosix(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Posix != nil {
+
+		if swag.IsZero(m.Posix) { // not required
+			return nil
+		}
+
 		if err := m.Posix.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("posix")

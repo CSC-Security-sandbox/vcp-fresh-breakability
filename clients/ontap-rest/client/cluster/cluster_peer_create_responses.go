@@ -6,6 +6,7 @@ package cluster
 // Editing this file might prove futile when you re-run the swagger generate command
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 
@@ -91,11 +92,13 @@ func (o *ClusterPeerCreateCreated) Code() int {
 }
 
 func (o *ClusterPeerCreateCreated) Error() string {
-	return fmt.Sprintf("[POST /cluster/peers][%d] clusterPeerCreateCreated  %+v", 201, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[POST /cluster/peers][%d] clusterPeerCreateCreated %s", 201, payload)
 }
 
 func (o *ClusterPeerCreateCreated) String() string {
-	return fmt.Sprintf("[POST /cluster/peers][%d] clusterPeerCreateCreated  %+v", 201, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[POST /cluster/peers][%d] clusterPeerCreateCreated %s", 201, payload)
 }
 
 func (o *ClusterPeerCreateCreated) GetPayload() *models.ClusterPeerResponse {
@@ -207,11 +210,13 @@ func (o *ClusterPeerCreateDefault) Code() int {
 }
 
 func (o *ClusterPeerCreateDefault) Error() string {
-	return fmt.Sprintf("[POST /cluster/peers][%d] cluster_peer_create default  %+v", o._statusCode, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[POST /cluster/peers][%d] cluster_peer_create default %s", o._statusCode, payload)
 }
 
 func (o *ClusterPeerCreateDefault) String() string {
-	return fmt.Sprintf("[POST /cluster/peers][%d] cluster_peer_create default  %+v", o._statusCode, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[POST /cluster/peers][%d] cluster_peer_create default %s", o._statusCode, payload)
 }
 
 func (o *ClusterPeerCreateDefault) GetPayload() *models.ErrorResponse {

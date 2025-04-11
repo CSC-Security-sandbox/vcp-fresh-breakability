@@ -144,6 +144,11 @@ func (m *QosPolicyResponse) ContextValidate(ctx context.Context, formats strfmt.
 func (m *QosPolicyResponse) contextValidateLinks(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Links != nil {
+
+		if swag.IsZero(m.Links) { // not required
+			return nil
+		}
+
 		if err := m.Links.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("_links")
@@ -160,6 +165,11 @@ func (m *QosPolicyResponse) contextValidateLinks(ctx context.Context, formats st
 func (m *QosPolicyResponse) contextValidateError(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Error != nil {
+
+		if swag.IsZero(m.Error) { // not required
+			return nil
+		}
+
 		if err := m.Error.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("error")
@@ -178,6 +188,11 @@ func (m *QosPolicyResponse) contextValidateQosPolicyResponseInlineRecords(ctx co
 	for i := 0; i < len(m.QosPolicyResponseInlineRecords); i++ {
 
 		if m.QosPolicyResponseInlineRecords[i] != nil {
+
+			if swag.IsZero(m.QosPolicyResponseInlineRecords[i]) { // not required
+				return nil
+			}
+
 			if err := m.QosPolicyResponseInlineRecords[i].ContextValidate(ctx, formats); err != nil {
 				if ve, ok := err.(*errors.Validation); ok {
 					return ve.ValidateName("records" + "." + strconv.Itoa(i))
@@ -300,6 +315,11 @@ func (m *QosPolicyResponseInlineLinks) ContextValidate(ctx context.Context, form
 func (m *QosPolicyResponseInlineLinks) contextValidateNext(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Next != nil {
+
+		if swag.IsZero(m.Next) { // not required
+			return nil
+		}
+
 		if err := m.Next.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("_links" + "." + "next")
@@ -316,6 +336,11 @@ func (m *QosPolicyResponseInlineLinks) contextValidateNext(ctx context.Context, 
 func (m *QosPolicyResponseInlineLinks) contextValidateSelf(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Self != nil {
+
+		if swag.IsZero(m.Self) { // not required
+			return nil
+		}
+
 		if err := m.Self.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("_links" + "." + "self")

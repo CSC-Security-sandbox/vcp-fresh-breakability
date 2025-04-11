@@ -29,12 +29,12 @@ type CifsService struct {
 	// Authentication type.
 	// Example: domain
 	// Read Only: true
-	// Enum: [domain workgroup]
+	// Enum: ["domain","workgroup"]
 	AuthStyle *string `json:"auth-style,omitempty"`
 
 	// Specifies the type of user who can access the SMB Volume. The default is domain_user. In the case of a hybrid-user, ONTAP won't contact on-premise ADDS.
 	//
-	// Enum: [domain_user hybrid_user]
+	// Enum: ["domain_user","hybrid_user"]
 	AuthUserType *string `json:"auth_user_type,omitempty"`
 
 	// Specifies the authentication method.
@@ -42,7 +42,7 @@ type CifsService struct {
 	//   * client_secret
 	//   * certificate
 	//
-	// Enum: [client_secret certificate]
+	// Enum: ["client_secret","certificate"]
 	AuthenticationMethod *string `json:"authentication_method,omitempty"`
 
 	// PKCS12 certificate used by the application to prove its identity to AKV.
@@ -112,7 +112,7 @@ type CifsService struct {
 	ProxyPort *int64 `json:"proxy_port,omitempty"`
 
 	// Proxy type.
-	// Enum: [http https]
+	// Enum: ["http","https"]
 	ProxyType *string `json:"proxy_type,omitempty"`
 
 	// Proxy username.
@@ -681,6 +681,11 @@ func (m *CifsService) ContextValidate(ctx context.Context, formats strfmt.Regist
 func (m *CifsService) contextValidateLinks(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Links != nil {
+
+		if swag.IsZero(m.Links) { // not required
+			return nil
+		}
+
 		if err := m.Links.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("_links")
@@ -697,6 +702,11 @@ func (m *CifsService) contextValidateLinks(ctx context.Context, formats strfmt.R
 func (m *CifsService) contextValidateAdDomain(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.AdDomain != nil {
+
+		if swag.IsZero(m.AdDomain) { // not required
+			return nil
+		}
+
 		if err := m.AdDomain.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("ad_domain")
@@ -722,6 +732,11 @@ func (m *CifsService) contextValidateAuthStyle(ctx context.Context, formats strf
 func (m *CifsService) contextValidateMetric(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Metric != nil {
+
+		if swag.IsZero(m.Metric) { // not required
+			return nil
+		}
+
 		if err := m.Metric.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("metric")
@@ -738,6 +753,11 @@ func (m *CifsService) contextValidateMetric(ctx context.Context, formats strfmt.
 func (m *CifsService) contextValidateNetbios(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Netbios != nil {
+
+		if swag.IsZero(m.Netbios) { // not required
+			return nil
+		}
+
 		if err := m.Netbios.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("netbios")
@@ -754,6 +774,11 @@ func (m *CifsService) contextValidateNetbios(ctx context.Context, formats strfmt
 func (m *CifsService) contextValidateOptions(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Options != nil {
+
+		if swag.IsZero(m.Options) { // not required
+			return nil
+		}
+
 		if err := m.Options.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("options")
@@ -770,6 +795,11 @@ func (m *CifsService) contextValidateOptions(ctx context.Context, formats strfmt
 func (m *CifsService) contextValidateSecurity(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Security != nil {
+
+		if swag.IsZero(m.Security) { // not required
+			return nil
+		}
+
 		if err := m.Security.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("security")
@@ -786,6 +816,11 @@ func (m *CifsService) contextValidateSecurity(ctx context.Context, formats strfm
 func (m *CifsService) contextValidateStatistics(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Statistics != nil {
+
+		if swag.IsZero(m.Statistics) { // not required
+			return nil
+		}
+
 		if err := m.Statistics.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("statistics")
@@ -802,6 +837,11 @@ func (m *CifsService) contextValidateStatistics(ctx context.Context, formats str
 func (m *CifsService) contextValidateSvm(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Svm != nil {
+
+		if swag.IsZero(m.Svm) { // not required
+			return nil
+		}
+
 		if err := m.Svm.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("svm")
@@ -892,6 +932,11 @@ func (m *CifsServiceInlineLinks) ContextValidate(ctx context.Context, formats st
 func (m *CifsServiceInlineLinks) contextValidateSelf(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Self != nil {
+
+		if swag.IsZero(m.Self) { // not required
+			return nil
+		}
+
 		if err := m.Self.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("_links" + "." + "self")
@@ -935,7 +980,7 @@ type CifsServiceInlineMetric struct {
 	//
 	// Example: PT15S
 	// Read Only: true
-	// Enum: [PT15S PT4M PT30M PT2H P1D PT5M]
+	// Enum: ["PT15S","PT4M","PT30M","PT2H","P1D","PT5M"]
 	Duration *string `json:"duration,omitempty"`
 
 	// iops
@@ -947,7 +992,7 @@ type CifsServiceInlineMetric struct {
 	// Any errors associated with the sample. For example, if the aggregation of data over multiple nodes fails then any of the partial errors might be returned, "ok" on success, or "error" on any internal uncategorized failure. Whenever a sample collection is missed but done at a later time, it is back filled to the previous 15 second timestamp and tagged with "backfilled_data". "Inconsistent_ delta_time" is encountered when the time between two collections is not the same for all nodes. Therefore, the aggregated value might be over or under inflated. "Negative_delta" is returned when an expected monotonically increasing value has decreased in value. "Inconsistent_old_data" is returned when one or more nodes do not have the latest data.
 	// Example: ok
 	// Read Only: true
-	// Enum: [ok error partial_no_data partial_no_response partial_other_error negative_delta not_found backfilled_data inconsistent_delta_time inconsistent_old_data partial_no_uuid]
+	// Enum: ["ok","error","partial_no_data","partial_no_response","partial_other_error","negative_delta","not_found","backfilled_data","inconsistent_delta_time","inconsistent_old_data","partial_no_uuid"]
 	Status *string `json:"status,omitempty"`
 
 	// throughput
@@ -1250,6 +1295,11 @@ func (m *CifsServiceInlineMetric) ContextValidate(ctx context.Context, formats s
 func (m *CifsServiceInlineMetric) contextValidateLinks(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Links != nil {
+
+		if swag.IsZero(m.Links) { // not required
+			return nil
+		}
+
 		if err := m.Links.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("metric" + "." + "_links")
@@ -1275,6 +1325,11 @@ func (m *CifsServiceInlineMetric) contextValidateDuration(ctx context.Context, f
 func (m *CifsServiceInlineMetric) contextValidateIops(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Iops != nil {
+
+		if swag.IsZero(m.Iops) { // not required
+			return nil
+		}
+
 		if err := m.Iops.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("metric" + "." + "iops")
@@ -1291,6 +1346,11 @@ func (m *CifsServiceInlineMetric) contextValidateIops(ctx context.Context, forma
 func (m *CifsServiceInlineMetric) contextValidateLatency(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Latency != nil {
+
+		if swag.IsZero(m.Latency) { // not required
+			return nil
+		}
+
 		if err := m.Latency.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("metric" + "." + "latency")
@@ -1316,6 +1376,11 @@ func (m *CifsServiceInlineMetric) contextValidateStatus(ctx context.Context, for
 func (m *CifsServiceInlineMetric) contextValidateThroughput(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Throughput != nil {
+
+		if swag.IsZero(m.Throughput) { // not required
+			return nil
+		}
+
 		if err := m.Throughput.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("metric" + "." + "throughput")
@@ -1523,6 +1588,11 @@ func (m *CifsServiceInlineMetricInlineLinks) ContextValidate(ctx context.Context
 func (m *CifsServiceInlineMetricInlineLinks) contextValidateSelf(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Self != nil {
+
+		if swag.IsZero(m.Self) { // not required
+			return nil
+		}
+
 		if err := m.Self.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("metric" + "." + "_links" + "." + "self")
@@ -1619,7 +1689,7 @@ type CifsServiceInlineStatistics struct {
 	// Any errors associated with the sample. For example, if the aggregation of data over multiple nodes fails then any of the partial errors might be returned, "ok" on success, or "error" on any internal uncategorized failure. Whenever a sample collection is missed but done at a later time, it is back filled to the previous 15 second timestamp and tagged with "backfilled_data". "Inconsistent_delta_time" is encountered when the time between two collections is not the same for all nodes. Therefore, the aggregated value might be over or under inflated. "Negative_delta" is returned when an expected monotonically increasing value has decreased in value. "Inconsistent_old_data" is returned when one or more nodes do not have the latest data.
 	// Example: ok
 	// Read Only: true
-	// Enum: [ok error partial_no_data partial_no_response partial_other_error negative_delta not_found backfilled_data inconsistent_delta_time inconsistent_old_data partial_no_uuid]
+	// Enum: ["ok","error","partial_no_data","partial_no_response","partial_other_error","negative_delta","not_found","backfilled_data","inconsistent_delta_time","inconsistent_old_data","partial_no_uuid"]
 	Status *string `json:"status,omitempty"`
 
 	// throughput raw
@@ -1833,6 +1903,11 @@ func (m *CifsServiceInlineStatistics) ContextValidate(ctx context.Context, forma
 func (m *CifsServiceInlineStatistics) contextValidateIopsRaw(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.IopsRaw != nil {
+
+		if swag.IsZero(m.IopsRaw) { // not required
+			return nil
+		}
+
 		if err := m.IopsRaw.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("statistics" + "." + "iops_raw")
@@ -1849,6 +1924,11 @@ func (m *CifsServiceInlineStatistics) contextValidateIopsRaw(ctx context.Context
 func (m *CifsServiceInlineStatistics) contextValidateLatencyRaw(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.LatencyRaw != nil {
+
+		if swag.IsZero(m.LatencyRaw) { // not required
+			return nil
+		}
+
 		if err := m.LatencyRaw.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("statistics" + "." + "latency_raw")
@@ -1874,6 +1954,11 @@ func (m *CifsServiceInlineStatistics) contextValidateStatus(ctx context.Context,
 func (m *CifsServiceInlineStatistics) contextValidateThroughputRaw(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.ThroughputRaw != nil {
+
+		if swag.IsZero(m.ThroughputRaw) { // not required
+			return nil
+		}
+
 		if err := m.ThroughputRaw.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("statistics" + "." + "throughput_raw")
@@ -2142,6 +2227,11 @@ func (m *CifsServiceInlineSvm) ContextValidate(ctx context.Context, formats strf
 func (m *CifsServiceInlineSvm) contextValidateLinks(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Links != nil {
+
+		if swag.IsZero(m.Links) { // not required
+			return nil
+		}
+
 		if err := m.Links.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("svm" + "." + "_links")
@@ -2232,6 +2322,11 @@ func (m *CifsServiceInlineSvmInlineLinks) ContextValidate(ctx context.Context, f
 func (m *CifsServiceInlineSvmInlineLinks) contextValidateSelf(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Self != nil {
+
+		if swag.IsZero(m.Self) { // not required
+			return nil
+		}
+
 		if err := m.Self.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("svm" + "." + "_links" + "." + "self")

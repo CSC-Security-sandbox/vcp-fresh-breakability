@@ -6,6 +6,7 @@ package storage
 // Editing this file might prove futile when you re-run the swagger generate command
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 
@@ -97,11 +98,13 @@ func (o *QuotaRuleCreateCreated) Code() int {
 }
 
 func (o *QuotaRuleCreateCreated) Error() string {
-	return fmt.Sprintf("[POST /storage/quota/rules][%d] quotaRuleCreateCreated  %+v", 201, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[POST /storage/quota/rules][%d] quotaRuleCreateCreated %s", 201, payload)
 }
 
 func (o *QuotaRuleCreateCreated) String() string {
-	return fmt.Sprintf("[POST /storage/quota/rules][%d] quotaRuleCreateCreated  %+v", 201, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[POST /storage/quota/rules][%d] quotaRuleCreateCreated %s", 201, payload)
 }
 
 func (o *QuotaRuleCreateCreated) GetPayload() *models.QuotaRuleJobLinkResponse {
@@ -177,11 +180,13 @@ func (o *QuotaRuleCreateAccepted) Code() int {
 }
 
 func (o *QuotaRuleCreateAccepted) Error() string {
-	return fmt.Sprintf("[POST /storage/quota/rules][%d] quotaRuleCreateAccepted  %+v", 202, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[POST /storage/quota/rules][%d] quotaRuleCreateAccepted %s", 202, payload)
 }
 
 func (o *QuotaRuleCreateAccepted) String() string {
-	return fmt.Sprintf("[POST /storage/quota/rules][%d] quotaRuleCreateAccepted  %+v", 202, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[POST /storage/quota/rules][%d] quotaRuleCreateAccepted %s", 202, payload)
 }
 
 func (o *QuotaRuleCreateAccepted) GetPayload() *models.QuotaRuleJobLinkResponse {
@@ -282,11 +287,13 @@ func (o *QuotaRuleCreateDefault) Code() int {
 }
 
 func (o *QuotaRuleCreateDefault) Error() string {
-	return fmt.Sprintf("[POST /storage/quota/rules][%d] quota_rule_create default  %+v", o._statusCode, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[POST /storage/quota/rules][%d] quota_rule_create default %s", o._statusCode, payload)
 }
 
 func (o *QuotaRuleCreateDefault) String() string {
-	return fmt.Sprintf("[POST /storage/quota/rules][%d] quota_rule_create default  %+v", o._statusCode, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[POST /storage/quota/rules][%d] quota_rule_create default %s", o._statusCode, payload)
 }
 
 func (o *QuotaRuleCreateDefault) GetPayload() *models.ErrorResponse {

@@ -6,6 +6,7 @@ package svm
 // Editing this file might prove futile when you re-run the swagger generate command
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 
@@ -97,11 +98,13 @@ func (o *SvmMigrationCreateCreated) Code() int {
 }
 
 func (o *SvmMigrationCreateCreated) Error() string {
-	return fmt.Sprintf("[POST /svm/migrations][%d] svmMigrationCreateCreated  %+v", 201, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[POST /svm/migrations][%d] svmMigrationCreateCreated %s", 201, payload)
 }
 
 func (o *SvmMigrationCreateCreated) String() string {
-	return fmt.Sprintf("[POST /svm/migrations][%d] svmMigrationCreateCreated  %+v", 201, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[POST /svm/migrations][%d] svmMigrationCreateCreated %s", 201, payload)
 }
 
 func (o *SvmMigrationCreateCreated) GetPayload() *models.SvmMigrationCreate {
@@ -177,11 +180,13 @@ func (o *SvmMigrationCreateAccepted) Code() int {
 }
 
 func (o *SvmMigrationCreateAccepted) Error() string {
-	return fmt.Sprintf("[POST /svm/migrations][%d] svmMigrationCreateAccepted  %+v", 202, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[POST /svm/migrations][%d] svmMigrationCreateAccepted %s", 202, payload)
 }
 
 func (o *SvmMigrationCreateAccepted) String() string {
-	return fmt.Sprintf("[POST /svm/migrations][%d] svmMigrationCreateAccepted  %+v", 202, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[POST /svm/migrations][%d] svmMigrationCreateAccepted %s", 202, payload)
 }
 
 func (o *SvmMigrationCreateAccepted) GetPayload() *models.SvmMigrationCreate {
@@ -221,9 +226,9 @@ func NewSvmMigrationCreateDefault(code int) *SvmMigrationCreateDefault {
 
 | Error Code | Description |
 | ---------- | ----------- |
-| 262245 | The value provided is invalid. |
+| 262245 | The value provided is invalid.<personalities supports=asar2,unified> |
 | 13172746 | SVM migration cannot be started. This is a generic code, see the response message for details. |
-| 13173748 | Migrate request cannot contain both \\"aggregates\\" and \\"volume_aggregate_pairs\\" within the \\"volume_placement\\" object. |
+| 13173748 | Migrate request cannot contain both \\"aggregates\\" and \\"volume_aggregate_pairs\\" within the \\"volume_placement\\" object.</personalities> |
 | 13173758 | The property \\"{property}\\" is not supported for this operation. |
 | 13173759 | Migrate operation failed. To use LIF placement specify either the port UUID, or both the port name and the port node name. |
 | 13173760 | Migrate operation failed. LIF placement requires either the port node name or the port UUID to be specified if the port name is specified. |
@@ -270,11 +275,13 @@ func (o *SvmMigrationCreateDefault) Code() int {
 }
 
 func (o *SvmMigrationCreateDefault) Error() string {
-	return fmt.Sprintf("[POST /svm/migrations][%d] svm_migration_create default  %+v", o._statusCode, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[POST /svm/migrations][%d] svm_migration_create default %s", o._statusCode, payload)
 }
 
 func (o *SvmMigrationCreateDefault) String() string {
-	return fmt.Sprintf("[POST /svm/migrations][%d] svm_migration_create default  %+v", o._statusCode, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[POST /svm/migrations][%d] svm_migration_create default %s", o._statusCode, payload)
 }
 
 func (o *SvmMigrationCreateDefault) GetPayload() *models.ErrorResponse {

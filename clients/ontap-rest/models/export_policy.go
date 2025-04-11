@@ -169,6 +169,11 @@ func (m *ExportPolicy) ContextValidate(ctx context.Context, formats strfmt.Regis
 func (m *ExportPolicy) contextValidateLinks(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Links != nil {
+
+		if swag.IsZero(m.Links) { // not required
+			return nil
+		}
+
 		if err := m.Links.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("_links")
@@ -187,6 +192,11 @@ func (m *ExportPolicy) contextValidateExportPolicyInlineRules(ctx context.Contex
 	for i := 0; i < len(m.ExportPolicyInlineRules); i++ {
 
 		if m.ExportPolicyInlineRules[i] != nil {
+
+			if swag.IsZero(m.ExportPolicyInlineRules[i]) { // not required
+				return nil
+			}
+
 			if err := m.ExportPolicyInlineRules[i].ContextValidate(ctx, formats); err != nil {
 				if ve, ok := err.(*errors.Validation); ok {
 					return ve.ValidateName("rules" + "." + strconv.Itoa(i))
@@ -214,6 +224,11 @@ func (m *ExportPolicy) contextValidateID(ctx context.Context, formats strfmt.Reg
 func (m *ExportPolicy) contextValidateSvm(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Svm != nil {
+
+		if swag.IsZero(m.Svm) { // not required
+			return nil
+		}
+
 		if err := m.Svm.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("svm")
@@ -304,6 +319,11 @@ func (m *ExportPolicyInlineLinks) ContextValidate(ctx context.Context, formats s
 func (m *ExportPolicyInlineLinks) contextValidateSelf(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Self != nil {
+
+		if swag.IsZero(m.Self) { // not required
+			return nil
+		}
+
 		if err := m.Self.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("_links" + "." + "self")
@@ -404,6 +424,11 @@ func (m *ExportPolicyInlineSvm) ContextValidate(ctx context.Context, formats str
 func (m *ExportPolicyInlineSvm) contextValidateLinks(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Links != nil {
+
+		if swag.IsZero(m.Links) { // not required
+			return nil
+		}
+
 		if err := m.Links.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("svm" + "." + "_links")
@@ -494,6 +519,11 @@ func (m *ExportPolicyInlineSvmInlineLinks) ContextValidate(ctx context.Context, 
 func (m *ExportPolicyInlineSvmInlineLinks) contextValidateSelf(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Self != nil {
+
+		if swag.IsZero(m.Self) { // not required
+			return nil
+		}
+
 		if err := m.Self.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("svm" + "." + "_links" + "." + "self")

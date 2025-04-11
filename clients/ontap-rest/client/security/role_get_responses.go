@@ -6,6 +6,7 @@ package security
 // Editing this file might prove futile when you re-run the swagger generate command
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 
@@ -86,11 +87,13 @@ func (o *RoleGetOK) Code() int {
 }
 
 func (o *RoleGetOK) Error() string {
-	return fmt.Sprintf("[GET /security/roles/{owner.uuid}/{name}][%d] roleGetOK  %+v", 200, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[GET /security/roles/{owner.uuid}/{name}][%d] roleGetOK %s", 200, payload)
 }
 
 func (o *RoleGetOK) String() string {
-	return fmt.Sprintf("[GET /security/roles/{owner.uuid}/{name}][%d] roleGetOK  %+v", 200, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[GET /security/roles/{owner.uuid}/{name}][%d] roleGetOK %s", 200, payload)
 }
 
 func (o *RoleGetOK) GetPayload() *models.Role {
@@ -158,11 +161,13 @@ func (o *RoleGetDefault) Code() int {
 }
 
 func (o *RoleGetDefault) Error() string {
-	return fmt.Sprintf("[GET /security/roles/{owner.uuid}/{name}][%d] role_get default  %+v", o._statusCode, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[GET /security/roles/{owner.uuid}/{name}][%d] role_get default %s", o._statusCode, payload)
 }
 
 func (o *RoleGetDefault) String() string {
-	return fmt.Sprintf("[GET /security/roles/{owner.uuid}/{name}][%d] role_get default  %+v", o._statusCode, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[GET /security/roles/{owner.uuid}/{name}][%d] role_get default %s", o._statusCode, payload)
 }
 
 func (o *RoleGetDefault) GetPayload() *models.ErrorResponse {

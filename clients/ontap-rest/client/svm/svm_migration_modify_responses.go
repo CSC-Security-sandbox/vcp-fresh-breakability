@@ -6,6 +6,7 @@ package svm
 // Editing this file might prove futile when you re-run the swagger generate command
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 
@@ -92,11 +93,13 @@ func (o *SvmMigrationModifyOK) Code() int {
 }
 
 func (o *SvmMigrationModifyOK) Error() string {
-	return fmt.Sprintf("[PATCH /svm/migrations/{uuid}][%d] svmMigrationModifyOK  %+v", 200, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[PATCH /svm/migrations/{uuid}][%d] svmMigrationModifyOK %s", 200, payload)
 }
 
 func (o *SvmMigrationModifyOK) String() string {
-	return fmt.Sprintf("[PATCH /svm/migrations/{uuid}][%d] svmMigrationModifyOK  %+v", 200, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[PATCH /svm/migrations/{uuid}][%d] svmMigrationModifyOK %s", 200, payload)
 }
 
 func (o *SvmMigrationModifyOK) GetPayload() *models.SvmMigrationJobLinkResponse {
@@ -160,11 +163,13 @@ func (o *SvmMigrationModifyAccepted) Code() int {
 }
 
 func (o *SvmMigrationModifyAccepted) Error() string {
-	return fmt.Sprintf("[PATCH /svm/migrations/{uuid}][%d] svmMigrationModifyAccepted  %+v", 202, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[PATCH /svm/migrations/{uuid}][%d] svmMigrationModifyAccepted %s", 202, payload)
 }
 
 func (o *SvmMigrationModifyAccepted) String() string {
-	return fmt.Sprintf("[PATCH /svm/migrations/{uuid}][%d] svmMigrationModifyAccepted  %+v", 202, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[PATCH /svm/migrations/{uuid}][%d] svmMigrationModifyAccepted %s", 202, payload)
 }
 
 func (o *SvmMigrationModifyAccepted) GetPayload() *models.SvmMigrationJobLinkResponse {
@@ -242,11 +247,13 @@ func (o *SvmMigrationModifyDefault) Code() int {
 }
 
 func (o *SvmMigrationModifyDefault) Error() string {
-	return fmt.Sprintf("[PATCH /svm/migrations/{uuid}][%d] svm_migration_modify default  %+v", o._statusCode, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[PATCH /svm/migrations/{uuid}][%d] svm_migration_modify default %s", o._statusCode, payload)
 }
 
 func (o *SvmMigrationModifyDefault) String() string {
-	return fmt.Sprintf("[PATCH /svm/migrations/{uuid}][%d] svm_migration_modify default  %+v", o._statusCode, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[PATCH /svm/migrations/{uuid}][%d] svm_migration_modify default %s", o._statusCode, payload)
 }
 
 func (o *SvmMigrationModifyDefault) GetPayload() *models.ErrorResponse {

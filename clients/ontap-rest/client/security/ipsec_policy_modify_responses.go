@@ -6,6 +6,7 @@ package security
 // Editing this file might prove futile when you re-run the swagger generate command
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 
@@ -85,11 +86,11 @@ func (o *IpsecPolicyModifyOK) Code() int {
 }
 
 func (o *IpsecPolicyModifyOK) Error() string {
-	return fmt.Sprintf("[PATCH /security/ipsec/policies/{uuid}][%d] ipsecPolicyModifyOK ", 200)
+	return fmt.Sprintf("[PATCH /security/ipsec/policies/{uuid}][%d] ipsecPolicyModifyOK", 200)
 }
 
 func (o *IpsecPolicyModifyOK) String() string {
-	return fmt.Sprintf("[PATCH /security/ipsec/policies/{uuid}][%d] ipsecPolicyModifyOK ", 200)
+	return fmt.Sprintf("[PATCH /security/ipsec/policies/{uuid}][%d] ipsecPolicyModifyOK", 200)
 }
 
 func (o *IpsecPolicyModifyOK) readResponse(response runtime.ClientResponse, consumer runtime.Consumer, formats strfmt.Registry) error {
@@ -133,6 +134,8 @@ func NewIpsecPolicyModifyDefault(code int) *IpsecPolicyModifyDefault {
 | 66257140 | Only certificates with a client or server type are supported. |
 | 66257142 | Failed to create IPsec policy because the specified SVM is being migrated. |
 | 66257143 | Invalid IPsec policy provided. The subnet must be non-empty. |
+| 66257153 | The policy requires a post-quantum pre-shared key because ppk-identity is specified for this policy. |
+| 66257154 | The policy requires a post-quantum pre-shared identity because ppk-shared-key is specified for this policy. |
 | 66257199 | Not all of the nodes in the cluster are running a version that supports the IPsec feature. |
 | 66257200 | The shared key does not meet required ASCII-range characters length. |
 | 66257201 | Support for the feature available with effective cluster version or later. |
@@ -176,11 +179,13 @@ func (o *IpsecPolicyModifyDefault) Code() int {
 }
 
 func (o *IpsecPolicyModifyDefault) Error() string {
-	return fmt.Sprintf("[PATCH /security/ipsec/policies/{uuid}][%d] ipsec_policy_modify default  %+v", o._statusCode, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[PATCH /security/ipsec/policies/{uuid}][%d] ipsec_policy_modify default %s", o._statusCode, payload)
 }
 
 func (o *IpsecPolicyModifyDefault) String() string {
-	return fmt.Sprintf("[PATCH /security/ipsec/policies/{uuid}][%d] ipsec_policy_modify default  %+v", o._statusCode, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[PATCH /security/ipsec/policies/{uuid}][%d] ipsec_policy_modify default %s", o._statusCode, payload)
 }
 
 func (o *IpsecPolicyModifyDefault) GetPayload() *models.ErrorResponse {

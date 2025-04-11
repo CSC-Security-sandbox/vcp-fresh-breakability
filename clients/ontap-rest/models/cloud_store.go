@@ -28,12 +28,12 @@ type CloudStore struct {
 
 	// Availability of the object store.
 	// Read Only: true
-	// Enum: [available unavailable]
+	// Enum: ["available","unavailable"]
 	Availability *string `json:"availability,omitempty"`
 
 	// Availability of the object store at the HA partner.
 	// Read Only: true
-	// Enum: [available unavailable]
+	// Enum: ["available","unavailable"]
 	AvailabilityAtPartner *string `json:"availability_at_partner,omitempty"`
 
 	// This field identifies if the mirror cloud store is in sync with the primary cloud store of a FabricPool.
@@ -305,6 +305,11 @@ func (m *CloudStore) ContextValidate(ctx context.Context, formats strfmt.Registr
 func (m *CloudStore) contextValidateLinks(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Links != nil {
+
+		if swag.IsZero(m.Links) { // not required
+			return nil
+		}
+
 		if err := m.Links.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("_links")
@@ -321,6 +326,11 @@ func (m *CloudStore) contextValidateLinks(ctx context.Context, formats strfmt.Re
 func (m *CloudStore) contextValidateAggregate(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Aggregate != nil {
+
+		if swag.IsZero(m.Aggregate) { // not required
+			return nil
+		}
+
 		if err := m.Aggregate.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("aggregate")
@@ -373,6 +383,11 @@ func (m *CloudStore) contextValidateResyncProgress(ctx context.Context, formats 
 func (m *CloudStore) contextValidateTarget(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Target != nil {
+
+		if swag.IsZero(m.Target) { // not required
+			return nil
+		}
+
 		if err := m.Target.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("target")
@@ -389,6 +404,11 @@ func (m *CloudStore) contextValidateTarget(ctx context.Context, formats strfmt.R
 func (m *CloudStore) contextValidateUnavailableReason(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.UnavailableReason != nil {
+
+		if swag.IsZero(m.UnavailableReason) { // not required
+			return nil
+		}
+
 		if err := m.UnavailableReason.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("unavailable_reason")
@@ -526,6 +546,11 @@ func (m *CloudStoreInlineLinks) ContextValidate(ctx context.Context, formats str
 func (m *CloudStoreInlineLinks) contextValidateSelf(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Self != nil {
+
+		if swag.IsZero(m.Self) { // not required
+			return nil
+		}
+
 		if err := m.Self.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("_links" + "." + "self")
@@ -624,6 +649,11 @@ func (m *CloudStoreInlineTarget) ContextValidate(ctx context.Context, formats st
 func (m *CloudStoreInlineTarget) contextValidateLinks(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Links != nil {
+
+		if swag.IsZero(m.Links) { // not required
+			return nil
+		}
+
 		if err := m.Links.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("target" + "." + "_links")
@@ -714,6 +744,11 @@ func (m *CloudStoreInlineTargetInlineLinks) ContextValidate(ctx context.Context,
 func (m *CloudStoreInlineTargetInlineLinks) contextValidateSelf(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Self != nil {
+
+		if swag.IsZero(m.Self) { // not required
+			return nil
+		}
+
 		if err := m.Self.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("target" + "." + "_links" + "." + "self")

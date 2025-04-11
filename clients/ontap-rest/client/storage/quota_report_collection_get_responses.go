@@ -6,6 +6,7 @@ package storage
 // Editing this file might prove futile when you re-run the swagger generate command
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 
@@ -86,11 +87,13 @@ func (o *QuotaReportCollectionGetOK) Code() int {
 }
 
 func (o *QuotaReportCollectionGetOK) Error() string {
-	return fmt.Sprintf("[GET /storage/quota/reports][%d] quotaReportCollectionGetOK  %+v", 200, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[GET /storage/quota/reports][%d] quotaReportCollectionGetOK %s", 200, payload)
 }
 
 func (o *QuotaReportCollectionGetOK) String() string {
-	return fmt.Sprintf("[GET /storage/quota/reports][%d] quotaReportCollectionGetOK  %+v", 200, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[GET /storage/quota/reports][%d] quotaReportCollectionGetOK %s", 200, payload)
 }
 
 func (o *QuotaReportCollectionGetOK) GetPayload() *models.QuotaReportResponse {
@@ -158,11 +161,13 @@ func (o *QuotaReportCollectionGetDefault) Code() int {
 }
 
 func (o *QuotaReportCollectionGetDefault) Error() string {
-	return fmt.Sprintf("[GET /storage/quota/reports][%d] quota_report_collection_get default  %+v", o._statusCode, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[GET /storage/quota/reports][%d] quota_report_collection_get default %s", o._statusCode, payload)
 }
 
 func (o *QuotaReportCollectionGetDefault) String() string {
-	return fmt.Sprintf("[GET /storage/quota/reports][%d] quota_report_collection_get default  %+v", o._statusCode, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[GET /storage/quota/reports][%d] quota_report_collection_get default %s", o._statusCode, payload)
 }
 
 func (o *QuotaReportCollectionGetDefault) GetPayload() *models.ErrorResponse {

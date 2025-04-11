@@ -6,6 +6,7 @@ package object_store
 // Editing this file might prove futile when you re-run the swagger generate command
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 
@@ -85,11 +86,11 @@ func (o *S3PolicyDeleteOK) Code() int {
 }
 
 func (o *S3PolicyDeleteOK) Error() string {
-	return fmt.Sprintf("[DELETE /protocols/s3/services/{svm.uuid}/policies/{name}][%d] s3PolicyDeleteOK ", 200)
+	return fmt.Sprintf("[DELETE /protocols/s3/services/{svm.uuid}/policies/{name}][%d] s3PolicyDeleteOK", 200)
 }
 
 func (o *S3PolicyDeleteOK) String() string {
-	return fmt.Sprintf("[DELETE /protocols/s3/services/{svm.uuid}/policies/{name}][%d] s3PolicyDeleteOK ", 200)
+	return fmt.Sprintf("[DELETE /protocols/s3/services/{svm.uuid}/policies/{name}][%d] s3PolicyDeleteOK", 200)
 }
 
 func (o *S3PolicyDeleteOK) readResponse(response runtime.ClientResponse, consumer runtime.Consumer, formats strfmt.Registry) error {
@@ -150,11 +151,13 @@ func (o *S3PolicyDeleteDefault) Code() int {
 }
 
 func (o *S3PolicyDeleteDefault) Error() string {
-	return fmt.Sprintf("[DELETE /protocols/s3/services/{svm.uuid}/policies/{name}][%d] s3_policy_delete default  %+v", o._statusCode, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[DELETE /protocols/s3/services/{svm.uuid}/policies/{name}][%d] s3_policy_delete default %s", o._statusCode, payload)
 }
 
 func (o *S3PolicyDeleteDefault) String() string {
-	return fmt.Sprintf("[DELETE /protocols/s3/services/{svm.uuid}/policies/{name}][%d] s3_policy_delete default  %+v", o._statusCode, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[DELETE /protocols/s3/services/{svm.uuid}/policies/{name}][%d] s3_policy_delete default %s", o._statusCode, payload)
 }
 
 func (o *S3PolicyDeleteDefault) GetPayload() *models.ErrorResponse {

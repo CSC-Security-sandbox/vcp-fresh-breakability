@@ -372,6 +372,22 @@ type NodesGetParams struct {
 	*/
 	HaAutoGiveback *string
 
+	/* HaAutoGivebackOf.
+
+	   Filter by ha.auto_giveback_of
+
+	   Format: boolean
+	*/
+	HaAutoGivebackOf *string
+
+	/* HaEnableTakeoverOf.
+
+	   Filter by ha.enable_takeover_of
+
+	   Format: boolean
+	*/
+	HaEnableTakeoverOf *string
+
 	/* HaEnabled.
 
 	   Filter by ha.enabled
@@ -812,13 +828,13 @@ type NodesGetParams struct {
 	*/
 	ReturnTimeout *string
 
-	/* SANOptimized.
+	/* SanOptimized.
 
 	   Filter by san_optimized
 
 	   Format: boolean
 	*/
-	SANOptimized *string
+	SanOptimized *string
 
 	/* SerialNumber.
 
@@ -1836,6 +1852,28 @@ func (o *NodesGetParams) SetHaAutoGiveback(haAutoGiveback *string) {
 	o.HaAutoGiveback = haAutoGiveback
 }
 
+// WithHaAutoGivebackOf adds the haAutoGivebackOf to the nodes get params
+func (o *NodesGetParams) WithHaAutoGivebackOf(haAutoGivebackOf *string) *NodesGetParams {
+	o.SetHaAutoGivebackOf(haAutoGivebackOf)
+	return o
+}
+
+// SetHaAutoGivebackOf adds the haAutoGivebackOf to the nodes get params
+func (o *NodesGetParams) SetHaAutoGivebackOf(haAutoGivebackOf *string) {
+	o.HaAutoGivebackOf = haAutoGivebackOf
+}
+
+// WithHaEnableTakeoverOf adds the haEnableTakeoverOf to the nodes get params
+func (o *NodesGetParams) WithHaEnableTakeoverOf(haEnableTakeoverOf *string) *NodesGetParams {
+	o.SetHaEnableTakeoverOf(haEnableTakeoverOf)
+	return o
+}
+
+// SetHaEnableTakeoverOf adds the haEnableTakeoverOf to the nodes get params
+func (o *NodesGetParams) SetHaEnableTakeoverOf(haEnableTakeoverOf *string) {
+	o.HaEnableTakeoverOf = haEnableTakeoverOf
+}
+
 // WithHaEnabled adds the haEnabled to the nodes get params
 func (o *NodesGetParams) WithHaEnabled(haEnabled *string) *NodesGetParams {
 	o.SetHaEnabled(haEnabled)
@@ -2441,15 +2479,15 @@ func (o *NodesGetParams) SetReturnTimeout(returnTimeout *string) {
 	o.ReturnTimeout = returnTimeout
 }
 
-// WithSANOptimized adds the sANOptimized to the nodes get params
-func (o *NodesGetParams) WithSANOptimized(sANOptimized *string) *NodesGetParams {
-	o.SetSANOptimized(sANOptimized)
+// WithSanOptimized adds the sanOptimized to the nodes get params
+func (o *NodesGetParams) WithSanOptimized(sanOptimized *string) *NodesGetParams {
+	o.SetSanOptimized(sanOptimized)
 	return o
 }
 
-// SetSANOptimized adds the sanOptimized to the nodes get params
-func (o *NodesGetParams) SetSANOptimized(sANOptimized *string) {
-	o.SANOptimized = sANOptimized
+// SetSanOptimized adds the sanOptimized to the nodes get params
+func (o *NodesGetParams) SetSanOptimized(sanOptimized *string) {
+	o.SanOptimized = sanOptimized
 }
 
 // WithSerialNumber adds the serialNumber to the nodes get params
@@ -3832,6 +3870,40 @@ func (o *NodesGetParams) WriteToRequest(r runtime.ClientRequest, reg strfmt.Regi
 		}
 	}
 
+	if o.HaAutoGivebackOf != nil {
+
+		// query param ha.auto_giveback_of
+		var qrHaAutoGivebackOf string
+
+		if o.HaAutoGivebackOf != nil {
+			qrHaAutoGivebackOf = *o.HaAutoGivebackOf
+		}
+		qHaAutoGivebackOf := qrHaAutoGivebackOf
+		if qHaAutoGivebackOf != "" {
+
+			if err := r.SetQueryParam("ha.auto_giveback_of", qHaAutoGivebackOf); err != nil {
+				return err
+			}
+		}
+	}
+
+	if o.HaEnableTakeoverOf != nil {
+
+		// query param ha.enable_takeover_of
+		var qrHaEnableTakeoverOf string
+
+		if o.HaEnableTakeoverOf != nil {
+			qrHaEnableTakeoverOf = *o.HaEnableTakeoverOf
+		}
+		qHaEnableTakeoverOf := qrHaEnableTakeoverOf
+		if qHaEnableTakeoverOf != "" {
+
+			if err := r.SetQueryParam("ha.enable_takeover_of", qHaEnableTakeoverOf); err != nil {
+				return err
+			}
+		}
+	}
+
 	if o.HaEnabled != nil {
 
 		// query param ha.enabled
@@ -4761,18 +4833,18 @@ func (o *NodesGetParams) WriteToRequest(r runtime.ClientRequest, reg strfmt.Regi
 		}
 	}
 
-	if o.SANOptimized != nil {
+	if o.SanOptimized != nil {
 
 		// query param san_optimized
-		var qrSANOptimized string
+		var qrSanOptimized string
 
-		if o.SANOptimized != nil {
-			qrSANOptimized = *o.SANOptimized
+		if o.SanOptimized != nil {
+			qrSanOptimized = *o.SanOptimized
 		}
-		qSANOptimized := qrSANOptimized
-		if qSANOptimized != "" {
+		qSanOptimized := qrSanOptimized
+		if qSanOptimized != "" {
 
-			if err := r.SetQueryParam("san_optimized", qSANOptimized); err != nil {
+			if err := r.SetQueryParam("san_optimized", qSanOptimized); err != nil {
 				return err
 			}
 		}

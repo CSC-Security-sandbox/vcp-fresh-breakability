@@ -26,18 +26,18 @@ type AggregateSpare struct {
 
 	// The checksum type that has been assigned to the spares.
 	// Read Only: true
-	// Enum: [block advanced_zoned]
+	// Enum: ["block","advanced_zoned"]
 	ChecksumStyle *string `json:"checksum_style,omitempty"`
 
 	// Disk class of spares.
 	// Example: solid_state
 	// Read Only: true
-	// Enum: [unknown capacity performance archive solid_state array virtual data_center capacity_flash]
+	// Enum: ["unknown","capacity","performance","archive","solid_state","array","virtual","data_center","capacity_flash"]
 	DiskClass *string `json:"disk_class,omitempty"`
 
 	// Type of disk.
 	// Read Only: true
-	// Enum: [fc lun nl_sas nvme_ssd sas sata scsi ssd ssd_cap ssd_zns vmdisk]
+	// Enum: ["fc","lun","nl_sas","nvme_ssd","sas","sata","scsi","ssd","ssd_cap","ssd_zns","vmdisk"]
 	DiskType *string `json:"disk_type,omitempty"`
 
 	// Indicates whether a disk is partitioned (true) or whole (false)
@@ -55,7 +55,7 @@ type AggregateSpare struct {
 
 	// SyncMirror spare pool.
 	// Read Only: true
-	// Enum: [pool0 pool1]
+	// Enum: ["pool0","pool1"]
 	SyncmirrorPool *string `json:"syncmirror_pool,omitempty"`
 
 	// Total number of spares in the bucket. The total spare count for each class of spares also includes reserved spare capacity recommended by ONTAP best practices.
@@ -257,8 +257,8 @@ const (
 	// AggregateSpareDiskTypeNlSas captures enum value "nl_sas"
 	AggregateSpareDiskTypeNlSas string = "nl_sas"
 
-	// AggregateSpareDiskTypeNVMESsd captures enum value "nvme_ssd"
-	AggregateSpareDiskTypeNVMESsd string = "nvme_ssd"
+	// AggregateSpareDiskTypeNvmeSsd captures enum value "nvme_ssd"
+	AggregateSpareDiskTypeNvmeSsd string = "nvme_ssd"
 
 	// AggregateSpareDiskTypeSas captures enum value "sas"
 	AggregateSpareDiskTypeSas string = "sas"
@@ -419,6 +419,11 @@ func (m *AggregateSpare) contextValidateAggregateSpareInlineLayoutRequirements(c
 	for i := 0; i < len(m.AggregateSpareInlineLayoutRequirements); i++ {
 
 		if m.AggregateSpareInlineLayoutRequirements[i] != nil {
+
+			if swag.IsZero(m.AggregateSpareInlineLayoutRequirements[i]) { // not required
+				return nil
+			}
+
 			if err := m.AggregateSpareInlineLayoutRequirements[i].ContextValidate(ctx, formats); err != nil {
 				if ve, ok := err.(*errors.Validation); ok {
 					return ve.ValidateName("layout_requirements" + "." + strconv.Itoa(i))
@@ -473,6 +478,11 @@ func (m *AggregateSpare) contextValidateIsPartition(ctx context.Context, formats
 func (m *AggregateSpare) contextValidateNode(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Node != nil {
+
+		if swag.IsZero(m.Node) { // not required
+			return nil
+		}
+
 		if err := m.Node.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("node")
@@ -607,6 +617,11 @@ func (m *AggregateSpareInlineNode) ContextValidate(ctx context.Context, formats 
 func (m *AggregateSpareInlineNode) contextValidateLinks(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Links != nil {
+
+		if swag.IsZero(m.Links) { // not required
+			return nil
+		}
+
 		if err := m.Links.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("node" + "." + "_links")
@@ -697,6 +712,11 @@ func (m *AggregateSpareInlineNodeInlineLinks) ContextValidate(ctx context.Contex
 func (m *AggregateSpareInlineNodeInlineLinks) contextValidateSelf(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Self != nil {
+
+		if swag.IsZero(m.Self) { // not required
+			return nil
+		}
+
 		if err := m.Self.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("node" + "." + "_links" + "." + "self")

@@ -46,7 +46,7 @@ type SvmMigration struct {
 
 	// last operation
 	// Read Only: true
-	// Enum: [none start resume pause cleanup cutover]
+	// Enum: ["none","start","resume","pause","cleanup","cutover"]
 	LastOperation *string `json:"last_operation,omitempty"`
 
 	// Indicates if the migration has progressed beyond the point of no return. When true, the migration cannot be aborted or paused. When false, the migration can be paused or aborted.
@@ -425,6 +425,11 @@ func (m *SvmMigration) ContextValidate(ctx context.Context, formats strfmt.Regis
 func (m *SvmMigration) contextValidateCurrentOperation(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.CurrentOperation != nil {
+
+		if swag.IsZero(m.CurrentOperation) { // not required
+			return nil
+		}
+
 		if err := m.CurrentOperation.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("current_operation")
@@ -441,6 +446,11 @@ func (m *SvmMigration) contextValidateCurrentOperation(ctx context.Context, form
 func (m *SvmMigration) contextValidateDestination(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Destination != nil {
+
+		if swag.IsZero(m.Destination) { // not required
+			return nil
+		}
+
 		if err := m.Destination.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("destination")
@@ -457,6 +467,11 @@ func (m *SvmMigration) contextValidateDestination(ctx context.Context, formats s
 func (m *SvmMigration) contextValidateIPInterfacePlacement(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.IPInterfacePlacement != nil {
+
+		if swag.IsZero(m.IPInterfacePlacement) { // not required
+			return nil
+		}
+
 		if err := m.IPInterfacePlacement.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("ip_interface_placement")
@@ -473,6 +488,11 @@ func (m *SvmMigration) contextValidateIPInterfacePlacement(ctx context.Context, 
 func (m *SvmMigration) contextValidateLastFailedState(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.LastFailedState != nil {
+
+		if swag.IsZero(m.LastFailedState) { // not required
+			return nil
+		}
+
 		if err := m.LastFailedState.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("last_failed_state")
@@ -525,6 +545,11 @@ func (m *SvmMigration) contextValidateRestartCount(ctx context.Context, formats 
 func (m *SvmMigration) contextValidateSource(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Source != nil {
+
+		if swag.IsZero(m.Source) { // not required
+			return nil
+		}
+
 		if err := m.Source.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("source")
@@ -541,6 +566,11 @@ func (m *SvmMigration) contextValidateSource(ctx context.Context, formats strfmt
 func (m *SvmMigration) contextValidateState(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.State != nil {
+
+		if swag.IsZero(m.State) { // not required
+			return nil
+		}
+
 		if err := m.State.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("state")
@@ -563,6 +593,11 @@ func (m *SvmMigration) contextValidateSvmMigrationInlineMessages(ctx context.Con
 	for i := 0; i < len(m.SvmMigrationInlineMessages); i++ {
 
 		if m.SvmMigrationInlineMessages[i] != nil {
+
+			if swag.IsZero(m.SvmMigrationInlineMessages[i]) { // not required
+				return nil
+			}
+
 			if err := m.SvmMigrationInlineMessages[i].ContextValidate(ctx, formats); err != nil {
 				if ve, ok := err.(*errors.Validation); ok {
 					return ve.ValidateName("messages" + "." + strconv.Itoa(i))
@@ -581,6 +616,11 @@ func (m *SvmMigration) contextValidateSvmMigrationInlineMessages(ctx context.Con
 func (m *SvmMigration) contextValidateTimeMetrics(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.TimeMetrics != nil {
+
+		if swag.IsZero(m.TimeMetrics) { // not required
+			return nil
+		}
+
 		if err := m.TimeMetrics.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("time_metrics")
@@ -710,6 +750,11 @@ func (m *SvmMigrationInlineDestination) ContextValidate(ctx context.Context, for
 func (m *SvmMigrationInlineDestination) contextValidateIpspace(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Ipspace != nil {
+
+		if swag.IsZero(m.Ipspace) { // not required
+			return nil
+		}
+
 		if err := m.Ipspace.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("destination" + "." + "ipspace")
@@ -726,6 +771,11 @@ func (m *SvmMigrationInlineDestination) contextValidateIpspace(ctx context.Conte
 func (m *SvmMigrationInlineDestination) contextValidateVolumePlacement(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.VolumePlacement != nil {
+
+		if swag.IsZero(m.VolumePlacement) { // not required
+			return nil
+		}
+
 		if err := m.VolumePlacement.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("destination" + "." + "volume_placement")
@@ -824,6 +874,11 @@ func (m *SvmMigrationInlineDestinationInlineIpspace) ContextValidate(ctx context
 func (m *SvmMigrationInlineDestinationInlineIpspace) contextValidateLinks(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Links != nil {
+
+		if swag.IsZero(m.Links) { // not required
+			return nil
+		}
+
 		if err := m.Links.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("destination" + "." + "ipspace" + "." + "_links")
@@ -914,6 +969,11 @@ func (m *SvmMigrationInlineDestinationInlineIpspaceInlineLinks) ContextValidate(
 func (m *SvmMigrationInlineDestinationInlineIpspaceInlineLinks) contextValidateSelf(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Self != nil {
+
+		if swag.IsZero(m.Self) { // not required
+			return nil
+		}
+
 		if err := m.Self.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("destination" + "." + "ipspace" + "." + "_links" + "." + "self")
@@ -1050,6 +1110,11 @@ func (m *SvmMigrationInlineDestinationInlineVolumePlacement) contextValidateAggr
 	for i := 0; i < len(m.Aggregates); i++ {
 
 		if m.Aggregates[i] != nil {
+
+			if swag.IsZero(m.Aggregates[i]) { // not required
+				return nil
+			}
+
 			if err := m.Aggregates[i].ContextValidate(ctx, formats); err != nil {
 				if ve, ok := err.(*errors.Validation); ok {
 					return ve.ValidateName("destination" + "." + "volume_placement" + "." + "aggregates" + "." + strconv.Itoa(i))
@@ -1070,6 +1135,11 @@ func (m *SvmMigrationInlineDestinationInlineVolumePlacement) contextValidateVolu
 	for i := 0; i < len(m.VolumeAggregatePairs); i++ {
 
 		if m.VolumeAggregatePairs[i] != nil {
+
+			if swag.IsZero(m.VolumeAggregatePairs[i]) { // not required
+				return nil
+			}
+
 			if err := m.VolumeAggregatePairs[i].ContextValidate(ctx, formats); err != nil {
 				if ve, ok := err.(*errors.Validation); ok {
 					return ve.ValidateName("destination" + "." + "volume_placement" + "." + "volume_aggregate_pairs" + "." + strconv.Itoa(i))
@@ -1170,6 +1240,11 @@ func (m *SvmMigrationDestinationVolumePlacementAggregatesItems0) ContextValidate
 func (m *SvmMigrationDestinationVolumePlacementAggregatesItems0) contextValidateLinks(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Links != nil {
+
+		if swag.IsZero(m.Links) { // not required
+			return nil
+		}
+
 		if err := m.Links.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("_links")
@@ -1260,6 +1335,11 @@ func (m *SvmMigrationDestinationVolumePlacementAggregatesItems0Links) ContextVal
 func (m *SvmMigrationDestinationVolumePlacementAggregatesItems0Links) contextValidateSelf(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Self != nil {
+
+		if swag.IsZero(m.Self) { // not required
+			return nil
+		}
+
 		if err := m.Self.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("_links" + "." + "self")
@@ -1380,6 +1460,11 @@ func (m *SvmMigrationDestinationVolumePlacementVolumeAggregatePairsItems0) Conte
 func (m *SvmMigrationDestinationVolumePlacementVolumeAggregatePairsItems0) contextValidateAggregate(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Aggregate != nil {
+
+		if swag.IsZero(m.Aggregate) { // not required
+			return nil
+		}
+
 		if err := m.Aggregate.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("aggregate")
@@ -1396,6 +1481,11 @@ func (m *SvmMigrationDestinationVolumePlacementVolumeAggregatePairsItems0) conte
 func (m *SvmMigrationDestinationVolumePlacementVolumeAggregatePairsItems0) contextValidateVolume(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Volume != nil {
+
+		if swag.IsZero(m.Volume) { // not required
+			return nil
+		}
+
 		if err := m.Volume.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("volume")
@@ -1494,6 +1584,11 @@ func (m *SvmMigrationDestinationVolumePlacementVolumeAggregatePairsItems0Aggrega
 func (m *SvmMigrationDestinationVolumePlacementVolumeAggregatePairsItems0Aggregate) contextValidateLinks(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Links != nil {
+
+		if swag.IsZero(m.Links) { // not required
+			return nil
+		}
+
 		if err := m.Links.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("aggregate" + "." + "_links")
@@ -1584,6 +1679,11 @@ func (m *SvmMigrationDestinationVolumePlacementVolumeAggregatePairsItems0Aggrega
 func (m *SvmMigrationDestinationVolumePlacementVolumeAggregatePairsItems0AggregateLinks) contextValidateSelf(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Self != nil {
+
+		if swag.IsZero(m.Self) { // not required
+			return nil
+		}
+
 		if err := m.Self.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("aggregate" + "." + "_links" + "." + "self")
@@ -1682,6 +1782,11 @@ func (m *SvmMigrationDestinationVolumePlacementVolumeAggregatePairsItems0Volume)
 func (m *SvmMigrationDestinationVolumePlacementVolumeAggregatePairsItems0Volume) contextValidateLinks(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Links != nil {
+
+		if swag.IsZero(m.Links) { // not required
+			return nil
+		}
+
 		if err := m.Links.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("volume" + "." + "_links")
@@ -1772,6 +1877,11 @@ func (m *SvmMigrationDestinationVolumePlacementVolumeAggregatePairsItems0VolumeL
 func (m *SvmMigrationDestinationVolumePlacementVolumeAggregatePairsItems0VolumeLinks) contextValidateSelf(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Self != nil {
+
+		if swag.IsZero(m.Self) { // not required
+			return nil
+		}
+
 		if err := m.Self.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("volume" + "." + "_links" + "." + "self")
@@ -1965,6 +2075,11 @@ func (m *SvmMigrationInlineSource) ContextValidate(ctx context.Context, formats 
 func (m *SvmMigrationInlineSource) contextValidateCluster(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Cluster != nil {
+
+		if swag.IsZero(m.Cluster) { // not required
+			return nil
+		}
+
 		if err := m.Cluster.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("source" + "." + "cluster")
@@ -1981,6 +2096,11 @@ func (m *SvmMigrationInlineSource) contextValidateCluster(ctx context.Context, f
 func (m *SvmMigrationInlineSource) contextValidateSvm(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Svm != nil {
+
+		if swag.IsZero(m.Svm) { // not required
+			return nil
+		}
+
 		if err := m.Svm.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("source" + "." + "svm")
@@ -2096,6 +2216,11 @@ func (m *SvmMigrationInlineSourceInlineCluster) ContextValidate(ctx context.Cont
 func (m *SvmMigrationInlineSourceInlineCluster) contextValidateLinks(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Links != nil {
+
+		if swag.IsZero(m.Links) { // not required
+			return nil
+		}
+
 		if err := m.Links.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("source" + "." + "cluster" + "." + "_links")
@@ -2186,6 +2311,11 @@ func (m *SvmMigrationInlineSourceInlineClusterInlineLinks) ContextValidate(ctx c
 func (m *SvmMigrationInlineSourceInlineClusterInlineLinks) contextValidateSelf(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Self != nil {
+
+		if swag.IsZero(m.Self) { // not required
+			return nil
+		}
+
 		if err := m.Self.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("source" + "." + "cluster" + "." + "_links" + "." + "self")
@@ -2286,6 +2416,11 @@ func (m *SvmMigrationInlineSourceInlineSvm) ContextValidate(ctx context.Context,
 func (m *SvmMigrationInlineSourceInlineSvm) contextValidateLinks(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Links != nil {
+
+		if swag.IsZero(m.Links) { // not required
+			return nil
+		}
+
 		if err := m.Links.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("source" + "." + "svm" + "." + "_links")
@@ -2376,6 +2511,11 @@ func (m *SvmMigrationInlineSourceInlineSvmInlineLinks) ContextValidate(ctx conte
 func (m *SvmMigrationInlineSourceInlineSvmInlineLinks) contextValidateSelf(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Self != nil {
+
+		if swag.IsZero(m.Self) { // not required
+			return nil
+		}
+
 		if err := m.Self.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("source" + "." + "svm" + "." + "_links" + "." + "self")

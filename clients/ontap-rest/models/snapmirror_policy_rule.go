@@ -95,6 +95,11 @@ func (m *SnapmirrorPolicyRule) ContextValidate(ctx context.Context, formats strf
 func (m *SnapmirrorPolicyRule) contextValidateCreationSchedule(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.CreationSchedule != nil {
+
+		if swag.IsZero(m.CreationSchedule) { // not required
+			return nil
+		}
+
 		if err := m.CreationSchedule.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("creation_schedule")
@@ -193,6 +198,11 @@ func (m *SnapmirrorPolicyRuleInlineCreationSchedule) ContextValidate(ctx context
 func (m *SnapmirrorPolicyRuleInlineCreationSchedule) contextValidateLinks(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Links != nil {
+
+		if swag.IsZero(m.Links) { // not required
+			return nil
+		}
+
 		if err := m.Links.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("creation_schedule" + "." + "_links")
@@ -283,6 +293,11 @@ func (m *SnapmirrorPolicyRuleInlineCreationScheduleInlineLinks) ContextValidate(
 func (m *SnapmirrorPolicyRuleInlineCreationScheduleInlineLinks) contextValidateSelf(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Self != nil {
+
+		if swag.IsZero(m.Self) { // not required
+			return nil
+		}
+
 		if err := m.Self.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("creation_schedule" + "." + "_links" + "." + "self")

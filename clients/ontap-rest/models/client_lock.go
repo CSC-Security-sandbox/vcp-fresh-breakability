@@ -33,7 +33,7 @@ type ClientLock struct {
 
 	// Type of delegation.
 	// Read Only: true
-	// Enum: [read write]
+	// Enum: ["read","write"]
 	Delegation *string `json:"delegation,omitempty"`
 
 	// interface
@@ -44,7 +44,7 @@ type ClientLock struct {
 
 	// The oplock level determines which operations the client may cache locally.
 	// Read Only: true
-	// Enum: [exclusive level2 batch null read_batch]
+	// Enum: ["exclusive","level2","batch","null","read_batch"]
 	OplockLevel *string `json:"oplock_level,omitempty"`
 
 	// Owner ID.
@@ -55,7 +55,7 @@ type ClientLock struct {
 	Path *string `json:"path,omitempty"`
 
 	// Type of lock protocol.
-	// Enum: [cifs fcache nfsv4 http nlm nfsv4.1 crposix]
+	// Enum: ["cifs","fcache","nfsv4","http","nlm","nfsv4.1","crposix"]
 	Protocol *string `json:"protocol,omitempty"`
 
 	// share lock
@@ -66,7 +66,7 @@ type ClientLock struct {
 
 	// State of lock.
 	// Read Only: true
-	// Enum: [granted revoking adjusted denied subsumed gone unused waiting timeout]
+	// Enum: ["granted","revoking","adjusted","denied","subsumed","gone","unused","waiting","timeout"]
 	State *string `json:"state,omitempty"`
 
 	// svm
@@ -74,7 +74,7 @@ type ClientLock struct {
 
 	// Type of lock.
 	// Read Only: true
-	// Enum: [byte_range share_level op_lock delegation]
+	// Enum: ["byte_range","share_level","op_lock","delegation"]
 	Type *string `json:"type,omitempty"`
 
 	// Lock UUID
@@ -602,6 +602,11 @@ func (m *ClientLock) ContextValidate(ctx context.Context, formats strfmt.Registr
 func (m *ClientLock) contextValidateByteLock(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.ByteLock != nil {
+
+		if swag.IsZero(m.ByteLock) { // not required
+			return nil
+		}
+
 		if err := m.ByteLock.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("byte_lock")
@@ -636,6 +641,11 @@ func (m *ClientLock) contextValidateDelegation(ctx context.Context, formats strf
 func (m *ClientLock) contextValidateInterface(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Interface != nil {
+
+		if swag.IsZero(m.Interface) { // not required
+			return nil
+		}
+
 		if err := m.Interface.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("interface")
@@ -652,6 +662,11 @@ func (m *ClientLock) contextValidateInterface(ctx context.Context, formats strfm
 func (m *ClientLock) contextValidateNode(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Node != nil {
+
+		if swag.IsZero(m.Node) { // not required
+			return nil
+		}
+
 		if err := m.Node.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("node")
@@ -686,6 +701,11 @@ func (m *ClientLock) contextValidateOwnerID(ctx context.Context, formats strfmt.
 func (m *ClientLock) contextValidateShareLock(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.ShareLock != nil {
+
+		if swag.IsZero(m.ShareLock) { // not required
+			return nil
+		}
+
 		if err := m.ShareLock.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("share_lock")
@@ -702,6 +722,11 @@ func (m *ClientLock) contextValidateShareLock(ctx context.Context, formats strfm
 func (m *ClientLock) contextValidateSmb(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Smb != nil {
+
+		if swag.IsZero(m.Smb) { // not required
+			return nil
+		}
+
 		if err := m.Smb.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("smb")
@@ -727,6 +752,11 @@ func (m *ClientLock) contextValidateState(ctx context.Context, formats strfmt.Re
 func (m *ClientLock) contextValidateSvm(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Svm != nil {
+
+		if swag.IsZero(m.Svm) { // not required
+			return nil
+		}
+
 		if err := m.Svm.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("svm")
@@ -752,6 +782,11 @@ func (m *ClientLock) contextValidateType(ctx context.Context, formats strfmt.Reg
 func (m *ClientLock) contextValidateVolume(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Volume != nil {
+
+		if swag.IsZero(m.Volume) { // not required
+			return nil
+		}
+
 		if err := m.Volume.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("volume")
@@ -882,6 +917,11 @@ func (m *ClientLockInlineInterface) ContextValidate(ctx context.Context, formats
 func (m *ClientLockInlineInterface) contextValidateLinks(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Links != nil {
+
+		if swag.IsZero(m.Links) { // not required
+			return nil
+		}
+
 		if err := m.Links.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("interface" + "." + "_links")
@@ -898,6 +938,11 @@ func (m *ClientLockInlineInterface) contextValidateLinks(ctx context.Context, fo
 func (m *ClientLockInlineInterface) contextValidateIP(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.IP != nil {
+
+		if swag.IsZero(m.IP) { // not required
+			return nil
+		}
+
 		if err := m.IP.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("interface" + "." + "ip")
@@ -988,6 +1033,11 @@ func (m *ClientLockInlineInterfaceInlineIP) ContextValidate(ctx context.Context,
 func (m *ClientLockInlineInterfaceInlineIP) contextValidateAddress(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Address != nil {
+
+		if swag.IsZero(m.Address) { // not required
+			return nil
+		}
+
 		if err := m.Address.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("interface" + "." + "ip" + "." + "address")
@@ -1078,6 +1128,11 @@ func (m *ClientLockInlineInterfaceInlineLinks) ContextValidate(ctx context.Conte
 func (m *ClientLockInlineInterfaceInlineLinks) contextValidateSelf(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Self != nil {
+
+		if swag.IsZero(m.Self) { // not required
+			return nil
+		}
+
 		if err := m.Self.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("interface" + "." + "_links" + "." + "self")
@@ -1176,6 +1231,11 @@ func (m *ClientLockInlineNode) ContextValidate(ctx context.Context, formats strf
 func (m *ClientLockInlineNode) contextValidateLinks(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Links != nil {
+
+		if swag.IsZero(m.Links) { // not required
+			return nil
+		}
+
 		if err := m.Links.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("node" + "." + "_links")
@@ -1266,6 +1326,11 @@ func (m *ClientLockInlineNodeInlineLinks) ContextValidate(ctx context.Context, f
 func (m *ClientLockInlineNodeInlineLinks) contextValidateSelf(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Self != nil {
+
+		if swag.IsZero(m.Self) { // not required
+			return nil
+		}
+
 		if err := m.Self.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("node" + "." + "_links" + "." + "self")
@@ -1366,6 +1431,11 @@ func (m *ClientLockInlineSvm) ContextValidate(ctx context.Context, formats strfm
 func (m *ClientLockInlineSvm) contextValidateLinks(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Links != nil {
+
+		if swag.IsZero(m.Links) { // not required
+			return nil
+		}
+
 		if err := m.Links.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("svm" + "." + "_links")
@@ -1456,6 +1526,11 @@ func (m *ClientLockInlineSvmInlineLinks) ContextValidate(ctx context.Context, fo
 func (m *ClientLockInlineSvmInlineLinks) contextValidateSelf(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Self != nil {
+
+		if swag.IsZero(m.Self) { // not required
+			return nil
+		}
+
 		if err := m.Self.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("svm" + "." + "_links" + "." + "self")
@@ -1554,6 +1629,11 @@ func (m *ClientLockInlineVolume) ContextValidate(ctx context.Context, formats st
 func (m *ClientLockInlineVolume) contextValidateLinks(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Links != nil {
+
+		if swag.IsZero(m.Links) { // not required
+			return nil
+		}
+
 		if err := m.Links.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("volume" + "." + "_links")
@@ -1644,6 +1724,11 @@ func (m *ClientLockInlineVolumeInlineLinks) ContextValidate(ctx context.Context,
 func (m *ClientLockInlineVolumeInlineLinks) contextValidateSelf(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Self != nil {
+
+		if swag.IsZero(m.Self) { // not required
+			return nil
+		}
+
 		if err := m.Self.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("volume" + "." + "_links" + "." + "self")

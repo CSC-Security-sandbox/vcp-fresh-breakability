@@ -114,6 +114,11 @@ func (m *FileInfoJobLinkResponse) ContextValidate(ctx context.Context, formats s
 func (m *FileInfoJobLinkResponse) contextValidateJob(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Job != nil {
+
+		if swag.IsZero(m.Job) { // not required
+			return nil
+		}
+
 		if err := m.Job.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("job")
@@ -132,6 +137,11 @@ func (m *FileInfoJobLinkResponse) contextValidateRecords(ctx context.Context, fo
 	for i := 0; i < len(m.Records); i++ {
 
 		if m.Records[i] != nil {
+
+			if swag.IsZero(m.Records[i]) { // not required
+				return nil
+			}
+
 			if err := m.Records[i].ContextValidate(ctx, formats); err != nil {
 				if ve, ok := err.(*errors.Validation); ok {
 					return ve.ValidateName("records" + "." + strconv.Itoa(i))

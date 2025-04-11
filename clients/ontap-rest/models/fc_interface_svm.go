@@ -24,7 +24,7 @@ type FcInterfaceSvm struct {
 	Links *FcInterfaceSvmInlineLinks `json:"_links,omitempty"`
 
 	// The data protocol for which the Fibre Channel interface is configured.
-	// Enum: [fcp fc_nvme]
+	// Enum: ["fcp","fc_nvme"]
 	DataProtocol *string `json:"data_protocol,omitempty"`
 
 	// location
@@ -98,8 +98,8 @@ const (
 	// FcInterfaceSvmDataProtocolFcp captures enum value "fcp"
 	FcInterfaceSvmDataProtocolFcp string = "fcp"
 
-	// FcInterfaceSvmDataProtocolFcNVME captures enum value "fc_nvme"
-	FcInterfaceSvmDataProtocolFcNVME string = "fc_nvme"
+	// FcInterfaceSvmDataProtocolFcNvme captures enum value "fc_nvme"
+	FcInterfaceSvmDataProtocolFcNvme string = "fc_nvme"
 )
 
 // prop value enum
@@ -167,6 +167,11 @@ func (m *FcInterfaceSvm) ContextValidate(ctx context.Context, formats strfmt.Reg
 func (m *FcInterfaceSvm) contextValidateLinks(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Links != nil {
+
+		if swag.IsZero(m.Links) { // not required
+			return nil
+		}
+
 		if err := m.Links.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("_links")
@@ -183,6 +188,11 @@ func (m *FcInterfaceSvm) contextValidateLinks(ctx context.Context, formats strfm
 func (m *FcInterfaceSvm) contextValidateLocation(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Location != nil {
+
+		if swag.IsZero(m.Location) { // not required
+			return nil
+		}
+
 		if err := m.Location.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("location")
@@ -282,6 +292,11 @@ func (m *FcInterfaceSvmInlineLinks) ContextValidate(ctx context.Context, formats
 func (m *FcInterfaceSvmInlineLinks) contextValidateSelf(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Self != nil {
+
+		if swag.IsZero(m.Self) { // not required
+			return nil
+		}
+
 		if err := m.Self.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("_links" + "." + "self")
@@ -372,6 +387,11 @@ func (m *FcInterfaceSvmInlineLocation) ContextValidate(ctx context.Context, form
 func (m *FcInterfaceSvmInlineLocation) contextValidatePort(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Port != nil {
+
+		if swag.IsZero(m.Port) { // not required
+			return nil
+		}
+
 		if err := m.Port.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("location" + "." + "port")

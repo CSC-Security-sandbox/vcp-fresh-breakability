@@ -133,6 +133,11 @@ func (m *ReturnedError) contextValidateReturnedErrorInlineArguments(ctx context.
 	for i := 0; i < len(m.ReturnedErrorInlineArguments); i++ {
 
 		if m.ReturnedErrorInlineArguments[i] != nil {
+
+			if swag.IsZero(m.ReturnedErrorInlineArguments[i]) { // not required
+				return nil
+			}
+
 			if err := m.ReturnedErrorInlineArguments[i].ContextValidate(ctx, formats); err != nil {
 				if ve, ok := err.(*errors.Validation); ok {
 					return ve.ValidateName("arguments" + "." + strconv.Itoa(i))

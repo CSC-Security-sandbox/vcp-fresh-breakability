@@ -27,7 +27,7 @@ type AzureKeyVault struct {
 	// Authentication method for the AKV instance.
 	// Example: client_secret
 	// Read Only: true
-	// Enum: [client_secret certificate]
+	// Enum: ["client_secret","certificate"]
 	AuthenticationMethod *string `json:"authentication_method,omitempty"`
 
 	// azure key vault inline ekmip reachability
@@ -90,7 +90,7 @@ type AzureKeyVault struct {
 
 	// Type of proxy.
 	// Example: http
-	// Enum: [http https]
+	// Enum: ["http","https"]
 	ProxyType *string `json:"proxy_type,omitempty"`
 
 	// Proxy username.
@@ -99,7 +99,7 @@ type AzureKeyVault struct {
 
 	// Set to "svm" for interfaces owned by an SVM. Otherwise, set to "cluster".
 	// Read Only: true
-	// Enum: [svm cluster]
+	// Enum: ["svm","cluster"]
 	Scope *string `json:"scope,omitempty"`
 
 	// Set to true to skip the verification of the updated user credentials when updating credentials. The default value is false.
@@ -544,6 +544,11 @@ func (m *AzureKeyVault) ContextValidate(ctx context.Context, formats strfmt.Regi
 func (m *AzureKeyVault) contextValidateLinks(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Links != nil {
+
+		if swag.IsZero(m.Links) { // not required
+			return nil
+		}
+
 		if err := m.Links.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("_links")
@@ -575,6 +580,11 @@ func (m *AzureKeyVault) contextValidateAzureKeyVaultInlineEkmipReachability(ctx 
 	for i := 0; i < len(m.AzureKeyVaultInlineEkmipReachability); i++ {
 
 		if m.AzureKeyVaultInlineEkmipReachability[i] != nil {
+
+			if swag.IsZero(m.AzureKeyVaultInlineEkmipReachability[i]) { // not required
+				return nil
+			}
+
 			if err := m.AzureKeyVaultInlineEkmipReachability[i].ContextValidate(ctx, formats); err != nil {
 				if ve, ok := err.(*errors.Validation); ok {
 					return ve.ValidateName("ekmip_reachability" + "." + strconv.Itoa(i))
@@ -593,6 +603,11 @@ func (m *AzureKeyVault) contextValidateAzureKeyVaultInlineEkmipReachability(ctx 
 func (m *AzureKeyVault) contextValidateAzureReachability(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.AzureReachability != nil {
+
+		if swag.IsZero(m.AzureReachability) { // not required
+			return nil
+		}
+
 		if err := m.AzureReachability.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("azure_reachability")
@@ -609,6 +624,11 @@ func (m *AzureKeyVault) contextValidateAzureReachability(ctx context.Context, fo
 func (m *AzureKeyVault) contextValidateConfiguration(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Configuration != nil {
+
+		if swag.IsZero(m.Configuration) { // not required
+			return nil
+		}
+
 		if err := m.Configuration.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("configuration")
@@ -643,6 +663,11 @@ func (m *AzureKeyVault) contextValidateScope(ctx context.Context, formats strfmt
 func (m *AzureKeyVault) contextValidateState(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.State != nil {
+
+		if swag.IsZero(m.State) { // not required
+			return nil
+		}
+
 		if err := m.State.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("state")
@@ -659,6 +684,11 @@ func (m *AzureKeyVault) contextValidateState(ctx context.Context, formats strfmt
 func (m *AzureKeyVault) contextValidateSvm(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Svm != nil {
+
+		if swag.IsZero(m.Svm) { // not required
+			return nil
+		}
+
 		if err := m.Svm.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("svm")
@@ -817,6 +847,11 @@ func (m *AzureKeyVaultInlineConfiguration) ContextValidate(ctx context.Context, 
 func (m *AzureKeyVaultInlineConfiguration) contextValidateLinks(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Links != nil {
+
+		if swag.IsZero(m.Links) { // not required
+			return nil
+		}
+
 		if err := m.Links.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("configuration" + "." + "_links")
@@ -907,6 +942,11 @@ func (m *AzureKeyVaultInlineConfigurationInlineLinks) ContextValidate(ctx contex
 func (m *AzureKeyVaultInlineConfigurationInlineLinks) contextValidateSelf(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Self != nil {
+
+		if swag.IsZero(m.Self) { // not required
+			return nil
+		}
+
 		if err := m.Self.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("configuration" + "." + "_links" + "." + "self")
@@ -1009,6 +1049,11 @@ func (m *AzureKeyVaultInlineEkmipReachabilityInlineArrayItem) ContextValidate(ct
 func (m *AzureKeyVaultInlineEkmipReachabilityInlineArrayItem) contextValidateNode(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Node != nil {
+
+		if swag.IsZero(m.Node) { // not required
+			return nil
+		}
+
 		if err := m.Node.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("node")
@@ -1107,6 +1152,11 @@ func (m *AzureKeyVaultInlineEkmipReachabilityInlineArrayItemInlineNode) ContextV
 func (m *AzureKeyVaultInlineEkmipReachabilityInlineArrayItemInlineNode) contextValidateLinks(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Links != nil {
+
+		if swag.IsZero(m.Links) { // not required
+			return nil
+		}
+
 		if err := m.Links.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("node" + "." + "_links")
@@ -1197,6 +1247,11 @@ func (m *AzureKeyVaultInlineEkmipReachabilityInlineArrayItemInlineNodeInlineLink
 func (m *AzureKeyVaultInlineEkmipReachabilityInlineArrayItemInlineNodeInlineLinks) contextValidateSelf(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Self != nil {
+
+		if swag.IsZero(m.Self) { // not required
+			return nil
+		}
+
 		if err := m.Self.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("node" + "." + "_links" + "." + "self")
@@ -1287,6 +1342,11 @@ func (m *AzureKeyVaultInlineLinks) ContextValidate(ctx context.Context, formats 
 func (m *AzureKeyVaultInlineLinks) contextValidateSelf(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Self != nil {
+
+		if swag.IsZero(m.Self) { // not required
+			return nil
+		}
+
 		if err := m.Self.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("_links" + "." + "self")
@@ -1438,6 +1498,11 @@ func (m *AzureKeyVaultInlineSvm) ContextValidate(ctx context.Context, formats st
 func (m *AzureKeyVaultInlineSvm) contextValidateLinks(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Links != nil {
+
+		if swag.IsZero(m.Links) { // not required
+			return nil
+		}
+
 		if err := m.Links.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("svm" + "." + "_links")
@@ -1528,6 +1593,11 @@ func (m *AzureKeyVaultInlineSvmInlineLinks) ContextValidate(ctx context.Context,
 func (m *AzureKeyVaultInlineSvmInlineLinks) contextValidateSelf(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Self != nil {
+
+		if swag.IsZero(m.Self) { // not required
+			return nil
+		}
+
 		if err := m.Self.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("svm" + "." + "_links" + "." + "self")

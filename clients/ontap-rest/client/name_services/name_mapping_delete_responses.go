@@ -6,6 +6,7 @@ package name_services
 // Editing this file might prove futile when you re-run the swagger generate command
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 
@@ -85,11 +86,11 @@ func (o *NameMappingDeleteOK) Code() int {
 }
 
 func (o *NameMappingDeleteOK) Error() string {
-	return fmt.Sprintf("[DELETE /name-services/name-mappings/{svm.uuid}/{direction}/{index}][%d] nameMappingDeleteOK ", 200)
+	return fmt.Sprintf("[DELETE /name-services/name-mappings/{svm.uuid}/{direction}/{index}][%d] nameMappingDeleteOK", 200)
 }
 
 func (o *NameMappingDeleteOK) String() string {
-	return fmt.Sprintf("[DELETE /name-services/name-mappings/{svm.uuid}/{direction}/{index}][%d] nameMappingDeleteOK ", 200)
+	return fmt.Sprintf("[DELETE /name-services/name-mappings/{svm.uuid}/{direction}/{index}][%d] nameMappingDeleteOK", 200)
 }
 
 func (o *NameMappingDeleteOK) readResponse(response runtime.ClientResponse, consumer runtime.Consumer, formats strfmt.Registry) error {
@@ -146,11 +147,13 @@ func (o *NameMappingDeleteDefault) Code() int {
 }
 
 func (o *NameMappingDeleteDefault) Error() string {
-	return fmt.Sprintf("[DELETE /name-services/name-mappings/{svm.uuid}/{direction}/{index}][%d] name_mapping_delete default  %+v", o._statusCode, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[DELETE /name-services/name-mappings/{svm.uuid}/{direction}/{index}][%d] name_mapping_delete default %s", o._statusCode, payload)
 }
 
 func (o *NameMappingDeleteDefault) String() string {
-	return fmt.Sprintf("[DELETE /name-services/name-mappings/{svm.uuid}/{direction}/{index}][%d] name_mapping_delete default  %+v", o._statusCode, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[DELETE /name-services/name-mappings/{svm.uuid}/{direction}/{index}][%d] name_mapping_delete default %s", o._statusCode, payload)
 }
 
 func (o *NameMappingDeleteDefault) GetPayload() *models.ErrorResponse {

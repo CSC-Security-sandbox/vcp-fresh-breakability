@@ -6,6 +6,7 @@ package cluster
 // Editing this file might prove futile when you re-run the swagger generate command
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 
@@ -86,11 +87,13 @@ func (o *JobCollectionGetOK) Code() int {
 }
 
 func (o *JobCollectionGetOK) Error() string {
-	return fmt.Sprintf("[GET /cluster/jobs][%d] jobCollectionGetOK  %+v", 200, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[GET /cluster/jobs][%d] jobCollectionGetOK %s", 200, payload)
 }
 
 func (o *JobCollectionGetOK) String() string {
-	return fmt.Sprintf("[GET /cluster/jobs][%d] jobCollectionGetOK  %+v", 200, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[GET /cluster/jobs][%d] jobCollectionGetOK %s", 200, payload)
 }
 
 func (o *JobCollectionGetOK) GetPayload() *models.JobResponse {
@@ -158,11 +161,13 @@ func (o *JobCollectionGetDefault) Code() int {
 }
 
 func (o *JobCollectionGetDefault) Error() string {
-	return fmt.Sprintf("[GET /cluster/jobs][%d] job_collection_get default  %+v", o._statusCode, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[GET /cluster/jobs][%d] job_collection_get default %s", o._statusCode, payload)
 }
 
 func (o *JobCollectionGetDefault) String() string {
-	return fmt.Sprintf("[GET /cluster/jobs][%d] job_collection_get default  %+v", o._statusCode, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[GET /cluster/jobs][%d] job_collection_get default %s", o._statusCode, payload)
 }
 
 func (o *JobCollectionGetDefault) GetPayload() *models.ErrorResponse {

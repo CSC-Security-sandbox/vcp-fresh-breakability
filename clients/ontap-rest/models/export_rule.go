@@ -37,7 +37,7 @@ type ExportRule struct {
 	AnonymousUser *string `json:"anonymous_user,omitempty"`
 
 	// Specifies who is authorized to change the ownership mode of a file.
-	// Enum: [restricted unrestricted]
+	// Enum: ["restricted","unrestricted"]
 	ChownMode *string `json:"chown_mode,omitempty"`
 
 	// Array of client matches
@@ -60,7 +60,7 @@ type ExportRule struct {
 	Index *int64 `json:"index,omitempty"`
 
 	// NTFS export UNIX security options.
-	// Enum: [fail ignore]
+	// Enum: ["fail","ignore"]
 	NtfsUnixSecurity *string `json:"ntfs_unix_security,omitempty"`
 
 	// policy
@@ -448,6 +448,11 @@ func (m *ExportRule) ContextValidate(ctx context.Context, formats strfmt.Registr
 func (m *ExportRule) contextValidateLinks(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Links != nil {
+
+		if swag.IsZero(m.Links) { // not required
+			return nil
+		}
+
 		if err := m.Links.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("_links")
@@ -466,6 +471,11 @@ func (m *ExportRule) contextValidateExportRuleInlineClients(ctx context.Context,
 	for i := 0; i < len(m.ExportRuleInlineClients); i++ {
 
 		if m.ExportRuleInlineClients[i] != nil {
+
+			if swag.IsZero(m.ExportRuleInlineClients[i]) { // not required
+				return nil
+			}
+
 			if err := m.ExportRuleInlineClients[i].ContextValidate(ctx, formats); err != nil {
 				if ve, ok := err.(*errors.Validation); ok {
 					return ve.ValidateName("clients" + "." + strconv.Itoa(i))
@@ -486,6 +496,11 @@ func (m *ExportRule) contextValidateExportRuleInlineRoRule(ctx context.Context, 
 	for i := 0; i < len(m.ExportRuleInlineRoRule); i++ {
 
 		if m.ExportRuleInlineRoRule[i] != nil {
+
+			if swag.IsZero(m.ExportRuleInlineRoRule[i]) { // not required
+				return nil
+			}
+
 			if err := m.ExportRuleInlineRoRule[i].ContextValidate(ctx, formats); err != nil {
 				if ve, ok := err.(*errors.Validation); ok {
 					return ve.ValidateName("ro_rule" + "." + strconv.Itoa(i))
@@ -506,6 +521,11 @@ func (m *ExportRule) contextValidateExportRuleInlineRwRule(ctx context.Context, 
 	for i := 0; i < len(m.ExportRuleInlineRwRule); i++ {
 
 		if m.ExportRuleInlineRwRule[i] != nil {
+
+			if swag.IsZero(m.ExportRuleInlineRwRule[i]) { // not required
+				return nil
+			}
+
 			if err := m.ExportRuleInlineRwRule[i].ContextValidate(ctx, formats); err != nil {
 				if ve, ok := err.(*errors.Validation); ok {
 					return ve.ValidateName("rw_rule" + "." + strconv.Itoa(i))
@@ -526,6 +546,11 @@ func (m *ExportRule) contextValidateExportRuleInlineSuperuser(ctx context.Contex
 	for i := 0; i < len(m.ExportRuleInlineSuperuser); i++ {
 
 		if m.ExportRuleInlineSuperuser[i] != nil {
+
+			if swag.IsZero(m.ExportRuleInlineSuperuser[i]) { // not required
+				return nil
+			}
+
 			if err := m.ExportRuleInlineSuperuser[i].ContextValidate(ctx, formats); err != nil {
 				if ve, ok := err.(*errors.Validation); ok {
 					return ve.ValidateName("superuser" + "." + strconv.Itoa(i))
@@ -544,6 +569,11 @@ func (m *ExportRule) contextValidateExportRuleInlineSuperuser(ctx context.Contex
 func (m *ExportRule) contextValidatePolicy(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Policy != nil {
+
+		if swag.IsZero(m.Policy) { // not required
+			return nil
+		}
+
 		if err := m.Policy.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("policy")
@@ -560,6 +590,11 @@ func (m *ExportRule) contextValidatePolicy(ctx context.Context, formats strfmt.R
 func (m *ExportRule) contextValidateSvm(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Svm != nil {
+
+		if swag.IsZero(m.Svm) { // not required
+			return nil
+		}
+
 		if err := m.Svm.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("svm")
@@ -650,6 +685,11 @@ func (m *ExportRuleInlineLinks) ContextValidate(ctx context.Context, formats str
 func (m *ExportRuleInlineLinks) contextValidateSelf(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Self != nil {
+
+		if swag.IsZero(m.Self) { // not required
+			return nil
+		}
+
 		if err := m.Self.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("_links" + "." + "self")
@@ -790,6 +830,11 @@ func (m *ExportRuleInlineSvm) ContextValidate(ctx context.Context, formats strfm
 func (m *ExportRuleInlineSvm) contextValidateLinks(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Links != nil {
+
+		if swag.IsZero(m.Links) { // not required
+			return nil
+		}
+
 		if err := m.Links.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("svm" + "." + "_links")
@@ -880,6 +925,11 @@ func (m *ExportRuleInlineSvmInlineLinks) ContextValidate(ctx context.Context, fo
 func (m *ExportRuleInlineSvmInlineLinks) contextValidateSelf(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Self != nil {
+
+		if swag.IsZero(m.Self) { // not required
+			return nil
+		}
+
 		if err := m.Self.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("svm" + "." + "_links" + "." + "self")

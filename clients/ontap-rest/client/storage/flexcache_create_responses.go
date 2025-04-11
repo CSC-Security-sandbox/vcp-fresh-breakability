@@ -6,6 +6,7 @@ package storage
 // Editing this file might prove futile when you re-run the swagger generate command
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 
@@ -97,11 +98,13 @@ func (o *FlexcacheCreateCreated) Code() int {
 }
 
 func (o *FlexcacheCreateCreated) Error() string {
-	return fmt.Sprintf("[POST /storage/flexcache/flexcaches][%d] flexcacheCreateCreated  %+v", 201, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[POST /storage/flexcache/flexcaches][%d] flexcacheCreateCreated %s", 201, payload)
 }
 
 func (o *FlexcacheCreateCreated) String() string {
-	return fmt.Sprintf("[POST /storage/flexcache/flexcaches][%d] flexcacheCreateCreated  %+v", 201, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[POST /storage/flexcache/flexcaches][%d] flexcacheCreateCreated %s", 201, payload)
 }
 
 func (o *FlexcacheCreateCreated) GetPayload() *models.FlexcacheJobLinkResponse {
@@ -177,11 +180,13 @@ func (o *FlexcacheCreateAccepted) Code() int {
 }
 
 func (o *FlexcacheCreateAccepted) Error() string {
-	return fmt.Sprintf("[POST /storage/flexcache/flexcaches][%d] flexcacheCreateAccepted  %+v", 202, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[POST /storage/flexcache/flexcaches][%d] flexcacheCreateAccepted %s", 202, payload)
 }
 
 func (o *FlexcacheCreateAccepted) String() string {
-	return fmt.Sprintf("[POST /storage/flexcache/flexcaches][%d] flexcacheCreateAccepted  %+v", 202, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[POST /storage/flexcache/flexcaches][%d] flexcacheCreateAccepted %s", 202, payload)
 }
 
 func (o *FlexcacheCreateAccepted) GetPayload() *models.FlexcacheJobLinkResponse {
@@ -222,7 +227,9 @@ func NewFlexcacheCreateDefault(code int) *FlexcacheCreateDefault {
 | Error Code | Description |
 | ---------- | ----------- |
 | 11         | Provided value is smaller than the required minimum flexvolume size. |
+| 262186     | Invalid combination with field "aggregates".  |
 | 917937     | The root path "/" is an invalid value for the field "path". |
+| 918723     | Aggregate value cannot be used to create a volume on this platform. |
 | 66846735   | The peer state of the relationship is not peered or the FlexCache application is not supported by the relationship |
 | 66846762   | The origin volume in the SVM is offline |
 | 66846767   | Volume does not exist in SVM. |
@@ -250,6 +257,8 @@ func NewFlexcacheCreateDefault(code int) *FlexcacheCreateDefault {
 | 66846844   | An object store server volume cannot be the origin of a FlexCache volume |
 | 66846902   | FlexCache is not supported on an All SAN Array system. |
 | 66846915   | The "use_tiered_aggregate" option is only supported when auto provisioning the FlexCache volume. |
+| 66847026   | Failed to enable the atime-scrub-enabled property for the FlexCache volume because the atime-update-property is false | <personalities supports=aiml>
+| 66847090   | The "aggregates" parameter cannot contain both storage pods and aggregates. | </personalities>
 */
 type FlexcacheCreateDefault struct {
 	_statusCode int
@@ -288,11 +297,13 @@ func (o *FlexcacheCreateDefault) Code() int {
 }
 
 func (o *FlexcacheCreateDefault) Error() string {
-	return fmt.Sprintf("[POST /storage/flexcache/flexcaches][%d] flexcache_create default  %+v", o._statusCode, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[POST /storage/flexcache/flexcaches][%d] flexcache_create default %s", o._statusCode, payload)
 }
 
 func (o *FlexcacheCreateDefault) String() string {
-	return fmt.Sprintf("[POST /storage/flexcache/flexcaches][%d] flexcache_create default  %+v", o._statusCode, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[POST /storage/flexcache/flexcaches][%d] flexcache_create default %s", o._statusCode, payload)
 }
 
 func (o *FlexcacheCreateDefault) GetPayload() *models.ErrorResponse {

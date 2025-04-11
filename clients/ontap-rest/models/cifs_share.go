@@ -122,7 +122,7 @@ type CifsShare struct {
 	//   * programs - Clients may automatically cache files that are used by the user for offline access
 	//                and may use those files in an offline mode even if the share is available.
 	//
-	// Enum: [none manual documents programs]
+	// Enum: ["none","manual","documents","programs"]
 	OfflineFiles *string `json:"offline_files,omitempty"`
 
 	// Specify whether opportunistic locks are enabled on this share. "Oplocks" allow clients to lock files and cache content locally,
@@ -157,7 +157,7 @@ type CifsShare struct {
 	//     * widelink - Enables both local symlinks and widelinks.
 	//     * disable - Disables local symlinks and widelinks.
 	//
-	// Enum: [local widelink disable]
+	// Enum: ["local","widelink","disable"]
 	UnixSymlink *string `json:"unix_symlink,omitempty"`
 
 	// volume
@@ -170,7 +170,7 @@ type CifsShare struct {
 	//   * strict - Virus scans can be triggered by open, read, close, and rename operations.
 	//   * writes_only - Virus scans can be triggered only when a file that has been modified is closed.
 	//
-	// Enum: [no_scan standard strict writes_only]
+	// Enum: ["no_scan","standard","strict","writes_only"]
 	VscanProfile *string `json:"vscan_profile,omitempty"`
 }
 
@@ -525,6 +525,11 @@ func (m *CifsShare) ContextValidate(ctx context.Context, formats strfmt.Registry
 func (m *CifsShare) contextValidateLinks(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Links != nil {
+
+		if swag.IsZero(m.Links) { // not required
+			return nil
+		}
+
 		if err := m.Links.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("_links")
@@ -543,6 +548,11 @@ func (m *CifsShare) contextValidateCifsShareInlineAcls(ctx context.Context, form
 	for i := 0; i < len(m.CifsShareInlineAcls); i++ {
 
 		if m.CifsShareInlineAcls[i] != nil {
+
+			if swag.IsZero(m.CifsShareInlineAcls[i]) { // not required
+				return nil
+			}
+
 			if err := m.CifsShareInlineAcls[i].ContextValidate(ctx, formats); err != nil {
 				if ve, ok := err.(*errors.Validation); ok {
 					return ve.ValidateName("acls" + "." + strconv.Itoa(i))
@@ -561,6 +571,11 @@ func (m *CifsShare) contextValidateCifsShareInlineAcls(ctx context.Context, form
 func (m *CifsShare) contextValidateSvm(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Svm != nil {
+
+		if swag.IsZero(m.Svm) { // not required
+			return nil
+		}
+
 		if err := m.Svm.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("svm")
@@ -577,6 +592,11 @@ func (m *CifsShare) contextValidateSvm(ctx context.Context, formats strfmt.Regis
 func (m *CifsShare) contextValidateVolume(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Volume != nil {
+
+		if swag.IsZero(m.Volume) { // not required
+			return nil
+		}
+
 		if err := m.Volume.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("volume")
@@ -623,7 +643,7 @@ type CifsShareInlineAclsInlineArrayItem struct {
 	// * change       - User has change access
 	// * full_control - User has full_control access
 	//
-	// Enum: [no_access read change full_control]
+	// Enum: ["no_access","read","change","full_control"]
 	Permission *string `json:"permission,omitempty"`
 
 	// Specifies the type of the user or group to add to the access control
@@ -632,7 +652,7 @@ type CifsShareInlineAclsInlineArrayItem struct {
 	// * unix_user  - UNIX user
 	// * unix_group - UNIX group
 	//
-	// Enum: [windows unix_user unix_group]
+	// Enum: ["windows","unix_user","unix_group"]
 	Type *string `json:"type,omitempty"`
 
 	// Specifies the user or group name to add to the access control list of a CIFS share.
@@ -794,6 +814,11 @@ func (m *CifsShareInlineAclsInlineArrayItem) ContextValidate(ctx context.Context
 func (m *CifsShareInlineAclsInlineArrayItem) contextValidateLinks(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Links != nil {
+
+		if swag.IsZero(m.Links) { // not required
+			return nil
+		}
+
 		if err := m.Links.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("_links")
@@ -884,6 +909,11 @@ func (m *CifsShareInlineAclsInlineArrayItemInlineLinks) ContextValidate(ctx cont
 func (m *CifsShareInlineAclsInlineArrayItemInlineLinks) contextValidateSelf(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Self != nil {
+
+		if swag.IsZero(m.Self) { // not required
+			return nil
+		}
+
 		if err := m.Self.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("_links" + "." + "self")
@@ -974,6 +1004,11 @@ func (m *CifsShareInlineLinks) ContextValidate(ctx context.Context, formats strf
 func (m *CifsShareInlineLinks) contextValidateSelf(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Self != nil {
+
+		if swag.IsZero(m.Self) { // not required
+			return nil
+		}
+
 		if err := m.Self.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("_links" + "." + "self")
@@ -1074,6 +1109,11 @@ func (m *CifsShareInlineSvm) ContextValidate(ctx context.Context, formats strfmt
 func (m *CifsShareInlineSvm) contextValidateLinks(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Links != nil {
+
+		if swag.IsZero(m.Links) { // not required
+			return nil
+		}
+
 		if err := m.Links.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("svm" + "." + "_links")
@@ -1164,6 +1204,11 @@ func (m *CifsShareInlineSvmInlineLinks) ContextValidate(ctx context.Context, for
 func (m *CifsShareInlineSvmInlineLinks) contextValidateSelf(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Self != nil {
+
+		if swag.IsZero(m.Self) { // not required
+			return nil
+		}
+
 		if err := m.Self.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("svm" + "." + "_links" + "." + "self")
@@ -1262,6 +1307,11 @@ func (m *CifsShareInlineVolume) ContextValidate(ctx context.Context, formats str
 func (m *CifsShareInlineVolume) contextValidateLinks(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Links != nil {
+
+		if swag.IsZero(m.Links) { // not required
+			return nil
+		}
+
 		if err := m.Links.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("volume" + "." + "_links")
@@ -1352,6 +1402,11 @@ func (m *CifsShareInlineVolumeInlineLinks) ContextValidate(ctx context.Context, 
 func (m *CifsShareInlineVolumeInlineLinks) contextValidateSelf(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Self != nil {
+
+		if swag.IsZero(m.Self) { // not required
+			return nil
+		}
+
 		if err := m.Self.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("volume" + "." + "_links" + "." + "self")

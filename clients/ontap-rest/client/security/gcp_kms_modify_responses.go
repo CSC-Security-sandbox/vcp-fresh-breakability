@@ -6,6 +6,7 @@ package security
 // Editing this file might prove futile when you re-run the swagger generate command
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 
@@ -91,11 +92,11 @@ func (o *GcpKmsModifyOK) Code() int {
 }
 
 func (o *GcpKmsModifyOK) Error() string {
-	return fmt.Sprintf("[PATCH /security/gcp-kms/{uuid}][%d] gcpKmsModifyOK ", 200)
+	return fmt.Sprintf("[PATCH /security/gcp-kms/{uuid}][%d] gcpKmsModifyOK", 200)
 }
 
 func (o *GcpKmsModifyOK) String() string {
-	return fmt.Sprintf("[PATCH /security/gcp-kms/{uuid}][%d] gcpKmsModifyOK ", 200)
+	return fmt.Sprintf("[PATCH /security/gcp-kms/{uuid}][%d] gcpKmsModifyOK", 200)
 }
 
 func (o *GcpKmsModifyOK) readResponse(response runtime.ClientResponse, consumer runtime.Consumer, formats strfmt.Registry) error {
@@ -148,11 +149,13 @@ func (o *GcpKmsModifyAccepted) Code() int {
 }
 
 func (o *GcpKmsModifyAccepted) Error() string {
-	return fmt.Sprintf("[PATCH /security/gcp-kms/{uuid}][%d] gcpKmsModifyAccepted  %+v", 202, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[PATCH /security/gcp-kms/{uuid}][%d] gcpKmsModifyAccepted %s", 202, payload)
 }
 
 func (o *GcpKmsModifyAccepted) String() string {
-	return fmt.Sprintf("[PATCH /security/gcp-kms/{uuid}][%d] gcpKmsModifyAccepted  %+v", 202, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[PATCH /security/gcp-kms/{uuid}][%d] gcpKmsModifyAccepted %s", 202, payload)
 }
 
 func (o *GcpKmsModifyAccepted) GetPayload() *models.GcpKmsJobLinkResponse {
@@ -232,11 +235,13 @@ func (o *GcpKmsModifyDefault) Code() int {
 }
 
 func (o *GcpKmsModifyDefault) Error() string {
-	return fmt.Sprintf("[PATCH /security/gcp-kms/{uuid}][%d] gcp_kms_modify default  %+v", o._statusCode, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[PATCH /security/gcp-kms/{uuid}][%d] gcp_kms_modify default %s", o._statusCode, payload)
 }
 
 func (o *GcpKmsModifyDefault) String() string {
-	return fmt.Sprintf("[PATCH /security/gcp-kms/{uuid}][%d] gcp_kms_modify default  %+v", o._statusCode, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[PATCH /security/gcp-kms/{uuid}][%d] gcp_kms_modify default %s", o._statusCode, payload)
 }
 
 func (o *GcpKmsModifyDefault) GetPayload() *models.ErrorResponse {

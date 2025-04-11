@@ -6,6 +6,7 @@ package object_store
 // Editing this file might prove futile when you re-run the swagger generate command
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 
@@ -86,11 +87,13 @@ func (o *S3ServiceCollectionGetOK) Code() int {
 }
 
 func (o *S3ServiceCollectionGetOK) Error() string {
-	return fmt.Sprintf("[GET /protocols/s3/services][%d] s3ServiceCollectionGetOK  %+v", 200, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[GET /protocols/s3/services][%d] s3ServiceCollectionGetOK %s", 200, payload)
 }
 
 func (o *S3ServiceCollectionGetOK) String() string {
-	return fmt.Sprintf("[GET /protocols/s3/services][%d] s3ServiceCollectionGetOK  %+v", 200, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[GET /protocols/s3/services][%d] s3ServiceCollectionGetOK %s", 200, payload)
 }
 
 func (o *S3ServiceCollectionGetOK) GetPayload() *models.S3ServiceResponse {
@@ -158,11 +161,13 @@ func (o *S3ServiceCollectionGetDefault) Code() int {
 }
 
 func (o *S3ServiceCollectionGetDefault) Error() string {
-	return fmt.Sprintf("[GET /protocols/s3/services][%d] s3_service_collection_get default  %+v", o._statusCode, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[GET /protocols/s3/services][%d] s3_service_collection_get default %s", o._statusCode, payload)
 }
 
 func (o *S3ServiceCollectionGetDefault) String() string {
-	return fmt.Sprintf("[GET /protocols/s3/services][%d] s3_service_collection_get default  %+v", o._statusCode, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[GET /protocols/s3/services][%d] s3_service_collection_get default %s", o._statusCode, payload)
 }
 
 func (o *S3ServiceCollectionGetDefault) GetPayload() *models.ErrorResponse {

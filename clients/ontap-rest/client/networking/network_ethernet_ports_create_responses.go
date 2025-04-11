@@ -6,6 +6,7 @@ package networking
 // Editing this file might prove futile when you re-run the swagger generate command
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 
@@ -91,11 +92,13 @@ func (o *NetworkEthernetPortsCreateCreated) Code() int {
 }
 
 func (o *NetworkEthernetPortsCreateCreated) Error() string {
-	return fmt.Sprintf("[POST /network/ethernet/ports][%d] networkEthernetPortsCreateCreated  %+v", 201, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[POST /network/ethernet/ports][%d] networkEthernetPortsCreateCreated %s", 201, payload)
 }
 
 func (o *NetworkEthernetPortsCreateCreated) String() string {
-	return fmt.Sprintf("[POST /network/ethernet/ports][%d] networkEthernetPortsCreateCreated  %+v", 201, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[POST /network/ethernet/ports][%d] networkEthernetPortsCreateCreated %s", 201, payload)
 }
 
 func (o *NetworkEthernetPortsCreateCreated) GetPayload() *models.PortResponse {
@@ -205,11 +208,13 @@ func (o *NetworkEthernetPortsCreateDefault) Code() int {
 }
 
 func (o *NetworkEthernetPortsCreateDefault) Error() string {
-	return fmt.Sprintf("[POST /network/ethernet/ports][%d] network_ethernet_ports_create default  %+v", o._statusCode, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[POST /network/ethernet/ports][%d] network_ethernet_ports_create default %s", o._statusCode, payload)
 }
 
 func (o *NetworkEthernetPortsCreateDefault) String() string {
-	return fmt.Sprintf("[POST /network/ethernet/ports][%d] network_ethernet_ports_create default  %+v", o._statusCode, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[POST /network/ethernet/ports][%d] network_ethernet_ports_create default %s", o._statusCode, payload)
 }
 
 func (o *NetworkEthernetPortsCreateDefault) GetPayload() *models.ErrorResponse {

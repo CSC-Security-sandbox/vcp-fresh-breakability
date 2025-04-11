@@ -6,6 +6,7 @@ package storage
 // Editing this file might prove futile when you re-run the swagger generate command
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 
@@ -92,11 +93,13 @@ func (o *SnapshotModifyOK) Code() int {
 }
 
 func (o *SnapshotModifyOK) Error() string {
-	return fmt.Sprintf("[PATCH /storage/volumes/{volume.uuid}/snapshots/{uuid}][%d] snapshotModifyOK  %+v", 200, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[PATCH /storage/volumes/{volume.uuid}/snapshots/{uuid}][%d] snapshotModifyOK %s", 200, payload)
 }
 
 func (o *SnapshotModifyOK) String() string {
-	return fmt.Sprintf("[PATCH /storage/volumes/{volume.uuid}/snapshots/{uuid}][%d] snapshotModifyOK  %+v", 200, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[PATCH /storage/volumes/{volume.uuid}/snapshots/{uuid}][%d] snapshotModifyOK %s", 200, payload)
 }
 
 func (o *SnapshotModifyOK) GetPayload() *models.SnapshotJobLinkResponse {
@@ -160,11 +163,13 @@ func (o *SnapshotModifyAccepted) Code() int {
 }
 
 func (o *SnapshotModifyAccepted) Error() string {
-	return fmt.Sprintf("[PATCH /storage/volumes/{volume.uuid}/snapshots/{uuid}][%d] snapshotModifyAccepted  %+v", 202, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[PATCH /storage/volumes/{volume.uuid}/snapshots/{uuid}][%d] snapshotModifyAccepted %s", 202, payload)
 }
 
 func (o *SnapshotModifyAccepted) String() string {
-	return fmt.Sprintf("[PATCH /storage/volumes/{volume.uuid}/snapshots/{uuid}][%d] snapshotModifyAccepted  %+v", 202, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[PATCH /storage/volumes/{volume.uuid}/snapshots/{uuid}][%d] snapshotModifyAccepted %s", 202, payload)
 }
 
 func (o *SnapshotModifyAccepted) GetPayload() *models.SnapshotJobLinkResponse {
@@ -248,11 +253,13 @@ func (o *SnapshotModifyDefault) Code() int {
 }
 
 func (o *SnapshotModifyDefault) Error() string {
-	return fmt.Sprintf("[PATCH /storage/volumes/{volume.uuid}/snapshots/{uuid}][%d] snapshot_modify default  %+v", o._statusCode, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[PATCH /storage/volumes/{volume.uuid}/snapshots/{uuid}][%d] snapshot_modify default %s", o._statusCode, payload)
 }
 
 func (o *SnapshotModifyDefault) String() string {
-	return fmt.Sprintf("[PATCH /storage/volumes/{volume.uuid}/snapshots/{uuid}][%d] snapshot_modify default  %+v", o._statusCode, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[PATCH /storage/volumes/{volume.uuid}/snapshots/{uuid}][%d] snapshot_modify default %s", o._statusCode, payload)
 }
 
 func (o *SnapshotModifyDefault) GetPayload() *models.ErrorResponse {

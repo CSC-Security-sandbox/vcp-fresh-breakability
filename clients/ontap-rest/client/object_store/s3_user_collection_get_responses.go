@@ -6,6 +6,7 @@ package object_store
 // Editing this file might prove futile when you re-run the swagger generate command
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 
@@ -86,11 +87,13 @@ func (o *S3UserCollectionGetOK) Code() int {
 }
 
 func (o *S3UserCollectionGetOK) Error() string {
-	return fmt.Sprintf("[GET /protocols/s3/services/{svm.uuid}/users][%d] s3UserCollectionGetOK  %+v", 200, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[GET /protocols/s3/services/{svm.uuid}/users][%d] s3UserCollectionGetOK %s", 200, payload)
 }
 
 func (o *S3UserCollectionGetOK) String() string {
-	return fmt.Sprintf("[GET /protocols/s3/services/{svm.uuid}/users][%d] s3UserCollectionGetOK  %+v", 200, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[GET /protocols/s3/services/{svm.uuid}/users][%d] s3UserCollectionGetOK %s", 200, payload)
 }
 
 func (o *S3UserCollectionGetOK) GetPayload() *models.S3UserResponse {
@@ -158,11 +161,13 @@ func (o *S3UserCollectionGetDefault) Code() int {
 }
 
 func (o *S3UserCollectionGetDefault) Error() string {
-	return fmt.Sprintf("[GET /protocols/s3/services/{svm.uuid}/users][%d] s3_user_collection_get default  %+v", o._statusCode, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[GET /protocols/s3/services/{svm.uuid}/users][%d] s3_user_collection_get default %s", o._statusCode, payload)
 }
 
 func (o *S3UserCollectionGetDefault) String() string {
-	return fmt.Sprintf("[GET /protocols/s3/services/{svm.uuid}/users][%d] s3_user_collection_get default  %+v", o._statusCode, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[GET /protocols/s3/services/{svm.uuid}/users][%d] s3_user_collection_get default %s", o._statusCode, payload)
 }
 
 func (o *S3UserCollectionGetDefault) GetPayload() *models.ErrorResponse {

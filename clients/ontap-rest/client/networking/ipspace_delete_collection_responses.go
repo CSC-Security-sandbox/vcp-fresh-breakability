@@ -7,6 +7,7 @@ package networking
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"io"
 	"strconv"
@@ -89,11 +90,11 @@ func (o *IpspaceDeleteCollectionOK) Code() int {
 }
 
 func (o *IpspaceDeleteCollectionOK) Error() string {
-	return fmt.Sprintf("[DELETE /network/ipspaces][%d] ipspaceDeleteCollectionOK ", 200)
+	return fmt.Sprintf("[DELETE /network/ipspaces][%d] ipspaceDeleteCollectionOK", 200)
 }
 
 func (o *IpspaceDeleteCollectionOK) String() string {
-	return fmt.Sprintf("[DELETE /network/ipspaces][%d] ipspaceDeleteCollectionOK ", 200)
+	return fmt.Sprintf("[DELETE /network/ipspaces][%d] ipspaceDeleteCollectionOK", 200)
 }
 
 func (o *IpspaceDeleteCollectionOK) readResponse(response runtime.ClientResponse, consumer runtime.Consumer, formats strfmt.Registry) error {
@@ -157,11 +158,13 @@ func (o *IpspaceDeleteCollectionDefault) Code() int {
 }
 
 func (o *IpspaceDeleteCollectionDefault) Error() string {
-	return fmt.Sprintf("[DELETE /network/ipspaces][%d] ipspace_delete_collection default  %+v", o._statusCode, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[DELETE /network/ipspaces][%d] ipspace_delete_collection default %s", o._statusCode, payload)
 }
 
 func (o *IpspaceDeleteCollectionDefault) String() string {
-	return fmt.Sprintf("[DELETE /network/ipspaces][%d] ipspace_delete_collection default  %+v", o._statusCode, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[DELETE /network/ipspaces][%d] ipspace_delete_collection default %s", o._statusCode, payload)
 }
 
 func (o *IpspaceDeleteCollectionDefault) GetPayload() *models.ErrorResponse {
@@ -249,6 +252,11 @@ func (o *IpspaceDeleteCollectionBody) contextValidateIpspaceResponseInlineRecord
 	for i := 0; i < len(o.IpspaceResponseInlineRecords); i++ {
 
 		if o.IpspaceResponseInlineRecords[i] != nil {
+
+			if swag.IsZero(o.IpspaceResponseInlineRecords[i]) { // not required
+				return nil
+			}
+
 			if err := o.IpspaceResponseInlineRecords[i].ContextValidate(ctx, formats); err != nil {
 				if ve, ok := err.(*errors.Validation); ok {
 					return ve.ValidateName("info" + "." + "records" + "." + strconv.Itoa(i))

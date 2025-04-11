@@ -48,7 +48,7 @@ type QuotaReport struct {
 
 	// Quota type associated with the quota record.
 	// Read Only: true
-	// Enum: [tree user group]
+	// Enum: ["tree","user","group"]
 	Type *string `json:"type,omitempty"`
 
 	// volume
@@ -358,6 +358,11 @@ func (m *QuotaReport) ContextValidate(ctx context.Context, formats strfmt.Regist
 func (m *QuotaReport) contextValidateLinks(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Links != nil {
+
+		if swag.IsZero(m.Links) { // not required
+			return nil
+		}
+
 		if err := m.Links.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("_links")
@@ -374,6 +379,11 @@ func (m *QuotaReport) contextValidateLinks(ctx context.Context, formats strfmt.R
 func (m *QuotaReport) contextValidateFiles(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Files != nil {
+
+		if swag.IsZero(m.Files) { // not required
+			return nil
+		}
+
 		if err := m.Files.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("files")
@@ -390,6 +400,11 @@ func (m *QuotaReport) contextValidateFiles(ctx context.Context, formats strfmt.R
 func (m *QuotaReport) contextValidateGroup(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Group != nil {
+
+		if swag.IsZero(m.Group) { // not required
+			return nil
+		}
+
 		if err := m.Group.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("group")
@@ -415,6 +430,11 @@ func (m *QuotaReport) contextValidateIndex(ctx context.Context, formats strfmt.R
 func (m *QuotaReport) contextValidateQtree(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Qtree != nil {
+
+		if swag.IsZero(m.Qtree) { // not required
+			return nil
+		}
+
 		if err := m.Qtree.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("qtree")
@@ -433,6 +453,11 @@ func (m *QuotaReport) contextValidateQuotaReportInlineUsers(ctx context.Context,
 	for i := 0; i < len(m.QuotaReportInlineUsers); i++ {
 
 		if m.QuotaReportInlineUsers[i] != nil {
+
+			if swag.IsZero(m.QuotaReportInlineUsers[i]) { // not required
+				return nil
+			}
+
 			if err := m.QuotaReportInlineUsers[i].ContextValidate(ctx, formats); err != nil {
 				if ve, ok := err.(*errors.Validation); ok {
 					return ve.ValidateName("users" + "." + strconv.Itoa(i))
@@ -451,6 +476,11 @@ func (m *QuotaReport) contextValidateQuotaReportInlineUsers(ctx context.Context,
 func (m *QuotaReport) contextValidateSpace(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Space != nil {
+
+		if swag.IsZero(m.Space) { // not required
+			return nil
+		}
+
 		if err := m.Space.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("space")
@@ -467,6 +497,11 @@ func (m *QuotaReport) contextValidateSpace(ctx context.Context, formats strfmt.R
 func (m *QuotaReport) contextValidateSvm(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Svm != nil {
+
+		if swag.IsZero(m.Svm) { // not required
+			return nil
+		}
+
 		if err := m.Svm.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("svm")
@@ -492,6 +527,11 @@ func (m *QuotaReport) contextValidateType(ctx context.Context, formats strfmt.Re
 func (m *QuotaReport) contextValidateVolume(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Volume != nil {
+
+		if swag.IsZero(m.Volume) { // not required
+			return nil
+		}
+
 		if err := m.Volume.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("volume")
@@ -616,6 +656,11 @@ func (m *QuotaReportInlineFiles) contextValidateSoftLimit(ctx context.Context, f
 func (m *QuotaReportInlineFiles) contextValidateUsed(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Used != nil {
+
+		if swag.IsZero(m.Used) { // not required
+			return nil
+		}
+
 		if err := m.Used.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("files" + "." + "used")
@@ -869,6 +914,11 @@ func (m *QuotaReportInlineLinks) ContextValidate(ctx context.Context, formats st
 func (m *QuotaReportInlineLinks) contextValidateSelf(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Self != nil {
+
+		if swag.IsZero(m.Self) { // not required
+			return nil
+		}
+
 		if err := m.Self.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("_links" + "." + "self")
@@ -967,6 +1017,11 @@ func (m *QuotaReportInlineQtree) ContextValidate(ctx context.Context, formats st
 func (m *QuotaReportInlineQtree) contextValidateLinks(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Links != nil {
+
+		if swag.IsZero(m.Links) { // not required
+			return nil
+		}
+
 		if err := m.Links.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("qtree" + "." + "_links")
@@ -1057,6 +1112,11 @@ func (m *QuotaReportInlineQtreeInlineLinks) ContextValidate(ctx context.Context,
 func (m *QuotaReportInlineQtreeInlineLinks) contextValidateSelf(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Self != nil {
+
+		if swag.IsZero(m.Self) { // not required
+			return nil
+		}
+
 		if err := m.Self.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("qtree" + "." + "_links" + "." + "self")
@@ -1181,6 +1241,11 @@ func (m *QuotaReportInlineSpace) contextValidateSoftLimit(ctx context.Context, f
 func (m *QuotaReportInlineSpace) contextValidateUsed(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Used != nil {
+
+		if swag.IsZero(m.Used) { // not required
+			return nil
+		}
+
 		if err := m.Used.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("space" + "." + "used")
@@ -1371,6 +1436,11 @@ func (m *QuotaReportInlineSvm) ContextValidate(ctx context.Context, formats strf
 func (m *QuotaReportInlineSvm) contextValidateLinks(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Links != nil {
+
+		if swag.IsZero(m.Links) { // not required
+			return nil
+		}
+
 		if err := m.Links.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("svm" + "." + "_links")
@@ -1461,6 +1531,11 @@ func (m *QuotaReportInlineSvmInlineLinks) ContextValidate(ctx context.Context, f
 func (m *QuotaReportInlineSvmInlineLinks) contextValidateSelf(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Self != nil {
+
+		if swag.IsZero(m.Self) { // not required
+			return nil
+		}
+
 		if err := m.Self.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("svm" + "." + "_links" + "." + "self")
@@ -1632,6 +1707,11 @@ func (m *QuotaReportInlineVolume) ContextValidate(ctx context.Context, formats s
 func (m *QuotaReportInlineVolume) contextValidateLinks(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Links != nil {
+
+		if swag.IsZero(m.Links) { // not required
+			return nil
+		}
+
 		if err := m.Links.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("volume" + "." + "_links")
@@ -1722,6 +1802,11 @@ func (m *QuotaReportInlineVolumeInlineLinks) ContextValidate(ctx context.Context
 func (m *QuotaReportInlineVolumeInlineLinks) contextValidateSelf(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Self != nil {
+
+		if swag.IsZero(m.Self) { // not required
+			return nil
+		}
+
 		if err := m.Self.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("volume" + "." + "_links" + "." + "self")

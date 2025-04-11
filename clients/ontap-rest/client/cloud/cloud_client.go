@@ -7,12 +7,38 @@ package cloud
 
 import (
 	"github.com/go-openapi/runtime"
+	httptransport "github.com/go-openapi/runtime/client"
 	"github.com/go-openapi/strfmt"
 )
 
 // New creates a new cloud API client.
 func New(transport runtime.ClientTransport, formats strfmt.Registry) ClientService {
 	return &Client{transport: transport, formats: formats}
+}
+
+// New creates a new cloud API client with basic auth credentials.
+// It takes the following parameters:
+// - host: http host (github.com).
+// - basePath: any base path for the API client ("/v1", "/v3").
+// - scheme: http scheme ("http", "https").
+// - user: user for basic authentication header.
+// - password: password for basic authentication header.
+func NewClientWithBasicAuth(host, basePath, scheme, user, password string) ClientService {
+	transport := httptransport.New(host, basePath, []string{scheme})
+	transport.DefaultAuthentication = httptransport.BasicAuth(user, password)
+	return &Client{transport: transport, formats: strfmt.Default}
+}
+
+// New creates a new cloud API client with a bearer token for authentication.
+// It takes the following parameters:
+// - host: http host (github.com).
+// - basePath: any base path for the API client ("/v1", "/v3").
+// - scheme: http scheme ("http", "https").
+// - bearerToken: bearer token for Bearer authentication header.
+func NewClientWithBearerToken(host, basePath, scheme, bearerToken string) ClientService {
+	transport := httptransport.New(host, basePath, []string{scheme})
+	transport.DefaultAuthentication = httptransport.BearerToken(bearerToken)
+	return &Client{transport: transport, formats: strfmt.Default}
 }
 
 /*
@@ -23,8 +49,52 @@ type Client struct {
 	formats   strfmt.Registry
 }
 
-// ClientOption is the option for Client methods
+// ClientOption may be used to customize the behavior of Client methods.
 type ClientOption func(*runtime.ClientOperation)
+
+// This client is generated with a few options you might find useful for your swagger spec.
+//
+// Feel free to add you own set of options.
+
+// WithContentType allows the client to force the Content-Type header
+// to negotiate a specific Consumer from the server.
+//
+// You may use this option to set arbitrary extensions to your MIME media type.
+func WithContentType(mime string) ClientOption {
+	return func(r *runtime.ClientOperation) {
+		r.ConsumesMediaTypes = []string{mime}
+	}
+}
+
+// WithContentTypeApplicationHalJSON sets the Content-Type header to "application/hal+json".
+func WithContentTypeApplicationHalJSON(r *runtime.ClientOperation) {
+	r.ConsumesMediaTypes = []string{"application/hal+json"}
+}
+
+// WithContentTypeApplicationJSON sets the Content-Type header to "application/json".
+func WithContentTypeApplicationJSON(r *runtime.ClientOperation) {
+	r.ConsumesMediaTypes = []string{"application/json"}
+}
+
+// WithAccept allows the client to force the Accept header
+// to negotiate a specific Producer from the server.
+//
+// You may use this option to set arbitrary extensions to your MIME media type.
+func WithAccept(mime string) ClientOption {
+	return func(r *runtime.ClientOperation) {
+		r.ProducesMediaTypes = []string{mime}
+	}
+}
+
+// WithAcceptApplicationHalJSON sets the Accept header to "application/hal+json".
+func WithAcceptApplicationHalJSON(r *runtime.ClientOperation) {
+	r.ProducesMediaTypes = []string{"application/hal+json"}
+}
+
+// WithAcceptApplicationJSON sets the Accept header to "application/json".
+func WithAcceptApplicationJSON(r *runtime.ClientOperation) {
+	r.ProducesMediaTypes = []string{"application/json"}
+}
 
 // ClientService is the interface for Client methods
 type ClientService interface {
@@ -32,15 +102,7 @@ type ClientService interface {
 
 	CloudTargetCreate(params *CloudTargetCreateParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*CloudTargetCreateCreated, *CloudTargetCreateAccepted, error)
 
-	CloudTargetDelete(params *CloudTargetDeleteParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*CloudTargetDeleteOK, *CloudTargetDeleteAccepted, error)
-
-	CloudTargetDeleteCollection(params *CloudTargetDeleteCollectionParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*CloudTargetDeleteCollectionOK, *CloudTargetDeleteCollectionAccepted, error)
-
-	CloudTargetGet(params *CloudTargetGetParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*CloudTargetGetOK, error)
-
 	CloudTargetModify(params *CloudTargetModifyParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*CloudTargetModifyOK, *CloudTargetModifyAccepted, error)
-
-	CloudTargetModifyCollection(params *CloudTargetModifyCollectionParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*CloudTargetModifyCollectionOK, *CloudTargetModifyCollectionAccepted, error)
 
 	SetTransport(transport runtime.ClientTransport)
 }
@@ -61,8 +123,8 @@ func (a *Client) CloudTargetCollectionGet(params *CloudTargetCollectionGetParams
 		ID:                 "cloud_target_collection_get",
 		Method:             "GET",
 		PathPattern:        "/cloud/targets",
-		ProducesMediaTypes: []string{"application/hal+json", "application/json"},
-		ConsumesMediaTypes: []string{"application/hal+json", "application/json"},
+		ProducesMediaTypes: []string{"application/json", "application/hal+json"},
+		ConsumesMediaTypes: []string{"application/json", "application/hal+json"},
 		Schemes:            []string{"https"},
 		Params:             params,
 		Reader:             &CloudTargetCollectionGetReader{formats: a.formats},
@@ -155,8 +217,8 @@ func (a *Client) CloudTargetCreate(params *CloudTargetCreateParams, authInfo run
 		ID:                 "cloud_target_create",
 		Method:             "POST",
 		PathPattern:        "/cloud/targets",
-		ProducesMediaTypes: []string{"application/hal+json", "application/json"},
-		ConsumesMediaTypes: []string{"application/hal+json", "application/json"},
+		ProducesMediaTypes: []string{"application/json", "application/hal+json"},
+		ConsumesMediaTypes: []string{"application/json", "application/hal+json"},
 		Schemes:            []string{"https"},
 		Params:             params,
 		Reader:             &CloudTargetCreateReader{formats: a.formats},
@@ -184,130 +246,6 @@ func (a *Client) CloudTargetCreate(params *CloudTargetCreateParams, authInfo run
 }
 
 /*
-	CloudTargetDelete Deletes the cloud target specified by the UUID. This request starts a job and returns a link to that job.
-
-### Related ONTAP commands
-* `storage aggregate object-store config delete`
-*/
-func (a *Client) CloudTargetDelete(params *CloudTargetDeleteParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*CloudTargetDeleteOK, *CloudTargetDeleteAccepted, error) {
-	// TODO: Validate the params before sending
-	if params == nil {
-		params = NewCloudTargetDeleteParams()
-	}
-	op := &runtime.ClientOperation{
-		ID:                 "cloud_target_delete",
-		Method:             "DELETE",
-		PathPattern:        "/cloud/targets/{uuid}",
-		ProducesMediaTypes: []string{"application/hal+json", "application/json"},
-		ConsumesMediaTypes: []string{"application/hal+json", "application/json"},
-		Schemes:            []string{"https"},
-		Params:             params,
-		Reader:             &CloudTargetDeleteReader{formats: a.formats},
-		AuthInfo:           authInfo,
-		Context:            params.Context,
-		Client:             params.HTTPClient,
-	}
-	for _, opt := range opts {
-		opt(op)
-	}
-
-	result, err := a.transport.Submit(op)
-	if err != nil {
-		return nil, nil, err
-	}
-	switch value := result.(type) {
-	case *CloudTargetDeleteOK:
-		return value, nil, nil
-	case *CloudTargetDeleteAccepted:
-		return nil, value, nil
-	}
-	// unexpected success response
-	unexpectedSuccess := result.(*CloudTargetDeleteDefault)
-	return nil, nil, runtime.NewAPIError("unexpected success response: content available as default response in error", unexpectedSuccess, unexpectedSuccess.Code())
-}
-
-/*
-CloudTargetDeleteCollection cloud target delete collection API
-*/
-func (a *Client) CloudTargetDeleteCollection(params *CloudTargetDeleteCollectionParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*CloudTargetDeleteCollectionOK, *CloudTargetDeleteCollectionAccepted, error) {
-	// TODO: Validate the params before sending
-	if params == nil {
-		params = NewCloudTargetDeleteCollectionParams()
-	}
-	op := &runtime.ClientOperation{
-		ID:                 "cloud_target_delete_collection",
-		Method:             "DELETE",
-		PathPattern:        "/cloud/targets",
-		ProducesMediaTypes: []string{"application/hal+json", "application/json"},
-		ConsumesMediaTypes: []string{"application/hal+json", "application/json"},
-		Schemes:            []string{"https"},
-		Params:             params,
-		Reader:             &CloudTargetDeleteCollectionReader{formats: a.formats},
-		AuthInfo:           authInfo,
-		Context:            params.Context,
-		Client:             params.HTTPClient,
-	}
-	for _, opt := range opts {
-		opt(op)
-	}
-
-	result, err := a.transport.Submit(op)
-	if err != nil {
-		return nil, nil, err
-	}
-	switch value := result.(type) {
-	case *CloudTargetDeleteCollectionOK:
-		return value, nil, nil
-	case *CloudTargetDeleteCollectionAccepted:
-		return nil, value, nil
-	}
-	// unexpected success response
-	unexpectedSuccess := result.(*CloudTargetDeleteCollectionDefault)
-	return nil, nil, runtime.NewAPIError("unexpected success response: content available as default response in error", unexpectedSuccess, unexpectedSuccess.Code())
-}
-
-/*
-	CloudTargetGet Retrieves the cloud target specified by the UUID.
-
-### Related ONTAP commands
-* `storage aggregate object-store config show`
-*/
-func (a *Client) CloudTargetGet(params *CloudTargetGetParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*CloudTargetGetOK, error) {
-	// TODO: Validate the params before sending
-	if params == nil {
-		params = NewCloudTargetGetParams()
-	}
-	op := &runtime.ClientOperation{
-		ID:                 "cloud_target_get",
-		Method:             "GET",
-		PathPattern:        "/cloud/targets/{uuid}",
-		ProducesMediaTypes: []string{"application/hal+json", "application/json"},
-		ConsumesMediaTypes: []string{"application/hal+json", "application/json"},
-		Schemes:            []string{"https"},
-		Params:             params,
-		Reader:             &CloudTargetGetReader{formats: a.formats},
-		AuthInfo:           authInfo,
-		Context:            params.Context,
-		Client:             params.HTTPClient,
-	}
-	for _, opt := range opts {
-		opt(op)
-	}
-
-	result, err := a.transport.Submit(op)
-	if err != nil {
-		return nil, err
-	}
-	success, ok := result.(*CloudTargetGetOK)
-	if ok {
-		return success, nil
-	}
-	// unexpected success response
-	unexpectedSuccess := result.(*CloudTargetGetDefault)
-	return nil, runtime.NewAPIError("unexpected success response: content available as default response in error", unexpectedSuccess, unexpectedSuccess.Code())
-}
-
-/*
 	CloudTargetModify Updates the cloud target specified by the UUID with the fields in the body. This request starts a job and returns a link to that job.
 
 ### Related ONTAP commands
@@ -322,8 +260,8 @@ func (a *Client) CloudTargetModify(params *CloudTargetModifyParams, authInfo run
 		ID:                 "cloud_target_modify",
 		Method:             "PATCH",
 		PathPattern:        "/cloud/targets/{uuid}",
-		ProducesMediaTypes: []string{"application/hal+json", "application/json"},
-		ConsumesMediaTypes: []string{"application/hal+json", "application/json"},
+		ProducesMediaTypes: []string{"application/json", "application/hal+json"},
+		ConsumesMediaTypes: []string{"application/json", "application/hal+json"},
 		Schemes:            []string{"https"},
 		Params:             params,
 		Reader:             &CloudTargetModifyReader{formats: a.formats},
@@ -347,46 +285,6 @@ func (a *Client) CloudTargetModify(params *CloudTargetModifyParams, authInfo run
 	}
 	// unexpected success response
 	unexpectedSuccess := result.(*CloudTargetModifyDefault)
-	return nil, nil, runtime.NewAPIError("unexpected success response: content available as default response in error", unexpectedSuccess, unexpectedSuccess.Code())
-}
-
-/*
-CloudTargetModifyCollection cloud target modify collection API
-*/
-func (a *Client) CloudTargetModifyCollection(params *CloudTargetModifyCollectionParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*CloudTargetModifyCollectionOK, *CloudTargetModifyCollectionAccepted, error) {
-	// TODO: Validate the params before sending
-	if params == nil {
-		params = NewCloudTargetModifyCollectionParams()
-	}
-	op := &runtime.ClientOperation{
-		ID:                 "cloud_target_modify_collection",
-		Method:             "PATCH",
-		PathPattern:        "/cloud/targets",
-		ProducesMediaTypes: []string{"application/hal+json", "application/json"},
-		ConsumesMediaTypes: []string{"application/hal+json", "application/json"},
-		Schemes:            []string{"https"},
-		Params:             params,
-		Reader:             &CloudTargetModifyCollectionReader{formats: a.formats},
-		AuthInfo:           authInfo,
-		Context:            params.Context,
-		Client:             params.HTTPClient,
-	}
-	for _, opt := range opts {
-		opt(op)
-	}
-
-	result, err := a.transport.Submit(op)
-	if err != nil {
-		return nil, nil, err
-	}
-	switch value := result.(type) {
-	case *CloudTargetModifyCollectionOK:
-		return value, nil, nil
-	case *CloudTargetModifyCollectionAccepted:
-		return nil, value, nil
-	}
-	// unexpected success response
-	unexpectedSuccess := result.(*CloudTargetModifyCollectionDefault)
 	return nil, nil, runtime.NewAPIError("unexpected success response: content available as default response in error", unexpectedSuccess, unexpectedSuccess.Code())
 }
 

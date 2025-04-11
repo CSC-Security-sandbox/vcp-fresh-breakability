@@ -57,7 +57,7 @@ type Job struct {
 
 	// The state of the job.
 	// Read Only: true
-	// Enum: [queued running paused success failure]
+	// Enum: ["queued","running","paused","success","failure"]
 	State *string `json:"state,omitempty"`
 
 	// svm
@@ -332,6 +332,11 @@ func (m *Job) ContextValidate(ctx context.Context, formats strfmt.Registry) erro
 func (m *Job) contextValidateLinks(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Links != nil {
+
+		if swag.IsZero(m.Links) { // not required
+			return nil
+		}
+
 		if err := m.Links.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("_links")
@@ -375,6 +380,11 @@ func (m *Job) contextValidateEndTime(ctx context.Context, formats strfmt.Registr
 func (m *Job) contextValidateError(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Error != nil {
+
+		if swag.IsZero(m.Error) { // not required
+			return nil
+		}
+
 		if err := m.Error.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("error")
@@ -400,6 +410,11 @@ func (m *Job) contextValidateMessage(ctx context.Context, formats strfmt.Registr
 func (m *Job) contextValidateNode(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Node != nil {
+
+		if swag.IsZero(m.Node) { // not required
+			return nil
+		}
+
 		if err := m.Node.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("node")
@@ -434,6 +449,11 @@ func (m *Job) contextValidateState(ctx context.Context, formats strfmt.Registry)
 func (m *Job) contextValidateSvm(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Svm != nil {
+
+		if swag.IsZero(m.Svm) { // not required
+			return nil
+		}
+
 		if err := m.Svm.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("svm")
@@ -565,6 +585,11 @@ func (m *JobInlineError) contextValidateArguments(ctx context.Context, formats s
 	for i := 0; i < len(m.Arguments); i++ {
 
 		if m.Arguments[i] != nil {
+
+			if swag.IsZero(m.Arguments[i]) { // not required
+				return nil
+			}
+
 			if err := m.Arguments[i].ContextValidate(ctx, formats); err != nil {
 				if ve, ok := err.(*errors.Validation); ok {
 					return ve.ValidateName("error" + "." + "arguments" + "." + strconv.Itoa(i))
@@ -675,6 +700,11 @@ func (m *JobInlineLinks) ContextValidate(ctx context.Context, formats strfmt.Reg
 func (m *JobInlineLinks) contextValidateSelf(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Self != nil {
+
+		if swag.IsZero(m.Self) { // not required
+			return nil
+		}
+
 		if err := m.Self.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("_links" + "." + "self")
@@ -817,6 +847,11 @@ func (m *JobInlineSvm) ContextValidate(ctx context.Context, formats strfmt.Regis
 func (m *JobInlineSvm) contextValidateLinks(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Links != nil {
+
+		if swag.IsZero(m.Links) { // not required
+			return nil
+		}
+
 		if err := m.Links.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("svm" + "." + "_links")
@@ -907,6 +942,11 @@ func (m *JobInlineSvmInlineLinks) ContextValidate(ctx context.Context, formats s
 func (m *JobInlineSvmInlineLinks) contextValidateSelf(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Self != nil {
+
+		if swag.IsZero(m.Self) { // not required
+			return nil
+		}
+
 		if err := m.Self.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("svm" + "." + "_links" + "." + "self")

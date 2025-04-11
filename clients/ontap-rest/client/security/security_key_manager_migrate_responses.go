@@ -7,6 +7,7 @@ package security
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"io"
 
@@ -95,11 +96,13 @@ func (o *SecurityKeyManagerMigrateCreated) Code() int {
 }
 
 func (o *SecurityKeyManagerMigrateCreated) Error() string {
-	return fmt.Sprintf("[POST /security/key-managers/{source.uuid}/migrate][%d] securityKeyManagerMigrateCreated  %+v", 201, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[POST /security/key-managers/{source.uuid}/migrate][%d] securityKeyManagerMigrateCreated %s", 201, payload)
 }
 
 func (o *SecurityKeyManagerMigrateCreated) String() string {
-	return fmt.Sprintf("[POST /security/key-managers/{source.uuid}/migrate][%d] securityKeyManagerMigrateCreated  %+v", 201, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[POST /security/key-managers/{source.uuid}/migrate][%d] securityKeyManagerMigrateCreated %s", 201, payload)
 }
 
 func (o *SecurityKeyManagerMigrateCreated) GetPayload() *models.SecurityKeyManagerJobLinkResponse {
@@ -163,11 +166,13 @@ func (o *SecurityKeyManagerMigrateAccepted) Code() int {
 }
 
 func (o *SecurityKeyManagerMigrateAccepted) Error() string {
-	return fmt.Sprintf("[POST /security/key-managers/{source.uuid}/migrate][%d] securityKeyManagerMigrateAccepted  %+v", 202, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[POST /security/key-managers/{source.uuid}/migrate][%d] securityKeyManagerMigrateAccepted %s", 202, payload)
 }
 
 func (o *SecurityKeyManagerMigrateAccepted) String() string {
-	return fmt.Sprintf("[POST /security/key-managers/{source.uuid}/migrate][%d] securityKeyManagerMigrateAccepted  %+v", 202, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[POST /security/key-managers/{source.uuid}/migrate][%d] securityKeyManagerMigrateAccepted %s", 202, payload)
 }
 
 func (o *SecurityKeyManagerMigrateAccepted) GetPayload() *models.SecurityKeyManagerJobLinkResponse {
@@ -253,11 +258,13 @@ func (o *SecurityKeyManagerMigrateDefault) Code() int {
 }
 
 func (o *SecurityKeyManagerMigrateDefault) Error() string {
-	return fmt.Sprintf("[POST /security/key-managers/{source.uuid}/migrate][%d] security_key_manager_migrate default  %+v", o._statusCode, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[POST /security/key-managers/{source.uuid}/migrate][%d] security_key_manager_migrate default %s", o._statusCode, payload)
 }
 
 func (o *SecurityKeyManagerMigrateDefault) String() string {
-	return fmt.Sprintf("[POST /security/key-managers/{source.uuid}/migrate][%d] security_key_manager_migrate default  %+v", o._statusCode, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[POST /security/key-managers/{source.uuid}/migrate][%d] security_key_manager_migrate default %s", o._statusCode, payload)
 }
 
 func (o *SecurityKeyManagerMigrateDefault) GetPayload() *models.ErrorResponse {
@@ -340,6 +347,11 @@ func (o *SecurityKeyManagerMigrateBody) ContextValidate(ctx context.Context, for
 func (o *SecurityKeyManagerMigrateBody) contextValidateLinks(ctx context.Context, formats strfmt.Registry) error {
 
 	if o.Links != nil {
+
+		if swag.IsZero(o.Links) { // not required
+			return nil
+		}
+
 		if err := o.Links.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("info" + "." + "_links")
@@ -431,6 +443,11 @@ func (o *SecurityKeyManagerMigrateParamsBodyLinks) ContextValidate(ctx context.C
 func (o *SecurityKeyManagerMigrateParamsBodyLinks) contextValidateSelf(ctx context.Context, formats strfmt.Registry) error {
 
 	if o.Self != nil {
+
+		if swag.IsZero(o.Self) { // not required
+			return nil
+		}
+
 		if err := o.Self.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("info" + "." + "_links" + "." + "self")

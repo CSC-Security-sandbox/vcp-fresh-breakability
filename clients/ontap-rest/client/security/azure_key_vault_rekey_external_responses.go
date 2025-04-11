@@ -6,6 +6,7 @@ package security
 // Editing this file might prove futile when you re-run the swagger generate command
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 
@@ -92,11 +93,13 @@ func (o *AzureKeyVaultRekeyExternalCreated) Code() int {
 }
 
 func (o *AzureKeyVaultRekeyExternalCreated) Error() string {
-	return fmt.Sprintf("[POST /security/azure-key-vaults/{azure_key_vault.uuid}/rekey-external][%d] azureKeyVaultRekeyExternalCreated  %+v", 201, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[POST /security/azure-key-vaults/{azure_key_vault.uuid}/rekey-external][%d] azureKeyVaultRekeyExternalCreated %s", 201, payload)
 }
 
 func (o *AzureKeyVaultRekeyExternalCreated) String() string {
-	return fmt.Sprintf("[POST /security/azure-key-vaults/{azure_key_vault.uuid}/rekey-external][%d] azureKeyVaultRekeyExternalCreated  %+v", 201, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[POST /security/azure-key-vaults/{azure_key_vault.uuid}/rekey-external][%d] azureKeyVaultRekeyExternalCreated %s", 201, payload)
 }
 
 func (o *AzureKeyVaultRekeyExternalCreated) GetPayload() *models.AzureKeyVaultKeyJobLinkResponse {
@@ -160,11 +163,13 @@ func (o *AzureKeyVaultRekeyExternalAccepted) Code() int {
 }
 
 func (o *AzureKeyVaultRekeyExternalAccepted) Error() string {
-	return fmt.Sprintf("[POST /security/azure-key-vaults/{azure_key_vault.uuid}/rekey-external][%d] azureKeyVaultRekeyExternalAccepted  %+v", 202, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[POST /security/azure-key-vaults/{azure_key_vault.uuid}/rekey-external][%d] azureKeyVaultRekeyExternalAccepted %s", 202, payload)
 }
 
 func (o *AzureKeyVaultRekeyExternalAccepted) String() string {
-	return fmt.Sprintf("[POST /security/azure-key-vaults/{azure_key_vault.uuid}/rekey-external][%d] azureKeyVaultRekeyExternalAccepted  %+v", 202, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[POST /security/azure-key-vaults/{azure_key_vault.uuid}/rekey-external][%d] azureKeyVaultRekeyExternalAccepted %s", 202, payload)
 }
 
 func (o *AzureKeyVaultRekeyExternalAccepted) GetPayload() *models.AzureKeyVaultKeyJobLinkResponse {
@@ -241,11 +246,13 @@ func (o *AzureKeyVaultRekeyExternalDefault) Code() int {
 }
 
 func (o *AzureKeyVaultRekeyExternalDefault) Error() string {
-	return fmt.Sprintf("[POST /security/azure-key-vaults/{azure_key_vault.uuid}/rekey-external][%d] azure_key_vault_rekey_external default  %+v", o._statusCode, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[POST /security/azure-key-vaults/{azure_key_vault.uuid}/rekey-external][%d] azure_key_vault_rekey_external default %s", o._statusCode, payload)
 }
 
 func (o *AzureKeyVaultRekeyExternalDefault) String() string {
-	return fmt.Sprintf("[POST /security/azure-key-vaults/{azure_key_vault.uuid}/rekey-external][%d] azure_key_vault_rekey_external default  %+v", o._statusCode, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[POST /security/azure-key-vaults/{azure_key_vault.uuid}/rekey-external][%d] azure_key_vault_rekey_external default %s", o._statusCode, payload)
 }
 
 func (o *AzureKeyVaultRekeyExternalDefault) GetPayload() *models.ErrorResponse {

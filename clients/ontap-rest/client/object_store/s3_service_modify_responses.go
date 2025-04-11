@@ -6,6 +6,7 @@ package object_store
 // Editing this file might prove futile when you re-run the swagger generate command
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 
@@ -85,11 +86,11 @@ func (o *S3ServiceModifyOK) Code() int {
 }
 
 func (o *S3ServiceModifyOK) Error() string {
-	return fmt.Sprintf("[PATCH /protocols/s3/services/{svm.uuid}][%d] s3ServiceModifyOK ", 200)
+	return fmt.Sprintf("[PATCH /protocols/s3/services/{svm.uuid}][%d] s3ServiceModifyOK", 200)
 }
 
 func (o *S3ServiceModifyOK) String() string {
-	return fmt.Sprintf("[PATCH /protocols/s3/services/{svm.uuid}][%d] s3ServiceModifyOK ", 200)
+	return fmt.Sprintf("[PATCH /protocols/s3/services/{svm.uuid}][%d] s3ServiceModifyOK", 200)
 }
 
 func (o *S3ServiceModifyOK) readResponse(response runtime.ClientResponse, consumer runtime.Consumer, formats strfmt.Registry) error {
@@ -158,11 +159,13 @@ func (o *S3ServiceModifyDefault) Code() int {
 }
 
 func (o *S3ServiceModifyDefault) Error() string {
-	return fmt.Sprintf("[PATCH /protocols/s3/services/{svm.uuid}][%d] s3_service_modify default  %+v", o._statusCode, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[PATCH /protocols/s3/services/{svm.uuid}][%d] s3_service_modify default %s", o._statusCode, payload)
 }
 
 func (o *S3ServiceModifyDefault) String() string {
-	return fmt.Sprintf("[PATCH /protocols/s3/services/{svm.uuid}][%d] s3_service_modify default  %+v", o._statusCode, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[PATCH /protocols/s3/services/{svm.uuid}][%d] s3_service_modify default %s", o._statusCode, payload)
 }
 
 func (o *S3ServiceModifyDefault) GetPayload() *models.ErrorResponse {

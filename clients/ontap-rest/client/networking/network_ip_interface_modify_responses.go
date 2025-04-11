@@ -6,6 +6,7 @@ package networking
 // Editing this file might prove futile when you re-run the swagger generate command
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 
@@ -85,11 +86,11 @@ func (o *NetworkIPInterfaceModifyOK) Code() int {
 }
 
 func (o *NetworkIPInterfaceModifyOK) Error() string {
-	return fmt.Sprintf("[PATCH /network/ip/interfaces/{uuid}][%d] networkIpInterfaceModifyOK ", 200)
+	return fmt.Sprintf("[PATCH /network/ip/interfaces/{uuid}][%d] networkIpInterfaceModifyOK", 200)
 }
 
 func (o *NetworkIPInterfaceModifyOK) String() string {
-	return fmt.Sprintf("[PATCH /network/ip/interfaces/{uuid}][%d] networkIpInterfaceModifyOK ", 200)
+	return fmt.Sprintf("[PATCH /network/ip/interfaces/{uuid}][%d] networkIpInterfaceModifyOK", 200)
 }
 
 func (o *NetworkIPInterfaceModifyOK) readResponse(response runtime.ClientResponse, consumer runtime.Consumer, formats strfmt.Registry) error {
@@ -230,11 +231,13 @@ func (o *NetworkIPInterfaceModifyDefault) Code() int {
 }
 
 func (o *NetworkIPInterfaceModifyDefault) Error() string {
-	return fmt.Sprintf("[PATCH /network/ip/interfaces/{uuid}][%d] network_ip_interface_modify default  %+v", o._statusCode, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[PATCH /network/ip/interfaces/{uuid}][%d] network_ip_interface_modify default %s", o._statusCode, payload)
 }
 
 func (o *NetworkIPInterfaceModifyDefault) String() string {
-	return fmt.Sprintf("[PATCH /network/ip/interfaces/{uuid}][%d] network_ip_interface_modify default  %+v", o._statusCode, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[PATCH /network/ip/interfaces/{uuid}][%d] network_ip_interface_modify default %s", o._statusCode, payload)
 }
 
 func (o *NetworkIPInterfaceModifyDefault) GetPayload() *models.ErrorResponse {

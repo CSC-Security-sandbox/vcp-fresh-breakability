@@ -7,6 +7,7 @@ package networking
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"io"
 	"strconv"
@@ -90,11 +91,11 @@ func (o *NetworkIPInterfaceDeleteCollectionOK) Code() int {
 }
 
 func (o *NetworkIPInterfaceDeleteCollectionOK) Error() string {
-	return fmt.Sprintf("[DELETE /network/ip/interfaces][%d] networkIpInterfaceDeleteCollectionOK ", 200)
+	return fmt.Sprintf("[DELETE /network/ip/interfaces][%d] networkIpInterfaceDeleteCollectionOK", 200)
 }
 
 func (o *NetworkIPInterfaceDeleteCollectionOK) String() string {
-	return fmt.Sprintf("[DELETE /network/ip/interfaces][%d] networkIpInterfaceDeleteCollectionOK ", 200)
+	return fmt.Sprintf("[DELETE /network/ip/interfaces][%d] networkIpInterfaceDeleteCollectionOK", 200)
 }
 
 func (o *NetworkIPInterfaceDeleteCollectionOK) readResponse(response runtime.ClientResponse, consumer runtime.Consumer, formats strfmt.Registry) error {
@@ -158,11 +159,13 @@ func (o *NetworkIPInterfaceDeleteCollectionDefault) Code() int {
 }
 
 func (o *NetworkIPInterfaceDeleteCollectionDefault) Error() string {
-	return fmt.Sprintf("[DELETE /network/ip/interfaces][%d] network_ip_interface_delete_collection default  %+v", o._statusCode, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[DELETE /network/ip/interfaces][%d] network_ip_interface_delete_collection default %s", o._statusCode, payload)
 }
 
 func (o *NetworkIPInterfaceDeleteCollectionDefault) String() string {
-	return fmt.Sprintf("[DELETE /network/ip/interfaces][%d] network_ip_interface_delete_collection default  %+v", o._statusCode, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[DELETE /network/ip/interfaces][%d] network_ip_interface_delete_collection default %s", o._statusCode, payload)
 }
 
 func (o *NetworkIPInterfaceDeleteCollectionDefault) GetPayload() *models.ErrorResponse {
@@ -191,7 +194,7 @@ type NetworkIPInterfaceDeleteCollectionBody struct {
 	IPInterfaceResponseInlineRecords []*models.IPInterface `json:"records,omitempty"`
 
 	// recommend
-	Recommend *IPInterfaceResponseInlineRecommend `json:"recommend,omitempty"`
+	Recommend *models.IPInterfaceResponseInlineRecommend `json:"recommend,omitempty"`
 }
 
 // Validate validates this network IP interface delete collection body
@@ -280,6 +283,11 @@ func (o *NetworkIPInterfaceDeleteCollectionBody) contextValidateIPInterfaceRespo
 	for i := 0; i < len(o.IPInterfaceResponseInlineRecords); i++ {
 
 		if o.IPInterfaceResponseInlineRecords[i] != nil {
+
+			if swag.IsZero(o.IPInterfaceResponseInlineRecords[i]) { // not required
+				return nil
+			}
+
 			if err := o.IPInterfaceResponseInlineRecords[i].ContextValidate(ctx, formats); err != nil {
 				if ve, ok := err.(*errors.Validation); ok {
 					return ve.ValidateName("info" + "." + "records" + "." + strconv.Itoa(i))
@@ -298,6 +306,11 @@ func (o *NetworkIPInterfaceDeleteCollectionBody) contextValidateIPInterfaceRespo
 func (o *NetworkIPInterfaceDeleteCollectionBody) contextValidateRecommend(ctx context.Context, formats strfmt.Registry) error {
 
 	if o.Recommend != nil {
+
+		if swag.IsZero(o.Recommend) { // not required
+			return nil
+		}
+
 		if err := o.Recommend.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("info" + "." + "recommend")

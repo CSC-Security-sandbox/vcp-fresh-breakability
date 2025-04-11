@@ -30,6 +30,11 @@ type Flexcache struct {
 	// cifs change notify
 	CifsChangeNotify *FlexcacheInlineCifsChangeNotify `json:"cifs_change_notify,omitempty"`
 
+	// Specifies the number of constituents in the FlexGroup volume upon FlexCache create (POST).
+	// Example: 8
+	// Minimum: 1
+	ConstituentCount *int64 `json:"constituent_count,omitempty"`
+
 	// Number of FlexCache constituents per aggregate when the 'aggregates' field is mentioned.
 	// Example: 1
 	ConstituentsPerAggregate *int64 `json:"constituents_per_aggregate,omitempty"`
@@ -99,6 +104,10 @@ func (m *Flexcache) Validate(formats strfmt.Registry) error {
 	}
 
 	if err := m.validateCifsChangeNotify(formats); err != nil {
+		res = append(res, err)
+	}
+
+	if err := m.validateConstituentCount(formats); err != nil {
 		res = append(res, err)
 	}
 
@@ -192,6 +201,18 @@ func (m *Flexcache) validateCifsChangeNotify(formats strfmt.Registry) error {
 			}
 			return err
 		}
+	}
+
+	return nil
+}
+
+func (m *Flexcache) validateConstituentCount(formats strfmt.Registry) error {
+	if swag.IsZero(m.ConstituentCount) { // not required
+		return nil
+	}
+
+	if err := validate.MinimumInt("constituent_count", "body", *m.ConstituentCount, 1, false); err != nil {
+		return err
 	}
 
 	return nil
@@ -417,6 +438,11 @@ func (m *Flexcache) ContextValidate(ctx context.Context, formats strfmt.Registry
 func (m *Flexcache) contextValidateLinks(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Links != nil {
+
+		if swag.IsZero(m.Links) { // not required
+			return nil
+		}
+
 		if err := m.Links.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("_links")
@@ -433,6 +459,11 @@ func (m *Flexcache) contextValidateLinks(ctx context.Context, formats strfmt.Reg
 func (m *Flexcache) contextValidateAtimeScrub(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.AtimeScrub != nil {
+
+		if swag.IsZero(m.AtimeScrub) { // not required
+			return nil
+		}
+
 		if err := m.AtimeScrub.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("atime_scrub")
@@ -449,6 +480,11 @@ func (m *Flexcache) contextValidateAtimeScrub(ctx context.Context, formats strfm
 func (m *Flexcache) contextValidateCifsChangeNotify(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.CifsChangeNotify != nil {
+
+		if swag.IsZero(m.CifsChangeNotify) { // not required
+			return nil
+		}
+
 		if err := m.CifsChangeNotify.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("cifs_change_notify")
@@ -467,6 +503,11 @@ func (m *Flexcache) contextValidateFlexcacheInlineAggregates(ctx context.Context
 	for i := 0; i < len(m.FlexcacheInlineAggregates); i++ {
 
 		if m.FlexcacheInlineAggregates[i] != nil {
+
+			if swag.IsZero(m.FlexcacheInlineAggregates[i]) { // not required
+				return nil
+			}
+
 			if err := m.FlexcacheInlineAggregates[i].ContextValidate(ctx, formats); err != nil {
 				if ve, ok := err.(*errors.Validation); ok {
 					return ve.ValidateName("aggregates" + "." + strconv.Itoa(i))
@@ -487,6 +528,11 @@ func (m *Flexcache) contextValidateFlexcacheInlineOrigins(ctx context.Context, f
 	for i := 0; i < len(m.FlexcacheInlineOrigins); i++ {
 
 		if m.FlexcacheInlineOrigins[i] != nil {
+
+			if swag.IsZero(m.FlexcacheInlineOrigins[i]) { // not required
+				return nil
+			}
+
 			if err := m.FlexcacheInlineOrigins[i].ContextValidate(ctx, formats); err != nil {
 				if ve, ok := err.(*errors.Validation); ok {
 					return ve.ValidateName("origins" + "." + strconv.Itoa(i))
@@ -505,6 +551,11 @@ func (m *Flexcache) contextValidateFlexcacheInlineOrigins(ctx context.Context, f
 func (m *Flexcache) contextValidateGuarantee(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Guarantee != nil {
+
+		if swag.IsZero(m.Guarantee) { // not required
+			return nil
+		}
+
 		if err := m.Guarantee.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("guarantee")
@@ -521,6 +572,11 @@ func (m *Flexcache) contextValidateGuarantee(ctx context.Context, formats strfmt
 func (m *Flexcache) contextValidatePrepopulate(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Prepopulate != nil {
+
+		if swag.IsZero(m.Prepopulate) { // not required
+			return nil
+		}
+
 		if err := m.Prepopulate.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("prepopulate")
@@ -537,6 +593,11 @@ func (m *Flexcache) contextValidatePrepopulate(ctx context.Context, formats strf
 func (m *Flexcache) contextValidateRelativeSize(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.RelativeSize != nil {
+
+		if swag.IsZero(m.RelativeSize) { // not required
+			return nil
+		}
+
 		if err := m.RelativeSize.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("relative_size")
@@ -553,6 +614,11 @@ func (m *Flexcache) contextValidateRelativeSize(ctx context.Context, formats str
 func (m *Flexcache) contextValidateSvm(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Svm != nil {
+
+		if swag.IsZero(m.Svm) { // not required
+			return nil
+		}
+
 		if err := m.Svm.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("svm")
@@ -578,6 +644,11 @@ func (m *Flexcache) contextValidateUUID(ctx context.Context, formats strfmt.Regi
 func (m *Flexcache) contextValidateWriteback(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Writeback != nil {
+
+		if swag.IsZero(m.Writeback) { // not required
+			return nil
+		}
+
 		if err := m.Writeback.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("writeback")
@@ -676,6 +747,11 @@ func (m *FlexcacheInlineAggregatesInlineArrayItem) ContextValidate(ctx context.C
 func (m *FlexcacheInlineAggregatesInlineArrayItem) contextValidateLinks(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Links != nil {
+
+		if swag.IsZero(m.Links) { // not required
+			return nil
+		}
+
 		if err := m.Links.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("_links")
@@ -766,6 +842,11 @@ func (m *FlexcacheInlineAggregatesInlineArrayItemInlineLinks) ContextValidate(ct
 func (m *FlexcacheInlineAggregatesInlineArrayItemInlineLinks) contextValidateSelf(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Self != nil {
+
+		if swag.IsZero(m.Self) { // not required
+			return nil
+		}
+
 		if err := m.Self.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("_links" + "." + "self")
@@ -880,7 +961,7 @@ func (m *FlexcacheInlineCifsChangeNotify) UnmarshalBinary(b []byte) error {
 type FlexcacheInlineGuarantee struct {
 
 	// The type of space guarantee of this volume in the aggregate.
-	// Enum: [volume none]
+	// Enum: ["volume","none"]
 	Type *string `json:"type,omitempty"`
 }
 
@@ -1022,6 +1103,11 @@ func (m *FlexcacheInlineLinks) ContextValidate(ctx context.Context, formats strf
 func (m *FlexcacheInlineLinks) contextValidateSelf(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Self != nil {
+
+		if swag.IsZero(m.Self) { // not required
+			return nil
+		}
+
 		if err := m.Self.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("_links" + "." + "self")
@@ -1205,6 +1291,11 @@ func (m *FlexcacheInlineSvm) ContextValidate(ctx context.Context, formats strfmt
 func (m *FlexcacheInlineSvm) contextValidateLinks(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Links != nil {
+
+		if swag.IsZero(m.Links) { // not required
+			return nil
+		}
+
 		if err := m.Links.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("svm" + "." + "_links")
@@ -1295,6 +1386,11 @@ func (m *FlexcacheInlineSvmInlineLinks) ContextValidate(ctx context.Context, for
 func (m *FlexcacheInlineSvmInlineLinks) contextValidateSelf(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Self != nil {
+
+		if swag.IsZero(m.Self) { // not required
+			return nil
+		}
+
 		if err := m.Self.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("svm" + "." + "_links" + "." + "self")

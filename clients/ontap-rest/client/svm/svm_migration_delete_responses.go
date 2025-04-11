@@ -6,6 +6,7 @@ package svm
 // Editing this file might prove futile when you re-run the swagger generate command
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 
@@ -92,11 +93,13 @@ func (o *SvmMigrationDeleteOK) Code() int {
 }
 
 func (o *SvmMigrationDeleteOK) Error() string {
-	return fmt.Sprintf("[DELETE /svm/migrations/{uuid}][%d] svmMigrationDeleteOK  %+v", 200, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[DELETE /svm/migrations/{uuid}][%d] svmMigrationDeleteOK %s", 200, payload)
 }
 
 func (o *SvmMigrationDeleteOK) String() string {
-	return fmt.Sprintf("[DELETE /svm/migrations/{uuid}][%d] svmMigrationDeleteOK  %+v", 200, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[DELETE /svm/migrations/{uuid}][%d] svmMigrationDeleteOK %s", 200, payload)
 }
 
 func (o *SvmMigrationDeleteOK) GetPayload() *models.SvmMigrationJobLinkResponse {
@@ -160,11 +163,13 @@ func (o *SvmMigrationDeleteAccepted) Code() int {
 }
 
 func (o *SvmMigrationDeleteAccepted) Error() string {
-	return fmt.Sprintf("[DELETE /svm/migrations/{uuid}][%d] svmMigrationDeleteAccepted  %+v", 202, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[DELETE /svm/migrations/{uuid}][%d] svmMigrationDeleteAccepted %s", 202, payload)
 }
 
 func (o *SvmMigrationDeleteAccepted) String() string {
-	return fmt.Sprintf("[DELETE /svm/migrations/{uuid}][%d] svmMigrationDeleteAccepted  %+v", 202, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[DELETE /svm/migrations/{uuid}][%d] svmMigrationDeleteAccepted %s", 202, payload)
 }
 
 func (o *SvmMigrationDeleteAccepted) GetPayload() *models.SvmMigrationJobLinkResponse {
@@ -238,11 +243,13 @@ func (o *SvmMigrationDeleteDefault) Code() int {
 }
 
 func (o *SvmMigrationDeleteDefault) Error() string {
-	return fmt.Sprintf("[DELETE /svm/migrations/{uuid}][%d] svm_migration_delete default  %+v", o._statusCode, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[DELETE /svm/migrations/{uuid}][%d] svm_migration_delete default %s", o._statusCode, payload)
 }
 
 func (o *SvmMigrationDeleteDefault) String() string {
-	return fmt.Sprintf("[DELETE /svm/migrations/{uuid}][%d] svm_migration_delete default  %+v", o._statusCode, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[DELETE /svm/migrations/{uuid}][%d] svm_migration_delete default %s", o._statusCode, payload)
 }
 
 func (o *SvmMigrationDeleteDefault) GetPayload() *models.ErrorResponse {

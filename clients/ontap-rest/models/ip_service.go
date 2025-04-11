@@ -112,8 +112,8 @@ const (
 	// IPServiceManagementNtpServer captures enum value "management_ntp_server"
 	IPServiceManagementNtpServer IPService = "management_ntp_server"
 
-	// IPServiceDataNVMETCP captures enum value "data_nvme_tcp"
-	IPServiceDataNVMETCP IPService = "data_nvme_tcp"
+	// IPServiceDataNvmeTCP captures enum value "data_nvme_tcp"
+	IPServiceDataNvmeTCP IPService = "data_nvme_tcp"
 
 	// IPServiceBackupNdmpControl captures enum value "backup_ndmp_control"
 	IPServiceBackupNdmpControl IPService = "backup_ndmp_control"

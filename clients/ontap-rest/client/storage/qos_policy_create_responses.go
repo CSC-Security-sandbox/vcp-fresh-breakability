@@ -6,6 +6,7 @@ package storage
 // Editing this file might prove futile when you re-run the swagger generate command
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 
@@ -97,11 +98,13 @@ func (o *QosPolicyCreateCreated) Code() int {
 }
 
 func (o *QosPolicyCreateCreated) Error() string {
-	return fmt.Sprintf("[POST /storage/qos/policies][%d] qosPolicyCreateCreated  %+v", 201, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[POST /storage/qos/policies][%d] qosPolicyCreateCreated %s", 201, payload)
 }
 
 func (o *QosPolicyCreateCreated) String() string {
-	return fmt.Sprintf("[POST /storage/qos/policies][%d] qosPolicyCreateCreated  %+v", 201, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[POST /storage/qos/policies][%d] qosPolicyCreateCreated %s", 201, payload)
 }
 
 func (o *QosPolicyCreateCreated) GetPayload() *models.QosPolicyJobLinkResponse {
@@ -177,11 +180,13 @@ func (o *QosPolicyCreateAccepted) Code() int {
 }
 
 func (o *QosPolicyCreateAccepted) Error() string {
-	return fmt.Sprintf("[POST /storage/qos/policies][%d] qosPolicyCreateAccepted  %+v", 202, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[POST /storage/qos/policies][%d] qosPolicyCreateAccepted %s", 202, payload)
 }
 
 func (o *QosPolicyCreateAccepted) String() string {
-	return fmt.Sprintf("[POST /storage/qos/policies][%d] qosPolicyCreateAccepted  %+v", 202, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[POST /storage/qos/policies][%d] qosPolicyCreateAccepted %s", 202, payload)
 }
 
 func (o *QosPolicyCreateAccepted) GetPayload() *models.QosPolicyJobLinkResponse {
@@ -270,11 +275,13 @@ func (o *QosPolicyCreateDefault) Code() int {
 }
 
 func (o *QosPolicyCreateDefault) Error() string {
-	return fmt.Sprintf("[POST /storage/qos/policies][%d] qos_policy_create default  %+v", o._statusCode, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[POST /storage/qos/policies][%d] qos_policy_create default %s", o._statusCode, payload)
 }
 
 func (o *QosPolicyCreateDefault) String() string {
-	return fmt.Sprintf("[POST /storage/qos/policies][%d] qos_policy_create default  %+v", o._statusCode, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[POST /storage/qos/policies][%d] qos_policy_create default %s", o._statusCode, payload)
 }
 
 func (o *QosPolicyCreateDefault) GetPayload() *models.ErrorResponse {

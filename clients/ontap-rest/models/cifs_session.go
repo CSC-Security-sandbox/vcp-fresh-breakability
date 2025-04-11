@@ -33,7 +33,7 @@ type CifsSession struct {
 	//
 	// Example: ntlmv2
 	// Read Only: true
-	// Enum: [none ntlmv1 ntlmv2 kerberos anonymous]
+	// Enum: ["none","ntlmv1","ntlmv2","kerberos","anonymous"]
 	Authentication *string `json:"authentication,omitempty"`
 
 	// A group of volumes, the client is accessing.
@@ -70,7 +70,7 @@ type CifsSession struct {
 	//
 	// Example: unavailable
 	// Read Only: true
-	// Enum: [unavailable available partial]
+	// Enum: ["unavailable","available","partial"]
 	ContinuousAvailability *string `json:"continuous_availability,omitempty"`
 
 	// A unique 64-bit unsigned number used to represent each SMB session's identifier.
@@ -124,7 +124,7 @@ type CifsSession struct {
 	//
 	// Example: smb3_1
 	// Read Only: true
-	// Enum: [smb1 smb2 smb2_1 smb3 smb3_1]
+	// Enum: ["smb1","smb2","smb2_1","smb3","smb3_1"]
 	Protocol *string `json:"protocol,omitempty"`
 
 	// Specifies the IP address of the SVM.
@@ -140,7 +140,7 @@ type CifsSession struct {
 	//
 	// Example: unencrypted
 	// Read Only: true
-	// Enum: [unencrypted encrypted partially_encrypted]
+	// Enum: ["unencrypted","encrypted","partially_encrypted"]
 	SmbEncryption *string `json:"smb_encryption,omitempty"`
 
 	// Specifies whether or not SMB signing is enabled.
@@ -576,6 +576,11 @@ func (m *CifsSession) ContextValidate(ctx context.Context, formats strfmt.Regist
 func (m *CifsSession) contextValidateLinks(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Links != nil {
+
+		if swag.IsZero(m.Links) { // not required
+			return nil
+		}
+
 		if err := m.Links.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("_links")
@@ -603,6 +608,11 @@ func (m *CifsSession) contextValidateCifsSessionInlineVolumes(ctx context.Contex
 	for i := 0; i < len(m.CifsSessionInlineVolumes); i++ {
 
 		if m.CifsSessionInlineVolumes[i] != nil {
+
+			if swag.IsZero(m.CifsSessionInlineVolumes[i]) { // not required
+				return nil
+			}
+
 			if err := m.CifsSessionInlineVolumes[i].ContextValidate(ctx, formats); err != nil {
 				if ve, ok := err.(*errors.Validation); ok {
 					return ve.ValidateName("volumes" + "." + strconv.Itoa(i))
@@ -702,6 +712,11 @@ func (m *CifsSession) contextValidateMappedUnixUser(ctx context.Context, formats
 func (m *CifsSession) contextValidateNode(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Node != nil {
+
+		if swag.IsZero(m.Node) { // not required
+			return nil
+		}
+
 		if err := m.Node.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("node")
@@ -781,6 +796,11 @@ func (m *CifsSession) contextValidateSmbSigning(ctx context.Context, formats str
 func (m *CifsSession) contextValidateSvm(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Svm != nil {
+
+		if swag.IsZero(m.Svm) { // not required
+			return nil
+		}
+
 		if err := m.Svm.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("svm")
@@ -880,6 +900,11 @@ func (m *CifsSessionInlineLinks) ContextValidate(ctx context.Context, formats st
 func (m *CifsSessionInlineLinks) contextValidateSelf(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Self != nil {
+
+		if swag.IsZero(m.Self) { // not required
+			return nil
+		}
+
 		if err := m.Self.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("_links" + "." + "self")
@@ -978,6 +1003,11 @@ func (m *CifsSessionInlineNode) ContextValidate(ctx context.Context, formats str
 func (m *CifsSessionInlineNode) contextValidateLinks(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Links != nil {
+
+		if swag.IsZero(m.Links) { // not required
+			return nil
+		}
+
 		if err := m.Links.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("node" + "." + "_links")
@@ -1068,6 +1098,11 @@ func (m *CifsSessionInlineNodeInlineLinks) ContextValidate(ctx context.Context, 
 func (m *CifsSessionInlineNodeInlineLinks) contextValidateSelf(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Self != nil {
+
+		if swag.IsZero(m.Self) { // not required
+			return nil
+		}
+
 		if err := m.Self.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("node" + "." + "_links" + "." + "self")
@@ -1168,6 +1203,11 @@ func (m *CifsSessionInlineSvm) ContextValidate(ctx context.Context, formats strf
 func (m *CifsSessionInlineSvm) contextValidateLinks(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Links != nil {
+
+		if swag.IsZero(m.Links) { // not required
+			return nil
+		}
+
 		if err := m.Links.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("svm" + "." + "_links")
@@ -1258,6 +1298,11 @@ func (m *CifsSessionInlineSvmInlineLinks) ContextValidate(ctx context.Context, f
 func (m *CifsSessionInlineSvmInlineLinks) contextValidateSelf(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Self != nil {
+
+		if swag.IsZero(m.Self) { // not required
+			return nil
+		}
+
 		if err := m.Self.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("svm" + "." + "_links" + "." + "self")
@@ -1356,6 +1401,11 @@ func (m *CifsSessionInlineVolumesInlineArrayItem) ContextValidate(ctx context.Co
 func (m *CifsSessionInlineVolumesInlineArrayItem) contextValidateLinks(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Links != nil {
+
+		if swag.IsZero(m.Links) { // not required
+			return nil
+		}
+
 		if err := m.Links.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("_links")
@@ -1446,6 +1496,11 @@ func (m *CifsSessionInlineVolumesInlineArrayItemInlineLinks) ContextValidate(ctx
 func (m *CifsSessionInlineVolumesInlineArrayItemInlineLinks) contextValidateSelf(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Self != nil {
+
+		if swag.IsZero(m.Self) { // not required
+			return nil
+		}
+
 		if err := m.Self.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("_links" + "." + "self")

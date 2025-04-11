@@ -41,7 +41,7 @@ type Schedule struct {
 
 	// If the schedule is owned by a data SVM, then the scope is set to svm. Otherwise it will be set to cluster.
 	// Read Only: true
-	// Enum: [cluster svm]
+	// Enum: ["cluster","svm"]
 	Scope *string `json:"scope,omitempty"`
 
 	// svm
@@ -49,7 +49,7 @@ type Schedule struct {
 
 	// Schedule type
 	// Read Only: true
-	// Enum: [cron interval]
+	// Enum: ["cron","interval"]
 	Type *string `json:"type,omitempty"`
 
 	// Job schedule UUID
@@ -330,6 +330,11 @@ func (m *Schedule) ContextValidate(ctx context.Context, formats strfmt.Registry)
 func (m *Schedule) contextValidateLinks(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Links != nil {
+
+		if swag.IsZero(m.Links) { // not required
+			return nil
+		}
+
 		if err := m.Links.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("_links")
@@ -346,6 +351,11 @@ func (m *Schedule) contextValidateLinks(ctx context.Context, formats strfmt.Regi
 func (m *Schedule) contextValidateCluster(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Cluster != nil {
+
+		if swag.IsZero(m.Cluster) { // not required
+			return nil
+		}
+
 		if err := m.Cluster.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("cluster")
@@ -362,6 +372,11 @@ func (m *Schedule) contextValidateCluster(ctx context.Context, formats strfmt.Re
 func (m *Schedule) contextValidateCron(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Cron != nil {
+
+		if swag.IsZero(m.Cron) { // not required
+			return nil
+		}
+
 		if err := m.Cron.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("cron")
@@ -387,6 +402,11 @@ func (m *Schedule) contextValidateScope(ctx context.Context, formats strfmt.Regi
 func (m *Schedule) contextValidateSvm(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Svm != nil {
+
+		if swag.IsZero(m.Svm) { // not required
+			return nil
+		}
+
 		if err := m.Svm.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("svm")
@@ -748,6 +768,11 @@ func (m *ScheduleInlineLinks) ContextValidate(ctx context.Context, formats strfm
 func (m *ScheduleInlineLinks) contextValidateSelf(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Self != nil {
+
+		if swag.IsZero(m.Self) { // not required
+			return nil
+		}
+
 		if err := m.Self.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("_links" + "." + "self")
@@ -848,6 +873,11 @@ func (m *ScheduleInlineSvm) ContextValidate(ctx context.Context, formats strfmt.
 func (m *ScheduleInlineSvm) contextValidateLinks(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Links != nil {
+
+		if swag.IsZero(m.Links) { // not required
+			return nil
+		}
+
 		if err := m.Links.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("svm" + "." + "_links")
@@ -938,6 +968,11 @@ func (m *ScheduleInlineSvmInlineLinks) ContextValidate(ctx context.Context, form
 func (m *ScheduleInlineSvmInlineLinks) contextValidateSelf(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Self != nil {
+
+		if swag.IsZero(m.Self) { // not required
+			return nil
+		}
+
 		if err := m.Self.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("svm" + "." + "_links" + "." + "self")

@@ -6,6 +6,7 @@ package object_store
 // Editing this file might prove futile when you re-run the swagger generate command
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 
@@ -91,11 +92,13 @@ func (o *S3UserCreateCreated) Code() int {
 }
 
 func (o *S3UserCreateCreated) Error() string {
-	return fmt.Sprintf("[POST /protocols/s3/services/{svm.uuid}/users][%d] s3UserCreateCreated  %+v", 201, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[POST /protocols/s3/services/{svm.uuid}/users][%d] s3UserCreateCreated %s", 201, payload)
 }
 
 func (o *S3UserCreateCreated) String() string {
-	return fmt.Sprintf("[POST /protocols/s3/services/{svm.uuid}/users][%d] s3UserCreateCreated  %+v", 201, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[POST /protocols/s3/services/{svm.uuid}/users][%d] s3UserCreateCreated %s", 201, payload)
 }
 
 func (o *S3UserCreateCreated) GetPayload() *models.S3UserPostPatchResponse {
@@ -185,11 +188,13 @@ func (o *S3UserCreateDefault) Code() int {
 }
 
 func (o *S3UserCreateDefault) Error() string {
-	return fmt.Sprintf("[POST /protocols/s3/services/{svm.uuid}/users][%d] s3_user_create default  %+v", o._statusCode, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[POST /protocols/s3/services/{svm.uuid}/users][%d] s3_user_create default %s", o._statusCode, payload)
 }
 
 func (o *S3UserCreateDefault) String() string {
-	return fmt.Sprintf("[POST /protocols/s3/services/{svm.uuid}/users][%d] s3_user_create default  %+v", o._statusCode, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[POST /protocols/s3/services/{svm.uuid}/users][%d] s3_user_create default %s", o._statusCode, payload)
 }
 
 func (o *S3UserCreateDefault) GetPayload() *models.ErrorResponse {

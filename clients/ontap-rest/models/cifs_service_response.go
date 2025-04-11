@@ -114,6 +114,11 @@ func (m *CifsServiceResponse) ContextValidate(ctx context.Context, formats strfm
 func (m *CifsServiceResponse) contextValidateLinks(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Links != nil {
+
+		if swag.IsZero(m.Links) { // not required
+			return nil
+		}
+
 		if err := m.Links.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("_links")
@@ -132,6 +137,11 @@ func (m *CifsServiceResponse) contextValidateCifsServiceResponseInlineRecords(ct
 	for i := 0; i < len(m.CifsServiceResponseInlineRecords); i++ {
 
 		if m.CifsServiceResponseInlineRecords[i] != nil {
+
+			if swag.IsZero(m.CifsServiceResponseInlineRecords[i]) { // not required
+				return nil
+			}
+
 			if err := m.CifsServiceResponseInlineRecords[i].ContextValidate(ctx, formats); err != nil {
 				if ve, ok := err.(*errors.Validation); ok {
 					return ve.ValidateName("records" + "." + strconv.Itoa(i))
@@ -254,6 +264,11 @@ func (m *CifsServiceResponseInlineLinks) ContextValidate(ctx context.Context, fo
 func (m *CifsServiceResponseInlineLinks) contextValidateNext(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Next != nil {
+
+		if swag.IsZero(m.Next) { // not required
+			return nil
+		}
+
 		if err := m.Next.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("_links" + "." + "next")
@@ -270,6 +285,11 @@ func (m *CifsServiceResponseInlineLinks) contextValidateNext(ctx context.Context
 func (m *CifsServiceResponseInlineLinks) contextValidateSelf(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Self != nil {
+
+		if swag.IsZero(m.Self) { // not required
+			return nil
+		}
+
 		if err := m.Self.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("_links" + "." + "self")

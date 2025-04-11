@@ -6,6 +6,7 @@ package storage
 // Editing this file might prove futile when you re-run the swagger generate command
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 
@@ -92,11 +93,13 @@ func (o *SnapshotDeleteOK) Code() int {
 }
 
 func (o *SnapshotDeleteOK) Error() string {
-	return fmt.Sprintf("[DELETE /storage/volumes/{volume.uuid}/snapshots/{uuid}][%d] snapshotDeleteOK  %+v", 200, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[DELETE /storage/volumes/{volume.uuid}/snapshots/{uuid}][%d] snapshotDeleteOK %s", 200, payload)
 }
 
 func (o *SnapshotDeleteOK) String() string {
-	return fmt.Sprintf("[DELETE /storage/volumes/{volume.uuid}/snapshots/{uuid}][%d] snapshotDeleteOK  %+v", 200, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[DELETE /storage/volumes/{volume.uuid}/snapshots/{uuid}][%d] snapshotDeleteOK %s", 200, payload)
 }
 
 func (o *SnapshotDeleteOK) GetPayload() *models.SnapshotJobLinkResponse {
@@ -160,11 +163,13 @@ func (o *SnapshotDeleteAccepted) Code() int {
 }
 
 func (o *SnapshotDeleteAccepted) Error() string {
-	return fmt.Sprintf("[DELETE /storage/volumes/{volume.uuid}/snapshots/{uuid}][%d] snapshotDeleteAccepted  %+v", 202, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[DELETE /storage/volumes/{volume.uuid}/snapshots/{uuid}][%d] snapshotDeleteAccepted %s", 202, payload)
 }
 
 func (o *SnapshotDeleteAccepted) String() string {
-	return fmt.Sprintf("[DELETE /storage/volumes/{volume.uuid}/snapshots/{uuid}][%d] snapshotDeleteAccepted  %+v", 202, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[DELETE /storage/volumes/{volume.uuid}/snapshots/{uuid}][%d] snapshotDeleteAccepted %s", 202, payload)
 }
 
 func (o *SnapshotDeleteAccepted) GetPayload() *models.SnapshotJobLinkResponse {
@@ -243,11 +248,13 @@ func (o *SnapshotDeleteDefault) Code() int {
 }
 
 func (o *SnapshotDeleteDefault) Error() string {
-	return fmt.Sprintf("[DELETE /storage/volumes/{volume.uuid}/snapshots/{uuid}][%d] snapshot_delete default  %+v", o._statusCode, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[DELETE /storage/volumes/{volume.uuid}/snapshots/{uuid}][%d] snapshot_delete default %s", o._statusCode, payload)
 }
 
 func (o *SnapshotDeleteDefault) String() string {
-	return fmt.Sprintf("[DELETE /storage/volumes/{volume.uuid}/snapshots/{uuid}][%d] snapshot_delete default  %+v", o._statusCode, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[DELETE /storage/volumes/{volume.uuid}/snapshots/{uuid}][%d] snapshot_delete default %s", o._statusCode, payload)
 }
 
 func (o *SnapshotDeleteDefault) GetPayload() *models.ErrorResponse {

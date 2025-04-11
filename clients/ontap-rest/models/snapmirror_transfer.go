@@ -26,7 +26,7 @@ type SnapmirrorTransfer struct {
 
 	// This is supported for transfer of restore relationship only. Priority level at which objects are restored from the archival storage. The value can be high, standard or low. The cloud provider's lowest priority will be used as the default. It is only supported for object store SnapMirror relationships. If the objects were not archived, the property will be ignored.
 	// Example: high
-	// Enum: [standard high low]
+	// Enum: ["standard","high","low"]
 	ArchiveRetrievalPriority *string `json:"archive_retrieval_priority,omitempty"`
 
 	// Bytes transferred
@@ -63,7 +63,7 @@ type SnapmirrorTransfer struct {
 
 	// Specifies whether or not an on-demand restore is being carried out. This is only supported for the transfer of restore relationships for entire volumes from the object store. A value for read_write_with_user_data_pull should be provided to start an on-demand restore. A file restore from the object store does not support this option.
 	// Example: read_write_with_user_data_pull
-	// Enum: [off read_write_with_user_data_pull]
+	// Enum: ["off","read_write_with_user_data_pull"]
 	OnDemandAttrs *string `json:"on_demand_attrs,omitempty"`
 
 	// relationship
@@ -91,7 +91,7 @@ type SnapmirrorTransfer struct {
 	SourceSnapshotUUID *strfmt.UUID `json:"source_snapshot_uuid,omitempty"`
 
 	// Status of the transfer. Set PATCH state to "aborted" to abort the transfer. Set PATCH state to "hard_aborted" to abort the transfer and discard the restart checkpoint. To find "queued" transfers refer to relationships GET API.
-	// Enum: [aborted failed hard_aborted queued success transferring]
+	// Enum: ["aborted","failed","hard_aborted","queued","success","transferring"]
 	State *string `json:"state,omitempty"`
 
 	// This is supported for transfer of restore relationship only. Set this property to "false" to turn off storage efficiency for data transferred over the wire and written to the destination.
@@ -537,6 +537,11 @@ func (m *SnapmirrorTransfer) ContextValidate(ctx context.Context, formats strfmt
 func (m *SnapmirrorTransfer) contextValidateLinks(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Links != nil {
+
+		if swag.IsZero(m.Links) { // not required
+			return nil
+		}
+
 		if err := m.Links.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("_links")
@@ -589,6 +594,11 @@ func (m *SnapmirrorTransfer) contextValidateEndTime(ctx context.Context, formats
 func (m *SnapmirrorTransfer) contextValidateErrorInfo(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.ErrorInfo != nil {
+
+		if swag.IsZero(m.ErrorInfo) { // not required
+			return nil
+		}
+
 		if err := m.ErrorInfo.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("error_info")
@@ -623,6 +633,11 @@ func (m *SnapmirrorTransfer) contextValidateNetworkCompressionRatio(ctx context.
 func (m *SnapmirrorTransfer) contextValidateRelationship(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Relationship != nil {
+
+		if swag.IsZero(m.Relationship) { // not required
+			return nil
+		}
+
 		if err := m.Relationship.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("relationship")
@@ -641,6 +656,11 @@ func (m *SnapmirrorTransfer) contextValidateSnapmirrorTransferInlineFiles(ctx co
 	for i := 0; i < len(m.SnapmirrorTransferInlineFiles); i++ {
 
 		if m.SnapmirrorTransferInlineFiles[i] != nil {
+
+			if swag.IsZero(m.SnapmirrorTransferInlineFiles[i]) { // not required
+				return nil
+			}
+
 			if err := m.SnapmirrorTransferInlineFiles[i].ContextValidate(ctx, formats); err != nil {
 				if ve, ok := err.(*errors.Validation); ok {
 					return ve.ValidateName("files" + "." + strconv.Itoa(i))
@@ -661,6 +681,11 @@ func (m *SnapmirrorTransfer) contextValidateSnapmirrorTransferInlineOptions(ctx 
 	for i := 0; i < len(m.SnapmirrorTransferInlineOptions); i++ {
 
 		if m.SnapmirrorTransferInlineOptions[i] != nil {
+
+			if swag.IsZero(m.SnapmirrorTransferInlineOptions[i]) { // not required
+				return nil
+			}
+
 			if err := m.SnapmirrorTransferInlineOptions[i].ContextValidate(ctx, formats); err != nil {
 				if ve, ok := err.(*errors.Validation); ok {
 					return ve.ValidateName("options" + "." + strconv.Itoa(i))
@@ -869,6 +894,11 @@ func (m *SnapmirrorTransferInlineLinks) ContextValidate(ctx context.Context, for
 func (m *SnapmirrorTransferInlineLinks) contextValidateSelf(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Self != nil {
+
+		if swag.IsZero(m.Self) { // not required
+			return nil
+		}
+
 		if err := m.Self.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("_links" + "." + "self")
@@ -1025,6 +1055,11 @@ func (m *SnapmirrorTransferInlineRelationship) ContextValidate(ctx context.Conte
 func (m *SnapmirrorTransferInlineRelationship) contextValidateDestination(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Destination != nil {
+
+		if swag.IsZero(m.Destination) { // not required
+			return nil
+		}
+
 		if err := m.Destination.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("relationship" + "." + "destination")

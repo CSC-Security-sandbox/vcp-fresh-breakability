@@ -86,6 +86,11 @@ func (m *S3UserPostPatchResponse) contextValidateS3UserPostPatchResponseInlineRe
 	for i := 0; i < len(m.S3UserPostPatchResponseInlineRecords); i++ {
 
 		if m.S3UserPostPatchResponseInlineRecords[i] != nil {
+
+			if swag.IsZero(m.S3UserPostPatchResponseInlineRecords[i]) { // not required
+				return nil
+			}
+
 			if err := m.S3UserPostPatchResponseInlineRecords[i].ContextValidate(ctx, formats); err != nil {
 				if ve, ok := err.(*errors.Validation); ok {
 					return ve.ValidateName("records" + "." + strconv.Itoa(i))

@@ -124,6 +124,11 @@ func (m *RolePrivilege) ContextValidate(ctx context.Context, formats strfmt.Regi
 func (m *RolePrivilege) contextValidateLinks(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Links != nil {
+
+		if swag.IsZero(m.Links) { // not required
+			return nil
+		}
+
 		if err := m.Links.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("_links")
@@ -140,6 +145,11 @@ func (m *RolePrivilege) contextValidateLinks(ctx context.Context, formats strfmt
 func (m *RolePrivilege) contextValidateAccess(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Access != nil {
+
+		if swag.IsZero(m.Access) { // not required
+			return nil
+		}
+
 		if err := m.Access.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("access")
@@ -230,6 +240,11 @@ func (m *RolePrivilegeInlineLinks) ContextValidate(ctx context.Context, formats 
 func (m *RolePrivilegeInlineLinks) contextValidateSelf(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Self != nil {
+
+		if swag.IsZero(m.Self) { // not required
+			return nil
+		}
+
 		if err := m.Self.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("_links" + "." + "self")

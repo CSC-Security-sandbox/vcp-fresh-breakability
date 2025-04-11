@@ -81,6 +81,11 @@ func (m *CloudStorageTier) ContextValidate(ctx context.Context, formats strfmt.R
 func (m *CloudStorageTier) contextValidateCloudStore(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.CloudStore != nil {
+
+		if swag.IsZero(m.CloudStore) { // not required
+			return nil
+		}
+
 		if err := m.CloudStore.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("cloud_store")
@@ -188,6 +193,11 @@ func (m *CloudStorageTierInlineCloudStore) ContextValidate(ctx context.Context, 
 func (m *CloudStorageTierInlineCloudStore) contextValidateLinks(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Links != nil {
+
+		if swag.IsZero(m.Links) { // not required
+			return nil
+		}
+
 		if err := m.Links.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("cloud_store" + "." + "_links")
@@ -278,6 +288,11 @@ func (m *CloudStorageTierInlineCloudStoreInlineLinks) ContextValidate(ctx contex
 func (m *CloudStorageTierInlineCloudStoreInlineLinks) contextValidateSelf(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Self != nil {
+
+		if swag.IsZero(m.Self) { // not required
+			return nil
+		}
+
 		if err := m.Self.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("cloud_store" + "." + "_links" + "." + "self")

@@ -154,6 +154,11 @@ func (m *UnixGroup) ContextValidate(ctx context.Context, formats strfmt.Registry
 func (m *UnixGroup) contextValidateLinks(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Links != nil {
+
+		if swag.IsZero(m.Links) { // not required
+			return nil
+		}
+
 		if err := m.Links.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("_links")
@@ -170,6 +175,11 @@ func (m *UnixGroup) contextValidateLinks(ctx context.Context, formats strfmt.Reg
 func (m *UnixGroup) contextValidateSvm(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Svm != nil {
+
+		if swag.IsZero(m.Svm) { // not required
+			return nil
+		}
+
 		if err := m.Svm.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("svm")
@@ -192,6 +202,11 @@ func (m *UnixGroup) contextValidateUnixGroupInlineUsers(ctx context.Context, for
 	for i := 0; i < len(m.UnixGroupInlineUsers); i++ {
 
 		if m.UnixGroupInlineUsers[i] != nil {
+
+			if swag.IsZero(m.UnixGroupInlineUsers[i]) { // not required
+				return nil
+			}
+
 			if err := m.UnixGroupInlineUsers[i].ContextValidate(ctx, formats); err != nil {
 				if ve, ok := err.(*errors.Validation); ok {
 					return ve.ValidateName("users" + "." + strconv.Itoa(i))
@@ -284,6 +299,11 @@ func (m *UnixGroupInlineLinks) ContextValidate(ctx context.Context, formats strf
 func (m *UnixGroupInlineLinks) contextValidateSelf(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Self != nil {
+
+		if swag.IsZero(m.Self) { // not required
+			return nil
+		}
+
 		if err := m.Self.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("_links" + "." + "self")
@@ -384,6 +404,11 @@ func (m *UnixGroupInlineSvm) ContextValidate(ctx context.Context, formats strfmt
 func (m *UnixGroupInlineSvm) contextValidateLinks(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Links != nil {
+
+		if swag.IsZero(m.Links) { // not required
+			return nil
+		}
+
 		if err := m.Links.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("svm" + "." + "_links")
@@ -474,6 +499,11 @@ func (m *UnixGroupInlineSvmInlineLinks) ContextValidate(ctx context.Context, for
 func (m *UnixGroupInlineSvmInlineLinks) contextValidateSelf(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Self != nil {
+
+		if swag.IsZero(m.Self) { // not required
+			return nil
+		}
+
 		if err := m.Self.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("svm" + "." + "_links" + "." + "self")

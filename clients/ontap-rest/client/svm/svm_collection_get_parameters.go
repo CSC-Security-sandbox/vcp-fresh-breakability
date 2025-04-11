@@ -468,21 +468,21 @@ type SvmCollectionGetParams struct {
 	*/
 	NumberOfVolumesInRecoveryQueue *string
 
-	/* NVMEAllowed.
+	/* NvmeAllowed.
 
 	   Filter by nvme.allowed
 
 	   Format: boolean
 	*/
-	NVMEAllowed *string
+	NvmeAllowed *string
 
-	/* NVMEEnabled.
+	/* NvmeEnabled.
 
 	   Filter by nvme.enabled
 
 	   Format: boolean
 	*/
-	NVMEEnabled *string
+	NvmeEnabled *string
 
 	/* OrderBy.
 
@@ -1360,26 +1360,26 @@ func (o *SvmCollectionGetParams) SetNumberOfVolumesInRecoveryQueue(numberOfVolum
 	o.NumberOfVolumesInRecoveryQueue = numberOfVolumesInRecoveryQueue
 }
 
-// WithNVMEAllowed adds the nVMEAllowed to the svm collection get params
-func (o *SvmCollectionGetParams) WithNVMEAllowed(nVMEAllowed *string) *SvmCollectionGetParams {
-	o.SetNVMEAllowed(nVMEAllowed)
+// WithNvmeAllowed adds the nvmeAllowed to the svm collection get params
+func (o *SvmCollectionGetParams) WithNvmeAllowed(nvmeAllowed *string) *SvmCollectionGetParams {
+	o.SetNvmeAllowed(nvmeAllowed)
 	return o
 }
 
-// SetNVMEAllowed adds the nvmeAllowed to the svm collection get params
-func (o *SvmCollectionGetParams) SetNVMEAllowed(nVMEAllowed *string) {
-	o.NVMEAllowed = nVMEAllowed
+// SetNvmeAllowed adds the nvmeAllowed to the svm collection get params
+func (o *SvmCollectionGetParams) SetNvmeAllowed(nvmeAllowed *string) {
+	o.NvmeAllowed = nvmeAllowed
 }
 
-// WithNVMEEnabled adds the nVMEEnabled to the svm collection get params
-func (o *SvmCollectionGetParams) WithNVMEEnabled(nVMEEnabled *string) *SvmCollectionGetParams {
-	o.SetNVMEEnabled(nVMEEnabled)
+// WithNvmeEnabled adds the nvmeEnabled to the svm collection get params
+func (o *SvmCollectionGetParams) WithNvmeEnabled(nvmeEnabled *string) *SvmCollectionGetParams {
+	o.SetNvmeEnabled(nvmeEnabled)
 	return o
 }
 
-// SetNVMEEnabled adds the nvmeEnabled to the svm collection get params
-func (o *SvmCollectionGetParams) SetNVMEEnabled(nVMEEnabled *string) {
-	o.NVMEEnabled = nVMEEnabled
+// SetNvmeEnabled adds the nvmeEnabled to the svm collection get params
+func (o *SvmCollectionGetParams) SetNvmeEnabled(nvmeEnabled *string) {
+	o.NvmeEnabled = nvmeEnabled
 }
 
 // WithOrderBy adds the orderBy to the svm collection get params
@@ -2592,35 +2592,35 @@ func (o *SvmCollectionGetParams) WriteToRequest(r runtime.ClientRequest, reg str
 		}
 	}
 
-	if o.NVMEAllowed != nil {
+	if o.NvmeAllowed != nil {
 
 		// query param nvme.allowed
-		var qrNVMEAllowed string
+		var qrNvmeAllowed string
 
-		if o.NVMEAllowed != nil {
-			qrNVMEAllowed = *o.NVMEAllowed
+		if o.NvmeAllowed != nil {
+			qrNvmeAllowed = *o.NvmeAllowed
 		}
-		qNVMEAllowed := qrNVMEAllowed
-		if qNVMEAllowed != "" {
+		qNvmeAllowed := qrNvmeAllowed
+		if qNvmeAllowed != "" {
 
-			if err := r.SetQueryParam("nvme.allowed", qNVMEAllowed); err != nil {
+			if err := r.SetQueryParam("nvme.allowed", qNvmeAllowed); err != nil {
 				return err
 			}
 		}
 	}
 
-	if o.NVMEEnabled != nil {
+	if o.NvmeEnabled != nil {
 
 		// query param nvme.enabled
-		var qrNVMEEnabled string
+		var qrNvmeEnabled string
 
-		if o.NVMEEnabled != nil {
-			qrNVMEEnabled = *o.NVMEEnabled
+		if o.NvmeEnabled != nil {
+			qrNvmeEnabled = *o.NvmeEnabled
 		}
-		qNVMEEnabled := qrNVMEEnabled
-		if qNVMEEnabled != "" {
+		qNvmeEnabled := qrNvmeEnabled
+		if qNvmeEnabled != "" {
 
-			if err := r.SetQueryParam("nvme.enabled", qNVMEEnabled); err != nil {
+			if err := r.SetQueryParam("nvme.enabled", qNvmeEnabled); err != nil {
 				return err
 			}
 		}

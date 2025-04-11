@@ -6,6 +6,7 @@ package snapmirror
 // Editing this file might prove futile when you re-run the swagger generate command
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 
@@ -86,11 +87,13 @@ func (o *SnapmirrorRelationshipsGetOK) Code() int {
 }
 
 func (o *SnapmirrorRelationshipsGetOK) Error() string {
-	return fmt.Sprintf("[GET /snapmirror/relationships][%d] snapmirrorRelationshipsGetOK  %+v", 200, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[GET /snapmirror/relationships][%d] snapmirrorRelationshipsGetOK %s", 200, payload)
 }
 
 func (o *SnapmirrorRelationshipsGetOK) String() string {
-	return fmt.Sprintf("[GET /snapmirror/relationships][%d] snapmirrorRelationshipsGetOK  %+v", 200, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[GET /snapmirror/relationships][%d] snapmirrorRelationshipsGetOK %s", 200, payload)
 }
 
 func (o *SnapmirrorRelationshipsGetOK) GetPayload() *models.SnapmirrorRelationshipResponse {
@@ -163,11 +166,13 @@ func (o *SnapmirrorRelationshipsGetDefault) Code() int {
 }
 
 func (o *SnapmirrorRelationshipsGetDefault) Error() string {
-	return fmt.Sprintf("[GET /snapmirror/relationships][%d] snapmirror_relationships_get default  %+v", o._statusCode, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[GET /snapmirror/relationships][%d] snapmirror_relationships_get default %s", o._statusCode, payload)
 }
 
 func (o *SnapmirrorRelationshipsGetDefault) String() string {
-	return fmt.Sprintf("[GET /snapmirror/relationships][%d] snapmirror_relationships_get default  %+v", o._statusCode, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[GET /snapmirror/relationships][%d] snapmirror_relationships_get default %s", o._statusCode, payload)
 }
 
 func (o *SnapmirrorRelationshipsGetDefault) GetPayload() *models.ErrorResponse {

@@ -6,6 +6,7 @@ package object_store
 // Editing this file might prove futile when you re-run the swagger generate command
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 
@@ -92,11 +93,13 @@ func (o *S3ServiceDeleteOK) Code() int {
 }
 
 func (o *S3ServiceDeleteOK) Error() string {
-	return fmt.Sprintf("[DELETE /protocols/s3/services/{svm.uuid}][%d] s3ServiceDeleteOK  %+v", 200, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[DELETE /protocols/s3/services/{svm.uuid}][%d] s3ServiceDeleteOK %s", 200, payload)
 }
 
 func (o *S3ServiceDeleteOK) String() string {
-	return fmt.Sprintf("[DELETE /protocols/s3/services/{svm.uuid}][%d] s3ServiceDeleteOK  %+v", 200, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[DELETE /protocols/s3/services/{svm.uuid}][%d] s3ServiceDeleteOK %s", 200, payload)
 }
 
 func (o *S3ServiceDeleteOK) GetPayload() *models.S3ServiceJobLinkResponse {
@@ -160,11 +163,13 @@ func (o *S3ServiceDeleteAccepted) Code() int {
 }
 
 func (o *S3ServiceDeleteAccepted) Error() string {
-	return fmt.Sprintf("[DELETE /protocols/s3/services/{svm.uuid}][%d] s3ServiceDeleteAccepted  %+v", 202, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[DELETE /protocols/s3/services/{svm.uuid}][%d] s3ServiceDeleteAccepted %s", 202, payload)
 }
 
 func (o *S3ServiceDeleteAccepted) String() string {
-	return fmt.Sprintf("[DELETE /protocols/s3/services/{svm.uuid}][%d] s3ServiceDeleteAccepted  %+v", 202, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[DELETE /protocols/s3/services/{svm.uuid}][%d] s3ServiceDeleteAccepted %s", 202, payload)
 }
 
 func (o *S3ServiceDeleteAccepted) GetPayload() *models.S3ServiceJobLinkResponse {
@@ -236,11 +241,13 @@ func (o *S3ServiceDeleteDefault) Code() int {
 }
 
 func (o *S3ServiceDeleteDefault) Error() string {
-	return fmt.Sprintf("[DELETE /protocols/s3/services/{svm.uuid}][%d] s3_service_delete default  %+v", o._statusCode, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[DELETE /protocols/s3/services/{svm.uuid}][%d] s3_service_delete default %s", o._statusCode, payload)
 }
 
 func (o *S3ServiceDeleteDefault) String() string {
-	return fmt.Sprintf("[DELETE /protocols/s3/services/{svm.uuid}][%d] s3_service_delete default  %+v", o._statusCode, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[DELETE /protocols/s3/services/{svm.uuid}][%d] s3_service_delete default %s", o._statusCode, payload)
 }
 
 func (o *S3ServiceDeleteDefault) GetPayload() *models.ErrorResponse {

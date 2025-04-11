@@ -52,7 +52,7 @@ type LdapSchema struct {
 
 	// Scope of the entity. Set to "cluster" for cluster owned objects and to "svm" for SVM owned objects.
 	// Read Only: true
-	// Enum: [cluster svm]
+	// Enum: ["cluster","svm"]
 	Scope *string `json:"scope,omitempty"`
 
 	// template
@@ -318,6 +318,11 @@ func (m *LdapSchema) ContextValidate(ctx context.Context, formats strfmt.Registr
 func (m *LdapSchema) contextValidateLinks(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Links != nil {
+
+		if swag.IsZero(m.Links) { // not required
+			return nil
+		}
+
 		if err := m.Links.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("_links")
@@ -343,6 +348,11 @@ func (m *LdapSchema) contextValidateGlobalSchema(ctx context.Context, formats st
 func (m *LdapSchema) contextValidateNameMapping(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.NameMapping != nil {
+
+		if swag.IsZero(m.NameMapping) { // not required
+			return nil
+		}
+
 		if err := m.NameMapping.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("name_mapping")
@@ -359,6 +369,11 @@ func (m *LdapSchema) contextValidateNameMapping(ctx context.Context, formats str
 func (m *LdapSchema) contextValidateOwner(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Owner != nil {
+
+		if swag.IsZero(m.Owner) { // not required
+			return nil
+		}
+
 		if err := m.Owner.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("owner")
@@ -375,6 +390,11 @@ func (m *LdapSchema) contextValidateOwner(ctx context.Context, formats strfmt.Re
 func (m *LdapSchema) contextValidateRfc2307(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Rfc2307 != nil {
+
+		if swag.IsZero(m.Rfc2307) { // not required
+			return nil
+		}
+
 		if err := m.Rfc2307.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("rfc2307")
@@ -391,6 +411,11 @@ func (m *LdapSchema) contextValidateRfc2307(ctx context.Context, formats strfmt.
 func (m *LdapSchema) contextValidateRfc2307bis(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Rfc2307bis != nil {
+
+		if swag.IsZero(m.Rfc2307bis) { // not required
+			return nil
+		}
+
 		if err := m.Rfc2307bis.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("rfc2307bis")
@@ -416,6 +441,11 @@ func (m *LdapSchema) contextValidateScope(ctx context.Context, formats strfmt.Re
 func (m *LdapSchema) contextValidateTemplate(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Template != nil {
+
+		if swag.IsZero(m.Template) { // not required
+			return nil
+		}
+
 		if err := m.Template.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("template")
@@ -506,6 +536,11 @@ func (m *LdapSchemaInlineLinks) ContextValidate(ctx context.Context, formats str
 func (m *LdapSchemaInlineLinks) contextValidateSelf(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Self != nil {
+
+		if swag.IsZero(m.Self) { // not required
+			return nil
+		}
+
 		if err := m.Self.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("_links" + "." + "self")
@@ -606,6 +641,11 @@ func (m *LdapSchemaInlineOwner) ContextValidate(ctx context.Context, formats str
 func (m *LdapSchemaInlineOwner) contextValidateLinks(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Links != nil {
+
+		if swag.IsZero(m.Links) { // not required
+			return nil
+		}
+
 		if err := m.Links.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("owner" + "." + "_links")
@@ -696,6 +736,11 @@ func (m *LdapSchemaInlineOwnerInlineLinks) ContextValidate(ctx context.Context, 
 func (m *LdapSchemaInlineOwnerInlineLinks) contextValidateSelf(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Self != nil {
+
+		if swag.IsZero(m.Self) { // not required
+			return nil
+		}
+
 		if err := m.Self.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("owner" + "." + "_links" + "." + "self")
@@ -812,6 +857,11 @@ func (m *LdapSchemaInlineTemplate) ContextValidate(ctx context.Context, formats 
 func (m *LdapSchemaInlineTemplate) contextValidateLinks(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Links != nil {
+
+		if swag.IsZero(m.Links) { // not required
+			return nil
+		}
+
 		if err := m.Links.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("template" + "." + "_links")
@@ -902,6 +952,11 @@ func (m *LdapSchemaInlineTemplateInlineLinks) ContextValidate(ctx context.Contex
 func (m *LdapSchemaInlineTemplateInlineLinks) contextValidateSelf(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Self != nil {
+
+		if swag.IsZero(m.Self) { // not required
+			return nil
+		}
+
 		if err := m.Self.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("template" + "." + "_links" + "." + "self")

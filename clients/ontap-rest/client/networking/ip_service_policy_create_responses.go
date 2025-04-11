@@ -6,6 +6,7 @@ package networking
 // Editing this file might prove futile when you re-run the swagger generate command
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 
@@ -91,11 +92,11 @@ func (o *IPServicePolicyCreateOK) Code() int {
 }
 
 func (o *IPServicePolicyCreateOK) Error() string {
-	return fmt.Sprintf("[POST /network/ip/service-policies][%d] ipServicePolicyCreateOK ", 200)
+	return fmt.Sprintf("[POST /network/ip/service-policies][%d] ipServicePolicyCreateOK", 200)
 }
 
 func (o *IPServicePolicyCreateOK) String() string {
-	return fmt.Sprintf("[POST /network/ip/service-policies][%d] ipServicePolicyCreateOK ", 200)
+	return fmt.Sprintf("[POST /network/ip/service-policies][%d] ipServicePolicyCreateOK", 200)
 }
 
 func (o *IPServicePolicyCreateOK) readResponse(response runtime.ClientResponse, consumer runtime.Consumer, formats strfmt.Registry) error {
@@ -151,11 +152,11 @@ func (o *IPServicePolicyCreateCreated) Code() int {
 }
 
 func (o *IPServicePolicyCreateCreated) Error() string {
-	return fmt.Sprintf("[POST /network/ip/service-policies][%d] ipServicePolicyCreateCreated ", 201)
+	return fmt.Sprintf("[POST /network/ip/service-policies][%d] ipServicePolicyCreateCreated", 201)
 }
 
 func (o *IPServicePolicyCreateCreated) String() string {
-	return fmt.Sprintf("[POST /network/ip/service-policies][%d] ipServicePolicyCreateCreated ", 201)
+	return fmt.Sprintf("[POST /network/ip/service-policies][%d] ipServicePolicyCreateCreated", 201)
 }
 
 func (o *IPServicePolicyCreateCreated) readResponse(response runtime.ClientResponse, consumer runtime.Consumer, formats strfmt.Registry) error {
@@ -245,11 +246,13 @@ func (o *IPServicePolicyCreateDefault) Code() int {
 }
 
 func (o *IPServicePolicyCreateDefault) Error() string {
-	return fmt.Sprintf("[POST /network/ip/service-policies][%d] ip_service_policy_create default  %+v", o._statusCode, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[POST /network/ip/service-policies][%d] ip_service_policy_create default %s", o._statusCode, payload)
 }
 
 func (o *IPServicePolicyCreateDefault) String() string {
-	return fmt.Sprintf("[POST /network/ip/service-policies][%d] ip_service_policy_create default  %+v", o._statusCode, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[POST /network/ip/service-policies][%d] ip_service_policy_create default %s", o._statusCode, payload)
 }
 
 func (o *IPServicePolicyCreateDefault) GetPayload() *models.ErrorResponse {

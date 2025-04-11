@@ -6,6 +6,7 @@ package storage
 // Editing this file might prove futile when you re-run the swagger generate command
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 
@@ -92,11 +93,13 @@ func (o *QuotaRuleModifyOK) Code() int {
 }
 
 func (o *QuotaRuleModifyOK) Error() string {
-	return fmt.Sprintf("[PATCH /storage/quota/rules/{uuid}][%d] quotaRuleModifyOK  %+v", 200, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[PATCH /storage/quota/rules/{uuid}][%d] quotaRuleModifyOK %s", 200, payload)
 }
 
 func (o *QuotaRuleModifyOK) String() string {
-	return fmt.Sprintf("[PATCH /storage/quota/rules/{uuid}][%d] quotaRuleModifyOK  %+v", 200, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[PATCH /storage/quota/rules/{uuid}][%d] quotaRuleModifyOK %s", 200, payload)
 }
 
 func (o *QuotaRuleModifyOK) GetPayload() *models.QuotaRuleJobLinkResponse {
@@ -160,11 +163,13 @@ func (o *QuotaRuleModifyAccepted) Code() int {
 }
 
 func (o *QuotaRuleModifyAccepted) Error() string {
-	return fmt.Sprintf("[PATCH /storage/quota/rules/{uuid}][%d] quotaRuleModifyAccepted  %+v", 202, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[PATCH /storage/quota/rules/{uuid}][%d] quotaRuleModifyAccepted %s", 202, payload)
 }
 
 func (o *QuotaRuleModifyAccepted) String() string {
-	return fmt.Sprintf("[PATCH /storage/quota/rules/{uuid}][%d] quotaRuleModifyAccepted  %+v", 202, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[PATCH /storage/quota/rules/{uuid}][%d] quotaRuleModifyAccepted %s", 202, payload)
 }
 
 func (o *QuotaRuleModifyAccepted) GetPayload() *models.QuotaRuleJobLinkResponse {
@@ -245,11 +250,13 @@ func (o *QuotaRuleModifyDefault) Code() int {
 }
 
 func (o *QuotaRuleModifyDefault) Error() string {
-	return fmt.Sprintf("[PATCH /storage/quota/rules/{uuid}][%d] quota_rule_modify default  %+v", o._statusCode, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[PATCH /storage/quota/rules/{uuid}][%d] quota_rule_modify default %s", o._statusCode, payload)
 }
 
 func (o *QuotaRuleModifyDefault) String() string {
-	return fmt.Sprintf("[PATCH /storage/quota/rules/{uuid}][%d] quota_rule_modify default  %+v", o._statusCode, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[PATCH /storage/quota/rules/{uuid}][%d] quota_rule_modify default %s", o._statusCode, payload)
 }
 
 func (o *QuotaRuleModifyDefault) GetPayload() *models.ErrorResponse {

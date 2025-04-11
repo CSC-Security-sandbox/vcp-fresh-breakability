@@ -88,7 +88,7 @@ type Snapshot struct {
 
 	// State of the FlexGroup volume snapshot. In the "pre_conversion" state, the snapshot was created before converting the FlexVol to a FlexGroup volume. A recently created snapshot can be in the "unknown" state while the system is calculating the state. In the "partial" state, the snapshot is consistent but exists only on the subset of the constituents that existed prior to the FlexGroup's expansion. Partial snapshots cannot be used for a snapshot restore operation. A snapshot is in an "invalid" state when it is present in some FlexGroup constituents but not in others. At all other times, a snapshot is valid.
 	// Read Only: true
-	// Enum: [valid invalid partial unknown pre_conversion]
+	// Enum: ["valid","invalid","partial","unknown","pre_conversion"]
 	State *string `json:"state,omitempty"`
 
 	// svm
@@ -484,6 +484,11 @@ func (m *Snapshot) ContextValidate(ctx context.Context, formats strfmt.Registry)
 func (m *Snapshot) contextValidateLinks(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Links != nil {
+
+		if swag.IsZero(m.Links) { // not required
+			return nil
+		}
+
 		if err := m.Links.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("_links")
@@ -527,6 +532,11 @@ func (m *Snapshot) contextValidateDedupSavings(ctx context.Context, formats strf
 func (m *Snapshot) contextValidateDelta(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Delta != nil {
+
+		if swag.IsZero(m.Delta) { // not required
+			return nil
+		}
+
 		if err := m.Delta.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("delta")
@@ -561,6 +571,11 @@ func (m *Snapshot) contextValidateOwners(ctx context.Context, formats strfmt.Reg
 func (m *Snapshot) contextValidateProvenanceVolume(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.ProvenanceVolume != nil {
+
+		if swag.IsZero(m.ProvenanceVolume) { // not required
+			return nil
+		}
+
 		if err := m.ProvenanceVolume.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("provenance_volume")
@@ -586,6 +601,11 @@ func (m *Snapshot) contextValidateSize(ctx context.Context, formats strfmt.Regis
 func (m *Snapshot) contextValidateSnaplock(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Snaplock != nil {
+
+		if swag.IsZero(m.Snaplock) { // not required
+			return nil
+		}
+
 		if err := m.Snaplock.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("snaplock")
@@ -611,6 +631,11 @@ func (m *Snapshot) contextValidateState(ctx context.Context, formats strfmt.Regi
 func (m *Snapshot) contextValidateSvm(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Svm != nil {
+
+		if swag.IsZero(m.Svm) { // not required
+			return nil
+		}
+
 		if err := m.Svm.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("svm")
@@ -654,6 +679,11 @@ func (m *Snapshot) contextValidateVersionUUID(ctx context.Context, formats strfm
 func (m *Snapshot) contextValidateVolume(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Volume != nil {
+
+		if swag.IsZero(m.Volume) { // not required
+			return nil
+		}
+
 		if err := m.Volume.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("volume")
@@ -744,6 +774,11 @@ func (m *SnapshotInlineLinks) ContextValidate(ctx context.Context, formats strfm
 func (m *SnapshotInlineLinks) contextValidateSelf(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Self != nil {
+
+		if swag.IsZero(m.Self) { // not required
+			return nil
+		}
+
 		if err := m.Self.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("_links" + "." + "self")
@@ -1002,6 +1037,11 @@ func (m *SnapshotInlineSvm) ContextValidate(ctx context.Context, formats strfmt.
 func (m *SnapshotInlineSvm) contextValidateLinks(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Links != nil {
+
+		if swag.IsZero(m.Links) { // not required
+			return nil
+		}
+
 		if err := m.Links.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("svm" + "." + "_links")
@@ -1092,6 +1132,11 @@ func (m *SnapshotInlineSvmInlineLinks) ContextValidate(ctx context.Context, form
 func (m *SnapshotInlineSvmInlineLinks) contextValidateSelf(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Self != nil {
+
+		if swag.IsZero(m.Self) { // not required
+			return nil
+		}
+
 		if err := m.Self.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("svm" + "." + "_links" + "." + "self")
@@ -1190,6 +1235,11 @@ func (m *SnapshotInlineVolume) ContextValidate(ctx context.Context, formats strf
 func (m *SnapshotInlineVolume) contextValidateLinks(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Links != nil {
+
+		if swag.IsZero(m.Links) { // not required
+			return nil
+		}
+
 		if err := m.Links.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("volume" + "." + "_links")
@@ -1280,6 +1330,11 @@ func (m *SnapshotInlineVolumeInlineLinks) ContextValidate(ctx context.Context, f
 func (m *SnapshotInlineVolumeInlineLinks) contextValidateSelf(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Self != nil {
+
+		if swag.IsZero(m.Self) { // not required
+			return nil
+		}
+
 		if err := m.Self.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("volume" + "." + "_links" + "." + "self")

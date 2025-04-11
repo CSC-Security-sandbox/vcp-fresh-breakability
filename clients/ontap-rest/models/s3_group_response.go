@@ -114,6 +114,11 @@ func (m *S3GroupResponse) ContextValidate(ctx context.Context, formats strfmt.Re
 func (m *S3GroupResponse) contextValidateLinks(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Links != nil {
+
+		if swag.IsZero(m.Links) { // not required
+			return nil
+		}
+
 		if err := m.Links.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("_links")
@@ -132,6 +137,11 @@ func (m *S3GroupResponse) contextValidateS3GroupResponseInlineRecords(ctx contex
 	for i := 0; i < len(m.S3GroupResponseInlineRecords); i++ {
 
 		if m.S3GroupResponseInlineRecords[i] != nil {
+
+			if swag.IsZero(m.S3GroupResponseInlineRecords[i]) { // not required
+				return nil
+			}
+
 			if err := m.S3GroupResponseInlineRecords[i].ContextValidate(ctx, formats); err != nil {
 				if ve, ok := err.(*errors.Validation); ok {
 					return ve.ValidateName("records" + "." + strconv.Itoa(i))

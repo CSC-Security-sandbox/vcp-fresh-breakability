@@ -6,6 +6,7 @@ package storage
 // Editing this file might prove futile when you re-run the swagger generate command
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 
@@ -86,11 +87,13 @@ func (o *SnapshotCollectionGetOK) Code() int {
 }
 
 func (o *SnapshotCollectionGetOK) Error() string {
-	return fmt.Sprintf("[GET /storage/volumes/{volume.uuid}/snapshots][%d] snapshotCollectionGetOK  %+v", 200, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[GET /storage/volumes/{volume.uuid}/snapshots][%d] snapshotCollectionGetOK %s", 200, payload)
 }
 
 func (o *SnapshotCollectionGetOK) String() string {
-	return fmt.Sprintf("[GET /storage/volumes/{volume.uuid}/snapshots][%d] snapshotCollectionGetOK  %+v", 200, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[GET /storage/volumes/{volume.uuid}/snapshots][%d] snapshotCollectionGetOK %s", 200, payload)
 }
 
 func (o *SnapshotCollectionGetOK) GetPayload() *models.SnapshotResponse {
@@ -163,11 +166,13 @@ func (o *SnapshotCollectionGetDefault) Code() int {
 }
 
 func (o *SnapshotCollectionGetDefault) Error() string {
-	return fmt.Sprintf("[GET /storage/volumes/{volume.uuid}/snapshots][%d] snapshot_collection_get default  %+v", o._statusCode, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[GET /storage/volumes/{volume.uuid}/snapshots][%d] snapshot_collection_get default %s", o._statusCode, payload)
 }
 
 func (o *SnapshotCollectionGetDefault) String() string {
-	return fmt.Sprintf("[GET /storage/volumes/{volume.uuid}/snapshots][%d] snapshot_collection_get default  %+v", o._statusCode, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[GET /storage/volumes/{volume.uuid}/snapshots][%d] snapshot_collection_get default %s", o._statusCode, payload)
 }
 
 func (o *SnapshotCollectionGetDefault) GetPayload() *models.ErrorResponse {

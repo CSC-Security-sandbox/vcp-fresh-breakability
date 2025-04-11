@@ -6,6 +6,7 @@ package name_services
 // Editing this file might prove futile when you re-run the swagger generate command
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 
@@ -86,11 +87,13 @@ func (o *UnixUserCollectionGetOK) Code() int {
 }
 
 func (o *UnixUserCollectionGetOK) Error() string {
-	return fmt.Sprintf("[GET /name-services/unix-users][%d] unixUserCollectionGetOK  %+v", 200, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[GET /name-services/unix-users][%d] unixUserCollectionGetOK %s", 200, payload)
 }
 
 func (o *UnixUserCollectionGetOK) String() string {
-	return fmt.Sprintf("[GET /name-services/unix-users][%d] unixUserCollectionGetOK  %+v", 200, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[GET /name-services/unix-users][%d] unixUserCollectionGetOK %s", 200, payload)
 }
 
 func (o *UnixUserCollectionGetOK) GetPayload() *models.UnixUserResponse {
@@ -158,11 +161,13 @@ func (o *UnixUserCollectionGetDefault) Code() int {
 }
 
 func (o *UnixUserCollectionGetDefault) Error() string {
-	return fmt.Sprintf("[GET /name-services/unix-users][%d] unix_user_collection_get default  %+v", o._statusCode, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[GET /name-services/unix-users][%d] unix_user_collection_get default %s", o._statusCode, payload)
 }
 
 func (o *UnixUserCollectionGetDefault) String() string {
-	return fmt.Sprintf("[GET /name-services/unix-users][%d] unix_user_collection_get default  %+v", o._statusCode, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[GET /name-services/unix-users][%d] unix_user_collection_get default %s", o._statusCode, payload)
 }
 
 func (o *UnixUserCollectionGetDefault) GetPayload() *models.ErrorResponse {

@@ -6,6 +6,7 @@ package name_services
 // Editing this file might prove futile when you re-run the swagger generate command
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 
@@ -86,11 +87,13 @@ func (o *NameMappingCollectionGetOK) Code() int {
 }
 
 func (o *NameMappingCollectionGetOK) Error() string {
-	return fmt.Sprintf("[GET /name-services/name-mappings][%d] nameMappingCollectionGetOK  %+v", 200, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[GET /name-services/name-mappings][%d] nameMappingCollectionGetOK %s", 200, payload)
 }
 
 func (o *NameMappingCollectionGetOK) String() string {
-	return fmt.Sprintf("[GET /name-services/name-mappings][%d] nameMappingCollectionGetOK  %+v", 200, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[GET /name-services/name-mappings][%d] nameMappingCollectionGetOK %s", 200, payload)
 }
 
 func (o *NameMappingCollectionGetOK) GetPayload() *models.NameMappingResponse {
@@ -158,11 +161,13 @@ func (o *NameMappingCollectionGetDefault) Code() int {
 }
 
 func (o *NameMappingCollectionGetDefault) Error() string {
-	return fmt.Sprintf("[GET /name-services/name-mappings][%d] name_mapping_collection_get default  %+v", o._statusCode, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[GET /name-services/name-mappings][%d] name_mapping_collection_get default %s", o._statusCode, payload)
 }
 
 func (o *NameMappingCollectionGetDefault) String() string {
-	return fmt.Sprintf("[GET /name-services/name-mappings][%d] name_mapping_collection_get default  %+v", o._statusCode, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[GET /name-services/name-mappings][%d] name_mapping_collection_get default %s", o._statusCode, payload)
 }
 
 func (o *NameMappingCollectionGetDefault) GetPayload() *models.ErrorResponse {

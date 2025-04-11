@@ -7,6 +7,7 @@ package storage
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"io"
 	"strconv"
@@ -96,11 +97,13 @@ func (o *VolumeDeleteCollectionOK) Code() int {
 }
 
 func (o *VolumeDeleteCollectionOK) Error() string {
-	return fmt.Sprintf("[DELETE /storage/volumes][%d] volumeDeleteCollectionOK  %+v", 200, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[DELETE /storage/volumes][%d] volumeDeleteCollectionOK %s", 200, payload)
 }
 
 func (o *VolumeDeleteCollectionOK) String() string {
-	return fmt.Sprintf("[DELETE /storage/volumes][%d] volumeDeleteCollectionOK  %+v", 200, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[DELETE /storage/volumes][%d] volumeDeleteCollectionOK %s", 200, payload)
 }
 
 func (o *VolumeDeleteCollectionOK) GetPayload() *models.VolumeJobLinkResponse {
@@ -164,11 +167,13 @@ func (o *VolumeDeleteCollectionAccepted) Code() int {
 }
 
 func (o *VolumeDeleteCollectionAccepted) Error() string {
-	return fmt.Sprintf("[DELETE /storage/volumes][%d] volumeDeleteCollectionAccepted  %+v", 202, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[DELETE /storage/volumes][%d] volumeDeleteCollectionAccepted %s", 202, payload)
 }
 
 func (o *VolumeDeleteCollectionAccepted) String() string {
-	return fmt.Sprintf("[DELETE /storage/volumes][%d] volumeDeleteCollectionAccepted  %+v", 202, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[DELETE /storage/volumes][%d] volumeDeleteCollectionAccepted %s", 202, payload)
 }
 
 func (o *VolumeDeleteCollectionAccepted) GetPayload() *models.VolumeJobLinkResponse {
@@ -252,11 +257,13 @@ func (o *VolumeDeleteCollectionDefault) Code() int {
 }
 
 func (o *VolumeDeleteCollectionDefault) Error() string {
-	return fmt.Sprintf("[DELETE /storage/volumes][%d] volume_delete_collection default  %+v", o._statusCode, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[DELETE /storage/volumes][%d] volume_delete_collection default %s", o._statusCode, payload)
 }
 
 func (o *VolumeDeleteCollectionDefault) String() string {
-	return fmt.Sprintf("[DELETE /storage/volumes][%d] volume_delete_collection default  %+v", o._statusCode, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[DELETE /storage/volumes][%d] volume_delete_collection default %s", o._statusCode, payload)
 }
 
 func (o *VolumeDeleteCollectionDefault) GetPayload() *models.ErrorResponse {
@@ -282,7 +289,7 @@ swagger:model VolumeDeleteCollectionBody
 type VolumeDeleteCollectionBody struct {
 
 	// analytics
-	Analytics *VolumeResponseInlineAnalytics `json:"analytics,omitempty"`
+	Analytics *models.VolumeResponseInlineAnalytics `json:"analytics,omitempty"`
 
 	// volume response inline records
 	VolumeResponseInlineRecords []*models.Volume `json:"records,omitempty"`
@@ -372,6 +379,11 @@ func (o *VolumeDeleteCollectionBody) ContextValidate(ctx context.Context, format
 func (o *VolumeDeleteCollectionBody) contextValidateAnalytics(ctx context.Context, formats strfmt.Registry) error {
 
 	if o.Analytics != nil {
+
+		if swag.IsZero(o.Analytics) { // not required
+			return nil
+		}
+
 		if err := o.Analytics.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("info" + "." + "analytics")
@@ -390,6 +402,11 @@ func (o *VolumeDeleteCollectionBody) contextValidateVolumeResponseInlineRecords(
 	for i := 0; i < len(o.VolumeResponseInlineRecords); i++ {
 
 		if o.VolumeResponseInlineRecords[i] != nil {
+
+			if swag.IsZero(o.VolumeResponseInlineRecords[i]) { // not required
+				return nil
+			}
+
 			if err := o.VolumeResponseInlineRecords[i].ContextValidate(ctx, formats); err != nil {
 				if ve, ok := err.(*errors.Validation); ok {
 					return ve.ValidateName("info" + "." + "records" + "." + strconv.Itoa(i))
@@ -432,10 +449,10 @@ swagger:model volume_response_inline_analytics
 type VolumeResponseInlineAnalytics struct {
 
 	// by accessed time
-	ByAccessedTime *VolumeResponseInlineAnalyticsInlineByAccessedTime `json:"by_accessed_time,omitempty"`
+	ByAccessedTime *models.VolumeResponseInlineAnalyticsInlineByAccessedTime `json:"by_accessed_time,omitempty"`
 
 	// by modified time
-	ByModifiedTime *VolumeResponseInlineAnalyticsInlineByModifiedTime `json:"by_modified_time,omitempty"`
+	ByModifiedTime *models.VolumeResponseInlineAnalyticsInlineByModifiedTime `json:"by_modified_time,omitempty"`
 }
 
 // Validate validates this volume response inline analytics
@@ -515,6 +532,11 @@ func (o *VolumeResponseInlineAnalytics) ContextValidate(ctx context.Context, for
 func (o *VolumeResponseInlineAnalytics) contextValidateByAccessedTime(ctx context.Context, formats strfmt.Registry) error {
 
 	if o.ByAccessedTime != nil {
+
+		if swag.IsZero(o.ByAccessedTime) { // not required
+			return nil
+		}
+
 		if err := o.ByAccessedTime.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("info" + "." + "analytics" + "." + "by_accessed_time")
@@ -531,6 +553,11 @@ func (o *VolumeResponseInlineAnalytics) contextValidateByAccessedTime(ctx contex
 func (o *VolumeResponseInlineAnalytics) contextValidateByModifiedTime(ctx context.Context, formats strfmt.Registry) error {
 
 	if o.ByModifiedTime != nil {
+
+		if swag.IsZero(o.ByModifiedTime) { // not required
+			return nil
+		}
+
 		if err := o.ByModifiedTime.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("info" + "." + "analytics" + "." + "by_modified_time")
@@ -569,7 +596,7 @@ swagger:model volume_response_inline_analytics_inline_by_accessed_time
 type VolumeResponseInlineAnalyticsInlineByAccessedTime struct {
 
 	// bytes used
-	BytesUsed *VolumeResponseInlineAnalyticsInlineByAccessedTimeInlineBytesUsed `json:"bytes_used,omitempty"`
+	BytesUsed *models.VolumeResponseInlineAnalyticsInlineByAccessedTimeInlineBytesUsed `json:"bytes_used,omitempty"`
 }
 
 // Validate validates this volume response inline analytics inline by accessed time
@@ -622,6 +649,11 @@ func (o *VolumeResponseInlineAnalyticsInlineByAccessedTime) ContextValidate(ctx 
 func (o *VolumeResponseInlineAnalyticsInlineByAccessedTime) contextValidateBytesUsed(ctx context.Context, formats strfmt.Registry) error {
 
 	if o.BytesUsed != nil {
+
+		if swag.IsZero(o.BytesUsed) { // not required
+			return nil
+		}
+
 		if err := o.BytesUsed.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("info" + "." + "analytics" + "." + "by_accessed_time" + "." + "bytes_used")
@@ -747,7 +779,7 @@ swagger:model volume_response_inline_analytics_inline_by_modified_time
 type VolumeResponseInlineAnalyticsInlineByModifiedTime struct {
 
 	// bytes used
-	BytesUsed *VolumeResponseInlineAnalyticsInlineByModifiedTimeInlineBytesUsed `json:"bytes_used,omitempty"`
+	BytesUsed *models.VolumeResponseInlineAnalyticsInlineByModifiedTimeInlineBytesUsed `json:"bytes_used,omitempty"`
 }
 
 // Validate validates this volume response inline analytics inline by modified time
@@ -800,6 +832,11 @@ func (o *VolumeResponseInlineAnalyticsInlineByModifiedTime) ContextValidate(ctx 
 func (o *VolumeResponseInlineAnalyticsInlineByModifiedTime) contextValidateBytesUsed(ctx context.Context, formats strfmt.Registry) error {
 
 	if o.BytesUsed != nil {
+
+		if swag.IsZero(o.BytesUsed) { // not required
+			return nil
+		}
+
 		if err := o.BytesUsed.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("info" + "." + "analytics" + "." + "by_modified_time" + "." + "bytes_used")

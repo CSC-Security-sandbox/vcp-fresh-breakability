@@ -205,6 +205,11 @@ func (m *SnapmirrorEndpoint) ContextValidate(ctx context.Context, formats strfmt
 func (m *SnapmirrorEndpoint) contextValidateCluster(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Cluster != nil {
+
+		if swag.IsZero(m.Cluster) { // not required
+			return nil
+		}
+
 		if err := m.Cluster.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("cluster")
@@ -221,6 +226,11 @@ func (m *SnapmirrorEndpoint) contextValidateCluster(ctx context.Context, formats
 func (m *SnapmirrorEndpoint) contextValidateLuns(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Luns != nil {
+
+		if swag.IsZero(m.Luns) { // not required
+			return nil
+		}
+
 		if err := m.Luns.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("luns")
@@ -239,6 +249,11 @@ func (m *SnapmirrorEndpoint) contextValidateSnapmirrorEndpointInlineConsistencyG
 	for i := 0; i < len(m.SnapmirrorEndpointInlineConsistencyGroupVolumes); i++ {
 
 		if m.SnapmirrorEndpointInlineConsistencyGroupVolumes[i] != nil {
+
+			if swag.IsZero(m.SnapmirrorEndpointInlineConsistencyGroupVolumes[i]) { // not required
+				return nil
+			}
+
 			if err := m.SnapmirrorEndpointInlineConsistencyGroupVolumes[i].ContextValidate(ctx, formats); err != nil {
 				if ve, ok := err.(*errors.Validation); ok {
 					return ve.ValidateName("consistency_group_volumes" + "." + strconv.Itoa(i))
@@ -257,6 +272,11 @@ func (m *SnapmirrorEndpoint) contextValidateSnapmirrorEndpointInlineConsistencyG
 func (m *SnapmirrorEndpoint) contextValidateSvm(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Svm != nil {
+
+		if swag.IsZero(m.Svm) { // not required
+			return nil
+		}
+
 		if err := m.Svm.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("svm")
@@ -372,6 +392,11 @@ func (m *SnapmirrorEndpointInlineCluster) ContextValidate(ctx context.Context, f
 func (m *SnapmirrorEndpointInlineCluster) contextValidateLinks(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Links != nil {
+
+		if swag.IsZero(m.Links) { // not required
+			return nil
+		}
+
 		if err := m.Links.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("cluster" + "." + "_links")
@@ -462,6 +487,11 @@ func (m *SnapmirrorEndpointInlineClusterInlineLinks) ContextValidate(ctx context
 func (m *SnapmirrorEndpointInlineClusterInlineLinks) contextValidateSelf(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Self != nil {
+
+		if swag.IsZero(m.Self) { // not required
+			return nil
+		}
+
 		if err := m.Self.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("cluster" + "." + "_links" + "." + "self")
@@ -607,6 +637,11 @@ func (m *SnapmirrorEndpointInlineLuns) ContextValidate(ctx context.Context, form
 func (m *SnapmirrorEndpointInlineLuns) contextValidateLinks(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Links != nil {
+
+		if swag.IsZero(m.Links) { // not required
+			return nil
+		}
+
 		if err := m.Links.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("luns" + "." + "_links")
@@ -697,6 +732,11 @@ func (m *SnapmirrorEndpointInlineLunsInlineLinks) ContextValidate(ctx context.Co
 func (m *SnapmirrorEndpointInlineLunsInlineLinks) contextValidateSelf(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Self != nil {
+
+		if swag.IsZero(m.Self) { // not required
+			return nil
+		}
+
 		if err := m.Self.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("luns" + "." + "_links" + "." + "self")
@@ -797,6 +837,11 @@ func (m *SnapmirrorEndpointInlineSvm) ContextValidate(ctx context.Context, forma
 func (m *SnapmirrorEndpointInlineSvm) contextValidateLinks(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Links != nil {
+
+		if swag.IsZero(m.Links) { // not required
+			return nil
+		}
+
 		if err := m.Links.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("svm" + "." + "_links")
@@ -887,6 +932,11 @@ func (m *SnapmirrorEndpointInlineSvmInlineLinks) ContextValidate(ctx context.Con
 func (m *SnapmirrorEndpointInlineSvmInlineLinks) contextValidateSelf(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Self != nil {
+
+		if swag.IsZero(m.Self) { // not required
+			return nil
+		}
+
 		if err := m.Self.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("svm" + "." + "_links" + "." + "self")

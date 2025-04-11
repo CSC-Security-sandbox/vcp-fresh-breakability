@@ -6,6 +6,7 @@ package name_services
 // Editing this file might prove futile when you re-run the swagger generate command
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 
@@ -85,11 +86,11 @@ func (o *UnixUserDeleteOK) Code() int {
 }
 
 func (o *UnixUserDeleteOK) Error() string {
-	return fmt.Sprintf("[DELETE /name-services/unix-users/{svm.uuid}/{name}][%d] unixUserDeleteOK ", 200)
+	return fmt.Sprintf("[DELETE /name-services/unix-users/{svm.uuid}/{name}][%d] unixUserDeleteOK", 200)
 }
 
 func (o *UnixUserDeleteOK) String() string {
-	return fmt.Sprintf("[DELETE /name-services/unix-users/{svm.uuid}/{name}][%d] unixUserDeleteOK ", 200)
+	return fmt.Sprintf("[DELETE /name-services/unix-users/{svm.uuid}/{name}][%d] unixUserDeleteOK", 200)
 }
 
 func (o *UnixUserDeleteOK) readResponse(response runtime.ClientResponse, consumer runtime.Consumer, formats strfmt.Registry) error {
@@ -146,11 +147,13 @@ func (o *UnixUserDeleteDefault) Code() int {
 }
 
 func (o *UnixUserDeleteDefault) Error() string {
-	return fmt.Sprintf("[DELETE /name-services/unix-users/{svm.uuid}/{name}][%d] unix_user_delete default  %+v", o._statusCode, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[DELETE /name-services/unix-users/{svm.uuid}/{name}][%d] unix_user_delete default %s", o._statusCode, payload)
 }
 
 func (o *UnixUserDeleteDefault) String() string {
-	return fmt.Sprintf("[DELETE /name-services/unix-users/{svm.uuid}/{name}][%d] unix_user_delete default  %+v", o._statusCode, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[DELETE /name-services/unix-users/{svm.uuid}/{name}][%d] unix_user_delete default %s", o._statusCode, payload)
 }
 
 func (o *UnixUserDeleteDefault) GetPayload() *models.ErrorResponse {

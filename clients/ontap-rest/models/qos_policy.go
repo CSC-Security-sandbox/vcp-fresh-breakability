@@ -43,12 +43,12 @@ type QosPolicy struct {
 
 	// Class of the QoS policy.
 	// Read Only: true
-	// Enum: [undefined preset user_defined system_defined autovolume load_control]
+	// Enum: ["undefined","preset","user_defined","system_defined","autovolume","load_control"]
 	PolicyClass *string `json:"policy_class,omitempty"`
 
 	// Scope of the entity. Set to "cluster" for cluster owned objects and to "svm" for SVM owned objects.
 	// Read Only: true
-	// Enum: [cluster svm]
+	// Enum: ["cluster","svm"]
 	Scope *string `json:"scope,omitempty"`
 
 	// svm
@@ -315,6 +315,11 @@ func (m *QosPolicy) ContextValidate(ctx context.Context, formats strfmt.Registry
 func (m *QosPolicy) contextValidateLinks(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Links != nil {
+
+		if swag.IsZero(m.Links) { // not required
+			return nil
+		}
+
 		if err := m.Links.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("_links")
@@ -331,6 +336,11 @@ func (m *QosPolicy) contextValidateLinks(ctx context.Context, formats strfmt.Reg
 func (m *QosPolicy) contextValidateAdaptive(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Adaptive != nil {
+
+		if swag.IsZero(m.Adaptive) { // not required
+			return nil
+		}
+
 		if err := m.Adaptive.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("adaptive")
@@ -347,6 +357,11 @@ func (m *QosPolicy) contextValidateAdaptive(ctx context.Context, formats strfmt.
 func (m *QosPolicy) contextValidateFixed(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Fixed != nil {
+
+		if swag.IsZero(m.Fixed) { // not required
+			return nil
+		}
+
 		if err := m.Fixed.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("fixed")
@@ -399,6 +414,11 @@ func (m *QosPolicy) contextValidateScope(ctx context.Context, formats strfmt.Reg
 func (m *QosPolicy) contextValidateSvm(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Svm != nil {
+
+		if swag.IsZero(m.Svm) { // not required
+			return nil
+		}
+
 		if err := m.Svm.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("svm")
@@ -448,21 +468,21 @@ type QosPolicyInlineAdaptive struct {
 	AbsoluteMinIops *int64 `json:"absolute_min_iops,omitempty"`
 
 	// Specifies the block size
-	// Enum: [any 4k 8k 16k 32k 64k 128k]
+	// Enum: ["any","4k","8k","16k","32k","64k","128k"]
 	BlockSize *string `json:"block_size,omitempty"`
 
 	// Expected IOPS. Specifies the minimum expected IOPS per TB allocated based on the storage object allocated size. These floors are not guaranteed on non-AFF platforms or when FabricPool tiering policies are set.
 	ExpectedIops *int64 `json:"expected_iops,omitempty"`
 
 	// Specifies the size to be used to calculate expected IOPS per TB. The size options are either the storage object allocated space or the storage object used space.
-	// Enum: [used_space allocated_space]
+	// Enum: ["used_space","allocated_space"]
 	ExpectedIopsAllocation *string `json:"expected_iops_allocation,omitempty"`
 
 	// Peak IOPS. Specifies the maximum possible IOPS per TB allocated based on the storage object allocated size or the storage object used size.
 	PeakIops *int64 `json:"peak_iops,omitempty"`
 
 	// Specifies the size to be used to calculate peak IOPS per TB. The size options are either the storage object allocated space or the storage object used space.
-	// Enum: [used_space allocated_space]
+	// Enum: ["used_space","allocated_space"]
 	PeakIopsAllocation *string `json:"peak_iops_allocation,omitempty"`
 }
 
@@ -853,6 +873,11 @@ func (m *QosPolicyInlineLinks) ContextValidate(ctx context.Context, formats strf
 func (m *QosPolicyInlineLinks) contextValidateSelf(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Self != nil {
+
+		if swag.IsZero(m.Self) { // not required
+			return nil
+		}
+
 		if err := m.Self.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("_links" + "." + "self")
@@ -953,6 +978,11 @@ func (m *QosPolicyInlineSvm) ContextValidate(ctx context.Context, formats strfmt
 func (m *QosPolicyInlineSvm) contextValidateLinks(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Links != nil {
+
+		if swag.IsZero(m.Links) { // not required
+			return nil
+		}
+
 		if err := m.Links.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("svm" + "." + "_links")
@@ -1043,6 +1073,11 @@ func (m *QosPolicyInlineSvmInlineLinks) ContextValidate(ctx context.Context, for
 func (m *QosPolicyInlineSvmInlineLinks) contextValidateSelf(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Self != nil {
+
+		if swag.IsZero(m.Self) { // not required
+			return nil
+		}
+
 		if err := m.Self.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("svm" + "." + "_links" + "." + "self")

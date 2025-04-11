@@ -144,6 +144,11 @@ func (m *FileInfoResponse) ContextValidate(ctx context.Context, formats strfmt.R
 func (m *FileInfoResponse) contextValidateLinks(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Links != nil {
+
+		if swag.IsZero(m.Links) { // not required
+			return nil
+		}
+
 		if err := m.Links.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("_links")
@@ -160,6 +165,11 @@ func (m *FileInfoResponse) contextValidateLinks(ctx context.Context, formats str
 func (m *FileInfoResponse) contextValidateAnalytics(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Analytics != nil {
+
+		if swag.IsZero(m.Analytics) { // not required
+			return nil
+		}
+
 		if err := m.Analytics.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("analytics")
@@ -178,6 +188,11 @@ func (m *FileInfoResponse) contextValidateFileInfoResponseInlineRecords(ctx cont
 	for i := 0; i < len(m.FileInfoResponseInlineRecords); i++ {
 
 		if m.FileInfoResponseInlineRecords[i] != nil {
+
+			if swag.IsZero(m.FileInfoResponseInlineRecords[i]) { // not required
+				return nil
+			}
+
 			if err := m.FileInfoResponseInlineRecords[i].ContextValidate(ctx, formats); err != nil {
 				if ve, ok := err.(*errors.Validation); ok {
 					return ve.ValidateName("records" + "." + strconv.Itoa(i))
@@ -302,6 +317,11 @@ func (m *FileInfoResponseInlineAnalytics) ContextValidate(ctx context.Context, f
 func (m *FileInfoResponseInlineAnalytics) contextValidateByAccessedTime(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.ByAccessedTime != nil {
+
+		if swag.IsZero(m.ByAccessedTime) { // not required
+			return nil
+		}
+
 		if err := m.ByAccessedTime.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("analytics" + "." + "by_accessed_time")
@@ -318,6 +338,11 @@ func (m *FileInfoResponseInlineAnalytics) contextValidateByAccessedTime(ctx cont
 func (m *FileInfoResponseInlineAnalytics) contextValidateByModifiedTime(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.ByModifiedTime != nil {
+
+		if swag.IsZero(m.ByModifiedTime) { // not required
+			return nil
+		}
+
 		if err := m.ByModifiedTime.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("analytics" + "." + "by_modified_time")
@@ -408,6 +433,11 @@ func (m *FileInfoResponseInlineAnalyticsInlineByAccessedTime) ContextValidate(ct
 func (m *FileInfoResponseInlineAnalyticsInlineByAccessedTime) contextValidateBytesUsed(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.BytesUsed != nil {
+
+		if swag.IsZero(m.BytesUsed) { // not required
+			return nil
+		}
+
 		if err := m.BytesUsed.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("analytics" + "." + "by_accessed_time" + "." + "bytes_used")
@@ -584,6 +614,11 @@ func (m *FileInfoResponseInlineAnalyticsInlineByModifiedTime) ContextValidate(ct
 func (m *FileInfoResponseInlineAnalyticsInlineByModifiedTime) contextValidateBytesUsed(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.BytesUsed != nil {
+
+		if swag.IsZero(m.BytesUsed) { // not required
+			return nil
+		}
+
 		if err := m.BytesUsed.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("analytics" + "." + "by_modified_time" + "." + "bytes_used")
@@ -790,6 +825,11 @@ func (m *FileInfoResponseInlineLinks) ContextValidate(ctx context.Context, forma
 func (m *FileInfoResponseInlineLinks) contextValidateNext(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Next != nil {
+
+		if swag.IsZero(m.Next) { // not required
+			return nil
+		}
+
 		if err := m.Next.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("_links" + "." + "next")
@@ -806,6 +846,11 @@ func (m *FileInfoResponseInlineLinks) contextValidateNext(ctx context.Context, f
 func (m *FileInfoResponseInlineLinks) contextValidateSelf(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Self != nil {
+
+		if swag.IsZero(m.Self) { // not required
+			return nil
+		}
+
 		if err := m.Self.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("_links" + "." + "self")

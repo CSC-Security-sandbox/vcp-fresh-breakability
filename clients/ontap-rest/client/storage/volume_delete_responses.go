@@ -6,6 +6,7 @@ package storage
 // Editing this file might prove futile when you re-run the swagger generate command
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 
@@ -92,11 +93,13 @@ func (o *VolumeDeleteOK) Code() int {
 }
 
 func (o *VolumeDeleteOK) Error() string {
-	return fmt.Sprintf("[DELETE /storage/volumes/{uuid}][%d] volumeDeleteOK  %+v", 200, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[DELETE /storage/volumes/{uuid}][%d] volumeDeleteOK %s", 200, payload)
 }
 
 func (o *VolumeDeleteOK) String() string {
-	return fmt.Sprintf("[DELETE /storage/volumes/{uuid}][%d] volumeDeleteOK  %+v", 200, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[DELETE /storage/volumes/{uuid}][%d] volumeDeleteOK %s", 200, payload)
 }
 
 func (o *VolumeDeleteOK) GetPayload() *models.VolumeJobLinkResponse {
@@ -160,11 +163,13 @@ func (o *VolumeDeleteAccepted) Code() int {
 }
 
 func (o *VolumeDeleteAccepted) Error() string {
-	return fmt.Sprintf("[DELETE /storage/volumes/{uuid}][%d] volumeDeleteAccepted  %+v", 202, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[DELETE /storage/volumes/{uuid}][%d] volumeDeleteAccepted %s", 202, payload)
 }
 
 func (o *VolumeDeleteAccepted) String() string {
-	return fmt.Sprintf("[DELETE /storage/volumes/{uuid}][%d] volumeDeleteAccepted  %+v", 202, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[DELETE /storage/volumes/{uuid}][%d] volumeDeleteAccepted %s", 202, payload)
 }
 
 func (o *VolumeDeleteAccepted) GetPayload() *models.VolumeJobLinkResponse {
@@ -248,11 +253,13 @@ func (o *VolumeDeleteDefault) Code() int {
 }
 
 func (o *VolumeDeleteDefault) Error() string {
-	return fmt.Sprintf("[DELETE /storage/volumes/{uuid}][%d] volume_delete default  %+v", o._statusCode, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[DELETE /storage/volumes/{uuid}][%d] volume_delete default %s", o._statusCode, payload)
 }
 
 func (o *VolumeDeleteDefault) String() string {
-	return fmt.Sprintf("[DELETE /storage/volumes/{uuid}][%d] volume_delete default  %+v", o._statusCode, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[DELETE /storage/volumes/{uuid}][%d] volume_delete default %s", o._statusCode, payload)
 }
 
 func (o *VolumeDeleteDefault) GetPayload() *models.ErrorResponse {

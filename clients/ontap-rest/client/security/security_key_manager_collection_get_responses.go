@@ -6,6 +6,7 @@ package security
 // Editing this file might prove futile when you re-run the swagger generate command
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 
@@ -86,11 +87,13 @@ func (o *SecurityKeyManagerCollectionGetOK) Code() int {
 }
 
 func (o *SecurityKeyManagerCollectionGetOK) Error() string {
-	return fmt.Sprintf("[GET /security/key-managers][%d] securityKeyManagerCollectionGetOK  %+v", 200, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[GET /security/key-managers][%d] securityKeyManagerCollectionGetOK %s", 200, payload)
 }
 
 func (o *SecurityKeyManagerCollectionGetOK) String() string {
-	return fmt.Sprintf("[GET /security/key-managers][%d] securityKeyManagerCollectionGetOK  %+v", 200, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[GET /security/key-managers][%d] securityKeyManagerCollectionGetOK %s", 200, payload)
 }
 
 func (o *SecurityKeyManagerCollectionGetOK) GetPayload() *models.SecurityKeyManagerResponse {
@@ -158,11 +161,13 @@ func (o *SecurityKeyManagerCollectionGetDefault) Code() int {
 }
 
 func (o *SecurityKeyManagerCollectionGetDefault) Error() string {
-	return fmt.Sprintf("[GET /security/key-managers][%d] security_key_manager_collection_get default  %+v", o._statusCode, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[GET /security/key-managers][%d] security_key_manager_collection_get default %s", o._statusCode, payload)
 }
 
 func (o *SecurityKeyManagerCollectionGetDefault) String() string {
-	return fmt.Sprintf("[GET /security/key-managers][%d] security_key_manager_collection_get default  %+v", o._statusCode, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[GET /security/key-managers][%d] security_key_manager_collection_get default %s", o._statusCode, payload)
 }
 
 func (o *SecurityKeyManagerCollectionGetDefault) GetPayload() *models.ErrorResponse {

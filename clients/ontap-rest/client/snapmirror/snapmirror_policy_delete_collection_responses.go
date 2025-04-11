@@ -7,6 +7,7 @@ package snapmirror
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"io"
 	"strconv"
@@ -96,11 +97,13 @@ func (o *SnapmirrorPolicyDeleteCollectionOK) Code() int {
 }
 
 func (o *SnapmirrorPolicyDeleteCollectionOK) Error() string {
-	return fmt.Sprintf("[DELETE /snapmirror/policies][%d] snapmirrorPolicyDeleteCollectionOK  %+v", 200, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[DELETE /snapmirror/policies][%d] snapmirrorPolicyDeleteCollectionOK %s", 200, payload)
 }
 
 func (o *SnapmirrorPolicyDeleteCollectionOK) String() string {
-	return fmt.Sprintf("[DELETE /snapmirror/policies][%d] snapmirrorPolicyDeleteCollectionOK  %+v", 200, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[DELETE /snapmirror/policies][%d] snapmirrorPolicyDeleteCollectionOK %s", 200, payload)
 }
 
 func (o *SnapmirrorPolicyDeleteCollectionOK) GetPayload() *models.SnapmirrorPolicyJobLinkResponse {
@@ -164,11 +167,13 @@ func (o *SnapmirrorPolicyDeleteCollectionAccepted) Code() int {
 }
 
 func (o *SnapmirrorPolicyDeleteCollectionAccepted) Error() string {
-	return fmt.Sprintf("[DELETE /snapmirror/policies][%d] snapmirrorPolicyDeleteCollectionAccepted  %+v", 202, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[DELETE /snapmirror/policies][%d] snapmirrorPolicyDeleteCollectionAccepted %s", 202, payload)
 }
 
 func (o *SnapmirrorPolicyDeleteCollectionAccepted) String() string {
-	return fmt.Sprintf("[DELETE /snapmirror/policies][%d] snapmirrorPolicyDeleteCollectionAccepted  %+v", 202, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[DELETE /snapmirror/policies][%d] snapmirrorPolicyDeleteCollectionAccepted %s", 202, payload)
 }
 
 func (o *SnapmirrorPolicyDeleteCollectionAccepted) GetPayload() *models.SnapmirrorPolicyJobLinkResponse {
@@ -236,11 +241,13 @@ func (o *SnapmirrorPolicyDeleteCollectionDefault) Code() int {
 }
 
 func (o *SnapmirrorPolicyDeleteCollectionDefault) Error() string {
-	return fmt.Sprintf("[DELETE /snapmirror/policies][%d] snapmirror_policy_delete_collection default  %+v", o._statusCode, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[DELETE /snapmirror/policies][%d] snapmirror_policy_delete_collection default %s", o._statusCode, payload)
 }
 
 func (o *SnapmirrorPolicyDeleteCollectionDefault) String() string {
-	return fmt.Sprintf("[DELETE /snapmirror/policies][%d] snapmirror_policy_delete_collection default  %+v", o._statusCode, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[DELETE /snapmirror/policies][%d] snapmirror_policy_delete_collection default %s", o._statusCode, payload)
 }
 
 func (o *SnapmirrorPolicyDeleteCollectionDefault) GetPayload() *models.ErrorResponse {
@@ -328,6 +335,11 @@ func (o *SnapmirrorPolicyDeleteCollectionBody) contextValidateSnapmirrorPolicyRe
 	for i := 0; i < len(o.SnapmirrorPolicyResponseInlineRecords); i++ {
 
 		if o.SnapmirrorPolicyResponseInlineRecords[i] != nil {
+
+			if swag.IsZero(o.SnapmirrorPolicyResponseInlineRecords[i]) { // not required
+				return nil
+			}
+
 			if err := o.SnapmirrorPolicyResponseInlineRecords[i].ContextValidate(ctx, formats); err != nil {
 				if ve, ok := err.(*errors.Validation); ok {
 					return ve.ValidateName("info" + "." + "records" + "." + strconv.Itoa(i))

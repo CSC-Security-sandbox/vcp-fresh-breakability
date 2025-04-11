@@ -6,6 +6,7 @@ package networking
 // Editing this file might prove futile when you re-run the swagger generate command
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 
@@ -89,11 +90,11 @@ func (o *IpspacesCreateCreated) Code() int {
 }
 
 func (o *IpspacesCreateCreated) Error() string {
-	return fmt.Sprintf("[POST /network/ipspaces][%d] ipspacesCreateCreated ", 201)
+	return fmt.Sprintf("[POST /network/ipspaces][%d] ipspacesCreateCreated", 201)
 }
 
 func (o *IpspacesCreateCreated) String() string {
-	return fmt.Sprintf("[POST /network/ipspaces][%d] ipspacesCreateCreated ", 201)
+	return fmt.Sprintf("[POST /network/ipspaces][%d] ipspacesCreateCreated", 201)
 }
 
 func (o *IpspacesCreateCreated) readResponse(response runtime.ClientResponse, consumer runtime.Consumer, formats strfmt.Registry) error {
@@ -171,11 +172,13 @@ func (o *IpspacesCreateDefault) Code() int {
 }
 
 func (o *IpspacesCreateDefault) Error() string {
-	return fmt.Sprintf("[POST /network/ipspaces][%d] ipspaces_create default  %+v", o._statusCode, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[POST /network/ipspaces][%d] ipspaces_create default %s", o._statusCode, payload)
 }
 
 func (o *IpspacesCreateDefault) String() string {
-	return fmt.Sprintf("[POST /network/ipspaces][%d] ipspaces_create default  %+v", o._statusCode, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[POST /network/ipspaces][%d] ipspaces_create default %s", o._statusCode, payload)
 }
 
 func (o *IpspacesCreateDefault) GetPayload() *models.ErrorResponse {

@@ -39,7 +39,7 @@ type LdapService struct {
 	// * onelevel - search all entries immediately below the DN
 	// * subtree - search the named DN entry and the entire subtree below the DN
 	//
-	// Enum: [base onelevel subtree]
+	// Enum: ["base","onelevel","subtree"]
 	BaseScope *string `json:"base_scope,omitempty"`
 
 	// Specifies whether or not CIFS server's credentials are used to bind to the LDAP server.
@@ -67,7 +67,7 @@ type LdapService struct {
 	// * onelevel - search all entries immediately below the DN
 	// * subtree - search the named DN entry and the entire subtree below the DN
 	//
-	// Enum: [base onelevel subtree]
+	// Enum: ["base","onelevel","subtree"]
 	GroupScope *string `json:"group_scope,omitempty"`
 
 	// Specifies whether or not netgroup by host querying is enabled.
@@ -94,7 +94,7 @@ type LdapService struct {
 	// * simple - simple bind
 	// * sasl - Simple Authentication and Security Layer (SASL) bind
 	//
-	// Enum: [anonymous simple sasl]
+	// Enum: ["anonymous","simple","sasl"]
 	MinBindLevel *string `json:"min_bind_level,omitempty"`
 
 	// Specifies the netgroup Distinguished Name (DN) that is used as the starting point in the LDAP directory tree for netgroup by host lookups.
@@ -106,7 +106,7 @@ type LdapService struct {
 	// * onelevel - search all entries immediately below the DN
 	// * subtree - search the named DN entry and the entire subtree below the DN
 	//
-	// Enum: [base onelevel subtree]
+	// Enum: ["base","onelevel","subtree"]
 	NetgroupByhostScope *string `json:"netgroup_byhost_scope,omitempty"`
 
 	// Specifies the netgroup Distinguished Name (DN) that is used as the starting point in the LDAP directory tree for netgroup lookups.
@@ -118,7 +118,7 @@ type LdapService struct {
 	// * onelevel - search all entries immediately below the DN
 	// * subtree - search the named DN entry and the entire subtree below the DN
 	//
-	// Enum: [base onelevel subtree]
+	// Enum: ["base","onelevel","subtree"]
 	NetgroupScope *string `json:"netgroup_scope,omitempty"`
 
 	// The port used to connect to the LDAP Servers.
@@ -154,7 +154,7 @@ type LdapService struct {
 	// * sign - sign LDAP traffic
 	// * seal - seal and sign LDAP traffic
 	//
-	// Enum: [none sign seal]
+	// Enum: ["none","sign","seal"]
 	SessionSecurity *string `json:"session_security,omitempty"`
 
 	// Indicates whether or not the validation for the specified LDAP configuration is disabled.
@@ -184,7 +184,7 @@ type LdapService struct {
 	// * onelevel - search all entries immediately below the DN
 	// * subtree - search the named DN entry and the entire subtree below the DN
 	//
-	// Enum: [base onelevel subtree]
+	// Enum: ["base","onelevel","subtree"]
 	UserScope *string `json:"user_scope,omitempty"`
 }
 
@@ -659,6 +659,11 @@ func (m *LdapService) ContextValidate(ctx context.Context, formats strfmt.Regist
 func (m *LdapService) contextValidateLinks(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Links != nil {
+
+		if swag.IsZero(m.Links) { // not required
+			return nil
+		}
+
 		if err := m.Links.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("_links")
@@ -684,6 +689,11 @@ func (m *LdapService) contextValidateIsOwner(ctx context.Context, formats strfmt
 func (m *LdapService) contextValidateStatus(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Status != nil {
+
+		if swag.IsZero(m.Status) { // not required
+			return nil
+		}
+
 		if err := m.Status.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("status")
@@ -700,6 +710,11 @@ func (m *LdapService) contextValidateStatus(ctx context.Context, formats strfmt.
 func (m *LdapService) contextValidateSvm(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Svm != nil {
+
+		if swag.IsZero(m.Svm) { // not required
+			return nil
+		}
+
 		if err := m.Svm.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("svm")
@@ -790,6 +805,11 @@ func (m *LdapServiceInlineLinks) ContextValidate(ctx context.Context, formats st
 func (m *LdapServiceInlineLinks) contextValidateSelf(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Self != nil {
+
+		if swag.IsZero(m.Self) { // not required
+			return nil
+		}
+
 		if err := m.Self.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("_links" + "." + "self")
@@ -839,7 +859,7 @@ type LdapServiceInlineStatus struct {
 
 	// This field is no longer supported. Use ipv4.state instead.
 	//
-	// Enum: [up down]
+	// Enum: ["up","down"]
 	IPV4State *string `json:"ipv4_state,omitempty"`
 
 	// ipv6
@@ -847,7 +867,7 @@ type LdapServiceInlineStatus struct {
 
 	// This field is no longer supported. Use ipv6.state instead.
 	//
-	// Enum: [up down]
+	// Enum: ["up","down"]
 	IPV6State *string `json:"ipv6_state,omitempty"`
 
 	// This field is no longer supported. Use ipv4.message or ipv6.message instead.
@@ -857,7 +877,7 @@ type LdapServiceInlineStatus struct {
 	// The status of the LDAP service for the SVM. The LDAP service is up if either `ipv4_state` or `ipv6_state` is up.
 	// The LDAP service is down if both `ipv4_state` and `ipv6_state` are down.
 	//
-	// Enum: [up down]
+	// Enum: ["up","down"]
 	State *string `json:"state,omitempty"`
 }
 
@@ -1076,6 +1096,11 @@ func (m *LdapServiceInlineStatus) ContextValidate(ctx context.Context, formats s
 func (m *LdapServiceInlineStatus) contextValidateIPV4(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.IPV4 != nil {
+
+		if swag.IsZero(m.IPV4) { // not required
+			return nil
+		}
+
 		if err := m.IPV4.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("status" + "." + "ipv4")
@@ -1092,6 +1117,11 @@ func (m *LdapServiceInlineStatus) contextValidateIPV4(ctx context.Context, forma
 func (m *LdapServiceInlineStatus) contextValidateIPV6(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.IPV6 != nil {
+
+		if swag.IsZero(m.IPV6) { // not required
+			return nil
+		}
+
 		if err := m.IPV6.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("status" + "." + "ipv6")
@@ -1142,7 +1172,7 @@ type LdapServiceInlineStatusInlineIPV4 struct {
 
 	// Status of the LDAP service.
 	//
-	// Enum: [up down]
+	// Enum: ["up","down"]
 	State *string `json:"state,omitempty"`
 }
 
@@ -1244,7 +1274,7 @@ type LdapServiceInlineStatusInlineIPV6 struct {
 
 	// Status of the LDAP service.
 	//
-	// Enum: [up down]
+	// Enum: ["up","down"]
 	State *string `json:"state,omitempty"`
 }
 
@@ -1396,6 +1426,11 @@ func (m *LdapServiceInlineSvm) ContextValidate(ctx context.Context, formats strf
 func (m *LdapServiceInlineSvm) contextValidateLinks(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Links != nil {
+
+		if swag.IsZero(m.Links) { // not required
+			return nil
+		}
+
 		if err := m.Links.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("svm" + "." + "_links")
@@ -1486,6 +1521,11 @@ func (m *LdapServiceInlineSvmInlineLinks) ContextValidate(ctx context.Context, f
 func (m *LdapServiceInlineSvmInlineLinks) contextValidateSelf(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Self != nil {
+
+		if swag.IsZero(m.Self) { // not required
+			return nil
+		}
+
 		if err := m.Self.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("svm" + "." + "_links" + "." + "self")

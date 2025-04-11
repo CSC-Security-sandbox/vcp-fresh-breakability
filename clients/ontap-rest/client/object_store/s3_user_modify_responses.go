@@ -6,6 +6,7 @@ package object_store
 // Editing this file might prove futile when you re-run the swagger generate command
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 
@@ -86,11 +87,13 @@ func (o *S3UserModifyOK) Code() int {
 }
 
 func (o *S3UserModifyOK) Error() string {
-	return fmt.Sprintf("[PATCH /protocols/s3/services/{svm.uuid}/users/{name}][%d] s3UserModifyOK  %+v", 200, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[PATCH /protocols/s3/services/{svm.uuid}/users/{name}][%d] s3UserModifyOK %s", 200, payload)
 }
 
 func (o *S3UserModifyOK) String() string {
-	return fmt.Sprintf("[PATCH /protocols/s3/services/{svm.uuid}/users/{name}][%d] s3UserModifyOK  %+v", 200, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[PATCH /protocols/s3/services/{svm.uuid}/users/{name}][%d] s3UserModifyOK %s", 200, payload)
 }
 
 func (o *S3UserModifyOK) GetPayload() *models.S3UserPostPatchResponse {
@@ -140,6 +143,7 @@ func NewS3UserModifyDefault(code int) *S3UserModifyDefault {
 | 92406201   | Missing access-key or secret-key. Either provide both of the keys or none. If not provided, keys are generated automatically. |
 | 92406202   | The \"delete_keys\" operation must be performed without specifying the user keys. |
 | 92406205   | The object store user access key contains invalid characters. Valid characters are 0-9 and A-Z. |
+| 92406308   | Cannot disable user \"user1\" in SVM \"vs1\" because the user belongs to at least one object store group. Remove the user from all groups before disabling the user. |
 */
 type S3UserModifyDefault struct {
 	_statusCode int
@@ -178,11 +182,13 @@ func (o *S3UserModifyDefault) Code() int {
 }
 
 func (o *S3UserModifyDefault) Error() string {
-	return fmt.Sprintf("[PATCH /protocols/s3/services/{svm.uuid}/users/{name}][%d] s3_user_modify default  %+v", o._statusCode, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[PATCH /protocols/s3/services/{svm.uuid}/users/{name}][%d] s3_user_modify default %s", o._statusCode, payload)
 }
 
 func (o *S3UserModifyDefault) String() string {
-	return fmt.Sprintf("[PATCH /protocols/s3/services/{svm.uuid}/users/{name}][%d] s3_user_modify default  %+v", o._statusCode, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[PATCH /protocols/s3/services/{svm.uuid}/users/{name}][%d] s3_user_modify default %s", o._statusCode, payload)
 }
 
 func (o *S3UserModifyDefault) GetPayload() *models.ErrorResponse {

@@ -285,6 +285,11 @@ func (m *KerberosRealm) ContextValidate(ctx context.Context, formats strfmt.Regi
 func (m *KerberosRealm) contextValidateLinks(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Links != nil {
+
+		if swag.IsZero(m.Links) { // not required
+			return nil
+		}
+
 		if err := m.Links.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("_links")
@@ -301,6 +306,11 @@ func (m *KerberosRealm) contextValidateLinks(ctx context.Context, formats strfmt
 func (m *KerberosRealm) contextValidateAdServer(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.AdServer != nil {
+
+		if swag.IsZero(m.AdServer) { // not required
+			return nil
+		}
+
 		if err := m.AdServer.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("ad_server")
@@ -317,6 +327,11 @@ func (m *KerberosRealm) contextValidateAdServer(ctx context.Context, formats str
 func (m *KerberosRealm) contextValidateAdminServer(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.AdminServer != nil {
+
+		if swag.IsZero(m.AdminServer) { // not required
+			return nil
+		}
+
 		if err := m.AdminServer.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("admin_server")
@@ -350,6 +365,11 @@ func (m *KerberosRealm) contextValidateEncryptionTypes(ctx context.Context, form
 func (m *KerberosRealm) contextValidateKdc(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Kdc != nil {
+
+		if swag.IsZero(m.Kdc) { // not required
+			return nil
+		}
+
 		if err := m.Kdc.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("kdc")
@@ -366,6 +386,11 @@ func (m *KerberosRealm) contextValidateKdc(ctx context.Context, formats strfmt.R
 func (m *KerberosRealm) contextValidatePasswordServer(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.PasswordServer != nil {
+
+		if swag.IsZero(m.PasswordServer) { // not required
+			return nil
+		}
+
 		if err := m.PasswordServer.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("password_server")
@@ -382,6 +407,11 @@ func (m *KerberosRealm) contextValidatePasswordServer(ctx context.Context, forma
 func (m *KerberosRealm) contextValidateSvm(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Svm != nil {
+
+		if swag.IsZero(m.Svm) { // not required
+			return nil
+		}
+
 		if err := m.Svm.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("svm")
@@ -514,7 +544,7 @@ type KerberosRealmInlineKdc struct {
 	// * microsoft - Microsoft Active Directory KDC
 	// * other - MIT Kerberos KDC or other KDC
 	//
-	// Enum: [microsoft other]
+	// Enum: ["microsoft","other"]
 	Vendor *string `json:"vendor,omitempty"`
 }
 
@@ -676,6 +706,11 @@ func (m *KerberosRealmInlineLinks) ContextValidate(ctx context.Context, formats 
 func (m *KerberosRealmInlineLinks) contextValidateSelf(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Self != nil {
+
+		if swag.IsZero(m.Self) { // not required
+			return nil
+		}
+
 		if err := m.Self.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("_links" + "." + "self")
@@ -817,6 +852,11 @@ func (m *KerberosRealmInlineSvm) ContextValidate(ctx context.Context, formats st
 func (m *KerberosRealmInlineSvm) contextValidateLinks(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Links != nil {
+
+		if swag.IsZero(m.Links) { // not required
+			return nil
+		}
+
 		if err := m.Links.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("svm" + "." + "_links")
@@ -907,6 +947,11 @@ func (m *KerberosRealmInlineSvmInlineLinks) ContextValidate(ctx context.Context,
 func (m *KerberosRealmInlineSvmInlineLinks) contextValidateSelf(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Self != nil {
+
+		if swag.IsZero(m.Self) { // not required
+			return nil
+		}
+
 		if err := m.Self.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("svm" + "." + "_links" + "." + "self")

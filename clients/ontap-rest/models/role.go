@@ -43,7 +43,7 @@ type Role struct {
 
 	// Scope of the entity. Set to "cluster" for cluster owned objects and to "svm" for SVM owned objects.
 	// Read Only: true
-	// Enum: [cluster svm]
+	// Enum: ["cluster","svm"]
 	Scope *string `json:"scope,omitempty"`
 }
 
@@ -212,6 +212,11 @@ func (m *Role) ContextValidate(ctx context.Context, formats strfmt.Registry) err
 func (m *Role) contextValidateLinks(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Links != nil {
+
+		if swag.IsZero(m.Links) { // not required
+			return nil
+		}
+
 		if err := m.Links.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("_links")
@@ -237,6 +242,11 @@ func (m *Role) contextValidateBuiltin(ctx context.Context, formats strfmt.Regist
 func (m *Role) contextValidateOwner(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Owner != nil {
+
+		if swag.IsZero(m.Owner) { // not required
+			return nil
+		}
+
 		if err := m.Owner.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("owner")
@@ -255,6 +265,11 @@ func (m *Role) contextValidateRoleInlinePrivileges(ctx context.Context, formats 
 	for i := 0; i < len(m.RoleInlinePrivileges); i++ {
 
 		if m.RoleInlinePrivileges[i] != nil {
+
+			if swag.IsZero(m.RoleInlinePrivileges[i]) { // not required
+				return nil
+			}
+
 			if err := m.RoleInlinePrivileges[i].ContextValidate(ctx, formats); err != nil {
 				if ve, ok := err.(*errors.Validation); ok {
 					return ve.ValidateName("privileges" + "." + strconv.Itoa(i))
@@ -356,6 +371,11 @@ func (m *RoleInlineLinks) ContextValidate(ctx context.Context, formats strfmt.Re
 func (m *RoleInlineLinks) contextValidateSelf(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Self != nil {
+
+		if swag.IsZero(m.Self) { // not required
+			return nil
+		}
+
 		if err := m.Self.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("_links" + "." + "self")
@@ -456,6 +476,11 @@ func (m *RoleInlineOwner) ContextValidate(ctx context.Context, formats strfmt.Re
 func (m *RoleInlineOwner) contextValidateLinks(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Links != nil {
+
+		if swag.IsZero(m.Links) { // not required
+			return nil
+		}
+
 		if err := m.Links.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("owner" + "." + "_links")
@@ -546,6 +571,11 @@ func (m *RoleInlineOwnerInlineLinks) ContextValidate(ctx context.Context, format
 func (m *RoleInlineOwnerInlineLinks) contextValidateSelf(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Self != nil {
+
+		if swag.IsZero(m.Self) { // not required
+			return nil
+		}
+
 		if err := m.Self.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("owner" + "." + "_links" + "." + "self")

@@ -87,7 +87,7 @@ type NfsService struct {
 	//           * offline - NFS server is not ready to accept client requests.
 	//
 	// Read Only: true
-	// Enum: [online offline]
+	// Enum: ["online","offline"]
 	State *string `json:"state,omitempty"`
 
 	// statistics
@@ -617,6 +617,11 @@ func (m *NfsService) ContextValidate(ctx context.Context, formats strfmt.Registr
 func (m *NfsService) contextValidateLinks(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Links != nil {
+
+		if swag.IsZero(m.Links) { // not required
+			return nil
+		}
+
 		if err := m.Links.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("_links")
@@ -633,6 +638,11 @@ func (m *NfsService) contextValidateLinks(ctx context.Context, formats strfmt.Re
 func (m *NfsService) contextValidateAccessCacheConfig(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.AccessCacheConfig != nil {
+
+		if swag.IsZero(m.AccessCacheConfig) { // not required
+			return nil
+		}
+
 		if err := m.AccessCacheConfig.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("access_cache_config")
@@ -649,6 +659,11 @@ func (m *NfsService) contextValidateAccessCacheConfig(ctx context.Context, forma
 func (m *NfsService) contextValidateCredentialCache(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.CredentialCache != nil {
+
+		if swag.IsZero(m.CredentialCache) { // not required
+			return nil
+		}
+
 		if err := m.CredentialCache.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("credential_cache")
@@ -665,6 +680,11 @@ func (m *NfsService) contextValidateCredentialCache(ctx context.Context, formats
 func (m *NfsService) contextValidateExports(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Exports != nil {
+
+		if swag.IsZero(m.Exports) { // not required
+			return nil
+		}
+
 		if err := m.Exports.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("exports")
@@ -681,6 +701,11 @@ func (m *NfsService) contextValidateExports(ctx context.Context, formats strfmt.
 func (m *NfsService) contextValidateMetric(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Metric != nil {
+
+		if swag.IsZero(m.Metric) { // not required
+			return nil
+		}
+
 		if err := m.Metric.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("metric")
@@ -697,6 +722,11 @@ func (m *NfsService) contextValidateMetric(ctx context.Context, formats strfmt.R
 func (m *NfsService) contextValidateProtocol(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Protocol != nil {
+
+		if swag.IsZero(m.Protocol) { // not required
+			return nil
+		}
+
 		if err := m.Protocol.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("protocol")
@@ -713,6 +743,11 @@ func (m *NfsService) contextValidateProtocol(ctx context.Context, formats strfmt
 func (m *NfsService) contextValidateProtocolAccessRules(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.ProtocolAccessRules != nil {
+
+		if swag.IsZero(m.ProtocolAccessRules) { // not required
+			return nil
+		}
+
 		if err := m.ProtocolAccessRules.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("protocol_access_rules")
@@ -729,6 +764,11 @@ func (m *NfsService) contextValidateProtocolAccessRules(ctx context.Context, for
 func (m *NfsService) contextValidateQtree(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Qtree != nil {
+
+		if swag.IsZero(m.Qtree) { // not required
+			return nil
+		}
+
 		if err := m.Qtree.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("qtree")
@@ -745,6 +785,11 @@ func (m *NfsService) contextValidateQtree(ctx context.Context, formats strfmt.Re
 func (m *NfsService) contextValidateRoot(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Root != nil {
+
+		if swag.IsZero(m.Root) { // not required
+			return nil
+		}
+
 		if err := m.Root.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("root")
@@ -761,6 +806,11 @@ func (m *NfsService) contextValidateRoot(ctx context.Context, formats strfmt.Reg
 func (m *NfsService) contextValidateSecurity(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Security != nil {
+
+		if swag.IsZero(m.Security) { // not required
+			return nil
+		}
+
 		if err := m.Security.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("security")
@@ -786,6 +836,11 @@ func (m *NfsService) contextValidateState(ctx context.Context, formats strfmt.Re
 func (m *NfsService) contextValidateStatistics(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Statistics != nil {
+
+		if swag.IsZero(m.Statistics) { // not required
+			return nil
+		}
+
 		if err := m.Statistics.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("statistics")
@@ -802,6 +857,11 @@ func (m *NfsService) contextValidateStatistics(ctx context.Context, formats strf
 func (m *NfsService) contextValidateSvm(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Svm != nil {
+
+		if swag.IsZero(m.Svm) { // not required
+			return nil
+		}
+
 		if err := m.Svm.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("svm")
@@ -818,6 +878,11 @@ func (m *NfsService) contextValidateSvm(ctx context.Context, formats strfmt.Regi
 func (m *NfsService) contextValidateTransport(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Transport != nil {
+
+		if swag.IsZero(m.Transport) { // not required
+			return nil
+		}
+
 		if err := m.Transport.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("transport")
@@ -834,6 +899,11 @@ func (m *NfsService) contextValidateTransport(ctx context.Context, formats strfm
 func (m *NfsService) contextValidateWindows(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Windows != nil {
+
+		if swag.IsZero(m.Windows) { // not required
+			return nil
+		}
+
 		if err := m.Windows.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("windows")
@@ -1041,7 +1111,7 @@ func (m *NfsServiceInlineCredentialCache) UnmarshalBinary(b []byte) error {
 type NfsServiceInlineExports struct {
 
 	// Specifies the protocol to use for doing name service lookups.
-	// Enum: [tcp udp]
+	// Enum: ["tcp","udp"]
 	NameServiceLookupProtocol *string `json:"name_service_lookup_protocol,omitempty"`
 
 	// Specifies if you can consider a no-match result from any of the netgroup ns-switch sources to be authoritative. If this option is enabled, then a no-match response from any of the netgroup ns-switch sources is deemed conclusive even if other sources could not be searched.
@@ -1186,6 +1256,11 @@ func (m *NfsServiceInlineLinks) ContextValidate(ctx context.Context, formats str
 func (m *NfsServiceInlineLinks) contextValidateSelf(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Self != nil {
+
+		if swag.IsZero(m.Self) { // not required
+			return nil
+		}
+
 		if err := m.Self.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("_links" + "." + "self")
@@ -1336,6 +1411,11 @@ func (m *NfsServiceInlineMetric) ContextValidate(ctx context.Context, formats st
 func (m *NfsServiceInlineMetric) contextValidateV3(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.V3 != nil {
+
+		if swag.IsZero(m.V3) { // not required
+			return nil
+		}
+
 		if err := m.V3.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("metric" + "." + "v3")
@@ -1352,6 +1432,11 @@ func (m *NfsServiceInlineMetric) contextValidateV3(ctx context.Context, formats 
 func (m *NfsServiceInlineMetric) contextValidateV4(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.V4 != nil {
+
+		if swag.IsZero(m.V4) { // not required
+			return nil
+		}
+
 		if err := m.V4.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("metric" + "." + "v4")
@@ -1368,6 +1453,11 @@ func (m *NfsServiceInlineMetric) contextValidateV4(ctx context.Context, formats 
 func (m *NfsServiceInlineMetric) contextValidateV41(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.V41 != nil {
+
+		if swag.IsZero(m.V41) { // not required
+			return nil
+		}
+
 		if err := m.V41.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("metric" + "." + "v41")
@@ -1411,7 +1501,7 @@ type NfsServiceInlineMetricInlineV3 struct {
 	//
 	// Example: PT15S
 	// Read Only: true
-	// Enum: [PT15S PT4M PT30M PT2H P1D PT5M]
+	// Enum: ["PT15S","PT4M","PT30M","PT2H","P1D","PT5M"]
 	Duration *string `json:"duration,omitempty"`
 
 	// iops
@@ -1423,7 +1513,7 @@ type NfsServiceInlineMetricInlineV3 struct {
 	// Any errors associated with the sample. For example, if the aggregation of data over multiple nodes fails then any of the partial errors might be returned, "ok" on success, or "error" on any internal uncategorized failure. Whenever a sample collection is missed but done at a later time, it is back filled to the previous 15 second timestamp and tagged with "backfilled_data". "Inconsistent_ delta_time" is encountered when the time between two collections is not the same for all nodes. Therefore, the aggregated value might be over or under inflated. "Negative_delta" is returned when an expected monotonically increasing value has decreased in value. "Inconsistent_old_data" is returned when one or more nodes do not have the latest data.
 	// Example: ok
 	// Read Only: true
-	// Enum: [ok error partial_no_data partial_no_response partial_other_error negative_delta not_found backfilled_data inconsistent_delta_time inconsistent_old_data partial_no_uuid]
+	// Enum: ["ok","error","partial_no_data","partial_no_response","partial_other_error","negative_delta","not_found","backfilled_data","inconsistent_delta_time","inconsistent_old_data","partial_no_uuid"]
 	Status *string `json:"status,omitempty"`
 
 	// throughput
@@ -1726,6 +1816,11 @@ func (m *NfsServiceInlineMetricInlineV3) ContextValidate(ctx context.Context, fo
 func (m *NfsServiceInlineMetricInlineV3) contextValidateLinks(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Links != nil {
+
+		if swag.IsZero(m.Links) { // not required
+			return nil
+		}
+
 		if err := m.Links.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("metric" + "." + "v3" + "." + "_links")
@@ -1751,6 +1846,11 @@ func (m *NfsServiceInlineMetricInlineV3) contextValidateDuration(ctx context.Con
 func (m *NfsServiceInlineMetricInlineV3) contextValidateIops(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Iops != nil {
+
+		if swag.IsZero(m.Iops) { // not required
+			return nil
+		}
+
 		if err := m.Iops.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("metric" + "." + "v3" + "." + "iops")
@@ -1767,6 +1867,11 @@ func (m *NfsServiceInlineMetricInlineV3) contextValidateIops(ctx context.Context
 func (m *NfsServiceInlineMetricInlineV3) contextValidateLatency(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Latency != nil {
+
+		if swag.IsZero(m.Latency) { // not required
+			return nil
+		}
+
 		if err := m.Latency.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("metric" + "." + "v3" + "." + "latency")
@@ -1792,6 +1897,11 @@ func (m *NfsServiceInlineMetricInlineV3) contextValidateStatus(ctx context.Conte
 func (m *NfsServiceInlineMetricInlineV3) contextValidateThroughput(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Throughput != nil {
+
+		if swag.IsZero(m.Throughput) { // not required
+			return nil
+		}
+
 		if err := m.Throughput.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("metric" + "." + "v3" + "." + "throughput")
@@ -1999,6 +2109,11 @@ func (m *NfsServiceInlineMetricInlineV3InlineLinks) ContextValidate(ctx context.
 func (m *NfsServiceInlineMetricInlineV3InlineLinks) contextValidateSelf(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Self != nil {
+
+		if swag.IsZero(m.Self) { // not required
+			return nil
+		}
+
 		if err := m.Self.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("metric" + "." + "v3" + "." + "_links" + "." + "self")
@@ -2093,7 +2208,7 @@ type NfsServiceInlineMetricInlineV4 struct {
 	//
 	// Example: PT15S
 	// Read Only: true
-	// Enum: [PT15S PT4M PT30M PT2H P1D PT5M]
+	// Enum: ["PT15S","PT4M","PT30M","PT2H","P1D","PT5M"]
 	Duration *string `json:"duration,omitempty"`
 
 	// iops
@@ -2105,7 +2220,7 @@ type NfsServiceInlineMetricInlineV4 struct {
 	// Any errors associated with the sample. For example, if the aggregation of data over multiple nodes fails then any of the partial errors might be returned, "ok" on success, or "error" on any internal uncategorized failure. Whenever a sample collection is missed but done at a later time, it is back filled to the previous 15 second timestamp and tagged with "backfilled_data". "Inconsistent_ delta_time" is encountered when the time between two collections is not the same for all nodes. Therefore, the aggregated value might be over or under inflated. "Negative_delta" is returned when an expected monotonically increasing value has decreased in value. "Inconsistent_old_data" is returned when one or more nodes do not have the latest data.
 	// Example: ok
 	// Read Only: true
-	// Enum: [ok error partial_no_data partial_no_response partial_other_error negative_delta not_found backfilled_data inconsistent_delta_time inconsistent_old_data partial_no_uuid]
+	// Enum: ["ok","error","partial_no_data","partial_no_response","partial_other_error","negative_delta","not_found","backfilled_data","inconsistent_delta_time","inconsistent_old_data","partial_no_uuid"]
 	Status *string `json:"status,omitempty"`
 
 	// throughput
@@ -2408,6 +2523,11 @@ func (m *NfsServiceInlineMetricInlineV4) ContextValidate(ctx context.Context, fo
 func (m *NfsServiceInlineMetricInlineV4) contextValidateLinks(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Links != nil {
+
+		if swag.IsZero(m.Links) { // not required
+			return nil
+		}
+
 		if err := m.Links.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("metric" + "." + "v4" + "." + "_links")
@@ -2433,6 +2553,11 @@ func (m *NfsServiceInlineMetricInlineV4) contextValidateDuration(ctx context.Con
 func (m *NfsServiceInlineMetricInlineV4) contextValidateIops(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Iops != nil {
+
+		if swag.IsZero(m.Iops) { // not required
+			return nil
+		}
+
 		if err := m.Iops.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("metric" + "." + "v4" + "." + "iops")
@@ -2449,6 +2574,11 @@ func (m *NfsServiceInlineMetricInlineV4) contextValidateIops(ctx context.Context
 func (m *NfsServiceInlineMetricInlineV4) contextValidateLatency(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Latency != nil {
+
+		if swag.IsZero(m.Latency) { // not required
+			return nil
+		}
+
 		if err := m.Latency.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("metric" + "." + "v4" + "." + "latency")
@@ -2474,6 +2604,11 @@ func (m *NfsServiceInlineMetricInlineV4) contextValidateStatus(ctx context.Conte
 func (m *NfsServiceInlineMetricInlineV4) contextValidateThroughput(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Throughput != nil {
+
+		if swag.IsZero(m.Throughput) { // not required
+			return nil
+		}
+
 		if err := m.Throughput.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("metric" + "." + "v4" + "." + "throughput")
@@ -2526,7 +2661,7 @@ type NfsServiceInlineMetricInlineV41 struct {
 	//
 	// Example: PT15S
 	// Read Only: true
-	// Enum: [PT15S PT4M PT30M PT2H P1D PT5M]
+	// Enum: ["PT15S","PT4M","PT30M","PT2H","P1D","PT5M"]
 	Duration *string `json:"duration,omitempty"`
 
 	// iops
@@ -2538,7 +2673,7 @@ type NfsServiceInlineMetricInlineV41 struct {
 	// Any errors associated with the sample. For example, if the aggregation of data over multiple nodes fails then any of the partial errors might be returned, "ok" on success, or "error" on any internal uncategorized failure. Whenever a sample collection is missed but done at a later time, it is back filled to the previous 15 second timestamp and tagged with "backfilled_data". "Inconsistent_ delta_time" is encountered when the time between two collections is not the same for all nodes. Therefore, the aggregated value might be over or under inflated. "Negative_delta" is returned when an expected monotonically increasing value has decreased in value. "Inconsistent_old_data" is returned when one or more nodes do not have the latest data.
 	// Example: ok
 	// Read Only: true
-	// Enum: [ok error partial_no_data partial_no_response partial_other_error negative_delta not_found backfilled_data inconsistent_delta_time inconsistent_old_data partial_no_uuid]
+	// Enum: ["ok","error","partial_no_data","partial_no_response","partial_other_error","negative_delta","not_found","backfilled_data","inconsistent_delta_time","inconsistent_old_data","partial_no_uuid"]
 	Status *string `json:"status,omitempty"`
 
 	// throughput
@@ -2841,6 +2976,11 @@ func (m *NfsServiceInlineMetricInlineV41) ContextValidate(ctx context.Context, f
 func (m *NfsServiceInlineMetricInlineV41) contextValidateLinks(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Links != nil {
+
+		if swag.IsZero(m.Links) { // not required
+			return nil
+		}
+
 		if err := m.Links.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("metric" + "." + "v41" + "." + "_links")
@@ -2866,6 +3006,11 @@ func (m *NfsServiceInlineMetricInlineV41) contextValidateDuration(ctx context.Co
 func (m *NfsServiceInlineMetricInlineV41) contextValidateIops(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Iops != nil {
+
+		if swag.IsZero(m.Iops) { // not required
+			return nil
+		}
+
 		if err := m.Iops.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("metric" + "." + "v41" + "." + "iops")
@@ -2882,6 +3027,11 @@ func (m *NfsServiceInlineMetricInlineV41) contextValidateIops(ctx context.Contex
 func (m *NfsServiceInlineMetricInlineV41) contextValidateLatency(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Latency != nil {
+
+		if swag.IsZero(m.Latency) { // not required
+			return nil
+		}
+
 		if err := m.Latency.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("metric" + "." + "v41" + "." + "latency")
@@ -2907,6 +3057,11 @@ func (m *NfsServiceInlineMetricInlineV41) contextValidateStatus(ctx context.Cont
 func (m *NfsServiceInlineMetricInlineV41) contextValidateThroughput(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Throughput != nil {
+
+		if swag.IsZero(m.Throughput) { // not required
+			return nil
+		}
+
 		if err := m.Throughput.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("metric" + "." + "v41" + "." + "throughput")
@@ -3114,6 +3269,11 @@ func (m *NfsServiceInlineMetricInlineV41InlineLinks) ContextValidate(ctx context
 func (m *NfsServiceInlineMetricInlineV41InlineLinks) contextValidateSelf(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Self != nil {
+
+		if swag.IsZero(m.Self) { // not required
+			return nil
+		}
+
 		if err := m.Self.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("metric" + "." + "v41" + "." + "_links" + "." + "self")
@@ -3363,6 +3523,11 @@ func (m *NfsServiceInlineMetricInlineV4InlineLinks) ContextValidate(ctx context.
 func (m *NfsServiceInlineMetricInlineV4InlineLinks) contextValidateSelf(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Self != nil {
+
+		if swag.IsZero(m.Self) { // not required
+			return nil
+		}
+
 		if err := m.Self.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("metric" + "." + "v4" + "." + "_links" + "." + "self")
@@ -3673,6 +3838,11 @@ func (m *NfsServiceInlineProtocol) ContextValidate(ctx context.Context, formats 
 func (m *NfsServiceInlineProtocol) contextValidateV3Features(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.V3Features != nil {
+
+		if swag.IsZero(m.V3Features) { // not required
+			return nil
+		}
+
 		if err := m.V3Features.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("protocol" + "." + "v3_features")
@@ -3689,6 +3859,11 @@ func (m *NfsServiceInlineProtocol) contextValidateV3Features(ctx context.Context
 func (m *NfsServiceInlineProtocol) contextValidateV40Features(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.V40Features != nil {
+
+		if swag.IsZero(m.V40Features) { // not required
+			return nil
+		}
+
 		if err := m.V40Features.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("protocol" + "." + "v40_features")
@@ -3705,6 +3880,11 @@ func (m *NfsServiceInlineProtocol) contextValidateV40Features(ctx context.Contex
 func (m *NfsServiceInlineProtocol) contextValidateV41Features(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.V41Features != nil {
+
+		if swag.IsZero(m.V41Features) { // not required
+			return nil
+		}
+
 		if err := m.V41Features.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("protocol" + "." + "v41_features")
@@ -3721,6 +3901,11 @@ func (m *NfsServiceInlineProtocol) contextValidateV41Features(ctx context.Contex
 func (m *NfsServiceInlineProtocol) contextValidateV42Features(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.V42Features != nil {
+
+		if swag.IsZero(m.V42Features) { // not required
+			return nil
+		}
+
 		if err := m.V42Features.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("protocol" + "." + "v42_features")
@@ -3759,17 +3944,17 @@ type NfsServiceInlineProtocolAccessRules struct {
 
 	// Access available for the CIFS protocol.
 	// Read Only: true
-	// Enum: [read read_write denied]
+	// Enum: ["read","read_write","denied"]
 	CifsAccessType *string `json:"cifs_access_type,omitempty"`
 
 	// Access available for the NFSv3 protocol.
 	// Read Only: true
-	// Enum: [read read_write denied]
+	// Enum: ["read","read_write","denied"]
 	Nfs3AccessType *string `json:"nfs3_access_type,omitempty"`
 
 	// Access available for the NFSv4 protocol.
 	// Read Only: true
-	// Enum: [read read_write denied]
+	// Enum: ["read","read_write","denied"]
 	Nfs4AccessType *string `json:"nfs4_access_type,omitempty"`
 }
 
@@ -4344,14 +4529,14 @@ func (m *NfsServiceInlineRoot) UnmarshalBinary(b []byte) error {
 type NfsServiceInlineSecurity struct {
 
 	// Specifies whether file ownership can be changed only by the superuser, or if a non-root user can also change file ownership. If you set this parameter to restricted, file ownership can be changed only by the superuser, even though the on-disk permissions allow a non-root user to change file ownership. If you set this parameter to unrestricted, file ownership can be changed by the superuser and by the non-root user, depending upon the access granted by on-disk permissions. If you set this parameter to use_export_policy, file ownership can be changed in accordance with the relevant export rules.
-	// Enum: [restricted unrestricted use_export_policy]
+	// Enum: ["restricted","unrestricted","use_export_policy"]
 	ChownMode *string `json:"chown_mode,omitempty"`
 
 	// Controls the permissions that are displayed to NFSv3 and NFSv4 clients on a file or directory that has an NT ACL set. When true, the displayed permissions are based on the maximum access granted by the NT ACL to any user. When false, the displayed permissions are based on the minimum access granted by the NT ACL to any user.
 	NtACLDisplayPermission *bool `json:"nt_acl_display_permission,omitempty"`
 
 	// Specifies how NFSv3 security changes affect NTFS volumes. If you set this parameter to ignore, ONTAP ignores NFSv3 security changes. If you set this parameter to fail, this overrides the UNIX security options set in the relevant export rules. If you set this parameter to use_export_policy, ONTAP processes NFSv3 security changes in accordance with the relevant export rules.
-	// Enum: [ignore fail use_export_policy]
+	// Enum: ["ignore","fail","use_export_policy"]
 	NtfsUnixSecurity *string `json:"ntfs_unix_security,omitempty"`
 
 	// Specifies the permitted encryption types for Kerberos over NFS.
@@ -4654,6 +4839,11 @@ func (m *NfsServiceInlineStatistics) ContextValidate(ctx context.Context, format
 func (m *NfsServiceInlineStatistics) contextValidateV3(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.V3 != nil {
+
+		if swag.IsZero(m.V3) { // not required
+			return nil
+		}
+
 		if err := m.V3.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("statistics" + "." + "v3")
@@ -4670,6 +4860,11 @@ func (m *NfsServiceInlineStatistics) contextValidateV3(ctx context.Context, form
 func (m *NfsServiceInlineStatistics) contextValidateV4(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.V4 != nil {
+
+		if swag.IsZero(m.V4) { // not required
+			return nil
+		}
+
 		if err := m.V4.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("statistics" + "." + "v4")
@@ -4686,6 +4881,11 @@ func (m *NfsServiceInlineStatistics) contextValidateV4(ctx context.Context, form
 func (m *NfsServiceInlineStatistics) contextValidateV41(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.V41 != nil {
+
+		if swag.IsZero(m.V41) { // not required
+			return nil
+		}
+
 		if err := m.V41.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("statistics" + "." + "v41")
@@ -4731,7 +4931,7 @@ type NfsServiceInlineStatisticsInlineV3 struct {
 	// Any errors associated with the sample. For example, if the aggregation of data over multiple nodes fails then any of the partial errors might be returned, "ok" on success, or "error" on any internal uncategorized failure. Whenever a sample collection is missed but done at a later time, it is back filled to the previous 15 second timestamp and tagged with "backfilled_data". "Inconsistent_delta_time" is encountered when the time between two collections is not the same for all nodes. Therefore, the aggregated value might be over or under inflated. "Negative_delta" is returned when an expected monotonically increasing value has decreased in value. "Inconsistent_old_data" is returned when one or more nodes do not have the latest data.
 	// Example: ok
 	// Read Only: true
-	// Enum: [ok error partial_no_data partial_no_response partial_other_error negative_delta not_found backfilled_data inconsistent_delta_time inconsistent_old_data partial_no_uuid]
+	// Enum: ["ok","error","partial_no_data","partial_no_response","partial_other_error","negative_delta","not_found","backfilled_data","inconsistent_delta_time","inconsistent_old_data","partial_no_uuid"]
 	Status *string `json:"status,omitempty"`
 
 	// throughput raw
@@ -4945,6 +5145,11 @@ func (m *NfsServiceInlineStatisticsInlineV3) ContextValidate(ctx context.Context
 func (m *NfsServiceInlineStatisticsInlineV3) contextValidateIopsRaw(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.IopsRaw != nil {
+
+		if swag.IsZero(m.IopsRaw) { // not required
+			return nil
+		}
+
 		if err := m.IopsRaw.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("statistics" + "." + "v3" + "." + "iops_raw")
@@ -4961,6 +5166,11 @@ func (m *NfsServiceInlineStatisticsInlineV3) contextValidateIopsRaw(ctx context.
 func (m *NfsServiceInlineStatisticsInlineV3) contextValidateLatencyRaw(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.LatencyRaw != nil {
+
+		if swag.IsZero(m.LatencyRaw) { // not required
+			return nil
+		}
+
 		if err := m.LatencyRaw.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("statistics" + "." + "v3" + "." + "latency_raw")
@@ -4986,6 +5196,11 @@ func (m *NfsServiceInlineStatisticsInlineV3) contextValidateStatus(ctx context.C
 func (m *NfsServiceInlineStatisticsInlineV3) contextValidateThroughputRaw(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.ThroughputRaw != nil {
+
+		if swag.IsZero(m.ThroughputRaw) { // not required
+			return nil
+		}
+
 		if err := m.ThroughputRaw.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("statistics" + "." + "v3" + "." + "throughput_raw")
@@ -5199,7 +5414,7 @@ type NfsServiceInlineStatisticsInlineV4 struct {
 	// Any errors associated with the sample. For example, if the aggregation of data over multiple nodes fails then any of the partial errors might be returned, "ok" on success, or "error" on any internal uncategorized failure. Whenever a sample collection is missed but done at a later time, it is back filled to the previous 15 second timestamp and tagged with "backfilled_data". "Inconsistent_delta_time" is encountered when the time between two collections is not the same for all nodes. Therefore, the aggregated value might be over or under inflated. "Negative_delta" is returned when an expected monotonically increasing value has decreased in value. "Inconsistent_old_data" is returned when one or more nodes do not have the latest data.
 	// Example: ok
 	// Read Only: true
-	// Enum: [ok error partial_no_data partial_no_response partial_other_error negative_delta not_found backfilled_data inconsistent_delta_time inconsistent_old_data partial_no_uuid]
+	// Enum: ["ok","error","partial_no_data","partial_no_response","partial_other_error","negative_delta","not_found","backfilled_data","inconsistent_delta_time","inconsistent_old_data","partial_no_uuid"]
 	Status *string `json:"status,omitempty"`
 
 	// throughput raw
@@ -5413,6 +5628,11 @@ func (m *NfsServiceInlineStatisticsInlineV4) ContextValidate(ctx context.Context
 func (m *NfsServiceInlineStatisticsInlineV4) contextValidateIopsRaw(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.IopsRaw != nil {
+
+		if swag.IsZero(m.IopsRaw) { // not required
+			return nil
+		}
+
 		if err := m.IopsRaw.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("statistics" + "." + "v4" + "." + "iops_raw")
@@ -5429,6 +5649,11 @@ func (m *NfsServiceInlineStatisticsInlineV4) contextValidateIopsRaw(ctx context.
 func (m *NfsServiceInlineStatisticsInlineV4) contextValidateLatencyRaw(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.LatencyRaw != nil {
+
+		if swag.IsZero(m.LatencyRaw) { // not required
+			return nil
+		}
+
 		if err := m.LatencyRaw.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("statistics" + "." + "v4" + "." + "latency_raw")
@@ -5454,6 +5679,11 @@ func (m *NfsServiceInlineStatisticsInlineV4) contextValidateStatus(ctx context.C
 func (m *NfsServiceInlineStatisticsInlineV4) contextValidateThroughputRaw(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.ThroughputRaw != nil {
+
+		if swag.IsZero(m.ThroughputRaw) { // not required
+			return nil
+		}
+
 		if err := m.ThroughputRaw.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("statistics" + "." + "v4" + "." + "throughput_raw")
@@ -5508,7 +5738,7 @@ type NfsServiceInlineStatisticsInlineV41 struct {
 	// Any errors associated with the sample. For example, if the aggregation of data over multiple nodes fails then any of the partial errors might be returned, "ok" on success, or "error" on any internal uncategorized failure. Whenever a sample collection is missed but done at a later time, it is back filled to the previous 15 second timestamp and tagged with "backfilled_data". "Inconsistent_delta_time" is encountered when the time between two collections is not the same for all nodes. Therefore, the aggregated value might be over or under inflated. "Negative_delta" is returned when an expected monotonically increasing value has decreased in value. "Inconsistent_old_data" is returned when one or more nodes do not have the latest data.
 	// Example: ok
 	// Read Only: true
-	// Enum: [ok error partial_no_data partial_no_response partial_other_error negative_delta not_found backfilled_data inconsistent_delta_time inconsistent_old_data partial_no_uuid]
+	// Enum: ["ok","error","partial_no_data","partial_no_response","partial_other_error","negative_delta","not_found","backfilled_data","inconsistent_delta_time","inconsistent_old_data","partial_no_uuid"]
 	Status *string `json:"status,omitempty"`
 
 	// throughput raw
@@ -5722,6 +5952,11 @@ func (m *NfsServiceInlineStatisticsInlineV41) ContextValidate(ctx context.Contex
 func (m *NfsServiceInlineStatisticsInlineV41) contextValidateIopsRaw(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.IopsRaw != nil {
+
+		if swag.IsZero(m.IopsRaw) { // not required
+			return nil
+		}
+
 		if err := m.IopsRaw.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("statistics" + "." + "v41" + "." + "iops_raw")
@@ -5738,6 +5973,11 @@ func (m *NfsServiceInlineStatisticsInlineV41) contextValidateIopsRaw(ctx context
 func (m *NfsServiceInlineStatisticsInlineV41) contextValidateLatencyRaw(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.LatencyRaw != nil {
+
+		if swag.IsZero(m.LatencyRaw) { // not required
+			return nil
+		}
+
 		if err := m.LatencyRaw.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("statistics" + "." + "v41" + "." + "latency_raw")
@@ -5763,6 +6003,11 @@ func (m *NfsServiceInlineStatisticsInlineV41) contextValidateStatus(ctx context.
 func (m *NfsServiceInlineStatisticsInlineV41) contextValidateThroughputRaw(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.ThroughputRaw != nil {
+
+		if swag.IsZero(m.ThroughputRaw) { // not required
+			return nil
+		}
+
 		if err := m.ThroughputRaw.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("statistics" + "." + "v41" + "." + "throughput_raw")
@@ -6190,6 +6435,11 @@ func (m *NfsServiceInlineSvm) ContextValidate(ctx context.Context, formats strfm
 func (m *NfsServiceInlineSvm) contextValidateLinks(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Links != nil {
+
+		if swag.IsZero(m.Links) { // not required
+			return nil
+		}
+
 		if err := m.Links.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("svm" + "." + "_links")
@@ -6280,6 +6530,11 @@ func (m *NfsServiceInlineSvmInlineLinks) ContextValidate(ctx context.Context, fo
 func (m *NfsServiceInlineSvmInlineLinks) contextValidateSelf(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Self != nil {
+
+		if swag.IsZero(m.Self) { // not required
+			return nil
+		}
+
 		if err := m.Self.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("svm" + "." + "_links" + "." + "self")

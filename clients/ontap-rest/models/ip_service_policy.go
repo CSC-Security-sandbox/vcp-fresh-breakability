@@ -39,7 +39,7 @@ type IPServicePolicy struct {
 	Name *string `json:"name,omitempty"`
 
 	// Set to "svm" for interfaces owned by an SVM. Otherwise, set to "cluster".
-	// Enum: [svm cluster]
+	// Enum: ["svm","cluster"]
 	Scope *string `json:"scope,omitempty"`
 
 	// svm
@@ -243,6 +243,11 @@ func (m *IPServicePolicy) ContextValidate(ctx context.Context, formats strfmt.Re
 func (m *IPServicePolicy) contextValidateLinks(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Links != nil {
+
+		if swag.IsZero(m.Links) { // not required
+			return nil
+		}
+
 		if err := m.Links.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("_links")
@@ -261,6 +266,11 @@ func (m *IPServicePolicy) contextValidateIPServicePolicyInlineServices(ctx conte
 	for i := 0; i < len(m.IPServicePolicyInlineServices); i++ {
 
 		if m.IPServicePolicyInlineServices[i] != nil {
+
+			if swag.IsZero(m.IPServicePolicyInlineServices[i]) { // not required
+				return nil
+			}
+
 			if err := m.IPServicePolicyInlineServices[i].ContextValidate(ctx, formats); err != nil {
 				if ve, ok := err.(*errors.Validation); ok {
 					return ve.ValidateName("services" + "." + strconv.Itoa(i))
@@ -279,6 +289,11 @@ func (m *IPServicePolicy) contextValidateIPServicePolicyInlineServices(ctx conte
 func (m *IPServicePolicy) contextValidateIpspace(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Ipspace != nil {
+
+		if swag.IsZero(m.Ipspace) { // not required
+			return nil
+		}
+
 		if err := m.Ipspace.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("ipspace")
@@ -304,6 +319,11 @@ func (m *IPServicePolicy) contextValidateIsBuiltIn(ctx context.Context, formats 
 func (m *IPServicePolicy) contextValidateSvm(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Svm != nil {
+
+		if swag.IsZero(m.Svm) { // not required
+			return nil
+		}
+
 		if err := m.Svm.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("svm")
@@ -411,6 +431,11 @@ func (m *IPServicePolicyInlineIpspace) ContextValidate(ctx context.Context, form
 func (m *IPServicePolicyInlineIpspace) contextValidateLinks(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Links != nil {
+
+		if swag.IsZero(m.Links) { // not required
+			return nil
+		}
+
 		if err := m.Links.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("ipspace" + "." + "_links")
@@ -501,6 +526,11 @@ func (m *IPServicePolicyInlineIpspaceInlineLinks) ContextValidate(ctx context.Co
 func (m *IPServicePolicyInlineIpspaceInlineLinks) contextValidateSelf(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Self != nil {
+
+		if swag.IsZero(m.Self) { // not required
+			return nil
+		}
+
 		if err := m.Self.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("ipspace" + "." + "_links" + "." + "self")
@@ -591,6 +621,11 @@ func (m *IPServicePolicyInlineLinks) ContextValidate(ctx context.Context, format
 func (m *IPServicePolicyInlineLinks) contextValidateSelf(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Self != nil {
+
+		if swag.IsZero(m.Self) { // not required
+			return nil
+		}
+
 		if err := m.Self.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("_links" + "." + "self")
@@ -691,6 +726,11 @@ func (m *IPServicePolicyInlineSvm) ContextValidate(ctx context.Context, formats 
 func (m *IPServicePolicyInlineSvm) contextValidateLinks(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Links != nil {
+
+		if swag.IsZero(m.Links) { // not required
+			return nil
+		}
+
 		if err := m.Links.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("svm" + "." + "_links")
@@ -781,6 +821,11 @@ func (m *IPServicePolicyInlineSvmInlineLinks) ContextValidate(ctx context.Contex
 func (m *IPServicePolicyInlineSvmInlineLinks) contextValidateSelf(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Self != nil {
+
+		if swag.IsZero(m.Self) { // not required
+			return nil
+		}
+
 		if err := m.Self.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("svm" + "." + "_links" + "." + "self")

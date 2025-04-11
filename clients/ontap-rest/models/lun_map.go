@@ -233,6 +233,11 @@ func (m *LunMap) ContextValidate(ctx context.Context, formats strfmt.Registry) e
 func (m *LunMap) contextValidateLinks(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Links != nil {
+
+		if swag.IsZero(m.Links) { // not required
+			return nil
+		}
+
 		if err := m.Links.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("_links")
@@ -249,6 +254,11 @@ func (m *LunMap) contextValidateLinks(ctx context.Context, formats strfmt.Regist
 func (m *LunMap) contextValidateIgroup(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Igroup != nil {
+
+		if swag.IsZero(m.Igroup) { // not required
+			return nil
+		}
+
 		if err := m.Igroup.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("igroup")
@@ -265,6 +275,11 @@ func (m *LunMap) contextValidateIgroup(ctx context.Context, formats strfmt.Regis
 func (m *LunMap) contextValidateLun(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Lun != nil {
+
+		if swag.IsZero(m.Lun) { // not required
+			return nil
+		}
+
 		if err := m.Lun.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("lun")
@@ -287,6 +302,11 @@ func (m *LunMap) contextValidateLunMapInlineReportingNodes(ctx context.Context, 
 	for i := 0; i < len(m.LunMapInlineReportingNodes); i++ {
 
 		if m.LunMapInlineReportingNodes[i] != nil {
+
+			if swag.IsZero(m.LunMapInlineReportingNodes[i]) { // not required
+				return nil
+			}
+
 			if err := m.LunMapInlineReportingNodes[i].ContextValidate(ctx, formats); err != nil {
 				if ve, ok := err.(*errors.Validation); ok {
 					return ve.ValidateName("reporting_nodes" + "." + strconv.Itoa(i))
@@ -305,6 +325,11 @@ func (m *LunMap) contextValidateLunMapInlineReportingNodes(ctx context.Context, 
 func (m *LunMap) contextValidateSvm(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Svm != nil {
+
+		if swag.IsZero(m.Svm) { // not required
+			return nil
+		}
+
 		if err := m.Svm.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("svm")
@@ -357,13 +382,13 @@ type LunMapInlineIgroup struct {
 	// The host operating system of the initiator group. All initiators in the group should be hosts of the same operating system.
 	//
 	// Read Only: true
-	// Enum: [aix hpux hyper_v linux netware openvms solaris vmware windows xen]
+	// Enum: ["aix","hpux","hyper_v","linux","netware","openvms","solaris","vmware","windows","xen"]
 	OsType *string `json:"os_type,omitempty"`
 
 	// The protocols supported by the initiator group. This restricts the type of initiators that can be added to the initiator group.
 	//
 	// Read Only: true
-	// Enum: [fcp iscsi mixed]
+	// Enum: ["fcp","iscsi","mixed"]
 	Protocol *string `json:"protocol,omitempty"`
 
 	// This property reports if the initiator group is replicated.
@@ -562,6 +587,11 @@ func (m *LunMapInlineIgroup) ContextValidate(ctx context.Context, formats strfmt
 func (m *LunMapInlineIgroup) contextValidateLinks(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Links != nil {
+
+		if swag.IsZero(m.Links) { // not required
+			return nil
+		}
+
 		if err := m.Links.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("igroup" + "." + "_links")
@@ -696,6 +726,11 @@ func (m *LunMapInlineIgroupInlineLinks) ContextValidate(ctx context.Context, for
 func (m *LunMapInlineIgroupInlineLinks) contextValidateSelf(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Self != nil {
+
+		if swag.IsZero(m.Self) { // not required
+			return nil
+		}
+
 		if err := m.Self.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("igroup" + "." + "_links" + "." + "self")
@@ -786,6 +821,11 @@ func (m *LunMapInlineLinks) ContextValidate(ctx context.Context, formats strfmt.
 func (m *LunMapInlineLinks) contextValidateSelf(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Self != nil {
+
+		if swag.IsZero(m.Self) { // not required
+			return nil
+		}
+
 		if err := m.Self.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("_links" + "." + "self")
@@ -949,6 +989,11 @@ func (m *LunMapInlineLun) ContextValidate(ctx context.Context, formats strfmt.Re
 func (m *LunMapInlineLun) contextValidateLinks(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Links != nil {
+
+		if swag.IsZero(m.Links) { // not required
+			return nil
+		}
+
 		if err := m.Links.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("lun" + "." + "_links")
@@ -965,6 +1010,11 @@ func (m *LunMapInlineLun) contextValidateLinks(ctx context.Context, formats strf
 func (m *LunMapInlineLun) contextValidateNode(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Node != nil {
+
+		if swag.IsZero(m.Node) { // not required
+			return nil
+		}
+
 		if err := m.Node.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("lun" + "." + "node")
@@ -981,6 +1031,11 @@ func (m *LunMapInlineLun) contextValidateNode(ctx context.Context, formats strfm
 func (m *LunMapInlineLun) contextValidateSmbc(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Smbc != nil {
+
+		if swag.IsZero(m.Smbc) { // not required
+			return nil
+		}
+
 		if err := m.Smbc.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("lun" + "." + "smbc")
@@ -1071,6 +1126,11 @@ func (m *LunMapInlineLunInlineLinks) ContextValidate(ctx context.Context, format
 func (m *LunMapInlineLunInlineLinks) contextValidateSelf(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Self != nil {
+
+		if swag.IsZero(m.Self) { // not required
+			return nil
+		}
+
 		if err := m.Self.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("lun" + "." + "_links" + "." + "self")
@@ -1181,6 +1241,11 @@ func (m *LunMapInlineLunInlineNode) ContextValidate(ctx context.Context, formats
 func (m *LunMapInlineLunInlineNode) contextValidateLinks(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Links != nil {
+
+		if swag.IsZero(m.Links) { // not required
+			return nil
+		}
+
 		if err := m.Links.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("lun" + "." + "node" + "." + "_links")
@@ -1289,6 +1354,11 @@ func (m *LunMapInlineLunInlineNodeInlineLinks) ContextValidate(ctx context.Conte
 func (m *LunMapInlineLunInlineNodeInlineLinks) contextValidateSelf(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Self != nil {
+
+		if swag.IsZero(m.Self) { // not required
+			return nil
+		}
+
 		if err := m.Self.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("lun" + "." + "node" + "." + "_links" + "." + "self")
@@ -1448,6 +1518,11 @@ func (m *LunMapInlineReportingNodesInlineArrayItem) ContextValidate(ctx context.
 func (m *LunMapInlineReportingNodesInlineArrayItem) contextValidateLinks(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Links != nil {
+
+		if swag.IsZero(m.Links) { // not required
+			return nil
+		}
+
 		if err := m.Links.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("_links")
@@ -1568,6 +1643,11 @@ func (m *LunMapInlineReportingNodesInlineArrayItemInlineLinks) ContextValidate(c
 func (m *LunMapInlineReportingNodesInlineArrayItemInlineLinks) contextValidateNode(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Node != nil {
+
+		if swag.IsZero(m.Node) { // not required
+			return nil
+		}
+
 		if err := m.Node.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("_links" + "." + "node")
@@ -1584,6 +1664,11 @@ func (m *LunMapInlineReportingNodesInlineArrayItemInlineLinks) contextValidateNo
 func (m *LunMapInlineReportingNodesInlineArrayItemInlineLinks) contextValidateSelf(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Self != nil {
+
+		if swag.IsZero(m.Self) { // not required
+			return nil
+		}
+
 		if err := m.Self.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("_links" + "." + "self")
@@ -1684,6 +1769,11 @@ func (m *LunMapInlineSvm) ContextValidate(ctx context.Context, formats strfmt.Re
 func (m *LunMapInlineSvm) contextValidateLinks(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Links != nil {
+
+		if swag.IsZero(m.Links) { // not required
+			return nil
+		}
+
 		if err := m.Links.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("svm" + "." + "_links")
@@ -1774,6 +1864,11 @@ func (m *LunMapInlineSvmInlineLinks) ContextValidate(ctx context.Context, format
 func (m *LunMapInlineSvmInlineLinks) contextValidateSelf(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Self != nil {
+
+		if swag.IsZero(m.Self) { // not required
+			return nil
+		}
+
 		if err := m.Self.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("svm" + "." + "_links" + "." + "self")

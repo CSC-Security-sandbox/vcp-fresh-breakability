@@ -42,7 +42,7 @@ type DiskPathInfo struct {
 
 	// Disk port type.
 	// Example: sas
-	// Enum: [sas fc nvme]
+	// Enum: ["sas","fc","nvme"]
 	PortType *string `json:"port_type,omitempty"`
 
 	// Virtual disk hypervisor file name.
@@ -92,8 +92,8 @@ const (
 	// DiskPathInfoPortTypeFc captures enum value "fc"
 	DiskPathInfoPortTypeFc string = "fc"
 
-	// DiskPathInfoPortTypeNVME captures enum value "nvme"
-	DiskPathInfoPortTypeNVME string = "nvme"
+	// DiskPathInfoPortTypeNvme captures enum value "nvme"
+	DiskPathInfoPortTypeNvme string = "nvme"
 )
 
 // prop value enum

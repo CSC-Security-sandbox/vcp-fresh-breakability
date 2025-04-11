@@ -6,6 +6,7 @@ package security
 // Editing this file might prove futile when you re-run the swagger generate command
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 
@@ -97,11 +98,13 @@ func (o *GcpKmsCreateCreated) Code() int {
 }
 
 func (o *GcpKmsCreateCreated) Error() string {
-	return fmt.Sprintf("[POST /security/gcp-kms][%d] gcpKmsCreateCreated  %+v", 201, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[POST /security/gcp-kms][%d] gcpKmsCreateCreated %s", 201, payload)
 }
 
 func (o *GcpKmsCreateCreated) String() string {
-	return fmt.Sprintf("[POST /security/gcp-kms][%d] gcpKmsCreateCreated  %+v", 201, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[POST /security/gcp-kms][%d] gcpKmsCreateCreated %s", 201, payload)
 }
 
 func (o *GcpKmsCreateCreated) GetPayload() *models.GcpKmsResponse {
@@ -177,11 +180,13 @@ func (o *GcpKmsCreateAccepted) Code() int {
 }
 
 func (o *GcpKmsCreateAccepted) Error() string {
-	return fmt.Sprintf("[POST /security/gcp-kms][%d] gcpKmsCreateAccepted  %+v", 202, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[POST /security/gcp-kms][%d] gcpKmsCreateAccepted %s", 202, payload)
 }
 
 func (o *GcpKmsCreateAccepted) String() string {
-	return fmt.Sprintf("[POST /security/gcp-kms][%d] gcpKmsCreateAccepted  %+v", 202, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[POST /security/gcp-kms][%d] gcpKmsCreateAccepted %s", 202, payload)
 }
 
 func (o *GcpKmsCreateAccepted) GetPayload() *models.GcpKmsJobLinkResponse {
@@ -229,6 +234,7 @@ func NewGcpKmsCreateDefault(code int) *GcpKmsCreateDefault {
 | 65537720 | Failed to configure Google Cloud Key Management Service for SVM <svm-name> because a key manager has already been configured for this SVM. Use the REST API GET method \"/api/security/gcp-kms\" to view all of the configured key managers. |
 | 65537740 | The privileged account must be an email address or an empty string. |
 | 65537749 | The application credentials field must be in valid JSON format. |
+| 65539704 | The key manager cannot be configured because the SVM has NAE volumes. |
 Also see the table of common errors in the <a href="#Response_body">Response body</a> overview section of this documentation.
 */
 type GcpKmsCreateDefault struct {
@@ -268,11 +274,13 @@ func (o *GcpKmsCreateDefault) Code() int {
 }
 
 func (o *GcpKmsCreateDefault) Error() string {
-	return fmt.Sprintf("[POST /security/gcp-kms][%d] gcp_kms_create default  %+v", o._statusCode, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[POST /security/gcp-kms][%d] gcp_kms_create default %s", o._statusCode, payload)
 }
 
 func (o *GcpKmsCreateDefault) String() string {
-	return fmt.Sprintf("[POST /security/gcp-kms][%d] gcp_kms_create default  %+v", o._statusCode, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[POST /security/gcp-kms][%d] gcp_kms_create default %s", o._statusCode, payload)
 }
 
 func (o *GcpKmsCreateDefault) GetPayload() *models.ErrorResponse {

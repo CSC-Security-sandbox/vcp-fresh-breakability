@@ -146,6 +146,11 @@ func (m *Audit) ContextValidate(ctx context.Context, formats strfmt.Registry) er
 func (m *Audit) contextValidateEvents(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Events != nil {
+
+		if swag.IsZero(m.Events) { // not required
+			return nil
+		}
+
 		if err := m.Events.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("events")
@@ -162,6 +167,11 @@ func (m *Audit) contextValidateEvents(ctx context.Context, formats strfmt.Regist
 func (m *Audit) contextValidateLog(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Log != nil {
+
+		if swag.IsZero(m.Log) { // not required
+			return nil
+		}
+
 		if err := m.Log.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("log")
@@ -178,6 +188,11 @@ func (m *Audit) contextValidateLog(ctx context.Context, formats strfmt.Registry)
 func (m *Audit) contextValidateSvm(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Svm != nil {
+
+		if swag.IsZero(m.Svm) { // not required
+			return nil
+		}
+
 		if err := m.Svm.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("svm")
@@ -339,6 +354,11 @@ func (m *AuditInlineSvm) ContextValidate(ctx context.Context, formats strfmt.Reg
 func (m *AuditInlineSvm) contextValidateLinks(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Links != nil {
+
+		if swag.IsZero(m.Links) { // not required
+			return nil
+		}
+
 		if err := m.Links.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("svm" + "." + "_links")
@@ -429,6 +449,11 @@ func (m *AuditInlineSvmInlineLinks) ContextValidate(ctx context.Context, formats
 func (m *AuditInlineSvmInlineLinks) contextValidateSelf(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Self != nil {
+
+		if swag.IsZero(m.Self) { // not required
+			return nil
+		}
+
 		if err := m.Self.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("svm" + "." + "_links" + "." + "self")

@@ -34,7 +34,7 @@ type LayoutRequirement struct {
 
 	// RAID type.
 	// Read Only: true
-	// Enum: [raid_dp raid_tec raid4 raid0]
+	// Enum: ["raid_dp","raid_tec","raid4","raid0"]
 	RaidType *string `json:"raid_type,omitempty"`
 }
 
@@ -170,6 +170,11 @@ func (m *LayoutRequirement) contextValidateDefault(ctx context.Context, formats 
 func (m *LayoutRequirement) contextValidateRaidGroup(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.RaidGroup != nil {
+
+		if swag.IsZero(m.RaidGroup) { // not required
+			return nil
+		}
+
 		if err := m.RaidGroup.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("raid_group")

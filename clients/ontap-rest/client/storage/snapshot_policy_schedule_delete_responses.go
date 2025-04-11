@@ -6,6 +6,7 @@ package storage
 // Editing this file might prove futile when you re-run the swagger generate command
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 
@@ -85,11 +86,11 @@ func (o *SnapshotPolicyScheduleDeleteOK) Code() int {
 }
 
 func (o *SnapshotPolicyScheduleDeleteOK) Error() string {
-	return fmt.Sprintf("[DELETE /storage/snapshot-policies/{snapshot_policy.uuid}/schedules/{schedule.uuid}][%d] snapshotPolicyScheduleDeleteOK ", 200)
+	return fmt.Sprintf("[DELETE /storage/snapshot-policies/{snapshot_policy.uuid}/schedules/{schedule.uuid}][%d] snapshotPolicyScheduleDeleteOK", 200)
 }
 
 func (o *SnapshotPolicyScheduleDeleteOK) String() string {
-	return fmt.Sprintf("[DELETE /storage/snapshot-policies/{snapshot_policy.uuid}/schedules/{schedule.uuid}][%d] snapshotPolicyScheduleDeleteOK ", 200)
+	return fmt.Sprintf("[DELETE /storage/snapshot-policies/{snapshot_policy.uuid}/schedules/{schedule.uuid}][%d] snapshotPolicyScheduleDeleteOK", 200)
 }
 
 func (o *SnapshotPolicyScheduleDeleteOK) readResponse(response runtime.ClientResponse, consumer runtime.Consumer, formats strfmt.Registry) error {
@@ -151,11 +152,13 @@ func (o *SnapshotPolicyScheduleDeleteDefault) Code() int {
 }
 
 func (o *SnapshotPolicyScheduleDeleteDefault) Error() string {
-	return fmt.Sprintf("[DELETE /storage/snapshot-policies/{snapshot_policy.uuid}/schedules/{schedule.uuid}][%d] snapshot_policy_schedule_delete default  %+v", o._statusCode, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[DELETE /storage/snapshot-policies/{snapshot_policy.uuid}/schedules/{schedule.uuid}][%d] snapshot_policy_schedule_delete default %s", o._statusCode, payload)
 }
 
 func (o *SnapshotPolicyScheduleDeleteDefault) String() string {
-	return fmt.Sprintf("[DELETE /storage/snapshot-policies/{snapshot_policy.uuid}/schedules/{schedule.uuid}][%d] snapshot_policy_schedule_delete default  %+v", o._statusCode, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[DELETE /storage/snapshot-policies/{snapshot_policy.uuid}/schedules/{schedule.uuid}][%d] snapshot_policy_schedule_delete default %s", o._statusCode, payload)
 }
 
 func (o *SnapshotPolicyScheduleDeleteDefault) GetPayload() *models.ErrorResponse {

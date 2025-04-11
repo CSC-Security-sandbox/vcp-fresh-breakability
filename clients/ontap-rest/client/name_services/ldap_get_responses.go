@@ -6,6 +6,7 @@ package name_services
 // Editing this file might prove futile when you re-run the swagger generate command
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 
@@ -86,11 +87,13 @@ func (o *LdapGetOK) Code() int {
 }
 
 func (o *LdapGetOK) Error() string {
-	return fmt.Sprintf("[GET /name-services/ldap/{svm.uuid}][%d] ldapGetOK  %+v", 200, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[GET /name-services/ldap/{svm.uuid}][%d] ldapGetOK %s", 200, payload)
 }
 
 func (o *LdapGetOK) String() string {
-	return fmt.Sprintf("[GET /name-services/ldap/{svm.uuid}][%d] ldapGetOK  %+v", 200, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[GET /name-services/ldap/{svm.uuid}][%d] ldapGetOK %s", 200, payload)
 }
 
 func (o *LdapGetOK) GetPayload() *models.LdapService {
@@ -158,11 +161,13 @@ func (o *LdapGetDefault) Code() int {
 }
 
 func (o *LdapGetDefault) Error() string {
-	return fmt.Sprintf("[GET /name-services/ldap/{svm.uuid}][%d] ldap_get default  %+v", o._statusCode, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[GET /name-services/ldap/{svm.uuid}][%d] ldap_get default %s", o._statusCode, payload)
 }
 
 func (o *LdapGetDefault) String() string {
-	return fmt.Sprintf("[GET /name-services/ldap/{svm.uuid}][%d] ldap_get default  %+v", o._statusCode, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[GET /name-services/ldap/{svm.uuid}][%d] ldap_get default %s", o._statusCode, payload)
 }
 
 func (o *LdapGetDefault) GetPayload() *models.ErrorResponse {

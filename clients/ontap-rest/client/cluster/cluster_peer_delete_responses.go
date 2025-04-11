@@ -6,6 +6,7 @@ package cluster
 // Editing this file might prove futile when you re-run the swagger generate command
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 
@@ -85,11 +86,11 @@ func (o *ClusterPeerDeleteOK) Code() int {
 }
 
 func (o *ClusterPeerDeleteOK) Error() string {
-	return fmt.Sprintf("[DELETE /cluster/peers/{uuid}][%d] clusterPeerDeleteOK ", 200)
+	return fmt.Sprintf("[DELETE /cluster/peers/{uuid}][%d] clusterPeerDeleteOK", 200)
 }
 
 func (o *ClusterPeerDeleteOK) String() string {
-	return fmt.Sprintf("[DELETE /cluster/peers/{uuid}][%d] clusterPeerDeleteOK ", 200)
+	return fmt.Sprintf("[DELETE /cluster/peers/{uuid}][%d] clusterPeerDeleteOK", 200)
 }
 
 func (o *ClusterPeerDeleteOK) readResponse(response runtime.ClientResponse, consumer runtime.Consumer, formats strfmt.Registry) error {
@@ -152,11 +153,13 @@ func (o *ClusterPeerDeleteDefault) Code() int {
 }
 
 func (o *ClusterPeerDeleteDefault) Error() string {
-	return fmt.Sprintf("[DELETE /cluster/peers/{uuid}][%d] cluster_peer_delete default  %+v", o._statusCode, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[DELETE /cluster/peers/{uuid}][%d] cluster_peer_delete default %s", o._statusCode, payload)
 }
 
 func (o *ClusterPeerDeleteDefault) String() string {
-	return fmt.Sprintf("[DELETE /cluster/peers/{uuid}][%d] cluster_peer_delete default  %+v", o._statusCode, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[DELETE /cluster/peers/{uuid}][%d] cluster_peer_delete default %s", o._statusCode, payload)
 }
 
 func (o *ClusterPeerDeleteDefault) GetPayload() *models.ErrorResponse {

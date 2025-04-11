@@ -6,6 +6,7 @@ package networking
 // Editing this file might prove futile when you re-run the swagger generate command
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 
@@ -86,11 +87,13 @@ func (o *IpspacesGetOK) Code() int {
 }
 
 func (o *IpspacesGetOK) Error() string {
-	return fmt.Sprintf("[GET /network/ipspaces][%d] ipspacesGetOK  %+v", 200, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[GET /network/ipspaces][%d] ipspacesGetOK %s", 200, payload)
 }
 
 func (o *IpspacesGetOK) String() string {
-	return fmt.Sprintf("[GET /network/ipspaces][%d] ipspacesGetOK  %+v", 200, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[GET /network/ipspaces][%d] ipspacesGetOK %s", 200, payload)
 }
 
 func (o *IpspacesGetOK) GetPayload() *models.IpspaceResponse {
@@ -158,11 +161,13 @@ func (o *IpspacesGetDefault) Code() int {
 }
 
 func (o *IpspacesGetDefault) Error() string {
-	return fmt.Sprintf("[GET /network/ipspaces][%d] ipspaces_get default  %+v", o._statusCode, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[GET /network/ipspaces][%d] ipspaces_get default %s", o._statusCode, payload)
 }
 
 func (o *IpspacesGetDefault) String() string {
-	return fmt.Sprintf("[GET /network/ipspaces][%d] ipspaces_get default  %+v", o._statusCode, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[GET /network/ipspaces][%d] ipspaces_get default %s", o._statusCode, payload)
 }
 
 func (o *IpspacesGetDefault) GetPayload() *models.ErrorResponse {

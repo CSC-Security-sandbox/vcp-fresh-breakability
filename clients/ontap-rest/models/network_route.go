@@ -248,6 +248,11 @@ func (m *NetworkRoute) ContextValidate(ctx context.Context, formats strfmt.Regis
 func (m *NetworkRoute) contextValidateLinks(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Links != nil {
+
+		if swag.IsZero(m.Links) { // not required
+			return nil
+		}
+
 		if err := m.Links.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("_links")
@@ -264,6 +269,11 @@ func (m *NetworkRoute) contextValidateLinks(ctx context.Context, formats strfmt.
 func (m *NetworkRoute) contextValidateDestination(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Destination != nil {
+
+		if swag.IsZero(m.Destination) { // not required
+			return nil
+		}
+
 		if err := m.Destination.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("destination")
@@ -280,6 +290,11 @@ func (m *NetworkRoute) contextValidateDestination(ctx context.Context, formats s
 func (m *NetworkRoute) contextValidateIpspace(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Ipspace != nil {
+
+		if swag.IsZero(m.Ipspace) { // not required
+			return nil
+		}
+
 		if err := m.Ipspace.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("ipspace")
@@ -302,6 +317,11 @@ func (m *NetworkRoute) contextValidateNetworkRouteInlineInterfaces(ctx context.C
 	for i := 0; i < len(m.NetworkRouteInlineInterfaces); i++ {
 
 		if m.NetworkRouteInlineInterfaces[i] != nil {
+
+			if swag.IsZero(m.NetworkRouteInlineInterfaces[i]) { // not required
+				return nil
+			}
+
 			if err := m.NetworkRouteInlineInterfaces[i].ContextValidate(ctx, formats); err != nil {
 				if ve, ok := err.(*errors.Validation); ok {
 					return ve.ValidateName("interfaces" + "." + strconv.Itoa(i))
@@ -320,6 +340,11 @@ func (m *NetworkRoute) contextValidateNetworkRouteInlineInterfaces(ctx context.C
 func (m *NetworkRoute) contextValidateScope(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Scope != nil {
+
+		if swag.IsZero(m.Scope) { // not required
+			return nil
+		}
+
 		if err := m.Scope.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("scope")
@@ -336,6 +361,11 @@ func (m *NetworkRoute) contextValidateScope(ctx context.Context, formats strfmt.
 func (m *NetworkRoute) contextValidateSvm(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Svm != nil {
+
+		if swag.IsZero(m.Svm) { // not required
+			return nil
+		}
+
 		if err := m.Svm.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("svm")
@@ -475,6 +505,11 @@ func (m *NetworkRouteInlineInterfacesInlineArrayItem) ContextValidate(ctx contex
 func (m *NetworkRouteInlineInterfacesInlineArrayItem) contextValidateLinks(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Links != nil {
+
+		if swag.IsZero(m.Links) { // not required
+			return nil
+		}
+
 		if err := m.Links.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("_links")
@@ -491,6 +526,11 @@ func (m *NetworkRouteInlineInterfacesInlineArrayItem) contextValidateLinks(ctx c
 func (m *NetworkRouteInlineInterfacesInlineArrayItem) contextValidateIP(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.IP != nil {
+
+		if swag.IsZero(m.IP) { // not required
+			return nil
+		}
+
 		if err := m.IP.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("ip")
@@ -581,6 +621,11 @@ func (m *NetworkRouteInlineInterfacesInlineArrayItemInlineIP) ContextValidate(ct
 func (m *NetworkRouteInlineInterfacesInlineArrayItemInlineIP) contextValidateAddress(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Address != nil {
+
+		if swag.IsZero(m.Address) { // not required
+			return nil
+		}
+
 		if err := m.Address.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("ip" + "." + "address")
@@ -671,6 +716,11 @@ func (m *NetworkRouteInlineInterfacesInlineArrayItemInlineLinks) ContextValidate
 func (m *NetworkRouteInlineInterfacesInlineArrayItemInlineLinks) contextValidateSelf(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Self != nil {
+
+		if swag.IsZero(m.Self) { // not required
+			return nil
+		}
+
 		if err := m.Self.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("_links" + "." + "self")
@@ -769,6 +819,11 @@ func (m *NetworkRouteInlineIpspace) ContextValidate(ctx context.Context, formats
 func (m *NetworkRouteInlineIpspace) contextValidateLinks(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Links != nil {
+
+		if swag.IsZero(m.Links) { // not required
+			return nil
+		}
+
 		if err := m.Links.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("ipspace" + "." + "_links")
@@ -859,6 +914,11 @@ func (m *NetworkRouteInlineIpspaceInlineLinks) ContextValidate(ctx context.Conte
 func (m *NetworkRouteInlineIpspaceInlineLinks) contextValidateSelf(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Self != nil {
+
+		if swag.IsZero(m.Self) { // not required
+			return nil
+		}
+
 		if err := m.Self.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("ipspace" + "." + "_links" + "." + "self")
@@ -949,6 +1009,11 @@ func (m *NetworkRouteInlineLinks) ContextValidate(ctx context.Context, formats s
 func (m *NetworkRouteInlineLinks) contextValidateSelf(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Self != nil {
+
+		if swag.IsZero(m.Self) { // not required
+			return nil
+		}
+
 		if err := m.Self.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("_links" + "." + "self")
@@ -1049,6 +1114,11 @@ func (m *NetworkRouteInlineSvm) ContextValidate(ctx context.Context, formats str
 func (m *NetworkRouteInlineSvm) contextValidateLinks(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Links != nil {
+
+		if swag.IsZero(m.Links) { // not required
+			return nil
+		}
+
 		if err := m.Links.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("svm" + "." + "_links")
@@ -1139,6 +1209,11 @@ func (m *NetworkRouteInlineSvmInlineLinks) ContextValidate(ctx context.Context, 
 func (m *NetworkRouteInlineSvmInlineLinks) contextValidateSelf(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Self != nil {
+
+		if swag.IsZero(m.Self) { // not required
+			return nil
+		}
+
 		if err := m.Self.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("svm" + "." + "_links" + "." + "self")

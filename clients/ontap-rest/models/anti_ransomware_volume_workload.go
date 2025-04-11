@@ -235,6 +235,11 @@ func (m *AntiRansomwareVolumeWorkload) contextValidateAntiRansomwareVolumeWorklo
 	for i := 0; i < len(m.AntiRansomwareVolumeWorkloadInlineNewlyObservedFileExtensions); i++ {
 
 		if m.AntiRansomwareVolumeWorkloadInlineNewlyObservedFileExtensions[i] != nil {
+
+			if swag.IsZero(m.AntiRansomwareVolumeWorkloadInlineNewlyObservedFileExtensions[i]) { // not required
+				return nil
+			}
+
 			if err := m.AntiRansomwareVolumeWorkloadInlineNewlyObservedFileExtensions[i].ContextValidate(ctx, formats); err != nil {
 				if ve, ok := err.(*errors.Validation); ok {
 					return ve.ValidateName("newly_observed_file_extensions" + "." + strconv.Itoa(i))
@@ -262,6 +267,11 @@ func (m *AntiRansomwareVolumeWorkload) contextValidateFileExtensionTypesCount(ct
 func (m *AntiRansomwareVolumeWorkload) contextValidateHistoricalStatistics(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.HistoricalStatistics != nil {
+
+		if swag.IsZero(m.HistoricalStatistics) { // not required
+			return nil
+		}
+
 		if err := m.HistoricalStatistics.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("historical_statistics")
@@ -278,6 +288,11 @@ func (m *AntiRansomwareVolumeWorkload) contextValidateHistoricalStatistics(ctx c
 func (m *AntiRansomwareVolumeWorkload) contextValidateSurgeStatistics(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.SurgeStatistics != nil {
+
+		if swag.IsZero(m.SurgeStatistics) { // not required
+			return nil
+		}
+
 		if err := m.SurgeStatistics.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("surge_statistics")
@@ -294,6 +309,11 @@ func (m *AntiRansomwareVolumeWorkload) contextValidateSurgeStatistics(ctx contex
 func (m *AntiRansomwareVolumeWorkload) contextValidateSurgeUsage(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.SurgeUsage != nil {
+
+		if swag.IsZero(m.SurgeUsage) { // not required
+			return nil
+		}
+
 		if err := m.SurgeUsage.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("surge_usage")
@@ -310,6 +330,11 @@ func (m *AntiRansomwareVolumeWorkload) contextValidateSurgeUsage(ctx context.Con
 func (m *AntiRansomwareVolumeWorkload) contextValidateTypicalUsage(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.TypicalUsage != nil {
+
+		if swag.IsZero(m.TypicalUsage) { // not required
+			return nil
+		}
+
 		if err := m.TypicalUsage.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("typical_usage")
@@ -903,6 +928,11 @@ func (m *AntiRansomwareVolumeWorkloadInlineSurgeUsage) contextValidateNewlyObser
 	for i := 0; i < len(m.NewlyObservedFileExtensions); i++ {
 
 		if m.NewlyObservedFileExtensions[i] != nil {
+
+			if swag.IsZero(m.NewlyObservedFileExtensions[i]) { // not required
+				return nil
+			}
+
 			if err := m.NewlyObservedFileExtensions[i].ContextValidate(ctx, formats); err != nil {
 				if ve, ok := err.(*errors.Validation); ok {
 					return ve.ValidateName("surge_usage" + "." + "newly_observed_file_extensions" + "." + strconv.Itoa(i))

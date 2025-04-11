@@ -255,6 +255,11 @@ func (m *AggregateResponse) ContextValidate(ctx context.Context, formats strfmt.
 func (m *AggregateResponse) contextValidateLinks(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Links != nil {
+
+		if swag.IsZero(m.Links) { // not required
+			return nil
+		}
+
 		if err := m.Links.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("_links")
@@ -273,6 +278,11 @@ func (m *AggregateResponse) contextValidateAggregateResponseInlineRecommendation
 	for i := 0; i < len(m.AggregateResponseInlineRecommendationSpares); i++ {
 
 		if m.AggregateResponseInlineRecommendationSpares[i] != nil {
+
+			if swag.IsZero(m.AggregateResponseInlineRecommendationSpares[i]) { // not required
+				return nil
+			}
+
 			if err := m.AggregateResponseInlineRecommendationSpares[i].ContextValidate(ctx, formats); err != nil {
 				if ve, ok := err.(*errors.Validation); ok {
 					return ve.ValidateName("recommendation_spares" + "." + strconv.Itoa(i))
@@ -293,6 +303,11 @@ func (m *AggregateResponse) contextValidateAggregateResponseInlineRecords(ctx co
 	for i := 0; i < len(m.AggregateResponseInlineRecords); i++ {
 
 		if m.AggregateResponseInlineRecords[i] != nil {
+
+			if swag.IsZero(m.AggregateResponseInlineRecords[i]) { // not required
+				return nil
+			}
+
 			if err := m.AggregateResponseInlineRecords[i].ContextValidate(ctx, formats); err != nil {
 				if ve, ok := err.(*errors.Validation); ok {
 					return ve.ValidateName("records" + "." + strconv.Itoa(i))
@@ -313,6 +328,11 @@ func (m *AggregateResponse) contextValidateAggregateResponseInlineSpares(ctx con
 	for i := 0; i < len(m.AggregateResponseInlineSpares); i++ {
 
 		if m.AggregateResponseInlineSpares[i] != nil {
+
+			if swag.IsZero(m.AggregateResponseInlineSpares[i]) { // not required
+				return nil
+			}
+
 			if err := m.AggregateResponseInlineSpares[i].ContextValidate(ctx, formats); err != nil {
 				if ve, ok := err.(*errors.Validation); ok {
 					return ve.ValidateName("spares" + "." + strconv.Itoa(i))
@@ -333,6 +353,11 @@ func (m *AggregateResponse) contextValidateAggregateResponseInlineWarnings(ctx c
 	for i := 0; i < len(m.AggregateResponseInlineWarnings); i++ {
 
 		if m.AggregateResponseInlineWarnings[i] != nil {
+
+			if swag.IsZero(m.AggregateResponseInlineWarnings[i]) { // not required
+				return nil
+			}
+
 			if err := m.AggregateResponseInlineWarnings[i].ContextValidate(ctx, formats); err != nil {
 				if ve, ok := err.(*errors.Validation); ok {
 					return ve.ValidateName("warnings" + "." + strconv.Itoa(i))
@@ -351,6 +376,11 @@ func (m *AggregateResponse) contextValidateAggregateResponseInlineWarnings(ctx c
 func (m *AggregateResponse) contextValidateError(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Error != nil {
+
+		if swag.IsZero(m.Error) { // not required
+			return nil
+		}
+
 		if err := m.Error.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("error")
@@ -471,6 +501,11 @@ func (m *AggregateResponseInlineLinks) ContextValidate(ctx context.Context, form
 func (m *AggregateResponseInlineLinks) contextValidateNext(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Next != nil {
+
+		if swag.IsZero(m.Next) { // not required
+			return nil
+		}
+
 		if err := m.Next.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("_links" + "." + "next")
@@ -487,6 +522,11 @@ func (m *AggregateResponseInlineLinks) contextValidateNext(ctx context.Context, 
 func (m *AggregateResponseInlineLinks) contextValidateSelf(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Self != nil {
+
+		if swag.IsZero(m.Self) { // not required
+			return nil
+		}
+
 		if err := m.Self.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("_links" + "." + "self")

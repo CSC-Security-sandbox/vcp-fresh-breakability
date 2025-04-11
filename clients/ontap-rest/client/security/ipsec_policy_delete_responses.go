@@ -6,6 +6,7 @@ package security
 // Editing this file might prove futile when you re-run the swagger generate command
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 
@@ -85,11 +86,11 @@ func (o *IpsecPolicyDeleteOK) Code() int {
 }
 
 func (o *IpsecPolicyDeleteOK) Error() string {
-	return fmt.Sprintf("[DELETE /security/ipsec/policies/{uuid}][%d] ipsecPolicyDeleteOK ", 200)
+	return fmt.Sprintf("[DELETE /security/ipsec/policies/{uuid}][%d] ipsecPolicyDeleteOK", 200)
 }
 
 func (o *IpsecPolicyDeleteOK) String() string {
-	return fmt.Sprintf("[DELETE /security/ipsec/policies/{uuid}][%d] ipsecPolicyDeleteOK ", 200)
+	return fmt.Sprintf("[DELETE /security/ipsec/policies/{uuid}][%d] ipsecPolicyDeleteOK", 200)
 }
 
 func (o *IpsecPolicyDeleteOK) readResponse(response runtime.ClientResponse, consumer runtime.Consumer, formats strfmt.Registry) error {
@@ -151,11 +152,13 @@ func (o *IpsecPolicyDeleteDefault) Code() int {
 }
 
 func (o *IpsecPolicyDeleteDefault) Error() string {
-	return fmt.Sprintf("[DELETE /security/ipsec/policies/{uuid}][%d] ipsec_policy_delete default  %+v", o._statusCode, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[DELETE /security/ipsec/policies/{uuid}][%d] ipsec_policy_delete default %s", o._statusCode, payload)
 }
 
 func (o *IpsecPolicyDeleteDefault) String() string {
-	return fmt.Sprintf("[DELETE /security/ipsec/policies/{uuid}][%d] ipsec_policy_delete default  %+v", o._statusCode, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[DELETE /security/ipsec/policies/{uuid}][%d] ipsec_policy_delete default %s", o._statusCode, payload)
 }
 
 func (o *IpsecPolicyDeleteDefault) GetPayload() *models.ErrorResponse {

@@ -6,6 +6,7 @@ package cluster
 // Editing this file might prove futile when you re-run the swagger generate command
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 
@@ -86,11 +87,13 @@ func (o *ClusterGetOK) Code() int {
 }
 
 func (o *ClusterGetOK) Error() string {
-	return fmt.Sprintf("[GET /cluster][%d] clusterGetOK  %+v", 200, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[GET /cluster][%d] clusterGetOK %s", 200, payload)
 }
 
 func (o *ClusterGetOK) String() string {
-	return fmt.Sprintf("[GET /cluster][%d] clusterGetOK  %+v", 200, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[GET /cluster][%d] clusterGetOK %s", 200, payload)
 }
 
 func (o *ClusterGetOK) GetPayload() *models.Cluster {
@@ -163,11 +166,13 @@ func (o *ClusterGetDefault) Code() int {
 }
 
 func (o *ClusterGetDefault) Error() string {
-	return fmt.Sprintf("[GET /cluster][%d] cluster_get default  %+v", o._statusCode, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[GET /cluster][%d] cluster_get default %s", o._statusCode, payload)
 }
 
 func (o *ClusterGetDefault) String() string {
-	return fmt.Sprintf("[GET /cluster][%d] cluster_get default  %+v", o._statusCode, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[GET /cluster][%d] cluster_get default %s", o._statusCode, payload)
 }
 
 func (o *ClusterGetDefault) GetPayload() *models.ErrorResponse {

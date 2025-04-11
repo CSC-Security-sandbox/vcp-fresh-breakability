@@ -6,6 +6,7 @@ package object_store
 // Editing this file might prove futile when you re-run the swagger generate command
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 
@@ -91,11 +92,13 @@ func (o *S3GroupCreateCreated) Code() int {
 }
 
 func (o *S3GroupCreateCreated) Error() string {
-	return fmt.Sprintf("[POST /protocols/s3/services/{svm.uuid}/groups][%d] s3GroupCreateCreated  %+v", 201, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[POST /protocols/s3/services/{svm.uuid}/groups][%d] s3GroupCreateCreated %s", 201, payload)
 }
 
 func (o *S3GroupCreateCreated) String() string {
-	return fmt.Sprintf("[POST /protocols/s3/services/{svm.uuid}/groups][%d] s3GroupCreateCreated  %+v", 201, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[POST /protocols/s3/services/{svm.uuid}/groups][%d] s3GroupCreateCreated %s", 201, payload)
 }
 
 func (o *S3GroupCreateCreated) GetPayload() *models.S3GroupResponse {
@@ -135,7 +138,7 @@ func NewS3GroupCreateDefault(code int) *S3GroupCreateDefault {
 
 | Error Code | Description |
 | ---------- | ----------- |
-| 92405896   | Users list cannot be empty.
+| 92406207   | An object store group cannot have an empty list of users.
 | 92405930   | Group name \\\"{group name}\\\" is not valid. Group names must have between 1 and 128 characters.
 | 92405931   | Group name \\\"{group name}\\\" contains invalid characters. Valid characters for a group name are 0-9, A-Z, a-z, "_", "+", "=", ",", ".", "@", and "-".
 | 92405932   | Creating an object store group requires an effective cluster version of 9.8 or later.
@@ -148,6 +151,7 @@ func NewS3GroupCreateDefault(code int) *S3GroupCreateDefault {
 | 92405858   | Failed to \"create\" the \"group\" because the operation is only supported on data SVMs.
 | 262222     | User name is present more than once in the users field.
 | 92406154   | Users {user} specified in the user list do not exist for SVM "vs1". Use the "/protocols/s3/services/{svm.uuid}/users" endpoint to create a user.
+| 92406307   | Cannot add object store user \"user1\" in SVM \"vs1\" to the group. Reason: The user is disabled, because it does not have keys generated.
 */
 type S3GroupCreateDefault struct {
 	_statusCode int
@@ -186,11 +190,13 @@ func (o *S3GroupCreateDefault) Code() int {
 }
 
 func (o *S3GroupCreateDefault) Error() string {
-	return fmt.Sprintf("[POST /protocols/s3/services/{svm.uuid}/groups][%d] s3_group_create default  %+v", o._statusCode, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[POST /protocols/s3/services/{svm.uuid}/groups][%d] s3_group_create default %s", o._statusCode, payload)
 }
 
 func (o *S3GroupCreateDefault) String() string {
-	return fmt.Sprintf("[POST /protocols/s3/services/{svm.uuid}/groups][%d] s3_group_create default  %+v", o._statusCode, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[POST /protocols/s3/services/{svm.uuid}/groups][%d] s3_group_create default %s", o._statusCode, payload)
 }
 
 func (o *S3GroupCreateDefault) GetPayload() *models.ErrorResponse {

@@ -126,6 +126,11 @@ func (m *S3ServiceUserPostResponse) ContextValidate(ctx context.Context, formats
 func (m *S3ServiceUserPostResponse) contextValidateLinks(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Links != nil {
+
+		if swag.IsZero(m.Links) { // not required
+			return nil
+		}
+
 		if err := m.Links.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("_links")

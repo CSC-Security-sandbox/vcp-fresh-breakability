@@ -25,14 +25,14 @@ type SnapmirrorConsistencyGroupFailover struct {
 	Error *SnapmirrorConsistencyGroupFailoverInlineError `json:"error,omitempty"`
 
 	// SnapMirror Consistency Group failover state.
-	// Enum: [started failed completed completed_with_warnings vetoed]
+	// Enum: ["started","failed","completed","completed_with_warnings","vetoed"]
 	State *string `json:"state,omitempty"`
 
 	// status
 	Status *SnapmirrorConsistencyGroupFailoverInlineStatus `json:"status,omitempty"`
 
 	// SnapMirror Consistency Group failover type.
-	// Enum: [planned unplanned incapable]
+	// Enum: ["planned","unplanned","incapable"]
 	Type *string `json:"type,omitempty"`
 }
 
@@ -217,6 +217,11 @@ func (m *SnapmirrorConsistencyGroupFailover) ContextValidate(ctx context.Context
 func (m *SnapmirrorConsistencyGroupFailover) contextValidateError(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Error != nil {
+
+		if swag.IsZero(m.Error) { // not required
+			return nil
+		}
+
 		if err := m.Error.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("error")
@@ -233,6 +238,11 @@ func (m *SnapmirrorConsistencyGroupFailover) contextValidateError(ctx context.Co
 func (m *SnapmirrorConsistencyGroupFailover) contextValidateStatus(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Status != nil {
+
+		if swag.IsZero(m.Status) { // not required
+			return nil
+		}
+
 		if err := m.Status.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("status")
@@ -355,6 +365,11 @@ func (m *SnapmirrorConsistencyGroupFailoverInlineError) contextValidateArguments
 	for i := 0; i < len(m.Arguments); i++ {
 
 		if m.Arguments[i] != nil {
+
+			if swag.IsZero(m.Arguments[i]) { // not required
+				return nil
+			}
+
 			if err := m.Arguments[i].ContextValidate(ctx, formats); err != nil {
 				if ve, ok := err.(*errors.Validation); ok {
 					return ve.ValidateName("error" + "." + "arguments" + "." + strconv.Itoa(i))

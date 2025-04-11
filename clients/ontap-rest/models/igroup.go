@@ -80,7 +80,7 @@ type Igroup struct {
 
 	// The host operating system of the initiator group. All initiators in the group should be hosts of the same operating system. Required in POST; optional in PATCH.
 	//
-	// Enum: [aix hpux hyper_v linux netware openvms solaris vmware windows xen]
+	// Enum: ["aix","hpux","hyper_v","linux","netware","openvms","solaris","vmware","windows","xen"]
 	OsType *string `json:"os_type,omitempty"`
 
 	// portset
@@ -89,7 +89,7 @@ type Igroup struct {
 	// The protocols supported by the initiator group. This restricts the type of initiators that can be added to the initiator group. Optional in POST; if not supplied, this defaults to _mixed_.<br/>
 	// The protocol of an initiator group cannot be changed after creation of the group.
 	//
-	// Enum: [fcp iscsi mixed]
+	// Enum: ["fcp","iscsi","mixed"]
 	Protocol *string `json:"protocol,omitempty"`
 
 	// replication
@@ -601,6 +601,11 @@ func (m *Igroup) ContextValidate(ctx context.Context, formats strfmt.Registry) e
 func (m *Igroup) contextValidateLinks(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Links != nil {
+
+		if swag.IsZero(m.Links) { // not required
+			return nil
+		}
+
 		if err := m.Links.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("_links")
@@ -617,6 +622,11 @@ func (m *Igroup) contextValidateLinks(ctx context.Context, formats strfmt.Regist
 func (m *Igroup) contextValidateConnectivityTracking(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.ConnectivityTracking != nil {
+
+		if swag.IsZero(m.ConnectivityTracking) { // not required
+			return nil
+		}
+
 		if err := m.ConnectivityTracking.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("connectivity_tracking")
@@ -635,6 +645,11 @@ func (m *Igroup) contextValidateIgroupInlineIgroups(ctx context.Context, formats
 	for i := 0; i < len(m.IgroupInlineIgroups); i++ {
 
 		if m.IgroupInlineIgroups[i] != nil {
+
+			if swag.IsZero(m.IgroupInlineIgroups[i]) { // not required
+				return nil
+			}
+
 			if err := m.IgroupInlineIgroups[i].ContextValidate(ctx, formats); err != nil {
 				if ve, ok := err.(*errors.Validation); ok {
 					return ve.ValidateName("igroups" + "." + strconv.Itoa(i))
@@ -655,6 +670,11 @@ func (m *Igroup) contextValidateIgroupInlineInitiators(ctx context.Context, form
 	for i := 0; i < len(m.IgroupInlineInitiators); i++ {
 
 		if m.IgroupInlineInitiators[i] != nil {
+
+			if swag.IsZero(m.IgroupInlineInitiators[i]) { // not required
+				return nil
+			}
+
 			if err := m.IgroupInlineInitiators[i].ContextValidate(ctx, formats); err != nil {
 				if ve, ok := err.(*errors.Validation); ok {
 					return ve.ValidateName("initiators" + "." + strconv.Itoa(i))
@@ -679,6 +699,11 @@ func (m *Igroup) contextValidateIgroupInlineLunMaps(ctx context.Context, formats
 	for i := 0; i < len(m.IgroupInlineLunMaps); i++ {
 
 		if m.IgroupInlineLunMaps[i] != nil {
+
+			if swag.IsZero(m.IgroupInlineLunMaps[i]) { // not required
+				return nil
+			}
+
 			if err := m.IgroupInlineLunMaps[i].ContextValidate(ctx, formats); err != nil {
 				if ve, ok := err.(*errors.Validation); ok {
 					return ve.ValidateName("lun_maps" + "." + strconv.Itoa(i))
@@ -703,6 +728,11 @@ func (m *Igroup) contextValidateIgroupInlineParentIgroups(ctx context.Context, f
 	for i := 0; i < len(m.IgroupInlineParentIgroups); i++ {
 
 		if m.IgroupInlineParentIgroups[i] != nil {
+
+			if swag.IsZero(m.IgroupInlineParentIgroups[i]) { // not required
+				return nil
+			}
+
 			if err := m.IgroupInlineParentIgroups[i].ContextValidate(ctx, formats); err != nil {
 				if ve, ok := err.(*errors.Validation); ok {
 					return ve.ValidateName("parent_igroups" + "." + strconv.Itoa(i))
@@ -721,6 +751,11 @@ func (m *Igroup) contextValidateIgroupInlineParentIgroups(ctx context.Context, f
 func (m *Igroup) contextValidatePortset(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Portset != nil {
+
+		if swag.IsZero(m.Portset) { // not required
+			return nil
+		}
+
 		if err := m.Portset.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("portset")
@@ -737,6 +772,11 @@ func (m *Igroup) contextValidatePortset(ctx context.Context, formats strfmt.Regi
 func (m *Igroup) contextValidateReplication(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Replication != nil {
+
+		if swag.IsZero(m.Replication) { // not required
+			return nil
+		}
+
 		if err := m.Replication.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("replication")
@@ -762,6 +802,11 @@ func (m *Igroup) contextValidateSupportsIgroups(ctx context.Context, formats str
 func (m *Igroup) contextValidateSvm(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Svm != nil {
+
+		if swag.IsZero(m.Svm) { // not required
+			return nil
+		}
+
 		if err := m.Svm.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("svm")
@@ -778,6 +823,11 @@ func (m *Igroup) contextValidateSvm(ctx context.Context, formats strfmt.Registry
 func (m *Igroup) contextValidateTarget(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Target != nil {
+
+		if swag.IsZero(m.Target) { // not required
+			return nil
+		}
+
 		if err := m.Target.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("target")
@@ -830,7 +880,7 @@ type IgroupInlineConnectivityTracking struct {
 	// Connection state.
 	//
 	// Read Only: true
-	// Enum: [full none partial no_initiators no_lun_maps]
+	// Enum: ["full","none","partial","no_initiators","no_lun_maps"]
 	ConnectionState *string `json:"connection_state,omitempty"`
 
 	// Nodes to which the initiators in this group should be connected to ensure reliable service. This is the collection of any node hosting a LUN mapped to this igroup as well as the HA partners of those nodes.
@@ -995,6 +1045,11 @@ func (m *IgroupInlineConnectivityTracking) contextValidateAlerts(ctx context.Con
 	for i := 0; i < len(m.Alerts); i++ {
 
 		if m.Alerts[i] != nil {
+
+			if swag.IsZero(m.Alerts[i]) { // not required
+				return nil
+			}
+
 			if err := m.Alerts[i].ContextValidate(ctx, formats); err != nil {
 				if ve, ok := err.(*errors.Validation); ok {
 					return ve.ValidateName("connectivity_tracking" + "." + "alerts" + "." + strconv.Itoa(i))
@@ -1028,6 +1083,11 @@ func (m *IgroupInlineConnectivityTracking) contextValidateRequiredNodes(ctx cont
 	for i := 0; i < len(m.RequiredNodes); i++ {
 
 		if m.RequiredNodes[i] != nil {
+
+			if swag.IsZero(m.RequiredNodes[i]) { // not required
+				return nil
+			}
+
 			if err := m.RequiredNodes[i].ContextValidate(ctx, formats); err != nil {
 				if ve, ok := err.(*errors.Validation); ok {
 					return ve.ValidateName("connectivity_tracking" + "." + "required_nodes" + "." + strconv.Itoa(i))
@@ -1120,6 +1180,11 @@ func (m *IgroupConnectivityTrackingAlertsItems0) ContextValidate(ctx context.Con
 func (m *IgroupConnectivityTrackingAlertsItems0) contextValidateSummary(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Summary != nil {
+
+		if swag.IsZero(m.Summary) { // not required
+			return nil
+		}
+
 		if err := m.Summary.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("summary")
@@ -1242,6 +1307,11 @@ func (m *IgroupConnectivityTrackingAlertsItems0Summary) contextValidateArguments
 	for i := 0; i < len(m.Arguments); i++ {
 
 		if m.Arguments[i] != nil {
+
+			if swag.IsZero(m.Arguments[i]) { // not required
+				return nil
+			}
+
 			if err := m.Arguments[i].ContextValidate(ctx, formats); err != nil {
 				if ve, ok := err.(*errors.Validation); ok {
 					return ve.ValidateName("summary" + "." + "arguments" + "." + strconv.Itoa(i))
@@ -1360,6 +1430,11 @@ func (m *IgroupConnectivityTrackingRequiredNodesItems0) ContextValidate(ctx cont
 func (m *IgroupConnectivityTrackingRequiredNodesItems0) contextValidateLinks(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Links != nil {
+
+		if swag.IsZero(m.Links) { // not required
+			return nil
+		}
+
 		if err := m.Links.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("_links")
@@ -1450,6 +1525,11 @@ func (m *IgroupConnectivityTrackingRequiredNodesItems0Links) ContextValidate(ctx
 func (m *IgroupConnectivityTrackingRequiredNodesItems0Links) contextValidateSelf(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Self != nil {
+
+		if swag.IsZero(m.Self) { // not required
+			return nil
+		}
+
 		if err := m.Self.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("_links" + "." + "self")
@@ -1684,6 +1764,11 @@ func (m *IgroupInlineInitiatorsInlineArrayItem) ContextValidate(ctx context.Cont
 func (m *IgroupInlineInitiatorsInlineArrayItem) contextValidateLinks(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Links != nil {
+
+		if swag.IsZero(m.Links) { // not required
+			return nil
+		}
+
 		if err := m.Links.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("_links")
@@ -1700,6 +1785,11 @@ func (m *IgroupInlineInitiatorsInlineArrayItem) contextValidateLinks(ctx context
 func (m *IgroupInlineInitiatorsInlineArrayItem) contextValidateConnectivityTracking(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.ConnectivityTracking != nil {
+
+		if swag.IsZero(m.ConnectivityTracking) { // not required
+			return nil
+		}
+
 		if err := m.ConnectivityTracking.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("connectivity_tracking")
@@ -1716,6 +1806,11 @@ func (m *IgroupInlineInitiatorsInlineArrayItem) contextValidateConnectivityTrack
 func (m *IgroupInlineInitiatorsInlineArrayItem) contextValidateIgroup(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Igroup != nil {
+
+		if swag.IsZero(m.Igroup) { // not required
+			return nil
+		}
+
 		if err := m.Igroup.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("igroup")
@@ -1732,6 +1827,11 @@ func (m *IgroupInlineInitiatorsInlineArrayItem) contextValidateIgroup(ctx contex
 func (m *IgroupInlineInitiatorsInlineArrayItem) contextValidateProximity(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Proximity != nil {
+
+		if swag.IsZero(m.Proximity) { // not required
+			return nil
+		}
+
 		if err := m.Proximity.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("proximity")
@@ -1771,7 +1871,7 @@ type IgroupInlineInitiatorsInlineArrayItemInlineConnectivityTracking struct {
 	// Connection state.
 	//
 	// Read Only: true
-	// Enum: [full none partial no_lun_maps]
+	// Enum: ["full","none","partial","no_lun_maps"]
 	ConnectionState *string `json:"connection_state,omitempty"`
 }
 
@@ -1969,6 +2069,11 @@ func (m *IgroupInlineInitiatorsInlineArrayItemInlineIgroup) ContextValidate(ctx 
 func (m *IgroupInlineInitiatorsInlineArrayItemInlineIgroup) contextValidateLinks(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Links != nil {
+
+		if swag.IsZero(m.Links) { // not required
+			return nil
+		}
+
 		if err := m.Links.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("igroup" + "." + "_links")
@@ -2059,6 +2164,11 @@ func (m *IgroupInlineInitiatorsInlineArrayItemInlineIgroupInlineLinks) ContextVa
 func (m *IgroupInlineInitiatorsInlineArrayItemInlineIgroupInlineLinks) contextValidateSelf(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Self != nil {
+
+		if swag.IsZero(m.Self) { // not required
+			return nil
+		}
+
 		if err := m.Self.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("igroup" + "." + "_links" + "." + "self")
@@ -2179,6 +2289,11 @@ func (m *IgroupInlineInitiatorsInlineArrayItemInlineLinks) ContextValidate(ctx c
 func (m *IgroupInlineInitiatorsInlineArrayItemInlineLinks) contextValidateConnectivityTracking(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.ConnectivityTracking != nil {
+
+		if swag.IsZero(m.ConnectivityTracking) { // not required
+			return nil
+		}
+
 		if err := m.ConnectivityTracking.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("_links" + "." + "connectivity_tracking")
@@ -2195,6 +2310,11 @@ func (m *IgroupInlineInitiatorsInlineArrayItemInlineLinks) contextValidateConnec
 func (m *IgroupInlineInitiatorsInlineArrayItemInlineLinks) contextValidateSelf(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Self != nil {
+
+		if swag.IsZero(m.Self) { // not required
+			return nil
+		}
+
 		if err := m.Self.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("_links" + "." + "self")
@@ -2414,6 +2534,11 @@ func (m *IgroupInlineInitiatorsInlineArrayItemInlineProximity) contextValidatePe
 	for i := 0; i < len(m.PeerSvms); i++ {
 
 		if m.PeerSvms[i] != nil {
+
+			if swag.IsZero(m.PeerSvms[i]) { // not required
+				return nil
+			}
+
 			if err := m.PeerSvms[i].ContextValidate(ctx, formats); err != nil {
 				if ve, ok := err.(*errors.Validation); ok {
 					return ve.ValidateName("proximity" + "." + "peer_svms" + "." + strconv.Itoa(i))
@@ -2516,6 +2641,11 @@ func (m *IgroupInitiatorsItems0ProximityPeerSvmsItems0) ContextValidate(ctx cont
 func (m *IgroupInitiatorsItems0ProximityPeerSvmsItems0) contextValidateLinks(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Links != nil {
+
+		if swag.IsZero(m.Links) { // not required
+			return nil
+		}
+
 		if err := m.Links.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("_links")
@@ -2606,6 +2736,11 @@ func (m *IgroupInitiatorsItems0ProximityPeerSvmsItems0Links) ContextValidate(ctx
 func (m *IgroupInitiatorsItems0ProximityPeerSvmsItems0Links) contextValidateSelf(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Self != nil {
+
+		if swag.IsZero(m.Self) { // not required
+			return nil
+		}
+
 		if err := m.Self.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("_links" + "." + "self")
@@ -2696,6 +2831,11 @@ func (m *IgroupInlineLinks) ContextValidate(ctx context.Context, formats strfmt.
 func (m *IgroupInlineLinks) contextValidateSelf(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Self != nil {
+
+		if swag.IsZero(m.Self) { // not required
+			return nil
+		}
+
 		if err := m.Self.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("_links" + "." + "self")
@@ -2825,6 +2965,11 @@ func (m *IgroupInlineLunMapsInlineArrayItem) ContextValidate(ctx context.Context
 func (m *IgroupInlineLunMapsInlineArrayItem) contextValidateLinks(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Links != nil {
+
+		if swag.IsZero(m.Links) { // not required
+			return nil
+		}
+
 		if err := m.Links.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("_links")
@@ -2850,6 +2995,11 @@ func (m *IgroupInlineLunMapsInlineArrayItem) contextValidateLogicalUnitNumber(ct
 func (m *IgroupInlineLunMapsInlineArrayItem) contextValidateLun(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Lun != nil {
+
+		if swag.IsZero(m.Lun) { // not required
+			return nil
+		}
+
 		if err := m.Lun.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("lun")
@@ -2940,6 +3090,11 @@ func (m *IgroupInlineLunMapsInlineArrayItemInlineLinks) ContextValidate(ctx cont
 func (m *IgroupInlineLunMapsInlineArrayItemInlineLinks) contextValidateSelf(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Self != nil {
+
+		if swag.IsZero(m.Self) { // not required
+			return nil
+		}
+
 		if err := m.Self.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("_links" + "." + "self")
@@ -3080,6 +3235,11 @@ func (m *IgroupInlineLunMapsInlineArrayItemInlineLun) ContextValidate(ctx contex
 func (m *IgroupInlineLunMapsInlineArrayItemInlineLun) contextValidateLinks(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Links != nil {
+
+		if swag.IsZero(m.Links) { // not required
+			return nil
+		}
+
 		if err := m.Links.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("lun" + "." + "_links")
@@ -3105,6 +3265,11 @@ func (m *IgroupInlineLunMapsInlineArrayItemInlineLun) contextValidateName(ctx co
 func (m *IgroupInlineLunMapsInlineArrayItemInlineLun) contextValidateNode(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Node != nil {
+
+		if swag.IsZero(m.Node) { // not required
+			return nil
+		}
+
 		if err := m.Node.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("lun" + "." + "node")
@@ -3204,6 +3369,11 @@ func (m *IgroupInlineLunMapsInlineArrayItemInlineLunInlineLinks) ContextValidate
 func (m *IgroupInlineLunMapsInlineArrayItemInlineLunInlineLinks) contextValidateSelf(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Self != nil {
+
+		if swag.IsZero(m.Self) { // not required
+			return nil
+		}
+
 		if err := m.Self.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("lun" + "." + "_links" + "." + "self")
@@ -3302,6 +3472,11 @@ func (m *IgroupInlineLunMapsInlineArrayItemInlineLunInlineNode) ContextValidate(
 func (m *IgroupInlineLunMapsInlineArrayItemInlineLunInlineNode) contextValidateLinks(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Links != nil {
+
+		if swag.IsZero(m.Links) { // not required
+			return nil
+		}
+
 		if err := m.Links.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("lun" + "." + "node" + "." + "_links")
@@ -3392,6 +3567,11 @@ func (m *IgroupInlineLunMapsInlineArrayItemInlineLunInlineNodeInlineLinks) Conte
 func (m *IgroupInlineLunMapsInlineArrayItemInlineLunInlineNodeInlineLinks) contextValidateSelf(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Self != nil {
+
+		if swag.IsZero(m.Self) { // not required
+			return nil
+		}
+
 		if err := m.Self.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("lun" + "." + "node" + "." + "_links" + "." + "self")
@@ -3516,6 +3696,11 @@ func (m *IgroupInlinePortset) ContextValidate(ctx context.Context, formats strfm
 func (m *IgroupInlinePortset) contextValidateLinks(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Links != nil {
+
+		if swag.IsZero(m.Links) { // not required
+			return nil
+		}
+
 		if err := m.Links.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("portset" + "." + "_links")
@@ -3606,6 +3791,11 @@ func (m *IgroupInlinePortsetInlineLinks) ContextValidate(ctx context.Context, fo
 func (m *IgroupInlinePortsetInlineLinks) contextValidateSelf(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Self != nil {
+
+		if swag.IsZero(m.Self) { // not required
+			return nil
+		}
+
 		if err := m.Self.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("portset" + "." + "_links" + "." + "self")
@@ -3651,7 +3841,7 @@ type IgroupInlineReplication struct {
 	// The state of the replication queue associated with this igroup. If this igroup is not in the replication queue, the state is reported as _ok_. If this igroup is in the replication queue, but no errors have been encountered, the state is reported as _replicating_. If this igroup is in the replication queue and the queue is blocked by an error, the state is reported as _error_. When in the _error_ state, additional context is provided by the `replication.error` property.
 	//
 	// Read Only: true
-	// Enum: [ok replicating error]
+	// Enum: ["ok","replicating","error"]
 	State *string `json:"state,omitempty"`
 }
 
@@ -3785,6 +3975,11 @@ func (m *IgroupInlineReplication) ContextValidate(ctx context.Context, formats s
 func (m *IgroupInlineReplication) contextValidateError(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Error != nil {
+
+		if swag.IsZero(m.Error) { // not required
+			return nil
+		}
+
 		if err := m.Error.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("replication" + "." + "error")
@@ -3801,6 +3996,11 @@ func (m *IgroupInlineReplication) contextValidateError(ctx context.Context, form
 func (m *IgroupInlineReplication) contextValidatePeerSvm(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.PeerSvm != nil {
+
+		if swag.IsZero(m.PeerSvm) { // not required
+			return nil
+		}
+
 		if err := m.PeerSvm.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("replication" + "." + "peer_svm")
@@ -3930,6 +4130,11 @@ func (m *IgroupInlineReplicationInlineError) ContextValidate(ctx context.Context
 func (m *IgroupInlineReplicationInlineError) contextValidateIgroup(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Igroup != nil {
+
+		if swag.IsZero(m.Igroup) { // not required
+			return nil
+		}
+
 		if err := m.Igroup.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("replication" + "." + "error" + "." + "igroup")
@@ -3946,6 +4151,11 @@ func (m *IgroupInlineReplicationInlineError) contextValidateIgroup(ctx context.C
 func (m *IgroupInlineReplicationInlineError) contextValidateSummary(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Summary != nil {
+
+		if swag.IsZero(m.Summary) { // not required
+			return nil
+		}
+
 		if err := m.Summary.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("replication" + "." + "error" + "." + "summary")
@@ -4162,6 +4372,11 @@ func (m *IgroupInlineReplicationInlineErrorInlineSummary) contextValidateArgumen
 	for i := 0; i < len(m.Arguments); i++ {
 
 		if m.Arguments[i] != nil {
+
+			if swag.IsZero(m.Arguments[i]) { // not required
+				return nil
+			}
+
 			if err := m.Arguments[i].ContextValidate(ctx, formats); err != nil {
 				if ve, ok := err.(*errors.Validation); ok {
 					return ve.ValidateName("replication" + "." + "error" + "." + "summary" + "." + "arguments" + "." + strconv.Itoa(i))
@@ -4282,6 +4497,11 @@ func (m *IgroupInlineReplicationInlinePeerSvm) ContextValidate(ctx context.Conte
 func (m *IgroupInlineReplicationInlinePeerSvm) contextValidateLinks(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Links != nil {
+
+		if swag.IsZero(m.Links) { // not required
+			return nil
+		}
+
 		if err := m.Links.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("replication" + "." + "peer_svm" + "." + "_links")
@@ -4372,6 +4592,11 @@ func (m *IgroupInlineReplicationInlinePeerSvmInlineLinks) ContextValidate(ctx co
 func (m *IgroupInlineReplicationInlinePeerSvmInlineLinks) contextValidateSelf(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Self != nil {
+
+		if swag.IsZero(m.Self) { // not required
+			return nil
+		}
+
 		if err := m.Self.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("replication" + "." + "peer_svm" + "." + "_links" + "." + "self")
@@ -4472,6 +4697,11 @@ func (m *IgroupInlineSvm) ContextValidate(ctx context.Context, formats strfmt.Re
 func (m *IgroupInlineSvm) contextValidateLinks(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Links != nil {
+
+		if swag.IsZero(m.Links) { // not required
+			return nil
+		}
+
 		if err := m.Links.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("svm" + "." + "_links")
@@ -4562,6 +4792,11 @@ func (m *IgroupInlineSvmInlineLinks) ContextValidate(ctx context.Context, format
 func (m *IgroupInlineSvmInlineLinks) contextValidateSelf(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Self != nil {
+
+		if swag.IsZero(m.Self) { // not required
+			return nil
+		}
+
 		if err := m.Self.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("svm" + "." + "_links" + "." + "self")

@@ -72,6 +72,11 @@ func (m *ArwVserver) ContextValidate(ctx context.Context, formats strfmt.Registr
 func (m *ArwVserver) contextValidateEventLog(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.EventLog != nil {
+
+		if swag.IsZero(m.EventLog) { // not required
+			return nil
+		}
+
 		if err := m.EventLog.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("event_log")

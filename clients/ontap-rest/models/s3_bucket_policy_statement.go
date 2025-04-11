@@ -23,7 +23,7 @@ type S3BucketPolicyStatement struct {
 
 	// Specifies whether access is allowed or denied when a user requests the specific action. If access (to allow) is not granted explicitly to a resource, access is implicitly denied. Access can also be denied explicitly to a resource, in order to make sure that a user cannot access it, even if a different policy grants access.
 	// Example: allow
-	// Enum: [allow deny]
+	// Enum: ["allow","deny"]
 	Effect *string `json:"effect,omitempty"`
 
 	// s3 bucket policy statement inline actions
@@ -178,6 +178,11 @@ func (m *S3BucketPolicyStatement) contextValidateS3BucketPolicyStatementInlineCo
 	for i := 0; i < len(m.S3BucketPolicyStatementInlineConditions); i++ {
 
 		if m.S3BucketPolicyStatementInlineConditions[i] != nil {
+
+			if swag.IsZero(m.S3BucketPolicyStatementInlineConditions[i]) { // not required
+				return nil
+			}
+
 			if err := m.S3BucketPolicyStatementInlineConditions[i].ContextValidate(ctx, formats); err != nil {
 				if ve, ok := err.(*errors.Validation); ok {
 					return ve.ValidateName("conditions" + "." + strconv.Itoa(i))

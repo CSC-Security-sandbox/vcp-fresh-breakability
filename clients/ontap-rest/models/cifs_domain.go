@@ -56,7 +56,7 @@ type CifsDomain struct {
 
 	// Specifies the mode of server discovery.
 	//
-	// Enum: [all site none]
+	// Enum: ["all","site","none"]
 	ServerDiscoveryMode *string `json:"server_discovery_mode,omitempty"`
 
 	// svm
@@ -365,6 +365,11 @@ func (m *CifsDomain) ContextValidate(ctx context.Context, formats strfmt.Registr
 func (m *CifsDomain) contextValidateAdDomain(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.AdDomain != nil {
+
+		if swag.IsZero(m.AdDomain) { // not required
+			return nil
+		}
+
 		if err := m.AdDomain.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("ad_domain")
@@ -387,6 +392,11 @@ func (m *CifsDomain) contextValidateCifsDomainInlineDiscoveredServers(ctx contex
 	for i := 0; i < len(m.CifsDomainInlineDiscoveredServers); i++ {
 
 		if m.CifsDomainInlineDiscoveredServers[i] != nil {
+
+			if swag.IsZero(m.CifsDomainInlineDiscoveredServers[i]) { // not required
+				return nil
+			}
+
 			if err := m.CifsDomainInlineDiscoveredServers[i].ContextValidate(ctx, formats); err != nil {
 				if ve, ok := err.(*errors.Validation); ok {
 					return ve.ValidateName("discovered_servers" + "." + strconv.Itoa(i))
@@ -411,6 +421,11 @@ func (m *CifsDomain) contextValidateCifsDomainInlinePreferredDcs(ctx context.Con
 	for i := 0; i < len(m.CifsDomainInlinePreferredDcs); i++ {
 
 		if m.CifsDomainInlinePreferredDcs[i] != nil {
+
+			if swag.IsZero(m.CifsDomainInlinePreferredDcs[i]) { // not required
+				return nil
+			}
+
 			if err := m.CifsDomainInlinePreferredDcs[i].ContextValidate(ctx, formats); err != nil {
 				if ve, ok := err.(*errors.Validation); ok {
 					return ve.ValidateName("preferred_dcs" + "." + strconv.Itoa(i))
@@ -435,6 +450,11 @@ func (m *CifsDomain) contextValidateCifsDomainInlineTrustRelationships(ctx conte
 	for i := 0; i < len(m.CifsDomainInlineTrustRelationships); i++ {
 
 		if m.CifsDomainInlineTrustRelationships[i] != nil {
+
+			if swag.IsZero(m.CifsDomainInlineTrustRelationships[i]) { // not required
+				return nil
+			}
+
 			if err := m.CifsDomainInlineTrustRelationships[i].ContextValidate(ctx, formats); err != nil {
 				if ve, ok := err.(*errors.Validation); ok {
 					return ve.ValidateName("trust_relationships" + "." + strconv.Itoa(i))
@@ -453,6 +473,11 @@ func (m *CifsDomain) contextValidateCifsDomainInlineTrustRelationships(ctx conte
 func (m *CifsDomain) contextValidateNameMapping(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.NameMapping != nil {
+
+		if swag.IsZero(m.NameMapping) { // not required
+			return nil
+		}
+
 		if err := m.NameMapping.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("name_mapping")
@@ -469,6 +494,11 @@ func (m *CifsDomain) contextValidateNameMapping(ctx context.Context, formats str
 func (m *CifsDomain) contextValidatePasswordSchedule(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.PasswordSchedule != nil {
+
+		if swag.IsZero(m.PasswordSchedule) { // not required
+			return nil
+		}
+
 		if err := m.PasswordSchedule.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("password_schedule")
@@ -485,6 +515,11 @@ func (m *CifsDomain) contextValidatePasswordSchedule(ctx context.Context, format
 func (m *CifsDomain) contextValidateSvm(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Svm != nil {
+
+		if swag.IsZero(m.Svm) { // not required
+			return nil
+		}
+
 		if err := m.Svm.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("svm")
@@ -573,7 +608,7 @@ type CifsDomainInlineDiscoveredServersInlineArrayItem struct {
 
 	// Server Preference
 	//
-	// Enum: [unknown preferred favored adequate]
+	// Enum: ["unknown","preferred","favored","adequate"]
 	Preference *string `json:"preference,omitempty"`
 
 	// Server IP address
@@ -586,12 +621,12 @@ type CifsDomainInlineDiscoveredServersInlineArrayItem struct {
 
 	// Server Type
 	//
-	// Enum: [unknown kerberos ms_ldap ms_dc ldap]
+	// Enum: ["unknown","kerberos","ms_ldap","ms_dc","ldap"]
 	ServerType *string `json:"server_type,omitempty"`
 
 	// Server status
 	//
-	// Enum: [ok unavailable slow expired undetermined unreachable]
+	// Enum: ["ok","unavailable","slow","expired","undetermined","unreachable"]
 	State *string `json:"state,omitempty"`
 }
 
@@ -810,6 +845,11 @@ func (m *CifsDomainInlineDiscoveredServersInlineArrayItem) ContextValidate(ctx c
 func (m *CifsDomainInlineDiscoveredServersInlineArrayItem) contextValidateNode(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Node != nil {
+
+		if swag.IsZero(m.Node) { // not required
+			return nil
+		}
+
 		if err := m.Node.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("node")
@@ -908,6 +948,11 @@ func (m *CifsDomainInlineDiscoveredServersInlineArrayItemInlineNode) ContextVali
 func (m *CifsDomainInlineDiscoveredServersInlineArrayItemInlineNode) contextValidateLinks(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Links != nil {
+
+		if swag.IsZero(m.Links) { // not required
+			return nil
+		}
+
 		if err := m.Links.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("node" + "." + "_links")
@@ -998,6 +1043,11 @@ func (m *CifsDomainInlineDiscoveredServersInlineArrayItemInlineNodeInlineLinks) 
 func (m *CifsDomainInlineDiscoveredServersInlineArrayItemInlineNodeInlineLinks) contextValidateSelf(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Self != nil {
+
+		if swag.IsZero(m.Self) { // not required
+			return nil
+		}
+
 		if err := m.Self.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("node" + "." + "_links" + "." + "self")
@@ -1390,6 +1440,11 @@ func (m *CifsDomainInlineSvm) ContextValidate(ctx context.Context, formats strfm
 func (m *CifsDomainInlineSvm) contextValidateLinks(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Links != nil {
+
+		if swag.IsZero(m.Links) { // not required
+			return nil
+		}
+
 		if err := m.Links.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("svm" + "." + "_links")
@@ -1480,6 +1535,11 @@ func (m *CifsDomainInlineSvmInlineLinks) ContextValidate(ctx context.Context, fo
 func (m *CifsDomainInlineSvmInlineLinks) contextValidateSelf(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Self != nil {
+
+		if swag.IsZero(m.Self) { // not required
+			return nil
+		}
+
 		if err := m.Self.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("svm" + "." + "_links" + "." + "self")
@@ -1578,6 +1638,11 @@ func (m *CifsDomainInlineTrustRelationshipsInlineArrayItem) ContextValidate(ctx 
 func (m *CifsDomainInlineTrustRelationshipsInlineArrayItem) contextValidateNode(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Node != nil {
+
+		if swag.IsZero(m.Node) { // not required
+			return nil
+		}
+
 		if err := m.Node.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("node")
@@ -1676,6 +1741,11 @@ func (m *CifsDomainInlineTrustRelationshipsInlineArrayItemInlineNode) ContextVal
 func (m *CifsDomainInlineTrustRelationshipsInlineArrayItemInlineNode) contextValidateLinks(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Links != nil {
+
+		if swag.IsZero(m.Links) { // not required
+			return nil
+		}
+
 		if err := m.Links.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("node" + "." + "_links")
@@ -1766,6 +1836,11 @@ func (m *CifsDomainInlineTrustRelationshipsInlineArrayItemInlineNodeInlineLinks)
 func (m *CifsDomainInlineTrustRelationshipsInlineArrayItemInlineNodeInlineLinks) contextValidateSelf(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Self != nil {
+
+		if swag.IsZero(m.Self) { // not required
+			return nil
+		}
+
 		if err := m.Self.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("node" + "." + "_links" + "." + "self")

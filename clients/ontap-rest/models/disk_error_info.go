@@ -26,7 +26,7 @@ type DiskErrorInfo struct {
 	// Disk error type.
 	// Example: notallflashdisk
 	// Read Only: true
-	// Enum: [onepath onedomain control foreign toobig toosmall invalidblocksize targetasymmap deviceassymmap failovermisconfig unknown netapp fwdownrev qualfail diskfail notallflashdisk]
+	// Enum: ["onepath","onedomain","control","foreign","toobig","toosmall","invalidblocksize","targetasymmap","deviceassymmap","failovermisconfig","unknown","netapp","fwdownrev","qualfail","diskfail","notallflashdisk"]
 	Type *string `json:"type,omitempty"`
 }
 
@@ -172,6 +172,11 @@ func (m *DiskErrorInfo) ContextValidate(ctx context.Context, formats strfmt.Regi
 func (m *DiskErrorInfo) contextValidateReason(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Reason != nil {
+
+		if swag.IsZero(m.Reason) { // not required
+			return nil
+		}
+
 		if err := m.Reason.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("reason")

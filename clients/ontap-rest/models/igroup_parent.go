@@ -186,6 +186,11 @@ func (m *IgroupParent) ContextValidate(ctx context.Context, formats strfmt.Regis
 func (m *IgroupParent) contextValidateLinks(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Links != nil {
+
+		if swag.IsZero(m.Links) { // not required
+			return nil
+		}
+
 		if err := m.Links.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("_links")
@@ -217,6 +222,11 @@ func (m *IgroupParent) contextValidateIgroupParentInlineParentIgroups(ctx contex
 	for i := 0; i < len(m.IgroupParentInlineParentIgroups); i++ {
 
 		if m.IgroupParentInlineParentIgroups[i] != nil {
+
+			if swag.IsZero(m.IgroupParentInlineParentIgroups[i]) { // not required
+				return nil
+			}
+
 			if err := m.IgroupParentInlineParentIgroups[i].ContextValidate(ctx, formats); err != nil {
 				if ve, ok := err.(*errors.Validation); ok {
 					return ve.ValidateName("parent_igroups" + "." + strconv.Itoa(i))
@@ -327,6 +337,11 @@ func (m *IgroupParentInlineLinks) ContextValidate(ctx context.Context, formats s
 func (m *IgroupParentInlineLinks) contextValidateSelf(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Self != nil {
+
+		if swag.IsZero(m.Self) { // not required
+			return nil
+		}
+
 		if err := m.Self.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("_links" + "." + "self")

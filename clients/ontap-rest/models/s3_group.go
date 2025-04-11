@@ -225,6 +225,11 @@ func (m *S3Group) contextValidateS3GroupInlinePolicies(ctx context.Context, form
 	for i := 0; i < len(m.S3GroupInlinePolicies); i++ {
 
 		if m.S3GroupInlinePolicies[i] != nil {
+
+			if swag.IsZero(m.S3GroupInlinePolicies[i]) { // not required
+				return nil
+			}
+
 			if err := m.S3GroupInlinePolicies[i].ContextValidate(ctx, formats); err != nil {
 				if ve, ok := err.(*errors.Validation); ok {
 					return ve.ValidateName("policies" + "." + strconv.Itoa(i))
@@ -245,6 +250,11 @@ func (m *S3Group) contextValidateS3GroupInlineUsers(ctx context.Context, formats
 	for i := 0; i < len(m.S3GroupInlineUsers); i++ {
 
 		if m.S3GroupInlineUsers[i] != nil {
+
+			if swag.IsZero(m.S3GroupInlineUsers[i]) { // not required
+				return nil
+			}
+
 			if err := m.S3GroupInlineUsers[i].ContextValidate(ctx, formats); err != nil {
 				if ve, ok := err.(*errors.Validation); ok {
 					return ve.ValidateName("users" + "." + strconv.Itoa(i))
@@ -263,6 +273,11 @@ func (m *S3Group) contextValidateS3GroupInlineUsers(ctx context.Context, formats
 func (m *S3Group) contextValidateSvm(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Svm != nil {
+
+		if swag.IsZero(m.Svm) { // not required
+			return nil
+		}
+
 		if err := m.Svm.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("svm")
@@ -384,6 +399,11 @@ func (m *S3GroupInlinePoliciesInlineArrayItem) ContextValidate(ctx context.Conte
 func (m *S3GroupInlinePoliciesInlineArrayItem) contextValidateLinks(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Links != nil {
+
+		if swag.IsZero(m.Links) { // not required
+			return nil
+		}
+
 		if err := m.Links.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("_links")
@@ -474,6 +494,11 @@ func (m *S3GroupInlinePoliciesInlineArrayItemInlineLinks) ContextValidate(ctx co
 func (m *S3GroupInlinePoliciesInlineArrayItemInlineLinks) contextValidateSelf(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Self != nil {
+
+		if swag.IsZero(m.Self) { // not required
+			return nil
+		}
+
 		if err := m.Self.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("_links" + "." + "self")
@@ -574,6 +599,11 @@ func (m *S3GroupInlineSvm) ContextValidate(ctx context.Context, formats strfmt.R
 func (m *S3GroupInlineSvm) contextValidateLinks(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Links != nil {
+
+		if swag.IsZero(m.Links) { // not required
+			return nil
+		}
+
 		if err := m.Links.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("svm" + "." + "_links")
@@ -664,6 +694,11 @@ func (m *S3GroupInlineSvmInlineLinks) ContextValidate(ctx context.Context, forma
 func (m *S3GroupInlineSvmInlineLinks) contextValidateSelf(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Self != nil {
+
+		if swag.IsZero(m.Self) { // not required
+			return nil
+		}
+
 		if err := m.Self.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("svm" + "." + "_links" + "." + "self")
@@ -785,6 +820,11 @@ func (m *S3GroupInlineUsersInlineArrayItem) ContextValidate(ctx context.Context,
 func (m *S3GroupInlineUsersInlineArrayItem) contextValidateLinks(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Links != nil {
+
+		if swag.IsZero(m.Links) { // not required
+			return nil
+		}
+
 		if err := m.Links.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("_links")
@@ -875,6 +915,11 @@ func (m *S3GroupInlineUsersInlineArrayItemInlineLinks) ContextValidate(ctx conte
 func (m *S3GroupInlineUsersInlineArrayItemInlineLinks) contextValidateSelf(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Self != nil {
+
+		if swag.IsZero(m.Self) { // not required
+			return nil
+		}
+
 		if err := m.Self.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("_links" + "." + "self")

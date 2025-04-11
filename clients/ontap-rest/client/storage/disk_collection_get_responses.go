@@ -6,6 +6,7 @@ package storage
 // Editing this file might prove futile when you re-run the swagger generate command
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 
@@ -86,11 +87,13 @@ func (o *DiskCollectionGetOK) Code() int {
 }
 
 func (o *DiskCollectionGetOK) Error() string {
-	return fmt.Sprintf("[GET /storage/disks][%d] diskCollectionGetOK  %+v", 200, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[GET /storage/disks][%d] diskCollectionGetOK %s", 200, payload)
 }
 
 func (o *DiskCollectionGetOK) String() string {
-	return fmt.Sprintf("[GET /storage/disks][%d] diskCollectionGetOK  %+v", 200, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[GET /storage/disks][%d] diskCollectionGetOK %s", 200, payload)
 }
 
 func (o *DiskCollectionGetOK) GetPayload() *models.DiskResponse {
@@ -158,11 +161,13 @@ func (o *DiskCollectionGetDefault) Code() int {
 }
 
 func (o *DiskCollectionGetDefault) Error() string {
-	return fmt.Sprintf("[GET /storage/disks][%d] disk_collection_get default  %+v", o._statusCode, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[GET /storage/disks][%d] disk_collection_get default %s", o._statusCode, payload)
 }
 
 func (o *DiskCollectionGetDefault) String() string {
-	return fmt.Sprintf("[GET /storage/disks][%d] disk_collection_get default  %+v", o._statusCode, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[GET /storage/disks][%d] disk_collection_get default %s", o._statusCode, payload)
 }
 
 func (o *DiskCollectionGetDefault) GetPayload() *models.ErrorResponse {

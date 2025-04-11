@@ -404,6 +404,11 @@ func (m *ClusterPeer) ContextValidate(ctx context.Context, formats strfmt.Regist
 func (m *ClusterPeer) contextValidateLinks(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Links != nil {
+
+		if swag.IsZero(m.Links) { // not required
+			return nil
+		}
+
 		if err := m.Links.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("_links")
@@ -420,6 +425,11 @@ func (m *ClusterPeer) contextValidateLinks(ctx context.Context, formats strfmt.R
 func (m *ClusterPeer) contextValidateAuthentication(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Authentication != nil {
+
+		if swag.IsZero(m.Authentication) { // not required
+			return nil
+		}
+
 		if err := m.Authentication.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("authentication")
@@ -438,6 +448,11 @@ func (m *ClusterPeer) contextValidateClusterPeerInlineInitialAllowedSvms(ctx con
 	for i := 0; i < len(m.ClusterPeerInlineInitialAllowedSvms); i++ {
 
 		if m.ClusterPeerInlineInitialAllowedSvms[i] != nil {
+
+			if swag.IsZero(m.ClusterPeerInlineInitialAllowedSvms[i]) { // not required
+				return nil
+			}
+
 			if err := m.ClusterPeerInlineInitialAllowedSvms[i].ContextValidate(ctx, formats); err != nil {
 				if ve, ok := err.(*errors.Validation); ok {
 					return ve.ValidateName("initial_allowed_svms" + "." + strconv.Itoa(i))
@@ -458,6 +473,11 @@ func (m *ClusterPeer) contextValidateClusterPeerInlinePeerApplications(ctx conte
 	for i := 0; i < len(m.ClusterPeerInlinePeerApplications); i++ {
 
 		if m.ClusterPeerInlinePeerApplications[i] != nil {
+
+			if swag.IsZero(m.ClusterPeerInlinePeerApplications[i]) { // not required
+				return nil
+			}
+
 			if err := m.ClusterPeerInlinePeerApplications[i].ContextValidate(ctx, formats); err != nil {
 				if ve, ok := err.(*errors.Validation); ok {
 					return ve.ValidateName("peer_applications" + "." + strconv.Itoa(i))
@@ -476,6 +496,11 @@ func (m *ClusterPeer) contextValidateClusterPeerInlinePeerApplications(ctx conte
 func (m *ClusterPeer) contextValidateEncryption(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Encryption != nil {
+
+		if swag.IsZero(m.Encryption) { // not required
+			return nil
+		}
+
 		if err := m.Encryption.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("encryption")
@@ -492,6 +517,11 @@ func (m *ClusterPeer) contextValidateEncryption(ctx context.Context, formats str
 func (m *ClusterPeer) contextValidateIPAddress(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.IPAddress != nil {
+
+		if swag.IsZero(m.IPAddress) { // not required
+			return nil
+		}
+
 		if err := m.IPAddress.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("ip_address")
@@ -508,6 +538,11 @@ func (m *ClusterPeer) contextValidateIPAddress(ctx context.Context, formats strf
 func (m *ClusterPeer) contextValidateIpspace(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Ipspace != nil {
+
+		if swag.IsZero(m.Ipspace) { // not required
+			return nil
+		}
+
 		if err := m.Ipspace.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("ipspace")
@@ -524,6 +559,11 @@ func (m *ClusterPeer) contextValidateIpspace(ctx context.Context, formats strfmt
 func (m *ClusterPeer) contextValidateLocalNetwork(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.LocalNetwork != nil {
+
+		if swag.IsZero(m.LocalNetwork) { // not required
+			return nil
+		}
+
 		if err := m.LocalNetwork.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("local_network")
@@ -540,6 +580,11 @@ func (m *ClusterPeer) contextValidateLocalNetwork(ctx context.Context, formats s
 func (m *ClusterPeer) contextValidateRemote(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Remote != nil {
+
+		if swag.IsZero(m.Remote) { // not required
+			return nil
+		}
+
 		if err := m.Remote.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("remote")
@@ -556,6 +601,11 @@ func (m *ClusterPeer) contextValidateRemote(ctx context.Context, formats strfmt.
 func (m *ClusterPeer) contextValidateStatus(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Status != nil {
+
+		if swag.IsZero(m.Status) { // not required
+			return nil
+		}
+
 		if err := m.Status.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("status")
@@ -581,6 +631,11 @@ func (m *ClusterPeer) contextValidateUUID(ctx context.Context, formats strfmt.Re
 func (m *ClusterPeer) contextValidateVersion(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Version != nil {
+
+		if swag.IsZero(m.Version) { // not required
+			return nil
+		}
+
 		if err := m.Version.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("version")
@@ -625,7 +680,7 @@ type ClusterPeerInlineAuthentication struct {
 	GeneratePassphrase *bool `json:"generate_passphrase,omitempty"`
 
 	// in use
-	// Enum: [ok absent revoked]
+	// Enum: ["ok","absent","revoked"]
 	InUse *string `json:"in_use,omitempty"`
 
 	// A password to authenticate the cluster peer relationship.
@@ -633,7 +688,7 @@ type ClusterPeerInlineAuthentication struct {
 
 	// state
 	// Read Only: true
-	// Enum: [ok absent pending problem]
+	// Enum: ["ok","absent","pending","problem"]
 	State *string `json:"state,omitempty"`
 }
 
@@ -795,12 +850,12 @@ func (m *ClusterPeerInlineAuthentication) UnmarshalBinary(b []byte) error {
 type ClusterPeerInlineEncryption struct {
 
 	// proposed
-	// Enum: [none tls_psk]
+	// Enum: ["none","tls_psk"]
 	Proposed *string `json:"proposed,omitempty"`
 
 	// state
 	// Read Only: true
-	// Enum: [none tls_psk]
+	// Enum: ["none","tls_psk"]
 	State *string `json:"state,omitempty"`
 }
 
@@ -1016,6 +1071,11 @@ func (m *ClusterPeerInlineInitialAllowedSvmsInlineArrayItem) ContextValidate(ctx
 func (m *ClusterPeerInlineInitialAllowedSvmsInlineArrayItem) contextValidateLinks(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Links != nil {
+
+		if swag.IsZero(m.Links) { // not required
+			return nil
+		}
+
 		if err := m.Links.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("_links")
@@ -1106,6 +1166,11 @@ func (m *ClusterPeerInlineInitialAllowedSvmsInlineArrayItemInlineLinks) ContextV
 func (m *ClusterPeerInlineInitialAllowedSvmsInlineArrayItemInlineLinks) contextValidateSelf(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Self != nil {
+
+		if swag.IsZero(m.Self) { // not required
+			return nil
+		}
+
 		if err := m.Self.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("_links" + "." + "self")
@@ -1204,6 +1269,11 @@ func (m *ClusterPeerInlineIpspace) ContextValidate(ctx context.Context, formats 
 func (m *ClusterPeerInlineIpspace) contextValidateLinks(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Links != nil {
+
+		if swag.IsZero(m.Links) { // not required
+			return nil
+		}
+
 		if err := m.Links.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("ipspace" + "." + "_links")
@@ -1294,6 +1364,11 @@ func (m *ClusterPeerInlineIpspaceInlineLinks) ContextValidate(ctx context.Contex
 func (m *ClusterPeerInlineIpspaceInlineLinks) contextValidateSelf(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Self != nil {
+
+		if swag.IsZero(m.Self) { // not required
+			return nil
+		}
+
 		if err := m.Self.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("ipspace" + "." + "_links" + "." + "self")
@@ -1414,6 +1489,11 @@ func (m *ClusterPeerInlineLinks) ContextValidate(ctx context.Context, formats st
 func (m *ClusterPeerInlineLinks) contextValidateInterfaces(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Interfaces != nil {
+
+		if swag.IsZero(m.Interfaces) { // not required
+			return nil
+		}
+
 		if err := m.Interfaces.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("_links" + "." + "interfaces")
@@ -1430,6 +1510,11 @@ func (m *ClusterPeerInlineLinks) contextValidateInterfaces(ctx context.Context, 
 func (m *ClusterPeerInlineLinks) contextValidateSelf(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Self != nil {
+
+		if swag.IsZero(m.Self) { // not required
+			return nil
+		}
+
 		if err := m.Self.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("_links" + "." + "self")
@@ -1541,6 +1626,11 @@ func (m *ClusterPeerInlineLocalNetwork) contextValidateInterfaces(ctx context.Co
 	for i := 0; i < len(m.Interfaces); i++ {
 
 		if m.Interfaces[i] != nil {
+
+			if swag.IsZero(m.Interfaces[i]) { // not required
+				return nil
+			}
+
 			if err := m.Interfaces[i].ContextValidate(ctx, formats); err != nil {
 				if ve, ok := err.(*errors.Validation); ok {
 					return ve.ValidateName("local_network" + "." + "interfaces" + "." + strconv.Itoa(i))
@@ -1633,6 +1723,11 @@ func (m *ClusterPeerLocalNetworkInterfacesItems0) ContextValidate(ctx context.Co
 func (m *ClusterPeerLocalNetworkInterfacesItems0) contextValidateIPAddress(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.IPAddress != nil {
+
+		if swag.IsZero(m.IPAddress) { // not required
+			return nil
+		}
+
 		if err := m.IPAddress.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("ip_address")
@@ -1750,6 +1845,11 @@ func (m *ClusterPeerInlineRemote) contextValidateIPAddresses(ctx context.Context
 	for i := 0; i < len(m.IPAddresses); i++ {
 
 		if m.IPAddresses[i] != nil {
+
+			if swag.IsZero(m.IPAddresses[i]) { // not required
+				return nil
+			}
+
 			if err := m.IPAddresses[i].ContextValidate(ctx, formats); err != nil {
 				if ve, ok := err.(*errors.Validation); ok {
 					return ve.ValidateName("remote" + "." + "ip_addresses" + "." + strconv.Itoa(i))
@@ -1809,7 +1909,7 @@ type ClusterPeerInlineStatus struct {
 	// state
 	// Example: available
 	// Read Only: true
-	// Enum: [available partial unavailable pending unidentified]
+	// Enum: ["available","partial","unavailable","pending","unidentified"]
 	State *string `json:"state,omitempty"`
 
 	// The last time the state was updated.

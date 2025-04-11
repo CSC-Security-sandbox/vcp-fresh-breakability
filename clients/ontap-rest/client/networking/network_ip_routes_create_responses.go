@@ -6,6 +6,7 @@ package networking
 // Editing this file might prove futile when you re-run the swagger generate command
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 
@@ -91,11 +92,13 @@ func (o *NetworkIPRoutesCreateCreated) Code() int {
 }
 
 func (o *NetworkIPRoutesCreateCreated) Error() string {
-	return fmt.Sprintf("[POST /network/ip/routes][%d] networkIpRoutesCreateCreated  %+v", 201, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[POST /network/ip/routes][%d] networkIpRoutesCreateCreated %s", 201, payload)
 }
 
 func (o *NetworkIPRoutesCreateCreated) String() string {
-	return fmt.Sprintf("[POST /network/ip/routes][%d] networkIpRoutesCreateCreated  %+v", 201, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[POST /network/ip/routes][%d] networkIpRoutesCreateCreated %s", 201, payload)
 }
 
 func (o *NetworkIPRoutesCreateCreated) GetPayload() *models.NetworkRouteResponse {
@@ -185,11 +188,13 @@ func (o *NetworkIPRoutesCreateDefault) Code() int {
 }
 
 func (o *NetworkIPRoutesCreateDefault) Error() string {
-	return fmt.Sprintf("[POST /network/ip/routes][%d] network_ip_routes_create default  %+v", o._statusCode, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[POST /network/ip/routes][%d] network_ip_routes_create default %s", o._statusCode, payload)
 }
 
 func (o *NetworkIPRoutesCreateDefault) String() string {
-	return fmt.Sprintf("[POST /network/ip/routes][%d] network_ip_routes_create default  %+v", o._statusCode, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[POST /network/ip/routes][%d] network_ip_routes_create default %s", o._statusCode, payload)
 }
 
 func (o *NetworkIPRoutesCreateDefault) GetPayload() *models.ErrorResponse {

@@ -6,6 +6,7 @@ package storage
 // Editing this file might prove futile when you re-run the swagger generate command
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 
@@ -85,11 +86,11 @@ func (o *FileInfoModifyOK) Code() int {
 }
 
 func (o *FileInfoModifyOK) Error() string {
-	return fmt.Sprintf("[PATCH /storage/volumes/{volume.uuid}/files/{path}][%d] fileInfoModifyOK ", 200)
+	return fmt.Sprintf("[PATCH /storage/volumes/{volume.uuid}/files/{path}][%d] fileInfoModifyOK", 200)
 }
 
 func (o *FileInfoModifyOK) String() string {
-	return fmt.Sprintf("[PATCH /storage/volumes/{volume.uuid}/files/{path}][%d] fileInfoModifyOK ", 200)
+	return fmt.Sprintf("[PATCH /storage/volumes/{volume.uuid}/files/{path}][%d] fileInfoModifyOK", 200)
 }
 
 func (o *FileInfoModifyOK) readResponse(response runtime.ClientResponse, consumer runtime.Consumer, formats strfmt.Registry) error {
@@ -158,11 +159,13 @@ func (o *FileInfoModifyDefault) Code() int {
 }
 
 func (o *FileInfoModifyDefault) Error() string {
-	return fmt.Sprintf("[PATCH /storage/volumes/{volume.uuid}/files/{path}][%d] file_info_modify default  %+v", o._statusCode, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[PATCH /storage/volumes/{volume.uuid}/files/{path}][%d] file_info_modify default %s", o._statusCode, payload)
 }
 
 func (o *FileInfoModifyDefault) String() string {
-	return fmt.Sprintf("[PATCH /storage/volumes/{volume.uuid}/files/{path}][%d] file_info_modify default  %+v", o._statusCode, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[PATCH /storage/volumes/{volume.uuid}/files/{path}][%d] file_info_modify default %s", o._statusCode, payload)
 }
 
 func (o *FileInfoModifyDefault) GetPayload() *models.ErrorResponse {

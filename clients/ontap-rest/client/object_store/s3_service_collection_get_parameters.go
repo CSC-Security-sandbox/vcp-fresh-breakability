@@ -294,13 +294,13 @@ type S3ServiceCollectionGetParams struct {
 	*/
 	BucketsName *string
 
-	/* BucketsNASPath.
+	/* BucketsNasPath.
 
 	   Filter by buckets.nas_path
 
 	   Format: string
 	*/
-	BucketsNASPath *string
+	BucketsNasPath *string
 
 	/* BucketsPolicyStatementsActions.
 
@@ -406,13 +406,13 @@ type S3ServiceCollectionGetParams struct {
 	*/
 	BucketsProtectionStatusDestinationIsExternalCloud *string
 
-	/* BucketsProtectionStatusDestinationIsONTAP.
+	/* BucketsProtectionStatusDestinationIsOntap.
 
 	   Filter by buckets.protection_status.destination.is_ontap
 
 	   Format: boolean
 	*/
-	BucketsProtectionStatusDestinationIsONTAP *string
+	BucketsProtectionStatusDestinationIsOntap *string
 
 	/* BucketsProtectionStatusIsProtected.
 
@@ -1430,15 +1430,15 @@ func (o *S3ServiceCollectionGetParams) SetBucketsName(bucketsName *string) {
 	o.BucketsName = bucketsName
 }
 
-// WithBucketsNASPath adds the bucketsNASPath to the s3 service collection get params
-func (o *S3ServiceCollectionGetParams) WithBucketsNASPath(bucketsNASPath *string) *S3ServiceCollectionGetParams {
-	o.SetBucketsNASPath(bucketsNASPath)
+// WithBucketsNasPath adds the bucketsNasPath to the s3 service collection get params
+func (o *S3ServiceCollectionGetParams) WithBucketsNasPath(bucketsNasPath *string) *S3ServiceCollectionGetParams {
+	o.SetBucketsNasPath(bucketsNasPath)
 	return o
 }
 
-// SetBucketsNASPath adds the bucketsNasPath to the s3 service collection get params
-func (o *S3ServiceCollectionGetParams) SetBucketsNASPath(bucketsNASPath *string) {
-	o.BucketsNASPath = bucketsNASPath
+// SetBucketsNasPath adds the bucketsNasPath to the s3 service collection get params
+func (o *S3ServiceCollectionGetParams) SetBucketsNasPath(bucketsNasPath *string) {
+	o.BucketsNasPath = bucketsNasPath
 }
 
 // WithBucketsPolicyStatementsActions adds the bucketsPolicyStatementsActions to the s3 service collection get params
@@ -1584,15 +1584,15 @@ func (o *S3ServiceCollectionGetParams) SetBucketsProtectionStatusDestinationIsEx
 	o.BucketsProtectionStatusDestinationIsExternalCloud = bucketsProtectionStatusDestinationIsExternalCloud
 }
 
-// WithBucketsProtectionStatusDestinationIsONTAP adds the bucketsProtectionStatusDestinationIsONTAP to the s3 service collection get params
-func (o *S3ServiceCollectionGetParams) WithBucketsProtectionStatusDestinationIsONTAP(bucketsProtectionStatusDestinationIsONTAP *string) *S3ServiceCollectionGetParams {
-	o.SetBucketsProtectionStatusDestinationIsONTAP(bucketsProtectionStatusDestinationIsONTAP)
+// WithBucketsProtectionStatusDestinationIsOntap adds the bucketsProtectionStatusDestinationIsOntap to the s3 service collection get params
+func (o *S3ServiceCollectionGetParams) WithBucketsProtectionStatusDestinationIsOntap(bucketsProtectionStatusDestinationIsOntap *string) *S3ServiceCollectionGetParams {
+	o.SetBucketsProtectionStatusDestinationIsOntap(bucketsProtectionStatusDestinationIsOntap)
 	return o
 }
 
-// SetBucketsProtectionStatusDestinationIsONTAP adds the bucketsProtectionStatusDestinationIsOntap to the s3 service collection get params
-func (o *S3ServiceCollectionGetParams) SetBucketsProtectionStatusDestinationIsONTAP(bucketsProtectionStatusDestinationIsONTAP *string) {
-	o.BucketsProtectionStatusDestinationIsONTAP = bucketsProtectionStatusDestinationIsONTAP
+// SetBucketsProtectionStatusDestinationIsOntap adds the bucketsProtectionStatusDestinationIsOntap to the s3 service collection get params
+func (o *S3ServiceCollectionGetParams) SetBucketsProtectionStatusDestinationIsOntap(bucketsProtectionStatusDestinationIsOntap *string) {
+	o.BucketsProtectionStatusDestinationIsOntap = bucketsProtectionStatusDestinationIsOntap
 }
 
 // WithBucketsProtectionStatusIsProtected adds the bucketsProtectionStatusIsProtected to the s3 service collection get params
@@ -2965,18 +2965,18 @@ func (o *S3ServiceCollectionGetParams) WriteToRequest(r runtime.ClientRequest, r
 		}
 	}
 
-	if o.BucketsNASPath != nil {
+	if o.BucketsNasPath != nil {
 
 		// query param buckets.nas_path
-		var qrBucketsNASPath string
+		var qrBucketsNasPath string
 
-		if o.BucketsNASPath != nil {
-			qrBucketsNASPath = *o.BucketsNASPath
+		if o.BucketsNasPath != nil {
+			qrBucketsNasPath = *o.BucketsNasPath
 		}
-		qBucketsNASPath := qrBucketsNASPath
-		if qBucketsNASPath != "" {
+		qBucketsNasPath := qrBucketsNasPath
+		if qBucketsNasPath != "" {
 
-			if err := r.SetQueryParam("buckets.nas_path", qBucketsNASPath); err != nil {
+			if err := r.SetQueryParam("buckets.nas_path", qBucketsNasPath); err != nil {
 				return err
 			}
 		}
@@ -3203,18 +3203,18 @@ func (o *S3ServiceCollectionGetParams) WriteToRequest(r runtime.ClientRequest, r
 		}
 	}
 
-	if o.BucketsProtectionStatusDestinationIsONTAP != nil {
+	if o.BucketsProtectionStatusDestinationIsOntap != nil {
 
 		// query param buckets.protection_status.destination.is_ontap
-		var qrBucketsProtectionStatusDestinationIsONTAP string
+		var qrBucketsProtectionStatusDestinationIsOntap string
 
-		if o.BucketsProtectionStatusDestinationIsONTAP != nil {
-			qrBucketsProtectionStatusDestinationIsONTAP = *o.BucketsProtectionStatusDestinationIsONTAP
+		if o.BucketsProtectionStatusDestinationIsOntap != nil {
+			qrBucketsProtectionStatusDestinationIsOntap = *o.BucketsProtectionStatusDestinationIsOntap
 		}
-		qBucketsProtectionStatusDestinationIsONTAP := qrBucketsProtectionStatusDestinationIsONTAP
-		if qBucketsProtectionStatusDestinationIsONTAP != "" {
+		qBucketsProtectionStatusDestinationIsOntap := qrBucketsProtectionStatusDestinationIsOntap
+		if qBucketsProtectionStatusDestinationIsOntap != "" {
 
-			if err := r.SetQueryParam("buckets.protection_status.destination.is_ontap", qBucketsProtectionStatusDestinationIsONTAP); err != nil {
+			if err := r.SetQueryParam("buckets.protection_status.destination.is_ontap", qBucketsProtectionStatusDestinationIsOntap); err != nil {
 				return err
 			}
 		}

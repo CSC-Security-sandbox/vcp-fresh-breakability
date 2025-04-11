@@ -7,6 +7,7 @@ package storage
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"io"
 	"strconv"
@@ -96,11 +97,13 @@ func (o *FlexcacheDeleteCollectionOK) Code() int {
 }
 
 func (o *FlexcacheDeleteCollectionOK) Error() string {
-	return fmt.Sprintf("[DELETE /storage/flexcache/flexcaches][%d] flexcacheDeleteCollectionOK  %+v", 200, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[DELETE /storage/flexcache/flexcaches][%d] flexcacheDeleteCollectionOK %s", 200, payload)
 }
 
 func (o *FlexcacheDeleteCollectionOK) String() string {
-	return fmt.Sprintf("[DELETE /storage/flexcache/flexcaches][%d] flexcacheDeleteCollectionOK  %+v", 200, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[DELETE /storage/flexcache/flexcaches][%d] flexcacheDeleteCollectionOK %s", 200, payload)
 }
 
 func (o *FlexcacheDeleteCollectionOK) GetPayload() *models.FlexcacheJobLinkResponse {
@@ -164,11 +167,13 @@ func (o *FlexcacheDeleteCollectionAccepted) Code() int {
 }
 
 func (o *FlexcacheDeleteCollectionAccepted) Error() string {
-	return fmt.Sprintf("[DELETE /storage/flexcache/flexcaches][%d] flexcacheDeleteCollectionAccepted  %+v", 202, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[DELETE /storage/flexcache/flexcaches][%d] flexcacheDeleteCollectionAccepted %s", 202, payload)
 }
 
 func (o *FlexcacheDeleteCollectionAccepted) String() string {
-	return fmt.Sprintf("[DELETE /storage/flexcache/flexcaches][%d] flexcacheDeleteCollectionAccepted  %+v", 202, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[DELETE /storage/flexcache/flexcaches][%d] flexcacheDeleteCollectionAccepted %s", 202, payload)
 }
 
 func (o *FlexcacheDeleteCollectionAccepted) GetPayload() *models.FlexcacheJobLinkResponse {
@@ -243,11 +248,13 @@ func (o *FlexcacheDeleteCollectionDefault) Code() int {
 }
 
 func (o *FlexcacheDeleteCollectionDefault) Error() string {
-	return fmt.Sprintf("[DELETE /storage/flexcache/flexcaches][%d] flexcache_delete_collection default  %+v", o._statusCode, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[DELETE /storage/flexcache/flexcaches][%d] flexcache_delete_collection default %s", o._statusCode, payload)
 }
 
 func (o *FlexcacheDeleteCollectionDefault) String() string {
-	return fmt.Sprintf("[DELETE /storage/flexcache/flexcaches][%d] flexcache_delete_collection default  %+v", o._statusCode, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[DELETE /storage/flexcache/flexcaches][%d] flexcache_delete_collection default %s", o._statusCode, payload)
 }
 
 func (o *FlexcacheDeleteCollectionDefault) GetPayload() *models.ErrorResponse {
@@ -335,6 +342,11 @@ func (o *FlexcacheDeleteCollectionBody) contextValidateFlexcacheResponseInlineRe
 	for i := 0; i < len(o.FlexcacheResponseInlineRecords); i++ {
 
 		if o.FlexcacheResponseInlineRecords[i] != nil {
+
+			if swag.IsZero(o.FlexcacheResponseInlineRecords[i]) { // not required
+				return nil
+			}
+
 			if err := o.FlexcacheResponseInlineRecords[i].ContextValidate(ctx, formats); err != nil {
 				if ve, ok := err.(*errors.Validation); ok {
 					return ve.ValidateName("info" + "." + "records" + "." + strconv.Itoa(i))

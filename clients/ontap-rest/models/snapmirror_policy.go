@@ -43,7 +43,7 @@ type SnapmirrorPolicy struct {
 	CreateSnapshotOnSource *bool `json:"create_snapshot_on_source,omitempty"`
 
 	// Specifies which configuration of the source SVM is replicated to the destination SVM. This property is applicable only for SVM data protection with "async" policy type.
-	// Enum: [full exclude_network_config exclude_network_and_protocol_config]
+	// Enum: ["full","exclude_network_config","exclude_network_and_protocol_config"]
 	IdentityPreservation *string `json:"identity_preservation,omitempty"`
 
 	// Name of the policy.
@@ -58,14 +58,14 @@ type SnapmirrorPolicy struct {
 
 	// Set to "svm" for policies owned by an SVM, otherwise set to "cluster".
 	// Read Only: true
-	// Enum: [svm cluster]
+	// Enum: ["svm","cluster"]
 	Scope *string `json:"scope,omitempty"`
 
 	// Rules for snapshot retention.
 	SnapmirrorPolicyInlineRetention []*SnapmirrorPolicyRule `json:"retention,omitempty"`
 
 	// Specifies the lock mode of the snapshots stored in the object store. This property is applicable only to policies of type "async" with "create_snapshot_on_source" set to "false". When set to enterprise or compliance, the policy can be associated only with SnapMirror relationships where the source endpoint is a FlexVol volume and the destination endpoint is an object store. When set to compliance, no users can delete a snapshot until the retention period has expired. When set to enterprise, users that have special permissions can delete a snapshot before the retention period has expired.
-	// Enum: [none compliance enterprise]
+	// Enum: ["none","compliance","enterprise"]
 	SnapshotLockMode *string `json:"snapshot_lock_mode,omitempty"`
 
 	// svm
@@ -75,7 +75,7 @@ type SnapmirrorPolicy struct {
 	SyncCommonSnapshotSchedule *SnapmirrorPolicyInlineSyncCommonSnapshotSchedule `json:"sync_common_snapshot_schedule,omitempty"`
 
 	// sync type
-	// Enum: [sync strict_sync automated_failover automated_failover_duplex]
+	// Enum: ["sync","strict_sync","automated_failover","automated_failover_duplex"]
 	SyncType *string `json:"sync_type,omitempty"`
 
 	// Throttle in KB/s. Default to unlimited.
@@ -85,7 +85,7 @@ type SnapmirrorPolicy struct {
 	TransferSchedule *SnapmirrorPolicyInlineTransferSchedule `json:"transfer_schedule,omitempty"`
 
 	// type
-	// Enum: [async sync continuous]
+	// Enum: ["async","sync","continuous"]
 	Type *string `json:"type,omitempty"`
 
 	// Unique identifier of the SnapMirror policy.
@@ -556,6 +556,11 @@ func (m *SnapmirrorPolicy) ContextValidate(ctx context.Context, formats strfmt.R
 func (m *SnapmirrorPolicy) contextValidateLinks(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Links != nil {
+
+		if swag.IsZero(m.Links) { // not required
+			return nil
+		}
+
 		if err := m.Links.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("_links")
@@ -572,6 +577,11 @@ func (m *SnapmirrorPolicy) contextValidateLinks(ctx context.Context, formats str
 func (m *SnapmirrorPolicy) contextValidateArchive(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Archive != nil {
+
+		if swag.IsZero(m.Archive) { // not required
+			return nil
+		}
+
 		if err := m.Archive.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("archive")
@@ -599,6 +609,11 @@ func (m *SnapmirrorPolicy) contextValidateSnapmirrorPolicyInlineRetention(ctx co
 	for i := 0; i < len(m.SnapmirrorPolicyInlineRetention); i++ {
 
 		if m.SnapmirrorPolicyInlineRetention[i] != nil {
+
+			if swag.IsZero(m.SnapmirrorPolicyInlineRetention[i]) { // not required
+				return nil
+			}
+
 			if err := m.SnapmirrorPolicyInlineRetention[i].ContextValidate(ctx, formats); err != nil {
 				if ve, ok := err.(*errors.Validation); ok {
 					return ve.ValidateName("retention" + "." + strconv.Itoa(i))
@@ -617,6 +632,11 @@ func (m *SnapmirrorPolicy) contextValidateSnapmirrorPolicyInlineRetention(ctx co
 func (m *SnapmirrorPolicy) contextValidateSvm(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Svm != nil {
+
+		if swag.IsZero(m.Svm) { // not required
+			return nil
+		}
+
 		if err := m.Svm.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("svm")
@@ -633,6 +653,11 @@ func (m *SnapmirrorPolicy) contextValidateSvm(ctx context.Context, formats strfm
 func (m *SnapmirrorPolicy) contextValidateSyncCommonSnapshotSchedule(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.SyncCommonSnapshotSchedule != nil {
+
+		if swag.IsZero(m.SyncCommonSnapshotSchedule) { // not required
+			return nil
+		}
+
 		if err := m.SyncCommonSnapshotSchedule.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("sync_common_snapshot_schedule")
@@ -649,6 +674,11 @@ func (m *SnapmirrorPolicy) contextValidateSyncCommonSnapshotSchedule(ctx context
 func (m *SnapmirrorPolicy) contextValidateTransferSchedule(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.TransferSchedule != nil {
+
+		if swag.IsZero(m.TransferSchedule) { // not required
+			return nil
+		}
+
 		if err := m.TransferSchedule.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("transfer_schedule")
@@ -788,6 +818,11 @@ func (m *SnapmirrorPolicyInlineLinks) ContextValidate(ctx context.Context, forma
 func (m *SnapmirrorPolicyInlineLinks) contextValidateSelf(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Self != nil {
+
+		if swag.IsZero(m.Self) { // not required
+			return nil
+		}
+
 		if err := m.Self.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("_links" + "." + "self")
@@ -888,6 +923,11 @@ func (m *SnapmirrorPolicyInlineSvm) ContextValidate(ctx context.Context, formats
 func (m *SnapmirrorPolicyInlineSvm) contextValidateLinks(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Links != nil {
+
+		if swag.IsZero(m.Links) { // not required
+			return nil
+		}
+
 		if err := m.Links.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("svm" + "." + "_links")
@@ -978,6 +1018,11 @@ func (m *SnapmirrorPolicyInlineSvmInlineLinks) ContextValidate(ctx context.Conte
 func (m *SnapmirrorPolicyInlineSvmInlineLinks) contextValidateSelf(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Self != nil {
+
+		if swag.IsZero(m.Self) { // not required
+			return nil
+		}
+
 		if err := m.Self.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("svm" + "." + "_links" + "." + "self")
@@ -1076,6 +1121,11 @@ func (m *SnapmirrorPolicyInlineSyncCommonSnapshotSchedule) ContextValidate(ctx c
 func (m *SnapmirrorPolicyInlineSyncCommonSnapshotSchedule) contextValidateLinks(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Links != nil {
+
+		if swag.IsZero(m.Links) { // not required
+			return nil
+		}
+
 		if err := m.Links.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("sync_common_snapshot_schedule" + "." + "_links")
@@ -1166,6 +1216,11 @@ func (m *SnapmirrorPolicyInlineSyncCommonSnapshotScheduleInlineLinks) ContextVal
 func (m *SnapmirrorPolicyInlineSyncCommonSnapshotScheduleInlineLinks) contextValidateSelf(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Self != nil {
+
+		if swag.IsZero(m.Self) { // not required
+			return nil
+		}
+
 		if err := m.Self.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("sync_common_snapshot_schedule" + "." + "_links" + "." + "self")
@@ -1264,6 +1319,11 @@ func (m *SnapmirrorPolicyInlineTransferSchedule) ContextValidate(ctx context.Con
 func (m *SnapmirrorPolicyInlineTransferSchedule) contextValidateLinks(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Links != nil {
+
+		if swag.IsZero(m.Links) { // not required
+			return nil
+		}
+
 		if err := m.Links.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("transfer_schedule" + "." + "_links")
@@ -1354,6 +1414,11 @@ func (m *SnapmirrorPolicyInlineTransferScheduleInlineLinks) ContextValidate(ctx 
 func (m *SnapmirrorPolicyInlineTransferScheduleInlineLinks) contextValidateSelf(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Self != nil {
+
+		if swag.IsZero(m.Self) { // not required
+			return nil
+		}
+
 		if err := m.Self.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("transfer_schedule" + "." + "_links" + "." + "self")

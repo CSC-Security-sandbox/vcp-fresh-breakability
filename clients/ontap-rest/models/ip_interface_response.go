@@ -145,6 +145,11 @@ func (m *IPInterfaceResponse) ContextValidate(ctx context.Context, formats strfm
 func (m *IPInterfaceResponse) contextValidateLinks(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Links != nil {
+
+		if swag.IsZero(m.Links) { // not required
+			return nil
+		}
+
 		if err := m.Links.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("_links")
@@ -163,6 +168,11 @@ func (m *IPInterfaceResponse) contextValidateIPInterfaceResponseInlineRecords(ct
 	for i := 0; i < len(m.IPInterfaceResponseInlineRecords); i++ {
 
 		if m.IPInterfaceResponseInlineRecords[i] != nil {
+
+			if swag.IsZero(m.IPInterfaceResponseInlineRecords[i]) { // not required
+				return nil
+			}
+
 			if err := m.IPInterfaceResponseInlineRecords[i].ContextValidate(ctx, formats); err != nil {
 				if ve, ok := err.(*errors.Validation); ok {
 					return ve.ValidateName("records" + "." + strconv.Itoa(i))
@@ -181,6 +191,11 @@ func (m *IPInterfaceResponse) contextValidateIPInterfaceResponseInlineRecords(ct
 func (m *IPInterfaceResponse) contextValidateRecommend(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Recommend != nil {
+
+		if swag.IsZero(m.Recommend) { // not required
+			return nil
+		}
+
 		if err := m.Recommend.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("recommend")
@@ -301,6 +316,11 @@ func (m *IPInterfaceResponseInlineLinks) ContextValidate(ctx context.Context, fo
 func (m *IPInterfaceResponseInlineLinks) contextValidateNext(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Next != nil {
+
+		if swag.IsZero(m.Next) { // not required
+			return nil
+		}
+
 		if err := m.Next.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("_links" + "." + "next")
@@ -317,6 +337,11 @@ func (m *IPInterfaceResponseInlineLinks) contextValidateNext(ctx context.Context
 func (m *IPInterfaceResponseInlineLinks) contextValidateSelf(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Self != nil {
+
+		if swag.IsZero(m.Self) { // not required
+			return nil
+		}
+
 		if err := m.Self.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("_links" + "." + "self")

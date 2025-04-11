@@ -157,6 +157,11 @@ func (m *KeyServerReadcreate) ContextValidate(ctx context.Context, formats strfm
 func (m *KeyServerReadcreate) contextValidateLinks(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Links != nil {
+
+		if swag.IsZero(m.Links) { // not required
+			return nil
+		}
+
 		if err := m.Links.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("_links")
@@ -173,6 +178,11 @@ func (m *KeyServerReadcreate) contextValidateLinks(ctx context.Context, formats 
 func (m *KeyServerReadcreate) contextValidateConnectivity(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Connectivity != nil {
+
+		if swag.IsZero(m.Connectivity) { // not required
+			return nil
+		}
+
 		if err := m.Connectivity.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("connectivity")
@@ -323,6 +333,11 @@ func (m *KeyServerReadcreateInlineConnectivity) contextValidateNodeStates(ctx co
 	for i := 0; i < len(m.NodeStates); i++ {
 
 		if m.NodeStates[i] != nil {
+
+			if swag.IsZero(m.NodeStates[i]) { // not required
+				return nil
+			}
+
 			if err := m.NodeStates[i].ContextValidate(ctx, formats); err != nil {
 				if ve, ok := err.(*errors.Validation); ok {
 					return ve.ValidateName("connectivity" + "." + "node_states" + "." + strconv.Itoa(i))

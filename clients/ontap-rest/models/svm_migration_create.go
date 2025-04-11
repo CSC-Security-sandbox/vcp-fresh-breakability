@@ -115,6 +115,11 @@ func (m *SvmMigrationCreate) ContextValidate(ctx context.Context, formats strfmt
 func (m *SvmMigrationCreate) contextValidateJob(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Job != nil {
+
+		if swag.IsZero(m.Job) { // not required
+			return nil
+		}
+
 		if err := m.Job.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("job")
@@ -133,6 +138,11 @@ func (m *SvmMigrationCreate) contextValidateSvmMigrationCreateInlineRecords(ctx 
 	for i := 0; i < len(m.SvmMigrationCreateInlineRecords); i++ {
 
 		if m.SvmMigrationCreateInlineRecords[i] != nil {
+
+			if swag.IsZero(m.SvmMigrationCreateInlineRecords[i]) { // not required
+				return nil
+			}
+
 			if err := m.SvmMigrationCreateInlineRecords[i].ContextValidate(ctx, formats); err != nil {
 				if ve, ok := err.(*errors.Validation); ok {
 					return ve.ValidateName("records" + "." + strconv.Itoa(i))

@@ -114,6 +114,11 @@ func (m *JobResponse) ContextValidate(ctx context.Context, formats strfmt.Regist
 func (m *JobResponse) contextValidateLinks(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Links != nil {
+
+		if swag.IsZero(m.Links) { // not required
+			return nil
+		}
+
 		if err := m.Links.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("_links")
@@ -132,6 +137,11 @@ func (m *JobResponse) contextValidateJobResponseInlineRecords(ctx context.Contex
 	for i := 0; i < len(m.JobResponseInlineRecords); i++ {
 
 		if m.JobResponseInlineRecords[i] != nil {
+
+			if swag.IsZero(m.JobResponseInlineRecords[i]) { // not required
+				return nil
+			}
+
 			if err := m.JobResponseInlineRecords[i].ContextValidate(ctx, formats); err != nil {
 				if ve, ok := err.(*errors.Validation); ok {
 					return ve.ValidateName("records" + "." + strconv.Itoa(i))
@@ -254,6 +264,11 @@ func (m *JobResponseInlineLinks) ContextValidate(ctx context.Context, formats st
 func (m *JobResponseInlineLinks) contextValidateNext(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Next != nil {
+
+		if swag.IsZero(m.Next) { // not required
+			return nil
+		}
+
 		if err := m.Next.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("_links" + "." + "next")
@@ -270,6 +285,11 @@ func (m *JobResponseInlineLinks) contextValidateNext(ctx context.Context, format
 func (m *JobResponseInlineLinks) contextValidateSelf(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Self != nil {
+
+		if swag.IsZero(m.Self) { // not required
+			return nil
+		}
+
 		if err := m.Self.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("_links" + "." + "self")

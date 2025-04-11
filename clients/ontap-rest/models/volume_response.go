@@ -144,6 +144,11 @@ func (m *VolumeResponse) ContextValidate(ctx context.Context, formats strfmt.Reg
 func (m *VolumeResponse) contextValidateLinks(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Links != nil {
+
+		if swag.IsZero(m.Links) { // not required
+			return nil
+		}
+
 		if err := m.Links.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("_links")
@@ -160,6 +165,11 @@ func (m *VolumeResponse) contextValidateLinks(ctx context.Context, formats strfm
 func (m *VolumeResponse) contextValidateAnalytics(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Analytics != nil {
+
+		if swag.IsZero(m.Analytics) { // not required
+			return nil
+		}
+
 		if err := m.Analytics.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("analytics")
@@ -178,6 +188,11 @@ func (m *VolumeResponse) contextValidateVolumeResponseInlineRecords(ctx context.
 	for i := 0; i < len(m.VolumeResponseInlineRecords); i++ {
 
 		if m.VolumeResponseInlineRecords[i] != nil {
+
+			if swag.IsZero(m.VolumeResponseInlineRecords[i]) { // not required
+				return nil
+			}
+
 			if err := m.VolumeResponseInlineRecords[i].ContextValidate(ctx, formats); err != nil {
 				if ve, ok := err.(*errors.Validation); ok {
 					return ve.ValidateName("records" + "." + strconv.Itoa(i))
@@ -302,6 +317,11 @@ func (m *VolumeResponseInlineAnalytics) ContextValidate(ctx context.Context, for
 func (m *VolumeResponseInlineAnalytics) contextValidateByAccessedTime(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.ByAccessedTime != nil {
+
+		if swag.IsZero(m.ByAccessedTime) { // not required
+			return nil
+		}
+
 		if err := m.ByAccessedTime.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("analytics" + "." + "by_accessed_time")
@@ -318,6 +338,11 @@ func (m *VolumeResponseInlineAnalytics) contextValidateByAccessedTime(ctx contex
 func (m *VolumeResponseInlineAnalytics) contextValidateByModifiedTime(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.ByModifiedTime != nil {
+
+		if swag.IsZero(m.ByModifiedTime) { // not required
+			return nil
+		}
+
 		if err := m.ByModifiedTime.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("analytics" + "." + "by_modified_time")
@@ -408,6 +433,11 @@ func (m *VolumeResponseInlineAnalyticsInlineByAccessedTime) ContextValidate(ctx 
 func (m *VolumeResponseInlineAnalyticsInlineByAccessedTime) contextValidateBytesUsed(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.BytesUsed != nil {
+
+		if swag.IsZero(m.BytesUsed) { // not required
+			return nil
+		}
+
 		if err := m.BytesUsed.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("analytics" + "." + "by_accessed_time" + "." + "bytes_used")
@@ -584,6 +614,11 @@ func (m *VolumeResponseInlineAnalyticsInlineByModifiedTime) ContextValidate(ctx 
 func (m *VolumeResponseInlineAnalyticsInlineByModifiedTime) contextValidateBytesUsed(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.BytesUsed != nil {
+
+		if swag.IsZero(m.BytesUsed) { // not required
+			return nil
+		}
+
 		if err := m.BytesUsed.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("analytics" + "." + "by_modified_time" + "." + "bytes_used")
@@ -790,6 +825,11 @@ func (m *VolumeResponseInlineLinks) ContextValidate(ctx context.Context, formats
 func (m *VolumeResponseInlineLinks) contextValidateNext(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Next != nil {
+
+		if swag.IsZero(m.Next) { // not required
+			return nil
+		}
+
 		if err := m.Next.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("_links" + "." + "next")
@@ -806,6 +846,11 @@ func (m *VolumeResponseInlineLinks) contextValidateNext(ctx context.Context, for
 func (m *VolumeResponseInlineLinks) contextValidateSelf(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Self != nil {
+
+		if swag.IsZero(m.Self) { // not required
+			return nil
+		}
+
 		if err := m.Self.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("_links" + "." + "self")

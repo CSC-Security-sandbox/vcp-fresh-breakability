@@ -6,6 +6,7 @@ package storage
 // Editing this file might prove futile when you re-run the swagger generate command
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 
@@ -86,11 +87,13 @@ func (o *AggregateCollectionGetOK) Code() int {
 }
 
 func (o *AggregateCollectionGetOK) Error() string {
-	return fmt.Sprintf("[GET /storage/aggregates][%d] aggregateCollectionGetOK  %+v", 200, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[GET /storage/aggregates][%d] aggregateCollectionGetOK %s", 200, payload)
 }
 
 func (o *AggregateCollectionGetOK) String() string {
-	return fmt.Sprintf("[GET /storage/aggregates][%d] aggregateCollectionGetOK  %+v", 200, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[GET /storage/aggregates][%d] aggregateCollectionGetOK %s", 200, payload)
 }
 
 func (o *AggregateCollectionGetOK) GetPayload() *models.AggregateResponse {
@@ -181,11 +184,13 @@ func (o *AggregateCollectionGetDefault) Code() int {
 }
 
 func (o *AggregateCollectionGetDefault) Error() string {
-	return fmt.Sprintf("[GET /storage/aggregates][%d] aggregate_collection_get default  %+v", o._statusCode, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[GET /storage/aggregates][%d] aggregate_collection_get default %s", o._statusCode, payload)
 }
 
 func (o *AggregateCollectionGetDefault) String() string {
-	return fmt.Sprintf("[GET /storage/aggregates][%d] aggregate_collection_get default  %+v", o._statusCode, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[GET /storage/aggregates][%d] aggregate_collection_get default %s", o._statusCode, payload)
 }
 
 func (o *AggregateCollectionGetDefault) GetPayload() *models.ErrorResponse {

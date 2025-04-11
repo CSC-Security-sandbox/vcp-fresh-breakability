@@ -42,8 +42,8 @@ const (
 	// IPServicePolicySvmEnumDefaultDashDataDashIscsi captures enum value "default-data-iscsi"
 	IPServicePolicySvmEnumDefaultDashDataDashIscsi IPServicePolicySvmEnum = "default-data-iscsi"
 
-	// IPServicePolicySvmEnumDefaultDashDataDashNVMEDashTCP captures enum value "default-data-nvme-tcp"
-	IPServicePolicySvmEnumDefaultDashDataDashNVMEDashTCP IPServicePolicySvmEnum = "default-data-nvme-tcp"
+	// IPServicePolicySvmEnumDefaultDashDataDashNvmeDashTCP captures enum value "default-data-nvme-tcp"
+	IPServicePolicySvmEnumDefaultDashDataDashNvmeDashTCP IPServicePolicySvmEnum = "default-data-nvme-tcp"
 )
 
 // for schema

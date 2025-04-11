@@ -6,6 +6,7 @@ package security
 // Editing this file might prove futile when you re-run the swagger generate command
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 
@@ -91,11 +92,13 @@ func (o *SecurityCertificateCreateCreated) Code() int {
 }
 
 func (o *SecurityCertificateCreateCreated) Error() string {
-	return fmt.Sprintf("[POST /security/certificates][%d] securityCertificateCreateCreated  %+v", 201, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[POST /security/certificates][%d] securityCertificateCreateCreated %s", 201, payload)
 }
 
 func (o *SecurityCertificateCreateCreated) String() string {
-	return fmt.Sprintf("[POST /security/certificates][%d] securityCertificateCreateCreated  %+v", 201, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[POST /security/certificates][%d] securityCertificateCreateCreated %s", 201, payload)
 }
 
 func (o *SecurityCertificateCreateCreated) GetPayload() *models.SecurityCertificateResponse {
@@ -207,11 +210,13 @@ func (o *SecurityCertificateCreateDefault) Code() int {
 }
 
 func (o *SecurityCertificateCreateDefault) Error() string {
-	return fmt.Sprintf("[POST /security/certificates][%d] security_certificate_create default  %+v", o._statusCode, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[POST /security/certificates][%d] security_certificate_create default %s", o._statusCode, payload)
 }
 
 func (o *SecurityCertificateCreateDefault) String() string {
-	return fmt.Sprintf("[POST /security/certificates][%d] security_certificate_create default  %+v", o._statusCode, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[POST /security/certificates][%d] security_certificate_create default %s", o._statusCode, payload)
 }
 
 func (o *SecurityCertificateCreateDefault) GetPayload() *models.ErrorResponse {

@@ -6,6 +6,7 @@ package storage
 // Editing this file might prove futile when you re-run the swagger generate command
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 
@@ -97,11 +98,13 @@ func (o *FileCloneCreateCreated) Code() int {
 }
 
 func (o *FileCloneCreateCreated) Error() string {
-	return fmt.Sprintf("[POST /storage/file/clone][%d] fileCloneCreateCreated  %+v", 201, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[POST /storage/file/clone][%d] fileCloneCreateCreated %s", 201, payload)
 }
 
 func (o *FileCloneCreateCreated) String() string {
-	return fmt.Sprintf("[POST /storage/file/clone][%d] fileCloneCreateCreated  %+v", 201, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[POST /storage/file/clone][%d] fileCloneCreateCreated %s", 201, payload)
 }
 
 func (o *FileCloneCreateCreated) GetPayload() *models.FileCloneJobLinkResponse {
@@ -177,11 +180,13 @@ func (o *FileCloneCreateAccepted) Code() int {
 }
 
 func (o *FileCloneCreateAccepted) Error() string {
-	return fmt.Sprintf("[POST /storage/file/clone][%d] fileCloneCreateAccepted  %+v", 202, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[POST /storage/file/clone][%d] fileCloneCreateAccepted %s", 202, payload)
 }
 
 func (o *FileCloneCreateAccepted) String() string {
-	return fmt.Sprintf("[POST /storage/file/clone][%d] fileCloneCreateAccepted  %+v", 202, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[POST /storage/file/clone][%d] fileCloneCreateAccepted %s", 202, payload)
 }
 
 func (o *FileCloneCreateAccepted) GetPayload() *models.FileCloneJobLinkResponse {
@@ -266,11 +271,13 @@ func (o *FileCloneCreateDefault) Code() int {
 }
 
 func (o *FileCloneCreateDefault) Error() string {
-	return fmt.Sprintf("[POST /storage/file/clone][%d] file_clone_create default  %+v", o._statusCode, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[POST /storage/file/clone][%d] file_clone_create default %s", o._statusCode, payload)
 }
 
 func (o *FileCloneCreateDefault) String() string {
-	return fmt.Sprintf("[POST /storage/file/clone][%d] file_clone_create default  %+v", o._statusCode, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[POST /storage/file/clone][%d] file_clone_create default %s", o._statusCode, payload)
 }
 
 func (o *FileCloneCreateDefault) GetPayload() *models.ErrorResponse {

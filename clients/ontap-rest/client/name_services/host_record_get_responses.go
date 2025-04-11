@@ -6,6 +6,7 @@ package name_services
 // Editing this file might prove futile when you re-run the swagger generate command
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 
@@ -86,11 +87,13 @@ func (o *HostRecordGetOK) Code() int {
 }
 
 func (o *HostRecordGetOK) Error() string {
-	return fmt.Sprintf("[GET /name-services/host-record/{svm.uuid}/{host}][%d] hostRecordGetOK  %+v", 200, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[GET /name-services/host-record/{svm.uuid}/{host}][%d] hostRecordGetOK %s", 200, payload)
 }
 
 func (o *HostRecordGetOK) String() string {
-	return fmt.Sprintf("[GET /name-services/host-record/{svm.uuid}/{host}][%d] hostRecordGetOK  %+v", 200, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[GET /name-services/host-record/{svm.uuid}/{host}][%d] hostRecordGetOK %s", 200, payload)
 }
 
 func (o *HostRecordGetOK) GetPayload() *models.HostRecord {
@@ -163,11 +166,13 @@ func (o *HostRecordGetDefault) Code() int {
 }
 
 func (o *HostRecordGetDefault) Error() string {
-	return fmt.Sprintf("[GET /name-services/host-record/{svm.uuid}/{host}][%d] host_record_get default  %+v", o._statusCode, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[GET /name-services/host-record/{svm.uuid}/{host}][%d] host_record_get default %s", o._statusCode, payload)
 }
 
 func (o *HostRecordGetDefault) String() string {
-	return fmt.Sprintf("[GET /name-services/host-record/{svm.uuid}/{host}][%d] host_record_get default  %+v", o._statusCode, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[GET /name-services/host-record/{svm.uuid}/{host}][%d] host_record_get default %s", o._statusCode, payload)
 }
 
 func (o *HostRecordGetDefault) GetPayload() *models.ErrorResponse {

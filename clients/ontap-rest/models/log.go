@@ -28,7 +28,7 @@ type Log struct {
 	//   * xml  - Data ONTAP-specific XML log format
 	//   * evtx - Microsoft Windows EVTX log format
 	//
-	// Enum: [xml evtx]
+	// Enum: ["xml","evtx"]
 	Format *string `json:"format,omitempty"`
 
 	// retention
@@ -188,6 +188,11 @@ func (m *Log) ContextValidate(ctx context.Context, formats strfmt.Registry) erro
 func (m *Log) contextValidateLinks(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Links != nil {
+
+		if swag.IsZero(m.Links) { // not required
+			return nil
+		}
+
 		if err := m.Links.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("_links")
@@ -204,6 +209,11 @@ func (m *Log) contextValidateLinks(ctx context.Context, formats strfmt.Registry)
 func (m *Log) contextValidateRetention(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Retention != nil {
+
+		if swag.IsZero(m.Retention) { // not required
+			return nil
+		}
+
 		if err := m.Retention.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("retention")
@@ -220,6 +230,11 @@ func (m *Log) contextValidateRetention(ctx context.Context, formats strfmt.Regis
 func (m *Log) contextValidateRotation(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Rotation != nil {
+
+		if swag.IsZero(m.Rotation) { // not required
+			return nil
+		}
+
 		if err := m.Rotation.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("rotation")
@@ -310,6 +325,11 @@ func (m *LogInlineLinks) ContextValidate(ctx context.Context, formats strfmt.Reg
 func (m *LogInlineLinks) contextValidateSelf(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Self != nil {
+
+		if swag.IsZero(m.Self) { // not required
+			return nil
+		}
+
 		if err := m.Self.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("_links" + "." + "self")

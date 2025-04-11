@@ -6,6 +6,7 @@ package storage
 // Editing this file might prove futile when you re-run the swagger generate command
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 
@@ -89,11 +90,11 @@ func (o *FileInfoCreateCreated) Code() int {
 }
 
 func (o *FileInfoCreateCreated) Error() string {
-	return fmt.Sprintf("[POST /storage/volumes/{volume.uuid}/files/{path}][%d] fileInfoCreateCreated ", 201)
+	return fmt.Sprintf("[POST /storage/volumes/{volume.uuid}/files/{path}][%d] fileInfoCreateCreated", 201)
 }
 
 func (o *FileInfoCreateCreated) String() string {
-	return fmt.Sprintf("[POST /storage/volumes/{volume.uuid}/files/{path}][%d] fileInfoCreateCreated ", 201)
+	return fmt.Sprintf("[POST /storage/volumes/{volume.uuid}/files/{path}][%d] fileInfoCreateCreated", 201)
 }
 
 func (o *FileInfoCreateCreated) readResponse(response runtime.ClientResponse, consumer runtime.Consumer, formats strfmt.Registry) error {
@@ -191,11 +192,13 @@ func (o *FileInfoCreateDefault) Code() int {
 }
 
 func (o *FileInfoCreateDefault) Error() string {
-	return fmt.Sprintf("[POST /storage/volumes/{volume.uuid}/files/{path}][%d] file_info_create default  %+v", o._statusCode, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[POST /storage/volumes/{volume.uuid}/files/{path}][%d] file_info_create default %s", o._statusCode, payload)
 }
 
 func (o *FileInfoCreateDefault) String() string {
-	return fmt.Sprintf("[POST /storage/volumes/{volume.uuid}/files/{path}][%d] file_info_create default  %+v", o._statusCode, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[POST /storage/volumes/{volume.uuid}/files/{path}][%d] file_info_create default %s", o._statusCode, payload)
 }
 
 func (o *FileInfoCreateDefault) GetPayload() *models.ErrorResponse {

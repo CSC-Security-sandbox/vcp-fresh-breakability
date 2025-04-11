@@ -6,6 +6,7 @@ package cloud
 // Editing this file might prove futile when you re-run the swagger generate command
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 
@@ -92,11 +93,13 @@ func (o *CloudTargetModifyOK) Code() int {
 }
 
 func (o *CloudTargetModifyOK) Error() string {
-	return fmt.Sprintf("[PATCH /cloud/targets/{uuid}][%d] cloudTargetModifyOK  %+v", 200, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[PATCH /cloud/targets/{uuid}][%d] cloudTargetModifyOK %s", 200, payload)
 }
 
 func (o *CloudTargetModifyOK) String() string {
-	return fmt.Sprintf("[PATCH /cloud/targets/{uuid}][%d] cloudTargetModifyOK  %+v", 200, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[PATCH /cloud/targets/{uuid}][%d] cloudTargetModifyOK %s", 200, payload)
 }
 
 func (o *CloudTargetModifyOK) GetPayload() *models.CloudTargetJobLinkResponse {
@@ -160,11 +163,13 @@ func (o *CloudTargetModifyAccepted) Code() int {
 }
 
 func (o *CloudTargetModifyAccepted) Error() string {
-	return fmt.Sprintf("[PATCH /cloud/targets/{uuid}][%d] cloudTargetModifyAccepted  %+v", 202, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[PATCH /cloud/targets/{uuid}][%d] cloudTargetModifyAccepted %s", 202, payload)
 }
 
 func (o *CloudTargetModifyAccepted) String() string {
-	return fmt.Sprintf("[PATCH /cloud/targets/{uuid}][%d] cloudTargetModifyAccepted  %+v", 202, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[PATCH /cloud/targets/{uuid}][%d] cloudTargetModifyAccepted %s", 202, payload)
 }
 
 func (o *CloudTargetModifyAccepted) GetPayload() *models.CloudTargetJobLinkResponse {
@@ -278,11 +283,13 @@ func (o *CloudTargetModifyDefault) Code() int {
 }
 
 func (o *CloudTargetModifyDefault) Error() string {
-	return fmt.Sprintf("[PATCH /cloud/targets/{uuid}][%d] cloud_target_modify default  %+v", o._statusCode, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[PATCH /cloud/targets/{uuid}][%d] cloud_target_modify default %s", o._statusCode, payload)
 }
 
 func (o *CloudTargetModifyDefault) String() string {
-	return fmt.Sprintf("[PATCH /cloud/targets/{uuid}][%d] cloud_target_modify default  %+v", o._statusCode, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[PATCH /cloud/targets/{uuid}][%d] cloud_target_modify default %s", o._statusCode, payload)
 }
 
 func (o *CloudTargetModifyDefault) GetPayload() *models.ErrorResponse {

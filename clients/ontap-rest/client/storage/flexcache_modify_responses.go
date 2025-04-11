@@ -6,6 +6,7 @@ package storage
 // Editing this file might prove futile when you re-run the swagger generate command
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 
@@ -92,11 +93,13 @@ func (o *FlexcacheModifyOK) Code() int {
 }
 
 func (o *FlexcacheModifyOK) Error() string {
-	return fmt.Sprintf("[PATCH /storage/flexcache/flexcaches/{uuid}][%d] flexcacheModifyOK  %+v", 200, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[PATCH /storage/flexcache/flexcaches/{uuid}][%d] flexcacheModifyOK %s", 200, payload)
 }
 
 func (o *FlexcacheModifyOK) String() string {
-	return fmt.Sprintf("[PATCH /storage/flexcache/flexcaches/{uuid}][%d] flexcacheModifyOK  %+v", 200, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[PATCH /storage/flexcache/flexcaches/{uuid}][%d] flexcacheModifyOK %s", 200, payload)
 }
 
 func (o *FlexcacheModifyOK) GetPayload() *models.FlexcacheJobLinkResponse {
@@ -160,11 +163,13 @@ func (o *FlexcacheModifyAccepted) Code() int {
 }
 
 func (o *FlexcacheModifyAccepted) Error() string {
-	return fmt.Sprintf("[PATCH /storage/flexcache/flexcaches/{uuid}][%d] flexcacheModifyAccepted  %+v", 202, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[PATCH /storage/flexcache/flexcaches/{uuid}][%d] flexcacheModifyAccepted %s", 202, payload)
 }
 
 func (o *FlexcacheModifyAccepted) String() string {
-	return fmt.Sprintf("[PATCH /storage/flexcache/flexcaches/{uuid}][%d] flexcacheModifyAccepted  %+v", 202, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[PATCH /storage/flexcache/flexcaches/{uuid}][%d] flexcacheModifyAccepted %s", 202, payload)
 }
 
 func (o *FlexcacheModifyAccepted) GetPayload() *models.FlexcacheJobLinkResponse {
@@ -264,11 +269,13 @@ func (o *FlexcacheModifyDefault) Code() int {
 }
 
 func (o *FlexcacheModifyDefault) Error() string {
-	return fmt.Sprintf("[PATCH /storage/flexcache/flexcaches/{uuid}][%d] flexcache_modify default  %+v", o._statusCode, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[PATCH /storage/flexcache/flexcaches/{uuid}][%d] flexcache_modify default %s", o._statusCode, payload)
 }
 
 func (o *FlexcacheModifyDefault) String() string {
-	return fmt.Sprintf("[PATCH /storage/flexcache/flexcaches/{uuid}][%d] flexcache_modify default  %+v", o._statusCode, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[PATCH /storage/flexcache/flexcaches/{uuid}][%d] flexcache_modify default %s", o._statusCode, payload)
 }
 
 func (o *FlexcacheModifyDefault) GetPayload() *models.ErrorResponse {

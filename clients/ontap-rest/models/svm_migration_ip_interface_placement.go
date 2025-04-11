@@ -82,6 +82,11 @@ func (m *SvmMigrationIPInterfacePlacement) contextValidateSvmMigrationIPInterfac
 	for i := 0; i < len(m.SvmMigrationIPInterfacePlacementInlineIPInterfaces); i++ {
 
 		if m.SvmMigrationIPInterfacePlacementInlineIPInterfaces[i] != nil {
+
+			if swag.IsZero(m.SvmMigrationIPInterfacePlacementInlineIPInterfaces[i]) { // not required
+				return nil
+			}
+
 			if err := m.SvmMigrationIPInterfacePlacementInlineIPInterfaces[i].ContextValidate(ctx, formats); err != nil {
 				if ve, ok := err.(*errors.Validation); ok {
 					return ve.ValidateName("ip_interfaces" + "." + strconv.Itoa(i))
@@ -204,6 +209,11 @@ func (m *SvmMigrationIPInterfacePlacementInlineIPInterfacesInlineArrayItem) Cont
 func (m *SvmMigrationIPInterfacePlacementInlineIPInterfacesInlineArrayItem) contextValidateInterface(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Interface != nil {
+
+		if swag.IsZero(m.Interface) { // not required
+			return nil
+		}
+
 		if err := m.Interface.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("interface")
@@ -220,6 +230,11 @@ func (m *SvmMigrationIPInterfacePlacementInlineIPInterfacesInlineArrayItem) cont
 func (m *SvmMigrationIPInterfacePlacementInlineIPInterfacesInlineArrayItem) contextValidatePort(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Port != nil {
+
+		if swag.IsZero(m.Port) { // not required
+			return nil
+		}
+
 		if err := m.Port.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("port")
@@ -350,6 +365,11 @@ func (m *SvmMigrationIPInterfacePlacementInlineIPInterfacesInlineArrayItemInline
 func (m *SvmMigrationIPInterfacePlacementInlineIPInterfacesInlineArrayItemInlineInterface) contextValidateLinks(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Links != nil {
+
+		if swag.IsZero(m.Links) { // not required
+			return nil
+		}
+
 		if err := m.Links.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("interface" + "." + "_links")
@@ -366,6 +386,11 @@ func (m *SvmMigrationIPInterfacePlacementInlineIPInterfacesInlineArrayItemInline
 func (m *SvmMigrationIPInterfacePlacementInlineIPInterfacesInlineArrayItemInlineInterface) contextValidateIP(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.IP != nil {
+
+		if swag.IsZero(m.IP) { // not required
+			return nil
+		}
+
 		if err := m.IP.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("interface" + "." + "ip")
@@ -456,6 +481,11 @@ func (m *SvmMigrationIPInterfacePlacementInlineIPInterfacesInlineArrayItemInline
 func (m *SvmMigrationIPInterfacePlacementInlineIPInterfacesInlineArrayItemInlineInterfaceInlineIP) contextValidateAddress(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Address != nil {
+
+		if swag.IsZero(m.Address) { // not required
+			return nil
+		}
+
 		if err := m.Address.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("interface" + "." + "ip" + "." + "address")
@@ -546,6 +576,11 @@ func (m *SvmMigrationIPInterfacePlacementInlineIPInterfacesInlineArrayItemInline
 func (m *SvmMigrationIPInterfacePlacementInlineIPInterfacesInlineArrayItemInlineInterfaceInlineLinks) contextValidateSelf(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Self != nil {
+
+		if swag.IsZero(m.Self) { // not required
+			return nil
+		}
+
 		if err := m.Self.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("interface" + "." + "_links" + "." + "self")
@@ -674,6 +709,11 @@ func (m *SvmMigrationIPInterfacePlacementInlineIPInterfacesInlineArrayItemInline
 func (m *SvmMigrationIPInterfacePlacementInlineIPInterfacesInlineArrayItemInlinePort) contextValidateLinks(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Links != nil {
+
+		if swag.IsZero(m.Links) { // not required
+			return nil
+		}
+
 		if err := m.Links.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("port" + "." + "_links")
@@ -690,6 +730,11 @@ func (m *SvmMigrationIPInterfacePlacementInlineIPInterfacesInlineArrayItemInline
 func (m *SvmMigrationIPInterfacePlacementInlineIPInterfacesInlineArrayItemInlinePort) contextValidateNode(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Node != nil {
+
+		if swag.IsZero(m.Node) { // not required
+			return nil
+		}
+
 		if err := m.Node.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("port" + "." + "node")
@@ -780,6 +825,11 @@ func (m *SvmMigrationIPInterfacePlacementInlineIPInterfacesInlineArrayItemInline
 func (m *SvmMigrationIPInterfacePlacementInlineIPInterfacesInlineArrayItemInlinePortInlineLinks) contextValidateSelf(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Self != nil {
+
+		if swag.IsZero(m.Self) { // not required
+			return nil
+		}
+
 		if err := m.Self.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("port" + "." + "_links" + "." + "self")

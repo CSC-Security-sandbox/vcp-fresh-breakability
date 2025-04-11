@@ -6,6 +6,7 @@ package storage
 // Editing this file might prove futile when you re-run the swagger generate command
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 
@@ -86,11 +87,13 @@ func (o *QosPolicyGetOK) Code() int {
 }
 
 func (o *QosPolicyGetOK) Error() string {
-	return fmt.Sprintf("[GET /storage/qos/policies/{uuid}][%d] qosPolicyGetOK  %+v", 200, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[GET /storage/qos/policies/{uuid}][%d] qosPolicyGetOK %s", 200, payload)
 }
 
 func (o *QosPolicyGetOK) String() string {
-	return fmt.Sprintf("[GET /storage/qos/policies/{uuid}][%d] qosPolicyGetOK  %+v", 200, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[GET /storage/qos/policies/{uuid}][%d] qosPolicyGetOK %s", 200, payload)
 }
 
 func (o *QosPolicyGetOK) GetPayload() *models.QosPolicy {
@@ -158,11 +161,13 @@ func (o *QosPolicyGetDefault) Code() int {
 }
 
 func (o *QosPolicyGetDefault) Error() string {
-	return fmt.Sprintf("[GET /storage/qos/policies/{uuid}][%d] qos_policy_get default  %+v", o._statusCode, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[GET /storage/qos/policies/{uuid}][%d] qos_policy_get default %s", o._statusCode, payload)
 }
 
 func (o *QosPolicyGetDefault) String() string {
-	return fmt.Sprintf("[GET /storage/qos/policies/{uuid}][%d] qos_policy_get default  %+v", o._statusCode, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[GET /storage/qos/policies/{uuid}][%d] qos_policy_get default %s", o._statusCode, payload)
 }
 
 func (o *QosPolicyGetDefault) GetPayload() *models.ErrorResponse {

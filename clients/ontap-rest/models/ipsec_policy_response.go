@@ -146,6 +146,11 @@ func (m *IpsecPolicyResponse) ContextValidate(ctx context.Context, formats strfm
 func (m *IpsecPolicyResponse) contextValidateLinks(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Links != nil {
+
+		if swag.IsZero(m.Links) { // not required
+			return nil
+		}
+
 		if err := m.Links.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("_links")
@@ -162,6 +167,11 @@ func (m *IpsecPolicyResponse) contextValidateLinks(ctx context.Context, formats 
 func (m *IpsecPolicyResponse) contextValidateError(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Error != nil {
+
+		if swag.IsZero(m.Error) { // not required
+			return nil
+		}
+
 		if err := m.Error.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("error")
@@ -180,6 +190,11 @@ func (m *IpsecPolicyResponse) contextValidateIpsecPolicyResponseInlineRecords(ct
 	for i := 0; i < len(m.IpsecPolicyResponseInlineRecords); i++ {
 
 		if m.IpsecPolicyResponseInlineRecords[i] != nil {
+
+			if swag.IsZero(m.IpsecPolicyResponseInlineRecords[i]) { // not required
+				return nil
+			}
+
 			if err := m.IpsecPolicyResponseInlineRecords[i].ContextValidate(ctx, formats); err != nil {
 				if ve, ok := err.(*errors.Validation); ok {
 					return ve.ValidateName("records" + "." + strconv.Itoa(i))
@@ -304,6 +319,11 @@ func (m *IpsecPolicyResponseInlineError) contextValidateArguments(ctx context.Co
 	for i := 0; i < len(m.Arguments); i++ {
 
 		if m.Arguments[i] != nil {
+
+			if swag.IsZero(m.Arguments[i]) { // not required
+				return nil
+			}
+
 			if err := m.Arguments[i].ContextValidate(ctx, formats); err != nil {
 				if ve, ok := err.(*errors.Validation); ok {
 					return ve.ValidateName("error" + "." + "arguments" + "." + strconv.Itoa(i))
@@ -444,6 +464,11 @@ func (m *IpsecPolicyResponseInlineLinks) ContextValidate(ctx context.Context, fo
 func (m *IpsecPolicyResponseInlineLinks) contextValidateNext(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Next != nil {
+
+		if swag.IsZero(m.Next) { // not required
+			return nil
+		}
+
 		if err := m.Next.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("_links" + "." + "next")
@@ -460,6 +485,11 @@ func (m *IpsecPolicyResponseInlineLinks) contextValidateNext(ctx context.Context
 func (m *IpsecPolicyResponseInlineLinks) contextValidateSelf(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Self != nil {
+
+		if swag.IsZero(m.Self) { // not required
+			return nil
+		}
+
 		if err := m.Self.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("_links" + "." + "self")
@@ -497,11 +527,11 @@ func (m *IpsecPolicyResponseInlineLinks) UnmarshalBinary(b []byte) error {
 type IpsecPolicyResponseInlineRecordsInlineArrayItem struct {
 
 	// Action for the IPsec policy.
-	// Enum: [bypass discard esp_transport esp_udp]
+	// Enum: ["bypass","discard","esp_transport","esp_udp"]
 	Action *string `json:"action,omitempty"`
 
 	// Authentication method for the IPsec policy.
-	// Enum: [none psk pki]
+	// Enum: ["none","psk","pki"]
 	AuthenticationMethod *string `json:"authentication_method,omitempty"`
 
 	// certificate
@@ -523,6 +553,9 @@ type IpsecPolicyResponseInlineRecordsInlineArrayItem struct {
 	// Max Length: 64
 	// Min Length: 1
 	Name *string `json:"name,omitempty"`
+
+	// ppk
+	Ppk *IpsecPolicyResponseInlineRecordsInlineArrayItemInlinePpk `json:"ppk,omitempty"`
 
 	// Lower layer protocol to be covered by the IPsec policy.
 	// Example: 17
@@ -576,6 +609,10 @@ func (m *IpsecPolicyResponseInlineRecordsInlineArrayItem) Validate(formats strfm
 	}
 
 	if err := m.validateName(formats); err != nil {
+		res = append(res, err)
+	}
+
+	if err := m.validatePpk(formats); err != nil {
 		res = append(res, err)
 	}
 
@@ -767,6 +804,25 @@ func (m *IpsecPolicyResponseInlineRecordsInlineArrayItem) validateName(formats s
 	return nil
 }
 
+func (m *IpsecPolicyResponseInlineRecordsInlineArrayItem) validatePpk(formats strfmt.Registry) error {
+	if swag.IsZero(m.Ppk) { // not required
+		return nil
+	}
+
+	if m.Ppk != nil {
+		if err := m.Ppk.Validate(formats); err != nil {
+			if ve, ok := err.(*errors.Validation); ok {
+				return ve.ValidateName("ppk")
+			} else if ce, ok := err.(*errors.CompositeError); ok {
+				return ce.ValidateName("ppk")
+			}
+			return err
+		}
+	}
+
+	return nil
+}
+
 func (m *IpsecPolicyResponseInlineRecordsInlineArrayItem) validateRemoteEndpoint(formats strfmt.Registry) error {
 	if swag.IsZero(m.RemoteEndpoint) { // not required
 		return nil
@@ -856,6 +912,10 @@ func (m *IpsecPolicyResponseInlineRecordsInlineArrayItem) ContextValidate(ctx co
 		res = append(res, err)
 	}
 
+	if err := m.contextValidatePpk(ctx, formats); err != nil {
+		res = append(res, err)
+	}
+
 	if err := m.contextValidateRemoteEndpoint(ctx, formats); err != nil {
 		res = append(res, err)
 	}
@@ -881,6 +941,11 @@ func (m *IpsecPolicyResponseInlineRecordsInlineArrayItem) ContextValidate(ctx co
 func (m *IpsecPolicyResponseInlineRecordsInlineArrayItem) contextValidateCertificate(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Certificate != nil {
+
+		if swag.IsZero(m.Certificate) { // not required
+			return nil
+		}
+
 		if err := m.Certificate.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("certificate")
@@ -897,6 +962,11 @@ func (m *IpsecPolicyResponseInlineRecordsInlineArrayItem) contextValidateCertifi
 func (m *IpsecPolicyResponseInlineRecordsInlineArrayItem) contextValidateIpspace(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Ipspace != nil {
+
+		if swag.IsZero(m.Ipspace) { // not required
+			return nil
+		}
+
 		if err := m.Ipspace.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("ipspace")
@@ -913,6 +983,11 @@ func (m *IpsecPolicyResponseInlineRecordsInlineArrayItem) contextValidateIpspace
 func (m *IpsecPolicyResponseInlineRecordsInlineArrayItem) contextValidateLocalEndpoint(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.LocalEndpoint != nil {
+
+		if swag.IsZero(m.LocalEndpoint) { // not required
+			return nil
+		}
+
 		if err := m.LocalEndpoint.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("local_endpoint")
@@ -926,9 +1001,35 @@ func (m *IpsecPolicyResponseInlineRecordsInlineArrayItem) contextValidateLocalEn
 	return nil
 }
 
+func (m *IpsecPolicyResponseInlineRecordsInlineArrayItem) contextValidatePpk(ctx context.Context, formats strfmt.Registry) error {
+
+	if m.Ppk != nil {
+
+		if swag.IsZero(m.Ppk) { // not required
+			return nil
+		}
+
+		if err := m.Ppk.ContextValidate(ctx, formats); err != nil {
+			if ve, ok := err.(*errors.Validation); ok {
+				return ve.ValidateName("ppk")
+			} else if ce, ok := err.(*errors.CompositeError); ok {
+				return ce.ValidateName("ppk")
+			}
+			return err
+		}
+	}
+
+	return nil
+}
+
 func (m *IpsecPolicyResponseInlineRecordsInlineArrayItem) contextValidateRemoteEndpoint(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.RemoteEndpoint != nil {
+
+		if swag.IsZero(m.RemoteEndpoint) { // not required
+			return nil
+		}
+
 		if err := m.RemoteEndpoint.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("remote_endpoint")
@@ -945,6 +1046,11 @@ func (m *IpsecPolicyResponseInlineRecordsInlineArrayItem) contextValidateRemoteE
 func (m *IpsecPolicyResponseInlineRecordsInlineArrayItem) contextValidateScope(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Scope != nil {
+
+		if swag.IsZero(m.Scope) { // not required
+			return nil
+		}
+
 		if err := m.Scope.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("scope")
@@ -961,6 +1067,11 @@ func (m *IpsecPolicyResponseInlineRecordsInlineArrayItem) contextValidateScope(c
 func (m *IpsecPolicyResponseInlineRecordsInlineArrayItem) contextValidateSvm(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Svm != nil {
+
+		if swag.IsZero(m.Svm) { // not required
+			return nil
+		}
+
 		if err := m.Svm.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("svm")
@@ -1067,6 +1178,11 @@ func (m *IpsecPolicyResponseInlineRecordsInlineArrayItemInlineCertificate) Conte
 func (m *IpsecPolicyResponseInlineRecordsInlineArrayItemInlineCertificate) contextValidateLinks(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Links != nil {
+
+		if swag.IsZero(m.Links) { // not required
+			return nil
+		}
+
 		if err := m.Links.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("certificate" + "." + "_links")
@@ -1157,6 +1273,11 @@ func (m *IpsecPolicyResponseInlineRecordsInlineArrayItemInlineCertificateInlineL
 func (m *IpsecPolicyResponseInlineRecordsInlineArrayItemInlineCertificateInlineLinks) contextValidateSelf(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Self != nil {
+
+		if swag.IsZero(m.Self) { // not required
+			return nil
+		}
+
 		if err := m.Self.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("certificate" + "." + "_links" + "." + "self")
@@ -1255,6 +1376,11 @@ func (m *IpsecPolicyResponseInlineRecordsInlineArrayItemInlineIpspace) ContextVa
 func (m *IpsecPolicyResponseInlineRecordsInlineArrayItemInlineIpspace) contextValidateLinks(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Links != nil {
+
+		if swag.IsZero(m.Links) { // not required
+			return nil
+		}
+
 		if err := m.Links.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("ipspace" + "." + "_links")
@@ -1345,6 +1471,11 @@ func (m *IpsecPolicyResponseInlineRecordsInlineArrayItemInlineIpspaceInlineLinks
 func (m *IpsecPolicyResponseInlineRecordsInlineArrayItemInlineIpspaceInlineLinks) contextValidateSelf(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Self != nil {
+
+		if swag.IsZero(m.Self) { // not required
+			return nil
+		}
+
 		if err := m.Self.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("ipspace" + "." + "_links" + "." + "self")
@@ -1499,6 +1630,11 @@ func (m *IpsecPolicyResponseInlineRecordsInlineArrayItemInlineLocalEndpoint) Con
 func (m *IpsecPolicyResponseInlineRecordsInlineArrayItemInlineLocalEndpoint) contextValidateAddress(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Address != nil {
+
+		if swag.IsZero(m.Address) { // not required
+			return nil
+		}
+
 		if err := m.Address.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("local_endpoint" + "." + "address")
@@ -1515,6 +1651,11 @@ func (m *IpsecPolicyResponseInlineRecordsInlineArrayItemInlineLocalEndpoint) con
 func (m *IpsecPolicyResponseInlineRecordsInlineArrayItemInlineLocalEndpoint) contextValidateFamily(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Family != nil {
+
+		if swag.IsZero(m.Family) { // not required
+			return nil
+		}
+
 		if err := m.Family.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("local_endpoint" + "." + "family")
@@ -1531,6 +1672,11 @@ func (m *IpsecPolicyResponseInlineRecordsInlineArrayItemInlineLocalEndpoint) con
 func (m *IpsecPolicyResponseInlineRecordsInlineArrayItemInlineLocalEndpoint) contextValidateNetmask(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Netmask != nil {
+
+		if swag.IsZero(m.Netmask) { // not required
+			return nil
+		}
+
 		if err := m.Netmask.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("local_endpoint" + "." + "netmask")
@@ -1555,6 +1701,95 @@ func (m *IpsecPolicyResponseInlineRecordsInlineArrayItemInlineLocalEndpoint) Mar
 // UnmarshalBinary interface implementation
 func (m *IpsecPolicyResponseInlineRecordsInlineArrayItemInlineLocalEndpoint) UnmarshalBinary(b []byte) error {
 	var res IpsecPolicyResponseInlineRecordsInlineArrayItemInlineLocalEndpoint
+	if err := swag.ReadJSON(b, &res); err != nil {
+		return err
+	}
+	*m = res
+	return nil
+}
+
+// IpsecPolicyResponseInlineRecordsInlineArrayItemInlinePpk Post-quantum pre-shared key information.
+//
+// swagger:model ipsec_policy_response_inline_records_inline_array_item_inline_ppk
+type IpsecPolicyResponseInlineRecordsInlineArrayItemInlinePpk struct {
+
+	// Post-quantum pre-shared key identity.
+	// Max Length: 64
+	// Min Length: 6
+	Identity *string `json:"identity,omitempty"`
+
+	// Post-quantum pre-shared key.
+	// Max Length: 128
+	// Min Length: 18
+	SharedKey *string `json:"shared_key,omitempty"`
+}
+
+// Validate validates this ipsec policy response inline records inline array item inline ppk
+func (m *IpsecPolicyResponseInlineRecordsInlineArrayItemInlinePpk) Validate(formats strfmt.Registry) error {
+	var res []error
+
+	if err := m.validateIdentity(formats); err != nil {
+		res = append(res, err)
+	}
+
+	if err := m.validateSharedKey(formats); err != nil {
+		res = append(res, err)
+	}
+
+	if len(res) > 0 {
+		return errors.CompositeValidationError(res...)
+	}
+	return nil
+}
+
+func (m *IpsecPolicyResponseInlineRecordsInlineArrayItemInlinePpk) validateIdentity(formats strfmt.Registry) error {
+	if swag.IsZero(m.Identity) { // not required
+		return nil
+	}
+
+	if err := validate.MinLength("ppk"+"."+"identity", "body", *m.Identity, 6); err != nil {
+		return err
+	}
+
+	if err := validate.MaxLength("ppk"+"."+"identity", "body", *m.Identity, 64); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (m *IpsecPolicyResponseInlineRecordsInlineArrayItemInlinePpk) validateSharedKey(formats strfmt.Registry) error {
+	if swag.IsZero(m.SharedKey) { // not required
+		return nil
+	}
+
+	if err := validate.MinLength("ppk"+"."+"shared_key", "body", *m.SharedKey, 18); err != nil {
+		return err
+	}
+
+	if err := validate.MaxLength("ppk"+"."+"shared_key", "body", *m.SharedKey, 128); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// ContextValidate validates this ipsec policy response inline records inline array item inline ppk based on context it is used
+func (m *IpsecPolicyResponseInlineRecordsInlineArrayItemInlinePpk) ContextValidate(ctx context.Context, formats strfmt.Registry) error {
+	return nil
+}
+
+// MarshalBinary interface implementation
+func (m *IpsecPolicyResponseInlineRecordsInlineArrayItemInlinePpk) MarshalBinary() ([]byte, error) {
+	if m == nil {
+		return nil, nil
+	}
+	return swag.WriteJSON(m)
+}
+
+// UnmarshalBinary interface implementation
+func (m *IpsecPolicyResponseInlineRecordsInlineArrayItemInlinePpk) UnmarshalBinary(b []byte) error {
+	var res IpsecPolicyResponseInlineRecordsInlineArrayItemInlinePpk
 	if err := swag.ReadJSON(b, &res); err != nil {
 		return err
 	}
@@ -1685,6 +1920,11 @@ func (m *IpsecPolicyResponseInlineRecordsInlineArrayItemInlineRemoteEndpoint) Co
 func (m *IpsecPolicyResponseInlineRecordsInlineArrayItemInlineRemoteEndpoint) contextValidateAddress(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Address != nil {
+
+		if swag.IsZero(m.Address) { // not required
+			return nil
+		}
+
 		if err := m.Address.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("remote_endpoint" + "." + "address")
@@ -1701,6 +1941,11 @@ func (m *IpsecPolicyResponseInlineRecordsInlineArrayItemInlineRemoteEndpoint) co
 func (m *IpsecPolicyResponseInlineRecordsInlineArrayItemInlineRemoteEndpoint) contextValidateFamily(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Family != nil {
+
+		if swag.IsZero(m.Family) { // not required
+			return nil
+		}
+
 		if err := m.Family.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("remote_endpoint" + "." + "family")
@@ -1717,6 +1962,11 @@ func (m *IpsecPolicyResponseInlineRecordsInlineArrayItemInlineRemoteEndpoint) co
 func (m *IpsecPolicyResponseInlineRecordsInlineArrayItemInlineRemoteEndpoint) contextValidateNetmask(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Netmask != nil {
+
+		if swag.IsZero(m.Netmask) { // not required
+			return nil
+		}
+
 		if err := m.Netmask.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("remote_endpoint" + "." + "netmask")
@@ -1817,6 +2067,11 @@ func (m *IpsecPolicyResponseInlineRecordsInlineArrayItemInlineSvm) ContextValida
 func (m *IpsecPolicyResponseInlineRecordsInlineArrayItemInlineSvm) contextValidateLinks(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Links != nil {
+
+		if swag.IsZero(m.Links) { // not required
+			return nil
+		}
+
 		if err := m.Links.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("svm" + "." + "_links")
@@ -1907,6 +2162,11 @@ func (m *IpsecPolicyResponseInlineRecordsInlineArrayItemInlineSvmInlineLinks) Co
 func (m *IpsecPolicyResponseInlineRecordsInlineArrayItemInlineSvmInlineLinks) contextValidateSelf(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Self != nil {
+
+		if swag.IsZero(m.Self) { // not required
+			return nil
+		}
+
 		if err := m.Self.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("svm" + "." + "_links" + "." + "self")

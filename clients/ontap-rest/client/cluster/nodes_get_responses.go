@@ -6,6 +6,7 @@ package cluster
 // Editing this file might prove futile when you re-run the swagger generate command
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 
@@ -86,11 +87,13 @@ func (o *NodesGetOK) Code() int {
 }
 
 func (o *NodesGetOK) Error() string {
-	return fmt.Sprintf("[GET /cluster/nodes][%d] nodesGetOK  %+v", 200, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[GET /cluster/nodes][%d] nodesGetOK %s", 200, payload)
 }
 
 func (o *NodesGetOK) String() string {
-	return fmt.Sprintf("[GET /cluster/nodes][%d] nodesGetOK  %+v", 200, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[GET /cluster/nodes][%d] nodesGetOK %s", 200, payload)
 }
 
 func (o *NodesGetOK) GetPayload() *models.NodeResponse {
@@ -158,11 +161,13 @@ func (o *NodesGetDefault) Code() int {
 }
 
 func (o *NodesGetDefault) Error() string {
-	return fmt.Sprintf("[GET /cluster/nodes][%d] nodes_get default  %+v", o._statusCode, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[GET /cluster/nodes][%d] nodes_get default %s", o._statusCode, payload)
 }
 
 func (o *NodesGetDefault) String() string {
-	return fmt.Sprintf("[GET /cluster/nodes][%d] nodes_get default  %+v", o._statusCode, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[GET /cluster/nodes][%d] nodes_get default %s", o._statusCode, payload)
 }
 
 func (o *NodesGetDefault) GetPayload() *models.ErrorResponse {

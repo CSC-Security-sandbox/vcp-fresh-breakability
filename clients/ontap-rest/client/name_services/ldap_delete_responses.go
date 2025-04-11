@@ -6,6 +6,7 @@ package name_services
 // Editing this file might prove futile when you re-run the swagger generate command
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 
@@ -85,11 +86,11 @@ func (o *LdapDeleteOK) Code() int {
 }
 
 func (o *LdapDeleteOK) Error() string {
-	return fmt.Sprintf("[DELETE /name-services/ldap/{svm.uuid}][%d] ldapDeleteOK ", 200)
+	return fmt.Sprintf("[DELETE /name-services/ldap/{svm.uuid}][%d] ldapDeleteOK", 200)
 }
 
 func (o *LdapDeleteOK) String() string {
-	return fmt.Sprintf("[DELETE /name-services/ldap/{svm.uuid}][%d] ldapDeleteOK ", 200)
+	return fmt.Sprintf("[DELETE /name-services/ldap/{svm.uuid}][%d] ldapDeleteOK", 200)
 }
 
 func (o *LdapDeleteOK) readResponse(response runtime.ClientResponse, consumer runtime.Consumer, formats strfmt.Registry) error {
@@ -146,11 +147,13 @@ func (o *LdapDeleteDefault) Code() int {
 }
 
 func (o *LdapDeleteDefault) Error() string {
-	return fmt.Sprintf("[DELETE /name-services/ldap/{svm.uuid}][%d] ldap_delete default  %+v", o._statusCode, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[DELETE /name-services/ldap/{svm.uuid}][%d] ldap_delete default %s", o._statusCode, payload)
 }
 
 func (o *LdapDeleteDefault) String() string {
-	return fmt.Sprintf("[DELETE /name-services/ldap/{svm.uuid}][%d] ldap_delete default  %+v", o._statusCode, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[DELETE /name-services/ldap/{svm.uuid}][%d] ldap_delete default %s", o._statusCode, payload)
 }
 
 func (o *LdapDeleteDefault) GetPayload() *models.ErrorResponse {

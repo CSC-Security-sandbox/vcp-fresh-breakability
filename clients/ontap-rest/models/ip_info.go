@@ -132,6 +132,11 @@ func (m *IPInfo) ContextValidate(ctx context.Context, formats strfmt.Registry) e
 func (m *IPInfo) contextValidateAddress(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Address != nil {
+
+		if swag.IsZero(m.Address) { // not required
+			return nil
+		}
+
 		if err := m.Address.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("address")
@@ -148,6 +153,11 @@ func (m *IPInfo) contextValidateAddress(ctx context.Context, formats strfmt.Regi
 func (m *IPInfo) contextValidateFamily(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Family != nil {
+
+		if swag.IsZero(m.Family) { // not required
+			return nil
+		}
+
 		if err := m.Family.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("family")
@@ -164,6 +174,11 @@ func (m *IPInfo) contextValidateFamily(ctx context.Context, formats strfmt.Regis
 func (m *IPInfo) contextValidateNetmask(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Netmask != nil {
+
+		if swag.IsZero(m.Netmask) { // not required
+			return nil
+		}
+
 		if err := m.Netmask.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("netmask")

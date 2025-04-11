@@ -31,7 +31,7 @@ type Port struct {
 	Enabled *bool `json:"enabled,omitempty"`
 
 	// Requested flow control
-	// Enum: [none send receive full pfc]
+	// Enum: ["none","send","receive","full","pfc"]
 	FlowcontrolAdmin *string `json:"flowcontrol_admin,omitempty"`
 
 	// Number of interfaces hosted. This field is only applicable for cluster administrators. No value is returned for SVM administrators. If the node hosting a port is not healthy no value will be returned.
@@ -80,7 +80,7 @@ type Port struct {
 
 	// Reachability status of the port. Enum value "ok" is the only acceptable value for a PATCH request to repair a port.
 	// Example: ok
-	// Enum: [ok repairable not_repairable]
+	// Enum: ["ok","repairable","not_repairable"]
 	Reachability *string `json:"reachability,omitempty"`
 
 	// Link speed in Mbps
@@ -90,14 +90,14 @@ type Port struct {
 
 	// Operational state of the port. The state is set to 'down' if the operational state of the port is down. The state is set to 'up' if the link state of the port is up and the port is healthy. The state is set to 'up' if the link state of the port is up and configured to ignore health status. The state is 'degraded' if the link state of the port is up, and the port is not healthy.
 	// Read Only: true
-	// Enum: [up down degraded]
+	// Enum: ["up","down","degraded"]
 	State *string `json:"state,omitempty"`
 
 	// statistics
 	Statistics *PortInlineStatistics `json:"statistics,omitempty"`
 
 	// Type of physical or virtual port
-	// Enum: [vlan physical lag pvlan]
+	// Enum: ["vlan","physical","lag","pvlan"]
 	Type *string `json:"type,omitempty"`
 
 	// Port UUID
@@ -712,6 +712,11 @@ func (m *Port) ContextValidate(ctx context.Context, formats strfmt.Registry) err
 func (m *Port) contextValidateLinks(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Links != nil {
+
+		if swag.IsZero(m.Links) { // not required
+			return nil
+		}
+
 		if err := m.Links.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("_links")
@@ -728,6 +733,11 @@ func (m *Port) contextValidateLinks(ctx context.Context, formats strfmt.Registry
 func (m *Port) contextValidateBroadcastDomain(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.BroadcastDomain != nil {
+
+		if swag.IsZero(m.BroadcastDomain) { // not required
+			return nil
+		}
+
 		if err := m.BroadcastDomain.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("broadcast_domain")
@@ -753,6 +763,11 @@ func (m *Port) contextValidateInterfaceCount(ctx context.Context, formats strfmt
 func (m *Port) contextValidateLag(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Lag != nil {
+
+		if swag.IsZero(m.Lag) { // not required
+			return nil
+		}
+
 		if err := m.Lag.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("lag")
@@ -778,6 +793,11 @@ func (m *Port) contextValidateMacAddress(ctx context.Context, formats strfmt.Reg
 func (m *Port) contextValidateMetric(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Metric != nil {
+
+		if swag.IsZero(m.Metric) { // not required
+			return nil
+		}
+
 		if err := m.Metric.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("metric")
@@ -812,6 +832,11 @@ func (m *Port) contextValidateName(ctx context.Context, formats strfmt.Registry)
 func (m *Port) contextValidateNode(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Node != nil {
+
+		if swag.IsZero(m.Node) { // not required
+			return nil
+		}
+
 		if err := m.Node.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("node")
@@ -834,6 +859,11 @@ func (m *Port) contextValidatePortInlineDiscoveredDevices(ctx context.Context, f
 	for i := 0; i < len(m.PortInlineDiscoveredDevices); i++ {
 
 		if m.PortInlineDiscoveredDevices[i] != nil {
+
+			if swag.IsZero(m.PortInlineDiscoveredDevices[i]) { // not required
+				return nil
+			}
+
 			if err := m.PortInlineDiscoveredDevices[i].ContextValidate(ctx, formats); err != nil {
 				if ve, ok := err.(*errors.Validation); ok {
 					return ve.ValidateName("discovered_devices" + "." + strconv.Itoa(i))
@@ -858,6 +888,11 @@ func (m *Port) contextValidatePortInlineReachableBroadcastDomains(ctx context.Co
 	for i := 0; i < len(m.PortInlineReachableBroadcastDomains); i++ {
 
 		if m.PortInlineReachableBroadcastDomains[i] != nil {
+
+			if swag.IsZero(m.PortInlineReachableBroadcastDomains[i]) { // not required
+				return nil
+			}
+
 			if err := m.PortInlineReachableBroadcastDomains[i].ContextValidate(ctx, formats); err != nil {
 				if ve, ok := err.(*errors.Validation); ok {
 					return ve.ValidateName("reachable_broadcast_domains" + "." + strconv.Itoa(i))
@@ -903,6 +938,11 @@ func (m *Port) contextValidateState(ctx context.Context, formats strfmt.Registry
 func (m *Port) contextValidateStatistics(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Statistics != nil {
+
+		if swag.IsZero(m.Statistics) { // not required
+			return nil
+		}
+
 		if err := m.Statistics.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("statistics")
@@ -928,6 +968,11 @@ func (m *Port) contextValidateUUID(ctx context.Context, formats strfmt.Registry)
 func (m *Port) contextValidateVlan(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Vlan != nil {
+
+		if swag.IsZero(m.Vlan) { // not required
+			return nil
+		}
+
 		if err := m.Vlan.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("vlan")
@@ -1056,6 +1101,11 @@ func (m *PortInlineBroadcastDomain) ContextValidate(ctx context.Context, formats
 func (m *PortInlineBroadcastDomain) contextValidateLinks(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Links != nil {
+
+		if swag.IsZero(m.Links) { // not required
+			return nil
+		}
+
 		if err := m.Links.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("broadcast_domain" + "." + "_links")
@@ -1072,6 +1122,11 @@ func (m *PortInlineBroadcastDomain) contextValidateLinks(ctx context.Context, fo
 func (m *PortInlineBroadcastDomain) contextValidateIpspace(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Ipspace != nil {
+
+		if swag.IsZero(m.Ipspace) { // not required
+			return nil
+		}
+
 		if err := m.Ipspace.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("broadcast_domain" + "." + "ipspace")
@@ -1200,6 +1255,11 @@ func (m *PortInlineBroadcastDomainInlineLinks) ContextValidate(ctx context.Conte
 func (m *PortInlineBroadcastDomainInlineLinks) contextValidateSelf(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Self != nil {
+
+		if swag.IsZero(m.Self) { // not required
+			return nil
+		}
+
 		if err := m.Self.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("broadcast_domain" + "." + "_links" + "." + "self")
@@ -1257,7 +1317,7 @@ type PortInlineDiscoveredDevicesInlineArrayItem struct {
 
 	// The protocol used to identify the discovered device. This can have a value of CDP or LLDP.
 	// Example: cdp
-	// Enum: [cdp lldp]
+	// Enum: ["cdp","lldp"]
 	Protocol *string `json:"protocol,omitempty"`
 
 	// The number of seconds until the discovered device entry expires and is removed.
@@ -1423,6 +1483,11 @@ func (m *PortInlineDiscoveredDevicesInlineArrayItem) contextValidateIPAddresses(
 	for i := 0; i < len(m.IPAddresses); i++ {
 
 		if m.IPAddresses[i] != nil {
+
+			if swag.IsZero(m.IPAddresses[i]) { // not required
+				return nil
+			}
+
 			if err := m.IPAddresses[i].ContextValidate(ctx, formats); err != nil {
 				if ve, ok := err.(*errors.Validation); ok {
 					return ve.ValidateName("ip_addresses" + "." + strconv.Itoa(i))
@@ -1466,14 +1531,14 @@ type PortInlineLag struct {
 	ActivePorts []*PortLagActivePortsItems0 `json:"active_ports,omitempty"`
 
 	// Policy for mapping flows to ports for outbound packets through a LAG (ifgrp).
-	// Enum: [port ip mac sequential]
+	// Enum: ["port","ip","mac","sequential"]
 	DistributionPolicy *string `json:"distribution_policy,omitempty"`
 
 	// Array of ports belonging to the LAG, regardless of their state.
 	MemberPorts []*PortLagMemberPortsItems0 `json:"member_ports,omitempty"`
 
 	// Determines how the ports interact with the switch.
-	// Enum: [multimode_lacp multimode singlemode]
+	// Enum: ["multimode_lacp","multimode","singlemode"]
 	Mode *string `json:"mode,omitempty"`
 }
 
@@ -1675,6 +1740,11 @@ func (m *PortInlineLag) contextValidateActivePorts(ctx context.Context, formats 
 	for i := 0; i < len(m.ActivePorts); i++ {
 
 		if m.ActivePorts[i] != nil {
+
+			if swag.IsZero(m.ActivePorts[i]) { // not required
+				return nil
+			}
+
 			if err := m.ActivePorts[i].ContextValidate(ctx, formats); err != nil {
 				if ve, ok := err.(*errors.Validation); ok {
 					return ve.ValidateName("lag" + "." + "active_ports" + "." + strconv.Itoa(i))
@@ -1695,6 +1765,11 @@ func (m *PortInlineLag) contextValidateMemberPorts(ctx context.Context, formats 
 	for i := 0; i < len(m.MemberPorts); i++ {
 
 		if m.MemberPorts[i] != nil {
+
+			if swag.IsZero(m.MemberPorts[i]) { // not required
+				return nil
+			}
+
 			if err := m.MemberPorts[i].ContextValidate(ctx, formats); err != nil {
 				if ve, ok := err.(*errors.Validation); ok {
 					return ve.ValidateName("lag" + "." + "member_ports" + "." + strconv.Itoa(i))
@@ -1825,6 +1900,11 @@ func (m *PortLagActivePortsItems0) ContextValidate(ctx context.Context, formats 
 func (m *PortLagActivePortsItems0) contextValidateLinks(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Links != nil {
+
+		if swag.IsZero(m.Links) { // not required
+			return nil
+		}
+
 		if err := m.Links.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("_links")
@@ -1841,6 +1921,11 @@ func (m *PortLagActivePortsItems0) contextValidateLinks(ctx context.Context, for
 func (m *PortLagActivePortsItems0) contextValidateNode(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Node != nil {
+
+		if swag.IsZero(m.Node) { // not required
+			return nil
+		}
+
 		if err := m.Node.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("node")
@@ -1931,6 +2016,11 @@ func (m *PortLagActivePortsItems0Links) ContextValidate(ctx context.Context, for
 func (m *PortLagActivePortsItems0Links) contextValidateSelf(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Self != nil {
+
+		if swag.IsZero(m.Self) { // not required
+			return nil
+		}
+
 		if err := m.Self.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("_links" + "." + "self")
@@ -2097,6 +2187,11 @@ func (m *PortLagMemberPortsItems0) ContextValidate(ctx context.Context, formats 
 func (m *PortLagMemberPortsItems0) contextValidateLinks(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Links != nil {
+
+		if swag.IsZero(m.Links) { // not required
+			return nil
+		}
+
 		if err := m.Links.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("_links")
@@ -2113,6 +2208,11 @@ func (m *PortLagMemberPortsItems0) contextValidateLinks(ctx context.Context, for
 func (m *PortLagMemberPortsItems0) contextValidateNode(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Node != nil {
+
+		if swag.IsZero(m.Node) { // not required
+			return nil
+		}
+
 		if err := m.Node.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("node")
@@ -2203,6 +2303,11 @@ func (m *PortLagMemberPortsItems0Links) ContextValidate(ctx context.Context, for
 func (m *PortLagMemberPortsItems0Links) contextValidateSelf(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Self != nil {
+
+		if swag.IsZero(m.Self) { // not required
+			return nil
+		}
+
 		if err := m.Self.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("_links" + "." + "self")
@@ -2331,6 +2436,11 @@ func (m *PortInlineLinks) ContextValidate(ctx context.Context, formats strfmt.Re
 func (m *PortInlineLinks) contextValidateSelf(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Self != nil {
+
+		if swag.IsZero(m.Self) { // not required
+			return nil
+		}
+
 		if err := m.Self.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("_links" + "." + "self")
@@ -2373,12 +2483,12 @@ type PortInlineMetric struct {
 	// The duration over which this sample is calculated. The time durations are represented in the ISO-8601 standard format. Samples can be calculated over the following durations:
 	//
 	// Example: PT15S
-	// Enum: [PT15S PT4M PT30M PT2H P1D PT5M]
+	// Enum: ["PT15S","PT4M","PT30M","PT2H","P1D","PT5M"]
 	Duration *string `json:"duration,omitempty"`
 
 	// Errors associated with the sample. For example, if the aggregation of data over multiple nodes fails, then any partial errors might return "ok" on success or "error" on an internal uncategorized failure. Whenever a sample collection is missed but done at a later time, it is back filled to the previous 15 second timestamp and tagged with "backfilled_data". "inconsistent_delta_time" is encountered when the time between two collections is not the same for all nodes. Therefore, the aggregated value might be over or under inflated. "Negative_delta" is returned when an expected monotonically increasing value has decreased in value. "inconsistent_old_data" is returned when one or more nodes do not have the latest data.
 	// Example: ok
-	// Enum: [ok error partial_no_data partial_no_uuid partial_no_response partial_other_error negative_delta backfilled_data inconsistent_delta_time inconsistent_old_data]
+	// Enum: ["ok","error","partial_no_data","partial_no_uuid","partial_no_response","partial_other_error","negative_delta","backfilled_data","inconsistent_delta_time","inconsistent_old_data"]
 	Status *string `json:"status,omitempty"`
 
 	// throughput
@@ -2611,6 +2721,11 @@ func (m *PortInlineMetric) ContextValidate(ctx context.Context, formats strfmt.R
 func (m *PortInlineMetric) contextValidateLinks(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Links != nil {
+
+		if swag.IsZero(m.Links) { // not required
+			return nil
+		}
+
 		if err := m.Links.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("metric" + "." + "_links")
@@ -2627,6 +2742,11 @@ func (m *PortInlineMetric) contextValidateLinks(ctx context.Context, formats str
 func (m *PortInlineMetric) contextValidateThroughput(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Throughput != nil {
+
+		if swag.IsZero(m.Throughput) { // not required
+			return nil
+		}
+
 		if err := m.Throughput.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("metric" + "." + "throughput")
@@ -2717,6 +2837,11 @@ func (m *PortInlineMetricInlineLinks) ContextValidate(ctx context.Context, forma
 func (m *PortInlineMetricInlineLinks) contextValidateSelf(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Self != nil {
+
+		if swag.IsZero(m.Self) { // not required
+			return nil
+		}
+
 		if err := m.Self.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("metric" + "." + "_links" + "." + "self")
@@ -2861,6 +2986,11 @@ func (m *PortInlineNode) ContextValidate(ctx context.Context, formats strfmt.Reg
 func (m *PortInlineNode) contextValidateLinks(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Links != nil {
+
+		if swag.IsZero(m.Links) { // not required
+			return nil
+		}
+
 		if err := m.Links.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("node" + "." + "_links")
@@ -2951,6 +3081,11 @@ func (m *PortInlineNodeInlineLinks) ContextValidate(ctx context.Context, formats
 func (m *PortInlineNodeInlineLinks) contextValidateSelf(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Self != nil {
+
+		if swag.IsZero(m.Self) { // not required
+			return nil
+		}
+
 		if err := m.Self.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("node" + "." + "_links" + "." + "self")
@@ -3079,6 +3214,11 @@ func (m *PortInlineReachableBroadcastDomainsInlineArrayItem) ContextValidate(ctx
 func (m *PortInlineReachableBroadcastDomainsInlineArrayItem) contextValidateLinks(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Links != nil {
+
+		if swag.IsZero(m.Links) { // not required
+			return nil
+		}
+
 		if err := m.Links.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("_links")
@@ -3095,6 +3235,11 @@ func (m *PortInlineReachableBroadcastDomainsInlineArrayItem) contextValidateLink
 func (m *PortInlineReachableBroadcastDomainsInlineArrayItem) contextValidateIpspace(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Ipspace != nil {
+
+		if swag.IsZero(m.Ipspace) { // not required
+			return nil
+		}
+
 		if err := m.Ipspace.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("ipspace")
@@ -3223,6 +3368,11 @@ func (m *PortInlineReachableBroadcastDomainsInlineArrayItemInlineLinks) ContextV
 func (m *PortInlineReachableBroadcastDomainsInlineArrayItemInlineLinks) contextValidateSelf(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Self != nil {
+
+		if swag.IsZero(m.Self) { // not required
+			return nil
+		}
+
 		if err := m.Self.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("_links" + "." + "self")
@@ -3264,7 +3414,7 @@ type PortInlineStatistics struct {
 
 	// Errors associated with the sample. For example, if the aggregation of data over multiple nodes fails, then any partial errors might return "ok" on success or "error" on an internal uncategorized failure. Whenever a sample collection is missed but done at a later time, it is back filled to the previous 15 second timestamp and tagged with "backfilled_data". "inconsistent_delta_time" is encountered when the time between two collections is not the same for all nodes. Therefore, the aggregated value might be over or under inflated. "Negative_delta" is returned when an expected monotonically increasing value has decreased in value. "inconsistent_old_data" is returned when one or more nodes do not have the latest data.
 	// Example: ok
-	// Enum: [ok error partial_no_data partial_no_uuid partial_no_response partial_other_error negative_delta backfilled_data inconsistent_delta_time inconsistent_old_data]
+	// Enum: ["ok","error","partial_no_data","partial_no_uuid","partial_no_response","partial_other_error","negative_delta","backfilled_data","inconsistent_delta_time","inconsistent_old_data"]
 	Status *string `json:"status,omitempty"`
 
 	// throughput raw
@@ -3439,6 +3589,11 @@ func (m *PortInlineStatistics) ContextValidate(ctx context.Context, formats strf
 func (m *PortInlineStatistics) contextValidateDevice(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Device != nil {
+
+		if swag.IsZero(m.Device) { // not required
+			return nil
+		}
+
 		if err := m.Device.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("statistics" + "." + "device")
@@ -3455,6 +3610,11 @@ func (m *PortInlineStatistics) contextValidateDevice(ctx context.Context, format
 func (m *PortInlineStatistics) contextValidateThroughputRaw(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.ThroughputRaw != nil {
+
+		if swag.IsZero(m.ThroughputRaw) { // not required
+			return nil
+		}
+
 		if err := m.ThroughputRaw.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("statistics" + "." + "throughput_raw")
@@ -3600,6 +3760,11 @@ func (m *PortInlineStatisticsInlineDevice) ContextValidate(ctx context.Context, 
 func (m *PortInlineStatisticsInlineDevice) contextValidateReceiveRaw(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.ReceiveRaw != nil {
+
+		if swag.IsZero(m.ReceiveRaw) { // not required
+			return nil
+		}
+
 		if err := m.ReceiveRaw.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("statistics" + "." + "device" + "." + "receive_raw")
@@ -3616,6 +3781,11 @@ func (m *PortInlineStatisticsInlineDevice) contextValidateReceiveRaw(ctx context
 func (m *PortInlineStatisticsInlineDevice) contextValidateTransmitRaw(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.TransmitRaw != nil {
+
+		if swag.IsZero(m.TransmitRaw) { // not required
+			return nil
+		}
+
 		if err := m.TransmitRaw.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("statistics" + "." + "device" + "." + "transmit_raw")
@@ -3870,6 +4040,11 @@ func (m *PortInlineVlan) ContextValidate(ctx context.Context, formats strfmt.Reg
 func (m *PortInlineVlan) contextValidateBasePort(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.BasePort != nil {
+
+		if swag.IsZero(m.BasePort) { // not required
+			return nil
+		}
+
 		if err := m.BasePort.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("vlan" + "." + "base_port")
@@ -3998,6 +4173,11 @@ func (m *PortInlineVlanInlineBasePort) ContextValidate(ctx context.Context, form
 func (m *PortInlineVlanInlineBasePort) contextValidateLinks(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Links != nil {
+
+		if swag.IsZero(m.Links) { // not required
+			return nil
+		}
+
 		if err := m.Links.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("vlan" + "." + "base_port" + "." + "_links")
@@ -4014,6 +4194,11 @@ func (m *PortInlineVlanInlineBasePort) contextValidateLinks(ctx context.Context,
 func (m *PortInlineVlanInlineBasePort) contextValidateNode(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Node != nil {
+
+		if swag.IsZero(m.Node) { // not required
+			return nil
+		}
+
 		if err := m.Node.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("vlan" + "." + "base_port" + "." + "node")
@@ -4104,6 +4289,11 @@ func (m *PortInlineVlanInlineBasePortInlineLinks) ContextValidate(ctx context.Co
 func (m *PortInlineVlanInlineBasePortInlineLinks) contextValidateSelf(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Self != nil {
+
+		if swag.IsZero(m.Self) { // not required
+			return nil
+		}
+
 		if err := m.Self.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("vlan" + "." + "base_port" + "." + "_links" + "." + "self")

@@ -23,7 +23,7 @@ type StorageUnitEncryption struct {
 	// Storage unit data encryption state.<br>_unencrypted_ &dash; Unencrypted.<br>_software_encrypted_ &dash; Software encryption enabled.<br>_software_conversion_queued_ &dash; Queued for software conversion.<br>_software_encrypting_ &dash; Software encryption is in progress.<br>_software_rekeying_ &dash; Encryption with a new key is in progress.<br>_software_conversion_paused_ &dash; Software conversion is paused.<br>_software_rekey_paused_ &dash; Encryption with a new key is paused.<br>_software_rekey_queued_ &dash; Queued for software rekey.
 	//
 	// Read Only: true
-	// Enum: [unencrypted software_encrypted software_conversion_queued software_encrypting software_rekeying software_conversion_paused software_rekey_paused software_rekey_queued]
+	// Enum: ["unencrypted","software_encrypted","software_conversion_queued","software_encrypting","software_rekeying","software_conversion_paused","software_rekey_paused","software_rekey_queued"]
 	State *string `json:"state,omitempty"`
 }
 

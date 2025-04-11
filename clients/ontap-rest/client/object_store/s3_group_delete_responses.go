@@ -6,6 +6,7 @@ package object_store
 // Editing this file might prove futile when you re-run the swagger generate command
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 
@@ -85,11 +86,11 @@ func (o *S3GroupDeleteOK) Code() int {
 }
 
 func (o *S3GroupDeleteOK) Error() string {
-	return fmt.Sprintf("[DELETE /protocols/s3/services/{svm.uuid}/groups/{id}][%d] s3GroupDeleteOK ", 200)
+	return fmt.Sprintf("[DELETE /protocols/s3/services/{svm.uuid}/groups/{id}][%d] s3GroupDeleteOK", 200)
 }
 
 func (o *S3GroupDeleteOK) String() string {
-	return fmt.Sprintf("[DELETE /protocols/s3/services/{svm.uuid}/groups/{id}][%d] s3GroupDeleteOK ", 200)
+	return fmt.Sprintf("[DELETE /protocols/s3/services/{svm.uuid}/groups/{id}][%d] s3GroupDeleteOK", 200)
 }
 
 func (o *S3GroupDeleteOK) readResponse(response runtime.ClientResponse, consumer runtime.Consumer, formats strfmt.Registry) error {
@@ -146,11 +147,13 @@ func (o *S3GroupDeleteDefault) Code() int {
 }
 
 func (o *S3GroupDeleteDefault) Error() string {
-	return fmt.Sprintf("[DELETE /protocols/s3/services/{svm.uuid}/groups/{id}][%d] s3_group_delete default  %+v", o._statusCode, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[DELETE /protocols/s3/services/{svm.uuid}/groups/{id}][%d] s3_group_delete default %s", o._statusCode, payload)
 }
 
 func (o *S3GroupDeleteDefault) String() string {
-	return fmt.Sprintf("[DELETE /protocols/s3/services/{svm.uuid}/groups/{id}][%d] s3_group_delete default  %+v", o._statusCode, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[DELETE /protocols/s3/services/{svm.uuid}/groups/{id}][%d] s3_group_delete default %s", o._statusCode, payload)
 }
 
 func (o *S3GroupDeleteDefault) GetPayload() *models.ErrorResponse {

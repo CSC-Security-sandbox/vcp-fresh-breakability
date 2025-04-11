@@ -7,6 +7,7 @@ package networking
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"io"
 	"strconv"
@@ -89,11 +90,11 @@ func (o *NetworkEthernetBroadcastDomainDeleteCollectionOK) Code() int {
 }
 
 func (o *NetworkEthernetBroadcastDomainDeleteCollectionOK) Error() string {
-	return fmt.Sprintf("[DELETE /network/ethernet/broadcast-domains][%d] networkEthernetBroadcastDomainDeleteCollectionOK ", 200)
+	return fmt.Sprintf("[DELETE /network/ethernet/broadcast-domains][%d] networkEthernetBroadcastDomainDeleteCollectionOK", 200)
 }
 
 func (o *NetworkEthernetBroadcastDomainDeleteCollectionOK) String() string {
-	return fmt.Sprintf("[DELETE /network/ethernet/broadcast-domains][%d] networkEthernetBroadcastDomainDeleteCollectionOK ", 200)
+	return fmt.Sprintf("[DELETE /network/ethernet/broadcast-domains][%d] networkEthernetBroadcastDomainDeleteCollectionOK", 200)
 }
 
 func (o *NetworkEthernetBroadcastDomainDeleteCollectionOK) readResponse(response runtime.ClientResponse, consumer runtime.Consumer, formats strfmt.Registry) error {
@@ -155,11 +156,13 @@ func (o *NetworkEthernetBroadcastDomainDeleteCollectionDefault) Code() int {
 }
 
 func (o *NetworkEthernetBroadcastDomainDeleteCollectionDefault) Error() string {
-	return fmt.Sprintf("[DELETE /network/ethernet/broadcast-domains][%d] network_ethernet_broadcast_domain_delete_collection default  %+v", o._statusCode, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[DELETE /network/ethernet/broadcast-domains][%d] network_ethernet_broadcast_domain_delete_collection default %s", o._statusCode, payload)
 }
 
 func (o *NetworkEthernetBroadcastDomainDeleteCollectionDefault) String() string {
-	return fmt.Sprintf("[DELETE /network/ethernet/broadcast-domains][%d] network_ethernet_broadcast_domain_delete_collection default  %+v", o._statusCode, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[DELETE /network/ethernet/broadcast-domains][%d] network_ethernet_broadcast_domain_delete_collection default %s", o._statusCode, payload)
 }
 
 func (o *NetworkEthernetBroadcastDomainDeleteCollectionDefault) GetPayload() *models.ErrorResponse {
@@ -247,6 +250,11 @@ func (o *NetworkEthernetBroadcastDomainDeleteCollectionBody) contextValidateBroa
 	for i := 0; i < len(o.BroadcastDomainResponseInlineRecords); i++ {
 
 		if o.BroadcastDomainResponseInlineRecords[i] != nil {
+
+			if swag.IsZero(o.BroadcastDomainResponseInlineRecords[i]) { // not required
+				return nil
+			}
+
 			if err := o.BroadcastDomainResponseInlineRecords[i].ContextValidate(ctx, formats); err != nil {
 				if ve, ok := err.(*errors.Validation); ok {
 					return ve.ValidateName("info" + "." + "records" + "." + strconv.Itoa(i))

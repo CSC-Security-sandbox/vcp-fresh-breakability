@@ -105,6 +105,11 @@ func (m *AggregateWarning) ContextValidate(ctx context.Context, formats strfmt.R
 func (m *AggregateWarning) contextValidateAction(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Action != nil {
+
+		if swag.IsZero(m.Action) { // not required
+			return nil
+		}
+
 		if err := m.Action.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("action")
@@ -121,6 +126,11 @@ func (m *AggregateWarning) contextValidateAction(ctx context.Context, formats st
 func (m *AggregateWarning) contextValidateWarning(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Warning != nil {
+
+		if swag.IsZero(m.Warning) { // not required
+			return nil
+		}
+
 		if err := m.Warning.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("warning")

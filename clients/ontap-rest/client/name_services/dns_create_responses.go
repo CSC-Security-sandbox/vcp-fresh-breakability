@@ -6,6 +6,7 @@ package name_services
 // Editing this file might prove futile when you re-run the swagger generate command
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 
@@ -91,11 +92,13 @@ func (o *DNSCreateCreated) Code() int {
 }
 
 func (o *DNSCreateCreated) Error() string {
-	return fmt.Sprintf("[POST /name-services/dns][%d] dnsCreateCreated  %+v", 201, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[POST /name-services/dns][%d] dnsCreateCreated %s", 201, payload)
 }
 
 func (o *DNSCreateCreated) String() string {
-	return fmt.Sprintf("[POST /name-services/dns][%d] dnsCreateCreated  %+v", 201, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[POST /name-services/dns][%d] dnsCreateCreated %s", 201, payload)
 }
 
 func (o *DNSCreateCreated) GetPayload() *models.DNSResponse {
@@ -145,6 +148,7 @@ func NewDNSCreateDefault(code int) *DNSCreateDefault {
 | 8847394    | FQDN name violated the limitations |
 | 8847403    | Scope specified is invalid for the specified SVM |
 | 9240587    | FQDN name cannot be empty |
+| 23724157   | Servers list cannot be empty |
 | 9240588    | FQDN name is too long. Maximum supported length: 255 characters  |
 | 9240590    | FQDN name is reserved. Following names are reserved: "all", "local" and "localhost" |
 | 9240607    | One of the FQDN labels is too long. Maximum supported length is 63 characters |
@@ -190,11 +194,13 @@ func (o *DNSCreateDefault) Code() int {
 }
 
 func (o *DNSCreateDefault) Error() string {
-	return fmt.Sprintf("[POST /name-services/dns][%d] dns_create default  %+v", o._statusCode, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[POST /name-services/dns][%d] dns_create default %s", o._statusCode, payload)
 }
 
 func (o *DNSCreateDefault) String() string {
-	return fmt.Sprintf("[POST /name-services/dns][%d] dns_create default  %+v", o._statusCode, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[POST /name-services/dns][%d] dns_create default %s", o._statusCode, payload)
 }
 
 func (o *DNSCreateDefault) GetPayload() *models.ErrorResponse {

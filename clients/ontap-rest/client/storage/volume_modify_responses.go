@@ -6,6 +6,7 @@ package storage
 // Editing this file might prove futile when you re-run the swagger generate command
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 
@@ -92,11 +93,13 @@ func (o *VolumeModifyOK) Code() int {
 }
 
 func (o *VolumeModifyOK) Error() string {
-	return fmt.Sprintf("[PATCH /storage/volumes/{uuid}][%d] volumeModifyOK  %+v", 200, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[PATCH /storage/volumes/{uuid}][%d] volumeModifyOK %s", 200, payload)
 }
 
 func (o *VolumeModifyOK) String() string {
-	return fmt.Sprintf("[PATCH /storage/volumes/{uuid}][%d] volumeModifyOK  %+v", 200, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[PATCH /storage/volumes/{uuid}][%d] volumeModifyOK %s", 200, payload)
 }
 
 func (o *VolumeModifyOK) GetPayload() *models.VolumeJobLinkResponse {
@@ -160,11 +163,13 @@ func (o *VolumeModifyAccepted) Code() int {
 }
 
 func (o *VolumeModifyAccepted) Error() string {
-	return fmt.Sprintf("[PATCH /storage/volumes/{uuid}][%d] volumeModifyAccepted  %+v", 202, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[PATCH /storage/volumes/{uuid}][%d] volumeModifyAccepted %s", 202, payload)
 }
 
 func (o *VolumeModifyAccepted) String() string {
-	return fmt.Sprintf("[PATCH /storage/volumes/{uuid}][%d] volumeModifyAccepted  %+v", 202, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[PATCH /storage/volumes/{uuid}][%d] volumeModifyAccepted %s", 202, payload)
 }
 
 func (o *VolumeModifyAccepted) GetPayload() *models.VolumeJobLinkResponse {
@@ -258,6 +263,9 @@ func NewVolumeModifyDefault(code int) *VolumeModifyDefault {
 | 918659 | Cloud write can only be enabled on FabricPool-enabled aggregates.<personalities supports=unified> |
 | 918660 | Cloud write enabled volumes can only be moved to FabricPool-enabled aggregates. Disable cloud write to move the volume to a non-FabricPool aggregates.</personalities> |
 | 918703 | Modification of the specified volume properties are not supported on this platform. |
+| 918775 | The \"constituent_count\" parameter must be greater than the current number of constituents in the FlexGroup volume. |
+| 918776 | The \"constituent_count\" and \"size\" parameters cannot both be specified. |
+| 918777 | The \"aggregates\" parameter cannot contain both storage pods and aggregates. |
 | 1638480 | Failed to promote snapshot \"restore_to.snapshot.name\" because one or more newer snapshots are currently used as a reference snapshot for data protection operations. |
 | 1638590 | Promoting a \"-pre-conversion\" snapshot is not supported. |
 | 2424998 | Unable to determine whether MetroCluster is configured. |
@@ -386,11 +394,13 @@ func (o *VolumeModifyDefault) Code() int {
 }
 
 func (o *VolumeModifyDefault) Error() string {
-	return fmt.Sprintf("[PATCH /storage/volumes/{uuid}][%d] volume_modify default  %+v", o._statusCode, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[PATCH /storage/volumes/{uuid}][%d] volume_modify default %s", o._statusCode, payload)
 }
 
 func (o *VolumeModifyDefault) String() string {
-	return fmt.Sprintf("[PATCH /storage/volumes/{uuid}][%d] volume_modify default  %+v", o._statusCode, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[PATCH /storage/volumes/{uuid}][%d] volume_modify default %s", o._statusCode, payload)
 }
 
 func (o *VolumeModifyDefault) GetPayload() *models.ErrorResponse {

@@ -6,6 +6,7 @@ package networking
 // Editing this file might prove futile when you re-run the swagger generate command
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 
@@ -89,11 +90,11 @@ func (o *NetworkEthernetBroadcastDomainsCreateCreated) Code() int {
 }
 
 func (o *NetworkEthernetBroadcastDomainsCreateCreated) Error() string {
-	return fmt.Sprintf("[POST /network/ethernet/broadcast-domains][%d] networkEthernetBroadcastDomainsCreateCreated ", 201)
+	return fmt.Sprintf("[POST /network/ethernet/broadcast-domains][%d] networkEthernetBroadcastDomainsCreateCreated", 201)
 }
 
 func (o *NetworkEthernetBroadcastDomainsCreateCreated) String() string {
-	return fmt.Sprintf("[POST /network/ethernet/broadcast-domains][%d] networkEthernetBroadcastDomainsCreateCreated ", 201)
+	return fmt.Sprintf("[POST /network/ethernet/broadcast-domains][%d] networkEthernetBroadcastDomainsCreateCreated", 201)
 }
 
 func (o *NetworkEthernetBroadcastDomainsCreateCreated) readResponse(response runtime.ClientResponse, consumer runtime.Consumer, formats strfmt.Registry) error {
@@ -168,11 +169,13 @@ func (o *NetworkEthernetBroadcastDomainsCreateDefault) Code() int {
 }
 
 func (o *NetworkEthernetBroadcastDomainsCreateDefault) Error() string {
-	return fmt.Sprintf("[POST /network/ethernet/broadcast-domains][%d] network_ethernet_broadcast_domains_create default  %+v", o._statusCode, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[POST /network/ethernet/broadcast-domains][%d] network_ethernet_broadcast_domains_create default %s", o._statusCode, payload)
 }
 
 func (o *NetworkEthernetBroadcastDomainsCreateDefault) String() string {
-	return fmt.Sprintf("[POST /network/ethernet/broadcast-domains][%d] network_ethernet_broadcast_domains_create default  %+v", o._statusCode, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[POST /network/ethernet/broadcast-domains][%d] network_ethernet_broadcast_domains_create default %s", o._statusCode, payload)
 }
 
 func (o *NetworkEthernetBroadcastDomainsCreateDefault) GetPayload() *models.ErrorResponse {

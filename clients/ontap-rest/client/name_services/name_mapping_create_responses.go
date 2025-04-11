@@ -6,6 +6,7 @@ package name_services
 // Editing this file might prove futile when you re-run the swagger generate command
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 
@@ -91,11 +92,13 @@ func (o *NameMappingCreateCreated) Code() int {
 }
 
 func (o *NameMappingCreateCreated) Error() string {
-	return fmt.Sprintf("[POST /name-services/name-mappings][%d] nameMappingCreateCreated  %+v", 201, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[POST /name-services/name-mappings][%d] nameMappingCreateCreated %s", 201, payload)
 }
 
 func (o *NameMappingCreateCreated) String() string {
-	return fmt.Sprintf("[POST /name-services/name-mappings][%d] nameMappingCreateCreated  %+v", 201, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[POST /name-services/name-mappings][%d] nameMappingCreateCreated %s", 201, payload)
 }
 
 func (o *NameMappingCreateCreated) GetPayload() *models.NameMappingResponse {
@@ -177,11 +180,13 @@ func (o *NameMappingCreateDefault) Code() int {
 }
 
 func (o *NameMappingCreateDefault) Error() string {
-	return fmt.Sprintf("[POST /name-services/name-mappings][%d] name_mapping_create default  %+v", o._statusCode, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[POST /name-services/name-mappings][%d] name_mapping_create default %s", o._statusCode, payload)
 }
 
 func (o *NameMappingCreateDefault) String() string {
-	return fmt.Sprintf("[POST /name-services/name-mappings][%d] name_mapping_create default  %+v", o._statusCode, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[POST /name-services/name-mappings][%d] name_mapping_create default %s", o._statusCode, payload)
 }
 
 func (o *NameMappingCreateDefault) GetPayload() *models.ErrorResponse {

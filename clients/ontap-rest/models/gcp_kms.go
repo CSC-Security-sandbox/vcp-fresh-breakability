@@ -91,7 +91,7 @@ type GcpKms struct {
 
 	// Type of proxy.
 	// Example: http
-	// Enum: [http https]
+	// Enum: ["http","https"]
 	ProxyType *string `json:"proxy_type,omitempty"`
 
 	// Proxy username.
@@ -100,7 +100,7 @@ type GcpKms struct {
 
 	// Set to "svm" for interfaces owned by an SVM. Otherwise, set to "cluster".
 	// Read Only: true
-	// Enum: [svm cluster]
+	// Enum: ["svm","cluster"]
 	Scope *string `json:"scope,omitempty"`
 
 	// state
@@ -406,6 +406,11 @@ func (m *GcpKms) ContextValidate(ctx context.Context, formats strfmt.Registry) e
 func (m *GcpKms) contextValidateLinks(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Links != nil {
+
+		if swag.IsZero(m.Links) { // not required
+			return nil
+		}
+
 		if err := m.Links.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("_links")
@@ -437,6 +442,11 @@ func (m *GcpKms) contextValidateGcpKmsInlineEkmipReachability(ctx context.Contex
 	for i := 0; i < len(m.GcpKmsInlineEkmipReachability); i++ {
 
 		if m.GcpKmsInlineEkmipReachability[i] != nil {
+
+			if swag.IsZero(m.GcpKmsInlineEkmipReachability[i]) { // not required
+				return nil
+			}
+
 			if err := m.GcpKmsInlineEkmipReachability[i].ContextValidate(ctx, formats); err != nil {
 				if ve, ok := err.(*errors.Validation); ok {
 					return ve.ValidateName("ekmip_reachability" + "." + strconv.Itoa(i))
@@ -455,6 +465,11 @@ func (m *GcpKms) contextValidateGcpKmsInlineEkmipReachability(ctx context.Contex
 func (m *GcpKms) contextValidateGoogleReachability(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.GoogleReachability != nil {
+
+		if swag.IsZero(m.GoogleReachability) { // not required
+			return nil
+		}
+
 		if err := m.GoogleReachability.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("google_reachability")
@@ -480,6 +495,11 @@ func (m *GcpKms) contextValidateScope(ctx context.Context, formats strfmt.Regist
 func (m *GcpKms) contextValidateState(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.State != nil {
+
+		if swag.IsZero(m.State) { // not required
+			return nil
+		}
+
 		if err := m.State.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("state")
@@ -496,6 +516,11 @@ func (m *GcpKms) contextValidateState(ctx context.Context, formats strfmt.Regist
 func (m *GcpKms) contextValidateSvm(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Svm != nil {
+
+		if swag.IsZero(m.Svm) { // not required
+			return nil
+		}
+
 		if err := m.Svm.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("svm")
@@ -607,6 +632,11 @@ func (m *GcpKmsInlineEkmipReachabilityInlineArrayItem) ContextValidate(ctx conte
 func (m *GcpKmsInlineEkmipReachabilityInlineArrayItem) contextValidateNode(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Node != nil {
+
+		if swag.IsZero(m.Node) { // not required
+			return nil
+		}
+
 		if err := m.Node.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("node")
@@ -705,6 +735,11 @@ func (m *GcpKmsInlineEkmipReachabilityInlineArrayItemInlineNode) ContextValidate
 func (m *GcpKmsInlineEkmipReachabilityInlineArrayItemInlineNode) contextValidateLinks(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Links != nil {
+
+		if swag.IsZero(m.Links) { // not required
+			return nil
+		}
+
 		if err := m.Links.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("node" + "." + "_links")
@@ -795,6 +830,11 @@ func (m *GcpKmsInlineEkmipReachabilityInlineArrayItemInlineNodeInlineLinks) Cont
 func (m *GcpKmsInlineEkmipReachabilityInlineArrayItemInlineNodeInlineLinks) contextValidateSelf(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Self != nil {
+
+		if swag.IsZero(m.Self) { // not required
+			return nil
+		}
+
 		if err := m.Self.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("node" + "." + "_links" + "." + "self")
@@ -936,6 +976,11 @@ func (m *GcpKmsInlineLinks) ContextValidate(ctx context.Context, formats strfmt.
 func (m *GcpKmsInlineLinks) contextValidateSelf(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Self != nil {
+
+		if swag.IsZero(m.Self) { // not required
+			return nil
+		}
+
 		if err := m.Self.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("_links" + "." + "self")
@@ -1087,6 +1132,11 @@ func (m *GcpKmsInlineSvm) ContextValidate(ctx context.Context, formats strfmt.Re
 func (m *GcpKmsInlineSvm) contextValidateLinks(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Links != nil {
+
+		if swag.IsZero(m.Links) { // not required
+			return nil
+		}
+
 		if err := m.Links.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("svm" + "." + "_links")
@@ -1177,6 +1227,11 @@ func (m *GcpKmsInlineSvmInlineLinks) ContextValidate(ctx context.Context, format
 func (m *GcpKmsInlineSvmInlineLinks) contextValidateSelf(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Self != nil {
+
+		if swag.IsZero(m.Self) { // not required
+			return nil
+		}
+
 		if err := m.Self.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("svm" + "." + "_links" + "." + "self")

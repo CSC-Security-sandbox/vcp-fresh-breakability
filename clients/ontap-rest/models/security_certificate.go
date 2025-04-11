@@ -46,11 +46,11 @@ type SecurityCertificate struct {
 	ExpiryTime *string `json:"expiry_time,omitempty"`
 
 	// Hashing function. Can be provided on POST when creating a self-signed certificate. Hash functions md5 and sha1 are not allowed on POST.
-	// Enum: [sha1 sha256 md5 sha224 sha384 sha512]
+	// Enum: ["sha1","sha256","md5","sha224","sha384","sha512"]
 	HashFunction *string `json:"hash_function,omitempty"`
 
 	// Key size of requested Certificate in bits. One of 512, 1024, 1536, 2048, 3072. Can be provided on POST if creating self-signed certificate with a minimum permissible value of 2048.
-	// Enum: [512 1024 1536 2048 3072]
+	// Enum: [512,1024,1536,2048,3072]
 	KeySize *int64 `json:"key_size,omitempty"`
 
 	// Certificate name or name of the certificate to be downloaded from the Azure Key Vault (AKV). If not provided in POST, a unique name specific to the SVM is automatically generated.
@@ -94,7 +94,7 @@ type SecurityCertificate struct {
 	// * server_ca - a Certificate Authority certificate used by an SSL client in ONTAP to verify an SSL server certificate.
 	// * root_ca - a self-signed certificate used by ONTAP to sign other certificates by acting as a Certificate Authority.
 	//
-	// Enum: [client server client_ca server_ca root_ca]
+	// Enum: ["client","server","client_ca","server_ca","root_ca"]
 	Type *string `json:"type,omitempty"`
 
 	// Unique ID that identifies a certificate.
@@ -470,6 +470,11 @@ func (m *SecurityCertificate) ContextValidate(ctx context.Context, formats strfm
 func (m *SecurityCertificate) contextValidateLinks(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Links != nil {
+
+		if swag.IsZero(m.Links) { // not required
+			return nil
+		}
+
 		if err := m.Links.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("_links")
@@ -495,6 +500,11 @@ func (m *SecurityCertificate) contextValidateAuthorityKeyIdentifier(ctx context.
 func (m *SecurityCertificate) contextValidateAzure(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Azure != nil {
+
+		if swag.IsZero(m.Azure) { // not required
+			return nil
+		}
+
 		if err := m.Azure.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("azure")
@@ -520,6 +530,11 @@ func (m *SecurityCertificate) contextValidateCa(ctx context.Context, formats str
 func (m *SecurityCertificate) contextValidateScope(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Scope != nil {
+
+		if swag.IsZero(m.Scope) { // not required
+			return nil
+		}
+
 		if err := m.Scope.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("scope")
@@ -545,6 +560,11 @@ func (m *SecurityCertificate) contextValidateSerialNumber(ctx context.Context, f
 func (m *SecurityCertificate) contextValidateSubjectAlternatives(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.SubjectAlternatives != nil {
+
+		if swag.IsZero(m.SubjectAlternatives) { // not required
+			return nil
+		}
+
 		if err := m.SubjectAlternatives.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("subject_alternatives")
@@ -570,6 +590,11 @@ func (m *SecurityCertificate) contextValidateSubjectKeyIdentifier(ctx context.Co
 func (m *SecurityCertificate) contextValidateSvm(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Svm != nil {
+
+		if swag.IsZero(m.Svm) { // not required
+			return nil
+		}
+
 		if err := m.Svm.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("svm")
@@ -751,6 +776,11 @@ func (m *SecurityCertificateInlineAzure) ContextValidate(ctx context.Context, fo
 func (m *SecurityCertificateInlineAzure) contextValidateProxy(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Proxy != nil {
+
+		if swag.IsZero(m.Proxy) { // not required
+			return nil
+		}
+
 		if err := m.Proxy.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("azure" + "." + "proxy")
@@ -800,7 +830,7 @@ type SecurityCertificateInlineAzureInlineProxy struct {
 	Port *int64 `json:"port,omitempty"`
 
 	// Proxy type.
-	// Enum: [http https]
+	// Enum: ["http","https"]
 	Type *string `json:"type,omitempty"`
 
 	// Proxy username.
@@ -946,6 +976,11 @@ func (m *SecurityCertificateInlineLinks) ContextValidate(ctx context.Context, fo
 func (m *SecurityCertificateInlineLinks) contextValidateSelf(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Self != nil {
+
+		if swag.IsZero(m.Self) { // not required
+			return nil
+		}
+
 		if err := m.Self.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("_links" + "." + "self")
@@ -1092,6 +1127,11 @@ func (m *SecurityCertificateInlineSvm) ContextValidate(ctx context.Context, form
 func (m *SecurityCertificateInlineSvm) contextValidateLinks(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Links != nil {
+
+		if swag.IsZero(m.Links) { // not required
+			return nil
+		}
+
 		if err := m.Links.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("svm" + "." + "_links")
@@ -1182,6 +1222,11 @@ func (m *SecurityCertificateInlineSvmInlineLinks) ContextValidate(ctx context.Co
 func (m *SecurityCertificateInlineSvmInlineLinks) contextValidateSelf(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Self != nil {
+
+		if swag.IsZero(m.Self) { // not required
+			return nil
+		}
+
 		if err := m.Self.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("svm" + "." + "_links" + "." + "self")

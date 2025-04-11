@@ -102,6 +102,11 @@ func (m *LdapSchemaNameMapping) ContextValidate(ctx context.Context, formats str
 func (m *LdapSchemaNameMapping) contextValidateAccount(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Account != nil {
+
+		if swag.IsZero(m.Account) { // not required
+			return nil
+		}
+
 		if err := m.Account.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("account")
@@ -118,6 +123,11 @@ func (m *LdapSchemaNameMapping) contextValidateAccount(ctx context.Context, form
 func (m *LdapSchemaNameMapping) contextValidateWindowsToUnix(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.WindowsToUnix != nil {
+
+		if swag.IsZero(m.WindowsToUnix) { // not required
+			return nil
+		}
+
 		if err := m.WindowsToUnix.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("windows_to_unix")

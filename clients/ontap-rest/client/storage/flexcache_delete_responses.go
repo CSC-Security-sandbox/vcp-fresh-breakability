@@ -6,6 +6,7 @@ package storage
 // Editing this file might prove futile when you re-run the swagger generate command
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 
@@ -92,11 +93,13 @@ func (o *FlexcacheDeleteOK) Code() int {
 }
 
 func (o *FlexcacheDeleteOK) Error() string {
-	return fmt.Sprintf("[DELETE /storage/flexcache/flexcaches/{uuid}][%d] flexcacheDeleteOK  %+v", 200, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[DELETE /storage/flexcache/flexcaches/{uuid}][%d] flexcacheDeleteOK %s", 200, payload)
 }
 
 func (o *FlexcacheDeleteOK) String() string {
-	return fmt.Sprintf("[DELETE /storage/flexcache/flexcaches/{uuid}][%d] flexcacheDeleteOK  %+v", 200, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[DELETE /storage/flexcache/flexcaches/{uuid}][%d] flexcacheDeleteOK %s", 200, payload)
 }
 
 func (o *FlexcacheDeleteOK) GetPayload() *models.FlexcacheJobLinkResponse {
@@ -160,11 +163,13 @@ func (o *FlexcacheDeleteAccepted) Code() int {
 }
 
 func (o *FlexcacheDeleteAccepted) Error() string {
-	return fmt.Sprintf("[DELETE /storage/flexcache/flexcaches/{uuid}][%d] flexcacheDeleteAccepted  %+v", 202, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[DELETE /storage/flexcache/flexcaches/{uuid}][%d] flexcacheDeleteAccepted %s", 202, payload)
 }
 
 func (o *FlexcacheDeleteAccepted) String() string {
-	return fmt.Sprintf("[DELETE /storage/flexcache/flexcaches/{uuid}][%d] flexcacheDeleteAccepted  %+v", 202, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[DELETE /storage/flexcache/flexcaches/{uuid}][%d] flexcacheDeleteAccepted %s", 202, payload)
 }
 
 func (o *FlexcacheDeleteAccepted) GetPayload() *models.FlexcacheJobLinkResponse {
@@ -239,11 +244,13 @@ func (o *FlexcacheDeleteDefault) Code() int {
 }
 
 func (o *FlexcacheDeleteDefault) Error() string {
-	return fmt.Sprintf("[DELETE /storage/flexcache/flexcaches/{uuid}][%d] flexcache_delete default  %+v", o._statusCode, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[DELETE /storage/flexcache/flexcaches/{uuid}][%d] flexcache_delete default %s", o._statusCode, payload)
 }
 
 func (o *FlexcacheDeleteDefault) String() string {
-	return fmt.Sprintf("[DELETE /storage/flexcache/flexcaches/{uuid}][%d] flexcache_delete default  %+v", o._statusCode, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[DELETE /storage/flexcache/flexcaches/{uuid}][%d] flexcache_delete default %s", o._statusCode, payload)
 }
 
 func (o *FlexcacheDeleteDefault) GetPayload() *models.ErrorResponse {

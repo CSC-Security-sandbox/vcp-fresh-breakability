@@ -6,6 +6,7 @@ package storage
 // Editing this file might prove futile when you re-run the swagger generate command
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 
@@ -85,11 +86,11 @@ func (o *SnapshotPolicyModifyOK) Code() int {
 }
 
 func (o *SnapshotPolicyModifyOK) Error() string {
-	return fmt.Sprintf("[PATCH /storage/snapshot-policies/{uuid}][%d] snapshotPolicyModifyOK ", 200)
+	return fmt.Sprintf("[PATCH /storage/snapshot-policies/{uuid}][%d] snapshotPolicyModifyOK", 200)
 }
 
 func (o *SnapshotPolicyModifyOK) String() string {
-	return fmt.Sprintf("[PATCH /storage/snapshot-policies/{uuid}][%d] snapshotPolicyModifyOK ", 200)
+	return fmt.Sprintf("[PATCH /storage/snapshot-policies/{uuid}][%d] snapshotPolicyModifyOK", 200)
 }
 
 func (o *SnapshotPolicyModifyOK) readResponse(response runtime.ClientResponse, consumer runtime.Consumer, formats strfmt.Registry) error {
@@ -150,11 +151,13 @@ func (o *SnapshotPolicyModifyDefault) Code() int {
 }
 
 func (o *SnapshotPolicyModifyDefault) Error() string {
-	return fmt.Sprintf("[PATCH /storage/snapshot-policies/{uuid}][%d] snapshot_policy_modify default  %+v", o._statusCode, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[PATCH /storage/snapshot-policies/{uuid}][%d] snapshot_policy_modify default %s", o._statusCode, payload)
 }
 
 func (o *SnapshotPolicyModifyDefault) String() string {
-	return fmt.Sprintf("[PATCH /storage/snapshot-policies/{uuid}][%d] snapshot_policy_modify default  %+v", o._statusCode, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[PATCH /storage/snapshot-policies/{uuid}][%d] snapshot_policy_modify default %s", o._statusCode, payload)
 }
 
 func (o *SnapshotPolicyModifyDefault) GetPayload() *models.ErrorResponse {

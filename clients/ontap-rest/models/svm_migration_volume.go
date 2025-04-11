@@ -39,7 +39,7 @@ type SvmMigrationVolume struct {
 
 	// Status of the transfer.
 	// Read Only: true
-	// Enum: [Idle Transferring Aborting OutOfSync InSync Transitioning ReadyForCutoverPreCommit CutoverPreCommitting CuttingOver]
+	// Enum: ["Idle","Transferring","Aborting","OutOfSync","InSync","Transitioning","ReadyForCutoverPreCommit","CutoverPreCommitting","CuttingOver"]
 	TransferState *string `json:"transfer_state,omitempty"`
 
 	// volume
@@ -282,6 +282,11 @@ func (m *SvmMigrationVolume) ContextValidate(ctx context.Context, formats strfmt
 func (m *SvmMigrationVolume) contextValidateLinks(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Links != nil {
+
+		if swag.IsZero(m.Links) { // not required
+			return nil
+		}
+
 		if err := m.Links.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("_links")
@@ -298,6 +303,11 @@ func (m *SvmMigrationVolume) contextValidateLinks(ctx context.Context, formats s
 func (m *SvmMigrationVolume) contextValidateNode(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Node != nil {
+
+		if swag.IsZero(m.Node) { // not required
+			return nil
+		}
+
 		if err := m.Node.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("node")
@@ -314,6 +324,11 @@ func (m *SvmMigrationVolume) contextValidateNode(ctx context.Context, formats st
 func (m *SvmMigrationVolume) contextValidateSvm(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Svm != nil {
+
+		if swag.IsZero(m.Svm) { // not required
+			return nil
+		}
+
 		if err := m.Svm.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("svm")
@@ -336,6 +351,11 @@ func (m *SvmMigrationVolume) contextValidateSvmMigrationVolumeInlineErrors(ctx c
 	for i := 0; i < len(m.SvmMigrationVolumeInlineErrors); i++ {
 
 		if m.SvmMigrationVolumeInlineErrors[i] != nil {
+
+			if swag.IsZero(m.SvmMigrationVolumeInlineErrors[i]) { // not required
+				return nil
+			}
+
 			if err := m.SvmMigrationVolumeInlineErrors[i].ContextValidate(ctx, formats); err != nil {
 				if ve, ok := err.(*errors.Validation); ok {
 					return ve.ValidateName("errors" + "." + strconv.Itoa(i))
@@ -363,6 +383,11 @@ func (m *SvmMigrationVolume) contextValidateTransferState(ctx context.Context, f
 func (m *SvmMigrationVolume) contextValidateVolume(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Volume != nil {
+
+		if swag.IsZero(m.Volume) { // not required
+			return nil
+		}
+
 		if err := m.Volume.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("volume")
@@ -534,6 +559,11 @@ func (m *SvmMigrationVolumeInlineNode) ContextValidate(ctx context.Context, form
 func (m *SvmMigrationVolumeInlineNode) contextValidateLinks(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Links != nil {
+
+		if swag.IsZero(m.Links) { // not required
+			return nil
+		}
+
 		if err := m.Links.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("node" + "." + "_links")
@@ -624,6 +654,11 @@ func (m *SvmMigrationVolumeInlineNodeInlineLinks) ContextValidate(ctx context.Co
 func (m *SvmMigrationVolumeInlineNodeInlineLinks) contextValidateSelf(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Self != nil {
+
+		if swag.IsZero(m.Self) { // not required
+			return nil
+		}
+
 		if err := m.Self.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("node" + "." + "_links" + "." + "self")
@@ -724,6 +759,11 @@ func (m *SvmMigrationVolumeInlineSvm) ContextValidate(ctx context.Context, forma
 func (m *SvmMigrationVolumeInlineSvm) contextValidateLinks(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Links != nil {
+
+		if swag.IsZero(m.Links) { // not required
+			return nil
+		}
+
 		if err := m.Links.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("svm" + "." + "_links")
@@ -814,6 +854,11 @@ func (m *SvmMigrationVolumeInlineSvmInlineLinks) ContextValidate(ctx context.Con
 func (m *SvmMigrationVolumeInlineSvmInlineLinks) contextValidateSelf(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Self != nil {
+
+		if swag.IsZero(m.Self) { // not required
+			return nil
+		}
+
 		if err := m.Self.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("svm" + "." + "_links" + "." + "self")
@@ -912,6 +957,11 @@ func (m *SvmMigrationVolumeInlineVolume) ContextValidate(ctx context.Context, fo
 func (m *SvmMigrationVolumeInlineVolume) contextValidateLinks(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Links != nil {
+
+		if swag.IsZero(m.Links) { // not required
+			return nil
+		}
+
 		if err := m.Links.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("volume" + "." + "_links")
@@ -1002,6 +1052,11 @@ func (m *SvmMigrationVolumeInlineVolumeInlineLinks) ContextValidate(ctx context.
 func (m *SvmMigrationVolumeInlineVolumeInlineLinks) contextValidateSelf(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Self != nil {
+
+		if swag.IsZero(m.Self) { // not required
+			return nil
+		}
+
 		if err := m.Self.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("volume" + "." + "_links" + "." + "self")

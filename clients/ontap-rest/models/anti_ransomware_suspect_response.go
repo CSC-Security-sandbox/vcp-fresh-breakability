@@ -114,6 +114,11 @@ func (m *AntiRansomwareSuspectResponse) ContextValidate(ctx context.Context, for
 func (m *AntiRansomwareSuspectResponse) contextValidateLinks(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Links != nil {
+
+		if swag.IsZero(m.Links) { // not required
+			return nil
+		}
+
 		if err := m.Links.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("_links")
@@ -132,6 +137,11 @@ func (m *AntiRansomwareSuspectResponse) contextValidateAntiRansomwareSuspectResp
 	for i := 0; i < len(m.AntiRansomwareSuspectResponseInlineRecords); i++ {
 
 		if m.AntiRansomwareSuspectResponseInlineRecords[i] != nil {
+
+			if swag.IsZero(m.AntiRansomwareSuspectResponseInlineRecords[i]) { // not required
+				return nil
+			}
+
 			if err := m.AntiRansomwareSuspectResponseInlineRecords[i].ContextValidate(ctx, formats); err != nil {
 				if ve, ok := err.(*errors.Validation); ok {
 					return ve.ValidateName("records" + "." + strconv.Itoa(i))
@@ -254,6 +264,11 @@ func (m *AntiRansomwareSuspectResponseInlineLinks) ContextValidate(ctx context.C
 func (m *AntiRansomwareSuspectResponseInlineLinks) contextValidateNext(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Next != nil {
+
+		if swag.IsZero(m.Next) { // not required
+			return nil
+		}
+
 		if err := m.Next.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("_links" + "." + "next")
@@ -270,6 +285,11 @@ func (m *AntiRansomwareSuspectResponseInlineLinks) contextValidateNext(ctx conte
 func (m *AntiRansomwareSuspectResponseInlineLinks) contextValidateSelf(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Self != nil {
+
+		if swag.IsZero(m.Self) { // not required
+			return nil
+		}
+
 		if err := m.Self.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("_links" + "." + "self")

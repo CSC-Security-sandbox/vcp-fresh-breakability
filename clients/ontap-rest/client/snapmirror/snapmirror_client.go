@@ -7,12 +7,38 @@ package snapmirror
 
 import (
 	"github.com/go-openapi/runtime"
+	httptransport "github.com/go-openapi/runtime/client"
 	"github.com/go-openapi/strfmt"
 )
 
 // New creates a new snapmirror API client.
 func New(transport runtime.ClientTransport, formats strfmt.Registry) ClientService {
 	return &Client{transport: transport, formats: formats}
+}
+
+// New creates a new snapmirror API client with basic auth credentials.
+// It takes the following parameters:
+// - host: http host (github.com).
+// - basePath: any base path for the API client ("/v1", "/v3").
+// - scheme: http scheme ("http", "https").
+// - user: user for basic authentication header.
+// - password: password for basic authentication header.
+func NewClientWithBasicAuth(host, basePath, scheme, user, password string) ClientService {
+	transport := httptransport.New(host, basePath, []string{scheme})
+	transport.DefaultAuthentication = httptransport.BasicAuth(user, password)
+	return &Client{transport: transport, formats: strfmt.Default}
+}
+
+// New creates a new snapmirror API client with a bearer token for authentication.
+// It takes the following parameters:
+// - host: http host (github.com).
+// - basePath: any base path for the API client ("/v1", "/v3").
+// - scheme: http scheme ("http", "https").
+// - bearerToken: bearer token for Bearer authentication header.
+func NewClientWithBearerToken(host, basePath, scheme, bearerToken string) ClientService {
+	transport := httptransport.New(host, basePath, []string{scheme})
+	transport.DefaultAuthentication = httptransport.BearerToken(bearerToken)
+	return &Client{transport: transport, formats: strfmt.Default}
 }
 
 /*
@@ -23,776 +49,68 @@ type Client struct {
 	formats   strfmt.Registry
 }
 
-// ClientOption is the option for Client methods
+// ClientOption may be used to customize the behavior of Client methods.
 type ClientOption func(*runtime.ClientOperation)
+
+// This client is generated with a few options you might find useful for your swagger spec.
+//
+// Feel free to add you own set of options.
+
+// WithContentType allows the client to force the Content-Type header
+// to negotiate a specific Consumer from the server.
+//
+// You may use this option to set arbitrary extensions to your MIME media type.
+func WithContentType(mime string) ClientOption {
+	return func(r *runtime.ClientOperation) {
+		r.ConsumesMediaTypes = []string{mime}
+	}
+}
+
+// WithContentTypeApplicationHalJSON sets the Content-Type header to "application/hal+json".
+func WithContentTypeApplicationHalJSON(r *runtime.ClientOperation) {
+	r.ConsumesMediaTypes = []string{"application/hal+json"}
+}
+
+// WithContentTypeApplicationJSON sets the Content-Type header to "application/json".
+func WithContentTypeApplicationJSON(r *runtime.ClientOperation) {
+	r.ConsumesMediaTypes = []string{"application/json"}
+}
+
+// WithAccept allows the client to force the Accept header
+// to negotiate a specific Producer from the server.
+//
+// You may use this option to set arbitrary extensions to your MIME media type.
+func WithAccept(mime string) ClientOption {
+	return func(r *runtime.ClientOperation) {
+		r.ProducesMediaTypes = []string{mime}
+	}
+}
+
+// WithAcceptApplicationHalJSON sets the Accept header to "application/hal+json".
+func WithAcceptApplicationHalJSON(r *runtime.ClientOperation) {
+	r.ProducesMediaTypes = []string{"application/hal+json"}
+}
+
+// WithAcceptApplicationJSON sets the Accept header to "application/json".
+func WithAcceptApplicationJSON(r *runtime.ClientOperation) {
+	r.ProducesMediaTypes = []string{"application/json"}
+}
 
 // ClientService is the interface for Client methods
 type ClientService interface {
-	CrossClusterSnapmirrorRelationshipRestoreCreate(params *CrossClusterSnapmirrorRelationshipRestoreCreateParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*CrossClusterSnapmirrorRelationshipRestoreCreateCreated, *CrossClusterSnapmirrorRelationshipRestoreCreateAccepted, error)
-
-	CrossClusterSvmXcSnapmirrorPoliciesGet(params *CrossClusterSvmXcSnapmirrorPoliciesGetParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*CrossClusterSvmXcSnapmirrorPoliciesGetOK, error)
-
-	CrossClusterXcSnapmirrorConfigGet(params *CrossClusterXcSnapmirrorConfigGetParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*CrossClusterXcSnapmirrorConfigGetOK, error)
-
-	CrossClusterXcSnapmirrorConfigInstanceGet(params *CrossClusterXcSnapmirrorConfigInstanceGetParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*CrossClusterXcSnapmirrorConfigInstanceGetOK, error)
-
-	ObjectStoreEndpointInfoGet(params *ObjectStoreEndpointInfoGetParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*ObjectStoreEndpointInfoGetOK, error)
-
-	SnapmirrorObjectStoreEndpointSnapshotCollectionGet(params *SnapmirrorObjectStoreEndpointSnapshotCollectionGetParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*SnapmirrorObjectStoreEndpointSnapshotCollectionGetOK, error)
-
-	SnapmirrorObjectStoreEndpointSnapshotGet(params *SnapmirrorObjectStoreEndpointSnapshotGetParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*SnapmirrorObjectStoreEndpointSnapshotGetOK, error)
-
-	SnapmirrorObjstoreEpDelete(params *SnapmirrorObjstoreEpDeleteParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*SnapmirrorObjstoreEpDeleteOK, *SnapmirrorObjstoreEpDeleteAccepted, error)
-
-	SnapmirrorObjstoreEpSnapshotDelete(params *SnapmirrorObjstoreEpSnapshotDeleteParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*SnapmirrorObjstoreEpSnapshotDeleteOK, *SnapmirrorObjstoreEpSnapshotDeleteAccepted, error)
-
-	SnapmirrorObjstoreEpSnapshotDeleteCollection(params *SnapmirrorObjstoreEpSnapshotDeleteCollectionParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*SnapmirrorObjstoreEpSnapshotDeleteCollectionOK, *SnapmirrorObjstoreEpSnapshotDeleteCollectionAccepted, error)
-
-	SnapmirrorPoliciesGet(params *SnapmirrorPoliciesGetParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*SnapmirrorPoliciesGetOK, error)
-
-	SnapmirrorPolicyCreate(params *SnapmirrorPolicyCreateParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*SnapmirrorPolicyCreateCreated, *SnapmirrorPolicyCreateAccepted, error)
-
-	SnapmirrorPolicyDelete(params *SnapmirrorPolicyDeleteParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*SnapmirrorPolicyDeleteOK, *SnapmirrorPolicyDeleteAccepted, error)
-
 	SnapmirrorPolicyDeleteCollection(params *SnapmirrorPolicyDeleteCollectionParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*SnapmirrorPolicyDeleteCollectionOK, *SnapmirrorPolicyDeleteCollectionAccepted, error)
-
-	SnapmirrorPolicyGet(params *SnapmirrorPolicyGetParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*SnapmirrorPolicyGetOK, error)
-
-	SnapmirrorPolicyModify(params *SnapmirrorPolicyModifyParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*SnapmirrorPolicyModifyOK, *SnapmirrorPolicyModifyAccepted, error)
-
-	SnapmirrorPolicyModifyCollection(params *SnapmirrorPolicyModifyCollectionParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*SnapmirrorPolicyModifyCollectionOK, *SnapmirrorPolicyModifyCollectionAccepted, error)
 
 	SnapmirrorRelationshipCreate(params *SnapmirrorRelationshipCreateParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*SnapmirrorRelationshipCreateCreated, *SnapmirrorRelationshipCreateAccepted, error)
 
 	SnapmirrorRelationshipDelete(params *SnapmirrorRelationshipDeleteParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*SnapmirrorRelationshipDeleteOK, *SnapmirrorRelationshipDeleteAccepted, error)
 
-	SnapmirrorRelationshipDeleteCollection(params *SnapmirrorRelationshipDeleteCollectionParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*SnapmirrorRelationshipDeleteCollectionOK, *SnapmirrorRelationshipDeleteCollectionAccepted, error)
-
 	SnapmirrorRelationshipGet(params *SnapmirrorRelationshipGetParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*SnapmirrorRelationshipGetOK, error)
 
 	SnapmirrorRelationshipModify(params *SnapmirrorRelationshipModifyParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*SnapmirrorRelationshipModifyOK, *SnapmirrorRelationshipModifyAccepted, error)
 
-	SnapmirrorRelationshipModifyCollection(params *SnapmirrorRelationshipModifyCollectionParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*SnapmirrorRelationshipModifyCollectionOK, *SnapmirrorRelationshipModifyCollectionAccepted, error)
-
-	SnapmirrorRelationshipTransferCreate(params *SnapmirrorRelationshipTransferCreateParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*SnapmirrorRelationshipTransferCreateCreated, error)
-
-	SnapmirrorRelationshipTransferGet(params *SnapmirrorRelationshipTransferGetParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*SnapmirrorRelationshipTransferGetOK, error)
-
-	SnapmirrorRelationshipTransferModify(params *SnapmirrorRelationshipTransferModifyParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*SnapmirrorRelationshipTransferModifyOK, error)
-
-	SnapmirrorRelationshipTransferModifyCollection(params *SnapmirrorRelationshipTransferModifyCollectionParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*SnapmirrorRelationshipTransferModifyCollectionOK, error)
-
-	SnapmirrorRelationshipTransfersGet(params *SnapmirrorRelationshipTransfersGetParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*SnapmirrorRelationshipTransfersGetOK, error)
-
 	SnapmirrorRelationshipsGet(params *SnapmirrorRelationshipsGetParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*SnapmirrorRelationshipsGetOK, error)
 
 	SetTransport(transport runtime.ClientTransport)
-}
-
-/*
-	CrossClusterSnapmirrorRelationshipRestoreCreate Cross cluster POST to create SnapMirror restore relationship.
-
-### Examples
-<br/>
-
-	Performing a source side SnapMirror restore of a whole volume from an object store with archive_retrieval_priority high.
-	<br/>
-	```
-	POST "/api/snapmirror/relationships/5aadf886-2039-11ea-b47a-005056a778b7/restore" '{"source": {"path": "S3store1:/objstore/object1"}, "destination": { "path": "test_vserver_dst:dst_vol_dp"}, "archive_retrieval_priority": "high"}'
-	```
-	<br/>
-*/
-func (a *Client) CrossClusterSnapmirrorRelationshipRestoreCreate(params *CrossClusterSnapmirrorRelationshipRestoreCreateParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*CrossClusterSnapmirrorRelationshipRestoreCreateCreated, *CrossClusterSnapmirrorRelationshipRestoreCreateAccepted, error) {
-	// TODO: Validate the params before sending
-	if params == nil {
-		params = NewCrossClusterSnapmirrorRelationshipRestoreCreateParams()
-	}
-	op := &runtime.ClientOperation{
-		ID:                 "cross_cluster_snapmirror_relationship_restore_create",
-		Method:             "POST",
-		PathPattern:        "/snapmirror/relationships/{uuid}/restore",
-		ProducesMediaTypes: []string{"application/hal+json", "application/json"},
-		ConsumesMediaTypes: []string{"application/hal+json", "application/json"},
-		Schemes:            []string{"https"},
-		Params:             params,
-		Reader:             &CrossClusterSnapmirrorRelationshipRestoreCreateReader{formats: a.formats},
-		AuthInfo:           authInfo,
-		Context:            params.Context,
-		Client:             params.HTTPClient,
-	}
-	for _, opt := range opts {
-		opt(op)
-	}
-
-	result, err := a.transport.Submit(op)
-	if err != nil {
-		return nil, nil, err
-	}
-	switch value := result.(type) {
-	case *CrossClusterSnapmirrorRelationshipRestoreCreateCreated:
-		return value, nil, nil
-	case *CrossClusterSnapmirrorRelationshipRestoreCreateAccepted:
-		return nil, value, nil
-	}
-	// unexpected success response
-	unexpectedSuccess := result.(*CrossClusterSnapmirrorRelationshipRestoreCreateDefault)
-	return nil, nil, runtime.NewAPIError("unexpected success response: content available as default response in error", unexpectedSuccess, unexpectedSuccess.Code())
-}
-
-/*
-CrossClusterSvmXcSnapmirrorPoliciesGet Cross cluster GET snapmirror policies
-*/
-func (a *Client) CrossClusterSvmXcSnapmirrorPoliciesGet(params *CrossClusterSvmXcSnapmirrorPoliciesGetParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*CrossClusterSvmXcSnapmirrorPoliciesGetOK, error) {
-	// TODO: Validate the params before sending
-	if params == nil {
-		params = NewCrossClusterSvmXcSnapmirrorPoliciesGetParams()
-	}
-	op := &runtime.ClientOperation{
-		ID:                 "cross_cluster_svm_xc_snapmirror_policies_get",
-		Method:             "GET",
-		PathPattern:        "/svm/peers/{peer.uuid}/snapmirror/policies",
-		ProducesMediaTypes: []string{"application/hal+json", "application/json"},
-		ConsumesMediaTypes: []string{"application/hal+json", "application/json"},
-		Schemes:            []string{"https"},
-		Params:             params,
-		Reader:             &CrossClusterSvmXcSnapmirrorPoliciesGetReader{formats: a.formats},
-		AuthInfo:           authInfo,
-		Context:            params.Context,
-		Client:             params.HTTPClient,
-	}
-	for _, opt := range opts {
-		opt(op)
-	}
-
-	result, err := a.transport.Submit(op)
-	if err != nil {
-		return nil, err
-	}
-	success, ok := result.(*CrossClusterSvmXcSnapmirrorPoliciesGetOK)
-	if ok {
-		return success, nil
-	}
-	// unexpected success response
-	unexpectedSuccess := result.(*CrossClusterSvmXcSnapmirrorPoliciesGetDefault)
-	return nil, runtime.NewAPIError("unexpected success response: content available as default response in error", unexpectedSuccess, unexpectedSuccess.Code())
-}
-
-/*
-CrossClusterXcSnapmirrorConfigGet Cross cluster GET snapmirror config
-*/
-func (a *Client) CrossClusterXcSnapmirrorConfigGet(params *CrossClusterXcSnapmirrorConfigGetParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*CrossClusterXcSnapmirrorConfigGetOK, error) {
-	// TODO: Validate the params before sending
-	if params == nil {
-		params = NewCrossClusterXcSnapmirrorConfigGetParams()
-	}
-	op := &runtime.ClientOperation{
-		ID:                 "cross_cluster_xc_snapmirror_config_get",
-		Method:             "GET",
-		PathPattern:        "/cluster/peers/{peer.uuid}/snapmirror/relationships",
-		ProducesMediaTypes: []string{"application/hal+json", "application/json"},
-		ConsumesMediaTypes: []string{"application/hal+json", "application/json"},
-		Schemes:            []string{"https"},
-		Params:             params,
-		Reader:             &CrossClusterXcSnapmirrorConfigGetReader{formats: a.formats},
-		AuthInfo:           authInfo,
-		Context:            params.Context,
-		Client:             params.HTTPClient,
-	}
-	for _, opt := range opts {
-		opt(op)
-	}
-
-	result, err := a.transport.Submit(op)
-	if err != nil {
-		return nil, err
-	}
-	success, ok := result.(*CrossClusterXcSnapmirrorConfigGetOK)
-	if ok {
-		return success, nil
-	}
-	// unexpected success response
-	unexpectedSuccess := result.(*CrossClusterXcSnapmirrorConfigGetDefault)
-	return nil, runtime.NewAPIError("unexpected success response: content available as default response in error", unexpectedSuccess, unexpectedSuccess.Code())
-}
-
-/*
-CrossClusterXcSnapmirrorConfigInstanceGet Cross cluster GET snapmirror relationship config
-*/
-func (a *Client) CrossClusterXcSnapmirrorConfigInstanceGet(params *CrossClusterXcSnapmirrorConfigInstanceGetParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*CrossClusterXcSnapmirrorConfigInstanceGetOK, error) {
-	// TODO: Validate the params before sending
-	if params == nil {
-		params = NewCrossClusterXcSnapmirrorConfigInstanceGetParams()
-	}
-	op := &runtime.ClientOperation{
-		ID:                 "cross_cluster_xc_snapmirror_config_instance_get",
-		Method:             "GET",
-		PathPattern:        "/cluster/peers/{peer.uuid}/snapmirror/relationships/{uuid}",
-		ProducesMediaTypes: []string{"application/hal+json", "application/json"},
-		ConsumesMediaTypes: []string{"application/hal+json", "application/json"},
-		Schemes:            []string{"https"},
-		Params:             params,
-		Reader:             &CrossClusterXcSnapmirrorConfigInstanceGetReader{formats: a.formats},
-		AuthInfo:           authInfo,
-		Context:            params.Context,
-		Client:             params.HTTPClient,
-	}
-	for _, opt := range opts {
-		opt(op)
-	}
-
-	result, err := a.transport.Submit(op)
-	if err != nil {
-		return nil, err
-	}
-	success, ok := result.(*CrossClusterXcSnapmirrorConfigInstanceGetOK)
-	if ok {
-		return success, nil
-	}
-	// unexpected success response
-	unexpectedSuccess := result.(*CrossClusterXcSnapmirrorConfigInstanceGetDefault)
-	return nil, runtime.NewAPIError("unexpected success response: content available as default response in error", unexpectedSuccess, unexpectedSuccess.Code())
-}
-
-/*
-	ObjectStoreEndpointInfoGet Retrieves information for the specified object store, endpoint.
-
-### Related ONTAP commands
-* `snapmirror object-store endpoint show`
-### Example
-
-	GET "/api/snapmirror/object-stores/cd9563a0-2e59-11ea-a778-00505682bd8f/endpoints/af86c94c-bcb2-4b4e-b8cc-c294793a310a/"
-*/
-func (a *Client) ObjectStoreEndpointInfoGet(params *ObjectStoreEndpointInfoGetParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*ObjectStoreEndpointInfoGetOK, error) {
-	// TODO: Validate the params before sending
-	if params == nil {
-		params = NewObjectStoreEndpointInfoGetParams()
-	}
-	op := &runtime.ClientOperation{
-		ID:                 "object_store_endpoint_info_get",
-		Method:             "GET",
-		PathPattern:        "/snapmirror/object-stores/{object_store.uuid}/endpoints/{uuid}",
-		ProducesMediaTypes: []string{"application/hal+json", "application/json"},
-		ConsumesMediaTypes: []string{"application/hal+json", "application/json"},
-		Schemes:            []string{"https"},
-		Params:             params,
-		Reader:             &ObjectStoreEndpointInfoGetReader{formats: a.formats},
-		AuthInfo:           authInfo,
-		Context:            params.Context,
-		Client:             params.HTTPClient,
-	}
-	for _, opt := range opts {
-		opt(op)
-	}
-
-	result, err := a.transport.Submit(op)
-	if err != nil {
-		return nil, err
-	}
-	success, ok := result.(*ObjectStoreEndpointInfoGetOK)
-	if ok {
-		return success, nil
-	}
-	// unexpected success response
-	unexpectedSuccess := result.(*ObjectStoreEndpointInfoGetDefault)
-	return nil, runtime.NewAPIError("unexpected success response: content available as default response in error", unexpectedSuccess, unexpectedSuccess.Code())
-}
-
-/*
-	SnapmirrorObjectStoreEndpointSnapshotCollectionGet Retrieves snapshot information associated with an object store endpoint. The object store UUID, together with the endpoint UUID is used to list the snapshots and their information.
-
-### Related ONTAP commands
-* `snapmirror object-store endpoint snapshot show`
-### Important notes
-* By default, only snapshots in the "transferred" state will be returned. You need to specify the states if you want to see snapshots in other states.
-### Examples
-The following examples show how to retrieve the list of snapshots.
-1.  Retrieving the list of snapshots in the "transferred" state by default.
-<br/>
-```
-GET "/api/snapmirror/object-stores/cd9563a0-2e59-11ea-a778-00505682bd8f/endpoints/af86c94c-bcb2-4b4e-b8cc-c294793a310a/snapshots"
-```
-<br/>
-2.  Retrieving the list of snapshots in specified states.
-<br/>
-```
-GET "/api/snapmirror/object-stores/cd9563a0-2e59-11ea-a778-00505682bd8f/endpoints/af86c94c-bcb2-4b4e-b8cc-c294793a310a/snapshots?state=in_transfer|transferred|deleted|delete_cleanup|recyclable"
-```
-<br/>
-*/
-func (a *Client) SnapmirrorObjectStoreEndpointSnapshotCollectionGet(params *SnapmirrorObjectStoreEndpointSnapshotCollectionGetParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*SnapmirrorObjectStoreEndpointSnapshotCollectionGetOK, error) {
-	// TODO: Validate the params before sending
-	if params == nil {
-		params = NewSnapmirrorObjectStoreEndpointSnapshotCollectionGetParams()
-	}
-	op := &runtime.ClientOperation{
-		ID:                 "snapmirror_object_store_endpoint_snapshot_collection_get",
-		Method:             "GET",
-		PathPattern:        "/snapmirror/object-stores/{object_store.uuid}/endpoints/{endpoint.uuid}/snapshots",
-		ProducesMediaTypes: []string{"application/hal+json", "application/json"},
-		ConsumesMediaTypes: []string{"application/hal+json", "application/json"},
-		Schemes:            []string{"https"},
-		Params:             params,
-		Reader:             &SnapmirrorObjectStoreEndpointSnapshotCollectionGetReader{formats: a.formats},
-		AuthInfo:           authInfo,
-		Context:            params.Context,
-		Client:             params.HTTPClient,
-	}
-	for _, opt := range opts {
-		opt(op)
-	}
-
-	result, err := a.transport.Submit(op)
-	if err != nil {
-		return nil, err
-	}
-	success, ok := result.(*SnapmirrorObjectStoreEndpointSnapshotCollectionGetOK)
-	if ok {
-		return success, nil
-	}
-	// unexpected success response
-	unexpectedSuccess := result.(*SnapmirrorObjectStoreEndpointSnapshotCollectionGetDefault)
-	return nil, runtime.NewAPIError("unexpected success response: content available as default response in error", unexpectedSuccess, unexpectedSuccess.Code())
-}
-
-/*
-	SnapmirrorObjectStoreEndpointSnapshotGet Retrieves specific snapshot information given its UUID. The object store UUID, endpoint UUID together with the snapshot UUID is used to list the information for the specific snapshot.
-
-### Related ONTAP commands
-* `snapmirror object-store endpoint snapshot show`
-### Important notes
-* The properties "retention_until_date" and "snapshot_lock_state" are not populated unless the user specifies the snapshot UUID or name.
-### Example
-<br/>
-```
-GET "/api/snapmirror/object-stores/cd9563a0-2e59-11ea-a778-00505682bd8f/endpoints/af86c94c-bcb2-4b4e-b8cc-c294793a310a/snapshots/04fb1ddb-2947-4eb0-af09-3eb6dc538926"
-```
-<br/>
-### Learn more
-* [`DOC /snapmirror/object-stores/{object_store.uuid}/endpoints/{endpoint.uuid}/snapshots`](#docs-snapmirror-snapmirror_object-stores_{object_store.uuid}_endpoints_{endpoint.uuid}_snapshots)
-*/
-func (a *Client) SnapmirrorObjectStoreEndpointSnapshotGet(params *SnapmirrorObjectStoreEndpointSnapshotGetParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*SnapmirrorObjectStoreEndpointSnapshotGetOK, error) {
-	// TODO: Validate the params before sending
-	if params == nil {
-		params = NewSnapmirrorObjectStoreEndpointSnapshotGetParams()
-	}
-	op := &runtime.ClientOperation{
-		ID:                 "snapmirror_object_store_endpoint_snapshot_get",
-		Method:             "GET",
-		PathPattern:        "/snapmirror/object-stores/{object_store.uuid}/endpoints/{endpoint.uuid}/snapshots/{uuid}",
-		ProducesMediaTypes: []string{"application/hal+json", "application/json"},
-		ConsumesMediaTypes: []string{"application/hal+json", "application/json"},
-		Schemes:            []string{"https"},
-		Params:             params,
-		Reader:             &SnapmirrorObjectStoreEndpointSnapshotGetReader{formats: a.formats},
-		AuthInfo:           authInfo,
-		Context:            params.Context,
-		Client:             params.HTTPClient,
-	}
-	for _, opt := range opts {
-		opt(op)
-	}
-
-	result, err := a.transport.Submit(op)
-	if err != nil {
-		return nil, err
-	}
-	success, ok := result.(*SnapmirrorObjectStoreEndpointSnapshotGetOK)
-	if ok {
-		return success, nil
-	}
-	// unexpected success response
-	unexpectedSuccess := result.(*SnapmirrorObjectStoreEndpointSnapshotGetDefault)
-	return nil, runtime.NewAPIError("unexpected success response: content available as default response in error", unexpectedSuccess, unexpectedSuccess.Code())
-}
-
-/*
-	SnapmirrorObjstoreEpDelete This API deletes all the data of a specific endpoint within an object store that was populated by SnapMirror. The object store UUID, together with the endpoint's UUID will be used to specify the data to be processed by this API.
-
-### Related ONTAP commands
-* `snapmirror object-store endpoint delete`
-### Examples
-
-	DELETE "/api/snapmirror/object-stores/cd9563a0-2e59-11ea-a778-00505682bd8f/endpoints/af86c94c-bcb2-4b4e-b8cc-c294793a310a/"
-*/
-func (a *Client) SnapmirrorObjstoreEpDelete(params *SnapmirrorObjstoreEpDeleteParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*SnapmirrorObjstoreEpDeleteOK, *SnapmirrorObjstoreEpDeleteAccepted, error) {
-	// TODO: Validate the params before sending
-	if params == nil {
-		params = NewSnapmirrorObjstoreEpDeleteParams()
-	}
-	op := &runtime.ClientOperation{
-		ID:                 "snapmirror_objstore_ep_delete",
-		Method:             "DELETE",
-		PathPattern:        "/snapmirror/object-stores/{object_store.uuid}/endpoints/{uuid}",
-		ProducesMediaTypes: []string{"application/hal+json", "application/json"},
-		ConsumesMediaTypes: []string{"application/hal+json", "application/json"},
-		Schemes:            []string{"https"},
-		Params:             params,
-		Reader:             &SnapmirrorObjstoreEpDeleteReader{formats: a.formats},
-		AuthInfo:           authInfo,
-		Context:            params.Context,
-		Client:             params.HTTPClient,
-	}
-	for _, opt := range opts {
-		opt(op)
-	}
-
-	result, err := a.transport.Submit(op)
-	if err != nil {
-		return nil, nil, err
-	}
-	switch value := result.(type) {
-	case *SnapmirrorObjstoreEpDeleteOK:
-		return value, nil, nil
-	case *SnapmirrorObjstoreEpDeleteAccepted:
-		return nil, value, nil
-	}
-	// unexpected success response
-	unexpectedSuccess := result.(*SnapmirrorObjstoreEpDeleteDefault)
-	return nil, nil, runtime.NewAPIError("unexpected success response: content available as default response in error", unexpectedSuccess, unexpectedSuccess.Code())
-}
-
-/*
-	SnapmirrorObjstoreEpSnapshotDelete Deletes a snapshot from the object store endpoint. The object store UUID, object store endpoint UUID together with the snapshot UUID will be used to specify the snapshot to be deleted.
-
-### Related ONTAP commands
-* `snapmirror object-store endpoint snapshot delete`
-### Examples
-
-	DELETE "/api/snapmirror/object-stores/cd9563a0-2e59-11ea-a778-00505682bd8f/endpoints/af86c94c-bcb2-4b4e-b8cc-c294793a310a/snapshots/04fb1ddb-2947-4eb0-af09-3eb6dc538926"
-*/
-func (a *Client) SnapmirrorObjstoreEpSnapshotDelete(params *SnapmirrorObjstoreEpSnapshotDeleteParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*SnapmirrorObjstoreEpSnapshotDeleteOK, *SnapmirrorObjstoreEpSnapshotDeleteAccepted, error) {
-	// TODO: Validate the params before sending
-	if params == nil {
-		params = NewSnapmirrorObjstoreEpSnapshotDeleteParams()
-	}
-	op := &runtime.ClientOperation{
-		ID:                 "snapmirror_objstore_ep_snapshot_delete",
-		Method:             "DELETE",
-		PathPattern:        "/snapmirror/object-stores/{object_store.uuid}/endpoints/{endpoint.uuid}/snapshots/{uuid}",
-		ProducesMediaTypes: []string{"application/hal+json", "application/json"},
-		ConsumesMediaTypes: []string{"application/hal+json", "application/json"},
-		Schemes:            []string{"https"},
-		Params:             params,
-		Reader:             &SnapmirrorObjstoreEpSnapshotDeleteReader{formats: a.formats},
-		AuthInfo:           authInfo,
-		Context:            params.Context,
-		Client:             params.HTTPClient,
-	}
-	for _, opt := range opts {
-		opt(op)
-	}
-
-	result, err := a.transport.Submit(op)
-	if err != nil {
-		return nil, nil, err
-	}
-	switch value := result.(type) {
-	case *SnapmirrorObjstoreEpSnapshotDeleteOK:
-		return value, nil, nil
-	case *SnapmirrorObjstoreEpSnapshotDeleteAccepted:
-		return nil, value, nil
-	}
-	// unexpected success response
-	unexpectedSuccess := result.(*SnapmirrorObjstoreEpSnapshotDeleteDefault)
-	return nil, nil, runtime.NewAPIError("unexpected success response: content available as default response in error", unexpectedSuccess, unexpectedSuccess.Code())
-}
-
-/*
-SnapmirrorObjstoreEpSnapshotDeleteCollection snapmirror objstore ep snapshot delete collection API
-*/
-func (a *Client) SnapmirrorObjstoreEpSnapshotDeleteCollection(params *SnapmirrorObjstoreEpSnapshotDeleteCollectionParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*SnapmirrorObjstoreEpSnapshotDeleteCollectionOK, *SnapmirrorObjstoreEpSnapshotDeleteCollectionAccepted, error) {
-	// TODO: Validate the params before sending
-	if params == nil {
-		params = NewSnapmirrorObjstoreEpSnapshotDeleteCollectionParams()
-	}
-	op := &runtime.ClientOperation{
-		ID:                 "snapmirror_objstore_ep_snapshot_delete_collection",
-		Method:             "DELETE",
-		PathPattern:        "/snapmirror/object-stores/{object_store.uuid}/endpoints/{endpoint.uuid}/snapshots",
-		ProducesMediaTypes: []string{"application/hal+json", "application/json"},
-		ConsumesMediaTypes: []string{"application/hal+json", "application/json"},
-		Schemes:            []string{"https"},
-		Params:             params,
-		Reader:             &SnapmirrorObjstoreEpSnapshotDeleteCollectionReader{formats: a.formats},
-		AuthInfo:           authInfo,
-		Context:            params.Context,
-		Client:             params.HTTPClient,
-	}
-	for _, opt := range opts {
-		opt(op)
-	}
-
-	result, err := a.transport.Submit(op)
-	if err != nil {
-		return nil, nil, err
-	}
-	switch value := result.(type) {
-	case *SnapmirrorObjstoreEpSnapshotDeleteCollectionOK:
-		return value, nil, nil
-	case *SnapmirrorObjstoreEpSnapshotDeleteCollectionAccepted:
-		return nil, value, nil
-	}
-	// unexpected success response
-	unexpectedSuccess := result.(*SnapmirrorObjstoreEpSnapshotDeleteCollectionDefault)
-	return nil, nil, runtime.NewAPIError("unexpected success response: content available as default response in error", unexpectedSuccess, unexpectedSuccess.Code())
-}
-
-/*
-	SnapmirrorPoliciesGet Retrieves SnapMirror policies of type "async" and "sync".
-
-### Related ONTAP commands
-* `snapmirror policy show`
-### Example
-The following example shows how to retrieve a collection of SnapMirror policies.
-<br/>
-```
-GET "/api/snapmirror/policies"
-```
-<br/>
-### Learn more
-* [`DOC /snapmirror/policies`](#docs-snapmirror-snapmirror_policies)
-*/
-func (a *Client) SnapmirrorPoliciesGet(params *SnapmirrorPoliciesGetParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*SnapmirrorPoliciesGetOK, error) {
-	// TODO: Validate the params before sending
-	if params == nil {
-		params = NewSnapmirrorPoliciesGetParams()
-	}
-	op := &runtime.ClientOperation{
-		ID:                 "snapmirror_policies_get",
-		Method:             "GET",
-		PathPattern:        "/snapmirror/policies",
-		ProducesMediaTypes: []string{"application/hal+json", "application/json"},
-		ConsumesMediaTypes: []string{"application/hal+json", "application/json"},
-		Schemes:            []string{"https"},
-		Params:             params,
-		Reader:             &SnapmirrorPoliciesGetReader{formats: a.formats},
-		AuthInfo:           authInfo,
-		Context:            params.Context,
-		Client:             params.HTTPClient,
-	}
-	for _, opt := range opts {
-		opt(op)
-	}
-
-	result, err := a.transport.Submit(op)
-	if err != nil {
-		return nil, err
-	}
-	success, ok := result.(*SnapmirrorPoliciesGetOK)
-	if ok {
-		return success, nil
-	}
-	// unexpected success response
-	unexpectedSuccess := result.(*SnapmirrorPoliciesGetDefault)
-	return nil, runtime.NewAPIError("unexpected success response: content available as default response in error", unexpectedSuccess, unexpectedSuccess.Code())
-}
-
-/*
-	SnapmirrorPolicyCreate Creates a SnapMirror policy. The property "identity_preservation" is applicable to only SnapMirror relationships with SVM endpoints and it indicates which configuration of the source SVM is replicated to the destination SVM.</br>
-
-It takes the following values:
-- `full` - indicates that the source SVM configuration is replicated to the destination SVM endpoint.
-- `exclude_network_config` - indicates that the source SVM configuration other than network configuration is replicated to the destination SVM endpoint.
-- `exclude_network_and_protocol_config` - indicates that the source SVM configuration is not replicated to the destination SVM endpoint.<br/>
-### Important notes
-- The property "identity_preservation" is applicable to only SnapMirror relationships with SVM endpoints and it indicates which configuration of the source SVM is replicated to the destination SVM.
-- The properties "identity_preservation" and "transfer_schedule" are not applicable for "sync" type policies.
-- The properties "copy_all_source_snapshots", "copy_latest_source_snapshot", and "create_snapshot_on_source" are mutually exclusive.
-- The properties "copy_all_source_snapshots", "copy_latest_source_snapshot", and "create_snapshot_on_source" are not applicable for "sync" type policies.
-- No "retention" properties can be specified if "copy_all_source_snapshots" or 'copy_latest_source_snapshot' is specified.
-- The properties "retention.creation_schedule" and "retention.prefix" are not applicable for "sync" type policies.
-- The property "retention.creation_schedule" is not applicable for "async" policies with "create_snapshot_on_source" set to "false".
-- The property "sync_common_snapshot_schedule" is not applicable for an "async" type policy.
-- The property "retention.count" specifies the maximum number of snapshots that are retained on the SnapMirror destination volume.
-- When the property "retention.label" is specified, the snapshots that have a SnapMirror label matching this property is transferred to the SnapMirror destination.
-- When the property "retention.creation_schedule" is specified, snapshots are directly created on the SnapMirror destination. The snapshots created have the same content as the latest snapshot already present on the SnapMirror destination.
-- The property "transfer_schedule" cannot be set to null (no-quotes) during SnapMirror policy POST.
-- The properties "retention.label" and "retention.count" must be specified for "async" policies with "create_snapshot_on_source" set to "false".
-- The property "retention.warn" is not supported for a policy when the "retention.preserve" property is false.
-- The property "retention.warn" value must be less than the property "retention.count" value for a rule in a policy.
-
-- The property "archive.enabled" can be set to "true" only for "async" policies with "create_snapshot_on_source" set to "false". The property "archive.after_days" can be set only when "archive.enabled" is true.
-
-### Required properties
-* `name` - Name of the new SnapMirror policy.
-### Recommended optional properties
-* `svm.name` or `svm.uuid` - Name or UUID of the SVM that owns the SnapMirror policy.
-### Default property values
-If not specified in POST, the following default property values are assigned:
-* `type` - _async_
-* `sync_type` - _sync_ (when `type` is _sync_)
-* `network_compression_enabled` - _false_
-* `throttle` - _0_
-* `identity_preservation` - `_exclude_network_and_protocol_config_`
-* `archive.after_days` - _0_ (when `archive.enabled` is _true_)
-### Related ONTAP commands
-* `snapmirror policy create`
-### Examples
-
-	Creating a SnapMirror policy of type "sync"
-	 <br/>
-	 ```
-	 POST "/api/snapmirror/policies/" '{"name": "policy1", "svm.name": "VS0", "type": "sync", "sync_type": "sync"}'
-	 ```
-	 <br/>
-	Creating a SnapMirror policy of type "async" with two sets of retention values, one with a creation_schedule
-	 <br/>
-	 ```
-	 POST "/api/snapmirror/policies" '{"name": "policy_ret", "svm": {"name": "vs1"}, "retention": [{"label": "weekly", "count": "2", "creation_schedule": {"name": "weekly"}}, {"label":"daily", "count":"7"}]}'
-	 ```
-	 <br/>
-	Creating a SnapMirror policy of type "async"
-	 ```
-	 POST "/api/snapmirror/policies" '{"name": "newPolicy", "svm":{"name" : "vs1"}, "type": "async"}'
-	 ```
-	 <br/>
-	Creating a SnapMirror policy of type "async" which replicates all snapshots
-	 ```
-	 POST "/api/snapmirror/policies" '{"name": "newPolicy", "svm":{"name" : "vs1"}, "type": "async", "copy_all_source_snapshots": "true"}'
-	 ```
-	 <br/>
-	Creating a SnapMirror policy of type "async" which replicates latest snapshot
-	 ```
-	 POST "/api/snapmirror/policies" '{"name": "newPolicy2", "svm":{"name" : "vs1"}, "type": "async", "copy_latest_source_snapshot": "true"}'
-	 ```
-	 <br/>
-	Creating a SnapMirror policy of type "async" which does not create snapshots on source
-	 ```
-	 POST "/api/snapmirror/policies" '{"name": "newPolicy", "svm":{"name" : "vs1"}, "type": "async", "create_snapshot_on_source": "false", "retention": [{"label": "daily", "count": 7}]}'
-	 ```
-	 <br/>
-	Creating a SnapMirror policy of type "sync" with sync_type as "automated_failover"
-	 <br/>
-	 ```
-	 POST "/api/snapmirror/policies/" '{"name": "policy1", "svm.name": "VS0", "type": "sync", "sync_type": "automated_failover" }'
-	 ```
-	 <br/>
-	Creating a SnapMirror policy of type "sync" with sync_type as "automated_failover_duplex"
-	 <br/>
-	 ```
-	 POST "/api/snapmirror/policies/" '{"name": "policy_afd", "svm.name": "VS0", "type": "sync", "sync_type": "automated_failover_duplex" }'
-	 ```
-	 <br/>
-	Creating a SnapMirror policy of type "async" which does not create snapshots on source and archive is triggered after 30 days
-	 ```
-	 POST "/api/snapmirror/policies" '{"name": "newPolicy", "svm":{"name" : "vs1"}, "type": "async", "create_snapshot_on_source": "false", "retention": [{"label": "daily", "count": 7}], "archive": {"enabled": "true", "after_days": 30}}'
-	 ```
-	 <br/>
-	Creating a SnapMirror policy of type "async" which does not create snapshots on source, and the snapshots with a daily label in the object store will be locked in "compliance" mode for a default period of 30 days.
-	 ```
-	 POST "/api/snapmirror/policies" '{"name": "NewPolicy", "svm":{"name" : "vs1"}, "type": "async", "create_snapshot_on_source": "false", "snapshot_lock_mode":"compliance","retention": [{"label": "daily", "count": 7}]}'
-	 ```
-	 <br/>
-	Creating a SnapMirror policy of type "async" which does not create snapshots on source, and the snapshots with a daily label in the object store will be locked in "enterprise" mode for a period of 2 years
-	 ```
-	 POST "/api/snapmirror/policies" '{"name": "NewPolicy", "svm":{"name" : "vs1"}, "type": "async", "create_snapshot_on_source": "false", "snapshot_lock_mode":"enterprise","retention": [{"label": "daily", "count": 7, "period":"P2Y"}]}'
-	 ```
-	 <br/>
-	Creating a SnapMirror policy of type "async" with two sets of retention values and retention periods
-	 ```
-	 POST "/api/snapmirror/policies" '{"name": "policy_ret", "svm": {"name": "vs1"}, "retention": [{"label": "weekly", "count": "2", "period": "P7D"}, {"label":"daily", "count":"7", "period": "PT3H"}]}'
-	 ```
-	 <br/>
-	 Creating a SnapMirror policy of type "async" with retention value as "infinite"
-	 ```
-	 POST "/api/snapmirror/policies" '{"name": "policy_ret", "svm": {"name": "vs1"}, "retention": [{"label": "weekly", "count": "5", "period": "infinite"}]}'
-	 ```
-	 <br/>
-	 Creating a SnapMirror policy of type "async" with properties retention preserve as true and retention warn as 3.
-	 ```
-	 POST "/api/snapmirror/policies" '{"name": "policy_ret", "svm": {"name": "vs1"}, "retention": [{"label": "weekly", "count": "5", "preserve": true, "warn": 3}]}'
-	 ```
-	 <br/>
-
-### Learn more
-* [`DOC /snapmirror/policies`](#docs-snapmirror-snapmirror_policies)
-*/
-func (a *Client) SnapmirrorPolicyCreate(params *SnapmirrorPolicyCreateParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*SnapmirrorPolicyCreateCreated, *SnapmirrorPolicyCreateAccepted, error) {
-	// TODO: Validate the params before sending
-	if params == nil {
-		params = NewSnapmirrorPolicyCreateParams()
-	}
-	op := &runtime.ClientOperation{
-		ID:                 "snapmirror_policy_create",
-		Method:             "POST",
-		PathPattern:        "/snapmirror/policies",
-		ProducesMediaTypes: []string{"application/hal+json", "application/json"},
-		ConsumesMediaTypes: []string{"application/hal+json", "application/json"},
-		Schemes:            []string{"https"},
-		Params:             params,
-		Reader:             &SnapmirrorPolicyCreateReader{formats: a.formats},
-		AuthInfo:           authInfo,
-		Context:            params.Context,
-		Client:             params.HTTPClient,
-	}
-	for _, opt := range opts {
-		opt(op)
-	}
-
-	result, err := a.transport.Submit(op)
-	if err != nil {
-		return nil, nil, err
-	}
-	switch value := result.(type) {
-	case *SnapmirrorPolicyCreateCreated:
-		return value, nil, nil
-	case *SnapmirrorPolicyCreateAccepted:
-		return nil, value, nil
-	}
-	// unexpected success response
-	unexpectedSuccess := result.(*SnapmirrorPolicyCreateDefault)
-	return nil, nil, runtime.NewAPIError("unexpected success response: content available as default response in error", unexpectedSuccess, unexpectedSuccess.Code())
-}
-
-/*
-	SnapmirrorPolicyDelete Deletes a SnapMirror policy.
-
-### Related ONTAP commands
-* `snapmirror policy delete`
-### Example
-<br/>
-```
-DELETE "/api/snapmirror/policies/510c15d4-f9e6-11e8-bdb5-0050568e12c2"
-```
-<br/>
-### Learn more
-* [`DOC /snapmirror/policies`](#docs-snapmirror-snapmirror_policies)
-*/
-func (a *Client) SnapmirrorPolicyDelete(params *SnapmirrorPolicyDeleteParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*SnapmirrorPolicyDeleteOK, *SnapmirrorPolicyDeleteAccepted, error) {
-	// TODO: Validate the params before sending
-	if params == nil {
-		params = NewSnapmirrorPolicyDeleteParams()
-	}
-	op := &runtime.ClientOperation{
-		ID:                 "snapmirror_policy_delete",
-		Method:             "DELETE",
-		PathPattern:        "/snapmirror/policies/{uuid}",
-		ProducesMediaTypes: []string{"application/hal+json", "application/json"},
-		ConsumesMediaTypes: []string{"application/hal+json", "application/json"},
-		Schemes:            []string{"https"},
-		Params:             params,
-		Reader:             &SnapmirrorPolicyDeleteReader{formats: a.formats},
-		AuthInfo:           authInfo,
-		Context:            params.Context,
-		Client:             params.HTTPClient,
-	}
-	for _, opt := range opts {
-		opt(op)
-	}
-
-	result, err := a.transport.Submit(op)
-	if err != nil {
-		return nil, nil, err
-	}
-	switch value := result.(type) {
-	case *SnapmirrorPolicyDeleteOK:
-		return value, nil, nil
-	case *SnapmirrorPolicyDeleteAccepted:
-		return nil, value, nil
-	}
-	// unexpected success response
-	unexpectedSuccess := result.(*SnapmirrorPolicyDeleteDefault)
-	return nil, nil, runtime.NewAPIError("unexpected success response: content available as default response in error", unexpectedSuccess, unexpectedSuccess.Code())
 }
 
 /*
@@ -807,8 +125,8 @@ func (a *Client) SnapmirrorPolicyDeleteCollection(params *SnapmirrorPolicyDelete
 		ID:                 "snapmirror_policy_delete_collection",
 		Method:             "DELETE",
 		PathPattern:        "/snapmirror/policies",
-		ProducesMediaTypes: []string{"application/hal+json", "application/json"},
-		ConsumesMediaTypes: []string{"application/hal+json", "application/json"},
+		ProducesMediaTypes: []string{"application/json", "application/hal+json"},
+		ConsumesMediaTypes: []string{"application/json", "application/hal+json"},
 		Schemes:            []string{"https"},
 		Params:             params,
 		Reader:             &SnapmirrorPolicyDeleteCollectionReader{formats: a.formats},
@@ -832,202 +150,6 @@ func (a *Client) SnapmirrorPolicyDeleteCollection(params *SnapmirrorPolicyDelete
 	}
 	// unexpected success response
 	unexpectedSuccess := result.(*SnapmirrorPolicyDeleteCollectionDefault)
-	return nil, nil, runtime.NewAPIError("unexpected success response: content available as default response in error", unexpectedSuccess, unexpectedSuccess.Code())
-}
-
-/*
-	SnapmirrorPolicyGet Retrieves a specific SnapMirror policy.
-
-### Example
-<br/>
-```
-GET "/api/snapmirror/policies/567aaac0-f863-11e8-a666-0050568e12c2"
-```
-<br/>
-### Learn more
-* [`DOC /snapmirror/policies`](#docs-snapmirror-snapmirror_policies)
-*/
-func (a *Client) SnapmirrorPolicyGet(params *SnapmirrorPolicyGetParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*SnapmirrorPolicyGetOK, error) {
-	// TODO: Validate the params before sending
-	if params == nil {
-		params = NewSnapmirrorPolicyGetParams()
-	}
-	op := &runtime.ClientOperation{
-		ID:                 "snapmirror_policy_get",
-		Method:             "GET",
-		PathPattern:        "/snapmirror/policies/{uuid}",
-		ProducesMediaTypes: []string{"application/hal+json", "application/json"},
-		ConsumesMediaTypes: []string{"application/hal+json", "application/json"},
-		Schemes:            []string{"https"},
-		Params:             params,
-		Reader:             &SnapmirrorPolicyGetReader{formats: a.formats},
-		AuthInfo:           authInfo,
-		Context:            params.Context,
-		Client:             params.HTTPClient,
-	}
-	for _, opt := range opts {
-		opt(op)
-	}
-
-	result, err := a.transport.Submit(op)
-	if err != nil {
-		return nil, err
-	}
-	success, ok := result.(*SnapmirrorPolicyGetOK)
-	if ok {
-		return success, nil
-	}
-	// unexpected success response
-	unexpectedSuccess := result.(*SnapmirrorPolicyGetDefault)
-	return nil, runtime.NewAPIError("unexpected success response: content available as default response in error", unexpectedSuccess, unexpectedSuccess.Code())
-}
-
-/*
-	SnapmirrorPolicyModify Updates the SnapMirror policy.
-
-### Important notes
-* The properties "retention.label" and "retention.count" are mandatory if "retention" is provided in the input. The provided "retention.label" is the final list and it replaces the existing values.
-* The value of the "identity_preservation" property cannot be changed if the SnapMirror relationships associated with the policy have different identity_preservation configurations.
-* If the SnapMirror policy "identity_preservation" value matches the "identity_preservation" value of the associated SnapMirror relationships, then the "identity_preservation" value can be changed from a higher "identity_preservation" threshold value to a lower "identity_preservation" threshold value but not vice-versa. For example, the threshold value of the "identity_preservation" property can be changed from "full" to "exclude_network_config", but cannot be increased from "exclude_network_and_protocol_config" to "exclude_network_config" to "full". The threshold value of the "identity_preservation" cannot be changed to "exclude_network_and_protocol_config" for IDP SVMDR.<br/>
-* The policy properties "copy_all_source_snapshots", "copy_latest_source_snapshot", and "create_snapshot_on_source" cannot be modified.
-* No "retention" properties can be modified if the "copy_all_source_snapshots" or "copy_latest_source_snapshot" property is present in the policy.
-* Replacing or deleting all retention rules of a policy that has the "create_snapshot_on_source" property set to false in a single API call is not supported.
-* Modifying the property "retention.label" for all retention rules of a policy that has the "create_snapshot_on_source" property set to false in a single API call is not supported.
-* To remove a transfer_schedule on a SnapMirror policy set the "transfer_schedule" to null (no-quotes) during SnapMirror policy PATCH.
-
-* The property "archive.enabled" can be modified to "true" only for "async" policies with "create_snapshot_on_source" set to "false".
-* The property "archive.after_days" can be modified only when "archive.enabled" is "true". The value range of "archive.after_days" is 0..999. If the value is set to "0", the latest snapshot copy will be archived. The value of "archive.after_days" cannot be changed from "0" if any SnapMirror relationship is associated with the policy.<br/>
-* Modifying the property "network_compression_enabled" to "true" is not allowed if policy is associated with snapmirror relationship having object store endpoints.
-* Modifying the property "retention.creation_schedule" is not allowed if policy is associated with snapmirror relationship having object store endpoints.
-* The property "retention.warn" is not supported for a policy when the "retention.preserve" property is false.
-* The property "retention.warn" value must be less than the property "retention.count" value for a rule in a policy.
-
-### Related ONTAP commands
-* `snapmirror policy modify`
-### Example
-
-	Updating the "retention" property to add rules to a policy without any rules.
-	 <br/>
-	 ```
-	 PATCH "/api/snapmirror/policies/fe65686d-00dc-11e9-b5fb-0050568e3f83" '{"retention": [{"label": "newlabel", "count": 2}, {"label": "weekly", "count": 2, "creation_schedule": {"name": "weekly"}}, {"label": "daily", "count": 14}]}'
-	 ```
-	 <br/>
-	Updating the "retention" property to add rules to a policy with existing rules {"retention": [{"label": "oldLabel1", "count": 2}, {"label": "oldLabel2", "count": 5}]
-	 <br/>
-	 ```
-	 PATCH "/api/snapmirror/policies/fe65686d-00dc-11e9-b5fb-0050568e3f83" '{"retention": [{"label": "oldLabel1", "count": 2}, {"label": "oldLabel2", "count": 5}, {"label": "newlabel", "count": 3}, {"label": "weekly", "count": 1}]}'
-	 ```
-	 <br/>
-	Updating the "retention" property to remove a rule (oldLabel1) and add new rule to a policy with existing rules {"retention": [{"label": "oldLabel1", "count": 2}, {"label": "oldLabel2", "count": 3}]
-	 <br/>
-	 ```
-	 PATCH "/api/snapmirror/policies/fe65686d-00dc-11e9-b5fb-0050568e3f83" '{"retention": [{"label": "oldLabel2", "count": 3}, {"label": "newlabel", "count": 2}]}'
-	 ```
-	 <br/>
-	Updating "transfer_schedule", "throttle", and "identity_preservation" properties
-	 <br/>
-	 ```
-	 PATCH "/api/snapmirror/policies/8aef950b-3bef-11e9-80ac-0050568ea591" '{"transfer_schedule.name" : "weekly", "throttle" : "100", "identity_preservation":"exclude_network_and_protocol_config"}'
-	 ```
-	 <br/>
-	 Removing the SnapMirror transfer_schedule for a SnapMirror policy. Transfer_schedule can be specified as UUID or name or both with the value set to null (no-quotes).
-	 <br/>
-	 ```
-	 PATCH "/api/snapmirror/policies/98bb2608-fc60-11e8-aa13-005056a707ff/" '{"transfer_schedule":{"uuid":null, "name":null}}'
-	 ```
-	 <br/>
-
-	 Updating the "archive" property
-	 <br/>
-	 ```
-	 PATCH "/api/snapmirror/policies/fe65686d-00dc-11e9-b5fb-0050568e3f83" '{"archive": {"enabled": "true", "after_days": "30"}}'
-	 ```
-	 <br/>
-
-	Updating the "retention" property to have retention.preserve and retention.warn for existing rule.
-	 <br/>
-	 ```
-	 PATCH "/api/snapmirror/policies/fe65686d-00dc-11e9-b5fb-0050568e3f83" '{"retention": [{"label": "oldLabel1", "count": 3, "preserve": true, "warn": 2}]}'
-	 ```
-	 <br/>
-
-### Learn more
-* [`DOC /snapmirror/policies`](#docs-snapmirror-snapmirror_policies)
-*/
-func (a *Client) SnapmirrorPolicyModify(params *SnapmirrorPolicyModifyParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*SnapmirrorPolicyModifyOK, *SnapmirrorPolicyModifyAccepted, error) {
-	// TODO: Validate the params before sending
-	if params == nil {
-		params = NewSnapmirrorPolicyModifyParams()
-	}
-	op := &runtime.ClientOperation{
-		ID:                 "snapmirror_policy_modify",
-		Method:             "PATCH",
-		PathPattern:        "/snapmirror/policies/{uuid}",
-		ProducesMediaTypes: []string{"application/hal+json", "application/json"},
-		ConsumesMediaTypes: []string{"application/hal+json", "application/json"},
-		Schemes:            []string{"https"},
-		Params:             params,
-		Reader:             &SnapmirrorPolicyModifyReader{formats: a.formats},
-		AuthInfo:           authInfo,
-		Context:            params.Context,
-		Client:             params.HTTPClient,
-	}
-	for _, opt := range opts {
-		opt(op)
-	}
-
-	result, err := a.transport.Submit(op)
-	if err != nil {
-		return nil, nil, err
-	}
-	switch value := result.(type) {
-	case *SnapmirrorPolicyModifyOK:
-		return value, nil, nil
-	case *SnapmirrorPolicyModifyAccepted:
-		return nil, value, nil
-	}
-	// unexpected success response
-	unexpectedSuccess := result.(*SnapmirrorPolicyModifyDefault)
-	return nil, nil, runtime.NewAPIError("unexpected success response: content available as default response in error", unexpectedSuccess, unexpectedSuccess.Code())
-}
-
-/*
-SnapmirrorPolicyModifyCollection snapmirror policy modify collection API
-*/
-func (a *Client) SnapmirrorPolicyModifyCollection(params *SnapmirrorPolicyModifyCollectionParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*SnapmirrorPolicyModifyCollectionOK, *SnapmirrorPolicyModifyCollectionAccepted, error) {
-	// TODO: Validate the params before sending
-	if params == nil {
-		params = NewSnapmirrorPolicyModifyCollectionParams()
-	}
-	op := &runtime.ClientOperation{
-		ID:                 "snapmirror_policy_modify_collection",
-		Method:             "PATCH",
-		PathPattern:        "/snapmirror/policies",
-		ProducesMediaTypes: []string{"application/hal+json", "application/json"},
-		ConsumesMediaTypes: []string{"application/hal+json", "application/json"},
-		Schemes:            []string{"https"},
-		Params:             params,
-		Reader:             &SnapmirrorPolicyModifyCollectionReader{formats: a.formats},
-		AuthInfo:           authInfo,
-		Context:            params.Context,
-		Client:             params.HTTPClient,
-	}
-	for _, opt := range opts {
-		opt(op)
-	}
-
-	result, err := a.transport.Submit(op)
-	if err != nil {
-		return nil, nil, err
-	}
-	switch value := result.(type) {
-	case *SnapmirrorPolicyModifyCollectionOK:
-		return value, nil, nil
-	case *SnapmirrorPolicyModifyCollectionAccepted:
-		return nil, value, nil
-	}
-	// unexpected success response
-	unexpectedSuccess := result.(*SnapmirrorPolicyModifyCollectionDefault)
 	return nil, nil, runtime.NewAPIError("unexpected success response: content available as default response in error", unexpectedSuccess, unexpectedSuccess.Code())
 }
 
@@ -1059,7 +181,6 @@ For SVM endpoints, provisioning the destination SVM endpoint is not supported fr
 * `create_destination.size` - Specify the size to provision the ONTAP S3 Bucket destination endpoint.
 ### Default property values
 If not specified in POST, the following default property values are assigned:
-<personalities supports=asar2,unified>
 * `policy.name` - _Asynchronous_
 * `restore` - _false_
 * `create_destination.tiering.policy` - `_snapshot_only_` (when `create_destination.tiering.supported` is _true_ for FlexVol volume)
@@ -1072,8 +193,6 @@ If not specified in POST, the following default property values are assigned:
 * `destination.ipspace` - `_Default_`
 * `throttle` - _0_
 * `backoff_level` - `_high_`
-</personalities>
-<personalities supports=aiml>
 * `policy.name` - _Asynchronous_
 * `restore` - _false_
 * `create_destination.snaplock.type` - `non_snaplock`
@@ -1083,7 +202,6 @@ If not specified in POST, the following default property values are assigned:
 * `destination.ipspace` - `_Default_`
 * `throttle` - _0_
 * `backoff_level` - `_high_`
-</personalities>
 ### Related ONTAP commands
 * `snapmirror create`
 * `snapmirror protect`
@@ -1099,122 +217,116 @@ If not specified in POST, the following default property values are assigned:
 ### Examples
 The following examples show how to create FlexVol volumes, FlexGroup volumes, object store, SVM and Application Consistency Group SnapMirror relationships. Note that the source SVM name must be the local name of the peer SVM.</br>
 
-	 Creating a FlexVol SnapMirror relationship of type XDP.
-	 <br/>
-	 ```
-	 POST "/api/snapmirror/relationships/" '{"source": {"path": "src_svm:src_vol"}, "destination": { "path": "dst_svm:dst_vol"}}'
-	 ```
-	 <br/>
-	 Creating a FlexGroup SnapMirror relationship of type XDP.
-	 <br/>
-	 ```
-	 POST "/api/snapmirror/relationships/" '{"source": {"path": "src_svm:source_flexgroup"}, "destination": { "path": "dst_svm:dest_flexgroup"}}'
-	 ```
-	 <br/>
-	 Creating a SVM SnapMirror relationship of type XDP.
-	 <br/>
-	 ```
-	 POST "/api/snapmirror/relationships/" '{"source": { "path": "src_svm:"}, "destination": { "path": "dst_svm:"}}'
-	 ```
-	 <br/>
-	 Creating a SnapMirror relationship in order to restore from a destination.
-	 <br/>
-	 ```
-	 POST "/api/snapmirror/relationships/" '{"source": {"path": "src_svm:src_vol"}, "destination": { "path": "dst_svm:dst_vol"}, "restore": "true"}'
-	 ```
-	 <br/>
-	 Provision the destination FlexVol volume endpoint and create a SnapMirror relationship of type XDP.
-	 <br/>
-	 ```
-	 POST "/api/snapmirror/relationships/" '{"source": {"path": "src_svm:src_vol"}, "destination": { "path": "dst_svm:dst_vol"}, "create_destination": { "enabled": "true" }}'
-	 ```
-	<personalities supports=unified,asar2>
-	 Provision the destination FlexVol volume endpoint on a Fabricpool with a tiering policy and create a SnapMirror relationship of type XDP.
-	 <br/>
-	 ```
-	 POST "/api/snapmirror/relationships/" '{"source": {"path": "src_svm:src_vol"}, "destination": { "path": "dst_svm:dst_vol"}, "create_destination": { "enabled": "true", "tiering": { "supported": "true", "policy": "auto" } } }'
-	 ```
-	 Provision the destination FlexVol volume endpoint using storage service and create a SnapMirror relationship of type XDP.
-	 <br/>
-	 ```
-	 POST "/api/snapmirror/relationships/" '{"source": {"path": "src_svm:src_vol"}, "destination": { "path": "dst_svm:dst_vol"}, "create_destination": { "enabled": "true", "storage_service": { "enabled": "true", "name": "extreme", "enforce_performance": "true" } } }'
-	 ```
-	 </personalities>
-	 Provision the destination SVM endpoint and create a SnapMirror relationship of type XDP.
-	 <br/>
-	 ```
-	 POST "/api/snapmirror/relationships/" '{"source": {"path": "src_svm:", "cluster": { "name": "cluster_src" }}, "destination": { "path": "dst_svm:"}, "create_destination": { "enabled: "true" }}'
-	 ```
-	 Create an asynchronous SnapMirror relationship with Application Consistency Group endpoint.
-	 <br/>
-	 ```
-	 POST "/api/snapmirror/relationships/" '{"source": { "path": "src_svm:/cg/cg_src_vol", "consistency_group_volumes": [{ "name": "src_vol_1" }, { "name": "src_vol_2" }] }, "destination": { "path": "dst_svm:/cg/cg_dst_vol", "consistency_group_volumes": [{ "name": "dst_vol_1" }, { "name": "dst_vol_2" }] }, "policy": "Asynchronous" }'
-	 ```
-	 <personalities supports=unified,asar2>
-	 Provision the destination Application Consistency Group endpoint on a Fabricpool with a tiering policy, create an asynchronous SnapMirror relationship with a SnapMirror policy of type "async", and initialize the SnapMirror relationship with state as "snapmirrored".
-	 <br/>
-	 ```
-	 POST "/api/snapmirror/relationships/" '{"source": {"path": "src_svm:/cg/cg_src_vol", "consistency_group_volumes": [{ "name": "src_vol_1" }, { "name": "src_vol_2" }] }, "destination": { "path": "dst_svm:/cg/cg_dst_vol", "consistency_group_volumes": [{ "name": "dst_vol_1" }, { "name": "dst_vol_2" }] }, "create_destination": { "enabled": "true", "tiering": { "supported": "true" } }, "policy": "Asynchronous", "state": "snapmirrored" }'
-	 ```
-	 </personalities>
-	 Create a SnapMirror active sync relationship with the Application Consistency Group endpoint.
-	 <br/>
-	 ```
-	 POST "/api/snapmirror/relationships/" '{"source": { "path": "src_svm:/cg/cg_src_vol", "consistency_group_volumes": [{ "name": "src_vol_1" }, { "name": "src_vol_2" }] }, "destination": { "path": "dst_svm:/cg/cg_dst_vol", "consistency_group_volumes": [{ "name": "dst_vol_1" }, { "name": "dst_vol_2" }] }, "policy": "AutomatedFailOver" }'
-	 ```
-	 <personalities supports=unified,asar2>
-	 Provision the destination Application Consistency Group endpoint on a Fabricpool with a tiering policy, create a SnapMirror active sync relationship with a SnapMirror policy of type "sync" and sync_type of "automated_failover", and initialize the SnapMirror relationship with state as "in_sync".
-	 <br/>
-	 ```
-	 POST "/api/snapmirror/relationships/" '{"source": {"path": "src_svm:/cg/cg_src_vol", "consistency_group_volumes": [{ "name": "src_vol_1" }, { "name": "src_vol_2" }] }, "destination": { "path": "dst_svm:/cg/cg_dst_vol", "consistency_group_volumes": [{ "name": "dst_vol_1" }, { "name": "dst_vol_2" }] }, "create_destination": { "enabled": "true", "tiering": { "supported": "true" } }, "policy": "AutomatedFailOver", "state": "in_sync" }'
-	 ```
-	 Provision the destination Application Consistency Group endpoint with storage service, create a SnapMirror active sync relationship with a SnapMirror policy of type "sync" and sync_type of "automated_failover", and initialize the SnapMirror relationship with state as "in_sync".
-	 <br/>
-	 ```
-	 POST "/api/snapmirror/relationships/" '{"source": {"path": "src_svm:/cg/cg_src_vol", "consistency_group_volumes": [{ "name": "src_vol_1" }, { "name": "src_vol_2" }] }, "destination": { "path": "dst_svm:/cg/cg_dst_vol", "consistency_group_volumes": [{ "name": "dst_vol_1" }, { "name": "dst_vol_2" }] }, "create_destination": { "enabled": "true", "storage_service": { "enabled": "true", "name": "extreme", "enforce_performance": "true" } }, "policy": "AutomatedFailOver", "state": "in_sync" }'
-	 ```
-	 <br/>
+	Creating a FlexVol SnapMirror relationship of type XDP.
+	<br/>
+	```
+	POST "/api/snapmirror/relationships/" '{"source": {"path": "src_svm:src_vol"}, "destination": { "path": "dst_svm:dst_vol"}}'
+	```
+	<br/>
+	Creating a FlexGroup SnapMirror relationship of type XDP.
+	<br/>
+	```
+	POST "/api/snapmirror/relationships/" '{"source": {"path": "src_svm:source_flexgroup"}, "destination": { "path": "dst_svm:dest_flexgroup"}}'
+	```
+	<br/>
+	Creating a SVM SnapMirror relationship of type XDP.
+	<br/>
+	```
+	POST "/api/snapmirror/relationships/" '{"source": { "path": "src_svm:"}, "destination": { "path": "dst_svm:"}}'
+	```
+	<br/>
+	Creating a SnapMirror relationship in order to restore from a destination.
+	<br/>
+	```
+	POST "/api/snapmirror/relationships/" '{"source": {"path": "src_svm:src_vol"}, "destination": { "path": "dst_svm:dst_vol"}, "restore": "true"}'
+	```
+	<br/>
+	Provision the destination FlexVol volume endpoint and create a SnapMirror relationship of type XDP.
+	<br/>
+	```
+	POST "/api/snapmirror/relationships/" '{"source": {"path": "src_svm:src_vol"}, "destination": { "path": "dst_svm:dst_vol"}, "create_destination": { "enabled": "true" }}'
+	```
+	Provision the destination FlexVol volume endpoint on a Fabricpool with a tiering policy and create a SnapMirror relationship of type XDP.
+	<br/>
+	```
+	POST "/api/snapmirror/relationships/" '{"source": {"path": "src_svm:src_vol"}, "destination": { "path": "dst_svm:dst_vol"}, "create_destination": { "enabled": "true", "tiering": { "supported": "true", "policy": "auto" } } }'
+	```
+	Provision the destination FlexVol volume endpoint using storage service and create a SnapMirror relationship of type XDP.
+	<br/>
+	```
+	POST "/api/snapmirror/relationships/" '{"source": {"path": "src_svm:src_vol"}, "destination": { "path": "dst_svm:dst_vol"}, "create_destination": { "enabled": "true", "storage_service": { "enabled": "true", "name": "extreme", "enforce_performance": "true" } } }'
+	```
+	Provision the destination SVM endpoint and create a SnapMirror relationship of type XDP.
+	<br/>
+	```
+	POST "/api/snapmirror/relationships/" '{"source": {"path": "src_svm:", "cluster": { "name": "cluster_src" }}, "destination": { "path": "dst_svm:"}, "create_destination": { "enabled: "true" }}'
+	```
+	Create an asynchronous SnapMirror relationship with Application Consistency Group endpoint.
+	<br/>
+	```
+	POST "/api/snapmirror/relationships/" '{"source": { "path": "src_svm:/cg/cg_src_vol", "consistency_group_volumes": [{ "name": "src_vol_1" }, { "name": "src_vol_2" }] }, "destination": { "path": "dst_svm:/cg/cg_dst_vol", "consistency_group_volumes": [{ "name": "dst_vol_1" }, { "name": "dst_vol_2" }] }, "policy": "Asynchronous" }'
+	```
+	Provision the destination Application Consistency Group endpoint on a Fabricpool with a tiering policy, create an asynchronous SnapMirror relationship with a SnapMirror policy of type "async", and initialize the SnapMirror relationship with state as "snapmirrored".
+	<br/>
+	```
+	POST "/api/snapmirror/relationships/" '{"source": {"path": "src_svm:/cg/cg_src_vol", "consistency_group_volumes": [{ "name": "src_vol_1" }, { "name": "src_vol_2" }] }, "destination": { "path": "dst_svm:/cg/cg_dst_vol", "consistency_group_volumes": [{ "name": "dst_vol_1" }, { "name": "dst_vol_2" }] }, "create_destination": { "enabled": "true", "tiering": { "supported": "true" } }, "policy": "Asynchronous", "state": "snapmirrored" }'
+	```
+	Create a SnapMirror active sync relationship with the Application Consistency Group endpoint.
+	<br/>
+	```
+	POST "/api/snapmirror/relationships/" '{"source": { "path": "src_svm:/cg/cg_src_vol", "consistency_group_volumes": [{ "name": "src_vol_1" }, { "name": "src_vol_2" }] }, "destination": { "path": "dst_svm:/cg/cg_dst_vol", "consistency_group_volumes": [{ "name": "dst_vol_1" }, { "name": "dst_vol_2" }] }, "policy": "AutomatedFailOver" }'
+	```
+	Provision the destination Application Consistency Group endpoint on a Fabricpool with a tiering policy, create a SnapMirror active sync relationship with a SnapMirror policy of type "sync" and sync_type of "automated_failover", and initialize the SnapMirror relationship with state as "in_sync".
+	<br/>
+	```
+	POST "/api/snapmirror/relationships/" '{"source": {"path": "src_svm:/cg/cg_src_vol", "consistency_group_volumes": [{ "name": "src_vol_1" }, { "name": "src_vol_2" }] }, "destination": { "path": "dst_svm:/cg/cg_dst_vol", "consistency_group_volumes": [{ "name": "dst_vol_1" }, { "name": "dst_vol_2" }] }, "create_destination": { "enabled": "true", "tiering": { "supported": "true" } }, "policy": "AutomatedFailOver", "state": "in_sync" }'
+	```
+	Provision the destination Application Consistency Group endpoint with storage service, create a SnapMirror active sync relationship with a SnapMirror policy of type "sync" and sync_type of "automated_failover", and initialize the SnapMirror relationship with state as "in_sync".
+	<br/>
+	```
+	POST "/api/snapmirror/relationships/" '{"source": {"path": "src_svm:/cg/cg_src_vol", "consistency_group_volumes": [{ "name": "src_vol_1" }, { "name": "src_vol_2" }] }, "destination": { "path": "dst_svm:/cg/cg_dst_vol", "consistency_group_volumes": [{ "name": "dst_vol_1" }, { "name": "dst_vol_2" }] }, "create_destination": { "enabled": "true", "storage_service": { "enabled": "true", "name": "extreme", "enforce_performance": "true" } }, "policy": "AutomatedFailOver", "state": "in_sync" }'
+	```
+	<br/>
 
 Provision the destination Application Consistency Group endpoint with storage service, create an asynchronous application consistency group relationship with a SnapMirror policy of type "async" and an async_type of "XDPDefault", and initialize the SnapMirror relationship with state as "SnapMirrored".
 
-	 <br/>
-	 ```
-	 POST "/api/snapmirror/relationships/" '{"source": {"path": "src_svm:/cg/cg_src_vol", "consistency_group_volumes": [{ "name": "src_vol_1" }, { "name": "src_vol_2" }] }, "destination": { "path": "dst_svm:/cg/cg_dst_vol", "consistency_group_volumes": [{ "name": "dst_vol_1" }, { "name": "dst_vol_2" }] }, "create_destination": { "enabled": "true", "storage_service": { "enabled": "true", "name": "extreme", "enforce_performance": "true" } }, "policy": "XDPDefault", "state": "snapmirrored" }'
-	 ```
-	</personalities>
-	 <br/>
-	 Creating a FlexVol volume SnapMirror relationship of type XDP with transfer_schedule and throttle.
-	 <br/>
-	 ```
-	 POST "/api/snapmirror/relationships/" '{"source": {"path": "src_svm:src_vol"}, "destination": { "path": "dst_svm:dst_vol"}, "transfer_schedule":{"uuid":"817500fa-092d-44c5-9c10-7b54f7b2f20a", "name":"5min"}, "throttle":100}'
-	 ```
-	 <br/>
+	<br/>
+	```
+	POST "/api/snapmirror/relationships/" '{"source": {"path": "src_svm:/cg/cg_src_vol", "consistency_group_volumes": [{ "name": "src_vol_1" }, { "name": "src_vol_2" }] }, "destination": { "path": "dst_svm:/cg/cg_dst_vol", "consistency_group_volumes": [{ "name": "dst_vol_1" }, { "name": "dst_vol_2" }] }, "create_destination": { "enabled": "true", "storage_service": { "enabled": "true", "name": "extreme", "enforce_performance": "true" } }, "policy": "XDPDefault", "state": "snapmirrored" }'
+	```
+	<br/>
+	Creating a FlexVol volume SnapMirror relationship of type XDP with transfer_schedule and throttle.
+	<br/>
+	```
+	POST "/api/snapmirror/relationships/" '{"source": {"path": "src_svm:src_vol"}, "destination": { "path": "dst_svm:dst_vol"}, "transfer_schedule":{"uuid":"817500fa-092d-44c5-9c10-7b54f7b2f20a", "name":"5min"}, "throttle":100}'
+	```
+	<br/>
 
-	 Creating an object store SnapMirror relationship of type XDP.
-	 <br/>
-	 ```
-	 POST "/api/snapmirror/relationships/" '{"source": {"path": "test_vserver_src:source_vol_rw"}, "destination": { "path": "S3store1:/objstore/object1"}}'
-	 ```
-	 <br/>
-	 Creating a SnapMirror relationship in order to restore from an object store destination.
-	 <br/>
-	 ```
-	 POST "/api/snapmirror/relationships/" '{"source": {"path": "S3store1:/objstore/object1", "uuid":"817500fa-092d-44c5-9c10-7b54f7b2f20a"}, "destination": { "path": "test_vserver_dst:dst_vol_dp"}, "restore": "true"}'
-	 ```
-	 <br/>
-	 Creating an object store SnapMirror relationship in order to resync.
-	 <br/>
-	 ```
-	 POST "/api/snapmirror/relationships/" '{"source": {"path": "test_vserver_src:source_vol_rw2"}, "destination": { "path": "S3store1:/objstore/object1", "uuid":"817500fa-092d-44c5-9c10-7b54f7b2f20a"}}'
-	 ```
-	 <br/>
+	Creating an object store SnapMirror relationship of type XDP.
+	<br/>
+	```
+	POST "/api/snapmirror/relationships/" '{"source": {"path": "test_vserver_src:source_vol_rw"}, "destination": { "path": "S3store1:/objstore/object1"}}'
+	```
+	<br/>
+	Creating a SnapMirror relationship in order to restore from an object store destination.
+	<br/>
+	```
+	POST "/api/snapmirror/relationships/" '{"source": {"path": "S3store1:/objstore/object1", "uuid":"817500fa-092d-44c5-9c10-7b54f7b2f20a"}, "destination": { "path": "test_vserver_dst:dst_vol_dp"}, "restore": "true"}'
+	```
+	<br/>
+	Creating an object store SnapMirror relationship in order to resync.
+	<br/>
+	```
+	POST "/api/snapmirror/relationships/" '{"source": {"path": "test_vserver_src:source_vol_rw2"}, "destination": { "path": "S3store1:/objstore/object1", "uuid":"817500fa-092d-44c5-9c10-7b54f7b2f20a"}}'
+	```
+	<br/>
 
-	 Creating an asynchronous SnapMirror relationship with backoff_level set to medium.
-	 <br/>
-	 ```
-	 POST "/api/snapmirror/relationships/" '{"source": {"path": "src_svm:src_vol"}, "destination": { "path": "dst_svm:dst_vol"}, "backoff_level": "medium"}'
-	 ```
-	 <br/>
+	Creating an asynchronous SnapMirror relationship with backoff_level set to medium.
+	<br/>
+	```
+	POST "/api/snapmirror/relationships/" '{"source": {"path": "src_svm:src_vol"}, "destination": { "path": "dst_svm:dst_vol"}, "backoff_level": "medium"}'
+	```
+	<br/>
 
 ### Learn more
 * [`DOC /snapmirror/relationships`](#docs-snapmirror-snapmirror_relationships)
@@ -1228,8 +340,8 @@ func (a *Client) SnapmirrorRelationshipCreate(params *SnapmirrorRelationshipCrea
 		ID:                 "snapmirror_relationship_create",
 		Method:             "POST",
 		PathPattern:        "/snapmirror/relationships",
-		ProducesMediaTypes: []string{"application/hal+json", "application/json"},
-		ConsumesMediaTypes: []string{"application/hal+json", "application/json"},
+		ProducesMediaTypes: []string{"application/json", "application/hal+json"},
+		ConsumesMediaTypes: []string{"application/json", "application/hal+json"},
 		Schemes:            []string{"https"},
 		Params:             params,
 		Reader:             &SnapmirrorRelationshipCreateReader{formats: a.formats},
@@ -1266,6 +378,7 @@ func (a *Client) SnapmirrorRelationshipCreate(params *SnapmirrorRelationshipCrea
 * The "failover", "force-failover" and "failback" query parameters are only applicable for SVM-DR SnapMirror relationships.
 * When a SnapMirror relationship associated with a pair of source and destination Consistency Groups is deleted, the corresponding Consistency Groups on the source and destination clusters are not automatically deleted and remain in place.
 * The "delete_lun_maps_in_destination" query parameter is applicable only for SnapMirror active sync relationships.
+* The "unmap_namespace" query parameter is applicable only for NVMe SnapMirror active sync relationships.
 ### Related ONTAP commands
 * `snapmirror delete`
 * `snapmirror release`
@@ -1303,6 +416,12 @@ The following examples show how to delete the relationship from both the source 
 	DELETE "/api/snapmirror/relationships/feda8f5e-e29e-11ed-94aa-005056a78ce2/?delete_lun_maps_in_destination=true"
 	```
 	<br/>
+	Deleting the relationship from destination cluster along with deleting the namespace maps for the volumes of the CG in destination cluster. This API must be run on the cluster containing the destination endpoint.
+	<br/>
+	```
+	DELETE "/api/snapmirror/relationships/feda8f5e-e29e-11ed-94aa-005056a78ce2/?unmap_namespace=true"
+	```
+	<br/>
 
 ### Learn more
 * [`DOC /snapmirror/relationships`](#docs-snapmirror-snapmirror_relationships)
@@ -1316,8 +435,8 @@ func (a *Client) SnapmirrorRelationshipDelete(params *SnapmirrorRelationshipDele
 		ID:                 "snapmirror_relationship_delete",
 		Method:             "DELETE",
 		PathPattern:        "/snapmirror/relationships/{uuid}",
-		ProducesMediaTypes: []string{"application/hal+json", "application/json"},
-		ConsumesMediaTypes: []string{"application/hal+json", "application/json"},
+		ProducesMediaTypes: []string{"application/json", "application/hal+json"},
+		ConsumesMediaTypes: []string{"application/json", "application/hal+json"},
 		Schemes:            []string{"https"},
 		Params:             params,
 		Reader:             &SnapmirrorRelationshipDeleteReader{formats: a.formats},
@@ -1341,46 +460,6 @@ func (a *Client) SnapmirrorRelationshipDelete(params *SnapmirrorRelationshipDele
 	}
 	// unexpected success response
 	unexpectedSuccess := result.(*SnapmirrorRelationshipDeleteDefault)
-	return nil, nil, runtime.NewAPIError("unexpected success response: content available as default response in error", unexpectedSuccess, unexpectedSuccess.Code())
-}
-
-/*
-SnapmirrorRelationshipDeleteCollection snapmirror relationship delete collection API
-*/
-func (a *Client) SnapmirrorRelationshipDeleteCollection(params *SnapmirrorRelationshipDeleteCollectionParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*SnapmirrorRelationshipDeleteCollectionOK, *SnapmirrorRelationshipDeleteCollectionAccepted, error) {
-	// TODO: Validate the params before sending
-	if params == nil {
-		params = NewSnapmirrorRelationshipDeleteCollectionParams()
-	}
-	op := &runtime.ClientOperation{
-		ID:                 "snapmirror_relationship_delete_collection",
-		Method:             "DELETE",
-		PathPattern:        "/snapmirror/relationships",
-		ProducesMediaTypes: []string{"application/hal+json", "application/json"},
-		ConsumesMediaTypes: []string{"application/hal+json", "application/json"},
-		Schemes:            []string{"https"},
-		Params:             params,
-		Reader:             &SnapmirrorRelationshipDeleteCollectionReader{formats: a.formats},
-		AuthInfo:           authInfo,
-		Context:            params.Context,
-		Client:             params.HTTPClient,
-	}
-	for _, opt := range opts {
-		opt(op)
-	}
-
-	result, err := a.transport.Submit(op)
-	if err != nil {
-		return nil, nil, err
-	}
-	switch value := result.(type) {
-	case *SnapmirrorRelationshipDeleteCollectionOK:
-		return value, nil, nil
-	case *SnapmirrorRelationshipDeleteCollectionAccepted:
-		return nil, value, nil
-	}
-	// unexpected success response
-	unexpectedSuccess := result.(*SnapmirrorRelationshipDeleteCollectionDefault)
 	return nil, nil, runtime.NewAPIError("unexpected success response: content available as default response in error", unexpectedSuccess, unexpectedSuccess.Code())
 }
 
@@ -1415,8 +494,8 @@ func (a *Client) SnapmirrorRelationshipGet(params *SnapmirrorRelationshipGetPara
 		ID:                 "snapmirror_relationship_get",
 		Method:             "GET",
 		PathPattern:        "/snapmirror/relationships/{uuid}",
-		ProducesMediaTypes: []string{"application/hal+json", "application/json"},
-		ConsumesMediaTypes: []string{"application/hal+json", "application/json"},
+		ProducesMediaTypes: []string{"application/json", "application/hal+json"},
+		ConsumesMediaTypes: []string{"application/json", "application/hal+json"},
 		Schemes:            []string{"https"},
 		Params:             params,
 		Reader:             &SnapmirrorRelationshipGetReader{formats: a.formats},
@@ -1630,8 +709,8 @@ func (a *Client) SnapmirrorRelationshipModify(params *SnapmirrorRelationshipModi
 		ID:                 "snapmirror_relationship_modify",
 		Method:             "PATCH",
 		PathPattern:        "/snapmirror/relationships/{uuid}",
-		ProducesMediaTypes: []string{"application/hal+json", "application/json"},
-		ConsumesMediaTypes: []string{"application/hal+json", "application/json"},
+		ProducesMediaTypes: []string{"application/json", "application/hal+json"},
+		ConsumesMediaTypes: []string{"application/json", "application/hal+json"},
 		Schemes:            []string{"https"},
 		Params:             params,
 		Reader:             &SnapmirrorRelationshipModifyReader{formats: a.formats},
@@ -1656,363 +735,6 @@ func (a *Client) SnapmirrorRelationshipModify(params *SnapmirrorRelationshipModi
 	// unexpected success response
 	unexpectedSuccess := result.(*SnapmirrorRelationshipModifyDefault)
 	return nil, nil, runtime.NewAPIError("unexpected success response: content available as default response in error", unexpectedSuccess, unexpectedSuccess.Code())
-}
-
-/*
-SnapmirrorRelationshipModifyCollection snapmirror relationship modify collection API
-*/
-func (a *Client) SnapmirrorRelationshipModifyCollection(params *SnapmirrorRelationshipModifyCollectionParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*SnapmirrorRelationshipModifyCollectionOK, *SnapmirrorRelationshipModifyCollectionAccepted, error) {
-	// TODO: Validate the params before sending
-	if params == nil {
-		params = NewSnapmirrorRelationshipModifyCollectionParams()
-	}
-	op := &runtime.ClientOperation{
-		ID:                 "snapmirror_relationship_modify_collection",
-		Method:             "PATCH",
-		PathPattern:        "/snapmirror/relationships",
-		ProducesMediaTypes: []string{"application/hal+json", "application/json"},
-		ConsumesMediaTypes: []string{"application/hal+json", "application/json"},
-		Schemes:            []string{"https"},
-		Params:             params,
-		Reader:             &SnapmirrorRelationshipModifyCollectionReader{formats: a.formats},
-		AuthInfo:           authInfo,
-		Context:            params.Context,
-		Client:             params.HTTPClient,
-	}
-	for _, opt := range opts {
-		opt(op)
-	}
-
-	result, err := a.transport.Submit(op)
-	if err != nil {
-		return nil, nil, err
-	}
-	switch value := result.(type) {
-	case *SnapmirrorRelationshipModifyCollectionOK:
-		return value, nil, nil
-	case *SnapmirrorRelationshipModifyCollectionAccepted:
-		return nil, value, nil
-	}
-	// unexpected success response
-	unexpectedSuccess := result.(*SnapmirrorRelationshipModifyCollectionDefault)
-	return nil, nil, runtime.NewAPIError("unexpected success response: content available as default response in error", unexpectedSuccess, unexpectedSuccess.Code())
-}
-
-/*
-	SnapmirrorRelationshipTransferCreate Starts a SnapMirror transfer operation. This API initiates a restore operation if the SnapMirror relationship is of type "restore". Otherwise, it initiates a SnapMirror "initialize" operation or "update" operation based on the current SnapMirror state.
-
-### Default property values
-* `storage_efficiency_enabled` - _true_
-### Related ONTAP commands
-* `snapmirror update`
-* `snapmirror initialize`
-* `snapmirror restore`
-
-### Important notes
-* The property "archive_retrieval_priority" is only applicable for object store SnapMirror relationships of type "restore".
-* The property "options.preserve_dedup_savings" is only applicable for object store SnapMirror relationships of type "restore". This property is only supported for restoring an entire volume from an object store.
-* The property "options.overwrite" is only applicable for object store SnapMirror relationships of type "restore". This property is only supported for restoring a directory from an object store to a FlexVol volume. Upon restart of an incomplete restore transfer the value of the "options.overwrite" property should match that of the previous request.
-* The property "source_snapshot_uuid" is only applicable for object store SnapMirror relationships of type "restore".
-
-### Examples
-The following examples show how to perform SnapMirror "initialize", "update", and "restore" operations.
-<br/>
-
-	Perform SnapMirror initialize or update
-	<br/>
-	```
-	POST "/api/snapmirror/relationships/e4e7e130-0279-11e9-b566-0050568e9909/transfers" '{}'
-	```
-	<br/>
-	Perform SnapMirror initialize, update or restore with throttle value set
-	<br/>
-	```
-	POST "/api/snapmirror/relationships/e4e7e130-0279-11e9-b566-0050568e9909/transfers" '{"throttle":"100"}'
-	```
-	<br/>
-	Perform SnapMirror restore transfer of a file
-	<br/>
-	```
-	POST "/api/snapmirror/relationships/c8c62a90-0fef-11e9-b09e-0050568e7067/transfers" '{"source_snapshot": "src", "files":[{"source_path": "/a1.txt.0", "destination_path": "/a1-renamed.txt.0"}]}'
-	```
-	<br/>
-	Performing a SnapMirror initialize or update using a particular snapshot.
-	<br/>
-	```
-	POST "/api/snapmirror/relationships/e4e7e130-0279-11e9-b566-0050568e9909/transfers" '{"source_snapshot":"snap1"}'
-	```
-	<br/>
-
-	Performing a SnapMirror initialize or update of an object store SnapMirror relationship and locking snapshot 'snap1' for a period of 40 months.
-	<br/>
-	```
-	POST "/api/snapmirror/relationships/e4e7e130-0279-11e9-b566-0050568e9909/transfers" '{"source_snapshot":"snap1", "snapshot_retention_period":"P40M"}]}'
-	```
-	<br/>
-	Performing a SnapMirror restore transfer of a file with inode number 96 from an object store.
-	<br/>
-	```
-	POST "/api/snapmirror/relationships/5aadf886-2039-11ea-b47a-005056a778b7/transfers" '{"source_snapshot": "snap1", "files":[{"source_path": "96", "destination_path": "/f1"}]}'
-	```
-	<br/>
-	Performing a SnapMirror restore transfer of a whole volume from an object store using a snapshot copy name.
-	<br/>
-	```
-	POST "/api/snapmirror/relationships/5aadf886-2039-11ea-b47a-005056a778b7/transfers" '{"source_snapshot": "snap1"}'
-	```
-	<br/>
-	Performing a SnapMirror restore transfer of a whole volume from an object store using a snapshot copy uuid.
-	<br/>
-	```
-	POST "/api/snapmirror/relationships/5aadf886-2039-11ea-b47a-005056a778b7/transfers" '{"source_snapshot_uuid": "bded03c7-c71b-408e-9e1a-971eb156a2da"}'
-	```
-	<br/>
-	Performing a SnapMirror restore transfer of a whole volume from an object store with archive_retrieval_priority high.
-	<br/>
-	```
-	POST "/api/snapmirror/relationships/5aadf886-2039-11ea-b47a-005056a778b7/transfers" '{"source_snapshot": "snap1", "archive_retrieval_priority": "high"}'
-	```
-	<br/>
-	Performing a SnapMirror on-demand restore transfer of a whole volume from an object store.
-	<br/>
-	```
-	POST "/api/snapmirror/relationships/5aadf886-2039-11ea-b47a-005056a778b7/transfers" '{"source_snapshot": "snap1", "on_demand_attrs":"read_write_with_user_data_pull"}'
-	```
-	<br/>
-	Performing a SnapMirror restore transfer of a whole volume from an object store with deuplication savings preserved.
-	<br/>
-	```
-	POST "/api/snapmirror/relationships/5aadf886-2039-11ea-b47a-005056a778b7/transfers" '{"source_snapshot": "snap1", "options.preserve_dedup_savings":"true"}'
-	```
-	<br/>
-	Performing a SnapMirror restore transfer of a directory from an object store with overwrite.
-	<br/>
-	```
-	POST "/api/snapmirror/relationships/5aadf886-2039-11ea-b47a-005056a778b7/transfers" '{"source_snapshot": "snap1", "files":[{"source_path": "96", "destination_path": "/dir1"}], "options.overwrite":"true"}'
-	```
-	<br/>
-
-### Learn more
-* [`DOC /snapmirror/relationships/{relationship.uuid}/transfers`](#docs-snapmirror-snapmirror_relationships_{relationship.uuid}_transfers)
-*/
-func (a *Client) SnapmirrorRelationshipTransferCreate(params *SnapmirrorRelationshipTransferCreateParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*SnapmirrorRelationshipTransferCreateCreated, error) {
-	// TODO: Validate the params before sending
-	if params == nil {
-		params = NewSnapmirrorRelationshipTransferCreateParams()
-	}
-	op := &runtime.ClientOperation{
-		ID:                 "snapmirror_relationship_transfer_create",
-		Method:             "POST",
-		PathPattern:        "/snapmirror/relationships/{relationship.uuid}/transfers",
-		ProducesMediaTypes: []string{"application/hal+json", "application/json"},
-		ConsumesMediaTypes: []string{"application/hal+json", "application/json"},
-		Schemes:            []string{"https"},
-		Params:             params,
-		Reader:             &SnapmirrorRelationshipTransferCreateReader{formats: a.formats},
-		AuthInfo:           authInfo,
-		Context:            params.Context,
-		Client:             params.HTTPClient,
-	}
-	for _, opt := range opts {
-		opt(op)
-	}
-
-	result, err := a.transport.Submit(op)
-	if err != nil {
-		return nil, err
-	}
-	success, ok := result.(*SnapmirrorRelationshipTransferCreateCreated)
-	if ok {
-		return success, nil
-	}
-	// unexpected success response
-	unexpectedSuccess := result.(*SnapmirrorRelationshipTransferCreateDefault)
-	return nil, runtime.NewAPIError("unexpected success response: content available as default response in error", unexpectedSuccess, unexpectedSuccess.Code())
-}
-
-/*
-	SnapmirrorRelationshipTransferGet Retrieves the attributes of a specific ongoing SnapMirror transfer.
-
-### Related ONTAP commands
-* `snapmirror show`
-### Example
-<br/>
-```
-GET "/api/snapmirror/relationships/293baa53-e63d-11e8-bff1-005056a793dd/transfers/293baa53-e63d-11e8-bff1-005056a793dd"
-```
-<br/>
-### Learn more
-* [`DOC /snapmirror/relationships/{relationship.uuid}/transfers`](#docs-snapmirror-snapmirror_relationships_{relationship.uuid}_transfers)
-*/
-func (a *Client) SnapmirrorRelationshipTransferGet(params *SnapmirrorRelationshipTransferGetParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*SnapmirrorRelationshipTransferGetOK, error) {
-	// TODO: Validate the params before sending
-	if params == nil {
-		params = NewSnapmirrorRelationshipTransferGetParams()
-	}
-	op := &runtime.ClientOperation{
-		ID:                 "snapmirror_relationship_transfer_get",
-		Method:             "GET",
-		PathPattern:        "/snapmirror/relationships/{relationship.uuid}/transfers/{uuid}",
-		ProducesMediaTypes: []string{"application/hal+json", "application/json"},
-		ConsumesMediaTypes: []string{"application/hal+json", "application/json"},
-		Schemes:            []string{"https"},
-		Params:             params,
-		Reader:             &SnapmirrorRelationshipTransferGetReader{formats: a.formats},
-		AuthInfo:           authInfo,
-		Context:            params.Context,
-		Client:             params.HTTPClient,
-	}
-	for _, opt := range opts {
-		opt(op)
-	}
-
-	result, err := a.transport.Submit(op)
-	if err != nil {
-		return nil, err
-	}
-	success, ok := result.(*SnapmirrorRelationshipTransferGetOK)
-	if ok {
-		return success, nil
-	}
-	// unexpected success response
-	unexpectedSuccess := result.(*SnapmirrorRelationshipTransferGetDefault)
-	return nil, runtime.NewAPIError("unexpected success response: content available as default response in error", unexpectedSuccess, unexpectedSuccess.Code())
-}
-
-/*
-	SnapmirrorRelationshipTransferModify Aborts an ongoing SnapMirror transfer. This operation is applicable on asynchronous SnapMirror relationships.
-
-### Related ONTAP commands
-* `snapmirror abort`
-### Example
-<br/>
-```
-PATCH "/api/snapmirror/relationships/293baa53-e63d-11e8-bff1-005056a793dd/transfers/293baa53-e63d-11e8-bff1-005056a793dd" '{"state":"aborted"}'
-```
-<br/>
-### Learn more
-* [`DOC /snapmirror/relationships/{relationship.uuid}/transfers`](#docs-snapmirror-snapmirror_relationships_{relationship.uuid}_transfers)
-*/
-func (a *Client) SnapmirrorRelationshipTransferModify(params *SnapmirrorRelationshipTransferModifyParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*SnapmirrorRelationshipTransferModifyOK, error) {
-	// TODO: Validate the params before sending
-	if params == nil {
-		params = NewSnapmirrorRelationshipTransferModifyParams()
-	}
-	op := &runtime.ClientOperation{
-		ID:                 "snapmirror_relationship_transfer_modify",
-		Method:             "PATCH",
-		PathPattern:        "/snapmirror/relationships/{relationship.uuid}/transfers/{uuid}",
-		ProducesMediaTypes: []string{"application/hal+json", "application/json"},
-		ConsumesMediaTypes: []string{"application/hal+json", "application/json"},
-		Schemes:            []string{"https"},
-		Params:             params,
-		Reader:             &SnapmirrorRelationshipTransferModifyReader{formats: a.formats},
-		AuthInfo:           authInfo,
-		Context:            params.Context,
-		Client:             params.HTTPClient,
-	}
-	for _, opt := range opts {
-		opt(op)
-	}
-
-	result, err := a.transport.Submit(op)
-	if err != nil {
-		return nil, err
-	}
-	success, ok := result.(*SnapmirrorRelationshipTransferModifyOK)
-	if ok {
-		return success, nil
-	}
-	// unexpected success response
-	unexpectedSuccess := result.(*SnapmirrorRelationshipTransferModifyDefault)
-	return nil, runtime.NewAPIError("unexpected success response: content available as default response in error", unexpectedSuccess, unexpectedSuccess.Code())
-}
-
-/*
-SnapmirrorRelationshipTransferModifyCollection snapmirror relationship transfer modify collection API
-*/
-func (a *Client) SnapmirrorRelationshipTransferModifyCollection(params *SnapmirrorRelationshipTransferModifyCollectionParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*SnapmirrorRelationshipTransferModifyCollectionOK, error) {
-	// TODO: Validate the params before sending
-	if params == nil {
-		params = NewSnapmirrorRelationshipTransferModifyCollectionParams()
-	}
-	op := &runtime.ClientOperation{
-		ID:                 "snapmirror_relationship_transfer_modify_collection",
-		Method:             "PATCH",
-		PathPattern:        "/snapmirror/relationships/{relationship.uuid}/transfers",
-		ProducesMediaTypes: []string{"application/hal+json", "application/json"},
-		ConsumesMediaTypes: []string{"application/hal+json", "application/json"},
-		Schemes:            []string{"https"},
-		Params:             params,
-		Reader:             &SnapmirrorRelationshipTransferModifyCollectionReader{formats: a.formats},
-		AuthInfo:           authInfo,
-		Context:            params.Context,
-		Client:             params.HTTPClient,
-	}
-	for _, opt := range opts {
-		opt(op)
-	}
-
-	result, err := a.transport.Submit(op)
-	if err != nil {
-		return nil, err
-	}
-	success, ok := result.(*SnapmirrorRelationshipTransferModifyCollectionOK)
-	if ok {
-		return success, nil
-	}
-	// unexpected success response
-	unexpectedSuccess := result.(*SnapmirrorRelationshipTransferModifyCollectionDefault)
-	return nil, runtime.NewAPIError("unexpected success response: content available as default response in error", unexpectedSuccess, unexpectedSuccess.Code())
-}
-
-/*
-	SnapmirrorRelationshipTransfersGet Retrieves the list of ongoing SnapMirror transfers for the specified relationship.
-
-### Related ONTAP commands
-* `snapmirror show`
-### Example
-<br/>
-```
-GET "/api/snapmirror/relationships/293baa53-e63d-11e8-bff1-005056a793dd/transfers"
-```
-### Learn more
-* [`DOC /snapmirror/relationships/{relationship.uuid}/transfers`](#docs-snapmirror-snapmirror_relationships_{relationship.uuid}_transfers)
-<br/>
-*/
-func (a *Client) SnapmirrorRelationshipTransfersGet(params *SnapmirrorRelationshipTransfersGetParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*SnapmirrorRelationshipTransfersGetOK, error) {
-	// TODO: Validate the params before sending
-	if params == nil {
-		params = NewSnapmirrorRelationshipTransfersGetParams()
-	}
-	op := &runtime.ClientOperation{
-		ID:                 "snapmirror_relationship_transfers_get",
-		Method:             "GET",
-		PathPattern:        "/snapmirror/relationships/{relationship.uuid}/transfers",
-		ProducesMediaTypes: []string{"application/hal+json", "application/json"},
-		ConsumesMediaTypes: []string{"application/hal+json", "application/json"},
-		Schemes:            []string{"https"},
-		Params:             params,
-		Reader:             &SnapmirrorRelationshipTransfersGetReader{formats: a.formats},
-		AuthInfo:           authInfo,
-		Context:            params.Context,
-		Client:             params.HTTPClient,
-	}
-	for _, opt := range opts {
-		opt(op)
-	}
-
-	result, err := a.transport.Submit(op)
-	if err != nil {
-		return nil, err
-	}
-	success, ok := result.(*SnapmirrorRelationshipTransfersGetOK)
-	if ok {
-		return success, nil
-	}
-	// unexpected success response
-	unexpectedSuccess := result.(*SnapmirrorRelationshipTransfersGetDefault)
-	return nil, runtime.NewAPIError("unexpected success response: content available as default response in error", unexpectedSuccess, unexpectedSuccess.Code())
 }
 
 /*
@@ -2087,8 +809,8 @@ func (a *Client) SnapmirrorRelationshipsGet(params *SnapmirrorRelationshipsGetPa
 		ID:                 "snapmirror_relationships_get",
 		Method:             "GET",
 		PathPattern:        "/snapmirror/relationships",
-		ProducesMediaTypes: []string{"application/hal+json", "application/json"},
-		ConsumesMediaTypes: []string{"application/hal+json", "application/json"},
+		ProducesMediaTypes: []string{"application/json", "application/hal+json"},
+		ConsumesMediaTypes: []string{"application/json", "application/hal+json"},
 		Schemes:            []string{"https"},
 		Params:             params,
 		Reader:             &SnapmirrorRelationshipsGetReader{formats: a.formats},

@@ -357,6 +357,14 @@ type VolumeDeleteCollectionParams struct {
 	*/
 	AnalyticsUnsupportedReasonMessage *string
 
+	/* AntiRansomwareAttackDetectedBy.
+
+	   Filter by anti_ransomware.attack_detected_by
+
+	   Format: string
+	*/
+	AntiRansomwareAttackDetectedBy *string
+
 	/* AntiRansomwareAttackDetectionParametersBasedOnFileCreateOpRate.
 
 	   Filter by anti_ransomware.attack_detection_parameters.based_on_file_create_op_rate
@@ -1173,6 +1181,22 @@ type VolumeDeleteCollectionParams struct {
 	*/
 	ConstituentsName *string
 
+	/* ConstituentsNodeName.
+
+	   Filter by constituents.node.name
+
+	   Format: string
+	*/
+	ConstituentsNodeName *string
+
+	/* ConstituentsNodeUUID.
+
+	   Filter by constituents.node.uuid
+
+	   Format: string
+	*/
+	ConstituentsNodeUUID *string
+
 	/* ConstituentsSpaceAfsTotal.
 
 	   Filter by constituents.space.afs_total
@@ -1912,6 +1936,14 @@ type VolumeDeleteCollectionParams struct {
 	*/
 	GuaranteeType *string
 
+	/* HasDirIndexPublic.
+
+	   Filter by has_dir_index_public
+
+	   Format: boolean
+	*/
+	HasDirIndexPublic *string
+
 	/* Info.
 
 	   Info specification
@@ -1926,6 +1958,14 @@ type VolumeDeleteCollectionParams struct {
 	   Default: "\"False\""
 	*/
 	IsConstituent *string
+
+	/* IsDirIndexTransferEnabled.
+
+	   Filter by is_dir_index_transfer_enabled
+
+	   Format: boolean
+	*/
+	IsDirIndexTransferEnabled *string
 
 	/* IsObjectStore.
 
@@ -2271,77 +2311,93 @@ type VolumeDeleteCollectionParams struct {
 	*/
 	Name *string
 
-	/* NASExportPolicyID.
+	/* NasExportPolicyID.
 
 	   Filter by nas.export_policy.id
 
 	   Format: integer
 	*/
-	NASExportPolicyID *string
+	NasExportPolicyID *string
 
-	/* NASExportPolicyName.
+	/* NasExportPolicyName.
 
 	   Filter by nas.export_policy.name
 
 	   Format: string
 	*/
-	NASExportPolicyName *string
+	NasExportPolicyName *string
 
-	/* NASGid.
+	/* NasGid.
 
 	   Filter by nas.gid
 
 	   Format: integer
 	*/
-	NASGid *string
+	NasGid *string
 
-	/* NASJunctionParentName.
+	/* NasJunctionParentName.
 
 	   Filter by nas.junction_parent.name
 
 	   Format: string
 	*/
-	NASJunctionParentName *string
+	NasJunctionParentName *string
 
-	/* NASJunctionParentUUID.
+	/* NasJunctionParentUUID.
 
 	   Filter by nas.junction_parent.uuid
 
 	   Format: string
 	*/
-	NASJunctionParentUUID *string
+	NasJunctionParentUUID *string
 
-	/* NASPath.
+	/* NasPath.
 
 	   Filter by nas.path
 
 	   Format: string
 	*/
-	NASPath *string
+	NasPath *string
 
-	/* NASSecurityStyle.
+	/* NasSecurityStyle.
 
 	   Filter by nas.security_style
 
 	   Format: string
 	*/
-	NASSecurityStyle *string
+	NasSecurityStyle *string
 
-	/* NASUID.
+	/* NasUID.
 
 	   Filter by nas.uid
 
 	   Format: integer
 	*/
-	NASUID *string
+	NasUID *string
 
-	/* NASUnixPermissions.
+	/* NasUnixPermissions.
 
 	   Filter by nas.unix_permissions
 
 	   Format: integer
 	*/
-	NASUnixPermissions *string
+	NasUnixPermissions *string
+
+	/* NodesName.
+
+	   Filter by nodes.name
+
+	   Format: string
+	*/
+	NodesName *string
+
+	/* NodesUUID.
+
+	   Filter by nodes.uuid
+
+	   Format: string
+	*/
+	NodesUUID *string
 
 	/* QosPolicyMaxThroughputIops.
 
@@ -2986,13 +3042,13 @@ type VolumeDeleteCollectionParams struct {
 	*/
 	SnapmirrorDestinationsIsCloud *string
 
-	/* SnapmirrorDestinationsIsONTAP.
+	/* SnapmirrorDestinationsIsOntap.
 
 	   Filter by snapmirror.destinations.is_ontap
 
 	   Format: boolean
 	*/
-	SnapmirrorDestinationsIsONTAP *string
+	SnapmirrorDestinationsIsOntap *string
 
 	/* SnapmirrorIsProtected.
 
@@ -5096,6 +5152,17 @@ func (o *VolumeDeleteCollectionParams) SetAnalyticsUnsupportedReasonMessage(anal
 	o.AnalyticsUnsupportedReasonMessage = analyticsUnsupportedReasonMessage
 }
 
+// WithAntiRansomwareAttackDetectedBy adds the antiRansomwareAttackDetectedBy to the volume delete collection params
+func (o *VolumeDeleteCollectionParams) WithAntiRansomwareAttackDetectedBy(antiRansomwareAttackDetectedBy *string) *VolumeDeleteCollectionParams {
+	o.SetAntiRansomwareAttackDetectedBy(antiRansomwareAttackDetectedBy)
+	return o
+}
+
+// SetAntiRansomwareAttackDetectedBy adds the antiRansomwareAttackDetectedBy to the volume delete collection params
+func (o *VolumeDeleteCollectionParams) SetAntiRansomwareAttackDetectedBy(antiRansomwareAttackDetectedBy *string) {
+	o.AntiRansomwareAttackDetectedBy = antiRansomwareAttackDetectedBy
+}
+
 // WithAntiRansomwareAttackDetectionParametersBasedOnFileCreateOpRate adds the antiRansomwareAttackDetectionParametersBasedOnFileCreateOpRate to the volume delete collection params
 func (o *VolumeDeleteCollectionParams) WithAntiRansomwareAttackDetectionParametersBasedOnFileCreateOpRate(antiRansomwareAttackDetectionParametersBasedOnFileCreateOpRate *string) *VolumeDeleteCollectionParams {
 	o.SetAntiRansomwareAttackDetectionParametersBasedOnFileCreateOpRate(antiRansomwareAttackDetectionParametersBasedOnFileCreateOpRate)
@@ -6218,6 +6285,28 @@ func (o *VolumeDeleteCollectionParams) SetConstituentsName(constituentsName *str
 	o.ConstituentsName = constituentsName
 }
 
+// WithConstituentsNodeName adds the constituentsNodeName to the volume delete collection params
+func (o *VolumeDeleteCollectionParams) WithConstituentsNodeName(constituentsNodeName *string) *VolumeDeleteCollectionParams {
+	o.SetConstituentsNodeName(constituentsNodeName)
+	return o
+}
+
+// SetConstituentsNodeName adds the constituentsNodeName to the volume delete collection params
+func (o *VolumeDeleteCollectionParams) SetConstituentsNodeName(constituentsNodeName *string) {
+	o.ConstituentsNodeName = constituentsNodeName
+}
+
+// WithConstituentsNodeUUID adds the constituentsNodeUUID to the volume delete collection params
+func (o *VolumeDeleteCollectionParams) WithConstituentsNodeUUID(constituentsNodeUUID *string) *VolumeDeleteCollectionParams {
+	o.SetConstituentsNodeUUID(constituentsNodeUUID)
+	return o
+}
+
+// SetConstituentsNodeUUID adds the constituentsNodeUuid to the volume delete collection params
+func (o *VolumeDeleteCollectionParams) SetConstituentsNodeUUID(constituentsNodeUUID *string) {
+	o.ConstituentsNodeUUID = constituentsNodeUUID
+}
+
 // WithConstituentsSpaceAfsTotal adds the constituentsSpaceAfsTotal to the volume delete collection params
 func (o *VolumeDeleteCollectionParams) WithConstituentsSpaceAfsTotal(constituentsSpaceAfsTotal *string) *VolumeDeleteCollectionParams {
 	o.SetConstituentsSpaceAfsTotal(constituentsSpaceAfsTotal)
@@ -7230,6 +7319,17 @@ func (o *VolumeDeleteCollectionParams) SetGuaranteeType(guaranteeType *string) {
 	o.GuaranteeType = guaranteeType
 }
 
+// WithHasDirIndexPublic adds the hasDirIndexPublic to the volume delete collection params
+func (o *VolumeDeleteCollectionParams) WithHasDirIndexPublic(hasDirIndexPublic *string) *VolumeDeleteCollectionParams {
+	o.SetHasDirIndexPublic(hasDirIndexPublic)
+	return o
+}
+
+// SetHasDirIndexPublic adds the hasDirIndexPublic to the volume delete collection params
+func (o *VolumeDeleteCollectionParams) SetHasDirIndexPublic(hasDirIndexPublic *string) {
+	o.HasDirIndexPublic = hasDirIndexPublic
+}
+
 // WithInfo adds the info to the volume delete collection params
 func (o *VolumeDeleteCollectionParams) WithInfo(info VolumeDeleteCollectionBody) *VolumeDeleteCollectionParams {
 	o.SetInfo(info)
@@ -7250,6 +7350,17 @@ func (o *VolumeDeleteCollectionParams) WithIsConstituent(isConstituent *string) 
 // SetIsConstituent adds the isConstituent to the volume delete collection params
 func (o *VolumeDeleteCollectionParams) SetIsConstituent(isConstituent *string) {
 	o.IsConstituent = isConstituent
+}
+
+// WithIsDirIndexTransferEnabled adds the isDirIndexTransferEnabled to the volume delete collection params
+func (o *VolumeDeleteCollectionParams) WithIsDirIndexTransferEnabled(isDirIndexTransferEnabled *string) *VolumeDeleteCollectionParams {
+	o.SetIsDirIndexTransferEnabled(isDirIndexTransferEnabled)
+	return o
+}
+
+// SetIsDirIndexTransferEnabled adds the isDirIndexTransferEnabled to the volume delete collection params
+func (o *VolumeDeleteCollectionParams) SetIsDirIndexTransferEnabled(isDirIndexTransferEnabled *string) {
+	o.IsDirIndexTransferEnabled = isDirIndexTransferEnabled
 }
 
 // WithIsObjectStore adds the isObjectStore to the volume delete collection params
@@ -7725,103 +7836,125 @@ func (o *VolumeDeleteCollectionParams) SetName(name *string) {
 	o.Name = name
 }
 
-// WithNASExportPolicyID adds the nASExportPolicyID to the volume delete collection params
-func (o *VolumeDeleteCollectionParams) WithNASExportPolicyID(nASExportPolicyID *string) *VolumeDeleteCollectionParams {
-	o.SetNASExportPolicyID(nASExportPolicyID)
+// WithNasExportPolicyID adds the nasExportPolicyID to the volume delete collection params
+func (o *VolumeDeleteCollectionParams) WithNasExportPolicyID(nasExportPolicyID *string) *VolumeDeleteCollectionParams {
+	o.SetNasExportPolicyID(nasExportPolicyID)
 	return o
 }
 
-// SetNASExportPolicyID adds the nasExportPolicyId to the volume delete collection params
-func (o *VolumeDeleteCollectionParams) SetNASExportPolicyID(nASExportPolicyID *string) {
-	o.NASExportPolicyID = nASExportPolicyID
+// SetNasExportPolicyID adds the nasExportPolicyId to the volume delete collection params
+func (o *VolumeDeleteCollectionParams) SetNasExportPolicyID(nasExportPolicyID *string) {
+	o.NasExportPolicyID = nasExportPolicyID
 }
 
-// WithNASExportPolicyName adds the nASExportPolicyName to the volume delete collection params
-func (o *VolumeDeleteCollectionParams) WithNASExportPolicyName(nASExportPolicyName *string) *VolumeDeleteCollectionParams {
-	o.SetNASExportPolicyName(nASExportPolicyName)
+// WithNasExportPolicyName adds the nasExportPolicyName to the volume delete collection params
+func (o *VolumeDeleteCollectionParams) WithNasExportPolicyName(nasExportPolicyName *string) *VolumeDeleteCollectionParams {
+	o.SetNasExportPolicyName(nasExportPolicyName)
 	return o
 }
 
-// SetNASExportPolicyName adds the nasExportPolicyName to the volume delete collection params
-func (o *VolumeDeleteCollectionParams) SetNASExportPolicyName(nASExportPolicyName *string) {
-	o.NASExportPolicyName = nASExportPolicyName
+// SetNasExportPolicyName adds the nasExportPolicyName to the volume delete collection params
+func (o *VolumeDeleteCollectionParams) SetNasExportPolicyName(nasExportPolicyName *string) {
+	o.NasExportPolicyName = nasExportPolicyName
 }
 
-// WithNASGid adds the nASGid to the volume delete collection params
-func (o *VolumeDeleteCollectionParams) WithNASGid(nASGid *string) *VolumeDeleteCollectionParams {
-	o.SetNASGid(nASGid)
+// WithNasGid adds the nasGid to the volume delete collection params
+func (o *VolumeDeleteCollectionParams) WithNasGid(nasGid *string) *VolumeDeleteCollectionParams {
+	o.SetNasGid(nasGid)
 	return o
 }
 
-// SetNASGid adds the nasGid to the volume delete collection params
-func (o *VolumeDeleteCollectionParams) SetNASGid(nASGid *string) {
-	o.NASGid = nASGid
+// SetNasGid adds the nasGid to the volume delete collection params
+func (o *VolumeDeleteCollectionParams) SetNasGid(nasGid *string) {
+	o.NasGid = nasGid
 }
 
-// WithNASJunctionParentName adds the nASJunctionParentName to the volume delete collection params
-func (o *VolumeDeleteCollectionParams) WithNASJunctionParentName(nASJunctionParentName *string) *VolumeDeleteCollectionParams {
-	o.SetNASJunctionParentName(nASJunctionParentName)
+// WithNasJunctionParentName adds the nasJunctionParentName to the volume delete collection params
+func (o *VolumeDeleteCollectionParams) WithNasJunctionParentName(nasJunctionParentName *string) *VolumeDeleteCollectionParams {
+	o.SetNasJunctionParentName(nasJunctionParentName)
 	return o
 }
 
-// SetNASJunctionParentName adds the nasJunctionParentName to the volume delete collection params
-func (o *VolumeDeleteCollectionParams) SetNASJunctionParentName(nASJunctionParentName *string) {
-	o.NASJunctionParentName = nASJunctionParentName
+// SetNasJunctionParentName adds the nasJunctionParentName to the volume delete collection params
+func (o *VolumeDeleteCollectionParams) SetNasJunctionParentName(nasJunctionParentName *string) {
+	o.NasJunctionParentName = nasJunctionParentName
 }
 
-// WithNASJunctionParentUUID adds the nASJunctionParentUUID to the volume delete collection params
-func (o *VolumeDeleteCollectionParams) WithNASJunctionParentUUID(nASJunctionParentUUID *string) *VolumeDeleteCollectionParams {
-	o.SetNASJunctionParentUUID(nASJunctionParentUUID)
+// WithNasJunctionParentUUID adds the nasJunctionParentUUID to the volume delete collection params
+func (o *VolumeDeleteCollectionParams) WithNasJunctionParentUUID(nasJunctionParentUUID *string) *VolumeDeleteCollectionParams {
+	o.SetNasJunctionParentUUID(nasJunctionParentUUID)
 	return o
 }
 
-// SetNASJunctionParentUUID adds the nasJunctionParentUuid to the volume delete collection params
-func (o *VolumeDeleteCollectionParams) SetNASJunctionParentUUID(nASJunctionParentUUID *string) {
-	o.NASJunctionParentUUID = nASJunctionParentUUID
+// SetNasJunctionParentUUID adds the nasJunctionParentUuid to the volume delete collection params
+func (o *VolumeDeleteCollectionParams) SetNasJunctionParentUUID(nasJunctionParentUUID *string) {
+	o.NasJunctionParentUUID = nasJunctionParentUUID
 }
 
-// WithNASPath adds the nASPath to the volume delete collection params
-func (o *VolumeDeleteCollectionParams) WithNASPath(nASPath *string) *VolumeDeleteCollectionParams {
-	o.SetNASPath(nASPath)
+// WithNasPath adds the nasPath to the volume delete collection params
+func (o *VolumeDeleteCollectionParams) WithNasPath(nasPath *string) *VolumeDeleteCollectionParams {
+	o.SetNasPath(nasPath)
 	return o
 }
 
-// SetNASPath adds the nasPath to the volume delete collection params
-func (o *VolumeDeleteCollectionParams) SetNASPath(nASPath *string) {
-	o.NASPath = nASPath
+// SetNasPath adds the nasPath to the volume delete collection params
+func (o *VolumeDeleteCollectionParams) SetNasPath(nasPath *string) {
+	o.NasPath = nasPath
 }
 
-// WithNASSecurityStyle adds the nASSecurityStyle to the volume delete collection params
-func (o *VolumeDeleteCollectionParams) WithNASSecurityStyle(nASSecurityStyle *string) *VolumeDeleteCollectionParams {
-	o.SetNASSecurityStyle(nASSecurityStyle)
+// WithNasSecurityStyle adds the nasSecurityStyle to the volume delete collection params
+func (o *VolumeDeleteCollectionParams) WithNasSecurityStyle(nasSecurityStyle *string) *VolumeDeleteCollectionParams {
+	o.SetNasSecurityStyle(nasSecurityStyle)
 	return o
 }
 
-// SetNASSecurityStyle adds the nasSecurityStyle to the volume delete collection params
-func (o *VolumeDeleteCollectionParams) SetNASSecurityStyle(nASSecurityStyle *string) {
-	o.NASSecurityStyle = nASSecurityStyle
+// SetNasSecurityStyle adds the nasSecurityStyle to the volume delete collection params
+func (o *VolumeDeleteCollectionParams) SetNasSecurityStyle(nasSecurityStyle *string) {
+	o.NasSecurityStyle = nasSecurityStyle
 }
 
-// WithNASUID adds the nASUID to the volume delete collection params
-func (o *VolumeDeleteCollectionParams) WithNASUID(nASUID *string) *VolumeDeleteCollectionParams {
-	o.SetNASUID(nASUID)
+// WithNasUID adds the nasUID to the volume delete collection params
+func (o *VolumeDeleteCollectionParams) WithNasUID(nasUID *string) *VolumeDeleteCollectionParams {
+	o.SetNasUID(nasUID)
 	return o
 }
 
-// SetNASUID adds the nasUid to the volume delete collection params
-func (o *VolumeDeleteCollectionParams) SetNASUID(nASUID *string) {
-	o.NASUID = nASUID
+// SetNasUID adds the nasUid to the volume delete collection params
+func (o *VolumeDeleteCollectionParams) SetNasUID(nasUID *string) {
+	o.NasUID = nasUID
 }
 
-// WithNASUnixPermissions adds the nASUnixPermissions to the volume delete collection params
-func (o *VolumeDeleteCollectionParams) WithNASUnixPermissions(nASUnixPermissions *string) *VolumeDeleteCollectionParams {
-	o.SetNASUnixPermissions(nASUnixPermissions)
+// WithNasUnixPermissions adds the nasUnixPermissions to the volume delete collection params
+func (o *VolumeDeleteCollectionParams) WithNasUnixPermissions(nasUnixPermissions *string) *VolumeDeleteCollectionParams {
+	o.SetNasUnixPermissions(nasUnixPermissions)
 	return o
 }
 
-// SetNASUnixPermissions adds the nasUnixPermissions to the volume delete collection params
-func (o *VolumeDeleteCollectionParams) SetNASUnixPermissions(nASUnixPermissions *string) {
-	o.NASUnixPermissions = nASUnixPermissions
+// SetNasUnixPermissions adds the nasUnixPermissions to the volume delete collection params
+func (o *VolumeDeleteCollectionParams) SetNasUnixPermissions(nasUnixPermissions *string) {
+	o.NasUnixPermissions = nasUnixPermissions
+}
+
+// WithNodesName adds the nodesName to the volume delete collection params
+func (o *VolumeDeleteCollectionParams) WithNodesName(nodesName *string) *VolumeDeleteCollectionParams {
+	o.SetNodesName(nodesName)
+	return o
+}
+
+// SetNodesName adds the nodesName to the volume delete collection params
+func (o *VolumeDeleteCollectionParams) SetNodesName(nodesName *string) {
+	o.NodesName = nodesName
+}
+
+// WithNodesUUID adds the nodesUUID to the volume delete collection params
+func (o *VolumeDeleteCollectionParams) WithNodesUUID(nodesUUID *string) *VolumeDeleteCollectionParams {
+	o.SetNodesUUID(nodesUUID)
+	return o
+}
+
+// SetNodesUUID adds the nodesUuid to the volume delete collection params
+func (o *VolumeDeleteCollectionParams) SetNodesUUID(nodesUUID *string) {
+	o.NodesUUID = nodesUUID
 }
 
 // WithQosPolicyMaxThroughputIops adds the qosPolicyMaxThroughputIops to the volume delete collection params
@@ -8704,15 +8837,15 @@ func (o *VolumeDeleteCollectionParams) SetSnapmirrorDestinationsIsCloud(snapmirr
 	o.SnapmirrorDestinationsIsCloud = snapmirrorDestinationsIsCloud
 }
 
-// WithSnapmirrorDestinationsIsONTAP adds the snapmirrorDestinationsIsONTAP to the volume delete collection params
-func (o *VolumeDeleteCollectionParams) WithSnapmirrorDestinationsIsONTAP(snapmirrorDestinationsIsONTAP *string) *VolumeDeleteCollectionParams {
-	o.SetSnapmirrorDestinationsIsONTAP(snapmirrorDestinationsIsONTAP)
+// WithSnapmirrorDestinationsIsOntap adds the snapmirrorDestinationsIsOntap to the volume delete collection params
+func (o *VolumeDeleteCollectionParams) WithSnapmirrorDestinationsIsOntap(snapmirrorDestinationsIsOntap *string) *VolumeDeleteCollectionParams {
+	o.SetSnapmirrorDestinationsIsOntap(snapmirrorDestinationsIsOntap)
 	return o
 }
 
-// SetSnapmirrorDestinationsIsONTAP adds the snapmirrorDestinationsIsOntap to the volume delete collection params
-func (o *VolumeDeleteCollectionParams) SetSnapmirrorDestinationsIsONTAP(snapmirrorDestinationsIsONTAP *string) {
-	o.SnapmirrorDestinationsIsONTAP = snapmirrorDestinationsIsONTAP
+// SetSnapmirrorDestinationsIsOntap adds the snapmirrorDestinationsIsOntap to the volume delete collection params
+func (o *VolumeDeleteCollectionParams) SetSnapmirrorDestinationsIsOntap(snapmirrorDestinationsIsOntap *string) {
+	o.SnapmirrorDestinationsIsOntap = snapmirrorDestinationsIsOntap
 }
 
 // WithSnapmirrorIsProtected adds the snapmirrorIsProtected to the volume delete collection params
@@ -11574,6 +11707,23 @@ func (o *VolumeDeleteCollectionParams) WriteToRequest(r runtime.ClientRequest, r
 		}
 	}
 
+	if o.AntiRansomwareAttackDetectedBy != nil {
+
+		// query param anti_ransomware.attack_detected_by
+		var qrAntiRansomwareAttackDetectedBy string
+
+		if o.AntiRansomwareAttackDetectedBy != nil {
+			qrAntiRansomwareAttackDetectedBy = *o.AntiRansomwareAttackDetectedBy
+		}
+		qAntiRansomwareAttackDetectedBy := qrAntiRansomwareAttackDetectedBy
+		if qAntiRansomwareAttackDetectedBy != "" {
+
+			if err := r.SetQueryParam("anti_ransomware.attack_detected_by", qAntiRansomwareAttackDetectedBy); err != nil {
+				return err
+			}
+		}
+	}
+
 	if o.AntiRansomwareAttackDetectionParametersBasedOnFileCreateOpRate != nil {
 
 		// query param anti_ransomware.attack_detection_parameters.based_on_file_create_op_rate
@@ -13308,6 +13458,40 @@ func (o *VolumeDeleteCollectionParams) WriteToRequest(r runtime.ClientRequest, r
 		}
 	}
 
+	if o.ConstituentsNodeName != nil {
+
+		// query param constituents.node.name
+		var qrConstituentsNodeName string
+
+		if o.ConstituentsNodeName != nil {
+			qrConstituentsNodeName = *o.ConstituentsNodeName
+		}
+		qConstituentsNodeName := qrConstituentsNodeName
+		if qConstituentsNodeName != "" {
+
+			if err := r.SetQueryParam("constituents.node.name", qConstituentsNodeName); err != nil {
+				return err
+			}
+		}
+	}
+
+	if o.ConstituentsNodeUUID != nil {
+
+		// query param constituents.node.uuid
+		var qrConstituentsNodeUUID string
+
+		if o.ConstituentsNodeUUID != nil {
+			qrConstituentsNodeUUID = *o.ConstituentsNodeUUID
+		}
+		qConstituentsNodeUUID := qrConstituentsNodeUUID
+		if qConstituentsNodeUUID != "" {
+
+			if err := r.SetQueryParam("constituents.node.uuid", qConstituentsNodeUUID); err != nil {
+				return err
+			}
+		}
+	}
+
 	if o.ConstituentsSpaceAfsTotal != nil {
 
 		// query param constituents.space.afs_total
@@ -14871,6 +15055,23 @@ func (o *VolumeDeleteCollectionParams) WriteToRequest(r runtime.ClientRequest, r
 			}
 		}
 	}
+
+	if o.HasDirIndexPublic != nil {
+
+		// query param has_dir_index_public
+		var qrHasDirIndexPublic string
+
+		if o.HasDirIndexPublic != nil {
+			qrHasDirIndexPublic = *o.HasDirIndexPublic
+		}
+		qHasDirIndexPublic := qrHasDirIndexPublic
+		if qHasDirIndexPublic != "" {
+
+			if err := r.SetQueryParam("has_dir_index_public", qHasDirIndexPublic); err != nil {
+				return err
+			}
+		}
+	}
 	if err := r.SetBodyParam(o.Info); err != nil {
 		return err
 	}
@@ -14887,6 +15088,23 @@ func (o *VolumeDeleteCollectionParams) WriteToRequest(r runtime.ClientRequest, r
 		if qIsConstituent != "" {
 
 			if err := r.SetQueryParam("is_constituent", qIsConstituent); err != nil {
+				return err
+			}
+		}
+	}
+
+	if o.IsDirIndexTransferEnabled != nil {
+
+		// query param is_dir_index_transfer_enabled
+		var qrIsDirIndexTransferEnabled string
+
+		if o.IsDirIndexTransferEnabled != nil {
+			qrIsDirIndexTransferEnabled = *o.IsDirIndexTransferEnabled
+		}
+		qIsDirIndexTransferEnabled := qrIsDirIndexTransferEnabled
+		if qIsDirIndexTransferEnabled != "" {
+
+			if err := r.SetQueryParam("is_dir_index_transfer_enabled", qIsDirIndexTransferEnabled); err != nil {
 				return err
 			}
 		}
@@ -15623,154 +15841,188 @@ func (o *VolumeDeleteCollectionParams) WriteToRequest(r runtime.ClientRequest, r
 		}
 	}
 
-	if o.NASExportPolicyID != nil {
+	if o.NasExportPolicyID != nil {
 
 		// query param nas.export_policy.id
-		var qrNASExportPolicyID string
+		var qrNasExportPolicyID string
 
-		if o.NASExportPolicyID != nil {
-			qrNASExportPolicyID = *o.NASExportPolicyID
+		if o.NasExportPolicyID != nil {
+			qrNasExportPolicyID = *o.NasExportPolicyID
 		}
-		qNASExportPolicyID := qrNASExportPolicyID
-		if qNASExportPolicyID != "" {
+		qNasExportPolicyID := qrNasExportPolicyID
+		if qNasExportPolicyID != "" {
 
-			if err := r.SetQueryParam("nas.export_policy.id", qNASExportPolicyID); err != nil {
+			if err := r.SetQueryParam("nas.export_policy.id", qNasExportPolicyID); err != nil {
 				return err
 			}
 		}
 	}
 
-	if o.NASExportPolicyName != nil {
+	if o.NasExportPolicyName != nil {
 
 		// query param nas.export_policy.name
-		var qrNASExportPolicyName string
+		var qrNasExportPolicyName string
 
-		if o.NASExportPolicyName != nil {
-			qrNASExportPolicyName = *o.NASExportPolicyName
+		if o.NasExportPolicyName != nil {
+			qrNasExportPolicyName = *o.NasExportPolicyName
 		}
-		qNASExportPolicyName := qrNASExportPolicyName
-		if qNASExportPolicyName != "" {
+		qNasExportPolicyName := qrNasExportPolicyName
+		if qNasExportPolicyName != "" {
 
-			if err := r.SetQueryParam("nas.export_policy.name", qNASExportPolicyName); err != nil {
+			if err := r.SetQueryParam("nas.export_policy.name", qNasExportPolicyName); err != nil {
 				return err
 			}
 		}
 	}
 
-	if o.NASGid != nil {
+	if o.NasGid != nil {
 
 		// query param nas.gid
-		var qrNASGid string
+		var qrNasGid string
 
-		if o.NASGid != nil {
-			qrNASGid = *o.NASGid
+		if o.NasGid != nil {
+			qrNasGid = *o.NasGid
 		}
-		qNASGid := qrNASGid
-		if qNASGid != "" {
+		qNasGid := qrNasGid
+		if qNasGid != "" {
 
-			if err := r.SetQueryParam("nas.gid", qNASGid); err != nil {
+			if err := r.SetQueryParam("nas.gid", qNasGid); err != nil {
 				return err
 			}
 		}
 	}
 
-	if o.NASJunctionParentName != nil {
+	if o.NasJunctionParentName != nil {
 
 		// query param nas.junction_parent.name
-		var qrNASJunctionParentName string
+		var qrNasJunctionParentName string
 
-		if o.NASJunctionParentName != nil {
-			qrNASJunctionParentName = *o.NASJunctionParentName
+		if o.NasJunctionParentName != nil {
+			qrNasJunctionParentName = *o.NasJunctionParentName
 		}
-		qNASJunctionParentName := qrNASJunctionParentName
-		if qNASJunctionParentName != "" {
+		qNasJunctionParentName := qrNasJunctionParentName
+		if qNasJunctionParentName != "" {
 
-			if err := r.SetQueryParam("nas.junction_parent.name", qNASJunctionParentName); err != nil {
+			if err := r.SetQueryParam("nas.junction_parent.name", qNasJunctionParentName); err != nil {
 				return err
 			}
 		}
 	}
 
-	if o.NASJunctionParentUUID != nil {
+	if o.NasJunctionParentUUID != nil {
 
 		// query param nas.junction_parent.uuid
-		var qrNASJunctionParentUUID string
+		var qrNasJunctionParentUUID string
 
-		if o.NASJunctionParentUUID != nil {
-			qrNASJunctionParentUUID = *o.NASJunctionParentUUID
+		if o.NasJunctionParentUUID != nil {
+			qrNasJunctionParentUUID = *o.NasJunctionParentUUID
 		}
-		qNASJunctionParentUUID := qrNASJunctionParentUUID
-		if qNASJunctionParentUUID != "" {
+		qNasJunctionParentUUID := qrNasJunctionParentUUID
+		if qNasJunctionParentUUID != "" {
 
-			if err := r.SetQueryParam("nas.junction_parent.uuid", qNASJunctionParentUUID); err != nil {
+			if err := r.SetQueryParam("nas.junction_parent.uuid", qNasJunctionParentUUID); err != nil {
 				return err
 			}
 		}
 	}
 
-	if o.NASPath != nil {
+	if o.NasPath != nil {
 
 		// query param nas.path
-		var qrNASPath string
+		var qrNasPath string
 
-		if o.NASPath != nil {
-			qrNASPath = *o.NASPath
+		if o.NasPath != nil {
+			qrNasPath = *o.NasPath
 		}
-		qNASPath := qrNASPath
-		if qNASPath != "" {
+		qNasPath := qrNasPath
+		if qNasPath != "" {
 
-			if err := r.SetQueryParam("nas.path", qNASPath); err != nil {
+			if err := r.SetQueryParam("nas.path", qNasPath); err != nil {
 				return err
 			}
 		}
 	}
 
-	if o.NASSecurityStyle != nil {
+	if o.NasSecurityStyle != nil {
 
 		// query param nas.security_style
-		var qrNASSecurityStyle string
+		var qrNasSecurityStyle string
 
-		if o.NASSecurityStyle != nil {
-			qrNASSecurityStyle = *o.NASSecurityStyle
+		if o.NasSecurityStyle != nil {
+			qrNasSecurityStyle = *o.NasSecurityStyle
 		}
-		qNASSecurityStyle := qrNASSecurityStyle
-		if qNASSecurityStyle != "" {
+		qNasSecurityStyle := qrNasSecurityStyle
+		if qNasSecurityStyle != "" {
 
-			if err := r.SetQueryParam("nas.security_style", qNASSecurityStyle); err != nil {
+			if err := r.SetQueryParam("nas.security_style", qNasSecurityStyle); err != nil {
 				return err
 			}
 		}
 	}
 
-	if o.NASUID != nil {
+	if o.NasUID != nil {
 
 		// query param nas.uid
-		var qrNASUID string
+		var qrNasUID string
 
-		if o.NASUID != nil {
-			qrNASUID = *o.NASUID
+		if o.NasUID != nil {
+			qrNasUID = *o.NasUID
 		}
-		qNASUID := qrNASUID
-		if qNASUID != "" {
+		qNasUID := qrNasUID
+		if qNasUID != "" {
 
-			if err := r.SetQueryParam("nas.uid", qNASUID); err != nil {
+			if err := r.SetQueryParam("nas.uid", qNasUID); err != nil {
 				return err
 			}
 		}
 	}
 
-	if o.NASUnixPermissions != nil {
+	if o.NasUnixPermissions != nil {
 
 		// query param nas.unix_permissions
-		var qrNASUnixPermissions string
+		var qrNasUnixPermissions string
 
-		if o.NASUnixPermissions != nil {
-			qrNASUnixPermissions = *o.NASUnixPermissions
+		if o.NasUnixPermissions != nil {
+			qrNasUnixPermissions = *o.NasUnixPermissions
 		}
-		qNASUnixPermissions := qrNASUnixPermissions
-		if qNASUnixPermissions != "" {
+		qNasUnixPermissions := qrNasUnixPermissions
+		if qNasUnixPermissions != "" {
 
-			if err := r.SetQueryParam("nas.unix_permissions", qNASUnixPermissions); err != nil {
+			if err := r.SetQueryParam("nas.unix_permissions", qNasUnixPermissions); err != nil {
+				return err
+			}
+		}
+	}
+
+	if o.NodesName != nil {
+
+		// query param nodes.name
+		var qrNodesName string
+
+		if o.NodesName != nil {
+			qrNodesName = *o.NodesName
+		}
+		qNodesName := qrNodesName
+		if qNodesName != "" {
+
+			if err := r.SetQueryParam("nodes.name", qNodesName); err != nil {
+				return err
+			}
+		}
+	}
+
+	if o.NodesUUID != nil {
+
+		// query param nodes.uuid
+		var qrNodesUUID string
+
+		if o.NodesUUID != nil {
+			qrNodesUUID = *o.NodesUUID
+		}
+		qNodesUUID := qrNodesUUID
+		if qNodesUUID != "" {
+
+			if err := r.SetQueryParam("nodes.uuid", qNodesUUID); err != nil {
 				return err
 			}
 		}
@@ -17136,18 +17388,18 @@ func (o *VolumeDeleteCollectionParams) WriteToRequest(r runtime.ClientRequest, r
 		}
 	}
 
-	if o.SnapmirrorDestinationsIsONTAP != nil {
+	if o.SnapmirrorDestinationsIsOntap != nil {
 
 		// query param snapmirror.destinations.is_ontap
-		var qrSnapmirrorDestinationsIsONTAP string
+		var qrSnapmirrorDestinationsIsOntap string
 
-		if o.SnapmirrorDestinationsIsONTAP != nil {
-			qrSnapmirrorDestinationsIsONTAP = *o.SnapmirrorDestinationsIsONTAP
+		if o.SnapmirrorDestinationsIsOntap != nil {
+			qrSnapmirrorDestinationsIsOntap = *o.SnapmirrorDestinationsIsOntap
 		}
-		qSnapmirrorDestinationsIsONTAP := qrSnapmirrorDestinationsIsONTAP
-		if qSnapmirrorDestinationsIsONTAP != "" {
+		qSnapmirrorDestinationsIsOntap := qrSnapmirrorDestinationsIsOntap
+		if qSnapmirrorDestinationsIsOntap != "" {
 
-			if err := r.SetQueryParam("snapmirror.destinations.is_ontap", qSnapmirrorDestinationsIsONTAP); err != nil {
+			if err := r.SetQueryParam("snapmirror.destinations.is_ontap", qSnapmirrorDestinationsIsOntap); err != nil {
 				return err
 			}
 		}

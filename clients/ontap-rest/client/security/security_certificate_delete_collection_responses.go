@@ -7,6 +7,7 @@ package security
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"io"
 	"strconv"
@@ -89,11 +90,11 @@ func (o *SecurityCertificateDeleteCollectionOK) Code() int {
 }
 
 func (o *SecurityCertificateDeleteCollectionOK) Error() string {
-	return fmt.Sprintf("[DELETE /security/certificates][%d] securityCertificateDeleteCollectionOK ", 200)
+	return fmt.Sprintf("[DELETE /security/certificates][%d] securityCertificateDeleteCollectionOK", 200)
 }
 
 func (o *SecurityCertificateDeleteCollectionOK) String() string {
-	return fmt.Sprintf("[DELETE /security/certificates][%d] securityCertificateDeleteCollectionOK ", 200)
+	return fmt.Sprintf("[DELETE /security/certificates][%d] securityCertificateDeleteCollectionOK", 200)
 }
 
 func (o *SecurityCertificateDeleteCollectionOK) readResponse(response runtime.ClientResponse, consumer runtime.Consumer, formats strfmt.Registry) error {
@@ -162,11 +163,13 @@ func (o *SecurityCertificateDeleteCollectionDefault) Code() int {
 }
 
 func (o *SecurityCertificateDeleteCollectionDefault) Error() string {
-	return fmt.Sprintf("[DELETE /security/certificates][%d] security_certificate_delete_collection default  %+v", o._statusCode, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[DELETE /security/certificates][%d] security_certificate_delete_collection default %s", o._statusCode, payload)
 }
 
 func (o *SecurityCertificateDeleteCollectionDefault) String() string {
-	return fmt.Sprintf("[DELETE /security/certificates][%d] security_certificate_delete_collection default  %+v", o._statusCode, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[DELETE /security/certificates][%d] security_certificate_delete_collection default %s", o._statusCode, payload)
 }
 
 func (o *SecurityCertificateDeleteCollectionDefault) GetPayload() *models.ErrorResponse {
@@ -254,6 +257,11 @@ func (o *SecurityCertificateDeleteCollectionBody) contextValidateSecurityCertifi
 	for i := 0; i < len(o.SecurityCertificateResponseInlineRecords); i++ {
 
 		if o.SecurityCertificateResponseInlineRecords[i] != nil {
+
+			if swag.IsZero(o.SecurityCertificateResponseInlineRecords[i]) { // not required
+				return nil
+			}
+
 			if err := o.SecurityCertificateResponseInlineRecords[i].ContextValidate(ctx, formats); err != nil {
 				if ve, ok := err.(*errors.Validation); ok {
 					return ve.ValidateName("info" + "." + "records" + "." + strconv.Itoa(i))
