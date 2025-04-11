@@ -1,0 +1,1912 @@
+swagger: '2.0'
+info:
+  title: ONTAP PRIVATE REST
+  version: v1
+  description: Swagger for private ONTAP REST API
+basePath: /api
+consumes:
+  - application/json
+  - application/hal+json
+produces:
+  - application/json
+  - application/hal+json
+schemes:
+  - https
+paths:
+  /private/cli/security/key-manager/external/azure/update-config:
+    patch:
+      operationId: azure_update_config
+      parameters:
+        - name: vserver
+          in: query
+          required: true
+          type: string
+        - name: body
+          in: body
+          required: true
+          schema:
+            type: object
+            title: Azure config
+            required:
+              - oauth-host
+            properties:
+              oauth-host:
+                type: string
+                description: OAuth host to use when fetching JWT token to authenticate to Azure Key Vault
+                example: login.microsoftonline.com
+      responses:
+        '200':
+          description: OK
+  /private/cli/cifs/check:
+    get:
+      operationId: cifs_check
+      parameters:
+        - name: vserver
+          in: query
+          required: true
+          type: string
+        - $ref: '../swagger.yaml#/parameters/fields_param'
+      responses:
+        200:
+          description: OK
+          schema:
+            $ref: "#/definitions/cifs_check_response"
+        default:
+          description: Error
+          schema:
+            $ref: "../swagger.yaml#/definitions/error_response"
+  /private/cli/diag/secd/dns/srv-lookup:
+    # TODO dhruvg 2023-06-13 JIRA https://jira.ngage.netapp.com/browse/NFSAAS-57363
+    post:
+      description: "get the list of domain controllers"
+      operationId: srv_lookup
+      parameters:
+        - name: body
+          in: body
+          description: "get the list of domain controllers"
+          schema:
+            $ref: "#/definitions/srvLookup"
+          required: true
+      responses:
+        '200':
+          description: Ok
+          schema:
+            $ref: "#/definitions/srvLookupResponse"
+        default:
+          description: Error
+          schema:
+            $ref: "../swagger.yaml#/definitions/error_response"
+  /private/cli/network/ping:
+    post:
+      description: |-
+        The network ping command displays whether a remote address is reachable and responsive, the (if specified) number of transmitted and received packets,
+        and their round-trip time. The command requires a source node or logical interface from where the ping will be run, and a destination IP address.
+        You can specify the source node by name, or a logical interface and its Vserver.
+        ### Related ONTAP commands
+        * `network ping`
+      operationId: network_ping
+      parameters:
+        - name: body
+          in: body
+          description: Ping body
+          schema:
+            $ref: "#/definitions/ping"
+          required: true
+      responses:
+        200:
+          description: OK
+          schema:
+            $ref: "#/definitions/ping_response"
+        202:
+          description: Accepted
+        default:
+          description: Error
+          schema:
+            $ref: "../swagger.yaml#/definitions/error_response"
+  /private/cli/services/name-service/getxxbyyy/getgrlist:
+    post:
+      description: "get the group id list for a user"
+      operationId: GetGroupIDsList
+      parameters:
+        - name: body
+          in: body
+          description: "get the group id list for a user"
+          schema:
+            $ref: "#/definitions/getGroupIDList"
+          required: true
+      responses:
+        '200':
+          description: Ok
+          schema:
+            $ref: "#/definitions/getGroupListResponse"
+        default:
+          description: Error
+          schema:
+            $ref: "../swagger.yaml#/definitions/error_response"
+  ## TODO darri - JIRA https://jira.ngage.netapp.com/browse/NFSAAS-69157 -- JIRA issue to track BURT
+  /security/azure-key-vaults:
+    post:
+      description: 'Configures the AKV configuration for all clusters and SVMs.
+
+          ### Required properties:
+
+          * `svm.uuid` or `svm.name` - Existing SVM in which to create a AKV.
+
+          * `client_id` - Application (client) ID of the deployed Azure application
+          with appropriate access to an AKV.
+
+          * `tenant_id` - Directory (tenant) ID of the deployed Azure application with
+          appropriate access to an AKV.
+
+          * `client_secret` or `client_certificate` - Secret or PKCS12 Certificate used
+          by the application to prove its identity to AKV.
+
+          * `key_id`- Key Identifier of AKV encryption key.
+
+          * `name` - Name of the deployed AKV used by ONTAP for storing keys.
+
+          ### Optional properties:
+
+          * `port` - Authorization server and vault port number.
+
+          * `oauth_host` - Open authorization server host name.
+
+          * `vault_host` - AKV host subdomain.
+
+          * `proxy_type` - Type of proxy (http, https etc.) if proxy configuration is
+          used.
+
+          * `proxy_host` - Proxy hostname if proxy configuration is used.
+
+          * `proxy_port` - Proxy port number if proxy configuration is used.
+
+          * `proxy_username` - Proxy username if proxy configuration is used.
+
+          * `proxy_password` - Proxy password if proxy configuration is used.
+
+          * `configuration.name` - The configuration name to use when also setting the
+          `create_inactive` flag.
+
+          ### Optional parameters:
+
+          * `create_inactive` - Create an AKV configuration without enabling it. This
+          flag is set to "false" by default.
+
+          ### Related ONTAP commands
+
+          * `security key-manager external azure enable`
+
+          * `security key-manager external azure create-config`
+
+          * `security key-manager external azure update-config`
+
+  '
+      operationId: azure_key_vault_create
+      parameters:
+        - description: Info specification
+          in: body
+          name: info
+          schema:
+            $ref: '../swagger.yaml#/definitions/azure_key_vault'
+          x-ntap-introduced: DO_NOT_DISPLAY
+          x-nullable: true
+        - default: false
+          description: The default is false.  If set to true, the records are returned.
+          in: query
+          name: return_records
+          type: boolean
+          x-ntap-introduced: DO_NOT_DISPLAY
+          x-nullable: true
+        - name: create_inactive
+          in: query
+          description: Create an AKV configuration without enabling it. This flag is set to "false" by default.
+          type: boolean
+          x-nullable: true
+      responses:
+        '201':
+          description: Created
+          headers:
+            Location:
+              description: Useful for tracking the resource location
+              type: string
+          schema:
+            $ref: '../swagger.yaml#/definitions/azure_key_vault_response'
+        default:
+          description: 'ONTAP Error Response Codes
+
+              | Error Code | Description |
+
+              | ---------- | ----------- |
+
+              | 3735553 | Failed to create self-signed certificate. |
+
+              | 3735664 | The specified key size is not supported in FIPS mode. |
+
+              | 3735665 | The specified hash function is not supported in FIPS mode.
+              |
+
+              | 3735700 | The specified key size is not supported. |
+
+              | 52559972 | The certificates start date is later than the current date.
+              |
+
+              | 65537500 | A key manager has already been configured for this SVM. |
+
+              | 65537504 | Internal error. Failed to store configuration in internal
+              database. |
+
+              | 65537505 | One or more volume encryption keys of the given SVM are stored
+              on a key manager configured for the admin SVM. |
+
+              | 65537506 | AKV is not supported in MetroCluster configurations. |
+
+              | 65537512 | AKV cannot be configured for the given SVM as not all nodes
+              in the cluster can enable the Azure Key Vault feature. |
+
+              | 65537514 | Failed to check if the Azure Key Vault feature is enabled.
+              |
+
+              | 65537518 | Failed to find an interface with Cluster role. |
+
+              | 65537523 | Invalid key ID format. Example key ID format\":" "https://mykeyvault.vault.azure.net/keys/key1/a8e619fd8f234db3b0b95c59540e2a74".
+              |
+
+              | 65537526 | Failed to enable Azure Key Vault feature. |
+
+              | 65537567 | No authentication method provided. |
+
+              | 65537573 | Invalid client certificate. |
+
+              | 65537589 | The specified configuration.name already exists on the given
+              SVM. |
+
+              | 65537592 | The configuration.name field requires an ECV of 9.14.0 or
+              greater. |
+
+              | 65537593 | The create_inactive flag requires an effective cluster version
+              of 9.14.0 or greater. |
+
+              | 65537594 | The configuration.name field is required when the create_inactive
+              flag is set to true. |
+
+              | 65537595 | The configuration.name field can only be specified when the
+              create_inactive flag is set to true. |
+
+              | 65538902 | The configuration.name is reserved for use by the system.
+              |
+
+              | 65538903 | The configuration.name field cannot be an empty string. |
+
+              Also see the table of common errors in the <a href="#Response_body">Response
+              body</a> overview section of this documentation.
+
+  '
+          schema:
+            $ref: '../swagger.yaml#/definitions/error_response'
+      x-ntap-introduced: '9.8'
+    x-ntap-long-description:
+      description: "## Overview\nAzure Key Vault (AKV) is a cloud key management service
+          (KMS) that provides a secure store for secrets. This feature\nallows ONTAP
+          to securely store its encryption keys using AKV.\nIn order to use AKV with
+          ONTAP, you must first deploy an Azure application with the appropriate access
+          to an AKV and then provide\nONTAP with the necessary details, such as key
+          vault name, application ID so that ONTAP can communicate with the deployed
+          Azure application.\nThe properties \"state\", \"azure_reachability\" and \"ekmip_reachability\"
+          are considered advanced properties and are populated only when explicitly
+          requested.\n## Examples\n### Enabling an AKV configuration for an SVM using
+          the certificate authentication method\nThe example AKV configuration is enabled
+          for a specific SVM. Note the <i>return_records=true</i> query parameter is
+          used to obtain the newly created key-manager keystore configuration.<br/>\n```\n#
+          The API:\nPOST /api/security/azure-key-vaults\n# The call:\ncurl -X POST 'https://<mgmt-ip>/api/security/azure-key-vaults?return_records=true'
+          -H 'accept: application/hal+json' -d \"{ \\\"svm\\\": { \\\"uuid\\\": \\\"4f7abf4c-9a07-11ea-8d52-005056bbeba5\\\"
+          }, \\\"client_id\\\": \\\"client1\\\", \\\"tenant_id\\\": \\\"tenant1\\\",
+          \\\"name\\\": \\\"https:://mykeyvault.azure.vault.net/\\\", \\\"key_id\\\":
+          \\\"https://keyvault-test.vault.azure.net/keys/key1/a8e619fd8f234db3b0b95c59540e2a74\\\",
+          \\\"client_certificate\\\" : \\\"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\\\"
+          }\"\n# The response:\n{\n  \"num_records\": 1,\n  \"records\": [\n    {\n
+          \     \"uuid\": \"024cd3cf-9a08-11ea-8d52-005056bbeba5\",\n      \"svm\":
+          {\n        \"uuid\": \"4f7abf4c-9a07-11ea-8d52-005056bbeba5\",\n        \"name\":
+          \"vs0\"\n      },\n      \"client_id\": \"client1\",\n      \"tenant_id\":
+          \"tenant1\",\n      \"name\": \"https:://mykeyvault.azure.vault.net/\",\n
+          \     \"key_id\": \"https://keyvault-test.vault.azure.net/keys/key1/a8e619fd8f234db3b0b95c59540e2a74\",\n
+          \     \"_links\": {\n        \"self\": {\n          \"href\": \"/api/security/azure-key-vaults/024cd3cf-9a08-11ea-8d52-005056bbeba5\"\n
+          \       }\n      }\n    }\n  ]\n}\n```\n---\n### Creating an inactive AKV
+          configuration for an SVM using the client secret authentication method\nThe
+          example AKV configuration is created for a specific SVM but is not enabled.\nNote
+          the <i>create_inactive=true</i> paramater that is used to indicate that the
+          configuration should be created but not enabled.\nNote the <i>return_records=true</i>
+          query parameter is used to obtain the newly created key-manager keystore configuration.<br/>\n```\n#
+          The API:\nPOST /api/security/azure-key-vaults\n# The call:\ncurl -X POST 'https://<mgmt-ip>/api/security/azure-key-vaults?create_inactive=true&return_records=true'
+          -H 'accept: application/hal+json' -d \"{ \\\"svm\\\": { \\\"uuid\\\": \\\"4f7abf4c-9a07-11ea-8d52-005056bbeba5\\\"
+          }, \\\"configuration\\\": {\\\"name\\\": \\\"myConfiguration\\\"}, \\\"client_id\\\":
+          \\\"client1\\\", \\\"tenant_id\\\": \\\"tenant1\\\", \\\"name\\\": \\\"https:://mykeyvault.azure.vault.net/\\\",
+          \\\"key_id\\\": \\\"https://keyvault-test.vault.azure.net/keys/key1/a8e619fd8f234db3b0b95c59540e2a74\\\",
+          \\\"client_secret\\\" : \\\"myclientPwd\\\" }\"\n# The response:\n{\n  \"num_records\":
+          1,\n  \"records\": [\n    {\n      \"uuid\": \"85619643-9a06-11ea-8d52-005056bbeba5\",\n
+          \     \"configuration\": {\"name\": \"myConfiguration\"},\n      \"client_id\":
+          \"client1\",\n      \"tenant_id\": \"tenant1\",\n      \"name\": \"https:://mykeyvault.azure.vault.net/\",\n
+          \     \"key_id\": \"https://keyvault-test.vault.azure.net/keys/key1/a8e619fd8f234db3b0b95c59540e2a74\",\n
+          \     \"_links\": {\n        \"self\": {\n          \"href\": \"/api/security/azure-key-vaults/85619643-9a06-11ea-8d52-005056bbeba5\"\n
+          \       }\n      }\n    }\n  ]\n}\n```\n---\n### Retrieving the AKVs configured
+          for all clusters and SVMs\nThe following example shows how to retrieve all
+          configured AKVs along with their configurations.\n```\n# The API:\nGET /api/security/azure-key-vaults\n#
+          The call:\ncurl -X GET 'https://<mgmt-ip>/api/security/azure-key-vaults?fields=*'\n#
+          The response:\n{\n  \"records\": [\n    {\n      \"configuration\": {\n        \"uuid\":
+          \"024cd3cf-9a08-11ea-8d52-005056bbeba5\",\n        \"name\" : \"default\"\n
+          \     },\n      \"uuid\": \"024cd3cf-9a08-11ea-8d52-005056bbeba5\",\n      \"scope\":
+          \"svm\",\n      \"svm\": {\n        \"uuid\": \"4f7abf4c-9a07-11ea-8d52-005056bbeba5\",\n
+          \       \"name\": \"vs0\"\n      },\n      \"client_id\": \"client1\",\n      \"tenant_id\":
+          \"tenant1\",\n      \"name\": \"https:://mykeyvault.azure.vault.net/\",\n
+          \     \"key_id\": \"https://keyvault-test.vault.azure.net/keys/key1/a8e619fd8f234db3b0b95c59540e2a74\",\n
+          \     \"authentication_method\": \"client_secret\",\n      \"enabled\": true,\n
+          \     \"_links\": {\n        \"self\": {\n          \"href\": \"/api/security/azure-key-vaults/024cd3cf-9a08-11ea-8d52-005056bbeba5\"\n
+          \       }\n      }\n    },\n    {\n      \"configuration\": {\n        \"uuid\":
+          \"85619643-9a06-11ea-8d52-005056bbeba5\",\n        \"name\" : \"new-config\"\n
+          \     },\n      \"uuid\": \"85619643-9a06-11ea-8d52-005056bbeba5\",\n      \"scope\":
+          \"cluster\",\n      \"client_id\": \"client1\",\n      \"tenant_id\": \"tenant1\",\n
+          \     \"name\": \"https:://mykeyvault.azure.vault.net/\",\n      \"key_id\":
+          \"https://keyvault-test.vault.azure.net/keys/key1/a8e619fd8f234db3b0b95c59540e2a74\",\n
+          \     \"authentication_method\": \"certificate\",\n      \"enabled\": false,\n
+          \     \"_links\": {\n        \"self\": {\n          \"href\": \"/api/security/azure-key-vaults/85619643-9a06-11ea-8d52-005056bbeba5\"\n
+          \       }\n      }\n    }\n  ],\n  \"num_records\": 2,\n  \"_links\": {\n
+          \   \"self\": {\n      \"href\": \"/api/security/azure-key-vaults?fields=*\"\n
+          \   }\n  }\n}\n```\n---\n### Retrieving a specific AKV configuration\nThe
+          following example retrieves a specific AKV configuration.\n```\n# The API:\nGET
+          /api/security/azure-key-vaults\n# The call:\ncurl -X GET 'https://<mgmt-ip>/api/security/azure-key-vaults/85619643-9a06-11ea-8d52-005056bbeba5?fields=*'\n#
+          The response:\n{\n  \"configuration\": {\n    \"uuid\": \"85619643-9a06-11ea-8d52-005056bbeba5\",\n
+          \   \"name\" : \"default\"\n  },\n  \"uuid\": \"85619643-9a06-11ea-8d52-005056bbeba5\",\n
+          \ \"scope\": \"cluster\",\n  \"client_id\": \"client1\",\n  \"tenant_id\":
+          \"tenant1\",\n  \"name\": \"https:://mykeyvault.azure.vault.net/\",\n  \"key_id\":
+          \"https://keyvault-test.vault.azure.net/keys/key1/a8e619fd8f234db3b0b95c59540e2a74\",\n
+          \ \"authentication_method\": \"client_secret\",\n  \"enabled\": true,\n  \"_links\":
+          {\n    \"self\": {\n      \"href\": \"/api/security/azure-key-vaults/85619643-9a06-11ea-8d52-005056bbeba5\"\n
+          \   }\n  }\n}\n```\n---\n### Retrieving the advanced properties of a specific,
+          enabled AKV configuration\nThe following example retrieves the advanced properties
+          of a specific enabled AKV configuration (inactive AKV configurations do not
+          have these advanced properties).\n```\n# The API:\nGET /api/security/azure-key-vaults\n#
+          The call:\ncurl -X GET 'https://<mgmt-ip>/api/security/azure-key-vaults/85619643-9a06-11ea-8d52-005056bbeba5?fields=state,azure_reachability,ekmip_reachability\"'\n{\n
+          \ \"configuration\": {\n    \"uuid\": \"85619643-9a06-11ea-8d52-005056bbeba5\",\n
+          \   \"name\" : \"default\"\n  },\n  \"uuid\": \"85619643-9a06-11ea-8d52-005056bbeba5\",\n
+          \ \"name\": \"https://10.234.237.18\",\n  \"state\": {\n    \"cluster_state\":
+          true,\n    \"message\": \"\",\n    \"code\": \"0\"\n  },\n  \"azure_reachability\":
+          {\n    \"reachable\": true,\n    \"message\": \"\",\n    \"code\": \"0\"\n
+          \ },\n  \"ekmip_reachability\": [\n    {\n      \"node\": {\n          \"uuid\":
+          \"d208115f-7721-11eb-bf83-005056bb150e\",\n          \"name\": \"node1\",\n
+          \         \"_links\": {\n              \"self\": {\n              \"href\":
+          \"/api/cluster/nodes/d208115f-7721-11eb-bf83-005056bb150e\"\n              }\n
+          \         }\n      },\n      \"reachable\": true,\n      \"message\": \"\",\n
+          \     \"code\": \"0\"\n    },\n    {\n      \"node\": {\n          \"uuid\":
+          \"e208115f-7721-11eb-bf83-005056bb150e\",\n          \"name\": \"node2\",\n
+          \         \"_links\": {\n              \"self\": {\n              \"href\":
+          \"/api/cluster/nodes/e208115f-7721-11eb-bf83-005056bb150e\"\n              }\n
+          \         }\n      },\n      \"reachable\": true,\n      \"message\": \"\",\n
+          \     \"code\": \"0\"\n    }\n  ],\n  \"_links\": {\n    \"self\": {\n      \"href\":
+          \"/api/security/azure-key-vaults/85619643-9a06-11ea-8d52-005056bbeba5\"\n
+          \   }\n  }\n}\n```\n---\n### Updating the client secret of a specific AKV
+          configuration\nThe following example updates the client secret of a specific
+          AKV configuration.\n```\n# The API:\nPATCH /api/security/azure-key-vaults\n#
+          The call:\ncurl -X PATCH 'https://<mgmt-ip>/api/security/azure-key-vaults/85619643-9a06-11ea-8d52-005056bbeba5'
+          -d \"{ \\\"client_secret\\\": \\\"newSecret\\\" }\"\n```\n---\n### Updating
+          the client certificate and key of a specific AKV configuration\nThe following
+          example updates the client certificate and key of a configured AKV for a specific
+          AKV configuration.\n```\n# The API:\nPATCH /api/security/azure-key-vaults\n#
+          The call:\ncurl -X PATCH 'https://<mgmt-ip>/api/security/azure-key-vaults/85619643-9a06-11ea-8d52-005056bbeba5'
+          -d \"{ \\\"client_certificate\\\": \\\"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\\\"
+          }\"\n```\n---\n### Deleting a specific AKV configuration\nThe following example
+          deletes a specific, enabled AKV.\n```\n# The API:\nDELETE /api/security/azure-key-vaults\n#
+          The call:\ncurl -X DELETE 'https://<mgmt-ip>/api/security/azure-key-vaults/85619643-9a06-11ea-8d52-005056bbeba5'\n```\n---\n###
+          Restoring the keys for a specific AKV configuration\nThe following example
+          restores all the keys of a specific AKV configuration.\n```\n# The API:\nPOST
+          security/azure-key-vaults/{uuid}/restore\n# The call:\ncurl -X POST 'https://<mgmt-ip>/api/security/azure-key-vaults/85619643-9a06-11ea-8d52-005056bbeba5/restore'\n#
+          The response:\n{\n  \"job\": {\n    \"uuid\": \"6ab6946f-9a0c-11ea-8d52-005056bbeba5\",\n
+          \   \"_links\": {\n      \"self\": {\n        \"href\": \"/api/cluster/jobs/6ab6946f-9a0c-11ea-8d52-005056bbeba5\"\n
+          \     }\n    }\n  }\n}\n```\n---\n### Rekeying the internal key for a specific
+          AKV configuration\nThe following example rekeys the internal key of a specific
+          AKV configuration.\n```\n# The API:\nPOST security/azure-key-vaults/{uuid}/rekey-internal\n#
+          The call:\ncurl -X POST 'https://<mgmt-ip>/api/security/azure-key-vaults/85619643-9a06-11ea-8d52-005056bbeba5/rekey-internal'\n#
+          The response:\n{\n  \"job\": {\n    \"uuid\": \"6ab6946f-9a0c-11ea-8d52-005056bbeba5\",\n
+          \   \"_links\": {\n      \"self\": {\n        \"href\": \"/api/cluster/jobs/6ab6946f-9a0c-11ea-8d52-005056bbeba5\"\n
+          \     }\n    }\n  }\n}\n```\n---\n"
+  /security/azure-key-vaults/{uuid}:
+    delete:
+      description: 'Deletes an AKV configuration.
+
+          ### Related ONTAP commands
+
+          * `security key-manager external azure disable`
+
+  '
+      operationId: azure_key_vault_delete
+      parameters:
+        - description: AKV UUID
+          in: path
+          name: uuid
+          required: true
+          type: string
+          x-ntap-introduced: DO_NOT_DISPLAY
+          x-nullable: false
+      responses:
+        '200':
+          description: OK
+        default:
+          description: 'ONTAP Error Response Codes
+
+              | Error Code | Description |
+
+              | ---------- | ----------- |
+
+              | 65536242 | One or more self-encrypting drives are assigned an authentication
+              key. |
+
+              | 65536243 | Cannot determine authentication key presence on one or more
+              self-encrypting drives. |
+
+              | 65536817 | Internal error. Failed to determine if key manager is safe
+              to disable. |
+
+              | 65536827 | Internal error. Failed to determine if the given SVM has
+              any encrypted volumes. |
+
+              | 65536834 | Internal error. Failed to get existing key-server details
+              for the given SVM. |
+
+              | 65536867 | Volume encryption keys (VEK) for one or more encrypted volumes
+              are stored on the key manager configured for the given SVM. |
+
+              | 65536883 | Internal error. Volume encryption key is missing for a volume.
+              |
+
+              | 65536884 | Internal error. Volume encryption key is invalid for a volume.
+              |
+
+              | 65536924 | Cannot remove key manager that still contains one or more
+              NSE authentication keys. |
+
+              | 65537120 | Azure Key Vault is not configured for the given SVM. |
+
+              | 196608080 | One or more nodes in the cluster have the root volume encrypted
+              using NVE (NetApp Volume Encryption). |
+
+              | 196608301 | Internal error. Failed to get encryption type. |
+
+              | 196608305 | NAE aggregates found in the cluster. |
+
+              Also see the table of common errors in the <a href="#Response_body">Response
+              body</a> overview section of this documentation.
+
+  '
+          schema:
+            $ref: '../swagger.yaml#/definitions/error_response'
+      x-ntap-introduced: '9.8'
+    get:
+      description: 'Retrieves the AKV configuration for the SVM specified by the UUID.
+
+          ### Related ONTAP commands
+
+          * `security key-manager external azure show`
+
+          * `security key-manager external azure check`
+
+  '
+      operationId: azure_key_vault_get
+      parameters:
+        - description: AKV UUID
+          in: path
+          name: uuid
+          required: true
+          type: string
+          x-ntap-introduced: DO_NOT_DISPLAY
+          x-nullable: false
+        - collectionFormat: csv
+          description: Specify the fields to return.
+          in: query
+          items:
+            type: string
+          name: fields
+          type: array
+          x-ntap-introduced: DO_NOT_DISPLAY
+          x-nullable: true
+      responses:
+        '200':
+          description: OK
+          schema:
+            $ref: '../swagger.yaml#/definitions/azure_key_vault'
+        default:
+          description: Error
+          schema:
+            $ref: '../swagger.yaml#/definitions/error_response'
+      x-ntap-introduced: '9.8'
+    patch:
+      description: 'Updates the AKV configuration.
+
+          ### Optional properties
+
+          * `client_secret` - New secret used to prove the application''s identity to
+          the AKV.
+
+          * `client_certificate` - New PKCS12 certificate used to prove the application''s
+          identity to the AKV.
+
+          * `proxy_type` - Type of proxy (http, https etc.) if proxy configuration is
+          used.
+
+          * `proxy_host` - Proxy hostname if proxy configuration is used.
+
+          * `proxy_port` - Proxy port number if proxy configuration is used.
+
+          * `proxy_username` - Proxy username if proxy configuration is used.
+
+          * `proxy_password` - Proxy password if proxy configuration is used.
+
+          * `client_id` - Application (client) ID of the deployed Azure application
+          with appropriate access to an AKV.
+
+          * `tenant_id` - Directory (tenant) ID of the deployed Azure application with
+          appropriate access to an AKV.
+
+          ### Related ONTAP commands
+
+          * `security key-manager external azure update-client-secret`
+
+          * `security key-manager external azure update-credentials`
+
+          * `security key-manager external azure update-config`
+
+  '
+      operationId: azure_key_vault_modify
+      parameters:
+        - description: AKV UUID
+          in: path
+          name: uuid
+          required: true
+          type: string
+          x-ntap-introduced: DO_NOT_DISPLAY
+          x-nullable: false
+        - description: AKV information
+          in: body
+          name: info
+          schema:
+            $ref: '../swagger.yaml#/definitions/azure_key_vault'
+          x-ntap-introduced: DO_NOT_DISPLAY
+          x-nullable: true
+        - default: 0
+          description: The number of seconds to allow the call to execute before returning.
+            When doing a POST, PATCH, or DELETE operation on a single record, the default
+            is 0 seconds.  This means that if an asynchronous operation is started,
+            the server immediately returns HTTP code 202 (Accepted) along with a link
+            to the job.  If a non-zero value is specified for POST, PATCH, or DELETE
+            operations, ONTAP waits that length of time to see if the job completes
+            so it can return something other than 202.
+          in: query
+          maximum: 120
+          minimum: 0
+          name: return_timeout
+          type: integer
+          x-ntap-introduced: DO_NOT_DISPLAY
+          x-nullable: true
+      responses:
+        '200':
+          description: OK
+        '202':
+          description: Accepted
+          schema:
+            $ref: '../swagger.yaml#/definitions/job_link_response'
+        default:
+          description: 'ONTAP Error Response Codes
+
+              | Error Code | Description |
+
+              | ---------- | ----------- |
+
+              | 65537120 | Azure Key Vault is not configured for the given SVM. |
+
+              | 65537504 | Internal error. Failed to store configuration in internal
+              database. |
+
+              | 65537517 | The field \"client_secret\" must be specified. |
+
+              | 65537540 | Invalid client secret. |
+
+              | 65537541 | No inputs were provided for the patch request. |
+
+              | 65537547 | One or more volume encryption keys for encrypted volumes
+              of this data SVM are stored in the key manager configured for the admin
+              SVM. Use the REST API POST method to migrate this data SVM''s keys from
+              the admin SVM''s key manager to this data SVM''s key manager before running
+              the rekey operation. |
+
+              | 65537573 | Invalid client certificate. |
+
+              | 65537577 | The AKV certificate authentication method cannot be configured
+              for the given SVM as not all nodes in the cluster support the AKV certificate
+              authentication. |
+
+              Also see the table of common errors in the <a href="#Response_body">Response
+              body</a> overview section of this documentation.
+
+  '
+          schema:
+            $ref: '../swagger.yaml#/definitions/error_response'
+      x-ntap-introduced: '9.8'
+  /security/gcp-kms/{uuid}:
+    # TODO rohitjain 2023-03-16 JIRA https://jira.ngage.netapp.com/browse/NFSAAS-50064
+    get:
+      description: 'Retrieves the Google Cloud KMS configuration for the SVM specified
+          by the UUID.
+
+          ### Related ONTAP commands
+
+          * `security key-manager external gcp show`
+
+          * `security key-manager external gcp check`
+
+  '
+      operationId: gcp_kms_get
+      parameters:
+        - description: Google Cloud KMS UUID
+          in: path
+          name: uuid
+          required: true
+          type: string
+          x-ntap-introduced: DO_NOT_DISPLAY
+        - collectionFormat: csv
+          description: Specify the fields to return.
+          in: query
+          items:
+            type: string
+          name: fields
+          type: array
+          x-ntap-introduced: DO_NOT_DISPLAY
+      responses:
+        '200':
+          description: OK
+          schema:
+            $ref: '#/definitions/gcp_kms'
+        default:
+          description: 'ONTAP Error Response Codes
+
+              | Error Code | Description |
+
+              | ---------- | ----------- |
+
+              | 65537551 | Top-level internal key protection key (KEK) unavailable on
+              one or more nodes. |
+
+              | 65537552 | Embedded KMIP server status not available. |
+
+              | 65537730 | The Google Cloud Key Management Service is unreachable from
+              one or more nodes. |
+
+              Also see the table of common errors in the <a href="#Response_body">Response
+              body</a> overview section of this documentation.
+
+  '
+          schema:
+            $ref: '../swagger.yaml#/definitions/error_response'
+      x-ntap-introduced: '9.9'
+  /cluster/peers:
+    #TODO mtomas 2023-05-05 JIRA https://jira.ngage.netapp.com/browse/NFSAAS-54918
+    post:
+      description: 'Creates a peering relationship and, optionally, the IP interfaces
+          it will use. There are two methods used to create a peering relationship:
+          * Provide a remote IP address - Used when creating a new cluster peer relationship
+          with a specific remote cluster. This requires at least one remote intercluster
+          IP address from the remote cluster.
+          * Do not provide a remote IP address - Used when the remote IP address is
+          not provided and when the storage system is ready to accept peering requests
+          from foreign clusters.
+          ### Required properties
+          * `remote.ip_addresses` - Addresses of the remote peers. The local peer must
+          be able to reach and connect to these addresses for the request to succeed
+          in creating a peer. Only required when creating a peering relationship by
+          providing a remote IP address.
+          * Either set `generate_passphrase` to "true" or provide a passphrase in the
+          body of the request. Only one of these options is required.
+          ### Recommended optional properties
+          * `name` - Name of the peering relationship or name of the remote peer.
+          * `passphrase` - User generated passphrase for use in authentication.
+          * `generate_passphrase` (true/false) - When "true", ONTAP automatically generates
+          a passphrase to authenticate cluster peers.
+          * `ipspace` - IPspace of the local intercluster LIFs. Assumes Default IPspace
+          if not provided.
+          * `initial_allowed_svms` - Local SVMs allowed to peer with the peer cluster''s
+          SVMs. Can be modified until the remote cluster accepts this cluster peering
+          relationship.
+          * `local_network` - Fields to create a local intercluster LIF.
+          * `expiry_time` - Duration in ISO 8601 format for which the user-supplied
+          or auto-generated passphrase is valid. Expiration time must not be greater
+          than seven days into the future. ISO 8601 duration format is "PnDTnHnMnS"
+          or "PnW" where n is a positive integer. The "nD", "nH", "nM" and "nS" fields
+          can be dropped if zero. "P" must always be present and "T" must be present
+          if there are any hours, minutes, or seconds fields.
+          * `encryption_proposed` (none/tls-psk) - Encryption mechanism of the communication
+          channel between the two peers.
+          * `peer_applications` - SVM peering applications (SnapMirror, FlexCache or
+          both) for which the SVM peering relationship is set up.
+          ### Additional information
+          As with creating a cluster peer through the CLI, the combinations of options
+          must be valid in order for the create operation to succeed. The following
+          list shows the combinations that will succeed and those that will fail:
+          * A passphrase only (fail)
+          * A peer IP address (fail)
+          * A passphrase with an expiration time > 7 days into the future (fail)
+          * A peer IP address and a passphrase (OK)
+          * generate_passphrase=true (OK)
+          * Any proposed encryption protocol (OK)
+          * An IPspace name or UUID (OK)
+          * A passphrase, peer IP address, and any proposed encryption protocol (OK)
+          * A non empty list of initial allowed SVM peer names or UUIDs. (OK)
+          '
+      operationId: cluster_peer_create
+      parameters:
+        - description: Info specification
+          in: body
+          name: info
+          schema:
+            $ref: '#/definitions/cluster_peer'
+          x-ntap-introduced: DO_NOT_DISPLAY
+        - default: false
+          description: The default is false.  If set to true, the records are returned.
+          in: query
+          name: return_records
+          type: boolean
+          x-ntap-introduced: DO_NOT_DISPLAY
+      responses:
+        '201':
+          description: Created
+          headers:
+            Location:
+              description: Useful for tracking the resource location
+              type: string
+          schema:
+            $ref: '#/definitions/cluster_peer_setup_response'
+        default:
+          description: 'ONTAP Error Response Codes
+
+            | Error Code | Description |
+
+            | ---------- | ----------- |
+
+            | 1966366 | The system SVM of the cluster IPspace hosts cluster LIFs only.
+            |
+
+            | 4653365 | IPspaces are unavailable with cluster peering: {ipspace}.
+            |
+
+            | 4656069 | Specifying a passphrase without remote IP addresses is not
+            supported. |
+
+            | 4656070 | The encryption protocol is meaningful only with authenticated
+            cluster peer relationships. |
+
+            | 4656071 | Cannot peer with a cluster bearing the same name as the local
+            cluster. |
+
+            | 4656072 | The name must conform to the same rules as a cluster name.
+            |
+
+            | 4656074 | Cannot check whether all nodes of this cluster support encryption.
+            |
+
+            | 4656075 | Cannot specify encryption: this operation requires an ECV
+            of 9.6.0 or later. |
+
+            | 4656077 | Specify either remote IP addresses or generate_passphrase.
+            |
+
+            | 4656079 | No cluster nodes were found. Check your cluster configuration.
+            |
+
+            | 4656081 | Creating an intercluster LIF requires a list of local IP addresses.
+            |
+
+            | 4656085 | Cannot create an intercluster LIF with an empty list of local
+            IP addresses. |
+
+            | 4656086 | Creating an intercluster LIF requires a broadcast domain that
+            is in use within the IPspace. |
+
+            | 4656087 | The number of local intercluster IP addresses must be less
+            than or equal to the number of available nodes. |
+
+            | 4656088 | Found no ports matching the IPspace and the broadcast domain.
+            |
+
+            | 4656089 | Found no matching entry for IPspace. |
+
+            | 4656090 | The given IPspace differs from the IPspace entry found. |
+
+            | 4656091 | Creating an intercluster LIF requires a subnet mask or a subnet
+            mask length. |
+
+            | 4656096 | Creating an intercluster LIF requires an IPv4 or IPv6 address
+            of the default router. |
+
+            '
+          schema:
+            $ref: '../swagger.yaml#/definitions/error_response'
+      x-ntap-introduced: '9.6'
+    x-ntap-long-description:
+  /protocols/s3/services/{svm.uuid}:
+    # TODO fridvin-netapp 2024-12-05 JIRA https://jira.ngage.netapp.com/browse/NFSAAS-106563
+    delete:
+      description: 'Deletes the S3 server configuration of an SVM. If the ''delete_all''
+        parameter is set to false, only the S3 server is deleted. Otherwise S3 users
+        and buckets present on the SVM are also deleted. Note that only empty buckets
+        can be deleted. This endpoint returns the S3 server delete job-uuid in response.
+        To monitor the job status follow /api/cluster/jobs/<job-uuid>.
+
+        ### Related ONTAP commands
+
+        * `vserver object-store-server delete`
+
+        ### Learn more
+
+        * [`DOC /protocols/s3/services`](#docs-object-store-protocols_s3_services)
+
+'
+      operationId: s3_service_delete
+      parameters:
+        - default: '"True"'
+          description: Delete S3 server and associated users and empty buckets.
+          format: boolean
+          in: query
+          name: delete_all
+          required: false
+          type: string
+          x-ntap-introduced: DO_NOT_DISPLAY
+          x-nullable: true
+        - default: '"0"'
+          description: The number of seconds to allow the call to execute before returning.
+            When doing a POST, PATCH, or DELETE operation on a single record, the default
+            is 0 seconds.  This means that if an asynchronous operation is started,
+            the server immediately returns HTTP code 202 (Accepted) along with a link
+            to the job.  If a non-zero value is specified for POST, PATCH, or DELETE
+            operations, ONTAP waits that length of time to see if the job completes
+            so it can return something other than 202.
+          format: integer
+          in: query
+          name: return_timeout
+          type: string
+          x-ntap-introduced: DO_NOT_DISPLAY
+          x-nullable: true
+        - description: UUID of the SVM to which this object belongs.
+          in: path
+          name: svm.uuid
+          required: true
+          type: string
+          x-ntap-introduced: DO_NOT_DISPLAY
+          x-nullable: false
+      responses:
+        '200':
+          description: OK
+          schema:
+            $ref: '../swagger.yaml#/definitions/s3_service_delete_response'
+        '202':
+          description: Accepted
+          schema:
+            $ref: '../swagger.yaml#/definitions/s3_service_job_link_response'
+        default:
+          description: 'ONTAP Error Response Codes
+
+            | Error Code | Description |
+
+            | ---------- | ----------- |
+
+            | 92405864   | An error occurs when deleting an S3 user or bucket. The
+            reason for failure is detailed in the error message. Follow the error
+            codes specified for the user or bucket endpoints to see details for the
+            failure. |
+
+'
+          schema:
+            $ref: '../swagger.yaml#/definitions/error_response'
+      tags:
+        - object-store
+      x-ntap-introduced: '9.7'
+
+  /security/anti-ransomware/suspects/{volume.uuid}:
+    delete:
+      description: 'Clears either all the suspect files of a volume or suspect files
+          of a volume based on file format or suspect time provided.
+
+          ### Related ONTAP commands
+
+          * `security anti-ransomware volume attack clear-suspect`
+
+  '
+      operationId: anti_ransomware_suspect_delete
+      parameters:
+        - description: Identification of the volume to delete anti-ransomware suspects from.
+          format: uuid
+          in: path
+          name: volume.uuid
+          required: true
+          type: string
+          x-ntap-introduced: DO_NOT_DISPLAY
+          x-nullable: false
+        - description: Filter by file.reason
+          format: string
+          in: query
+          name: file.reason
+          type: string
+          x-ntap-introduced: '9.11'
+          x-nullable: true
+        - description: Filter by file.suspect_time
+          format: string
+          in: query
+          name: file.suspect_time
+          type: string
+          x-ntap-introduced: DO_NOT_DISPLAY
+          x-nullable: true
+        - description: Filter by file.format
+          format: string
+          in: query
+          name: file.format
+          type: string
+          x-ntap-introduced: DO_NOT_DISPLAY
+          x-nullable: true
+        - description: Filter by file.path
+          format: string
+          in: query
+          name: file.path
+          type: string
+          x-ntap-introduced: DO_NOT_DISPLAY
+          x-nullable: true
+        - description: Filter by file.name
+          format: string
+          in: query
+          name: file.name
+          type: string
+          x-ntap-introduced: DO_NOT_DISPLAY
+          x-nullable: true
+        - default: '"True"'
+          description: The default is true for GET calls.  When set to false, only the
+            number of records is returned.
+          format: boolean
+          in: query
+          name: return_records
+          type: string
+          x-ntap-introduced: DO_NOT_DISPLAY
+          x-nullable: true
+        - default: '"False"'
+          description: Specifies whether the suspected ransomware activity is a false
+            positive or not.
+          format: boolean
+          in: query
+          name: is_false_positive
+          required: false
+          type: string
+          x-ntap-introduced: DO_NOT_DISPLAY
+          x-nullable: true
+        - description: Info specification
+          in: body
+          name: info
+          schema:
+            properties:
+              records:
+                items:
+                  $ref: '../swagger.yaml#/definitions/anti_ransomware_suspect'
+                type: array
+                x-go-name: anti_ransomware_suspect_response_inline_records
+                x-ntap-introduced: '9.10'
+                x-omitempty: true
+            type: object
+            x-ntap-introduced: '9.10'
+          x-nullable: true
+        - default: '"False"'
+          description: Continue even when the operation fails on one of the records.
+          format: boolean
+          in: query
+          name: continue_on_failure
+          type: string
+          x-nullable: true
+        - default: '"False"'
+          description: Perform the operation on the records synchronously.
+          format: boolean
+          in: query
+          name: serial_records
+          type: string
+          x-nullable: true
+        - default: '"0"'
+          description: The number of seconds to allow the call to execute before returning.
+            When doing a POST, PATCH, or DELETE operation on a single record, the default
+            is 0 seconds.  This means that if an asynchronous operation is started,
+            the server immediately returns HTTP code 202 (Accepted) along with a link
+            to the job.  If a non-zero value is specified for POST, PATCH, or DELETE
+            operations, ONTAP waits that length of time to see if the job completes
+            so it can return something other than 202.
+          format: integer
+          in: query
+          name: return_timeout
+          type: string
+          x-ntap-introduced: DO_NOT_DISPLAY
+          x-nullable: true
+      responses:
+        '200':
+          description: OK
+          schema:
+            $ref: '#/definitions/anti_ransomware_suspect_job_link_response'
+        '202':
+          description: Accepted
+          schema:
+            $ref: '#/definitions/anti_ransomware_suspect_job_link_response'
+      x-ntap-introduced: '9.10'
+    x-ntap-long-description:
+      description: The suspects DELETE API clears all the suspect files for a volume
+        from the list of potential suspects. <br/>
+definitions:
+  audit_log_redirect:
+    type: object
+    properties:
+      svm:
+        $ref: "../swagger.yaml#/definitions/svm_reference"
+      _links:
+        $ref: "../swagger.yaml#/definitions/self_link"
+  cifs_check_response:
+    properties:
+      num_records:
+        description: Number of records
+        type: integer
+      records:
+        description: 'status of the cifs server'
+        x-omitempty: true
+        items:
+          $ref: '#/definitions/status'
+        type: array
+    type: object
+  status:
+    description: 'Status of each of the CIFS server configured for the specified SVM.'
+    properties:
+      status_details:
+        description: 'Detailed description of the validation state if the state is ''down'' or the response time of the CIFS server if the state is ''up''.'
+        type: string
+      server:
+        description: 'server name of the CIFS server'
+        type: string
+      server_ip:
+        description: 'The IP address of the CIFS server. The address can be either an IPv4 or an IPv6 address.'
+        example: 10.10.10.10
+        type: string
+      status:
+        description: 'The validation status of the CIFS server.'
+        enum:
+          - up
+          - down
+        example: up
+        type: string
+    type: object
+  ping:
+    type: object
+    properties:
+      vserver:
+        description: "The name of the vserver"
+        example: "svm_xxx_d34ew3"
+        type: string
+      lif:
+        description: "The name of the data lif"
+        example: "data_lif_name"
+        type: string
+      node:
+        description: "The name of the node"
+        example: "node_name"
+        type: string
+      destination:
+        description: "The remote internet address destination of the ping"
+        example: "10.0.0.38"
+        type: string
+  ping_response:
+    description: 'ping'
+    properties:
+      cli_output:
+        description: 'ping response'
+        type: string
+        example: '10.0.0.38 is alive'
+    type: object
+  getGroupIDList:
+    type: object
+    properties:
+      vserver:
+        description: "The name of the vserver"
+        example: "svm_xxx_d34ew3"
+        type: string
+      node:
+        description: "The name of the node"
+        example: "node_name"
+        type: string
+      username:
+        description: "username"
+        example: "username"
+        type: string
+      use-cache:
+        description: "use-cache"
+        example: "false"
+        type: string
+  getGroupListResponse:
+    description: 'getGroupIdList response'
+    properties:
+      cli_output:
+        description: 'getGroupIdList response'
+        type: string
+        example: "pw_name: hniw Groups: 1234"
+    type: object
+  srvLookupResponse:
+    description: 'srv-lookup'
+    properties:
+      cli_output:
+        description: 'srv-lookup response'
+        type: string
+        example: "Got 2 Ip Addresses\n10.193.232.43\n10.193.212.191\n"
+    type: object
+  srvLookup:
+    description: 'srv-lookup'
+    properties:
+      vserver:
+        description: "The name of the vserver"
+        example: "svm_xxx_d34ew3"
+        type: string
+      node:
+        description: "The name of the node"
+        example: "node_name"
+        type: string
+      lookup-string:
+        description: "lookup string for the site"
+        example: "_ldap._tcp.xxxx._sites.xxxx.com"
+        type: string
+      lookup-type:
+        enum:
+          - ipv4
+          - ipv6
+          - all
+        example: ipv4
+        type: string
+        x-nullable: true
+    type: object
+  gcp_kms:
+    properties:
+      _links:
+        properties:
+          self:
+            $ref: '../swagger.yaml#/definitions/href'
+            x-ntap-introduced: '9.6'
+            x-ntap-introduced-dark: '9.10'
+        type: object
+        x-go-name: gcp_kms_inline__links
+        x-ntap-introduced: '9.9'
+        x-ntap-readOnly: true
+      application_credentials:
+        description: Google Cloud application's service account credentials required
+          to access the specified KMS. It is a JSON file containing an email address
+          and the private key of the service account holder.
+        example: '{ type: service_account, project_id: project-id, private_key_id:
+            key-id, private_key: -----BEGIN PRIVATE KEY-----
+
+            private-key
+
+            -----END PRIVATE KEY-----
+
+            , client_email: service-account-email, client_id: client-id, auth_uri: https://accounts.google.com/o/oauth2/auth,
+            token_uri: https://accounts.google.com/o/oauth2/token, auth_provider_x509_cert_url:
+            https://www.googleapis.com/oauth2/v1/certs, client_x509_cert_url: https://www.googleapis.com/robot/v1/metadata/x509/service-account-email
+            }'
+        format: password
+        type: string
+        x-ntap-introduced: '9.9'
+        x-ntap-writeOnly: true
+        x-nullable: true
+      ekmip_reachability:
+        items:
+          description: 'Provides the connectivity status for the given SVM on the
+              given node to all EKMIP servers configured on all nodes of the cluster.
+
+              This is an advanced property; there is an added computational cost to
+              retrieving its value. The property is not populated for either a collection
+              GET or an instance GET unless it is explicitly requested using the `fields`
+              query parameter or GET for all advanced properties is enabled.
+
+  '
+          properties:
+            code:
+              description: Code corresponding to the error message. Returns a 0 if
+                a given SVM is able to communicate to the EKMIP servers of all of
+                the nodes in the cluster.
+              example: '346758'
+              type: integer
+              x-ntap-introduced: '9.8'
+              x-ntap-introduced-dark: '9.12'
+              x-nullable: true
+            message:
+              description: Error message set when cluster-wide EKMIP server availability
+                from the given SVM and node is false.
+              example: embedded KMIP server status unavailable on node.
+              type: string
+              x-ntap-introduced: '9.8'
+              x-ntap-introduced-dark: '9.12'
+              x-nullable: true
+            node:
+              properties:
+                _links:
+                  properties:
+                    self:
+                      $ref: '../swagger.yaml#/definitions/href'
+                      x-ntap-introduced: '9.6'
+                      x-ntap-introduced-dark: '9.10'
+                  type: object
+                  x-go-name: gcp_kms_inline_ekmip_reachability_inline_array_item_inline_node_inline__links
+                  x-ntap-introduced: '9.6'
+                  x-ntap-introduced-dark: '9.11'
+                  x-ntap-readOnly: true
+                name:
+                  example: node1
+                  type: string
+                  x-ntap-introduced: '9.6'
+                  x-ntap-introduced-dark: '9.11'
+                  x-nullable: true
+                uuid:
+                  example: 1cd8a442-86d1-11e0-ae1c-123478563412
+                  type: string
+                  x-ntap-introduced: '9.6'
+                  x-ntap-introduced-dark: '9.11'
+                  x-nullable: true
+              type: object
+              x-go-name: gcp_kms_inline_ekmip_reachability_inline_array_item_inline_node
+              x-ntap-introduced: '9.8'
+              x-ntap-introduced-dark: '9.12'
+            reachable:
+              description: Set to true if the given SVM on the given node is able
+                to communicate to all EKMIP servers configured on all nodes in the
+                cluster.
+              type: boolean
+              x-ntap-introduced: '9.8'
+              x-ntap-introduced-dark: '9.12'
+              x-nullable: true
+          type: object
+          x-go-name: gcp_kms_inline_ekmip_reachability_inline_array_item
+          x-ntap-readOnly: true
+        type: array
+        x-go-name: gcp_kms_inline_ekmip_reachability
+        x-ntap-introduced: '9.9'
+        x-omitempty: true
+      google_reachability:
+        description: 'Indicates whether or not the Google Cloud KMS is reachable from
+            all nodes in the cluster.
+
+            This is an advanced property; there is an added computational cost to retrieving
+            its value. The property is not populated for either a collection GET or
+            an instance GET unless it is explicitly requested using the `fields` query
+            parameter or GET for all advanced properties is enabled.
+
+  '
+        properties:
+          code:
+            description: Code corresponding to the error message. Returns a 0 if Google
+              Cloud KMS is reachable from all nodes in the cluster.
+            example: '346758'
+            type: integer
+            x-ntap-introduced: '9.9'
+            x-nullable: true
+          message:
+            description: Set to the error message when 'reachable' is false.
+            example: Google Cloud KMS is not reachable from all nodes - <reason>.
+            type: string
+            x-ntap-introduced: '9.9'
+            x-nullable: true
+          reachable:
+            description: Set to true if the Google Cloud KMS is reachable from all
+              nodes of the cluster.
+            type: boolean
+            x-ntap-introduced: '9.9'
+            x-nullable: true
+        type: object
+        x-go-name: gcp_kms_inline_google_reachability
+        x-ntap-introduced: '9.9'
+        x-ntap-readOnly: true
+      key_name:
+        description: Key Identifier of Google Cloud KMS key encryption key.
+        example: cryptokey1
+        type: string
+        x-ntap-introduced: '9.9'
+        x-ntap-readCreate: true
+        x-nullable: true
+      key_ring_location:
+        description: Google Cloud KMS key ring location.
+        example: global
+        type: string
+        x-ntap-introduced: '9.9'
+        x-nullable: true
+      key_ring_name:
+        description: Google Cloud KMS key ring name of the deployed Google Cloud application.
+        example: gcpapp1-keyring
+        type: string
+        x-ntap-introduced: '9.9'
+        x-nullable: true
+      project_id:
+        description: Google Cloud project (application) ID of the deployed Google
+          Cloud application that has appropriate access to the Google Cloud KMS.
+        example: gcpapp1
+        type: string
+        x-ntap-introduced: '9.9'
+        x-nullable: true
+      proxy_host:
+        description: Proxy host name.
+        example: proxy.eng.com
+        type: string
+        x-ntap-introduced: '9.9'
+        x-nullable: true
+      proxy_password:
+        description: Proxy password. Password is not audited.
+        example: proxypassword
+        type: string
+        x-ntap-introduced: '9.9'
+        x-ntap-writeOnly: true
+        x-nullable: true
+      proxy_port:
+        description: Proxy port number.
+        example: 1234
+        type: integer
+        x-ntap-introduced: '9.9'
+        x-nullable: true
+      proxy_type:
+        description: Type of proxy.
+        enum:
+          - http
+          - https
+        example: http
+        type: string
+        x-ntap-introduced: '9.9'
+        x-nullable: true
+      proxy_username:
+        description: Proxy username.
+        example: proxyuser
+        type: string
+        x-ntap-introduced: '9.9'
+        x-nullable: true
+      scope:
+        description: Set to "svm" for interfaces owned by an SVM. Otherwise, set to
+          "cluster".
+        enum:
+          - svm
+          - cluster
+        readOnly: true
+        type: string
+        x-ntap-introduced: '9.9'
+        x-nullable: true
+      state:
+        description: 'Google Cloud Key Management Services is a cloud key management
+            service (KMS) that provides a secure store for encryption keys. This object
+            indicates whether or not the Google Cloud KMS key protection is available
+            on all nodes in the cluster.
+
+            This is an advanced property; there is an added computational cost to retrieving
+            its value. The property is not populated for either a collection GET or
+            an instance GET unless it is explicitly requested using the `fields` query
+            parameter or GET for all advanced properties is enabled.
+
+  '
+        properties:
+          cluster_state:
+            description: Set to true when Google Cloud KMS key protection is available
+              on all nodes of the cluster.
+            type: boolean
+            x-ntap-introduced: '9.9'
+            x-ntap-introduced-dark: '9.11'
+            x-nullable: true
+          code:
+            description: Error code corresponding to the status message. Returns 0
+              if Google Cloud KMS key protection is available in all nodes of the
+              cluster.
+            example: '346758'
+            type: integer
+            x-ntap-introduced: '9.8'
+            x-ntap-introduced-dark: '9.11'
+            x-nullable: true
+          message:
+            description: Error message set when top-level internal key protection
+              key (KEK) availability on cluster is false.
+            example: 'Top-level internal key protection key (KEK) is unavailable on
+                the following nodes with the associated reasons: Node: node1. Reason:
+                No volumes created yet for the SVM. Wrapped KEK status will be available
+                after creating encrypted volumes.'
+            type: string
+            x-ntap-introduced: '9.8'
+            x-ntap-introduced-dark: '9.11'
+            x-nullable: true
+        type: object
+        x-go-name: gcp_kms_inline_state
+        x-ntap-introduced: '9.9'
+        x-ntap-readOnly: true
+      svm:
+        properties:
+          _links:
+            properties:
+              self:
+                $ref: '../swagger.yaml#/definitions/href'
+                x-ntap-introduced: '9.6'
+                x-ntap-introduced-dark: '9.10'
+            type: object
+            x-go-name: gcp_kms_inline_svm_inline__links
+            x-ntap-introduced: '9.6'
+            x-ntap-introduced-dark: '9.10'
+            x-ntap-readOnly: true
+          name:
+            description: 'The name of the SVM.
+
+  '
+            example: svm1
+            type: string
+            x-ntap-introduced: '9.6'
+            x-ntap-introduced-dark: '9.10'
+            x-nullable: true
+          uuid:
+            description: 'The unique identifier of the SVM.
+
+  '
+            example: 02c9e252-41be-11e9-81d5-00a0986138f7
+            type: string
+            x-ntap-introduced: '9.6'
+            x-ntap-introduced-dark: '9.10'
+            x-nullable: true
+        type: object
+        x-go-name: gcp_kms_inline_svm
+        x-ntap-introduced: '9.9'
+      uuid:
+        description: A unique identifier for the Google Cloud KMS.
+        example: 1cd8a442-86d1-11e0-ae1c-123478563412
+        readOnly: true
+        type: string
+        x-ntap-introduced: '9.9'
+        x-nullable: true
+    type: object
+    x-ntap-introduced: '9.9'
+  cluster_peer:
+    properties:
+      _links:
+        properties:
+          interfaces:
+            $ref: '../swagger.yaml#/definitions/href'
+            x-ntap-introduced: '9.6'
+          self:
+            $ref: '../swagger.yaml#/definitions/href'
+            x-ntap-introduced: '9.6'
+            x-ntap-introduced-dark: '9.10'
+        readOnly: true
+        type: object
+        x-go-name: cluster_peer_inline__links
+        x-ntap-introduced: '9.6'
+      authentication:
+        properties:
+          expiry_time:
+            description: The time when the passphrase will expire, in ISO 8601 duration
+              format or date and time format.  The default is 1 hour.
+            example: P1DT2H3M4S or '2017-01-25T11:20:13Z'
+            type: string
+            x-ntap-introduced: '9.6'
+            x-nullable: true
+          generate_passphrase:
+            default: false
+            description: Auto generate a passphrase when true.
+            type: boolean
+            x-ntap-introduced: '9.6'
+            x-nullable: true
+          in_use:
+            default: ok
+            enum:
+              - ok
+              - absent
+              - revoked
+            type: string
+            x-ntap-introduced: '9.6'
+            x-nullable: true
+          passphrase:
+            description: A password to authenticate the cluster peer relationship.
+            type: string
+            x-ntap-introduced: '9.6'
+            x-nullable: true
+          state:
+            enum:
+              - ok
+              - absent
+              - pending
+              - problem
+            readOnly: true
+            type: string
+            x-ntap-introduced: '9.6'
+            x-nullable: true
+        type: object
+        x-go-name: cluster_peer_inline_authentication
+        x-ntap-introduced: '9.6'
+      encryption:
+        properties:
+          proposed:
+            default: tls_psk
+            enum:
+              - none
+              - tls_psk
+            type: string
+            x-ntap-introduced: '9.6'
+            x-nullable: true
+          state:
+            default: tls_psk
+            enum:
+              - none
+              - tls_psk
+            readOnly: true
+            type: string
+            x-ntap-introduced: '9.6'
+            x-ntap-introduced-dark: '9.11'
+            x-nullable: true
+        type: object
+        x-go-name: cluster_peer_inline_encryption
+        x-ntap-introduced: '9.6'
+      initial_allowed_svms:
+        description: The local SVMs allowed to peer with the peer cluster's SVMs.
+          This list can be modified until the remote cluster accepts this cluster
+          peering relationship.
+        items:
+          properties:
+            _links:
+              properties:
+                self:
+                  $ref: '../swagger.yaml#/definitions/href'
+                  x-ntap-introduced: '9.6'
+                  x-ntap-introduced-dark: '9.10'
+              type: object
+              x-go-name: cluster_peer_inline_initial_allowed_svms_inline_array_item_inline__links
+              x-ntap-introduced: '9.6'
+            name:
+              description: 'The name of the SVM.
+
+                '
+              example: svm1
+              type: string
+              x-ntap-introduced: '9.6'
+              x-nullable: true
+            uuid:
+              description: 'The unique identifier of the SVM.
+
+                '
+              example: 02c9e252-41be-11e9-81d5-00a0986138f7
+              type: string
+              x-ntap-introduced: '9.6'
+              x-nullable: true
+          type: object
+          x-go-name: cluster_peer_inline_initial_allowed_svms_inline_array_item
+        type: array
+        x-go-name: cluster_peer_inline_initial_allowed_svms
+        x-ntap-introduced: '9.6'
+        x-omitempty: true
+      ipspace:
+        description: The IPspace of the local intercluster LIFs.
+        properties:
+          _links:
+            properties:
+              self:
+                $ref: '../swagger.yaml#/definitions/href'
+                x-ntap-introduced: '9.6'
+                x-ntap-introduced-dark: '9.10'
+            type: object
+            x-go-name: cluster_peer_inline_ipspace_inline__links
+            x-ntap-introduced: '9.6'
+            x-ntap-introduced-dark: '9.11'
+          name:
+            description: IPspace name
+            example: exchange
+            type: string
+            x-ntap-introduced: '9.6'
+            x-ntap-introduced-dark: '9.11'
+            x-nullable: true
+          uuid:
+            description: IPspace UUID
+            example: 1cd8a442-86d1-11e0-ae1c-123478563412
+            type: string
+            x-ntap-introduced: '9.6'
+            x-ntap-introduced-dark: '9.11'
+            x-nullable: true
+        type: object
+        x-go-name: cluster_peer_inline_ipspace
+        x-ntap-introduced: '9.6'
+      local_network:
+        description: Cluster peering requires an intercluster LIF on each local node.
+          These can be optionally created by specifying a list of IP addresses corresponding
+          to each node.
+        properties:
+          broadcast_domain:
+            description: Broadcast domain that is in use within the IPspace.
+            example: bd1
+            type: string
+            x-ntap-introduced: '9.6'
+            x-nullable: true
+          gateway:
+            description: The IPv4 or IPv6 address of the default router.
+            example: 10.1.1.1
+            type: string
+            x-ntap-introduced: '9.6'
+            x-nullable: true
+          interfaces:
+            items:
+              properties:
+                ip_address:
+                  $ref: '../swagger.yaml#/definitions/ip_address'
+                  description: List of local intercluster IP addresses.
+                  x-ntap-introduced: '9.6'
+              type: object
+            type: array
+            x-ntap-introduced: '9.6'
+            x-omitempty: true
+          netmask:
+            description: IPv4 mask or netmask length.
+            example: 255.255.0.0
+            type: string
+            x-ntap-introduced: '9.6'
+            x-nullable: true
+        type: object
+        x-go-name: cluster_peer_inline_local_network
+        x-ntap-createOnly: true
+        x-ntap-introduced: '9.6'
+      local_role:
+        description: Overwrite the local role for the cluster peer
+        example: none
+        type: string
+        x-ntap-introduced: '9.6'
+        x-nullable: true
+      name:
+        description: Optional name for the cluster peer relationship. By default,
+          it is the name of the remote cluster.
+        example: cluster2
+        type: string
+        x-ntap-introduced: '9.6'
+        x-nullable: true
+      peer_applications:
+        description: Peering applications against which allowed SVMs are configured.
+        example:
+          - snapmirror
+          - flexcache
+        items:
+          $ref: '../swagger.yaml#/definitions/svm_peer_permission_applications'
+        type: array
+        x-go-name: cluster_peer_inline_peer_applications
+        x-ntap-introduced: '9.7'
+        x-omitempty: true
+      remote:
+        properties:
+          ip_addresses:
+            description: The IPv4 addresses, IPv6 addresses, or hostnames of the peers.
+            items:
+              $ref: '../swagger.yaml#/definitions/ip_address'
+            type: array
+            x-ntap-introduced: '9.6'
+            x-omitempty: true
+          name:
+            description: The name of the remote cluster.
+            example: cluster2
+            readOnly: true
+            type: string
+            x-ntap-introduced: '9.6'
+            x-ntap-introduced-dark: '9.11'
+            x-nullable: true
+          serial_number:
+            description: The serial number of the remote cluster.
+            example: 4048820-60-9
+            readOnly: true
+            type: string
+            x-ntap-introduced: '9.6'
+            x-nullable: true
+        type: object
+        x-go-name: cluster_peer_inline_remote
+        x-ntap-introduced: '9.6'
+      status:
+        properties:
+          state:
+            enum:
+              - available
+              - partial
+              - unavailable
+              - pending
+              - unidentified
+            example: available
+            readOnly: true
+            type: string
+            x-ntap-introduced: '9.6'
+            x-ntap-introduced-dark: '9.11'
+            x-nullable: true
+          update_time:
+            description: The last time the state was updated.
+            example: '2017-01-25T11:20:13Z'
+            format: date-time
+            readOnly: true
+            type: string
+            x-ntap-introduced: '9.6'
+            x-nullable: true
+        readOnly: true
+        type: object
+        x-go-name: cluster_peer_inline_status
+        x-ntap-introduced: '9.6'
+      uuid:
+        description: UUID of the cluster peer relationship. For anonymous cluster
+          peer offers, the UUID will change when the remote cluster accepts the relationship.
+        example: 1cd8a442-86d1-11e0-ae1c-123478563412
+        readOnly: true
+        type: string
+        x-ntap-introduced: '9.6'
+        x-nullable: true
+      version:
+        description: This returns the cluster version information.  When the cluster
+          has more than one node, the cluster version is equivalent to the lowest
+          of generation, major, and minor versions on all nodes.
+        properties:
+          full:
+            description: The full cluster version string.
+            example: 'NetApp Release 9.4.0: Sun Nov 05 18:20:57 UTC 2017'
+            readOnly: true
+            type: string
+            x-ntap-introduced: '9.6'
+            x-ntap-introduced-dark: '9.11'
+            x-nullable: true
+          generation:
+            description: The generation portion of the version.
+            example: 9
+            readOnly: true
+            type: integer
+            x-ntap-introduced: '9.6'
+            x-ntap-introduced-dark: '9.11'
+            x-nullable: true
+          major:
+            description: The major portion of the version.
+            example: 4
+            readOnly: true
+            type: integer
+            x-ntap-introduced: '9.6'
+            x-ntap-introduced-dark: '9.11'
+            x-nullable: true
+          minor:
+            description: The minor portion of the version.
+            example: 0
+            readOnly: true
+            type: integer
+            x-ntap-introduced: '9.6'
+            x-ntap-introduced-dark: '9.11'
+            x-nullable: true
+          patch:
+            description: The patch portion of the version.
+            example: P2
+            readOnly: true
+            type: string
+            x-ntap-introduced-dark: '9.11'
+            x-ntap-visibility:
+              type: private
+            x-nullable: true
+        type: object
+        x-go-name: cluster_peer_inline_version
+        x-ntap-introduced: '9.7'
+        x-ntap-readOnly: true
+    type: object
+    x-ntap-introduced: '9.6'
+  cluster_peer_response:
+    properties:
+      _links:
+        properties:
+          next:
+            $ref: '../swagger.yaml#/definitions/href'
+            x-ntap-introduced: '9.6'
+            x-ntap-introduced-dark: '9.11'
+          self:
+            $ref: '../swagger.yaml#/definitions/href'
+            x-ntap-introduced: '9.6'
+            x-ntap-introduced-dark: '9.10'
+        type: object
+        x-go-name: cluster_peer_response_inline__links
+        x-ntap-introduced: '9.6'
+        x-ntap-readOnly: true
+      num_records:
+        description: Number of records
+        example: 1
+        type: integer
+        x-ntap-introduced: '9.6'
+        x-nullable: true
+      records:
+        items:
+          $ref: '#/definitions/cluster_peer'
+        type: array
+        x-go-name: cluster_peer_response_inline_records
+        x-ntap-introduced: '9.6'
+        x-omitempty: true
+    type: object
+    x-ntap-introduced: '9.6'
+  cluster_peer_setup_response:
+    properties:
+      num_records:
+        description: Number of records
+        example: 1
+        type: integer
+        x-ntap-introduced: '9.6'
+        x-nullable: true
+      records:
+        items:
+          $ref: '#/definitions/cluster_peer_setup_record'
+        type: array
+        x-go-name: cluster_peer_response_inline_records
+        x-ntap-introduced: '9.6'
+        x-omitempty: true
+    type: object
+    x-ntap-introduced: '9.6'
+  cluster_peer_setup_record:
+    properties:
+      _links:
+        properties:
+          self:
+            $ref: '../swagger.yaml#/definitions/href'
+            x-ntap-introduced: '9.6'
+            x-ntap-introduced-dark: '9.10'
+        type: object
+        x-go-name: cluster_peer_setup_response_inline__links
+        x-ntap-introduced: '9.6'
+      authentication:
+        properties:
+          expiry_time:
+            description: The date and time the passphrase will expire.  The default
+              expiry time is one hour.
+            example: '2017-01-25T11:20:13Z'
+            format: date-time
+            type: string
+            x-ntap-introduced: '9.6'
+            x-nullable: true
+          passphrase:
+            description: A password to authenticate the cluster peer relationship.
+            type: string
+            x-ntap-introduced: '9.6'
+            x-nullable: true
+        type: object
+        x-go-name: cluster_peer_setup_response_inline_authentication
+        x-ntap-introduced: '9.6'
+      ip_address:
+        $ref: '../swagger.yaml#/definitions/ip_address'
+        description: A local intercluster IP address that a remote cluster can use,
+          together with the passphrase, to create a cluster peer relationship with
+          the local cluster.
+        x-ntap-introduced: '9.6'
+      name:
+        description: Optional name for the cluster peer relationship. By default,
+          it is the name of the remote cluster, or a temporary name might be autogenerated
+          for anonymous cluster peer offers.
+        example: cluster2
+        type: string
+        x-ntap-introduced: '9.6'
+        x-nullable: true
+    type: object
+    x-ntap-introduced: '9.6'
+  anti_ransomware_suspect_job_link_response:
+    properties:
+      job:
+        $ref: '#/definitions/job_link'
+      num_records:
+        description: Number of records
+        example: 1
+        type: integer
+      records:
+        items:
+          $ref: '../swagger.yaml#/definitions/anti_ransomware_suspect'
+        type: array
+    type: object
+    x-ntap-readOnly: true
+  job_link:
+    properties:
+      _links:
+        properties:
+          self:
+            $ref: '../swagger.yaml#/definitions/href'
+            x-ntap-introduced: '9.6'
+            x-ntap-introduced-dark: '9.10'
+        type: object
+        x-go-name: job_link_inline__links
+        x-ntap-introduced: '9.6'
+        x-ntap-readOnly: true
+      uuid:
+        description: The UUID of the asynchronous job that is triggered by a POST,
+          PATCH, or DELETE operation.
+        format: uuid
+        readOnly: true
+        type: string
+        x-ntap-introduced: '9.6'
+        x-nullable: true
+    type: object
+    x-ntap-introduced: '9.6'
