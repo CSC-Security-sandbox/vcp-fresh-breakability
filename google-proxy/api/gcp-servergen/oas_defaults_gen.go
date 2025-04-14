@@ -32,4 +32,8 @@ func (s *PoolV1beta) setDefaults() {
 		val := bool(false)
 		s.CustomPerformanceEnabled.SetTo(val)
 	}
+	{
+		val := bool(false)
+		s.UnifiedPool.SetTo(val)
+	}
 }

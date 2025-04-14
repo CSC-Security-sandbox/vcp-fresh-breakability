@@ -2087,9 +2087,15 @@ func (s *PoolV1beta) encodeFields(e *jx.Encoder) {
 			s.TotalIops.Encode(e)
 		}
 	}
+	{
+		if s.UnifiedPool.Set {
+			e.FieldStart("unifiedPool")
+			s.UnifiedPool.Encode(e)
+		}
+	}
 }
 
-var jsonFieldsNameOfPoolV1beta = [37]string{
+var jsonFieldsNameOfPoolV1beta = [38]string{
 	0:  "activeDirectoryConfigId",
 	1:  "activeDirectoryResourceId",
 	2:  "kmsConfigId",
@@ -2127,6 +2133,7 @@ var jsonFieldsNameOfPoolV1beta = [37]string{
 	34: "assetLocationMetadata",
 	35: "customPerformanceEnabled",
 	36: "totalIops",
+	37: "unifiedPool",
 }
 
 // Decode decodes PoolV1beta from json.
@@ -2514,6 +2521,16 @@ func (s *PoolV1beta) Decode(d *jx.Decoder) error {
 				return nil
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"totalIops\"")
+			}
+		case "unifiedPool":
+			if err := func() error {
+				s.UnifiedPool.Reset()
+				if err := s.UnifiedPool.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"unifiedPool\"")
 			}
 		default:
 			return d.Skip()

@@ -1568,6 +1568,8 @@ type PoolV1beta struct {
 	CustomPerformanceEnabled OptBool `json:"customPerformanceEnabled"`
 	// The total iops set for a pool.
 	TotalIops OptNilFloat64 `json:"totalIops"`
+	// Indicates if the pool type is unified.
+	UnifiedPool OptBool `json:"unifiedPool"`
 }
 
 // GetActiveDirectoryConfigId returns the value of ActiveDirectoryConfigId.
@@ -1755,6 +1757,11 @@ func (s *PoolV1beta) GetTotalIops() OptNilFloat64 {
 	return s.TotalIops
 }
 
+// GetUnifiedPool returns the value of UnifiedPool.
+func (s *PoolV1beta) GetUnifiedPool() OptBool {
+	return s.UnifiedPool
+}
+
 // SetActiveDirectoryConfigId sets the value of ActiveDirectoryConfigId.
 func (s *PoolV1beta) SetActiveDirectoryConfigId(val OptNilString) {
 	s.ActiveDirectoryConfigId = val
@@ -1938,6 +1945,11 @@ func (s *PoolV1beta) SetCustomPerformanceEnabled(val OptBool) {
 // SetTotalIops sets the value of TotalIops.
 func (s *PoolV1beta) SetTotalIops(val OptNilFloat64) {
 	s.TotalIops = val
+}
+
+// SetUnifiedPool sets the value of UnifiedPool.
+func (s *PoolV1beta) SetUnifiedPool(val OptBool) {
+	s.UnifiedPool = val
 }
 
 func (*PoolV1beta) v1betaDescribePoolRes() {}

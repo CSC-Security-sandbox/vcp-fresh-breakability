@@ -459,7 +459,16 @@ func (s *PoolV1beta) Validate() error {
 		})
 	}
 	if err := func() error {
-		if err := (validate.Float{}).Validate(float64(s.SizeInBytes)); err != nil {
+		if err := (validate.Float{
+			MinSet:        false,
+			Min:           0,
+			MaxSet:        false,
+			Max:           0,
+			MinExclusive:  false,
+			MaxExclusive:  false,
+			MultipleOfSet: true,
+			MultipleOf:    ratMap["1073741824"],
+		}).Validate(float64(s.SizeInBytes)); err != nil {
 			return errors.Wrap(err, "float")
 		}
 		return nil

@@ -3,6 +3,8 @@
 package gcpserver
 
 import (
+	"fmt"
+	"math/big"
 	"net/http"
 
 	"go.opentelemetry.io/otel"
@@ -20,6 +22,15 @@ var regexMap = map[string]ogenregex.Regexp{
 	"^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$":      ogenregex.MustCompile("^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$"),
 	"^[a-z]([a-z0-9-]{0,61}[a-z0-9])?$":                                                  ogenregex.MustCompile("^[a-z]([a-z0-9-]{0,61}[a-z0-9])?$"),
 	"^projects\\/\\d+\\/global\\/networks\\/(![0-9]+$)?(!.*-$)?(!-)?[a-zA-Z0-9-]{1,63}$": ogenregex.MustCompile("^projects\\/\\d+\\/global\\/networks\\/(![0-9]+$)?(!.*-$)?(!-)?[a-zA-Z0-9-]{1,63}$"),
+}
+var ratMap = map[string]*big.Rat{
+	"1073741824": func() *big.Rat {
+		r, ok := new(big.Rat).SetString("1073741824")
+		if !ok {
+			panic(fmt.Sprintf("rat %q: can't parse", "1073741824"))
+		}
+		return r
+	}(),
 }
 var (
 	// Allocate option closure once.

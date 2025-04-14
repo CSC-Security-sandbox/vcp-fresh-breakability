@@ -1007,6 +1007,7 @@ components:
           type: number
           description: Size of the pool in bytes
           format: double
+          multipleOf: 1073741824  # Must be a multiple of 1 GiB
           example: 2199023255552
           default: 2199023255552
         allocatedBytes:
@@ -1208,6 +1209,11 @@ components:
           format: double
           nullable: true
           example: 1600.0
+        unifiedPool:
+          type: boolean
+          description: Indicates if the pool type is unified
+          default: false
+          example: false
     ChildAsset:
       title: child_asset
       type: object

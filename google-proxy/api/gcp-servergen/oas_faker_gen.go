@@ -534,6 +534,11 @@ func (s *PoolV1beta) SetFake() {
 			s.TotalIops.SetFake()
 		}
 	}
+	{
+		{
+			s.UnifiedPool.SetFake()
+		}
+	}
 }
 
 // SetFake set fake values.
