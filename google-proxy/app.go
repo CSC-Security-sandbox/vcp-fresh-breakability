@@ -2,11 +2,19 @@ package main
 
 import (
 	"context"
+	"net/http"
+	"os"
+	"os/signal"
+	"syscall"
+	"time"
 
 	"github.com/go-chi/chi/v5"
 	chimiddleware "github.com/go-chi/chi/v5/middleware"
 	"github.com/go-faster/errors"
 	"github.com/google/uuid"
+	"golang.org/x/exp/slog"
+	"golang.org/x/sync/errgroup"
+
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database"
@@ -14,14 +22,7 @@ import (
 	api "github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/api/endpoints"
 	gcpgenserver "github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/api/gcp-servergen"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/middleware"
-	"golang.org/x/exp/slog"
-	"golang.org/x/sync/errgroup"
-
-	"net/http"
-	"os"
-	"os/signal"
-	"syscall"
-	"time"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/util/middleware/log"
 )
 
 func main() {
@@ -31,7 +32,7 @@ func main() {
 	ctx, cancel := signal.NotifyContext(ctx, syscall.SIGINT, syscall.SIGTERM)
 	defer cancel()
 
-	logger := slog.New(slog.NewJSONHandler(os.Stdout, nil))
+	logger := log.NewLogger()
 	logger.Info("Starting gcp proxy API")
 	cfg := common.LoadConfig()
 
@@ -74,7 +75,7 @@ func main() {
 	logger.Info("Server stopped gracefully")
 }
 
-func initializeDatabase(ctx context.Context, cfg *common.Config, logger *slog.Logger) (database.Storage, error) {
+func initializeDatabase(ctx context.Context, cfg *common.Config, logger log.Logger) (database.Storage, error) {
 	dbConfig := database.DbConfig{
 		Type:            cfg.DBType,
 		Host:            cfg.DBHost,
@@ -112,7 +113,7 @@ func initializeDatabase(ctx context.Context, cfg *common.Config, logger *slog.Lo
 	return db, nil
 }
 
-func closeDatabase(dbCon database.Storage, logger *slog.Logger) {
+func closeDatabase(dbCon database.Storage, logger log.Logger) {
 	if err := dbCon.Close(); err != nil {
 		logger.Error("Failed to close database connection", slog.String("error", err.Error()))
 	}
@@ -135,7 +136,7 @@ func setupHTTPServer(cfg *common.Config, handler http.Handler) *http.Server {
 	}
 }
 
-func handleGracefulShutdown(eg *errgroup.Group, ctx context.Context, httpServer *http.Server, logger *slog.Logger) {
+func handleGracefulShutdown(eg *errgroup.Group, ctx context.Context, httpServer *http.Server, logger log.Logger) {
 	eg.Go(func() error {
 		<-ctx.Done()
 		logger.Info("Shutting down server")

@@ -83,12 +83,29 @@ func initLoggerProvider(exporterType string) (func(context.Context) error, error
 
 func getSloggerObject(loglevel string, addSource bool) *Slogger {
 	options := slog.HandlerOptions{
-		AddSource: addSource,
-		Level:     convertLogLevel(loglevel),
+		AddSource:   addSource,
+		Level:       convertLogLevel(loglevel),
+		ReplaceAttr: replacer,
 	}
 	return &Slogger{
 		slogger: slog.New(slog.NewJSONHandler(defaultOutputStream, &options)),
 	}
+}
+
+// replacer customizes log attribute keys to align with Google Cloud Logging conventions.
+func replacer(groups []string, a slog.Attr) slog.Attr {
+	switch a.Key {
+	case slog.LevelKey:
+		a.Key = "severity"
+		if level := a.Value.Any().(slog.Level); level == slog.LevelWarn {
+			a.Value = slog.StringValue("WARNING")
+		}
+	case slog.TimeKey:
+		a.Key = "timestamp"
+	case slog.MessageKey:
+		a.Key = "message"
+	}
+	return a
 }
 
 // WithFields returns a new logger with the request fields

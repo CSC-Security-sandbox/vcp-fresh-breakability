@@ -13,11 +13,14 @@ import (
 	"github.com/lib/pq"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
+	"gorm.io/gorm/logger"
 
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/repository"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database"
 	gormwrapper "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/gorm"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/util/env"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/util/middleware/log"
 )
 
 const (
@@ -25,11 +28,15 @@ const (
 	pgDuplicateDatabase  = "42P04" // Database already exists
 )
 
+var (
+	logSQLEnabled = env.GetBool("LOG_SQL", false)
+)
+
 type Storage struct {
 	config database.DbConfig
 	db     *gormwrapper.Wrapper
 	mu     sync.RWMutex
-	logger database.Logger
+	logger log.Logger
 
 	dataStore *repository.DataStoreRepository
 }
@@ -38,7 +45,7 @@ func init() {
 	database.Register("postgres", New)
 }
 
-func New(config database.DbConfig, logger database.Logger) (database.Storage, error) {
+func New(config database.DbConfig, logger log.Logger) (database.Storage, error) {
 	db := &Storage{
 		config: config,
 		logger: logger,
@@ -91,8 +98,13 @@ func (d *Storage) createConnection(isAdmin bool) (*gorm.DB, error) {
 		return nil, fmt.Errorf("failed to get DSN: %w", err)
 	}
 
+	logLevel := logger.Error
+	if logSQLEnabled {
+		logLevel = logger.Info
+	}
+
 	gormConfig := &gorm.Config{
-		Logger: database.NewGormLogger(d.logger),
+		Logger: database.NewGormLogger(d.logger, logLevel),
 		NowFunc: func() time.Time {
 			return time.Now().UTC()
 		},

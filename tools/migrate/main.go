@@ -3,13 +3,15 @@ package main
 import (
 	"context"
 	"flag"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/common"
-	"golang.org/x/exp/slog"
 	"log"
 	"os"
 
+	"golang.org/x/exp/slog"
+
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database"
 	_ "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/postgres"
+	slogger "github.com/vcp-vsa-control-Plane/vsa-control-plane/util/middleware/log"
 )
 
 func main() {
@@ -20,7 +22,7 @@ func main() {
 	adminPass := flag.String("admin-pass", "", "Admin password for setup")
 	flag.Parse()
 
-	logger := slog.New(slog.NewJSONHandler(os.Stdout, nil))
+	logger := slogger.NewLogger()
 	cfg := common.LoadConfig()
 
 	dbConfig := database.DbConfig{
@@ -67,7 +69,7 @@ func main() {
 	}
 }
 
-func setupDatabase(ctx context.Context, dbConfig database.DbConfig, logger *slog.Logger) error {
+func setupDatabase(ctx context.Context, dbConfig database.DbConfig, logger slogger.Logger) error {
 	storage, err := database.New(dbConfig, logger)
 	if err != nil {
 		return err
@@ -75,7 +77,7 @@ func setupDatabase(ctx context.Context, dbConfig database.DbConfig, logger *slog
 	return storage.SetupDatabase(ctx)
 }
 
-func performRollback(ctx context.Context, dbConfig database.DbConfig, logger *slog.Logger) error {
+func performRollback(ctx context.Context, dbConfig database.DbConfig, logger slogger.Logger) error {
 	storage, err := database.New(dbConfig, logger)
 	if err == nil {
 		err = storage.Connect()
@@ -92,7 +94,7 @@ func performRollback(ctx context.Context, dbConfig database.DbConfig, logger *sl
 	return storage.Rollback(ctx)
 }
 
-func performMigration(ctx context.Context, dbConfig database.DbConfig, logger *slog.Logger) error {
+func performMigration(ctx context.Context, dbConfig database.DbConfig, logger slogger.Logger) error {
 	storage, err := database.New(dbConfig, logger)
 	if err == nil {
 		err = storage.Connect()

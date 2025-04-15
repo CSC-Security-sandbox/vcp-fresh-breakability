@@ -16,6 +16,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database"
 	gormwrapper "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/gorm"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/util/middleware/log"
 )
 
 //go:embed migrations/core/*.sql
@@ -24,7 +25,7 @@ var migrationsFS embed.FS
 type Migrator struct {
 	db     *gormwrapper.Wrapper
 	config database.DbConfig
-	logger database.Logger
+	logger log.Logger
 }
 
 func (s *Storage) Migrate(ctx context.Context) error {
