@@ -2,8 +2,9 @@ package database
 
 import (
 	"context"
-	"gorm.io/gorm"
 	"time"
+
+	"gorm.io/gorm"
 
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 )

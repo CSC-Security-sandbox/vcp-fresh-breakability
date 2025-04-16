@@ -3,7 +3,7 @@ FROM golang:1.24.1 as builder
 WORKDIR /code
 COPY google-proxy google-proxy/
 COPY common common/
-COPY util util/
+COPY utils utils/
 COPY core core/
 COPY config config/
 COPY database database/

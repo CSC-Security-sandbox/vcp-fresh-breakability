@@ -5,7 +5,7 @@ COPY core core/
 COPY common common/
 COPY database database/
 COPY config config/
-COPY util util/
+COPY utils utils/
 COPY go.mod go.mod
 COPY go.sum go.sum
 
