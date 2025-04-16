@@ -11,3 +11,8 @@ test-with-coverage:
 .PHONY: lint
 lint: 
 	scripts/lint.sh
+
+.PHONY: fix-imports
+fix-imports:
+	go get golang.org/x/tools/cmd/goimports
+	goimports -local -format-only -w .
