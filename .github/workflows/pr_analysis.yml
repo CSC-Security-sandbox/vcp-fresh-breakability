@@ -4,12 +4,18 @@ on:
   pull_request:
     types: [opened, synchronize]  # Trigger when PR is opened or updated
 
+permissions:
+    contents: read
+    packages: read
+    actions: read
+    pull-requests: write
+
 jobs:
   pr-analysis-job:
     #    runs-on: ubuntu-latest
     runs-on: [self-hosted, pr-analysis]
     container:
-      image: ghcr.io/greenqloud/common-images/builder2:latest
+      image: ghcr.io/vcp-vsa-control-plane/vsa-builder:v2
       options: --user root
 
     steps:
