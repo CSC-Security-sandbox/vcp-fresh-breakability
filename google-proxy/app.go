@@ -22,7 +22,7 @@ import (
 	api "github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/api/endpoints"
 	gcpgenserver "github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/api/gcp-servergen"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/middleware"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/util/middleware/log"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 )
 
 func main() {

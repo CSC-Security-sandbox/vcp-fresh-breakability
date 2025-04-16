@@ -160,13 +160,3 @@ func TestIsDuplicateUUID(t *testing.T) {
 		})
 	}
 }
-
-func TestGenerateRandomInRange(t *testing.T) {
-	n := 10
-	for i := 0; i < 100; i++ {
-		result := GenerateRandomInRange(n)
-		if result < 0 || result >= n {
-			t.Errorf("GenerateRandomInRange(%d) = %d, want between 0 and %d", n, result, n-1)
-		}
-	}
-}

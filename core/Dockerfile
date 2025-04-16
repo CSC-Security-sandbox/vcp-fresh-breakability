@@ -3,6 +3,8 @@ FROM golang:1.24.1 as builder
 WORKDIR /code
 COPY core core/
 COPY common common/
+COPY database database/
+COPY config config/
 COPY util util/
 COPY go.mod go.mod
 COPY go.sum go.sum

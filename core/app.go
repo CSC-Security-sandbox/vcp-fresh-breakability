@@ -2,14 +2,15 @@ package main
 
 import (
 	"context"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/common"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/util/middleware/log"
 	"log/slog"
 	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
 	"time"
+
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/common"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 
 	"github.com/go-chi/chi/v5"
 	chimiddleware "github.com/go-chi/chi/v5/middleware"

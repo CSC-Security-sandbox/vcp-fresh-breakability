@@ -3,7 +3,7 @@ package database
 import (
 	"fmt"
 
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/util/middleware/log"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 )
 
 type Factory func(config DbConfig, logger log.Logger) (Storage, error)

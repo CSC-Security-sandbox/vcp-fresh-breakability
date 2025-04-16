@@ -7,7 +7,7 @@ build:
       docker:
         dockerfile: google-proxy/Dockerfile
       requires:
-        - image: base
+        - image: core
           alias: BASE
     - image: core
       context: .

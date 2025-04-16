@@ -1,7 +1,6 @@
 package utils
 
 import (
-	"math/rand"
 	"net"
 	"strconv"
 	"strings"
@@ -69,10 +68,6 @@ func EnvToInt32Conversion(envVal string, def int32) int32 {
 	} else {
 		return int32(parseVal)
 	}
-}
-
-func GenerateRandomInRange(n int) int {
-	return rand.Intn(n)
 }
 
 func CheckForRetriableError(errorMessage string, retriableErrors []string) bool {

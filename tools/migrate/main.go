@@ -11,7 +11,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database"
 	_ "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/postgres"
-	slogger "github.com/vcp-vsa-control-Plane/vsa-control-plane/util/middleware/log"
+	slogger "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 )
 
 func main() {

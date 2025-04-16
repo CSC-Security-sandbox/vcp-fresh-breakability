@@ -17,6 +17,7 @@ require (
 	github.com/jackc/pgx/v5 v5.7.4
 	github.com/labstack/gommon v0.4.2
 	github.com/lib/pq v1.10.9
+	github.com/mattn/go-sqlite3 v1.14.22
 	github.com/ogen-go/ogen v1.10.1
 	github.com/pborman/uuid v1.2.1
 	github.com/stretchr/testify v1.10.0
@@ -34,6 +35,7 @@ require (
 	google.golang.org/api v0.228.0
 	gopkg.in/yaml.v2 v2.4.0
 	gorm.io/driver/postgres v1.5.11
+	gorm.io/driver/sqlite v1.5.7
 	gorm.io/gorm v1.25.12
 )
 

@@ -1,4 +1,4 @@
-package postgres
+package database
 
 import (
 	"context"
@@ -11,29 +11,34 @@ import (
 
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/lib/pq"
+	_ "github.com/mattn/go-sqlite3"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 	"gorm.io/driver/postgres"
+	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
 
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/repository"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database"
 	gormwrapper "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/gorm"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/util/env"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/util/middleware/log"
+	dblogger "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/logger"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
 )
 
 const (
 	pgInvalidCatalogName = "3D000" //Database doesn't exist
 	pgDuplicateDatabase  = "42P04" // Database already exists
+	DatabaseTypePostgres = "postgres"
+	DatabaseTypeSQLite   = "sqlite3"
 )
 
 var (
 	logSQLEnabled = env.GetBool("LOG_SQL", false)
 )
 
-type Storage struct {
-	config database.DbConfig
+type PersistenceStore struct {
+	config DbConfig
 	db     *gormwrapper.Wrapper
 	mu     sync.RWMutex
 	logger log.Logger
@@ -42,11 +47,12 @@ type Storage struct {
 }
 
 func init() {
-	database.Register("postgres", New)
+	Register("postgres", NewStorage)
+	Register("sqlite3", NewStorage)
 }
 
-func New(config database.DbConfig, logger log.Logger) (database.Storage, error) {
-	db := &Storage{
+func NewStorage(config DbConfig, logger log.Logger) (Storage, error) {
+	db := &PersistenceStore{
 		config: config,
 		logger: logger,
 	}
@@ -54,11 +60,11 @@ func New(config database.DbConfig, logger log.Logger) (database.Storage, error) 
 }
 
 // initRepository initializes  repository
-func (s *Storage) initRepository() {
+func (s *PersistenceStore) initRepository() {
 	s.dataStore = repository.NewDataStoreRepository(s.db)
 }
 
-func (s *Storage) SetupDatabase(ctx context.Context) error {
+func (s *PersistenceStore) SetupDatabase(ctx context.Context) error {
 	if err := s.connect(true); err != nil {
 		return fmt.Errorf("database initialization failed: %w", err)
 	}
@@ -69,34 +75,30 @@ func (s *Storage) SetupDatabase(ctx context.Context) error {
 	return nil
 }
 
-func (s *Storage) Connect() error {
+func (s *PersistenceStore) Connect() error {
 	return s.connect(false) // Default to application credentials
 }
 
-func (d *Storage) connect(isAdmin bool) error {
-	d.mu.Lock()
-	defer d.mu.Unlock()
+func (s *PersistenceStore) connect(isAdmin bool) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
 
-	if d.db != nil && d.HealthCheck() == nil {
+	if s.db != nil && s.HealthCheck() == nil {
 		return nil // Already connected
 	}
 
-	db, err := d.createConnection(isAdmin)
+	db, err := s.createConnection(isAdmin)
 	if err != nil {
 		return fmt.Errorf("failed to create database connection: %w", err)
 	}
 
-	d.db = gormwrapper.New(db)
-	d.initRepository()
+	s.db = gormwrapper.New(db)
+	s.initRepository()
 	return nil
 }
 
 // createConnection establishes a new database connection
-func (d *Storage) createConnection(isAdmin bool) (*gorm.DB, error) {
-	dsn, err := d.getDSN(isAdmin)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get DSN: %w", err)
-	}
+func (s *PersistenceStore) createConnection(isAdmin bool) (*gorm.DB, error) {
 
 	logLevel := logger.Error
 	if logSQLEnabled {
@@ -104,7 +106,7 @@ func (d *Storage) createConnection(isAdmin bool) (*gorm.DB, error) {
 	}
 
 	gormConfig := &gorm.Config{
-		Logger: database.NewGormLogger(d.logger, logLevel),
+		Logger: dblogger.NewGormLogger(s.logger, logLevel),
 		NowFunc: func() time.Time {
 			return time.Now().UTC()
 		},
@@ -112,15 +114,19 @@ func (d *Storage) createConnection(isAdmin bool) (*gorm.DB, error) {
 		SkipDefaultTransaction: true,
 	}
 
-	var dialector = postgres.Open(dsn)
-	//switch d.config.Type {
-	//case DatabaseTypePostgres:
-	//	dialector = postgres.Open(dsn)
-	//case DatabaseTypeSQLite:
-	//	dialector = sqlite.Open(dsn)
-	//default:
-	//	return nil, fmt.Errorf("unsupported database type: %s", d.config.Type)
-	//}
+	var dialector gorm.Dialector
+	switch s.config.Type {
+	case DatabaseTypePostgres:
+		dsn, err := s.getPostgresDSN(isAdmin)
+		if err != nil {
+			return nil, fmt.Errorf("failed to get DSN: %w", err)
+		}
+		dialector = postgres.Open(dsn)
+	case DatabaseTypeSQLite:
+		dialector = sqlite.Open(fmt.Sprintf("file:%v?mode=memory&cache=shared", utils.RandomUUID()))
+	default:
+		return nil, fmt.Errorf("unsupported database type: %s", s.config.Type)
+	}
 
 	db, err := gorm.Open(dialector, gormConfig)
 	if err != nil {
@@ -132,19 +138,15 @@ func (d *Storage) createConnection(isAdmin bool) (*gorm.DB, error) {
 		return nil, fmt.Errorf("failed to get SQL DB: %w", err)
 	}
 
-	sqlDB.SetMaxOpenConns(d.config.MaxOpenConns)
-	sqlDB.SetMaxIdleConns(d.config.MaxIdleConns)
-	sqlDB.SetConnMaxLifetime(d.config.ConnMaxLifetime)
+	sqlDB.SetMaxOpenConns(s.config.MaxOpenConns)
+	sqlDB.SetMaxIdleConns(s.config.MaxIdleConns)
+	sqlDB.SetConnMaxLifetime(s.config.ConnMaxLifetime)
 
 	return db, nil
 }
 
-// getDSN constructs the database connection string
-func (s *Storage) getDSN(isAdmin bool) (string, error) {
-	//if d.config.Type == DatabaseTypeSQLite {
-	//	return "file::memory:?cache=shared", nil
-	//}
-
+// getPostgresDSN constructs the database connection string
+func (s *PersistenceStore) getPostgresDSN(isAdmin bool) (string, error) {
 	var username, password string
 	if isAdmin {
 		username = s.config.AdminUser
@@ -175,7 +177,7 @@ func (s *Storage) getDSN(isAdmin bool) (string, error) {
 	return u.String(), nil
 }
 
-func (s *Storage) createDatabaseAndUser() error {
+func (s *PersistenceStore) createDatabaseAndUser() error {
 	createDBSQL := fmt.Sprintf(
 		`CREATE DATABASE %s WITH OWNER = %s  CONNECTION LIMIT = -1`,
 		pq.QuoteIdentifier(s.config.Name),
@@ -217,7 +219,7 @@ func (s *Storage) createDatabaseAndUser() error {
 	return nil
 }
 
-func (s *Storage) Close() error {
+func (s *PersistenceStore) Close() error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -232,7 +234,7 @@ func (s *Storage) Close() error {
 	return sqlDB.Close()
 }
 
-func (s *Storage) HealthCheck() error {
+func (s *PersistenceStore) HealthCheck() error {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
@@ -247,7 +249,7 @@ func (s *Storage) HealthCheck() error {
 	return sqlDB.Ping()
 }
 
-func (s *Storage) WithTransaction(ctx context.Context, fn func(database.Transaction) error) error {
+func (s *PersistenceStore) WithTransaction(ctx context.Context, fn func(Transaction) error) error {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
@@ -276,7 +278,7 @@ func (s *Storage) WithTransaction(ctx context.Context, fn func(database.Transact
 	return err
 }
 
-func (s *Storage) DB() *gorm.DB {
+func (s *PersistenceStore) DB() *gorm.DB {
 	return s.db.GORM()
 }
 
@@ -285,44 +287,44 @@ func isDatabaseExistsError(err error) bool {
 	return errors.As(err, &pgErr) && pgErr.Code == pgDuplicateDatabase
 }
 
-// Implement Storage interface by delegating to repositories
+// Implement PersistenceStore interface by delegating to repositories
 
-func (s *Storage) CreatePool(ctx context.Context, pool *datamodel.Pool) error {
+func (s *PersistenceStore) CreatePool(ctx context.Context, pool *datamodel.Pool) error {
 	return s.dataStore.CreatePool(ctx, pool)
 }
 
-func (s *Storage) GetPool(ctx context.Context, id string) (*datamodel.Pool, error) {
+func (s *PersistenceStore) GetPool(ctx context.Context, id string) (*datamodel.Pool, error) {
 	return s.dataStore.GetPool(ctx, id)
 }
 
-func (s *Storage) UpdatePool(ctx context.Context, pool *datamodel.Pool) error {
+func (s *PersistenceStore) UpdatePool(ctx context.Context, pool *datamodel.Pool) error {
 	return s.dataStore.UpdatePool(ctx, pool)
 }
 
-func (s *Storage) DeletePool(ctx context.Context, id string) error {
+func (s *PersistenceStore) DeletePool(ctx context.Context, id string) error {
 	return s.dataStore.DeletePool(ctx, id)
 }
 
-func (s *Storage) ListPools(ctx context.Context) ([]*datamodel.Pool, error) {
+func (s *PersistenceStore) ListPools(ctx context.Context) ([]*datamodel.Pool, error) {
 	return s.dataStore.ListPools(ctx)
 }
 
-func (s *Storage) CreateVolume(ctx context.Context, volume *datamodel.Volume) error {
+func (s *PersistenceStore) CreateVolume(ctx context.Context, volume *datamodel.Volume) error {
 	return s.dataStore.CreateVolume(ctx, volume)
 }
 
-func (s *Storage) GetVolume(ctx context.Context, id string) (*datamodel.Volume, error) {
+func (s *PersistenceStore) GetVolume(ctx context.Context, id string) (*datamodel.Volume, error) {
 	return s.dataStore.GetVolume(ctx, id)
 }
 
-func (s *Storage) UpdateVolume(ctx context.Context, volume *datamodel.Volume) error {
+func (s *PersistenceStore) UpdateVolume(ctx context.Context, volume *datamodel.Volume) error {
 	return s.dataStore.UpdateVolume(ctx, volume)
 }
 
-func (s *Storage) DeleteVolume(ctx context.Context, id string) error {
+func (s *PersistenceStore) DeleteVolume(ctx context.Context, id string) error {
 	return s.dataStore.DeleteVolume(ctx, id)
 }
 
-func (s *Storage) ListVolumes(ctx context.Context) ([]*datamodel.Volume, error) {
+func (s *PersistenceStore) ListVolumes(ctx context.Context) ([]*datamodel.Volume, error) {
 	return s.dataStore.ListVolumes(ctx)
 }

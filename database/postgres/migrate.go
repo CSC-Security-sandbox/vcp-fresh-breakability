@@ -12,63 +12,37 @@ import (
 	"github.com/golang-migrate/migrate/v4"
 	"github.com/golang-migrate/migrate/v4/database/postgres"
 	"github.com/golang-migrate/migrate/v4/source/iofs"
-
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database"
 	gormwrapper "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/gorm"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/util/middleware/log"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 )
 
 //go:embed migrations/core/*.sql
 var migrationsFS embed.FS
 
 type Migrator struct {
-	db     *gormwrapper.Wrapper
-	config database.DbConfig
-	logger log.Logger
+	Models []interface{}
+	Logger log.Logger
 }
 
-func (s *Storage) Migrate(ctx context.Context) error {
-	m := &Migrator{
-		db:     s.db,
-		config: s.config,
-		logger: s.logger,
-	}
-	return m.Migrate(ctx)
-}
-
-func (s *Storage) Rollback(ctx context.Context) error {
-	m := &Migrator{
-		db:     s.db,
-		config: s.config,
-		logger: s.logger,
-	}
-	return m.Rollback(ctx)
-}
-
-// getModels returns the list of models to be migrated.
-func getModels() []interface{} {
-
-	return []interface{}{
-		datamodel.Pool{},
-		datamodel.Volume{},
-		datamodel.Svm{},
-	}
-}
-
-func (m *Migrator) Migrate(ctx context.Context) error {
+func (m *Migrator) Migrate(db *gormwrapper.Wrapper, ctx context.Context) error {
 	// Step 1: Run SQL migrations
-	sqlMig, err := m.createMigrator()
+	sqlMig, err := m.createMigrator(db, "migrations/core")
 	if err != nil {
 		return fmt.Errorf("failed to create migrator: %w", err)
 	}
+	defer func(sqlMig *migrate.Migrate) {
+		err, _ := sqlMig.Close()
+		if err != nil {
+			m.Logger.Error(ctx, "Failed to close migrator", err)
+		}
+	}(sqlMig)
 
 	if err := m.runSQLMigrations(ctx, sqlMig); err != nil {
 		return fmt.Errorf("SQL migrations failed: %w", err)
 	}
 
 	// Step 2: Run GORM AutoMigrate
-	if err := m.runAutoMigrations(ctx, getModels()); err != nil {
+	if err := m.runAutoMigrations(db, ctx, m.Models); err != nil {
 		return fmt.Errorf("AutoMigrate failed: %w", err)
 	}
 
@@ -80,8 +54,8 @@ func (m *Migrator) Migrate(ctx context.Context) error {
 	return nil
 }
 
-func (m *Migrator) createMigrator() (*migrate.Migrate, error) {
-	sqlDB, err := m.db.DB()
+func (m *Migrator) createMigrator(db *gormwrapper.Wrapper, migrationPath string) (*migrate.Migrate, error) {
+	sqlDB, err := db.DB()
 	if err != nil {
 		return nil, fmt.Errorf("failed to get sql.DB: %w", err)
 	}
@@ -91,7 +65,7 @@ func (m *Migrator) createMigrator() (*migrate.Migrate, error) {
 		return nil, fmt.Errorf("failed to create migration driver: %w", err)
 	}
 
-	source, err := iofs.New(migrationsFS, m.config.MigrationPath)
+	source, err := iofs.New(migrationsFS, migrationPath)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create migration source: %w", err)
 	}
@@ -106,25 +80,25 @@ func (m *Migrator) runSQLMigrations(ctx context.Context, mig *migrate.Migrate) e
 	return nil
 }
 
-func (m *Migrator) runAutoMigrations(ctx context.Context, models []interface{}) error {
+func (m *Migrator) runAutoMigrations(db *gormwrapper.Wrapper, ctx context.Context, models []interface{}) error {
 	checksum, err := m.calculateChecksum(models)
 	if err != nil {
 		return fmt.Errorf("calculate checksum failed: %w", err)
 	}
 
-	if needs, err := m.needsMigration(checksum); err != nil {
+	if needs, err := m.needsMigration(db, checksum); err != nil {
 		return err
 	} else if !needs {
-		m.logger.Info("Models unchanged, skipping AutoMigrate")
+		m.Logger.Info(ctx, "Models unchanged, skipping AutoMigrate")
 		return nil
 	}
 
-	m.logger.Info("Running AutoMigrate for model changes")
-	if err := m.db.WithContext(ctx).AutoMigrate(models...); err != nil {
+	m.Logger.Info(ctx, "Running AutoMigrate for model changes")
+	if err := db.WithContext(ctx).AutoMigrate(models...); err != nil {
 		return fmt.Errorf("automigrate failed: %w", err)
 	}
 
-	return m.recordMigration(checksum)
+	return m.recordMigration(db, checksum)
 }
 
 func (m *Migrator) postMigrationFixes(ctx context.Context) error {
@@ -133,11 +107,16 @@ func (m *Migrator) postMigrationFixes(ctx context.Context) error {
 	return nil
 }
 
-func (m *Migrator) Rollback(ctx context.Context) error {
-	sqlMig, err := m.createMigrator()
+func (m *Migrator) Rollback(db *gormwrapper.Wrapper, ctx context.Context) error {
+	sqlMig, err := m.createMigrator(db, "migrations/core")
 	if err != nil {
 		return fmt.Errorf("failed to create migrator: %w", err)
 	}
+	defer func() {
+		if _, err := sqlMig.Close(); err != nil {
+			m.Logger.Error(ctx, "Failed to close migrator", err)
+		}
+	}()
 	// Check if there are any migrations to rollback
 	version, dirty, err := sqlMig.Version()
 	if err != nil && !errors.Is(err, migrate.ErrNilVersion) {
@@ -145,11 +124,11 @@ func (m *Migrator) Rollback(ctx context.Context) error {
 	}
 
 	if errors.Is(err, migrate.ErrNilVersion) {
-		m.logger.Info("No migrations to rollback - database is at initial version")
+		m.Logger.Info(ctx, "No migrations to rollback - database is at initial version")
 		return nil
 	}
 
-	m.logger.Info(fmt.Sprintf("Current migration version: %d (dirty: %v)", version, dirty))
+	m.Logger.Info(ctx, fmt.Sprintf("Current migration version: %d (dirty: %v)", version, dirty))
 
 	// Rollback one step
 	if err := sqlMig.Steps(-1); err != nil {
@@ -157,7 +136,7 @@ func (m *Migrator) Rollback(ctx context.Context) error {
 	}
 	// Get new version after rollback
 	newVersion, _, _ := sqlMig.Version()
-	m.logger.Info(fmt.Sprintf("Successfully rolled back to version %d", newVersion))
+	m.Logger.Info(ctx, fmt.Sprintf("Successfully rolled back to version %d", newVersion))
 	return nil
 }
 
@@ -189,9 +168,9 @@ func (m *Migrator) calculateChecksum(models []interface{}) (string, error) {
 	return hex.EncodeToString(hash.Sum(nil)), nil
 }
 
-func (m *Migrator) needsMigration(checksum string) (bool, error) {
+func (m *Migrator) needsMigration(db *gormwrapper.Wrapper, checksum string) (bool, error) {
 	var lastChecksum string
-	err := m.db.Raw(`
+	err := db.Raw(`
 		SELECT checksum FROM schema_checksums 
 		ORDER BY created_at DESC 
 		LIMIT 1
@@ -204,8 +183,8 @@ func (m *Migrator) needsMigration(checksum string) (bool, error) {
 	return checksum != lastChecksum, nil
 }
 
-func (m *Migrator) recordMigration(checksum string) error {
-	return m.db.Exec(`
+func (m *Migrator) recordMigration(db *gormwrapper.Wrapper, checksum string) error {
+	return db.Exec(`
 		INSERT INTO schema_checksums (checksum) 
 		VALUES (?)
 	`, checksum).Error()

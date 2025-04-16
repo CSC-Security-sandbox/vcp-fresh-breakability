@@ -15,8 +15,8 @@ import (
 	"github.com/go-openapi/runtime/middleware"
 	"github.com/golang-jwt/jwt/v4"
 	gcpserver "github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/api/gcp-servergen"
-	utils "github.com/vcp-vsa-control-Plane/vsa-control-plane/util"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/util/env"
+	utils "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
 	logger "golang.org/x/exp/slog"
 )
 

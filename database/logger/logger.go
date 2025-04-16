@@ -1,4 +1,4 @@
-package database
+package logger
 
 import (
 	"context"
@@ -6,7 +6,7 @@ import (
 
 	"gorm.io/gorm/logger"
 
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/util/middleware/log"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 )
 
 type GormSlogLogger struct {

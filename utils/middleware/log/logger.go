@@ -3,10 +3,11 @@ package log
 import (
 	"context"
 	"fmt"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/util/env"
 	"net/http"
 	"os"
 	"strings"
+
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
 )
 
 type Fields map[string]interface{}
