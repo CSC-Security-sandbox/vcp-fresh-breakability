@@ -1,0 +1,21 @@
+with-expecter: True
+tags: mocks
+packages:
+  github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/api/gcp-servergen:
+    config:
+      inpackage: True
+      dir: "{{.InterfaceDir}}"
+    interfaces:
+      Handler:
+  github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/core-api/clientgen:
+    config:
+      inpackage: True
+      dir: "{{.InterfaceDir}}"
+    interfaces:
+      Invoker:
+  github.com/vcp-vsa-control-Plane/vsa-control-plane/core/core-api/core-servergen:
+    config:
+      dir: "{{.InterfaceDir}}"
+      inpackage: True
+    interfaces:
+      Handler:
