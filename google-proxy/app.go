@@ -122,7 +122,7 @@ func closeDatabase(dbCon database.Storage, logger log.Logger) {
 func setupHTTPServer(cfg *common.Config, handler http.Handler) *http.Server {
 	mux := chi.NewRouter()
 	mux.Use(middleware.AuthMiddleware)
-	mux.Use(chimiddleware.Logger)
+	mux.Use(log.LoggingMiddleware)
 	mux.Use(chimiddleware.Recoverer)
 	mux.Mount("/", handler)
 
