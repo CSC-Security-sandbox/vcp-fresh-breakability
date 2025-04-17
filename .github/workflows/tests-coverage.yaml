@@ -19,7 +19,7 @@ jobs:
     name: Unit Tests and Coverage
     runs-on: [ self-hosted, Linux ]
     container:
-      image: ghcr.io/vcp-vsa-control-plane/vsa-builder:v1
+      image: ghcr.io/vcp-vsa-control-plane/vsa-builder:v2
       options: --user root
     steps:
       - name: Checkout
