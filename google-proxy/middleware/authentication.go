@@ -78,6 +78,7 @@ func (ar *authenticationResponderGCP) WriteResponse(rw http.ResponseWriter, prod
 }
 
 func AuthMiddleware(next http.Handler) http.Handler {
+
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		responder := AuthenticatedGCP(r, func() middleware.Responder {
 			ctx := context.WithValue(r.Context(), common.HeaderContextKey, r.Header)

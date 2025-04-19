@@ -61,4 +61,7 @@ type DataStore interface {
 	UpdateVolume(ctx context.Context, volume *datamodel.Volume) error
 	DeleteVolume(ctx context.Context, id string) error
 	ListVolumes(ctx context.Context) ([]*datamodel.Volume, error)
+
+	CreateJob(ctx context.Context, job *datamodel.Job) (*datamodel.Job, error)
+	UpdateJobStatus(ctx context.Context, jobID string, status string) error
 }

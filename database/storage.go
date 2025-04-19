@@ -328,3 +328,11 @@ func (s *PersistenceStore) DeleteVolume(ctx context.Context, id string) error {
 func (s *PersistenceStore) ListVolumes(ctx context.Context) ([]*datamodel.Volume, error) {
 	return s.dataStore.ListVolumes(ctx)
 }
+
+func (s *PersistenceStore) CreateJob(ctx context.Context, job *datamodel.Job) (*datamodel.Job, error) {
+	return s.dataStore.CreateJob(ctx, job)
+}
+
+func (s *PersistenceStore) UpdateJobStatus(ctx context.Context, id string, status string) error {
+	return s.dataStore.UpdateJobStatus(ctx, id, status)
+}

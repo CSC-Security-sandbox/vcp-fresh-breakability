@@ -2,11 +2,13 @@ package api
 
 import (
 	"context"
+
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator"
 	gcpgenserver "github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/api/gcp-servergen"
 )
 
 func (h Handler) V1betaDescribePool(ctx context.Context, params gcpgenserver.V1betaDescribePoolParams) (gcpgenserver.V1betaDescribePoolRes, error) {
-	return nil, nil
+	return orchestrator.ListPool(ctx, params, h.Orchestrator)
 }
 
 func (h Handler) V1betaCreatePool(ctx context.Context, req *gcpgenserver.PoolV1beta, params gcpgenserver.V1betaCreatePoolParams) (gcpgenserver.V1betaCreatePoolRes, error) {

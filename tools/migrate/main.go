@@ -6,12 +6,11 @@ import (
 	"log"
 	"os"
 
-	"golang.org/x/exp/slog"
-
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database"
 	_ "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/postgres"
 	slogger "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
+	"golang.org/x/exp/slog"
 )
 
 func main() {

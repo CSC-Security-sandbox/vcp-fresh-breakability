@@ -12,9 +12,6 @@ import (
 	chimiddleware "github.com/go-chi/chi/v5/middleware"
 	"github.com/go-faster/errors"
 	"github.com/google/uuid"
-	"golang.org/x/exp/slog"
-	"golang.org/x/sync/errgroup"
-
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database"
@@ -23,6 +20,9 @@ import (
 	gcpgenserver "github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/api/gcp-servergen"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/middleware"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
+	workflow_engine "github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/temporal"
+	"golang.org/x/exp/slog"
+	"golang.org/x/sync/errgroup"
 )
 
 func main() {
@@ -44,8 +44,25 @@ func main() {
 	}
 	defer closeDatabase(dbCon, logger)
 
+	// Initialize Temporal client
+	workflowClient, err := initializeTemporalClient(ctx, logger)
+	if err != nil {
+		logger.Error("Failed to initialize Temporal client", slog.String("error", err.Error()))
+		os.Exit(1)
+	}
+	defer workflowClient.CloseClient(workflowClient.GetTemporalClient())
+	// Use errgroup to manage goroutines and context
+	eg, ctx := errgroup.WithContext(ctx)
+	eg.Go(func() error {
+		if err := workflowClient.RunWorker(ctx, workflowClient.GetTemporalClient()); err != nil {
+			logger.Error("Failed to run worker", slog.String("error", err.Error()))
+			return err
+		}
+		return nil
+	})
+
 	// Create GCP proxy server and inject required dependencies
-	orch := orchestrator.NewOrchestrator(dbCon)
+	orch := orchestrator.NewOrchestrator(dbCon, workflowClient.GetTemporalClient())
 	newHandler := api.Handler{Orchestrator: orch} // inject the orchestrator into the handler
 	gcpServer, err := gcpgenserver.NewServer(newHandler)
 	if err != nil {
@@ -53,8 +70,6 @@ func main() {
 		os.Exit(1)
 	}
 	httpServer := setupHTTPServer(cfg, gcpServer)
-	// Use errgroup to manage goroutines and context
-	eg, ctx := errgroup.WithContext(ctx)
 
 	// Start HTTP server
 	eg.Go(func() error {
@@ -117,6 +132,17 @@ func closeDatabase(dbCon database.Storage, logger log.Logger) {
 	if err := dbCon.Close(); err != nil {
 		logger.Error("Failed to close database connection", slog.String("error", err.Error()))
 	}
+}
+
+func initializeTemporalClient(ctx context.Context, logger log.Logger) (workflow_engine.TemporalWorkflowEngine, error) {
+	workflowClient := workflow_engine.TemporalWorkflowEngine{}
+	workflowCfg := workflowClient.LoadConfig()
+	err := workflowClient.InitializeClient(ctx, workflowCfg, logger)
+	if err != nil {
+		logger.Error("client error: %w", slog.String("error", err.Error()))
+		return workflowClient, err
+	}
+	return workflowClient, nil
 }
 
 func setupHTTPServer(cfg *common.Config, handler http.Handler) *http.Server {
