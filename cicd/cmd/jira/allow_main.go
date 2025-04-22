@@ -1,16 +1,19 @@
 package jira
 
 import (
-	"github.com/spf13/cobra"
 	"log"
-	"main/cmd/github"
 	"os"
+	"strings"
+
+	"github.com/spf13/cobra"
+	"main/cmd/github"
 )
 
 var allowMainCmd = &cobra.Command{
 	Use:   "main",
 	Short: "Command to check if a PR is allowed to be merged with basic jira validations",
 	RunE: func(cmd *cobra.Command, args []string) error {
+		cmd.SilenceUsage = true
 		err := allowMain()
 		if err != nil {
 			return err
@@ -20,7 +23,6 @@ var allowMainCmd = &cobra.Command{
 }
 
 func allowMain() error {
-
 	_, credentials := GetJiraUrlCredentials()
 
 	jiraID, err := ExtractJiraID(github.PrTitle)
@@ -38,6 +40,7 @@ func allowMain() error {
 	issueType := issue.Fields.Type.Name
 	status := issue.Fields.Status.Name
 	emailAddress := issue.Fields.Assignee.EmailAddress
+	emailAddress = NormalizeEmail(emailAddress)
 
 	if issueType != "Story" && issueType != "Bug" {
 		log.Println("Error: Issue type can be only 'Story' or 'Bug'.")
@@ -54,13 +57,13 @@ func allowMain() error {
 		log.Println("Error:", err)
 		os.Exit(1)
 	}
-
 	if user.Email == nil {
 		log.Println("Error: Email not available for user:", github.PrUser)
 		os.Exit(1)
 	}
 
 	ghEmail := *user.Email
+	ghEmail = NormalizeEmail(ghEmail)
 
 	if emailAddress != ghEmail {
 		log.Println("Email mismatch. Authors do not match.")
@@ -69,4 +72,10 @@ func allowMain() error {
 		log.Println("Allowed to merge.")
 	}
 	return nil
+}
+
+// NormalizeEmail converts the email to lower case
+func NormalizeEmail(email string) string {
+	email = strings.ToLower(email)
+	return email
 }

@@ -10,5 +10,5 @@ var allowMergeCmd = &cobra.Command{
 }
 
 func init() {
-	allowMergeCmd.AddCommand(allowMasterCmd)
+	allowMergeCmd.AddCommand(allowMainCmd)
 }

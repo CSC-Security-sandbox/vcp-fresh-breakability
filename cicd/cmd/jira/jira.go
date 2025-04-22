@@ -83,5 +83,5 @@ func init() {
 	password = os.Getenv(jiraApiToken)
 	jiraServerUrl = os.Getenv(jiraServer)
 
-	JiraCmd.AddCommand(allowMainCmd)
+	JiraCmd.AddCommand(allowMergeCmd)
 }
