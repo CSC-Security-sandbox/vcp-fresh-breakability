@@ -33,3 +33,9 @@ packages:
       SecurityClient:
       StorageClient:
       SVMClient:
+  github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/hyperscaler:
+    config:
+      dir: "{{.InterfaceDir}}"
+      inpackage: True
+    interfaces:
+      GoogleServices:

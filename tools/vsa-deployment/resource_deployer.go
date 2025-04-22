@@ -3,9 +3,10 @@ package main
 import (
 	"context"
 	"fmt"
-	"gopkg.in/yaml.v2"
 	"os"
 	"time"
+
+	"gopkg.in/yaml.v2"
 
 	"google.golang.org/api/compute/v1"
 	deploymentmanager "google.golang.org/api/deploymentmanager/v2"

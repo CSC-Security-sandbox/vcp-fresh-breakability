@@ -2,10 +2,11 @@ package jira
 
 import (
 	"fmt"
-	"github.com/andygrunwald/go-jira"
-	"github.com/spf13/cobra"
 	"os"
 	"regexp"
+
+	"github.com/andygrunwald/go-jira"
+	"github.com/spf13/cobra"
 )
 
 var (

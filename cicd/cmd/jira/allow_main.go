@@ -5,8 +5,9 @@ import (
 	"os"
 	"strings"
 
-	"github.com/spf13/cobra"
 	"main/cmd/github"
+
+	"github.com/spf13/cobra"
 )
 
 var allowMainCmd = &cobra.Command{
