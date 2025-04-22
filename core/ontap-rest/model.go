@@ -1,0 +1,1960 @@
+package ontap_rest
+
+import (
+	"strconv"
+	"time"
+
+	cr "github.com/go-openapi/runtime/client"
+	"github.com/go-openapi/strfmt"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/ontap-rest/client/cluster"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/ontap-rest/client/networking"
+	san "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/ontap-rest/client/s_a_n"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/ontap-rest/client/security"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/ontap-rest/client/storage"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/ontap-rest/client/svm"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/ontap-rest/models"
+	privmodels "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/ontap-rest/priv/models"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/nillable"
+)
+
+// Valid CIFS share property values
+const (
+	AutoTieringPolicy         = "auto"
+	SnapshotOnlyTieringPolicy = "snapshot-only"
+)
+
+var (
+	returnTimeout = strconv.FormatInt(int64(utils.GetConstraintInteger(env.GetUint("ONTAP_REST_SYNC_RETURN_TIMEOUT_SECONDS", 15), 0, 15, 15)), 10)
+	// MD: returnTimeoutNoJob signals that we are not interested in getting a job and the entire operation should instead time out
+	// this is useful for resources that in most cases take very little time to delete but may sometimes take longer.
+	returnTimeoutNoJob = nillable.ToPointer(strconv.Itoa(utils.GetConstraintInteger(int(cr.DefaultTimeout), 15, 120, 30)))
+)
+
+// BaseParams contains all the common parameters that ONTAP REST supports
+type BaseParams struct {
+	Fields        []string
+	ReturnRecords *bool
+	MaxRecords    *int64
+}
+
+// JobAccepted contains the async job information from ONTAP
+type JobAccepted struct {
+	JobUUID      string
+	ResourceUUID string
+}
+
+// CloudTargetCollectionGetParams is the input param struct for cloudClient.CloudTargetsGet
+type CloudTargetCollectionGetParams struct {
+	BaseParams
+	Owner *string
+	Name  *string
+}
+
+// CloudTargetCreateParams is the input param struct for cloudClient.CloudTargetCreate
+type CloudTargetCreateParams struct {
+	BaseParams
+	Name           *string
+	ProviderType   *string
+	Server         *string
+	Container      *string
+	IpspaceName    *string
+	Owner          *string
+	AccessKey      *string
+	SecretPassword *strfmt.Password
+	SslEnabled     bool
+}
+
+// CloudTargetModifyParams is the input param struct for cloudClient.CloudTargetModify
+type CloudTargetModifyParams struct {
+	BaseParams
+	Name           *string
+	ProviderType   *string
+	Server         *string
+	Container      *string
+	AccessKey      *string
+	SecretPassword *strfmt.Password
+	Owner          *string
+	UUID           string
+}
+
+// ClusterGetParams is the input param struct for clusterClient.ClusterGet
+type ClusterGetParams struct {
+	BaseParams
+}
+
+// Cluster is a simple wrapper of models.Cluster
+type Cluster struct {
+	models.Cluster
+}
+
+// JobGetParams is the input param struct for clusterClient.JobGet
+type JobGetParams struct {
+	BaseParams
+	UUID string
+}
+
+// Job is a simple wrapper of models.Job
+type Job struct {
+	models.Job
+}
+
+// JobCollectionGetParams is the input param struct for clusterClient.JobGet
+type JobCollectionGetParams struct {
+	BaseParams
+	Fields      []string
+	SvmUUID     string
+	Description string
+}
+
+// NodesGetParams is the input param struct for clusterClient.NodesGet
+type NodesGetParams struct {
+	BaseParams
+}
+
+func nodesGetParamsToONTAP(params *NodesGetParams) *cluster.NodesGetParams {
+	otParams := cluster.NewNodesGetParams()
+	if params == nil {
+		return otParams
+	}
+
+	otParams.Fields = params.Fields
+	return otParams
+}
+
+// Node is a simple wrapper of models.NodeResponseInlineRecordsInlineArrayItem
+type Node struct {
+	models.NodeResponseInlineRecordsInlineArrayItem
+}
+
+// ScheduleCollectionGetParams is the input param struct for clusterClient.ScheduleCollectionGet
+type ScheduleCollectionGetParams struct {
+	BaseParams
+	Name string
+}
+
+// Schedule is a simple wrapper of models.Schedule
+type Schedule struct {
+	models.Schedule
+}
+
+// DNSGetParams is the input param struct for nameServicesClient.DNSGet
+type DNSGetParams struct {
+	BaseParams
+	SvmUUID string
+}
+
+// DNSCreateParams is the input param struct for nameServicesClient.DNSCreate
+type DNSCreateParams struct {
+	SvmUUID    string
+	Domains    []string
+	DNSServers []string
+}
+
+// DNS is a simple wrapper of models.DNS
+type DNS struct {
+	models.DNS
+}
+
+// DNSModifyParams is the input param struct for nameServicesClient.DNSModify
+type DNSModifyParams struct {
+	BaseParams
+	SvmUUID          string
+	Domains          []string
+	NameServers      []string
+	DDNSModifyParams DDNSModifyParams
+}
+
+// DDNSModifyParams is the input param struct for nameServicesClient.DNSModify.DynamicDNS
+type DDNSModifyParams struct {
+	UseSecure *bool
+	Fqdn      *string
+	Enabled   *bool
+}
+
+// CifsServiceCollectionGetGroupsParams is the input param struct for fetching cifs groups and users
+type CifsServiceCollectionGetGroupsParams struct {
+	BaseParams
+	Sid     *string
+	SvmUUID string
+}
+
+// CifsGroup is a CIFS group
+type CifsGroup struct {
+	Name    string
+	Sid     string
+	Members []string
+}
+
+// CifsServiceCollectionGetPrivilegedMembersParams is the input param struct for fetching privileged members
+type CifsServiceCollectionGetPrivilegedMembersParams struct {
+	BaseParams
+	SvmUUID string
+}
+
+// CifsServiceModifyGroupMembersParams is the input param struct to add or remove members to CIFS groups
+type CifsServiceModifyGroupMembersParams struct {
+	Sid     string
+	Members []string
+	SvmUUID string
+}
+
+// CifsServiceModifySecurityPrivilegeParams is the input param struct to modify CIFS user privileges
+type CifsServiceModifySecurityPrivilegeParams struct {
+	Member  string
+	SvmUUID string
+}
+
+// HostRecordGetParams is the input param struct for nameServicesClient.HostRecordGet
+type HostRecordGetParams struct {
+	BaseParams
+	Host     string
+	SvmUUID  string
+	UseCache *bool
+}
+
+// CifsDomainPreferredDCDeleteParams is the input param struct for nasClient.CifsDomainCifsDomainPreferredDCDelete
+type CifsDomainPreferredDCDeleteParams struct {
+	BaseParams
+	Fqdn     *string
+	ServerIP *string
+	SvmUUID  string
+}
+
+// CifsDomainPreferredDCCreateParams is the input param struct for nasClient.CifsDomainCifsDomainPreferredDCCreate
+type CifsDomainPreferredDCCreateParams struct {
+	BaseParams
+	CifsDomainPreferredDC *CifsDomainPreferredDC
+	SkipConfigValidation  *bool
+	SvmUUID               string
+}
+
+// CifsDomainPreferredDC in the input param for model.CifsDomainPreferredDCCreateParams
+type CifsDomainPreferredDC struct {
+	Fqdn     *string
+	ServerIP *string
+	Status   *CifsDomainPreferredDcInlineStatus
+}
+
+// CifsDomainPreferredDcInlineStatus is the input param for model.CifsDomainPreferredDC
+type CifsDomainPreferredDcInlineStatus struct {
+	Details   *string
+	Reachable *bool
+}
+
+// SrvLookupParams is the input param struct for nasClient.DomainControllersSrvLookupGet
+type SrvLookupParams struct {
+	BaseParams
+	LookupString string
+	LookupType   *string
+	NameServers  []string
+	Node         string
+	SVMName      string
+}
+
+// HostRecord is a simple wrapper of models.HostRecord
+type HostRecord struct {
+	models.HostRecord
+}
+
+// LdapCollectionGetParams is the input param struct for nameServicesClient.LdapCollectionGet
+type LdapCollectionGetParams struct {
+	BaseParams
+	SvmUUID *string
+}
+
+// LdapService is a simple wrapper of models.LdapService
+type LdapService struct {
+	models.LdapService
+}
+
+// LdapGetParams is the input params struct for nameServicesClient.LdapGet
+type LdapGetParams struct {
+	BaseParams
+	SvmUUID string
+}
+
+// LdapCreateParams is the input params struct for nameServicesClient.LdapCreate
+type LdapCreateParams struct {
+	BaseParams
+	BindAsCifsServer              *bool
+	DomainName                    *string
+	BaseDN                        *string
+	UserDn                        *string
+	GroupDn                       *string
+	GroupMembershipFilter         *string
+	PreferredServersForLdapClient []*string
+	TLSEnabled                    *bool
+	Schema                        *string
+	SessionSecurity               *string
+	SvmUUID                       string
+	LdapPort                      *int64
+	LdapServers                   []*string
+}
+
+// LdapModifyParams is the input params struct for nameServicesClient.LdapModify
+type LdapModifyParams struct {
+	BaseParams
+	UserDn                        *string
+	GroupDn                       *string
+	BaseDN                        *string
+	GroupMembershipFilter         *string
+	PreferredServersForLdapClient []*string
+	TLSEnabled                    *bool
+	Schema                        *string
+	SvmUUID                       string
+	Domain                        *string
+	LdapServers                   []*string
+}
+
+// LdapDeleteParams is the input params struct for nameServicesClient.LdapDelete
+type LdapDeleteParams struct {
+	BaseParams
+	SvmUUID string
+}
+
+// LdapSchemaCreateParams is the input params struct for nameServicesClient.LdapSchemaCreate
+type LdapSchemaCreateParams struct {
+	BaseParams
+	Name     *string
+	Template *string
+	SvmUUID  *string
+}
+
+// LdapSchemaModifyParams is the input params struct for nameServicesClient.LdapSchemaModify
+type LdapSchemaModifyParams struct {
+	BaseParams
+	MaximumGroups *int64
+	SvmUUID       string
+	SchemaName    string
+}
+
+// LocalHostCreateParams is the input param struct for nameServicesClient.LocalHostCreate
+type LocalHostCreateParams struct {
+	BaseParams
+	Address  *string
+	Hostname *string
+	Owner    *string
+	Timeout  time.Duration
+}
+
+// LocalHostDeleteParams is the input param struct for nameServicesClient.LocalHostDelete
+type LocalHostDeleteParams struct {
+	BaseParams
+	Address string
+	SvmUUID string
+	Timeout time.Duration
+}
+
+// UnixGroupCollectionGetParams is the input param struct for nameServicesClient.UnixGroupCollectionGet
+type UnixGroupCollectionGetParams struct {
+	BaseParams
+	SvmName   *string
+	ID        *int64
+	Name      *string
+	UsersName *string
+}
+
+// UnixGroup is a simple wrapper of models.UnixGroup
+type UnixGroup struct {
+	models.UnixGroup
+}
+
+// UnixGroupCreateParams is the input param struct for nameServicesClient.UnixGroupCreate
+type UnixGroupCreateParams struct {
+	SvmName string
+	SvmUUID string
+	Name    string
+	GID     uint32
+}
+
+// UnixGroupDeleteParams is the input param struct for nameServicesClient.UnixGroupDelete
+type UnixGroupDeleteParams struct {
+	SvmName string // FIXME: unused - remove?
+	SvmUUID string
+	Name    string
+}
+
+// UnixUserCollectionGetParams is the input param struct for nameServicesClient.UnixUserCollectionGet
+type UnixUserCollectionGetParams struct {
+	BaseParams
+	SvmName    string
+	SvmUUID    string
+	Name       *string
+	FullName   *string
+	UID        *uint32
+	PrimaryGID *uint32
+}
+
+// UnixUser is a simple wrapper of models.UnixUser
+type UnixUser struct {
+	models.UnixUser
+}
+
+// UnixUserCreateParams is the input param struct for nameServicesClient.UnixUserCreate
+type UnixUserCreateParams struct {
+	SvmName    string
+	SvmUUID    string
+	Name       string
+	FullName   *string
+	UID        uint32
+	PrimaryGID uint32
+}
+
+// UnixUserDeleteParams is the input param struct for nameServicesClient.UnixUserDelete
+type UnixUserDeleteParams struct {
+	SvmName string // FIXME: unused - remove?
+	SvmUUID string
+	Name    string
+}
+
+// GetGroupIDsListParams is the input param struct for nameServicesClient.GetGroupIDsList
+type GetGroupIDsListParams struct {
+	BaseParams
+	Username string
+	SvmName  string
+	Node     string
+	UseCache string
+}
+
+// CifsDomainGetParams is the input param struct for nasClient.CifsDomainGet
+type CifsDomainGetParams struct {
+	BaseParams
+	RediscoverTrusts       *bool
+	ResetDiscoveredServers *bool
+	SvmUUID                string
+}
+
+// CifsDomain is a simple wrapper of models.CifsDomain
+type CifsDomain struct {
+	models.CifsDomain
+}
+
+// NfsGetParams is the input params struct for nasClient.NfsGet
+type NfsGetParams struct {
+	BaseParams
+	SvmUUID string
+}
+
+// NfsCreateParams is the input param struct for nasClient.NfsModify
+type NfsCreateParams struct {
+	SvmUUID               string
+	NFSv41Enabled         bool
+	NFSv364BitIdentifiers bool
+	ShowmountEnabled      *bool
+	NFSv4IDDomain         *string
+	VstorageEnabled       bool
+}
+
+// Nfs is a simple wrapper of models.NfsService
+type Nfs struct {
+	models.NfsService
+}
+
+// NfsModifyParams is the input param struct for nasClient.NfsModify
+type NfsModifyParams struct {
+	SvmUUID                    string
+	V4IDDomain                 *string
+	ShowmountEnabled           *bool
+	RquotaEnabled              *bool
+	AllowLocalNFSUsersWithLdap *bool
+	ExtendedGroupsLimit        *int64
+	Enabled                    *bool
+	V3Enabled                  *bool
+	V40Enabled                 *bool
+	V41Enabled                 *bool
+	VstorageEnabled            *bool
+	FileSessionIoGroupingCount *int64
+}
+
+// NfsClientsGetParams is the input param struct for nasClient.NfsClientsGet
+type NfsClientsGetParams struct {
+	BaseParams
+	VolumeUUID *string
+	SvmName    *string
+	Protocol   *string
+}
+
+// NfsClients is a simple wrapper of models.NfsClients
+type NfsClients struct {
+	models.NfsClients
+}
+
+// AuditCreateParams is the input param struct for nasClient.AuditCreate
+type AuditCreateParams struct {
+	BaseParams
+	SvmName             *string
+	Enabled             *bool
+	AuthorizationPolicy *bool
+	CapStaging          *bool
+	CifsLogonLogoff     *bool
+	FileOperations      *bool
+	FileShare           *bool
+	SecurityGroup       *bool
+	UserAccount         *bool
+	Format              *string
+	LogSize             *int64
+	LogPath             *string
+	LogRotation         []*int64
+	LogRetentionCount   *int64
+	Guarantee           *bool
+	ChargeQos           *bool
+}
+
+// AuditLogRedirectCreateParams is the input param struct for securityClient.AuditLogRedirectCreate
+type AuditLogRedirectCreateParams struct {
+	BaseParams
+	SvmUUID *string
+}
+
+// AuditLogRedirectGetParams is the input param struct for securityClient.AuditLogRedirectGet
+type AuditLogRedirectGetParams struct {
+	BaseParams
+}
+
+// AuditLogRedirect is a simple wrapper of models.AuditLogRedirect
+type AuditLogRedirect struct {
+	models.AuditLogRedirect
+}
+
+// AuditLogRedirectDeleteParams is the input param struct for securityClient.AuditLogRedirectDelete
+type AuditLogRedirectDeleteParams struct {
+	BaseParams
+}
+
+// CifsLocalGroupMembersCreateParams is the input param struct for nasClient.CifsLocalGroupMembersCreate
+type CifsLocalGroupMembersCreateParams struct {
+	BaseParams
+	SvmUUID string
+	SID     string
+	Users   []string
+}
+
+// CifsLocalGroupMembersBulkDeleteParams is the input param struct for nasClient.CifsLocalGroupMembersBulkDelete
+type CifsLocalGroupMembersBulkDeleteParams struct {
+	BaseParams
+	SID     string
+	SvmUUID string
+	Users   []string
+}
+
+// CifsLocalGroupMember is a simple wrapper of models.LocalCifsGroupMembers
+type CifsLocalGroupMember struct {
+	models.LocalCifsGroupMembers
+}
+
+// CifsLocalGroupMembersCollectionGetParams is the input param struct for nasClient.CifsLocalGroupMembersCollectionGet
+type CifsLocalGroupMembersCollectionGetParams struct {
+	BaseParams
+	SvmUUID string
+	SID     string
+}
+
+// CifsUserGroupPrivilegesCreateParams is the input param struct for nasClient.CifsUserGroupPrivilegesCreate
+type CifsUserGroupPrivilegesCreateParams struct {
+	BaseParams
+	Name       *string
+	Privileges []*string
+	SvmUUID    *string
+}
+
+// CifsUserGroupPrivileges is a simple wrapper of models.UserGroupPrivileges
+type CifsUserGroupPrivileges struct {
+	models.UserGroupPrivileges
+}
+
+// CifsUserGroupPrivilegesCollectionGetParams is the input param struct for nasClient.CifsUserGroupPrivilegesCollectionGet
+type CifsUserGroupPrivilegesCollectionGetParams struct {
+	BaseParams
+	Privileges *string
+	SvmUUID    *string
+}
+
+// CifsUserGroupPrivilegesModifyParams is the input param struct for nasClient.CifsUserGroupPrivilegesModify
+type CifsUserGroupPrivilegesModifyParams struct {
+	BaseParams
+	Name       string
+	Privileges []*string
+	SvmUUID    string
+}
+
+// CifsSessionCollectionGetParams is the input param struct for nasClient.CifsSessionCollectionGet
+type CifsSessionCollectionGetParams struct {
+	BaseParams
+	VolumeName *string
+}
+
+// CifsSession is a simple wrapper of models.CifsSession
+type CifsSession struct {
+	models.CifsSession
+}
+
+// BreakFileLocksParams is the input param struct for nasClient.BreakFileLocks
+type BreakFileLocksParams struct {
+	BaseParams
+	VolumeUUID string
+	SvmName    string
+	ClientIP   *string
+}
+
+// NetworkIPInterfacesGetParams is the input param struct for networkingClient.NetworkIPInterfacesGet
+type NetworkIPInterfacesGetParams struct {
+	BaseParams
+	SvmUUID   *string
+	SvmName   *string
+	Name      *string
+	IPAddress *string
+}
+
+func networkIPInterfacesGetParamsToONTAP(params *NetworkIPInterfacesGetParams) *networking.NetworkIPInterfacesGetParams {
+	otParams := networking.NewNetworkIPInterfacesGetParams()
+	if params == nil {
+		return otParams
+	}
+
+	otParams.SetMaxRecords(getConstrainedMaxRecords(params.MaxRecords))
+	otParams.SetFields(params.Fields)
+	otParams.SetSvmName(params.SvmName)
+	otParams.SetName(params.Name)
+	otParams.SetSvmUUID(params.SvmUUID)
+	otParams.SetIPAddress(params.IPAddress)
+	return otParams
+}
+
+// NetworkIPInterfacesCreateParams is the input param struct for networkingClient.NetworkIPInterfacesGet
+type NetworkIPInterfacesCreateParams struct {
+	Name          string
+	IPAddress     string
+	Netmask       string
+	SvmName       string
+	HomePort      string
+	HomeNode      string
+	ServicePolicy string
+}
+
+// IPInterface is a simple wrapper of models.IPInterface
+type IPInterface struct {
+	models.IPInterface
+}
+
+// IPServicePolicy is a simple wrapper of models.IPServicePolicy
+type IPServicePolicy struct {
+	models.IPServicePolicy
+}
+
+// SecurityKeyManagerCollectionGetParams is the input param struct for securityClient.SecurityKeyManagerCollectionGet
+type SecurityKeyManagerCollectionGetParams struct {
+	BaseParams
+	Timeout time.Duration
+}
+
+// SecurityKeyManager is a simple wrapper of models.SecurityKeyManager
+type SecurityKeyManager struct {
+	models.SecurityKeyManager
+}
+
+// SecurityKeyManagerMigrateParams is the input param struct for securityClient.SecurityKeyManagerMigrate
+type SecurityKeyManagerMigrateParams struct {
+	BaseParams
+	SourceUUID      string
+	DestinationUUID string
+	Timeout         time.Duration
+}
+
+// SecurityKeystoreModifyParams is the input param struct for securityClient.SecurityKeystoreModify
+type SecurityKeystoreModifyParams struct {
+	BaseParams
+	KeystoreUUID string
+	Enabled      bool
+	Timeout      time.Duration
+}
+
+// SecurityKeystoreDeleteParams is the input param struct for securityClient.SecurityKeystoreDelete
+type SecurityKeystoreDeleteParams struct {
+	BaseParams
+	KeystoreUUID string
+	Timeout      time.Duration
+}
+
+// IpsecPolicyEndpoint describes an endpoint for IpsecPolicy parameters
+type IpsecPolicyEndpoint struct {
+	Address string
+	Netmask string
+	Port    string
+}
+
+// IpsecPolicyCreateParams is the input param struct for securityClient.IpsecPolicyCreate
+type IpsecPolicyCreateParams struct {
+	BaseParams
+	Action         *string
+	Enabled        *bool
+	LocalEndpoint  *IpsecPolicyEndpoint
+	Name           *string
+	Protocol       *string
+	RemoteEndpoint *IpsecPolicyEndpoint
+	SecretKey      *string
+	LocalIdentity  *string
+	RemoteIdentity *string
+	SvmName        *string
+}
+
+// IpsecPolicyModifyParams is the input param struct for securityClient.IpsecPolicyModify
+type IpsecPolicyModifyParams struct {
+	BaseParams
+	UUID           string
+	RemoteEndpoint *IpsecPolicyEndpoint
+	LocalIdentity  *string
+	RemoteIdentity *string
+}
+
+// IpsecPolicyDeleteParams is the input param struct for securityClient.IpsecPolicyDelete
+type IpsecPolicyDeleteParams struct {
+	BaseParams
+	UUID string
+}
+
+// IpsecPolicyCollectionGetParams is the input param struct for securityClient.IpsecPolicyCollectionGet
+type IpsecPolicyCollectionGetParams struct {
+	BaseParams
+	Name    *string
+	SvmName *string
+}
+
+// IpsecPolicy is a simple wrapper of models.IpsecPolicyResponseInlineRecordsInlineArrayItem
+type IpsecPolicy struct {
+	models.IpsecPolicyResponseInlineRecordsInlineArrayItem
+}
+
+// GcpKmsCreateParams is the input param struct for securityClient.GcpKmsCreate
+type GcpKmsCreateParams struct {
+	BaseParams
+	KeyName                *string
+	KeyRingLocation        *string
+	KeyRingName            *string
+	ProjectID              *string
+	ApplicationCredentials *strfmt.Password
+	SvmName                *string
+}
+
+func gcpKmsCreateParamsToONTAP(params *GcpKmsCreateParams) *security.GcpKmsCreateParams {
+	otParams := security.NewGcpKmsCreateParams()
+	if params == nil {
+		return otParams
+	}
+
+	rr := "true"
+	otParams.SetReturnRecords(&rr)
+	otParams.SetInfo(
+		&models.GcpKms{
+			KeyName:                params.KeyName,
+			KeyRingLocation:        params.KeyRingLocation,
+			KeyRingName:            params.KeyRingName,
+			ProjectID:              params.ProjectID,
+			ApplicationCredentials: params.ApplicationCredentials,
+			Svm:                    &models.GcpKmsInlineSvm{Name: params.SvmName},
+		})
+	return otParams
+}
+
+// GcpKms is a simple wrapper of models.GcpKms
+type GcpKms struct {
+	models.GcpKms
+}
+
+// GcpKmsPriv is a simple wrapper of models.GcpKms
+type GcpKmsPriv struct {
+	privmodels.GcpKms
+}
+
+// GcpKmsDeleteParams is the input param struct for securityClient.GcpKmsDelete
+type GcpKmsDeleteParams struct {
+	BaseParams
+	UUID string
+}
+
+// GcpKmsModifyParams is the input param struct for securityClient.GcpKmsModify
+type GcpKmsModifyParams struct {
+	BaseParams
+	UUID                   string
+	ApplicationCredentials *log.Secret
+}
+
+// GcpKmsGetParams is the input param struct for securityClient.GcpKmsGet
+type GcpKmsGetParams struct {
+	BaseParams
+	UUID string
+}
+
+// AggregateCollectionGetParams is the input param struct for storageClient.AggregateCollectionGet
+type AggregateCollectionGetParams struct {
+	BaseParams
+	Name *string
+}
+
+func aggregateCollectionGetParamsToONTAP(params *AggregateCollectionGetParams) *storage.AggregateCollectionGetParams {
+	otParams := storage.NewAggregateCollectionGetParams()
+	if params == nil {
+		return otParams
+	}
+
+	otParams.SetName(params.Name)
+	otParams.SetFields(params.Fields)
+	return otParams
+}
+
+// Aggregate is a simple wrapper of models.Aggregate
+type Aggregate struct {
+	models.Aggregate
+}
+
+// IsHome return true if the aggregate is currently on its home node
+func (a *Aggregate) IsHome() bool {
+	if a.HomeNode == nil || a.HomeNode.UUID == nil || a.Node == nil || a.Node.UUID == nil {
+		return false
+	}
+
+	return *a.HomeNode.UUID == *a.Node.UUID
+}
+
+// IsOnline returns true if an aggregate is online.
+func (a *Aggregate) IsOnline() bool {
+	if a.State == nil || *a.State != models.AggregateStateOnline {
+		return false
+	}
+
+	return true
+}
+
+// AggregateModifyParams is the input param struct for storageClient.AggregateModify
+type AggregateModifyParams struct {
+	BaseParams
+	UUID                     string
+	TieringFullnessThreshold *int64
+}
+
+func aggregateModifyParamsToONTAP(params *AggregateModifyParams) *storage.AggregateModifyParams {
+	otParams := storage.NewAggregateModifyParams()
+	if params == nil {
+		return otParams
+	}
+	otParams.SetUUID(params.UUID)
+	otParams.SetInfo(&models.Aggregate{
+		CloudStorage: &models.AggregateInlineCloudStorage{
+			TieringFullnessThreshold: params.TieringFullnessThreshold,
+		},
+	})
+	return otParams
+}
+
+func qosPolicyGroupCollectionModifyParamsToONTAP(qosPolicyGroupParams []*QosPolicyGroupModifyCollectionParams) *storage.QosPolicyModifyCollectionParams {
+	otParams := storage.NewQosPolicyModifyCollectionParams()
+
+	var qosPolicyList []*models.QosPolicy
+	for _, qosPolicy := range qosPolicyGroupParams {
+		if qosPolicy.UUID == "" {
+			continue
+		}
+		throughput := int64(qosPolicy.Throughput)
+		qosPolicyGroup := &models.QosPolicy{
+			UUID: &qosPolicy.UUID,
+			Fixed: &models.QosPolicyInlineFixed{
+				MaxThroughputMbps: &throughput,
+			},
+		}
+
+		qosPolicyList = append(qosPolicyList, qosPolicyGroup)
+	}
+
+	if len(qosPolicyList) == 0 {
+		return otParams
+	}
+	otParams.SetInfo(storage.QosPolicyModifyCollectionBody{
+		QosPolicyResponseInlineRecords: qosPolicyList,
+	})
+	continueOnFailure := "true"
+	otParams.SetContinueOnFailure(&continueOnFailure)
+	return otParams
+}
+
+// AggregateSimulate is a simple wrapper of models.Aggregate
+type AggregateSimulate struct {
+	models.AggregateSimulate
+}
+
+// QosPolicyModifyCollection is a simple wrapper of models.QosPolicyModifyCollection
+type QosPolicyModifyCollection struct {
+	models.QosPolicyJobLinkResponse
+}
+
+// QosPolicyGroupModifyCollectionParams is the input param struct for storageClient.VolumeModifyCollectionParams
+type QosPolicyGroupModifyCollectionParams struct {
+	BaseParams
+	Throughput float64
+	UUID       string
+}
+
+// VolumeModifyParams is the input param struct for storageClient.VolumeModify
+type VolumeModifyParams struct {
+	BaseParams
+	UUID                           string
+	QuotaEnabled                   *bool
+	ReKey                          *bool
+	SplitInitiated                 *bool
+	MatchParentStorageTier         bool
+	RestoreToSnapshotUUID          *string
+	State                          *string
+	Path                           *string
+	SnapshotPolicyName             *string
+	Movement                       *VolumeMovementParams
+	Comment                        *string
+	SecurityStyle                  *string
+	UnixPermissions                *string
+	SnapReserve                    *int
+	MaxFiles                       *uint64
+	MaxAutoSize                    *uint64
+	Size                           *uint64
+	LogicalSpaceEnforcement        *bool
+	SnapshotDirectoryAccessEnabled *bool
+	SetAtTimeEnabled               *bool
+	TieringPolicy                  *string
+	TieringMinimumCoolingDays      *int32
+	CloudRetrievalPolicy           *string
+	ExportPolicy                   *string
+	QosPolicy                      *string
+	AntiRansomwareState            *string
+}
+
+// FlexcacheModifyParams is the input param struct for storageClient.FlexcacheModify
+type FlexcacheModifyParams struct {
+	BaseParams
+	UUID                       string
+	PrepopulateDirPaths        []*string
+	PrepopulateExcludeDirPaths []*string
+	PrepopulateRecurse         *bool
+	WritebackEnabled           *bool
+	RelativeSizeEnabled        *bool
+	RelativeSizePercentage     *int16
+	AtimeScrubEnabled          *bool
+	AtimeScrubPeriod           *int16
+	CifsChangeNotifyEnabled    *bool
+}
+
+// VolumeMovementParams is the param struct which is a part of VolumeModifyParams
+type VolumeMovementParams struct {
+	VolumeMovementDestinationAggregate *VolumeMovementDestinationAggregate
+	TieringPolicy                      *string
+	State                              *string
+}
+
+// VolumeMovementDestinationAggregate is the param struct which is a part of VolumeMovementParams
+type VolumeMovementDestinationAggregate struct {
+	DestinationAggregateUUID *string
+	DestinationAggregateName *string
+}
+
+func volumeModifyParamsToONTAP(params *VolumeModifyParams) *storage.VolumeModifyParams {
+	otParams := storage.NewVolumeModifyParams()
+	if params == nil {
+		return otParams
+	}
+
+	otParams.SetUUID(params.UUID)
+	info := &models.Volume{}
+	if params.QuotaEnabled != nil {
+		info.Quota = &models.VolumeInlineQuota{Enabled: params.QuotaEnabled}
+	}
+	if params.ReKey != nil {
+		info.Encryption = &models.VolumeInlineEncryption{Rekey: params.ReKey}
+	}
+
+	useReturnTimeout := true
+	if params.SplitInitiated != nil {
+		useReturnTimeout = false
+		info.Clone = &models.VolumeInlineClone{
+			SplitInitiated: params.SplitInitiated,
+		}
+		if params.MatchParentStorageTier {
+			mpst := "true"
+			otParams.CloneMatchParentStorageTier = &mpst
+		}
+	}
+	if useReturnTimeout {
+		otParams.SetReturnTimeout(&returnTimeout)
+	}
+	if params.State != nil {
+		info.State = params.State
+	}
+	if params.SnapshotPolicyName != nil {
+		info.SnapshotPolicy = &models.VolumeInlineSnapshotPolicy{Name: params.SnapshotPolicyName}
+	}
+	if params.Movement != nil {
+		info.Movement = &models.VolumeInlineMovement{
+			TieringPolicy: params.Movement.TieringPolicy,
+			State:         params.Movement.State,
+		}
+		if params.Movement.VolumeMovementDestinationAggregate != nil {
+			info.Movement.DestinationAggregate = &models.VolumeInlineMovementInlineDestinationAggregate{
+				UUID: params.Movement.VolumeMovementDestinationAggregate.DestinationAggregateUUID,
+				Name: params.Movement.VolumeMovementDestinationAggregate.DestinationAggregateName,
+			}
+		}
+	}
+	if params.Comment != nil {
+		info.Comment = params.Comment
+	}
+	if params.Path != nil || params.SecurityStyle != nil || params.ExportPolicy != nil || params.UnixPermissions != nil {
+		info.Nas = &models.VolumeInlineNas{
+			Path:          params.Path,
+			SecurityStyle: params.SecurityStyle,
+		}
+		if params.ExportPolicy != nil {
+			info.Nas.ExportPolicy = &models.VolumeInlineNasInlineExportPolicy{
+				Name: params.ExportPolicy,
+			}
+		}
+		if params.UnixPermissions != nil {
+			up, _ := strconv.Atoi(*params.UnixPermissions)
+			info.Nas.UnixPermissions = nillable.ToPointer(int64(up))
+		}
+	}
+
+	if params.Size != nil || params.LogicalSpaceEnforcement != nil || params.SnapReserve != nil || params.MaxAutoSize != nil {
+		info.Space = &models.VolumeInlineSpace{}
+		if params.Size != nil {
+			info.Space.Size = nillable.ToPointer(utils.ConstrainedCastUint64(*params.Size))
+		}
+		if params.MaxAutoSize != nil {
+			info.Autosize = &models.VolumeInlineAutosize{Maximum: nillable.ToPointer(utils.ConstrainedCastUint64(*params.MaxAutoSize))}
+		}
+		if params.LogicalSpaceEnforcement != nil {
+			info.Space.LogicalSpace = &models.VolumeInlineSpaceInlineLogicalSpace{Enforcement: params.LogicalSpaceEnforcement}
+		}
+		if params.SnapReserve != nil {
+			info.Space.Snapshot = &models.VolumeInlineSpaceInlineSnapshot{ReservePercent: nillable.ToPointer(int64(*params.SnapReserve))}
+		}
+	}
+
+	if params.MaxFiles != nil {
+		info.Files = &models.VolumeInlineFiles{
+			Maximum: nillable.ToPointer(utils.ConstrainedCastUint64(*params.MaxFiles)),
+		}
+	}
+
+	if params.SnapshotDirectoryAccessEnabled != nil {
+		info.SnapshotDirectoryAccessEnabled = params.SnapshotDirectoryAccessEnabled
+	}
+
+	if params.SetAtTimeEnabled != nil {
+		info.AccessTimeEnabled = params.SetAtTimeEnabled
+	}
+
+	if params.TieringPolicy != nil || params.TieringMinimumCoolingDays != nil {
+		var cool *int64
+
+		if params.TieringMinimumCoolingDays != nil && *params.TieringMinimumCoolingDays != 0 {
+			cool = nillable.ToPointer(int64(*params.TieringMinimumCoolingDays))
+		}
+		// skip assigning the cooling days if the policy is none
+		if params.TieringPolicy != nil && *params.TieringPolicy == "none" {
+			cool = nil
+		}
+
+		info.Tiering = &models.VolumeInlineTiering{
+			Policy:         params.TieringPolicy,
+			MinCoolingDays: cool,
+		}
+	}
+
+	if params.CloudRetrievalPolicy != nil {
+		info.CloudRetrievalPolicy = params.CloudRetrievalPolicy
+	}
+
+	if params.QosPolicy != nil {
+		info.Qos = &models.VolumeInlineQos{
+			Policy: &models.VolumeInlineQosInlinePolicy{
+				Name: params.QosPolicy,
+			},
+		}
+	}
+
+	if params.RestoreToSnapshotUUID != nil {
+		otParams.SetRestoreToSnapshotUUID(params.RestoreToSnapshotUUID)
+	}
+	if params.AntiRansomwareState != nil {
+		info.AntiRansomware = &models.VolumeInlineAntiRansomware{State: params.AntiRansomwareState}
+	}
+
+	otParams.SetInfo(info)
+	return otParams
+}
+
+// VolumeRevertParams is the input param struct for tunnelledStorageClient.VolumeRevert
+type VolumeRevertParams struct {
+	UUID                  string
+	RestoreToSnapshotUUID string
+}
+
+// VolumeUnmountParams is the input params struct for tunnelledStorageClient.VolumeUnmount
+type VolumeUnmountParams struct {
+	UUID string
+}
+
+// VolumeMountParams is the input params struct for tunnelledStorageClient.VolumeMount
+type VolumeMountParams struct {
+	UUID         string
+	JunctionPath string
+}
+
+// SnapshotCollectionGetParams is the input param struct for storageClient.SnapshotCollectionGet
+type SnapshotCollectionGetParams struct {
+	BaseParams
+	VolumeUUID      string
+	SvmName         string
+	UUID            *string
+	Name            *string
+	SnapmirrorLabel *string
+}
+
+func snapshotCollectionGetParamsToONTAP(params *SnapshotCollectionGetParams) *storage.SnapshotCollectionGetParams {
+	otParams := storage.NewSnapshotCollectionGetParams()
+	if params == nil {
+		return otParams
+	}
+
+	otParams.SetFields(params.Fields)
+	otParams.SetMaxRecords(nillable.ToStringPtr(params.MaxRecords))
+	otParams.SetSnapmirrorLabel(params.SnapmirrorLabel)
+	otParams.SetVolumeUUID(params.VolumeUUID)
+	return otParams
+}
+
+// Snapshot is a simple wrapper of models.Snapshot
+type Snapshot struct {
+	models.Snapshot
+}
+
+// SnapshotCreateParams is the input param struct for storageClient.SnapshotCreate
+type SnapshotCreateParams struct {
+	VolumeUUID string
+	Name       string
+	Comment    *string
+}
+
+// SnapshotPolicyGetParams is the input param struct for storageClient.SnapshotPolicyGet
+type SnapshotPolicyGetParams struct {
+	BaseParams
+	UUID string
+}
+
+func snapshotPolicyGetParamsToONTAP(params *SnapshotPolicyGetParams) *storage.SnapshotPolicyGetParams {
+	otParams := storage.NewSnapshotPolicyGetParams()
+	if params == nil {
+		return otParams
+	}
+
+	otParams.SetFields(params.Fields)
+	otParams.SetUUID(params.UUID)
+	return otParams
+}
+
+// SnapshotPolicyDeleteParams is the input param struct for storageClient.SnapshotPolicyDelete
+type SnapshotPolicyDeleteParams struct {
+	BaseParams
+	Name string
+}
+
+// SnapshotPolicy is a simple wrapper of models.SnapshotPolicy
+type SnapshotPolicy struct {
+	models.SnapshotPolicy
+}
+
+// SnapshotPolicySchedule describes the schedules in SnapshotPolicyCreateParams
+type SnapshotPolicySchedule struct {
+	Prefix          string
+	Count           int
+	SnapmirrorLabel string
+	Name            string
+	Months          []int
+	DaysOfMonth     []int
+	DaysOfWeek      []int
+	Hours           []int
+	Minutes         []int
+}
+
+// SnapshotPolicyCreateParams is the input param struct SnapshotPolicyCreate
+type SnapshotPolicyCreateParams struct {
+	BaseParams
+	Name      *string
+	Comment   *string
+	Enabled   *bool
+	Schedules []*SnapshotPolicySchedule
+}
+
+// SnapshotPolicyModifyParams is the input param struct SnapshotPolicyModify
+type SnapshotPolicyModifyParams struct {
+	BaseParams
+	UUID    string
+	Comment *string
+	Enabled *bool
+}
+
+// SnapshotPolicyScheduleCreateParams is the input param struct SnapshotPolicyScheduleCreate
+type SnapshotPolicyScheduleCreateParams struct {
+	SnapshotPolicyUUID string
+	ScheduleName       string
+	Count              int
+	SnapmirrorLabel    string
+}
+
+// SnapshotPolicyScheduleModifyParams is the input param struct SnapshotPolicyScheduleModify
+type SnapshotPolicyScheduleModifyParams struct {
+	ScheduleUUID       string
+	SnapshotPolicyUUID string
+	Count              int
+	SnapmirrorLabel    string
+}
+
+// SnapshotPolicyScheduleDeleteParams is the input param struct SnapshotPolicyScheduleDelete
+type SnapshotPolicyScheduleDeleteParams struct {
+	ScheduleUUID       string
+	SnapshotPolicyUUID string
+}
+
+// ScheduleCreateParams is the input param struct ScheduleCreate
+type ScheduleCreateParams struct {
+	Name        string
+	Months      []int
+	DaysOfMonth []int
+	DaysOfWeek  []int
+	Hours       []int
+	Minutes     []int
+}
+
+// VolumeCollectionGetParams is the input param struct for storageClient.VolumeCollectionGet
+type VolumeCollectionGetParams struct {
+	BaseParams
+	UUID    *string
+	Name    *string
+	SvmName *string
+}
+
+func volumeCollectionGetParamsToONTAP(params *VolumeCollectionGetParams) *storage.VolumeCollectionGetParams {
+	otParams := storage.NewVolumeCollectionGetParams()
+	if params == nil {
+		return otParams
+	}
+
+	otParams.SetFields(params.Fields)
+	otParams.SetMaxRecords(nillable.ToStringPtr(params.MaxRecords))
+	otParams.SetUUID(params.UUID)
+	otParams.SetName(params.Name)
+	otParams.SetSvmName(params.SvmName)
+	return otParams
+}
+
+// Volume is a simple wrapper of models.Volume
+type Volume struct {
+	models.Volume
+}
+
+// Flexcache is a simple wrapper of models.Flexcache
+type Flexcache struct {
+	models.Flexcache
+}
+
+// VolumeGetParams is the input param struct for storageClient.VolumeGet
+type VolumeGetParams struct {
+	BaseParams
+	UUID    string
+	Name    string
+	SvmName *string
+}
+
+func volumeGetParamsToONTAP(params *VolumeGetParams) *storage.VolumeGetParams {
+	otParams := storage.NewVolumeGetParams()
+	if params == nil {
+		return otParams
+	}
+
+	otParams.SetFields(params.Fields)
+	otParams.SetUUID(params.UUID)
+	return otParams
+}
+
+// SnapshotModifyParams is the input param struct for storageClient.SnapshotModify
+type SnapshotModifyParams struct {
+	UUID       string
+	VolumeUUID string
+	Name       string
+}
+
+// SnapshotGetParams is the input param struct for storageClient.SnapshotGet
+type SnapshotGetParams struct {
+	BaseParams
+	UUID       string
+	Name       string
+	VolumeUUID string
+}
+
+// SnapshotDeleteParams is the input param struct for storageClient.SnapshotDelete
+type SnapshotDeleteParams struct {
+	UUID       string
+	VolumeUUID string
+}
+
+// Svm is a simple wrapper of models.Svm
+type Svm struct {
+	models.Svm
+}
+
+// SvmGetParams is the input params struct for svm_client.SvmGet
+type SvmGetParams struct {
+	BaseParams
+	SvmName string
+}
+
+func svmGetParamsToONTAP(params *SvmGetParams) *svm.SvmCollectionGetParams {
+	otParams := svm.NewSvmCollectionGetParams()
+	otParams.SetName(&params.SvmName)
+	otParams.SetFields(params.Fields)
+	return otParams
+}
+
+// SvmGetCollectionParams is the input params struct for svm_client.SvmCollectionGet
+type SvmGetCollectionParams struct {
+	BaseParams
+	SvmName     *string
+	IpspaceName *string
+}
+
+// SvmPeer represents an svm peer
+type SvmPeer struct {
+	models.SvmPeer
+}
+
+// SvmPeerGetCollectionParams is the input params struct for svm_client.SvmPeerCollectionGet
+type SvmPeerGetCollectionParams struct {
+	BaseParams
+	SvmName     *string
+	PeerSvmName *string
+}
+
+// NsSwitchSource contains slice of nsSwitchSource db values
+type NsSwitchSource struct {
+	NsSwitchSourceGroup    []*models.NsswitchSource
+	NsSwitchSourcePasswd   []*models.NsswitchSource
+	NsSwitchSourceNetgroup []*models.NsswitchSource
+	NsSwitchSourceNamemap  []*models.NsswitchSource
+}
+
+// SvmModifyParams is the input params struct for svm_client.SvmModify
+type SvmModifyParams struct {
+	BaseParams
+	SvmUUID              string
+	NsSwitch             *NsSwitchSource
+	NfsAllowed           *bool
+	CifsAllowed          *bool
+	IscsiAllowed         *bool
+	RetentionPeriodHours *int64
+}
+
+func svmModifyParamsToOntap(params *SvmModifyParams) *svm.SvmModifyParams {
+	otParams := svm.NewSvmModifyParams()
+	if params == nil {
+		return otParams
+	}
+
+	otParams.SetUUID(params.SvmUUID)
+	svmParam := &models.Svm{
+		RetentionPeriod: params.RetentionPeriodHours,
+	}
+
+	if params.NsSwitch != nil {
+		nsSwitchParams := &models.SvmInlineNsswitch{}
+		if params.NsSwitch.NsSwitchSourceGroup != nil {
+			nsSwitchParams.Group = params.NsSwitch.NsSwitchSourceGroup
+		}
+		if params.NsSwitch.NsSwitchSourcePasswd != nil {
+			nsSwitchParams.Passwd = params.NsSwitch.NsSwitchSourcePasswd
+		}
+		if params.NsSwitch.NsSwitchSourceNamemap != nil {
+			nsSwitchParams.Namemap = params.NsSwitch.NsSwitchSourceNamemap
+		}
+		if params.NsSwitch.NsSwitchSourceNetgroup != nil {
+			nsSwitchParams.Netgroup = params.NsSwitch.NsSwitchSourceNetgroup
+		}
+		svmParam.Nsswitch = nsSwitchParams
+	}
+	if params.CifsAllowed != nil {
+		svmParam.Cifs = &models.SvmInlineCifs{Allowed: params.CifsAllowed}
+	}
+	if params.NfsAllowed != nil {
+		svmParam.Nfs = &models.SvmInlineNfs{Allowed: params.NfsAllowed}
+	}
+
+	otParams.SetInfo(svmParam)
+	otParams.SetReturnTimeout(&returnTimeout)
+	return otParams
+}
+
+// ClusterPeerCreateParams is the input parameter for cluster peer create
+type ClusterPeerCreateParams struct {
+	Name               string
+	IPAddresses        []string
+	GeneratePassphrase bool
+	IPSpace            string
+	ExpiryTime         *string
+}
+
+// ClusterPeer is a simple wrapper of models.ClusterPeer
+type ClusterPeer struct {
+	models.ClusterPeer
+}
+
+// ClusterPeerResponse will represent the response from ListClusterPeer endpoint
+type ClusterPeerResponse struct {
+	IPAddresses         []string
+	PeerClusterName     string
+	AuthenticationState string
+	Availability        string
+	UUID                string
+	ExpiryTime          string
+}
+
+// ClusterPeerCreateResponse will represent the response from cluster peer creation
+type ClusterPeerCreateResponse struct {
+	GeneratedPassphrase *string
+	ClusterPeerUUID     string
+	ExpiryTime          *strfmt.DateTime
+}
+
+// VolumeDeleteParams describes the params to invoke volume Delete
+type VolumeDeleteParams struct {
+	UUID string
+	Name string
+}
+
+// ServerRootCACertificate is a simple wrapper of models.SecurityCertificate
+type ServerRootCACertificate struct {
+	models.SecurityCertificate
+}
+
+// ServerRootCAGetParams is the input param struct for securityClient.SecurityCertificateCollectionGet
+type ServerRootCAGetParams struct {
+	BaseParams
+	Name            *string
+	CertificateType *string
+	SvmName         *string
+}
+
+// ServerRootCAGetCollectionParams is the input param struct for securityClient.SecurityCertificateCollectionGet
+type ServerRootCAGetCollectionParams struct {
+	BaseParams
+	CertificateType *string
+	SvmName         *string
+	Name            *string
+}
+
+// ServerRootCAGenerateParams is the input param struct for securityClient.ServerRootCAGenerateParams
+type ServerRootCAGenerateParams struct {
+	BaseParams
+	SvmName         *string
+	CertificateType *string
+	CommonName      *string
+	Name            *string
+	KeySize         *int64
+}
+
+// ServerRootCAInstallParams is the input param struct for securityClient.ServerRootCAInstallParams
+type ServerRootCAInstallParams struct {
+	BaseParams
+	PrivateKey      *string
+	Certificate     *string
+	SvmName         *string
+	CertificateType *string
+	CommonName      *string
+	Name            *string
+}
+
+// ServerRootCADeleteParams is the input param struct for securityClient.ServerRootCADeleteParams
+type ServerRootCADeleteParams struct {
+	UUID                 *string
+	SvmName              *string
+	SerialNumber         *string
+	CommonName           *string
+	CertificateAuthority *string
+}
+
+// SnapmirrorRelationshipCreateParams describes the params to invoke snapmirror relationship create
+type SnapmirrorRelationshipCreateParams struct {
+	DestinationPath string
+	SourcePath      string
+	Policy          string
+	Schedule        *string
+}
+
+// SnapmirrorRelationshipDeleteParams describes the params to invoke snapmirror relationship delete
+type SnapmirrorRelationshipDeleteParams struct {
+	DestinationOnly *bool
+	SourceOnly      *bool
+	UUID            string
+}
+
+// SnapmirrorRelationshipReleaseParams describes the params to invoke snapmirror relationship release
+type SnapmirrorRelationshipReleaseParams struct {
+	SourceInfoOnly *bool
+	UUID           string
+}
+
+// SnapmirrorRelationshipModifyParams represents snapmirror relationship modify parameters
+type SnapmirrorRelationshipModifyParams struct {
+	UUID             string
+	TransferSchedule *string
+}
+
+// SnapmirrorRelationship represents a snapmirror relationship object
+type SnapmirrorRelationship struct {
+	models.SnapmirrorRelationship
+}
+
+// SnapmirrorRelationshipListParams represents snapmirror relationship list parameters
+type SnapmirrorRelationshipListParams struct {
+	DestinationPath string
+	SourcePath      string
+}
+
+// SnapmirrorRelationshipListDestinationsParams represents snapmirror relationship list destination parameters
+type SnapmirrorRelationshipListDestinationsParams struct {
+	DestinationPath    *string
+	SourcePath         *string
+	DestinationSVMName *string
+	SourceSVMName      *string
+}
+
+// SnapmirrorRelationshipGetParams represents snapmirror relationship get parameters
+type SnapmirrorRelationshipGetParams struct {
+	UUID string
+}
+
+// SnapmirrorPolicyDeleteCollectionParams is the input param struct for storageClient.
+type SnapmirrorPolicyDeleteCollectionParams struct {
+	BaseParams
+	Name    string
+	SvmUUID string
+}
+
+// NetworkIPDefaultRouteCreateParams describes the params to invoke Network Route Creation
+type NetworkIPDefaultRouteCreateParams struct {
+	IPSpace string
+	SvmName string
+	Gateway string
+	Timeout *time.Duration
+}
+
+func networkIPRouteCreateParamsToONTAP(params *NetworkIPDefaultRouteCreateParams) *networking.NetworkIPRoutesCreateParams {
+	otParams := networking.NewNetworkIPRoutesCreateParams()
+
+	info := &models.NetworkRoute{
+		Destination: &models.IPInfo{
+			Address: nillable.ToPointer(models.IPAddress("0.0.0.0")),
+			Netmask: nillable.ToPointer(models.IPNetmask("0")),
+		},
+		Gateway: nillable.ToPointer(params.Gateway),
+		Metric:  nillable.ToPointer(int64(20)),
+	}
+
+	if params.IPSpace != "" {
+		info.Ipspace = &models.NetworkRouteInlineIpspace{
+			Name: nillable.ToPointer(params.IPSpace),
+		}
+	}
+
+	if params.SvmName != "" {
+		info.Svm = &models.NetworkRouteInlineSvm{
+			Name: nillable.ToPointer(params.SvmName),
+		}
+	}
+
+	otParams.SetInfo(info)
+	if params.Timeout != nil {
+		otParams.SetTimeout(*params.Timeout)
+	}
+	return otParams
+}
+
+// NetworkEthernetBroadcastDomainsGetParams describes the params to invoke network ethernet port get
+type NetworkEthernetBroadcastDomainsGetParams struct {
+	BaseParams
+	Name    string
+	IPSpace string
+}
+
+func networkEthernetBroadcastDomainsGetParamsToONTAP(params *NetworkEthernetBroadcastDomainsGetParams) *networking.NetworkEthernetBroadcastDomainsGetParams {
+	otParams := networking.NewNetworkEthernetBroadcastDomainsGetParams()
+	otParams.SetMaxRecords(getConstrainedMaxRecords(params.MaxRecords))
+	otParams.SetFields(params.Fields)
+	if params.IPSpace != "" {
+		otParams.SetIpspaceName(&params.IPSpace)
+	}
+	if params.Name != "" {
+		otParams.SetName(&params.Name)
+	}
+	return otParams
+}
+
+// BroadcastDomain is a simple wrapper of models.BroadcastDomain
+type BroadcastDomain struct {
+	models.BroadcastDomain
+}
+
+// NetworkEthernetBroadcastDomainCreateParams is the params for NetworkEthernetBroadcastDomainCreate call
+type NetworkEthernetBroadcastDomainCreateParams struct {
+	Name    string
+	IPSpace string
+}
+
+// NetworkEthernetBroadcastDomainDeleteParams describes the params to invoke network ethernet Broadcast Domain delete
+type NetworkEthernetBroadcastDomainDeleteParams struct {
+	Name string
+}
+
+func networkEthernetBroadcastDomainDeleteParamsToONTAP(params *NetworkEthernetBroadcastDomainDeleteParams) *networking.NetworkEthernetBroadcastDomainDeleteCollectionParams {
+	otParams := networking.NewNetworkEthernetBroadcastDomainDeleteCollectionParams()
+	otParams.WithName(&params.Name)
+	return otParams
+}
+
+// IpspaceDeleteParams describes the params to invoke ipspace delete
+type IpspaceDeleteParams struct {
+	Name string
+}
+
+func ipspaceDeleteParamsToONTAP(params *IpspaceDeleteParams) *networking.IpspaceDeleteCollectionParams {
+	otParams := networking.NewIpspaceDeleteCollectionParams()
+	otParams.WithName(&params.Name)
+	return otParams
+}
+
+// Role is a simple wrapper of models.Role
+type Role struct {
+	models.Role
+}
+
+// RolePrivilege describes the privilege level of a Role
+type RolePrivilege struct {
+	Path   string
+	Access string
+	Query  string
+}
+
+// RoleGetParams is the input param struct for securityClient.RoleGet
+type RoleGetParams struct {
+	BaseParams
+	Name      string
+	OwnerUUID *string
+}
+
+// RoleCreateParams is the input param struct for securityClient.RoleCreate
+type RoleCreateParams struct {
+	Name       string
+	Privileges []*RolePrivilege
+}
+
+// RolePrivilegeModifyParams is the input param struct for securityClient.RoleModify
+type RolePrivilegeModifyParams struct {
+	OwnerID string
+	Name    string
+	Access  string
+	Query   string
+	Path    string
+}
+
+// QosPolicy is the model for QosPolicy
+type QosPolicy struct {
+	models.QosPolicy
+}
+
+// QosPolicyDeleteCollectionParams is the input params for storageClient.QosPolicyDeleteCollection
+type QosPolicyDeleteCollectionParams struct {
+	Name *string
+}
+
+// QosPolicyCreateParams is the input params for storageClient.QosPolicyCreate
+type QosPolicyCreateParams struct {
+	CapacityShared    *bool
+	MaxThroughputMbps *int64
+	MinThroughputMbps *int64
+	Name              *string
+	SvmUUID           *string
+}
+
+// QosPolicyGroupCollectionGetParams is the input params for storageClient.QosPolicyGroupCollectionGet
+type QosPolicyGroupCollectionGetParams struct {
+	BaseParams
+	Name string
+}
+
+func qosPolicyGroupCollectionGetParamsToONTAPCollectionGet(params *QosPolicyGroupCollectionGetParams) *storage.QosPolicyCollectionGetParams {
+	otParams := storage.NewQosPolicyCollectionGetParams()
+	if params == nil {
+		return otParams
+	}
+
+	otParams.SetFields(params.Fields)
+	otParams.SetName(&params.Name)
+	return otParams
+}
+
+// SvmCreateParams is the params to create a svm
+type SvmCreateParams struct {
+	Name    string
+	IPSpace string
+}
+
+// VolumeCreateParams is the params to create a volume
+type VolumeCreateParams struct {
+	Aggregates                     []string
+	ConstituentsPerAggregate       *int64
+	Name                           string
+	Comment                        string
+	Type                           string
+	Size                           int64
+	QosPolicy                      string
+	SnapshotPolicy                 string
+	ExportPolicy                   string
+	SecurityStyle                  string
+	SnapshotReservePercent         int64
+	TieringPolicy                  string
+	MinCoolingDays                 int64
+	CloudRetrievalPolicy           string
+	JunctionPath                   string
+	SnapshotDirectoryAccessEnabled bool
+	Encrypt                        bool
+	UnixPermissions                *string
+	Language                       *string
+	// TODO: enable these while implementing Snapshot
+	//Snapshot                       *sstorage.Snapshot
+}
+
+func volumeCreateParamsToONTAP(params *VolumeCreateParams) *storage.VolumeCreateParams {
+	// TODO: enable these while implementing FlexCache
+	//if params.Snapshot != nil {
+	//	return volumeCreateFromSnapshotParamsToONTAP(params)
+	//}
+
+	otParams := storage.NewVolumeCreateParams()
+	otParams.SetInfo(&models.Volume{
+		Name:    &params.Name,
+		Comment: &params.Comment,
+		Type:    &params.Type,
+		State:   nillable.ToPointer("online"),
+		Size:    &params.Size,
+		Guarantee: &models.VolumeInlineGuarantee{
+			Type: nillable.ToPointer("none"),
+		},
+		Qos: &models.VolumeInlineQos{
+			Policy: &models.VolumeInlineQosInlinePolicy{
+				Name: &params.QosPolicy,
+			},
+		},
+		SnapshotPolicy: &models.VolumeInlineSnapshotPolicy{
+			Name: &params.SnapshotPolicy,
+		},
+		Nas: &models.VolumeInlineNas{
+			ExportPolicy: &models.VolumeInlineNasInlineExportPolicy{
+				Name: &params.ExportPolicy,
+			},
+			SecurityStyle: &params.SecurityStyle,
+		},
+		Space: &models.VolumeInlineSpace{
+			Snapshot: &models.VolumeInlineSpaceInlineSnapshot{
+				ReservePercent: &params.SnapshotReservePercent,
+			},
+			LogicalSpace: &models.VolumeInlineSpaceInlineLogicalSpace{
+				Enforcement: nillable.ToPointer(true),
+				Reporting:   nillable.ToPointer(true),
+			},
+		},
+		Encryption: &models.VolumeInlineEncryption{
+			Enabled: &params.Encrypt,
+		},
+		Tiering: &models.VolumeInlineTiering{
+			Policy: &params.TieringPolicy,
+		},
+		SnapshotDirectoryAccessEnabled: &params.SnapshotDirectoryAccessEnabled,
+		Autosize: &models.VolumeInlineAutosize{
+			Mode: nillable.ToPointer("off"),
+		},
+		Language:                 params.Language,
+		ConstituentsPerAggregate: params.ConstituentsPerAggregate,
+	})
+
+	for _, aggregate := range params.Aggregates {
+		otParams.Info.VolumeInlineAggregates = append(otParams.Info.VolumeInlineAggregates,
+			&models.VolumeInlineAggregatesInlineArrayItem{
+				Name: nillable.ToPointer(aggregate),
+			})
+	}
+
+	otParams.Info.Tiering.MinCoolingDays = nil
+
+	if params.TieringPolicy == AutoTieringPolicy || params.TieringPolicy == SnapshotOnlyTieringPolicy {
+		otParams.Info.Tiering.MinCoolingDays = &params.MinCoolingDays
+		otParams.Info.CloudRetrievalPolicy = &params.CloudRetrievalPolicy
+	}
+
+	if params.JunctionPath != "" {
+		otParams.Info.Nas.Path = &params.JunctionPath
+	}
+
+	if params.Type != "DP" && params.UnixPermissions != nil {
+		unixPermissions, _ := strconv.Atoi(*params.UnixPermissions)
+		otParams.Info.Nas.UnixPermissions = nillable.ToPointer(int64(unixPermissions))
+	}
+
+	otParams.SetReturnTimeout(&returnTimeout)
+	otParams.SetReturnRecords(nillable.ToPointer("true"))
+	return otParams
+}
+
+// NetworkIPServicePoliciesGetParams is the input parameter for getting ip service policies
+type NetworkIPServicePoliciesGetParams struct {
+	SvmName *string
+	Name    *string
+}
+
+// IPServicePolicyCreateParams is the input parameter for ip service policy creation
+type IPServicePolicyCreateParams struct {
+	IPServicePolicyInlineServices []*string
+	Name                          *string
+	Scope                         *string
+	SvmName                       *string
+}
+
+// IPServicePolicyModifyParams is the input parameter for modifying an IP service policy
+type IPServicePolicyModifyParams struct {
+	UUID     string
+	Services []string
+}
+
+// NetworkIPInterfaceModifyParams is the input parameter for modifying the network ip interface
+type NetworkIPInterfaceModifyParams struct {
+	ServicePolicyName *string
+	UUID              *string
+}
+
+// NetworkIPInterfacesDeleteParams is the input parameter for deleting network ip interfaces
+type NetworkIPInterfacesDeleteParams struct {
+	SvmName *string
+	Name    *string
+}
+
+// NameMapping is a simple wrapper of models.NameMapping
+type NameMapping struct {
+	models.NameMapping
+}
+
+// NameMappingDeleteParams is the input params for name_services.NameMappingDeleteParams
+type NameMappingDeleteParams struct {
+	Direction string
+	Index     int64
+	SvmUUID   string
+}
+
+// NameMappingCreateParams is the input params for name_services.NameMappingCreateParams
+type NameMappingCreateParams struct {
+	BaseParams
+	SvmUUID     *string
+	Pattern     *string
+	Replacement *string
+	Direction   *string
+	Index       int64
+	SvmName     *string
+}
+
+// NameMappingModifyParams is the input params for name_services.NameMappingUpdateParams
+type NameMappingModifyParams struct {
+	BaseParams
+	Direction string
+	Index     int64
+	SwapIndex *int64
+	SvmUUID   string
+	Body      *NameMappingModifyBodyParam
+}
+
+// NameMappingModifyBodyParam is the info param for name_services.NameMappingUpdateParams
+type NameMappingModifyBodyParam struct {
+	Direction   *string
+	Index       *int64
+	Pattern     *string
+	Replacement *string
+}
+
+// NameMappingCollectionGetParams is the input params for name_services.NameMappingCollectionGetParams
+type NameMappingCollectionGetParams struct {
+	BaseParams
+	SvmUUID     *string
+	Pattern     *string
+	Replacement *string
+	Direction   *string
+	SvmName     *string
+}
+
+// Igroup is the igroup
+type Igroup struct {
+	models.Igroup
+}
+
+// Iscsi is the iscsi service
+type Iscsi struct {
+	models.IscsiService
+}
+
+// IscsiGetParams is the input parameter for getting the iscsi service
+type IscsiGetParams struct {
+	BaseParams
+	SvmUUID string
+}
+
+func iscsiServiceGetParamsToONTAP(params *IscsiGetParams) *san.IscsiServiceCollectionGetParams {
+	otParams := san.NewIscsiServiceCollectionGetParams()
+	if params == nil {
+		return otParams
+	}
+
+	otParams.SetSvmUUID(&params.SvmUUID)
+	otParams.SetFields(params.Fields)
+
+	// MD: It's a GET call why is there return_timeout ??
+	otParams.SetReturnTimeout(returnTimeoutNoJob)
+	return otParams
+}
+
+// IscsiCreateParams is the input parameter for creating the iscsi service
+type IscsiCreateParams struct {
+	BaseParams
+	SvmUUID string
+	// TODO models.IscsiServiceInlineSvm needs to support target-alias
+	// TargetAlias string
+}
+
+func iscsiServiceCreateParamsToONTAP(params *IscsiCreateParams) *san.IscsiServiceCreateParams {
+	otParams := san.NewIscsiServiceCreateParams()
+	if params == nil {
+		return otParams
+	}
+
+	otParams.SetInfo(&models.IscsiService{
+		Svm: &models.IscsiServiceInlineSvm{
+			UUID: &params.SvmUUID,
+		},
+	})
+	return otParams
+}
+
+// Lun is the lun
+type Lun struct {
+	models.Lun
+}

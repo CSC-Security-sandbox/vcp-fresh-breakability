@@ -1,5 +1,6 @@
 with-expecter: True
 tags: mocks
+filename: "{{.InterfaceNameSnake}}_mock.go"
 packages:
   github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/api/gcp-servergen:
     config:
@@ -19,3 +20,16 @@ packages:
       inpackage: True
     interfaces:
       Handler:
+  github.com/vcp-vsa-control-Plane/vsa-control-plane/core/ontap-rest:
+    config:
+      dir: "{{.InterfaceDir}}"
+      inpackage: True
+    interfaces:
+      ClusterClient:
+      NetworkingClient:
+      Poller:
+      RESTClient:
+      SANClient:
+      SecurityClient:
+      StorageClient:
+      SVMClient:

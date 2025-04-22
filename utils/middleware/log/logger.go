@@ -102,3 +102,14 @@ func extractFieldsFromHttpRequest(r *http.Request) Logger {
 	})
 	return logger
 }
+
+// Secret is a type that represents a secret value, such as a password
+type Secret string
+
+// PasswordMask defines the mask used when logging out a password
+const PasswordMask = "******************"
+
+// Secret defines a type that outputs the password mask when called with String()
+func (s Secret) String() string {
+	return PasswordMask
+}
