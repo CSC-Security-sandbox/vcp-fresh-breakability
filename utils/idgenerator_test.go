@@ -56,7 +56,6 @@ const (
 )
 
 func TestRandomUUID(t *testing.T) {
-
 	re := regexp.MustCompile(uuidFormat)
 	if re == nil {
 		t.Error("Regular expression for UUID format failed to compile")
@@ -82,7 +81,6 @@ func TestRandomUUID(t *testing.T) {
 }
 
 func TestIsValidUUID(t *testing.T) {
-
 	t.Run("WithInvalidUUIDString", func(tt *testing.T) {
 		testString := "sOmE-rANdom-string123"
 		if IsValidUUID(testString) {

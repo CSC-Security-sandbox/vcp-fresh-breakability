@@ -18,7 +18,7 @@ func (j *Jobs) CreateVsaCluster() error {
 		return err
 	}
 
-	projectId := "478271815769" //ua097ba39031f53a4-tp
+	projectId := "478271815769" // ua097ba39031f53a4-tp
 	content, err := os.ReadFile("vsa_config/sample_yaml.yaml")
 	if err != nil {
 		log.Println(err)

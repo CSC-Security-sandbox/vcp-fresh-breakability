@@ -32,7 +32,7 @@ func (t *TemporalWorkflowEngine) LoadConfig() workflow_engine.ClientConfig {
 }
 
 func (t *TemporalWorkflowEngine) InitializeClient(ctx context.Context, cfg workflow_engine.ClientConfig, logger log.Logger) error {
-	//Initialize the temporal server client
+	// Initialize the temporal server client
 	clientOptions, err := createClientOptionsFromEnv(cfg, logger)
 	if err != nil {
 		logger.Error("failed to create temporal client options: %w", slog.String("error", err.Error()))
@@ -40,11 +40,11 @@ func (t *TemporalWorkflowEngine) InitializeClient(ctx context.Context, cfg workf
 	}
 
 	// This will be needed as we want ot send encrypted data to temporal server. Will uncomment this in the upcoming MRs.
-	//if cfg.TemporalEncryptionID != "" {
+	// if cfg.TemporalEncryptionID != "" {
 	//	logger.Info("Enabling encrypting Data Converter using key ID '%s'", slog.String("temporalEncryptionID", cfg.TemporalEncryptionID))
 	//	defaultDataConverter := converter.GetDefaultDataConverter()
 	//	clientOptions.DataConverter = util.NewEncryptionDataConverter(defaultDataConverter, cfg.TemporalEncryptionID)
-	//}
+	// }
 
 	var temporalClient client.Client
 	for {

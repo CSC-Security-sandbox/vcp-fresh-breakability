@@ -3,13 +3,12 @@ package orchestrator
 import (
 	"context"
 
-	"google.golang.org/api/servicenetworking/v1"
-
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/hyperscaler"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/hyperscaler/google"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/util/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
+	"google.golang.org/api/servicenetworking/v1"
 )
 
 var (

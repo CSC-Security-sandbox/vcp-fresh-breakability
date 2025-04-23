@@ -13,7 +13,7 @@ type SANClient interface { // generate:mock
 
 type sanClient struct {
 	api san.ClientService
-	//poller Poller
+	// poller Poller
 }
 
 func (t *sanClient) IscsiServiceGet(params *IscsiGetParams) (*Iscsi, error) {

@@ -7,16 +7,16 @@ import (
 )
 
 func (d *DataStoreRepository) CreateJob(ctx context.Context, job *datamodel.Job) (*datamodel.Job, error) {
-	//TODO implement me
+	// TODO implement me
 	panic("implement me")
 }
 
 func (d *DataStoreRepository) GetJob(ctx context.Context, id string) (*datamodel.Job, error) {
-	//TODO implement me
+	// TODO implement me
 	panic("implement me")
 }
 
 func (d *DataStoreRepository) UpdateJobStatus(ctx context.Context, id string, status string) error {
-	//TODO implement me
+	// TODO implement me
 	panic("implement me")
 }

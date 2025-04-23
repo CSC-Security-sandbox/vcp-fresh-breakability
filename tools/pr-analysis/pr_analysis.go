@@ -116,7 +116,7 @@ func main() {
 
 	diffPath := os.Args[1]
 	outputPath := os.Args[2]
-	//promptPath := "cmd/pr-analysis/instructions.txt"
+	// promptPath := "cmd/pr-analysis/instructions.txt"
 	userName := os.Getenv("OPENAI_USER")
 	if userName == "" {
 		log.Fatalf("USER_NAME environment variable is not set")
@@ -133,11 +133,11 @@ func main() {
 		log.Fatalf("OPENAI_KEY environment variable is not set")
 	}
 
-	//// Load the prompt from the file
-	//prompt, err := readPromptFromFile(promptPath)
-	//if err != nil {
+	// Load the prompt from the file
+	// prompt, err := readPromptFromFile(promptPath)
+	// if err != nil {
 	// log.Fatalf("Failed to read prompt file: %v", err)
-	//}
+	// }
 
 	prompt := readPrompt()
 
@@ -151,5 +151,5 @@ func main() {
 	if err := writeToMarkdown(outputPath, analysis); err != nil {
 		log.Fatalf("Failed to write analysis to markdown: %v", err)
 	}
-	fmt.Printf("Analysis written to: %s\n", outputPath)
+	log.Printf("Analysis written to: %s\n", outputPath)
 }

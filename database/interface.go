@@ -4,9 +4,8 @@ import (
 	"context"
 	"time"
 
-	"gorm.io/gorm"
-
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
+	"gorm.io/gorm"
 )
 
 type (

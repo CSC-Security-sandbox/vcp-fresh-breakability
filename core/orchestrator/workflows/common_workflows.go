@@ -52,7 +52,6 @@ func (bw *BaseWorkflow) Setup(ctx workflow.Context, input interface{}) error {
 			CustomerID: bw.CustomerID,
 		}, nil
 	})
-
 }
 
 // UpdateStatus updates the workflow's status.

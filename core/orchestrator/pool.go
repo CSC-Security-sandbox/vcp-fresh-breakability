@@ -3,7 +3,6 @@ package orchestrator
 import (
 	"context"
 	"errors"
-	"fmt"
 	"time"
 
 	"go.temporal.io/api/enums/v1"
@@ -79,7 +78,7 @@ func _createPoolAsync(ctx context.Context, se database.Storage, params *CreatePo
 		return err
 	}
 
-	//retrieve the external ip address of the cluster
+	// retrieve the external ip address of the cluster
 	externalIpAddress := vsaCluster[0]["ExternalIP"]
 	internalIpAddress := vsaCluster[0]["InternalIP"]
 	instanceType := vsaCluster[0]["Name"]
@@ -189,17 +188,17 @@ func DeletedAtOrNil(deletedAt *gorm.DeletedAt) *time.Time {
 }
 
 func ListPool(ctx context.Context, params gcpgenserver.V1betaDescribePoolParams, orchestrator *Orchestrator) (gcpgenserver.V1betaDescribePoolRes, error) {
-	//1. Prevalidation steps needs to be implemented
+	// 1. Prevalidation steps needs to be implemented
 
-	//2. Create a job in the database
+	// 2. Create a job in the database
 	job, err := orchestrator.storage.CreateJob(ctx, &datamodel.Job{})
 	if err != nil {
 		return nil, err
 	}
 
-	//3. Create a workflow execution
+	// 3. Create a workflow execution
 	retryPolicy := workflowengine.GetRetryPolicy(&workflowengine.RetryPolicyConfig{})
-	wf, err := orchestrator.temporal.ExecuteWorkflow(ctx,
+	_, err = orchestrator.temporal.ExecuteWorkflow(ctx,
 		client.StartWorkflowOptions{
 			ID:                    job.ID,
 			TaskQueue:             workflowengine.CustomerTaskQueue,
@@ -210,10 +209,8 @@ func ListPool(ctx context.Context, params gcpgenserver.V1betaDescribePoolParams,
 		params,
 	)
 	if err != nil {
-		fmt.Println("Unable to execute workflow", err)
 		return nil, err
 	}
-	fmt.Println("Started workflow", wf.GetID(), wf.GetRunID())
 
 	// 3. Implement workflow response processing
 	return nil, nil

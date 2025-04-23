@@ -1,7 +1,7 @@
 package workflow_engine
 
 import (
-	"fmt"
+	"log"
 
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
@@ -62,7 +62,7 @@ func GeneratedUUID(ctx workflow.Context) string {
 	err := encodedUUID.Get(&uuid)
 	if err != nil {
 		// Replace print wiht logging once logger is available
-		fmt.Println("Error generating UUID:", err)
+		log.Println("Error generating UUID:", err)
 		return uuid
 	}
 	return uuid

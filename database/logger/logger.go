@@ -4,9 +4,8 @@ import (
 	"context"
 	"time"
 
-	"gorm.io/gorm/logger"
-
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
+	"gorm.io/gorm/logger"
 )
 
 type GormSlogLogger struct {

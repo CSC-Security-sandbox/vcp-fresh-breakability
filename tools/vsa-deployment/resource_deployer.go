@@ -3,13 +3,13 @@ package main
 import (
 	"context"
 	"fmt"
+	"log"
 	"os"
 	"time"
 
-	"gopkg.in/yaml.v2"
-
 	"google.golang.org/api/compute/v1"
 	deploymentmanager "google.golang.org/api/deploymentmanager/v2"
+	"gopkg.in/yaml.v2"
 )
 
 // DeploymentsInsert creates a new Deployment Manager deployment.
@@ -20,7 +20,7 @@ func DeploymentsInsert(name string) ([]map[string]string, error) {
 		return nil, err
 	}
 
-	projectId := "<replace project id>" // Replace with your project ID  //1082706288987
+	projectId := "<replace project id>" // Replace with your project ID  // 1082706288987
 	content, err := os.ReadFile("vsa_config/sample_yaml.yaml")
 	if err != nil {
 		return nil, err
@@ -48,19 +48,19 @@ func DeploymentsInsert(name string) ([]map[string]string, error) {
 		return nil, err
 	}
 
-	fmt.Printf("Instance created: %v\n", res)
+	log.Printf("Instance created: %v\n", res)
 
 	// Polling for deployment status
 	resourcesList, err := pollDeploymentStatus(deploymentmanagerService, projectId, name, res.Name)
 
 	if err != nil {
-		fmt.Printf("Error creating deployment: %v", err)
+		log.Printf("Error creating deployment: %v", err)
 		return nil, err
 	}
 
 	computeInstancesIPAddress, err := getIPAddressDetails(projectId, resourcesList)
 	if err != nil {
-		fmt.Printf("Error getting IP address details : %v", err)
+		log.Printf("Error getting IP address details : %v", err)
 		return nil, err
 	}
 
@@ -75,23 +75,23 @@ func pollDeploymentStatus(service *deploymentmanager.Service, projectId, deploym
 	for time.Since(startTime) < timeout {
 		operation, err := service.Operations.Get(projectId, operationName).Do()
 		if err != nil {
-			fmt.Printf("Error getting operation: %v\n", err)
+			log.Printf("Error getting operation: %v\n", err)
 			return nil, err
 		}
 
 		if operation.Status == "DONE" {
 			if operation.Error != nil {
-				fmt.Println("Deployment failed")
+				log.Println("Deployment failed")
 				for _, e := range operation.Error.Errors {
-					fmt.Printf("Error Code: %s, Message: %s\n", e.Code, e.Message)
+					log.Printf("Error Code: %s, Message: %s\n", e.Code, e.Message)
 				}
 				return nil, fmt.Errorf("%v", operation.Error)
 			}
-			fmt.Println("Deployment completed successfully!")
+			log.Println("Deployment completed successfully!")
 
 			resources, err := service.Resources.List(projectId, deploymentName).Do()
 			if err != nil {
-				fmt.Printf("Error listing resources: %v", err)
+				log.Printf("Error listing resources: %v", err)
 				return nil, err
 			}
 			return resources, nil
@@ -110,7 +110,7 @@ func getIPAddressDetails(projectId string, resources *deploymentmanager.Resource
 			// Parse resource.Properties YAML
 			var propertiesMap map[string]interface{}
 			if err := yaml.Unmarshal([]byte(resource.Properties), &propertiesMap); err != nil {
-				fmt.Printf("Error parsing properties YAML: %v", err)
+				log.Printf("Error parsing properties YAML: %v", err)
 				return nil, err
 			}
 
@@ -121,7 +121,7 @@ func getIPAddressDetails(projectId string, resources *deploymentmanager.Resource
 
 			instanceDetails, err := getInstanceDetails(projectId, resource.Name, zone)
 			if err != nil {
-				fmt.Printf("Error getting instance details: %v", err)
+				log.Printf("Error getting instance details: %v", err)
 				return nil, err
 			}
 			computeInstancesIPAddress = append(computeInstancesIPAddress, instanceDetails)
@@ -158,22 +158,22 @@ func getInstanceDetails(projectId, instanceName, zone string) (map[string]string
 		instanceDetails["ExternalIP"] = instance.NetworkInterfaces[0].AccessConfigs[0].NatIP
 	}
 
-	fmt.Printf("Instance details: %v\n", instanceDetails)
+	log.Printf("Instance details: %v\n", instanceDetails)
 	return instanceDetails, nil
 }
 
 func main() {
 	if len(os.Args) < 2 {
-		fmt.Println("Usage: go run main.go <deployment-name>")
+		log.Println("Usage: go run main.go <deployment-name>")
 		os.Exit(1)
 	}
 
 	name := os.Args[1]
 	res, err := DeploymentsInsert(name)
 	if err != nil {
-		fmt.Printf("Error creating deployment: %v\n", err)
+		log.Printf("Error creating deployment: %v\n", err)
 		os.Exit(1)
 	}
 
-	fmt.Printf("Deployment created successfully: %v\n", res)
+	log.Printf("Deployment created successfully: %v\n", res)
 }

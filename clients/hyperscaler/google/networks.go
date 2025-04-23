@@ -6,12 +6,11 @@ import (
 	"strings"
 	"time"
 
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/util/errors"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
 	"google.golang.org/api/compute/v1"
 	"google.golang.org/api/googleapi"
 	"google.golang.org/api/servicenetworking/v1"
-
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/util/errors"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
 )
 
 var (

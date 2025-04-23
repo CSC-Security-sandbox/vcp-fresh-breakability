@@ -123,7 +123,7 @@ func (bm *BaseModel) GetID() (id sql.NullInt64) {
 // Job is a struct that represents the job data model.
 type Job struct {
 	ID string `json:"uuid" gorm:"unique"`
-	//workflowID string    `db:"workflow_id" bson:"workflow_id"`
+	// workflowID string    `db:"workflow_id" bson:"workflow_id"`
 	CustomerID string    `gorm:"type:varchar"`
 	Status     string    `gorm:"type:varchar"`
 	CreatedAt  time.Time `json:"createdAt"`

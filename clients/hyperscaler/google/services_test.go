@@ -10,7 +10,6 @@ import (
 	"time"
 
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
-
 	"google.golang.org/api/option"
 	"google.golang.org/api/servicenetworking/v1"
 )
@@ -115,7 +114,7 @@ func TestParseProjectId(t *testing.T) {
 	})
 }
 
-//func TestWaitForServiceNetworkOperationStatus(t *testing.T) {
+// func TestWaitForServiceNetworkOperationStatus(t *testing.T) {
 //	t.Run("WhenGetSearchRangeOperationStatusThrowsError", func(tt *testing.T) {
 //		expectedErr := errors.New("GetSearchRangeOperationStatus Error")
 //		operation := &servicenetworking.Operation{
@@ -216,7 +215,7 @@ func TestParseProjectId(t *testing.T) {
 //}
 
 // test cases for _waitForServiceNetworkOperationStatus
-//func Test_waitForServiceNetworkOperationStatus(t *testing.T) {
+// func Test_waitForServiceNetworkOperationStatus(t *testing.T) {
 //	t.Run("WhenGetSearchRangeOperationStatusError", func(tt *testing.T) {
 //		defer testReset(t)
 //		mgs := hyperscaler.NewMockGoogleServices(tt)
@@ -266,7 +265,7 @@ func TestParseProjectId(t *testing.T) {
 //		mgs.AssertGetSearchRangeOperationStatus(resp.Name, resp, nil)
 //		mgs.AssertMockGoogleServicesDone()
 //	})
-//	/*	t.Run("WhenNoOperationError", func(tt *testing.T) {
+//	t.Run("WhenNoOperationError", func(tt *testing.T) {
 //		defer testReset(t)
 //		mgs := services.NewMockGoogleServices(tt)
 //		defer mgs.CloseMockGoogleServices()
@@ -297,8 +296,8 @@ func TestParseProjectId(t *testing.T) {
 //		mgs.AssertGetSearchRangeOperationStatus(resp.Name, nil, isNotReady)
 //		mgs.AssertGetSearchRangeOperationStatus(resp.Name, resp, nil)
 //		mgs.AssertMockGoogleServicesDone()
-//	}) */
-//	//t.Run("WhenTimeoutError", func(tt *testing.T) {
+//	})
+//	// t.Run("WhenTimeoutError", func(tt *testing.T) {
 //	//	defer testReset(t)
 //	//	mgs := services.NewMockGoogleServices(tt)
 //	//	defer mgs.CloseMockGoogleServices()
@@ -328,5 +327,5 @@ func TestParseProjectId(t *testing.T) {
 //	//	mgs.AssertGetTrace(trace)
 //	//	mgs.AssertGetSearchRangeOperationStatus(resp.Name, resp, nil)
 //	//	mgs.AssertMockGoogleServicesDone()
-//	//})
-//}
+//	// })
+// }

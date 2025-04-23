@@ -9,15 +9,14 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/common"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
-
 	"github.com/go-chi/chi/v5"
 	chimiddleware "github.com/go-chi/chi/v5/middleware"
 	"github.com/go-faster/errors"
 	"github.com/google/uuid"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/common"
 	coregenserver "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/core-api/core-servergen"
 	api "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/core-api/handler"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 	"golang.org/x/sync/errgroup"
 )
 

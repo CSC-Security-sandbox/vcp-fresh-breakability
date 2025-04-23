@@ -18,13 +18,13 @@ type Poller interface { // generate:mock
 
 // FixMe: Commenting out due to lint errors, these methods will be used in the future
 
-//type poller struct {
+// type poller struct {
 //	api    cluster.ClientService
 //	logger log.Logger
-//}
+// }
 
 // Poll polls an ontap job given UUID
-//func (p *poller) Poll(UUID string) error {
+// func (p *poller) Poll(UUID string) error {
 //	// MD: all job related logging happens on the transport layer.
 //	// There is no need to log anything here
 //	params := cluster.NewJobGetParams().WithUUID(UUID).WithFields([]string{"*", "node.name"})
@@ -52,4 +52,4 @@ type Poller interface { // generate:mock
 //		"err":                 "job polling timeout",
 //	}).Error("ontap-rest error")
 //	return errors.NewTimeoutErr("polling for ontap-rest job with UUID '" + UUID + "' timed out")
-//}
+// }

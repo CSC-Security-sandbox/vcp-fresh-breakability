@@ -70,13 +70,13 @@ func NewClient(params RESTClientParams) RESTClient {
 		TLSClientConfig: &tls.Config{
 			MinVersion:         tls.VersionTLS12,
 			InsecureSkipVerify: params.InsecureSkipVerify,
-			//Certificates:       certs,
+			// Certificates:       certs,
 		},
 	}
 
 	var rc *restClient
 	rt.Transport = httpRoundTripperTransport
-	//rt.Transport = tracing.NewTracingTransport(rt.Transport)
+	// rt.Transport = tracing.NewTracingTransport(rt.Transport)
 	rt.Transport = ottransport.NewLoggingRoundTripper(params.Trace, ontapRestLogVerbose, useCert, rt.Transport)
 	rt.Transport = ottransport.NewPaginationRoundTripper(rt.Transport)
 	rt.Transport = ottransport.NewAuthenticationRoundTripper(rt.Transport, params.Username, params.Password, useCert)

@@ -12,11 +12,6 @@ import (
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/lib/pq"
 	_ "github.com/mattn/go-sqlite3"
-	"gorm.io/driver/postgres"
-	"gorm.io/driver/sqlite"
-	"gorm.io/gorm"
-	"gorm.io/gorm/logger"
-
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/repository"
 	gormwrapper "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/gorm"
@@ -24,10 +19,14 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
+	"gorm.io/driver/postgres"
+	"gorm.io/driver/sqlite"
+	"gorm.io/gorm"
+	"gorm.io/gorm/logger"
 )
 
 const (
-	pgInvalidCatalogName = "3D000" //Database doesn't exist
+	pgInvalidCatalogName = "3D000" // Database doesn't exist
 	pgDuplicateDatabase  = "42P04" // Database already exists
 	DatabaseTypePostgres = "postgres"
 	DatabaseTypeSQLite   = "sqlite3"
@@ -142,7 +141,6 @@ func (s *PersistenceStore) connect(isAdmin bool) error {
 
 // createConnection establishes a new database connection
 func (s *PersistenceStore) createConnection(isAdmin bool) (*gorm.DB, error) {
-
 	logLevel := logger.Error
 	if logSQLEnabled {
 		logLevel = logger.Info

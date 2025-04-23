@@ -5,12 +5,10 @@ import (
 	"strings"
 	"time"
 
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/util/errors"
 	logger "golang.org/x/exp/slog"
-
 	"google.golang.org/api/googleapi"
 	"google.golang.org/api/servicenetworking/v1"
-
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/util/errors"
 )
 
 var (

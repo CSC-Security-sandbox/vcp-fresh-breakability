@@ -2,10 +2,9 @@ package jira
 
 import (
 	"log"
+	"main/cmd/github"
 	"os"
 	"strings"
-
-	"main/cmd/github"
 
 	"github.com/spf13/cobra"
 )

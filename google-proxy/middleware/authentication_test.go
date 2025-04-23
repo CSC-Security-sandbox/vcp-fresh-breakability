@@ -456,7 +456,6 @@ func TestFetchCerts(t *testing.T) {
 	})
 	fetchJwk = _fetchJwk
 	certificatesCache = map[string]*certCache{}
-
 }
 
 func TestCleanpCertCache(t *testing.T) {

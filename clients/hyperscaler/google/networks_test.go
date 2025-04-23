@@ -165,7 +165,6 @@ func Test_GetTenantProject(t *testing.T) {
 			tt.Errorf("Unexpected error: %s", err.Error())
 		}
 	})
-
 }
 
 func Test_AddSubnetwork(t *testing.T) {

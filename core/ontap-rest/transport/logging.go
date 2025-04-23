@@ -9,10 +9,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
-
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 )
 
 const (
@@ -65,7 +64,7 @@ func (lrt *LoggingRoundTripper) RoundTrip(req *http.Request) (*http.Response, er
 	req.Header.Add(xDotClientAppHeaderKey, xDotClientAppHeaderValue)
 	req.Header.Add(traceParentHeaderKey, traceParentHeaderValue)
 	// FixMe: implementation of trace is pending
-	//req.Header.Add(traceStateHeaderKey, lrt.trace.GetRequestID(lrt.trace, ""))
+	// req.Header.Add(traceStateHeaderKey, lrt.trace.GetRequestID(lrt.trace, ""))
 
 	externalRequestID := utilsRandomUUID()
 	params := req.URL.Query()

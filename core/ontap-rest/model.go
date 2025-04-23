@@ -1735,14 +1735,14 @@ type VolumeCreateParams struct {
 	UnixPermissions                *string
 	Language                       *string
 	// TODO: enable these while implementing Snapshot
-	//Snapshot                       *sstorage.Snapshot
+	// Snapshot                       *sstorage.Snapshot
 }
 
 func volumeCreateParamsToONTAP(params *VolumeCreateParams) *storage.VolumeCreateParams {
 	// TODO: enable these while implementing FlexCache
-	//if params.Snapshot != nil {
+	// if params.Snapshot != nil {
 	//	return volumeCreateFromSnapshotParamsToONTAP(params)
-	//}
+	// }
 
 	otParams := storage.NewVolumeCreateParams()
 	otParams.SetInfo(&models.Volume{

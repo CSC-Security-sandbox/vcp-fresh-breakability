@@ -32,7 +32,7 @@ var (
 type RetryTransport struct {
 	trace     log.Logger
 	transport runtime.ClientTransport
-	//usesOAuth bool
+	// usesOAuth bool
 }
 
 // NewRetryTransport returns a new instance of RetryTransport

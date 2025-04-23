@@ -78,7 +78,6 @@ func (ar *authenticationResponderGCP) WriteResponse(rw http.ResponseWriter, prod
 }
 
 func AuthMiddleware(next http.Handler) http.Handler {
-
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		responder := AuthenticatedGCP(r, func() middleware.Responder {
 			ctx := context.WithValue(r.Context(), common.HeaderContextKey, r.Header)
@@ -134,7 +133,6 @@ func AuthenticatedGCP(req *http.Request, handler func() middleware.Responder) mi
 }
 
 func BatchAuthenticatedGCP(req *http.Request, handler func() middleware.Responder) middleware.Responder {
-
 	authorizationHeader := req.Header.Get("authorization")
 
 	token, err := jwtParseWithClaims(authorizationHeader, &googleClaims{}, jwtKeyFunc)
@@ -240,7 +238,7 @@ func _fetchJwk(jwkURL string) (jwk []byte, err error) {
 	}(res.Body)
 
 	if res.StatusCode != http.StatusOK {
-		//defer io.Copy(ioUtil.Discard, res.Body)
+		// defer io.Copy(ioUtil.Discard, res.Body)
 		err = errors.New("failed to fetch remote JWK (status != 200)")
 		return
 	}

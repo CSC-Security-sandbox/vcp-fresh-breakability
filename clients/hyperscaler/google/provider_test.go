@@ -7,16 +7,14 @@ import (
 	"testing"
 	"time"
 
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
-
 	"github.com/stretchr/testify/assert"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 	"google.golang.org/api/compute/v1"
 	"google.golang.org/api/option"
 	"google.golang.org/api/serviceconsumermanagement/v1"
 	"google.golang.org/api/servicenetworking/v1"
 	scopesHttp "google.golang.org/api/transport/http"
-
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
 )
 
 func TestInitializeClients(t *testing.T) {

@@ -3,18 +3,17 @@ package google
 import (
 	"context"
 	"fmt"
-	logger "golang.org/x/exp/slog"
 	"net/http"
 
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
+	logger "golang.org/x/exp/slog"
 	"golang.org/x/oauth2/google"
 	"google.golang.org/api/compute/v1"
 	"google.golang.org/api/option"
 	"google.golang.org/api/serviceconsumermanagement/v1"
 	"google.golang.org/api/servicenetworking/v1"
 	scopesHttp "google.golang.org/api/transport/http"
-
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 )
 
 var (

@@ -28,7 +28,7 @@ type NetworkingClient interface { // generate:mock
 type networkingClient struct {
 	api     networking.ClientService
 	apiPriv *networkpriv.ClientService
-	//poller  Poller
+	// poller  Poller
 }
 
 var (

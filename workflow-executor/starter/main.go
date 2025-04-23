@@ -29,5 +29,4 @@ func main() {
 		log.Fatalln("Unable to execute workflow", err)
 	}
 	log.Println("Started workflow", "WorkflowID", we.GetID(), "RunID", we.GetRunID())
-
 }

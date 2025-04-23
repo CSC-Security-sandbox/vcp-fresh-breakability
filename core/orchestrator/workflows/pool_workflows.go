@@ -13,12 +13,12 @@ import (
 type poolWorkflow struct {
 	// add fields needed for pool workflow
 	ID string
-	//customerID  string
+	// customerID  string
 	status string
 	Logger log.Logger
 }
 
-//const customerActionTimeout = 30 * time.Minute
+// const customerActionTimeout = 30 * time.Minute
 
 // Pool Workflow process pool related requests from a customer.
 func CreatePool(ctx workflow.Context, params gcpgenserver.V1betaDescribePoolParams) (gcpgenserver.V1betaDescribePoolRes, error) {
