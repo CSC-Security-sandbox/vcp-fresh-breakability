@@ -35,7 +35,6 @@ type ClientCredentials struct {
 }
 
 func GetJiraUrlCredentials() (BaseURL, ClientCredentials) {
-
 	if jiraServerUrl != "" {
 		url = jiraServerUrl
 	} else {
@@ -43,7 +42,6 @@ func GetJiraUrlCredentials() (BaseURL, ClientCredentials) {
 	}
 
 	jiraUrl := BaseURL(url)
-
 	credentials := ClientCredentials{
 		Username: username,
 		Password: password,

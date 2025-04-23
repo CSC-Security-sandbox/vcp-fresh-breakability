@@ -2,7 +2,6 @@ package repository
 
 import (
 	"context"
-	"fmt"
 	"testing"
 
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
@@ -301,7 +300,6 @@ func TestSavePoolWithVsaClusterDetails(t *testing.T) {
 
 		updatedPool := &datamodel.Pool{}
 		err = store.db.GORM().First(updatedPool, "uuid = ?", pool.UUID).Error
-		fmt.Println(updatedPool)
 		if err != nil {
 			tt.Fatalf("Failed to fetch updated pool: %v", err)
 		}

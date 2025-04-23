@@ -1,0 +1,24 @@
+version: 2
+linters:
+  enable:
+    - govet
+    - staticcheck
+    - ineffassign
+    - errcheck
+    - importas
+
+  disable:
+    - gocyclo
+    - dupl
+    - depguard
+    - gosec
+
+run:
+  timeout: 5m
+  skip-dirs:
+    - vendor
+    - clients/core-api
+    - clients/ontap-rest
+    - core/core-api/core-servergen
+    - google-proxy/api/gcp-servergen
+    - cicd/cmd/lint

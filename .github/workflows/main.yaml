@@ -41,7 +41,7 @@ jobs:
   common:
     runs-on: [ ubuntu-22.04 ]
     container:
-      image: ghcr.io/vcp-vsa-control-plane/vsacictl:v1
+      image: ghcr.io/vcp-vsa-control-plane/vsacictl:v2
       options: -v /var/run/docker.sock:/var/run/docker.sock --user root
 
     steps:
@@ -105,7 +105,7 @@ jobs:
   lint:
     runs-on: [self-hosted,linux]
     container:
-      image: ghcr.io/vcp-vsa-control-plane/vsa-builder:v2
+      image: ghcr.io/vcp-vsa-control-plane/vsacictl:v2
       options: --user root
 
     steps:
@@ -118,5 +118,4 @@ jobs:
           go-version-file: go.mod
 
       - name: Run golangci-lint script
-        run: |
-          .github/scripts/lint.sh
+        run: vsacictl lint

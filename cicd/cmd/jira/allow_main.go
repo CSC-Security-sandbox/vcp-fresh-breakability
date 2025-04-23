@@ -57,6 +57,7 @@ func allowMain() error {
 		log.Println("Error:", err)
 		os.Exit(1)
 	}
+
 	if user.Email == nil {
 		log.Println("Error: Email not available for user:", github.PrUser)
 		os.Exit(1)

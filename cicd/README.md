@@ -3,3 +3,6 @@ This package handles vsacictl command line tool. This is an image that will cont
 
 # vsacictl jira <command>
 Handles commands for jira tasks
+
+# vsacictl lint
+Handles lint task for cicd

@@ -3,10 +3,9 @@ package github
 import (
 	"context"
 	"fmt"
-	"os"
-
 	gh "github.com/google/go-github/v50/github"
 	"golang.org/x/oauth2"
+	"os"
 )
 
 var (
@@ -19,7 +18,6 @@ func GetGithubUser(ghToken, prUser string) (*gh.User, error) {
 	if ghToken == "" {
 		return nil, fmt.Errorf("GITHUB_TOKEN is not set")
 	}
-
 	if prUser == "" {
 		return nil, fmt.Errorf("PR_USER is not set")
 	}
@@ -41,7 +39,6 @@ func GetGithubUser(ghToken, prUser string) (*gh.User, error) {
 }
 
 func init() {
-
 	PrTitle = os.Getenv("PR_TITLE")
 	GhToken = os.Getenv("GITHUB_TOKEN")
 	PrUser = os.Getenv("PR_USER")

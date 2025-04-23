@@ -1,10 +1,8 @@
-/*
-Copyright © 2025 NAME HERE <EMAIL ADDRESS>
-*/
 package cmd
 
 import (
 	"main/cmd/jira"
+	"main/cmd/lint"
 	"os"
 
 	"github.com/joho/godotenv"
@@ -28,4 +26,5 @@ func Execute() {
 func init() {
 	_ = godotenv.Load()
 	rootCmd.AddCommand(jira.JiraCmd)
+	rootCmd.AddCommand(lint.LintCmd)
 }
