@@ -2,7 +2,6 @@ package orchestrator
 
 import (
 	"context"
-	"fmt"
 	"gorm.io/gorm"
 	"testing"
 
@@ -153,7 +152,6 @@ func TestCreateAccount(t *testing.T) {
 		}
 
 		account, err := _createAccount(ctx, store, testAccount)
-		fmt.Println(account)
 		if err != nil {
 			tt.Errorf("Expected nil, got error")
 		}
@@ -161,8 +159,7 @@ func TestCreateAccount(t *testing.T) {
 			tt.Errorf("Expected account name 'test_account', got %v", account.Name)
 		}
 
-		account1, err := _createAccount(ctx, store, testAccount)
-		fmt.Println(account1)
+		_, err = _createAccount(ctx, store, testAccount)
 		if err == nil {
 			tt.Errorf("Expected error, got nil")
 		}

@@ -5,9 +5,8 @@ import (
 	"errors"
 	"time"
 
-	"gorm.io/gorm"
-
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
+	"gorm.io/gorm"
 )
 
 func (d *DataStoreRepository) GetAccount(ctx context.Context, name string) (*datamodel.Account, error) {

@@ -114,218 +114,218 @@ func TestParseProjectId(t *testing.T) {
 	})
 }
 
-// func TestWaitForServiceNetworkOperationStatus(t *testing.T) {
-//	t.Run("WhenGetSearchRangeOperationStatusThrowsError", func(tt *testing.T) {
-//		expectedErr := errors.New("GetSearchRangeOperationStatus Error")
-//		operation := &servicenetworking.Operation{
-//			Name: "op",
-//			Response: []error{
-//				expectedErr,
-//			},
-//		}
-//		//provider := &hyperscaler.MockGoogleServices{
-//		//	SearchRangeOperation: operation,
-//		//	Errs: []error{
-//		//		expectedErr,
-//		//	},
-//		//}
-//		getNetworkingOperationStatus = func(gcpService *GcpServices, operation string) (*servicenetworking.Operation, error) {
-//			return nil, errors.New("initializeManagementService failed")
-//		}
-//		gcpService := &GcpServices{}
-//		oldWaitTimeout := waitTimeoutMinutes
-//		waitTimeoutMinutes = time.Second * 5
-//		defer func() {
-//			waitTimeoutMinutes = oldWaitTimeout
-//		}()
-//
-//		op, err := waitForServiceNetworkOperationStatus(gcpService, operation.Name)
-//		assert.Equal(tt, op, operation)
-//		assert.Equal(tt, err, expectedErr)
-//	})
-//	t.Run("WhenGetSearchRangeOperationReturnedWithError", func(tt *testing.T) {
-//		operation := &servicenetworking.Operation{
-//			Name: "op",
-//		}
-//		errMsg := "GetSearchRangeOperationStatus Error"
-//		//resp := &servicenetworking.Operation{
-//		//	Name: operation.Name,
-//		//	Done: true,
-//		//	Error: &servicenetworking.Status{
-//		//		Message: errMsg,
-//		//	},
-//		//}
-//		//provider := &mock.MockGoogleServices{
-//		//	SearchRangeOperation: resp,
-//		//}
-//
-//		gcpService := &GcpServices{}
-//		oldWaitTimeout := waitTimeoutMinutes
-//		waitTimeoutMinutes = time.Second * 5
-//		defer func() {
-//			waitTimeoutMinutes = oldWaitTimeout
-//		}()
-//		op, err := waitForServiceNetworkOperationStatus(gcpService, operation.Name)
-//		assert.Equal(tt, op.Name, operation.Name)
-//		assert.True(tt, op.Done)
-//		assert.Equal(tt, op.Error.Message, errMsg)
-//		assert.Error(tt, err, errMsg)
-//	})
-//	t.Run("WhenGetSearchRangeOperationReturnedWithoutError", func(tt *testing.T) {
-//		operation := &servicenetworking.Operation{
-//			Name: "op",
-//		}
-//		//resp := &servicenetworking.Operation{
-//		//	Name: operation.Name,
-//		//	Done: true,
-//		//}
-//		//provider := &mock.MockGoogleServices{
-//		//	SearchRangeOperation: resp,
-//		//}
-//
-//		gcpService := &GcpServices{}
-//		oldWaitTimeout := waitTimeoutMinutes
-//		waitTimeoutMinutes = time.Second * 5
-//		defer func() {
-//			waitTimeoutMinutes = oldWaitTimeout
-//		}()
-//		op, err := waitForServiceNetworkOperationStatus(gcpService, operation.Name)
-//		assert.Equal(tt, op.Name, operation.Name)
-//		assert.True(tt, op.Done)
-//		assert.NoError(tt, err)
-//	})
-//	t.Run("WhenGetSearchRangeOperationTimesOut", func(tt *testing.T) {
-//		operation := &servicenetworking.Operation{
-//			Name: "op",
-//		}
-//		//provider := &mock.MockGoogleServices{
-//		//	SearchRangeOperation: operation,
-//		//}
-//
-//		gcpService := &GcpServices{}
-//		oldWaitTimeout := waitTimeoutMinutes
-//		waitTimeoutMinutes = time.Second * 5
-//		defer func() {
-//			waitTimeoutMinutes = oldWaitTimeout
-//		}()
-//		op, err := waitForServiceNetworkOperationStatus(gcpService, operation.Name)
-//		assert.Nil(tt, op)
-//		assert.Error(tt, err, "Timeout while confirming service network google components")
-//	})
-//}
+/*
+func TestWaitForServiceNetworkOperationStatus(t *testing.T) {
+	t.Run("WhenGetSearchRangeOperationStatusThrowsError", func(tt *testing.T) {
+		expectedErr := errors.New("GetSearchRangeOperationStatus Error")
+		operation := &servicenetworking.Operation{
+			Name: "op",
+			Response: []error{
+				expectedErr,
+			},
+		}
+		provider := &hyperscaler.MockGoogleServices{
+			SearchRangeOperation: operation,
+			Errs: []error{
+				expectedErr,
+			},
+		}
+		getNetworkingOperationStatus = func(gcpService *GcpServices, operation string) (*servicenetworking.Operation, error) {
+			return nil, errors.New("initializeManagementService failed")
+		}
+		gcpService := &GcpServices{}
+		oldWaitTimeout := waitTimeoutMinutes
+		waitTimeoutMinutes = time.Second * 5
+		defer func() {
+			waitTimeoutMinutes = oldWaitTimeout
+		}()
 
-// test cases for _waitForServiceNetworkOperationStatus
-// func Test_waitForServiceNetworkOperationStatus(t *testing.T) {
-//	t.Run("WhenGetSearchRangeOperationStatusError", func(tt *testing.T) {
-//		defer testReset(t)
-//		mgs := hyperscaler.NewMockGoogleServices(tt)
-//		defer mgs.CloseMockGoogleServices()
-//		resp := &servicenetworking.Operation{
-//			Done: false,
-//			Name: "funcTest",
-//		}
-//		waitSleep = time.Millisecond * 5
-//		go func() {
-//			defer mgs.MockGoogleServicesDone()
-//			_, err := _waitForServiceNetworkOperationStatus(mgs, resp)
-//			if err == nil {
-//				tt.Error("Expected an error")
-//			} else if err.Error() != "GetSearchRangeOperationStatus failure" {
-//				tt.Errorf("Unexpected error returned: %s", err.Error())
-//			}
-//		}()
-//		mgs.AssertGetTrace(trace)
-//		mgs.AssertGetReporter(pr)
-//		mgs.AssertGetSearchRangeOperationStatus(resp.Name, nil, errors.New("GetSearchRangeOperationStatus failure"))
-//		mgs.AssertMockGoogleServicesDone()
-//	})
-//	t.Run("WhenGetSearchRangeOperationStatusNoError", func(tt *testing.T) {
-//		defer testReset(t)
-//		mgs := services.NewMockGoogleServices(tt)
-//		defer mgs.CloseMockGoogleServices()
-//
-//		resp := &servicenetworking.Operation{
-//			Done: true,
-//			Name: "funcTest",
-//		}
-//		waitSleep = time.Millisecond * 5
-//		go func() {
-//			defer mgs.MockGoogleServicesDone()
-//			ops, err := _waitForServiceNetworkOperationStatus(mgs, resp)
-//			if ops == nil {
-//				tt.Error("Expected Response")
-//			} else if err != nil {
-//				tt.Error("Unexpected error")
-//			} else if !reflect.DeepEqual(resp, ops) {
-//				tt.Error("Not Equal")
-//			}
-//		}()
-//		mgs.AssertGetTrace(trace)
-//		mgs.AssertGetReporter(pr)
-//		mgs.AssertGetSearchRangeOperationStatus(resp.Name, resp, nil)
-//		mgs.AssertMockGoogleServicesDone()
-//	})
-//	t.Run("WhenNoOperationError", func(tt *testing.T) {
-//		defer testReset(t)
-//		mgs := services.NewMockGoogleServices(tt)
-//		defer mgs.CloseMockGoogleServices()
-//		resp := &servicenetworking.Operation{
-//			Done: true,
-//			Name: "funcTest",
-//			Error: &servicenetworking.Status{
-//				Code:    9,
-//				Message: "I dont like this anymore",
-//			},
-//		}
-//
-//		isNotReady := errors.NewNotReadyErr("not ready")
-//
-//		go func() {
-//			defer mgs.MockGoogleServicesDone()
-//			ops, err := _waitForServiceNetworkOperationStatus(mgs, resp)
-//			if ops == nil {
-//				tt.Error("Expected an error")
-//			} else if err.Error() != "I dont like this anymore" {
-//				tt.Errorf("Unexpected error returned: %s", err.Error())
-//			} else if !reflect.DeepEqual(resp, ops) {
-//				tt.Error("Not Equal")
-//			}
-//
-//		}()
-//		mgs.AssertGetTrace(trace)
-//		mgs.AssertGetSearchRangeOperationStatus(resp.Name, nil, isNotReady)
-//		mgs.AssertGetSearchRangeOperationStatus(resp.Name, resp, nil)
-//		mgs.AssertMockGoogleServicesDone()
-//	})
-//	// t.Run("WhenTimeoutError", func(tt *testing.T) {
-//	//	defer testReset(t)
-//	//	mgs := services.NewMockGoogleServices(tt)
-//	//	defer mgs.CloseMockGoogleServices()
-//	//
-//	//	resp := &servicenetworking.Operation{
-//	//		Done: false,
-//	//		Name: "funcTest",
-//	//		Error: &servicenetworking.Status{
-//	//			Code:    9,
-//	//			Message: "I dont like this anymore",
-//	//		},
-//	//	}
-//	//	waitTimeout = time.Millisecond
-//	//	waitSleep = waitTimeout + waitTimeout
-//	//
-//	//	go func() {
-//	//		defer mgs.MockGoogleServicesDone()
-//	//		_, err := _waitForServiceNetworkOperationStatus(mgs, resp)
-//	//		waitTimeout = time.Minute * 5
-//	//		waitSleep = time.Second * 3
-//	//		if err == nil {
-//	//			tt.Error("Expected an error")
-//	//		} else if err.Error() != "Timeout while confirming service network google components" {
-//	//			tt.Errorf("Unexpected error returned: %s", err.Error())
-//	//		}
-//	//	}()
-//	//	mgs.AssertGetTrace(trace)
-//	//	mgs.AssertGetSearchRangeOperationStatus(resp.Name, resp, nil)
-//	//	mgs.AssertMockGoogleServicesDone()
-//	// })
-// }
+		op, err := waitForServiceNetworkOperationStatus(gcpService, operation.Name)
+		assert.Equal(tt, op, operation)
+		assert.Equal(tt, err, expectedErr)
+	})
+	t.Run("WhenGetSearchRangeOperationReturnedWithError", func(tt *testing.T) {
+		operation := &servicenetworking.Operation{
+			Name: "op",
+		}
+		errMsg := "GetSearchRangeOperationStatus Error"
+		resp := &servicenetworking.Operation{
+			Name: operation.Name,
+			Done: true,
+			Error: &servicenetworking.Status{
+				Message: errMsg,
+			},
+		}
+		provider := &mock.MockGoogleServices{
+			SearchRangeOperation: resp,
+		}
+
+		gcpService := &GcpServices{}
+		oldWaitTimeout := waitTimeoutMinutes
+		waitTimeoutMinutes = time.Second * 5
+		defer func() {
+			waitTimeoutMinutes = oldWaitTimeout
+		}()
+		op, err := waitForServiceNetworkOperationStatus(gcpService, operation.Name)
+		assert.Equal(tt, op.Name, operation.Name)
+		assert.True(tt, op.Done)
+		assert.Equal(tt, op.Error.Message, errMsg)
+		assert.Error(tt, err, errMsg)
+	})
+	t.Run("WhenGetSearchRangeOperationReturnedWithoutError", func(tt *testing.T) {
+		operation := &servicenetworking.Operation{
+			Name: "op",
+		}
+		resp := &servicenetworking.Operation{
+			Name: operation.Name,
+			Done: true,
+		}
+		provider := &mock.MockGoogleServices{
+			SearchRangeOperation: resp,
+		}
+
+		gcpService := &GcpServices{}
+		oldWaitTimeout := waitTimeoutMinutes
+		waitTimeoutMinutes = time.Second * 5
+		defer func() {
+			waitTimeoutMinutes = oldWaitTimeout
+		}()
+		op, err := waitForServiceNetworkOperationStatus(gcpService, operation.Name)
+		assert.Equal(tt, op.Name, operation.Name)
+		assert.True(tt, op.Done)
+		assert.NoError(tt, err)
+	})
+	t.Run("WhenGetSearchRangeOperationTimesOut", func(tt *testing.T) {
+		operation := &servicenetworking.Operation{
+			Name: "op",
+		}
+		provider := &mock.MockGoogleServices{
+			SearchRangeOperation: operation,
+		}
+
+		gcpService := &GcpServices{}
+		oldWaitTimeout := waitTimeoutMinutes
+		waitTimeoutMinutes = time.Second * 5
+		defer func() {
+			waitTimeoutMinutes = oldWaitTimeout
+		}()
+		op, err := waitForServiceNetworkOperationStatus(gcpService, operation.Name)
+		assert.Nil(tt, op)
+		assert.Error(tt, err, "Timeout while confirming service network google components")
+	})
+}
+
+func Test_waitForServiceNetworkOperationStatus(t *testing.T) {
+	t.Run("WhenGetSearchRangeOperationStatusError", func(tt *testing.T) {
+		defer testReset(t)
+		mgs := hyperscaler.NewMockGoogleServices(tt)
+		defer mgs.CloseMockGoogleServices()
+		resp := &servicenetworking.Operation{
+			Done: false,
+			Name: "funcTest",
+		}
+		waitSleep = time.Millisecond * 5
+		go func() {
+			defer mgs.MockGoogleServicesDone()
+			_, err := _waitForServiceNetworkOperationStatus(mgs, resp)
+			if err == nil {
+				tt.Error("Expected an error")
+			} else if err.Error() != "GetSearchRangeOperationStatus failure" {
+				tt.Errorf("Unexpected error returned: %s", err.Error())
+			}
+		}()
+		mgs.AssertGetTrace(trace)
+		mgs.AssertGetReporter(pr)
+		mgs.AssertGetSearchRangeOperationStatus(resp.Name, nil, errors.New("GetSearchRangeOperationStatus failure"))
+		mgs.AssertMockGoogleServicesDone()
+	})
+	t.Run("WhenGetSearchRangeOperationStatusNoError", func(tt *testing.T) {
+		defer testReset(t)
+		mgs := services.NewMockGoogleServices(tt)
+		defer mgs.CloseMockGoogleServices()
+
+		resp := &servicenetworking.Operation{
+			Done: true,
+			Name: "funcTest",
+		}
+		waitSleep = time.Millisecond * 5
+		go func() {
+			defer mgs.MockGoogleServicesDone()
+			ops, err := _waitForServiceNetworkOperationStatus(mgs, resp)
+			if ops == nil {
+				tt.Error("Expected Response")
+			} else if err != nil {
+				tt.Error("Unexpected error")
+			} else if !reflect.DeepEqual(resp, ops) {
+				tt.Error("Not Equal")
+			}
+		}()
+		mgs.AssertGetTrace(trace)
+		mgs.AssertGetReporter(pr)
+		mgs.AssertGetSearchRangeOperationStatus(resp.Name, resp, nil)
+		mgs.AssertMockGoogleServicesDone()
+	})
+	t.Run("WhenNoOperationError", func(tt *testing.T) {
+		defer testReset(t)
+		mgs := services.NewMockGoogleServices(tt)
+		defer mgs.CloseMockGoogleServices()
+		resp := &servicenetworking.Operation{
+			Done: true,
+			Name: "funcTest",
+			Error: &servicenetworking.Status{
+				Code:    9,
+				Message: "I dont like this anymore",
+			},
+		}
+
+		isNotReady := errors.NewNotReadyErr("not ready")
+
+		go func() {
+			defer mgs.MockGoogleServicesDone()
+			ops, err := _waitForServiceNetworkOperationStatus(mgs, resp)
+			if ops == nil {
+				tt.Error("Expected an error")
+			} else if err.Error() != "I dont like this anymore" {
+				tt.Errorf("Unexpected error returned: %s", err.Error())
+			} else if !reflect.DeepEqual(resp, ops) {
+				tt.Error("Not Equal")
+			}
+
+		}()
+		mgs.AssertGetTrace(trace)
+		mgs.AssertGetSearchRangeOperationStatus(resp.Name, nil, isNotReady)
+		mgs.AssertGetSearchRangeOperationStatus(resp.Name, resp, nil)
+		mgs.AssertMockGoogleServicesDone()
+	})
+	t.Run("WhenTimeoutError", func(tt *testing.T) {
+		defer testReset(t)
+		mgs := services.NewMockGoogleServices(tt)
+		defer mgs.CloseMockGoogleServices()
+
+		resp := &servicenetworking.Operation{
+			Done: false,
+			Name: "funcTest",
+			Error: &servicenetworking.Status{
+				Code:    9,
+				Message: "I dont like this anymore",
+			},
+		}
+		waitTimeout = time.Millisecond
+		waitSleep = waitTimeout + waitTimeout
+
+		go func() {
+			defer mgs.MockGoogleServicesDone()
+			_, err := _waitForServiceNetworkOperationStatus(mgs, resp)
+			waitTimeout = time.Minute * 5
+			waitSleep = time.Second * 3
+			if err == nil {
+				tt.Error("Expected an error")
+			} else if err.Error() != "Timeout while confirming service network google components" {
+				tt.Errorf("Unexpected error returned: %s", err.Error())
+			}
+		}()
+		mgs.AssertGetTrace(trace)
+		mgs.AssertGetSearchRangeOperationStatus(resp.Name, resp, nil)
+		mgs.AssertMockGoogleServicesDone()
+	})
+} */

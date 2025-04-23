@@ -1,10 +1,9 @@
 package repository
 
 import (
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
-
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 )
 
 func SetupTestDB() (*gorm.DB, error) {

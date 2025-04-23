@@ -4,10 +4,9 @@ import (
 	"context"
 	"testing"
 
-	"gorm.io/gorm"
-
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	gormwrapper "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/gorm"
+	"gorm.io/gorm"
 )
 
 func TestGetAccount(t *testing.T) {

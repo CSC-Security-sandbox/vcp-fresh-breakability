@@ -78,7 +78,6 @@ func (h Handler) V1betaCreatePool(ctx context.Context, req *gcpgenserver.PoolV1b
 		}, nil
 	}
 	return &gcpgenserver.OperationV1beta{}, nil
-
 }
 
 func (h Handler) V1betaDeletePool(ctx context.Context, params gcpgenserver.V1betaDeletePoolParams) (gcpgenserver.V1betaDeletePoolRes, error) {
