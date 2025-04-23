@@ -30,12 +30,6 @@ func (m *Migrator) Migrate(db *gormwrapper.Wrapper, ctx context.Context) error {
 	if err != nil {
 		return fmt.Errorf("failed to create migrator: %w", err)
 	}
-	defer func(sqlMig *migrate.Migrate) {
-		err, _ := sqlMig.Close()
-		if err != nil {
-			m.Logger.Error(ctx, "Failed to close migrator", err)
-		}
-	}(sqlMig)
 
 	if err := m.runSQLMigrations(ctx, sqlMig); err != nil {
 		return fmt.Errorf("SQL migrations failed: %w", err)
@@ -112,11 +106,6 @@ func (m *Migrator) Rollback(db *gormwrapper.Wrapper, ctx context.Context) error 
 	if err != nil {
 		return fmt.Errorf("failed to create migrator: %w", err)
 	}
-	defer func() {
-		if _, err := sqlMig.Close(); err != nil {
-			m.Logger.Error(ctx, "Failed to close migrator", err)
-		}
-	}()
 	// Check if there are any migrations to rollback
 	version, dirty, err := sqlMig.Version()
 	if err != nil && !errors.Is(err, migrate.ErrNilVersion) {

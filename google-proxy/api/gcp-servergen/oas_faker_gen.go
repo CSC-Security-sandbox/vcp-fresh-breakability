@@ -83,14 +83,10 @@ func (s *OperationV1beta) SetFake() {
 		}
 	}
 	{
-		{ // Keep pointer nil to prevent infinite recursion.
-			s.Response = nil
+		{
+			s.Response = []byte("null")
 		}
 	}
-}
-
-// SetFake set fake values.
-func (s *OperationV1betaResponse) SetFake() {
 }
 
 // SetFake set fake values.

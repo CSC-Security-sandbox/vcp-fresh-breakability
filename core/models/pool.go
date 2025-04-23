@@ -1,0 +1,50 @@
+package models
+
+// Pool describes a pool in the cloud volume model
+type Pool struct {
+	BaseModel
+	Name                    string
+	Description             string
+	State                   string
+	StateDetails            string
+	ServiceLevel            string
+	SizeInBytes             uint64
+	AccountName             string
+	VendorID                string
+	Region                  string
+	TotalThroughputMibps    float64
+	UtilizedThroughputMibps float64
+	Tags                    string
+	CoolAccess              bool
+	VendorSubNetID          string
+	AllocatedBytes          float64
+	NumberOfVolumes         int64
+	QosType                 string
+	PoolAttributes          *PoolAttributes
+	ClusterAttributes       *ClusterAttributes
+	CustomPerformanceParams *CustomPerformanceParams
+}
+
+// PoolAttributes describes the attributes of a pool model
+type PoolAttributes struct {
+	Events        string
+	Features      string
+	PrimaryZone   string
+	SecondaryZone string
+}
+
+// ClusterAttributes describes the attributes of a cluster model
+type ClusterAttributes struct {
+	ExternalName      string
+	OntapVersion      string
+	InstanceType      string
+	ExternalIpAddress string
+	InternalIpAddress string
+}
+
+// CustomPerformanceParams is used to specify the custom performance parameters for a pool
+type CustomPerformanceParams struct {
+	Enabled    bool
+	Throughput float64
+	Iops       int64
+}

@@ -1,0 +1,47 @@
+imports:
+  - path: netapp-cvo-deployment.py
+    name: netapp-cvo-deployment.py
+
+resources:
+  - name: software-ontap
+    type: 'netapp-cvo-deployment.py'
+    properties:
+      enableFlashCache: true
+      haDeployment:
+        nonSharedHaDeployment:
+          mediator:
+            mediatorImage:
+              name: devn-250315-0200-mediator-debian-12
+            virtualNetworkInterface0:
+              subnet: my-subnet-1 #needs to be replaced accordingly
+          virtualNetworkInterface3:
+            subnet: my-subnet-1 #needs to be replaced accordingly
+        platformSerialNumberNode2: '90920140000000000002'
+        virtualNetworkInterface1:
+          subnet: my-subnet-2 #needs to be replaced accordingly
+        virtualNetworkInterface2:
+          subnet: my-subnet-3 #needs to be replaced accordingly
+        zone: us-east1-b
+      labels:
+        key1: 'value1'
+      machineType: n2-standard-8
+      dataDisksStorageCapacityInGB: 2000 #update the storage capacity accordingly
+      platformSerialNumberNode1: '90920140000000000001'
+      region: us-east1
+      sourceImage:
+        name: rajneesc-20250317150332
+      virtualNetworkInterface0:
+        network: my-vpc-4 #needs to be replaced accordingly
+        subnet: my-subnet-4 #needs to be replaced accordingly
+      virtualNetworkInterfaceForData:
+        network: my-vpc-5
+        subnet: my-subnet-5 #needs to be replaced accordingly
+#        attachmentName: block-test
+      zone: us-east1-b
+      numberOfHaPairs: 1
+#      interclusterLifIps:
+#        - "10.8.0.11"
+#        - "10.8.0.12"
+#      iscsiLifIps:
+#        - "10.8.0.4"
+#        - "10.8.0.5"

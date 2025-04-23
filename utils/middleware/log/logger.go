@@ -3,6 +3,7 @@ package log
 import (
 	"context"
 	"fmt"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/common"
 	"net/http"
 	"os"
 	"strings"
@@ -73,13 +74,15 @@ func getLogger(config Config) Logger {
 	return logger
 }
 
-func LoggingMiddleware(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		logger := NewRequestLogger(r)
-		ctx := context.WithValue(r.Context(), TraceKey, logger)
-		r = r.WithContext(ctx)
-		next.ServeHTTP(w, r)
-	})
+// LoggerMiddleware injects a logger into the request context
+func LoggerMiddleware(logger Logger) func(http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			ctx := context.WithValue(r.Context(), common.ContextSLoggerKey, logger)
+			r = r.WithContext(ctx)
+			next.ServeHTTP(w, r)
+		})
+	}
 }
 
 // NewLogger initializes a logger for development purposes

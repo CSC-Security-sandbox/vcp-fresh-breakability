@@ -50,17 +50,22 @@ type (
 
 // DataStore defines all operations
 type DataStore interface {
-	CreatePool(ctx context.Context, pool *datamodel.Pool) error
-	GetPool(ctx context.Context, id string) (*datamodel.Pool, error)
+	CreatePool(ctx context.Context, pool *datamodel.Pool) (*datamodel.Pool, error)
+	GetPool(ctx context.Context, poolUUID string) (*datamodel.Pool, error)
 	UpdatePool(ctx context.Context, pool *datamodel.Pool) error
 	DeletePool(ctx context.Context, id string) error
 	ListPools(ctx context.Context) ([]*datamodel.Pool, error)
+	GetPoolByVendorID(ctx context.Context, vendorID string) (*datamodel.Pool, error)
+	SavePoolWithVsaClusterDetails(ctx context.Context, poolName string, accountName string, cluster *datamodel.ClusterDetails) error
 
 	CreateVolume(ctx context.Context, volume *datamodel.Volume) error
 	GetVolume(ctx context.Context, id string) (*datamodel.Volume, error)
 	UpdateVolume(ctx context.Context, volume *datamodel.Volume) error
 	DeleteVolume(ctx context.Context, id string) error
 	ListVolumes(ctx context.Context) ([]*datamodel.Volume, error)
+
+	GetAccount(ctx context.Context, name string) (*datamodel.Account, error)
+	CreateAccount(ctx context.Context, account *datamodel.Account) (*datamodel.Account, error)
 
 	CreateJob(ctx context.Context, job *datamodel.Job) (*datamodel.Job, error)
 	UpdateJobStatus(ctx context.Context, jobID string, status string) error

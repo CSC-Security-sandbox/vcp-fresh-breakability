@@ -148,18 +148,6 @@ func TestOperationV1beta_Examples(t *testing.T) {
 		})
 	}
 }
-func TestOperationV1betaResponse_EncodeDecode(t *testing.T) {
-	var typ OperationV1betaResponse
-	typ.SetFake()
-
-	e := jx.Encoder{}
-	typ.Encode(&e)
-	data := e.Bytes()
-	require.True(t, std.Valid(data), "Encoded: %s", data)
-
-	var typ2 OperationV1betaResponse
-	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
-}
 func TestPoolIDListV1beta_EncodeDecode(t *testing.T) {
 	var typ PoolIDListV1beta
 	typ.SetFake()

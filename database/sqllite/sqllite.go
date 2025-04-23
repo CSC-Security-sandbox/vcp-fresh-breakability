@@ -3,7 +3,6 @@ package sqllite
 import (
 	"context"
 	"fmt"
-
 	gormwrapper "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/gorm"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 )

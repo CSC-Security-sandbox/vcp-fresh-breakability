@@ -40,7 +40,7 @@ func main() {
 
 	// Setup HTTP router
 	mux := chi.NewRouter()
-	mux.Use(log.LoggingMiddleware)
+	mux.Use(log.LoggerMiddleware(logger))
 	mux.Use(chimiddleware.Recoverer)
 
 	// Mount the generated API handler

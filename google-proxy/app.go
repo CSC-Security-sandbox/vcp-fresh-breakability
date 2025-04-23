@@ -69,7 +69,7 @@ func main() {
 		logger.Error("Failed to create server", slog.String("error", err.Error()))
 		os.Exit(1)
 	}
-	httpServer := setupHTTPServer(cfg, gcpServer)
+	httpServer := setupHTTPServer(cfg, gcpServer, logger)
 
 	// Start HTTP server
 	eg.Go(func() error {
@@ -145,10 +145,10 @@ func initializeTemporalClient(ctx context.Context, logger log.Logger) (workflow_
 	return workflowClient, nil
 }
 
-func setupHTTPServer(cfg *common.Config, handler http.Handler) *http.Server {
+func setupHTTPServer(cfg *common.Config, handler http.Handler, logger log.Logger) *http.Server {
 	mux := chi.NewRouter()
 	mux.Use(middleware.AuthMiddleware)
-	mux.Use(log.LoggingMiddleware)
+	mux.Use(log.LoggerMiddleware(logger))
 	mux.Use(chimiddleware.Recoverer)
 	mux.Mount("/", handler)
 

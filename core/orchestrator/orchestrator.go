@@ -1,8 +1,9 @@
 package orchestrator
 
 import (
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database"
 	"go.temporal.io/sdk/client"
+
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database"
 )
 
 type Orchestrator struct {

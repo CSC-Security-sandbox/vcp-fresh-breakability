@@ -12,8 +12,6 @@ import (
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/lib/pq"
 	_ "github.com/mattn/go-sqlite3"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 	"gorm.io/driver/postgres"
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
@@ -23,7 +21,9 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/repository"
 	gormwrapper "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/gorm"
 	dblogger "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/logger"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 )
 
 const (
@@ -59,9 +59,52 @@ func NewStorage(config DbConfig, logger log.Logger) (Storage, error) {
 	return db, nil
 }
 
-// initRepository initializes  repository
-func (s *PersistenceStore) initRepository() {
-	s.dataStore = repository.NewDataStoreRepository(s.db)
+// NewTestStorage creates a new instance of PersistenceStore for testing with an in-memory SQLite database.
+func NewTestStorage(logger log.Logger) (*PersistenceStore, error) {
+	db, err := SetupInMemoryDB()
+	if err != nil {
+		return nil, err
+	}
+
+	wrapper := gormwrapper.New(db)
+	return &PersistenceStore{
+		db:        wrapper,
+		logger:    logger,
+		dataStore: repository.NewDataStoreRepository(wrapper),
+	}, nil
+}
+
+// SetupInMemoryDB sets up an in-memory SQLite database for testing.
+func SetupInMemoryDB() (*gorm.DB, error) {
+	// Use ":memory:" for an in-memory database
+	db, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{})
+	if err != nil {
+		return nil, err
+	}
+
+	// Perform any necessary migrations or setup here
+	err = db.AutoMigrate(&datamodel.Pool{}, &datamodel.Volume{}, &datamodel.Account{})
+	if err != nil {
+		return nil, err
+	}
+
+	return db, nil
+}
+
+// ClearInMemoryDB deletes all data from the in-memory database.
+func ClearInMemoryDB(db *gorm.DB) error {
+	tables := []interface{}{
+		&datamodel.Pool{},
+		&datamodel.Volume{},
+		&datamodel.Account{},
+	}
+
+	for _, table := range tables {
+		if err := db.Session(&gorm.Session{AllowGlobalUpdate: true}).Delete(table).Error; err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func (s *PersistenceStore) SetupDatabase(ctx context.Context) error {
@@ -93,7 +136,7 @@ func (s *PersistenceStore) connect(isAdmin bool) error {
 	}
 
 	s.db = gormwrapper.New(db)
-	s.initRepository()
+	s.dataStore = repository.NewDataStoreRepository(s.db)
 	return nil
 }
 
@@ -289,12 +332,12 @@ func isDatabaseExistsError(err error) bool {
 
 // Implement PersistenceStore interface by delegating to repositories
 
-func (s *PersistenceStore) CreatePool(ctx context.Context, pool *datamodel.Pool) error {
+func (s *PersistenceStore) CreatePool(ctx context.Context, pool *datamodel.Pool) (*datamodel.Pool, error) {
 	return s.dataStore.CreatePool(ctx, pool)
 }
 
-func (s *PersistenceStore) GetPool(ctx context.Context, id string) (*datamodel.Pool, error) {
-	return s.dataStore.GetPool(ctx, id)
+func (s *PersistenceStore) GetPool(ctx context.Context, poolUUID string) (*datamodel.Pool, error) {
+	return s.dataStore.GetPool(ctx, poolUUID)
 }
 
 func (s *PersistenceStore) UpdatePool(ctx context.Context, pool *datamodel.Pool) error {
@@ -307,6 +350,10 @@ func (s *PersistenceStore) DeletePool(ctx context.Context, id string) error {
 
 func (s *PersistenceStore) ListPools(ctx context.Context) ([]*datamodel.Pool, error) {
 	return s.dataStore.ListPools(ctx)
+}
+
+func (s *PersistenceStore) SavePoolWithVsaClusterDetails(ctx context.Context, poolName string, accountName string, cluster *datamodel.ClusterDetails) error {
+	return s.dataStore.SavePoolWithVsaClusterDetails(ctx, poolName, accountName, cluster)
 }
 
 func (s *PersistenceStore) CreateVolume(ctx context.Context, volume *datamodel.Volume) error {
@@ -329,10 +376,22 @@ func (s *PersistenceStore) ListVolumes(ctx context.Context) ([]*datamodel.Volume
 	return s.dataStore.ListVolumes(ctx)
 }
 
+func (s *PersistenceStore) GetAccount(ctx context.Context, name string) (*datamodel.Account, error) {
+	return s.dataStore.GetAccount(ctx, name)
+}
+
+func (s *PersistenceStore) CreateAccount(ctx context.Context, account *datamodel.Account) (*datamodel.Account, error) {
+	return s.dataStore.CreateAccount(ctx, account)
+}
+
 func (s *PersistenceStore) CreateJob(ctx context.Context, job *datamodel.Job) (*datamodel.Job, error) {
 	return s.dataStore.CreateJob(ctx, job)
 }
 
 func (s *PersistenceStore) UpdateJobStatus(ctx context.Context, id string, status string) error {
 	return s.dataStore.UpdateJobStatus(ctx, id, status)
+}
+
+func (s *PersistenceStore) GetPoolByVendorID(ctx context.Context, vendorID string) (*datamodel.Pool, error) {
+	return s.dataStore.GetPoolByVendorID(ctx, vendorID)
 }

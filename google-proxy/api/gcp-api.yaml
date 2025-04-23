@@ -817,8 +817,8 @@ components:
           $ref: '#/components/schemas/Status_v1Beta'
         response:
           title: response
-          type: object
-          properties: {}
+          additionalProperties:
+            type: object
     PoolUpdate_v1beta:
       title: Pool
       type: object

@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/go-faster/errors"
+	"github.com/go-faster/jx"
 )
 
 func (s *ErrorStatusCode) Error() string {
@@ -127,9 +128,9 @@ type OperationV1beta struct {
 	Name     OptString    `json:"name"`
 	Metadata OptAnyV1Beta `json:"metadata"`
 	// Is the operation done yet.
-	Done     OptBool                  `json:"done"`
-	Error    OptStatusV1Beta          `json:"error"`
-	Response *OperationV1betaResponse `json:"response"`
+	Done     OptBool         `json:"done"`
+	Error    OptStatusV1Beta `json:"error"`
+	Response jx.Raw          `json:"response"`
 }
 
 // GetName returns the value of Name.
@@ -153,7 +154,7 @@ func (s *OperationV1beta) GetError() OptStatusV1Beta {
 }
 
 // GetResponse returns the value of Response.
-func (s *OperationV1beta) GetResponse() *OperationV1betaResponse {
+func (s *OperationV1beta) GetResponse() jx.Raw {
 	return s.Response
 }
 
@@ -178,15 +179,13 @@ func (s *OperationV1beta) SetError(val OptStatusV1Beta) {
 }
 
 // SetResponse sets the value of Response.
-func (s *OperationV1beta) SetResponse(val *OperationV1betaResponse) {
+func (s *OperationV1beta) SetResponse(val jx.Raw) {
 	s.Response = val
 }
 
 func (*OperationV1beta) v1betaCreatePoolRes() {}
 func (*OperationV1beta) v1betaDeletePoolRes() {}
 func (*OperationV1beta) v1betaUpdatePoolRes() {}
-
-type OperationV1betaResponse struct{}
 
 // NewOptAnyV1Beta returns new OptAnyV1Beta with value set to v.
 func NewOptAnyV1Beta(v AnyV1Beta) OptAnyV1Beta {

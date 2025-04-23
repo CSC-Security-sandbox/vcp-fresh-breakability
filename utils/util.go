@@ -2,8 +2,19 @@ package utils
 
 import (
 	"net"
+	"regexp"
 	"strconv"
 	"strings"
+
+	gcpgenserver "github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/api/gcp-servergen"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
+)
+
+var (
+	localRegion                   = env.GetString("LOCAL_REGION", "local")
+	parseRegionAndZone            = _parseRegionAndZone
+	ParseAndValidateRegionAndZone = _parseAndValidateRegionAndZone
 )
 
 func ValidateIPv4Address(ipAddr string) bool {
@@ -81,4 +92,40 @@ func CheckForRetriableError(errorMessage string, retriableErrors []string) bool 
 		}
 	}
 	return false
+}
+
+func _parseAndValidateRegionAndZone(locationID string) (string, string, *gcpgenserver.Error) {
+	region, zone, err := parseRegionAndZone(locationID)
+	if err != nil {
+		code := float64(400)
+		return "", "", &gcpgenserver.Error{Code: code, Message: err.Error()}
+	}
+	if region != localRegion {
+		code := float64(400)
+		msg := "Invalid region. Region can only be " + localRegion
+		return "", "", &gcpgenserver.Error{Code: code, Message: msg}
+	}
+	return region, zone, nil
+}
+
+func _parseRegionAndZone(locationID string) (string, string, error) {
+	var region string
+	var zone string
+	pattern := regexp.MustCompile(`^([a-z]+-[a-z]+\d+)(-[a-z])?$`)
+	if pattern.MatchString(locationID) {
+		if pattern.FindStringSubmatch(locationID)[2] == "" {
+			// locationID represents a region
+			region = locationID
+			zone = ""
+		} else {
+			// locationID represents a zone
+			region = pattern.FindStringSubmatch(locationID)[1]
+			zone = pattern.FindStringSubmatch(locationID)[0]
+		}
+	} else {
+		// locationID represents neither region nor zone.
+		msg := "LocationID represents neither a region nor a zone"
+		return "", "", errors.New(msg)
+	}
+	return region, zone, nil
 }

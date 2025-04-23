@@ -64,6 +64,14 @@ func (w *Wrapper) Save(value interface{}) *Wrapper {
 	return &Wrapper{db: w.db.Omit(clause.Associations).Save(value)}
 }
 
+func (w *Wrapper) Create(value interface{}) *Wrapper {
+	return &Wrapper{db: w.db.Omit(clause.Associations).Create(value)}
+}
+
+func (w *Wrapper) Delete(value interface{}, where ...interface{}) *Wrapper {
+	return &Wrapper{db: w.db.Omit(clause.Associations).Delete(value, where...)}
+}
+
 func (w *Wrapper) First(dest interface{}, conds ...interface{}) *Wrapper {
 	return &Wrapper{db: w.db.First(dest, conds...)}
 }
