@@ -30,6 +30,7 @@ PACKAGES=(
   file
   yamllint
   gpg
+ 
 )
 
 export NEEDRESTART_MODE=a
@@ -146,6 +147,15 @@ if curl ${CURL_OPTS} -fsSL https://deno.land/install.sh | DENO_INSTALL=/usr/loca
   printf "deno installed"
 else
   printf "::error:: Failed to install Deno"
+  exit 1
+fi
+
+# skaffold install
+printf "\n\t🐋 Install skaffold🐋\n"
+if curl -Lo skaffold https://storage.googleapis.com/skaffold/releases/latest/skaffold-linux-amd64 && sudo install skaffold /usr/local/bin/; then
+  printf "skaffold installed"
+else
+  printf "::error:: Failed to install skaffold"
   exit 1
 fi
 

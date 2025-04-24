@@ -1,0 +1,53 @@
+name: Create Pre-Release and Publish Docker images
+
+on:
+  push:
+    branches:
+      - main
+    
+jobs:
+  create_pre_release_vsa_control_plane:
+    name: Create Pre-Release and Publish Docker images
+    runs-on: [self-hosted,linux]
+    container:
+      image: ghcr.io/vcp-vsa-control-plane/vsa-builder:v2
+      options: --user root
+
+    permissions:
+      packages: write
+      contents: read
+
+    steps:
+      - name: Check out the repo
+        uses: actions/checkout@v2
+
+      - name: Set up Go
+        uses: actions/setup-go@v3
+        with:
+          go-version-file: go.mod        
+
+      - name: Log in to the Container registry
+        run: |
+          echo "${{ secrets.GHVSA_PAT }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
+      
+      - name: Fetch new tag
+        id: fetch_new_tag
+        run: |
+          echo "newTag=$(go run .github/scripts/fetchLatestBuild.go)" >> $GITHUB_OUTPUT
+
+
+
+      - name: Build and push Docker images
+        run: skaffold build --filename=.github/scripts/skaffold_ci.yaml -t ${{ env.newTag }}
+        env:
+          newTag: ${{ steps.fetch_new_tag.outputs.newTag }} 
+
+
+      - name: Create a release
+        run: gh release create -R https://github.com/${{ github.repository }} --generate-notes --prerelease ${{env.newTag}}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GHVSA_PAT }}  # TODO: use Github bot account here
+          GITHUB_REPOSITORY: ${{ github.event.repository.name }}     
+          newTag: ${{ steps.fetch_new_tag.outputs.newTag }} 
+          
+            
