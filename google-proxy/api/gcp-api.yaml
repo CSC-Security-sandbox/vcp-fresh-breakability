@@ -13,6 +13,10 @@ servers:
 tags:
   - name: pools
     description: Pool operations
+  - name: volumes
+    description: Volume operations
+  - name: HostGroups
+    description: HostGroup operations
 paths:
   /v1beta/projects/{projectNumber}/locations/{locationId}/pools:
     get:
@@ -720,6 +724,1693 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
+  /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}:
+    get:
+      tags:
+        - volumes
+      summary: Describe a volume
+      description: Returns the description of the specified volume by volume ID.
+      operationId: v1beta_describeVolume
+      parameters:
+        - $ref: '#/components/parameters/projectNumberPathParameter'
+        - $ref: '#/components/parameters/locationIdPathParameter'
+        - $ref: '#/components/parameters/xCorrelationIdHeader'
+        - name: volumeId
+          in: path
+          description: UUID v4 used to identify the volume
+          required: true
+          schema:
+            maxLength: 36
+            minLength: 36
+            pattern: "^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$"
+            type: string
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Volume_v1beta'
+              example:
+                volumeId: 49b96a2F-4a38-6fa4-2CC6-F598Ef2f8a0E
+                resourceId: my-volume
+                created: 2016-11-29T20:14:50.459Z
+                creationToken: happily-successful-einstein
+                volumeState: READY
+                volumeStateDetails: Available for use
+                serviceLevel: EXTREME
+                securityStyle: UNIX
+                unixPermissions: "0755"
+                usedBytes: 38786062792785
+                quotaInBytes: 100000000000000
+                snapReserve: 20
+                encryptionType: SERVICE_MANAGED
+                description: My volume description
+                activeDirectoryConfigUUID: 8064bdf5-4638-11e7-9bdb-020073ca7773
+                kmsConfigId: 2653acf5-4638-11e7-9bdb-020073ca7773
+                labels:
+                  someKey: SomeValue
+                  someKey2: SomeValue2
+                protocols:
+                  - NFSV3
+                snapshotPolicy:
+                  enabled: true
+                  hourlySchedule:
+                    snapshotsToKeep: 6
+                    minute: 0
+                  dailySchedule:
+                    snapshotsToKeep: 24
+                    hour: 23
+                    minute: 10
+                  weeklySchedule:
+                    snapshotsToKeep: 7
+                    day: "Monday, Wednesday, Friday"
+                    hour: 23
+                    minute: 59
+                  monthlySchedule:
+                    snapshotsToKeep: 12
+                    daysOfMonth: "15,31"
+                    hour: 23
+                    minute: 59
+                exportPolicy:
+                  rules:
+                    - ruleIndex: 1
+                      allowedClients: 0.0.0.0/0
+                      accessType: READ_WRITE
+                      nfsv3: true
+                      nfsv4: false
+                backupConfig:
+                  backupPolicyId: a990e99b-e2ec-c361-f463-67a54815b26d
+                  backupVaultId: a990e99b-e2ec-c361-f463-67a54815b26d
+                  scheduledBackupEnabled: true
+                tieringPolicy:
+                  tierAction: ENABLE
+                  coolingThresholdDays: 40
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                code: 400
+                message: Bad Request or Input
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                code: 401
+                message: Unauthorized access attempt
+        "403":
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                code: 403
+                message: Access to this resource forbidden
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                code: 404
+                message: The resource was not found
+        "429":
+          description: Too many requests
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                code: 429
+                message: Rate limit exceeded for this endpoint - try again later
+        "500":
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                code: 500
+                message: Internal server error
+        default:
+          description: Unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    put:
+      tags:
+        - volumes
+      summary: Update a volume
+      description: Update the volume
+      operationId: v1beta_updateVolume
+      parameters:
+        - $ref: '#/components/parameters/projectNumberPathParameter'
+        - $ref: '#/components/parameters/locationIdPathParameter'
+        - $ref: '#/components/parameters/xCorrelationIdHeader'
+        - name: volumeId
+          in: path
+          description: UUID v4 used to identify the volume
+          required: true
+          schema:
+            maxLength: 36
+            minLength: 36
+            pattern: "^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$"
+            type: string
+      requestBody:
+        description: The parameters that can be updated
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/VolumeUpdate_v1beta'
+        required: true
+      responses:
+        "202":
+          description: Updating volume
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Operation_v1beta'
+              example:
+                done: false
+                name: /v1beta/projects/123456789/locations/some-location1/operations/ba2c8826-2627-057c-42ba-343ee7ab1ebe
+                response:
+                  created: 2024-01-24T11:03:07.254Z
+                  creationToken: some-volume
+                  backupConfig:
+                    backupPolicyId: 9760acf5-4638-11e7-9bdb-020073ca7773
+                    backupVaultId: 9760acf5-4638-11e7-9bdb-020073ca7773
+                    scheduledBackupEnabled: true
+                  encryptionType: SERVICE_MANAGED
+                  exportPolicy:
+                    rules: []
+                  inReplication: false
+                  isDataProtection: false
+                  kerberosEnabled: false
+                  largeCapacity: false
+                  ldapEnabled: false
+                  mountPoints:
+                    - export: /some-volume
+                      exportFull: 1.2.3.4:/some-volume
+                      instructions: |-
+                        Setting up your instance
+                        Open an SSH client and connect to your instance.
+                        Install the nfs client on your instance.
+                        On Red Hat Enterprise Linux or SuSE Linux instance:
+                        sudo yum install -y nfs-utils
+                        On an Ubuntu or Debian instance:
+                        sudo apt-get install nfs-common
+                        
+                        Mounting your volume
+                        Create a new directory on your instance, such as "/some-volume":
+                        sudo mkdir /some-volume
+                        Mount your volume using the example command below:
+                        sudo mount -t nfs -o rw,hard,rsize=65536,wsize=65536,vers=3,tcp 1.2.3.4:/some-volume /some-volume
+                        Note. Please use mount options appropriate for your specific workloads when known.
+                      protocol: NFSV3
+                  multipleEndpoints: false
+                  network: projects/123456789/global/networks/systemic-qa-vpc
+                  poolId: a20730de-511f-273c-4071-ac1a30478609
+                  poolResourceId: projects/123456789/locations/some-location1/pools/some-pool
+                  protocols:
+                    - NFSV3
+                  quotaInBytes: 4000000000000
+                  resourceId: some-volume
+                  securityStyle: UNIX
+                  serviceLevel: PREMIUM
+                  smbSettings: []
+                  snapReserve: 0
+                  snapshotDirectory: true
+                  storageClass: HARDWARE
+                  tieringPolicy:
+                    tierAction: ENABLED
+                    coolingThresholdDays: 24
+                  unixPermissions: "0770"
+                  usedBytes: 1409024
+                  volumeId: b78e8675-7e6f-64ec-3ec2-163753add2d5
+                  volumeState: READY
+                  volumeStateDetails: Available for use
+        "204":
+          description: No content
+          content: {}
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                code: 400
+                message: Bad Request or Input
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                code: 401
+                message: Unauthorized access attempt
+        "403":
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                code: 403
+                message: Access to this resource forbidden
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                code: 404
+                message: The resource was not found
+        "409":
+          description: Conflict
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                code: 409
+                message: Conflict. Resource already exists
+        "422":
+          description: Unprocessable entity
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                code: 422
+                message: protocols in body is required
+        "429":
+          description: Too many requests
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                code: 429
+                message: Rate limit exceeded for this endpoint - try again later
+        "500":
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                code: 500
+                message: Internal server error
+        default:
+          description: Unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      x-codegen-request-body-name: body
+    delete:
+      tags:
+        - volumes
+      summary: Delete a volume
+      description: "Warning! This operation will permanently delete the volume. This\
+        \ operation will never return resource not found, since that could be interpreted\
+        \ as resource already deleted, and therefore will return operation done instead."
+      operationId: v1beta_deleteVolume
+      parameters:
+        - $ref: '#/components/parameters/projectNumberPathParameter'
+        - $ref: '#/components/parameters/locationIdPathParameter'
+        - $ref: '#/components/parameters/xCorrelationIdHeader'
+        - name: volumeId
+          in: path
+          description: UUID v4 used to identify the volume
+          required: true
+          schema:
+            maxLength: 36
+            minLength: 36
+            pattern: "^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$"
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                deleteAssociatedBackups:
+                  type: boolean
+                  description: Delete all the associated backups for the given volume
+                    ID or not
+                  example: false
+              nullable: false
+              x-nullable: false
+        required: false
+      responses:
+        "202":
+          description: Deleting volume
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Operation_v1beta'
+              example:
+                done: false
+                name: /v1beta/projects/123456789/locations/some-location1/operations/ba2c8826-2627-057c-42ba-343ee7ab1ebe
+        "204":
+          description: No content
+          content: {}
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                code: 400
+                message: Bad Request or Input
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                code: 401
+                message: Unauthorized access attempt
+        "403":
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                code: 403
+                message: Access to this resource forbidden
+        "409":
+          description: Conflict
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                code: 409
+                message: Conflict. Resource already exists
+        "422":
+          description: Unprocessable entity
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                code: 422
+                message: protocols in body is required
+        "429":
+          description: Too many requests
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                code: 429
+                message: Rate limit exceeded for this endpoint - try again later
+        "500":
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                code: 500
+                message: Internal server error
+        default:
+          description: Unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      x-codegen-request-body-name: body
+  /v1beta/projects/{projectNumber}/locations/{locationId}/volumes:
+    get:
+      tags:
+        - volumes
+      summary: List all volumes
+      description: Returns descriptions of all volumes owned by the caller.
+      operationId: v1beta_listVolumes
+      parameters:
+        - $ref: '#/components/parameters/projectNumberPathParameter'
+        - $ref: '#/components/parameters/locationIdPathParameter'
+        - $ref: '#/components/parameters/xCorrelationIdHeader'
+        - $ref: '#/components/parameters/includeDeletedQueryParameter'
+        - name: poolId
+          in: query
+          description: UUID v4 used to identify the pool
+          schema:
+            maxLength: 36
+            minLength: 36
+            pattern: "^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$"
+            type: string
+        - name: includePolicies
+          in: query
+          description: "If true, export policy and snapshot policy will be included\
+          \ for each file system"
+          allowEmptyValue: true
+          schema:
+            type: boolean
+        - name: includeSmbShareSettings
+          in: query
+          description: "If true, response will include SMB settings"
+          allowEmptyValue: true
+          schema:
+            type: boolean
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - type: object
+                    properties:
+                      volumes:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/Volume_v1beta'
+              example:
+                volumes:
+                  - volumeId: 49b96a2F-4a38-6fa4-2CC6-F598Ef2f8a0E
+                    resourceId: big-data
+                    created: 2017-01-29T09:10:30.384Z
+                    creationToken: suddenly-distinguished-feynman
+                    volumeState: READY
+                    volumeStateDetails: Available for use
+                    serviceLevel: EXTREME
+                    securityStyle: UNIX
+                    unixPermissions: "0755"
+                    usedBytes: 38786062792785
+                    quotaInBytes: 50000000000000
+                    snapReserve: 20
+                    encryptionType: SERVICE_MANAGED
+                    description: My volume description
+                    activeDirectoryConfigUUID: 8064bdf5-4638-11e7-9bdb-020073ca7773
+                    kmsConfigId: 2653acf5-4638-11e7-9bdb-020073ca7773
+                    labels:
+                      someKey: SomeValue
+                      someKey2: SomeValue2
+                    protocols:
+                      - NFSV3
+                    snapshotPolicy:
+                      enabled: true
+                      hourlySchedule:
+                        snapshotsToKeep: 6
+                        minute: 0
+                      dailySchedule:
+                        snapshotsToKeep: 24
+                        hour: 23
+                        minute: 10
+                      weeklySchedule:
+                        snapshotsToKeep: 7
+                        day: "Monday, Wednesday, Friday"
+                        hour: 23
+                        minute: 59
+                      monthlySchedule:
+                        snapshotsToKeep: 12
+                        daysOfMonth: "15,31"
+                        hour: 23
+                        minute: 59
+                    exportPolicy:
+                      rules:
+                        - ruleIndex: 1
+                          name: default
+                          allowedClients: 0.0.0.0/0
+                          accessType: READ_WRITE
+                          nfsv3:
+                            checked: true
+                          nfsv4:
+                            checked: false
+                    backupConfig:
+                      backupPolicyId: a990e99b-e2ec-c361-f463-67a54815b26d
+                      backupVaultId: a990e99b-e2ec-c361-f463-67a54815b26d
+                      scheduledBackupEnabled: true
+                    tieringPolicy:
+                      tierAction: ENABLE
+                      coolingThresholdDays: 40
+                    multipleEndpoints: false
+                    largeCapacity: false
+                  - volumeId: 622EE7E2-afDD-536d-a337-F598Ef1f7a5A
+                    resourceId: logs
+                    created: 2017-02-13T10:11:10.345Z
+                    creationToken: surprisingly-delighted-gandalf
+                    volumeState: DELETING
+                    volumeStateDetails: Deletion in progress
+                    serviceLevel: EXTREME
+                    securityStyle: UNIX
+                    usedBytes: 78606279278
+                    quotaInBytes: 1000000000000
+                    snapReserve: 20
+                    encryptionType: SERVICE_MANAGED
+                    description: My volume description
+                    activeDirectoryConfigUUID: 8064bdf5-4638-11e7-9bdb-020073ca7773
+                    kmsConfigId: 2653acf5-4638-11e7-9bdb-020073ca7773
+                    labels:
+                      someKey: SomeValue
+                      someKey2: SomeValue2
+                    protocols:
+                      - NFSV3
+                    snapshotPolicy:
+                      enabled: true
+                      hourlySchedule:
+                        snapshotsToKeep: 6
+                        minute: 0
+                      dailySchedule:
+                        snapshotsToKeep: 24
+                        hour: 23
+                        minute: 10
+                      weeklySchedule:
+                        snapshotsToKeep: 7
+                        day: "Monday, Wednesday, Friday"
+                        hour: 23
+                        minute: 59
+                      monthlySchedule:
+                        snapshotsToKeep: 12
+                        daysOfMonth: "15,31"
+                        hour: 23
+                        minute: 59
+                    exportPolicy:
+                      rules:
+                        - ruleIndex: 1
+                          name: default
+                          allowedClients: 0.0.0.0/0
+                          accessType: READ_WRITE
+                          nfsv3:
+                            checked: true
+                          nfsv4:
+                            checked: false
+                    backupConfig:
+                      backupPolicyId: a990e99b-e2ec-c361-f463-67a54815b26d
+                      backupVaultId: a990e99b-e2ec-c361-f463-67a54815b26d
+                      scheduledBackupEnabled: true
+                    tieringPolicy:
+                      tierAction: ENABLE
+                      coolingThresholdDays: 40
+                    multipleEndpoints: false
+                    largeCapacity: false
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                code: 400
+                message: Bad Request or Input
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                code: 401
+                message: Unauthorized access attempt
+        "403":
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                code: 403
+                message: Access to this resource forbidden
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                code: 404
+                message: The resource was not found
+        "429":
+          description: Too many requests
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                code: 429
+                message: Rate limit exceeded for this endpoint - try again later
+        "500":
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                code: 500
+                message: Internal server error
+        default:
+          description: Unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    post:
+      tags:
+        - volumes
+      summary: Create a new volume
+      description: Create a new empty volume or a volume from a backup/snapshot if
+        backup-ID/snapshot-ID is in the body parameters.
+      operationId: v1beta_createVolume
+      parameters:
+        - $ref: '#/components/parameters/projectNumberPathParameter'
+        - $ref: '#/components/parameters/locationIdPathParameter'
+        - $ref: '#/components/parameters/xCorrelationIdHeader'
+      requestBody:
+        description: The required parameters to create a new volume.
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/VolumeCreate_v1beta'
+        required: true
+      responses:
+        "202":
+          description: Creating volume
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Operation_v1beta'
+              example:
+                done: false
+                name: /v1beta/projects/123456789/locations/some-location1/operations/ba2c8826-2627-057c-42ba-343ee7ab1ebe
+                response:
+                  created: 2024-01-24T11:03:07.254Z
+                  creationToken: some-volume
+                  backupConfig:
+                    backupPolicyId: 9760acf5-4638-11e7-9bdb-020073ca7773
+                    backupVaultId: 9760acf5-4638-11e7-9bdb-020073ca7773
+                    scheduledBackupEnabled: true
+                  encryptionType: SERVICE_MANAGED
+                  exportPolicy:
+                    rules: []
+                  inReplication: false
+                  isDataProtection: false
+                  kerberosEnabled: false
+                  largeCapacity: false
+                  ldapEnabled: false
+                  mountPoints: []
+                  multipleEndpoints: false
+                  network: projects/123456789/global/networks/systemic-qa-vpc
+                  poolId: a20730de-511f-273c-4071-ac1a30478609
+                  poolResourceId: projects/123456789/locations/some-location1/pools/some-pool
+                  protocols:
+                    - NFSV3
+                  quotaInBytes: 4000000000000
+                  resourceId: some-volume
+                  securityStyle: UNIX
+                  serviceLevel: PREMIUM
+                  smbSettings: []
+                  snapReserve: 0
+                  snapshotDirectory: true
+                  storageClass: HARDWARE
+                  tieringPolicy:
+                    tierAction: ENABLED
+                    coolingThresholdDays: 24
+                  unixPermissions: "0770"
+                  usedBytes: 1409024
+                  volumeId: b78e8675-7e6f-64ec-3ec2-163753add2d5
+                  volumeState: CREATING
+                  volumeStateDetails: Creation in progress
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                code: 400
+                message: Bad Request or Input
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                code: 401
+                message: Unauthorized access attempt
+        "403":
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                code: 403
+                message: Access to this resource forbidden
+        "409":
+          description: Conflict
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                code: 409
+                message: Conflict. Resource already exists
+        "422":
+          description: Unprocessable entity
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                code: 422
+                message: protocols in body is required
+        "429":
+          description: Too many requests
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                code: 429
+                message: Rate limit exceeded for this endpoint - try again later
+        "500":
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                code: 500
+                message: Internal server error
+        "501":
+          description: Not implemented
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                code: 501
+                message: Not Implemented
+        "503":
+          description: Service unavailable
+          headers:
+            Retry-After:
+              description: A non-negative integer indicating the seconds to delay
+                after the response is received
+              schema:
+                type: integer
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                code: 503
+                message: Service is currently unavailable
+        default:
+          description: Unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      x-codegen-request-body-name: body
+  /v1beta/projects/{projectNumber}/locations/{locationId}/getMultipleVolumes:
+    post:
+      tags:
+        - volumes
+      summary: List specified volumes
+      description: Returns descriptions of volumes that is listed in request body.
+      operationId: v1beta_getMultipleVolumes
+      parameters:
+        - $ref: '#/components/parameters/projectNumberPathParameter'
+        - $ref: '#/components/parameters/locationIdPathParameter'
+        - $ref: '#/components/parameters/xCorrelationIdHeader'
+      requestBody:
+        description: A list of volume UUIDs to return.
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/VolumeIDList_v1beta'
+        required: true
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - type: object
+                    properties:
+                      volumes:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/Volume_v1beta'
+              example:
+                volumes:
+                  - volumeId: 49b96a2F-4a38-6fa4-2CC6-F598Ef2f8a0E
+                    resourceId: big-data
+                    created: 2017-01-29T09:10:30.384Z
+                    creationToken: suddenly-distinguished-feynman
+                    volumeState: READY
+                    volumeStateDetails: Available for use
+                    serviceLevel: EXTREME
+                    securityStyle: UNIX
+                    unixPermissions: "0755"
+                    usedBytes: 38786062792785
+                    quotaInBytes: 50000000000000
+                    snapReserve: 20
+                    encryptionType: SERVICE_MANAGED
+                    activeDirectoryConfigUUID: 8064bdf5-4638-11e7-9bdb-020073ca7773
+                    kmsConfigId: 2653acf5-4638-11e7-9bdb-020073ca7773
+                    labels:
+                      someKey: SomeValue
+                      someKey2: SomeValue2
+                    protocols:
+                      - NFSV3
+                    snapshotPolicy:
+                      enabled: true
+                      hourlySchedule:
+                        snapshotsToKeep: 6
+                        minute: 0
+                      dailySchedule:
+                        snapshotsToKeep: 24
+                        hour: 23
+                        minute: 10
+                      weeklySchedule:
+                        snapshotsToKeep: 7
+                        day: "Monday, Wednesday, Friday"
+                        hour: 23
+                        minute: 59
+                      monthlySchedule:
+                        snapshotsToKeep: 12
+                        daysOfMonth: "15,31"
+                        hour: 23
+                        minute: 59
+                    exportPolicy:
+                      rules:
+                        - ruleIndex: 1
+                          name: default
+                          allowedClients: 0.0.0.0/0
+                          accessType: READ_WRITE
+                          nfsv3: true
+                          nfsv4: false
+                    backupConfig:
+                      backupPolicyId: a990e99b-e2ec-c361-f463-67a54815b26d
+                      backupVaultId: a990e99b-e2ec-c361-f463-67a54815b26d
+                      scheduledBackupEnabled: true
+                    tieringPolicy:
+                      tierAction: ENABLE
+                      coolingThresholdDays: 40
+                    multipleEndpoints: false
+                    largeCapacity: false
+                  - volumeId: 49b96a2F-4a38-6fa4-2CC6-F598Ef2f8afE
+                    resourceId: iscsi-volume-sample
+                    created: 2017-01-29T09:10:30.384Z
+                    creationToken: iscsi-volume-sample
+                    volumeState: READY
+                    volumeStateDetails: Available for use
+                    serviceLevel: FLEX
+                    usedBytes: 38786062792785
+                    quotaInBytes: 50000000000000
+                    snapReserve: 20
+                    encryptionType: SERVICE_MANAGED
+                    labels:
+                      someKey: SomeValue
+                      someKey2: SomeValue2
+                    protocols:
+                      - ISCSI
+                    snapshotPolicy:
+                      enabled: true
+                      hourlySchedule:
+                        snapshotsToKeep: 6
+                        minute: 0
+                      dailySchedule:
+                        snapshotsToKeep: 24
+                        hour: 23
+                        minute: 10
+                      weeklySchedule:
+                        snapshotsToKeep: 7
+                        day: "Monday, Wednesday, Friday"
+                        hour: 23
+                        minute: 59
+                      monthlySchedule:
+                        snapshotsToKeep: 12
+                        daysOfMonth: "15,31"
+                        hour: 23
+                        minute: 59
+                    mountPoints:
+                      - export: ""
+                        exportFull: ""
+                        instructions: ""
+                        ipAddress: "10.22.0.20"
+                        protocol: "ISCSI"
+                      - export: ""
+                        exportFull: ""
+                        instructions: ""
+                        ipAddress: "10.22.0.21"
+                        protocol: "ISCSI"
+                    backupConfig:
+                      backupPolicyId: a990e99b-e2ec-c361-f463-67a54815b26d
+                      backupVaultId: a990e99b-e2ec-c361-f463-67a54815b26d
+                      scheduledBackupEnabled: true
+                    tieringPolicy:
+                      tierAction: ENABLE
+                      coolingThresholdDays: 40
+                    multipleEndpoints: false
+                    largeCapacity: false
+                    blockProperties:
+                      hostGroupID: a20730de-511f-273c-4071-ac1a30478609
+                      osType: linux
+                  - volumeId: 622EE7E2-afDD-536d-a337-F598Ef1f7a5A
+                    resourceId: logs
+                    created: 2017-02-13T10:11:10.345Z
+                    creationToken: surprisingly-delighted-gandalf
+                    volumeState: DELETING
+                    volumeStateDetails: Deletion in progress
+                    serviceLevel: EXTREME
+                    securityStyle: UNIX
+                    usedBytes: 78606279278
+                    quotaInBytes: 1000000000000
+                    snapReserve: 20
+                    encryptionType: SERVICE_MANAGED
+                    activeDirectoryConfigUUID: 8064bdf5-4638-11e7-9bdb-020073ca7773
+                    kmsConfigId: 2653acf5-4638-11e7-9bdb-020073ca7773
+                    labels:
+                      someKey: SomeValue
+                      someKey2: SomeValue2
+                    protocols:
+                      - NFSV3
+                    snapshotPolicy:
+                      enabled: true
+                      hourlySchedule:
+                        snapshotsToKeep: 6
+                        minute: 0
+                      dailySchedule:
+                        snapshotsToKeep: 24
+                        hour: 23
+                        minute: 10
+                      weeklySchedule:
+                        snapshotsToKeep: 7
+                        day: "Monday, Wednesday, Friday"
+                        hour: 23
+                        minute: 59
+                      monthlySchedule:
+                        snapshotsToKeep: 12
+                        daysOfMonth: "15,31"
+                        hour: 23
+                        minute: 59
+                    exportPolicy:
+                      rules:
+                        - ruleIndex: 1
+                          name: default
+                          allowedClients: 0.0.0.0/0
+                          accessType: READ_WRITE
+                          nfsv3: true
+                          nfsv4: false
+                    backupConfig:
+                      backupPolicyId: a990e99b-e2ec-c361-f463-67a54815b26d
+                      backupVaultId: a990e99b-e2ec-c361-f463-67a54815b26d
+                      scheduledBackupEnabled: true
+                    tieringPolicy:
+                      tierAction: ENABLE
+                      coolingThresholdDays: 40
+                    multipleEndpoints: false
+                    largeCapacity: false
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                code: 400
+                message: Bad Request or Input
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                code: 401
+                message: Unauthorized access attempt
+        "403":
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                code: 403
+                message: Access to this resource forbidden
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                code: 404
+                message: The resource was not found
+        "422":
+          description: Unprocessable entity
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                code: 422
+                message: protocols in body is required
+        "429":
+          description: Too many requests
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                code: 429
+                message: Rate limit exceeded for this endpoint - try again later
+        "500":
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                code: 500
+                message: Internal server error
+        default:
+          description: Unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      x-codegen-request-body-name: body
+  /v1beta/projects/{projectNumber}/locations/{locationId}/hostGroups:
+    get:
+      tags:
+        - HostGroups
+      summary: List all HostGroups
+      description: Returns descriptions of all HostGroups owned by the caller.
+      operationId: v1beta_listHostGroups
+      parameters:
+        - $ref: '#/components/parameters/projectNumberPathParameter'
+        - $ref: '#/components/parameters/locationIdPathParameter'
+        - $ref: '#/components/parameters/xCorrelationIdHeader'
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - type: object
+                    properties:
+                      hostGroups:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/HostGroup_v1beta'
+              example:
+                hostGroups:
+                  - HostGroupsID: 123e4567-e89b-12d3-a456-426614174000
+                    resourceId: my-host-group
+                    description: "HostGroup for storage access"
+                    created: "2024-01-24T13:54:14.374Z"
+                    updated: "2024-01-25T10:00:00.000Z"
+                    state: READY
+                    stateDetails: "available for use"
+                    type: ISCSI_INITIATOR
+                    hosts:
+                      - iqn.1998-01.com.vmware:example1
+                      - iqn.1998-01.com.vmware:example2
+                    osType: linux
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                code: 400
+                message: Bad Request or Input
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                code: 401
+                message: Unauthorized access attempt
+        "403":
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                code: 403
+                message: Access to this resource forbidden
+        "429":
+          description: Too many requests
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                code: 429
+                message: Rate limit exceeded for this endpoint - try again later
+        "500":
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                code: 500
+                message: Internal server error
+    post:
+      tags:
+        - HostGroups
+      summary: Create a new HostGroup
+      description: Create a new HostGroup.
+      operationId: v1beta_createHostGroup
+      parameters:
+        - $ref: '#/components/parameters/projectNumberPathParameter'
+        - $ref: '#/components/parameters/locationIdPathParameter'
+        - $ref: '#/components/parameters/xCorrelationIdHeader'
+      requestBody:
+        description: The required parameters to create a new HostGroup.
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/HostGroup_v1beta'
+        required: true
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Operation_v1beta'
+              example:
+                done: true
+                name: /v1beta/projects/123456789/locations/us-east1/operations/123e4567-e89b-12d3-a456-426614174000
+                response:
+                hostGroupID: 123e4567-e89b-12d3-a456-426614174000
+                resourceId: my-host-group
+                description: "HostGroup for storage access"
+                created: "2024-01-24T13:54:14.374Z"
+                state: READY
+                stateDetails: "available for use"
+                type: ISCSI_INITIATOR
+                hosts:
+                  - iqn.1998-01.com.vmware:example1
+                osType: linux
+        "202":
+          description: Creating HostGroup
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Operation_v1beta'
+              example:
+                done: false
+                name: /v1beta/projects/123456789/locations/us-east1/operations/123e4567-e89b-12d3-a456-426614174000
+                response:
+                  hostGroupID: 123e4567-e89b-12d3-a456-426614174000
+                  resourceId: my-host-group
+                  description: "HostGroup for storage access"
+                  created: "2024-01-24T13:54:14.374Z"
+                  state: CREATING
+                  stateDetails: "creation in progress"
+                  type: ISCSI_INITIATOR
+                  hosts:
+                    - iqn.1998-01.com.vmware:example1
+                  osType: linux
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                code: 400
+                message: Bad Request or Input
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                code: 401
+                message: Unauthorized access attempt
+        "403":
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                code: 403
+                message: Access to this resource forbidden
+        "409":
+          description: Conflict
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                code: 409
+                message: Conflict. Resource already exists
+        "422":
+          description: Unprocessable entity
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                code: 422
+                message: protocols in body is required
+        "429":
+          description: Too many requests
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                code: 429
+                message: Rate limit exceeded for this endpoint - try again later
+        "500":
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                code: 500
+                message: Internal server error
+      x-codegen-request-body-name: body
+  /v1beta/projects/{projectNumber}/locations/{locationId}/hostGroups/{hostGroupId}:
+    get:
+      tags:
+        - HostGroups
+      summary: Describe a HostGroup
+      description: Returns the description of the specified HostGroup by hostGroupId.
+      operationId: v1beta_describeHostGroup
+      parameters:
+        - $ref: '#/components/parameters/hostGroupIdPathParameter'
+        - $ref: '#/components/parameters/projectNumberPathParameter'
+        - $ref: '#/components/parameters/locationIdPathParameter'
+        - $ref: '#/components/parameters/xCorrelationIdHeader'
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HostGroup_v1beta'
+              example:
+                hostGroupID: 123e4567-e89b-12d3-a456-426614174000
+                resourceId: my-host-group
+                description: "HostGroup for storage access"
+                created: "2024-01-24T13:54:14.374Z"
+                updated: "2024-01-25T10:00:00.000Z"
+                state: READY
+                stateDetails: "avilable for use"
+                type: ISCSI_INITIATOR
+                hosts:
+                  - iqn.1998-01.com.vmware:example1
+                osType: linux
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                code: 400
+                message: Bad Request or Input
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                code: 401
+                message: Unauthorized access attempt
+        "403":
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                code: 403
+                message: Access to this resource forbidden
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                code: 404
+                message: The resource was not found
+        "429":
+          description: Too many requests
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                code: 429
+                message: Rate limit exceeded for this endpoint - try again later
+        "500":
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                code: 500
+                message: Internal server error
+    put:
+      tags:
+        - HostGroups
+      summary: Update a HostGroup
+      description: Update the specified HostGroup.
+      operationId: v1beta_updateHostGroup
+      parameters:
+        - $ref: '#/components/parameters/hostGroupIdPathParameter'
+        - $ref: '#/components/parameters/projectNumberPathParameter'
+        - $ref: '#/components/parameters/locationIdPathParameter'
+        - $ref: '#/components/parameters/xCorrelationIdHeader'
+      requestBody:
+        description: The parameters that can be updated for the HostGroup.
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/HostGroupUpdate_v1beta'
+        required: true
+      responses:
+        "202":
+          description: Updating HostGroup
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Operation_v1beta'
+              example:
+                done: false
+                name: /v1beta/projects/123456789/locations/us-east1/operations/123e4567-e89b-12d3-a456-426614174000
+                response:
+                  hostGroupID: 123e4567-e89b-12d3-a456-426614174000
+                  resourceId: my-host-group
+                  description: "Updated host group description"
+                  updated: "2024-01-26T10:00:00.000Z"
+                  state: UPDATING
+                  stateDetails: "update in progress"
+                  type: ISCSI_INITIATOR
+                  hosts:
+                    - iqn.1998-01.com.vmware:example1
+                    - iqn.1998-01.com.vmware:example3
+                  osType: windows
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                code: 400
+                message: Bad Request or Input
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                code: 401
+                message: Unauthorized access attempt
+        "403":
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                code: 403
+                message: Access to this resource forbidden
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                code: 404
+                message: The resource was not found
+        "409":
+          description: Conflict
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                code: 409
+                message: Conflict. Resource already exists
+        "422":
+          description: Unprocessable entity
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                code: 422
+                message: protocols in body is required
+        "429":
+          description: Too many requests
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                code: 429
+                message: Rate limit exceeded for this endpoint - try again later
+        "500":
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                code: 500
+                message: Internal server error
+      x-codegen-request-body-name: body
+    delete:
+      tags:
+        - HostGroups
+      summary: Delete a HostGroup
+      description: >
+        Warning! This operation will permanently delete the HostGroup.
+      operationId: v1beta_deleteHostGroup
+      parameters:
+        - $ref: '#/components/parameters/hostGroupIdPathParameter'
+        - $ref: '#/components/parameters/projectNumberPathParameter'
+        - $ref: '#/components/parameters/locationIdPathParameter'
+        - $ref: '#/components/parameters/xCorrelationIdHeader'
+      responses:
+        "202":
+          description: Deleting HostGroup
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Operation_v1beta'
+              example:
+                done: true
+                name: /v1beta/projects/123456789/locations/us-east1/operations/123e4567-e89b-12d3-a456-426614174000
+        "204":
+          description: No content
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                code: 400
+                message: Bad Request or Input
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                code: 401
+                message: Unauthorized access attempt
+        "403":
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                code: 403
+                message: Access to this resource forbidden
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                code: 404
+                message: The resource was not found
+        "429":
+          description: Too many requests
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                code: 429
+                message: Rate limit exceeded for this endpoint - try again later
+        "500":
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                code: 500
+                message: Internal server error
+      x-codegen-request-body-name: body
+  /v1beta/projects/{projectNumber}/locations/{locationId}/hostGroups/getMultipleHostGroups:
+    post:
+      tags:
+        - HostGroups
+      summary: List specified HostGroups
+      description: Returns descriptions of HostGroups that are listed in request body.
+      operationId: v1beta_getMultipleHostGroups
+      parameters:
+        - $ref: '#/components/parameters/projectNumberPathParameter'
+        - $ref: '#/components/parameters/locationIdPathParameter'
+        - $ref: '#/components/parameters/xCorrelationIdHeader'
+      requestBody:
+        description: A list of HostGroup UUIDs to return.
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/HostGroupIDList_v1beta'
+        required: true
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - type: object
+                    properties:
+                      hostGroups:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/HostGroup_v1beta'
+              example:
+                hostGroups:
+                  - hostGroupID: 123e4567-e89b-12d3-a456-426614174000
+                    resourceId: my-host-group
+                    description: "HostGroup for storage access"
+                    created: "2024-01-24T13:54:14.374Z"
+                    updated: "2024-01-25T10:00:00.000Z"
+                    state: READY
+                    stateDetails: "available for use"
+                    type: ISCSI_INITIATOR
+                    hosts:
+                      - iqn.1998-01.com.vmware:example1
+                    osType: linux
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                code: 400
+                message: Bad Request or Input
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                code: 401
+                message: Unauthorized access attempt
+        "403":
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                code: 403
+                message: Access to this resource forbidden
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                code: 404
+                message: The resource was not found
+        "422":
+          description: Unprocessable entity
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                code: 422
+                message: protocols in body is required
+        "429":
+          description: Too many requests
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                code: 429
+                message: Rate limit exceeded for this endpoint - try again later
+        "500":
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                code: 500
+                message: Internal server error
+        default:
+          description: Unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      x-codegen-request-body-name: body
 components:
   schemas:
     Error:
@@ -817,8 +2508,128 @@ components:
           $ref: '#/components/schemas/Status_v1Beta'
         response:
           title: response
-          additionalProperties:
-            type: object
+          type: object
+          properties: {}
+    BlockProperties_v1beta:
+      title: BlockProperties
+      type: object
+      properties:
+        osType:
+          $ref: '#/components/schemas/osType_v1beta'
+        hostGroupID:
+          title: hostGroupID
+          type: string
+          description: UUID v4 used to identify the HostGroup
+          example: 123e4567-e89b-12d3-a456-426614174000
+    osType_v1beta:
+      title: osType
+      type: string
+      description: The name of the operating system type
+      enum:
+        - OS_TYPE_UNSPECIFIED
+        - linux
+        - windows
+        - esxi
+      example: linux
+    HostGroup_v1beta:
+      title: HostGroup
+      type: object
+      required:
+        - resourceId
+        - hosts
+        - osType
+      properties:
+        hostGroupID:
+          title: hostGroupID
+          type: string
+          description: UUID v4 used to identify the HostGroup
+          readOnly: true
+          example: 123e4567-e89b-12d3-a456-426614174000
+        resourceId:
+          title: resourceId
+          type: string
+          description: A human readable label for the HostGroup
+          example: my-host-group
+        description:
+          title: description
+          type: string
+          description: Description of the HostGroup
+          example: "HostGroup for storage access"
+        created:
+          title: created
+          type: string
+          format: date-time
+          readOnly: true
+          example: "2024-01-24T13:54:14.374Z"
+        updated:
+          title: updated
+          type: string
+          format: date-time
+          readOnly: true
+          example: "2024-01-25T10:00:00.000Z"
+        deleted:
+          title: deleted
+          type: string
+          format: date-time
+          nullable: true
+          readOnly: true
+          example: "2024-01-26T10:00:00.000Z"
+        state:
+          title: state
+          type: string
+          description: The current lifecycle state of the HostGroup
+          readOnly: true
+          example: READY
+          enum:
+            - STATE_UNSPECIFIED
+            - CREATING
+            - READY
+            - UPDATING
+            - DELETING
+            - ERROR
+        stateDetails:
+          title: stateDetails
+          type: string
+          description: Details about the current lifecycle state
+          readOnly: true
+          example: "avilable for use"
+        type:
+          title: type
+          type: string
+          description: The type of initiators
+          enum:
+            - UNSPECIFIED
+            - ISCSI_INITIATOR
+          example: ISCSI_INITIATOR
+        hosts:
+          title: hosts
+          type: array
+          description: List of iSCSI Qualified Names associated with this HostGroup
+          items:
+            type: string
+          example:
+            - iqn.1998-01.com.vmware:example1
+            - iqn.1998-01.com.vmware:example2
+        osType:
+          $ref: '#/components/schemas/osType_v1beta'
+    HostGroupUpdate_v1beta:
+      title: HostGroup
+      type: object
+      properties:
+        description:
+          title: description
+          type: string
+          description: Updated description of the HostGroup
+          example: "Updated host group description"
+        hosts:
+          title: hosts
+          type: array
+          description: List of iSCSI Qualified Names associated with this HostGroup
+          items:
+            type: string
+          example:
+            - iqn.1998-01.com.vmware:example1
+            - iqn.1998-01.com.vmware:example3
     PoolUpdate_v1beta:
       title: Pool
       type: object
@@ -1007,7 +2818,6 @@ components:
           type: number
           description: Size of the pool in bytes
           format: double
-          multipleOf: 1073741824  # Must be a multiple of 1 GiB
           example: 2199023255552
           default: 2199023255552
         allocatedBytes:
@@ -1214,6 +3024,1134 @@ components:
           description: Indicates if the pool type is unified
           default: false
           example: false
+    Volume_v1beta:
+      title: Volume v1beta model definition
+      required:
+        - creationToken
+        - poolId
+        - protocols
+        - resourceId
+      type: object
+      properties:
+        resourceId:
+          maxLength: 63
+          pattern: "^[a-z]([a-z0-9-]{0,61}[a-z0-9])?$"
+          type: string
+          description: "A human readable label for the resource which is restricted\
+            \ to letters, numbers, and hyphen, with the first character a letter,\
+            \ the last a letter or a number, and a 63 character maximum"
+          example: some-volume-name
+        volumeId:
+          title: volumeId
+          maxLength: 36
+          minLength: 36
+          pattern: "^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$"
+          type: string
+          description: UUID v4 of the volume
+          readOnly: true
+          example: 9760acf5-4638-11e7-9bdb-020073ca0001
+        created:
+          title: created
+          type: string
+          description: Creation date of the resource
+          format: date-time
+          readOnly: true
+          example: 2016-11-30T20:32:50.459Z
+        deleted:
+          title: deleted
+          type: string
+          description: Deletion date of the resource
+          format: date-time
+          nullable: true
+          readOnly: true
+          example: 2016-11-30T20:32:50.459Z
+          x-omitempty: true
+        creationToken:
+          title: creationToken
+          maxLength: 80
+          minLength: 1
+          pattern: "^[a-zA-Z][a-zA-Z0-9\\-_]{0,79}$"
+          type: string
+          description: A creation token must be supplied by the caller and is used
+            by the API to ensure idempotent creation of a volume. Subsequent calls
+            to the create-volume operation using the same creation token will have
+            no effect. The creation token can be any user supplied string e.g. a randomly
+            generated v4 UUID.
+          example: hopefully-sufficient-newton
+        poolId:
+          title: poolId
+          maxLength: 36
+          minLength: 36
+          pattern: "^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$"
+          type: string
+          description: UUID of the pool ID under which volumes get created.
+          nullable: true
+          example: 9760acf5-4638-11e7-9bdb-020073ca7773
+        poolResourceId:
+          title: poolResourceId
+          type: string
+          description: A human readable label for the pool
+          nullable: true
+          readOnly: true
+          example: projects/451164690828/locations/eu-west1/pools/mypool
+        kmsConfigId:
+          maxLength: 36
+          minLength: 36
+          pattern: "^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$"
+          type: string
+          description: UUID of the key to be used for encryption.
+          nullable: true
+          readOnly: true
+          example: 6aae31f1-f685-4fda-b875-db0ea99235fc
+        kmsConfigResourceId:
+          title: kmsConfigResourceId
+          type: string
+          description: The resource ID for the connected KMS configuration
+          nullable: true
+          readOnly: true
+          example: projects/my-project-1/locations/eu-west-1/kmsConfigs/myconfig
+        network:
+          title: network
+          pattern: "^projects\\/\\d+\\/global\\/networks\\/(![0-9]+$)?(!.*-$)?(!-)?[a-zA-Z0-9-]{1,63}$"
+          type: string
+          description: Servicenetworking.connections.network value that is returned
+            after creating a successful VPC peering connection via the GCP service
+            networking API
+          readOnly: true
+          example: projects/1079058383248/global/networks/network-to-netapp2
+        activeDirectoryConfigId:
+          maxLength: 36
+          minLength: 36
+          pattern: "^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$"
+          type: string
+          description: UUID of Active Directory configuration
+          nullable: true
+          readOnly: true
+          example: 9760acf5-4638-11e7-9bdb-020073ca7773
+        activeDirectoryResourceId:
+          title: activeDirectoryResourceId
+          type: string
+          description: The resource ID for the connected Active Directory
+          nullable: true
+          readOnly: true
+          example: projects/my-project-1/locations/eu-west-1/activeDirectories/mydirectory
+        serviceLevel:
+          title: serviceLevel
+          type: string
+          description: "The service level of the volume. Will be specified as premium\
+            \ or extreme, which will be equivalent to having specified performance\
+            \ medium or high, respectively.  However, if any service level's name\
+            \ is one of premium or extreme, the performance will be that of the service\
+            \ level, not the performance equivalent."
+          readOnly: true
+          example: PREMIUM
+          default: PREMIUM
+          enum:
+            - SERVICE_LEVEL_UNSPECIFIED
+            - FLEX
+            - STANDARD
+            - PREMIUM
+            - EXTREME
+        securityStyle:
+          title: securityStyle
+          type: string
+          description: The security style of the volume
+          example: NTFS
+          enum:
+            - SECURITY_STYLE_UNSPECIFIED
+            - NTFS
+            - UNIX
+        usedBytes:
+          title: usedBytes
+          minimum: 0
+          type: number
+          description: Current storage usage for the volume in bytes
+          format: double
+          nullable: true
+          readOnly: true
+          example: 101010.0
+          default: 0.0
+        quotaInBytes:
+          title: quotaInBytes
+          type: number
+          description: Maximum storage quota allowed for a volume in bytes. This is
+            a soft quota used for alerting only.
+          format: double
+          example: 4000000000000
+          default: 1000000000000
+        coldTierSizeGib:
+          title: coldTierSizeGib
+          type: number
+          description: Volume footprint in cold storage
+          format: double
+          nullable: true
+          readOnly: true
+          example: 4000000000000
+          default: 0.0
+          x-omitempty: false
+        snapReserve:
+          title: snapReserve
+          minimum: 0
+          type: number
+          description: Percentage of volume storage reserved for snapshot storage.
+            Default is 0 percent.
+          format: double
+          example: 20.0
+          default: 0.0
+        snapshotDirectory:
+          title: snapshotDirectory
+          type: boolean
+          description: If enabled (true) the volume will contain a read-only .snapshot
+            directory which provides access to each of the volume's snapshots. Defaults
+            to true.
+          default: true
+        volumeState:
+          type: string
+          description: The current lifecycle state of the resource
+          readOnly: true
+          example: READY
+          enum:
+            - STATE_UNSPECIFIED
+            - CREATING
+            - READY
+            - UPDATING
+            - RESTORING
+            - DELETED
+            - DISABLED
+            - DELETING
+            - ERROR
+            - READ_ONLY
+            - PREPARING
+        volumeStateDetails:
+          title: volumeStateDetails
+          type: string
+          description: Details about the current lifecycle state
+          readOnly: true
+          example: Error connecting to remote service
+        isDataProtection:
+          title: isDataProtection
+          type: boolean
+          description: Flag indicating if the volume is a data protection volume or
+            not
+          readOnly: true
+        isOnPremMigration:
+          title: isOnPremMigration
+          type: boolean
+          description: Flag indicating if the volume is migrating from on premise
+            Ontap or not
+          nullable: true
+          readOnly: true
+          default: false
+        inReplication:
+          title: inReplication
+          type: boolean
+          description: Flag indicating if the volume is in a cross region replication
+          readOnly: true
+          default: false
+        snapshotPolicy:
+          $ref: '#/components/schemas/SnapshotPolicy_v1beta'
+        storageClass:
+          $ref: '#/components/schemas/StorageClass_v1beta'
+        exportPolicy:
+          $ref: '#/components/schemas/ExportPolicy_v1beta'
+        backupConfig:
+          $ref: '#/components/schemas/BackupConfig_v1beta'
+        tieringPolicy:
+          $ref: '#/components/schemas/TieringPolicy_v1beta'
+        blockProperties:
+          $ref: '#/components/schemas/BlockProperties_v1beta'
+        protocols:
+          title: protocol
+          type: array
+          description: Protocol type through which volume can be accessed.
+          items:
+            $ref: '#/components/schemas/protocols_v1beta'
+        restrictedActions:
+          $ref: '#/components/schemas/RestrictedActions_v1beta'
+        smbSettings:
+          $ref: '#/components/schemas/SMBSettings_v1beta'
+        mountPoints:
+          title: mountPoints
+          type: array
+          description: Mount points for the volume
+          readOnly: true
+          items:
+            $ref: '#/components/schemas/MountPoint_v1beta'
+        labels:
+          title: labels
+          type: object
+          additionalProperties:
+            type: string
+          description: JSON dictionary of resource labels to allow linking of billing
+            labels to a volume
+          example:
+            someKey: SomeValue
+            someKey2: SomeValue2
+        kerberosEnabled:
+          title: kerberosEnabled
+          type: boolean
+          description: "Flag indicating if the volume is a kerberos volume or not,\
+            \ export policy rules control kerberos security modes (krb5, krb5i, krb5p)."
+          nullable: true
+          default: false
+        ldapEnabled:
+          title: ldapEnabled
+          type: boolean
+          description: Flag indicating if the volume is NFS LDAP enabled or not.
+          nullable: true
+          readOnly: true
+          default: false
+        unixPermissions:
+          title: unixPermissions
+          maxLength: 4
+          minLength: 4
+          type: string
+          description: "UNIX permissions for NFS volume accepted in octal 4 digit\
+            \ format. First digit selects the set user ID(4), set group ID (2) and\
+            \ sticky (1) attributes. Second digit selects permission for the owner\
+            \ of the file: read (4), write (2) and execute (1). Third selects permissions\
+            \ for other users in the same group. the fourth for other users not in\
+            \ the group. \"0755\" - gives read/write/execute permissions to owner\
+            \ and read/execute to group and other users."
+          nullable: true
+          example: "0755"
+        encryptionType:
+          title: encryptionType
+          type: string
+          description: Type of encryption used for volumes - can be either service
+            managed key (service_managed) or cloud_kms
+          example: SERVICE_MANAGED
+          enum:
+            - ENCRYPTION_TYPE_UNSPECIFIED
+            - SERVICE_MANAGED
+            - CLOUD_KMS
+        description:
+          title: description
+          maxLength: 2048
+          type: string
+          description: Description of the volume
+          nullable: true
+          example: My Volume description
+        zone:
+          title: zone
+          type: string
+          description: The target zone to which the storage pool has to be migrated.
+          example: us-east1-b
+        multipleEndpoints:
+          title: multipleEndpoints
+          type: boolean
+          description: Flag indicating if the volume will have an IP address per node
+            for volumes supporting multiple endpoints
+          nullable: true
+          default: false
+          x-omitempty: false
+        largeCapacity:
+          title: largeCapacity
+          type: boolean
+          description: Flag indicating if the volume will be a large capacity volume
+            (flexgroup) or a regular volume (flexvol)
+          nullable: true
+          default: false
+          x-omitempty: false
+        secondaryZone:
+          title: SecondaryZone
+          type: string
+          description: The desired zone for the fail over.
+          nullable: true
+          readOnly: true
+          example: us-east1-b
+        dedicatedCapacity:
+          title: dedicatedCapacity
+          type: boolean
+          description: Flag indicating if the volume needs to be created on a dedicated
+            stamp.
+          nullable: true
+          default: false
+          x-omitempty: true
+        largeVolumeConstituentCount:
+          title: largeVolumeConstituentCount
+          minimum: 2
+          type: integer
+          description: The count of number of constituent volumes for the large volume.
+          format: int32
+          nullable: true
+          example: 24
+        cacheParameters:
+          $ref: '#/components/schemas/FlexCache_v1beta'
+    VolumeIDList_v1beta:
+      title: VolumeIDList
+      required:
+        - volumeUUIDs
+      type: object
+      properties:
+        volumeUUIDs:
+          title: volumeUUIDs
+          minItems: 1
+          type: array
+          items:
+            pattern: "^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$"
+            type: string
+            description: UUID v4 used to identify the volume
+            example: 9760acf5-4638-11e7-9bdb-020073ca3333
+    VolumeCreate_v1beta:
+      title: VolumeCreate
+      required:
+        - volume
+      type: object
+      properties:
+        volume:
+          $ref: '#/components/schemas/Volume_v1beta'
+        snapshotId:
+          title: snapshotId
+          maxLength: 36
+          minLength: 36
+          pattern: "^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$"
+          type: string
+          description: UUID v4 used to identify the Snapshot
+          example: 9760acf5-4638-11e7-9bdb-020073ca3333
+        backupId:
+          title: backupId
+          maxLength: 36
+          minLength: 36
+          pattern: "^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$"
+          type: string
+          description: UUID v4 used to identify the backup
+          example: 463811e7-9760-acf5-9bdb-020073ca3333
+        backupPath:
+          title: backupPath
+          type: string
+          description: Complete resource path of the backup
+          example: projects/123456789/locations/us-e4/backupVaults/bv1/backups/backupName
+        volumeType:
+          title: volumeType
+          type: string
+          description: The type of the volume
+          enum:
+            - PRIMARY
+            - SECONDARY
+        hybridReplicationParameters:
+          $ref: '#/components/schemas/HybridReplicationParameters_v1beta'
+    VolumeUpdate_v1beta:
+      title: Volume
+      type: object
+      properties:
+        quotaInBytes:
+          title: quotaInBytes
+          type: number
+          description: Maximum storage quota allowed for a volume in bytes. This is
+            a soft quota used for alerting only. Upper limit is 100TB.
+          format: double
+          nullable: true
+          example: 4000000000000
+        snapReserve:
+          title: snapReserve
+          minimum: 0
+          type: number
+          description: Percentage of volume storage reserved for snapshot storage.
+            Default is 0 percent.
+          format: double
+          nullable: true
+          example: 20.0
+        snapshotDirectory:
+          title: snapshotDirectory
+          type: boolean
+          description: If enabled (true) the volume will contain a read-only '.snapshot'
+            directory which provides access to each of the volume's snapshots.
+          nullable: true
+        snapshotPolicy:
+          $ref: '#/components/schemas/SnapshotPolicy_v1beta'
+        exportPolicy:
+          $ref: '#/components/schemas/ExportPolicy_v1beta'
+        backupConfig:
+          $ref: '#/components/schemas/BackupConfig_v1beta'
+        tieringPolicy:
+          $ref: '#/components/schemas/TieringPolicy_v1beta'
+        BlockProperties_v1beta:
+          $ref: '#/components/schemas/BlockProperties_v1beta'
+        protocols:
+          title: protocol
+          type: array
+          description: Protocol type through which volume can be accessed.
+          items:
+            $ref: '#/components/schemas/protocols_v1beta'
+        restrictedActions:
+          $ref: '#/components/schemas/RestrictedActions_v1beta'
+        smbSettings:
+          $ref: '#/components/schemas/SMBSettings_v1beta'
+        unixPermissions:
+          title: unixPermissions
+          maxLength: 4
+          minLength: 4
+          type: string
+          description: "UNIX permissions for NFS volume accepted in octal 4 digit\
+            \ format. First digit selects the set user ID(4), set group ID (2) and\
+            \ sticky (1) attributes. Second digit selects permission for the owner\
+            \ of the file: read (4), write (2) and execute (1). Third selects permissions\
+            \ for other users in the same group. the fourth for other users not in\
+            \ the group. \"0755\" - gives read/write/execute permissions to owner\
+            \ and read/execute to group and other users."
+          nullable: true
+          example: "0755"
+        labels:
+          title: labels
+          type: object
+          additionalProperties:
+            type: string
+          description: JSON dictionary of resource labels to allow linking of billing
+            labels to a volume
+          example:
+            someKey: SomeValue
+            someKey2: SomeValue2
+          x-omitempty: false
+        poolId:
+          title: poolId
+          maxLength: 36
+          minLength: 36
+          pattern: "^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$"
+          type: string
+          description: UUID v4 used to identify the pool
+          nullable: true
+          example: 9760acf5-4638-11e7-9bdb-020073ca7773
+        description:
+          title: description
+          maxLength: 2048
+          type: string
+          description: Description of the volume
+          nullable: true
+          example: My Volume description
+    SnapshotPolicy_v1beta:
+      title: SnapshotPolicy
+      type: object
+      properties:
+        enabled:
+          type: boolean
+          description: "If enabled, make snapshots automatically according to the\
+            \ schedules. Default is false."
+          nullable: true
+          example: true
+          default: false
+        hourlySchedule:
+          $ref: '#/components/schemas/HourlySchedule_v1beta'
+        dailySchedule:
+          $ref: '#/components/schemas/DailySchedule_v1beta'
+        weeklySchedule:
+          $ref: '#/components/schemas/WeeklySchedule_v1beta'
+        monthlySchedule:
+          $ref: '#/components/schemas/MonthlySchedule_v1beta'
+      description: Snapshot policy for a volume
+    HourlySchedule_v1beta:
+      type: object
+      properties:
+        snapshotsToKeep:
+          maximum: 255
+          minimum: 0
+          type: number
+          description: The maximum number of snapshots to keep for the hourly schedule
+          format: double
+          example: 24.0
+          default: 0.0
+        minute:
+          title: minute
+          maximum: 59
+          minimum: 0
+          type: number
+          description: "Set the minute of the hour to start the snapshot (0-59), defaults\
+            \ to the top of the hour (0)."
+          format: double
+          example: 10.0
+          default: 0.0
+      description: "If enabled (snapshotsToKeep > 0), make a snapshot every hour e.g.\
+        \ at 04:00, 05:00, 06:00"
+    DailySchedule_v1beta:
+      type: object
+      properties:
+        snapshotsToKeep:
+          maximum: 255
+          minimum: 0
+          type: number
+          description: The maximum number of snapshots to keep for the daily schedule
+          format: double
+          example: 7.0
+          default: 0.0
+        hour:
+          title: hour
+          maximum: 23
+          minimum: 0
+          type: number
+          description: "Set the hour to start the snapshot (0-23), defaults to midnight\
+            \ (0)."
+          format: double
+          example: 23.0
+          default: 0.0
+        minute:
+          title: minute
+          maximum: 59
+          minimum: 0
+          type: number
+          description: "Set the minute of the hour to start the snapshot (0-59), defaults\
+            \ to the top of the hour (0)."
+          format: double
+          example: 10.0
+          default: 0.0
+      description: "If enabled (snapshotsToKeep > 0), make a snapshot every day. Defaults\
+        \ to midnight."
+    WeeklySchedule_v1beta:
+      type: object
+      properties:
+        snapshotsToKeep:
+          maximum: 255
+          minimum: 0
+          type: number
+          description: The maximum number of snapshots to keep for the weekly schedule
+          format: double
+          example: 52.0
+          default: 0.0
+        day:
+          title: day
+          maxLength: 62
+          minLength: 6
+          type: string
+          description: Set the day or days of the week to make a snapshot. Accepts
+            a comma delimited string of week day names in english. Defaults to 'Sunday'
+          default: Sunday
+        hour:
+          title: hour
+          maximum: 23
+          minimum: 0
+          type: number
+          description: "Set the hour to start the snapshot (0-23), defaults to midnight\
+            \ (0)."
+          format: double
+          example: 23.0
+          default: 0.0
+        minute:
+          title: minute
+          maximum: 59
+          minimum: 0
+          type: number
+          description: "Set the minute of the hour to start the snapshot (0-59), defaults\
+            \ to the top of the hour (0)."
+          format: double
+          example: 10.0
+          default: 0.0
+      description: "If enabled (snapshotsToKeep > 0), make a snapshot every week at\
+        \ a specific day or days, defaults to Sunday at midnight"
+    MonthlySchedule_v1beta:
+      type: object
+      properties:
+        snapshotsToKeep:
+          maximum: 255
+          minimum: 0
+          type: number
+          description: The maximum number of snapshots to keep for the monthly schedule
+          format: double
+          example: 12.0
+          default: 0.0
+        daysOfMonth:
+          title: daysOfMonth
+          maxLength: 113
+          minLength: 1
+          type: string
+          description: "Set the day or days of the month to make a snapshot (1-31).\
+            \ Accepts a comma delimited string of the day of the month e.g. '1,15,31'.\
+            \ Defaults to '1'"
+          default: "1"
+        hour:
+          title: hour
+          maximum: 23
+          minimum: 0
+          type: number
+          description: "Set the hour to start the snapshot (0-23), defaults to midnight\
+            \ (0)."
+          format: double
+          example: 23.0
+          default: 0.0
+        minute:
+          title: minute
+          maximum: 59
+          minimum: 0
+          type: number
+          description: "Set the minute of the hour to start the snapshot (0-59), defaults\
+            \ to the top of the hour (0)."
+          format: double
+          example: 10.0
+          default: 0.0
+      description: "If enabled (snapshotsToKeep > 0), make a snapshot every month\
+        \ at a specific day or days, defaults to the first day of the month at midnight"
+    StorageClass_v1beta:
+      title: StorageClass
+      type: string
+      description: Storage class to be provisioned. Currently hardware is the only
+        option.
+      default: HARDWARE
+      enum:
+        - STORAGE_CLASS_UNSPECIFIED
+        - SOFTWARE
+        - HARDWARE
+    ExportPolicy_v1beta:
+      title: ExportPolicy
+      required:
+        - rules
+      type: object
+      properties:
+        rules:
+          type: array
+          items:
+            $ref: '#/components/schemas/SimpleExportPolicyRule_v1beta'
+      description: Export policy for a volume
+    BackupConfig_v1beta:
+      title: BackupConfig
+      type: object
+      properties:
+        backupPolicyId:
+          type: string
+          description: Backup policy resource ID
+          nullable: true
+          example: 9760acf5-4638-11e7-9bdb-020073ca7773
+        backupVaultId:
+          type: string
+          description: Backup vault resource ID
+          nullable: true
+          example: 9760acf5-4638-11e7-9bdb-020073ca7773
+        scheduledBackupEnabled:
+          type: boolean
+          description: Indicates whether policy is enable or disabled on the volume
+          nullable: true
+          default: true
+        backupChainBytes:
+          title: backupChainBytes
+          type: integer
+          description: Size in bytes of the backup of the volume
+          format: int64
+          nullable: true
+          readOnly: true
+      description: Volume backup properties
+    TieringPolicy_v1beta:
+      title: TieringPolicy
+      type: object
+      properties:
+        tierAction:
+          title: tierAction
+          type: string
+          description: Flag indicating if the volume has tiering policy 'enabled'
+            or 'paused'
+          nullable: true
+          enum:
+            - ENABLED
+            - PAUSED
+        coolingThresholdDays:
+          title: coolingThresholdDays
+          type: integer
+          description: Time in days to mark the volume's data block as cold and make
+            it eligible for tiering. Minimum is 7 and maximum is 183 days
+          format: int32
+          nullable: true
+          example: 24
+          default: 31
+        hotTierBypassModeEnabled:
+          title: hotTierBypassModeEnabled
+          type: boolean
+          description: Flag indicating if the volume has hot tier bypass mode enabled
+            or not
+          nullable: true
+          example: false
+      description: Auto tiering properties
+    RestrictedActions_v1beta:
+      title: RestrictedActions
+      type: array
+      description: Actions to be restricted for a volume
+      items:
+        type: string
+        example: DELETE
+        enum:
+          - DELETE
+          - RESTRICTED_ACTION_UNSPECIFIED
+    SimpleExportPolicyRule_v1beta:
+      title: SimpleExportPolicyRule
+      required:
+        - accessType
+        - allowedClients
+      type: object
+      properties:
+        allowedClients:
+          maxLength: 4096
+          minLength: 1
+          type: string
+          description: Defines the client ingress specification (allowed clients)
+            as a comma separated string with IPv4 CIDRs and IPv4 host addresses.
+          example: 0.0.0.0/0
+          default: 0.0.0.0/0
+        hasRootAccess:
+          type: string
+          description: "If enabled (true or on) the rule defines that no_root_squash\
+            \ is set, else if it is disabled (false or off) root_squash is set and\
+            \ user ID mapped to anonymous user 65534. The response will always be\
+            \ true or false and never on/off. If the value is set to null the response\
+            \ will always be set to the default of true."
+          nullable: true
+          example: "true"
+          default: "true"
+          enum:
+            - "true"
+            - "false"
+            - "on"
+            - "off"
+        accessType:
+          type: string
+          description: Defines the access type for clients matching the 'allowedClients'
+            specification.
+          example: READ_ONLY
+          enum:
+            - ACCESS_TYPE_UNSPECIFIED
+            - READ_NONE
+            - READ_ONLY
+            - READ_WRITE
+        nfsv3:
+          type: boolean
+          description: If enabled (true) the rule allows NFSv3 protocol for clients
+            matching the 'allowedClients' specification.
+          nullable: true
+          example: true
+          default: true
+        nfsv4:
+          type: boolean
+          description: If enabled (true) the rule allows NFSv4 protocol for clients
+            matching the 'allowedClients' specification.
+          nullable: true
+          example: false
+          default: false
+        kerberos5ReadOnly:
+          type: boolean
+          description: If enabled (true) the rule defines a read only access for clients
+            matching the 'allowedClients' specification. It enables NFS clients to
+            mount using 'authentication' kerberos security mode.
+          nullable: true
+          example: false
+          default: false
+        kerberos5ReadWrite:
+          type: boolean
+          description: If enabled (true) the rule defines read and write access for
+            clients matching the 'allowedClients' specification. It enables NFS clients
+            to mount using 'authentication' kerberos security mode. The 'kerberos5ReadOnly'
+            value  be ignored if this is enabled.
+          nullable: true
+          example: true
+          default: false
+        kerberos5iReadOnly:
+          type: boolean
+          description: If enabled (true) the rule defines a read only access for clients
+            matching the 'allowedClients' specification. It enables NFS clients to
+            mount using 'integrity' kerberos security mode.
+          nullable: true
+          example: false
+          default: false
+        kerberos5iReadWrite:
+          type: boolean
+          description: If enabled (true) the rule defines read and write access for
+            clients matching the 'allowedClients' specification. It enables NFS clients
+            to mount using 'integrity' kerberos security mode. The 'kerberos5iReadOnly'
+            value shall be ignored if this is enabled.
+          nullable: true
+          example: true
+          default: false
+        kerberos5pReadOnly:
+          type: boolean
+          description: If enabled (true) the rule defines a read only access for clients
+            matching the 'allowedClients' specification. It enables NFS clients to
+            mount using 'privacy' kerberos security mode.
+          nullable: true
+          example: false
+          default: false
+        kerberos5pReadWrite:
+          type: boolean
+          description: If enabled (true) the rule defines read and write access for
+            clients matching the 'allowedClients' specification. It enables NFS clients
+            to mount using 'privacy' kerberos security mode. The 'kerberos5pReadOnly'
+            value shall be ignored if this is enabled.
+          nullable: true
+          example: true
+          default: false
+      description: A simple export-policy rule that defines who can access the volume
+        and how. Only 5 rules are allowed but each rule can serve many clients and
+        subnets.
+    MountPoint_v1beta:
+      title: MountPoint
+      type: object
+      properties:
+        export:
+          title: export
+          type: string
+          description: The volume's export path or share name
+          readOnly: true
+          example: /hopefully-sufficient-newton
+        exportFull:
+          title: exportFull
+          type: string
+          description: "The volume's full export path or share name, including server"
+          readOnly: true
+          example: 1.2.3.4:/hopefully-sufficient-newton
+        ipAddress:
+          title: ipAddress
+          type: string
+          description: The volume's IPv4 address
+          readOnly: true
+          example: 1.2.3.4
+        protocol:
+          $ref: '#/components/schemas/protocols_v1beta'
+        instructions:
+          title: instructions
+          type: string
+          description: Instructions for mounting the volume
+          readOnly: true
+          example: "sudo mount -t nfs -o rw,hard,rsize=65536,wsize=65536,vers=3,tcp\
+            \ 1.2.3.4:/hopefully-sufficient-newton ./hopefully-sufficient-newton"
+    protocols_v1beta:
+      title: protocol
+      type: string
+      description: Protocol type through which volume can be accessed
+      example: NFSV3
+      enum:
+        - PROTOCOL_UNSPECIFIED
+        - NFSV3
+        - NFSV4
+        - SMB
+        - ISCSI
+    FlexCache_v1beta:
+      title: FlexCache
+      type: object
+      properties:
+        peerVolumeName:
+          type: string
+          description: Name of origin volume for FlexCache
+          example: peerVolumeName
+        peerClusterName:
+          type: string
+          description: Name of origin volume's ONTAP cluster for FlexCache
+          example: peerClusterName
+        peerSvmName:
+          type: string
+          description: Name of origin volume's SVM for FlexCache
+          example: svm_87654321463811e79bdb123456789012_a1b2c3d4
+        peerIpAddresses:
+          minItems: 1
+          type: array
+          items:
+            pattern: "^[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}$"
+            type: string
+            description: String list of node IP addresses to be peered with
+            example: 105.106.16.1
+        enableGlobalFileLock:
+          type: boolean
+          description: Specify whether this FlexCache volume has global file lock
+            enabled
+          nullable: true
+          default: false
+        cacheConfig:
+          $ref: '#/components/schemas/FlexCacheConfig_v1beta'
+        cacheState:
+          type: string
+          description: Current state of the FlexCache
+          readOnly: true
+          example: PEERED
+          enum:
+            - CACHE_STATE_UNSPECIFIED
+            - PENDING_CLUSTER_PEERING
+            - PENDING_SVM_PEERING
+            - PEERED
+            - ERROR
+        peeringCommand:
+          type: string
+          description: Command used to establish peering for the FlexCache
+          readOnly: true
+          example: cluster peer create -peer-addrs 10.196.0.1 -initial-allowed-vserver-peers
+            svm_87654321463811e79bdb123456789012_a1b2c3d4
+        peeringCommandExpiryTime:
+          title: peeringCommandExpiryTime
+          type: string
+          description: DateTime value for when cluster peering command should expire.
+          format: date-time
+          nullable: true
+          example: 2024-04-20T16:21:01+01:00
+        passphrase:
+          title: passphrase
+          type: string
+          description: Temporary passphrase generated to accept cluster peering command.
+          nullable: true
+          readOnly: true
+          example: loremIpsum
+      description: FlexCache type volumes include an object containing details of
+        the FlexCache
+    FlexCacheConfig_v1beta:
+      title: FlexCacheConfig
+      type: object
+      properties:
+        prePopulate:
+          $ref: '#/components/schemas/FlexCachePrePopulate_v1beta'
+        writebackEnabled:
+          type: boolean
+          description: Flag indicating whether writeback is enabled for the FlexCache
+            volume.
+          nullable: true
+        atimeScrubEnabled:
+          type: boolean
+          description: Flag indicating whether the atime based scrub is enabled for
+            the FlexCache volume.
+          nullable: true
+        atimeScrubPeriod:
+          maximum: 1000
+          minimum: 1
+          type: integer
+          description: Duration in days after which inactive files can be scrubbed from FlexCache volume.
+          format: int16
+          nullable: true
+        cifsChangeNotifyEnabled:
+          type: boolean
+          description: Flag indicating whether a CIFS change notification is enabled for the FlexCache volume.
+          nullable: true
+      description: FlexCache volume configuration options.
+    FlexCachePrePopulate_v1beta:
+      title: FlexCache PrePopulate request
+      type: object
+      properties:
+        pathList:
+          type: array
+          description: List of directory-paths to be pre-populated for the FlexCache
+            volume.
+          nullable: true
+          items:
+            type: string
+            example: /dir1
+        excludePathList:
+          type: array
+          description: List of directory-paths to be excluded from pre-population
+            for the FlexCache volume.
+          nullable: true
+          items:
+            type: string
+            example: /dir2
+        isRecursion:
+          type: boolean
+          description: Flag indicating whether the directories listed with the pathList
+            need to be recursively pre-populated.
+          nullable: true
+      description: FlexCache PrePopulate request
+    SMBSettings_v1beta:
+      title: SMBSettings
+      type: array
+      items:
+        type: string
+        example: ENCRYPT_DATA
+        enum:
+          - SMB_SETTINGS_UNSPECIFIED
+          - ENCRYPT_DATA
+          - BROWSABLE
+          - CHANGE_NOTIFY
+          - NON_BROWSABLE
+          - OPLOCKS
+          - SHOW_SNAPSHOT
+          - SHOW_PREVIOUS_VERSIONS
+          - ACCESS_BASED_ENUMERATION
+          - CONTINUOUSLY_AVAILABLE
+      x-omitempty: false
+    HybridReplicationParameters_v1beta:
+      title: HybridReplicationParameters
+      required:
+        - hybridReplicationType
+        - peerClusterName
+        - peerIpAddresses
+        - peerSvmName
+        - peerVolumeName
+        - resourceId
+      type: object
+      properties:
+        resourceId:
+          title: resourceId
+          maxLength: 63
+          pattern: "^[a-z]([a-z0-9-]{0,61}[a-z0-9])?$"
+          type: string
+          description: A human readable label for the hybrid replication resource
+        hybridReplicationType:
+          title: hybridReplicationType
+          type: string
+          description: The type of replication
+          enum:
+            - MIGRATION
+            - CONTINUOUS_REPLICATION
+            - HYBRID_REPLICATION_TYPE_UNSPECIFIED
+            - ONPREM_REPLICATION
+            - REVERSE_ONPREM_REPLICATION
+        peerVolumeName:
+          title: peerVolumeName
+          type: string
+          description: Name of local source volume to be migrated
+        peerClusterName:
+          title: peerClusterName
+          type: string
+          description: Name of local source cluster to be peered with destination
+            cluster
+        peerSvmName:
+          title: peerSvmName
+          type: string
+          description: Name of local source vserver SVM to be peered with destination
+            vserver SVM
+        peerIpAddresses:
+          title: peerIpAddresses
+          minItems: 1
+          type: array
+          items:
+            pattern: "^[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}$"
+            type: string
+            description: String list of node IP addresses to be peered with
+            example: 105.106.16.1
+        labels:
+          title: labels
+          type: object
+          additionalProperties:
+            type: string
+          description: JSON dictionary of resource labels to allow linking of billing
+            labels to a replication
+          example:
+            someKey: SomeValue
+            someKey2: SomeValue2
+          x-omitempty: false
+        description:
+          title: description
+          maxLength: 2048
+          type: string
+          description: A description about this hybrid replication relationship
+          nullable: true
+          example: My description about this hybrid replication relationship
+        clusterLocation:
+          title: clusterLocation
+          maxLength: 2048
+          type: string
+          description: "Name of source cluster associated with the hybrid replication,\
+            \ display purposes only"
+          nullable: true
+          example: source-cluster-name
+        peeringCommandExpiryTime:
+          title: peeringCommandExpiryTime
+          type: string
+          description: DateTime value for when cluster peering command should expire.
+          format: date-time
+          nullable: true
+          example: 2024-04-20T16:21:01+01:00
+        replicationSchedule:
+          title: replicationSchedule
+          type: string
+          enum:
+            - EVERY_10_MINUTES
+            - HOURLY
+            - DAILY
+        largeVolumeConstituentCount:
+          title: largeVolumeConstituentCount
+          type: integer
+          description: The count of number of Constituent Volumes for the large volume.
+          format: int32
+          nullable: true
+          example: 24
+      description: Object containing necessary parameters to start a hybrid replication
+        process
     ChildAsset:
       title: child_asset
       type: object
@@ -1244,16 +4182,21 @@ components:
             type: string
             description: UUID v4 used to identify the pool
             example: 9760acf5-4638-11e7-9bdb-020073ca3333
-    StorageClass_v1beta:
-      title: StorageClass
-      type: string
-      description: Storage class to be provisioned. Currently hardware is the only
-        option.
-      default: HARDWARE
-      enum:
-        - STORAGE_CLASS_UNSPECIFIED
-        - SOFTWARE
-        - HARDWARE
+    HostGroupIDList_v1beta:
+      title: HostGroupIDList
+      required:
+        - hostGroupUUIDs
+      type: object
+      properties:
+        hostGroupUUIDs:
+          title: hostGroupUUIDs
+          minItems: 1
+          type: array
+          items:
+            pattern: "^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$"
+            type: string
+            description: UUID v4 used to identify Host group
+            example: 9760acf5-4638-11e7-9bdb-020073ca3333
     Job_v1beta:
       title: Job
       type: object
@@ -1487,8 +4430,18 @@ components:
     includeDeletedQueryParameter:
       name: includeDeleted
       in: query
-      description: "If true, response will include deleted storage pools"
+      description: "If true, response will include deleted resources"
       allowEmptyValue: true
       schema:
         type: boolean
         default: false
+    hostGroupIdPathParameter:
+      name: hostGroupId
+      in: path
+      description: UUID v4 used to identify the HostGroup
+      required: true
+      schema:
+        maxLength: 36
+        minLength: 36
+        pattern: "^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$"
+        type: string
