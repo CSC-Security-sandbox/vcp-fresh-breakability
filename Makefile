@@ -4,9 +4,13 @@ test:
 	go test ./...
 
 # Run Go tests with coverage
-.PHONY: test-with-coverage
-test-with-coverage:
+.PHONY: test-with-coverage-unfiltered
+test-with-coverage-unfiltered:
 	scripts/test.sh
+
+.PHONY: test-with-coverage-filtered
+test-with-coverage-filtered:
+	scripts/test.sh --filtered
 
 .PHONY: lint
 lint: 

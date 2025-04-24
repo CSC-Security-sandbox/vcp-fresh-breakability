@@ -47,9 +47,8 @@ jobs:
           go mod tidy
       - name: UTs with Coverage
         run: |
-          make test-with-coverage
+          make test-with-coverage-filtered
       - name: Check coverage threshold
-        continue-on-error: true
         run: |
           coverage_int=$(printf "%.0f" $(echo "${{ env.coverage }} * 100" | awk '{printf "%.0f", $1}'))
           threshold_int=$(printf "%.0f" $(echo "${{ inputs.coverage-threshold }} * 100" | awk '{printf "%.0f", $1}'))
