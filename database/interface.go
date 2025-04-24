@@ -10,7 +10,7 @@ import (
 
 type (
 	Storage interface {
-		Connect() error
+		Connect(isAdmin bool) error
 		Close() error
 		HealthCheck() error
 		WithTransaction(ctx context.Context, fn func(Transaction) error) error

@@ -112,7 +112,7 @@ func initializeDatabase(ctx context.Context, cfg *common.Config, logger log.Logg
 		return nil, err
 	}
 	for {
-		err = db.Connect()
+		err = db.Connect(false)
 		if err == nil {
 			break
 		}
@@ -121,6 +121,8 @@ func initializeDatabase(ctx context.Context, cfg *common.Config, logger log.Logg
 	}
 
 	if cfg.RunMigrationOnStart {
+		// this flag is used to run the migration on start in local env
+		// this works only if the app user has the necessary permission
 		if err := db.Migrate(ctx); err != nil {
 			return nil, err
 		}

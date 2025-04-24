@@ -79,7 +79,7 @@ func setupDatabase(ctx context.Context, dbConfig database.DbConfig, logger slogg
 func performRollback(ctx context.Context, dbConfig database.DbConfig, logger slogger.Logger) error {
 	storage, err := database.New(dbConfig, logger)
 	if err == nil {
-		err = storage.Connect()
+		err = storage.Connect(true)
 	}
 	if err != nil {
 		return err
@@ -96,7 +96,7 @@ func performRollback(ctx context.Context, dbConfig database.DbConfig, logger slo
 func performMigration(ctx context.Context, dbConfig database.DbConfig, logger slogger.Logger) error {
 	storage, err := database.New(dbConfig, logger)
 	if err == nil {
-		err = storage.Connect()
+		err = storage.Connect(true)
 	}
 	if err != nil {
 		return err

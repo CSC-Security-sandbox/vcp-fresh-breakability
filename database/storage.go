@@ -117,8 +117,8 @@ func (s *PersistenceStore) SetupDatabase(ctx context.Context) error {
 	return nil
 }
 
-func (s *PersistenceStore) Connect() error {
-	return s.connect(false) // Default to application credentials
+func (s *PersistenceStore) Connect(isAdmin bool) error {
+	return s.connect(isAdmin)
 }
 
 func (s *PersistenceStore) connect(isAdmin bool) error {
@@ -230,10 +230,17 @@ func (s *PersistenceStore) createDatabaseAndUser() error {
 
 	// TODO : explore different authentication methods
 	createUserSQL := fmt.Sprintf(
-		`DO $$ BEGIN IF NOT EXISTS (SELECT FROM pg_catalog.pg_roles WHERE rolname = '%s') THEN CREATE USER %s WITH PASSWORD '%s'; END IF; END $$`,
+		`DO $$
+		BEGIN
+			IF NOT EXISTS (SELECT 1 FROM pg_catalog.pg_roles WHERE rolname = %s) THEN
+				CREATE USER %s WITH PASSWORD %s;
+			END IF;
+		END
+		$$`,
+		pq.QuoteLiteral(s.config.User),
 		pq.QuoteIdentifier(s.config.User),
-		pq.QuoteIdentifier(s.config.User),
-		s.config.Password)
+		pq.QuoteLiteral(s.config.Password),
+	)
 
 	if err := s.db.Exec(createUserSQL).Error(); err != nil {
 		return fmt.Errorf("create user failed: %w", err)
