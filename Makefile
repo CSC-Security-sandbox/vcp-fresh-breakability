@@ -1,21 +1,3 @@
-# Run Go tests without coverage
-.PHONY: test
-test:
-	go test ./...
-
-# Run Go tests with coverage
-.PHONY: test-with-coverage-unfiltered
-test-with-coverage-unfiltered:
-	scripts/test.sh
-
-.PHONY: test-with-coverage-filtered
-test-with-coverage-filtered:
-	scripts/test.sh --filtered
-
-.PHONY: lint
-lint: 
-	.github/scripts/lint.sh
-
 .PHONY: fix-imports
 fix-imports:
 	go get golang.org/x/tools/cmd/goimports

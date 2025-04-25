@@ -18,6 +18,7 @@ run:
   skip-dirs:
     - vendor
     - clients/core-api
+    - clients/cvp
     - clients/ontap-rest
     - clients/cvp
     - core/core-api/core-servergen

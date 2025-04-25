@@ -41,7 +41,7 @@ jobs:
   common:
     runs-on: [ ubuntu-22.04 ]
     container:
-      image: ghcr.io/vcp-vsa-control-plane/vsacictl:v2
+      image: ghcr.io/vcp-vsa-control-plane/vsacictl:v4
       options: -v /var/run/docker.sock:/var/run/docker.sock --user root
 
     steps:
@@ -73,11 +73,24 @@ jobs:
         run: vsacictl jira allow_merge main
 
   ut-and-coverage:
-    name: Unit Tests and Coverage
-    uses: ./.github/workflows/tests-coverage.yaml
-    secrets: inherit
-    with:
-      coverage-threshold: 80
+      runs-on: [ self-hosted,linux ]
+      container:
+        image: ghcr.io/vcp-vsa-control-plane/vsacictl:v4
+        options: --user root
+
+      steps:
+        - name: Checkout code
+          uses: actions/checkout@v2
+
+        - name: Set up Go
+          uses: actions/setup-go@v3
+          with:
+            go-version-file: go.mod
+
+        - name: Run golang coverage
+          env:
+            COVERAGE_THRESHOLD: 90
+          run: vsacictl coverage --filtered
 
   verify_generated:
     name: Verify Generated
@@ -105,7 +118,7 @@ jobs:
   lint:
     runs-on: [self-hosted,linux]
     container:
-      image: ghcr.io/vcp-vsa-control-plane/vsacictl:v2
+      image: ghcr.io/vcp-vsa-control-plane/vsacictl:v4
       options: --user root
 
     steps:

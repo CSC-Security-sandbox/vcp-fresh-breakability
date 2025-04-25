@@ -54,7 +54,7 @@ func ExtractJiraID(prTitle string) (string, error) {
 	re := regexp.MustCompile(`^(VSCP-[0-9]+):`) // Assuming PR is of type VSCP-1234: <title>
 	matches := re.FindStringSubmatch(prTitle)
 	if len(matches) == 0 {
-		return "", fmt.Errorf("PR title is not in the correct format")
+		return "", fmt.Errorf("PR title is not in the correct format. Required format: VSCP-<IssueNumber>: <title>")
 	}
 	return matches[1], nil
 }

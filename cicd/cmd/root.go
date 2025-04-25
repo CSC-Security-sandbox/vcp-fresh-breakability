@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"main/cmd/coverage"
 	"main/cmd/jira"
 	"main/cmd/lint"
 	"os"
@@ -26,5 +27,6 @@ func Execute() {
 func init() {
 	_ = godotenv.Load()
 	rootCmd.AddCommand(jira.JiraCmd)
+	rootCmd.AddCommand(coverage.CoverageCmd)
 	rootCmd.AddCommand(lint.LintCmd)
 }
