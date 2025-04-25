@@ -11,7 +11,6 @@ To install Skaffold, follow the instructions in the [Skaffold documentation](htt
 #### Install Docker
 To install Docker, follow the instructions in the [Docker documentation](https://docs.docker.com/get-docker/).
 
-
 #### Code Layout
 The code is organized into the following directories:
 ```aiignore

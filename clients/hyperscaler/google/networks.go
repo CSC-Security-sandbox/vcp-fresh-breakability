@@ -6,7 +6,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/util/errors"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
 	"google.golang.org/api/compute/v1"
 	"google.golang.org/api/googleapi"

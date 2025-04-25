@@ -6,6 +6,8 @@ COPY common common/
 COPY database database/
 COPY config config/
 COPY utils utils/
+COPY clients clients/
+COPY workflow_engine workflow_engine/
 COPY go.mod go.mod
 COPY go.sum go.sum
 

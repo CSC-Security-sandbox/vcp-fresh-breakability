@@ -5,7 +5,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/util/errors"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	logger "golang.org/x/exp/slog"
 	"google.golang.org/api/googleapi"
 	"google.golang.org/api/servicenetworking/v1"
