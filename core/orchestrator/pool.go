@@ -3,17 +3,21 @@ package orchestrator
 import (
 	"context"
 	"errors"
+	"fmt"
+	"strings"
 	"time"
 
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/workflows"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database"
 	gcpgenserver "github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/api/gcp-servergen"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
 	customerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware"
 	workflowengine "github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/temporal"
 	"go.temporal.io/api/enums/v1"
 	"go.temporal.io/sdk/client"
@@ -25,6 +29,18 @@ var (
 	createPool               = _createPool
 	createPoolAsync          = _createPoolAsync
 	validateCreatePoolParams = _validateCreatePoolParams
+	nodeUsername             = env.GetString("VSA_NODE_USERNAME", "")
+	nodePassword             = env.GetString("VSA_NODE_PASSWORD", "")
+	pollInterval             = env.GetUint64("VSA_DEPLOYMENT_POLL_INTERVAL_SEC", 30)
+	waitTimeVSADeployment    = env.GetUint64("VSA_DEPLOYMENT_TIMEOUT_MIN", 20)
+	homePort                 = env.GetString("VSA_NODE_HOME_PORT", "e0e")
+)
+
+const (
+	aggregateName  = "aggr1"
+	defaultSvmName = "gcnv-default-svm"
+	lifNameFormat  = "san_lif_%s"
+	enableIscsi    = true
 )
 
 // CreatePool creates the specified pool and adds it to the list of pools belonging to the specified owner
@@ -32,17 +48,20 @@ func (o *Orchestrator) CreatePool(ctx context.Context, params *CreatePoolParams)
 	return createPool(ctx, o.storage, params)
 }
 
+// createPool creates a new pool and triggers asynchronous creation processes.
 func _createPool(ctx context.Context, se database.Storage, params *CreatePoolParams) (*models.Pool, error) {
+	// Get or create account
 	account, err := getOrCreateAccount(ctx, se, params.AccountName)
 	if err != nil {
 		return nil, err
 	}
 
-	err = validateCreatePoolParams(se, params)
-	if err != nil {
+	// Validate pool creation parameters.
+	if err := validateCreatePoolParams(se, params); err != nil {
 		return nil, err
 	}
 
+	// Prepare the pool record data.
 	dbPool := &datamodel.Pool{
 		Name:         params.Name,
 		Account:      account,
@@ -53,50 +72,255 @@ func _createPool(ctx context.Context, se database.Storage, params *CreatePoolPar
 		CoolAccess:   params.CoolAccess,
 		Description:  params.Description,
 		ServiceLevel: params.ServiceLevel,
+		Username:     nodeUsername,
+		Password:     nodePassword,
 	}
+
+	// Create the pool in the storage engine.
 	pool, err := se.CreatePool(ctx, dbPool)
 	if err != nil {
 		return nil, err
 	}
 
-	go func() {
-		err := createPoolAsync(ctx, se, params)
-		if err != nil {
-			return
+	// Propagate or attach logger from parent context.
+	asyncCtx := context.Background()
+	logger := utils.GetLoggerFromContext(ctx)
+	asyncCtx = context.WithValue(asyncCtx, middleware.ContextSLoggerKey, logger)
+
+	// Launch asynchronous steps in a separate goroutine.
+	go func(asyncCtx context.Context, se database.Storage, params *CreatePoolParams, pool *datamodel.Pool) {
+		if err = createPoolAsync(asyncCtx, se, params, pool); err != nil {
+			logger.Errorf("Asynchronous pool creation error: %v", err)
 		}
-	}()
-	// implement storage engine and data store separately
-	// use the params and do operations in db or call temporal workflow
+	}(asyncCtx, se, params, pool)
+
 	return convertDatastorePoolToModel(pool, account.Name), nil
 }
 
-func _createPoolAsync(ctx context.Context, se database.Storage, params *CreatePoolParams) error {
+// createPoolAsync performs the asynchronous tasks needed to fully configure a pool.
+func _createPoolAsync(ctx context.Context, se database.Storage, params *CreatePoolParams, pool *datamodel.Pool) error {
 	clusterName := params.Name + "vsa"
-	vsaCluster, err := common.DeploymentsInsert(clusterName)
+
+	// Deploy VSA cluster.
+	vsaCluster, err := common.DeploymentsInsert(ctx, clusterName)
 	if err != nil {
 		return err
 	}
 
-	// retrieve the external ip address of the cluster
-	externalIpAddress := vsaCluster[0]["ExternalIP"]
-	internalIpAddress := vsaCluster[0]["InternalIP"]
-	instanceType := vsaCluster[0]["Name"]
+	// Use the primary node to get the provider.
+	provider := getProviderByNode(ctx, prepareNodeFromVsaClusterDetails(vsaCluster[0], pool))
+
+	// Wait for nodes and aggregates.
+	if err := waitForNodes(ctx, provider, time.Duration(pollInterval)*time.Second, time.Duration(waitTimeVSADeployment)*time.Minute); err != nil {
+		return err
+	}
+	if err := waitForAggregate(ctx, provider, time.Duration(pollInterval)*time.Second, time.Duration(waitTimeVSADeployment)*time.Minute); err != nil {
+		return err
+	}
+
+	version, err := provider.GetONTAPVersion()
+	if err != nil {
+		return err
+	}
+
+	// Save cluster details.
 	clusterDetails := &datamodel.ClusterDetails{
 		ExternalName: clusterName,
-		Nodes: []datamodel.Node{
-			{
-				ExternalIpAddress: externalIpAddress,
-				InternalIpAddress: internalIpAddress,
-				InstanceType:      instanceType,
-			},
+		OntapVersion: version,
+	}
+
+	if err = se.SavePoolWithVsaClusterDetails(ctx, params.Name, params.AccountName, clusterDetails); err != nil {
+		return err
+	}
+
+	// Persist node details.
+	if err := saveNodeDetails(ctx, se, pool, vsaCluster); err != nil {
+		return err
+	}
+
+	// Create SVM for the pool.
+	svm, err := createSvmForPool(ctx, se, pool, provider)
+	if err != nil {
+		return err
+	}
+
+	// Create LIFs for each node.
+	if err = createDataLifForSvm(ctx, se, provider, vsaCluster, pool, svm); err != nil {
+		return err
+	}
+
+	// Get gateway IP from the first node's dataLif.
+	gateway := getProxyIP(strings.Split(vsaCluster[0]["dataLif"], "/")[0])
+	return createNetworkIpRoute(provider, svm.Name, gateway)
+}
+
+func waitForCondition(ctx context.Context, condition func() (bool, error), logMsg string, pollInterval, timeout time.Duration) error {
+	logger := utils.GetLoggerFromContext(ctx)
+	startTime := time.Now()
+	attempt := 0
+
+	// Create a context that automatically cancels after the timeout.
+	timeoutCtx, cancel := context.WithTimeout(ctx, timeout)
+	defer cancel()
+
+	ticker := time.NewTicker(pollInterval)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-timeoutCtx.Done():
+			return fmt.Errorf("timeout waiting for %s after %v", logMsg, time.Since(startTime))
+		case <-ticker.C:
+			attempt++
+			elapsed := time.Since(startTime)
+			logger.Infof("Attempt %d after %v: checking %s...", attempt, elapsed, logMsg)
+
+			ready, err := condition()
+			if err != nil {
+				logger.Errorf("Error checking %s: %v", logMsg, err)
+			}
+			if ready {
+				logger.Infof("%s is available after %v on attempt %d.", logMsg, elapsed, attempt)
+				return nil
+			}
+		}
+	}
+}
+
+// waitForNodes polls until nodes are up and running.
+func waitForNodes(ctx context.Context, provider vsa.Provider, pollInterval, timeout time.Duration) error {
+	return waitForCondition(ctx, func() (bool, error) {
+		running, err := provider.AreAllNodeUpAndRunning()
+		return running, err
+	}, "nodes", pollInterval, timeout)
+}
+
+// waitForAggregate polls until the aggregate is online.
+func waitForAggregate(ctx context.Context, provider vsa.Provider, pollInterval, timeout time.Duration) error {
+	return waitForCondition(ctx, func() (bool, error) {
+		running, err := provider.IsAggregateOnline(aggregateName)
+		return running, err
+	}, "aggregate "+aggregateName, pollInterval, timeout)
+}
+
+// createSvmForPool creates and persists an SVM using the provider.
+func createSvmForPool(ctx context.Context, se database.Storage, pool *datamodel.Pool, provider vsa.Provider) (*datamodel.Svm, error) {
+	svmResponse, err := provider.CreateSVM(vsa.CreateSvmParams{Name: defaultSvmName, Protocols: vsa.Protocols{EnableIscsi: enableIscsi}})
+	if err != nil {
+		return nil, err
+	}
+
+	svmRec := &datamodel.Svm{
+		Name:      svmResponse.Name,
+		AccountID: pool.AccountID,
+		PoolID:    pool.ID,
+		SvmDetails: &datamodel.SvmDetails{
+			ExternalUUID: svmResponse.ExternalUUID,
+			IPSpace:      "Default",
 		},
 	}
 
-	// TODO: create provider using externl IP, username and password
-	// check for vsa cluster creation to be successful
-	// TODO: get nodes using the provider and stores node details in the db nodes table
+	if _, err = se.CreateSVM(ctx, svmRec); err != nil {
+		return nil, err
+	}
+	return svmRec, nil
+}
 
-	return se.SavePoolWithVsaClusterDetails(context.Background(), params.Name, params.AccountName, clusterDetails)
+// createNetworkIpRoute sets up the network IP route using the provider.
+func createNetworkIpRoute(provider vsa.Provider, svmName string, gateway string) error {
+	return provider.CreateNetworkIpRoute(vsa.CreateNetworkIPRouteParams{SvmName: svmName, Gateway: gateway})
+}
+
+// createDataLifForSvm creates LIFs for each node associated with the given SVM.
+func createDataLifForSvm(ctx context.Context, se database.Storage, provider vsa.Provider, cluster []map[string]string, pool *datamodel.Pool, svm *datamodel.Svm) error {
+	nodes, err := se.GetNodeByPoolID(ctx, pool.ID)
+	if err != nil {
+		return err
+	}
+	if len(nodes) < 2 {
+		return errors.New("not enough nodes in the cluster to create LIFs for SVM " + svm.Name)
+	}
+
+	for i, node := range nodes {
+		dataLif, ok := cluster[i]["dataLif"]
+		if !ok {
+			return fmt.Errorf("missing dataLif in cluster details for node index %d", i)
+		}
+		ip := strings.Split(dataLif, "/")[0]
+		lifName := fmt.Sprintf(lifNameFormat, node.Name)
+		lifResponse, err := provider.CreateDataLIF(vsa.CreateLifParams{Name: lifName, SvmName: svm.Name, IpAddress: ip, NodeName: node.Name, HomePort: homePort})
+		if err != nil {
+			return err
+		}
+
+		lifRec := &datamodel.Lif{
+			Name:       lifResponse.Name,
+			AccountID:  pool.AccountID,
+			NodeID:     node.ID,
+			LifDetails: &datamodel.LifDetails{ExternalUUID: lifResponse.ExternalUUID},
+			IPAddress:  lifResponse.IPAddress,
+			SubnetMask: lifResponse.SubnetMask,
+		}
+		if _, err = se.CreateLif(ctx, lifRec); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// saveNodeDetails retrieves nodes via the provider and persists them.
+func saveNodeDetails(ctx context.Context, se database.Storage, pool *datamodel.Pool, cluster []map[string]string) error {
+	if len(cluster) == 0 {
+		return errors.New("no cluster details provided")
+	}
+
+	for _, details := range cluster {
+		node := prepareNodeFromVsaClusterDetails(details, pool)
+		provider := getProviderByNode(ctx, node)
+
+		vsaNode, err := provider.GetNodeByName(node.Name)
+		if err != nil {
+			return fmt.Errorf("failed to get node %s: %w", node.Name, err)
+		}
+
+		rec := &datamodel.Node{
+			Name:            node.Name,
+			EndpointAddress: node.EndpointAddress,
+			PoolID:          pool.ID,
+			State:           models.LifeCycleStateAvailable,
+			StateDetails:    models.LifeCycleStateAvailableDetails,
+			NodeAttributes:  &datamodel.NodeDetails{ExternalUUID: vsaNode.ExternalUUID, InstanceType: node.InstanceType},
+			ZoneName:        node.Zone,
+		}
+
+		if _, err = se.CreateNode(ctx, rec); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// getProxyIP returns an IP address with its last octet set to "1".
+func getProxyIP(dataLif string) string {
+	ip := strings.Split(dataLif, "/")[0]
+	octets := strings.Split(ip, ".")
+	if len(octets) != 4 {
+		return ""
+	}
+	octets[3] = "1"
+	return strings.Join(octets, ".")
+}
+
+// prepareNodeFromVsaClusterDetails builds a Node model from the provided cluster details.
+func prepareNodeFromVsaClusterDetails(details map[string]string, pool *datamodel.Pool) *models.Node {
+	return &models.Node{
+		Name:            details["Name"],
+		EndpointAddress: details["NodeIp"],
+		Username:        pool.Username,
+		Password:        pool.Password,
+		Zone:            details["Zone"],
+		InstanceType:    details["MachineType"],
+	}
 }
 
 // GetPool gets the specified pool

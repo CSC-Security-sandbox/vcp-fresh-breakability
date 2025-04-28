@@ -19,6 +19,7 @@ import (
 	api "github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/api/endpoints"
 	gcpgenserver "github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/api/gcp-servergen"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/middleware"
+	utilsmiddleware "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 	workflow_engine "github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/temporal"
 	"golang.org/x/exp/slog"
@@ -26,7 +27,7 @@ import (
 )
 
 func main() {
-	ctx := context.WithValue(context.Background(), common.CorrelationContextKey, uuid.NewString())
+	ctx := context.WithValue(context.Background(), utilsmiddleware.CorrelationContextKey, uuid.NewString())
 
 	// Use signal.NotifyContext to handle termination signals
 	ctx, cancel := signal.NotifyContext(ctx, syscall.SIGINT, syscall.SIGTERM)
@@ -44,6 +45,7 @@ func main() {
 	}
 	defer closeDatabase(dbCon, logger)
 
+	eg, ctx := errgroup.WithContext(ctx)
 	// Initialize Temporal client
 	workflowClient, err := initializeTemporalClient(ctx, logger)
 	if err != nil {
@@ -52,7 +54,7 @@ func main() {
 	}
 	defer workflowClient.CloseClient(workflowClient.GetTemporalClient())
 	// Use errgroup to manage goroutines and context
-	eg, ctx := errgroup.WithContext(ctx)
+
 	eg.Go(func() error {
 		if err := workflowClient.RunWorker(ctx, workflowClient.GetTemporalClient()); err != nil {
 			logger.Error("Failed to run worker", slog.String("error", err.Error()))

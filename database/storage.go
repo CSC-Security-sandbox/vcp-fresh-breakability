@@ -400,3 +400,19 @@ func (s *PersistenceStore) UpdateJobStatus(ctx context.Context, id string, statu
 func (s *PersistenceStore) GetPoolByVendorID(ctx context.Context, vendorID string) (*datamodel.Pool, error) {
 	return s.dataStore.GetPoolByVendorID(ctx, vendorID)
 }
+
+func (s *PersistenceStore) CreateNode(ctx context.Context, node *datamodel.Node) (*datamodel.Node, error) {
+	return s.dataStore.CreateNode(ctx, node)
+}
+
+func (s *PersistenceStore) GetNodeByPoolID(ctx context.Context, poolID int64) ([]*datamodel.Node, error) {
+	return s.dataStore.GetNodeByPoolID(ctx, poolID)
+}
+
+func (s *PersistenceStore) CreateSVM(ctx context.Context, svm *datamodel.Svm) (*datamodel.Svm, error) {
+	return s.dataStore.CreateSVM(ctx, svm)
+}
+
+func (s *PersistenceStore) CreateLif(ctx context.Context, lif *datamodel.Lif) (*datamodel.Lif, error) {
+	return s.dataStore.CreateLif(ctx, lif)
+}

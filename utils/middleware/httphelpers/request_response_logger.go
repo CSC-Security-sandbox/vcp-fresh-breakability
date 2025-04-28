@@ -6,7 +6,7 @@ import (
 	"net/http/httputil"
 	"time"
 
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/common"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 )
 
@@ -68,7 +68,7 @@ func GetLoggingRoundTripper(callerInfo string, logger log.Logger, roundTripper h
 
 func (c *requestResponseLogger) RoundTrip(r *http.Request) (*http.Response, error) {
 	callerInfo := fmt.Sprintf("VCP -> %s", c.callerInfo)
-	ctxCallerInfo := r.Context().Value(common.CallerInfoContextKey)
+	ctxCallerInfo := r.Context().Value(middleware.CallerInfoContextKey)
 	if ctxCallerInfo != nil {
 		ctxCallerInfoVal, ok := ctxCallerInfo.(string)
 		if ok {

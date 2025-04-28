@@ -279,18 +279,6 @@ func TestSavePoolWithVsaClusterDetails(t *testing.T) {
 		clusterDetails := &datamodel.ClusterDetails{
 			ExternalName: "test-cluster",
 			OntapVersion: "9.10.1",
-			Nodes: []datamodel.Node{
-				{
-					InstanceType:      "c5.large",
-					ExternalIpAddress: "192.168.1.1",
-					InternalIpAddress: "10.0.0.1",
-				},
-				{
-					InstanceType:      "c5.xlarge",
-					ExternalIpAddress: "192.168.1.2",
-					InternalIpAddress: "10.0.0.2",
-				},
-			},
 		}
 
 		err = store.SavePoolWithVsaClusterDetails(context.Background(), pool.Name, account.Name, clusterDetails)
@@ -308,20 +296,6 @@ func TestSavePoolWithVsaClusterDetails(t *testing.T) {
 		}
 		if updatedPool.ClusterDetails.OntapVersion != clusterDetails.OntapVersion {
 			tt.Errorf("Expected ONTAP version %v, got %v", clusterDetails.OntapVersion, updatedPool.ClusterDetails.OntapVersion)
-		}
-		if len(updatedPool.ClusterDetails.Nodes) != len(clusterDetails.Nodes) {
-			tt.Errorf("Expected %d nodes, got %d", len(clusterDetails.Nodes), len(updatedPool.ClusterDetails.Nodes))
-		}
-		for i, node := range updatedPool.ClusterDetails.Nodes {
-			if node.InstanceType != clusterDetails.Nodes[i].InstanceType {
-				tt.Errorf("Expected node instance type %v, got %v", clusterDetails.Nodes[i].InstanceType, node.InstanceType)
-			}
-			if node.ExternalIpAddress != clusterDetails.Nodes[i].ExternalIpAddress {
-				tt.Errorf("Expected external IP %v, got %v", clusterDetails.Nodes[i].ExternalIpAddress, node.ExternalIpAddress)
-			}
-			if node.InternalIpAddress != clusterDetails.Nodes[i].InternalIpAddress {
-				tt.Errorf("Expected internal IP %v, got %v", clusterDetails.Nodes[i].InternalIpAddress, node.InternalIpAddress)
-			}
 		}
 	})
 
@@ -341,13 +315,6 @@ func TestSavePoolWithVsaClusterDetails(t *testing.T) {
 		clusterDetails := &datamodel.ClusterDetails{
 			ExternalName: "test-cluster",
 			OntapVersion: "9.10.1",
-			Nodes: []datamodel.Node{
-				{
-					InstanceType:      "c5.large",
-					ExternalIpAddress: "192.168.1.1",
-					InternalIpAddress: "10.0.0.1",
-				},
-			},
 		}
 
 		err = store.SavePoolWithVsaClusterDetails(context.Background(), "test_pool", "non-existent-account", clusterDetails)
@@ -387,13 +354,6 @@ func TestSavePoolWithVsaClusterDetails(t *testing.T) {
 		clusterDetails := &datamodel.ClusterDetails{
 			ExternalName: "test-cluster",
 			OntapVersion: "9.10.1",
-			Nodes: []datamodel.Node{
-				{
-					InstanceType:      "c5.large",
-					ExternalIpAddress: "192.168.1.1",
-					InternalIpAddress: "10.0.0.1",
-				},
-			},
 		}
 
 		err = store.SavePoolWithVsaClusterDetails(context.Background(), "non-existent-pool", account.Name, clusterDetails)

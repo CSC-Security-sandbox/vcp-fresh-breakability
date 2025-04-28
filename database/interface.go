@@ -68,4 +68,11 @@ type DataStore interface {
 
 	CreateJob(ctx context.Context, job *datamodel.Job) (*datamodel.Job, error)
 	UpdateJobStatus(ctx context.Context, jobID string, status string) error
+
+	GetNodeByPoolID(ctx context.Context, poolId int64) ([]*datamodel.Node, error)
+	CreateNode(ctx context.Context, node *datamodel.Node) (*datamodel.Node, error)
+
+	CreateSVM(ctx context.Context, svm *datamodel.Svm) (*datamodel.Svm, error)
+
+	CreateLif(ctx context.Context, lif *datamodel.Lif) (*datamodel.Lif, error)
 }

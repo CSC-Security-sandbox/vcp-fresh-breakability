@@ -26,18 +26,27 @@ type Pool struct {
 	Account        *Account       `gorm:"ForeignKey:AccountID;AssociationForeignKey:ID;constraint:OnDelete:CASCADE,OnUpdate:RESTRICT;"`
 	PoolAttributes JSONB          `gorm:"column:pool_attributes;type:jsonb"`
 	ClusterDetails ClusterDetails `gorm:"column:cluster_details;type:jsonb"`
+	Username       string         `gorm:"column:username"`
+	Password       string         `gorm:"column:password"`
 }
 
 type ClusterDetails struct {
 	ExternalName string `json:"external_name"`
 	OntapVersion string `json:"ontap_version"`
-	Nodes        []Node `json:"nodes"`
 }
 
+// Node represents the public.nodes table in the database
 type Node struct {
-	InstanceType      string `json:"instance_type"`
-	ExternalIpAddress string `json:"external_ip_address"`
-	InternalIpAddress string `json:"internal_ip_address"`
+	BaseModel
+	Name            string       `gorm:"column:name;type:text"`
+	Description     string       `gorm:"column:description;type:text"`
+	State           string       `gorm:"column:state;type:text"`
+	StateDetails    string       `gorm:"column:state_details;type:text"`
+	EndpointAddress string       `gorm:"column:endpoint_Address;type:text"`
+	NodeAttributes  *NodeDetails `gorm:"column:node_attributes;type:jsonb"`
+	PoolID          int64        `gorm:"column:pool_id;type:bigint"`
+	ZoneName        string       `gorm:"column:zone_name;type:text"`
+	AccountID       int64        `gorm:"column:account_id;type:bigint"`
 }
 
 // JSONB is a custom type to handle JSONB columns in PostgreSQL
@@ -82,15 +91,16 @@ type Volume struct {
 
 type Svm struct {
 	BaseModel
-	Name          string   `gorm:"column:name"`
-	Description   string   `gorm:"column:description"`
-	State         string   `gorm:"column:state"`
-	StateDetails  string   `gorm:"column:state_details"`
-	SvmAttributes JSONB    `gorm:"column:svm_attributes;type:jsonb"`
-	AccountID     int64    `gorm:"column:account_id"`
-	Account       *Account `gorm:"ForeignKey:AccountID;AssociationForeignKey:ID;constraint:OnDelete:CASCADE,OnUpdate:RESTRICT;"`
-	PoolID        int64    `gorm:"column:pool_id"`
-	Pool          *Pool    `gorm:"ForeignKey:PoolID;AssociationForeignKey:ID;constraint:OnDelete:CASCADE,OnUpdate:RESTRICT;"`
+	Name         string      `gorm:"column:name"`
+	Description  string      `gorm:"column:description"`
+	State        string      `gorm:"column:state"`
+	StateDetails string      `gorm:"column:state_details"`
+	SvmDetails   *SvmDetails `gorm:"column:svm_details;type:jsonb"`
+	AccountID    int64       `gorm:"column:account_id"`
+	Account      *Account    `gorm:"ForeignKey:AccountID;AssociationForeignKey:ID;constraint:OnDelete:CASCADE,OnUpdate:RESTRICT;"`
+	PoolID       int64       `gorm:"column:pool_id"`
+	Pool         *Pool       `gorm:"ForeignKey:PoolID;AssociationForeignKey:ID;constraint:OnDelete:CASCADE,OnUpdate:RESTRICT;"`
+	CmekConfigID int64       `gorm:"column:cmek_config_id;type:bigint"`
 }
 
 type Account struct {
@@ -127,4 +137,68 @@ type Job struct {
 	CustomerID string    `gorm:"type:varchar"`
 	Status     string    `gorm:"type:varchar"`
 	CreatedAt  time.Time `json:"createdAt"`
+}
+
+type Lif struct {
+	BaseModel
+	Name        string      `gorm:"column:name;type:text"`
+	Description string      `gorm:"column:description;type:text"`
+	LifDetails  *LifDetails `gorm:"column:lif_details;type:jsonb"`
+	AccountID   int64       `gorm:"column:account_id;type:bigint"`
+	Type        string      `gorm:"column:type;type:text"`
+	IPAddress   string      `gorm:"column:ip_address;type:text"`
+	NodeID      int64       `gorm:"column:node_id;type:bigint"`
+	SubnetMask  string      `gorm:"column:subnet_mask;type:text"`
+}
+
+type SvmDetails struct {
+	ExternalUUID           string `json:"external_uuid"`
+	IPSpace                string `json:"ip_space"`
+	NFSv364BitIdentifiers  string `json:"nf_sv364_bit_identifiers"`
+	ExternalCmekConfigUUID string `json:"external_cmek_config_uuid"`
+}
+
+func (sd SvmDetails) Scan(value interface{}) error {
+	bytes, ok := value.([]byte)
+	if !ok {
+		return errors.New("type assertion to []byte failed")
+	}
+	return json.Unmarshal(bytes, &sd)
+}
+
+func (sd SvmDetails) Value() (driver.Value, error) {
+	return json.Marshal(sd)
+}
+
+type LifDetails struct {
+	ExternalUUID string `json:"external_uuid"`
+}
+
+func (nd LifDetails) Scan(value interface{}) error {
+	bytes, ok := value.([]byte)
+	if !ok {
+		return errors.New("type assertion to []byte failed")
+	}
+	return json.Unmarshal(bytes, &nd)
+}
+
+func (nd LifDetails) Value() (driver.Value, error) {
+	return json.Marshal(nd)
+}
+
+type NodeDetails struct {
+	ExternalUUID string `json:"external_uuid"`
+	InstanceType string `json:"instance_type"`
+}
+
+func (nd NodeDetails) Scan(value interface{}) error {
+	bytes, ok := value.([]byte)
+	if !ok {
+		return errors.New("type assertion to []byte failed")
+	}
+	return json.Unmarshal(bytes, &nd)
+}
+
+func (nd NodeDetails) Value() (driver.Value, error) {
+	return json.Marshal(nd)
 }

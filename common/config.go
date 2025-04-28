@@ -2,7 +2,7 @@ package common
 
 import (
 	"time"
-	
+
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
 	"golang.org/x/exp/slog"
 )

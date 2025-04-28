@@ -13,6 +13,7 @@ import (
 type NetworkingClient interface { // generate:mock
 	NetworkIPInterfacesGet(params *NetworkIPInterfacesGetParams, ucbf UserCallbackFunc[[]*IPInterface]) error
 	NetworkIPRouteCreateDefault(params *NetworkIPDefaultRouteCreateParams) error
+	NetworkIPInterfaceCreate(params *NetworkIPInterfacesCreateParams) (*IPInterface, error)
 
 	NetworkPing(params *networkpriv.NetworkPingParams) (*networkpriv.NetworkPingOK, *networkpriv.NetworkPingAccepted, error)
 
@@ -164,4 +165,40 @@ func (nc *networkingClient) IpspaceDelete(params *IpspaceDeleteParams) error {
 func (nc *networkingClient) NetworkIPRouteCreateDefault(params *NetworkIPDefaultRouteCreateParams) error {
 	_, err := nc.api.NetworkIPRoutesCreate(networkIPRouteCreateParamsToONTAP(params), nil)
 	return err
+}
+
+func (nc *networkingClient) NetworkIPInterfaceCreate(params *NetworkIPInterfacesCreateParams) (*IPInterface, error) {
+	rsp, err := nc.api.NetworkIPInterfacesCreate(networking.NewNetworkIPInterfacesCreateParams().WithInfo(&models.IPInterface{
+		Enabled:               nillable.ToPointer(true),
+		FailIfSubnetConflicts: nillable.ToPointer(true),
+		IP: &models.IPInfo{
+			Address: nillable.ToPointer(models.IPAddress(params.IPAddress)),
+			Netmask: nillable.ToPointer(models.IPNetmask(params.Netmask)),
+		},
+		Location: &models.IPInterfaceInlineLocation{
+			HomeNode: &models.IPInterfaceInlineLocationInlineHomeNode{
+				Name: &params.HomeNode,
+			},
+			HomePort: &models.IPInterfaceInlineLocationInlineHomePort{
+				Name: &params.HomePort,
+			},
+		},
+		Name:  &params.Name,
+		Scope: nillable.ToPointer(models.IPInterfaceScopeSvm),
+		ServicePolicy: &models.IPInterfaceInlineServicePolicy{
+			Name: &params.ServicePolicy,
+		},
+		Svm: &models.IPInterfaceInlineSvm{
+			Name: &params.SvmName,
+		},
+	}).WithReturnRecords(nillable.ToPointer("true")), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	if len(rsp.Payload.IPInterfaceResponseInlineRecords) != 1 {
+		return nil, errors.Errorf("Unexpected response from storage server when creating network interface: '%d'", len(rsp.Payload.IPInterfaceResponseInlineRecords))
+	}
+
+	return &IPInterface{IPInterface: *rsp.Payload.IPInterfaceResponseInlineRecords[0]}, nil
 }

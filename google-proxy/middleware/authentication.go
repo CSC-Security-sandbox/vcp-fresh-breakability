@@ -15,10 +15,10 @@ import (
 	"github.com/go-openapi/runtime"
 	"github.com/go-openapi/runtime/middleware"
 	"github.com/golang-jwt/jwt/v4"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/common"
 	gcpserver "github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/api/gcp-servergen"
-	utils "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
+	utilsmiddleware "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware"
 	logger "golang.org/x/exp/slog"
 )
 
@@ -80,7 +80,7 @@ func (ar *authenticationResponderGCP) WriteResponse(rw http.ResponseWriter, prod
 func AuthMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		responder := AuthenticatedGCP(r, func() middleware.Responder {
-			ctx := context.WithValue(r.Context(), common.HeaderContextKey, r.Header)
+			ctx := context.WithValue(r.Context(), utilsmiddleware.HeaderContextKey, r.Header)
 			r = r.WithContext(ctx)
 			next.ServeHTTP(w, r)
 			return nil

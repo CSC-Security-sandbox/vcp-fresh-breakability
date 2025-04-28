@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware"
 	"log/slog"
 	"net/http"
 	"os"
@@ -22,7 +23,7 @@ import (
 
 // github.com/vcp-vsa-control-Plane/vsa-control-plane/core
 func main() {
-	ctx := context.WithValue(context.Background(), common.CorrelationContextKey, uuid.NewString())
+	ctx := context.WithValue(context.Background(), middleware.CorrelationContextKey, uuid.NewString())
 
 	// Use signal.NotifyContext to handle termination signals
 	ctx, cancel := signal.NotifyContext(ctx, syscall.SIGINT, syscall.SIGTERM)

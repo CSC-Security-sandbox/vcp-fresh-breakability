@@ -8,6 +8,7 @@ import (
 // ClusterClient describes a cluster client
 type ClusterClient interface { // generate:mock
 	NodesGet(params *NodesGetParams, ucbf UserCallbackFunc[[]*Node]) error
+	GetONTAPVersion() (*string, error)
 }
 
 type clusterClient struct {
@@ -37,4 +38,13 @@ func (c clusterClient) NodesGet(params *NodesGetParams, ucbf UserCallbackFunc[[]
 		}
 		return nodes, "", nil
 	}, ucbf)
+}
+
+// GetONTAPVersion returns the ONTAP version
+func (c clusterClient) GetONTAPVersion() (*string, error) {
+	cluster, err := c.api.ClusterGet(cluster.NewClusterGetParams().WithFields([]string{"version"}), nil)
+	if err != nil {
+		return nil, err
+	}
+	return cluster.Payload.Version.Full, nil
 }

@@ -4,20 +4,20 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware"
 	"time"
 
 	"github.com/go-faster/jx"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator"
 	gcpgenserver "github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/api/gcp-servergen"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 	"golang.org/x/exp/slog"
 )
 
 func (h Handler) V1betaDescribePool(ctx context.Context, params gcpgenserver.V1betaDescribePoolParams) (gcpgenserver.V1betaDescribePoolRes, error) {
-	logger := ctx.Value(common.ContextSLoggerKey).(log.Logger)
+	logger := ctx.Value(middleware.ContextSLoggerKey).(log.Logger)
 	pool, err := h.Orchestrator.GetPool(ctx, params.PoolId)
 	if err != nil {
 		logger.Error("Failed to describe pool", slog.String("error", err.Error()))
@@ -27,7 +27,7 @@ func (h Handler) V1betaDescribePool(ctx context.Context, params gcpgenserver.V1b
 }
 
 func (h Handler) V1betaCreatePool(ctx context.Context, req *gcpgenserver.PoolV1beta, params gcpgenserver.V1betaCreatePoolParams) (gcpgenserver.V1betaCreatePoolRes, error) {
-	logger := ctx.Value(common.ContextSLoggerKey).(log.Logger)
+	logger := ctx.Value(middleware.ContextSLoggerKey).(log.Logger)
 	if !req.UnifiedPool.Value {
 		logger.Error("UnifiedPool is not set to true")
 		return &gcpgenserver.V1betaCreatePoolBadRequest{

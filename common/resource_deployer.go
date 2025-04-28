@@ -3,15 +3,16 @@ package common
 import (
 	"context"
 	"fmt"
-	"gopkg.in/yaml.v2"
-	"log"
 	"os"
 	"strings"
 	"time"
 
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 	"google.golang.org/api/compute/v1"
 	"google.golang.org/api/deploymentmanager/v2"
+	"gopkg.in/yaml.v2"
 )
 
 var (
@@ -21,8 +22,8 @@ var (
 )
 
 // DeploymentsInsert creates a new Deployment Manager deployment.
-func DeploymentsInsert(name string) ([]map[string]string, error) {
-	ctx := context.Background()
+func DeploymentsInsert(ctx context.Context, name string) ([]map[string]string, error) {
+	logger := ctx.Value(middleware.ContextSLoggerKey).(log.Logger)
 	deploymentmanagerService, err := deploymentmanager.NewService(ctx)
 	if err != nil {
 		return nil, err
@@ -52,53 +53,61 @@ func DeploymentsInsert(name string) ([]map[string]string, error) {
 	target := deploymentmanager.TargetConfiguration{Config: &configFile, Imports: imports}
 	deployment := deploymentmanager.Deployment{Name: name, Target: &target}
 
+	var resourcesList *deploymentmanager.ResourcesListResponse
 	res, err := deploymentmanagerService.Deployments.Insert(projectId, &deployment).Do()
 	if err != nil {
-		return nil, err
+		if strings.Contains(err.Error(), "already exists") {
+			resourcesList, err = deploymentmanagerService.Resources.List(projectId, name).Do()
+			if err != nil {
+				logger.Errorf("Error listing resources: %v", err)
+				return nil, err
+			}
+		} else {
+			return nil, err
+		}
+	} else {
+		resourcesList, err = pollDeploymentStatus(ctx, deploymentmanagerService, projectId, name, res.Name)
+		if err != nil {
+			logger.Errorf("Error creating deployment: %v", err)
+			return nil, err
+		}
 	}
 
-	log.Printf("Instance created: %v\n", res)
+	logger.Infof("Instance created: %v\n", res)
 
-	// Polling for deployment status
-	resourcesList, err := pollDeploymentStatus(deploymentmanagerService, projectId, name, res.Name)
-
+	computeInstancesIPAddress, err := getIPAddressDetails(ctx, projectId, resourcesList)
 	if err != nil {
-		log.Printf("Error creating deployment: %v", err)
-		return nil, err
-	}
-
-	computeInstancesIPAddress, err := getIPAddressDetails(projectId, resourcesList)
-	if err != nil {
-		log.Printf("Error getting IP address details : %v", err)
+		logger.Errorf("Error getting IP address details : %v", err)
 		return nil, err
 	}
 
 	return computeInstancesIPAddress, nil
 }
 
-func pollDeploymentStatus(service *deploymentmanager.Service, projectId, deploymentName, operationName string) (*deploymentmanager.ResourcesListResponse, error) {
+func pollDeploymentStatus(ctx context.Context, service *deploymentmanager.Service, projectId, deploymentName, operationName string) (*deploymentmanager.ResourcesListResponse, error) {
+	logger := ctx.Value(middleware.ContextSLoggerKey).(log.Logger)
 	startTime := time.Now()
 
 	for time.Since(startTime) < vsaDeploymentTimeout {
 		operation, err := service.Operations.Get(projectId, operationName).Do()
 		if err != nil {
-			log.Printf("Error getting operation: %v\n", err)
+			logger.Errorf("Error getting operation(operation name : %s): %v", operationName, err)
 			return nil, err
 		}
 
 		if operation.Status == "DONE" {
 			if operation.Error != nil {
-				log.Print("Deployment failed")
+				logger.Errorf("Deployment failed")
 				for _, e := range operation.Error.Errors {
-					log.Printf("Error Code: %s, Message: %s\n", e.Code, e.Message)
+					logger.Errorf("Error Code: %s, Message: %s\n", e.Code, e.Message)
 				}
 				return nil, fmt.Errorf("%v", operation.Error)
 			}
-			log.Print("Deployment completed successfully!")
+			logger.Infof("Deployment completed successfully!")
 
 			resources, err := service.Resources.List(projectId, deploymentName).Do()
 			if err != nil {
-				log.Printf("Error listing resources: %v", err)
+				logger.Errorf("Error listing resources(deployment name : %s): %v", deploymentName, err)
 				return nil, err
 			}
 			return resources, nil
@@ -109,7 +118,8 @@ func pollDeploymentStatus(service *deploymentmanager.Service, projectId, deploym
 	return nil, fmt.Errorf("deployment creation timed out")
 }
 
-func getIPAddressDetails(projectId string, resources *deploymentmanager.ResourcesListResponse) ([]map[string]string, error) {
+func getIPAddressDetails(ctx context.Context, projectId string, resources *deploymentmanager.ResourcesListResponse) ([]map[string]string, error) {
+	logger := ctx.Value(middleware.ContextSLoggerKey).(log.Logger)
 	// Filter resources to fetch only compute instances and their IPs
 	var computeInstancesIPAddress []map[string]string
 	for _, resource := range resources.Resources {
@@ -117,7 +127,7 @@ func getIPAddressDetails(projectId string, resources *deploymentmanager.Resource
 			// Parse resource.Properties YAML
 			var propertiesMap map[string]interface{}
 			if err := yaml.Unmarshal([]byte(resource.Properties), &propertiesMap); err != nil {
-				log.Printf("Error parsing properties YAML: %v", err)
+				logger.Errorf("Error parsing properties YAML: %v", err)
 				return nil, err
 			}
 
@@ -128,13 +138,15 @@ func getIPAddressDetails(projectId string, resources *deploymentmanager.Resource
 
 			instanceDetails, err := getInstanceDetails(projectId, resource.Name, zone)
 			if err != nil {
-				log.Printf("Error getting instance details: %v", err)
+				logger.Errorf("Error getting instance details(resource name : %s): %v", resource.Name, err)
 				return nil, err
 			}
+			logger.Infof("Instance details: %v", instanceDetails)
 			computeInstancesIPAddress = append(computeInstancesIPAddress, instanceDetails)
 		}
 	}
-
+	// TODO : as only one once has external IP , using the same for both
+	computeInstancesIPAddress[1]["NodeIp"] = computeInstancesIPAddress[0]["NodeIp"]
 	return computeInstancesIPAddress, nil
 }
 
@@ -157,14 +169,17 @@ func getInstanceDetails(projectId, instanceName, zone string) (map[string]string
 	}
 
 	instanceDetails := map[string]string{
-		"Name":       instance.Name,
-		"InternalIP": instance.NetworkInterfaces[4].NetworkIP,
+		"Name":        instance.Name,
+		"InternalIP":  instance.NetworkInterfaces[4].NetworkIP,
+		"Zone":        instance.Zone,
+		"MachineType": instance.MachineType,
 	}
 
 	if len(instance.NetworkInterfaces) >= 1 && len(instance.NetworkInterfaces[0].AccessConfigs) >= 1 {
-		instanceDetails["ExternalIP"] = instance.NetworkInterfaces[0].AccessConfigs[0].NatIP
+		instanceDetails["NodeIp"] = instance.NetworkInterfaces[0].AccessConfigs[0].NatIP
 	}
-
-	log.Printf("Instance details: %v\n", instanceDetails)
+	if len(instance.NetworkInterfaces) >= 5 && len(instance.NetworkInterfaces[4].AliasIpRanges) >= 1 {
+		instanceDetails["dataLif"] = instance.NetworkInterfaces[4].AliasIpRanges[0].IpCidrRange
+	}
 	return instanceDetails, nil
 }

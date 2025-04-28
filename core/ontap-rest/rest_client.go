@@ -86,10 +86,15 @@ func NewClient(params RESTClientParams) RESTClient {
 	})
 	api := client.New(idempotentTransport, nil)
 	apiPriv := clientPriv.New(idempotentTransport, nil)
+	p := &poller{api: api.Cluster, logger: params.Trace}
 	rc = &restClient{
 		httpRoundTripperTransport: httpRoundTripperTransport,
 		params:                    params,
+		cluster:                   &clusterClient{api: api.Cluster},
 		svm:                       &svmClient{api: api.Svm, apiPriv: &apiPriv.Operations},
+		networking:                &networkingClient{api: api.Networking, apiPriv: &apiPriv.Operations},
+		storage:                   &storageClient{api: api.Storage},
+		poller:                    p,
 	}
 	return rc
 }

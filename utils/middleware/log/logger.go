@@ -3,7 +3,7 @@ package log
 import (
 	"context"
 	"fmt"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/common"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware"
 	"net/http"
 	"os"
 	"strings"
@@ -78,7 +78,7 @@ func getLogger(config Config) Logger {
 func LoggerMiddleware(logger Logger) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			ctx := context.WithValue(r.Context(), common.ContextSLoggerKey, logger)
+			ctx := context.WithValue(r.Context(), middleware.ContextSLoggerKey, logger)
 			r = r.WithContext(ctx)
 			next.ServeHTTP(w, r)
 		})

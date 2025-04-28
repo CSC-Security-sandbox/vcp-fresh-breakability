@@ -1709,8 +1709,13 @@ func qosPolicyGroupCollectionGetParamsToONTAPCollectionGet(params *QosPolicyGrou
 
 // SvmCreateParams is the params to create a svm
 type SvmCreateParams struct {
-	Name    string
-	IPSpace string
+	Name      string
+	IPSpace   string
+	Protocols Protocols
+}
+
+type Protocols struct {
+	EnableIscsi bool
 }
 
 // VolumeCreateParams is the params to create a volume

@@ -1,6 +1,7 @@
 package utils
 
 import (
+	"context"
 	"net"
 	"regexp"
 	"strconv"
@@ -9,12 +10,15 @@ import (
 	gcpgenserver "github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/api/gcp-servergen"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 )
 
 var (
 	localRegion                   = env.GetString("LOCAL_REGION", "local")
 	parseRegionAndZone            = _parseRegionAndZone
 	ParseAndValidateRegionAndZone = _parseAndValidateRegionAndZone
+	GetLoggerFromContext          = getLoggerFromContext
 )
 
 func ValidateIPv4Address(ipAddr string) bool {
@@ -128,4 +132,10 @@ func _parseRegionAndZone(locationID string) (string, string, error) {
 		return "", "", errors.New(msg)
 	}
 	return region, zone, nil
+}
+
+// getLoggerFromContext extracts the logger from the provided context.
+func getLoggerFromContext(ctx context.Context) log.Logger {
+	logger, _ := ctx.Value(middleware.ContextSLoggerKey).(log.Logger)
+	return logger
 }

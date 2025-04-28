@@ -1,4 +1,4 @@
-package common
+package middleware
 
 type ContextKey int
 type ContextString string

@@ -1,16 +1,16 @@
 package cvp
 
 import (
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/httphelpers"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 	"net/http"
 	"time"
 
 	httptransport "github.com/go-openapi/runtime/client"
 	"github.com/go-openapi/strfmt"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/cvpapi"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/httphelpers"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 )
 
 var (
@@ -30,10 +30,10 @@ type cvpRoundTripper struct {
 // RoundTrip is the implementation of the http.RoundTripper interface
 func (c *cvpRoundTripper) RoundTrip(r *http.Request) (*http.Response, error) {
 	r.Header.Add("Authorization", c.jwt)
-	currCorrId := r.Header.Get(string(common.CorrelationIDName))
+	currCorrId := r.Header.Get(string(middleware.CorrelationIDName))
 	if currCorrId == "" {
-		if ctxCorrId, ok := r.Context().Value(common.CorrelationContextKey).(string); ok {
-			r.Header.Set(string(common.CorrelationIDName), ctxCorrId)
+		if ctxCorrId, ok := r.Context().Value(middleware.CorrelationContextKey).(string); ok {
+			r.Header.Set(string(middleware.CorrelationIDName), ctxCorrId)
 		}
 	}
 	return c.rt.RoundTrip(r)
