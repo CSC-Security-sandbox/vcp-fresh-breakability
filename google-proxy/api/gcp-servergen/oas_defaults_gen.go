@@ -3,6 +3,70 @@
 package gcpserver
 
 // setDefaults set default value of fields.
+func (s *BackupConfigV1beta) setDefaults() {
+	{
+		val := bool(true)
+		s.ScheduledBackupEnabled.SetTo(val)
+	}
+}
+
+// setDefaults set default value of fields.
+func (s *DailyScheduleV1beta) setDefaults() {
+	{
+		val := float64(0)
+		s.SnapshotsToKeep.SetTo(val)
+	}
+	{
+		val := float64(0)
+		s.Hour.SetTo(val)
+	}
+	{
+		val := float64(0)
+		s.Minute.SetTo(val)
+	}
+}
+
+// setDefaults set default value of fields.
+func (s *FlexCacheV1beta) setDefaults() {
+	{
+		val := bool(false)
+		s.EnableGlobalFileLock.SetTo(val)
+	}
+}
+
+// setDefaults set default value of fields.
+func (s *HourlyScheduleV1beta) setDefaults() {
+	{
+		val := float64(0)
+		s.SnapshotsToKeep.SetTo(val)
+	}
+	{
+		val := float64(0)
+		s.Minute.SetTo(val)
+	}
+}
+
+// setDefaults set default value of fields.
+func (s *MonthlyScheduleV1beta) setDefaults() {
+	{
+		val := float64(0)
+		s.SnapshotsToKeep.SetTo(val)
+	}
+	{
+		val := string("1")
+		s.DaysOfMonth.SetTo(val)
+	}
+	{
+		val := float64(0)
+		s.Hour.SetTo(val)
+	}
+	{
+		val := float64(0)
+		s.Minute.SetTo(val)
+	}
+}
+
+// setDefaults set default value of fields.
 func (s *OperationV1beta) setDefaults() {
 	{
 		val := bool(false)
@@ -35,5 +99,145 @@ func (s *PoolV1beta) setDefaults() {
 	{
 		val := bool(false)
 		s.UnifiedPool.SetTo(val)
+	}
+}
+
+// setDefaults set default value of fields.
+func (s *SimpleExportPolicyRuleV1beta) setDefaults() {
+	{
+		val := string("0.0.0.0/0")
+		s.AllowedClients = val
+	}
+	{
+		val := SimpleExportPolicyRuleV1betaHasRootAccess("true")
+		s.HasRootAccess.SetTo(val)
+	}
+	{
+		val := bool(true)
+		s.Nfsv3.SetTo(val)
+	}
+	{
+		val := bool(false)
+		s.Nfsv4.SetTo(val)
+	}
+	{
+		val := bool(false)
+		s.Kerberos5ReadOnly.SetTo(val)
+	}
+	{
+		val := bool(false)
+		s.Kerberos5ReadWrite.SetTo(val)
+	}
+	{
+		val := bool(false)
+		s.Kerberos5iReadOnly.SetTo(val)
+	}
+	{
+		val := bool(false)
+		s.Kerberos5iReadWrite.SetTo(val)
+	}
+	{
+		val := bool(false)
+		s.Kerberos5pReadOnly.SetTo(val)
+	}
+	{
+		val := bool(false)
+		s.Kerberos5pReadWrite.SetTo(val)
+	}
+}
+
+// setDefaults set default value of fields.
+func (s *SnapshotPolicyV1beta) setDefaults() {
+	{
+		val := bool(false)
+		s.Enabled.SetTo(val)
+	}
+}
+
+// setDefaults set default value of fields.
+func (s *TieringPolicyV1beta) setDefaults() {
+	{
+		val := int32(31)
+		s.CoolingThresholdDays.SetTo(val)
+	}
+}
+
+// setDefaults set default value of fields.
+func (s *VolumeV1beta) setDefaults() {
+	{
+		val := VolumeV1betaServiceLevel("PREMIUM")
+		s.ServiceLevel.SetTo(val)
+	}
+	{
+		val := float64(0)
+		s.UsedBytes.SetTo(val)
+	}
+	{
+		val := float64(1000000000000)
+		s.QuotaInBytes.SetTo(val)
+	}
+	{
+		val := float64(0)
+		s.ColdTierSizeGib.SetTo(val)
+	}
+	{
+		val := float64(0)
+		s.SnapReserve.SetTo(val)
+	}
+	{
+		val := bool(true)
+		s.SnapshotDirectory.SetTo(val)
+	}
+	{
+		val := bool(false)
+		s.IsOnPremMigration.SetTo(val)
+	}
+	{
+		val := bool(false)
+		s.InReplication.SetTo(val)
+	}
+	{
+		val := StorageClassV1beta("HARDWARE")
+		s.StorageClass.SetTo(val)
+	}
+	{
+		val := bool(false)
+		s.KerberosEnabled.SetTo(val)
+	}
+	{
+		val := bool(false)
+		s.LdapEnabled.SetTo(val)
+	}
+	{
+		val := bool(false)
+		s.MultipleEndpoints.SetTo(val)
+	}
+	{
+		val := bool(false)
+		s.LargeCapacity.SetTo(val)
+	}
+	{
+		val := bool(false)
+		s.DedicatedCapacity.SetTo(val)
+	}
+}
+
+// setDefaults set default value of fields.
+func (s *WeeklyScheduleV1beta) setDefaults() {
+	{
+		val := float64(0)
+		s.SnapshotsToKeep.SetTo(val)
+	}
+	{
+		val := string("Sunday")
+		s.Day.SetTo(val)
+	}
+	{
+		val := float64(0)
+		s.Hour.SetTo(val)
+	}
+	{
+		val := float64(0)
+		s.Minute.SetTo(val)
 	}
 }

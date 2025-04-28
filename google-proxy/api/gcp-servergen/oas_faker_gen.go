@@ -26,6 +26,49 @@ func (s *AnyV1BetaAnyValue) SetFake() {
 }
 
 // SetFake set fake values.
+func (s *BackupConfigV1beta) SetFake() {
+	{
+		{
+			s.BackupPolicyId.SetFake()
+		}
+	}
+	{
+		{
+			s.BackupVaultId.SetFake()
+		}
+	}
+	{
+		{
+			s.ScheduledBackupEnabled.SetFake()
+		}
+	}
+	{
+		{
+			s.BackupChainBytes.SetFake()
+		}
+	}
+}
+
+// SetFake set fake values.
+func (s *BlockPropertiesV1beta) SetFake() {
+	{
+		{
+			s.OsType.SetFake()
+		}
+	}
+	{
+		{
+			s.HostGroupId.SetFake()
+		}
+	}
+}
+
+// SetFake set fake values.
+func (s *BlockVolumeOSTypeV1beta) SetFake() {
+	*s = BlockVolumeOSTypeV1betaOSTYPEUNSPECIFIED
+}
+
+// SetFake set fake values.
 func (s *ChildAsset) SetFake() {
 	{
 		{
@@ -47,6 +90,25 @@ func (s *ChildAsset) SetFake() {
 }
 
 // SetFake set fake values.
+func (s *DailyScheduleV1beta) SetFake() {
+	{
+		{
+			s.SnapshotsToKeep.SetFake()
+		}
+	}
+	{
+		{
+			s.Hour.SetFake()
+		}
+	}
+	{
+		{
+			s.Minute.SetFake()
+		}
+	}
+}
+
+// SetFake set fake values.
 func (s *Error) SetFake() {
 	{
 		{
@@ -58,6 +120,418 @@ func (s *Error) SetFake() {
 			s.Message = "string"
 		}
 	}
+}
+
+// SetFake set fake values.
+func (s *ExportPolicyV1beta) SetFake() {
+	{
+		{
+			s.Rules = nil
+			for i := 0; i < 0; i++ {
+				var elem SimpleExportPolicyRuleV1beta
+				{
+					elem.SetFake()
+				}
+				s.Rules = append(s.Rules, elem)
+			}
+		}
+	}
+}
+
+// SetFake set fake values.
+func (s *FlexCacheConfigV1beta) SetFake() {
+	{
+		{
+			s.PrePopulate.SetFake()
+		}
+	}
+	{
+		{
+			s.WritebackEnabled.SetFake()
+		}
+	}
+	{
+		{
+			s.AtimeScrubEnabled.SetFake()
+		}
+	}
+	{
+		{
+			s.AtimeScrubPeriod.SetFake()
+		}
+	}
+	{
+		{
+			s.CifsChangeNotifyEnabled.SetFake()
+		}
+	}
+}
+
+// SetFake set fake values.
+func (s *FlexCachePrePopulateV1beta) SetFake() {
+	{
+		{
+			s.PathList.SetFake()
+		}
+	}
+	{
+		{
+			s.ExcludePathList.SetFake()
+		}
+	}
+	{
+		{
+			s.IsRecursion.SetFake()
+		}
+	}
+}
+
+// SetFake set fake values.
+func (s *FlexCacheV1beta) SetFake() {
+	{
+		{
+			s.PeerVolumeName.SetFake()
+		}
+	}
+	{
+		{
+			s.PeerClusterName.SetFake()
+		}
+	}
+	{
+		{
+			s.PeerSvmName.SetFake()
+		}
+	}
+	{
+		{
+			s.PeerIpAddresses = nil
+			for i := 0; i < 1; i++ {
+				var elem string
+				{
+					elem = "string"
+				}
+				s.PeerIpAddresses = append(s.PeerIpAddresses, elem)
+			}
+		}
+	}
+	{
+		{
+			s.EnableGlobalFileLock.SetFake()
+		}
+	}
+	{
+		{
+			s.CacheConfig.SetFake()
+		}
+	}
+	{
+		{
+			s.CacheState.SetFake()
+		}
+	}
+	{
+		{
+			s.PeeringCommand.SetFake()
+		}
+	}
+	{
+		{
+			s.PeeringCommandExpiryTime.SetFake()
+		}
+	}
+	{
+		{
+			s.Passphrase.SetFake()
+		}
+	}
+}
+
+// SetFake set fake values.
+func (s *FlexCacheV1betaCacheState) SetFake() {
+	*s = FlexCacheV1betaCacheStateCACHESTATEUNSPECIFIED
+}
+
+// SetFake set fake values.
+func (s *HostGroupIdListV1beta) SetFake() {
+	{
+		{
+			s.HostGroupUUIDs = nil
+			for i := 0; i < 1; i++ {
+				var elem string
+				{
+					elem = "string"
+				}
+				s.HostGroupUUIDs = append(s.HostGroupUUIDs, elem)
+			}
+		}
+	}
+}
+
+// SetFake set fake values.
+func (s *HostGroupUpdateV1beta) SetFake() {
+	{
+		{
+			s.Description.SetFake()
+		}
+	}
+	{
+		{
+			s.Hosts = nil
+			for i := 0; i < 0; i++ {
+				var elem string
+				{
+					elem = "string"
+				}
+				s.Hosts = append(s.Hosts, elem)
+			}
+		}
+	}
+}
+
+// SetFake set fake values.
+func (s *HostGroupV1beta) SetFake() {
+	{
+		{
+			s.HostGroupId.SetFake()
+		}
+	}
+	{
+		{
+			s.ResourceId = "string"
+		}
+	}
+	{
+		{
+			s.Description.SetFake()
+		}
+	}
+	{
+		{
+			s.Created.SetFake()
+		}
+	}
+	{
+		{
+			s.Updated.SetFake()
+		}
+	}
+	{
+		{
+			s.Deleted.SetFake()
+		}
+	}
+	{
+		{
+			s.State.SetFake()
+		}
+	}
+	{
+		{
+			s.StateDetails.SetFake()
+		}
+	}
+	{
+		{
+			s.Type.SetFake()
+		}
+	}
+	{
+		{
+			s.Hosts = nil
+			for i := 0; i < 0; i++ {
+				var elem string
+				{
+					elem = "string"
+				}
+				s.Hosts = append(s.Hosts, elem)
+			}
+		}
+	}
+	{
+		{
+			s.OsType.SetFake()
+		}
+	}
+}
+
+// SetFake set fake values.
+func (s *HostGroupV1betaState) SetFake() {
+	*s = HostGroupV1betaStateSTATEUNSPECIFIED
+}
+
+// SetFake set fake values.
+func (s *HostGroupV1betaType) SetFake() {
+	*s = HostGroupV1betaTypeUNSPECIFIED
+}
+
+// SetFake set fake values.
+func (s *HostOSTypeV1beta) SetFake() {
+	*s = HostOSTypeV1betaOSTYPEUNSPECIFIED
+}
+
+// SetFake set fake values.
+func (s *HourlyScheduleV1beta) SetFake() {
+	{
+		{
+			s.SnapshotsToKeep.SetFake()
+		}
+	}
+	{
+		{
+			s.Minute.SetFake()
+		}
+	}
+}
+
+// SetFake set fake values.
+func (s *HybridReplicationParametersV1beta) SetFake() {
+	{
+		{
+			s.ResourceId = "string"
+		}
+	}
+	{
+		{
+			s.HybridReplicationType.SetFake()
+		}
+	}
+	{
+		{
+			s.PeerVolumeName = "string"
+		}
+	}
+	{
+		{
+			s.PeerClusterName = "string"
+		}
+	}
+	{
+		{
+			s.PeerSvmName = "string"
+		}
+	}
+	{
+		{
+			s.PeerIpAddresses = nil
+			for i := 0; i < 1; i++ {
+				var elem string
+				{
+					elem = "string"
+				}
+				s.PeerIpAddresses = append(s.PeerIpAddresses, elem)
+			}
+		}
+	}
+	{
+		{
+			s.Labels.SetFake()
+		}
+	}
+	{
+		{
+			s.Description.SetFake()
+		}
+	}
+	{
+		{
+			s.ClusterLocation.SetFake()
+		}
+	}
+	{
+		{
+			s.PeeringCommandExpiryTime.SetFake()
+		}
+	}
+	{
+		{
+			s.ReplicationSchedule.SetFake()
+		}
+	}
+	{
+		{
+			s.LargeVolumeConstituentCount.SetFake()
+		}
+	}
+}
+
+// SetFake set fake values.
+func (s *HybridReplicationParametersV1betaHybridReplicationType) SetFake() {
+	*s = HybridReplicationParametersV1betaHybridReplicationTypeMIGRATION
+}
+
+// SetFake set fake values.
+func (s *HybridReplicationParametersV1betaLabels) SetFake() {
+	var (
+		elem string
+		m    map[string]string = s.init()
+	)
+	for i := 0; i < 0; i++ {
+		m[fmt.Sprintf("fake%d", i)] = elem
+	}
+}
+
+// SetFake set fake values.
+func (s *HybridReplicationParametersV1betaReplicationSchedule) SetFake() {
+	*s = HybridReplicationParametersV1betaReplicationScheduleEVERY10MINUTES
+}
+
+// SetFake set fake values.
+func (s *MonthlyScheduleV1beta) SetFake() {
+	{
+		{
+			s.SnapshotsToKeep.SetFake()
+		}
+	}
+	{
+		{
+			s.DaysOfMonth.SetFake()
+		}
+	}
+	{
+		{
+			s.Hour.SetFake()
+		}
+	}
+	{
+		{
+			s.Minute.SetFake()
+		}
+	}
+}
+
+// SetFake set fake values.
+func (s *MountPointV1beta) SetFake() {
+	{
+		{
+			s.Export.SetFake()
+		}
+	}
+	{
+		{
+			s.ExportFull.SetFake()
+		}
+	}
+	{
+		{
+			s.IpAddress.SetFake()
+		}
+	}
+	{
+		{
+			s.Protocol.SetFake()
+		}
+	}
+	{
+		{
+			s.Instructions.SetFake()
+		}
+	}
+}
+
+// SetFake set fake values.
+func (s *NilString) SetFake() {
+	s.Null = true
 }
 
 // SetFake set fake values.
@@ -99,10 +573,46 @@ func (s *OptAnyV1Beta) SetFake() {
 }
 
 // SetFake set fake values.
+func (s *OptBackupConfigV1beta) SetFake() {
+	var elem BackupConfigV1beta
+	{
+		elem.SetFake()
+	}
+	s.SetTo(elem)
+}
+
+// SetFake set fake values.
+func (s *OptBlockPropertiesV1beta) SetFake() {
+	var elem BlockPropertiesV1beta
+	{
+		elem.SetFake()
+	}
+	s.SetTo(elem)
+}
+
+// SetFake set fake values.
+func (s *OptBlockVolumeOSTypeV1beta) SetFake() {
+	var elem BlockVolumeOSTypeV1beta
+	{
+		elem.SetFake()
+	}
+	s.SetTo(elem)
+}
+
+// SetFake set fake values.
 func (s *OptBool) SetFake() {
 	var elem bool
 	{
 		elem = true
+	}
+	s.SetTo(elem)
+}
+
+// SetFake set fake values.
+func (s *OptDailyScheduleV1beta) SetFake() {
+	var elem DailyScheduleV1beta
+	{
+		elem.SetFake()
 	}
 	s.SetTo(elem)
 }
@@ -117,10 +627,118 @@ func (s *OptDateTime) SetFake() {
 }
 
 // SetFake set fake values.
+func (s *OptExportPolicyV1beta) SetFake() {
+	var elem ExportPolicyV1beta
+	{
+		elem.SetFake()
+	}
+	s.SetTo(elem)
+}
+
+// SetFake set fake values.
+func (s *OptFlexCacheConfigV1beta) SetFake() {
+	var elem FlexCacheConfigV1beta
+	{
+		elem.SetFake()
+	}
+	s.SetTo(elem)
+}
+
+// SetFake set fake values.
+func (s *OptFlexCachePrePopulateV1beta) SetFake() {
+	var elem FlexCachePrePopulateV1beta
+	{
+		elem.SetFake()
+	}
+	s.SetTo(elem)
+}
+
+// SetFake set fake values.
+func (s *OptFlexCacheV1beta) SetFake() {
+	var elem FlexCacheV1beta
+	{
+		elem.SetFake()
+	}
+	s.SetTo(elem)
+}
+
+// SetFake set fake values.
+func (s *OptFlexCacheV1betaCacheState) SetFake() {
+	var elem FlexCacheV1betaCacheState
+	{
+		elem.SetFake()
+	}
+	s.SetTo(elem)
+}
+
+// SetFake set fake values.
 func (s *OptFloat64) SetFake() {
 	var elem float64
 	{
 		elem = float64(0)
+	}
+	s.SetTo(elem)
+}
+
+// SetFake set fake values.
+func (s *OptHostGroupV1betaState) SetFake() {
+	var elem HostGroupV1betaState
+	{
+		elem.SetFake()
+	}
+	s.SetTo(elem)
+}
+
+// SetFake set fake values.
+func (s *OptHostGroupV1betaType) SetFake() {
+	var elem HostGroupV1betaType
+	{
+		elem.SetFake()
+	}
+	s.SetTo(elem)
+}
+
+// SetFake set fake values.
+func (s *OptHourlyScheduleV1beta) SetFake() {
+	var elem HourlyScheduleV1beta
+	{
+		elem.SetFake()
+	}
+	s.SetTo(elem)
+}
+
+// SetFake set fake values.
+func (s *OptHybridReplicationParametersV1beta) SetFake() {
+	var elem HybridReplicationParametersV1beta
+	{
+		elem.SetFake()
+	}
+	s.SetTo(elem)
+}
+
+// SetFake set fake values.
+func (s *OptHybridReplicationParametersV1betaLabels) SetFake() {
+	var elem HybridReplicationParametersV1betaLabels
+	{
+		elem.SetFake()
+	}
+	s.SetTo(elem)
+}
+
+// SetFake set fake values.
+func (s *OptHybridReplicationParametersV1betaReplicationSchedule) SetFake() {
+	var elem HybridReplicationParametersV1betaReplicationSchedule
+	{
+		elem.SetFake()
+	}
+	s.SetTo(elem)
+}
+
+// SetFake set fake values.
+func (s *OptMonthlyScheduleV1beta) SetFake() {
+	var elem MonthlyScheduleV1beta
+	{
+		elem.SetFake()
 	}
 	s.SetTo(elem)
 }
@@ -150,7 +768,19 @@ func (s *OptNilFloat64) SetFake() {
 }
 
 // SetFake set fake values.
+func (s *OptNilInt16) SetFake() {
+	s.Null = true
+	s.Set = true
+}
+
+// SetFake set fake values.
 func (s *OptNilInt32) SetFake() {
+	s.Null = true
+	s.Set = true
+}
+
+// SetFake set fake values.
+func (s *OptNilInt64) SetFake() {
 	s.Null = true
 	s.Set = true
 }
@@ -174,7 +804,25 @@ func (s *OptNilPoolV1betaQosType) SetFake() {
 }
 
 // SetFake set fake values.
+func (s *OptNilSimpleExportPolicyRuleV1betaHasRootAccess) SetFake() {
+	s.Null = true
+	s.Set = true
+}
+
+// SetFake set fake values.
 func (s *OptNilString) SetFake() {
+	s.Null = true
+	s.Set = true
+}
+
+// SetFake set fake values.
+func (s *OptNilStringArray) SetFake() {
+	s.Null = true
+	s.Set = true
+}
+
+// SetFake set fake values.
+func (s *OptNilTieringPolicyV1betaTierAction) SetFake() {
 	s.Null = true
 	s.Set = true
 }
@@ -216,6 +864,24 @@ func (s *OptPoolV1betaStoragePoolState) SetFake() {
 }
 
 // SetFake set fake values.
+func (s *OptProtocolsV1beta) SetFake() {
+	var elem ProtocolsV1beta
+	{
+		elem.SetFake()
+	}
+	s.SetTo(elem)
+}
+
+// SetFake set fake values.
+func (s *OptSnapshotPolicyV1beta) SetFake() {
+	var elem SnapshotPolicyV1beta
+	{
+		elem.SetFake()
+	}
+	s.SetTo(elem)
+}
+
+// SetFake set fake values.
 func (s *OptStatusV1Beta) SetFake() {
 	var elem StatusV1Beta
 	{
@@ -238,6 +904,96 @@ func (s *OptString) SetFake() {
 	var elem string
 	{
 		elem = "string"
+	}
+	s.SetTo(elem)
+}
+
+// SetFake set fake values.
+func (s *OptTieringPolicyV1beta) SetFake() {
+	var elem TieringPolicyV1beta
+	{
+		elem.SetFake()
+	}
+	s.SetTo(elem)
+}
+
+// SetFake set fake values.
+func (s *OptV1betaDeleteVolumeReq) SetFake() {
+	var elem V1betaDeleteVolumeReq
+	{
+		elem.SetFake()
+	}
+	s.SetTo(elem)
+}
+
+// SetFake set fake values.
+func (s *OptVolumeCreateV1betaVolumeType) SetFake() {
+	var elem VolumeCreateV1betaVolumeType
+	{
+		elem.SetFake()
+	}
+	s.SetTo(elem)
+}
+
+// SetFake set fake values.
+func (s *OptVolumeUpdateV1betaLabels) SetFake() {
+	var elem VolumeUpdateV1betaLabels
+	{
+		elem.SetFake()
+	}
+	s.SetTo(elem)
+}
+
+// SetFake set fake values.
+func (s *OptVolumeV1betaEncryptionType) SetFake() {
+	var elem VolumeV1betaEncryptionType
+	{
+		elem.SetFake()
+	}
+	s.SetTo(elem)
+}
+
+// SetFake set fake values.
+func (s *OptVolumeV1betaLabels) SetFake() {
+	var elem VolumeV1betaLabels
+	{
+		elem.SetFake()
+	}
+	s.SetTo(elem)
+}
+
+// SetFake set fake values.
+func (s *OptVolumeV1betaSecurityStyle) SetFake() {
+	var elem VolumeV1betaSecurityStyle
+	{
+		elem.SetFake()
+	}
+	s.SetTo(elem)
+}
+
+// SetFake set fake values.
+func (s *OptVolumeV1betaServiceLevel) SetFake() {
+	var elem VolumeV1betaServiceLevel
+	{
+		elem.SetFake()
+	}
+	s.SetTo(elem)
+}
+
+// SetFake set fake values.
+func (s *OptVolumeV1betaVolumeState) SetFake() {
+	var elem VolumeV1betaVolumeState
+	{
+		elem.SetFake()
+	}
+	s.SetTo(elem)
+}
+
+// SetFake set fake values.
+func (s *OptWeeklyScheduleV1beta) SetFake() {
+	var elem WeeklyScheduleV1beta
+	{
+		elem.SetFake()
 	}
 	s.SetTo(elem)
 }
@@ -578,6 +1334,151 @@ func (s *PoolV1betaStoragePoolState) SetFake() {
 }
 
 // SetFake set fake values.
+func (s *ProtocolsV1beta) SetFake() {
+	*s = ProtocolsV1betaPROTOCOLUNSPECIFIED
+}
+
+// SetFake set fake values.
+func (s *RestrictedActionsV1beta) SetFake() {
+	var unwrapped []RestrictedActionsV1betaItem
+	{
+		unwrapped = nil
+		for i := 0; i < 0; i++ {
+			var elem RestrictedActionsV1betaItem
+			{
+				elem.SetFake()
+			}
+			unwrapped = append(unwrapped, elem)
+		}
+	}
+	*s = RestrictedActionsV1beta(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *RestrictedActionsV1betaItem) SetFake() {
+	*s = RestrictedActionsV1betaItemDELETE
+}
+
+// SetFake set fake values.
+func (s *SMBSettingsV1beta) SetFake() {
+	var unwrapped []SMBSettingsV1betaItem
+	{
+		unwrapped = nil
+		for i := 0; i < 0; i++ {
+			var elem SMBSettingsV1betaItem
+			{
+				elem.SetFake()
+			}
+			unwrapped = append(unwrapped, elem)
+		}
+	}
+	*s = SMBSettingsV1beta(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *SMBSettingsV1betaItem) SetFake() {
+	*s = SMBSettingsV1betaItemSMBSETTINGSUNSPECIFIED
+}
+
+// SetFake set fake values.
+func (s *SimpleExportPolicyRuleV1beta) SetFake() {
+	{
+		{
+			s.AllowedClients = "string"
+		}
+	}
+	{
+		{
+			s.HasRootAccess.SetFake()
+		}
+	}
+	{
+		{
+			s.AccessType.SetFake()
+		}
+	}
+	{
+		{
+			s.Nfsv3.SetFake()
+		}
+	}
+	{
+		{
+			s.Nfsv4.SetFake()
+		}
+	}
+	{
+		{
+			s.Kerberos5ReadOnly.SetFake()
+		}
+	}
+	{
+		{
+			s.Kerberos5ReadWrite.SetFake()
+		}
+	}
+	{
+		{
+			s.Kerberos5iReadOnly.SetFake()
+		}
+	}
+	{
+		{
+			s.Kerberos5iReadWrite.SetFake()
+		}
+	}
+	{
+		{
+			s.Kerberos5pReadOnly.SetFake()
+		}
+	}
+	{
+		{
+			s.Kerberos5pReadWrite.SetFake()
+		}
+	}
+}
+
+// SetFake set fake values.
+func (s *SimpleExportPolicyRuleV1betaAccessType) SetFake() {
+	*s = SimpleExportPolicyRuleV1betaAccessTypeACCESSTYPEUNSPECIFIED
+}
+
+// SetFake set fake values.
+func (s *SimpleExportPolicyRuleV1betaHasRootAccess) SetFake() {
+	*s = SimpleExportPolicyRuleV1betaHasRootAccessTrue
+}
+
+// SetFake set fake values.
+func (s *SnapshotPolicyV1beta) SetFake() {
+	{
+		{
+			s.Enabled.SetFake()
+		}
+	}
+	{
+		{
+			s.HourlySchedule.SetFake()
+		}
+	}
+	{
+		{
+			s.DailySchedule.SetFake()
+		}
+	}
+	{
+		{
+			s.WeeklySchedule.SetFake()
+		}
+	}
+	{
+		{
+			s.MonthlySchedule.SetFake()
+		}
+	}
+}
+
+// SetFake set fake values.
 func (s *StatusV1Beta) SetFake() {
 	{
 		{
@@ -606,6 +1507,111 @@ func (s *StatusV1Beta) SetFake() {
 // SetFake set fake values.
 func (s *StorageClassV1beta) SetFake() {
 	*s = StorageClassV1betaSTORAGECLASSUNSPECIFIED
+}
+
+// SetFake set fake values.
+func (s *TieringPolicyV1beta) SetFake() {
+	{
+		{
+			s.TierAction.SetFake()
+		}
+	}
+	{
+		{
+			s.CoolingThresholdDays.SetFake()
+		}
+	}
+	{
+		{
+			s.HotTierBypassModeEnabled.SetFake()
+		}
+	}
+}
+
+// SetFake set fake values.
+func (s *TieringPolicyV1betaTierAction) SetFake() {
+	*s = TieringPolicyV1betaTierActionENABLED
+}
+
+// SetFake set fake values.
+func (s *V1betaCreateHostGroupAccepted) SetFake() {
+	var unwrapped OperationV1beta
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaCreateHostGroupAccepted(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaCreateHostGroupBadRequest) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaCreateHostGroupBadRequest(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaCreateHostGroupConflict) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaCreateHostGroupConflict(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaCreateHostGroupForbidden) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaCreateHostGroupForbidden(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaCreateHostGroupInternalServerError) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaCreateHostGroupInternalServerError(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaCreateHostGroupOK) SetFake() {
+	var unwrapped OperationV1beta
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaCreateHostGroupOK(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaCreateHostGroupTooManyRequests) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaCreateHostGroupTooManyRequests(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaCreateHostGroupUnauthorized) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaCreateHostGroupUnauthorized(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaCreateHostGroupUnprocessableEntity) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaCreateHostGroupUnprocessableEntity(unwrapped)
 }
 
 // SetFake set fake values.
@@ -672,6 +1678,141 @@ func (s *V1betaCreatePoolUnprocessableEntity) SetFake() {
 }
 
 // SetFake set fake values.
+func (s *V1betaCreateVolumeBadRequest) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaCreateVolumeBadRequest(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaCreateVolumeConflict) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaCreateVolumeConflict(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaCreateVolumeForbidden) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaCreateVolumeForbidden(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaCreateVolumeInternalServerError) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaCreateVolumeInternalServerError(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaCreateVolumeNotImplemented) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaCreateVolumeNotImplemented(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaCreateVolumeServiceUnavailable) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaCreateVolumeServiceUnavailable(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaCreateVolumeTooManyRequests) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaCreateVolumeTooManyRequests(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaCreateVolumeUnauthorized) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaCreateVolumeUnauthorized(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaCreateVolumeUnprocessableEntity) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaCreateVolumeUnprocessableEntity(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaDeleteHostGroupBadRequest) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaDeleteHostGroupBadRequest(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaDeleteHostGroupForbidden) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaDeleteHostGroupForbidden(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaDeleteHostGroupInternalServerError) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaDeleteHostGroupInternalServerError(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaDeleteHostGroupNotFound) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaDeleteHostGroupNotFound(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaDeleteHostGroupTooManyRequests) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaDeleteHostGroupTooManyRequests(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaDeleteHostGroupUnauthorized) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaDeleteHostGroupUnauthorized(unwrapped)
+}
+
+// SetFake set fake values.
 func (s *V1betaDeletePoolBadRequest) SetFake() {
 	var unwrapped Error
 	{
@@ -735,6 +1876,132 @@ func (s *V1betaDeletePoolUnprocessableEntity) SetFake() {
 }
 
 // SetFake set fake values.
+func (s *V1betaDeleteVolumeBadRequest) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaDeleteVolumeBadRequest(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaDeleteVolumeConflict) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaDeleteVolumeConflict(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaDeleteVolumeForbidden) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaDeleteVolumeForbidden(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaDeleteVolumeInternalServerError) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaDeleteVolumeInternalServerError(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaDeleteVolumeReq) SetFake() {
+	{
+		{
+			s.DeleteAssociatedBackups.SetFake()
+		}
+	}
+}
+
+// SetFake set fake values.
+func (s *V1betaDeleteVolumeTooManyRequests) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaDeleteVolumeTooManyRequests(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaDeleteVolumeUnauthorized) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaDeleteVolumeUnauthorized(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaDeleteVolumeUnprocessableEntity) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaDeleteVolumeUnprocessableEntity(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaDescribeHostGroupBadRequest) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaDescribeHostGroupBadRequest(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaDescribeHostGroupForbidden) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaDescribeHostGroupForbidden(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaDescribeHostGroupInternalServerError) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaDescribeHostGroupInternalServerError(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaDescribeHostGroupNotFound) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaDescribeHostGroupNotFound(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaDescribeHostGroupTooManyRequests) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaDescribeHostGroupTooManyRequests(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaDescribeHostGroupUnauthorized) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaDescribeHostGroupUnauthorized(unwrapped)
+}
+
+// SetFake set fake values.
 func (s *V1betaDescribePoolBadRequest) SetFake() {
 	var unwrapped Error
 	{
@@ -795,6 +2062,139 @@ func (s *V1betaDescribePoolUnprocessableEntity) SetFake() {
 		unwrapped.SetFake()
 	}
 	*s = V1betaDescribePoolUnprocessableEntity(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaDescribeVolumeBadRequest) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaDescribeVolumeBadRequest(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaDescribeVolumeForbidden) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaDescribeVolumeForbidden(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaDescribeVolumeInternalServerError) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaDescribeVolumeInternalServerError(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaDescribeVolumeNotFound) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaDescribeVolumeNotFound(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaDescribeVolumeTooManyRequests) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaDescribeVolumeTooManyRequests(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaDescribeVolumeUnauthorized) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaDescribeVolumeUnauthorized(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaGetMultipleHostGroupsBadRequest) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaGetMultipleHostGroupsBadRequest(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaGetMultipleHostGroupsForbidden) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaGetMultipleHostGroupsForbidden(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaGetMultipleHostGroupsInternalServerError) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaGetMultipleHostGroupsInternalServerError(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaGetMultipleHostGroupsNotFound) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaGetMultipleHostGroupsNotFound(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaGetMultipleHostGroupsOK) SetFake() {
+	{
+		{
+			s.HostGroups = nil
+			for i := 0; i < 0; i++ {
+				var elem HostGroupV1beta
+				{
+					elem.SetFake()
+				}
+				s.HostGroups = append(s.HostGroups, elem)
+			}
+		}
+	}
+}
+
+// SetFake set fake values.
+func (s *V1betaGetMultipleHostGroupsTooManyRequests) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaGetMultipleHostGroupsTooManyRequests(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaGetMultipleHostGroupsUnauthorized) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaGetMultipleHostGroupsUnauthorized(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaGetMultipleHostGroupsUnprocessableEntity) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaGetMultipleHostGroupsUnprocessableEntity(unwrapped)
 }
 
 // SetFake set fake values.
@@ -877,6 +2277,146 @@ func (s *V1betaGetMultiplePoolsUnprocessableEntity) SetFake() {
 }
 
 // SetFake set fake values.
+func (s *V1betaGetMultipleVolumesBadRequest) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaGetMultipleVolumesBadRequest(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaGetMultipleVolumesForbidden) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaGetMultipleVolumesForbidden(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaGetMultipleVolumesInternalServerError) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaGetMultipleVolumesInternalServerError(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaGetMultipleVolumesNotFound) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaGetMultipleVolumesNotFound(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaGetMultipleVolumesOK) SetFake() {
+	{
+		{
+			s.Volumes = nil
+			for i := 0; i < 0; i++ {
+				var elem VolumeV1beta
+				{
+					elem.SetFake()
+				}
+				s.Volumes = append(s.Volumes, elem)
+			}
+		}
+	}
+}
+
+// SetFake set fake values.
+func (s *V1betaGetMultipleVolumesTooManyRequests) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaGetMultipleVolumesTooManyRequests(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaGetMultipleVolumesUnauthorized) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaGetMultipleVolumesUnauthorized(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaGetMultipleVolumesUnprocessableEntity) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaGetMultipleVolumesUnprocessableEntity(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaListHostGroupsBadRequest) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaListHostGroupsBadRequest(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaListHostGroupsForbidden) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaListHostGroupsForbidden(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaListHostGroupsInternalServerError) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaListHostGroupsInternalServerError(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaListHostGroupsOK) SetFake() {
+	{
+		{
+			s.HostGroups = nil
+			for i := 0; i < 0; i++ {
+				var elem HostGroupV1beta
+				{
+					elem.SetFake()
+				}
+				s.HostGroups = append(s.HostGroups, elem)
+			}
+		}
+	}
+}
+
+// SetFake set fake values.
+func (s *V1betaListHostGroupsTooManyRequests) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaListHostGroupsTooManyRequests(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaListHostGroupsUnauthorized) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaListHostGroupsUnauthorized(unwrapped)
+}
+
+// SetFake set fake values.
 func (s *V1betaListPoolsBadRequest) SetFake() {
 	var unwrapped Error
 	{
@@ -944,6 +2484,148 @@ func (s *V1betaListPoolsUnauthorized) SetFake() {
 		unwrapped.SetFake()
 	}
 	*s = V1betaListPoolsUnauthorized(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaListVolumesBadRequest) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaListVolumesBadRequest(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaListVolumesForbidden) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaListVolumesForbidden(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaListVolumesInternalServerError) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaListVolumesInternalServerError(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaListVolumesNotFound) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaListVolumesNotFound(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaListVolumesOK) SetFake() {
+	{
+		{
+			s.Volumes = nil
+			for i := 0; i < 0; i++ {
+				var elem VolumeV1beta
+				{
+					elem.SetFake()
+				}
+				s.Volumes = append(s.Volumes, elem)
+			}
+		}
+	}
+}
+
+// SetFake set fake values.
+func (s *V1betaListVolumesTooManyRequests) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaListVolumesTooManyRequests(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaListVolumesUnauthorized) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaListVolumesUnauthorized(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaUpdateHostGroupBadRequest) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaUpdateHostGroupBadRequest(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaUpdateHostGroupConflict) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaUpdateHostGroupConflict(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaUpdateHostGroupForbidden) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaUpdateHostGroupForbidden(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaUpdateHostGroupInternalServerError) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaUpdateHostGroupInternalServerError(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaUpdateHostGroupNotFound) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaUpdateHostGroupNotFound(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaUpdateHostGroupTooManyRequests) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaUpdateHostGroupTooManyRequests(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaUpdateHostGroupUnauthorized) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaUpdateHostGroupUnauthorized(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaUpdateHostGroupUnprocessableEntity) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaUpdateHostGroupUnprocessableEntity(unwrapped)
 }
 
 // SetFake set fake values.
@@ -1016,4 +2698,536 @@ func (s *V1betaUpdatePoolUnprocessableEntity) SetFake() {
 		unwrapped.SetFake()
 	}
 	*s = V1betaUpdatePoolUnprocessableEntity(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaUpdateVolumeBadRequest) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaUpdateVolumeBadRequest(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaUpdateVolumeConflict) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaUpdateVolumeConflict(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaUpdateVolumeForbidden) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaUpdateVolumeForbidden(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaUpdateVolumeInternalServerError) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaUpdateVolumeInternalServerError(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaUpdateVolumeNotFound) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaUpdateVolumeNotFound(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaUpdateVolumeTooManyRequests) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaUpdateVolumeTooManyRequests(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaUpdateVolumeUnauthorized) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaUpdateVolumeUnauthorized(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaUpdateVolumeUnprocessableEntity) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaUpdateVolumeUnprocessableEntity(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *VolumeCreateV1beta) SetFake() {
+	{
+		{
+			s.Volume.SetFake()
+		}
+	}
+	{
+		{
+			s.SnapshotId.SetFake()
+		}
+	}
+	{
+		{
+			s.BackupId.SetFake()
+		}
+	}
+	{
+		{
+			s.BackupPath.SetFake()
+		}
+	}
+	{
+		{
+			s.VolumeType.SetFake()
+		}
+	}
+	{
+		{
+			s.HybridReplicationParameters.SetFake()
+		}
+	}
+}
+
+// SetFake set fake values.
+func (s *VolumeCreateV1betaVolumeType) SetFake() {
+	*s = VolumeCreateV1betaVolumeTypePRIMARY
+}
+
+// SetFake set fake values.
+func (s *VolumeIDListV1beta) SetFake() {
+	{
+		{
+			s.VolumeUUIDs = nil
+			for i := 0; i < 1; i++ {
+				var elem string
+				{
+					elem = "string"
+				}
+				s.VolumeUUIDs = append(s.VolumeUUIDs, elem)
+			}
+		}
+	}
+}
+
+// SetFake set fake values.
+func (s *VolumeUpdateV1beta) SetFake() {
+	{
+		{
+			s.QuotaInBytes.SetFake()
+		}
+	}
+	{
+		{
+			s.SnapReserve.SetFake()
+		}
+	}
+	{
+		{
+			s.SnapshotDirectory.SetFake()
+		}
+	}
+	{
+		{
+			s.SnapshotPolicy.SetFake()
+		}
+	}
+	{
+		{
+			s.ExportPolicy.SetFake()
+		}
+	}
+	{
+		{
+			s.BackupConfig.SetFake()
+		}
+	}
+	{
+		{
+			s.TieringPolicy.SetFake()
+		}
+	}
+	{
+		{
+			s.BlockPropertiesV1beta.SetFake()
+		}
+	}
+	{
+		{
+			s.Protocols = nil
+			for i := 0; i < 0; i++ {
+				var elem ProtocolsV1beta
+				{
+					elem.SetFake()
+				}
+				s.Protocols = append(s.Protocols, elem)
+			}
+		}
+	}
+	{
+		{
+			s.RestrictedActions.SetFake()
+		}
+	}
+	{
+		{
+			s.SmbSettings.SetFake()
+		}
+	}
+	{
+		{
+			s.UnixPermissions.SetFake()
+		}
+	}
+	{
+		{
+			s.Labels.SetFake()
+		}
+	}
+	{
+		{
+			s.PoolId.SetFake()
+		}
+	}
+	{
+		{
+			s.Description.SetFake()
+		}
+	}
+}
+
+// SetFake set fake values.
+func (s *VolumeUpdateV1betaLabels) SetFake() {
+	var (
+		elem string
+		m    map[string]string = s.init()
+	)
+	for i := 0; i < 0; i++ {
+		m[fmt.Sprintf("fake%d", i)] = elem
+	}
+}
+
+// SetFake set fake values.
+func (s *VolumeV1beta) SetFake() {
+	{
+		{
+			s.ResourceId = "string"
+		}
+	}
+	{
+		{
+			s.VolumeId.SetFake()
+		}
+	}
+	{
+		{
+			s.Created.SetFake()
+		}
+	}
+	{
+		{
+			s.Deleted.SetFake()
+		}
+	}
+	{
+		{
+			s.CreationToken = "string"
+		}
+	}
+	{
+		{
+			s.PoolId.SetFake()
+		}
+	}
+	{
+		{
+			s.PoolResourceId.SetFake()
+		}
+	}
+	{
+		{
+			s.KmsConfigId.SetFake()
+		}
+	}
+	{
+		{
+			s.KmsConfigResourceId.SetFake()
+		}
+	}
+	{
+		{
+			s.Network.SetFake()
+		}
+	}
+	{
+		{
+			s.ActiveDirectoryConfigId.SetFake()
+		}
+	}
+	{
+		{
+			s.ActiveDirectoryResourceId.SetFake()
+		}
+	}
+	{
+		{
+			s.ServiceLevel.SetFake()
+		}
+	}
+	{
+		{
+			s.SecurityStyle.SetFake()
+		}
+	}
+	{
+		{
+			s.UsedBytes.SetFake()
+		}
+	}
+	{
+		{
+			s.QuotaInBytes.SetFake()
+		}
+	}
+	{
+		{
+			s.ColdTierSizeGib.SetFake()
+		}
+	}
+	{
+		{
+			s.SnapReserve.SetFake()
+		}
+	}
+	{
+		{
+			s.SnapshotDirectory.SetFake()
+		}
+	}
+	{
+		{
+			s.VolumeState.SetFake()
+		}
+	}
+	{
+		{
+			s.VolumeStateDetails.SetFake()
+		}
+	}
+	{
+		{
+			s.IsDataProtection.SetFake()
+		}
+	}
+	{
+		{
+			s.IsOnPremMigration.SetFake()
+		}
+	}
+	{
+		{
+			s.InReplication.SetFake()
+		}
+	}
+	{
+		{
+			s.SnapshotPolicy.SetFake()
+		}
+	}
+	{
+		{
+			s.StorageClass.SetFake()
+		}
+	}
+	{
+		{
+			s.ExportPolicy.SetFake()
+		}
+	}
+	{
+		{
+			s.BackupConfig.SetFake()
+		}
+	}
+	{
+		{
+			s.TieringPolicy.SetFake()
+		}
+	}
+	{
+		{
+			s.BlockProperties.SetFake()
+		}
+	}
+	{
+		{
+			s.Protocols = nil
+			for i := 0; i < 0; i++ {
+				var elem ProtocolsV1beta
+				{
+					elem.SetFake()
+				}
+				s.Protocols = append(s.Protocols, elem)
+			}
+		}
+	}
+	{
+		{
+			s.RestrictedActions.SetFake()
+		}
+	}
+	{
+		{
+			s.SmbSettings.SetFake()
+		}
+	}
+	{
+		{
+			s.MountPoints = nil
+			for i := 0; i < 0; i++ {
+				var elem MountPointV1beta
+				{
+					elem.SetFake()
+				}
+				s.MountPoints = append(s.MountPoints, elem)
+			}
+		}
+	}
+	{
+		{
+			s.Labels.SetFake()
+		}
+	}
+	{
+		{
+			s.KerberosEnabled.SetFake()
+		}
+	}
+	{
+		{
+			s.LdapEnabled.SetFake()
+		}
+	}
+	{
+		{
+			s.UnixPermissions.SetFake()
+		}
+	}
+	{
+		{
+			s.EncryptionType.SetFake()
+		}
+	}
+	{
+		{
+			s.Description.SetFake()
+		}
+	}
+	{
+		{
+			s.Zone.SetFake()
+		}
+	}
+	{
+		{
+			s.MultipleEndpoints.SetFake()
+		}
+	}
+	{
+		{
+			s.LargeCapacity.SetFake()
+		}
+	}
+	{
+		{
+			s.SecondaryZone.SetFake()
+		}
+	}
+	{
+		{
+			s.DedicatedCapacity.SetFake()
+		}
+	}
+	{
+		{
+			s.LargeVolumeConstituentCount.SetFake()
+		}
+	}
+	{
+		{
+			s.CacheParameters.SetFake()
+		}
+	}
+}
+
+// SetFake set fake values.
+func (s *VolumeV1betaEncryptionType) SetFake() {
+	*s = VolumeV1betaEncryptionTypeENCRYPTIONTYPEUNSPECIFIED
+}
+
+// SetFake set fake values.
+func (s *VolumeV1betaLabels) SetFake() {
+	var (
+		elem string
+		m    map[string]string = s.init()
+	)
+	for i := 0; i < 0; i++ {
+		m[fmt.Sprintf("fake%d", i)] = elem
+	}
+}
+
+// SetFake set fake values.
+func (s *VolumeV1betaSecurityStyle) SetFake() {
+	*s = VolumeV1betaSecurityStyleSECURITYSTYLEUNSPECIFIED
+}
+
+// SetFake set fake values.
+func (s *VolumeV1betaServiceLevel) SetFake() {
+	*s = VolumeV1betaServiceLevelSERVICELEVELUNSPECIFIED
+}
+
+// SetFake set fake values.
+func (s *VolumeV1betaVolumeState) SetFake() {
+	*s = VolumeV1betaVolumeStateSTATEUNSPECIFIED
+}
+
+// SetFake set fake values.
+func (s *WeeklyScheduleV1beta) SetFake() {
+	{
+		{
+			s.SnapshotsToKeep.SetFake()
+		}
+	}
+	{
+		{
+			s.Day.SetFake()
+		}
+	}
+	{
+		{
+			s.Hour.SetFake()
+		}
+	}
+	{
+		{
+			s.Minute.SetFake()
+		}
+	}
 }

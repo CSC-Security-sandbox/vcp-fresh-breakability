@@ -6,10 +6,22 @@ package gcpserver
 type OperationName = string
 
 const (
-	V1betaCreatePoolOperation       OperationName = "V1betaCreatePool"
-	V1betaDeletePoolOperation       OperationName = "V1betaDeletePool"
-	V1betaDescribePoolOperation     OperationName = "V1betaDescribePool"
-	V1betaGetMultiplePoolsOperation OperationName = "V1betaGetMultiplePools"
-	V1betaListPoolsOperation        OperationName = "V1betaListPools"
-	V1betaUpdatePoolOperation       OperationName = "V1betaUpdatePool"
+	V1betaCreateHostGroupOperation       OperationName = "V1betaCreateHostGroup"
+	V1betaCreatePoolOperation            OperationName = "V1betaCreatePool"
+	V1betaCreateVolumeOperation          OperationName = "V1betaCreateVolume"
+	V1betaDeleteHostGroupOperation       OperationName = "V1betaDeleteHostGroup"
+	V1betaDeletePoolOperation            OperationName = "V1betaDeletePool"
+	V1betaDeleteVolumeOperation          OperationName = "V1betaDeleteVolume"
+	V1betaDescribeHostGroupOperation     OperationName = "V1betaDescribeHostGroup"
+	V1betaDescribePoolOperation          OperationName = "V1betaDescribePool"
+	V1betaDescribeVolumeOperation        OperationName = "V1betaDescribeVolume"
+	V1betaGetMultipleHostGroupsOperation OperationName = "V1betaGetMultipleHostGroups"
+	V1betaGetMultiplePoolsOperation      OperationName = "V1betaGetMultiplePools"
+	V1betaGetMultipleVolumesOperation    OperationName = "V1betaGetMultipleVolumes"
+	V1betaListHostGroupsOperation        OperationName = "V1betaListHostGroups"
+	V1betaListPoolsOperation             OperationName = "V1betaListPools"
+	V1betaListVolumesOperation           OperationName = "V1betaListVolumes"
+	V1betaUpdateHostGroupOperation       OperationName = "V1betaUpdateHostGroup"
+	V1betaUpdatePoolOperation            OperationName = "V1betaUpdatePool"
+	V1betaUpdateVolumeOperation          OperationName = "V1betaUpdateVolume"
 )

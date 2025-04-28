@@ -13,12 +13,40 @@ type UnimplementedHandler struct{}
 
 var _ Handler = UnimplementedHandler{}
 
+// V1betaCreateHostGroup implements v1beta_createHostGroup operation.
+//
+// Create a new HostGroup.
+//
+// POST /v1beta/projects/{projectNumber}/locations/{locationId}/hostGroups
+func (UnimplementedHandler) V1betaCreateHostGroup(ctx context.Context, req *HostGroupV1beta, params V1betaCreateHostGroupParams) (r V1betaCreateHostGroupRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
 // V1betaCreatePool implements v1beta_createPool operation.
 //
 // Create a new pool.
 //
 // POST /v1beta/projects/{projectNumber}/locations/{locationId}/pools
 func (UnimplementedHandler) V1betaCreatePool(ctx context.Context, req *PoolV1beta, params V1betaCreatePoolParams) (r V1betaCreatePoolRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// V1betaCreateVolume implements v1beta_createVolume operation.
+//
+// Create a new empty volume or a volume from a backup/snapshot if backup-ID/snapshot-ID is in the
+// body parameters.
+//
+// POST /v1beta/projects/{projectNumber}/locations/{locationId}/volumes
+func (UnimplementedHandler) V1betaCreateVolume(ctx context.Context, req *VolumeCreateV1beta, params V1betaCreateVolumeParams) (r V1betaCreateVolumeRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// V1betaDeleteHostGroup implements v1beta_deleteHostGroup operation.
+//
+// Warning! This operation will permanently delete the HostGroup.
+//
+// DELETE /v1beta/projects/{projectNumber}/locations/{locationId}/hostGroups/{hostGroupId}
+func (UnimplementedHandler) V1betaDeleteHostGroup(ctx context.Context, params V1betaDeleteHostGroupParams) (r V1betaDeleteHostGroupRes, _ error) {
 	return r, ht.ErrNotImplemented
 }
 
@@ -33,12 +61,50 @@ func (UnimplementedHandler) V1betaDeletePool(ctx context.Context, params V1betaD
 	return r, ht.ErrNotImplemented
 }
 
+// V1betaDeleteVolume implements v1beta_deleteVolume operation.
+//
+// Warning! This operation will permanently delete the volume. This operation will never return
+// resource not found, since that could be interpreted as resource already deleted, and therefore
+// will return operation done instead.
+//
+// DELETE /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}
+func (UnimplementedHandler) V1betaDeleteVolume(ctx context.Context, req OptV1betaDeleteVolumeReq, params V1betaDeleteVolumeParams) (r V1betaDeleteVolumeRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// V1betaDescribeHostGroup implements v1beta_describeHostGroup operation.
+//
+// Returns the description of the specified HostGroup by hostGroupId.
+//
+// GET /v1beta/projects/{projectNumber}/locations/{locationId}/hostGroups/{hostGroupId}
+func (UnimplementedHandler) V1betaDescribeHostGroup(ctx context.Context, params V1betaDescribeHostGroupParams) (r V1betaDescribeHostGroupRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
 // V1betaDescribePool implements v1beta_describePool operation.
 //
 // Returns the description of the specified pool by pool ID.
 //
 // GET /v1beta/projects/{projectNumber}/locations/{locationId}/pools/{poolId}
 func (UnimplementedHandler) V1betaDescribePool(ctx context.Context, params V1betaDescribePoolParams) (r V1betaDescribePoolRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// V1betaDescribeVolume implements v1beta_describeVolume operation.
+//
+// Returns the description of the specified volume by volume ID.
+//
+// GET /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}
+func (UnimplementedHandler) V1betaDescribeVolume(ctx context.Context, params V1betaDescribeVolumeParams) (r V1betaDescribeVolumeRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// V1betaGetMultipleHostGroups implements v1beta_getMultipleHostGroups operation.
+//
+// Returns descriptions of HostGroups that are listed in request body.
+//
+// POST /v1beta/projects/{projectNumber}/locations/{locationId}/hostGroups/getMultipleHostGroups
+func (UnimplementedHandler) V1betaGetMultipleHostGroups(ctx context.Context, req *HostGroupIdListV1beta, params V1betaGetMultipleHostGroupsParams) (r V1betaGetMultipleHostGroupsRes, _ error) {
 	return r, ht.ErrNotImplemented
 }
 
@@ -51,6 +117,24 @@ func (UnimplementedHandler) V1betaGetMultiplePools(ctx context.Context, req *Poo
 	return r, ht.ErrNotImplemented
 }
 
+// V1betaGetMultipleVolumes implements v1beta_getMultipleVolumes operation.
+//
+// Returns descriptions of volumes that is listed in request body.
+//
+// POST /v1beta/projects/{projectNumber}/locations/{locationId}/getMultipleVolumes
+func (UnimplementedHandler) V1betaGetMultipleVolumes(ctx context.Context, req *VolumeIDListV1beta, params V1betaGetMultipleVolumesParams) (r V1betaGetMultipleVolumesRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// V1betaListHostGroups implements v1beta_listHostGroups operation.
+//
+// Returns descriptions of all HostGroups owned by the caller.
+//
+// GET /v1beta/projects/{projectNumber}/locations/{locationId}/hostGroups
+func (UnimplementedHandler) V1betaListHostGroups(ctx context.Context, params V1betaListHostGroupsParams) (r V1betaListHostGroupsRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
 // V1betaListPools implements v1beta_listPools operation.
 //
 // Returns descriptions of all pools owned by the caller.
@@ -60,12 +144,39 @@ func (UnimplementedHandler) V1betaListPools(ctx context.Context, params V1betaLi
 	return r, ht.ErrNotImplemented
 }
 
+// V1betaListVolumes implements v1beta_listVolumes operation.
+//
+// Returns descriptions of all volumes owned by the caller.
+//
+// GET /v1beta/projects/{projectNumber}/locations/{locationId}/volumes
+func (UnimplementedHandler) V1betaListVolumes(ctx context.Context, params V1betaListVolumesParams) (r V1betaListVolumesRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// V1betaUpdateHostGroup implements v1beta_updateHostGroup operation.
+//
+// Update the specified HostGroup.
+//
+// PUT /v1beta/projects/{projectNumber}/locations/{locationId}/hostGroups/{hostGroupId}
+func (UnimplementedHandler) V1betaUpdateHostGroup(ctx context.Context, req *HostGroupUpdateV1beta, params V1betaUpdateHostGroupParams) (r V1betaUpdateHostGroupRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
 // V1betaUpdatePool implements v1beta_updatePool operation.
 //
 // Update the pool.
 //
 // PUT /v1beta/projects/{projectNumber}/locations/{locationId}/pools/{poolId}
 func (UnimplementedHandler) V1betaUpdatePool(ctx context.Context, req *PoolUpdateV1beta, params V1betaUpdatePoolParams) (r V1betaUpdatePoolRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// V1betaUpdateVolume implements v1beta_updateVolume operation.
+//
+// Update the volume.
+//
+// PUT /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}
+func (UnimplementedHandler) V1betaUpdateVolume(ctx context.Context, req *VolumeUpdateV1beta, params V1betaUpdateVolumeParams) (r V1betaUpdateVolumeRes, _ error) {
 	return r, ht.ErrNotImplemented
 }
 

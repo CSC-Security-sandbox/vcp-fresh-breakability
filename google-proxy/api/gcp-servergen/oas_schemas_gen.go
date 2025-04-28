@@ -43,6 +43,144 @@ func (s *AnyV1Beta) SetAnyValue(val *AnyV1BetaAnyValue) {
 
 type AnyV1BetaAnyValue struct{}
 
+// Volume backup properties.
+// Ref: #/components/schemas/BackupConfig_v1beta
+type BackupConfigV1beta struct {
+	// Backup policy resource ID.
+	BackupPolicyId OptNilString `json:"backupPolicyId"`
+	// Backup vault resource ID.
+	BackupVaultId OptNilString `json:"backupVaultId"`
+	// Indicates whether policy is enable or disabled on the volume.
+	ScheduledBackupEnabled OptNilBool `json:"scheduledBackupEnabled"`
+	// Size in bytes of the backup of the volume.
+	BackupChainBytes OptNilInt64 `json:"backupChainBytes"`
+}
+
+// GetBackupPolicyId returns the value of BackupPolicyId.
+func (s *BackupConfigV1beta) GetBackupPolicyId() OptNilString {
+	return s.BackupPolicyId
+}
+
+// GetBackupVaultId returns the value of BackupVaultId.
+func (s *BackupConfigV1beta) GetBackupVaultId() OptNilString {
+	return s.BackupVaultId
+}
+
+// GetScheduledBackupEnabled returns the value of ScheduledBackupEnabled.
+func (s *BackupConfigV1beta) GetScheduledBackupEnabled() OptNilBool {
+	return s.ScheduledBackupEnabled
+}
+
+// GetBackupChainBytes returns the value of BackupChainBytes.
+func (s *BackupConfigV1beta) GetBackupChainBytes() OptNilInt64 {
+	return s.BackupChainBytes
+}
+
+// SetBackupPolicyId sets the value of BackupPolicyId.
+func (s *BackupConfigV1beta) SetBackupPolicyId(val OptNilString) {
+	s.BackupPolicyId = val
+}
+
+// SetBackupVaultId sets the value of BackupVaultId.
+func (s *BackupConfigV1beta) SetBackupVaultId(val OptNilString) {
+	s.BackupVaultId = val
+}
+
+// SetScheduledBackupEnabled sets the value of ScheduledBackupEnabled.
+func (s *BackupConfigV1beta) SetScheduledBackupEnabled(val OptNilBool) {
+	s.ScheduledBackupEnabled = val
+}
+
+// SetBackupChainBytes sets the value of BackupChainBytes.
+func (s *BackupConfigV1beta) SetBackupChainBytes(val OptNilInt64) {
+	s.BackupChainBytes = val
+}
+
+// Ref: #/components/schemas/BlockProperties_v1beta
+type BlockPropertiesV1beta struct {
+	OsType OptBlockVolumeOSTypeV1beta `json:"osType"`
+	// UUID v4 used to identify the HostGroup.
+	HostGroupId OptString `json:"hostGroupId"`
+}
+
+// GetOsType returns the value of OsType.
+func (s *BlockPropertiesV1beta) GetOsType() OptBlockVolumeOSTypeV1beta {
+	return s.OsType
+}
+
+// GetHostGroupId returns the value of HostGroupId.
+func (s *BlockPropertiesV1beta) GetHostGroupId() OptString {
+	return s.HostGroupId
+}
+
+// SetOsType sets the value of OsType.
+func (s *BlockPropertiesV1beta) SetOsType(val OptBlockVolumeOSTypeV1beta) {
+	s.OsType = val
+}
+
+// SetHostGroupId sets the value of HostGroupId.
+func (s *BlockPropertiesV1beta) SetHostGroupId(val OptString) {
+	s.HostGroupId = val
+}
+
+// Specifies the OS type for the new Block Volume. The Block volume will be used with the selected OS
+// type.
+// Ref: #/components/schemas/BlockVolumeOSType_v1beta
+type BlockVolumeOSTypeV1beta string
+
+const (
+	BlockVolumeOSTypeV1betaOSTYPEUNSPECIFIED BlockVolumeOSTypeV1beta = "OS_TYPE_UNSPECIFIED"
+	BlockVolumeOSTypeV1betaLINUX             BlockVolumeOSTypeV1beta = "LINUX"
+	BlockVolumeOSTypeV1betaWINDOWS           BlockVolumeOSTypeV1beta = "WINDOWS"
+	BlockVolumeOSTypeV1betaESXI              BlockVolumeOSTypeV1beta = "ESXI"
+)
+
+// AllValues returns all BlockVolumeOSTypeV1beta values.
+func (BlockVolumeOSTypeV1beta) AllValues() []BlockVolumeOSTypeV1beta {
+	return []BlockVolumeOSTypeV1beta{
+		BlockVolumeOSTypeV1betaOSTYPEUNSPECIFIED,
+		BlockVolumeOSTypeV1betaLINUX,
+		BlockVolumeOSTypeV1betaWINDOWS,
+		BlockVolumeOSTypeV1betaESXI,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s BlockVolumeOSTypeV1beta) MarshalText() ([]byte, error) {
+	switch s {
+	case BlockVolumeOSTypeV1betaOSTYPEUNSPECIFIED:
+		return []byte(s), nil
+	case BlockVolumeOSTypeV1betaLINUX:
+		return []byte(s), nil
+	case BlockVolumeOSTypeV1betaWINDOWS:
+		return []byte(s), nil
+	case BlockVolumeOSTypeV1betaESXI:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *BlockVolumeOSTypeV1beta) UnmarshalText(data []byte) error {
+	switch BlockVolumeOSTypeV1beta(data) {
+	case BlockVolumeOSTypeV1betaOSTYPEUNSPECIFIED:
+		*s = BlockVolumeOSTypeV1betaOSTYPEUNSPECIFIED
+		return nil
+	case BlockVolumeOSTypeV1betaLINUX:
+		*s = BlockVolumeOSTypeV1betaLINUX
+		return nil
+	case BlockVolumeOSTypeV1betaWINDOWS:
+		*s = BlockVolumeOSTypeV1betaWINDOWS
+		return nil
+	case BlockVolumeOSTypeV1betaESXI:
+		*s = BlockVolumeOSTypeV1betaESXI
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
 // Ref: #/components/schemas/ChildAsset
 type ChildAsset struct {
 	AssetType  OptString `json:"asset_type"`
@@ -67,6 +205,47 @@ func (s *ChildAsset) SetAssetType(val OptString) {
 // SetAssetNames sets the value of AssetNames.
 func (s *ChildAsset) SetAssetNames(val []string) {
 	s.AssetNames = val
+}
+
+// If enabled (snapshotsToKeep > 0), make a snapshot every day. Defaults to midnight.
+// Ref: #/components/schemas/DailySchedule_v1beta
+type DailyScheduleV1beta struct {
+	// The maximum number of snapshots to keep for the daily schedule.
+	SnapshotsToKeep OptFloat64 `json:"snapshotsToKeep"`
+	// Set the hour to start the snapshot (0-23), defaults to midnight (0).
+	Hour OptFloat64 `json:"hour"`
+	// Set the minute of the hour to start the snapshot (0-59), defaults to the top of the hour (0).
+	Minute OptFloat64 `json:"minute"`
+}
+
+// GetSnapshotsToKeep returns the value of SnapshotsToKeep.
+func (s *DailyScheduleV1beta) GetSnapshotsToKeep() OptFloat64 {
+	return s.SnapshotsToKeep
+}
+
+// GetHour returns the value of Hour.
+func (s *DailyScheduleV1beta) GetHour() OptFloat64 {
+	return s.Hour
+}
+
+// GetMinute returns the value of Minute.
+func (s *DailyScheduleV1beta) GetMinute() OptFloat64 {
+	return s.Minute
+}
+
+// SetSnapshotsToKeep sets the value of SnapshotsToKeep.
+func (s *DailyScheduleV1beta) SetSnapshotsToKeep(val OptFloat64) {
+	s.SnapshotsToKeep = val
+}
+
+// SetHour sets the value of Hour.
+func (s *DailyScheduleV1beta) SetHour(val OptFloat64) {
+	s.Hour = val
+}
+
+// SetMinute sets the value of Minute.
+func (s *DailyScheduleV1beta) SetMinute(val OptFloat64) {
+	s.Minute = val
 }
 
 // Error response.
@@ -120,6 +299,1124 @@ func (s *ErrorStatusCode) SetStatusCode(val int) {
 // SetResponse sets the value of Response.
 func (s *ErrorStatusCode) SetResponse(val Error) {
 	s.Response = val
+}
+
+// Export policy for a volume.
+// Ref: #/components/schemas/ExportPolicy_v1beta
+type ExportPolicyV1beta struct {
+	Rules []SimpleExportPolicyRuleV1beta `json:"rules"`
+}
+
+// GetRules returns the value of Rules.
+func (s *ExportPolicyV1beta) GetRules() []SimpleExportPolicyRuleV1beta {
+	return s.Rules
+}
+
+// SetRules sets the value of Rules.
+func (s *ExportPolicyV1beta) SetRules(val []SimpleExportPolicyRuleV1beta) {
+	s.Rules = val
+}
+
+// FlexCache volume configuration options.
+// Ref: #/components/schemas/FlexCacheConfig_v1beta
+type FlexCacheConfigV1beta struct {
+	PrePopulate OptFlexCachePrePopulateV1beta `json:"prePopulate"`
+	// Flag indicating whether writeback is enabled for the FlexCache volume.
+	WritebackEnabled OptNilBool `json:"writebackEnabled"`
+	// Flag indicating whether the atime based scrub is enabled for the FlexCache volume.
+	AtimeScrubEnabled OptNilBool `json:"atimeScrubEnabled"`
+	// Duration in days after which inactive files can be scrubbed from FlexCache volume.
+	AtimeScrubPeriod OptNilInt16 `json:"atimeScrubPeriod"`
+	// Flag indicating whether a CIFS change notification is enabled for the FlexCache volume.
+	CifsChangeNotifyEnabled OptNilBool `json:"cifsChangeNotifyEnabled"`
+}
+
+// GetPrePopulate returns the value of PrePopulate.
+func (s *FlexCacheConfigV1beta) GetPrePopulate() OptFlexCachePrePopulateV1beta {
+	return s.PrePopulate
+}
+
+// GetWritebackEnabled returns the value of WritebackEnabled.
+func (s *FlexCacheConfigV1beta) GetWritebackEnabled() OptNilBool {
+	return s.WritebackEnabled
+}
+
+// GetAtimeScrubEnabled returns the value of AtimeScrubEnabled.
+func (s *FlexCacheConfigV1beta) GetAtimeScrubEnabled() OptNilBool {
+	return s.AtimeScrubEnabled
+}
+
+// GetAtimeScrubPeriod returns the value of AtimeScrubPeriod.
+func (s *FlexCacheConfigV1beta) GetAtimeScrubPeriod() OptNilInt16 {
+	return s.AtimeScrubPeriod
+}
+
+// GetCifsChangeNotifyEnabled returns the value of CifsChangeNotifyEnabled.
+func (s *FlexCacheConfigV1beta) GetCifsChangeNotifyEnabled() OptNilBool {
+	return s.CifsChangeNotifyEnabled
+}
+
+// SetPrePopulate sets the value of PrePopulate.
+func (s *FlexCacheConfigV1beta) SetPrePopulate(val OptFlexCachePrePopulateV1beta) {
+	s.PrePopulate = val
+}
+
+// SetWritebackEnabled sets the value of WritebackEnabled.
+func (s *FlexCacheConfigV1beta) SetWritebackEnabled(val OptNilBool) {
+	s.WritebackEnabled = val
+}
+
+// SetAtimeScrubEnabled sets the value of AtimeScrubEnabled.
+func (s *FlexCacheConfigV1beta) SetAtimeScrubEnabled(val OptNilBool) {
+	s.AtimeScrubEnabled = val
+}
+
+// SetAtimeScrubPeriod sets the value of AtimeScrubPeriod.
+func (s *FlexCacheConfigV1beta) SetAtimeScrubPeriod(val OptNilInt16) {
+	s.AtimeScrubPeriod = val
+}
+
+// SetCifsChangeNotifyEnabled sets the value of CifsChangeNotifyEnabled.
+func (s *FlexCacheConfigV1beta) SetCifsChangeNotifyEnabled(val OptNilBool) {
+	s.CifsChangeNotifyEnabled = val
+}
+
+// FlexCache PrePopulate request.
+// Ref: #/components/schemas/FlexCachePrePopulate_v1beta
+type FlexCachePrePopulateV1beta struct {
+	// List of directory-paths to be pre-populated for the FlexCache volume.
+	PathList OptNilStringArray `json:"pathList"`
+	// List of directory-paths to be excluded from pre-population for the FlexCache volume.
+	ExcludePathList OptNilStringArray `json:"excludePathList"`
+	// Flag indicating whether the directories listed with the pathList need to be recursively
+	// pre-populated.
+	IsRecursion OptNilBool `json:"isRecursion"`
+}
+
+// GetPathList returns the value of PathList.
+func (s *FlexCachePrePopulateV1beta) GetPathList() OptNilStringArray {
+	return s.PathList
+}
+
+// GetExcludePathList returns the value of ExcludePathList.
+func (s *FlexCachePrePopulateV1beta) GetExcludePathList() OptNilStringArray {
+	return s.ExcludePathList
+}
+
+// GetIsRecursion returns the value of IsRecursion.
+func (s *FlexCachePrePopulateV1beta) GetIsRecursion() OptNilBool {
+	return s.IsRecursion
+}
+
+// SetPathList sets the value of PathList.
+func (s *FlexCachePrePopulateV1beta) SetPathList(val OptNilStringArray) {
+	s.PathList = val
+}
+
+// SetExcludePathList sets the value of ExcludePathList.
+func (s *FlexCachePrePopulateV1beta) SetExcludePathList(val OptNilStringArray) {
+	s.ExcludePathList = val
+}
+
+// SetIsRecursion sets the value of IsRecursion.
+func (s *FlexCachePrePopulateV1beta) SetIsRecursion(val OptNilBool) {
+	s.IsRecursion = val
+}
+
+// FlexCache type volumes include an object containing details of the FlexCache.
+// Ref: #/components/schemas/FlexCache_v1beta
+type FlexCacheV1beta struct {
+	// Name of origin volume for FlexCache.
+	PeerVolumeName OptString `json:"peerVolumeName"`
+	// Name of origin volume's ONTAP cluster for FlexCache.
+	PeerClusterName OptString `json:"peerClusterName"`
+	// Name of origin volume's SVM for FlexCache.
+	PeerSvmName     OptString `json:"peerSvmName"`
+	PeerIpAddresses []string  `json:"peerIpAddresses"`
+	// Specify whether this FlexCache volume has global file lock enabled.
+	EnableGlobalFileLock OptNilBool               `json:"enableGlobalFileLock"`
+	CacheConfig          OptFlexCacheConfigV1beta `json:"cacheConfig"`
+	// Current state of the FlexCache.
+	CacheState OptFlexCacheV1betaCacheState `json:"cacheState"`
+	// Command used to establish peering for the FlexCache.
+	PeeringCommand OptString `json:"peeringCommand"`
+	// DateTime value for when cluster peering command should expire.
+	PeeringCommandExpiryTime OptNilDateTime `json:"peeringCommandExpiryTime"`
+	// Temporary passphrase generated to accept cluster peering command.
+	Passphrase OptNilString `json:"passphrase"`
+}
+
+// GetPeerVolumeName returns the value of PeerVolumeName.
+func (s *FlexCacheV1beta) GetPeerVolumeName() OptString {
+	return s.PeerVolumeName
+}
+
+// GetPeerClusterName returns the value of PeerClusterName.
+func (s *FlexCacheV1beta) GetPeerClusterName() OptString {
+	return s.PeerClusterName
+}
+
+// GetPeerSvmName returns the value of PeerSvmName.
+func (s *FlexCacheV1beta) GetPeerSvmName() OptString {
+	return s.PeerSvmName
+}
+
+// GetPeerIpAddresses returns the value of PeerIpAddresses.
+func (s *FlexCacheV1beta) GetPeerIpAddresses() []string {
+	return s.PeerIpAddresses
+}
+
+// GetEnableGlobalFileLock returns the value of EnableGlobalFileLock.
+func (s *FlexCacheV1beta) GetEnableGlobalFileLock() OptNilBool {
+	return s.EnableGlobalFileLock
+}
+
+// GetCacheConfig returns the value of CacheConfig.
+func (s *FlexCacheV1beta) GetCacheConfig() OptFlexCacheConfigV1beta {
+	return s.CacheConfig
+}
+
+// GetCacheState returns the value of CacheState.
+func (s *FlexCacheV1beta) GetCacheState() OptFlexCacheV1betaCacheState {
+	return s.CacheState
+}
+
+// GetPeeringCommand returns the value of PeeringCommand.
+func (s *FlexCacheV1beta) GetPeeringCommand() OptString {
+	return s.PeeringCommand
+}
+
+// GetPeeringCommandExpiryTime returns the value of PeeringCommandExpiryTime.
+func (s *FlexCacheV1beta) GetPeeringCommandExpiryTime() OptNilDateTime {
+	return s.PeeringCommandExpiryTime
+}
+
+// GetPassphrase returns the value of Passphrase.
+func (s *FlexCacheV1beta) GetPassphrase() OptNilString {
+	return s.Passphrase
+}
+
+// SetPeerVolumeName sets the value of PeerVolumeName.
+func (s *FlexCacheV1beta) SetPeerVolumeName(val OptString) {
+	s.PeerVolumeName = val
+}
+
+// SetPeerClusterName sets the value of PeerClusterName.
+func (s *FlexCacheV1beta) SetPeerClusterName(val OptString) {
+	s.PeerClusterName = val
+}
+
+// SetPeerSvmName sets the value of PeerSvmName.
+func (s *FlexCacheV1beta) SetPeerSvmName(val OptString) {
+	s.PeerSvmName = val
+}
+
+// SetPeerIpAddresses sets the value of PeerIpAddresses.
+func (s *FlexCacheV1beta) SetPeerIpAddresses(val []string) {
+	s.PeerIpAddresses = val
+}
+
+// SetEnableGlobalFileLock sets the value of EnableGlobalFileLock.
+func (s *FlexCacheV1beta) SetEnableGlobalFileLock(val OptNilBool) {
+	s.EnableGlobalFileLock = val
+}
+
+// SetCacheConfig sets the value of CacheConfig.
+func (s *FlexCacheV1beta) SetCacheConfig(val OptFlexCacheConfigV1beta) {
+	s.CacheConfig = val
+}
+
+// SetCacheState sets the value of CacheState.
+func (s *FlexCacheV1beta) SetCacheState(val OptFlexCacheV1betaCacheState) {
+	s.CacheState = val
+}
+
+// SetPeeringCommand sets the value of PeeringCommand.
+func (s *FlexCacheV1beta) SetPeeringCommand(val OptString) {
+	s.PeeringCommand = val
+}
+
+// SetPeeringCommandExpiryTime sets the value of PeeringCommandExpiryTime.
+func (s *FlexCacheV1beta) SetPeeringCommandExpiryTime(val OptNilDateTime) {
+	s.PeeringCommandExpiryTime = val
+}
+
+// SetPassphrase sets the value of Passphrase.
+func (s *FlexCacheV1beta) SetPassphrase(val OptNilString) {
+	s.Passphrase = val
+}
+
+// Current state of the FlexCache.
+type FlexCacheV1betaCacheState string
+
+const (
+	FlexCacheV1betaCacheStateCACHESTATEUNSPECIFIED FlexCacheV1betaCacheState = "CACHE_STATE_UNSPECIFIED"
+	FlexCacheV1betaCacheStatePENDINGCLUSTERPEERING FlexCacheV1betaCacheState = "PENDING_CLUSTER_PEERING"
+	FlexCacheV1betaCacheStatePENDINGSVMPEERING     FlexCacheV1betaCacheState = "PENDING_SVM_PEERING"
+	FlexCacheV1betaCacheStatePEERED                FlexCacheV1betaCacheState = "PEERED"
+	FlexCacheV1betaCacheStateERROR                 FlexCacheV1betaCacheState = "ERROR"
+)
+
+// AllValues returns all FlexCacheV1betaCacheState values.
+func (FlexCacheV1betaCacheState) AllValues() []FlexCacheV1betaCacheState {
+	return []FlexCacheV1betaCacheState{
+		FlexCacheV1betaCacheStateCACHESTATEUNSPECIFIED,
+		FlexCacheV1betaCacheStatePENDINGCLUSTERPEERING,
+		FlexCacheV1betaCacheStatePENDINGSVMPEERING,
+		FlexCacheV1betaCacheStatePEERED,
+		FlexCacheV1betaCacheStateERROR,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s FlexCacheV1betaCacheState) MarshalText() ([]byte, error) {
+	switch s {
+	case FlexCacheV1betaCacheStateCACHESTATEUNSPECIFIED:
+		return []byte(s), nil
+	case FlexCacheV1betaCacheStatePENDINGCLUSTERPEERING:
+		return []byte(s), nil
+	case FlexCacheV1betaCacheStatePENDINGSVMPEERING:
+		return []byte(s), nil
+	case FlexCacheV1betaCacheStatePEERED:
+		return []byte(s), nil
+	case FlexCacheV1betaCacheStateERROR:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *FlexCacheV1betaCacheState) UnmarshalText(data []byte) error {
+	switch FlexCacheV1betaCacheState(data) {
+	case FlexCacheV1betaCacheStateCACHESTATEUNSPECIFIED:
+		*s = FlexCacheV1betaCacheStateCACHESTATEUNSPECIFIED
+		return nil
+	case FlexCacheV1betaCacheStatePENDINGCLUSTERPEERING:
+		*s = FlexCacheV1betaCacheStatePENDINGCLUSTERPEERING
+		return nil
+	case FlexCacheV1betaCacheStatePENDINGSVMPEERING:
+		*s = FlexCacheV1betaCacheStatePENDINGSVMPEERING
+		return nil
+	case FlexCacheV1betaCacheStatePEERED:
+		*s = FlexCacheV1betaCacheStatePEERED
+		return nil
+	case FlexCacheV1betaCacheStateERROR:
+		*s = FlexCacheV1betaCacheStateERROR
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// Ref: #/components/schemas/hostGroupIdList_v1beta
+type HostGroupIdListV1beta struct {
+	HostGroupUUIDs []string `json:"hostGroupUUIDs"`
+}
+
+// GetHostGroupUUIDs returns the value of HostGroupUUIDs.
+func (s *HostGroupIdListV1beta) GetHostGroupUUIDs() []string {
+	return s.HostGroupUUIDs
+}
+
+// SetHostGroupUUIDs sets the value of HostGroupUUIDs.
+func (s *HostGroupIdListV1beta) SetHostGroupUUIDs(val []string) {
+	s.HostGroupUUIDs = val
+}
+
+// Ref: #/components/schemas/HostGroupUpdate_v1beta
+type HostGroupUpdateV1beta struct {
+	// Updated description of the HostGroup.
+	Description OptString `json:"description"`
+	// List of iSCSI Qualified Names associated with this HostGroup.
+	Hosts []string `json:"hosts"`
+}
+
+// GetDescription returns the value of Description.
+func (s *HostGroupUpdateV1beta) GetDescription() OptString {
+	return s.Description
+}
+
+// GetHosts returns the value of Hosts.
+func (s *HostGroupUpdateV1beta) GetHosts() []string {
+	return s.Hosts
+}
+
+// SetDescription sets the value of Description.
+func (s *HostGroupUpdateV1beta) SetDescription(val OptString) {
+	s.Description = val
+}
+
+// SetHosts sets the value of Hosts.
+func (s *HostGroupUpdateV1beta) SetHosts(val []string) {
+	s.Hosts = val
+}
+
+// Ref: #/components/schemas/HostGroup_v1beta
+type HostGroupV1beta struct {
+	// UUID v4 used to identify the HostGroup.
+	HostGroupId OptString `json:"hostGroupId"`
+	// A human readable label for the HostGroup.
+	ResourceId string `json:"resourceId"`
+	// Description of the HostGroup.
+	Description OptString      `json:"description"`
+	Created     OptDateTime    `json:"created"`
+	Updated     OptDateTime    `json:"updated"`
+	Deleted     OptNilDateTime `json:"deleted"`
+	// The current lifecycle state of the HostGroup.
+	State OptHostGroupV1betaState `json:"state"`
+	// Details about the current lifecycle state.
+	StateDetails OptString `json:"stateDetails"`
+	// The type of initiators.
+	Type OptHostGroupV1betaType `json:"type"`
+	// List of iSCSI Qualified Names associated with this HostGroup.
+	Hosts  []string         `json:"hosts"`
+	OsType HostOSTypeV1beta `json:"osType"`
+}
+
+// GetHostGroupId returns the value of HostGroupId.
+func (s *HostGroupV1beta) GetHostGroupId() OptString {
+	return s.HostGroupId
+}
+
+// GetResourceId returns the value of ResourceId.
+func (s *HostGroupV1beta) GetResourceId() string {
+	return s.ResourceId
+}
+
+// GetDescription returns the value of Description.
+func (s *HostGroupV1beta) GetDescription() OptString {
+	return s.Description
+}
+
+// GetCreated returns the value of Created.
+func (s *HostGroupV1beta) GetCreated() OptDateTime {
+	return s.Created
+}
+
+// GetUpdated returns the value of Updated.
+func (s *HostGroupV1beta) GetUpdated() OptDateTime {
+	return s.Updated
+}
+
+// GetDeleted returns the value of Deleted.
+func (s *HostGroupV1beta) GetDeleted() OptNilDateTime {
+	return s.Deleted
+}
+
+// GetState returns the value of State.
+func (s *HostGroupV1beta) GetState() OptHostGroupV1betaState {
+	return s.State
+}
+
+// GetStateDetails returns the value of StateDetails.
+func (s *HostGroupV1beta) GetStateDetails() OptString {
+	return s.StateDetails
+}
+
+// GetType returns the value of Type.
+func (s *HostGroupV1beta) GetType() OptHostGroupV1betaType {
+	return s.Type
+}
+
+// GetHosts returns the value of Hosts.
+func (s *HostGroupV1beta) GetHosts() []string {
+	return s.Hosts
+}
+
+// GetOsType returns the value of OsType.
+func (s *HostGroupV1beta) GetOsType() HostOSTypeV1beta {
+	return s.OsType
+}
+
+// SetHostGroupId sets the value of HostGroupId.
+func (s *HostGroupV1beta) SetHostGroupId(val OptString) {
+	s.HostGroupId = val
+}
+
+// SetResourceId sets the value of ResourceId.
+func (s *HostGroupV1beta) SetResourceId(val string) {
+	s.ResourceId = val
+}
+
+// SetDescription sets the value of Description.
+func (s *HostGroupV1beta) SetDescription(val OptString) {
+	s.Description = val
+}
+
+// SetCreated sets the value of Created.
+func (s *HostGroupV1beta) SetCreated(val OptDateTime) {
+	s.Created = val
+}
+
+// SetUpdated sets the value of Updated.
+func (s *HostGroupV1beta) SetUpdated(val OptDateTime) {
+	s.Updated = val
+}
+
+// SetDeleted sets the value of Deleted.
+func (s *HostGroupV1beta) SetDeleted(val OptNilDateTime) {
+	s.Deleted = val
+}
+
+// SetState sets the value of State.
+func (s *HostGroupV1beta) SetState(val OptHostGroupV1betaState) {
+	s.State = val
+}
+
+// SetStateDetails sets the value of StateDetails.
+func (s *HostGroupV1beta) SetStateDetails(val OptString) {
+	s.StateDetails = val
+}
+
+// SetType sets the value of Type.
+func (s *HostGroupV1beta) SetType(val OptHostGroupV1betaType) {
+	s.Type = val
+}
+
+// SetHosts sets the value of Hosts.
+func (s *HostGroupV1beta) SetHosts(val []string) {
+	s.Hosts = val
+}
+
+// SetOsType sets the value of OsType.
+func (s *HostGroupV1beta) SetOsType(val HostOSTypeV1beta) {
+	s.OsType = val
+}
+
+func (*HostGroupV1beta) v1betaDescribeHostGroupRes() {}
+
+// The current lifecycle state of the HostGroup.
+type HostGroupV1betaState string
+
+const (
+	HostGroupV1betaStateSTATEUNSPECIFIED HostGroupV1betaState = "STATE_UNSPECIFIED"
+	HostGroupV1betaStateCREATING         HostGroupV1betaState = "CREATING"
+	HostGroupV1betaStateREADY            HostGroupV1betaState = "READY"
+	HostGroupV1betaStateUPDATING         HostGroupV1betaState = "UPDATING"
+	HostGroupV1betaStateDELETING         HostGroupV1betaState = "DELETING"
+	HostGroupV1betaStateERROR            HostGroupV1betaState = "ERROR"
+)
+
+// AllValues returns all HostGroupV1betaState values.
+func (HostGroupV1betaState) AllValues() []HostGroupV1betaState {
+	return []HostGroupV1betaState{
+		HostGroupV1betaStateSTATEUNSPECIFIED,
+		HostGroupV1betaStateCREATING,
+		HostGroupV1betaStateREADY,
+		HostGroupV1betaStateUPDATING,
+		HostGroupV1betaStateDELETING,
+		HostGroupV1betaStateERROR,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s HostGroupV1betaState) MarshalText() ([]byte, error) {
+	switch s {
+	case HostGroupV1betaStateSTATEUNSPECIFIED:
+		return []byte(s), nil
+	case HostGroupV1betaStateCREATING:
+		return []byte(s), nil
+	case HostGroupV1betaStateREADY:
+		return []byte(s), nil
+	case HostGroupV1betaStateUPDATING:
+		return []byte(s), nil
+	case HostGroupV1betaStateDELETING:
+		return []byte(s), nil
+	case HostGroupV1betaStateERROR:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *HostGroupV1betaState) UnmarshalText(data []byte) error {
+	switch HostGroupV1betaState(data) {
+	case HostGroupV1betaStateSTATEUNSPECIFIED:
+		*s = HostGroupV1betaStateSTATEUNSPECIFIED
+		return nil
+	case HostGroupV1betaStateCREATING:
+		*s = HostGroupV1betaStateCREATING
+		return nil
+	case HostGroupV1betaStateREADY:
+		*s = HostGroupV1betaStateREADY
+		return nil
+	case HostGroupV1betaStateUPDATING:
+		*s = HostGroupV1betaStateUPDATING
+		return nil
+	case HostGroupV1betaStateDELETING:
+		*s = HostGroupV1betaStateDELETING
+		return nil
+	case HostGroupV1betaStateERROR:
+		*s = HostGroupV1betaStateERROR
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// The type of initiators.
+type HostGroupV1betaType string
+
+const (
+	HostGroupV1betaTypeUNSPECIFIED    HostGroupV1betaType = "UNSPECIFIED"
+	HostGroupV1betaTypeISCSIINITIATOR HostGroupV1betaType = "ISCSI_INITIATOR"
+)
+
+// AllValues returns all HostGroupV1betaType values.
+func (HostGroupV1betaType) AllValues() []HostGroupV1betaType {
+	return []HostGroupV1betaType{
+		HostGroupV1betaTypeUNSPECIFIED,
+		HostGroupV1betaTypeISCSIINITIATOR,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s HostGroupV1betaType) MarshalText() ([]byte, error) {
+	switch s {
+	case HostGroupV1betaTypeUNSPECIFIED:
+		return []byte(s), nil
+	case HostGroupV1betaTypeISCSIINITIATOR:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *HostGroupV1betaType) UnmarshalText(data []byte) error {
+	switch HostGroupV1betaType(data) {
+	case HostGroupV1betaTypeUNSPECIFIED:
+		*s = HostGroupV1betaTypeUNSPECIFIED
+		return nil
+	case HostGroupV1betaTypeISCSIINITIATOR:
+		*s = HostGroupV1betaTypeISCSIINITIATOR
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// Specifies the operating system type for the HostGroup. The operating system type indicates the
+// type of host operating system used by all of the hosts in the HostGroup. All hosts in a HostGroup
+// must be of the same operating system type.
+// Ref: #/components/schemas/HostOSType_v1beta
+type HostOSTypeV1beta string
+
+const (
+	HostOSTypeV1betaOSTYPEUNSPECIFIED HostOSTypeV1beta = "OS_TYPE_UNSPECIFIED"
+	HostOSTypeV1betaLINUX             HostOSTypeV1beta = "LINUX"
+	HostOSTypeV1betaWINDOWS           HostOSTypeV1beta = "WINDOWS"
+	HostOSTypeV1betaESXI              HostOSTypeV1beta = "ESXI"
+)
+
+// AllValues returns all HostOSTypeV1beta values.
+func (HostOSTypeV1beta) AllValues() []HostOSTypeV1beta {
+	return []HostOSTypeV1beta{
+		HostOSTypeV1betaOSTYPEUNSPECIFIED,
+		HostOSTypeV1betaLINUX,
+		HostOSTypeV1betaWINDOWS,
+		HostOSTypeV1betaESXI,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s HostOSTypeV1beta) MarshalText() ([]byte, error) {
+	switch s {
+	case HostOSTypeV1betaOSTYPEUNSPECIFIED:
+		return []byte(s), nil
+	case HostOSTypeV1betaLINUX:
+		return []byte(s), nil
+	case HostOSTypeV1betaWINDOWS:
+		return []byte(s), nil
+	case HostOSTypeV1betaESXI:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *HostOSTypeV1beta) UnmarshalText(data []byte) error {
+	switch HostOSTypeV1beta(data) {
+	case HostOSTypeV1betaOSTYPEUNSPECIFIED:
+		*s = HostOSTypeV1betaOSTYPEUNSPECIFIED
+		return nil
+	case HostOSTypeV1betaLINUX:
+		*s = HostOSTypeV1betaLINUX
+		return nil
+	case HostOSTypeV1betaWINDOWS:
+		*s = HostOSTypeV1betaWINDOWS
+		return nil
+	case HostOSTypeV1betaESXI:
+		*s = HostOSTypeV1betaESXI
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// If enabled (snapshotsToKeep > 0), make a snapshot every hour e.g. at 04:00, 05:00, 06:00.
+// Ref: #/components/schemas/HourlySchedule_v1beta
+type HourlyScheduleV1beta struct {
+	// The maximum number of snapshots to keep for the hourly schedule.
+	SnapshotsToKeep OptFloat64 `json:"snapshotsToKeep"`
+	// Set the minute of the hour to start the snapshot (0-59), defaults to the top of the hour (0).
+	Minute OptFloat64 `json:"minute"`
+}
+
+// GetSnapshotsToKeep returns the value of SnapshotsToKeep.
+func (s *HourlyScheduleV1beta) GetSnapshotsToKeep() OptFloat64 {
+	return s.SnapshotsToKeep
+}
+
+// GetMinute returns the value of Minute.
+func (s *HourlyScheduleV1beta) GetMinute() OptFloat64 {
+	return s.Minute
+}
+
+// SetSnapshotsToKeep sets the value of SnapshotsToKeep.
+func (s *HourlyScheduleV1beta) SetSnapshotsToKeep(val OptFloat64) {
+	s.SnapshotsToKeep = val
+}
+
+// SetMinute sets the value of Minute.
+func (s *HourlyScheduleV1beta) SetMinute(val OptFloat64) {
+	s.Minute = val
+}
+
+// Object containing necessary parameters to start a hybrid replication process.
+// Ref: #/components/schemas/HybridReplicationParameters_v1beta
+type HybridReplicationParametersV1beta struct {
+	// A human readable label for the hybrid replication resource.
+	ResourceId string `json:"resourceId"`
+	// The type of replication.
+	HybridReplicationType HybridReplicationParametersV1betaHybridReplicationType `json:"hybridReplicationType"`
+	// Name of local source volume to be migrated.
+	PeerVolumeName string `json:"peerVolumeName"`
+	// Name of local source cluster to be peered with destination cluster.
+	PeerClusterName string `json:"peerClusterName"`
+	// Name of local source vserver SVM to be peered with destination vserver SVM.
+	PeerSvmName     string   `json:"peerSvmName"`
+	PeerIpAddresses []string `json:"peerIpAddresses"`
+	// JSON dictionary of resource labels to allow linking of billing labels to a replication.
+	Labels OptHybridReplicationParametersV1betaLabels `json:"labels"`
+	// A description about this hybrid replication relationship.
+	Description OptNilString `json:"description"`
+	// Name of source cluster associated with the hybrid replication, display purposes only.
+	ClusterLocation OptNilString `json:"clusterLocation"`
+	// DateTime value for when cluster peering command should expire.
+	PeeringCommandExpiryTime OptNilDateTime                                          `json:"peeringCommandExpiryTime"`
+	ReplicationSchedule      OptHybridReplicationParametersV1betaReplicationSchedule `json:"replicationSchedule"`
+	// The count of number of Constituent Volumes for the large volume.
+	LargeVolumeConstituentCount OptNilInt32 `json:"largeVolumeConstituentCount"`
+}
+
+// GetResourceId returns the value of ResourceId.
+func (s *HybridReplicationParametersV1beta) GetResourceId() string {
+	return s.ResourceId
+}
+
+// GetHybridReplicationType returns the value of HybridReplicationType.
+func (s *HybridReplicationParametersV1beta) GetHybridReplicationType() HybridReplicationParametersV1betaHybridReplicationType {
+	return s.HybridReplicationType
+}
+
+// GetPeerVolumeName returns the value of PeerVolumeName.
+func (s *HybridReplicationParametersV1beta) GetPeerVolumeName() string {
+	return s.PeerVolumeName
+}
+
+// GetPeerClusterName returns the value of PeerClusterName.
+func (s *HybridReplicationParametersV1beta) GetPeerClusterName() string {
+	return s.PeerClusterName
+}
+
+// GetPeerSvmName returns the value of PeerSvmName.
+func (s *HybridReplicationParametersV1beta) GetPeerSvmName() string {
+	return s.PeerSvmName
+}
+
+// GetPeerIpAddresses returns the value of PeerIpAddresses.
+func (s *HybridReplicationParametersV1beta) GetPeerIpAddresses() []string {
+	return s.PeerIpAddresses
+}
+
+// GetLabels returns the value of Labels.
+func (s *HybridReplicationParametersV1beta) GetLabels() OptHybridReplicationParametersV1betaLabels {
+	return s.Labels
+}
+
+// GetDescription returns the value of Description.
+func (s *HybridReplicationParametersV1beta) GetDescription() OptNilString {
+	return s.Description
+}
+
+// GetClusterLocation returns the value of ClusterLocation.
+func (s *HybridReplicationParametersV1beta) GetClusterLocation() OptNilString {
+	return s.ClusterLocation
+}
+
+// GetPeeringCommandExpiryTime returns the value of PeeringCommandExpiryTime.
+func (s *HybridReplicationParametersV1beta) GetPeeringCommandExpiryTime() OptNilDateTime {
+	return s.PeeringCommandExpiryTime
+}
+
+// GetReplicationSchedule returns the value of ReplicationSchedule.
+func (s *HybridReplicationParametersV1beta) GetReplicationSchedule() OptHybridReplicationParametersV1betaReplicationSchedule {
+	return s.ReplicationSchedule
+}
+
+// GetLargeVolumeConstituentCount returns the value of LargeVolumeConstituentCount.
+func (s *HybridReplicationParametersV1beta) GetLargeVolumeConstituentCount() OptNilInt32 {
+	return s.LargeVolumeConstituentCount
+}
+
+// SetResourceId sets the value of ResourceId.
+func (s *HybridReplicationParametersV1beta) SetResourceId(val string) {
+	s.ResourceId = val
+}
+
+// SetHybridReplicationType sets the value of HybridReplicationType.
+func (s *HybridReplicationParametersV1beta) SetHybridReplicationType(val HybridReplicationParametersV1betaHybridReplicationType) {
+	s.HybridReplicationType = val
+}
+
+// SetPeerVolumeName sets the value of PeerVolumeName.
+func (s *HybridReplicationParametersV1beta) SetPeerVolumeName(val string) {
+	s.PeerVolumeName = val
+}
+
+// SetPeerClusterName sets the value of PeerClusterName.
+func (s *HybridReplicationParametersV1beta) SetPeerClusterName(val string) {
+	s.PeerClusterName = val
+}
+
+// SetPeerSvmName sets the value of PeerSvmName.
+func (s *HybridReplicationParametersV1beta) SetPeerSvmName(val string) {
+	s.PeerSvmName = val
+}
+
+// SetPeerIpAddresses sets the value of PeerIpAddresses.
+func (s *HybridReplicationParametersV1beta) SetPeerIpAddresses(val []string) {
+	s.PeerIpAddresses = val
+}
+
+// SetLabels sets the value of Labels.
+func (s *HybridReplicationParametersV1beta) SetLabels(val OptHybridReplicationParametersV1betaLabels) {
+	s.Labels = val
+}
+
+// SetDescription sets the value of Description.
+func (s *HybridReplicationParametersV1beta) SetDescription(val OptNilString) {
+	s.Description = val
+}
+
+// SetClusterLocation sets the value of ClusterLocation.
+func (s *HybridReplicationParametersV1beta) SetClusterLocation(val OptNilString) {
+	s.ClusterLocation = val
+}
+
+// SetPeeringCommandExpiryTime sets the value of PeeringCommandExpiryTime.
+func (s *HybridReplicationParametersV1beta) SetPeeringCommandExpiryTime(val OptNilDateTime) {
+	s.PeeringCommandExpiryTime = val
+}
+
+// SetReplicationSchedule sets the value of ReplicationSchedule.
+func (s *HybridReplicationParametersV1beta) SetReplicationSchedule(val OptHybridReplicationParametersV1betaReplicationSchedule) {
+	s.ReplicationSchedule = val
+}
+
+// SetLargeVolumeConstituentCount sets the value of LargeVolumeConstituentCount.
+func (s *HybridReplicationParametersV1beta) SetLargeVolumeConstituentCount(val OptNilInt32) {
+	s.LargeVolumeConstituentCount = val
+}
+
+// The type of replication.
+type HybridReplicationParametersV1betaHybridReplicationType string
+
+const (
+	HybridReplicationParametersV1betaHybridReplicationTypeMIGRATION                        HybridReplicationParametersV1betaHybridReplicationType = "MIGRATION"
+	HybridReplicationParametersV1betaHybridReplicationTypeCONTINUOUSREPLICATION            HybridReplicationParametersV1betaHybridReplicationType = "CONTINUOUS_REPLICATION"
+	HybridReplicationParametersV1betaHybridReplicationTypeHYBRIDREPLICATIONTYPEUNSPECIFIED HybridReplicationParametersV1betaHybridReplicationType = "HYBRID_REPLICATION_TYPE_UNSPECIFIED"
+	HybridReplicationParametersV1betaHybridReplicationTypeONPREMREPLICATION                HybridReplicationParametersV1betaHybridReplicationType = "ONPREM_REPLICATION"
+	HybridReplicationParametersV1betaHybridReplicationTypeREVERSEONPREMREPLICATION         HybridReplicationParametersV1betaHybridReplicationType = "REVERSE_ONPREM_REPLICATION"
+)
+
+// AllValues returns all HybridReplicationParametersV1betaHybridReplicationType values.
+func (HybridReplicationParametersV1betaHybridReplicationType) AllValues() []HybridReplicationParametersV1betaHybridReplicationType {
+	return []HybridReplicationParametersV1betaHybridReplicationType{
+		HybridReplicationParametersV1betaHybridReplicationTypeMIGRATION,
+		HybridReplicationParametersV1betaHybridReplicationTypeCONTINUOUSREPLICATION,
+		HybridReplicationParametersV1betaHybridReplicationTypeHYBRIDREPLICATIONTYPEUNSPECIFIED,
+		HybridReplicationParametersV1betaHybridReplicationTypeONPREMREPLICATION,
+		HybridReplicationParametersV1betaHybridReplicationTypeREVERSEONPREMREPLICATION,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s HybridReplicationParametersV1betaHybridReplicationType) MarshalText() ([]byte, error) {
+	switch s {
+	case HybridReplicationParametersV1betaHybridReplicationTypeMIGRATION:
+		return []byte(s), nil
+	case HybridReplicationParametersV1betaHybridReplicationTypeCONTINUOUSREPLICATION:
+		return []byte(s), nil
+	case HybridReplicationParametersV1betaHybridReplicationTypeHYBRIDREPLICATIONTYPEUNSPECIFIED:
+		return []byte(s), nil
+	case HybridReplicationParametersV1betaHybridReplicationTypeONPREMREPLICATION:
+		return []byte(s), nil
+	case HybridReplicationParametersV1betaHybridReplicationTypeREVERSEONPREMREPLICATION:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *HybridReplicationParametersV1betaHybridReplicationType) UnmarshalText(data []byte) error {
+	switch HybridReplicationParametersV1betaHybridReplicationType(data) {
+	case HybridReplicationParametersV1betaHybridReplicationTypeMIGRATION:
+		*s = HybridReplicationParametersV1betaHybridReplicationTypeMIGRATION
+		return nil
+	case HybridReplicationParametersV1betaHybridReplicationTypeCONTINUOUSREPLICATION:
+		*s = HybridReplicationParametersV1betaHybridReplicationTypeCONTINUOUSREPLICATION
+		return nil
+	case HybridReplicationParametersV1betaHybridReplicationTypeHYBRIDREPLICATIONTYPEUNSPECIFIED:
+		*s = HybridReplicationParametersV1betaHybridReplicationTypeHYBRIDREPLICATIONTYPEUNSPECIFIED
+		return nil
+	case HybridReplicationParametersV1betaHybridReplicationTypeONPREMREPLICATION:
+		*s = HybridReplicationParametersV1betaHybridReplicationTypeONPREMREPLICATION
+		return nil
+	case HybridReplicationParametersV1betaHybridReplicationTypeREVERSEONPREMREPLICATION:
+		*s = HybridReplicationParametersV1betaHybridReplicationTypeREVERSEONPREMREPLICATION
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// JSON dictionary of resource labels to allow linking of billing labels to a replication.
+type HybridReplicationParametersV1betaLabels map[string]string
+
+func (s *HybridReplicationParametersV1betaLabels) init() HybridReplicationParametersV1betaLabels {
+	m := *s
+	if m == nil {
+		m = map[string]string{}
+		*s = m
+	}
+	return m
+}
+
+type HybridReplicationParametersV1betaReplicationSchedule string
+
+const (
+	HybridReplicationParametersV1betaReplicationScheduleEVERY10MINUTES HybridReplicationParametersV1betaReplicationSchedule = "EVERY_10_MINUTES"
+	HybridReplicationParametersV1betaReplicationScheduleHOURLY         HybridReplicationParametersV1betaReplicationSchedule = "HOURLY"
+	HybridReplicationParametersV1betaReplicationScheduleDAILY          HybridReplicationParametersV1betaReplicationSchedule = "DAILY"
+)
+
+// AllValues returns all HybridReplicationParametersV1betaReplicationSchedule values.
+func (HybridReplicationParametersV1betaReplicationSchedule) AllValues() []HybridReplicationParametersV1betaReplicationSchedule {
+	return []HybridReplicationParametersV1betaReplicationSchedule{
+		HybridReplicationParametersV1betaReplicationScheduleEVERY10MINUTES,
+		HybridReplicationParametersV1betaReplicationScheduleHOURLY,
+		HybridReplicationParametersV1betaReplicationScheduleDAILY,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s HybridReplicationParametersV1betaReplicationSchedule) MarshalText() ([]byte, error) {
+	switch s {
+	case HybridReplicationParametersV1betaReplicationScheduleEVERY10MINUTES:
+		return []byte(s), nil
+	case HybridReplicationParametersV1betaReplicationScheduleHOURLY:
+		return []byte(s), nil
+	case HybridReplicationParametersV1betaReplicationScheduleDAILY:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *HybridReplicationParametersV1betaReplicationSchedule) UnmarshalText(data []byte) error {
+	switch HybridReplicationParametersV1betaReplicationSchedule(data) {
+	case HybridReplicationParametersV1betaReplicationScheduleEVERY10MINUTES:
+		*s = HybridReplicationParametersV1betaReplicationScheduleEVERY10MINUTES
+		return nil
+	case HybridReplicationParametersV1betaReplicationScheduleHOURLY:
+		*s = HybridReplicationParametersV1betaReplicationScheduleHOURLY
+		return nil
+	case HybridReplicationParametersV1betaReplicationScheduleDAILY:
+		*s = HybridReplicationParametersV1betaReplicationScheduleDAILY
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// If enabled (snapshotsToKeep > 0), make a snapshot every month at a specific day or days, defaults
+// to the first day of the month at midnight.
+// Ref: #/components/schemas/MonthlySchedule_v1beta
+type MonthlyScheduleV1beta struct {
+	// The maximum number of snapshots to keep for the monthly schedule.
+	SnapshotsToKeep OptFloat64 `json:"snapshotsToKeep"`
+	// Set the day or days of the month to make a snapshot (1-31). Accepts a comma delimited string of
+	// the day of the month e.g. '1,15,31'. Defaults to '1'.
+	DaysOfMonth OptString `json:"daysOfMonth"`
+	// Set the hour to start the snapshot (0-23), defaults to midnight (0).
+	Hour OptFloat64 `json:"hour"`
+	// Set the minute of the hour to start the snapshot (0-59), defaults to the top of the hour (0).
+	Minute OptFloat64 `json:"minute"`
+}
+
+// GetSnapshotsToKeep returns the value of SnapshotsToKeep.
+func (s *MonthlyScheduleV1beta) GetSnapshotsToKeep() OptFloat64 {
+	return s.SnapshotsToKeep
+}
+
+// GetDaysOfMonth returns the value of DaysOfMonth.
+func (s *MonthlyScheduleV1beta) GetDaysOfMonth() OptString {
+	return s.DaysOfMonth
+}
+
+// GetHour returns the value of Hour.
+func (s *MonthlyScheduleV1beta) GetHour() OptFloat64 {
+	return s.Hour
+}
+
+// GetMinute returns the value of Minute.
+func (s *MonthlyScheduleV1beta) GetMinute() OptFloat64 {
+	return s.Minute
+}
+
+// SetSnapshotsToKeep sets the value of SnapshotsToKeep.
+func (s *MonthlyScheduleV1beta) SetSnapshotsToKeep(val OptFloat64) {
+	s.SnapshotsToKeep = val
+}
+
+// SetDaysOfMonth sets the value of DaysOfMonth.
+func (s *MonthlyScheduleV1beta) SetDaysOfMonth(val OptString) {
+	s.DaysOfMonth = val
+}
+
+// SetHour sets the value of Hour.
+func (s *MonthlyScheduleV1beta) SetHour(val OptFloat64) {
+	s.Hour = val
+}
+
+// SetMinute sets the value of Minute.
+func (s *MonthlyScheduleV1beta) SetMinute(val OptFloat64) {
+	s.Minute = val
+}
+
+// Ref: #/components/schemas/MountPoint_v1beta
+type MountPointV1beta struct {
+	// The volume's export path or share name.
+	Export OptString `json:"export"`
+	// The volume's full export path or share name, including server.
+	ExportFull OptString `json:"exportFull"`
+	// The volume's IPv4 address.
+	IpAddress OptString          `json:"ipAddress"`
+	Protocol  OptProtocolsV1beta `json:"protocol"`
+	// Instructions for mounting the volume.
+	Instructions OptString `json:"instructions"`
+}
+
+// GetExport returns the value of Export.
+func (s *MountPointV1beta) GetExport() OptString {
+	return s.Export
+}
+
+// GetExportFull returns the value of ExportFull.
+func (s *MountPointV1beta) GetExportFull() OptString {
+	return s.ExportFull
+}
+
+// GetIpAddress returns the value of IpAddress.
+func (s *MountPointV1beta) GetIpAddress() OptString {
+	return s.IpAddress
+}
+
+// GetProtocol returns the value of Protocol.
+func (s *MountPointV1beta) GetProtocol() OptProtocolsV1beta {
+	return s.Protocol
+}
+
+// GetInstructions returns the value of Instructions.
+func (s *MountPointV1beta) GetInstructions() OptString {
+	return s.Instructions
+}
+
+// SetExport sets the value of Export.
+func (s *MountPointV1beta) SetExport(val OptString) {
+	s.Export = val
+}
+
+// SetExportFull sets the value of ExportFull.
+func (s *MountPointV1beta) SetExportFull(val OptString) {
+	s.ExportFull = val
+}
+
+// SetIpAddress sets the value of IpAddress.
+func (s *MountPointV1beta) SetIpAddress(val OptString) {
+	s.IpAddress = val
+}
+
+// SetProtocol sets the value of Protocol.
+func (s *MountPointV1beta) SetProtocol(val OptProtocolsV1beta) {
+	s.Protocol = val
+}
+
+// SetInstructions sets the value of Instructions.
+func (s *MountPointV1beta) SetInstructions(val OptString) {
+	s.Instructions = val
+}
+
+// NewNilString returns new NilString with value set to v.
+func NewNilString(v string) NilString {
+	return NilString{
+		Value: v,
+	}
+}
+
+// NilString is nullable string.
+type NilString struct {
+	Value string
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilString) SetTo(v string) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilString) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilString) SetToNull() {
+	o.Null = true
+	var v string
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilString) Get() (v string, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilString) Or(d string) string {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
 }
 
 // Ref: #/components/schemas/Operation_v1beta
@@ -183,9 +1480,14 @@ func (s *OperationV1beta) SetResponse(val jx.Raw) {
 	s.Response = val
 }
 
-func (*OperationV1beta) v1betaCreatePoolRes() {}
-func (*OperationV1beta) v1betaDeletePoolRes() {}
-func (*OperationV1beta) v1betaUpdatePoolRes() {}
+func (*OperationV1beta) v1betaCreatePoolRes()      {}
+func (*OperationV1beta) v1betaCreateVolumeRes()    {}
+func (*OperationV1beta) v1betaDeleteHostGroupRes() {}
+func (*OperationV1beta) v1betaDeletePoolRes()      {}
+func (*OperationV1beta) v1betaDeleteVolumeRes()    {}
+func (*OperationV1beta) v1betaUpdateHostGroupRes() {}
+func (*OperationV1beta) v1betaUpdatePoolRes()      {}
+func (*OperationV1beta) v1betaUpdateVolumeRes()    {}
 
 // NewOptAnyV1Beta returns new OptAnyV1Beta with value set to v.
 func NewOptAnyV1Beta(v AnyV1Beta) OptAnyV1Beta {
@@ -227,6 +1529,144 @@ func (o OptAnyV1Beta) Get() (v AnyV1Beta, ok bool) {
 
 // Or returns value if set, or given parameter if does not.
 func (o OptAnyV1Beta) Or(d AnyV1Beta) AnyV1Beta {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptBackupConfigV1beta returns new OptBackupConfigV1beta with value set to v.
+func NewOptBackupConfigV1beta(v BackupConfigV1beta) OptBackupConfigV1beta {
+	return OptBackupConfigV1beta{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptBackupConfigV1beta is optional BackupConfigV1beta.
+type OptBackupConfigV1beta struct {
+	Value BackupConfigV1beta
+	Set   bool
+}
+
+// IsSet returns true if OptBackupConfigV1beta was set.
+func (o OptBackupConfigV1beta) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptBackupConfigV1beta) Reset() {
+	var v BackupConfigV1beta
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptBackupConfigV1beta) SetTo(v BackupConfigV1beta) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptBackupConfigV1beta) Get() (v BackupConfigV1beta, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptBackupConfigV1beta) Or(d BackupConfigV1beta) BackupConfigV1beta {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptBlockPropertiesV1beta returns new OptBlockPropertiesV1beta with value set to v.
+func NewOptBlockPropertiesV1beta(v BlockPropertiesV1beta) OptBlockPropertiesV1beta {
+	return OptBlockPropertiesV1beta{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptBlockPropertiesV1beta is optional BlockPropertiesV1beta.
+type OptBlockPropertiesV1beta struct {
+	Value BlockPropertiesV1beta
+	Set   bool
+}
+
+// IsSet returns true if OptBlockPropertiesV1beta was set.
+func (o OptBlockPropertiesV1beta) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptBlockPropertiesV1beta) Reset() {
+	var v BlockPropertiesV1beta
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptBlockPropertiesV1beta) SetTo(v BlockPropertiesV1beta) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptBlockPropertiesV1beta) Get() (v BlockPropertiesV1beta, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptBlockPropertiesV1beta) Or(d BlockPropertiesV1beta) BlockPropertiesV1beta {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptBlockVolumeOSTypeV1beta returns new OptBlockVolumeOSTypeV1beta with value set to v.
+func NewOptBlockVolumeOSTypeV1beta(v BlockVolumeOSTypeV1beta) OptBlockVolumeOSTypeV1beta {
+	return OptBlockVolumeOSTypeV1beta{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptBlockVolumeOSTypeV1beta is optional BlockVolumeOSTypeV1beta.
+type OptBlockVolumeOSTypeV1beta struct {
+	Value BlockVolumeOSTypeV1beta
+	Set   bool
+}
+
+// IsSet returns true if OptBlockVolumeOSTypeV1beta was set.
+func (o OptBlockVolumeOSTypeV1beta) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptBlockVolumeOSTypeV1beta) Reset() {
+	var v BlockVolumeOSTypeV1beta
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptBlockVolumeOSTypeV1beta) SetTo(v BlockVolumeOSTypeV1beta) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptBlockVolumeOSTypeV1beta) Get() (v BlockVolumeOSTypeV1beta, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptBlockVolumeOSTypeV1beta) Or(d BlockVolumeOSTypeV1beta) BlockVolumeOSTypeV1beta {
 	if v, ok := o.Get(); ok {
 		return v
 	}
@@ -279,6 +1719,52 @@ func (o OptBool) Or(d bool) bool {
 	return d
 }
 
+// NewOptDailyScheduleV1beta returns new OptDailyScheduleV1beta with value set to v.
+func NewOptDailyScheduleV1beta(v DailyScheduleV1beta) OptDailyScheduleV1beta {
+	return OptDailyScheduleV1beta{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptDailyScheduleV1beta is optional DailyScheduleV1beta.
+type OptDailyScheduleV1beta struct {
+	Value DailyScheduleV1beta
+	Set   bool
+}
+
+// IsSet returns true if OptDailyScheduleV1beta was set.
+func (o OptDailyScheduleV1beta) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptDailyScheduleV1beta) Reset() {
+	var v DailyScheduleV1beta
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptDailyScheduleV1beta) SetTo(v DailyScheduleV1beta) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptDailyScheduleV1beta) Get() (v DailyScheduleV1beta, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptDailyScheduleV1beta) Or(d DailyScheduleV1beta) DailyScheduleV1beta {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
 // NewOptDateTime returns new OptDateTime with value set to v.
 func NewOptDateTime(v time.Time) OptDateTime {
 	return OptDateTime{
@@ -325,6 +1811,236 @@ func (o OptDateTime) Or(d time.Time) time.Time {
 	return d
 }
 
+// NewOptExportPolicyV1beta returns new OptExportPolicyV1beta with value set to v.
+func NewOptExportPolicyV1beta(v ExportPolicyV1beta) OptExportPolicyV1beta {
+	return OptExportPolicyV1beta{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptExportPolicyV1beta is optional ExportPolicyV1beta.
+type OptExportPolicyV1beta struct {
+	Value ExportPolicyV1beta
+	Set   bool
+}
+
+// IsSet returns true if OptExportPolicyV1beta was set.
+func (o OptExportPolicyV1beta) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptExportPolicyV1beta) Reset() {
+	var v ExportPolicyV1beta
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptExportPolicyV1beta) SetTo(v ExportPolicyV1beta) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptExportPolicyV1beta) Get() (v ExportPolicyV1beta, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptExportPolicyV1beta) Or(d ExportPolicyV1beta) ExportPolicyV1beta {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptFlexCacheConfigV1beta returns new OptFlexCacheConfigV1beta with value set to v.
+func NewOptFlexCacheConfigV1beta(v FlexCacheConfigV1beta) OptFlexCacheConfigV1beta {
+	return OptFlexCacheConfigV1beta{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptFlexCacheConfigV1beta is optional FlexCacheConfigV1beta.
+type OptFlexCacheConfigV1beta struct {
+	Value FlexCacheConfigV1beta
+	Set   bool
+}
+
+// IsSet returns true if OptFlexCacheConfigV1beta was set.
+func (o OptFlexCacheConfigV1beta) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptFlexCacheConfigV1beta) Reset() {
+	var v FlexCacheConfigV1beta
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptFlexCacheConfigV1beta) SetTo(v FlexCacheConfigV1beta) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptFlexCacheConfigV1beta) Get() (v FlexCacheConfigV1beta, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptFlexCacheConfigV1beta) Or(d FlexCacheConfigV1beta) FlexCacheConfigV1beta {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptFlexCachePrePopulateV1beta returns new OptFlexCachePrePopulateV1beta with value set to v.
+func NewOptFlexCachePrePopulateV1beta(v FlexCachePrePopulateV1beta) OptFlexCachePrePopulateV1beta {
+	return OptFlexCachePrePopulateV1beta{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptFlexCachePrePopulateV1beta is optional FlexCachePrePopulateV1beta.
+type OptFlexCachePrePopulateV1beta struct {
+	Value FlexCachePrePopulateV1beta
+	Set   bool
+}
+
+// IsSet returns true if OptFlexCachePrePopulateV1beta was set.
+func (o OptFlexCachePrePopulateV1beta) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptFlexCachePrePopulateV1beta) Reset() {
+	var v FlexCachePrePopulateV1beta
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptFlexCachePrePopulateV1beta) SetTo(v FlexCachePrePopulateV1beta) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptFlexCachePrePopulateV1beta) Get() (v FlexCachePrePopulateV1beta, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptFlexCachePrePopulateV1beta) Or(d FlexCachePrePopulateV1beta) FlexCachePrePopulateV1beta {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptFlexCacheV1beta returns new OptFlexCacheV1beta with value set to v.
+func NewOptFlexCacheV1beta(v FlexCacheV1beta) OptFlexCacheV1beta {
+	return OptFlexCacheV1beta{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptFlexCacheV1beta is optional FlexCacheV1beta.
+type OptFlexCacheV1beta struct {
+	Value FlexCacheV1beta
+	Set   bool
+}
+
+// IsSet returns true if OptFlexCacheV1beta was set.
+func (o OptFlexCacheV1beta) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptFlexCacheV1beta) Reset() {
+	var v FlexCacheV1beta
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptFlexCacheV1beta) SetTo(v FlexCacheV1beta) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptFlexCacheV1beta) Get() (v FlexCacheV1beta, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptFlexCacheV1beta) Or(d FlexCacheV1beta) FlexCacheV1beta {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptFlexCacheV1betaCacheState returns new OptFlexCacheV1betaCacheState with value set to v.
+func NewOptFlexCacheV1betaCacheState(v FlexCacheV1betaCacheState) OptFlexCacheV1betaCacheState {
+	return OptFlexCacheV1betaCacheState{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptFlexCacheV1betaCacheState is optional FlexCacheV1betaCacheState.
+type OptFlexCacheV1betaCacheState struct {
+	Value FlexCacheV1betaCacheState
+	Set   bool
+}
+
+// IsSet returns true if OptFlexCacheV1betaCacheState was set.
+func (o OptFlexCacheV1betaCacheState) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptFlexCacheV1betaCacheState) Reset() {
+	var v FlexCacheV1betaCacheState
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptFlexCacheV1betaCacheState) SetTo(v FlexCacheV1betaCacheState) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptFlexCacheV1betaCacheState) Get() (v FlexCacheV1betaCacheState, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptFlexCacheV1betaCacheState) Or(d FlexCacheV1betaCacheState) FlexCacheV1betaCacheState {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
 // NewOptFloat64 returns new OptFloat64 with value set to v.
 func NewOptFloat64(v float64) OptFloat64 {
 	return OptFloat64{
@@ -365,6 +2081,328 @@ func (o OptFloat64) Get() (v float64, ok bool) {
 
 // Or returns value if set, or given parameter if does not.
 func (o OptFloat64) Or(d float64) float64 {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptHostGroupV1betaState returns new OptHostGroupV1betaState with value set to v.
+func NewOptHostGroupV1betaState(v HostGroupV1betaState) OptHostGroupV1betaState {
+	return OptHostGroupV1betaState{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptHostGroupV1betaState is optional HostGroupV1betaState.
+type OptHostGroupV1betaState struct {
+	Value HostGroupV1betaState
+	Set   bool
+}
+
+// IsSet returns true if OptHostGroupV1betaState was set.
+func (o OptHostGroupV1betaState) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptHostGroupV1betaState) Reset() {
+	var v HostGroupV1betaState
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptHostGroupV1betaState) SetTo(v HostGroupV1betaState) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptHostGroupV1betaState) Get() (v HostGroupV1betaState, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptHostGroupV1betaState) Or(d HostGroupV1betaState) HostGroupV1betaState {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptHostGroupV1betaType returns new OptHostGroupV1betaType with value set to v.
+func NewOptHostGroupV1betaType(v HostGroupV1betaType) OptHostGroupV1betaType {
+	return OptHostGroupV1betaType{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptHostGroupV1betaType is optional HostGroupV1betaType.
+type OptHostGroupV1betaType struct {
+	Value HostGroupV1betaType
+	Set   bool
+}
+
+// IsSet returns true if OptHostGroupV1betaType was set.
+func (o OptHostGroupV1betaType) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptHostGroupV1betaType) Reset() {
+	var v HostGroupV1betaType
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptHostGroupV1betaType) SetTo(v HostGroupV1betaType) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptHostGroupV1betaType) Get() (v HostGroupV1betaType, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptHostGroupV1betaType) Or(d HostGroupV1betaType) HostGroupV1betaType {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptHourlyScheduleV1beta returns new OptHourlyScheduleV1beta with value set to v.
+func NewOptHourlyScheduleV1beta(v HourlyScheduleV1beta) OptHourlyScheduleV1beta {
+	return OptHourlyScheduleV1beta{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptHourlyScheduleV1beta is optional HourlyScheduleV1beta.
+type OptHourlyScheduleV1beta struct {
+	Value HourlyScheduleV1beta
+	Set   bool
+}
+
+// IsSet returns true if OptHourlyScheduleV1beta was set.
+func (o OptHourlyScheduleV1beta) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptHourlyScheduleV1beta) Reset() {
+	var v HourlyScheduleV1beta
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptHourlyScheduleV1beta) SetTo(v HourlyScheduleV1beta) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptHourlyScheduleV1beta) Get() (v HourlyScheduleV1beta, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptHourlyScheduleV1beta) Or(d HourlyScheduleV1beta) HourlyScheduleV1beta {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptHybridReplicationParametersV1beta returns new OptHybridReplicationParametersV1beta with value set to v.
+func NewOptHybridReplicationParametersV1beta(v HybridReplicationParametersV1beta) OptHybridReplicationParametersV1beta {
+	return OptHybridReplicationParametersV1beta{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptHybridReplicationParametersV1beta is optional HybridReplicationParametersV1beta.
+type OptHybridReplicationParametersV1beta struct {
+	Value HybridReplicationParametersV1beta
+	Set   bool
+}
+
+// IsSet returns true if OptHybridReplicationParametersV1beta was set.
+func (o OptHybridReplicationParametersV1beta) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptHybridReplicationParametersV1beta) Reset() {
+	var v HybridReplicationParametersV1beta
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptHybridReplicationParametersV1beta) SetTo(v HybridReplicationParametersV1beta) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptHybridReplicationParametersV1beta) Get() (v HybridReplicationParametersV1beta, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptHybridReplicationParametersV1beta) Or(d HybridReplicationParametersV1beta) HybridReplicationParametersV1beta {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptHybridReplicationParametersV1betaLabels returns new OptHybridReplicationParametersV1betaLabels with value set to v.
+func NewOptHybridReplicationParametersV1betaLabels(v HybridReplicationParametersV1betaLabels) OptHybridReplicationParametersV1betaLabels {
+	return OptHybridReplicationParametersV1betaLabels{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptHybridReplicationParametersV1betaLabels is optional HybridReplicationParametersV1betaLabels.
+type OptHybridReplicationParametersV1betaLabels struct {
+	Value HybridReplicationParametersV1betaLabels
+	Set   bool
+}
+
+// IsSet returns true if OptHybridReplicationParametersV1betaLabels was set.
+func (o OptHybridReplicationParametersV1betaLabels) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptHybridReplicationParametersV1betaLabels) Reset() {
+	var v HybridReplicationParametersV1betaLabels
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptHybridReplicationParametersV1betaLabels) SetTo(v HybridReplicationParametersV1betaLabels) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptHybridReplicationParametersV1betaLabels) Get() (v HybridReplicationParametersV1betaLabels, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptHybridReplicationParametersV1betaLabels) Or(d HybridReplicationParametersV1betaLabels) HybridReplicationParametersV1betaLabels {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptHybridReplicationParametersV1betaReplicationSchedule returns new OptHybridReplicationParametersV1betaReplicationSchedule with value set to v.
+func NewOptHybridReplicationParametersV1betaReplicationSchedule(v HybridReplicationParametersV1betaReplicationSchedule) OptHybridReplicationParametersV1betaReplicationSchedule {
+	return OptHybridReplicationParametersV1betaReplicationSchedule{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptHybridReplicationParametersV1betaReplicationSchedule is optional HybridReplicationParametersV1betaReplicationSchedule.
+type OptHybridReplicationParametersV1betaReplicationSchedule struct {
+	Value HybridReplicationParametersV1betaReplicationSchedule
+	Set   bool
+}
+
+// IsSet returns true if OptHybridReplicationParametersV1betaReplicationSchedule was set.
+func (o OptHybridReplicationParametersV1betaReplicationSchedule) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptHybridReplicationParametersV1betaReplicationSchedule) Reset() {
+	var v HybridReplicationParametersV1betaReplicationSchedule
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptHybridReplicationParametersV1betaReplicationSchedule) SetTo(v HybridReplicationParametersV1betaReplicationSchedule) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptHybridReplicationParametersV1betaReplicationSchedule) Get() (v HybridReplicationParametersV1betaReplicationSchedule, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptHybridReplicationParametersV1betaReplicationSchedule) Or(d HybridReplicationParametersV1betaReplicationSchedule) HybridReplicationParametersV1betaReplicationSchedule {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptMonthlyScheduleV1beta returns new OptMonthlyScheduleV1beta with value set to v.
+func NewOptMonthlyScheduleV1beta(v MonthlyScheduleV1beta) OptMonthlyScheduleV1beta {
+	return OptMonthlyScheduleV1beta{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptMonthlyScheduleV1beta is optional MonthlyScheduleV1beta.
+type OptMonthlyScheduleV1beta struct {
+	Value MonthlyScheduleV1beta
+	Set   bool
+}
+
+// IsSet returns true if OptMonthlyScheduleV1beta was set.
+func (o OptMonthlyScheduleV1beta) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptMonthlyScheduleV1beta) Reset() {
+	var v MonthlyScheduleV1beta
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptMonthlyScheduleV1beta) SetTo(v MonthlyScheduleV1beta) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptMonthlyScheduleV1beta) Get() (v MonthlyScheduleV1beta, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptMonthlyScheduleV1beta) Or(d MonthlyScheduleV1beta) MonthlyScheduleV1beta {
 	if v, ok := o.Get(); ok {
 		return v
 	}
@@ -623,6 +2661,69 @@ func (o OptNilFloat64) Or(d float64) float64 {
 	return d
 }
 
+// NewOptNilInt16 returns new OptNilInt16 with value set to v.
+func NewOptNilInt16(v int16) OptNilInt16 {
+	return OptNilInt16{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptNilInt16 is optional nullable int16.
+type OptNilInt16 struct {
+	Value int16
+	Set   bool
+	Null  bool
+}
+
+// IsSet returns true if OptNilInt16 was set.
+func (o OptNilInt16) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptNilInt16) Reset() {
+	var v int16
+	o.Value = v
+	o.Set = false
+	o.Null = false
+}
+
+// SetTo sets value to v.
+func (o *OptNilInt16) SetTo(v int16) {
+	o.Set = true
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o OptNilInt16) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *OptNilInt16) SetToNull() {
+	o.Set = true
+	o.Null = true
+	var v int16
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptNilInt16) Get() (v int16, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptNilInt16) Or(d int16) int16 {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
 // NewOptNilInt32 returns new OptNilInt32 with value set to v.
 func NewOptNilInt32(v int32) OptNilInt32 {
 	return OptNilInt32{
@@ -680,6 +2781,69 @@ func (o OptNilInt32) Get() (v int32, ok bool) {
 
 // Or returns value if set, or given parameter if does not.
 func (o OptNilInt32) Or(d int32) int32 {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptNilInt64 returns new OptNilInt64 with value set to v.
+func NewOptNilInt64(v int64) OptNilInt64 {
+	return OptNilInt64{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptNilInt64 is optional nullable int64.
+type OptNilInt64 struct {
+	Value int64
+	Set   bool
+	Null  bool
+}
+
+// IsSet returns true if OptNilInt64 was set.
+func (o OptNilInt64) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptNilInt64) Reset() {
+	var v int64
+	o.Value = v
+	o.Set = false
+	o.Null = false
+}
+
+// SetTo sets value to v.
+func (o *OptNilInt64) SetTo(v int64) {
+	o.Set = true
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o OptNilInt64) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *OptNilInt64) SetToNull() {
+	o.Set = true
+	o.Null = true
+	var v int64
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptNilInt64) Get() (v int64, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptNilInt64) Or(d int64) int64 {
 	if v, ok := o.Get(); ok {
 		return v
 	}
@@ -875,6 +3039,69 @@ func (o OptNilPoolV1betaQosType) Or(d PoolV1betaQosType) PoolV1betaQosType {
 	return d
 }
 
+// NewOptNilSimpleExportPolicyRuleV1betaHasRootAccess returns new OptNilSimpleExportPolicyRuleV1betaHasRootAccess with value set to v.
+func NewOptNilSimpleExportPolicyRuleV1betaHasRootAccess(v SimpleExportPolicyRuleV1betaHasRootAccess) OptNilSimpleExportPolicyRuleV1betaHasRootAccess {
+	return OptNilSimpleExportPolicyRuleV1betaHasRootAccess{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptNilSimpleExportPolicyRuleV1betaHasRootAccess is optional nullable SimpleExportPolicyRuleV1betaHasRootAccess.
+type OptNilSimpleExportPolicyRuleV1betaHasRootAccess struct {
+	Value SimpleExportPolicyRuleV1betaHasRootAccess
+	Set   bool
+	Null  bool
+}
+
+// IsSet returns true if OptNilSimpleExportPolicyRuleV1betaHasRootAccess was set.
+func (o OptNilSimpleExportPolicyRuleV1betaHasRootAccess) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptNilSimpleExportPolicyRuleV1betaHasRootAccess) Reset() {
+	var v SimpleExportPolicyRuleV1betaHasRootAccess
+	o.Value = v
+	o.Set = false
+	o.Null = false
+}
+
+// SetTo sets value to v.
+func (o *OptNilSimpleExportPolicyRuleV1betaHasRootAccess) SetTo(v SimpleExportPolicyRuleV1betaHasRootAccess) {
+	o.Set = true
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o OptNilSimpleExportPolicyRuleV1betaHasRootAccess) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *OptNilSimpleExportPolicyRuleV1betaHasRootAccess) SetToNull() {
+	o.Set = true
+	o.Null = true
+	var v SimpleExportPolicyRuleV1betaHasRootAccess
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptNilSimpleExportPolicyRuleV1betaHasRootAccess) Get() (v SimpleExportPolicyRuleV1betaHasRootAccess, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptNilSimpleExportPolicyRuleV1betaHasRootAccess) Or(d SimpleExportPolicyRuleV1betaHasRootAccess) SimpleExportPolicyRuleV1betaHasRootAccess {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
 // NewOptNilString returns new OptNilString with value set to v.
 func NewOptNilString(v string) OptNilString {
 	return OptNilString{
@@ -932,6 +3159,132 @@ func (o OptNilString) Get() (v string, ok bool) {
 
 // Or returns value if set, or given parameter if does not.
 func (o OptNilString) Or(d string) string {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptNilStringArray returns new OptNilStringArray with value set to v.
+func NewOptNilStringArray(v []string) OptNilStringArray {
+	return OptNilStringArray{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptNilStringArray is optional nullable []string.
+type OptNilStringArray struct {
+	Value []string
+	Set   bool
+	Null  bool
+}
+
+// IsSet returns true if OptNilStringArray was set.
+func (o OptNilStringArray) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptNilStringArray) Reset() {
+	var v []string
+	o.Value = v
+	o.Set = false
+	o.Null = false
+}
+
+// SetTo sets value to v.
+func (o *OptNilStringArray) SetTo(v []string) {
+	o.Set = true
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o OptNilStringArray) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *OptNilStringArray) SetToNull() {
+	o.Set = true
+	o.Null = true
+	var v []string
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptNilStringArray) Get() (v []string, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptNilStringArray) Or(d []string) []string {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptNilTieringPolicyV1betaTierAction returns new OptNilTieringPolicyV1betaTierAction with value set to v.
+func NewOptNilTieringPolicyV1betaTierAction(v TieringPolicyV1betaTierAction) OptNilTieringPolicyV1betaTierAction {
+	return OptNilTieringPolicyV1betaTierAction{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptNilTieringPolicyV1betaTierAction is optional nullable TieringPolicyV1betaTierAction.
+type OptNilTieringPolicyV1betaTierAction struct {
+	Value TieringPolicyV1betaTierAction
+	Set   bool
+	Null  bool
+}
+
+// IsSet returns true if OptNilTieringPolicyV1betaTierAction was set.
+func (o OptNilTieringPolicyV1betaTierAction) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptNilTieringPolicyV1betaTierAction) Reset() {
+	var v TieringPolicyV1betaTierAction
+	o.Value = v
+	o.Set = false
+	o.Null = false
+}
+
+// SetTo sets value to v.
+func (o *OptNilTieringPolicyV1betaTierAction) SetTo(v TieringPolicyV1betaTierAction) {
+	o.Set = true
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o OptNilTieringPolicyV1betaTierAction) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *OptNilTieringPolicyV1betaTierAction) SetToNull() {
+	o.Set = true
+	o.Null = true
+	var v TieringPolicyV1betaTierAction
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptNilTieringPolicyV1betaTierAction) Get() (v TieringPolicyV1betaTierAction, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptNilTieringPolicyV1betaTierAction) Or(d TieringPolicyV1betaTierAction) TieringPolicyV1betaTierAction {
 	if v, ok := o.Get(); ok {
 		return v
 	}
@@ -1122,6 +3475,98 @@ func (o OptPoolV1betaStoragePoolState) Or(d PoolV1betaStoragePoolState) PoolV1be
 	return d
 }
 
+// NewOptProtocolsV1beta returns new OptProtocolsV1beta with value set to v.
+func NewOptProtocolsV1beta(v ProtocolsV1beta) OptProtocolsV1beta {
+	return OptProtocolsV1beta{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptProtocolsV1beta is optional ProtocolsV1beta.
+type OptProtocolsV1beta struct {
+	Value ProtocolsV1beta
+	Set   bool
+}
+
+// IsSet returns true if OptProtocolsV1beta was set.
+func (o OptProtocolsV1beta) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptProtocolsV1beta) Reset() {
+	var v ProtocolsV1beta
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptProtocolsV1beta) SetTo(v ProtocolsV1beta) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptProtocolsV1beta) Get() (v ProtocolsV1beta, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptProtocolsV1beta) Or(d ProtocolsV1beta) ProtocolsV1beta {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptSnapshotPolicyV1beta returns new OptSnapshotPolicyV1beta with value set to v.
+func NewOptSnapshotPolicyV1beta(v SnapshotPolicyV1beta) OptSnapshotPolicyV1beta {
+	return OptSnapshotPolicyV1beta{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptSnapshotPolicyV1beta is optional SnapshotPolicyV1beta.
+type OptSnapshotPolicyV1beta struct {
+	Value SnapshotPolicyV1beta
+	Set   bool
+}
+
+// IsSet returns true if OptSnapshotPolicyV1beta was set.
+func (o OptSnapshotPolicyV1beta) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptSnapshotPolicyV1beta) Reset() {
+	var v SnapshotPolicyV1beta
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptSnapshotPolicyV1beta) SetTo(v SnapshotPolicyV1beta) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptSnapshotPolicyV1beta) Get() (v SnapshotPolicyV1beta, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptSnapshotPolicyV1beta) Or(d SnapshotPolicyV1beta) SnapshotPolicyV1beta {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
 // NewOptStatusV1Beta returns new OptStatusV1Beta with value set to v.
 func NewOptStatusV1Beta(v StatusV1Beta) OptStatusV1Beta {
 	return OptStatusV1Beta{
@@ -1254,6 +3699,466 @@ func (o OptString) Get() (v string, ok bool) {
 
 // Or returns value if set, or given parameter if does not.
 func (o OptString) Or(d string) string {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptTieringPolicyV1beta returns new OptTieringPolicyV1beta with value set to v.
+func NewOptTieringPolicyV1beta(v TieringPolicyV1beta) OptTieringPolicyV1beta {
+	return OptTieringPolicyV1beta{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptTieringPolicyV1beta is optional TieringPolicyV1beta.
+type OptTieringPolicyV1beta struct {
+	Value TieringPolicyV1beta
+	Set   bool
+}
+
+// IsSet returns true if OptTieringPolicyV1beta was set.
+func (o OptTieringPolicyV1beta) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptTieringPolicyV1beta) Reset() {
+	var v TieringPolicyV1beta
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptTieringPolicyV1beta) SetTo(v TieringPolicyV1beta) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptTieringPolicyV1beta) Get() (v TieringPolicyV1beta, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptTieringPolicyV1beta) Or(d TieringPolicyV1beta) TieringPolicyV1beta {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptV1betaDeleteVolumeReq returns new OptV1betaDeleteVolumeReq with value set to v.
+func NewOptV1betaDeleteVolumeReq(v V1betaDeleteVolumeReq) OptV1betaDeleteVolumeReq {
+	return OptV1betaDeleteVolumeReq{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptV1betaDeleteVolumeReq is optional V1betaDeleteVolumeReq.
+type OptV1betaDeleteVolumeReq struct {
+	Value V1betaDeleteVolumeReq
+	Set   bool
+}
+
+// IsSet returns true if OptV1betaDeleteVolumeReq was set.
+func (o OptV1betaDeleteVolumeReq) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptV1betaDeleteVolumeReq) Reset() {
+	var v V1betaDeleteVolumeReq
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptV1betaDeleteVolumeReq) SetTo(v V1betaDeleteVolumeReq) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptV1betaDeleteVolumeReq) Get() (v V1betaDeleteVolumeReq, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptV1betaDeleteVolumeReq) Or(d V1betaDeleteVolumeReq) V1betaDeleteVolumeReq {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptVolumeCreateV1betaVolumeType returns new OptVolumeCreateV1betaVolumeType with value set to v.
+func NewOptVolumeCreateV1betaVolumeType(v VolumeCreateV1betaVolumeType) OptVolumeCreateV1betaVolumeType {
+	return OptVolumeCreateV1betaVolumeType{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptVolumeCreateV1betaVolumeType is optional VolumeCreateV1betaVolumeType.
+type OptVolumeCreateV1betaVolumeType struct {
+	Value VolumeCreateV1betaVolumeType
+	Set   bool
+}
+
+// IsSet returns true if OptVolumeCreateV1betaVolumeType was set.
+func (o OptVolumeCreateV1betaVolumeType) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptVolumeCreateV1betaVolumeType) Reset() {
+	var v VolumeCreateV1betaVolumeType
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptVolumeCreateV1betaVolumeType) SetTo(v VolumeCreateV1betaVolumeType) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptVolumeCreateV1betaVolumeType) Get() (v VolumeCreateV1betaVolumeType, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptVolumeCreateV1betaVolumeType) Or(d VolumeCreateV1betaVolumeType) VolumeCreateV1betaVolumeType {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptVolumeUpdateV1betaLabels returns new OptVolumeUpdateV1betaLabels with value set to v.
+func NewOptVolumeUpdateV1betaLabels(v VolumeUpdateV1betaLabels) OptVolumeUpdateV1betaLabels {
+	return OptVolumeUpdateV1betaLabels{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptVolumeUpdateV1betaLabels is optional VolumeUpdateV1betaLabels.
+type OptVolumeUpdateV1betaLabels struct {
+	Value VolumeUpdateV1betaLabels
+	Set   bool
+}
+
+// IsSet returns true if OptVolumeUpdateV1betaLabels was set.
+func (o OptVolumeUpdateV1betaLabels) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptVolumeUpdateV1betaLabels) Reset() {
+	var v VolumeUpdateV1betaLabels
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptVolumeUpdateV1betaLabels) SetTo(v VolumeUpdateV1betaLabels) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptVolumeUpdateV1betaLabels) Get() (v VolumeUpdateV1betaLabels, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptVolumeUpdateV1betaLabels) Or(d VolumeUpdateV1betaLabels) VolumeUpdateV1betaLabels {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptVolumeV1betaEncryptionType returns new OptVolumeV1betaEncryptionType with value set to v.
+func NewOptVolumeV1betaEncryptionType(v VolumeV1betaEncryptionType) OptVolumeV1betaEncryptionType {
+	return OptVolumeV1betaEncryptionType{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptVolumeV1betaEncryptionType is optional VolumeV1betaEncryptionType.
+type OptVolumeV1betaEncryptionType struct {
+	Value VolumeV1betaEncryptionType
+	Set   bool
+}
+
+// IsSet returns true if OptVolumeV1betaEncryptionType was set.
+func (o OptVolumeV1betaEncryptionType) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptVolumeV1betaEncryptionType) Reset() {
+	var v VolumeV1betaEncryptionType
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptVolumeV1betaEncryptionType) SetTo(v VolumeV1betaEncryptionType) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptVolumeV1betaEncryptionType) Get() (v VolumeV1betaEncryptionType, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptVolumeV1betaEncryptionType) Or(d VolumeV1betaEncryptionType) VolumeV1betaEncryptionType {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptVolumeV1betaLabels returns new OptVolumeV1betaLabels with value set to v.
+func NewOptVolumeV1betaLabels(v VolumeV1betaLabels) OptVolumeV1betaLabels {
+	return OptVolumeV1betaLabels{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptVolumeV1betaLabels is optional VolumeV1betaLabels.
+type OptVolumeV1betaLabels struct {
+	Value VolumeV1betaLabels
+	Set   bool
+}
+
+// IsSet returns true if OptVolumeV1betaLabels was set.
+func (o OptVolumeV1betaLabels) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptVolumeV1betaLabels) Reset() {
+	var v VolumeV1betaLabels
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptVolumeV1betaLabels) SetTo(v VolumeV1betaLabels) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptVolumeV1betaLabels) Get() (v VolumeV1betaLabels, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptVolumeV1betaLabels) Or(d VolumeV1betaLabels) VolumeV1betaLabels {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptVolumeV1betaSecurityStyle returns new OptVolumeV1betaSecurityStyle with value set to v.
+func NewOptVolumeV1betaSecurityStyle(v VolumeV1betaSecurityStyle) OptVolumeV1betaSecurityStyle {
+	return OptVolumeV1betaSecurityStyle{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptVolumeV1betaSecurityStyle is optional VolumeV1betaSecurityStyle.
+type OptVolumeV1betaSecurityStyle struct {
+	Value VolumeV1betaSecurityStyle
+	Set   bool
+}
+
+// IsSet returns true if OptVolumeV1betaSecurityStyle was set.
+func (o OptVolumeV1betaSecurityStyle) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptVolumeV1betaSecurityStyle) Reset() {
+	var v VolumeV1betaSecurityStyle
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptVolumeV1betaSecurityStyle) SetTo(v VolumeV1betaSecurityStyle) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptVolumeV1betaSecurityStyle) Get() (v VolumeV1betaSecurityStyle, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptVolumeV1betaSecurityStyle) Or(d VolumeV1betaSecurityStyle) VolumeV1betaSecurityStyle {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptVolumeV1betaServiceLevel returns new OptVolumeV1betaServiceLevel with value set to v.
+func NewOptVolumeV1betaServiceLevel(v VolumeV1betaServiceLevel) OptVolumeV1betaServiceLevel {
+	return OptVolumeV1betaServiceLevel{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptVolumeV1betaServiceLevel is optional VolumeV1betaServiceLevel.
+type OptVolumeV1betaServiceLevel struct {
+	Value VolumeV1betaServiceLevel
+	Set   bool
+}
+
+// IsSet returns true if OptVolumeV1betaServiceLevel was set.
+func (o OptVolumeV1betaServiceLevel) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptVolumeV1betaServiceLevel) Reset() {
+	var v VolumeV1betaServiceLevel
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptVolumeV1betaServiceLevel) SetTo(v VolumeV1betaServiceLevel) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptVolumeV1betaServiceLevel) Get() (v VolumeV1betaServiceLevel, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptVolumeV1betaServiceLevel) Or(d VolumeV1betaServiceLevel) VolumeV1betaServiceLevel {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptVolumeV1betaVolumeState returns new OptVolumeV1betaVolumeState with value set to v.
+func NewOptVolumeV1betaVolumeState(v VolumeV1betaVolumeState) OptVolumeV1betaVolumeState {
+	return OptVolumeV1betaVolumeState{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptVolumeV1betaVolumeState is optional VolumeV1betaVolumeState.
+type OptVolumeV1betaVolumeState struct {
+	Value VolumeV1betaVolumeState
+	Set   bool
+}
+
+// IsSet returns true if OptVolumeV1betaVolumeState was set.
+func (o OptVolumeV1betaVolumeState) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptVolumeV1betaVolumeState) Reset() {
+	var v VolumeV1betaVolumeState
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptVolumeV1betaVolumeState) SetTo(v VolumeV1betaVolumeState) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptVolumeV1betaVolumeState) Get() (v VolumeV1betaVolumeState, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptVolumeV1betaVolumeState) Or(d VolumeV1betaVolumeState) VolumeV1betaVolumeState {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptWeeklyScheduleV1beta returns new OptWeeklyScheduleV1beta with value set to v.
+func NewOptWeeklyScheduleV1beta(v WeeklyScheduleV1beta) OptWeeklyScheduleV1beta {
+	return OptWeeklyScheduleV1beta{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptWeeklyScheduleV1beta is optional WeeklyScheduleV1beta.
+type OptWeeklyScheduleV1beta struct {
+	Value WeeklyScheduleV1beta
+	Set   bool
+}
+
+// IsSet returns true if OptWeeklyScheduleV1beta was set.
+func (o OptWeeklyScheduleV1beta) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptWeeklyScheduleV1beta) Reset() {
+	var v WeeklyScheduleV1beta
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptWeeklyScheduleV1beta) SetTo(v WeeklyScheduleV1beta) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptWeeklyScheduleV1beta) Get() (v WeeklyScheduleV1beta, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptWeeklyScheduleV1beta) Or(d WeeklyScheduleV1beta) WeeklyScheduleV1beta {
 	if v, ok := o.Get(); ok {
 		return v
 	}
@@ -2210,6 +5115,541 @@ func (s *PoolV1betaStoragePoolState) UnmarshalText(data []byte) error {
 	}
 }
 
+// Protocol type through which volume can be accessed.
+// Ref: #/components/schemas/protocols_v1beta
+type ProtocolsV1beta string
+
+const (
+	ProtocolsV1betaPROTOCOLUNSPECIFIED ProtocolsV1beta = "PROTOCOL_UNSPECIFIED"
+	ProtocolsV1betaNFSV3               ProtocolsV1beta = "NFSV3"
+	ProtocolsV1betaNFSV4               ProtocolsV1beta = "NFSV4"
+	ProtocolsV1betaSMB                 ProtocolsV1beta = "SMB"
+	ProtocolsV1betaISCSI               ProtocolsV1beta = "ISCSI"
+)
+
+// AllValues returns all ProtocolsV1beta values.
+func (ProtocolsV1beta) AllValues() []ProtocolsV1beta {
+	return []ProtocolsV1beta{
+		ProtocolsV1betaPROTOCOLUNSPECIFIED,
+		ProtocolsV1betaNFSV3,
+		ProtocolsV1betaNFSV4,
+		ProtocolsV1betaSMB,
+		ProtocolsV1betaISCSI,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ProtocolsV1beta) MarshalText() ([]byte, error) {
+	switch s {
+	case ProtocolsV1betaPROTOCOLUNSPECIFIED:
+		return []byte(s), nil
+	case ProtocolsV1betaNFSV3:
+		return []byte(s), nil
+	case ProtocolsV1betaNFSV4:
+		return []byte(s), nil
+	case ProtocolsV1betaSMB:
+		return []byte(s), nil
+	case ProtocolsV1betaISCSI:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ProtocolsV1beta) UnmarshalText(data []byte) error {
+	switch ProtocolsV1beta(data) {
+	case ProtocolsV1betaPROTOCOLUNSPECIFIED:
+		*s = ProtocolsV1betaPROTOCOLUNSPECIFIED
+		return nil
+	case ProtocolsV1betaNFSV3:
+		*s = ProtocolsV1betaNFSV3
+		return nil
+	case ProtocolsV1betaNFSV4:
+		*s = ProtocolsV1betaNFSV4
+		return nil
+	case ProtocolsV1betaSMB:
+		*s = ProtocolsV1betaSMB
+		return nil
+	case ProtocolsV1betaISCSI:
+		*s = ProtocolsV1betaISCSI
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type RestrictedActionsV1beta []RestrictedActionsV1betaItem
+
+type RestrictedActionsV1betaItem string
+
+const (
+	RestrictedActionsV1betaItemDELETE                      RestrictedActionsV1betaItem = "DELETE"
+	RestrictedActionsV1betaItemRESTRICTEDACTIONUNSPECIFIED RestrictedActionsV1betaItem = "RESTRICTED_ACTION_UNSPECIFIED"
+)
+
+// AllValues returns all RestrictedActionsV1betaItem values.
+func (RestrictedActionsV1betaItem) AllValues() []RestrictedActionsV1betaItem {
+	return []RestrictedActionsV1betaItem{
+		RestrictedActionsV1betaItemDELETE,
+		RestrictedActionsV1betaItemRESTRICTEDACTIONUNSPECIFIED,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s RestrictedActionsV1betaItem) MarshalText() ([]byte, error) {
+	switch s {
+	case RestrictedActionsV1betaItemDELETE:
+		return []byte(s), nil
+	case RestrictedActionsV1betaItemRESTRICTEDACTIONUNSPECIFIED:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *RestrictedActionsV1betaItem) UnmarshalText(data []byte) error {
+	switch RestrictedActionsV1betaItem(data) {
+	case RestrictedActionsV1betaItemDELETE:
+		*s = RestrictedActionsV1betaItemDELETE
+		return nil
+	case RestrictedActionsV1betaItemRESTRICTEDACTIONUNSPECIFIED:
+		*s = RestrictedActionsV1betaItemRESTRICTEDACTIONUNSPECIFIED
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type SMBSettingsV1beta []SMBSettingsV1betaItem
+
+type SMBSettingsV1betaItem string
+
+const (
+	SMBSettingsV1betaItemSMBSETTINGSUNSPECIFIED SMBSettingsV1betaItem = "SMB_SETTINGS_UNSPECIFIED"
+	SMBSettingsV1betaItemENCRYPTDATA            SMBSettingsV1betaItem = "ENCRYPT_DATA"
+	SMBSettingsV1betaItemBROWSABLE              SMBSettingsV1betaItem = "BROWSABLE"
+	SMBSettingsV1betaItemCHANGENOTIFY           SMBSettingsV1betaItem = "CHANGE_NOTIFY"
+	SMBSettingsV1betaItemNONBROWSABLE           SMBSettingsV1betaItem = "NON_BROWSABLE"
+	SMBSettingsV1betaItemOPLOCKS                SMBSettingsV1betaItem = "OPLOCKS"
+	SMBSettingsV1betaItemSHOWSNAPSHOT           SMBSettingsV1betaItem = "SHOW_SNAPSHOT"
+	SMBSettingsV1betaItemSHOWPREVIOUSVERSIONS   SMBSettingsV1betaItem = "SHOW_PREVIOUS_VERSIONS"
+	SMBSettingsV1betaItemACCESSBASEDENUMERATION SMBSettingsV1betaItem = "ACCESS_BASED_ENUMERATION"
+	SMBSettingsV1betaItemCONTINUOUSLYAVAILABLE  SMBSettingsV1betaItem = "CONTINUOUSLY_AVAILABLE"
+)
+
+// AllValues returns all SMBSettingsV1betaItem values.
+func (SMBSettingsV1betaItem) AllValues() []SMBSettingsV1betaItem {
+	return []SMBSettingsV1betaItem{
+		SMBSettingsV1betaItemSMBSETTINGSUNSPECIFIED,
+		SMBSettingsV1betaItemENCRYPTDATA,
+		SMBSettingsV1betaItemBROWSABLE,
+		SMBSettingsV1betaItemCHANGENOTIFY,
+		SMBSettingsV1betaItemNONBROWSABLE,
+		SMBSettingsV1betaItemOPLOCKS,
+		SMBSettingsV1betaItemSHOWSNAPSHOT,
+		SMBSettingsV1betaItemSHOWPREVIOUSVERSIONS,
+		SMBSettingsV1betaItemACCESSBASEDENUMERATION,
+		SMBSettingsV1betaItemCONTINUOUSLYAVAILABLE,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s SMBSettingsV1betaItem) MarshalText() ([]byte, error) {
+	switch s {
+	case SMBSettingsV1betaItemSMBSETTINGSUNSPECIFIED:
+		return []byte(s), nil
+	case SMBSettingsV1betaItemENCRYPTDATA:
+		return []byte(s), nil
+	case SMBSettingsV1betaItemBROWSABLE:
+		return []byte(s), nil
+	case SMBSettingsV1betaItemCHANGENOTIFY:
+		return []byte(s), nil
+	case SMBSettingsV1betaItemNONBROWSABLE:
+		return []byte(s), nil
+	case SMBSettingsV1betaItemOPLOCKS:
+		return []byte(s), nil
+	case SMBSettingsV1betaItemSHOWSNAPSHOT:
+		return []byte(s), nil
+	case SMBSettingsV1betaItemSHOWPREVIOUSVERSIONS:
+		return []byte(s), nil
+	case SMBSettingsV1betaItemACCESSBASEDENUMERATION:
+		return []byte(s), nil
+	case SMBSettingsV1betaItemCONTINUOUSLYAVAILABLE:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *SMBSettingsV1betaItem) UnmarshalText(data []byte) error {
+	switch SMBSettingsV1betaItem(data) {
+	case SMBSettingsV1betaItemSMBSETTINGSUNSPECIFIED:
+		*s = SMBSettingsV1betaItemSMBSETTINGSUNSPECIFIED
+		return nil
+	case SMBSettingsV1betaItemENCRYPTDATA:
+		*s = SMBSettingsV1betaItemENCRYPTDATA
+		return nil
+	case SMBSettingsV1betaItemBROWSABLE:
+		*s = SMBSettingsV1betaItemBROWSABLE
+		return nil
+	case SMBSettingsV1betaItemCHANGENOTIFY:
+		*s = SMBSettingsV1betaItemCHANGENOTIFY
+		return nil
+	case SMBSettingsV1betaItemNONBROWSABLE:
+		*s = SMBSettingsV1betaItemNONBROWSABLE
+		return nil
+	case SMBSettingsV1betaItemOPLOCKS:
+		*s = SMBSettingsV1betaItemOPLOCKS
+		return nil
+	case SMBSettingsV1betaItemSHOWSNAPSHOT:
+		*s = SMBSettingsV1betaItemSHOWSNAPSHOT
+		return nil
+	case SMBSettingsV1betaItemSHOWPREVIOUSVERSIONS:
+		*s = SMBSettingsV1betaItemSHOWPREVIOUSVERSIONS
+		return nil
+	case SMBSettingsV1betaItemACCESSBASEDENUMERATION:
+		*s = SMBSettingsV1betaItemACCESSBASEDENUMERATION
+		return nil
+	case SMBSettingsV1betaItemCONTINUOUSLYAVAILABLE:
+		*s = SMBSettingsV1betaItemCONTINUOUSLYAVAILABLE
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// A simple export-policy rule that defines who can access the volume and how. Only 5 rules are
+// allowed but each rule can serve many clients and subnets.
+// Ref: #/components/schemas/SimpleExportPolicyRule_v1beta
+type SimpleExportPolicyRuleV1beta struct {
+	// Defines the client ingress specification (allowed clients) as a comma separated string with IPv4
+	// CIDRs and IPv4 host addresses.
+	AllowedClients string `json:"allowedClients"`
+	// If enabled (true or on) the rule defines that no_root_squash is set, else if it is disabled (false
+	// or off) root_squash is set and user ID mapped to anonymous user 65534. The response will always be
+	// true or false and never on/off. If the value is set to null the response will always be set to the
+	// default of true.
+	HasRootAccess OptNilSimpleExportPolicyRuleV1betaHasRootAccess `json:"hasRootAccess"`
+	// Defines the access type for clients matching the 'allowedClients' specification.
+	AccessType SimpleExportPolicyRuleV1betaAccessType `json:"accessType"`
+	// If enabled (true) the rule allows NFSv3 protocol for clients matching the 'allowedClients'
+	// specification.
+	Nfsv3 OptNilBool `json:"nfsv3"`
+	// If enabled (true) the rule allows NFSv4 protocol for clients matching the 'allowedClients'
+	// specification.
+	Nfsv4 OptNilBool `json:"nfsv4"`
+	// If enabled (true) the rule defines a read only access for clients matching the 'allowedClients'
+	// specification. It enables NFS clients to mount using 'authentication' kerberos security mode.
+	Kerberos5ReadOnly OptNilBool `json:"kerberos5ReadOnly"`
+	// If enabled (true) the rule defines read and write access for clients matching the 'allowedClients'
+	// specification. It enables NFS clients to mount using 'authentication' kerberos security mode. The
+	// 'kerberos5ReadOnly' value  be ignored if this is enabled.
+	Kerberos5ReadWrite OptNilBool `json:"kerberos5ReadWrite"`
+	// If enabled (true) the rule defines a read only access for clients matching the 'allowedClients'
+	// specification. It enables NFS clients to mount using 'integrity' kerberos security mode.
+	Kerberos5iReadOnly OptNilBool `json:"kerberos5iReadOnly"`
+	// If enabled (true) the rule defines read and write access for clients matching the 'allowedClients'
+	// specification. It enables NFS clients to mount using 'integrity' kerberos security mode. The
+	// 'kerberos5iReadOnly' value shall be ignored if this is enabled.
+	Kerberos5iReadWrite OptNilBool `json:"kerberos5iReadWrite"`
+	// If enabled (true) the rule defines a read only access for clients matching the 'allowedClients'
+	// specification. It enables NFS clients to mount using 'privacy' kerberos security mode.
+	Kerberos5pReadOnly OptNilBool `json:"kerberos5pReadOnly"`
+	// If enabled (true) the rule defines read and write access for clients matching the 'allowedClients'
+	// specification. It enables NFS clients to mount using 'privacy' kerberos security mode. The
+	// 'kerberos5pReadOnly' value shall be ignored if this is enabled.
+	Kerberos5pReadWrite OptNilBool `json:"kerberos5pReadWrite"`
+}
+
+// GetAllowedClients returns the value of AllowedClients.
+func (s *SimpleExportPolicyRuleV1beta) GetAllowedClients() string {
+	return s.AllowedClients
+}
+
+// GetHasRootAccess returns the value of HasRootAccess.
+func (s *SimpleExportPolicyRuleV1beta) GetHasRootAccess() OptNilSimpleExportPolicyRuleV1betaHasRootAccess {
+	return s.HasRootAccess
+}
+
+// GetAccessType returns the value of AccessType.
+func (s *SimpleExportPolicyRuleV1beta) GetAccessType() SimpleExportPolicyRuleV1betaAccessType {
+	return s.AccessType
+}
+
+// GetNfsv3 returns the value of Nfsv3.
+func (s *SimpleExportPolicyRuleV1beta) GetNfsv3() OptNilBool {
+	return s.Nfsv3
+}
+
+// GetNfsv4 returns the value of Nfsv4.
+func (s *SimpleExportPolicyRuleV1beta) GetNfsv4() OptNilBool {
+	return s.Nfsv4
+}
+
+// GetKerberos5ReadOnly returns the value of Kerberos5ReadOnly.
+func (s *SimpleExportPolicyRuleV1beta) GetKerberos5ReadOnly() OptNilBool {
+	return s.Kerberos5ReadOnly
+}
+
+// GetKerberos5ReadWrite returns the value of Kerberos5ReadWrite.
+func (s *SimpleExportPolicyRuleV1beta) GetKerberos5ReadWrite() OptNilBool {
+	return s.Kerberos5ReadWrite
+}
+
+// GetKerberos5iReadOnly returns the value of Kerberos5iReadOnly.
+func (s *SimpleExportPolicyRuleV1beta) GetKerberos5iReadOnly() OptNilBool {
+	return s.Kerberos5iReadOnly
+}
+
+// GetKerberos5iReadWrite returns the value of Kerberos5iReadWrite.
+func (s *SimpleExportPolicyRuleV1beta) GetKerberos5iReadWrite() OptNilBool {
+	return s.Kerberos5iReadWrite
+}
+
+// GetKerberos5pReadOnly returns the value of Kerberos5pReadOnly.
+func (s *SimpleExportPolicyRuleV1beta) GetKerberos5pReadOnly() OptNilBool {
+	return s.Kerberos5pReadOnly
+}
+
+// GetKerberos5pReadWrite returns the value of Kerberos5pReadWrite.
+func (s *SimpleExportPolicyRuleV1beta) GetKerberos5pReadWrite() OptNilBool {
+	return s.Kerberos5pReadWrite
+}
+
+// SetAllowedClients sets the value of AllowedClients.
+func (s *SimpleExportPolicyRuleV1beta) SetAllowedClients(val string) {
+	s.AllowedClients = val
+}
+
+// SetHasRootAccess sets the value of HasRootAccess.
+func (s *SimpleExportPolicyRuleV1beta) SetHasRootAccess(val OptNilSimpleExportPolicyRuleV1betaHasRootAccess) {
+	s.HasRootAccess = val
+}
+
+// SetAccessType sets the value of AccessType.
+func (s *SimpleExportPolicyRuleV1beta) SetAccessType(val SimpleExportPolicyRuleV1betaAccessType) {
+	s.AccessType = val
+}
+
+// SetNfsv3 sets the value of Nfsv3.
+func (s *SimpleExportPolicyRuleV1beta) SetNfsv3(val OptNilBool) {
+	s.Nfsv3 = val
+}
+
+// SetNfsv4 sets the value of Nfsv4.
+func (s *SimpleExportPolicyRuleV1beta) SetNfsv4(val OptNilBool) {
+	s.Nfsv4 = val
+}
+
+// SetKerberos5ReadOnly sets the value of Kerberos5ReadOnly.
+func (s *SimpleExportPolicyRuleV1beta) SetKerberos5ReadOnly(val OptNilBool) {
+	s.Kerberos5ReadOnly = val
+}
+
+// SetKerberos5ReadWrite sets the value of Kerberos5ReadWrite.
+func (s *SimpleExportPolicyRuleV1beta) SetKerberos5ReadWrite(val OptNilBool) {
+	s.Kerberos5ReadWrite = val
+}
+
+// SetKerberos5iReadOnly sets the value of Kerberos5iReadOnly.
+func (s *SimpleExportPolicyRuleV1beta) SetKerberos5iReadOnly(val OptNilBool) {
+	s.Kerberos5iReadOnly = val
+}
+
+// SetKerberos5iReadWrite sets the value of Kerberos5iReadWrite.
+func (s *SimpleExportPolicyRuleV1beta) SetKerberos5iReadWrite(val OptNilBool) {
+	s.Kerberos5iReadWrite = val
+}
+
+// SetKerberos5pReadOnly sets the value of Kerberos5pReadOnly.
+func (s *SimpleExportPolicyRuleV1beta) SetKerberos5pReadOnly(val OptNilBool) {
+	s.Kerberos5pReadOnly = val
+}
+
+// SetKerberos5pReadWrite sets the value of Kerberos5pReadWrite.
+func (s *SimpleExportPolicyRuleV1beta) SetKerberos5pReadWrite(val OptNilBool) {
+	s.Kerberos5pReadWrite = val
+}
+
+// Defines the access type for clients matching the 'allowedClients' specification.
+type SimpleExportPolicyRuleV1betaAccessType string
+
+const (
+	SimpleExportPolicyRuleV1betaAccessTypeACCESSTYPEUNSPECIFIED SimpleExportPolicyRuleV1betaAccessType = "ACCESS_TYPE_UNSPECIFIED"
+	SimpleExportPolicyRuleV1betaAccessTypeREADNONE              SimpleExportPolicyRuleV1betaAccessType = "READ_NONE"
+	SimpleExportPolicyRuleV1betaAccessTypeREADONLY              SimpleExportPolicyRuleV1betaAccessType = "READ_ONLY"
+	SimpleExportPolicyRuleV1betaAccessTypeREADWRITE             SimpleExportPolicyRuleV1betaAccessType = "READ_WRITE"
+)
+
+// AllValues returns all SimpleExportPolicyRuleV1betaAccessType values.
+func (SimpleExportPolicyRuleV1betaAccessType) AllValues() []SimpleExportPolicyRuleV1betaAccessType {
+	return []SimpleExportPolicyRuleV1betaAccessType{
+		SimpleExportPolicyRuleV1betaAccessTypeACCESSTYPEUNSPECIFIED,
+		SimpleExportPolicyRuleV1betaAccessTypeREADNONE,
+		SimpleExportPolicyRuleV1betaAccessTypeREADONLY,
+		SimpleExportPolicyRuleV1betaAccessTypeREADWRITE,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s SimpleExportPolicyRuleV1betaAccessType) MarshalText() ([]byte, error) {
+	switch s {
+	case SimpleExportPolicyRuleV1betaAccessTypeACCESSTYPEUNSPECIFIED:
+		return []byte(s), nil
+	case SimpleExportPolicyRuleV1betaAccessTypeREADNONE:
+		return []byte(s), nil
+	case SimpleExportPolicyRuleV1betaAccessTypeREADONLY:
+		return []byte(s), nil
+	case SimpleExportPolicyRuleV1betaAccessTypeREADWRITE:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *SimpleExportPolicyRuleV1betaAccessType) UnmarshalText(data []byte) error {
+	switch SimpleExportPolicyRuleV1betaAccessType(data) {
+	case SimpleExportPolicyRuleV1betaAccessTypeACCESSTYPEUNSPECIFIED:
+		*s = SimpleExportPolicyRuleV1betaAccessTypeACCESSTYPEUNSPECIFIED
+		return nil
+	case SimpleExportPolicyRuleV1betaAccessTypeREADNONE:
+		*s = SimpleExportPolicyRuleV1betaAccessTypeREADNONE
+		return nil
+	case SimpleExportPolicyRuleV1betaAccessTypeREADONLY:
+		*s = SimpleExportPolicyRuleV1betaAccessTypeREADONLY
+		return nil
+	case SimpleExportPolicyRuleV1betaAccessTypeREADWRITE:
+		*s = SimpleExportPolicyRuleV1betaAccessTypeREADWRITE
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// If enabled (true or on) the rule defines that no_root_squash is set, else if it is disabled (false
+// or off) root_squash is set and user ID mapped to anonymous user 65534. The response will always be
+// true or false and never on/off. If the value is set to null the response will always be set to the
+// default of true.
+type SimpleExportPolicyRuleV1betaHasRootAccess string
+
+const (
+	SimpleExportPolicyRuleV1betaHasRootAccessTrue  SimpleExportPolicyRuleV1betaHasRootAccess = "true"
+	SimpleExportPolicyRuleV1betaHasRootAccessFalse SimpleExportPolicyRuleV1betaHasRootAccess = "false"
+	SimpleExportPolicyRuleV1betaHasRootAccessOn    SimpleExportPolicyRuleV1betaHasRootAccess = "on"
+	SimpleExportPolicyRuleV1betaHasRootAccessOff   SimpleExportPolicyRuleV1betaHasRootAccess = "off"
+)
+
+// AllValues returns all SimpleExportPolicyRuleV1betaHasRootAccess values.
+func (SimpleExportPolicyRuleV1betaHasRootAccess) AllValues() []SimpleExportPolicyRuleV1betaHasRootAccess {
+	return []SimpleExportPolicyRuleV1betaHasRootAccess{
+		SimpleExportPolicyRuleV1betaHasRootAccessTrue,
+		SimpleExportPolicyRuleV1betaHasRootAccessFalse,
+		SimpleExportPolicyRuleV1betaHasRootAccessOn,
+		SimpleExportPolicyRuleV1betaHasRootAccessOff,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s SimpleExportPolicyRuleV1betaHasRootAccess) MarshalText() ([]byte, error) {
+	switch s {
+	case SimpleExportPolicyRuleV1betaHasRootAccessTrue:
+		return []byte(s), nil
+	case SimpleExportPolicyRuleV1betaHasRootAccessFalse:
+		return []byte(s), nil
+	case SimpleExportPolicyRuleV1betaHasRootAccessOn:
+		return []byte(s), nil
+	case SimpleExportPolicyRuleV1betaHasRootAccessOff:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *SimpleExportPolicyRuleV1betaHasRootAccess) UnmarshalText(data []byte) error {
+	switch SimpleExportPolicyRuleV1betaHasRootAccess(data) {
+	case SimpleExportPolicyRuleV1betaHasRootAccessTrue:
+		*s = SimpleExportPolicyRuleV1betaHasRootAccessTrue
+		return nil
+	case SimpleExportPolicyRuleV1betaHasRootAccessFalse:
+		*s = SimpleExportPolicyRuleV1betaHasRootAccessFalse
+		return nil
+	case SimpleExportPolicyRuleV1betaHasRootAccessOn:
+		*s = SimpleExportPolicyRuleV1betaHasRootAccessOn
+		return nil
+	case SimpleExportPolicyRuleV1betaHasRootAccessOff:
+		*s = SimpleExportPolicyRuleV1betaHasRootAccessOff
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// Snapshot policy for a volume.
+// Ref: #/components/schemas/SnapshotPolicy_v1beta
+type SnapshotPolicyV1beta struct {
+	// If enabled, make snapshots automatically according to the schedules. Default is false.
+	Enabled         OptNilBool               `json:"enabled"`
+	HourlySchedule  OptHourlyScheduleV1beta  `json:"hourlySchedule"`
+	DailySchedule   OptDailyScheduleV1beta   `json:"dailySchedule"`
+	WeeklySchedule  OptWeeklyScheduleV1beta  `json:"weeklySchedule"`
+	MonthlySchedule OptMonthlyScheduleV1beta `json:"monthlySchedule"`
+}
+
+// GetEnabled returns the value of Enabled.
+func (s *SnapshotPolicyV1beta) GetEnabled() OptNilBool {
+	return s.Enabled
+}
+
+// GetHourlySchedule returns the value of HourlySchedule.
+func (s *SnapshotPolicyV1beta) GetHourlySchedule() OptHourlyScheduleV1beta {
+	return s.HourlySchedule
+}
+
+// GetDailySchedule returns the value of DailySchedule.
+func (s *SnapshotPolicyV1beta) GetDailySchedule() OptDailyScheduleV1beta {
+	return s.DailySchedule
+}
+
+// GetWeeklySchedule returns the value of WeeklySchedule.
+func (s *SnapshotPolicyV1beta) GetWeeklySchedule() OptWeeklyScheduleV1beta {
+	return s.WeeklySchedule
+}
+
+// GetMonthlySchedule returns the value of MonthlySchedule.
+func (s *SnapshotPolicyV1beta) GetMonthlySchedule() OptMonthlyScheduleV1beta {
+	return s.MonthlySchedule
+}
+
+// SetEnabled sets the value of Enabled.
+func (s *SnapshotPolicyV1beta) SetEnabled(val OptNilBool) {
+	s.Enabled = val
+}
+
+// SetHourlySchedule sets the value of HourlySchedule.
+func (s *SnapshotPolicyV1beta) SetHourlySchedule(val OptHourlyScheduleV1beta) {
+	s.HourlySchedule = val
+}
+
+// SetDailySchedule sets the value of DailySchedule.
+func (s *SnapshotPolicyV1beta) SetDailySchedule(val OptDailyScheduleV1beta) {
+	s.DailySchedule = val
+}
+
+// SetWeeklySchedule sets the value of WeeklySchedule.
+func (s *SnapshotPolicyV1beta) SetWeeklySchedule(val OptWeeklyScheduleV1beta) {
+	s.WeeklySchedule = val
+}
+
+// SetMonthlySchedule sets the value of MonthlySchedule.
+func (s *SnapshotPolicyV1beta) SetMonthlySchedule(val OptMonthlyScheduleV1beta) {
+	s.MonthlySchedule = val
+}
+
 // Ref: #/components/schemas/Status_v1Beta
 type StatusV1Beta struct {
 	// The status code.
@@ -2299,6 +5739,126 @@ func (s *StorageClassV1beta) UnmarshalText(data []byte) error {
 	}
 }
 
+// Auto tiering properties.
+// Ref: #/components/schemas/TieringPolicy_v1beta
+type TieringPolicyV1beta struct {
+	// Flag indicating if the volume has tiering policy 'enabled' or 'paused'.
+	TierAction OptNilTieringPolicyV1betaTierAction `json:"tierAction"`
+	// Time in days to mark the volume's data block as cold and make it eligible for tiering. Minimum is
+	// 7 and maximum is 183 days.
+	CoolingThresholdDays OptNilInt32 `json:"coolingThresholdDays"`
+	// Flag indicating if the volume has hot tier bypass mode enabled or not.
+	HotTierBypassModeEnabled OptNilBool `json:"hotTierBypassModeEnabled"`
+}
+
+// GetTierAction returns the value of TierAction.
+func (s *TieringPolicyV1beta) GetTierAction() OptNilTieringPolicyV1betaTierAction {
+	return s.TierAction
+}
+
+// GetCoolingThresholdDays returns the value of CoolingThresholdDays.
+func (s *TieringPolicyV1beta) GetCoolingThresholdDays() OptNilInt32 {
+	return s.CoolingThresholdDays
+}
+
+// GetHotTierBypassModeEnabled returns the value of HotTierBypassModeEnabled.
+func (s *TieringPolicyV1beta) GetHotTierBypassModeEnabled() OptNilBool {
+	return s.HotTierBypassModeEnabled
+}
+
+// SetTierAction sets the value of TierAction.
+func (s *TieringPolicyV1beta) SetTierAction(val OptNilTieringPolicyV1betaTierAction) {
+	s.TierAction = val
+}
+
+// SetCoolingThresholdDays sets the value of CoolingThresholdDays.
+func (s *TieringPolicyV1beta) SetCoolingThresholdDays(val OptNilInt32) {
+	s.CoolingThresholdDays = val
+}
+
+// SetHotTierBypassModeEnabled sets the value of HotTierBypassModeEnabled.
+func (s *TieringPolicyV1beta) SetHotTierBypassModeEnabled(val OptNilBool) {
+	s.HotTierBypassModeEnabled = val
+}
+
+// Flag indicating if the volume has tiering policy 'enabled' or 'paused'.
+type TieringPolicyV1betaTierAction string
+
+const (
+	TieringPolicyV1betaTierActionENABLED TieringPolicyV1betaTierAction = "ENABLED"
+	TieringPolicyV1betaTierActionPAUSED  TieringPolicyV1betaTierAction = "PAUSED"
+)
+
+// AllValues returns all TieringPolicyV1betaTierAction values.
+func (TieringPolicyV1betaTierAction) AllValues() []TieringPolicyV1betaTierAction {
+	return []TieringPolicyV1betaTierAction{
+		TieringPolicyV1betaTierActionENABLED,
+		TieringPolicyV1betaTierActionPAUSED,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s TieringPolicyV1betaTierAction) MarshalText() ([]byte, error) {
+	switch s {
+	case TieringPolicyV1betaTierActionENABLED:
+		return []byte(s), nil
+	case TieringPolicyV1betaTierActionPAUSED:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *TieringPolicyV1betaTierAction) UnmarshalText(data []byte) error {
+	switch TieringPolicyV1betaTierAction(data) {
+	case TieringPolicyV1betaTierActionENABLED:
+		*s = TieringPolicyV1betaTierActionENABLED
+		return nil
+	case TieringPolicyV1betaTierActionPAUSED:
+		*s = TieringPolicyV1betaTierActionPAUSED
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type V1betaCreateHostGroupAccepted OperationV1beta
+
+func (*V1betaCreateHostGroupAccepted) v1betaCreateHostGroupRes() {}
+
+type V1betaCreateHostGroupBadRequest Error
+
+func (*V1betaCreateHostGroupBadRequest) v1betaCreateHostGroupRes() {}
+
+type V1betaCreateHostGroupConflict Error
+
+func (*V1betaCreateHostGroupConflict) v1betaCreateHostGroupRes() {}
+
+type V1betaCreateHostGroupForbidden Error
+
+func (*V1betaCreateHostGroupForbidden) v1betaCreateHostGroupRes() {}
+
+type V1betaCreateHostGroupInternalServerError Error
+
+func (*V1betaCreateHostGroupInternalServerError) v1betaCreateHostGroupRes() {}
+
+type V1betaCreateHostGroupOK OperationV1beta
+
+func (*V1betaCreateHostGroupOK) v1betaCreateHostGroupRes() {}
+
+type V1betaCreateHostGroupTooManyRequests Error
+
+func (*V1betaCreateHostGroupTooManyRequests) v1betaCreateHostGroupRes() {}
+
+type V1betaCreateHostGroupUnauthorized Error
+
+func (*V1betaCreateHostGroupUnauthorized) v1betaCreateHostGroupRes() {}
+
+type V1betaCreateHostGroupUnprocessableEntity Error
+
+func (*V1betaCreateHostGroupUnprocessableEntity) v1betaCreateHostGroupRes() {}
+
 type V1betaCreatePoolBadRequest Error
 
 func (*V1betaCreatePoolBadRequest) v1betaCreatePoolRes() {}
@@ -2326,6 +5886,71 @@ func (*V1betaCreatePoolUnauthorized) v1betaCreatePoolRes() {}
 type V1betaCreatePoolUnprocessableEntity Error
 
 func (*V1betaCreatePoolUnprocessableEntity) v1betaCreatePoolRes() {}
+
+type V1betaCreateVolumeBadRequest Error
+
+func (*V1betaCreateVolumeBadRequest) v1betaCreateVolumeRes() {}
+
+type V1betaCreateVolumeConflict Error
+
+func (*V1betaCreateVolumeConflict) v1betaCreateVolumeRes() {}
+
+type V1betaCreateVolumeForbidden Error
+
+func (*V1betaCreateVolumeForbidden) v1betaCreateVolumeRes() {}
+
+type V1betaCreateVolumeInternalServerError Error
+
+func (*V1betaCreateVolumeInternalServerError) v1betaCreateVolumeRes() {}
+
+type V1betaCreateVolumeNotImplemented Error
+
+func (*V1betaCreateVolumeNotImplemented) v1betaCreateVolumeRes() {}
+
+type V1betaCreateVolumeServiceUnavailable Error
+
+func (*V1betaCreateVolumeServiceUnavailable) v1betaCreateVolumeRes() {}
+
+type V1betaCreateVolumeTooManyRequests Error
+
+func (*V1betaCreateVolumeTooManyRequests) v1betaCreateVolumeRes() {}
+
+type V1betaCreateVolumeUnauthorized Error
+
+func (*V1betaCreateVolumeUnauthorized) v1betaCreateVolumeRes() {}
+
+type V1betaCreateVolumeUnprocessableEntity Error
+
+func (*V1betaCreateVolumeUnprocessableEntity) v1betaCreateVolumeRes() {}
+
+type V1betaDeleteHostGroupBadRequest Error
+
+func (*V1betaDeleteHostGroupBadRequest) v1betaDeleteHostGroupRes() {}
+
+type V1betaDeleteHostGroupForbidden Error
+
+func (*V1betaDeleteHostGroupForbidden) v1betaDeleteHostGroupRes() {}
+
+type V1betaDeleteHostGroupInternalServerError Error
+
+func (*V1betaDeleteHostGroupInternalServerError) v1betaDeleteHostGroupRes() {}
+
+// V1betaDeleteHostGroupNoContent is response for V1betaDeleteHostGroup operation.
+type V1betaDeleteHostGroupNoContent struct{}
+
+func (*V1betaDeleteHostGroupNoContent) v1betaDeleteHostGroupRes() {}
+
+type V1betaDeleteHostGroupNotFound Error
+
+func (*V1betaDeleteHostGroupNotFound) v1betaDeleteHostGroupRes() {}
+
+type V1betaDeleteHostGroupTooManyRequests Error
+
+func (*V1betaDeleteHostGroupTooManyRequests) v1betaDeleteHostGroupRes() {}
+
+type V1betaDeleteHostGroupUnauthorized Error
+
+func (*V1betaDeleteHostGroupUnauthorized) v1betaDeleteHostGroupRes() {}
 
 type V1betaDeletePoolBadRequest Error
 
@@ -2360,6 +5985,78 @@ type V1betaDeletePoolUnprocessableEntity Error
 
 func (*V1betaDeletePoolUnprocessableEntity) v1betaDeletePoolRes() {}
 
+type V1betaDeleteVolumeBadRequest Error
+
+func (*V1betaDeleteVolumeBadRequest) v1betaDeleteVolumeRes() {}
+
+type V1betaDeleteVolumeConflict Error
+
+func (*V1betaDeleteVolumeConflict) v1betaDeleteVolumeRes() {}
+
+type V1betaDeleteVolumeForbidden Error
+
+func (*V1betaDeleteVolumeForbidden) v1betaDeleteVolumeRes() {}
+
+type V1betaDeleteVolumeInternalServerError Error
+
+func (*V1betaDeleteVolumeInternalServerError) v1betaDeleteVolumeRes() {}
+
+// V1betaDeleteVolumeNoContent is response for V1betaDeleteVolume operation.
+type V1betaDeleteVolumeNoContent struct{}
+
+func (*V1betaDeleteVolumeNoContent) v1betaDeleteVolumeRes() {}
+
+type V1betaDeleteVolumeReq struct {
+	// Delete all the associated backups for the given volume ID or not.
+	DeleteAssociatedBackups OptBool `json:"deleteAssociatedBackups"`
+}
+
+// GetDeleteAssociatedBackups returns the value of DeleteAssociatedBackups.
+func (s *V1betaDeleteVolumeReq) GetDeleteAssociatedBackups() OptBool {
+	return s.DeleteAssociatedBackups
+}
+
+// SetDeleteAssociatedBackups sets the value of DeleteAssociatedBackups.
+func (s *V1betaDeleteVolumeReq) SetDeleteAssociatedBackups(val OptBool) {
+	s.DeleteAssociatedBackups = val
+}
+
+type V1betaDeleteVolumeTooManyRequests Error
+
+func (*V1betaDeleteVolumeTooManyRequests) v1betaDeleteVolumeRes() {}
+
+type V1betaDeleteVolumeUnauthorized Error
+
+func (*V1betaDeleteVolumeUnauthorized) v1betaDeleteVolumeRes() {}
+
+type V1betaDeleteVolumeUnprocessableEntity Error
+
+func (*V1betaDeleteVolumeUnprocessableEntity) v1betaDeleteVolumeRes() {}
+
+type V1betaDescribeHostGroupBadRequest Error
+
+func (*V1betaDescribeHostGroupBadRequest) v1betaDescribeHostGroupRes() {}
+
+type V1betaDescribeHostGroupForbidden Error
+
+func (*V1betaDescribeHostGroupForbidden) v1betaDescribeHostGroupRes() {}
+
+type V1betaDescribeHostGroupInternalServerError Error
+
+func (*V1betaDescribeHostGroupInternalServerError) v1betaDescribeHostGroupRes() {}
+
+type V1betaDescribeHostGroupNotFound Error
+
+func (*V1betaDescribeHostGroupNotFound) v1betaDescribeHostGroupRes() {}
+
+type V1betaDescribeHostGroupTooManyRequests Error
+
+func (*V1betaDescribeHostGroupTooManyRequests) v1betaDescribeHostGroupRes() {}
+
+type V1betaDescribeHostGroupUnauthorized Error
+
+func (*V1betaDescribeHostGroupUnauthorized) v1betaDescribeHostGroupRes() {}
+
 type V1betaDescribePoolBadRequest Error
 
 func (*V1betaDescribePoolBadRequest) v1betaDescribePoolRes() {}
@@ -2387,6 +6084,74 @@ func (*V1betaDescribePoolUnauthorized) v1betaDescribePoolRes() {}
 type V1betaDescribePoolUnprocessableEntity Error
 
 func (*V1betaDescribePoolUnprocessableEntity) v1betaDescribePoolRes() {}
+
+type V1betaDescribeVolumeBadRequest Error
+
+func (*V1betaDescribeVolumeBadRequest) v1betaDescribeVolumeRes() {}
+
+type V1betaDescribeVolumeForbidden Error
+
+func (*V1betaDescribeVolumeForbidden) v1betaDescribeVolumeRes() {}
+
+type V1betaDescribeVolumeInternalServerError Error
+
+func (*V1betaDescribeVolumeInternalServerError) v1betaDescribeVolumeRes() {}
+
+type V1betaDescribeVolumeNotFound Error
+
+func (*V1betaDescribeVolumeNotFound) v1betaDescribeVolumeRes() {}
+
+type V1betaDescribeVolumeTooManyRequests Error
+
+func (*V1betaDescribeVolumeTooManyRequests) v1betaDescribeVolumeRes() {}
+
+type V1betaDescribeVolumeUnauthorized Error
+
+func (*V1betaDescribeVolumeUnauthorized) v1betaDescribeVolumeRes() {}
+
+type V1betaGetMultipleHostGroupsBadRequest Error
+
+func (*V1betaGetMultipleHostGroupsBadRequest) v1betaGetMultipleHostGroupsRes() {}
+
+type V1betaGetMultipleHostGroupsForbidden Error
+
+func (*V1betaGetMultipleHostGroupsForbidden) v1betaGetMultipleHostGroupsRes() {}
+
+type V1betaGetMultipleHostGroupsInternalServerError Error
+
+func (*V1betaGetMultipleHostGroupsInternalServerError) v1betaGetMultipleHostGroupsRes() {}
+
+type V1betaGetMultipleHostGroupsNotFound Error
+
+func (*V1betaGetMultipleHostGroupsNotFound) v1betaGetMultipleHostGroupsRes() {}
+
+type V1betaGetMultipleHostGroupsOK struct {
+	HostGroups []HostGroupV1beta `json:"hostGroups"`
+}
+
+// GetHostGroups returns the value of HostGroups.
+func (s *V1betaGetMultipleHostGroupsOK) GetHostGroups() []HostGroupV1beta {
+	return s.HostGroups
+}
+
+// SetHostGroups sets the value of HostGroups.
+func (s *V1betaGetMultipleHostGroupsOK) SetHostGroups(val []HostGroupV1beta) {
+	s.HostGroups = val
+}
+
+func (*V1betaGetMultipleHostGroupsOK) v1betaGetMultipleHostGroupsRes() {}
+
+type V1betaGetMultipleHostGroupsTooManyRequests Error
+
+func (*V1betaGetMultipleHostGroupsTooManyRequests) v1betaGetMultipleHostGroupsRes() {}
+
+type V1betaGetMultipleHostGroupsUnauthorized Error
+
+func (*V1betaGetMultipleHostGroupsUnauthorized) v1betaGetMultipleHostGroupsRes() {}
+
+type V1betaGetMultipleHostGroupsUnprocessableEntity Error
+
+func (*V1betaGetMultipleHostGroupsUnprocessableEntity) v1betaGetMultipleHostGroupsRes() {}
 
 type V1betaGetMultiplePoolsBadRequest Error
 
@@ -2432,6 +6197,86 @@ type V1betaGetMultiplePoolsUnprocessableEntity Error
 
 func (*V1betaGetMultiplePoolsUnprocessableEntity) v1betaGetMultiplePoolsRes() {}
 
+type V1betaGetMultipleVolumesBadRequest Error
+
+func (*V1betaGetMultipleVolumesBadRequest) v1betaGetMultipleVolumesRes() {}
+
+type V1betaGetMultipleVolumesForbidden Error
+
+func (*V1betaGetMultipleVolumesForbidden) v1betaGetMultipleVolumesRes() {}
+
+type V1betaGetMultipleVolumesInternalServerError Error
+
+func (*V1betaGetMultipleVolumesInternalServerError) v1betaGetMultipleVolumesRes() {}
+
+type V1betaGetMultipleVolumesNotFound Error
+
+func (*V1betaGetMultipleVolumesNotFound) v1betaGetMultipleVolumesRes() {}
+
+type V1betaGetMultipleVolumesOK struct {
+	Volumes []VolumeV1beta `json:"volumes"`
+}
+
+// GetVolumes returns the value of Volumes.
+func (s *V1betaGetMultipleVolumesOK) GetVolumes() []VolumeV1beta {
+	return s.Volumes
+}
+
+// SetVolumes sets the value of Volumes.
+func (s *V1betaGetMultipleVolumesOK) SetVolumes(val []VolumeV1beta) {
+	s.Volumes = val
+}
+
+func (*V1betaGetMultipleVolumesOK) v1betaGetMultipleVolumesRes() {}
+
+type V1betaGetMultipleVolumesTooManyRequests Error
+
+func (*V1betaGetMultipleVolumesTooManyRequests) v1betaGetMultipleVolumesRes() {}
+
+type V1betaGetMultipleVolumesUnauthorized Error
+
+func (*V1betaGetMultipleVolumesUnauthorized) v1betaGetMultipleVolumesRes() {}
+
+type V1betaGetMultipleVolumesUnprocessableEntity Error
+
+func (*V1betaGetMultipleVolumesUnprocessableEntity) v1betaGetMultipleVolumesRes() {}
+
+type V1betaListHostGroupsBadRequest Error
+
+func (*V1betaListHostGroupsBadRequest) v1betaListHostGroupsRes() {}
+
+type V1betaListHostGroupsForbidden Error
+
+func (*V1betaListHostGroupsForbidden) v1betaListHostGroupsRes() {}
+
+type V1betaListHostGroupsInternalServerError Error
+
+func (*V1betaListHostGroupsInternalServerError) v1betaListHostGroupsRes() {}
+
+type V1betaListHostGroupsOK struct {
+	HostGroups []HostGroupV1beta `json:"hostGroups"`
+}
+
+// GetHostGroups returns the value of HostGroups.
+func (s *V1betaListHostGroupsOK) GetHostGroups() []HostGroupV1beta {
+	return s.HostGroups
+}
+
+// SetHostGroups sets the value of HostGroups.
+func (s *V1betaListHostGroupsOK) SetHostGroups(val []HostGroupV1beta) {
+	s.HostGroups = val
+}
+
+func (*V1betaListHostGroupsOK) v1betaListHostGroupsRes() {}
+
+type V1betaListHostGroupsTooManyRequests Error
+
+func (*V1betaListHostGroupsTooManyRequests) v1betaListHostGroupsRes() {}
+
+type V1betaListHostGroupsUnauthorized Error
+
+func (*V1betaListHostGroupsUnauthorized) v1betaListHostGroupsRes() {}
+
 type V1betaListPoolsBadRequest Error
 
 func (*V1betaListPoolsBadRequest) v1betaListPoolsRes() {}
@@ -2472,6 +6317,78 @@ type V1betaListPoolsUnauthorized Error
 
 func (*V1betaListPoolsUnauthorized) v1betaListPoolsRes() {}
 
+type V1betaListVolumesBadRequest Error
+
+func (*V1betaListVolumesBadRequest) v1betaListVolumesRes() {}
+
+type V1betaListVolumesForbidden Error
+
+func (*V1betaListVolumesForbidden) v1betaListVolumesRes() {}
+
+type V1betaListVolumesInternalServerError Error
+
+func (*V1betaListVolumesInternalServerError) v1betaListVolumesRes() {}
+
+type V1betaListVolumesNotFound Error
+
+func (*V1betaListVolumesNotFound) v1betaListVolumesRes() {}
+
+type V1betaListVolumesOK struct {
+	Volumes []VolumeV1beta `json:"volumes"`
+}
+
+// GetVolumes returns the value of Volumes.
+func (s *V1betaListVolumesOK) GetVolumes() []VolumeV1beta {
+	return s.Volumes
+}
+
+// SetVolumes sets the value of Volumes.
+func (s *V1betaListVolumesOK) SetVolumes(val []VolumeV1beta) {
+	s.Volumes = val
+}
+
+func (*V1betaListVolumesOK) v1betaListVolumesRes() {}
+
+type V1betaListVolumesTooManyRequests Error
+
+func (*V1betaListVolumesTooManyRequests) v1betaListVolumesRes() {}
+
+type V1betaListVolumesUnauthorized Error
+
+func (*V1betaListVolumesUnauthorized) v1betaListVolumesRes() {}
+
+type V1betaUpdateHostGroupBadRequest Error
+
+func (*V1betaUpdateHostGroupBadRequest) v1betaUpdateHostGroupRes() {}
+
+type V1betaUpdateHostGroupConflict Error
+
+func (*V1betaUpdateHostGroupConflict) v1betaUpdateHostGroupRes() {}
+
+type V1betaUpdateHostGroupForbidden Error
+
+func (*V1betaUpdateHostGroupForbidden) v1betaUpdateHostGroupRes() {}
+
+type V1betaUpdateHostGroupInternalServerError Error
+
+func (*V1betaUpdateHostGroupInternalServerError) v1betaUpdateHostGroupRes() {}
+
+type V1betaUpdateHostGroupNotFound Error
+
+func (*V1betaUpdateHostGroupNotFound) v1betaUpdateHostGroupRes() {}
+
+type V1betaUpdateHostGroupTooManyRequests Error
+
+func (*V1betaUpdateHostGroupTooManyRequests) v1betaUpdateHostGroupRes() {}
+
+type V1betaUpdateHostGroupUnauthorized Error
+
+func (*V1betaUpdateHostGroupUnauthorized) v1betaUpdateHostGroupRes() {}
+
+type V1betaUpdateHostGroupUnprocessableEntity Error
+
+func (*V1betaUpdateHostGroupUnprocessableEntity) v1betaUpdateHostGroupRes() {}
+
 type V1betaUpdatePoolBadRequest Error
 
 func (*V1betaUpdatePoolBadRequest) v1betaUpdatePoolRes() {}
@@ -2508,3 +6425,1281 @@ func (*V1betaUpdatePoolUnauthorized) v1betaUpdatePoolRes() {}
 type V1betaUpdatePoolUnprocessableEntity Error
 
 func (*V1betaUpdatePoolUnprocessableEntity) v1betaUpdatePoolRes() {}
+
+type V1betaUpdateVolumeBadRequest Error
+
+func (*V1betaUpdateVolumeBadRequest) v1betaUpdateVolumeRes() {}
+
+type V1betaUpdateVolumeConflict Error
+
+func (*V1betaUpdateVolumeConflict) v1betaUpdateVolumeRes() {}
+
+type V1betaUpdateVolumeForbidden Error
+
+func (*V1betaUpdateVolumeForbidden) v1betaUpdateVolumeRes() {}
+
+type V1betaUpdateVolumeInternalServerError Error
+
+func (*V1betaUpdateVolumeInternalServerError) v1betaUpdateVolumeRes() {}
+
+// V1betaUpdateVolumeNoContent is response for V1betaUpdateVolume operation.
+type V1betaUpdateVolumeNoContent struct{}
+
+func (*V1betaUpdateVolumeNoContent) v1betaUpdateVolumeRes() {}
+
+type V1betaUpdateVolumeNotFound Error
+
+func (*V1betaUpdateVolumeNotFound) v1betaUpdateVolumeRes() {}
+
+type V1betaUpdateVolumeTooManyRequests Error
+
+func (*V1betaUpdateVolumeTooManyRequests) v1betaUpdateVolumeRes() {}
+
+type V1betaUpdateVolumeUnauthorized Error
+
+func (*V1betaUpdateVolumeUnauthorized) v1betaUpdateVolumeRes() {}
+
+type V1betaUpdateVolumeUnprocessableEntity Error
+
+func (*V1betaUpdateVolumeUnprocessableEntity) v1betaUpdateVolumeRes() {}
+
+// Ref: #/components/schemas/VolumeCreate_v1beta
+type VolumeCreateV1beta struct {
+	Volume VolumeV1beta `json:"volume"`
+	// UUID v4 used to identify the Snapshot.
+	SnapshotId OptString `json:"snapshotId"`
+	// UUID v4 used to identify the backup.
+	BackupId OptString `json:"backupId"`
+	// Complete resource path of the backup.
+	BackupPath OptString `json:"backupPath"`
+	// The type of the volume.
+	VolumeType                  OptVolumeCreateV1betaVolumeType      `json:"volumeType"`
+	HybridReplicationParameters OptHybridReplicationParametersV1beta `json:"hybridReplicationParameters"`
+}
+
+// GetVolume returns the value of Volume.
+func (s *VolumeCreateV1beta) GetVolume() VolumeV1beta {
+	return s.Volume
+}
+
+// GetSnapshotId returns the value of SnapshotId.
+func (s *VolumeCreateV1beta) GetSnapshotId() OptString {
+	return s.SnapshotId
+}
+
+// GetBackupId returns the value of BackupId.
+func (s *VolumeCreateV1beta) GetBackupId() OptString {
+	return s.BackupId
+}
+
+// GetBackupPath returns the value of BackupPath.
+func (s *VolumeCreateV1beta) GetBackupPath() OptString {
+	return s.BackupPath
+}
+
+// GetVolumeType returns the value of VolumeType.
+func (s *VolumeCreateV1beta) GetVolumeType() OptVolumeCreateV1betaVolumeType {
+	return s.VolumeType
+}
+
+// GetHybridReplicationParameters returns the value of HybridReplicationParameters.
+func (s *VolumeCreateV1beta) GetHybridReplicationParameters() OptHybridReplicationParametersV1beta {
+	return s.HybridReplicationParameters
+}
+
+// SetVolume sets the value of Volume.
+func (s *VolumeCreateV1beta) SetVolume(val VolumeV1beta) {
+	s.Volume = val
+}
+
+// SetSnapshotId sets the value of SnapshotId.
+func (s *VolumeCreateV1beta) SetSnapshotId(val OptString) {
+	s.SnapshotId = val
+}
+
+// SetBackupId sets the value of BackupId.
+func (s *VolumeCreateV1beta) SetBackupId(val OptString) {
+	s.BackupId = val
+}
+
+// SetBackupPath sets the value of BackupPath.
+func (s *VolumeCreateV1beta) SetBackupPath(val OptString) {
+	s.BackupPath = val
+}
+
+// SetVolumeType sets the value of VolumeType.
+func (s *VolumeCreateV1beta) SetVolumeType(val OptVolumeCreateV1betaVolumeType) {
+	s.VolumeType = val
+}
+
+// SetHybridReplicationParameters sets the value of HybridReplicationParameters.
+func (s *VolumeCreateV1beta) SetHybridReplicationParameters(val OptHybridReplicationParametersV1beta) {
+	s.HybridReplicationParameters = val
+}
+
+// The type of the volume.
+type VolumeCreateV1betaVolumeType string
+
+const (
+	VolumeCreateV1betaVolumeTypePRIMARY   VolumeCreateV1betaVolumeType = "PRIMARY"
+	VolumeCreateV1betaVolumeTypeSECONDARY VolumeCreateV1betaVolumeType = "SECONDARY"
+)
+
+// AllValues returns all VolumeCreateV1betaVolumeType values.
+func (VolumeCreateV1betaVolumeType) AllValues() []VolumeCreateV1betaVolumeType {
+	return []VolumeCreateV1betaVolumeType{
+		VolumeCreateV1betaVolumeTypePRIMARY,
+		VolumeCreateV1betaVolumeTypeSECONDARY,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s VolumeCreateV1betaVolumeType) MarshalText() ([]byte, error) {
+	switch s {
+	case VolumeCreateV1betaVolumeTypePRIMARY:
+		return []byte(s), nil
+	case VolumeCreateV1betaVolumeTypeSECONDARY:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *VolumeCreateV1betaVolumeType) UnmarshalText(data []byte) error {
+	switch VolumeCreateV1betaVolumeType(data) {
+	case VolumeCreateV1betaVolumeTypePRIMARY:
+		*s = VolumeCreateV1betaVolumeTypePRIMARY
+		return nil
+	case VolumeCreateV1betaVolumeTypeSECONDARY:
+		*s = VolumeCreateV1betaVolumeTypeSECONDARY
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// Ref: #/components/schemas/VolumeIDList_v1beta
+type VolumeIDListV1beta struct {
+	VolumeUUIDs []string `json:"volumeUUIDs"`
+}
+
+// GetVolumeUUIDs returns the value of VolumeUUIDs.
+func (s *VolumeIDListV1beta) GetVolumeUUIDs() []string {
+	return s.VolumeUUIDs
+}
+
+// SetVolumeUUIDs sets the value of VolumeUUIDs.
+func (s *VolumeIDListV1beta) SetVolumeUUIDs(val []string) {
+	s.VolumeUUIDs = val
+}
+
+// Ref: #/components/schemas/VolumeUpdate_v1beta
+type VolumeUpdateV1beta struct {
+	// Maximum storage quota allowed for a volume in bytes. This is a soft quota used for alerting only.
+	// Upper limit is 100TB.
+	QuotaInBytes OptNilFloat64 `json:"quotaInBytes"`
+	// Percentage of volume storage reserved for snapshot storage. Default is 0 percent.
+	SnapReserve OptNilFloat64 `json:"snapReserve"`
+	// If enabled (true) the volume will contain a read-only '.snapshot' directory which provides access
+	// to each of the volume's snapshots.
+	SnapshotDirectory     OptNilBool               `json:"snapshotDirectory"`
+	SnapshotPolicy        OptSnapshotPolicyV1beta  `json:"snapshotPolicy"`
+	ExportPolicy          OptExportPolicyV1beta    `json:"exportPolicy"`
+	BackupConfig          OptBackupConfigV1beta    `json:"backupConfig"`
+	TieringPolicy         OptTieringPolicyV1beta   `json:"tieringPolicy"`
+	BlockPropertiesV1beta OptBlockPropertiesV1beta `json:"BlockProperties_v1beta"`
+	// Protocol type through which volume can be accessed.
+	Protocols         []ProtocolsV1beta       `json:"protocols"`
+	RestrictedActions RestrictedActionsV1beta `json:"restrictedActions"`
+	SmbSettings       SMBSettingsV1beta       `json:"smbSettings"`
+	// UNIX permissions for NFS volume accepted in octal 4 digit format. First digit selects the set user
+	// ID(4), set group ID (2) and sticky (1) attributes. Second digit selects permission for the owner
+	// of the file: read (4), write (2) and execute (1). Third selects permissions for other users in the
+	// same group. the fourth for other users not in the group. "0755" - gives read/write/execute
+	// permissions to owner and read/execute to group and other users.
+	UnixPermissions OptNilString `json:"unixPermissions"`
+	// JSON dictionary of resource labels to allow linking of billing labels to a volume.
+	Labels OptVolumeUpdateV1betaLabels `json:"labels"`
+	// UUID v4 used to identify the pool.
+	PoolId OptNilString `json:"poolId"`
+	// Description of the volume.
+	Description OptNilString `json:"description"`
+}
+
+// GetQuotaInBytes returns the value of QuotaInBytes.
+func (s *VolumeUpdateV1beta) GetQuotaInBytes() OptNilFloat64 {
+	return s.QuotaInBytes
+}
+
+// GetSnapReserve returns the value of SnapReserve.
+func (s *VolumeUpdateV1beta) GetSnapReserve() OptNilFloat64 {
+	return s.SnapReserve
+}
+
+// GetSnapshotDirectory returns the value of SnapshotDirectory.
+func (s *VolumeUpdateV1beta) GetSnapshotDirectory() OptNilBool {
+	return s.SnapshotDirectory
+}
+
+// GetSnapshotPolicy returns the value of SnapshotPolicy.
+func (s *VolumeUpdateV1beta) GetSnapshotPolicy() OptSnapshotPolicyV1beta {
+	return s.SnapshotPolicy
+}
+
+// GetExportPolicy returns the value of ExportPolicy.
+func (s *VolumeUpdateV1beta) GetExportPolicy() OptExportPolicyV1beta {
+	return s.ExportPolicy
+}
+
+// GetBackupConfig returns the value of BackupConfig.
+func (s *VolumeUpdateV1beta) GetBackupConfig() OptBackupConfigV1beta {
+	return s.BackupConfig
+}
+
+// GetTieringPolicy returns the value of TieringPolicy.
+func (s *VolumeUpdateV1beta) GetTieringPolicy() OptTieringPolicyV1beta {
+	return s.TieringPolicy
+}
+
+// GetBlockPropertiesV1beta returns the value of BlockPropertiesV1beta.
+func (s *VolumeUpdateV1beta) GetBlockPropertiesV1beta() OptBlockPropertiesV1beta {
+	return s.BlockPropertiesV1beta
+}
+
+// GetProtocols returns the value of Protocols.
+func (s *VolumeUpdateV1beta) GetProtocols() []ProtocolsV1beta {
+	return s.Protocols
+}
+
+// GetRestrictedActions returns the value of RestrictedActions.
+func (s *VolumeUpdateV1beta) GetRestrictedActions() RestrictedActionsV1beta {
+	return s.RestrictedActions
+}
+
+// GetSmbSettings returns the value of SmbSettings.
+func (s *VolumeUpdateV1beta) GetSmbSettings() SMBSettingsV1beta {
+	return s.SmbSettings
+}
+
+// GetUnixPermissions returns the value of UnixPermissions.
+func (s *VolumeUpdateV1beta) GetUnixPermissions() OptNilString {
+	return s.UnixPermissions
+}
+
+// GetLabels returns the value of Labels.
+func (s *VolumeUpdateV1beta) GetLabels() OptVolumeUpdateV1betaLabels {
+	return s.Labels
+}
+
+// GetPoolId returns the value of PoolId.
+func (s *VolumeUpdateV1beta) GetPoolId() OptNilString {
+	return s.PoolId
+}
+
+// GetDescription returns the value of Description.
+func (s *VolumeUpdateV1beta) GetDescription() OptNilString {
+	return s.Description
+}
+
+// SetQuotaInBytes sets the value of QuotaInBytes.
+func (s *VolumeUpdateV1beta) SetQuotaInBytes(val OptNilFloat64) {
+	s.QuotaInBytes = val
+}
+
+// SetSnapReserve sets the value of SnapReserve.
+func (s *VolumeUpdateV1beta) SetSnapReserve(val OptNilFloat64) {
+	s.SnapReserve = val
+}
+
+// SetSnapshotDirectory sets the value of SnapshotDirectory.
+func (s *VolumeUpdateV1beta) SetSnapshotDirectory(val OptNilBool) {
+	s.SnapshotDirectory = val
+}
+
+// SetSnapshotPolicy sets the value of SnapshotPolicy.
+func (s *VolumeUpdateV1beta) SetSnapshotPolicy(val OptSnapshotPolicyV1beta) {
+	s.SnapshotPolicy = val
+}
+
+// SetExportPolicy sets the value of ExportPolicy.
+func (s *VolumeUpdateV1beta) SetExportPolicy(val OptExportPolicyV1beta) {
+	s.ExportPolicy = val
+}
+
+// SetBackupConfig sets the value of BackupConfig.
+func (s *VolumeUpdateV1beta) SetBackupConfig(val OptBackupConfigV1beta) {
+	s.BackupConfig = val
+}
+
+// SetTieringPolicy sets the value of TieringPolicy.
+func (s *VolumeUpdateV1beta) SetTieringPolicy(val OptTieringPolicyV1beta) {
+	s.TieringPolicy = val
+}
+
+// SetBlockPropertiesV1beta sets the value of BlockPropertiesV1beta.
+func (s *VolumeUpdateV1beta) SetBlockPropertiesV1beta(val OptBlockPropertiesV1beta) {
+	s.BlockPropertiesV1beta = val
+}
+
+// SetProtocols sets the value of Protocols.
+func (s *VolumeUpdateV1beta) SetProtocols(val []ProtocolsV1beta) {
+	s.Protocols = val
+}
+
+// SetRestrictedActions sets the value of RestrictedActions.
+func (s *VolumeUpdateV1beta) SetRestrictedActions(val RestrictedActionsV1beta) {
+	s.RestrictedActions = val
+}
+
+// SetSmbSettings sets the value of SmbSettings.
+func (s *VolumeUpdateV1beta) SetSmbSettings(val SMBSettingsV1beta) {
+	s.SmbSettings = val
+}
+
+// SetUnixPermissions sets the value of UnixPermissions.
+func (s *VolumeUpdateV1beta) SetUnixPermissions(val OptNilString) {
+	s.UnixPermissions = val
+}
+
+// SetLabels sets the value of Labels.
+func (s *VolumeUpdateV1beta) SetLabels(val OptVolumeUpdateV1betaLabels) {
+	s.Labels = val
+}
+
+// SetPoolId sets the value of PoolId.
+func (s *VolumeUpdateV1beta) SetPoolId(val OptNilString) {
+	s.PoolId = val
+}
+
+// SetDescription sets the value of Description.
+func (s *VolumeUpdateV1beta) SetDescription(val OptNilString) {
+	s.Description = val
+}
+
+// JSON dictionary of resource labels to allow linking of billing labels to a volume.
+type VolumeUpdateV1betaLabels map[string]string
+
+func (s *VolumeUpdateV1betaLabels) init() VolumeUpdateV1betaLabels {
+	m := *s
+	if m == nil {
+		m = map[string]string{}
+		*s = m
+	}
+	return m
+}
+
+// Ref: #/components/schemas/Volume_v1beta
+type VolumeV1beta struct {
+	// A human readable label for the resource which is restricted to letters, numbers, and hyphen, with
+	// the first character a letter, the last a letter or a number, and a 63 character maximum.
+	ResourceId string `json:"resourceId"`
+	// UUID v4 of the volume.
+	VolumeId OptString `json:"volumeId"`
+	// Creation date of the resource.
+	Created OptDateTime `json:"created"`
+	// Deletion date of the resource.
+	Deleted OptNilDateTime `json:"deleted"`
+	// A creation token must be supplied by the caller and is used by the API to ensure idempotent
+	// creation of a volume. Subsequent calls to the create-volume operation using the same creation
+	// token will have no effect. The creation token can be any user supplied string e.g. a randomly
+	// generated v4 UUID.
+	CreationToken string `json:"creationToken"`
+	// UUID of the pool ID under which volumes get created.
+	PoolId NilString `json:"poolId"`
+	// A human readable label for the pool.
+	PoolResourceId OptNilString `json:"poolResourceId"`
+	// UUID of the key to be used for encryption.
+	KmsConfigId OptNilString `json:"kmsConfigId"`
+	// The resource ID for the connected KMS configuration.
+	KmsConfigResourceId OptNilString `json:"kmsConfigResourceId"`
+	// Servicenetworking.connections.network value that is returned after creating a successful VPC
+	// peering connection via the GCP service networking API.
+	Network OptString `json:"network"`
+	// UUID of Active Directory configuration.
+	ActiveDirectoryConfigId OptNilString `json:"activeDirectoryConfigId"`
+	// The resource ID for the connected Active Directory.
+	ActiveDirectoryResourceId OptNilString `json:"activeDirectoryResourceId"`
+	// The service level of the volume. Will be specified as premium or extreme, which will be equivalent
+	// to having specified performance medium or high, respectively.  However, if any service level's
+	// name is one of premium or extreme, the performance will be that of the service level, not the
+	// performance equivalent.
+	ServiceLevel OptVolumeV1betaServiceLevel `json:"serviceLevel"`
+	// The security style of the volume.
+	SecurityStyle OptVolumeV1betaSecurityStyle `json:"securityStyle"`
+	// Current storage usage for the volume in bytes.
+	UsedBytes OptNilFloat64 `json:"usedBytes"`
+	// Maximum storage quota allowed for a volume in bytes. This is a soft quota used for alerting only.
+	QuotaInBytes OptFloat64 `json:"quotaInBytes"`
+	// Volume footprint in cold storage.
+	ColdTierSizeGib OptNilFloat64 `json:"coldTierSizeGib"`
+	// Percentage of volume storage reserved for snapshot storage. Default is 0 percent.
+	SnapReserve OptFloat64 `json:"snapReserve"`
+	// If enabled (true) the volume will contain a read-only .snapshot directory which provides access to
+	// each of the volume's snapshots. Defaults to true.
+	SnapshotDirectory OptBool `json:"snapshotDirectory"`
+	// The current lifecycle state of the resource.
+	VolumeState OptVolumeV1betaVolumeState `json:"volumeState"`
+	// Details about the current lifecycle state.
+	VolumeStateDetails OptString `json:"volumeStateDetails"`
+	// Flag indicating if the volume is a data protection volume or not.
+	IsDataProtection OptBool `json:"isDataProtection"`
+	// Flag indicating if the volume is migrating from on premise Ontap or not.
+	IsOnPremMigration OptNilBool `json:"isOnPremMigration"`
+	// Flag indicating if the volume is in a cross region replication.
+	InReplication   OptBool                  `json:"inReplication"`
+	SnapshotPolicy  OptSnapshotPolicyV1beta  `json:"snapshotPolicy"`
+	StorageClass    OptStorageClassV1beta    `json:"storageClass"`
+	ExportPolicy    OptExportPolicyV1beta    `json:"exportPolicy"`
+	BackupConfig    OptBackupConfigV1beta    `json:"backupConfig"`
+	TieringPolicy   OptTieringPolicyV1beta   `json:"tieringPolicy"`
+	BlockProperties OptBlockPropertiesV1beta `json:"blockProperties"`
+	// Protocol type through which volume can be accessed.
+	Protocols         []ProtocolsV1beta       `json:"protocols"`
+	RestrictedActions RestrictedActionsV1beta `json:"restrictedActions"`
+	SmbSettings       SMBSettingsV1beta       `json:"smbSettings"`
+	// Mount points for the volume.
+	MountPoints []MountPointV1beta `json:"mountPoints"`
+	// JSON dictionary of resource labels to allow linking of billing labels to a volume.
+	Labels OptVolumeV1betaLabels `json:"labels"`
+	// Flag indicating if the volume is a kerberos volume or not, export policy rules control kerberos
+	// security modes (krb5, krb5i, krb5p).
+	KerberosEnabled OptNilBool `json:"kerberosEnabled"`
+	// Flag indicating if the volume is NFS LDAP enabled or not.
+	LdapEnabled OptNilBool `json:"ldapEnabled"`
+	// UNIX permissions for NFS volume accepted in octal 4 digit format. First digit selects the set user
+	// ID(4), set group ID (2) and sticky (1) attributes. Second digit selects permission for the owner
+	// of the file: read (4), write (2) and execute (1). Third selects permissions for other users in the
+	// same group. the fourth for other users not in the group. "0755" - gives read/write/execute
+	// permissions to owner and read/execute to group and other users.
+	UnixPermissions OptNilString `json:"unixPermissions"`
+	// Type of encryption used for volumes - can be either service managed key (service_managed) or
+	// cloud_kms.
+	EncryptionType OptVolumeV1betaEncryptionType `json:"encryptionType"`
+	// Description of the volume.
+	Description OptNilString `json:"description"`
+	// The target zone to which the storage pool has to be migrated.
+	Zone OptString `json:"zone"`
+	// Flag indicating if the volume will have an IP address per node for volumes supporting multiple
+	// endpoints.
+	MultipleEndpoints OptNilBool `json:"multipleEndpoints"`
+	// Flag indicating if the volume will be a large capacity volume (flexgroup) or a regular volume
+	// (flexvol).
+	LargeCapacity OptNilBool `json:"largeCapacity"`
+	// The desired zone for the fail over.
+	SecondaryZone OptNilString `json:"secondaryZone"`
+	// Flag indicating if the volume needs to be created on a dedicated stamp.
+	DedicatedCapacity OptNilBool `json:"dedicatedCapacity"`
+	// The count of number of constituent volumes for the large volume.
+	LargeVolumeConstituentCount OptNilInt32        `json:"largeVolumeConstituentCount"`
+	CacheParameters             OptFlexCacheV1beta `json:"cacheParameters"`
+}
+
+// GetResourceId returns the value of ResourceId.
+func (s *VolumeV1beta) GetResourceId() string {
+	return s.ResourceId
+}
+
+// GetVolumeId returns the value of VolumeId.
+func (s *VolumeV1beta) GetVolumeId() OptString {
+	return s.VolumeId
+}
+
+// GetCreated returns the value of Created.
+func (s *VolumeV1beta) GetCreated() OptDateTime {
+	return s.Created
+}
+
+// GetDeleted returns the value of Deleted.
+func (s *VolumeV1beta) GetDeleted() OptNilDateTime {
+	return s.Deleted
+}
+
+// GetCreationToken returns the value of CreationToken.
+func (s *VolumeV1beta) GetCreationToken() string {
+	return s.CreationToken
+}
+
+// GetPoolId returns the value of PoolId.
+func (s *VolumeV1beta) GetPoolId() NilString {
+	return s.PoolId
+}
+
+// GetPoolResourceId returns the value of PoolResourceId.
+func (s *VolumeV1beta) GetPoolResourceId() OptNilString {
+	return s.PoolResourceId
+}
+
+// GetKmsConfigId returns the value of KmsConfigId.
+func (s *VolumeV1beta) GetKmsConfigId() OptNilString {
+	return s.KmsConfigId
+}
+
+// GetKmsConfigResourceId returns the value of KmsConfigResourceId.
+func (s *VolumeV1beta) GetKmsConfigResourceId() OptNilString {
+	return s.KmsConfigResourceId
+}
+
+// GetNetwork returns the value of Network.
+func (s *VolumeV1beta) GetNetwork() OptString {
+	return s.Network
+}
+
+// GetActiveDirectoryConfigId returns the value of ActiveDirectoryConfigId.
+func (s *VolumeV1beta) GetActiveDirectoryConfigId() OptNilString {
+	return s.ActiveDirectoryConfigId
+}
+
+// GetActiveDirectoryResourceId returns the value of ActiveDirectoryResourceId.
+func (s *VolumeV1beta) GetActiveDirectoryResourceId() OptNilString {
+	return s.ActiveDirectoryResourceId
+}
+
+// GetServiceLevel returns the value of ServiceLevel.
+func (s *VolumeV1beta) GetServiceLevel() OptVolumeV1betaServiceLevel {
+	return s.ServiceLevel
+}
+
+// GetSecurityStyle returns the value of SecurityStyle.
+func (s *VolumeV1beta) GetSecurityStyle() OptVolumeV1betaSecurityStyle {
+	return s.SecurityStyle
+}
+
+// GetUsedBytes returns the value of UsedBytes.
+func (s *VolumeV1beta) GetUsedBytes() OptNilFloat64 {
+	return s.UsedBytes
+}
+
+// GetQuotaInBytes returns the value of QuotaInBytes.
+func (s *VolumeV1beta) GetQuotaInBytes() OptFloat64 {
+	return s.QuotaInBytes
+}
+
+// GetColdTierSizeGib returns the value of ColdTierSizeGib.
+func (s *VolumeV1beta) GetColdTierSizeGib() OptNilFloat64 {
+	return s.ColdTierSizeGib
+}
+
+// GetSnapReserve returns the value of SnapReserve.
+func (s *VolumeV1beta) GetSnapReserve() OptFloat64 {
+	return s.SnapReserve
+}
+
+// GetSnapshotDirectory returns the value of SnapshotDirectory.
+func (s *VolumeV1beta) GetSnapshotDirectory() OptBool {
+	return s.SnapshotDirectory
+}
+
+// GetVolumeState returns the value of VolumeState.
+func (s *VolumeV1beta) GetVolumeState() OptVolumeV1betaVolumeState {
+	return s.VolumeState
+}
+
+// GetVolumeStateDetails returns the value of VolumeStateDetails.
+func (s *VolumeV1beta) GetVolumeStateDetails() OptString {
+	return s.VolumeStateDetails
+}
+
+// GetIsDataProtection returns the value of IsDataProtection.
+func (s *VolumeV1beta) GetIsDataProtection() OptBool {
+	return s.IsDataProtection
+}
+
+// GetIsOnPremMigration returns the value of IsOnPremMigration.
+func (s *VolumeV1beta) GetIsOnPremMigration() OptNilBool {
+	return s.IsOnPremMigration
+}
+
+// GetInReplication returns the value of InReplication.
+func (s *VolumeV1beta) GetInReplication() OptBool {
+	return s.InReplication
+}
+
+// GetSnapshotPolicy returns the value of SnapshotPolicy.
+func (s *VolumeV1beta) GetSnapshotPolicy() OptSnapshotPolicyV1beta {
+	return s.SnapshotPolicy
+}
+
+// GetStorageClass returns the value of StorageClass.
+func (s *VolumeV1beta) GetStorageClass() OptStorageClassV1beta {
+	return s.StorageClass
+}
+
+// GetExportPolicy returns the value of ExportPolicy.
+func (s *VolumeV1beta) GetExportPolicy() OptExportPolicyV1beta {
+	return s.ExportPolicy
+}
+
+// GetBackupConfig returns the value of BackupConfig.
+func (s *VolumeV1beta) GetBackupConfig() OptBackupConfigV1beta {
+	return s.BackupConfig
+}
+
+// GetTieringPolicy returns the value of TieringPolicy.
+func (s *VolumeV1beta) GetTieringPolicy() OptTieringPolicyV1beta {
+	return s.TieringPolicy
+}
+
+// GetBlockProperties returns the value of BlockProperties.
+func (s *VolumeV1beta) GetBlockProperties() OptBlockPropertiesV1beta {
+	return s.BlockProperties
+}
+
+// GetProtocols returns the value of Protocols.
+func (s *VolumeV1beta) GetProtocols() []ProtocolsV1beta {
+	return s.Protocols
+}
+
+// GetRestrictedActions returns the value of RestrictedActions.
+func (s *VolumeV1beta) GetRestrictedActions() RestrictedActionsV1beta {
+	return s.RestrictedActions
+}
+
+// GetSmbSettings returns the value of SmbSettings.
+func (s *VolumeV1beta) GetSmbSettings() SMBSettingsV1beta {
+	return s.SmbSettings
+}
+
+// GetMountPoints returns the value of MountPoints.
+func (s *VolumeV1beta) GetMountPoints() []MountPointV1beta {
+	return s.MountPoints
+}
+
+// GetLabels returns the value of Labels.
+func (s *VolumeV1beta) GetLabels() OptVolumeV1betaLabels {
+	return s.Labels
+}
+
+// GetKerberosEnabled returns the value of KerberosEnabled.
+func (s *VolumeV1beta) GetKerberosEnabled() OptNilBool {
+	return s.KerberosEnabled
+}
+
+// GetLdapEnabled returns the value of LdapEnabled.
+func (s *VolumeV1beta) GetLdapEnabled() OptNilBool {
+	return s.LdapEnabled
+}
+
+// GetUnixPermissions returns the value of UnixPermissions.
+func (s *VolumeV1beta) GetUnixPermissions() OptNilString {
+	return s.UnixPermissions
+}
+
+// GetEncryptionType returns the value of EncryptionType.
+func (s *VolumeV1beta) GetEncryptionType() OptVolumeV1betaEncryptionType {
+	return s.EncryptionType
+}
+
+// GetDescription returns the value of Description.
+func (s *VolumeV1beta) GetDescription() OptNilString {
+	return s.Description
+}
+
+// GetZone returns the value of Zone.
+func (s *VolumeV1beta) GetZone() OptString {
+	return s.Zone
+}
+
+// GetMultipleEndpoints returns the value of MultipleEndpoints.
+func (s *VolumeV1beta) GetMultipleEndpoints() OptNilBool {
+	return s.MultipleEndpoints
+}
+
+// GetLargeCapacity returns the value of LargeCapacity.
+func (s *VolumeV1beta) GetLargeCapacity() OptNilBool {
+	return s.LargeCapacity
+}
+
+// GetSecondaryZone returns the value of SecondaryZone.
+func (s *VolumeV1beta) GetSecondaryZone() OptNilString {
+	return s.SecondaryZone
+}
+
+// GetDedicatedCapacity returns the value of DedicatedCapacity.
+func (s *VolumeV1beta) GetDedicatedCapacity() OptNilBool {
+	return s.DedicatedCapacity
+}
+
+// GetLargeVolumeConstituentCount returns the value of LargeVolumeConstituentCount.
+func (s *VolumeV1beta) GetLargeVolumeConstituentCount() OptNilInt32 {
+	return s.LargeVolumeConstituentCount
+}
+
+// GetCacheParameters returns the value of CacheParameters.
+func (s *VolumeV1beta) GetCacheParameters() OptFlexCacheV1beta {
+	return s.CacheParameters
+}
+
+// SetResourceId sets the value of ResourceId.
+func (s *VolumeV1beta) SetResourceId(val string) {
+	s.ResourceId = val
+}
+
+// SetVolumeId sets the value of VolumeId.
+func (s *VolumeV1beta) SetVolumeId(val OptString) {
+	s.VolumeId = val
+}
+
+// SetCreated sets the value of Created.
+func (s *VolumeV1beta) SetCreated(val OptDateTime) {
+	s.Created = val
+}
+
+// SetDeleted sets the value of Deleted.
+func (s *VolumeV1beta) SetDeleted(val OptNilDateTime) {
+	s.Deleted = val
+}
+
+// SetCreationToken sets the value of CreationToken.
+func (s *VolumeV1beta) SetCreationToken(val string) {
+	s.CreationToken = val
+}
+
+// SetPoolId sets the value of PoolId.
+func (s *VolumeV1beta) SetPoolId(val NilString) {
+	s.PoolId = val
+}
+
+// SetPoolResourceId sets the value of PoolResourceId.
+func (s *VolumeV1beta) SetPoolResourceId(val OptNilString) {
+	s.PoolResourceId = val
+}
+
+// SetKmsConfigId sets the value of KmsConfigId.
+func (s *VolumeV1beta) SetKmsConfigId(val OptNilString) {
+	s.KmsConfigId = val
+}
+
+// SetKmsConfigResourceId sets the value of KmsConfigResourceId.
+func (s *VolumeV1beta) SetKmsConfigResourceId(val OptNilString) {
+	s.KmsConfigResourceId = val
+}
+
+// SetNetwork sets the value of Network.
+func (s *VolumeV1beta) SetNetwork(val OptString) {
+	s.Network = val
+}
+
+// SetActiveDirectoryConfigId sets the value of ActiveDirectoryConfigId.
+func (s *VolumeV1beta) SetActiveDirectoryConfigId(val OptNilString) {
+	s.ActiveDirectoryConfigId = val
+}
+
+// SetActiveDirectoryResourceId sets the value of ActiveDirectoryResourceId.
+func (s *VolumeV1beta) SetActiveDirectoryResourceId(val OptNilString) {
+	s.ActiveDirectoryResourceId = val
+}
+
+// SetServiceLevel sets the value of ServiceLevel.
+func (s *VolumeV1beta) SetServiceLevel(val OptVolumeV1betaServiceLevel) {
+	s.ServiceLevel = val
+}
+
+// SetSecurityStyle sets the value of SecurityStyle.
+func (s *VolumeV1beta) SetSecurityStyle(val OptVolumeV1betaSecurityStyle) {
+	s.SecurityStyle = val
+}
+
+// SetUsedBytes sets the value of UsedBytes.
+func (s *VolumeV1beta) SetUsedBytes(val OptNilFloat64) {
+	s.UsedBytes = val
+}
+
+// SetQuotaInBytes sets the value of QuotaInBytes.
+func (s *VolumeV1beta) SetQuotaInBytes(val OptFloat64) {
+	s.QuotaInBytes = val
+}
+
+// SetColdTierSizeGib sets the value of ColdTierSizeGib.
+func (s *VolumeV1beta) SetColdTierSizeGib(val OptNilFloat64) {
+	s.ColdTierSizeGib = val
+}
+
+// SetSnapReserve sets the value of SnapReserve.
+func (s *VolumeV1beta) SetSnapReserve(val OptFloat64) {
+	s.SnapReserve = val
+}
+
+// SetSnapshotDirectory sets the value of SnapshotDirectory.
+func (s *VolumeV1beta) SetSnapshotDirectory(val OptBool) {
+	s.SnapshotDirectory = val
+}
+
+// SetVolumeState sets the value of VolumeState.
+func (s *VolumeV1beta) SetVolumeState(val OptVolumeV1betaVolumeState) {
+	s.VolumeState = val
+}
+
+// SetVolumeStateDetails sets the value of VolumeStateDetails.
+func (s *VolumeV1beta) SetVolumeStateDetails(val OptString) {
+	s.VolumeStateDetails = val
+}
+
+// SetIsDataProtection sets the value of IsDataProtection.
+func (s *VolumeV1beta) SetIsDataProtection(val OptBool) {
+	s.IsDataProtection = val
+}
+
+// SetIsOnPremMigration sets the value of IsOnPremMigration.
+func (s *VolumeV1beta) SetIsOnPremMigration(val OptNilBool) {
+	s.IsOnPremMigration = val
+}
+
+// SetInReplication sets the value of InReplication.
+func (s *VolumeV1beta) SetInReplication(val OptBool) {
+	s.InReplication = val
+}
+
+// SetSnapshotPolicy sets the value of SnapshotPolicy.
+func (s *VolumeV1beta) SetSnapshotPolicy(val OptSnapshotPolicyV1beta) {
+	s.SnapshotPolicy = val
+}
+
+// SetStorageClass sets the value of StorageClass.
+func (s *VolumeV1beta) SetStorageClass(val OptStorageClassV1beta) {
+	s.StorageClass = val
+}
+
+// SetExportPolicy sets the value of ExportPolicy.
+func (s *VolumeV1beta) SetExportPolicy(val OptExportPolicyV1beta) {
+	s.ExportPolicy = val
+}
+
+// SetBackupConfig sets the value of BackupConfig.
+func (s *VolumeV1beta) SetBackupConfig(val OptBackupConfigV1beta) {
+	s.BackupConfig = val
+}
+
+// SetTieringPolicy sets the value of TieringPolicy.
+func (s *VolumeV1beta) SetTieringPolicy(val OptTieringPolicyV1beta) {
+	s.TieringPolicy = val
+}
+
+// SetBlockProperties sets the value of BlockProperties.
+func (s *VolumeV1beta) SetBlockProperties(val OptBlockPropertiesV1beta) {
+	s.BlockProperties = val
+}
+
+// SetProtocols sets the value of Protocols.
+func (s *VolumeV1beta) SetProtocols(val []ProtocolsV1beta) {
+	s.Protocols = val
+}
+
+// SetRestrictedActions sets the value of RestrictedActions.
+func (s *VolumeV1beta) SetRestrictedActions(val RestrictedActionsV1beta) {
+	s.RestrictedActions = val
+}
+
+// SetSmbSettings sets the value of SmbSettings.
+func (s *VolumeV1beta) SetSmbSettings(val SMBSettingsV1beta) {
+	s.SmbSettings = val
+}
+
+// SetMountPoints sets the value of MountPoints.
+func (s *VolumeV1beta) SetMountPoints(val []MountPointV1beta) {
+	s.MountPoints = val
+}
+
+// SetLabels sets the value of Labels.
+func (s *VolumeV1beta) SetLabels(val OptVolumeV1betaLabels) {
+	s.Labels = val
+}
+
+// SetKerberosEnabled sets the value of KerberosEnabled.
+func (s *VolumeV1beta) SetKerberosEnabled(val OptNilBool) {
+	s.KerberosEnabled = val
+}
+
+// SetLdapEnabled sets the value of LdapEnabled.
+func (s *VolumeV1beta) SetLdapEnabled(val OptNilBool) {
+	s.LdapEnabled = val
+}
+
+// SetUnixPermissions sets the value of UnixPermissions.
+func (s *VolumeV1beta) SetUnixPermissions(val OptNilString) {
+	s.UnixPermissions = val
+}
+
+// SetEncryptionType sets the value of EncryptionType.
+func (s *VolumeV1beta) SetEncryptionType(val OptVolumeV1betaEncryptionType) {
+	s.EncryptionType = val
+}
+
+// SetDescription sets the value of Description.
+func (s *VolumeV1beta) SetDescription(val OptNilString) {
+	s.Description = val
+}
+
+// SetZone sets the value of Zone.
+func (s *VolumeV1beta) SetZone(val OptString) {
+	s.Zone = val
+}
+
+// SetMultipleEndpoints sets the value of MultipleEndpoints.
+func (s *VolumeV1beta) SetMultipleEndpoints(val OptNilBool) {
+	s.MultipleEndpoints = val
+}
+
+// SetLargeCapacity sets the value of LargeCapacity.
+func (s *VolumeV1beta) SetLargeCapacity(val OptNilBool) {
+	s.LargeCapacity = val
+}
+
+// SetSecondaryZone sets the value of SecondaryZone.
+func (s *VolumeV1beta) SetSecondaryZone(val OptNilString) {
+	s.SecondaryZone = val
+}
+
+// SetDedicatedCapacity sets the value of DedicatedCapacity.
+func (s *VolumeV1beta) SetDedicatedCapacity(val OptNilBool) {
+	s.DedicatedCapacity = val
+}
+
+// SetLargeVolumeConstituentCount sets the value of LargeVolumeConstituentCount.
+func (s *VolumeV1beta) SetLargeVolumeConstituentCount(val OptNilInt32) {
+	s.LargeVolumeConstituentCount = val
+}
+
+// SetCacheParameters sets the value of CacheParameters.
+func (s *VolumeV1beta) SetCacheParameters(val OptFlexCacheV1beta) {
+	s.CacheParameters = val
+}
+
+func (*VolumeV1beta) v1betaDescribeVolumeRes() {}
+
+// Type of encryption used for volumes - can be either service managed key (service_managed) or
+// cloud_kms.
+type VolumeV1betaEncryptionType string
+
+const (
+	VolumeV1betaEncryptionTypeENCRYPTIONTYPEUNSPECIFIED VolumeV1betaEncryptionType = "ENCRYPTION_TYPE_UNSPECIFIED"
+	VolumeV1betaEncryptionTypeSERVICEMANAGED            VolumeV1betaEncryptionType = "SERVICE_MANAGED"
+	VolumeV1betaEncryptionTypeCLOUDKMS                  VolumeV1betaEncryptionType = "CLOUD_KMS"
+)
+
+// AllValues returns all VolumeV1betaEncryptionType values.
+func (VolumeV1betaEncryptionType) AllValues() []VolumeV1betaEncryptionType {
+	return []VolumeV1betaEncryptionType{
+		VolumeV1betaEncryptionTypeENCRYPTIONTYPEUNSPECIFIED,
+		VolumeV1betaEncryptionTypeSERVICEMANAGED,
+		VolumeV1betaEncryptionTypeCLOUDKMS,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s VolumeV1betaEncryptionType) MarshalText() ([]byte, error) {
+	switch s {
+	case VolumeV1betaEncryptionTypeENCRYPTIONTYPEUNSPECIFIED:
+		return []byte(s), nil
+	case VolumeV1betaEncryptionTypeSERVICEMANAGED:
+		return []byte(s), nil
+	case VolumeV1betaEncryptionTypeCLOUDKMS:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *VolumeV1betaEncryptionType) UnmarshalText(data []byte) error {
+	switch VolumeV1betaEncryptionType(data) {
+	case VolumeV1betaEncryptionTypeENCRYPTIONTYPEUNSPECIFIED:
+		*s = VolumeV1betaEncryptionTypeENCRYPTIONTYPEUNSPECIFIED
+		return nil
+	case VolumeV1betaEncryptionTypeSERVICEMANAGED:
+		*s = VolumeV1betaEncryptionTypeSERVICEMANAGED
+		return nil
+	case VolumeV1betaEncryptionTypeCLOUDKMS:
+		*s = VolumeV1betaEncryptionTypeCLOUDKMS
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// JSON dictionary of resource labels to allow linking of billing labels to a volume.
+type VolumeV1betaLabels map[string]string
+
+func (s *VolumeV1betaLabels) init() VolumeV1betaLabels {
+	m := *s
+	if m == nil {
+		m = map[string]string{}
+		*s = m
+	}
+	return m
+}
+
+// The security style of the volume.
+type VolumeV1betaSecurityStyle string
+
+const (
+	VolumeV1betaSecurityStyleSECURITYSTYLEUNSPECIFIED VolumeV1betaSecurityStyle = "SECURITY_STYLE_UNSPECIFIED"
+	VolumeV1betaSecurityStyleNTFS                     VolumeV1betaSecurityStyle = "NTFS"
+	VolumeV1betaSecurityStyleUNIX                     VolumeV1betaSecurityStyle = "UNIX"
+)
+
+// AllValues returns all VolumeV1betaSecurityStyle values.
+func (VolumeV1betaSecurityStyle) AllValues() []VolumeV1betaSecurityStyle {
+	return []VolumeV1betaSecurityStyle{
+		VolumeV1betaSecurityStyleSECURITYSTYLEUNSPECIFIED,
+		VolumeV1betaSecurityStyleNTFS,
+		VolumeV1betaSecurityStyleUNIX,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s VolumeV1betaSecurityStyle) MarshalText() ([]byte, error) {
+	switch s {
+	case VolumeV1betaSecurityStyleSECURITYSTYLEUNSPECIFIED:
+		return []byte(s), nil
+	case VolumeV1betaSecurityStyleNTFS:
+		return []byte(s), nil
+	case VolumeV1betaSecurityStyleUNIX:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *VolumeV1betaSecurityStyle) UnmarshalText(data []byte) error {
+	switch VolumeV1betaSecurityStyle(data) {
+	case VolumeV1betaSecurityStyleSECURITYSTYLEUNSPECIFIED:
+		*s = VolumeV1betaSecurityStyleSECURITYSTYLEUNSPECIFIED
+		return nil
+	case VolumeV1betaSecurityStyleNTFS:
+		*s = VolumeV1betaSecurityStyleNTFS
+		return nil
+	case VolumeV1betaSecurityStyleUNIX:
+		*s = VolumeV1betaSecurityStyleUNIX
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// The service level of the volume. Will be specified as premium or extreme, which will be equivalent
+// to having specified performance medium or high, respectively.  However, if any service level's
+// name is one of premium or extreme, the performance will be that of the service level, not the
+// performance equivalent.
+type VolumeV1betaServiceLevel string
+
+const (
+	VolumeV1betaServiceLevelSERVICELEVELUNSPECIFIED VolumeV1betaServiceLevel = "SERVICE_LEVEL_UNSPECIFIED"
+	VolumeV1betaServiceLevelFLEX                    VolumeV1betaServiceLevel = "FLEX"
+	VolumeV1betaServiceLevelSTANDARD                VolumeV1betaServiceLevel = "STANDARD"
+	VolumeV1betaServiceLevelPREMIUM                 VolumeV1betaServiceLevel = "PREMIUM"
+	VolumeV1betaServiceLevelEXTREME                 VolumeV1betaServiceLevel = "EXTREME"
+)
+
+// AllValues returns all VolumeV1betaServiceLevel values.
+func (VolumeV1betaServiceLevel) AllValues() []VolumeV1betaServiceLevel {
+	return []VolumeV1betaServiceLevel{
+		VolumeV1betaServiceLevelSERVICELEVELUNSPECIFIED,
+		VolumeV1betaServiceLevelFLEX,
+		VolumeV1betaServiceLevelSTANDARD,
+		VolumeV1betaServiceLevelPREMIUM,
+		VolumeV1betaServiceLevelEXTREME,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s VolumeV1betaServiceLevel) MarshalText() ([]byte, error) {
+	switch s {
+	case VolumeV1betaServiceLevelSERVICELEVELUNSPECIFIED:
+		return []byte(s), nil
+	case VolumeV1betaServiceLevelFLEX:
+		return []byte(s), nil
+	case VolumeV1betaServiceLevelSTANDARD:
+		return []byte(s), nil
+	case VolumeV1betaServiceLevelPREMIUM:
+		return []byte(s), nil
+	case VolumeV1betaServiceLevelEXTREME:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *VolumeV1betaServiceLevel) UnmarshalText(data []byte) error {
+	switch VolumeV1betaServiceLevel(data) {
+	case VolumeV1betaServiceLevelSERVICELEVELUNSPECIFIED:
+		*s = VolumeV1betaServiceLevelSERVICELEVELUNSPECIFIED
+		return nil
+	case VolumeV1betaServiceLevelFLEX:
+		*s = VolumeV1betaServiceLevelFLEX
+		return nil
+	case VolumeV1betaServiceLevelSTANDARD:
+		*s = VolumeV1betaServiceLevelSTANDARD
+		return nil
+	case VolumeV1betaServiceLevelPREMIUM:
+		*s = VolumeV1betaServiceLevelPREMIUM
+		return nil
+	case VolumeV1betaServiceLevelEXTREME:
+		*s = VolumeV1betaServiceLevelEXTREME
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// The current lifecycle state of the resource.
+type VolumeV1betaVolumeState string
+
+const (
+	VolumeV1betaVolumeStateSTATEUNSPECIFIED VolumeV1betaVolumeState = "STATE_UNSPECIFIED"
+	VolumeV1betaVolumeStateCREATING         VolumeV1betaVolumeState = "CREATING"
+	VolumeV1betaVolumeStateREADY            VolumeV1betaVolumeState = "READY"
+	VolumeV1betaVolumeStateUPDATING         VolumeV1betaVolumeState = "UPDATING"
+	VolumeV1betaVolumeStateRESTORING        VolumeV1betaVolumeState = "RESTORING"
+	VolumeV1betaVolumeStateDELETED          VolumeV1betaVolumeState = "DELETED"
+	VolumeV1betaVolumeStateDISABLED         VolumeV1betaVolumeState = "DISABLED"
+	VolumeV1betaVolumeStateDELETING         VolumeV1betaVolumeState = "DELETING"
+	VolumeV1betaVolumeStateERROR            VolumeV1betaVolumeState = "ERROR"
+	VolumeV1betaVolumeStateREADONLY         VolumeV1betaVolumeState = "READ_ONLY"
+	VolumeV1betaVolumeStatePREPARING        VolumeV1betaVolumeState = "PREPARING"
+)
+
+// AllValues returns all VolumeV1betaVolumeState values.
+func (VolumeV1betaVolumeState) AllValues() []VolumeV1betaVolumeState {
+	return []VolumeV1betaVolumeState{
+		VolumeV1betaVolumeStateSTATEUNSPECIFIED,
+		VolumeV1betaVolumeStateCREATING,
+		VolumeV1betaVolumeStateREADY,
+		VolumeV1betaVolumeStateUPDATING,
+		VolumeV1betaVolumeStateRESTORING,
+		VolumeV1betaVolumeStateDELETED,
+		VolumeV1betaVolumeStateDISABLED,
+		VolumeV1betaVolumeStateDELETING,
+		VolumeV1betaVolumeStateERROR,
+		VolumeV1betaVolumeStateREADONLY,
+		VolumeV1betaVolumeStatePREPARING,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s VolumeV1betaVolumeState) MarshalText() ([]byte, error) {
+	switch s {
+	case VolumeV1betaVolumeStateSTATEUNSPECIFIED:
+		return []byte(s), nil
+	case VolumeV1betaVolumeStateCREATING:
+		return []byte(s), nil
+	case VolumeV1betaVolumeStateREADY:
+		return []byte(s), nil
+	case VolumeV1betaVolumeStateUPDATING:
+		return []byte(s), nil
+	case VolumeV1betaVolumeStateRESTORING:
+		return []byte(s), nil
+	case VolumeV1betaVolumeStateDELETED:
+		return []byte(s), nil
+	case VolumeV1betaVolumeStateDISABLED:
+		return []byte(s), nil
+	case VolumeV1betaVolumeStateDELETING:
+		return []byte(s), nil
+	case VolumeV1betaVolumeStateERROR:
+		return []byte(s), nil
+	case VolumeV1betaVolumeStateREADONLY:
+		return []byte(s), nil
+	case VolumeV1betaVolumeStatePREPARING:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *VolumeV1betaVolumeState) UnmarshalText(data []byte) error {
+	switch VolumeV1betaVolumeState(data) {
+	case VolumeV1betaVolumeStateSTATEUNSPECIFIED:
+		*s = VolumeV1betaVolumeStateSTATEUNSPECIFIED
+		return nil
+	case VolumeV1betaVolumeStateCREATING:
+		*s = VolumeV1betaVolumeStateCREATING
+		return nil
+	case VolumeV1betaVolumeStateREADY:
+		*s = VolumeV1betaVolumeStateREADY
+		return nil
+	case VolumeV1betaVolumeStateUPDATING:
+		*s = VolumeV1betaVolumeStateUPDATING
+		return nil
+	case VolumeV1betaVolumeStateRESTORING:
+		*s = VolumeV1betaVolumeStateRESTORING
+		return nil
+	case VolumeV1betaVolumeStateDELETED:
+		*s = VolumeV1betaVolumeStateDELETED
+		return nil
+	case VolumeV1betaVolumeStateDISABLED:
+		*s = VolumeV1betaVolumeStateDISABLED
+		return nil
+	case VolumeV1betaVolumeStateDELETING:
+		*s = VolumeV1betaVolumeStateDELETING
+		return nil
+	case VolumeV1betaVolumeStateERROR:
+		*s = VolumeV1betaVolumeStateERROR
+		return nil
+	case VolumeV1betaVolumeStateREADONLY:
+		*s = VolumeV1betaVolumeStateREADONLY
+		return nil
+	case VolumeV1betaVolumeStatePREPARING:
+		*s = VolumeV1betaVolumeStatePREPARING
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// If enabled (snapshotsToKeep > 0), make a snapshot every week at a specific day or days, defaults
+// to Sunday at midnight.
+// Ref: #/components/schemas/WeeklySchedule_v1beta
+type WeeklyScheduleV1beta struct {
+	// The maximum number of snapshots to keep for the weekly schedule.
+	SnapshotsToKeep OptFloat64 `json:"snapshotsToKeep"`
+	// Set the day or days of the week to make a snapshot. Accepts a comma delimited string of week day
+	// names in english. Defaults to 'Sunday'.
+	Day OptString `json:"day"`
+	// Set the hour to start the snapshot (0-23), defaults to midnight (0).
+	Hour OptFloat64 `json:"hour"`
+	// Set the minute of the hour to start the snapshot (0-59), defaults to the top of the hour (0).
+	Minute OptFloat64 `json:"minute"`
+}
+
+// GetSnapshotsToKeep returns the value of SnapshotsToKeep.
+func (s *WeeklyScheduleV1beta) GetSnapshotsToKeep() OptFloat64 {
+	return s.SnapshotsToKeep
+}
+
+// GetDay returns the value of Day.
+func (s *WeeklyScheduleV1beta) GetDay() OptString {
+	return s.Day
+}
+
+// GetHour returns the value of Hour.
+func (s *WeeklyScheduleV1beta) GetHour() OptFloat64 {
+	return s.Hour
+}
+
+// GetMinute returns the value of Minute.
+func (s *WeeklyScheduleV1beta) GetMinute() OptFloat64 {
+	return s.Minute
+}
+
+// SetSnapshotsToKeep sets the value of SnapshotsToKeep.
+func (s *WeeklyScheduleV1beta) SetSnapshotsToKeep(val OptFloat64) {
+	s.SnapshotsToKeep = val
+}
+
+// SetDay sets the value of Day.
+func (s *WeeklyScheduleV1beta) SetDay(val OptString) {
+	s.Day = val
+}
+
+// SetHour sets the value of Hour.
+func (s *WeeklyScheduleV1beta) SetHour(val OptFloat64) {
+	s.Hour = val
+}
+
+// SetMinute sets the value of Minute.
+func (s *WeeklyScheduleV1beta) SetMinute(val OptFloat64) {
+	s.Minute = val
+}

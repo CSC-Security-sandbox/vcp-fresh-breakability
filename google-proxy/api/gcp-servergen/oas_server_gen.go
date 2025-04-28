@@ -8,12 +8,31 @@ import (
 
 // Handler handles operations described by OpenAPI v3 specification.
 type Handler interface {
+	// V1betaCreateHostGroup implements v1beta_createHostGroup operation.
+	//
+	// Create a new HostGroup.
+	//
+	// POST /v1beta/projects/{projectNumber}/locations/{locationId}/hostGroups
+	V1betaCreateHostGroup(ctx context.Context, req *HostGroupV1beta, params V1betaCreateHostGroupParams) (V1betaCreateHostGroupRes, error)
 	// V1betaCreatePool implements v1beta_createPool operation.
 	//
 	// Create a new pool.
 	//
 	// POST /v1beta/projects/{projectNumber}/locations/{locationId}/pools
 	V1betaCreatePool(ctx context.Context, req *PoolV1beta, params V1betaCreatePoolParams) (V1betaCreatePoolRes, error)
+	// V1betaCreateVolume implements v1beta_createVolume operation.
+	//
+	// Create a new empty volume or a volume from a backup/snapshot if backup-ID/snapshot-ID is in the
+	// body parameters.
+	//
+	// POST /v1beta/projects/{projectNumber}/locations/{locationId}/volumes
+	V1betaCreateVolume(ctx context.Context, req *VolumeCreateV1beta, params V1betaCreateVolumeParams) (V1betaCreateVolumeRes, error)
+	// V1betaDeleteHostGroup implements v1beta_deleteHostGroup operation.
+	//
+	// Warning! This operation will permanently delete the HostGroup.
+	//
+	// DELETE /v1beta/projects/{projectNumber}/locations/{locationId}/hostGroups/{hostGroupId}
+	V1betaDeleteHostGroup(ctx context.Context, params V1betaDeleteHostGroupParams) (V1betaDeleteHostGroupRes, error)
 	// V1betaDeletePool implements v1beta_deletePool operation.
 	//
 	// Warning! This operation will permanently delete the pool. This operation will never return
@@ -22,30 +41,86 @@ type Handler interface {
 	//
 	// DELETE /v1beta/projects/{projectNumber}/locations/{locationId}/pools/{poolId}
 	V1betaDeletePool(ctx context.Context, params V1betaDeletePoolParams) (V1betaDeletePoolRes, error)
+	// V1betaDeleteVolume implements v1beta_deleteVolume operation.
+	//
+	// Warning! This operation will permanently delete the volume. This operation will never return
+	// resource not found, since that could be interpreted as resource already deleted, and therefore
+	// will return operation done instead.
+	//
+	// DELETE /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}
+	V1betaDeleteVolume(ctx context.Context, req OptV1betaDeleteVolumeReq, params V1betaDeleteVolumeParams) (V1betaDeleteVolumeRes, error)
+	// V1betaDescribeHostGroup implements v1beta_describeHostGroup operation.
+	//
+	// Returns the description of the specified HostGroup by hostGroupId.
+	//
+	// GET /v1beta/projects/{projectNumber}/locations/{locationId}/hostGroups/{hostGroupId}
+	V1betaDescribeHostGroup(ctx context.Context, params V1betaDescribeHostGroupParams) (V1betaDescribeHostGroupRes, error)
 	// V1betaDescribePool implements v1beta_describePool operation.
 	//
 	// Returns the description of the specified pool by pool ID.
 	//
 	// GET /v1beta/projects/{projectNumber}/locations/{locationId}/pools/{poolId}
 	V1betaDescribePool(ctx context.Context, params V1betaDescribePoolParams) (V1betaDescribePoolRes, error)
+	// V1betaDescribeVolume implements v1beta_describeVolume operation.
+	//
+	// Returns the description of the specified volume by volume ID.
+	//
+	// GET /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}
+	V1betaDescribeVolume(ctx context.Context, params V1betaDescribeVolumeParams) (V1betaDescribeVolumeRes, error)
+	// V1betaGetMultipleHostGroups implements v1beta_getMultipleHostGroups operation.
+	//
+	// Returns descriptions of HostGroups that are listed in request body.
+	//
+	// POST /v1beta/projects/{projectNumber}/locations/{locationId}/hostGroups/getMultipleHostGroups
+	V1betaGetMultipleHostGroups(ctx context.Context, req *HostGroupIdListV1beta, params V1betaGetMultipleHostGroupsParams) (V1betaGetMultipleHostGroupsRes, error)
 	// V1betaGetMultiplePools implements v1beta_getMultiplePools operation.
 	//
 	// Returns descriptions of pools that is listed in request body.
 	//
 	// POST /v1beta/projects/{projectNumber}/locations/{locationId}/getMultiplePools
 	V1betaGetMultiplePools(ctx context.Context, req *PoolIDListV1beta, params V1betaGetMultiplePoolsParams) (V1betaGetMultiplePoolsRes, error)
+	// V1betaGetMultipleVolumes implements v1beta_getMultipleVolumes operation.
+	//
+	// Returns descriptions of volumes that is listed in request body.
+	//
+	// POST /v1beta/projects/{projectNumber}/locations/{locationId}/getMultipleVolumes
+	V1betaGetMultipleVolumes(ctx context.Context, req *VolumeIDListV1beta, params V1betaGetMultipleVolumesParams) (V1betaGetMultipleVolumesRes, error)
+	// V1betaListHostGroups implements v1beta_listHostGroups operation.
+	//
+	// Returns descriptions of all HostGroups owned by the caller.
+	//
+	// GET /v1beta/projects/{projectNumber}/locations/{locationId}/hostGroups
+	V1betaListHostGroups(ctx context.Context, params V1betaListHostGroupsParams) (V1betaListHostGroupsRes, error)
 	// V1betaListPools implements v1beta_listPools operation.
 	//
 	// Returns descriptions of all pools owned by the caller.
 	//
 	// GET /v1beta/projects/{projectNumber}/locations/{locationId}/pools
 	V1betaListPools(ctx context.Context, params V1betaListPoolsParams) (V1betaListPoolsRes, error)
+	// V1betaListVolumes implements v1beta_listVolumes operation.
+	//
+	// Returns descriptions of all volumes owned by the caller.
+	//
+	// GET /v1beta/projects/{projectNumber}/locations/{locationId}/volumes
+	V1betaListVolumes(ctx context.Context, params V1betaListVolumesParams) (V1betaListVolumesRes, error)
+	// V1betaUpdateHostGroup implements v1beta_updateHostGroup operation.
+	//
+	// Update the specified HostGroup.
+	//
+	// PUT /v1beta/projects/{projectNumber}/locations/{locationId}/hostGroups/{hostGroupId}
+	V1betaUpdateHostGroup(ctx context.Context, req *HostGroupUpdateV1beta, params V1betaUpdateHostGroupParams) (V1betaUpdateHostGroupRes, error)
 	// V1betaUpdatePool implements v1beta_updatePool operation.
 	//
 	// Update the pool.
 	//
 	// PUT /v1beta/projects/{projectNumber}/locations/{locationId}/pools/{poolId}
 	V1betaUpdatePool(ctx context.Context, req *PoolUpdateV1beta, params V1betaUpdatePoolParams) (V1betaUpdatePoolRes, error)
+	// V1betaUpdateVolume implements v1beta_updateVolume operation.
+	//
+	// Update the volume.
+	//
+	// PUT /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}
+	V1betaUpdateVolume(ctx context.Context, req *VolumeUpdateV1beta, params V1betaUpdateVolumeParams) (V1betaUpdateVolumeRes, error)
 	// NewError creates *ErrorStatusCode from error returned by handler.
 	//
 	// Used for common default response.
