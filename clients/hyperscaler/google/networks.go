@@ -6,8 +6,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"google.golang.org/api/compute/v1"
 	"google.golang.org/api/googleapi"
 	"google.golang.org/api/servicenetworking/v1"
@@ -67,7 +68,7 @@ func (gcpService *GcpServices) AddSubnetwork(request *servicenetworking.AddSubne
 
 // CreateSubnetwork creates GCP subnetwork
 func (gcpService *GcpServices) CreateSubnetwork(consumerNetwork, region, tenantProjectNumber string) (*servicenetworking.Subnetwork, error) {
-	consumerProjectNumber, consumerPeeringNetwork, err := parseProjectId(consumerNetwork)
+	consumerProjectNumber, consumerPeeringNetwork, err := utils.ParseProjectId(consumerNetwork)
 	if err != nil {
 		return nil, err
 	}

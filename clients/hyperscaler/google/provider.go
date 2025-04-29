@@ -23,7 +23,7 @@ var (
 	// serviceConsumerManagementEndpoint is the endpoint for the Service Consumer Management API.
 	serviceConsumerManagementEndpoint = env.GetString("GCP_CONSUMER_MGMT_ENDPOINT_URL", "")
 	// MockMetaDataHost is the endpoint for the metadata server.
-	MockMetaDataHost = env.GetString("GCP_MOCK_METADATA_HOST", "")
+	MockMetaDataHost = env.GetString("GCE_METADATA_HOST", "")
 
 	newClient = _newClient
 

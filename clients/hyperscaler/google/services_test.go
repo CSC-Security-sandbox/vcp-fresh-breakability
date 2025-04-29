@@ -90,29 +90,6 @@ func TestGetSearchRangeOperationStatus(t *testing.T) {
 	})
 }
 
-func TestParseProjectId(t *testing.T) {
-	t.Run("ValidNetwork", func(tt *testing.T) {
-		project, network, err := parseProjectId("projects/12345/global/networks/my-network")
-		if err != nil {
-			tt.Errorf("Unexpected error: %s", err.Error())
-		}
-		if project != "12345" {
-			tt.Errorf("Unexpected project ID: %s", project)
-		}
-		if network != "my-network" {
-			tt.Errorf("Unexpected network name: %s", network)
-		}
-	})
-	t.Run("InvalidNetwork", func(tt *testing.T) {
-		_, _, err := parseProjectId("invalid/network/format")
-		if err == nil {
-			tt.Error("Expected an error but got none")
-		} else if !strings.Contains(err.Error(), "VPC peering network for TenancyUnit") {
-			tt.Errorf("Unexpected error message: %s", err.Error())
-		}
-	})
-}
-
 // func TestWaitForServiceNetworkOperationStatus(t *testing.T) {
 //	t.Run("WhenGetSearchRangeOperationStatusThrowsError", func(tt *testing.T) {
 //		expectedErr := errors.New("GetSearchRangeOperationStatus Error")

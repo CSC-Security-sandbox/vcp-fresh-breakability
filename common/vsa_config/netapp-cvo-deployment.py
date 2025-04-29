@@ -1306,7 +1306,7 @@ def generate_config(context):
 
             if data_nic_obj:
                 vm1_data_nic = {
-                    'subnetwork': 'projects/' + project_name   + '/regions/' + context.properties['region'] + '/subnetworks/' + vnic_subnet_obj_for_resources,
+                    'subnetwork': 'projects/' + data_nic_vpc_project   + '/regions/' + context.properties['region'] + '/subnetworks/' + vnic_subnet_obj_for_resources,
                     'networkIP': '$(ref.' + vm1_intercluster_ip_name + '.address)',
                     'nicType': nic_type,
                     'aliasIpRanges': vm1_iscsi_alias_ip_range
@@ -1426,7 +1426,7 @@ def generate_config(context):
 
             if data_nic_obj:
                 vm2_data_nic = {
-                    'subnetwork': 'projects/' + project_name   + '/regions/' + context.properties['region'] + '/subnetworks/' + vnic_subnet_obj_for_resources,
+                    'subnetwork': 'projects/' + data_nic_vpc_project   + '/regions/' + context.properties['region'] + '/subnetworks/' + vnic_subnet_obj_for_resources,
                     'networkIP': '$(ref.' + vm2_intercluster_ip_name + '.address)',
                     'nicType': nic_type,
                     'aliasIpRanges': vm2_iscsi_alias_ip_range

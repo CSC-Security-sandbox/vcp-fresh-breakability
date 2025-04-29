@@ -2,11 +2,9 @@ package google
 
 import (
 	"fmt"
-	"strings"
 	"time"
 
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
-	logger "golang.org/x/exp/slog"
 	"google.golang.org/api/googleapi"
 	"google.golang.org/api/servicenetworking/v1"
 )
@@ -60,15 +58,4 @@ func getNetworkingOperationStatus(gcpService *GcpServices, operation string) (*s
 	}
 	gcpService.Logger.Debug(fmt.Sprintf("getNetworkingOperationStatus successful : %s", op.Name))
 	return op, nil
-}
-
-// parseProjectId parses the remoteAccount id and returns project number and network name
-func parseProjectId(network string) (string, string, error) {
-	tmp := strings.Split(network, "/")
-	if len(tmp) != 5 {
-		logger.Debug(fmt.Sprintf("parseProjectId failed : VPC peering network for TenancyUnit '%s' not found", network))
-		return "", "", errors.New(fmt.Sprintf("VPC peering network for TenancyUnit '%s' not found", network))
-	}
-	logger.Debug(fmt.Sprintf("parseProjectId successful. Project number: %s , network name : %s", tmp[1], tmp[4]))
-	return tmp[1], tmp[4], nil
 }

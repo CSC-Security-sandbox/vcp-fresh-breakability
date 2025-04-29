@@ -39,7 +39,7 @@ var (
 const (
 	aggregateName  = "aggr1"
 	defaultSvmName = "gcnv-default-svm"
-	lifNameFormat  = "san_lif_%s"
+	lifNameFormat  = "%s_block_data_lif"
 	enableIscsi    = true
 )
 
@@ -99,10 +99,13 @@ func _createPool(ctx context.Context, se database.Storage, params *CreatePoolPar
 
 // createPoolAsync performs the asynchronous tasks needed to fully configure a pool.
 func _createPoolAsync(ctx context.Context, se database.Storage, params *CreatePoolParams, pool *datamodel.Pool) error {
-	clusterName := params.Name + "vsa"
-
-	// Deploy VSA cluster.
-	vsaCluster, err := common.DeploymentsInsert(ctx, clusterName)
+	clusterName := params.AccountName + "_" + params.Name + "_vsa"
+	tenancyDetails, err := getTenancyInfo(ctx, params)
+	if err != nil {
+		return err
+	}
+	sizeInGB := utils.BytesToGigabytes(params.SizeInBytes)
+	vsaCluster, err := common.DeploymentsInsert(ctx, clusterName, params.Region, params.CurrentZone, tenancyDetails.Network, tenancyDetails.SubnetworkName, tenancyDetails.RegionalTenantProject, tenancyDetails.SnHostProject, sizeInGB)
 	if err != nil {
 		return err
 	}
@@ -125,14 +128,15 @@ func _createPoolAsync(ctx context.Context, se database.Storage, params *CreatePo
 
 	// Save cluster details.
 	clusterDetails := &datamodel.ClusterDetails{
-		ExternalName: clusterName,
-		OntapVersion: version,
+		ExternalName:          clusterName,
+		OntapVersion:          version,
+		RegionalTenantProject: tenancyDetails.RegionalTenantProject,
+		SnHostProject:         tenancyDetails.SnHostProject,
 	}
 
 	if err = se.SavePoolWithVsaClusterDetails(ctx, params.Name, params.AccountName, clusterDetails); err != nil {
 		return err
 	}
-
 	// Persist node details.
 	if err := saveNodeDetails(ctx, se, pool, vsaCluster); err != nil {
 		return err
@@ -343,6 +347,24 @@ func _validateCreatePoolParams(se database.Storage, params *CreatePoolParams) er
 	return nil
 }
 
+// getTenancyInfo retrieves the tenant project, network, and subnet information
+func getTenancyInfo(ctx context.Context, params *CreatePoolParams) (*tenancyInfo, error) {
+	tp, subnet, err := FindTenancyAndGetSubnetwork(ctx, params.VendorSubNetID, params.AccountName, &params.Region)
+	if err != nil {
+		return nil, err
+	}
+	snHostProject, network, err := utils.ParseProjectId(subnet.Network)
+	if err != nil {
+		return nil, err
+	}
+	return &tenancyInfo{
+		RegionalTenantProject: *tp,
+		Network:               network,
+		SubnetworkName:        subnet.Name,
+		SnHostProject:         snHostProject,
+	}, nil
+}
+
 // GetPoolByVendorID retrieves a pool by its VendorID.
 func (o *Orchestrator) GetPoolByVendorID(ctx context.Context, vendorID string) (*models.Pool, error) {
 	se := o.storage
@@ -374,6 +396,13 @@ type CreatePoolParams struct {
 	CustomThroughputMibps   uint64
 	HostUUID                string
 	CustomPerformanceParams *CustomPerformanceParams
+}
+
+type tenancyInfo struct {
+	RegionalTenantProject string
+	Network               string
+	SubnetworkName        string
+	SnHostProject         string
 }
 
 // CustomPerformanceParams is used to specify the custom performance parameters for a pool

@@ -1,6 +1,7 @@
 package utils
 
 import (
+	"fmt"
 	"context"
 	"net"
 	"regexp"
@@ -138,4 +139,18 @@ func _parseRegionAndZone(locationID string) (string, string, error) {
 func getLoggerFromContext(ctx context.Context) log.Logger {
 	logger, _ := ctx.Value(middleware.ContextSLoggerKey).(log.Logger)
 	return logger
+}
+
+// ParseProjectId parses the remoteAccount id and returns project number and network name
+func ParseProjectId(network string) (string, string, error) {
+	tmp := strings.Split(network, "/")
+	if len(tmp) != 5 {
+		return "", "", errors.New(fmt.Sprintf("VPC peering network for TenancyUnit '%s' not found", network))
+	}
+	return tmp[1], tmp[4], nil
+}
+
+// BytesToGigabytes converts bytes to gigabytes
+func BytesToGigabytes(sizeInBytes uint64) int {
+	return int(sizeInBytes / 1024 / 1024 / 1024)
 }

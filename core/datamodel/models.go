@@ -33,6 +33,8 @@ type Pool struct {
 type ClusterDetails struct {
 	ExternalName string `json:"external_name"`
 	OntapVersion string `json:"ontap_version"`
+	RegionalTenantProject string `json:"regional_tenant_project"`
+	SnHostProject         string `json:"sn_host_project"`
 }
 
 // Node represents the public.nodes table in the database
@@ -54,7 +56,15 @@ type JSONB map[string]interface{}
 
 // Scan implements the Scanner interface for JSONB
 func (j *JSONB) Scan(value interface{}) error {
-	return json.Unmarshal(value.([]byte), j)
+	if value == nil {
+		*j = make(JSONB) // Initialize to an empty map
+		return nil
+	}
+	bytes, ok := value.([]byte)
+	if !ok {
+		return errors.New("type assertion to []byte failed")
+	}
+	return json.Unmarshal(bytes, j)
 }
 
 // Value implements the Valuer interface for JSONB

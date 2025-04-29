@@ -61,7 +61,7 @@ func (h Handler) V1betaCreatePool(ctx context.Context, req *gcpgenserver.PoolV1b
 		return &gcpgenserver.V1betaCreatePoolInternalServerError{}, err
 	}
 
-	param := &orchestrator.CreatePoolParams{AccountName: params.ProjectNumber, Region: region, Name: req.ResourceId, VendorID: vendorId, VendorSubNetID: req.Network, ServiceLevel: string(req.ServiceLevel), SizeInBytes: uint64(req.SizeInBytes)}
+	param := &orchestrator.CreatePoolParams{AccountName: params.ProjectNumber, Region: region, CurrentZone: req.Zone.Value, Name: req.ResourceId, VendorID: vendorId, VendorSubNetID: req.Network, ServiceLevel: string(req.ServiceLevel), SizeInBytes: uint64(req.SizeInBytes)}
 	created, err := h.Orchestrator.CreatePool(ctx, param)
 	if err != nil {
 		logger.Error("Failed to create pool", slog.String("error", err.Error()))
