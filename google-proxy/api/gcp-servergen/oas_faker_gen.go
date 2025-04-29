@@ -58,7 +58,14 @@ func (s *BlockPropertiesV1beta) SetFake() {
 	}
 	{
 		{
-			s.HostGroupId.SetFake()
+			s.HostGroupIds = nil
+			for i := 0; i < 0; i++ {
+				var elem string
+				{
+					elem = "string"
+				}
+				s.HostGroupIds = append(s.HostGroupIds, elem)
+			}
 		}
 	}
 }

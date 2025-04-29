@@ -99,8 +99,8 @@ func (s *BackupConfigV1beta) SetBackupChainBytes(val OptNilInt64) {
 // Ref: #/components/schemas/BlockProperties_v1beta
 type BlockPropertiesV1beta struct {
 	OsType OptBlockVolumeOSTypeV1beta `json:"osType"`
-	// UUID v4 used to identify the HostGroup.
-	HostGroupId OptString `json:"hostGroupId"`
+	// List of UUID v4 used to identify the HostGroups.
+	HostGroupIds []string `json:"hostGroupIds"`
 }
 
 // GetOsType returns the value of OsType.
@@ -108,9 +108,9 @@ func (s *BlockPropertiesV1beta) GetOsType() OptBlockVolumeOSTypeV1beta {
 	return s.OsType
 }
 
-// GetHostGroupId returns the value of HostGroupId.
-func (s *BlockPropertiesV1beta) GetHostGroupId() OptString {
-	return s.HostGroupId
+// GetHostGroupIds returns the value of HostGroupIds.
+func (s *BlockPropertiesV1beta) GetHostGroupIds() []string {
+	return s.HostGroupIds
 }
 
 // SetOsType sets the value of OsType.
@@ -118,9 +118,9 @@ func (s *BlockPropertiesV1beta) SetOsType(val OptBlockVolumeOSTypeV1beta) {
 	s.OsType = val
 }
 
-// SetHostGroupId sets the value of HostGroupId.
-func (s *BlockPropertiesV1beta) SetHostGroupId(val OptString) {
-	s.HostGroupId = val
+// SetHostGroupIds sets the value of HostGroupIds.
+func (s *BlockPropertiesV1beta) SetHostGroupIds(val []string) {
+	s.HostGroupIds = val
 }
 
 // Specifies the OS type for the new Block Volume. The Block volume will be used with the selected OS

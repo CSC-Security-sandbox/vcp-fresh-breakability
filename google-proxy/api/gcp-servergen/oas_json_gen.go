@@ -304,16 +304,20 @@ func (s *BlockPropertiesV1beta) encodeFields(e *jx.Encoder) {
 		}
 	}
 	{
-		if s.HostGroupId.Set {
-			e.FieldStart("hostGroupId")
-			s.HostGroupId.Encode(e)
+		if s.HostGroupIds != nil {
+			e.FieldStart("hostGroupIds")
+			e.ArrStart()
+			for _, elem := range s.HostGroupIds {
+				e.Str(elem)
+			}
+			e.ArrEnd()
 		}
 	}
 }
 
 var jsonFieldsNameOfBlockPropertiesV1beta = [2]string{
 	0: "osType",
-	1: "hostGroupId",
+	1: "hostGroupIds",
 }
 
 // Decode decodes BlockPropertiesV1beta from json.
@@ -334,15 +338,24 @@ func (s *BlockPropertiesV1beta) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"osType\"")
 			}
-		case "hostGroupId":
+		case "hostGroupIds":
 			if err := func() error {
-				s.HostGroupId.Reset()
-				if err := s.HostGroupId.Decode(d); err != nil {
+				s.HostGroupIds = make([]string, 0)
+				if err := d.Arr(func(d *jx.Decoder) error {
+					var elem string
+					v, err := d.Str()
+					elem = string(v)
+					if err != nil {
+						return err
+					}
+					s.HostGroupIds = append(s.HostGroupIds, elem)
+					return nil
+				}); err != nil {
 					return err
 				}
 				return nil
 			}(); err != nil {
-				return errors.Wrap(err, "decode field \"hostGroupId\"")
+				return errors.Wrap(err, "decode field \"hostGroupIds\"")
 			}
 		default:
 			return d.Skip()

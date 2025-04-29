@@ -1150,7 +1150,9 @@ paths:
                     multipleEndpoints: false
                     largeCapacity: false
                     blockProperties:
-                      hostGroupId: a20730de-511f-273c-4071-ac1a30478609
+                      hostGroupIds:
+                        - a20730de-511f-273c-4071-ac1a30478609
+                        - a20730de-511f-273c-4071-ac1a30478610
                       osType: LINUX
                   - volumeId: 622EE7E2-afDD-536d-a337-F598Ef1f7a5A
                     resourceId: logs
@@ -1686,11 +1688,15 @@ components:
       properties:
         osType:
           $ref: '#/components/schemas/BlockVolumeOSType_v1beta'
-        hostGroupId:
-          title: hostGroupId
-          type: string
-          description: UUID v4 used to identify the HostGroup
-          example: 123e4567-e89b-12d3-a456-426614174000
+        hostGroupIds:
+          title: hostGroupIds
+          type: array
+          description: List of UUID v4 used to identify the HostGroups. A volume can be mapped to multiple HostGroups as long as each HostGroup has a distinct set of hosts.
+          items:
+            type: string
+            pattern: "^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$"
+            description: UUID v4 used to identify the HostGroup
+            example: 9760acf5-4638-11e7-9bdb-020073ca3333
     HostOSType_v1beta:
       title: HostOSType
       type: string
