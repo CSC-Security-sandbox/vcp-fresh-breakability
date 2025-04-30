@@ -24,7 +24,7 @@ resources:
         zone: us-east1-b
       labels:
         key1: 'value1'
-        creator: 'mvinayku'
+        creator: ''
       machineType: n2-standard-64
       dataDisksStorageCapacityInGB: 2000
       platformSerialNumberNode1: '90920140000000000001'
