@@ -6,7 +6,7 @@ import (
 	ontapRest "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/ontap-rest"
 )
 
-func (rc *OntapRestProvider) CreateSVM(params CreateSvmParams) (*Svm, error) {
+func (rc *OntapRestProvider) CreateSVM(params CreateSvmParams) (*ProviderResponse, error) {
 	// Create the SVM
 	svm, job, err := rc.client.SVM().SvmCreate(&ontapRest.SvmCreateParams{
 		Name:    params.Name,
@@ -32,7 +32,7 @@ func (rc *OntapRestProvider) CreateSVM(params CreateSvmParams) (*Svm, error) {
 	}
 
 	// Return the created SVM
-	return &Svm{
+	return &ProviderResponse{
 		Name:         *svm.Name,
 		ExternalUUID: *svm.UUID,
 	}, nil

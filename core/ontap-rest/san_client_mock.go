@@ -17,6 +17,62 @@ func (_m *MockSANClient) EXPECT() *MockSANClient_Expecter {
 	return &MockSANClient_Expecter{mock: &_m.Mock}
 }
 
+// IGroupCreate provides a mock function with given fields: params
+func (_m *MockSANClient) IGroupCreate(params *IgroupCreateParams) (string, error) {
+	ret := _m.Called(params)
+
+	if len(ret) == 0 {
+		panic("no return value specified for IGroupCreate")
+	}
+
+	var r0 string
+	var r1 error
+	if rf, ok := ret.Get(0).(func(*IgroupCreateParams) (string, error)); ok {
+		return rf(params)
+	}
+	if rf, ok := ret.Get(0).(func(*IgroupCreateParams) string); ok {
+		r0 = rf(params)
+	} else {
+		r0 = ret.Get(0).(string)
+	}
+
+	if rf, ok := ret.Get(1).(func(*IgroupCreateParams) error); ok {
+		r1 = rf(params)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockSANClient_IGroupCreate_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'IGroupCreate'
+type MockSANClient_IGroupCreate_Call struct {
+	*mock.Call
+}
+
+// IGroupCreate is a helper method to define mock.On call
+//   - params *IgroupCreateParams
+func (_e *MockSANClient_Expecter) IGroupCreate(params interface{}) *MockSANClient_IGroupCreate_Call {
+	return &MockSANClient_IGroupCreate_Call{Call: _e.mock.On("IGroupCreate", params)}
+}
+
+func (_c *MockSANClient_IGroupCreate_Call) Run(run func(params *IgroupCreateParams)) *MockSANClient_IGroupCreate_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(*IgroupCreateParams))
+	})
+	return _c
+}
+
+func (_c *MockSANClient_IGroupCreate_Call) Return(_a0 string, _a1 error) *MockSANClient_IGroupCreate_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockSANClient_IGroupCreate_Call) RunAndReturn(run func(*IgroupCreateParams) (string, error)) *MockSANClient_IGroupCreate_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // IscsiServiceCreate provides a mock function with given fields: params
 func (_m *MockSANClient) IscsiServiceCreate(params *IscsiCreateParams) error {
 	ret := _m.Called(params)
@@ -117,6 +173,110 @@ func (_c *MockSANClient_IscsiServiceGet_Call) Return(_a0 *Iscsi, _a1 error) *Moc
 }
 
 func (_c *MockSANClient_IscsiServiceGet_Call) RunAndReturn(run func(*IscsiGetParams) (*Iscsi, error)) *MockSANClient_IscsiServiceGet_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// LunCreate provides a mock function with given fields: params
+func (_m *MockSANClient) LunCreate(params *LunCreateParams) (*Lun, error) {
+	ret := _m.Called(params)
+
+	if len(ret) == 0 {
+		panic("no return value specified for LunCreate")
+	}
+
+	var r0 *Lun
+	var r1 error
+	if rf, ok := ret.Get(0).(func(*LunCreateParams) (*Lun, error)); ok {
+		return rf(params)
+	}
+	if rf, ok := ret.Get(0).(func(*LunCreateParams) *Lun); ok {
+		r0 = rf(params)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*Lun)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(*LunCreateParams) error); ok {
+		r1 = rf(params)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockSANClient_LunCreate_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'LunCreate'
+type MockSANClient_LunCreate_Call struct {
+	*mock.Call
+}
+
+// LunCreate is a helper method to define mock.On call
+//   - params *LunCreateParams
+func (_e *MockSANClient_Expecter) LunCreate(params interface{}) *MockSANClient_LunCreate_Call {
+	return &MockSANClient_LunCreate_Call{Call: _e.mock.On("LunCreate", params)}
+}
+
+func (_c *MockSANClient_LunCreate_Call) Run(run func(params *LunCreateParams)) *MockSANClient_LunCreate_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(*LunCreateParams))
+	})
+	return _c
+}
+
+func (_c *MockSANClient_LunCreate_Call) Return(_a0 *Lun, _a1 error) *MockSANClient_LunCreate_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockSANClient_LunCreate_Call) RunAndReturn(run func(*LunCreateParams) (*Lun, error)) *MockSANClient_LunCreate_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// LunMapCreate provides a mock function with given fields: params
+func (_m *MockSANClient) LunMapCreate(params *LunMapCreateParams) error {
+	ret := _m.Called(params)
+
+	if len(ret) == 0 {
+		panic("no return value specified for LunMapCreate")
+	}
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(*LunMapCreateParams) error); ok {
+		r0 = rf(params)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// MockSANClient_LunMapCreate_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'LunMapCreate'
+type MockSANClient_LunMapCreate_Call struct {
+	*mock.Call
+}
+
+// LunMapCreate is a helper method to define mock.On call
+//   - params *LunMapCreateParams
+func (_e *MockSANClient_Expecter) LunMapCreate(params interface{}) *MockSANClient_LunMapCreate_Call {
+	return &MockSANClient_LunMapCreate_Call{Call: _e.mock.On("LunMapCreate", params)}
+}
+
+func (_c *MockSANClient_LunMapCreate_Call) Run(run func(params *LunMapCreateParams)) *MockSANClient_LunMapCreate_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(*LunMapCreateParams))
+	})
+	return _c
+}
+
+func (_c *MockSANClient_LunMapCreate_Call) Return(_a0 error) *MockSANClient_LunMapCreate_Call {
+	_c.Call.Return(_a0)
+	return _c
+}
+
+func (_c *MockSANClient_LunMapCreate_Call) RunAndReturn(run func(*LunMapCreateParams) error) *MockSANClient_LunMapCreate_Call {
 	_c.Call.Return(run)
 	return _c
 }

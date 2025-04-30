@@ -19,7 +19,7 @@ type Protocols struct {
 	EnableIscsi bool
 }
 
-type Svm struct {
+type ProviderResponse struct {
 	Name         string
 	ExternalUUID string
 }
@@ -53,4 +53,34 @@ type Node struct {
 type Aggregate struct {
 	Name  string
 	State string
+}
+
+type CreateVolumeParams struct {
+	VolumeName    string
+	SvmName       string
+	AggregateName string
+	Size          int64
+	VolumeType    string
+}
+
+type IgroupCreateParams struct {
+	IgroupName string
+	SvmName    string
+	OsType     string
+	Initiator  []string
+}
+
+type LunCreateParams struct {
+	LunName    string
+	SvmName    string
+	OsType     string
+	VolumeName string
+	Size       int64
+}
+
+type LunMapCreateParams struct {
+	LunName    string
+	SvmName    string
+	IGroupName []string
+	LunNumber  int
 }

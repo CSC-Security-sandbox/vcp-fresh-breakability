@@ -21,9 +21,14 @@ type Provider interface {
 	IsAggregateOnline(aggregateName string) (bool, error)
 	GetNodes() ([]*Node, error)
 	GetNodeByName(name string) (*Node, error)
-	CreateSVM(params CreateSvmParams) (*Svm, error)
+	CreateSVM(params CreateSvmParams) (*ProviderResponse, error)
 	CreateDataLIF(params CreateLifParams) (*Lif, error)
 	CreateNetworkIpRoute(params CreateNetworkIPRouteParams) error
+	CreateVolume(params CreateVolumeParams) (*ProviderResponse, error)
+	DeleteVolume(volumeUUID, volumeName string) error
+	IgroupCreate(params IgroupCreateParams) (string, error)
+	LunCreate(params LunCreateParams) (*ProviderResponse, error)
+	LunMapCreate(params LunMapCreateParams) error
 }
 
 type OntapRestProvider struct {

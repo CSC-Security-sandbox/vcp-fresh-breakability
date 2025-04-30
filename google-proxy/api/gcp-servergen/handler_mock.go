@@ -70,6 +70,66 @@ func (_c *MockHandler_NewError_Call) RunAndReturn(run func(context.Context, erro
 	return _c
 }
 
+// V1betaCreateHostGroup provides a mock function with given fields: ctx, req, params
+func (_m *MockHandler) V1betaCreateHostGroup(ctx context.Context, req *HostGroupV1beta, params V1betaCreateHostGroupParams) (V1betaCreateHostGroupRes, error) {
+	ret := _m.Called(ctx, req, params)
+
+	if len(ret) == 0 {
+		panic("no return value specified for V1betaCreateHostGroup")
+	}
+
+	var r0 V1betaCreateHostGroupRes
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, *HostGroupV1beta, V1betaCreateHostGroupParams) (V1betaCreateHostGroupRes, error)); ok {
+		return rf(ctx, req, params)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, *HostGroupV1beta, V1betaCreateHostGroupParams) V1betaCreateHostGroupRes); ok {
+		r0 = rf(ctx, req, params)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(V1betaCreateHostGroupRes)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, *HostGroupV1beta, V1betaCreateHostGroupParams) error); ok {
+		r1 = rf(ctx, req, params)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockHandler_V1betaCreateHostGroup_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'V1betaCreateHostGroup'
+type MockHandler_V1betaCreateHostGroup_Call struct {
+	*mock.Call
+}
+
+// V1betaCreateHostGroup is a helper method to define mock.On call
+//   - ctx context.Context
+//   - req *HostGroupV1beta
+//   - params V1betaCreateHostGroupParams
+func (_e *MockHandler_Expecter) V1betaCreateHostGroup(ctx interface{}, req interface{}, params interface{}) *MockHandler_V1betaCreateHostGroup_Call {
+	return &MockHandler_V1betaCreateHostGroup_Call{Call: _e.mock.On("V1betaCreateHostGroup", ctx, req, params)}
+}
+
+func (_c *MockHandler_V1betaCreateHostGroup_Call) Run(run func(ctx context.Context, req *HostGroupV1beta, params V1betaCreateHostGroupParams)) *MockHandler_V1betaCreateHostGroup_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(*HostGroupV1beta), args[2].(V1betaCreateHostGroupParams))
+	})
+	return _c
+}
+
+func (_c *MockHandler_V1betaCreateHostGroup_Call) Return(_a0 V1betaCreateHostGroupRes, _a1 error) *MockHandler_V1betaCreateHostGroup_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockHandler_V1betaCreateHostGroup_Call) RunAndReturn(run func(context.Context, *HostGroupV1beta, V1betaCreateHostGroupParams) (V1betaCreateHostGroupRes, error)) *MockHandler_V1betaCreateHostGroup_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // V1betaCreatePool provides a mock function with given fields: ctx, req, params
 func (_m *MockHandler) V1betaCreatePool(ctx context.Context, req *PoolV1beta, params V1betaCreatePoolParams) (V1betaCreatePoolRes, error) {
 	ret := _m.Called(ctx, req, params)
@@ -126,6 +186,125 @@ func (_c *MockHandler_V1betaCreatePool_Call) Return(_a0 V1betaCreatePoolRes, _a1
 }
 
 func (_c *MockHandler_V1betaCreatePool_Call) RunAndReturn(run func(context.Context, *PoolV1beta, V1betaCreatePoolParams) (V1betaCreatePoolRes, error)) *MockHandler_V1betaCreatePool_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// V1betaCreateVolume provides a mock function with given fields: ctx, req, params
+func (_m *MockHandler) V1betaCreateVolume(ctx context.Context, req *VolumeCreateV1beta, params V1betaCreateVolumeParams) (V1betaCreateVolumeRes, error) {
+	ret := _m.Called(ctx, req, params)
+
+	if len(ret) == 0 {
+		panic("no return value specified for V1betaCreateVolume")
+	}
+
+	var r0 V1betaCreateVolumeRes
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, *VolumeCreateV1beta, V1betaCreateVolumeParams) (V1betaCreateVolumeRes, error)); ok {
+		return rf(ctx, req, params)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, *VolumeCreateV1beta, V1betaCreateVolumeParams) V1betaCreateVolumeRes); ok {
+		r0 = rf(ctx, req, params)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(V1betaCreateVolumeRes)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, *VolumeCreateV1beta, V1betaCreateVolumeParams) error); ok {
+		r1 = rf(ctx, req, params)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockHandler_V1betaCreateVolume_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'V1betaCreateVolume'
+type MockHandler_V1betaCreateVolume_Call struct {
+	*mock.Call
+}
+
+// V1betaCreateVolume is a helper method to define mock.On call
+//   - ctx context.Context
+//   - req *VolumeCreateV1beta
+//   - params V1betaCreateVolumeParams
+func (_e *MockHandler_Expecter) V1betaCreateVolume(ctx interface{}, req interface{}, params interface{}) *MockHandler_V1betaCreateVolume_Call {
+	return &MockHandler_V1betaCreateVolume_Call{Call: _e.mock.On("V1betaCreateVolume", ctx, req, params)}
+}
+
+func (_c *MockHandler_V1betaCreateVolume_Call) Run(run func(ctx context.Context, req *VolumeCreateV1beta, params V1betaCreateVolumeParams)) *MockHandler_V1betaCreateVolume_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(*VolumeCreateV1beta), args[2].(V1betaCreateVolumeParams))
+	})
+	return _c
+}
+
+func (_c *MockHandler_V1betaCreateVolume_Call) Return(_a0 V1betaCreateVolumeRes, _a1 error) *MockHandler_V1betaCreateVolume_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockHandler_V1betaCreateVolume_Call) RunAndReturn(run func(context.Context, *VolumeCreateV1beta, V1betaCreateVolumeParams) (V1betaCreateVolumeRes, error)) *MockHandler_V1betaCreateVolume_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// V1betaDeleteHostGroup provides a mock function with given fields: ctx, params
+func (_m *MockHandler) V1betaDeleteHostGroup(ctx context.Context, params V1betaDeleteHostGroupParams) (V1betaDeleteHostGroupRes, error) {
+	ret := _m.Called(ctx, params)
+
+	if len(ret) == 0 {
+		panic("no return value specified for V1betaDeleteHostGroup")
+	}
+
+	var r0 V1betaDeleteHostGroupRes
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, V1betaDeleteHostGroupParams) (V1betaDeleteHostGroupRes, error)); ok {
+		return rf(ctx, params)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, V1betaDeleteHostGroupParams) V1betaDeleteHostGroupRes); ok {
+		r0 = rf(ctx, params)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(V1betaDeleteHostGroupRes)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, V1betaDeleteHostGroupParams) error); ok {
+		r1 = rf(ctx, params)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockHandler_V1betaDeleteHostGroup_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'V1betaDeleteHostGroup'
+type MockHandler_V1betaDeleteHostGroup_Call struct {
+	*mock.Call
+}
+
+// V1betaDeleteHostGroup is a helper method to define mock.On call
+//   - ctx context.Context
+//   - params V1betaDeleteHostGroupParams
+func (_e *MockHandler_Expecter) V1betaDeleteHostGroup(ctx interface{}, params interface{}) *MockHandler_V1betaDeleteHostGroup_Call {
+	return &MockHandler_V1betaDeleteHostGroup_Call{Call: _e.mock.On("V1betaDeleteHostGroup", ctx, params)}
+}
+
+func (_c *MockHandler_V1betaDeleteHostGroup_Call) Run(run func(ctx context.Context, params V1betaDeleteHostGroupParams)) *MockHandler_V1betaDeleteHostGroup_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(V1betaDeleteHostGroupParams))
+	})
+	return _c
+}
+
+func (_c *MockHandler_V1betaDeleteHostGroup_Call) Return(_a0 V1betaDeleteHostGroupRes, _a1 error) *MockHandler_V1betaDeleteHostGroup_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockHandler_V1betaDeleteHostGroup_Call) RunAndReturn(run func(context.Context, V1betaDeleteHostGroupParams) (V1betaDeleteHostGroupRes, error)) *MockHandler_V1betaDeleteHostGroup_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -189,6 +368,125 @@ func (_c *MockHandler_V1betaDeletePool_Call) RunAndReturn(run func(context.Conte
 	return _c
 }
 
+// V1betaDeleteVolume provides a mock function with given fields: ctx, req, params
+func (_m *MockHandler) V1betaDeleteVolume(ctx context.Context, req OptV1betaDeleteVolumeReq, params V1betaDeleteVolumeParams) (V1betaDeleteVolumeRes, error) {
+	ret := _m.Called(ctx, req, params)
+
+	if len(ret) == 0 {
+		panic("no return value specified for V1betaDeleteVolume")
+	}
+
+	var r0 V1betaDeleteVolumeRes
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, OptV1betaDeleteVolumeReq, V1betaDeleteVolumeParams) (V1betaDeleteVolumeRes, error)); ok {
+		return rf(ctx, req, params)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, OptV1betaDeleteVolumeReq, V1betaDeleteVolumeParams) V1betaDeleteVolumeRes); ok {
+		r0 = rf(ctx, req, params)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(V1betaDeleteVolumeRes)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, OptV1betaDeleteVolumeReq, V1betaDeleteVolumeParams) error); ok {
+		r1 = rf(ctx, req, params)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockHandler_V1betaDeleteVolume_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'V1betaDeleteVolume'
+type MockHandler_V1betaDeleteVolume_Call struct {
+	*mock.Call
+}
+
+// V1betaDeleteVolume is a helper method to define mock.On call
+//   - ctx context.Context
+//   - req OptV1betaDeleteVolumeReq
+//   - params V1betaDeleteVolumeParams
+func (_e *MockHandler_Expecter) V1betaDeleteVolume(ctx interface{}, req interface{}, params interface{}) *MockHandler_V1betaDeleteVolume_Call {
+	return &MockHandler_V1betaDeleteVolume_Call{Call: _e.mock.On("V1betaDeleteVolume", ctx, req, params)}
+}
+
+func (_c *MockHandler_V1betaDeleteVolume_Call) Run(run func(ctx context.Context, req OptV1betaDeleteVolumeReq, params V1betaDeleteVolumeParams)) *MockHandler_V1betaDeleteVolume_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(OptV1betaDeleteVolumeReq), args[2].(V1betaDeleteVolumeParams))
+	})
+	return _c
+}
+
+func (_c *MockHandler_V1betaDeleteVolume_Call) Return(_a0 V1betaDeleteVolumeRes, _a1 error) *MockHandler_V1betaDeleteVolume_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockHandler_V1betaDeleteVolume_Call) RunAndReturn(run func(context.Context, OptV1betaDeleteVolumeReq, V1betaDeleteVolumeParams) (V1betaDeleteVolumeRes, error)) *MockHandler_V1betaDeleteVolume_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// V1betaDescribeHostGroup provides a mock function with given fields: ctx, params
+func (_m *MockHandler) V1betaDescribeHostGroup(ctx context.Context, params V1betaDescribeHostGroupParams) (V1betaDescribeHostGroupRes, error) {
+	ret := _m.Called(ctx, params)
+
+	if len(ret) == 0 {
+		panic("no return value specified for V1betaDescribeHostGroup")
+	}
+
+	var r0 V1betaDescribeHostGroupRes
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, V1betaDescribeHostGroupParams) (V1betaDescribeHostGroupRes, error)); ok {
+		return rf(ctx, params)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, V1betaDescribeHostGroupParams) V1betaDescribeHostGroupRes); ok {
+		r0 = rf(ctx, params)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(V1betaDescribeHostGroupRes)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, V1betaDescribeHostGroupParams) error); ok {
+		r1 = rf(ctx, params)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockHandler_V1betaDescribeHostGroup_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'V1betaDescribeHostGroup'
+type MockHandler_V1betaDescribeHostGroup_Call struct {
+	*mock.Call
+}
+
+// V1betaDescribeHostGroup is a helper method to define mock.On call
+//   - ctx context.Context
+//   - params V1betaDescribeHostGroupParams
+func (_e *MockHandler_Expecter) V1betaDescribeHostGroup(ctx interface{}, params interface{}) *MockHandler_V1betaDescribeHostGroup_Call {
+	return &MockHandler_V1betaDescribeHostGroup_Call{Call: _e.mock.On("V1betaDescribeHostGroup", ctx, params)}
+}
+
+func (_c *MockHandler_V1betaDescribeHostGroup_Call) Run(run func(ctx context.Context, params V1betaDescribeHostGroupParams)) *MockHandler_V1betaDescribeHostGroup_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(V1betaDescribeHostGroupParams))
+	})
+	return _c
+}
+
+func (_c *MockHandler_V1betaDescribeHostGroup_Call) Return(_a0 V1betaDescribeHostGroupRes, _a1 error) *MockHandler_V1betaDescribeHostGroup_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockHandler_V1betaDescribeHostGroup_Call) RunAndReturn(run func(context.Context, V1betaDescribeHostGroupParams) (V1betaDescribeHostGroupRes, error)) *MockHandler_V1betaDescribeHostGroup_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // V1betaDescribePool provides a mock function with given fields: ctx, params
 func (_m *MockHandler) V1betaDescribePool(ctx context.Context, params V1betaDescribePoolParams) (V1betaDescribePoolRes, error) {
 	ret := _m.Called(ctx, params)
@@ -244,6 +542,125 @@ func (_c *MockHandler_V1betaDescribePool_Call) Return(_a0 V1betaDescribePoolRes,
 }
 
 func (_c *MockHandler_V1betaDescribePool_Call) RunAndReturn(run func(context.Context, V1betaDescribePoolParams) (V1betaDescribePoolRes, error)) *MockHandler_V1betaDescribePool_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// V1betaDescribeVolume provides a mock function with given fields: ctx, params
+func (_m *MockHandler) V1betaDescribeVolume(ctx context.Context, params V1betaDescribeVolumeParams) (V1betaDescribeVolumeRes, error) {
+	ret := _m.Called(ctx, params)
+
+	if len(ret) == 0 {
+		panic("no return value specified for V1betaDescribeVolume")
+	}
+
+	var r0 V1betaDescribeVolumeRes
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, V1betaDescribeVolumeParams) (V1betaDescribeVolumeRes, error)); ok {
+		return rf(ctx, params)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, V1betaDescribeVolumeParams) V1betaDescribeVolumeRes); ok {
+		r0 = rf(ctx, params)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(V1betaDescribeVolumeRes)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, V1betaDescribeVolumeParams) error); ok {
+		r1 = rf(ctx, params)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockHandler_V1betaDescribeVolume_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'V1betaDescribeVolume'
+type MockHandler_V1betaDescribeVolume_Call struct {
+	*mock.Call
+}
+
+// V1betaDescribeVolume is a helper method to define mock.On call
+//   - ctx context.Context
+//   - params V1betaDescribeVolumeParams
+func (_e *MockHandler_Expecter) V1betaDescribeVolume(ctx interface{}, params interface{}) *MockHandler_V1betaDescribeVolume_Call {
+	return &MockHandler_V1betaDescribeVolume_Call{Call: _e.mock.On("V1betaDescribeVolume", ctx, params)}
+}
+
+func (_c *MockHandler_V1betaDescribeVolume_Call) Run(run func(ctx context.Context, params V1betaDescribeVolumeParams)) *MockHandler_V1betaDescribeVolume_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(V1betaDescribeVolumeParams))
+	})
+	return _c
+}
+
+func (_c *MockHandler_V1betaDescribeVolume_Call) Return(_a0 V1betaDescribeVolumeRes, _a1 error) *MockHandler_V1betaDescribeVolume_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockHandler_V1betaDescribeVolume_Call) RunAndReturn(run func(context.Context, V1betaDescribeVolumeParams) (V1betaDescribeVolumeRes, error)) *MockHandler_V1betaDescribeVolume_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// V1betaGetMultipleHostGroups provides a mock function with given fields: ctx, req, params
+func (_m *MockHandler) V1betaGetMultipleHostGroups(ctx context.Context, req *HostGroupIdListV1beta, params V1betaGetMultipleHostGroupsParams) (V1betaGetMultipleHostGroupsRes, error) {
+	ret := _m.Called(ctx, req, params)
+
+	if len(ret) == 0 {
+		panic("no return value specified for V1betaGetMultipleHostGroups")
+	}
+
+	var r0 V1betaGetMultipleHostGroupsRes
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, *HostGroupIdListV1beta, V1betaGetMultipleHostGroupsParams) (V1betaGetMultipleHostGroupsRes, error)); ok {
+		return rf(ctx, req, params)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, *HostGroupIdListV1beta, V1betaGetMultipleHostGroupsParams) V1betaGetMultipleHostGroupsRes); ok {
+		r0 = rf(ctx, req, params)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(V1betaGetMultipleHostGroupsRes)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, *HostGroupIdListV1beta, V1betaGetMultipleHostGroupsParams) error); ok {
+		r1 = rf(ctx, req, params)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockHandler_V1betaGetMultipleHostGroups_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'V1betaGetMultipleHostGroups'
+type MockHandler_V1betaGetMultipleHostGroups_Call struct {
+	*mock.Call
+}
+
+// V1betaGetMultipleHostGroups is a helper method to define mock.On call
+//   - ctx context.Context
+//   - req *HostGroupIdListV1beta
+//   - params V1betaGetMultipleHostGroupsParams
+func (_e *MockHandler_Expecter) V1betaGetMultipleHostGroups(ctx interface{}, req interface{}, params interface{}) *MockHandler_V1betaGetMultipleHostGroups_Call {
+	return &MockHandler_V1betaGetMultipleHostGroups_Call{Call: _e.mock.On("V1betaGetMultipleHostGroups", ctx, req, params)}
+}
+
+func (_c *MockHandler_V1betaGetMultipleHostGroups_Call) Run(run func(ctx context.Context, req *HostGroupIdListV1beta, params V1betaGetMultipleHostGroupsParams)) *MockHandler_V1betaGetMultipleHostGroups_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(*HostGroupIdListV1beta), args[2].(V1betaGetMultipleHostGroupsParams))
+	})
+	return _c
+}
+
+func (_c *MockHandler_V1betaGetMultipleHostGroups_Call) Return(_a0 V1betaGetMultipleHostGroupsRes, _a1 error) *MockHandler_V1betaGetMultipleHostGroups_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockHandler_V1betaGetMultipleHostGroups_Call) RunAndReturn(run func(context.Context, *HostGroupIdListV1beta, V1betaGetMultipleHostGroupsParams) (V1betaGetMultipleHostGroupsRes, error)) *MockHandler_V1betaGetMultipleHostGroups_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -308,6 +725,125 @@ func (_c *MockHandler_V1betaGetMultiplePools_Call) RunAndReturn(run func(context
 	return _c
 }
 
+// V1betaGetMultipleVolumes provides a mock function with given fields: ctx, req, params
+func (_m *MockHandler) V1betaGetMultipleVolumes(ctx context.Context, req *VolumeIDListV1beta, params V1betaGetMultipleVolumesParams) (V1betaGetMultipleVolumesRes, error) {
+	ret := _m.Called(ctx, req, params)
+
+	if len(ret) == 0 {
+		panic("no return value specified for V1betaGetMultipleVolumes")
+	}
+
+	var r0 V1betaGetMultipleVolumesRes
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, *VolumeIDListV1beta, V1betaGetMultipleVolumesParams) (V1betaGetMultipleVolumesRes, error)); ok {
+		return rf(ctx, req, params)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, *VolumeIDListV1beta, V1betaGetMultipleVolumesParams) V1betaGetMultipleVolumesRes); ok {
+		r0 = rf(ctx, req, params)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(V1betaGetMultipleVolumesRes)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, *VolumeIDListV1beta, V1betaGetMultipleVolumesParams) error); ok {
+		r1 = rf(ctx, req, params)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockHandler_V1betaGetMultipleVolumes_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'V1betaGetMultipleVolumes'
+type MockHandler_V1betaGetMultipleVolumes_Call struct {
+	*mock.Call
+}
+
+// V1betaGetMultipleVolumes is a helper method to define mock.On call
+//   - ctx context.Context
+//   - req *VolumeIDListV1beta
+//   - params V1betaGetMultipleVolumesParams
+func (_e *MockHandler_Expecter) V1betaGetMultipleVolumes(ctx interface{}, req interface{}, params interface{}) *MockHandler_V1betaGetMultipleVolumes_Call {
+	return &MockHandler_V1betaGetMultipleVolumes_Call{Call: _e.mock.On("V1betaGetMultipleVolumes", ctx, req, params)}
+}
+
+func (_c *MockHandler_V1betaGetMultipleVolumes_Call) Run(run func(ctx context.Context, req *VolumeIDListV1beta, params V1betaGetMultipleVolumesParams)) *MockHandler_V1betaGetMultipleVolumes_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(*VolumeIDListV1beta), args[2].(V1betaGetMultipleVolumesParams))
+	})
+	return _c
+}
+
+func (_c *MockHandler_V1betaGetMultipleVolumes_Call) Return(_a0 V1betaGetMultipleVolumesRes, _a1 error) *MockHandler_V1betaGetMultipleVolumes_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockHandler_V1betaGetMultipleVolumes_Call) RunAndReturn(run func(context.Context, *VolumeIDListV1beta, V1betaGetMultipleVolumesParams) (V1betaGetMultipleVolumesRes, error)) *MockHandler_V1betaGetMultipleVolumes_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// V1betaListHostGroups provides a mock function with given fields: ctx, params
+func (_m *MockHandler) V1betaListHostGroups(ctx context.Context, params V1betaListHostGroupsParams) (V1betaListHostGroupsRes, error) {
+	ret := _m.Called(ctx, params)
+
+	if len(ret) == 0 {
+		panic("no return value specified for V1betaListHostGroups")
+	}
+
+	var r0 V1betaListHostGroupsRes
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, V1betaListHostGroupsParams) (V1betaListHostGroupsRes, error)); ok {
+		return rf(ctx, params)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, V1betaListHostGroupsParams) V1betaListHostGroupsRes); ok {
+		r0 = rf(ctx, params)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(V1betaListHostGroupsRes)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, V1betaListHostGroupsParams) error); ok {
+		r1 = rf(ctx, params)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockHandler_V1betaListHostGroups_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'V1betaListHostGroups'
+type MockHandler_V1betaListHostGroups_Call struct {
+	*mock.Call
+}
+
+// V1betaListHostGroups is a helper method to define mock.On call
+//   - ctx context.Context
+//   - params V1betaListHostGroupsParams
+func (_e *MockHandler_Expecter) V1betaListHostGroups(ctx interface{}, params interface{}) *MockHandler_V1betaListHostGroups_Call {
+	return &MockHandler_V1betaListHostGroups_Call{Call: _e.mock.On("V1betaListHostGroups", ctx, params)}
+}
+
+func (_c *MockHandler_V1betaListHostGroups_Call) Run(run func(ctx context.Context, params V1betaListHostGroupsParams)) *MockHandler_V1betaListHostGroups_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(V1betaListHostGroupsParams))
+	})
+	return _c
+}
+
+func (_c *MockHandler_V1betaListHostGroups_Call) Return(_a0 V1betaListHostGroupsRes, _a1 error) *MockHandler_V1betaListHostGroups_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockHandler_V1betaListHostGroups_Call) RunAndReturn(run func(context.Context, V1betaListHostGroupsParams) (V1betaListHostGroupsRes, error)) *MockHandler_V1betaListHostGroups_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // V1betaListPools provides a mock function with given fields: ctx, params
 func (_m *MockHandler) V1betaListPools(ctx context.Context, params V1betaListPoolsParams) (V1betaListPoolsRes, error) {
 	ret := _m.Called(ctx, params)
@@ -363,6 +899,125 @@ func (_c *MockHandler_V1betaListPools_Call) Return(_a0 V1betaListPoolsRes, _a1 e
 }
 
 func (_c *MockHandler_V1betaListPools_Call) RunAndReturn(run func(context.Context, V1betaListPoolsParams) (V1betaListPoolsRes, error)) *MockHandler_V1betaListPools_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// V1betaListVolumes provides a mock function with given fields: ctx, params
+func (_m *MockHandler) V1betaListVolumes(ctx context.Context, params V1betaListVolumesParams) (V1betaListVolumesRes, error) {
+	ret := _m.Called(ctx, params)
+
+	if len(ret) == 0 {
+		panic("no return value specified for V1betaListVolumes")
+	}
+
+	var r0 V1betaListVolumesRes
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, V1betaListVolumesParams) (V1betaListVolumesRes, error)); ok {
+		return rf(ctx, params)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, V1betaListVolumesParams) V1betaListVolumesRes); ok {
+		r0 = rf(ctx, params)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(V1betaListVolumesRes)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, V1betaListVolumesParams) error); ok {
+		r1 = rf(ctx, params)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockHandler_V1betaListVolumes_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'V1betaListVolumes'
+type MockHandler_V1betaListVolumes_Call struct {
+	*mock.Call
+}
+
+// V1betaListVolumes is a helper method to define mock.On call
+//   - ctx context.Context
+//   - params V1betaListVolumesParams
+func (_e *MockHandler_Expecter) V1betaListVolumes(ctx interface{}, params interface{}) *MockHandler_V1betaListVolumes_Call {
+	return &MockHandler_V1betaListVolumes_Call{Call: _e.mock.On("V1betaListVolumes", ctx, params)}
+}
+
+func (_c *MockHandler_V1betaListVolumes_Call) Run(run func(ctx context.Context, params V1betaListVolumesParams)) *MockHandler_V1betaListVolumes_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(V1betaListVolumesParams))
+	})
+	return _c
+}
+
+func (_c *MockHandler_V1betaListVolumes_Call) Return(_a0 V1betaListVolumesRes, _a1 error) *MockHandler_V1betaListVolumes_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockHandler_V1betaListVolumes_Call) RunAndReturn(run func(context.Context, V1betaListVolumesParams) (V1betaListVolumesRes, error)) *MockHandler_V1betaListVolumes_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// V1betaUpdateHostGroup provides a mock function with given fields: ctx, req, params
+func (_m *MockHandler) V1betaUpdateHostGroup(ctx context.Context, req *HostGroupUpdateV1beta, params V1betaUpdateHostGroupParams) (V1betaUpdateHostGroupRes, error) {
+	ret := _m.Called(ctx, req, params)
+
+	if len(ret) == 0 {
+		panic("no return value specified for V1betaUpdateHostGroup")
+	}
+
+	var r0 V1betaUpdateHostGroupRes
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, *HostGroupUpdateV1beta, V1betaUpdateHostGroupParams) (V1betaUpdateHostGroupRes, error)); ok {
+		return rf(ctx, req, params)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, *HostGroupUpdateV1beta, V1betaUpdateHostGroupParams) V1betaUpdateHostGroupRes); ok {
+		r0 = rf(ctx, req, params)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(V1betaUpdateHostGroupRes)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, *HostGroupUpdateV1beta, V1betaUpdateHostGroupParams) error); ok {
+		r1 = rf(ctx, req, params)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockHandler_V1betaUpdateHostGroup_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'V1betaUpdateHostGroup'
+type MockHandler_V1betaUpdateHostGroup_Call struct {
+	*mock.Call
+}
+
+// V1betaUpdateHostGroup is a helper method to define mock.On call
+//   - ctx context.Context
+//   - req *HostGroupUpdateV1beta
+//   - params V1betaUpdateHostGroupParams
+func (_e *MockHandler_Expecter) V1betaUpdateHostGroup(ctx interface{}, req interface{}, params interface{}) *MockHandler_V1betaUpdateHostGroup_Call {
+	return &MockHandler_V1betaUpdateHostGroup_Call{Call: _e.mock.On("V1betaUpdateHostGroup", ctx, req, params)}
+}
+
+func (_c *MockHandler_V1betaUpdateHostGroup_Call) Run(run func(ctx context.Context, req *HostGroupUpdateV1beta, params V1betaUpdateHostGroupParams)) *MockHandler_V1betaUpdateHostGroup_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(*HostGroupUpdateV1beta), args[2].(V1betaUpdateHostGroupParams))
+	})
+	return _c
+}
+
+func (_c *MockHandler_V1betaUpdateHostGroup_Call) Return(_a0 V1betaUpdateHostGroupRes, _a1 error) *MockHandler_V1betaUpdateHostGroup_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockHandler_V1betaUpdateHostGroup_Call) RunAndReturn(run func(context.Context, *HostGroupUpdateV1beta, V1betaUpdateHostGroupParams) (V1betaUpdateHostGroupRes, error)) *MockHandler_V1betaUpdateHostGroup_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -423,6 +1078,66 @@ func (_c *MockHandler_V1betaUpdatePool_Call) Return(_a0 V1betaUpdatePoolRes, _a1
 }
 
 func (_c *MockHandler_V1betaUpdatePool_Call) RunAndReturn(run func(context.Context, *PoolUpdateV1beta, V1betaUpdatePoolParams) (V1betaUpdatePoolRes, error)) *MockHandler_V1betaUpdatePool_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// V1betaUpdateVolume provides a mock function with given fields: ctx, req, params
+func (_m *MockHandler) V1betaUpdateVolume(ctx context.Context, req *VolumeUpdateV1beta, params V1betaUpdateVolumeParams) (V1betaUpdateVolumeRes, error) {
+	ret := _m.Called(ctx, req, params)
+
+	if len(ret) == 0 {
+		panic("no return value specified for V1betaUpdateVolume")
+	}
+
+	var r0 V1betaUpdateVolumeRes
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, *VolumeUpdateV1beta, V1betaUpdateVolumeParams) (V1betaUpdateVolumeRes, error)); ok {
+		return rf(ctx, req, params)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, *VolumeUpdateV1beta, V1betaUpdateVolumeParams) V1betaUpdateVolumeRes); ok {
+		r0 = rf(ctx, req, params)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(V1betaUpdateVolumeRes)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, *VolumeUpdateV1beta, V1betaUpdateVolumeParams) error); ok {
+		r1 = rf(ctx, req, params)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockHandler_V1betaUpdateVolume_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'V1betaUpdateVolume'
+type MockHandler_V1betaUpdateVolume_Call struct {
+	*mock.Call
+}
+
+// V1betaUpdateVolume is a helper method to define mock.On call
+//   - ctx context.Context
+//   - req *VolumeUpdateV1beta
+//   - params V1betaUpdateVolumeParams
+func (_e *MockHandler_Expecter) V1betaUpdateVolume(ctx interface{}, req interface{}, params interface{}) *MockHandler_V1betaUpdateVolume_Call {
+	return &MockHandler_V1betaUpdateVolume_Call{Call: _e.mock.On("V1betaUpdateVolume", ctx, req, params)}
+}
+
+func (_c *MockHandler_V1betaUpdateVolume_Call) Run(run func(ctx context.Context, req *VolumeUpdateV1beta, params V1betaUpdateVolumeParams)) *MockHandler_V1betaUpdateVolume_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(*VolumeUpdateV1beta), args[2].(V1betaUpdateVolumeParams))
+	})
+	return _c
+}
+
+func (_c *MockHandler_V1betaUpdateVolume_Call) Return(_a0 V1betaUpdateVolumeRes, _a1 error) *MockHandler_V1betaUpdateVolume_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockHandler_V1betaUpdateVolume_Call) RunAndReturn(run func(context.Context, *VolumeUpdateV1beta, V1betaUpdateVolumeParams) (V1betaUpdateVolumeRes, error)) *MockHandler_V1betaUpdateVolume_Call {
 	_c.Call.Return(run)
 	return _c
 }

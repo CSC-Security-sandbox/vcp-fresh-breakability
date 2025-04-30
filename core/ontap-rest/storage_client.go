@@ -25,6 +25,7 @@ type StorageClient interface { // generate:mock
 	VolumeCollectionGet(params *VolumeCollectionGetParams, ucbf UserCallbackFunc[[]*Volume]) error
 	VolumeModify(params *VolumeModifyParams) (bool, *JobAccepted, error)
 	VolumeCreate(params *VolumeCreateParams) (*Volume, *JobAccepted, error)
+	VolumeDelete(params *VolumeDeleteParams) error
 }
 
 type storageClient struct {
@@ -336,4 +337,19 @@ func (sc *storageClient) VolumeCreate(params *VolumeCreateParams) (*Volume, *Job
 	return &Volume{Volume: *accepted.Payload.Records[0]}, &JobAccepted{
 		JobUUID: string(*accepted.Payload.Job.UUID),
 	}, nil
+}
+
+// VolumeDelete invokes pkg/ontap-rest/client/storage/Client.VolumeDelete to delete Volume
+func (sc *storageClient) VolumeDelete(params *VolumeDeleteParams) error {
+	if params.UUID != "" {
+		_, _, err := sc.api.VolumeDelete(volumeDeleteParamsToONTAP(params), nil)
+		return err
+	}
+
+	if params.Name == "" {
+		return errors.New("no name filter provided for VolumeDeleteCollection")
+	}
+
+	_, _, err := sc.api.VolumeDeleteCollection(volumeDeleteParamsToONTAPCollectionDelete(params), nil)
+	return err
 }

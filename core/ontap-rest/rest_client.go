@@ -94,6 +94,7 @@ func NewClient(params RESTClientParams) RESTClient {
 		svm:                       &svmClient{api: api.Svm, apiPriv: &apiPriv.Operations},
 		networking:                &networkingClient{api: api.Networking, apiPriv: &apiPriv.Operations},
 		storage:                   &storageClient{api: api.Storage},
+		san:                       &sanClient{api: api.San},
 		poller:                    p,
 	}
 	return rc

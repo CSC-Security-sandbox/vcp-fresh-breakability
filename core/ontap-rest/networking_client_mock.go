@@ -318,6 +318,64 @@ func (_c *MockNetworkingClient_NetworkEthernetBroadcastDomainGet_Call) RunAndRet
 	return _c
 }
 
+// NetworkIPInterfaceCreate provides a mock function with given fields: params
+func (_m *MockNetworkingClient) NetworkIPInterfaceCreate(params *NetworkIPInterfacesCreateParams) (*IPInterface, error) {
+	ret := _m.Called(params)
+
+	if len(ret) == 0 {
+		panic("no return value specified for NetworkIPInterfaceCreate")
+	}
+
+	var r0 *IPInterface
+	var r1 error
+	if rf, ok := ret.Get(0).(func(*NetworkIPInterfacesCreateParams) (*IPInterface, error)); ok {
+		return rf(params)
+	}
+	if rf, ok := ret.Get(0).(func(*NetworkIPInterfacesCreateParams) *IPInterface); ok {
+		r0 = rf(params)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*IPInterface)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(*NetworkIPInterfacesCreateParams) error); ok {
+		r1 = rf(params)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockNetworkingClient_NetworkIPInterfaceCreate_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'NetworkIPInterfaceCreate'
+type MockNetworkingClient_NetworkIPInterfaceCreate_Call struct {
+	*mock.Call
+}
+
+// NetworkIPInterfaceCreate is a helper method to define mock.On call
+//   - params *NetworkIPInterfacesCreateParams
+func (_e *MockNetworkingClient_Expecter) NetworkIPInterfaceCreate(params interface{}) *MockNetworkingClient_NetworkIPInterfaceCreate_Call {
+	return &MockNetworkingClient_NetworkIPInterfaceCreate_Call{Call: _e.mock.On("NetworkIPInterfaceCreate", params)}
+}
+
+func (_c *MockNetworkingClient_NetworkIPInterfaceCreate_Call) Run(run func(params *NetworkIPInterfacesCreateParams)) *MockNetworkingClient_NetworkIPInterfaceCreate_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(*NetworkIPInterfacesCreateParams))
+	})
+	return _c
+}
+
+func (_c *MockNetworkingClient_NetworkIPInterfaceCreate_Call) Return(_a0 *IPInterface, _a1 error) *MockNetworkingClient_NetworkIPInterfaceCreate_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockNetworkingClient_NetworkIPInterfaceCreate_Call) RunAndReturn(run func(*NetworkIPInterfacesCreateParams) (*IPInterface, error)) *MockNetworkingClient_NetworkIPInterfaceCreate_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // NetworkIPInterfacesGet provides a mock function with given fields: params, ucbf
 func (_m *MockNetworkingClient) NetworkIPInterfacesGet(params *NetworkIPInterfacesGetParams, ucbf UserCallbackFunc[[]*IPInterface]) error {
 	ret := _m.Called(params, ucbf)

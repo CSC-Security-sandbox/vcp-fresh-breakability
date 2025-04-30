@@ -20,12 +20,6 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/nillable"
 )
 
-// Valid CIFS share property values
-const (
-	AutoTieringPolicy         = "auto"
-	SnapshotOnlyTieringPolicy = "snapshot-only"
-)
-
 var (
 	returnTimeout = strconv.FormatInt(int64(utils.GetConstraintInteger(env.GetUint("ONTAP_REST_SYNC_RETURN_TIMEOUT_SECONDS", 15), 0, 15, 15)), 10)
 	// MD: returnTimeoutNoJob signals that we are not interested in getting a job and the entire operation should instead time out
@@ -1436,6 +1430,31 @@ type VolumeDeleteParams struct {
 	Name string
 }
 
+func volumeDeleteParamsToONTAP(params *VolumeDeleteParams) *storage.VolumeDeleteParams {
+	otParams := storage.NewVolumeDeleteParams()
+	if params == nil {
+		return otParams
+	}
+
+	otParams.SetUUID(params.UUID)
+	force := "true"
+	otParams.SetForce(&force)
+	otParams.SetReturnTimeout(&returnTimeout)
+	return otParams
+}
+
+func volumeDeleteParamsToONTAPCollectionDelete(params *VolumeDeleteParams) *storage.VolumeDeleteCollectionParams {
+	otParams := storage.NewVolumeDeleteCollectionParams()
+	if params == nil {
+		return otParams
+	}
+
+	otParams.SetName(&params.Name)
+	otParams.SetForce(nillable.ToPointer("true"))
+	otParams.SetReturnTimeout(&returnTimeout)
+	return otParams
+}
+
 // ServerRootCACertificate is a simple wrapper of models.SecurityCertificate
 type ServerRootCACertificate struct {
 	models.SecurityCertificate
@@ -1739,9 +1758,15 @@ type VolumeCreateParams struct {
 	Encrypt                        bool
 	UnixPermissions                *string
 	Language                       *string
+	Svm                            string
 	// TODO: enable these while implementing Snapshot
 	// Snapshot                       *sstorage.Snapshot
 }
+
+const (
+	VolumeStateOnline = "online"
+	GuaranteeTypeNone = "none"
+)
 
 func volumeCreateParamsToONTAP(params *VolumeCreateParams) *storage.VolumeCreateParams {
 	// TODO: enable these while implementing FlexCache
@@ -1751,49 +1776,25 @@ func volumeCreateParamsToONTAP(params *VolumeCreateParams) *storage.VolumeCreate
 
 	otParams := storage.NewVolumeCreateParams()
 	otParams.SetInfo(&models.Volume{
-		Name:    &params.Name,
-		Comment: &params.Comment,
-		Type:    &params.Type,
-		State:   nillable.ToPointer("online"),
-		Size:    &params.Size,
-		Guarantee: &models.VolumeInlineGuarantee{
-			Type: nillable.ToPointer("none"),
+		Name:  &params.Name,
+		Type:  &params.Type,
+		State: nillable.ToPointer(VolumeStateOnline),
+		Size:  &params.Size,
+		Svm: &models.VolumeInlineSvm{
+			Name: &params.Svm,
 		},
-		Qos: &models.VolumeInlineQos{
-			Policy: &models.VolumeInlineQosInlinePolicy{
-				Name: &params.QosPolicy,
-			},
+		Guarantee: &models.VolumeInlineGuarantee{
+			Type: nillable.ToPointer(GuaranteeTypeNone),
 		},
 		SnapshotPolicy: &models.VolumeInlineSnapshotPolicy{
 			Name: &params.SnapshotPolicy,
 		},
-		Nas: &models.VolumeInlineNas{
-			ExportPolicy: &models.VolumeInlineNasInlineExportPolicy{
-				Name: &params.ExportPolicy,
-			},
-			SecurityStyle: &params.SecurityStyle,
-		},
 		Space: &models.VolumeInlineSpace{
-			Snapshot: &models.VolumeInlineSpaceInlineSnapshot{
-				ReservePercent: &params.SnapshotReservePercent,
-			},
 			LogicalSpace: &models.VolumeInlineSpaceInlineLogicalSpace{
 				Enforcement: nillable.ToPointer(true),
 				Reporting:   nillable.ToPointer(true),
 			},
 		},
-		Encryption: &models.VolumeInlineEncryption{
-			Enabled: &params.Encrypt,
-		},
-		Tiering: &models.VolumeInlineTiering{
-			Policy: &params.TieringPolicy,
-		},
-		SnapshotDirectoryAccessEnabled: &params.SnapshotDirectoryAccessEnabled,
-		Autosize: &models.VolumeInlineAutosize{
-			Mode: nillable.ToPointer("off"),
-		},
-		Language:                 params.Language,
-		ConstituentsPerAggregate: params.ConstituentsPerAggregate,
 	})
 
 	for _, aggregate := range params.Aggregates {
@@ -1801,22 +1802,6 @@ func volumeCreateParamsToONTAP(params *VolumeCreateParams) *storage.VolumeCreate
 			&models.VolumeInlineAggregatesInlineArrayItem{
 				Name: nillable.ToPointer(aggregate),
 			})
-	}
-
-	otParams.Info.Tiering.MinCoolingDays = nil
-
-	if params.TieringPolicy == AutoTieringPolicy || params.TieringPolicy == SnapshotOnlyTieringPolicy {
-		otParams.Info.Tiering.MinCoolingDays = &params.MinCoolingDays
-		otParams.Info.CloudRetrievalPolicy = &params.CloudRetrievalPolicy
-	}
-
-	if params.JunctionPath != "" {
-		otParams.Info.Nas.Path = &params.JunctionPath
-	}
-
-	if params.Type != "DP" && params.UnixPermissions != nil {
-		unixPermissions, _ := strconv.Atoi(*params.UnixPermissions)
-		otParams.Info.Nas.UnixPermissions = nillable.ToPointer(int64(unixPermissions))
 	}
 
 	otParams.SetReturnTimeout(&returnTimeout)
@@ -1907,11 +1892,6 @@ type NameMappingCollectionGetParams struct {
 	SvmName     *string
 }
 
-// Igroup is the igroup
-type Igroup struct {
-	models.Igroup
-}
-
 // Iscsi is the iscsi service
 type Iscsi struct {
 	models.IscsiService
@@ -1962,4 +1942,113 @@ func iscsiServiceCreateParamsToONTAP(params *IscsiCreateParams) *san.IscsiServic
 // Lun is the lun
 type Lun struct {
 	models.Lun
+}
+
+// LunCreateParams is the input parameter for creating a Lun
+type LunCreateParams struct {
+	SvmName    string
+	Name       string
+	OsType     string
+	VolumeName string
+	Size       int64
+}
+
+const lunNamePrefix = "/vol/"
+
+// lunCreateParamsToONTAP converts LunCreateParams to ONTAP API parameters.
+func lunCreateParamsToONTAP(params *LunCreateParams) *san.LunCreateParams {
+	otParams := san.NewLunCreateParams()
+	if params == nil {
+		return otParams
+	}
+
+	otParams.SetInfo(&models.Lun{
+		Svm:    &models.LunInlineSvm{Name: &params.SvmName},
+		Name:   nillable.ToPointer(lunNamePrefix + params.VolumeName + "/" + params.Name),
+		OsType: &params.OsType,
+		Location: &models.LunInlineLocation{
+			Volume: &models.LunInlineLocationInlineVolume{Name: &params.VolumeName},
+		},
+		Space: &models.LunInlineSpace{
+			Size: &params.Size,
+		},
+	})
+	otParams.SetReturnTimeout(&returnTimeout)
+	otParams.SetReturnRecords(nillable.ToPointer("true"))
+	return otParams
+}
+
+// LunMapCreateParams is the input parameter for creating a LunMap
+type LunMapCreateParams struct {
+	IGroupName string
+	LunName    string
+	SvmName    string
+	LunNumber  *int
+}
+
+// lunMapCreateParamsToONTAP converts LunMapCreateParams to ONTAP API parameters.
+func lunMapCreateParamsToONTAP(params *LunMapCreateParams) *san.LunMapCreateParams {
+	otParams := san.NewLunMapCreateParams()
+	if params == nil {
+		return otParams
+	}
+
+	var lunNumber *int64
+	if params.LunNumber != nil {
+		lunNumber = nillable.ToPointer(int64(*params.LunNumber))
+	}
+
+	otParams.SetInfo(&models.LunMap{
+		Igroup: &models.LunMapInlineIgroup{
+			Name: &params.IGroupName,
+		},
+		Lun: &models.LunMapInlineLun{
+			Name: &params.LunName,
+		},
+		Svm: &models.LunMapInlineSvm{
+			Name: &params.SvmName,
+		},
+		LogicalUnitNumber: lunNumber,
+	})
+	return otParams
+}
+
+// Igroup is the igroup
+type Igroup struct {
+	models.Igroup
+}
+
+// IgroupCreateParams is the input parameter for creating an Igroup
+type IgroupCreateParams struct {
+	SvmName    string
+	Name       string
+	OsType     string
+	Initiators []string
+	JobID      string
+}
+
+// igroupCreateParamsToONTAP converts IgroupCreateParams to ONTAP API parameters.
+func igroupCreateParamsToONTAP(params *IgroupCreateParams) *san.IgroupCreateParams {
+	otParams := san.NewIgroupCreateParams()
+	if params == nil {
+		return otParams
+	}
+
+	initiators := make([]*models.IgroupInlineInitiatorsInlineArrayItem, len(params.Initiators))
+	for i := range params.Initiators {
+		initiators[i] = &models.IgroupInlineInitiatorsInlineArrayItem{
+			Name: &params.Initiators[i],
+		}
+	}
+
+	otParams.SetInfo(&models.Igroup{
+		Comment:                &params.JobID,
+		IgroupInlineInitiators: initiators,
+		Name:                   &params.Name,
+		OsType:                 &params.OsType,
+		Protocol:               nillable.ToPointer(models.IgroupProtocolIscsi),
+		Svm:                    &models.IgroupInlineSvm{Name: &params.SvmName},
+	})
+	otParams.SetReturnRecords(nillable.ToPointer("true"))
+	return otParams
 }
