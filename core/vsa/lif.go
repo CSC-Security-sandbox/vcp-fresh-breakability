@@ -7,7 +7,8 @@ import (
 )
 
 func (rc *OntapRestProvider) CreateDataLIF(params CreateLifParams) (*Lif, error) {
-	lif, err := rc.client.Networking().NetworkIPInterfaceCreate(&ontapRest.NetworkIPInterfacesCreateParams{
+	client := getOntapClientFunc(rc.ClientParams)
+	lif, err := client.Networking().NetworkIPInterfaceCreate(&ontapRest.NetworkIPInterfacesCreateParams{
 		Name:          params.Name,
 		IPAddress:     params.IpAddress,
 		ServicePolicy: iscsiServicePolicy,

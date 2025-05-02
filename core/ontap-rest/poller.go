@@ -23,7 +23,7 @@ type Poller interface { // generate:mock
 
 type poller struct {
 	api    cluster.ClientService
-	logger log.Logger
+	logger log.Slogger
 }
 
 // Poll polls an ontap job given UUID

@@ -4,13 +4,13 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware"
 	"time"
 
 	"github.com/go-faster/jx"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator"
 	gcpgenserver "github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/api/gcp-servergen"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 	"golang.org/x/exp/slog"
@@ -61,8 +61,8 @@ func (h Handler) V1betaCreatePool(ctx context.Context, req *gcpgenserver.PoolV1b
 		return &gcpgenserver.V1betaCreatePoolInternalServerError{}, err
 	}
 
-	param := &orchestrator.CreatePoolParams{AccountName: params.ProjectNumber, Region: region, CurrentZone: req.Zone.Value, Name: req.ResourceId, VendorID: vendorId, VendorSubNetID: req.Network, ServiceLevel: string(req.ServiceLevel), SizeInBytes: uint64(req.SizeInBytes)}
-	created, err := h.Orchestrator.CreatePool(ctx, param)
+	param := &common.CreatePoolParams{AccountName: params.ProjectNumber, Region: region, CurrentZone: req.Zone.Value, Name: req.ResourceId, VendorID: vendorId, VendorSubNetID: req.Network, ServiceLevel: string(req.ServiceLevel), SizeInBytes: uint64(req.SizeInBytes)}
+	created, operationID, err := h.Orchestrator.CreatePool(ctx, param)
 	if err != nil {
 		logger.Error("Failed to create pool", slog.String("error", err.Error()))
 		return &gcpgenserver.V1betaCreatePoolInternalServerError{}, err
@@ -71,10 +71,11 @@ func (h Handler) V1betaCreatePool(ctx context.Context, req *gcpgenserver.PoolV1b
 	if err != nil {
 		return nil, err
 	}
-	if created.State == models.LifeCycleStateCreating {
+	if operationID != "" {
 		return &gcpgenserver.OperationV1beta{
-			Name:     gcpgenserver.OptString{Value: "operation-id"},
+			Name:     gcpgenserver.NewOptString(fmt.Sprintf("/v1beta/projects/%s/locations/%s/operations/%s", params.ProjectNumber, params.LocationId, operationID)),
 			Response: resp,
+			Done:     gcpgenserver.NewOptBool(false),
 		}, nil
 	}
 	return &gcpgenserver.OperationV1beta{}, nil

@@ -37,7 +37,8 @@ func (rc *OntapRestProvider) AreAllNodeUpAndRunning() (bool, error) {
 func (rc *OntapRestProvider) GetNodes() ([]*Node, error) {
 	var resultNodes []*Node
 	// Call the NodesGet method with proper parameters
-	err := rc.client.Cluster().NodesGet(&ontapRest.NodesGetParams{
+	client := getOntapClientFunc(rc.ClientParams)
+	err := client.Cluster().NodesGet(&ontapRest.NodesGetParams{
 		BaseParams: ontapRest.BaseParams{
 			Fields: []string{"name", "uuid", "state"},
 		},
@@ -62,7 +63,8 @@ func (rc *OntapRestProvider) GetNodes() ([]*Node, error) {
 func (rc *OntapRestProvider) GetNodeByName(name string) (*Node, error) {
 	var resultNode *Node
 	// Call the NodesGet method with proper parameters
-	err := rc.client.Cluster().NodesGet(&ontapRest.NodesGetParams{
+	client := getOntapClientFunc(rc.ClientParams)
+	err := client.Cluster().NodesGet(&ontapRest.NodesGetParams{
 		BaseParams: ontapRest.BaseParams{
 			Fields: []string{"name", "uuid"},
 		},
@@ -93,10 +95,11 @@ func (rc *OntapRestProvider) GetNodeByName(name string) (*Node, error) {
 	return resultNode, nil
 }
 
-func (rc *OntapRestProvider) GetONTAPVersion() (string, error) {
-	version, err := rc.client.Cluster().GetONTAPVersion()
+func (rc *OntapRestProvider) GetONTAPVersion() (*string, error) {
+	client := getOntapClientFunc(rc.ClientParams)
+	version, err := client.Cluster().GetONTAPVersion()
 	if err != nil {
-		return "", err
+		return nil, err
 	}
-	return nillable.FromPointer(version), nil
+	return version, nil
 }

@@ -33,7 +33,7 @@ var (
 )
 
 // NewLoggingRoundTripper creates a new LoggingRoundTripper
-func NewLoggingRoundTripper(trace log.Logger, logVerbose, useCert bool, roundTripper http.RoundTripper) *LoggingRoundTripper {
+func NewLoggingRoundTripper(trace log.Slogger, logVerbose, useCert bool, roundTripper http.RoundTripper) *LoggingRoundTripper {
 	authStyle := "basic"
 	if ontapRestOAuthEnabled {
 		authStyle = "oauth"
@@ -44,7 +44,7 @@ func NewLoggingRoundTripper(trace log.Logger, logVerbose, useCert bool, roundTri
 	}
 
 	return &LoggingRoundTripper{
-		trace:        log.NewLogger(), // MD: Due to logging requirements and instability of ontap rest this must be hardcoded for now
+		trace:        trace, // MD: Due to logging requirements and instability of ontap rest this must be hardcoded for now
 		logVerbose:   logVerbose,
 		roundTripper: roundTripper,
 		authStyle:    authStyle,
@@ -53,7 +53,7 @@ func NewLoggingRoundTripper(trace log.Logger, logVerbose, useCert bool, roundTri
 
 // LoggingRoundTripper logs outgoing and incoming HTTP requests and responses
 type LoggingRoundTripper struct {
-	trace        log.Logger
+	trace        log.Slogger
 	logVerbose   bool
 	authStyle    string
 	roundTripper http.RoundTripper

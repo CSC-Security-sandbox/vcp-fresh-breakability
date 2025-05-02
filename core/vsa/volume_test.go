@@ -16,7 +16,10 @@ func TestCreateVolume_Success(t *testing.T) {
 	mockClient := new(ontaprest.MockRESTClient)
 	mockClient.On("Storage").Return(mockStorage)
 
-	rc := &OntapRestProvider{client: mockClient}
+	getOntapClientFunc = func(params ontaprest.RESTClientParams) ontaprest.RESTClient {
+		return mockClient
+	}
+	rc := &OntapRestProvider{}
 
 	volumeName := "testVolume"
 	params := CreateVolumeParams{
@@ -57,7 +60,10 @@ func TestCreateVolume_ErrorOnCreate(t *testing.T) {
 	mockClient := new(ontaprest.MockRESTClient)
 	mockClient.On("Storage").Return(mockStorage)
 
-	rc := &OntapRestProvider{client: mockClient}
+	getOntapClientFunc = func(params ontaprest.RESTClientParams) ontaprest.RESTClient {
+		return mockClient
+	}
+	rc := &OntapRestProvider{}
 
 	volumeName := "testVolume"
 	params := CreateVolumeParams{
@@ -84,7 +90,10 @@ func TestCreateVolume_ErrorOnNilResponse(t *testing.T) {
 	mockClient := new(ontaprest.MockRESTClient)
 	mockClient.On("Storage").Return(mockStorage)
 
-	rc := &OntapRestProvider{client: mockClient}
+	getOntapClientFunc = func(params ontaprest.RESTClientParams) ontaprest.RESTClient {
+		return mockClient
+	}
+	rc := &OntapRestProvider{}
 
 	volumeName := "testVolume"
 	params := CreateVolumeParams{
@@ -112,7 +121,10 @@ func TestCreateVolume_ErrorOnPoll(t *testing.T) {
 	mockClient := new(ontaprest.MockRESTClient)
 	mockClient.On("Storage").Return(mockStorage)
 
-	rc := &OntapRestProvider{client: mockClient}
+	getOntapClientFunc = func(params ontaprest.RESTClientParams) ontaprest.RESTClient {
+		return mockClient
+	}
+	rc := &OntapRestProvider{}
 
 	volumeName := "testVolume"
 	params := CreateVolumeParams{
@@ -151,7 +163,10 @@ func TestDeleteVolume_Success(t *testing.T) {
 	mockClient := new(ontaprest.MockRESTClient)
 	mockClient.On("Storage").Return(mockStorage)
 
-	rc := &OntapRestProvider{client: mockClient}
+	getOntapClientFunc = func(params ontaprest.RESTClientParams) ontaprest.RESTClient {
+		return mockClient
+	}
+	rc := &OntapRestProvider{}
 
 	volumeUUID := "testUUID"
 	volumeName := "testVolume"
@@ -171,7 +186,10 @@ func TestDeleteVolume_Error(t *testing.T) {
 	mockClient := new(ontaprest.MockRESTClient)
 	mockClient.On("Storage").Return(mockStorage)
 
-	rc := &OntapRestProvider{client: mockClient}
+	getOntapClientFunc = func(params ontaprest.RESTClientParams) ontaprest.RESTClient {
+		return mockClient
+	}
+	rc := &OntapRestProvider{}
 
 	volumeUUID := "testUUID"
 	volumeName := "testVolume"

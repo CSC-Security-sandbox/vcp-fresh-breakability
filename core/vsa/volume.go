@@ -7,7 +7,8 @@ import (
 
 // CreateVolume creates a volume by calling the ONTAP REST Client
 func (rc *OntapRestProvider) CreateVolume(params CreateVolumeParams) (*ProviderResponse, error) {
-	vol, job, err := rc.client.Storage().VolumeCreate(&ontapRest.VolumeCreateParams{
+	client := getOntapClientFunc(rc.ClientParams)
+	vol, job, err := client.Storage().VolumeCreate(&ontapRest.VolumeCreateParams{
 		Name:       params.VolumeName,
 		Type:       params.VolumeType,
 		Size:       params.Size,
@@ -20,7 +21,7 @@ func (rc *OntapRestProvider) CreateVolume(params CreateVolumeParams) (*ProviderR
 
 	// Poll the job if it exists
 	if job != nil {
-		if err = rc.client.Poll(job.JobUUID); err != nil {
+		if err = client.Poll(job.JobUUID); err != nil {
 			return nil, err
 		}
 	}
@@ -39,7 +40,8 @@ func (rc *OntapRestProvider) CreateVolume(params CreateVolumeParams) (*ProviderR
 
 // DeleteVolume creates a volume by calling the ONTAP REST Client
 func (rc *OntapRestProvider) DeleteVolume(volumeUUID, volumeName string) error {
-	err := rc.client.Storage().VolumeDelete(&ontapRest.VolumeDeleteParams{
+	client := getOntapClientFunc(rc.ClientParams)
+	err := client.Storage().VolumeDelete(&ontapRest.VolumeDeleteParams{
 		UUID: volumeUUID,
 		Name: volumeName,
 	})

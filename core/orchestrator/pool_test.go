@@ -2,11 +2,13 @@ package orchestrator
 
 import (
 	"context"
+	"go.temporal.io/sdk/client"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
@@ -103,8 +105,9 @@ func TestCreatePool(t *testing.T) {
 	t.Run("WhenGetOrCreateAccountFails", func(tt *testing.T) {
 		ctx := context.Background()
 		se := database.Storage(nil)
+		temporal := client.Client(nil)
 
-		params := &CreatePoolParams{
+		params := &common.CreatePoolParams{
 			AccountName:    "test_account",
 			Region:         "test_region",
 			Name:           "test_pool",
@@ -112,7 +115,7 @@ func TestCreatePool(t *testing.T) {
 			SizeInBytes:    1024,
 			CoolAccess:     true,
 			VendorSubNetID: "test_network",
-			CustomPerformanceParams: &CustomPerformanceParams{
+			CustomPerformanceParams: &common.CustomPerformanceParams{
 				Enabled:    true,
 				Throughput: 64,
 				Iops:       1024,
@@ -123,7 +126,7 @@ func TestCreatePool(t *testing.T) {
 			return nil, errors.New("account not found")
 		}
 
-		_, err := createPool(ctx, se, params)
+		_, _, err := createPool(ctx, se, temporal, params)
 		if err == nil {
 			t.Errorf("Expected error, got nil")
 		}
@@ -134,8 +137,9 @@ func TestCreatePool(t *testing.T) {
 	t.Run("WhenValidatePoolParamFails", func(tt *testing.T) {
 		ctx := context.Background()
 		se := database.Storage(nil)
+		temporal := client.Client(nil)
 
-		params := &CreatePoolParams{
+		params := &common.CreatePoolParams{
 			AccountName:    "test_account",
 			Region:         "test_region",
 			Name:           "test_pool",
@@ -143,7 +147,7 @@ func TestCreatePool(t *testing.T) {
 			SizeInBytes:    1024,
 			CoolAccess:     true,
 			VendorSubNetID: "test_network",
-			CustomPerformanceParams: &CustomPerformanceParams{
+			CustomPerformanceParams: &common.CustomPerformanceParams{
 				Enabled:    true,
 				Throughput: 64,
 				Iops:       1024,
@@ -159,11 +163,11 @@ func TestCreatePool(t *testing.T) {
 		getOrCreateAccount = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
 			return dbAccount, nil
 		}
-		validateCreatePoolParams = func(se database.Storage, params *CreatePoolParams) error {
+		ValidateCreatePoolParams = func(params *common.CreatePoolParams) error {
 			return errors.New("invalid pool params")
 		}
 
-		_, err := createPool(ctx, se, params)
+		_, _, err := createPool(ctx, se, temporal, params)
 		if err == nil {
 			t.Errorf("Expected error, got nil")
 		}
@@ -180,6 +184,7 @@ func TestCreatePool(t *testing.T) {
 		if err != nil {
 			t.Fatalf("Failed to create test storage: %v", err)
 		}
+		temporal := client.Client(nil)
 
 		// Clear the in-memory database
 		err = database.ClearInMemoryDB(store.DB())
@@ -191,7 +196,7 @@ func TestCreatePool(t *testing.T) {
 			storage: store,
 		}
 
-		params := &CreatePoolParams{
+		params := &common.CreatePoolParams{
 			AccountName:    "test_account",
 			Region:         "test_region",
 			Name:           "test_pool",
@@ -199,7 +204,7 @@ func TestCreatePool(t *testing.T) {
 			SizeInBytes:    1024,
 			CoolAccess:     true,
 			VendorSubNetID: "test_network",
-			CustomPerformanceParams: &CustomPerformanceParams{
+			CustomPerformanceParams: &common.CustomPerformanceParams{
 				Enabled:    true,
 				Throughput: 64,
 				Iops:       1024,
@@ -215,15 +220,15 @@ func TestCreatePool(t *testing.T) {
 		getOrCreateAccount = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
 			return dbAccount, nil
 		}
-		validateCreatePoolParams = func(se database.Storage, params *CreatePoolParams) error {
+		ValidateCreatePoolParams = func(params *common.CreatePoolParams) error {
 			return nil
 		}
 
-		_, err = createPool(ctx, store, params)
+		_, _, err = createPool(ctx, store, temporal, params)
 		if err != nil {
 			t.Errorf("Expected nil, got error")
 		}
-		_, err = orch.CreatePool(ctx, params)
+		_, _, err = orch.CreatePool(ctx, params)
 		if err == nil {
 			t.Errorf("Expected error, got nil")
 		}
@@ -251,7 +256,7 @@ func TestCreatePool(t *testing.T) {
 			storage: store,
 		}
 
-		params := &CreatePoolParams{
+		params := &common.CreatePoolParams{
 			AccountName:    "test_account",
 			Region:         "test_region",
 			Name:           "test_pool",
@@ -259,7 +264,7 @@ func TestCreatePool(t *testing.T) {
 			SizeInBytes:    1024,
 			CoolAccess:     true,
 			VendorSubNetID: "test_network",
-			CustomPerformanceParams: &CustomPerformanceParams{
+			CustomPerformanceParams: &common.CustomPerformanceParams{
 				Enabled:    true,
 				Throughput: 64,
 				Iops:       1024,
@@ -275,11 +280,11 @@ func TestCreatePool(t *testing.T) {
 		getOrCreateAccount = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
 			return dbAccount, nil
 		}
-		validateCreatePoolParams = func(se database.Storage, params *CreatePoolParams) error {
+		ValidateCreatePoolParams = func(params *common.CreatePoolParams) error {
 			return nil
 		}
 
-		pool, err := orch.CreatePool(ctx, params)
+		pool, _, err := orch.CreatePool(ctx, params)
 		if err != nil {
 			t.Errorf("Expected nil, got error")
 		}
@@ -443,13 +448,11 @@ func TestGetPoolByVendorID(t *testing.T) {
 }
 
 func TestValidateCreatePoolParams_WithSizeBelowMinimum_ReturnsError(t *testing.T) {
-	se := database.Storage(nil)
-
-	params := &CreatePoolParams{
+	params := &common.CreatePoolParams{
 		SizeInBytes: 1024, // Below the minimum quota
 	}
 
-	err := _validateCreatePoolParams(se, params)
+	err := _validateCreatePoolParams(params)
 	if err == nil {
 		t.Errorf("Expected error, got nil")
 	}
@@ -459,13 +462,11 @@ func TestValidateCreatePoolParams_WithSizeBelowMinimum_ReturnsError(t *testing.T
 }
 
 func TestValidateCreatePoolParams_WithValidSize_ReturnsNil(t *testing.T) {
-	se := database.Storage(nil)
-
-	params := &CreatePoolParams{
+	params := &common.CreatePoolParams{
 		SizeInBytes: 2199023255552, // Exactly the minimum quota
 	}
 
-	err := _validateCreatePoolParams(se, params)
+	err := _validateCreatePoolParams(params)
 	if err != nil {
 		t.Errorf("Expected nil, got error: %v", err)
 	}

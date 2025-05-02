@@ -30,13 +30,13 @@ var (
 
 // RetryTransport is a wrapper for ClientTransport that performs a retry on transient errors
 type RetryTransport struct {
-	trace     log.Logger
+	trace     log.Slogger
 	transport runtime.ClientTransport
 	// usesOAuth bool
 }
 
 // NewRetryTransport returns a new instance of RetryTransport
-func NewRetryTransport(trace log.Logger, transport runtime.ClientTransport) runtime.ClientTransport {
+func NewRetryTransport(trace log.Slogger, transport runtime.ClientTransport) runtime.ClientTransport {
 	return &RetryTransport{
 		trace:     trace,
 		transport: transport,

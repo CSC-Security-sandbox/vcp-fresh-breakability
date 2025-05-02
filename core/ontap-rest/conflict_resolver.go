@@ -14,7 +14,7 @@ import (
 
 var resolveRESTClientRouterConflict = _resolveRESTClientRouterConflict
 
-func _resolveRESTClientRouterConflict(logger log.Logger, rc RESTClient, operation *runtime.ClientOperation) (interface{}, error) {
+func _resolveRESTClientRouterConflict(logger log.Slogger, rc RESTClient, operation *runtime.ClientOperation) (interface{}, error) {
 	switch params := operation.Params.(type) {
 	case *svm.SvmCreateParams:
 		return resolveSvmCreateConflict(logger, rc.SVM(), params)
@@ -29,7 +29,7 @@ var (
 
 var resolveSvmCreateConflict = _resolveSvmCreateConflict
 
-func _resolveSvmCreateConflict(logger log.Logger, svms SVMClient, params *svm.SvmCreateParams) (*svm.SvmCreateCreated, error) {
+func _resolveSvmCreateConflict(logger log.Slogger, svms SVMClient, params *svm.SvmCreateParams) (*svm.SvmCreateCreated, error) {
 	t2 := time.Now().Add(timeout)
 	for time.Now().Before(t2) {
 		osvm, err := svms.SvmGet(&SvmGetParams{

@@ -1,8 +1,8 @@
 package utils
 
 import (
-	"fmt"
 	"context"
+	"fmt"
 	"net"
 	"regexp"
 	"strconv"

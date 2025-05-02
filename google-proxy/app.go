@@ -38,7 +38,7 @@ func main() {
 	cfg := common.LoadConfig()
 
 	// initialize the database - this can be moved to a separate function
-	dbCon, err := initializeDatabase(ctx, cfg, logger)
+	dbCon, err := InitializeDatabase(ctx, cfg, logger)
 	if err != nil {
 		logger.Error("Failed to initialize database", slog.String("error", err.Error()))
 		os.Exit(1)
@@ -56,7 +56,7 @@ func main() {
 	// Use errgroup to manage goroutines and context
 
 	eg.Go(func() error {
-		if err := workflowClient.RunWorker(ctx, workflowClient.GetTemporalClient()); err != nil {
+		if err := workflowClient.RunWorker(ctx, workflowClient.GetTemporalClient(), dbCon); err != nil {
 			logger.Error("Failed to run worker", slog.String("error", err.Error()))
 			return err
 		}
@@ -92,7 +92,7 @@ func main() {
 	logger.Info("Server stopped gracefully")
 }
 
-func initializeDatabase(ctx context.Context, cfg *common.Config, logger log.Logger) (database.Storage, error) {
+func InitializeDatabase(ctx context.Context, cfg *common.Config, logger log.Logger) (database.Storage, error) {
 	dbConfig := database.DbConfig{
 		Type:            cfg.DBType,
 		Host:            cfg.DBHost,

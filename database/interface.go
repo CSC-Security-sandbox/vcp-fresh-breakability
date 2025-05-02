@@ -67,7 +67,7 @@ type DataStore interface {
 	CreateAccount(ctx context.Context, account *datamodel.Account) (*datamodel.Account, error)
 
 	CreateJob(ctx context.Context, job *datamodel.Job) (*datamodel.Job, error)
-	UpdateJobStatus(ctx context.Context, jobID string, status string) error
+	UpdateJob(ctx context.Context, jobID string, status string) error
 
 	GetNodeByPoolID(ctx context.Context, poolId int64) ([]*datamodel.Node, error)
 	CreateNode(ctx context.Context, node *datamodel.Node) (*datamodel.Node, error)

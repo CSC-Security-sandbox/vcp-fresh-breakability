@@ -1,10 +1,7 @@
 package vsa
 
 import (
-	"context"
-
 	ontapRest "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/ontap-rest"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 )
 
@@ -16,7 +13,7 @@ const (
 )
 
 type Provider interface {
-	GetONTAPVersion() (string, error)
+	GetONTAPVersion() (*string, error)
 	AreAllNodeUpAndRunning() (bool, error)
 	IsAggregateOnline(aggregateName string) (bool, error)
 	GetNodes() ([]*Node, error)
@@ -32,22 +29,22 @@ type Provider interface {
 }
 
 type OntapRestProvider struct {
-	provider           ProviderDetails
-	client             ontapRest.RESTClient
-	InsecureSkipVerify bool
-	Logger             log.Logger
+	Provider           ProviderDetails            `json:"Provider"`
+	ClientParams       ontapRest.RESTClientParams `json:"ClientParams"`
+	InsecureSkipVerify bool                       `json:"insecureSkipVerify"`
+	Logger             *log.Slogger               `json:"-"`
 }
 
-func NewProvider(ctx context.Context, provider ProviderDetails) *OntapRestProvider {
+func NewProvider(provider ProviderDetails) *OntapRestProvider {
 	return &OntapRestProvider{
-		provider: provider,
-		client: ontapRest.NewOntapRestClient(ontapRest.RESTClientParams{
+		Provider: provider,
+		ClientParams: ontapRest.RESTClientParams{
 			Host:               provider.IPAddress,
 			Username:           provider.UserName,
 			Password:           log.Secret(provider.Password),
 			InsecureSkipVerify: provider.InsecureSkipVerify,
-			Trace:              ctx.Value(middleware.ContextSLoggerKey).(log.Logger),
-		}),
-		Logger: ctx.Value(middleware.ContextSLoggerKey).(log.Logger),
+			Trace:              log.NewLogger().(*log.Slogger),
+		},
+		Logger: log.NewLogger().(*log.Slogger),
 	}
 }

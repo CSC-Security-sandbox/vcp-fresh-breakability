@@ -26,15 +26,16 @@ func NewDataStoreRepository(db *gormWrapper.Wrapper) *DataStoreRepository {
 
 func (d *DataStoreRepository) CreatePool(ctx context.Context, pool *datamodel.Pool) (*datamodel.Pool, error) {
 	db := d.db.GORM().WithContext(ctx)
-
-	err := db.Where("name = ?", pool.Name).Where("account_id = ?", pool.AccountID).First(&pool).Error
+	var dbpool datamodel.Pool
+	err := db.Where("name = ?", pool.Name).Where("account_id = ?", pool.AccountID).First(&dbpool).Error
 	if errors.Is(err, gorm.ErrRecordNotFound) {
 		pool.UUID = utils.RandomUUID()
 		pool.State = models.LifeCycleStateCreating
 		pool.StateDetails = models.LifeCycleStateCreatingDetails
 		pool.CreatedAt = time.Now()
 		pool.UpdatedAt = pool.CreatedAt
-		err := db.Create(pool).Error
+		pool.Account.ID = pool.AccountID
+		err := db.Create(&pool).Error
 		if err != nil {
 			return nil, err
 		}

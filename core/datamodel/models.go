@@ -31,8 +31,8 @@ type Pool struct {
 }
 
 type ClusterDetails struct {
-	ExternalName string `json:"external_name"`
-	OntapVersion string `json:"ontap_version"`
+	ExternalName          string `json:"external_name"`
+	OntapVersion          string `json:"ontap_version"`
 	RegionalTenantProject string `json:"regional_tenant_project"`
 	SnHostProject         string `json:"sn_host_project"`
 }
@@ -124,7 +124,7 @@ type Account struct {
 
 // BaseModel describes the base model shared by all other database models
 type BaseModel struct {
-	ID        int64           `json:"-" gorm:"primaryKey"`
+	ID        int64           `json:"id" gorm:"primaryKey"`
 	UUID      string          `json:"uuid" gorm:"unique"`
 	CreatedAt time.Time       `json:"createdAt"`
 	UpdatedAt time.Time       `json:"updatedAt"`
@@ -142,11 +142,18 @@ func (bm *BaseModel) GetID() (id sql.NullInt64) {
 
 // Job is a struct that represents the job data model.
 type Job struct {
-	ID string `json:"uuid" gorm:"unique"`
-	// workflowID string    `db:"workflow_id" bson:"workflow_id"`
-	CustomerID string    `gorm:"type:varchar"`
-	Status     string    `gorm:"type:varchar"`
-	CreatedAt  time.Time `json:"createdAt"`
+	BaseModel
+	CorrelationID string        `json:"correlationID"`
+	RequestID     string        `json:"requestID"`
+	Type          string        `json:"type"`
+	State         string        `json:"state" gorm:"index"`
+	ErrorDetails  []byte        `json:"errorDetails" gorm:"type:bytea"`
+	AccountID     sql.NullInt64 `json:"-" gorm:"index"`
+	IsAdminJob    bool          `json:"-" gorm:"default:false"`
+	JobAttributes JSONB         `gorm:"column:job_attributes;type:jsonb"`
+	WorkflowID    string        `json:"workflowID"`
+	ScheduledAt   time.Time     `json:"scheduledAt"`
+	ResourceName  string        `json:"resourceName"`
 }
 
 type Lif struct {

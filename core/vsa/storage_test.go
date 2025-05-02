@@ -16,7 +16,10 @@ func TestLunCreate_Success(t *testing.T) {
 	mockClient := new(ontaprest.MockRESTClient)
 	mockClient.On("SAN").Return(mockSAN)
 
-	rc := &OntapRestProvider{client: mockClient}
+	getOntapClientFunc = func(params ontaprest.RESTClientParams) ontaprest.RESTClient {
+		return mockClient
+	}
+	rc := &OntapRestProvider{}
 
 	lunName := "testLun"
 	params := LunCreateParams{
@@ -52,7 +55,10 @@ func TestLunCreate_Error(t *testing.T) {
 	mockClient := new(ontaprest.MockRESTClient)
 	mockClient.On("SAN").Return(mockSAN)
 
-	rc := &OntapRestProvider{client: mockClient}
+	getOntapClientFunc = func(params ontaprest.RESTClientParams) ontaprest.RESTClient {
+		return mockClient
+	}
+	rc := &OntapRestProvider{}
 
 	lunName := "testLun"
 	params := LunCreateParams{
@@ -79,8 +85,10 @@ func TestIGroupCreate_Success(t *testing.T) {
 	mockClient := new(ontaprest.MockRESTClient)
 	mockClient.On("SAN").Return(mockSAN)
 
-	rc := &OntapRestProvider{client: mockClient}
-
+	getOntapClientFunc = func(params ontaprest.RESTClientParams) ontaprest.RESTClient {
+		return mockClient
+	}
+	rc := &OntapRestProvider{}
 	iGroupName := "testIGroup"
 	params := IgroupCreateParams{
 		IgroupName: iGroupName,
@@ -105,7 +113,10 @@ func TestIGroupCreate_Error(t *testing.T) {
 	mockClient := new(ontaprest.MockRESTClient)
 	mockClient.On("SAN").Return(mockSAN)
 
-	rc := &OntapRestProvider{client: mockClient}
+	getOntapClientFunc = func(params ontaprest.RESTClientParams) ontaprest.RESTClient {
+		return mockClient
+	}
+	rc := &OntapRestProvider{}
 
 	iGroupName := "testIGroup"
 	params := IgroupCreateParams{
@@ -131,7 +142,10 @@ func TestLunMapCreate_Success(t *testing.T) {
 	mockClient := new(ontaprest.MockRESTClient)
 	mockClient.On("SAN").Return(mockSAN)
 
-	rc := &OntapRestProvider{client: mockClient}
+	getOntapClientFunc = func(params ontaprest.RESTClientParams) ontaprest.RESTClient {
+		return mockClient
+	}
+	rc := &OntapRestProvider{}
 
 	params := LunMapCreateParams{
 		LunName:    "testLun",
@@ -155,7 +169,10 @@ func TestLunMapCreate_Error(t *testing.T) {
 	mockClient := new(ontaprest.MockRESTClient)
 	mockClient.On("SAN").Return(mockSAN)
 
-	rc := &OntapRestProvider{client: mockClient}
+	getOntapClientFunc = func(params ontaprest.RESTClientParams) ontaprest.RESTClient {
+		return mockClient
+	}
+	rc := &OntapRestProvider{}
 
 	params := LunMapCreateParams{
 		LunName:    "testLun",
@@ -179,7 +196,10 @@ func TestIsAggregateOnline_Success(t *testing.T) {
 	mockClient := new(ontaprest.MockRESTClient)
 	mockClient.On("Storage").Return(mockStorage)
 
-	rc := &OntapRestProvider{client: mockClient}
+	getOntapClientFunc = func(params ontaprest.RESTClientParams) ontaprest.RESTClient {
+		return mockClient
+	}
+	rc := &OntapRestProvider{}
 
 	aggregateName := "testAggregate"
 	mockAggregate := &ontaprest.Aggregate{
@@ -205,7 +225,10 @@ func TestIsAggregateOnline_NotFound(t *testing.T) {
 	mockClient := new(ontaprest.MockRESTClient)
 	mockClient.On("Storage").Return(mockStorage)
 
-	rc := &OntapRestProvider{client: mockClient}
+	getOntapClientFunc = func(params ontaprest.RESTClientParams) ontaprest.RESTClient {
+		return mockClient
+	}
+	rc := &OntapRestProvider{}
 
 	aggregateName := "testAggregate"
 
@@ -225,7 +248,10 @@ func TestIsAggregateOnline_Error(t *testing.T) {
 	mockClient := new(ontaprest.MockRESTClient)
 	mockClient.On("Storage").Return(mockStorage)
 
-	rc := &OntapRestProvider{client: mockClient}
+	getOntapClientFunc = func(params ontaprest.RESTClientParams) ontaprest.RESTClient {
+		return mockClient
+	}
+	rc := &OntapRestProvider{}
 
 	aggregateName := "testAggregate"
 
@@ -245,7 +271,10 @@ func TestGetAggregateByName_Success(t *testing.T) {
 	mockClient := new(ontaprest.MockRESTClient)
 	mockClient.On("Storage").Return(mockStorage)
 
-	rc := &OntapRestProvider{client: mockClient}
+	getOntapClientFunc = func(params ontaprest.RESTClientParams) ontaprest.RESTClient {
+		return mockClient
+	}
+	rc := &OntapRestProvider{}
 
 	aggregateName := "testAggregate"
 	mockAggregate := &ontaprest.Aggregate{
@@ -273,7 +302,10 @@ func TestGetAggregateByName_NotFound(t *testing.T) {
 	mockClient := new(ontaprest.MockRESTClient)
 	mockClient.On("Storage").Return(mockStorage)
 
-	rc := &OntapRestProvider{client: mockClient}
+	getOntapClientFunc = func(params ontaprest.RESTClientParams) ontaprest.RESTClient {
+		return mockClient
+	}
+	rc := &OntapRestProvider{}
 
 	aggregateName := "testAggregate"
 
@@ -294,7 +326,10 @@ func TestGetAggregateByName_Error(t *testing.T) {
 	mockClient := new(ontaprest.MockRESTClient)
 	mockClient.On("Storage").Return(mockStorage)
 
-	rc := &OntapRestProvider{client: mockClient}
+	getOntapClientFunc = func(params ontaprest.RESTClientParams) ontaprest.RESTClient {
+		return mockClient
+	}
+	rc := &OntapRestProvider{}
 
 	aggregateName := "testAggregate"
 

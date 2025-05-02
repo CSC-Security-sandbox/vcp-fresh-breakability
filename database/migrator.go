@@ -41,6 +41,7 @@ func getModels() []interface{} {
 		datamodel.Node{},
 		datamodel.Lif{},
 		datamodel.Svm{},
+		datamodel.Job{},
 	}
 }
 

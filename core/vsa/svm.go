@@ -8,7 +8,8 @@ import (
 
 func (rc *OntapRestProvider) CreateSVM(params CreateSvmParams) (*ProviderResponse, error) {
 	// Create the SVM
-	svm, job, err := rc.client.SVM().SvmCreate(&ontapRest.SvmCreateParams{
+	client := getOntapClientFunc(rc.ClientParams)
+	svm, job, err := client.SVM().SvmCreate(&ontapRest.SvmCreateParams{
 		Name:    params.Name,
 		IPSpace: ipSpaceName,
 		Protocols: ontapRest.Protocols{
@@ -21,7 +22,7 @@ func (rc *OntapRestProvider) CreateSVM(params CreateSvmParams) (*ProviderRespons
 
 	// Poll the job if it exists
 	if job != nil {
-		if err = rc.client.Poll(job.JobUUID); err != nil {
+		if err = client.Poll(job.JobUUID); err != nil {
 			return nil, err
 		}
 	}

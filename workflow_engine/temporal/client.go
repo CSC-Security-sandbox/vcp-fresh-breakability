@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/tls"
 	"fmt"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database"
 	"os"
 	"time"
 
@@ -17,7 +18,6 @@ import (
 	"golang.org/x/exp/slog"
 )
 
-// TaskQueue is the default task queue for the Billing system.
 const (
 	CustomerTaskQueue   = "customer-workflows"
 	BackgroundTaskQueue = "background-workflows"
@@ -59,14 +59,14 @@ func (t *TemporalWorkflowEngine) InitializeClient(ctx context.Context, cfg workf
 	return err
 }
 
-func (t *TemporalWorkflowEngine) RunWorker(ctx context.Context, client client.Client) error {
+func (t *TemporalWorkflowEngine) RunWorker(ctx context.Context, client client.Client, dbcon database.Storage) error {
 	w := worker.New(client, CustomerTaskQueue, worker.Options{
 		MaxConcurrentWorkflowTaskPollers: 10,
 		MaxConcurrentActivityTaskPollers: 10,
 	})
 
 	// Register the workflows and activities with the worker. Any new workflows and activities need to be registered below.
-	registerWorkflowsAndActivities(w)
+	registerWorkflowsAndActivities(w, dbcon)
 
 	err := w.Run(worker.InterruptCh())
 	return err
@@ -81,9 +81,10 @@ func (t *TemporalWorkflowEngine) GetTemporalClient() client.Client {
 	return t.temporalClient
 }
 
-func registerWorkflowsAndActivities(worker worker.Worker) {
-	worker.RegisterWorkflow(workflows.CreatePool)
-	worker.RegisterActivity(&activities.PoolActivity{})
+func registerWorkflowsAndActivities(worker worker.Worker, dbcon database.Storage) {
+	worker.RegisterWorkflow(workflows.CreatePoolWorkflow)
+	worker.RegisterActivity(&activities.CommonActivities{SE: &dbcon})
+	worker.RegisterActivity(&activities.PoolActivity{SE: &dbcon})
 }
 
 // CreateClientOptionsFromEnv creates a client.Options instance, configures

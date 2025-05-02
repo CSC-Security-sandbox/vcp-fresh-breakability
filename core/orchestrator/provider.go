@@ -6,9 +6,9 @@ import (
 	"golang.org/x/net/context"
 )
 
-func getProviderByNode(ctx context.Context, node *models.Node) vsa.Provider {
+func GetProviderByNode(ctx context.Context, node *models.Node) vsa.Provider {
 	// as we don't have any other provider, we can directly return the ontap_rest provider
-	return vsa.NewProvider(ctx, vsa.ProviderDetails{
+	return vsa.NewProvider(vsa.ProviderDetails{
 		IPAddress: node.EndpointAddress,
 		UserName:  node.Username,
 		Password:  node.Password,

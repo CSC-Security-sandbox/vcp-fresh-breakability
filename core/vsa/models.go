@@ -1,13 +1,13 @@
 package vsa
 
 type ProviderDetails struct {
-	IPAddress          string
-	UserName           string
-	Password           string
-	Port               *int
-	UseHTTPS           bool
-	Protocol           string
-	InsecureSkipVerify bool
+	IPAddress          string `json:"ipAddress"`
+	UserName           string `json:"userName"`
+	Password           string `json:"password"`
+	Port               *int   `json:"port"`
+	UseHTTPS           bool   `json:"useHTTPS"`
+	Protocol           string `json:"protocol"`
+	InsecureSkipVerify bool   `json:"insecureSkipVerify"`
 }
 
 type CreateSvmParams struct {

@@ -44,7 +44,7 @@ type RESTClientParams struct {
 	Username           string
 	Password           log.Secret
 	InsecureSkipVerify bool
-	Trace              log.Logger
+	Trace              *log.Slogger
 }
 
 var (
@@ -77,16 +77,16 @@ func NewClient(params RESTClientParams) RESTClient {
 	var rc *restClient
 	rt.Transport = httpRoundTripperTransport
 	// rt.Transport = tracing.NewTracingTransport(rt.Transport)
-	rt.Transport = ottransport.NewLoggingRoundTripper(params.Trace, ontapRestLogVerbose, useCert, rt.Transport)
+	rt.Transport = ottransport.NewLoggingRoundTripper(*params.Trace, ontapRestLogVerbose, useCert, rt.Transport)
 	rt.Transport = ottransport.NewPaginationRoundTripper(rt.Transport)
 	rt.Transport = ottransport.NewAuthenticationRoundTripper(rt.Transport, params.Username, params.Password, useCert)
-	retryTransport := ottransport.NewRetryTransport(params.Trace, rt)
+	retryTransport := ottransport.NewRetryTransport(*params.Trace, rt)
 	idempotentTransport := ottransport.NewIdempotentTransport(retryTransport, func(operation *runtime.ClientOperation) (interface{}, error) {
-		return resolveRESTClientRouterConflict(params.Trace, rc, operation)
+		return resolveRESTClientRouterConflict(*params.Trace, rc, operation)
 	})
 	api := client.New(idempotentTransport, nil)
 	apiPriv := clientPriv.New(idempotentTransport, nil)
-	p := &poller{api: api.Cluster, logger: params.Trace}
+	p := &poller{api: api.Cluster, logger: *params.Trace}
 	rc = &restClient{
 		httpRoundTripperTransport: httpRoundTripperTransport,
 		params:                    params,

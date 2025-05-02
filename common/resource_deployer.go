@@ -90,8 +90,9 @@ type SourceImage struct {
 }
 
 // DeploymentsInsert creates a new Deployment Manager deployment.
-func DeploymentsInsert(ctx context.Context, name, region, zone, network, subnet, projectId, snHostProject string, size int) ([]map[string]string, error) {
-	slog := ctx.Value(middleware.ContextSLoggerKey).(log.Logger)
+func DeploymentsInsert(ctx context.Context, name, region, zone, network, subnet, projectId, snHostProject string, size int) (*[]map[string]string, error) {
+	// slog := ctx.Value(middleware.ContextSLoggerKey).(log.Logger)
+	slog := log.NewLogger()
 	err := SetupNetwork(slog, projectId, region)
 	if err != nil {
 		return nil, err
@@ -103,7 +104,6 @@ func DeploymentsInsert(ctx context.Context, name, region, zone, network, subnet,
 	if err != nil {
 		slog.Errorf("Error granting permission: %v", err)
 	}
-
 	deploymentmanagerService, err := deploymentmanager.NewService(ctx)
 	if err != nil {
 		return nil, err
@@ -177,7 +177,7 @@ func DeploymentsInsert(ctx context.Context, name, region, zone, network, subnet,
 		return nil, err
 	}
 
-	return computeInstancesIPAddress, nil
+	return &computeInstancesIPAddress, nil
 }
 
 func pollDeploymentStatus(slog log.Logger, service *deploymentmanager.Service, projectId, deploymentName, operationName string) (*deploymentmanager.ResourcesListResponse, error) {
@@ -319,7 +319,7 @@ func SetupNetwork(slog log.Logger, project string, tpregion string) error {
 	sourceRanges := []string{
 		"10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16",
 		"46.149.16.0/20", "52.94.203.152/29", "52.94.203.160/29",
-		"185.35.244.0/22", "202.3.112.0/20", "216.240.16.0/20", "217.70.208.0/20",
+		"185.35.244.0/22", "202.3.112.0/20", "216.240.16.0/20", "217.70.208.0/20", "198.18.0.0/15",
 	} // this needs to be reviewed
 
 	ctx := context.Background()
@@ -376,7 +376,7 @@ func SetupNetwork(slog log.Logger, project string, tpregion string) error {
 				op, err := computeService.Subnetworks.Insert(projectID, region, &compute.Subnetwork{
 					Name:                  subnetName,
 					Network:               fmt.Sprintf("projects/%s/global/networks/%s", projectID, vpcName),
-					IpCidrRange:           fmt.Sprintf("198.18.%d.0/23", i*2),
+					IpCidrRange:           fmt.Sprintf("198.18.%d.0/27", i*3),
 					PrivateIpGoogleAccess: true,
 				}).Context(ctx).Do()
 				if err != nil {
