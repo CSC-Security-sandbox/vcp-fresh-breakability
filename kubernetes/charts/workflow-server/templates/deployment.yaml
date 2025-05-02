@@ -1,0 +1,36 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: workflow-server
+  labels:
+    app: {{ .Chart.Name }}
+    annotations:
+      {{- include "workflow_server.kubernetes.annotations" . | nindent 4 }}
+      {{- include "workflow_server.helmchart.annotations" . | nindent 4 }}
+    labels:
+      {{- include "workflow_server.kubernetes.labels" . | nindent 4 }}
+      {{- include "workflow_server.helmchart.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      app: {{ .Chart.Name }}
+  template:
+    metadata:
+      labels:
+        app: {{ .Chart.Name }}
+    spec:
+      nodeSelector:
+        {{- toYaml .Values.global.nodeSelector | nindent 8 }}
+      serviceAccountName: {{ .Values.serviceAccountName }}
+      containers:
+        - name: workflow-server
+          {{- if .Values.images.workflowServer.secondary }}
+          image: "{{- include "containerImage" (list . (dict "name" "workflowServer" "secondary" true)) | trim -}}"
+          {{- else }}
+          image: "{{- include "containerImage" (list . (dict "name" "workflowServer" "secondary" false)) | trim -}}"
+          {{- end }}
+          imagePullPolicy: {{ .Values.images.workflowServer.pullPolicy }}
+          ports:
+            - containerPort: {{ .Values.service.appPort }}
+              name: http

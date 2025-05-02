@@ -1,0 +1,46 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: google-proxy
+  labels:
+    app: {{ .Chart.Name }}
+    annotations:
+      {{- include "google_proxy.kubernetes.annotations" . | nindent 4 }}
+      {{- include "google_proxy.helmchart.annotations" . | nindent 4 }}
+    labels:
+      {{- include "google_proxy.kubernetes.labels" . | nindent 4 }}
+      {{- include "google_proxy.helmchart.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      app: {{ .Chart.Name }}
+  template:
+    metadata:
+      labels:
+        app: {{ .Chart.Name }}
+    spec:
+      nodeSelector:
+        {{- toYaml .Values.global.nodeSelector | nindent 8 }}
+      serviceAccountName: {{ .Values.serviceAccountName }}
+      containers:
+        - name: google-proxy
+          {{- if .Values.images.googleProxy.secondary }}
+          image: "{{- include "containerImage" (list . (dict "name" "googleProxy" "secondary" true)) | trim -}}"
+          {{- else }}
+          image: "{{- include "containerImage" (list . (dict "name" "googleProxy" "secondary" false)) | trim -}}"
+          {{- end }}
+          imagePullPolicy: {{ .Values.images.googleProxy.pullPolicy }}
+          ports:
+            - containerPort: {{ .Values.service.appPort }}
+          envFrom:
+            - configMapRef:
+                name: google-proxy-service-env-config
+          volumeMounts:
+            - name: env-config-volume
+              mountPath: /etc/config
+              readOnly: true
+      volumes:
+        - name: env-config-volume
+          configMap:
+            name: google-proxy-service-env-config

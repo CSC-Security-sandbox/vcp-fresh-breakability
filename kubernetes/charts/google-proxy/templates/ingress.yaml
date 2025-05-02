@@ -1,0 +1,25 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: google-proxy-service-ingress
+  annotations:
+    kubernetes.io/ingress.class: "gce-internal"
+    {{- include "google_proxy.kubernetes.annotations" . | nindent 4 }}
+    {{- include "google_proxy.helmchart.annotations" . | nindent 4 }}
+  labels:
+    {{- include "google_proxy.kubernetes.labels" . | nindent 4 }}
+    {{- include "google_proxy.helmchart.labels" . | nindent 4 }}
+spec:
+  rules:
+    - host: googleproxy.svc.cluster.local
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: google-proxy-service
+                port:
+                  number: 80
+status:
+  loadBalancer: {}

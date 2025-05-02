@@ -1,0 +1,27 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: google-proxy-service-env-config
+  annotations:
+    "helm.sh/hook": pre-install,pre-upgrade
+    {{- include "google_proxy.kubernetes.annotations" . | nindent 4 }}
+    {{- include "google_proxy.helmchart.annotations" . | nindent 4 }}
+  labels:
+    {{- include "google_proxy.kubernetes.labels" . | nindent 4 }}
+    {{- include "google_proxy.helmchart.labels" . | nindent 4 }}
+    app: google-proxy-service
+data:
+  # TODO: Remove these fields after application code fix
+  DB_HOST: "{{ index .Values "database" "host" }}"
+  DB_USER: "{{ index .Values "database" "user" }}"
+  DB_PASSWORD: "{{ index .Values "database" "password" }}"
+  DB_NAME: "{{ index .Values "database" "name" }}"
+  DB_ADMIN_USER: "{{ index .Values "database" "adminUser" }}"
+  DB_ADMIN_PASSWORD: "{{ index .Values "database" "adminPassword" }}"
+  config.yaml: |
+    DB_HOST: {{ index .Values "database" "host" }}
+    DB_USER: {{ index .Values "database" "user"  }}
+    DB_PASSWORD: {{ index .Values "database" "password" }}
+    DB_NAME: {{ index .Values "database" "name"  }}
+    DB_ADMIN_USER: {{ index .Values "database" "adminUser"  }}
+    DB_ADMIN_PASSWORD: {{ index .Values "database" "adminPassword" }}

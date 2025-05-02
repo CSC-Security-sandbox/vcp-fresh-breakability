@@ -1,0 +1,11 @@
+global:
+  primaryImageRegistry: ghcr.io
+  primaryImageRegistryPath: vcp-vsa-control-plane
+  primaryImageRegistryPasswordAuth: true
+  secondaryImageRegistry: ""
+  secondaryImageRegistryPath: ""
+  secondaryImageRegistryPasswordAuth: false
+  nodeSelector:
+    nodeType: vsacp-nodes
+  chartPrimaryImageRegistry: ""
+  chartSecondaryImageRegistry: ""

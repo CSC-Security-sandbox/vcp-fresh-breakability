@@ -1,0 +1,22 @@
+serviceAccountName: google-proxy
+
+replicaCount: 1
+
+images:
+  googleProxy:
+    name: google-proxy
+    tag: v25044.0.0-dev.3
+    secondary: false
+    pullPolicy: IfNotPresent
+
+service:
+  type: ClusterIP
+  appPort: 8080
+
+database:
+  host: postgres
+  user: postgres
+  password: testpass
+  name: vcp
+  adminUser: postgres
+  adminPassword: testpass

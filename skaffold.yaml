@@ -16,8 +16,8 @@ build:
       requires:
         - image: base
           alias: BASE
-#    - image: firestore-emulator
-#      context: .
+    #    - image: firestore-emulator
+    #      context: .
     - image: workflow-server
       context: .
       docker:
