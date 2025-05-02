@@ -5,7 +5,7 @@ replicaCount: 1
 images:
   core:
     name: core
-    tag: v25044.0.0-dev.3
+    tag: v25044.0.0-dev.6
     secondary: false
     pullPolicy: IfNotPresent
 

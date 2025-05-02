@@ -3,15 +3,15 @@ apiVersion: v2
 description: VSA Control Plane
 name: vsa-control-plane
 home: https://github.com/VCP-VSA-control-Plane/vsa-control-plane
-version: 25044.0.0-dev.3
-appVersion: "v25044.0.0-dev.3"
+version: 25044.0.0-dev.6
+appVersion: "v25044.0.0-dev.6"
 deprecated: false
 maintainers:
   - name: "team-warriors"
 dependencies:
   - name: core
-    version: 25044.0.0-dev.3
+    version: 25044.0.0-dev.6
   - name: workflow-server
-    version: 25044.0.0-dev.3
+    version: 25044.0.0-dev.6
   - name: google-proxy
-    version: 25044.0.0-dev.3
+    version: 25044.0.0-dev.6

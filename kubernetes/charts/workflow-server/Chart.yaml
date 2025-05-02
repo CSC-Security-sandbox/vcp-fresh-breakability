@@ -1,6 +1,6 @@
 apiVersion: v2
 name: workflow-server
 description: A Helm chart for deploying Workflow Server
-version: 25044.0.0-dev.3
-appVersion: "v25044.0.0-dev.3"
+version: 25044.0.0-dev.6
+appVersion: "v25044.0.0-dev.6"
 deprecated: false
