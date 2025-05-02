@@ -19,3 +19,4 @@ RUN go build -gcflags="${SKAFFOLD_GO_GCFLAGS}" -trimpath -o /app .
 
 FROM $BASE
 COPY --from=builder /app .
+COPY common/vsa_config common/vsa_config
