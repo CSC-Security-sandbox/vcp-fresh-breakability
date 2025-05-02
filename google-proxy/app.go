@@ -75,7 +75,7 @@ func main() {
 
 	// Start HTTP server
 	eg.Go(func() error {
-		logger.Info("Starting HTTP server on localhost:" + cfg.GCPPort)
+		logger.Info("Starting HTTP server on " + cfg.GCPHost + ":" + cfg.GCPPort)
 		if err := httpServer.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
 			logger.Error("Failed to start HTTP server", slog.String("error", err.Error()))
 			return err
@@ -157,7 +157,7 @@ func setupHTTPServer(cfg *common.Config, handler http.Handler, logger log.Logger
 	mux.Mount("/", handler)
 
 	return &http.Server{
-		Addr:              "localhost:" + cfg.GCPPort,
+		Addr:              cfg.GCPHost + ":" + cfg.GCPPort,
 		Handler:           mux,
 		ReadTimeout:       cfg.ReadTimeout,
 		WriteTimeout:      cfg.WriteTimeout,

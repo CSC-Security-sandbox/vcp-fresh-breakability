@@ -10,6 +10,7 @@ import (
 type Config struct {
 	// Server configuration
 	GCPPort             string
+	GCPHost             string
 	CorePort            string
 	ReadTimeout         time.Duration
 	WriteTimeout        time.Duration
@@ -54,6 +55,7 @@ type Config struct {
 
 func LoadConfig() *Config {
 	gcpPort := env.GetString("GCP_PROXY_PORT", "8080")
+	gcpHost := env.GetString("GCP_PROXY_HOST", "")
 	corePort := env.GetString("CORE_API_PORT", "8081")
 	readTimeout := parseDuration(env.GetString("READ_TIMEOUT", "5s"))
 	writeTimeout := parseDuration(env.GetString("WRITE_TIMEOUT", "10s"))
@@ -85,6 +87,7 @@ func LoadConfig() *Config {
 
 	return &Config{
 		GCPPort:             gcpPort,
+		GCPHost:             gcpHost,
 		CorePort:            corePort,
 		ReadTimeout:         readTimeout,
 		WriteTimeout:        writeTimeout,
