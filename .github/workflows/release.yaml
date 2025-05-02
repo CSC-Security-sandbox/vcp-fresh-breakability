@@ -33,7 +33,7 @@ jobs:
       - name: Fetch new tag
         id: fetch_new_tag
         run: |
-          echo "newTag=$(go run .github/scripts/fetchLatestBuild.go)" >> $GITHUB_OUTPUT
+          echo "newTag=$(go run .github/scripts/fetchLatestBuild.go 2>&1)" >> $GITHUB_OUTPUT
 
 
 

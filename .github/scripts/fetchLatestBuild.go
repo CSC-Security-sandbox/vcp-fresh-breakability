@@ -46,7 +46,9 @@ func main() {
 		log.Printf("Error incrementing tag:", err)
 		os.Exit(1)
 	}
+        log.SetFlags(0)
 	log.Printf(newTag)
+        log.SetFlags(log.LstdFlags)
 }
 
 // fetchTags fetches the latest tags from the remote repository 
