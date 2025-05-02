@@ -271,6 +271,78 @@ func TestFlexCacheV1betaCacheState_Examples(t *testing.T) {
 		})
 	}
 }
+func TestGetHealthBadRequest_EncodeDecode(t *testing.T) {
+	var typ GetHealthBadRequest
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 GetHealthBadRequest
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestGetHealthForbidden_EncodeDecode(t *testing.T) {
+	var typ GetHealthForbidden
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 GetHealthForbidden
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestGetHealthInternalServerError_EncodeDecode(t *testing.T) {
+	var typ GetHealthInternalServerError
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 GetHealthInternalServerError
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestGetHealthNotFound_EncodeDecode(t *testing.T) {
+	var typ GetHealthNotFound
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 GetHealthNotFound
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestGetHealthTooManyRequests_EncodeDecode(t *testing.T) {
+	var typ GetHealthTooManyRequests
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 GetHealthTooManyRequests
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestGetHealthUnauthorized_EncodeDecode(t *testing.T) {
+	var typ GetHealthUnauthorized
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 GetHealthUnauthorized
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
 func TestHostGroupIdListV1beta_EncodeDecode(t *testing.T) {
 	var typ HostGroupIdListV1beta
 	typ.SetFake()

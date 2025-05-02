@@ -18,6 +18,36 @@ tags:
   - name: HostGroups
     description: HostGroup operations
 paths:
+  /health:
+    get:
+      operationId: getHealth
+      summary: Get the server health status
+      description: Returns the server health status
+      tags:
+        - health
+      responses:
+        '200':
+          description: OK
+          schema:
+            $ref: '#/components/schemas/Health'
+        '400':
+          $ref: '#/components/responses/StandardError-400'
+        '401':
+          $ref: '#/components/responses/StandardError-401'
+        '403':
+          $ref: '#/components/responses/StandardError-403'
+        '404':
+          $ref: '#/components/responses/StandardError-404'
+        '429':
+          $ref: '#/components/responses/StandardError-429'
+        '500':
+          $ref: '#/components/responses/StandardError-500'
+        default:
+          description: Unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
   /v1beta/projects/{projectNumber}/locations/{locationId}/pools:
     get:
       tags:
@@ -1585,6 +1615,16 @@ paths:
       x-codegen-request-body-name: body
 components:
   schemas:
+    Health:
+      type: object
+      title: Health
+      properties:
+        status:
+          title: healthStatus
+          type: string
+          readOnly: true
+          description: Server health status
+          example: healthy
     Error:
       required:
         - code

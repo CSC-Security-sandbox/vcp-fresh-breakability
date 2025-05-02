@@ -13,6 +13,15 @@ type UnimplementedHandler struct{}
 
 var _ Handler = UnimplementedHandler{}
 
+// GetHealth implements getHealth operation.
+//
+// Returns the server health status.
+//
+// GET /health
+func (UnimplementedHandler) GetHealth(ctx context.Context) (r GetHealthRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
 // V1betaCreateHostGroup implements v1beta_createHostGroup operation.
 //
 // Create a new HostGroup.

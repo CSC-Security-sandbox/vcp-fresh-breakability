@@ -260,6 +260,60 @@ func (s *FlexCacheV1betaCacheState) SetFake() {
 }
 
 // SetFake set fake values.
+func (s *GetHealthBadRequest) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = GetHealthBadRequest(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *GetHealthForbidden) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = GetHealthForbidden(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *GetHealthInternalServerError) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = GetHealthInternalServerError(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *GetHealthNotFound) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = GetHealthNotFound(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *GetHealthTooManyRequests) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = GetHealthTooManyRequests(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *GetHealthUnauthorized) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = GetHealthUnauthorized(unwrapped)
+}
+
+// SetFake set fake values.
 func (s *HostGroupIdListV1beta) SetFake() {
 	{
 		{

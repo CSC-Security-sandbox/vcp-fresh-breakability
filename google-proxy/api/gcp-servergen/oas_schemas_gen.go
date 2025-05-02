@@ -99,7 +99,8 @@ func (s *BackupConfigV1beta) SetBackupChainBytes(val OptNilInt64) {
 // Ref: #/components/schemas/BlockProperties_v1beta
 type BlockPropertiesV1beta struct {
 	OsType OptBlockVolumeOSTypeV1beta `json:"osType"`
-	// List of UUID v4 used to identify the HostGroups.
+	// List of UUID v4 used to identify the HostGroups. A volume can be mapped to multiple HostGroups as
+	// long as each HostGroup has a distinct set of hosts.
 	HostGroupIds []string `json:"hostGroupIds"`
 }
 
@@ -608,6 +609,35 @@ func (s *FlexCacheV1betaCacheState) UnmarshalText(data []byte) error {
 		return errors.Errorf("invalid value: %q", data)
 	}
 }
+
+type GetHealthBadRequest Error
+
+func (*GetHealthBadRequest) getHealthRes() {}
+
+type GetHealthForbidden Error
+
+func (*GetHealthForbidden) getHealthRes() {}
+
+type GetHealthInternalServerError Error
+
+func (*GetHealthInternalServerError) getHealthRes() {}
+
+type GetHealthNotFound Error
+
+func (*GetHealthNotFound) getHealthRes() {}
+
+// GetHealthOK is response for GetHealth operation.
+type GetHealthOK struct{}
+
+func (*GetHealthOK) getHealthRes() {}
+
+type GetHealthTooManyRequests Error
+
+func (*GetHealthTooManyRequests) getHealthRes() {}
+
+type GetHealthUnauthorized Error
+
+func (*GetHealthUnauthorized) getHealthRes() {}
 
 // Ref: #/components/schemas/hostGroupIdList_v1beta
 type HostGroupIdListV1beta struct {

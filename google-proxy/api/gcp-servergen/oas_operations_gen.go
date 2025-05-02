@@ -6,6 +6,7 @@ package gcpserver
 type OperationName = string
 
 const (
+	GetHealthOperation                   OperationName = "GetHealth"
 	V1betaCreateHostGroupOperation       OperationName = "V1betaCreateHostGroup"
 	V1betaCreatePoolOperation            OperationName = "V1betaCreatePool"
 	V1betaCreateVolumeOperation          OperationName = "V1betaCreateVolume"

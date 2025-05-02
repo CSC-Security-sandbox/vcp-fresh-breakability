@@ -8,6 +8,12 @@ import (
 
 // Handler handles operations described by OpenAPI v3 specification.
 type Handler interface {
+	// GetHealth implements getHealth operation.
+	//
+	// Returns the server health status.
+	//
+	// GET /health
+	GetHealth(ctx context.Context) (GetHealthRes, error)
 	// V1betaCreateHostGroup implements v1beta_createHostGroup operation.
 	//
 	// Create a new HostGroup.
