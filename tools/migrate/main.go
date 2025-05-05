@@ -10,7 +10,6 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database"
 	_ "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/postgres"
 	slogger "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
-	"golang.org/x/exp/slog"
 )
 
 func main() {
@@ -46,19 +45,19 @@ func main() {
 	switch {
 	case *setupDB:
 		if err := setupDatabase(ctx, dbConfig, logger); err != nil {
-			logger.Error("Database setup failed", slog.String("error", err.Error()))
+			logger.Error("Database setup failed", "error", err.Error())
 			os.Exit(1)
 		}
 		log.Println("Database infrastructure setup completed successfully")
 	case *rollback:
 		if err := performRollback(ctx, dbConfig, logger); err != nil {
-			logger.Error("Rollback failed", slog.String("error", err.Error()))
+			logger.Error("Rollback failed", "error", err.Error())
 			os.Exit(1)
 		}
 		log.Println("Rollback completed successfully")
 	case *migrate:
 		if err := performMigration(ctx, dbConfig, logger); err != nil {
-			logger.Error("Migrations failed", slog.String("error", err.Error()))
+			logger.Error("Migrations failed", "error", err.Error())
 			os.Exit(1)
 		}
 		log.Println("Migrations completed successfully")
@@ -87,7 +86,7 @@ func performRollback(ctx context.Context, dbConfig database.DbConfig, logger slo
 	defer func(storage database.Storage) {
 		err := storage.Close()
 		if err != nil {
-			logger.Error("Failed to close database connection", slog.String("error", err.Error()))
+			logger.Error("Failed to close database connection", "error", err.Error())
 		}
 	}(storage)
 	return storage.Rollback(ctx)
@@ -104,7 +103,7 @@ func performMigration(ctx context.Context, dbConfig database.DbConfig, logger sl
 	defer func(storage database.Storage) {
 		err := storage.Close()
 		if err != nil {
-			logger.Error("Failed to close database connection", slog.String("error", err.Error()))
+			logger.Error("Failed to close database connection", "error", err.Error())
 		}
 	}(storage)
 	return storage.Migrate(ctx)

@@ -94,10 +94,10 @@ func (c *requestResponseLogger) RoundTrip(r *http.Request) (*http.Response, erro
 
 	reqDump, err := httputilDumpRequestOut(r, true)
 	if err != nil {
-		c.logger.WithFields(log.Fields{
+		c.logger.With(log.Fields{
 			"httpRequest": req,
 			"error":       err,
-		}).Error(r.Context(), fmt.Sprintf("%s - Error while reading request body", callerInfo))
+		}).ErrorContext(r.Context(), fmt.Sprintf("%s - Error while reading request body", callerInfo))
 		return nil, err
 	}
 	req.RequestSize = fmt.Sprintf("%v", len(reqDump))
@@ -105,11 +105,11 @@ func (c *requestResponseLogger) RoundTrip(r *http.Request) (*http.Response, erro
 	startTime := timeNow()
 	httpResponse, err := c.roundTripper.RoundTrip(r)
 	if err != nil {
-		c.logger.WithFields(log.Fields{
+		c.logger.With(log.Fields{
 			"httpRequest": req,
 			"requestBody": string(reqDump),
 			"error":       err,
-		}).Error(r.Context(), fmt.Sprintf("%s - Error during request", callerInfo))
+		}).ErrorContext(r.Context(), fmt.Sprintf("%s - Error during request", callerInfo))
 		return httpResponse, err
 	}
 	elapsedTime := timeSince(startTime)
@@ -118,19 +118,19 @@ func (c *requestResponseLogger) RoundTrip(r *http.Request) (*http.Response, erro
 
 	responseDump, err := httputilDumpResponse(httpResponse, true)
 	if err != nil {
-		c.logger.WithFields(log.Fields{
+		c.logger.With(log.Fields{
 			"httpRequest": req,
 			"requestBody": string(reqDump),
 			"error":       err,
-		}).Error(r.Context(), fmt.Sprintf("%s - Error while reading response body", callerInfo))
+		}).ErrorContext(r.Context(), fmt.Sprintf("%s - Error while reading response body", callerInfo))
 		return nil, err
 	}
 	req.ResponseSize = fmt.Sprintf("%v", len(responseDump))
 
-	c.logger.WithFields(log.Fields{
+	c.logger.With(log.Fields{
 		"httpRequest":  req,
 		"requestBody":  string(reqDump),
 		"responseBody": string(responseDump),
-	}).Error(r.Context(), callerInfo)
+	}).ErrorContext(r.Context(), callerInfo)
 	return httpResponse, err
 }

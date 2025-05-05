@@ -6,6 +6,7 @@ import (
 	"net/http"
 
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 	logger "golang.org/x/exp/slog"
 	"golang.org/x/oauth2/google"
@@ -69,7 +70,6 @@ func (gcpService *GcpServices) InitializeClients() error {
 		gcpService.AdminGCPService = adminServiceClient
 
 		gcpService.Logger.Debug("Admin Client is initialised.")
-		gcpService.Logger.Debug(gcpService.AdminGCPService)
 	}
 	gcpService.Logger.Debug("Admin Client is initialised")
 	return nil
@@ -82,7 +82,7 @@ func (gcpService *GcpServices) IsAdminClientInitialized() bool {
 
 // _initializeAdminClient creates a new googleService object using Workload identity and Initializes the services
 func _newGoogleClient(ctx context.Context) (*AdminGCPService, error) {
-	logger := log.NewLogger()
+	logger := ctx.Value(middleware.ContextSLoggerKey).(log.Logger)
 	logger.Debug("Calling initializeManagementService")
 	managementService, err := initializeManagementService(ctx)
 	if err != nil {

@@ -13,14 +13,13 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	gcpgenserver "github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/api/gcp-servergen"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
-	"golang.org/x/exp/slog"
 )
 
 func (h Handler) V1betaDescribePool(ctx context.Context, params gcpgenserver.V1betaDescribePoolParams) (gcpgenserver.V1betaDescribePoolRes, error) {
 	logger := ctx.Value(middleware.ContextSLoggerKey).(log.Logger)
 	pool, err := h.Orchestrator.GetPool(ctx, params.PoolId)
 	if err != nil {
-		logger.Error("Failed to describe pool", slog.String("error", err.Error()))
+		logger.Error("Failed to describe pool", "error", err.Error())
 		return &gcpgenserver.V1betaDescribePoolInternalServerError{}, err
 	}
 	return convertToPoolV1Beta(pool), nil
@@ -47,7 +46,7 @@ func (h Handler) V1betaCreatePool(ctx context.Context, req *gcpgenserver.PoolV1b
 	// Check if the pool already exists
 	existingPool, err := h.Orchestrator.GetPoolByVendorID(ctx, vendorId)
 	if err == nil {
-		logger.Info("Pool already exists", slog.String("vendorId", vendorId))
+		logger.Info("Pool already exists", "vendorId", vendorId)
 		resp, err := encodePoolV1(convertToPoolV1Beta(existingPool))
 		if err != nil {
 			return nil, err
@@ -57,14 +56,14 @@ func (h Handler) V1betaCreatePool(ctx context.Context, req *gcpgenserver.PoolV1b
 			Response: resp,
 		}, nil
 	} else if err.Error() != "pool not found" {
-		logger.Error("Failed to check existing pool", slog.String("error", err.Error()))
+		logger.Error("Failed to check existing pool", "error", err.Error())
 		return &gcpgenserver.V1betaCreatePoolInternalServerError{}, err
 	}
 
 	param := &common.CreatePoolParams{AccountName: params.ProjectNumber, Region: region, CurrentZone: req.Zone.Value, Name: req.ResourceId, VendorID: vendorId, VendorSubNetID: req.Network, ServiceLevel: string(req.ServiceLevel), SizeInBytes: uint64(req.SizeInBytes)}
 	created, operationID, err := h.Orchestrator.CreatePool(ctx, param)
 	if err != nil {
-		logger.Error("Failed to create pool", slog.String("error", err.Error()))
+		logger.Error("Failed to create pool", "error", err.Error())
 		return &gcpgenserver.V1betaCreatePoolInternalServerError{}, err
 	}
 	resp, err := encodePoolV1(convertToPoolV1Beta(created))

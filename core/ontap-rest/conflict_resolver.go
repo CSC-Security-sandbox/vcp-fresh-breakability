@@ -52,19 +52,19 @@ func _resolveSvmCreateConflict(logger log.Slogger, svms SVMClient, params *svm.S
 		case models.SvmStateRunning:
 			return &svm.SvmCreateCreated{Payload: &models.SvmJobLinkResponse{Records: []*models.Svm{&osvm.Svm}}}, nil
 		case models.SvmStateStarting, models.SvmStateInitializing:
-			logger.WithFields(log.Fields{
+			logger.With(log.Fields{
 				"state":   state,
 				"ipspace": *osvm.Ipspace.Name,
 				"name":    *params.Info.Name,
-			}).Warn(context.TODO(), "svm is in creating state")
+			}).WarnContext(context.TODO(), "svm is in creating state")
 			timeSleep(wait)
 			continue
 		default:
-			logger.WithFields(log.Fields{
+			logger.With(log.Fields{
 				"state":   state,
 				"ipspace": *osvm.Ipspace.Name,
 				"name":    *params.Info.Name,
-			}).Error(context.TODO(), "svm is in an unexpected state while creating")
+			}).ErrorContext(context.TODO(), "svm is in an unexpected state while creating")
 			return nil, errors.New("storage server in an unexpected state while creating")
 		}
 	}

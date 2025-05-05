@@ -82,7 +82,7 @@ func (lrt *LoggingRoundTripper) RoundTrip(req *http.Request) (*http.Response, er
 		body, err := ioReadAll(req.Body)
 		if err != nil {
 			requestFields["err"] = "Failed to read body from request: " + err.Error()
-			lrt.trace.WithFields(requestFields).Warn(context.TODO(), "ontap-rest error")
+			lrt.trace.With(requestFields).WarnContext(context.TODO(), "ontap-rest error")
 			return nil, err
 		}
 
@@ -91,14 +91,14 @@ func (lrt *LoggingRoundTripper) RoundTrip(req *http.Request) (*http.Response, er
 	}
 
 	if lrt.logVerbose {
-		lrt.trace.WithFields(requestFields).Info(context.TODO(), "ontap-rest request")
+		lrt.trace.With(requestFields).InfoContext(context.TODO(), "ontap-rest request")
 	}
 
 	t1 := timeNow()
 	res, err := lrt.roundTripper.RoundTrip(req)
 	if err != nil {
 		requestFields["err"] = "lrt.roundTripper.RoundTrip failure: " + err.Error()
-		lrt.trace.WithFields(requestFields).Warn(context.TODO(), "ontap-rest error")
+		lrt.trace.With(requestFields).WarnContext(context.TODO(), "ontap-rest error")
 		return nil, err
 	}
 	duration := timeNow().Sub(t1)
@@ -106,7 +106,7 @@ func (lrt *LoggingRoundTripper) RoundTrip(req *http.Request) (*http.Response, er
 	body, err := ioReadAll(res.Body)
 	if err != nil {
 		requestFields["err"] = "Failed to read body from response: " + err.Error()
-		lrt.trace.WithFields(requestFields).Warn(context.TODO(), "ontap-rest error")
+		lrt.trace.With(requestFields).WarnContext(context.TODO(), "ontap-rest error")
 		return nil, err
 	}
 	defer func() {
@@ -144,25 +144,25 @@ func (lrt *LoggingRoundTripper) RoundTrip(req *http.Request) (*http.Response, er
 	if res.StatusCode >= http.StatusBadRequest || isJobFailure {
 		if !lrt.logVerbose {
 			// MD: request was not logged out earlier. Force it here
-			lrt.trace.WithFields(requestFields).Info(context.TODO(), "ontap-rest request")
+			lrt.trace.With(requestFields).InfoContext(context.TODO(), "ontap-rest request")
 		}
 
-		lrt.trace.WithFields(responseFields).Warn(context.TODO(), "ontap-rest error")
+		lrt.trace.With(responseFields).WarnContext(context.TODO(), "ontap-rest error")
 		return res, nil
 	}
 
 	if res.StatusCode == http.StatusAccepted || isJob {
 		if !lrt.logVerbose {
 			// MD: request was not logged out earlier. Force it here
-			lrt.trace.WithFields(requestFields).Info(context.TODO(), "ontap-rest request")
+			lrt.trace.With(requestFields).InfoContext(context.TODO(), "ontap-rest request")
 		}
 
-		lrt.trace.WithFields(responseFields).Info(context.TODO(), "ontap-rest response")
+		lrt.trace.With(responseFields).InfoContext(context.TODO(), "ontap-rest response")
 		return res, nil
 	}
 
 	if lrt.logVerbose {
-		lrt.trace.WithFields(responseFields).Info(context.TODO(), "ontap-rest response")
+		lrt.trace.With(responseFields).InfoContext(context.TODO(), "ontap-rest response")
 	}
 
 	return res, nil

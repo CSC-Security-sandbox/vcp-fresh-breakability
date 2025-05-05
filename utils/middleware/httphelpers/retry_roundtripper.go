@@ -34,26 +34,26 @@ func (c *retryRoundTripper) RoundTrip(r *http.Request) (*http.Response, error) {
 	if r.Body != nil {
 		bodyBytes, err = ioReadAll(r.Body)
 		if err != nil {
-			c.logger.WithFields(log.Fields{
+			c.logger.With(log.Fields{
 				"error": err,
-			}).Error(ctx, "Error while reading request body")
+			}).ErrorContext(ctx, "Error while reading request body")
 			return nil, err
 		}
 	}
 	for i := 0; i < c.maxRetries; i++ {
 		if err = ctx.Err(); err != nil {
-			c.logger.WithFields(log.Fields{
+			c.logger.With(log.Fields{
 				"error": err,
-			}).Warn(ctx, "Context cancelled")
+			}).WarnContext(ctx, "Context cancelled")
 			break
 		}
 
 		if response != nil {
 			err := response.Body.Close()
 			if err != nil {
-				c.logger.WithFields(log.Fields{
+				c.logger.With(log.Fields{
 					"error": err,
-				}).Warn(ctx, "Error while closing response body before retrying")
+				}).WarnContext(ctx, "Error while closing response body before retrying")
 			}
 		}
 		if shouldSleep {
@@ -62,10 +62,10 @@ func (c *retryRoundTripper) RoundTrip(r *http.Request) (*http.Response, error) {
 			if r.URL != nil {
 				url = r.URL.RequestURI()
 			}
-			c.logger.WithFields(log.Fields{
+			c.logger.With(log.Fields{
 				"method": r.Method,
 				"url":    url,
-			}).Warn(ctx, "Retrying server call")
+			}).WarnContext(ctx, "Retrying server call")
 		}
 		shouldSleep = true
 		cloneReq := r.Clone(ctx)
@@ -78,16 +78,16 @@ func (c *retryRoundTripper) RoundTrip(r *http.Request) (*http.Response, error) {
 			if goerrors.Is(err, syscall.ECONNREFUSED) ||
 				goerrors.Is(err, syscall.ETIMEDOUT) ||
 				goerrors.Is(err, io.ErrUnexpectedEOF) {
-				c.logger.WithFields(log.Fields{
+				c.logger.With(log.Fields{
 					"error":      err,
 					"try_number": i + 1,
-				}).Warn(ctx, "Got an error while calling server")
+				}).WarnContext(ctx, "Got an error while calling server")
 				continue
 			}
 			if neterror, ok := err.(net.Error); ok && neterror.Timeout() {
-				c.logger.WithFields(log.Fields{
+				c.logger.With(log.Fields{
 					"try_number": i + 1,
-				}).Warn(ctx, "Got an timeout while calling server")
+				}).WarnContext(ctx, "Got an timeout while calling server")
 				continue
 			}
 			break

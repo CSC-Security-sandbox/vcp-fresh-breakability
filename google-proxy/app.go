@@ -22,7 +22,6 @@ import (
 	utilsmiddleware "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 	workflow_engine "github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/temporal"
-	"golang.org/x/exp/slog"
 	"golang.org/x/sync/errgroup"
 )
 
@@ -35,12 +34,25 @@ func main() {
 
 	logger := log.NewLogger()
 	logger.Info("Starting gcp proxy API")
+
+	// Setup metrics, tracing, and context propagation
+	shutdown, err := log.SetupOpenTelemetry(ctx)
+	if err != nil {
+		logger.ErrorContext(ctx, "error setting up OpenTelemetry", "error", err)
+		shutdown = func(ctx context.Context) error { return nil }
+	}
+	defer func() {
+		if err := shutdown(ctx); err != nil {
+			logger.ErrorContext(ctx, "error shutting down OpenTelemetry", "error", err)
+		}
+	}()
+
 	cfg := common.LoadConfig()
 
 	// initialize the database - this can be moved to a separate function
 	dbCon, err := InitializeDatabase(ctx, cfg, logger)
 	if err != nil {
-		logger.Error("Failed to initialize database", slog.String("error", err.Error()))
+		logger.Error("Failed to initialize database", "error", err.Error())
 		os.Exit(1)
 	}
 	defer closeDatabase(dbCon, logger)
@@ -49,7 +61,7 @@ func main() {
 	// Initialize Temporal client
 	workflowClient, err := initializeTemporalClient(ctx, logger)
 	if err != nil {
-		logger.Error("Failed to initialize Temporal client", slog.String("error", err.Error()))
+		logger.Error("Failed to initialize Temporal client", "error", err.Error())
 		os.Exit(1)
 	}
 	defer workflowClient.CloseClient(workflowClient.GetTemporalClient())
@@ -57,7 +69,7 @@ func main() {
 
 	eg.Go(func() error {
 		if err := workflowClient.RunWorker(ctx, workflowClient.GetTemporalClient(), dbCon); err != nil {
-			logger.Error("Failed to run worker", slog.String("error", err.Error()))
+			logger.Error("Failed to run worker","error", err.Error())
 			return err
 		}
 		return nil
@@ -68,7 +80,7 @@ func main() {
 	newHandler := api.Handler{Orchestrator: orch} // inject the orchestrator into the handler
 	gcpServer, err := gcpgenserver.NewServer(newHandler)
 	if err != nil {
-		logger.Error("Failed to create server", slog.String("error", err.Error()))
+		logger.Error("Failed to create server", "error", err.Error())
 		os.Exit(1)
 	}
 	httpServer := setupHTTPServer(cfg, gcpServer, logger)
@@ -77,7 +89,7 @@ func main() {
 	eg.Go(func() error {
 		logger.Info("Starting HTTP server on " + cfg.GCPHost + ":" + cfg.GCPPort)
 		if err := httpServer.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
-			logger.Error("Failed to start HTTP server", slog.String("error", err.Error()))
+			logger.Error("Failed to start HTTP server", "error", err.Error())
 			return err
 		}
 		return nil
@@ -86,7 +98,7 @@ func main() {
 	handleGracefulShutdown(eg, ctx, httpServer, logger)
 	// Wait for all goroutines to finish
 	if err := eg.Wait(); err != nil {
-		logger.Error("Server error", slog.String("error", err.Error()))
+		logger.Error("Server error", "error", err.Error())
 		os.Exit(1)
 	}
 	logger.Info("Server stopped gracefully")
@@ -118,7 +130,7 @@ func InitializeDatabase(ctx context.Context, cfg *common.Config, logger log.Logg
 		if err == nil {
 			break
 		}
-		logger.Error("Failed to connect to the database, retrying...", slog.String("error", err.Error()))
+		logger.Error("Failed to connect to the database, retrying...", "error", err.Error())
 		time.Sleep(2 * time.Second) // Add a delay between retries to avoid overwhelming the database
 	}
 
@@ -134,7 +146,7 @@ func InitializeDatabase(ctx context.Context, cfg *common.Config, logger log.Logg
 
 func closeDatabase(dbCon database.Storage, logger log.Logger) {
 	if err := dbCon.Close(); err != nil {
-		logger.Error("Failed to close database connection", slog.String("error", err.Error()))
+		logger.Error("Failed to close database connection", "error", err.Error())
 	}
 }
 
@@ -143,7 +155,7 @@ func initializeTemporalClient(ctx context.Context, logger log.Logger) (workflow_
 	workflowCfg := workflowClient.LoadConfig()
 	err := workflowClient.InitializeClient(ctx, workflowCfg, logger)
 	if err != nil {
-		logger.Error("client error: %w", slog.String("error", err.Error()))
+		logger.Error("client error: %w", "error", err.Error())
 		return workflowClient, err
 	}
 	return workflowClient, nil
@@ -152,7 +164,7 @@ func initializeTemporalClient(ctx context.Context, logger log.Logger) (workflow_
 func setupHTTPServer(cfg *common.Config, handler http.Handler, logger log.Logger) *http.Server {
 	mux := chi.NewRouter()
 	mux.Use(middleware.AuthMiddleware)
-	mux.Use(log.LoggerMiddleware(logger))
+	mux.Use(log.LoggingMiddleware)
 	mux.Use(chimiddleware.Recoverer)
 	mux.Mount("/", handler)
 
@@ -175,7 +187,7 @@ func handleGracefulShutdown(eg *errgroup.Group, ctx context.Context, httpServer 
 		defer shutdownCancel()
 
 		if err := httpServer.Shutdown(shutdownCtx); err != nil {
-			logger.Error("Failed to shut down server gracefully", slog.String("error", err.Error()))
+			logger.Error("Failed to shut down server gracefully", "error", err.Error())
 			return err
 		}
 		return nil

@@ -63,7 +63,7 @@ func (t *RetryTransport) Submit(operation *runtime.ClientOperation) (result inte
 				if rerr.isAuthError {
 					authAttempts++
 					if authAttempts >= maxOAuthRetries {
-						t.trace.WithFields(log.Fields{
+						t.trace.With(log.Fields{
 							"operation":     operation.ID,
 							"method":        operation.Method,
 							"pathPattern":   operation.PathPattern,
@@ -73,7 +73,7 @@ func (t *RetryTransport) Submit(operation *runtime.ClientOperation) (result inte
 						return nil, errors.NewTimeoutErr("Internal server error")
 					}
 
-					t.trace.WithFields(log.Fields{
+					t.trace.With(log.Fields{
 						"operation":     operation.ID,
 						"method":        operation.Method,
 						"pathPattern":   operation.PathPattern,
@@ -86,7 +86,7 @@ func (t *RetryTransport) Submit(operation *runtime.ClientOperation) (result inte
 				}
 
 				retries++
-				t.trace.WithFields(log.Fields{
+				t.trace.With(log.Fields{
 					"operation":    operation.ID,
 					"method":       operation.Method,
 					"pathPattern":  operation.PathPattern,
@@ -104,7 +104,7 @@ func (t *RetryTransport) Submit(operation *runtime.ClientOperation) (result inte
 		return result, nil
 	}
 
-	t.trace.WithFields(log.Fields{
+	t.trace.With(log.Fields{
 		"operation":   operation.ID,
 		"method":      operation.Method,
 		"pathPattern": operation.PathPattern,

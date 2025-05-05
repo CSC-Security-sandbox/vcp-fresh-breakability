@@ -50,7 +50,7 @@ func (p *poller) Poll(UUID string) error {
 		time.Sleep(wait)
 	}
 
-	p.logger.WithFields(log.Fields{
+	p.logger.With(log.Fields{
 		"ontap-rest job uuid": UUID,
 		"err":                 "job polling timeout",
 	}).Error("ontap-rest error")

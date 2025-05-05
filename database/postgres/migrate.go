@@ -83,11 +83,11 @@ func (m *Migrator) runAutoMigrations(db *gormwrapper.Wrapper, ctx context.Contex
 	if needs, err := m.needsMigration(db, checksum); err != nil {
 		return err
 	} else if !needs {
-		m.Logger.Info(ctx, "Models unchanged, skipping AutoMigrate")
+		m.Logger.InfoContext(ctx, "Models unchanged, skipping AutoMigrate")
 		return nil
 	}
 
-	m.Logger.Info(ctx, "Running AutoMigrate for model changes")
+	m.Logger.InfoContext(ctx, "Running AutoMigrate for model changes")
 	if err := db.WithContext(ctx).AutoMigrate(models...); err != nil {
 		return fmt.Errorf("automigrate failed: %w", err)
 	}
@@ -113,11 +113,11 @@ func (m *Migrator) Rollback(db *gormwrapper.Wrapper, ctx context.Context) error 
 	}
 
 	if errors.Is(err, migrate.ErrNilVersion) {
-		m.Logger.Info(ctx, "No migrations to rollback - database is at initial version")
+		m.Logger.InfoContext(ctx, "No migrations to rollback - database is at initial version")
 		return nil
 	}
 
-	m.Logger.Info(ctx, fmt.Sprintf("Current migration version: %d (dirty: %v)", version, dirty))
+	m.Logger.InfoContext(ctx, fmt.Sprintf("Current migration version: %d (dirty: %v)", version, dirty))
 
 	// Rollback one step
 	if err := sqlMig.Steps(-1); err != nil {
@@ -125,7 +125,7 @@ func (m *Migrator) Rollback(db *gormwrapper.Wrapper, ctx context.Context) error 
 	}
 	// Get new version after rollback
 	newVersion, _, _ := sqlMig.Version()
-	m.Logger.Info(ctx, fmt.Sprintf("Successfully rolled back to version %d", newVersion))
+	m.Logger.InfoContext(ctx, fmt.Sprintf("Successfully rolled back to version %d", newVersion))
 	return nil
 }
 

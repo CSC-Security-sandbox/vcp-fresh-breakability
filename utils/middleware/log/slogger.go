@@ -3,12 +3,10 @@ package log
 import (
 	"context"
 	"fmt"
-	"log/slog"
 	"strings"
 
-	"go.opentelemetry.io/contrib/bridges/otelslog"
-	"go.opentelemetry.io/otel/exporters/stdout/stdoutlog"
-	"go.opentelemetry.io/otel/sdk/log"
+	"go.opentelemetry.io/otel/trace"
+	"log/slog"
 )
 
 const (
@@ -16,69 +14,12 @@ const (
 	requestCorrelationID = "x-correlation-id"
 )
 
-type LoggerHandlerType string
-
-const (
-	LoggerHandlerTypeJSON     LoggerHandlerType = "json"
-	LoggerHandlerTypeOtelSlog LoggerHandlerType = "otelslog"
-)
+type Slogger struct {
+	slogger *slog.Logger
+}
 
 func getSlogger(config Config) (*Slogger, error) {
-	switch LoggerHandlerType(strings.ToLower(config.HandlerType)) {
-	case LoggerHandlerTypeJSON:
-		return getSloggerObject(config.LogLevel, config.AddSource), nil
-	case LoggerHandlerTypeOtelSlog:
-		return getSloggerOtelObject(config.ExporterType)
-	default:
-		return getSloggerObject(config.LogLevel, config.AddSource), nil
-	}
-}
-
-type Slogger struct {
-	slogger  *slog.Logger
-	shutdown func(context.Context) error
-}
-
-type LogExporter interface {
-	NewExporter() (log.Exporter, error)
-}
-
-type StdoutLogExporter struct{}
-
-func (e *StdoutLogExporter) NewExporter() (log.Exporter, error) {
-	return stdoutlog.New()
-}
-
-func getSloggerOtelObject(exporterType string) (*Slogger, error) {
-	shutdown, err := initLoggerProvider(exporterType)
-	if err != nil {
-		return nil, err
-	}
-	return &Slogger{
-		slogger:  slog.New(otelslog.NewHandler("otelhandler")),
-		shutdown: shutdown,
-	}, nil
-}
-
-// initLoggerProvider initializes a logging exporter to stdout, and configures a log provider for use with a structured logger
-func initLoggerProvider(exporterType string) (func(context.Context) error, error) {
-	var exporter LogExporter
-
-	switch exporterType {
-	case "stdout":
-		exporter = &StdoutLogExporter{}
-	default:
-		return nil, fmt.Errorf("unsupported exporter type: %s", exporterType)
-	}
-
-	logExporter, err := exporter.NewExporter()
-	if err != nil {
-		return nil, err
-	}
-	loggerProvider := log.NewLoggerProvider(
-		log.WithProcessor(log.NewBatchProcessor(logExporter)),
-	)
-	return loggerProvider.Shutdown, nil
+	return getSloggerObject(config.LogLevel, config.AddSource), nil
 }
 
 func getSloggerObject(loglevel string, addSource bool) *Slogger {
@@ -87,8 +28,10 @@ func getSloggerObject(loglevel string, addSource bool) *Slogger {
 		Level:       convertLogLevel(loglevel),
 		ReplaceAttr: replacer,
 	}
+	jsonHandler := slog.NewJSONHandler(defaultOutputStream, &options)
+	logger := slog.New(handlerWithSpanContext(jsonHandler))
 	return &Slogger{
-		slogger: slog.New(slog.NewJSONHandler(defaultOutputStream, &options)),
+		slogger: logger,
 	}
 }
 
@@ -108,49 +51,78 @@ func replacer(groups []string, a slog.Attr) slog.Attr {
 	return a
 }
 
-// WithFields returns a new logger with the request fields
-func (s Slogger) WithFields(fields Fields) Logger {
+// WithFields returns a new logger with the request fields grouped under a specific field name.
+// Example: "fieldName": { "key1": "value1", "key2": "value2" }
+func (s *Slogger) WithFields(fieldName string, fields Fields) Logger {
+	newLogger := s.slogger.With(fieldName, fields)
 	return &Slogger{
-		slogger: s.slogger.With("fields", fields),
+		slogger: newLogger,
 	}
 }
 
-func (s *Slogger) Error(args ...interface{}) {
-	s.slogger.Error(fmt.Sprint(args...))
+// With returns a new logger with the request fields added directly as key-value pairs.
+// Example: "key1": "value1", "key2": "value2"
+func (s *Slogger) With(fields Fields) Logger {
+	attrs := make([]any, 0, len(fields)*2)
+	for k, v := range fields {
+		attrs = append(attrs, k, v)
+	}
+	newLogger := s.slogger.With(attrs...)
+	return &Slogger{
+		slogger: newLogger,
+	}
 }
 
-func (s *Slogger) Errorf(format string, args ...interface{}) {
+func (s *Slogger) Error(format string, args ...any) {
+	s.slogger.Error(format, args...)
+}
+
+func (s *Slogger) Errorf(format string, args ...any) {
 	s.slogger.Error(fmt.Sprintf(format, args...))
 }
 
-func (s *Slogger) Warn(args ...interface{}) {
-	s.slogger.Warn(fmt.Sprint(args...))
+func (s *Slogger) Warn(format string, args ...any) {
+	s.slogger.Warn(format, args...)
 }
 
-func (s *Slogger) Warnf(format string, args ...interface{}) {
+func (s *Slogger) Warnf(format string, args ...any) {
 	s.slogger.Warn(fmt.Sprintf(format, args...))
 }
 
-func (s *Slogger) Info(args ...interface{}) {
-	s.slogger.Info(fmt.Sprint(args...))
+func (s *Slogger) Info(format string, args ...any) {
+	s.slogger.Info(format, args...)
 }
 
-func (s *Slogger) Infof(format string, args ...interface{}) {
+func (s *Slogger) Infof(format string, args ...any) {
 	s.slogger.Info(fmt.Sprintf(format, args...))
 }
 
-func (s *Slogger) Debug(args ...interface{}) {
-	s.slogger.Debug(fmt.Sprint(args...))
+func (s *Slogger) Debug(format string, args ...any) {
+	s.slogger.Debug(format, args...)
 }
 
-func (s *Slogger) Debugf(format string, args ...interface{}) {
+func (s *Slogger) Debugf(format string, args ...any) {
 	s.slogger.Debug(fmt.Sprintf(format, args...))
 }
 
-func (s *Slogger) Shutdown(ctx context.Context) {
-	if err := s.shutdown(ctx); err != nil {
-		s.slogger.Error(fmt.Sprintf("Failed to shutdown: %v", err))
-	}
+// InfoContext logs an informational message with context.
+func (s *Slogger) InfoContext(ctx context.Context, msg string, args ...any) {
+	s.slogger.InfoContext(ctx, msg, args...)
+}
+
+// WarnContext logs a warning message with context.
+func (s *Slogger) WarnContext(ctx context.Context, msg string, args ...any) {
+	s.slogger.WarnContext(ctx, msg, args...)
+}
+
+// ErrorContext logs an error message with context.
+func (s *Slogger) ErrorContext(ctx context.Context, msg string, args ...any) {
+	s.slogger.ErrorContext(ctx, msg, args...)
+}
+
+// DebugContext logs a debug message with context.
+func (s *Slogger) DebugContext(ctx context.Context, msg string, args ...any) {
+	s.slogger.DebugContext(ctx, msg, args...)
 }
 
 // convertLogLevel retrieves the log level from an environment variable
@@ -165,4 +137,46 @@ func convertLogLevel(loglevel string) slog.Level {
 		return level
 	}
 	return slog.LevelInfo
+}
+
+// handlerWithSpanContext adds attributes from the span context
+func handlerWithSpanContext(h slog.Handler) *spanContextLogHandler {
+	return &spanContextLogHandler{next: h}
+}
+
+// spanContextLogHandler is a slog.Handler which adds attributes from the
+// span context.
+type spanContextLogHandler struct {
+	next slog.Handler
+}
+
+// Handle overrides slog.Handler's Handle method. This adds attributes from the
+// span context to the slog.Record.
+func (t *spanContextLogHandler) Handle(ctx context.Context, record slog.Record) error {
+	// Get the SpanContext from the context.
+	if s := trace.SpanContextFromContext(ctx); s.IsValid() {
+		// Adding trace context attributes following Cloud Logging structured log format described
+		record.AddAttrs(
+			slog.Any("logging.googleapis.com/trace", s.TraceID()),
+		)
+		record.AddAttrs(
+			slog.Any("logging.googleapis.com/spanId", s.SpanID()),
+		)
+		record.AddAttrs(
+			slog.Bool("logging.googleapis.com/trace_sampled", s.TraceFlags().IsSampled()),
+		)
+	}
+	return t.next.Handle(ctx, record)
+}
+
+func (t *spanContextLogHandler) WithAttrs(attrs []slog.Attr) slog.Handler {
+	return &spanContextLogHandler{next: t.next.WithAttrs(attrs)}
+}
+
+func (t *spanContextLogHandler) WithGroup(name string) slog.Handler {
+	return &spanContextLogHandler{next: t.next.WithGroup(name)}
+}
+
+func (t *spanContextLogHandler) Enabled(ctx context.Context, level slog.Level) bool {
+	return t.next.Enabled(ctx, level)
 }

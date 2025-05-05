@@ -15,7 +15,6 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine"
 	"go.temporal.io/sdk/client"
 	"go.temporal.io/sdk/worker"
-	"golang.org/x/exp/slog"
 )
 
 const (
@@ -35,13 +34,13 @@ func (t *TemporalWorkflowEngine) InitializeClient(ctx context.Context, cfg workf
 	// Initialize the temporal server client
 	clientOptions, err := createClientOptionsFromEnv(cfg, logger)
 	if err != nil {
-		logger.Error("failed to create temporal client options: %w", slog.String("error", err.Error()))
+		logger.Error("failed to create temporal client options: %w", "error", err.Error())
 		os.Exit(1)
 	}
 
 	// This will be needed as we want ot send encrypted data to temporal server. Will uncomment this in the upcoming MRs.
 	// if cfg.TemporalEncryptionID != "" {
-	//	logger.Info("Enabling encrypting Data Converter using key ID '%s'", slog.String("temporalEncryptionID", cfg.TemporalEncryptionID))
+	//	logger.Info("Enabling encrypting Data Converter using key ID '%s'", "temporalEncryptionID", cfg.TemporalEncryptionID)
 	//	defaultDataConverter := converter.GetDefaultDataConverter()
 	//	clientOptions.DataConverter = util.NewEncryptionDataConverter(defaultDataConverter, cfg.TemporalEncryptionID)
 	// }
@@ -52,7 +51,7 @@ func (t *TemporalWorkflowEngine) InitializeClient(ctx context.Context, cfg workf
 		if err == nil {
 			break
 		}
-		logger.Error("Failed to connect to the temporal, retrying...", slog.String("error", err.Error()))
+		logger.Error("Failed to connect to the temporal, retrying...", "error", err.Error())
 		time.Sleep(2 * time.Second) // Add a delay between retries to avoid overwhelming the temporal server
 	}
 	t.temporalClient = temporalClient

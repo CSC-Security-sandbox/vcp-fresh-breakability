@@ -13,7 +13,7 @@ type Migrator struct {
 }
 
 func (m *Migrator) Migrate(db *gormwrapper.Wrapper, ctx context.Context) error {
-	m.Logger.Info(ctx, "Running AutoMigrate for model changes")
+	m.Logger.InfoContext(ctx, "Running AutoMigrate for model changes")
 	if err := db.WithContext(ctx).AutoMigrate(m.Models...); err != nil {
 		return fmt.Errorf("automigrate failed: %w", err)
 	}

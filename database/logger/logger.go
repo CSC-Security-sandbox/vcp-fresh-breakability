@@ -58,7 +58,7 @@ func (l *GormSlogLogger) Trace(ctx context.Context, begin time.Time, fc func() (
 	switch {
 	case err != nil && l.config.LogLevel >= logger.Error:
 		sql, rows := fc()
-		l.Slogger.WithFields(log.Fields{
+		l.Slogger.With(log.Fields{
 			"error":   err,
 			"elapsed": elapsed,
 			"rows":    rows,
@@ -66,7 +66,7 @@ func (l *GormSlogLogger) Trace(ctx context.Context, begin time.Time, fc func() (
 		}).Error("Database error")
 	case elapsed > l.config.SlowThreshold && l.config.SlowThreshold != 0 && l.config.LogLevel >= logger.Warn:
 		sql, rows := fc()
-		l.Slogger.WithFields(log.Fields{
+		l.Slogger.With(log.Fields{
 			"elapsed":   elapsed,
 			"threshold": l.config.SlowThreshold,
 			"rows":      rows,
@@ -74,7 +74,7 @@ func (l *GormSlogLogger) Trace(ctx context.Context, begin time.Time, fc func() (
 		}).Warn("Slow query")
 	case l.config.LogLevel == logger.Info:
 		sql, rows := fc()
-		l.Slogger.WithFields(log.Fields{
+		l.Slogger.With(log.Fields{
 			"elapsed": elapsed,
 			"rows":    rows,
 			"sql":     sql,

@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware"
-	"log/slog"
 	"net/http"
 	"os"
 	"os/signal"
@@ -32,15 +31,27 @@ func main() {
 	logger := log.NewLogger()
 	logger.Info("Starting VCP Core API")
 
+	// Setup metrics, tracing, and context propagation
+	shutdown, err := log.SetupOpenTelemetry(ctx)
+	if err != nil {
+		logger.ErrorContext(ctx, "error setting up OpenTelemetry", "error", err)
+		shutdown = func(ctx context.Context) error { return nil }
+	}
+	defer func() {
+		if err := shutdown(ctx); err != nil {
+			logger.ErrorContext(ctx, "error shutting down OpenTelemetry", "error", err)
+		}
+	}()
+
 	oasserver, err := coregenserver.NewServer(api.Handler{})
 	if err != nil {
-		logger.Error("Failed to create server", slog.String("error", err.Error()))
+		logger.Error("Failed to create server", "error", err.Error())
 		os.Exit(1)
 	}
 
 	// Setup HTTP router
 	mux := chi.NewRouter()
-	mux.Use(log.LoggerMiddleware(logger))
+	mux.Use(log.LoggingMiddleware)
 	mux.Use(chimiddleware.Recoverer)
 
 	// Mount the generated API handler
@@ -64,7 +75,7 @@ func main() {
 	eg.Go(func() error {
 		logger.Info("Starting HTTP server on localhost:" + cfg.CorePort)
 		if err := httpServer.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
-			logger.Error("Failed to start HTTP server", slog.String("error", err.Error()))
+			logger.Error("Failed to start HTTP server", "error", err.Error())
 			return err
 		}
 		return nil
@@ -79,7 +90,7 @@ func main() {
 		defer shutdownCancel()
 
 		if err := httpServer.Shutdown(shutdownCtx); err != nil {
-			logger.Error("Failed to shut down server gracefully", slog.String("error", err.Error()))
+			logger.Error("Failed to shut down server gracefully", "error", err.Error())
 			return err
 		}
 		return nil
@@ -87,7 +98,7 @@ func main() {
 
 	// Wait for all goroutines to finish
 	if err := eg.Wait(); err != nil {
-		logger.Error("Server error", slog.String("error", err.Error()))
+		logger.Error("Server error", "error", err.Error())
 		os.Exit(1)
 	}
 
