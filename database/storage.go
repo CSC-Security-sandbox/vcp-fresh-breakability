@@ -397,6 +397,10 @@ func (s *PersistenceStore) UpdateJob(ctx context.Context, id string, status stri
 	return s.dataStore.UpdateJob(ctx, id, status)
 }
 
+func (s *PersistenceStore) GetJob(ctx context.Context, id string) (*datamodel.Job, error) {
+	return s.dataStore.GetJob(ctx, id)
+}
+
 func (s *PersistenceStore) GetPoolByVendorID(ctx context.Context, vendorID string) (*datamodel.Pool, error) {
 	return s.dataStore.GetPoolByVendorID(ctx, vendorID)
 }

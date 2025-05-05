@@ -54,8 +54,19 @@ func (d *DataStoreRepository) GetPool(ctx context.Context, poolUUID string) (*da
 }
 
 func (d *DataStoreRepository) UpdatePool(ctx context.Context, pool *datamodel.Pool) error {
-	// TODO implement me
-	panic("implement me")
+	return d.db.GORM().WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		dbPool, err := getPoolWithDetails(tx, &datamodel.Pool{BaseModel: datamodel.BaseModel{UUID: pool.UUID}})
+		if err != nil {
+			return err
+		}
+		dbPool.UpdatedAt = time.Now()
+		dbPool.State = pool.State
+		dbPool.StateDetails = pool.StateDetails
+		if err := tx.Updates(dbPool).Error; err != nil {
+			return err
+		}
+		return nil
+	})
 }
 
 func (d *DataStoreRepository) DeletePool(ctx context.Context, id string) error {

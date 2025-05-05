@@ -3,16 +3,11 @@
 package gcpserver
 
 import (
-	"fmt"
 	"time"
 
 	"github.com/go-faster/errors"
 	"github.com/go-faster/jx"
 )
-
-func (s *ErrorStatusCode) Error() string {
-	return fmt.Sprintf("code %d: %+v", s.StatusCode, s.Response)
-}
 
 // Ref: #/components/schemas/Any_v1Beta
 type AnyV1Beta struct {
@@ -301,6 +296,26 @@ func (s *ErrorStatusCode) SetStatusCode(val int) {
 func (s *ErrorStatusCode) SetResponse(val Error) {
 	s.Response = val
 }
+
+func (*ErrorStatusCode) getHealthRes()                   {}
+func (*ErrorStatusCode) v1betaCreateHostGroupRes()       {}
+func (*ErrorStatusCode) v1betaCreatePoolRes()            {}
+func (*ErrorStatusCode) v1betaCreateVolumeRes()          {}
+func (*ErrorStatusCode) v1betaDeleteHostGroupRes()       {}
+func (*ErrorStatusCode) v1betaDeletePoolRes()            {}
+func (*ErrorStatusCode) v1betaDeleteVolumeRes()          {}
+func (*ErrorStatusCode) v1betaDescribeHostGroupRes()     {}
+func (*ErrorStatusCode) v1betaDescribePoolRes()          {}
+func (*ErrorStatusCode) v1betaDescribeVolumeRes()        {}
+func (*ErrorStatusCode) v1betaGetMultipleHostGroupsRes() {}
+func (*ErrorStatusCode) v1betaGetMultiplePoolsRes()      {}
+func (*ErrorStatusCode) v1betaGetMultipleVolumesRes()    {}
+func (*ErrorStatusCode) v1betaListHostGroupsRes()        {}
+func (*ErrorStatusCode) v1betaListPoolsRes()             {}
+func (*ErrorStatusCode) v1betaListVolumesRes()           {}
+func (*ErrorStatusCode) v1betaUpdateHostGroupRes()       {}
+func (*ErrorStatusCode) v1betaUpdatePoolRes()            {}
+func (*ErrorStatusCode) v1betaUpdateVolumeRes()          {}
 
 // Export policy for a volume.
 // Ref: #/components/schemas/ExportPolicy_v1beta
@@ -1510,14 +1525,15 @@ func (s *OperationV1beta) SetResponse(val jx.Raw) {
 	s.Response = val
 }
 
-func (*OperationV1beta) v1betaCreatePoolRes()      {}
-func (*OperationV1beta) v1betaCreateVolumeRes()    {}
-func (*OperationV1beta) v1betaDeleteHostGroupRes() {}
-func (*OperationV1beta) v1betaDeletePoolRes()      {}
-func (*OperationV1beta) v1betaDeleteVolumeRes()    {}
-func (*OperationV1beta) v1betaUpdateHostGroupRes() {}
-func (*OperationV1beta) v1betaUpdatePoolRes()      {}
-func (*OperationV1beta) v1betaUpdateVolumeRes()    {}
+func (*OperationV1beta) v1betaCreatePoolRes()        {}
+func (*OperationV1beta) v1betaCreateVolumeRes()      {}
+func (*OperationV1beta) v1betaDeleteHostGroupRes()   {}
+func (*OperationV1beta) v1betaDeletePoolRes()        {}
+func (*OperationV1beta) v1betaDeleteVolumeRes()      {}
+func (*OperationV1beta) v1betaDescribeOperationRes() {}
+func (*OperationV1beta) v1betaUpdateHostGroupRes()   {}
+func (*OperationV1beta) v1betaUpdatePoolRes()        {}
+func (*OperationV1beta) v1betaUpdateVolumeRes()      {}
 
 // NewOptAnyV1Beta returns new OptAnyV1Beta with value set to v.
 func NewOptAnyV1Beta(v AnyV1Beta) OptAnyV1Beta {
@@ -6086,6 +6102,55 @@ func (*V1betaDescribeHostGroupTooManyRequests) v1betaDescribeHostGroupRes() {}
 type V1betaDescribeHostGroupUnauthorized Error
 
 func (*V1betaDescribeHostGroupUnauthorized) v1betaDescribeHostGroupRes() {}
+
+type V1betaDescribeOperationBadRequest Error
+
+func (*V1betaDescribeOperationBadRequest) v1betaDescribeOperationRes() {}
+
+// V1betaDescribeOperationDef is default response for V1betaDescribeOperation operation.
+type V1betaDescribeOperationDef struct {
+	StatusCode int
+}
+
+// GetStatusCode returns the value of StatusCode.
+func (s *V1betaDescribeOperationDef) GetStatusCode() int {
+	return s.StatusCode
+}
+
+// SetStatusCode sets the value of StatusCode.
+func (s *V1betaDescribeOperationDef) SetStatusCode(val int) {
+	s.StatusCode = val
+}
+
+func (*V1betaDescribeOperationDef) v1betaDescribeOperationRes() {}
+
+type V1betaDescribeOperationForbidden Error
+
+func (*V1betaDescribeOperationForbidden) v1betaDescribeOperationRes() {}
+
+type V1betaDescribeOperationInternalServerError Error
+
+func (*V1betaDescribeOperationInternalServerError) v1betaDescribeOperationRes() {}
+
+type V1betaDescribeOperationNotFound Error
+
+func (*V1betaDescribeOperationNotFound) v1betaDescribeOperationRes() {}
+
+type V1betaDescribeOperationServiceUnavailable Error
+
+func (*V1betaDescribeOperationServiceUnavailable) v1betaDescribeOperationRes() {}
+
+type V1betaDescribeOperationTooManyRequests Error
+
+func (*V1betaDescribeOperationTooManyRequests) v1betaDescribeOperationRes() {}
+
+type V1betaDescribeOperationUnauthorized Error
+
+func (*V1betaDescribeOperationUnauthorized) v1betaDescribeOperationRes() {}
+
+type V1betaDescribeOperationUnprocessableEntity Error
+
+func (*V1betaDescribeOperationUnprocessableEntity) v1betaDescribeOperationRes() {}
 
 type V1betaDescribePoolBadRequest Error
 

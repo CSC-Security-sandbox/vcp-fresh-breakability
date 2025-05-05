@@ -1,13 +1,14 @@
 package workflows
 
 import (
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"strings"
 	"time"
 
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database"
 	gcpgenserver "github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/api/gcp-servergen"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	"go.temporal.io/sdk/log"
@@ -15,12 +16,13 @@ import (
 	"go.temporal.io/sdk/workflow"
 )
 
-type poolWorkflow struct {
+type PoolWorkflow struct {
 	// add fields needed for pool workflow
 	ID         string
 	customerID string
 	status     string
 	logger     log.Logger
+	SE         *database.Storage
 }
 
 type poolWorkflowStatus struct {
@@ -33,30 +35,33 @@ type poolWorkflowStatus struct {
 
 // Pool Workflow process pool related requests from a customer.
 func CreatePoolWorkflow(ctx workflow.Context, params *common.CreatePoolParams, pool *datamodel.Pool) (gcpgenserver.V1betaDescribePoolRes, error) {
-	poolWF := new(poolWorkflow)
+	poolWF := new(PoolWorkflow)
 	err := poolWF.Setup(ctx, params)
 	if err != nil {
 		return nil, err
 	}
 	poolWF.status = WorkflowStatusRunning
-	// err = poolWF.UpdateStatus(ctx, string(models.JobsStatePROCESSING), "")
-	// if err != nil {
-	//	return nil, err
-	// }
+	err = poolWF.UpdateJobStatus(ctx, string(models.JobsStatePROCESSING), nil)
+	if err != nil {
+		return nil, err
+	}
 	_, err = poolWF.Run(ctx, params, pool)
 	if err != nil {
 		poolWF.status = WorkflowStatusFailed
+		err = poolWF.UpdateJobStatus(ctx, string(models.JobsStateDONE), err)
+		if err != nil {
+			return nil, err
+		}
 	}
-	// poolWF.status = WorkflowStatusCompleted
-	// err = poolWF.UpdateStatus(ctx, string(models.JobsStateDONE), "")
-	// if err != nil {
-	//	return nil, err
-	// }
+	poolWF.status = WorkflowStatusCompleted
+	err = poolWF.UpdateJobStatus(ctx, string(models.JobsStateDONE), nil)
 	return nil, err
 }
 
-func (wf *poolWorkflow) Setup(ctx workflow.Context, input interface{}) error {
+func (wf *PoolWorkflow) Setup(ctx workflow.Context, input interface{}) error {
 	createPoolParams := input.(*common.CreatePoolParams)
+	info := workflow.GetInfo(ctx)
+	wf.ID = info.WorkflowExecution.ID
 	wf.customerID = createPoolParams.AccountName
 	wf.status = "created"
 	wf.logger = log.With(
@@ -74,7 +79,7 @@ func (wf *poolWorkflow) Setup(ctx workflow.Context, input interface{}) error {
 	})
 }
 
-func (wf *poolWorkflow) Run(ctx workflow.Context, params *common.CreatePoolParams, pool *datamodel.Pool) (interface{}, error) {
+func (wf *PoolWorkflow) Run(ctx workflow.Context, params *common.CreatePoolParams, pool *datamodel.Pool) (interface{}, error) {
 	poolActivity := &activities.PoolActivity{}
 	retryPolicy, err := PopulateRetryPolicyParams()
 	if err != nil {
@@ -100,17 +105,21 @@ func (wf *poolWorkflow) Run(ctx workflow.Context, params *common.CreatePoolParam
 	sizeInGB := utils.BytesToGigabytes(params.SizeInBytes)
 
 	dbPool := &datamodel.Pool{}
-	err = workflow.ExecuteActivity(ctx, poolActivity.CreatePool, &pool).Get(ctx, &dbPool)
+	err = workflow.ExecuteActivity(ctx, poolActivity.CreatingPool, &pool).Get(ctx, &dbPool)
 	if err != nil {
 		return nil, err
 	}
 
+	defer func() {
+		if err != nil {
+			_ = workflow.ExecuteActivity(ctx, poolActivity.FailedPool, dbPool, err).Get(ctx, nil)
+		}
+	}()
 	var vsaCluster *[]map[string]string
 	err = workflow.ExecuteActivity(ctx, poolActivity.DeployDeploymentManager, clusterName, params.Region, params.CurrentZone, tenancyDetails.Network, tenancyDetails.SubnetworkName, tenancyDetails.RegionalTenantProject, tenancyDetails.SnHostProject, sizeInGB).Get(ctx, &vsaCluster)
 	if err != nil {
 		return nil, err
 	}
-
 	node := &models.Node{
 		Name:            (*vsaCluster)[0]["Name"],
 		EndpointAddress: (*vsaCluster)[0]["NodeIp"],
@@ -168,26 +177,30 @@ func (wf *poolWorkflow) Run(ctx workflow.Context, params *common.CreatePoolParam
 		return nil, err
 	}
 	err = workflow.ExecuteActivity(ctx, poolActivity.CreateNetworkIpRoute, node, svm.Name, gateway).Get(ctx, nil)
-
+	if err != nil {
+		return nil, err
+	}
+	err = workflow.ExecuteActivity(ctx, poolActivity.CreatedPool, dbPool).Get(ctx, nil)
 	return nil, err
 }
 
-func (poolWF *poolWorkflow) UpdateStatus(ctx workflow.Context, status string, error string) error {
+func (poolWF *PoolWorkflow) UpdateJobStatus(ctx workflow.Context, status string, err error) error {
 	updatedJob := &datamodel.Job{
 		BaseModel: datamodel.BaseModel{UUID: poolWF.ID},
 		State:     status,
 	}
-	if error != "" {
-		updatedJob.ErrorDetails = []byte(error)
+	if err != nil {
+		updatedJob.ErrorDetails = []byte(err.Error())
 	}
 
-	ctx = workflow.WithLocalActivityOptions(ctx, workflow.LocalActivityOptions{
-		ScheduleToCloseTimeout: 5 * time.Second,
+	commonActivity := activities.CommonActivities{}
+	ctx = workflow.WithActivityOptions(ctx, workflow.ActivityOptions{
+		ScheduleToCloseTimeout: 10 * time.Second,
 	})
-	return workflow.ExecuteLocalActivity(ctx, activities.CommonActivities.UpdateJobStatus, updatedJob).Get(ctx, nil)
+	return workflow.ExecuteActivity(ctx, commonActivity.UpdateJobStatus, updatedJob).Get(ctx, nil)
 }
 
-func (poolWF *poolWorkflow) Revert(ctx workflow.Context) error {
+func (poolWF *PoolWorkflow) Revert(ctx workflow.Context) error {
 	// Implement the revert logic for pool workflows
 	// This might involve rolling back any changes made during the workflow execution
 	return nil

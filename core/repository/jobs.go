@@ -14,20 +14,26 @@ var (
 )
 
 func (d *DataStoreRepository) CreateJob(ctx context.Context, job *datamodel.Job) (*datamodel.Job, error) {
-	db := d.db.GORM().WithContext(ctx)
-	job.UUID = utils.RandomUUID()
-	job.CreatedAt = time.Now()
-	job.UpdatedAt = job.CreatedAt
-	job.WorkflowID = job.UUID
-	err := db.Create(job).Error
+	var result *datamodel.Job
+	err := d.db.GORM().WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		job.UUID = utils.RandomUUID()
+		job.CreatedAt = time.Now()
+		job.UpdatedAt = job.CreatedAt
+		job.WorkflowID = job.UUID
+		if err := tx.Create(job).Error; err != nil {
+			return err
+		}
+		dbPool, err := getJobWithDetails(tx, &datamodel.Job{BaseModel: datamodel.BaseModel{UUID: job.UUID}})
+		if err != nil {
+			return err
+		}
+		result = dbPool
+		return nil
+	})
 	if err != nil {
 		return nil, err
 	}
-	dbPool, err := getJobWithDetails(db, &datamodel.Job{BaseModel: datamodel.BaseModel{UUID: job.UUID}})
-	if err != nil {
-		return nil, err
-	}
-	return dbPool, nil
+	return result, nil
 }
 
 func (d *DataStoreRepository) GetJob(ctx context.Context, id string) (*datamodel.Job, error) {
@@ -35,19 +41,19 @@ func (d *DataStoreRepository) GetJob(ctx context.Context, id string) (*datamodel
 }
 
 func (d *DataStoreRepository) UpdateJob(ctx context.Context, id string, status string) error {
-	// TODO implement me
-	db := d.db.GORM().WithContext(ctx)
-	job, err := getJobWithDetails(db, &datamodel.Job{BaseModel: datamodel.BaseModel{UUID: id}})
-	if err != nil {
-		return err
-	}
-	job.UpdatedAt = time.Now()
-	job.State = status
-	err = db.Updates(job).Error
-	if err != nil {
-		return err
-	}
-	return nil
+	return d.db.GORM().WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		job, err := getJobWithDetails(tx, &datamodel.Job{BaseModel: datamodel.BaseModel{UUID: id}})
+		if err != nil {
+			return err
+		}
+
+		job.UpdatedAt = time.Now()
+		job.State = status
+		if err := tx.Updates(job).Error; err != nil {
+			return err
+		}
+		return nil
+	})
 }
 
 func _getJobWithDetails(db *gorm.DB, query *datamodel.Job) (*datamodel.Job, error) {

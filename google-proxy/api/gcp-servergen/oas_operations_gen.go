@@ -14,6 +14,7 @@ const (
 	V1betaDeletePoolOperation            OperationName = "V1betaDeletePool"
 	V1betaDeleteVolumeOperation          OperationName = "V1betaDeleteVolume"
 	V1betaDescribeHostGroupOperation     OperationName = "V1betaDescribeHostGroup"
+	V1betaDescribeOperationOperation     OperationName = "V1betaDescribeOperation"
 	V1betaDescribePoolOperation          OperationName = "V1betaDescribePool"
 	V1betaDescribeVolumeOperation        OperationName = "V1betaDescribeVolume"
 	V1betaGetMultipleHostGroupsOperation OperationName = "V1betaGetMultipleHostGroups"

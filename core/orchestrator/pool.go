@@ -380,7 +380,7 @@ func (o *Orchestrator) GetPoolByVendorID(ctx context.Context, vendorID string) (
 	return convertDatastorePoolToModel(pool, pool.Account.Name), nil
 }
 
-// CreatePoolParams describes parameters supplied to CreatePool
+// CreatePoolParams describes parameters supplied to CreatingPool
 type CreatePoolParams struct {
 	AccountName             string
 	Region                  string

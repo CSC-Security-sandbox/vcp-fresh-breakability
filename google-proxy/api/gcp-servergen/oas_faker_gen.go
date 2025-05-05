@@ -2063,6 +2063,78 @@ func (s *V1betaDescribeHostGroupUnauthorized) SetFake() {
 }
 
 // SetFake set fake values.
+func (s *V1betaDescribeOperationBadRequest) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaDescribeOperationBadRequest(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaDescribeOperationForbidden) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaDescribeOperationForbidden(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaDescribeOperationInternalServerError) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaDescribeOperationInternalServerError(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaDescribeOperationNotFound) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaDescribeOperationNotFound(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaDescribeOperationServiceUnavailable) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaDescribeOperationServiceUnavailable(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaDescribeOperationTooManyRequests) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaDescribeOperationTooManyRequests(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaDescribeOperationUnauthorized) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaDescribeOperationUnauthorized(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaDescribeOperationUnprocessableEntity) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaDescribeOperationUnprocessableEntity(unwrapped)
+}
+
+// SetFake set fake values.
 func (s *V1betaDescribePoolBadRequest) SetFake() {
 	var unwrapped Error
 	{

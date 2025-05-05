@@ -33,6 +33,10 @@ type V1betaDescribeHostGroupRes interface {
 	v1betaDescribeHostGroupRes()
 }
 
+type V1betaDescribeOperationRes interface {
+	v1betaDescribeOperationRes()
+}
+
 type V1betaDescribePoolRes interface {
 	v1betaDescribePoolRes()
 }

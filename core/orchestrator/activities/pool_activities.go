@@ -39,9 +39,23 @@ var (
 	region                = env.GetString("REGION", "")
 )
 
-func (j *PoolActivity) CreatePool(ctx context.Context, pool *datamodel.Pool) (*datamodel.Pool, error) {
+func (j *PoolActivity) CreatingPool(ctx context.Context, pool *datamodel.Pool) (*datamodel.Pool, error) {
 	se := *j.SE
 	return se.CreatePool(ctx, pool)
+}
+
+func (j *PoolActivity) FailedPool(ctx context.Context, pool *datamodel.Pool, err error) error {
+	se := *j.SE
+	pool.State = models.LifeCycleStateError
+	pool.StateDetails = err.Error()
+	return se.UpdatePool(ctx, pool)
+}
+
+func (j *PoolActivity) CreatedPool(ctx context.Context, pool *datamodel.Pool) error {
+	se := *j.SE
+	pool.State = models.LifeCycleStateAvailable
+	pool.StateDetails = models.LifeCycleStateAvailableDetails
+	return se.UpdatePool(ctx, pool)
 }
 
 func (j *PoolActivity) CreateTenancy(ctx context.Context, params commonparams.CreatePoolParams) (*commonparams.TenancyInfo, error) {

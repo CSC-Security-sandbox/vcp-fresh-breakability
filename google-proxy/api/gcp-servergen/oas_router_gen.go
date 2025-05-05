@@ -298,6 +298,39 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 							}
 
+						case 'o': // Prefix: "operations/"
+
+							if l := len("operations/"); len(elem) >= l && elem[0:l] == "operations/" {
+								elem = elem[l:]
+							} else {
+								break
+							}
+
+							// Param: "operationId"
+							// Leaf parameter, slashes are prohibited
+							idx := strings.IndexByte(elem, '/')
+							if idx >= 0 {
+								break
+							}
+							args[2] = elem
+							elem = ""
+
+							if len(elem) == 0 {
+								// Leaf node.
+								switch r.Method {
+								case "GET":
+									s.handleV1betaDescribeOperationRequest([3]string{
+										args[0],
+										args[1],
+										args[2],
+									}, elemIsEscaped, w, r)
+								default:
+									s.notAllowed(w, r, "GET")
+								}
+
+								return
+							}
+
 						case 'p': // Prefix: "pools"
 
 							if l := len("pools"); len(elem) >= l && elem[0:l] == "pools" {
@@ -796,6 +829,39 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 									}
 								}
 
+							}
+
+						case 'o': // Prefix: "operations/"
+
+							if l := len("operations/"); len(elem) >= l && elem[0:l] == "operations/" {
+								elem = elem[l:]
+							} else {
+								break
+							}
+
+							// Param: "operationId"
+							// Leaf parameter, slashes are prohibited
+							idx := strings.IndexByte(elem, '/')
+							if idx >= 0 {
+								break
+							}
+							args[2] = elem
+							elem = ""
+
+							if len(elem) == 0 {
+								// Leaf node.
+								switch method {
+								case "GET":
+									r.name = V1betaDescribeOperationOperation
+									r.summary = "Describes a long running operation"
+									r.operationID = "v1beta_describeOperation"
+									r.pathPattern = "/v1beta/projects/{projectNumber}/locations/{locationId}/operations/{operationId}"
+									r.args = args
+									r.count = 3
+									return r, true
+								default:
+									return
+								}
 							}
 
 						case 'p': // Prefix: "pools"

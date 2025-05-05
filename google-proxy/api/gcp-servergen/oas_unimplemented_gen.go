@@ -90,6 +90,15 @@ func (UnimplementedHandler) V1betaDescribeHostGroup(ctx context.Context, params 
 	return r, ht.ErrNotImplemented
 }
 
+// V1betaDescribeOperation implements v1beta_describeOperation operation.
+//
+// Describes a long running operation.
+//
+// GET /v1beta/projects/{projectNumber}/locations/{locationId}/operations/{operationId}
+func (UnimplementedHandler) V1betaDescribeOperation(ctx context.Context, params V1betaDescribeOperationParams) (r V1betaDescribeOperationRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
 // V1betaDescribePool implements v1beta_describePool operation.
 //
 // Returns the description of the specified pool by pool ID.
@@ -187,12 +196,4 @@ func (UnimplementedHandler) V1betaUpdatePool(ctx context.Context, req *PoolUpdat
 // PUT /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}
 func (UnimplementedHandler) V1betaUpdateVolume(ctx context.Context, req *VolumeUpdateV1beta, params V1betaUpdateVolumeParams) (r V1betaUpdateVolumeRes, _ error) {
 	return r, ht.ErrNotImplemented
-}
-
-// NewError creates *ErrorStatusCode from error returned by handler.
-//
-// Used for common default response.
-func (UnimplementedHandler) NewError(ctx context.Context, err error) (r *ErrorStatusCode) {
-	r = new(ErrorStatusCode)
-	return r
 }

@@ -1,6 +1,6 @@
 package common
 
-// CreatePoolParams describes parameters supplied to CreatePool
+// CreatePoolParams describes parameters supplied to CreatingPool
 type CreatePoolParams struct {
 	AccountName             string
 	Region                  string
