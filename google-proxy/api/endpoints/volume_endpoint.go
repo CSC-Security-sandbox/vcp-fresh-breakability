@@ -240,7 +240,7 @@ func convertToVolumeV1Beta(volume *models.Volume) *gcpgenserver.VolumeV1beta {
 	if volume.BlockProperties != nil {
 		res.BlockProperties = gcpgenserver.NewOptBlockPropertiesV1beta(
 			gcpgenserver.BlockPropertiesV1beta{
-				OsType:       gcpgenserver.NewOptBlockVolumeOSTypeV1beta(gcpgenserver.BlockVolumeOSTypeV1beta(volume.BlockProperties.OSType)),
+				OsType:       gcpgenserver.NewOptBlockPropertiesV1betaOsType(gcpgenserver.BlockPropertiesV1betaOsType(volume.BlockProperties.OSType)),
 				HostGroupIds: volume.BlockProperties.HostGroupUUIDs,
 			})
 

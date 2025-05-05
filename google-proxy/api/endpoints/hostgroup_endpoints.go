@@ -96,7 +96,7 @@ func convertToHostGroupV1Beta(hostGroup *models.HostGroup) *gcpgenserver.HostGro
 		Description:  gcpgenserver.NewOptString(hostGroup.Description),
 		Type:         gcpgenserver.NewOptHostGroupV1betaType(gcpgenserver.HostGroupV1betaType(hostGroup.HostGroupType)),
 		Hosts:        hostGroup.Hosts,
-		OsType:       gcpgenserver.HostOSTypeV1beta(hostGroup.OSType),
+		OsType:       gcpgenserver.HostGroupV1betaOsType(hostGroup.OSType),
 	}
 
 	if hostGroup.DeletedAt != nil {

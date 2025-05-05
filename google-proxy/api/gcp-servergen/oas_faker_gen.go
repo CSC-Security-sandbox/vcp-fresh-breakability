@@ -71,8 +71,8 @@ func (s *BlockPropertiesV1beta) SetFake() {
 }
 
 // SetFake set fake values.
-func (s *BlockVolumeOSTypeV1beta) SetFake() {
-	*s = BlockVolumeOSTypeV1betaOSTYPEUNSPECIFIED
+func (s *BlockPropertiesV1betaOsType) SetFake() {
+	*s = BlockPropertiesV1betaOsTypeOSTYPEUNSPECIFIED
 }
 
 // SetFake set fake values.
@@ -314,6 +314,15 @@ func (s *GetHealthUnauthorized) SetFake() {
 }
 
 // SetFake set fake values.
+func (s *Health) SetFake() {
+	{
+		{
+			s.Status.SetFake()
+		}
+	}
+}
+
+// SetFake set fake values.
 func (s *HostGroupIdListV1beta) SetFake() {
 	{
 		{
@@ -417,6 +426,11 @@ func (s *HostGroupV1beta) SetFake() {
 }
 
 // SetFake set fake values.
+func (s *HostGroupV1betaOsType) SetFake() {
+	*s = HostGroupV1betaOsTypeOSTYPEUNSPECIFIED
+}
+
+// SetFake set fake values.
 func (s *HostGroupV1betaState) SetFake() {
 	*s = HostGroupV1betaStateSTATEUNSPECIFIED
 }
@@ -424,11 +438,6 @@ func (s *HostGroupV1betaState) SetFake() {
 // SetFake set fake values.
 func (s *HostGroupV1betaType) SetFake() {
 	*s = HostGroupV1betaTypeUNSPECIFIED
-}
-
-// SetFake set fake values.
-func (s *HostOSTypeV1beta) SetFake() {
-	*s = HostOSTypeV1betaOSTYPEUNSPECIFIED
 }
 
 // SetFake set fake values.
@@ -652,8 +661,8 @@ func (s *OptBlockPropertiesV1beta) SetFake() {
 }
 
 // SetFake set fake values.
-func (s *OptBlockVolumeOSTypeV1beta) SetFake() {
-	var elem BlockVolumeOSTypeV1beta
+func (s *OptBlockPropertiesV1betaOsType) SetFake() {
+	var elem BlockPropertiesV1betaOsType
 	{
 		elem.SetFake()
 	}

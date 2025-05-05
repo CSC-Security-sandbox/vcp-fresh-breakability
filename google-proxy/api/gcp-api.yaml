@@ -30,8 +30,10 @@ paths:
       responses:
         '200':
           description: OK
-          schema:
-            $ref: '#/components/schemas/Health'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Health'
         '400':
           $ref: '#/components/responses/StandardError-400'
         '401':
@@ -1773,7 +1775,9 @@ components:
       type: object
       properties:
         osType:
-          $ref: '#/components/schemas/BlockVolumeOSType_v1beta'
+          allOf:
+            - description: Specifies the OS type for the new Block Volume. The Block volume will be used with the selected OS type.
+            - $ref: '#/components/schemas/OSType_v1beta'
         hostGroupIds:
           title: hostGroupIds
           type: array
@@ -1783,22 +1787,9 @@ components:
             pattern: "^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$"
             description: UUID v4 used to identify the HostGroup
             example: 9760acf5-4638-11e7-9bdb-020073ca3333
-    HostOSType_v1beta:
-      title: HostOSType
+    OSType_v1beta:
+      title: OSType
       type: string
-      description: Specifies the operating system type for the HostGroup. 
-        The operating system type indicates the type of host operating system used by all of the hosts in the HostGroup. 
-        All hosts in a HostGroup must be of the same operating system type.
-      enum:
-        - OS_TYPE_UNSPECIFIED
-        - LINUX
-        - WINDOWS
-        - ESXI
-      example: LINUX
-    BlockVolumeOSType_v1beta:
-      title: BlockVolumeOSType
-      type: string
-      description: Specifies the OS type for the new Block Volume. The Block volume will be used with the selected OS type.
       enum:
         - OS_TYPE_UNSPECIFIED
         - LINUX
@@ -1885,7 +1876,11 @@ components:
             - iqn.1998-01.com.vmware:example1
             - iqn.1998-01.com.vmware:example2
         osType:
-          $ref: '#/components/schemas/HostOSType_v1beta'
+          allOf:
+            - description: Specifies the operating system type for the HostGroup.
+                The operating system type indicates the type of host operating system used by all of the hosts in the HostGroup.
+                All hosts in a HostGroup must be of the same operating system type.
+            - $ref: '#/components/schemas/OSType_v1beta'
     HostGroupUpdate_v1beta:
       title: HostGroup
       type: object

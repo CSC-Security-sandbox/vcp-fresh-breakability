@@ -73,7 +73,7 @@ func (s *BlockPropertiesV1beta) Validate() error {
 	return nil
 }
 
-func (s BlockVolumeOSTypeV1beta) Validate() error {
+func (s BlockPropertiesV1betaOsType) Validate() error {
 	switch s {
 	case "OS_TYPE_UNSPECIFIED":
 		return nil
@@ -652,6 +652,21 @@ func (s *HostGroupV1beta) Validate() error {
 	return nil
 }
 
+func (s HostGroupV1betaOsType) Validate() error {
+	switch s {
+	case "OS_TYPE_UNSPECIFIED":
+		return nil
+	case "LINUX":
+		return nil
+	case "WINDOWS":
+		return nil
+	case "ESXI":
+		return nil
+	default:
+		return errors.Errorf("invalid value: %v", s)
+	}
+}
+
 func (s HostGroupV1betaState) Validate() error {
 	switch s {
 	case "STATE_UNSPECIFIED":
@@ -676,21 +691,6 @@ func (s HostGroupV1betaType) Validate() error {
 	case "UNSPECIFIED":
 		return nil
 	case "ISCSI_INITIATOR":
-		return nil
-	default:
-		return errors.Errorf("invalid value: %v", s)
-	}
-}
-
-func (s HostOSTypeV1beta) Validate() error {
-	switch s {
-	case "OS_TYPE_UNSPECIFIED":
-		return nil
-	case "LINUX":
-		return nil
-	case "WINDOWS":
-		return nil
-	case "ESXI":
 		return nil
 	default:
 		return errors.Errorf("invalid value: %v", s)

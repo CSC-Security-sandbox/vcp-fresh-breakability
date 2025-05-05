@@ -64,8 +64,8 @@ func TestBlockPropertiesV1beta_EncodeDecode(t *testing.T) {
 	var typ2 BlockPropertiesV1beta
 	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
 }
-func TestBlockVolumeOSTypeV1beta_EncodeDecode(t *testing.T) {
-	var typ BlockVolumeOSTypeV1beta
+func TestBlockPropertiesV1betaOsType_EncodeDecode(t *testing.T) {
+	var typ BlockPropertiesV1betaOsType
 	typ.SetFake()
 
 	e := jx.Encoder{}
@@ -73,11 +73,11 @@ func TestBlockVolumeOSTypeV1beta_EncodeDecode(t *testing.T) {
 	data := e.Bytes()
 	require.True(t, std.Valid(data), "Encoded: %s", data)
 
-	var typ2 BlockVolumeOSTypeV1beta
+	var typ2 BlockPropertiesV1betaOsType
 	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
 }
 
-func TestBlockVolumeOSTypeV1beta_Examples(t *testing.T) {
+func TestBlockPropertiesV1betaOsType_Examples(t *testing.T) {
 
 	for i, tc := range []struct {
 		Input string
@@ -86,7 +86,7 @@ func TestBlockVolumeOSTypeV1beta_Examples(t *testing.T) {
 	} {
 		tc := tc
 		t.Run(fmt.Sprintf("Test%d", i+1), func(t *testing.T) {
-			var typ BlockVolumeOSTypeV1beta
+			var typ BlockPropertiesV1betaOsType
 
 			if err := typ.Decode(jx.DecodeStr(tc.Input)); err != nil {
 				if validateErr, ok := errors.Into[*validate.Error](err); ok {
@@ -100,7 +100,7 @@ func TestBlockVolumeOSTypeV1beta_Examples(t *testing.T) {
 			typ.Encode(&e)
 			require.True(t, std.Valid(e.Bytes()), "Encoded: %s", e.Bytes())
 
-			var typ2 BlockVolumeOSTypeV1beta
+			var typ2 BlockPropertiesV1betaOsType
 			require.NoError(t, typ2.Decode(jx.DecodeBytes(e.Bytes())))
 		})
 	}
@@ -343,6 +343,18 @@ func TestGetHealthUnauthorized_EncodeDecode(t *testing.T) {
 	var typ2 GetHealthUnauthorized
 	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
 }
+func TestHealth_EncodeDecode(t *testing.T) {
+	var typ Health
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 Health
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
 func TestHostGroupIdListV1beta_EncodeDecode(t *testing.T) {
 	var typ HostGroupIdListV1beta
 	typ.SetFake()
@@ -404,6 +416,47 @@ func TestHostGroupV1beta_Examples(t *testing.T) {
 			require.True(t, std.Valid(e.Bytes()), "Encoded: %s", e.Bytes())
 
 			var typ2 HostGroupV1beta
+			require.NoError(t, typ2.Decode(jx.DecodeBytes(e.Bytes())))
+		})
+	}
+}
+func TestHostGroupV1betaOsType_EncodeDecode(t *testing.T) {
+	var typ HostGroupV1betaOsType
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 HostGroupV1betaOsType
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+
+func TestHostGroupV1betaOsType_Examples(t *testing.T) {
+
+	for i, tc := range []struct {
+		Input string
+	}{
+		{Input: "\"LINUX\""},
+	} {
+		tc := tc
+		t.Run(fmt.Sprintf("Test%d", i+1), func(t *testing.T) {
+			var typ HostGroupV1betaOsType
+
+			if err := typ.Decode(jx.DecodeStr(tc.Input)); err != nil {
+				if validateErr, ok := errors.Into[*validate.Error](err); ok {
+					t.Skipf("Validation error: %v", validateErr)
+					return
+				}
+				require.NoErrorf(t, err, "Input: %s", tc.Input)
+			}
+
+			e := jx.Encoder{}
+			typ.Encode(&e)
+			require.True(t, std.Valid(e.Bytes()), "Encoded: %s", e.Bytes())
+
+			var typ2 HostGroupV1betaOsType
 			require.NoError(t, typ2.Decode(jx.DecodeBytes(e.Bytes())))
 		})
 	}
@@ -486,47 +539,6 @@ func TestHostGroupV1betaType_Examples(t *testing.T) {
 			require.True(t, std.Valid(e.Bytes()), "Encoded: %s", e.Bytes())
 
 			var typ2 HostGroupV1betaType
-			require.NoError(t, typ2.Decode(jx.DecodeBytes(e.Bytes())))
-		})
-	}
-}
-func TestHostOSTypeV1beta_EncodeDecode(t *testing.T) {
-	var typ HostOSTypeV1beta
-	typ.SetFake()
-
-	e := jx.Encoder{}
-	typ.Encode(&e)
-	data := e.Bytes()
-	require.True(t, std.Valid(data), "Encoded: %s", data)
-
-	var typ2 HostOSTypeV1beta
-	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
-}
-
-func TestHostOSTypeV1beta_Examples(t *testing.T) {
-
-	for i, tc := range []struct {
-		Input string
-	}{
-		{Input: "\"LINUX\""},
-	} {
-		tc := tc
-		t.Run(fmt.Sprintf("Test%d", i+1), func(t *testing.T) {
-			var typ HostOSTypeV1beta
-
-			if err := typ.Decode(jx.DecodeStr(tc.Input)); err != nil {
-				if validateErr, ok := errors.Into[*validate.Error](err); ok {
-					t.Skipf("Validation error: %v", validateErr)
-					return
-				}
-				require.NoErrorf(t, err, "Input: %s", tc.Input)
-			}
-
-			e := jx.Encoder{}
-			typ.Encode(&e)
-			require.True(t, std.Valid(e.Bytes()), "Encoded: %s", e.Bytes())
-
-			var typ2 HostOSTypeV1beta
 			require.NoError(t, typ2.Decode(jx.DecodeBytes(e.Bytes())))
 		})
 	}

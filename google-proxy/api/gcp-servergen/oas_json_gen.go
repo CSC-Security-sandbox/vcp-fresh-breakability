@@ -381,46 +381,46 @@ func (s *BlockPropertiesV1beta) UnmarshalJSON(data []byte) error {
 	return s.Decode(d)
 }
 
-// Encode encodes BlockVolumeOSTypeV1beta as json.
-func (s BlockVolumeOSTypeV1beta) Encode(e *jx.Encoder) {
+// Encode encodes BlockPropertiesV1betaOsType as json.
+func (s BlockPropertiesV1betaOsType) Encode(e *jx.Encoder) {
 	e.Str(string(s))
 }
 
-// Decode decodes BlockVolumeOSTypeV1beta from json.
-func (s *BlockVolumeOSTypeV1beta) Decode(d *jx.Decoder) error {
+// Decode decodes BlockPropertiesV1betaOsType from json.
+func (s *BlockPropertiesV1betaOsType) Decode(d *jx.Decoder) error {
 	if s == nil {
-		return errors.New("invalid: unable to decode BlockVolumeOSTypeV1beta to nil")
+		return errors.New("invalid: unable to decode BlockPropertiesV1betaOsType to nil")
 	}
 	v, err := d.StrBytes()
 	if err != nil {
 		return err
 	}
 	// Try to use constant string.
-	switch BlockVolumeOSTypeV1beta(v) {
-	case BlockVolumeOSTypeV1betaOSTYPEUNSPECIFIED:
-		*s = BlockVolumeOSTypeV1betaOSTYPEUNSPECIFIED
-	case BlockVolumeOSTypeV1betaLINUX:
-		*s = BlockVolumeOSTypeV1betaLINUX
-	case BlockVolumeOSTypeV1betaWINDOWS:
-		*s = BlockVolumeOSTypeV1betaWINDOWS
-	case BlockVolumeOSTypeV1betaESXI:
-		*s = BlockVolumeOSTypeV1betaESXI
+	switch BlockPropertiesV1betaOsType(v) {
+	case BlockPropertiesV1betaOsTypeOSTYPEUNSPECIFIED:
+		*s = BlockPropertiesV1betaOsTypeOSTYPEUNSPECIFIED
+	case BlockPropertiesV1betaOsTypeLINUX:
+		*s = BlockPropertiesV1betaOsTypeLINUX
+	case BlockPropertiesV1betaOsTypeWINDOWS:
+		*s = BlockPropertiesV1betaOsTypeWINDOWS
+	case BlockPropertiesV1betaOsTypeESXI:
+		*s = BlockPropertiesV1betaOsTypeESXI
 	default:
-		*s = BlockVolumeOSTypeV1beta(v)
+		*s = BlockPropertiesV1betaOsType(v)
 	}
 
 	return nil
 }
 
 // MarshalJSON implements stdjson.Marshaler.
-func (s BlockVolumeOSTypeV1beta) MarshalJSON() ([]byte, error) {
+func (s BlockPropertiesV1betaOsType) MarshalJSON() ([]byte, error) {
 	e := jx.Encoder{}
 	s.Encode(&e)
 	return e.Bytes(), nil
 }
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
-func (s *BlockVolumeOSTypeV1beta) UnmarshalJSON(data []byte) error {
+func (s *BlockPropertiesV1betaOsType) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }
@@ -1568,6 +1568,69 @@ func (s *GetHealthUnauthorized) UnmarshalJSON(data []byte) error {
 }
 
 // Encode implements json.Marshaler.
+func (s *Health) Encode(e *jx.Encoder) {
+	e.ObjStart()
+	s.encodeFields(e)
+	e.ObjEnd()
+}
+
+// encodeFields encodes fields.
+func (s *Health) encodeFields(e *jx.Encoder) {
+	{
+		if s.Status.Set {
+			e.FieldStart("status")
+			s.Status.Encode(e)
+		}
+	}
+}
+
+var jsonFieldsNameOfHealth = [1]string{
+	0: "status",
+}
+
+// Decode decodes Health from json.
+func (s *Health) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode Health to nil")
+	}
+
+	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
+		switch string(k) {
+		case "status":
+			if err := func() error {
+				s.Status.Reset()
+				if err := s.Status.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"status\"")
+			}
+		default:
+			return d.Skip()
+		}
+		return nil
+	}); err != nil {
+		return errors.Wrap(err, "decode Health")
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *Health) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *Health) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode implements json.Marshaler.
 func (s *HostGroupIdListV1beta) Encode(e *jx.Encoder) {
 	e.ObjStart()
 	s.encodeFields(e)
@@ -2045,6 +2108,50 @@ func (s *HostGroupV1beta) UnmarshalJSON(data []byte) error {
 	return s.Decode(d)
 }
 
+// Encode encodes HostGroupV1betaOsType as json.
+func (s HostGroupV1betaOsType) Encode(e *jx.Encoder) {
+	e.Str(string(s))
+}
+
+// Decode decodes HostGroupV1betaOsType from json.
+func (s *HostGroupV1betaOsType) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode HostGroupV1betaOsType to nil")
+	}
+	v, err := d.StrBytes()
+	if err != nil {
+		return err
+	}
+	// Try to use constant string.
+	switch HostGroupV1betaOsType(v) {
+	case HostGroupV1betaOsTypeOSTYPEUNSPECIFIED:
+		*s = HostGroupV1betaOsTypeOSTYPEUNSPECIFIED
+	case HostGroupV1betaOsTypeLINUX:
+		*s = HostGroupV1betaOsTypeLINUX
+	case HostGroupV1betaOsTypeWINDOWS:
+		*s = HostGroupV1betaOsTypeWINDOWS
+	case HostGroupV1betaOsTypeESXI:
+		*s = HostGroupV1betaOsTypeESXI
+	default:
+		*s = HostGroupV1betaOsType(v)
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s HostGroupV1betaOsType) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *HostGroupV1betaOsType) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
 // Encode encodes HostGroupV1betaState as json.
 func (s HostGroupV1betaState) Encode(e *jx.Encoder) {
 	e.Str(string(s))
@@ -2129,50 +2236,6 @@ func (s HostGroupV1betaType) MarshalJSON() ([]byte, error) {
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
 func (s *HostGroupV1betaType) UnmarshalJSON(data []byte) error {
-	d := jx.DecodeBytes(data)
-	return s.Decode(d)
-}
-
-// Encode encodes HostOSTypeV1beta as json.
-func (s HostOSTypeV1beta) Encode(e *jx.Encoder) {
-	e.Str(string(s))
-}
-
-// Decode decodes HostOSTypeV1beta from json.
-func (s *HostOSTypeV1beta) Decode(d *jx.Decoder) error {
-	if s == nil {
-		return errors.New("invalid: unable to decode HostOSTypeV1beta to nil")
-	}
-	v, err := d.StrBytes()
-	if err != nil {
-		return err
-	}
-	// Try to use constant string.
-	switch HostOSTypeV1beta(v) {
-	case HostOSTypeV1betaOSTYPEUNSPECIFIED:
-		*s = HostOSTypeV1betaOSTYPEUNSPECIFIED
-	case HostOSTypeV1betaLINUX:
-		*s = HostOSTypeV1betaLINUX
-	case HostOSTypeV1betaWINDOWS:
-		*s = HostOSTypeV1betaWINDOWS
-	case HostOSTypeV1betaESXI:
-		*s = HostOSTypeV1betaESXI
-	default:
-		*s = HostOSTypeV1beta(v)
-	}
-
-	return nil
-}
-
-// MarshalJSON implements stdjson.Marshaler.
-func (s HostOSTypeV1beta) MarshalJSON() ([]byte, error) {
-	e := jx.Encoder{}
-	s.Encode(&e)
-	return e.Bytes(), nil
-}
-
-// UnmarshalJSON implements stdjson.Unmarshaler.
-func (s *HostOSTypeV1beta) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }
@@ -3220,18 +3283,18 @@ func (s *OptBlockPropertiesV1beta) UnmarshalJSON(data []byte) error {
 	return s.Decode(d)
 }
 
-// Encode encodes BlockVolumeOSTypeV1beta as json.
-func (o OptBlockVolumeOSTypeV1beta) Encode(e *jx.Encoder) {
+// Encode encodes BlockPropertiesV1betaOsType as json.
+func (o OptBlockPropertiesV1betaOsType) Encode(e *jx.Encoder) {
 	if !o.Set {
 		return
 	}
 	e.Str(string(o.Value))
 }
 
-// Decode decodes BlockVolumeOSTypeV1beta from json.
-func (o *OptBlockVolumeOSTypeV1beta) Decode(d *jx.Decoder) error {
+// Decode decodes BlockPropertiesV1betaOsType from json.
+func (o *OptBlockPropertiesV1betaOsType) Decode(d *jx.Decoder) error {
 	if o == nil {
-		return errors.New("invalid: unable to decode OptBlockVolumeOSTypeV1beta to nil")
+		return errors.New("invalid: unable to decode OptBlockPropertiesV1betaOsType to nil")
 	}
 	o.Set = true
 	if err := o.Value.Decode(d); err != nil {
@@ -3241,14 +3304,14 @@ func (o *OptBlockVolumeOSTypeV1beta) Decode(d *jx.Decoder) error {
 }
 
 // MarshalJSON implements stdjson.Marshaler.
-func (s OptBlockVolumeOSTypeV1beta) MarshalJSON() ([]byte, error) {
+func (s OptBlockPropertiesV1betaOsType) MarshalJSON() ([]byte, error) {
 	e := jx.Encoder{}
 	s.Encode(&e)
 	return e.Bytes(), nil
 }
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
-func (s *OptBlockVolumeOSTypeV1beta) UnmarshalJSON(data []byte) error {
+func (s *OptBlockPropertiesV1betaOsType) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }

@@ -774,7 +774,7 @@ paths:
       summary: Get the server health status
       description: Returns the server health status
       tags:
-      - health
+        - health
       responses:
         '200':
           description: OK

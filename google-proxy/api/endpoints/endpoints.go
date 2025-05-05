@@ -2,6 +2,7 @@ package api
 
 import (
 	"context"
+
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator"
 	oasgenserver "github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/api/gcp-servergen"
 )
@@ -12,5 +13,5 @@ type Handler struct {
 }
 
 func (h Handler) GetHealth(ctx context.Context) (oasgenserver.GetHealthRes, error) {
-	return &oasgenserver.GetHealthOK{}, nil
+	return &oasgenserver.Health{}, nil
 }

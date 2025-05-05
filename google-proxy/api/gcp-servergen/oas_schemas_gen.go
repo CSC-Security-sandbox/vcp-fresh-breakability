@@ -98,14 +98,14 @@ func (s *BackupConfigV1beta) SetBackupChainBytes(val OptNilInt64) {
 
 // Ref: #/components/schemas/BlockProperties_v1beta
 type BlockPropertiesV1beta struct {
-	OsType OptBlockVolumeOSTypeV1beta `json:"osType"`
+	OsType OptBlockPropertiesV1betaOsType `json:"osType"`
 	// List of UUID v4 used to identify the HostGroups. A volume can be mapped to multiple HostGroups as
 	// long as each HostGroup has a distinct set of hosts.
 	HostGroupIds []string `json:"hostGroupIds"`
 }
 
 // GetOsType returns the value of OsType.
-func (s *BlockPropertiesV1beta) GetOsType() OptBlockVolumeOSTypeV1beta {
+func (s *BlockPropertiesV1beta) GetOsType() OptBlockPropertiesV1betaOsType {
 	return s.OsType
 }
 
@@ -115,7 +115,7 @@ func (s *BlockPropertiesV1beta) GetHostGroupIds() []string {
 }
 
 // SetOsType sets the value of OsType.
-func (s *BlockPropertiesV1beta) SetOsType(val OptBlockVolumeOSTypeV1beta) {
+func (s *BlockPropertiesV1beta) SetOsType(val OptBlockPropertiesV1betaOsType) {
 	s.OsType = val
 }
 
@@ -124,38 +124,35 @@ func (s *BlockPropertiesV1beta) SetHostGroupIds(val []string) {
 	s.HostGroupIds = val
 }
 
-// Specifies the OS type for the new Block Volume. The Block volume will be used with the selected OS
-// type.
-// Ref: #/components/schemas/BlockVolumeOSType_v1beta
-type BlockVolumeOSTypeV1beta string
+type BlockPropertiesV1betaOsType string
 
 const (
-	BlockVolumeOSTypeV1betaOSTYPEUNSPECIFIED BlockVolumeOSTypeV1beta = "OS_TYPE_UNSPECIFIED"
-	BlockVolumeOSTypeV1betaLINUX             BlockVolumeOSTypeV1beta = "LINUX"
-	BlockVolumeOSTypeV1betaWINDOWS           BlockVolumeOSTypeV1beta = "WINDOWS"
-	BlockVolumeOSTypeV1betaESXI              BlockVolumeOSTypeV1beta = "ESXI"
+	BlockPropertiesV1betaOsTypeOSTYPEUNSPECIFIED BlockPropertiesV1betaOsType = "OS_TYPE_UNSPECIFIED"
+	BlockPropertiesV1betaOsTypeLINUX             BlockPropertiesV1betaOsType = "LINUX"
+	BlockPropertiesV1betaOsTypeWINDOWS           BlockPropertiesV1betaOsType = "WINDOWS"
+	BlockPropertiesV1betaOsTypeESXI              BlockPropertiesV1betaOsType = "ESXI"
 )
 
-// AllValues returns all BlockVolumeOSTypeV1beta values.
-func (BlockVolumeOSTypeV1beta) AllValues() []BlockVolumeOSTypeV1beta {
-	return []BlockVolumeOSTypeV1beta{
-		BlockVolumeOSTypeV1betaOSTYPEUNSPECIFIED,
-		BlockVolumeOSTypeV1betaLINUX,
-		BlockVolumeOSTypeV1betaWINDOWS,
-		BlockVolumeOSTypeV1betaESXI,
+// AllValues returns all BlockPropertiesV1betaOsType values.
+func (BlockPropertiesV1betaOsType) AllValues() []BlockPropertiesV1betaOsType {
+	return []BlockPropertiesV1betaOsType{
+		BlockPropertiesV1betaOsTypeOSTYPEUNSPECIFIED,
+		BlockPropertiesV1betaOsTypeLINUX,
+		BlockPropertiesV1betaOsTypeWINDOWS,
+		BlockPropertiesV1betaOsTypeESXI,
 	}
 }
 
 // MarshalText implements encoding.TextMarshaler.
-func (s BlockVolumeOSTypeV1beta) MarshalText() ([]byte, error) {
+func (s BlockPropertiesV1betaOsType) MarshalText() ([]byte, error) {
 	switch s {
-	case BlockVolumeOSTypeV1betaOSTYPEUNSPECIFIED:
+	case BlockPropertiesV1betaOsTypeOSTYPEUNSPECIFIED:
 		return []byte(s), nil
-	case BlockVolumeOSTypeV1betaLINUX:
+	case BlockPropertiesV1betaOsTypeLINUX:
 		return []byte(s), nil
-	case BlockVolumeOSTypeV1betaWINDOWS:
+	case BlockPropertiesV1betaOsTypeWINDOWS:
 		return []byte(s), nil
-	case BlockVolumeOSTypeV1betaESXI:
+	case BlockPropertiesV1betaOsTypeESXI:
 		return []byte(s), nil
 	default:
 		return nil, errors.Errorf("invalid value: %q", s)
@@ -163,19 +160,19 @@ func (s BlockVolumeOSTypeV1beta) MarshalText() ([]byte, error) {
 }
 
 // UnmarshalText implements encoding.TextUnmarshaler.
-func (s *BlockVolumeOSTypeV1beta) UnmarshalText(data []byte) error {
-	switch BlockVolumeOSTypeV1beta(data) {
-	case BlockVolumeOSTypeV1betaOSTYPEUNSPECIFIED:
-		*s = BlockVolumeOSTypeV1betaOSTYPEUNSPECIFIED
+func (s *BlockPropertiesV1betaOsType) UnmarshalText(data []byte) error {
+	switch BlockPropertiesV1betaOsType(data) {
+	case BlockPropertiesV1betaOsTypeOSTYPEUNSPECIFIED:
+		*s = BlockPropertiesV1betaOsTypeOSTYPEUNSPECIFIED
 		return nil
-	case BlockVolumeOSTypeV1betaLINUX:
-		*s = BlockVolumeOSTypeV1betaLINUX
+	case BlockPropertiesV1betaOsTypeLINUX:
+		*s = BlockPropertiesV1betaOsTypeLINUX
 		return nil
-	case BlockVolumeOSTypeV1betaWINDOWS:
-		*s = BlockVolumeOSTypeV1betaWINDOWS
+	case BlockPropertiesV1betaOsTypeWINDOWS:
+		*s = BlockPropertiesV1betaOsTypeWINDOWS
 		return nil
-	case BlockVolumeOSTypeV1betaESXI:
-		*s = BlockVolumeOSTypeV1betaESXI
+	case BlockPropertiesV1betaOsTypeESXI:
+		*s = BlockPropertiesV1betaOsTypeESXI
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
@@ -626,11 +623,6 @@ type GetHealthNotFound Error
 
 func (*GetHealthNotFound) getHealthRes() {}
 
-// GetHealthOK is response for GetHealth operation.
-type GetHealthOK struct{}
-
-func (*GetHealthOK) getHealthRes() {}
-
 type GetHealthTooManyRequests Error
 
 func (*GetHealthTooManyRequests) getHealthRes() {}
@@ -638,6 +630,24 @@ func (*GetHealthTooManyRequests) getHealthRes() {}
 type GetHealthUnauthorized Error
 
 func (*GetHealthUnauthorized) getHealthRes() {}
+
+// Ref: #/components/schemas/Health
+type Health struct {
+	// Server health status.
+	Status OptString `json:"status"`
+}
+
+// GetStatus returns the value of Status.
+func (s *Health) GetStatus() OptString {
+	return s.Status
+}
+
+// SetStatus sets the value of Status.
+func (s *Health) SetStatus(val OptString) {
+	s.Status = val
+}
+
+func (*Health) getHealthRes() {}
 
 // Ref: #/components/schemas/hostGroupIdList_v1beta
 type HostGroupIdListV1beta struct {
@@ -700,8 +710,8 @@ type HostGroupV1beta struct {
 	// The type of initiators.
 	Type OptHostGroupV1betaType `json:"type"`
 	// List of iSCSI Qualified Names associated with this HostGroup.
-	Hosts  []string         `json:"hosts"`
-	OsType HostOSTypeV1beta `json:"osType"`
+	Hosts  []string              `json:"hosts"`
+	OsType HostGroupV1betaOsType `json:"osType"`
 }
 
 // GetHostGroupId returns the value of HostGroupId.
@@ -755,7 +765,7 @@ func (s *HostGroupV1beta) GetHosts() []string {
 }
 
 // GetOsType returns the value of OsType.
-func (s *HostGroupV1beta) GetOsType() HostOSTypeV1beta {
+func (s *HostGroupV1beta) GetOsType() HostGroupV1betaOsType {
 	return s.OsType
 }
 
@@ -810,11 +820,66 @@ func (s *HostGroupV1beta) SetHosts(val []string) {
 }
 
 // SetOsType sets the value of OsType.
-func (s *HostGroupV1beta) SetOsType(val HostOSTypeV1beta) {
+func (s *HostGroupV1beta) SetOsType(val HostGroupV1betaOsType) {
 	s.OsType = val
 }
 
 func (*HostGroupV1beta) v1betaDescribeHostGroupRes() {}
+
+type HostGroupV1betaOsType string
+
+const (
+	HostGroupV1betaOsTypeOSTYPEUNSPECIFIED HostGroupV1betaOsType = "OS_TYPE_UNSPECIFIED"
+	HostGroupV1betaOsTypeLINUX             HostGroupV1betaOsType = "LINUX"
+	HostGroupV1betaOsTypeWINDOWS           HostGroupV1betaOsType = "WINDOWS"
+	HostGroupV1betaOsTypeESXI              HostGroupV1betaOsType = "ESXI"
+)
+
+// AllValues returns all HostGroupV1betaOsType values.
+func (HostGroupV1betaOsType) AllValues() []HostGroupV1betaOsType {
+	return []HostGroupV1betaOsType{
+		HostGroupV1betaOsTypeOSTYPEUNSPECIFIED,
+		HostGroupV1betaOsTypeLINUX,
+		HostGroupV1betaOsTypeWINDOWS,
+		HostGroupV1betaOsTypeESXI,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s HostGroupV1betaOsType) MarshalText() ([]byte, error) {
+	switch s {
+	case HostGroupV1betaOsTypeOSTYPEUNSPECIFIED:
+		return []byte(s), nil
+	case HostGroupV1betaOsTypeLINUX:
+		return []byte(s), nil
+	case HostGroupV1betaOsTypeWINDOWS:
+		return []byte(s), nil
+	case HostGroupV1betaOsTypeESXI:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *HostGroupV1betaOsType) UnmarshalText(data []byte) error {
+	switch HostGroupV1betaOsType(data) {
+	case HostGroupV1betaOsTypeOSTYPEUNSPECIFIED:
+		*s = HostGroupV1betaOsTypeOSTYPEUNSPECIFIED
+		return nil
+	case HostGroupV1betaOsTypeLINUX:
+		*s = HostGroupV1betaOsTypeLINUX
+		return nil
+	case HostGroupV1betaOsTypeWINDOWS:
+		*s = HostGroupV1betaOsTypeWINDOWS
+		return nil
+	case HostGroupV1betaOsTypeESXI:
+		*s = HostGroupV1betaOsTypeESXI
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
 
 // The current lifecycle state of the HostGroup.
 type HostGroupV1betaState string
@@ -922,65 +987,6 @@ func (s *HostGroupV1betaType) UnmarshalText(data []byte) error {
 		return nil
 	case HostGroupV1betaTypeISCSIINITIATOR:
 		*s = HostGroupV1betaTypeISCSIINITIATOR
-		return nil
-	default:
-		return errors.Errorf("invalid value: %q", data)
-	}
-}
-
-// Specifies the operating system type for the HostGroup. The operating system type indicates the
-// type of host operating system used by all of the hosts in the HostGroup. All hosts in a HostGroup
-// must be of the same operating system type.
-// Ref: #/components/schemas/HostOSType_v1beta
-type HostOSTypeV1beta string
-
-const (
-	HostOSTypeV1betaOSTYPEUNSPECIFIED HostOSTypeV1beta = "OS_TYPE_UNSPECIFIED"
-	HostOSTypeV1betaLINUX             HostOSTypeV1beta = "LINUX"
-	HostOSTypeV1betaWINDOWS           HostOSTypeV1beta = "WINDOWS"
-	HostOSTypeV1betaESXI              HostOSTypeV1beta = "ESXI"
-)
-
-// AllValues returns all HostOSTypeV1beta values.
-func (HostOSTypeV1beta) AllValues() []HostOSTypeV1beta {
-	return []HostOSTypeV1beta{
-		HostOSTypeV1betaOSTYPEUNSPECIFIED,
-		HostOSTypeV1betaLINUX,
-		HostOSTypeV1betaWINDOWS,
-		HostOSTypeV1betaESXI,
-	}
-}
-
-// MarshalText implements encoding.TextMarshaler.
-func (s HostOSTypeV1beta) MarshalText() ([]byte, error) {
-	switch s {
-	case HostOSTypeV1betaOSTYPEUNSPECIFIED:
-		return []byte(s), nil
-	case HostOSTypeV1betaLINUX:
-		return []byte(s), nil
-	case HostOSTypeV1betaWINDOWS:
-		return []byte(s), nil
-	case HostOSTypeV1betaESXI:
-		return []byte(s), nil
-	default:
-		return nil, errors.Errorf("invalid value: %q", s)
-	}
-}
-
-// UnmarshalText implements encoding.TextUnmarshaler.
-func (s *HostOSTypeV1beta) UnmarshalText(data []byte) error {
-	switch HostOSTypeV1beta(data) {
-	case HostOSTypeV1betaOSTYPEUNSPECIFIED:
-		*s = HostOSTypeV1betaOSTYPEUNSPECIFIED
-		return nil
-	case HostOSTypeV1betaLINUX:
-		*s = HostOSTypeV1betaLINUX
-		return nil
-	case HostOSTypeV1betaWINDOWS:
-		*s = HostOSTypeV1betaWINDOWS
-		return nil
-	case HostOSTypeV1betaESXI:
-		*s = HostOSTypeV1betaESXI
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
@@ -1658,38 +1664,38 @@ func (o OptBlockPropertiesV1beta) Or(d BlockPropertiesV1beta) BlockPropertiesV1b
 	return d
 }
 
-// NewOptBlockVolumeOSTypeV1beta returns new OptBlockVolumeOSTypeV1beta with value set to v.
-func NewOptBlockVolumeOSTypeV1beta(v BlockVolumeOSTypeV1beta) OptBlockVolumeOSTypeV1beta {
-	return OptBlockVolumeOSTypeV1beta{
+// NewOptBlockPropertiesV1betaOsType returns new OptBlockPropertiesV1betaOsType with value set to v.
+func NewOptBlockPropertiesV1betaOsType(v BlockPropertiesV1betaOsType) OptBlockPropertiesV1betaOsType {
+	return OptBlockPropertiesV1betaOsType{
 		Value: v,
 		Set:   true,
 	}
 }
 
-// OptBlockVolumeOSTypeV1beta is optional BlockVolumeOSTypeV1beta.
-type OptBlockVolumeOSTypeV1beta struct {
-	Value BlockVolumeOSTypeV1beta
+// OptBlockPropertiesV1betaOsType is optional BlockPropertiesV1betaOsType.
+type OptBlockPropertiesV1betaOsType struct {
+	Value BlockPropertiesV1betaOsType
 	Set   bool
 }
 
-// IsSet returns true if OptBlockVolumeOSTypeV1beta was set.
-func (o OptBlockVolumeOSTypeV1beta) IsSet() bool { return o.Set }
+// IsSet returns true if OptBlockPropertiesV1betaOsType was set.
+func (o OptBlockPropertiesV1betaOsType) IsSet() bool { return o.Set }
 
 // Reset unsets value.
-func (o *OptBlockVolumeOSTypeV1beta) Reset() {
-	var v BlockVolumeOSTypeV1beta
+func (o *OptBlockPropertiesV1betaOsType) Reset() {
+	var v BlockPropertiesV1betaOsType
 	o.Value = v
 	o.Set = false
 }
 
 // SetTo sets value to v.
-func (o *OptBlockVolumeOSTypeV1beta) SetTo(v BlockVolumeOSTypeV1beta) {
+func (o *OptBlockPropertiesV1betaOsType) SetTo(v BlockPropertiesV1betaOsType) {
 	o.Set = true
 	o.Value = v
 }
 
 // Get returns value and boolean that denotes whether value was set.
-func (o OptBlockVolumeOSTypeV1beta) Get() (v BlockVolumeOSTypeV1beta, ok bool) {
+func (o OptBlockPropertiesV1betaOsType) Get() (v BlockPropertiesV1betaOsType, ok bool) {
 	if !o.Set {
 		return v, false
 	}
@@ -1697,7 +1703,7 @@ func (o OptBlockVolumeOSTypeV1beta) Get() (v BlockVolumeOSTypeV1beta, ok bool) {
 }
 
 // Or returns value if set, or given parameter if does not.
-func (o OptBlockVolumeOSTypeV1beta) Or(d BlockVolumeOSTypeV1beta) BlockVolumeOSTypeV1beta {
+func (o OptBlockPropertiesV1betaOsType) Or(d BlockPropertiesV1betaOsType) BlockPropertiesV1betaOsType {
 	if v, ok := o.Get(); ok {
 		return v
 	}
