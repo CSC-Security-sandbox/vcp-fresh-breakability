@@ -1,0 +1,322 @@
+package orchestrator
+
+import (
+	"context"
+	"database/sql"
+	"errors"
+	"fmt"
+	"strings"
+
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/workflows"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
+	customerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
+	workflowengine "github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/temporal"
+	"go.temporal.io/api/enums/v1"
+	"go.temporal.io/sdk/client"
+	"gorm.io/gorm"
+)
+
+var (
+	minQuotaInBytesVolume      = env.GetUint64("MIN_QUOTA_IN_BYTES_VOLUME", 107374182400)    // 100GiB
+	maxQuotaInBytesVolume      = env.GetUint64("MAX_QUOTA_IN_BYTES_VOLUME", 109951162777605) // 102,400 GiB
+	createVolume               = _createVolume
+	validateCreateVolumeParams = _validateCreateVolumeParams
+	getIPAddressForVolume      = _getIPAddressForVolume
+)
+
+// CreateVolume creates the specified volume and adds it to the list of volume belonging to the specified owner
+func (o *Orchestrator) CreateVolume(ctx context.Context, params *common.CreateVolumeParams) (*models.Volume, string, error) {
+	return createVolume(ctx, o.storage, o.temporal, params)
+}
+
+func _createVolume(ctx context.Context, se database.Storage, temporal client.Client, params *common.CreateVolumeParams) (*models.Volume, string, error) {
+	logger := utils.GetLoggerFromContext(ctx)
+
+	err := validateCreateVolumeParams(ctx, se, params)
+	if err != nil {
+		return nil, "", err
+	}
+
+	account, err := getOrCreateAccount(ctx, se, params.AccountName)
+	if err != nil {
+		return nil, "", err
+	}
+
+	pool, err := se.GetPool(ctx, params.PoolID)
+	if err != nil {
+		return nil, "", err
+	}
+
+	svm, err := se.GetSvmForPoolID(ctx, pool.ID)
+	if err != nil {
+		return nil, "", err
+	}
+
+	job := &datamodel.Job{
+		Type:         string(models.JobTypeCreateVolume),
+		State:        string(models.JobsStateNEW),
+		ResourceName: params.Name,
+		AccountID:    sql.NullInt64{Int64: account.ID, Valid: true},
+	}
+	createdJob, err := se.CreateJob(ctx, job)
+	if err != nil {
+		logger.Error("Failed to create job in database", "error", err)
+		return nil, "", err
+	}
+
+	dbVolume := &datamodel.Volume{
+		Name:        params.Name,
+		Account:     account,
+		AccountID:   account.ID,
+		SizeInBytes: int64(params.QuotaInBytes),
+		Description: params.Description,
+		PoolID:      pool.ID,
+		SvmID:       svm.ID,
+		Pool:        pool,
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			CreationToken:  params.CreationToken,
+			Protocols:      params.Protocols,
+			VendorSubnetID: params.Network,
+		},
+	}
+
+	if params.BlockProperties != nil {
+		dbVolume.VolumeAttributes.BlockProperties = &datamodel.BlockProperties{
+			OSType:         params.BlockProperties.OSType,
+			HostGroupUUIDs: params.BlockProperties.HostGroupUUIDs,
+		}
+	}
+
+	_, err = temporal.ExecuteWorkflow(context.Background(),
+		client.StartWorkflowOptions{
+			TaskQueue:             workflowengine.CustomerTaskQueue,
+			ID:                    createdJob.WorkflowID,
+			WorkflowIDReusePolicy: enums.WORKFLOW_ID_REUSE_POLICY_REJECT_DUPLICATE,
+		},
+		workflows.CreateVolumeWorkflow,
+		params,
+		dbVolume,
+	)
+
+	if err != nil {
+		logger.Error("Failed to start create volume workflow: ", "error", err)
+		return nil, "", err
+	}
+
+	dbVolume.State = models.LifeCycleStateCreating
+	dbVolume.State = models.LifeCycleStateCreatingDetails
+	return convertDatastoreVolumeToModel(dbVolume, nil), createdJob.UUID, nil
+}
+
+// GetVolume gets the specified volume
+func (o *Orchestrator) GetVolume(ctx context.Context, volumeId string) (*models.Volume, error) {
+	se := o.storage
+
+	volume, err := se.GetVolume(ctx, volumeId)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, errors.New("volume not found")
+		}
+		return nil, err
+	}
+
+	ipAddress, err := getIPAddressForVolume(ctx, se, volume)
+	if err != nil {
+		return nil, err
+	}
+
+	return convertDatastoreVolumeToModel(volume, &ipAddress), nil
+}
+
+func _getIPAddressForVolume(ctx context.Context, se database.Storage, volume *datamodel.Volume) (string, error) {
+	nodes, err := se.GetNodesByPoolID(ctx, volume.PoolID)
+	if err != nil {
+		return "", err
+	}
+
+	lif, err := se.GetLifForNode(ctx, nodes[0].ID, volume.AccountID)
+	if err != nil {
+		return "", err
+	}
+
+	return lif.IPAddress, nil
+}
+
+func _validateCreateVolumeParams(ctx context.Context, se database.Storage, params *common.CreateVolumeParams) error {
+	if params.QuotaInBytes < minQuotaInBytesVolume || params.QuotaInBytes > maxQuotaInBytesVolume {
+		return customerrors.NewUserInputValidationErr("volume size must be between 100 GiB and 102,400 GiB.")
+	}
+
+	pool, err := se.GetPool(ctx, params.PoolID)
+	if err != nil {
+		return err
+	}
+
+	if pool.State != models.LifeCycleStateAvailable {
+		return customerrors.NewUserInputValidationErr("pool is not available")
+	}
+
+	if params.Network == "" {
+		params.Network = pool.Network
+	} else if params.Network != pool.Network {
+		return customerrors.NewUserInputValidationErr("pool network and volume network should be same")
+	}
+
+	svm, err := se.GetSvmForPoolID(ctx, pool.ID)
+	if err != nil {
+		return err
+	}
+
+	if svm.State != models.LifeCycleStateAvailable {
+		return customerrors.NewUserInputValidationErr("svm is not available")
+	}
+
+	nodes, err := se.GetNodesByPoolID(ctx, pool.ID)
+	if err != nil {
+		if strings.Contains(err.Error(), "node not found") {
+			return customerrors.NewUserInputValidationErr("node not found")
+		}
+		return err
+	}
+
+	if len(nodes) < 2 {
+		return customerrors.NewUserInputValidationErr("required count of nodes not found")
+	}
+
+	for _, node := range nodes {
+		if node.State != models.LifeCycleStateAvailable {
+			return customerrors.NewUserInputValidationErr("node is not available")
+		}
+		lif, err := se.GetLifForNode(ctx, node.ID, node.AccountID)
+		if err != nil {
+			return err
+		}
+		if lif.Name == "" {
+			return customerrors.NewUserInputValidationErr(fmt.Sprintf("lif for node %s is not available", node.Name))
+		}
+	}
+
+	if params.BlockProperties != nil {
+		hostGroupUUIDs := params.BlockProperties.HostGroupUUIDs
+		if len(hostGroupUUIDs) == 0 {
+			return customerrors.NewUserInputValidationErr("HostGroup UUIDs are required")
+		}
+		hostGroups, err := se.GetMultipleHostGroups(ctx, params.BlockProperties.HostGroupUUIDs, pool.Account.ID)
+		if err != nil {
+			return err
+		}
+		if len(params.BlockProperties.HostGroupUUIDs) != len(hostGroups) {
+			return customerrors.NewUserInputValidationErr("could not find some of the host groups, please check the hostgroup details and try with valid host group names.")
+		}
+		for _, hostGroup := range hostGroups {
+			if hostGroup.State != models.LifeCycleStateREADY {
+				return customerrors.NewUserInputValidationErr(fmt.Sprintf("host group %s is not available", hostGroup.Name))
+			}
+		}
+	}
+	return nil
+}
+
+// CreateVolumeParams describes parameters supplied to CreatePool
+type CreateVolumeParams struct {
+	AccountName     string
+	Region          string
+	Name            string
+	Description     string
+	VendorSubnetID  string
+	PoolID          string
+	VendorID        string
+	CreationToken   string
+	DisplayName     string
+	QuotaInBytes    uint64
+	Protocols       []string
+	BlockProperties *models.BlockProperties
+}
+
+func convertDatastoreVolumeToModel(volume *datamodel.Volume, ipAddress *string) *models.Volume {
+	res := &models.Volume{
+		BaseModel: models.BaseModel{
+			UUID:      volume.UUID,
+			CreatedAt: volume.CreatedAt,
+			UpdatedAt: volume.UpdatedAt,
+			DeletedAt: DeletedAtOrNil(volume.DeletedAt),
+		},
+		PoolID:                volume.Pool.UUID,
+		PoolName:              volume.Pool.Name,
+		AccountName:           volume.Account.Name,
+		DisplayName:           volume.Name,
+		Description:           volume.Description,
+		QuotaInBytes:          uint64(volume.SizeInBytes),
+		LifeCycleState:        volume.State,
+		LifeCycleStateDetails: volume.StateDetails,
+	}
+	attributes := volume.VolumeAttributes
+	res.VendorSubnetID = attributes.VendorSubnetID
+	res.CreationToken = attributes.CreationToken
+	res.ProtocolTypes = attributes.Protocols
+
+	if attributes.BlockProperties != nil {
+		res.BlockProperties = &models.BlockProperties{
+			OSType:         attributes.BlockProperties.OSType,
+			HostGroupUUIDs: attributes.BlockProperties.HostGroupUUIDs,
+		}
+	}
+
+	if ipAddress != nil {
+		res.IPAddress = *ipAddress
+	}
+
+	return res
+}
+
+func (o *Orchestrator) DeleteVolume(ctx context.Context, volumeId string) (*models.Volume, string, error) {
+	logger := utils.GetLoggerFromContext(ctx)
+	se := o.storage
+
+	volume, err := se.GetVolume(ctx, volumeId)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, "", errors.New("volume not found")
+		}
+		return nil, "", err
+	}
+
+	if volume != nil && volume.State == models.LifeCycleStateDeleting {
+		return nil, "", errors.New("volume is already in deleting state")
+	}
+
+	job := &datamodel.Job{
+		Type:         string(models.JobTypeDeleteVolume),
+		State:        string(models.JobsStateNEW),
+		ResourceName: volume.Name,
+		AccountID:    sql.NullInt64{Int64: volume.Account.ID, Valid: true},
+	}
+	createdJob, err := se.CreateJob(ctx, job)
+	if err != nil {
+		logger.Error("Failed to create volume delete job in database", "error", err)
+		return nil, "", err
+	}
+
+	_, err = o.temporal.ExecuteWorkflow(context.Background(),
+		client.StartWorkflowOptions{
+			TaskQueue:             workflowengine.CustomerTaskQueue,
+			ID:                    createdJob.WorkflowID,
+			WorkflowIDReusePolicy: enums.WORKFLOW_ID_REUSE_POLICY_REJECT_DUPLICATE,
+		},
+		workflows.DeleteVolumeWorkflow,
+		volume,
+	)
+	if err != nil {
+		logger.Error("Failed to start delete volume workflow: ", "error", err)
+		return nil, "", err
+	}
+
+	volume.State = models.LifeCycleStateDeleting
+	volume.StateDetails = models.LifeCycleStateDeletingDetails
+	return convertDatastoreVolumeToModel(volume, nil), createdJob.UUID, nil
+}

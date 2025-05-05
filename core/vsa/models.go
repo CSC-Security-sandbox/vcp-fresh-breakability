@@ -82,5 +82,4 @@ type LunMapCreateParams struct {
 	LunName    string
 	SvmName    string
 	IGroupName []string
-	LunNumber  int
 }

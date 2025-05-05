@@ -27,7 +27,7 @@ func (rc *OntapRestProvider) CreateVolume(params CreateVolumeParams) (*ProviderR
 	}
 
 	// Validate the Volume response to avoid nil pointer dereferences
-	if vol == nil || vol.Name == nil {
+	if vol == nil || vol.Name == nil || vol.UUID == nil {
 		return nil, errors.New("invalid Volume response from API")
 	}
 

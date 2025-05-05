@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	ontapRest "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/ontap-rest"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 )
 
 var (
@@ -93,10 +94,37 @@ func (rc *OntapRestProvider) LunMapCreate(params LunMapCreateParams) error {
 			LunName:    params.LunName,
 			SvmName:    params.SvmName,
 			IGroupName: params.IGroupName[i],
-			LunNumber:  &params.LunNumber,
 		}); err != nil {
 			return err
 		}
 	}
 	return nil
+}
+
+// IgroupGet creates an initiator group by calling the ONTAP REST Client
+func (rc *OntapRestProvider) IgroupGet(name, svmName string) (*ontapRest.Igroup, error) {
+	client := getOntapClientFunc(rc.ClientParams)
+	iGroup, err := client.SAN().IGroupGet(&ontapRest.IgroupGetParams{
+		Name:    &name,
+		SvmName: svmName,
+	})
+	if err != nil {
+		return nil, err
+	}
+	return iGroup, nil
+}
+
+func (rc *OntapRestProvider) IgroupExists(name, svm string) (bool, error) {
+	res, err := rc.IgroupGet(name, svm)
+	if err != nil {
+		if errors.IsNotFoundErr(err) {
+			return false, nil
+		}
+		return false, err
+	}
+	if res == nil {
+		return false, nil
+	}
+
+	return true, nil
 }

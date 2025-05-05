@@ -1012,24 +1012,6 @@ paths:
           $ref: '#/components/responses/StandardError-429'
         '500':
           $ref: '#/components/responses/StandardError-500'
-        "501":
-          description: Not implemented
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-              example:
-                code: 501
-                message: Not Implemented
-        "503":
-          description: Service unavailable
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-              example:
-                code: 503
-                message: Service is currently unavailable
         default:
           description: Unexpected error
           content:

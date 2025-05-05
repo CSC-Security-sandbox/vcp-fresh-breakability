@@ -1786,9 +1786,6 @@ func volumeCreateParamsToONTAP(params *VolumeCreateParams) *storage.VolumeCreate
 		Guarantee: &models.VolumeInlineGuarantee{
 			Type: nillable.ToPointer(GuaranteeTypeNone),
 		},
-		SnapshotPolicy: &models.VolumeInlineSnapshotPolicy{
-			Name: &params.SnapshotPolicy,
-		},
 		Space: &models.VolumeInlineSpace{
 			LogicalSpace: &models.VolumeInlineSpaceInlineLogicalSpace{
 				Enforcement: nillable.ToPointer(true),
@@ -1971,6 +1968,9 @@ func lunCreateParamsToONTAP(params *LunCreateParams) *san.LunCreateParams {
 		},
 		Space: &models.LunInlineSpace{
 			Size: &params.Size,
+			Guarantee: &models.LunInlineSpaceInlineGuarantee{
+				Requested: nillable.ToPointer(true),
+			},
 		},
 	})
 	otParams.SetReturnTimeout(&returnTimeout)
@@ -1983,7 +1983,6 @@ type LunMapCreateParams struct {
 	IGroupName string
 	LunName    string
 	SvmName    string
-	LunNumber  *int
 }
 
 // lunMapCreateParamsToONTAP converts LunMapCreateParams to ONTAP API parameters.
@@ -1991,11 +1990,6 @@ func lunMapCreateParamsToONTAP(params *LunMapCreateParams) *san.LunMapCreatePara
 	otParams := san.NewLunMapCreateParams()
 	if params == nil {
 		return otParams
-	}
-
-	var lunNumber *int64
-	if params.LunNumber != nil {
-		lunNumber = nillable.ToPointer(int64(*params.LunNumber))
 	}
 
 	otParams.SetInfo(&models.LunMap{
@@ -2008,7 +2002,6 @@ func lunMapCreateParamsToONTAP(params *LunMapCreateParams) *san.LunMapCreatePara
 		Svm: &models.LunMapInlineSvm{
 			Name: &params.SvmName,
 		},
-		LogicalUnitNumber: lunNumber,
 	})
 	return otParams
 }
@@ -2050,5 +2043,28 @@ func igroupCreateParamsToONTAP(params *IgroupCreateParams) *san.IgroupCreatePara
 		Svm:                    &models.IgroupInlineSvm{Name: &params.SvmName},
 	})
 	otParams.SetReturnRecords(nillable.ToPointer("true"))
+	return otParams
+}
+
+// IgroupGetParams is the input parameter for getting Igroups
+type IgroupGetParams struct {
+	BaseParams
+	SvmName string
+	Name    *string
+}
+
+// igroupGetParamsToONTAP converts IgroupGetParams to ONTAP API parameters.
+func igroupGetParamsToONTAP(params *IgroupGetParams) *san.IgroupCollectionGetParams {
+	otParams := san.NewIgroupCollectionGetParams()
+	if params == nil {
+		return otParams
+	}
+
+	otParams.SetName(params.Name)
+	otParams.SetSvmName(&params.SvmName)
+	otParams.SetMaxRecords(getConstrainedMaxRecords(params.MaxRecords))
+
+	// MD: It's a GET call why is there return_timeout ??
+	otParams.SetReturnTimeout(returnTimeoutNoJob)
 	return otParams
 }

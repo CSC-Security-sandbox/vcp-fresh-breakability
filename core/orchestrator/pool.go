@@ -5,7 +5,6 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
-	"gorm.io/gorm"
 	"strings"
 	"time"
 
@@ -23,6 +22,7 @@ import (
 	workflowengine "github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/temporal"
 	"go.temporal.io/api/enums/v1"
 	"go.temporal.io/sdk/client"
+	"gorm.io/gorm"
 )
 
 var (
@@ -239,7 +239,7 @@ func CreateNetworkIpRoute(provider vsa.Provider, svmName string, gateway string)
 
 // CreateDataLifForSvm creates LIFs for each node associated with the given SVM.
 func CreateDataLifForSvm(ctx context.Context, se database.Storage, provider vsa.Provider, cluster []map[string]string, pool *datamodel.Pool, svm *datamodel.Svm) error {
-	nodes, err := se.GetNodeByPoolID(ctx, pool.ID)
+	nodes, err := se.GetNodesByPoolID(ctx, pool.ID)
 	if err != nil {
 		return err
 	}
@@ -335,6 +335,9 @@ func (o *Orchestrator) GetPool(ctx context.Context, poolId string) (*models.Pool
 
 	pool, err := se.GetPool(ctx, poolId)
 	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, customerrors.NewUserInputValidationErr("pool not found")
+		}
 		return nil, err
 	}
 

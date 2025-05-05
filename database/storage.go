@@ -82,7 +82,7 @@ func SetupInMemoryDB() (*gorm.DB, error) {
 	}
 
 	// Perform any necessary migrations or setup here
-	err = db.AutoMigrate(&datamodel.Pool{}, &datamodel.Volume{}, &datamodel.Account{})
+	err = db.AutoMigrate(&datamodel.Pool{}, &datamodel.Volume{}, &datamodel.Account{}, &datamodel.Svm{}, &datamodel.Node{})
 	if err != nil {
 		return nil, err
 	}
@@ -361,7 +361,7 @@ func (s *PersistenceStore) SavePoolWithVsaClusterDetails(ctx context.Context, po
 	return s.dataStore.SavePoolWithVsaClusterDetails(ctx, poolName, accountName, cluster)
 }
 
-func (s *PersistenceStore) CreateVolume(ctx context.Context, volume *datamodel.Volume) error {
+func (s *PersistenceStore) CreateVolume(ctx context.Context, volume *datamodel.Volume) (*datamodel.Volume, error) {
 	return s.dataStore.CreateVolume(ctx, volume)
 }
 
@@ -373,8 +373,12 @@ func (s *PersistenceStore) UpdateVolume(ctx context.Context, volume *datamodel.V
 	return s.dataStore.UpdateVolume(ctx, volume)
 }
 
-func (s *PersistenceStore) DeleteVolume(ctx context.Context, id string) error {
+func (s *PersistenceStore) DeleteVolume(ctx context.Context, id string) (*datamodel.Volume, error) {
 	return s.dataStore.DeleteVolume(ctx, id)
+}
+
+func (s *PersistenceStore) UpdateVolumeState(ctx context.Context, id string, state string, stateDetails string) (*datamodel.Volume, error) {
+	return s.dataStore.UpdateVolumeState(ctx, id, state, stateDetails)
 }
 
 func (s *PersistenceStore) ListVolumes(ctx context.Context) ([]*datamodel.Volume, error) {
@@ -405,12 +409,16 @@ func (s *PersistenceStore) GetPoolByVendorID(ctx context.Context, vendorID strin
 	return s.dataStore.GetPoolByVendorID(ctx, vendorID)
 }
 
+func (s *PersistenceStore) GetSvmForPoolID(ctx context.Context, poolID int64) (*datamodel.Svm, error) {
+	return s.dataStore.GetSvmForPoolID(ctx, poolID)
+}
+
 func (s *PersistenceStore) CreateNode(ctx context.Context, node *datamodel.Node) (*datamodel.Node, error) {
 	return s.dataStore.CreateNode(ctx, node)
 }
 
-func (s *PersistenceStore) GetNodeByPoolID(ctx context.Context, poolID int64) ([]*datamodel.Node, error) {
-	return s.dataStore.GetNodeByPoolID(ctx, poolID)
+func (s *PersistenceStore) GetNodesByPoolID(ctx context.Context, poolID int64) ([]*datamodel.Node, error) {
+	return s.dataStore.GetNodesByPoolID(ctx, poolID)
 }
 
 func (s *PersistenceStore) CreateSVM(ctx context.Context, svm *datamodel.Svm) (*datamodel.Svm, error) {
@@ -419,4 +427,20 @@ func (s *PersistenceStore) CreateSVM(ctx context.Context, svm *datamodel.Svm) (*
 
 func (s *PersistenceStore) CreateLif(ctx context.Context, lif *datamodel.Lif) (*datamodel.Lif, error) {
 	return s.dataStore.CreateLif(ctx, lif)
+}
+
+func (s *PersistenceStore) GetLifForNode(ctx context.Context, nodeID int64, accountID int64) (*datamodel.Lif, error) {
+	return s.dataStore.GetLifForNode(ctx, nodeID, accountID)
+}
+
+func (s *PersistenceStore) GetHostGroup(ctx context.Context, hostGroupUUID string, accountID int64) (*datamodel.HostGroup, error) {
+	return s.dataStore.GetHostGroup(ctx, hostGroupUUID, accountID)
+}
+
+func (s *PersistenceStore) CreateHostGroup(ctx context.Context, hostGroup *datamodel.HostGroup) (*datamodel.HostGroup, error) {
+	return s.dataStore.CreateHostGroup(ctx, hostGroup)
+}
+
+func (s *PersistenceStore) GetMultipleHostGroups(ctx context.Context, ids []string, accountID int64) ([]*datamodel.HostGroup, error) {
+	return s.dataStore.GetMultipleHostGroups(ctx, ids, accountID)
 }

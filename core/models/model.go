@@ -5,22 +5,23 @@ import (
 )
 
 const (
-	LifeCycleStateCreating   = "creating"
-	LifeCycleStateOngoing    = "ongoing"
-	LifeCycleStateReverting  = "reverting"
-	LifeCycleStateUndeleting = "undeleting"
-	LifeCycleStateCompleted  = "completed"
-	LifeCycleStateRestoring  = "restoring"
-	LifeCycleStateSplitting  = "splitting"
-	LifeCycleStateAvailable  = "available"
-	LifeCycleStateDisabled   = "disabled"
-	LifeCycleStateDisabling  = "disabling"
-	LifeCycleStateEnabling   = "enabling"
-	LifeCycleStateUpdating   = "updating"
-	LifeCycleStateDeleting   = "deleting"
-	LifeCycleStateDeleted    = "deleted"
-	LifeCycleStateError      = "error"
-	LifeCycleStateRetained   = "retained"
+	LifeCycleStateCreating   = "CREATING"
+	LifeCycleStateOngoing    = "ONGOING"
+	LifeCycleStateReverting  = "REVERTING"
+	LifeCycleStateUndeleting = "UNDELETING"
+	LifeCycleStateCompleted  = "COMPLETED"
+	LifeCycleStateRestoring  = "RESTORING"
+	LifeCycleStateSplitting  = "SPLITTING"
+	LifeCycleStateAvailable  = "AVAILABLE"
+	LifeCycleStateREADY      = "READY"
+	LifeCycleStateDisabled   = "DISABLED"
+	LifeCycleStateDisabling  = "DISABLING"
+	LifeCycleStateEnabling   = "ENABLING"
+	LifeCycleStateUpdating   = "UPDATING"
+	LifeCycleStateDeleting   = "DELETING"
+	LifeCycleStateDeleted    = "DELETED"
+	LifeCycleStateError      = "ERROR"
+	LifeCycleStateRetained   = "RETAINED"
 
 	LifeCycleStateCreatingDetails   = "Creation in progress"
 	LifeCycleStateRevertingDetails  = "Revert in progress"
@@ -39,15 +40,6 @@ const (
 	AccountStateDisabled = "DISABLED"
 	AccountStateEnabled  = "ENABLED"
 )
-
-// Volume represents a single volume resource
-type Volume struct {
-	BaseModel
-	Name         string
-	Description  string
-	State        string
-	StateDetails string
-}
 
 // SVM represents a single SVM resource
 type SVM struct {

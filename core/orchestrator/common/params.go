@@ -1,5 +1,7 @@
 package common
 
+import "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
+
 // CreatePoolParams describes parameters supplied to CreatingPool
 type CreatePoolParams struct {
 	AccountName             string
@@ -32,4 +34,33 @@ type TenancyInfo struct {
 	Network               string
 	SubnetworkName        string
 	SnHostProject         string
+}
+
+// HostParams FixMe: remove this once HostGroup table is created
+type HostParams struct {
+	HostName string
+	HostIQNs []string
+	OsType   string
+}
+
+// CreateVolumeParams describes parameters supplied to CreatePool
+type CreateVolumeParams struct {
+	AccountName     string
+	Region          string
+	Name            string
+	Description     string
+	Network         string
+	PoolID          string
+	VendorID        string
+	CreationToken   string
+	DisplayName     string
+	QuotaInBytes    uint64
+	Protocols       []string
+	BlockProperties *models.BlockProperties
+}
+
+type CreateLunMapParams struct {
+	LunName   string
+	SvmName   string
+	HostNames []string
 }

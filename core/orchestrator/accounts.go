@@ -22,6 +22,7 @@ func _getOrCreateAccount(ctx context.Context, se database.Storage, accountName s
 	account, err := getAccountWithName(ctx, se, accountName)
 	if err == nil {
 		if account.DeletedAt != nil || account.State == models.AccountStateDisabled {
+			// Resurrect account
 			return nil, errors.New("account is disabled")
 		}
 		return account, nil

@@ -88,15 +88,46 @@ func (cd ClusterDetails) Value() (driver.Value, error) {
 
 type Volume struct {
 	BaseModel
-	Name             string   `gorm:"column:name"`
-	Description      string   `gorm:"column:description"`
-	State            string   `gorm:"column:state"`
-	StateDetails     string   `gorm:"column:state_details"`
-	VolumeAttributes JSONB    `gorm:"column:volume_attributes;type:jsonb"`
-	AccountID        int64    `gorm:"column:account_id"`
-	Account          *Account `gorm:"ForeignKey:AccountID;AssociationForeignKey:ID;constraint:OnDelete:CASCADE,OnUpdate:RESTRICT;"`
-	PoolID           int64    `gorm:"column:pool_id"`
-	Pool             *Pool    `gorm:"ForeignKey:PoolID;AssociationForeignKey:ID;constraint:OnDelete:CASCADE,OnUpdate:RESTRICT;"`
+	Name             string            `gorm:"column:name"`
+	Description      string            `gorm:"column:description"`
+	State            string            `gorm:"column:state"`
+	StateDetails     string            `gorm:"column:state_details"`
+	Health           string            `gorm:"column:health"`
+	MountPath        string            `gorm:"column:mount_path"`
+	SizeInBytes      int64             `gorm:"column:size_in_bytes"`
+	Throughput       int64             `gorm:"column:throughput"`
+	AccountID        int64             `gorm:"column:account_id"`
+	PoolID           int64             `gorm:"column:pool_id"`
+	SvmID            int64             `gorm:"column:svm_id"`
+	Account          *Account          `gorm:"ForeignKey:AccountID;AssociationForeignKey:ID;constraint:OnDelete:CASCADE,OnUpdate:RESTRICT;"`
+	Pool             *Pool             `gorm:"ForeignKey:PoolID;AssociationForeignKey:ID;constraint:OnDelete:CASCADE,OnUpdate:RESTRICT;"`
+	Svm              *Svm              `gorm:"ForeignKey:SvmID;AssociationForeignKey:ID;constraint:OnDelete:CASCADE,OnUpdate:RESTRICT;"`
+	VolumeAttributes *VolumeAttributes `gorm:"column:volume_attributes;type:jsonb"`
+}
+
+type VolumeAttributes struct {
+	CreationToken   string           `json:"creation_token"`
+	Protocols       []string         `json:"protocols"`
+	VendorSubnetID  string           `json:"vendor_subnet_id"`
+	ExternalUUID    string           `json:"external_uuid"`
+	BlockProperties *BlockProperties `json:"block_properties"`
+}
+
+type BlockProperties struct {
+	OSType         string
+	HostGroupUUIDs []string
+}
+
+func (v *VolumeAttributes) Scan(value interface{}) error {
+	bytes, ok := value.([]byte)
+	if !ok {
+		return errors.New("type assertion to []byte failed")
+	}
+	return json.Unmarshal(bytes, v)
+}
+
+func (v *VolumeAttributes) Value() (driver.Value, error) {
+	return json.Marshal(v)
 }
 
 type Svm struct {
@@ -218,4 +249,33 @@ func (nd NodeDetails) Scan(value interface{}) error {
 
 func (nd NodeDetails) Value() (driver.Value, error) {
 	return json.Marshal(nd)
+}
+
+type HostGroup struct {
+	BaseModel
+	Name          string   `gorm:"column:name"`
+	Description   string   `gorm:"column:description"`
+	HostGroupType string   `gorm:"column:host_group_type"`
+	OSType        string   `gorm:"column:os_type"`
+	Hosts         Hosts    `gorm:"column:hosts;type:jsonb"`
+	State         string   `gorm:"column:state"`
+	StateDetails  string   `gorm:"column:state_details"`
+	AccountID     int64    `gorm:"column:account_id"`
+	Account       *Account `gorm:"ForeignKey:AccountID;AssociationForeignKey:ID;constraint:OnDelete:CASCADE,OnUpdate:RESTRICT;"`
+}
+
+type Hosts struct {
+	Hosts []string `json:"hosts"`
+}
+
+func (h *Hosts) Scan(value interface{}) error {
+	bytes, ok := value.([]byte)
+	if !ok {
+		return errors.New("type assertion to []byte failed")
+	}
+	return json.Unmarshal(bytes, &h)
+}
+
+func (h Hosts) Value() (driver.Value, error) {
+	return json.Marshal(h)
 }

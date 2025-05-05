@@ -57,10 +57,11 @@ type DataStore interface {
 	GetPoolByVendorID(ctx context.Context, vendorID string) (*datamodel.Pool, error)
 	SavePoolWithVsaClusterDetails(ctx context.Context, poolName string, accountName string, cluster *datamodel.ClusterDetails) error
 
-	CreateVolume(ctx context.Context, volume *datamodel.Volume) error
+	CreateVolume(ctx context.Context, volume *datamodel.Volume) (*datamodel.Volume, error)
 	GetVolume(ctx context.Context, id string) (*datamodel.Volume, error)
 	UpdateVolume(ctx context.Context, volume *datamodel.Volume) error
-	DeleteVolume(ctx context.Context, id string) error
+	DeleteVolume(ctx context.Context, id string) (*datamodel.Volume, error)
+	UpdateVolumeState(ctx context.Context, id string, state string, stateDetails string) (*datamodel.Volume, error)
 	ListVolumes(ctx context.Context) ([]*datamodel.Volume, error)
 
 	GetAccount(ctx context.Context, name string) (*datamodel.Account, error)
@@ -70,10 +71,17 @@ type DataStore interface {
 	UpdateJob(ctx context.Context, jobID string, status string) error
 	GetJob(ctx context.Context, jobID string) (*datamodel.Job, error)
 
-	GetNodeByPoolID(ctx context.Context, poolId int64) ([]*datamodel.Node, error)
+	GetSvmForPoolID(ctx context.Context, poolID int64) (*datamodel.Svm, error)
+
+	GetNodesByPoolID(ctx context.Context, poolId int64) ([]*datamodel.Node, error)
 	CreateNode(ctx context.Context, node *datamodel.Node) (*datamodel.Node, error)
 
 	CreateSVM(ctx context.Context, svm *datamodel.Svm) (*datamodel.Svm, error)
 
 	CreateLif(ctx context.Context, lif *datamodel.Lif) (*datamodel.Lif, error)
+	GetLifForNode(ctx context.Context, nodeID int64, accountID int64) (*datamodel.Lif, error)
+
+	CreateHostGroup(ctx context.Context, hostGroup *datamodel.HostGroup) (*datamodel.HostGroup, error)
+	GetHostGroup(ctx context.Context, id string, accountID int64) (*datamodel.HostGroup, error)
+	GetMultipleHostGroups(ctx context.Context, ids []string, accountID int64) ([]*datamodel.HostGroup, error)
 }

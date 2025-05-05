@@ -3,6 +3,7 @@ package repository
 import (
 	"context"
 	"errors"
+	customerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"time"
 
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
@@ -11,11 +12,15 @@ import (
 	"gorm.io/gorm"
 )
 
-func (d *DataStoreRepository) GetNodeByPoolID(ctx context.Context, poolID int64) ([]*datamodel.Node, error) {
+func (d *DataStoreRepository) GetNodesByPoolID(ctx context.Context, poolID int64) ([]*datamodel.Node, error) {
+	return getNodesByPoolID(d.db.GORM().WithContext(ctx), poolID)
+}
+
+func getNodesByPoolID(db *gorm.DB, poolID int64) ([]*datamodel.Node, error) {
 	var nodes []*datamodel.Node
-	err := d.db.GORM().WithContext(ctx).Where("pool_id = ?", poolID).Find(&nodes).Error
+	err := db.Where("pool_id = ?", poolID).Find(&nodes).Error
 	if err != nil {
-		return nil, err
+		return nil, customerrors.ConvertToNotFoundErrIfContainsMessage(err, "record not found", "node", nil)
 	}
 	return nodes, nil
 }

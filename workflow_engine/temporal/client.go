@@ -4,12 +4,12 @@ import (
 	"context"
 	"crypto/tls"
 	"fmt"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database"
 	"os"
 	"time"
 
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/workflows"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database"
 	_ "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/postgres"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine"
@@ -83,8 +83,13 @@ func (t *TemporalWorkflowEngine) GetTemporalClient() client.Client {
 
 func registerWorkflowsAndActivities(worker worker.Worker, dbcon database.Storage) {
 	worker.RegisterWorkflow(workflows.CreatePoolWorkflow)
+	worker.RegisterWorkflow(workflows.CreateVolumeWorkflow)
+	worker.RegisterWorkflow(workflows.DeleteVolumeWorkflow)
+
 	worker.RegisterActivity(&activities.CommonActivities{SE: &dbcon})
 	worker.RegisterActivity(&activities.PoolActivity{SE: &dbcon})
+	worker.RegisterActivity(&activities.VolumeCreateActivity{SE: &dbcon})
+	worker.RegisterActivity(&activities.VolumeDeleteActivity{SE: &dbcon})
 }
 
 // CreateClientOptionsFromEnv creates a client.Options instance, configures

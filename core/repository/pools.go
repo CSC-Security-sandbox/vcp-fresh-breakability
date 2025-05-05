@@ -9,6 +9,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	gormWrapper "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/gorm"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
+	customerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"gorm.io/gorm"
 )
 
@@ -87,7 +88,7 @@ func _getPoolWithDetails(db *gorm.DB, query *datamodel.Pool) (*datamodel.Pool, e
 	pool := &datamodel.Pool{}
 	err := db.Preload("Account").First(&pool, query).Error
 	if err != nil {
-		return nil, err
+		return nil, customerrors.ConvertToNotFoundErrIfContainsMessage(err, "record not found", "pool", nil)
 	}
 	return pool, nil
 }

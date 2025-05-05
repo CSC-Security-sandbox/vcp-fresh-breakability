@@ -24,6 +24,8 @@ type Provider interface {
 	CreateVolume(params CreateVolumeParams) (*ProviderResponse, error)
 	DeleteVolume(volumeUUID, volumeName string) error
 	IgroupCreate(params IgroupCreateParams) (string, error)
+	IgroupGet(name, svm string) (*ontapRest.Igroup, error)
+	IgroupExists(name, svm string) (bool, error)
 	LunCreate(params LunCreateParams) (*ProviderResponse, error)
 	LunMapCreate(params LunMapCreateParams) error
 }

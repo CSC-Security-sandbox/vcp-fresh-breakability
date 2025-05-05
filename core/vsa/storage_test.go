@@ -151,7 +151,6 @@ func TestLunMapCreate_Success(t *testing.T) {
 		LunName:    "testLun",
 		SvmName:    "testSVM",
 		IGroupName: []string{"iGroupName1", "iGroupName2"},
-		LunNumber:  1,
 	}
 
 	mockSAN.On("LunMapCreate", mock.Anything).Return(nil)
@@ -178,7 +177,6 @@ func TestLunMapCreate_Error(t *testing.T) {
 		LunName:    "testLun",
 		SvmName:    "testSVM",
 		IGroupName: []string{"iGroupName1", "iGroupName2"},
-		LunNumber:  1,
 	}
 
 	mockSAN.On("LunMapCreate", mock.Anything).Return(errors.New("mapping error"))

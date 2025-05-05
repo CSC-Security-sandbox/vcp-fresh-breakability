@@ -17,7 +17,9 @@ const (
 type JobType string
 
 const (
-	JobTypeCreatePool JobType = "CREATE_POOL"
+	JobTypeCreatePool   JobType = "CREATE_POOL"
+	JobTypeCreateVolume JobType = "CREATE_VOLUME"
+	JobTypeDeleteVolume JobType = "DELETE_VOLUME"
 )
 
 // Job describes a job DB model

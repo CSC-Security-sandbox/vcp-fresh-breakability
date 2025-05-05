@@ -279,7 +279,7 @@ func (j *PoolActivity) CreateSvmForPool(ctx context.Context, pool *datamodel.Poo
 func (j *PoolActivity) CreateLifForSvm(ctx context.Context, node *models.Node, cluster []map[string]string, pool *datamodel.Pool, svm *datamodel.Svm) error {
 	provider := GetProviderByNode(node)
 	se := *j.SE
-	nodes, err := se.GetNodeByPoolID(ctx, pool.ID)
+	nodes, err := se.GetNodesByPoolID(ctx, pool.ID)
 	if err != nil {
 		return err
 	}
