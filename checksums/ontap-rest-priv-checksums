@@ -1,4 +1,6 @@
 3399234408 3630 ./client/o_n_t_a_p_p_r_i_v_a_t_e_r_e_s_t_client.go
+1406111094 5779 ./client/object_store/client_service_mock.go
+2604356952 9139 ./client/object_store/client_service_mock_test.go
 4281951868 5952 ./client/object_store/object_store_client.go
 3520252934 6722 ./client/object_store/s3_service_delete_parameters.go
 1547010008 8255 ./client/object_store/s3_service_delete_responses.go
@@ -16,6 +18,8 @@
 48907539 4269 ./client/operations/azure_update_config_responses.go
 2536987487 5110 ./client/operations/cifs_check_parameters.go
 1183304836 5133 ./client/operations/cifs_check_responses.go
+3358295637 14716 ./client/operations/client_service_mock.go
+1712763592 14309 ./client/operations/client_service_mock_test.go
 657326810 5577 ./client/operations/cluster_peer_create_parameters.go
 2679113514 7609 ./client/operations/cluster_peer_create_responses.go
 1584693143 5027 ./client/operations/gcp_kms_get_parameters.go

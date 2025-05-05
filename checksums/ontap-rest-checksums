@@ -1,3 +1,5 @@
+235501577 7929 ./client/cloud/client_service_mock.go
+549151734 10353 ./client/cloud/client_service_mock_test.go
 2897372413 12344 ./client/cloud/cloud_client.go
 2610786982 31127 ./client/cloud/cloud_target_collection_get_parameters.go
 3251196851 5961 ./client/cloud/cloud_target_collection_get_responses.go
@@ -5,6 +7,8 @@
 2309322657 14834 ./client/cloud/cloud_target_create_responses.go
 2059070643 8144 ./client/cloud/cloud_target_modify_parameters.go
 2307397372 12509 ./client/cloud/cloud_target_modify_responses.go
+1028234636 14564 ./client/cluster/client_service_mock.go
+4147123232 14348 ./client/cluster/client_service_mock_test.go
 3576127157 23577 ./client/cluster/cluster_client.go
 779611282 4649 ./client/cluster/cluster_get_parameters.go
 2297857103 5447 ./client/cluster/cluster_get_responses.go
@@ -74,6 +78,8 @@
 64993448 6578 ./client/n_a_s/cifs_share_modify_responses.go
 4190623759 34616 ./client/n_a_s/client_lock_delete_collection_parameters.go
 703254751 8827 ./client/n_a_s/client_lock_delete_collection_responses.go
+2302105999 49275 ./client/n_a_s/client_service_mock.go
+1650151534 34080 ./client/n_a_s/client_service_mock_test.go
 1040512029 23054 ./client/n_a_s/export_policy_collection_get_parameters.go
 3734176397 6717 ./client/n_a_s/export_policy_collection_get_responses.go
 603465958 5640 ./client/n_a_s/export_policy_create_parameters.go
@@ -166,6 +172,8 @@
 722839536 6785 ./client/name_services/unix_user_create_responses.go
 4224126979 4750 ./client/name_services/unix_user_delete_parameters.go
 2523610292 5122 ./client/name_services/unix_user_delete_responses.go
+3244529438 27581 ./client/networking/client_service_mock.go
+1299514992 21359 ./client/networking/client_service_mock_test.go
 1598800279 5831 ./client/networking/ip_service_policy_create_parameters.go
 984208515 9536 ./client/networking/ip_service_policy_create_responses.go
 3285359167 5198 ./client/networking/ip_service_policy_modify_parameters.go
@@ -214,6 +222,8 @@
 2852104055 5553 ./client/o_n_t_a_p_r_e_s_t_api_online_reference_client.go
 557256705 86538 ./client/object_store/buckets_collection_get_parameters.go
 3460810319 5838 ./client/object_store/buckets_collection_get_responses.go
+3014688507 22166 ./client/object_store/client_service_mock.go
+985443527 18746 ./client/object_store/client_service_mock_test.go
 1421658420 48829 ./client/object_store/object_store_client.go
 1882261316 6808 ./client/object_store/s3_bucket_create_parameters.go
 3022239296 15489 ./client/object_store/s3_bucket_create_responses.go
@@ -251,6 +261,8 @@
 2722873762 5023 ./client/object_store/s3_user_delete_responses.go
 3581546943 7123 ./client/object_store/s3_user_modify_parameters.go
 3997787606 7644 ./client/object_store/s3_user_modify_responses.go
+2700300359 16367 ./client/s_a_n/client_service_mock.go
+4201702259 15420 ./client/s_a_n/client_service_mock_test.go
 2183778934 63748 ./client/s_a_n/igroup_collection_get_parameters.go
 431728250 5684 ./client/s_a_n/igroup_collection_get_responses.go
 1465374368 5310 ./client/s_a_n/igroup_create_parameters.go
@@ -290,6 +302,8 @@
 3343373893 8922 ./client/security/azure_key_vault_modify_responses.go
 3212274800 8325 ./client/security/azure_key_vault_rekey_external_parameters.go
 739127868 10481 ./client/security/azure_key_vault_rekey_external_responses.go
+1154967056 29600 ./client/security/client_service_mock.go
+2044861366 22711 ./client/security/client_service_mock_test.go
 1115411137 6678 ./client/security/gcp_kms_create_parameters.go
 3626193853 9311 ./client/security/gcp_kms_create_responses.go
 3863271195 5604 ./client/security/gcp_kms_delete_parameters.go
@@ -329,6 +343,8 @@
 1823188647 6515 ./client/security/security_keystore_delete_responses.go
 298475478 6771 ./client/security/security_keystore_modify_parameters.go
 382166781 10830 ./client/security/security_keystore_modify_responses.go
+2520945678 11764 ./client/snapmirror/client_service_mock.go
+3450095627 12378 ./client/snapmirror/client_service_mock_test.go
 3600590755 46994 ./client/snapmirror/snapmirror_client.go
 893750297 39574 ./client/snapmirror/snapmirror_policy_delete_collection_parameters.go
 1251646849 12644 ./client/snapmirror/snapmirror_policy_delete_collection_responses.go
@@ -346,6 +362,8 @@
 1570446023 7998 ./client/storage/aggregate_collection_get_responses.go
 1738257397 8972 ./client/storage/aggregate_modify_parameters.go
 253480158 16967 ./client/storage/aggregate_modify_responses.go
+3250950940 45772 ./client/storage/client_service_mock.go
+2083842141 32074 ./client/storage/client_service_mock_test.go
 2759648782 9463 ./client/storage/cloud_store_create_parameters.go
 3284434536 9288 ./client/storage/cloud_store_create_responses.go
 2205773345 72332 ./client/storage/disk_collection_get_parameters.go
@@ -427,6 +445,8 @@
 723021238 5092 ./client/storage/volume_get_responses.go
 2094745395 23158 ./client/storage/volume_modify_parameters.go
 304290640 24479 ./client/storage/volume_modify_responses.go
+1700820988 16240 ./client/svm/client_service_mock.go
+2657374383 15204 ./client/svm/client_service_mock_test.go
 3725530053 43576 ./client/svm/svm_client.go
 1293273945 85239 ./client/svm/svm_collection_get_parameters.go
 2301978094 5453 ./client/svm/svm_collection_get_responses.go

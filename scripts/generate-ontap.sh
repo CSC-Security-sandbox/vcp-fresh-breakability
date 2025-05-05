@@ -5,7 +5,7 @@ set -e
 source generate-util.sh
 
 command_exists() {
-  command -v "$1" >/dev/null 2>&1
+  command -v "\$1" >/dev/null 2>&1
 }
 
 install_go_swagger() {
@@ -47,6 +47,22 @@ install_go_swagger() {
   fi
 }
 
+install_goimports() {
+  if ! command_exists "goimports"; then
+    echo "goimports is not installed. Installing goimports ..."
+
+    GO111MODULE=on go install golang.org/x/tools/cmd/goimports@latest
+    if [ $? -ne 0 ]; then
+      echo "Failed to install goimports"
+      exit 1
+    fi
+
+    echo "goimports installed successfully."
+  else
+    echo "goimports is already installed."
+  fi
+}
+
 generate_client_code() {
   local include_swagger_operations=$1
   local include_swagger_models=$2
@@ -65,6 +81,32 @@ generate_client_code() {
 
   gofmt -w .
   go mod tidy
+}
+
+generate_ontap_mocks() {
+  echo "Generating mocks for ONTAP REST API..."
+
+  go run ../../cmd/mock-generator client/cloud/cloud_client.go ClientService && mv client_service_mock.go client_service_mock_test.go client/cloud/
+  go run ../../cmd/mock-generator client/cluster/cluster_client.go ClientService && mv client_service_mock.go client_service_mock_test.go client/cluster/
+  go run ../../cmd/mock-generator client/n_a_s/nas_client.go ClientService && mv client_service_mock.go client_service_mock_test.go client/n_a_s/
+  go run ../../cmd/mock-generator client/networking/networking_client.go ClientService && mv client_service_mock.go client_service_mock_test.go client/networking/
+  go run ../../cmd/mock-generator client/object_store/object_store_client.go ClientService && mv client_service_mock.go client_service_mock_test.go client/object_store/
+  go run ../../cmd/mock-generator client/s_a_n/san_client.go ClientService && mv client_service_mock.go client_service_mock_test.go client/s_a_n/
+  go run ../../cmd/mock-generator client/security/security_client.go ClientService && mv client_service_mock.go client_service_mock_test.go client/security/
+  go run ../../cmd/mock-generator client/snapmirror/snapmirror_client.go ClientService && mv client_service_mock.go client_service_mock_test.go client/snapmirror/
+  go run ../../cmd/mock-generator client/storage/storage_client.go ClientService && mv client_service_mock.go client_service_mock_test.go client/storage/
+  go run ../../cmd/mock-generator client/svm/svm_client.go ClientService && mv client_service_mock.go client_service_mock_test.go client/svm/
+
+  echo "Generated mocks for ONTAP REST API."
+}
+
+generate_ontap_priv_mocks() {
+  echo "Generating mocks for private CLI passthrough ONTAP REST API..."
+
+  go run ../../../cmd/mock-generator client/object_store/object_store_client.go ClientService && mv client_service_mock.go client_service_mock_test.go client/object_store/
+  go run ../../../cmd/mock-generator client/operations/operations_client.go ClientService && mv client_service_mock.go client_service_mock_test.go client/operations/
+
+  echo "Generated mocks for private CLI passthrough ONTAP REST API."
 }
 
 # Generate client code for selective ONTAP REST API
@@ -86,6 +128,8 @@ generate_ontap() {
     sort -u swagger_models.txt > tempFile && mv tempFile swagger_models.txt
 
     generate_client_code true true
+
+    generate_ontap_mocks
 
     generate_ontap_checksums
 
@@ -115,6 +159,8 @@ generate_ontap_priv() {
 
     generate_client_code false false
 
+    generate_ontap_priv_mocks
+
     generate_ontap_priv_checksums
 
     mv newChecksumsFile.checksum ../../../checksums/ontap-rest-priv-checksums
@@ -127,6 +173,7 @@ generate_ontap_priv() {
 }
 
 install_go_swagger
+install_goimports
 
 generate_ontap
 generate_ontap_priv
