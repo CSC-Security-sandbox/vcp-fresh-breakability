@@ -2,7 +2,6 @@ package workflows
 
 import (
 	"strings"
-	"time"
 
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
@@ -17,12 +16,8 @@ import (
 )
 
 type PoolWorkflow struct {
-	// add fields needed for pool workflow
-	ID         string
-	customerID string
-	status     string
-	logger     log.Logger
-	SE         *database.Storage
+	BaseWorkflow
+	SE *database.Storage
 }
 
 type poolWorkflowStatus struct {
@@ -40,20 +35,20 @@ func CreatePoolWorkflow(ctx workflow.Context, params *common.CreatePoolParams, p
 	if err != nil {
 		return nil, err
 	}
-	poolWF.status = WorkflowStatusRunning
+	poolWF.Status = WorkflowStatusRunning
 	err = poolWF.UpdateJobStatus(ctx, string(models.JobsStatePROCESSING), nil)
 	if err != nil {
 		return nil, err
 	}
 	_, err = poolWF.Run(ctx, params, pool)
 	if err != nil {
-		poolWF.status = WorkflowStatusFailed
+		poolWF.Status = WorkflowStatusFailed
 		err = poolWF.UpdateJobStatus(ctx, string(models.JobsStateDONE), err)
 		if err != nil {
 			return nil, err
 		}
 	}
-	poolWF.status = WorkflowStatusCompleted
+	poolWF.Status = WorkflowStatusCompleted
 	err = poolWF.UpdateJobStatus(ctx, string(models.JobsStateDONE), nil)
 	return nil, err
 }
@@ -62,19 +57,19 @@ func (wf *PoolWorkflow) Setup(ctx workflow.Context, input interface{}) error {
 	createPoolParams := input.(*common.CreatePoolParams)
 	info := workflow.GetInfo(ctx)
 	wf.ID = info.WorkflowExecution.ID
-	wf.customerID = createPoolParams.AccountName
-	wf.status = "created"
-	wf.logger = log.With(
+	wf.CustomerID = createPoolParams.AccountName
+	wf.Status = "created"
+	wf.Logger = log.With(
 		workflow.GetLogger(ctx),
 		"workflowID", wf.ID,
-		"customerID", wf.customerID,
+		"customerID", wf.CustomerID,
 	)
 
 	return workflow.SetQueryHandler(ctx, "status", func() (*poolWorkflowStatus, error) {
 		return &poolWorkflowStatus{
 			ID:         wf.ID,
-			status:     wf.status,
-			customerID: wf.customerID,
+			status:     wf.Status,
+			customerID: wf.CustomerID,
 		}, nil
 	})
 }
@@ -182,22 +177,6 @@ func (wf *PoolWorkflow) Run(ctx workflow.Context, params *common.CreatePoolParam
 	}
 	err = workflow.ExecuteActivity(ctx, poolActivity.CreatedPool, dbPool).Get(ctx, nil)
 	return nil, err
-}
-
-func (poolWF *PoolWorkflow) UpdateJobStatus(ctx workflow.Context, status string, err error) error {
-	updatedJob := &datamodel.Job{
-		BaseModel: datamodel.BaseModel{UUID: poolWF.ID},
-		State:     status,
-	}
-	if err != nil {
-		updatedJob.ErrorDetails = []byte(err.Error())
-	}
-
-	commonActivity := activities.CommonActivities{}
-	ctx = workflow.WithActivityOptions(ctx, workflow.ActivityOptions{
-		ScheduleToCloseTimeout: 10 * time.Second,
-	})
-	return workflow.ExecuteActivity(ctx, commonActivity.UpdateJobStatus, updatedJob).Get(ctx, nil)
 }
 
 func (poolWF *PoolWorkflow) Revert(ctx workflow.Context) error {

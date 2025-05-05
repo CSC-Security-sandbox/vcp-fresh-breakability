@@ -13,11 +13,7 @@ import (
 )
 
 type volumeCreateWorkflow struct {
-	// add fields needed for volume workflow
-	ID         string
-	customerID string
-	status     string
-	logger     log.Logger
+	BaseWorkflow
 }
 
 type volumeCreateWorkflowStatus struct {
@@ -33,38 +29,41 @@ func CreateVolumeWorkflow(ctx workflow.Context, params *common.CreateVolumeParam
 	if err != nil {
 		return nil, err
 	}
-	volumeWf.status = WorkflowStatusRunning
-	// err = poolWF.UpdateStatus(ctx, string(models.JobsStatePROCESSING), "")
-	// if err != nil {
-	//	return nil, err
-	// }
+	volumeWf.Status = WorkflowStatusRunning
+	err = volumeWf.UpdateJobStatus(ctx, string(models.JobsStatePROCESSING), nil)
+	if err != nil {
+		return nil, err
+	}
 	_, err = volumeWf.Run(ctx, volume)
 	if err != nil {
-		volumeWf.status = WorkflowStatusFailed
+		volumeWf.Status = WorkflowStatusFailed
+		err = volumeWf.UpdateJobStatus(ctx, string(models.JobsStateDONE), err)
+		if err != nil {
+			return nil, err
+		}
 	}
-	// poolWF.status = WorkflowStatusCompleted
-	// err = poolWF.UpdateStatus(ctx, string(models.JobsStateDONE), "")
-	// if err != nil {
-	//	return nil, err
-	// }
+	volumeWf.Status = WorkflowStatusCompleted
+	err = volumeWf.UpdateJobStatus(ctx, string(models.JobsStateDONE), nil)
 	return nil, err
 }
 
 func (wf *volumeCreateWorkflow) Setup(ctx workflow.Context, input interface{}) error {
 	createPoolParams := input.(*common.CreateVolumeParams)
-	wf.customerID = createPoolParams.AccountName
-	wf.status = "created"
-	wf.logger = log.With(
+	info := workflow.GetInfo(ctx)
+	wf.ID = info.WorkflowExecution.ID
+	wf.CustomerID = createPoolParams.AccountName
+	wf.Status = "created"
+	wf.Logger = log.With(
 		workflow.GetLogger(ctx),
 		"workflowID", wf.ID,
-		"customerID", wf.customerID,
+		"customerID", wf.CustomerID,
 	)
 
 	return workflow.SetQueryHandler(ctx, "status", func() (*volumeCreateWorkflowStatus, error) {
 		return &volumeCreateWorkflowStatus{
 			ID:         wf.ID,
-			status:     wf.status,
-			customerID: wf.customerID,
+			status:     wf.Status,
+			customerID: wf.CustomerID,
 		}, nil
 	})
 }

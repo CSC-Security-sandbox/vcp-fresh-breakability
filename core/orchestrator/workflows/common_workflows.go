@@ -1,10 +1,12 @@
 package workflows
 
 import (
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
 	"strconv"
 	"time"
 
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
 	"go.temporal.io/sdk/log"
 	"go.temporal.io/sdk/workflow"
 )
@@ -44,7 +46,7 @@ type WorkflowRetryPolicy struct {
 type WorkflowInterface interface {
 	Setup(ctx workflow.Context, input interface{}) error
 	Run(ctx workflow.Context, args ...interface{}) (interface{}, error)
-	UpdateStatus(ctx workflow.Context, status string, error string) error
+	UpdateJobStatus(ctx workflow.Context, status string, err error) error
 	Revert(ctx workflow.Context) error
 }
 
@@ -62,13 +64,6 @@ func (bw *BaseWorkflow) Setup(ctx workflow.Context, input interface{}) error {
 	bw.CustomerID = input.(struct{ CustomerID string }).CustomerID
 	bw.Logger = workflow.GetLogger(ctx)
 
-	return nil
-}
-
-// UpdateStatus updates the workflow's status.
-func (bw *BaseWorkflow) UpdateStatus(ctx workflow.Context, status string, error string) error {
-	bw.Status = status
-	bw.Logger.Info("Workflow status updated", "status", status)
 	return nil
 }
 
@@ -118,4 +113,20 @@ func PopulateRetryPolicyParams() (*WorkflowRetryPolicy, error) {
 		MaximumInterval:     activityRetryMaxInterval,
 		MaximumAttempts:     activityRetryMaxAttempts,
 	}, nil
+}
+
+func (bw *BaseWorkflow) UpdateJobStatus(ctx workflow.Context, status string, err error) error {
+	updatedJob := &datamodel.Job{
+		BaseModel: datamodel.BaseModel{UUID: bw.ID},
+		State:     status,
+	}
+	if err != nil {
+		updatedJob.ErrorDetails = []byte(err.Error())
+	}
+
+	commonActivity := activities.CommonActivities{}
+	ctx = workflow.WithActivityOptions(ctx, workflow.ActivityOptions{
+		ScheduleToCloseTimeout: 10 * time.Second,
+	})
+	return workflow.ExecuteActivity(ctx, commonActivity.UpdateJobStatus, updatedJob).Get(ctx, nil)
 }

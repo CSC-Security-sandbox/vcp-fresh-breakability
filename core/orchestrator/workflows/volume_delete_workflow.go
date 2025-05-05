@@ -2,6 +2,7 @@ package workflows
 
 import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
 	gcpgenserver "github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/api/gcp-servergen"
 	"go.temporal.io/sdk/log"
@@ -11,10 +12,7 @@ import (
 
 type volumeDeleteWorkflow struct {
 	// add fields needed for volume workflow
-	ID         string
-	customerID string
-	status     string
-	logger     log.Logger
+	BaseWorkflow
 }
 
 type volumeDeleteWorkflowStatus struct {
@@ -30,38 +28,41 @@ func DeleteVolumeWorkflow(ctx workflow.Context, volume *datamodel.Volume) (gcpge
 	if err != nil {
 		return nil, err
 	}
-	volumeWf.status = WorkflowStatusRunning
-	// err = poolWF.UpdateStatus(ctx, string(models.JobsStatePROCESSING), "")
-	// if err != nil {
-	//	return nil, err
-	// }
+	volumeWf.Status = WorkflowStatusRunning
+	err = volumeWf.UpdateJobStatus(ctx, string(models.JobsStatePROCESSING), nil)
+	if err != nil {
+		return nil, err
+	}
 	_, err = volumeWf.Run(ctx, volume)
 	if err != nil {
-		volumeWf.status = WorkflowStatusFailed
+		volumeWf.Status = WorkflowStatusFailed
+		err = volumeWf.UpdateJobStatus(ctx, string(models.JobsStateDONE), err)
+		if err != nil {
+			return nil, err
+		}
 	}
-	// poolWF.status = WorkflowStatusCompleted
-	// err = poolWF.UpdateStatus(ctx, string(models.JobsStateDONE), "")
-	// if err != nil {
-	//	return nil, err
-	// }
+	volumeWf.Status = WorkflowStatusCompleted
+	err = volumeWf.UpdateJobStatus(ctx, string(models.JobsStateDONE), nil)
 	return nil, err
 }
 
 func (wf *volumeDeleteWorkflow) Setup(ctx workflow.Context, input interface{}) error {
 	volume := input.(*datamodel.Volume)
-	wf.customerID = volume.Account.Name
-	wf.status = "created"
-	wf.logger = log.With(
+	info := workflow.GetInfo(ctx)
+	wf.ID = info.WorkflowExecution.ID
+	wf.CustomerID = volume.Account.Name
+	wf.Status = "created"
+	wf.Logger = log.With(
 		workflow.GetLogger(ctx),
 		"workflowID", wf.ID,
-		"customerID", wf.customerID,
+		"customerID", wf.CustomerID,
 	)
 
 	return workflow.SetQueryHandler(ctx, "status", func() (*volumeDeleteWorkflowStatus, error) {
 		return &volumeDeleteWorkflowStatus{
 			ID:         wf.ID,
-			status:     wf.status,
-			customerID: wf.customerID,
+			status:     wf.Status,
+			customerID: wf.CustomerID,
 		}, nil
 	})
 }

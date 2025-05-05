@@ -12,7 +12,7 @@ type CommonActivities struct {
 	SE *database.Storage
 }
 
-// CommonActivities is a struct that represents the common activities for the orchestrator.
+// UpdateJobStatus updates the status of a job in the database.
 func (j CommonActivities) UpdateJobStatus(ctx context.Context, job *datamodel.Job) error {
 	se := *j.SE
 	return se.UpdateJob(ctx, job.UUID, job.State)
