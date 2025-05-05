@@ -44,10 +44,10 @@ func (j *PoolActivity) CreatingPool(ctx context.Context, pool *datamodel.Pool) (
 	return se.CreatePool(ctx, pool)
 }
 
-func (j *PoolActivity) FailedPool(ctx context.Context, pool *datamodel.Pool, err error) error {
+func (j *PoolActivity) FailedPool(ctx context.Context, pool *datamodel.Pool, errMessage string) error {
 	se := *j.SE
 	pool.State = models.LifeCycleStateError
-	pool.StateDetails = err.Error()
+	pool.StateDetails = errMessage
 	return se.UpdatePool(ctx, pool)
 }
 

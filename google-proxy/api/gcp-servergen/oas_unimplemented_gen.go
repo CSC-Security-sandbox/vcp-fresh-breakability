@@ -197,3 +197,11 @@ func (UnimplementedHandler) V1betaUpdatePool(ctx context.Context, req *PoolUpdat
 func (UnimplementedHandler) V1betaUpdateVolume(ctx context.Context, req *VolumeUpdateV1beta, params V1betaUpdateVolumeParams) (r V1betaUpdateVolumeRes, _ error) {
 	return r, ht.ErrNotImplemented
 }
+
+// NewError creates *ErrorStatusCode from error returned by handler.
+//
+// Used for common default response.
+func (UnimplementedHandler) NewError(ctx context.Context, err error) (r *ErrorStatusCode) {
+	r = new(ErrorStatusCode)
+	return r
+}

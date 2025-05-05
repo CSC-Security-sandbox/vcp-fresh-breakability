@@ -1722,7 +1722,7 @@ type V1betaDescribeOperationParams struct {
 	ProjectNumber string
 	// The location/region to perform the operation in.
 	LocationId string
-	// UUIDv4 used ot identity a long running operation.
+	// UUIDv4 used to identity a long running operation.
 	OperationId string
 	// Correlation identifier.
 	XCorrelationID OptString

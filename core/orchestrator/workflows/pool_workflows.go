@@ -112,7 +112,7 @@ func (wf *PoolWorkflow) Run(ctx workflow.Context, params *common.CreatePoolParam
 
 	defer func() {
 		if err != nil {
-			_ = workflow.ExecuteActivity(ctx, poolActivity.FailedPool, dbPool, err).Get(ctx, nil)
+			_ = workflow.ExecuteActivity(ctx, poolActivity.FailedPool, dbPool, err.Error()).Get(ctx, nil)
 		}
 	}()
 	var vsaCluster *[]map[string]string

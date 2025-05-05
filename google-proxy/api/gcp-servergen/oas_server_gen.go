@@ -133,6 +133,10 @@ type Handler interface {
 	//
 	// PUT /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}
 	V1betaUpdateVolume(ctx context.Context, req *VolumeUpdateV1beta, params V1betaUpdateVolumeParams) (V1betaUpdateVolumeRes, error)
+	// NewError creates *ErrorStatusCode from error returned by handler.
+	//
+	// Used for common default response.
+	NewError(ctx context.Context, err error) *ErrorStatusCode
 }
 
 // Server implements http server based on OpenAPI v3 specification and

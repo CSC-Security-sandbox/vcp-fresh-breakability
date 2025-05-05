@@ -1616,22 +1616,27 @@ paths:
               schema:
                 $ref: '#/components/schemas/Operation_v1beta'
               examples:
-                example1:
-                  done: true
-                  name: /v1beta/projects/123456789/locations/some-location1/operations/ba2c8826-2627-057c-42ba-343ee7ab1ebe
-                example2:
-                  done: false
-                  name: /v1beta/projects/123456789/locations/some-location1/operations/ba2c8826-2627-057c-42ba-343ee7ab1ebe
-                  response: Job is in progress
-                example3:
-                  done: true
-                  error:
-                    code: 400
-                    details: null
-                    message: Error when creating destination volume - Could not query
-                      DNS server. Verify that the network configuration is correct and
-                      that DNS servers are available.
-                  name: /v1beta/projects/123456789/locations/some-location1/operations/ba2c8826-2627-057c-42ba-343ee7ab1ebe
+                successExample:
+                  summary: Successful operation
+                  value:
+                    done: true
+                    name: /v1beta/projects/123456789/locations/some-location1/operations/ba2c8826-2627-057c-42ba-343ee7ab1ebe
+                inProgressExample:
+                  summary: Operation in progress
+                  value:
+                    done: false
+                    name: /v1beta/projects/123456789/locations/some-location1/operations/ba2c8826-2627-057c-42ba-343ee7ab1ebe
+                failedExample:
+                  summary: Failed operation
+                  value:
+                    done: true
+                    error:
+                      code: 400
+                      details: null
+                      message: Error when creating destination volume - Could not query
+                        DNS server. Verify that the network configuration is correct and
+                        that DNS servers are available.
+                    name: /v1beta/projects/123456789/locations/some-location1/operations/ba2c8826-2627-057c-42ba-343ee7ab1ebe
         '400':
           $ref: '#/components/responses/StandardError-400'
         '401':
@@ -1650,8 +1655,10 @@ paths:
           $ref: '#/components/responses/StandardError-503'
         default:
           description: Unexpected error
-          schema:
-            $ref: '#/components/schemas/Error'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
 components:
   schemas:
     Health:
@@ -3675,7 +3682,6 @@ components:
     operationIdPathParameter:
       name: operationId
       in: path
-      type: string
       description: UUIDv4 used to identity a long running operation
       schema:
         pattern: ^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$
