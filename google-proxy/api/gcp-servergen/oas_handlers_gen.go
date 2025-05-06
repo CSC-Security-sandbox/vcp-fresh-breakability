@@ -504,6 +504,182 @@ func (s *Server) handleV1betaCreatePoolRequest(args [2]string, argsEscaped bool,
 	}
 }
 
+// handleV1betaCreateReplicationRequest handles v1beta_createReplication operation.
+//
+// Create a new volume replication.
+//
+// POST /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeResourceId}/replications
+func (s *Server) handleV1betaCreateReplicationRequest(args [3]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
+	statusWriter := &codeRecorder{ResponseWriter: w}
+	w = statusWriter
+	otelAttrs := []attribute.KeyValue{
+		otelogen.OperationID("v1beta_createReplication"),
+		semconv.HTTPRequestMethodKey.String("POST"),
+		semconv.HTTPRouteKey.String("/v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeResourceId}/replications"),
+	}
+
+	// Start a span for this request.
+	ctx, span := s.cfg.Tracer.Start(r.Context(), V1betaCreateReplicationOperation,
+		trace.WithAttributes(otelAttrs...),
+		serverSpanKind,
+	)
+	defer span.End()
+
+	// Add Labeler to context.
+	labeler := &Labeler{attrs: otelAttrs}
+	ctx = contextWithLabeler(ctx, labeler)
+
+	// Run stopwatch.
+	startTime := time.Now()
+	defer func() {
+		elapsedDuration := time.Since(startTime)
+
+		attrSet := labeler.AttributeSet()
+		attrs := attrSet.ToSlice()
+		code := statusWriter.status
+		if code != 0 {
+			codeAttr := semconv.HTTPResponseStatusCode(code)
+			attrs = append(attrs, codeAttr)
+			span.SetAttributes(codeAttr)
+		}
+		attrOpt := metric.WithAttributes(attrs...)
+
+		// Increment request counter.
+		s.requests.Add(ctx, 1, attrOpt)
+
+		// Use floating point division here for higher precision (instead of Millisecond method).
+		s.duration.Record(ctx, float64(elapsedDuration)/float64(time.Millisecond), attrOpt)
+	}()
+
+	var (
+		recordError = func(stage string, err error) {
+			span.RecordError(err)
+
+			// https://opentelemetry.io/docs/specs/semconv/http/http-spans/#status
+			// Span Status MUST be left unset if HTTP status code was in the 1xx, 2xx or 3xx ranges,
+			// unless there was another error (e.g., network error receiving the response body; or 3xx codes with
+			// max redirects exceeded), in which case status MUST be set to Error.
+			code := statusWriter.status
+			if code >= 100 && code < 500 {
+				span.SetStatus(codes.Error, stage)
+			}
+
+			attrSet := labeler.AttributeSet()
+			attrs := attrSet.ToSlice()
+			if code != 0 {
+				attrs = append(attrs, semconv.HTTPResponseStatusCode(code))
+			}
+
+			s.errors.Add(ctx, 1, metric.WithAttributes(attrs...))
+		}
+		err          error
+		opErrContext = ogenerrors.OperationContext{
+			Name: V1betaCreateReplicationOperation,
+			ID:   "v1beta_createReplication",
+		}
+	)
+	params, err := decodeV1betaCreateReplicationParams(args, argsEscaped, r)
+	if err != nil {
+		err = &ogenerrors.DecodeParamsError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeParams", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+	request, close, err := s.decodeV1betaCreateReplicationRequest(r)
+	if err != nil {
+		err = &ogenerrors.DecodeRequestError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeRequest", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+	defer func() {
+		if err := close(); err != nil {
+			recordError("CloseRequest", err)
+		}
+	}()
+
+	var response V1betaCreateReplicationRes
+	if m := s.cfg.Middleware; m != nil {
+		mreq := middleware.Request{
+			Context:          ctx,
+			OperationName:    V1betaCreateReplicationOperation,
+			OperationSummary: "Create a new replication",
+			OperationID:      "v1beta_createReplication",
+			Body:             request,
+			Params: middleware.Parameters{
+				{
+					Name: "projectNumber",
+					In:   "path",
+				}: params.ProjectNumber,
+				{
+					Name: "locationId",
+					In:   "path",
+				}: params.LocationId,
+				{
+					Name: "volumeResourceId",
+					In:   "path",
+				}: params.VolumeResourceId,
+				{
+					Name: "x-correlation-id",
+					In:   "header",
+				}: params.XCorrelationID,
+			},
+			Raw: r,
+		}
+
+		type (
+			Request  = *ReplicationCreateV1beta
+			Params   = V1betaCreateReplicationParams
+			Response = V1betaCreateReplicationRes
+		)
+		response, err = middleware.HookMiddleware[
+			Request,
+			Params,
+			Response,
+		](
+			m,
+			mreq,
+			unpackV1betaCreateReplicationParams,
+			func(ctx context.Context, request Request, params Params) (response Response, err error) {
+				response, err = s.h.V1betaCreateReplication(ctx, request, params)
+				return response, err
+			},
+		)
+	} else {
+		response, err = s.h.V1betaCreateReplication(ctx, request, params)
+	}
+	if err != nil {
+		if errRes, ok := errors.Into[*ErrorStatusCode](err); ok {
+			if err := encodeErrorResponse(errRes, w, span); err != nil {
+				defer recordError("Internal", err)
+			}
+			return
+		}
+		if errors.Is(err, ht.ErrNotImplemented) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+			return
+		}
+		if err := encodeErrorResponse(s.h.NewError(ctx, err), w, span); err != nil {
+			defer recordError("Internal", err)
+		}
+		return
+	}
+
+	if err := encodeV1betaCreateReplicationResponse(response, w, span); err != nil {
+		defer recordError("EncodeResponse", err)
+		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+		}
+		return
+	}
+}
+
 // handleV1betaCreateVolumeRequest handles v1beta_createVolume operation.
 //
 // Create a new empty volume or a volume from a backup/snapshot if backup-ID/snapshot-ID is in the
@@ -993,6 +1169,186 @@ func (s *Server) handleV1betaDeletePoolRequest(args [3]string, argsEscaped bool,
 	}
 
 	if err := encodeV1betaDeletePoolResponse(response, w, span); err != nil {
+		defer recordError("EncodeResponse", err)
+		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+		}
+		return
+	}
+}
+
+// handleV1betaDeleteReplicationRequest handles v1beta_deleteReplication operation.
+//
+// Delete replication.
+//
+// DELETE /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeResourceId}/replications/{replicationResourceId}
+func (s *Server) handleV1betaDeleteReplicationRequest(args [4]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
+	statusWriter := &codeRecorder{ResponseWriter: w}
+	w = statusWriter
+	otelAttrs := []attribute.KeyValue{
+		otelogen.OperationID("v1beta_deleteReplication"),
+		semconv.HTTPRequestMethodKey.String("DELETE"),
+		semconv.HTTPRouteKey.String("/v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeResourceId}/replications/{replicationResourceId}"),
+	}
+
+	// Start a span for this request.
+	ctx, span := s.cfg.Tracer.Start(r.Context(), V1betaDeleteReplicationOperation,
+		trace.WithAttributes(otelAttrs...),
+		serverSpanKind,
+	)
+	defer span.End()
+
+	// Add Labeler to context.
+	labeler := &Labeler{attrs: otelAttrs}
+	ctx = contextWithLabeler(ctx, labeler)
+
+	// Run stopwatch.
+	startTime := time.Now()
+	defer func() {
+		elapsedDuration := time.Since(startTime)
+
+		attrSet := labeler.AttributeSet()
+		attrs := attrSet.ToSlice()
+		code := statusWriter.status
+		if code != 0 {
+			codeAttr := semconv.HTTPResponseStatusCode(code)
+			attrs = append(attrs, codeAttr)
+			span.SetAttributes(codeAttr)
+		}
+		attrOpt := metric.WithAttributes(attrs...)
+
+		// Increment request counter.
+		s.requests.Add(ctx, 1, attrOpt)
+
+		// Use floating point division here for higher precision (instead of Millisecond method).
+		s.duration.Record(ctx, float64(elapsedDuration)/float64(time.Millisecond), attrOpt)
+	}()
+
+	var (
+		recordError = func(stage string, err error) {
+			span.RecordError(err)
+
+			// https://opentelemetry.io/docs/specs/semconv/http/http-spans/#status
+			// Span Status MUST be left unset if HTTP status code was in the 1xx, 2xx or 3xx ranges,
+			// unless there was another error (e.g., network error receiving the response body; or 3xx codes with
+			// max redirects exceeded), in which case status MUST be set to Error.
+			code := statusWriter.status
+			if code >= 100 && code < 500 {
+				span.SetStatus(codes.Error, stage)
+			}
+
+			attrSet := labeler.AttributeSet()
+			attrs := attrSet.ToSlice()
+			if code != 0 {
+				attrs = append(attrs, semconv.HTTPResponseStatusCode(code))
+			}
+
+			s.errors.Add(ctx, 1, metric.WithAttributes(attrs...))
+		}
+		err          error
+		opErrContext = ogenerrors.OperationContext{
+			Name: V1betaDeleteReplicationOperation,
+			ID:   "v1beta_deleteReplication",
+		}
+	)
+	params, err := decodeV1betaDeleteReplicationParams(args, argsEscaped, r)
+	if err != nil {
+		err = &ogenerrors.DecodeParamsError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeParams", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+	request, close, err := s.decodeV1betaDeleteReplicationRequest(r)
+	if err != nil {
+		err = &ogenerrors.DecodeRequestError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeRequest", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+	defer func() {
+		if err := close(); err != nil {
+			recordError("CloseRequest", err)
+		}
+	}()
+
+	var response V1betaDeleteReplicationRes
+	if m := s.cfg.Middleware; m != nil {
+		mreq := middleware.Request{
+			Context:          ctx,
+			OperationName:    V1betaDeleteReplicationOperation,
+			OperationSummary: "Delete replication",
+			OperationID:      "v1beta_deleteReplication",
+			Body:             request,
+			Params: middleware.Parameters{
+				{
+					Name: "projectNumber",
+					In:   "path",
+				}: params.ProjectNumber,
+				{
+					Name: "locationId",
+					In:   "path",
+				}: params.LocationId,
+				{
+					Name: "volumeResourceId",
+					In:   "path",
+				}: params.VolumeResourceId,
+				{
+					Name: "replicationResourceId",
+					In:   "path",
+				}: params.ReplicationResourceId,
+				{
+					Name: "x-correlation-id",
+					In:   "header",
+				}: params.XCorrelationID,
+			},
+			Raw: r,
+		}
+
+		type (
+			Request  = *ReplicationDeleteV1beta
+			Params   = V1betaDeleteReplicationParams
+			Response = V1betaDeleteReplicationRes
+		)
+		response, err = middleware.HookMiddleware[
+			Request,
+			Params,
+			Response,
+		](
+			m,
+			mreq,
+			unpackV1betaDeleteReplicationParams,
+			func(ctx context.Context, request Request, params Params) (response Response, err error) {
+				response, err = s.h.V1betaDeleteReplication(ctx, request, params)
+				return response, err
+			},
+		)
+	} else {
+		response, err = s.h.V1betaDeleteReplication(ctx, request, params)
+	}
+	if err != nil {
+		if errRes, ok := errors.Into[*ErrorStatusCode](err); ok {
+			if err := encodeErrorResponse(errRes, w, span); err != nil {
+				defer recordError("Internal", err)
+			}
+			return
+		}
+		if errors.Is(err, ht.ErrNotImplemented) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+			return
+		}
+		if err := encodeErrorResponse(s.h.NewError(ctx, err), w, span); err != nil {
+			defer recordError("Internal", err)
+		}
+		return
+	}
+
+	if err := encodeV1betaDeleteReplicationResponse(response, w, span); err != nil {
 		defer recordError("EncodeResponse", err)
 		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
 			s.cfg.ErrorHandler(ctx, w, r, err)
@@ -2167,6 +2523,182 @@ func (s *Server) handleV1betaGetMultiplePoolsRequest(args [2]string, argsEscaped
 	}
 }
 
+// handleV1betaGetMultipleReplicationsRequest handles v1beta_getMultipleReplications operation.
+//
+// Returns selected replication objects.
+//
+// POST /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeResourceId}/getMultipleReplications
+func (s *Server) handleV1betaGetMultipleReplicationsRequest(args [3]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
+	statusWriter := &codeRecorder{ResponseWriter: w}
+	w = statusWriter
+	otelAttrs := []attribute.KeyValue{
+		otelogen.OperationID("v1beta_getMultipleReplications"),
+		semconv.HTTPRequestMethodKey.String("POST"),
+		semconv.HTTPRouteKey.String("/v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeResourceId}/getMultipleReplications"),
+	}
+
+	// Start a span for this request.
+	ctx, span := s.cfg.Tracer.Start(r.Context(), V1betaGetMultipleReplicationsOperation,
+		trace.WithAttributes(otelAttrs...),
+		serverSpanKind,
+	)
+	defer span.End()
+
+	// Add Labeler to context.
+	labeler := &Labeler{attrs: otelAttrs}
+	ctx = contextWithLabeler(ctx, labeler)
+
+	// Run stopwatch.
+	startTime := time.Now()
+	defer func() {
+		elapsedDuration := time.Since(startTime)
+
+		attrSet := labeler.AttributeSet()
+		attrs := attrSet.ToSlice()
+		code := statusWriter.status
+		if code != 0 {
+			codeAttr := semconv.HTTPResponseStatusCode(code)
+			attrs = append(attrs, codeAttr)
+			span.SetAttributes(codeAttr)
+		}
+		attrOpt := metric.WithAttributes(attrs...)
+
+		// Increment request counter.
+		s.requests.Add(ctx, 1, attrOpt)
+
+		// Use floating point division here for higher precision (instead of Millisecond method).
+		s.duration.Record(ctx, float64(elapsedDuration)/float64(time.Millisecond), attrOpt)
+	}()
+
+	var (
+		recordError = func(stage string, err error) {
+			span.RecordError(err)
+
+			// https://opentelemetry.io/docs/specs/semconv/http/http-spans/#status
+			// Span Status MUST be left unset if HTTP status code was in the 1xx, 2xx or 3xx ranges,
+			// unless there was another error (e.g., network error receiving the response body; or 3xx codes with
+			// max redirects exceeded), in which case status MUST be set to Error.
+			code := statusWriter.status
+			if code >= 100 && code < 500 {
+				span.SetStatus(codes.Error, stage)
+			}
+
+			attrSet := labeler.AttributeSet()
+			attrs := attrSet.ToSlice()
+			if code != 0 {
+				attrs = append(attrs, semconv.HTTPResponseStatusCode(code))
+			}
+
+			s.errors.Add(ctx, 1, metric.WithAttributes(attrs...))
+		}
+		err          error
+		opErrContext = ogenerrors.OperationContext{
+			Name: V1betaGetMultipleReplicationsOperation,
+			ID:   "v1beta_getMultipleReplications",
+		}
+	)
+	params, err := decodeV1betaGetMultipleReplicationsParams(args, argsEscaped, r)
+	if err != nil {
+		err = &ogenerrors.DecodeParamsError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeParams", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+	request, close, err := s.decodeV1betaGetMultipleReplicationsRequest(r)
+	if err != nil {
+		err = &ogenerrors.DecodeRequestError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeRequest", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+	defer func() {
+		if err := close(); err != nil {
+			recordError("CloseRequest", err)
+		}
+	}()
+
+	var response V1betaGetMultipleReplicationsRes
+	if m := s.cfg.Middleware; m != nil {
+		mreq := middleware.Request{
+			Context:          ctx,
+			OperationName:    V1betaGetMultipleReplicationsOperation,
+			OperationSummary: "List specific replications",
+			OperationID:      "v1beta_getMultipleReplications",
+			Body:             request,
+			Params: middleware.Parameters{
+				{
+					Name: "projectNumber",
+					In:   "path",
+				}: params.ProjectNumber,
+				{
+					Name: "locationId",
+					In:   "path",
+				}: params.LocationId,
+				{
+					Name: "volumeResourceId",
+					In:   "path",
+				}: params.VolumeResourceId,
+				{
+					Name: "x-correlation-id",
+					In:   "header",
+				}: params.XCorrelationID,
+			},
+			Raw: r,
+		}
+
+		type (
+			Request  = *ReplicationURIListV1beta
+			Params   = V1betaGetMultipleReplicationsParams
+			Response = V1betaGetMultipleReplicationsRes
+		)
+		response, err = middleware.HookMiddleware[
+			Request,
+			Params,
+			Response,
+		](
+			m,
+			mreq,
+			unpackV1betaGetMultipleReplicationsParams,
+			func(ctx context.Context, request Request, params Params) (response Response, err error) {
+				response, err = s.h.V1betaGetMultipleReplications(ctx, request, params)
+				return response, err
+			},
+		)
+	} else {
+		response, err = s.h.V1betaGetMultipleReplications(ctx, request, params)
+	}
+	if err != nil {
+		if errRes, ok := errors.Into[*ErrorStatusCode](err); ok {
+			if err := encodeErrorResponse(errRes, w, span); err != nil {
+				defer recordError("Internal", err)
+			}
+			return
+		}
+		if errors.Is(err, ht.ErrNotImplemented) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+			return
+		}
+		if err := encodeErrorResponse(s.h.NewError(ctx, err), w, span); err != nil {
+			defer recordError("Internal", err)
+		}
+		return
+	}
+
+	if err := encodeV1betaGetMultipleReplicationsResponse(response, w, span); err != nil {
+		defer recordError("EncodeResponse", err)
+		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+		}
+		return
+	}
+}
+
 // handleV1betaGetMultipleVolumesRequest handles v1beta_getMultipleVolumes operation.
 //
 // Returns descriptions of volumes that is listed in request body.
@@ -2657,6 +3189,163 @@ func (s *Server) handleV1betaListPoolsRequest(args [2]string, argsEscaped bool, 
 	}
 }
 
+// handleV1betaListReplicationsRequest handles v1beta_listReplications operation.
+//
+// Returns a list of all volume replications owned by the user.
+//
+// GET /v1beta/projects/{projectNumber}/locations/{locationId}/replications
+func (s *Server) handleV1betaListReplicationsRequest(args [2]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
+	statusWriter := &codeRecorder{ResponseWriter: w}
+	w = statusWriter
+	otelAttrs := []attribute.KeyValue{
+		otelogen.OperationID("v1beta_listReplications"),
+		semconv.HTTPRequestMethodKey.String("GET"),
+		semconv.HTTPRouteKey.String("/v1beta/projects/{projectNumber}/locations/{locationId}/replications"),
+	}
+
+	// Start a span for this request.
+	ctx, span := s.cfg.Tracer.Start(r.Context(), V1betaListReplicationsOperation,
+		trace.WithAttributes(otelAttrs...),
+		serverSpanKind,
+	)
+	defer span.End()
+
+	// Add Labeler to context.
+	labeler := &Labeler{attrs: otelAttrs}
+	ctx = contextWithLabeler(ctx, labeler)
+
+	// Run stopwatch.
+	startTime := time.Now()
+	defer func() {
+		elapsedDuration := time.Since(startTime)
+
+		attrSet := labeler.AttributeSet()
+		attrs := attrSet.ToSlice()
+		code := statusWriter.status
+		if code != 0 {
+			codeAttr := semconv.HTTPResponseStatusCode(code)
+			attrs = append(attrs, codeAttr)
+			span.SetAttributes(codeAttr)
+		}
+		attrOpt := metric.WithAttributes(attrs...)
+
+		// Increment request counter.
+		s.requests.Add(ctx, 1, attrOpt)
+
+		// Use floating point division here for higher precision (instead of Millisecond method).
+		s.duration.Record(ctx, float64(elapsedDuration)/float64(time.Millisecond), attrOpt)
+	}()
+
+	var (
+		recordError = func(stage string, err error) {
+			span.RecordError(err)
+
+			// https://opentelemetry.io/docs/specs/semconv/http/http-spans/#status
+			// Span Status MUST be left unset if HTTP status code was in the 1xx, 2xx or 3xx ranges,
+			// unless there was another error (e.g., network error receiving the response body; or 3xx codes with
+			// max redirects exceeded), in which case status MUST be set to Error.
+			code := statusWriter.status
+			if code >= 100 && code < 500 {
+				span.SetStatus(codes.Error, stage)
+			}
+
+			attrSet := labeler.AttributeSet()
+			attrs := attrSet.ToSlice()
+			if code != 0 {
+				attrs = append(attrs, semconv.HTTPResponseStatusCode(code))
+			}
+
+			s.errors.Add(ctx, 1, metric.WithAttributes(attrs...))
+		}
+		err          error
+		opErrContext = ogenerrors.OperationContext{
+			Name: V1betaListReplicationsOperation,
+			ID:   "v1beta_listReplications",
+		}
+	)
+	params, err := decodeV1betaListReplicationsParams(args, argsEscaped, r)
+	if err != nil {
+		err = &ogenerrors.DecodeParamsError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeParams", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	var response V1betaListReplicationsRes
+	if m := s.cfg.Middleware; m != nil {
+		mreq := middleware.Request{
+			Context:          ctx,
+			OperationName:    V1betaListReplicationsOperation,
+			OperationSummary: "List all volume replications",
+			OperationID:      "v1beta_listReplications",
+			Body:             nil,
+			Params: middleware.Parameters{
+				{
+					Name: "projectNumber",
+					In:   "path",
+				}: params.ProjectNumber,
+				{
+					Name: "locationId",
+					In:   "path",
+				}: params.LocationId,
+				{
+					Name: "x-correlation-id",
+					In:   "header",
+				}: params.XCorrelationID,
+			},
+			Raw: r,
+		}
+
+		type (
+			Request  = struct{}
+			Params   = V1betaListReplicationsParams
+			Response = V1betaListReplicationsRes
+		)
+		response, err = middleware.HookMiddleware[
+			Request,
+			Params,
+			Response,
+		](
+			m,
+			mreq,
+			unpackV1betaListReplicationsParams,
+			func(ctx context.Context, request Request, params Params) (response Response, err error) {
+				response, err = s.h.V1betaListReplications(ctx, params)
+				return response, err
+			},
+		)
+	} else {
+		response, err = s.h.V1betaListReplications(ctx, params)
+	}
+	if err != nil {
+		if errRes, ok := errors.Into[*ErrorStatusCode](err); ok {
+			if err := encodeErrorResponse(errRes, w, span); err != nil {
+				defer recordError("Internal", err)
+			}
+			return
+		}
+		if errors.Is(err, ht.ErrNotImplemented) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+			return
+		}
+		if err := encodeErrorResponse(s.h.NewError(ctx, err), w, span); err != nil {
+			defer recordError("Internal", err)
+		}
+		return
+	}
+
+	if err := encodeV1betaListReplicationsResponse(response, w, span); err != nil {
+		defer recordError("EncodeResponse", err)
+		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+		}
+		return
+	}
+}
+
 // handleV1betaListVolumesRequest handles v1beta_listVolumes operation.
 //
 // Returns descriptions of all volumes owned by the caller.
@@ -2822,6 +3511,681 @@ func (s *Server) handleV1betaListVolumesRequest(args [2]string, argsEscaped bool
 	}
 
 	if err := encodeV1betaListVolumesResponse(response, w, span); err != nil {
+		defer recordError("EncodeResponse", err)
+		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+		}
+		return
+	}
+}
+
+// handleV1betaResumeReplicationRequest handles v1beta_resumeReplication operation.
+//
+// Resume a replication.
+//
+// POST /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeResourceId}/replications/{replicationResourceId}/resume
+func (s *Server) handleV1betaResumeReplicationRequest(args [4]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
+	statusWriter := &codeRecorder{ResponseWriter: w}
+	w = statusWriter
+	otelAttrs := []attribute.KeyValue{
+		otelogen.OperationID("v1beta_resumeReplication"),
+		semconv.HTTPRequestMethodKey.String("POST"),
+		semconv.HTTPRouteKey.String("/v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeResourceId}/replications/{replicationResourceId}/resume"),
+	}
+
+	// Start a span for this request.
+	ctx, span := s.cfg.Tracer.Start(r.Context(), V1betaResumeReplicationOperation,
+		trace.WithAttributes(otelAttrs...),
+		serverSpanKind,
+	)
+	defer span.End()
+
+	// Add Labeler to context.
+	labeler := &Labeler{attrs: otelAttrs}
+	ctx = contextWithLabeler(ctx, labeler)
+
+	// Run stopwatch.
+	startTime := time.Now()
+	defer func() {
+		elapsedDuration := time.Since(startTime)
+
+		attrSet := labeler.AttributeSet()
+		attrs := attrSet.ToSlice()
+		code := statusWriter.status
+		if code != 0 {
+			codeAttr := semconv.HTTPResponseStatusCode(code)
+			attrs = append(attrs, codeAttr)
+			span.SetAttributes(codeAttr)
+		}
+		attrOpt := metric.WithAttributes(attrs...)
+
+		// Increment request counter.
+		s.requests.Add(ctx, 1, attrOpt)
+
+		// Use floating point division here for higher precision (instead of Millisecond method).
+		s.duration.Record(ctx, float64(elapsedDuration)/float64(time.Millisecond), attrOpt)
+	}()
+
+	var (
+		recordError = func(stage string, err error) {
+			span.RecordError(err)
+
+			// https://opentelemetry.io/docs/specs/semconv/http/http-spans/#status
+			// Span Status MUST be left unset if HTTP status code was in the 1xx, 2xx or 3xx ranges,
+			// unless there was another error (e.g., network error receiving the response body; or 3xx codes with
+			// max redirects exceeded), in which case status MUST be set to Error.
+			code := statusWriter.status
+			if code >= 100 && code < 500 {
+				span.SetStatus(codes.Error, stage)
+			}
+
+			attrSet := labeler.AttributeSet()
+			attrs := attrSet.ToSlice()
+			if code != 0 {
+				attrs = append(attrs, semconv.HTTPResponseStatusCode(code))
+			}
+
+			s.errors.Add(ctx, 1, metric.WithAttributes(attrs...))
+		}
+		err          error
+		opErrContext = ogenerrors.OperationContext{
+			Name: V1betaResumeReplicationOperation,
+			ID:   "v1beta_resumeReplication",
+		}
+	)
+	params, err := decodeV1betaResumeReplicationParams(args, argsEscaped, r)
+	if err != nil {
+		err = &ogenerrors.DecodeParamsError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeParams", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	var response V1betaResumeReplicationRes
+	if m := s.cfg.Middleware; m != nil {
+		mreq := middleware.Request{
+			Context:          ctx,
+			OperationName:    V1betaResumeReplicationOperation,
+			OperationSummary: "Resume replication",
+			OperationID:      "v1beta_resumeReplication",
+			Body:             nil,
+			Params: middleware.Parameters{
+				{
+					Name: "projectNumber",
+					In:   "path",
+				}: params.ProjectNumber,
+				{
+					Name: "locationId",
+					In:   "path",
+				}: params.LocationId,
+				{
+					Name: "volumeResourceId",
+					In:   "path",
+				}: params.VolumeResourceId,
+				{
+					Name: "replicationResourceId",
+					In:   "path",
+				}: params.ReplicationResourceId,
+				{
+					Name: "x-correlation-id",
+					In:   "header",
+				}: params.XCorrelationID,
+			},
+			Raw: r,
+		}
+
+		type (
+			Request  = struct{}
+			Params   = V1betaResumeReplicationParams
+			Response = V1betaResumeReplicationRes
+		)
+		response, err = middleware.HookMiddleware[
+			Request,
+			Params,
+			Response,
+		](
+			m,
+			mreq,
+			unpackV1betaResumeReplicationParams,
+			func(ctx context.Context, request Request, params Params) (response Response, err error) {
+				response, err = s.h.V1betaResumeReplication(ctx, params)
+				return response, err
+			},
+		)
+	} else {
+		response, err = s.h.V1betaResumeReplication(ctx, params)
+	}
+	if err != nil {
+		if errRes, ok := errors.Into[*ErrorStatusCode](err); ok {
+			if err := encodeErrorResponse(errRes, w, span); err != nil {
+				defer recordError("Internal", err)
+			}
+			return
+		}
+		if errors.Is(err, ht.ErrNotImplemented) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+			return
+		}
+		if err := encodeErrorResponse(s.h.NewError(ctx, err), w, span); err != nil {
+			defer recordError("Internal", err)
+		}
+		return
+	}
+
+	if err := encodeV1betaResumeReplicationResponse(response, w, span); err != nil {
+		defer recordError("EncodeResponse", err)
+		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+		}
+		return
+	}
+}
+
+// handleV1betaReverseAndResumeReplicationRequest handles v1beta_reverseAndResumeReplication operation.
+//
+// Reverse and resume a replication.
+//
+// POST /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeResourceId}/replications/{replicationResourceId}/reverseAndResumeReplication
+func (s *Server) handleV1betaReverseAndResumeReplicationRequest(args [4]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
+	statusWriter := &codeRecorder{ResponseWriter: w}
+	w = statusWriter
+	otelAttrs := []attribute.KeyValue{
+		otelogen.OperationID("v1beta_reverseAndResumeReplication"),
+		semconv.HTTPRequestMethodKey.String("POST"),
+		semconv.HTTPRouteKey.String("/v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeResourceId}/replications/{replicationResourceId}/reverseAndResumeReplication"),
+	}
+
+	// Start a span for this request.
+	ctx, span := s.cfg.Tracer.Start(r.Context(), V1betaReverseAndResumeReplicationOperation,
+		trace.WithAttributes(otelAttrs...),
+		serverSpanKind,
+	)
+	defer span.End()
+
+	// Add Labeler to context.
+	labeler := &Labeler{attrs: otelAttrs}
+	ctx = contextWithLabeler(ctx, labeler)
+
+	// Run stopwatch.
+	startTime := time.Now()
+	defer func() {
+		elapsedDuration := time.Since(startTime)
+
+		attrSet := labeler.AttributeSet()
+		attrs := attrSet.ToSlice()
+		code := statusWriter.status
+		if code != 0 {
+			codeAttr := semconv.HTTPResponseStatusCode(code)
+			attrs = append(attrs, codeAttr)
+			span.SetAttributes(codeAttr)
+		}
+		attrOpt := metric.WithAttributes(attrs...)
+
+		// Increment request counter.
+		s.requests.Add(ctx, 1, attrOpt)
+
+		// Use floating point division here for higher precision (instead of Millisecond method).
+		s.duration.Record(ctx, float64(elapsedDuration)/float64(time.Millisecond), attrOpt)
+	}()
+
+	var (
+		recordError = func(stage string, err error) {
+			span.RecordError(err)
+
+			// https://opentelemetry.io/docs/specs/semconv/http/http-spans/#status
+			// Span Status MUST be left unset if HTTP status code was in the 1xx, 2xx or 3xx ranges,
+			// unless there was another error (e.g., network error receiving the response body; or 3xx codes with
+			// max redirects exceeded), in which case status MUST be set to Error.
+			code := statusWriter.status
+			if code >= 100 && code < 500 {
+				span.SetStatus(codes.Error, stage)
+			}
+
+			attrSet := labeler.AttributeSet()
+			attrs := attrSet.ToSlice()
+			if code != 0 {
+				attrs = append(attrs, semconv.HTTPResponseStatusCode(code))
+			}
+
+			s.errors.Add(ctx, 1, metric.WithAttributes(attrs...))
+		}
+		err          error
+		opErrContext = ogenerrors.OperationContext{
+			Name: V1betaReverseAndResumeReplicationOperation,
+			ID:   "v1beta_reverseAndResumeReplication",
+		}
+	)
+	params, err := decodeV1betaReverseAndResumeReplicationParams(args, argsEscaped, r)
+	if err != nil {
+		err = &ogenerrors.DecodeParamsError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeParams", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	var response V1betaReverseAndResumeReplicationRes
+	if m := s.cfg.Middleware; m != nil {
+		mreq := middleware.Request{
+			Context:          ctx,
+			OperationName:    V1betaReverseAndResumeReplicationOperation,
+			OperationSummary: "Reverse and resume a replication",
+			OperationID:      "v1beta_reverseAndResumeReplication",
+			Body:             nil,
+			Params: middleware.Parameters{
+				{
+					Name: "projectNumber",
+					In:   "path",
+				}: params.ProjectNumber,
+				{
+					Name: "locationId",
+					In:   "path",
+				}: params.LocationId,
+				{
+					Name: "volumeResourceId",
+					In:   "path",
+				}: params.VolumeResourceId,
+				{
+					Name: "replicationResourceId",
+					In:   "path",
+				}: params.ReplicationResourceId,
+				{
+					Name: "x-correlation-id",
+					In:   "header",
+				}: params.XCorrelationID,
+			},
+			Raw: r,
+		}
+
+		type (
+			Request  = struct{}
+			Params   = V1betaReverseAndResumeReplicationParams
+			Response = V1betaReverseAndResumeReplicationRes
+		)
+		response, err = middleware.HookMiddleware[
+			Request,
+			Params,
+			Response,
+		](
+			m,
+			mreq,
+			unpackV1betaReverseAndResumeReplicationParams,
+			func(ctx context.Context, request Request, params Params) (response Response, err error) {
+				response, err = s.h.V1betaReverseAndResumeReplication(ctx, params)
+				return response, err
+			},
+		)
+	} else {
+		response, err = s.h.V1betaReverseAndResumeReplication(ctx, params)
+	}
+	if err != nil {
+		if errRes, ok := errors.Into[*ErrorStatusCode](err); ok {
+			if err := encodeErrorResponse(errRes, w, span); err != nil {
+				defer recordError("Internal", err)
+			}
+			return
+		}
+		if errors.Is(err, ht.ErrNotImplemented) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+			return
+		}
+		if err := encodeErrorResponse(s.h.NewError(ctx, err), w, span); err != nil {
+			defer recordError("Internal", err)
+		}
+		return
+	}
+
+	if err := encodeV1betaReverseAndResumeReplicationResponse(response, w, span); err != nil {
+		defer recordError("EncodeResponse", err)
+		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+		}
+		return
+	}
+}
+
+// handleV1betaStopReplicationRequest handles v1beta_stopReplication operation.
+//
+// Stops a replication.
+//
+// POST /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeResourceId}/replications/{replicationResourceId}/stop
+func (s *Server) handleV1betaStopReplicationRequest(args [4]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
+	statusWriter := &codeRecorder{ResponseWriter: w}
+	w = statusWriter
+	otelAttrs := []attribute.KeyValue{
+		otelogen.OperationID("v1beta_stopReplication"),
+		semconv.HTTPRequestMethodKey.String("POST"),
+		semconv.HTTPRouteKey.String("/v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeResourceId}/replications/{replicationResourceId}/stop"),
+	}
+
+	// Start a span for this request.
+	ctx, span := s.cfg.Tracer.Start(r.Context(), V1betaStopReplicationOperation,
+		trace.WithAttributes(otelAttrs...),
+		serverSpanKind,
+	)
+	defer span.End()
+
+	// Add Labeler to context.
+	labeler := &Labeler{attrs: otelAttrs}
+	ctx = contextWithLabeler(ctx, labeler)
+
+	// Run stopwatch.
+	startTime := time.Now()
+	defer func() {
+		elapsedDuration := time.Since(startTime)
+
+		attrSet := labeler.AttributeSet()
+		attrs := attrSet.ToSlice()
+		code := statusWriter.status
+		if code != 0 {
+			codeAttr := semconv.HTTPResponseStatusCode(code)
+			attrs = append(attrs, codeAttr)
+			span.SetAttributes(codeAttr)
+		}
+		attrOpt := metric.WithAttributes(attrs...)
+
+		// Increment request counter.
+		s.requests.Add(ctx, 1, attrOpt)
+
+		// Use floating point division here for higher precision (instead of Millisecond method).
+		s.duration.Record(ctx, float64(elapsedDuration)/float64(time.Millisecond), attrOpt)
+	}()
+
+	var (
+		recordError = func(stage string, err error) {
+			span.RecordError(err)
+
+			// https://opentelemetry.io/docs/specs/semconv/http/http-spans/#status
+			// Span Status MUST be left unset if HTTP status code was in the 1xx, 2xx or 3xx ranges,
+			// unless there was another error (e.g., network error receiving the response body; or 3xx codes with
+			// max redirects exceeded), in which case status MUST be set to Error.
+			code := statusWriter.status
+			if code >= 100 && code < 500 {
+				span.SetStatus(codes.Error, stage)
+			}
+
+			attrSet := labeler.AttributeSet()
+			attrs := attrSet.ToSlice()
+			if code != 0 {
+				attrs = append(attrs, semconv.HTTPResponseStatusCode(code))
+			}
+
+			s.errors.Add(ctx, 1, metric.WithAttributes(attrs...))
+		}
+		err          error
+		opErrContext = ogenerrors.OperationContext{
+			Name: V1betaStopReplicationOperation,
+			ID:   "v1beta_stopReplication",
+		}
+	)
+	params, err := decodeV1betaStopReplicationParams(args, argsEscaped, r)
+	if err != nil {
+		err = &ogenerrors.DecodeParamsError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeParams", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+	request, close, err := s.decodeV1betaStopReplicationRequest(r)
+	if err != nil {
+		err = &ogenerrors.DecodeRequestError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeRequest", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+	defer func() {
+		if err := close(); err != nil {
+			recordError("CloseRequest", err)
+		}
+	}()
+
+	var response V1betaStopReplicationRes
+	if m := s.cfg.Middleware; m != nil {
+		mreq := middleware.Request{
+			Context:          ctx,
+			OperationName:    V1betaStopReplicationOperation,
+			OperationSummary: "Stop replication",
+			OperationID:      "v1beta_stopReplication",
+			Body:             request,
+			Params: middleware.Parameters{
+				{
+					Name: "projectNumber",
+					In:   "path",
+				}: params.ProjectNumber,
+				{
+					Name: "locationId",
+					In:   "path",
+				}: params.LocationId,
+				{
+					Name: "volumeResourceId",
+					In:   "path",
+				}: params.VolumeResourceId,
+				{
+					Name: "replicationResourceId",
+					In:   "path",
+				}: params.ReplicationResourceId,
+				{
+					Name: "x-correlation-id",
+					In:   "header",
+				}: params.XCorrelationID,
+			},
+			Raw: r,
+		}
+
+		type (
+			Request  = *ReplicationStopV1beta
+			Params   = V1betaStopReplicationParams
+			Response = V1betaStopReplicationRes
+		)
+		response, err = middleware.HookMiddleware[
+			Request,
+			Params,
+			Response,
+		](
+			m,
+			mreq,
+			unpackV1betaStopReplicationParams,
+			func(ctx context.Context, request Request, params Params) (response Response, err error) {
+				response, err = s.h.V1betaStopReplication(ctx, request, params)
+				return response, err
+			},
+		)
+	} else {
+		response, err = s.h.V1betaStopReplication(ctx, request, params)
+	}
+	if err != nil {
+		if errRes, ok := errors.Into[*ErrorStatusCode](err); ok {
+			if err := encodeErrorResponse(errRes, w, span); err != nil {
+				defer recordError("Internal", err)
+			}
+			return
+		}
+		if errors.Is(err, ht.ErrNotImplemented) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+			return
+		}
+		if err := encodeErrorResponse(s.h.NewError(ctx, err), w, span); err != nil {
+			defer recordError("Internal", err)
+		}
+		return
+	}
+
+	if err := encodeV1betaStopReplicationResponse(response, w, span); err != nil {
+		defer recordError("EncodeResponse", err)
+		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+		}
+		return
+	}
+}
+
+// handleV1betaSyncReplicationRequest handles v1beta_syncReplication operation.
+//
+// Sync a replication.
+//
+// POST /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeResourceId}/replications/{replicationResourceId}/sync
+func (s *Server) handleV1betaSyncReplicationRequest(args [4]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
+	statusWriter := &codeRecorder{ResponseWriter: w}
+	w = statusWriter
+	otelAttrs := []attribute.KeyValue{
+		otelogen.OperationID("v1beta_syncReplication"),
+		semconv.HTTPRequestMethodKey.String("POST"),
+		semconv.HTTPRouteKey.String("/v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeResourceId}/replications/{replicationResourceId}/sync"),
+	}
+
+	// Start a span for this request.
+	ctx, span := s.cfg.Tracer.Start(r.Context(), V1betaSyncReplicationOperation,
+		trace.WithAttributes(otelAttrs...),
+		serverSpanKind,
+	)
+	defer span.End()
+
+	// Add Labeler to context.
+	labeler := &Labeler{attrs: otelAttrs}
+	ctx = contextWithLabeler(ctx, labeler)
+
+	// Run stopwatch.
+	startTime := time.Now()
+	defer func() {
+		elapsedDuration := time.Since(startTime)
+
+		attrSet := labeler.AttributeSet()
+		attrs := attrSet.ToSlice()
+		code := statusWriter.status
+		if code != 0 {
+			codeAttr := semconv.HTTPResponseStatusCode(code)
+			attrs = append(attrs, codeAttr)
+			span.SetAttributes(codeAttr)
+		}
+		attrOpt := metric.WithAttributes(attrs...)
+
+		// Increment request counter.
+		s.requests.Add(ctx, 1, attrOpt)
+
+		// Use floating point division here for higher precision (instead of Millisecond method).
+		s.duration.Record(ctx, float64(elapsedDuration)/float64(time.Millisecond), attrOpt)
+	}()
+
+	var (
+		recordError = func(stage string, err error) {
+			span.RecordError(err)
+
+			// https://opentelemetry.io/docs/specs/semconv/http/http-spans/#status
+			// Span Status MUST be left unset if HTTP status code was in the 1xx, 2xx or 3xx ranges,
+			// unless there was another error (e.g., network error receiving the response body; or 3xx codes with
+			// max redirects exceeded), in which case status MUST be set to Error.
+			code := statusWriter.status
+			if code >= 100 && code < 500 {
+				span.SetStatus(codes.Error, stage)
+			}
+
+			attrSet := labeler.AttributeSet()
+			attrs := attrSet.ToSlice()
+			if code != 0 {
+				attrs = append(attrs, semconv.HTTPResponseStatusCode(code))
+			}
+
+			s.errors.Add(ctx, 1, metric.WithAttributes(attrs...))
+		}
+		err          error
+		opErrContext = ogenerrors.OperationContext{
+			Name: V1betaSyncReplicationOperation,
+			ID:   "v1beta_syncReplication",
+		}
+	)
+	params, err := decodeV1betaSyncReplicationParams(args, argsEscaped, r)
+	if err != nil {
+		err = &ogenerrors.DecodeParamsError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeParams", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	var response V1betaSyncReplicationRes
+	if m := s.cfg.Middleware; m != nil {
+		mreq := middleware.Request{
+			Context:          ctx,
+			OperationName:    V1betaSyncReplicationOperation,
+			OperationSummary: "Sync replication",
+			OperationID:      "v1beta_syncReplication",
+			Body:             nil,
+			Params: middleware.Parameters{
+				{
+					Name: "projectNumber",
+					In:   "path",
+				}: params.ProjectNumber,
+				{
+					Name: "locationId",
+					In:   "path",
+				}: params.LocationId,
+				{
+					Name: "volumeResourceId",
+					In:   "path",
+				}: params.VolumeResourceId,
+				{
+					Name: "replicationResourceId",
+					In:   "path",
+				}: params.ReplicationResourceId,
+				{
+					Name: "x-correlation-id",
+					In:   "header",
+				}: params.XCorrelationID,
+			},
+			Raw: r,
+		}
+
+		type (
+			Request  = struct{}
+			Params   = V1betaSyncReplicationParams
+			Response = V1betaSyncReplicationRes
+		)
+		response, err = middleware.HookMiddleware[
+			Request,
+			Params,
+			Response,
+		](
+			m,
+			mreq,
+			unpackV1betaSyncReplicationParams,
+			func(ctx context.Context, request Request, params Params) (response Response, err error) {
+				response, err = s.h.V1betaSyncReplication(ctx, params)
+				return response, err
+			},
+		)
+	} else {
+		response, err = s.h.V1betaSyncReplication(ctx, params)
+	}
+	if err != nil {
+		if errRes, ok := errors.Into[*ErrorStatusCode](err); ok {
+			if err := encodeErrorResponse(errRes, w, span); err != nil {
+				defer recordError("Internal", err)
+			}
+			return
+		}
+		if errors.Is(err, ht.ErrNotImplemented) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+			return
+		}
+		if err := encodeErrorResponse(s.h.NewError(ctx, err), w, span); err != nil {
+			defer recordError("Internal", err)
+		}
+		return
+	}
+
+	if err := encodeV1betaSyncReplicationResponse(response, w, span); err != nil {
 		defer recordError("EncodeResponse", err)
 		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
 			s.cfg.ErrorHandler(ctx, w, r, err)
@@ -3174,6 +4538,186 @@ func (s *Server) handleV1betaUpdatePoolRequest(args [3]string, argsEscaped bool,
 	}
 
 	if err := encodeV1betaUpdatePoolResponse(response, w, span); err != nil {
+		defer recordError("EncodeResponse", err)
+		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+		}
+		return
+	}
+}
+
+// handleV1betaUpdateReplicationRequest handles v1beta_updateReplication operation.
+//
+// Update the replication.
+//
+// PUT /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeResourceId}/replications/{replicationResourceId}
+func (s *Server) handleV1betaUpdateReplicationRequest(args [4]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
+	statusWriter := &codeRecorder{ResponseWriter: w}
+	w = statusWriter
+	otelAttrs := []attribute.KeyValue{
+		otelogen.OperationID("v1beta_updateReplication"),
+		semconv.HTTPRequestMethodKey.String("PUT"),
+		semconv.HTTPRouteKey.String("/v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeResourceId}/replications/{replicationResourceId}"),
+	}
+
+	// Start a span for this request.
+	ctx, span := s.cfg.Tracer.Start(r.Context(), V1betaUpdateReplicationOperation,
+		trace.WithAttributes(otelAttrs...),
+		serverSpanKind,
+	)
+	defer span.End()
+
+	// Add Labeler to context.
+	labeler := &Labeler{attrs: otelAttrs}
+	ctx = contextWithLabeler(ctx, labeler)
+
+	// Run stopwatch.
+	startTime := time.Now()
+	defer func() {
+		elapsedDuration := time.Since(startTime)
+
+		attrSet := labeler.AttributeSet()
+		attrs := attrSet.ToSlice()
+		code := statusWriter.status
+		if code != 0 {
+			codeAttr := semconv.HTTPResponseStatusCode(code)
+			attrs = append(attrs, codeAttr)
+			span.SetAttributes(codeAttr)
+		}
+		attrOpt := metric.WithAttributes(attrs...)
+
+		// Increment request counter.
+		s.requests.Add(ctx, 1, attrOpt)
+
+		// Use floating point division here for higher precision (instead of Millisecond method).
+		s.duration.Record(ctx, float64(elapsedDuration)/float64(time.Millisecond), attrOpt)
+	}()
+
+	var (
+		recordError = func(stage string, err error) {
+			span.RecordError(err)
+
+			// https://opentelemetry.io/docs/specs/semconv/http/http-spans/#status
+			// Span Status MUST be left unset if HTTP status code was in the 1xx, 2xx or 3xx ranges,
+			// unless there was another error (e.g., network error receiving the response body; or 3xx codes with
+			// max redirects exceeded), in which case status MUST be set to Error.
+			code := statusWriter.status
+			if code >= 100 && code < 500 {
+				span.SetStatus(codes.Error, stage)
+			}
+
+			attrSet := labeler.AttributeSet()
+			attrs := attrSet.ToSlice()
+			if code != 0 {
+				attrs = append(attrs, semconv.HTTPResponseStatusCode(code))
+			}
+
+			s.errors.Add(ctx, 1, metric.WithAttributes(attrs...))
+		}
+		err          error
+		opErrContext = ogenerrors.OperationContext{
+			Name: V1betaUpdateReplicationOperation,
+			ID:   "v1beta_updateReplication",
+		}
+	)
+	params, err := decodeV1betaUpdateReplicationParams(args, argsEscaped, r)
+	if err != nil {
+		err = &ogenerrors.DecodeParamsError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeParams", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+	request, close, err := s.decodeV1betaUpdateReplicationRequest(r)
+	if err != nil {
+		err = &ogenerrors.DecodeRequestError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeRequest", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+	defer func() {
+		if err := close(); err != nil {
+			recordError("CloseRequest", err)
+		}
+	}()
+
+	var response V1betaUpdateReplicationRes
+	if m := s.cfg.Middleware; m != nil {
+		mreq := middleware.Request{
+			Context:          ctx,
+			OperationName:    V1betaUpdateReplicationOperation,
+			OperationSummary: "Update replication",
+			OperationID:      "v1beta_updateReplication",
+			Body:             request,
+			Params: middleware.Parameters{
+				{
+					Name: "projectNumber",
+					In:   "path",
+				}: params.ProjectNumber,
+				{
+					Name: "locationId",
+					In:   "path",
+				}: params.LocationId,
+				{
+					Name: "volumeResourceId",
+					In:   "path",
+				}: params.VolumeResourceId,
+				{
+					Name: "replicationResourceId",
+					In:   "path",
+				}: params.ReplicationResourceId,
+				{
+					Name: "x-correlation-id",
+					In:   "header",
+				}: params.XCorrelationID,
+			},
+			Raw: r,
+		}
+
+		type (
+			Request  = *ReplicationUpdateV1beta
+			Params   = V1betaUpdateReplicationParams
+			Response = V1betaUpdateReplicationRes
+		)
+		response, err = middleware.HookMiddleware[
+			Request,
+			Params,
+			Response,
+		](
+			m,
+			mreq,
+			unpackV1betaUpdateReplicationParams,
+			func(ctx context.Context, request Request, params Params) (response Response, err error) {
+				response, err = s.h.V1betaUpdateReplication(ctx, request, params)
+				return response, err
+			},
+		)
+	} else {
+		response, err = s.h.V1betaUpdateReplication(ctx, request, params)
+	}
+	if err != nil {
+		if errRes, ok := errors.Into[*ErrorStatusCode](err); ok {
+			if err := encodeErrorResponse(errRes, w, span); err != nil {
+				defer recordError("Internal", err)
+			}
+			return
+		}
+		if errors.Is(err, ht.ErrNotImplemented) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+			return
+		}
+		if err := encodeErrorResponse(s.h.NewError(ctx, err), w, span); err != nil {
+			defer recordError("Internal", err)
+		}
+		return
+	}
+
+	if err := encodeV1betaUpdateReplicationResponse(response, w, span); err != nil {
 		defer recordError("EncodeResponse", err)
 		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
 			s.cfg.ErrorHandler(ctx, w, r, err)

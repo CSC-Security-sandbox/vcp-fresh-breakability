@@ -26,6 +26,12 @@ type Handler interface {
 	//
 	// POST /v1beta/projects/{projectNumber}/locations/{locationId}/pools
 	V1betaCreatePool(ctx context.Context, req *PoolV1beta, params V1betaCreatePoolParams) (V1betaCreatePoolRes, error)
+	// V1betaCreateReplication implements v1beta_createReplication operation.
+	//
+	// Create a new volume replication.
+	//
+	// POST /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeResourceId}/replications
+	V1betaCreateReplication(ctx context.Context, req *ReplicationCreateV1beta, params V1betaCreateReplicationParams) (V1betaCreateReplicationRes, error)
 	// V1betaCreateVolume implements v1beta_createVolume operation.
 	//
 	// Create a new empty volume or a volume from a backup/snapshot if backup-ID/snapshot-ID is in the
@@ -47,6 +53,12 @@ type Handler interface {
 	//
 	// DELETE /v1beta/projects/{projectNumber}/locations/{locationId}/pools/{poolId}
 	V1betaDeletePool(ctx context.Context, params V1betaDeletePoolParams) (V1betaDeletePoolRes, error)
+	// V1betaDeleteReplication implements v1beta_deleteReplication operation.
+	//
+	// Delete replication.
+	//
+	// DELETE /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeResourceId}/replications/{replicationResourceId}
+	V1betaDeleteReplication(ctx context.Context, req *ReplicationDeleteV1beta, params V1betaDeleteReplicationParams) (V1betaDeleteReplicationRes, error)
 	// V1betaDeleteVolume implements v1beta_deleteVolume operation.
 	//
 	// Warning! This operation will permanently delete the volume. This operation will never return
@@ -91,6 +103,12 @@ type Handler interface {
 	//
 	// POST /v1beta/projects/{projectNumber}/locations/{locationId}/getMultiplePools
 	V1betaGetMultiplePools(ctx context.Context, req *PoolIDListV1beta, params V1betaGetMultiplePoolsParams) (V1betaGetMultiplePoolsRes, error)
+	// V1betaGetMultipleReplications implements v1beta_getMultipleReplications operation.
+	//
+	// Returns selected replication objects.
+	//
+	// POST /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeResourceId}/getMultipleReplications
+	V1betaGetMultipleReplications(ctx context.Context, req *ReplicationURIListV1beta, params V1betaGetMultipleReplicationsParams) (V1betaGetMultipleReplicationsRes, error)
 	// V1betaGetMultipleVolumes implements v1beta_getMultipleVolumes operation.
 	//
 	// Returns descriptions of volumes that is listed in request body.
@@ -109,12 +127,42 @@ type Handler interface {
 	//
 	// GET /v1beta/projects/{projectNumber}/locations/{locationId}/pools
 	V1betaListPools(ctx context.Context, params V1betaListPoolsParams) (V1betaListPoolsRes, error)
+	// V1betaListReplications implements v1beta_listReplications operation.
+	//
+	// Returns a list of all volume replications owned by the user.
+	//
+	// GET /v1beta/projects/{projectNumber}/locations/{locationId}/replications
+	V1betaListReplications(ctx context.Context, params V1betaListReplicationsParams) (V1betaListReplicationsRes, error)
 	// V1betaListVolumes implements v1beta_listVolumes operation.
 	//
 	// Returns descriptions of all volumes owned by the caller.
 	//
 	// GET /v1beta/projects/{projectNumber}/locations/{locationId}/volumes
 	V1betaListVolumes(ctx context.Context, params V1betaListVolumesParams) (V1betaListVolumesRes, error)
+	// V1betaResumeReplication implements v1beta_resumeReplication operation.
+	//
+	// Resume a replication.
+	//
+	// POST /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeResourceId}/replications/{replicationResourceId}/resume
+	V1betaResumeReplication(ctx context.Context, params V1betaResumeReplicationParams) (V1betaResumeReplicationRes, error)
+	// V1betaReverseAndResumeReplication implements v1beta_reverseAndResumeReplication operation.
+	//
+	// Reverse and resume a replication.
+	//
+	// POST /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeResourceId}/replications/{replicationResourceId}/reverseAndResumeReplication
+	V1betaReverseAndResumeReplication(ctx context.Context, params V1betaReverseAndResumeReplicationParams) (V1betaReverseAndResumeReplicationRes, error)
+	// V1betaStopReplication implements v1beta_stopReplication operation.
+	//
+	// Stops a replication.
+	//
+	// POST /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeResourceId}/replications/{replicationResourceId}/stop
+	V1betaStopReplication(ctx context.Context, req *ReplicationStopV1beta, params V1betaStopReplicationParams) (V1betaStopReplicationRes, error)
+	// V1betaSyncReplication implements v1beta_syncReplication operation.
+	//
+	// Sync a replication.
+	//
+	// POST /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeResourceId}/replications/{replicationResourceId}/sync
+	V1betaSyncReplication(ctx context.Context, params V1betaSyncReplicationParams) (V1betaSyncReplicationRes, error)
 	// V1betaUpdateHostGroup implements v1beta_updateHostGroup operation.
 	//
 	// Update the specified HostGroup.
@@ -127,6 +175,12 @@ type Handler interface {
 	//
 	// PUT /v1beta/projects/{projectNumber}/locations/{locationId}/pools/{poolId}
 	V1betaUpdatePool(ctx context.Context, req *PoolUpdateV1beta, params V1betaUpdatePoolParams) (V1betaUpdatePoolRes, error)
+	// V1betaUpdateReplication implements v1beta_updateReplication operation.
+	//
+	// Update the replication.
+	//
+	// PUT /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeResourceId}/replications/{replicationResourceId}
+	V1betaUpdateReplication(ctx context.Context, req *ReplicationUpdateV1beta, params V1betaUpdateReplicationParams) (V1betaUpdateReplicationRes, error)
 	// V1betaUpdateVolume implements v1beta_updateVolume operation.
 	//
 	// Update the volume.

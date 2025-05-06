@@ -19,6 +19,8 @@ tags:
     description: HostGroup operations
   - name: async
     description: Long running operations
+  - name: replications
+    description: Replication operations
 paths:
   /health:
     get:
@@ -1655,6 +1657,594 @@ paths:
           $ref: '#/components/responses/StandardError-500'
         '503':
           $ref: '#/components/responses/StandardError-503'
+        default:
+          description: Unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeResourceId}/replications:
+    post:
+      operationId: v1beta_createReplication
+      summary: Create a new replication
+      description: Create a new volume replication.
+      tags:
+        - replications
+      parameters:
+        - $ref: '#/components/parameters/projectNumberPathParameter'
+        - $ref: '#/components/parameters/locationIdPathParameter'
+        - $ref: '#/components/parameters/volumeResourceIdPathParameter'
+        - $ref: '#/components/parameters/xCorrelationIdHeader'
+      requestBody:
+        description: The required parameters to create a new replication.
+        content:
+          application/json:
+            schema:
+             $ref: '#/components/schemas/ReplicationCreate_v1beta'
+        required: true
+      responses:
+        '202':
+          description: Creating replication
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Operation_v1beta'
+              example:
+                "done": false
+                "name": "/v1beta/projects/123456789/locations/some-location1/operations/ba2c8826-2627-057c-42ba-343ee7ab1ebe"
+                "response": {
+                  "created": "2024-01-24T11:13:03.512Z",
+                  "description": "My replication",
+                  "destination": {
+                    "volumeId": "00000000-0000-0000-0000-000000000000",
+                    "volumeName": "projects/123456789/locations/some-location2/volumes/my-destination-volume",
+                    "tieringPolicy": {
+                      "tierAction": "ENABLED",
+                      "coolingThresholdDays": 24
+                    }
+                  },
+                  "healthy": true,
+                  "mirrorState": "PREPARING",
+                  "replicationSchedule": "EVERY_10_MINUTES",
+                  "resourceId": "my-replication",
+                  "role": "SOURCE",
+                  "source": {
+                    "volumeId": "b78e8675-7e6f-64ec-3ec2-163753add2d5",
+                    "volumeName": "projects/123456789/locations/some-location1/volumes/my-source-volume"
+                  },
+                  "state": "CREATING",
+                  "stateDetails": "Create in progress",
+                  "stateDetailsCode": 0,
+                  "transferStats": { }
+                }
+        '400':
+          $ref: '#/components/responses/StandardError-400'
+        '401':
+          $ref: '#/components/responses/StandardError-401'
+        '403':
+          $ref: '#/components/responses/StandardError-403'
+        '404':
+          $ref: '#/components/responses/StandardError-404'
+        '422':
+          $ref: '#/components/responses/StandardError-422'
+        '429':
+          $ref: '#/components/responses/StandardError-429'
+        '500':
+          $ref: '#/components/responses/StandardError-500'
+        default:
+          description: Unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeResourceId}/getMultipleReplications:
+    post:
+      operationId: v1beta_getMultipleReplications
+      summary: List specific replications
+      description: Returns selected replication objects
+      tags:
+        - replications
+      parameters:
+        - $ref: '#/components/parameters/projectNumberPathParameter'
+        - $ref: '#/components/parameters/locationIdPathParameter'
+        - $ref: '#/components/parameters/volumeResourceIdPathParameter'
+        - $ref: '#/components/parameters/xCorrelationIdHeader'
+      requestBody:
+        description: A list of replication URIs to return.
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReplicationURIList_v1beta'
+        required: true
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - type: object
+                    properties:
+                      replications:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/Replication_v1beta'
+        '400':
+          $ref: '#/components/responses/StandardError-400'
+        '401':
+          $ref: '#/components/responses/StandardError-401'
+        '403':
+          $ref: '#/components/responses/StandardError-403'
+        '404':
+          $ref: '#/components/responses/StandardError-404'
+        '422':
+          $ref: '#/components/responses/StandardError-422'
+        '429':
+          $ref: '#/components/responses/StandardError-429'
+        '500':
+          $ref: '#/components/responses/StandardError-500'
+        '501':
+          $ref: '#/components/responses/StandardError-501'
+        default:
+          description: Unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /v1beta/projects/{projectNumber}/locations/{locationId}/replications:
+    get:
+      operationId: v1beta_listReplications
+      summary: List all volume replications
+      description: >-
+        Returns a list of all volume replications owned by the user
+      tags:
+        - replications
+      parameters:
+        - $ref: '#/components/parameters/projectNumberPathParameter'
+        - $ref: '#/components/parameters/locationIdPathParameter'
+        - $ref: '#/components/parameters/xCorrelationIdHeader'
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - type: object
+                    properties:
+                      replications:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/Replication_v1beta'
+        '400':
+          $ref: '#/components/responses/StandardError-400'
+        '401':
+          $ref: '#/components/responses/StandardError-401'
+        '403':
+          $ref: '#/components/responses/StandardError-403'
+        '404':
+          $ref: '#/components/responses/StandardError-404'
+        '422':
+          $ref: '#/components/responses/StandardError-422'
+        '429':
+          $ref: '#/components/responses/StandardError-429'
+        '500':
+          $ref: '#/components/responses/StandardError-500'
+        '501':
+          $ref: '#/components/responses/StandardError-501'
+        default:
+          description: Unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeResourceId}/replications/{replicationResourceId}:
+    put:
+      operationId: v1beta_updateReplication
+      summary: Update replication
+      description: Update the replication
+      tags:
+        - replications
+      parameters:
+        - $ref: '#/components/parameters/projectNumberPathParameter'
+        - $ref: '#/components/parameters/locationIdPathParameter'
+        - $ref: '#/components/parameters/volumeResourceIdPathParameter'
+        - $ref: '#/components/parameters/replicationResourceIdPathParameter'
+        - $ref: '#/components/parameters/xCorrelationIdHeader'
+      requestBody:
+        description: The parameters that can be updated for a replication.
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReplicationUpdate_v1beta'
+        required: true
+      responses:
+        '202':
+          description: Updating replication
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Operation_v1beta'
+              example:
+                "done": false
+                "name": "/v1beta/projects/123456789/locations/some-location1/operations/ba2c8826-2627-057c-42ba-343ee7ab1ebe"
+                "response": {
+                  "created": "2024-01-29T10:33:49.536Z",
+                  "description": "My replication",
+                  "destination": {
+                    "volumeId": "a02acf13-00ae-8d17-3f9a-e6daa1473d5b",
+                    "volumeName": "projects/123456789/locations/some-location2/volumes/my-destination-volume"
+                  },
+                  "healthy": true,
+                  "mirrorState": "MIRRORED",
+                  "replicationId": "3796c3d1-6524-9757-aedf-017e41a430ab",
+                  "replicationSchedule": "HOURLY",
+                  "resourceId": "my-replication",
+                  "role": "SOURCE",
+                  "source": {
+                    "volumeId": "1a65c06a-94a1-f850-0a1a-d0d07b6f7560",
+                    "volumeName": "projects/123456789/locations/some-location1/volumes/my-source-volume"
+                  },
+                  "clusterLocation": "Orlando",
+                  "state": "UPDATING",
+                  "stateDetails": "Update in progress",
+                  "transferStats": {
+                    "lagTime": 18,
+                    "lastTransferEndTime": "2024-01-29T10:34:11.000Z",
+                    "totalTransferBytes": 18872,
+                    "totalTransferTimeSecs": 2
+                  }
+                }
+        '400':
+          $ref: '#/components/responses/StandardError-400'
+        '401':
+          $ref: '#/components/responses/StandardError-401'
+        '403':
+          $ref: '#/components/responses/StandardError-403'
+        '404':
+          $ref: '#/components/responses/StandardError-404'
+        '422':
+          $ref: '#/components/responses/StandardError-422'
+        '429':
+          $ref: '#/components/responses/StandardError-429'
+        '500':
+          $ref: '#/components/responses/StandardError-500'
+        default:
+          description: Unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    delete:
+      operationId: v1beta_deleteReplication
+      summary: Delete replication
+      description: Delete replication
+      tags:
+        - replications
+      parameters:
+        - $ref: '#/components/parameters/projectNumberPathParameter'
+        - $ref: '#/components/parameters/locationIdPathParameter'
+        - $ref: '#/components/parameters/volumeResourceIdPathParameter'
+        - $ref: '#/components/parameters/replicationResourceIdPathParameter'
+        - $ref: '#/components/parameters/xCorrelationIdHeader'
+      requestBody:
+        description: The parameters that can be updated for a replication.
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReplicationDelete_v1beta'
+        required: true
+      responses:
+        '202':
+          description: Deleting replication
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Operation_v1beta'
+              example:
+                "done": false
+                "name": "/v1beta/projects/123456789/locations/some-location1/operations/ba2c8826-2627-057c-42ba-343ee7ab1ebe"
+        '400':
+          $ref: '#/components/responses/StandardError-400'
+        '401':
+          $ref: '#/components/responses/StandardError-401'
+        '403':
+          $ref: '#/components/responses/StandardError-403'
+        '404':
+          $ref: '#/components/responses/StandardError-404'
+        '422':
+          $ref: '#/components/responses/StandardError-422'
+        '429':
+          $ref: '#/components/responses/StandardError-429'
+        '500':
+          $ref: '#/components/responses/StandardError-500'
+        default:
+          description: Unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeResourceId}/replications/{replicationResourceId}/stop:
+    post:
+      operationId: v1beta_stopReplication
+      summary: Stop replication
+      description: Stops a replication.
+      tags:
+        - replications
+      parameters:
+        - $ref: '#/components/parameters/projectNumberPathParameter'
+        - $ref: '#/components/parameters/locationIdPathParameter'
+        - $ref: '#/components/parameters/volumeResourceIdPathParameter'
+        - $ref: '#/components/parameters/replicationResourceIdPathParameter'
+        - $ref: '#/components/parameters/xCorrelationIdHeader'
+      requestBody:
+        description: The required parameters to stop a replication.
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReplicationStop_v1beta'
+        required: true
+      responses:
+        '202':
+          description: Stopping replication
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Operation_v1beta'
+              example:
+                "done": false
+                "name": "/v1beta/projects/123456789/locations/some-location1/operations/ba2c8826-2627-057c-42ba-343ee7ab1ebe"
+                "response": {
+                  "created": "2024-01-24T11:13:24.245Z",
+                  "description": "My replication",
+                  "destination": {
+                    "volumeId": "20074ffe-4f2e-89d8-0ecf-7071ddce6030",
+                    "volumeName": "projects/123456789/locations/some-location2/volumes/my-destination-volume"
+                  },
+                  "healthy": true,
+                  "mirrorState": "MIRRORED",
+                  "replicationId": "3cc26ebf-b59a-ee3a-6854-47ca35f45691",
+                  "replicationSchedule": "HOURLY",
+                  "resourceId": "my-replication",
+                  "role": "SOURCE",
+                  "source": {
+                    "volumeId": "b78e8675-7e6f-64ec-3ec2-163753add2d5",
+                    "volumeName": "projects/123456789/locations/some-location1/volumes/my-source-volume"
+                  },
+                  "state": "UPDATING",
+                  "stateDetails": "Stop in progress",
+                  "stateDetailsCode": 0,
+                  "transferStats": {
+                    "lagTime": 169,
+                    "lastTransferDuration": 2,
+                    "lastTransferEndTime": "2024-01-26T15:52:43.000Z",
+                    "lastTransferSize": 3560,
+                    "totalTransferBytes": 1147392,
+                    "totalTransferTimeSecs": 660
+                  }
+                }
+        '400':
+          $ref: '#/components/responses/StandardError-400'
+        '401':
+          $ref: '#/components/responses/StandardError-401'
+        '403':
+          $ref: '#/components/responses/StandardError-403'
+        '404':
+          $ref: '#/components/responses/StandardError-404'
+        '422':
+          $ref: '#/components/responses/StandardError-422'
+        '429':
+          $ref: '#/components/responses/StandardError-429'
+        '500':
+          $ref: '#/components/responses/StandardError-500'
+        default:
+          description: Unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeResourceId}/replications/{replicationResourceId}/resume:
+    post:
+      operationId: v1beta_resumeReplication
+      summary: Resume replication
+      description: Resume a replication.
+      tags:
+        - replications
+      parameters:
+        - $ref: '#/components/parameters/projectNumberPathParameter'
+        - $ref: '#/components/parameters/locationIdPathParameter'
+        - $ref: '#/components/parameters/volumeResourceIdPathParameter'
+        - $ref: '#/components/parameters/replicationResourceIdPathParameter'
+        - $ref: '#/components/parameters/xCorrelationIdHeader'
+      responses:
+        '202':
+          description: Resuming replication
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Operation_v1beta'
+              example:
+                "done": false,
+                "name": "/v1beta/projects/123456789/locations/some-location1/operations/ba2c8826-2627-057c-42ba-343ee7ab1ebe"
+                "response": {
+                  "created": "2024-01-24T11:13:24.245Z",
+                  "description": "My replication",
+                  "destination": {
+                    "volumeId": "20074ffe-4f2e-89d8-0ecf-7071ddce6030",
+                    "volumeName": "projects/123456789/locations/some-location2/volumes/my-destination-volume"
+                  },
+                  "healthy": true,
+                  "mirrorState": "STOPPED",
+                  "replicationId": "3cc26ebf-b59a-ee3a-6854-47ca35f45691",
+                  "replicationSchedule": "EVERY_10_MINUTES",
+                  "resourceId": "my-replication",
+                  "role": "SOURCE",
+                  "source": {
+                    "volumeId": "b78e8675-7e6f-64ec-3ec2-163753add2d5",
+                    "volumeName": "projects/123456789/locations/some-location1/volumes/my-source-volume"
+                  },
+                  "state": "UPDATING",
+                  "stateDetails": "Update in progress",
+                  "stateDetailsCode": 0,
+                  "transferStats": {
+                    "lagTime": 421,
+                    "lastTransferDuration": 2,
+                    "lastTransferEndTime": "2024-01-25T12:14:25.000Z",
+                    "lastTransferSize": 3560,
+                    "totalTransferBytes": 556432,
+                    "totalTransferTimeSecs": 314
+                  }
+                }
+        '400':
+          $ref: '#/components/responses/StandardError-400'
+        '401':
+          $ref: '#/components/responses/StandardError-401'
+        '403':
+          $ref: '#/components/responses/StandardError-403'
+        '404':
+          $ref: '#/components/responses/StandardError-404'
+        '422':
+          $ref: '#/components/responses/StandardError-422'
+        '429':
+          $ref: '#/components/responses/StandardError-429'
+        '500':
+          $ref: '#/components/responses/StandardError-500'
+        default:
+          description: Unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeResourceId}/replications/{replicationResourceId}/reverseAndResumeReplication:
+    post:
+      operationId: v1beta_reverseAndResumeReplication
+      summary: Reverse and resume a replication
+      description: Reverse and resume a replication.
+      tags:
+        - replications
+      parameters:
+        - $ref: '#/components/parameters/projectNumberPathParameter'
+        - $ref: '#/components/parameters/locationIdPathParameter'
+        - $ref: '#/components/parameters/volumeResourceIdPathParameter'
+        - $ref: '#/components/parameters/replicationResourceIdPathParameter'
+        - $ref: '#/components/parameters/xCorrelationIdHeader'
+      responses:
+        '202':
+          description: Reversing and resuming replication
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Operation_v1beta'
+              example:
+                "done": false
+                "name": "/v1beta/projects/123456789/locations/some-location1/operations/ba2c8826-2627-057c-42ba-343ee7ab1ebe"
+                "response": {
+                  "created": "2024-01-29T10:59:26.168Z",
+                  "description": "My replication",
+                  "destination": {
+                    "volumeId": "1a65c06a-94a1-f850-0a1a-d0d07b6f7560",
+                    "volumeName": "projects/123456789/locations/some-location1/volumes/my-source-volume"
+                  },
+                  "healthy": true,
+                  "mirrorState": "PREPARING",
+                  "replicationSchedule": "HOURLY",
+                  "resourceId": "my-replication",
+                  "role": "DESTINATION",
+                  "source": {
+                    "volumeId": "a02acf13-00ae-8d17-3f9a-e6daa1473d5b",
+                    "volumeName": "projects/123456789/locations/some-location2/volumes/my-destination-volume"
+                  },
+                  "state": "UPDATING",
+                  "stateDetailsCode": 0
+                }
+        '400':
+          $ref: '#/components/responses/StandardError-400'
+        '401':
+          $ref: '#/components/responses/StandardError-401'
+        '403':
+          $ref: '#/components/responses/StandardError-403'
+        '404':
+          $ref: '#/components/responses/StandardError-404'
+        '422':
+          $ref: '#/components/responses/StandardError-422'
+        '429':
+          $ref: '#/components/responses/StandardError-429'
+        '500':
+          $ref: '#/components/responses/StandardError-500'
+        default:
+          description: Unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeResourceId}/replications/{replicationResourceId}/sync:
+    post:
+      operationId: v1beta_syncReplication
+      summary: Sync replication
+      description: Sync a replication.
+      tags:
+        - replications
+      parameters:
+        - $ref: '#/components/parameters/projectNumberPathParameter'
+        - $ref: '#/components/parameters/locationIdPathParameter'
+        - $ref: '#/components/parameters/volumeResourceIdPathParameter'
+        - $ref: '#/components/parameters/replicationResourceIdPathParameter'
+        - $ref: '#/components/parameters/xCorrelationIdHeader'
+      responses:
+        '202':
+          description: Sync replication
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Operation_v1beta'
+              example:
+                "done": false,
+                "name": "/v1beta/projects/123456789/locations/some-location1/operations/ba2c8826-2627-057c-42ba-343ee7ab1ebe"
+                "response": {
+                  "created": "2024-01-24T11:13:24.245Z",
+                  "description": "My replication",
+                  "destination": {
+                    "volumeId": "20074ffe-4f2e-89d8-0ecf-7071ddce6030",
+                    "volumeName": "projects/123456789/locations/some-location2/volumes/my-destination-volume"
+                  },
+                  "healthy": true,
+                  "mirrorState": "MIRRORED",
+                  "replicationId": "3cc26ebf-b59a-ee3a-6854-47ca35f45691",
+                  "replicationSchedule": "EVERY_10_MINUTES",
+                  "resourceId": "my-replication",
+                  "role": "SOURCE",
+                  "source": {
+                    "volumeId": "b78e8675-7e6f-64ec-3ec2-163753add2d5",
+                    "volumeName": "projects/123456789/locations/some-location1/volumes/my-source-volume"
+                  },
+                  "state": "UPDATING",
+                  "stateDetails": "Sync in progress",
+                  "stateDetailsCode": 0,
+                  "transferStats": {
+                    "lagTime": 421,
+                    "lastTransferDuration": 2,
+                    "lastTransferEndTime": "2024-01-25T12:14:25.000Z",
+                    "lastTransferSize": 3560,
+                    "totalTransferBytes": 556432,
+                    "totalTransferTimeSecs": 314
+                  }
+                }
+        '400':
+          $ref: '#/components/responses/StandardError-400'
+        '401':
+          $ref: '#/components/responses/StandardError-401'
+        '403':
+          $ref: '#/components/responses/StandardError-403'
+        '404':
+          $ref: '#/components/responses/StandardError-404'
+        '422':
+          $ref: '#/components/responses/StandardError-422'
+        '429':
+          $ref: '#/components/responses/StandardError-429'
+        '500':
+          $ref: '#/components/responses/StandardError-500'
+        '501':
+          $ref: '#/components/responses/StandardError-501'
         default:
           description: Unexpected error
           content:
@@ -3421,6 +4011,480 @@ components:
           example: 24
       description: Object containing necessary parameters to start a hybrid replication
         process
+    ReplicationURIList_v1beta:
+      type: object
+      title: ReplicationURIList_v1beta
+      required:
+        - replicationUris
+      properties:
+        replicationUris:
+          title: replicationUris
+          type: array
+          minItems: 1
+          items:
+            type: string
+            description: URI used to identify the replication
+            pattern: >-
+              ^projects\/([^\/]+)\/locations\/([^\/]+)\/volumes\/([^\/]+)\/replications\/([^\/]+)$
+            example: projects/netapp-prod-prs-14/locations/northamerica-northeast1/volumes/vol-1/replications/replication-1
+    Replication_v1beta:
+      title: Replication_v1beta
+      description: Container for replication information
+      type: object
+      properties:
+        replicationId:
+          title: replicationId
+          type: string
+          readOnly: true
+          description: UUID v4 used to identify the volume replication
+          pattern: >-
+            ^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$
+          maxLength: 36
+          minLength: 36
+          example: 9760acf5-4638-11e7-9bdb-020073ca7773
+        resourceId:
+          type: string
+          description: A human readable label for the resource which is restricted to letters, numbers, and hyphen, with the first character a letter, the last a letter or a number, and a 63 character maximum
+          minLength: 1
+          pattern: >-
+            ^[a-z]([a-z0-9-]{0,61}[a-z0-9])?$
+          maxLength: 63
+          example: my-replication
+          x-nullable: false
+        description:
+          title: description
+          type: string
+          description: Description of the replication
+          example: My replication description
+          x-nullable: true
+          maxLength: 2048
+        source:
+          $ref: '#/components/schemas/ReplicationVolumeInformation_v1beta'
+        destination:
+          $ref: '#/components/schemas/ReplicationVolumeInformation_v1beta'
+        state:
+          title: state
+          type: string
+          readOnly: true
+          description: The current lifecycle state of the replication
+          enum:
+            - STATE_UNSPECIFIED
+            - UPDATING
+            - CREATING
+            - READY
+            - DELETING
+            - DISABLED
+            - ERROR
+            - PENDING_CLUSTER_PEERING
+            - PENDING_SVM_PEERING
+            - PENDING_REMOTE_RESYNC
+            - EXTERNALLY_MANAGED_REPLICATION
+          example: READY
+        stateDetails:
+          title: stateDetails
+          type: string
+          readOnly: true
+          description: Details about the current lifecycle state
+          example: Available for use
+        stateDetailsCode:
+          title: stateDetailsCode
+          type: integer
+          format: int32
+          readOnly: true
+          x-omitempty: false
+          description: Numeric representation of current state details.
+          example: 100001
+        role:
+          title: role
+          type: string
+          readOnly: false
+          description: >-
+            Indicates whether the local volume is the source or destination for the volume replication
+          enum:
+            - REPLICATION_ROLE_UNSPECIFIED
+            - SOURCE
+            - DESTINATION
+          example: DESTINATION
+        replicationSchedule:
+          title: replicationSchedule
+          type: string
+          enum:
+            - REPLICATION_SCHEDULE_UNSPECIFIED
+            - EVERY_10_MINUTES
+            - HOURLY
+            - DAILY
+          example: HOURLY
+        mirrorState:
+          title: mirrorState
+          type: string
+          description: The mirror state of the volume replication
+          enum:
+            - MIRROR_STATE_UNSPECIFIED
+            - PREPARING
+            - UNINITIALIZED
+            - MIRRORED
+            - STOPPED
+            - ABORTED
+            - TRANSFERRING
+            - BASELINE_TRANSFERRING
+            - EXTERNALLY_MANAGED
+          readOnly: true
+          example: MIRRORED
+        healthy:
+          title: healthy
+          type: boolean
+          description: >-
+            Condition of the relationship. Can be one of the following:
+            - true: The replication relationship is
+              healthy. It has not missed a
+              scheduled transfer, or experienced
+              a manual update failure.
+            - false: The replication relationship is not
+              healthy. It has missed a scheduled
+              transfer, or has experienced a manual
+              update failure.
+          example: true
+          readOnly: true
+        transferStats:
+          $ref: '#/components/schemas/TransferStats_v1beta'
+        created:
+          title: created
+          type: string
+          format: date-time
+          readOnly: true
+          description: Creation date of the resource
+          example: '2016-11-28T19:30:23.123Z'
+        labels:
+          title: labels
+          type: object
+          additionalProperties:
+            type: string
+          description: JSON dictionary of resource labels to allow linking of billing labels to a replication,
+            Can contain only lowercase letters, numeric characters, underscores, and dashes.
+            All characters must use UTF-8 encoding, and international characters are allowed.
+            Must start with a lowercase letter or international character.
+          example: { "some-key": "some-value", "some-key2": "some-value2" }
+        clusterLocation:
+          title: clusterLocation
+          type: string
+          description: Location of the cluster
+          x-nullable: true
+          x-omitempty: true
+          example: us-east1
+        hybridReplicationType:
+          title: hybridReplicationType
+          type: string
+          description: Type of hybrid replication
+          x-nullable: true
+          x-omitempty: true
+          enum:
+            - HYBRID_REPLICATION_TYPE_UNSPECIFIED
+            - MIGRATION
+            - CONTINUOUS_REPLICATION
+            - ONPREM_REPLICATION
+            - REVERSE_ONPREM_REPLICATION
+          example: MIGRATION
+        hybridPeeringDetails:
+          $ref: '#/components/schemas/HybridPeering_v1beta'
+        hybridReplicationUserCommands:
+          $ref: '#/components/schemas/HybridReplicationUserCommands_v1beta'
+    ReplicationCreate_v1beta:
+      type: object
+      title: Replication create
+      required:
+        - resourceId
+        - replicationSchedule
+        - destinationVolumeParameters
+      properties:
+        resourceId:
+          title: resourceId
+          type: string
+          description: A human readable label for the replication resource which is restricted to letters, numbers, and hyphen, with the first character a letter, the last a letter or a number, and a 63 character maximum
+          pattern: >-
+            ^[a-z]([a-z0-9-]{0,61}[a-z0-9])?$
+          maxLength: 63
+          example: my-replication-name
+        description:
+          title: description
+          type: string
+          description: Description of the replication
+          example: My replication description
+          x-nullable: true
+          maxLength: 2048
+        replicationSchedule:
+          title: replicationSchedule
+          type: string
+          enum:
+            - REPLICATION_SCHEDULE_UNSPECIFIED
+            - EVERY_10_MINUTES
+            - HOURLY
+            - DAILY
+        destinationVolumeParameters:
+          $ref: '#/components/schemas/DestinationVolumeParameters_v1beta'
+        labels:
+          title: labels
+          type: object
+          additionalProperties:
+            type: string
+          description: JSON dictionary of resource labels to allow linking of billing labels to a replication,
+            Can contain only lowercase letters, numeric characters, underscores, and dashes.
+            All characters must use UTF-8 encoding, and international characters are allowed.
+            Must start with a lowercase letter or international character.
+          example: { "some-key": "some-value", "some-key2": "some-value2" }
+    ReplicationUpdate_v1beta:
+      type: object
+      title: Replication update
+      properties:
+        description:
+          title: description
+          type: string
+          description: Description of the replication
+          example: My replication description
+          x-nullable: true
+          maxLength: 2048
+        replicationSchedule:
+          title: replicationSchedule
+          type: string
+          x-nullable: true
+          enum:
+            - REPLICATION_SCHEDULE_UNSPECIFIED
+            - EVERY_10_MINUTES
+            - HOURLY
+            - DAILY
+        labels:
+          title: labels
+          type: object
+          additionalProperties:
+            type: string
+          description: JSON dictionary of resource labels to allow linking of billing labels to a replication,
+            Can contain only lowercase letters, numeric characters, underscores, and dashes.
+            All characters must use UTF-8 encoding, and international characters are allowed.
+            Must start with a lowercase letter or international character.
+          example: { "some-key": "some-value", "some-key2": "some-value2" }
+        clusterLocation:
+          title: clusterLocation
+          type: string
+          description: Name of source cluster associated with the hybrid replication, display purposes only
+          example: source-cluster-name
+          x-nullable: true
+          maxLength: 2048
+    ReplicationDelete_v1beta:
+      type: object
+      title: Replication delete
+      properties:
+        cleanupResourcesJobId:
+          title: cleanupResourcesJobId
+          type: string
+          description: Full URI of the job to clean up resources
+          maxLength: 255
+          example: /v1beta/projects/my-project-1/locations/eu-west-1/operations/9760acf5-4638-11e7-9bdb-020073ca7773
+    ReplicationStop_v1beta:
+      type: object
+      title: Replication stop
+      properties:
+        force:
+          title: Force
+          type: boolean
+          description: Force replication stop
+          default: false
+    DestinationVolumeParameters_v1beta:
+      type: object
+      title: Destination Volume Parameters
+      description: DestinationVolumeParameters specify input parameters used for creating destination volume
+      required:
+        - storagePool
+      properties:
+        storagePool:
+          title: storagePool
+          type: string
+          description: Destination storage pool URI for replication
+          pattern: >-
+            ^projects\/([^\/]+)\/locations\/([^\/]+)\/storagePools|pools\/([^\/]+)$
+          maxLength: 255
+          example: projects/my-project-1/locations/eu-west-1/pools/pool-1
+        volumeId:
+          title: volumeId
+          type: string
+          description: A human readable name for the secondary volume which is restricted to letters, numbers, and hyphen, with the first character a letter, the last a letter or a number, and a 63 character maximum
+          pattern: >-
+            ^[a-z]([a-z0-9-]{0,61}[a-z0-9])?$
+          maxLength: 63
+          example: my-volume-name
+        shareName:
+          title: shareName
+          type: string
+          description: Volume share name for the secondary volume
+          pattern: ^[a-zA-Z][a-zA-Z0-9\-_]{0,79}$
+          maxLength: 80
+          minLength: 1
+          example: share-name
+        description:
+          title: description
+          type: string
+          description: Description of the destination volume
+          example: My destination volume description
+          x-nullable: true
+          maxLength: 2048
+    ReplicationVolumeInformation_v1beta:
+      type: object
+      title: Volume information
+      properties:
+        volumeName:
+          title: VolumeName
+          type: string
+          description: Full URI of volume
+          maxLength: 255
+          minLength: 1
+          example: projects/965286636820/locations/australia-southeast1/volumes/ra-2-vol166783690116
+        volumeId:
+          type: string
+          title: VolumeId
+          readOnly: true
+          description: UUID v4 used to identify the volume replication
+          pattern: >-
+            ^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$
+          maxLength: 36
+          minLength: 36
+          example: 9760acf5-4638-11e7-9bdb-020073ca7773
+    TransferStats_v1beta:
+      title: TransferStats
+      description: Transfer statistics for replication
+      type: object
+      properties:
+        totalTransferBytes:
+          title: totalTransferBytes
+          type: number
+          format: double
+          description: Cumulative bytes transferred for the relationship.
+          example: 75.00
+          readOnly: true
+        totalTransferTimeSecs:
+          title: totalTransferTimeSec
+          type: number
+          format: double
+          description: Cumulative total transfer time in seconds for the relationship.
+          example: 200.00
+          readOnly: true
+        lastTransferSize:
+          title: lastTransferSize
+          type: number
+          format: double
+          description: The total number of bytes transferred as part of the last transfer.
+          example: 14758.00
+          readOnly: true
+        lastTransferError:
+          title: lastTransferError
+          type: string
+          description: A message describing the cause of the last transfer failure.
+          example: Something went wrong
+          readOnly: true
+        lastTransferDuration:
+          title: lastTransferDuration
+          type: number
+          format: double
+          description: The amount of time in seconds it took for the last transfer to complete.
+          example: 200.00
+          readOnly: true
+        lastTransferEndTime:
+          type: string
+          format: date-time
+          readOnly: true
+          description: The time of the end of the last transfer.
+          example: '2016-11-29T20:32:50.459Z'
+          x-nullable: true
+        totalProgress:
+          title: totalProgress
+          type: number
+          format: double
+          description: >-
+            Total amount of data transferred for the
+            current transfer operation.
+          example: 75.00
+          readOnly: true
+        progressLastUpdated:
+          title: progressLastUpdated
+          type: string
+          format: date-time
+          description: Time indicating when the progress of the transfer was last updated.
+          example: '2016-11-29T20:32:50.459Z'
+          readOnly: true
+          x-nullable: true
+        lagTime:
+          title: lagTime
+          type: number
+          format: double
+          description: The amount of time in seconds by which the data on the mirror lags behind the source.
+          example: 1849.00
+          readOnly: true
+    HybridPeering_v1beta:
+      type: object
+      title: Hybrid Replication Peering details
+      properties:
+        subnetIp:
+          title: subnetIp
+          type: string
+          description: IP address of subnet in use for this hybrid peering
+          readOnly: true
+          example: 101.102.103.104
+        command:
+          title: command
+          description: Copy-paste-able command to be used on source Ontap to accept peering request.
+          type: string
+          readOnly: true
+          example: cluster peer create -peer-addrs 192.140.112.101,192.140.112.102 -initial-allowed-vserver-peers svm_560a3f3cb4d345f18297decc3a5988bc
+        passphrase:
+          title: passphrase
+          type: string
+          description: Temporary passphrase generated to accept cluster peering command.
+          readOnly: true
+          x-nullable: true
+          example: loremIpsum
+        commandExpiryTime:
+          title: commandExpiryTime
+          format: date-time
+          type: string
+          x-nullable: true
+          description: DateTime value for when cluster peering command should expire.
+          example: 2024-04-20T16:21:01+01:00
+        peerVolumeName:
+          title: peerVolumeName
+          type: string
+          description: This is name of the peered external volume for this hybrid replication.
+          readOnly: true
+          x-nullable: true
+          example: somePeerVolumeName
+        peerClusterName:
+          title: peerClusterName
+          type: string
+          description: This is name of the external peered cluster for this hybrid replication.
+          readOnly: true
+          x-nullable: true
+          example: somePeerClusterName
+        peerSvmName:
+          title: peerSvmName
+          type: string
+          description: This is the name of the external peered SVM for this hybrid replication.
+          readOnly: true
+          x-nullable: true
+          example: somePeerSvmName
+    HybridReplicationUserCommands_v1beta:
+      type: object
+      title: Hybrid Replication User commands
+      properties:
+        commands:
+          title: commands
+          description: Copy-paste-able snapmirror commands to be executed on on-prem
+            cluster by customer.
+          readOnly: true
+          type: array
+          items:
+            type: string
+            description: Copy-paste-able snapmirror command
+          example:
+            - snapmirror resync -destination-path svm_cvo:firstvolume -source-path svm_gcnv:vol_gcnv
+            - job schedule cron create -name daily_1 -hour 1 -minute 0
+            - snapmirror modify -destination-path svm_cvo:firstvolume -source-path svm_gcnv:vol_gcnv
+              -schedule daily_1
     ChildAsset:
       title: child_asset
       type: object
@@ -3694,6 +4758,24 @@ components:
         minLength: 36
         pattern: "^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$"
         type: string
+    volumeResourceIdPathParameter:
+      name: volumeResourceId
+      in: path
+      description: Resource ID used to identify the volume
+      schema:
+        maxLength: 63
+        pattern: "^(?:-|([a-z]([a-z0-9-]{0,61}[a-z0-9])?))$"
+        type: string
+      required: true
+    replicationResourceIdPathParameter:
+      name: replicationResourceId
+      in: path
+      description: Resource ID used to identify the replication
+      schema:
+        maxLength: 63
+        pattern: "^[a-z]([a-z0-9-]{0,61}[a-z0-9])?$"
+        type: string
+      required: true
     xCorrelationIdHeader:
       name: x-correlation-id
       in: header

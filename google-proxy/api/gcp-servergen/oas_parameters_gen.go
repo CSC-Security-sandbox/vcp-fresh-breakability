@@ -421,6 +421,279 @@ func decodeV1betaCreatePoolParams(args [2]string, argsEscaped bool, r *http.Requ
 	return params, nil
 }
 
+// V1betaCreateReplicationParams is parameters of v1beta_createReplication operation.
+type V1betaCreateReplicationParams struct {
+	// The project number of the GCP project owning the resource being acted upon.
+	ProjectNumber string
+	// The location/region to perform the operation in.
+	LocationId string
+	// Resource ID used to identify the volume.
+	VolumeResourceId string
+	// Correlation identifier.
+	XCorrelationID OptString
+}
+
+func unpackV1betaCreateReplicationParams(packed middleware.Parameters) (params V1betaCreateReplicationParams) {
+	{
+		key := middleware.ParameterKey{
+			Name: "projectNumber",
+			In:   "path",
+		}
+		params.ProjectNumber = packed[key].(string)
+	}
+	{
+		key := middleware.ParameterKey{
+			Name: "locationId",
+			In:   "path",
+		}
+		params.LocationId = packed[key].(string)
+	}
+	{
+		key := middleware.ParameterKey{
+			Name: "volumeResourceId",
+			In:   "path",
+		}
+		params.VolumeResourceId = packed[key].(string)
+	}
+	{
+		key := middleware.ParameterKey{
+			Name: "x-correlation-id",
+			In:   "header",
+		}
+		if v, ok := packed[key]; ok {
+			params.XCorrelationID = v.(OptString)
+		}
+	}
+	return params
+}
+
+func decodeV1betaCreateReplicationParams(args [3]string, argsEscaped bool, r *http.Request) (params V1betaCreateReplicationParams, _ error) {
+	h := uri.NewHeaderDecoder(r.Header)
+	// Decode path: projectNumber.
+	if err := func() error {
+		param := args[0]
+		if argsEscaped {
+			unescaped, err := url.PathUnescape(args[0])
+			if err != nil {
+				return errors.Wrap(err, "unescape path")
+			}
+			param = unescaped
+		}
+		if len(param) > 0 {
+			d := uri.NewPathDecoder(uri.PathDecoderConfig{
+				Param:   "projectNumber",
+				Value:   param,
+				Style:   uri.PathStyleSimple,
+				Explode: false,
+			})
+
+			if err := func() error {
+				val, err := d.DecodeValue()
+				if err != nil {
+					return err
+				}
+
+				c, err := conv.ToString(val)
+				if err != nil {
+					return err
+				}
+
+				params.ProjectNumber = c
+				return nil
+			}(); err != nil {
+				return err
+			}
+			if err := func() error {
+				if err := (validate.String{
+					MinLength:    0,
+					MinLengthSet: false,
+					MaxLength:    18,
+					MaxLengthSet: true,
+					Email:        false,
+					Hostname:     false,
+					Regex:        regexMap["^[1-9][0-9]{0,18}$"],
+				}).Validate(string(params.ProjectNumber)); err != nil {
+					return errors.Wrap(err, "string")
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		} else {
+			return validate.ErrFieldRequired
+		}
+		return nil
+	}(); err != nil {
+		return params, &ogenerrors.DecodeParamError{
+			Name: "projectNumber",
+			In:   "path",
+			Err:  err,
+		}
+	}
+	// Decode path: locationId.
+	if err := func() error {
+		param := args[1]
+		if argsEscaped {
+			unescaped, err := url.PathUnescape(args[1])
+			if err != nil {
+				return errors.Wrap(err, "unescape path")
+			}
+			param = unescaped
+		}
+		if len(param) > 0 {
+			d := uri.NewPathDecoder(uri.PathDecoderConfig{
+				Param:   "locationId",
+				Value:   param,
+				Style:   uri.PathStyleSimple,
+				Explode: false,
+			})
+
+			if err := func() error {
+				val, err := d.DecodeValue()
+				if err != nil {
+					return err
+				}
+
+				c, err := conv.ToString(val)
+				if err != nil {
+					return err
+				}
+
+				params.LocationId = c
+				return nil
+			}(); err != nil {
+				return err
+			}
+			if err := func() error {
+				if err := (validate.String{
+					MinLength:    0,
+					MinLengthSet: false,
+					MaxLength:    255,
+					MaxLengthSet: true,
+					Email:        false,
+					Hostname:     false,
+					Regex:        nil,
+				}).Validate(string(params.LocationId)); err != nil {
+					return errors.Wrap(err, "string")
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		} else {
+			return validate.ErrFieldRequired
+		}
+		return nil
+	}(); err != nil {
+		return params, &ogenerrors.DecodeParamError{
+			Name: "locationId",
+			In:   "path",
+			Err:  err,
+		}
+	}
+	// Decode path: volumeResourceId.
+	if err := func() error {
+		param := args[2]
+		if argsEscaped {
+			unescaped, err := url.PathUnescape(args[2])
+			if err != nil {
+				return errors.Wrap(err, "unescape path")
+			}
+			param = unescaped
+		}
+		if len(param) > 0 {
+			d := uri.NewPathDecoder(uri.PathDecoderConfig{
+				Param:   "volumeResourceId",
+				Value:   param,
+				Style:   uri.PathStyleSimple,
+				Explode: false,
+			})
+
+			if err := func() error {
+				val, err := d.DecodeValue()
+				if err != nil {
+					return err
+				}
+
+				c, err := conv.ToString(val)
+				if err != nil {
+					return err
+				}
+
+				params.VolumeResourceId = c
+				return nil
+			}(); err != nil {
+				return err
+			}
+			if err := func() error {
+				if err := (validate.String{
+					MinLength:    0,
+					MinLengthSet: false,
+					MaxLength:    63,
+					MaxLengthSet: true,
+					Email:        false,
+					Hostname:     false,
+					Regex:        regexMap["^(?:-|([a-z]([a-z0-9-]{0,61}[a-z0-9])?))$"],
+				}).Validate(string(params.VolumeResourceId)); err != nil {
+					return errors.Wrap(err, "string")
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		} else {
+			return validate.ErrFieldRequired
+		}
+		return nil
+	}(); err != nil {
+		return params, &ogenerrors.DecodeParamError{
+			Name: "volumeResourceId",
+			In:   "path",
+			Err:  err,
+		}
+	}
+	// Decode header: x-correlation-id.
+	if err := func() error {
+		cfg := uri.HeaderParameterDecodingConfig{
+			Name:    "x-correlation-id",
+			Explode: false,
+		}
+		if err := h.HasParam(cfg); err == nil {
+			if err := h.DecodeParam(cfg, func(d uri.Decoder) error {
+				var paramsDotXCorrelationIDVal string
+				if err := func() error {
+					val, err := d.DecodeValue()
+					if err != nil {
+						return err
+					}
+
+					c, err := conv.ToString(val)
+					if err != nil {
+						return err
+					}
+
+					paramsDotXCorrelationIDVal = c
+					return nil
+				}(); err != nil {
+					return err
+				}
+				params.XCorrelationID.SetTo(paramsDotXCorrelationIDVal)
+				return nil
+			}); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		return params, &ogenerrors.DecodeParamError{
+			Name: "x-correlation-id",
+			In:   "header",
+			Err:  err,
+		}
+	}
+	return params, nil
+}
+
 // V1betaCreateVolumeParams is parameters of v1beta_createVolume operation.
 type V1betaCreateVolumeParams struct {
 	// The project number of the GCP project owning the resource being acted upon.
@@ -1124,6 +1397,349 @@ func decodeV1betaDeletePoolParams(args [3]string, argsEscaped bool, r *http.Requ
 	}(); err != nil {
 		return params, &ogenerrors.DecodeParamError{
 			Name: "locationId",
+			In:   "path",
+			Err:  err,
+		}
+	}
+	// Decode header: x-correlation-id.
+	if err := func() error {
+		cfg := uri.HeaderParameterDecodingConfig{
+			Name:    "x-correlation-id",
+			Explode: false,
+		}
+		if err := h.HasParam(cfg); err == nil {
+			if err := h.DecodeParam(cfg, func(d uri.Decoder) error {
+				var paramsDotXCorrelationIDVal string
+				if err := func() error {
+					val, err := d.DecodeValue()
+					if err != nil {
+						return err
+					}
+
+					c, err := conv.ToString(val)
+					if err != nil {
+						return err
+					}
+
+					paramsDotXCorrelationIDVal = c
+					return nil
+				}(); err != nil {
+					return err
+				}
+				params.XCorrelationID.SetTo(paramsDotXCorrelationIDVal)
+				return nil
+			}); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		return params, &ogenerrors.DecodeParamError{
+			Name: "x-correlation-id",
+			In:   "header",
+			Err:  err,
+		}
+	}
+	return params, nil
+}
+
+// V1betaDeleteReplicationParams is parameters of v1beta_deleteReplication operation.
+type V1betaDeleteReplicationParams struct {
+	// The project number of the GCP project owning the resource being acted upon.
+	ProjectNumber string
+	// The location/region to perform the operation in.
+	LocationId string
+	// Resource ID used to identify the volume.
+	VolumeResourceId string
+	// Resource ID used to identify the replication.
+	ReplicationResourceId string
+	// Correlation identifier.
+	XCorrelationID OptString
+}
+
+func unpackV1betaDeleteReplicationParams(packed middleware.Parameters) (params V1betaDeleteReplicationParams) {
+	{
+		key := middleware.ParameterKey{
+			Name: "projectNumber",
+			In:   "path",
+		}
+		params.ProjectNumber = packed[key].(string)
+	}
+	{
+		key := middleware.ParameterKey{
+			Name: "locationId",
+			In:   "path",
+		}
+		params.LocationId = packed[key].(string)
+	}
+	{
+		key := middleware.ParameterKey{
+			Name: "volumeResourceId",
+			In:   "path",
+		}
+		params.VolumeResourceId = packed[key].(string)
+	}
+	{
+		key := middleware.ParameterKey{
+			Name: "replicationResourceId",
+			In:   "path",
+		}
+		params.ReplicationResourceId = packed[key].(string)
+	}
+	{
+		key := middleware.ParameterKey{
+			Name: "x-correlation-id",
+			In:   "header",
+		}
+		if v, ok := packed[key]; ok {
+			params.XCorrelationID = v.(OptString)
+		}
+	}
+	return params
+}
+
+func decodeV1betaDeleteReplicationParams(args [4]string, argsEscaped bool, r *http.Request) (params V1betaDeleteReplicationParams, _ error) {
+	h := uri.NewHeaderDecoder(r.Header)
+	// Decode path: projectNumber.
+	if err := func() error {
+		param := args[0]
+		if argsEscaped {
+			unescaped, err := url.PathUnescape(args[0])
+			if err != nil {
+				return errors.Wrap(err, "unescape path")
+			}
+			param = unescaped
+		}
+		if len(param) > 0 {
+			d := uri.NewPathDecoder(uri.PathDecoderConfig{
+				Param:   "projectNumber",
+				Value:   param,
+				Style:   uri.PathStyleSimple,
+				Explode: false,
+			})
+
+			if err := func() error {
+				val, err := d.DecodeValue()
+				if err != nil {
+					return err
+				}
+
+				c, err := conv.ToString(val)
+				if err != nil {
+					return err
+				}
+
+				params.ProjectNumber = c
+				return nil
+			}(); err != nil {
+				return err
+			}
+			if err := func() error {
+				if err := (validate.String{
+					MinLength:    0,
+					MinLengthSet: false,
+					MaxLength:    18,
+					MaxLengthSet: true,
+					Email:        false,
+					Hostname:     false,
+					Regex:        regexMap["^[1-9][0-9]{0,18}$"],
+				}).Validate(string(params.ProjectNumber)); err != nil {
+					return errors.Wrap(err, "string")
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		} else {
+			return validate.ErrFieldRequired
+		}
+		return nil
+	}(); err != nil {
+		return params, &ogenerrors.DecodeParamError{
+			Name: "projectNumber",
+			In:   "path",
+			Err:  err,
+		}
+	}
+	// Decode path: locationId.
+	if err := func() error {
+		param := args[1]
+		if argsEscaped {
+			unescaped, err := url.PathUnescape(args[1])
+			if err != nil {
+				return errors.Wrap(err, "unescape path")
+			}
+			param = unescaped
+		}
+		if len(param) > 0 {
+			d := uri.NewPathDecoder(uri.PathDecoderConfig{
+				Param:   "locationId",
+				Value:   param,
+				Style:   uri.PathStyleSimple,
+				Explode: false,
+			})
+
+			if err := func() error {
+				val, err := d.DecodeValue()
+				if err != nil {
+					return err
+				}
+
+				c, err := conv.ToString(val)
+				if err != nil {
+					return err
+				}
+
+				params.LocationId = c
+				return nil
+			}(); err != nil {
+				return err
+			}
+			if err := func() error {
+				if err := (validate.String{
+					MinLength:    0,
+					MinLengthSet: false,
+					MaxLength:    255,
+					MaxLengthSet: true,
+					Email:        false,
+					Hostname:     false,
+					Regex:        nil,
+				}).Validate(string(params.LocationId)); err != nil {
+					return errors.Wrap(err, "string")
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		} else {
+			return validate.ErrFieldRequired
+		}
+		return nil
+	}(); err != nil {
+		return params, &ogenerrors.DecodeParamError{
+			Name: "locationId",
+			In:   "path",
+			Err:  err,
+		}
+	}
+	// Decode path: volumeResourceId.
+	if err := func() error {
+		param := args[2]
+		if argsEscaped {
+			unescaped, err := url.PathUnescape(args[2])
+			if err != nil {
+				return errors.Wrap(err, "unescape path")
+			}
+			param = unescaped
+		}
+		if len(param) > 0 {
+			d := uri.NewPathDecoder(uri.PathDecoderConfig{
+				Param:   "volumeResourceId",
+				Value:   param,
+				Style:   uri.PathStyleSimple,
+				Explode: false,
+			})
+
+			if err := func() error {
+				val, err := d.DecodeValue()
+				if err != nil {
+					return err
+				}
+
+				c, err := conv.ToString(val)
+				if err != nil {
+					return err
+				}
+
+				params.VolumeResourceId = c
+				return nil
+			}(); err != nil {
+				return err
+			}
+			if err := func() error {
+				if err := (validate.String{
+					MinLength:    0,
+					MinLengthSet: false,
+					MaxLength:    63,
+					MaxLengthSet: true,
+					Email:        false,
+					Hostname:     false,
+					Regex:        regexMap["^(?:-|([a-z]([a-z0-9-]{0,61}[a-z0-9])?))$"],
+				}).Validate(string(params.VolumeResourceId)); err != nil {
+					return errors.Wrap(err, "string")
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		} else {
+			return validate.ErrFieldRequired
+		}
+		return nil
+	}(); err != nil {
+		return params, &ogenerrors.DecodeParamError{
+			Name: "volumeResourceId",
+			In:   "path",
+			Err:  err,
+		}
+	}
+	// Decode path: replicationResourceId.
+	if err := func() error {
+		param := args[3]
+		if argsEscaped {
+			unescaped, err := url.PathUnescape(args[3])
+			if err != nil {
+				return errors.Wrap(err, "unescape path")
+			}
+			param = unescaped
+		}
+		if len(param) > 0 {
+			d := uri.NewPathDecoder(uri.PathDecoderConfig{
+				Param:   "replicationResourceId",
+				Value:   param,
+				Style:   uri.PathStyleSimple,
+				Explode: false,
+			})
+
+			if err := func() error {
+				val, err := d.DecodeValue()
+				if err != nil {
+					return err
+				}
+
+				c, err := conv.ToString(val)
+				if err != nil {
+					return err
+				}
+
+				params.ReplicationResourceId = c
+				return nil
+			}(); err != nil {
+				return err
+			}
+			if err := func() error {
+				if err := (validate.String{
+					MinLength:    0,
+					MinLengthSet: false,
+					MaxLength:    63,
+					MaxLengthSet: true,
+					Email:        false,
+					Hostname:     false,
+					Regex:        regexMap["^[a-z]([a-z0-9-]{0,61}[a-z0-9])?$"],
+				}).Validate(string(params.ReplicationResourceId)); err != nil {
+					return errors.Wrap(err, "string")
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		} else {
+			return validate.ErrFieldRequired
+		}
+		return nil
+	}(); err != nil {
+		return params, &ogenerrors.DecodeParamError{
+			Name: "replicationResourceId",
 			In:   "path",
 			Err:  err,
 		}
@@ -2941,6 +3557,279 @@ func decodeV1betaGetMultiplePoolsParams(args [2]string, argsEscaped bool, r *htt
 	return params, nil
 }
 
+// V1betaGetMultipleReplicationsParams is parameters of v1beta_getMultipleReplications operation.
+type V1betaGetMultipleReplicationsParams struct {
+	// The project number of the GCP project owning the resource being acted upon.
+	ProjectNumber string
+	// The location/region to perform the operation in.
+	LocationId string
+	// Resource ID used to identify the volume.
+	VolumeResourceId string
+	// Correlation identifier.
+	XCorrelationID OptString
+}
+
+func unpackV1betaGetMultipleReplicationsParams(packed middleware.Parameters) (params V1betaGetMultipleReplicationsParams) {
+	{
+		key := middleware.ParameterKey{
+			Name: "projectNumber",
+			In:   "path",
+		}
+		params.ProjectNumber = packed[key].(string)
+	}
+	{
+		key := middleware.ParameterKey{
+			Name: "locationId",
+			In:   "path",
+		}
+		params.LocationId = packed[key].(string)
+	}
+	{
+		key := middleware.ParameterKey{
+			Name: "volumeResourceId",
+			In:   "path",
+		}
+		params.VolumeResourceId = packed[key].(string)
+	}
+	{
+		key := middleware.ParameterKey{
+			Name: "x-correlation-id",
+			In:   "header",
+		}
+		if v, ok := packed[key]; ok {
+			params.XCorrelationID = v.(OptString)
+		}
+	}
+	return params
+}
+
+func decodeV1betaGetMultipleReplicationsParams(args [3]string, argsEscaped bool, r *http.Request) (params V1betaGetMultipleReplicationsParams, _ error) {
+	h := uri.NewHeaderDecoder(r.Header)
+	// Decode path: projectNumber.
+	if err := func() error {
+		param := args[0]
+		if argsEscaped {
+			unescaped, err := url.PathUnescape(args[0])
+			if err != nil {
+				return errors.Wrap(err, "unescape path")
+			}
+			param = unescaped
+		}
+		if len(param) > 0 {
+			d := uri.NewPathDecoder(uri.PathDecoderConfig{
+				Param:   "projectNumber",
+				Value:   param,
+				Style:   uri.PathStyleSimple,
+				Explode: false,
+			})
+
+			if err := func() error {
+				val, err := d.DecodeValue()
+				if err != nil {
+					return err
+				}
+
+				c, err := conv.ToString(val)
+				if err != nil {
+					return err
+				}
+
+				params.ProjectNumber = c
+				return nil
+			}(); err != nil {
+				return err
+			}
+			if err := func() error {
+				if err := (validate.String{
+					MinLength:    0,
+					MinLengthSet: false,
+					MaxLength:    18,
+					MaxLengthSet: true,
+					Email:        false,
+					Hostname:     false,
+					Regex:        regexMap["^[1-9][0-9]{0,18}$"],
+				}).Validate(string(params.ProjectNumber)); err != nil {
+					return errors.Wrap(err, "string")
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		} else {
+			return validate.ErrFieldRequired
+		}
+		return nil
+	}(); err != nil {
+		return params, &ogenerrors.DecodeParamError{
+			Name: "projectNumber",
+			In:   "path",
+			Err:  err,
+		}
+	}
+	// Decode path: locationId.
+	if err := func() error {
+		param := args[1]
+		if argsEscaped {
+			unescaped, err := url.PathUnescape(args[1])
+			if err != nil {
+				return errors.Wrap(err, "unescape path")
+			}
+			param = unescaped
+		}
+		if len(param) > 0 {
+			d := uri.NewPathDecoder(uri.PathDecoderConfig{
+				Param:   "locationId",
+				Value:   param,
+				Style:   uri.PathStyleSimple,
+				Explode: false,
+			})
+
+			if err := func() error {
+				val, err := d.DecodeValue()
+				if err != nil {
+					return err
+				}
+
+				c, err := conv.ToString(val)
+				if err != nil {
+					return err
+				}
+
+				params.LocationId = c
+				return nil
+			}(); err != nil {
+				return err
+			}
+			if err := func() error {
+				if err := (validate.String{
+					MinLength:    0,
+					MinLengthSet: false,
+					MaxLength:    255,
+					MaxLengthSet: true,
+					Email:        false,
+					Hostname:     false,
+					Regex:        nil,
+				}).Validate(string(params.LocationId)); err != nil {
+					return errors.Wrap(err, "string")
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		} else {
+			return validate.ErrFieldRequired
+		}
+		return nil
+	}(); err != nil {
+		return params, &ogenerrors.DecodeParamError{
+			Name: "locationId",
+			In:   "path",
+			Err:  err,
+		}
+	}
+	// Decode path: volumeResourceId.
+	if err := func() error {
+		param := args[2]
+		if argsEscaped {
+			unescaped, err := url.PathUnescape(args[2])
+			if err != nil {
+				return errors.Wrap(err, "unescape path")
+			}
+			param = unescaped
+		}
+		if len(param) > 0 {
+			d := uri.NewPathDecoder(uri.PathDecoderConfig{
+				Param:   "volumeResourceId",
+				Value:   param,
+				Style:   uri.PathStyleSimple,
+				Explode: false,
+			})
+
+			if err := func() error {
+				val, err := d.DecodeValue()
+				if err != nil {
+					return err
+				}
+
+				c, err := conv.ToString(val)
+				if err != nil {
+					return err
+				}
+
+				params.VolumeResourceId = c
+				return nil
+			}(); err != nil {
+				return err
+			}
+			if err := func() error {
+				if err := (validate.String{
+					MinLength:    0,
+					MinLengthSet: false,
+					MaxLength:    63,
+					MaxLengthSet: true,
+					Email:        false,
+					Hostname:     false,
+					Regex:        regexMap["^(?:-|([a-z]([a-z0-9-]{0,61}[a-z0-9])?))$"],
+				}).Validate(string(params.VolumeResourceId)); err != nil {
+					return errors.Wrap(err, "string")
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		} else {
+			return validate.ErrFieldRequired
+		}
+		return nil
+	}(); err != nil {
+		return params, &ogenerrors.DecodeParamError{
+			Name: "volumeResourceId",
+			In:   "path",
+			Err:  err,
+		}
+	}
+	// Decode header: x-correlation-id.
+	if err := func() error {
+		cfg := uri.HeaderParameterDecodingConfig{
+			Name:    "x-correlation-id",
+			Explode: false,
+		}
+		if err := h.HasParam(cfg); err == nil {
+			if err := h.DecodeParam(cfg, func(d uri.Decoder) error {
+				var paramsDotXCorrelationIDVal string
+				if err := func() error {
+					val, err := d.DecodeValue()
+					if err != nil {
+						return err
+					}
+
+					c, err := conv.ToString(val)
+					if err != nil {
+						return err
+					}
+
+					paramsDotXCorrelationIDVal = c
+					return nil
+				}(); err != nil {
+					return err
+				}
+				params.XCorrelationID.SetTo(paramsDotXCorrelationIDVal)
+				return nil
+			}); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		return params, &ogenerrors.DecodeParamError{
+			Name: "x-correlation-id",
+			In:   "header",
+			Err:  err,
+		}
+	}
+	return params, nil
+}
+
 // V1betaGetMultipleVolumesParams is parameters of v1beta_getMultipleVolumes operation.
 type V1betaGetMultipleVolumesParams struct {
 	// The project number of the GCP project owning the resource being acted upon.
@@ -3608,6 +4497,209 @@ func decodeV1betaListPoolsParams(args [2]string, argsEscaped bool, r *http.Reque
 	return params, nil
 }
 
+// V1betaListReplicationsParams is parameters of v1beta_listReplications operation.
+type V1betaListReplicationsParams struct {
+	// The project number of the GCP project owning the resource being acted upon.
+	ProjectNumber string
+	// The location/region to perform the operation in.
+	LocationId string
+	// Correlation identifier.
+	XCorrelationID OptString
+}
+
+func unpackV1betaListReplicationsParams(packed middleware.Parameters) (params V1betaListReplicationsParams) {
+	{
+		key := middleware.ParameterKey{
+			Name: "projectNumber",
+			In:   "path",
+		}
+		params.ProjectNumber = packed[key].(string)
+	}
+	{
+		key := middleware.ParameterKey{
+			Name: "locationId",
+			In:   "path",
+		}
+		params.LocationId = packed[key].(string)
+	}
+	{
+		key := middleware.ParameterKey{
+			Name: "x-correlation-id",
+			In:   "header",
+		}
+		if v, ok := packed[key]; ok {
+			params.XCorrelationID = v.(OptString)
+		}
+	}
+	return params
+}
+
+func decodeV1betaListReplicationsParams(args [2]string, argsEscaped bool, r *http.Request) (params V1betaListReplicationsParams, _ error) {
+	h := uri.NewHeaderDecoder(r.Header)
+	// Decode path: projectNumber.
+	if err := func() error {
+		param := args[0]
+		if argsEscaped {
+			unescaped, err := url.PathUnescape(args[0])
+			if err != nil {
+				return errors.Wrap(err, "unescape path")
+			}
+			param = unescaped
+		}
+		if len(param) > 0 {
+			d := uri.NewPathDecoder(uri.PathDecoderConfig{
+				Param:   "projectNumber",
+				Value:   param,
+				Style:   uri.PathStyleSimple,
+				Explode: false,
+			})
+
+			if err := func() error {
+				val, err := d.DecodeValue()
+				if err != nil {
+					return err
+				}
+
+				c, err := conv.ToString(val)
+				if err != nil {
+					return err
+				}
+
+				params.ProjectNumber = c
+				return nil
+			}(); err != nil {
+				return err
+			}
+			if err := func() error {
+				if err := (validate.String{
+					MinLength:    0,
+					MinLengthSet: false,
+					MaxLength:    18,
+					MaxLengthSet: true,
+					Email:        false,
+					Hostname:     false,
+					Regex:        regexMap["^[1-9][0-9]{0,18}$"],
+				}).Validate(string(params.ProjectNumber)); err != nil {
+					return errors.Wrap(err, "string")
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		} else {
+			return validate.ErrFieldRequired
+		}
+		return nil
+	}(); err != nil {
+		return params, &ogenerrors.DecodeParamError{
+			Name: "projectNumber",
+			In:   "path",
+			Err:  err,
+		}
+	}
+	// Decode path: locationId.
+	if err := func() error {
+		param := args[1]
+		if argsEscaped {
+			unescaped, err := url.PathUnescape(args[1])
+			if err != nil {
+				return errors.Wrap(err, "unescape path")
+			}
+			param = unescaped
+		}
+		if len(param) > 0 {
+			d := uri.NewPathDecoder(uri.PathDecoderConfig{
+				Param:   "locationId",
+				Value:   param,
+				Style:   uri.PathStyleSimple,
+				Explode: false,
+			})
+
+			if err := func() error {
+				val, err := d.DecodeValue()
+				if err != nil {
+					return err
+				}
+
+				c, err := conv.ToString(val)
+				if err != nil {
+					return err
+				}
+
+				params.LocationId = c
+				return nil
+			}(); err != nil {
+				return err
+			}
+			if err := func() error {
+				if err := (validate.String{
+					MinLength:    0,
+					MinLengthSet: false,
+					MaxLength:    255,
+					MaxLengthSet: true,
+					Email:        false,
+					Hostname:     false,
+					Regex:        nil,
+				}).Validate(string(params.LocationId)); err != nil {
+					return errors.Wrap(err, "string")
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		} else {
+			return validate.ErrFieldRequired
+		}
+		return nil
+	}(); err != nil {
+		return params, &ogenerrors.DecodeParamError{
+			Name: "locationId",
+			In:   "path",
+			Err:  err,
+		}
+	}
+	// Decode header: x-correlation-id.
+	if err := func() error {
+		cfg := uri.HeaderParameterDecodingConfig{
+			Name:    "x-correlation-id",
+			Explode: false,
+		}
+		if err := h.HasParam(cfg); err == nil {
+			if err := h.DecodeParam(cfg, func(d uri.Decoder) error {
+				var paramsDotXCorrelationIDVal string
+				if err := func() error {
+					val, err := d.DecodeValue()
+					if err != nil {
+						return err
+					}
+
+					c, err := conv.ToString(val)
+					if err != nil {
+						return err
+					}
+
+					paramsDotXCorrelationIDVal = c
+					return nil
+				}(); err != nil {
+					return err
+				}
+				params.XCorrelationID.SetTo(paramsDotXCorrelationIDVal)
+				return nil
+			}); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		return params, &ogenerrors.DecodeParamError{
+			Name: "x-correlation-id",
+			In:   "header",
+			Err:  err,
+		}
+	}
+	return params, nil
+}
+
 // V1betaListVolumesParams is parameters of v1beta_listVolumes operation.
 type V1betaListVolumesParams struct {
 	// The project number of the GCP project owning the resource being acted upon.
@@ -4042,6 +5134,1378 @@ func decodeV1betaListVolumesParams(args [2]string, argsEscaped bool, r *http.Req
 		return params, &ogenerrors.DecodeParamError{
 			Name: "includeSmbShareSettings",
 			In:   "query",
+			Err:  err,
+		}
+	}
+	return params, nil
+}
+
+// V1betaResumeReplicationParams is parameters of v1beta_resumeReplication operation.
+type V1betaResumeReplicationParams struct {
+	// The project number of the GCP project owning the resource being acted upon.
+	ProjectNumber string
+	// The location/region to perform the operation in.
+	LocationId string
+	// Resource ID used to identify the volume.
+	VolumeResourceId string
+	// Resource ID used to identify the replication.
+	ReplicationResourceId string
+	// Correlation identifier.
+	XCorrelationID OptString
+}
+
+func unpackV1betaResumeReplicationParams(packed middleware.Parameters) (params V1betaResumeReplicationParams) {
+	{
+		key := middleware.ParameterKey{
+			Name: "projectNumber",
+			In:   "path",
+		}
+		params.ProjectNumber = packed[key].(string)
+	}
+	{
+		key := middleware.ParameterKey{
+			Name: "locationId",
+			In:   "path",
+		}
+		params.LocationId = packed[key].(string)
+	}
+	{
+		key := middleware.ParameterKey{
+			Name: "volumeResourceId",
+			In:   "path",
+		}
+		params.VolumeResourceId = packed[key].(string)
+	}
+	{
+		key := middleware.ParameterKey{
+			Name: "replicationResourceId",
+			In:   "path",
+		}
+		params.ReplicationResourceId = packed[key].(string)
+	}
+	{
+		key := middleware.ParameterKey{
+			Name: "x-correlation-id",
+			In:   "header",
+		}
+		if v, ok := packed[key]; ok {
+			params.XCorrelationID = v.(OptString)
+		}
+	}
+	return params
+}
+
+func decodeV1betaResumeReplicationParams(args [4]string, argsEscaped bool, r *http.Request) (params V1betaResumeReplicationParams, _ error) {
+	h := uri.NewHeaderDecoder(r.Header)
+	// Decode path: projectNumber.
+	if err := func() error {
+		param := args[0]
+		if argsEscaped {
+			unescaped, err := url.PathUnescape(args[0])
+			if err != nil {
+				return errors.Wrap(err, "unescape path")
+			}
+			param = unescaped
+		}
+		if len(param) > 0 {
+			d := uri.NewPathDecoder(uri.PathDecoderConfig{
+				Param:   "projectNumber",
+				Value:   param,
+				Style:   uri.PathStyleSimple,
+				Explode: false,
+			})
+
+			if err := func() error {
+				val, err := d.DecodeValue()
+				if err != nil {
+					return err
+				}
+
+				c, err := conv.ToString(val)
+				if err != nil {
+					return err
+				}
+
+				params.ProjectNumber = c
+				return nil
+			}(); err != nil {
+				return err
+			}
+			if err := func() error {
+				if err := (validate.String{
+					MinLength:    0,
+					MinLengthSet: false,
+					MaxLength:    18,
+					MaxLengthSet: true,
+					Email:        false,
+					Hostname:     false,
+					Regex:        regexMap["^[1-9][0-9]{0,18}$"],
+				}).Validate(string(params.ProjectNumber)); err != nil {
+					return errors.Wrap(err, "string")
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		} else {
+			return validate.ErrFieldRequired
+		}
+		return nil
+	}(); err != nil {
+		return params, &ogenerrors.DecodeParamError{
+			Name: "projectNumber",
+			In:   "path",
+			Err:  err,
+		}
+	}
+	// Decode path: locationId.
+	if err := func() error {
+		param := args[1]
+		if argsEscaped {
+			unescaped, err := url.PathUnescape(args[1])
+			if err != nil {
+				return errors.Wrap(err, "unescape path")
+			}
+			param = unescaped
+		}
+		if len(param) > 0 {
+			d := uri.NewPathDecoder(uri.PathDecoderConfig{
+				Param:   "locationId",
+				Value:   param,
+				Style:   uri.PathStyleSimple,
+				Explode: false,
+			})
+
+			if err := func() error {
+				val, err := d.DecodeValue()
+				if err != nil {
+					return err
+				}
+
+				c, err := conv.ToString(val)
+				if err != nil {
+					return err
+				}
+
+				params.LocationId = c
+				return nil
+			}(); err != nil {
+				return err
+			}
+			if err := func() error {
+				if err := (validate.String{
+					MinLength:    0,
+					MinLengthSet: false,
+					MaxLength:    255,
+					MaxLengthSet: true,
+					Email:        false,
+					Hostname:     false,
+					Regex:        nil,
+				}).Validate(string(params.LocationId)); err != nil {
+					return errors.Wrap(err, "string")
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		} else {
+			return validate.ErrFieldRequired
+		}
+		return nil
+	}(); err != nil {
+		return params, &ogenerrors.DecodeParamError{
+			Name: "locationId",
+			In:   "path",
+			Err:  err,
+		}
+	}
+	// Decode path: volumeResourceId.
+	if err := func() error {
+		param := args[2]
+		if argsEscaped {
+			unescaped, err := url.PathUnescape(args[2])
+			if err != nil {
+				return errors.Wrap(err, "unescape path")
+			}
+			param = unescaped
+		}
+		if len(param) > 0 {
+			d := uri.NewPathDecoder(uri.PathDecoderConfig{
+				Param:   "volumeResourceId",
+				Value:   param,
+				Style:   uri.PathStyleSimple,
+				Explode: false,
+			})
+
+			if err := func() error {
+				val, err := d.DecodeValue()
+				if err != nil {
+					return err
+				}
+
+				c, err := conv.ToString(val)
+				if err != nil {
+					return err
+				}
+
+				params.VolumeResourceId = c
+				return nil
+			}(); err != nil {
+				return err
+			}
+			if err := func() error {
+				if err := (validate.String{
+					MinLength:    0,
+					MinLengthSet: false,
+					MaxLength:    63,
+					MaxLengthSet: true,
+					Email:        false,
+					Hostname:     false,
+					Regex:        regexMap["^(?:-|([a-z]([a-z0-9-]{0,61}[a-z0-9])?))$"],
+				}).Validate(string(params.VolumeResourceId)); err != nil {
+					return errors.Wrap(err, "string")
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		} else {
+			return validate.ErrFieldRequired
+		}
+		return nil
+	}(); err != nil {
+		return params, &ogenerrors.DecodeParamError{
+			Name: "volumeResourceId",
+			In:   "path",
+			Err:  err,
+		}
+	}
+	// Decode path: replicationResourceId.
+	if err := func() error {
+		param := args[3]
+		if argsEscaped {
+			unescaped, err := url.PathUnescape(args[3])
+			if err != nil {
+				return errors.Wrap(err, "unescape path")
+			}
+			param = unescaped
+		}
+		if len(param) > 0 {
+			d := uri.NewPathDecoder(uri.PathDecoderConfig{
+				Param:   "replicationResourceId",
+				Value:   param,
+				Style:   uri.PathStyleSimple,
+				Explode: false,
+			})
+
+			if err := func() error {
+				val, err := d.DecodeValue()
+				if err != nil {
+					return err
+				}
+
+				c, err := conv.ToString(val)
+				if err != nil {
+					return err
+				}
+
+				params.ReplicationResourceId = c
+				return nil
+			}(); err != nil {
+				return err
+			}
+			if err := func() error {
+				if err := (validate.String{
+					MinLength:    0,
+					MinLengthSet: false,
+					MaxLength:    63,
+					MaxLengthSet: true,
+					Email:        false,
+					Hostname:     false,
+					Regex:        regexMap["^[a-z]([a-z0-9-]{0,61}[a-z0-9])?$"],
+				}).Validate(string(params.ReplicationResourceId)); err != nil {
+					return errors.Wrap(err, "string")
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		} else {
+			return validate.ErrFieldRequired
+		}
+		return nil
+	}(); err != nil {
+		return params, &ogenerrors.DecodeParamError{
+			Name: "replicationResourceId",
+			In:   "path",
+			Err:  err,
+		}
+	}
+	// Decode header: x-correlation-id.
+	if err := func() error {
+		cfg := uri.HeaderParameterDecodingConfig{
+			Name:    "x-correlation-id",
+			Explode: false,
+		}
+		if err := h.HasParam(cfg); err == nil {
+			if err := h.DecodeParam(cfg, func(d uri.Decoder) error {
+				var paramsDotXCorrelationIDVal string
+				if err := func() error {
+					val, err := d.DecodeValue()
+					if err != nil {
+						return err
+					}
+
+					c, err := conv.ToString(val)
+					if err != nil {
+						return err
+					}
+
+					paramsDotXCorrelationIDVal = c
+					return nil
+				}(); err != nil {
+					return err
+				}
+				params.XCorrelationID.SetTo(paramsDotXCorrelationIDVal)
+				return nil
+			}); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		return params, &ogenerrors.DecodeParamError{
+			Name: "x-correlation-id",
+			In:   "header",
+			Err:  err,
+		}
+	}
+	return params, nil
+}
+
+// V1betaReverseAndResumeReplicationParams is parameters of v1beta_reverseAndResumeReplication operation.
+type V1betaReverseAndResumeReplicationParams struct {
+	// The project number of the GCP project owning the resource being acted upon.
+	ProjectNumber string
+	// The location/region to perform the operation in.
+	LocationId string
+	// Resource ID used to identify the volume.
+	VolumeResourceId string
+	// Resource ID used to identify the replication.
+	ReplicationResourceId string
+	// Correlation identifier.
+	XCorrelationID OptString
+}
+
+func unpackV1betaReverseAndResumeReplicationParams(packed middleware.Parameters) (params V1betaReverseAndResumeReplicationParams) {
+	{
+		key := middleware.ParameterKey{
+			Name: "projectNumber",
+			In:   "path",
+		}
+		params.ProjectNumber = packed[key].(string)
+	}
+	{
+		key := middleware.ParameterKey{
+			Name: "locationId",
+			In:   "path",
+		}
+		params.LocationId = packed[key].(string)
+	}
+	{
+		key := middleware.ParameterKey{
+			Name: "volumeResourceId",
+			In:   "path",
+		}
+		params.VolumeResourceId = packed[key].(string)
+	}
+	{
+		key := middleware.ParameterKey{
+			Name: "replicationResourceId",
+			In:   "path",
+		}
+		params.ReplicationResourceId = packed[key].(string)
+	}
+	{
+		key := middleware.ParameterKey{
+			Name: "x-correlation-id",
+			In:   "header",
+		}
+		if v, ok := packed[key]; ok {
+			params.XCorrelationID = v.(OptString)
+		}
+	}
+	return params
+}
+
+func decodeV1betaReverseAndResumeReplicationParams(args [4]string, argsEscaped bool, r *http.Request) (params V1betaReverseAndResumeReplicationParams, _ error) {
+	h := uri.NewHeaderDecoder(r.Header)
+	// Decode path: projectNumber.
+	if err := func() error {
+		param := args[0]
+		if argsEscaped {
+			unescaped, err := url.PathUnescape(args[0])
+			if err != nil {
+				return errors.Wrap(err, "unescape path")
+			}
+			param = unescaped
+		}
+		if len(param) > 0 {
+			d := uri.NewPathDecoder(uri.PathDecoderConfig{
+				Param:   "projectNumber",
+				Value:   param,
+				Style:   uri.PathStyleSimple,
+				Explode: false,
+			})
+
+			if err := func() error {
+				val, err := d.DecodeValue()
+				if err != nil {
+					return err
+				}
+
+				c, err := conv.ToString(val)
+				if err != nil {
+					return err
+				}
+
+				params.ProjectNumber = c
+				return nil
+			}(); err != nil {
+				return err
+			}
+			if err := func() error {
+				if err := (validate.String{
+					MinLength:    0,
+					MinLengthSet: false,
+					MaxLength:    18,
+					MaxLengthSet: true,
+					Email:        false,
+					Hostname:     false,
+					Regex:        regexMap["^[1-9][0-9]{0,18}$"],
+				}).Validate(string(params.ProjectNumber)); err != nil {
+					return errors.Wrap(err, "string")
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		} else {
+			return validate.ErrFieldRequired
+		}
+		return nil
+	}(); err != nil {
+		return params, &ogenerrors.DecodeParamError{
+			Name: "projectNumber",
+			In:   "path",
+			Err:  err,
+		}
+	}
+	// Decode path: locationId.
+	if err := func() error {
+		param := args[1]
+		if argsEscaped {
+			unescaped, err := url.PathUnescape(args[1])
+			if err != nil {
+				return errors.Wrap(err, "unescape path")
+			}
+			param = unescaped
+		}
+		if len(param) > 0 {
+			d := uri.NewPathDecoder(uri.PathDecoderConfig{
+				Param:   "locationId",
+				Value:   param,
+				Style:   uri.PathStyleSimple,
+				Explode: false,
+			})
+
+			if err := func() error {
+				val, err := d.DecodeValue()
+				if err != nil {
+					return err
+				}
+
+				c, err := conv.ToString(val)
+				if err != nil {
+					return err
+				}
+
+				params.LocationId = c
+				return nil
+			}(); err != nil {
+				return err
+			}
+			if err := func() error {
+				if err := (validate.String{
+					MinLength:    0,
+					MinLengthSet: false,
+					MaxLength:    255,
+					MaxLengthSet: true,
+					Email:        false,
+					Hostname:     false,
+					Regex:        nil,
+				}).Validate(string(params.LocationId)); err != nil {
+					return errors.Wrap(err, "string")
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		} else {
+			return validate.ErrFieldRequired
+		}
+		return nil
+	}(); err != nil {
+		return params, &ogenerrors.DecodeParamError{
+			Name: "locationId",
+			In:   "path",
+			Err:  err,
+		}
+	}
+	// Decode path: volumeResourceId.
+	if err := func() error {
+		param := args[2]
+		if argsEscaped {
+			unescaped, err := url.PathUnescape(args[2])
+			if err != nil {
+				return errors.Wrap(err, "unescape path")
+			}
+			param = unescaped
+		}
+		if len(param) > 0 {
+			d := uri.NewPathDecoder(uri.PathDecoderConfig{
+				Param:   "volumeResourceId",
+				Value:   param,
+				Style:   uri.PathStyleSimple,
+				Explode: false,
+			})
+
+			if err := func() error {
+				val, err := d.DecodeValue()
+				if err != nil {
+					return err
+				}
+
+				c, err := conv.ToString(val)
+				if err != nil {
+					return err
+				}
+
+				params.VolumeResourceId = c
+				return nil
+			}(); err != nil {
+				return err
+			}
+			if err := func() error {
+				if err := (validate.String{
+					MinLength:    0,
+					MinLengthSet: false,
+					MaxLength:    63,
+					MaxLengthSet: true,
+					Email:        false,
+					Hostname:     false,
+					Regex:        regexMap["^(?:-|([a-z]([a-z0-9-]{0,61}[a-z0-9])?))$"],
+				}).Validate(string(params.VolumeResourceId)); err != nil {
+					return errors.Wrap(err, "string")
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		} else {
+			return validate.ErrFieldRequired
+		}
+		return nil
+	}(); err != nil {
+		return params, &ogenerrors.DecodeParamError{
+			Name: "volumeResourceId",
+			In:   "path",
+			Err:  err,
+		}
+	}
+	// Decode path: replicationResourceId.
+	if err := func() error {
+		param := args[3]
+		if argsEscaped {
+			unescaped, err := url.PathUnescape(args[3])
+			if err != nil {
+				return errors.Wrap(err, "unescape path")
+			}
+			param = unescaped
+		}
+		if len(param) > 0 {
+			d := uri.NewPathDecoder(uri.PathDecoderConfig{
+				Param:   "replicationResourceId",
+				Value:   param,
+				Style:   uri.PathStyleSimple,
+				Explode: false,
+			})
+
+			if err := func() error {
+				val, err := d.DecodeValue()
+				if err != nil {
+					return err
+				}
+
+				c, err := conv.ToString(val)
+				if err != nil {
+					return err
+				}
+
+				params.ReplicationResourceId = c
+				return nil
+			}(); err != nil {
+				return err
+			}
+			if err := func() error {
+				if err := (validate.String{
+					MinLength:    0,
+					MinLengthSet: false,
+					MaxLength:    63,
+					MaxLengthSet: true,
+					Email:        false,
+					Hostname:     false,
+					Regex:        regexMap["^[a-z]([a-z0-9-]{0,61}[a-z0-9])?$"],
+				}).Validate(string(params.ReplicationResourceId)); err != nil {
+					return errors.Wrap(err, "string")
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		} else {
+			return validate.ErrFieldRequired
+		}
+		return nil
+	}(); err != nil {
+		return params, &ogenerrors.DecodeParamError{
+			Name: "replicationResourceId",
+			In:   "path",
+			Err:  err,
+		}
+	}
+	// Decode header: x-correlation-id.
+	if err := func() error {
+		cfg := uri.HeaderParameterDecodingConfig{
+			Name:    "x-correlation-id",
+			Explode: false,
+		}
+		if err := h.HasParam(cfg); err == nil {
+			if err := h.DecodeParam(cfg, func(d uri.Decoder) error {
+				var paramsDotXCorrelationIDVal string
+				if err := func() error {
+					val, err := d.DecodeValue()
+					if err != nil {
+						return err
+					}
+
+					c, err := conv.ToString(val)
+					if err != nil {
+						return err
+					}
+
+					paramsDotXCorrelationIDVal = c
+					return nil
+				}(); err != nil {
+					return err
+				}
+				params.XCorrelationID.SetTo(paramsDotXCorrelationIDVal)
+				return nil
+			}); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		return params, &ogenerrors.DecodeParamError{
+			Name: "x-correlation-id",
+			In:   "header",
+			Err:  err,
+		}
+	}
+	return params, nil
+}
+
+// V1betaStopReplicationParams is parameters of v1beta_stopReplication operation.
+type V1betaStopReplicationParams struct {
+	// The project number of the GCP project owning the resource being acted upon.
+	ProjectNumber string
+	// The location/region to perform the operation in.
+	LocationId string
+	// Resource ID used to identify the volume.
+	VolumeResourceId string
+	// Resource ID used to identify the replication.
+	ReplicationResourceId string
+	// Correlation identifier.
+	XCorrelationID OptString
+}
+
+func unpackV1betaStopReplicationParams(packed middleware.Parameters) (params V1betaStopReplicationParams) {
+	{
+		key := middleware.ParameterKey{
+			Name: "projectNumber",
+			In:   "path",
+		}
+		params.ProjectNumber = packed[key].(string)
+	}
+	{
+		key := middleware.ParameterKey{
+			Name: "locationId",
+			In:   "path",
+		}
+		params.LocationId = packed[key].(string)
+	}
+	{
+		key := middleware.ParameterKey{
+			Name: "volumeResourceId",
+			In:   "path",
+		}
+		params.VolumeResourceId = packed[key].(string)
+	}
+	{
+		key := middleware.ParameterKey{
+			Name: "replicationResourceId",
+			In:   "path",
+		}
+		params.ReplicationResourceId = packed[key].(string)
+	}
+	{
+		key := middleware.ParameterKey{
+			Name: "x-correlation-id",
+			In:   "header",
+		}
+		if v, ok := packed[key]; ok {
+			params.XCorrelationID = v.(OptString)
+		}
+	}
+	return params
+}
+
+func decodeV1betaStopReplicationParams(args [4]string, argsEscaped bool, r *http.Request) (params V1betaStopReplicationParams, _ error) {
+	h := uri.NewHeaderDecoder(r.Header)
+	// Decode path: projectNumber.
+	if err := func() error {
+		param := args[0]
+		if argsEscaped {
+			unescaped, err := url.PathUnescape(args[0])
+			if err != nil {
+				return errors.Wrap(err, "unescape path")
+			}
+			param = unescaped
+		}
+		if len(param) > 0 {
+			d := uri.NewPathDecoder(uri.PathDecoderConfig{
+				Param:   "projectNumber",
+				Value:   param,
+				Style:   uri.PathStyleSimple,
+				Explode: false,
+			})
+
+			if err := func() error {
+				val, err := d.DecodeValue()
+				if err != nil {
+					return err
+				}
+
+				c, err := conv.ToString(val)
+				if err != nil {
+					return err
+				}
+
+				params.ProjectNumber = c
+				return nil
+			}(); err != nil {
+				return err
+			}
+			if err := func() error {
+				if err := (validate.String{
+					MinLength:    0,
+					MinLengthSet: false,
+					MaxLength:    18,
+					MaxLengthSet: true,
+					Email:        false,
+					Hostname:     false,
+					Regex:        regexMap["^[1-9][0-9]{0,18}$"],
+				}).Validate(string(params.ProjectNumber)); err != nil {
+					return errors.Wrap(err, "string")
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		} else {
+			return validate.ErrFieldRequired
+		}
+		return nil
+	}(); err != nil {
+		return params, &ogenerrors.DecodeParamError{
+			Name: "projectNumber",
+			In:   "path",
+			Err:  err,
+		}
+	}
+	// Decode path: locationId.
+	if err := func() error {
+		param := args[1]
+		if argsEscaped {
+			unescaped, err := url.PathUnescape(args[1])
+			if err != nil {
+				return errors.Wrap(err, "unescape path")
+			}
+			param = unescaped
+		}
+		if len(param) > 0 {
+			d := uri.NewPathDecoder(uri.PathDecoderConfig{
+				Param:   "locationId",
+				Value:   param,
+				Style:   uri.PathStyleSimple,
+				Explode: false,
+			})
+
+			if err := func() error {
+				val, err := d.DecodeValue()
+				if err != nil {
+					return err
+				}
+
+				c, err := conv.ToString(val)
+				if err != nil {
+					return err
+				}
+
+				params.LocationId = c
+				return nil
+			}(); err != nil {
+				return err
+			}
+			if err := func() error {
+				if err := (validate.String{
+					MinLength:    0,
+					MinLengthSet: false,
+					MaxLength:    255,
+					MaxLengthSet: true,
+					Email:        false,
+					Hostname:     false,
+					Regex:        nil,
+				}).Validate(string(params.LocationId)); err != nil {
+					return errors.Wrap(err, "string")
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		} else {
+			return validate.ErrFieldRequired
+		}
+		return nil
+	}(); err != nil {
+		return params, &ogenerrors.DecodeParamError{
+			Name: "locationId",
+			In:   "path",
+			Err:  err,
+		}
+	}
+	// Decode path: volumeResourceId.
+	if err := func() error {
+		param := args[2]
+		if argsEscaped {
+			unescaped, err := url.PathUnescape(args[2])
+			if err != nil {
+				return errors.Wrap(err, "unescape path")
+			}
+			param = unescaped
+		}
+		if len(param) > 0 {
+			d := uri.NewPathDecoder(uri.PathDecoderConfig{
+				Param:   "volumeResourceId",
+				Value:   param,
+				Style:   uri.PathStyleSimple,
+				Explode: false,
+			})
+
+			if err := func() error {
+				val, err := d.DecodeValue()
+				if err != nil {
+					return err
+				}
+
+				c, err := conv.ToString(val)
+				if err != nil {
+					return err
+				}
+
+				params.VolumeResourceId = c
+				return nil
+			}(); err != nil {
+				return err
+			}
+			if err := func() error {
+				if err := (validate.String{
+					MinLength:    0,
+					MinLengthSet: false,
+					MaxLength:    63,
+					MaxLengthSet: true,
+					Email:        false,
+					Hostname:     false,
+					Regex:        regexMap["^(?:-|([a-z]([a-z0-9-]{0,61}[a-z0-9])?))$"],
+				}).Validate(string(params.VolumeResourceId)); err != nil {
+					return errors.Wrap(err, "string")
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		} else {
+			return validate.ErrFieldRequired
+		}
+		return nil
+	}(); err != nil {
+		return params, &ogenerrors.DecodeParamError{
+			Name: "volumeResourceId",
+			In:   "path",
+			Err:  err,
+		}
+	}
+	// Decode path: replicationResourceId.
+	if err := func() error {
+		param := args[3]
+		if argsEscaped {
+			unescaped, err := url.PathUnescape(args[3])
+			if err != nil {
+				return errors.Wrap(err, "unescape path")
+			}
+			param = unescaped
+		}
+		if len(param) > 0 {
+			d := uri.NewPathDecoder(uri.PathDecoderConfig{
+				Param:   "replicationResourceId",
+				Value:   param,
+				Style:   uri.PathStyleSimple,
+				Explode: false,
+			})
+
+			if err := func() error {
+				val, err := d.DecodeValue()
+				if err != nil {
+					return err
+				}
+
+				c, err := conv.ToString(val)
+				if err != nil {
+					return err
+				}
+
+				params.ReplicationResourceId = c
+				return nil
+			}(); err != nil {
+				return err
+			}
+			if err := func() error {
+				if err := (validate.String{
+					MinLength:    0,
+					MinLengthSet: false,
+					MaxLength:    63,
+					MaxLengthSet: true,
+					Email:        false,
+					Hostname:     false,
+					Regex:        regexMap["^[a-z]([a-z0-9-]{0,61}[a-z0-9])?$"],
+				}).Validate(string(params.ReplicationResourceId)); err != nil {
+					return errors.Wrap(err, "string")
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		} else {
+			return validate.ErrFieldRequired
+		}
+		return nil
+	}(); err != nil {
+		return params, &ogenerrors.DecodeParamError{
+			Name: "replicationResourceId",
+			In:   "path",
+			Err:  err,
+		}
+	}
+	// Decode header: x-correlation-id.
+	if err := func() error {
+		cfg := uri.HeaderParameterDecodingConfig{
+			Name:    "x-correlation-id",
+			Explode: false,
+		}
+		if err := h.HasParam(cfg); err == nil {
+			if err := h.DecodeParam(cfg, func(d uri.Decoder) error {
+				var paramsDotXCorrelationIDVal string
+				if err := func() error {
+					val, err := d.DecodeValue()
+					if err != nil {
+						return err
+					}
+
+					c, err := conv.ToString(val)
+					if err != nil {
+						return err
+					}
+
+					paramsDotXCorrelationIDVal = c
+					return nil
+				}(); err != nil {
+					return err
+				}
+				params.XCorrelationID.SetTo(paramsDotXCorrelationIDVal)
+				return nil
+			}); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		return params, &ogenerrors.DecodeParamError{
+			Name: "x-correlation-id",
+			In:   "header",
+			Err:  err,
+		}
+	}
+	return params, nil
+}
+
+// V1betaSyncReplicationParams is parameters of v1beta_syncReplication operation.
+type V1betaSyncReplicationParams struct {
+	// The project number of the GCP project owning the resource being acted upon.
+	ProjectNumber string
+	// The location/region to perform the operation in.
+	LocationId string
+	// Resource ID used to identify the volume.
+	VolumeResourceId string
+	// Resource ID used to identify the replication.
+	ReplicationResourceId string
+	// Correlation identifier.
+	XCorrelationID OptString
+}
+
+func unpackV1betaSyncReplicationParams(packed middleware.Parameters) (params V1betaSyncReplicationParams) {
+	{
+		key := middleware.ParameterKey{
+			Name: "projectNumber",
+			In:   "path",
+		}
+		params.ProjectNumber = packed[key].(string)
+	}
+	{
+		key := middleware.ParameterKey{
+			Name: "locationId",
+			In:   "path",
+		}
+		params.LocationId = packed[key].(string)
+	}
+	{
+		key := middleware.ParameterKey{
+			Name: "volumeResourceId",
+			In:   "path",
+		}
+		params.VolumeResourceId = packed[key].(string)
+	}
+	{
+		key := middleware.ParameterKey{
+			Name: "replicationResourceId",
+			In:   "path",
+		}
+		params.ReplicationResourceId = packed[key].(string)
+	}
+	{
+		key := middleware.ParameterKey{
+			Name: "x-correlation-id",
+			In:   "header",
+		}
+		if v, ok := packed[key]; ok {
+			params.XCorrelationID = v.(OptString)
+		}
+	}
+	return params
+}
+
+func decodeV1betaSyncReplicationParams(args [4]string, argsEscaped bool, r *http.Request) (params V1betaSyncReplicationParams, _ error) {
+	h := uri.NewHeaderDecoder(r.Header)
+	// Decode path: projectNumber.
+	if err := func() error {
+		param := args[0]
+		if argsEscaped {
+			unescaped, err := url.PathUnescape(args[0])
+			if err != nil {
+				return errors.Wrap(err, "unescape path")
+			}
+			param = unescaped
+		}
+		if len(param) > 0 {
+			d := uri.NewPathDecoder(uri.PathDecoderConfig{
+				Param:   "projectNumber",
+				Value:   param,
+				Style:   uri.PathStyleSimple,
+				Explode: false,
+			})
+
+			if err := func() error {
+				val, err := d.DecodeValue()
+				if err != nil {
+					return err
+				}
+
+				c, err := conv.ToString(val)
+				if err != nil {
+					return err
+				}
+
+				params.ProjectNumber = c
+				return nil
+			}(); err != nil {
+				return err
+			}
+			if err := func() error {
+				if err := (validate.String{
+					MinLength:    0,
+					MinLengthSet: false,
+					MaxLength:    18,
+					MaxLengthSet: true,
+					Email:        false,
+					Hostname:     false,
+					Regex:        regexMap["^[1-9][0-9]{0,18}$"],
+				}).Validate(string(params.ProjectNumber)); err != nil {
+					return errors.Wrap(err, "string")
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		} else {
+			return validate.ErrFieldRequired
+		}
+		return nil
+	}(); err != nil {
+		return params, &ogenerrors.DecodeParamError{
+			Name: "projectNumber",
+			In:   "path",
+			Err:  err,
+		}
+	}
+	// Decode path: locationId.
+	if err := func() error {
+		param := args[1]
+		if argsEscaped {
+			unescaped, err := url.PathUnescape(args[1])
+			if err != nil {
+				return errors.Wrap(err, "unescape path")
+			}
+			param = unescaped
+		}
+		if len(param) > 0 {
+			d := uri.NewPathDecoder(uri.PathDecoderConfig{
+				Param:   "locationId",
+				Value:   param,
+				Style:   uri.PathStyleSimple,
+				Explode: false,
+			})
+
+			if err := func() error {
+				val, err := d.DecodeValue()
+				if err != nil {
+					return err
+				}
+
+				c, err := conv.ToString(val)
+				if err != nil {
+					return err
+				}
+
+				params.LocationId = c
+				return nil
+			}(); err != nil {
+				return err
+			}
+			if err := func() error {
+				if err := (validate.String{
+					MinLength:    0,
+					MinLengthSet: false,
+					MaxLength:    255,
+					MaxLengthSet: true,
+					Email:        false,
+					Hostname:     false,
+					Regex:        nil,
+				}).Validate(string(params.LocationId)); err != nil {
+					return errors.Wrap(err, "string")
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		} else {
+			return validate.ErrFieldRequired
+		}
+		return nil
+	}(); err != nil {
+		return params, &ogenerrors.DecodeParamError{
+			Name: "locationId",
+			In:   "path",
+			Err:  err,
+		}
+	}
+	// Decode path: volumeResourceId.
+	if err := func() error {
+		param := args[2]
+		if argsEscaped {
+			unescaped, err := url.PathUnescape(args[2])
+			if err != nil {
+				return errors.Wrap(err, "unescape path")
+			}
+			param = unescaped
+		}
+		if len(param) > 0 {
+			d := uri.NewPathDecoder(uri.PathDecoderConfig{
+				Param:   "volumeResourceId",
+				Value:   param,
+				Style:   uri.PathStyleSimple,
+				Explode: false,
+			})
+
+			if err := func() error {
+				val, err := d.DecodeValue()
+				if err != nil {
+					return err
+				}
+
+				c, err := conv.ToString(val)
+				if err != nil {
+					return err
+				}
+
+				params.VolumeResourceId = c
+				return nil
+			}(); err != nil {
+				return err
+			}
+			if err := func() error {
+				if err := (validate.String{
+					MinLength:    0,
+					MinLengthSet: false,
+					MaxLength:    63,
+					MaxLengthSet: true,
+					Email:        false,
+					Hostname:     false,
+					Regex:        regexMap["^(?:-|([a-z]([a-z0-9-]{0,61}[a-z0-9])?))$"],
+				}).Validate(string(params.VolumeResourceId)); err != nil {
+					return errors.Wrap(err, "string")
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		} else {
+			return validate.ErrFieldRequired
+		}
+		return nil
+	}(); err != nil {
+		return params, &ogenerrors.DecodeParamError{
+			Name: "volumeResourceId",
+			In:   "path",
+			Err:  err,
+		}
+	}
+	// Decode path: replicationResourceId.
+	if err := func() error {
+		param := args[3]
+		if argsEscaped {
+			unescaped, err := url.PathUnescape(args[3])
+			if err != nil {
+				return errors.Wrap(err, "unescape path")
+			}
+			param = unescaped
+		}
+		if len(param) > 0 {
+			d := uri.NewPathDecoder(uri.PathDecoderConfig{
+				Param:   "replicationResourceId",
+				Value:   param,
+				Style:   uri.PathStyleSimple,
+				Explode: false,
+			})
+
+			if err := func() error {
+				val, err := d.DecodeValue()
+				if err != nil {
+					return err
+				}
+
+				c, err := conv.ToString(val)
+				if err != nil {
+					return err
+				}
+
+				params.ReplicationResourceId = c
+				return nil
+			}(); err != nil {
+				return err
+			}
+			if err := func() error {
+				if err := (validate.String{
+					MinLength:    0,
+					MinLengthSet: false,
+					MaxLength:    63,
+					MaxLengthSet: true,
+					Email:        false,
+					Hostname:     false,
+					Regex:        regexMap["^[a-z]([a-z0-9-]{0,61}[a-z0-9])?$"],
+				}).Validate(string(params.ReplicationResourceId)); err != nil {
+					return errors.Wrap(err, "string")
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		} else {
+			return validate.ErrFieldRequired
+		}
+		return nil
+	}(); err != nil {
+		return params, &ogenerrors.DecodeParamError{
+			Name: "replicationResourceId",
+			In:   "path",
+			Err:  err,
+		}
+	}
+	// Decode header: x-correlation-id.
+	if err := func() error {
+		cfg := uri.HeaderParameterDecodingConfig{
+			Name:    "x-correlation-id",
+			Explode: false,
+		}
+		if err := h.HasParam(cfg); err == nil {
+			if err := h.DecodeParam(cfg, func(d uri.Decoder) error {
+				var paramsDotXCorrelationIDVal string
+				if err := func() error {
+					val, err := d.DecodeValue()
+					if err != nil {
+						return err
+					}
+
+					c, err := conv.ToString(val)
+					if err != nil {
+						return err
+					}
+
+					paramsDotXCorrelationIDVal = c
+					return nil
+				}(); err != nil {
+					return err
+				}
+				params.XCorrelationID.SetTo(paramsDotXCorrelationIDVal)
+				return nil
+			}); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		return params, &ogenerrors.DecodeParamError{
+			Name: "x-correlation-id",
+			In:   "header",
 			Err:  err,
 		}
 	}
@@ -4548,6 +7012,349 @@ func decodeV1betaUpdatePoolParams(args [3]string, argsEscaped bool, r *http.Requ
 	}(); err != nil {
 		return params, &ogenerrors.DecodeParamError{
 			Name: "locationId",
+			In:   "path",
+			Err:  err,
+		}
+	}
+	// Decode header: x-correlation-id.
+	if err := func() error {
+		cfg := uri.HeaderParameterDecodingConfig{
+			Name:    "x-correlation-id",
+			Explode: false,
+		}
+		if err := h.HasParam(cfg); err == nil {
+			if err := h.DecodeParam(cfg, func(d uri.Decoder) error {
+				var paramsDotXCorrelationIDVal string
+				if err := func() error {
+					val, err := d.DecodeValue()
+					if err != nil {
+						return err
+					}
+
+					c, err := conv.ToString(val)
+					if err != nil {
+						return err
+					}
+
+					paramsDotXCorrelationIDVal = c
+					return nil
+				}(); err != nil {
+					return err
+				}
+				params.XCorrelationID.SetTo(paramsDotXCorrelationIDVal)
+				return nil
+			}); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		return params, &ogenerrors.DecodeParamError{
+			Name: "x-correlation-id",
+			In:   "header",
+			Err:  err,
+		}
+	}
+	return params, nil
+}
+
+// V1betaUpdateReplicationParams is parameters of v1beta_updateReplication operation.
+type V1betaUpdateReplicationParams struct {
+	// The project number of the GCP project owning the resource being acted upon.
+	ProjectNumber string
+	// The location/region to perform the operation in.
+	LocationId string
+	// Resource ID used to identify the volume.
+	VolumeResourceId string
+	// Resource ID used to identify the replication.
+	ReplicationResourceId string
+	// Correlation identifier.
+	XCorrelationID OptString
+}
+
+func unpackV1betaUpdateReplicationParams(packed middleware.Parameters) (params V1betaUpdateReplicationParams) {
+	{
+		key := middleware.ParameterKey{
+			Name: "projectNumber",
+			In:   "path",
+		}
+		params.ProjectNumber = packed[key].(string)
+	}
+	{
+		key := middleware.ParameterKey{
+			Name: "locationId",
+			In:   "path",
+		}
+		params.LocationId = packed[key].(string)
+	}
+	{
+		key := middleware.ParameterKey{
+			Name: "volumeResourceId",
+			In:   "path",
+		}
+		params.VolumeResourceId = packed[key].(string)
+	}
+	{
+		key := middleware.ParameterKey{
+			Name: "replicationResourceId",
+			In:   "path",
+		}
+		params.ReplicationResourceId = packed[key].(string)
+	}
+	{
+		key := middleware.ParameterKey{
+			Name: "x-correlation-id",
+			In:   "header",
+		}
+		if v, ok := packed[key]; ok {
+			params.XCorrelationID = v.(OptString)
+		}
+	}
+	return params
+}
+
+func decodeV1betaUpdateReplicationParams(args [4]string, argsEscaped bool, r *http.Request) (params V1betaUpdateReplicationParams, _ error) {
+	h := uri.NewHeaderDecoder(r.Header)
+	// Decode path: projectNumber.
+	if err := func() error {
+		param := args[0]
+		if argsEscaped {
+			unescaped, err := url.PathUnescape(args[0])
+			if err != nil {
+				return errors.Wrap(err, "unescape path")
+			}
+			param = unescaped
+		}
+		if len(param) > 0 {
+			d := uri.NewPathDecoder(uri.PathDecoderConfig{
+				Param:   "projectNumber",
+				Value:   param,
+				Style:   uri.PathStyleSimple,
+				Explode: false,
+			})
+
+			if err := func() error {
+				val, err := d.DecodeValue()
+				if err != nil {
+					return err
+				}
+
+				c, err := conv.ToString(val)
+				if err != nil {
+					return err
+				}
+
+				params.ProjectNumber = c
+				return nil
+			}(); err != nil {
+				return err
+			}
+			if err := func() error {
+				if err := (validate.String{
+					MinLength:    0,
+					MinLengthSet: false,
+					MaxLength:    18,
+					MaxLengthSet: true,
+					Email:        false,
+					Hostname:     false,
+					Regex:        regexMap["^[1-9][0-9]{0,18}$"],
+				}).Validate(string(params.ProjectNumber)); err != nil {
+					return errors.Wrap(err, "string")
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		} else {
+			return validate.ErrFieldRequired
+		}
+		return nil
+	}(); err != nil {
+		return params, &ogenerrors.DecodeParamError{
+			Name: "projectNumber",
+			In:   "path",
+			Err:  err,
+		}
+	}
+	// Decode path: locationId.
+	if err := func() error {
+		param := args[1]
+		if argsEscaped {
+			unescaped, err := url.PathUnescape(args[1])
+			if err != nil {
+				return errors.Wrap(err, "unescape path")
+			}
+			param = unescaped
+		}
+		if len(param) > 0 {
+			d := uri.NewPathDecoder(uri.PathDecoderConfig{
+				Param:   "locationId",
+				Value:   param,
+				Style:   uri.PathStyleSimple,
+				Explode: false,
+			})
+
+			if err := func() error {
+				val, err := d.DecodeValue()
+				if err != nil {
+					return err
+				}
+
+				c, err := conv.ToString(val)
+				if err != nil {
+					return err
+				}
+
+				params.LocationId = c
+				return nil
+			}(); err != nil {
+				return err
+			}
+			if err := func() error {
+				if err := (validate.String{
+					MinLength:    0,
+					MinLengthSet: false,
+					MaxLength:    255,
+					MaxLengthSet: true,
+					Email:        false,
+					Hostname:     false,
+					Regex:        nil,
+				}).Validate(string(params.LocationId)); err != nil {
+					return errors.Wrap(err, "string")
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		} else {
+			return validate.ErrFieldRequired
+		}
+		return nil
+	}(); err != nil {
+		return params, &ogenerrors.DecodeParamError{
+			Name: "locationId",
+			In:   "path",
+			Err:  err,
+		}
+	}
+	// Decode path: volumeResourceId.
+	if err := func() error {
+		param := args[2]
+		if argsEscaped {
+			unescaped, err := url.PathUnescape(args[2])
+			if err != nil {
+				return errors.Wrap(err, "unescape path")
+			}
+			param = unescaped
+		}
+		if len(param) > 0 {
+			d := uri.NewPathDecoder(uri.PathDecoderConfig{
+				Param:   "volumeResourceId",
+				Value:   param,
+				Style:   uri.PathStyleSimple,
+				Explode: false,
+			})
+
+			if err := func() error {
+				val, err := d.DecodeValue()
+				if err != nil {
+					return err
+				}
+
+				c, err := conv.ToString(val)
+				if err != nil {
+					return err
+				}
+
+				params.VolumeResourceId = c
+				return nil
+			}(); err != nil {
+				return err
+			}
+			if err := func() error {
+				if err := (validate.String{
+					MinLength:    0,
+					MinLengthSet: false,
+					MaxLength:    63,
+					MaxLengthSet: true,
+					Email:        false,
+					Hostname:     false,
+					Regex:        regexMap["^(?:-|([a-z]([a-z0-9-]{0,61}[a-z0-9])?))$"],
+				}).Validate(string(params.VolumeResourceId)); err != nil {
+					return errors.Wrap(err, "string")
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		} else {
+			return validate.ErrFieldRequired
+		}
+		return nil
+	}(); err != nil {
+		return params, &ogenerrors.DecodeParamError{
+			Name: "volumeResourceId",
+			In:   "path",
+			Err:  err,
+		}
+	}
+	// Decode path: replicationResourceId.
+	if err := func() error {
+		param := args[3]
+		if argsEscaped {
+			unescaped, err := url.PathUnescape(args[3])
+			if err != nil {
+				return errors.Wrap(err, "unescape path")
+			}
+			param = unescaped
+		}
+		if len(param) > 0 {
+			d := uri.NewPathDecoder(uri.PathDecoderConfig{
+				Param:   "replicationResourceId",
+				Value:   param,
+				Style:   uri.PathStyleSimple,
+				Explode: false,
+			})
+
+			if err := func() error {
+				val, err := d.DecodeValue()
+				if err != nil {
+					return err
+				}
+
+				c, err := conv.ToString(val)
+				if err != nil {
+					return err
+				}
+
+				params.ReplicationResourceId = c
+				return nil
+			}(); err != nil {
+				return err
+			}
+			if err := func() error {
+				if err := (validate.String{
+					MinLength:    0,
+					MinLengthSet: false,
+					MaxLength:    63,
+					MaxLengthSet: true,
+					Email:        false,
+					Hostname:     false,
+					Regex:        regexMap["^[a-z]([a-z0-9-]{0,61}[a-z0-9])?$"],
+				}).Validate(string(params.ReplicationResourceId)); err != nil {
+					return errors.Wrap(err, "string")
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		} else {
+			return validate.ErrFieldRequired
+		}
+		return nil
+	}(); err != nil {
+		return params, &ogenerrors.DecodeParamError{
+			Name: "replicationResourceId",
 			In:   "path",
 			Err:  err,
 		}

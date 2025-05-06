@@ -129,6 +129,18 @@ func TestDailyScheduleV1beta_EncodeDecode(t *testing.T) {
 	var typ2 DailyScheduleV1beta
 	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
 }
+func TestDestinationVolumeParametersV1beta_EncodeDecode(t *testing.T) {
+	var typ DestinationVolumeParametersV1beta
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 DestinationVolumeParametersV1beta
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
 func TestError_EncodeDecode(t *testing.T) {
 	var typ Error
 	typ.SetFake()
@@ -555,6 +567,18 @@ func TestHourlyScheduleV1beta_EncodeDecode(t *testing.T) {
 	var typ2 HourlyScheduleV1beta
 	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
 }
+func TestHybridPeeringV1beta_EncodeDecode(t *testing.T) {
+	var typ HybridPeeringV1beta
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 HybridPeeringV1beta
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
 func TestHybridReplicationParametersV1beta_EncodeDecode(t *testing.T) {
 	var typ HybridReplicationParametersV1beta
 	typ.SetFake()
@@ -636,6 +660,18 @@ func TestHybridReplicationParametersV1betaReplicationSchedule_EncodeDecode(t *te
 	var typ2 HybridReplicationParametersV1betaReplicationSchedule
 	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
 }
+func TestHybridReplicationUserCommandsV1beta_EncodeDecode(t *testing.T) {
+	var typ HybridReplicationUserCommandsV1beta
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 HybridReplicationUserCommandsV1beta
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
 func TestMonthlyScheduleV1beta_EncodeDecode(t *testing.T) {
 	var typ MonthlyScheduleV1beta
 	typ.SetFake()
@@ -679,8 +715,14 @@ func TestOperationV1beta_Examples(t *testing.T) {
 		Input string
 	}{
 		{Input: "{\"created\":\"2024-01-24T13:54:14.374Z\",\"description\":\"HostGroup for storage access\",\"done\":true,\"hostGroupId\":\"123e4567-e89b-12d3-a456-426614174000\",\"hosts\":[\"iqn.1998-01.com.vmware:example1\"],\"name\":\"/v1beta/projects/123456789/locations/us-east1/operations/123e4567-e89b-12d3-a456-426614174000\",\"osType\":\"LINUX\",\"resourceId\":\"my-host-group\",\"response\":null,\"state\":\"READY\",\"stateDetails\":\"available for use\",\"type\":\"ISCSI_INITIATOR\"}"},
+		{Input: "{\"done\":\"false,\",\"name\":\"/v1beta/projects/123456789/locations/some-location1/operations/ba2c8826-2627-057c-42ba-343ee7ab1ebe\",\"response\":{\"created\":\"2024-01-24T11:13:24.245Z\",\"description\":\"My replication\",\"destination\":{\"volumeId\":\"20074ffe-4f2e-89d8-0ecf-7071ddce6030\",\"volumeName\":\"projects/123456789/locations/some-location2/volumes/my-destination-volume\"},\"healthy\":true,\"mirrorState\":\"MIRRORED\",\"replicationId\":\"3cc26ebf-b59a-ee3a-6854-47ca35f45691\",\"replicationSchedule\":\"EVERY_10_MINUTES\",\"resourceId\":\"my-replication\",\"role\":\"SOURCE\",\"source\":{\"volumeId\":\"b78e8675-7e6f-64ec-3ec2-163753add2d5\",\"volumeName\":\"projects/123456789/locations/some-location1/volumes/my-source-volume\"},\"state\":\"UPDATING\",\"stateDetails\":\"Sync in progress\",\"stateDetailsCode\":0,\"transferStats\":{\"lagTime\":421,\"lastTransferDuration\":2,\"lastTransferEndTime\":\"2024-01-25T12:14:25.000Z\",\"lastTransferSize\":3560,\"totalTransferBytes\":556432,\"totalTransferTimeSecs\":314}}}"},
+		{Input: "{\"done\":\"false,\",\"name\":\"/v1beta/projects/123456789/locations/some-location1/operations/ba2c8826-2627-057c-42ba-343ee7ab1ebe\",\"response\":{\"created\":\"2024-01-24T11:13:24.245Z\",\"description\":\"My replication\",\"destination\":{\"volumeId\":\"20074ffe-4f2e-89d8-0ecf-7071ddce6030\",\"volumeName\":\"projects/123456789/locations/some-location2/volumes/my-destination-volume\"},\"healthy\":true,\"mirrorState\":\"STOPPED\",\"replicationId\":\"3cc26ebf-b59a-ee3a-6854-47ca35f45691\",\"replicationSchedule\":\"EVERY_10_MINUTES\",\"resourceId\":\"my-replication\",\"role\":\"SOURCE\",\"source\":{\"volumeId\":\"b78e8675-7e6f-64ec-3ec2-163753add2d5\",\"volumeName\":\"projects/123456789/locations/some-location1/volumes/my-source-volume\"},\"state\":\"UPDATING\",\"stateDetails\":\"Update in progress\",\"stateDetailsCode\":0,\"transferStats\":{\"lagTime\":421,\"lastTransferDuration\":2,\"lastTransferEndTime\":\"2024-01-25T12:14:25.000Z\",\"lastTransferSize\":3560,\"totalTransferBytes\":556432,\"totalTransferTimeSecs\":314}}}"},
 		{Input: "{\"done\":false,\"name\":\"/v1beta/projects/123456789/locations/some-location1/operations/ba2c8826-2627-057c-42ba-343ee7ab1ebe\",\"response\":{\"backupConfig\":{\"backupPolicyId\":\"9760acf5-4638-11e7-9bdb-020073ca7773\",\"backupVaultId\":\"9760acf5-4638-11e7-9bdb-020073ca7773\",\"scheduledBackupEnabled\":true},\"created\":\"2024-01-24T11:03:07.254Z\",\"creationToken\":\"some-volume\",\"encryptionType\":\"SERVICE_MANAGED\",\"exportPolicy\":{\"rules\":[]},\"inReplication\":false,\"isDataProtection\":false,\"kerberosEnabled\":false,\"largeCapacity\":false,\"ldapEnabled\":false,\"mountPoints\":[],\"multipleEndpoints\":false,\"network\":\"projects/123456789/global/networks/systemic-qa-vpc\",\"poolId\":\"a20730de-511f-273c-4071-ac1a30478609\",\"poolResourceId\":\"projects/123456789/locations/some-location1/pools/some-pool\",\"protocols\":[\"NFSV3\"],\"quotaInBytes\":4000000000000,\"resourceId\":\"some-volume\",\"securityStyle\":\"UNIX\",\"serviceLevel\":\"PREMIUM\",\"smbSettings\":[],\"snapReserve\":0,\"snapshotDirectory\":true,\"storageClass\":\"HARDWARE\",\"tieringPolicy\":{\"coolingThresholdDays\":24,\"tierAction\":\"ENABLED\"},\"unixPermissions\":\"0770\",\"usedBytes\":1409024,\"volumeId\":\"b78e8675-7e6f-64ec-3ec2-163753add2d5\",\"volumeState\":\"CREATING\",\"volumeStateDetails\":\"Creation in progress\"}}"},
 		{Input: "{\"done\":false,\"name\":\"/v1beta/projects/123456789/locations/some-location1/operations/ba2c8826-2627-057c-42ba-343ee7ab1ebe\",\"response\":{\"backupConfig\":{\"backupPolicyId\":\"9760acf5-4638-11e7-9bdb-020073ca7773\",\"backupVaultId\":\"9760acf5-4638-11e7-9bdb-020073ca7773\",\"scheduledBackupEnabled\":true},\"created\":\"2024-01-24T11:03:07.254Z\",\"creationToken\":\"some-volume\",\"encryptionType\":\"SERVICE_MANAGED\",\"exportPolicy\":{\"rules\":[]},\"inReplication\":false,\"isDataProtection\":false,\"kerberosEnabled\":false,\"largeCapacity\":false,\"ldapEnabled\":false,\"mountPoints\":[{\"export\":\"/some-volume\",\"exportFull\":\"1.2.3.4:/some-volume\",\"instructions\":\"Setting up your instance\\nOpen an SSH client and connect to your instance.\\nInstall the nfs client on your instance.\\nOn Red Hat Enterprise Linux or SuSE Linux instance:\\nsudo yum install -y nfs-utils\\nOn an Ubuntu or Debian instance:\\nsudo apt-get install nfs-common\\n\\nMounting your volume\\nCreate a new directory on your instance, such as \\\"/some-volume\\\":\\nsudo mkdir /some-volume\\nMount your volume using the example command below:\\nsudo mount -t nfs -o rw,hard,rsize=65536,wsize=65536,vers=3,tcp 1.2.3.4:/some-volume /some-volume\\nNote. Please use mount options appropriate for your specific workloads when known.\",\"protocol\":\"NFSV3\"}],\"multipleEndpoints\":false,\"network\":\"projects/123456789/global/networks/systemic-qa-vpc\",\"poolId\":\"a20730de-511f-273c-4071-ac1a30478609\",\"poolResourceId\":\"projects/123456789/locations/some-location1/pools/some-pool\",\"protocols\":[\"NFSV3\"],\"quotaInBytes\":4000000000000,\"resourceId\":\"some-volume\",\"securityStyle\":\"UNIX\",\"serviceLevel\":\"PREMIUM\",\"smbSettings\":[],\"snapReserve\":0,\"snapshotDirectory\":true,\"storageClass\":\"HARDWARE\",\"tieringPolicy\":{\"coolingThresholdDays\":24,\"tierAction\":\"ENABLED\"},\"unixPermissions\":\"0770\",\"usedBytes\":1409024,\"volumeId\":\"b78e8675-7e6f-64ec-3ec2-163753add2d5\",\"volumeState\":\"READY\",\"volumeStateDetails\":\"Available for use\"}}"},
+		{Input: "{\"done\":false,\"name\":\"/v1beta/projects/123456789/locations/some-location1/operations/ba2c8826-2627-057c-42ba-343ee7ab1ebe\",\"response\":{\"clusterLocation\":\"Orlando\",\"created\":\"2024-01-29T10:33:49.536Z\",\"description\":\"My replication\",\"destination\":{\"volumeId\":\"a02acf13-00ae-8d17-3f9a-e6daa1473d5b\",\"volumeName\":\"projects/123456789/locations/some-location2/volumes/my-destination-volume\"},\"healthy\":true,\"mirrorState\":\"MIRRORED\",\"replicationId\":\"3796c3d1-6524-9757-aedf-017e41a430ab\",\"replicationSchedule\":\"HOURLY\",\"resourceId\":\"my-replication\",\"role\":\"SOURCE\",\"source\":{\"volumeId\":\"1a65c06a-94a1-f850-0a1a-d0d07b6f7560\",\"volumeName\":\"projects/123456789/locations/some-location1/volumes/my-source-volume\"},\"state\":\"UPDATING\",\"stateDetails\":\"Update in progress\",\"transferStats\":{\"lagTime\":18,\"lastTransferEndTime\":\"2024-01-29T10:34:11.000Z\",\"totalTransferBytes\":18872,\"totalTransferTimeSecs\":2}}}"},
+		{Input: "{\"done\":false,\"name\":\"/v1beta/projects/123456789/locations/some-location1/operations/ba2c8826-2627-057c-42ba-343ee7ab1ebe\",\"response\":{\"created\":\"2024-01-24T11:13:03.512Z\",\"description\":\"My replication\",\"destination\":{\"tieringPolicy\":{\"coolingThresholdDays\":24,\"tierAction\":\"ENABLED\"},\"volumeId\":\"00000000-0000-0000-0000-000000000000\",\"volumeName\":\"projects/123456789/locations/some-location2/volumes/my-destination-volume\"},\"healthy\":true,\"mirrorState\":\"PREPARING\",\"replicationSchedule\":\"EVERY_10_MINUTES\",\"resourceId\":\"my-replication\",\"role\":\"SOURCE\",\"source\":{\"volumeId\":\"b78e8675-7e6f-64ec-3ec2-163753add2d5\",\"volumeName\":\"projects/123456789/locations/some-location1/volumes/my-source-volume\"},\"state\":\"CREATING\",\"stateDetails\":\"Create in progress\",\"stateDetailsCode\":0,\"transferStats\":{}}}"},
+		{Input: "{\"done\":false,\"name\":\"/v1beta/projects/123456789/locations/some-location1/operations/ba2c8826-2627-057c-42ba-343ee7ab1ebe\",\"response\":{\"created\":\"2024-01-24T11:13:24.245Z\",\"description\":\"My replication\",\"destination\":{\"volumeId\":\"20074ffe-4f2e-89d8-0ecf-7071ddce6030\",\"volumeName\":\"projects/123456789/locations/some-location2/volumes/my-destination-volume\"},\"healthy\":true,\"mirrorState\":\"MIRRORED\",\"replicationId\":\"3cc26ebf-b59a-ee3a-6854-47ca35f45691\",\"replicationSchedule\":\"HOURLY\",\"resourceId\":\"my-replication\",\"role\":\"SOURCE\",\"source\":{\"volumeId\":\"b78e8675-7e6f-64ec-3ec2-163753add2d5\",\"volumeName\":\"projects/123456789/locations/some-location1/volumes/my-source-volume\"},\"state\":\"UPDATING\",\"stateDetails\":\"Stop in progress\",\"stateDetailsCode\":0,\"transferStats\":{\"lagTime\":169,\"lastTransferDuration\":2,\"lastTransferEndTime\":\"2024-01-26T15:52:43.000Z\",\"lastTransferSize\":3560,\"totalTransferBytes\":1147392,\"totalTransferTimeSecs\":660}}}"},
+		{Input: "{\"done\":false,\"name\":\"/v1beta/projects/123456789/locations/some-location1/operations/ba2c8826-2627-057c-42ba-343ee7ab1ebe\",\"response\":{\"created\":\"2024-01-29T10:59:26.168Z\",\"description\":\"My replication\",\"destination\":{\"volumeId\":\"1a65c06a-94a1-f850-0a1a-d0d07b6f7560\",\"volumeName\":\"projects/123456789/locations/some-location1/volumes/my-source-volume\"},\"healthy\":true,\"mirrorState\":\"PREPARING\",\"replicationSchedule\":\"HOURLY\",\"resourceId\":\"my-replication\",\"role\":\"DESTINATION\",\"source\":{\"volumeId\":\"a02acf13-00ae-8d17-3f9a-e6daa1473d5b\",\"volumeName\":\"projects/123456789/locations/some-location2/volumes/my-destination-volume\"},\"state\":\"UPDATING\",\"stateDetailsCode\":0}}"},
 		{Input: "{\"done\":false,\"name\":\"/v1beta/projects/123456789/locations/some-location1/operations/ba2c8826-2627-057c-42ba-343ee7ab1ebe\"}"},
 		{Input: "{\"done\":false,\"name\":\"/v1beta/projects/123456789/locations/us-east1/operations/123e4567-e89b-12d3-a456-426614174000\",\"response\":{\"created\":\"2024-01-24T13:54:14.374Z\",\"description\":\"HostGroup for storage access\",\"hostGroupId\":\"123e4567-e89b-12d3-a456-426614174000\",\"hosts\":[\"iqn.1998-01.com.vmware:example1\"],\"osType\":\"LINUX\",\"resourceId\":\"my-host-group\",\"state\":\"CREATING\",\"stateDetails\":\"creation in progress\",\"type\":\"ISCSI_INITIATOR\"}}"},
 		{Input: "{\"done\":false,\"name\":\"/v1beta/projects/123456789/locations/us-east1/operations/123e4567-e89b-12d3-a456-426614174000\",\"response\":{\"description\":\"Updated host group description\",\"hostGroupId\":\"123e4567-e89b-12d3-a456-426614174000\",\"hosts\":[\"iqn.1998-01.com.vmware:example1\",\"iqn.1998-01.com.vmware:example3\"],\"osType\":\"WINDOWS\",\"resourceId\":\"my-host-group\",\"state\":\"UPDATING\",\"stateDetails\":\"update in progress\",\"type\":\"ISCSI_INITIATOR\",\"updated\":\"2024-01-26T10:00:00.000Z\"}}"},
@@ -1095,6 +1137,454 @@ func TestProtocolsV1beta_Examples(t *testing.T) {
 		})
 	}
 }
+func TestReplicationCreateV1beta_EncodeDecode(t *testing.T) {
+	var typ ReplicationCreateV1beta
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 ReplicationCreateV1beta
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestReplicationCreateV1betaLabels_EncodeDecode(t *testing.T) {
+	var typ ReplicationCreateV1betaLabels
+	typ = make(ReplicationCreateV1betaLabels)
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 ReplicationCreateV1betaLabels
+	typ2 = make(ReplicationCreateV1betaLabels)
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+
+func TestReplicationCreateV1betaLabels_Examples(t *testing.T) {
+
+	for i, tc := range []struct {
+		Input string
+	}{
+		{Input: "{\"some-key\":\"some-value\",\"some-key2\":\"some-value2\"}"},
+	} {
+		tc := tc
+		t.Run(fmt.Sprintf("Test%d", i+1), func(t *testing.T) {
+			var typ ReplicationCreateV1betaLabels
+			typ = make(ReplicationCreateV1betaLabels)
+
+			if err := typ.Decode(jx.DecodeStr(tc.Input)); err != nil {
+				if validateErr, ok := errors.Into[*validate.Error](err); ok {
+					t.Skipf("Validation error: %v", validateErr)
+					return
+				}
+				require.NoErrorf(t, err, "Input: %s", tc.Input)
+			}
+
+			e := jx.Encoder{}
+			typ.Encode(&e)
+			require.True(t, std.Valid(e.Bytes()), "Encoded: %s", e.Bytes())
+
+			var typ2 ReplicationCreateV1betaLabels
+			typ2 = make(ReplicationCreateV1betaLabels)
+			require.NoError(t, typ2.Decode(jx.DecodeBytes(e.Bytes())))
+		})
+	}
+}
+func TestReplicationCreateV1betaReplicationSchedule_EncodeDecode(t *testing.T) {
+	var typ ReplicationCreateV1betaReplicationSchedule
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 ReplicationCreateV1betaReplicationSchedule
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestReplicationDeleteV1beta_EncodeDecode(t *testing.T) {
+	var typ ReplicationDeleteV1beta
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 ReplicationDeleteV1beta
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestReplicationStopV1beta_EncodeDecode(t *testing.T) {
+	var typ ReplicationStopV1beta
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 ReplicationStopV1beta
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestReplicationURIListV1beta_EncodeDecode(t *testing.T) {
+	var typ ReplicationURIListV1beta
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 ReplicationURIListV1beta
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestReplicationUpdateV1beta_EncodeDecode(t *testing.T) {
+	var typ ReplicationUpdateV1beta
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 ReplicationUpdateV1beta
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestReplicationUpdateV1betaLabels_EncodeDecode(t *testing.T) {
+	var typ ReplicationUpdateV1betaLabels
+	typ = make(ReplicationUpdateV1betaLabels)
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 ReplicationUpdateV1betaLabels
+	typ2 = make(ReplicationUpdateV1betaLabels)
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+
+func TestReplicationUpdateV1betaLabels_Examples(t *testing.T) {
+
+	for i, tc := range []struct {
+		Input string
+	}{
+		{Input: "{\"some-key\":\"some-value\",\"some-key2\":\"some-value2\"}"},
+	} {
+		tc := tc
+		t.Run(fmt.Sprintf("Test%d", i+1), func(t *testing.T) {
+			var typ ReplicationUpdateV1betaLabels
+			typ = make(ReplicationUpdateV1betaLabels)
+
+			if err := typ.Decode(jx.DecodeStr(tc.Input)); err != nil {
+				if validateErr, ok := errors.Into[*validate.Error](err); ok {
+					t.Skipf("Validation error: %v", validateErr)
+					return
+				}
+				require.NoErrorf(t, err, "Input: %s", tc.Input)
+			}
+
+			e := jx.Encoder{}
+			typ.Encode(&e)
+			require.True(t, std.Valid(e.Bytes()), "Encoded: %s", e.Bytes())
+
+			var typ2 ReplicationUpdateV1betaLabels
+			typ2 = make(ReplicationUpdateV1betaLabels)
+			require.NoError(t, typ2.Decode(jx.DecodeBytes(e.Bytes())))
+		})
+	}
+}
+func TestReplicationUpdateV1betaReplicationSchedule_EncodeDecode(t *testing.T) {
+	var typ ReplicationUpdateV1betaReplicationSchedule
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 ReplicationUpdateV1betaReplicationSchedule
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestReplicationV1beta_EncodeDecode(t *testing.T) {
+	var typ ReplicationV1beta
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 ReplicationV1beta
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestReplicationV1betaHybridReplicationType_EncodeDecode(t *testing.T) {
+	var typ ReplicationV1betaHybridReplicationType
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 ReplicationV1betaHybridReplicationType
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+
+func TestReplicationV1betaHybridReplicationType_Examples(t *testing.T) {
+
+	for i, tc := range []struct {
+		Input string
+	}{
+		{Input: "\"MIGRATION\""},
+	} {
+		tc := tc
+		t.Run(fmt.Sprintf("Test%d", i+1), func(t *testing.T) {
+			var typ ReplicationV1betaHybridReplicationType
+
+			if err := typ.Decode(jx.DecodeStr(tc.Input)); err != nil {
+				if validateErr, ok := errors.Into[*validate.Error](err); ok {
+					t.Skipf("Validation error: %v", validateErr)
+					return
+				}
+				require.NoErrorf(t, err, "Input: %s", tc.Input)
+			}
+
+			e := jx.Encoder{}
+			typ.Encode(&e)
+			require.True(t, std.Valid(e.Bytes()), "Encoded: %s", e.Bytes())
+
+			var typ2 ReplicationV1betaHybridReplicationType
+			require.NoError(t, typ2.Decode(jx.DecodeBytes(e.Bytes())))
+		})
+	}
+}
+func TestReplicationV1betaLabels_EncodeDecode(t *testing.T) {
+	var typ ReplicationV1betaLabels
+	typ = make(ReplicationV1betaLabels)
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 ReplicationV1betaLabels
+	typ2 = make(ReplicationV1betaLabels)
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+
+func TestReplicationV1betaLabels_Examples(t *testing.T) {
+
+	for i, tc := range []struct {
+		Input string
+	}{
+		{Input: "{\"some-key\":\"some-value\",\"some-key2\":\"some-value2\"}"},
+	} {
+		tc := tc
+		t.Run(fmt.Sprintf("Test%d", i+1), func(t *testing.T) {
+			var typ ReplicationV1betaLabels
+			typ = make(ReplicationV1betaLabels)
+
+			if err := typ.Decode(jx.DecodeStr(tc.Input)); err != nil {
+				if validateErr, ok := errors.Into[*validate.Error](err); ok {
+					t.Skipf("Validation error: %v", validateErr)
+					return
+				}
+				require.NoErrorf(t, err, "Input: %s", tc.Input)
+			}
+
+			e := jx.Encoder{}
+			typ.Encode(&e)
+			require.True(t, std.Valid(e.Bytes()), "Encoded: %s", e.Bytes())
+
+			var typ2 ReplicationV1betaLabels
+			typ2 = make(ReplicationV1betaLabels)
+			require.NoError(t, typ2.Decode(jx.DecodeBytes(e.Bytes())))
+		})
+	}
+}
+func TestReplicationV1betaMirrorState_EncodeDecode(t *testing.T) {
+	var typ ReplicationV1betaMirrorState
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 ReplicationV1betaMirrorState
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+
+func TestReplicationV1betaMirrorState_Examples(t *testing.T) {
+
+	for i, tc := range []struct {
+		Input string
+	}{
+		{Input: "\"MIRRORED\""},
+	} {
+		tc := tc
+		t.Run(fmt.Sprintf("Test%d", i+1), func(t *testing.T) {
+			var typ ReplicationV1betaMirrorState
+
+			if err := typ.Decode(jx.DecodeStr(tc.Input)); err != nil {
+				if validateErr, ok := errors.Into[*validate.Error](err); ok {
+					t.Skipf("Validation error: %v", validateErr)
+					return
+				}
+				require.NoErrorf(t, err, "Input: %s", tc.Input)
+			}
+
+			e := jx.Encoder{}
+			typ.Encode(&e)
+			require.True(t, std.Valid(e.Bytes()), "Encoded: %s", e.Bytes())
+
+			var typ2 ReplicationV1betaMirrorState
+			require.NoError(t, typ2.Decode(jx.DecodeBytes(e.Bytes())))
+		})
+	}
+}
+func TestReplicationV1betaReplicationSchedule_EncodeDecode(t *testing.T) {
+	var typ ReplicationV1betaReplicationSchedule
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 ReplicationV1betaReplicationSchedule
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+
+func TestReplicationV1betaReplicationSchedule_Examples(t *testing.T) {
+
+	for i, tc := range []struct {
+		Input string
+	}{
+		{Input: "\"HOURLY\""},
+	} {
+		tc := tc
+		t.Run(fmt.Sprintf("Test%d", i+1), func(t *testing.T) {
+			var typ ReplicationV1betaReplicationSchedule
+
+			if err := typ.Decode(jx.DecodeStr(tc.Input)); err != nil {
+				if validateErr, ok := errors.Into[*validate.Error](err); ok {
+					t.Skipf("Validation error: %v", validateErr)
+					return
+				}
+				require.NoErrorf(t, err, "Input: %s", tc.Input)
+			}
+
+			e := jx.Encoder{}
+			typ.Encode(&e)
+			require.True(t, std.Valid(e.Bytes()), "Encoded: %s", e.Bytes())
+
+			var typ2 ReplicationV1betaReplicationSchedule
+			require.NoError(t, typ2.Decode(jx.DecodeBytes(e.Bytes())))
+		})
+	}
+}
+func TestReplicationV1betaRole_EncodeDecode(t *testing.T) {
+	var typ ReplicationV1betaRole
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 ReplicationV1betaRole
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+
+func TestReplicationV1betaRole_Examples(t *testing.T) {
+
+	for i, tc := range []struct {
+		Input string
+	}{
+		{Input: "\"DESTINATION\""},
+	} {
+		tc := tc
+		t.Run(fmt.Sprintf("Test%d", i+1), func(t *testing.T) {
+			var typ ReplicationV1betaRole
+
+			if err := typ.Decode(jx.DecodeStr(tc.Input)); err != nil {
+				if validateErr, ok := errors.Into[*validate.Error](err); ok {
+					t.Skipf("Validation error: %v", validateErr)
+					return
+				}
+				require.NoErrorf(t, err, "Input: %s", tc.Input)
+			}
+
+			e := jx.Encoder{}
+			typ.Encode(&e)
+			require.True(t, std.Valid(e.Bytes()), "Encoded: %s", e.Bytes())
+
+			var typ2 ReplicationV1betaRole
+			require.NoError(t, typ2.Decode(jx.DecodeBytes(e.Bytes())))
+		})
+	}
+}
+func TestReplicationV1betaState_EncodeDecode(t *testing.T) {
+	var typ ReplicationV1betaState
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 ReplicationV1betaState
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+
+func TestReplicationV1betaState_Examples(t *testing.T) {
+
+	for i, tc := range []struct {
+		Input string
+	}{
+		{Input: "\"READY\""},
+	} {
+		tc := tc
+		t.Run(fmt.Sprintf("Test%d", i+1), func(t *testing.T) {
+			var typ ReplicationV1betaState
+
+			if err := typ.Decode(jx.DecodeStr(tc.Input)); err != nil {
+				if validateErr, ok := errors.Into[*validate.Error](err); ok {
+					t.Skipf("Validation error: %v", validateErr)
+					return
+				}
+				require.NoErrorf(t, err, "Input: %s", tc.Input)
+			}
+
+			e := jx.Encoder{}
+			typ.Encode(&e)
+			require.True(t, std.Valid(e.Bytes()), "Encoded: %s", e.Bytes())
+
+			var typ2 ReplicationV1betaState
+			require.NoError(t, typ2.Decode(jx.DecodeBytes(e.Bytes())))
+		})
+	}
+}
+func TestReplicationVolumeInformationV1beta_EncodeDecode(t *testing.T) {
+	var typ ReplicationVolumeInformationV1beta
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 ReplicationVolumeInformationV1beta
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
 func TestRestrictedActionsV1beta_EncodeDecode(t *testing.T) {
 	var typ RestrictedActionsV1beta
 	typ.SetFake()
@@ -1355,6 +1845,18 @@ func TestTieringPolicyV1betaTierAction_EncodeDecode(t *testing.T) {
 	var typ2 TieringPolicyV1betaTierAction
 	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
 }
+func TestTransferStatsV1beta_EncodeDecode(t *testing.T) {
+	var typ TransferStatsV1beta
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 TransferStatsV1beta
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
 func TestV1betaCreateHostGroupAccepted_EncodeDecode(t *testing.T) {
 	var typ V1betaCreateHostGroupAccepted
 	typ.SetFake()
@@ -1547,6 +2049,90 @@ func TestV1betaCreatePoolUnprocessableEntity_EncodeDecode(t *testing.T) {
 	var typ2 V1betaCreatePoolUnprocessableEntity
 	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
 }
+func TestV1betaCreateReplicationBadRequest_EncodeDecode(t *testing.T) {
+	var typ V1betaCreateReplicationBadRequest
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaCreateReplicationBadRequest
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1betaCreateReplicationForbidden_EncodeDecode(t *testing.T) {
+	var typ V1betaCreateReplicationForbidden
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaCreateReplicationForbidden
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1betaCreateReplicationInternalServerError_EncodeDecode(t *testing.T) {
+	var typ V1betaCreateReplicationInternalServerError
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaCreateReplicationInternalServerError
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1betaCreateReplicationNotFound_EncodeDecode(t *testing.T) {
+	var typ V1betaCreateReplicationNotFound
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaCreateReplicationNotFound
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1betaCreateReplicationTooManyRequests_EncodeDecode(t *testing.T) {
+	var typ V1betaCreateReplicationTooManyRequests
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaCreateReplicationTooManyRequests
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1betaCreateReplicationUnauthorized_EncodeDecode(t *testing.T) {
+	var typ V1betaCreateReplicationUnauthorized
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaCreateReplicationUnauthorized
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1betaCreateReplicationUnprocessableEntity_EncodeDecode(t *testing.T) {
+	var typ V1betaCreateReplicationUnprocessableEntity
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaCreateReplicationUnprocessableEntity
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
 func TestV1betaCreateVolumeBadRequest_EncodeDecode(t *testing.T) {
 	var typ V1betaCreateVolumeBadRequest
 	typ.SetFake()
@@ -1593,30 +2179,6 @@ func TestV1betaCreateVolumeInternalServerError_EncodeDecode(t *testing.T) {
 	require.True(t, std.Valid(data), "Encoded: %s", data)
 
 	var typ2 V1betaCreateVolumeInternalServerError
-	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
-}
-func TestV1betaCreateVolumeNotImplemented_EncodeDecode(t *testing.T) {
-	var typ V1betaCreateVolumeNotImplemented
-	typ.SetFake()
-
-	e := jx.Encoder{}
-	typ.Encode(&e)
-	data := e.Bytes()
-	require.True(t, std.Valid(data), "Encoded: %s", data)
-
-	var typ2 V1betaCreateVolumeNotImplemented
-	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
-}
-func TestV1betaCreateVolumeServiceUnavailable_EncodeDecode(t *testing.T) {
-	var typ V1betaCreateVolumeServiceUnavailable
-	typ.SetFake()
-
-	e := jx.Encoder{}
-	typ.Encode(&e)
-	data := e.Bytes()
-	require.True(t, std.Valid(data), "Encoded: %s", data)
-
-	var typ2 V1betaCreateVolumeServiceUnavailable
 	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
 }
 func TestV1betaCreateVolumeTooManyRequests_EncodeDecode(t *testing.T) {
@@ -1809,6 +2371,90 @@ func TestV1betaDeletePoolUnprocessableEntity_EncodeDecode(t *testing.T) {
 	require.True(t, std.Valid(data), "Encoded: %s", data)
 
 	var typ2 V1betaDeletePoolUnprocessableEntity
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1betaDeleteReplicationBadRequest_EncodeDecode(t *testing.T) {
+	var typ V1betaDeleteReplicationBadRequest
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaDeleteReplicationBadRequest
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1betaDeleteReplicationForbidden_EncodeDecode(t *testing.T) {
+	var typ V1betaDeleteReplicationForbidden
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaDeleteReplicationForbidden
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1betaDeleteReplicationInternalServerError_EncodeDecode(t *testing.T) {
+	var typ V1betaDeleteReplicationInternalServerError
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaDeleteReplicationInternalServerError
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1betaDeleteReplicationNotFound_EncodeDecode(t *testing.T) {
+	var typ V1betaDeleteReplicationNotFound
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaDeleteReplicationNotFound
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1betaDeleteReplicationTooManyRequests_EncodeDecode(t *testing.T) {
+	var typ V1betaDeleteReplicationTooManyRequests
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaDeleteReplicationTooManyRequests
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1betaDeleteReplicationUnauthorized_EncodeDecode(t *testing.T) {
+	var typ V1betaDeleteReplicationUnauthorized
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaDeleteReplicationUnauthorized
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1betaDeleteReplicationUnprocessableEntity_EncodeDecode(t *testing.T) {
+	var typ V1betaDeleteReplicationUnprocessableEntity
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaDeleteReplicationUnprocessableEntity
 	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
 }
 func TestV1betaDeleteVolumeBadRequest_EncodeDecode(t *testing.T) {
@@ -2423,6 +3069,114 @@ func TestV1betaGetMultiplePoolsUnprocessableEntity_EncodeDecode(t *testing.T) {
 	var typ2 V1betaGetMultiplePoolsUnprocessableEntity
 	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
 }
+func TestV1betaGetMultipleReplicationsBadRequest_EncodeDecode(t *testing.T) {
+	var typ V1betaGetMultipleReplicationsBadRequest
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaGetMultipleReplicationsBadRequest
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1betaGetMultipleReplicationsForbidden_EncodeDecode(t *testing.T) {
+	var typ V1betaGetMultipleReplicationsForbidden
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaGetMultipleReplicationsForbidden
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1betaGetMultipleReplicationsInternalServerError_EncodeDecode(t *testing.T) {
+	var typ V1betaGetMultipleReplicationsInternalServerError
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaGetMultipleReplicationsInternalServerError
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1betaGetMultipleReplicationsNotFound_EncodeDecode(t *testing.T) {
+	var typ V1betaGetMultipleReplicationsNotFound
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaGetMultipleReplicationsNotFound
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1betaGetMultipleReplicationsNotImplemented_EncodeDecode(t *testing.T) {
+	var typ V1betaGetMultipleReplicationsNotImplemented
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaGetMultipleReplicationsNotImplemented
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1betaGetMultipleReplicationsOK_EncodeDecode(t *testing.T) {
+	var typ V1betaGetMultipleReplicationsOK
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaGetMultipleReplicationsOK
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1betaGetMultipleReplicationsTooManyRequests_EncodeDecode(t *testing.T) {
+	var typ V1betaGetMultipleReplicationsTooManyRequests
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaGetMultipleReplicationsTooManyRequests
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1betaGetMultipleReplicationsUnauthorized_EncodeDecode(t *testing.T) {
+	var typ V1betaGetMultipleReplicationsUnauthorized
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaGetMultipleReplicationsUnauthorized
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1betaGetMultipleReplicationsUnprocessableEntity_EncodeDecode(t *testing.T) {
+	var typ V1betaGetMultipleReplicationsUnprocessableEntity
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaGetMultipleReplicationsUnprocessableEntity
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
 func TestV1betaGetMultipleVolumesBadRequest_EncodeDecode(t *testing.T) {
 	var typ V1betaGetMultipleVolumesBadRequest
 	typ.SetFake()
@@ -2675,6 +3429,114 @@ func TestV1betaListPoolsUnauthorized_EncodeDecode(t *testing.T) {
 	var typ2 V1betaListPoolsUnauthorized
 	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
 }
+func TestV1betaListReplicationsBadRequest_EncodeDecode(t *testing.T) {
+	var typ V1betaListReplicationsBadRequest
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaListReplicationsBadRequest
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1betaListReplicationsForbidden_EncodeDecode(t *testing.T) {
+	var typ V1betaListReplicationsForbidden
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaListReplicationsForbidden
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1betaListReplicationsInternalServerError_EncodeDecode(t *testing.T) {
+	var typ V1betaListReplicationsInternalServerError
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaListReplicationsInternalServerError
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1betaListReplicationsNotFound_EncodeDecode(t *testing.T) {
+	var typ V1betaListReplicationsNotFound
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaListReplicationsNotFound
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1betaListReplicationsNotImplemented_EncodeDecode(t *testing.T) {
+	var typ V1betaListReplicationsNotImplemented
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaListReplicationsNotImplemented
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1betaListReplicationsOK_EncodeDecode(t *testing.T) {
+	var typ V1betaListReplicationsOK
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaListReplicationsOK
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1betaListReplicationsTooManyRequests_EncodeDecode(t *testing.T) {
+	var typ V1betaListReplicationsTooManyRequests
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaListReplicationsTooManyRequests
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1betaListReplicationsUnauthorized_EncodeDecode(t *testing.T) {
+	var typ V1betaListReplicationsUnauthorized
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaListReplicationsUnauthorized
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1betaListReplicationsUnprocessableEntity_EncodeDecode(t *testing.T) {
+	var typ V1betaListReplicationsUnprocessableEntity
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaListReplicationsUnprocessableEntity
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
 func TestV1betaListVolumesBadRequest_EncodeDecode(t *testing.T) {
 	var typ V1betaListVolumesBadRequest
 	typ.SetFake()
@@ -2757,6 +3619,354 @@ func TestV1betaListVolumesUnauthorized_EncodeDecode(t *testing.T) {
 	require.True(t, std.Valid(data), "Encoded: %s", data)
 
 	var typ2 V1betaListVolumesUnauthorized
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1betaResumeReplicationBadRequest_EncodeDecode(t *testing.T) {
+	var typ V1betaResumeReplicationBadRequest
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaResumeReplicationBadRequest
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1betaResumeReplicationForbidden_EncodeDecode(t *testing.T) {
+	var typ V1betaResumeReplicationForbidden
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaResumeReplicationForbidden
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1betaResumeReplicationInternalServerError_EncodeDecode(t *testing.T) {
+	var typ V1betaResumeReplicationInternalServerError
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaResumeReplicationInternalServerError
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1betaResumeReplicationNotFound_EncodeDecode(t *testing.T) {
+	var typ V1betaResumeReplicationNotFound
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaResumeReplicationNotFound
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1betaResumeReplicationTooManyRequests_EncodeDecode(t *testing.T) {
+	var typ V1betaResumeReplicationTooManyRequests
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaResumeReplicationTooManyRequests
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1betaResumeReplicationUnauthorized_EncodeDecode(t *testing.T) {
+	var typ V1betaResumeReplicationUnauthorized
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaResumeReplicationUnauthorized
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1betaResumeReplicationUnprocessableEntity_EncodeDecode(t *testing.T) {
+	var typ V1betaResumeReplicationUnprocessableEntity
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaResumeReplicationUnprocessableEntity
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1betaReverseAndResumeReplicationBadRequest_EncodeDecode(t *testing.T) {
+	var typ V1betaReverseAndResumeReplicationBadRequest
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaReverseAndResumeReplicationBadRequest
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1betaReverseAndResumeReplicationForbidden_EncodeDecode(t *testing.T) {
+	var typ V1betaReverseAndResumeReplicationForbidden
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaReverseAndResumeReplicationForbidden
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1betaReverseAndResumeReplicationInternalServerError_EncodeDecode(t *testing.T) {
+	var typ V1betaReverseAndResumeReplicationInternalServerError
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaReverseAndResumeReplicationInternalServerError
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1betaReverseAndResumeReplicationNotFound_EncodeDecode(t *testing.T) {
+	var typ V1betaReverseAndResumeReplicationNotFound
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaReverseAndResumeReplicationNotFound
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1betaReverseAndResumeReplicationTooManyRequests_EncodeDecode(t *testing.T) {
+	var typ V1betaReverseAndResumeReplicationTooManyRequests
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaReverseAndResumeReplicationTooManyRequests
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1betaReverseAndResumeReplicationUnauthorized_EncodeDecode(t *testing.T) {
+	var typ V1betaReverseAndResumeReplicationUnauthorized
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaReverseAndResumeReplicationUnauthorized
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1betaReverseAndResumeReplicationUnprocessableEntity_EncodeDecode(t *testing.T) {
+	var typ V1betaReverseAndResumeReplicationUnprocessableEntity
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaReverseAndResumeReplicationUnprocessableEntity
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1betaStopReplicationBadRequest_EncodeDecode(t *testing.T) {
+	var typ V1betaStopReplicationBadRequest
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaStopReplicationBadRequest
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1betaStopReplicationForbidden_EncodeDecode(t *testing.T) {
+	var typ V1betaStopReplicationForbidden
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaStopReplicationForbidden
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1betaStopReplicationInternalServerError_EncodeDecode(t *testing.T) {
+	var typ V1betaStopReplicationInternalServerError
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaStopReplicationInternalServerError
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1betaStopReplicationNotFound_EncodeDecode(t *testing.T) {
+	var typ V1betaStopReplicationNotFound
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaStopReplicationNotFound
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1betaStopReplicationTooManyRequests_EncodeDecode(t *testing.T) {
+	var typ V1betaStopReplicationTooManyRequests
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaStopReplicationTooManyRequests
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1betaStopReplicationUnauthorized_EncodeDecode(t *testing.T) {
+	var typ V1betaStopReplicationUnauthorized
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaStopReplicationUnauthorized
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1betaStopReplicationUnprocessableEntity_EncodeDecode(t *testing.T) {
+	var typ V1betaStopReplicationUnprocessableEntity
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaStopReplicationUnprocessableEntity
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1betaSyncReplicationBadRequest_EncodeDecode(t *testing.T) {
+	var typ V1betaSyncReplicationBadRequest
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaSyncReplicationBadRequest
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1betaSyncReplicationForbidden_EncodeDecode(t *testing.T) {
+	var typ V1betaSyncReplicationForbidden
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaSyncReplicationForbidden
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1betaSyncReplicationInternalServerError_EncodeDecode(t *testing.T) {
+	var typ V1betaSyncReplicationInternalServerError
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaSyncReplicationInternalServerError
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1betaSyncReplicationNotFound_EncodeDecode(t *testing.T) {
+	var typ V1betaSyncReplicationNotFound
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaSyncReplicationNotFound
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1betaSyncReplicationNotImplemented_EncodeDecode(t *testing.T) {
+	var typ V1betaSyncReplicationNotImplemented
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaSyncReplicationNotImplemented
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1betaSyncReplicationTooManyRequests_EncodeDecode(t *testing.T) {
+	var typ V1betaSyncReplicationTooManyRequests
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaSyncReplicationTooManyRequests
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1betaSyncReplicationUnauthorized_EncodeDecode(t *testing.T) {
+	var typ V1betaSyncReplicationUnauthorized
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaSyncReplicationUnauthorized
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1betaSyncReplicationUnprocessableEntity_EncodeDecode(t *testing.T) {
+	var typ V1betaSyncReplicationUnprocessableEntity
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaSyncReplicationUnprocessableEntity
 	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
 }
 func TestV1betaUpdateHostGroupBadRequest_EncodeDecode(t *testing.T) {
@@ -2949,6 +4159,90 @@ func TestV1betaUpdatePoolUnprocessableEntity_EncodeDecode(t *testing.T) {
 	require.True(t, std.Valid(data), "Encoded: %s", data)
 
 	var typ2 V1betaUpdatePoolUnprocessableEntity
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1betaUpdateReplicationBadRequest_EncodeDecode(t *testing.T) {
+	var typ V1betaUpdateReplicationBadRequest
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaUpdateReplicationBadRequest
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1betaUpdateReplicationForbidden_EncodeDecode(t *testing.T) {
+	var typ V1betaUpdateReplicationForbidden
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaUpdateReplicationForbidden
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1betaUpdateReplicationInternalServerError_EncodeDecode(t *testing.T) {
+	var typ V1betaUpdateReplicationInternalServerError
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaUpdateReplicationInternalServerError
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1betaUpdateReplicationNotFound_EncodeDecode(t *testing.T) {
+	var typ V1betaUpdateReplicationNotFound
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaUpdateReplicationNotFound
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1betaUpdateReplicationTooManyRequests_EncodeDecode(t *testing.T) {
+	var typ V1betaUpdateReplicationTooManyRequests
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaUpdateReplicationTooManyRequests
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1betaUpdateReplicationUnauthorized_EncodeDecode(t *testing.T) {
+	var typ V1betaUpdateReplicationUnauthorized
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaUpdateReplicationUnauthorized
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1betaUpdateReplicationUnprocessableEntity_EncodeDecode(t *testing.T) {
+	var typ V1betaUpdateReplicationUnprocessableEntity
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaUpdateReplicationUnprocessableEntity
 	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
 }
 func TestV1betaUpdateVolumeBadRequest_EncodeDecode(t *testing.T) {

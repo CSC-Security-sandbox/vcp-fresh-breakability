@@ -40,6 +40,15 @@ func (UnimplementedHandler) V1betaCreatePool(ctx context.Context, req *PoolV1bet
 	return r, ht.ErrNotImplemented
 }
 
+// V1betaCreateReplication implements v1beta_createReplication operation.
+//
+// Create a new volume replication.
+//
+// POST /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeResourceId}/replications
+func (UnimplementedHandler) V1betaCreateReplication(ctx context.Context, req *ReplicationCreateV1beta, params V1betaCreateReplicationParams) (r V1betaCreateReplicationRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
 // V1betaCreateVolume implements v1beta_createVolume operation.
 //
 // Create a new empty volume or a volume from a backup/snapshot if backup-ID/snapshot-ID is in the
@@ -67,6 +76,15 @@ func (UnimplementedHandler) V1betaDeleteHostGroup(ctx context.Context, params V1
 //
 // DELETE /v1beta/projects/{projectNumber}/locations/{locationId}/pools/{poolId}
 func (UnimplementedHandler) V1betaDeletePool(ctx context.Context, params V1betaDeletePoolParams) (r V1betaDeletePoolRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// V1betaDeleteReplication implements v1beta_deleteReplication operation.
+//
+// Delete replication.
+//
+// DELETE /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeResourceId}/replications/{replicationResourceId}
+func (UnimplementedHandler) V1betaDeleteReplication(ctx context.Context, req *ReplicationDeleteV1beta, params V1betaDeleteReplicationParams) (r V1betaDeleteReplicationRes, _ error) {
 	return r, ht.ErrNotImplemented
 }
 
@@ -135,6 +153,15 @@ func (UnimplementedHandler) V1betaGetMultiplePools(ctx context.Context, req *Poo
 	return r, ht.ErrNotImplemented
 }
 
+// V1betaGetMultipleReplications implements v1beta_getMultipleReplications operation.
+//
+// Returns selected replication objects.
+//
+// POST /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeResourceId}/getMultipleReplications
+func (UnimplementedHandler) V1betaGetMultipleReplications(ctx context.Context, req *ReplicationURIListV1beta, params V1betaGetMultipleReplicationsParams) (r V1betaGetMultipleReplicationsRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
 // V1betaGetMultipleVolumes implements v1beta_getMultipleVolumes operation.
 //
 // Returns descriptions of volumes that is listed in request body.
@@ -162,12 +189,57 @@ func (UnimplementedHandler) V1betaListPools(ctx context.Context, params V1betaLi
 	return r, ht.ErrNotImplemented
 }
 
+// V1betaListReplications implements v1beta_listReplications operation.
+//
+// Returns a list of all volume replications owned by the user.
+//
+// GET /v1beta/projects/{projectNumber}/locations/{locationId}/replications
+func (UnimplementedHandler) V1betaListReplications(ctx context.Context, params V1betaListReplicationsParams) (r V1betaListReplicationsRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
 // V1betaListVolumes implements v1beta_listVolumes operation.
 //
 // Returns descriptions of all volumes owned by the caller.
 //
 // GET /v1beta/projects/{projectNumber}/locations/{locationId}/volumes
 func (UnimplementedHandler) V1betaListVolumes(ctx context.Context, params V1betaListVolumesParams) (r V1betaListVolumesRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// V1betaResumeReplication implements v1beta_resumeReplication operation.
+//
+// Resume a replication.
+//
+// POST /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeResourceId}/replications/{replicationResourceId}/resume
+func (UnimplementedHandler) V1betaResumeReplication(ctx context.Context, params V1betaResumeReplicationParams) (r V1betaResumeReplicationRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// V1betaReverseAndResumeReplication implements v1beta_reverseAndResumeReplication operation.
+//
+// Reverse and resume a replication.
+//
+// POST /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeResourceId}/replications/{replicationResourceId}/reverseAndResumeReplication
+func (UnimplementedHandler) V1betaReverseAndResumeReplication(ctx context.Context, params V1betaReverseAndResumeReplicationParams) (r V1betaReverseAndResumeReplicationRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// V1betaStopReplication implements v1beta_stopReplication operation.
+//
+// Stops a replication.
+//
+// POST /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeResourceId}/replications/{replicationResourceId}/stop
+func (UnimplementedHandler) V1betaStopReplication(ctx context.Context, req *ReplicationStopV1beta, params V1betaStopReplicationParams) (r V1betaStopReplicationRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// V1betaSyncReplication implements v1beta_syncReplication operation.
+//
+// Sync a replication.
+//
+// POST /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeResourceId}/replications/{replicationResourceId}/sync
+func (UnimplementedHandler) V1betaSyncReplication(ctx context.Context, params V1betaSyncReplicationParams) (r V1betaSyncReplicationRes, _ error) {
 	return r, ht.ErrNotImplemented
 }
 
@@ -186,6 +258,15 @@ func (UnimplementedHandler) V1betaUpdateHostGroup(ctx context.Context, req *Host
 //
 // PUT /v1beta/projects/{projectNumber}/locations/{locationId}/pools/{poolId}
 func (UnimplementedHandler) V1betaUpdatePool(ctx context.Context, req *PoolUpdateV1beta, params V1betaUpdatePoolParams) (r V1betaUpdatePoolRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// V1betaUpdateReplication implements v1beta_updateReplication operation.
+//
+// Update the replication.
+//
+// PUT /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeResourceId}/replications/{replicationResourceId}
+func (UnimplementedHandler) V1betaUpdateReplication(ctx context.Context, req *ReplicationUpdateV1beta, params V1betaUpdateReplicationParams) (r V1betaUpdateReplicationRes, _ error) {
 	return r, ht.ErrNotImplemented
 }
 

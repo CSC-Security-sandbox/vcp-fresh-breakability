@@ -116,6 +116,30 @@ func (s *DailyScheduleV1beta) SetFake() {
 }
 
 // SetFake set fake values.
+func (s *DestinationVolumeParametersV1beta) SetFake() {
+	{
+		{
+			s.StoragePool = "string"
+		}
+	}
+	{
+		{
+			s.VolumeId.SetFake()
+		}
+	}
+	{
+		{
+			s.ShareName.SetFake()
+		}
+	}
+	{
+		{
+			s.Description.SetFake()
+		}
+	}
+}
+
+// SetFake set fake values.
 func (s *Error) SetFake() {
 	{
 		{
@@ -455,6 +479,45 @@ func (s *HourlyScheduleV1beta) SetFake() {
 }
 
 // SetFake set fake values.
+func (s *HybridPeeringV1beta) SetFake() {
+	{
+		{
+			s.SubnetIp.SetFake()
+		}
+	}
+	{
+		{
+			s.Command.SetFake()
+		}
+	}
+	{
+		{
+			s.Passphrase.SetFake()
+		}
+	}
+	{
+		{
+			s.CommandExpiryTime.SetFake()
+		}
+	}
+	{
+		{
+			s.PeerVolumeName.SetFake()
+		}
+	}
+	{
+		{
+			s.PeerClusterName.SetFake()
+		}
+	}
+	{
+		{
+			s.PeerSvmName.SetFake()
+		}
+	}
+}
+
+// SetFake set fake values.
 func (s *HybridReplicationParametersV1beta) SetFake() {
 	{
 		{
@@ -544,6 +607,22 @@ func (s *HybridReplicationParametersV1betaLabels) SetFake() {
 // SetFake set fake values.
 func (s *HybridReplicationParametersV1betaReplicationSchedule) SetFake() {
 	*s = HybridReplicationParametersV1betaReplicationScheduleEVERY10MINUTES
+}
+
+// SetFake set fake values.
+func (s *HybridReplicationUserCommandsV1beta) SetFake() {
+	{
+		{
+			s.Commands = nil
+			for i := 0; i < 0; i++ {
+				var elem string
+				{
+					elem = "string"
+				}
+				s.Commands = append(s.Commands, elem)
+			}
+		}
+	}
 }
 
 // SetFake set fake values.
@@ -778,6 +857,15 @@ func (s *OptHourlyScheduleV1beta) SetFake() {
 }
 
 // SetFake set fake values.
+func (s *OptHybridPeeringV1beta) SetFake() {
+	var elem HybridPeeringV1beta
+	{
+		elem.SetFake()
+	}
+	s.SetTo(elem)
+}
+
+// SetFake set fake values.
 func (s *OptHybridReplicationParametersV1beta) SetFake() {
 	var elem HybridReplicationParametersV1beta
 	{
@@ -800,6 +888,24 @@ func (s *OptHybridReplicationParametersV1betaReplicationSchedule) SetFake() {
 	var elem HybridReplicationParametersV1betaReplicationSchedule
 	{
 		elem.SetFake()
+	}
+	s.SetTo(elem)
+}
+
+// SetFake set fake values.
+func (s *OptHybridReplicationUserCommandsV1beta) SetFake() {
+	var elem HybridReplicationUserCommandsV1beta
+	{
+		elem.SetFake()
+	}
+	s.SetTo(elem)
+}
+
+// SetFake set fake values.
+func (s *OptInt32) SetFake() {
+	var elem int32
+	{
+		elem = int32(0)
 	}
 	s.SetTo(elem)
 }
@@ -943,6 +1049,96 @@ func (s *OptProtocolsV1beta) SetFake() {
 }
 
 // SetFake set fake values.
+func (s *OptReplicationCreateV1betaLabels) SetFake() {
+	var elem ReplicationCreateV1betaLabels
+	{
+		elem.SetFake()
+	}
+	s.SetTo(elem)
+}
+
+// SetFake set fake values.
+func (s *OptReplicationUpdateV1betaLabels) SetFake() {
+	var elem ReplicationUpdateV1betaLabels
+	{
+		elem.SetFake()
+	}
+	s.SetTo(elem)
+}
+
+// SetFake set fake values.
+func (s *OptReplicationUpdateV1betaReplicationSchedule) SetFake() {
+	var elem ReplicationUpdateV1betaReplicationSchedule
+	{
+		elem.SetFake()
+	}
+	s.SetTo(elem)
+}
+
+// SetFake set fake values.
+func (s *OptReplicationV1betaHybridReplicationType) SetFake() {
+	var elem ReplicationV1betaHybridReplicationType
+	{
+		elem.SetFake()
+	}
+	s.SetTo(elem)
+}
+
+// SetFake set fake values.
+func (s *OptReplicationV1betaLabels) SetFake() {
+	var elem ReplicationV1betaLabels
+	{
+		elem.SetFake()
+	}
+	s.SetTo(elem)
+}
+
+// SetFake set fake values.
+func (s *OptReplicationV1betaMirrorState) SetFake() {
+	var elem ReplicationV1betaMirrorState
+	{
+		elem.SetFake()
+	}
+	s.SetTo(elem)
+}
+
+// SetFake set fake values.
+func (s *OptReplicationV1betaReplicationSchedule) SetFake() {
+	var elem ReplicationV1betaReplicationSchedule
+	{
+		elem.SetFake()
+	}
+	s.SetTo(elem)
+}
+
+// SetFake set fake values.
+func (s *OptReplicationV1betaRole) SetFake() {
+	var elem ReplicationV1betaRole
+	{
+		elem.SetFake()
+	}
+	s.SetTo(elem)
+}
+
+// SetFake set fake values.
+func (s *OptReplicationV1betaState) SetFake() {
+	var elem ReplicationV1betaState
+	{
+		elem.SetFake()
+	}
+	s.SetTo(elem)
+}
+
+// SetFake set fake values.
+func (s *OptReplicationVolumeInformationV1beta) SetFake() {
+	var elem ReplicationVolumeInformationV1beta
+	{
+		elem.SetFake()
+	}
+	s.SetTo(elem)
+}
+
+// SetFake set fake values.
 func (s *OptSnapshotPolicyV1beta) SetFake() {
 	var elem SnapshotPolicyV1beta
 	{
@@ -981,6 +1177,15 @@ func (s *OptString) SetFake() {
 // SetFake set fake values.
 func (s *OptTieringPolicyV1beta) SetFake() {
 	var elem TieringPolicyV1beta
+	{
+		elem.SetFake()
+	}
+	s.SetTo(elem)
+}
+
+// SetFake set fake values.
+func (s *OptTransferStatsV1beta) SetFake() {
+	var elem TransferStatsV1beta
 	{
 		elem.SetFake()
 	}
@@ -1409,6 +1614,274 @@ func (s *ProtocolsV1beta) SetFake() {
 }
 
 // SetFake set fake values.
+func (s *ReplicationCreateV1beta) SetFake() {
+	{
+		{
+			s.ResourceId = "string"
+		}
+	}
+	{
+		{
+			s.Description.SetFake()
+		}
+	}
+	{
+		{
+			s.ReplicationSchedule.SetFake()
+		}
+	}
+	{
+		{
+			s.DestinationVolumeParameters.SetFake()
+		}
+	}
+	{
+		{
+			s.Labels.SetFake()
+		}
+	}
+}
+
+// SetFake set fake values.
+func (s *ReplicationCreateV1betaLabels) SetFake() {
+	var (
+		elem string
+		m    map[string]string = s.init()
+	)
+	for i := 0; i < 0; i++ {
+		m[fmt.Sprintf("fake%d", i)] = elem
+	}
+}
+
+// SetFake set fake values.
+func (s *ReplicationCreateV1betaReplicationSchedule) SetFake() {
+	*s = ReplicationCreateV1betaReplicationScheduleREPLICATIONSCHEDULEUNSPECIFIED
+}
+
+// SetFake set fake values.
+func (s *ReplicationDeleteV1beta) SetFake() {
+	{
+		{
+			s.CleanupResourcesJobId.SetFake()
+		}
+	}
+}
+
+// SetFake set fake values.
+func (s *ReplicationStopV1beta) SetFake() {
+	{
+		{
+			s.Force.SetFake()
+		}
+	}
+}
+
+// SetFake set fake values.
+func (s *ReplicationURIListV1beta) SetFake() {
+	{
+		{
+			s.ReplicationUris = nil
+			for i := 0; i < 1; i++ {
+				var elem string
+				{
+					elem = "string"
+				}
+				s.ReplicationUris = append(s.ReplicationUris, elem)
+			}
+		}
+	}
+}
+
+// SetFake set fake values.
+func (s *ReplicationUpdateV1beta) SetFake() {
+	{
+		{
+			s.Description.SetFake()
+		}
+	}
+	{
+		{
+			s.ReplicationSchedule.SetFake()
+		}
+	}
+	{
+		{
+			s.Labels.SetFake()
+		}
+	}
+	{
+		{
+			s.ClusterLocation.SetFake()
+		}
+	}
+}
+
+// SetFake set fake values.
+func (s *ReplicationUpdateV1betaLabels) SetFake() {
+	var (
+		elem string
+		m    map[string]string = s.init()
+	)
+	for i := 0; i < 0; i++ {
+		m[fmt.Sprintf("fake%d", i)] = elem
+	}
+}
+
+// SetFake set fake values.
+func (s *ReplicationUpdateV1betaReplicationSchedule) SetFake() {
+	*s = ReplicationUpdateV1betaReplicationScheduleREPLICATIONSCHEDULEUNSPECIFIED
+}
+
+// SetFake set fake values.
+func (s *ReplicationV1beta) SetFake() {
+	{
+		{
+			s.ReplicationId.SetFake()
+		}
+	}
+	{
+		{
+			s.ResourceId.SetFake()
+		}
+	}
+	{
+		{
+			s.Description.SetFake()
+		}
+	}
+	{
+		{
+			s.Source.SetFake()
+		}
+	}
+	{
+		{
+			s.Destination.SetFake()
+		}
+	}
+	{
+		{
+			s.State.SetFake()
+		}
+	}
+	{
+		{
+			s.StateDetails.SetFake()
+		}
+	}
+	{
+		{
+			s.StateDetailsCode.SetFake()
+		}
+	}
+	{
+		{
+			s.Role.SetFake()
+		}
+	}
+	{
+		{
+			s.ReplicationSchedule.SetFake()
+		}
+	}
+	{
+		{
+			s.MirrorState.SetFake()
+		}
+	}
+	{
+		{
+			s.Healthy.SetFake()
+		}
+	}
+	{
+		{
+			s.TransferStats.SetFake()
+		}
+	}
+	{
+		{
+			s.Created.SetFake()
+		}
+	}
+	{
+		{
+			s.Labels.SetFake()
+		}
+	}
+	{
+		{
+			s.ClusterLocation.SetFake()
+		}
+	}
+	{
+		{
+			s.HybridReplicationType.SetFake()
+		}
+	}
+	{
+		{
+			s.HybridPeeringDetails.SetFake()
+		}
+	}
+	{
+		{
+			s.HybridReplicationUserCommands.SetFake()
+		}
+	}
+}
+
+// SetFake set fake values.
+func (s *ReplicationV1betaHybridReplicationType) SetFake() {
+	*s = ReplicationV1betaHybridReplicationTypeHYBRIDREPLICATIONTYPEUNSPECIFIED
+}
+
+// SetFake set fake values.
+func (s *ReplicationV1betaLabels) SetFake() {
+	var (
+		elem string
+		m    map[string]string = s.init()
+	)
+	for i := 0; i < 0; i++ {
+		m[fmt.Sprintf("fake%d", i)] = elem
+	}
+}
+
+// SetFake set fake values.
+func (s *ReplicationV1betaMirrorState) SetFake() {
+	*s = ReplicationV1betaMirrorStateMIRRORSTATEUNSPECIFIED
+}
+
+// SetFake set fake values.
+func (s *ReplicationV1betaReplicationSchedule) SetFake() {
+	*s = ReplicationV1betaReplicationScheduleREPLICATIONSCHEDULEUNSPECIFIED
+}
+
+// SetFake set fake values.
+func (s *ReplicationV1betaRole) SetFake() {
+	*s = ReplicationV1betaRoleREPLICATIONROLEUNSPECIFIED
+}
+
+// SetFake set fake values.
+func (s *ReplicationV1betaState) SetFake() {
+	*s = ReplicationV1betaStateSTATEUNSPECIFIED
+}
+
+// SetFake set fake values.
+func (s *ReplicationVolumeInformationV1beta) SetFake() {
+	{
+		{
+			s.VolumeName.SetFake()
+		}
+	}
+	{
+		{
+			s.VolumeId.SetFake()
+		}
+	}
+}
+
+// SetFake set fake values.
 func (s *RestrictedActionsV1beta) SetFake() {
 	var unwrapped []RestrictedActionsV1betaItem
 	{
@@ -1604,6 +2077,55 @@ func (s *TieringPolicyV1betaTierAction) SetFake() {
 }
 
 // SetFake set fake values.
+func (s *TransferStatsV1beta) SetFake() {
+	{
+		{
+			s.TotalTransferBytes.SetFake()
+		}
+	}
+	{
+		{
+			s.TotalTransferTimeSecs.SetFake()
+		}
+	}
+	{
+		{
+			s.LastTransferSize.SetFake()
+		}
+	}
+	{
+		{
+			s.LastTransferError.SetFake()
+		}
+	}
+	{
+		{
+			s.LastTransferDuration.SetFake()
+		}
+	}
+	{
+		{
+			s.LastTransferEndTime.SetFake()
+		}
+	}
+	{
+		{
+			s.TotalProgress.SetFake()
+		}
+	}
+	{
+		{
+			s.ProgressLastUpdated.SetFake()
+		}
+	}
+	{
+		{
+			s.LagTime.SetFake()
+		}
+	}
+}
+
+// SetFake set fake values.
 func (s *V1betaCreateHostGroupAccepted) SetFake() {
 	var unwrapped OperationV1beta
 	{
@@ -1748,6 +2270,69 @@ func (s *V1betaCreatePoolUnprocessableEntity) SetFake() {
 }
 
 // SetFake set fake values.
+func (s *V1betaCreateReplicationBadRequest) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaCreateReplicationBadRequest(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaCreateReplicationForbidden) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaCreateReplicationForbidden(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaCreateReplicationInternalServerError) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaCreateReplicationInternalServerError(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaCreateReplicationNotFound) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaCreateReplicationNotFound(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaCreateReplicationTooManyRequests) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaCreateReplicationTooManyRequests(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaCreateReplicationUnauthorized) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaCreateReplicationUnauthorized(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaCreateReplicationUnprocessableEntity) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaCreateReplicationUnprocessableEntity(unwrapped)
+}
+
+// SetFake set fake values.
 func (s *V1betaCreateVolumeBadRequest) SetFake() {
 	var unwrapped Error
 	{
@@ -1781,24 +2366,6 @@ func (s *V1betaCreateVolumeInternalServerError) SetFake() {
 		unwrapped.SetFake()
 	}
 	*s = V1betaCreateVolumeInternalServerError(unwrapped)
-}
-
-// SetFake set fake values.
-func (s *V1betaCreateVolumeNotImplemented) SetFake() {
-	var unwrapped Error
-	{
-		unwrapped.SetFake()
-	}
-	*s = V1betaCreateVolumeNotImplemented(unwrapped)
-}
-
-// SetFake set fake values.
-func (s *V1betaCreateVolumeServiceUnavailable) SetFake() {
-	var unwrapped Error
-	{
-		unwrapped.SetFake()
-	}
-	*s = V1betaCreateVolumeServiceUnavailable(unwrapped)
 }
 
 // SetFake set fake values.
@@ -1943,6 +2510,69 @@ func (s *V1betaDeletePoolUnprocessableEntity) SetFake() {
 		unwrapped.SetFake()
 	}
 	*s = V1betaDeletePoolUnprocessableEntity(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaDeleteReplicationBadRequest) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaDeleteReplicationBadRequest(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaDeleteReplicationForbidden) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaDeleteReplicationForbidden(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaDeleteReplicationInternalServerError) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaDeleteReplicationInternalServerError(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaDeleteReplicationNotFound) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaDeleteReplicationNotFound(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaDeleteReplicationTooManyRequests) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaDeleteReplicationTooManyRequests(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaDeleteReplicationUnauthorized) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaDeleteReplicationUnauthorized(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaDeleteReplicationUnprocessableEntity) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaDeleteReplicationUnprocessableEntity(unwrapped)
 }
 
 // SetFake set fake values.
@@ -2419,6 +3049,94 @@ func (s *V1betaGetMultiplePoolsUnprocessableEntity) SetFake() {
 }
 
 // SetFake set fake values.
+func (s *V1betaGetMultipleReplicationsBadRequest) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaGetMultipleReplicationsBadRequest(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaGetMultipleReplicationsForbidden) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaGetMultipleReplicationsForbidden(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaGetMultipleReplicationsInternalServerError) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaGetMultipleReplicationsInternalServerError(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaGetMultipleReplicationsNotFound) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaGetMultipleReplicationsNotFound(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaGetMultipleReplicationsNotImplemented) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaGetMultipleReplicationsNotImplemented(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaGetMultipleReplicationsOK) SetFake() {
+	{
+		{
+			s.Replications = nil
+			for i := 0; i < 0; i++ {
+				var elem ReplicationV1beta
+				{
+					elem.SetFake()
+				}
+				s.Replications = append(s.Replications, elem)
+			}
+		}
+	}
+}
+
+// SetFake set fake values.
+func (s *V1betaGetMultipleReplicationsTooManyRequests) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaGetMultipleReplicationsTooManyRequests(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaGetMultipleReplicationsUnauthorized) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaGetMultipleReplicationsUnauthorized(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaGetMultipleReplicationsUnprocessableEntity) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaGetMultipleReplicationsUnprocessableEntity(unwrapped)
+}
+
+// SetFake set fake values.
 func (s *V1betaGetMultipleVolumesBadRequest) SetFake() {
 	var unwrapped Error
 	{
@@ -2629,6 +3347,94 @@ func (s *V1betaListPoolsUnauthorized) SetFake() {
 }
 
 // SetFake set fake values.
+func (s *V1betaListReplicationsBadRequest) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaListReplicationsBadRequest(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaListReplicationsForbidden) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaListReplicationsForbidden(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaListReplicationsInternalServerError) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaListReplicationsInternalServerError(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaListReplicationsNotFound) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaListReplicationsNotFound(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaListReplicationsNotImplemented) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaListReplicationsNotImplemented(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaListReplicationsOK) SetFake() {
+	{
+		{
+			s.Replications = nil
+			for i := 0; i < 0; i++ {
+				var elem ReplicationV1beta
+				{
+					elem.SetFake()
+				}
+				s.Replications = append(s.Replications, elem)
+			}
+		}
+	}
+}
+
+// SetFake set fake values.
+func (s *V1betaListReplicationsTooManyRequests) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaListReplicationsTooManyRequests(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaListReplicationsUnauthorized) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaListReplicationsUnauthorized(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaListReplicationsUnprocessableEntity) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaListReplicationsUnprocessableEntity(unwrapped)
+}
+
+// SetFake set fake values.
 func (s *V1betaListVolumesBadRequest) SetFake() {
 	var unwrapped Error
 	{
@@ -2696,6 +3502,267 @@ func (s *V1betaListVolumesUnauthorized) SetFake() {
 		unwrapped.SetFake()
 	}
 	*s = V1betaListVolumesUnauthorized(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaResumeReplicationBadRequest) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaResumeReplicationBadRequest(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaResumeReplicationForbidden) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaResumeReplicationForbidden(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaResumeReplicationInternalServerError) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaResumeReplicationInternalServerError(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaResumeReplicationNotFound) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaResumeReplicationNotFound(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaResumeReplicationTooManyRequests) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaResumeReplicationTooManyRequests(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaResumeReplicationUnauthorized) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaResumeReplicationUnauthorized(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaResumeReplicationUnprocessableEntity) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaResumeReplicationUnprocessableEntity(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaReverseAndResumeReplicationBadRequest) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaReverseAndResumeReplicationBadRequest(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaReverseAndResumeReplicationForbidden) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaReverseAndResumeReplicationForbidden(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaReverseAndResumeReplicationInternalServerError) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaReverseAndResumeReplicationInternalServerError(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaReverseAndResumeReplicationNotFound) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaReverseAndResumeReplicationNotFound(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaReverseAndResumeReplicationTooManyRequests) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaReverseAndResumeReplicationTooManyRequests(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaReverseAndResumeReplicationUnauthorized) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaReverseAndResumeReplicationUnauthorized(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaReverseAndResumeReplicationUnprocessableEntity) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaReverseAndResumeReplicationUnprocessableEntity(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaStopReplicationBadRequest) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaStopReplicationBadRequest(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaStopReplicationForbidden) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaStopReplicationForbidden(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaStopReplicationInternalServerError) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaStopReplicationInternalServerError(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaStopReplicationNotFound) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaStopReplicationNotFound(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaStopReplicationTooManyRequests) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaStopReplicationTooManyRequests(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaStopReplicationUnauthorized) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaStopReplicationUnauthorized(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaStopReplicationUnprocessableEntity) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaStopReplicationUnprocessableEntity(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaSyncReplicationBadRequest) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaSyncReplicationBadRequest(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaSyncReplicationForbidden) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaSyncReplicationForbidden(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaSyncReplicationInternalServerError) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaSyncReplicationInternalServerError(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaSyncReplicationNotFound) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaSyncReplicationNotFound(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaSyncReplicationNotImplemented) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaSyncReplicationNotImplemented(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaSyncReplicationTooManyRequests) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaSyncReplicationTooManyRequests(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaSyncReplicationUnauthorized) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaSyncReplicationUnauthorized(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaSyncReplicationUnprocessableEntity) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaSyncReplicationUnprocessableEntity(unwrapped)
 }
 
 // SetFake set fake values.
@@ -2840,6 +3907,69 @@ func (s *V1betaUpdatePoolUnprocessableEntity) SetFake() {
 		unwrapped.SetFake()
 	}
 	*s = V1betaUpdatePoolUnprocessableEntity(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaUpdateReplicationBadRequest) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaUpdateReplicationBadRequest(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaUpdateReplicationForbidden) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaUpdateReplicationForbidden(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaUpdateReplicationInternalServerError) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaUpdateReplicationInternalServerError(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaUpdateReplicationNotFound) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaUpdateReplicationNotFound(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaUpdateReplicationTooManyRequests) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaUpdateReplicationTooManyRequests(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaUpdateReplicationUnauthorized) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaUpdateReplicationUnauthorized(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaUpdateReplicationUnprocessableEntity) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaUpdateReplicationUnprocessableEntity(unwrapped)
 }
 
 // SetFake set fake values.

@@ -13,6 +13,10 @@ type V1betaCreatePoolRes interface {
 	v1betaCreatePoolRes()
 }
 
+type V1betaCreateReplicationRes interface {
+	v1betaCreateReplicationRes()
+}
+
 type V1betaCreateVolumeRes interface {
 	v1betaCreateVolumeRes()
 }
@@ -23,6 +27,10 @@ type V1betaDeleteHostGroupRes interface {
 
 type V1betaDeletePoolRes interface {
 	v1betaDeletePoolRes()
+}
+
+type V1betaDeleteReplicationRes interface {
+	v1betaDeleteReplicationRes()
 }
 
 type V1betaDeleteVolumeRes interface {
@@ -53,6 +61,10 @@ type V1betaGetMultiplePoolsRes interface {
 	v1betaGetMultiplePoolsRes()
 }
 
+type V1betaGetMultipleReplicationsRes interface {
+	v1betaGetMultipleReplicationsRes()
+}
+
 type V1betaGetMultipleVolumesRes interface {
 	v1betaGetMultipleVolumesRes()
 }
@@ -65,8 +77,28 @@ type V1betaListPoolsRes interface {
 	v1betaListPoolsRes()
 }
 
+type V1betaListReplicationsRes interface {
+	v1betaListReplicationsRes()
+}
+
 type V1betaListVolumesRes interface {
 	v1betaListVolumesRes()
+}
+
+type V1betaResumeReplicationRes interface {
+	v1betaResumeReplicationRes()
+}
+
+type V1betaReverseAndResumeReplicationRes interface {
+	v1betaReverseAndResumeReplicationRes()
+}
+
+type V1betaStopReplicationRes interface {
+	v1betaStopReplicationRes()
+}
+
+type V1betaSyncReplicationRes interface {
+	v1betaSyncReplicationRes()
 }
 
 type V1betaUpdateHostGroupRes interface {
@@ -75,6 +107,10 @@ type V1betaUpdateHostGroupRes interface {
 
 type V1betaUpdatePoolRes interface {
 	v1betaUpdatePoolRes()
+}
+
+type V1betaUpdateReplicationRes interface {
+	v1betaUpdateReplicationRes()
 }
 
 type V1betaUpdateVolumeRes interface {

@@ -40,7 +40,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		s.notFound(w, r)
 		return
 	}
-	args := [3]string{}
+	args := [4]string{}
 
 	// Static code generated router with unwrapped path search.
 	switch {
@@ -405,6 +405,29 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 							}
 
+						case 'r': // Prefix: "replications"
+
+							if l := len("replications"); len(elem) >= l && elem[0:l] == "replications" {
+								elem = elem[l:]
+							} else {
+								break
+							}
+
+							if len(elem) == 0 {
+								// Leaf node.
+								switch r.Method {
+								case "GET":
+									s.handleV1betaListReplicationsRequest([2]string{
+										args[0],
+										args[1],
+									}, elemIsEscaped, w, r)
+								default:
+									s.notAllowed(w, r, "GET")
+								}
+
+								return
+							}
+
 						case 'v': // Prefix: "volumes"
 
 							if l := len("volumes"); len(elem) >= l && elem[0:l] == "volumes" {
@@ -440,17 +463,16 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 									break
 								}
 
-								// Param: "volumeId"
-								// Leaf parameter, slashes are prohibited
+								// Param: "volumeResourceId"
+								// Match until "/"
 								idx := strings.IndexByte(elem, '/')
-								if idx >= 0 {
-									break
+								if idx < 0 {
+									idx = len(elem)
 								}
-								args[2] = elem
-								elem = ""
+								args[2] = elem[:idx]
+								elem = elem[idx:]
 
 								if len(elem) == 0 {
-									// Leaf node.
 									switch r.Method {
 									case "DELETE":
 										s.handleV1betaDeleteVolumeRequest([3]string{
@@ -476,6 +498,255 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 									return
 								}
+								switch elem[0] {
+								case '/': // Prefix: "/"
+
+									if l := len("/"); len(elem) >= l && elem[0:l] == "/" {
+										elem = elem[l:]
+									} else {
+										break
+									}
+
+									if len(elem) == 0 {
+										break
+									}
+									switch elem[0] {
+									case 'g': // Prefix: "getMultipleReplications"
+
+										if l := len("getMultipleReplications"); len(elem) >= l && elem[0:l] == "getMultipleReplications" {
+											elem = elem[l:]
+										} else {
+											break
+										}
+
+										if len(elem) == 0 {
+											// Leaf node.
+											switch r.Method {
+											case "POST":
+												s.handleV1betaGetMultipleReplicationsRequest([3]string{
+													args[0],
+													args[1],
+													args[2],
+												}, elemIsEscaped, w, r)
+											default:
+												s.notAllowed(w, r, "POST")
+											}
+
+											return
+										}
+
+									case 'r': // Prefix: "replications"
+
+										if l := len("replications"); len(elem) >= l && elem[0:l] == "replications" {
+											elem = elem[l:]
+										} else {
+											break
+										}
+
+										if len(elem) == 0 {
+											switch r.Method {
+											case "POST":
+												s.handleV1betaCreateReplicationRequest([3]string{
+													args[0],
+													args[1],
+													args[2],
+												}, elemIsEscaped, w, r)
+											default:
+												s.notAllowed(w, r, "POST")
+											}
+
+											return
+										}
+										switch elem[0] {
+										case '/': // Prefix: "/"
+
+											if l := len("/"); len(elem) >= l && elem[0:l] == "/" {
+												elem = elem[l:]
+											} else {
+												break
+											}
+
+											// Param: "replicationResourceId"
+											// Match until "/"
+											idx := strings.IndexByte(elem, '/')
+											if idx < 0 {
+												idx = len(elem)
+											}
+											args[3] = elem[:idx]
+											elem = elem[idx:]
+
+											if len(elem) == 0 {
+												switch r.Method {
+												case "DELETE":
+													s.handleV1betaDeleteReplicationRequest([4]string{
+														args[0],
+														args[1],
+														args[2],
+														args[3],
+													}, elemIsEscaped, w, r)
+												case "PUT":
+													s.handleV1betaUpdateReplicationRequest([4]string{
+														args[0],
+														args[1],
+														args[2],
+														args[3],
+													}, elemIsEscaped, w, r)
+												default:
+													s.notAllowed(w, r, "DELETE,PUT")
+												}
+
+												return
+											}
+											switch elem[0] {
+											case '/': // Prefix: "/"
+
+												if l := len("/"); len(elem) >= l && elem[0:l] == "/" {
+													elem = elem[l:]
+												} else {
+													break
+												}
+
+												if len(elem) == 0 {
+													break
+												}
+												switch elem[0] {
+												case 'r': // Prefix: "re"
+
+													if l := len("re"); len(elem) >= l && elem[0:l] == "re" {
+														elem = elem[l:]
+													} else {
+														break
+													}
+
+													if len(elem) == 0 {
+														break
+													}
+													switch elem[0] {
+													case 's': // Prefix: "sume"
+
+														if l := len("sume"); len(elem) >= l && elem[0:l] == "sume" {
+															elem = elem[l:]
+														} else {
+															break
+														}
+
+														if len(elem) == 0 {
+															// Leaf node.
+															switch r.Method {
+															case "POST":
+																s.handleV1betaResumeReplicationRequest([4]string{
+																	args[0],
+																	args[1],
+																	args[2],
+																	args[3],
+																}, elemIsEscaped, w, r)
+															default:
+																s.notAllowed(w, r, "POST")
+															}
+
+															return
+														}
+
+													case 'v': // Prefix: "verseAndResumeReplication"
+
+														if l := len("verseAndResumeReplication"); len(elem) >= l && elem[0:l] == "verseAndResumeReplication" {
+															elem = elem[l:]
+														} else {
+															break
+														}
+
+														if len(elem) == 0 {
+															// Leaf node.
+															switch r.Method {
+															case "POST":
+																s.handleV1betaReverseAndResumeReplicationRequest([4]string{
+																	args[0],
+																	args[1],
+																	args[2],
+																	args[3],
+																}, elemIsEscaped, w, r)
+															default:
+																s.notAllowed(w, r, "POST")
+															}
+
+															return
+														}
+
+													}
+
+												case 's': // Prefix: "s"
+
+													if l := len("s"); len(elem) >= l && elem[0:l] == "s" {
+														elem = elem[l:]
+													} else {
+														break
+													}
+
+													if len(elem) == 0 {
+														break
+													}
+													switch elem[0] {
+													case 't': // Prefix: "top"
+
+														if l := len("top"); len(elem) >= l && elem[0:l] == "top" {
+															elem = elem[l:]
+														} else {
+															break
+														}
+
+														if len(elem) == 0 {
+															// Leaf node.
+															switch r.Method {
+															case "POST":
+																s.handleV1betaStopReplicationRequest([4]string{
+																	args[0],
+																	args[1],
+																	args[2],
+																	args[3],
+																}, elemIsEscaped, w, r)
+															default:
+																s.notAllowed(w, r, "POST")
+															}
+
+															return
+														}
+
+													case 'y': // Prefix: "ync"
+
+														if l := len("ync"); len(elem) >= l && elem[0:l] == "ync" {
+															elem = elem[l:]
+														} else {
+															break
+														}
+
+														if len(elem) == 0 {
+															// Leaf node.
+															switch r.Method {
+															case "POST":
+																s.handleV1betaSyncReplicationRequest([4]string{
+																	args[0],
+																	args[1],
+																	args[2],
+																	args[3],
+																}, elemIsEscaped, w, r)
+															default:
+																s.notAllowed(w, r, "POST")
+															}
+
+															return
+														}
+
+													}
+
+												}
+
+											}
+
+										}
+
+									}
+
+								}
 
 							}
 
@@ -499,7 +770,7 @@ type Route struct {
 	operationID string
 	pathPattern string
 	count       int
-	args        [3]string
+	args        [4]string
 }
 
 // Name returns ogen operation name.
@@ -946,6 +1217,30 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 
 							}
 
+						case 'r': // Prefix: "replications"
+
+							if l := len("replications"); len(elem) >= l && elem[0:l] == "replications" {
+								elem = elem[l:]
+							} else {
+								break
+							}
+
+							if len(elem) == 0 {
+								// Leaf node.
+								switch method {
+								case "GET":
+									r.name = V1betaListReplicationsOperation
+									r.summary = "List all volume replications"
+									r.operationID = "v1beta_listReplications"
+									r.pathPattern = "/v1beta/projects/{projectNumber}/locations/{locationId}/replications"
+									r.args = args
+									r.count = 2
+									return r, true
+								default:
+									return
+								}
+							}
+
 						case 'v': // Prefix: "volumes"
 
 							if l := len("volumes"); len(elem) >= l && elem[0:l] == "volumes" {
@@ -985,17 +1280,16 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 									break
 								}
 
-								// Param: "volumeId"
-								// Leaf parameter, slashes are prohibited
+								// Param: "volumeResourceId"
+								// Match until "/"
 								idx := strings.IndexByte(elem, '/')
-								if idx >= 0 {
-									break
+								if idx < 0 {
+									idx = len(elem)
 								}
-								args[2] = elem
-								elem = ""
+								args[2] = elem[:idx]
+								elem = elem[idx:]
 
 								if len(elem) == 0 {
-									// Leaf node.
 									switch method {
 									case "DELETE":
 										r.name = V1betaDeleteVolumeOperation
@@ -1024,6 +1318,251 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 									default:
 										return
 									}
+								}
+								switch elem[0] {
+								case '/': // Prefix: "/"
+
+									if l := len("/"); len(elem) >= l && elem[0:l] == "/" {
+										elem = elem[l:]
+									} else {
+										break
+									}
+
+									if len(elem) == 0 {
+										break
+									}
+									switch elem[0] {
+									case 'g': // Prefix: "getMultipleReplications"
+
+										if l := len("getMultipleReplications"); len(elem) >= l && elem[0:l] == "getMultipleReplications" {
+											elem = elem[l:]
+										} else {
+											break
+										}
+
+										if len(elem) == 0 {
+											// Leaf node.
+											switch method {
+											case "POST":
+												r.name = V1betaGetMultipleReplicationsOperation
+												r.summary = "List specific replications"
+												r.operationID = "v1beta_getMultipleReplications"
+												r.pathPattern = "/v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeResourceId}/getMultipleReplications"
+												r.args = args
+												r.count = 3
+												return r, true
+											default:
+												return
+											}
+										}
+
+									case 'r': // Prefix: "replications"
+
+										if l := len("replications"); len(elem) >= l && elem[0:l] == "replications" {
+											elem = elem[l:]
+										} else {
+											break
+										}
+
+										if len(elem) == 0 {
+											switch method {
+											case "POST":
+												r.name = V1betaCreateReplicationOperation
+												r.summary = "Create a new replication"
+												r.operationID = "v1beta_createReplication"
+												r.pathPattern = "/v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeResourceId}/replications"
+												r.args = args
+												r.count = 3
+												return r, true
+											default:
+												return
+											}
+										}
+										switch elem[0] {
+										case '/': // Prefix: "/"
+
+											if l := len("/"); len(elem) >= l && elem[0:l] == "/" {
+												elem = elem[l:]
+											} else {
+												break
+											}
+
+											// Param: "replicationResourceId"
+											// Match until "/"
+											idx := strings.IndexByte(elem, '/')
+											if idx < 0 {
+												idx = len(elem)
+											}
+											args[3] = elem[:idx]
+											elem = elem[idx:]
+
+											if len(elem) == 0 {
+												switch method {
+												case "DELETE":
+													r.name = V1betaDeleteReplicationOperation
+													r.summary = "Delete replication"
+													r.operationID = "v1beta_deleteReplication"
+													r.pathPattern = "/v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeResourceId}/replications/{replicationResourceId}"
+													r.args = args
+													r.count = 4
+													return r, true
+												case "PUT":
+													r.name = V1betaUpdateReplicationOperation
+													r.summary = "Update replication"
+													r.operationID = "v1beta_updateReplication"
+													r.pathPattern = "/v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeResourceId}/replications/{replicationResourceId}"
+													r.args = args
+													r.count = 4
+													return r, true
+												default:
+													return
+												}
+											}
+											switch elem[0] {
+											case '/': // Prefix: "/"
+
+												if l := len("/"); len(elem) >= l && elem[0:l] == "/" {
+													elem = elem[l:]
+												} else {
+													break
+												}
+
+												if len(elem) == 0 {
+													break
+												}
+												switch elem[0] {
+												case 'r': // Prefix: "re"
+
+													if l := len("re"); len(elem) >= l && elem[0:l] == "re" {
+														elem = elem[l:]
+													} else {
+														break
+													}
+
+													if len(elem) == 0 {
+														break
+													}
+													switch elem[0] {
+													case 's': // Prefix: "sume"
+
+														if l := len("sume"); len(elem) >= l && elem[0:l] == "sume" {
+															elem = elem[l:]
+														} else {
+															break
+														}
+
+														if len(elem) == 0 {
+															// Leaf node.
+															switch method {
+															case "POST":
+																r.name = V1betaResumeReplicationOperation
+																r.summary = "Resume replication"
+																r.operationID = "v1beta_resumeReplication"
+																r.pathPattern = "/v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeResourceId}/replications/{replicationResourceId}/resume"
+																r.args = args
+																r.count = 4
+																return r, true
+															default:
+																return
+															}
+														}
+
+													case 'v': // Prefix: "verseAndResumeReplication"
+
+														if l := len("verseAndResumeReplication"); len(elem) >= l && elem[0:l] == "verseAndResumeReplication" {
+															elem = elem[l:]
+														} else {
+															break
+														}
+
+														if len(elem) == 0 {
+															// Leaf node.
+															switch method {
+															case "POST":
+																r.name = V1betaReverseAndResumeReplicationOperation
+																r.summary = "Reverse and resume a replication"
+																r.operationID = "v1beta_reverseAndResumeReplication"
+																r.pathPattern = "/v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeResourceId}/replications/{replicationResourceId}/reverseAndResumeReplication"
+																r.args = args
+																r.count = 4
+																return r, true
+															default:
+																return
+															}
+														}
+
+													}
+
+												case 's': // Prefix: "s"
+
+													if l := len("s"); len(elem) >= l && elem[0:l] == "s" {
+														elem = elem[l:]
+													} else {
+														break
+													}
+
+													if len(elem) == 0 {
+														break
+													}
+													switch elem[0] {
+													case 't': // Prefix: "top"
+
+														if l := len("top"); len(elem) >= l && elem[0:l] == "top" {
+															elem = elem[l:]
+														} else {
+															break
+														}
+
+														if len(elem) == 0 {
+															// Leaf node.
+															switch method {
+															case "POST":
+																r.name = V1betaStopReplicationOperation
+																r.summary = "Stop replication"
+																r.operationID = "v1beta_stopReplication"
+																r.pathPattern = "/v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeResourceId}/replications/{replicationResourceId}/stop"
+																r.args = args
+																r.count = 4
+																return r, true
+															default:
+																return
+															}
+														}
+
+													case 'y': // Prefix: "ync"
+
+														if l := len("ync"); len(elem) >= l && elem[0:l] == "ync" {
+															elem = elem[l:]
+														} else {
+															break
+														}
+
+														if len(elem) == 0 {
+															// Leaf node.
+															switch method {
+															case "POST":
+																r.name = V1betaSyncReplicationOperation
+																r.summary = "Sync replication"
+																r.operationID = "v1beta_syncReplication"
+																r.pathPattern = "/v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeResourceId}/replications/{replicationResourceId}/sync"
+																r.args = args
+																r.count = 4
+																return r, true
+															default:
+																return
+															}
+														}
+
+													}
+
+												}
+
+											}
+
+										}
+
+									}
+
 								}
 
 							}

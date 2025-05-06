@@ -103,6 +103,14 @@ func (s *PoolV1beta) setDefaults() {
 }
 
 // setDefaults set default value of fields.
+func (s *ReplicationStopV1beta) setDefaults() {
+	{
+		val := bool(false)
+		s.Force.SetTo(val)
+	}
+}
+
+// setDefaults set default value of fields.
 func (s *SimpleExportPolicyRuleV1beta) setDefaults() {
 	{
 		val := string("0.0.0.0/0")
