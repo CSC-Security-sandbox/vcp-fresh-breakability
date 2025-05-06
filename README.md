@@ -78,3 +78,36 @@ Skaffold will automatically watch for changes in the code and rebuild and redepl
     # or
     skaffold dev --watch=false
 ```
+
+### Running Temporal Service Locally
+
+Prerequisites: 
+- Install Helm
+
+Deploy Services:
+```bash
+skaffold dev
+```
+This will deploy "google-proxy", "core-service", "postgres", and Temporal service in the "default" namespace of your local cluster.
+
+#### Handling Errors: 
+- pq: duplicate key value violates unique constraint "cluster_metadata_info_pkey"
+- Not enough hosts to serve the request
+
+Solution: Clean the local cluster. 
+
+If using Minikube, reset it:
+
+```bash
+minikube delete
+```
+
+```bash
+minikube start
+```
+
+Then, redeploy:
+
+```bash
+skaffold dev
+```

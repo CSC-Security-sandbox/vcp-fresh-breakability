@@ -1,0 +1,113 @@
+debug: true
+admintools:
+  additionalInitContainers:
+    - name: wait-for-postgres
+      image: postgres:14
+      command:
+        - sh
+        - -c
+        - |
+          echo "Waiting for PostgreSQL to be ready..."
+          export PGPASSWORD=testpass
+          i=1
+          while [ $i -le 60 ]; do
+            pg_isready -d "user=postgres dbname=postgres host=postgres.default.svc.cluster.local port=5432"
+            if [ $? -eq 0 ]; then
+              echo "PostgreSQL is ready!"
+              exit 0
+            else
+              echo "pg_isready failed with exit code $?. Retrying in 5 seconds..."
+            fi
+            sleep 5
+            i=$((i + 1))
+          done
+          echo "PostgreSQL did not become ready in time. Exiting."
+          exit 1
+
+server:
+  additionalInitContainers:
+    - name: wait-for-postgres
+      image: postgres:14
+      command:
+        - sh
+        - -c
+        - |
+          echo "Waiting for PostgreSQL to be ready..."
+          i=1
+          while [ $i -le 60 ]; do
+            pg_isready -d "user=postgres dbname=postgres host=postgres.default.svc.cluster.local port=5432"
+            if [ $? -eq 0 ]; then
+              sleep 20 # NOTE: If temporal doesn't boot due to lack schema, increase the time.
+              echo "PostgreSQL is ready!"
+              exit 0
+            else
+              echo "pg_isready failed with exit code $?. Retrying in 5 seconds..."
+            fi
+            sleep 5
+            i=$((i + 1))
+          done
+          echo "PostgreSQL did not become ready in time. Exiting."
+          exit 1
+
+  enabled: true
+  replicaCount: 1
+  resources: {}
+  config:
+    persistence:
+      default:
+        driver: "sql"
+        sql:
+          driver: "postgres12"
+          host: postgres.default.svc.cluster.local
+          port: 5432
+          database: temporal
+          user: postgres
+          password: testpass
+          maxConns: 20
+          maxIdleConns: 20
+          maxConnLifetime: "1h"
+          disableInitialHostLookup: true
+      visibility:
+        driver: "sql"
+        sql:
+          driver: "postgres12"
+          host: postgres.default.svc.cluster.local
+          port: 5432
+          database: temporal_visibility
+          user: postgres
+          password: testpass
+          maxConns: 20
+          maxIdleConns: 20
+          maxConnLifetime: "1h"
+          disableInitialHostLookup: true
+    namespaces:
+      create: true
+      namespace:
+        - name: default
+          retention: 3d
+
+schema:
+  createDatabase:
+    enabled: true
+  setup:
+    enabled: true
+  update:
+    enabled: true
+
+postgresql:
+  enabled: true
+
+cassandra:
+  enabled: false
+
+mysql:
+  enabled: false
+
+prometheus:
+  enabled: false
+
+grafana:
+  enabled: false
+
+elasticsearch:
+  enabled: false

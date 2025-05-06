@@ -16,15 +16,15 @@ build:
       requires:
         - image: base
           alias: BASE
-    #    - image: firestore-emulator
-    #      context: .
-    - image: workflow-server
-      context: .
-      docker:
-        dockerfile: workflow-server/Dockerfile
-      requires:
-        - image: base
-          alias: BASE
+#    - image: firestore-emulator
+#      context: .
+#    - image: workflow-server
+#      context: .
+#      docker:
+#        dockerfile: workflow-server/Dockerfile
+#      requires:
+#        - image: base
+#          alias: BASE
     - image: base
       context: .
       docker:
@@ -34,7 +34,16 @@ manifests:
     - google-proxy/kubernetes/*
     - core/kubernetes/*
     - postgres/kubernetes/*
-    - workflow-server/kubernetes/*
+#    - workflow-server/kubernetes/*
+  helm:
+    releases:
+      - name: local-temporal
+        remoteChart: temporal
+        version: 0.62.0
+        namespace: default
+        repo: https://temporalio.github.io/helm-charts
+        valuesFiles:
+          - ./tools/temporal-deployment/local/values.yaml
 portForward:
   - resourceType: deployment
     resourceName: google-proxy
@@ -48,10 +57,15 @@ portForward:
     resourceName: postgres
     port: 5432
     localPort: 5432
-  - resourceType: deployment
-    resourceName: workflow-server
-    port: 50051
-    localPort: 9003
+#  - resourceType: deployment
+#    resourceName: workflow-server
+#    port: 50051
+#    localPort: 9003
+  - resourceType: service
+    resourceName: local-temporal-web
+    namespace: default
+    port: 8080
+    localPort: 8080
 profiles:
   - name: gcb
     build:

@@ -34,3 +34,7 @@ spec:
               value: testpass
             - name: RUN_MIGRATION_ON_START
               value: "true"
+            - name: TEMPORAL_ADDRESS
+              value: "local-temporal-frontend.default.svc.cluster.local:7233"
+            - name: TEMPORAL_NAMESPACE
+              value: "default"
