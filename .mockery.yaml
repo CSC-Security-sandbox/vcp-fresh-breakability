@@ -49,3 +49,10 @@ packages:
     config:
       dir: "{{.InterfaceDir}}"
       inpackage: True
+  github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine:
+    config:
+      inpackage: True
+      dir: "{{.InterfaceDir}}"
+    interfaces:
+      ClientConfig:
+      WorkflowEngine:

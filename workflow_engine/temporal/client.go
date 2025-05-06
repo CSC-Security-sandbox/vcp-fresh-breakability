@@ -109,7 +109,7 @@ func createClientOptionsFromEnv(cfg workflow_engine.ClientConfig, logger log.Log
 	}
 
 	if cfg.GetTLSCertPath() != "" && cfg.GetTLSKeyPath() != "" {
-		cert, err := tls.LoadX509KeyPair(cfg.GetTLSCertPath(), cfg.GetTLSCertPath())
+		cert, err := tls.LoadX509KeyPair(cfg.GetTLSCertPath(), cfg.GetTLSKeyPath())
 		if err != nil {
 			return clientOpts, fmt.Errorf("failed loading tls key pair for temporal: %w", err)
 		}
