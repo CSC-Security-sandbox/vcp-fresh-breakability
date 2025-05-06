@@ -18,3 +18,4 @@ RUN go build -gcflags="${SKAFFOLD_GO_GCFLAGS}" -trimpath -o /app .
 
 FROM $BASE
 COPY --from=builder /app .
+COPY --from=builder /code/core/errors/errors.json /errors.json

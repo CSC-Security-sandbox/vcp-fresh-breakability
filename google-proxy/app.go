@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"net/http"
 	"os"
 	"os/signal"
@@ -69,7 +70,7 @@ func main() {
 
 	eg.Go(func() error {
 		if err := workflowClient.RunWorker(ctx, workflowClient.GetTemporalClient(), dbCon); err != nil {
-			logger.Error("Failed to run worker","error", err.Error())
+			logger.Error("Failed to run worker", "error", err.Error())
 			return err
 		}
 		return nil
@@ -82,6 +83,18 @@ func main() {
 	if err != nil {
 		logger.Error("Failed to create server", "error", err.Error())
 		os.Exit(1)
+	}
+	errorFilePath := "/errors.json"
+	// Check if the file exists
+	if _, err := os.Stat(errorFilePath); os.IsExist(err) {
+		// TODO: add a flag to enable/disable the error handler
+		// TODO: add middleware to handle error codes
+		// Keeping errors.json in core for now, if needed we can merge two jsons together one in core and one in proxy layer later.
+		_, err = vsaerrors.NewErrorHandler(errorFilePath)
+		if err != nil {
+			logger.Error("Failed to create error handler", "error", err.Error())
+			os.Exit(1)
+		}
 	}
 	httpServer := setupHTTPServer(cfg, gcpServer, logger)
 
