@@ -34,6 +34,7 @@ type TenancyInfo struct {
 	Network               string
 	SubnetworkName        string
 	SnHostProject         string
+	Gateway               string
 }
 
 // HostParams FixMe: remove this once HostGroup table is created

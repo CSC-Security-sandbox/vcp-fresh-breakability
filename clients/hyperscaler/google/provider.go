@@ -6,7 +6,6 @@ import (
 	"net/http"
 
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 	logger "golang.org/x/exp/slog"
 	"golang.org/x/oauth2/google"
@@ -37,7 +36,7 @@ var (
 type GcpServices struct {
 	Ctx    context.Context
 	Logger log.Logger
-	retry  RetryStrategy
+	// retry  RetryStrategy
 
 	serviceConsumerManagementEndpoint string
 	serviceNetworkingEndpoint         string
@@ -82,7 +81,7 @@ func (gcpService *GcpServices) IsAdminClientInitialized() bool {
 
 // _initializeAdminClient creates a new googleService object using Workload identity and Initializes the services
 func _newGoogleClient(ctx context.Context) (*AdminGCPService, error) {
-	logger := ctx.Value(middleware.ContextSLoggerKey).(log.Logger)
+	logger := log.NewLogger()
 	logger.Debug("Calling initializeManagementService")
 	managementService, err := initializeManagementService(ctx)
 	if err != nil {

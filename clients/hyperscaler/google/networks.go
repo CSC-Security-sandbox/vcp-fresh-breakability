@@ -17,7 +17,7 @@ import (
 var (
 	waitTimeoutMinutes = time.Minute * time.Duration(env.GetInt("GCP_LRO_TIMEOUT_MINUTES", 20))
 
-	minimumTenantNetworkSize = env.GetInt64("MIN_TENANT_NETWORK_SIZE", int64(28))
+	minimumTenantNetworkSize = env.GetInt64("MIN_TENANT_NETWORK_SIZE", int64(24))
 	defaultSleepTime         = time.Duration(env.GetInt64("GCP_NETWORK_SLEEP_SECONDS", int64(28))) * time.Second
 )
 
@@ -120,7 +120,7 @@ func (gcpService *GcpServices) GetSubnetwork(tenantProject, region, subnetName s
 		return nil, err
 		// TODO : gcpService.GetTrace().Info("Retrying to get subnetwork")
 	}
-	gcpService.retry.Reset()
+	// gcpService.retry.Reset()
 	gcpService.Logger.Debug(fmt.Sprintf("GetSubnetwork success with response :  %s", subnetwork.Name))
 	return subnetwork, nil
 }

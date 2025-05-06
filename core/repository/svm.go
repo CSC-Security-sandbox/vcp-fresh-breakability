@@ -14,26 +14,31 @@ import (
 
 func (d *DataStoreRepository) CreateSVM(ctx context.Context, svm *datamodel.Svm) (*datamodel.Svm, error) {
 	var dbSvm datamodel.Svm
-	db := d.db.GORM().WithContext(ctx)
-	err := db.Where("name = ?", svm.Name).First(&dbSvm).Error
-	if errors.Is(err, gorm.ErrRecordNotFound) {
-		svm.UUID = utils.RandomUUID()
-		svm.CreatedAt = time.Now()
-		svm.UpdatedAt = svm.CreatedAt
-		svm.State = models.LifeCycleStateAvailable
-		svm.StateDetails = models.LifeCycleStateAvailableDetails
+	err := d.db.GORM().WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		err := tx.Where("account_id = ?", svm.AccountID).Where("name = ?", svm.Name).Where("pool_id = ?", svm.PoolID).First(&dbSvm).Error
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			svm.UUID = utils.RandomUUID()
+			svm.CreatedAt = time.Now()
+			svm.UpdatedAt = svm.CreatedAt
+			svm.State = models.LifeCycleStateAvailable
+			svm.StateDetails = models.LifeCycleStateAvailableDetails
 
-		err = db.Create(svm).Error
-		if err != nil {
-			return nil, err
+			err = tx.Create(svm).Error
+			if err != nil {
+				return err
+			}
+			err = tx.Where("account_id = ?", svm.AccountID).Where("name = ?", svm.Name).Where("pool_id = ?", svm.PoolID).First(&dbSvm).Error
+			if err != nil {
+				return err
+			}
+			return nil
 		}
-		err = db.Where("name = ?", svm.Name).First(&dbSvm).Error
-		if err != nil {
-			return nil, err
-		}
-		return &dbSvm, nil
+		return errors.New("svm already exists")
+	})
+	if err != nil {
+		return nil, err
 	}
-	return nil, errors.New("svm already exists")
+	return &dbSvm, nil
 }
 
 func (d *DataStoreRepository) GetSvmForPoolID(ctx context.Context, poolID int64) (*datamodel.Svm, error) {

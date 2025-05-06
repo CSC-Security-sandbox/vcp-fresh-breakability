@@ -18,7 +18,6 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
-	"google.golang.org/api/servicenetworking/v1"
 )
 
 type PoolActivity struct {
@@ -59,24 +58,15 @@ func (j *PoolActivity) CreatedPool(ctx context.Context, pool *datamodel.Pool) er
 }
 
 func (j *PoolActivity) CreateTenancy(ctx context.Context, params commonparams.CreatePoolParams) (*commonparams.TenancyInfo, error) {
-	tp, subnet, err := FindTenancyAndGetSubnetwork(ctx, params.VendorSubNetID, params.AccountName, &params.Region)
+	tenancy, err := FindTenancyAndGetSubnetwork(ctx, params.VendorSubNetID, params.AccountName, &params.Region)
 	if err != nil {
 		return nil, err
 	}
-	snHostProject, network, err := utils.ParseProjectId(subnet.Network)
-	if err != nil {
-		return nil, err
-	}
-	return &commonparams.TenancyInfo{
-		RegionalTenantProject: *tp,
-		Network:               network,
-		SubnetworkName:        subnet.Name,
-		SnHostProject:         snHostProject,
-	}, nil
+	return tenancy, nil
 }
 
 // FindTenancyAndGetSubnetwork finds the tenancy unit and creates a subnetwork for the tenant project
-func FindTenancyAndGetSubnetwork(ctx context.Context, consumerVPC string, customerProjectNumber string, tenantProjectRegion *string) (*string, *servicenetworking.Subnetwork, error) {
+func FindTenancyAndGetSubnetwork(ctx context.Context, consumerVPC string, customerProjectNumber string, tenantProjectRegion *string) (*commonparams.TenancyInfo, error) {
 	// need to pass tenantProjectRegion only in case of CBR where region != the regional region as set from env variable
 	var gService hyperscaler.GoogleServices
 	gcpService := &google.GcpServices{
@@ -94,21 +84,36 @@ func FindTenancyAndGetSubnetwork(ctx context.Context, consumerVPC string, custom
 	err := gService.InitializeClients()
 	if err != nil || !gService.IsAdminClientInitialized() {
 		gcpService.Logger.Debug("Initialisation of service failed")
-		return nil, nil, errors.New("initialisation of service failed")
+		return nil, errors.New("initialisation of service failed")
 	}
 
 	tenantProjectNumber, err := gService.GetTenantProject(consumerVPC, customerProjectNumber, *tenantProjectRegion)
 	if err != nil {
 		gcpService.Logger.Errorf("Error finding tenancy unit: %v", err)
-		return nil, nil, err
+		return nil, err
 	}
 	subnet, err := gService.CreateSubnetwork(consumerVPC, *tenantProjectRegion, tenantProjectNumber)
 	if err != nil {
 		gcpService.Logger.Errorf("Error adding subnetwork: %v", err)
-		return nil, nil, err
+		return nil, err
+	}
+	snHostProject, network, err := utils.ParseProjectId(subnet.Network)
+	if err != nil {
+		return nil, err
+	}
+	subnetwork, err := gcpService.GetSubnetwork(snHostProject, *tenantProjectRegion, subnet.Name)
+	if err != nil {
+		return nil, err
 	}
 	gcpService.Logger.Errorf("FindTenancyAndGetSubnetwork: tenantProjectNumber :  %s subnet  :  %s   ", &tenantProjectNumber, subnet)
-	return &tenantProjectNumber, subnet, nil
+
+	return &commonparams.TenancyInfo{
+		RegionalTenantProject: tenantProjectNumber,
+		Network:               network,
+		SubnetworkName:        subnet.Name,
+		SnHostProject:         snHostProject,
+		Gateway:               subnetwork.GatewayAddress,
+	}, nil
 }
 
 func (j *PoolActivity) DeployDeploymentManager(ctx context.Context, deploymentName, region, zone, network, subnet, projectId, snHostProject string, size int) (*[]map[string]string, error) {

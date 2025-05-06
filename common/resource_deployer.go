@@ -24,6 +24,7 @@ import (
 var (
 	vsaDeploymentTimeout      = time.Duration(env.GetInt("VSA_DEPLOYMENT_TIMEOUT", 5)) * time.Minute
 	vsaDeploymentPollInterval = time.Duration(env.GetInt("VSA_DEPLOYMENT_POLL_INTERVAL", 10)) * time.Second
+	firewallSourceRange       = env.GetString("FIREWALL_SOURCE_RANGE", "10.0.0.0/8,172.16.0.0/12,192.168.0.0/16,34.0.0.0/8,46.149.16.0/20,52.94.203.152/29,52.94.203.160/29,185.35.244.0/22,202.3.112.0/20,216.240.16.0/20,217.70.208.0/20,198.18.0.0/15")
 )
 
 type DeploymentConfig struct {
@@ -316,11 +317,7 @@ func DeleteDeployment(ctx context.Context, projectId, deploymentName string) err
 func SetupNetwork(slog log.Logger, project string, tpregion string) error {
 	projectID := project
 	region := tpregion
-	sourceRanges := []string{
-		"10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16",
-		"46.149.16.0/20", "52.94.203.152/29", "52.94.203.160/29",
-		"185.35.244.0/22", "202.3.112.0/20", "216.240.16.0/20", "217.70.208.0/20", "198.18.0.0/15",
-	} // this needs to be reviewed
+	sourceRanges := strings.Split(firewallSourceRange, ",")
 
 	ctx := context.Background()
 	computeService, err := compute.NewService(ctx)

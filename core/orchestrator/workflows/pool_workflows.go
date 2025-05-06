@@ -1,7 +1,6 @@
 package workflows
 
 import (
-	"strings"
 
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
@@ -166,12 +165,7 @@ func (wf *PoolWorkflow) Run(ctx workflow.Context, params *common.CreatePoolParam
 		return nil, err
 	}
 
-	var gateway string
-	err = workflow.ExecuteActivity(ctx, poolActivity.GetProxyIP, strings.Split((*vsaCluster)[0]["dataLif"], "/")[0]).Get(ctx, &gateway)
-	if err != nil {
-		return nil, err
-	}
-	err = workflow.ExecuteActivity(ctx, poolActivity.CreateNetworkIpRoute, node, svm.Name, gateway).Get(ctx, nil)
+	err = workflow.ExecuteActivity(ctx, poolActivity.CreateNetworkIpRoute, node, svm.Name, tenancyDetails.Gateway).Get(ctx, nil)
 	if err != nil {
 		return nil, err
 	}
