@@ -101,6 +101,46 @@ type V1betaGetMultipleVolumesRes interface {
 	v1betaGetMultipleVolumesRes()
 }
 
+type V1betaInternalAuthorizeVolumeReplicationRes interface {
+	v1betaInternalAuthorizeVolumeReplicationRes()
+}
+
+type V1betaInternalCreateClusterPeerRes interface {
+	v1betaInternalCreateClusterPeerRes()
+}
+
+type V1betaInternalCreateVolumeReplicationRes interface {
+	v1betaInternalCreateVolumeReplicationRes()
+}
+
+type V1betaInternalDeleteVolumeReplicationRes interface {
+	v1betaInternalDeleteVolumeReplicationRes()
+}
+
+type V1betaInternalDescribePoolRes interface {
+	v1betaInternalDescribePoolRes()
+}
+
+type V1betaInternalDescribeVolumeReplicationRes interface {
+	v1betaInternalDescribeVolumeReplicationRes()
+}
+
+type V1betaInternalReleaseVolumeReplicationRes interface {
+	v1betaInternalReleaseVolumeReplicationRes()
+}
+
+type V1betaInternalResumeVolumeReplicationRes interface {
+	v1betaInternalResumeVolumeReplicationRes()
+}
+
+type V1betaInternalStopVolumeReplicationRes interface {
+	v1betaInternalStopVolumeReplicationRes()
+}
+
+type V1betaInternalUpdateVolumeReplicationRes interface {
+	v1betaInternalUpdateVolumeReplicationRes()
+}
+
 type V1betaListBackupPoliciesRes interface {
 	v1betaListBackupPoliciesRes()
 }

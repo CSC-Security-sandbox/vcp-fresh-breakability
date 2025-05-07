@@ -81,96 +81,104 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 					return
 				}
 
-			case 'v': // Prefix: "v1beta/projects/"
+			case 'v': // Prefix: "v1beta/"
 
-				if l := len("v1beta/projects/"); len(elem) >= l && elem[0:l] == "v1beta/projects/" {
+				if l := len("v1beta/"); len(elem) >= l && elem[0:l] == "v1beta/" {
 					elem = elem[l:]
 				} else {
 					break
 				}
 
-				// Param: "projectNumber"
-				// Match until "/"
-				idx := strings.IndexByte(elem, '/')
-				if idx < 0 {
-					idx = len(elem)
-				}
-				args[0] = elem[:idx]
-				elem = elem[idx:]
-
 				if len(elem) == 0 {
 					break
 				}
 				switch elem[0] {
-				case '/': // Prefix: "/locations/"
+				case 'i': // Prefix: "internal/projects/"
 
-					if l := len("/locations/"); len(elem) >= l && elem[0:l] == "/locations/" {
+					if l := len("internal/projects/"); len(elem) >= l && elem[0:l] == "internal/projects/" {
 						elem = elem[l:]
 					} else {
 						break
 					}
 
-					// Param: "locationId"
+					// Param: "projectNumber"
 					// Match until "/"
 					idx := strings.IndexByte(elem, '/')
 					if idx < 0 {
 						idx = len(elem)
 					}
-					args[1] = elem[:idx]
+					args[0] = elem[:idx]
 					elem = elem[idx:]
 
 					if len(elem) == 0 {
 						break
 					}
 					switch elem[0] {
-					case '/': // Prefix: "/"
+					case '/': // Prefix: "/locations/"
 
-						if l := len("/"); len(elem) >= l && elem[0:l] == "/" {
+						if l := len("/locations/"); len(elem) >= l && elem[0:l] == "/locations/" {
 							elem = elem[l:]
 						} else {
 							break
 						}
 
+						// Param: "locationId"
+						// Match until "/"
+						idx := strings.IndexByte(elem, '/')
+						if idx < 0 {
+							idx = len(elem)
+						}
+						args[1] = elem[:idx]
+						elem = elem[idx:]
+
 						if len(elem) == 0 {
 							break
 						}
 						switch elem[0] {
-						case 'b': // Prefix: "backupPolicies"
+						case '/': // Prefix: "/"
 
-							if l := len("backupPolicies"); len(elem) >= l && elem[0:l] == "backupPolicies" {
+							if l := len("/"); len(elem) >= l && elem[0:l] == "/" {
 								elem = elem[l:]
 							} else {
 								break
 							}
 
 							if len(elem) == 0 {
-								switch r.Method {
-								case "GET":
-									s.handleV1betaListBackupPoliciesRequest([2]string{
-										args[0],
-										args[1],
-									}, elemIsEscaped, w, r)
-								case "POST":
-									s.handleV1betaCreateBackupPolicyRequest([2]string{
-										args[0],
-										args[1],
-									}, elemIsEscaped, w, r)
-								default:
-									s.notAllowed(w, r, "GET,POST")
-								}
-
-								return
+								break
 							}
 							switch elem[0] {
-							case '/': // Prefix: "/"
+							case 'c': // Prefix: "clusterPeer"
 
-								if l := len("/"); len(elem) >= l && elem[0:l] == "/" {
+								if l := len("clusterPeer"); len(elem) >= l && elem[0:l] == "clusterPeer" {
 									elem = elem[l:]
 								} else {
 									break
 								}
 
-								// Param: "backupPolicyId"
+								if len(elem) == 0 {
+									// Leaf node.
+									switch r.Method {
+									case "POST":
+										s.handleV1betaInternalCreateClusterPeerRequest([2]string{
+											args[0],
+											args[1],
+										}, elemIsEscaped, w, r)
+									default:
+										s.notAllowed(w, r, "POST")
+									}
+
+									return
+								}
+
+							case 'p': // Prefix: "pool/"
+
+								if l := len("pool/"); len(elem) >= l && elem[0:l] == "pool/" {
+									elem = elem[l:]
+								} else {
+									break
+								}
+
+								// Param: "poolName"
 								// Leaf parameter, slashes are prohibited
 								idx := strings.IndexByte(elem, '/')
 								if idx >= 0 {
@@ -182,514 +190,36 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 								if len(elem) == 0 {
 									// Leaf node.
 									switch r.Method {
-									case "DELETE":
-										s.handleV1betaDeleteBackupPolicyRequest([3]string{
-											args[0],
-											args[1],
-											args[2],
-										}, elemIsEscaped, w, r)
 									case "GET":
-										s.handleV1betaDescribeBackupPolicyRequest([3]string{
-											args[0],
-											args[1],
-											args[2],
-										}, elemIsEscaped, w, r)
-									case "PUT":
-										s.handleV1betaUpdateBackupPolicyRequest([3]string{
+										s.handleV1betaInternalDescribePoolRequest([3]string{
 											args[0],
 											args[1],
 											args[2],
 										}, elemIsEscaped, w, r)
 									default:
-										s.notAllowed(w, r, "DELETE,GET,PUT")
+										s.notAllowed(w, r, "GET")
 									}
 
 									return
 								}
 
-							}
+							case 'v': // Prefix: "volumeReplication"
 
-						case 'g': // Prefix: "getMultiple"
-
-							if l := len("getMultiple"); len(elem) >= l && elem[0:l] == "getMultiple" {
-								elem = elem[l:]
-							} else {
-								break
-							}
-
-							if len(elem) == 0 {
-								break
-							}
-							switch elem[0] {
-							case 'B': // Prefix: "BackupPolicies"
-
-								if l := len("BackupPolicies"); len(elem) >= l && elem[0:l] == "BackupPolicies" {
+								if l := len("volumeReplication"); len(elem) >= l && elem[0:l] == "volumeReplication" {
 									elem = elem[l:]
 								} else {
 									break
 								}
 
 								if len(elem) == 0 {
-									// Leaf node.
 									switch r.Method {
 									case "POST":
-										s.handleV1betaGetMultipleBackupPoliciesRequest([2]string{
+										s.handleV1betaInternalCreateVolumeReplicationRequest([2]string{
 											args[0],
 											args[1],
 										}, elemIsEscaped, w, r)
 									default:
 										s.notAllowed(w, r, "POST")
-									}
-
-									return
-								}
-
-							case 'P': // Prefix: "Pools"
-
-								if l := len("Pools"); len(elem) >= l && elem[0:l] == "Pools" {
-									elem = elem[l:]
-								} else {
-									break
-								}
-
-								if len(elem) == 0 {
-									// Leaf node.
-									switch r.Method {
-									case "POST":
-										s.handleV1betaGetMultiplePoolsRequest([2]string{
-											args[0],
-											args[1],
-										}, elemIsEscaped, w, r)
-									default:
-										s.notAllowed(w, r, "POST")
-									}
-
-									return
-								}
-
-							case 'V': // Prefix: "Volumes"
-
-								if l := len("Volumes"); len(elem) >= l && elem[0:l] == "Volumes" {
-									elem = elem[l:]
-								} else {
-									break
-								}
-
-								if len(elem) == 0 {
-									// Leaf node.
-									switch r.Method {
-									case "POST":
-										s.handleV1betaGetMultipleVolumesRequest([2]string{
-											args[0],
-											args[1],
-										}, elemIsEscaped, w, r)
-									default:
-										s.notAllowed(w, r, "POST")
-									}
-
-									return
-								}
-
-							}
-
-						case 'h': // Prefix: "hostGroups"
-
-							if l := len("hostGroups"); len(elem) >= l && elem[0:l] == "hostGroups" {
-								elem = elem[l:]
-							} else {
-								break
-							}
-
-							if len(elem) == 0 {
-								switch r.Method {
-								case "GET":
-									s.handleV1betaListHostGroupsRequest([2]string{
-										args[0],
-										args[1],
-									}, elemIsEscaped, w, r)
-								case "POST":
-									s.handleV1betaCreateHostGroupRequest([2]string{
-										args[0],
-										args[1],
-									}, elemIsEscaped, w, r)
-								default:
-									s.notAllowed(w, r, "GET,POST")
-								}
-
-								return
-							}
-							switch elem[0] {
-							case '/': // Prefix: "/"
-
-								if l := len("/"); len(elem) >= l && elem[0:l] == "/" {
-									elem = elem[l:]
-								} else {
-									break
-								}
-
-								if len(elem) == 0 {
-									break
-								}
-								switch elem[0] {
-								case 'g': // Prefix: "getMultipleHostGroups"
-									origElem := elem
-									if l := len("getMultipleHostGroups"); len(elem) >= l && elem[0:l] == "getMultipleHostGroups" {
-										elem = elem[l:]
-									} else {
-										break
-									}
-
-									if len(elem) == 0 {
-										// Leaf node.
-										switch r.Method {
-										case "POST":
-											s.handleV1betaGetMultipleHostGroupsRequest([2]string{
-												args[0],
-												args[1],
-											}, elemIsEscaped, w, r)
-										default:
-											s.notAllowed(w, r, "POST")
-										}
-
-										return
-									}
-
-									elem = origElem
-								}
-								// Param: "hostGroupId"
-								// Leaf parameter, slashes are prohibited
-								idx := strings.IndexByte(elem, '/')
-								if idx >= 0 {
-									break
-								}
-								args[2] = elem
-								elem = ""
-
-								if len(elem) == 0 {
-									// Leaf node.
-									switch r.Method {
-									case "DELETE":
-										s.handleV1betaDeleteHostGroupRequest([3]string{
-											args[0],
-											args[1],
-											args[2],
-										}, elemIsEscaped, w, r)
-									case "GET":
-										s.handleV1betaDescribeHostGroupRequest([3]string{
-											args[0],
-											args[1],
-											args[2],
-										}, elemIsEscaped, w, r)
-									case "PUT":
-										s.handleV1betaUpdateHostGroupRequest([3]string{
-											args[0],
-											args[1],
-											args[2],
-										}, elemIsEscaped, w, r)
-									default:
-										s.notAllowed(w, r, "DELETE,GET,PUT")
-									}
-
-									return
-								}
-
-							}
-
-						case 'o': // Prefix: "operations/"
-
-							if l := len("operations/"); len(elem) >= l && elem[0:l] == "operations/" {
-								elem = elem[l:]
-							} else {
-								break
-							}
-
-							// Param: "operationId"
-							// Leaf parameter, slashes are prohibited
-							idx := strings.IndexByte(elem, '/')
-							if idx >= 0 {
-								break
-							}
-							args[2] = elem
-							elem = ""
-
-							if len(elem) == 0 {
-								// Leaf node.
-								switch r.Method {
-								case "GET":
-									s.handleV1betaDescribeOperationRequest([3]string{
-										args[0],
-										args[1],
-										args[2],
-									}, elemIsEscaped, w, r)
-								default:
-									s.notAllowed(w, r, "GET")
-								}
-
-								return
-							}
-
-						case 'p': // Prefix: "pools"
-
-							if l := len("pools"); len(elem) >= l && elem[0:l] == "pools" {
-								elem = elem[l:]
-							} else {
-								break
-							}
-
-							if len(elem) == 0 {
-								switch r.Method {
-								case "GET":
-									s.handleV1betaListPoolsRequest([2]string{
-										args[0],
-										args[1],
-									}, elemIsEscaped, w, r)
-								case "POST":
-									s.handleV1betaCreatePoolRequest([2]string{
-										args[0],
-										args[1],
-									}, elemIsEscaped, w, r)
-								default:
-									s.notAllowed(w, r, "GET,POST")
-								}
-
-								return
-							}
-							switch elem[0] {
-							case '/': // Prefix: "/"
-
-								if l := len("/"); len(elem) >= l && elem[0:l] == "/" {
-									elem = elem[l:]
-								} else {
-									break
-								}
-
-								// Param: "poolId"
-								// Leaf parameter, slashes are prohibited
-								idx := strings.IndexByte(elem, '/')
-								if idx >= 0 {
-									break
-								}
-								args[2] = elem
-								elem = ""
-
-								if len(elem) == 0 {
-									// Leaf node.
-									switch r.Method {
-									case "DELETE":
-										s.handleV1betaDeletePoolRequest([3]string{
-											args[0],
-											args[1],
-											args[2],
-										}, elemIsEscaped, w, r)
-									case "GET":
-										s.handleV1betaDescribePoolRequest([3]string{
-											args[0],
-											args[1],
-											args[2],
-										}, elemIsEscaped, w, r)
-									case "PUT":
-										s.handleV1betaUpdatePoolRequest([3]string{
-											args[0],
-											args[1],
-											args[2],
-										}, elemIsEscaped, w, r)
-									default:
-										s.notAllowed(w, r, "DELETE,GET,PUT")
-									}
-
-									return
-								}
-
-							}
-
-						case 'r': // Prefix: "replications"
-
-							if l := len("replications"); len(elem) >= l && elem[0:l] == "replications" {
-								elem = elem[l:]
-							} else {
-								break
-							}
-
-							if len(elem) == 0 {
-								// Leaf node.
-								switch r.Method {
-								case "GET":
-									s.handleV1betaListReplicationsRequest([2]string{
-										args[0],
-										args[1],
-									}, elemIsEscaped, w, r)
-								default:
-									s.notAllowed(w, r, "GET")
-								}
-
-								return
-							}
-
-						case 's': // Prefix: "storage/kmsConfig"
-
-							if l := len("storage/kmsConfig"); len(elem) >= l && elem[0:l] == "storage/kmsConfig" {
-								elem = elem[l:]
-							} else {
-								break
-							}
-
-							if len(elem) == 0 {
-								switch r.Method {
-								case "GET":
-									s.handleV1betaListKmsConfigurationsRequest([2]string{
-										args[0],
-										args[1],
-									}, elemIsEscaped, w, r)
-								case "POST":
-									s.handleV1betaCreateKmsConfigurationRequest([2]string{
-										args[0],
-										args[1],
-									}, elemIsEscaped, w, r)
-								default:
-									s.notAllowed(w, r, "GET,POST")
-								}
-
-								return
-							}
-							switch elem[0] {
-							case '/': // Prefix: "/"
-
-								if l := len("/"); len(elem) >= l && elem[0:l] == "/" {
-									elem = elem[l:]
-								} else {
-									break
-								}
-
-								// Param: "kmsConfigId"
-								// Match until "/"
-								idx := strings.IndexByte(elem, '/')
-								if idx < 0 {
-									idx = len(elem)
-								}
-								args[2] = elem[:idx]
-								elem = elem[idx:]
-
-								if len(elem) == 0 {
-									switch r.Method {
-									case "DELETE":
-										s.handleV1betaDeleteKmsConfigurationRequest([3]string{
-											args[0],
-											args[1],
-											args[2],
-										}, elemIsEscaped, w, r)
-									case "GET":
-										s.handleV1betaDescribeKmsConfigurationRequest([3]string{
-											args[0],
-											args[1],
-											args[2],
-										}, elemIsEscaped, w, r)
-									case "PUT":
-										s.handleV1betaUpdateKmsConfigurationRequest([3]string{
-											args[0],
-											args[1],
-											args[2],
-										}, elemIsEscaped, w, r)
-									default:
-										s.notAllowed(w, r, "DELETE,GET,PUT")
-									}
-
-									return
-								}
-								switch elem[0] {
-								case '/': // Prefix: "/check"
-
-									if l := len("/check"); len(elem) >= l && elem[0:l] == "/check" {
-										elem = elem[l:]
-									} else {
-										break
-									}
-
-									if len(elem) == 0 {
-										// Leaf node.
-										switch r.Method {
-										case "GET":
-											s.handleV1betaCheckKmsConfigRequest([3]string{
-												args[0],
-												args[1],
-												args[2],
-											}, elemIsEscaped, w, r)
-										default:
-											s.notAllowed(w, r, "GET")
-										}
-
-										return
-									}
-
-								}
-
-							}
-
-						case 'v': // Prefix: "volumes"
-
-							if l := len("volumes"); len(elem) >= l && elem[0:l] == "volumes" {
-								elem = elem[l:]
-							} else {
-								break
-							}
-
-							if len(elem) == 0 {
-								switch r.Method {
-								case "GET":
-									s.handleV1betaListVolumesRequest([2]string{
-										args[0],
-										args[1],
-									}, elemIsEscaped, w, r)
-								case "POST":
-									s.handleV1betaCreateVolumeRequest([2]string{
-										args[0],
-										args[1],
-									}, elemIsEscaped, w, r)
-								default:
-									s.notAllowed(w, r, "GET,POST")
-								}
-
-								return
-							}
-							switch elem[0] {
-							case '/': // Prefix: "/"
-
-								if l := len("/"); len(elem) >= l && elem[0:l] == "/" {
-									elem = elem[l:]
-								} else {
-									break
-								}
-
-								// Param: "volumeResourceId"
-								// Match until "/"
-								idx := strings.IndexByte(elem, '/')
-								if idx < 0 {
-									idx = len(elem)
-								}
-								args[2] = elem[:idx]
-								elem = elem[idx:]
-
-								if len(elem) == 0 {
-									switch r.Method {
-									case "DELETE":
-										s.handleV1betaDeleteVolumeRequest([3]string{
-											args[0],
-											args[1],
-											args[2],
-										}, elemIsEscaped, w, r)
-									case "GET":
-										s.handleV1betaDescribeVolumeRequest([3]string{
-											args[0],
-											args[1],
-											args[2],
-										}, elemIsEscaped, w, r)
-									case "PUT":
-										s.handleV1betaUpdateVolumeRequest([3]string{
-											args[0],
-											args[1],
-											args[2],
-										}, elemIsEscaped, w, r)
-									default:
-										s.notAllowed(w, r, "DELETE,GET,PUT")
 									}
 
 									return
@@ -707,9 +237,9 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 										break
 									}
 									switch elem[0] {
-									case 'g': // Prefix: "getMultipleReplications"
-
-										if l := len("getMultipleReplications"); len(elem) >= l && elem[0:l] == "getMultipleReplications" {
+									case 'a': // Prefix: "authorize"
+										origElem := elem
+										if l := len("authorize"); len(elem) >= l && elem[0:l] == "authorize" {
 											elem = elem[l:]
 										} else {
 											break
@@ -719,10 +249,9 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 											// Leaf node.
 											switch r.Method {
 											case "POST":
-												s.handleV1betaGetMultipleReplicationsRequest([3]string{
+												s.handleV1betaInternalAuthorizeVolumeReplicationRequest([2]string{
 													args[0],
 													args[1],
-													args[2],
 												}, elemIsEscaped, w, r)
 											default:
 												s.notAllowed(w, r, "POST")
@@ -731,21 +260,419 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 											return
 										}
 
-									case 'r': // Prefix: "replications"
+										elem = origElem
+									}
+									// Param: "volumeReplicationId"
+									// Match until "/"
+									idx := strings.IndexByte(elem, '/')
+									if idx < 0 {
+										idx = len(elem)
+									}
+									args[2] = elem[:idx]
+									elem = elem[idx:]
 
-										if l := len("replications"); len(elem) >= l && elem[0:l] == "replications" {
+									if len(elem) == 0 {
+										switch r.Method {
+										case "DELETE":
+											s.handleV1betaInternalDeleteVolumeReplicationRequest([3]string{
+												args[0],
+												args[1],
+												args[2],
+											}, elemIsEscaped, w, r)
+										case "GET":
+											s.handleV1betaInternalDescribeVolumeReplicationRequest([3]string{
+												args[0],
+												args[1],
+												args[2],
+											}, elemIsEscaped, w, r)
+										case "PUT":
+											s.handleV1betaInternalUpdateVolumeReplicationRequest([3]string{
+												args[0],
+												args[1],
+												args[2],
+											}, elemIsEscaped, w, r)
+										default:
+											s.notAllowed(w, r, "DELETE,GET,PUT")
+										}
+
+										return
+									}
+									switch elem[0] {
+									case '/': // Prefix: "/"
+
+										if l := len("/"); len(elem) >= l && elem[0:l] == "/" {
 											elem = elem[l:]
 										} else {
 											break
 										}
 
 										if len(elem) == 0 {
+											break
+										}
+										switch elem[0] {
+										case 'r': // Prefix: "re"
+
+											if l := len("re"); len(elem) >= l && elem[0:l] == "re" {
+												elem = elem[l:]
+											} else {
+												break
+											}
+
+											if len(elem) == 0 {
+												break
+											}
+											switch elem[0] {
+											case 'l': // Prefix: "lease"
+
+												if l := len("lease"); len(elem) >= l && elem[0:l] == "lease" {
+													elem = elem[l:]
+												} else {
+													break
+												}
+
+												if len(elem) == 0 {
+													// Leaf node.
+													switch r.Method {
+													case "POST":
+														s.handleV1betaInternalReleaseVolumeReplicationRequest([3]string{
+															args[0],
+															args[1],
+															args[2],
+														}, elemIsEscaped, w, r)
+													default:
+														s.notAllowed(w, r, "POST")
+													}
+
+													return
+												}
+
+											case 's': // Prefix: "sume"
+
+												if l := len("sume"); len(elem) >= l && elem[0:l] == "sume" {
+													elem = elem[l:]
+												} else {
+													break
+												}
+
+												if len(elem) == 0 {
+													// Leaf node.
+													switch r.Method {
+													case "POST":
+														s.handleV1betaInternalResumeVolumeReplicationRequest([3]string{
+															args[0],
+															args[1],
+															args[2],
+														}, elemIsEscaped, w, r)
+													default:
+														s.notAllowed(w, r, "POST")
+													}
+
+													return
+												}
+
+											}
+
+										case 's': // Prefix: "stop"
+
+											if l := len("stop"); len(elem) >= l && elem[0:l] == "stop" {
+												elem = elem[l:]
+											} else {
+												break
+											}
+
+											if len(elem) == 0 {
+												// Leaf node.
+												switch r.Method {
+												case "POST":
+													s.handleV1betaInternalStopVolumeReplicationRequest([3]string{
+														args[0],
+														args[1],
+														args[2],
+													}, elemIsEscaped, w, r)
+												default:
+													s.notAllowed(w, r, "POST")
+												}
+
+												return
+											}
+
+										}
+
+									}
+
+								}
+
+							}
+
+						}
+
+					}
+
+				case 'p': // Prefix: "projects/"
+
+					if l := len("projects/"); len(elem) >= l && elem[0:l] == "projects/" {
+						elem = elem[l:]
+					} else {
+						break
+					}
+
+					// Param: "projectNumber"
+					// Match until "/"
+					idx := strings.IndexByte(elem, '/')
+					if idx < 0 {
+						idx = len(elem)
+					}
+					args[0] = elem[:idx]
+					elem = elem[idx:]
+
+					if len(elem) == 0 {
+						break
+					}
+					switch elem[0] {
+					case '/': // Prefix: "/locations/"
+
+						if l := len("/locations/"); len(elem) >= l && elem[0:l] == "/locations/" {
+							elem = elem[l:]
+						} else {
+							break
+						}
+
+						// Param: "locationId"
+						// Match until "/"
+						idx := strings.IndexByte(elem, '/')
+						if idx < 0 {
+							idx = len(elem)
+						}
+						args[1] = elem[:idx]
+						elem = elem[idx:]
+
+						if len(elem) == 0 {
+							break
+						}
+						switch elem[0] {
+						case '/': // Prefix: "/"
+
+							if l := len("/"); len(elem) >= l && elem[0:l] == "/" {
+								elem = elem[l:]
+							} else {
+								break
+							}
+
+							if len(elem) == 0 {
+								break
+							}
+							switch elem[0] {
+							case 'b': // Prefix: "backupPolicies"
+
+								if l := len("backupPolicies"); len(elem) >= l && elem[0:l] == "backupPolicies" {
+									elem = elem[l:]
+								} else {
+									break
+								}
+
+								if len(elem) == 0 {
+									switch r.Method {
+									case "GET":
+										s.handleV1betaListBackupPoliciesRequest([2]string{
+											args[0],
+											args[1],
+										}, elemIsEscaped, w, r)
+									case "POST":
+										s.handleV1betaCreateBackupPolicyRequest([2]string{
+											args[0],
+											args[1],
+										}, elemIsEscaped, w, r)
+									default:
+										s.notAllowed(w, r, "GET,POST")
+									}
+
+									return
+								}
+								switch elem[0] {
+								case '/': // Prefix: "/"
+
+									if l := len("/"); len(elem) >= l && elem[0:l] == "/" {
+										elem = elem[l:]
+									} else {
+										break
+									}
+
+									// Param: "backupPolicyId"
+									// Leaf parameter, slashes are prohibited
+									idx := strings.IndexByte(elem, '/')
+									if idx >= 0 {
+										break
+									}
+									args[2] = elem
+									elem = ""
+
+									if len(elem) == 0 {
+										// Leaf node.
+										switch r.Method {
+										case "DELETE":
+											s.handleV1betaDeleteBackupPolicyRequest([3]string{
+												args[0],
+												args[1],
+												args[2],
+											}, elemIsEscaped, w, r)
+										case "GET":
+											s.handleV1betaDescribeBackupPolicyRequest([3]string{
+												args[0],
+												args[1],
+												args[2],
+											}, elemIsEscaped, w, r)
+										case "PUT":
+											s.handleV1betaUpdateBackupPolicyRequest([3]string{
+												args[0],
+												args[1],
+												args[2],
+											}, elemIsEscaped, w, r)
+										default:
+											s.notAllowed(w, r, "DELETE,GET,PUT")
+										}
+
+										return
+									}
+
+								}
+
+							case 'g': // Prefix: "getMultiple"
+
+								if l := len("getMultiple"); len(elem) >= l && elem[0:l] == "getMultiple" {
+									elem = elem[l:]
+								} else {
+									break
+								}
+
+								if len(elem) == 0 {
+									break
+								}
+								switch elem[0] {
+								case 'B': // Prefix: "BackupPolicies"
+
+									if l := len("BackupPolicies"); len(elem) >= l && elem[0:l] == "BackupPolicies" {
+										elem = elem[l:]
+									} else {
+										break
+									}
+
+									if len(elem) == 0 {
+										// Leaf node.
+										switch r.Method {
+										case "POST":
+											s.handleV1betaGetMultipleBackupPoliciesRequest([2]string{
+												args[0],
+												args[1],
+											}, elemIsEscaped, w, r)
+										default:
+											s.notAllowed(w, r, "POST")
+										}
+
+										return
+									}
+
+								case 'P': // Prefix: "Pools"
+
+									if l := len("Pools"); len(elem) >= l && elem[0:l] == "Pools" {
+										elem = elem[l:]
+									} else {
+										break
+									}
+
+									if len(elem) == 0 {
+										// Leaf node.
+										switch r.Method {
+										case "POST":
+											s.handleV1betaGetMultiplePoolsRequest([2]string{
+												args[0],
+												args[1],
+											}, elemIsEscaped, w, r)
+										default:
+											s.notAllowed(w, r, "POST")
+										}
+
+										return
+									}
+
+								case 'V': // Prefix: "Volumes"
+
+									if l := len("Volumes"); len(elem) >= l && elem[0:l] == "Volumes" {
+										elem = elem[l:]
+									} else {
+										break
+									}
+
+									if len(elem) == 0 {
+										// Leaf node.
+										switch r.Method {
+										case "POST":
+											s.handleV1betaGetMultipleVolumesRequest([2]string{
+												args[0],
+												args[1],
+											}, elemIsEscaped, w, r)
+										default:
+											s.notAllowed(w, r, "POST")
+										}
+
+										return
+									}
+
+								}
+
+							case 'h': // Prefix: "hostGroups"
+
+								if l := len("hostGroups"); len(elem) >= l && elem[0:l] == "hostGroups" {
+									elem = elem[l:]
+								} else {
+									break
+								}
+
+								if len(elem) == 0 {
+									switch r.Method {
+									case "GET":
+										s.handleV1betaListHostGroupsRequest([2]string{
+											args[0],
+											args[1],
+										}, elemIsEscaped, w, r)
+									case "POST":
+										s.handleV1betaCreateHostGroupRequest([2]string{
+											args[0],
+											args[1],
+										}, elemIsEscaped, w, r)
+									default:
+										s.notAllowed(w, r, "GET,POST")
+									}
+
+									return
+								}
+								switch elem[0] {
+								case '/': // Prefix: "/"
+
+									if l := len("/"); len(elem) >= l && elem[0:l] == "/" {
+										elem = elem[l:]
+									} else {
+										break
+									}
+
+									if len(elem) == 0 {
+										break
+									}
+									switch elem[0] {
+									case 'g': // Prefix: "getMultipleHostGroups"
+										origElem := elem
+										if l := len("getMultipleHostGroups"); len(elem) >= l && elem[0:l] == "getMultipleHostGroups" {
+											elem = elem[l:]
+										} else {
+											break
+										}
+
+										if len(elem) == 0 {
+											// Leaf node.
 											switch r.Method {
 											case "POST":
-												s.handleV1betaCreateReplicationRequest([3]string{
+												s.handleV1betaGetMultipleHostGroupsRequest([2]string{
 													args[0],
 													args[1],
-													args[2],
 												}, elemIsEscaped, w, r)
 											default:
 												s.notAllowed(w, r, "POST")
@@ -753,42 +680,402 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 											return
 										}
-										switch elem[0] {
-										case '/': // Prefix: "/"
 
-											if l := len("/"); len(elem) >= l && elem[0:l] == "/" {
+										elem = origElem
+									}
+									// Param: "hostGroupId"
+									// Leaf parameter, slashes are prohibited
+									idx := strings.IndexByte(elem, '/')
+									if idx >= 0 {
+										break
+									}
+									args[2] = elem
+									elem = ""
+
+									if len(elem) == 0 {
+										// Leaf node.
+										switch r.Method {
+										case "DELETE":
+											s.handleV1betaDeleteHostGroupRequest([3]string{
+												args[0],
+												args[1],
+												args[2],
+											}, elemIsEscaped, w, r)
+										case "GET":
+											s.handleV1betaDescribeHostGroupRequest([3]string{
+												args[0],
+												args[1],
+												args[2],
+											}, elemIsEscaped, w, r)
+										case "PUT":
+											s.handleV1betaUpdateHostGroupRequest([3]string{
+												args[0],
+												args[1],
+												args[2],
+											}, elemIsEscaped, w, r)
+										default:
+											s.notAllowed(w, r, "DELETE,GET,PUT")
+										}
+
+										return
+									}
+
+								}
+
+							case 'o': // Prefix: "operations/"
+
+								if l := len("operations/"); len(elem) >= l && elem[0:l] == "operations/" {
+									elem = elem[l:]
+								} else {
+									break
+								}
+
+								// Param: "operationId"
+								// Leaf parameter, slashes are prohibited
+								idx := strings.IndexByte(elem, '/')
+								if idx >= 0 {
+									break
+								}
+								args[2] = elem
+								elem = ""
+
+								if len(elem) == 0 {
+									// Leaf node.
+									switch r.Method {
+									case "GET":
+										s.handleV1betaDescribeOperationRequest([3]string{
+											args[0],
+											args[1],
+											args[2],
+										}, elemIsEscaped, w, r)
+									default:
+										s.notAllowed(w, r, "GET")
+									}
+
+									return
+								}
+
+							case 'p': // Prefix: "pools"
+
+								if l := len("pools"); len(elem) >= l && elem[0:l] == "pools" {
+									elem = elem[l:]
+								} else {
+									break
+								}
+
+								if len(elem) == 0 {
+									switch r.Method {
+									case "GET":
+										s.handleV1betaListPoolsRequest([2]string{
+											args[0],
+											args[1],
+										}, elemIsEscaped, w, r)
+									case "POST":
+										s.handleV1betaCreatePoolRequest([2]string{
+											args[0],
+											args[1],
+										}, elemIsEscaped, w, r)
+									default:
+										s.notAllowed(w, r, "GET,POST")
+									}
+
+									return
+								}
+								switch elem[0] {
+								case '/': // Prefix: "/"
+
+									if l := len("/"); len(elem) >= l && elem[0:l] == "/" {
+										elem = elem[l:]
+									} else {
+										break
+									}
+
+									// Param: "poolId"
+									// Leaf parameter, slashes are prohibited
+									idx := strings.IndexByte(elem, '/')
+									if idx >= 0 {
+										break
+									}
+									args[2] = elem
+									elem = ""
+
+									if len(elem) == 0 {
+										// Leaf node.
+										switch r.Method {
+										case "DELETE":
+											s.handleV1betaDeletePoolRequest([3]string{
+												args[0],
+												args[1],
+												args[2],
+											}, elemIsEscaped, w, r)
+										case "GET":
+											s.handleV1betaDescribePoolRequest([3]string{
+												args[0],
+												args[1],
+												args[2],
+											}, elemIsEscaped, w, r)
+										case "PUT":
+											s.handleV1betaUpdatePoolRequest([3]string{
+												args[0],
+												args[1],
+												args[2],
+											}, elemIsEscaped, w, r)
+										default:
+											s.notAllowed(w, r, "DELETE,GET,PUT")
+										}
+
+										return
+									}
+
+								}
+
+							case 'r': // Prefix: "replications"
+
+								if l := len("replications"); len(elem) >= l && elem[0:l] == "replications" {
+									elem = elem[l:]
+								} else {
+									break
+								}
+
+								if len(elem) == 0 {
+									// Leaf node.
+									switch r.Method {
+									case "GET":
+										s.handleV1betaListReplicationsRequest([2]string{
+											args[0],
+											args[1],
+										}, elemIsEscaped, w, r)
+									default:
+										s.notAllowed(w, r, "GET")
+									}
+
+									return
+								}
+
+							case 's': // Prefix: "storage/kmsConfig"
+
+								if l := len("storage/kmsConfig"); len(elem) >= l && elem[0:l] == "storage/kmsConfig" {
+									elem = elem[l:]
+								} else {
+									break
+								}
+
+								if len(elem) == 0 {
+									switch r.Method {
+									case "GET":
+										s.handleV1betaListKmsConfigurationsRequest([2]string{
+											args[0],
+											args[1],
+										}, elemIsEscaped, w, r)
+									case "POST":
+										s.handleV1betaCreateKmsConfigurationRequest([2]string{
+											args[0],
+											args[1],
+										}, elemIsEscaped, w, r)
+									default:
+										s.notAllowed(w, r, "GET,POST")
+									}
+
+									return
+								}
+								switch elem[0] {
+								case '/': // Prefix: "/"
+
+									if l := len("/"); len(elem) >= l && elem[0:l] == "/" {
+										elem = elem[l:]
+									} else {
+										break
+									}
+
+									// Param: "kmsConfigId"
+									// Match until "/"
+									idx := strings.IndexByte(elem, '/')
+									if idx < 0 {
+										idx = len(elem)
+									}
+									args[2] = elem[:idx]
+									elem = elem[idx:]
+
+									if len(elem) == 0 {
+										switch r.Method {
+										case "DELETE":
+											s.handleV1betaDeleteKmsConfigurationRequest([3]string{
+												args[0],
+												args[1],
+												args[2],
+											}, elemIsEscaped, w, r)
+										case "GET":
+											s.handleV1betaDescribeKmsConfigurationRequest([3]string{
+												args[0],
+												args[1],
+												args[2],
+											}, elemIsEscaped, w, r)
+										case "PUT":
+											s.handleV1betaUpdateKmsConfigurationRequest([3]string{
+												args[0],
+												args[1],
+												args[2],
+											}, elemIsEscaped, w, r)
+										default:
+											s.notAllowed(w, r, "DELETE,GET,PUT")
+										}
+
+										return
+									}
+									switch elem[0] {
+									case '/': // Prefix: "/check"
+
+										if l := len("/check"); len(elem) >= l && elem[0:l] == "/check" {
+											elem = elem[l:]
+										} else {
+											break
+										}
+
+										if len(elem) == 0 {
+											// Leaf node.
+											switch r.Method {
+											case "GET":
+												s.handleV1betaCheckKmsConfigRequest([3]string{
+													args[0],
+													args[1],
+													args[2],
+												}, elemIsEscaped, w, r)
+											default:
+												s.notAllowed(w, r, "GET")
+											}
+
+											return
+										}
+
+									}
+
+								}
+
+							case 'v': // Prefix: "volumes"
+
+								if l := len("volumes"); len(elem) >= l && elem[0:l] == "volumes" {
+									elem = elem[l:]
+								} else {
+									break
+								}
+
+								if len(elem) == 0 {
+									switch r.Method {
+									case "GET":
+										s.handleV1betaListVolumesRequest([2]string{
+											args[0],
+											args[1],
+										}, elemIsEscaped, w, r)
+									case "POST":
+										s.handleV1betaCreateVolumeRequest([2]string{
+											args[0],
+											args[1],
+										}, elemIsEscaped, w, r)
+									default:
+										s.notAllowed(w, r, "GET,POST")
+									}
+
+									return
+								}
+								switch elem[0] {
+								case '/': // Prefix: "/"
+
+									if l := len("/"); len(elem) >= l && elem[0:l] == "/" {
+										elem = elem[l:]
+									} else {
+										break
+									}
+
+									// Param: "volumeResourceId"
+									// Match until "/"
+									idx := strings.IndexByte(elem, '/')
+									if idx < 0 {
+										idx = len(elem)
+									}
+									args[2] = elem[:idx]
+									elem = elem[idx:]
+
+									if len(elem) == 0 {
+										switch r.Method {
+										case "DELETE":
+											s.handleV1betaDeleteVolumeRequest([3]string{
+												args[0],
+												args[1],
+												args[2],
+											}, elemIsEscaped, w, r)
+										case "GET":
+											s.handleV1betaDescribeVolumeRequest([3]string{
+												args[0],
+												args[1],
+												args[2],
+											}, elemIsEscaped, w, r)
+										case "PUT":
+											s.handleV1betaUpdateVolumeRequest([3]string{
+												args[0],
+												args[1],
+												args[2],
+											}, elemIsEscaped, w, r)
+										default:
+											s.notAllowed(w, r, "DELETE,GET,PUT")
+										}
+
+										return
+									}
+									switch elem[0] {
+									case '/': // Prefix: "/"
+
+										if l := len("/"); len(elem) >= l && elem[0:l] == "/" {
+											elem = elem[l:]
+										} else {
+											break
+										}
+
+										if len(elem) == 0 {
+											break
+										}
+										switch elem[0] {
+										case 'g': // Prefix: "getMultipleReplications"
+
+											if l := len("getMultipleReplications"); len(elem) >= l && elem[0:l] == "getMultipleReplications" {
 												elem = elem[l:]
 											} else {
 												break
 											}
 
-											// Param: "replicationResourceId"
-											// Match until "/"
-											idx := strings.IndexByte(elem, '/')
-											if idx < 0 {
-												idx = len(elem)
+											if len(elem) == 0 {
+												// Leaf node.
+												switch r.Method {
+												case "POST":
+													s.handleV1betaGetMultipleReplicationsRequest([3]string{
+														args[0],
+														args[1],
+														args[2],
+													}, elemIsEscaped, w, r)
+												default:
+													s.notAllowed(w, r, "POST")
+												}
+
+												return
 											}
-											args[3] = elem[:idx]
-											elem = elem[idx:]
+
+										case 'r': // Prefix: "replications"
+
+											if l := len("replications"); len(elem) >= l && elem[0:l] == "replications" {
+												elem = elem[l:]
+											} else {
+												break
+											}
 
 											if len(elem) == 0 {
 												switch r.Method {
-												case "DELETE":
-													s.handleV1betaDeleteReplicationRequest([4]string{
+												case "POST":
+													s.handleV1betaCreateReplicationRequest([3]string{
 														args[0],
 														args[1],
 														args[2],
-														args[3],
-													}, elemIsEscaped, w, r)
-												case "PUT":
-													s.handleV1betaUpdateReplicationRequest([4]string{
-														args[0],
-														args[1],
-														args[2],
-														args[3],
 													}, elemIsEscaped, w, r)
 												default:
-													s.notAllowed(w, r, "DELETE,PUT")
+													s.notAllowed(w, r, "POST")
 												}
 
 												return
@@ -802,13 +1089,41 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 													break
 												}
 
+												// Param: "replicationResourceId"
+												// Match until "/"
+												idx := strings.IndexByte(elem, '/')
+												if idx < 0 {
+													idx = len(elem)
+												}
+												args[3] = elem[:idx]
+												elem = elem[idx:]
+
 												if len(elem) == 0 {
-													break
+													switch r.Method {
+													case "DELETE":
+														s.handleV1betaDeleteReplicationRequest([4]string{
+															args[0],
+															args[1],
+															args[2],
+															args[3],
+														}, elemIsEscaped, w, r)
+													case "PUT":
+														s.handleV1betaUpdateReplicationRequest([4]string{
+															args[0],
+															args[1],
+															args[2],
+															args[3],
+														}, elemIsEscaped, w, r)
+													default:
+														s.notAllowed(w, r, "DELETE,PUT")
+													}
+
+													return
 												}
 												switch elem[0] {
-												case 'r': // Prefix: "re"
+												case '/': // Prefix: "/"
 
-													if l := len("re"); len(elem) >= l && elem[0:l] == "re" {
+													if l := len("/"); len(elem) >= l && elem[0:l] == "/" {
 														elem = elem[l:]
 													} else {
 														break
@@ -818,118 +1133,132 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 														break
 													}
 													switch elem[0] {
-													case 's': // Prefix: "sume"
+													case 'r': // Prefix: "re"
 
-														if l := len("sume"); len(elem) >= l && elem[0:l] == "sume" {
+														if l := len("re"); len(elem) >= l && elem[0:l] == "re" {
 															elem = elem[l:]
 														} else {
 															break
 														}
 
 														if len(elem) == 0 {
-															// Leaf node.
-															switch r.Method {
-															case "POST":
-																s.handleV1betaResumeReplicationRequest([4]string{
-																	args[0],
-																	args[1],
-																	args[2],
-																	args[3],
-																}, elemIsEscaped, w, r)
-															default:
-																s.notAllowed(w, r, "POST")
+															break
+														}
+														switch elem[0] {
+														case 's': // Prefix: "sume"
+
+															if l := len("sume"); len(elem) >= l && elem[0:l] == "sume" {
+																elem = elem[l:]
+															} else {
+																break
 															}
 
-															return
+															if len(elem) == 0 {
+																// Leaf node.
+																switch r.Method {
+																case "POST":
+																	s.handleV1betaResumeReplicationRequest([4]string{
+																		args[0],
+																		args[1],
+																		args[2],
+																		args[3],
+																	}, elemIsEscaped, w, r)
+																default:
+																	s.notAllowed(w, r, "POST")
+																}
+
+																return
+															}
+
+														case 'v': // Prefix: "verseAndResumeReplication"
+
+															if l := len("verseAndResumeReplication"); len(elem) >= l && elem[0:l] == "verseAndResumeReplication" {
+																elem = elem[l:]
+															} else {
+																break
+															}
+
+															if len(elem) == 0 {
+																// Leaf node.
+																switch r.Method {
+																case "POST":
+																	s.handleV1betaReverseAndResumeReplicationRequest([4]string{
+																		args[0],
+																		args[1],
+																		args[2],
+																		args[3],
+																	}, elemIsEscaped, w, r)
+																default:
+																	s.notAllowed(w, r, "POST")
+																}
+
+																return
+															}
+
 														}
 
-													case 'v': // Prefix: "verseAndResumeReplication"
+													case 's': // Prefix: "s"
 
-														if l := len("verseAndResumeReplication"); len(elem) >= l && elem[0:l] == "verseAndResumeReplication" {
+														if l := len("s"); len(elem) >= l && elem[0:l] == "s" {
 															elem = elem[l:]
 														} else {
 															break
 														}
 
 														if len(elem) == 0 {
-															// Leaf node.
-															switch r.Method {
-															case "POST":
-																s.handleV1betaReverseAndResumeReplicationRequest([4]string{
-																	args[0],
-																	args[1],
-																	args[2],
-																	args[3],
-																}, elemIsEscaped, w, r)
-															default:
-																s.notAllowed(w, r, "POST")
-															}
-
-															return
-														}
-
-													}
-
-												case 's': // Prefix: "s"
-
-													if l := len("s"); len(elem) >= l && elem[0:l] == "s" {
-														elem = elem[l:]
-													} else {
-														break
-													}
-
-													if len(elem) == 0 {
-														break
-													}
-													switch elem[0] {
-													case 't': // Prefix: "top"
-
-														if l := len("top"); len(elem) >= l && elem[0:l] == "top" {
-															elem = elem[l:]
-														} else {
 															break
 														}
+														switch elem[0] {
+														case 't': // Prefix: "top"
 
-														if len(elem) == 0 {
-															// Leaf node.
-															switch r.Method {
-															case "POST":
-																s.handleV1betaStopReplicationRequest([4]string{
-																	args[0],
-																	args[1],
-																	args[2],
-																	args[3],
-																}, elemIsEscaped, w, r)
-															default:
-																s.notAllowed(w, r, "POST")
+															if l := len("top"); len(elem) >= l && elem[0:l] == "top" {
+																elem = elem[l:]
+															} else {
+																break
 															}
 
-															return
-														}
+															if len(elem) == 0 {
+																// Leaf node.
+																switch r.Method {
+																case "POST":
+																	s.handleV1betaStopReplicationRequest([4]string{
+																		args[0],
+																		args[1],
+																		args[2],
+																		args[3],
+																	}, elemIsEscaped, w, r)
+																default:
+																	s.notAllowed(w, r, "POST")
+																}
 
-													case 'y': // Prefix: "ync"
-
-														if l := len("ync"); len(elem) >= l && elem[0:l] == "ync" {
-															elem = elem[l:]
-														} else {
-															break
-														}
-
-														if len(elem) == 0 {
-															// Leaf node.
-															switch r.Method {
-															case "POST":
-																s.handleV1betaSyncReplicationRequest([4]string{
-																	args[0],
-																	args[1],
-																	args[2],
-																	args[3],
-																}, elemIsEscaped, w, r)
-															default:
-																s.notAllowed(w, r, "POST")
+																return
 															}
 
-															return
+														case 'y': // Prefix: "ync"
+
+															if l := len("ync"); len(elem) >= l && elem[0:l] == "ync" {
+																elem = elem[l:]
+															} else {
+																break
+															}
+
+															if len(elem) == 0 {
+																// Leaf node.
+																switch r.Method {
+																case "POST":
+																	s.handleV1betaSyncReplicationRequest([4]string{
+																		args[0],
+																		args[1],
+																		args[2],
+																		args[3],
+																	}, elemIsEscaped, w, r)
+																default:
+																	s.notAllowed(w, r, "POST")
+																}
+
+																return
+															}
+
 														}
 
 													}
@@ -1070,100 +1399,105 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 					}
 				}
 
-			case 'v': // Prefix: "v1beta/projects/"
+			case 'v': // Prefix: "v1beta/"
 
-				if l := len("v1beta/projects/"); len(elem) >= l && elem[0:l] == "v1beta/projects/" {
+				if l := len("v1beta/"); len(elem) >= l && elem[0:l] == "v1beta/" {
 					elem = elem[l:]
 				} else {
 					break
 				}
 
-				// Param: "projectNumber"
-				// Match until "/"
-				idx := strings.IndexByte(elem, '/')
-				if idx < 0 {
-					idx = len(elem)
-				}
-				args[0] = elem[:idx]
-				elem = elem[idx:]
-
 				if len(elem) == 0 {
 					break
 				}
 				switch elem[0] {
-				case '/': // Prefix: "/locations/"
+				case 'i': // Prefix: "internal/projects/"
 
-					if l := len("/locations/"); len(elem) >= l && elem[0:l] == "/locations/" {
+					if l := len("internal/projects/"); len(elem) >= l && elem[0:l] == "internal/projects/" {
 						elem = elem[l:]
 					} else {
 						break
 					}
 
-					// Param: "locationId"
+					// Param: "projectNumber"
 					// Match until "/"
 					idx := strings.IndexByte(elem, '/')
 					if idx < 0 {
 						idx = len(elem)
 					}
-					args[1] = elem[:idx]
+					args[0] = elem[:idx]
 					elem = elem[idx:]
 
 					if len(elem) == 0 {
 						break
 					}
 					switch elem[0] {
-					case '/': // Prefix: "/"
+					case '/': // Prefix: "/locations/"
 
-						if l := len("/"); len(elem) >= l && elem[0:l] == "/" {
+						if l := len("/locations/"); len(elem) >= l && elem[0:l] == "/locations/" {
 							elem = elem[l:]
 						} else {
 							break
 						}
 
+						// Param: "locationId"
+						// Match until "/"
+						idx := strings.IndexByte(elem, '/')
+						if idx < 0 {
+							idx = len(elem)
+						}
+						args[1] = elem[:idx]
+						elem = elem[idx:]
+
 						if len(elem) == 0 {
 							break
 						}
 						switch elem[0] {
-						case 'b': // Prefix: "backupPolicies"
+						case '/': // Prefix: "/"
 
-							if l := len("backupPolicies"); len(elem) >= l && elem[0:l] == "backupPolicies" {
+							if l := len("/"); len(elem) >= l && elem[0:l] == "/" {
 								elem = elem[l:]
 							} else {
 								break
 							}
 
 							if len(elem) == 0 {
-								switch method {
-								case "GET":
-									r.name = V1betaListBackupPoliciesOperation
-									r.summary = "List all backup policies"
-									r.operationID = "v1beta_listBackupPolicies"
-									r.pathPattern = "/v1beta/projects/{projectNumber}/locations/{locationId}/backupPolicies"
-									r.args = args
-									r.count = 2
-									return r, true
-								case "POST":
-									r.name = V1betaCreateBackupPolicyOperation
-									r.summary = "Create a new backup policy"
-									r.operationID = "v1beta_createBackupPolicy"
-									r.pathPattern = "/v1beta/projects/{projectNumber}/locations/{locationId}/backupPolicies"
-									r.args = args
-									r.count = 2
-									return r, true
-								default:
-									return
-								}
+								break
 							}
 							switch elem[0] {
-							case '/': // Prefix: "/"
+							case 'c': // Prefix: "clusterPeer"
 
-								if l := len("/"); len(elem) >= l && elem[0:l] == "/" {
+								if l := len("clusterPeer"); len(elem) >= l && elem[0:l] == "clusterPeer" {
 									elem = elem[l:]
 								} else {
 									break
 								}
 
-								// Param: "backupPolicyId"
+								if len(elem) == 0 {
+									// Leaf node.
+									switch method {
+									case "POST":
+										r.name = V1betaInternalCreateClusterPeerOperation
+										r.summary = "Create a new cluster peer"
+										r.operationID = "v1beta_internalCreateClusterPeer"
+										r.pathPattern = "/v1beta/internal/projects/{projectNumber}/locations/{locationId}/clusterPeer"
+										r.args = args
+										r.count = 2
+										return r, true
+									default:
+										return
+									}
+								}
+
+							case 'p': // Prefix: "pool/"
+
+								if l := len("pool/"); len(elem) >= l && elem[0:l] == "pool/" {
+									elem = elem[l:]
+								} else {
+									break
+								}
+
+								// Param: "poolName"
 								// Leaf parameter, slashes are prohibited
 								idx := strings.IndexByte(elem, '/')
 								if idx >= 0 {
@@ -1175,340 +1509,11 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 								if len(elem) == 0 {
 									// Leaf node.
 									switch method {
-									case "DELETE":
-										r.name = V1betaDeleteBackupPolicyOperation
-										r.summary = "Delete a backup policy"
-										r.operationID = "v1beta_deleteBackupPolicy"
-										r.pathPattern = "/v1beta/projects/{projectNumber}/locations/{locationId}/backupPolicies/{backupPolicyId}"
-										r.args = args
-										r.count = 3
-										return r, true
 									case "GET":
-										r.name = V1betaDescribeBackupPolicyOperation
-										r.summary = "Describe a backup policy"
-										r.operationID = "v1beta_describeBackupPolicy"
-										r.pathPattern = "/v1beta/projects/{projectNumber}/locations/{locationId}/backupPolicies/{backupPolicyId}"
-										r.args = args
-										r.count = 3
-										return r, true
-									case "PUT":
-										r.name = V1betaUpdateBackupPolicyOperation
-										r.summary = "Update a backup policy"
-										r.operationID = "v1beta_updateBackupPolicy"
-										r.pathPattern = "/v1beta/projects/{projectNumber}/locations/{locationId}/backupPolicies/{backupPolicyId}"
-										r.args = args
-										r.count = 3
-										return r, true
-									default:
-										return
-									}
-								}
-
-							}
-
-						case 'g': // Prefix: "getMultiple"
-
-							if l := len("getMultiple"); len(elem) >= l && elem[0:l] == "getMultiple" {
-								elem = elem[l:]
-							} else {
-								break
-							}
-
-							if len(elem) == 0 {
-								break
-							}
-							switch elem[0] {
-							case 'B': // Prefix: "BackupPolicies"
-
-								if l := len("BackupPolicies"); len(elem) >= l && elem[0:l] == "BackupPolicies" {
-									elem = elem[l:]
-								} else {
-									break
-								}
-
-								if len(elem) == 0 {
-									// Leaf node.
-									switch method {
-									case "POST":
-										r.name = V1betaGetMultipleBackupPoliciesOperation
-										r.summary = "List specified backup policies"
-										r.operationID = "v1beta_getMultipleBackupPolicies"
-										r.pathPattern = "/v1beta/projects/{projectNumber}/locations/{locationId}/getMultipleBackupPolicies"
-										r.args = args
-										r.count = 2
-										return r, true
-									default:
-										return
-									}
-								}
-
-							case 'P': // Prefix: "Pools"
-
-								if l := len("Pools"); len(elem) >= l && elem[0:l] == "Pools" {
-									elem = elem[l:]
-								} else {
-									break
-								}
-
-								if len(elem) == 0 {
-									// Leaf node.
-									switch method {
-									case "POST":
-										r.name = V1betaGetMultiplePoolsOperation
-										r.summary = "List specified pools"
-										r.operationID = "v1beta_getMultiplePools"
-										r.pathPattern = "/v1beta/projects/{projectNumber}/locations/{locationId}/getMultiplePools"
-										r.args = args
-										r.count = 2
-										return r, true
-									default:
-										return
-									}
-								}
-
-							case 'V': // Prefix: "Volumes"
-
-								if l := len("Volumes"); len(elem) >= l && elem[0:l] == "Volumes" {
-									elem = elem[l:]
-								} else {
-									break
-								}
-
-								if len(elem) == 0 {
-									// Leaf node.
-									switch method {
-									case "POST":
-										r.name = V1betaGetMultipleVolumesOperation
-										r.summary = "List specified volumes"
-										r.operationID = "v1beta_getMultipleVolumes"
-										r.pathPattern = "/v1beta/projects/{projectNumber}/locations/{locationId}/getMultipleVolumes"
-										r.args = args
-										r.count = 2
-										return r, true
-									default:
-										return
-									}
-								}
-
-							}
-
-						case 'h': // Prefix: "hostGroups"
-
-							if l := len("hostGroups"); len(elem) >= l && elem[0:l] == "hostGroups" {
-								elem = elem[l:]
-							} else {
-								break
-							}
-
-							if len(elem) == 0 {
-								switch method {
-								case "GET":
-									r.name = V1betaListHostGroupsOperation
-									r.summary = "List all HostGroups"
-									r.operationID = "v1beta_listHostGroups"
-									r.pathPattern = "/v1beta/projects/{projectNumber}/locations/{locationId}/hostGroups"
-									r.args = args
-									r.count = 2
-									return r, true
-								case "POST":
-									r.name = V1betaCreateHostGroupOperation
-									r.summary = "Create a new HostGroup"
-									r.operationID = "v1beta_createHostGroup"
-									r.pathPattern = "/v1beta/projects/{projectNumber}/locations/{locationId}/hostGroups"
-									r.args = args
-									r.count = 2
-									return r, true
-								default:
-									return
-								}
-							}
-							switch elem[0] {
-							case '/': // Prefix: "/"
-
-								if l := len("/"); len(elem) >= l && elem[0:l] == "/" {
-									elem = elem[l:]
-								} else {
-									break
-								}
-
-								if len(elem) == 0 {
-									break
-								}
-								switch elem[0] {
-								case 'g': // Prefix: "getMultipleHostGroups"
-									origElem := elem
-									if l := len("getMultipleHostGroups"); len(elem) >= l && elem[0:l] == "getMultipleHostGroups" {
-										elem = elem[l:]
-									} else {
-										break
-									}
-
-									if len(elem) == 0 {
-										// Leaf node.
-										switch method {
-										case "POST":
-											r.name = V1betaGetMultipleHostGroupsOperation
-											r.summary = "List specified HostGroups"
-											r.operationID = "v1beta_getMultipleHostGroups"
-											r.pathPattern = "/v1beta/projects/{projectNumber}/locations/{locationId}/hostGroups/getMultipleHostGroups"
-											r.args = args
-											r.count = 2
-											return r, true
-										default:
-											return
-										}
-									}
-
-									elem = origElem
-								}
-								// Param: "hostGroupId"
-								// Leaf parameter, slashes are prohibited
-								idx := strings.IndexByte(elem, '/')
-								if idx >= 0 {
-									break
-								}
-								args[2] = elem
-								elem = ""
-
-								if len(elem) == 0 {
-									// Leaf node.
-									switch method {
-									case "DELETE":
-										r.name = V1betaDeleteHostGroupOperation
-										r.summary = "Delete a HostGroup"
-										r.operationID = "v1beta_deleteHostGroup"
-										r.pathPattern = "/v1beta/projects/{projectNumber}/locations/{locationId}/hostGroups/{hostGroupId}"
-										r.args = args
-										r.count = 3
-										return r, true
-									case "GET":
-										r.name = V1betaDescribeHostGroupOperation
-										r.summary = "Describe a HostGroup"
-										r.operationID = "v1beta_describeHostGroup"
-										r.pathPattern = "/v1beta/projects/{projectNumber}/locations/{locationId}/hostGroups/{hostGroupId}"
-										r.args = args
-										r.count = 3
-										return r, true
-									case "PUT":
-										r.name = V1betaUpdateHostGroupOperation
-										r.summary = "Update a HostGroup"
-										r.operationID = "v1beta_updateHostGroup"
-										r.pathPattern = "/v1beta/projects/{projectNumber}/locations/{locationId}/hostGroups/{hostGroupId}"
-										r.args = args
-										r.count = 3
-										return r, true
-									default:
-										return
-									}
-								}
-
-							}
-
-						case 'o': // Prefix: "operations/"
-
-							if l := len("operations/"); len(elem) >= l && elem[0:l] == "operations/" {
-								elem = elem[l:]
-							} else {
-								break
-							}
-
-							// Param: "operationId"
-							// Leaf parameter, slashes are prohibited
-							idx := strings.IndexByte(elem, '/')
-							if idx >= 0 {
-								break
-							}
-							args[2] = elem
-							elem = ""
-
-							if len(elem) == 0 {
-								// Leaf node.
-								switch method {
-								case "GET":
-									r.name = V1betaDescribeOperationOperation
-									r.summary = "Describes a long running operation"
-									r.operationID = "v1beta_describeOperation"
-									r.pathPattern = "/v1beta/projects/{projectNumber}/locations/{locationId}/operations/{operationId}"
-									r.args = args
-									r.count = 3
-									return r, true
-								default:
-									return
-								}
-							}
-
-						case 'p': // Prefix: "pools"
-
-							if l := len("pools"); len(elem) >= l && elem[0:l] == "pools" {
-								elem = elem[l:]
-							} else {
-								break
-							}
-
-							if len(elem) == 0 {
-								switch method {
-								case "GET":
-									r.name = V1betaListPoolsOperation
-									r.summary = "List all pools"
-									r.operationID = "v1beta_listPools"
-									r.pathPattern = "/v1beta/projects/{projectNumber}/locations/{locationId}/pools"
-									r.args = args
-									r.count = 2
-									return r, true
-								case "POST":
-									r.name = V1betaCreatePoolOperation
-									r.summary = "Create a new pool"
-									r.operationID = "v1beta_createPool"
-									r.pathPattern = "/v1beta/projects/{projectNumber}/locations/{locationId}/pools"
-									r.args = args
-									r.count = 2
-									return r, true
-								default:
-									return
-								}
-							}
-							switch elem[0] {
-							case '/': // Prefix: "/"
-
-								if l := len("/"); len(elem) >= l && elem[0:l] == "/" {
-									elem = elem[l:]
-								} else {
-									break
-								}
-
-								// Param: "poolId"
-								// Leaf parameter, slashes are prohibited
-								idx := strings.IndexByte(elem, '/')
-								if idx >= 0 {
-									break
-								}
-								args[2] = elem
-								elem = ""
-
-								if len(elem) == 0 {
-									// Leaf node.
-									switch method {
-									case "DELETE":
-										r.name = V1betaDeletePoolOperation
-										r.summary = "Delete a storage pool"
-										r.operationID = "v1beta_deletePool"
-										r.pathPattern = "/v1beta/projects/{projectNumber}/locations/{locationId}/pools/{poolId}"
-										r.args = args
-										r.count = 3
-										return r, true
-									case "GET":
-										r.name = V1betaDescribePoolOperation
+										r.name = V1betaInternalDescribePoolOperation
 										r.summary = "Describe a pool"
-										r.operationID = "v1beta_describePool"
-										r.pathPattern = "/v1beta/projects/{projectNumber}/locations/{locationId}/pools/{poolId}"
-										r.args = args
-										r.count = 3
-										return r, true
-									case "PUT":
-										r.name = V1betaUpdatePoolOperation
-										r.summary = "Update a pool"
-										r.operationID = "v1beta_updatePool"
-										r.pathPattern = "/v1beta/projects/{projectNumber}/locations/{locationId}/pools/{poolId}"
+										r.operationID = "v1beta_internalDescribePool"
+										r.pathPattern = "/v1beta/internal/projects/{projectNumber}/locations/{locationId}/pool/{poolName}"
 										r.args = args
 										r.count = 3
 										return r, true
@@ -1517,212 +1522,23 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 									}
 								}
 
-							}
+							case 'v': // Prefix: "volumeReplication"
 
-						case 'r': // Prefix: "replications"
-
-							if l := len("replications"); len(elem) >= l && elem[0:l] == "replications" {
-								elem = elem[l:]
-							} else {
-								break
-							}
-
-							if len(elem) == 0 {
-								// Leaf node.
-								switch method {
-								case "GET":
-									r.name = V1betaListReplicationsOperation
-									r.summary = "List all volume replications"
-									r.operationID = "v1beta_listReplications"
-									r.pathPattern = "/v1beta/projects/{projectNumber}/locations/{locationId}/replications"
-									r.args = args
-									r.count = 2
-									return r, true
-								default:
-									return
-								}
-							}
-
-						case 's': // Prefix: "storage/kmsConfig"
-
-							if l := len("storage/kmsConfig"); len(elem) >= l && elem[0:l] == "storage/kmsConfig" {
-								elem = elem[l:]
-							} else {
-								break
-							}
-
-							if len(elem) == 0 {
-								switch method {
-								case "GET":
-									r.name = V1betaListKmsConfigurationsOperation
-									r.summary = "List all KMS configurations"
-									r.operationID = "v1beta_listKmsConfigurations"
-									r.pathPattern = "/v1beta/projects/{projectNumber}/locations/{locationId}/storage/kmsConfig"
-									r.args = args
-									r.count = 2
-									return r, true
-								case "POST":
-									r.name = V1betaCreateKmsConfigurationOperation
-									r.summary = "Create KMS configuration"
-									r.operationID = "v1beta_CreateKmsConfiguration"
-									r.pathPattern = "/v1beta/projects/{projectNumber}/locations/{locationId}/storage/kmsConfig"
-									r.args = args
-									r.count = 2
-									return r, true
-								default:
-									return
-								}
-							}
-							switch elem[0] {
-							case '/': // Prefix: "/"
-
-								if l := len("/"); len(elem) >= l && elem[0:l] == "/" {
+								if l := len("volumeReplication"); len(elem) >= l && elem[0:l] == "volumeReplication" {
 									elem = elem[l:]
 								} else {
 									break
 								}
 
-								// Param: "kmsConfigId"
-								// Match until "/"
-								idx := strings.IndexByte(elem, '/')
-								if idx < 0 {
-									idx = len(elem)
-								}
-								args[2] = elem[:idx]
-								elem = elem[idx:]
-
 								if len(elem) == 0 {
 									switch method {
-									case "DELETE":
-										r.name = V1betaDeleteKmsConfigurationOperation
-										r.summary = "Deletes a KMS configuration"
-										r.operationID = "v1beta_deleteKmsConfiguration"
-										r.pathPattern = "/v1beta/projects/{projectNumber}/locations/{locationId}/storage/kmsConfig/{kmsConfigId}"
+									case "POST":
+										r.name = V1betaInternalCreateVolumeReplicationOperation
+										r.summary = "Create a new volume replication"
+										r.operationID = "v1beta_internalCreateVolumeReplication"
+										r.pathPattern = "/v1beta/internal/projects/{projectNumber}/locations/{locationId}/volumeReplication"
 										r.args = args
-										r.count = 3
-										return r, true
-									case "GET":
-										r.name = V1betaDescribeKmsConfigurationOperation
-										r.summary = "Describe KMS configuration"
-										r.operationID = "v1beta_describeKmsConfiguration"
-										r.pathPattern = "/v1beta/projects/{projectNumber}/locations/{locationId}/storage/kmsConfig/{kmsConfigId}"
-										r.args = args
-										r.count = 3
-										return r, true
-									case "PUT":
-										r.name = V1betaUpdateKmsConfigurationOperation
-										r.summary = "Update a KMS configuration"
-										r.operationID = "v1beta_updateKmsConfiguration"
-										r.pathPattern = "/v1beta/projects/{projectNumber}/locations/{locationId}/storage/kmsConfig/{kmsConfigId}"
-										r.args = args
-										r.count = 3
-										return r, true
-									default:
-										return
-									}
-								}
-								switch elem[0] {
-								case '/': // Prefix: "/check"
-
-									if l := len("/check"); len(elem) >= l && elem[0:l] == "/check" {
-										elem = elem[l:]
-									} else {
-										break
-									}
-
-									if len(elem) == 0 {
-										// Leaf node.
-										switch method {
-										case "GET":
-											r.name = V1betaCheckKmsConfigOperation
-											r.summary = "Verifies KMS configuration reachability"
-											r.operationID = "v1beta_checkKmsConfig"
-											r.pathPattern = "/v1beta/projects/{projectNumber}/locations/{locationId}/storage/kmsConfig/{kmsConfigId}/check"
-											r.args = args
-											r.count = 3
-											return r, true
-										default:
-											return
-										}
-									}
-
-								}
-
-							}
-
-						case 'v': // Prefix: "volumes"
-
-							if l := len("volumes"); len(elem) >= l && elem[0:l] == "volumes" {
-								elem = elem[l:]
-							} else {
-								break
-							}
-
-							if len(elem) == 0 {
-								switch method {
-								case "GET":
-									r.name = V1betaListVolumesOperation
-									r.summary = "List all volumes"
-									r.operationID = "v1beta_listVolumes"
-									r.pathPattern = "/v1beta/projects/{projectNumber}/locations/{locationId}/volumes"
-									r.args = args
-									r.count = 2
-									return r, true
-								case "POST":
-									r.name = V1betaCreateVolumeOperation
-									r.summary = "Create a new volume"
-									r.operationID = "v1beta_createVolume"
-									r.pathPattern = "/v1beta/projects/{projectNumber}/locations/{locationId}/volumes"
-									r.args = args
-									r.count = 2
-									return r, true
-								default:
-									return
-								}
-							}
-							switch elem[0] {
-							case '/': // Prefix: "/"
-
-								if l := len("/"); len(elem) >= l && elem[0:l] == "/" {
-									elem = elem[l:]
-								} else {
-									break
-								}
-
-								// Param: "volumeResourceId"
-								// Match until "/"
-								idx := strings.IndexByte(elem, '/')
-								if idx < 0 {
-									idx = len(elem)
-								}
-								args[2] = elem[:idx]
-								elem = elem[idx:]
-
-								if len(elem) == 0 {
-									switch method {
-									case "DELETE":
-										r.name = V1betaDeleteVolumeOperation
-										r.summary = "Delete a volume"
-										r.operationID = "v1beta_deleteVolume"
-										r.pathPattern = "/v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}"
-										r.args = args
-										r.count = 3
-										return r, true
-									case "GET":
-										r.name = V1betaDescribeVolumeOperation
-										r.summary = "Describe a volume"
-										r.operationID = "v1beta_describeVolume"
-										r.pathPattern = "/v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}"
-										r.args = args
-										r.count = 3
-										return r, true
-									case "PUT":
-										r.name = V1betaUpdateVolumeOperation
-										r.summary = "Update a volume"
-										r.operationID = "v1beta_updateVolume"
-										r.pathPattern = "/v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}"
-										r.args = args
-										r.count = 3
+										r.count = 2
 										return r, true
 									default:
 										return
@@ -1741,9 +1557,9 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 										break
 									}
 									switch elem[0] {
-									case 'g': // Prefix: "getMultipleReplications"
-
-										if l := len("getMultipleReplications"); len(elem) >= l && elem[0:l] == "getMultipleReplications" {
+									case 'a': // Prefix: "authorize"
+										origElem := elem
+										if l := len("authorize"); len(elem) >= l && elem[0:l] == "authorize" {
 											elem = elem[l:]
 										} else {
 											break
@@ -1753,33 +1569,738 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 											// Leaf node.
 											switch method {
 											case "POST":
-												r.name = V1betaGetMultipleReplicationsOperation
-												r.summary = "List specific replications"
-												r.operationID = "v1beta_getMultipleReplications"
-												r.pathPattern = "/v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeResourceId}/getMultipleReplications"
+												r.name = V1betaInternalAuthorizeVolumeReplicationOperation
+												r.summary = "Authorize a volume replication on the source"
+												r.operationID = "v1beta_internalAuthorizeVolumeReplication"
+												r.pathPattern = "/v1beta/internal/projects/{projectNumber}/locations/{locationId}/volumeReplication/authorize"
 												r.args = args
-												r.count = 3
+												r.count = 2
 												return r, true
 											default:
 												return
 											}
 										}
 
-									case 'r': // Prefix: "replications"
+										elem = origElem
+									}
+									// Param: "volumeReplicationId"
+									// Match until "/"
+									idx := strings.IndexByte(elem, '/')
+									if idx < 0 {
+										idx = len(elem)
+									}
+									args[2] = elem[:idx]
+									elem = elem[idx:]
 
-										if l := len("replications"); len(elem) >= l && elem[0:l] == "replications" {
+									if len(elem) == 0 {
+										switch method {
+										case "DELETE":
+											r.name = V1betaInternalDeleteVolumeReplicationOperation
+											r.summary = "Delete volume replication"
+											r.operationID = "v1beta_internalDeleteVolumeReplication"
+											r.pathPattern = "/v1beta/internal/projects/{projectNumber}/locations/{locationId}/volumeReplication/{volumeReplicationId}"
+											r.args = args
+											r.count = 3
+											return r, true
+										case "GET":
+											r.name = V1betaInternalDescribeVolumeReplicationOperation
+											r.summary = "Describe a volume replication"
+											r.operationID = "v1beta_internalDescribeVolumeReplication"
+											r.pathPattern = "/v1beta/internal/projects/{projectNumber}/locations/{locationId}/volumeReplication/{volumeReplicationId}"
+											r.args = args
+											r.count = 3
+											return r, true
+										case "PUT":
+											r.name = V1betaInternalUpdateVolumeReplicationOperation
+											r.summary = "Update a volume replication"
+											r.operationID = "v1beta_internalUpdateVolumeReplication"
+											r.pathPattern = "/v1beta/internal/projects/{projectNumber}/locations/{locationId}/volumeReplication/{volumeReplicationId}"
+											r.args = args
+											r.count = 3
+											return r, true
+										default:
+											return
+										}
+									}
+									switch elem[0] {
+									case '/': // Prefix: "/"
+
+										if l := len("/"); len(elem) >= l && elem[0:l] == "/" {
 											elem = elem[l:]
 										} else {
 											break
 										}
 
 										if len(elem) == 0 {
+											break
+										}
+										switch elem[0] {
+										case 'r': // Prefix: "re"
+
+											if l := len("re"); len(elem) >= l && elem[0:l] == "re" {
+												elem = elem[l:]
+											} else {
+												break
+											}
+
+											if len(elem) == 0 {
+												break
+											}
+											switch elem[0] {
+											case 'l': // Prefix: "lease"
+
+												if l := len("lease"); len(elem) >= l && elem[0:l] == "lease" {
+													elem = elem[l:]
+												} else {
+													break
+												}
+
+												if len(elem) == 0 {
+													// Leaf node.
+													switch method {
+													case "POST":
+														r.name = V1betaInternalReleaseVolumeReplicationOperation
+														r.summary = "Release a volume replication on the source"
+														r.operationID = "v1beta_internalReleaseVolumeReplication"
+														r.pathPattern = "/v1beta/internal/projects/{projectNumber}/locations/{locationId}/volumeReplication/{volumeReplicationId}/release"
+														r.args = args
+														r.count = 3
+														return r, true
+													default:
+														return
+													}
+												}
+
+											case 's': // Prefix: "sume"
+
+												if l := len("sume"); len(elem) >= l && elem[0:l] == "sume" {
+													elem = elem[l:]
+												} else {
+													break
+												}
+
+												if len(elem) == 0 {
+													// Leaf node.
+													switch method {
+													case "POST":
+														r.name = V1betaInternalResumeVolumeReplicationOperation
+														r.summary = "Resume a volume replication"
+														r.operationID = "v1beta_internalResumeVolumeReplication"
+														r.pathPattern = "/v1beta/internal/projects/{projectNumber}/locations/{locationId}/volumeReplication/{volumeReplicationId}/resume"
+														r.args = args
+														r.count = 3
+														return r, true
+													default:
+														return
+													}
+												}
+
+											}
+
+										case 's': // Prefix: "stop"
+
+											if l := len("stop"); len(elem) >= l && elem[0:l] == "stop" {
+												elem = elem[l:]
+											} else {
+												break
+											}
+
+											if len(elem) == 0 {
+												// Leaf node.
+												switch method {
+												case "POST":
+													r.name = V1betaInternalStopVolumeReplicationOperation
+													r.summary = "Stop a volume replication"
+													r.operationID = "v1beta_internalStopVolumeReplication"
+													r.pathPattern = "/v1beta/internal/projects/{projectNumber}/locations/{locationId}/volumeReplication/{volumeReplicationId}/stop"
+													r.args = args
+													r.count = 3
+													return r, true
+												default:
+													return
+												}
+											}
+
+										}
+
+									}
+
+								}
+
+							}
+
+						}
+
+					}
+
+				case 'p': // Prefix: "projects/"
+
+					if l := len("projects/"); len(elem) >= l && elem[0:l] == "projects/" {
+						elem = elem[l:]
+					} else {
+						break
+					}
+
+					// Param: "projectNumber"
+					// Match until "/"
+					idx := strings.IndexByte(elem, '/')
+					if idx < 0 {
+						idx = len(elem)
+					}
+					args[0] = elem[:idx]
+					elem = elem[idx:]
+
+					if len(elem) == 0 {
+						break
+					}
+					switch elem[0] {
+					case '/': // Prefix: "/locations/"
+
+						if l := len("/locations/"); len(elem) >= l && elem[0:l] == "/locations/" {
+							elem = elem[l:]
+						} else {
+							break
+						}
+
+						// Param: "locationId"
+						// Match until "/"
+						idx := strings.IndexByte(elem, '/')
+						if idx < 0 {
+							idx = len(elem)
+						}
+						args[1] = elem[:idx]
+						elem = elem[idx:]
+
+						if len(elem) == 0 {
+							break
+						}
+						switch elem[0] {
+						case '/': // Prefix: "/"
+
+							if l := len("/"); len(elem) >= l && elem[0:l] == "/" {
+								elem = elem[l:]
+							} else {
+								break
+							}
+
+							if len(elem) == 0 {
+								break
+							}
+							switch elem[0] {
+							case 'b': // Prefix: "backupPolicies"
+
+								if l := len("backupPolicies"); len(elem) >= l && elem[0:l] == "backupPolicies" {
+									elem = elem[l:]
+								} else {
+									break
+								}
+
+								if len(elem) == 0 {
+									switch method {
+									case "GET":
+										r.name = V1betaListBackupPoliciesOperation
+										r.summary = "List all backup policies"
+										r.operationID = "v1beta_listBackupPolicies"
+										r.pathPattern = "/v1beta/projects/{projectNumber}/locations/{locationId}/backupPolicies"
+										r.args = args
+										r.count = 2
+										return r, true
+									case "POST":
+										r.name = V1betaCreateBackupPolicyOperation
+										r.summary = "Create a new backup policy"
+										r.operationID = "v1beta_createBackupPolicy"
+										r.pathPattern = "/v1beta/projects/{projectNumber}/locations/{locationId}/backupPolicies"
+										r.args = args
+										r.count = 2
+										return r, true
+									default:
+										return
+									}
+								}
+								switch elem[0] {
+								case '/': // Prefix: "/"
+
+									if l := len("/"); len(elem) >= l && elem[0:l] == "/" {
+										elem = elem[l:]
+									} else {
+										break
+									}
+
+									// Param: "backupPolicyId"
+									// Leaf parameter, slashes are prohibited
+									idx := strings.IndexByte(elem, '/')
+									if idx >= 0 {
+										break
+									}
+									args[2] = elem
+									elem = ""
+
+									if len(elem) == 0 {
+										// Leaf node.
+										switch method {
+										case "DELETE":
+											r.name = V1betaDeleteBackupPolicyOperation
+											r.summary = "Delete a backup policy"
+											r.operationID = "v1beta_deleteBackupPolicy"
+											r.pathPattern = "/v1beta/projects/{projectNumber}/locations/{locationId}/backupPolicies/{backupPolicyId}"
+											r.args = args
+											r.count = 3
+											return r, true
+										case "GET":
+											r.name = V1betaDescribeBackupPolicyOperation
+											r.summary = "Describe a backup policy"
+											r.operationID = "v1beta_describeBackupPolicy"
+											r.pathPattern = "/v1beta/projects/{projectNumber}/locations/{locationId}/backupPolicies/{backupPolicyId}"
+											r.args = args
+											r.count = 3
+											return r, true
+										case "PUT":
+											r.name = V1betaUpdateBackupPolicyOperation
+											r.summary = "Update a backup policy"
+											r.operationID = "v1beta_updateBackupPolicy"
+											r.pathPattern = "/v1beta/projects/{projectNumber}/locations/{locationId}/backupPolicies/{backupPolicyId}"
+											r.args = args
+											r.count = 3
+											return r, true
+										default:
+											return
+										}
+									}
+
+								}
+
+							case 'g': // Prefix: "getMultiple"
+
+								if l := len("getMultiple"); len(elem) >= l && elem[0:l] == "getMultiple" {
+									elem = elem[l:]
+								} else {
+									break
+								}
+
+								if len(elem) == 0 {
+									break
+								}
+								switch elem[0] {
+								case 'B': // Prefix: "BackupPolicies"
+
+									if l := len("BackupPolicies"); len(elem) >= l && elem[0:l] == "BackupPolicies" {
+										elem = elem[l:]
+									} else {
+										break
+									}
+
+									if len(elem) == 0 {
+										// Leaf node.
+										switch method {
+										case "POST":
+											r.name = V1betaGetMultipleBackupPoliciesOperation
+											r.summary = "List specified backup policies"
+											r.operationID = "v1beta_getMultipleBackupPolicies"
+											r.pathPattern = "/v1beta/projects/{projectNumber}/locations/{locationId}/getMultipleBackupPolicies"
+											r.args = args
+											r.count = 2
+											return r, true
+										default:
+											return
+										}
+									}
+
+								case 'P': // Prefix: "Pools"
+
+									if l := len("Pools"); len(elem) >= l && elem[0:l] == "Pools" {
+										elem = elem[l:]
+									} else {
+										break
+									}
+
+									if len(elem) == 0 {
+										// Leaf node.
+										switch method {
+										case "POST":
+											r.name = V1betaGetMultiplePoolsOperation
+											r.summary = "List specified pools"
+											r.operationID = "v1beta_getMultiplePools"
+											r.pathPattern = "/v1beta/projects/{projectNumber}/locations/{locationId}/getMultiplePools"
+											r.args = args
+											r.count = 2
+											return r, true
+										default:
+											return
+										}
+									}
+
+								case 'V': // Prefix: "Volumes"
+
+									if l := len("Volumes"); len(elem) >= l && elem[0:l] == "Volumes" {
+										elem = elem[l:]
+									} else {
+										break
+									}
+
+									if len(elem) == 0 {
+										// Leaf node.
+										switch method {
+										case "POST":
+											r.name = V1betaGetMultipleVolumesOperation
+											r.summary = "List specified volumes"
+											r.operationID = "v1beta_getMultipleVolumes"
+											r.pathPattern = "/v1beta/projects/{projectNumber}/locations/{locationId}/getMultipleVolumes"
+											r.args = args
+											r.count = 2
+											return r, true
+										default:
+											return
+										}
+									}
+
+								}
+
+							case 'h': // Prefix: "hostGroups"
+
+								if l := len("hostGroups"); len(elem) >= l && elem[0:l] == "hostGroups" {
+									elem = elem[l:]
+								} else {
+									break
+								}
+
+								if len(elem) == 0 {
+									switch method {
+									case "GET":
+										r.name = V1betaListHostGroupsOperation
+										r.summary = "List all HostGroups"
+										r.operationID = "v1beta_listHostGroups"
+										r.pathPattern = "/v1beta/projects/{projectNumber}/locations/{locationId}/hostGroups"
+										r.args = args
+										r.count = 2
+										return r, true
+									case "POST":
+										r.name = V1betaCreateHostGroupOperation
+										r.summary = "Create a new HostGroup"
+										r.operationID = "v1beta_createHostGroup"
+										r.pathPattern = "/v1beta/projects/{projectNumber}/locations/{locationId}/hostGroups"
+										r.args = args
+										r.count = 2
+										return r, true
+									default:
+										return
+									}
+								}
+								switch elem[0] {
+								case '/': // Prefix: "/"
+
+									if l := len("/"); len(elem) >= l && elem[0:l] == "/" {
+										elem = elem[l:]
+									} else {
+										break
+									}
+
+									if len(elem) == 0 {
+										break
+									}
+									switch elem[0] {
+									case 'g': // Prefix: "getMultipleHostGroups"
+										origElem := elem
+										if l := len("getMultipleHostGroups"); len(elem) >= l && elem[0:l] == "getMultipleHostGroups" {
+											elem = elem[l:]
+										} else {
+											break
+										}
+
+										if len(elem) == 0 {
+											// Leaf node.
 											switch method {
 											case "POST":
-												r.name = V1betaCreateReplicationOperation
-												r.summary = "Create a new replication"
-												r.operationID = "v1beta_createReplication"
-												r.pathPattern = "/v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeResourceId}/replications"
+												r.name = V1betaGetMultipleHostGroupsOperation
+												r.summary = "List specified HostGroups"
+												r.operationID = "v1beta_getMultipleHostGroups"
+												r.pathPattern = "/v1beta/projects/{projectNumber}/locations/{locationId}/hostGroups/getMultipleHostGroups"
+												r.args = args
+												r.count = 2
+												return r, true
+											default:
+												return
+											}
+										}
+
+										elem = origElem
+									}
+									// Param: "hostGroupId"
+									// Leaf parameter, slashes are prohibited
+									idx := strings.IndexByte(elem, '/')
+									if idx >= 0 {
+										break
+									}
+									args[2] = elem
+									elem = ""
+
+									if len(elem) == 0 {
+										// Leaf node.
+										switch method {
+										case "DELETE":
+											r.name = V1betaDeleteHostGroupOperation
+											r.summary = "Delete a HostGroup"
+											r.operationID = "v1beta_deleteHostGroup"
+											r.pathPattern = "/v1beta/projects/{projectNumber}/locations/{locationId}/hostGroups/{hostGroupId}"
+											r.args = args
+											r.count = 3
+											return r, true
+										case "GET":
+											r.name = V1betaDescribeHostGroupOperation
+											r.summary = "Describe a HostGroup"
+											r.operationID = "v1beta_describeHostGroup"
+											r.pathPattern = "/v1beta/projects/{projectNumber}/locations/{locationId}/hostGroups/{hostGroupId}"
+											r.args = args
+											r.count = 3
+											return r, true
+										case "PUT":
+											r.name = V1betaUpdateHostGroupOperation
+											r.summary = "Update a HostGroup"
+											r.operationID = "v1beta_updateHostGroup"
+											r.pathPattern = "/v1beta/projects/{projectNumber}/locations/{locationId}/hostGroups/{hostGroupId}"
+											r.args = args
+											r.count = 3
+											return r, true
+										default:
+											return
+										}
+									}
+
+								}
+
+							case 'o': // Prefix: "operations/"
+
+								if l := len("operations/"); len(elem) >= l && elem[0:l] == "operations/" {
+									elem = elem[l:]
+								} else {
+									break
+								}
+
+								// Param: "operationId"
+								// Leaf parameter, slashes are prohibited
+								idx := strings.IndexByte(elem, '/')
+								if idx >= 0 {
+									break
+								}
+								args[2] = elem
+								elem = ""
+
+								if len(elem) == 0 {
+									// Leaf node.
+									switch method {
+									case "GET":
+										r.name = V1betaDescribeOperationOperation
+										r.summary = "Describes a long running operation"
+										r.operationID = "v1beta_describeOperation"
+										r.pathPattern = "/v1beta/projects/{projectNumber}/locations/{locationId}/operations/{operationId}"
+										r.args = args
+										r.count = 3
+										return r, true
+									default:
+										return
+									}
+								}
+
+							case 'p': // Prefix: "pools"
+
+								if l := len("pools"); len(elem) >= l && elem[0:l] == "pools" {
+									elem = elem[l:]
+								} else {
+									break
+								}
+
+								if len(elem) == 0 {
+									switch method {
+									case "GET":
+										r.name = V1betaListPoolsOperation
+										r.summary = "List all pools"
+										r.operationID = "v1beta_listPools"
+										r.pathPattern = "/v1beta/projects/{projectNumber}/locations/{locationId}/pools"
+										r.args = args
+										r.count = 2
+										return r, true
+									case "POST":
+										r.name = V1betaCreatePoolOperation
+										r.summary = "Create a new pool"
+										r.operationID = "v1beta_createPool"
+										r.pathPattern = "/v1beta/projects/{projectNumber}/locations/{locationId}/pools"
+										r.args = args
+										r.count = 2
+										return r, true
+									default:
+										return
+									}
+								}
+								switch elem[0] {
+								case '/': // Prefix: "/"
+
+									if l := len("/"); len(elem) >= l && elem[0:l] == "/" {
+										elem = elem[l:]
+									} else {
+										break
+									}
+
+									// Param: "poolId"
+									// Leaf parameter, slashes are prohibited
+									idx := strings.IndexByte(elem, '/')
+									if idx >= 0 {
+										break
+									}
+									args[2] = elem
+									elem = ""
+
+									if len(elem) == 0 {
+										// Leaf node.
+										switch method {
+										case "DELETE":
+											r.name = V1betaDeletePoolOperation
+											r.summary = "Delete a storage pool"
+											r.operationID = "v1beta_deletePool"
+											r.pathPattern = "/v1beta/projects/{projectNumber}/locations/{locationId}/pools/{poolId}"
+											r.args = args
+											r.count = 3
+											return r, true
+										case "GET":
+											r.name = V1betaDescribePoolOperation
+											r.summary = "Describe a pool"
+											r.operationID = "v1beta_describePool"
+											r.pathPattern = "/v1beta/projects/{projectNumber}/locations/{locationId}/pools/{poolId}"
+											r.args = args
+											r.count = 3
+											return r, true
+										case "PUT":
+											r.name = V1betaUpdatePoolOperation
+											r.summary = "Update a pool"
+											r.operationID = "v1beta_updatePool"
+											r.pathPattern = "/v1beta/projects/{projectNumber}/locations/{locationId}/pools/{poolId}"
+											r.args = args
+											r.count = 3
+											return r, true
+										default:
+											return
+										}
+									}
+
+								}
+
+							case 'r': // Prefix: "replications"
+
+								if l := len("replications"); len(elem) >= l && elem[0:l] == "replications" {
+									elem = elem[l:]
+								} else {
+									break
+								}
+
+								if len(elem) == 0 {
+									// Leaf node.
+									switch method {
+									case "GET":
+										r.name = V1betaListReplicationsOperation
+										r.summary = "List all volume replications"
+										r.operationID = "v1beta_listReplications"
+										r.pathPattern = "/v1beta/projects/{projectNumber}/locations/{locationId}/replications"
+										r.args = args
+										r.count = 2
+										return r, true
+									default:
+										return
+									}
+								}
+
+							case 's': // Prefix: "storage/kmsConfig"
+
+								if l := len("storage/kmsConfig"); len(elem) >= l && elem[0:l] == "storage/kmsConfig" {
+									elem = elem[l:]
+								} else {
+									break
+								}
+
+								if len(elem) == 0 {
+									switch method {
+									case "GET":
+										r.name = V1betaListKmsConfigurationsOperation
+										r.summary = "List all KMS configurations"
+										r.operationID = "v1beta_listKmsConfigurations"
+										r.pathPattern = "/v1beta/projects/{projectNumber}/locations/{locationId}/storage/kmsConfig"
+										r.args = args
+										r.count = 2
+										return r, true
+									case "POST":
+										r.name = V1betaCreateKmsConfigurationOperation
+										r.summary = "Create KMS configuration"
+										r.operationID = "v1beta_CreateKmsConfiguration"
+										r.pathPattern = "/v1beta/projects/{projectNumber}/locations/{locationId}/storage/kmsConfig"
+										r.args = args
+										r.count = 2
+										return r, true
+									default:
+										return
+									}
+								}
+								switch elem[0] {
+								case '/': // Prefix: "/"
+
+									if l := len("/"); len(elem) >= l && elem[0:l] == "/" {
+										elem = elem[l:]
+									} else {
+										break
+									}
+
+									// Param: "kmsConfigId"
+									// Match until "/"
+									idx := strings.IndexByte(elem, '/')
+									if idx < 0 {
+										idx = len(elem)
+									}
+									args[2] = elem[:idx]
+									elem = elem[idx:]
+
+									if len(elem) == 0 {
+										switch method {
+										case "DELETE":
+											r.name = V1betaDeleteKmsConfigurationOperation
+											r.summary = "Deletes a KMS configuration"
+											r.operationID = "v1beta_deleteKmsConfiguration"
+											r.pathPattern = "/v1beta/projects/{projectNumber}/locations/{locationId}/storage/kmsConfig/{kmsConfigId}"
+											r.args = args
+											r.count = 3
+											return r, true
+										case "GET":
+											r.name = V1betaDescribeKmsConfigurationOperation
+											r.summary = "Describe KMS configuration"
+											r.operationID = "v1beta_describeKmsConfiguration"
+											r.pathPattern = "/v1beta/projects/{projectNumber}/locations/{locationId}/storage/kmsConfig/{kmsConfigId}"
+											r.args = args
+											r.count = 3
+											return r, true
+										case "PUT":
+											r.name = V1betaUpdateKmsConfigurationOperation
+											r.summary = "Update a KMS configuration"
+											r.operationID = "v1beta_updateKmsConfiguration"
+											r.pathPattern = "/v1beta/projects/{projectNumber}/locations/{locationId}/storage/kmsConfig/{kmsConfigId}"
+											r.args = args
+											r.count = 3
+											return r, true
+										default:
+											return
+										}
+									}
+									switch elem[0] {
+									case '/': // Prefix: "/check"
+
+										if l := len("/check"); len(elem) >= l && elem[0:l] == "/check" {
+											elem = elem[l:]
+										} else {
+											break
+										}
+
+										if len(elem) == 0 {
+											// Leaf node.
+											switch method {
+											case "GET":
+												r.name = V1betaCheckKmsConfigOperation
+												r.summary = "Verifies KMS configuration reachability"
+												r.operationID = "v1beta_checkKmsConfig"
+												r.pathPattern = "/v1beta/projects/{projectNumber}/locations/{locationId}/storage/kmsConfig/{kmsConfigId}/check"
 												r.args = args
 												r.count = 3
 												return r, true
@@ -1787,41 +2308,143 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 												return
 											}
 										}
-										switch elem[0] {
-										case '/': // Prefix: "/"
 
-											if l := len("/"); len(elem) >= l && elem[0:l] == "/" {
+									}
+
+								}
+
+							case 'v': // Prefix: "volumes"
+
+								if l := len("volumes"); len(elem) >= l && elem[0:l] == "volumes" {
+									elem = elem[l:]
+								} else {
+									break
+								}
+
+								if len(elem) == 0 {
+									switch method {
+									case "GET":
+										r.name = V1betaListVolumesOperation
+										r.summary = "List all volumes"
+										r.operationID = "v1beta_listVolumes"
+										r.pathPattern = "/v1beta/projects/{projectNumber}/locations/{locationId}/volumes"
+										r.args = args
+										r.count = 2
+										return r, true
+									case "POST":
+										r.name = V1betaCreateVolumeOperation
+										r.summary = "Create a new volume"
+										r.operationID = "v1beta_createVolume"
+										r.pathPattern = "/v1beta/projects/{projectNumber}/locations/{locationId}/volumes"
+										r.args = args
+										r.count = 2
+										return r, true
+									default:
+										return
+									}
+								}
+								switch elem[0] {
+								case '/': // Prefix: "/"
+
+									if l := len("/"); len(elem) >= l && elem[0:l] == "/" {
+										elem = elem[l:]
+									} else {
+										break
+									}
+
+									// Param: "volumeResourceId"
+									// Match until "/"
+									idx := strings.IndexByte(elem, '/')
+									if idx < 0 {
+										idx = len(elem)
+									}
+									args[2] = elem[:idx]
+									elem = elem[idx:]
+
+									if len(elem) == 0 {
+										switch method {
+										case "DELETE":
+											r.name = V1betaDeleteVolumeOperation
+											r.summary = "Delete a volume"
+											r.operationID = "v1beta_deleteVolume"
+											r.pathPattern = "/v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}"
+											r.args = args
+											r.count = 3
+											return r, true
+										case "GET":
+											r.name = V1betaDescribeVolumeOperation
+											r.summary = "Describe a volume"
+											r.operationID = "v1beta_describeVolume"
+											r.pathPattern = "/v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}"
+											r.args = args
+											r.count = 3
+											return r, true
+										case "PUT":
+											r.name = V1betaUpdateVolumeOperation
+											r.summary = "Update a volume"
+											r.operationID = "v1beta_updateVolume"
+											r.pathPattern = "/v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}"
+											r.args = args
+											r.count = 3
+											return r, true
+										default:
+											return
+										}
+									}
+									switch elem[0] {
+									case '/': // Prefix: "/"
+
+										if l := len("/"); len(elem) >= l && elem[0:l] == "/" {
+											elem = elem[l:]
+										} else {
+											break
+										}
+
+										if len(elem) == 0 {
+											break
+										}
+										switch elem[0] {
+										case 'g': // Prefix: "getMultipleReplications"
+
+											if l := len("getMultipleReplications"); len(elem) >= l && elem[0:l] == "getMultipleReplications" {
 												elem = elem[l:]
 											} else {
 												break
 											}
 
-											// Param: "replicationResourceId"
-											// Match until "/"
-											idx := strings.IndexByte(elem, '/')
-											if idx < 0 {
-												idx = len(elem)
+											if len(elem) == 0 {
+												// Leaf node.
+												switch method {
+												case "POST":
+													r.name = V1betaGetMultipleReplicationsOperation
+													r.summary = "List specific replications"
+													r.operationID = "v1beta_getMultipleReplications"
+													r.pathPattern = "/v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeResourceId}/getMultipleReplications"
+													r.args = args
+													r.count = 3
+													return r, true
+												default:
+													return
+												}
 											}
-											args[3] = elem[:idx]
-											elem = elem[idx:]
+
+										case 'r': // Prefix: "replications"
+
+											if l := len("replications"); len(elem) >= l && elem[0:l] == "replications" {
+												elem = elem[l:]
+											} else {
+												break
+											}
 
 											if len(elem) == 0 {
 												switch method {
-												case "DELETE":
-													r.name = V1betaDeleteReplicationOperation
-													r.summary = "Delete replication"
-													r.operationID = "v1beta_deleteReplication"
-													r.pathPattern = "/v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeResourceId}/replications/{replicationResourceId}"
+												case "POST":
+													r.name = V1betaCreateReplicationOperation
+													r.summary = "Create a new replication"
+													r.operationID = "v1beta_createReplication"
+													r.pathPattern = "/v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeResourceId}/replications"
 													r.args = args
-													r.count = 4
-													return r, true
-												case "PUT":
-													r.name = V1betaUpdateReplicationOperation
-													r.summary = "Update replication"
-													r.operationID = "v1beta_updateReplication"
-													r.pathPattern = "/v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeResourceId}/replications/{replicationResourceId}"
-													r.args = args
-													r.count = 4
+													r.count = 3
 													return r, true
 												default:
 													return
@@ -1836,13 +2459,41 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 													break
 												}
 
+												// Param: "replicationResourceId"
+												// Match until "/"
+												idx := strings.IndexByte(elem, '/')
+												if idx < 0 {
+													idx = len(elem)
+												}
+												args[3] = elem[:idx]
+												elem = elem[idx:]
+
 												if len(elem) == 0 {
-													break
+													switch method {
+													case "DELETE":
+														r.name = V1betaDeleteReplicationOperation
+														r.summary = "Delete replication"
+														r.operationID = "v1beta_deleteReplication"
+														r.pathPattern = "/v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeResourceId}/replications/{replicationResourceId}"
+														r.args = args
+														r.count = 4
+														return r, true
+													case "PUT":
+														r.name = V1betaUpdateReplicationOperation
+														r.summary = "Update replication"
+														r.operationID = "v1beta_updateReplication"
+														r.pathPattern = "/v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeResourceId}/replications/{replicationResourceId}"
+														r.args = args
+														r.count = 4
+														return r, true
+													default:
+														return
+													}
 												}
 												switch elem[0] {
-												case 'r': // Prefix: "re"
+												case '/': // Prefix: "/"
 
-													if l := len("re"); len(elem) >= l && elem[0:l] == "re" {
+													if l := len("/"); len(elem) >= l && elem[0:l] == "/" {
 														elem = elem[l:]
 													} else {
 														break
@@ -1852,114 +2503,128 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 														break
 													}
 													switch elem[0] {
-													case 's': // Prefix: "sume"
+													case 'r': // Prefix: "re"
 
-														if l := len("sume"); len(elem) >= l && elem[0:l] == "sume" {
+														if l := len("re"); len(elem) >= l && elem[0:l] == "re" {
 															elem = elem[l:]
 														} else {
 															break
 														}
 
 														if len(elem) == 0 {
-															// Leaf node.
-															switch method {
-															case "POST":
-																r.name = V1betaResumeReplicationOperation
-																r.summary = "Resume replication"
-																r.operationID = "v1beta_resumeReplication"
-																r.pathPattern = "/v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeResourceId}/replications/{replicationResourceId}/resume"
-																r.args = args
-																r.count = 4
-																return r, true
-															default:
-																return
+															break
+														}
+														switch elem[0] {
+														case 's': // Prefix: "sume"
+
+															if l := len("sume"); len(elem) >= l && elem[0:l] == "sume" {
+																elem = elem[l:]
+															} else {
+																break
 															}
+
+															if len(elem) == 0 {
+																// Leaf node.
+																switch method {
+																case "POST":
+																	r.name = V1betaResumeReplicationOperation
+																	r.summary = "Resume replication"
+																	r.operationID = "v1beta_resumeReplication"
+																	r.pathPattern = "/v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeResourceId}/replications/{replicationResourceId}/resume"
+																	r.args = args
+																	r.count = 4
+																	return r, true
+																default:
+																	return
+																}
+															}
+
+														case 'v': // Prefix: "verseAndResumeReplication"
+
+															if l := len("verseAndResumeReplication"); len(elem) >= l && elem[0:l] == "verseAndResumeReplication" {
+																elem = elem[l:]
+															} else {
+																break
+															}
+
+															if len(elem) == 0 {
+																// Leaf node.
+																switch method {
+																case "POST":
+																	r.name = V1betaReverseAndResumeReplicationOperation
+																	r.summary = "Reverse and resume a replication"
+																	r.operationID = "v1beta_reverseAndResumeReplication"
+																	r.pathPattern = "/v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeResourceId}/replications/{replicationResourceId}/reverseAndResumeReplication"
+																	r.args = args
+																	r.count = 4
+																	return r, true
+																default:
+																	return
+																}
+															}
+
 														}
 
-													case 'v': // Prefix: "verseAndResumeReplication"
+													case 's': // Prefix: "s"
 
-														if l := len("verseAndResumeReplication"); len(elem) >= l && elem[0:l] == "verseAndResumeReplication" {
+														if l := len("s"); len(elem) >= l && elem[0:l] == "s" {
 															elem = elem[l:]
 														} else {
 															break
 														}
 
 														if len(elem) == 0 {
-															// Leaf node.
-															switch method {
-															case "POST":
-																r.name = V1betaReverseAndResumeReplicationOperation
-																r.summary = "Reverse and resume a replication"
-																r.operationID = "v1beta_reverseAndResumeReplication"
-																r.pathPattern = "/v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeResourceId}/replications/{replicationResourceId}/reverseAndResumeReplication"
-																r.args = args
-																r.count = 4
-																return r, true
-															default:
-																return
-															}
-														}
-
-													}
-
-												case 's': // Prefix: "s"
-
-													if l := len("s"); len(elem) >= l && elem[0:l] == "s" {
-														elem = elem[l:]
-													} else {
-														break
-													}
-
-													if len(elem) == 0 {
-														break
-													}
-													switch elem[0] {
-													case 't': // Prefix: "top"
-
-														if l := len("top"); len(elem) >= l && elem[0:l] == "top" {
-															elem = elem[l:]
-														} else {
 															break
 														}
+														switch elem[0] {
+														case 't': // Prefix: "top"
 
-														if len(elem) == 0 {
-															// Leaf node.
-															switch method {
-															case "POST":
-																r.name = V1betaStopReplicationOperation
-																r.summary = "Stop replication"
-																r.operationID = "v1beta_stopReplication"
-																r.pathPattern = "/v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeResourceId}/replications/{replicationResourceId}/stop"
-																r.args = args
-																r.count = 4
-																return r, true
-															default:
-																return
+															if l := len("top"); len(elem) >= l && elem[0:l] == "top" {
+																elem = elem[l:]
+															} else {
+																break
 															}
-														}
 
-													case 'y': // Prefix: "ync"
-
-														if l := len("ync"); len(elem) >= l && elem[0:l] == "ync" {
-															elem = elem[l:]
-														} else {
-															break
-														}
-
-														if len(elem) == 0 {
-															// Leaf node.
-															switch method {
-															case "POST":
-																r.name = V1betaSyncReplicationOperation
-																r.summary = "Sync replication"
-																r.operationID = "v1beta_syncReplication"
-																r.pathPattern = "/v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeResourceId}/replications/{replicationResourceId}/sync"
-																r.args = args
-																r.count = 4
-																return r, true
-															default:
-																return
+															if len(elem) == 0 {
+																// Leaf node.
+																switch method {
+																case "POST":
+																	r.name = V1betaStopReplicationOperation
+																	r.summary = "Stop replication"
+																	r.operationID = "v1beta_stopReplication"
+																	r.pathPattern = "/v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeResourceId}/replications/{replicationResourceId}/stop"
+																	r.args = args
+																	r.count = 4
+																	return r, true
+																default:
+																	return
+																}
 															}
+
+														case 'y': // Prefix: "ync"
+
+															if l := len("ync"); len(elem) >= l && elem[0:l] == "ync" {
+																elem = elem[l:]
+															} else {
+																break
+															}
+
+															if len(elem) == 0 {
+																// Leaf node.
+																switch method {
+																case "POST":
+																	r.name = V1betaSyncReplicationOperation
+																	r.summary = "Sync replication"
+																	r.operationID = "v1beta_syncReplication"
+																	r.pathPattern = "/v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeResourceId}/replications/{replicationResourceId}/sync"
+																	r.args = args
+																	r.count = 4
+																	return r, true
+																default:
+																	return
+																}
+															}
+
 														}
 
 													}

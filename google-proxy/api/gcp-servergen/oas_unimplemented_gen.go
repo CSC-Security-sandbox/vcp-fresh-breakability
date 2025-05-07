@@ -243,6 +243,100 @@ func (UnimplementedHandler) V1betaGetMultipleVolumes(ctx context.Context, req *V
 	return r, ht.ErrNotImplemented
 }
 
+// V1betaInternalAuthorizeVolumeReplication implements v1beta_internalAuthorizeVolumeReplication operation.
+//
+// Authorize a volume replication on the source.
+//
+// POST /v1beta/internal/projects/{projectNumber}/locations/{locationId}/volumeReplication/authorize
+func (UnimplementedHandler) V1betaInternalAuthorizeVolumeReplication(ctx context.Context, req *VolumeReplicationCreateInternalV1beta, params V1betaInternalAuthorizeVolumeReplicationParams) (r V1betaInternalAuthorizeVolumeReplicationRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// V1betaInternalCreateClusterPeer implements v1beta_internalCreateClusterPeer operation.
+//
+// Create a new cluster peer.
+//
+// POST /v1beta/internal/projects/{projectNumber}/locations/{locationId}/clusterPeer
+func (UnimplementedHandler) V1betaInternalCreateClusterPeer(ctx context.Context, req *ClusterPeerV1, params V1betaInternalCreateClusterPeerParams) (r V1betaInternalCreateClusterPeerRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// V1betaInternalCreateVolumeReplication implements v1beta_internalCreateVolumeReplication operation.
+//
+// Create a new volume replication.
+//
+// POST /v1beta/internal/projects/{projectNumber}/locations/{locationId}/volumeReplication
+func (UnimplementedHandler) V1betaInternalCreateVolumeReplication(ctx context.Context, req *VolumeReplicationCreateInternalV1beta, params V1betaInternalCreateVolumeReplicationParams) (r V1betaInternalCreateVolumeReplicationRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// V1betaInternalDeleteVolumeReplication implements v1beta_internalDeleteVolumeReplication operation.
+//
+// Warning! This operation will permanently delete the volume replication.
+//
+// DELETE /v1beta/internal/projects/{projectNumber}/locations/{locationId}/volumeReplication/{volumeReplicationId}
+func (UnimplementedHandler) V1betaInternalDeleteVolumeReplication(ctx context.Context, params V1betaInternalDeleteVolumeReplicationParams) (r V1betaInternalDeleteVolumeReplicationRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// V1betaInternalDescribePool implements v1beta_internalDescribePool operation.
+//
+// Returns the description of the specified volume replication by volume replication ID.
+//
+// GET /v1beta/internal/projects/{projectNumber}/locations/{locationId}/pool/{poolName}
+func (UnimplementedHandler) V1betaInternalDescribePool(ctx context.Context, params V1betaInternalDescribePoolParams) (r V1betaInternalDescribePoolRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// V1betaInternalDescribeVolumeReplication implements v1beta_internalDescribeVolumeReplication operation.
+//
+// Returns the description of the specified volume replication by volume replication ID.
+//
+// GET /v1beta/internal/projects/{projectNumber}/locations/{locationId}/volumeReplication/{volumeReplicationId}
+func (UnimplementedHandler) V1betaInternalDescribeVolumeReplication(ctx context.Context, params V1betaInternalDescribeVolumeReplicationParams) (r V1betaInternalDescribeVolumeReplicationRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// V1betaInternalReleaseVolumeReplication implements v1beta_internalReleaseVolumeReplication operation.
+//
+// Release a volume replication on the source.
+//
+// POST /v1beta/internal/projects/{projectNumber}/locations/{locationId}/volumeReplication/{volumeReplicationId}/release
+func (UnimplementedHandler) V1betaInternalReleaseVolumeReplication(ctx context.Context, params V1betaInternalReleaseVolumeReplicationParams) (r V1betaInternalReleaseVolumeReplicationRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// V1betaInternalResumeVolumeReplication implements v1beta_internalResumeVolumeReplication operation.
+//
+// Resume the replication relationship between source and destination in this volume replication and
+// marks the destination as a Data-protection volume. Can only be invoked from the destination end of
+// the relationship.
+//
+// POST /v1beta/internal/projects/{projectNumber}/locations/{locationId}/volumeReplication/{volumeReplicationId}/resume
+func (UnimplementedHandler) V1betaInternalResumeVolumeReplication(ctx context.Context, params V1betaInternalResumeVolumeReplicationParams) (r V1betaInternalResumeVolumeReplicationRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// V1betaInternalStopVolumeReplication implements v1beta_internalStopVolumeReplication operation.
+//
+// Stop the replication relationship between source and destination in this volume replication and
+// changes the type of the destination to RW. Can only be invoked from the destination end of the
+// relationship.
+//
+// POST /v1beta/internal/projects/{projectNumber}/locations/{locationId}/volumeReplication/{volumeReplicationId}/stop
+func (UnimplementedHandler) V1betaInternalStopVolumeReplication(ctx context.Context, req *V1betaInternalStopVolumeReplicationReq, params V1betaInternalStopVolumeReplicationParams) (r V1betaInternalStopVolumeReplicationRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// V1betaInternalUpdateVolumeReplication implements v1beta_internalUpdateVolumeReplication operation.
+//
+// Update the volume replication.
+//
+// PUT /v1beta/internal/projects/{projectNumber}/locations/{locationId}/volumeReplication/{volumeReplicationId}
+func (UnimplementedHandler) V1betaInternalUpdateVolumeReplication(ctx context.Context, req *VolumeReplicationUpdateInternalV1beta, params V1betaInternalUpdateVolumeReplicationParams) (r V1betaInternalUpdateVolumeReplicationRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
 // V1betaListBackupPolicies implements v1beta_listBackupPolicies operation.
 //
 // Returns list of all available backup policies.

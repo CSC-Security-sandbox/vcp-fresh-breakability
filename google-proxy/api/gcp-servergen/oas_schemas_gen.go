@@ -673,6 +673,225 @@ func (s *ChildAsset) SetAssetNames(val []string) {
 	s.AssetNames = val
 }
 
+// Ref: #/components/schemas/ClusterPeer_v1
+type ClusterPeerV1 struct {
+	// UUID v4 used to identify a resource.
+	UUID OptString `json:"uuid"`
+	// List of peer IPv4 addresses.
+	PeerAddresses []string `json:"peerAddresses"`
+	// The name of the peered cluster.
+	PeerClusterName OptString `json:"peerClusterName"`
+	// The generated passphrase used to accept peering on the peer cluster.
+	Passphrase OptNilString `json:"passphrase"`
+	// The expiration date of the passphrase used to accept peering on the peer cluster.
+	ExpiryTime OptNilDateTime `json:"expiryTime"`
+	// The availability of the peered cluster.
+	Availability        OptClusterPeerV1Availability        `json:"availability"`
+	AuthenticationState OptClusterPeerV1AuthenticationState `json:"authenticationState"`
+	// Jobs currently ongoing for the cluster peer.
+	Jobs []JobV1beta `json:"jobs"`
+}
+
+// GetUUID returns the value of UUID.
+func (s *ClusterPeerV1) GetUUID() OptString {
+	return s.UUID
+}
+
+// GetPeerAddresses returns the value of PeerAddresses.
+func (s *ClusterPeerV1) GetPeerAddresses() []string {
+	return s.PeerAddresses
+}
+
+// GetPeerClusterName returns the value of PeerClusterName.
+func (s *ClusterPeerV1) GetPeerClusterName() OptString {
+	return s.PeerClusterName
+}
+
+// GetPassphrase returns the value of Passphrase.
+func (s *ClusterPeerV1) GetPassphrase() OptNilString {
+	return s.Passphrase
+}
+
+// GetExpiryTime returns the value of ExpiryTime.
+func (s *ClusterPeerV1) GetExpiryTime() OptNilDateTime {
+	return s.ExpiryTime
+}
+
+// GetAvailability returns the value of Availability.
+func (s *ClusterPeerV1) GetAvailability() OptClusterPeerV1Availability {
+	return s.Availability
+}
+
+// GetAuthenticationState returns the value of AuthenticationState.
+func (s *ClusterPeerV1) GetAuthenticationState() OptClusterPeerV1AuthenticationState {
+	return s.AuthenticationState
+}
+
+// GetJobs returns the value of Jobs.
+func (s *ClusterPeerV1) GetJobs() []JobV1beta {
+	return s.Jobs
+}
+
+// SetUUID sets the value of UUID.
+func (s *ClusterPeerV1) SetUUID(val OptString) {
+	s.UUID = val
+}
+
+// SetPeerAddresses sets the value of PeerAddresses.
+func (s *ClusterPeerV1) SetPeerAddresses(val []string) {
+	s.PeerAddresses = val
+}
+
+// SetPeerClusterName sets the value of PeerClusterName.
+func (s *ClusterPeerV1) SetPeerClusterName(val OptString) {
+	s.PeerClusterName = val
+}
+
+// SetPassphrase sets the value of Passphrase.
+func (s *ClusterPeerV1) SetPassphrase(val OptNilString) {
+	s.Passphrase = val
+}
+
+// SetExpiryTime sets the value of ExpiryTime.
+func (s *ClusterPeerV1) SetExpiryTime(val OptNilDateTime) {
+	s.ExpiryTime = val
+}
+
+// SetAvailability sets the value of Availability.
+func (s *ClusterPeerV1) SetAvailability(val OptClusterPeerV1Availability) {
+	s.Availability = val
+}
+
+// SetAuthenticationState sets the value of AuthenticationState.
+func (s *ClusterPeerV1) SetAuthenticationState(val OptClusterPeerV1AuthenticationState) {
+	s.AuthenticationState = val
+}
+
+// SetJobs sets the value of Jobs.
+func (s *ClusterPeerV1) SetJobs(val []JobV1beta) {
+	s.Jobs = val
+}
+
+func (*ClusterPeerV1) v1betaInternalCreateClusterPeerRes() {}
+
+type ClusterPeerV1AuthenticationState string
+
+const (
+	ClusterPeerV1AuthenticationStateOk      ClusterPeerV1AuthenticationState = "ok"
+	ClusterPeerV1AuthenticationStateAbsent  ClusterPeerV1AuthenticationState = "absent"
+	ClusterPeerV1AuthenticationStatePending ClusterPeerV1AuthenticationState = "pending"
+	ClusterPeerV1AuthenticationStateProblem ClusterPeerV1AuthenticationState = "problem"
+)
+
+// AllValues returns all ClusterPeerV1AuthenticationState values.
+func (ClusterPeerV1AuthenticationState) AllValues() []ClusterPeerV1AuthenticationState {
+	return []ClusterPeerV1AuthenticationState{
+		ClusterPeerV1AuthenticationStateOk,
+		ClusterPeerV1AuthenticationStateAbsent,
+		ClusterPeerV1AuthenticationStatePending,
+		ClusterPeerV1AuthenticationStateProblem,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ClusterPeerV1AuthenticationState) MarshalText() ([]byte, error) {
+	switch s {
+	case ClusterPeerV1AuthenticationStateOk:
+		return []byte(s), nil
+	case ClusterPeerV1AuthenticationStateAbsent:
+		return []byte(s), nil
+	case ClusterPeerV1AuthenticationStatePending:
+		return []byte(s), nil
+	case ClusterPeerV1AuthenticationStateProblem:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ClusterPeerV1AuthenticationState) UnmarshalText(data []byte) error {
+	switch ClusterPeerV1AuthenticationState(data) {
+	case ClusterPeerV1AuthenticationStateOk:
+		*s = ClusterPeerV1AuthenticationStateOk
+		return nil
+	case ClusterPeerV1AuthenticationStateAbsent:
+		*s = ClusterPeerV1AuthenticationStateAbsent
+		return nil
+	case ClusterPeerV1AuthenticationStatePending:
+		*s = ClusterPeerV1AuthenticationStatePending
+		return nil
+	case ClusterPeerV1AuthenticationStateProblem:
+		*s = ClusterPeerV1AuthenticationStateProblem
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// The availability of the peered cluster.
+type ClusterPeerV1Availability string
+
+const (
+	ClusterPeerV1AvailabilityAvailable    ClusterPeerV1Availability = "available"
+	ClusterPeerV1AvailabilityPartial      ClusterPeerV1Availability = "partial"
+	ClusterPeerV1AvailabilityUnavailable  ClusterPeerV1Availability = "unavailable"
+	ClusterPeerV1AvailabilityPending      ClusterPeerV1Availability = "pending"
+	ClusterPeerV1AvailabilityUnidentified ClusterPeerV1Availability = "unidentified"
+)
+
+// AllValues returns all ClusterPeerV1Availability values.
+func (ClusterPeerV1Availability) AllValues() []ClusterPeerV1Availability {
+	return []ClusterPeerV1Availability{
+		ClusterPeerV1AvailabilityAvailable,
+		ClusterPeerV1AvailabilityPartial,
+		ClusterPeerV1AvailabilityUnavailable,
+		ClusterPeerV1AvailabilityPending,
+		ClusterPeerV1AvailabilityUnidentified,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ClusterPeerV1Availability) MarshalText() ([]byte, error) {
+	switch s {
+	case ClusterPeerV1AvailabilityAvailable:
+		return []byte(s), nil
+	case ClusterPeerV1AvailabilityPartial:
+		return []byte(s), nil
+	case ClusterPeerV1AvailabilityUnavailable:
+		return []byte(s), nil
+	case ClusterPeerV1AvailabilityPending:
+		return []byte(s), nil
+	case ClusterPeerV1AvailabilityUnidentified:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ClusterPeerV1Availability) UnmarshalText(data []byte) error {
+	switch ClusterPeerV1Availability(data) {
+	case ClusterPeerV1AvailabilityAvailable:
+		*s = ClusterPeerV1AvailabilityAvailable
+		return nil
+	case ClusterPeerV1AvailabilityPartial:
+		*s = ClusterPeerV1AvailabilityPartial
+		return nil
+	case ClusterPeerV1AvailabilityUnavailable:
+		*s = ClusterPeerV1AvailabilityUnavailable
+		return nil
+	case ClusterPeerV1AvailabilityPending:
+		*s = ClusterPeerV1AvailabilityPending
+		return nil
+	case ClusterPeerV1AvailabilityUnidentified:
+		*s = ClusterPeerV1AvailabilityUnidentified
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
 // If enabled (snapshotsToKeep > 0), make a snapshot every day. Defaults to midnight.
 // Ref: #/components/schemas/DailySchedule_v1beta
 type DailyScheduleV1beta struct {
@@ -1918,6 +2137,295 @@ func (s *HybridReplicationUserCommandsV1beta) SetCommands(val []string) {
 	s.Commands = val
 }
 
+// Ref: #/components/schemas/Job_v1beta
+type JobV1beta struct {
+	// UUID v4 used to identify the job.
+	JobId OptString `json:"jobId"`
+	// Creation date of the resource.
+	Created OptDateTime `json:"created"`
+	// UUID v4 used to identify the worker performing the job.
+	WorkerId OptString `json:"workerId"`
+	// UUID v4 used to identify the object to which the job relates.
+	ObjectId OptString `json:"objectId"`
+	// The type of the object to which the job relates.
+	ObjectType OptJobV1betaObjectType `json:"objectType"`
+	// The type of action that the job is performing.
+	Action OptJobV1betaAction `json:"action"`
+	// The state of the job.
+	State OptJobV1betaState `json:"state"`
+	// Details about the current job state.
+	StateDetails OptString `json:"stateDetails"`
+}
+
+// GetJobId returns the value of JobId.
+func (s *JobV1beta) GetJobId() OptString {
+	return s.JobId
+}
+
+// GetCreated returns the value of Created.
+func (s *JobV1beta) GetCreated() OptDateTime {
+	return s.Created
+}
+
+// GetWorkerId returns the value of WorkerId.
+func (s *JobV1beta) GetWorkerId() OptString {
+	return s.WorkerId
+}
+
+// GetObjectId returns the value of ObjectId.
+func (s *JobV1beta) GetObjectId() OptString {
+	return s.ObjectId
+}
+
+// GetObjectType returns the value of ObjectType.
+func (s *JobV1beta) GetObjectType() OptJobV1betaObjectType {
+	return s.ObjectType
+}
+
+// GetAction returns the value of Action.
+func (s *JobV1beta) GetAction() OptJobV1betaAction {
+	return s.Action
+}
+
+// GetState returns the value of State.
+func (s *JobV1beta) GetState() OptJobV1betaState {
+	return s.State
+}
+
+// GetStateDetails returns the value of StateDetails.
+func (s *JobV1beta) GetStateDetails() OptString {
+	return s.StateDetails
+}
+
+// SetJobId sets the value of JobId.
+func (s *JobV1beta) SetJobId(val OptString) {
+	s.JobId = val
+}
+
+// SetCreated sets the value of Created.
+func (s *JobV1beta) SetCreated(val OptDateTime) {
+	s.Created = val
+}
+
+// SetWorkerId sets the value of WorkerId.
+func (s *JobV1beta) SetWorkerId(val OptString) {
+	s.WorkerId = val
+}
+
+// SetObjectId sets the value of ObjectId.
+func (s *JobV1beta) SetObjectId(val OptString) {
+	s.ObjectId = val
+}
+
+// SetObjectType sets the value of ObjectType.
+func (s *JobV1beta) SetObjectType(val OptJobV1betaObjectType) {
+	s.ObjectType = val
+}
+
+// SetAction sets the value of Action.
+func (s *JobV1beta) SetAction(val OptJobV1betaAction) {
+	s.Action = val
+}
+
+// SetState sets the value of State.
+func (s *JobV1beta) SetState(val OptJobV1betaState) {
+	s.State = val
+}
+
+// SetStateDetails sets the value of StateDetails.
+func (s *JobV1beta) SetStateDetails(val OptString) {
+	s.StateDetails = val
+}
+
+// The type of action that the job is performing.
+type JobV1betaAction string
+
+const (
+	JobV1betaActionCreate     JobV1betaAction = "create"
+	JobV1betaActionUpdate     JobV1betaAction = "update"
+	JobV1betaActionDelete     JobV1betaAction = "delete"
+	JobV1betaActionRestore    JobV1betaAction = "restore"
+	JobV1betaActionInitialize JobV1betaAction = "initialize"
+	JobV1betaActionBreak      JobV1betaAction = "break"
+	JobV1betaActionResync     JobV1betaAction = "resync"
+	JobV1betaActionMount      JobV1betaAction = "mount"
+)
+
+// AllValues returns all JobV1betaAction values.
+func (JobV1betaAction) AllValues() []JobV1betaAction {
+	return []JobV1betaAction{
+		JobV1betaActionCreate,
+		JobV1betaActionUpdate,
+		JobV1betaActionDelete,
+		JobV1betaActionRestore,
+		JobV1betaActionInitialize,
+		JobV1betaActionBreak,
+		JobV1betaActionResync,
+		JobV1betaActionMount,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s JobV1betaAction) MarshalText() ([]byte, error) {
+	switch s {
+	case JobV1betaActionCreate:
+		return []byte(s), nil
+	case JobV1betaActionUpdate:
+		return []byte(s), nil
+	case JobV1betaActionDelete:
+		return []byte(s), nil
+	case JobV1betaActionRestore:
+		return []byte(s), nil
+	case JobV1betaActionInitialize:
+		return []byte(s), nil
+	case JobV1betaActionBreak:
+		return []byte(s), nil
+	case JobV1betaActionResync:
+		return []byte(s), nil
+	case JobV1betaActionMount:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *JobV1betaAction) UnmarshalText(data []byte) error {
+	switch JobV1betaAction(data) {
+	case JobV1betaActionCreate:
+		*s = JobV1betaActionCreate
+		return nil
+	case JobV1betaActionUpdate:
+		*s = JobV1betaActionUpdate
+		return nil
+	case JobV1betaActionDelete:
+		*s = JobV1betaActionDelete
+		return nil
+	case JobV1betaActionRestore:
+		*s = JobV1betaActionRestore
+		return nil
+	case JobV1betaActionInitialize:
+		*s = JobV1betaActionInitialize
+		return nil
+	case JobV1betaActionBreak:
+		*s = JobV1betaActionBreak
+		return nil
+	case JobV1betaActionResync:
+		*s = JobV1betaActionResync
+		return nil
+	case JobV1betaActionMount:
+		*s = JobV1betaActionMount
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// The type of the object to which the job relates.
+type JobV1betaObjectType string
+
+const (
+	JobV1betaObjectTypeVolume      JobV1betaObjectType = "Volume"
+	JobV1betaObjectTypeSnapshot    JobV1betaObjectType = "Snapshot"
+	JobV1betaObjectTypeMountTarget JobV1betaObjectType = "MountTarget"
+	JobV1betaObjectTypeBackup      JobV1betaObjectType = "Backup"
+)
+
+// AllValues returns all JobV1betaObjectType values.
+func (JobV1betaObjectType) AllValues() []JobV1betaObjectType {
+	return []JobV1betaObjectType{
+		JobV1betaObjectTypeVolume,
+		JobV1betaObjectTypeSnapshot,
+		JobV1betaObjectTypeMountTarget,
+		JobV1betaObjectTypeBackup,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s JobV1betaObjectType) MarshalText() ([]byte, error) {
+	switch s {
+	case JobV1betaObjectTypeVolume:
+		return []byte(s), nil
+	case JobV1betaObjectTypeSnapshot:
+		return []byte(s), nil
+	case JobV1betaObjectTypeMountTarget:
+		return []byte(s), nil
+	case JobV1betaObjectTypeBackup:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *JobV1betaObjectType) UnmarshalText(data []byte) error {
+	switch JobV1betaObjectType(data) {
+	case JobV1betaObjectTypeVolume:
+		*s = JobV1betaObjectTypeVolume
+		return nil
+	case JobV1betaObjectTypeSnapshot:
+		*s = JobV1betaObjectTypeSnapshot
+		return nil
+	case JobV1betaObjectTypeMountTarget:
+		*s = JobV1betaObjectTypeMountTarget
+		return nil
+	case JobV1betaObjectTypeBackup:
+		*s = JobV1betaObjectTypeBackup
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// The state of the job.
+type JobV1betaState string
+
+const (
+	JobV1betaStateOngoing JobV1betaState = "ongoing"
+	JobV1betaStateDone    JobV1betaState = "done"
+	JobV1betaStateError   JobV1betaState = "error"
+)
+
+// AllValues returns all JobV1betaState values.
+func (JobV1betaState) AllValues() []JobV1betaState {
+	return []JobV1betaState{
+		JobV1betaStateOngoing,
+		JobV1betaStateDone,
+		JobV1betaStateError,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s JobV1betaState) MarshalText() ([]byte, error) {
+	switch s {
+	case JobV1betaStateOngoing:
+		return []byte(s), nil
+	case JobV1betaStateDone:
+		return []byte(s), nil
+	case JobV1betaStateError:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *JobV1betaState) UnmarshalText(data []byte) error {
+	switch JobV1betaState(data) {
+	case JobV1betaStateOngoing:
+		*s = JobV1betaStateOngoing
+		return nil
+	case JobV1betaStateDone:
+		*s = JobV1betaStateDone
+		return nil
+	case JobV1betaStateError:
+		*s = JobV1betaStateError
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
 // Customer managed encryption key configuration validation definition.
 // Ref: #/components/schemas/KmsConfigCheck_v1beta
 type KmsConfigCheckV1beta struct {
@@ -2864,6 +3372,98 @@ func (o OptBool) Or(d bool) bool {
 	return d
 }
 
+// NewOptClusterPeerV1AuthenticationState returns new OptClusterPeerV1AuthenticationState with value set to v.
+func NewOptClusterPeerV1AuthenticationState(v ClusterPeerV1AuthenticationState) OptClusterPeerV1AuthenticationState {
+	return OptClusterPeerV1AuthenticationState{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptClusterPeerV1AuthenticationState is optional ClusterPeerV1AuthenticationState.
+type OptClusterPeerV1AuthenticationState struct {
+	Value ClusterPeerV1AuthenticationState
+	Set   bool
+}
+
+// IsSet returns true if OptClusterPeerV1AuthenticationState was set.
+func (o OptClusterPeerV1AuthenticationState) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptClusterPeerV1AuthenticationState) Reset() {
+	var v ClusterPeerV1AuthenticationState
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptClusterPeerV1AuthenticationState) SetTo(v ClusterPeerV1AuthenticationState) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptClusterPeerV1AuthenticationState) Get() (v ClusterPeerV1AuthenticationState, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptClusterPeerV1AuthenticationState) Or(d ClusterPeerV1AuthenticationState) ClusterPeerV1AuthenticationState {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptClusterPeerV1Availability returns new OptClusterPeerV1Availability with value set to v.
+func NewOptClusterPeerV1Availability(v ClusterPeerV1Availability) OptClusterPeerV1Availability {
+	return OptClusterPeerV1Availability{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptClusterPeerV1Availability is optional ClusterPeerV1Availability.
+type OptClusterPeerV1Availability struct {
+	Value ClusterPeerV1Availability
+	Set   bool
+}
+
+// IsSet returns true if OptClusterPeerV1Availability was set.
+func (o OptClusterPeerV1Availability) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptClusterPeerV1Availability) Reset() {
+	var v ClusterPeerV1Availability
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptClusterPeerV1Availability) SetTo(v ClusterPeerV1Availability) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptClusterPeerV1Availability) Get() (v ClusterPeerV1Availability, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptClusterPeerV1Availability) Or(d ClusterPeerV1Availability) ClusterPeerV1Availability {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
 // NewOptDailyScheduleV1beta returns new OptDailyScheduleV1beta with value set to v.
 func NewOptDailyScheduleV1beta(v DailyScheduleV1beta) OptDailyScheduleV1beta {
 	return OptDailyScheduleV1beta{
@@ -3686,6 +4286,190 @@ func (o OptInt32) Get() (v int32, ok bool) {
 
 // Or returns value if set, or given parameter if does not.
 func (o OptInt32) Or(d int32) int32 {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptInt64 returns new OptInt64 with value set to v.
+func NewOptInt64(v int64) OptInt64 {
+	return OptInt64{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptInt64 is optional int64.
+type OptInt64 struct {
+	Value int64
+	Set   bool
+}
+
+// IsSet returns true if OptInt64 was set.
+func (o OptInt64) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptInt64) Reset() {
+	var v int64
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptInt64) SetTo(v int64) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptInt64) Get() (v int64, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptInt64) Or(d int64) int64 {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptJobV1betaAction returns new OptJobV1betaAction with value set to v.
+func NewOptJobV1betaAction(v JobV1betaAction) OptJobV1betaAction {
+	return OptJobV1betaAction{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptJobV1betaAction is optional JobV1betaAction.
+type OptJobV1betaAction struct {
+	Value JobV1betaAction
+	Set   bool
+}
+
+// IsSet returns true if OptJobV1betaAction was set.
+func (o OptJobV1betaAction) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptJobV1betaAction) Reset() {
+	var v JobV1betaAction
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptJobV1betaAction) SetTo(v JobV1betaAction) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptJobV1betaAction) Get() (v JobV1betaAction, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptJobV1betaAction) Or(d JobV1betaAction) JobV1betaAction {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptJobV1betaObjectType returns new OptJobV1betaObjectType with value set to v.
+func NewOptJobV1betaObjectType(v JobV1betaObjectType) OptJobV1betaObjectType {
+	return OptJobV1betaObjectType{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptJobV1betaObjectType is optional JobV1betaObjectType.
+type OptJobV1betaObjectType struct {
+	Value JobV1betaObjectType
+	Set   bool
+}
+
+// IsSet returns true if OptJobV1betaObjectType was set.
+func (o OptJobV1betaObjectType) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptJobV1betaObjectType) Reset() {
+	var v JobV1betaObjectType
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptJobV1betaObjectType) SetTo(v JobV1betaObjectType) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptJobV1betaObjectType) Get() (v JobV1betaObjectType, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptJobV1betaObjectType) Or(d JobV1betaObjectType) JobV1betaObjectType {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptJobV1betaState returns new OptJobV1betaState with value set to v.
+func NewOptJobV1betaState(v JobV1betaState) OptJobV1betaState {
+	return OptJobV1betaState{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptJobV1betaState is optional JobV1betaState.
+type OptJobV1betaState struct {
+	Value JobV1betaState
+	Set   bool
+}
+
+// IsSet returns true if OptJobV1betaState was set.
+func (o OptJobV1betaState) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptJobV1betaState) Reset() {
+	var v JobV1betaState
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptJobV1betaState) SetTo(v JobV1betaState) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptJobV1betaState) Get() (v JobV1betaState, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptJobV1betaState) Or(d JobV1betaState) JobV1betaState {
 	if v, ok := o.Get(); ok {
 		return v
 	}
@@ -4706,6 +5490,69 @@ func (o OptNilTieringPolicyV1betaTierAction) Get() (v TieringPolicyV1betaTierAct
 
 // Or returns value if set, or given parameter if does not.
 func (o OptNilTieringPolicyV1betaTierAction) Or(d TieringPolicyV1betaTierAction) TieringPolicyV1betaTierAction {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptNilVolumeReplicationUpdateInternalV1betaReplicationSchedule returns new OptNilVolumeReplicationUpdateInternalV1betaReplicationSchedule with value set to v.
+func NewOptNilVolumeReplicationUpdateInternalV1betaReplicationSchedule(v VolumeReplicationUpdateInternalV1betaReplicationSchedule) OptNilVolumeReplicationUpdateInternalV1betaReplicationSchedule {
+	return OptNilVolumeReplicationUpdateInternalV1betaReplicationSchedule{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptNilVolumeReplicationUpdateInternalV1betaReplicationSchedule is optional nullable VolumeReplicationUpdateInternalV1betaReplicationSchedule.
+type OptNilVolumeReplicationUpdateInternalV1betaReplicationSchedule struct {
+	Value VolumeReplicationUpdateInternalV1betaReplicationSchedule
+	Set   bool
+	Null  bool
+}
+
+// IsSet returns true if OptNilVolumeReplicationUpdateInternalV1betaReplicationSchedule was set.
+func (o OptNilVolumeReplicationUpdateInternalV1betaReplicationSchedule) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptNilVolumeReplicationUpdateInternalV1betaReplicationSchedule) Reset() {
+	var v VolumeReplicationUpdateInternalV1betaReplicationSchedule
+	o.Value = v
+	o.Set = false
+	o.Null = false
+}
+
+// SetTo sets value to v.
+func (o *OptNilVolumeReplicationUpdateInternalV1betaReplicationSchedule) SetTo(v VolumeReplicationUpdateInternalV1betaReplicationSchedule) {
+	o.Set = true
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o OptNilVolumeReplicationUpdateInternalV1betaReplicationSchedule) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *OptNilVolumeReplicationUpdateInternalV1betaReplicationSchedule) SetToNull() {
+	o.Set = true
+	o.Null = true
+	var v VolumeReplicationUpdateInternalV1betaReplicationSchedule
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptNilVolumeReplicationUpdateInternalV1betaReplicationSchedule) Get() (v VolumeReplicationUpdateInternalV1betaReplicationSchedule, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptNilVolumeReplicationUpdateInternalV1betaReplicationSchedule) Or(d VolumeReplicationUpdateInternalV1betaReplicationSchedule) VolumeReplicationUpdateInternalV1betaReplicationSchedule {
 	if v, ok := o.Get(); ok {
 		return v
 	}
@@ -5770,6 +6617,696 @@ func (o OptVolumeCreateV1betaVolumeType) Or(d VolumeCreateV1betaVolumeType) Volu
 	return d
 }
 
+// NewOptVolumeReplicationCreateInternalV1betaHybridReplicationType returns new OptVolumeReplicationCreateInternalV1betaHybridReplicationType with value set to v.
+func NewOptVolumeReplicationCreateInternalV1betaHybridReplicationType(v VolumeReplicationCreateInternalV1betaHybridReplicationType) OptVolumeReplicationCreateInternalV1betaHybridReplicationType {
+	return OptVolumeReplicationCreateInternalV1betaHybridReplicationType{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptVolumeReplicationCreateInternalV1betaHybridReplicationType is optional VolumeReplicationCreateInternalV1betaHybridReplicationType.
+type OptVolumeReplicationCreateInternalV1betaHybridReplicationType struct {
+	Value VolumeReplicationCreateInternalV1betaHybridReplicationType
+	Set   bool
+}
+
+// IsSet returns true if OptVolumeReplicationCreateInternalV1betaHybridReplicationType was set.
+func (o OptVolumeReplicationCreateInternalV1betaHybridReplicationType) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptVolumeReplicationCreateInternalV1betaHybridReplicationType) Reset() {
+	var v VolumeReplicationCreateInternalV1betaHybridReplicationType
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptVolumeReplicationCreateInternalV1betaHybridReplicationType) SetTo(v VolumeReplicationCreateInternalV1betaHybridReplicationType) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptVolumeReplicationCreateInternalV1betaHybridReplicationType) Get() (v VolumeReplicationCreateInternalV1betaHybridReplicationType, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptVolumeReplicationCreateInternalV1betaHybridReplicationType) Or(d VolumeReplicationCreateInternalV1betaHybridReplicationType) VolumeReplicationCreateInternalV1betaHybridReplicationType {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptVolumeReplicationCreateInternalV1betaLabels returns new OptVolumeReplicationCreateInternalV1betaLabels with value set to v.
+func NewOptVolumeReplicationCreateInternalV1betaLabels(v VolumeReplicationCreateInternalV1betaLabels) OptVolumeReplicationCreateInternalV1betaLabels {
+	return OptVolumeReplicationCreateInternalV1betaLabels{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptVolumeReplicationCreateInternalV1betaLabels is optional VolumeReplicationCreateInternalV1betaLabels.
+type OptVolumeReplicationCreateInternalV1betaLabels struct {
+	Value VolumeReplicationCreateInternalV1betaLabels
+	Set   bool
+}
+
+// IsSet returns true if OptVolumeReplicationCreateInternalV1betaLabels was set.
+func (o OptVolumeReplicationCreateInternalV1betaLabels) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptVolumeReplicationCreateInternalV1betaLabels) Reset() {
+	var v VolumeReplicationCreateInternalV1betaLabels
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptVolumeReplicationCreateInternalV1betaLabels) SetTo(v VolumeReplicationCreateInternalV1betaLabels) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptVolumeReplicationCreateInternalV1betaLabels) Get() (v VolumeReplicationCreateInternalV1betaLabels, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptVolumeReplicationCreateInternalV1betaLabels) Or(d VolumeReplicationCreateInternalV1betaLabels) VolumeReplicationCreateInternalV1betaLabels {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptVolumeReplicationCreateInternalV1betaLifeCycleState returns new OptVolumeReplicationCreateInternalV1betaLifeCycleState with value set to v.
+func NewOptVolumeReplicationCreateInternalV1betaLifeCycleState(v VolumeReplicationCreateInternalV1betaLifeCycleState) OptVolumeReplicationCreateInternalV1betaLifeCycleState {
+	return OptVolumeReplicationCreateInternalV1betaLifeCycleState{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptVolumeReplicationCreateInternalV1betaLifeCycleState is optional VolumeReplicationCreateInternalV1betaLifeCycleState.
+type OptVolumeReplicationCreateInternalV1betaLifeCycleState struct {
+	Value VolumeReplicationCreateInternalV1betaLifeCycleState
+	Set   bool
+}
+
+// IsSet returns true if OptVolumeReplicationCreateInternalV1betaLifeCycleState was set.
+func (o OptVolumeReplicationCreateInternalV1betaLifeCycleState) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptVolumeReplicationCreateInternalV1betaLifeCycleState) Reset() {
+	var v VolumeReplicationCreateInternalV1betaLifeCycleState
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptVolumeReplicationCreateInternalV1betaLifeCycleState) SetTo(v VolumeReplicationCreateInternalV1betaLifeCycleState) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptVolumeReplicationCreateInternalV1betaLifeCycleState) Get() (v VolumeReplicationCreateInternalV1betaLifeCycleState, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptVolumeReplicationCreateInternalV1betaLifeCycleState) Or(d VolumeReplicationCreateInternalV1betaLifeCycleState) VolumeReplicationCreateInternalV1betaLifeCycleState {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptVolumeReplicationCreateInternalV1betaMirrorState returns new OptVolumeReplicationCreateInternalV1betaMirrorState with value set to v.
+func NewOptVolumeReplicationCreateInternalV1betaMirrorState(v VolumeReplicationCreateInternalV1betaMirrorState) OptVolumeReplicationCreateInternalV1betaMirrorState {
+	return OptVolumeReplicationCreateInternalV1betaMirrorState{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptVolumeReplicationCreateInternalV1betaMirrorState is optional VolumeReplicationCreateInternalV1betaMirrorState.
+type OptVolumeReplicationCreateInternalV1betaMirrorState struct {
+	Value VolumeReplicationCreateInternalV1betaMirrorState
+	Set   bool
+}
+
+// IsSet returns true if OptVolumeReplicationCreateInternalV1betaMirrorState was set.
+func (o OptVolumeReplicationCreateInternalV1betaMirrorState) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptVolumeReplicationCreateInternalV1betaMirrorState) Reset() {
+	var v VolumeReplicationCreateInternalV1betaMirrorState
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptVolumeReplicationCreateInternalV1betaMirrorState) SetTo(v VolumeReplicationCreateInternalV1betaMirrorState) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptVolumeReplicationCreateInternalV1betaMirrorState) Get() (v VolumeReplicationCreateInternalV1betaMirrorState, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptVolumeReplicationCreateInternalV1betaMirrorState) Or(d VolumeReplicationCreateInternalV1betaMirrorState) VolumeReplicationCreateInternalV1betaMirrorState {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptVolumeReplicationCreateInternalV1betaRelationshipStatus returns new OptVolumeReplicationCreateInternalV1betaRelationshipStatus with value set to v.
+func NewOptVolumeReplicationCreateInternalV1betaRelationshipStatus(v VolumeReplicationCreateInternalV1betaRelationshipStatus) OptVolumeReplicationCreateInternalV1betaRelationshipStatus {
+	return OptVolumeReplicationCreateInternalV1betaRelationshipStatus{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptVolumeReplicationCreateInternalV1betaRelationshipStatus is optional VolumeReplicationCreateInternalV1betaRelationshipStatus.
+type OptVolumeReplicationCreateInternalV1betaRelationshipStatus struct {
+	Value VolumeReplicationCreateInternalV1betaRelationshipStatus
+	Set   bool
+}
+
+// IsSet returns true if OptVolumeReplicationCreateInternalV1betaRelationshipStatus was set.
+func (o OptVolumeReplicationCreateInternalV1betaRelationshipStatus) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptVolumeReplicationCreateInternalV1betaRelationshipStatus) Reset() {
+	var v VolumeReplicationCreateInternalV1betaRelationshipStatus
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptVolumeReplicationCreateInternalV1betaRelationshipStatus) SetTo(v VolumeReplicationCreateInternalV1betaRelationshipStatus) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptVolumeReplicationCreateInternalV1betaRelationshipStatus) Get() (v VolumeReplicationCreateInternalV1betaRelationshipStatus, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptVolumeReplicationCreateInternalV1betaRelationshipStatus) Or(d VolumeReplicationCreateInternalV1betaRelationshipStatus) VolumeReplicationCreateInternalV1betaRelationshipStatus {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptVolumeReplicationCreateInternalV1betaReplicationPolicy returns new OptVolumeReplicationCreateInternalV1betaReplicationPolicy with value set to v.
+func NewOptVolumeReplicationCreateInternalV1betaReplicationPolicy(v VolumeReplicationCreateInternalV1betaReplicationPolicy) OptVolumeReplicationCreateInternalV1betaReplicationPolicy {
+	return OptVolumeReplicationCreateInternalV1betaReplicationPolicy{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptVolumeReplicationCreateInternalV1betaReplicationPolicy is optional VolumeReplicationCreateInternalV1betaReplicationPolicy.
+type OptVolumeReplicationCreateInternalV1betaReplicationPolicy struct {
+	Value VolumeReplicationCreateInternalV1betaReplicationPolicy
+	Set   bool
+}
+
+// IsSet returns true if OptVolumeReplicationCreateInternalV1betaReplicationPolicy was set.
+func (o OptVolumeReplicationCreateInternalV1betaReplicationPolicy) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptVolumeReplicationCreateInternalV1betaReplicationPolicy) Reset() {
+	var v VolumeReplicationCreateInternalV1betaReplicationPolicy
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptVolumeReplicationCreateInternalV1betaReplicationPolicy) SetTo(v VolumeReplicationCreateInternalV1betaReplicationPolicy) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptVolumeReplicationCreateInternalV1betaReplicationPolicy) Get() (v VolumeReplicationCreateInternalV1betaReplicationPolicy, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptVolumeReplicationCreateInternalV1betaReplicationPolicy) Or(d VolumeReplicationCreateInternalV1betaReplicationPolicy) VolumeReplicationCreateInternalV1betaReplicationPolicy {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptVolumeReplicationCreateInternalV1betaReplicationSchedule returns new OptVolumeReplicationCreateInternalV1betaReplicationSchedule with value set to v.
+func NewOptVolumeReplicationCreateInternalV1betaReplicationSchedule(v VolumeReplicationCreateInternalV1betaReplicationSchedule) OptVolumeReplicationCreateInternalV1betaReplicationSchedule {
+	return OptVolumeReplicationCreateInternalV1betaReplicationSchedule{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptVolumeReplicationCreateInternalV1betaReplicationSchedule is optional VolumeReplicationCreateInternalV1betaReplicationSchedule.
+type OptVolumeReplicationCreateInternalV1betaReplicationSchedule struct {
+	Value VolumeReplicationCreateInternalV1betaReplicationSchedule
+	Set   bool
+}
+
+// IsSet returns true if OptVolumeReplicationCreateInternalV1betaReplicationSchedule was set.
+func (o OptVolumeReplicationCreateInternalV1betaReplicationSchedule) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptVolumeReplicationCreateInternalV1betaReplicationSchedule) Reset() {
+	var v VolumeReplicationCreateInternalV1betaReplicationSchedule
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptVolumeReplicationCreateInternalV1betaReplicationSchedule) SetTo(v VolumeReplicationCreateInternalV1betaReplicationSchedule) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptVolumeReplicationCreateInternalV1betaReplicationSchedule) Get() (v VolumeReplicationCreateInternalV1betaReplicationSchedule, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptVolumeReplicationCreateInternalV1betaReplicationSchedule) Or(d VolumeReplicationCreateInternalV1betaReplicationSchedule) VolumeReplicationCreateInternalV1betaReplicationSchedule {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptVolumeReplicationInternalV1betaHybridReplicationType returns new OptVolumeReplicationInternalV1betaHybridReplicationType with value set to v.
+func NewOptVolumeReplicationInternalV1betaHybridReplicationType(v VolumeReplicationInternalV1betaHybridReplicationType) OptVolumeReplicationInternalV1betaHybridReplicationType {
+	return OptVolumeReplicationInternalV1betaHybridReplicationType{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptVolumeReplicationInternalV1betaHybridReplicationType is optional VolumeReplicationInternalV1betaHybridReplicationType.
+type OptVolumeReplicationInternalV1betaHybridReplicationType struct {
+	Value VolumeReplicationInternalV1betaHybridReplicationType
+	Set   bool
+}
+
+// IsSet returns true if OptVolumeReplicationInternalV1betaHybridReplicationType was set.
+func (o OptVolumeReplicationInternalV1betaHybridReplicationType) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptVolumeReplicationInternalV1betaHybridReplicationType) Reset() {
+	var v VolumeReplicationInternalV1betaHybridReplicationType
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptVolumeReplicationInternalV1betaHybridReplicationType) SetTo(v VolumeReplicationInternalV1betaHybridReplicationType) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptVolumeReplicationInternalV1betaHybridReplicationType) Get() (v VolumeReplicationInternalV1betaHybridReplicationType, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptVolumeReplicationInternalV1betaHybridReplicationType) Or(d VolumeReplicationInternalV1betaHybridReplicationType) VolumeReplicationInternalV1betaHybridReplicationType {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptVolumeReplicationInternalV1betaLabels returns new OptVolumeReplicationInternalV1betaLabels with value set to v.
+func NewOptVolumeReplicationInternalV1betaLabels(v VolumeReplicationInternalV1betaLabels) OptVolumeReplicationInternalV1betaLabels {
+	return OptVolumeReplicationInternalV1betaLabels{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptVolumeReplicationInternalV1betaLabels is optional VolumeReplicationInternalV1betaLabels.
+type OptVolumeReplicationInternalV1betaLabels struct {
+	Value VolumeReplicationInternalV1betaLabels
+	Set   bool
+}
+
+// IsSet returns true if OptVolumeReplicationInternalV1betaLabels was set.
+func (o OptVolumeReplicationInternalV1betaLabels) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptVolumeReplicationInternalV1betaLabels) Reset() {
+	var v VolumeReplicationInternalV1betaLabels
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptVolumeReplicationInternalV1betaLabels) SetTo(v VolumeReplicationInternalV1betaLabels) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptVolumeReplicationInternalV1betaLabels) Get() (v VolumeReplicationInternalV1betaLabels, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptVolumeReplicationInternalV1betaLabels) Or(d VolumeReplicationInternalV1betaLabels) VolumeReplicationInternalV1betaLabels {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptVolumeReplicationInternalV1betaLifeCycleState returns new OptVolumeReplicationInternalV1betaLifeCycleState with value set to v.
+func NewOptVolumeReplicationInternalV1betaLifeCycleState(v VolumeReplicationInternalV1betaLifeCycleState) OptVolumeReplicationInternalV1betaLifeCycleState {
+	return OptVolumeReplicationInternalV1betaLifeCycleState{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptVolumeReplicationInternalV1betaLifeCycleState is optional VolumeReplicationInternalV1betaLifeCycleState.
+type OptVolumeReplicationInternalV1betaLifeCycleState struct {
+	Value VolumeReplicationInternalV1betaLifeCycleState
+	Set   bool
+}
+
+// IsSet returns true if OptVolumeReplicationInternalV1betaLifeCycleState was set.
+func (o OptVolumeReplicationInternalV1betaLifeCycleState) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptVolumeReplicationInternalV1betaLifeCycleState) Reset() {
+	var v VolumeReplicationInternalV1betaLifeCycleState
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptVolumeReplicationInternalV1betaLifeCycleState) SetTo(v VolumeReplicationInternalV1betaLifeCycleState) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptVolumeReplicationInternalV1betaLifeCycleState) Get() (v VolumeReplicationInternalV1betaLifeCycleState, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptVolumeReplicationInternalV1betaLifeCycleState) Or(d VolumeReplicationInternalV1betaLifeCycleState) VolumeReplicationInternalV1betaLifeCycleState {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptVolumeReplicationInternalV1betaMirrorState returns new OptVolumeReplicationInternalV1betaMirrorState with value set to v.
+func NewOptVolumeReplicationInternalV1betaMirrorState(v VolumeReplicationInternalV1betaMirrorState) OptVolumeReplicationInternalV1betaMirrorState {
+	return OptVolumeReplicationInternalV1betaMirrorState{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptVolumeReplicationInternalV1betaMirrorState is optional VolumeReplicationInternalV1betaMirrorState.
+type OptVolumeReplicationInternalV1betaMirrorState struct {
+	Value VolumeReplicationInternalV1betaMirrorState
+	Set   bool
+}
+
+// IsSet returns true if OptVolumeReplicationInternalV1betaMirrorState was set.
+func (o OptVolumeReplicationInternalV1betaMirrorState) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptVolumeReplicationInternalV1betaMirrorState) Reset() {
+	var v VolumeReplicationInternalV1betaMirrorState
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptVolumeReplicationInternalV1betaMirrorState) SetTo(v VolumeReplicationInternalV1betaMirrorState) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptVolumeReplicationInternalV1betaMirrorState) Get() (v VolumeReplicationInternalV1betaMirrorState, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptVolumeReplicationInternalV1betaMirrorState) Or(d VolumeReplicationInternalV1betaMirrorState) VolumeReplicationInternalV1betaMirrorState {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptVolumeReplicationInternalV1betaRelationshipStatus returns new OptVolumeReplicationInternalV1betaRelationshipStatus with value set to v.
+func NewOptVolumeReplicationInternalV1betaRelationshipStatus(v VolumeReplicationInternalV1betaRelationshipStatus) OptVolumeReplicationInternalV1betaRelationshipStatus {
+	return OptVolumeReplicationInternalV1betaRelationshipStatus{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptVolumeReplicationInternalV1betaRelationshipStatus is optional VolumeReplicationInternalV1betaRelationshipStatus.
+type OptVolumeReplicationInternalV1betaRelationshipStatus struct {
+	Value VolumeReplicationInternalV1betaRelationshipStatus
+	Set   bool
+}
+
+// IsSet returns true if OptVolumeReplicationInternalV1betaRelationshipStatus was set.
+func (o OptVolumeReplicationInternalV1betaRelationshipStatus) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptVolumeReplicationInternalV1betaRelationshipStatus) Reset() {
+	var v VolumeReplicationInternalV1betaRelationshipStatus
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptVolumeReplicationInternalV1betaRelationshipStatus) SetTo(v VolumeReplicationInternalV1betaRelationshipStatus) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptVolumeReplicationInternalV1betaRelationshipStatus) Get() (v VolumeReplicationInternalV1betaRelationshipStatus, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptVolumeReplicationInternalV1betaRelationshipStatus) Or(d VolumeReplicationInternalV1betaRelationshipStatus) VolumeReplicationInternalV1betaRelationshipStatus {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptVolumeReplicationInternalV1betaReplicationPolicy returns new OptVolumeReplicationInternalV1betaReplicationPolicy with value set to v.
+func NewOptVolumeReplicationInternalV1betaReplicationPolicy(v VolumeReplicationInternalV1betaReplicationPolicy) OptVolumeReplicationInternalV1betaReplicationPolicy {
+	return OptVolumeReplicationInternalV1betaReplicationPolicy{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptVolumeReplicationInternalV1betaReplicationPolicy is optional VolumeReplicationInternalV1betaReplicationPolicy.
+type OptVolumeReplicationInternalV1betaReplicationPolicy struct {
+	Value VolumeReplicationInternalV1betaReplicationPolicy
+	Set   bool
+}
+
+// IsSet returns true if OptVolumeReplicationInternalV1betaReplicationPolicy was set.
+func (o OptVolumeReplicationInternalV1betaReplicationPolicy) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptVolumeReplicationInternalV1betaReplicationPolicy) Reset() {
+	var v VolumeReplicationInternalV1betaReplicationPolicy
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptVolumeReplicationInternalV1betaReplicationPolicy) SetTo(v VolumeReplicationInternalV1betaReplicationPolicy) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptVolumeReplicationInternalV1betaReplicationPolicy) Get() (v VolumeReplicationInternalV1betaReplicationPolicy, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptVolumeReplicationInternalV1betaReplicationPolicy) Or(d VolumeReplicationInternalV1betaReplicationPolicy) VolumeReplicationInternalV1betaReplicationPolicy {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptVolumeReplicationInternalV1betaReplicationSchedule returns new OptVolumeReplicationInternalV1betaReplicationSchedule with value set to v.
+func NewOptVolumeReplicationInternalV1betaReplicationSchedule(v VolumeReplicationInternalV1betaReplicationSchedule) OptVolumeReplicationInternalV1betaReplicationSchedule {
+	return OptVolumeReplicationInternalV1betaReplicationSchedule{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptVolumeReplicationInternalV1betaReplicationSchedule is optional VolumeReplicationInternalV1betaReplicationSchedule.
+type OptVolumeReplicationInternalV1betaReplicationSchedule struct {
+	Value VolumeReplicationInternalV1betaReplicationSchedule
+	Set   bool
+}
+
+// IsSet returns true if OptVolumeReplicationInternalV1betaReplicationSchedule was set.
+func (o OptVolumeReplicationInternalV1betaReplicationSchedule) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptVolumeReplicationInternalV1betaReplicationSchedule) Reset() {
+	var v VolumeReplicationInternalV1betaReplicationSchedule
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptVolumeReplicationInternalV1betaReplicationSchedule) SetTo(v VolumeReplicationInternalV1betaReplicationSchedule) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptVolumeReplicationInternalV1betaReplicationSchedule) Get() (v VolumeReplicationInternalV1betaReplicationSchedule, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptVolumeReplicationInternalV1betaReplicationSchedule) Or(d VolumeReplicationInternalV1betaReplicationSchedule) VolumeReplicationInternalV1betaReplicationSchedule {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptVolumeReplicationUpdateInternalV1betaLabels returns new OptVolumeReplicationUpdateInternalV1betaLabels with value set to v.
+func NewOptVolumeReplicationUpdateInternalV1betaLabels(v VolumeReplicationUpdateInternalV1betaLabels) OptVolumeReplicationUpdateInternalV1betaLabels {
+	return OptVolumeReplicationUpdateInternalV1betaLabels{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptVolumeReplicationUpdateInternalV1betaLabels is optional VolumeReplicationUpdateInternalV1betaLabels.
+type OptVolumeReplicationUpdateInternalV1betaLabels struct {
+	Value VolumeReplicationUpdateInternalV1betaLabels
+	Set   bool
+}
+
+// IsSet returns true if OptVolumeReplicationUpdateInternalV1betaLabels was set.
+func (o OptVolumeReplicationUpdateInternalV1betaLabels) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptVolumeReplicationUpdateInternalV1betaLabels) Reset() {
+	var v VolumeReplicationUpdateInternalV1betaLabels
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptVolumeReplicationUpdateInternalV1betaLabels) SetTo(v VolumeReplicationUpdateInternalV1betaLabels) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptVolumeReplicationUpdateInternalV1betaLabels) Get() (v VolumeReplicationUpdateInternalV1betaLabels, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptVolumeReplicationUpdateInternalV1betaLabels) Or(d VolumeReplicationUpdateInternalV1betaLabels) VolumeReplicationUpdateInternalV1betaLabels {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
 // NewOptVolumeUpdateV1betaLabels returns new OptVolumeUpdateV1betaLabels with value set to v.
 func NewOptVolumeUpdateV1betaLabels(v VolumeUpdateV1betaLabels) OptVolumeUpdateV1betaLabels {
 	return OptVolumeUpdateV1betaLabels{
@@ -6783,7 +8320,8 @@ func (s *PoolV1beta) SetUnifiedPool(val OptBool) {
 	s.UnifiedPool = val
 }
 
-func (*PoolV1beta) v1betaDescribePoolRes() {}
+func (*PoolV1beta) v1betaDescribePoolRes()         {}
+func (*PoolV1beta) v1betaInternalDescribePoolRes() {}
 
 type PoolV1betaAssetLocationMetadata struct {
 	ChildAssets OptNilChildAssetArray `json:"child_assets"`
@@ -9639,6 +11177,392 @@ type V1betaGetMultipleVolumesUnprocessableEntity Error
 
 func (*V1betaGetMultipleVolumesUnprocessableEntity) v1betaGetMultipleVolumesRes() {}
 
+type V1betaInternalAuthorizeVolumeReplicationBadRequest Error
+
+func (*V1betaInternalAuthorizeVolumeReplicationBadRequest) v1betaInternalAuthorizeVolumeReplicationRes() {
+}
+
+type V1betaInternalAuthorizeVolumeReplicationConflict Error
+
+func (*V1betaInternalAuthorizeVolumeReplicationConflict) v1betaInternalAuthorizeVolumeReplicationRes() {
+}
+
+type V1betaInternalAuthorizeVolumeReplicationForbidden Error
+
+func (*V1betaInternalAuthorizeVolumeReplicationForbidden) v1betaInternalAuthorizeVolumeReplicationRes() {
+}
+
+type V1betaInternalAuthorizeVolumeReplicationInternalServerError Error
+
+func (*V1betaInternalAuthorizeVolumeReplicationInternalServerError) v1betaInternalAuthorizeVolumeReplicationRes() {
+}
+
+type V1betaInternalAuthorizeVolumeReplicationMethodNotAllowed Error
+
+func (*V1betaInternalAuthorizeVolumeReplicationMethodNotAllowed) v1betaInternalAuthorizeVolumeReplicationRes() {
+}
+
+type V1betaInternalAuthorizeVolumeReplicationNotFound Error
+
+func (*V1betaInternalAuthorizeVolumeReplicationNotFound) v1betaInternalAuthorizeVolumeReplicationRes() {
+}
+
+type V1betaInternalAuthorizeVolumeReplicationUnauthorized Error
+
+func (*V1betaInternalAuthorizeVolumeReplicationUnauthorized) v1betaInternalAuthorizeVolumeReplicationRes() {
+}
+
+type V1betaInternalAuthorizeVolumeReplicationUnprocessableEntity Error
+
+func (*V1betaInternalAuthorizeVolumeReplicationUnprocessableEntity) v1betaInternalAuthorizeVolumeReplicationRes() {
+}
+
+type V1betaInternalCreateClusterPeerBadRequest Error
+
+func (*V1betaInternalCreateClusterPeerBadRequest) v1betaInternalCreateClusterPeerRes() {}
+
+type V1betaInternalCreateClusterPeerConflict Error
+
+func (*V1betaInternalCreateClusterPeerConflict) v1betaInternalCreateClusterPeerRes() {}
+
+type V1betaInternalCreateClusterPeerForbidden Error
+
+func (*V1betaInternalCreateClusterPeerForbidden) v1betaInternalCreateClusterPeerRes() {}
+
+type V1betaInternalCreateClusterPeerInternalServerError Error
+
+func (*V1betaInternalCreateClusterPeerInternalServerError) v1betaInternalCreateClusterPeerRes() {}
+
+type V1betaInternalCreateClusterPeerMethodNotAllowed Error
+
+func (*V1betaInternalCreateClusterPeerMethodNotAllowed) v1betaInternalCreateClusterPeerRes() {}
+
+type V1betaInternalCreateClusterPeerNotFound Error
+
+func (*V1betaInternalCreateClusterPeerNotFound) v1betaInternalCreateClusterPeerRes() {}
+
+type V1betaInternalCreateClusterPeerUnauthorized Error
+
+func (*V1betaInternalCreateClusterPeerUnauthorized) v1betaInternalCreateClusterPeerRes() {}
+
+type V1betaInternalCreateClusterPeerUnprocessableEntity Error
+
+func (*V1betaInternalCreateClusterPeerUnprocessableEntity) v1betaInternalCreateClusterPeerRes() {}
+
+type V1betaInternalCreateVolumeReplicationBadRequest Error
+
+func (*V1betaInternalCreateVolumeReplicationBadRequest) v1betaInternalCreateVolumeReplicationRes() {}
+
+type V1betaInternalCreateVolumeReplicationConflict Error
+
+func (*V1betaInternalCreateVolumeReplicationConflict) v1betaInternalCreateVolumeReplicationRes() {}
+
+type V1betaInternalCreateVolumeReplicationForbidden Error
+
+func (*V1betaInternalCreateVolumeReplicationForbidden) v1betaInternalCreateVolumeReplicationRes() {}
+
+type V1betaInternalCreateVolumeReplicationInternalServerError Error
+
+func (*V1betaInternalCreateVolumeReplicationInternalServerError) v1betaInternalCreateVolumeReplicationRes() {
+}
+
+type V1betaInternalCreateVolumeReplicationMethodNotAllowed Error
+
+func (*V1betaInternalCreateVolumeReplicationMethodNotAllowed) v1betaInternalCreateVolumeReplicationRes() {
+}
+
+type V1betaInternalCreateVolumeReplicationNotFound Error
+
+func (*V1betaInternalCreateVolumeReplicationNotFound) v1betaInternalCreateVolumeReplicationRes() {}
+
+type V1betaInternalCreateVolumeReplicationUnauthorized Error
+
+func (*V1betaInternalCreateVolumeReplicationUnauthorized) v1betaInternalCreateVolumeReplicationRes() {
+}
+
+type V1betaInternalCreateVolumeReplicationUnprocessableEntity Error
+
+func (*V1betaInternalCreateVolumeReplicationUnprocessableEntity) v1betaInternalCreateVolumeReplicationRes() {
+}
+
+type V1betaInternalDeleteVolumeReplicationBadRequest Error
+
+func (*V1betaInternalDeleteVolumeReplicationBadRequest) v1betaInternalDeleteVolumeReplicationRes() {}
+
+type V1betaInternalDeleteVolumeReplicationConflict Error
+
+func (*V1betaInternalDeleteVolumeReplicationConflict) v1betaInternalDeleteVolumeReplicationRes() {}
+
+type V1betaInternalDeleteVolumeReplicationForbidden Error
+
+func (*V1betaInternalDeleteVolumeReplicationForbidden) v1betaInternalDeleteVolumeReplicationRes() {}
+
+type V1betaInternalDeleteVolumeReplicationInternalServerError Error
+
+func (*V1betaInternalDeleteVolumeReplicationInternalServerError) v1betaInternalDeleteVolumeReplicationRes() {
+}
+
+type V1betaInternalDeleteVolumeReplicationMethodNotAllowed Error
+
+func (*V1betaInternalDeleteVolumeReplicationMethodNotAllowed) v1betaInternalDeleteVolumeReplicationRes() {
+}
+
+// V1betaInternalDeleteVolumeReplicationNoContent is response for V1betaInternalDeleteVolumeReplication operation.
+type V1betaInternalDeleteVolumeReplicationNoContent struct{}
+
+func (*V1betaInternalDeleteVolumeReplicationNoContent) v1betaInternalDeleteVolumeReplicationRes() {}
+
+type V1betaInternalDeleteVolumeReplicationNotFound Error
+
+func (*V1betaInternalDeleteVolumeReplicationNotFound) v1betaInternalDeleteVolumeReplicationRes() {}
+
+type V1betaInternalDeleteVolumeReplicationUnauthorized Error
+
+func (*V1betaInternalDeleteVolumeReplicationUnauthorized) v1betaInternalDeleteVolumeReplicationRes() {
+}
+
+type V1betaInternalDeleteVolumeReplicationUnprocessableEntity Error
+
+func (*V1betaInternalDeleteVolumeReplicationUnprocessableEntity) v1betaInternalDeleteVolumeReplicationRes() {
+}
+
+type V1betaInternalDescribePoolBadRequest Error
+
+func (*V1betaInternalDescribePoolBadRequest) v1betaInternalDescribePoolRes() {}
+
+type V1betaInternalDescribePoolConflict Error
+
+func (*V1betaInternalDescribePoolConflict) v1betaInternalDescribePoolRes() {}
+
+type V1betaInternalDescribePoolForbidden Error
+
+func (*V1betaInternalDescribePoolForbidden) v1betaInternalDescribePoolRes() {}
+
+type V1betaInternalDescribePoolInternalServerError Error
+
+func (*V1betaInternalDescribePoolInternalServerError) v1betaInternalDescribePoolRes() {}
+
+type V1betaInternalDescribePoolMethodNotAllowed Error
+
+func (*V1betaInternalDescribePoolMethodNotAllowed) v1betaInternalDescribePoolRes() {}
+
+type V1betaInternalDescribePoolNotFound Error
+
+func (*V1betaInternalDescribePoolNotFound) v1betaInternalDescribePoolRes() {}
+
+type V1betaInternalDescribePoolUnauthorized Error
+
+func (*V1betaInternalDescribePoolUnauthorized) v1betaInternalDescribePoolRes() {}
+
+type V1betaInternalDescribePoolUnprocessableEntity Error
+
+func (*V1betaInternalDescribePoolUnprocessableEntity) v1betaInternalDescribePoolRes() {}
+
+type V1betaInternalDescribeVolumeReplicationBadRequest Error
+
+func (*V1betaInternalDescribeVolumeReplicationBadRequest) v1betaInternalDescribeVolumeReplicationRes() {
+}
+
+type V1betaInternalDescribeVolumeReplicationConflict Error
+
+func (*V1betaInternalDescribeVolumeReplicationConflict) v1betaInternalDescribeVolumeReplicationRes() {
+}
+
+type V1betaInternalDescribeVolumeReplicationForbidden Error
+
+func (*V1betaInternalDescribeVolumeReplicationForbidden) v1betaInternalDescribeVolumeReplicationRes() {
+}
+
+type V1betaInternalDescribeVolumeReplicationInternalServerError Error
+
+func (*V1betaInternalDescribeVolumeReplicationInternalServerError) v1betaInternalDescribeVolumeReplicationRes() {
+}
+
+type V1betaInternalDescribeVolumeReplicationMethodNotAllowed Error
+
+func (*V1betaInternalDescribeVolumeReplicationMethodNotAllowed) v1betaInternalDescribeVolumeReplicationRes() {
+}
+
+type V1betaInternalDescribeVolumeReplicationNotFound Error
+
+func (*V1betaInternalDescribeVolumeReplicationNotFound) v1betaInternalDescribeVolumeReplicationRes() {
+}
+
+type V1betaInternalDescribeVolumeReplicationUnauthorized Error
+
+func (*V1betaInternalDescribeVolumeReplicationUnauthorized) v1betaInternalDescribeVolumeReplicationRes() {
+}
+
+type V1betaInternalDescribeVolumeReplicationUnprocessableEntity Error
+
+func (*V1betaInternalDescribeVolumeReplicationUnprocessableEntity) v1betaInternalDescribeVolumeReplicationRes() {
+}
+
+type V1betaInternalReleaseVolumeReplicationBadRequest Error
+
+func (*V1betaInternalReleaseVolumeReplicationBadRequest) v1betaInternalReleaseVolumeReplicationRes() {
+}
+
+type V1betaInternalReleaseVolumeReplicationConflict Error
+
+func (*V1betaInternalReleaseVolumeReplicationConflict) v1betaInternalReleaseVolumeReplicationRes() {}
+
+type V1betaInternalReleaseVolumeReplicationForbidden Error
+
+func (*V1betaInternalReleaseVolumeReplicationForbidden) v1betaInternalReleaseVolumeReplicationRes() {}
+
+type V1betaInternalReleaseVolumeReplicationInternalServerError Error
+
+func (*V1betaInternalReleaseVolumeReplicationInternalServerError) v1betaInternalReleaseVolumeReplicationRes() {
+}
+
+type V1betaInternalReleaseVolumeReplicationMethodNotAllowed Error
+
+func (*V1betaInternalReleaseVolumeReplicationMethodNotAllowed) v1betaInternalReleaseVolumeReplicationRes() {
+}
+
+type V1betaInternalReleaseVolumeReplicationNotFound Error
+
+func (*V1betaInternalReleaseVolumeReplicationNotFound) v1betaInternalReleaseVolumeReplicationRes() {}
+
+type V1betaInternalReleaseVolumeReplicationUnauthorized Error
+
+func (*V1betaInternalReleaseVolumeReplicationUnauthorized) v1betaInternalReleaseVolumeReplicationRes() {
+}
+
+type V1betaInternalReleaseVolumeReplicationUnprocessableEntity Error
+
+func (*V1betaInternalReleaseVolumeReplicationUnprocessableEntity) v1betaInternalReleaseVolumeReplicationRes() {
+}
+
+type V1betaInternalResumeVolumeReplicationBadRequest Error
+
+func (*V1betaInternalResumeVolumeReplicationBadRequest) v1betaInternalResumeVolumeReplicationRes() {}
+
+type V1betaInternalResumeVolumeReplicationConflict Error
+
+func (*V1betaInternalResumeVolumeReplicationConflict) v1betaInternalResumeVolumeReplicationRes() {}
+
+type V1betaInternalResumeVolumeReplicationForbidden Error
+
+func (*V1betaInternalResumeVolumeReplicationForbidden) v1betaInternalResumeVolumeReplicationRes() {}
+
+type V1betaInternalResumeVolumeReplicationInternalServerError Error
+
+func (*V1betaInternalResumeVolumeReplicationInternalServerError) v1betaInternalResumeVolumeReplicationRes() {
+}
+
+type V1betaInternalResumeVolumeReplicationMethodNotAllowed Error
+
+func (*V1betaInternalResumeVolumeReplicationMethodNotAllowed) v1betaInternalResumeVolumeReplicationRes() {
+}
+
+type V1betaInternalResumeVolumeReplicationNotFound Error
+
+func (*V1betaInternalResumeVolumeReplicationNotFound) v1betaInternalResumeVolumeReplicationRes() {}
+
+type V1betaInternalResumeVolumeReplicationUnauthorized Error
+
+func (*V1betaInternalResumeVolumeReplicationUnauthorized) v1betaInternalResumeVolumeReplicationRes() {
+}
+
+type V1betaInternalResumeVolumeReplicationUnprocessableEntity Error
+
+func (*V1betaInternalResumeVolumeReplicationUnprocessableEntity) v1betaInternalResumeVolumeReplicationRes() {
+}
+
+type V1betaInternalStopVolumeReplicationBadRequest Error
+
+func (*V1betaInternalStopVolumeReplicationBadRequest) v1betaInternalStopVolumeReplicationRes() {}
+
+type V1betaInternalStopVolumeReplicationConflict Error
+
+func (*V1betaInternalStopVolumeReplicationConflict) v1betaInternalStopVolumeReplicationRes() {}
+
+type V1betaInternalStopVolumeReplicationForbidden Error
+
+func (*V1betaInternalStopVolumeReplicationForbidden) v1betaInternalStopVolumeReplicationRes() {}
+
+type V1betaInternalStopVolumeReplicationInternalServerError Error
+
+func (*V1betaInternalStopVolumeReplicationInternalServerError) v1betaInternalStopVolumeReplicationRes() {
+}
+
+type V1betaInternalStopVolumeReplicationMethodNotAllowed Error
+
+func (*V1betaInternalStopVolumeReplicationMethodNotAllowed) v1betaInternalStopVolumeReplicationRes() {
+}
+
+type V1betaInternalStopVolumeReplicationNotFound Error
+
+func (*V1betaInternalStopVolumeReplicationNotFound) v1betaInternalStopVolumeReplicationRes() {}
+
+type V1betaInternalStopVolumeReplicationReq struct {
+	// Can be used to force stop a replication while transfer is in progress. Warning! This will abort
+	// any current transfers.
+	Force OptBool `json:"force"`
+}
+
+// GetForce returns the value of Force.
+func (s *V1betaInternalStopVolumeReplicationReq) GetForce() OptBool {
+	return s.Force
+}
+
+// SetForce sets the value of Force.
+func (s *V1betaInternalStopVolumeReplicationReq) SetForce(val OptBool) {
+	s.Force = val
+}
+
+type V1betaInternalStopVolumeReplicationUnauthorized Error
+
+func (*V1betaInternalStopVolumeReplicationUnauthorized) v1betaInternalStopVolumeReplicationRes() {}
+
+type V1betaInternalStopVolumeReplicationUnprocessableEntity Error
+
+func (*V1betaInternalStopVolumeReplicationUnprocessableEntity) v1betaInternalStopVolumeReplicationRes() {
+}
+
+type V1betaInternalUpdateVolumeReplicationBadRequest Error
+
+func (*V1betaInternalUpdateVolumeReplicationBadRequest) v1betaInternalUpdateVolumeReplicationRes() {}
+
+type V1betaInternalUpdateVolumeReplicationConflict Error
+
+func (*V1betaInternalUpdateVolumeReplicationConflict) v1betaInternalUpdateVolumeReplicationRes() {}
+
+type V1betaInternalUpdateVolumeReplicationForbidden Error
+
+func (*V1betaInternalUpdateVolumeReplicationForbidden) v1betaInternalUpdateVolumeReplicationRes() {}
+
+type V1betaInternalUpdateVolumeReplicationInternalServerError Error
+
+func (*V1betaInternalUpdateVolumeReplicationInternalServerError) v1betaInternalUpdateVolumeReplicationRes() {
+}
+
+type V1betaInternalUpdateVolumeReplicationMethodNotAllowed Error
+
+func (*V1betaInternalUpdateVolumeReplicationMethodNotAllowed) v1betaInternalUpdateVolumeReplicationRes() {
+}
+
+// V1betaInternalUpdateVolumeReplicationNoContent is response for V1betaInternalUpdateVolumeReplication operation.
+type V1betaInternalUpdateVolumeReplicationNoContent struct{}
+
+func (*V1betaInternalUpdateVolumeReplicationNoContent) v1betaInternalUpdateVolumeReplicationRes() {}
+
+type V1betaInternalUpdateVolumeReplicationNotFound Error
+
+func (*V1betaInternalUpdateVolumeReplicationNotFound) v1betaInternalUpdateVolumeReplicationRes() {}
+
+type V1betaInternalUpdateVolumeReplicationUnauthorized Error
+
+func (*V1betaInternalUpdateVolumeReplicationUnauthorized) v1betaInternalUpdateVolumeReplicationRes() {
+}
+
+type V1betaInternalUpdateVolumeReplicationUnprocessableEntity Error
+
+func (*V1betaInternalUpdateVolumeReplicationUnprocessableEntity) v1betaInternalUpdateVolumeReplicationRes() {
+}
+
 type V1betaListBackupPoliciesBadRequest Error
 
 func (*V1betaListBackupPoliciesBadRequest) v1betaListBackupPoliciesRes() {}
@@ -10380,6 +12304,1823 @@ func (s *VolumeIDListV1beta) GetVolumeUUIDs() []string {
 // SetVolumeUUIDs sets the value of VolumeUUIDs.
 func (s *VolumeIDListV1beta) SetVolumeUUIDs(val []string) {
 	s.VolumeUUIDs = val
+}
+
+// Merged schema.
+// Ref: #/components/schemas/VolumeReplicationCreateInternal_v1beta
+type VolumeReplicationCreateInternalV1beta struct {
+	// UUID v4 of volume replication.
+	VolumeReplicationUUID OptString `json:"volumeReplicationUUID"`
+	// The current lifecycle state of the resource.
+	LifeCycleState OptVolumeReplicationCreateInternalV1betaLifeCycleState `json:"lifeCycleState"`
+	// Details about the current lifecycle state.
+	LifeCycleStateDetails OptString `json:"lifeCycleStateDetails"`
+	// Indicates whether the local volume is the source or destination for the volume replication or a
+	// restore endpoint.
+	EndpointType        VolumeReplicationCreateInternalV1betaEndpointType           `json:"endpointType"`
+	ReplicationPolicy   OptVolumeReplicationCreateInternalV1betaReplicationPolicy   `json:"replicationPolicy"`
+	ReplicationSchedule OptVolumeReplicationCreateInternalV1betaReplicationSchedule `json:"replicationSchedule"`
+	// The remote region for the other end of the volume replication.
+	RemoteRegion string `json:"remoteRegion"`
+	// The resource ID of the remote volume.
+	RemoteResourceId string `json:"remoteResourceId"`
+	// The source endpoint host for the volume replication.
+	SourceHostName string `json:"sourceHostName"`
+	// The source endpoint server for the volume replication.
+	SourceServerName string `json:"sourceServerName"`
+	// The source endpoint volume for the volume replication.
+	SourceVolumeName string `json:"sourceVolumeName"`
+	// The destination endpoint host for the volume replication.
+	DestinationHostName string `json:"destinationHostName"`
+	// The destination endpoint server for the volume replication.
+	DestinationServerName string `json:"destinationServerName"`
+	// The destination endpoint volume for the volume replication.
+	DestinationVolumeName string `json:"destinationVolumeName"`
+	// UUID v4 of the destination volume.
+	DestinationVolumeUUID OptString `json:"destinationVolumeUUID"`
+	// A human readable label for the volume replication.
+	Name OptString `json:"name"`
+	// The mirror state of the volume replication.
+	MirrorState OptVolumeReplicationCreateInternalV1betaMirrorState `json:"mirrorState"`
+	// Type of hybrid replication.
+	HybridReplicationType OptVolumeReplicationCreateInternalV1betaHybridReplicationType `json:"hybridReplicationType"`
+	// The status of the volume replication.
+	RelationshipStatus OptVolumeReplicationCreateInternalV1betaRelationshipStatus `json:"relationshipStatus"`
+	// Total amount of data transferred for the current transfer operation.
+	TotalProgress OptInt64 `json:"totalProgress"`
+	// Condition of the relationship. Can be one of the following: - true: The replication relationship is
+	// healthy. It has not missed a
+	// scheduled transfer, or experienced
+	// a manual update failure.
+	// - false: The replication relationship is not
+	// healthy. It has missed a scheduled
+	// transfer, or has experienced a manual
+	// update failure.
+	Healthy OptBool `json:"healthy"`
+	// Cumulative bytes transferred for the relationship.
+	TotalTransferBytes OptInt64 `json:"totalTransferBytes"`
+	// Cumulative total transfer time in seconds for the relationship.
+	TotalTransferTimeSecs OptInt64 `json:"totalTransferTimeSecs"`
+	// The total number of bytes transferred as part of the last transfer.
+	LastTransferSize OptInt64 `json:"lastTransferSize"`
+	// A message describing the cause of the last transfer failure.
+	LastTransferError OptString `json:"lastTransferError"`
+	// The amount of time in seconds it took for the last transfer to complete.
+	LastTransferDuration OptInt64 `json:"lastTransferDuration"`
+	// The time of the end of the last transfer.
+	LastTransferEndTime OptDateTime `json:"lastTransferEndTime"`
+	// Time indicating when the progress of the transfer was last updated.
+	ProgressLastUpdated OptDateTime `json:"progressLastUpdated"`
+	// The amount of time in seconds by which the data on the mirror lags behind the source.
+	LagTime OptInt64 `json:"lagTime"`
+	// Creation date of the resource.
+	CreatedAt OptDateTime `json:"createdAt"`
+	// Date of last update of the resource.
+	UpdatedAt OptDateTime `json:"updatedAt"`
+	// Date the resource was deleted.
+	DeletedAt OptDateTime `json:"deletedAt"`
+	// Jobs currently ongoing for the volume replication.
+	Jobs []JobV1beta `json:"jobs"`
+	// Description of the volume replication.
+	Description OptString `json:"description"`
+	// JSON dictionary of resource labels to allow linking of billing labels to a replication, Can
+	// contain only lowercase letters, numeric characters, underscores, and dashes. All characters must
+	// use UTF-8 encoding, and international characters are allowed. Must start with a lowercase letter
+	// or international character.
+	Labels OptVolumeReplicationCreateInternalV1betaLabels `json:"labels"`
+	// States if the operation is forced to do a reverse-resume.
+	ReverseResume OptBool   `json:"reverseResume"`
+	CcfeURI       OptString `json:"ccfeURI"`
+	CcfeRemoteURI OptString `json:"ccfeRemoteURI"`
+}
+
+// GetVolumeReplicationUUID returns the value of VolumeReplicationUUID.
+func (s *VolumeReplicationCreateInternalV1beta) GetVolumeReplicationUUID() OptString {
+	return s.VolumeReplicationUUID
+}
+
+// GetLifeCycleState returns the value of LifeCycleState.
+func (s *VolumeReplicationCreateInternalV1beta) GetLifeCycleState() OptVolumeReplicationCreateInternalV1betaLifeCycleState {
+	return s.LifeCycleState
+}
+
+// GetLifeCycleStateDetails returns the value of LifeCycleStateDetails.
+func (s *VolumeReplicationCreateInternalV1beta) GetLifeCycleStateDetails() OptString {
+	return s.LifeCycleStateDetails
+}
+
+// GetEndpointType returns the value of EndpointType.
+func (s *VolumeReplicationCreateInternalV1beta) GetEndpointType() VolumeReplicationCreateInternalV1betaEndpointType {
+	return s.EndpointType
+}
+
+// GetReplicationPolicy returns the value of ReplicationPolicy.
+func (s *VolumeReplicationCreateInternalV1beta) GetReplicationPolicy() OptVolumeReplicationCreateInternalV1betaReplicationPolicy {
+	return s.ReplicationPolicy
+}
+
+// GetReplicationSchedule returns the value of ReplicationSchedule.
+func (s *VolumeReplicationCreateInternalV1beta) GetReplicationSchedule() OptVolumeReplicationCreateInternalV1betaReplicationSchedule {
+	return s.ReplicationSchedule
+}
+
+// GetRemoteRegion returns the value of RemoteRegion.
+func (s *VolumeReplicationCreateInternalV1beta) GetRemoteRegion() string {
+	return s.RemoteRegion
+}
+
+// GetRemoteResourceId returns the value of RemoteResourceId.
+func (s *VolumeReplicationCreateInternalV1beta) GetRemoteResourceId() string {
+	return s.RemoteResourceId
+}
+
+// GetSourceHostName returns the value of SourceHostName.
+func (s *VolumeReplicationCreateInternalV1beta) GetSourceHostName() string {
+	return s.SourceHostName
+}
+
+// GetSourceServerName returns the value of SourceServerName.
+func (s *VolumeReplicationCreateInternalV1beta) GetSourceServerName() string {
+	return s.SourceServerName
+}
+
+// GetSourceVolumeName returns the value of SourceVolumeName.
+func (s *VolumeReplicationCreateInternalV1beta) GetSourceVolumeName() string {
+	return s.SourceVolumeName
+}
+
+// GetDestinationHostName returns the value of DestinationHostName.
+func (s *VolumeReplicationCreateInternalV1beta) GetDestinationHostName() string {
+	return s.DestinationHostName
+}
+
+// GetDestinationServerName returns the value of DestinationServerName.
+func (s *VolumeReplicationCreateInternalV1beta) GetDestinationServerName() string {
+	return s.DestinationServerName
+}
+
+// GetDestinationVolumeName returns the value of DestinationVolumeName.
+func (s *VolumeReplicationCreateInternalV1beta) GetDestinationVolumeName() string {
+	return s.DestinationVolumeName
+}
+
+// GetDestinationVolumeUUID returns the value of DestinationVolumeUUID.
+func (s *VolumeReplicationCreateInternalV1beta) GetDestinationVolumeUUID() OptString {
+	return s.DestinationVolumeUUID
+}
+
+// GetName returns the value of Name.
+func (s *VolumeReplicationCreateInternalV1beta) GetName() OptString {
+	return s.Name
+}
+
+// GetMirrorState returns the value of MirrorState.
+func (s *VolumeReplicationCreateInternalV1beta) GetMirrorState() OptVolumeReplicationCreateInternalV1betaMirrorState {
+	return s.MirrorState
+}
+
+// GetHybridReplicationType returns the value of HybridReplicationType.
+func (s *VolumeReplicationCreateInternalV1beta) GetHybridReplicationType() OptVolumeReplicationCreateInternalV1betaHybridReplicationType {
+	return s.HybridReplicationType
+}
+
+// GetRelationshipStatus returns the value of RelationshipStatus.
+func (s *VolumeReplicationCreateInternalV1beta) GetRelationshipStatus() OptVolumeReplicationCreateInternalV1betaRelationshipStatus {
+	return s.RelationshipStatus
+}
+
+// GetTotalProgress returns the value of TotalProgress.
+func (s *VolumeReplicationCreateInternalV1beta) GetTotalProgress() OptInt64 {
+	return s.TotalProgress
+}
+
+// GetHealthy returns the value of Healthy.
+func (s *VolumeReplicationCreateInternalV1beta) GetHealthy() OptBool {
+	return s.Healthy
+}
+
+// GetTotalTransferBytes returns the value of TotalTransferBytes.
+func (s *VolumeReplicationCreateInternalV1beta) GetTotalTransferBytes() OptInt64 {
+	return s.TotalTransferBytes
+}
+
+// GetTotalTransferTimeSecs returns the value of TotalTransferTimeSecs.
+func (s *VolumeReplicationCreateInternalV1beta) GetTotalTransferTimeSecs() OptInt64 {
+	return s.TotalTransferTimeSecs
+}
+
+// GetLastTransferSize returns the value of LastTransferSize.
+func (s *VolumeReplicationCreateInternalV1beta) GetLastTransferSize() OptInt64 {
+	return s.LastTransferSize
+}
+
+// GetLastTransferError returns the value of LastTransferError.
+func (s *VolumeReplicationCreateInternalV1beta) GetLastTransferError() OptString {
+	return s.LastTransferError
+}
+
+// GetLastTransferDuration returns the value of LastTransferDuration.
+func (s *VolumeReplicationCreateInternalV1beta) GetLastTransferDuration() OptInt64 {
+	return s.LastTransferDuration
+}
+
+// GetLastTransferEndTime returns the value of LastTransferEndTime.
+func (s *VolumeReplicationCreateInternalV1beta) GetLastTransferEndTime() OptDateTime {
+	return s.LastTransferEndTime
+}
+
+// GetProgressLastUpdated returns the value of ProgressLastUpdated.
+func (s *VolumeReplicationCreateInternalV1beta) GetProgressLastUpdated() OptDateTime {
+	return s.ProgressLastUpdated
+}
+
+// GetLagTime returns the value of LagTime.
+func (s *VolumeReplicationCreateInternalV1beta) GetLagTime() OptInt64 {
+	return s.LagTime
+}
+
+// GetCreatedAt returns the value of CreatedAt.
+func (s *VolumeReplicationCreateInternalV1beta) GetCreatedAt() OptDateTime {
+	return s.CreatedAt
+}
+
+// GetUpdatedAt returns the value of UpdatedAt.
+func (s *VolumeReplicationCreateInternalV1beta) GetUpdatedAt() OptDateTime {
+	return s.UpdatedAt
+}
+
+// GetDeletedAt returns the value of DeletedAt.
+func (s *VolumeReplicationCreateInternalV1beta) GetDeletedAt() OptDateTime {
+	return s.DeletedAt
+}
+
+// GetJobs returns the value of Jobs.
+func (s *VolumeReplicationCreateInternalV1beta) GetJobs() []JobV1beta {
+	return s.Jobs
+}
+
+// GetDescription returns the value of Description.
+func (s *VolumeReplicationCreateInternalV1beta) GetDescription() OptString {
+	return s.Description
+}
+
+// GetLabels returns the value of Labels.
+func (s *VolumeReplicationCreateInternalV1beta) GetLabels() OptVolumeReplicationCreateInternalV1betaLabels {
+	return s.Labels
+}
+
+// GetReverseResume returns the value of ReverseResume.
+func (s *VolumeReplicationCreateInternalV1beta) GetReverseResume() OptBool {
+	return s.ReverseResume
+}
+
+// GetCcfeURI returns the value of CcfeURI.
+func (s *VolumeReplicationCreateInternalV1beta) GetCcfeURI() OptString {
+	return s.CcfeURI
+}
+
+// GetCcfeRemoteURI returns the value of CcfeRemoteURI.
+func (s *VolumeReplicationCreateInternalV1beta) GetCcfeRemoteURI() OptString {
+	return s.CcfeRemoteURI
+}
+
+// SetVolumeReplicationUUID sets the value of VolumeReplicationUUID.
+func (s *VolumeReplicationCreateInternalV1beta) SetVolumeReplicationUUID(val OptString) {
+	s.VolumeReplicationUUID = val
+}
+
+// SetLifeCycleState sets the value of LifeCycleState.
+func (s *VolumeReplicationCreateInternalV1beta) SetLifeCycleState(val OptVolumeReplicationCreateInternalV1betaLifeCycleState) {
+	s.LifeCycleState = val
+}
+
+// SetLifeCycleStateDetails sets the value of LifeCycleStateDetails.
+func (s *VolumeReplicationCreateInternalV1beta) SetLifeCycleStateDetails(val OptString) {
+	s.LifeCycleStateDetails = val
+}
+
+// SetEndpointType sets the value of EndpointType.
+func (s *VolumeReplicationCreateInternalV1beta) SetEndpointType(val VolumeReplicationCreateInternalV1betaEndpointType) {
+	s.EndpointType = val
+}
+
+// SetReplicationPolicy sets the value of ReplicationPolicy.
+func (s *VolumeReplicationCreateInternalV1beta) SetReplicationPolicy(val OptVolumeReplicationCreateInternalV1betaReplicationPolicy) {
+	s.ReplicationPolicy = val
+}
+
+// SetReplicationSchedule sets the value of ReplicationSchedule.
+func (s *VolumeReplicationCreateInternalV1beta) SetReplicationSchedule(val OptVolumeReplicationCreateInternalV1betaReplicationSchedule) {
+	s.ReplicationSchedule = val
+}
+
+// SetRemoteRegion sets the value of RemoteRegion.
+func (s *VolumeReplicationCreateInternalV1beta) SetRemoteRegion(val string) {
+	s.RemoteRegion = val
+}
+
+// SetRemoteResourceId sets the value of RemoteResourceId.
+func (s *VolumeReplicationCreateInternalV1beta) SetRemoteResourceId(val string) {
+	s.RemoteResourceId = val
+}
+
+// SetSourceHostName sets the value of SourceHostName.
+func (s *VolumeReplicationCreateInternalV1beta) SetSourceHostName(val string) {
+	s.SourceHostName = val
+}
+
+// SetSourceServerName sets the value of SourceServerName.
+func (s *VolumeReplicationCreateInternalV1beta) SetSourceServerName(val string) {
+	s.SourceServerName = val
+}
+
+// SetSourceVolumeName sets the value of SourceVolumeName.
+func (s *VolumeReplicationCreateInternalV1beta) SetSourceVolumeName(val string) {
+	s.SourceVolumeName = val
+}
+
+// SetDestinationHostName sets the value of DestinationHostName.
+func (s *VolumeReplicationCreateInternalV1beta) SetDestinationHostName(val string) {
+	s.DestinationHostName = val
+}
+
+// SetDestinationServerName sets the value of DestinationServerName.
+func (s *VolumeReplicationCreateInternalV1beta) SetDestinationServerName(val string) {
+	s.DestinationServerName = val
+}
+
+// SetDestinationVolumeName sets the value of DestinationVolumeName.
+func (s *VolumeReplicationCreateInternalV1beta) SetDestinationVolumeName(val string) {
+	s.DestinationVolumeName = val
+}
+
+// SetDestinationVolumeUUID sets the value of DestinationVolumeUUID.
+func (s *VolumeReplicationCreateInternalV1beta) SetDestinationVolumeUUID(val OptString) {
+	s.DestinationVolumeUUID = val
+}
+
+// SetName sets the value of Name.
+func (s *VolumeReplicationCreateInternalV1beta) SetName(val OptString) {
+	s.Name = val
+}
+
+// SetMirrorState sets the value of MirrorState.
+func (s *VolumeReplicationCreateInternalV1beta) SetMirrorState(val OptVolumeReplicationCreateInternalV1betaMirrorState) {
+	s.MirrorState = val
+}
+
+// SetHybridReplicationType sets the value of HybridReplicationType.
+func (s *VolumeReplicationCreateInternalV1beta) SetHybridReplicationType(val OptVolumeReplicationCreateInternalV1betaHybridReplicationType) {
+	s.HybridReplicationType = val
+}
+
+// SetRelationshipStatus sets the value of RelationshipStatus.
+func (s *VolumeReplicationCreateInternalV1beta) SetRelationshipStatus(val OptVolumeReplicationCreateInternalV1betaRelationshipStatus) {
+	s.RelationshipStatus = val
+}
+
+// SetTotalProgress sets the value of TotalProgress.
+func (s *VolumeReplicationCreateInternalV1beta) SetTotalProgress(val OptInt64) {
+	s.TotalProgress = val
+}
+
+// SetHealthy sets the value of Healthy.
+func (s *VolumeReplicationCreateInternalV1beta) SetHealthy(val OptBool) {
+	s.Healthy = val
+}
+
+// SetTotalTransferBytes sets the value of TotalTransferBytes.
+func (s *VolumeReplicationCreateInternalV1beta) SetTotalTransferBytes(val OptInt64) {
+	s.TotalTransferBytes = val
+}
+
+// SetTotalTransferTimeSecs sets the value of TotalTransferTimeSecs.
+func (s *VolumeReplicationCreateInternalV1beta) SetTotalTransferTimeSecs(val OptInt64) {
+	s.TotalTransferTimeSecs = val
+}
+
+// SetLastTransferSize sets the value of LastTransferSize.
+func (s *VolumeReplicationCreateInternalV1beta) SetLastTransferSize(val OptInt64) {
+	s.LastTransferSize = val
+}
+
+// SetLastTransferError sets the value of LastTransferError.
+func (s *VolumeReplicationCreateInternalV1beta) SetLastTransferError(val OptString) {
+	s.LastTransferError = val
+}
+
+// SetLastTransferDuration sets the value of LastTransferDuration.
+func (s *VolumeReplicationCreateInternalV1beta) SetLastTransferDuration(val OptInt64) {
+	s.LastTransferDuration = val
+}
+
+// SetLastTransferEndTime sets the value of LastTransferEndTime.
+func (s *VolumeReplicationCreateInternalV1beta) SetLastTransferEndTime(val OptDateTime) {
+	s.LastTransferEndTime = val
+}
+
+// SetProgressLastUpdated sets the value of ProgressLastUpdated.
+func (s *VolumeReplicationCreateInternalV1beta) SetProgressLastUpdated(val OptDateTime) {
+	s.ProgressLastUpdated = val
+}
+
+// SetLagTime sets the value of LagTime.
+func (s *VolumeReplicationCreateInternalV1beta) SetLagTime(val OptInt64) {
+	s.LagTime = val
+}
+
+// SetCreatedAt sets the value of CreatedAt.
+func (s *VolumeReplicationCreateInternalV1beta) SetCreatedAt(val OptDateTime) {
+	s.CreatedAt = val
+}
+
+// SetUpdatedAt sets the value of UpdatedAt.
+func (s *VolumeReplicationCreateInternalV1beta) SetUpdatedAt(val OptDateTime) {
+	s.UpdatedAt = val
+}
+
+// SetDeletedAt sets the value of DeletedAt.
+func (s *VolumeReplicationCreateInternalV1beta) SetDeletedAt(val OptDateTime) {
+	s.DeletedAt = val
+}
+
+// SetJobs sets the value of Jobs.
+func (s *VolumeReplicationCreateInternalV1beta) SetJobs(val []JobV1beta) {
+	s.Jobs = val
+}
+
+// SetDescription sets the value of Description.
+func (s *VolumeReplicationCreateInternalV1beta) SetDescription(val OptString) {
+	s.Description = val
+}
+
+// SetLabels sets the value of Labels.
+func (s *VolumeReplicationCreateInternalV1beta) SetLabels(val OptVolumeReplicationCreateInternalV1betaLabels) {
+	s.Labels = val
+}
+
+// SetReverseResume sets the value of ReverseResume.
+func (s *VolumeReplicationCreateInternalV1beta) SetReverseResume(val OptBool) {
+	s.ReverseResume = val
+}
+
+// SetCcfeURI sets the value of CcfeURI.
+func (s *VolumeReplicationCreateInternalV1beta) SetCcfeURI(val OptString) {
+	s.CcfeURI = val
+}
+
+// SetCcfeRemoteURI sets the value of CcfeRemoteURI.
+func (s *VolumeReplicationCreateInternalV1beta) SetCcfeRemoteURI(val OptString) {
+	s.CcfeRemoteURI = val
+}
+
+// Indicates whether the local volume is the source or destination for the volume replication or a
+// restore endpoint.
+type VolumeReplicationCreateInternalV1betaEndpointType string
+
+const (
+	VolumeReplicationCreateInternalV1betaEndpointTypeSrc VolumeReplicationCreateInternalV1betaEndpointType = "src"
+	VolumeReplicationCreateInternalV1betaEndpointTypeDst VolumeReplicationCreateInternalV1betaEndpointType = "dst"
+	VolumeReplicationCreateInternalV1betaEndpointTypeRst VolumeReplicationCreateInternalV1betaEndpointType = "rst"
+)
+
+// AllValues returns all VolumeReplicationCreateInternalV1betaEndpointType values.
+func (VolumeReplicationCreateInternalV1betaEndpointType) AllValues() []VolumeReplicationCreateInternalV1betaEndpointType {
+	return []VolumeReplicationCreateInternalV1betaEndpointType{
+		VolumeReplicationCreateInternalV1betaEndpointTypeSrc,
+		VolumeReplicationCreateInternalV1betaEndpointTypeDst,
+		VolumeReplicationCreateInternalV1betaEndpointTypeRst,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s VolumeReplicationCreateInternalV1betaEndpointType) MarshalText() ([]byte, error) {
+	switch s {
+	case VolumeReplicationCreateInternalV1betaEndpointTypeSrc:
+		return []byte(s), nil
+	case VolumeReplicationCreateInternalV1betaEndpointTypeDst:
+		return []byte(s), nil
+	case VolumeReplicationCreateInternalV1betaEndpointTypeRst:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *VolumeReplicationCreateInternalV1betaEndpointType) UnmarshalText(data []byte) error {
+	switch VolumeReplicationCreateInternalV1betaEndpointType(data) {
+	case VolumeReplicationCreateInternalV1betaEndpointTypeSrc:
+		*s = VolumeReplicationCreateInternalV1betaEndpointTypeSrc
+		return nil
+	case VolumeReplicationCreateInternalV1betaEndpointTypeDst:
+		*s = VolumeReplicationCreateInternalV1betaEndpointTypeDst
+		return nil
+	case VolumeReplicationCreateInternalV1betaEndpointTypeRst:
+		*s = VolumeReplicationCreateInternalV1betaEndpointTypeRst
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// Type of hybrid replication.
+type VolumeReplicationCreateInternalV1betaHybridReplicationType string
+
+const (
+	VolumeReplicationCreateInternalV1betaHybridReplicationTypeHYBRIDREPLICATIONTYPEUNSPECIFIED VolumeReplicationCreateInternalV1betaHybridReplicationType = "HYBRID_REPLICATION_TYPE_UNSPECIFIED"
+	VolumeReplicationCreateInternalV1betaHybridReplicationTypeMIGRATION                        VolumeReplicationCreateInternalV1betaHybridReplicationType = "MIGRATION"
+	VolumeReplicationCreateInternalV1betaHybridReplicationTypeCONTINUOUSREPLICATION            VolumeReplicationCreateInternalV1betaHybridReplicationType = "CONTINUOUS_REPLICATION"
+	VolumeReplicationCreateInternalV1betaHybridReplicationTypeONPREMREPLICATION                VolumeReplicationCreateInternalV1betaHybridReplicationType = "ONPREM_REPLICATION"
+	VolumeReplicationCreateInternalV1betaHybridReplicationTypeREVERSEONPREMREPLICATION         VolumeReplicationCreateInternalV1betaHybridReplicationType = "REVERSE_ONPREM_REPLICATION"
+)
+
+// AllValues returns all VolumeReplicationCreateInternalV1betaHybridReplicationType values.
+func (VolumeReplicationCreateInternalV1betaHybridReplicationType) AllValues() []VolumeReplicationCreateInternalV1betaHybridReplicationType {
+	return []VolumeReplicationCreateInternalV1betaHybridReplicationType{
+		VolumeReplicationCreateInternalV1betaHybridReplicationTypeHYBRIDREPLICATIONTYPEUNSPECIFIED,
+		VolumeReplicationCreateInternalV1betaHybridReplicationTypeMIGRATION,
+		VolumeReplicationCreateInternalV1betaHybridReplicationTypeCONTINUOUSREPLICATION,
+		VolumeReplicationCreateInternalV1betaHybridReplicationTypeONPREMREPLICATION,
+		VolumeReplicationCreateInternalV1betaHybridReplicationTypeREVERSEONPREMREPLICATION,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s VolumeReplicationCreateInternalV1betaHybridReplicationType) MarshalText() ([]byte, error) {
+	switch s {
+	case VolumeReplicationCreateInternalV1betaHybridReplicationTypeHYBRIDREPLICATIONTYPEUNSPECIFIED:
+		return []byte(s), nil
+	case VolumeReplicationCreateInternalV1betaHybridReplicationTypeMIGRATION:
+		return []byte(s), nil
+	case VolumeReplicationCreateInternalV1betaHybridReplicationTypeCONTINUOUSREPLICATION:
+		return []byte(s), nil
+	case VolumeReplicationCreateInternalV1betaHybridReplicationTypeONPREMREPLICATION:
+		return []byte(s), nil
+	case VolumeReplicationCreateInternalV1betaHybridReplicationTypeREVERSEONPREMREPLICATION:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *VolumeReplicationCreateInternalV1betaHybridReplicationType) UnmarshalText(data []byte) error {
+	switch VolumeReplicationCreateInternalV1betaHybridReplicationType(data) {
+	case VolumeReplicationCreateInternalV1betaHybridReplicationTypeHYBRIDREPLICATIONTYPEUNSPECIFIED:
+		*s = VolumeReplicationCreateInternalV1betaHybridReplicationTypeHYBRIDREPLICATIONTYPEUNSPECIFIED
+		return nil
+	case VolumeReplicationCreateInternalV1betaHybridReplicationTypeMIGRATION:
+		*s = VolumeReplicationCreateInternalV1betaHybridReplicationTypeMIGRATION
+		return nil
+	case VolumeReplicationCreateInternalV1betaHybridReplicationTypeCONTINUOUSREPLICATION:
+		*s = VolumeReplicationCreateInternalV1betaHybridReplicationTypeCONTINUOUSREPLICATION
+		return nil
+	case VolumeReplicationCreateInternalV1betaHybridReplicationTypeONPREMREPLICATION:
+		*s = VolumeReplicationCreateInternalV1betaHybridReplicationTypeONPREMREPLICATION
+		return nil
+	case VolumeReplicationCreateInternalV1betaHybridReplicationTypeREVERSEONPREMREPLICATION:
+		*s = VolumeReplicationCreateInternalV1betaHybridReplicationTypeREVERSEONPREMREPLICATION
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// JSON dictionary of resource labels to allow linking of billing labels to a replication, Can
+// contain only lowercase letters, numeric characters, underscores, and dashes. All characters must
+// use UTF-8 encoding, and international characters are allowed. Must start with a lowercase letter
+// or international character.
+type VolumeReplicationCreateInternalV1betaLabels map[string]string
+
+func (s *VolumeReplicationCreateInternalV1betaLabels) init() VolumeReplicationCreateInternalV1betaLabels {
+	m := *s
+	if m == nil {
+		m = map[string]string{}
+		*s = m
+	}
+	return m
+}
+
+// The current lifecycle state of the resource.
+type VolumeReplicationCreateInternalV1betaLifeCycleState string
+
+const (
+	VolumeReplicationCreateInternalV1betaLifeCycleStateCreating  VolumeReplicationCreateInternalV1betaLifeCycleState = "creating"
+	VolumeReplicationCreateInternalV1betaLifeCycleStateAvailable VolumeReplicationCreateInternalV1betaLifeCycleState = "available"
+	VolumeReplicationCreateInternalV1betaLifeCycleStateUpdating  VolumeReplicationCreateInternalV1betaLifeCycleState = "updating"
+	VolumeReplicationCreateInternalV1betaLifeCycleStateDisabled  VolumeReplicationCreateInternalV1betaLifeCycleState = "disabled"
+	VolumeReplicationCreateInternalV1betaLifeCycleStateDeleting  VolumeReplicationCreateInternalV1betaLifeCycleState = "deleting"
+	VolumeReplicationCreateInternalV1betaLifeCycleStateDeleted   VolumeReplicationCreateInternalV1betaLifeCycleState = "deleted"
+	VolumeReplicationCreateInternalV1betaLifeCycleStateError     VolumeReplicationCreateInternalV1betaLifeCycleState = "error"
+)
+
+// AllValues returns all VolumeReplicationCreateInternalV1betaLifeCycleState values.
+func (VolumeReplicationCreateInternalV1betaLifeCycleState) AllValues() []VolumeReplicationCreateInternalV1betaLifeCycleState {
+	return []VolumeReplicationCreateInternalV1betaLifeCycleState{
+		VolumeReplicationCreateInternalV1betaLifeCycleStateCreating,
+		VolumeReplicationCreateInternalV1betaLifeCycleStateAvailable,
+		VolumeReplicationCreateInternalV1betaLifeCycleStateUpdating,
+		VolumeReplicationCreateInternalV1betaLifeCycleStateDisabled,
+		VolumeReplicationCreateInternalV1betaLifeCycleStateDeleting,
+		VolumeReplicationCreateInternalV1betaLifeCycleStateDeleted,
+		VolumeReplicationCreateInternalV1betaLifeCycleStateError,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s VolumeReplicationCreateInternalV1betaLifeCycleState) MarshalText() ([]byte, error) {
+	switch s {
+	case VolumeReplicationCreateInternalV1betaLifeCycleStateCreating:
+		return []byte(s), nil
+	case VolumeReplicationCreateInternalV1betaLifeCycleStateAvailable:
+		return []byte(s), nil
+	case VolumeReplicationCreateInternalV1betaLifeCycleStateUpdating:
+		return []byte(s), nil
+	case VolumeReplicationCreateInternalV1betaLifeCycleStateDisabled:
+		return []byte(s), nil
+	case VolumeReplicationCreateInternalV1betaLifeCycleStateDeleting:
+		return []byte(s), nil
+	case VolumeReplicationCreateInternalV1betaLifeCycleStateDeleted:
+		return []byte(s), nil
+	case VolumeReplicationCreateInternalV1betaLifeCycleStateError:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *VolumeReplicationCreateInternalV1betaLifeCycleState) UnmarshalText(data []byte) error {
+	switch VolumeReplicationCreateInternalV1betaLifeCycleState(data) {
+	case VolumeReplicationCreateInternalV1betaLifeCycleStateCreating:
+		*s = VolumeReplicationCreateInternalV1betaLifeCycleStateCreating
+		return nil
+	case VolumeReplicationCreateInternalV1betaLifeCycleStateAvailable:
+		*s = VolumeReplicationCreateInternalV1betaLifeCycleStateAvailable
+		return nil
+	case VolumeReplicationCreateInternalV1betaLifeCycleStateUpdating:
+		*s = VolumeReplicationCreateInternalV1betaLifeCycleStateUpdating
+		return nil
+	case VolumeReplicationCreateInternalV1betaLifeCycleStateDisabled:
+		*s = VolumeReplicationCreateInternalV1betaLifeCycleStateDisabled
+		return nil
+	case VolumeReplicationCreateInternalV1betaLifeCycleStateDeleting:
+		*s = VolumeReplicationCreateInternalV1betaLifeCycleStateDeleting
+		return nil
+	case VolumeReplicationCreateInternalV1betaLifeCycleStateDeleted:
+		*s = VolumeReplicationCreateInternalV1betaLifeCycleStateDeleted
+		return nil
+	case VolumeReplicationCreateInternalV1betaLifeCycleStateError:
+		*s = VolumeReplicationCreateInternalV1betaLifeCycleStateError
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// The mirror state of the volume replication.
+type VolumeReplicationCreateInternalV1betaMirrorState string
+
+const (
+	VolumeReplicationCreateInternalV1betaMirrorStateUninitialized VolumeReplicationCreateInternalV1betaMirrorState = "uninitialized"
+	VolumeReplicationCreateInternalV1betaMirrorStateMirrored      VolumeReplicationCreateInternalV1betaMirrorState = "mirrored"
+	VolumeReplicationCreateInternalV1betaMirrorStateBroken        VolumeReplicationCreateInternalV1betaMirrorState = "broken"
+)
+
+// AllValues returns all VolumeReplicationCreateInternalV1betaMirrorState values.
+func (VolumeReplicationCreateInternalV1betaMirrorState) AllValues() []VolumeReplicationCreateInternalV1betaMirrorState {
+	return []VolumeReplicationCreateInternalV1betaMirrorState{
+		VolumeReplicationCreateInternalV1betaMirrorStateUninitialized,
+		VolumeReplicationCreateInternalV1betaMirrorStateMirrored,
+		VolumeReplicationCreateInternalV1betaMirrorStateBroken,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s VolumeReplicationCreateInternalV1betaMirrorState) MarshalText() ([]byte, error) {
+	switch s {
+	case VolumeReplicationCreateInternalV1betaMirrorStateUninitialized:
+		return []byte(s), nil
+	case VolumeReplicationCreateInternalV1betaMirrorStateMirrored:
+		return []byte(s), nil
+	case VolumeReplicationCreateInternalV1betaMirrorStateBroken:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *VolumeReplicationCreateInternalV1betaMirrorState) UnmarshalText(data []byte) error {
+	switch VolumeReplicationCreateInternalV1betaMirrorState(data) {
+	case VolumeReplicationCreateInternalV1betaMirrorStateUninitialized:
+		*s = VolumeReplicationCreateInternalV1betaMirrorStateUninitialized
+		return nil
+	case VolumeReplicationCreateInternalV1betaMirrorStateMirrored:
+		*s = VolumeReplicationCreateInternalV1betaMirrorStateMirrored
+		return nil
+	case VolumeReplicationCreateInternalV1betaMirrorStateBroken:
+		*s = VolumeReplicationCreateInternalV1betaMirrorStateBroken
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// The status of the volume replication.
+type VolumeReplicationCreateInternalV1betaRelationshipStatus string
+
+const (
+	VolumeReplicationCreateInternalV1betaRelationshipStatusIdle         VolumeReplicationCreateInternalV1betaRelationshipStatus = "idle"
+	VolumeReplicationCreateInternalV1betaRelationshipStatusTransferring VolumeReplicationCreateInternalV1betaRelationshipStatus = "transferring"
+)
+
+// AllValues returns all VolumeReplicationCreateInternalV1betaRelationshipStatus values.
+func (VolumeReplicationCreateInternalV1betaRelationshipStatus) AllValues() []VolumeReplicationCreateInternalV1betaRelationshipStatus {
+	return []VolumeReplicationCreateInternalV1betaRelationshipStatus{
+		VolumeReplicationCreateInternalV1betaRelationshipStatusIdle,
+		VolumeReplicationCreateInternalV1betaRelationshipStatusTransferring,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s VolumeReplicationCreateInternalV1betaRelationshipStatus) MarshalText() ([]byte, error) {
+	switch s {
+	case VolumeReplicationCreateInternalV1betaRelationshipStatusIdle:
+		return []byte(s), nil
+	case VolumeReplicationCreateInternalV1betaRelationshipStatusTransferring:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *VolumeReplicationCreateInternalV1betaRelationshipStatus) UnmarshalText(data []byte) error {
+	switch VolumeReplicationCreateInternalV1betaRelationshipStatus(data) {
+	case VolumeReplicationCreateInternalV1betaRelationshipStatusIdle:
+		*s = VolumeReplicationCreateInternalV1betaRelationshipStatusIdle
+		return nil
+	case VolumeReplicationCreateInternalV1betaRelationshipStatusTransferring:
+		*s = VolumeReplicationCreateInternalV1betaRelationshipStatusTransferring
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type VolumeReplicationCreateInternalV1betaReplicationPolicy string
+
+const (
+	VolumeReplicationCreateInternalV1betaReplicationPolicyMirrorAllSnapshots VolumeReplicationCreateInternalV1betaReplicationPolicy = "MirrorAllSnapshots"
+)
+
+// AllValues returns all VolumeReplicationCreateInternalV1betaReplicationPolicy values.
+func (VolumeReplicationCreateInternalV1betaReplicationPolicy) AllValues() []VolumeReplicationCreateInternalV1betaReplicationPolicy {
+	return []VolumeReplicationCreateInternalV1betaReplicationPolicy{
+		VolumeReplicationCreateInternalV1betaReplicationPolicyMirrorAllSnapshots,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s VolumeReplicationCreateInternalV1betaReplicationPolicy) MarshalText() ([]byte, error) {
+	switch s {
+	case VolumeReplicationCreateInternalV1betaReplicationPolicyMirrorAllSnapshots:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *VolumeReplicationCreateInternalV1betaReplicationPolicy) UnmarshalText(data []byte) error {
+	switch VolumeReplicationCreateInternalV1betaReplicationPolicy(data) {
+	case VolumeReplicationCreateInternalV1betaReplicationPolicyMirrorAllSnapshots:
+		*s = VolumeReplicationCreateInternalV1betaReplicationPolicyMirrorAllSnapshots
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type VolumeReplicationCreateInternalV1betaReplicationSchedule string
+
+const (
+	VolumeReplicationCreateInternalV1betaReplicationSchedule10minutely VolumeReplicationCreateInternalV1betaReplicationSchedule = "10minutely"
+	VolumeReplicationCreateInternalV1betaReplicationScheduleHourly     VolumeReplicationCreateInternalV1betaReplicationSchedule = "hourly"
+	VolumeReplicationCreateInternalV1betaReplicationScheduleDaily      VolumeReplicationCreateInternalV1betaReplicationSchedule = "daily"
+	VolumeReplicationCreateInternalV1betaReplicationScheduleWeekly     VolumeReplicationCreateInternalV1betaReplicationSchedule = "weekly"
+	VolumeReplicationCreateInternalV1betaReplicationScheduleMonthly    VolumeReplicationCreateInternalV1betaReplicationSchedule = "monthly"
+)
+
+// AllValues returns all VolumeReplicationCreateInternalV1betaReplicationSchedule values.
+func (VolumeReplicationCreateInternalV1betaReplicationSchedule) AllValues() []VolumeReplicationCreateInternalV1betaReplicationSchedule {
+	return []VolumeReplicationCreateInternalV1betaReplicationSchedule{
+		VolumeReplicationCreateInternalV1betaReplicationSchedule10minutely,
+		VolumeReplicationCreateInternalV1betaReplicationScheduleHourly,
+		VolumeReplicationCreateInternalV1betaReplicationScheduleDaily,
+		VolumeReplicationCreateInternalV1betaReplicationScheduleWeekly,
+		VolumeReplicationCreateInternalV1betaReplicationScheduleMonthly,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s VolumeReplicationCreateInternalV1betaReplicationSchedule) MarshalText() ([]byte, error) {
+	switch s {
+	case VolumeReplicationCreateInternalV1betaReplicationSchedule10minutely:
+		return []byte(s), nil
+	case VolumeReplicationCreateInternalV1betaReplicationScheduleHourly:
+		return []byte(s), nil
+	case VolumeReplicationCreateInternalV1betaReplicationScheduleDaily:
+		return []byte(s), nil
+	case VolumeReplicationCreateInternalV1betaReplicationScheduleWeekly:
+		return []byte(s), nil
+	case VolumeReplicationCreateInternalV1betaReplicationScheduleMonthly:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *VolumeReplicationCreateInternalV1betaReplicationSchedule) UnmarshalText(data []byte) error {
+	switch VolumeReplicationCreateInternalV1betaReplicationSchedule(data) {
+	case VolumeReplicationCreateInternalV1betaReplicationSchedule10minutely:
+		*s = VolumeReplicationCreateInternalV1betaReplicationSchedule10minutely
+		return nil
+	case VolumeReplicationCreateInternalV1betaReplicationScheduleHourly:
+		*s = VolumeReplicationCreateInternalV1betaReplicationScheduleHourly
+		return nil
+	case VolumeReplicationCreateInternalV1betaReplicationScheduleDaily:
+		*s = VolumeReplicationCreateInternalV1betaReplicationScheduleDaily
+		return nil
+	case VolumeReplicationCreateInternalV1betaReplicationScheduleWeekly:
+		*s = VolumeReplicationCreateInternalV1betaReplicationScheduleWeekly
+		return nil
+	case VolumeReplicationCreateInternalV1betaReplicationScheduleMonthly:
+		*s = VolumeReplicationCreateInternalV1betaReplicationScheduleMonthly
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// The replication properties between two volumes (local and remote) that are the source and
+// destination in a replication relationship.
+// Ref: #/components/schemas/VolumeReplicationInternal_v1beta
+type VolumeReplicationInternalV1beta struct {
+	// UUID v4 of volume replication.
+	VolumeReplicationUUID OptString `json:"volumeReplicationUUID"`
+	// The current lifecycle state of the resource.
+	LifeCycleState OptVolumeReplicationInternalV1betaLifeCycleState `json:"lifeCycleState"`
+	// Details about the current lifecycle state.
+	LifeCycleStateDetails OptString `json:"lifeCycleStateDetails"`
+	// Indicates whether the local volume is the source or destination for the volume replication or a
+	// restore endpoint.
+	EndpointType        VolumeReplicationInternalV1betaEndpointType           `json:"endpointType"`
+	ReplicationPolicy   OptVolumeReplicationInternalV1betaReplicationPolicy   `json:"replicationPolicy"`
+	ReplicationSchedule OptVolumeReplicationInternalV1betaReplicationSchedule `json:"replicationSchedule"`
+	// The remote region for the other end of the volume replication.
+	RemoteRegion string `json:"remoteRegion"`
+	// The resource ID of the remote volume.
+	RemoteResourceId string `json:"remoteResourceId"`
+	// The source endpoint host for the volume replication.
+	SourceHostName string `json:"sourceHostName"`
+	// The source endpoint server for the volume replication.
+	SourceServerName string `json:"sourceServerName"`
+	// The source endpoint volume for the volume replication.
+	SourceVolumeName string `json:"sourceVolumeName"`
+	// The destination endpoint host for the volume replication.
+	DestinationHostName string `json:"destinationHostName"`
+	// The destination endpoint server for the volume replication.
+	DestinationServerName string `json:"destinationServerName"`
+	// The destination endpoint volume for the volume replication.
+	DestinationVolumeName string `json:"destinationVolumeName"`
+	// UUID v4 of the destination volume.
+	DestinationVolumeUUID OptString `json:"destinationVolumeUUID"`
+	// A human readable label for the volume replication.
+	Name OptString `json:"name"`
+	// The mirror state of the volume replication.
+	MirrorState OptVolumeReplicationInternalV1betaMirrorState `json:"mirrorState"`
+	// Type of hybrid replication.
+	HybridReplicationType OptVolumeReplicationInternalV1betaHybridReplicationType `json:"hybridReplicationType"`
+	// The status of the volume replication.
+	RelationshipStatus OptVolumeReplicationInternalV1betaRelationshipStatus `json:"relationshipStatus"`
+	// Total amount of data transferred for the current transfer operation.
+	TotalProgress OptInt64 `json:"totalProgress"`
+	// Condition of the relationship. Can be one of the following: - true: The replication relationship is
+	// healthy. It has not missed a
+	// scheduled transfer, or experienced
+	// a manual update failure.
+	// - false: The replication relationship is not
+	// healthy. It has missed a scheduled
+	// transfer, or has experienced a manual
+	// update failure.
+	Healthy OptBool `json:"healthy"`
+	// Cumulative bytes transferred for the relationship.
+	TotalTransferBytes OptInt64 `json:"totalTransferBytes"`
+	// Cumulative total transfer time in seconds for the relationship.
+	TotalTransferTimeSecs OptInt64 `json:"totalTransferTimeSecs"`
+	// The total number of bytes transferred as part of the last transfer.
+	LastTransferSize OptInt64 `json:"lastTransferSize"`
+	// A message describing the cause of the last transfer failure.
+	LastTransferError OptString `json:"lastTransferError"`
+	// The amount of time in seconds it took for the last transfer to complete.
+	LastTransferDuration OptInt64 `json:"lastTransferDuration"`
+	// The time of the end of the last transfer.
+	LastTransferEndTime OptDateTime `json:"lastTransferEndTime"`
+	// Time indicating when the progress of the transfer was last updated.
+	ProgressLastUpdated OptDateTime `json:"progressLastUpdated"`
+	// The amount of time in seconds by which the data on the mirror lags behind the source.
+	LagTime OptInt64 `json:"lagTime"`
+	// Creation date of the resource.
+	CreatedAt OptDateTime `json:"createdAt"`
+	// Date of last update of the resource.
+	UpdatedAt OptDateTime `json:"updatedAt"`
+	// Date the resource was deleted.
+	DeletedAt OptDateTime `json:"deletedAt"`
+	// Jobs currently ongoing for the volume replication.
+	Jobs []JobV1beta `json:"jobs"`
+	// Description of the volume replication.
+	Description OptString `json:"description"`
+	// JSON dictionary of resource labels to allow linking of billing labels to a replication, Can
+	// contain only lowercase letters, numeric characters, underscores, and dashes. All characters must
+	// use UTF-8 encoding, and international characters are allowed. Must start with a lowercase letter
+	// or international character.
+	Labels OptVolumeReplicationInternalV1betaLabels `json:"labels"`
+}
+
+// GetVolumeReplicationUUID returns the value of VolumeReplicationUUID.
+func (s *VolumeReplicationInternalV1beta) GetVolumeReplicationUUID() OptString {
+	return s.VolumeReplicationUUID
+}
+
+// GetLifeCycleState returns the value of LifeCycleState.
+func (s *VolumeReplicationInternalV1beta) GetLifeCycleState() OptVolumeReplicationInternalV1betaLifeCycleState {
+	return s.LifeCycleState
+}
+
+// GetLifeCycleStateDetails returns the value of LifeCycleStateDetails.
+func (s *VolumeReplicationInternalV1beta) GetLifeCycleStateDetails() OptString {
+	return s.LifeCycleStateDetails
+}
+
+// GetEndpointType returns the value of EndpointType.
+func (s *VolumeReplicationInternalV1beta) GetEndpointType() VolumeReplicationInternalV1betaEndpointType {
+	return s.EndpointType
+}
+
+// GetReplicationPolicy returns the value of ReplicationPolicy.
+func (s *VolumeReplicationInternalV1beta) GetReplicationPolicy() OptVolumeReplicationInternalV1betaReplicationPolicy {
+	return s.ReplicationPolicy
+}
+
+// GetReplicationSchedule returns the value of ReplicationSchedule.
+func (s *VolumeReplicationInternalV1beta) GetReplicationSchedule() OptVolumeReplicationInternalV1betaReplicationSchedule {
+	return s.ReplicationSchedule
+}
+
+// GetRemoteRegion returns the value of RemoteRegion.
+func (s *VolumeReplicationInternalV1beta) GetRemoteRegion() string {
+	return s.RemoteRegion
+}
+
+// GetRemoteResourceId returns the value of RemoteResourceId.
+func (s *VolumeReplicationInternalV1beta) GetRemoteResourceId() string {
+	return s.RemoteResourceId
+}
+
+// GetSourceHostName returns the value of SourceHostName.
+func (s *VolumeReplicationInternalV1beta) GetSourceHostName() string {
+	return s.SourceHostName
+}
+
+// GetSourceServerName returns the value of SourceServerName.
+func (s *VolumeReplicationInternalV1beta) GetSourceServerName() string {
+	return s.SourceServerName
+}
+
+// GetSourceVolumeName returns the value of SourceVolumeName.
+func (s *VolumeReplicationInternalV1beta) GetSourceVolumeName() string {
+	return s.SourceVolumeName
+}
+
+// GetDestinationHostName returns the value of DestinationHostName.
+func (s *VolumeReplicationInternalV1beta) GetDestinationHostName() string {
+	return s.DestinationHostName
+}
+
+// GetDestinationServerName returns the value of DestinationServerName.
+func (s *VolumeReplicationInternalV1beta) GetDestinationServerName() string {
+	return s.DestinationServerName
+}
+
+// GetDestinationVolumeName returns the value of DestinationVolumeName.
+func (s *VolumeReplicationInternalV1beta) GetDestinationVolumeName() string {
+	return s.DestinationVolumeName
+}
+
+// GetDestinationVolumeUUID returns the value of DestinationVolumeUUID.
+func (s *VolumeReplicationInternalV1beta) GetDestinationVolumeUUID() OptString {
+	return s.DestinationVolumeUUID
+}
+
+// GetName returns the value of Name.
+func (s *VolumeReplicationInternalV1beta) GetName() OptString {
+	return s.Name
+}
+
+// GetMirrorState returns the value of MirrorState.
+func (s *VolumeReplicationInternalV1beta) GetMirrorState() OptVolumeReplicationInternalV1betaMirrorState {
+	return s.MirrorState
+}
+
+// GetHybridReplicationType returns the value of HybridReplicationType.
+func (s *VolumeReplicationInternalV1beta) GetHybridReplicationType() OptVolumeReplicationInternalV1betaHybridReplicationType {
+	return s.HybridReplicationType
+}
+
+// GetRelationshipStatus returns the value of RelationshipStatus.
+func (s *VolumeReplicationInternalV1beta) GetRelationshipStatus() OptVolumeReplicationInternalV1betaRelationshipStatus {
+	return s.RelationshipStatus
+}
+
+// GetTotalProgress returns the value of TotalProgress.
+func (s *VolumeReplicationInternalV1beta) GetTotalProgress() OptInt64 {
+	return s.TotalProgress
+}
+
+// GetHealthy returns the value of Healthy.
+func (s *VolumeReplicationInternalV1beta) GetHealthy() OptBool {
+	return s.Healthy
+}
+
+// GetTotalTransferBytes returns the value of TotalTransferBytes.
+func (s *VolumeReplicationInternalV1beta) GetTotalTransferBytes() OptInt64 {
+	return s.TotalTransferBytes
+}
+
+// GetTotalTransferTimeSecs returns the value of TotalTransferTimeSecs.
+func (s *VolumeReplicationInternalV1beta) GetTotalTransferTimeSecs() OptInt64 {
+	return s.TotalTransferTimeSecs
+}
+
+// GetLastTransferSize returns the value of LastTransferSize.
+func (s *VolumeReplicationInternalV1beta) GetLastTransferSize() OptInt64 {
+	return s.LastTransferSize
+}
+
+// GetLastTransferError returns the value of LastTransferError.
+func (s *VolumeReplicationInternalV1beta) GetLastTransferError() OptString {
+	return s.LastTransferError
+}
+
+// GetLastTransferDuration returns the value of LastTransferDuration.
+func (s *VolumeReplicationInternalV1beta) GetLastTransferDuration() OptInt64 {
+	return s.LastTransferDuration
+}
+
+// GetLastTransferEndTime returns the value of LastTransferEndTime.
+func (s *VolumeReplicationInternalV1beta) GetLastTransferEndTime() OptDateTime {
+	return s.LastTransferEndTime
+}
+
+// GetProgressLastUpdated returns the value of ProgressLastUpdated.
+func (s *VolumeReplicationInternalV1beta) GetProgressLastUpdated() OptDateTime {
+	return s.ProgressLastUpdated
+}
+
+// GetLagTime returns the value of LagTime.
+func (s *VolumeReplicationInternalV1beta) GetLagTime() OptInt64 {
+	return s.LagTime
+}
+
+// GetCreatedAt returns the value of CreatedAt.
+func (s *VolumeReplicationInternalV1beta) GetCreatedAt() OptDateTime {
+	return s.CreatedAt
+}
+
+// GetUpdatedAt returns the value of UpdatedAt.
+func (s *VolumeReplicationInternalV1beta) GetUpdatedAt() OptDateTime {
+	return s.UpdatedAt
+}
+
+// GetDeletedAt returns the value of DeletedAt.
+func (s *VolumeReplicationInternalV1beta) GetDeletedAt() OptDateTime {
+	return s.DeletedAt
+}
+
+// GetJobs returns the value of Jobs.
+func (s *VolumeReplicationInternalV1beta) GetJobs() []JobV1beta {
+	return s.Jobs
+}
+
+// GetDescription returns the value of Description.
+func (s *VolumeReplicationInternalV1beta) GetDescription() OptString {
+	return s.Description
+}
+
+// GetLabels returns the value of Labels.
+func (s *VolumeReplicationInternalV1beta) GetLabels() OptVolumeReplicationInternalV1betaLabels {
+	return s.Labels
+}
+
+// SetVolumeReplicationUUID sets the value of VolumeReplicationUUID.
+func (s *VolumeReplicationInternalV1beta) SetVolumeReplicationUUID(val OptString) {
+	s.VolumeReplicationUUID = val
+}
+
+// SetLifeCycleState sets the value of LifeCycleState.
+func (s *VolumeReplicationInternalV1beta) SetLifeCycleState(val OptVolumeReplicationInternalV1betaLifeCycleState) {
+	s.LifeCycleState = val
+}
+
+// SetLifeCycleStateDetails sets the value of LifeCycleStateDetails.
+func (s *VolumeReplicationInternalV1beta) SetLifeCycleStateDetails(val OptString) {
+	s.LifeCycleStateDetails = val
+}
+
+// SetEndpointType sets the value of EndpointType.
+func (s *VolumeReplicationInternalV1beta) SetEndpointType(val VolumeReplicationInternalV1betaEndpointType) {
+	s.EndpointType = val
+}
+
+// SetReplicationPolicy sets the value of ReplicationPolicy.
+func (s *VolumeReplicationInternalV1beta) SetReplicationPolicy(val OptVolumeReplicationInternalV1betaReplicationPolicy) {
+	s.ReplicationPolicy = val
+}
+
+// SetReplicationSchedule sets the value of ReplicationSchedule.
+func (s *VolumeReplicationInternalV1beta) SetReplicationSchedule(val OptVolumeReplicationInternalV1betaReplicationSchedule) {
+	s.ReplicationSchedule = val
+}
+
+// SetRemoteRegion sets the value of RemoteRegion.
+func (s *VolumeReplicationInternalV1beta) SetRemoteRegion(val string) {
+	s.RemoteRegion = val
+}
+
+// SetRemoteResourceId sets the value of RemoteResourceId.
+func (s *VolumeReplicationInternalV1beta) SetRemoteResourceId(val string) {
+	s.RemoteResourceId = val
+}
+
+// SetSourceHostName sets the value of SourceHostName.
+func (s *VolumeReplicationInternalV1beta) SetSourceHostName(val string) {
+	s.SourceHostName = val
+}
+
+// SetSourceServerName sets the value of SourceServerName.
+func (s *VolumeReplicationInternalV1beta) SetSourceServerName(val string) {
+	s.SourceServerName = val
+}
+
+// SetSourceVolumeName sets the value of SourceVolumeName.
+func (s *VolumeReplicationInternalV1beta) SetSourceVolumeName(val string) {
+	s.SourceVolumeName = val
+}
+
+// SetDestinationHostName sets the value of DestinationHostName.
+func (s *VolumeReplicationInternalV1beta) SetDestinationHostName(val string) {
+	s.DestinationHostName = val
+}
+
+// SetDestinationServerName sets the value of DestinationServerName.
+func (s *VolumeReplicationInternalV1beta) SetDestinationServerName(val string) {
+	s.DestinationServerName = val
+}
+
+// SetDestinationVolumeName sets the value of DestinationVolumeName.
+func (s *VolumeReplicationInternalV1beta) SetDestinationVolumeName(val string) {
+	s.DestinationVolumeName = val
+}
+
+// SetDestinationVolumeUUID sets the value of DestinationVolumeUUID.
+func (s *VolumeReplicationInternalV1beta) SetDestinationVolumeUUID(val OptString) {
+	s.DestinationVolumeUUID = val
+}
+
+// SetName sets the value of Name.
+func (s *VolumeReplicationInternalV1beta) SetName(val OptString) {
+	s.Name = val
+}
+
+// SetMirrorState sets the value of MirrorState.
+func (s *VolumeReplicationInternalV1beta) SetMirrorState(val OptVolumeReplicationInternalV1betaMirrorState) {
+	s.MirrorState = val
+}
+
+// SetHybridReplicationType sets the value of HybridReplicationType.
+func (s *VolumeReplicationInternalV1beta) SetHybridReplicationType(val OptVolumeReplicationInternalV1betaHybridReplicationType) {
+	s.HybridReplicationType = val
+}
+
+// SetRelationshipStatus sets the value of RelationshipStatus.
+func (s *VolumeReplicationInternalV1beta) SetRelationshipStatus(val OptVolumeReplicationInternalV1betaRelationshipStatus) {
+	s.RelationshipStatus = val
+}
+
+// SetTotalProgress sets the value of TotalProgress.
+func (s *VolumeReplicationInternalV1beta) SetTotalProgress(val OptInt64) {
+	s.TotalProgress = val
+}
+
+// SetHealthy sets the value of Healthy.
+func (s *VolumeReplicationInternalV1beta) SetHealthy(val OptBool) {
+	s.Healthy = val
+}
+
+// SetTotalTransferBytes sets the value of TotalTransferBytes.
+func (s *VolumeReplicationInternalV1beta) SetTotalTransferBytes(val OptInt64) {
+	s.TotalTransferBytes = val
+}
+
+// SetTotalTransferTimeSecs sets the value of TotalTransferTimeSecs.
+func (s *VolumeReplicationInternalV1beta) SetTotalTransferTimeSecs(val OptInt64) {
+	s.TotalTransferTimeSecs = val
+}
+
+// SetLastTransferSize sets the value of LastTransferSize.
+func (s *VolumeReplicationInternalV1beta) SetLastTransferSize(val OptInt64) {
+	s.LastTransferSize = val
+}
+
+// SetLastTransferError sets the value of LastTransferError.
+func (s *VolumeReplicationInternalV1beta) SetLastTransferError(val OptString) {
+	s.LastTransferError = val
+}
+
+// SetLastTransferDuration sets the value of LastTransferDuration.
+func (s *VolumeReplicationInternalV1beta) SetLastTransferDuration(val OptInt64) {
+	s.LastTransferDuration = val
+}
+
+// SetLastTransferEndTime sets the value of LastTransferEndTime.
+func (s *VolumeReplicationInternalV1beta) SetLastTransferEndTime(val OptDateTime) {
+	s.LastTransferEndTime = val
+}
+
+// SetProgressLastUpdated sets the value of ProgressLastUpdated.
+func (s *VolumeReplicationInternalV1beta) SetProgressLastUpdated(val OptDateTime) {
+	s.ProgressLastUpdated = val
+}
+
+// SetLagTime sets the value of LagTime.
+func (s *VolumeReplicationInternalV1beta) SetLagTime(val OptInt64) {
+	s.LagTime = val
+}
+
+// SetCreatedAt sets the value of CreatedAt.
+func (s *VolumeReplicationInternalV1beta) SetCreatedAt(val OptDateTime) {
+	s.CreatedAt = val
+}
+
+// SetUpdatedAt sets the value of UpdatedAt.
+func (s *VolumeReplicationInternalV1beta) SetUpdatedAt(val OptDateTime) {
+	s.UpdatedAt = val
+}
+
+// SetDeletedAt sets the value of DeletedAt.
+func (s *VolumeReplicationInternalV1beta) SetDeletedAt(val OptDateTime) {
+	s.DeletedAt = val
+}
+
+// SetJobs sets the value of Jobs.
+func (s *VolumeReplicationInternalV1beta) SetJobs(val []JobV1beta) {
+	s.Jobs = val
+}
+
+// SetDescription sets the value of Description.
+func (s *VolumeReplicationInternalV1beta) SetDescription(val OptString) {
+	s.Description = val
+}
+
+// SetLabels sets the value of Labels.
+func (s *VolumeReplicationInternalV1beta) SetLabels(val OptVolumeReplicationInternalV1betaLabels) {
+	s.Labels = val
+}
+
+func (*VolumeReplicationInternalV1beta) v1betaInternalAuthorizeVolumeReplicationRes() {}
+func (*VolumeReplicationInternalV1beta) v1betaInternalCreateVolumeReplicationRes()    {}
+func (*VolumeReplicationInternalV1beta) v1betaInternalDeleteVolumeReplicationRes()    {}
+func (*VolumeReplicationInternalV1beta) v1betaInternalDescribeVolumeReplicationRes()  {}
+func (*VolumeReplicationInternalV1beta) v1betaInternalReleaseVolumeReplicationRes()   {}
+func (*VolumeReplicationInternalV1beta) v1betaInternalResumeVolumeReplicationRes()    {}
+func (*VolumeReplicationInternalV1beta) v1betaInternalStopVolumeReplicationRes()      {}
+func (*VolumeReplicationInternalV1beta) v1betaInternalUpdateVolumeReplicationRes()    {}
+
+// Indicates whether the local volume is the source or destination for the volume replication or a
+// restore endpoint.
+type VolumeReplicationInternalV1betaEndpointType string
+
+const (
+	VolumeReplicationInternalV1betaEndpointTypeSrc VolumeReplicationInternalV1betaEndpointType = "src"
+	VolumeReplicationInternalV1betaEndpointTypeDst VolumeReplicationInternalV1betaEndpointType = "dst"
+	VolumeReplicationInternalV1betaEndpointTypeRst VolumeReplicationInternalV1betaEndpointType = "rst"
+)
+
+// AllValues returns all VolumeReplicationInternalV1betaEndpointType values.
+func (VolumeReplicationInternalV1betaEndpointType) AllValues() []VolumeReplicationInternalV1betaEndpointType {
+	return []VolumeReplicationInternalV1betaEndpointType{
+		VolumeReplicationInternalV1betaEndpointTypeSrc,
+		VolumeReplicationInternalV1betaEndpointTypeDst,
+		VolumeReplicationInternalV1betaEndpointTypeRst,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s VolumeReplicationInternalV1betaEndpointType) MarshalText() ([]byte, error) {
+	switch s {
+	case VolumeReplicationInternalV1betaEndpointTypeSrc:
+		return []byte(s), nil
+	case VolumeReplicationInternalV1betaEndpointTypeDst:
+		return []byte(s), nil
+	case VolumeReplicationInternalV1betaEndpointTypeRst:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *VolumeReplicationInternalV1betaEndpointType) UnmarshalText(data []byte) error {
+	switch VolumeReplicationInternalV1betaEndpointType(data) {
+	case VolumeReplicationInternalV1betaEndpointTypeSrc:
+		*s = VolumeReplicationInternalV1betaEndpointTypeSrc
+		return nil
+	case VolumeReplicationInternalV1betaEndpointTypeDst:
+		*s = VolumeReplicationInternalV1betaEndpointTypeDst
+		return nil
+	case VolumeReplicationInternalV1betaEndpointTypeRst:
+		*s = VolumeReplicationInternalV1betaEndpointTypeRst
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// Type of hybrid replication.
+type VolumeReplicationInternalV1betaHybridReplicationType string
+
+const (
+	VolumeReplicationInternalV1betaHybridReplicationTypeHYBRIDREPLICATIONTYPEUNSPECIFIED VolumeReplicationInternalV1betaHybridReplicationType = "HYBRID_REPLICATION_TYPE_UNSPECIFIED"
+	VolumeReplicationInternalV1betaHybridReplicationTypeMIGRATION                        VolumeReplicationInternalV1betaHybridReplicationType = "MIGRATION"
+	VolumeReplicationInternalV1betaHybridReplicationTypeCONTINUOUSREPLICATION            VolumeReplicationInternalV1betaHybridReplicationType = "CONTINUOUS_REPLICATION"
+	VolumeReplicationInternalV1betaHybridReplicationTypeONPREMREPLICATION                VolumeReplicationInternalV1betaHybridReplicationType = "ONPREM_REPLICATION"
+	VolumeReplicationInternalV1betaHybridReplicationTypeREVERSEONPREMREPLICATION         VolumeReplicationInternalV1betaHybridReplicationType = "REVERSE_ONPREM_REPLICATION"
+)
+
+// AllValues returns all VolumeReplicationInternalV1betaHybridReplicationType values.
+func (VolumeReplicationInternalV1betaHybridReplicationType) AllValues() []VolumeReplicationInternalV1betaHybridReplicationType {
+	return []VolumeReplicationInternalV1betaHybridReplicationType{
+		VolumeReplicationInternalV1betaHybridReplicationTypeHYBRIDREPLICATIONTYPEUNSPECIFIED,
+		VolumeReplicationInternalV1betaHybridReplicationTypeMIGRATION,
+		VolumeReplicationInternalV1betaHybridReplicationTypeCONTINUOUSREPLICATION,
+		VolumeReplicationInternalV1betaHybridReplicationTypeONPREMREPLICATION,
+		VolumeReplicationInternalV1betaHybridReplicationTypeREVERSEONPREMREPLICATION,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s VolumeReplicationInternalV1betaHybridReplicationType) MarshalText() ([]byte, error) {
+	switch s {
+	case VolumeReplicationInternalV1betaHybridReplicationTypeHYBRIDREPLICATIONTYPEUNSPECIFIED:
+		return []byte(s), nil
+	case VolumeReplicationInternalV1betaHybridReplicationTypeMIGRATION:
+		return []byte(s), nil
+	case VolumeReplicationInternalV1betaHybridReplicationTypeCONTINUOUSREPLICATION:
+		return []byte(s), nil
+	case VolumeReplicationInternalV1betaHybridReplicationTypeONPREMREPLICATION:
+		return []byte(s), nil
+	case VolumeReplicationInternalV1betaHybridReplicationTypeREVERSEONPREMREPLICATION:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *VolumeReplicationInternalV1betaHybridReplicationType) UnmarshalText(data []byte) error {
+	switch VolumeReplicationInternalV1betaHybridReplicationType(data) {
+	case VolumeReplicationInternalV1betaHybridReplicationTypeHYBRIDREPLICATIONTYPEUNSPECIFIED:
+		*s = VolumeReplicationInternalV1betaHybridReplicationTypeHYBRIDREPLICATIONTYPEUNSPECIFIED
+		return nil
+	case VolumeReplicationInternalV1betaHybridReplicationTypeMIGRATION:
+		*s = VolumeReplicationInternalV1betaHybridReplicationTypeMIGRATION
+		return nil
+	case VolumeReplicationInternalV1betaHybridReplicationTypeCONTINUOUSREPLICATION:
+		*s = VolumeReplicationInternalV1betaHybridReplicationTypeCONTINUOUSREPLICATION
+		return nil
+	case VolumeReplicationInternalV1betaHybridReplicationTypeONPREMREPLICATION:
+		*s = VolumeReplicationInternalV1betaHybridReplicationTypeONPREMREPLICATION
+		return nil
+	case VolumeReplicationInternalV1betaHybridReplicationTypeREVERSEONPREMREPLICATION:
+		*s = VolumeReplicationInternalV1betaHybridReplicationTypeREVERSEONPREMREPLICATION
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// JSON dictionary of resource labels to allow linking of billing labels to a replication, Can
+// contain only lowercase letters, numeric characters, underscores, and dashes. All characters must
+// use UTF-8 encoding, and international characters are allowed. Must start with a lowercase letter
+// or international character.
+type VolumeReplicationInternalV1betaLabels map[string]string
+
+func (s *VolumeReplicationInternalV1betaLabels) init() VolumeReplicationInternalV1betaLabels {
+	m := *s
+	if m == nil {
+		m = map[string]string{}
+		*s = m
+	}
+	return m
+}
+
+// The current lifecycle state of the resource.
+type VolumeReplicationInternalV1betaLifeCycleState string
+
+const (
+	VolumeReplicationInternalV1betaLifeCycleStateCreating  VolumeReplicationInternalV1betaLifeCycleState = "creating"
+	VolumeReplicationInternalV1betaLifeCycleStateAvailable VolumeReplicationInternalV1betaLifeCycleState = "available"
+	VolumeReplicationInternalV1betaLifeCycleStateUpdating  VolumeReplicationInternalV1betaLifeCycleState = "updating"
+	VolumeReplicationInternalV1betaLifeCycleStateDisabled  VolumeReplicationInternalV1betaLifeCycleState = "disabled"
+	VolumeReplicationInternalV1betaLifeCycleStateDeleting  VolumeReplicationInternalV1betaLifeCycleState = "deleting"
+	VolumeReplicationInternalV1betaLifeCycleStateDeleted   VolumeReplicationInternalV1betaLifeCycleState = "deleted"
+	VolumeReplicationInternalV1betaLifeCycleStateError     VolumeReplicationInternalV1betaLifeCycleState = "error"
+)
+
+// AllValues returns all VolumeReplicationInternalV1betaLifeCycleState values.
+func (VolumeReplicationInternalV1betaLifeCycleState) AllValues() []VolumeReplicationInternalV1betaLifeCycleState {
+	return []VolumeReplicationInternalV1betaLifeCycleState{
+		VolumeReplicationInternalV1betaLifeCycleStateCreating,
+		VolumeReplicationInternalV1betaLifeCycleStateAvailable,
+		VolumeReplicationInternalV1betaLifeCycleStateUpdating,
+		VolumeReplicationInternalV1betaLifeCycleStateDisabled,
+		VolumeReplicationInternalV1betaLifeCycleStateDeleting,
+		VolumeReplicationInternalV1betaLifeCycleStateDeleted,
+		VolumeReplicationInternalV1betaLifeCycleStateError,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s VolumeReplicationInternalV1betaLifeCycleState) MarshalText() ([]byte, error) {
+	switch s {
+	case VolumeReplicationInternalV1betaLifeCycleStateCreating:
+		return []byte(s), nil
+	case VolumeReplicationInternalV1betaLifeCycleStateAvailable:
+		return []byte(s), nil
+	case VolumeReplicationInternalV1betaLifeCycleStateUpdating:
+		return []byte(s), nil
+	case VolumeReplicationInternalV1betaLifeCycleStateDisabled:
+		return []byte(s), nil
+	case VolumeReplicationInternalV1betaLifeCycleStateDeleting:
+		return []byte(s), nil
+	case VolumeReplicationInternalV1betaLifeCycleStateDeleted:
+		return []byte(s), nil
+	case VolumeReplicationInternalV1betaLifeCycleStateError:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *VolumeReplicationInternalV1betaLifeCycleState) UnmarshalText(data []byte) error {
+	switch VolumeReplicationInternalV1betaLifeCycleState(data) {
+	case VolumeReplicationInternalV1betaLifeCycleStateCreating:
+		*s = VolumeReplicationInternalV1betaLifeCycleStateCreating
+		return nil
+	case VolumeReplicationInternalV1betaLifeCycleStateAvailable:
+		*s = VolumeReplicationInternalV1betaLifeCycleStateAvailable
+		return nil
+	case VolumeReplicationInternalV1betaLifeCycleStateUpdating:
+		*s = VolumeReplicationInternalV1betaLifeCycleStateUpdating
+		return nil
+	case VolumeReplicationInternalV1betaLifeCycleStateDisabled:
+		*s = VolumeReplicationInternalV1betaLifeCycleStateDisabled
+		return nil
+	case VolumeReplicationInternalV1betaLifeCycleStateDeleting:
+		*s = VolumeReplicationInternalV1betaLifeCycleStateDeleting
+		return nil
+	case VolumeReplicationInternalV1betaLifeCycleStateDeleted:
+		*s = VolumeReplicationInternalV1betaLifeCycleStateDeleted
+		return nil
+	case VolumeReplicationInternalV1betaLifeCycleStateError:
+		*s = VolumeReplicationInternalV1betaLifeCycleStateError
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// The mirror state of the volume replication.
+type VolumeReplicationInternalV1betaMirrorState string
+
+const (
+	VolumeReplicationInternalV1betaMirrorStateUninitialized VolumeReplicationInternalV1betaMirrorState = "uninitialized"
+	VolumeReplicationInternalV1betaMirrorStateMirrored      VolumeReplicationInternalV1betaMirrorState = "mirrored"
+	VolumeReplicationInternalV1betaMirrorStateBroken        VolumeReplicationInternalV1betaMirrorState = "broken"
+)
+
+// AllValues returns all VolumeReplicationInternalV1betaMirrorState values.
+func (VolumeReplicationInternalV1betaMirrorState) AllValues() []VolumeReplicationInternalV1betaMirrorState {
+	return []VolumeReplicationInternalV1betaMirrorState{
+		VolumeReplicationInternalV1betaMirrorStateUninitialized,
+		VolumeReplicationInternalV1betaMirrorStateMirrored,
+		VolumeReplicationInternalV1betaMirrorStateBroken,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s VolumeReplicationInternalV1betaMirrorState) MarshalText() ([]byte, error) {
+	switch s {
+	case VolumeReplicationInternalV1betaMirrorStateUninitialized:
+		return []byte(s), nil
+	case VolumeReplicationInternalV1betaMirrorStateMirrored:
+		return []byte(s), nil
+	case VolumeReplicationInternalV1betaMirrorStateBroken:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *VolumeReplicationInternalV1betaMirrorState) UnmarshalText(data []byte) error {
+	switch VolumeReplicationInternalV1betaMirrorState(data) {
+	case VolumeReplicationInternalV1betaMirrorStateUninitialized:
+		*s = VolumeReplicationInternalV1betaMirrorStateUninitialized
+		return nil
+	case VolumeReplicationInternalV1betaMirrorStateMirrored:
+		*s = VolumeReplicationInternalV1betaMirrorStateMirrored
+		return nil
+	case VolumeReplicationInternalV1betaMirrorStateBroken:
+		*s = VolumeReplicationInternalV1betaMirrorStateBroken
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// The status of the volume replication.
+type VolumeReplicationInternalV1betaRelationshipStatus string
+
+const (
+	VolumeReplicationInternalV1betaRelationshipStatusIdle         VolumeReplicationInternalV1betaRelationshipStatus = "idle"
+	VolumeReplicationInternalV1betaRelationshipStatusTransferring VolumeReplicationInternalV1betaRelationshipStatus = "transferring"
+)
+
+// AllValues returns all VolumeReplicationInternalV1betaRelationshipStatus values.
+func (VolumeReplicationInternalV1betaRelationshipStatus) AllValues() []VolumeReplicationInternalV1betaRelationshipStatus {
+	return []VolumeReplicationInternalV1betaRelationshipStatus{
+		VolumeReplicationInternalV1betaRelationshipStatusIdle,
+		VolumeReplicationInternalV1betaRelationshipStatusTransferring,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s VolumeReplicationInternalV1betaRelationshipStatus) MarshalText() ([]byte, error) {
+	switch s {
+	case VolumeReplicationInternalV1betaRelationshipStatusIdle:
+		return []byte(s), nil
+	case VolumeReplicationInternalV1betaRelationshipStatusTransferring:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *VolumeReplicationInternalV1betaRelationshipStatus) UnmarshalText(data []byte) error {
+	switch VolumeReplicationInternalV1betaRelationshipStatus(data) {
+	case VolumeReplicationInternalV1betaRelationshipStatusIdle:
+		*s = VolumeReplicationInternalV1betaRelationshipStatusIdle
+		return nil
+	case VolumeReplicationInternalV1betaRelationshipStatusTransferring:
+		*s = VolumeReplicationInternalV1betaRelationshipStatusTransferring
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type VolumeReplicationInternalV1betaReplicationPolicy string
+
+const (
+	VolumeReplicationInternalV1betaReplicationPolicyMirrorAllSnapshots VolumeReplicationInternalV1betaReplicationPolicy = "MirrorAllSnapshots"
+)
+
+// AllValues returns all VolumeReplicationInternalV1betaReplicationPolicy values.
+func (VolumeReplicationInternalV1betaReplicationPolicy) AllValues() []VolumeReplicationInternalV1betaReplicationPolicy {
+	return []VolumeReplicationInternalV1betaReplicationPolicy{
+		VolumeReplicationInternalV1betaReplicationPolicyMirrorAllSnapshots,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s VolumeReplicationInternalV1betaReplicationPolicy) MarshalText() ([]byte, error) {
+	switch s {
+	case VolumeReplicationInternalV1betaReplicationPolicyMirrorAllSnapshots:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *VolumeReplicationInternalV1betaReplicationPolicy) UnmarshalText(data []byte) error {
+	switch VolumeReplicationInternalV1betaReplicationPolicy(data) {
+	case VolumeReplicationInternalV1betaReplicationPolicyMirrorAllSnapshots:
+		*s = VolumeReplicationInternalV1betaReplicationPolicyMirrorAllSnapshots
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type VolumeReplicationInternalV1betaReplicationSchedule string
+
+const (
+	VolumeReplicationInternalV1betaReplicationSchedule10minutely VolumeReplicationInternalV1betaReplicationSchedule = "10minutely"
+	VolumeReplicationInternalV1betaReplicationScheduleHourly     VolumeReplicationInternalV1betaReplicationSchedule = "hourly"
+	VolumeReplicationInternalV1betaReplicationScheduleDaily      VolumeReplicationInternalV1betaReplicationSchedule = "daily"
+	VolumeReplicationInternalV1betaReplicationScheduleWeekly     VolumeReplicationInternalV1betaReplicationSchedule = "weekly"
+	VolumeReplicationInternalV1betaReplicationScheduleMonthly    VolumeReplicationInternalV1betaReplicationSchedule = "monthly"
+)
+
+// AllValues returns all VolumeReplicationInternalV1betaReplicationSchedule values.
+func (VolumeReplicationInternalV1betaReplicationSchedule) AllValues() []VolumeReplicationInternalV1betaReplicationSchedule {
+	return []VolumeReplicationInternalV1betaReplicationSchedule{
+		VolumeReplicationInternalV1betaReplicationSchedule10minutely,
+		VolumeReplicationInternalV1betaReplicationScheduleHourly,
+		VolumeReplicationInternalV1betaReplicationScheduleDaily,
+		VolumeReplicationInternalV1betaReplicationScheduleWeekly,
+		VolumeReplicationInternalV1betaReplicationScheduleMonthly,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s VolumeReplicationInternalV1betaReplicationSchedule) MarshalText() ([]byte, error) {
+	switch s {
+	case VolumeReplicationInternalV1betaReplicationSchedule10minutely:
+		return []byte(s), nil
+	case VolumeReplicationInternalV1betaReplicationScheduleHourly:
+		return []byte(s), nil
+	case VolumeReplicationInternalV1betaReplicationScheduleDaily:
+		return []byte(s), nil
+	case VolumeReplicationInternalV1betaReplicationScheduleWeekly:
+		return []byte(s), nil
+	case VolumeReplicationInternalV1betaReplicationScheduleMonthly:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *VolumeReplicationInternalV1betaReplicationSchedule) UnmarshalText(data []byte) error {
+	switch VolumeReplicationInternalV1betaReplicationSchedule(data) {
+	case VolumeReplicationInternalV1betaReplicationSchedule10minutely:
+		*s = VolumeReplicationInternalV1betaReplicationSchedule10minutely
+		return nil
+	case VolumeReplicationInternalV1betaReplicationScheduleHourly:
+		*s = VolumeReplicationInternalV1betaReplicationScheduleHourly
+		return nil
+	case VolumeReplicationInternalV1betaReplicationScheduleDaily:
+		*s = VolumeReplicationInternalV1betaReplicationScheduleDaily
+		return nil
+	case VolumeReplicationInternalV1betaReplicationScheduleWeekly:
+		*s = VolumeReplicationInternalV1betaReplicationScheduleWeekly
+		return nil
+	case VolumeReplicationInternalV1betaReplicationScheduleMonthly:
+		*s = VolumeReplicationInternalV1betaReplicationScheduleMonthly
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// Ref: #/components/schemas/VolumeReplicationUpdateInternal_v1beta
+type VolumeReplicationUpdateInternalV1beta struct {
+	// Description of the replication.
+	Description OptNilString `json:"description"`
+	// Schedule for the replication.
+	ReplicationSchedule OptNilVolumeReplicationUpdateInternalV1betaReplicationSchedule `json:"replicationSchedule"`
+	// JSON dictionary of resource labels to allow linking of billing labels to a replication. Can
+	// contain only lowercase letters, numeric characters, underscores, and dashes. All characters must
+	// use UTF-8 encoding, and international characters are allowed. Must start with a lowercase letter
+	// or international character.
+	Labels OptVolumeReplicationUpdateInternalV1betaLabels `json:"labels"`
+}
+
+// GetDescription returns the value of Description.
+func (s *VolumeReplicationUpdateInternalV1beta) GetDescription() OptNilString {
+	return s.Description
+}
+
+// GetReplicationSchedule returns the value of ReplicationSchedule.
+func (s *VolumeReplicationUpdateInternalV1beta) GetReplicationSchedule() OptNilVolumeReplicationUpdateInternalV1betaReplicationSchedule {
+	return s.ReplicationSchedule
+}
+
+// GetLabels returns the value of Labels.
+func (s *VolumeReplicationUpdateInternalV1beta) GetLabels() OptVolumeReplicationUpdateInternalV1betaLabels {
+	return s.Labels
+}
+
+// SetDescription sets the value of Description.
+func (s *VolumeReplicationUpdateInternalV1beta) SetDescription(val OptNilString) {
+	s.Description = val
+}
+
+// SetReplicationSchedule sets the value of ReplicationSchedule.
+func (s *VolumeReplicationUpdateInternalV1beta) SetReplicationSchedule(val OptNilVolumeReplicationUpdateInternalV1betaReplicationSchedule) {
+	s.ReplicationSchedule = val
+}
+
+// SetLabels sets the value of Labels.
+func (s *VolumeReplicationUpdateInternalV1beta) SetLabels(val OptVolumeReplicationUpdateInternalV1betaLabels) {
+	s.Labels = val
+}
+
+// JSON dictionary of resource labels to allow linking of billing labels to a replication. Can
+// contain only lowercase letters, numeric characters, underscores, and dashes. All characters must
+// use UTF-8 encoding, and international characters are allowed. Must start with a lowercase letter
+// or international character.
+type VolumeReplicationUpdateInternalV1betaLabels map[string]string
+
+func (s *VolumeReplicationUpdateInternalV1betaLabels) init() VolumeReplicationUpdateInternalV1betaLabels {
+	m := *s
+	if m == nil {
+		m = map[string]string{}
+		*s = m
+	}
+	return m
+}
+
+// Schedule for the replication.
+type VolumeReplicationUpdateInternalV1betaReplicationSchedule string
+
+const (
+	VolumeReplicationUpdateInternalV1betaReplicationSchedule10minutely VolumeReplicationUpdateInternalV1betaReplicationSchedule = "10minutely"
+	VolumeReplicationUpdateInternalV1betaReplicationScheduleHourly     VolumeReplicationUpdateInternalV1betaReplicationSchedule = "hourly"
+	VolumeReplicationUpdateInternalV1betaReplicationScheduleDaily      VolumeReplicationUpdateInternalV1betaReplicationSchedule = "daily"
+	VolumeReplicationUpdateInternalV1betaReplicationScheduleWeekly     VolumeReplicationUpdateInternalV1betaReplicationSchedule = "weekly"
+	VolumeReplicationUpdateInternalV1betaReplicationScheduleMonthly    VolumeReplicationUpdateInternalV1betaReplicationSchedule = "monthly"
+)
+
+// AllValues returns all VolumeReplicationUpdateInternalV1betaReplicationSchedule values.
+func (VolumeReplicationUpdateInternalV1betaReplicationSchedule) AllValues() []VolumeReplicationUpdateInternalV1betaReplicationSchedule {
+	return []VolumeReplicationUpdateInternalV1betaReplicationSchedule{
+		VolumeReplicationUpdateInternalV1betaReplicationSchedule10minutely,
+		VolumeReplicationUpdateInternalV1betaReplicationScheduleHourly,
+		VolumeReplicationUpdateInternalV1betaReplicationScheduleDaily,
+		VolumeReplicationUpdateInternalV1betaReplicationScheduleWeekly,
+		VolumeReplicationUpdateInternalV1betaReplicationScheduleMonthly,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s VolumeReplicationUpdateInternalV1betaReplicationSchedule) MarshalText() ([]byte, error) {
+	switch s {
+	case VolumeReplicationUpdateInternalV1betaReplicationSchedule10minutely:
+		return []byte(s), nil
+	case VolumeReplicationUpdateInternalV1betaReplicationScheduleHourly:
+		return []byte(s), nil
+	case VolumeReplicationUpdateInternalV1betaReplicationScheduleDaily:
+		return []byte(s), nil
+	case VolumeReplicationUpdateInternalV1betaReplicationScheduleWeekly:
+		return []byte(s), nil
+	case VolumeReplicationUpdateInternalV1betaReplicationScheduleMonthly:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *VolumeReplicationUpdateInternalV1betaReplicationSchedule) UnmarshalText(data []byte) error {
+	switch VolumeReplicationUpdateInternalV1betaReplicationSchedule(data) {
+	case VolumeReplicationUpdateInternalV1betaReplicationSchedule10minutely:
+		*s = VolumeReplicationUpdateInternalV1betaReplicationSchedule10minutely
+		return nil
+	case VolumeReplicationUpdateInternalV1betaReplicationScheduleHourly:
+		*s = VolumeReplicationUpdateInternalV1betaReplicationScheduleHourly
+		return nil
+	case VolumeReplicationUpdateInternalV1betaReplicationScheduleDaily:
+		*s = VolumeReplicationUpdateInternalV1betaReplicationScheduleDaily
+		return nil
+	case VolumeReplicationUpdateInternalV1betaReplicationScheduleWeekly:
+		*s = VolumeReplicationUpdateInternalV1betaReplicationScheduleWeekly
+		return nil
+	case VolumeReplicationUpdateInternalV1betaReplicationScheduleMonthly:
+		*s = VolumeReplicationUpdateInternalV1betaReplicationScheduleMonthly
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
 }
 
 // Ref: #/components/schemas/VolumeUpdate_v1beta

@@ -163,6 +163,70 @@ type Handler interface {
 	//
 	// POST /v1beta/projects/{projectNumber}/locations/{locationId}/getMultipleVolumes
 	V1betaGetMultipleVolumes(ctx context.Context, req *VolumeIDListV1beta, params V1betaGetMultipleVolumesParams) (V1betaGetMultipleVolumesRes, error)
+	// V1betaInternalAuthorizeVolumeReplication implements v1beta_internalAuthorizeVolumeReplication operation.
+	//
+	// Authorize a volume replication on the source.
+	//
+	// POST /v1beta/internal/projects/{projectNumber}/locations/{locationId}/volumeReplication/authorize
+	V1betaInternalAuthorizeVolumeReplication(ctx context.Context, req *VolumeReplicationCreateInternalV1beta, params V1betaInternalAuthorizeVolumeReplicationParams) (V1betaInternalAuthorizeVolumeReplicationRes, error)
+	// V1betaInternalCreateClusterPeer implements v1beta_internalCreateClusterPeer operation.
+	//
+	// Create a new cluster peer.
+	//
+	// POST /v1beta/internal/projects/{projectNumber}/locations/{locationId}/clusterPeer
+	V1betaInternalCreateClusterPeer(ctx context.Context, req *ClusterPeerV1, params V1betaInternalCreateClusterPeerParams) (V1betaInternalCreateClusterPeerRes, error)
+	// V1betaInternalCreateVolumeReplication implements v1beta_internalCreateVolumeReplication operation.
+	//
+	// Create a new volume replication.
+	//
+	// POST /v1beta/internal/projects/{projectNumber}/locations/{locationId}/volumeReplication
+	V1betaInternalCreateVolumeReplication(ctx context.Context, req *VolumeReplicationCreateInternalV1beta, params V1betaInternalCreateVolumeReplicationParams) (V1betaInternalCreateVolumeReplicationRes, error)
+	// V1betaInternalDeleteVolumeReplication implements v1beta_internalDeleteVolumeReplication operation.
+	//
+	// Warning! This operation will permanently delete the volume replication.
+	//
+	// DELETE /v1beta/internal/projects/{projectNumber}/locations/{locationId}/volumeReplication/{volumeReplicationId}
+	V1betaInternalDeleteVolumeReplication(ctx context.Context, params V1betaInternalDeleteVolumeReplicationParams) (V1betaInternalDeleteVolumeReplicationRes, error)
+	// V1betaInternalDescribePool implements v1beta_internalDescribePool operation.
+	//
+	// Returns the description of the specified volume replication by volume replication ID.
+	//
+	// GET /v1beta/internal/projects/{projectNumber}/locations/{locationId}/pool/{poolName}
+	V1betaInternalDescribePool(ctx context.Context, params V1betaInternalDescribePoolParams) (V1betaInternalDescribePoolRes, error)
+	// V1betaInternalDescribeVolumeReplication implements v1beta_internalDescribeVolumeReplication operation.
+	//
+	// Returns the description of the specified volume replication by volume replication ID.
+	//
+	// GET /v1beta/internal/projects/{projectNumber}/locations/{locationId}/volumeReplication/{volumeReplicationId}
+	V1betaInternalDescribeVolumeReplication(ctx context.Context, params V1betaInternalDescribeVolumeReplicationParams) (V1betaInternalDescribeVolumeReplicationRes, error)
+	// V1betaInternalReleaseVolumeReplication implements v1beta_internalReleaseVolumeReplication operation.
+	//
+	// Release a volume replication on the source.
+	//
+	// POST /v1beta/internal/projects/{projectNumber}/locations/{locationId}/volumeReplication/{volumeReplicationId}/release
+	V1betaInternalReleaseVolumeReplication(ctx context.Context, params V1betaInternalReleaseVolumeReplicationParams) (V1betaInternalReleaseVolumeReplicationRes, error)
+	// V1betaInternalResumeVolumeReplication implements v1beta_internalResumeVolumeReplication operation.
+	//
+	// Resume the replication relationship between source and destination in this volume replication and
+	// marks the destination as a Data-protection volume. Can only be invoked from the destination end of
+	// the relationship.
+	//
+	// POST /v1beta/internal/projects/{projectNumber}/locations/{locationId}/volumeReplication/{volumeReplicationId}/resume
+	V1betaInternalResumeVolumeReplication(ctx context.Context, params V1betaInternalResumeVolumeReplicationParams) (V1betaInternalResumeVolumeReplicationRes, error)
+	// V1betaInternalStopVolumeReplication implements v1beta_internalStopVolumeReplication operation.
+	//
+	// Stop the replication relationship between source and destination in this volume replication and
+	// changes the type of the destination to RW. Can only be invoked from the destination end of the
+	// relationship.
+	//
+	// POST /v1beta/internal/projects/{projectNumber}/locations/{locationId}/volumeReplication/{volumeReplicationId}/stop
+	V1betaInternalStopVolumeReplication(ctx context.Context, req *V1betaInternalStopVolumeReplicationReq, params V1betaInternalStopVolumeReplicationParams) (V1betaInternalStopVolumeReplicationRes, error)
+	// V1betaInternalUpdateVolumeReplication implements v1beta_internalUpdateVolumeReplication operation.
+	//
+	// Update the volume replication.
+	//
+	// PUT /v1beta/internal/projects/{projectNumber}/locations/{locationId}/volumeReplication/{volumeReplicationId}
+	V1betaInternalUpdateVolumeReplication(ctx context.Context, req *VolumeReplicationUpdateInternalV1beta, params V1betaInternalUpdateVolumeReplicationParams) (V1betaInternalUpdateVolumeReplicationRes, error)
 	// V1betaListBackupPolicies implements v1beta_listBackupPolicies operation.
 	//
 	// Returns list of all available backup policies.

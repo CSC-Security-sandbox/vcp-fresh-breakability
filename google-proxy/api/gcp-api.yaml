@@ -25,6 +25,8 @@ tags:
     description: Key management operations
   - name: backup-policy
     description: Backup policy operations
+  - name: v1Beta_internal
+    description: Internal endpoints
 paths:
   /health:
     get:
@@ -2912,6 +2914,503 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
+  /v1beta/internal/projects/{projectNumber}/locations/{locationId}/volumeReplication:
+    post:
+      operationId: v1beta_internalCreateVolumeReplication
+      summary: Create a new volume replication
+      description: >-
+        Create a new volume replication
+      tags:
+        - v1Beta_internal
+      parameters:
+        - $ref: '#/components/parameters/projectNumberPathParameter'
+        - $ref: '#/components/parameters/locationIdPathParameter'
+        - $ref: '#/components/parameters/xCorrelationIdHeader'
+      requestBody:
+        description: The required parameters to create a new volume replication.
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/VolumeReplicationCreateInternal_v1beta'
+        required: true
+      responses:
+        '202':
+          description: Creating volume replication
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VolumeReplicationInternal_v1beta'
+        '400':
+          $ref: '#/components/responses/StandardError-400'
+        '401':
+          $ref: '#/components/responses/StandardError-401'
+        '403':
+          $ref: '#/components/responses/StandardError-403'
+        '404':
+          $ref: '#/components/responses/StandardError-404'
+        '405':
+          $ref: '#/components/responses/StandardError-405'
+        '409':
+          $ref: '#/components/responses/StandardError-409'
+        '422':
+          $ref: '#/components/responses/StandardError-422'
+        '500':
+          $ref: '#/components/responses/StandardError-500'
+        default:
+          description: Unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      x-codegen-request-body-name: body
+  /v1beta/internal/projects/{projectNumber}/locations/{locationId}/volumeReplication/authorize:
+    post:
+      operationId: v1beta_internalAuthorizeVolumeReplication
+      summary: Authorize a volume replication on the source
+      description: >-
+        Authorize a volume replication on the source
+      tags:
+        - v1Beta_internal
+      parameters:
+        - $ref: '#/components/parameters/projectNumberPathParameter'
+        - $ref: '#/components/parameters/locationIdPathParameter'
+        - $ref: '#/components/parameters/xCorrelationIdHeader'
+      requestBody:
+        description: The required parameters to authorize a volume replication.
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/VolumeReplicationCreateInternal_v1beta'
+        required: true
+      responses:
+        '202':
+          description: Authorize volume replication
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VolumeReplicationInternal_v1beta'
+        '400':
+          $ref: '#/components/responses/StandardError-400'
+        '401':
+          $ref: '#/components/responses/StandardError-401'
+        '403':
+          $ref: '#/components/responses/StandardError-403'
+        '404':
+          $ref: '#/components/responses/StandardError-404'
+        '405':
+          $ref: '#/components/responses/StandardError-405'
+        '409':
+          $ref: '#/components/responses/StandardError-409'
+        '422':
+          $ref: '#/components/responses/StandardError-422'
+        '500':
+          $ref: '#/components/responses/StandardError-500'
+        default:
+          description: Unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      x-codegen-request-body-name: body
+  /v1beta/internal/projects/{projectNumber}/locations/{locationId}/volumeReplication/{volumeReplicationId}:
+    get:
+      operationId: v1beta_internalDescribeVolumeReplication
+      summary: Describe a volume replication
+      description: Returns the description of the specified volume replication by volume replication ID.
+      tags:
+        - v1Beta_internal
+      parameters:
+        - $ref: '#/components/parameters/projectNumberPathParameter'
+        - $ref: '#/components/parameters/locationIdPathParameter'
+        - $ref: '#/components/parameters/volumeReplicationIdPathParameter'
+        - $ref: '#/components/parameters/xCorrelationIdHeader'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VolumeReplicationInternal_v1beta'
+        '400':
+          $ref: '#/components/responses/StandardError-400'
+        '401':
+          $ref: '#/components/responses/StandardError-401'
+        '403':
+          $ref: '#/components/responses/StandardError-403'
+        '404':
+          $ref: '#/components/responses/StandardError-404'
+        '405':
+          $ref: '#/components/responses/StandardError-405'
+        '409':
+          $ref: '#/components/responses/StandardError-409'
+        '422':
+          $ref: '#/components/responses/StandardError-422'
+        '500':
+          $ref: '#/components/responses/StandardError-500'
+        default:
+          description: Unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      x-codegen-request-body-name: body
+    put:
+      operationId: v1beta_internalUpdateVolumeReplication
+      summary: Update a volume replication
+      description: Update the volume replication
+      tags:
+        - v1Beta_internal
+      parameters:
+        - $ref: '#/components/parameters/projectNumberPathParameter'
+        - $ref: '#/components/parameters/locationIdPathParameter'
+        - $ref: '#/components/parameters/volumeReplicationIdPathParameter'
+        - $ref: '#/components/parameters/xCorrelationIdHeader'
+      requestBody:
+        description: The required parameters to update volume replication.
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/VolumeReplicationUpdateInternal_v1beta'
+        required: true
+      responses:
+        '202':
+          description: Updating volume replication
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VolumeReplicationInternal_v1beta'
+        '204':
+          description: No content
+        '400':
+          $ref: '#/components/responses/StandardError-400'
+        '401':
+          $ref: '#/components/responses/StandardError-401'
+        '403':
+          $ref: '#/components/responses/StandardError-403'
+        '404':
+          $ref: '#/components/responses/StandardError-404'
+        '405':
+          $ref: '#/components/responses/StandardError-405'
+        '409':
+          $ref: '#/components/responses/StandardError-409'
+        '422':
+          $ref: '#/components/responses/StandardError-422'
+        '500':
+          $ref: '#/components/responses/StandardError-500'
+        default:
+          description: Unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      x-codegen-request-body-name: body
+    delete:
+      operationId: v1beta_internalDeleteVolumeReplication
+      summary: Delete volume replication
+      description: Warning! This operation will permanently delete the volume replication.
+      tags:
+        - v1Beta_internal
+      parameters:
+        - $ref: '#/components/parameters/volumeReplicationIdPathParameter'
+        - $ref: '#/components/parameters/projectNumberPathParameter'
+        - $ref: '#/components/parameters/locationIdPathParameter'
+        - $ref: '#/components/parameters/xCorrelationIdHeader'
+        - in: query
+          name: destinationOnly
+          schema:
+            type: boolean
+          required: false
+          allowEmptyValue: true
+          description: 'If true, replication will only be released and deleted from the destination side.'
+        - in: query
+          name: sourceOnly
+          schema:
+            type: boolean
+          required: false
+          allowEmptyValue: true
+          description: 'If true, replication will only be released and deleted from the source side.'
+        - in: query
+          name: skipPeeringCleanup
+          schema:
+            type: boolean
+          required: false
+          allowEmptyValue: true
+          description: 'If true, any existing cluster peering or intercluster lif entries will not be removed.'
+      responses:
+        '202':
+          description: Deleting volume replication
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VolumeReplicationInternal_v1beta'
+        '204':
+          description: No content
+        '400':
+          $ref: '#/components/responses/StandardError-400'
+        '401':
+          $ref: '#/components/responses/StandardError-401'
+        '403':
+          $ref: '#/components/responses/StandardError-403'
+        '404':
+          $ref: '#/components/responses/StandardError-404'
+        '405':
+          $ref: '#/components/responses/StandardError-405'
+        '409':
+          $ref: '#/components/responses/StandardError-409'
+        '422':
+          $ref: '#/components/responses/StandardError-422'
+        '500':
+          $ref: '#/components/responses/StandardError-500'
+        default:
+          description: Unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      x-codegen-request-body-name: body
+  /v1beta/internal/projects/{projectNumber}/locations/{locationId}/volumeReplication/{volumeReplicationId}/stop:
+    post:
+      operationId: v1beta_internalStopVolumeReplication
+      summary: Stop a volume replication
+      description: >-
+        Stop the replication relationship between source and destination in this volume replication and
+        changes the type of the destination to RW. Can only be invoked from the destination end of the
+        relationship.
+      tags:
+        - v1Beta_internal
+      parameters:
+        - $ref: '#/components/parameters/projectNumberPathParameter'
+        - $ref: '#/components/parameters/locationIdPathParameter'
+        - $ref: '#/components/parameters/volumeReplicationIdPathParameter'
+        - $ref: '#/components/parameters/xCorrelationIdHeader'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                force:
+                  type: boolean
+                  description: >-
+                    Can be used to force stop a replication while transfer is in progress.
+                    Warning! This will abort any current transfers.
+                  example: false
+      responses:
+        '202':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VolumeReplicationInternal_v1beta'
+        '400':
+          $ref: '#/components/responses/StandardError-400'
+        '401':
+          $ref: '#/components/responses/StandardError-401'
+        '403':
+          $ref: '#/components/responses/StandardError-403'
+        '404':
+          $ref: '#/components/responses/StandardError-404'
+        '405':
+          $ref: '#/components/responses/StandardError-405'
+        '409':
+          $ref: '#/components/responses/StandardError-409'
+        '422':
+          $ref: '#/components/responses/StandardError-422'
+        '500':
+          $ref: '#/components/responses/StandardError-500'
+        default:
+          description: Unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      x-codegen-request-body-name: body
+  /v1beta/internal/projects/{projectNumber}/locations/{locationId}/volumeReplication/{volumeReplicationId}/resume:
+    post:
+      operationId: v1beta_internalResumeVolumeReplication
+      summary: Resume a volume replication
+      description: >-
+        Resume the replication relationship between source and destination in this volume replication and
+        marks the destination as a Data-protection volume. Can only be invoked from the destination end of the
+        relationship.
+      tags:
+        - v1Beta_internal
+      parameters:
+        - in: query
+          name: forceResume
+          schema:
+            type: boolean
+          required: false
+          allowEmptyValue: true
+          description: 'If true, volume replication will resume despite healthy status'
+        - $ref: '#/components/parameters/projectNumberPathParameter'
+        - $ref: '#/components/parameters/locationIdPathParameter'
+        - $ref: '#/components/parameters/volumeReplicationIdPathParameter'
+        - $ref: '#/components/parameters/xCorrelationIdHeader'
+      responses:
+        '202':
+          description: Resume volume replication
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VolumeReplicationInternal_v1beta'
+        '400':
+          $ref: '#/components/responses/StandardError-400'
+        '401':
+          $ref: '#/components/responses/StandardError-401'
+        '403':
+          $ref: '#/components/responses/StandardError-403'
+        '404':
+          $ref: '#/components/responses/StandardError-404'
+        '405':
+          $ref: '#/components/responses/StandardError-405'
+        '409':
+          $ref: '#/components/responses/StandardError-409'
+        '422':
+          $ref: '#/components/responses/StandardError-422'
+        '500':
+          $ref: '#/components/responses/StandardError-500'
+        default:
+          description: Unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      x-codegen-request-body-name: body
+  /v1beta/internal/projects/{projectNumber}/locations/{locationId}/volumeReplication/{volumeReplicationId}/release:
+    post:
+      operationId: v1beta_internalReleaseVolumeReplication
+      summary: Release a volume replication on the source
+      description: >-
+        Release a volume replication on the source
+      tags:
+        - v1Beta_internal
+      parameters:
+        - $ref: '#/components/parameters/projectNumberPathParameter'
+        - $ref: '#/components/parameters/locationIdPathParameter'
+        - $ref: '#/components/parameters/volumeReplicationIdPathParameter'
+        - $ref: '#/components/parameters/xCorrelationIdHeader'
+      responses:
+        '202':
+          description: Releasing volume replication
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VolumeReplicationInternal_v1beta'
+        '400':
+          $ref: '#/components/responses/StandardError-400'
+        '401':
+          $ref: '#/components/responses/StandardError-401'
+        '403':
+          $ref: '#/components/responses/StandardError-403'
+        '404':
+          $ref: '#/components/responses/StandardError-404'
+        '405':
+          $ref: '#/components/responses/StandardError-405'
+        '409':
+          $ref: '#/components/responses/StandardError-409'
+        '422':
+          $ref: '#/components/responses/StandardError-422'
+        '500':
+          $ref: '#/components/responses/StandardError-500'
+        default:
+          description: Unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      x-codegen-request-body-name: body
+  /v1beta/internal/projects/{projectNumber}/locations/{locationId}/clusterPeer:
+    post:
+      operationId: v1beta_internalCreateClusterPeer
+      summary: Create a new cluster peer
+      description: Create a new cluster peer.
+      tags:
+        - v1Beta_internal
+      parameters:
+        - $ref: '#/components/parameters/projectNumberPathParameter'
+        - $ref: '#/components/parameters/locationIdPathParameter'
+        - $ref: '#/components/parameters/xCorrelationIdHeader'
+      requestBody:
+        description: The parameters to create a new cluster peer.
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ClusterPeer_v1'
+        required: true
+      responses:
+        '201':
+          description: Created cluster peer
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ClusterPeer_v1'
+        '400':
+          $ref: '#/components/responses/StandardError-400'
+        '401':
+          $ref: '#/components/responses/StandardError-401'
+        '403':
+          $ref: '#/components/responses/StandardError-403'
+        '404':
+          $ref: '#/components/responses/StandardError-404'
+        '405':
+          $ref: '#/components/responses/StandardError-405'
+        '409':
+          $ref: '#/components/responses/StandardError-409'
+        '422':
+          $ref: '#/components/responses/StandardError-422'
+        '500':
+          $ref: '#/components/responses/StandardError-500'
+        default:
+          description: Unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      x-codegen-request-body-name: body
+  /v1beta/internal/projects/{projectNumber}/locations/{locationId}/pool/{poolName}:
+    get:
+      operationId: v1beta_internalDescribePool
+      summary: Describe a pool
+      description: Returns the description of the specified volume replication by volume replication ID.
+      tags:
+        - v1Beta_internal
+      parameters:
+        - $ref: '#/components/parameters/projectNumberPathParameter'
+        - $ref: '#/components/parameters/locationIdPathParameter'
+        - $ref: '#/components/parameters/poolNamePathParameter'
+        - $ref: '#/components/parameters/xCorrelationIdHeader'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PoolInternal_v1beta'
+        '400':
+          $ref: '#/components/responses/StandardError-400'
+        '401':
+          $ref: '#/components/responses/StandardError-401'
+        '403':
+          $ref: '#/components/responses/StandardError-403'
+        '404':
+          $ref: '#/components/responses/StandardError-404'
+        '405':
+          $ref: '#/components/responses/StandardError-405'
+        '409':
+          $ref: '#/components/responses/StandardError-409'
+        '422':
+          $ref: '#/components/responses/StandardError-422'
+        '500':
+          $ref: '#/components/responses/StandardError-500'
+        default:
+          description: Unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      x-codegen-request-body-name: body
 components:
   schemas:
     Health:
@@ -2941,6 +3440,442 @@ components:
       example:
         code: 1994.0
         message: Out of cheese error! Please reboot the Universe
+    VolumeReplicationInternal_v1beta:
+      title: VolumeReplicationInternal
+      type: object
+      description: >-
+        The replication properties between two volumes (local and remote) that are the source
+        and destination in a replication relationship
+      required:
+        - endpointType
+        - remoteRegion
+        - remoteResourceId
+        - sourceHostName
+        - sourceServerName
+        - sourceVolumeName
+        - destinationHostName
+        - destinationServerName
+        - destinationVolumeName
+      properties:
+        volumeReplicationUUID:
+          title: volumeReplicationUUID
+          type: string
+          readOnly: true
+          description: UUID v4 of volume replication
+          pattern: >-
+            ^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$
+          maxLength: 36
+          minLength: 36
+          example: 9760acf5-4638-11e7-9bdb-020073ca0001
+        lifeCycleState:
+          title: lifeCycleState
+          type: string
+          readOnly: true
+          description: The current lifecycle state of the resource
+          enum:
+            - creating
+            - available
+            - updating
+            - disabled
+            - deleting
+            - deleted
+            - error
+          example: available
+        lifeCycleStateDetails:
+          title: lifeCycleStateDetails
+          type: string
+          readOnly: true
+          description: Details about the current lifecycle state
+          example: Error connecting to remote service
+        endpointType:
+          title: endpointType
+          type: string
+          readOnly: false
+          description: >-
+            Indicates whether the local volume is the source or destination for the volume replication or a restore endpoint
+          enum:
+            - src
+            - dst
+            - rst
+          example: src
+        replicationPolicy:
+          title: replicationPolicy
+          type: string
+          enum:
+            - MirrorAllSnapshots
+        replicationSchedule:
+          title: replicationSchedule
+          type: string
+          enum:
+            - 10minutely
+            - hourly
+            - daily
+            - weekly
+            - monthly
+        remoteRegion:
+          title: remoteRegion
+          type: string
+          description: The remote region for the other end of the volume replication
+          example: West US
+        remoteResourceId:
+          title: remoteResourceId
+          type: string
+          description: The resource ID of the remote volume
+          example: destination-volume
+        sourceHostName:
+          title: sourceHostName
+          type: string
+          description: The source endpoint host for the volume replication
+          example: awesome_host
+          minLength: 1
+        sourceServerName:
+          title: sourceServerName
+          type: string
+          description: The source endpoint server for the volume replication
+          example: some_server
+          minLength: 1
+        sourceVolumeName:
+          title: sourceVolumeName
+          type: string
+          description: The source endpoint volume for the volume replication
+          example: awesome_volume_name
+          minLength: 1
+        destinationHostName:
+          title: destinationHostName
+          type: string
+          description: The destination endpoint host for the volume replication
+          example: awesome_host
+          minLength: 1
+        destinationServerName:
+          title: destinationServerName
+          type: string
+          description: The destination endpoint server for the volume replication
+          example: some_server
+          minLength: 1
+        destinationVolumeName:
+          title: destinationVolumeName
+          type: string
+          description: The destination endpoint volume for the volume replication
+          example: awesome_volume_name
+          minLength: 1
+        destinationVolumeUUID:
+          type: string
+          description: UUID v4 of the destination volume
+          pattern: >-
+            ^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$
+          maxLength: 36
+          minLength: 36
+          example: 9760acf5-4638-11e7-9bdb-020073ca0001
+          readOnly: true
+        name:
+          type: string
+          description: A human readable label for the volume replication
+          maxLength: 255
+          example: ImportantData
+          x-nullable: true
+        mirrorState:
+          title: mirrorState
+          type: string
+          description: The mirror state of the volume replication
+          enum:
+            - uninitialized
+            - mirrored
+            - broken
+          readOnly: true
+        hybridReplicationType:
+          title: hybridReplicationType
+          type: string
+          description: Type of hybrid replication
+          x-nullable: true
+          x-omitempty: true
+          enum:
+            - HYBRID_REPLICATION_TYPE_UNSPECIFIED
+            - MIGRATION
+            - CONTINUOUS_REPLICATION
+            - ONPREM_REPLICATION
+            - REVERSE_ONPREM_REPLICATION
+          example: MIGRATION
+        relationshipStatus:
+          title: relationshipStatus
+          type: string
+          description: The status of the volume replication
+          enum:
+            - idle
+            - transferring
+          readOnly: true
+        totalProgress:
+          title: totalProgress
+          type: integer
+          format: int64
+          description: >-
+            Total amount of data transferred for the
+            current transfer operation.
+        healthy:
+          title: healthy
+          type: boolean
+          description: >-
+            Condition of the relationship. Can be one of the following:
+            - true: The replication relationship is
+              healthy. It has not missed a
+              scheduled transfer, or experienced
+              a manual update failure.
+            - false: The replication relationship is not
+              healthy. It has missed a scheduled
+              transfer, or has experienced a manual
+              update failure.
+          readOnly: true
+        totalTransferBytes:
+          title: totalTransferBytes
+          type: integer
+          format: int64
+          description: Cumulative bytes transferred for the relationship.
+          example: 75
+          readOnly: true
+        totalTransferTimeSecs:
+          title: totalTransferTimeSec
+          type: integer
+          format: int64
+          description: Cumulative total transfer time in seconds for the relationship.
+          example: 200
+          readOnly: true
+        lastTransferSize:
+          title: lastTransferSize
+          type: integer
+          format: int64
+          description: The total number of bytes transferred as part of the last transfer.
+          example: 14758
+          readOnly: true
+        lastTransferError:
+          title: lastTransferError
+          type: string
+          description: A message describing the cause of the last transfer failure.
+          example: Something went wrong
+          readOnly: true
+        lastTransferDuration:
+          title: lastTransferDuration
+          type: integer
+          format: int64
+          description: The amount of time in seconds it took for the last transfer to complete.
+          example: 200
+          readOnly: true
+        lastTransferEndTime:
+          type: string
+          format: date-time
+          readOnly: true
+          description: The time of the end of the last transfer.
+          example: '2016-11-29T20:32:50.459Z'
+          x-nullable: true
+        progressLastUpdated:
+          title: progressLastUpdated
+          type: string
+          format: date-time
+          description: Time indicating when the progress of the transfer was last updated.
+          example: '2016-11-29T20:32:50.459Z'
+          readOnly: true
+          x-nullable: true
+        lagTime:
+          title: lagTime
+          type: integer
+          format: int64
+          description: The amount of time in seconds by which the data on the mirror lags behind the source.
+          example: 1849
+          readOnly: true
+        createdAt:
+          title: createdAt
+          type: string
+          format: date-time
+          readOnly: true
+          description: Creation date of the resource
+          example: '2016-11-28T19:30:23.123Z'
+        updatedAt:
+          title: updatedAt
+          type: string
+          format: date-time
+          readOnly: true
+          description: Date of last update of the resource
+          example: '2016-11-29T20:32:50.459Z'
+        deletedAt:
+          title: deletedAt
+          type: string
+          format: date-time
+          readOnly: true
+          description: Date the resource was deleted
+          example: '2016-11-30T23:59:59.999Z'
+          x-nullable: true
+        jobs:
+          title: jobs
+          description: Jobs currently ongoing for the volume replication
+          type: array
+          readOnly: true
+          items:
+            $ref: '#/components/schemas/Job_v1beta'
+        description:
+          title: description
+          type: string
+          description: Description of the volume replication
+          maxLength: 2048
+          example: fortress of solitude
+          x-nullable: true
+        labels:
+          title: labels
+          type: object
+          additionalProperties:
+            type: string
+          description: JSON dictionary of resource labels to allow linking of billing labels to a replication,
+            Can contain only lowercase letters, numeric characters, underscores, and dashes.
+            All characters must use UTF-8 encoding, and international characters are allowed.
+            Must start with a lowercase letter or international character.
+          example: { "some-key": "some-value", "some-key2": "some-value2" }
+    VolumeReplicationCreateInternal_v1beta:
+      title: VolumeReplicationCreateInternal
+      allOf:
+        - $ref: '#/components/schemas/VolumeReplicationInternal_v1beta'
+        - properties:
+            reverseResume:
+              title: reverseResume
+              type: boolean
+              description: States if the operation is forced to do a reverse-resume
+              x-nullable: false
+            ccfeURI:
+              title: ccfeURI
+              type: string
+              x-nullable: false
+            ccfeRemoteURI:
+              title: ccfeRemoteURI
+              type: string
+              x-nullable: false
+    VolumeReplicationUpdateInternal_v1beta:
+      title: VolumeReplicationUpdateInternal
+      type: object
+      properties:
+        description:
+          title: description
+          type: string
+          description: Description of the replication
+          example: My replication description
+          nullable: true
+          maxLength: 2048
+        replicationSchedule:
+          title: replicationSchedule
+          type: string
+          description: Schedule for the replication
+          enum:
+            - 10minutely
+            - hourly
+            - daily
+            - weekly
+            - monthly
+          nullable: true
+        labels:
+          title: labels
+          type: object
+          additionalProperties:
+            type: string
+          description: >-
+            JSON dictionary of resource labels to allow linking of billing labels to a replication.
+            Can contain only lowercase letters, numeric characters, underscores, and dashes.
+            All characters must use UTF-8 encoding, and international characters are allowed.
+            Must start with a lowercase letter or international character.
+          example: { "some-key": "some-value", "some-key2": "some-value2" }
+    ReplicationIDList_v1beta:
+      title: ReplicationIDList
+      type: object
+      required:
+        - replicationUUIDs
+      properties:
+        replicationUUIDs:
+          title: replicationUUIDs
+          type: array
+          minItems: 1
+          items:
+            type: string
+            description: UUID v4 used to identify the replication
+            pattern: >-
+              ^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$
+            example: "9760acf5-4638-11e7-9bdb-020073ca3333"
+    ClusterPeer_v1:
+      title: ClusterPeer
+      type: object
+      properties:
+        uuid:
+          title: uuid
+          type: string
+          readOnly: true
+          description: UUID v4 used to identify a resource
+          pattern: "^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$"
+          maxLength: 36
+          minLength: 36
+          example: "87654321-4638-11e7-9bdb-123456789012"
+        peerAddresses:
+          title: peerAddresses
+          type: array
+          items:
+            type: string
+          description: List of peer IPv4 addresses
+          example: [ '127.0.0.1', '127.0.0.2' ]
+          nullable: false
+        peerClusterName:
+          title: peerClusterName
+          type: string
+          description: The name of the peered cluster
+          example: "Some-weird-cluster-name"
+          nullable: false
+        passphrase:
+          title: passphrase
+          type: string
+          nullable: true
+          description: The generated passphrase used to accept peering on the peer cluster
+          example: "abcd1234"
+        expiryTime:
+          title: expiryTime
+          type: string
+          format: date-time
+          nullable: true
+          description: The expiration date of the passphrase used to accept peering on the peer cluster
+          example: "2020-01-01T00:00:00Z"
+        availability:
+          title: availability
+          type: string
+          readOnly: true
+          description: The availability of the peered cluster
+          enum:
+            - available
+            - partial
+            - unavailable
+            - pending
+            - unidentified
+          example: "available"
+        authenticationState:
+          title: authenticationState
+          type: string
+          readOnly: true
+          enum:
+            - ok
+            - absent
+            - pending
+            - problem
+          example: "pending"
+        jobs:
+          title: jobs
+          description: Jobs currently ongoing for the cluster peer
+          type: array
+          items:
+            $ref: '#/components/schemas/Job_v1beta'
+    PoolInternal_v1beta:
+      title: PoolInternal
+      allOf:
+        - $ref: '#/components/schemas/Pool_v1beta'
+      properties:
+        clusterName:
+          title: clusterName
+          type: string
+          description: The name of the cluster
+          example: my-cluster
+        interclusterLifs:
+          title: interclusterLifs
+          type: array
+          description: Intercluster Lifs
+          example: [ '10.0.0.1', '10.0.0.2' ]
     ServiceLevel_v1beta:
       title: ServiceLevel
       type: object
@@ -6014,3 +6949,24 @@ components:
         minLength: 36
         pattern: ^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$
         type: string
+    volumeReplicationIdPathParameter:
+      name: volumeReplicationId
+      in: path
+      required: true
+      schema:
+        type: string
+        description: UUID v4 used to identify the volume replication
+        pattern: >-
+          ^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$
+        maxLength: 36
+        minLength: 36
+    poolNamePathParameter:
+      name: poolName
+      in: path
+      required: true
+      schema:
+        type: string
+        description: Pool name
+        pattern: "^[a-z]([a-z0-9-]{0,61}[a-z0-9])?$"
+        maxLength: 63
+        example: some-pool-name
