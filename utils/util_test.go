@@ -184,3 +184,35 @@ func TestParseProjectId(t *testing.T) {
 		}
 	})
 }
+
+func TestConvertToBytes(t *testing.T) {
+	tests := []struct {
+		size   float64
+		unit   Unit
+		want   int64
+		hasErr bool
+	}{
+		{1, B, 1, false},
+		{1, KiB, 1024, false},
+		{1, MiB, 1024 * 1024, false},
+		{1, GiB, 1024 * 1024 * 1024, false},
+		{0.5, GiB, 536870912, false},
+		{0.33, GiB, 354334801, false}, // actual 354334801.92 floored to 354334801
+		{1, TiB, 1024 * 1024 * 1024 * 1024, false},
+		{1, PiB, 1024 * 1024 * 1024 * 1024 * 1024, false},
+		{1, Unit(0), 0, true}, // Invalid unit
+	}
+
+	for _, tt := range tests {
+		t.Run("TestConvertToBytes", func(t *testing.T) {
+			got, err := ConvertToBytes(tt.size, tt.unit)
+			if (err != nil) != tt.hasErr {
+				t.Errorf("ConvertToBytes(%v, %v) error = %v, wantErr %v", tt.size, tt.unit, err, tt.hasErr)
+				return
+			}
+			if got != tt.want {
+				t.Errorf("ConvertToBytes(%v, %v) = %v, want %v", tt.size, tt.unit, got, tt.want)
+			}
+		})
+	}
+}

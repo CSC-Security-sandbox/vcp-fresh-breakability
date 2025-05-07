@@ -21,7 +21,7 @@ type Provider interface {
 	CreateSVM(params CreateSvmParams) (*ProviderResponse, error)
 	CreateDataLIF(params CreateLifParams) (*Lif, error)
 	CreateNetworkIpRoute(params CreateNetworkIPRouteParams) error
-	CreateVolume(params CreateVolumeParams) (*ProviderResponse, error)
+	CreateVolume(params CreateVolumeParams) (*VolumeResponse, error)
 	DeleteVolume(volumeUUID, volumeName string) error
 	IgroupCreate(params IgroupCreateParams) (string, error)
 	IgroupGet(name, svm string) (*ontapRest.Igroup, error)

@@ -24,6 +24,11 @@ type ProviderResponse struct {
 	ExternalUUID string
 }
 
+type VolumeResponse struct {
+	ProviderResponse
+	AvailableSpace int64
+}
+
 type CreateLifParams struct {
 	Name      string
 	SvmName   string

@@ -164,3 +164,23 @@ func ParseProjectId(network string) (string, string, error) {
 func BytesToGigabytes(sizeInBytes uint64) int {
 	return int(sizeInBytes / 1024 / 1024 / 1024)
 }
+
+type Unit int
+
+const (
+	B Unit = 1 << (10 * iota)
+	KiB
+	MiB
+	GiB
+	TiB
+	PiB
+)
+
+func ConvertToBytes(size float64, unit Unit) (int64, error) {
+	switch unit {
+	case B, KiB, MiB, GiB, TiB, PiB:
+		return int64(size * float64(unit)), nil
+	default:
+		return 0, fmt.Errorf("invalid unit: %v", unit)
+	}
+}

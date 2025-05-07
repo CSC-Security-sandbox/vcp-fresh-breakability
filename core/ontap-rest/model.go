@@ -1787,6 +1787,9 @@ func volumeCreateParamsToONTAP(params *VolumeCreateParams) *storage.VolumeCreate
 			Type: nillable.ToPointer(GuaranteeTypeNone),
 		},
 		Space: &models.VolumeInlineSpace{
+			Snapshot: &models.VolumeInlineSpaceInlineSnapshot{
+				ReservePercent: &params.SnapshotReservePercent,
+			},
 			LogicalSpace: &models.VolumeInlineSpaceInlineLogicalSpace{
 				Enforcement: nillable.ToPointer(true),
 				Reporting:   nillable.ToPointer(true),

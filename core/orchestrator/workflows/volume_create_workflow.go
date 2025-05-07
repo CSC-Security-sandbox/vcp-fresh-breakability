@@ -104,7 +104,7 @@ func (wf *volumeCreateWorkflow) Run(ctx workflow.Context, volume *datamodel.Volu
 	}
 	node := createNodeForProvider(dbNode, dbVolume)
 
-	var volCreateResponse *vsa.ProviderResponse
+	var volCreateResponse *vsa.VolumeResponse
 	err = workflow.ExecuteActivity(ctx, volumeActivity.CreateVolumeInONTAP, &dbVolume, &node).Get(ctx, &volCreateResponse)
 	if err != nil {
 		return nil, err
@@ -117,7 +117,7 @@ func (wf *volumeCreateWorkflow) Run(ctx workflow.Context, volume *datamodel.Volu
 	}
 
 	var lunName string
-	err = workflow.ExecuteActivity(ctx, volumeActivity.CreateLun, &dbVolume, &node).Get(ctx, &lunName)
+	err = workflow.ExecuteActivity(ctx, volumeActivity.CreateLun, &dbVolume, &node, volCreateResponse.AvailableSpace).Get(ctx, &lunName)
 	if err != nil {
 		return nil, err
 	}

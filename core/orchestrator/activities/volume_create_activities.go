@@ -8,6 +8,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	logger "golang.org/x/exp/slog"
 )
@@ -26,7 +27,7 @@ func (a *VolumeCreateActivity) CreateVolume(ctx context.Context, volume *datamod
 	return se.CreateVolume(ctx, volume)
 }
 
-func (a *VolumeCreateActivity) CreateVolumeInONTAP(ctx context.Context, volume *datamodel.Volume, node *models.Node) (*vsa.ProviderResponse, error) {
+func (a *VolumeCreateActivity) CreateVolumeInONTAP(ctx context.Context, volume *datamodel.Volume, node *models.Node) (*vsa.VolumeResponse, error) {
 	provider := GetProviderByNode(node)
 	res, err := provider.CreateVolume(vsa.CreateVolumeParams{
 		VolumeName:    volume.Name,
@@ -70,15 +71,17 @@ func (a *VolumeCreateActivity) CreateIgroup(ctx context.Context, volume *datamod
 	return nil
 }
 
-func (a *VolumeCreateActivity) CreateLun(ctx context.Context, volume *datamodel.Volume, node *models.Node) (string, error) {
+func (a *VolumeCreateActivity) CreateLun(ctx context.Context, volume *datamodel.Volume, node *models.Node, availableSpace int64) (string, error) {
 	provider := GetProviderByNode(node)
-	lunName := "lun_" + volume.Name // FixMe: Any suggestion for the lun name?
+	halfGiB, _ := utils.ConvertToBytes(0.5, utils.GiB)
+	size := availableSpace - halfGiB
+	lunName := "lun_" + volume.Name
 	lun, err := provider.LunCreate(vsa.LunCreateParams{
 		LunName:    lunName,
 		VolumeName: volume.Name,
 		SvmName:    volume.Svm.Name,
 		OsType:     volume.VolumeAttributes.BlockProperties.OSType,
-		Size:       volume.SizeInBytes,
+		Size:       size,
 	})
 	if err != nil {
 		return "", err

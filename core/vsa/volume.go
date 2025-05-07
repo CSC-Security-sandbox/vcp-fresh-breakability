@@ -6,14 +6,15 @@ import (
 )
 
 // CreateVolume creates a volume by calling the ONTAP REST Client
-func (rc *OntapRestProvider) CreateVolume(params CreateVolumeParams) (*ProviderResponse, error) {
+func (rc *OntapRestProvider) CreateVolume(params CreateVolumeParams) (*VolumeResponse, error) {
 	client := getOntapClientFunc(rc.ClientParams)
 	vol, job, err := client.Storage().VolumeCreate(&ontapRest.VolumeCreateParams{
-		Name:       params.VolumeName,
-		Type:       params.VolumeType,
-		Size:       params.Size,
-		Svm:        params.SvmName,
-		Aggregates: []string{params.AggregateName},
+		Name:                   params.VolumeName,
+		Type:                   params.VolumeType,
+		Size:                   params.Size,
+		Svm:                    params.SvmName,
+		Aggregates:             []string{params.AggregateName},
+		SnapshotReservePercent: 0, // Setting it to 0, yields more available space
 	})
 	if err != nil {
 		return nil, err
@@ -32,9 +33,12 @@ func (rc *OntapRestProvider) CreateVolume(params CreateVolumeParams) (*ProviderR
 	}
 
 	// Return the created SVM
-	return &ProviderResponse{
-		Name:         *vol.Name,
-		ExternalUUID: *vol.UUID,
+	return &VolumeResponse{
+		ProviderResponse: ProviderResponse{
+			Name:         *vol.Name,
+			ExternalUUID: *vol.UUID,
+		},
+		AvailableSpace: *vol.Space.Available,
 	}, nil
 }
 
