@@ -31,6 +31,8 @@ tags:
     description: Backup policy operations
   - name: v1Beta_internal
     description: Internal endpoints
+  - name: backups
+    description: Backup operations
 paths:
   /health:
     get:
@@ -3603,6 +3605,74 @@ paths:
           $ref: '#/components/responses/StandardError-422'
         '429':
           $ref: '#/components/responses/StandardError-429'
+        '500':
+          $ref: '#/components/responses/StandardError-500'
+        '501':
+          $ref: '#/components/responses/StandardError-501'
+        default:
+          description: Unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /v1beta/projects/{projectNumber}/locations/{locationId}/backupVaults/{backupVaultId}/getMultipleBackups:
+    post:
+      operationId: v1beta_getMultipleBackups
+      summary: List specified backups under the backup vault
+      description: Returns descriptions of backups that is listed in request body.
+      tags:
+        - backups
+      parameters:
+        - $ref: '#/components/parameters/projectNumberPathParameter'
+        - $ref: '#/components/parameters/locationIdPathParameter'
+        - $ref: '#/components/parameters/backupVaultIdPathParameter'
+        - $ref: '#/components/parameters/xCorrelationIdHeader'
+      requestBody:
+        description: A list of backup UUIDs to return.
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BackupUUIDList_v1beta'
+        required: true
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - type: object
+                    properties:
+                      backups:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/Backup_v1beta'
+              example:
+                backups:
+                  - backupId: 9760acf5-4638-11e7-9bdb-020073ca3333
+                    name: manual-backup1
+                    volumeId: 9760acf5-4638-11e7-9bdb-020073ca0001
+                    region: us-east4
+                    created: '2017-02-02T00:00:00.000Z'
+                    lifeCycleState: READY
+                    lifeCycleStateDetails: Available for use
+                    volumeUsageBytes: 387860629999
+                  - backupId: 9760acf5-4638-11e7-9bdb-020073ca3334
+                    name: manual-backup2
+                    volumeId: 9760acf5-4638-11e7-9bdb-020073ca0001
+                    region: us-east4
+                    created: '2017-02-02T00:00:00.000Z'
+                    lifeCycleState: READY
+                    lifeCycleStateDetails: Available for use
+                    volumeUsageBytes: 387860629999
+        '400':
+          $ref: '#/components/responses/StandardError-400'
+        '401':
+          $ref: '#/components/responses/StandardError-401'
+        '403':
+          $ref: '#/components/responses/StandardError-403'
+        '404':
+          $ref: '#/components/responses/StandardError-404'
         '500':
           $ref: '#/components/responses/StandardError-500'
         '501':
@@ -7436,6 +7506,194 @@ components:
           minimum: 0
           maximum: 1019
           default: 0
+    Backup_v1beta:
+      type: object
+      title: Backup
+      properties:
+        resourceId:
+          title: resourceId
+          type: string
+          description: A human readable label for the resource which is restricted to letters, numbers, and hyphen, with the first character a letter, the last a letter or a number, and a 63 character maximum
+          pattern: >-
+            ^[a-z]([a-z0-9-]{0,61}[a-z0-9])?$
+          maxLength: 63
+          example: my-resource
+        volumeId:
+          title: volumeId
+          type: string
+          readOnly: true
+          description: UUID v4 of the volume
+          pattern: >-
+            ^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$
+          maxLength: 36
+          minLength: 36
+          example: 9760acf5-4638-11e7-9bdb-020073ca0001
+        state:
+          title: state
+          type: string
+          readOnly: true
+          description: The current lifecycle state of the resource
+          enum:
+            - CREATING
+            - READY
+            - UPLOADING
+            - RESTORING
+            - DISABLED
+            - DELETING
+            - DELETED
+            - ERROR
+          example: READY
+        created:
+          title: created
+          type: string
+          format: date-time
+          readOnly: true
+          description: Creation date of the resource
+          example: '2016-11-30T20:32:50.459Z'
+        enforcedRetentionEndTime:
+          title: enforcedRetentionEndTime
+          type: string
+          format: date-time
+          readOnly: true
+          x-nullable: true
+          description: Backup enforced-retention end time
+          example: '2024-12-06T20:32:50.459Z'
+        backupId:
+          title: backupId
+          type: string
+          readOnly: true
+          description: UUID v4 used to identify the backup
+          pattern: >-
+            ^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$
+          maxLength: 36
+          minLength: 36
+          example: 53fb64d6-ae8d-4166-b054-9f601a62e9fb
+        volumeUsageBytes:
+          title: volumeUsageBytes
+          type: number
+          format: int64
+          readOnly: true
+          description: Current size for the backup in bytes
+          minimum: 0.00
+          default: 0.00
+          example: 101010.00
+          x-nullable: true
+        sourceVolume:
+          title: sourceVolume
+          type: string
+          readOnly: true
+          description: Display name of the volume
+        backupVaultId:
+          description: UUID v4 used to identify the backup vault ID
+          type: string
+          pattern: >-
+            ^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$
+          maxLength: 36
+          minLength: 36
+          example: 40a79608-dcf8-4b67-8df6-c4ab40a5b246
+          x-nullable: true
+        description:
+          title: description
+          type: string
+          description: Description of the backup
+          maxLength: 2048
+          example: My Resource description
+          x-nullable: true
+        sourceSnapshot:
+          title: source snapshot
+          type: string
+          description: Name of the source snapshot
+          example: 'test_snapshot'
+          x-nullable: true
+          readOnly: true
+        backupType:
+          title: backupType
+          type: string
+          readOnly: true
+          description: Type of backup, manually created or created by a backup policy
+          enum:
+            - MANUAL
+            - SCHEDULED
+        backupChainBytes:
+          title: backupChainBytes
+          type: integer
+          format: int64
+          readOnly: true
+          description: Size in bytes of the backup of the volume
+          x-nullable: true
+        satisfiesPzs:
+          type: boolean
+          description: Flag describing whether backup supports zone separation.
+          example: true
+          default: false
+          readOnly: true
+        satisfiesPzi:
+          type: boolean
+          description: Flag describing whether backup supports zone isolation.
+          example: true
+          default: false
+          readOnly: true
+        volumeRegion:
+          title: volumeRegion
+          type: string
+          description: Name of the volume region
+          example: us-east4
+          x-nullable: true
+        backupRegion:
+          title: backupRegion
+          type: string
+          description: Name of the backup region
+          example: us-central1
+          x-nullable: true
+        assetLocationMetadata:
+          $ref: '#/components/schemas/AssetLocationMetadata_v2'
+    AssetLocationMetadata_v2:
+      title: assetLocationMetadata
+      type: object
+      readOnly: true
+      description: Location metadata
+      properties:
+        child_assets:
+          type: array
+          title: child_assets
+          items:
+            $ref: '#/components/schemas/ChildAsset_v2'
+          readOnly: true
+          x-nullable: true
+    ChildAsset_v2:
+      title: child_asset
+      type: object
+      readOnly: true
+      description: Details of the child assets including type and names
+      properties:
+        asset_type:
+          title: asset_type
+          type: string
+          description: The type of the asset
+          example: "storage.googleapis.com/Bucket"
+        asset_names:
+          title: asset_names
+          type: array
+          description: List of names of the assets
+          items:
+            type: string
+          example: [ "storage.googleapis.com/Bucket/bucket1" ]
+    BackupUUIDList_v1beta:
+      type: object
+      title: BackupUUIDList
+      required:
+        - backupUUIDs
+      properties:
+        backupUUIDs:
+          title: backupUUIDs
+          type: array
+          minItems: 1
+          items:
+            type: string
+            description: UUID v4 used to identify the backup
+            pattern: >-
+              ^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$
+            example: 9760acf5-4638-11e7-9bdb-020073ca3333
     BackupPolicyIDList_v1beta:
       type: object
       title: BackupPolicyIDList

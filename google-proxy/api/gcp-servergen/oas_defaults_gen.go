@@ -139,6 +139,22 @@ func (s *BackupPolicyV1beta) setDefaults() {
 }
 
 // setDefaults set default value of fields.
+func (s *BackupV1beta) setDefaults() {
+	{
+		val := int64(0)
+		s.VolumeUsageBytes.SetTo(val)
+	}
+	{
+		val := bool(false)
+		s.SatisfiesPzs.SetTo(val)
+	}
+	{
+		val := bool(false)
+		s.SatisfiesPzi.SetTo(val)
+	}
+}
+
+// setDefaults set default value of fields.
 func (s *DailyScheduleV1beta) setDefaults() {
 	{
 		val := float64(0)

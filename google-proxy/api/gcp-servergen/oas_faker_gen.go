@@ -302,6 +302,22 @@ func (s *AnyV1BetaAnyValue) SetFake() {
 }
 
 // SetFake set fake values.
+func (s *AssetLocationMetadataV2) SetFake() {
+	{
+		{
+			s.ChildAssets = nil
+			for i := 0; i < 0; i++ {
+				var elem ChildAssetV2
+				{
+					elem.SetFake()
+				}
+				s.ChildAssets = append(s.ChildAssets, elem)
+			}
+		}
+	}
+}
+
+// SetFake set fake values.
 func (s *BackupConfigV1beta) SetFake() {
 	{
 		{
@@ -578,6 +594,126 @@ func (s *BackupRetentionPolicyV1beta) SetFake() {
 }
 
 // SetFake set fake values.
+func (s *BackupUUIDListV1beta) SetFake() {
+	{
+		{
+			s.BackupUUIDs = nil
+			for i := 0; i < 1; i++ {
+				var elem string
+				{
+					elem = "string"
+				}
+				s.BackupUUIDs = append(s.BackupUUIDs, elem)
+			}
+		}
+	}
+}
+
+// SetFake set fake values.
+func (s *BackupV1beta) SetFake() {
+	{
+		{
+			s.ResourceId.SetFake()
+		}
+	}
+	{
+		{
+			s.VolumeId.SetFake()
+		}
+	}
+	{
+		{
+			s.State.SetFake()
+		}
+	}
+	{
+		{
+			s.Created.SetFake()
+		}
+	}
+	{
+		{
+			s.EnforcedRetentionEndTime.SetFake()
+		}
+	}
+	{
+		{
+			s.BackupId.SetFake()
+		}
+	}
+	{
+		{
+			s.VolumeUsageBytes.SetFake()
+		}
+	}
+	{
+		{
+			s.SourceVolume.SetFake()
+		}
+	}
+	{
+		{
+			s.BackupVaultId.SetFake()
+		}
+	}
+	{
+		{
+			s.Description.SetFake()
+		}
+	}
+	{
+		{
+			s.SourceSnapshot.SetFake()
+		}
+	}
+	{
+		{
+			s.BackupType.SetFake()
+		}
+	}
+	{
+		{
+			s.BackupChainBytes.SetFake()
+		}
+	}
+	{
+		{
+			s.SatisfiesPzs.SetFake()
+		}
+	}
+	{
+		{
+			s.SatisfiesPzi.SetFake()
+		}
+	}
+	{
+		{
+			s.VolumeRegion.SetFake()
+		}
+	}
+	{
+		{
+			s.BackupRegion.SetFake()
+		}
+	}
+	{
+		{
+			s.AssetLocationMetadata.SetFake()
+		}
+	}
+}
+
+// SetFake set fake values.
+func (s *BackupV1betaBackupType) SetFake() {
+	*s = BackupV1betaBackupTypeMANUAL
+}
+
+// SetFake set fake values.
+func (s *BackupV1betaState) SetFake() {
+	*s = BackupV1betaStateCREATING
+}
+
+// SetFake set fake values.
 func (s *BackupVaultCreateV1beta) SetFake() {
 	{
 		{
@@ -738,6 +874,27 @@ func (s *BlockPropertiesV1betaOsType) SetFake() {
 
 // SetFake set fake values.
 func (s *ChildAsset) SetFake() {
+	{
+		{
+			s.AssetType.SetFake()
+		}
+	}
+	{
+		{
+			s.AssetNames = nil
+			for i := 0; i < 0; i++ {
+				var elem string
+				{
+					elem = "string"
+				}
+				s.AssetNames = append(s.AssetNames, elem)
+			}
+		}
+	}
+}
+
+// SetFake set fake values.
+func (s *ChildAssetV2) SetFake() {
 	{
 		{
 			s.AssetType.SetFake()
@@ -1635,6 +1792,15 @@ func (s *OptAnyV1Beta) SetFake() {
 }
 
 // SetFake set fake values.
+func (s *OptAssetLocationMetadataV2) SetFake() {
+	var elem AssetLocationMetadataV2
+	{
+		elem.SetFake()
+	}
+	s.SetTo(elem)
+}
+
+// SetFake set fake values.
 func (s *OptBackupConfigV1beta) SetFake() {
 	var elem BackupConfigV1beta
 	{
@@ -1673,6 +1839,24 @@ func (s *OptBackupRetentionPolicyUpdateV1beta) SetFake() {
 // SetFake set fake values.
 func (s *OptBackupRetentionPolicyV1beta) SetFake() {
 	var elem BackupRetentionPolicyV1beta
+	{
+		elem.SetFake()
+	}
+	s.SetTo(elem)
+}
+
+// SetFake set fake values.
+func (s *OptBackupV1betaBackupType) SetFake() {
+	var elem BackupV1betaBackupType
+	{
+		elem.SetFake()
+	}
+	s.SetTo(elem)
+}
+
+// SetFake set fake values.
+func (s *OptBackupV1betaState) SetFake() {
+	var elem BackupV1betaState
 	{
 		elem.SetFake()
 	}
@@ -5187,6 +5371,76 @@ func (s *V1betaGetMultipleBackupVaultsUnauthorized) SetFake() {
 		unwrapped.SetFake()
 	}
 	*s = V1betaGetMultipleBackupVaultsUnauthorized(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaGetMultipleBackupsBadRequest) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaGetMultipleBackupsBadRequest(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaGetMultipleBackupsForbidden) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaGetMultipleBackupsForbidden(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaGetMultipleBackupsInternalServerError) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaGetMultipleBackupsInternalServerError(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaGetMultipleBackupsNotFound) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaGetMultipleBackupsNotFound(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaGetMultipleBackupsNotImplemented) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaGetMultipleBackupsNotImplemented(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaGetMultipleBackupsOK) SetFake() {
+	{
+		{
+			s.Backups = nil
+			for i := 0; i < 0; i++ {
+				var elem BackupV1beta
+				{
+					elem.SetFake()
+				}
+				s.Backups = append(s.Backups, elem)
+			}
+		}
+	}
+}
+
+// SetFake set fake values.
+func (s *V1betaGetMultipleBackupsUnauthorized) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaGetMultipleBackupsUnauthorized(unwrapped)
 }
 
 // SetFake set fake values.

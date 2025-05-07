@@ -146,6 +146,18 @@ func TestAnyV1BetaAnyValue_EncodeDecode(t *testing.T) {
 	var typ2 AnyV1BetaAnyValue
 	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
 }
+func TestAssetLocationMetadataV2_EncodeDecode(t *testing.T) {
+	var typ AssetLocationMetadataV2
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 AssetLocationMetadataV2
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
 func TestBackupConfigV1beta_EncodeDecode(t *testing.T) {
 	var typ BackupConfigV1beta
 	typ.SetFake()
@@ -323,6 +335,83 @@ func TestBackupRetentionPolicyV1beta_EncodeDecode(t *testing.T) {
 
 	var typ2 BackupRetentionPolicyV1beta
 	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestBackupUUIDListV1beta_EncodeDecode(t *testing.T) {
+	var typ BackupUUIDListV1beta
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 BackupUUIDListV1beta
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestBackupV1beta_EncodeDecode(t *testing.T) {
+	var typ BackupV1beta
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 BackupV1beta
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestBackupV1betaBackupType_EncodeDecode(t *testing.T) {
+	var typ BackupV1betaBackupType
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 BackupV1betaBackupType
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestBackupV1betaState_EncodeDecode(t *testing.T) {
+	var typ BackupV1betaState
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 BackupV1betaState
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+
+func TestBackupV1betaState_Examples(t *testing.T) {
+
+	for i, tc := range []struct {
+		Input string
+	}{
+		{Input: "\"READY\""},
+	} {
+		tc := tc
+		t.Run(fmt.Sprintf("Test%d", i+1), func(t *testing.T) {
+			var typ BackupV1betaState
+
+			if err := typ.Decode(jx.DecodeStr(tc.Input)); err != nil {
+				if validateErr, ok := errors.Into[*validate.Error](err); ok {
+					t.Skipf("Validation error: %v", validateErr)
+					return
+				}
+				require.NoErrorf(t, err, "Input: %s", tc.Input)
+			}
+
+			e := jx.Encoder{}
+			typ.Encode(&e)
+			require.True(t, std.Valid(e.Bytes()), "Encoded: %s", e.Bytes())
+
+			var typ2 BackupV1betaState
+			require.NoError(t, typ2.Decode(jx.DecodeBytes(e.Bytes())))
+		})
+	}
 }
 func TestBackupVaultCreateV1beta_EncodeDecode(t *testing.T) {
 	var typ BackupVaultCreateV1beta
@@ -517,6 +606,18 @@ func TestChildAsset_EncodeDecode(t *testing.T) {
 	require.True(t, std.Valid(data), "Encoded: %s", data)
 
 	var typ2 ChildAsset
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestChildAssetV2_EncodeDecode(t *testing.T) {
+	var typ ChildAssetV2
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 ChildAssetV2
 	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
 }
 func TestClusterPeerV1_EncodeDecode(t *testing.T) {
@@ -5084,6 +5185,90 @@ func TestV1betaGetMultipleBackupVaultsUnauthorized_EncodeDecode(t *testing.T) {
 	require.True(t, std.Valid(data), "Encoded: %s", data)
 
 	var typ2 V1betaGetMultipleBackupVaultsUnauthorized
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1betaGetMultipleBackupsBadRequest_EncodeDecode(t *testing.T) {
+	var typ V1betaGetMultipleBackupsBadRequest
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaGetMultipleBackupsBadRequest
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1betaGetMultipleBackupsForbidden_EncodeDecode(t *testing.T) {
+	var typ V1betaGetMultipleBackupsForbidden
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaGetMultipleBackupsForbidden
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1betaGetMultipleBackupsInternalServerError_EncodeDecode(t *testing.T) {
+	var typ V1betaGetMultipleBackupsInternalServerError
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaGetMultipleBackupsInternalServerError
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1betaGetMultipleBackupsNotFound_EncodeDecode(t *testing.T) {
+	var typ V1betaGetMultipleBackupsNotFound
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaGetMultipleBackupsNotFound
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1betaGetMultipleBackupsNotImplemented_EncodeDecode(t *testing.T) {
+	var typ V1betaGetMultipleBackupsNotImplemented
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaGetMultipleBackupsNotImplemented
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1betaGetMultipleBackupsOK_EncodeDecode(t *testing.T) {
+	var typ V1betaGetMultipleBackupsOK
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaGetMultipleBackupsOK
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1betaGetMultipleBackupsUnauthorized_EncodeDecode(t *testing.T) {
+	var typ V1betaGetMultipleBackupsUnauthorized
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaGetMultipleBackupsUnauthorized
 	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
 }
 func TestV1betaGetMultipleHostGroupsBadRequest_EncodeDecode(t *testing.T) {

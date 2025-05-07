@@ -189,6 +189,12 @@ type Handler interface {
 	//
 	// POST /v1beta/projects/{projectNumber}/locations/{locationId}/getMultipleBackupVaults
 	V1betaGetMultipleBackupVaults(ctx context.Context, req *BackupVaultUUIDListV1beta, params V1betaGetMultipleBackupVaultsParams) (V1betaGetMultipleBackupVaultsRes, error)
+	// V1betaGetMultipleBackups implements v1beta_getMultipleBackups operation.
+	//
+	// Returns descriptions of backups that is listed in request body.
+	//
+	// POST /v1beta/projects/{projectNumber}/locations/{locationId}/backupVaults/{backupVaultId}/getMultipleBackups
+	V1betaGetMultipleBackups(ctx context.Context, req *BackupUUIDListV1beta, params V1betaGetMultipleBackupsParams) (V1betaGetMultipleBackupsRes, error)
 	// V1betaGetMultipleHostGroups implements v1beta_getMultipleHostGroups operation.
 	//
 	// Returns descriptions of HostGroups that are listed in request body.

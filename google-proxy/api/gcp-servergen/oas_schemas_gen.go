@@ -662,6 +662,22 @@ func (s *AnyV1Beta) SetAnyValue(val *AnyV1BetaAnyValue) {
 
 type AnyV1BetaAnyValue struct{}
 
+// Location metadata.
+// Ref: #/components/schemas/AssetLocationMetadata_v2
+type AssetLocationMetadataV2 struct {
+	ChildAssets []ChildAssetV2 `json:"child_assets"`
+}
+
+// GetChildAssets returns the value of ChildAssets.
+func (s *AssetLocationMetadataV2) GetChildAssets() []ChildAssetV2 {
+	return s.ChildAssets
+}
+
+// SetChildAssets sets the value of ChildAssets.
+func (s *AssetLocationMetadataV2) SetChildAssets(val []ChildAssetV2) {
+	s.ChildAssets = val
+}
+
 // Volume backup properties.
 // Ref: #/components/schemas/BackupConfig_v1beta
 type BackupConfigV1beta struct {
@@ -1311,6 +1327,367 @@ func (s *BackupRetentionPolicyV1beta) SetManualBackupImmutable(val OptBool) {
 	s.ManualBackupImmutable = val
 }
 
+// Ref: #/components/schemas/BackupUUIDList_v1beta
+type BackupUUIDListV1beta struct {
+	BackupUUIDs []string `json:"backupUUIDs"`
+}
+
+// GetBackupUUIDs returns the value of BackupUUIDs.
+func (s *BackupUUIDListV1beta) GetBackupUUIDs() []string {
+	return s.BackupUUIDs
+}
+
+// SetBackupUUIDs sets the value of BackupUUIDs.
+func (s *BackupUUIDListV1beta) SetBackupUUIDs(val []string) {
+	s.BackupUUIDs = val
+}
+
+// Ref: #/components/schemas/Backup_v1beta
+type BackupV1beta struct {
+	// A human readable label for the resource which is restricted to letters, numbers, and hyphen, with
+	// the first character a letter, the last a letter or a number, and a 63 character maximum.
+	ResourceId OptString `json:"resourceId"`
+	// UUID v4 of the volume.
+	VolumeId OptString `json:"volumeId"`
+	// The current lifecycle state of the resource.
+	State OptBackupV1betaState `json:"state"`
+	// Creation date of the resource.
+	Created OptDateTime `json:"created"`
+	// Backup enforced-retention end time.
+	EnforcedRetentionEndTime OptDateTime `json:"enforcedRetentionEndTime"`
+	// UUID v4 used to identify the backup.
+	BackupId OptString `json:"backupId"`
+	// Current size for the backup in bytes.
+	VolumeUsageBytes OptInt64 `json:"volumeUsageBytes"`
+	// Display name of the volume.
+	SourceVolume OptString `json:"sourceVolume"`
+	// UUID v4 used to identify the backup vault ID.
+	BackupVaultId OptString `json:"backupVaultId"`
+	// Description of the backup.
+	Description OptString `json:"description"`
+	// Name of the source snapshot.
+	SourceSnapshot OptString `json:"sourceSnapshot"`
+	// Type of backup, manually created or created by a backup policy.
+	BackupType OptBackupV1betaBackupType `json:"backupType"`
+	// Size in bytes of the backup of the volume.
+	BackupChainBytes OptInt64 `json:"backupChainBytes"`
+	// Flag describing whether backup supports zone separation.
+	SatisfiesPzs OptBool `json:"satisfiesPzs"`
+	// Flag describing whether backup supports zone isolation.
+	SatisfiesPzi OptBool `json:"satisfiesPzi"`
+	// Name of the volume region.
+	VolumeRegion OptString `json:"volumeRegion"`
+	// Name of the backup region.
+	BackupRegion          OptString                  `json:"backupRegion"`
+	AssetLocationMetadata OptAssetLocationMetadataV2 `json:"assetLocationMetadata"`
+}
+
+// GetResourceId returns the value of ResourceId.
+func (s *BackupV1beta) GetResourceId() OptString {
+	return s.ResourceId
+}
+
+// GetVolumeId returns the value of VolumeId.
+func (s *BackupV1beta) GetVolumeId() OptString {
+	return s.VolumeId
+}
+
+// GetState returns the value of State.
+func (s *BackupV1beta) GetState() OptBackupV1betaState {
+	return s.State
+}
+
+// GetCreated returns the value of Created.
+func (s *BackupV1beta) GetCreated() OptDateTime {
+	return s.Created
+}
+
+// GetEnforcedRetentionEndTime returns the value of EnforcedRetentionEndTime.
+func (s *BackupV1beta) GetEnforcedRetentionEndTime() OptDateTime {
+	return s.EnforcedRetentionEndTime
+}
+
+// GetBackupId returns the value of BackupId.
+func (s *BackupV1beta) GetBackupId() OptString {
+	return s.BackupId
+}
+
+// GetVolumeUsageBytes returns the value of VolumeUsageBytes.
+func (s *BackupV1beta) GetVolumeUsageBytes() OptInt64 {
+	return s.VolumeUsageBytes
+}
+
+// GetSourceVolume returns the value of SourceVolume.
+func (s *BackupV1beta) GetSourceVolume() OptString {
+	return s.SourceVolume
+}
+
+// GetBackupVaultId returns the value of BackupVaultId.
+func (s *BackupV1beta) GetBackupVaultId() OptString {
+	return s.BackupVaultId
+}
+
+// GetDescription returns the value of Description.
+func (s *BackupV1beta) GetDescription() OptString {
+	return s.Description
+}
+
+// GetSourceSnapshot returns the value of SourceSnapshot.
+func (s *BackupV1beta) GetSourceSnapshot() OptString {
+	return s.SourceSnapshot
+}
+
+// GetBackupType returns the value of BackupType.
+func (s *BackupV1beta) GetBackupType() OptBackupV1betaBackupType {
+	return s.BackupType
+}
+
+// GetBackupChainBytes returns the value of BackupChainBytes.
+func (s *BackupV1beta) GetBackupChainBytes() OptInt64 {
+	return s.BackupChainBytes
+}
+
+// GetSatisfiesPzs returns the value of SatisfiesPzs.
+func (s *BackupV1beta) GetSatisfiesPzs() OptBool {
+	return s.SatisfiesPzs
+}
+
+// GetSatisfiesPzi returns the value of SatisfiesPzi.
+func (s *BackupV1beta) GetSatisfiesPzi() OptBool {
+	return s.SatisfiesPzi
+}
+
+// GetVolumeRegion returns the value of VolumeRegion.
+func (s *BackupV1beta) GetVolumeRegion() OptString {
+	return s.VolumeRegion
+}
+
+// GetBackupRegion returns the value of BackupRegion.
+func (s *BackupV1beta) GetBackupRegion() OptString {
+	return s.BackupRegion
+}
+
+// GetAssetLocationMetadata returns the value of AssetLocationMetadata.
+func (s *BackupV1beta) GetAssetLocationMetadata() OptAssetLocationMetadataV2 {
+	return s.AssetLocationMetadata
+}
+
+// SetResourceId sets the value of ResourceId.
+func (s *BackupV1beta) SetResourceId(val OptString) {
+	s.ResourceId = val
+}
+
+// SetVolumeId sets the value of VolumeId.
+func (s *BackupV1beta) SetVolumeId(val OptString) {
+	s.VolumeId = val
+}
+
+// SetState sets the value of State.
+func (s *BackupV1beta) SetState(val OptBackupV1betaState) {
+	s.State = val
+}
+
+// SetCreated sets the value of Created.
+func (s *BackupV1beta) SetCreated(val OptDateTime) {
+	s.Created = val
+}
+
+// SetEnforcedRetentionEndTime sets the value of EnforcedRetentionEndTime.
+func (s *BackupV1beta) SetEnforcedRetentionEndTime(val OptDateTime) {
+	s.EnforcedRetentionEndTime = val
+}
+
+// SetBackupId sets the value of BackupId.
+func (s *BackupV1beta) SetBackupId(val OptString) {
+	s.BackupId = val
+}
+
+// SetVolumeUsageBytes sets the value of VolumeUsageBytes.
+func (s *BackupV1beta) SetVolumeUsageBytes(val OptInt64) {
+	s.VolumeUsageBytes = val
+}
+
+// SetSourceVolume sets the value of SourceVolume.
+func (s *BackupV1beta) SetSourceVolume(val OptString) {
+	s.SourceVolume = val
+}
+
+// SetBackupVaultId sets the value of BackupVaultId.
+func (s *BackupV1beta) SetBackupVaultId(val OptString) {
+	s.BackupVaultId = val
+}
+
+// SetDescription sets the value of Description.
+func (s *BackupV1beta) SetDescription(val OptString) {
+	s.Description = val
+}
+
+// SetSourceSnapshot sets the value of SourceSnapshot.
+func (s *BackupV1beta) SetSourceSnapshot(val OptString) {
+	s.SourceSnapshot = val
+}
+
+// SetBackupType sets the value of BackupType.
+func (s *BackupV1beta) SetBackupType(val OptBackupV1betaBackupType) {
+	s.BackupType = val
+}
+
+// SetBackupChainBytes sets the value of BackupChainBytes.
+func (s *BackupV1beta) SetBackupChainBytes(val OptInt64) {
+	s.BackupChainBytes = val
+}
+
+// SetSatisfiesPzs sets the value of SatisfiesPzs.
+func (s *BackupV1beta) SetSatisfiesPzs(val OptBool) {
+	s.SatisfiesPzs = val
+}
+
+// SetSatisfiesPzi sets the value of SatisfiesPzi.
+func (s *BackupV1beta) SetSatisfiesPzi(val OptBool) {
+	s.SatisfiesPzi = val
+}
+
+// SetVolumeRegion sets the value of VolumeRegion.
+func (s *BackupV1beta) SetVolumeRegion(val OptString) {
+	s.VolumeRegion = val
+}
+
+// SetBackupRegion sets the value of BackupRegion.
+func (s *BackupV1beta) SetBackupRegion(val OptString) {
+	s.BackupRegion = val
+}
+
+// SetAssetLocationMetadata sets the value of AssetLocationMetadata.
+func (s *BackupV1beta) SetAssetLocationMetadata(val OptAssetLocationMetadataV2) {
+	s.AssetLocationMetadata = val
+}
+
+// Type of backup, manually created or created by a backup policy.
+type BackupV1betaBackupType string
+
+const (
+	BackupV1betaBackupTypeMANUAL    BackupV1betaBackupType = "MANUAL"
+	BackupV1betaBackupTypeSCHEDULED BackupV1betaBackupType = "SCHEDULED"
+)
+
+// AllValues returns all BackupV1betaBackupType values.
+func (BackupV1betaBackupType) AllValues() []BackupV1betaBackupType {
+	return []BackupV1betaBackupType{
+		BackupV1betaBackupTypeMANUAL,
+		BackupV1betaBackupTypeSCHEDULED,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s BackupV1betaBackupType) MarshalText() ([]byte, error) {
+	switch s {
+	case BackupV1betaBackupTypeMANUAL:
+		return []byte(s), nil
+	case BackupV1betaBackupTypeSCHEDULED:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *BackupV1betaBackupType) UnmarshalText(data []byte) error {
+	switch BackupV1betaBackupType(data) {
+	case BackupV1betaBackupTypeMANUAL:
+		*s = BackupV1betaBackupTypeMANUAL
+		return nil
+	case BackupV1betaBackupTypeSCHEDULED:
+		*s = BackupV1betaBackupTypeSCHEDULED
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// The current lifecycle state of the resource.
+type BackupV1betaState string
+
+const (
+	BackupV1betaStateCREATING  BackupV1betaState = "CREATING"
+	BackupV1betaStateREADY     BackupV1betaState = "READY"
+	BackupV1betaStateUPLOADING BackupV1betaState = "UPLOADING"
+	BackupV1betaStateRESTORING BackupV1betaState = "RESTORING"
+	BackupV1betaStateDISABLED  BackupV1betaState = "DISABLED"
+	BackupV1betaStateDELETING  BackupV1betaState = "DELETING"
+	BackupV1betaStateDELETED   BackupV1betaState = "DELETED"
+	BackupV1betaStateERROR     BackupV1betaState = "ERROR"
+)
+
+// AllValues returns all BackupV1betaState values.
+func (BackupV1betaState) AllValues() []BackupV1betaState {
+	return []BackupV1betaState{
+		BackupV1betaStateCREATING,
+		BackupV1betaStateREADY,
+		BackupV1betaStateUPLOADING,
+		BackupV1betaStateRESTORING,
+		BackupV1betaStateDISABLED,
+		BackupV1betaStateDELETING,
+		BackupV1betaStateDELETED,
+		BackupV1betaStateERROR,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s BackupV1betaState) MarshalText() ([]byte, error) {
+	switch s {
+	case BackupV1betaStateCREATING:
+		return []byte(s), nil
+	case BackupV1betaStateREADY:
+		return []byte(s), nil
+	case BackupV1betaStateUPLOADING:
+		return []byte(s), nil
+	case BackupV1betaStateRESTORING:
+		return []byte(s), nil
+	case BackupV1betaStateDISABLED:
+		return []byte(s), nil
+	case BackupV1betaStateDELETING:
+		return []byte(s), nil
+	case BackupV1betaStateDELETED:
+		return []byte(s), nil
+	case BackupV1betaStateERROR:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *BackupV1betaState) UnmarshalText(data []byte) error {
+	switch BackupV1betaState(data) {
+	case BackupV1betaStateCREATING:
+		*s = BackupV1betaStateCREATING
+		return nil
+	case BackupV1betaStateREADY:
+		*s = BackupV1betaStateREADY
+		return nil
+	case BackupV1betaStateUPLOADING:
+		*s = BackupV1betaStateUPLOADING
+		return nil
+	case BackupV1betaStateRESTORING:
+		*s = BackupV1betaStateRESTORING
+		return nil
+	case BackupV1betaStateDISABLED:
+		*s = BackupV1betaStateDISABLED
+		return nil
+	case BackupV1betaStateDELETING:
+		*s = BackupV1betaStateDELETING
+		return nil
+	case BackupV1betaStateDELETED:
+		*s = BackupV1betaStateDELETED
+		return nil
+	case BackupV1betaStateERROR:
+		*s = BackupV1betaStateERROR
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
 // Ref: #/components/schemas/BackupVaultCreate_v1beta
 type BackupVaultCreateV1beta struct {
 	// Name of the resource.
@@ -1790,6 +2167,35 @@ func (s *ChildAsset) SetAssetType(val OptString) {
 
 // SetAssetNames sets the value of AssetNames.
 func (s *ChildAsset) SetAssetNames(val []string) {
+	s.AssetNames = val
+}
+
+// Details of the child assets including type and names.
+// Ref: #/components/schemas/ChildAsset_v2
+type ChildAssetV2 struct {
+	// The type of the asset.
+	AssetType OptString `json:"asset_type"`
+	// List of names of the assets.
+	AssetNames []string `json:"asset_names"`
+}
+
+// GetAssetType returns the value of AssetType.
+func (s *ChildAssetV2) GetAssetType() OptString {
+	return s.AssetType
+}
+
+// GetAssetNames returns the value of AssetNames.
+func (s *ChildAssetV2) GetAssetNames() []string {
+	return s.AssetNames
+}
+
+// SetAssetType sets the value of AssetType.
+func (s *ChildAssetV2) SetAssetType(val OptString) {
+	s.AssetType = val
+}
+
+// SetAssetNames sets the value of AssetNames.
+func (s *ChildAssetV2) SetAssetNames(val []string) {
 	s.AssetNames = val
 }
 
@@ -4268,6 +4674,52 @@ func (o OptAnyV1Beta) Or(d AnyV1Beta) AnyV1Beta {
 	return d
 }
 
+// NewOptAssetLocationMetadataV2 returns new OptAssetLocationMetadataV2 with value set to v.
+func NewOptAssetLocationMetadataV2(v AssetLocationMetadataV2) OptAssetLocationMetadataV2 {
+	return OptAssetLocationMetadataV2{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptAssetLocationMetadataV2 is optional AssetLocationMetadataV2.
+type OptAssetLocationMetadataV2 struct {
+	Value AssetLocationMetadataV2
+	Set   bool
+}
+
+// IsSet returns true if OptAssetLocationMetadataV2 was set.
+func (o OptAssetLocationMetadataV2) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptAssetLocationMetadataV2) Reset() {
+	var v AssetLocationMetadataV2
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptAssetLocationMetadataV2) SetTo(v AssetLocationMetadataV2) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptAssetLocationMetadataV2) Get() (v AssetLocationMetadataV2, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptAssetLocationMetadataV2) Or(d AssetLocationMetadataV2) AssetLocationMetadataV2 {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
 // NewOptBackupConfigV1beta returns new OptBackupConfigV1beta with value set to v.
 func NewOptBackupConfigV1beta(v BackupConfigV1beta) OptBackupConfigV1beta {
 	return OptBackupConfigV1beta{
@@ -4492,6 +4944,98 @@ func (o OptBackupRetentionPolicyV1beta) Get() (v BackupRetentionPolicyV1beta, ok
 
 // Or returns value if set, or given parameter if does not.
 func (o OptBackupRetentionPolicyV1beta) Or(d BackupRetentionPolicyV1beta) BackupRetentionPolicyV1beta {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptBackupV1betaBackupType returns new OptBackupV1betaBackupType with value set to v.
+func NewOptBackupV1betaBackupType(v BackupV1betaBackupType) OptBackupV1betaBackupType {
+	return OptBackupV1betaBackupType{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptBackupV1betaBackupType is optional BackupV1betaBackupType.
+type OptBackupV1betaBackupType struct {
+	Value BackupV1betaBackupType
+	Set   bool
+}
+
+// IsSet returns true if OptBackupV1betaBackupType was set.
+func (o OptBackupV1betaBackupType) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptBackupV1betaBackupType) Reset() {
+	var v BackupV1betaBackupType
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptBackupV1betaBackupType) SetTo(v BackupV1betaBackupType) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptBackupV1betaBackupType) Get() (v BackupV1betaBackupType, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptBackupV1betaBackupType) Or(d BackupV1betaBackupType) BackupV1betaBackupType {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptBackupV1betaState returns new OptBackupV1betaState with value set to v.
+func NewOptBackupV1betaState(v BackupV1betaState) OptBackupV1betaState {
+	return OptBackupV1betaState{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptBackupV1betaState is optional BackupV1betaState.
+type OptBackupV1betaState struct {
+	Value BackupV1betaState
+	Set   bool
+}
+
+// IsSet returns true if OptBackupV1betaState was set.
+func (o OptBackupV1betaState) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptBackupV1betaState) Reset() {
+	var v BackupV1betaState
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptBackupV1betaState) SetTo(v BackupV1betaState) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptBackupV1betaState) Get() (v BackupV1betaState, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptBackupV1betaState) Or(d BackupV1betaState) BackupV1betaState {
 	if v, ok := o.Get(); ok {
 		return v
 	}
@@ -12610,6 +13154,46 @@ func (*V1betaGetMultipleBackupVaultsOK) v1betaGetMultipleBackupVaultsRes() {}
 type V1betaGetMultipleBackupVaultsUnauthorized Error
 
 func (*V1betaGetMultipleBackupVaultsUnauthorized) v1betaGetMultipleBackupVaultsRes() {}
+
+type V1betaGetMultipleBackupsBadRequest Error
+
+func (*V1betaGetMultipleBackupsBadRequest) v1betaGetMultipleBackupsRes() {}
+
+type V1betaGetMultipleBackupsForbidden Error
+
+func (*V1betaGetMultipleBackupsForbidden) v1betaGetMultipleBackupsRes() {}
+
+type V1betaGetMultipleBackupsInternalServerError Error
+
+func (*V1betaGetMultipleBackupsInternalServerError) v1betaGetMultipleBackupsRes() {}
+
+type V1betaGetMultipleBackupsNotFound Error
+
+func (*V1betaGetMultipleBackupsNotFound) v1betaGetMultipleBackupsRes() {}
+
+type V1betaGetMultipleBackupsNotImplemented Error
+
+func (*V1betaGetMultipleBackupsNotImplemented) v1betaGetMultipleBackupsRes() {}
+
+type V1betaGetMultipleBackupsOK struct {
+	Backups []BackupV1beta `json:"backups"`
+}
+
+// GetBackups returns the value of Backups.
+func (s *V1betaGetMultipleBackupsOK) GetBackups() []BackupV1beta {
+	return s.Backups
+}
+
+// SetBackups sets the value of Backups.
+func (s *V1betaGetMultipleBackupsOK) SetBackups(val []BackupV1beta) {
+	s.Backups = val
+}
+
+func (*V1betaGetMultipleBackupsOK) v1betaGetMultipleBackupsRes() {}
+
+type V1betaGetMultipleBackupsUnauthorized Error
+
+func (*V1betaGetMultipleBackupsUnauthorized) v1betaGetMultipleBackupsRes() {}
 
 type V1betaGetMultipleHostGroupsBadRequest Error
 

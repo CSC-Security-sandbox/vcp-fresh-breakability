@@ -658,16 +658,15 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 										}
 
 										// Param: "backupVaultId"
-										// Leaf parameter, slashes are prohibited
+										// Match until "/"
 										idx := strings.IndexByte(elem, '/')
-										if idx >= 0 {
-											break
+										if idx < 0 {
+											idx = len(elem)
 										}
-										args[2] = elem
-										elem = ""
+										args[2] = elem[:idx]
+										elem = elem[idx:]
 
 										if len(elem) == 0 {
-											// Leaf node.
 											switch r.Method {
 											case "DELETE":
 												s.handleV1betaDeleteBackupVaultRequest([3]string{
@@ -692,6 +691,32 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 											}
 
 											return
+										}
+										switch elem[0] {
+										case '/': // Prefix: "/getMultipleBackups"
+
+											if l := len("/getMultipleBackups"); len(elem) >= l && elem[0:l] == "/getMultipleBackups" {
+												elem = elem[l:]
+											} else {
+												break
+											}
+
+											if len(elem) == 0 {
+												// Leaf node.
+												switch r.Method {
+												case "POST":
+													s.handleV1betaGetMultipleBackupsRequest([3]string{
+														args[0],
+														args[1],
+														args[2],
+													}, elemIsEscaped, w, r)
+												default:
+													s.notAllowed(w, r, "POST")
+												}
+
+												return
+											}
+
 										}
 
 									}
@@ -2225,16 +2250,15 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 										}
 
 										// Param: "backupVaultId"
-										// Leaf parameter, slashes are prohibited
+										// Match until "/"
 										idx := strings.IndexByte(elem, '/')
-										if idx >= 0 {
-											break
+										if idx < 0 {
+											idx = len(elem)
 										}
-										args[2] = elem
-										elem = ""
+										args[2] = elem[:idx]
+										elem = elem[idx:]
 
 										if len(elem) == 0 {
-											// Leaf node.
 											switch method {
 											case "DELETE":
 												r.name = V1betaDeleteBackupVaultOperation
@@ -2263,6 +2287,32 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 											default:
 												return
 											}
+										}
+										switch elem[0] {
+										case '/': // Prefix: "/getMultipleBackups"
+
+											if l := len("/getMultipleBackups"); len(elem) >= l && elem[0:l] == "/getMultipleBackups" {
+												elem = elem[l:]
+											} else {
+												break
+											}
+
+											if len(elem) == 0 {
+												// Leaf node.
+												switch method {
+												case "POST":
+													r.name = V1betaGetMultipleBackupsOperation
+													r.summary = "List specified backups under the backup vault"
+													r.operationID = "v1beta_getMultipleBackups"
+													r.pathPattern = "/v1beta/projects/{projectNumber}/locations/{locationId}/backupVaults/{backupVaultId}/getMultipleBackups"
+													r.args = args
+													r.count = 3
+													return r, true
+												default:
+													return
+												}
+											}
+
 										}
 
 									}

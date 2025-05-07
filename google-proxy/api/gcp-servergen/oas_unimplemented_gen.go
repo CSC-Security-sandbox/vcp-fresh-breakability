@@ -281,6 +281,15 @@ func (UnimplementedHandler) V1betaGetMultipleBackupVaults(ctx context.Context, r
 	return r, ht.ErrNotImplemented
 }
 
+// V1betaGetMultipleBackups implements v1beta_getMultipleBackups operation.
+//
+// Returns descriptions of backups that is listed in request body.
+//
+// POST /v1beta/projects/{projectNumber}/locations/{locationId}/backupVaults/{backupVaultId}/getMultipleBackups
+func (UnimplementedHandler) V1betaGetMultipleBackups(ctx context.Context, req *BackupUUIDListV1beta, params V1betaGetMultipleBackupsParams) (r V1betaGetMultipleBackupsRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
 // V1betaGetMultipleHostGroups implements v1beta_getMultipleHostGroups operation.
 //
 // Returns descriptions of HostGroups that are listed in request body.

@@ -117,6 +117,10 @@ type V1betaGetMultipleBackupVaultsRes interface {
 	v1betaGetMultipleBackupVaultsRes()
 }
 
+type V1betaGetMultipleBackupsRes interface {
+	v1betaGetMultipleBackupsRes()
+}
+
 type V1betaGetMultipleHostGroupsRes interface {
 	v1betaGetMultipleHostGroupsRes()
 }
