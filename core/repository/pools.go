@@ -10,6 +10,7 @@ import (
 	gormWrapper "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/gorm"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	customerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
+	slogger "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 	"gorm.io/gorm"
 )
 
@@ -27,8 +28,15 @@ func NewDataStoreRepository(db *gormWrapper.Wrapper) *DataStoreRepository {
 
 func (d *DataStoreRepository) CreatePool(ctx context.Context, pool *datamodel.Pool) (*datamodel.Pool, error) {
 	db := d.db.GORM().WithContext(ctx)
+	tx, err := startTransaction(db)
+	if err != nil {
+		return nil, err
+	}
+	// Fixme: The logger should be fetched from ctx
+	defer commitOrRollbackOnError(slogger.NewLogger(), tx, &err)
+
 	var dbpool datamodel.Pool
-	err := db.Where("name = ?", pool.Name).Where("account_id = ?", pool.AccountID).First(&dbpool).Error
+	err = tx.Where("name = ?", pool.Name).Where("account_id = ?", pool.AccountID).First(&dbpool).Error
 	if errors.Is(err, gorm.ErrRecordNotFound) {
 		pool.UUID = utils.RandomUUID()
 		pool.State = models.LifeCycleStateCreating
@@ -36,12 +44,12 @@ func (d *DataStoreRepository) CreatePool(ctx context.Context, pool *datamodel.Po
 		pool.CreatedAt = time.Now()
 		pool.UpdatedAt = pool.CreatedAt
 		pool.Account.ID = pool.AccountID
-		err := db.Create(&pool).Error
+		err := tx.Create(&pool).Error
 		if err != nil {
 			return nil, err
 		}
 
-		dbPool, err := getPoolWithDetails(db, &datamodel.Pool{BaseModel: datamodel.BaseModel{UUID: pool.UUID}})
+		dbPool, err := getPoolWithDetails(tx, &datamodel.Pool{BaseModel: datamodel.BaseModel{UUID: pool.UUID}})
 		if err != nil {
 			return nil, err
 		}
@@ -55,19 +63,26 @@ func (d *DataStoreRepository) GetPool(ctx context.Context, poolUUID string) (*da
 }
 
 func (d *DataStoreRepository) UpdatePool(ctx context.Context, pool *datamodel.Pool) error {
-	return d.db.GORM().WithContext(ctx).Transaction(func(tx *gorm.DB) error {
-		dbPool, err := getPoolWithDetails(tx, &datamodel.Pool{BaseModel: datamodel.BaseModel{UUID: pool.UUID}})
-		if err != nil {
-			return err
-		}
-		dbPool.UpdatedAt = time.Now()
-		dbPool.State = pool.State
-		dbPool.StateDetails = pool.StateDetails
-		if err := tx.Updates(dbPool).Error; err != nil {
-			return err
-		}
-		return nil
-	})
+	db := d.db.GORM().WithContext(ctx)
+	tx, err := startTransaction(db)
+	if err != nil {
+		return err
+	}
+	// Fixme: The logger should be fetched from ctx
+	defer commitOrRollbackOnError(slogger.NewLogger(), tx, &err)
+
+	dbPool, err := getPoolWithDetails(tx, &datamodel.Pool{BaseModel: datamodel.BaseModel{UUID: pool.UUID}})
+	if err != nil {
+		return err
+	}
+	dbPool.UpdatedAt = time.Now()
+	dbPool.State = pool.State
+	dbPool.StateDetails = pool.StateDetails
+
+	if err := tx.Updates(dbPool).Error; err != nil {
+		return err
+	}
+	return nil
 }
 
 func (d *DataStoreRepository) DeletePool(ctx context.Context, id string) error {
