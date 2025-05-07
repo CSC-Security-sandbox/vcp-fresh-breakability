@@ -22,12 +22,39 @@ func (UnimplementedHandler) GetHealth(ctx context.Context) (r GetHealthRes, _ er
 	return r, ht.ErrNotImplemented
 }
 
+// V1betaCheckKmsConfig implements v1beta_checkKmsConfig operation.
+//
+// Verifies whether service account can access the configured key.
+//
+// GET /v1beta/projects/{projectNumber}/locations/{locationId}/storage/kmsConfig/{kmsConfigId}/check
+func (UnimplementedHandler) V1betaCheckKmsConfig(ctx context.Context, params V1betaCheckKmsConfigParams) (r V1betaCheckKmsConfigRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// V1betaCreateBackupPolicy implements v1beta_createBackupPolicy operation.
+//
+// Create a new backup policy.
+//
+// POST /v1beta/projects/{projectNumber}/locations/{locationId}/backupPolicies
+func (UnimplementedHandler) V1betaCreateBackupPolicy(ctx context.Context, req *BackupPolicyCreateV1beta, params V1betaCreateBackupPolicyParams) (r V1betaCreateBackupPolicyRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
 // V1betaCreateHostGroup implements v1beta_createHostGroup operation.
 //
 // Create a new HostGroup.
 //
 // POST /v1beta/projects/{projectNumber}/locations/{locationId}/hostGroups
 func (UnimplementedHandler) V1betaCreateHostGroup(ctx context.Context, req *HostGroupV1beta, params V1betaCreateHostGroupParams) (r V1betaCreateHostGroupRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// V1betaCreateKmsConfiguration implements v1beta_CreateKmsConfiguration operation.
+//
+// Create new KMS configuration for the active user.
+//
+// POST /v1beta/projects/{projectNumber}/locations/{locationId}/storage/kmsConfig
+func (UnimplementedHandler) V1betaCreateKmsConfiguration(ctx context.Context, req *KmsConfigV1beta, params V1betaCreateKmsConfigurationParams) (r V1betaCreateKmsConfigurationRes, _ error) {
 	return r, ht.ErrNotImplemented
 }
 
@@ -59,12 +86,30 @@ func (UnimplementedHandler) V1betaCreateVolume(ctx context.Context, req *VolumeC
 	return r, ht.ErrNotImplemented
 }
 
+// V1betaDeleteBackupPolicy implements v1beta_deleteBackupPolicy operation.
+//
+// Warning! This operation will permanently delete the backup policy.
+//
+// DELETE /v1beta/projects/{projectNumber}/locations/{locationId}/backupPolicies/{backupPolicyId}
+func (UnimplementedHandler) V1betaDeleteBackupPolicy(ctx context.Context, params V1betaDeleteBackupPolicyParams) (r V1betaDeleteBackupPolicyRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
 // V1betaDeleteHostGroup implements v1beta_deleteHostGroup operation.
 //
 // Warning! This operation will permanently delete the HostGroup.
 //
 // DELETE /v1beta/projects/{projectNumber}/locations/{locationId}/hostGroups/{hostGroupId}
 func (UnimplementedHandler) V1betaDeleteHostGroup(ctx context.Context, params V1betaDeleteHostGroupParams) (r V1betaDeleteHostGroupRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// V1betaDeleteKmsConfiguration implements v1beta_deleteKmsConfiguration operation.
+//
+// Deletes KMS configuration for the active user.
+//
+// DELETE /v1beta/projects/{projectNumber}/locations/{locationId}/storage/kmsConfig/{kmsConfigId}
+func (UnimplementedHandler) V1betaDeleteKmsConfiguration(ctx context.Context, params V1betaDeleteKmsConfigurationParams) (r V1betaDeleteKmsConfigurationRes, _ error) {
 	return r, ht.ErrNotImplemented
 }
 
@@ -99,12 +144,30 @@ func (UnimplementedHandler) V1betaDeleteVolume(ctx context.Context, req OptV1bet
 	return r, ht.ErrNotImplemented
 }
 
+// V1betaDescribeBackupPolicy implements v1beta_describeBackupPolicy operation.
+//
+// Returns the description of the specified backup policy by backup policy ID.
+//
+// GET /v1beta/projects/{projectNumber}/locations/{locationId}/backupPolicies/{backupPolicyId}
+func (UnimplementedHandler) V1betaDescribeBackupPolicy(ctx context.Context, params V1betaDescribeBackupPolicyParams) (r V1betaDescribeBackupPolicyRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
 // V1betaDescribeHostGroup implements v1beta_describeHostGroup operation.
 //
 // Returns the description of the specified HostGroup by hostGroupId.
 //
 // GET /v1beta/projects/{projectNumber}/locations/{locationId}/hostGroups/{hostGroupId}
 func (UnimplementedHandler) V1betaDescribeHostGroup(ctx context.Context, params V1betaDescribeHostGroupParams) (r V1betaDescribeHostGroupRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// V1betaDescribeKmsConfiguration implements v1beta_describeKmsConfiguration operation.
+//
+// Returns the description of a KMS configuration specified by KMS configuration ID.
+//
+// GET /v1beta/projects/{projectNumber}/locations/{locationId}/storage/kmsConfig/{kmsConfigId}
+func (UnimplementedHandler) V1betaDescribeKmsConfiguration(ctx context.Context, params V1betaDescribeKmsConfigurationParams) (r V1betaDescribeKmsConfigurationRes, _ error) {
 	return r, ht.ErrNotImplemented
 }
 
@@ -132,6 +195,15 @@ func (UnimplementedHandler) V1betaDescribePool(ctx context.Context, params V1bet
 //
 // GET /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}
 func (UnimplementedHandler) V1betaDescribeVolume(ctx context.Context, params V1betaDescribeVolumeParams) (r V1betaDescribeVolumeRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// V1betaGetMultipleBackupPolicies implements v1beta_getMultipleBackupPolicies operation.
+//
+// Returns descriptions of backup policies that is listed in request body.
+//
+// POST /v1beta/projects/{projectNumber}/locations/{locationId}/getMultipleBackupPolicies
+func (UnimplementedHandler) V1betaGetMultipleBackupPolicies(ctx context.Context, req *BackupPolicyIDListV1beta, params V1betaGetMultipleBackupPoliciesParams) (r V1betaGetMultipleBackupPoliciesRes, _ error) {
 	return r, ht.ErrNotImplemented
 }
 
@@ -171,12 +243,30 @@ func (UnimplementedHandler) V1betaGetMultipleVolumes(ctx context.Context, req *V
 	return r, ht.ErrNotImplemented
 }
 
+// V1betaListBackupPolicies implements v1beta_listBackupPolicies operation.
+//
+// Returns list of all available backup policies.
+//
+// GET /v1beta/projects/{projectNumber}/locations/{locationId}/backupPolicies
+func (UnimplementedHandler) V1betaListBackupPolicies(ctx context.Context, params V1betaListBackupPoliciesParams) (r V1betaListBackupPoliciesRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
 // V1betaListHostGroups implements v1beta_listHostGroups operation.
 //
 // Returns descriptions of all HostGroups owned by the caller.
 //
 // GET /v1beta/projects/{projectNumber}/locations/{locationId}/hostGroups
 func (UnimplementedHandler) V1betaListHostGroups(ctx context.Context, params V1betaListHostGroupsParams) (r V1betaListHostGroupsRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// V1betaListKmsConfigurations implements v1beta_listKmsConfigurations operation.
+//
+// Returns descriptions of all KMS configurations owned by the caller.
+//
+// GET /v1beta/projects/{projectNumber}/locations/{locationId}/storage/kmsConfig
+func (UnimplementedHandler) V1betaListKmsConfigurations(ctx context.Context, params V1betaListKmsConfigurationsParams) (r V1betaListKmsConfigurationsRes, _ error) {
 	return r, ht.ErrNotImplemented
 }
 
@@ -243,12 +333,30 @@ func (UnimplementedHandler) V1betaSyncReplication(ctx context.Context, params V1
 	return r, ht.ErrNotImplemented
 }
 
+// V1betaUpdateBackupPolicy implements v1beta_updateBackupPolicy operation.
+//
+// Update the backup policy.
+//
+// PUT /v1beta/projects/{projectNumber}/locations/{locationId}/backupPolicies/{backupPolicyId}
+func (UnimplementedHandler) V1betaUpdateBackupPolicy(ctx context.Context, req *BackupPolicyScheduleV1beta, params V1betaUpdateBackupPolicyParams) (r V1betaUpdateBackupPolicyRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
 // V1betaUpdateHostGroup implements v1beta_updateHostGroup operation.
 //
 // Update the specified HostGroup.
 //
 // PUT /v1beta/projects/{projectNumber}/locations/{locationId}/hostGroups/{hostGroupId}
 func (UnimplementedHandler) V1betaUpdateHostGroup(ctx context.Context, req *HostGroupUpdateV1beta, params V1betaUpdateHostGroupParams) (r V1betaUpdateHostGroupRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// V1betaUpdateKmsConfiguration implements v1beta_updateKmsConfiguration operation.
+//
+// Update the KMS configuration.
+//
+// PUT /v1beta/projects/{projectNumber}/locations/{locationId}/storage/kmsConfig/{kmsConfigId}
+func (UnimplementedHandler) V1betaUpdateKmsConfiguration(ctx context.Context, req *KmsConfigUpdateV1beta, params V1betaUpdateKmsConfigurationParams) (r V1betaUpdateKmsConfigurationRes, _ error) {
 	return r, ht.ErrNotImplemented
 }
 

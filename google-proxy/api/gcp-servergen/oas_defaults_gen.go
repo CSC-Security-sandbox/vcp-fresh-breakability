@@ -11,6 +11,86 @@ func (s *BackupConfigV1beta) setDefaults() {
 }
 
 // setDefaults set default value of fields.
+func (s *BackupPolicyCreateV1beta) setDefaults() {
+	{
+		val := int(0)
+		s.DailyBackupLimit.SetTo(val)
+	}
+	{
+		val := int(0)
+		s.WeeklyBackupLimit.SetTo(val)
+	}
+	{
+		val := int(0)
+		s.MonthlyBackupLimit.SetTo(val)
+	}
+}
+
+// setDefaults set default value of fields.
+func (s *BackupPolicyDetailsV1beta) setDefaults() {
+	{
+		val := bool(false)
+		s.Enabled = val
+	}
+	{
+		val := int(0)
+		s.VolumeCount.SetTo(val)
+	}
+	{
+		val := int(0)
+		s.DailyBackupLimit.SetTo(val)
+	}
+	{
+		val := int(0)
+		s.WeeklyBackupLimit.SetTo(val)
+	}
+	{
+		val := int(0)
+		s.MonthlyBackupLimit.SetTo(val)
+	}
+}
+
+// setDefaults set default value of fields.
+func (s *BackupPolicyScheduleV1beta) setDefaults() {
+	{
+		val := int(0)
+		s.DailyBackupLimit.SetTo(val)
+	}
+	{
+		val := int(0)
+		s.WeeklyBackupLimit.SetTo(val)
+	}
+	{
+		val := int(0)
+		s.MonthlyBackupLimit.SetTo(val)
+	}
+}
+
+// setDefaults set default value of fields.
+func (s *BackupPolicyV1beta) setDefaults() {
+	{
+		val := bool(false)
+		s.Enabled = val
+	}
+	{
+		val := int(0)
+		s.VolumeCount.SetTo(val)
+	}
+	{
+		val := int(0)
+		s.DailyBackupLimit.SetTo(val)
+	}
+	{
+		val := int(0)
+		s.WeeklyBackupLimit.SetTo(val)
+	}
+	{
+		val := int(0)
+		s.MonthlyBackupLimit.SetTo(val)
+	}
+}
+
+// setDefaults set default value of fields.
 func (s *DailyScheduleV1beta) setDefaults() {
 	{
 		val := float64(0)
@@ -167,6 +247,18 @@ func (s *TieringPolicyV1beta) setDefaults() {
 	{
 		val := int32(31)
 		s.CoolingThresholdDays.SetTo(val)
+	}
+}
+
+// setDefaults set default value of fields.
+func (s *VolumeBackupDetailsV1beta) setDefaults() {
+	{
+		val := int(0)
+		s.ScheduledBackupCount.SetTo(val)
+	}
+	{
+		val := bool(false)
+		s.PolicyEnabled.SetTo(val)
 	}
 }
 

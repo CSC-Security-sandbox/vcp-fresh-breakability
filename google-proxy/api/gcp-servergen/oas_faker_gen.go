@@ -50,6 +50,200 @@ func (s *BackupConfigV1beta) SetFake() {
 }
 
 // SetFake set fake values.
+func (s *BackupPolicyCreateV1beta) SetFake() {
+	{
+		{
+			s.ResourceId = "string"
+		}
+	}
+	{
+		{
+			s.Description.SetFake()
+		}
+	}
+	{
+		{
+			s.DailyBackupLimit.SetFake()
+		}
+	}
+	{
+		{
+			s.WeeklyBackupLimit.SetFake()
+		}
+	}
+	{
+		{
+			s.MonthlyBackupLimit.SetFake()
+		}
+	}
+}
+
+// SetFake set fake values.
+func (s *BackupPolicyDetailsV1beta) SetFake() {
+	{
+		{
+			s.ResourceId = "string"
+		}
+	}
+	{
+		{
+			s.BackupPolicyId.SetFake()
+		}
+	}
+	{
+		{
+			s.Enabled = true
+		}
+	}
+	{
+		{
+			s.Description.SetFake()
+		}
+	}
+	{
+		{
+			s.CreatedAt.SetFake()
+		}
+	}
+	{
+		{
+			s.State.SetFake()
+		}
+	}
+	{
+		{
+			s.VolumeCount.SetFake()
+		}
+	}
+	{
+		{
+			s.DailyBackupLimit.SetFake()
+		}
+	}
+	{
+		{
+			s.WeeklyBackupLimit.SetFake()
+		}
+	}
+	{
+		{
+			s.MonthlyBackupLimit.SetFake()
+		}
+	}
+	{
+		{
+			s.VolumeBackups = nil
+			for i := 0; i < 0; i++ {
+				var elem VolumeBackupDetailsV1beta
+				{
+					elem.SetFake()
+				}
+				s.VolumeBackups = append(s.VolumeBackups, elem)
+			}
+		}
+	}
+}
+
+// SetFake set fake values.
+func (s *BackupPolicyDetailsV1betaState) SetFake() {
+	*s = BackupPolicyDetailsV1betaStateSTATEUNSPECIFIEDCREATINGUPDATINGDELETINGREADYDELETEDERROR
+}
+
+// SetFake set fake values.
+func (s *BackupPolicyIDListV1beta) SetFake() {
+	{
+		{
+			s.BackupPolicyUUIDs = nil
+			for i := 0; i < 1; i++ {
+				var elem string
+				{
+					elem = "string"
+				}
+				s.BackupPolicyUUIDs = append(s.BackupPolicyUUIDs, elem)
+			}
+		}
+	}
+}
+
+// SetFake set fake values.
+func (s *BackupPolicyScheduleV1beta) SetFake() {
+	{
+		{
+			s.DailyBackupLimit.SetFake()
+		}
+	}
+	{
+		{
+			s.WeeklyBackupLimit.SetFake()
+		}
+	}
+	{
+		{
+			s.MonthlyBackupLimit.SetFake()
+		}
+	}
+}
+
+// SetFake set fake values.
+func (s *BackupPolicyV1beta) SetFake() {
+	{
+		{
+			s.ResourceId = "string"
+		}
+	}
+	{
+		{
+			s.BackupPolicyId.SetFake()
+		}
+	}
+	{
+		{
+			s.Enabled = true
+		}
+	}
+	{
+		{
+			s.Description.SetFake()
+		}
+	}
+	{
+		{
+			s.CreatedAt.SetFake()
+		}
+	}
+	{
+		{
+			s.State.SetFake()
+		}
+	}
+	{
+		{
+			s.VolumeCount.SetFake()
+		}
+	}
+	{
+		{
+			s.DailyBackupLimit.SetFake()
+		}
+	}
+	{
+		{
+			s.WeeklyBackupLimit.SetFake()
+		}
+	}
+	{
+		{
+			s.MonthlyBackupLimit.SetFake()
+		}
+	}
+}
+
+// SetFake set fake values.
+func (s *BackupPolicyV1betaState) SetFake() {
+	*s = BackupPolicyV1betaStateSTATEUNSPECIFIEDCREATINGUPDATINGDELETINGREADYDELETEDERROR
+}
+
+// SetFake set fake values.
 func (s *BlockPropertiesV1beta) SetFake() {
 	{
 		{
@@ -626,6 +820,122 @@ func (s *HybridReplicationUserCommandsV1beta) SetFake() {
 }
 
 // SetFake set fake values.
+func (s *KmsConfigCheckV1beta) SetFake() {
+	{
+		{
+			s.ServiceAccount.SetFake()
+		}
+	}
+	{
+		{
+			s.KmsConfigHealthCheck.SetFake()
+		}
+	}
+}
+
+// SetFake set fake values.
+func (s *KmsConfigHealthCheckV1beta) SetFake() {
+	{
+		{
+			s.IsHealthy = true
+		}
+	}
+	{
+		{
+			s.HealthError.SetFake()
+		}
+	}
+	{
+		{
+			s.Instructions.SetFake()
+		}
+	}
+}
+
+// SetFake set fake values.
+func (s *KmsConfigUpdateV1beta) SetFake() {
+	{
+		{
+			s.KeyFullPath.SetFake()
+		}
+	}
+	{
+		{
+			s.Description.SetFake()
+		}
+	}
+	{
+		{
+			s.ResourceId.SetFake()
+		}
+	}
+}
+
+// SetFake set fake values.
+func (s *KmsConfigV1beta) SetFake() {
+	{
+		{
+			s.UUID.SetFake()
+		}
+	}
+	{
+		{
+			s.ServiceAccountEmail.SetFake()
+		}
+	}
+	{
+		{
+			s.KeyFullPath = "string"
+		}
+	}
+	{
+		{
+			s.KmsState.SetFake()
+		}
+	}
+	{
+		{
+			s.KmsStateDetails.SetFake()
+		}
+	}
+	{
+		{
+			s.Description.SetFake()
+		}
+	}
+	{
+		{
+			s.CreatedTime.SetFake()
+		}
+	}
+	{
+		{
+			s.UpdatedTime.SetFake()
+		}
+	}
+	{
+		{
+			s.DeletedTime.SetFake()
+		}
+	}
+	{
+		{
+			s.Instructions.SetFake()
+		}
+	}
+	{
+		{
+			s.ResourceId.SetFake()
+		}
+	}
+}
+
+// SetFake set fake values.
+func (s *KmsConfigV1betaKmsState) SetFake() {
+	*s = KmsConfigV1betaKmsStateSTATEUNSPECIFIED
+}
+
+// SetFake set fake values.
 func (s *MonthlyScheduleV1beta) SetFake() {
 	{
 		{
@@ -724,6 +1034,24 @@ func (s *OptAnyV1Beta) SetFake() {
 // SetFake set fake values.
 func (s *OptBackupConfigV1beta) SetFake() {
 	var elem BackupConfigV1beta
+	{
+		elem.SetFake()
+	}
+	s.SetTo(elem)
+}
+
+// SetFake set fake values.
+func (s *OptBackupPolicyDetailsV1betaState) SetFake() {
+	var elem BackupPolicyDetailsV1betaState
+	{
+		elem.SetFake()
+	}
+	s.SetTo(elem)
+}
+
+// SetFake set fake values.
+func (s *OptBackupPolicyV1betaState) SetFake() {
+	var elem BackupPolicyV1betaState
 	{
 		elem.SetFake()
 	}
@@ -902,10 +1230,37 @@ func (s *OptHybridReplicationUserCommandsV1beta) SetFake() {
 }
 
 // SetFake set fake values.
+func (s *OptInt) SetFake() {
+	var elem int
+	{
+		elem = int(0)
+	}
+	s.SetTo(elem)
+}
+
+// SetFake set fake values.
 func (s *OptInt32) SetFake() {
 	var elem int32
 	{
 		elem = int32(0)
+	}
+	s.SetTo(elem)
+}
+
+// SetFake set fake values.
+func (s *OptKmsConfigHealthCheckV1beta) SetFake() {
+	var elem KmsConfigHealthCheckV1beta
+	{
+		elem.SetFake()
+	}
+	s.SetTo(elem)
+}
+
+// SetFake set fake values.
+func (s *OptKmsConfigV1betaKmsState) SetFake() {
+	var elem KmsConfigV1betaKmsState
+	{
+		elem.SetFake()
 	}
 	s.SetTo(elem)
 }
@@ -2126,6 +2481,150 @@ func (s *TransferStatsV1beta) SetFake() {
 }
 
 // SetFake set fake values.
+func (s *V1betaCheckKmsConfigBadRequest) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaCheckKmsConfigBadRequest(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaCheckKmsConfigConflict) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaCheckKmsConfigConflict(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaCheckKmsConfigForbidden) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaCheckKmsConfigForbidden(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaCheckKmsConfigInternalServerError) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaCheckKmsConfigInternalServerError(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaCheckKmsConfigNotFound) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaCheckKmsConfigNotFound(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaCheckKmsConfigTooManyRequests) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaCheckKmsConfigTooManyRequests(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaCheckKmsConfigUnauthorized) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaCheckKmsConfigUnauthorized(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaCheckKmsConfigUnprocessableEntity) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaCheckKmsConfigUnprocessableEntity(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaCreateBackupPolicyBadRequest) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaCreateBackupPolicyBadRequest(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaCreateBackupPolicyConflict) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaCreateBackupPolicyConflict(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaCreateBackupPolicyForbidden) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaCreateBackupPolicyForbidden(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaCreateBackupPolicyInternalServerError) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaCreateBackupPolicyInternalServerError(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaCreateBackupPolicyNotImplemented) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaCreateBackupPolicyNotImplemented(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaCreateBackupPolicyTooManyRequests) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaCreateBackupPolicyTooManyRequests(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaCreateBackupPolicyUnauthorized) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaCreateBackupPolicyUnauthorized(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaCreateBackupPolicyUnprocessableEntity) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaCreateBackupPolicyUnprocessableEntity(unwrapped)
+}
+
+// SetFake set fake values.
 func (s *V1betaCreateHostGroupAccepted) SetFake() {
 	var unwrapped OperationV1beta
 	{
@@ -2204,6 +2703,69 @@ func (s *V1betaCreateHostGroupUnprocessableEntity) SetFake() {
 		unwrapped.SetFake()
 	}
 	*s = V1betaCreateHostGroupUnprocessableEntity(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaCreateKmsConfigurationBadRequest) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaCreateKmsConfigurationBadRequest(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaCreateKmsConfigurationConflict) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaCreateKmsConfigurationConflict(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaCreateKmsConfigurationForbidden) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaCreateKmsConfigurationForbidden(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaCreateKmsConfigurationInternalServerError) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaCreateKmsConfigurationInternalServerError(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaCreateKmsConfigurationTooManyRequests) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaCreateKmsConfigurationTooManyRequests(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaCreateKmsConfigurationUnauthorized) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaCreateKmsConfigurationUnauthorized(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaCreateKmsConfigurationUnprocessableEntity) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaCreateKmsConfigurationUnprocessableEntity(unwrapped)
 }
 
 // SetFake set fake values.
@@ -2396,6 +2958,87 @@ func (s *V1betaCreateVolumeUnprocessableEntity) SetFake() {
 }
 
 // SetFake set fake values.
+func (s *V1betaDeleteBackupPolicyBadRequest) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaDeleteBackupPolicyBadRequest(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaDeleteBackupPolicyConflict) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaDeleteBackupPolicyConflict(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaDeleteBackupPolicyForbidden) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaDeleteBackupPolicyForbidden(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaDeleteBackupPolicyInternalServerError) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaDeleteBackupPolicyInternalServerError(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaDeleteBackupPolicyNotFound) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaDeleteBackupPolicyNotFound(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaDeleteBackupPolicyNotImplemented) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaDeleteBackupPolicyNotImplemented(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaDeleteBackupPolicyTooManyRequests) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaDeleteBackupPolicyTooManyRequests(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaDeleteBackupPolicyUnauthorized) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaDeleteBackupPolicyUnauthorized(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaDeleteBackupPolicyUnprocessableEntity) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaDeleteBackupPolicyUnprocessableEntity(unwrapped)
+}
+
+// SetFake set fake values.
 func (s *V1betaDeleteHostGroupBadRequest) SetFake() {
 	var unwrapped Error
 	{
@@ -2447,6 +3090,78 @@ func (s *V1betaDeleteHostGroupUnauthorized) SetFake() {
 		unwrapped.SetFake()
 	}
 	*s = V1betaDeleteHostGroupUnauthorized(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaDeleteKmsConfigurationBadRequest) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaDeleteKmsConfigurationBadRequest(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaDeleteKmsConfigurationConflict) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaDeleteKmsConfigurationConflict(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaDeleteKmsConfigurationForbidden) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaDeleteKmsConfigurationForbidden(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaDeleteKmsConfigurationInternalServerError) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaDeleteKmsConfigurationInternalServerError(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaDeleteKmsConfigurationNotFound) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaDeleteKmsConfigurationNotFound(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaDeleteKmsConfigurationTooManyRequests) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaDeleteKmsConfigurationTooManyRequests(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaDeleteKmsConfigurationUnauthorized) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaDeleteKmsConfigurationUnauthorized(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaDeleteKmsConfigurationUnprocessableEntity) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaDeleteKmsConfigurationUnprocessableEntity(unwrapped)
 }
 
 // SetFake set fake values.
@@ -2648,6 +3363,87 @@ func (s *V1betaDeleteVolumeUnprocessableEntity) SetFake() {
 }
 
 // SetFake set fake values.
+func (s *V1betaDescribeBackupPolicyBadRequest) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaDescribeBackupPolicyBadRequest(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaDescribeBackupPolicyConflict) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaDescribeBackupPolicyConflict(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaDescribeBackupPolicyForbidden) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaDescribeBackupPolicyForbidden(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaDescribeBackupPolicyInternalServerError) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaDescribeBackupPolicyInternalServerError(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaDescribeBackupPolicyNotFound) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaDescribeBackupPolicyNotFound(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaDescribeBackupPolicyNotImplemented) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaDescribeBackupPolicyNotImplemented(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaDescribeBackupPolicyTooManyRequests) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaDescribeBackupPolicyTooManyRequests(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaDescribeBackupPolicyUnauthorized) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaDescribeBackupPolicyUnauthorized(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaDescribeBackupPolicyUnprocessableEntity) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaDescribeBackupPolicyUnprocessableEntity(unwrapped)
+}
+
+// SetFake set fake values.
 func (s *V1betaDescribeHostGroupBadRequest) SetFake() {
 	var unwrapped Error
 	{
@@ -2699,6 +3495,78 @@ func (s *V1betaDescribeHostGroupUnauthorized) SetFake() {
 		unwrapped.SetFake()
 	}
 	*s = V1betaDescribeHostGroupUnauthorized(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaDescribeKmsConfigurationBadRequest) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaDescribeKmsConfigurationBadRequest(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaDescribeKmsConfigurationConflict) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaDescribeKmsConfigurationConflict(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaDescribeKmsConfigurationForbidden) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaDescribeKmsConfigurationForbidden(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaDescribeKmsConfigurationInternalServerError) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaDescribeKmsConfigurationInternalServerError(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaDescribeKmsConfigurationNotFound) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaDescribeKmsConfigurationNotFound(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaDescribeKmsConfigurationTooManyRequests) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaDescribeKmsConfigurationTooManyRequests(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaDescribeKmsConfigurationUnauthorized) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaDescribeKmsConfigurationUnauthorized(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaDescribeKmsConfigurationUnprocessableEntity) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaDescribeKmsConfigurationUnprocessableEntity(unwrapped)
 }
 
 // SetFake set fake values.
@@ -2888,6 +3756,76 @@ func (s *V1betaDescribeVolumeUnauthorized) SetFake() {
 		unwrapped.SetFake()
 	}
 	*s = V1betaDescribeVolumeUnauthorized(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaGetMultipleBackupPoliciesBadRequest) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaGetMultipleBackupPoliciesBadRequest(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaGetMultipleBackupPoliciesForbidden) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaGetMultipleBackupPoliciesForbidden(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaGetMultipleBackupPoliciesInternalServerError) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaGetMultipleBackupPoliciesInternalServerError(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaGetMultipleBackupPoliciesNotFound) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaGetMultipleBackupPoliciesNotFound(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaGetMultipleBackupPoliciesNotImplemented) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaGetMultipleBackupPoliciesNotImplemented(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaGetMultipleBackupPoliciesOK) SetFake() {
+	{
+		{
+			s.BackupPolicies = nil
+			for i := 0; i < 0; i++ {
+				var elem BackupPolicyV1beta
+				{
+					elem.SetFake()
+				}
+				s.BackupPolicies = append(s.BackupPolicies, elem)
+			}
+		}
+	}
+}
+
+// SetFake set fake values.
+func (s *V1betaGetMultipleBackupPoliciesUnauthorized) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaGetMultipleBackupPoliciesUnauthorized(unwrapped)
 }
 
 // SetFake set fake values.
@@ -3216,6 +4154,76 @@ func (s *V1betaGetMultipleVolumesUnprocessableEntity) SetFake() {
 }
 
 // SetFake set fake values.
+func (s *V1betaListBackupPoliciesBadRequest) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaListBackupPoliciesBadRequest(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaListBackupPoliciesForbidden) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaListBackupPoliciesForbidden(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaListBackupPoliciesInternalServerError) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaListBackupPoliciesInternalServerError(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaListBackupPoliciesNotFound) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaListBackupPoliciesNotFound(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaListBackupPoliciesNotImplemented) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaListBackupPoliciesNotImplemented(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaListBackupPoliciesOK) SetFake() {
+	{
+		{
+			s.BackupPolicies = nil
+			for i := 0; i < 0; i++ {
+				var elem BackupPolicyV1beta
+				{
+					elem.SetFake()
+				}
+				s.BackupPolicies = append(s.BackupPolicies, elem)
+			}
+		}
+	}
+}
+
+// SetFake set fake values.
+func (s *V1betaListBackupPoliciesUnauthorized) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaListBackupPoliciesUnauthorized(unwrapped)
+}
+
+// SetFake set fake values.
 func (s *V1betaListHostGroupsBadRequest) SetFake() {
 	var unwrapped Error
 	{
@@ -3274,6 +4282,85 @@ func (s *V1betaListHostGroupsUnauthorized) SetFake() {
 		unwrapped.SetFake()
 	}
 	*s = V1betaListHostGroupsUnauthorized(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaListKmsConfigurationsBadRequest) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaListKmsConfigurationsBadRequest(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaListKmsConfigurationsConflict) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaListKmsConfigurationsConflict(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaListKmsConfigurationsForbidden) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaListKmsConfigurationsForbidden(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaListKmsConfigurationsInternalServerError) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaListKmsConfigurationsInternalServerError(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaListKmsConfigurationsNotFound) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaListKmsConfigurationsNotFound(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaListKmsConfigurationsOK) SetFake() {
+	{
+		{
+			s.KmsMinusConfigurations = nil
+			for i := 0; i < 0; i++ {
+				var elem KmsConfigV1beta
+				{
+					elem.SetFake()
+				}
+				s.KmsMinusConfigurations = append(s.KmsMinusConfigurations, elem)
+			}
+		}
+	}
+}
+
+// SetFake set fake values.
+func (s *V1betaListKmsConfigurationsTooManyRequests) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaListKmsConfigurationsTooManyRequests(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaListKmsConfigurationsUnauthorized) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaListKmsConfigurationsUnauthorized(unwrapped)
 }
 
 // SetFake set fake values.
@@ -3766,6 +4853,87 @@ func (s *V1betaSyncReplicationUnprocessableEntity) SetFake() {
 }
 
 // SetFake set fake values.
+func (s *V1betaUpdateBackupPolicyBadRequest) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaUpdateBackupPolicyBadRequest(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaUpdateBackupPolicyConflict) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaUpdateBackupPolicyConflict(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaUpdateBackupPolicyForbidden) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaUpdateBackupPolicyForbidden(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaUpdateBackupPolicyInternalServerError) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaUpdateBackupPolicyInternalServerError(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaUpdateBackupPolicyNotFound) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaUpdateBackupPolicyNotFound(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaUpdateBackupPolicyNotImplemented) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaUpdateBackupPolicyNotImplemented(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaUpdateBackupPolicyTooManyRequests) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaUpdateBackupPolicyTooManyRequests(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaUpdateBackupPolicyUnauthorized) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaUpdateBackupPolicyUnauthorized(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaUpdateBackupPolicyUnprocessableEntity) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaUpdateBackupPolicyUnprocessableEntity(unwrapped)
+}
+
+// SetFake set fake values.
 func (s *V1betaUpdateHostGroupBadRequest) SetFake() {
 	var unwrapped Error
 	{
@@ -3835,6 +5003,78 @@ func (s *V1betaUpdateHostGroupUnprocessableEntity) SetFake() {
 		unwrapped.SetFake()
 	}
 	*s = V1betaUpdateHostGroupUnprocessableEntity(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaUpdateKmsConfigurationBadRequest) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaUpdateKmsConfigurationBadRequest(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaUpdateKmsConfigurationConflict) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaUpdateKmsConfigurationConflict(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaUpdateKmsConfigurationForbidden) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaUpdateKmsConfigurationForbidden(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaUpdateKmsConfigurationInternalServerError) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaUpdateKmsConfigurationInternalServerError(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaUpdateKmsConfigurationNotFound) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaUpdateKmsConfigurationNotFound(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaUpdateKmsConfigurationTooManyRequests) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaUpdateKmsConfigurationTooManyRequests(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaUpdateKmsConfigurationUnauthorized) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaUpdateKmsConfigurationUnauthorized(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaUpdateKmsConfigurationUnprocessableEntity) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaUpdateKmsConfigurationUnprocessableEntity(unwrapped)
 }
 
 // SetFake set fake values.
@@ -4042,6 +5282,25 @@ func (s *V1betaUpdateVolumeUnprocessableEntity) SetFake() {
 		unwrapped.SetFake()
 	}
 	*s = V1betaUpdateVolumeUnprocessableEntity(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *VolumeBackupDetailsV1beta) SetFake() {
+	{
+		{
+			s.VolumeName.SetFake()
+		}
+	}
+	{
+		{
+			s.ScheduledBackupCount.SetFake()
+		}
+	}
+	{
+		{
+			s.PolicyEnabled.SetFake()
+		}
+	}
 }
 
 // SetFake set fake values.

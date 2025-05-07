@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net"
+	"net/http"
 	"regexp"
 	"strconv"
 	"strings"
@@ -137,8 +138,17 @@ func _parseRegionAndZone(locationID string) (string, string, error) {
 
 // getLoggerFromContext extracts the logger from the provided context.
 func getLoggerFromContext(ctx context.Context) log.Logger {
-	logger, _ := ctx.Value(middleware.ContextSLoggerKey).(log.Logger)
-	return logger
+	if logger, ok := ctx.Value(middleware.ContextSLoggerKey).(log.Logger); ok {
+		return logger
+	}
+	return log.NewLogger()
+}
+
+func GetJWTTokenFromContext(ctx context.Context) string {
+	if header, ok := ctx.Value(middleware.HeaderContextKey).(http.Header); ok {
+		return header.Get("Authorization")
+	}
+	return ""
 }
 
 // ParseProjectId parses the remoteAccount id and returns project number and network name

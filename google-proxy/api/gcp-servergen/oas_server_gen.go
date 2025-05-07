@@ -14,12 +14,30 @@ type Handler interface {
 	//
 	// GET /health
 	GetHealth(ctx context.Context) (GetHealthRes, error)
+	// V1betaCheckKmsConfig implements v1beta_checkKmsConfig operation.
+	//
+	// Verifies whether service account can access the configured key.
+	//
+	// GET /v1beta/projects/{projectNumber}/locations/{locationId}/storage/kmsConfig/{kmsConfigId}/check
+	V1betaCheckKmsConfig(ctx context.Context, params V1betaCheckKmsConfigParams) (V1betaCheckKmsConfigRes, error)
+	// V1betaCreateBackupPolicy implements v1beta_createBackupPolicy operation.
+	//
+	// Create a new backup policy.
+	//
+	// POST /v1beta/projects/{projectNumber}/locations/{locationId}/backupPolicies
+	V1betaCreateBackupPolicy(ctx context.Context, req *BackupPolicyCreateV1beta, params V1betaCreateBackupPolicyParams) (V1betaCreateBackupPolicyRes, error)
 	// V1betaCreateHostGroup implements v1beta_createHostGroup operation.
 	//
 	// Create a new HostGroup.
 	//
 	// POST /v1beta/projects/{projectNumber}/locations/{locationId}/hostGroups
 	V1betaCreateHostGroup(ctx context.Context, req *HostGroupV1beta, params V1betaCreateHostGroupParams) (V1betaCreateHostGroupRes, error)
+	// V1betaCreateKmsConfiguration implements v1beta_CreateKmsConfiguration operation.
+	//
+	// Create new KMS configuration for the active user.
+	//
+	// POST /v1beta/projects/{projectNumber}/locations/{locationId}/storage/kmsConfig
+	V1betaCreateKmsConfiguration(ctx context.Context, req *KmsConfigV1beta, params V1betaCreateKmsConfigurationParams) (V1betaCreateKmsConfigurationRes, error)
 	// V1betaCreatePool implements v1beta_createPool operation.
 	//
 	// Create a new pool.
@@ -39,12 +57,24 @@ type Handler interface {
 	//
 	// POST /v1beta/projects/{projectNumber}/locations/{locationId}/volumes
 	V1betaCreateVolume(ctx context.Context, req *VolumeCreateV1beta, params V1betaCreateVolumeParams) (V1betaCreateVolumeRes, error)
+	// V1betaDeleteBackupPolicy implements v1beta_deleteBackupPolicy operation.
+	//
+	// Warning! This operation will permanently delete the backup policy.
+	//
+	// DELETE /v1beta/projects/{projectNumber}/locations/{locationId}/backupPolicies/{backupPolicyId}
+	V1betaDeleteBackupPolicy(ctx context.Context, params V1betaDeleteBackupPolicyParams) (V1betaDeleteBackupPolicyRes, error)
 	// V1betaDeleteHostGroup implements v1beta_deleteHostGroup operation.
 	//
 	// Warning! This operation will permanently delete the HostGroup.
 	//
 	// DELETE /v1beta/projects/{projectNumber}/locations/{locationId}/hostGroups/{hostGroupId}
 	V1betaDeleteHostGroup(ctx context.Context, params V1betaDeleteHostGroupParams) (V1betaDeleteHostGroupRes, error)
+	// V1betaDeleteKmsConfiguration implements v1beta_deleteKmsConfiguration operation.
+	//
+	// Deletes KMS configuration for the active user.
+	//
+	// DELETE /v1beta/projects/{projectNumber}/locations/{locationId}/storage/kmsConfig/{kmsConfigId}
+	V1betaDeleteKmsConfiguration(ctx context.Context, params V1betaDeleteKmsConfigurationParams) (V1betaDeleteKmsConfigurationRes, error)
 	// V1betaDeletePool implements v1beta_deletePool operation.
 	//
 	// Warning! This operation will permanently delete the pool. This operation will never return
@@ -67,12 +97,24 @@ type Handler interface {
 	//
 	// DELETE /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}
 	V1betaDeleteVolume(ctx context.Context, req OptV1betaDeleteVolumeReq, params V1betaDeleteVolumeParams) (V1betaDeleteVolumeRes, error)
+	// V1betaDescribeBackupPolicy implements v1beta_describeBackupPolicy operation.
+	//
+	// Returns the description of the specified backup policy by backup policy ID.
+	//
+	// GET /v1beta/projects/{projectNumber}/locations/{locationId}/backupPolicies/{backupPolicyId}
+	V1betaDescribeBackupPolicy(ctx context.Context, params V1betaDescribeBackupPolicyParams) (V1betaDescribeBackupPolicyRes, error)
 	// V1betaDescribeHostGroup implements v1beta_describeHostGroup operation.
 	//
 	// Returns the description of the specified HostGroup by hostGroupId.
 	//
 	// GET /v1beta/projects/{projectNumber}/locations/{locationId}/hostGroups/{hostGroupId}
 	V1betaDescribeHostGroup(ctx context.Context, params V1betaDescribeHostGroupParams) (V1betaDescribeHostGroupRes, error)
+	// V1betaDescribeKmsConfiguration implements v1beta_describeKmsConfiguration operation.
+	//
+	// Returns the description of a KMS configuration specified by KMS configuration ID.
+	//
+	// GET /v1beta/projects/{projectNumber}/locations/{locationId}/storage/kmsConfig/{kmsConfigId}
+	V1betaDescribeKmsConfiguration(ctx context.Context, params V1betaDescribeKmsConfigurationParams) (V1betaDescribeKmsConfigurationRes, error)
 	// V1betaDescribeOperation implements v1beta_describeOperation operation.
 	//
 	// Describes a long running operation.
@@ -91,6 +133,12 @@ type Handler interface {
 	//
 	// GET /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}
 	V1betaDescribeVolume(ctx context.Context, params V1betaDescribeVolumeParams) (V1betaDescribeVolumeRes, error)
+	// V1betaGetMultipleBackupPolicies implements v1beta_getMultipleBackupPolicies operation.
+	//
+	// Returns descriptions of backup policies that is listed in request body.
+	//
+	// POST /v1beta/projects/{projectNumber}/locations/{locationId}/getMultipleBackupPolicies
+	V1betaGetMultipleBackupPolicies(ctx context.Context, req *BackupPolicyIDListV1beta, params V1betaGetMultipleBackupPoliciesParams) (V1betaGetMultipleBackupPoliciesRes, error)
 	// V1betaGetMultipleHostGroups implements v1beta_getMultipleHostGroups operation.
 	//
 	// Returns descriptions of HostGroups that are listed in request body.
@@ -115,12 +163,24 @@ type Handler interface {
 	//
 	// POST /v1beta/projects/{projectNumber}/locations/{locationId}/getMultipleVolumes
 	V1betaGetMultipleVolumes(ctx context.Context, req *VolumeIDListV1beta, params V1betaGetMultipleVolumesParams) (V1betaGetMultipleVolumesRes, error)
+	// V1betaListBackupPolicies implements v1beta_listBackupPolicies operation.
+	//
+	// Returns list of all available backup policies.
+	//
+	// GET /v1beta/projects/{projectNumber}/locations/{locationId}/backupPolicies
+	V1betaListBackupPolicies(ctx context.Context, params V1betaListBackupPoliciesParams) (V1betaListBackupPoliciesRes, error)
 	// V1betaListHostGroups implements v1beta_listHostGroups operation.
 	//
 	// Returns descriptions of all HostGroups owned by the caller.
 	//
 	// GET /v1beta/projects/{projectNumber}/locations/{locationId}/hostGroups
 	V1betaListHostGroups(ctx context.Context, params V1betaListHostGroupsParams) (V1betaListHostGroupsRes, error)
+	// V1betaListKmsConfigurations implements v1beta_listKmsConfigurations operation.
+	//
+	// Returns descriptions of all KMS configurations owned by the caller.
+	//
+	// GET /v1beta/projects/{projectNumber}/locations/{locationId}/storage/kmsConfig
+	V1betaListKmsConfigurations(ctx context.Context, params V1betaListKmsConfigurationsParams) (V1betaListKmsConfigurationsRes, error)
 	// V1betaListPools implements v1beta_listPools operation.
 	//
 	// Returns descriptions of all pools owned by the caller.
@@ -163,12 +223,24 @@ type Handler interface {
 	//
 	// POST /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeResourceId}/replications/{replicationResourceId}/sync
 	V1betaSyncReplication(ctx context.Context, params V1betaSyncReplicationParams) (V1betaSyncReplicationRes, error)
+	// V1betaUpdateBackupPolicy implements v1beta_updateBackupPolicy operation.
+	//
+	// Update the backup policy.
+	//
+	// PUT /v1beta/projects/{projectNumber}/locations/{locationId}/backupPolicies/{backupPolicyId}
+	V1betaUpdateBackupPolicy(ctx context.Context, req *BackupPolicyScheduleV1beta, params V1betaUpdateBackupPolicyParams) (V1betaUpdateBackupPolicyRes, error)
 	// V1betaUpdateHostGroup implements v1beta_updateHostGroup operation.
 	//
 	// Update the specified HostGroup.
 	//
 	// PUT /v1beta/projects/{projectNumber}/locations/{locationId}/hostGroups/{hostGroupId}
 	V1betaUpdateHostGroup(ctx context.Context, req *HostGroupUpdateV1beta, params V1betaUpdateHostGroupParams) (V1betaUpdateHostGroupRes, error)
+	// V1betaUpdateKmsConfiguration implements v1beta_updateKmsConfiguration operation.
+	//
+	// Update the KMS configuration.
+	//
+	// PUT /v1beta/projects/{projectNumber}/locations/{locationId}/storage/kmsConfig/{kmsConfigId}
+	V1betaUpdateKmsConfiguration(ctx context.Context, req *KmsConfigUpdateV1beta, params V1betaUpdateKmsConfigurationParams) (V1betaUpdateKmsConfigurationRes, error)
 	// V1betaUpdatePool implements v1beta_updatePool operation.
 	//
 	// Update the pool.

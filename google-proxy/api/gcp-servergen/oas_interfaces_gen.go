@@ -5,8 +5,20 @@ type GetHealthRes interface {
 	getHealthRes()
 }
 
+type V1betaCheckKmsConfigRes interface {
+	v1betaCheckKmsConfigRes()
+}
+
+type V1betaCreateBackupPolicyRes interface {
+	v1betaCreateBackupPolicyRes()
+}
+
 type V1betaCreateHostGroupRes interface {
 	v1betaCreateHostGroupRes()
+}
+
+type V1betaCreateKmsConfigurationRes interface {
+	v1betaCreateKmsConfigurationRes()
 }
 
 type V1betaCreatePoolRes interface {
@@ -21,8 +33,16 @@ type V1betaCreateVolumeRes interface {
 	v1betaCreateVolumeRes()
 }
 
+type V1betaDeleteBackupPolicyRes interface {
+	v1betaDeleteBackupPolicyRes()
+}
+
 type V1betaDeleteHostGroupRes interface {
 	v1betaDeleteHostGroupRes()
+}
+
+type V1betaDeleteKmsConfigurationRes interface {
+	v1betaDeleteKmsConfigurationRes()
 }
 
 type V1betaDeletePoolRes interface {
@@ -37,8 +57,16 @@ type V1betaDeleteVolumeRes interface {
 	v1betaDeleteVolumeRes()
 }
 
+type V1betaDescribeBackupPolicyRes interface {
+	v1betaDescribeBackupPolicyRes()
+}
+
 type V1betaDescribeHostGroupRes interface {
 	v1betaDescribeHostGroupRes()
+}
+
+type V1betaDescribeKmsConfigurationRes interface {
+	v1betaDescribeKmsConfigurationRes()
 }
 
 type V1betaDescribeOperationRes interface {
@@ -51,6 +79,10 @@ type V1betaDescribePoolRes interface {
 
 type V1betaDescribeVolumeRes interface {
 	v1betaDescribeVolumeRes()
+}
+
+type V1betaGetMultipleBackupPoliciesRes interface {
+	v1betaGetMultipleBackupPoliciesRes()
 }
 
 type V1betaGetMultipleHostGroupsRes interface {
@@ -69,8 +101,16 @@ type V1betaGetMultipleVolumesRes interface {
 	v1betaGetMultipleVolumesRes()
 }
 
+type V1betaListBackupPoliciesRes interface {
+	v1betaListBackupPoliciesRes()
+}
+
 type V1betaListHostGroupsRes interface {
 	v1betaListHostGroupsRes()
+}
+
+type V1betaListKmsConfigurationsRes interface {
+	v1betaListKmsConfigurationsRes()
 }
 
 type V1betaListPoolsRes interface {
@@ -101,8 +141,16 @@ type V1betaSyncReplicationRes interface {
 	v1betaSyncReplicationRes()
 }
 
+type V1betaUpdateBackupPolicyRes interface {
+	v1betaUpdateBackupPolicyRes()
+}
+
 type V1betaUpdateHostGroupRes interface {
 	v1betaUpdateHostGroupRes()
+}
+
+type V1betaUpdateKmsConfigurationRes interface {
+	v1betaUpdateKmsConfigurationRes()
 }
 
 type V1betaUpdatePoolRes interface {

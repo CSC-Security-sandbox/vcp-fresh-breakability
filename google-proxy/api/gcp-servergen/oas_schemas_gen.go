@@ -96,6 +96,474 @@ func (s *BackupConfigV1beta) SetBackupChainBytes(val OptNilInt64) {
 	s.BackupChainBytes = val
 }
 
+// Merged schema.
+// Ref: #/components/schemas/BackupPolicyCreate_v1beta
+type BackupPolicyCreateV1beta struct {
+	// A human readable label for the resource which is restricted to letters, numbers, and hyphen, with
+	// the first character a letter, the last a letter or a number, and a 63 character maximum.
+	ResourceId  string    `json:"resourceId"`
+	Description OptString `json:"description"`
+	// Limit to number of daily backups. Note that the sum of daily, weekly and monthly backups should be
+	// greater than 1.
+	DailyBackupLimit OptInt `json:"dailyBackupLimit"`
+	// Limit to number of weekly backups. Note that the sum of daily, weekly and monthly backups should
+	// be greater than 1.
+	WeeklyBackupLimit OptInt `json:"weeklyBackupLimit"`
+	// Limit to number of monthly backups. Note that the sum of daily, weekly and monthly backups should
+	// be greater than 1.
+	MonthlyBackupLimit OptInt `json:"monthlyBackupLimit"`
+}
+
+// GetResourceId returns the value of ResourceId.
+func (s *BackupPolicyCreateV1beta) GetResourceId() string {
+	return s.ResourceId
+}
+
+// GetDescription returns the value of Description.
+func (s *BackupPolicyCreateV1beta) GetDescription() OptString {
+	return s.Description
+}
+
+// GetDailyBackupLimit returns the value of DailyBackupLimit.
+func (s *BackupPolicyCreateV1beta) GetDailyBackupLimit() OptInt {
+	return s.DailyBackupLimit
+}
+
+// GetWeeklyBackupLimit returns the value of WeeklyBackupLimit.
+func (s *BackupPolicyCreateV1beta) GetWeeklyBackupLimit() OptInt {
+	return s.WeeklyBackupLimit
+}
+
+// GetMonthlyBackupLimit returns the value of MonthlyBackupLimit.
+func (s *BackupPolicyCreateV1beta) GetMonthlyBackupLimit() OptInt {
+	return s.MonthlyBackupLimit
+}
+
+// SetResourceId sets the value of ResourceId.
+func (s *BackupPolicyCreateV1beta) SetResourceId(val string) {
+	s.ResourceId = val
+}
+
+// SetDescription sets the value of Description.
+func (s *BackupPolicyCreateV1beta) SetDescription(val OptString) {
+	s.Description = val
+}
+
+// SetDailyBackupLimit sets the value of DailyBackupLimit.
+func (s *BackupPolicyCreateV1beta) SetDailyBackupLimit(val OptInt) {
+	s.DailyBackupLimit = val
+}
+
+// SetWeeklyBackupLimit sets the value of WeeklyBackupLimit.
+func (s *BackupPolicyCreateV1beta) SetWeeklyBackupLimit(val OptInt) {
+	s.WeeklyBackupLimit = val
+}
+
+// SetMonthlyBackupLimit sets the value of MonthlyBackupLimit.
+func (s *BackupPolicyCreateV1beta) SetMonthlyBackupLimit(val OptInt) {
+	s.MonthlyBackupLimit = val
+}
+
+// Merged schema.
+// Ref: #/components/schemas/BackupPolicyDetails_v1beta
+type BackupPolicyDetailsV1beta struct {
+	// A human readable label for the resource which is restricted to letters, numbers, and hyphen, with
+	// the first character a letter, the last a letter or a number, and a 63 character maximum.
+	ResourceId string `json:"resourceId"`
+	// UUID v4 used to identify the backup policy.
+	BackupPolicyId OptString `json:"backupPolicyId"`
+	// If enabled, backup policy will be available for any volume to use.
+	Enabled bool `json:"enabled"`
+	// Description of the backup policy.
+	Description OptString `json:"description"`
+	// The timestamp of resource creation (UTC).
+	CreatedAt OptDateTime `json:"createdAt"`
+	// The current state of the backup policy.
+	State OptBackupPolicyDetailsV1betaState `json:"state"`
+	// Merged property.
+	VolumeCount OptInt `json:"volumeCount"`
+	// Limit to number of daily backups. Note that the sum of daily, weekly and monthly backups should be
+	// greater than 1.
+	DailyBackupLimit OptInt `json:"dailyBackupLimit"`
+	// Limit to number of weekly backups. Note that the sum of daily, weekly and monthly backups should
+	// be greater than 1.
+	WeeklyBackupLimit OptInt `json:"weeklyBackupLimit"`
+	// Limit to number of monthly backups. Note that the sum of daily, weekly and monthly backups should
+	// be greater than 1.
+	MonthlyBackupLimit OptInt                      `json:"monthlyBackupLimit"`
+	VolumeBackups      []VolumeBackupDetailsV1beta `json:"volumeBackups"`
+}
+
+// GetResourceId returns the value of ResourceId.
+func (s *BackupPolicyDetailsV1beta) GetResourceId() string {
+	return s.ResourceId
+}
+
+// GetBackupPolicyId returns the value of BackupPolicyId.
+func (s *BackupPolicyDetailsV1beta) GetBackupPolicyId() OptString {
+	return s.BackupPolicyId
+}
+
+// GetEnabled returns the value of Enabled.
+func (s *BackupPolicyDetailsV1beta) GetEnabled() bool {
+	return s.Enabled
+}
+
+// GetDescription returns the value of Description.
+func (s *BackupPolicyDetailsV1beta) GetDescription() OptString {
+	return s.Description
+}
+
+// GetCreatedAt returns the value of CreatedAt.
+func (s *BackupPolicyDetailsV1beta) GetCreatedAt() OptDateTime {
+	return s.CreatedAt
+}
+
+// GetState returns the value of State.
+func (s *BackupPolicyDetailsV1beta) GetState() OptBackupPolicyDetailsV1betaState {
+	return s.State
+}
+
+// GetVolumeCount returns the value of VolumeCount.
+func (s *BackupPolicyDetailsV1beta) GetVolumeCount() OptInt {
+	return s.VolumeCount
+}
+
+// GetDailyBackupLimit returns the value of DailyBackupLimit.
+func (s *BackupPolicyDetailsV1beta) GetDailyBackupLimit() OptInt {
+	return s.DailyBackupLimit
+}
+
+// GetWeeklyBackupLimit returns the value of WeeklyBackupLimit.
+func (s *BackupPolicyDetailsV1beta) GetWeeklyBackupLimit() OptInt {
+	return s.WeeklyBackupLimit
+}
+
+// GetMonthlyBackupLimit returns the value of MonthlyBackupLimit.
+func (s *BackupPolicyDetailsV1beta) GetMonthlyBackupLimit() OptInt {
+	return s.MonthlyBackupLimit
+}
+
+// GetVolumeBackups returns the value of VolumeBackups.
+func (s *BackupPolicyDetailsV1beta) GetVolumeBackups() []VolumeBackupDetailsV1beta {
+	return s.VolumeBackups
+}
+
+// SetResourceId sets the value of ResourceId.
+func (s *BackupPolicyDetailsV1beta) SetResourceId(val string) {
+	s.ResourceId = val
+}
+
+// SetBackupPolicyId sets the value of BackupPolicyId.
+func (s *BackupPolicyDetailsV1beta) SetBackupPolicyId(val OptString) {
+	s.BackupPolicyId = val
+}
+
+// SetEnabled sets the value of Enabled.
+func (s *BackupPolicyDetailsV1beta) SetEnabled(val bool) {
+	s.Enabled = val
+}
+
+// SetDescription sets the value of Description.
+func (s *BackupPolicyDetailsV1beta) SetDescription(val OptString) {
+	s.Description = val
+}
+
+// SetCreatedAt sets the value of CreatedAt.
+func (s *BackupPolicyDetailsV1beta) SetCreatedAt(val OptDateTime) {
+	s.CreatedAt = val
+}
+
+// SetState sets the value of State.
+func (s *BackupPolicyDetailsV1beta) SetState(val OptBackupPolicyDetailsV1betaState) {
+	s.State = val
+}
+
+// SetVolumeCount sets the value of VolumeCount.
+func (s *BackupPolicyDetailsV1beta) SetVolumeCount(val OptInt) {
+	s.VolumeCount = val
+}
+
+// SetDailyBackupLimit sets the value of DailyBackupLimit.
+func (s *BackupPolicyDetailsV1beta) SetDailyBackupLimit(val OptInt) {
+	s.DailyBackupLimit = val
+}
+
+// SetWeeklyBackupLimit sets the value of WeeklyBackupLimit.
+func (s *BackupPolicyDetailsV1beta) SetWeeklyBackupLimit(val OptInt) {
+	s.WeeklyBackupLimit = val
+}
+
+// SetMonthlyBackupLimit sets the value of MonthlyBackupLimit.
+func (s *BackupPolicyDetailsV1beta) SetMonthlyBackupLimit(val OptInt) {
+	s.MonthlyBackupLimit = val
+}
+
+// SetVolumeBackups sets the value of VolumeBackups.
+func (s *BackupPolicyDetailsV1beta) SetVolumeBackups(val []VolumeBackupDetailsV1beta) {
+	s.VolumeBackups = val
+}
+
+func (*BackupPolicyDetailsV1beta) v1betaDescribeBackupPolicyRes() {}
+
+// The current state of the backup policy.
+type BackupPolicyDetailsV1betaState string
+
+const (
+	BackupPolicyDetailsV1betaStateSTATEUNSPECIFIEDCREATINGUPDATINGDELETINGREADYDELETEDERROR BackupPolicyDetailsV1betaState = "STATE_UNSPECIFIED - CREATING - UPDATING - DELETING - READY - DELETED - ERROR"
+)
+
+// AllValues returns all BackupPolicyDetailsV1betaState values.
+func (BackupPolicyDetailsV1betaState) AllValues() []BackupPolicyDetailsV1betaState {
+	return []BackupPolicyDetailsV1betaState{
+		BackupPolicyDetailsV1betaStateSTATEUNSPECIFIEDCREATINGUPDATINGDELETINGREADYDELETEDERROR,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s BackupPolicyDetailsV1betaState) MarshalText() ([]byte, error) {
+	switch s {
+	case BackupPolicyDetailsV1betaStateSTATEUNSPECIFIEDCREATINGUPDATINGDELETINGREADYDELETEDERROR:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *BackupPolicyDetailsV1betaState) UnmarshalText(data []byte) error {
+	switch BackupPolicyDetailsV1betaState(data) {
+	case BackupPolicyDetailsV1betaStateSTATEUNSPECIFIEDCREATINGUPDATINGDELETINGREADYDELETEDERROR:
+		*s = BackupPolicyDetailsV1betaStateSTATEUNSPECIFIEDCREATINGUPDATINGDELETINGREADYDELETEDERROR
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// Ref: #/components/schemas/BackupPolicyIDList_v1beta
+type BackupPolicyIDListV1beta struct {
+	BackupPolicyUUIDs []string `json:"backupPolicyUUIDs"`
+}
+
+// GetBackupPolicyUUIDs returns the value of BackupPolicyUUIDs.
+func (s *BackupPolicyIDListV1beta) GetBackupPolicyUUIDs() []string {
+	return s.BackupPolicyUUIDs
+}
+
+// SetBackupPolicyUUIDs sets the value of BackupPolicyUUIDs.
+func (s *BackupPolicyIDListV1beta) SetBackupPolicyUUIDs(val []string) {
+	s.BackupPolicyUUIDs = val
+}
+
+// Request object for backup policy schedules.
+// Ref: #/components/schemas/BackupPolicySchedule_v1beta
+type BackupPolicyScheduleV1beta struct {
+	// Limit to number of daily backups. Note that the sum of daily, weekly and monthly backups should be
+	// greater than 1.
+	DailyBackupLimit OptInt `json:"dailyBackupLimit"`
+	// Limit to number of weekly backups. Note that the sum of daily, weekly and monthly backups should
+	// be greater than 1.
+	WeeklyBackupLimit OptInt `json:"weeklyBackupLimit"`
+	// Limit to number of monthly backups. Note that the sum of daily, weekly and monthly backups should
+	// be greater than 1.
+	MonthlyBackupLimit OptInt `json:"monthlyBackupLimit"`
+}
+
+// GetDailyBackupLimit returns the value of DailyBackupLimit.
+func (s *BackupPolicyScheduleV1beta) GetDailyBackupLimit() OptInt {
+	return s.DailyBackupLimit
+}
+
+// GetWeeklyBackupLimit returns the value of WeeklyBackupLimit.
+func (s *BackupPolicyScheduleV1beta) GetWeeklyBackupLimit() OptInt {
+	return s.WeeklyBackupLimit
+}
+
+// GetMonthlyBackupLimit returns the value of MonthlyBackupLimit.
+func (s *BackupPolicyScheduleV1beta) GetMonthlyBackupLimit() OptInt {
+	return s.MonthlyBackupLimit
+}
+
+// SetDailyBackupLimit sets the value of DailyBackupLimit.
+func (s *BackupPolicyScheduleV1beta) SetDailyBackupLimit(val OptInt) {
+	s.DailyBackupLimit = val
+}
+
+// SetWeeklyBackupLimit sets the value of WeeklyBackupLimit.
+func (s *BackupPolicyScheduleV1beta) SetWeeklyBackupLimit(val OptInt) {
+	s.WeeklyBackupLimit = val
+}
+
+// SetMonthlyBackupLimit sets the value of MonthlyBackupLimit.
+func (s *BackupPolicyScheduleV1beta) SetMonthlyBackupLimit(val OptInt) {
+	s.MonthlyBackupLimit = val
+}
+
+// Backup Policy.
+// Ref: #/components/schemas/BackupPolicy_v1beta
+type BackupPolicyV1beta struct {
+	// A human readable label for the resource which is restricted to letters, numbers, and hyphen, with
+	// the first character a letter, the last a letter or a number, and a 63 character maximum.
+	ResourceId string `json:"resourceId"`
+	// UUID v4 used to identify the backup policy.
+	BackupPolicyId OptString `json:"backupPolicyId"`
+	// If enabled, backup policy will be available for any volume to use.
+	Enabled bool `json:"enabled"`
+	// Description of the backup policy.
+	Description OptString `json:"description"`
+	// The timestamp of resource creation (UTC).
+	CreatedAt OptDateTime `json:"createdAt"`
+	// The current state of the backup policy.
+	State OptBackupPolicyV1betaState `json:"state"`
+	// Total volumes assigned to the backup policy.
+	VolumeCount OptInt `json:"volumeCount"`
+	// Limit to number of daily backups. Note that the sum of daily, weekly and monthly backups should be
+	// greater than 1.
+	DailyBackupLimit OptInt `json:"dailyBackupLimit"`
+	// Limit to number of weekly backups. Note that the sum of daily, weekly and monthly backups should
+	// be greater than 1.
+	WeeklyBackupLimit OptInt `json:"weeklyBackupLimit"`
+	// Limit to number of monthly backups. Note that the sum of daily, weekly and monthly backups should
+	// be greater than 1.
+	MonthlyBackupLimit OptInt `json:"monthlyBackupLimit"`
+}
+
+// GetResourceId returns the value of ResourceId.
+func (s *BackupPolicyV1beta) GetResourceId() string {
+	return s.ResourceId
+}
+
+// GetBackupPolicyId returns the value of BackupPolicyId.
+func (s *BackupPolicyV1beta) GetBackupPolicyId() OptString {
+	return s.BackupPolicyId
+}
+
+// GetEnabled returns the value of Enabled.
+func (s *BackupPolicyV1beta) GetEnabled() bool {
+	return s.Enabled
+}
+
+// GetDescription returns the value of Description.
+func (s *BackupPolicyV1beta) GetDescription() OptString {
+	return s.Description
+}
+
+// GetCreatedAt returns the value of CreatedAt.
+func (s *BackupPolicyV1beta) GetCreatedAt() OptDateTime {
+	return s.CreatedAt
+}
+
+// GetState returns the value of State.
+func (s *BackupPolicyV1beta) GetState() OptBackupPolicyV1betaState {
+	return s.State
+}
+
+// GetVolumeCount returns the value of VolumeCount.
+func (s *BackupPolicyV1beta) GetVolumeCount() OptInt {
+	return s.VolumeCount
+}
+
+// GetDailyBackupLimit returns the value of DailyBackupLimit.
+func (s *BackupPolicyV1beta) GetDailyBackupLimit() OptInt {
+	return s.DailyBackupLimit
+}
+
+// GetWeeklyBackupLimit returns the value of WeeklyBackupLimit.
+func (s *BackupPolicyV1beta) GetWeeklyBackupLimit() OptInt {
+	return s.WeeklyBackupLimit
+}
+
+// GetMonthlyBackupLimit returns the value of MonthlyBackupLimit.
+func (s *BackupPolicyV1beta) GetMonthlyBackupLimit() OptInt {
+	return s.MonthlyBackupLimit
+}
+
+// SetResourceId sets the value of ResourceId.
+func (s *BackupPolicyV1beta) SetResourceId(val string) {
+	s.ResourceId = val
+}
+
+// SetBackupPolicyId sets the value of BackupPolicyId.
+func (s *BackupPolicyV1beta) SetBackupPolicyId(val OptString) {
+	s.BackupPolicyId = val
+}
+
+// SetEnabled sets the value of Enabled.
+func (s *BackupPolicyV1beta) SetEnabled(val bool) {
+	s.Enabled = val
+}
+
+// SetDescription sets the value of Description.
+func (s *BackupPolicyV1beta) SetDescription(val OptString) {
+	s.Description = val
+}
+
+// SetCreatedAt sets the value of CreatedAt.
+func (s *BackupPolicyV1beta) SetCreatedAt(val OptDateTime) {
+	s.CreatedAt = val
+}
+
+// SetState sets the value of State.
+func (s *BackupPolicyV1beta) SetState(val OptBackupPolicyV1betaState) {
+	s.State = val
+}
+
+// SetVolumeCount sets the value of VolumeCount.
+func (s *BackupPolicyV1beta) SetVolumeCount(val OptInt) {
+	s.VolumeCount = val
+}
+
+// SetDailyBackupLimit sets the value of DailyBackupLimit.
+func (s *BackupPolicyV1beta) SetDailyBackupLimit(val OptInt) {
+	s.DailyBackupLimit = val
+}
+
+// SetWeeklyBackupLimit sets the value of WeeklyBackupLimit.
+func (s *BackupPolicyV1beta) SetWeeklyBackupLimit(val OptInt) {
+	s.WeeklyBackupLimit = val
+}
+
+// SetMonthlyBackupLimit sets the value of MonthlyBackupLimit.
+func (s *BackupPolicyV1beta) SetMonthlyBackupLimit(val OptInt) {
+	s.MonthlyBackupLimit = val
+}
+
+// The current state of the backup policy.
+type BackupPolicyV1betaState string
+
+const (
+	BackupPolicyV1betaStateSTATEUNSPECIFIEDCREATINGUPDATINGDELETINGREADYDELETEDERROR BackupPolicyV1betaState = "STATE_UNSPECIFIED - CREATING - UPDATING - DELETING - READY - DELETED - ERROR"
+)
+
+// AllValues returns all BackupPolicyV1betaState values.
+func (BackupPolicyV1betaState) AllValues() []BackupPolicyV1betaState {
+	return []BackupPolicyV1betaState{
+		BackupPolicyV1betaStateSTATEUNSPECIFIEDCREATINGUPDATINGDELETINGREADYDELETEDERROR,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s BackupPolicyV1betaState) MarshalText() ([]byte, error) {
+	switch s {
+	case BackupPolicyV1betaStateSTATEUNSPECIFIEDCREATINGUPDATINGDELETINGREADYDELETEDERROR:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *BackupPolicyV1betaState) UnmarshalText(data []byte) error {
+	switch BackupPolicyV1betaState(data) {
+	case BackupPolicyV1betaStateSTATEUNSPECIFIEDCREATINGUPDATINGDELETINGREADYDELETEDERROR:
+		*s = BackupPolicyV1betaStateSTATEUNSPECIFIEDCREATINGUPDATINGDELETINGREADYDELETEDERROR
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
 // Ref: #/components/schemas/BlockProperties_v1beta
 type BlockPropertiesV1beta struct {
 	OsType OptBlockPropertiesV1betaOsType `json:"osType"`
@@ -1450,6 +1918,384 @@ func (s *HybridReplicationUserCommandsV1beta) SetCommands(val []string) {
 	s.Commands = val
 }
 
+// Customer managed encryption key configuration validation definition.
+// Ref: #/components/schemas/KmsConfigCheck_v1beta
+type KmsConfigCheckV1beta struct {
+	// Service-account email which will have access to key through Google IAM policy.
+	ServiceAccount       OptString                     `json:"serviceAccount"`
+	KmsConfigHealthCheck OptKmsConfigHealthCheckV1beta `json:"kmsConfigHealthCheck"`
+}
+
+// GetServiceAccount returns the value of ServiceAccount.
+func (s *KmsConfigCheckV1beta) GetServiceAccount() OptString {
+	return s.ServiceAccount
+}
+
+// GetKmsConfigHealthCheck returns the value of KmsConfigHealthCheck.
+func (s *KmsConfigCheckV1beta) GetKmsConfigHealthCheck() OptKmsConfigHealthCheckV1beta {
+	return s.KmsConfigHealthCheck
+}
+
+// SetServiceAccount sets the value of ServiceAccount.
+func (s *KmsConfigCheckV1beta) SetServiceAccount(val OptString) {
+	s.ServiceAccount = val
+}
+
+// SetKmsConfigHealthCheck sets the value of KmsConfigHealthCheck.
+func (s *KmsConfigCheckV1beta) SetKmsConfigHealthCheck(val OptKmsConfigHealthCheckV1beta) {
+	s.KmsConfigHealthCheck = val
+}
+
+func (*KmsConfigCheckV1beta) v1betaCheckKmsConfigRes() {}
+
+// Customer managed encryption key configuration validation definition.
+// Ref: #/components/schemas/KmsConfigHealthCheck_v1beta
+type KmsConfigHealthCheckV1beta struct {
+	// Is customer key configured correctly to encrypt the volume.
+	IsHealthy bool `json:"isHealthy"`
+	// Error if configuration is not healthy.
+	HealthError OptString `json:"healthError"`
+	// Instructions to provide the access to encryption key.
+	Instructions OptString `json:"instructions"`
+}
+
+// GetIsHealthy returns the value of IsHealthy.
+func (s *KmsConfigHealthCheckV1beta) GetIsHealthy() bool {
+	return s.IsHealthy
+}
+
+// GetHealthError returns the value of HealthError.
+func (s *KmsConfigHealthCheckV1beta) GetHealthError() OptString {
+	return s.HealthError
+}
+
+// GetInstructions returns the value of Instructions.
+func (s *KmsConfigHealthCheckV1beta) GetInstructions() OptString {
+	return s.Instructions
+}
+
+// SetIsHealthy sets the value of IsHealthy.
+func (s *KmsConfigHealthCheckV1beta) SetIsHealthy(val bool) {
+	s.IsHealthy = val
+}
+
+// SetHealthError sets the value of HealthError.
+func (s *KmsConfigHealthCheckV1beta) SetHealthError(val OptString) {
+	s.HealthError = val
+}
+
+// SetInstructions sets the value of Instructions.
+func (s *KmsConfigHealthCheckV1beta) SetInstructions(val OptString) {
+	s.Instructions = val
+}
+
+// Customer managed encryption key configuration.
+// Ref: #/components/schemas/KmsConfigUpdate_v1beta
+type KmsConfigUpdateV1beta struct {
+	// Includes key ring, key-ring location, key name and key project ID.
+	KeyFullPath OptString `json:"keyFullPath"`
+	// Description of the KMS configuration.
+	Description OptString `json:"description"`
+	// Resource ID for KMS configuration.
+	ResourceId OptString `json:"resourceId"`
+}
+
+// GetKeyFullPath returns the value of KeyFullPath.
+func (s *KmsConfigUpdateV1beta) GetKeyFullPath() OptString {
+	return s.KeyFullPath
+}
+
+// GetDescription returns the value of Description.
+func (s *KmsConfigUpdateV1beta) GetDescription() OptString {
+	return s.Description
+}
+
+// GetResourceId returns the value of ResourceId.
+func (s *KmsConfigUpdateV1beta) GetResourceId() OptString {
+	return s.ResourceId
+}
+
+// SetKeyFullPath sets the value of KeyFullPath.
+func (s *KmsConfigUpdateV1beta) SetKeyFullPath(val OptString) {
+	s.KeyFullPath = val
+}
+
+// SetDescription sets the value of Description.
+func (s *KmsConfigUpdateV1beta) SetDescription(val OptString) {
+	s.Description = val
+}
+
+// SetResourceId sets the value of ResourceId.
+func (s *KmsConfigUpdateV1beta) SetResourceId(val OptString) {
+	s.ResourceId = val
+}
+
+// Customer managed encryption key configuration.
+// Ref: #/components/schemas/KmsConfig_v1beta
+type KmsConfigV1beta struct {
+	// UUID v4 used to identify the KMS configuration.
+	UUID OptString `json:"uuid"`
+	// Service account email which will have access to key through Google IAM policy.
+	ServiceAccountEmail OptString `json:"serviceAccountEmail"`
+	// Includes key ring, key-ring location, key-name and key project ID.
+	KeyFullPath string `json:"keyFullPath"`
+	// The current lifecycle state of the configuration.
+	KmsState OptKmsConfigV1betaKmsState `json:"kmsState"`
+	// Details about the current KMS configuration state.
+	KmsStateDetails OptString `json:"kmsStateDetails"`
+	// Description of the KMS configuration.
+	Description OptString `json:"description"`
+	// Creation date of the resource.
+	CreatedTime OptDateTime `json:"createdTime"`
+	// Date of last update of the resource.
+	UpdatedTime OptDateTime `json:"updatedTime"`
+	// Date the resource was deleted.
+	DeletedTime OptDateTime `json:"deletedTime"`
+	// Instructions to provide the access to encryption key.
+	Instructions OptString `json:"instructions"`
+	// Resource ID for KMS configuration.
+	ResourceId OptString `json:"resourceId"`
+}
+
+// GetUUID returns the value of UUID.
+func (s *KmsConfigV1beta) GetUUID() OptString {
+	return s.UUID
+}
+
+// GetServiceAccountEmail returns the value of ServiceAccountEmail.
+func (s *KmsConfigV1beta) GetServiceAccountEmail() OptString {
+	return s.ServiceAccountEmail
+}
+
+// GetKeyFullPath returns the value of KeyFullPath.
+func (s *KmsConfigV1beta) GetKeyFullPath() string {
+	return s.KeyFullPath
+}
+
+// GetKmsState returns the value of KmsState.
+func (s *KmsConfigV1beta) GetKmsState() OptKmsConfigV1betaKmsState {
+	return s.KmsState
+}
+
+// GetKmsStateDetails returns the value of KmsStateDetails.
+func (s *KmsConfigV1beta) GetKmsStateDetails() OptString {
+	return s.KmsStateDetails
+}
+
+// GetDescription returns the value of Description.
+func (s *KmsConfigV1beta) GetDescription() OptString {
+	return s.Description
+}
+
+// GetCreatedTime returns the value of CreatedTime.
+func (s *KmsConfigV1beta) GetCreatedTime() OptDateTime {
+	return s.CreatedTime
+}
+
+// GetUpdatedTime returns the value of UpdatedTime.
+func (s *KmsConfigV1beta) GetUpdatedTime() OptDateTime {
+	return s.UpdatedTime
+}
+
+// GetDeletedTime returns the value of DeletedTime.
+func (s *KmsConfigV1beta) GetDeletedTime() OptDateTime {
+	return s.DeletedTime
+}
+
+// GetInstructions returns the value of Instructions.
+func (s *KmsConfigV1beta) GetInstructions() OptString {
+	return s.Instructions
+}
+
+// GetResourceId returns the value of ResourceId.
+func (s *KmsConfigV1beta) GetResourceId() OptString {
+	return s.ResourceId
+}
+
+// SetUUID sets the value of UUID.
+func (s *KmsConfigV1beta) SetUUID(val OptString) {
+	s.UUID = val
+}
+
+// SetServiceAccountEmail sets the value of ServiceAccountEmail.
+func (s *KmsConfigV1beta) SetServiceAccountEmail(val OptString) {
+	s.ServiceAccountEmail = val
+}
+
+// SetKeyFullPath sets the value of KeyFullPath.
+func (s *KmsConfigV1beta) SetKeyFullPath(val string) {
+	s.KeyFullPath = val
+}
+
+// SetKmsState sets the value of KmsState.
+func (s *KmsConfigV1beta) SetKmsState(val OptKmsConfigV1betaKmsState) {
+	s.KmsState = val
+}
+
+// SetKmsStateDetails sets the value of KmsStateDetails.
+func (s *KmsConfigV1beta) SetKmsStateDetails(val OptString) {
+	s.KmsStateDetails = val
+}
+
+// SetDescription sets the value of Description.
+func (s *KmsConfigV1beta) SetDescription(val OptString) {
+	s.Description = val
+}
+
+// SetCreatedTime sets the value of CreatedTime.
+func (s *KmsConfigV1beta) SetCreatedTime(val OptDateTime) {
+	s.CreatedTime = val
+}
+
+// SetUpdatedTime sets the value of UpdatedTime.
+func (s *KmsConfigV1beta) SetUpdatedTime(val OptDateTime) {
+	s.UpdatedTime = val
+}
+
+// SetDeletedTime sets the value of DeletedTime.
+func (s *KmsConfigV1beta) SetDeletedTime(val OptDateTime) {
+	s.DeletedTime = val
+}
+
+// SetInstructions sets the value of Instructions.
+func (s *KmsConfigV1beta) SetInstructions(val OptString) {
+	s.Instructions = val
+}
+
+// SetResourceId sets the value of ResourceId.
+func (s *KmsConfigV1beta) SetResourceId(val OptString) {
+	s.ResourceId = val
+}
+
+func (*KmsConfigV1beta) v1betaDescribeKmsConfigurationRes() {}
+func (*KmsConfigV1beta) v1betaUpdateKmsConfigurationRes()   {}
+
+// The current lifecycle state of the configuration.
+type KmsConfigV1betaKmsState string
+
+const (
+	KmsConfigV1betaKmsStateSTATEUNSPECIFIED    KmsConfigV1betaKmsState = "STATE_UNSPECIFIED"
+	KmsConfigV1betaKmsStateCREATING            KmsConfigV1betaKmsState = "CREATING"
+	KmsConfigV1betaKmsStateREADY               KmsConfigV1betaKmsState = "READY"
+	KmsConfigV1betaKmsStateUPDATING            KmsConfigV1betaKmsState = "UPDATING"
+	KmsConfigV1betaKmsStateINUSE               KmsConfigV1betaKmsState = "IN_USE"
+	KmsConfigV1betaKmsStateDELETING            KmsConfigV1betaKmsState = "DELETING"
+	KmsConfigV1betaKmsStateERROR               KmsConfigV1betaKmsState = "ERROR"
+	KmsConfigV1betaKmsStateKEYSTATEUNSPECIFIED KmsConfigV1betaKmsState = "KEY_STATE_UNSPECIFIED"
+	KmsConfigV1betaKmsStateKEYCHECKPENDING     KmsConfigV1betaKmsState = "KEY_CHECK_PENDING"
+	KmsConfigV1betaKmsStateKEYNOTREACHABLE     KmsConfigV1betaKmsState = "KEY_NOT_REACHABLE"
+	KmsConfigV1betaKmsStateDISABLING           KmsConfigV1betaKmsState = "DISABLING"
+	KmsConfigV1betaKmsStateDISABLED            KmsConfigV1betaKmsState = "DISABLED"
+	KmsConfigV1betaKmsStateDELETED             KmsConfigV1betaKmsState = "DELETED"
+	KmsConfigV1betaKmsStateMIGRATING           KmsConfigV1betaKmsState = "MIGRATING"
+)
+
+// AllValues returns all KmsConfigV1betaKmsState values.
+func (KmsConfigV1betaKmsState) AllValues() []KmsConfigV1betaKmsState {
+	return []KmsConfigV1betaKmsState{
+		KmsConfigV1betaKmsStateSTATEUNSPECIFIED,
+		KmsConfigV1betaKmsStateCREATING,
+		KmsConfigV1betaKmsStateREADY,
+		KmsConfigV1betaKmsStateUPDATING,
+		KmsConfigV1betaKmsStateINUSE,
+		KmsConfigV1betaKmsStateDELETING,
+		KmsConfigV1betaKmsStateERROR,
+		KmsConfigV1betaKmsStateKEYSTATEUNSPECIFIED,
+		KmsConfigV1betaKmsStateKEYCHECKPENDING,
+		KmsConfigV1betaKmsStateKEYNOTREACHABLE,
+		KmsConfigV1betaKmsStateDISABLING,
+		KmsConfigV1betaKmsStateDISABLED,
+		KmsConfigV1betaKmsStateDELETED,
+		KmsConfigV1betaKmsStateMIGRATING,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s KmsConfigV1betaKmsState) MarshalText() ([]byte, error) {
+	switch s {
+	case KmsConfigV1betaKmsStateSTATEUNSPECIFIED:
+		return []byte(s), nil
+	case KmsConfigV1betaKmsStateCREATING:
+		return []byte(s), nil
+	case KmsConfigV1betaKmsStateREADY:
+		return []byte(s), nil
+	case KmsConfigV1betaKmsStateUPDATING:
+		return []byte(s), nil
+	case KmsConfigV1betaKmsStateINUSE:
+		return []byte(s), nil
+	case KmsConfigV1betaKmsStateDELETING:
+		return []byte(s), nil
+	case KmsConfigV1betaKmsStateERROR:
+		return []byte(s), nil
+	case KmsConfigV1betaKmsStateKEYSTATEUNSPECIFIED:
+		return []byte(s), nil
+	case KmsConfigV1betaKmsStateKEYCHECKPENDING:
+		return []byte(s), nil
+	case KmsConfigV1betaKmsStateKEYNOTREACHABLE:
+		return []byte(s), nil
+	case KmsConfigV1betaKmsStateDISABLING:
+		return []byte(s), nil
+	case KmsConfigV1betaKmsStateDISABLED:
+		return []byte(s), nil
+	case KmsConfigV1betaKmsStateDELETED:
+		return []byte(s), nil
+	case KmsConfigV1betaKmsStateMIGRATING:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *KmsConfigV1betaKmsState) UnmarshalText(data []byte) error {
+	switch KmsConfigV1betaKmsState(data) {
+	case KmsConfigV1betaKmsStateSTATEUNSPECIFIED:
+		*s = KmsConfigV1betaKmsStateSTATEUNSPECIFIED
+		return nil
+	case KmsConfigV1betaKmsStateCREATING:
+		*s = KmsConfigV1betaKmsStateCREATING
+		return nil
+	case KmsConfigV1betaKmsStateREADY:
+		*s = KmsConfigV1betaKmsStateREADY
+		return nil
+	case KmsConfigV1betaKmsStateUPDATING:
+		*s = KmsConfigV1betaKmsStateUPDATING
+		return nil
+	case KmsConfigV1betaKmsStateINUSE:
+		*s = KmsConfigV1betaKmsStateINUSE
+		return nil
+	case KmsConfigV1betaKmsStateDELETING:
+		*s = KmsConfigV1betaKmsStateDELETING
+		return nil
+	case KmsConfigV1betaKmsStateERROR:
+		*s = KmsConfigV1betaKmsStateERROR
+		return nil
+	case KmsConfigV1betaKmsStateKEYSTATEUNSPECIFIED:
+		*s = KmsConfigV1betaKmsStateKEYSTATEUNSPECIFIED
+		return nil
+	case KmsConfigV1betaKmsStateKEYCHECKPENDING:
+		*s = KmsConfigV1betaKmsStateKEYCHECKPENDING
+		return nil
+	case KmsConfigV1betaKmsStateKEYNOTREACHABLE:
+		*s = KmsConfigV1betaKmsStateKEYNOTREACHABLE
+		return nil
+	case KmsConfigV1betaKmsStateDISABLING:
+		*s = KmsConfigV1betaKmsStateDISABLING
+		return nil
+	case KmsConfigV1betaKmsStateDISABLED:
+		*s = KmsConfigV1betaKmsStateDISABLED
+		return nil
+	case KmsConfigV1betaKmsStateDELETED:
+		*s = KmsConfigV1betaKmsStateDELETED
+		return nil
+	case KmsConfigV1betaKmsStateMIGRATING:
+		*s = KmsConfigV1betaKmsStateMIGRATING
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
 // If enabled (snapshotsToKeep > 0), make a snapshot every month at a specific day or days, defaults
 // to the first day of the month at midnight.
 // Ref: #/components/schemas/MonthlySchedule_v1beta
@@ -1674,10 +2520,14 @@ func (s *OperationV1beta) SetResponse(val jx.Raw) {
 	s.Response = val
 }
 
+func (*OperationV1beta) v1betaCreateBackupPolicyRes()          {}
+func (*OperationV1beta) v1betaCreateKmsConfigurationRes()      {}
 func (*OperationV1beta) v1betaCreatePoolRes()                  {}
 func (*OperationV1beta) v1betaCreateReplicationRes()           {}
 func (*OperationV1beta) v1betaCreateVolumeRes()                {}
+func (*OperationV1beta) v1betaDeleteBackupPolicyRes()          {}
 func (*OperationV1beta) v1betaDeleteHostGroupRes()             {}
+func (*OperationV1beta) v1betaDeleteKmsConfigurationRes()      {}
 func (*OperationV1beta) v1betaDeletePoolRes()                  {}
 func (*OperationV1beta) v1betaDeleteReplicationRes()           {}
 func (*OperationV1beta) v1betaDeleteVolumeRes()                {}
@@ -1686,6 +2536,7 @@ func (*OperationV1beta) v1betaResumeReplicationRes()           {}
 func (*OperationV1beta) v1betaReverseAndResumeReplicationRes() {}
 func (*OperationV1beta) v1betaStopReplicationRes()             {}
 func (*OperationV1beta) v1betaSyncReplicationRes()             {}
+func (*OperationV1beta) v1betaUpdateBackupPolicyRes()          {}
 func (*OperationV1beta) v1betaUpdateHostGroupRes()             {}
 func (*OperationV1beta) v1betaUpdatePoolRes()                  {}
 func (*OperationV1beta) v1betaUpdateReplicationRes()           {}
@@ -1777,6 +2628,98 @@ func (o OptBackupConfigV1beta) Get() (v BackupConfigV1beta, ok bool) {
 
 // Or returns value if set, or given parameter if does not.
 func (o OptBackupConfigV1beta) Or(d BackupConfigV1beta) BackupConfigV1beta {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptBackupPolicyDetailsV1betaState returns new OptBackupPolicyDetailsV1betaState with value set to v.
+func NewOptBackupPolicyDetailsV1betaState(v BackupPolicyDetailsV1betaState) OptBackupPolicyDetailsV1betaState {
+	return OptBackupPolicyDetailsV1betaState{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptBackupPolicyDetailsV1betaState is optional BackupPolicyDetailsV1betaState.
+type OptBackupPolicyDetailsV1betaState struct {
+	Value BackupPolicyDetailsV1betaState
+	Set   bool
+}
+
+// IsSet returns true if OptBackupPolicyDetailsV1betaState was set.
+func (o OptBackupPolicyDetailsV1betaState) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptBackupPolicyDetailsV1betaState) Reset() {
+	var v BackupPolicyDetailsV1betaState
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptBackupPolicyDetailsV1betaState) SetTo(v BackupPolicyDetailsV1betaState) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptBackupPolicyDetailsV1betaState) Get() (v BackupPolicyDetailsV1betaState, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptBackupPolicyDetailsV1betaState) Or(d BackupPolicyDetailsV1betaState) BackupPolicyDetailsV1betaState {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptBackupPolicyV1betaState returns new OptBackupPolicyV1betaState with value set to v.
+func NewOptBackupPolicyV1betaState(v BackupPolicyV1betaState) OptBackupPolicyV1betaState {
+	return OptBackupPolicyV1betaState{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptBackupPolicyV1betaState is optional BackupPolicyV1betaState.
+type OptBackupPolicyV1betaState struct {
+	Value BackupPolicyV1betaState
+	Set   bool
+}
+
+// IsSet returns true if OptBackupPolicyV1betaState was set.
+func (o OptBackupPolicyV1betaState) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptBackupPolicyV1betaState) Reset() {
+	var v BackupPolicyV1betaState
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptBackupPolicyV1betaState) SetTo(v BackupPolicyV1betaState) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptBackupPolicyV1betaState) Get() (v BackupPolicyV1betaState, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptBackupPolicyV1betaState) Or(d BackupPolicyV1betaState) BackupPolicyV1betaState {
 	if v, ok := o.Get(); ok {
 		return v
 	}
@@ -2657,6 +3600,52 @@ func (o OptHybridReplicationUserCommandsV1beta) Or(d HybridReplicationUserComman
 	return d
 }
 
+// NewOptInt returns new OptInt with value set to v.
+func NewOptInt(v int) OptInt {
+	return OptInt{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptInt is optional int.
+type OptInt struct {
+	Value int
+	Set   bool
+}
+
+// IsSet returns true if OptInt was set.
+func (o OptInt) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptInt) Reset() {
+	var v int
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptInt) SetTo(v int) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptInt) Get() (v int, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptInt) Or(d int) int {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
 // NewOptInt32 returns new OptInt32 with value set to v.
 func NewOptInt32(v int32) OptInt32 {
 	return OptInt32{
@@ -2697,6 +3686,98 @@ func (o OptInt32) Get() (v int32, ok bool) {
 
 // Or returns value if set, or given parameter if does not.
 func (o OptInt32) Or(d int32) int32 {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptKmsConfigHealthCheckV1beta returns new OptKmsConfigHealthCheckV1beta with value set to v.
+func NewOptKmsConfigHealthCheckV1beta(v KmsConfigHealthCheckV1beta) OptKmsConfigHealthCheckV1beta {
+	return OptKmsConfigHealthCheckV1beta{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptKmsConfigHealthCheckV1beta is optional KmsConfigHealthCheckV1beta.
+type OptKmsConfigHealthCheckV1beta struct {
+	Value KmsConfigHealthCheckV1beta
+	Set   bool
+}
+
+// IsSet returns true if OptKmsConfigHealthCheckV1beta was set.
+func (o OptKmsConfigHealthCheckV1beta) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptKmsConfigHealthCheckV1beta) Reset() {
+	var v KmsConfigHealthCheckV1beta
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptKmsConfigHealthCheckV1beta) SetTo(v KmsConfigHealthCheckV1beta) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptKmsConfigHealthCheckV1beta) Get() (v KmsConfigHealthCheckV1beta, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptKmsConfigHealthCheckV1beta) Or(d KmsConfigHealthCheckV1beta) KmsConfigHealthCheckV1beta {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptKmsConfigV1betaKmsState returns new OptKmsConfigV1betaKmsState with value set to v.
+func NewOptKmsConfigV1betaKmsState(v KmsConfigV1betaKmsState) OptKmsConfigV1betaKmsState {
+	return OptKmsConfigV1betaKmsState{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptKmsConfigV1betaKmsState is optional KmsConfigV1betaKmsState.
+type OptKmsConfigV1betaKmsState struct {
+	Value KmsConfigV1betaKmsState
+	Set   bool
+}
+
+// IsSet returns true if OptKmsConfigV1betaKmsState was set.
+func (o OptKmsConfigV1betaKmsState) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptKmsConfigV1betaKmsState) Reset() {
+	var v KmsConfigV1betaKmsState
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptKmsConfigV1betaKmsState) SetTo(v KmsConfigV1betaKmsState) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptKmsConfigV1betaKmsState) Get() (v KmsConfigV1betaKmsState, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptKmsConfigV1betaKmsState) Or(d KmsConfigV1betaKmsState) KmsConfigV1betaKmsState {
 	if v, ok := o.Get(); ok {
 		return v
 	}
@@ -7734,6 +8815,70 @@ func (s *TransferStatsV1beta) SetLagTime(val OptFloat64) {
 	s.LagTime = val
 }
 
+type V1betaCheckKmsConfigBadRequest Error
+
+func (*V1betaCheckKmsConfigBadRequest) v1betaCheckKmsConfigRes() {}
+
+type V1betaCheckKmsConfigConflict Error
+
+func (*V1betaCheckKmsConfigConflict) v1betaCheckKmsConfigRes() {}
+
+type V1betaCheckKmsConfigForbidden Error
+
+func (*V1betaCheckKmsConfigForbidden) v1betaCheckKmsConfigRes() {}
+
+type V1betaCheckKmsConfigInternalServerError Error
+
+func (*V1betaCheckKmsConfigInternalServerError) v1betaCheckKmsConfigRes() {}
+
+type V1betaCheckKmsConfigNotFound Error
+
+func (*V1betaCheckKmsConfigNotFound) v1betaCheckKmsConfigRes() {}
+
+type V1betaCheckKmsConfigTooManyRequests Error
+
+func (*V1betaCheckKmsConfigTooManyRequests) v1betaCheckKmsConfigRes() {}
+
+type V1betaCheckKmsConfigUnauthorized Error
+
+func (*V1betaCheckKmsConfigUnauthorized) v1betaCheckKmsConfigRes() {}
+
+type V1betaCheckKmsConfigUnprocessableEntity Error
+
+func (*V1betaCheckKmsConfigUnprocessableEntity) v1betaCheckKmsConfigRes() {}
+
+type V1betaCreateBackupPolicyBadRequest Error
+
+func (*V1betaCreateBackupPolicyBadRequest) v1betaCreateBackupPolicyRes() {}
+
+type V1betaCreateBackupPolicyConflict Error
+
+func (*V1betaCreateBackupPolicyConflict) v1betaCreateBackupPolicyRes() {}
+
+type V1betaCreateBackupPolicyForbidden Error
+
+func (*V1betaCreateBackupPolicyForbidden) v1betaCreateBackupPolicyRes() {}
+
+type V1betaCreateBackupPolicyInternalServerError Error
+
+func (*V1betaCreateBackupPolicyInternalServerError) v1betaCreateBackupPolicyRes() {}
+
+type V1betaCreateBackupPolicyNotImplemented Error
+
+func (*V1betaCreateBackupPolicyNotImplemented) v1betaCreateBackupPolicyRes() {}
+
+type V1betaCreateBackupPolicyTooManyRequests Error
+
+func (*V1betaCreateBackupPolicyTooManyRequests) v1betaCreateBackupPolicyRes() {}
+
+type V1betaCreateBackupPolicyUnauthorized Error
+
+func (*V1betaCreateBackupPolicyUnauthorized) v1betaCreateBackupPolicyRes() {}
+
+type V1betaCreateBackupPolicyUnprocessableEntity Error
+
+func (*V1betaCreateBackupPolicyUnprocessableEntity) v1betaCreateBackupPolicyRes() {}
+
 type V1betaCreateHostGroupAccepted OperationV1beta
 
 func (*V1betaCreateHostGroupAccepted) v1betaCreateHostGroupRes() {}
@@ -7769,6 +8914,34 @@ func (*V1betaCreateHostGroupUnauthorized) v1betaCreateHostGroupRes() {}
 type V1betaCreateHostGroupUnprocessableEntity Error
 
 func (*V1betaCreateHostGroupUnprocessableEntity) v1betaCreateHostGroupRes() {}
+
+type V1betaCreateKmsConfigurationBadRequest Error
+
+func (*V1betaCreateKmsConfigurationBadRequest) v1betaCreateKmsConfigurationRes() {}
+
+type V1betaCreateKmsConfigurationConflict Error
+
+func (*V1betaCreateKmsConfigurationConflict) v1betaCreateKmsConfigurationRes() {}
+
+type V1betaCreateKmsConfigurationForbidden Error
+
+func (*V1betaCreateKmsConfigurationForbidden) v1betaCreateKmsConfigurationRes() {}
+
+type V1betaCreateKmsConfigurationInternalServerError Error
+
+func (*V1betaCreateKmsConfigurationInternalServerError) v1betaCreateKmsConfigurationRes() {}
+
+type V1betaCreateKmsConfigurationTooManyRequests Error
+
+func (*V1betaCreateKmsConfigurationTooManyRequests) v1betaCreateKmsConfigurationRes() {}
+
+type V1betaCreateKmsConfigurationUnauthorized Error
+
+func (*V1betaCreateKmsConfigurationUnauthorized) v1betaCreateKmsConfigurationRes() {}
+
+type V1betaCreateKmsConfigurationUnprocessableEntity Error
+
+func (*V1betaCreateKmsConfigurationUnprocessableEntity) v1betaCreateKmsConfigurationRes() {}
 
 type V1betaCreatePoolBadRequest Error
 
@@ -7854,6 +9027,47 @@ type V1betaCreateVolumeUnprocessableEntity Error
 
 func (*V1betaCreateVolumeUnprocessableEntity) v1betaCreateVolumeRes() {}
 
+type V1betaDeleteBackupPolicyBadRequest Error
+
+func (*V1betaDeleteBackupPolicyBadRequest) v1betaDeleteBackupPolicyRes() {}
+
+type V1betaDeleteBackupPolicyConflict Error
+
+func (*V1betaDeleteBackupPolicyConflict) v1betaDeleteBackupPolicyRes() {}
+
+type V1betaDeleteBackupPolicyForbidden Error
+
+func (*V1betaDeleteBackupPolicyForbidden) v1betaDeleteBackupPolicyRes() {}
+
+type V1betaDeleteBackupPolicyInternalServerError Error
+
+func (*V1betaDeleteBackupPolicyInternalServerError) v1betaDeleteBackupPolicyRes() {}
+
+// V1betaDeleteBackupPolicyNoContent is response for V1betaDeleteBackupPolicy operation.
+type V1betaDeleteBackupPolicyNoContent struct{}
+
+func (*V1betaDeleteBackupPolicyNoContent) v1betaDeleteBackupPolicyRes() {}
+
+type V1betaDeleteBackupPolicyNotFound Error
+
+func (*V1betaDeleteBackupPolicyNotFound) v1betaDeleteBackupPolicyRes() {}
+
+type V1betaDeleteBackupPolicyNotImplemented Error
+
+func (*V1betaDeleteBackupPolicyNotImplemented) v1betaDeleteBackupPolicyRes() {}
+
+type V1betaDeleteBackupPolicyTooManyRequests Error
+
+func (*V1betaDeleteBackupPolicyTooManyRequests) v1betaDeleteBackupPolicyRes() {}
+
+type V1betaDeleteBackupPolicyUnauthorized Error
+
+func (*V1betaDeleteBackupPolicyUnauthorized) v1betaDeleteBackupPolicyRes() {}
+
+type V1betaDeleteBackupPolicyUnprocessableEntity Error
+
+func (*V1betaDeleteBackupPolicyUnprocessableEntity) v1betaDeleteBackupPolicyRes() {}
+
 type V1betaDeleteHostGroupBadRequest Error
 
 func (*V1betaDeleteHostGroupBadRequest) v1betaDeleteHostGroupRes() {}
@@ -7882,6 +9096,43 @@ func (*V1betaDeleteHostGroupTooManyRequests) v1betaDeleteHostGroupRes() {}
 type V1betaDeleteHostGroupUnauthorized Error
 
 func (*V1betaDeleteHostGroupUnauthorized) v1betaDeleteHostGroupRes() {}
+
+type V1betaDeleteKmsConfigurationBadRequest Error
+
+func (*V1betaDeleteKmsConfigurationBadRequest) v1betaDeleteKmsConfigurationRes() {}
+
+type V1betaDeleteKmsConfigurationConflict Error
+
+func (*V1betaDeleteKmsConfigurationConflict) v1betaDeleteKmsConfigurationRes() {}
+
+type V1betaDeleteKmsConfigurationForbidden Error
+
+func (*V1betaDeleteKmsConfigurationForbidden) v1betaDeleteKmsConfigurationRes() {}
+
+type V1betaDeleteKmsConfigurationInternalServerError Error
+
+func (*V1betaDeleteKmsConfigurationInternalServerError) v1betaDeleteKmsConfigurationRes() {}
+
+// V1betaDeleteKmsConfigurationNoContent is response for V1betaDeleteKmsConfiguration operation.
+type V1betaDeleteKmsConfigurationNoContent struct{}
+
+func (*V1betaDeleteKmsConfigurationNoContent) v1betaDeleteKmsConfigurationRes() {}
+
+type V1betaDeleteKmsConfigurationNotFound Error
+
+func (*V1betaDeleteKmsConfigurationNotFound) v1betaDeleteKmsConfigurationRes() {}
+
+type V1betaDeleteKmsConfigurationTooManyRequests Error
+
+func (*V1betaDeleteKmsConfigurationTooManyRequests) v1betaDeleteKmsConfigurationRes() {}
+
+type V1betaDeleteKmsConfigurationUnauthorized Error
+
+func (*V1betaDeleteKmsConfigurationUnauthorized) v1betaDeleteKmsConfigurationRes() {}
+
+type V1betaDeleteKmsConfigurationUnprocessableEntity Error
+
+func (*V1betaDeleteKmsConfigurationUnprocessableEntity) v1betaDeleteKmsConfigurationRes() {}
 
 type V1betaDeletePoolBadRequest Error
 
@@ -7992,6 +9243,42 @@ type V1betaDeleteVolumeUnprocessableEntity Error
 
 func (*V1betaDeleteVolumeUnprocessableEntity) v1betaDeleteVolumeRes() {}
 
+type V1betaDescribeBackupPolicyBadRequest Error
+
+func (*V1betaDescribeBackupPolicyBadRequest) v1betaDescribeBackupPolicyRes() {}
+
+type V1betaDescribeBackupPolicyConflict Error
+
+func (*V1betaDescribeBackupPolicyConflict) v1betaDescribeBackupPolicyRes() {}
+
+type V1betaDescribeBackupPolicyForbidden Error
+
+func (*V1betaDescribeBackupPolicyForbidden) v1betaDescribeBackupPolicyRes() {}
+
+type V1betaDescribeBackupPolicyInternalServerError Error
+
+func (*V1betaDescribeBackupPolicyInternalServerError) v1betaDescribeBackupPolicyRes() {}
+
+type V1betaDescribeBackupPolicyNotFound Error
+
+func (*V1betaDescribeBackupPolicyNotFound) v1betaDescribeBackupPolicyRes() {}
+
+type V1betaDescribeBackupPolicyNotImplemented Error
+
+func (*V1betaDescribeBackupPolicyNotImplemented) v1betaDescribeBackupPolicyRes() {}
+
+type V1betaDescribeBackupPolicyTooManyRequests Error
+
+func (*V1betaDescribeBackupPolicyTooManyRequests) v1betaDescribeBackupPolicyRes() {}
+
+type V1betaDescribeBackupPolicyUnauthorized Error
+
+func (*V1betaDescribeBackupPolicyUnauthorized) v1betaDescribeBackupPolicyRes() {}
+
+type V1betaDescribeBackupPolicyUnprocessableEntity Error
+
+func (*V1betaDescribeBackupPolicyUnprocessableEntity) v1betaDescribeBackupPolicyRes() {}
+
 type V1betaDescribeHostGroupBadRequest Error
 
 func (*V1betaDescribeHostGroupBadRequest) v1betaDescribeHostGroupRes() {}
@@ -8015,6 +9302,38 @@ func (*V1betaDescribeHostGroupTooManyRequests) v1betaDescribeHostGroupRes() {}
 type V1betaDescribeHostGroupUnauthorized Error
 
 func (*V1betaDescribeHostGroupUnauthorized) v1betaDescribeHostGroupRes() {}
+
+type V1betaDescribeKmsConfigurationBadRequest Error
+
+func (*V1betaDescribeKmsConfigurationBadRequest) v1betaDescribeKmsConfigurationRes() {}
+
+type V1betaDescribeKmsConfigurationConflict Error
+
+func (*V1betaDescribeKmsConfigurationConflict) v1betaDescribeKmsConfigurationRes() {}
+
+type V1betaDescribeKmsConfigurationForbidden Error
+
+func (*V1betaDescribeKmsConfigurationForbidden) v1betaDescribeKmsConfigurationRes() {}
+
+type V1betaDescribeKmsConfigurationInternalServerError Error
+
+func (*V1betaDescribeKmsConfigurationInternalServerError) v1betaDescribeKmsConfigurationRes() {}
+
+type V1betaDescribeKmsConfigurationNotFound Error
+
+func (*V1betaDescribeKmsConfigurationNotFound) v1betaDescribeKmsConfigurationRes() {}
+
+type V1betaDescribeKmsConfigurationTooManyRequests Error
+
+func (*V1betaDescribeKmsConfigurationTooManyRequests) v1betaDescribeKmsConfigurationRes() {}
+
+type V1betaDescribeKmsConfigurationUnauthorized Error
+
+func (*V1betaDescribeKmsConfigurationUnauthorized) v1betaDescribeKmsConfigurationRes() {}
+
+type V1betaDescribeKmsConfigurationUnprocessableEntity Error
+
+func (*V1betaDescribeKmsConfigurationUnprocessableEntity) v1betaDescribeKmsConfigurationRes() {}
 
 type V1betaDescribeOperationBadRequest Error
 
@@ -8099,6 +9418,46 @@ func (*V1betaDescribeVolumeTooManyRequests) v1betaDescribeVolumeRes() {}
 type V1betaDescribeVolumeUnauthorized Error
 
 func (*V1betaDescribeVolumeUnauthorized) v1betaDescribeVolumeRes() {}
+
+type V1betaGetMultipleBackupPoliciesBadRequest Error
+
+func (*V1betaGetMultipleBackupPoliciesBadRequest) v1betaGetMultipleBackupPoliciesRes() {}
+
+type V1betaGetMultipleBackupPoliciesForbidden Error
+
+func (*V1betaGetMultipleBackupPoliciesForbidden) v1betaGetMultipleBackupPoliciesRes() {}
+
+type V1betaGetMultipleBackupPoliciesInternalServerError Error
+
+func (*V1betaGetMultipleBackupPoliciesInternalServerError) v1betaGetMultipleBackupPoliciesRes() {}
+
+type V1betaGetMultipleBackupPoliciesNotFound Error
+
+func (*V1betaGetMultipleBackupPoliciesNotFound) v1betaGetMultipleBackupPoliciesRes() {}
+
+type V1betaGetMultipleBackupPoliciesNotImplemented Error
+
+func (*V1betaGetMultipleBackupPoliciesNotImplemented) v1betaGetMultipleBackupPoliciesRes() {}
+
+type V1betaGetMultipleBackupPoliciesOK struct {
+	BackupPolicies []BackupPolicyV1beta `json:"backupPolicies"`
+}
+
+// GetBackupPolicies returns the value of BackupPolicies.
+func (s *V1betaGetMultipleBackupPoliciesOK) GetBackupPolicies() []BackupPolicyV1beta {
+	return s.BackupPolicies
+}
+
+// SetBackupPolicies sets the value of BackupPolicies.
+func (s *V1betaGetMultipleBackupPoliciesOK) SetBackupPolicies(val []BackupPolicyV1beta) {
+	s.BackupPolicies = val
+}
+
+func (*V1betaGetMultipleBackupPoliciesOK) v1betaGetMultipleBackupPoliciesRes() {}
+
+type V1betaGetMultipleBackupPoliciesUnauthorized Error
+
+func (*V1betaGetMultipleBackupPoliciesUnauthorized) v1betaGetMultipleBackupPoliciesRes() {}
 
 type V1betaGetMultipleHostGroupsBadRequest Error
 
@@ -8280,6 +9639,46 @@ type V1betaGetMultipleVolumesUnprocessableEntity Error
 
 func (*V1betaGetMultipleVolumesUnprocessableEntity) v1betaGetMultipleVolumesRes() {}
 
+type V1betaListBackupPoliciesBadRequest Error
+
+func (*V1betaListBackupPoliciesBadRequest) v1betaListBackupPoliciesRes() {}
+
+type V1betaListBackupPoliciesForbidden Error
+
+func (*V1betaListBackupPoliciesForbidden) v1betaListBackupPoliciesRes() {}
+
+type V1betaListBackupPoliciesInternalServerError Error
+
+func (*V1betaListBackupPoliciesInternalServerError) v1betaListBackupPoliciesRes() {}
+
+type V1betaListBackupPoliciesNotFound Error
+
+func (*V1betaListBackupPoliciesNotFound) v1betaListBackupPoliciesRes() {}
+
+type V1betaListBackupPoliciesNotImplemented Error
+
+func (*V1betaListBackupPoliciesNotImplemented) v1betaListBackupPoliciesRes() {}
+
+type V1betaListBackupPoliciesOK struct {
+	BackupPolicies []BackupPolicyV1beta `json:"backupPolicies"`
+}
+
+// GetBackupPolicies returns the value of BackupPolicies.
+func (s *V1betaListBackupPoliciesOK) GetBackupPolicies() []BackupPolicyV1beta {
+	return s.BackupPolicies
+}
+
+// SetBackupPolicies sets the value of BackupPolicies.
+func (s *V1betaListBackupPoliciesOK) SetBackupPolicies(val []BackupPolicyV1beta) {
+	s.BackupPolicies = val
+}
+
+func (*V1betaListBackupPoliciesOK) v1betaListBackupPoliciesRes() {}
+
+type V1betaListBackupPoliciesUnauthorized Error
+
+func (*V1betaListBackupPoliciesUnauthorized) v1betaListBackupPoliciesRes() {}
+
 type V1betaListHostGroupsBadRequest Error
 
 func (*V1betaListHostGroupsBadRequest) v1betaListHostGroupsRes() {}
@@ -8315,6 +9714,50 @@ func (*V1betaListHostGroupsTooManyRequests) v1betaListHostGroupsRes() {}
 type V1betaListHostGroupsUnauthorized Error
 
 func (*V1betaListHostGroupsUnauthorized) v1betaListHostGroupsRes() {}
+
+type V1betaListKmsConfigurationsBadRequest Error
+
+func (*V1betaListKmsConfigurationsBadRequest) v1betaListKmsConfigurationsRes() {}
+
+type V1betaListKmsConfigurationsConflict Error
+
+func (*V1betaListKmsConfigurationsConflict) v1betaListKmsConfigurationsRes() {}
+
+type V1betaListKmsConfigurationsForbidden Error
+
+func (*V1betaListKmsConfigurationsForbidden) v1betaListKmsConfigurationsRes() {}
+
+type V1betaListKmsConfigurationsInternalServerError Error
+
+func (*V1betaListKmsConfigurationsInternalServerError) v1betaListKmsConfigurationsRes() {}
+
+type V1betaListKmsConfigurationsNotFound Error
+
+func (*V1betaListKmsConfigurationsNotFound) v1betaListKmsConfigurationsRes() {}
+
+type V1betaListKmsConfigurationsOK struct {
+	KmsMinusConfigurations []KmsConfigV1beta `json:"kms-configurations"`
+}
+
+// GetKmsMinusConfigurations returns the value of KmsMinusConfigurations.
+func (s *V1betaListKmsConfigurationsOK) GetKmsMinusConfigurations() []KmsConfigV1beta {
+	return s.KmsMinusConfigurations
+}
+
+// SetKmsMinusConfigurations sets the value of KmsMinusConfigurations.
+func (s *V1betaListKmsConfigurationsOK) SetKmsMinusConfigurations(val []KmsConfigV1beta) {
+	s.KmsMinusConfigurations = val
+}
+
+func (*V1betaListKmsConfigurationsOK) v1betaListKmsConfigurationsRes() {}
+
+type V1betaListKmsConfigurationsTooManyRequests Error
+
+func (*V1betaListKmsConfigurationsTooManyRequests) v1betaListKmsConfigurationsRes() {}
+
+type V1betaListKmsConfigurationsUnauthorized Error
+
+func (*V1betaListKmsConfigurationsUnauthorized) v1betaListKmsConfigurationsRes() {}
 
 type V1betaListPoolsBadRequest Error
 
@@ -8560,6 +10003,47 @@ type V1betaSyncReplicationUnprocessableEntity Error
 
 func (*V1betaSyncReplicationUnprocessableEntity) v1betaSyncReplicationRes() {}
 
+type V1betaUpdateBackupPolicyBadRequest Error
+
+func (*V1betaUpdateBackupPolicyBadRequest) v1betaUpdateBackupPolicyRes() {}
+
+type V1betaUpdateBackupPolicyConflict Error
+
+func (*V1betaUpdateBackupPolicyConflict) v1betaUpdateBackupPolicyRes() {}
+
+type V1betaUpdateBackupPolicyForbidden Error
+
+func (*V1betaUpdateBackupPolicyForbidden) v1betaUpdateBackupPolicyRes() {}
+
+type V1betaUpdateBackupPolicyInternalServerError Error
+
+func (*V1betaUpdateBackupPolicyInternalServerError) v1betaUpdateBackupPolicyRes() {}
+
+// V1betaUpdateBackupPolicyNoContent is response for V1betaUpdateBackupPolicy operation.
+type V1betaUpdateBackupPolicyNoContent struct{}
+
+func (*V1betaUpdateBackupPolicyNoContent) v1betaUpdateBackupPolicyRes() {}
+
+type V1betaUpdateBackupPolicyNotFound Error
+
+func (*V1betaUpdateBackupPolicyNotFound) v1betaUpdateBackupPolicyRes() {}
+
+type V1betaUpdateBackupPolicyNotImplemented Error
+
+func (*V1betaUpdateBackupPolicyNotImplemented) v1betaUpdateBackupPolicyRes() {}
+
+type V1betaUpdateBackupPolicyTooManyRequests Error
+
+func (*V1betaUpdateBackupPolicyTooManyRequests) v1betaUpdateBackupPolicyRes() {}
+
+type V1betaUpdateBackupPolicyUnauthorized Error
+
+func (*V1betaUpdateBackupPolicyUnauthorized) v1betaUpdateBackupPolicyRes() {}
+
+type V1betaUpdateBackupPolicyUnprocessableEntity Error
+
+func (*V1betaUpdateBackupPolicyUnprocessableEntity) v1betaUpdateBackupPolicyRes() {}
+
 type V1betaUpdateHostGroupBadRequest Error
 
 func (*V1betaUpdateHostGroupBadRequest) v1betaUpdateHostGroupRes() {}
@@ -8591,6 +10075,38 @@ func (*V1betaUpdateHostGroupUnauthorized) v1betaUpdateHostGroupRes() {}
 type V1betaUpdateHostGroupUnprocessableEntity Error
 
 func (*V1betaUpdateHostGroupUnprocessableEntity) v1betaUpdateHostGroupRes() {}
+
+type V1betaUpdateKmsConfigurationBadRequest Error
+
+func (*V1betaUpdateKmsConfigurationBadRequest) v1betaUpdateKmsConfigurationRes() {}
+
+type V1betaUpdateKmsConfigurationConflict Error
+
+func (*V1betaUpdateKmsConfigurationConflict) v1betaUpdateKmsConfigurationRes() {}
+
+type V1betaUpdateKmsConfigurationForbidden Error
+
+func (*V1betaUpdateKmsConfigurationForbidden) v1betaUpdateKmsConfigurationRes() {}
+
+type V1betaUpdateKmsConfigurationInternalServerError Error
+
+func (*V1betaUpdateKmsConfigurationInternalServerError) v1betaUpdateKmsConfigurationRes() {}
+
+type V1betaUpdateKmsConfigurationNotFound Error
+
+func (*V1betaUpdateKmsConfigurationNotFound) v1betaUpdateKmsConfigurationRes() {}
+
+type V1betaUpdateKmsConfigurationTooManyRequests Error
+
+func (*V1betaUpdateKmsConfigurationTooManyRequests) v1betaUpdateKmsConfigurationRes() {}
+
+type V1betaUpdateKmsConfigurationUnauthorized Error
+
+func (*V1betaUpdateKmsConfigurationUnauthorized) v1betaUpdateKmsConfigurationRes() {}
+
+type V1betaUpdateKmsConfigurationUnprocessableEntity Error
+
+func (*V1betaUpdateKmsConfigurationUnprocessableEntity) v1betaUpdateKmsConfigurationRes() {}
 
 type V1betaUpdatePoolBadRequest Error
 
@@ -8693,6 +10209,47 @@ func (*V1betaUpdateVolumeUnauthorized) v1betaUpdateVolumeRes() {}
 type V1betaUpdateVolumeUnprocessableEntity Error
 
 func (*V1betaUpdateVolumeUnprocessableEntity) v1betaUpdateVolumeRes() {}
+
+// Volume and backup details.
+// Ref: #/components/schemas/VolumeBackupDetails_v1beta
+type VolumeBackupDetailsV1beta struct {
+	// Volume name.
+	VolumeName OptString `json:"volumeName"`
+	// Number of scheduled backups for given volume.
+	ScheduledBackupCount OptInt `json:"scheduledBackupCount"`
+	// Enabling the policy.
+	PolicyEnabled OptBool `json:"policyEnabled"`
+}
+
+// GetVolumeName returns the value of VolumeName.
+func (s *VolumeBackupDetailsV1beta) GetVolumeName() OptString {
+	return s.VolumeName
+}
+
+// GetScheduledBackupCount returns the value of ScheduledBackupCount.
+func (s *VolumeBackupDetailsV1beta) GetScheduledBackupCount() OptInt {
+	return s.ScheduledBackupCount
+}
+
+// GetPolicyEnabled returns the value of PolicyEnabled.
+func (s *VolumeBackupDetailsV1beta) GetPolicyEnabled() OptBool {
+	return s.PolicyEnabled
+}
+
+// SetVolumeName sets the value of VolumeName.
+func (s *VolumeBackupDetailsV1beta) SetVolumeName(val OptString) {
+	s.VolumeName = val
+}
+
+// SetScheduledBackupCount sets the value of ScheduledBackupCount.
+func (s *VolumeBackupDetailsV1beta) SetScheduledBackupCount(val OptInt) {
+	s.ScheduledBackupCount = val
+}
+
+// SetPolicyEnabled sets the value of PolicyEnabled.
+func (s *VolumeBackupDetailsV1beta) SetPolicyEnabled(val OptBool) {
+	s.PolicyEnabled = val
+}
 
 // Ref: #/components/schemas/VolumeCreate_v1beta
 type VolumeCreateV1beta struct {

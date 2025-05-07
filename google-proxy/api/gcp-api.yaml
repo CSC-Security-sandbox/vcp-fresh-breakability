@@ -21,6 +21,10 @@ tags:
     description: Long running operations
   - name: replications
     description: Replication operations
+  - name: kms-configurations
+    description: Key management operations
+  - name: backup-policy
+    description: Backup policy operations
 paths:
   /health:
     get:
@@ -2241,6 +2245,663 @@ paths:
           $ref: '#/components/responses/StandardError-422'
         '429':
           $ref: '#/components/responses/StandardError-429'
+        '500':
+          $ref: '#/components/responses/StandardError-500'
+        '501':
+          $ref: '#/components/responses/StandardError-501'
+        default:
+          description: Unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /v1beta/projects/{projectNumber}/locations/{locationId}/storage/kmsConfig:
+    get:
+      tags:
+        - kms-configurations
+      summary: List all KMS configurations
+      description: Returns descriptions of all KMS configurations owned by the caller.
+      operationId: v1beta_listKmsConfigurations
+      parameters:
+        - $ref: '#/components/parameters/projectNumberPathParameter'
+        - $ref: '#/components/parameters/locationIdPathParameter'
+        - $ref: '#/components/parameters/xCorrelationIdHeader'
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - type: object
+                    properties:
+                      kms-configurations:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/KmsConfig_v1beta'
+              example:
+                kms-configurations:
+                  - uuid: 9760acf5-4638-11e7-9bdb-020073ca7773
+                    keyFullPath: projects/projectID/locations/keyRingLocation/keyRings/keyRing/cryptoKeys/keyName
+                    kmsState: READY
+                    kmsStateDetails: Kms config is ready for use
+                    description: Description of the KMS configuration
+                    createdTime: '2017-01-29T09:10:32.212Z'
+                    updatedTime: '2017-01-29T09:10:32.212Z'
+                    resourceId: my-resource
+        '400':
+          $ref: '#/components/responses/StandardError-400'
+        '401':
+          $ref: '#/components/responses/StandardError-401'
+        '403':
+          $ref: '#/components/responses/StandardError-403'
+        '404':
+          $ref: '#/components/responses/StandardError-404'
+        '409':
+          $ref: '#/components/responses/StandardError-409'
+        '429':
+          $ref: '#/components/responses/StandardError-429'
+        '500':
+          $ref: '#/components/responses/StandardError-500'
+        default:
+          description: Unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    post:
+      tags:
+        - kms-configurations
+      summary: Create KMS configuration
+      description: Create new KMS configuration for the active user
+      operationId: v1beta_CreateKmsConfiguration
+      parameters:
+        - $ref: '#/components/parameters/projectNumberPathParameter'
+        - $ref: '#/components/parameters/locationIdPathParameter'
+        - $ref: '#/components/parameters/xCorrelationIdHeader'
+      requestBody:
+        description: The required parameters to create new KMS configuration.
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/KmsConfig_v1beta'
+        required: true
+      responses:
+        '202':
+          description: Creating KMS configurations
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Operation_v1beta'
+              example:
+                application/json:
+                  done: false
+                  name: /v1beta/projects/123456789/locations/some-location1/operations/ba2c8826-2627-057c-42ba-343ee7ab1ebe
+                  response:
+                    createdTime: '2024-02-07T14:55:52.441Z'
+                    description: My kms description
+                    keyFullPath: projects/projectID/locations/us/keyRings/keyRing/cryptoKeys/keyName
+                    kmsState: CREATING
+                    kmsStateDetails: Creating Kms config settings
+                    resourceId: my-resource
+                    updatedTime: '2024-02-07T14:55:52.441Z'
+                    uuid: 06048ff8-98e8-7090-5559-f671bc440d67
+        '400':
+          $ref: '#/components/responses/StandardError-400'
+        '401':
+          $ref: '#/components/responses/StandardError-401'
+        '403':
+          $ref: '#/components/responses/StandardError-403'
+        '409':
+          $ref: '#/components/responses/StandardError-409'
+        '422':
+          $ref: '#/components/responses/StandardError-422'
+        '429':
+          $ref: '#/components/responses/StandardError-429'
+        '500':
+          $ref: '#/components/responses/StandardError-500'
+        default:
+          description: Unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /v1beta/projects/{projectNumber}/locations/{locationId}/storage/kmsConfig/{kmsConfigId}:
+    get:
+      tags:
+        - kms-configurations
+      summary: Describe KMS configuration
+      description: Returns the description of a KMS configuration specified by KMS
+        configuration ID.
+      operationId: v1beta_describeKmsConfiguration
+      parameters:
+        - $ref: '#/components/parameters/projectNumberPathParameter'
+        - $ref: '#/components/parameters/locationIdPathParameter'
+        - $ref: '#/components/parameters/KmsConfigIdPathParameter'
+        - $ref: '#/components/parameters/xCorrelationIdHeader'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/KmsConfig_v1beta'
+              example:
+                application/json:
+                  uuid: 9760acf5-4638-11e7-9bdb-020073ca7773
+                  keyFullPath: projects/projectID/locations/keyRingLocation/keyRings/keyRing/cryptoKeys/keyName
+                  kmsState: READY
+                  kmsStateDetails: Kms config is ready for use
+                  description: Description of the KMS configuration
+                  createdTime: '2017-01-29T09:10:32.212Z'
+                  updatedTime: '2017-01-29T09:10:32.212Z'
+                  resourceId: my-resource
+        '400':
+          $ref: '#/components/responses/StandardError-400'
+        '401':
+          $ref: '#/components/responses/StandardError-401'
+        '403':
+          $ref: '#/components/responses/StandardError-403'
+        '404':
+          $ref: '#/components/responses/StandardError-404'
+        '409':
+          $ref: '#/components/responses/StandardError-409'
+        '422':
+          $ref: '#/components/responses/StandardError-422'
+        '429':
+          $ref: '#/components/responses/StandardError-429'
+        '500':
+          $ref: '#/components/responses/StandardError-500'
+        default:
+          description: Unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    put:
+      operationId: v1beta_updateKmsConfiguration
+      summary: Update a KMS configuration
+      description: Update the KMS configuration
+      tags:
+        - kms-configurations
+      parameters:
+        - $ref: '#/components/parameters/projectNumberPathParameter'
+        - $ref: '#/components/parameters/locationIdPathParameter'
+        - $ref: '#/components/parameters/KmsConfigIdPathParameter'
+        - $ref: '#/components/parameters/xCorrelationIdHeader'
+      requestBody:
+        description: The parameters that can be updated.
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/KmsConfigUpdate_v1beta'
+        required: true
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/KmsConfig_v1beta'
+              example:
+                application/json:
+                  uuid: 9760acf5-4638-11e7-9bdb-020073ca7773
+                  keyFullPath: projects/projectID/locations/us/keyRings/keyRing/cryptoKeys/keyName
+                  kmsState: READY
+                  kmsStateDetails: Kms config is ready for use
+                  description: My KMS description
+                  createdTime: '2017-01-29T09:10:32.212Z'
+                  updatedTime: '2017-01-29T09:10:32.212Z'
+                  resourceId: my-resource
+        '400':
+          $ref: '#/components/responses/StandardError-400'
+        '401':
+          $ref: '#/components/responses/StandardError-401'
+        '403':
+          $ref: '#/components/responses/StandardError-403'
+        '404':
+          $ref: '#/components/responses/StandardError-404'
+        '409':
+          $ref: '#/components/responses/StandardError-409'
+        '422':
+          $ref: '#/components/responses/StandardError-422'
+        '429':
+          $ref: '#/components/responses/StandardError-429'
+        '500':
+          $ref: '#/components/responses/StandardError-500'
+        default:
+          description: Unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    delete:
+      operationId: v1beta_deleteKmsConfiguration
+      summary: Deletes a KMS configuration
+      description: Deletes KMS configuration for the active user
+      tags:
+        - kms-configurations
+      parameters:
+        - $ref: '#/components/parameters/projectNumberPathParameter'
+        - $ref: '#/components/parameters/locationIdPathParameter'
+        - $ref: '#/components/parameters/KmsConfigIdPathParameter'
+        - $ref: '#/components/parameters/xCorrelationIdHeader'
+      responses:
+        '202':
+          description: Deleting KMS configurations
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Operation_v1beta'
+              example:
+                application/json:
+                  done: false
+                  name: /v1beta/projects/123456789/locations/some-location1/operations/ba2c8826-2627-057c-42ba-343ee7ab1ebe
+        '204':
+          description: No content
+        '400':
+          $ref: '#/components/responses/StandardError-400'
+        '401':
+          $ref: '#/components/responses/StandardError-401'
+        '403':
+          $ref: '#/components/responses/StandardError-403'
+        '404':
+          $ref: '#/components/responses/StandardError-404'
+        '409':
+          $ref: '#/components/responses/StandardError-409'
+        '422':
+          $ref: '#/components/responses/StandardError-422'
+        '429':
+          $ref: '#/components/responses/StandardError-429'
+        '500':
+          $ref: '#/components/responses/StandardError-500'
+        default:
+          description: Unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /v1beta/projects/{projectNumber}/locations/{locationId}/storage/kmsConfig/{kmsConfigId}/check:
+    get:
+      operationId: v1beta_checkKmsConfig
+      summary: Verifies KMS configuration reachability
+      description: Verifies whether service account can access the configured key
+      tags:
+        - kms-configurations
+      parameters:
+        - $ref: '#/components/parameters/projectNumberPathParameter'
+        - $ref: '#/components/parameters/locationIdPathParameter'
+        - $ref: '#/components/parameters/KmsConfigIdPathParameter'
+        - $ref: '#/components/parameters/xCorrelationIdHeader'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/KmsConfigCheck_v1beta'
+        '400':
+          $ref: '#/components/responses/StandardError-400'
+        '401':
+          $ref: '#/components/responses/StandardError-401'
+        '403':
+          $ref: '#/components/responses/StandardError-403'
+        '404':
+          $ref: '#/components/responses/StandardError-404'
+        '409':
+          $ref: '#/components/responses/StandardError-409'
+        '422':
+          $ref: '#/components/responses/StandardError-422'
+        '429':
+          $ref: '#/components/responses/StandardError-429'
+        '500':
+          $ref: '#/components/responses/StandardError-500'
+        default:
+          description: Unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /v1beta/projects/{projectNumber}/locations/{locationId}/backupPolicies:
+    get:
+      operationId: v1beta_listBackupPolicies
+      summary: List all backup policies
+      description: Returns list of all available backup policies.
+      tags:
+        - backup-policy
+      parameters:
+        - $ref: '#/components/parameters/projectNumberPathParameter'
+        - $ref: '#/components/parameters/locationIdPathParameter'
+        - $ref: '#/components/parameters/xCorrelationIdHeader'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - type: object
+                    properties:
+                      backupPolicies:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/BackupPolicy_v1beta'
+              example:
+                application/json:
+                  backupPolicies:
+                    - backupPolicyId: 9760acf5-4638-11e7-9bdb-020073ca7773
+                      resourceId: backup-policy-1
+                      dailyBackupLimit: 24
+                      weeklyBackupLimit: 10
+                      monthlyBackupLimit: 10
+                      enabled: true
+                      description: Backup policy description
+                      createdAt: '2016-11-30T23:59:59.999Z'
+        '400':
+          $ref: '#/components/responses/StandardError-400'
+        '401':
+          $ref: '#/components/responses/StandardError-401'
+        '403':
+          $ref: '#/components/responses/StandardError-403'
+        '404':
+          $ref: '#/components/responses/StandardError-404'
+        '500':
+          $ref: '#/components/responses/StandardError-500'
+        '501':
+          $ref: '#/components/responses/StandardError-501'
+        default:
+          description: Unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    post:
+      operationId: v1beta_createBackupPolicy
+      summary: Create a new backup policy
+      description: Create a new backup policy.
+      tags:
+        - backup-policy
+      parameters:
+        - $ref: '#/components/parameters/projectNumberPathParameter'
+        - $ref: '#/components/parameters/locationIdPathParameter'
+        - $ref: '#/components/parameters/xCorrelationIdHeader'
+      requestBody:
+        description: The required parameters to create a new backup policy.
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BackupPolicyCreate_v1beta'
+        required: true
+      responses:
+        '202':
+          description: Creating backup policy
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Operation_v1beta'
+              example:
+                application/json:
+                  done: true,
+                  name: /v1beta/projects/1088371202435/locations/us-central1/operations/00000000-0000-0000-0000-000000000000
+                  response:
+                    dailyBackupLimit: 24
+                    monthlyBackupLimit: 24
+                    weeklyBackupLimit: 24
+                    backupPolicyId: f060c640-74c3-4d10-89e5-c3bc5036ee3e
+                    createdAt: '2024-11-22T04:46:34.653Z'
+                    description: My Resource Description
+                    enabled: false
+                    resourceId: delete-case
+                    state: READY
+                    volumeCount: 0
+        '400':
+          $ref: '#/components/responses/StandardError-400'
+        '401':
+          $ref: '#/components/responses/StandardError-401'
+        '403':
+          $ref: '#/components/responses/StandardError-403'
+        '409':
+          $ref: '#/components/responses/StandardError-409'
+        '422':
+          $ref: '#/components/responses/StandardError-422'
+        '429':
+          $ref: '#/components/responses/StandardError-429'
+        '500':
+          $ref: '#/components/responses/StandardError-500'
+        '501':
+          $ref: '#/components/responses/StandardError-501'
+        default:
+          description: Unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /v1beta/projects/{projectNumber}/locations/{locationId}/backupPolicies/{backupPolicyId}:
+    get:
+      operationId: v1beta_describeBackupPolicy
+      summary: Describe a backup policy
+      description: Returns the description of the specified backup policy by backup
+        policy ID.
+      tags:
+        - backup-policy
+      parameters:
+        - $ref: '#/components/parameters/backupPolicyIdPathParameter'
+        - $ref: '#/components/parameters/projectNumberPathParameter'
+        - $ref: '#/components/parameters/locationIdPathParameter'
+        - $ref: '#/components/parameters/xCorrelationIdHeader'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BackupPolicyDetails_v1beta'
+              example:
+                application/json:
+                  backupPolicyId: 9760acf5-4638-11e7-9bdb-020073ca7773
+                  resourceId: backup-policy-1
+                  dailyBackupLimit: 24
+                  weeklyBackupLimit: 10
+                  monthlyBackupLimit: 10
+                  volumeCount: 1
+                  enabled: true
+                  description: Backup policy description
+                  volumeBackups:
+                    - volumeName: test volume
+                      scheduledBackupCount: 10
+                      policyEnabled: true
+                    - volumeName: test volume2
+                      scheduledBackupCount: 10
+                      policyEnabled: false
+        '400':
+          $ref: '#/components/responses/StandardError-400'
+        '401':
+          $ref: '#/components/responses/StandardError-401'
+        '403':
+          $ref: '#/components/responses/StandardError-403'
+        '404':
+          $ref: '#/components/responses/StandardError-404'
+        '409':
+          $ref: '#/components/responses/StandardError-409'
+        '422':
+          $ref: '#/components/responses/StandardError-422'
+        '429':
+          $ref: '#/components/responses/StandardError-429'
+        '500':
+          $ref: '#/components/responses/StandardError-500'
+        '501':
+          $ref: '#/components/responses/StandardError-501'
+        default:
+          description: Unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    put:
+      operationId: v1beta_updateBackupPolicy
+      summary: Update a backup policy
+      description: Update the backup policy
+      tags:
+        - backup-policy
+      parameters:
+        - $ref: '#/components/parameters/backupPolicyIdPathParameter'
+        - $ref: '#/components/parameters/projectNumberPathParameter'
+        - $ref: '#/components/parameters/locationIdPathParameter'
+        - $ref: '#/components/parameters/xCorrelationIdHeader'
+      requestBody:
+        description: The parameters that can be updated.
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BackupPolicyUpdate_v1beta'
+        required: true
+      responses:
+        '202':
+          description: Updating backup policy
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Operation_v1beta'
+              example:
+                application/json:
+                  done: true,
+                  name: /v1beta/projects/1088371202435/locations/us-central1/operations/00000000-0000-0000-0000-000000000000
+                  response:
+                    dailyBackupLimit: 24
+                    monthlyBackupLimit: 24
+                    weeklyBackupLimit: 24
+                    backupPolicyId: f060c640-74c3-4d10-89e5-c3bc5036ee3e
+                    createdAt: '2024-11-22T04:46:34.653Z'
+                    description: My Resource Description
+                    enabled: false
+                    resourceId: delete-case
+                    state: READY
+                    volumeBackups: [ ]
+                    volumeCount: 0
+        '204':
+          description: No content
+        '400':
+          $ref: '#/components/responses/StandardError-400'
+        '401':
+          $ref: '#/components/responses/StandardError-401'
+        '403':
+          $ref: '#/components/responses/StandardError-403'
+        '404':
+          $ref: '#/components/responses/StandardError-404'
+        '409':
+          $ref: '#/components/responses/StandardError-409'
+        '422':
+          $ref: '#/components/responses/StandardError-422'
+        '429':
+          $ref: '#/components/responses/StandardError-429'
+        '500':
+          $ref: '#/components/responses/StandardError-500'
+        '501':
+          $ref: '#/components/responses/StandardError-501'
+        default:
+          description: Unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    delete:
+      operationId: v1beta_deleteBackupPolicy
+      summary: Delete a backup policy
+      description: Warning! This operation will permanently delete the backup policy.
+      tags:
+        - backup-policy
+      parameters:
+        - $ref: '#/components/parameters/backupPolicyIdPathParameter'
+        - $ref: '#/components/parameters/projectNumberPathParameter'
+        - $ref: '#/components/parameters/locationIdPathParameter'
+        - $ref: '#/components/parameters/xCorrelationIdHeader'
+      responses:
+        '202':
+          description: Deleting backup policy
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Operation_v1beta'
+              example:
+                application/json:
+                  done: true,
+                  name: /v1beta/projects/1088371202435/locations/us-central1/operations/00000000-0000-0000-0000-000000000000
+        '204':
+          description: No content
+        '400':
+          $ref: '#/components/responses/StandardError-400'
+        '401':
+          $ref: '#/components/responses/StandardError-401'
+        '403':
+          $ref: '#/components/responses/StandardError-403'
+        '404':
+          $ref: '#/components/responses/StandardError-404'
+        '409':
+          $ref: '#/components/responses/StandardError-409'
+        '422':
+          $ref: '#/components/responses/StandardError-422'
+        '429':
+          $ref: '#/components/responses/StandardError-429'
+        '500':
+          $ref: '#/components/responses/StandardError-500'
+        '501':
+          $ref: '#/components/responses/StandardError-501'
+        default:
+          description: Unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /v1beta/projects/{projectNumber}/locations/{locationId}/getMultipleBackupPolicies:
+    post:
+      operationId: v1beta_getMultipleBackupPolicies
+      summary: List specified backup policies
+      description: Returns descriptions of backup policies that is listed in request
+        body.
+      tags:
+        - backup-policy
+      parameters:
+        - $ref: '#/components/parameters/projectNumberPathParameter'
+        - $ref: '#/components/parameters/locationIdPathParameter'
+        - $ref: '#/components/parameters/xCorrelationIdHeader'
+      requestBody:
+        description: A list of backup policy UUIDs to return.
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BackupPolicyIDList_v1beta'
+        required: true
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - type: object
+                    properties:
+                      backupPolicies:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/BackupPolicy_v1beta'
+              example:
+                backupPolicies:
+                  - backupPolicyId: 9760acf5-4638-11e7-9bdb-020073ca7773
+                    resourceId: backup-policy-1
+                    dailyBackupLimit: 24
+                    weeklyBackupLimit: 10
+                    monthlyBackupLimit: 10
+                    enabled: true
+                    description: Backup policy description
+                    createdAt: '2016-11-30T23:59:59.999Z'
+        '400':
+          $ref: '#/components/responses/StandardError-400'
+        '401':
+          $ref: '#/components/responses/StandardError-401'
+        '403':
+          $ref: '#/components/responses/StandardError-403'
+        '404':
+          $ref: '#/components/responses/StandardError-404'
         '500':
           $ref: '#/components/responses/StandardError-500'
         '501':
@@ -4610,6 +5271,539 @@ components:
           description: Details about the current job state
           readOnly: true
           example: Error creating snapshot - operation timed out
+    KmsConfigCheck_v1beta:
+      type: object
+      title: KmsConfigCheck
+      description: Customer managed encryption key configuration validation definition
+      properties:
+        serviceAccount:
+          title: service account email.
+          type: string
+          description: Service-account email which will have access to key through Google
+            IAM policy.
+          example: service-account@example.com
+        kmsConfigHealthCheck:
+          $ref: '#/components/schemas/KmsConfigHealthCheck_v1beta'
+    KmsConfigHealthCheck_v1beta:
+      type: object
+      title: KmsConfigCheck
+      description: Customer managed encryption key configuration validation definition
+      required:
+        - isHealthy
+      properties:
+        isHealthy:
+          title: IsHealthy
+          type: boolean
+          description: Is customer key configured correctly to encrypt the volume.
+          example: false
+        healthError:
+          title: HealthError
+          type: string
+          description: Error if configuration is not healthy
+          example: Service account 'service-account@example.com' doesn't have access
+            to key 'test-key'
+        instructions:
+          title: instructions
+          type: string
+          readOnly: true
+          description: Instructions to provide the access to encryption key.
+          example: gcloud kms keys add-iam-policy-binding key_Name --keyring keyring_Name\
+            --location key_Ring_Location\ --member serviceAccount:service_Account_Name\
+            --role roles/cloudkms.cryptoKeyEncrypterDecrypter
+    KmsConfig_v1beta:
+      type: object
+      title: KmsConfig
+      description: Customer managed encryption key configuration
+      required:
+        - keyFullPath
+      properties:
+        uuid:
+          title: UUID
+          type: string
+          readOnly: true
+          description: UUID v4 used to identify the KMS configuration
+          pattern: ^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$
+          maxLength: 36
+          minLength: 36
+          example: 9760acf5-4638-11e7-9bdb-020073ca7773
+        serviceAccountEmail:
+          title: service account email.
+          type: string
+          readOnly: true
+          description: Service account email which will have access to key through Google
+            IAM policy.
+          example: service-account@example.com
+        keyFullPath:
+          title: keyFullPath
+          type: string
+          description: Includes key ring, key-ring location, key-name and key project
+            ID
+          example: projects/projectID/locations/us/keyRings/keyRing/cryptoKeys/keyName
+        kmsState:
+          title: state
+          type: string
+          readOnly: true
+          description: The current lifecycle state of the configuration
+          enum:
+            - STATE_UNSPECIFIED
+            - CREATING
+            - READY
+            - UPDATING
+            - IN_USE
+            - DELETING
+            - ERROR
+            - KEY_STATE_UNSPECIFIED
+            - KEY_CHECK_PENDING
+            - KEY_NOT_REACHABLE
+            - DISABLING
+            - DISABLED
+            - DELETED
+            - MIGRATING
+          example: READY
+        kmsStateDetails:
+          title: stateDetails
+          type: string
+          readOnly: true
+          description: Details about the current KMS configuration state
+          example: Credentials saved and available for use
+        description:
+          title: description
+          type: string
+          description: Description of the KMS configuration
+          example: My kms description
+          x-nullable: true
+          maxLength: 2048
+        createdTime:
+          title: createdTime
+          type: string
+          format: date-time
+          readOnly: true
+          description: Creation date of the resource
+          example: '2016-11-28T19:30:23.123Z'
+        updatedTime:
+          title: updatedTime
+          type: string
+          format: date-time
+          readOnly: true
+          description: Date of last update of the resource
+          example: '2016-11-29T20:32:50.459Z'
+          x-nullable: true
+        deletedTime:
+          title: deletedTime
+          type: string
+          format: date-time
+          readOnly: true
+          description: Date the resource was deleted
+          example: '2016-11-30T23:59:59.999Z'
+          x-nullable: true
+        instructions:
+          title: instructions
+          type: string
+          readOnly: true
+          description: Instructions to provide the access to encryption key.
+          example: gcloud kms keys add-iam-policy-binding key_Name --keyring keyring_Name\
+            --location key_Ring_Location\ --member serviceAccount:service_Account_Name\
+            --role roles/cloudkms.cryptoKeyEncrypterDecrypter
+        resourceId:
+          title: resourceId
+          type: string
+          description: Resource ID for KMS configuration
+          example: my-resource
+          minLength: 1
+          pattern: ^[a-z]([a-z0-9-]{0,61}[a-z0-9])?$
+          maxLength: 63
+          x-nullable: true
+    KmsConfigPreMigrate_v1beta:
+      type: object
+      title: KmsConfig
+      description: Customer managed encryption key configuration
+      required:
+        - keyFullPath
+      properties:
+        uuid:
+          title: UUID
+          type: string
+          readOnly: true
+          description: UUID v4 used to identify the KMS configuration
+          pattern: ^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$
+          maxLength: 36
+          minLength: 36
+          example: 9760acf5-4638-11e7-9bdb-020073ca7773
+        serviceAccountEmail:
+          title: service account email.
+          type: string
+          readOnly: true
+          description: Service account email which will have access to key through Google
+            IAM policy.
+          example: service-account@example.com
+        keyFullPath:
+          title: keyFullPath
+          type: string
+          description: Includes key ring, key-ring location, key name and key project
+            ID
+          example: projects/projectID/locations/us/keyRings/keyRing/cryptoKeys/keyName
+        kmsState:
+          title: state
+          type: string
+          readOnly: true
+          description: The current lifecycle state of the configuration
+          enum:
+            - STATE_UNSPECIFIED
+            - CREATING
+            - READY
+            - UPDATING
+            - IN_USE
+            - DELETING
+            - ERROR
+            - KEY_STATE_UNSPECIFIED
+            - KEY_CHECK_PENDING
+            - KEY_NOT_REACHABLE
+            - DISABLING
+            - DISABLED
+            - DELETED
+            - MIGRATING
+          example: READY
+        kmsStateDetails:
+          title: stateDetails
+          type: string
+          readOnly: true
+          description: Details about the current KMS configuration state
+          example: Credentials saved and available for use
+        description:
+          title: description
+          type: string
+          description: Description of the KMS configuration
+          example: My kms description
+          x-nullable: true
+          maxLength: 2048
+        createdTime:
+          title: createdTime
+          type: string
+          format: date-time
+          readOnly: true
+          description: Creation date of the resource
+          example: '2016-11-28T19:30:23.123Z'
+        updatedTime:
+          title: updatedTime
+          type: string
+          format: date-time
+          readOnly: true
+          description: Date of last update of the resource
+          example: '2016-11-29T20:32:50.459Z'
+        deletedTime:
+          title: deletedTime
+          type: string
+          format: date-time
+          readOnly: true
+          description: Date the resource was deleted
+          example: '2016-11-30T23:59:59.999Z'
+          x-nullable: true
+        instructions:
+          title: instructions
+          type: string
+          readOnly: true
+          description: Instructions to provide the access to encryption key.
+          example: gcloud kms keys add-iam-policy-binding key_Name --keyring keyring_Name\
+            --location key_Ring_Location\ --member serviceAccount:service_Account_Name\
+            --role roles/cloudkms.cryptoKeyEncrypterDecrypter
+        resourceId:
+          title: resourceId
+          type: string
+          description: Resource ID for KMS configuration
+          example: myResourceId
+          minLength: 1
+          pattern: ^[a-z]([a-z0-9-]{0,61}[a-z0-9])?$
+          maxLength: 63
+          x-nullable: true
+        network:
+          title: network
+          type: string
+          pattern: ^projects\/\d+\/global\/networks\/(![0-9]+$)?(!.*-$)?(!-)?[a-zA-Z0-9-]{1,63}$
+          example: projects/123456789/global/networks/network-to-netapp2
+          x-omitempty: true
+        jobs:
+          title: jobs
+          description: Jobs currently ongoing for the KMS
+          type: array
+          x-omitempty: true
+          items:
+            $ref: '#/components/schemas/Job_v1beta'
+    KmsConfigUpdate_v1beta:
+      type: object
+      title: KmsConfigUpdate
+      description: Customer managed encryption key configuration
+      properties:
+        keyFullPath:
+          title: keyFullPath
+          type: string
+          description: Includes key ring, key-ring location, key name and key project
+            ID
+          example: projects/projectID/locations/us/keyRings/keyRing/cryptoKeys/keyName
+        description:
+          title: description
+          type: string
+          description: Description of the KMS configuration
+          example: My kms description
+          x-nullable: true
+          maxLength: 2048
+        resourceId:
+          title: resourceId
+          type: string
+          description: Resource ID for KMS configuration
+          minLength: 1
+          pattern: ^[a-z]([a-z0-9-]{0,61}[a-z0-9])?$
+          maxLength: 63
+          example: my-resource
+          x-nullable: true
+    kmsConfigIDList_v1beta:
+      title: kmsConfigIDList
+      required:
+        - kmsConfigIDs
+      properties:
+        kmsConfigIDs:
+          title: kmsConfigIDs
+          type: array
+          minItems: 1
+          items:
+            type: string
+            description: UUID used to identify the KMS encryption keys
+            pattern: ^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$
+            example: 9760acf5-4638-11e7-9bdb-020073ca3333
+    BackupPolicy_v1beta:
+      title: Backup Policy
+      type: object
+      description: Backup Policy
+      required:
+        - resourceId
+        - enabled
+      properties:
+        resourceId:
+          type: string
+          description: A human readable label for the resource which is restricted to
+            letters, numbers, and hyphen, with the first character a letter, the last
+            a letter or a number, and a 63 character maximum
+          pattern: ^[a-z]([a-z0-9-]{0,61}[a-z0-9])?$
+          maxLength: 63
+          example: Some-backup-policy-name
+        backupPolicyId:
+          title: backupPolicyId
+          type: string
+          readOnly: true
+          description: UUID v4 used to identify the backup policy
+          pattern: ^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$
+          maxLength: 36
+          minLength: 36
+          example: 9760acf5-4638-11e7-9bdb-020073ca3333
+        enabled:
+          type: boolean
+          description: If enabled, backup policy will be available for any volume to
+            use.
+          example: true
+          default: false
+          x-nullable: true
+        description:
+          type: string
+          description: Description of the backup policy
+          example: Backup policy description
+          x-nullable: true
+        createdAt:
+          title: createdAt
+          type: string
+          format: date-time
+          readOnly: true
+          x-nullable: true
+          description: The timestamp of resource creation (UTC)
+          example: '2016-11-30T23:59:59.999Z'
+        state:
+          title: state
+          type: string
+          readOnly: true
+          description: The current state of the backup policy
+          enum:
+            - STATE_UNSPECIFIED
+              - CREATING
+              - UPDATING
+              - DELETING
+              - READY
+              - DELETED
+              - ERROR
+          example: READY
+        volumeCount:
+          type: integer
+          description: Total volumes assigned to the backup policy
+          example: 6
+          default: 0
+          readOnly: true
+          x-nullable: true
+        dailyBackupLimit:
+          title: Daily backup limit
+          type: integer
+          description: Limit to number of daily backups. Note that the sum of daily,
+            weekly and monthly backups should be greater than 1.
+          example: 24
+          minimum: 0
+          maximum: 1019
+          default: 0
+        weeklyBackupLimit:
+          title: Weekly backup limit
+          type: integer
+          description: Limit to number of weekly backups. Note that the sum of daily,
+            weekly and monthly backups should be greater than 1.
+          example: 24
+          minimum: 0
+          maximum: 1019
+          default: 0
+        monthlyBackupLimit:
+          title: Monthly backup limit
+          type: integer
+          description: Limit to number of monthly backups. Note that the sum of daily,
+            weekly and monthly backups should be greater than 1.
+          example: 24
+          minimum: 0
+          maximum: 1019
+          default: 0
+    BackupPolicyCreate_v1beta:
+      title: Backup Policy create payload
+      type: object
+      description: Request object for creating backup policy
+      allOf:
+        - $ref: '#/components/schemas/ResourceName_v1beta'
+        - $ref: '#/components/schemas/Description_v1beta'
+        - $ref: '#/components/schemas/BackupPolicySchedule_v1beta'
+      properties:
+        enabled:
+          type: boolean
+          description: If enabled, backup policy will be available for any volume to
+            use.
+          example: true
+          default: true
+    BackupPolicyDetails_v1beta:
+      type: object
+      title: Backup policy Details response
+      allOf:
+        - $ref: '#/components/schemas/BackupPolicy_v1beta'
+        - properties:
+            volumeBackups:
+              type: array
+              items:
+                $ref: '#/components/schemas/VolumeBackupDetails_v1beta'
+            volumeCount:
+              type: integer
+              description: Total volumes assigned to the backup policy
+              example: 6
+              default: 0
+              x-nullable: true
+    BackupPolicyUpdate_v1beta:
+      title: BackupPolicyUpdate
+      description: Request object for updating backup policies
+      properties:
+        enabled:
+          type: boolean
+          description: If enabled, backup policy will be available for any volume to
+            use.
+          example: true
+          x-nullable: true
+        description:
+          type: string
+          example: My Resource Description
+          x-nullable: true
+          maxLength: 2048
+      allOf:
+        - $ref: '#/components/schemas/BackupPolicySchedule_v1beta'
+    BackupPolicySchedule_v1beta:
+      type: object
+      description: Request object for backup policy schedules
+      properties:
+        dailyBackupLimit:
+          title: Daily backup limit
+          type: integer
+          description: Limit to number of daily backups. Note that the sum of daily,
+            weekly and monthly backups should be greater than 1.
+          example: 24
+          minimum: 0
+          maximum: 1019
+          default: 0
+        weeklyBackupLimit:
+          title: Weekly backup limit
+          type: integer
+          description: Limit to number of weekly backups. Note that the sum of daily,
+            weekly and monthly backups should be greater than 1.
+          example: 24
+          minimum: 0
+          maximum: 1019
+          default: 0
+        monthlyBackupLimit:
+          title: Monthly backup limit
+          type: integer
+          description: Limit to number of monthly backups. Note that the sum of daily,
+            weekly and monthly backups should be greater than 1.
+          example: 24
+          minimum: 0
+          maximum: 1019
+          default: 0
+    BackupPolicyIDList_v1beta:
+      type: object
+      title: BackupPolicyIDList
+      required:
+        - backupPolicyUUIDs
+      properties:
+        backupPolicyUUIDs:
+          title: backupPolicyUUIDs
+          type: array
+          minItems: 1
+          items:
+            type: string
+            description: UUID v4 used to identify the backup policy
+            pattern: ^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$
+            example: 9760acf5-4638-11e7-9bdb-020073ca3333
+    VolumeBackupDetails_v1beta:
+      type: object
+      title: Volume backup mapping details
+      description: Volume and backup details
+      properties:
+        volumeName:
+          title: Volume name
+          type: string
+          description: Volume name
+          example: Volume 1
+        scheduledBackupCount:
+          title: Total scheduled backups count
+          type: integer
+          description: Number of scheduled backups for given volume
+          example: 24
+          default: 0
+        policyEnabled:
+          type: boolean
+          default: false
+          description: Enabling the policy
+          example: true
+          x-nullable: true
+    ResourceName_v1beta:
+      title: ResourceName
+      type: object
+      description: A required string describing the name of a resource
+      required:
+        - resourceId
+      properties:
+        resourceId:
+          type: string
+          description: A human readable label for the resource which is restricted to
+            letters, numbers, and hyphen, with the first character a letter, the last
+            a letter or a number, and a 63 character maximum
+          minLength: 1
+          pattern: ^[a-z]([a-z0-9-]{0,61}[a-z0-9])?$
+          maxLength: 63
+          example: my-resource
+    Description_v1beta:
+      title: Description
+      type: object
+      description: An optional string describing the resource
+      properties:
+        description:
+          type: string
+          example: My Resource Description
+          x-nullable: true
+          maxLength: 2048
   responses:
     StandardError-400:
       description: Bad request
@@ -4799,4 +5993,24 @@ components:
         maxLength: 36
         minLength: 36
         pattern: "^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$"
+        type: string
+    KmsConfigIdPathParameter:
+      name: kmsConfigId
+      in: path
+      description: UUID v4 used to identify the GCP KMS credentials
+      required: true
+      schema:
+        maxLength: 36
+        minLength: 36
+        pattern: ^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$
+        type: string
+    backupPolicyIdPathParameter:
+      name: backupPolicyId
+      in: path
+      description: UUID v4 used to identify the backup policy
+      required: true
+      schema:
+        maxLength: 36
+        minLength: 36
+        pattern: ^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$
         type: string

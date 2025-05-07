@@ -49,6 +49,8 @@ packages:
     config:
       dir: "{{.InterfaceDir}}"
       inpackage: True
+      recursive: True
+      include-regex: "ClientService"
   github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine:
     config:
       inpackage: True

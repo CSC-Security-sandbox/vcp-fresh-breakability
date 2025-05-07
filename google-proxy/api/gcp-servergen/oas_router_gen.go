@@ -135,6 +135,80 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 							break
 						}
 						switch elem[0] {
+						case 'b': // Prefix: "backupPolicies"
+
+							if l := len("backupPolicies"); len(elem) >= l && elem[0:l] == "backupPolicies" {
+								elem = elem[l:]
+							} else {
+								break
+							}
+
+							if len(elem) == 0 {
+								switch r.Method {
+								case "GET":
+									s.handleV1betaListBackupPoliciesRequest([2]string{
+										args[0],
+										args[1],
+									}, elemIsEscaped, w, r)
+								case "POST":
+									s.handleV1betaCreateBackupPolicyRequest([2]string{
+										args[0],
+										args[1],
+									}, elemIsEscaped, w, r)
+								default:
+									s.notAllowed(w, r, "GET,POST")
+								}
+
+								return
+							}
+							switch elem[0] {
+							case '/': // Prefix: "/"
+
+								if l := len("/"); len(elem) >= l && elem[0:l] == "/" {
+									elem = elem[l:]
+								} else {
+									break
+								}
+
+								// Param: "backupPolicyId"
+								// Leaf parameter, slashes are prohibited
+								idx := strings.IndexByte(elem, '/')
+								if idx >= 0 {
+									break
+								}
+								args[2] = elem
+								elem = ""
+
+								if len(elem) == 0 {
+									// Leaf node.
+									switch r.Method {
+									case "DELETE":
+										s.handleV1betaDeleteBackupPolicyRequest([3]string{
+											args[0],
+											args[1],
+											args[2],
+										}, elemIsEscaped, w, r)
+									case "GET":
+										s.handleV1betaDescribeBackupPolicyRequest([3]string{
+											args[0],
+											args[1],
+											args[2],
+										}, elemIsEscaped, w, r)
+									case "PUT":
+										s.handleV1betaUpdateBackupPolicyRequest([3]string{
+											args[0],
+											args[1],
+											args[2],
+										}, elemIsEscaped, w, r)
+									default:
+										s.notAllowed(w, r, "DELETE,GET,PUT")
+									}
+
+									return
+								}
+
+							}
+
 						case 'g': // Prefix: "getMultiple"
 
 							if l := len("getMultiple"); len(elem) >= l && elem[0:l] == "getMultiple" {
@@ -147,6 +221,29 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 								break
 							}
 							switch elem[0] {
+							case 'B': // Prefix: "BackupPolicies"
+
+								if l := len("BackupPolicies"); len(elem) >= l && elem[0:l] == "BackupPolicies" {
+									elem = elem[l:]
+								} else {
+									break
+								}
+
+								if len(elem) == 0 {
+									// Leaf node.
+									switch r.Method {
+									case "POST":
+										s.handleV1betaGetMultipleBackupPoliciesRequest([2]string{
+											args[0],
+											args[1],
+										}, elemIsEscaped, w, r)
+									default:
+										s.notAllowed(w, r, "POST")
+									}
+
+									return
+								}
+
 							case 'P': // Prefix: "Pools"
 
 								if l := len("Pools"); len(elem) >= l && elem[0:l] == "Pools" {
@@ -426,6 +523,105 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 								}
 
 								return
+							}
+
+						case 's': // Prefix: "storage/kmsConfig"
+
+							if l := len("storage/kmsConfig"); len(elem) >= l && elem[0:l] == "storage/kmsConfig" {
+								elem = elem[l:]
+							} else {
+								break
+							}
+
+							if len(elem) == 0 {
+								switch r.Method {
+								case "GET":
+									s.handleV1betaListKmsConfigurationsRequest([2]string{
+										args[0],
+										args[1],
+									}, elemIsEscaped, w, r)
+								case "POST":
+									s.handleV1betaCreateKmsConfigurationRequest([2]string{
+										args[0],
+										args[1],
+									}, elemIsEscaped, w, r)
+								default:
+									s.notAllowed(w, r, "GET,POST")
+								}
+
+								return
+							}
+							switch elem[0] {
+							case '/': // Prefix: "/"
+
+								if l := len("/"); len(elem) >= l && elem[0:l] == "/" {
+									elem = elem[l:]
+								} else {
+									break
+								}
+
+								// Param: "kmsConfigId"
+								// Match until "/"
+								idx := strings.IndexByte(elem, '/')
+								if idx < 0 {
+									idx = len(elem)
+								}
+								args[2] = elem[:idx]
+								elem = elem[idx:]
+
+								if len(elem) == 0 {
+									switch r.Method {
+									case "DELETE":
+										s.handleV1betaDeleteKmsConfigurationRequest([3]string{
+											args[0],
+											args[1],
+											args[2],
+										}, elemIsEscaped, w, r)
+									case "GET":
+										s.handleV1betaDescribeKmsConfigurationRequest([3]string{
+											args[0],
+											args[1],
+											args[2],
+										}, elemIsEscaped, w, r)
+									case "PUT":
+										s.handleV1betaUpdateKmsConfigurationRequest([3]string{
+											args[0],
+											args[1],
+											args[2],
+										}, elemIsEscaped, w, r)
+									default:
+										s.notAllowed(w, r, "DELETE,GET,PUT")
+									}
+
+									return
+								}
+								switch elem[0] {
+								case '/': // Prefix: "/check"
+
+									if l := len("/check"); len(elem) >= l && elem[0:l] == "/check" {
+										elem = elem[l:]
+									} else {
+										break
+									}
+
+									if len(elem) == 0 {
+										// Leaf node.
+										switch r.Method {
+										case "GET":
+											s.handleV1betaCheckKmsConfigRequest([3]string{
+												args[0],
+												args[1],
+												args[2],
+											}, elemIsEscaped, w, r)
+										default:
+											s.notAllowed(w, r, "GET")
+										}
+
+										return
+									}
+
+								}
+
 							}
 
 						case 'v': // Prefix: "volumes"
@@ -928,6 +1124,88 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 							break
 						}
 						switch elem[0] {
+						case 'b': // Prefix: "backupPolicies"
+
+							if l := len("backupPolicies"); len(elem) >= l && elem[0:l] == "backupPolicies" {
+								elem = elem[l:]
+							} else {
+								break
+							}
+
+							if len(elem) == 0 {
+								switch method {
+								case "GET":
+									r.name = V1betaListBackupPoliciesOperation
+									r.summary = "List all backup policies"
+									r.operationID = "v1beta_listBackupPolicies"
+									r.pathPattern = "/v1beta/projects/{projectNumber}/locations/{locationId}/backupPolicies"
+									r.args = args
+									r.count = 2
+									return r, true
+								case "POST":
+									r.name = V1betaCreateBackupPolicyOperation
+									r.summary = "Create a new backup policy"
+									r.operationID = "v1beta_createBackupPolicy"
+									r.pathPattern = "/v1beta/projects/{projectNumber}/locations/{locationId}/backupPolicies"
+									r.args = args
+									r.count = 2
+									return r, true
+								default:
+									return
+								}
+							}
+							switch elem[0] {
+							case '/': // Prefix: "/"
+
+								if l := len("/"); len(elem) >= l && elem[0:l] == "/" {
+									elem = elem[l:]
+								} else {
+									break
+								}
+
+								// Param: "backupPolicyId"
+								// Leaf parameter, slashes are prohibited
+								idx := strings.IndexByte(elem, '/')
+								if idx >= 0 {
+									break
+								}
+								args[2] = elem
+								elem = ""
+
+								if len(elem) == 0 {
+									// Leaf node.
+									switch method {
+									case "DELETE":
+										r.name = V1betaDeleteBackupPolicyOperation
+										r.summary = "Delete a backup policy"
+										r.operationID = "v1beta_deleteBackupPolicy"
+										r.pathPattern = "/v1beta/projects/{projectNumber}/locations/{locationId}/backupPolicies/{backupPolicyId}"
+										r.args = args
+										r.count = 3
+										return r, true
+									case "GET":
+										r.name = V1betaDescribeBackupPolicyOperation
+										r.summary = "Describe a backup policy"
+										r.operationID = "v1beta_describeBackupPolicy"
+										r.pathPattern = "/v1beta/projects/{projectNumber}/locations/{locationId}/backupPolicies/{backupPolicyId}"
+										r.args = args
+										r.count = 3
+										return r, true
+									case "PUT":
+										r.name = V1betaUpdateBackupPolicyOperation
+										r.summary = "Update a backup policy"
+										r.operationID = "v1beta_updateBackupPolicy"
+										r.pathPattern = "/v1beta/projects/{projectNumber}/locations/{locationId}/backupPolicies/{backupPolicyId}"
+										r.args = args
+										r.count = 3
+										return r, true
+									default:
+										return
+									}
+								}
+
+							}
+
 						case 'g': // Prefix: "getMultiple"
 
 							if l := len("getMultiple"); len(elem) >= l && elem[0:l] == "getMultiple" {
@@ -940,6 +1218,30 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 								break
 							}
 							switch elem[0] {
+							case 'B': // Prefix: "BackupPolicies"
+
+								if l := len("BackupPolicies"); len(elem) >= l && elem[0:l] == "BackupPolicies" {
+									elem = elem[l:]
+								} else {
+									break
+								}
+
+								if len(elem) == 0 {
+									// Leaf node.
+									switch method {
+									case "POST":
+										r.name = V1betaGetMultipleBackupPoliciesOperation
+										r.summary = "List specified backup policies"
+										r.operationID = "v1beta_getMultipleBackupPolicies"
+										r.pathPattern = "/v1beta/projects/{projectNumber}/locations/{locationId}/getMultipleBackupPolicies"
+										r.args = args
+										r.count = 2
+										return r, true
+									default:
+										return
+									}
+								}
+
 							case 'P': // Prefix: "Pools"
 
 								if l := len("Pools"); len(elem) >= l && elem[0:l] == "Pools" {
@@ -1239,6 +1541,113 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 								default:
 									return
 								}
+							}
+
+						case 's': // Prefix: "storage/kmsConfig"
+
+							if l := len("storage/kmsConfig"); len(elem) >= l && elem[0:l] == "storage/kmsConfig" {
+								elem = elem[l:]
+							} else {
+								break
+							}
+
+							if len(elem) == 0 {
+								switch method {
+								case "GET":
+									r.name = V1betaListKmsConfigurationsOperation
+									r.summary = "List all KMS configurations"
+									r.operationID = "v1beta_listKmsConfigurations"
+									r.pathPattern = "/v1beta/projects/{projectNumber}/locations/{locationId}/storage/kmsConfig"
+									r.args = args
+									r.count = 2
+									return r, true
+								case "POST":
+									r.name = V1betaCreateKmsConfigurationOperation
+									r.summary = "Create KMS configuration"
+									r.operationID = "v1beta_CreateKmsConfiguration"
+									r.pathPattern = "/v1beta/projects/{projectNumber}/locations/{locationId}/storage/kmsConfig"
+									r.args = args
+									r.count = 2
+									return r, true
+								default:
+									return
+								}
+							}
+							switch elem[0] {
+							case '/': // Prefix: "/"
+
+								if l := len("/"); len(elem) >= l && elem[0:l] == "/" {
+									elem = elem[l:]
+								} else {
+									break
+								}
+
+								// Param: "kmsConfigId"
+								// Match until "/"
+								idx := strings.IndexByte(elem, '/')
+								if idx < 0 {
+									idx = len(elem)
+								}
+								args[2] = elem[:idx]
+								elem = elem[idx:]
+
+								if len(elem) == 0 {
+									switch method {
+									case "DELETE":
+										r.name = V1betaDeleteKmsConfigurationOperation
+										r.summary = "Deletes a KMS configuration"
+										r.operationID = "v1beta_deleteKmsConfiguration"
+										r.pathPattern = "/v1beta/projects/{projectNumber}/locations/{locationId}/storage/kmsConfig/{kmsConfigId}"
+										r.args = args
+										r.count = 3
+										return r, true
+									case "GET":
+										r.name = V1betaDescribeKmsConfigurationOperation
+										r.summary = "Describe KMS configuration"
+										r.operationID = "v1beta_describeKmsConfiguration"
+										r.pathPattern = "/v1beta/projects/{projectNumber}/locations/{locationId}/storage/kmsConfig/{kmsConfigId}"
+										r.args = args
+										r.count = 3
+										return r, true
+									case "PUT":
+										r.name = V1betaUpdateKmsConfigurationOperation
+										r.summary = "Update a KMS configuration"
+										r.operationID = "v1beta_updateKmsConfiguration"
+										r.pathPattern = "/v1beta/projects/{projectNumber}/locations/{locationId}/storage/kmsConfig/{kmsConfigId}"
+										r.args = args
+										r.count = 3
+										return r, true
+									default:
+										return
+									}
+								}
+								switch elem[0] {
+								case '/': // Prefix: "/check"
+
+									if l := len("/check"); len(elem) >= l && elem[0:l] == "/check" {
+										elem = elem[l:]
+									} else {
+										break
+									}
+
+									if len(elem) == 0 {
+										// Leaf node.
+										switch method {
+										case "GET":
+											r.name = V1betaCheckKmsConfigOperation
+											r.summary = "Verifies KMS configuration reachability"
+											r.operationID = "v1beta_checkKmsConfig"
+											r.pathPattern = "/v1beta/projects/{projectNumber}/locations/{locationId}/storage/kmsConfig/{kmsConfigId}/check"
+											r.args = args
+											r.count = 3
+											return r, true
+										default:
+											return
+										}
+									}
+
+								}
+
 							}
 
 						case 'v': // Prefix: "volumes"
