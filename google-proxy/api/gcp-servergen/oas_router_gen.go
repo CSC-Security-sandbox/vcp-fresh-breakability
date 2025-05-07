@@ -462,9 +462,9 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 								break
 							}
 							switch elem[0] {
-							case 'b': // Prefix: "backupPolicies"
+							case 'a': // Prefix: "activeDirectories"
 
-								if l := len("backupPolicies"); len(elem) >= l && elem[0:l] == "backupPolicies" {
+								if l := len("activeDirectories"); len(elem) >= l && elem[0:l] == "activeDirectories" {
 									elem = elem[l:]
 								} else {
 									break
@@ -473,12 +473,12 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 								if len(elem) == 0 {
 									switch r.Method {
 									case "GET":
-										s.handleV1betaListBackupPoliciesRequest([2]string{
+										s.handleV1betaListActiveDirectoriesRequest([2]string{
 											args[0],
 											args[1],
 										}, elemIsEscaped, w, r)
 									case "POST":
-										s.handleV1betaCreateBackupPolicyRequest([2]string{
+										s.handleV1betaCreateActiveDirectoryRequest([2]string{
 											args[0],
 											args[1],
 										}, elemIsEscaped, w, r)
@@ -497,7 +497,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 										break
 									}
 
-									// Param: "backupPolicyId"
+									// Param: "activeDirectoryId"
 									// Leaf parameter, slashes are prohibited
 									idx := strings.IndexByte(elem, '/')
 									if idx >= 0 {
@@ -510,19 +510,19 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 										// Leaf node.
 										switch r.Method {
 										case "DELETE":
-											s.handleV1betaDeleteBackupPolicyRequest([3]string{
+											s.handleV1betaDeleteActiveDirectoryRequest([3]string{
 												args[0],
 												args[1],
 												args[2],
 											}, elemIsEscaped, w, r)
 										case "GET":
-											s.handleV1betaDescribeBackupPolicyRequest([3]string{
+											s.handleV1betaDescribeActiveDirectoryRequest([3]string{
 												args[0],
 												args[1],
 												args[2],
 											}, elemIsEscaped, w, r)
 										case "PUT":
-											s.handleV1betaUpdateBackupPolicyRequest([3]string{
+											s.handleV1betaUpdateActiveDirectoryRequest([3]string{
 												args[0],
 												args[1],
 												args[2],
@@ -532,6 +532,168 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 										}
 
 										return
+									}
+
+								}
+
+							case 'b': // Prefix: "backup"
+
+								if l := len("backup"); len(elem) >= l && elem[0:l] == "backup" {
+									elem = elem[l:]
+								} else {
+									break
+								}
+
+								if len(elem) == 0 {
+									break
+								}
+								switch elem[0] {
+								case 'P': // Prefix: "Policies"
+
+									if l := len("Policies"); len(elem) >= l && elem[0:l] == "Policies" {
+										elem = elem[l:]
+									} else {
+										break
+									}
+
+									if len(elem) == 0 {
+										switch r.Method {
+										case "GET":
+											s.handleV1betaListBackupPoliciesRequest([2]string{
+												args[0],
+												args[1],
+											}, elemIsEscaped, w, r)
+										case "POST":
+											s.handleV1betaCreateBackupPolicyRequest([2]string{
+												args[0],
+												args[1],
+											}, elemIsEscaped, w, r)
+										default:
+											s.notAllowed(w, r, "GET,POST")
+										}
+
+										return
+									}
+									switch elem[0] {
+									case '/': // Prefix: "/"
+
+										if l := len("/"); len(elem) >= l && elem[0:l] == "/" {
+											elem = elem[l:]
+										} else {
+											break
+										}
+
+										// Param: "backupPolicyId"
+										// Leaf parameter, slashes are prohibited
+										idx := strings.IndexByte(elem, '/')
+										if idx >= 0 {
+											break
+										}
+										args[2] = elem
+										elem = ""
+
+										if len(elem) == 0 {
+											// Leaf node.
+											switch r.Method {
+											case "DELETE":
+												s.handleV1betaDeleteBackupPolicyRequest([3]string{
+													args[0],
+													args[1],
+													args[2],
+												}, elemIsEscaped, w, r)
+											case "GET":
+												s.handleV1betaDescribeBackupPolicyRequest([3]string{
+													args[0],
+													args[1],
+													args[2],
+												}, elemIsEscaped, w, r)
+											case "PUT":
+												s.handleV1betaUpdateBackupPolicyRequest([3]string{
+													args[0],
+													args[1],
+													args[2],
+												}, elemIsEscaped, w, r)
+											default:
+												s.notAllowed(w, r, "DELETE,GET,PUT")
+											}
+
+											return
+										}
+
+									}
+
+								case 'V': // Prefix: "Vaults"
+
+									if l := len("Vaults"); len(elem) >= l && elem[0:l] == "Vaults" {
+										elem = elem[l:]
+									} else {
+										break
+									}
+
+									if len(elem) == 0 {
+										switch r.Method {
+										case "GET":
+											s.handleV1betaListBackupVaultsRequest([2]string{
+												args[0],
+												args[1],
+											}, elemIsEscaped, w, r)
+										case "POST":
+											s.handleV1betaCreateBackupVaultRequest([2]string{
+												args[0],
+												args[1],
+											}, elemIsEscaped, w, r)
+										default:
+											s.notAllowed(w, r, "GET,POST")
+										}
+
+										return
+									}
+									switch elem[0] {
+									case '/': // Prefix: "/"
+
+										if l := len("/"); len(elem) >= l && elem[0:l] == "/" {
+											elem = elem[l:]
+										} else {
+											break
+										}
+
+										// Param: "backupVaultId"
+										// Leaf parameter, slashes are prohibited
+										idx := strings.IndexByte(elem, '/')
+										if idx >= 0 {
+											break
+										}
+										args[2] = elem
+										elem = ""
+
+										if len(elem) == 0 {
+											// Leaf node.
+											switch r.Method {
+											case "DELETE":
+												s.handleV1betaDeleteBackupVaultRequest([3]string{
+													args[0],
+													args[1],
+													args[2],
+												}, elemIsEscaped, w, r)
+											case "GET":
+												s.handleV1betaDescribeBackupVaultRequest([3]string{
+													args[0],
+													args[1],
+													args[2],
+												}, elemIsEscaped, w, r)
+											case "PUT":
+												s.handleV1betaUpdateBackupVaultRequest([3]string{
+													args[0],
+													args[1],
+													args[2],
+												}, elemIsEscaped, w, r)
+											default:
+												s.notAllowed(w, r, "DELETE,GET,PUT")
+											}
+
+											return
+										}
+
 									}
 
 								}
@@ -548,9 +710,9 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 									break
 								}
 								switch elem[0] {
-								case 'B': // Prefix: "BackupPolicies"
+								case 'A': // Prefix: "ActiveDirectories"
 
-									if l := len("BackupPolicies"); len(elem) >= l && elem[0:l] == "BackupPolicies" {
+									if l := len("ActiveDirectories"); len(elem) >= l && elem[0:l] == "ActiveDirectories" {
 										elem = elem[l:]
 									} else {
 										break
@@ -560,7 +722,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 										// Leaf node.
 										switch r.Method {
 										case "POST":
-											s.handleV1betaGetMultipleBackupPoliciesRequest([2]string{
+											s.handleV1betaGetMultipleActiveDirectoriesRequest([2]string{
 												args[0],
 												args[1],
 											}, elemIsEscaped, w, r)
@@ -569,6 +731,66 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 										}
 
 										return
+									}
+
+								case 'B': // Prefix: "Backup"
+
+									if l := len("Backup"); len(elem) >= l && elem[0:l] == "Backup" {
+										elem = elem[l:]
+									} else {
+										break
+									}
+
+									if len(elem) == 0 {
+										break
+									}
+									switch elem[0] {
+									case 'P': // Prefix: "Policies"
+
+										if l := len("Policies"); len(elem) >= l && elem[0:l] == "Policies" {
+											elem = elem[l:]
+										} else {
+											break
+										}
+
+										if len(elem) == 0 {
+											// Leaf node.
+											switch r.Method {
+											case "POST":
+												s.handleV1betaGetMultipleBackupPoliciesRequest([2]string{
+													args[0],
+													args[1],
+												}, elemIsEscaped, w, r)
+											default:
+												s.notAllowed(w, r, "POST")
+											}
+
+											return
+										}
+
+									case 'V': // Prefix: "Vaults"
+
+										if l := len("Vaults"); len(elem) >= l && elem[0:l] == "Vaults" {
+											elem = elem[l:]
+										} else {
+											break
+										}
+
+										if len(elem) == 0 {
+											// Leaf node.
+											switch r.Method {
+											case "POST":
+												s.handleV1betaGetMultipleBackupVaultsRequest([2]string{
+													args[0],
+													args[1],
+												}, elemIsEscaped, w, r)
+											default:
+												s.notAllowed(w, r, "POST")
+											}
+
+											return
+										}
+
 									}
 
 								case 'P': // Prefix: "Pools"
@@ -1787,9 +2009,9 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 								break
 							}
 							switch elem[0] {
-							case 'b': // Prefix: "backupPolicies"
+							case 'a': // Prefix: "activeDirectories"
 
-								if l := len("backupPolicies"); len(elem) >= l && elem[0:l] == "backupPolicies" {
+								if l := len("activeDirectories"); len(elem) >= l && elem[0:l] == "activeDirectories" {
 									elem = elem[l:]
 								} else {
 									break
@@ -1798,18 +2020,18 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 								if len(elem) == 0 {
 									switch method {
 									case "GET":
-										r.name = V1betaListBackupPoliciesOperation
-										r.summary = "List all backup policies"
-										r.operationID = "v1beta_listBackupPolicies"
-										r.pathPattern = "/v1beta/projects/{projectNumber}/locations/{locationId}/backupPolicies"
+										r.name = V1betaListActiveDirectoriesOperation
+										r.summary = "List all Active Directory credentials"
+										r.operationID = "v1beta_listActiveDirectories"
+										r.pathPattern = "/v1beta/projects/{projectNumber}/locations/{locationId}/activeDirectories"
 										r.args = args
 										r.count = 2
 										return r, true
 									case "POST":
-										r.name = V1betaCreateBackupPolicyOperation
-										r.summary = "Create a new backup policy"
-										r.operationID = "v1beta_createBackupPolicy"
-										r.pathPattern = "/v1beta/projects/{projectNumber}/locations/{locationId}/backupPolicies"
+										r.name = V1betaCreateActiveDirectoryOperation
+										r.summary = "Create Active Directory credentials"
+										r.operationID = "v1beta_createActiveDirectory"
+										r.pathPattern = "/v1beta/projects/{projectNumber}/locations/{locationId}/activeDirectories"
 										r.args = args
 										r.count = 2
 										return r, true
@@ -1826,7 +2048,7 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 										break
 									}
 
-									// Param: "backupPolicyId"
+									// Param: "activeDirectoryId"
 									// Leaf parameter, slashes are prohibited
 									idx := strings.IndexByte(elem, '/')
 									if idx >= 0 {
@@ -1839,32 +2061,210 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 										// Leaf node.
 										switch method {
 										case "DELETE":
-											r.name = V1betaDeleteBackupPolicyOperation
-											r.summary = "Delete a backup policy"
-											r.operationID = "v1beta_deleteBackupPolicy"
-											r.pathPattern = "/v1beta/projects/{projectNumber}/locations/{locationId}/backupPolicies/{backupPolicyId}"
+											r.name = V1betaDeleteActiveDirectoryOperation
+											r.summary = "Delete the Active Directory credentials"
+											r.operationID = "v1beta_deleteActiveDirectory"
+											r.pathPattern = "/v1beta/projects/{projectNumber}/locations/{locationId}/activeDirectories/{activeDirectoryId}"
 											r.args = args
 											r.count = 3
 											return r, true
 										case "GET":
-											r.name = V1betaDescribeBackupPolicyOperation
-											r.summary = "Describe a backup policy"
-											r.operationID = "v1beta_describeBackupPolicy"
-											r.pathPattern = "/v1beta/projects/{projectNumber}/locations/{locationId}/backupPolicies/{backupPolicyId}"
+											r.name = V1betaDescribeActiveDirectoryOperation
+											r.summary = "Describe Active Directory credentials"
+											r.operationID = "v1beta_describeActiveDirectory"
+											r.pathPattern = "/v1beta/projects/{projectNumber}/locations/{locationId}/activeDirectories/{activeDirectoryId}"
 											r.args = args
 											r.count = 3
 											return r, true
 										case "PUT":
-											r.name = V1betaUpdateBackupPolicyOperation
-											r.summary = "Update a backup policy"
-											r.operationID = "v1beta_updateBackupPolicy"
-											r.pathPattern = "/v1beta/projects/{projectNumber}/locations/{locationId}/backupPolicies/{backupPolicyId}"
+											r.name = V1betaUpdateActiveDirectoryOperation
+											r.summary = "Update Active Directory credentials"
+											r.operationID = "v1beta_updateActiveDirectory"
+											r.pathPattern = "/v1beta/projects/{projectNumber}/locations/{locationId}/activeDirectories/{activeDirectoryId}"
 											r.args = args
 											r.count = 3
 											return r, true
 										default:
 											return
 										}
+									}
+
+								}
+
+							case 'b': // Prefix: "backup"
+
+								if l := len("backup"); len(elem) >= l && elem[0:l] == "backup" {
+									elem = elem[l:]
+								} else {
+									break
+								}
+
+								if len(elem) == 0 {
+									break
+								}
+								switch elem[0] {
+								case 'P': // Prefix: "Policies"
+
+									if l := len("Policies"); len(elem) >= l && elem[0:l] == "Policies" {
+										elem = elem[l:]
+									} else {
+										break
+									}
+
+									if len(elem) == 0 {
+										switch method {
+										case "GET":
+											r.name = V1betaListBackupPoliciesOperation
+											r.summary = "List all backup policies"
+											r.operationID = "v1beta_listBackupPolicies"
+											r.pathPattern = "/v1beta/projects/{projectNumber}/locations/{locationId}/backupPolicies"
+											r.args = args
+											r.count = 2
+											return r, true
+										case "POST":
+											r.name = V1betaCreateBackupPolicyOperation
+											r.summary = "Create a new backup policy"
+											r.operationID = "v1beta_createBackupPolicy"
+											r.pathPattern = "/v1beta/projects/{projectNumber}/locations/{locationId}/backupPolicies"
+											r.args = args
+											r.count = 2
+											return r, true
+										default:
+											return
+										}
+									}
+									switch elem[0] {
+									case '/': // Prefix: "/"
+
+										if l := len("/"); len(elem) >= l && elem[0:l] == "/" {
+											elem = elem[l:]
+										} else {
+											break
+										}
+
+										// Param: "backupPolicyId"
+										// Leaf parameter, slashes are prohibited
+										idx := strings.IndexByte(elem, '/')
+										if idx >= 0 {
+											break
+										}
+										args[2] = elem
+										elem = ""
+
+										if len(elem) == 0 {
+											// Leaf node.
+											switch method {
+											case "DELETE":
+												r.name = V1betaDeleteBackupPolicyOperation
+												r.summary = "Delete a backup policy"
+												r.operationID = "v1beta_deleteBackupPolicy"
+												r.pathPattern = "/v1beta/projects/{projectNumber}/locations/{locationId}/backupPolicies/{backupPolicyId}"
+												r.args = args
+												r.count = 3
+												return r, true
+											case "GET":
+												r.name = V1betaDescribeBackupPolicyOperation
+												r.summary = "Describe a backup policy"
+												r.operationID = "v1beta_describeBackupPolicy"
+												r.pathPattern = "/v1beta/projects/{projectNumber}/locations/{locationId}/backupPolicies/{backupPolicyId}"
+												r.args = args
+												r.count = 3
+												return r, true
+											case "PUT":
+												r.name = V1betaUpdateBackupPolicyOperation
+												r.summary = "Update a backup policy"
+												r.operationID = "v1beta_updateBackupPolicy"
+												r.pathPattern = "/v1beta/projects/{projectNumber}/locations/{locationId}/backupPolicies/{backupPolicyId}"
+												r.args = args
+												r.count = 3
+												return r, true
+											default:
+												return
+											}
+										}
+
+									}
+
+								case 'V': // Prefix: "Vaults"
+
+									if l := len("Vaults"); len(elem) >= l && elem[0:l] == "Vaults" {
+										elem = elem[l:]
+									} else {
+										break
+									}
+
+									if len(elem) == 0 {
+										switch method {
+										case "GET":
+											r.name = V1betaListBackupVaultsOperation
+											r.summary = "Describe all backup vaults for a project"
+											r.operationID = "v1beta_listBackupVaults"
+											r.pathPattern = "/v1beta/projects/{projectNumber}/locations/{locationId}/backupVaults"
+											r.args = args
+											r.count = 2
+											return r, true
+										case "POST":
+											r.name = V1betaCreateBackupVaultOperation
+											r.summary = "Create a new backup vault"
+											r.operationID = "v1beta_createBackupVault"
+											r.pathPattern = "/v1beta/projects/{projectNumber}/locations/{locationId}/backupVaults"
+											r.args = args
+											r.count = 2
+											return r, true
+										default:
+											return
+										}
+									}
+									switch elem[0] {
+									case '/': // Prefix: "/"
+
+										if l := len("/"); len(elem) >= l && elem[0:l] == "/" {
+											elem = elem[l:]
+										} else {
+											break
+										}
+
+										// Param: "backupVaultId"
+										// Leaf parameter, slashes are prohibited
+										idx := strings.IndexByte(elem, '/')
+										if idx >= 0 {
+											break
+										}
+										args[2] = elem
+										elem = ""
+
+										if len(elem) == 0 {
+											// Leaf node.
+											switch method {
+											case "DELETE":
+												r.name = V1betaDeleteBackupVaultOperation
+												r.summary = "Delete a backup vault"
+												r.operationID = "v1beta_deleteBackupVault"
+												r.pathPattern = "/v1beta/projects/{projectNumber}/locations/{locationId}/backupVaults/{backupVaultId}"
+												r.args = args
+												r.count = 3
+												return r, true
+											case "GET":
+												r.name = V1betaDescribeBackupVaultOperation
+												r.summary = "Describe a backup vault"
+												r.operationID = "v1beta_describeBackupVault"
+												r.pathPattern = "/v1beta/projects/{projectNumber}/locations/{locationId}/backupVaults/{backupVaultId}"
+												r.args = args
+												r.count = 3
+												return r, true
+											case "PUT":
+												r.name = V1betaUpdateBackupVaultOperation
+												r.summary = "Update backup vault"
+												r.operationID = "v1beta_updateBackupVault"
+												r.pathPattern = "/v1beta/projects/{projectNumber}/locations/{locationId}/backupVaults/{backupVaultId}"
+												r.args = args
+												r.count = 3
+												return r, true
+											default:
+												return
+											}
+										}
+
 									}
 
 								}
@@ -1881,9 +2281,9 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 									break
 								}
 								switch elem[0] {
-								case 'B': // Prefix: "BackupPolicies"
+								case 'A': // Prefix: "ActiveDirectories"
 
-									if l := len("BackupPolicies"); len(elem) >= l && elem[0:l] == "BackupPolicies" {
+									if l := len("ActiveDirectories"); len(elem) >= l && elem[0:l] == "ActiveDirectories" {
 										elem = elem[l:]
 									} else {
 										break
@@ -1893,16 +2293,78 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 										// Leaf node.
 										switch method {
 										case "POST":
-											r.name = V1betaGetMultipleBackupPoliciesOperation
-											r.summary = "List specified backup policies"
-											r.operationID = "v1beta_getMultipleBackupPolicies"
-											r.pathPattern = "/v1beta/projects/{projectNumber}/locations/{locationId}/getMultipleBackupPolicies"
+											r.name = V1betaGetMultipleActiveDirectoriesOperation
+											r.summary = "List specified Active Directories' credentials"
+											r.operationID = "v1beta_getMultipleActiveDirectories"
+											r.pathPattern = "/v1beta/projects/{projectNumber}/locations/{locationId}/getMultipleActiveDirectories"
 											r.args = args
 											r.count = 2
 											return r, true
 										default:
 											return
 										}
+									}
+
+								case 'B': // Prefix: "Backup"
+
+									if l := len("Backup"); len(elem) >= l && elem[0:l] == "Backup" {
+										elem = elem[l:]
+									} else {
+										break
+									}
+
+									if len(elem) == 0 {
+										break
+									}
+									switch elem[0] {
+									case 'P': // Prefix: "Policies"
+
+										if l := len("Policies"); len(elem) >= l && elem[0:l] == "Policies" {
+											elem = elem[l:]
+										} else {
+											break
+										}
+
+										if len(elem) == 0 {
+											// Leaf node.
+											switch method {
+											case "POST":
+												r.name = V1betaGetMultipleBackupPoliciesOperation
+												r.summary = "List specified backup policies"
+												r.operationID = "v1beta_getMultipleBackupPolicies"
+												r.pathPattern = "/v1beta/projects/{projectNumber}/locations/{locationId}/getMultipleBackupPolicies"
+												r.args = args
+												r.count = 2
+												return r, true
+											default:
+												return
+											}
+										}
+
+									case 'V': // Prefix: "Vaults"
+
+										if l := len("Vaults"); len(elem) >= l && elem[0:l] == "Vaults" {
+											elem = elem[l:]
+										} else {
+											break
+										}
+
+										if len(elem) == 0 {
+											// Leaf node.
+											switch method {
+											case "POST":
+												r.name = V1betaGetMultipleBackupVaultsOperation
+												r.summary = "List specified backup vaults"
+												r.operationID = "v1beta_getMultipleBackupVaults"
+												r.pathPattern = "/v1beta/projects/{projectNumber}/locations/{locationId}/getMultipleBackupVaults"
+												r.args = args
+												r.count = 2
+												return r, true
+											default:
+												return
+											}
+										}
+
 									}
 
 								case 'P': // Prefix: "Pools"

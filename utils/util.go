@@ -136,7 +136,6 @@ func _parseRegionAndZone(locationID string) (string, string, error) {
 	return region, zone, nil
 }
 
-// getLoggerFromContext extracts the logger from the provided context.
 func getLoggerFromContext(ctx context.Context) log.Logger {
 	if logger, ok := ctx.Value(middleware.ContextSLoggerKey).(log.Logger); ok {
 		return logger
@@ -144,6 +143,7 @@ func getLoggerFromContext(ctx context.Context) log.Logger {
 	return log.NewLogger()
 }
 
+// GetJWTTokenFromContext gets the JWT token from the context
 func GetJWTTokenFromContext(ctx context.Context) string {
 	if header, ok := ctx.Value(middleware.HeaderContextKey).(http.Header); ok {
 		return header.Get("Authorization")

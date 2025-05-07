@@ -17,6 +17,10 @@ tags:
     description: Volume operations
   - name: HostGroups
     description: HostGroup operations
+  - name: activeDirectories
+    description: AD operations
+  - name: backupVault
+    description: BackupVault operations
   - name: async
     description: Long running operations
   - name: replications
@@ -2257,6 +2261,761 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
+  /v1beta/projects/{projectNumber}/locations/{locationId}/activeDirectories:
+    get:
+      operationId: v1beta_listActiveDirectories
+      summary: List all Active Directory credentials
+      description: Returns descriptions of all Active Directory credentials owned
+        by the caller.
+      tags:
+        - activeDirectories
+      parameters:
+        - $ref: '#/components/parameters/projectNumberPathParameter'
+        - $ref: '#/components/parameters/locationIdPathParameter'
+        - $ref: '#/components/parameters/xCorrelationIdHeader'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - type: object
+                    properties:
+                      activeDirectories:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/ActiveDirectory_v1beta'
+              example:
+                application/json:
+                  activeDirectories:
+                    - activeDirectoryId: 9760acf5-4638-11e7-9bdb-020073ca7773
+                      username: superman
+                      password: '****************'
+                      resourceId: my-active-directory
+                      domain: krypton.galaxy
+                      DNS: 100.101.102.103
+                      netBIOS: cvserver
+                      organizationalUnit: CN=Computers
+                      activeDirectoryState: CREATED
+                      activeDirectoryStateDetails: Credentials saved and available for use
+                      createdAt: '2017-01-29T09:10:32.212Z'
+                      updatedAt: '2017-01-29T09:10:32.212Z'
+                      backupOperators:
+                        - Superman
+                        - Batman
+                      aesEncryption: false
+                      ldapSigning: false
+                      encryptDCConnections: false
+                      description: My Active Directory description
+                      kdcHostname: My Active Directory Machine
+                    - activeDirectoryId: 5fca0679-4638-11e7-9bdb-020073ca7773
+                      username: batman
+                      password: '****************'
+                      resourceId: my-active-directory
+                      domain: bat.cave
+                      DNS: 200.201.202.203
+                      netBIOS: wayne
+                      organizationalUnit: CN=Computers
+                      activeDirectoryState: IN_USE
+                      activeDirectoryStateDetails: Machine account created in the domain
+                      createdAt: '2016-11-28T19:30:23.123Z'
+                      updatedAt: '2017-01-28T11:03:44.733Z'
+                      backupOperators:
+                        - Superman
+                        - Batman
+                      encryptDCConnections: false
+                      ldapSigning: false
+                      description: My Active Directory description
+                      kdcHostname: My Active Directory Machine
+        '400':
+          $ref: '#/components/responses/StandardError-400'
+        '401':
+          $ref: '#/components/responses/StandardError-401'
+        '403':
+          $ref: '#/components/responses/StandardError-403'
+        '404':
+          $ref: '#/components/responses/StandardError-404'
+        '429':
+          $ref: '#/components/responses/StandardError-429'
+        '500':
+          $ref: '#/components/responses/StandardError-500'
+        default:
+          description: Unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    post:
+      operationId: v1beta_createActiveDirectory
+      summary: Create Active Directory credentials
+      description: Creates Active Directory credentials for the active user
+      tags:
+        - activeDirectories
+      parameters:
+        - $ref: '#/components/parameters/projectNumberPathParameter'
+        - $ref: '#/components/parameters/locationIdPathParameter'
+        - $ref: '#/components/parameters/xCorrelationIdHeader'
+      requestBody:
+        description: The required parameters to create new Active Directory credentials.
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ActiveDirectory_v1beta'
+        required: true
+      responses:
+        '202':
+          description: Creating Active Directory
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Operation_v1beta'
+              example:
+                application/json:
+                  done: true
+                  name: /v1beta/projects/123456789/locations/some-location1/operations/00000000-0000-0000-0000-000000000000
+                  response:
+                    DNS: 101.102.103.104
+                    activeDirectoryId: 9fbf76ef-9964-07d1-5f57-0e8f867e0367
+                    activeDirectoryState: READY
+                    activeDirectoryStateDetails: Credentials saved and available for use
+                    administrators:
+                      - batman
+                      - clarkkent
+                    aesEncryption: false
+                    allowLocalNFSUsersWithLdap: false
+                    backupOperators:
+                      - batman
+                      - clarkkent
+                    createdAt: '2024-01-26T16:08:38.841Z'
+                    domain: krypton.com
+                    encryptDCConnections: false
+                    ldapSigning: false
+                    netBIOS: cvserver
+                    site: Default-First-Site-Name
+                    kdcIP: 101.102.103.104
+                    kdcHostname: 2BOVAEKB44B
+                    organizationalUnit: CN=Computers
+                    password: '******************'
+                    resourceId: my-active-directory
+                    securityOperators:
+                      - batman
+                    updatedAt: '2024-01-26T16:08:38.841Z'
+                    username: superman
+                    description: My active directory description
+        '400':
+          $ref: '#/components/responses/StandardError-400'
+        '401':
+          $ref: '#/components/responses/StandardError-401'
+        '403':
+          $ref: '#/components/responses/StandardError-403'
+        '409':
+          $ref: '#/components/responses/StandardError-409'
+        '422':
+          $ref: '#/components/responses/StandardError-422'
+        '429':
+          $ref: '#/components/responses/StandardError-429'
+        '500':
+          $ref: '#/components/responses/StandardError-500'
+        default:
+          description: Unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /v1beta/projects/{projectNumber}/locations/{locationId}/activeDirectories/{activeDirectoryId}:
+    get:
+      operationId: v1beta_describeActiveDirectory
+      summary: Describe Active Directory credentials
+      description: Returns the description of the specified Active Directory credentials
+        by active-directory ID.
+      tags:
+        - activeDirectories
+      parameters:
+        - $ref: '#/components/parameters/projectNumberPathParameter'
+        - $ref: '#/components/parameters/locationIdPathParameter'
+        - $ref: '#/components/parameters/xCorrelationIdHeader'
+        - $ref: '#/components/parameters/activeDirectoryIdPathParameter'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ActiveDirectory_v1beta'
+              example:
+                application/json:
+                  activeDirectoryId: 9760acf5-4638-11e7-9bdb-020073ca7773
+                  username: superman
+                  password: '****************'
+                  resourceId: my-active-directory
+                  domain: krypton.galaxy
+                  DNS: 100.101.102.103
+                  netBIOS: cvserver
+                  organizationalUnit: CN=Computers
+                  activeDirectoryState: READY
+                  activeDirectoryStateDetails: Credentials saved and available for use
+                  createdAt: '2017-01-29T09:10:32.212Z'
+                  updatedAt: '2017-01-29T09:10:32.212Z'
+                  backupOperators:
+                    - Superman
+                    - Batman
+                  aesEncryption: true
+                  ldapSigning: true
+                  encryptDCConnections: false
+                  description: My Active Directory description
+                  kdcHostName: My Active Directory Machine
+        '400':
+          $ref: '#/components/responses/StandardError-400'
+        '401':
+          $ref: '#/components/responses/StandardError-401'
+        '403':
+          $ref: '#/components/responses/StandardError-403'
+        '404':
+          $ref: '#/components/responses/StandardError-404'
+        '422':
+          $ref: '#/components/responses/StandardError-422'
+        '429':
+          $ref: '#/components/responses/StandardError-429'
+        '500':
+          $ref: '#/components/responses/StandardError-500'
+        default:
+          description: Unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    put:
+      operationId: v1beta_updateActiveDirectory
+      summary: Update Active Directory credentials
+      description: Update the Active Directory credentials
+      tags:
+        - activeDirectories
+      parameters:
+        - $ref: '#/components/parameters/projectNumberPathParameter'
+        - $ref: '#/components/parameters/locationIdPathParameter'
+        - $ref: '#/components/parameters/xCorrelationIdHeader'
+        - $ref: '#/components/parameters/activeDirectoryIdPathParameter'
+      requestBody:
+        description: The parameters that can be updated.
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ActiveDirectoryUpdate_v1beta'
+        required: true
+      responses:
+        '202':
+          description: Updating Active Directory
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Operation_v1beta'
+              example:
+                application/json:
+                  done: true
+                  name: /v1beta/projects/123456789/locations/some-location1/operations/00000000-0000-0000-0000-000000000000
+                  response:
+                    DNS: 101.102.103.104
+                    activeDirectoryId: 9fbf76ef-9964-07d1-5f57-0e8f867e0367
+                    activeDirectoryState: READY
+                    activeDirectoryStateDetails: Credentials saved and available for use
+                    administrators:
+                      - batman
+                      - clarkkent
+                    aesEncryption: false
+                    allowLocalNFSUsersWithLdap: false
+                    backupOperators:
+                      - batman
+                      - clarkkent
+                    createdAt: '2024-01-26T16:08:38.841Z'
+                    domain: krypton.com
+                    encryptDCConnections: false
+                    ldapSigning: false
+                    netBIOS: cvserver
+                    site: Default-First-Site-Name
+                    kdcIP: 101.102.103.104
+                    kdcHostname: 2BOVAEKB44B
+                    organizationalUnit: CN=Computers
+                    password: '******************'
+                    resourceId: my-active-directory
+                    securityOperators:
+                      - batman
+                    updatedAt: '2024-01-26T16:08:38.841Z'
+                    username: superman
+                    description: My active directory description
+        '400':
+          $ref: '#/components/responses/StandardError-400'
+        '401':
+          $ref: '#/components/responses/StandardError-401'
+        '403':
+          $ref: '#/components/responses/StandardError-403'
+        '404':
+          $ref: '#/components/responses/StandardError-404'
+        '409':
+          $ref: '#/components/responses/StandardError-409'
+        '422':
+          $ref: '#/components/responses/StandardError-422'
+        '429':
+          $ref: '#/components/responses/StandardError-429'
+        '500':
+          $ref: '#/components/responses/StandardError-500'
+        default:
+          description: Unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    delete:
+      operationId: v1beta_deleteActiveDirectory
+      summary: Delete the Active Directory credentials
+      description: Deletes the Active Directory credentials for the active user. This
+        operation will never return resource not found, since that could be interpreted
+        as resource already deleted, and therefore will return operation done instead.
+      tags:
+        - activeDirectories
+      parameters:
+        - $ref: '#/components/parameters/projectNumberPathParameter'
+        - $ref: '#/components/parameters/locationIdPathParameter'
+        - $ref: '#/components/parameters/xCorrelationIdHeader'
+        - $ref: '#/components/parameters/activeDirectoryIdPathParameter'
+      responses:
+        '202':
+          description: Deleting Active Directory
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Operation_v1beta'
+              example:
+                application/json:
+                  done: true
+                  name: /v1beta/projects/123456789/locations/some-location1/operations/00000000-0000-0000-0000-000000000000
+        '400':
+          $ref: '#/components/responses/StandardError-400'
+        '401':
+          $ref: '#/components/responses/StandardError-401'
+        '403':
+          $ref: '#/components/responses/StandardError-403'
+        '409':
+          $ref: '#/components/responses/StandardError-409'
+        '422':
+          $ref: '#/components/responses/StandardError-422'
+        '429':
+          $ref: '#/components/responses/StandardError-429'
+        '500':
+          $ref: '#/components/responses/StandardError-500'
+        default:
+          description: Unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /v1beta/projects/{projectNumber}/locations/{locationId}/getMultipleActiveDirectories:
+    post:
+      operationId: v1beta_getMultipleActiveDirectories
+      summary: List specified Active Directories' credentials
+      description: Returns descriptions of Active Directory credentials that is listed
+        in request body.
+      tags:
+        - activeDirectories
+      parameters:
+        - $ref: '#/components/parameters/projectNumberPathParameter'
+        - $ref: '#/components/parameters/locationIdPathParameter'
+        - $ref: '#/components/parameters/xCorrelationIdHeader'
+      requestBody:
+        description: A list of Active Directory UUIDs to return.
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ActiveDirectoryIDList_v1beta'
+        required: true
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - type: object
+                    properties:
+                      activeDirectories:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/ActiveDirectory_v1beta'
+              example:
+                application/json:
+                  activeDirectories:
+                    - activeDirectoryId: 9760acf5-4638-11e7-9bdb-020073ca7773
+                      username: superman
+                      password: '****************'
+                      resourceId: my-active-directory
+                      domain: krypton.galaxy
+                      DNS: 100.101.102.103
+                      netBIOS: cvserver
+                      organizationalUnit: CN=Computers
+                      activeDirectoryState: READY
+                      activeDirectoryStateDetails: Credentials saved and available for use
+                      createdAt: '2017-01-29T09:10:32.212Z'
+                      updatedAt: '2017-01-29T09:10:32.212Z'
+                      backupOperators:
+                        - Superman
+                        - Batman
+                      aesEncryption: false
+                      ldapSigning: false
+                      encryptDCConnections: false
+                      description: My Active Directory description
+                      kdcHostname: My Active Directory Machine
+                    - activeDirectoryId: 5fca0679-4638-11e7-9bdb-020073ca7773
+                      username: batman
+                      password: '****************'
+                      resourceId: my-active-directory
+                      domain: bat.cave
+                      DNS: 200.201.202.203
+                      netBIOS: wayne
+                      organizationalUnit: CN=Computers
+                      activeDirectoryState: IN_USE
+                      activeDirectoryStateDetails: Machine account created in the domain
+                      createdAt: '2016-11-28T19:30:23.123Z'
+                      updatedAt: '2017-01-28T11:03:44.733Z'
+                      backupOperators:
+                        - Superman
+                        - Batman
+                      encryptDCConnections: false
+                      ldapSigning: false
+                      description: My Active Directory description
+                      kdcHostname: My Active Directory Machine
+        '400':
+          $ref: '#/components/responses/StandardError-400'
+        '401':
+          $ref: '#/components/responses/StandardError-401'
+        '403':
+          $ref: '#/components/responses/StandardError-403'
+        '404':
+          $ref: '#/components/responses/StandardError-404'
+        '429':
+          $ref: '#/components/responses/StandardError-429'
+        '500':
+          $ref: '#/components/responses/StandardError-500'
+        default:
+          description: Unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /v1beta/projects/{projectNumber}/locations/{locationId}/backupVaults:
+    get:
+      operationId: v1beta_listBackupVaults
+      summary: Describe all backup vaults for a project
+      description: Returns descriptions of all backup vaults.
+      tags:
+        - backupVault
+      parameters:
+        - in: query
+          name: includeDeleted
+          required: false
+          allowEmptyValue: true
+          schema:
+            type: boolean
+            default: false
+        - $ref: '#/components/parameters/projectNumberPathParameter'
+        - $ref: '#/components/parameters/locationIdPathParameter'
+        - $ref: '#/components/parameters/xCorrelationIdHeader'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - type: object
+                    properties:
+                      backupVaults:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/BackupVault_v1beta'
+                example:
+                  application/json:
+                    backupVaults:
+                      - backupVaultId: 9760acf5-4638-11e7-9bdb-020073ca3333
+                        resourceId: backupvault1
+                        description: Dummy description
+                        region: us-east4
+                        state: READY
+                        stateDetails: Available for use
+                      - backupVaultId: 9760acf5-4638-11e7-9bdb-020073ca3334
+                        resourceId: backupvault2
+                        region: us-east4
+                        state: READY
+                        stateDetails: Available for use
+        '400':
+          $ref: '#/components/responses/StandardError-400'
+        '401':
+          $ref: '#/components/responses/StandardError-401'
+        '403':
+          $ref: '#/components/responses/StandardError-403'
+        '404':
+          $ref: '#/components/responses/StandardError-404'
+        '429':
+          $ref: '#/components/responses/StandardError-429'
+        '500':
+          $ref: '#/components/responses/StandardError-500'
+        '501':
+          $ref: '#/components/responses/StandardError-501'
+        default:
+          description: Unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    post:
+      operationId: v1beta_createBackupVault
+      summary: Create a new backup vault
+      description: Creates a new backup vault
+      tags:
+        - backupVault
+      parameters:
+        - $ref: '#/components/parameters/projectNumberPathParameter'
+        - $ref: '#/components/parameters/locationIdPathParameter'
+        - $ref: '#/components/parameters/xCorrelationIdHeader'
+      requestBody:
+        description: The required parameters to create a new backup.
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BackupVaultCreate_v1beta'
+        required: true
+      responses:
+        '202':
+          description: Creating backup vault
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Operation_v1beta'
+        '400':
+          $ref: '#/components/responses/StandardError-400'
+        '401':
+          $ref: '#/components/responses/StandardError-401'
+        '403':
+          $ref: '#/components/responses/StandardError-403'
+        '409':
+          $ref: '#/components/responses/StandardError-409'
+        '422':
+          $ref: '#/components/responses/StandardError-422'
+        '429':
+          $ref: '#/components/responses/StandardError-429'
+        '500':
+          $ref: '#/components/responses/StandardError-500'
+        default:
+          description: Unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /v1beta/projects/{projectNumber}/locations/{locationId}/backupVaults/{backupVaultId}:
+    get:
+      operationId: v1beta_describeBackupVault
+      summary: Describe a backup vault
+      description: Returns the description of the specified backup vault.
+      tags:
+        - backupVault
+      parameters:
+        - in: query
+          name: includeDeleted
+          required: false
+          allowEmptyValue: true
+          schema:
+            type: boolean
+            default: false
+          description: If true, response will include deleted backup vaults
+        - $ref: '#/components/parameters/backupVaultIdPathParameter'
+        - $ref: '#/components/parameters/projectNumberPathParameter'
+        - $ref: '#/components/parameters/locationIdPathParameter'
+        - $ref: '#/components/parameters/xCorrelationIdHeader'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BackupVault_v1beta'
+              example:
+                application/json:
+                  backupVaultId: 9760acf5-4638-11e7-9bdb-020073ca3333
+                  resourceId: backupVault1
+                  description: Dummy description
+                  created: '2017-02-02T00:00:00.000Z'
+                  state: READY
+                  stateDetails: Available for use
+        '400':
+          $ref: '#/components/responses/StandardError-400'
+        '401':
+          $ref: '#/components/responses/StandardError-401'
+        '403':
+          $ref: '#/components/responses/StandardError-403'
+        '404':
+          $ref: '#/components/responses/StandardError-404'
+        '422':
+          $ref: '#/components/responses/StandardError-422'
+        '429':
+          $ref: '#/components/responses/StandardError-429'
+        '500':
+          $ref: '#/components/responses/StandardError-500'
+        default:
+          description: Unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    put:
+      operationId: v1beta_updateBackupVault
+      summary: Update backup vault
+      description: Update the backup vault
+      tags:
+        - backupVault
+      parameters:
+        - $ref: '#/components/parameters/backupVaultIdPathParameter'
+        - $ref: '#/components/parameters/projectNumberPathParameter'
+        - $ref: '#/components/parameters/locationIdPathParameter'
+        - $ref: '#/components/parameters/xCorrelationIdHeader'
+      requestBody:
+        description: The required parameters to create a new backup.
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BackupVaultUpdate_v1beta'
+        required: true
+      responses:
+        '202':
+          description: Updating backup vault
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Operation_v1beta'
+        '400':
+          $ref: '#/components/responses/StandardError-400'
+        '401':
+          $ref: '#/components/responses/StandardError-401'
+        '403':
+          $ref: '#/components/responses/StandardError-403'
+        '409':
+          $ref: '#/components/responses/StandardError-409'
+        '422':
+          $ref: '#/components/responses/StandardError-422'
+        '429':
+          $ref: '#/components/responses/StandardError-429'
+        '500':
+          $ref: '#/components/responses/StandardError-500'
+        default:
+          description: Unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    delete:
+      operationId: v1beta_deleteBackupVault
+      summary: Delete a backup vault
+      description: Warning! This operation will permanently delete the backup vault.
+      tags:
+        - backupVault
+      parameters:
+        - $ref: '#/components/parameters/backupVaultIdPathParameter'
+        - $ref: '#/components/parameters/projectNumberPathParameter'
+        - $ref: '#/components/parameters/locationIdPathParameter'
+        - $ref: '#/components/parameters/xCorrelationIdHeader'
+      responses:
+        '202':
+          description: Accepted. Deleting backup vault
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Operation_v1beta'
+        '204':
+          description: No content
+        '400':
+          $ref: '#/components/responses/StandardError-400'
+        '401':
+          $ref: '#/components/responses/StandardError-401'
+        '403':
+          $ref: '#/components/responses/StandardError-403'
+        '404':
+          $ref: '#/components/responses/StandardError-404'
+        '409':
+          $ref: '#/components/responses/StandardError-409'
+        '422':
+          $ref: '#/components/responses/StandardError-422'
+        '429':
+          $ref: '#/components/responses/StandardError-429'
+        '500':
+          $ref: '#/components/responses/StandardError-500'
+        default:
+          description: Unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /v1beta/projects/{projectNumber}/locations/{locationId}/getMultipleBackupVaults:
+    post:
+      operationId: v1beta_getMultipleBackupVaults
+      summary: List specified backup vaults
+      description: Returns descriptions of backup vaults that is listed in request
+        body.
+      tags:
+        - backupVault
+      parameters:
+        - $ref: '#/components/parameters/projectNumberPathParameter'
+        - $ref: '#/components/parameters/locationIdPathParameter'
+        - $ref: '#/components/parameters/xCorrelationIdHeader'
+      requestBody:
+        description: A list of backup vault UUIDs to return.
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BackupVaultUUIDList_v1beta'
+        required: true
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - type: object
+                    properties:
+                      backupVaults:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/BackupVault_v1beta'
+              example:
+                application/json:
+                  backupVaults:
+                    - backupVaultId: 9760acf5-4638-11e7-9bdb-020073ca3333
+                      resourceId: backupvault1
+                      description: Dummy description
+                      region: us-east4
+                      state: READY
+                      stateDetails: Available for use
+                    - backupVaultId: 9760acf5-4638-11e7-9bdb-020073ca3334
+                      resourceId: backupvault2
+                      region: us-east4
+                      state: READY
+                      stateDetails: Available for use
+        '400':
+          $ref: '#/components/responses/StandardError-400'
+        '401':
+          $ref: '#/components/responses/StandardError-401'
+        '403':
+          $ref: '#/components/responses/StandardError-403'
+        '404':
+          $ref: '#/components/responses/StandardError-404'
+        '500':
+          $ref: '#/components/responses/StandardError-500'
+        '501':
+          $ref: '#/components/responses/StandardError-501'
+        default:
+          description: Unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
   /v1beta/projects/{projectNumber}/locations/{locationId}/storage/kmsConfig:
     get:
       tags:
@@ -4273,6 +5032,7 @@ components:
           type: number
           description: Size of the pool in bytes
           format: double
+          multipleOf: 1073741824  # Must be a multiple of 1 GiB
           example: 2199023255552
           default: 2199023255552
         allocatedBytes:
@@ -6739,6 +7499,610 @@ components:
           example: My Resource Description
           x-nullable: true
           maxLength: 2048
+    ActiveDirectory_v1beta:
+      type: object
+      title: ActiveDirectory
+      required:
+        - username
+        - password
+        - domain
+        - DNS
+        - netBIOS
+        - resourceId
+      properties:
+        activeDirectoryId:
+          title: activeDirectoryId
+          type: string
+          readOnly: true
+          description: UUID v4 used to identify the Active Directory credentials
+          pattern: ^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$
+          maxLength: 36
+          minLength: 36
+          example: 9760acf5-4638-11e7-9bdb-020073ca7773
+        username:
+          title: username
+          type: string
+          description: Username of the Active Directory domain administrator
+          minLength: 1
+          maxLength: 255
+          example: superman
+        resourceId:
+          type: string
+          description: A human readable label for the resource which is restricted to
+            letters, numbers, and hyphen, with the first character a letter, the last
+            a letter or a number, and a 63 character maximum
+          minLength: 1
+          pattern: ^[a-z]([a-z0-9-]{0,61}[a-z0-9])?$
+          maxLength: 63
+          example: my-active-directory
+          x-nullable: true
+        password:
+          title: password
+          type: string
+          description: Password of the Active Directory domain administrator
+          minLength: 1
+          maxLength: 255
+          example: iluvpancakes
+        domain:
+          title: domain
+          type: string
+          description: Name of the Active Directory domain
+          pattern: ^[A-Za-z0-9](?:[A-Za-z0-9_-]*[A-Za-z0-9])?(\.[A-Za-z0-9](?:[A-Za-z0-9_-]*[A-Za-z0-9])?)*$
+          minLength: 1
+          maxLength: 255
+          example: krypton.com
+        DNS:
+          title: DNS
+          type: string
+          pattern: ^(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)((,
+            ?)(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?))*$
+          description: Comma separated list of DNS server IP addresses for the Active
+            Directory domain. Can only include a maximum of 3 items
+          example: 101.102.103.104
+        netBIOS:
+          title: netBIOS
+          type: string
+          description: NetBIOS name of the server
+          maxLength: 10
+          minLength: 1
+          example: cvserver
+        organizationalUnit:
+          title: organizationalUnit
+          type: string
+          description: The Organizational Unit (OU) within the Windows Active Directory
+            the user belongs to.
+          maxLength: 255
+          default: CN=Computers
+          example: CN=Computers
+        site:
+          title: site
+          type: string
+          description: The Active Directory site the service will limit domain controller
+            discovery to. Site names have to be at least 2 characters long (an empty
+            string clears site assignment), can contain only alphabetical characters
+            (A-Z), numeric characters (0-9), the minus sign (-), and the period (.).
+            Period characters are allowed only when they are used to delimit the components
+            of domain style names.
+          example: Default-First-Site-Name
+          maxLength: 63
+          x-nullable: true
+        kdcIP:
+          title: kdcIP
+          type: string
+          minLength: 7
+          maxLength: 15
+          description: KDC server IP address for the Active Directory machine. This
+            optional parameter is used only while creating kerberos volume.
+          example: 101.102.103.104
+        kdcHostname:
+          title: kdcHostname
+          type: string
+          maxLength: 64
+          minLength: 1
+          description: Name of the Active Directory machine. This optional parameter
+            is used only while creating kerberos volume
+          example: 2BOVAEKB44B
+        activeDirectoryState:
+          title: activeDirectoryState
+          type: string
+          readOnly: true
+          description: The current lifecycle state of the configuration
+          enum:
+            - STATE_UNSPECIFIED
+            - CREATING
+            - READY
+            - UPDATING
+            - IN_USE
+            - DELETING
+            - ERROR
+          example: READY
+        activeDirectoryStateDetails:
+          title: activeDirectoryStateDetails
+          type: string
+          readOnly: true
+          description: Details about the current Active Directory credentials state
+          example: Credentials saved and available for use
+        createdAt:
+          title: createdAt
+          type: string
+          format: date-time
+          readOnly: true
+          description: Creation date of the resource
+          example: '2016-11-28T19:30:23.123Z'
+        updatedAt:
+          title: updatedAt
+          type: string
+          format: date-time
+          readOnly: true
+          description: Date of last update of the resource
+          example: '2016-11-29T20:32:50.459Z'
+        deletedAt:
+          title: deletedAt
+          type: string
+          format: date-time
+          readOnly: true
+          description: Date the resource was deleted
+          example: '2016-11-30T23:59:59.999Z'
+          x-nullable: true
+        ldapSigning:
+          title: ldapSigning
+          type: boolean
+          description: Specifies whether or not the LDAP traffic needs to be signed.
+          example: false
+          default: false
+        allowLocalNFSUsersWithLdap:
+          title: allowLocalNFSUsersWithLdap
+          type: boolean
+          description: If enabled, allowLocalNFSUsersWithLdap will allow access to local
+            users as well as LDAP users. If access is needed for only LDAP users, it
+            has to be disabled.
+          example: false
+          default: false
+        encryptDCConnections:
+          title: encryptDCConnections
+          type: boolean
+          description: If enabled, traffic between the SMB server to domain controller
+            (DC) will be encrypted.
+          example: false
+          default: false
+        securityOperators:
+          title: securityOperators
+          description: Domain users to be given the SeSecurityPrivilege
+          type: array
+          items:
+            type: string
+            maxLength: 255
+            minLength: 1
+          example:
+            - batman
+        backupOperators:
+          title: backupOperators
+          description: Users to be added to the built-in backup operator Active-directory
+            group. The usernames must be unique, and entries cannot include @ or \.
+            The entire list will be validated and rejected as whole if one or more entries
+            are invalid.
+          type: array
+          items:
+            type: string
+            maxLength: 255
+            minLength: 1
+          example:
+            - batman
+            - clarkkent
+        administrators:
+          title: administrators
+          description: Users to be added to the built-in administrators Active-directory
+            group. The usernames must be unique, and entries cannot include @ or \.
+            The entire list will be validated and rejected as whole if one or more entries
+            are invalid.
+          type: array
+          items:
+            type: string
+            maxLength: 255
+            minLength: 1
+          example:
+            - batman
+            - clarkkent
+        aesEncryption:
+          title: aesEncryption
+          type: boolean
+          description: If enabled, AES encryption will be enabled for SMB communication.
+          example: false
+          default: false
+        description:
+          title: description
+          type: string
+          description: Description of the Active Directory
+          example: My active directory description
+          x-nullable: true
+          maxLength: 2048
+    ActiveDirectoryUpdate_v1beta:
+      type: object
+      title: ActiveDirectoryUpdate
+      properties:
+        username:
+          title: username
+          type: string
+          description: Username of the Active Directory domain administrator
+          minLength: 1
+          maxLength: 255
+          example: superman
+        password:
+          title: password
+          type: string
+          description: Password of the Active Directory domain administrator
+          minLength: 1
+          maxLength: 255
+          example: iluvpancakes
+        domain:
+          title: domain
+          type: string
+          pattern: ^[A-Za-z0-9](?:[A-Za-z0-9_-]*[A-Za-z0-9])?(\.[A-Za-z0-9](?:[A-Za-z0-9_-]*[A-Za-z0-9])?)*$
+          description: Name of the Active Directory domain
+          minLength: 1
+          maxLength: 255
+          example: krypton.com
+        DNS:
+          title: DNS
+          type: string
+          pattern: ^(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)((,
+            ?)(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?))*$
+          description: Comma separated list of DNS server IP addresses for the Active
+            Directory domain. Can only include a maximum of 3 items
+          example: 101.102.103.104
+        netBIOS:
+          title: netBIOS
+          type: string
+          maxLength: 10
+          minLength: 1
+          description: NetBIOS name prefix of the server
+          example: cvserver
+        organizationalUnit:
+          title: organizationalUnit
+          type: string
+          description: The Organizational Unit (OU) within the Windows Active Directory
+            the user belongs to.
+          maxLength: 255
+          default: CN=Computers
+          example: CN=Computers
+        site:
+          title: site
+          type: string
+          description: The Active Directory site the service will limit domain controller
+            discovery to. Site names have to be at least 2 characters long (an empty
+            string clears site assignment), can contain only alphabetical characters
+            (A-Z), numeric characters (0-9), the minus sign (-), and the period (.).
+            Period characters are allowed only when they are used to delimit the components
+            of domain style names.
+          example: Default-First-Site-Name
+          maxLength: 63
+          x-nullable: true
+        kdcIP:
+          title: kdcIP
+          type: string
+          minLength: 7
+          maxLength: 15
+          description: KDC server IP address for the Active Directory machine. This
+            optional parameter is used only while creating kerberos volume.
+          example: 101.102.103.104
+        kdcHostname:
+          title: kdcHostname
+          type: string
+          maxLength: 64
+          minLength: 1
+          description: Name of the Active Directory machine. This optional parameter
+            is used only while creating kerberos volume
+          example: 2BOVAEKB44B
+        ldapSigning:
+          title: ldapSigning
+          type: boolean
+          description: Specifies whether or not the LDAP traffic needs to be signed.
+          example: false
+          default: false
+        allowLocalNFSUsersWithLdap:
+          title: allowLocalNFSUsersWithLdap
+          type: boolean
+          description: If enabled, allowLocalNFSUsersWithLdap will allow access to local
+            users as well as LDAP users. If access is needed for only LDAP users, it
+            has to be disabled.
+          example: false
+          default: false
+        encryptDCConnections:
+          title: encryptDCConnections
+          type: boolean
+          description: If enabled, traffic between the SMB server to domain controller
+            (DC) will be encrypted.
+          example: false
+          default: false
+        securityOperators:
+          title: securityOperators
+          description: Domain users to be given the SeSecurityPrivilege
+          type: array
+          items:
+            type: string
+            maxLength: 255
+            minLength: 1
+          example:
+            - batman
+        backupOperators:
+          title: backupOperators
+          description: Users to be added to the built-in backup operator Active-directory
+            group. The usernames must be unique, and entries cannot include @ or \.
+            The entire list will be validated and rejected as whole if one or more entries
+            are invalid.
+          type: array
+          items:
+            type: string
+            maxLength: 255
+            minLength: 1
+          example:
+            - batman
+            - clarkkent
+        administrators:
+          title: administrators
+          description: Users to be added to the built-in administrators Active-directory
+            group. The usernames must be unique, and entries cannot include @ or \.
+            The entire list will be validated and rejected as whole if one or more entries
+            are invalid.
+          type: array
+          items:
+            type: string
+            maxLength: 255
+            minLength: 1
+          example:
+            - batman
+            - clarkkent
+        aesEncryption:
+          title: aesEncryption
+          type: boolean
+          description: If enabled, AES encryption will be enabled for SMB communication.
+          example: false
+          default: false
+        description:
+          title: description
+          type: string
+          description: Description of the Active Directory
+          example: My active directory description
+          x-nullable: true
+          maxLength: 2048
+    ActiveDirectoryIDList_v1beta:
+      title: ActiveDirectoryIDList
+      type: object
+      required:
+        - activeDirectoryUUIDs
+      properties:
+        activeDirectoryUUIDs:
+          title: activeDirectoryUUIDs
+          type: array
+          minItems: 1
+          items:
+            type: string
+            description: UUID v4 used to identify the Active Directory
+            pattern: ^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$
+            example: 9760acf5-4638-11e7-9bdb-020073ca3333
+    BackupVault_v1beta:
+      type: object
+      title: BackupVault
+      required:
+        - resourceId
+      properties:
+        backupVaultId:
+          title: UUID
+          type: string
+          readOnly: true
+          description: UUID v4 used to identify the ID of the resource
+          pattern: ^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$
+          maxLength: 36
+          minLength: 36
+          example: 87654321-4638-11e7-9bdb-123456789012
+        resourceId:
+          title: resourceId
+          type: string
+          pattern: ^[a-z]([a-z0-9-]{0,61}[a-z0-9])?$
+          maxLength: 63
+          description: Human readable name of the backup vault
+          example: backupvault1
+        description:
+          title: description
+          type: string
+          description: Description of backup vault
+          example: dummy description
+          x-nullable: true
+        backupRegion:
+          title: backupRegion
+          pattern: ^[a-z]([a-z0-9-]{0,61}[a-z0-9])?$
+          maxLength: 63
+          type: string
+          description: The destination region the backup needs to be stored in.
+          x-nullable: true
+        sourceRegion:
+          title: sourceRegion
+          pattern: ^[a-z]([a-z0-9-]{0,61}[a-z0-9])?$
+          maxLength: 63
+          type: string
+          description: The source region of the backup
+          example: us-east4
+          x-nullable: true
+        destinationBackupVault:
+          title: destinationBackupVault
+          type: string
+          example: projects/projectID/locations/location/location/backupVaults/name
+          description: The destination region backup vault
+          x-nullable: true
+        sourceBackupVault:
+          title: sourceBackupVault
+          type: string
+          description: The source region backup vault
+          example: projects/projectID/locations/location/location/backupVaults/name
+          x-nullable: true
+        backupVaultType:
+          title: backupVaultType
+          type: string
+          description: Type of the backup vault
+          enum:
+            - IN_REGION
+            - CROSS_REGION
+          x-nullable: true
+        state:
+          title: state
+          type: string
+          readOnly: true
+          description: The current state of the backup vault
+          enum:
+            - STATE_UNSPECIFIED
+            - CREATING
+            - UPDATING
+            - DELETING
+            - READY
+            - DELETED
+            - ERROR
+          example: available
+        stateDetails:
+          title: stateDetails
+          type: string
+          readOnly: true
+          description: Details about the current lifecycle state
+        createdAt:
+          title: created
+          type: string
+          format: date-time
+          readOnly: true
+          description: Creation date of the resource
+          example: '2016-11-30T20:32:50.459Z'
+        deletedAt:
+          title: deletedAt
+          type: string
+          format: date-time
+          readOnly: true
+          description: Date the resource was deleted
+          example: '2016-11-30T23:59:59.999Z'
+          x-nullable: true
+        backupRetentionPolicy:
+          $ref: '#/components/schemas/BackupRetentionPolicy_v1beta'
+    BackupRetentionPolicy_v1beta:
+      title: BackupRetentionPolicy
+      type: object
+      properties:
+        backupMinimumEnforcedRetentionDays:
+          title: backupMinimumEnforcedRetentionDays
+          type: integer
+          description: Backup minimum enforced retention period in days
+          example: 7
+          minimum: 0
+          maximum: 5475
+          x-nullable: true
+        dailyBackupImmutable:
+          title: dailyBackupImmutable
+          type: boolean
+          description: Whether the scheduled daily backups would follow the immutable
+            period
+          example: true
+        weeklyBackupImmutable:
+          title: weeklyBackupImmutable
+          type: boolean
+          description: Whether the scheduled weekly backups would follow the immutable
+            period
+          example: true
+        monthlyBackupImmutable:
+          title: monthlyBackupImmutable
+          type: boolean
+          description: Whether the scheduled monthly backups would follow the immutable
+            period
+          example: true
+        manualBackupImmutable:
+          title: manualBackupImmutable
+          type: boolean
+          description: Whether the manual backups would follow the immutable period
+          example: true
+    BackupRetentionPolicyUpdate_v1beta:
+      title: BackupRetentionPolicyUpdate
+      type: object
+      properties:
+        backupMinimumEnforcedRetentionDays:
+          title: backupMinimumEnforcedRetentionDays
+          type: integer
+          description: Backup vault minimum enforced retention period in days
+          example: 7
+          minimum: 0
+          maximum: 5475
+          x-nullable: true
+        dailyBackupImmutable:
+          title: dailyBackupImmutable
+          type: boolean
+          description: Whether the scheduled daily backups would follow the immutable
+            period
+          example: true
+          x-nullable: true
+        weeklyBackupImmutable:
+          title: weeklyBackupImmutable
+          type: boolean
+          description: Whether the scheduled weekly backups would follow the immutable
+            period
+          example: true
+          x-nullable: true
+        monthlyBackupImmutable:
+          title: monthlyBackupImmutable
+          type: boolean
+          description: Whether the scheduled monthly backups would follow the immutable
+            period
+          example: true
+          x-nullable: true
+        manualBackupImmutable:
+          title: manualBackupImmutable
+          type: boolean
+          description: Whether the manual backups would follow the immutable period
+          example: true
+          x-nullable: true
+    BackupVaultCreate_v1beta:
+      title: BackupVaultCreateRequest
+      type: object
+      properties:
+        resourceId:
+          title: resourceId
+          pattern: ^[a-z]([a-z0-9-]{0,61}[a-z0-9])?$
+          maxLength: 63
+          type: string
+          description: Name of the resource
+        description:
+          title: description
+          type: string
+          description: Description of the resource
+          x-nullable: true
+        backupRegion:
+          title: backupRegion
+          pattern: ^[a-z]([a-z0-9-]{0,61}[a-z0-9])?$
+          maxLength: 63
+          type: string
+          description: The destination region the backup needs to be stored in.
+          x-nullable: true
+        backupRetentionPolicy:
+          $ref: '#/components/schemas/BackupRetentionPolicy_v1beta'
+    BackupVaultUpdate_v1beta:
+      title: BackupVaultUpdateRequest
+      type: object
+      properties:
+        description:
+          title: description
+          type: string
+          description: Description of the resource
+          x-nullable: true
+        backupRetentionPolicy:
+          $ref: '#/components/schemas/BackupRetentionPolicyUpdate_v1beta'
+    BackupVaultUUIDList_v1beta:
+      title: BackupUUIDList
+      type: object
+      required:
+        - backupVaultUUIDs
+      properties:
+        backupVaultUUIDs:
+          title: backupVaultUUIDs
+          type: array
+          minItems: 1
+          items:
+            type: string
+            description: UUID v4 used to identify the backup vault
+            pattern: ^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$
+            example: 9760acf5-4638-11e7-9bdb-020073ca3333
   responses:
     StandardError-400:
       description: Bad request
@@ -6905,6 +8269,16 @@ components:
         pattern: "^[a-z]([a-z0-9-]{0,61}[a-z0-9])?$"
         type: string
       required: true
+    activeDirectoryIdPathParameter:
+      name: activeDirectoryId
+      in: path
+      description: UUID v4 used to identify the Active Directory credentials
+      schema:
+        pattern: ^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$
+        maxLength: 36
+        minLength: 36
+        type: string
+      required: true
     xCorrelationIdHeader:
       name: x-correlation-id
       in: header
@@ -6970,3 +8344,13 @@ components:
         pattern: "^[a-z]([a-z0-9-]{0,61}[a-z0-9])?$"
         maxLength: 63
         example: some-pool-name
+    backupVaultIdPathParameter:
+      name: backupVaultId
+      in: path
+      description: UUID v4 used to identify the backup vault
+      required: true
+      schema:
+        pattern: ^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$
+        type: string
+        maxLength: 36
+        minLength: 36

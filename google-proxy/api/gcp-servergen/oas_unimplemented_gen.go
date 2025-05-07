@@ -31,12 +31,30 @@ func (UnimplementedHandler) V1betaCheckKmsConfig(ctx context.Context, params V1b
 	return r, ht.ErrNotImplemented
 }
 
+// V1betaCreateActiveDirectory implements v1beta_createActiveDirectory operation.
+//
+// Creates Active Directory credentials for the active user.
+//
+// POST /v1beta/projects/{projectNumber}/locations/{locationId}/activeDirectories
+func (UnimplementedHandler) V1betaCreateActiveDirectory(ctx context.Context, req *ActiveDirectoryV1beta, params V1betaCreateActiveDirectoryParams) (r V1betaCreateActiveDirectoryRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
 // V1betaCreateBackupPolicy implements v1beta_createBackupPolicy operation.
 //
 // Create a new backup policy.
 //
 // POST /v1beta/projects/{projectNumber}/locations/{locationId}/backupPolicies
 func (UnimplementedHandler) V1betaCreateBackupPolicy(ctx context.Context, req *BackupPolicyCreateV1beta, params V1betaCreateBackupPolicyParams) (r V1betaCreateBackupPolicyRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// V1betaCreateBackupVault implements v1beta_createBackupVault operation.
+//
+// Creates a new backup vault.
+//
+// POST /v1beta/projects/{projectNumber}/locations/{locationId}/backupVaults
+func (UnimplementedHandler) V1betaCreateBackupVault(ctx context.Context, req *BackupVaultCreateV1beta, params V1betaCreateBackupVaultParams) (r V1betaCreateBackupVaultRes, _ error) {
 	return r, ht.ErrNotImplemented
 }
 
@@ -86,12 +104,32 @@ func (UnimplementedHandler) V1betaCreateVolume(ctx context.Context, req *VolumeC
 	return r, ht.ErrNotImplemented
 }
 
+// V1betaDeleteActiveDirectory implements v1beta_deleteActiveDirectory operation.
+//
+// Deletes the Active Directory credentials for the active user. This operation will never return
+// resource not found, since that could be interpreted as resource already deleted, and therefore
+// will return operation done instead.
+//
+// DELETE /v1beta/projects/{projectNumber}/locations/{locationId}/activeDirectories/{activeDirectoryId}
+func (UnimplementedHandler) V1betaDeleteActiveDirectory(ctx context.Context, params V1betaDeleteActiveDirectoryParams) (r V1betaDeleteActiveDirectoryRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
 // V1betaDeleteBackupPolicy implements v1beta_deleteBackupPolicy operation.
 //
 // Warning! This operation will permanently delete the backup policy.
 //
 // DELETE /v1beta/projects/{projectNumber}/locations/{locationId}/backupPolicies/{backupPolicyId}
 func (UnimplementedHandler) V1betaDeleteBackupPolicy(ctx context.Context, params V1betaDeleteBackupPolicyParams) (r V1betaDeleteBackupPolicyRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// V1betaDeleteBackupVault implements v1beta_deleteBackupVault operation.
+//
+// Warning! This operation will permanently delete the backup vault.
+//
+// DELETE /v1beta/projects/{projectNumber}/locations/{locationId}/backupVaults/{backupVaultId}
+func (UnimplementedHandler) V1betaDeleteBackupVault(ctx context.Context, params V1betaDeleteBackupVaultParams) (r V1betaDeleteBackupVaultRes, _ error) {
 	return r, ht.ErrNotImplemented
 }
 
@@ -144,12 +182,30 @@ func (UnimplementedHandler) V1betaDeleteVolume(ctx context.Context, req OptV1bet
 	return r, ht.ErrNotImplemented
 }
 
+// V1betaDescribeActiveDirectory implements v1beta_describeActiveDirectory operation.
+//
+// Returns the description of the specified Active Directory credentials by active-directory ID.
+//
+// GET /v1beta/projects/{projectNumber}/locations/{locationId}/activeDirectories/{activeDirectoryId}
+func (UnimplementedHandler) V1betaDescribeActiveDirectory(ctx context.Context, params V1betaDescribeActiveDirectoryParams) (r V1betaDescribeActiveDirectoryRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
 // V1betaDescribeBackupPolicy implements v1beta_describeBackupPolicy operation.
 //
 // Returns the description of the specified backup policy by backup policy ID.
 //
 // GET /v1beta/projects/{projectNumber}/locations/{locationId}/backupPolicies/{backupPolicyId}
 func (UnimplementedHandler) V1betaDescribeBackupPolicy(ctx context.Context, params V1betaDescribeBackupPolicyParams) (r V1betaDescribeBackupPolicyRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// V1betaDescribeBackupVault implements v1beta_describeBackupVault operation.
+//
+// Returns the description of the specified backup vault.
+//
+// GET /v1beta/projects/{projectNumber}/locations/{locationId}/backupVaults/{backupVaultId}
+func (UnimplementedHandler) V1betaDescribeBackupVault(ctx context.Context, params V1betaDescribeBackupVaultParams) (r V1betaDescribeBackupVaultRes, _ error) {
 	return r, ht.ErrNotImplemented
 }
 
@@ -198,12 +254,30 @@ func (UnimplementedHandler) V1betaDescribeVolume(ctx context.Context, params V1b
 	return r, ht.ErrNotImplemented
 }
 
+// V1betaGetMultipleActiveDirectories implements v1beta_getMultipleActiveDirectories operation.
+//
+// Returns descriptions of Active Directory credentials that is listed in request body.
+//
+// POST /v1beta/projects/{projectNumber}/locations/{locationId}/getMultipleActiveDirectories
+func (UnimplementedHandler) V1betaGetMultipleActiveDirectories(ctx context.Context, req *ActiveDirectoryIDListV1beta, params V1betaGetMultipleActiveDirectoriesParams) (r V1betaGetMultipleActiveDirectoriesRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
 // V1betaGetMultipleBackupPolicies implements v1beta_getMultipleBackupPolicies operation.
 //
 // Returns descriptions of backup policies that is listed in request body.
 //
 // POST /v1beta/projects/{projectNumber}/locations/{locationId}/getMultipleBackupPolicies
 func (UnimplementedHandler) V1betaGetMultipleBackupPolicies(ctx context.Context, req *BackupPolicyIDListV1beta, params V1betaGetMultipleBackupPoliciesParams) (r V1betaGetMultipleBackupPoliciesRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// V1betaGetMultipleBackupVaults implements v1beta_getMultipleBackupVaults operation.
+//
+// Returns descriptions of backup vaults that is listed in request body.
+//
+// POST /v1beta/projects/{projectNumber}/locations/{locationId}/getMultipleBackupVaults
+func (UnimplementedHandler) V1betaGetMultipleBackupVaults(ctx context.Context, req *BackupVaultUUIDListV1beta, params V1betaGetMultipleBackupVaultsParams) (r V1betaGetMultipleBackupVaultsRes, _ error) {
 	return r, ht.ErrNotImplemented
 }
 
@@ -337,12 +411,30 @@ func (UnimplementedHandler) V1betaInternalUpdateVolumeReplication(ctx context.Co
 	return r, ht.ErrNotImplemented
 }
 
+// V1betaListActiveDirectories implements v1beta_listActiveDirectories operation.
+//
+// Returns descriptions of all Active Directory credentials owned by the caller.
+//
+// GET /v1beta/projects/{projectNumber}/locations/{locationId}/activeDirectories
+func (UnimplementedHandler) V1betaListActiveDirectories(ctx context.Context, params V1betaListActiveDirectoriesParams) (r V1betaListActiveDirectoriesRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
 // V1betaListBackupPolicies implements v1beta_listBackupPolicies operation.
 //
 // Returns list of all available backup policies.
 //
 // GET /v1beta/projects/{projectNumber}/locations/{locationId}/backupPolicies
 func (UnimplementedHandler) V1betaListBackupPolicies(ctx context.Context, params V1betaListBackupPoliciesParams) (r V1betaListBackupPoliciesRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// V1betaListBackupVaults implements v1beta_listBackupVaults operation.
+//
+// Returns descriptions of all backup vaults.
+//
+// GET /v1beta/projects/{projectNumber}/locations/{locationId}/backupVaults
+func (UnimplementedHandler) V1betaListBackupVaults(ctx context.Context, params V1betaListBackupVaultsParams) (r V1betaListBackupVaultsRes, _ error) {
 	return r, ht.ErrNotImplemented
 }
 
@@ -427,12 +519,30 @@ func (UnimplementedHandler) V1betaSyncReplication(ctx context.Context, params V1
 	return r, ht.ErrNotImplemented
 }
 
+// V1betaUpdateActiveDirectory implements v1beta_updateActiveDirectory operation.
+//
+// Update the Active Directory credentials.
+//
+// PUT /v1beta/projects/{projectNumber}/locations/{locationId}/activeDirectories/{activeDirectoryId}
+func (UnimplementedHandler) V1betaUpdateActiveDirectory(ctx context.Context, req *ActiveDirectoryUpdateV1beta, params V1betaUpdateActiveDirectoryParams) (r V1betaUpdateActiveDirectoryRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
 // V1betaUpdateBackupPolicy implements v1beta_updateBackupPolicy operation.
 //
 // Update the backup policy.
 //
 // PUT /v1beta/projects/{projectNumber}/locations/{locationId}/backupPolicies/{backupPolicyId}
 func (UnimplementedHandler) V1betaUpdateBackupPolicy(ctx context.Context, req *BackupPolicyScheduleV1beta, params V1betaUpdateBackupPolicyParams) (r V1betaUpdateBackupPolicyRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// V1betaUpdateBackupVault implements v1beta_updateBackupVault operation.
+//
+// Update the backup vault.
+//
+// PUT /v1beta/projects/{projectNumber}/locations/{locationId}/backupVaults/{backupVaultId}
+func (UnimplementedHandler) V1betaUpdateBackupVault(ctx context.Context, req *BackupVaultUpdateV1beta, params V1betaUpdateBackupVaultParams) (r V1betaUpdateBackupVaultRes, _ error) {
 	return r, ht.ErrNotImplemented
 }
 

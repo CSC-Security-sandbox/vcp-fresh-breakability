@@ -10,6 +10,853 @@ import (
 	"github.com/ogen-go/ogen/validate"
 )
 
+func (s *ActiveDirectoryIDListV1beta) Validate() error {
+	if s == nil {
+		return validate.ErrNilPointer
+	}
+
+	var failures []validate.FieldError
+	if err := func() error {
+		if s.ActiveDirectoryUUIDs == nil {
+			return errors.New("nil is invalid value")
+		}
+		if err := (validate.Array{
+			MinLength:    1,
+			MinLengthSet: true,
+			MaxLength:    0,
+			MaxLengthSet: false,
+		}).ValidateLength(len(s.ActiveDirectoryUUIDs)); err != nil {
+			return errors.Wrap(err, "array")
+		}
+		var failures []validate.FieldError
+		for i, elem := range s.ActiveDirectoryUUIDs {
+			if err := func() error {
+				if err := (validate.String{
+					MinLength:    0,
+					MinLengthSet: false,
+					MaxLength:    0,
+					MaxLengthSet: false,
+					Email:        false,
+					Hostname:     false,
+					Regex:        regexMap["^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$"],
+				}).Validate(string(elem)); err != nil {
+					return errors.Wrap(err, "string")
+				}
+				return nil
+			}(); err != nil {
+				failures = append(failures, validate.FieldError{
+					Name:  fmt.Sprintf("[%d]", i),
+					Error: err,
+				})
+			}
+		}
+		if len(failures) > 0 {
+			return &validate.Error{Fields: failures}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "activeDirectoryUUIDs",
+			Error: err,
+		})
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+	return nil
+}
+
+func (s *ActiveDirectoryUpdateV1beta) Validate() error {
+	if s == nil {
+		return validate.ErrNilPointer
+	}
+
+	var failures []validate.FieldError
+	if err := func() error {
+		if value, ok := s.Username.Get(); ok {
+			if err := func() error {
+				if err := (validate.String{
+					MinLength:    1,
+					MinLengthSet: true,
+					MaxLength:    255,
+					MaxLengthSet: true,
+					Email:        false,
+					Hostname:     false,
+					Regex:        nil,
+				}).Validate(string(value)); err != nil {
+					return errors.Wrap(err, "string")
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "username",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if value, ok := s.Password.Get(); ok {
+			if err := func() error {
+				if err := (validate.String{
+					MinLength:    1,
+					MinLengthSet: true,
+					MaxLength:    255,
+					MaxLengthSet: true,
+					Email:        false,
+					Hostname:     false,
+					Regex:        nil,
+				}).Validate(string(value)); err != nil {
+					return errors.Wrap(err, "string")
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "password",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if value, ok := s.Domain.Get(); ok {
+			if err := func() error {
+				if err := (validate.String{
+					MinLength:    1,
+					MinLengthSet: true,
+					MaxLength:    255,
+					MaxLengthSet: true,
+					Email:        false,
+					Hostname:     false,
+					Regex:        regexMap["^[A-Za-z0-9](?:[A-Za-z0-9_-]*[A-Za-z0-9])?(\\.[A-Za-z0-9](?:[A-Za-z0-9_-]*[A-Za-z0-9])?)*$"],
+				}).Validate(string(value)); err != nil {
+					return errors.Wrap(err, "string")
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "domain",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if value, ok := s.DNS.Get(); ok {
+			if err := func() error {
+				if err := (validate.String{
+					MinLength:    0,
+					MinLengthSet: false,
+					MaxLength:    0,
+					MaxLengthSet: false,
+					Email:        false,
+					Hostname:     false,
+					Regex:        regexMap["^(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)((, ?)(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?))*$"],
+				}).Validate(string(value)); err != nil {
+					return errors.Wrap(err, "string")
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "DNS",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if value, ok := s.NetBIOS.Get(); ok {
+			if err := func() error {
+				if err := (validate.String{
+					MinLength:    1,
+					MinLengthSet: true,
+					MaxLength:    10,
+					MaxLengthSet: true,
+					Email:        false,
+					Hostname:     false,
+					Regex:        nil,
+				}).Validate(string(value)); err != nil {
+					return errors.Wrap(err, "string")
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "netBIOS",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if value, ok := s.OrganizationalUnit.Get(); ok {
+			if err := func() error {
+				if err := (validate.String{
+					MinLength:    0,
+					MinLengthSet: false,
+					MaxLength:    255,
+					MaxLengthSet: true,
+					Email:        false,
+					Hostname:     false,
+					Regex:        nil,
+				}).Validate(string(value)); err != nil {
+					return errors.Wrap(err, "string")
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "organizationalUnit",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if value, ok := s.Site.Get(); ok {
+			if err := func() error {
+				if err := (validate.String{
+					MinLength:    0,
+					MinLengthSet: false,
+					MaxLength:    63,
+					MaxLengthSet: true,
+					Email:        false,
+					Hostname:     false,
+					Regex:        nil,
+				}).Validate(string(value)); err != nil {
+					return errors.Wrap(err, "string")
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "site",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if value, ok := s.KdcIP.Get(); ok {
+			if err := func() error {
+				if err := (validate.String{
+					MinLength:    7,
+					MinLengthSet: true,
+					MaxLength:    15,
+					MaxLengthSet: true,
+					Email:        false,
+					Hostname:     false,
+					Regex:        nil,
+				}).Validate(string(value)); err != nil {
+					return errors.Wrap(err, "string")
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "kdcIP",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if value, ok := s.KdcHostname.Get(); ok {
+			if err := func() error {
+				if err := (validate.String{
+					MinLength:    1,
+					MinLengthSet: true,
+					MaxLength:    64,
+					MaxLengthSet: true,
+					Email:        false,
+					Hostname:     false,
+					Regex:        nil,
+				}).Validate(string(value)); err != nil {
+					return errors.Wrap(err, "string")
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "kdcHostname",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		var failures []validate.FieldError
+		for i, elem := range s.SecurityOperators {
+			if err := func() error {
+				if err := (validate.String{
+					MinLength:    1,
+					MinLengthSet: true,
+					MaxLength:    255,
+					MaxLengthSet: true,
+					Email:        false,
+					Hostname:     false,
+					Regex:        nil,
+				}).Validate(string(elem)); err != nil {
+					return errors.Wrap(err, "string")
+				}
+				return nil
+			}(); err != nil {
+				failures = append(failures, validate.FieldError{
+					Name:  fmt.Sprintf("[%d]", i),
+					Error: err,
+				})
+			}
+		}
+		if len(failures) > 0 {
+			return &validate.Error{Fields: failures}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "securityOperators",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		var failures []validate.FieldError
+		for i, elem := range s.BackupOperators {
+			if err := func() error {
+				if err := (validate.String{
+					MinLength:    1,
+					MinLengthSet: true,
+					MaxLength:    255,
+					MaxLengthSet: true,
+					Email:        false,
+					Hostname:     false,
+					Regex:        nil,
+				}).Validate(string(elem)); err != nil {
+					return errors.Wrap(err, "string")
+				}
+				return nil
+			}(); err != nil {
+				failures = append(failures, validate.FieldError{
+					Name:  fmt.Sprintf("[%d]", i),
+					Error: err,
+				})
+			}
+		}
+		if len(failures) > 0 {
+			return &validate.Error{Fields: failures}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "backupOperators",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		var failures []validate.FieldError
+		for i, elem := range s.Administrators {
+			if err := func() error {
+				if err := (validate.String{
+					MinLength:    1,
+					MinLengthSet: true,
+					MaxLength:    255,
+					MaxLengthSet: true,
+					Email:        false,
+					Hostname:     false,
+					Regex:        nil,
+				}).Validate(string(elem)); err != nil {
+					return errors.Wrap(err, "string")
+				}
+				return nil
+			}(); err != nil {
+				failures = append(failures, validate.FieldError{
+					Name:  fmt.Sprintf("[%d]", i),
+					Error: err,
+				})
+			}
+		}
+		if len(failures) > 0 {
+			return &validate.Error{Fields: failures}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "administrators",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if value, ok := s.Description.Get(); ok {
+			if err := func() error {
+				if err := (validate.String{
+					MinLength:    0,
+					MinLengthSet: false,
+					MaxLength:    2048,
+					MaxLengthSet: true,
+					Email:        false,
+					Hostname:     false,
+					Regex:        nil,
+				}).Validate(string(value)); err != nil {
+					return errors.Wrap(err, "string")
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "description",
+			Error: err,
+		})
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+	return nil
+}
+
+func (s *ActiveDirectoryV1beta) Validate() error {
+	if s == nil {
+		return validate.ErrNilPointer
+	}
+
+	var failures []validate.FieldError
+	if err := func() error {
+		if value, ok := s.ActiveDirectoryId.Get(); ok {
+			if err := func() error {
+				if err := (validate.String{
+					MinLength:    36,
+					MinLengthSet: true,
+					MaxLength:    36,
+					MaxLengthSet: true,
+					Email:        false,
+					Hostname:     false,
+					Regex:        regexMap["^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$"],
+				}).Validate(string(value)); err != nil {
+					return errors.Wrap(err, "string")
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "activeDirectoryId",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if err := (validate.String{
+			MinLength:    1,
+			MinLengthSet: true,
+			MaxLength:    255,
+			MaxLengthSet: true,
+			Email:        false,
+			Hostname:     false,
+			Regex:        nil,
+		}).Validate(string(s.Username)); err != nil {
+			return errors.Wrap(err, "string")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "username",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if err := (validate.String{
+			MinLength:    1,
+			MinLengthSet: true,
+			MaxLength:    63,
+			MaxLengthSet: true,
+			Email:        false,
+			Hostname:     false,
+			Regex:        regexMap["^[a-z]([a-z0-9-]{0,61}[a-z0-9])?$"],
+		}).Validate(string(s.ResourceId)); err != nil {
+			return errors.Wrap(err, "string")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "resourceId",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if err := (validate.String{
+			MinLength:    1,
+			MinLengthSet: true,
+			MaxLength:    255,
+			MaxLengthSet: true,
+			Email:        false,
+			Hostname:     false,
+			Regex:        nil,
+		}).Validate(string(s.Password)); err != nil {
+			return errors.Wrap(err, "string")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "password",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if err := (validate.String{
+			MinLength:    1,
+			MinLengthSet: true,
+			MaxLength:    255,
+			MaxLengthSet: true,
+			Email:        false,
+			Hostname:     false,
+			Regex:        regexMap["^[A-Za-z0-9](?:[A-Za-z0-9_-]*[A-Za-z0-9])?(\\.[A-Za-z0-9](?:[A-Za-z0-9_-]*[A-Za-z0-9])?)*$"],
+		}).Validate(string(s.Domain)); err != nil {
+			return errors.Wrap(err, "string")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "domain",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if err := (validate.String{
+			MinLength:    0,
+			MinLengthSet: false,
+			MaxLength:    0,
+			MaxLengthSet: false,
+			Email:        false,
+			Hostname:     false,
+			Regex:        regexMap["^(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)((, ?)(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?))*$"],
+		}).Validate(string(s.DNS)); err != nil {
+			return errors.Wrap(err, "string")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "DNS",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if err := (validate.String{
+			MinLength:    1,
+			MinLengthSet: true,
+			MaxLength:    10,
+			MaxLengthSet: true,
+			Email:        false,
+			Hostname:     false,
+			Regex:        nil,
+		}).Validate(string(s.NetBIOS)); err != nil {
+			return errors.Wrap(err, "string")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "netBIOS",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if value, ok := s.OrganizationalUnit.Get(); ok {
+			if err := func() error {
+				if err := (validate.String{
+					MinLength:    0,
+					MinLengthSet: false,
+					MaxLength:    255,
+					MaxLengthSet: true,
+					Email:        false,
+					Hostname:     false,
+					Regex:        nil,
+				}).Validate(string(value)); err != nil {
+					return errors.Wrap(err, "string")
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "organizationalUnit",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if value, ok := s.Site.Get(); ok {
+			if err := func() error {
+				if err := (validate.String{
+					MinLength:    0,
+					MinLengthSet: false,
+					MaxLength:    63,
+					MaxLengthSet: true,
+					Email:        false,
+					Hostname:     false,
+					Regex:        nil,
+				}).Validate(string(value)); err != nil {
+					return errors.Wrap(err, "string")
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "site",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if value, ok := s.KdcIP.Get(); ok {
+			if err := func() error {
+				if err := (validate.String{
+					MinLength:    7,
+					MinLengthSet: true,
+					MaxLength:    15,
+					MaxLengthSet: true,
+					Email:        false,
+					Hostname:     false,
+					Regex:        nil,
+				}).Validate(string(value)); err != nil {
+					return errors.Wrap(err, "string")
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "kdcIP",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if value, ok := s.KdcHostname.Get(); ok {
+			if err := func() error {
+				if err := (validate.String{
+					MinLength:    1,
+					MinLengthSet: true,
+					MaxLength:    64,
+					MaxLengthSet: true,
+					Email:        false,
+					Hostname:     false,
+					Regex:        nil,
+				}).Validate(string(value)); err != nil {
+					return errors.Wrap(err, "string")
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "kdcHostname",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if value, ok := s.ActiveDirectoryState.Get(); ok {
+			if err := func() error {
+				if err := value.Validate(); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "activeDirectoryState",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		var failures []validate.FieldError
+		for i, elem := range s.SecurityOperators {
+			if err := func() error {
+				if err := (validate.String{
+					MinLength:    1,
+					MinLengthSet: true,
+					MaxLength:    255,
+					MaxLengthSet: true,
+					Email:        false,
+					Hostname:     false,
+					Regex:        nil,
+				}).Validate(string(elem)); err != nil {
+					return errors.Wrap(err, "string")
+				}
+				return nil
+			}(); err != nil {
+				failures = append(failures, validate.FieldError{
+					Name:  fmt.Sprintf("[%d]", i),
+					Error: err,
+				})
+			}
+		}
+		if len(failures) > 0 {
+			return &validate.Error{Fields: failures}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "securityOperators",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		var failures []validate.FieldError
+		for i, elem := range s.BackupOperators {
+			if err := func() error {
+				if err := (validate.String{
+					MinLength:    1,
+					MinLengthSet: true,
+					MaxLength:    255,
+					MaxLengthSet: true,
+					Email:        false,
+					Hostname:     false,
+					Regex:        nil,
+				}).Validate(string(elem)); err != nil {
+					return errors.Wrap(err, "string")
+				}
+				return nil
+			}(); err != nil {
+				failures = append(failures, validate.FieldError{
+					Name:  fmt.Sprintf("[%d]", i),
+					Error: err,
+				})
+			}
+		}
+		if len(failures) > 0 {
+			return &validate.Error{Fields: failures}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "backupOperators",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		var failures []validate.FieldError
+		for i, elem := range s.Administrators {
+			if err := func() error {
+				if err := (validate.String{
+					MinLength:    1,
+					MinLengthSet: true,
+					MaxLength:    255,
+					MaxLengthSet: true,
+					Email:        false,
+					Hostname:     false,
+					Regex:        nil,
+				}).Validate(string(elem)); err != nil {
+					return errors.Wrap(err, "string")
+				}
+				return nil
+			}(); err != nil {
+				failures = append(failures, validate.FieldError{
+					Name:  fmt.Sprintf("[%d]", i),
+					Error: err,
+				})
+			}
+		}
+		if len(failures) > 0 {
+			return &validate.Error{Fields: failures}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "administrators",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if value, ok := s.Description.Get(); ok {
+			if err := func() error {
+				if err := (validate.String{
+					MinLength:    0,
+					MinLengthSet: false,
+					MaxLength:    2048,
+					MaxLengthSet: true,
+					Email:        false,
+					Hostname:     false,
+					Regex:        nil,
+				}).Validate(string(value)); err != nil {
+					return errors.Wrap(err, "string")
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "description",
+			Error: err,
+		})
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+	return nil
+}
+
+func (s ActiveDirectoryV1betaActiveDirectoryState) Validate() error {
+	switch s {
+	case "STATE_UNSPECIFIED":
+		return nil
+	case "CREATING":
+		return nil
+	case "READY":
+		return nil
+	case "UPDATING":
+		return nil
+	case "IN_USE":
+		return nil
+	case "DELETING":
+		return nil
+	case "ERROR":
+		return nil
+	default:
+		return errors.Errorf("invalid value: %v", s)
+	}
+}
+
 func (s *BackupPolicyCreateV1beta) Validate() error {
 	if s == nil {
 		return validate.ErrNilPointer
@@ -621,6 +1468,447 @@ func (s *BackupPolicyV1beta) Validate() error {
 func (s BackupPolicyV1betaState) Validate() error {
 	switch s {
 	case "STATE_UNSPECIFIED - CREATING - UPDATING - DELETING - READY - DELETED - ERROR":
+		return nil
+	default:
+		return errors.Errorf("invalid value: %v", s)
+	}
+}
+
+func (s *BackupRetentionPolicyUpdateV1beta) Validate() error {
+	if s == nil {
+		return validate.ErrNilPointer
+	}
+
+	var failures []validate.FieldError
+	if err := func() error {
+		if value, ok := s.BackupMinimumEnforcedRetentionDays.Get(); ok {
+			if err := func() error {
+				if err := (validate.Int{
+					MinSet:        true,
+					Min:           0,
+					MaxSet:        true,
+					Max:           5475,
+					MinExclusive:  false,
+					MaxExclusive:  false,
+					MultipleOfSet: false,
+					MultipleOf:    0,
+				}).Validate(int64(value)); err != nil {
+					return errors.Wrap(err, "int")
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "backupMinimumEnforcedRetentionDays",
+			Error: err,
+		})
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+	return nil
+}
+
+func (s *BackupRetentionPolicyV1beta) Validate() error {
+	if s == nil {
+		return validate.ErrNilPointer
+	}
+
+	var failures []validate.FieldError
+	if err := func() error {
+		if value, ok := s.BackupMinimumEnforcedRetentionDays.Get(); ok {
+			if err := func() error {
+				if err := (validate.Int{
+					MinSet:        true,
+					Min:           0,
+					MaxSet:        true,
+					Max:           5475,
+					MinExclusive:  false,
+					MaxExclusive:  false,
+					MultipleOfSet: false,
+					MultipleOf:    0,
+				}).Validate(int64(value)); err != nil {
+					return errors.Wrap(err, "int")
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "backupMinimumEnforcedRetentionDays",
+			Error: err,
+		})
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+	return nil
+}
+
+func (s *BackupVaultCreateV1beta) Validate() error {
+	if s == nil {
+		return validate.ErrNilPointer
+	}
+
+	var failures []validate.FieldError
+	if err := func() error {
+		if value, ok := s.ResourceId.Get(); ok {
+			if err := func() error {
+				if err := (validate.String{
+					MinLength:    0,
+					MinLengthSet: false,
+					MaxLength:    63,
+					MaxLengthSet: true,
+					Email:        false,
+					Hostname:     false,
+					Regex:        regexMap["^[a-z]([a-z0-9-]{0,61}[a-z0-9])?$"],
+				}).Validate(string(value)); err != nil {
+					return errors.Wrap(err, "string")
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "resourceId",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if value, ok := s.BackupRegion.Get(); ok {
+			if err := func() error {
+				if err := (validate.String{
+					MinLength:    0,
+					MinLengthSet: false,
+					MaxLength:    63,
+					MaxLengthSet: true,
+					Email:        false,
+					Hostname:     false,
+					Regex:        regexMap["^[a-z]([a-z0-9-]{0,61}[a-z0-9])?$"],
+				}).Validate(string(value)); err != nil {
+					return errors.Wrap(err, "string")
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "backupRegion",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if value, ok := s.BackupRetentionPolicy.Get(); ok {
+			if err := func() error {
+				if err := value.Validate(); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "backupRetentionPolicy",
+			Error: err,
+		})
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+	return nil
+}
+
+func (s *BackupVaultUUIDListV1beta) Validate() error {
+	if s == nil {
+		return validate.ErrNilPointer
+	}
+
+	var failures []validate.FieldError
+	if err := func() error {
+		if s.BackupVaultUUIDs == nil {
+			return errors.New("nil is invalid value")
+		}
+		if err := (validate.Array{
+			MinLength:    1,
+			MinLengthSet: true,
+			MaxLength:    0,
+			MaxLengthSet: false,
+		}).ValidateLength(len(s.BackupVaultUUIDs)); err != nil {
+			return errors.Wrap(err, "array")
+		}
+		var failures []validate.FieldError
+		for i, elem := range s.BackupVaultUUIDs {
+			if err := func() error {
+				if err := (validate.String{
+					MinLength:    0,
+					MinLengthSet: false,
+					MaxLength:    0,
+					MaxLengthSet: false,
+					Email:        false,
+					Hostname:     false,
+					Regex:        regexMap["^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$"],
+				}).Validate(string(elem)); err != nil {
+					return errors.Wrap(err, "string")
+				}
+				return nil
+			}(); err != nil {
+				failures = append(failures, validate.FieldError{
+					Name:  fmt.Sprintf("[%d]", i),
+					Error: err,
+				})
+			}
+		}
+		if len(failures) > 0 {
+			return &validate.Error{Fields: failures}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "backupVaultUUIDs",
+			Error: err,
+		})
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+	return nil
+}
+
+func (s *BackupVaultUpdateV1beta) Validate() error {
+	if s == nil {
+		return validate.ErrNilPointer
+	}
+
+	var failures []validate.FieldError
+	if err := func() error {
+		if value, ok := s.BackupRetentionPolicy.Get(); ok {
+			if err := func() error {
+				if err := value.Validate(); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "backupRetentionPolicy",
+			Error: err,
+		})
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+	return nil
+}
+
+func (s *BackupVaultV1beta) Validate() error {
+	if s == nil {
+		return validate.ErrNilPointer
+	}
+
+	var failures []validate.FieldError
+	if err := func() error {
+		if value, ok := s.BackupVaultId.Get(); ok {
+			if err := func() error {
+				if err := (validate.String{
+					MinLength:    36,
+					MinLengthSet: true,
+					MaxLength:    36,
+					MaxLengthSet: true,
+					Email:        false,
+					Hostname:     false,
+					Regex:        regexMap["^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$"],
+				}).Validate(string(value)); err != nil {
+					return errors.Wrap(err, "string")
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "backupVaultId",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if err := (validate.String{
+			MinLength:    0,
+			MinLengthSet: false,
+			MaxLength:    63,
+			MaxLengthSet: true,
+			Email:        false,
+			Hostname:     false,
+			Regex:        regexMap["^[a-z]([a-z0-9-]{0,61}[a-z0-9])?$"],
+		}).Validate(string(s.ResourceId)); err != nil {
+			return errors.Wrap(err, "string")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "resourceId",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if value, ok := s.BackupRegion.Get(); ok {
+			if err := func() error {
+				if err := (validate.String{
+					MinLength:    0,
+					MinLengthSet: false,
+					MaxLength:    63,
+					MaxLengthSet: true,
+					Email:        false,
+					Hostname:     false,
+					Regex:        regexMap["^[a-z]([a-z0-9-]{0,61}[a-z0-9])?$"],
+				}).Validate(string(value)); err != nil {
+					return errors.Wrap(err, "string")
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "backupRegion",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if value, ok := s.SourceRegion.Get(); ok {
+			if err := func() error {
+				if err := (validate.String{
+					MinLength:    0,
+					MinLengthSet: false,
+					MaxLength:    63,
+					MaxLengthSet: true,
+					Email:        false,
+					Hostname:     false,
+					Regex:        regexMap["^[a-z]([a-z0-9-]{0,61}[a-z0-9])?$"],
+				}).Validate(string(value)); err != nil {
+					return errors.Wrap(err, "string")
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "sourceRegion",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if value, ok := s.BackupVaultType.Get(); ok {
+			if err := func() error {
+				if err := value.Validate(); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "backupVaultType",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if value, ok := s.State.Get(); ok {
+			if err := func() error {
+				if err := value.Validate(); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "state",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if value, ok := s.BackupRetentionPolicy.Get(); ok {
+			if err := func() error {
+				if err := value.Validate(); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "backupRetentionPolicy",
+			Error: err,
+		})
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+	return nil
+}
+
+func (s BackupVaultV1betaBackupVaultType) Validate() error {
+	switch s {
+	case "IN_REGION":
+		return nil
+	case "CROSS_REGION":
+		return nil
+	default:
+		return errors.Errorf("invalid value: %v", s)
+	}
+}
+
+func (s BackupVaultV1betaState) Validate() error {
+	switch s {
+	case "STATE_UNSPECIFIED":
+		return nil
+	case "CREATING":
+		return nil
+	case "UPDATING":
+		return nil
+	case "DELETING":
+		return nil
+	case "READY":
+		return nil
+	case "DELETED":
+		return nil
+	case "ERROR":
 		return nil
 	default:
 		return errors.Errorf("invalid value: %v", s)
@@ -2760,7 +4048,16 @@ func (s *PoolV1beta) Validate() error {
 		})
 	}
 	if err := func() error {
-		if err := (validate.Float{}).Validate(float64(s.SizeInBytes)); err != nil {
+		if err := (validate.Float{
+			MinSet:        false,
+			Min:           0,
+			MaxSet:        false,
+			Max:           0,
+			MinExclusive:  false,
+			MaxExclusive:  false,
+			MultipleOfSet: true,
+			MultipleOf:    ratMap["1073741824"],
+		}).Validate(float64(s.SizeInBytes)); err != nil {
 			return errors.Wrap(err, "float")
 		}
 		return nil
@@ -4305,6 +5602,62 @@ func (s *V1betaCheckKmsConfigUnprocessableEntity) Validate() error {
 	return nil
 }
 
+func (s *V1betaCreateActiveDirectoryBadRequest) Validate() error {
+	alias := (*Error)(s)
+	if err := alias.Validate(); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (s *V1betaCreateActiveDirectoryConflict) Validate() error {
+	alias := (*Error)(s)
+	if err := alias.Validate(); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (s *V1betaCreateActiveDirectoryForbidden) Validate() error {
+	alias := (*Error)(s)
+	if err := alias.Validate(); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (s *V1betaCreateActiveDirectoryInternalServerError) Validate() error {
+	alias := (*Error)(s)
+	if err := alias.Validate(); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (s *V1betaCreateActiveDirectoryTooManyRequests) Validate() error {
+	alias := (*Error)(s)
+	if err := alias.Validate(); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (s *V1betaCreateActiveDirectoryUnauthorized) Validate() error {
+	alias := (*Error)(s)
+	if err := alias.Validate(); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (s *V1betaCreateActiveDirectoryUnprocessableEntity) Validate() error {
+	alias := (*Error)(s)
+	if err := alias.Validate(); err != nil {
+		return err
+	}
+	return nil
+}
+
 func (s *V1betaCreateBackupPolicyBadRequest) Validate() error {
 	alias := (*Error)(s)
 	if err := alias.Validate(); err != nil {
@@ -4362,6 +5715,62 @@ func (s *V1betaCreateBackupPolicyUnauthorized) Validate() error {
 }
 
 func (s *V1betaCreateBackupPolicyUnprocessableEntity) Validate() error {
+	alias := (*Error)(s)
+	if err := alias.Validate(); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (s *V1betaCreateBackupVaultBadRequest) Validate() error {
+	alias := (*Error)(s)
+	if err := alias.Validate(); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (s *V1betaCreateBackupVaultConflict) Validate() error {
+	alias := (*Error)(s)
+	if err := alias.Validate(); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (s *V1betaCreateBackupVaultForbidden) Validate() error {
+	alias := (*Error)(s)
+	if err := alias.Validate(); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (s *V1betaCreateBackupVaultInternalServerError) Validate() error {
+	alias := (*Error)(s)
+	if err := alias.Validate(); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (s *V1betaCreateBackupVaultTooManyRequests) Validate() error {
+	alias := (*Error)(s)
+	if err := alias.Validate(); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (s *V1betaCreateBackupVaultUnauthorized) Validate() error {
+	alias := (*Error)(s)
+	if err := alias.Validate(); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (s *V1betaCreateBackupVaultUnprocessableEntity) Validate() error {
 	alias := (*Error)(s)
 	if err := alias.Validate(); err != nil {
 		return err
@@ -4665,6 +6074,62 @@ func (s *V1betaCreateVolumeUnprocessableEntity) Validate() error {
 	return nil
 }
 
+func (s *V1betaDeleteActiveDirectoryBadRequest) Validate() error {
+	alias := (*Error)(s)
+	if err := alias.Validate(); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (s *V1betaDeleteActiveDirectoryConflict) Validate() error {
+	alias := (*Error)(s)
+	if err := alias.Validate(); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (s *V1betaDeleteActiveDirectoryForbidden) Validate() error {
+	alias := (*Error)(s)
+	if err := alias.Validate(); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (s *V1betaDeleteActiveDirectoryInternalServerError) Validate() error {
+	alias := (*Error)(s)
+	if err := alias.Validate(); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (s *V1betaDeleteActiveDirectoryTooManyRequests) Validate() error {
+	alias := (*Error)(s)
+	if err := alias.Validate(); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (s *V1betaDeleteActiveDirectoryUnauthorized) Validate() error {
+	alias := (*Error)(s)
+	if err := alias.Validate(); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (s *V1betaDeleteActiveDirectoryUnprocessableEntity) Validate() error {
+	alias := (*Error)(s)
+	if err := alias.Validate(); err != nil {
+		return err
+	}
+	return nil
+}
+
 func (s *V1betaDeleteBackupPolicyBadRequest) Validate() error {
 	alias := (*Error)(s)
 	if err := alias.Validate(); err != nil {
@@ -4730,6 +6195,70 @@ func (s *V1betaDeleteBackupPolicyUnauthorized) Validate() error {
 }
 
 func (s *V1betaDeleteBackupPolicyUnprocessableEntity) Validate() error {
+	alias := (*Error)(s)
+	if err := alias.Validate(); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (s *V1betaDeleteBackupVaultBadRequest) Validate() error {
+	alias := (*Error)(s)
+	if err := alias.Validate(); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (s *V1betaDeleteBackupVaultConflict) Validate() error {
+	alias := (*Error)(s)
+	if err := alias.Validate(); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (s *V1betaDeleteBackupVaultForbidden) Validate() error {
+	alias := (*Error)(s)
+	if err := alias.Validate(); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (s *V1betaDeleteBackupVaultInternalServerError) Validate() error {
+	alias := (*Error)(s)
+	if err := alias.Validate(); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (s *V1betaDeleteBackupVaultNotFound) Validate() error {
+	alias := (*Error)(s)
+	if err := alias.Validate(); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (s *V1betaDeleteBackupVaultTooManyRequests) Validate() error {
+	alias := (*Error)(s)
+	if err := alias.Validate(); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (s *V1betaDeleteBackupVaultUnauthorized) Validate() error {
+	alias := (*Error)(s)
+	if err := alias.Validate(); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (s *V1betaDeleteBackupVaultUnprocessableEntity) Validate() error {
 	alias := (*Error)(s)
 	if err := alias.Validate(); err != nil {
 		return err
@@ -5017,6 +6546,62 @@ func (s *V1betaDeleteVolumeUnprocessableEntity) Validate() error {
 	return nil
 }
 
+func (s *V1betaDescribeActiveDirectoryBadRequest) Validate() error {
+	alias := (*Error)(s)
+	if err := alias.Validate(); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (s *V1betaDescribeActiveDirectoryForbidden) Validate() error {
+	alias := (*Error)(s)
+	if err := alias.Validate(); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (s *V1betaDescribeActiveDirectoryInternalServerError) Validate() error {
+	alias := (*Error)(s)
+	if err := alias.Validate(); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (s *V1betaDescribeActiveDirectoryNotFound) Validate() error {
+	alias := (*Error)(s)
+	if err := alias.Validate(); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (s *V1betaDescribeActiveDirectoryTooManyRequests) Validate() error {
+	alias := (*Error)(s)
+	if err := alias.Validate(); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (s *V1betaDescribeActiveDirectoryUnauthorized) Validate() error {
+	alias := (*Error)(s)
+	if err := alias.Validate(); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (s *V1betaDescribeActiveDirectoryUnprocessableEntity) Validate() error {
+	alias := (*Error)(s)
+	if err := alias.Validate(); err != nil {
+		return err
+	}
+	return nil
+}
+
 func (s *V1betaDescribeBackupPolicyBadRequest) Validate() error {
 	alias := (*Error)(s)
 	if err := alias.Validate(); err != nil {
@@ -5082,6 +6667,62 @@ func (s *V1betaDescribeBackupPolicyUnauthorized) Validate() error {
 }
 
 func (s *V1betaDescribeBackupPolicyUnprocessableEntity) Validate() error {
+	alias := (*Error)(s)
+	if err := alias.Validate(); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (s *V1betaDescribeBackupVaultBadRequest) Validate() error {
+	alias := (*Error)(s)
+	if err := alias.Validate(); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (s *V1betaDescribeBackupVaultForbidden) Validate() error {
+	alias := (*Error)(s)
+	if err := alias.Validate(); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (s *V1betaDescribeBackupVaultInternalServerError) Validate() error {
+	alias := (*Error)(s)
+	if err := alias.Validate(); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (s *V1betaDescribeBackupVaultNotFound) Validate() error {
+	alias := (*Error)(s)
+	if err := alias.Validate(); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (s *V1betaDescribeBackupVaultTooManyRequests) Validate() error {
+	alias := (*Error)(s)
+	if err := alias.Validate(); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (s *V1betaDescribeBackupVaultUnauthorized) Validate() error {
+	alias := (*Error)(s)
+	if err := alias.Validate(); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (s *V1betaDescribeBackupVaultUnprocessableEntity) Validate() error {
 	alias := (*Error)(s)
 	if err := alias.Validate(); err != nil {
 		return err
@@ -5369,6 +7010,91 @@ func (s *V1betaDescribeVolumeUnauthorized) Validate() error {
 	return nil
 }
 
+func (s *V1betaGetMultipleActiveDirectoriesBadRequest) Validate() error {
+	alias := (*Error)(s)
+	if err := alias.Validate(); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (s *V1betaGetMultipleActiveDirectoriesForbidden) Validate() error {
+	alias := (*Error)(s)
+	if err := alias.Validate(); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (s *V1betaGetMultipleActiveDirectoriesInternalServerError) Validate() error {
+	alias := (*Error)(s)
+	if err := alias.Validate(); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (s *V1betaGetMultipleActiveDirectoriesNotFound) Validate() error {
+	alias := (*Error)(s)
+	if err := alias.Validate(); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (s *V1betaGetMultipleActiveDirectoriesOK) Validate() error {
+	if s == nil {
+		return validate.ErrNilPointer
+	}
+
+	var failures []validate.FieldError
+	if err := func() error {
+		var failures []validate.FieldError
+		for i, elem := range s.ActiveDirectories {
+			if err := func() error {
+				if err := elem.Validate(); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				failures = append(failures, validate.FieldError{
+					Name:  fmt.Sprintf("[%d]", i),
+					Error: err,
+				})
+			}
+		}
+		if len(failures) > 0 {
+			return &validate.Error{Fields: failures}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "activeDirectories",
+			Error: err,
+		})
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+	return nil
+}
+
+func (s *V1betaGetMultipleActiveDirectoriesTooManyRequests) Validate() error {
+	alias := (*Error)(s)
+	if err := alias.Validate(); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (s *V1betaGetMultipleActiveDirectoriesUnauthorized) Validate() error {
+	alias := (*Error)(s)
+	if err := alias.Validate(); err != nil {
+		return err
+	}
+	return nil
+}
+
 func (s *V1betaGetMultipleBackupPoliciesBadRequest) Validate() error {
 	alias := (*Error)(s)
 	if err := alias.Validate(); err != nil {
@@ -5447,6 +7173,91 @@ func (s *V1betaGetMultipleBackupPoliciesOK) Validate() error {
 }
 
 func (s *V1betaGetMultipleBackupPoliciesUnauthorized) Validate() error {
+	alias := (*Error)(s)
+	if err := alias.Validate(); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (s *V1betaGetMultipleBackupVaultsBadRequest) Validate() error {
+	alias := (*Error)(s)
+	if err := alias.Validate(); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (s *V1betaGetMultipleBackupVaultsForbidden) Validate() error {
+	alias := (*Error)(s)
+	if err := alias.Validate(); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (s *V1betaGetMultipleBackupVaultsInternalServerError) Validate() error {
+	alias := (*Error)(s)
+	if err := alias.Validate(); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (s *V1betaGetMultipleBackupVaultsNotFound) Validate() error {
+	alias := (*Error)(s)
+	if err := alias.Validate(); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (s *V1betaGetMultipleBackupVaultsNotImplemented) Validate() error {
+	alias := (*Error)(s)
+	if err := alias.Validate(); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (s *V1betaGetMultipleBackupVaultsOK) Validate() error {
+	if s == nil {
+		return validate.ErrNilPointer
+	}
+
+	var failures []validate.FieldError
+	if err := func() error {
+		var failures []validate.FieldError
+		for i, elem := range s.BackupVaults {
+			if err := func() error {
+				if err := elem.Validate(); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				failures = append(failures, validate.FieldError{
+					Name:  fmt.Sprintf("[%d]", i),
+					Error: err,
+				})
+			}
+		}
+		if len(failures) > 0 {
+			return &validate.Error{Fields: failures}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "backupVaults",
+			Error: err,
+		})
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+	return nil
+}
+
+func (s *V1betaGetMultipleBackupVaultsUnauthorized) Validate() error {
 	alias := (*Error)(s)
 	if err := alias.Validate(); err != nil {
 		return err
@@ -6474,6 +8285,91 @@ func (s *V1betaInternalUpdateVolumeReplicationUnprocessableEntity) Validate() er
 	return nil
 }
 
+func (s *V1betaListActiveDirectoriesBadRequest) Validate() error {
+	alias := (*Error)(s)
+	if err := alias.Validate(); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (s *V1betaListActiveDirectoriesForbidden) Validate() error {
+	alias := (*Error)(s)
+	if err := alias.Validate(); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (s *V1betaListActiveDirectoriesInternalServerError) Validate() error {
+	alias := (*Error)(s)
+	if err := alias.Validate(); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (s *V1betaListActiveDirectoriesNotFound) Validate() error {
+	alias := (*Error)(s)
+	if err := alias.Validate(); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (s *V1betaListActiveDirectoriesOK) Validate() error {
+	if s == nil {
+		return validate.ErrNilPointer
+	}
+
+	var failures []validate.FieldError
+	if err := func() error {
+		var failures []validate.FieldError
+		for i, elem := range s.ActiveDirectories {
+			if err := func() error {
+				if err := elem.Validate(); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				failures = append(failures, validate.FieldError{
+					Name:  fmt.Sprintf("[%d]", i),
+					Error: err,
+				})
+			}
+		}
+		if len(failures) > 0 {
+			return &validate.Error{Fields: failures}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "activeDirectories",
+			Error: err,
+		})
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+	return nil
+}
+
+func (s *V1betaListActiveDirectoriesTooManyRequests) Validate() error {
+	alias := (*Error)(s)
+	if err := alias.Validate(); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (s *V1betaListActiveDirectoriesUnauthorized) Validate() error {
+	alias := (*Error)(s)
+	if err := alias.Validate(); err != nil {
+		return err
+	}
+	return nil
+}
+
 func (s *V1betaListBackupPoliciesBadRequest) Validate() error {
 	alias := (*Error)(s)
 	if err := alias.Validate(); err != nil {
@@ -6552,6 +8448,99 @@ func (s *V1betaListBackupPoliciesOK) Validate() error {
 }
 
 func (s *V1betaListBackupPoliciesUnauthorized) Validate() error {
+	alias := (*Error)(s)
+	if err := alias.Validate(); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (s *V1betaListBackupVaultsBadRequest) Validate() error {
+	alias := (*Error)(s)
+	if err := alias.Validate(); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (s *V1betaListBackupVaultsForbidden) Validate() error {
+	alias := (*Error)(s)
+	if err := alias.Validate(); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (s *V1betaListBackupVaultsInternalServerError) Validate() error {
+	alias := (*Error)(s)
+	if err := alias.Validate(); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (s *V1betaListBackupVaultsNotFound) Validate() error {
+	alias := (*Error)(s)
+	if err := alias.Validate(); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (s *V1betaListBackupVaultsNotImplemented) Validate() error {
+	alias := (*Error)(s)
+	if err := alias.Validate(); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (s *V1betaListBackupVaultsOK) Validate() error {
+	if s == nil {
+		return validate.ErrNilPointer
+	}
+
+	var failures []validate.FieldError
+	if err := func() error {
+		var failures []validate.FieldError
+		for i, elem := range s.BackupVaults {
+			if err := func() error {
+				if err := elem.Validate(); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				failures = append(failures, validate.FieldError{
+					Name:  fmt.Sprintf("[%d]", i),
+					Error: err,
+				})
+			}
+		}
+		if len(failures) > 0 {
+			return &validate.Error{Fields: failures}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "backupVaults",
+			Error: err,
+		})
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+	return nil
+}
+
+func (s *V1betaListBackupVaultsTooManyRequests) Validate() error {
+	alias := (*Error)(s)
+	if err := alias.Validate(); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (s *V1betaListBackupVaultsUnauthorized) Validate() error {
 	alias := (*Error)(s)
 	if err := alias.Validate(); err != nil {
 		return err
@@ -7232,6 +9221,70 @@ func (s *V1betaSyncReplicationUnprocessableEntity) Validate() error {
 	return nil
 }
 
+func (s *V1betaUpdateActiveDirectoryBadRequest) Validate() error {
+	alias := (*Error)(s)
+	if err := alias.Validate(); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (s *V1betaUpdateActiveDirectoryConflict) Validate() error {
+	alias := (*Error)(s)
+	if err := alias.Validate(); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (s *V1betaUpdateActiveDirectoryForbidden) Validate() error {
+	alias := (*Error)(s)
+	if err := alias.Validate(); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (s *V1betaUpdateActiveDirectoryInternalServerError) Validate() error {
+	alias := (*Error)(s)
+	if err := alias.Validate(); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (s *V1betaUpdateActiveDirectoryNotFound) Validate() error {
+	alias := (*Error)(s)
+	if err := alias.Validate(); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (s *V1betaUpdateActiveDirectoryTooManyRequests) Validate() error {
+	alias := (*Error)(s)
+	if err := alias.Validate(); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (s *V1betaUpdateActiveDirectoryUnauthorized) Validate() error {
+	alias := (*Error)(s)
+	if err := alias.Validate(); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (s *V1betaUpdateActiveDirectoryUnprocessableEntity) Validate() error {
+	alias := (*Error)(s)
+	if err := alias.Validate(); err != nil {
+		return err
+	}
+	return nil
+}
+
 func (s *V1betaUpdateBackupPolicyBadRequest) Validate() error {
 	alias := (*Error)(s)
 	if err := alias.Validate(); err != nil {
@@ -7297,6 +9350,62 @@ func (s *V1betaUpdateBackupPolicyUnauthorized) Validate() error {
 }
 
 func (s *V1betaUpdateBackupPolicyUnprocessableEntity) Validate() error {
+	alias := (*Error)(s)
+	if err := alias.Validate(); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (s *V1betaUpdateBackupVaultBadRequest) Validate() error {
+	alias := (*Error)(s)
+	if err := alias.Validate(); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (s *V1betaUpdateBackupVaultConflict) Validate() error {
+	alias := (*Error)(s)
+	if err := alias.Validate(); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (s *V1betaUpdateBackupVaultForbidden) Validate() error {
+	alias := (*Error)(s)
+	if err := alias.Validate(); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (s *V1betaUpdateBackupVaultInternalServerError) Validate() error {
+	alias := (*Error)(s)
+	if err := alias.Validate(); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (s *V1betaUpdateBackupVaultTooManyRequests) Validate() error {
+	alias := (*Error)(s)
+	if err := alias.Validate(); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (s *V1betaUpdateBackupVaultUnauthorized) Validate() error {
+	alias := (*Error)(s)
+	if err := alias.Validate(); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (s *V1betaUpdateBackupVaultUnprocessableEntity) Validate() error {
 	alias := (*Error)(s)
 	if err := alias.Validate(); err != nil {
 		return err

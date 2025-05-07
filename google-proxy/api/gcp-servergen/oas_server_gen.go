@@ -20,12 +20,24 @@ type Handler interface {
 	//
 	// GET /v1beta/projects/{projectNumber}/locations/{locationId}/storage/kmsConfig/{kmsConfigId}/check
 	V1betaCheckKmsConfig(ctx context.Context, params V1betaCheckKmsConfigParams) (V1betaCheckKmsConfigRes, error)
+	// V1betaCreateActiveDirectory implements v1beta_createActiveDirectory operation.
+	//
+	// Creates Active Directory credentials for the active user.
+	//
+	// POST /v1beta/projects/{projectNumber}/locations/{locationId}/activeDirectories
+	V1betaCreateActiveDirectory(ctx context.Context, req *ActiveDirectoryV1beta, params V1betaCreateActiveDirectoryParams) (V1betaCreateActiveDirectoryRes, error)
 	// V1betaCreateBackupPolicy implements v1beta_createBackupPolicy operation.
 	//
 	// Create a new backup policy.
 	//
 	// POST /v1beta/projects/{projectNumber}/locations/{locationId}/backupPolicies
 	V1betaCreateBackupPolicy(ctx context.Context, req *BackupPolicyCreateV1beta, params V1betaCreateBackupPolicyParams) (V1betaCreateBackupPolicyRes, error)
+	// V1betaCreateBackupVault implements v1beta_createBackupVault operation.
+	//
+	// Creates a new backup vault.
+	//
+	// POST /v1beta/projects/{projectNumber}/locations/{locationId}/backupVaults
+	V1betaCreateBackupVault(ctx context.Context, req *BackupVaultCreateV1beta, params V1betaCreateBackupVaultParams) (V1betaCreateBackupVaultRes, error)
 	// V1betaCreateHostGroup implements v1beta_createHostGroup operation.
 	//
 	// Create a new HostGroup.
@@ -57,12 +69,26 @@ type Handler interface {
 	//
 	// POST /v1beta/projects/{projectNumber}/locations/{locationId}/volumes
 	V1betaCreateVolume(ctx context.Context, req *VolumeCreateV1beta, params V1betaCreateVolumeParams) (V1betaCreateVolumeRes, error)
+	// V1betaDeleteActiveDirectory implements v1beta_deleteActiveDirectory operation.
+	//
+	// Deletes the Active Directory credentials for the active user. This operation will never return
+	// resource not found, since that could be interpreted as resource already deleted, and therefore
+	// will return operation done instead.
+	//
+	// DELETE /v1beta/projects/{projectNumber}/locations/{locationId}/activeDirectories/{activeDirectoryId}
+	V1betaDeleteActiveDirectory(ctx context.Context, params V1betaDeleteActiveDirectoryParams) (V1betaDeleteActiveDirectoryRes, error)
 	// V1betaDeleteBackupPolicy implements v1beta_deleteBackupPolicy operation.
 	//
 	// Warning! This operation will permanently delete the backup policy.
 	//
 	// DELETE /v1beta/projects/{projectNumber}/locations/{locationId}/backupPolicies/{backupPolicyId}
 	V1betaDeleteBackupPolicy(ctx context.Context, params V1betaDeleteBackupPolicyParams) (V1betaDeleteBackupPolicyRes, error)
+	// V1betaDeleteBackupVault implements v1beta_deleteBackupVault operation.
+	//
+	// Warning! This operation will permanently delete the backup vault.
+	//
+	// DELETE /v1beta/projects/{projectNumber}/locations/{locationId}/backupVaults/{backupVaultId}
+	V1betaDeleteBackupVault(ctx context.Context, params V1betaDeleteBackupVaultParams) (V1betaDeleteBackupVaultRes, error)
 	// V1betaDeleteHostGroup implements v1beta_deleteHostGroup operation.
 	//
 	// Warning! This operation will permanently delete the HostGroup.
@@ -97,12 +123,24 @@ type Handler interface {
 	//
 	// DELETE /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}
 	V1betaDeleteVolume(ctx context.Context, req OptV1betaDeleteVolumeReq, params V1betaDeleteVolumeParams) (V1betaDeleteVolumeRes, error)
+	// V1betaDescribeActiveDirectory implements v1beta_describeActiveDirectory operation.
+	//
+	// Returns the description of the specified Active Directory credentials by active-directory ID.
+	//
+	// GET /v1beta/projects/{projectNumber}/locations/{locationId}/activeDirectories/{activeDirectoryId}
+	V1betaDescribeActiveDirectory(ctx context.Context, params V1betaDescribeActiveDirectoryParams) (V1betaDescribeActiveDirectoryRes, error)
 	// V1betaDescribeBackupPolicy implements v1beta_describeBackupPolicy operation.
 	//
 	// Returns the description of the specified backup policy by backup policy ID.
 	//
 	// GET /v1beta/projects/{projectNumber}/locations/{locationId}/backupPolicies/{backupPolicyId}
 	V1betaDescribeBackupPolicy(ctx context.Context, params V1betaDescribeBackupPolicyParams) (V1betaDescribeBackupPolicyRes, error)
+	// V1betaDescribeBackupVault implements v1beta_describeBackupVault operation.
+	//
+	// Returns the description of the specified backup vault.
+	//
+	// GET /v1beta/projects/{projectNumber}/locations/{locationId}/backupVaults/{backupVaultId}
+	V1betaDescribeBackupVault(ctx context.Context, params V1betaDescribeBackupVaultParams) (V1betaDescribeBackupVaultRes, error)
 	// V1betaDescribeHostGroup implements v1beta_describeHostGroup operation.
 	//
 	// Returns the description of the specified HostGroup by hostGroupId.
@@ -133,12 +171,24 @@ type Handler interface {
 	//
 	// GET /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}
 	V1betaDescribeVolume(ctx context.Context, params V1betaDescribeVolumeParams) (V1betaDescribeVolumeRes, error)
+	// V1betaGetMultipleActiveDirectories implements v1beta_getMultipleActiveDirectories operation.
+	//
+	// Returns descriptions of Active Directory credentials that is listed in request body.
+	//
+	// POST /v1beta/projects/{projectNumber}/locations/{locationId}/getMultipleActiveDirectories
+	V1betaGetMultipleActiveDirectories(ctx context.Context, req *ActiveDirectoryIDListV1beta, params V1betaGetMultipleActiveDirectoriesParams) (V1betaGetMultipleActiveDirectoriesRes, error)
 	// V1betaGetMultipleBackupPolicies implements v1beta_getMultipleBackupPolicies operation.
 	//
 	// Returns descriptions of backup policies that is listed in request body.
 	//
 	// POST /v1beta/projects/{projectNumber}/locations/{locationId}/getMultipleBackupPolicies
 	V1betaGetMultipleBackupPolicies(ctx context.Context, req *BackupPolicyIDListV1beta, params V1betaGetMultipleBackupPoliciesParams) (V1betaGetMultipleBackupPoliciesRes, error)
+	// V1betaGetMultipleBackupVaults implements v1beta_getMultipleBackupVaults operation.
+	//
+	// Returns descriptions of backup vaults that is listed in request body.
+	//
+	// POST /v1beta/projects/{projectNumber}/locations/{locationId}/getMultipleBackupVaults
+	V1betaGetMultipleBackupVaults(ctx context.Context, req *BackupVaultUUIDListV1beta, params V1betaGetMultipleBackupVaultsParams) (V1betaGetMultipleBackupVaultsRes, error)
 	// V1betaGetMultipleHostGroups implements v1beta_getMultipleHostGroups operation.
 	//
 	// Returns descriptions of HostGroups that are listed in request body.
@@ -227,12 +277,24 @@ type Handler interface {
 	//
 	// PUT /v1beta/internal/projects/{projectNumber}/locations/{locationId}/volumeReplication/{volumeReplicationId}
 	V1betaInternalUpdateVolumeReplication(ctx context.Context, req *VolumeReplicationUpdateInternalV1beta, params V1betaInternalUpdateVolumeReplicationParams) (V1betaInternalUpdateVolumeReplicationRes, error)
+	// V1betaListActiveDirectories implements v1beta_listActiveDirectories operation.
+	//
+	// Returns descriptions of all Active Directory credentials owned by the caller.
+	//
+	// GET /v1beta/projects/{projectNumber}/locations/{locationId}/activeDirectories
+	V1betaListActiveDirectories(ctx context.Context, params V1betaListActiveDirectoriesParams) (V1betaListActiveDirectoriesRes, error)
 	// V1betaListBackupPolicies implements v1beta_listBackupPolicies operation.
 	//
 	// Returns list of all available backup policies.
 	//
 	// GET /v1beta/projects/{projectNumber}/locations/{locationId}/backupPolicies
 	V1betaListBackupPolicies(ctx context.Context, params V1betaListBackupPoliciesParams) (V1betaListBackupPoliciesRes, error)
+	// V1betaListBackupVaults implements v1beta_listBackupVaults operation.
+	//
+	// Returns descriptions of all backup vaults.
+	//
+	// GET /v1beta/projects/{projectNumber}/locations/{locationId}/backupVaults
+	V1betaListBackupVaults(ctx context.Context, params V1betaListBackupVaultsParams) (V1betaListBackupVaultsRes, error)
 	// V1betaListHostGroups implements v1beta_listHostGroups operation.
 	//
 	// Returns descriptions of all HostGroups owned by the caller.
@@ -287,12 +349,24 @@ type Handler interface {
 	//
 	// POST /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeResourceId}/replications/{replicationResourceId}/sync
 	V1betaSyncReplication(ctx context.Context, params V1betaSyncReplicationParams) (V1betaSyncReplicationRes, error)
+	// V1betaUpdateActiveDirectory implements v1beta_updateActiveDirectory operation.
+	//
+	// Update the Active Directory credentials.
+	//
+	// PUT /v1beta/projects/{projectNumber}/locations/{locationId}/activeDirectories/{activeDirectoryId}
+	V1betaUpdateActiveDirectory(ctx context.Context, req *ActiveDirectoryUpdateV1beta, params V1betaUpdateActiveDirectoryParams) (V1betaUpdateActiveDirectoryRes, error)
 	// V1betaUpdateBackupPolicy implements v1beta_updateBackupPolicy operation.
 	//
 	// Update the backup policy.
 	//
 	// PUT /v1beta/projects/{projectNumber}/locations/{locationId}/backupPolicies/{backupPolicyId}
 	V1betaUpdateBackupPolicy(ctx context.Context, req *BackupPolicyScheduleV1beta, params V1betaUpdateBackupPolicyParams) (V1betaUpdateBackupPolicyRes, error)
+	// V1betaUpdateBackupVault implements v1beta_updateBackupVault operation.
+	//
+	// Update the backup vault.
+	//
+	// PUT /v1beta/projects/{projectNumber}/locations/{locationId}/backupVaults/{backupVaultId}
+	V1betaUpdateBackupVault(ctx context.Context, req *BackupVaultUpdateV1beta, params V1betaUpdateBackupVaultParams) (V1betaUpdateBackupVaultRes, error)
 	// V1betaUpdateHostGroup implements v1beta_updateHostGroup operation.
 	//
 	// Update the specified HostGroup.

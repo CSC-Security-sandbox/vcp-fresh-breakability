@@ -14,6 +14,77 @@ import (
 	"github.com/ogen-go/ogen/validate"
 )
 
+func (s *Server) decodeV1betaCreateActiveDirectoryRequest(r *http.Request) (
+	req *ActiveDirectoryV1beta,
+	close func() error,
+	rerr error,
+) {
+	var closers []func() error
+	close = func() error {
+		var merr error
+		// Close in reverse order, to match defer behavior.
+		for i := len(closers) - 1; i >= 0; i-- {
+			c := closers[i]
+			merr = errors.Join(merr, c())
+		}
+		return merr
+	}
+	defer func() {
+		if rerr != nil {
+			rerr = errors.Join(rerr, close())
+		}
+	}()
+	ct, _, err := mime.ParseMediaType(r.Header.Get("Content-Type"))
+	if err != nil {
+		return req, close, errors.Wrap(err, "parse media type")
+	}
+	switch {
+	case ct == "application/json":
+		if r.ContentLength == 0 {
+			return req, close, validate.ErrBodyRequired
+		}
+		buf, err := io.ReadAll(r.Body)
+		if err != nil {
+			return req, close, err
+		}
+
+		if len(buf) == 0 {
+			return req, close, validate.ErrBodyRequired
+		}
+
+		d := jx.DecodeBytes(buf)
+
+		var request ActiveDirectoryV1beta
+		if err := func() error {
+			if err := request.Decode(d); err != nil {
+				return err
+			}
+			if err := d.Skip(); err != io.EOF {
+				return errors.New("unexpected trailing data")
+			}
+			return nil
+		}(); err != nil {
+			err = &ogenerrors.DecodeBodyError{
+				ContentType: ct,
+				Body:        buf,
+				Err:         err,
+			}
+			return req, close, err
+		}
+		if err := func() error {
+			if err := request.Validate(); err != nil {
+				return err
+			}
+			return nil
+		}(); err != nil {
+			return req, close, errors.Wrap(err, "validate")
+		}
+		return &request, close, nil
+	default:
+		return req, close, validate.InvalidContentType(ct)
+	}
+}
+
 func (s *Server) decodeV1betaCreateBackupPolicyRequest(r *http.Request) (
 	req *BackupPolicyCreateV1beta,
 	close func() error,
@@ -55,6 +126,77 @@ func (s *Server) decodeV1betaCreateBackupPolicyRequest(r *http.Request) (
 		d := jx.DecodeBytes(buf)
 
 		var request BackupPolicyCreateV1beta
+		if err := func() error {
+			if err := request.Decode(d); err != nil {
+				return err
+			}
+			if err := d.Skip(); err != io.EOF {
+				return errors.New("unexpected trailing data")
+			}
+			return nil
+		}(); err != nil {
+			err = &ogenerrors.DecodeBodyError{
+				ContentType: ct,
+				Body:        buf,
+				Err:         err,
+			}
+			return req, close, err
+		}
+		if err := func() error {
+			if err := request.Validate(); err != nil {
+				return err
+			}
+			return nil
+		}(); err != nil {
+			return req, close, errors.Wrap(err, "validate")
+		}
+		return &request, close, nil
+	default:
+		return req, close, validate.InvalidContentType(ct)
+	}
+}
+
+func (s *Server) decodeV1betaCreateBackupVaultRequest(r *http.Request) (
+	req *BackupVaultCreateV1beta,
+	close func() error,
+	rerr error,
+) {
+	var closers []func() error
+	close = func() error {
+		var merr error
+		// Close in reverse order, to match defer behavior.
+		for i := len(closers) - 1; i >= 0; i-- {
+			c := closers[i]
+			merr = errors.Join(merr, c())
+		}
+		return merr
+	}
+	defer func() {
+		if rerr != nil {
+			rerr = errors.Join(rerr, close())
+		}
+	}()
+	ct, _, err := mime.ParseMediaType(r.Header.Get("Content-Type"))
+	if err != nil {
+		return req, close, errors.Wrap(err, "parse media type")
+	}
+	switch {
+	case ct == "application/json":
+		if r.ContentLength == 0 {
+			return req, close, validate.ErrBodyRequired
+		}
+		buf, err := io.ReadAll(r.Body)
+		if err != nil {
+			return req, close, err
+		}
+
+		if len(buf) == 0 {
+			return req, close, validate.ErrBodyRequired
+		}
+
+		d := jx.DecodeBytes(buf)
+
+		var request BackupVaultCreateV1beta
 		if err := func() error {
 			if err := request.Decode(d); err != nil {
 				return err
@@ -578,6 +720,77 @@ func (s *Server) decodeV1betaDeleteVolumeRequest(r *http.Request) (
 	}
 }
 
+func (s *Server) decodeV1betaGetMultipleActiveDirectoriesRequest(r *http.Request) (
+	req *ActiveDirectoryIDListV1beta,
+	close func() error,
+	rerr error,
+) {
+	var closers []func() error
+	close = func() error {
+		var merr error
+		// Close in reverse order, to match defer behavior.
+		for i := len(closers) - 1; i >= 0; i-- {
+			c := closers[i]
+			merr = errors.Join(merr, c())
+		}
+		return merr
+	}
+	defer func() {
+		if rerr != nil {
+			rerr = errors.Join(rerr, close())
+		}
+	}()
+	ct, _, err := mime.ParseMediaType(r.Header.Get("Content-Type"))
+	if err != nil {
+		return req, close, errors.Wrap(err, "parse media type")
+	}
+	switch {
+	case ct == "application/json":
+		if r.ContentLength == 0 {
+			return req, close, validate.ErrBodyRequired
+		}
+		buf, err := io.ReadAll(r.Body)
+		if err != nil {
+			return req, close, err
+		}
+
+		if len(buf) == 0 {
+			return req, close, validate.ErrBodyRequired
+		}
+
+		d := jx.DecodeBytes(buf)
+
+		var request ActiveDirectoryIDListV1beta
+		if err := func() error {
+			if err := request.Decode(d); err != nil {
+				return err
+			}
+			if err := d.Skip(); err != io.EOF {
+				return errors.New("unexpected trailing data")
+			}
+			return nil
+		}(); err != nil {
+			err = &ogenerrors.DecodeBodyError{
+				ContentType: ct,
+				Body:        buf,
+				Err:         err,
+			}
+			return req, close, err
+		}
+		if err := func() error {
+			if err := request.Validate(); err != nil {
+				return err
+			}
+			return nil
+		}(); err != nil {
+			return req, close, errors.Wrap(err, "validate")
+		}
+		return &request, close, nil
+	default:
+		return req, close, validate.InvalidContentType(ct)
+	}
+}
+
 func (s *Server) decodeV1betaGetMultipleBackupPoliciesRequest(r *http.Request) (
 	req *BackupPolicyIDListV1beta,
 	close func() error,
@@ -619,6 +832,77 @@ func (s *Server) decodeV1betaGetMultipleBackupPoliciesRequest(r *http.Request) (
 		d := jx.DecodeBytes(buf)
 
 		var request BackupPolicyIDListV1beta
+		if err := func() error {
+			if err := request.Decode(d); err != nil {
+				return err
+			}
+			if err := d.Skip(); err != io.EOF {
+				return errors.New("unexpected trailing data")
+			}
+			return nil
+		}(); err != nil {
+			err = &ogenerrors.DecodeBodyError{
+				ContentType: ct,
+				Body:        buf,
+				Err:         err,
+			}
+			return req, close, err
+		}
+		if err := func() error {
+			if err := request.Validate(); err != nil {
+				return err
+			}
+			return nil
+		}(); err != nil {
+			return req, close, errors.Wrap(err, "validate")
+		}
+		return &request, close, nil
+	default:
+		return req, close, validate.InvalidContentType(ct)
+	}
+}
+
+func (s *Server) decodeV1betaGetMultipleBackupVaultsRequest(r *http.Request) (
+	req *BackupVaultUUIDListV1beta,
+	close func() error,
+	rerr error,
+) {
+	var closers []func() error
+	close = func() error {
+		var merr error
+		// Close in reverse order, to match defer behavior.
+		for i := len(closers) - 1; i >= 0; i-- {
+			c := closers[i]
+			merr = errors.Join(merr, c())
+		}
+		return merr
+	}
+	defer func() {
+		if rerr != nil {
+			rerr = errors.Join(rerr, close())
+		}
+	}()
+	ct, _, err := mime.ParseMediaType(r.Header.Get("Content-Type"))
+	if err != nil {
+		return req, close, errors.Wrap(err, "parse media type")
+	}
+	switch {
+	case ct == "application/json":
+		if r.ContentLength == 0 {
+			return req, close, validate.ErrBodyRequired
+		}
+		buf, err := io.ReadAll(r.Body)
+		if err != nil {
+			return req, close, err
+		}
+
+		if len(buf) == 0 {
+			return req, close, validate.ErrBodyRequired
+		}
+
+		d := jx.DecodeBytes(buf)
+
+		var request BackupVaultUUIDListV1beta
 		if err := func() error {
 			if err := request.Decode(d); err != nil {
 				return err
@@ -1343,6 +1627,77 @@ func (s *Server) decodeV1betaStopReplicationRequest(r *http.Request) (
 	}
 }
 
+func (s *Server) decodeV1betaUpdateActiveDirectoryRequest(r *http.Request) (
+	req *ActiveDirectoryUpdateV1beta,
+	close func() error,
+	rerr error,
+) {
+	var closers []func() error
+	close = func() error {
+		var merr error
+		// Close in reverse order, to match defer behavior.
+		for i := len(closers) - 1; i >= 0; i-- {
+			c := closers[i]
+			merr = errors.Join(merr, c())
+		}
+		return merr
+	}
+	defer func() {
+		if rerr != nil {
+			rerr = errors.Join(rerr, close())
+		}
+	}()
+	ct, _, err := mime.ParseMediaType(r.Header.Get("Content-Type"))
+	if err != nil {
+		return req, close, errors.Wrap(err, "parse media type")
+	}
+	switch {
+	case ct == "application/json":
+		if r.ContentLength == 0 {
+			return req, close, validate.ErrBodyRequired
+		}
+		buf, err := io.ReadAll(r.Body)
+		if err != nil {
+			return req, close, err
+		}
+
+		if len(buf) == 0 {
+			return req, close, validate.ErrBodyRequired
+		}
+
+		d := jx.DecodeBytes(buf)
+
+		var request ActiveDirectoryUpdateV1beta
+		if err := func() error {
+			if err := request.Decode(d); err != nil {
+				return err
+			}
+			if err := d.Skip(); err != io.EOF {
+				return errors.New("unexpected trailing data")
+			}
+			return nil
+		}(); err != nil {
+			err = &ogenerrors.DecodeBodyError{
+				ContentType: ct,
+				Body:        buf,
+				Err:         err,
+			}
+			return req, close, err
+		}
+		if err := func() error {
+			if err := request.Validate(); err != nil {
+				return err
+			}
+			return nil
+		}(); err != nil {
+			return req, close, errors.Wrap(err, "validate")
+		}
+		return &request, close, nil
+	default:
+		return req, close, validate.InvalidContentType(ct)
+	}
+}
+
 func (s *Server) decodeV1betaUpdateBackupPolicyRequest(r *http.Request) (
 	req *BackupPolicyScheduleV1beta,
 	close func() error,
@@ -1384,6 +1739,77 @@ func (s *Server) decodeV1betaUpdateBackupPolicyRequest(r *http.Request) (
 		d := jx.DecodeBytes(buf)
 
 		var request BackupPolicyScheduleV1beta
+		if err := func() error {
+			if err := request.Decode(d); err != nil {
+				return err
+			}
+			if err := d.Skip(); err != io.EOF {
+				return errors.New("unexpected trailing data")
+			}
+			return nil
+		}(); err != nil {
+			err = &ogenerrors.DecodeBodyError{
+				ContentType: ct,
+				Body:        buf,
+				Err:         err,
+			}
+			return req, close, err
+		}
+		if err := func() error {
+			if err := request.Validate(); err != nil {
+				return err
+			}
+			return nil
+		}(); err != nil {
+			return req, close, errors.Wrap(err, "validate")
+		}
+		return &request, close, nil
+	default:
+		return req, close, validate.InvalidContentType(ct)
+	}
+}
+
+func (s *Server) decodeV1betaUpdateBackupVaultRequest(r *http.Request) (
+	req *BackupVaultUpdateV1beta,
+	close func() error,
+	rerr error,
+) {
+	var closers []func() error
+	close = func() error {
+		var merr error
+		// Close in reverse order, to match defer behavior.
+		for i := len(closers) - 1; i >= 0; i-- {
+			c := closers[i]
+			merr = errors.Join(merr, c())
+		}
+		return merr
+	}
+	defer func() {
+		if rerr != nil {
+			rerr = errors.Join(rerr, close())
+		}
+	}()
+	ct, _, err := mime.ParseMediaType(r.Header.Get("Content-Type"))
+	if err != nil {
+		return req, close, errors.Wrap(err, "parse media type")
+	}
+	switch {
+	case ct == "application/json":
+		if r.ContentLength == 0 {
+			return req, close, validate.ErrBodyRequired
+		}
+		buf, err := io.ReadAll(r.Body)
+		if err != nil {
+			return req, close, err
+		}
+
+		if len(buf) == 0 {
+			return req, close, validate.ErrBodyRequired
+		}
+
+		d := jx.DecodeBytes(buf)
+
+		var request BackupVaultUpdateV1beta
 		if err := func() error {
 			if err := request.Decode(d); err != nil {
 				return err

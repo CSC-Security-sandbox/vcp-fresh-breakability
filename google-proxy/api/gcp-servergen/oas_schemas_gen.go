@@ -14,6 +14,625 @@ func (s *ErrorStatusCode) Error() string {
 	return fmt.Sprintf("code %d: %+v", s.StatusCode, s.Response)
 }
 
+// Ref: #/components/schemas/ActiveDirectoryIDList_v1beta
+type ActiveDirectoryIDListV1beta struct {
+	ActiveDirectoryUUIDs []string `json:"activeDirectoryUUIDs"`
+}
+
+// GetActiveDirectoryUUIDs returns the value of ActiveDirectoryUUIDs.
+func (s *ActiveDirectoryIDListV1beta) GetActiveDirectoryUUIDs() []string {
+	return s.ActiveDirectoryUUIDs
+}
+
+// SetActiveDirectoryUUIDs sets the value of ActiveDirectoryUUIDs.
+func (s *ActiveDirectoryIDListV1beta) SetActiveDirectoryUUIDs(val []string) {
+	s.ActiveDirectoryUUIDs = val
+}
+
+// Ref: #/components/schemas/ActiveDirectoryUpdate_v1beta
+type ActiveDirectoryUpdateV1beta struct {
+	// Username of the Active Directory domain administrator.
+	Username OptString `json:"username"`
+	// Password of the Active Directory domain administrator.
+	Password OptString `json:"password"`
+	// Name of the Active Directory domain.
+	Domain OptString `json:"domain"`
+	// Comma separated list of DNS server IP addresses for the Active Directory domain. Can only include
+	// a maximum of 3 items.
+	DNS OptString `json:"DNS"`
+	// NetBIOS name prefix of the server.
+	NetBIOS OptString `json:"netBIOS"`
+	// The Organizational Unit (OU) within the Windows Active Directory the user belongs to.
+	OrganizationalUnit OptString `json:"organizationalUnit"`
+	// The Active Directory site the service will limit domain controller discovery to. Site names have
+	// to be at least 2 characters long (an empty string clears site assignment), can contain only
+	// alphabetical characters (A-Z), numeric characters (0-9), the minus sign (-), and the period (.).
+	// Period characters are allowed only when they are used to delimit the components of domain style
+	// names.
+	Site OptString `json:"site"`
+	// KDC server IP address for the Active Directory machine. This optional parameter is used only while
+	// creating kerberos volume.
+	KdcIP OptString `json:"kdcIP"`
+	// Name of the Active Directory machine. This optional parameter is used only while creating kerberos
+	// volume.
+	KdcHostname OptString `json:"kdcHostname"`
+	// Specifies whether or not the LDAP traffic needs to be signed.
+	LdapSigning OptBool `json:"ldapSigning"`
+	// If enabled, allowLocalNFSUsersWithLdap will allow access to local users as well as LDAP users. If
+	// access is needed for only LDAP users, it has to be disabled.
+	AllowLocalNFSUsersWithLdap OptBool `json:"allowLocalNFSUsersWithLdap"`
+	// If enabled, traffic between the SMB server to domain controller (DC) will be encrypted.
+	EncryptDCConnections OptBool `json:"encryptDCConnections"`
+	// Domain users to be given the SeSecurityPrivilege.
+	SecurityOperators []string `json:"securityOperators"`
+	// Users to be added to the built-in backup operator Active-directory group. The usernames must be
+	// unique, and entries cannot include @ or \. The entire list will be validated and rejected as whole
+	// if one or more entries are invalid.
+	BackupOperators []string `json:"backupOperators"`
+	// Users to be added to the built-in administrators Active-directory group. The usernames must be
+	// unique, and entries cannot include @ or \. The entire list will be validated and rejected as whole
+	// if one or more entries are invalid.
+	Administrators []string `json:"administrators"`
+	// If enabled, AES encryption will be enabled for SMB communication.
+	AesEncryption OptBool `json:"aesEncryption"`
+	// Description of the Active Directory.
+	Description OptString `json:"description"`
+}
+
+// GetUsername returns the value of Username.
+func (s *ActiveDirectoryUpdateV1beta) GetUsername() OptString {
+	return s.Username
+}
+
+// GetPassword returns the value of Password.
+func (s *ActiveDirectoryUpdateV1beta) GetPassword() OptString {
+	return s.Password
+}
+
+// GetDomain returns the value of Domain.
+func (s *ActiveDirectoryUpdateV1beta) GetDomain() OptString {
+	return s.Domain
+}
+
+// GetDNS returns the value of DNS.
+func (s *ActiveDirectoryUpdateV1beta) GetDNS() OptString {
+	return s.DNS
+}
+
+// GetNetBIOS returns the value of NetBIOS.
+func (s *ActiveDirectoryUpdateV1beta) GetNetBIOS() OptString {
+	return s.NetBIOS
+}
+
+// GetOrganizationalUnit returns the value of OrganizationalUnit.
+func (s *ActiveDirectoryUpdateV1beta) GetOrganizationalUnit() OptString {
+	return s.OrganizationalUnit
+}
+
+// GetSite returns the value of Site.
+func (s *ActiveDirectoryUpdateV1beta) GetSite() OptString {
+	return s.Site
+}
+
+// GetKdcIP returns the value of KdcIP.
+func (s *ActiveDirectoryUpdateV1beta) GetKdcIP() OptString {
+	return s.KdcIP
+}
+
+// GetKdcHostname returns the value of KdcHostname.
+func (s *ActiveDirectoryUpdateV1beta) GetKdcHostname() OptString {
+	return s.KdcHostname
+}
+
+// GetLdapSigning returns the value of LdapSigning.
+func (s *ActiveDirectoryUpdateV1beta) GetLdapSigning() OptBool {
+	return s.LdapSigning
+}
+
+// GetAllowLocalNFSUsersWithLdap returns the value of AllowLocalNFSUsersWithLdap.
+func (s *ActiveDirectoryUpdateV1beta) GetAllowLocalNFSUsersWithLdap() OptBool {
+	return s.AllowLocalNFSUsersWithLdap
+}
+
+// GetEncryptDCConnections returns the value of EncryptDCConnections.
+func (s *ActiveDirectoryUpdateV1beta) GetEncryptDCConnections() OptBool {
+	return s.EncryptDCConnections
+}
+
+// GetSecurityOperators returns the value of SecurityOperators.
+func (s *ActiveDirectoryUpdateV1beta) GetSecurityOperators() []string {
+	return s.SecurityOperators
+}
+
+// GetBackupOperators returns the value of BackupOperators.
+func (s *ActiveDirectoryUpdateV1beta) GetBackupOperators() []string {
+	return s.BackupOperators
+}
+
+// GetAdministrators returns the value of Administrators.
+func (s *ActiveDirectoryUpdateV1beta) GetAdministrators() []string {
+	return s.Administrators
+}
+
+// GetAesEncryption returns the value of AesEncryption.
+func (s *ActiveDirectoryUpdateV1beta) GetAesEncryption() OptBool {
+	return s.AesEncryption
+}
+
+// GetDescription returns the value of Description.
+func (s *ActiveDirectoryUpdateV1beta) GetDescription() OptString {
+	return s.Description
+}
+
+// SetUsername sets the value of Username.
+func (s *ActiveDirectoryUpdateV1beta) SetUsername(val OptString) {
+	s.Username = val
+}
+
+// SetPassword sets the value of Password.
+func (s *ActiveDirectoryUpdateV1beta) SetPassword(val OptString) {
+	s.Password = val
+}
+
+// SetDomain sets the value of Domain.
+func (s *ActiveDirectoryUpdateV1beta) SetDomain(val OptString) {
+	s.Domain = val
+}
+
+// SetDNS sets the value of DNS.
+func (s *ActiveDirectoryUpdateV1beta) SetDNS(val OptString) {
+	s.DNS = val
+}
+
+// SetNetBIOS sets the value of NetBIOS.
+func (s *ActiveDirectoryUpdateV1beta) SetNetBIOS(val OptString) {
+	s.NetBIOS = val
+}
+
+// SetOrganizationalUnit sets the value of OrganizationalUnit.
+func (s *ActiveDirectoryUpdateV1beta) SetOrganizationalUnit(val OptString) {
+	s.OrganizationalUnit = val
+}
+
+// SetSite sets the value of Site.
+func (s *ActiveDirectoryUpdateV1beta) SetSite(val OptString) {
+	s.Site = val
+}
+
+// SetKdcIP sets the value of KdcIP.
+func (s *ActiveDirectoryUpdateV1beta) SetKdcIP(val OptString) {
+	s.KdcIP = val
+}
+
+// SetKdcHostname sets the value of KdcHostname.
+func (s *ActiveDirectoryUpdateV1beta) SetKdcHostname(val OptString) {
+	s.KdcHostname = val
+}
+
+// SetLdapSigning sets the value of LdapSigning.
+func (s *ActiveDirectoryUpdateV1beta) SetLdapSigning(val OptBool) {
+	s.LdapSigning = val
+}
+
+// SetAllowLocalNFSUsersWithLdap sets the value of AllowLocalNFSUsersWithLdap.
+func (s *ActiveDirectoryUpdateV1beta) SetAllowLocalNFSUsersWithLdap(val OptBool) {
+	s.AllowLocalNFSUsersWithLdap = val
+}
+
+// SetEncryptDCConnections sets the value of EncryptDCConnections.
+func (s *ActiveDirectoryUpdateV1beta) SetEncryptDCConnections(val OptBool) {
+	s.EncryptDCConnections = val
+}
+
+// SetSecurityOperators sets the value of SecurityOperators.
+func (s *ActiveDirectoryUpdateV1beta) SetSecurityOperators(val []string) {
+	s.SecurityOperators = val
+}
+
+// SetBackupOperators sets the value of BackupOperators.
+func (s *ActiveDirectoryUpdateV1beta) SetBackupOperators(val []string) {
+	s.BackupOperators = val
+}
+
+// SetAdministrators sets the value of Administrators.
+func (s *ActiveDirectoryUpdateV1beta) SetAdministrators(val []string) {
+	s.Administrators = val
+}
+
+// SetAesEncryption sets the value of AesEncryption.
+func (s *ActiveDirectoryUpdateV1beta) SetAesEncryption(val OptBool) {
+	s.AesEncryption = val
+}
+
+// SetDescription sets the value of Description.
+func (s *ActiveDirectoryUpdateV1beta) SetDescription(val OptString) {
+	s.Description = val
+}
+
+// Ref: #/components/schemas/ActiveDirectory_v1beta
+type ActiveDirectoryV1beta struct {
+	// UUID v4 used to identify the Active Directory credentials.
+	ActiveDirectoryId OptString `json:"activeDirectoryId"`
+	// Username of the Active Directory domain administrator.
+	Username string `json:"username"`
+	// A human readable label for the resource which is restricted to letters, numbers, and hyphen, with
+	// the first character a letter, the last a letter or a number, and a 63 character maximum.
+	ResourceId string `json:"resourceId"`
+	// Password of the Active Directory domain administrator.
+	Password string `json:"password"`
+	// Name of the Active Directory domain.
+	Domain string `json:"domain"`
+	// Comma separated list of DNS server IP addresses for the Active Directory domain. Can only include
+	// a maximum of 3 items.
+	DNS string `json:"DNS"`
+	// NetBIOS name of the server.
+	NetBIOS string `json:"netBIOS"`
+	// The Organizational Unit (OU) within the Windows Active Directory the user belongs to.
+	OrganizationalUnit OptString `json:"organizationalUnit"`
+	// The Active Directory site the service will limit domain controller discovery to. Site names have
+	// to be at least 2 characters long (an empty string clears site assignment), can contain only
+	// alphabetical characters (A-Z), numeric characters (0-9), the minus sign (-), and the period (.).
+	// Period characters are allowed only when they are used to delimit the components of domain style
+	// names.
+	Site OptString `json:"site"`
+	// KDC server IP address for the Active Directory machine. This optional parameter is used only while
+	// creating kerberos volume.
+	KdcIP OptString `json:"kdcIP"`
+	// Name of the Active Directory machine. This optional parameter is used only while creating kerberos
+	// volume.
+	KdcHostname OptString `json:"kdcHostname"`
+	// The current lifecycle state of the configuration.
+	ActiveDirectoryState OptActiveDirectoryV1betaActiveDirectoryState `json:"activeDirectoryState"`
+	// Details about the current Active Directory credentials state.
+	ActiveDirectoryStateDetails OptString `json:"activeDirectoryStateDetails"`
+	// Creation date of the resource.
+	CreatedAt OptDateTime `json:"createdAt"`
+	// Date of last update of the resource.
+	UpdatedAt OptDateTime `json:"updatedAt"`
+	// Date the resource was deleted.
+	DeletedAt OptDateTime `json:"deletedAt"`
+	// Specifies whether or not the LDAP traffic needs to be signed.
+	LdapSigning OptBool `json:"ldapSigning"`
+	// If enabled, allowLocalNFSUsersWithLdap will allow access to local users as well as LDAP users. If
+	// access is needed for only LDAP users, it has to be disabled.
+	AllowLocalNFSUsersWithLdap OptBool `json:"allowLocalNFSUsersWithLdap"`
+	// If enabled, traffic between the SMB server to domain controller (DC) will be encrypted.
+	EncryptDCConnections OptBool `json:"encryptDCConnections"`
+	// Domain users to be given the SeSecurityPrivilege.
+	SecurityOperators []string `json:"securityOperators"`
+	// Users to be added to the built-in backup operator Active-directory group. The usernames must be
+	// unique, and entries cannot include @ or \. The entire list will be validated and rejected as whole
+	// if one or more entries are invalid.
+	BackupOperators []string `json:"backupOperators"`
+	// Users to be added to the built-in administrators Active-directory group. The usernames must be
+	// unique, and entries cannot include @ or \. The entire list will be validated and rejected as whole
+	// if one or more entries are invalid.
+	Administrators []string `json:"administrators"`
+	// If enabled, AES encryption will be enabled for SMB communication.
+	AesEncryption OptBool `json:"aesEncryption"`
+	// Description of the Active Directory.
+	Description OptString `json:"description"`
+}
+
+// GetActiveDirectoryId returns the value of ActiveDirectoryId.
+func (s *ActiveDirectoryV1beta) GetActiveDirectoryId() OptString {
+	return s.ActiveDirectoryId
+}
+
+// GetUsername returns the value of Username.
+func (s *ActiveDirectoryV1beta) GetUsername() string {
+	return s.Username
+}
+
+// GetResourceId returns the value of ResourceId.
+func (s *ActiveDirectoryV1beta) GetResourceId() string {
+	return s.ResourceId
+}
+
+// GetPassword returns the value of Password.
+func (s *ActiveDirectoryV1beta) GetPassword() string {
+	return s.Password
+}
+
+// GetDomain returns the value of Domain.
+func (s *ActiveDirectoryV1beta) GetDomain() string {
+	return s.Domain
+}
+
+// GetDNS returns the value of DNS.
+func (s *ActiveDirectoryV1beta) GetDNS() string {
+	return s.DNS
+}
+
+// GetNetBIOS returns the value of NetBIOS.
+func (s *ActiveDirectoryV1beta) GetNetBIOS() string {
+	return s.NetBIOS
+}
+
+// GetOrganizationalUnit returns the value of OrganizationalUnit.
+func (s *ActiveDirectoryV1beta) GetOrganizationalUnit() OptString {
+	return s.OrganizationalUnit
+}
+
+// GetSite returns the value of Site.
+func (s *ActiveDirectoryV1beta) GetSite() OptString {
+	return s.Site
+}
+
+// GetKdcIP returns the value of KdcIP.
+func (s *ActiveDirectoryV1beta) GetKdcIP() OptString {
+	return s.KdcIP
+}
+
+// GetKdcHostname returns the value of KdcHostname.
+func (s *ActiveDirectoryV1beta) GetKdcHostname() OptString {
+	return s.KdcHostname
+}
+
+// GetActiveDirectoryState returns the value of ActiveDirectoryState.
+func (s *ActiveDirectoryV1beta) GetActiveDirectoryState() OptActiveDirectoryV1betaActiveDirectoryState {
+	return s.ActiveDirectoryState
+}
+
+// GetActiveDirectoryStateDetails returns the value of ActiveDirectoryStateDetails.
+func (s *ActiveDirectoryV1beta) GetActiveDirectoryStateDetails() OptString {
+	return s.ActiveDirectoryStateDetails
+}
+
+// GetCreatedAt returns the value of CreatedAt.
+func (s *ActiveDirectoryV1beta) GetCreatedAt() OptDateTime {
+	return s.CreatedAt
+}
+
+// GetUpdatedAt returns the value of UpdatedAt.
+func (s *ActiveDirectoryV1beta) GetUpdatedAt() OptDateTime {
+	return s.UpdatedAt
+}
+
+// GetDeletedAt returns the value of DeletedAt.
+func (s *ActiveDirectoryV1beta) GetDeletedAt() OptDateTime {
+	return s.DeletedAt
+}
+
+// GetLdapSigning returns the value of LdapSigning.
+func (s *ActiveDirectoryV1beta) GetLdapSigning() OptBool {
+	return s.LdapSigning
+}
+
+// GetAllowLocalNFSUsersWithLdap returns the value of AllowLocalNFSUsersWithLdap.
+func (s *ActiveDirectoryV1beta) GetAllowLocalNFSUsersWithLdap() OptBool {
+	return s.AllowLocalNFSUsersWithLdap
+}
+
+// GetEncryptDCConnections returns the value of EncryptDCConnections.
+func (s *ActiveDirectoryV1beta) GetEncryptDCConnections() OptBool {
+	return s.EncryptDCConnections
+}
+
+// GetSecurityOperators returns the value of SecurityOperators.
+func (s *ActiveDirectoryV1beta) GetSecurityOperators() []string {
+	return s.SecurityOperators
+}
+
+// GetBackupOperators returns the value of BackupOperators.
+func (s *ActiveDirectoryV1beta) GetBackupOperators() []string {
+	return s.BackupOperators
+}
+
+// GetAdministrators returns the value of Administrators.
+func (s *ActiveDirectoryV1beta) GetAdministrators() []string {
+	return s.Administrators
+}
+
+// GetAesEncryption returns the value of AesEncryption.
+func (s *ActiveDirectoryV1beta) GetAesEncryption() OptBool {
+	return s.AesEncryption
+}
+
+// GetDescription returns the value of Description.
+func (s *ActiveDirectoryV1beta) GetDescription() OptString {
+	return s.Description
+}
+
+// SetActiveDirectoryId sets the value of ActiveDirectoryId.
+func (s *ActiveDirectoryV1beta) SetActiveDirectoryId(val OptString) {
+	s.ActiveDirectoryId = val
+}
+
+// SetUsername sets the value of Username.
+func (s *ActiveDirectoryV1beta) SetUsername(val string) {
+	s.Username = val
+}
+
+// SetResourceId sets the value of ResourceId.
+func (s *ActiveDirectoryV1beta) SetResourceId(val string) {
+	s.ResourceId = val
+}
+
+// SetPassword sets the value of Password.
+func (s *ActiveDirectoryV1beta) SetPassword(val string) {
+	s.Password = val
+}
+
+// SetDomain sets the value of Domain.
+func (s *ActiveDirectoryV1beta) SetDomain(val string) {
+	s.Domain = val
+}
+
+// SetDNS sets the value of DNS.
+func (s *ActiveDirectoryV1beta) SetDNS(val string) {
+	s.DNS = val
+}
+
+// SetNetBIOS sets the value of NetBIOS.
+func (s *ActiveDirectoryV1beta) SetNetBIOS(val string) {
+	s.NetBIOS = val
+}
+
+// SetOrganizationalUnit sets the value of OrganizationalUnit.
+func (s *ActiveDirectoryV1beta) SetOrganizationalUnit(val OptString) {
+	s.OrganizationalUnit = val
+}
+
+// SetSite sets the value of Site.
+func (s *ActiveDirectoryV1beta) SetSite(val OptString) {
+	s.Site = val
+}
+
+// SetKdcIP sets the value of KdcIP.
+func (s *ActiveDirectoryV1beta) SetKdcIP(val OptString) {
+	s.KdcIP = val
+}
+
+// SetKdcHostname sets the value of KdcHostname.
+func (s *ActiveDirectoryV1beta) SetKdcHostname(val OptString) {
+	s.KdcHostname = val
+}
+
+// SetActiveDirectoryState sets the value of ActiveDirectoryState.
+func (s *ActiveDirectoryV1beta) SetActiveDirectoryState(val OptActiveDirectoryV1betaActiveDirectoryState) {
+	s.ActiveDirectoryState = val
+}
+
+// SetActiveDirectoryStateDetails sets the value of ActiveDirectoryStateDetails.
+func (s *ActiveDirectoryV1beta) SetActiveDirectoryStateDetails(val OptString) {
+	s.ActiveDirectoryStateDetails = val
+}
+
+// SetCreatedAt sets the value of CreatedAt.
+func (s *ActiveDirectoryV1beta) SetCreatedAt(val OptDateTime) {
+	s.CreatedAt = val
+}
+
+// SetUpdatedAt sets the value of UpdatedAt.
+func (s *ActiveDirectoryV1beta) SetUpdatedAt(val OptDateTime) {
+	s.UpdatedAt = val
+}
+
+// SetDeletedAt sets the value of DeletedAt.
+func (s *ActiveDirectoryV1beta) SetDeletedAt(val OptDateTime) {
+	s.DeletedAt = val
+}
+
+// SetLdapSigning sets the value of LdapSigning.
+func (s *ActiveDirectoryV1beta) SetLdapSigning(val OptBool) {
+	s.LdapSigning = val
+}
+
+// SetAllowLocalNFSUsersWithLdap sets the value of AllowLocalNFSUsersWithLdap.
+func (s *ActiveDirectoryV1beta) SetAllowLocalNFSUsersWithLdap(val OptBool) {
+	s.AllowLocalNFSUsersWithLdap = val
+}
+
+// SetEncryptDCConnections sets the value of EncryptDCConnections.
+func (s *ActiveDirectoryV1beta) SetEncryptDCConnections(val OptBool) {
+	s.EncryptDCConnections = val
+}
+
+// SetSecurityOperators sets the value of SecurityOperators.
+func (s *ActiveDirectoryV1beta) SetSecurityOperators(val []string) {
+	s.SecurityOperators = val
+}
+
+// SetBackupOperators sets the value of BackupOperators.
+func (s *ActiveDirectoryV1beta) SetBackupOperators(val []string) {
+	s.BackupOperators = val
+}
+
+// SetAdministrators sets the value of Administrators.
+func (s *ActiveDirectoryV1beta) SetAdministrators(val []string) {
+	s.Administrators = val
+}
+
+// SetAesEncryption sets the value of AesEncryption.
+func (s *ActiveDirectoryV1beta) SetAesEncryption(val OptBool) {
+	s.AesEncryption = val
+}
+
+// SetDescription sets the value of Description.
+func (s *ActiveDirectoryV1beta) SetDescription(val OptString) {
+	s.Description = val
+}
+
+func (*ActiveDirectoryV1beta) v1betaDescribeActiveDirectoryRes() {}
+
+// The current lifecycle state of the configuration.
+type ActiveDirectoryV1betaActiveDirectoryState string
+
+const (
+	ActiveDirectoryV1betaActiveDirectoryStateSTATEUNSPECIFIED ActiveDirectoryV1betaActiveDirectoryState = "STATE_UNSPECIFIED"
+	ActiveDirectoryV1betaActiveDirectoryStateCREATING         ActiveDirectoryV1betaActiveDirectoryState = "CREATING"
+	ActiveDirectoryV1betaActiveDirectoryStateREADY            ActiveDirectoryV1betaActiveDirectoryState = "READY"
+	ActiveDirectoryV1betaActiveDirectoryStateUPDATING         ActiveDirectoryV1betaActiveDirectoryState = "UPDATING"
+	ActiveDirectoryV1betaActiveDirectoryStateINUSE            ActiveDirectoryV1betaActiveDirectoryState = "IN_USE"
+	ActiveDirectoryV1betaActiveDirectoryStateDELETING         ActiveDirectoryV1betaActiveDirectoryState = "DELETING"
+	ActiveDirectoryV1betaActiveDirectoryStateERROR            ActiveDirectoryV1betaActiveDirectoryState = "ERROR"
+)
+
+// AllValues returns all ActiveDirectoryV1betaActiveDirectoryState values.
+func (ActiveDirectoryV1betaActiveDirectoryState) AllValues() []ActiveDirectoryV1betaActiveDirectoryState {
+	return []ActiveDirectoryV1betaActiveDirectoryState{
+		ActiveDirectoryV1betaActiveDirectoryStateSTATEUNSPECIFIED,
+		ActiveDirectoryV1betaActiveDirectoryStateCREATING,
+		ActiveDirectoryV1betaActiveDirectoryStateREADY,
+		ActiveDirectoryV1betaActiveDirectoryStateUPDATING,
+		ActiveDirectoryV1betaActiveDirectoryStateINUSE,
+		ActiveDirectoryV1betaActiveDirectoryStateDELETING,
+		ActiveDirectoryV1betaActiveDirectoryStateERROR,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ActiveDirectoryV1betaActiveDirectoryState) MarshalText() ([]byte, error) {
+	switch s {
+	case ActiveDirectoryV1betaActiveDirectoryStateSTATEUNSPECIFIED:
+		return []byte(s), nil
+	case ActiveDirectoryV1betaActiveDirectoryStateCREATING:
+		return []byte(s), nil
+	case ActiveDirectoryV1betaActiveDirectoryStateREADY:
+		return []byte(s), nil
+	case ActiveDirectoryV1betaActiveDirectoryStateUPDATING:
+		return []byte(s), nil
+	case ActiveDirectoryV1betaActiveDirectoryStateINUSE:
+		return []byte(s), nil
+	case ActiveDirectoryV1betaActiveDirectoryStateDELETING:
+		return []byte(s), nil
+	case ActiveDirectoryV1betaActiveDirectoryStateERROR:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ActiveDirectoryV1betaActiveDirectoryState) UnmarshalText(data []byte) error {
+	switch ActiveDirectoryV1betaActiveDirectoryState(data) {
+	case ActiveDirectoryV1betaActiveDirectoryStateSTATEUNSPECIFIED:
+		*s = ActiveDirectoryV1betaActiveDirectoryStateSTATEUNSPECIFIED
+		return nil
+	case ActiveDirectoryV1betaActiveDirectoryStateCREATING:
+		*s = ActiveDirectoryV1betaActiveDirectoryStateCREATING
+		return nil
+	case ActiveDirectoryV1betaActiveDirectoryStateREADY:
+		*s = ActiveDirectoryV1betaActiveDirectoryStateREADY
+		return nil
+	case ActiveDirectoryV1betaActiveDirectoryStateUPDATING:
+		*s = ActiveDirectoryV1betaActiveDirectoryStateUPDATING
+		return nil
+	case ActiveDirectoryV1betaActiveDirectoryStateINUSE:
+		*s = ActiveDirectoryV1betaActiveDirectoryStateINUSE
+		return nil
+	case ActiveDirectoryV1betaActiveDirectoryStateDELETING:
+		*s = ActiveDirectoryV1betaActiveDirectoryStateDELETING
+		return nil
+	case ActiveDirectoryV1betaActiveDirectoryStateERROR:
+		*s = ActiveDirectoryV1betaActiveDirectoryStateERROR
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
 // Ref: #/components/schemas/Any_v1Beta
 type AnyV1Beta struct {
 	// The URL of the type.
@@ -558,6 +1177,507 @@ func (s *BackupPolicyV1betaState) UnmarshalText(data []byte) error {
 	switch BackupPolicyV1betaState(data) {
 	case BackupPolicyV1betaStateSTATEUNSPECIFIEDCREATINGUPDATINGDELETINGREADYDELETEDERROR:
 		*s = BackupPolicyV1betaStateSTATEUNSPECIFIEDCREATINGUPDATINGDELETINGREADYDELETEDERROR
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// Ref: #/components/schemas/BackupRetentionPolicyUpdate_v1beta
+type BackupRetentionPolicyUpdateV1beta struct {
+	// Backup vault minimum enforced retention period in days.
+	BackupMinimumEnforcedRetentionDays OptInt `json:"backupMinimumEnforcedRetentionDays"`
+	// Whether the scheduled daily backups would follow the immutable period.
+	DailyBackupImmutable OptBool `json:"dailyBackupImmutable"`
+	// Whether the scheduled weekly backups would follow the immutable period.
+	WeeklyBackupImmutable OptBool `json:"weeklyBackupImmutable"`
+	// Whether the scheduled monthly backups would follow the immutable period.
+	MonthlyBackupImmutable OptBool `json:"monthlyBackupImmutable"`
+	// Whether the manual backups would follow the immutable period.
+	ManualBackupImmutable OptBool `json:"manualBackupImmutable"`
+}
+
+// GetBackupMinimumEnforcedRetentionDays returns the value of BackupMinimumEnforcedRetentionDays.
+func (s *BackupRetentionPolicyUpdateV1beta) GetBackupMinimumEnforcedRetentionDays() OptInt {
+	return s.BackupMinimumEnforcedRetentionDays
+}
+
+// GetDailyBackupImmutable returns the value of DailyBackupImmutable.
+func (s *BackupRetentionPolicyUpdateV1beta) GetDailyBackupImmutable() OptBool {
+	return s.DailyBackupImmutable
+}
+
+// GetWeeklyBackupImmutable returns the value of WeeklyBackupImmutable.
+func (s *BackupRetentionPolicyUpdateV1beta) GetWeeklyBackupImmutable() OptBool {
+	return s.WeeklyBackupImmutable
+}
+
+// GetMonthlyBackupImmutable returns the value of MonthlyBackupImmutable.
+func (s *BackupRetentionPolicyUpdateV1beta) GetMonthlyBackupImmutable() OptBool {
+	return s.MonthlyBackupImmutable
+}
+
+// GetManualBackupImmutable returns the value of ManualBackupImmutable.
+func (s *BackupRetentionPolicyUpdateV1beta) GetManualBackupImmutable() OptBool {
+	return s.ManualBackupImmutable
+}
+
+// SetBackupMinimumEnforcedRetentionDays sets the value of BackupMinimumEnforcedRetentionDays.
+func (s *BackupRetentionPolicyUpdateV1beta) SetBackupMinimumEnforcedRetentionDays(val OptInt) {
+	s.BackupMinimumEnforcedRetentionDays = val
+}
+
+// SetDailyBackupImmutable sets the value of DailyBackupImmutable.
+func (s *BackupRetentionPolicyUpdateV1beta) SetDailyBackupImmutable(val OptBool) {
+	s.DailyBackupImmutable = val
+}
+
+// SetWeeklyBackupImmutable sets the value of WeeklyBackupImmutable.
+func (s *BackupRetentionPolicyUpdateV1beta) SetWeeklyBackupImmutable(val OptBool) {
+	s.WeeklyBackupImmutable = val
+}
+
+// SetMonthlyBackupImmutable sets the value of MonthlyBackupImmutable.
+func (s *BackupRetentionPolicyUpdateV1beta) SetMonthlyBackupImmutable(val OptBool) {
+	s.MonthlyBackupImmutable = val
+}
+
+// SetManualBackupImmutable sets the value of ManualBackupImmutable.
+func (s *BackupRetentionPolicyUpdateV1beta) SetManualBackupImmutable(val OptBool) {
+	s.ManualBackupImmutable = val
+}
+
+// Ref: #/components/schemas/BackupRetentionPolicy_v1beta
+type BackupRetentionPolicyV1beta struct {
+	// Backup minimum enforced retention period in days.
+	BackupMinimumEnforcedRetentionDays OptInt `json:"backupMinimumEnforcedRetentionDays"`
+	// Whether the scheduled daily backups would follow the immutable period.
+	DailyBackupImmutable OptBool `json:"dailyBackupImmutable"`
+	// Whether the scheduled weekly backups would follow the immutable period.
+	WeeklyBackupImmutable OptBool `json:"weeklyBackupImmutable"`
+	// Whether the scheduled monthly backups would follow the immutable period.
+	MonthlyBackupImmutable OptBool `json:"monthlyBackupImmutable"`
+	// Whether the manual backups would follow the immutable period.
+	ManualBackupImmutable OptBool `json:"manualBackupImmutable"`
+}
+
+// GetBackupMinimumEnforcedRetentionDays returns the value of BackupMinimumEnforcedRetentionDays.
+func (s *BackupRetentionPolicyV1beta) GetBackupMinimumEnforcedRetentionDays() OptInt {
+	return s.BackupMinimumEnforcedRetentionDays
+}
+
+// GetDailyBackupImmutable returns the value of DailyBackupImmutable.
+func (s *BackupRetentionPolicyV1beta) GetDailyBackupImmutable() OptBool {
+	return s.DailyBackupImmutable
+}
+
+// GetWeeklyBackupImmutable returns the value of WeeklyBackupImmutable.
+func (s *BackupRetentionPolicyV1beta) GetWeeklyBackupImmutable() OptBool {
+	return s.WeeklyBackupImmutable
+}
+
+// GetMonthlyBackupImmutable returns the value of MonthlyBackupImmutable.
+func (s *BackupRetentionPolicyV1beta) GetMonthlyBackupImmutable() OptBool {
+	return s.MonthlyBackupImmutable
+}
+
+// GetManualBackupImmutable returns the value of ManualBackupImmutable.
+func (s *BackupRetentionPolicyV1beta) GetManualBackupImmutable() OptBool {
+	return s.ManualBackupImmutable
+}
+
+// SetBackupMinimumEnforcedRetentionDays sets the value of BackupMinimumEnforcedRetentionDays.
+func (s *BackupRetentionPolicyV1beta) SetBackupMinimumEnforcedRetentionDays(val OptInt) {
+	s.BackupMinimumEnforcedRetentionDays = val
+}
+
+// SetDailyBackupImmutable sets the value of DailyBackupImmutable.
+func (s *BackupRetentionPolicyV1beta) SetDailyBackupImmutable(val OptBool) {
+	s.DailyBackupImmutable = val
+}
+
+// SetWeeklyBackupImmutable sets the value of WeeklyBackupImmutable.
+func (s *BackupRetentionPolicyV1beta) SetWeeklyBackupImmutable(val OptBool) {
+	s.WeeklyBackupImmutable = val
+}
+
+// SetMonthlyBackupImmutable sets the value of MonthlyBackupImmutable.
+func (s *BackupRetentionPolicyV1beta) SetMonthlyBackupImmutable(val OptBool) {
+	s.MonthlyBackupImmutable = val
+}
+
+// SetManualBackupImmutable sets the value of ManualBackupImmutable.
+func (s *BackupRetentionPolicyV1beta) SetManualBackupImmutable(val OptBool) {
+	s.ManualBackupImmutable = val
+}
+
+// Ref: #/components/schemas/BackupVaultCreate_v1beta
+type BackupVaultCreateV1beta struct {
+	// Name of the resource.
+	ResourceId OptString `json:"resourceId"`
+	// Description of the resource.
+	Description OptString `json:"description"`
+	// The destination region the backup needs to be stored in.
+	BackupRegion          OptString                      `json:"backupRegion"`
+	BackupRetentionPolicy OptBackupRetentionPolicyV1beta `json:"backupRetentionPolicy"`
+}
+
+// GetResourceId returns the value of ResourceId.
+func (s *BackupVaultCreateV1beta) GetResourceId() OptString {
+	return s.ResourceId
+}
+
+// GetDescription returns the value of Description.
+func (s *BackupVaultCreateV1beta) GetDescription() OptString {
+	return s.Description
+}
+
+// GetBackupRegion returns the value of BackupRegion.
+func (s *BackupVaultCreateV1beta) GetBackupRegion() OptString {
+	return s.BackupRegion
+}
+
+// GetBackupRetentionPolicy returns the value of BackupRetentionPolicy.
+func (s *BackupVaultCreateV1beta) GetBackupRetentionPolicy() OptBackupRetentionPolicyV1beta {
+	return s.BackupRetentionPolicy
+}
+
+// SetResourceId sets the value of ResourceId.
+func (s *BackupVaultCreateV1beta) SetResourceId(val OptString) {
+	s.ResourceId = val
+}
+
+// SetDescription sets the value of Description.
+func (s *BackupVaultCreateV1beta) SetDescription(val OptString) {
+	s.Description = val
+}
+
+// SetBackupRegion sets the value of BackupRegion.
+func (s *BackupVaultCreateV1beta) SetBackupRegion(val OptString) {
+	s.BackupRegion = val
+}
+
+// SetBackupRetentionPolicy sets the value of BackupRetentionPolicy.
+func (s *BackupVaultCreateV1beta) SetBackupRetentionPolicy(val OptBackupRetentionPolicyV1beta) {
+	s.BackupRetentionPolicy = val
+}
+
+// Ref: #/components/schemas/BackupVaultUUIDList_v1beta
+type BackupVaultUUIDListV1beta struct {
+	BackupVaultUUIDs []string `json:"backupVaultUUIDs"`
+}
+
+// GetBackupVaultUUIDs returns the value of BackupVaultUUIDs.
+func (s *BackupVaultUUIDListV1beta) GetBackupVaultUUIDs() []string {
+	return s.BackupVaultUUIDs
+}
+
+// SetBackupVaultUUIDs sets the value of BackupVaultUUIDs.
+func (s *BackupVaultUUIDListV1beta) SetBackupVaultUUIDs(val []string) {
+	s.BackupVaultUUIDs = val
+}
+
+// Ref: #/components/schemas/BackupVaultUpdate_v1beta
+type BackupVaultUpdateV1beta struct {
+	// Description of the resource.
+	Description           OptString                            `json:"description"`
+	BackupRetentionPolicy OptBackupRetentionPolicyUpdateV1beta `json:"backupRetentionPolicy"`
+}
+
+// GetDescription returns the value of Description.
+func (s *BackupVaultUpdateV1beta) GetDescription() OptString {
+	return s.Description
+}
+
+// GetBackupRetentionPolicy returns the value of BackupRetentionPolicy.
+func (s *BackupVaultUpdateV1beta) GetBackupRetentionPolicy() OptBackupRetentionPolicyUpdateV1beta {
+	return s.BackupRetentionPolicy
+}
+
+// SetDescription sets the value of Description.
+func (s *BackupVaultUpdateV1beta) SetDescription(val OptString) {
+	s.Description = val
+}
+
+// SetBackupRetentionPolicy sets the value of BackupRetentionPolicy.
+func (s *BackupVaultUpdateV1beta) SetBackupRetentionPolicy(val OptBackupRetentionPolicyUpdateV1beta) {
+	s.BackupRetentionPolicy = val
+}
+
+// Ref: #/components/schemas/BackupVault_v1beta
+type BackupVaultV1beta struct {
+	// UUID v4 used to identify the ID of the resource.
+	BackupVaultId OptString `json:"backupVaultId"`
+	// Human readable name of the backup vault.
+	ResourceId string `json:"resourceId"`
+	// Description of backup vault.
+	Description OptString `json:"description"`
+	// The destination region the backup needs to be stored in.
+	BackupRegion OptString `json:"backupRegion"`
+	// The source region of the backup.
+	SourceRegion OptString `json:"sourceRegion"`
+	// The destination region backup vault.
+	DestinationBackupVault OptString `json:"destinationBackupVault"`
+	// The source region backup vault.
+	SourceBackupVault OptString `json:"sourceBackupVault"`
+	// Type of the backup vault.
+	BackupVaultType OptBackupVaultV1betaBackupVaultType `json:"backupVaultType"`
+	// The current state of the backup vault.
+	State OptBackupVaultV1betaState `json:"state"`
+	// Details about the current lifecycle state.
+	StateDetails OptString `json:"stateDetails"`
+	// Creation date of the resource.
+	CreatedAt OptDateTime `json:"createdAt"`
+	// Date the resource was deleted.
+	DeletedAt             OptDateTime                    `json:"deletedAt"`
+	BackupRetentionPolicy OptBackupRetentionPolicyV1beta `json:"backupRetentionPolicy"`
+}
+
+// GetBackupVaultId returns the value of BackupVaultId.
+func (s *BackupVaultV1beta) GetBackupVaultId() OptString {
+	return s.BackupVaultId
+}
+
+// GetResourceId returns the value of ResourceId.
+func (s *BackupVaultV1beta) GetResourceId() string {
+	return s.ResourceId
+}
+
+// GetDescription returns the value of Description.
+func (s *BackupVaultV1beta) GetDescription() OptString {
+	return s.Description
+}
+
+// GetBackupRegion returns the value of BackupRegion.
+func (s *BackupVaultV1beta) GetBackupRegion() OptString {
+	return s.BackupRegion
+}
+
+// GetSourceRegion returns the value of SourceRegion.
+func (s *BackupVaultV1beta) GetSourceRegion() OptString {
+	return s.SourceRegion
+}
+
+// GetDestinationBackupVault returns the value of DestinationBackupVault.
+func (s *BackupVaultV1beta) GetDestinationBackupVault() OptString {
+	return s.DestinationBackupVault
+}
+
+// GetSourceBackupVault returns the value of SourceBackupVault.
+func (s *BackupVaultV1beta) GetSourceBackupVault() OptString {
+	return s.SourceBackupVault
+}
+
+// GetBackupVaultType returns the value of BackupVaultType.
+func (s *BackupVaultV1beta) GetBackupVaultType() OptBackupVaultV1betaBackupVaultType {
+	return s.BackupVaultType
+}
+
+// GetState returns the value of State.
+func (s *BackupVaultV1beta) GetState() OptBackupVaultV1betaState {
+	return s.State
+}
+
+// GetStateDetails returns the value of StateDetails.
+func (s *BackupVaultV1beta) GetStateDetails() OptString {
+	return s.StateDetails
+}
+
+// GetCreatedAt returns the value of CreatedAt.
+func (s *BackupVaultV1beta) GetCreatedAt() OptDateTime {
+	return s.CreatedAt
+}
+
+// GetDeletedAt returns the value of DeletedAt.
+func (s *BackupVaultV1beta) GetDeletedAt() OptDateTime {
+	return s.DeletedAt
+}
+
+// GetBackupRetentionPolicy returns the value of BackupRetentionPolicy.
+func (s *BackupVaultV1beta) GetBackupRetentionPolicy() OptBackupRetentionPolicyV1beta {
+	return s.BackupRetentionPolicy
+}
+
+// SetBackupVaultId sets the value of BackupVaultId.
+func (s *BackupVaultV1beta) SetBackupVaultId(val OptString) {
+	s.BackupVaultId = val
+}
+
+// SetResourceId sets the value of ResourceId.
+func (s *BackupVaultV1beta) SetResourceId(val string) {
+	s.ResourceId = val
+}
+
+// SetDescription sets the value of Description.
+func (s *BackupVaultV1beta) SetDescription(val OptString) {
+	s.Description = val
+}
+
+// SetBackupRegion sets the value of BackupRegion.
+func (s *BackupVaultV1beta) SetBackupRegion(val OptString) {
+	s.BackupRegion = val
+}
+
+// SetSourceRegion sets the value of SourceRegion.
+func (s *BackupVaultV1beta) SetSourceRegion(val OptString) {
+	s.SourceRegion = val
+}
+
+// SetDestinationBackupVault sets the value of DestinationBackupVault.
+func (s *BackupVaultV1beta) SetDestinationBackupVault(val OptString) {
+	s.DestinationBackupVault = val
+}
+
+// SetSourceBackupVault sets the value of SourceBackupVault.
+func (s *BackupVaultV1beta) SetSourceBackupVault(val OptString) {
+	s.SourceBackupVault = val
+}
+
+// SetBackupVaultType sets the value of BackupVaultType.
+func (s *BackupVaultV1beta) SetBackupVaultType(val OptBackupVaultV1betaBackupVaultType) {
+	s.BackupVaultType = val
+}
+
+// SetState sets the value of State.
+func (s *BackupVaultV1beta) SetState(val OptBackupVaultV1betaState) {
+	s.State = val
+}
+
+// SetStateDetails sets the value of StateDetails.
+func (s *BackupVaultV1beta) SetStateDetails(val OptString) {
+	s.StateDetails = val
+}
+
+// SetCreatedAt sets the value of CreatedAt.
+func (s *BackupVaultV1beta) SetCreatedAt(val OptDateTime) {
+	s.CreatedAt = val
+}
+
+// SetDeletedAt sets the value of DeletedAt.
+func (s *BackupVaultV1beta) SetDeletedAt(val OptDateTime) {
+	s.DeletedAt = val
+}
+
+// SetBackupRetentionPolicy sets the value of BackupRetentionPolicy.
+func (s *BackupVaultV1beta) SetBackupRetentionPolicy(val OptBackupRetentionPolicyV1beta) {
+	s.BackupRetentionPolicy = val
+}
+
+func (*BackupVaultV1beta) v1betaDescribeBackupVaultRes() {}
+
+// Type of the backup vault.
+type BackupVaultV1betaBackupVaultType string
+
+const (
+	BackupVaultV1betaBackupVaultTypeINREGION    BackupVaultV1betaBackupVaultType = "IN_REGION"
+	BackupVaultV1betaBackupVaultTypeCROSSREGION BackupVaultV1betaBackupVaultType = "CROSS_REGION"
+)
+
+// AllValues returns all BackupVaultV1betaBackupVaultType values.
+func (BackupVaultV1betaBackupVaultType) AllValues() []BackupVaultV1betaBackupVaultType {
+	return []BackupVaultV1betaBackupVaultType{
+		BackupVaultV1betaBackupVaultTypeINREGION,
+		BackupVaultV1betaBackupVaultTypeCROSSREGION,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s BackupVaultV1betaBackupVaultType) MarshalText() ([]byte, error) {
+	switch s {
+	case BackupVaultV1betaBackupVaultTypeINREGION:
+		return []byte(s), nil
+	case BackupVaultV1betaBackupVaultTypeCROSSREGION:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *BackupVaultV1betaBackupVaultType) UnmarshalText(data []byte) error {
+	switch BackupVaultV1betaBackupVaultType(data) {
+	case BackupVaultV1betaBackupVaultTypeINREGION:
+		*s = BackupVaultV1betaBackupVaultTypeINREGION
+		return nil
+	case BackupVaultV1betaBackupVaultTypeCROSSREGION:
+		*s = BackupVaultV1betaBackupVaultTypeCROSSREGION
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// The current state of the backup vault.
+type BackupVaultV1betaState string
+
+const (
+	BackupVaultV1betaStateSTATEUNSPECIFIED BackupVaultV1betaState = "STATE_UNSPECIFIED"
+	BackupVaultV1betaStateCREATING         BackupVaultV1betaState = "CREATING"
+	BackupVaultV1betaStateUPDATING         BackupVaultV1betaState = "UPDATING"
+	BackupVaultV1betaStateDELETING         BackupVaultV1betaState = "DELETING"
+	BackupVaultV1betaStateREADY            BackupVaultV1betaState = "READY"
+	BackupVaultV1betaStateDELETED          BackupVaultV1betaState = "DELETED"
+	BackupVaultV1betaStateERROR            BackupVaultV1betaState = "ERROR"
+)
+
+// AllValues returns all BackupVaultV1betaState values.
+func (BackupVaultV1betaState) AllValues() []BackupVaultV1betaState {
+	return []BackupVaultV1betaState{
+		BackupVaultV1betaStateSTATEUNSPECIFIED,
+		BackupVaultV1betaStateCREATING,
+		BackupVaultV1betaStateUPDATING,
+		BackupVaultV1betaStateDELETING,
+		BackupVaultV1betaStateREADY,
+		BackupVaultV1betaStateDELETED,
+		BackupVaultV1betaStateERROR,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s BackupVaultV1betaState) MarshalText() ([]byte, error) {
+	switch s {
+	case BackupVaultV1betaStateSTATEUNSPECIFIED:
+		return []byte(s), nil
+	case BackupVaultV1betaStateCREATING:
+		return []byte(s), nil
+	case BackupVaultV1betaStateUPDATING:
+		return []byte(s), nil
+	case BackupVaultV1betaStateDELETING:
+		return []byte(s), nil
+	case BackupVaultV1betaStateREADY:
+		return []byte(s), nil
+	case BackupVaultV1betaStateDELETED:
+		return []byte(s), nil
+	case BackupVaultV1betaStateERROR:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *BackupVaultV1betaState) UnmarshalText(data []byte) error {
+	switch BackupVaultV1betaState(data) {
+	case BackupVaultV1betaStateSTATEUNSPECIFIED:
+		*s = BackupVaultV1betaStateSTATEUNSPECIFIED
+		return nil
+	case BackupVaultV1betaStateCREATING:
+		*s = BackupVaultV1betaStateCREATING
+		return nil
+	case BackupVaultV1betaStateUPDATING:
+		*s = BackupVaultV1betaStateUPDATING
+		return nil
+	case BackupVaultV1betaStateDELETING:
+		*s = BackupVaultV1betaStateDELETING
+		return nil
+	case BackupVaultV1betaStateREADY:
+		*s = BackupVaultV1betaStateREADY
+		return nil
+	case BackupVaultV1betaStateDELETED:
+		*s = BackupVaultV1betaStateDELETED
+		return nil
+	case BackupVaultV1betaStateERROR:
+		*s = BackupVaultV1betaStateERROR
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
@@ -3028,12 +4148,16 @@ func (s *OperationV1beta) SetResponse(val jx.Raw) {
 	s.Response = val
 }
 
+func (*OperationV1beta) v1betaCreateActiveDirectoryRes()       {}
 func (*OperationV1beta) v1betaCreateBackupPolicyRes()          {}
+func (*OperationV1beta) v1betaCreateBackupVaultRes()           {}
 func (*OperationV1beta) v1betaCreateKmsConfigurationRes()      {}
 func (*OperationV1beta) v1betaCreatePoolRes()                  {}
 func (*OperationV1beta) v1betaCreateReplicationRes()           {}
 func (*OperationV1beta) v1betaCreateVolumeRes()                {}
+func (*OperationV1beta) v1betaDeleteActiveDirectoryRes()       {}
 func (*OperationV1beta) v1betaDeleteBackupPolicyRes()          {}
+func (*OperationV1beta) v1betaDeleteBackupVaultRes()           {}
 func (*OperationV1beta) v1betaDeleteHostGroupRes()             {}
 func (*OperationV1beta) v1betaDeleteKmsConfigurationRes()      {}
 func (*OperationV1beta) v1betaDeletePoolRes()                  {}
@@ -3044,11 +4168,59 @@ func (*OperationV1beta) v1betaResumeReplicationRes()           {}
 func (*OperationV1beta) v1betaReverseAndResumeReplicationRes() {}
 func (*OperationV1beta) v1betaStopReplicationRes()             {}
 func (*OperationV1beta) v1betaSyncReplicationRes()             {}
+func (*OperationV1beta) v1betaUpdateActiveDirectoryRes()       {}
 func (*OperationV1beta) v1betaUpdateBackupPolicyRes()          {}
+func (*OperationV1beta) v1betaUpdateBackupVaultRes()           {}
 func (*OperationV1beta) v1betaUpdateHostGroupRes()             {}
 func (*OperationV1beta) v1betaUpdatePoolRes()                  {}
 func (*OperationV1beta) v1betaUpdateReplicationRes()           {}
 func (*OperationV1beta) v1betaUpdateVolumeRes()                {}
+
+// NewOptActiveDirectoryV1betaActiveDirectoryState returns new OptActiveDirectoryV1betaActiveDirectoryState with value set to v.
+func NewOptActiveDirectoryV1betaActiveDirectoryState(v ActiveDirectoryV1betaActiveDirectoryState) OptActiveDirectoryV1betaActiveDirectoryState {
+	return OptActiveDirectoryV1betaActiveDirectoryState{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptActiveDirectoryV1betaActiveDirectoryState is optional ActiveDirectoryV1betaActiveDirectoryState.
+type OptActiveDirectoryV1betaActiveDirectoryState struct {
+	Value ActiveDirectoryV1betaActiveDirectoryState
+	Set   bool
+}
+
+// IsSet returns true if OptActiveDirectoryV1betaActiveDirectoryState was set.
+func (o OptActiveDirectoryV1betaActiveDirectoryState) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptActiveDirectoryV1betaActiveDirectoryState) Reset() {
+	var v ActiveDirectoryV1betaActiveDirectoryState
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptActiveDirectoryV1betaActiveDirectoryState) SetTo(v ActiveDirectoryV1betaActiveDirectoryState) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptActiveDirectoryV1betaActiveDirectoryState) Get() (v ActiveDirectoryV1betaActiveDirectoryState, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptActiveDirectoryV1betaActiveDirectoryState) Or(d ActiveDirectoryV1betaActiveDirectoryState) ActiveDirectoryV1betaActiveDirectoryState {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
 
 // NewOptAnyV1Beta returns new OptAnyV1Beta with value set to v.
 func NewOptAnyV1Beta(v AnyV1Beta) OptAnyV1Beta {
@@ -3228,6 +4400,190 @@ func (o OptBackupPolicyV1betaState) Get() (v BackupPolicyV1betaState, ok bool) {
 
 // Or returns value if set, or given parameter if does not.
 func (o OptBackupPolicyV1betaState) Or(d BackupPolicyV1betaState) BackupPolicyV1betaState {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptBackupRetentionPolicyUpdateV1beta returns new OptBackupRetentionPolicyUpdateV1beta with value set to v.
+func NewOptBackupRetentionPolicyUpdateV1beta(v BackupRetentionPolicyUpdateV1beta) OptBackupRetentionPolicyUpdateV1beta {
+	return OptBackupRetentionPolicyUpdateV1beta{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptBackupRetentionPolicyUpdateV1beta is optional BackupRetentionPolicyUpdateV1beta.
+type OptBackupRetentionPolicyUpdateV1beta struct {
+	Value BackupRetentionPolicyUpdateV1beta
+	Set   bool
+}
+
+// IsSet returns true if OptBackupRetentionPolicyUpdateV1beta was set.
+func (o OptBackupRetentionPolicyUpdateV1beta) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptBackupRetentionPolicyUpdateV1beta) Reset() {
+	var v BackupRetentionPolicyUpdateV1beta
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptBackupRetentionPolicyUpdateV1beta) SetTo(v BackupRetentionPolicyUpdateV1beta) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptBackupRetentionPolicyUpdateV1beta) Get() (v BackupRetentionPolicyUpdateV1beta, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptBackupRetentionPolicyUpdateV1beta) Or(d BackupRetentionPolicyUpdateV1beta) BackupRetentionPolicyUpdateV1beta {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptBackupRetentionPolicyV1beta returns new OptBackupRetentionPolicyV1beta with value set to v.
+func NewOptBackupRetentionPolicyV1beta(v BackupRetentionPolicyV1beta) OptBackupRetentionPolicyV1beta {
+	return OptBackupRetentionPolicyV1beta{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptBackupRetentionPolicyV1beta is optional BackupRetentionPolicyV1beta.
+type OptBackupRetentionPolicyV1beta struct {
+	Value BackupRetentionPolicyV1beta
+	Set   bool
+}
+
+// IsSet returns true if OptBackupRetentionPolicyV1beta was set.
+func (o OptBackupRetentionPolicyV1beta) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptBackupRetentionPolicyV1beta) Reset() {
+	var v BackupRetentionPolicyV1beta
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptBackupRetentionPolicyV1beta) SetTo(v BackupRetentionPolicyV1beta) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptBackupRetentionPolicyV1beta) Get() (v BackupRetentionPolicyV1beta, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptBackupRetentionPolicyV1beta) Or(d BackupRetentionPolicyV1beta) BackupRetentionPolicyV1beta {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptBackupVaultV1betaBackupVaultType returns new OptBackupVaultV1betaBackupVaultType with value set to v.
+func NewOptBackupVaultV1betaBackupVaultType(v BackupVaultV1betaBackupVaultType) OptBackupVaultV1betaBackupVaultType {
+	return OptBackupVaultV1betaBackupVaultType{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptBackupVaultV1betaBackupVaultType is optional BackupVaultV1betaBackupVaultType.
+type OptBackupVaultV1betaBackupVaultType struct {
+	Value BackupVaultV1betaBackupVaultType
+	Set   bool
+}
+
+// IsSet returns true if OptBackupVaultV1betaBackupVaultType was set.
+func (o OptBackupVaultV1betaBackupVaultType) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptBackupVaultV1betaBackupVaultType) Reset() {
+	var v BackupVaultV1betaBackupVaultType
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptBackupVaultV1betaBackupVaultType) SetTo(v BackupVaultV1betaBackupVaultType) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptBackupVaultV1betaBackupVaultType) Get() (v BackupVaultV1betaBackupVaultType, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptBackupVaultV1betaBackupVaultType) Or(d BackupVaultV1betaBackupVaultType) BackupVaultV1betaBackupVaultType {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptBackupVaultV1betaState returns new OptBackupVaultV1betaState with value set to v.
+func NewOptBackupVaultV1betaState(v BackupVaultV1betaState) OptBackupVaultV1betaState {
+	return OptBackupVaultV1betaState{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptBackupVaultV1betaState is optional BackupVaultV1betaState.
+type OptBackupVaultV1betaState struct {
+	Value BackupVaultV1betaState
+	Set   bool
+}
+
+// IsSet returns true if OptBackupVaultV1betaState was set.
+func (o OptBackupVaultV1betaState) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptBackupVaultV1betaState) Reset() {
+	var v BackupVaultV1betaState
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptBackupVaultV1betaState) SetTo(v BackupVaultV1betaState) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptBackupVaultV1betaState) Get() (v BackupVaultV1betaState, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptBackupVaultV1betaState) Or(d BackupVaultV1betaState) BackupVaultV1betaState {
 	if v, ok := o.Get(); ok {
 		return v
 	}
@@ -10385,6 +11741,34 @@ type V1betaCheckKmsConfigUnprocessableEntity Error
 
 func (*V1betaCheckKmsConfigUnprocessableEntity) v1betaCheckKmsConfigRes() {}
 
+type V1betaCreateActiveDirectoryBadRequest Error
+
+func (*V1betaCreateActiveDirectoryBadRequest) v1betaCreateActiveDirectoryRes() {}
+
+type V1betaCreateActiveDirectoryConflict Error
+
+func (*V1betaCreateActiveDirectoryConflict) v1betaCreateActiveDirectoryRes() {}
+
+type V1betaCreateActiveDirectoryForbidden Error
+
+func (*V1betaCreateActiveDirectoryForbidden) v1betaCreateActiveDirectoryRes() {}
+
+type V1betaCreateActiveDirectoryInternalServerError Error
+
+func (*V1betaCreateActiveDirectoryInternalServerError) v1betaCreateActiveDirectoryRes() {}
+
+type V1betaCreateActiveDirectoryTooManyRequests Error
+
+func (*V1betaCreateActiveDirectoryTooManyRequests) v1betaCreateActiveDirectoryRes() {}
+
+type V1betaCreateActiveDirectoryUnauthorized Error
+
+func (*V1betaCreateActiveDirectoryUnauthorized) v1betaCreateActiveDirectoryRes() {}
+
+type V1betaCreateActiveDirectoryUnprocessableEntity Error
+
+func (*V1betaCreateActiveDirectoryUnprocessableEntity) v1betaCreateActiveDirectoryRes() {}
+
 type V1betaCreateBackupPolicyBadRequest Error
 
 func (*V1betaCreateBackupPolicyBadRequest) v1betaCreateBackupPolicyRes() {}
@@ -10416,6 +11800,34 @@ func (*V1betaCreateBackupPolicyUnauthorized) v1betaCreateBackupPolicyRes() {}
 type V1betaCreateBackupPolicyUnprocessableEntity Error
 
 func (*V1betaCreateBackupPolicyUnprocessableEntity) v1betaCreateBackupPolicyRes() {}
+
+type V1betaCreateBackupVaultBadRequest Error
+
+func (*V1betaCreateBackupVaultBadRequest) v1betaCreateBackupVaultRes() {}
+
+type V1betaCreateBackupVaultConflict Error
+
+func (*V1betaCreateBackupVaultConflict) v1betaCreateBackupVaultRes() {}
+
+type V1betaCreateBackupVaultForbidden Error
+
+func (*V1betaCreateBackupVaultForbidden) v1betaCreateBackupVaultRes() {}
+
+type V1betaCreateBackupVaultInternalServerError Error
+
+func (*V1betaCreateBackupVaultInternalServerError) v1betaCreateBackupVaultRes() {}
+
+type V1betaCreateBackupVaultTooManyRequests Error
+
+func (*V1betaCreateBackupVaultTooManyRequests) v1betaCreateBackupVaultRes() {}
+
+type V1betaCreateBackupVaultUnauthorized Error
+
+func (*V1betaCreateBackupVaultUnauthorized) v1betaCreateBackupVaultRes() {}
+
+type V1betaCreateBackupVaultUnprocessableEntity Error
+
+func (*V1betaCreateBackupVaultUnprocessableEntity) v1betaCreateBackupVaultRes() {}
 
 type V1betaCreateHostGroupAccepted OperationV1beta
 
@@ -10565,6 +11977,34 @@ type V1betaCreateVolumeUnprocessableEntity Error
 
 func (*V1betaCreateVolumeUnprocessableEntity) v1betaCreateVolumeRes() {}
 
+type V1betaDeleteActiveDirectoryBadRequest Error
+
+func (*V1betaDeleteActiveDirectoryBadRequest) v1betaDeleteActiveDirectoryRes() {}
+
+type V1betaDeleteActiveDirectoryConflict Error
+
+func (*V1betaDeleteActiveDirectoryConflict) v1betaDeleteActiveDirectoryRes() {}
+
+type V1betaDeleteActiveDirectoryForbidden Error
+
+func (*V1betaDeleteActiveDirectoryForbidden) v1betaDeleteActiveDirectoryRes() {}
+
+type V1betaDeleteActiveDirectoryInternalServerError Error
+
+func (*V1betaDeleteActiveDirectoryInternalServerError) v1betaDeleteActiveDirectoryRes() {}
+
+type V1betaDeleteActiveDirectoryTooManyRequests Error
+
+func (*V1betaDeleteActiveDirectoryTooManyRequests) v1betaDeleteActiveDirectoryRes() {}
+
+type V1betaDeleteActiveDirectoryUnauthorized Error
+
+func (*V1betaDeleteActiveDirectoryUnauthorized) v1betaDeleteActiveDirectoryRes() {}
+
+type V1betaDeleteActiveDirectoryUnprocessableEntity Error
+
+func (*V1betaDeleteActiveDirectoryUnprocessableEntity) v1betaDeleteActiveDirectoryRes() {}
+
 type V1betaDeleteBackupPolicyBadRequest Error
 
 func (*V1betaDeleteBackupPolicyBadRequest) v1betaDeleteBackupPolicyRes() {}
@@ -10605,6 +12045,43 @@ func (*V1betaDeleteBackupPolicyUnauthorized) v1betaDeleteBackupPolicyRes() {}
 type V1betaDeleteBackupPolicyUnprocessableEntity Error
 
 func (*V1betaDeleteBackupPolicyUnprocessableEntity) v1betaDeleteBackupPolicyRes() {}
+
+type V1betaDeleteBackupVaultBadRequest Error
+
+func (*V1betaDeleteBackupVaultBadRequest) v1betaDeleteBackupVaultRes() {}
+
+type V1betaDeleteBackupVaultConflict Error
+
+func (*V1betaDeleteBackupVaultConflict) v1betaDeleteBackupVaultRes() {}
+
+type V1betaDeleteBackupVaultForbidden Error
+
+func (*V1betaDeleteBackupVaultForbidden) v1betaDeleteBackupVaultRes() {}
+
+type V1betaDeleteBackupVaultInternalServerError Error
+
+func (*V1betaDeleteBackupVaultInternalServerError) v1betaDeleteBackupVaultRes() {}
+
+// V1betaDeleteBackupVaultNoContent is response for V1betaDeleteBackupVault operation.
+type V1betaDeleteBackupVaultNoContent struct{}
+
+func (*V1betaDeleteBackupVaultNoContent) v1betaDeleteBackupVaultRes() {}
+
+type V1betaDeleteBackupVaultNotFound Error
+
+func (*V1betaDeleteBackupVaultNotFound) v1betaDeleteBackupVaultRes() {}
+
+type V1betaDeleteBackupVaultTooManyRequests Error
+
+func (*V1betaDeleteBackupVaultTooManyRequests) v1betaDeleteBackupVaultRes() {}
+
+type V1betaDeleteBackupVaultUnauthorized Error
+
+func (*V1betaDeleteBackupVaultUnauthorized) v1betaDeleteBackupVaultRes() {}
+
+type V1betaDeleteBackupVaultUnprocessableEntity Error
+
+func (*V1betaDeleteBackupVaultUnprocessableEntity) v1betaDeleteBackupVaultRes() {}
 
 type V1betaDeleteHostGroupBadRequest Error
 
@@ -10781,6 +12258,34 @@ type V1betaDeleteVolumeUnprocessableEntity Error
 
 func (*V1betaDeleteVolumeUnprocessableEntity) v1betaDeleteVolumeRes() {}
 
+type V1betaDescribeActiveDirectoryBadRequest Error
+
+func (*V1betaDescribeActiveDirectoryBadRequest) v1betaDescribeActiveDirectoryRes() {}
+
+type V1betaDescribeActiveDirectoryForbidden Error
+
+func (*V1betaDescribeActiveDirectoryForbidden) v1betaDescribeActiveDirectoryRes() {}
+
+type V1betaDescribeActiveDirectoryInternalServerError Error
+
+func (*V1betaDescribeActiveDirectoryInternalServerError) v1betaDescribeActiveDirectoryRes() {}
+
+type V1betaDescribeActiveDirectoryNotFound Error
+
+func (*V1betaDescribeActiveDirectoryNotFound) v1betaDescribeActiveDirectoryRes() {}
+
+type V1betaDescribeActiveDirectoryTooManyRequests Error
+
+func (*V1betaDescribeActiveDirectoryTooManyRequests) v1betaDescribeActiveDirectoryRes() {}
+
+type V1betaDescribeActiveDirectoryUnauthorized Error
+
+func (*V1betaDescribeActiveDirectoryUnauthorized) v1betaDescribeActiveDirectoryRes() {}
+
+type V1betaDescribeActiveDirectoryUnprocessableEntity Error
+
+func (*V1betaDescribeActiveDirectoryUnprocessableEntity) v1betaDescribeActiveDirectoryRes() {}
+
 type V1betaDescribeBackupPolicyBadRequest Error
 
 func (*V1betaDescribeBackupPolicyBadRequest) v1betaDescribeBackupPolicyRes() {}
@@ -10816,6 +12321,34 @@ func (*V1betaDescribeBackupPolicyUnauthorized) v1betaDescribeBackupPolicyRes() {
 type V1betaDescribeBackupPolicyUnprocessableEntity Error
 
 func (*V1betaDescribeBackupPolicyUnprocessableEntity) v1betaDescribeBackupPolicyRes() {}
+
+type V1betaDescribeBackupVaultBadRequest Error
+
+func (*V1betaDescribeBackupVaultBadRequest) v1betaDescribeBackupVaultRes() {}
+
+type V1betaDescribeBackupVaultForbidden Error
+
+func (*V1betaDescribeBackupVaultForbidden) v1betaDescribeBackupVaultRes() {}
+
+type V1betaDescribeBackupVaultInternalServerError Error
+
+func (*V1betaDescribeBackupVaultInternalServerError) v1betaDescribeBackupVaultRes() {}
+
+type V1betaDescribeBackupVaultNotFound Error
+
+func (*V1betaDescribeBackupVaultNotFound) v1betaDescribeBackupVaultRes() {}
+
+type V1betaDescribeBackupVaultTooManyRequests Error
+
+func (*V1betaDescribeBackupVaultTooManyRequests) v1betaDescribeBackupVaultRes() {}
+
+type V1betaDescribeBackupVaultUnauthorized Error
+
+func (*V1betaDescribeBackupVaultUnauthorized) v1betaDescribeBackupVaultRes() {}
+
+type V1betaDescribeBackupVaultUnprocessableEntity Error
+
+func (*V1betaDescribeBackupVaultUnprocessableEntity) v1betaDescribeBackupVaultRes() {}
 
 type V1betaDescribeHostGroupBadRequest Error
 
@@ -10957,6 +12490,47 @@ type V1betaDescribeVolumeUnauthorized Error
 
 func (*V1betaDescribeVolumeUnauthorized) v1betaDescribeVolumeRes() {}
 
+type V1betaGetMultipleActiveDirectoriesBadRequest Error
+
+func (*V1betaGetMultipleActiveDirectoriesBadRequest) v1betaGetMultipleActiveDirectoriesRes() {}
+
+type V1betaGetMultipleActiveDirectoriesForbidden Error
+
+func (*V1betaGetMultipleActiveDirectoriesForbidden) v1betaGetMultipleActiveDirectoriesRes() {}
+
+type V1betaGetMultipleActiveDirectoriesInternalServerError Error
+
+func (*V1betaGetMultipleActiveDirectoriesInternalServerError) v1betaGetMultipleActiveDirectoriesRes() {
+}
+
+type V1betaGetMultipleActiveDirectoriesNotFound Error
+
+func (*V1betaGetMultipleActiveDirectoriesNotFound) v1betaGetMultipleActiveDirectoriesRes() {}
+
+type V1betaGetMultipleActiveDirectoriesOK struct {
+	ActiveDirectories []ActiveDirectoryV1beta `json:"activeDirectories"`
+}
+
+// GetActiveDirectories returns the value of ActiveDirectories.
+func (s *V1betaGetMultipleActiveDirectoriesOK) GetActiveDirectories() []ActiveDirectoryV1beta {
+	return s.ActiveDirectories
+}
+
+// SetActiveDirectories sets the value of ActiveDirectories.
+func (s *V1betaGetMultipleActiveDirectoriesOK) SetActiveDirectories(val []ActiveDirectoryV1beta) {
+	s.ActiveDirectories = val
+}
+
+func (*V1betaGetMultipleActiveDirectoriesOK) v1betaGetMultipleActiveDirectoriesRes() {}
+
+type V1betaGetMultipleActiveDirectoriesTooManyRequests Error
+
+func (*V1betaGetMultipleActiveDirectoriesTooManyRequests) v1betaGetMultipleActiveDirectoriesRes() {}
+
+type V1betaGetMultipleActiveDirectoriesUnauthorized Error
+
+func (*V1betaGetMultipleActiveDirectoriesUnauthorized) v1betaGetMultipleActiveDirectoriesRes() {}
+
 type V1betaGetMultipleBackupPoliciesBadRequest Error
 
 func (*V1betaGetMultipleBackupPoliciesBadRequest) v1betaGetMultipleBackupPoliciesRes() {}
@@ -10996,6 +12570,46 @@ func (*V1betaGetMultipleBackupPoliciesOK) v1betaGetMultipleBackupPoliciesRes() {
 type V1betaGetMultipleBackupPoliciesUnauthorized Error
 
 func (*V1betaGetMultipleBackupPoliciesUnauthorized) v1betaGetMultipleBackupPoliciesRes() {}
+
+type V1betaGetMultipleBackupVaultsBadRequest Error
+
+func (*V1betaGetMultipleBackupVaultsBadRequest) v1betaGetMultipleBackupVaultsRes() {}
+
+type V1betaGetMultipleBackupVaultsForbidden Error
+
+func (*V1betaGetMultipleBackupVaultsForbidden) v1betaGetMultipleBackupVaultsRes() {}
+
+type V1betaGetMultipleBackupVaultsInternalServerError Error
+
+func (*V1betaGetMultipleBackupVaultsInternalServerError) v1betaGetMultipleBackupVaultsRes() {}
+
+type V1betaGetMultipleBackupVaultsNotFound Error
+
+func (*V1betaGetMultipleBackupVaultsNotFound) v1betaGetMultipleBackupVaultsRes() {}
+
+type V1betaGetMultipleBackupVaultsNotImplemented Error
+
+func (*V1betaGetMultipleBackupVaultsNotImplemented) v1betaGetMultipleBackupVaultsRes() {}
+
+type V1betaGetMultipleBackupVaultsOK struct {
+	BackupVaults []BackupVaultV1beta `json:"backupVaults"`
+}
+
+// GetBackupVaults returns the value of BackupVaults.
+func (s *V1betaGetMultipleBackupVaultsOK) GetBackupVaults() []BackupVaultV1beta {
+	return s.BackupVaults
+}
+
+// SetBackupVaults sets the value of BackupVaults.
+func (s *V1betaGetMultipleBackupVaultsOK) SetBackupVaults(val []BackupVaultV1beta) {
+	s.BackupVaults = val
+}
+
+func (*V1betaGetMultipleBackupVaultsOK) v1betaGetMultipleBackupVaultsRes() {}
+
+type V1betaGetMultipleBackupVaultsUnauthorized Error
+
+func (*V1betaGetMultipleBackupVaultsUnauthorized) v1betaGetMultipleBackupVaultsRes() {}
 
 type V1betaGetMultipleHostGroupsBadRequest Error
 
@@ -11563,6 +13177,46 @@ type V1betaInternalUpdateVolumeReplicationUnprocessableEntity Error
 func (*V1betaInternalUpdateVolumeReplicationUnprocessableEntity) v1betaInternalUpdateVolumeReplicationRes() {
 }
 
+type V1betaListActiveDirectoriesBadRequest Error
+
+func (*V1betaListActiveDirectoriesBadRequest) v1betaListActiveDirectoriesRes() {}
+
+type V1betaListActiveDirectoriesForbidden Error
+
+func (*V1betaListActiveDirectoriesForbidden) v1betaListActiveDirectoriesRes() {}
+
+type V1betaListActiveDirectoriesInternalServerError Error
+
+func (*V1betaListActiveDirectoriesInternalServerError) v1betaListActiveDirectoriesRes() {}
+
+type V1betaListActiveDirectoriesNotFound Error
+
+func (*V1betaListActiveDirectoriesNotFound) v1betaListActiveDirectoriesRes() {}
+
+type V1betaListActiveDirectoriesOK struct {
+	ActiveDirectories []ActiveDirectoryV1beta `json:"activeDirectories"`
+}
+
+// GetActiveDirectories returns the value of ActiveDirectories.
+func (s *V1betaListActiveDirectoriesOK) GetActiveDirectories() []ActiveDirectoryV1beta {
+	return s.ActiveDirectories
+}
+
+// SetActiveDirectories sets the value of ActiveDirectories.
+func (s *V1betaListActiveDirectoriesOK) SetActiveDirectories(val []ActiveDirectoryV1beta) {
+	s.ActiveDirectories = val
+}
+
+func (*V1betaListActiveDirectoriesOK) v1betaListActiveDirectoriesRes() {}
+
+type V1betaListActiveDirectoriesTooManyRequests Error
+
+func (*V1betaListActiveDirectoriesTooManyRequests) v1betaListActiveDirectoriesRes() {}
+
+type V1betaListActiveDirectoriesUnauthorized Error
+
+func (*V1betaListActiveDirectoriesUnauthorized) v1betaListActiveDirectoriesRes() {}
+
 type V1betaListBackupPoliciesBadRequest Error
 
 func (*V1betaListBackupPoliciesBadRequest) v1betaListBackupPoliciesRes() {}
@@ -11602,6 +13256,50 @@ func (*V1betaListBackupPoliciesOK) v1betaListBackupPoliciesRes() {}
 type V1betaListBackupPoliciesUnauthorized Error
 
 func (*V1betaListBackupPoliciesUnauthorized) v1betaListBackupPoliciesRes() {}
+
+type V1betaListBackupVaultsBadRequest Error
+
+func (*V1betaListBackupVaultsBadRequest) v1betaListBackupVaultsRes() {}
+
+type V1betaListBackupVaultsForbidden Error
+
+func (*V1betaListBackupVaultsForbidden) v1betaListBackupVaultsRes() {}
+
+type V1betaListBackupVaultsInternalServerError Error
+
+func (*V1betaListBackupVaultsInternalServerError) v1betaListBackupVaultsRes() {}
+
+type V1betaListBackupVaultsNotFound Error
+
+func (*V1betaListBackupVaultsNotFound) v1betaListBackupVaultsRes() {}
+
+type V1betaListBackupVaultsNotImplemented Error
+
+func (*V1betaListBackupVaultsNotImplemented) v1betaListBackupVaultsRes() {}
+
+type V1betaListBackupVaultsOK struct {
+	BackupVaults []BackupVaultV1beta `json:"backupVaults"`
+}
+
+// GetBackupVaults returns the value of BackupVaults.
+func (s *V1betaListBackupVaultsOK) GetBackupVaults() []BackupVaultV1beta {
+	return s.BackupVaults
+}
+
+// SetBackupVaults sets the value of BackupVaults.
+func (s *V1betaListBackupVaultsOK) SetBackupVaults(val []BackupVaultV1beta) {
+	s.BackupVaults = val
+}
+
+func (*V1betaListBackupVaultsOK) v1betaListBackupVaultsRes() {}
+
+type V1betaListBackupVaultsTooManyRequests Error
+
+func (*V1betaListBackupVaultsTooManyRequests) v1betaListBackupVaultsRes() {}
+
+type V1betaListBackupVaultsUnauthorized Error
+
+func (*V1betaListBackupVaultsUnauthorized) v1betaListBackupVaultsRes() {}
 
 type V1betaListHostGroupsBadRequest Error
 
@@ -11927,6 +13625,38 @@ type V1betaSyncReplicationUnprocessableEntity Error
 
 func (*V1betaSyncReplicationUnprocessableEntity) v1betaSyncReplicationRes() {}
 
+type V1betaUpdateActiveDirectoryBadRequest Error
+
+func (*V1betaUpdateActiveDirectoryBadRequest) v1betaUpdateActiveDirectoryRes() {}
+
+type V1betaUpdateActiveDirectoryConflict Error
+
+func (*V1betaUpdateActiveDirectoryConflict) v1betaUpdateActiveDirectoryRes() {}
+
+type V1betaUpdateActiveDirectoryForbidden Error
+
+func (*V1betaUpdateActiveDirectoryForbidden) v1betaUpdateActiveDirectoryRes() {}
+
+type V1betaUpdateActiveDirectoryInternalServerError Error
+
+func (*V1betaUpdateActiveDirectoryInternalServerError) v1betaUpdateActiveDirectoryRes() {}
+
+type V1betaUpdateActiveDirectoryNotFound Error
+
+func (*V1betaUpdateActiveDirectoryNotFound) v1betaUpdateActiveDirectoryRes() {}
+
+type V1betaUpdateActiveDirectoryTooManyRequests Error
+
+func (*V1betaUpdateActiveDirectoryTooManyRequests) v1betaUpdateActiveDirectoryRes() {}
+
+type V1betaUpdateActiveDirectoryUnauthorized Error
+
+func (*V1betaUpdateActiveDirectoryUnauthorized) v1betaUpdateActiveDirectoryRes() {}
+
+type V1betaUpdateActiveDirectoryUnprocessableEntity Error
+
+func (*V1betaUpdateActiveDirectoryUnprocessableEntity) v1betaUpdateActiveDirectoryRes() {}
+
 type V1betaUpdateBackupPolicyBadRequest Error
 
 func (*V1betaUpdateBackupPolicyBadRequest) v1betaUpdateBackupPolicyRes() {}
@@ -11967,6 +13697,34 @@ func (*V1betaUpdateBackupPolicyUnauthorized) v1betaUpdateBackupPolicyRes() {}
 type V1betaUpdateBackupPolicyUnprocessableEntity Error
 
 func (*V1betaUpdateBackupPolicyUnprocessableEntity) v1betaUpdateBackupPolicyRes() {}
+
+type V1betaUpdateBackupVaultBadRequest Error
+
+func (*V1betaUpdateBackupVaultBadRequest) v1betaUpdateBackupVaultRes() {}
+
+type V1betaUpdateBackupVaultConflict Error
+
+func (*V1betaUpdateBackupVaultConflict) v1betaUpdateBackupVaultRes() {}
+
+type V1betaUpdateBackupVaultForbidden Error
+
+func (*V1betaUpdateBackupVaultForbidden) v1betaUpdateBackupVaultRes() {}
+
+type V1betaUpdateBackupVaultInternalServerError Error
+
+func (*V1betaUpdateBackupVaultInternalServerError) v1betaUpdateBackupVaultRes() {}
+
+type V1betaUpdateBackupVaultTooManyRequests Error
+
+func (*V1betaUpdateBackupVaultTooManyRequests) v1betaUpdateBackupVaultRes() {}
+
+type V1betaUpdateBackupVaultUnauthorized Error
+
+func (*V1betaUpdateBackupVaultUnauthorized) v1betaUpdateBackupVaultRes() {}
+
+type V1betaUpdateBackupVaultUnprocessableEntity Error
+
+func (*V1betaUpdateBackupVaultUnprocessableEntity) v1betaUpdateBackupVaultRes() {}
 
 type V1betaUpdateHostGroupBadRequest Error
 

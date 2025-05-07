@@ -3,6 +3,54 @@
 package gcpserver
 
 // setDefaults set default value of fields.
+func (s *ActiveDirectoryUpdateV1beta) setDefaults() {
+	{
+		val := string("CN=Computers")
+		s.OrganizationalUnit.SetTo(val)
+	}
+	{
+		val := bool(false)
+		s.LdapSigning.SetTo(val)
+	}
+	{
+		val := bool(false)
+		s.AllowLocalNFSUsersWithLdap.SetTo(val)
+	}
+	{
+		val := bool(false)
+		s.EncryptDCConnections.SetTo(val)
+	}
+	{
+		val := bool(false)
+		s.AesEncryption.SetTo(val)
+	}
+}
+
+// setDefaults set default value of fields.
+func (s *ActiveDirectoryV1beta) setDefaults() {
+	{
+		val := string("CN=Computers")
+		s.OrganizationalUnit.SetTo(val)
+	}
+	{
+		val := bool(false)
+		s.LdapSigning.SetTo(val)
+	}
+	{
+		val := bool(false)
+		s.AllowLocalNFSUsersWithLdap.SetTo(val)
+	}
+	{
+		val := bool(false)
+		s.EncryptDCConnections.SetTo(val)
+	}
+	{
+		val := bool(false)
+		s.AesEncryption.SetTo(val)
+	}
+}
+
+// setDefaults set default value of fields.
 func (s *BackupConfigV1beta) setDefaults() {
 	{
 		val := bool(true)

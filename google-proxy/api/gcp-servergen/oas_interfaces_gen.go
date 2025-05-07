@@ -9,8 +9,16 @@ type V1betaCheckKmsConfigRes interface {
 	v1betaCheckKmsConfigRes()
 }
 
+type V1betaCreateActiveDirectoryRes interface {
+	v1betaCreateActiveDirectoryRes()
+}
+
 type V1betaCreateBackupPolicyRes interface {
 	v1betaCreateBackupPolicyRes()
+}
+
+type V1betaCreateBackupVaultRes interface {
+	v1betaCreateBackupVaultRes()
 }
 
 type V1betaCreateHostGroupRes interface {
@@ -33,8 +41,16 @@ type V1betaCreateVolumeRes interface {
 	v1betaCreateVolumeRes()
 }
 
+type V1betaDeleteActiveDirectoryRes interface {
+	v1betaDeleteActiveDirectoryRes()
+}
+
 type V1betaDeleteBackupPolicyRes interface {
 	v1betaDeleteBackupPolicyRes()
+}
+
+type V1betaDeleteBackupVaultRes interface {
+	v1betaDeleteBackupVaultRes()
 }
 
 type V1betaDeleteHostGroupRes interface {
@@ -57,8 +73,16 @@ type V1betaDeleteVolumeRes interface {
 	v1betaDeleteVolumeRes()
 }
 
+type V1betaDescribeActiveDirectoryRes interface {
+	v1betaDescribeActiveDirectoryRes()
+}
+
 type V1betaDescribeBackupPolicyRes interface {
 	v1betaDescribeBackupPolicyRes()
+}
+
+type V1betaDescribeBackupVaultRes interface {
+	v1betaDescribeBackupVaultRes()
 }
 
 type V1betaDescribeHostGroupRes interface {
@@ -81,8 +105,16 @@ type V1betaDescribeVolumeRes interface {
 	v1betaDescribeVolumeRes()
 }
 
+type V1betaGetMultipleActiveDirectoriesRes interface {
+	v1betaGetMultipleActiveDirectoriesRes()
+}
+
 type V1betaGetMultipleBackupPoliciesRes interface {
 	v1betaGetMultipleBackupPoliciesRes()
+}
+
+type V1betaGetMultipleBackupVaultsRes interface {
+	v1betaGetMultipleBackupVaultsRes()
 }
 
 type V1betaGetMultipleHostGroupsRes interface {
@@ -141,8 +173,16 @@ type V1betaInternalUpdateVolumeReplicationRes interface {
 	v1betaInternalUpdateVolumeReplicationRes()
 }
 
+type V1betaListActiveDirectoriesRes interface {
+	v1betaListActiveDirectoriesRes()
+}
+
 type V1betaListBackupPoliciesRes interface {
 	v1betaListBackupPoliciesRes()
+}
+
+type V1betaListBackupVaultsRes interface {
+	v1betaListBackupVaultsRes()
 }
 
 type V1betaListHostGroupsRes interface {
@@ -181,8 +221,16 @@ type V1betaSyncReplicationRes interface {
 	v1betaSyncReplicationRes()
 }
 
+type V1betaUpdateActiveDirectoryRes interface {
+	v1betaUpdateActiveDirectoryRes()
+}
+
 type V1betaUpdateBackupPolicyRes interface {
 	v1betaUpdateBackupPolicyRes()
+}
+
+type V1betaUpdateBackupVaultRes interface {
+	v1betaUpdateBackupVaultRes()
 }
 
 type V1betaUpdateHostGroupRes interface {

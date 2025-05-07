@@ -6,6 +6,7 @@ import (
 
 	"github.com/go-faster/jx"
 	"github.com/google/uuid"
+	cvpmodels "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	gcpgenserver "github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/api/gcp-servergen"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
@@ -83,4 +84,13 @@ func (h Handler) V1betaDescribeOperation(ctx context.Context, params gcpgenserve
 		Code:    500,
 		Message: fmt.Sprintf("Invalid Job State: %s", job.State),
 	}, nil
+}
+func convertOperationToOperationV1Beta(op *cvpmodels.OperationV1beta) *gcpgenserver.OperationV1beta {
+	// TODO: Convert the CVP operation model to gcpgenserver model
+
+	// TODO: convert all the params
+	return &gcpgenserver.OperationV1beta{
+		Name: gcpgenserver.NewOptString(op.Name),
+		Done: gcpgenserver.NewOptBool(*op.Done),
+	}
 }

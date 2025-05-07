@@ -347,6 +347,181 @@ func encodeV1betaCheckKmsConfigResponse(response V1betaCheckKmsConfigRes, w http
 	}
 }
 
+func encodeV1betaCreateActiveDirectoryResponse(response V1betaCreateActiveDirectoryRes, w http.ResponseWriter, span trace.Span) error {
+	switch response := response.(type) {
+	case *OperationV1beta:
+		if err := func() error {
+			if err := response.Validate(); err != nil {
+				return err
+			}
+			return nil
+		}(); err != nil {
+			return errors.Wrap(err, "validate")
+		}
+		w.Header().Set("Content-Type", "application/json; charset=utf-8")
+		w.WriteHeader(202)
+		span.SetStatus(codes.Ok, http.StatusText(202))
+
+		e := new(jx.Encoder)
+		response.Encode(e)
+		if _, err := e.WriteTo(w); err != nil {
+			return errors.Wrap(err, "write")
+		}
+
+		return nil
+
+	case *V1betaCreateActiveDirectoryBadRequest:
+		if err := func() error {
+			if err := response.Validate(); err != nil {
+				return err
+			}
+			return nil
+		}(); err != nil {
+			return errors.Wrap(err, "validate")
+		}
+		w.Header().Set("Content-Type", "application/json; charset=utf-8")
+		w.WriteHeader(400)
+		span.SetStatus(codes.Error, http.StatusText(400))
+
+		e := new(jx.Encoder)
+		response.Encode(e)
+		if _, err := e.WriteTo(w); err != nil {
+			return errors.Wrap(err, "write")
+		}
+
+		return nil
+
+	case *V1betaCreateActiveDirectoryUnauthorized:
+		if err := func() error {
+			if err := response.Validate(); err != nil {
+				return err
+			}
+			return nil
+		}(); err != nil {
+			return errors.Wrap(err, "validate")
+		}
+		w.Header().Set("Content-Type", "application/json; charset=utf-8")
+		w.WriteHeader(401)
+		span.SetStatus(codes.Error, http.StatusText(401))
+
+		e := new(jx.Encoder)
+		response.Encode(e)
+		if _, err := e.WriteTo(w); err != nil {
+			return errors.Wrap(err, "write")
+		}
+
+		return nil
+
+	case *V1betaCreateActiveDirectoryForbidden:
+		if err := func() error {
+			if err := response.Validate(); err != nil {
+				return err
+			}
+			return nil
+		}(); err != nil {
+			return errors.Wrap(err, "validate")
+		}
+		w.Header().Set("Content-Type", "application/json; charset=utf-8")
+		w.WriteHeader(403)
+		span.SetStatus(codes.Error, http.StatusText(403))
+
+		e := new(jx.Encoder)
+		response.Encode(e)
+		if _, err := e.WriteTo(w); err != nil {
+			return errors.Wrap(err, "write")
+		}
+
+		return nil
+
+	case *V1betaCreateActiveDirectoryConflict:
+		if err := func() error {
+			if err := response.Validate(); err != nil {
+				return err
+			}
+			return nil
+		}(); err != nil {
+			return errors.Wrap(err, "validate")
+		}
+		w.Header().Set("Content-Type", "application/json; charset=utf-8")
+		w.WriteHeader(409)
+		span.SetStatus(codes.Error, http.StatusText(409))
+
+		e := new(jx.Encoder)
+		response.Encode(e)
+		if _, err := e.WriteTo(w); err != nil {
+			return errors.Wrap(err, "write")
+		}
+
+		return nil
+
+	case *V1betaCreateActiveDirectoryUnprocessableEntity:
+		if err := func() error {
+			if err := response.Validate(); err != nil {
+				return err
+			}
+			return nil
+		}(); err != nil {
+			return errors.Wrap(err, "validate")
+		}
+		w.Header().Set("Content-Type", "application/json; charset=utf-8")
+		w.WriteHeader(422)
+		span.SetStatus(codes.Error, http.StatusText(422))
+
+		e := new(jx.Encoder)
+		response.Encode(e)
+		if _, err := e.WriteTo(w); err != nil {
+			return errors.Wrap(err, "write")
+		}
+
+		return nil
+
+	case *V1betaCreateActiveDirectoryTooManyRequests:
+		if err := func() error {
+			if err := response.Validate(); err != nil {
+				return err
+			}
+			return nil
+		}(); err != nil {
+			return errors.Wrap(err, "validate")
+		}
+		w.Header().Set("Content-Type", "application/json; charset=utf-8")
+		w.WriteHeader(429)
+		span.SetStatus(codes.Error, http.StatusText(429))
+
+		e := new(jx.Encoder)
+		response.Encode(e)
+		if _, err := e.WriteTo(w); err != nil {
+			return errors.Wrap(err, "write")
+		}
+
+		return nil
+
+	case *V1betaCreateActiveDirectoryInternalServerError:
+		if err := func() error {
+			if err := response.Validate(); err != nil {
+				return err
+			}
+			return nil
+		}(); err != nil {
+			return errors.Wrap(err, "validate")
+		}
+		w.Header().Set("Content-Type", "application/json; charset=utf-8")
+		w.WriteHeader(500)
+		span.SetStatus(codes.Error, http.StatusText(500))
+
+		e := new(jx.Encoder)
+		response.Encode(e)
+		if _, err := e.WriteTo(w); err != nil {
+			return errors.Wrap(err, "write")
+		}
+
+		return nil
+
+	default:
+		return errors.Errorf("unexpected response type: %T", response)
+	}
+}
+
 func encodeV1betaCreateBackupPolicyResponse(response V1betaCreateBackupPolicyRes, w http.ResponseWriter, span trace.Span) error {
 	switch response := response.(type) {
 	case *OperationV1beta:
@@ -529,6 +704,181 @@ func encodeV1betaCreateBackupPolicyResponse(response V1betaCreateBackupPolicyRes
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(501)
 		span.SetStatus(codes.Error, http.StatusText(501))
+
+		e := new(jx.Encoder)
+		response.Encode(e)
+		if _, err := e.WriteTo(w); err != nil {
+			return errors.Wrap(err, "write")
+		}
+
+		return nil
+
+	default:
+		return errors.Errorf("unexpected response type: %T", response)
+	}
+}
+
+func encodeV1betaCreateBackupVaultResponse(response V1betaCreateBackupVaultRes, w http.ResponseWriter, span trace.Span) error {
+	switch response := response.(type) {
+	case *OperationV1beta:
+		if err := func() error {
+			if err := response.Validate(); err != nil {
+				return err
+			}
+			return nil
+		}(); err != nil {
+			return errors.Wrap(err, "validate")
+		}
+		w.Header().Set("Content-Type", "application/json; charset=utf-8")
+		w.WriteHeader(202)
+		span.SetStatus(codes.Ok, http.StatusText(202))
+
+		e := new(jx.Encoder)
+		response.Encode(e)
+		if _, err := e.WriteTo(w); err != nil {
+			return errors.Wrap(err, "write")
+		}
+
+		return nil
+
+	case *V1betaCreateBackupVaultBadRequest:
+		if err := func() error {
+			if err := response.Validate(); err != nil {
+				return err
+			}
+			return nil
+		}(); err != nil {
+			return errors.Wrap(err, "validate")
+		}
+		w.Header().Set("Content-Type", "application/json; charset=utf-8")
+		w.WriteHeader(400)
+		span.SetStatus(codes.Error, http.StatusText(400))
+
+		e := new(jx.Encoder)
+		response.Encode(e)
+		if _, err := e.WriteTo(w); err != nil {
+			return errors.Wrap(err, "write")
+		}
+
+		return nil
+
+	case *V1betaCreateBackupVaultUnauthorized:
+		if err := func() error {
+			if err := response.Validate(); err != nil {
+				return err
+			}
+			return nil
+		}(); err != nil {
+			return errors.Wrap(err, "validate")
+		}
+		w.Header().Set("Content-Type", "application/json; charset=utf-8")
+		w.WriteHeader(401)
+		span.SetStatus(codes.Error, http.StatusText(401))
+
+		e := new(jx.Encoder)
+		response.Encode(e)
+		if _, err := e.WriteTo(w); err != nil {
+			return errors.Wrap(err, "write")
+		}
+
+		return nil
+
+	case *V1betaCreateBackupVaultForbidden:
+		if err := func() error {
+			if err := response.Validate(); err != nil {
+				return err
+			}
+			return nil
+		}(); err != nil {
+			return errors.Wrap(err, "validate")
+		}
+		w.Header().Set("Content-Type", "application/json; charset=utf-8")
+		w.WriteHeader(403)
+		span.SetStatus(codes.Error, http.StatusText(403))
+
+		e := new(jx.Encoder)
+		response.Encode(e)
+		if _, err := e.WriteTo(w); err != nil {
+			return errors.Wrap(err, "write")
+		}
+
+		return nil
+
+	case *V1betaCreateBackupVaultConflict:
+		if err := func() error {
+			if err := response.Validate(); err != nil {
+				return err
+			}
+			return nil
+		}(); err != nil {
+			return errors.Wrap(err, "validate")
+		}
+		w.Header().Set("Content-Type", "application/json; charset=utf-8")
+		w.WriteHeader(409)
+		span.SetStatus(codes.Error, http.StatusText(409))
+
+		e := new(jx.Encoder)
+		response.Encode(e)
+		if _, err := e.WriteTo(w); err != nil {
+			return errors.Wrap(err, "write")
+		}
+
+		return nil
+
+	case *V1betaCreateBackupVaultUnprocessableEntity:
+		if err := func() error {
+			if err := response.Validate(); err != nil {
+				return err
+			}
+			return nil
+		}(); err != nil {
+			return errors.Wrap(err, "validate")
+		}
+		w.Header().Set("Content-Type", "application/json; charset=utf-8")
+		w.WriteHeader(422)
+		span.SetStatus(codes.Error, http.StatusText(422))
+
+		e := new(jx.Encoder)
+		response.Encode(e)
+		if _, err := e.WriteTo(w); err != nil {
+			return errors.Wrap(err, "write")
+		}
+
+		return nil
+
+	case *V1betaCreateBackupVaultTooManyRequests:
+		if err := func() error {
+			if err := response.Validate(); err != nil {
+				return err
+			}
+			return nil
+		}(); err != nil {
+			return errors.Wrap(err, "validate")
+		}
+		w.Header().Set("Content-Type", "application/json; charset=utf-8")
+		w.WriteHeader(429)
+		span.SetStatus(codes.Error, http.StatusText(429))
+
+		e := new(jx.Encoder)
+		response.Encode(e)
+		if _, err := e.WriteTo(w); err != nil {
+			return errors.Wrap(err, "write")
+		}
+
+		return nil
+
+	case *V1betaCreateBackupVaultInternalServerError:
+		if err := func() error {
+			if err := response.Validate(); err != nil {
+				return err
+			}
+			return nil
+		}(); err != nil {
+			return errors.Wrap(err, "validate")
+		}
+		w.Header().Set("Content-Type", "application/json; charset=utf-8")
+		w.WriteHeader(500)
+		span.SetStatus(codes.Error, http.StatusText(500))
 
 		e := new(jx.Encoder)
 		response.Encode(e)
@@ -1439,6 +1789,181 @@ func encodeV1betaCreateVolumeResponse(response V1betaCreateVolumeRes, w http.Res
 	}
 }
 
+func encodeV1betaDeleteActiveDirectoryResponse(response V1betaDeleteActiveDirectoryRes, w http.ResponseWriter, span trace.Span) error {
+	switch response := response.(type) {
+	case *OperationV1beta:
+		if err := func() error {
+			if err := response.Validate(); err != nil {
+				return err
+			}
+			return nil
+		}(); err != nil {
+			return errors.Wrap(err, "validate")
+		}
+		w.Header().Set("Content-Type", "application/json; charset=utf-8")
+		w.WriteHeader(202)
+		span.SetStatus(codes.Ok, http.StatusText(202))
+
+		e := new(jx.Encoder)
+		response.Encode(e)
+		if _, err := e.WriteTo(w); err != nil {
+			return errors.Wrap(err, "write")
+		}
+
+		return nil
+
+	case *V1betaDeleteActiveDirectoryBadRequest:
+		if err := func() error {
+			if err := response.Validate(); err != nil {
+				return err
+			}
+			return nil
+		}(); err != nil {
+			return errors.Wrap(err, "validate")
+		}
+		w.Header().Set("Content-Type", "application/json; charset=utf-8")
+		w.WriteHeader(400)
+		span.SetStatus(codes.Error, http.StatusText(400))
+
+		e := new(jx.Encoder)
+		response.Encode(e)
+		if _, err := e.WriteTo(w); err != nil {
+			return errors.Wrap(err, "write")
+		}
+
+		return nil
+
+	case *V1betaDeleteActiveDirectoryUnauthorized:
+		if err := func() error {
+			if err := response.Validate(); err != nil {
+				return err
+			}
+			return nil
+		}(); err != nil {
+			return errors.Wrap(err, "validate")
+		}
+		w.Header().Set("Content-Type", "application/json; charset=utf-8")
+		w.WriteHeader(401)
+		span.SetStatus(codes.Error, http.StatusText(401))
+
+		e := new(jx.Encoder)
+		response.Encode(e)
+		if _, err := e.WriteTo(w); err != nil {
+			return errors.Wrap(err, "write")
+		}
+
+		return nil
+
+	case *V1betaDeleteActiveDirectoryForbidden:
+		if err := func() error {
+			if err := response.Validate(); err != nil {
+				return err
+			}
+			return nil
+		}(); err != nil {
+			return errors.Wrap(err, "validate")
+		}
+		w.Header().Set("Content-Type", "application/json; charset=utf-8")
+		w.WriteHeader(403)
+		span.SetStatus(codes.Error, http.StatusText(403))
+
+		e := new(jx.Encoder)
+		response.Encode(e)
+		if _, err := e.WriteTo(w); err != nil {
+			return errors.Wrap(err, "write")
+		}
+
+		return nil
+
+	case *V1betaDeleteActiveDirectoryConflict:
+		if err := func() error {
+			if err := response.Validate(); err != nil {
+				return err
+			}
+			return nil
+		}(); err != nil {
+			return errors.Wrap(err, "validate")
+		}
+		w.Header().Set("Content-Type", "application/json; charset=utf-8")
+		w.WriteHeader(409)
+		span.SetStatus(codes.Error, http.StatusText(409))
+
+		e := new(jx.Encoder)
+		response.Encode(e)
+		if _, err := e.WriteTo(w); err != nil {
+			return errors.Wrap(err, "write")
+		}
+
+		return nil
+
+	case *V1betaDeleteActiveDirectoryUnprocessableEntity:
+		if err := func() error {
+			if err := response.Validate(); err != nil {
+				return err
+			}
+			return nil
+		}(); err != nil {
+			return errors.Wrap(err, "validate")
+		}
+		w.Header().Set("Content-Type", "application/json; charset=utf-8")
+		w.WriteHeader(422)
+		span.SetStatus(codes.Error, http.StatusText(422))
+
+		e := new(jx.Encoder)
+		response.Encode(e)
+		if _, err := e.WriteTo(w); err != nil {
+			return errors.Wrap(err, "write")
+		}
+
+		return nil
+
+	case *V1betaDeleteActiveDirectoryTooManyRequests:
+		if err := func() error {
+			if err := response.Validate(); err != nil {
+				return err
+			}
+			return nil
+		}(); err != nil {
+			return errors.Wrap(err, "validate")
+		}
+		w.Header().Set("Content-Type", "application/json; charset=utf-8")
+		w.WriteHeader(429)
+		span.SetStatus(codes.Error, http.StatusText(429))
+
+		e := new(jx.Encoder)
+		response.Encode(e)
+		if _, err := e.WriteTo(w); err != nil {
+			return errors.Wrap(err, "write")
+		}
+
+		return nil
+
+	case *V1betaDeleteActiveDirectoryInternalServerError:
+		if err := func() error {
+			if err := response.Validate(); err != nil {
+				return err
+			}
+			return nil
+		}(); err != nil {
+			return errors.Wrap(err, "validate")
+		}
+		w.Header().Set("Content-Type", "application/json; charset=utf-8")
+		w.WriteHeader(500)
+		span.SetStatus(codes.Error, http.StatusText(500))
+
+		e := new(jx.Encoder)
+		response.Encode(e)
+		if _, err := e.WriteTo(w); err != nil {
+			return errors.Wrap(err, "write")
+		}
+
+		return nil
+
+	default:
+		return errors.Errorf("unexpected response type: %T", response)
+	}
+}
+
 func encodeV1betaDeleteBackupPolicyResponse(response V1betaDeleteBackupPolicyRes, w http.ResponseWriter, span trace.Span) error {
 	switch response := response.(type) {
 	case *OperationV1beta:
@@ -1648,6 +2173,208 @@ func encodeV1betaDeleteBackupPolicyResponse(response V1betaDeleteBackupPolicyRes
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(501)
 		span.SetStatus(codes.Error, http.StatusText(501))
+
+		e := new(jx.Encoder)
+		response.Encode(e)
+		if _, err := e.WriteTo(w); err != nil {
+			return errors.Wrap(err, "write")
+		}
+
+		return nil
+
+	default:
+		return errors.Errorf("unexpected response type: %T", response)
+	}
+}
+
+func encodeV1betaDeleteBackupVaultResponse(response V1betaDeleteBackupVaultRes, w http.ResponseWriter, span trace.Span) error {
+	switch response := response.(type) {
+	case *OperationV1beta:
+		if err := func() error {
+			if err := response.Validate(); err != nil {
+				return err
+			}
+			return nil
+		}(); err != nil {
+			return errors.Wrap(err, "validate")
+		}
+		w.Header().Set("Content-Type", "application/json; charset=utf-8")
+		w.WriteHeader(202)
+		span.SetStatus(codes.Ok, http.StatusText(202))
+
+		e := new(jx.Encoder)
+		response.Encode(e)
+		if _, err := e.WriteTo(w); err != nil {
+			return errors.Wrap(err, "write")
+		}
+
+		return nil
+
+	case *V1betaDeleteBackupVaultNoContent:
+		w.WriteHeader(204)
+		span.SetStatus(codes.Ok, http.StatusText(204))
+
+		return nil
+
+	case *V1betaDeleteBackupVaultBadRequest:
+		if err := func() error {
+			if err := response.Validate(); err != nil {
+				return err
+			}
+			return nil
+		}(); err != nil {
+			return errors.Wrap(err, "validate")
+		}
+		w.Header().Set("Content-Type", "application/json; charset=utf-8")
+		w.WriteHeader(400)
+		span.SetStatus(codes.Error, http.StatusText(400))
+
+		e := new(jx.Encoder)
+		response.Encode(e)
+		if _, err := e.WriteTo(w); err != nil {
+			return errors.Wrap(err, "write")
+		}
+
+		return nil
+
+	case *V1betaDeleteBackupVaultUnauthorized:
+		if err := func() error {
+			if err := response.Validate(); err != nil {
+				return err
+			}
+			return nil
+		}(); err != nil {
+			return errors.Wrap(err, "validate")
+		}
+		w.Header().Set("Content-Type", "application/json; charset=utf-8")
+		w.WriteHeader(401)
+		span.SetStatus(codes.Error, http.StatusText(401))
+
+		e := new(jx.Encoder)
+		response.Encode(e)
+		if _, err := e.WriteTo(w); err != nil {
+			return errors.Wrap(err, "write")
+		}
+
+		return nil
+
+	case *V1betaDeleteBackupVaultForbidden:
+		if err := func() error {
+			if err := response.Validate(); err != nil {
+				return err
+			}
+			return nil
+		}(); err != nil {
+			return errors.Wrap(err, "validate")
+		}
+		w.Header().Set("Content-Type", "application/json; charset=utf-8")
+		w.WriteHeader(403)
+		span.SetStatus(codes.Error, http.StatusText(403))
+
+		e := new(jx.Encoder)
+		response.Encode(e)
+		if _, err := e.WriteTo(w); err != nil {
+			return errors.Wrap(err, "write")
+		}
+
+		return nil
+
+	case *V1betaDeleteBackupVaultNotFound:
+		if err := func() error {
+			if err := response.Validate(); err != nil {
+				return err
+			}
+			return nil
+		}(); err != nil {
+			return errors.Wrap(err, "validate")
+		}
+		w.Header().Set("Content-Type", "application/json; charset=utf-8")
+		w.WriteHeader(404)
+		span.SetStatus(codes.Error, http.StatusText(404))
+
+		e := new(jx.Encoder)
+		response.Encode(e)
+		if _, err := e.WriteTo(w); err != nil {
+			return errors.Wrap(err, "write")
+		}
+
+		return nil
+
+	case *V1betaDeleteBackupVaultConflict:
+		if err := func() error {
+			if err := response.Validate(); err != nil {
+				return err
+			}
+			return nil
+		}(); err != nil {
+			return errors.Wrap(err, "validate")
+		}
+		w.Header().Set("Content-Type", "application/json; charset=utf-8")
+		w.WriteHeader(409)
+		span.SetStatus(codes.Error, http.StatusText(409))
+
+		e := new(jx.Encoder)
+		response.Encode(e)
+		if _, err := e.WriteTo(w); err != nil {
+			return errors.Wrap(err, "write")
+		}
+
+		return nil
+
+	case *V1betaDeleteBackupVaultUnprocessableEntity:
+		if err := func() error {
+			if err := response.Validate(); err != nil {
+				return err
+			}
+			return nil
+		}(); err != nil {
+			return errors.Wrap(err, "validate")
+		}
+		w.Header().Set("Content-Type", "application/json; charset=utf-8")
+		w.WriteHeader(422)
+		span.SetStatus(codes.Error, http.StatusText(422))
+
+		e := new(jx.Encoder)
+		response.Encode(e)
+		if _, err := e.WriteTo(w); err != nil {
+			return errors.Wrap(err, "write")
+		}
+
+		return nil
+
+	case *V1betaDeleteBackupVaultTooManyRequests:
+		if err := func() error {
+			if err := response.Validate(); err != nil {
+				return err
+			}
+			return nil
+		}(); err != nil {
+			return errors.Wrap(err, "validate")
+		}
+		w.Header().Set("Content-Type", "application/json; charset=utf-8")
+		w.WriteHeader(429)
+		span.SetStatus(codes.Error, http.StatusText(429))
+
+		e := new(jx.Encoder)
+		response.Encode(e)
+		if _, err := e.WriteTo(w); err != nil {
+			return errors.Wrap(err, "write")
+		}
+
+		return nil
+
+	case *V1betaDeleteBackupVaultInternalServerError:
+		if err := func() error {
+			if err := response.Validate(); err != nil {
+				return err
+			}
+			return nil
+		}(); err != nil {
+			return errors.Wrap(err, "validate")
+		}
+		w.Header().Set("Content-Type", "application/json; charset=utf-8")
+		w.WriteHeader(500)
+		span.SetStatus(codes.Error, http.StatusText(500))
 
 		e := new(jx.Encoder)
 		response.Encode(e)
@@ -2561,6 +3288,181 @@ func encodeV1betaDeleteVolumeResponse(response V1betaDeleteVolumeRes, w http.Res
 	}
 }
 
+func encodeV1betaDescribeActiveDirectoryResponse(response V1betaDescribeActiveDirectoryRes, w http.ResponseWriter, span trace.Span) error {
+	switch response := response.(type) {
+	case *ActiveDirectoryV1beta:
+		if err := func() error {
+			if err := response.Validate(); err != nil {
+				return err
+			}
+			return nil
+		}(); err != nil {
+			return errors.Wrap(err, "validate")
+		}
+		w.Header().Set("Content-Type", "application/json; charset=utf-8")
+		w.WriteHeader(200)
+		span.SetStatus(codes.Ok, http.StatusText(200))
+
+		e := new(jx.Encoder)
+		response.Encode(e)
+		if _, err := e.WriteTo(w); err != nil {
+			return errors.Wrap(err, "write")
+		}
+
+		return nil
+
+	case *V1betaDescribeActiveDirectoryBadRequest:
+		if err := func() error {
+			if err := response.Validate(); err != nil {
+				return err
+			}
+			return nil
+		}(); err != nil {
+			return errors.Wrap(err, "validate")
+		}
+		w.Header().Set("Content-Type", "application/json; charset=utf-8")
+		w.WriteHeader(400)
+		span.SetStatus(codes.Error, http.StatusText(400))
+
+		e := new(jx.Encoder)
+		response.Encode(e)
+		if _, err := e.WriteTo(w); err != nil {
+			return errors.Wrap(err, "write")
+		}
+
+		return nil
+
+	case *V1betaDescribeActiveDirectoryUnauthorized:
+		if err := func() error {
+			if err := response.Validate(); err != nil {
+				return err
+			}
+			return nil
+		}(); err != nil {
+			return errors.Wrap(err, "validate")
+		}
+		w.Header().Set("Content-Type", "application/json; charset=utf-8")
+		w.WriteHeader(401)
+		span.SetStatus(codes.Error, http.StatusText(401))
+
+		e := new(jx.Encoder)
+		response.Encode(e)
+		if _, err := e.WriteTo(w); err != nil {
+			return errors.Wrap(err, "write")
+		}
+
+		return nil
+
+	case *V1betaDescribeActiveDirectoryForbidden:
+		if err := func() error {
+			if err := response.Validate(); err != nil {
+				return err
+			}
+			return nil
+		}(); err != nil {
+			return errors.Wrap(err, "validate")
+		}
+		w.Header().Set("Content-Type", "application/json; charset=utf-8")
+		w.WriteHeader(403)
+		span.SetStatus(codes.Error, http.StatusText(403))
+
+		e := new(jx.Encoder)
+		response.Encode(e)
+		if _, err := e.WriteTo(w); err != nil {
+			return errors.Wrap(err, "write")
+		}
+
+		return nil
+
+	case *V1betaDescribeActiveDirectoryNotFound:
+		if err := func() error {
+			if err := response.Validate(); err != nil {
+				return err
+			}
+			return nil
+		}(); err != nil {
+			return errors.Wrap(err, "validate")
+		}
+		w.Header().Set("Content-Type", "application/json; charset=utf-8")
+		w.WriteHeader(404)
+		span.SetStatus(codes.Error, http.StatusText(404))
+
+		e := new(jx.Encoder)
+		response.Encode(e)
+		if _, err := e.WriteTo(w); err != nil {
+			return errors.Wrap(err, "write")
+		}
+
+		return nil
+
+	case *V1betaDescribeActiveDirectoryUnprocessableEntity:
+		if err := func() error {
+			if err := response.Validate(); err != nil {
+				return err
+			}
+			return nil
+		}(); err != nil {
+			return errors.Wrap(err, "validate")
+		}
+		w.Header().Set("Content-Type", "application/json; charset=utf-8")
+		w.WriteHeader(422)
+		span.SetStatus(codes.Error, http.StatusText(422))
+
+		e := new(jx.Encoder)
+		response.Encode(e)
+		if _, err := e.WriteTo(w); err != nil {
+			return errors.Wrap(err, "write")
+		}
+
+		return nil
+
+	case *V1betaDescribeActiveDirectoryTooManyRequests:
+		if err := func() error {
+			if err := response.Validate(); err != nil {
+				return err
+			}
+			return nil
+		}(); err != nil {
+			return errors.Wrap(err, "validate")
+		}
+		w.Header().Set("Content-Type", "application/json; charset=utf-8")
+		w.WriteHeader(429)
+		span.SetStatus(codes.Error, http.StatusText(429))
+
+		e := new(jx.Encoder)
+		response.Encode(e)
+		if _, err := e.WriteTo(w); err != nil {
+			return errors.Wrap(err, "write")
+		}
+
+		return nil
+
+	case *V1betaDescribeActiveDirectoryInternalServerError:
+		if err := func() error {
+			if err := response.Validate(); err != nil {
+				return err
+			}
+			return nil
+		}(); err != nil {
+			return errors.Wrap(err, "validate")
+		}
+		w.Header().Set("Content-Type", "application/json; charset=utf-8")
+		w.WriteHeader(500)
+		span.SetStatus(codes.Error, http.StatusText(500))
+
+		e := new(jx.Encoder)
+		response.Encode(e)
+		if _, err := e.WriteTo(w); err != nil {
+			return errors.Wrap(err, "write")
+		}
+
+		return nil
+
+	default:
+		return errors.Errorf("unexpected response type: %T", response)
+	}
+}
+
 func encodeV1betaDescribeBackupPolicyResponse(response V1betaDescribeBackupPolicyRes, w http.ResponseWriter, span trace.Span) error {
 	switch response := response.(type) {
 	case *BackupPolicyDetailsV1beta:
@@ -2764,6 +3666,181 @@ func encodeV1betaDescribeBackupPolicyResponse(response V1betaDescribeBackupPolic
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(501)
 		span.SetStatus(codes.Error, http.StatusText(501))
+
+		e := new(jx.Encoder)
+		response.Encode(e)
+		if _, err := e.WriteTo(w); err != nil {
+			return errors.Wrap(err, "write")
+		}
+
+		return nil
+
+	default:
+		return errors.Errorf("unexpected response type: %T", response)
+	}
+}
+
+func encodeV1betaDescribeBackupVaultResponse(response V1betaDescribeBackupVaultRes, w http.ResponseWriter, span trace.Span) error {
+	switch response := response.(type) {
+	case *BackupVaultV1beta:
+		if err := func() error {
+			if err := response.Validate(); err != nil {
+				return err
+			}
+			return nil
+		}(); err != nil {
+			return errors.Wrap(err, "validate")
+		}
+		w.Header().Set("Content-Type", "application/json; charset=utf-8")
+		w.WriteHeader(200)
+		span.SetStatus(codes.Ok, http.StatusText(200))
+
+		e := new(jx.Encoder)
+		response.Encode(e)
+		if _, err := e.WriteTo(w); err != nil {
+			return errors.Wrap(err, "write")
+		}
+
+		return nil
+
+	case *V1betaDescribeBackupVaultBadRequest:
+		if err := func() error {
+			if err := response.Validate(); err != nil {
+				return err
+			}
+			return nil
+		}(); err != nil {
+			return errors.Wrap(err, "validate")
+		}
+		w.Header().Set("Content-Type", "application/json; charset=utf-8")
+		w.WriteHeader(400)
+		span.SetStatus(codes.Error, http.StatusText(400))
+
+		e := new(jx.Encoder)
+		response.Encode(e)
+		if _, err := e.WriteTo(w); err != nil {
+			return errors.Wrap(err, "write")
+		}
+
+		return nil
+
+	case *V1betaDescribeBackupVaultUnauthorized:
+		if err := func() error {
+			if err := response.Validate(); err != nil {
+				return err
+			}
+			return nil
+		}(); err != nil {
+			return errors.Wrap(err, "validate")
+		}
+		w.Header().Set("Content-Type", "application/json; charset=utf-8")
+		w.WriteHeader(401)
+		span.SetStatus(codes.Error, http.StatusText(401))
+
+		e := new(jx.Encoder)
+		response.Encode(e)
+		if _, err := e.WriteTo(w); err != nil {
+			return errors.Wrap(err, "write")
+		}
+
+		return nil
+
+	case *V1betaDescribeBackupVaultForbidden:
+		if err := func() error {
+			if err := response.Validate(); err != nil {
+				return err
+			}
+			return nil
+		}(); err != nil {
+			return errors.Wrap(err, "validate")
+		}
+		w.Header().Set("Content-Type", "application/json; charset=utf-8")
+		w.WriteHeader(403)
+		span.SetStatus(codes.Error, http.StatusText(403))
+
+		e := new(jx.Encoder)
+		response.Encode(e)
+		if _, err := e.WriteTo(w); err != nil {
+			return errors.Wrap(err, "write")
+		}
+
+		return nil
+
+	case *V1betaDescribeBackupVaultNotFound:
+		if err := func() error {
+			if err := response.Validate(); err != nil {
+				return err
+			}
+			return nil
+		}(); err != nil {
+			return errors.Wrap(err, "validate")
+		}
+		w.Header().Set("Content-Type", "application/json; charset=utf-8")
+		w.WriteHeader(404)
+		span.SetStatus(codes.Error, http.StatusText(404))
+
+		e := new(jx.Encoder)
+		response.Encode(e)
+		if _, err := e.WriteTo(w); err != nil {
+			return errors.Wrap(err, "write")
+		}
+
+		return nil
+
+	case *V1betaDescribeBackupVaultUnprocessableEntity:
+		if err := func() error {
+			if err := response.Validate(); err != nil {
+				return err
+			}
+			return nil
+		}(); err != nil {
+			return errors.Wrap(err, "validate")
+		}
+		w.Header().Set("Content-Type", "application/json; charset=utf-8")
+		w.WriteHeader(422)
+		span.SetStatus(codes.Error, http.StatusText(422))
+
+		e := new(jx.Encoder)
+		response.Encode(e)
+		if _, err := e.WriteTo(w); err != nil {
+			return errors.Wrap(err, "write")
+		}
+
+		return nil
+
+	case *V1betaDescribeBackupVaultTooManyRequests:
+		if err := func() error {
+			if err := response.Validate(); err != nil {
+				return err
+			}
+			return nil
+		}(); err != nil {
+			return errors.Wrap(err, "validate")
+		}
+		w.Header().Set("Content-Type", "application/json; charset=utf-8")
+		w.WriteHeader(429)
+		span.SetStatus(codes.Error, http.StatusText(429))
+
+		e := new(jx.Encoder)
+		response.Encode(e)
+		if _, err := e.WriteTo(w); err != nil {
+			return errors.Wrap(err, "write")
+		}
+
+		return nil
+
+	case *V1betaDescribeBackupVaultInternalServerError:
+		if err := func() error {
+			if err := response.Validate(); err != nil {
+				return err
+			}
+			return nil
+		}(); err != nil {
+			return errors.Wrap(err, "validate")
+		}
+		w.Header().Set("Content-Type", "application/json; charset=utf-8")
+		w.WriteHeader(500)
+		span.SetStatus(codes.Error, http.StatusText(500))
 
 		e := new(jx.Encoder)
 		response.Encode(e)
@@ -3653,6 +4730,160 @@ func encodeV1betaDescribeVolumeResponse(response V1betaDescribeVolumeRes, w http
 	}
 }
 
+func encodeV1betaGetMultipleActiveDirectoriesResponse(response V1betaGetMultipleActiveDirectoriesRes, w http.ResponseWriter, span trace.Span) error {
+	switch response := response.(type) {
+	case *V1betaGetMultipleActiveDirectoriesOK:
+		if err := func() error {
+			if err := response.Validate(); err != nil {
+				return err
+			}
+			return nil
+		}(); err != nil {
+			return errors.Wrap(err, "validate")
+		}
+		w.Header().Set("Content-Type", "application/json; charset=utf-8")
+		w.WriteHeader(200)
+		span.SetStatus(codes.Ok, http.StatusText(200))
+
+		e := new(jx.Encoder)
+		response.Encode(e)
+		if _, err := e.WriteTo(w); err != nil {
+			return errors.Wrap(err, "write")
+		}
+
+		return nil
+
+	case *V1betaGetMultipleActiveDirectoriesBadRequest:
+		if err := func() error {
+			if err := response.Validate(); err != nil {
+				return err
+			}
+			return nil
+		}(); err != nil {
+			return errors.Wrap(err, "validate")
+		}
+		w.Header().Set("Content-Type", "application/json; charset=utf-8")
+		w.WriteHeader(400)
+		span.SetStatus(codes.Error, http.StatusText(400))
+
+		e := new(jx.Encoder)
+		response.Encode(e)
+		if _, err := e.WriteTo(w); err != nil {
+			return errors.Wrap(err, "write")
+		}
+
+		return nil
+
+	case *V1betaGetMultipleActiveDirectoriesUnauthorized:
+		if err := func() error {
+			if err := response.Validate(); err != nil {
+				return err
+			}
+			return nil
+		}(); err != nil {
+			return errors.Wrap(err, "validate")
+		}
+		w.Header().Set("Content-Type", "application/json; charset=utf-8")
+		w.WriteHeader(401)
+		span.SetStatus(codes.Error, http.StatusText(401))
+
+		e := new(jx.Encoder)
+		response.Encode(e)
+		if _, err := e.WriteTo(w); err != nil {
+			return errors.Wrap(err, "write")
+		}
+
+		return nil
+
+	case *V1betaGetMultipleActiveDirectoriesForbidden:
+		if err := func() error {
+			if err := response.Validate(); err != nil {
+				return err
+			}
+			return nil
+		}(); err != nil {
+			return errors.Wrap(err, "validate")
+		}
+		w.Header().Set("Content-Type", "application/json; charset=utf-8")
+		w.WriteHeader(403)
+		span.SetStatus(codes.Error, http.StatusText(403))
+
+		e := new(jx.Encoder)
+		response.Encode(e)
+		if _, err := e.WriteTo(w); err != nil {
+			return errors.Wrap(err, "write")
+		}
+
+		return nil
+
+	case *V1betaGetMultipleActiveDirectoriesNotFound:
+		if err := func() error {
+			if err := response.Validate(); err != nil {
+				return err
+			}
+			return nil
+		}(); err != nil {
+			return errors.Wrap(err, "validate")
+		}
+		w.Header().Set("Content-Type", "application/json; charset=utf-8")
+		w.WriteHeader(404)
+		span.SetStatus(codes.Error, http.StatusText(404))
+
+		e := new(jx.Encoder)
+		response.Encode(e)
+		if _, err := e.WriteTo(w); err != nil {
+			return errors.Wrap(err, "write")
+		}
+
+		return nil
+
+	case *V1betaGetMultipleActiveDirectoriesTooManyRequests:
+		if err := func() error {
+			if err := response.Validate(); err != nil {
+				return err
+			}
+			return nil
+		}(); err != nil {
+			return errors.Wrap(err, "validate")
+		}
+		w.Header().Set("Content-Type", "application/json; charset=utf-8")
+		w.WriteHeader(429)
+		span.SetStatus(codes.Error, http.StatusText(429))
+
+		e := new(jx.Encoder)
+		response.Encode(e)
+		if _, err := e.WriteTo(w); err != nil {
+			return errors.Wrap(err, "write")
+		}
+
+		return nil
+
+	case *V1betaGetMultipleActiveDirectoriesInternalServerError:
+		if err := func() error {
+			if err := response.Validate(); err != nil {
+				return err
+			}
+			return nil
+		}(); err != nil {
+			return errors.Wrap(err, "validate")
+		}
+		w.Header().Set("Content-Type", "application/json; charset=utf-8")
+		w.WriteHeader(500)
+		span.SetStatus(codes.Error, http.StatusText(500))
+
+		e := new(jx.Encoder)
+		response.Encode(e)
+		if _, err := e.WriteTo(w); err != nil {
+			return errors.Wrap(err, "write")
+		}
+
+		return nil
+
+	default:
+		return errors.Errorf("unexpected response type: %T", response)
+	}
+}
+
 func encodeV1betaGetMultipleBackupPoliciesResponse(response V1betaGetMultipleBackupPoliciesRes, w http.ResponseWriter, span trace.Span) error {
 	switch response := response.(type) {
 	case *V1betaGetMultipleBackupPoliciesOK:
@@ -3782,6 +5013,160 @@ func encodeV1betaGetMultipleBackupPoliciesResponse(response V1betaGetMultipleBac
 		return nil
 
 	case *V1betaGetMultipleBackupPoliciesNotImplemented:
+		if err := func() error {
+			if err := response.Validate(); err != nil {
+				return err
+			}
+			return nil
+		}(); err != nil {
+			return errors.Wrap(err, "validate")
+		}
+		w.Header().Set("Content-Type", "application/json; charset=utf-8")
+		w.WriteHeader(501)
+		span.SetStatus(codes.Error, http.StatusText(501))
+
+		e := new(jx.Encoder)
+		response.Encode(e)
+		if _, err := e.WriteTo(w); err != nil {
+			return errors.Wrap(err, "write")
+		}
+
+		return nil
+
+	default:
+		return errors.Errorf("unexpected response type: %T", response)
+	}
+}
+
+func encodeV1betaGetMultipleBackupVaultsResponse(response V1betaGetMultipleBackupVaultsRes, w http.ResponseWriter, span trace.Span) error {
+	switch response := response.(type) {
+	case *V1betaGetMultipleBackupVaultsOK:
+		if err := func() error {
+			if err := response.Validate(); err != nil {
+				return err
+			}
+			return nil
+		}(); err != nil {
+			return errors.Wrap(err, "validate")
+		}
+		w.Header().Set("Content-Type", "application/json; charset=utf-8")
+		w.WriteHeader(200)
+		span.SetStatus(codes.Ok, http.StatusText(200))
+
+		e := new(jx.Encoder)
+		response.Encode(e)
+		if _, err := e.WriteTo(w); err != nil {
+			return errors.Wrap(err, "write")
+		}
+
+		return nil
+
+	case *V1betaGetMultipleBackupVaultsBadRequest:
+		if err := func() error {
+			if err := response.Validate(); err != nil {
+				return err
+			}
+			return nil
+		}(); err != nil {
+			return errors.Wrap(err, "validate")
+		}
+		w.Header().Set("Content-Type", "application/json; charset=utf-8")
+		w.WriteHeader(400)
+		span.SetStatus(codes.Error, http.StatusText(400))
+
+		e := new(jx.Encoder)
+		response.Encode(e)
+		if _, err := e.WriteTo(w); err != nil {
+			return errors.Wrap(err, "write")
+		}
+
+		return nil
+
+	case *V1betaGetMultipleBackupVaultsUnauthorized:
+		if err := func() error {
+			if err := response.Validate(); err != nil {
+				return err
+			}
+			return nil
+		}(); err != nil {
+			return errors.Wrap(err, "validate")
+		}
+		w.Header().Set("Content-Type", "application/json; charset=utf-8")
+		w.WriteHeader(401)
+		span.SetStatus(codes.Error, http.StatusText(401))
+
+		e := new(jx.Encoder)
+		response.Encode(e)
+		if _, err := e.WriteTo(w); err != nil {
+			return errors.Wrap(err, "write")
+		}
+
+		return nil
+
+	case *V1betaGetMultipleBackupVaultsForbidden:
+		if err := func() error {
+			if err := response.Validate(); err != nil {
+				return err
+			}
+			return nil
+		}(); err != nil {
+			return errors.Wrap(err, "validate")
+		}
+		w.Header().Set("Content-Type", "application/json; charset=utf-8")
+		w.WriteHeader(403)
+		span.SetStatus(codes.Error, http.StatusText(403))
+
+		e := new(jx.Encoder)
+		response.Encode(e)
+		if _, err := e.WriteTo(w); err != nil {
+			return errors.Wrap(err, "write")
+		}
+
+		return nil
+
+	case *V1betaGetMultipleBackupVaultsNotFound:
+		if err := func() error {
+			if err := response.Validate(); err != nil {
+				return err
+			}
+			return nil
+		}(); err != nil {
+			return errors.Wrap(err, "validate")
+		}
+		w.Header().Set("Content-Type", "application/json; charset=utf-8")
+		w.WriteHeader(404)
+		span.SetStatus(codes.Error, http.StatusText(404))
+
+		e := new(jx.Encoder)
+		response.Encode(e)
+		if _, err := e.WriteTo(w); err != nil {
+			return errors.Wrap(err, "write")
+		}
+
+		return nil
+
+	case *V1betaGetMultipleBackupVaultsInternalServerError:
+		if err := func() error {
+			if err := response.Validate(); err != nil {
+				return err
+			}
+			return nil
+		}(); err != nil {
+			return errors.Wrap(err, "validate")
+		}
+		w.Header().Set("Content-Type", "application/json; charset=utf-8")
+		w.WriteHeader(500)
+		span.SetStatus(codes.Error, http.StatusText(500))
+
+		e := new(jx.Encoder)
+		response.Encode(e)
+		if _, err := e.WriteTo(w); err != nil {
+			return errors.Wrap(err, "write")
+		}
+
+		return nil
+
+	case *V1betaGetMultipleBackupVaultsNotImplemented:
 		if err := func() error {
 			if err := response.Validate(); err != nil {
 				return err
@@ -6500,6 +7885,160 @@ func encodeV1betaInternalUpdateVolumeReplicationResponse(response V1betaInternal
 	}
 }
 
+func encodeV1betaListActiveDirectoriesResponse(response V1betaListActiveDirectoriesRes, w http.ResponseWriter, span trace.Span) error {
+	switch response := response.(type) {
+	case *V1betaListActiveDirectoriesOK:
+		if err := func() error {
+			if err := response.Validate(); err != nil {
+				return err
+			}
+			return nil
+		}(); err != nil {
+			return errors.Wrap(err, "validate")
+		}
+		w.Header().Set("Content-Type", "application/json; charset=utf-8")
+		w.WriteHeader(200)
+		span.SetStatus(codes.Ok, http.StatusText(200))
+
+		e := new(jx.Encoder)
+		response.Encode(e)
+		if _, err := e.WriteTo(w); err != nil {
+			return errors.Wrap(err, "write")
+		}
+
+		return nil
+
+	case *V1betaListActiveDirectoriesBadRequest:
+		if err := func() error {
+			if err := response.Validate(); err != nil {
+				return err
+			}
+			return nil
+		}(); err != nil {
+			return errors.Wrap(err, "validate")
+		}
+		w.Header().Set("Content-Type", "application/json; charset=utf-8")
+		w.WriteHeader(400)
+		span.SetStatus(codes.Error, http.StatusText(400))
+
+		e := new(jx.Encoder)
+		response.Encode(e)
+		if _, err := e.WriteTo(w); err != nil {
+			return errors.Wrap(err, "write")
+		}
+
+		return nil
+
+	case *V1betaListActiveDirectoriesUnauthorized:
+		if err := func() error {
+			if err := response.Validate(); err != nil {
+				return err
+			}
+			return nil
+		}(); err != nil {
+			return errors.Wrap(err, "validate")
+		}
+		w.Header().Set("Content-Type", "application/json; charset=utf-8")
+		w.WriteHeader(401)
+		span.SetStatus(codes.Error, http.StatusText(401))
+
+		e := new(jx.Encoder)
+		response.Encode(e)
+		if _, err := e.WriteTo(w); err != nil {
+			return errors.Wrap(err, "write")
+		}
+
+		return nil
+
+	case *V1betaListActiveDirectoriesForbidden:
+		if err := func() error {
+			if err := response.Validate(); err != nil {
+				return err
+			}
+			return nil
+		}(); err != nil {
+			return errors.Wrap(err, "validate")
+		}
+		w.Header().Set("Content-Type", "application/json; charset=utf-8")
+		w.WriteHeader(403)
+		span.SetStatus(codes.Error, http.StatusText(403))
+
+		e := new(jx.Encoder)
+		response.Encode(e)
+		if _, err := e.WriteTo(w); err != nil {
+			return errors.Wrap(err, "write")
+		}
+
+		return nil
+
+	case *V1betaListActiveDirectoriesNotFound:
+		if err := func() error {
+			if err := response.Validate(); err != nil {
+				return err
+			}
+			return nil
+		}(); err != nil {
+			return errors.Wrap(err, "validate")
+		}
+		w.Header().Set("Content-Type", "application/json; charset=utf-8")
+		w.WriteHeader(404)
+		span.SetStatus(codes.Error, http.StatusText(404))
+
+		e := new(jx.Encoder)
+		response.Encode(e)
+		if _, err := e.WriteTo(w); err != nil {
+			return errors.Wrap(err, "write")
+		}
+
+		return nil
+
+	case *V1betaListActiveDirectoriesTooManyRequests:
+		if err := func() error {
+			if err := response.Validate(); err != nil {
+				return err
+			}
+			return nil
+		}(); err != nil {
+			return errors.Wrap(err, "validate")
+		}
+		w.Header().Set("Content-Type", "application/json; charset=utf-8")
+		w.WriteHeader(429)
+		span.SetStatus(codes.Error, http.StatusText(429))
+
+		e := new(jx.Encoder)
+		response.Encode(e)
+		if _, err := e.WriteTo(w); err != nil {
+			return errors.Wrap(err, "write")
+		}
+
+		return nil
+
+	case *V1betaListActiveDirectoriesInternalServerError:
+		if err := func() error {
+			if err := response.Validate(); err != nil {
+				return err
+			}
+			return nil
+		}(); err != nil {
+			return errors.Wrap(err, "validate")
+		}
+		w.Header().Set("Content-Type", "application/json; charset=utf-8")
+		w.WriteHeader(500)
+		span.SetStatus(codes.Error, http.StatusText(500))
+
+		e := new(jx.Encoder)
+		response.Encode(e)
+		if _, err := e.WriteTo(w); err != nil {
+			return errors.Wrap(err, "write")
+		}
+
+		return nil
+
+	default:
+		return errors.Errorf("unexpected response type: %T", response)
+	}
+}
+
 func encodeV1betaListBackupPoliciesResponse(response V1betaListBackupPoliciesRes, w http.ResponseWriter, span trace.Span) error {
 	switch response := response.(type) {
 	case *V1betaListBackupPoliciesOK:
@@ -6629,6 +8168,181 @@ func encodeV1betaListBackupPoliciesResponse(response V1betaListBackupPoliciesRes
 		return nil
 
 	case *V1betaListBackupPoliciesNotImplemented:
+		if err := func() error {
+			if err := response.Validate(); err != nil {
+				return err
+			}
+			return nil
+		}(); err != nil {
+			return errors.Wrap(err, "validate")
+		}
+		w.Header().Set("Content-Type", "application/json; charset=utf-8")
+		w.WriteHeader(501)
+		span.SetStatus(codes.Error, http.StatusText(501))
+
+		e := new(jx.Encoder)
+		response.Encode(e)
+		if _, err := e.WriteTo(w); err != nil {
+			return errors.Wrap(err, "write")
+		}
+
+		return nil
+
+	default:
+		return errors.Errorf("unexpected response type: %T", response)
+	}
+}
+
+func encodeV1betaListBackupVaultsResponse(response V1betaListBackupVaultsRes, w http.ResponseWriter, span trace.Span) error {
+	switch response := response.(type) {
+	case *V1betaListBackupVaultsOK:
+		if err := func() error {
+			if err := response.Validate(); err != nil {
+				return err
+			}
+			return nil
+		}(); err != nil {
+			return errors.Wrap(err, "validate")
+		}
+		w.Header().Set("Content-Type", "application/json; charset=utf-8")
+		w.WriteHeader(200)
+		span.SetStatus(codes.Ok, http.StatusText(200))
+
+		e := new(jx.Encoder)
+		response.Encode(e)
+		if _, err := e.WriteTo(w); err != nil {
+			return errors.Wrap(err, "write")
+		}
+
+		return nil
+
+	case *V1betaListBackupVaultsBadRequest:
+		if err := func() error {
+			if err := response.Validate(); err != nil {
+				return err
+			}
+			return nil
+		}(); err != nil {
+			return errors.Wrap(err, "validate")
+		}
+		w.Header().Set("Content-Type", "application/json; charset=utf-8")
+		w.WriteHeader(400)
+		span.SetStatus(codes.Error, http.StatusText(400))
+
+		e := new(jx.Encoder)
+		response.Encode(e)
+		if _, err := e.WriteTo(w); err != nil {
+			return errors.Wrap(err, "write")
+		}
+
+		return nil
+
+	case *V1betaListBackupVaultsUnauthorized:
+		if err := func() error {
+			if err := response.Validate(); err != nil {
+				return err
+			}
+			return nil
+		}(); err != nil {
+			return errors.Wrap(err, "validate")
+		}
+		w.Header().Set("Content-Type", "application/json; charset=utf-8")
+		w.WriteHeader(401)
+		span.SetStatus(codes.Error, http.StatusText(401))
+
+		e := new(jx.Encoder)
+		response.Encode(e)
+		if _, err := e.WriteTo(w); err != nil {
+			return errors.Wrap(err, "write")
+		}
+
+		return nil
+
+	case *V1betaListBackupVaultsForbidden:
+		if err := func() error {
+			if err := response.Validate(); err != nil {
+				return err
+			}
+			return nil
+		}(); err != nil {
+			return errors.Wrap(err, "validate")
+		}
+		w.Header().Set("Content-Type", "application/json; charset=utf-8")
+		w.WriteHeader(403)
+		span.SetStatus(codes.Error, http.StatusText(403))
+
+		e := new(jx.Encoder)
+		response.Encode(e)
+		if _, err := e.WriteTo(w); err != nil {
+			return errors.Wrap(err, "write")
+		}
+
+		return nil
+
+	case *V1betaListBackupVaultsNotFound:
+		if err := func() error {
+			if err := response.Validate(); err != nil {
+				return err
+			}
+			return nil
+		}(); err != nil {
+			return errors.Wrap(err, "validate")
+		}
+		w.Header().Set("Content-Type", "application/json; charset=utf-8")
+		w.WriteHeader(404)
+		span.SetStatus(codes.Error, http.StatusText(404))
+
+		e := new(jx.Encoder)
+		response.Encode(e)
+		if _, err := e.WriteTo(w); err != nil {
+			return errors.Wrap(err, "write")
+		}
+
+		return nil
+
+	case *V1betaListBackupVaultsTooManyRequests:
+		if err := func() error {
+			if err := response.Validate(); err != nil {
+				return err
+			}
+			return nil
+		}(); err != nil {
+			return errors.Wrap(err, "validate")
+		}
+		w.Header().Set("Content-Type", "application/json; charset=utf-8")
+		w.WriteHeader(429)
+		span.SetStatus(codes.Error, http.StatusText(429))
+
+		e := new(jx.Encoder)
+		response.Encode(e)
+		if _, err := e.WriteTo(w); err != nil {
+			return errors.Wrap(err, "write")
+		}
+
+		return nil
+
+	case *V1betaListBackupVaultsInternalServerError:
+		if err := func() error {
+			if err := response.Validate(); err != nil {
+				return err
+			}
+			return nil
+		}(); err != nil {
+			return errors.Wrap(err, "validate")
+		}
+		w.Header().Set("Content-Type", "application/json; charset=utf-8")
+		w.WriteHeader(500)
+		span.SetStatus(codes.Error, http.StatusText(500))
+
+		e := new(jx.Encoder)
+		response.Encode(e)
+		if _, err := e.WriteTo(w); err != nil {
+			return errors.Wrap(err, "write")
+		}
+
+		return nil
+
+	case *V1betaListBackupVaultsNotImplemented:
 		if err := func() error {
 			if err := response.Validate(); err != nil {
 				return err
@@ -8187,6 +9901,202 @@ func encodeV1betaSyncReplicationResponse(response V1betaSyncReplicationRes, w ht
 	}
 }
 
+func encodeV1betaUpdateActiveDirectoryResponse(response V1betaUpdateActiveDirectoryRes, w http.ResponseWriter, span trace.Span) error {
+	switch response := response.(type) {
+	case *OperationV1beta:
+		if err := func() error {
+			if err := response.Validate(); err != nil {
+				return err
+			}
+			return nil
+		}(); err != nil {
+			return errors.Wrap(err, "validate")
+		}
+		w.Header().Set("Content-Type", "application/json; charset=utf-8")
+		w.WriteHeader(202)
+		span.SetStatus(codes.Ok, http.StatusText(202))
+
+		e := new(jx.Encoder)
+		response.Encode(e)
+		if _, err := e.WriteTo(w); err != nil {
+			return errors.Wrap(err, "write")
+		}
+
+		return nil
+
+	case *V1betaUpdateActiveDirectoryBadRequest:
+		if err := func() error {
+			if err := response.Validate(); err != nil {
+				return err
+			}
+			return nil
+		}(); err != nil {
+			return errors.Wrap(err, "validate")
+		}
+		w.Header().Set("Content-Type", "application/json; charset=utf-8")
+		w.WriteHeader(400)
+		span.SetStatus(codes.Error, http.StatusText(400))
+
+		e := new(jx.Encoder)
+		response.Encode(e)
+		if _, err := e.WriteTo(w); err != nil {
+			return errors.Wrap(err, "write")
+		}
+
+		return nil
+
+	case *V1betaUpdateActiveDirectoryUnauthorized:
+		if err := func() error {
+			if err := response.Validate(); err != nil {
+				return err
+			}
+			return nil
+		}(); err != nil {
+			return errors.Wrap(err, "validate")
+		}
+		w.Header().Set("Content-Type", "application/json; charset=utf-8")
+		w.WriteHeader(401)
+		span.SetStatus(codes.Error, http.StatusText(401))
+
+		e := new(jx.Encoder)
+		response.Encode(e)
+		if _, err := e.WriteTo(w); err != nil {
+			return errors.Wrap(err, "write")
+		}
+
+		return nil
+
+	case *V1betaUpdateActiveDirectoryForbidden:
+		if err := func() error {
+			if err := response.Validate(); err != nil {
+				return err
+			}
+			return nil
+		}(); err != nil {
+			return errors.Wrap(err, "validate")
+		}
+		w.Header().Set("Content-Type", "application/json; charset=utf-8")
+		w.WriteHeader(403)
+		span.SetStatus(codes.Error, http.StatusText(403))
+
+		e := new(jx.Encoder)
+		response.Encode(e)
+		if _, err := e.WriteTo(w); err != nil {
+			return errors.Wrap(err, "write")
+		}
+
+		return nil
+
+	case *V1betaUpdateActiveDirectoryNotFound:
+		if err := func() error {
+			if err := response.Validate(); err != nil {
+				return err
+			}
+			return nil
+		}(); err != nil {
+			return errors.Wrap(err, "validate")
+		}
+		w.Header().Set("Content-Type", "application/json; charset=utf-8")
+		w.WriteHeader(404)
+		span.SetStatus(codes.Error, http.StatusText(404))
+
+		e := new(jx.Encoder)
+		response.Encode(e)
+		if _, err := e.WriteTo(w); err != nil {
+			return errors.Wrap(err, "write")
+		}
+
+		return nil
+
+	case *V1betaUpdateActiveDirectoryConflict:
+		if err := func() error {
+			if err := response.Validate(); err != nil {
+				return err
+			}
+			return nil
+		}(); err != nil {
+			return errors.Wrap(err, "validate")
+		}
+		w.Header().Set("Content-Type", "application/json; charset=utf-8")
+		w.WriteHeader(409)
+		span.SetStatus(codes.Error, http.StatusText(409))
+
+		e := new(jx.Encoder)
+		response.Encode(e)
+		if _, err := e.WriteTo(w); err != nil {
+			return errors.Wrap(err, "write")
+		}
+
+		return nil
+
+	case *V1betaUpdateActiveDirectoryUnprocessableEntity:
+		if err := func() error {
+			if err := response.Validate(); err != nil {
+				return err
+			}
+			return nil
+		}(); err != nil {
+			return errors.Wrap(err, "validate")
+		}
+		w.Header().Set("Content-Type", "application/json; charset=utf-8")
+		w.WriteHeader(422)
+		span.SetStatus(codes.Error, http.StatusText(422))
+
+		e := new(jx.Encoder)
+		response.Encode(e)
+		if _, err := e.WriteTo(w); err != nil {
+			return errors.Wrap(err, "write")
+		}
+
+		return nil
+
+	case *V1betaUpdateActiveDirectoryTooManyRequests:
+		if err := func() error {
+			if err := response.Validate(); err != nil {
+				return err
+			}
+			return nil
+		}(); err != nil {
+			return errors.Wrap(err, "validate")
+		}
+		w.Header().Set("Content-Type", "application/json; charset=utf-8")
+		w.WriteHeader(429)
+		span.SetStatus(codes.Error, http.StatusText(429))
+
+		e := new(jx.Encoder)
+		response.Encode(e)
+		if _, err := e.WriteTo(w); err != nil {
+			return errors.Wrap(err, "write")
+		}
+
+		return nil
+
+	case *V1betaUpdateActiveDirectoryInternalServerError:
+		if err := func() error {
+			if err := response.Validate(); err != nil {
+				return err
+			}
+			return nil
+		}(); err != nil {
+			return errors.Wrap(err, "validate")
+		}
+		w.Header().Set("Content-Type", "application/json; charset=utf-8")
+		w.WriteHeader(500)
+		span.SetStatus(codes.Error, http.StatusText(500))
+
+		e := new(jx.Encoder)
+		response.Encode(e)
+		if _, err := e.WriteTo(w); err != nil {
+			return errors.Wrap(err, "write")
+		}
+
+		return nil
+
+	default:
+		return errors.Errorf("unexpected response type: %T", response)
+	}
+}
+
 func encodeV1betaUpdateBackupPolicyResponse(response V1betaUpdateBackupPolicyRes, w http.ResponseWriter, span trace.Span) error {
 	switch response := response.(type) {
 	case *OperationV1beta:
@@ -8396,6 +10306,181 @@ func encodeV1betaUpdateBackupPolicyResponse(response V1betaUpdateBackupPolicyRes
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(501)
 		span.SetStatus(codes.Error, http.StatusText(501))
+
+		e := new(jx.Encoder)
+		response.Encode(e)
+		if _, err := e.WriteTo(w); err != nil {
+			return errors.Wrap(err, "write")
+		}
+
+		return nil
+
+	default:
+		return errors.Errorf("unexpected response type: %T", response)
+	}
+}
+
+func encodeV1betaUpdateBackupVaultResponse(response V1betaUpdateBackupVaultRes, w http.ResponseWriter, span trace.Span) error {
+	switch response := response.(type) {
+	case *OperationV1beta:
+		if err := func() error {
+			if err := response.Validate(); err != nil {
+				return err
+			}
+			return nil
+		}(); err != nil {
+			return errors.Wrap(err, "validate")
+		}
+		w.Header().Set("Content-Type", "application/json; charset=utf-8")
+		w.WriteHeader(202)
+		span.SetStatus(codes.Ok, http.StatusText(202))
+
+		e := new(jx.Encoder)
+		response.Encode(e)
+		if _, err := e.WriteTo(w); err != nil {
+			return errors.Wrap(err, "write")
+		}
+
+		return nil
+
+	case *V1betaUpdateBackupVaultBadRequest:
+		if err := func() error {
+			if err := response.Validate(); err != nil {
+				return err
+			}
+			return nil
+		}(); err != nil {
+			return errors.Wrap(err, "validate")
+		}
+		w.Header().Set("Content-Type", "application/json; charset=utf-8")
+		w.WriteHeader(400)
+		span.SetStatus(codes.Error, http.StatusText(400))
+
+		e := new(jx.Encoder)
+		response.Encode(e)
+		if _, err := e.WriteTo(w); err != nil {
+			return errors.Wrap(err, "write")
+		}
+
+		return nil
+
+	case *V1betaUpdateBackupVaultUnauthorized:
+		if err := func() error {
+			if err := response.Validate(); err != nil {
+				return err
+			}
+			return nil
+		}(); err != nil {
+			return errors.Wrap(err, "validate")
+		}
+		w.Header().Set("Content-Type", "application/json; charset=utf-8")
+		w.WriteHeader(401)
+		span.SetStatus(codes.Error, http.StatusText(401))
+
+		e := new(jx.Encoder)
+		response.Encode(e)
+		if _, err := e.WriteTo(w); err != nil {
+			return errors.Wrap(err, "write")
+		}
+
+		return nil
+
+	case *V1betaUpdateBackupVaultForbidden:
+		if err := func() error {
+			if err := response.Validate(); err != nil {
+				return err
+			}
+			return nil
+		}(); err != nil {
+			return errors.Wrap(err, "validate")
+		}
+		w.Header().Set("Content-Type", "application/json; charset=utf-8")
+		w.WriteHeader(403)
+		span.SetStatus(codes.Error, http.StatusText(403))
+
+		e := new(jx.Encoder)
+		response.Encode(e)
+		if _, err := e.WriteTo(w); err != nil {
+			return errors.Wrap(err, "write")
+		}
+
+		return nil
+
+	case *V1betaUpdateBackupVaultConflict:
+		if err := func() error {
+			if err := response.Validate(); err != nil {
+				return err
+			}
+			return nil
+		}(); err != nil {
+			return errors.Wrap(err, "validate")
+		}
+		w.Header().Set("Content-Type", "application/json; charset=utf-8")
+		w.WriteHeader(409)
+		span.SetStatus(codes.Error, http.StatusText(409))
+
+		e := new(jx.Encoder)
+		response.Encode(e)
+		if _, err := e.WriteTo(w); err != nil {
+			return errors.Wrap(err, "write")
+		}
+
+		return nil
+
+	case *V1betaUpdateBackupVaultUnprocessableEntity:
+		if err := func() error {
+			if err := response.Validate(); err != nil {
+				return err
+			}
+			return nil
+		}(); err != nil {
+			return errors.Wrap(err, "validate")
+		}
+		w.Header().Set("Content-Type", "application/json; charset=utf-8")
+		w.WriteHeader(422)
+		span.SetStatus(codes.Error, http.StatusText(422))
+
+		e := new(jx.Encoder)
+		response.Encode(e)
+		if _, err := e.WriteTo(w); err != nil {
+			return errors.Wrap(err, "write")
+		}
+
+		return nil
+
+	case *V1betaUpdateBackupVaultTooManyRequests:
+		if err := func() error {
+			if err := response.Validate(); err != nil {
+				return err
+			}
+			return nil
+		}(); err != nil {
+			return errors.Wrap(err, "validate")
+		}
+		w.Header().Set("Content-Type", "application/json; charset=utf-8")
+		w.WriteHeader(429)
+		span.SetStatus(codes.Error, http.StatusText(429))
+
+		e := new(jx.Encoder)
+		response.Encode(e)
+		if _, err := e.WriteTo(w); err != nil {
+			return errors.Wrap(err, "write")
+		}
+
+		return nil
+
+	case *V1betaUpdateBackupVaultInternalServerError:
+		if err := func() error {
+			if err := response.Validate(); err != nil {
+				return err
+			}
+			return nil
+		}(); err != nil {
+			return errors.Wrap(err, "validate")
+		}
+		w.Header().Set("Content-Type", "application/json; charset=utf-8")
+		w.WriteHeader(500)
+		span.SetStatus(codes.Error, http.StatusText(500))
 
 		e := new(jx.Encoder)
 		response.Encode(e)

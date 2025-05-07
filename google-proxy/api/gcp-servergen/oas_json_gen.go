@@ -15,6 +15,1068 @@ import (
 )
 
 // Encode implements json.Marshaler.
+func (s *ActiveDirectoryIDListV1beta) Encode(e *jx.Encoder) {
+	e.ObjStart()
+	s.encodeFields(e)
+	e.ObjEnd()
+}
+
+// encodeFields encodes fields.
+func (s *ActiveDirectoryIDListV1beta) encodeFields(e *jx.Encoder) {
+	{
+		e.FieldStart("activeDirectoryUUIDs")
+		e.ArrStart()
+		for _, elem := range s.ActiveDirectoryUUIDs {
+			e.Str(elem)
+		}
+		e.ArrEnd()
+	}
+}
+
+var jsonFieldsNameOfActiveDirectoryIDListV1beta = [1]string{
+	0: "activeDirectoryUUIDs",
+}
+
+// Decode decodes ActiveDirectoryIDListV1beta from json.
+func (s *ActiveDirectoryIDListV1beta) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode ActiveDirectoryIDListV1beta to nil")
+	}
+	var requiredBitSet [1]uint8
+
+	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
+		switch string(k) {
+		case "activeDirectoryUUIDs":
+			requiredBitSet[0] |= 1 << 0
+			if err := func() error {
+				s.ActiveDirectoryUUIDs = make([]string, 0)
+				if err := d.Arr(func(d *jx.Decoder) error {
+					var elem string
+					v, err := d.Str()
+					elem = string(v)
+					if err != nil {
+						return err
+					}
+					s.ActiveDirectoryUUIDs = append(s.ActiveDirectoryUUIDs, elem)
+					return nil
+				}); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"activeDirectoryUUIDs\"")
+			}
+		default:
+			return d.Skip()
+		}
+		return nil
+	}); err != nil {
+		return errors.Wrap(err, "decode ActiveDirectoryIDListV1beta")
+	}
+	// Validate required fields.
+	var failures []validate.FieldError
+	for i, mask := range [1]uint8{
+		0b00000001,
+	} {
+		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
+			// Mask only required fields and check equality to mask using XOR.
+			//
+			// If XOR result is not zero, result is not equal to expected, so some fields are missed.
+			// Bits of fields which would be set are actually bits of missed fields.
+			missed := bits.OnesCount8(result)
+			for bitN := 0; bitN < missed; bitN++ {
+				bitIdx := bits.TrailingZeros8(result)
+				fieldIdx := i*8 + bitIdx
+				var name string
+				if fieldIdx < len(jsonFieldsNameOfActiveDirectoryIDListV1beta) {
+					name = jsonFieldsNameOfActiveDirectoryIDListV1beta[fieldIdx]
+				} else {
+					name = strconv.Itoa(fieldIdx)
+				}
+				failures = append(failures, validate.FieldError{
+					Name:  name,
+					Error: validate.ErrFieldRequired,
+				})
+				// Reset bit.
+				result &^= 1 << bitIdx
+			}
+		}
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *ActiveDirectoryIDListV1beta) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *ActiveDirectoryIDListV1beta) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode implements json.Marshaler.
+func (s *ActiveDirectoryUpdateV1beta) Encode(e *jx.Encoder) {
+	e.ObjStart()
+	s.encodeFields(e)
+	e.ObjEnd()
+}
+
+// encodeFields encodes fields.
+func (s *ActiveDirectoryUpdateV1beta) encodeFields(e *jx.Encoder) {
+	{
+		if s.Username.Set {
+			e.FieldStart("username")
+			s.Username.Encode(e)
+		}
+	}
+	{
+		if s.Password.Set {
+			e.FieldStart("password")
+			s.Password.Encode(e)
+		}
+	}
+	{
+		if s.Domain.Set {
+			e.FieldStart("domain")
+			s.Domain.Encode(e)
+		}
+	}
+	{
+		if s.DNS.Set {
+			e.FieldStart("DNS")
+			s.DNS.Encode(e)
+		}
+	}
+	{
+		if s.NetBIOS.Set {
+			e.FieldStart("netBIOS")
+			s.NetBIOS.Encode(e)
+		}
+	}
+	{
+		if s.OrganizationalUnit.Set {
+			e.FieldStart("organizationalUnit")
+			s.OrganizationalUnit.Encode(e)
+		}
+	}
+	{
+		if s.Site.Set {
+			e.FieldStart("site")
+			s.Site.Encode(e)
+		}
+	}
+	{
+		if s.KdcIP.Set {
+			e.FieldStart("kdcIP")
+			s.KdcIP.Encode(e)
+		}
+	}
+	{
+		if s.KdcHostname.Set {
+			e.FieldStart("kdcHostname")
+			s.KdcHostname.Encode(e)
+		}
+	}
+	{
+		if s.LdapSigning.Set {
+			e.FieldStart("ldapSigning")
+			s.LdapSigning.Encode(e)
+		}
+	}
+	{
+		if s.AllowLocalNFSUsersWithLdap.Set {
+			e.FieldStart("allowLocalNFSUsersWithLdap")
+			s.AllowLocalNFSUsersWithLdap.Encode(e)
+		}
+	}
+	{
+		if s.EncryptDCConnections.Set {
+			e.FieldStart("encryptDCConnections")
+			s.EncryptDCConnections.Encode(e)
+		}
+	}
+	{
+		if s.SecurityOperators != nil {
+			e.FieldStart("securityOperators")
+			e.ArrStart()
+			for _, elem := range s.SecurityOperators {
+				e.Str(elem)
+			}
+			e.ArrEnd()
+		}
+	}
+	{
+		if s.BackupOperators != nil {
+			e.FieldStart("backupOperators")
+			e.ArrStart()
+			for _, elem := range s.BackupOperators {
+				e.Str(elem)
+			}
+			e.ArrEnd()
+		}
+	}
+	{
+		if s.Administrators != nil {
+			e.FieldStart("administrators")
+			e.ArrStart()
+			for _, elem := range s.Administrators {
+				e.Str(elem)
+			}
+			e.ArrEnd()
+		}
+	}
+	{
+		if s.AesEncryption.Set {
+			e.FieldStart("aesEncryption")
+			s.AesEncryption.Encode(e)
+		}
+	}
+	{
+		if s.Description.Set {
+			e.FieldStart("description")
+			s.Description.Encode(e)
+		}
+	}
+}
+
+var jsonFieldsNameOfActiveDirectoryUpdateV1beta = [17]string{
+	0:  "username",
+	1:  "password",
+	2:  "domain",
+	3:  "DNS",
+	4:  "netBIOS",
+	5:  "organizationalUnit",
+	6:  "site",
+	7:  "kdcIP",
+	8:  "kdcHostname",
+	9:  "ldapSigning",
+	10: "allowLocalNFSUsersWithLdap",
+	11: "encryptDCConnections",
+	12: "securityOperators",
+	13: "backupOperators",
+	14: "administrators",
+	15: "aesEncryption",
+	16: "description",
+}
+
+// Decode decodes ActiveDirectoryUpdateV1beta from json.
+func (s *ActiveDirectoryUpdateV1beta) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode ActiveDirectoryUpdateV1beta to nil")
+	}
+	s.setDefaults()
+
+	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
+		switch string(k) {
+		case "username":
+			if err := func() error {
+				s.Username.Reset()
+				if err := s.Username.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"username\"")
+			}
+		case "password":
+			if err := func() error {
+				s.Password.Reset()
+				if err := s.Password.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"password\"")
+			}
+		case "domain":
+			if err := func() error {
+				s.Domain.Reset()
+				if err := s.Domain.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"domain\"")
+			}
+		case "DNS":
+			if err := func() error {
+				s.DNS.Reset()
+				if err := s.DNS.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"DNS\"")
+			}
+		case "netBIOS":
+			if err := func() error {
+				s.NetBIOS.Reset()
+				if err := s.NetBIOS.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"netBIOS\"")
+			}
+		case "organizationalUnit":
+			if err := func() error {
+				s.OrganizationalUnit.Reset()
+				if err := s.OrganizationalUnit.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"organizationalUnit\"")
+			}
+		case "site":
+			if err := func() error {
+				s.Site.Reset()
+				if err := s.Site.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"site\"")
+			}
+		case "kdcIP":
+			if err := func() error {
+				s.KdcIP.Reset()
+				if err := s.KdcIP.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"kdcIP\"")
+			}
+		case "kdcHostname":
+			if err := func() error {
+				s.KdcHostname.Reset()
+				if err := s.KdcHostname.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"kdcHostname\"")
+			}
+		case "ldapSigning":
+			if err := func() error {
+				s.LdapSigning.Reset()
+				if err := s.LdapSigning.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"ldapSigning\"")
+			}
+		case "allowLocalNFSUsersWithLdap":
+			if err := func() error {
+				s.AllowLocalNFSUsersWithLdap.Reset()
+				if err := s.AllowLocalNFSUsersWithLdap.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"allowLocalNFSUsersWithLdap\"")
+			}
+		case "encryptDCConnections":
+			if err := func() error {
+				s.EncryptDCConnections.Reset()
+				if err := s.EncryptDCConnections.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"encryptDCConnections\"")
+			}
+		case "securityOperators":
+			if err := func() error {
+				s.SecurityOperators = make([]string, 0)
+				if err := d.Arr(func(d *jx.Decoder) error {
+					var elem string
+					v, err := d.Str()
+					elem = string(v)
+					if err != nil {
+						return err
+					}
+					s.SecurityOperators = append(s.SecurityOperators, elem)
+					return nil
+				}); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"securityOperators\"")
+			}
+		case "backupOperators":
+			if err := func() error {
+				s.BackupOperators = make([]string, 0)
+				if err := d.Arr(func(d *jx.Decoder) error {
+					var elem string
+					v, err := d.Str()
+					elem = string(v)
+					if err != nil {
+						return err
+					}
+					s.BackupOperators = append(s.BackupOperators, elem)
+					return nil
+				}); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"backupOperators\"")
+			}
+		case "administrators":
+			if err := func() error {
+				s.Administrators = make([]string, 0)
+				if err := d.Arr(func(d *jx.Decoder) error {
+					var elem string
+					v, err := d.Str()
+					elem = string(v)
+					if err != nil {
+						return err
+					}
+					s.Administrators = append(s.Administrators, elem)
+					return nil
+				}); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"administrators\"")
+			}
+		case "aesEncryption":
+			if err := func() error {
+				s.AesEncryption.Reset()
+				if err := s.AesEncryption.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"aesEncryption\"")
+			}
+		case "description":
+			if err := func() error {
+				s.Description.Reset()
+				if err := s.Description.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"description\"")
+			}
+		default:
+			return d.Skip()
+		}
+		return nil
+	}); err != nil {
+		return errors.Wrap(err, "decode ActiveDirectoryUpdateV1beta")
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *ActiveDirectoryUpdateV1beta) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *ActiveDirectoryUpdateV1beta) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode implements json.Marshaler.
+func (s *ActiveDirectoryV1beta) Encode(e *jx.Encoder) {
+	e.ObjStart()
+	s.encodeFields(e)
+	e.ObjEnd()
+}
+
+// encodeFields encodes fields.
+func (s *ActiveDirectoryV1beta) encodeFields(e *jx.Encoder) {
+	{
+		if s.ActiveDirectoryId.Set {
+			e.FieldStart("activeDirectoryId")
+			s.ActiveDirectoryId.Encode(e)
+		}
+	}
+	{
+		e.FieldStart("username")
+		e.Str(s.Username)
+	}
+	{
+		e.FieldStart("resourceId")
+		e.Str(s.ResourceId)
+	}
+	{
+		e.FieldStart("password")
+		e.Str(s.Password)
+	}
+	{
+		e.FieldStart("domain")
+		e.Str(s.Domain)
+	}
+	{
+		e.FieldStart("DNS")
+		e.Str(s.DNS)
+	}
+	{
+		e.FieldStart("netBIOS")
+		e.Str(s.NetBIOS)
+	}
+	{
+		if s.OrganizationalUnit.Set {
+			e.FieldStart("organizationalUnit")
+			s.OrganizationalUnit.Encode(e)
+		}
+	}
+	{
+		if s.Site.Set {
+			e.FieldStart("site")
+			s.Site.Encode(e)
+		}
+	}
+	{
+		if s.KdcIP.Set {
+			e.FieldStart("kdcIP")
+			s.KdcIP.Encode(e)
+		}
+	}
+	{
+		if s.KdcHostname.Set {
+			e.FieldStart("kdcHostname")
+			s.KdcHostname.Encode(e)
+		}
+	}
+	{
+		if s.ActiveDirectoryState.Set {
+			e.FieldStart("activeDirectoryState")
+			s.ActiveDirectoryState.Encode(e)
+		}
+	}
+	{
+		if s.ActiveDirectoryStateDetails.Set {
+			e.FieldStart("activeDirectoryStateDetails")
+			s.ActiveDirectoryStateDetails.Encode(e)
+		}
+	}
+	{
+		if s.CreatedAt.Set {
+			e.FieldStart("createdAt")
+			s.CreatedAt.Encode(e, json.EncodeDateTime)
+		}
+	}
+	{
+		if s.UpdatedAt.Set {
+			e.FieldStart("updatedAt")
+			s.UpdatedAt.Encode(e, json.EncodeDateTime)
+		}
+	}
+	{
+		if s.DeletedAt.Set {
+			e.FieldStart("deletedAt")
+			s.DeletedAt.Encode(e, json.EncodeDateTime)
+		}
+	}
+	{
+		if s.LdapSigning.Set {
+			e.FieldStart("ldapSigning")
+			s.LdapSigning.Encode(e)
+		}
+	}
+	{
+		if s.AllowLocalNFSUsersWithLdap.Set {
+			e.FieldStart("allowLocalNFSUsersWithLdap")
+			s.AllowLocalNFSUsersWithLdap.Encode(e)
+		}
+	}
+	{
+		if s.EncryptDCConnections.Set {
+			e.FieldStart("encryptDCConnections")
+			s.EncryptDCConnections.Encode(e)
+		}
+	}
+	{
+		if s.SecurityOperators != nil {
+			e.FieldStart("securityOperators")
+			e.ArrStart()
+			for _, elem := range s.SecurityOperators {
+				e.Str(elem)
+			}
+			e.ArrEnd()
+		}
+	}
+	{
+		if s.BackupOperators != nil {
+			e.FieldStart("backupOperators")
+			e.ArrStart()
+			for _, elem := range s.BackupOperators {
+				e.Str(elem)
+			}
+			e.ArrEnd()
+		}
+	}
+	{
+		if s.Administrators != nil {
+			e.FieldStart("administrators")
+			e.ArrStart()
+			for _, elem := range s.Administrators {
+				e.Str(elem)
+			}
+			e.ArrEnd()
+		}
+	}
+	{
+		if s.AesEncryption.Set {
+			e.FieldStart("aesEncryption")
+			s.AesEncryption.Encode(e)
+		}
+	}
+	{
+		if s.Description.Set {
+			e.FieldStart("description")
+			s.Description.Encode(e)
+		}
+	}
+}
+
+var jsonFieldsNameOfActiveDirectoryV1beta = [24]string{
+	0:  "activeDirectoryId",
+	1:  "username",
+	2:  "resourceId",
+	3:  "password",
+	4:  "domain",
+	5:  "DNS",
+	6:  "netBIOS",
+	7:  "organizationalUnit",
+	8:  "site",
+	9:  "kdcIP",
+	10: "kdcHostname",
+	11: "activeDirectoryState",
+	12: "activeDirectoryStateDetails",
+	13: "createdAt",
+	14: "updatedAt",
+	15: "deletedAt",
+	16: "ldapSigning",
+	17: "allowLocalNFSUsersWithLdap",
+	18: "encryptDCConnections",
+	19: "securityOperators",
+	20: "backupOperators",
+	21: "administrators",
+	22: "aesEncryption",
+	23: "description",
+}
+
+// Decode decodes ActiveDirectoryV1beta from json.
+func (s *ActiveDirectoryV1beta) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode ActiveDirectoryV1beta to nil")
+	}
+	var requiredBitSet [3]uint8
+	s.setDefaults()
+
+	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
+		switch string(k) {
+		case "activeDirectoryId":
+			if err := func() error {
+				s.ActiveDirectoryId.Reset()
+				if err := s.ActiveDirectoryId.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"activeDirectoryId\"")
+			}
+		case "username":
+			requiredBitSet[0] |= 1 << 1
+			if err := func() error {
+				v, err := d.Str()
+				s.Username = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"username\"")
+			}
+		case "resourceId":
+			requiredBitSet[0] |= 1 << 2
+			if err := func() error {
+				v, err := d.Str()
+				s.ResourceId = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"resourceId\"")
+			}
+		case "password":
+			requiredBitSet[0] |= 1 << 3
+			if err := func() error {
+				v, err := d.Str()
+				s.Password = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"password\"")
+			}
+		case "domain":
+			requiredBitSet[0] |= 1 << 4
+			if err := func() error {
+				v, err := d.Str()
+				s.Domain = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"domain\"")
+			}
+		case "DNS":
+			requiredBitSet[0] |= 1 << 5
+			if err := func() error {
+				v, err := d.Str()
+				s.DNS = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"DNS\"")
+			}
+		case "netBIOS":
+			requiredBitSet[0] |= 1 << 6
+			if err := func() error {
+				v, err := d.Str()
+				s.NetBIOS = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"netBIOS\"")
+			}
+		case "organizationalUnit":
+			if err := func() error {
+				s.OrganizationalUnit.Reset()
+				if err := s.OrganizationalUnit.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"organizationalUnit\"")
+			}
+		case "site":
+			if err := func() error {
+				s.Site.Reset()
+				if err := s.Site.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"site\"")
+			}
+		case "kdcIP":
+			if err := func() error {
+				s.KdcIP.Reset()
+				if err := s.KdcIP.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"kdcIP\"")
+			}
+		case "kdcHostname":
+			if err := func() error {
+				s.KdcHostname.Reset()
+				if err := s.KdcHostname.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"kdcHostname\"")
+			}
+		case "activeDirectoryState":
+			if err := func() error {
+				s.ActiveDirectoryState.Reset()
+				if err := s.ActiveDirectoryState.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"activeDirectoryState\"")
+			}
+		case "activeDirectoryStateDetails":
+			if err := func() error {
+				s.ActiveDirectoryStateDetails.Reset()
+				if err := s.ActiveDirectoryStateDetails.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"activeDirectoryStateDetails\"")
+			}
+		case "createdAt":
+			if err := func() error {
+				s.CreatedAt.Reset()
+				if err := s.CreatedAt.Decode(d, json.DecodeDateTime); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"createdAt\"")
+			}
+		case "updatedAt":
+			if err := func() error {
+				s.UpdatedAt.Reset()
+				if err := s.UpdatedAt.Decode(d, json.DecodeDateTime); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"updatedAt\"")
+			}
+		case "deletedAt":
+			if err := func() error {
+				s.DeletedAt.Reset()
+				if err := s.DeletedAt.Decode(d, json.DecodeDateTime); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"deletedAt\"")
+			}
+		case "ldapSigning":
+			if err := func() error {
+				s.LdapSigning.Reset()
+				if err := s.LdapSigning.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"ldapSigning\"")
+			}
+		case "allowLocalNFSUsersWithLdap":
+			if err := func() error {
+				s.AllowLocalNFSUsersWithLdap.Reset()
+				if err := s.AllowLocalNFSUsersWithLdap.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"allowLocalNFSUsersWithLdap\"")
+			}
+		case "encryptDCConnections":
+			if err := func() error {
+				s.EncryptDCConnections.Reset()
+				if err := s.EncryptDCConnections.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"encryptDCConnections\"")
+			}
+		case "securityOperators":
+			if err := func() error {
+				s.SecurityOperators = make([]string, 0)
+				if err := d.Arr(func(d *jx.Decoder) error {
+					var elem string
+					v, err := d.Str()
+					elem = string(v)
+					if err != nil {
+						return err
+					}
+					s.SecurityOperators = append(s.SecurityOperators, elem)
+					return nil
+				}); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"securityOperators\"")
+			}
+		case "backupOperators":
+			if err := func() error {
+				s.BackupOperators = make([]string, 0)
+				if err := d.Arr(func(d *jx.Decoder) error {
+					var elem string
+					v, err := d.Str()
+					elem = string(v)
+					if err != nil {
+						return err
+					}
+					s.BackupOperators = append(s.BackupOperators, elem)
+					return nil
+				}); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"backupOperators\"")
+			}
+		case "administrators":
+			if err := func() error {
+				s.Administrators = make([]string, 0)
+				if err := d.Arr(func(d *jx.Decoder) error {
+					var elem string
+					v, err := d.Str()
+					elem = string(v)
+					if err != nil {
+						return err
+					}
+					s.Administrators = append(s.Administrators, elem)
+					return nil
+				}); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"administrators\"")
+			}
+		case "aesEncryption":
+			if err := func() error {
+				s.AesEncryption.Reset()
+				if err := s.AesEncryption.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"aesEncryption\"")
+			}
+		case "description":
+			if err := func() error {
+				s.Description.Reset()
+				if err := s.Description.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"description\"")
+			}
+		default:
+			return d.Skip()
+		}
+		return nil
+	}); err != nil {
+		return errors.Wrap(err, "decode ActiveDirectoryV1beta")
+	}
+	// Validate required fields.
+	var failures []validate.FieldError
+	for i, mask := range [3]uint8{
+		0b01111110,
+		0b00000000,
+		0b00000000,
+	} {
+		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
+			// Mask only required fields and check equality to mask using XOR.
+			//
+			// If XOR result is not zero, result is not equal to expected, so some fields are missed.
+			// Bits of fields which would be set are actually bits of missed fields.
+			missed := bits.OnesCount8(result)
+			for bitN := 0; bitN < missed; bitN++ {
+				bitIdx := bits.TrailingZeros8(result)
+				fieldIdx := i*8 + bitIdx
+				var name string
+				if fieldIdx < len(jsonFieldsNameOfActiveDirectoryV1beta) {
+					name = jsonFieldsNameOfActiveDirectoryV1beta[fieldIdx]
+				} else {
+					name = strconv.Itoa(fieldIdx)
+				}
+				failures = append(failures, validate.FieldError{
+					Name:  name,
+					Error: validate.ErrFieldRequired,
+				})
+				// Reset bit.
+				result &^= 1 << bitIdx
+			}
+		}
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *ActiveDirectoryV1beta) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *ActiveDirectoryV1beta) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes ActiveDirectoryV1betaActiveDirectoryState as json.
+func (s ActiveDirectoryV1betaActiveDirectoryState) Encode(e *jx.Encoder) {
+	e.Str(string(s))
+}
+
+// Decode decodes ActiveDirectoryV1betaActiveDirectoryState from json.
+func (s *ActiveDirectoryV1betaActiveDirectoryState) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode ActiveDirectoryV1betaActiveDirectoryState to nil")
+	}
+	v, err := d.StrBytes()
+	if err != nil {
+		return err
+	}
+	// Try to use constant string.
+	switch ActiveDirectoryV1betaActiveDirectoryState(v) {
+	case ActiveDirectoryV1betaActiveDirectoryStateSTATEUNSPECIFIED:
+		*s = ActiveDirectoryV1betaActiveDirectoryStateSTATEUNSPECIFIED
+	case ActiveDirectoryV1betaActiveDirectoryStateCREATING:
+		*s = ActiveDirectoryV1betaActiveDirectoryStateCREATING
+	case ActiveDirectoryV1betaActiveDirectoryStateREADY:
+		*s = ActiveDirectoryV1betaActiveDirectoryStateREADY
+	case ActiveDirectoryV1betaActiveDirectoryStateUPDATING:
+		*s = ActiveDirectoryV1betaActiveDirectoryStateUPDATING
+	case ActiveDirectoryV1betaActiveDirectoryStateINUSE:
+		*s = ActiveDirectoryV1betaActiveDirectoryStateINUSE
+	case ActiveDirectoryV1betaActiveDirectoryStateDELETING:
+		*s = ActiveDirectoryV1betaActiveDirectoryStateDELETING
+	case ActiveDirectoryV1betaActiveDirectoryStateERROR:
+		*s = ActiveDirectoryV1betaActiveDirectoryStateERROR
+	default:
+		*s = ActiveDirectoryV1betaActiveDirectoryState(v)
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s ActiveDirectoryV1betaActiveDirectoryState) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *ActiveDirectoryV1betaActiveDirectoryState) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode implements json.Marshaler.
 func (s *AnyV1Beta) Encode(e *jx.Encoder) {
 	e.ObjStart()
 	s.encodeFields(e)
@@ -1261,6 +2323,961 @@ func (s BackupPolicyV1betaState) MarshalJSON() ([]byte, error) {
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
 func (s *BackupPolicyV1betaState) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode implements json.Marshaler.
+func (s *BackupRetentionPolicyUpdateV1beta) Encode(e *jx.Encoder) {
+	e.ObjStart()
+	s.encodeFields(e)
+	e.ObjEnd()
+}
+
+// encodeFields encodes fields.
+func (s *BackupRetentionPolicyUpdateV1beta) encodeFields(e *jx.Encoder) {
+	{
+		if s.BackupMinimumEnforcedRetentionDays.Set {
+			e.FieldStart("backupMinimumEnforcedRetentionDays")
+			s.BackupMinimumEnforcedRetentionDays.Encode(e)
+		}
+	}
+	{
+		if s.DailyBackupImmutable.Set {
+			e.FieldStart("dailyBackupImmutable")
+			s.DailyBackupImmutable.Encode(e)
+		}
+	}
+	{
+		if s.WeeklyBackupImmutable.Set {
+			e.FieldStart("weeklyBackupImmutable")
+			s.WeeklyBackupImmutable.Encode(e)
+		}
+	}
+	{
+		if s.MonthlyBackupImmutable.Set {
+			e.FieldStart("monthlyBackupImmutable")
+			s.MonthlyBackupImmutable.Encode(e)
+		}
+	}
+	{
+		if s.ManualBackupImmutable.Set {
+			e.FieldStart("manualBackupImmutable")
+			s.ManualBackupImmutable.Encode(e)
+		}
+	}
+}
+
+var jsonFieldsNameOfBackupRetentionPolicyUpdateV1beta = [5]string{
+	0: "backupMinimumEnforcedRetentionDays",
+	1: "dailyBackupImmutable",
+	2: "weeklyBackupImmutable",
+	3: "monthlyBackupImmutable",
+	4: "manualBackupImmutable",
+}
+
+// Decode decodes BackupRetentionPolicyUpdateV1beta from json.
+func (s *BackupRetentionPolicyUpdateV1beta) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode BackupRetentionPolicyUpdateV1beta to nil")
+	}
+
+	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
+		switch string(k) {
+		case "backupMinimumEnforcedRetentionDays":
+			if err := func() error {
+				s.BackupMinimumEnforcedRetentionDays.Reset()
+				if err := s.BackupMinimumEnforcedRetentionDays.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"backupMinimumEnforcedRetentionDays\"")
+			}
+		case "dailyBackupImmutable":
+			if err := func() error {
+				s.DailyBackupImmutable.Reset()
+				if err := s.DailyBackupImmutable.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"dailyBackupImmutable\"")
+			}
+		case "weeklyBackupImmutable":
+			if err := func() error {
+				s.WeeklyBackupImmutable.Reset()
+				if err := s.WeeklyBackupImmutable.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"weeklyBackupImmutable\"")
+			}
+		case "monthlyBackupImmutable":
+			if err := func() error {
+				s.MonthlyBackupImmutable.Reset()
+				if err := s.MonthlyBackupImmutable.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"monthlyBackupImmutable\"")
+			}
+		case "manualBackupImmutable":
+			if err := func() error {
+				s.ManualBackupImmutable.Reset()
+				if err := s.ManualBackupImmutable.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"manualBackupImmutable\"")
+			}
+		default:
+			return d.Skip()
+		}
+		return nil
+	}); err != nil {
+		return errors.Wrap(err, "decode BackupRetentionPolicyUpdateV1beta")
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *BackupRetentionPolicyUpdateV1beta) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *BackupRetentionPolicyUpdateV1beta) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode implements json.Marshaler.
+func (s *BackupRetentionPolicyV1beta) Encode(e *jx.Encoder) {
+	e.ObjStart()
+	s.encodeFields(e)
+	e.ObjEnd()
+}
+
+// encodeFields encodes fields.
+func (s *BackupRetentionPolicyV1beta) encodeFields(e *jx.Encoder) {
+	{
+		if s.BackupMinimumEnforcedRetentionDays.Set {
+			e.FieldStart("backupMinimumEnforcedRetentionDays")
+			s.BackupMinimumEnforcedRetentionDays.Encode(e)
+		}
+	}
+	{
+		if s.DailyBackupImmutable.Set {
+			e.FieldStart("dailyBackupImmutable")
+			s.DailyBackupImmutable.Encode(e)
+		}
+	}
+	{
+		if s.WeeklyBackupImmutable.Set {
+			e.FieldStart("weeklyBackupImmutable")
+			s.WeeklyBackupImmutable.Encode(e)
+		}
+	}
+	{
+		if s.MonthlyBackupImmutable.Set {
+			e.FieldStart("monthlyBackupImmutable")
+			s.MonthlyBackupImmutable.Encode(e)
+		}
+	}
+	{
+		if s.ManualBackupImmutable.Set {
+			e.FieldStart("manualBackupImmutable")
+			s.ManualBackupImmutable.Encode(e)
+		}
+	}
+}
+
+var jsonFieldsNameOfBackupRetentionPolicyV1beta = [5]string{
+	0: "backupMinimumEnforcedRetentionDays",
+	1: "dailyBackupImmutable",
+	2: "weeklyBackupImmutable",
+	3: "monthlyBackupImmutable",
+	4: "manualBackupImmutable",
+}
+
+// Decode decodes BackupRetentionPolicyV1beta from json.
+func (s *BackupRetentionPolicyV1beta) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode BackupRetentionPolicyV1beta to nil")
+	}
+
+	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
+		switch string(k) {
+		case "backupMinimumEnforcedRetentionDays":
+			if err := func() error {
+				s.BackupMinimumEnforcedRetentionDays.Reset()
+				if err := s.BackupMinimumEnforcedRetentionDays.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"backupMinimumEnforcedRetentionDays\"")
+			}
+		case "dailyBackupImmutable":
+			if err := func() error {
+				s.DailyBackupImmutable.Reset()
+				if err := s.DailyBackupImmutable.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"dailyBackupImmutable\"")
+			}
+		case "weeklyBackupImmutable":
+			if err := func() error {
+				s.WeeklyBackupImmutable.Reset()
+				if err := s.WeeklyBackupImmutable.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"weeklyBackupImmutable\"")
+			}
+		case "monthlyBackupImmutable":
+			if err := func() error {
+				s.MonthlyBackupImmutable.Reset()
+				if err := s.MonthlyBackupImmutable.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"monthlyBackupImmutable\"")
+			}
+		case "manualBackupImmutable":
+			if err := func() error {
+				s.ManualBackupImmutable.Reset()
+				if err := s.ManualBackupImmutable.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"manualBackupImmutable\"")
+			}
+		default:
+			return d.Skip()
+		}
+		return nil
+	}); err != nil {
+		return errors.Wrap(err, "decode BackupRetentionPolicyV1beta")
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *BackupRetentionPolicyV1beta) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *BackupRetentionPolicyV1beta) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode implements json.Marshaler.
+func (s *BackupVaultCreateV1beta) Encode(e *jx.Encoder) {
+	e.ObjStart()
+	s.encodeFields(e)
+	e.ObjEnd()
+}
+
+// encodeFields encodes fields.
+func (s *BackupVaultCreateV1beta) encodeFields(e *jx.Encoder) {
+	{
+		if s.ResourceId.Set {
+			e.FieldStart("resourceId")
+			s.ResourceId.Encode(e)
+		}
+	}
+	{
+		if s.Description.Set {
+			e.FieldStart("description")
+			s.Description.Encode(e)
+		}
+	}
+	{
+		if s.BackupRegion.Set {
+			e.FieldStart("backupRegion")
+			s.BackupRegion.Encode(e)
+		}
+	}
+	{
+		if s.BackupRetentionPolicy.Set {
+			e.FieldStart("backupRetentionPolicy")
+			s.BackupRetentionPolicy.Encode(e)
+		}
+	}
+}
+
+var jsonFieldsNameOfBackupVaultCreateV1beta = [4]string{
+	0: "resourceId",
+	1: "description",
+	2: "backupRegion",
+	3: "backupRetentionPolicy",
+}
+
+// Decode decodes BackupVaultCreateV1beta from json.
+func (s *BackupVaultCreateV1beta) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode BackupVaultCreateV1beta to nil")
+	}
+
+	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
+		switch string(k) {
+		case "resourceId":
+			if err := func() error {
+				s.ResourceId.Reset()
+				if err := s.ResourceId.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"resourceId\"")
+			}
+		case "description":
+			if err := func() error {
+				s.Description.Reset()
+				if err := s.Description.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"description\"")
+			}
+		case "backupRegion":
+			if err := func() error {
+				s.BackupRegion.Reset()
+				if err := s.BackupRegion.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"backupRegion\"")
+			}
+		case "backupRetentionPolicy":
+			if err := func() error {
+				s.BackupRetentionPolicy.Reset()
+				if err := s.BackupRetentionPolicy.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"backupRetentionPolicy\"")
+			}
+		default:
+			return d.Skip()
+		}
+		return nil
+	}); err != nil {
+		return errors.Wrap(err, "decode BackupVaultCreateV1beta")
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *BackupVaultCreateV1beta) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *BackupVaultCreateV1beta) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode implements json.Marshaler.
+func (s *BackupVaultUUIDListV1beta) Encode(e *jx.Encoder) {
+	e.ObjStart()
+	s.encodeFields(e)
+	e.ObjEnd()
+}
+
+// encodeFields encodes fields.
+func (s *BackupVaultUUIDListV1beta) encodeFields(e *jx.Encoder) {
+	{
+		e.FieldStart("backupVaultUUIDs")
+		e.ArrStart()
+		for _, elem := range s.BackupVaultUUIDs {
+			e.Str(elem)
+		}
+		e.ArrEnd()
+	}
+}
+
+var jsonFieldsNameOfBackupVaultUUIDListV1beta = [1]string{
+	0: "backupVaultUUIDs",
+}
+
+// Decode decodes BackupVaultUUIDListV1beta from json.
+func (s *BackupVaultUUIDListV1beta) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode BackupVaultUUIDListV1beta to nil")
+	}
+	var requiredBitSet [1]uint8
+
+	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
+		switch string(k) {
+		case "backupVaultUUIDs":
+			requiredBitSet[0] |= 1 << 0
+			if err := func() error {
+				s.BackupVaultUUIDs = make([]string, 0)
+				if err := d.Arr(func(d *jx.Decoder) error {
+					var elem string
+					v, err := d.Str()
+					elem = string(v)
+					if err != nil {
+						return err
+					}
+					s.BackupVaultUUIDs = append(s.BackupVaultUUIDs, elem)
+					return nil
+				}); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"backupVaultUUIDs\"")
+			}
+		default:
+			return d.Skip()
+		}
+		return nil
+	}); err != nil {
+		return errors.Wrap(err, "decode BackupVaultUUIDListV1beta")
+	}
+	// Validate required fields.
+	var failures []validate.FieldError
+	for i, mask := range [1]uint8{
+		0b00000001,
+	} {
+		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
+			// Mask only required fields and check equality to mask using XOR.
+			//
+			// If XOR result is not zero, result is not equal to expected, so some fields are missed.
+			// Bits of fields which would be set are actually bits of missed fields.
+			missed := bits.OnesCount8(result)
+			for bitN := 0; bitN < missed; bitN++ {
+				bitIdx := bits.TrailingZeros8(result)
+				fieldIdx := i*8 + bitIdx
+				var name string
+				if fieldIdx < len(jsonFieldsNameOfBackupVaultUUIDListV1beta) {
+					name = jsonFieldsNameOfBackupVaultUUIDListV1beta[fieldIdx]
+				} else {
+					name = strconv.Itoa(fieldIdx)
+				}
+				failures = append(failures, validate.FieldError{
+					Name:  name,
+					Error: validate.ErrFieldRequired,
+				})
+				// Reset bit.
+				result &^= 1 << bitIdx
+			}
+		}
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *BackupVaultUUIDListV1beta) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *BackupVaultUUIDListV1beta) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode implements json.Marshaler.
+func (s *BackupVaultUpdateV1beta) Encode(e *jx.Encoder) {
+	e.ObjStart()
+	s.encodeFields(e)
+	e.ObjEnd()
+}
+
+// encodeFields encodes fields.
+func (s *BackupVaultUpdateV1beta) encodeFields(e *jx.Encoder) {
+	{
+		if s.Description.Set {
+			e.FieldStart("description")
+			s.Description.Encode(e)
+		}
+	}
+	{
+		if s.BackupRetentionPolicy.Set {
+			e.FieldStart("backupRetentionPolicy")
+			s.BackupRetentionPolicy.Encode(e)
+		}
+	}
+}
+
+var jsonFieldsNameOfBackupVaultUpdateV1beta = [2]string{
+	0: "description",
+	1: "backupRetentionPolicy",
+}
+
+// Decode decodes BackupVaultUpdateV1beta from json.
+func (s *BackupVaultUpdateV1beta) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode BackupVaultUpdateV1beta to nil")
+	}
+
+	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
+		switch string(k) {
+		case "description":
+			if err := func() error {
+				s.Description.Reset()
+				if err := s.Description.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"description\"")
+			}
+		case "backupRetentionPolicy":
+			if err := func() error {
+				s.BackupRetentionPolicy.Reset()
+				if err := s.BackupRetentionPolicy.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"backupRetentionPolicy\"")
+			}
+		default:
+			return d.Skip()
+		}
+		return nil
+	}); err != nil {
+		return errors.Wrap(err, "decode BackupVaultUpdateV1beta")
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *BackupVaultUpdateV1beta) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *BackupVaultUpdateV1beta) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode implements json.Marshaler.
+func (s *BackupVaultV1beta) Encode(e *jx.Encoder) {
+	e.ObjStart()
+	s.encodeFields(e)
+	e.ObjEnd()
+}
+
+// encodeFields encodes fields.
+func (s *BackupVaultV1beta) encodeFields(e *jx.Encoder) {
+	{
+		if s.BackupVaultId.Set {
+			e.FieldStart("backupVaultId")
+			s.BackupVaultId.Encode(e)
+		}
+	}
+	{
+		e.FieldStart("resourceId")
+		e.Str(s.ResourceId)
+	}
+	{
+		if s.Description.Set {
+			e.FieldStart("description")
+			s.Description.Encode(e)
+		}
+	}
+	{
+		if s.BackupRegion.Set {
+			e.FieldStart("backupRegion")
+			s.BackupRegion.Encode(e)
+		}
+	}
+	{
+		if s.SourceRegion.Set {
+			e.FieldStart("sourceRegion")
+			s.SourceRegion.Encode(e)
+		}
+	}
+	{
+		if s.DestinationBackupVault.Set {
+			e.FieldStart("destinationBackupVault")
+			s.DestinationBackupVault.Encode(e)
+		}
+	}
+	{
+		if s.SourceBackupVault.Set {
+			e.FieldStart("sourceBackupVault")
+			s.SourceBackupVault.Encode(e)
+		}
+	}
+	{
+		if s.BackupVaultType.Set {
+			e.FieldStart("backupVaultType")
+			s.BackupVaultType.Encode(e)
+		}
+	}
+	{
+		if s.State.Set {
+			e.FieldStart("state")
+			s.State.Encode(e)
+		}
+	}
+	{
+		if s.StateDetails.Set {
+			e.FieldStart("stateDetails")
+			s.StateDetails.Encode(e)
+		}
+	}
+	{
+		if s.CreatedAt.Set {
+			e.FieldStart("createdAt")
+			s.CreatedAt.Encode(e, json.EncodeDateTime)
+		}
+	}
+	{
+		if s.DeletedAt.Set {
+			e.FieldStart("deletedAt")
+			s.DeletedAt.Encode(e, json.EncodeDateTime)
+		}
+	}
+	{
+		if s.BackupRetentionPolicy.Set {
+			e.FieldStart("backupRetentionPolicy")
+			s.BackupRetentionPolicy.Encode(e)
+		}
+	}
+}
+
+var jsonFieldsNameOfBackupVaultV1beta = [13]string{
+	0:  "backupVaultId",
+	1:  "resourceId",
+	2:  "description",
+	3:  "backupRegion",
+	4:  "sourceRegion",
+	5:  "destinationBackupVault",
+	6:  "sourceBackupVault",
+	7:  "backupVaultType",
+	8:  "state",
+	9:  "stateDetails",
+	10: "createdAt",
+	11: "deletedAt",
+	12: "backupRetentionPolicy",
+}
+
+// Decode decodes BackupVaultV1beta from json.
+func (s *BackupVaultV1beta) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode BackupVaultV1beta to nil")
+	}
+	var requiredBitSet [2]uint8
+
+	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
+		switch string(k) {
+		case "backupVaultId":
+			if err := func() error {
+				s.BackupVaultId.Reset()
+				if err := s.BackupVaultId.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"backupVaultId\"")
+			}
+		case "resourceId":
+			requiredBitSet[0] |= 1 << 1
+			if err := func() error {
+				v, err := d.Str()
+				s.ResourceId = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"resourceId\"")
+			}
+		case "description":
+			if err := func() error {
+				s.Description.Reset()
+				if err := s.Description.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"description\"")
+			}
+		case "backupRegion":
+			if err := func() error {
+				s.BackupRegion.Reset()
+				if err := s.BackupRegion.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"backupRegion\"")
+			}
+		case "sourceRegion":
+			if err := func() error {
+				s.SourceRegion.Reset()
+				if err := s.SourceRegion.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"sourceRegion\"")
+			}
+		case "destinationBackupVault":
+			if err := func() error {
+				s.DestinationBackupVault.Reset()
+				if err := s.DestinationBackupVault.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"destinationBackupVault\"")
+			}
+		case "sourceBackupVault":
+			if err := func() error {
+				s.SourceBackupVault.Reset()
+				if err := s.SourceBackupVault.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"sourceBackupVault\"")
+			}
+		case "backupVaultType":
+			if err := func() error {
+				s.BackupVaultType.Reset()
+				if err := s.BackupVaultType.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"backupVaultType\"")
+			}
+		case "state":
+			if err := func() error {
+				s.State.Reset()
+				if err := s.State.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"state\"")
+			}
+		case "stateDetails":
+			if err := func() error {
+				s.StateDetails.Reset()
+				if err := s.StateDetails.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"stateDetails\"")
+			}
+		case "createdAt":
+			if err := func() error {
+				s.CreatedAt.Reset()
+				if err := s.CreatedAt.Decode(d, json.DecodeDateTime); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"createdAt\"")
+			}
+		case "deletedAt":
+			if err := func() error {
+				s.DeletedAt.Reset()
+				if err := s.DeletedAt.Decode(d, json.DecodeDateTime); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"deletedAt\"")
+			}
+		case "backupRetentionPolicy":
+			if err := func() error {
+				s.BackupRetentionPolicy.Reset()
+				if err := s.BackupRetentionPolicy.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"backupRetentionPolicy\"")
+			}
+		default:
+			return d.Skip()
+		}
+		return nil
+	}); err != nil {
+		return errors.Wrap(err, "decode BackupVaultV1beta")
+	}
+	// Validate required fields.
+	var failures []validate.FieldError
+	for i, mask := range [2]uint8{
+		0b00000010,
+		0b00000000,
+	} {
+		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
+			// Mask only required fields and check equality to mask using XOR.
+			//
+			// If XOR result is not zero, result is not equal to expected, so some fields are missed.
+			// Bits of fields which would be set are actually bits of missed fields.
+			missed := bits.OnesCount8(result)
+			for bitN := 0; bitN < missed; bitN++ {
+				bitIdx := bits.TrailingZeros8(result)
+				fieldIdx := i*8 + bitIdx
+				var name string
+				if fieldIdx < len(jsonFieldsNameOfBackupVaultV1beta) {
+					name = jsonFieldsNameOfBackupVaultV1beta[fieldIdx]
+				} else {
+					name = strconv.Itoa(fieldIdx)
+				}
+				failures = append(failures, validate.FieldError{
+					Name:  name,
+					Error: validate.ErrFieldRequired,
+				})
+				// Reset bit.
+				result &^= 1 << bitIdx
+			}
+		}
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *BackupVaultV1beta) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *BackupVaultV1beta) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes BackupVaultV1betaBackupVaultType as json.
+func (s BackupVaultV1betaBackupVaultType) Encode(e *jx.Encoder) {
+	e.Str(string(s))
+}
+
+// Decode decodes BackupVaultV1betaBackupVaultType from json.
+func (s *BackupVaultV1betaBackupVaultType) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode BackupVaultV1betaBackupVaultType to nil")
+	}
+	v, err := d.StrBytes()
+	if err != nil {
+		return err
+	}
+	// Try to use constant string.
+	switch BackupVaultV1betaBackupVaultType(v) {
+	case BackupVaultV1betaBackupVaultTypeINREGION:
+		*s = BackupVaultV1betaBackupVaultTypeINREGION
+	case BackupVaultV1betaBackupVaultTypeCROSSREGION:
+		*s = BackupVaultV1betaBackupVaultTypeCROSSREGION
+	default:
+		*s = BackupVaultV1betaBackupVaultType(v)
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s BackupVaultV1betaBackupVaultType) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *BackupVaultV1betaBackupVaultType) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes BackupVaultV1betaState as json.
+func (s BackupVaultV1betaState) Encode(e *jx.Encoder) {
+	e.Str(string(s))
+}
+
+// Decode decodes BackupVaultV1betaState from json.
+func (s *BackupVaultV1betaState) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode BackupVaultV1betaState to nil")
+	}
+	v, err := d.StrBytes()
+	if err != nil {
+		return err
+	}
+	// Try to use constant string.
+	switch BackupVaultV1betaState(v) {
+	case BackupVaultV1betaStateSTATEUNSPECIFIED:
+		*s = BackupVaultV1betaStateSTATEUNSPECIFIED
+	case BackupVaultV1betaStateCREATING:
+		*s = BackupVaultV1betaStateCREATING
+	case BackupVaultV1betaStateUPDATING:
+		*s = BackupVaultV1betaStateUPDATING
+	case BackupVaultV1betaStateDELETING:
+		*s = BackupVaultV1betaStateDELETING
+	case BackupVaultV1betaStateREADY:
+		*s = BackupVaultV1betaStateREADY
+	case BackupVaultV1betaStateDELETED:
+		*s = BackupVaultV1betaStateDELETED
+	case BackupVaultV1betaStateERROR:
+		*s = BackupVaultV1betaStateERROR
+	default:
+		*s = BackupVaultV1betaState(v)
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s BackupVaultV1betaState) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *BackupVaultV1betaState) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }
@@ -5803,6 +7820,39 @@ func (s *OperationV1beta) UnmarshalJSON(data []byte) error {
 	return s.Decode(d)
 }
 
+// Encode encodes ActiveDirectoryV1betaActiveDirectoryState as json.
+func (o OptActiveDirectoryV1betaActiveDirectoryState) Encode(e *jx.Encoder) {
+	if !o.Set {
+		return
+	}
+	e.Str(string(o.Value))
+}
+
+// Decode decodes ActiveDirectoryV1betaActiveDirectoryState from json.
+func (o *OptActiveDirectoryV1betaActiveDirectoryState) Decode(d *jx.Decoder) error {
+	if o == nil {
+		return errors.New("invalid: unable to decode OptActiveDirectoryV1betaActiveDirectoryState to nil")
+	}
+	o.Set = true
+	if err := o.Value.Decode(d); err != nil {
+		return err
+	}
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s OptActiveDirectoryV1betaActiveDirectoryState) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *OptActiveDirectoryV1betaActiveDirectoryState) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
 // Encode encodes AnyV1Beta as json.
 func (o OptAnyV1Beta) Encode(e *jx.Encoder) {
 	if !o.Set {
@@ -5931,6 +7981,138 @@ func (s OptBackupPolicyV1betaState) MarshalJSON() ([]byte, error) {
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
 func (s *OptBackupPolicyV1betaState) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes BackupRetentionPolicyUpdateV1beta as json.
+func (o OptBackupRetentionPolicyUpdateV1beta) Encode(e *jx.Encoder) {
+	if !o.Set {
+		return
+	}
+	o.Value.Encode(e)
+}
+
+// Decode decodes BackupRetentionPolicyUpdateV1beta from json.
+func (o *OptBackupRetentionPolicyUpdateV1beta) Decode(d *jx.Decoder) error {
+	if o == nil {
+		return errors.New("invalid: unable to decode OptBackupRetentionPolicyUpdateV1beta to nil")
+	}
+	o.Set = true
+	if err := o.Value.Decode(d); err != nil {
+		return err
+	}
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s OptBackupRetentionPolicyUpdateV1beta) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *OptBackupRetentionPolicyUpdateV1beta) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes BackupRetentionPolicyV1beta as json.
+func (o OptBackupRetentionPolicyV1beta) Encode(e *jx.Encoder) {
+	if !o.Set {
+		return
+	}
+	o.Value.Encode(e)
+}
+
+// Decode decodes BackupRetentionPolicyV1beta from json.
+func (o *OptBackupRetentionPolicyV1beta) Decode(d *jx.Decoder) error {
+	if o == nil {
+		return errors.New("invalid: unable to decode OptBackupRetentionPolicyV1beta to nil")
+	}
+	o.Set = true
+	if err := o.Value.Decode(d); err != nil {
+		return err
+	}
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s OptBackupRetentionPolicyV1beta) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *OptBackupRetentionPolicyV1beta) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes BackupVaultV1betaBackupVaultType as json.
+func (o OptBackupVaultV1betaBackupVaultType) Encode(e *jx.Encoder) {
+	if !o.Set {
+		return
+	}
+	e.Str(string(o.Value))
+}
+
+// Decode decodes BackupVaultV1betaBackupVaultType from json.
+func (o *OptBackupVaultV1betaBackupVaultType) Decode(d *jx.Decoder) error {
+	if o == nil {
+		return errors.New("invalid: unable to decode OptBackupVaultV1betaBackupVaultType to nil")
+	}
+	o.Set = true
+	if err := o.Value.Decode(d); err != nil {
+		return err
+	}
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s OptBackupVaultV1betaBackupVaultType) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *OptBackupVaultV1betaBackupVaultType) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes BackupVaultV1betaState as json.
+func (o OptBackupVaultV1betaState) Encode(e *jx.Encoder) {
+	if !o.Set {
+		return
+	}
+	e.Str(string(o.Value))
+}
+
+// Decode decodes BackupVaultV1betaState from json.
+func (o *OptBackupVaultV1betaState) Decode(d *jx.Decoder) error {
+	if o == nil {
+		return errors.New("invalid: unable to decode OptBackupVaultV1betaState to nil")
+	}
+	o.Set = true
+	if err := o.Value.Decode(d); err != nil {
+		return err
+	}
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s OptBackupVaultV1betaState) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *OptBackupVaultV1betaState) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }
@@ -13693,6 +15875,272 @@ func (s *V1betaCheckKmsConfigUnprocessableEntity) UnmarshalJSON(data []byte) err
 	return s.Decode(d)
 }
 
+// Encode encodes V1betaCreateActiveDirectoryBadRequest as json.
+func (s *V1betaCreateActiveDirectoryBadRequest) Encode(e *jx.Encoder) {
+	unwrapped := (*Error)(s)
+
+	unwrapped.Encode(e)
+}
+
+// Decode decodes V1betaCreateActiveDirectoryBadRequest from json.
+func (s *V1betaCreateActiveDirectoryBadRequest) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode V1betaCreateActiveDirectoryBadRequest to nil")
+	}
+	var unwrapped Error
+	if err := func() error {
+		if err := unwrapped.Decode(d); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		return errors.Wrap(err, "alias")
+	}
+	*s = V1betaCreateActiveDirectoryBadRequest(unwrapped)
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *V1betaCreateActiveDirectoryBadRequest) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *V1betaCreateActiveDirectoryBadRequest) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes V1betaCreateActiveDirectoryConflict as json.
+func (s *V1betaCreateActiveDirectoryConflict) Encode(e *jx.Encoder) {
+	unwrapped := (*Error)(s)
+
+	unwrapped.Encode(e)
+}
+
+// Decode decodes V1betaCreateActiveDirectoryConflict from json.
+func (s *V1betaCreateActiveDirectoryConflict) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode V1betaCreateActiveDirectoryConflict to nil")
+	}
+	var unwrapped Error
+	if err := func() error {
+		if err := unwrapped.Decode(d); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		return errors.Wrap(err, "alias")
+	}
+	*s = V1betaCreateActiveDirectoryConflict(unwrapped)
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *V1betaCreateActiveDirectoryConflict) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *V1betaCreateActiveDirectoryConflict) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes V1betaCreateActiveDirectoryForbidden as json.
+func (s *V1betaCreateActiveDirectoryForbidden) Encode(e *jx.Encoder) {
+	unwrapped := (*Error)(s)
+
+	unwrapped.Encode(e)
+}
+
+// Decode decodes V1betaCreateActiveDirectoryForbidden from json.
+func (s *V1betaCreateActiveDirectoryForbidden) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode V1betaCreateActiveDirectoryForbidden to nil")
+	}
+	var unwrapped Error
+	if err := func() error {
+		if err := unwrapped.Decode(d); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		return errors.Wrap(err, "alias")
+	}
+	*s = V1betaCreateActiveDirectoryForbidden(unwrapped)
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *V1betaCreateActiveDirectoryForbidden) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *V1betaCreateActiveDirectoryForbidden) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes V1betaCreateActiveDirectoryInternalServerError as json.
+func (s *V1betaCreateActiveDirectoryInternalServerError) Encode(e *jx.Encoder) {
+	unwrapped := (*Error)(s)
+
+	unwrapped.Encode(e)
+}
+
+// Decode decodes V1betaCreateActiveDirectoryInternalServerError from json.
+func (s *V1betaCreateActiveDirectoryInternalServerError) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode V1betaCreateActiveDirectoryInternalServerError to nil")
+	}
+	var unwrapped Error
+	if err := func() error {
+		if err := unwrapped.Decode(d); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		return errors.Wrap(err, "alias")
+	}
+	*s = V1betaCreateActiveDirectoryInternalServerError(unwrapped)
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *V1betaCreateActiveDirectoryInternalServerError) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *V1betaCreateActiveDirectoryInternalServerError) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes V1betaCreateActiveDirectoryTooManyRequests as json.
+func (s *V1betaCreateActiveDirectoryTooManyRequests) Encode(e *jx.Encoder) {
+	unwrapped := (*Error)(s)
+
+	unwrapped.Encode(e)
+}
+
+// Decode decodes V1betaCreateActiveDirectoryTooManyRequests from json.
+func (s *V1betaCreateActiveDirectoryTooManyRequests) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode V1betaCreateActiveDirectoryTooManyRequests to nil")
+	}
+	var unwrapped Error
+	if err := func() error {
+		if err := unwrapped.Decode(d); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		return errors.Wrap(err, "alias")
+	}
+	*s = V1betaCreateActiveDirectoryTooManyRequests(unwrapped)
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *V1betaCreateActiveDirectoryTooManyRequests) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *V1betaCreateActiveDirectoryTooManyRequests) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes V1betaCreateActiveDirectoryUnauthorized as json.
+func (s *V1betaCreateActiveDirectoryUnauthorized) Encode(e *jx.Encoder) {
+	unwrapped := (*Error)(s)
+
+	unwrapped.Encode(e)
+}
+
+// Decode decodes V1betaCreateActiveDirectoryUnauthorized from json.
+func (s *V1betaCreateActiveDirectoryUnauthorized) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode V1betaCreateActiveDirectoryUnauthorized to nil")
+	}
+	var unwrapped Error
+	if err := func() error {
+		if err := unwrapped.Decode(d); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		return errors.Wrap(err, "alias")
+	}
+	*s = V1betaCreateActiveDirectoryUnauthorized(unwrapped)
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *V1betaCreateActiveDirectoryUnauthorized) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *V1betaCreateActiveDirectoryUnauthorized) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes V1betaCreateActiveDirectoryUnprocessableEntity as json.
+func (s *V1betaCreateActiveDirectoryUnprocessableEntity) Encode(e *jx.Encoder) {
+	unwrapped := (*Error)(s)
+
+	unwrapped.Encode(e)
+}
+
+// Decode decodes V1betaCreateActiveDirectoryUnprocessableEntity from json.
+func (s *V1betaCreateActiveDirectoryUnprocessableEntity) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode V1betaCreateActiveDirectoryUnprocessableEntity to nil")
+	}
+	var unwrapped Error
+	if err := func() error {
+		if err := unwrapped.Decode(d); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		return errors.Wrap(err, "alias")
+	}
+	*s = V1betaCreateActiveDirectoryUnprocessableEntity(unwrapped)
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *V1betaCreateActiveDirectoryUnprocessableEntity) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *V1betaCreateActiveDirectoryUnprocessableEntity) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
 // Encode encodes V1betaCreateBackupPolicyBadRequest as json.
 func (s *V1betaCreateBackupPolicyBadRequest) Encode(e *jx.Encoder) {
 	unwrapped := (*Error)(s)
@@ -13993,6 +16441,272 @@ func (s *V1betaCreateBackupPolicyUnprocessableEntity) MarshalJSON() ([]byte, err
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
 func (s *V1betaCreateBackupPolicyUnprocessableEntity) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes V1betaCreateBackupVaultBadRequest as json.
+func (s *V1betaCreateBackupVaultBadRequest) Encode(e *jx.Encoder) {
+	unwrapped := (*Error)(s)
+
+	unwrapped.Encode(e)
+}
+
+// Decode decodes V1betaCreateBackupVaultBadRequest from json.
+func (s *V1betaCreateBackupVaultBadRequest) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode V1betaCreateBackupVaultBadRequest to nil")
+	}
+	var unwrapped Error
+	if err := func() error {
+		if err := unwrapped.Decode(d); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		return errors.Wrap(err, "alias")
+	}
+	*s = V1betaCreateBackupVaultBadRequest(unwrapped)
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *V1betaCreateBackupVaultBadRequest) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *V1betaCreateBackupVaultBadRequest) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes V1betaCreateBackupVaultConflict as json.
+func (s *V1betaCreateBackupVaultConflict) Encode(e *jx.Encoder) {
+	unwrapped := (*Error)(s)
+
+	unwrapped.Encode(e)
+}
+
+// Decode decodes V1betaCreateBackupVaultConflict from json.
+func (s *V1betaCreateBackupVaultConflict) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode V1betaCreateBackupVaultConflict to nil")
+	}
+	var unwrapped Error
+	if err := func() error {
+		if err := unwrapped.Decode(d); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		return errors.Wrap(err, "alias")
+	}
+	*s = V1betaCreateBackupVaultConflict(unwrapped)
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *V1betaCreateBackupVaultConflict) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *V1betaCreateBackupVaultConflict) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes V1betaCreateBackupVaultForbidden as json.
+func (s *V1betaCreateBackupVaultForbidden) Encode(e *jx.Encoder) {
+	unwrapped := (*Error)(s)
+
+	unwrapped.Encode(e)
+}
+
+// Decode decodes V1betaCreateBackupVaultForbidden from json.
+func (s *V1betaCreateBackupVaultForbidden) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode V1betaCreateBackupVaultForbidden to nil")
+	}
+	var unwrapped Error
+	if err := func() error {
+		if err := unwrapped.Decode(d); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		return errors.Wrap(err, "alias")
+	}
+	*s = V1betaCreateBackupVaultForbidden(unwrapped)
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *V1betaCreateBackupVaultForbidden) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *V1betaCreateBackupVaultForbidden) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes V1betaCreateBackupVaultInternalServerError as json.
+func (s *V1betaCreateBackupVaultInternalServerError) Encode(e *jx.Encoder) {
+	unwrapped := (*Error)(s)
+
+	unwrapped.Encode(e)
+}
+
+// Decode decodes V1betaCreateBackupVaultInternalServerError from json.
+func (s *V1betaCreateBackupVaultInternalServerError) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode V1betaCreateBackupVaultInternalServerError to nil")
+	}
+	var unwrapped Error
+	if err := func() error {
+		if err := unwrapped.Decode(d); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		return errors.Wrap(err, "alias")
+	}
+	*s = V1betaCreateBackupVaultInternalServerError(unwrapped)
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *V1betaCreateBackupVaultInternalServerError) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *V1betaCreateBackupVaultInternalServerError) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes V1betaCreateBackupVaultTooManyRequests as json.
+func (s *V1betaCreateBackupVaultTooManyRequests) Encode(e *jx.Encoder) {
+	unwrapped := (*Error)(s)
+
+	unwrapped.Encode(e)
+}
+
+// Decode decodes V1betaCreateBackupVaultTooManyRequests from json.
+func (s *V1betaCreateBackupVaultTooManyRequests) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode V1betaCreateBackupVaultTooManyRequests to nil")
+	}
+	var unwrapped Error
+	if err := func() error {
+		if err := unwrapped.Decode(d); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		return errors.Wrap(err, "alias")
+	}
+	*s = V1betaCreateBackupVaultTooManyRequests(unwrapped)
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *V1betaCreateBackupVaultTooManyRequests) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *V1betaCreateBackupVaultTooManyRequests) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes V1betaCreateBackupVaultUnauthorized as json.
+func (s *V1betaCreateBackupVaultUnauthorized) Encode(e *jx.Encoder) {
+	unwrapped := (*Error)(s)
+
+	unwrapped.Encode(e)
+}
+
+// Decode decodes V1betaCreateBackupVaultUnauthorized from json.
+func (s *V1betaCreateBackupVaultUnauthorized) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode V1betaCreateBackupVaultUnauthorized to nil")
+	}
+	var unwrapped Error
+	if err := func() error {
+		if err := unwrapped.Decode(d); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		return errors.Wrap(err, "alias")
+	}
+	*s = V1betaCreateBackupVaultUnauthorized(unwrapped)
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *V1betaCreateBackupVaultUnauthorized) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *V1betaCreateBackupVaultUnauthorized) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes V1betaCreateBackupVaultUnprocessableEntity as json.
+func (s *V1betaCreateBackupVaultUnprocessableEntity) Encode(e *jx.Encoder) {
+	unwrapped := (*Error)(s)
+
+	unwrapped.Encode(e)
+}
+
+// Decode decodes V1betaCreateBackupVaultUnprocessableEntity from json.
+func (s *V1betaCreateBackupVaultUnprocessableEntity) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode V1betaCreateBackupVaultUnprocessableEntity to nil")
+	}
+	var unwrapped Error
+	if err := func() error {
+		if err := unwrapped.Decode(d); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		return errors.Wrap(err, "alias")
+	}
+	*s = V1betaCreateBackupVaultUnprocessableEntity(unwrapped)
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *V1betaCreateBackupVaultUnprocessableEntity) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *V1betaCreateBackupVaultUnprocessableEntity) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }
@@ -15403,6 +18117,272 @@ func (s *V1betaCreateVolumeUnprocessableEntity) UnmarshalJSON(data []byte) error
 	return s.Decode(d)
 }
 
+// Encode encodes V1betaDeleteActiveDirectoryBadRequest as json.
+func (s *V1betaDeleteActiveDirectoryBadRequest) Encode(e *jx.Encoder) {
+	unwrapped := (*Error)(s)
+
+	unwrapped.Encode(e)
+}
+
+// Decode decodes V1betaDeleteActiveDirectoryBadRequest from json.
+func (s *V1betaDeleteActiveDirectoryBadRequest) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode V1betaDeleteActiveDirectoryBadRequest to nil")
+	}
+	var unwrapped Error
+	if err := func() error {
+		if err := unwrapped.Decode(d); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		return errors.Wrap(err, "alias")
+	}
+	*s = V1betaDeleteActiveDirectoryBadRequest(unwrapped)
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *V1betaDeleteActiveDirectoryBadRequest) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *V1betaDeleteActiveDirectoryBadRequest) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes V1betaDeleteActiveDirectoryConflict as json.
+func (s *V1betaDeleteActiveDirectoryConflict) Encode(e *jx.Encoder) {
+	unwrapped := (*Error)(s)
+
+	unwrapped.Encode(e)
+}
+
+// Decode decodes V1betaDeleteActiveDirectoryConflict from json.
+func (s *V1betaDeleteActiveDirectoryConflict) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode V1betaDeleteActiveDirectoryConflict to nil")
+	}
+	var unwrapped Error
+	if err := func() error {
+		if err := unwrapped.Decode(d); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		return errors.Wrap(err, "alias")
+	}
+	*s = V1betaDeleteActiveDirectoryConflict(unwrapped)
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *V1betaDeleteActiveDirectoryConflict) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *V1betaDeleteActiveDirectoryConflict) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes V1betaDeleteActiveDirectoryForbidden as json.
+func (s *V1betaDeleteActiveDirectoryForbidden) Encode(e *jx.Encoder) {
+	unwrapped := (*Error)(s)
+
+	unwrapped.Encode(e)
+}
+
+// Decode decodes V1betaDeleteActiveDirectoryForbidden from json.
+func (s *V1betaDeleteActiveDirectoryForbidden) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode V1betaDeleteActiveDirectoryForbidden to nil")
+	}
+	var unwrapped Error
+	if err := func() error {
+		if err := unwrapped.Decode(d); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		return errors.Wrap(err, "alias")
+	}
+	*s = V1betaDeleteActiveDirectoryForbidden(unwrapped)
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *V1betaDeleteActiveDirectoryForbidden) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *V1betaDeleteActiveDirectoryForbidden) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes V1betaDeleteActiveDirectoryInternalServerError as json.
+func (s *V1betaDeleteActiveDirectoryInternalServerError) Encode(e *jx.Encoder) {
+	unwrapped := (*Error)(s)
+
+	unwrapped.Encode(e)
+}
+
+// Decode decodes V1betaDeleteActiveDirectoryInternalServerError from json.
+func (s *V1betaDeleteActiveDirectoryInternalServerError) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode V1betaDeleteActiveDirectoryInternalServerError to nil")
+	}
+	var unwrapped Error
+	if err := func() error {
+		if err := unwrapped.Decode(d); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		return errors.Wrap(err, "alias")
+	}
+	*s = V1betaDeleteActiveDirectoryInternalServerError(unwrapped)
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *V1betaDeleteActiveDirectoryInternalServerError) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *V1betaDeleteActiveDirectoryInternalServerError) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes V1betaDeleteActiveDirectoryTooManyRequests as json.
+func (s *V1betaDeleteActiveDirectoryTooManyRequests) Encode(e *jx.Encoder) {
+	unwrapped := (*Error)(s)
+
+	unwrapped.Encode(e)
+}
+
+// Decode decodes V1betaDeleteActiveDirectoryTooManyRequests from json.
+func (s *V1betaDeleteActiveDirectoryTooManyRequests) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode V1betaDeleteActiveDirectoryTooManyRequests to nil")
+	}
+	var unwrapped Error
+	if err := func() error {
+		if err := unwrapped.Decode(d); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		return errors.Wrap(err, "alias")
+	}
+	*s = V1betaDeleteActiveDirectoryTooManyRequests(unwrapped)
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *V1betaDeleteActiveDirectoryTooManyRequests) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *V1betaDeleteActiveDirectoryTooManyRequests) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes V1betaDeleteActiveDirectoryUnauthorized as json.
+func (s *V1betaDeleteActiveDirectoryUnauthorized) Encode(e *jx.Encoder) {
+	unwrapped := (*Error)(s)
+
+	unwrapped.Encode(e)
+}
+
+// Decode decodes V1betaDeleteActiveDirectoryUnauthorized from json.
+func (s *V1betaDeleteActiveDirectoryUnauthorized) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode V1betaDeleteActiveDirectoryUnauthorized to nil")
+	}
+	var unwrapped Error
+	if err := func() error {
+		if err := unwrapped.Decode(d); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		return errors.Wrap(err, "alias")
+	}
+	*s = V1betaDeleteActiveDirectoryUnauthorized(unwrapped)
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *V1betaDeleteActiveDirectoryUnauthorized) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *V1betaDeleteActiveDirectoryUnauthorized) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes V1betaDeleteActiveDirectoryUnprocessableEntity as json.
+func (s *V1betaDeleteActiveDirectoryUnprocessableEntity) Encode(e *jx.Encoder) {
+	unwrapped := (*Error)(s)
+
+	unwrapped.Encode(e)
+}
+
+// Decode decodes V1betaDeleteActiveDirectoryUnprocessableEntity from json.
+func (s *V1betaDeleteActiveDirectoryUnprocessableEntity) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode V1betaDeleteActiveDirectoryUnprocessableEntity to nil")
+	}
+	var unwrapped Error
+	if err := func() error {
+		if err := unwrapped.Decode(d); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		return errors.Wrap(err, "alias")
+	}
+	*s = V1betaDeleteActiveDirectoryUnprocessableEntity(unwrapped)
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *V1betaDeleteActiveDirectoryUnprocessableEntity) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *V1betaDeleteActiveDirectoryUnprocessableEntity) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
 // Encode encodes V1betaDeleteBackupPolicyBadRequest as json.
 func (s *V1betaDeleteBackupPolicyBadRequest) Encode(e *jx.Encoder) {
 	unwrapped := (*Error)(s)
@@ -15741,6 +18721,310 @@ func (s *V1betaDeleteBackupPolicyUnprocessableEntity) MarshalJSON() ([]byte, err
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
 func (s *V1betaDeleteBackupPolicyUnprocessableEntity) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes V1betaDeleteBackupVaultBadRequest as json.
+func (s *V1betaDeleteBackupVaultBadRequest) Encode(e *jx.Encoder) {
+	unwrapped := (*Error)(s)
+
+	unwrapped.Encode(e)
+}
+
+// Decode decodes V1betaDeleteBackupVaultBadRequest from json.
+func (s *V1betaDeleteBackupVaultBadRequest) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode V1betaDeleteBackupVaultBadRequest to nil")
+	}
+	var unwrapped Error
+	if err := func() error {
+		if err := unwrapped.Decode(d); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		return errors.Wrap(err, "alias")
+	}
+	*s = V1betaDeleteBackupVaultBadRequest(unwrapped)
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *V1betaDeleteBackupVaultBadRequest) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *V1betaDeleteBackupVaultBadRequest) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes V1betaDeleteBackupVaultConflict as json.
+func (s *V1betaDeleteBackupVaultConflict) Encode(e *jx.Encoder) {
+	unwrapped := (*Error)(s)
+
+	unwrapped.Encode(e)
+}
+
+// Decode decodes V1betaDeleteBackupVaultConflict from json.
+func (s *V1betaDeleteBackupVaultConflict) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode V1betaDeleteBackupVaultConflict to nil")
+	}
+	var unwrapped Error
+	if err := func() error {
+		if err := unwrapped.Decode(d); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		return errors.Wrap(err, "alias")
+	}
+	*s = V1betaDeleteBackupVaultConflict(unwrapped)
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *V1betaDeleteBackupVaultConflict) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *V1betaDeleteBackupVaultConflict) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes V1betaDeleteBackupVaultForbidden as json.
+func (s *V1betaDeleteBackupVaultForbidden) Encode(e *jx.Encoder) {
+	unwrapped := (*Error)(s)
+
+	unwrapped.Encode(e)
+}
+
+// Decode decodes V1betaDeleteBackupVaultForbidden from json.
+func (s *V1betaDeleteBackupVaultForbidden) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode V1betaDeleteBackupVaultForbidden to nil")
+	}
+	var unwrapped Error
+	if err := func() error {
+		if err := unwrapped.Decode(d); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		return errors.Wrap(err, "alias")
+	}
+	*s = V1betaDeleteBackupVaultForbidden(unwrapped)
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *V1betaDeleteBackupVaultForbidden) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *V1betaDeleteBackupVaultForbidden) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes V1betaDeleteBackupVaultInternalServerError as json.
+func (s *V1betaDeleteBackupVaultInternalServerError) Encode(e *jx.Encoder) {
+	unwrapped := (*Error)(s)
+
+	unwrapped.Encode(e)
+}
+
+// Decode decodes V1betaDeleteBackupVaultInternalServerError from json.
+func (s *V1betaDeleteBackupVaultInternalServerError) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode V1betaDeleteBackupVaultInternalServerError to nil")
+	}
+	var unwrapped Error
+	if err := func() error {
+		if err := unwrapped.Decode(d); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		return errors.Wrap(err, "alias")
+	}
+	*s = V1betaDeleteBackupVaultInternalServerError(unwrapped)
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *V1betaDeleteBackupVaultInternalServerError) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *V1betaDeleteBackupVaultInternalServerError) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes V1betaDeleteBackupVaultNotFound as json.
+func (s *V1betaDeleteBackupVaultNotFound) Encode(e *jx.Encoder) {
+	unwrapped := (*Error)(s)
+
+	unwrapped.Encode(e)
+}
+
+// Decode decodes V1betaDeleteBackupVaultNotFound from json.
+func (s *V1betaDeleteBackupVaultNotFound) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode V1betaDeleteBackupVaultNotFound to nil")
+	}
+	var unwrapped Error
+	if err := func() error {
+		if err := unwrapped.Decode(d); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		return errors.Wrap(err, "alias")
+	}
+	*s = V1betaDeleteBackupVaultNotFound(unwrapped)
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *V1betaDeleteBackupVaultNotFound) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *V1betaDeleteBackupVaultNotFound) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes V1betaDeleteBackupVaultTooManyRequests as json.
+func (s *V1betaDeleteBackupVaultTooManyRequests) Encode(e *jx.Encoder) {
+	unwrapped := (*Error)(s)
+
+	unwrapped.Encode(e)
+}
+
+// Decode decodes V1betaDeleteBackupVaultTooManyRequests from json.
+func (s *V1betaDeleteBackupVaultTooManyRequests) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode V1betaDeleteBackupVaultTooManyRequests to nil")
+	}
+	var unwrapped Error
+	if err := func() error {
+		if err := unwrapped.Decode(d); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		return errors.Wrap(err, "alias")
+	}
+	*s = V1betaDeleteBackupVaultTooManyRequests(unwrapped)
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *V1betaDeleteBackupVaultTooManyRequests) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *V1betaDeleteBackupVaultTooManyRequests) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes V1betaDeleteBackupVaultUnauthorized as json.
+func (s *V1betaDeleteBackupVaultUnauthorized) Encode(e *jx.Encoder) {
+	unwrapped := (*Error)(s)
+
+	unwrapped.Encode(e)
+}
+
+// Decode decodes V1betaDeleteBackupVaultUnauthorized from json.
+func (s *V1betaDeleteBackupVaultUnauthorized) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode V1betaDeleteBackupVaultUnauthorized to nil")
+	}
+	var unwrapped Error
+	if err := func() error {
+		if err := unwrapped.Decode(d); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		return errors.Wrap(err, "alias")
+	}
+	*s = V1betaDeleteBackupVaultUnauthorized(unwrapped)
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *V1betaDeleteBackupVaultUnauthorized) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *V1betaDeleteBackupVaultUnauthorized) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes V1betaDeleteBackupVaultUnprocessableEntity as json.
+func (s *V1betaDeleteBackupVaultUnprocessableEntity) Encode(e *jx.Encoder) {
+	unwrapped := (*Error)(s)
+
+	unwrapped.Encode(e)
+}
+
+// Decode decodes V1betaDeleteBackupVaultUnprocessableEntity from json.
+func (s *V1betaDeleteBackupVaultUnprocessableEntity) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode V1betaDeleteBackupVaultUnprocessableEntity to nil")
+	}
+	var unwrapped Error
+	if err := func() error {
+		if err := unwrapped.Decode(d); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		return errors.Wrap(err, "alias")
+	}
+	*s = V1betaDeleteBackupVaultUnprocessableEntity(unwrapped)
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *V1betaDeleteBackupVaultUnprocessableEntity) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *V1betaDeleteBackupVaultUnprocessableEntity) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }
@@ -17138,6 +20422,272 @@ func (s *V1betaDeleteVolumeUnprocessableEntity) UnmarshalJSON(data []byte) error
 	return s.Decode(d)
 }
 
+// Encode encodes V1betaDescribeActiveDirectoryBadRequest as json.
+func (s *V1betaDescribeActiveDirectoryBadRequest) Encode(e *jx.Encoder) {
+	unwrapped := (*Error)(s)
+
+	unwrapped.Encode(e)
+}
+
+// Decode decodes V1betaDescribeActiveDirectoryBadRequest from json.
+func (s *V1betaDescribeActiveDirectoryBadRequest) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode V1betaDescribeActiveDirectoryBadRequest to nil")
+	}
+	var unwrapped Error
+	if err := func() error {
+		if err := unwrapped.Decode(d); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		return errors.Wrap(err, "alias")
+	}
+	*s = V1betaDescribeActiveDirectoryBadRequest(unwrapped)
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *V1betaDescribeActiveDirectoryBadRequest) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *V1betaDescribeActiveDirectoryBadRequest) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes V1betaDescribeActiveDirectoryForbidden as json.
+func (s *V1betaDescribeActiveDirectoryForbidden) Encode(e *jx.Encoder) {
+	unwrapped := (*Error)(s)
+
+	unwrapped.Encode(e)
+}
+
+// Decode decodes V1betaDescribeActiveDirectoryForbidden from json.
+func (s *V1betaDescribeActiveDirectoryForbidden) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode V1betaDescribeActiveDirectoryForbidden to nil")
+	}
+	var unwrapped Error
+	if err := func() error {
+		if err := unwrapped.Decode(d); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		return errors.Wrap(err, "alias")
+	}
+	*s = V1betaDescribeActiveDirectoryForbidden(unwrapped)
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *V1betaDescribeActiveDirectoryForbidden) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *V1betaDescribeActiveDirectoryForbidden) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes V1betaDescribeActiveDirectoryInternalServerError as json.
+func (s *V1betaDescribeActiveDirectoryInternalServerError) Encode(e *jx.Encoder) {
+	unwrapped := (*Error)(s)
+
+	unwrapped.Encode(e)
+}
+
+// Decode decodes V1betaDescribeActiveDirectoryInternalServerError from json.
+func (s *V1betaDescribeActiveDirectoryInternalServerError) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode V1betaDescribeActiveDirectoryInternalServerError to nil")
+	}
+	var unwrapped Error
+	if err := func() error {
+		if err := unwrapped.Decode(d); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		return errors.Wrap(err, "alias")
+	}
+	*s = V1betaDescribeActiveDirectoryInternalServerError(unwrapped)
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *V1betaDescribeActiveDirectoryInternalServerError) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *V1betaDescribeActiveDirectoryInternalServerError) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes V1betaDescribeActiveDirectoryNotFound as json.
+func (s *V1betaDescribeActiveDirectoryNotFound) Encode(e *jx.Encoder) {
+	unwrapped := (*Error)(s)
+
+	unwrapped.Encode(e)
+}
+
+// Decode decodes V1betaDescribeActiveDirectoryNotFound from json.
+func (s *V1betaDescribeActiveDirectoryNotFound) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode V1betaDescribeActiveDirectoryNotFound to nil")
+	}
+	var unwrapped Error
+	if err := func() error {
+		if err := unwrapped.Decode(d); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		return errors.Wrap(err, "alias")
+	}
+	*s = V1betaDescribeActiveDirectoryNotFound(unwrapped)
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *V1betaDescribeActiveDirectoryNotFound) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *V1betaDescribeActiveDirectoryNotFound) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes V1betaDescribeActiveDirectoryTooManyRequests as json.
+func (s *V1betaDescribeActiveDirectoryTooManyRequests) Encode(e *jx.Encoder) {
+	unwrapped := (*Error)(s)
+
+	unwrapped.Encode(e)
+}
+
+// Decode decodes V1betaDescribeActiveDirectoryTooManyRequests from json.
+func (s *V1betaDescribeActiveDirectoryTooManyRequests) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode V1betaDescribeActiveDirectoryTooManyRequests to nil")
+	}
+	var unwrapped Error
+	if err := func() error {
+		if err := unwrapped.Decode(d); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		return errors.Wrap(err, "alias")
+	}
+	*s = V1betaDescribeActiveDirectoryTooManyRequests(unwrapped)
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *V1betaDescribeActiveDirectoryTooManyRequests) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *V1betaDescribeActiveDirectoryTooManyRequests) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes V1betaDescribeActiveDirectoryUnauthorized as json.
+func (s *V1betaDescribeActiveDirectoryUnauthorized) Encode(e *jx.Encoder) {
+	unwrapped := (*Error)(s)
+
+	unwrapped.Encode(e)
+}
+
+// Decode decodes V1betaDescribeActiveDirectoryUnauthorized from json.
+func (s *V1betaDescribeActiveDirectoryUnauthorized) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode V1betaDescribeActiveDirectoryUnauthorized to nil")
+	}
+	var unwrapped Error
+	if err := func() error {
+		if err := unwrapped.Decode(d); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		return errors.Wrap(err, "alias")
+	}
+	*s = V1betaDescribeActiveDirectoryUnauthorized(unwrapped)
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *V1betaDescribeActiveDirectoryUnauthorized) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *V1betaDescribeActiveDirectoryUnauthorized) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes V1betaDescribeActiveDirectoryUnprocessableEntity as json.
+func (s *V1betaDescribeActiveDirectoryUnprocessableEntity) Encode(e *jx.Encoder) {
+	unwrapped := (*Error)(s)
+
+	unwrapped.Encode(e)
+}
+
+// Decode decodes V1betaDescribeActiveDirectoryUnprocessableEntity from json.
+func (s *V1betaDescribeActiveDirectoryUnprocessableEntity) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode V1betaDescribeActiveDirectoryUnprocessableEntity to nil")
+	}
+	var unwrapped Error
+	if err := func() error {
+		if err := unwrapped.Decode(d); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		return errors.Wrap(err, "alias")
+	}
+	*s = V1betaDescribeActiveDirectoryUnprocessableEntity(unwrapped)
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *V1betaDescribeActiveDirectoryUnprocessableEntity) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *V1betaDescribeActiveDirectoryUnprocessableEntity) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
 // Encode encodes V1betaDescribeBackupPolicyBadRequest as json.
 func (s *V1betaDescribeBackupPolicyBadRequest) Encode(e *jx.Encoder) {
 	unwrapped := (*Error)(s)
@@ -17476,6 +21026,272 @@ func (s *V1betaDescribeBackupPolicyUnprocessableEntity) MarshalJSON() ([]byte, e
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
 func (s *V1betaDescribeBackupPolicyUnprocessableEntity) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes V1betaDescribeBackupVaultBadRequest as json.
+func (s *V1betaDescribeBackupVaultBadRequest) Encode(e *jx.Encoder) {
+	unwrapped := (*Error)(s)
+
+	unwrapped.Encode(e)
+}
+
+// Decode decodes V1betaDescribeBackupVaultBadRequest from json.
+func (s *V1betaDescribeBackupVaultBadRequest) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode V1betaDescribeBackupVaultBadRequest to nil")
+	}
+	var unwrapped Error
+	if err := func() error {
+		if err := unwrapped.Decode(d); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		return errors.Wrap(err, "alias")
+	}
+	*s = V1betaDescribeBackupVaultBadRequest(unwrapped)
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *V1betaDescribeBackupVaultBadRequest) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *V1betaDescribeBackupVaultBadRequest) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes V1betaDescribeBackupVaultForbidden as json.
+func (s *V1betaDescribeBackupVaultForbidden) Encode(e *jx.Encoder) {
+	unwrapped := (*Error)(s)
+
+	unwrapped.Encode(e)
+}
+
+// Decode decodes V1betaDescribeBackupVaultForbidden from json.
+func (s *V1betaDescribeBackupVaultForbidden) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode V1betaDescribeBackupVaultForbidden to nil")
+	}
+	var unwrapped Error
+	if err := func() error {
+		if err := unwrapped.Decode(d); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		return errors.Wrap(err, "alias")
+	}
+	*s = V1betaDescribeBackupVaultForbidden(unwrapped)
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *V1betaDescribeBackupVaultForbidden) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *V1betaDescribeBackupVaultForbidden) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes V1betaDescribeBackupVaultInternalServerError as json.
+func (s *V1betaDescribeBackupVaultInternalServerError) Encode(e *jx.Encoder) {
+	unwrapped := (*Error)(s)
+
+	unwrapped.Encode(e)
+}
+
+// Decode decodes V1betaDescribeBackupVaultInternalServerError from json.
+func (s *V1betaDescribeBackupVaultInternalServerError) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode V1betaDescribeBackupVaultInternalServerError to nil")
+	}
+	var unwrapped Error
+	if err := func() error {
+		if err := unwrapped.Decode(d); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		return errors.Wrap(err, "alias")
+	}
+	*s = V1betaDescribeBackupVaultInternalServerError(unwrapped)
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *V1betaDescribeBackupVaultInternalServerError) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *V1betaDescribeBackupVaultInternalServerError) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes V1betaDescribeBackupVaultNotFound as json.
+func (s *V1betaDescribeBackupVaultNotFound) Encode(e *jx.Encoder) {
+	unwrapped := (*Error)(s)
+
+	unwrapped.Encode(e)
+}
+
+// Decode decodes V1betaDescribeBackupVaultNotFound from json.
+func (s *V1betaDescribeBackupVaultNotFound) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode V1betaDescribeBackupVaultNotFound to nil")
+	}
+	var unwrapped Error
+	if err := func() error {
+		if err := unwrapped.Decode(d); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		return errors.Wrap(err, "alias")
+	}
+	*s = V1betaDescribeBackupVaultNotFound(unwrapped)
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *V1betaDescribeBackupVaultNotFound) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *V1betaDescribeBackupVaultNotFound) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes V1betaDescribeBackupVaultTooManyRequests as json.
+func (s *V1betaDescribeBackupVaultTooManyRequests) Encode(e *jx.Encoder) {
+	unwrapped := (*Error)(s)
+
+	unwrapped.Encode(e)
+}
+
+// Decode decodes V1betaDescribeBackupVaultTooManyRequests from json.
+func (s *V1betaDescribeBackupVaultTooManyRequests) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode V1betaDescribeBackupVaultTooManyRequests to nil")
+	}
+	var unwrapped Error
+	if err := func() error {
+		if err := unwrapped.Decode(d); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		return errors.Wrap(err, "alias")
+	}
+	*s = V1betaDescribeBackupVaultTooManyRequests(unwrapped)
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *V1betaDescribeBackupVaultTooManyRequests) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *V1betaDescribeBackupVaultTooManyRequests) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes V1betaDescribeBackupVaultUnauthorized as json.
+func (s *V1betaDescribeBackupVaultUnauthorized) Encode(e *jx.Encoder) {
+	unwrapped := (*Error)(s)
+
+	unwrapped.Encode(e)
+}
+
+// Decode decodes V1betaDescribeBackupVaultUnauthorized from json.
+func (s *V1betaDescribeBackupVaultUnauthorized) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode V1betaDescribeBackupVaultUnauthorized to nil")
+	}
+	var unwrapped Error
+	if err := func() error {
+		if err := unwrapped.Decode(d); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		return errors.Wrap(err, "alias")
+	}
+	*s = V1betaDescribeBackupVaultUnauthorized(unwrapped)
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *V1betaDescribeBackupVaultUnauthorized) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *V1betaDescribeBackupVaultUnauthorized) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes V1betaDescribeBackupVaultUnprocessableEntity as json.
+func (s *V1betaDescribeBackupVaultUnprocessableEntity) Encode(e *jx.Encoder) {
+	unwrapped := (*Error)(s)
+
+	unwrapped.Encode(e)
+}
+
+// Decode decodes V1betaDescribeBackupVaultUnprocessableEntity from json.
+func (s *V1betaDescribeBackupVaultUnprocessableEntity) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode V1betaDescribeBackupVaultUnprocessableEntity to nil")
+	}
+	var unwrapped Error
+	if err := func() error {
+		if err := unwrapped.Decode(d); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		return errors.Wrap(err, "alias")
+	}
+	*s = V1betaDescribeBackupVaultUnprocessableEntity(unwrapped)
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *V1betaDescribeBackupVaultUnprocessableEntity) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *V1betaDescribeBackupVaultUnprocessableEntity) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }
@@ -18810,6 +22626,308 @@ func (s *V1betaDescribeVolumeUnauthorized) UnmarshalJSON(data []byte) error {
 	return s.Decode(d)
 }
 
+// Encode encodes V1betaGetMultipleActiveDirectoriesBadRequest as json.
+func (s *V1betaGetMultipleActiveDirectoriesBadRequest) Encode(e *jx.Encoder) {
+	unwrapped := (*Error)(s)
+
+	unwrapped.Encode(e)
+}
+
+// Decode decodes V1betaGetMultipleActiveDirectoriesBadRequest from json.
+func (s *V1betaGetMultipleActiveDirectoriesBadRequest) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode V1betaGetMultipleActiveDirectoriesBadRequest to nil")
+	}
+	var unwrapped Error
+	if err := func() error {
+		if err := unwrapped.Decode(d); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		return errors.Wrap(err, "alias")
+	}
+	*s = V1betaGetMultipleActiveDirectoriesBadRequest(unwrapped)
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *V1betaGetMultipleActiveDirectoriesBadRequest) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *V1betaGetMultipleActiveDirectoriesBadRequest) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes V1betaGetMultipleActiveDirectoriesForbidden as json.
+func (s *V1betaGetMultipleActiveDirectoriesForbidden) Encode(e *jx.Encoder) {
+	unwrapped := (*Error)(s)
+
+	unwrapped.Encode(e)
+}
+
+// Decode decodes V1betaGetMultipleActiveDirectoriesForbidden from json.
+func (s *V1betaGetMultipleActiveDirectoriesForbidden) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode V1betaGetMultipleActiveDirectoriesForbidden to nil")
+	}
+	var unwrapped Error
+	if err := func() error {
+		if err := unwrapped.Decode(d); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		return errors.Wrap(err, "alias")
+	}
+	*s = V1betaGetMultipleActiveDirectoriesForbidden(unwrapped)
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *V1betaGetMultipleActiveDirectoriesForbidden) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *V1betaGetMultipleActiveDirectoriesForbidden) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes V1betaGetMultipleActiveDirectoriesInternalServerError as json.
+func (s *V1betaGetMultipleActiveDirectoriesInternalServerError) Encode(e *jx.Encoder) {
+	unwrapped := (*Error)(s)
+
+	unwrapped.Encode(e)
+}
+
+// Decode decodes V1betaGetMultipleActiveDirectoriesInternalServerError from json.
+func (s *V1betaGetMultipleActiveDirectoriesInternalServerError) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode V1betaGetMultipleActiveDirectoriesInternalServerError to nil")
+	}
+	var unwrapped Error
+	if err := func() error {
+		if err := unwrapped.Decode(d); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		return errors.Wrap(err, "alias")
+	}
+	*s = V1betaGetMultipleActiveDirectoriesInternalServerError(unwrapped)
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *V1betaGetMultipleActiveDirectoriesInternalServerError) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *V1betaGetMultipleActiveDirectoriesInternalServerError) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes V1betaGetMultipleActiveDirectoriesNotFound as json.
+func (s *V1betaGetMultipleActiveDirectoriesNotFound) Encode(e *jx.Encoder) {
+	unwrapped := (*Error)(s)
+
+	unwrapped.Encode(e)
+}
+
+// Decode decodes V1betaGetMultipleActiveDirectoriesNotFound from json.
+func (s *V1betaGetMultipleActiveDirectoriesNotFound) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode V1betaGetMultipleActiveDirectoriesNotFound to nil")
+	}
+	var unwrapped Error
+	if err := func() error {
+		if err := unwrapped.Decode(d); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		return errors.Wrap(err, "alias")
+	}
+	*s = V1betaGetMultipleActiveDirectoriesNotFound(unwrapped)
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *V1betaGetMultipleActiveDirectoriesNotFound) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *V1betaGetMultipleActiveDirectoriesNotFound) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode implements json.Marshaler.
+func (s *V1betaGetMultipleActiveDirectoriesOK) Encode(e *jx.Encoder) {
+	e.ObjStart()
+	s.encodeFields(e)
+	e.ObjEnd()
+}
+
+// encodeFields encodes fields.
+func (s *V1betaGetMultipleActiveDirectoriesOK) encodeFields(e *jx.Encoder) {
+	{
+		if s.ActiveDirectories != nil {
+			e.FieldStart("activeDirectories")
+			e.ArrStart()
+			for _, elem := range s.ActiveDirectories {
+				elem.Encode(e)
+			}
+			e.ArrEnd()
+		}
+	}
+}
+
+var jsonFieldsNameOfV1betaGetMultipleActiveDirectoriesOK = [1]string{
+	0: "activeDirectories",
+}
+
+// Decode decodes V1betaGetMultipleActiveDirectoriesOK from json.
+func (s *V1betaGetMultipleActiveDirectoriesOK) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode V1betaGetMultipleActiveDirectoriesOK to nil")
+	}
+
+	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
+		switch string(k) {
+		case "activeDirectories":
+			if err := func() error {
+				s.ActiveDirectories = make([]ActiveDirectoryV1beta, 0)
+				if err := d.Arr(func(d *jx.Decoder) error {
+					var elem ActiveDirectoryV1beta
+					if err := elem.Decode(d); err != nil {
+						return err
+					}
+					s.ActiveDirectories = append(s.ActiveDirectories, elem)
+					return nil
+				}); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"activeDirectories\"")
+			}
+		default:
+			return d.Skip()
+		}
+		return nil
+	}); err != nil {
+		return errors.Wrap(err, "decode V1betaGetMultipleActiveDirectoriesOK")
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *V1betaGetMultipleActiveDirectoriesOK) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *V1betaGetMultipleActiveDirectoriesOK) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes V1betaGetMultipleActiveDirectoriesTooManyRequests as json.
+func (s *V1betaGetMultipleActiveDirectoriesTooManyRequests) Encode(e *jx.Encoder) {
+	unwrapped := (*Error)(s)
+
+	unwrapped.Encode(e)
+}
+
+// Decode decodes V1betaGetMultipleActiveDirectoriesTooManyRequests from json.
+func (s *V1betaGetMultipleActiveDirectoriesTooManyRequests) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode V1betaGetMultipleActiveDirectoriesTooManyRequests to nil")
+	}
+	var unwrapped Error
+	if err := func() error {
+		if err := unwrapped.Decode(d); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		return errors.Wrap(err, "alias")
+	}
+	*s = V1betaGetMultipleActiveDirectoriesTooManyRequests(unwrapped)
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *V1betaGetMultipleActiveDirectoriesTooManyRequests) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *V1betaGetMultipleActiveDirectoriesTooManyRequests) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes V1betaGetMultipleActiveDirectoriesUnauthorized as json.
+func (s *V1betaGetMultipleActiveDirectoriesUnauthorized) Encode(e *jx.Encoder) {
+	unwrapped := (*Error)(s)
+
+	unwrapped.Encode(e)
+}
+
+// Decode decodes V1betaGetMultipleActiveDirectoriesUnauthorized from json.
+func (s *V1betaGetMultipleActiveDirectoriesUnauthorized) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode V1betaGetMultipleActiveDirectoriesUnauthorized to nil")
+	}
+	var unwrapped Error
+	if err := func() error {
+		if err := unwrapped.Decode(d); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		return errors.Wrap(err, "alias")
+	}
+	*s = V1betaGetMultipleActiveDirectoriesUnauthorized(unwrapped)
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *V1betaGetMultipleActiveDirectoriesUnauthorized) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *V1betaGetMultipleActiveDirectoriesUnauthorized) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
 // Encode encodes V1betaGetMultipleBackupPoliciesBadRequest as json.
 func (s *V1betaGetMultipleBackupPoliciesBadRequest) Encode(e *jx.Encoder) {
 	unwrapped := (*Error)(s)
@@ -19108,6 +23226,308 @@ func (s *V1betaGetMultipleBackupPoliciesUnauthorized) MarshalJSON() ([]byte, err
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
 func (s *V1betaGetMultipleBackupPoliciesUnauthorized) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes V1betaGetMultipleBackupVaultsBadRequest as json.
+func (s *V1betaGetMultipleBackupVaultsBadRequest) Encode(e *jx.Encoder) {
+	unwrapped := (*Error)(s)
+
+	unwrapped.Encode(e)
+}
+
+// Decode decodes V1betaGetMultipleBackupVaultsBadRequest from json.
+func (s *V1betaGetMultipleBackupVaultsBadRequest) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode V1betaGetMultipleBackupVaultsBadRequest to nil")
+	}
+	var unwrapped Error
+	if err := func() error {
+		if err := unwrapped.Decode(d); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		return errors.Wrap(err, "alias")
+	}
+	*s = V1betaGetMultipleBackupVaultsBadRequest(unwrapped)
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *V1betaGetMultipleBackupVaultsBadRequest) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *V1betaGetMultipleBackupVaultsBadRequest) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes V1betaGetMultipleBackupVaultsForbidden as json.
+func (s *V1betaGetMultipleBackupVaultsForbidden) Encode(e *jx.Encoder) {
+	unwrapped := (*Error)(s)
+
+	unwrapped.Encode(e)
+}
+
+// Decode decodes V1betaGetMultipleBackupVaultsForbidden from json.
+func (s *V1betaGetMultipleBackupVaultsForbidden) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode V1betaGetMultipleBackupVaultsForbidden to nil")
+	}
+	var unwrapped Error
+	if err := func() error {
+		if err := unwrapped.Decode(d); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		return errors.Wrap(err, "alias")
+	}
+	*s = V1betaGetMultipleBackupVaultsForbidden(unwrapped)
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *V1betaGetMultipleBackupVaultsForbidden) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *V1betaGetMultipleBackupVaultsForbidden) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes V1betaGetMultipleBackupVaultsInternalServerError as json.
+func (s *V1betaGetMultipleBackupVaultsInternalServerError) Encode(e *jx.Encoder) {
+	unwrapped := (*Error)(s)
+
+	unwrapped.Encode(e)
+}
+
+// Decode decodes V1betaGetMultipleBackupVaultsInternalServerError from json.
+func (s *V1betaGetMultipleBackupVaultsInternalServerError) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode V1betaGetMultipleBackupVaultsInternalServerError to nil")
+	}
+	var unwrapped Error
+	if err := func() error {
+		if err := unwrapped.Decode(d); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		return errors.Wrap(err, "alias")
+	}
+	*s = V1betaGetMultipleBackupVaultsInternalServerError(unwrapped)
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *V1betaGetMultipleBackupVaultsInternalServerError) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *V1betaGetMultipleBackupVaultsInternalServerError) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes V1betaGetMultipleBackupVaultsNotFound as json.
+func (s *V1betaGetMultipleBackupVaultsNotFound) Encode(e *jx.Encoder) {
+	unwrapped := (*Error)(s)
+
+	unwrapped.Encode(e)
+}
+
+// Decode decodes V1betaGetMultipleBackupVaultsNotFound from json.
+func (s *V1betaGetMultipleBackupVaultsNotFound) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode V1betaGetMultipleBackupVaultsNotFound to nil")
+	}
+	var unwrapped Error
+	if err := func() error {
+		if err := unwrapped.Decode(d); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		return errors.Wrap(err, "alias")
+	}
+	*s = V1betaGetMultipleBackupVaultsNotFound(unwrapped)
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *V1betaGetMultipleBackupVaultsNotFound) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *V1betaGetMultipleBackupVaultsNotFound) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes V1betaGetMultipleBackupVaultsNotImplemented as json.
+func (s *V1betaGetMultipleBackupVaultsNotImplemented) Encode(e *jx.Encoder) {
+	unwrapped := (*Error)(s)
+
+	unwrapped.Encode(e)
+}
+
+// Decode decodes V1betaGetMultipleBackupVaultsNotImplemented from json.
+func (s *V1betaGetMultipleBackupVaultsNotImplemented) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode V1betaGetMultipleBackupVaultsNotImplemented to nil")
+	}
+	var unwrapped Error
+	if err := func() error {
+		if err := unwrapped.Decode(d); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		return errors.Wrap(err, "alias")
+	}
+	*s = V1betaGetMultipleBackupVaultsNotImplemented(unwrapped)
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *V1betaGetMultipleBackupVaultsNotImplemented) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *V1betaGetMultipleBackupVaultsNotImplemented) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode implements json.Marshaler.
+func (s *V1betaGetMultipleBackupVaultsOK) Encode(e *jx.Encoder) {
+	e.ObjStart()
+	s.encodeFields(e)
+	e.ObjEnd()
+}
+
+// encodeFields encodes fields.
+func (s *V1betaGetMultipleBackupVaultsOK) encodeFields(e *jx.Encoder) {
+	{
+		if s.BackupVaults != nil {
+			e.FieldStart("backupVaults")
+			e.ArrStart()
+			for _, elem := range s.BackupVaults {
+				elem.Encode(e)
+			}
+			e.ArrEnd()
+		}
+	}
+}
+
+var jsonFieldsNameOfV1betaGetMultipleBackupVaultsOK = [1]string{
+	0: "backupVaults",
+}
+
+// Decode decodes V1betaGetMultipleBackupVaultsOK from json.
+func (s *V1betaGetMultipleBackupVaultsOK) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode V1betaGetMultipleBackupVaultsOK to nil")
+	}
+
+	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
+		switch string(k) {
+		case "backupVaults":
+			if err := func() error {
+				s.BackupVaults = make([]BackupVaultV1beta, 0)
+				if err := d.Arr(func(d *jx.Decoder) error {
+					var elem BackupVaultV1beta
+					if err := elem.Decode(d); err != nil {
+						return err
+					}
+					s.BackupVaults = append(s.BackupVaults, elem)
+					return nil
+				}); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"backupVaults\"")
+			}
+		default:
+			return d.Skip()
+		}
+		return nil
+	}); err != nil {
+		return errors.Wrap(err, "decode V1betaGetMultipleBackupVaultsOK")
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *V1betaGetMultipleBackupVaultsOK) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *V1betaGetMultipleBackupVaultsOK) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes V1betaGetMultipleBackupVaultsUnauthorized as json.
+func (s *V1betaGetMultipleBackupVaultsUnauthorized) Encode(e *jx.Encoder) {
+	unwrapped := (*Error)(s)
+
+	unwrapped.Encode(e)
+}
+
+// Decode decodes V1betaGetMultipleBackupVaultsUnauthorized from json.
+func (s *V1betaGetMultipleBackupVaultsUnauthorized) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode V1betaGetMultipleBackupVaultsUnauthorized to nil")
+	}
+	var unwrapped Error
+	if err := func() error {
+		if err := unwrapped.Decode(d); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		return errors.Wrap(err, "alias")
+	}
+	*s = V1betaGetMultipleBackupVaultsUnauthorized(unwrapped)
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *V1betaGetMultipleBackupVaultsUnauthorized) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *V1betaGetMultipleBackupVaultsUnauthorized) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }
@@ -23613,6 +28033,308 @@ func (s *V1betaInternalUpdateVolumeReplicationUnprocessableEntity) UnmarshalJSON
 	return s.Decode(d)
 }
 
+// Encode encodes V1betaListActiveDirectoriesBadRequest as json.
+func (s *V1betaListActiveDirectoriesBadRequest) Encode(e *jx.Encoder) {
+	unwrapped := (*Error)(s)
+
+	unwrapped.Encode(e)
+}
+
+// Decode decodes V1betaListActiveDirectoriesBadRequest from json.
+func (s *V1betaListActiveDirectoriesBadRequest) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode V1betaListActiveDirectoriesBadRequest to nil")
+	}
+	var unwrapped Error
+	if err := func() error {
+		if err := unwrapped.Decode(d); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		return errors.Wrap(err, "alias")
+	}
+	*s = V1betaListActiveDirectoriesBadRequest(unwrapped)
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *V1betaListActiveDirectoriesBadRequest) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *V1betaListActiveDirectoriesBadRequest) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes V1betaListActiveDirectoriesForbidden as json.
+func (s *V1betaListActiveDirectoriesForbidden) Encode(e *jx.Encoder) {
+	unwrapped := (*Error)(s)
+
+	unwrapped.Encode(e)
+}
+
+// Decode decodes V1betaListActiveDirectoriesForbidden from json.
+func (s *V1betaListActiveDirectoriesForbidden) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode V1betaListActiveDirectoriesForbidden to nil")
+	}
+	var unwrapped Error
+	if err := func() error {
+		if err := unwrapped.Decode(d); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		return errors.Wrap(err, "alias")
+	}
+	*s = V1betaListActiveDirectoriesForbidden(unwrapped)
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *V1betaListActiveDirectoriesForbidden) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *V1betaListActiveDirectoriesForbidden) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes V1betaListActiveDirectoriesInternalServerError as json.
+func (s *V1betaListActiveDirectoriesInternalServerError) Encode(e *jx.Encoder) {
+	unwrapped := (*Error)(s)
+
+	unwrapped.Encode(e)
+}
+
+// Decode decodes V1betaListActiveDirectoriesInternalServerError from json.
+func (s *V1betaListActiveDirectoriesInternalServerError) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode V1betaListActiveDirectoriesInternalServerError to nil")
+	}
+	var unwrapped Error
+	if err := func() error {
+		if err := unwrapped.Decode(d); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		return errors.Wrap(err, "alias")
+	}
+	*s = V1betaListActiveDirectoriesInternalServerError(unwrapped)
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *V1betaListActiveDirectoriesInternalServerError) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *V1betaListActiveDirectoriesInternalServerError) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes V1betaListActiveDirectoriesNotFound as json.
+func (s *V1betaListActiveDirectoriesNotFound) Encode(e *jx.Encoder) {
+	unwrapped := (*Error)(s)
+
+	unwrapped.Encode(e)
+}
+
+// Decode decodes V1betaListActiveDirectoriesNotFound from json.
+func (s *V1betaListActiveDirectoriesNotFound) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode V1betaListActiveDirectoriesNotFound to nil")
+	}
+	var unwrapped Error
+	if err := func() error {
+		if err := unwrapped.Decode(d); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		return errors.Wrap(err, "alias")
+	}
+	*s = V1betaListActiveDirectoriesNotFound(unwrapped)
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *V1betaListActiveDirectoriesNotFound) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *V1betaListActiveDirectoriesNotFound) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode implements json.Marshaler.
+func (s *V1betaListActiveDirectoriesOK) Encode(e *jx.Encoder) {
+	e.ObjStart()
+	s.encodeFields(e)
+	e.ObjEnd()
+}
+
+// encodeFields encodes fields.
+func (s *V1betaListActiveDirectoriesOK) encodeFields(e *jx.Encoder) {
+	{
+		if s.ActiveDirectories != nil {
+			e.FieldStart("activeDirectories")
+			e.ArrStart()
+			for _, elem := range s.ActiveDirectories {
+				elem.Encode(e)
+			}
+			e.ArrEnd()
+		}
+	}
+}
+
+var jsonFieldsNameOfV1betaListActiveDirectoriesOK = [1]string{
+	0: "activeDirectories",
+}
+
+// Decode decodes V1betaListActiveDirectoriesOK from json.
+func (s *V1betaListActiveDirectoriesOK) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode V1betaListActiveDirectoriesOK to nil")
+	}
+
+	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
+		switch string(k) {
+		case "activeDirectories":
+			if err := func() error {
+				s.ActiveDirectories = make([]ActiveDirectoryV1beta, 0)
+				if err := d.Arr(func(d *jx.Decoder) error {
+					var elem ActiveDirectoryV1beta
+					if err := elem.Decode(d); err != nil {
+						return err
+					}
+					s.ActiveDirectories = append(s.ActiveDirectories, elem)
+					return nil
+				}); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"activeDirectories\"")
+			}
+		default:
+			return d.Skip()
+		}
+		return nil
+	}); err != nil {
+		return errors.Wrap(err, "decode V1betaListActiveDirectoriesOK")
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *V1betaListActiveDirectoriesOK) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *V1betaListActiveDirectoriesOK) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes V1betaListActiveDirectoriesTooManyRequests as json.
+func (s *V1betaListActiveDirectoriesTooManyRequests) Encode(e *jx.Encoder) {
+	unwrapped := (*Error)(s)
+
+	unwrapped.Encode(e)
+}
+
+// Decode decodes V1betaListActiveDirectoriesTooManyRequests from json.
+func (s *V1betaListActiveDirectoriesTooManyRequests) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode V1betaListActiveDirectoriesTooManyRequests to nil")
+	}
+	var unwrapped Error
+	if err := func() error {
+		if err := unwrapped.Decode(d); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		return errors.Wrap(err, "alias")
+	}
+	*s = V1betaListActiveDirectoriesTooManyRequests(unwrapped)
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *V1betaListActiveDirectoriesTooManyRequests) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *V1betaListActiveDirectoriesTooManyRequests) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes V1betaListActiveDirectoriesUnauthorized as json.
+func (s *V1betaListActiveDirectoriesUnauthorized) Encode(e *jx.Encoder) {
+	unwrapped := (*Error)(s)
+
+	unwrapped.Encode(e)
+}
+
+// Decode decodes V1betaListActiveDirectoriesUnauthorized from json.
+func (s *V1betaListActiveDirectoriesUnauthorized) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode V1betaListActiveDirectoriesUnauthorized to nil")
+	}
+	var unwrapped Error
+	if err := func() error {
+		if err := unwrapped.Decode(d); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		return errors.Wrap(err, "alias")
+	}
+	*s = V1betaListActiveDirectoriesUnauthorized(unwrapped)
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *V1betaListActiveDirectoriesUnauthorized) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *V1betaListActiveDirectoriesUnauthorized) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
 // Encode encodes V1betaListBackupPoliciesBadRequest as json.
 func (s *V1betaListBackupPoliciesBadRequest) Encode(e *jx.Encoder) {
 	unwrapped := (*Error)(s)
@@ -23911,6 +28633,346 @@ func (s *V1betaListBackupPoliciesUnauthorized) MarshalJSON() ([]byte, error) {
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
 func (s *V1betaListBackupPoliciesUnauthorized) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes V1betaListBackupVaultsBadRequest as json.
+func (s *V1betaListBackupVaultsBadRequest) Encode(e *jx.Encoder) {
+	unwrapped := (*Error)(s)
+
+	unwrapped.Encode(e)
+}
+
+// Decode decodes V1betaListBackupVaultsBadRequest from json.
+func (s *V1betaListBackupVaultsBadRequest) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode V1betaListBackupVaultsBadRequest to nil")
+	}
+	var unwrapped Error
+	if err := func() error {
+		if err := unwrapped.Decode(d); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		return errors.Wrap(err, "alias")
+	}
+	*s = V1betaListBackupVaultsBadRequest(unwrapped)
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *V1betaListBackupVaultsBadRequest) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *V1betaListBackupVaultsBadRequest) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes V1betaListBackupVaultsForbidden as json.
+func (s *V1betaListBackupVaultsForbidden) Encode(e *jx.Encoder) {
+	unwrapped := (*Error)(s)
+
+	unwrapped.Encode(e)
+}
+
+// Decode decodes V1betaListBackupVaultsForbidden from json.
+func (s *V1betaListBackupVaultsForbidden) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode V1betaListBackupVaultsForbidden to nil")
+	}
+	var unwrapped Error
+	if err := func() error {
+		if err := unwrapped.Decode(d); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		return errors.Wrap(err, "alias")
+	}
+	*s = V1betaListBackupVaultsForbidden(unwrapped)
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *V1betaListBackupVaultsForbidden) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *V1betaListBackupVaultsForbidden) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes V1betaListBackupVaultsInternalServerError as json.
+func (s *V1betaListBackupVaultsInternalServerError) Encode(e *jx.Encoder) {
+	unwrapped := (*Error)(s)
+
+	unwrapped.Encode(e)
+}
+
+// Decode decodes V1betaListBackupVaultsInternalServerError from json.
+func (s *V1betaListBackupVaultsInternalServerError) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode V1betaListBackupVaultsInternalServerError to nil")
+	}
+	var unwrapped Error
+	if err := func() error {
+		if err := unwrapped.Decode(d); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		return errors.Wrap(err, "alias")
+	}
+	*s = V1betaListBackupVaultsInternalServerError(unwrapped)
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *V1betaListBackupVaultsInternalServerError) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *V1betaListBackupVaultsInternalServerError) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes V1betaListBackupVaultsNotFound as json.
+func (s *V1betaListBackupVaultsNotFound) Encode(e *jx.Encoder) {
+	unwrapped := (*Error)(s)
+
+	unwrapped.Encode(e)
+}
+
+// Decode decodes V1betaListBackupVaultsNotFound from json.
+func (s *V1betaListBackupVaultsNotFound) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode V1betaListBackupVaultsNotFound to nil")
+	}
+	var unwrapped Error
+	if err := func() error {
+		if err := unwrapped.Decode(d); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		return errors.Wrap(err, "alias")
+	}
+	*s = V1betaListBackupVaultsNotFound(unwrapped)
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *V1betaListBackupVaultsNotFound) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *V1betaListBackupVaultsNotFound) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes V1betaListBackupVaultsNotImplemented as json.
+func (s *V1betaListBackupVaultsNotImplemented) Encode(e *jx.Encoder) {
+	unwrapped := (*Error)(s)
+
+	unwrapped.Encode(e)
+}
+
+// Decode decodes V1betaListBackupVaultsNotImplemented from json.
+func (s *V1betaListBackupVaultsNotImplemented) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode V1betaListBackupVaultsNotImplemented to nil")
+	}
+	var unwrapped Error
+	if err := func() error {
+		if err := unwrapped.Decode(d); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		return errors.Wrap(err, "alias")
+	}
+	*s = V1betaListBackupVaultsNotImplemented(unwrapped)
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *V1betaListBackupVaultsNotImplemented) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *V1betaListBackupVaultsNotImplemented) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode implements json.Marshaler.
+func (s *V1betaListBackupVaultsOK) Encode(e *jx.Encoder) {
+	e.ObjStart()
+	s.encodeFields(e)
+	e.ObjEnd()
+}
+
+// encodeFields encodes fields.
+func (s *V1betaListBackupVaultsOK) encodeFields(e *jx.Encoder) {
+	{
+		if s.BackupVaults != nil {
+			e.FieldStart("backupVaults")
+			e.ArrStart()
+			for _, elem := range s.BackupVaults {
+				elem.Encode(e)
+			}
+			e.ArrEnd()
+		}
+	}
+}
+
+var jsonFieldsNameOfV1betaListBackupVaultsOK = [1]string{
+	0: "backupVaults",
+}
+
+// Decode decodes V1betaListBackupVaultsOK from json.
+func (s *V1betaListBackupVaultsOK) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode V1betaListBackupVaultsOK to nil")
+	}
+
+	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
+		switch string(k) {
+		case "backupVaults":
+			if err := func() error {
+				s.BackupVaults = make([]BackupVaultV1beta, 0)
+				if err := d.Arr(func(d *jx.Decoder) error {
+					var elem BackupVaultV1beta
+					if err := elem.Decode(d); err != nil {
+						return err
+					}
+					s.BackupVaults = append(s.BackupVaults, elem)
+					return nil
+				}); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"backupVaults\"")
+			}
+		default:
+			return d.Skip()
+		}
+		return nil
+	}); err != nil {
+		return errors.Wrap(err, "decode V1betaListBackupVaultsOK")
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *V1betaListBackupVaultsOK) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *V1betaListBackupVaultsOK) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes V1betaListBackupVaultsTooManyRequests as json.
+func (s *V1betaListBackupVaultsTooManyRequests) Encode(e *jx.Encoder) {
+	unwrapped := (*Error)(s)
+
+	unwrapped.Encode(e)
+}
+
+// Decode decodes V1betaListBackupVaultsTooManyRequests from json.
+func (s *V1betaListBackupVaultsTooManyRequests) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode V1betaListBackupVaultsTooManyRequests to nil")
+	}
+	var unwrapped Error
+	if err := func() error {
+		if err := unwrapped.Decode(d); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		return errors.Wrap(err, "alias")
+	}
+	*s = V1betaListBackupVaultsTooManyRequests(unwrapped)
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *V1betaListBackupVaultsTooManyRequests) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *V1betaListBackupVaultsTooManyRequests) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes V1betaListBackupVaultsUnauthorized as json.
+func (s *V1betaListBackupVaultsUnauthorized) Encode(e *jx.Encoder) {
+	unwrapped := (*Error)(s)
+
+	unwrapped.Encode(e)
+}
+
+// Decode decodes V1betaListBackupVaultsUnauthorized from json.
+func (s *V1betaListBackupVaultsUnauthorized) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode V1betaListBackupVaultsUnauthorized to nil")
+	}
+	var unwrapped Error
+	if err := func() error {
+		if err := unwrapped.Decode(d); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		return errors.Wrap(err, "alias")
+	}
+	*s = V1betaListBackupVaultsUnauthorized(unwrapped)
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *V1betaListBackupVaultsUnauthorized) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *V1betaListBackupVaultsUnauthorized) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }
@@ -26603,6 +31665,310 @@ func (s *V1betaSyncReplicationUnprocessableEntity) UnmarshalJSON(data []byte) er
 	return s.Decode(d)
 }
 
+// Encode encodes V1betaUpdateActiveDirectoryBadRequest as json.
+func (s *V1betaUpdateActiveDirectoryBadRequest) Encode(e *jx.Encoder) {
+	unwrapped := (*Error)(s)
+
+	unwrapped.Encode(e)
+}
+
+// Decode decodes V1betaUpdateActiveDirectoryBadRequest from json.
+func (s *V1betaUpdateActiveDirectoryBadRequest) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode V1betaUpdateActiveDirectoryBadRequest to nil")
+	}
+	var unwrapped Error
+	if err := func() error {
+		if err := unwrapped.Decode(d); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		return errors.Wrap(err, "alias")
+	}
+	*s = V1betaUpdateActiveDirectoryBadRequest(unwrapped)
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *V1betaUpdateActiveDirectoryBadRequest) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *V1betaUpdateActiveDirectoryBadRequest) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes V1betaUpdateActiveDirectoryConflict as json.
+func (s *V1betaUpdateActiveDirectoryConflict) Encode(e *jx.Encoder) {
+	unwrapped := (*Error)(s)
+
+	unwrapped.Encode(e)
+}
+
+// Decode decodes V1betaUpdateActiveDirectoryConflict from json.
+func (s *V1betaUpdateActiveDirectoryConflict) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode V1betaUpdateActiveDirectoryConflict to nil")
+	}
+	var unwrapped Error
+	if err := func() error {
+		if err := unwrapped.Decode(d); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		return errors.Wrap(err, "alias")
+	}
+	*s = V1betaUpdateActiveDirectoryConflict(unwrapped)
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *V1betaUpdateActiveDirectoryConflict) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *V1betaUpdateActiveDirectoryConflict) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes V1betaUpdateActiveDirectoryForbidden as json.
+func (s *V1betaUpdateActiveDirectoryForbidden) Encode(e *jx.Encoder) {
+	unwrapped := (*Error)(s)
+
+	unwrapped.Encode(e)
+}
+
+// Decode decodes V1betaUpdateActiveDirectoryForbidden from json.
+func (s *V1betaUpdateActiveDirectoryForbidden) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode V1betaUpdateActiveDirectoryForbidden to nil")
+	}
+	var unwrapped Error
+	if err := func() error {
+		if err := unwrapped.Decode(d); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		return errors.Wrap(err, "alias")
+	}
+	*s = V1betaUpdateActiveDirectoryForbidden(unwrapped)
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *V1betaUpdateActiveDirectoryForbidden) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *V1betaUpdateActiveDirectoryForbidden) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes V1betaUpdateActiveDirectoryInternalServerError as json.
+func (s *V1betaUpdateActiveDirectoryInternalServerError) Encode(e *jx.Encoder) {
+	unwrapped := (*Error)(s)
+
+	unwrapped.Encode(e)
+}
+
+// Decode decodes V1betaUpdateActiveDirectoryInternalServerError from json.
+func (s *V1betaUpdateActiveDirectoryInternalServerError) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode V1betaUpdateActiveDirectoryInternalServerError to nil")
+	}
+	var unwrapped Error
+	if err := func() error {
+		if err := unwrapped.Decode(d); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		return errors.Wrap(err, "alias")
+	}
+	*s = V1betaUpdateActiveDirectoryInternalServerError(unwrapped)
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *V1betaUpdateActiveDirectoryInternalServerError) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *V1betaUpdateActiveDirectoryInternalServerError) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes V1betaUpdateActiveDirectoryNotFound as json.
+func (s *V1betaUpdateActiveDirectoryNotFound) Encode(e *jx.Encoder) {
+	unwrapped := (*Error)(s)
+
+	unwrapped.Encode(e)
+}
+
+// Decode decodes V1betaUpdateActiveDirectoryNotFound from json.
+func (s *V1betaUpdateActiveDirectoryNotFound) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode V1betaUpdateActiveDirectoryNotFound to nil")
+	}
+	var unwrapped Error
+	if err := func() error {
+		if err := unwrapped.Decode(d); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		return errors.Wrap(err, "alias")
+	}
+	*s = V1betaUpdateActiveDirectoryNotFound(unwrapped)
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *V1betaUpdateActiveDirectoryNotFound) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *V1betaUpdateActiveDirectoryNotFound) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes V1betaUpdateActiveDirectoryTooManyRequests as json.
+func (s *V1betaUpdateActiveDirectoryTooManyRequests) Encode(e *jx.Encoder) {
+	unwrapped := (*Error)(s)
+
+	unwrapped.Encode(e)
+}
+
+// Decode decodes V1betaUpdateActiveDirectoryTooManyRequests from json.
+func (s *V1betaUpdateActiveDirectoryTooManyRequests) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode V1betaUpdateActiveDirectoryTooManyRequests to nil")
+	}
+	var unwrapped Error
+	if err := func() error {
+		if err := unwrapped.Decode(d); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		return errors.Wrap(err, "alias")
+	}
+	*s = V1betaUpdateActiveDirectoryTooManyRequests(unwrapped)
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *V1betaUpdateActiveDirectoryTooManyRequests) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *V1betaUpdateActiveDirectoryTooManyRequests) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes V1betaUpdateActiveDirectoryUnauthorized as json.
+func (s *V1betaUpdateActiveDirectoryUnauthorized) Encode(e *jx.Encoder) {
+	unwrapped := (*Error)(s)
+
+	unwrapped.Encode(e)
+}
+
+// Decode decodes V1betaUpdateActiveDirectoryUnauthorized from json.
+func (s *V1betaUpdateActiveDirectoryUnauthorized) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode V1betaUpdateActiveDirectoryUnauthorized to nil")
+	}
+	var unwrapped Error
+	if err := func() error {
+		if err := unwrapped.Decode(d); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		return errors.Wrap(err, "alias")
+	}
+	*s = V1betaUpdateActiveDirectoryUnauthorized(unwrapped)
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *V1betaUpdateActiveDirectoryUnauthorized) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *V1betaUpdateActiveDirectoryUnauthorized) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes V1betaUpdateActiveDirectoryUnprocessableEntity as json.
+func (s *V1betaUpdateActiveDirectoryUnprocessableEntity) Encode(e *jx.Encoder) {
+	unwrapped := (*Error)(s)
+
+	unwrapped.Encode(e)
+}
+
+// Decode decodes V1betaUpdateActiveDirectoryUnprocessableEntity from json.
+func (s *V1betaUpdateActiveDirectoryUnprocessableEntity) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode V1betaUpdateActiveDirectoryUnprocessableEntity to nil")
+	}
+	var unwrapped Error
+	if err := func() error {
+		if err := unwrapped.Decode(d); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		return errors.Wrap(err, "alias")
+	}
+	*s = V1betaUpdateActiveDirectoryUnprocessableEntity(unwrapped)
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *V1betaUpdateActiveDirectoryUnprocessableEntity) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *V1betaUpdateActiveDirectoryUnprocessableEntity) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
 // Encode encodes V1betaUpdateBackupPolicyBadRequest as json.
 func (s *V1betaUpdateBackupPolicyBadRequest) Encode(e *jx.Encoder) {
 	unwrapped := (*Error)(s)
@@ -26941,6 +32307,272 @@ func (s *V1betaUpdateBackupPolicyUnprocessableEntity) MarshalJSON() ([]byte, err
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
 func (s *V1betaUpdateBackupPolicyUnprocessableEntity) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes V1betaUpdateBackupVaultBadRequest as json.
+func (s *V1betaUpdateBackupVaultBadRequest) Encode(e *jx.Encoder) {
+	unwrapped := (*Error)(s)
+
+	unwrapped.Encode(e)
+}
+
+// Decode decodes V1betaUpdateBackupVaultBadRequest from json.
+func (s *V1betaUpdateBackupVaultBadRequest) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode V1betaUpdateBackupVaultBadRequest to nil")
+	}
+	var unwrapped Error
+	if err := func() error {
+		if err := unwrapped.Decode(d); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		return errors.Wrap(err, "alias")
+	}
+	*s = V1betaUpdateBackupVaultBadRequest(unwrapped)
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *V1betaUpdateBackupVaultBadRequest) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *V1betaUpdateBackupVaultBadRequest) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes V1betaUpdateBackupVaultConflict as json.
+func (s *V1betaUpdateBackupVaultConflict) Encode(e *jx.Encoder) {
+	unwrapped := (*Error)(s)
+
+	unwrapped.Encode(e)
+}
+
+// Decode decodes V1betaUpdateBackupVaultConflict from json.
+func (s *V1betaUpdateBackupVaultConflict) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode V1betaUpdateBackupVaultConflict to nil")
+	}
+	var unwrapped Error
+	if err := func() error {
+		if err := unwrapped.Decode(d); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		return errors.Wrap(err, "alias")
+	}
+	*s = V1betaUpdateBackupVaultConflict(unwrapped)
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *V1betaUpdateBackupVaultConflict) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *V1betaUpdateBackupVaultConflict) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes V1betaUpdateBackupVaultForbidden as json.
+func (s *V1betaUpdateBackupVaultForbidden) Encode(e *jx.Encoder) {
+	unwrapped := (*Error)(s)
+
+	unwrapped.Encode(e)
+}
+
+// Decode decodes V1betaUpdateBackupVaultForbidden from json.
+func (s *V1betaUpdateBackupVaultForbidden) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode V1betaUpdateBackupVaultForbidden to nil")
+	}
+	var unwrapped Error
+	if err := func() error {
+		if err := unwrapped.Decode(d); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		return errors.Wrap(err, "alias")
+	}
+	*s = V1betaUpdateBackupVaultForbidden(unwrapped)
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *V1betaUpdateBackupVaultForbidden) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *V1betaUpdateBackupVaultForbidden) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes V1betaUpdateBackupVaultInternalServerError as json.
+func (s *V1betaUpdateBackupVaultInternalServerError) Encode(e *jx.Encoder) {
+	unwrapped := (*Error)(s)
+
+	unwrapped.Encode(e)
+}
+
+// Decode decodes V1betaUpdateBackupVaultInternalServerError from json.
+func (s *V1betaUpdateBackupVaultInternalServerError) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode V1betaUpdateBackupVaultInternalServerError to nil")
+	}
+	var unwrapped Error
+	if err := func() error {
+		if err := unwrapped.Decode(d); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		return errors.Wrap(err, "alias")
+	}
+	*s = V1betaUpdateBackupVaultInternalServerError(unwrapped)
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *V1betaUpdateBackupVaultInternalServerError) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *V1betaUpdateBackupVaultInternalServerError) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes V1betaUpdateBackupVaultTooManyRequests as json.
+func (s *V1betaUpdateBackupVaultTooManyRequests) Encode(e *jx.Encoder) {
+	unwrapped := (*Error)(s)
+
+	unwrapped.Encode(e)
+}
+
+// Decode decodes V1betaUpdateBackupVaultTooManyRequests from json.
+func (s *V1betaUpdateBackupVaultTooManyRequests) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode V1betaUpdateBackupVaultTooManyRequests to nil")
+	}
+	var unwrapped Error
+	if err := func() error {
+		if err := unwrapped.Decode(d); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		return errors.Wrap(err, "alias")
+	}
+	*s = V1betaUpdateBackupVaultTooManyRequests(unwrapped)
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *V1betaUpdateBackupVaultTooManyRequests) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *V1betaUpdateBackupVaultTooManyRequests) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes V1betaUpdateBackupVaultUnauthorized as json.
+func (s *V1betaUpdateBackupVaultUnauthorized) Encode(e *jx.Encoder) {
+	unwrapped := (*Error)(s)
+
+	unwrapped.Encode(e)
+}
+
+// Decode decodes V1betaUpdateBackupVaultUnauthorized from json.
+func (s *V1betaUpdateBackupVaultUnauthorized) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode V1betaUpdateBackupVaultUnauthorized to nil")
+	}
+	var unwrapped Error
+	if err := func() error {
+		if err := unwrapped.Decode(d); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		return errors.Wrap(err, "alias")
+	}
+	*s = V1betaUpdateBackupVaultUnauthorized(unwrapped)
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *V1betaUpdateBackupVaultUnauthorized) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *V1betaUpdateBackupVaultUnauthorized) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes V1betaUpdateBackupVaultUnprocessableEntity as json.
+func (s *V1betaUpdateBackupVaultUnprocessableEntity) Encode(e *jx.Encoder) {
+	unwrapped := (*Error)(s)
+
+	unwrapped.Encode(e)
+}
+
+// Decode decodes V1betaUpdateBackupVaultUnprocessableEntity from json.
+func (s *V1betaUpdateBackupVaultUnprocessableEntity) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode V1betaUpdateBackupVaultUnprocessableEntity to nil")
+	}
+	var unwrapped Error
+	if err := func() error {
+		if err := unwrapped.Decode(d); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		return errors.Wrap(err, "alias")
+	}
+	*s = V1betaUpdateBackupVaultUnprocessableEntity(unwrapped)
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *V1betaUpdateBackupVaultUnprocessableEntity) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *V1betaUpdateBackupVaultUnprocessableEntity) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }

@@ -2,7 +2,6 @@ package api
 
 import (
 	"context"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/cvpapi/backup_policy"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/models"
 	gcpgenserver "github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/api/gcp-servergen"
@@ -10,8 +9,6 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/nillable"
 	"time"
 )
-
-var createClient = cvp.CreateClient
 
 func (h Handler) V1betaCreateBackupPolicy(ctx context.Context, req *gcpgenserver.BackupPolicyCreateV1beta, params gcpgenserver.V1betaCreateBackupPolicyParams) (gcpgenserver.V1betaCreateBackupPolicyRes, error) {
 	logger := utils.GetLoggerFromContext(ctx)

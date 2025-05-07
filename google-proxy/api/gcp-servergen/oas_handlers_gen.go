@@ -321,6 +321,178 @@ func (s *Server) handleV1betaCheckKmsConfigRequest(args [3]string, argsEscaped b
 	}
 }
 
+// handleV1betaCreateActiveDirectoryRequest handles v1beta_createActiveDirectory operation.
+//
+// Creates Active Directory credentials for the active user.
+//
+// POST /v1beta/projects/{projectNumber}/locations/{locationId}/activeDirectories
+func (s *Server) handleV1betaCreateActiveDirectoryRequest(args [2]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
+	statusWriter := &codeRecorder{ResponseWriter: w}
+	w = statusWriter
+	otelAttrs := []attribute.KeyValue{
+		otelogen.OperationID("v1beta_createActiveDirectory"),
+		semconv.HTTPRequestMethodKey.String("POST"),
+		semconv.HTTPRouteKey.String("/v1beta/projects/{projectNumber}/locations/{locationId}/activeDirectories"),
+	}
+
+	// Start a span for this request.
+	ctx, span := s.cfg.Tracer.Start(r.Context(), V1betaCreateActiveDirectoryOperation,
+		trace.WithAttributes(otelAttrs...),
+		serverSpanKind,
+	)
+	defer span.End()
+
+	// Add Labeler to context.
+	labeler := &Labeler{attrs: otelAttrs}
+	ctx = contextWithLabeler(ctx, labeler)
+
+	// Run stopwatch.
+	startTime := time.Now()
+	defer func() {
+		elapsedDuration := time.Since(startTime)
+
+		attrSet := labeler.AttributeSet()
+		attrs := attrSet.ToSlice()
+		code := statusWriter.status
+		if code != 0 {
+			codeAttr := semconv.HTTPResponseStatusCode(code)
+			attrs = append(attrs, codeAttr)
+			span.SetAttributes(codeAttr)
+		}
+		attrOpt := metric.WithAttributes(attrs...)
+
+		// Increment request counter.
+		s.requests.Add(ctx, 1, attrOpt)
+
+		// Use floating point division here for higher precision (instead of Millisecond method).
+		s.duration.Record(ctx, float64(elapsedDuration)/float64(time.Millisecond), attrOpt)
+	}()
+
+	var (
+		recordError = func(stage string, err error) {
+			span.RecordError(err)
+
+			// https://opentelemetry.io/docs/specs/semconv/http/http-spans/#status
+			// Span Status MUST be left unset if HTTP status code was in the 1xx, 2xx or 3xx ranges,
+			// unless there was another error (e.g., network error receiving the response body; or 3xx codes with
+			// max redirects exceeded), in which case status MUST be set to Error.
+			code := statusWriter.status
+			if code >= 100 && code < 500 {
+				span.SetStatus(codes.Error, stage)
+			}
+
+			attrSet := labeler.AttributeSet()
+			attrs := attrSet.ToSlice()
+			if code != 0 {
+				attrs = append(attrs, semconv.HTTPResponseStatusCode(code))
+			}
+
+			s.errors.Add(ctx, 1, metric.WithAttributes(attrs...))
+		}
+		err          error
+		opErrContext = ogenerrors.OperationContext{
+			Name: V1betaCreateActiveDirectoryOperation,
+			ID:   "v1beta_createActiveDirectory",
+		}
+	)
+	params, err := decodeV1betaCreateActiveDirectoryParams(args, argsEscaped, r)
+	if err != nil {
+		err = &ogenerrors.DecodeParamsError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeParams", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+	request, close, err := s.decodeV1betaCreateActiveDirectoryRequest(r)
+	if err != nil {
+		err = &ogenerrors.DecodeRequestError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeRequest", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+	defer func() {
+		if err := close(); err != nil {
+			recordError("CloseRequest", err)
+		}
+	}()
+
+	var response V1betaCreateActiveDirectoryRes
+	if m := s.cfg.Middleware; m != nil {
+		mreq := middleware.Request{
+			Context:          ctx,
+			OperationName:    V1betaCreateActiveDirectoryOperation,
+			OperationSummary: "Create Active Directory credentials",
+			OperationID:      "v1beta_createActiveDirectory",
+			Body:             request,
+			Params: middleware.Parameters{
+				{
+					Name: "projectNumber",
+					In:   "path",
+				}: params.ProjectNumber,
+				{
+					Name: "locationId",
+					In:   "path",
+				}: params.LocationId,
+				{
+					Name: "x-correlation-id",
+					In:   "header",
+				}: params.XCorrelationID,
+			},
+			Raw: r,
+		}
+
+		type (
+			Request  = *ActiveDirectoryV1beta
+			Params   = V1betaCreateActiveDirectoryParams
+			Response = V1betaCreateActiveDirectoryRes
+		)
+		response, err = middleware.HookMiddleware[
+			Request,
+			Params,
+			Response,
+		](
+			m,
+			mreq,
+			unpackV1betaCreateActiveDirectoryParams,
+			func(ctx context.Context, request Request, params Params) (response Response, err error) {
+				response, err = s.h.V1betaCreateActiveDirectory(ctx, request, params)
+				return response, err
+			},
+		)
+	} else {
+		response, err = s.h.V1betaCreateActiveDirectory(ctx, request, params)
+	}
+	if err != nil {
+		if errRes, ok := errors.Into[*ErrorStatusCode](err); ok {
+			if err := encodeErrorResponse(errRes, w, span); err != nil {
+				defer recordError("Internal", err)
+			}
+			return
+		}
+		if errors.Is(err, ht.ErrNotImplemented) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+			return
+		}
+		if err := encodeErrorResponse(s.h.NewError(ctx, err), w, span); err != nil {
+			defer recordError("Internal", err)
+		}
+		return
+	}
+
+	if err := encodeV1betaCreateActiveDirectoryResponse(response, w, span); err != nil {
+		defer recordError("EncodeResponse", err)
+		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+		}
+		return
+	}
+}
+
 // handleV1betaCreateBackupPolicyRequest handles v1beta_createBackupPolicy operation.
 //
 // Create a new backup policy.
@@ -485,6 +657,178 @@ func (s *Server) handleV1betaCreateBackupPolicyRequest(args [2]string, argsEscap
 	}
 
 	if err := encodeV1betaCreateBackupPolicyResponse(response, w, span); err != nil {
+		defer recordError("EncodeResponse", err)
+		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+		}
+		return
+	}
+}
+
+// handleV1betaCreateBackupVaultRequest handles v1beta_createBackupVault operation.
+//
+// Creates a new backup vault.
+//
+// POST /v1beta/projects/{projectNumber}/locations/{locationId}/backupVaults
+func (s *Server) handleV1betaCreateBackupVaultRequest(args [2]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
+	statusWriter := &codeRecorder{ResponseWriter: w}
+	w = statusWriter
+	otelAttrs := []attribute.KeyValue{
+		otelogen.OperationID("v1beta_createBackupVault"),
+		semconv.HTTPRequestMethodKey.String("POST"),
+		semconv.HTTPRouteKey.String("/v1beta/projects/{projectNumber}/locations/{locationId}/backupVaults"),
+	}
+
+	// Start a span for this request.
+	ctx, span := s.cfg.Tracer.Start(r.Context(), V1betaCreateBackupVaultOperation,
+		trace.WithAttributes(otelAttrs...),
+		serverSpanKind,
+	)
+	defer span.End()
+
+	// Add Labeler to context.
+	labeler := &Labeler{attrs: otelAttrs}
+	ctx = contextWithLabeler(ctx, labeler)
+
+	// Run stopwatch.
+	startTime := time.Now()
+	defer func() {
+		elapsedDuration := time.Since(startTime)
+
+		attrSet := labeler.AttributeSet()
+		attrs := attrSet.ToSlice()
+		code := statusWriter.status
+		if code != 0 {
+			codeAttr := semconv.HTTPResponseStatusCode(code)
+			attrs = append(attrs, codeAttr)
+			span.SetAttributes(codeAttr)
+		}
+		attrOpt := metric.WithAttributes(attrs...)
+
+		// Increment request counter.
+		s.requests.Add(ctx, 1, attrOpt)
+
+		// Use floating point division here for higher precision (instead of Millisecond method).
+		s.duration.Record(ctx, float64(elapsedDuration)/float64(time.Millisecond), attrOpt)
+	}()
+
+	var (
+		recordError = func(stage string, err error) {
+			span.RecordError(err)
+
+			// https://opentelemetry.io/docs/specs/semconv/http/http-spans/#status
+			// Span Status MUST be left unset if HTTP status code was in the 1xx, 2xx or 3xx ranges,
+			// unless there was another error (e.g., network error receiving the response body; or 3xx codes with
+			// max redirects exceeded), in which case status MUST be set to Error.
+			code := statusWriter.status
+			if code >= 100 && code < 500 {
+				span.SetStatus(codes.Error, stage)
+			}
+
+			attrSet := labeler.AttributeSet()
+			attrs := attrSet.ToSlice()
+			if code != 0 {
+				attrs = append(attrs, semconv.HTTPResponseStatusCode(code))
+			}
+
+			s.errors.Add(ctx, 1, metric.WithAttributes(attrs...))
+		}
+		err          error
+		opErrContext = ogenerrors.OperationContext{
+			Name: V1betaCreateBackupVaultOperation,
+			ID:   "v1beta_createBackupVault",
+		}
+	)
+	params, err := decodeV1betaCreateBackupVaultParams(args, argsEscaped, r)
+	if err != nil {
+		err = &ogenerrors.DecodeParamsError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeParams", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+	request, close, err := s.decodeV1betaCreateBackupVaultRequest(r)
+	if err != nil {
+		err = &ogenerrors.DecodeRequestError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeRequest", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+	defer func() {
+		if err := close(); err != nil {
+			recordError("CloseRequest", err)
+		}
+	}()
+
+	var response V1betaCreateBackupVaultRes
+	if m := s.cfg.Middleware; m != nil {
+		mreq := middleware.Request{
+			Context:          ctx,
+			OperationName:    V1betaCreateBackupVaultOperation,
+			OperationSummary: "Create a new backup vault",
+			OperationID:      "v1beta_createBackupVault",
+			Body:             request,
+			Params: middleware.Parameters{
+				{
+					Name: "projectNumber",
+					In:   "path",
+				}: params.ProjectNumber,
+				{
+					Name: "locationId",
+					In:   "path",
+				}: params.LocationId,
+				{
+					Name: "x-correlation-id",
+					In:   "header",
+				}: params.XCorrelationID,
+			},
+			Raw: r,
+		}
+
+		type (
+			Request  = *BackupVaultCreateV1beta
+			Params   = V1betaCreateBackupVaultParams
+			Response = V1betaCreateBackupVaultRes
+		)
+		response, err = middleware.HookMiddleware[
+			Request,
+			Params,
+			Response,
+		](
+			m,
+			mreq,
+			unpackV1betaCreateBackupVaultParams,
+			func(ctx context.Context, request Request, params Params) (response Response, err error) {
+				response, err = s.h.V1betaCreateBackupVault(ctx, request, params)
+				return response, err
+			},
+		)
+	} else {
+		response, err = s.h.V1betaCreateBackupVault(ctx, request, params)
+	}
+	if err != nil {
+		if errRes, ok := errors.Into[*ErrorStatusCode](err); ok {
+			if err := encodeErrorResponse(errRes, w, span); err != nil {
+				defer recordError("Internal", err)
+			}
+			return
+		}
+		if errors.Is(err, ht.ErrNotImplemented) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+			return
+		}
+		if err := encodeErrorResponse(s.h.NewError(ctx, err), w, span); err != nil {
+			defer recordError("Internal", err)
+		}
+		return
+	}
+
+	if err := encodeV1betaCreateBackupVaultResponse(response, w, span); err != nil {
 		defer recordError("EncodeResponse", err)
 		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
 			s.cfg.ErrorHandler(ctx, w, r, err)
@@ -1358,6 +1702,169 @@ func (s *Server) handleV1betaCreateVolumeRequest(args [2]string, argsEscaped boo
 	}
 }
 
+// handleV1betaDeleteActiveDirectoryRequest handles v1beta_deleteActiveDirectory operation.
+//
+// Deletes the Active Directory credentials for the active user. This operation will never return
+// resource not found, since that could be interpreted as resource already deleted, and therefore
+// will return operation done instead.
+//
+// DELETE /v1beta/projects/{projectNumber}/locations/{locationId}/activeDirectories/{activeDirectoryId}
+func (s *Server) handleV1betaDeleteActiveDirectoryRequest(args [3]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
+	statusWriter := &codeRecorder{ResponseWriter: w}
+	w = statusWriter
+	otelAttrs := []attribute.KeyValue{
+		otelogen.OperationID("v1beta_deleteActiveDirectory"),
+		semconv.HTTPRequestMethodKey.String("DELETE"),
+		semconv.HTTPRouteKey.String("/v1beta/projects/{projectNumber}/locations/{locationId}/activeDirectories/{activeDirectoryId}"),
+	}
+
+	// Start a span for this request.
+	ctx, span := s.cfg.Tracer.Start(r.Context(), V1betaDeleteActiveDirectoryOperation,
+		trace.WithAttributes(otelAttrs...),
+		serverSpanKind,
+	)
+	defer span.End()
+
+	// Add Labeler to context.
+	labeler := &Labeler{attrs: otelAttrs}
+	ctx = contextWithLabeler(ctx, labeler)
+
+	// Run stopwatch.
+	startTime := time.Now()
+	defer func() {
+		elapsedDuration := time.Since(startTime)
+
+		attrSet := labeler.AttributeSet()
+		attrs := attrSet.ToSlice()
+		code := statusWriter.status
+		if code != 0 {
+			codeAttr := semconv.HTTPResponseStatusCode(code)
+			attrs = append(attrs, codeAttr)
+			span.SetAttributes(codeAttr)
+		}
+		attrOpt := metric.WithAttributes(attrs...)
+
+		// Increment request counter.
+		s.requests.Add(ctx, 1, attrOpt)
+
+		// Use floating point division here for higher precision (instead of Millisecond method).
+		s.duration.Record(ctx, float64(elapsedDuration)/float64(time.Millisecond), attrOpt)
+	}()
+
+	var (
+		recordError = func(stage string, err error) {
+			span.RecordError(err)
+
+			// https://opentelemetry.io/docs/specs/semconv/http/http-spans/#status
+			// Span Status MUST be left unset if HTTP status code was in the 1xx, 2xx or 3xx ranges,
+			// unless there was another error (e.g., network error receiving the response body; or 3xx codes with
+			// max redirects exceeded), in which case status MUST be set to Error.
+			code := statusWriter.status
+			if code >= 100 && code < 500 {
+				span.SetStatus(codes.Error, stage)
+			}
+
+			attrSet := labeler.AttributeSet()
+			attrs := attrSet.ToSlice()
+			if code != 0 {
+				attrs = append(attrs, semconv.HTTPResponseStatusCode(code))
+			}
+
+			s.errors.Add(ctx, 1, metric.WithAttributes(attrs...))
+		}
+		err          error
+		opErrContext = ogenerrors.OperationContext{
+			Name: V1betaDeleteActiveDirectoryOperation,
+			ID:   "v1beta_deleteActiveDirectory",
+		}
+	)
+	params, err := decodeV1betaDeleteActiveDirectoryParams(args, argsEscaped, r)
+	if err != nil {
+		err = &ogenerrors.DecodeParamsError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeParams", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	var response V1betaDeleteActiveDirectoryRes
+	if m := s.cfg.Middleware; m != nil {
+		mreq := middleware.Request{
+			Context:          ctx,
+			OperationName:    V1betaDeleteActiveDirectoryOperation,
+			OperationSummary: "Delete the Active Directory credentials",
+			OperationID:      "v1beta_deleteActiveDirectory",
+			Body:             nil,
+			Params: middleware.Parameters{
+				{
+					Name: "projectNumber",
+					In:   "path",
+				}: params.ProjectNumber,
+				{
+					Name: "locationId",
+					In:   "path",
+				}: params.LocationId,
+				{
+					Name: "x-correlation-id",
+					In:   "header",
+				}: params.XCorrelationID,
+				{
+					Name: "activeDirectoryId",
+					In:   "path",
+				}: params.ActiveDirectoryId,
+			},
+			Raw: r,
+		}
+
+		type (
+			Request  = struct{}
+			Params   = V1betaDeleteActiveDirectoryParams
+			Response = V1betaDeleteActiveDirectoryRes
+		)
+		response, err = middleware.HookMiddleware[
+			Request,
+			Params,
+			Response,
+		](
+			m,
+			mreq,
+			unpackV1betaDeleteActiveDirectoryParams,
+			func(ctx context.Context, request Request, params Params) (response Response, err error) {
+				response, err = s.h.V1betaDeleteActiveDirectory(ctx, params)
+				return response, err
+			},
+		)
+	} else {
+		response, err = s.h.V1betaDeleteActiveDirectory(ctx, params)
+	}
+	if err != nil {
+		if errRes, ok := errors.Into[*ErrorStatusCode](err); ok {
+			if err := encodeErrorResponse(errRes, w, span); err != nil {
+				defer recordError("Internal", err)
+			}
+			return
+		}
+		if errors.Is(err, ht.ErrNotImplemented) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+			return
+		}
+		if err := encodeErrorResponse(s.h.NewError(ctx, err), w, span); err != nil {
+			defer recordError("Internal", err)
+		}
+		return
+	}
+
+	if err := encodeV1betaDeleteActiveDirectoryResponse(response, w, span); err != nil {
+		defer recordError("EncodeResponse", err)
+		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+		}
+		return
+	}
+}
+
 // handleV1betaDeleteBackupPolicyRequest handles v1beta_deleteBackupPolicy operation.
 //
 // Warning! This operation will permanently delete the backup policy.
@@ -1511,6 +2018,167 @@ func (s *Server) handleV1betaDeleteBackupPolicyRequest(args [3]string, argsEscap
 	}
 
 	if err := encodeV1betaDeleteBackupPolicyResponse(response, w, span); err != nil {
+		defer recordError("EncodeResponse", err)
+		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+		}
+		return
+	}
+}
+
+// handleV1betaDeleteBackupVaultRequest handles v1beta_deleteBackupVault operation.
+//
+// Warning! This operation will permanently delete the backup vault.
+//
+// DELETE /v1beta/projects/{projectNumber}/locations/{locationId}/backupVaults/{backupVaultId}
+func (s *Server) handleV1betaDeleteBackupVaultRequest(args [3]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
+	statusWriter := &codeRecorder{ResponseWriter: w}
+	w = statusWriter
+	otelAttrs := []attribute.KeyValue{
+		otelogen.OperationID("v1beta_deleteBackupVault"),
+		semconv.HTTPRequestMethodKey.String("DELETE"),
+		semconv.HTTPRouteKey.String("/v1beta/projects/{projectNumber}/locations/{locationId}/backupVaults/{backupVaultId}"),
+	}
+
+	// Start a span for this request.
+	ctx, span := s.cfg.Tracer.Start(r.Context(), V1betaDeleteBackupVaultOperation,
+		trace.WithAttributes(otelAttrs...),
+		serverSpanKind,
+	)
+	defer span.End()
+
+	// Add Labeler to context.
+	labeler := &Labeler{attrs: otelAttrs}
+	ctx = contextWithLabeler(ctx, labeler)
+
+	// Run stopwatch.
+	startTime := time.Now()
+	defer func() {
+		elapsedDuration := time.Since(startTime)
+
+		attrSet := labeler.AttributeSet()
+		attrs := attrSet.ToSlice()
+		code := statusWriter.status
+		if code != 0 {
+			codeAttr := semconv.HTTPResponseStatusCode(code)
+			attrs = append(attrs, codeAttr)
+			span.SetAttributes(codeAttr)
+		}
+		attrOpt := metric.WithAttributes(attrs...)
+
+		// Increment request counter.
+		s.requests.Add(ctx, 1, attrOpt)
+
+		// Use floating point division here for higher precision (instead of Millisecond method).
+		s.duration.Record(ctx, float64(elapsedDuration)/float64(time.Millisecond), attrOpt)
+	}()
+
+	var (
+		recordError = func(stage string, err error) {
+			span.RecordError(err)
+
+			// https://opentelemetry.io/docs/specs/semconv/http/http-spans/#status
+			// Span Status MUST be left unset if HTTP status code was in the 1xx, 2xx or 3xx ranges,
+			// unless there was another error (e.g., network error receiving the response body; or 3xx codes with
+			// max redirects exceeded), in which case status MUST be set to Error.
+			code := statusWriter.status
+			if code >= 100 && code < 500 {
+				span.SetStatus(codes.Error, stage)
+			}
+
+			attrSet := labeler.AttributeSet()
+			attrs := attrSet.ToSlice()
+			if code != 0 {
+				attrs = append(attrs, semconv.HTTPResponseStatusCode(code))
+			}
+
+			s.errors.Add(ctx, 1, metric.WithAttributes(attrs...))
+		}
+		err          error
+		opErrContext = ogenerrors.OperationContext{
+			Name: V1betaDeleteBackupVaultOperation,
+			ID:   "v1beta_deleteBackupVault",
+		}
+	)
+	params, err := decodeV1betaDeleteBackupVaultParams(args, argsEscaped, r)
+	if err != nil {
+		err = &ogenerrors.DecodeParamsError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeParams", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	var response V1betaDeleteBackupVaultRes
+	if m := s.cfg.Middleware; m != nil {
+		mreq := middleware.Request{
+			Context:          ctx,
+			OperationName:    V1betaDeleteBackupVaultOperation,
+			OperationSummary: "Delete a backup vault",
+			OperationID:      "v1beta_deleteBackupVault",
+			Body:             nil,
+			Params: middleware.Parameters{
+				{
+					Name: "backupVaultId",
+					In:   "path",
+				}: params.BackupVaultId,
+				{
+					Name: "projectNumber",
+					In:   "path",
+				}: params.ProjectNumber,
+				{
+					Name: "locationId",
+					In:   "path",
+				}: params.LocationId,
+				{
+					Name: "x-correlation-id",
+					In:   "header",
+				}: params.XCorrelationID,
+			},
+			Raw: r,
+		}
+
+		type (
+			Request  = struct{}
+			Params   = V1betaDeleteBackupVaultParams
+			Response = V1betaDeleteBackupVaultRes
+		)
+		response, err = middleware.HookMiddleware[
+			Request,
+			Params,
+			Response,
+		](
+			m,
+			mreq,
+			unpackV1betaDeleteBackupVaultParams,
+			func(ctx context.Context, request Request, params Params) (response Response, err error) {
+				response, err = s.h.V1betaDeleteBackupVault(ctx, params)
+				return response, err
+			},
+		)
+	} else {
+		response, err = s.h.V1betaDeleteBackupVault(ctx, params)
+	}
+	if err != nil {
+		if errRes, ok := errors.Into[*ErrorStatusCode](err); ok {
+			if err := encodeErrorResponse(errRes, w, span); err != nil {
+				defer recordError("Internal", err)
+			}
+			return
+		}
+		if errors.Is(err, ht.ErrNotImplemented) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+			return
+		}
+		if err := encodeErrorResponse(s.h.NewError(ctx, err), w, span); err != nil {
+			defer recordError("Internal", err)
+		}
+		return
+	}
+
+	if err := encodeV1betaDeleteBackupVaultResponse(response, w, span); err != nil {
 		defer recordError("EncodeResponse", err)
 		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
 			s.cfg.ErrorHandler(ctx, w, r, err)
@@ -2362,6 +3030,167 @@ func (s *Server) handleV1betaDeleteVolumeRequest(args [3]string, argsEscaped boo
 	}
 }
 
+// handleV1betaDescribeActiveDirectoryRequest handles v1beta_describeActiveDirectory operation.
+//
+// Returns the description of the specified Active Directory credentials by active-directory ID.
+//
+// GET /v1beta/projects/{projectNumber}/locations/{locationId}/activeDirectories/{activeDirectoryId}
+func (s *Server) handleV1betaDescribeActiveDirectoryRequest(args [3]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
+	statusWriter := &codeRecorder{ResponseWriter: w}
+	w = statusWriter
+	otelAttrs := []attribute.KeyValue{
+		otelogen.OperationID("v1beta_describeActiveDirectory"),
+		semconv.HTTPRequestMethodKey.String("GET"),
+		semconv.HTTPRouteKey.String("/v1beta/projects/{projectNumber}/locations/{locationId}/activeDirectories/{activeDirectoryId}"),
+	}
+
+	// Start a span for this request.
+	ctx, span := s.cfg.Tracer.Start(r.Context(), V1betaDescribeActiveDirectoryOperation,
+		trace.WithAttributes(otelAttrs...),
+		serverSpanKind,
+	)
+	defer span.End()
+
+	// Add Labeler to context.
+	labeler := &Labeler{attrs: otelAttrs}
+	ctx = contextWithLabeler(ctx, labeler)
+
+	// Run stopwatch.
+	startTime := time.Now()
+	defer func() {
+		elapsedDuration := time.Since(startTime)
+
+		attrSet := labeler.AttributeSet()
+		attrs := attrSet.ToSlice()
+		code := statusWriter.status
+		if code != 0 {
+			codeAttr := semconv.HTTPResponseStatusCode(code)
+			attrs = append(attrs, codeAttr)
+			span.SetAttributes(codeAttr)
+		}
+		attrOpt := metric.WithAttributes(attrs...)
+
+		// Increment request counter.
+		s.requests.Add(ctx, 1, attrOpt)
+
+		// Use floating point division here for higher precision (instead of Millisecond method).
+		s.duration.Record(ctx, float64(elapsedDuration)/float64(time.Millisecond), attrOpt)
+	}()
+
+	var (
+		recordError = func(stage string, err error) {
+			span.RecordError(err)
+
+			// https://opentelemetry.io/docs/specs/semconv/http/http-spans/#status
+			// Span Status MUST be left unset if HTTP status code was in the 1xx, 2xx or 3xx ranges,
+			// unless there was another error (e.g., network error receiving the response body; or 3xx codes with
+			// max redirects exceeded), in which case status MUST be set to Error.
+			code := statusWriter.status
+			if code >= 100 && code < 500 {
+				span.SetStatus(codes.Error, stage)
+			}
+
+			attrSet := labeler.AttributeSet()
+			attrs := attrSet.ToSlice()
+			if code != 0 {
+				attrs = append(attrs, semconv.HTTPResponseStatusCode(code))
+			}
+
+			s.errors.Add(ctx, 1, metric.WithAttributes(attrs...))
+		}
+		err          error
+		opErrContext = ogenerrors.OperationContext{
+			Name: V1betaDescribeActiveDirectoryOperation,
+			ID:   "v1beta_describeActiveDirectory",
+		}
+	)
+	params, err := decodeV1betaDescribeActiveDirectoryParams(args, argsEscaped, r)
+	if err != nil {
+		err = &ogenerrors.DecodeParamsError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeParams", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	var response V1betaDescribeActiveDirectoryRes
+	if m := s.cfg.Middleware; m != nil {
+		mreq := middleware.Request{
+			Context:          ctx,
+			OperationName:    V1betaDescribeActiveDirectoryOperation,
+			OperationSummary: "Describe Active Directory credentials",
+			OperationID:      "v1beta_describeActiveDirectory",
+			Body:             nil,
+			Params: middleware.Parameters{
+				{
+					Name: "projectNumber",
+					In:   "path",
+				}: params.ProjectNumber,
+				{
+					Name: "locationId",
+					In:   "path",
+				}: params.LocationId,
+				{
+					Name: "x-correlation-id",
+					In:   "header",
+				}: params.XCorrelationID,
+				{
+					Name: "activeDirectoryId",
+					In:   "path",
+				}: params.ActiveDirectoryId,
+			},
+			Raw: r,
+		}
+
+		type (
+			Request  = struct{}
+			Params   = V1betaDescribeActiveDirectoryParams
+			Response = V1betaDescribeActiveDirectoryRes
+		)
+		response, err = middleware.HookMiddleware[
+			Request,
+			Params,
+			Response,
+		](
+			m,
+			mreq,
+			unpackV1betaDescribeActiveDirectoryParams,
+			func(ctx context.Context, request Request, params Params) (response Response, err error) {
+				response, err = s.h.V1betaDescribeActiveDirectory(ctx, params)
+				return response, err
+			},
+		)
+	} else {
+		response, err = s.h.V1betaDescribeActiveDirectory(ctx, params)
+	}
+	if err != nil {
+		if errRes, ok := errors.Into[*ErrorStatusCode](err); ok {
+			if err := encodeErrorResponse(errRes, w, span); err != nil {
+				defer recordError("Internal", err)
+			}
+			return
+		}
+		if errors.Is(err, ht.ErrNotImplemented) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+			return
+		}
+		if err := encodeErrorResponse(s.h.NewError(ctx, err), w, span); err != nil {
+			defer recordError("Internal", err)
+		}
+		return
+	}
+
+	if err := encodeV1betaDescribeActiveDirectoryResponse(response, w, span); err != nil {
+		defer recordError("EncodeResponse", err)
+		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+		}
+		return
+	}
+}
+
 // handleV1betaDescribeBackupPolicyRequest handles v1beta_describeBackupPolicy operation.
 //
 // Returns the description of the specified backup policy by backup policy ID.
@@ -2515,6 +3344,171 @@ func (s *Server) handleV1betaDescribeBackupPolicyRequest(args [3]string, argsEsc
 	}
 
 	if err := encodeV1betaDescribeBackupPolicyResponse(response, w, span); err != nil {
+		defer recordError("EncodeResponse", err)
+		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+		}
+		return
+	}
+}
+
+// handleV1betaDescribeBackupVaultRequest handles v1beta_describeBackupVault operation.
+//
+// Returns the description of the specified backup vault.
+//
+// GET /v1beta/projects/{projectNumber}/locations/{locationId}/backupVaults/{backupVaultId}
+func (s *Server) handleV1betaDescribeBackupVaultRequest(args [3]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
+	statusWriter := &codeRecorder{ResponseWriter: w}
+	w = statusWriter
+	otelAttrs := []attribute.KeyValue{
+		otelogen.OperationID("v1beta_describeBackupVault"),
+		semconv.HTTPRequestMethodKey.String("GET"),
+		semconv.HTTPRouteKey.String("/v1beta/projects/{projectNumber}/locations/{locationId}/backupVaults/{backupVaultId}"),
+	}
+
+	// Start a span for this request.
+	ctx, span := s.cfg.Tracer.Start(r.Context(), V1betaDescribeBackupVaultOperation,
+		trace.WithAttributes(otelAttrs...),
+		serverSpanKind,
+	)
+	defer span.End()
+
+	// Add Labeler to context.
+	labeler := &Labeler{attrs: otelAttrs}
+	ctx = contextWithLabeler(ctx, labeler)
+
+	// Run stopwatch.
+	startTime := time.Now()
+	defer func() {
+		elapsedDuration := time.Since(startTime)
+
+		attrSet := labeler.AttributeSet()
+		attrs := attrSet.ToSlice()
+		code := statusWriter.status
+		if code != 0 {
+			codeAttr := semconv.HTTPResponseStatusCode(code)
+			attrs = append(attrs, codeAttr)
+			span.SetAttributes(codeAttr)
+		}
+		attrOpt := metric.WithAttributes(attrs...)
+
+		// Increment request counter.
+		s.requests.Add(ctx, 1, attrOpt)
+
+		// Use floating point division here for higher precision (instead of Millisecond method).
+		s.duration.Record(ctx, float64(elapsedDuration)/float64(time.Millisecond), attrOpt)
+	}()
+
+	var (
+		recordError = func(stage string, err error) {
+			span.RecordError(err)
+
+			// https://opentelemetry.io/docs/specs/semconv/http/http-spans/#status
+			// Span Status MUST be left unset if HTTP status code was in the 1xx, 2xx or 3xx ranges,
+			// unless there was another error (e.g., network error receiving the response body; or 3xx codes with
+			// max redirects exceeded), in which case status MUST be set to Error.
+			code := statusWriter.status
+			if code >= 100 && code < 500 {
+				span.SetStatus(codes.Error, stage)
+			}
+
+			attrSet := labeler.AttributeSet()
+			attrs := attrSet.ToSlice()
+			if code != 0 {
+				attrs = append(attrs, semconv.HTTPResponseStatusCode(code))
+			}
+
+			s.errors.Add(ctx, 1, metric.WithAttributes(attrs...))
+		}
+		err          error
+		opErrContext = ogenerrors.OperationContext{
+			Name: V1betaDescribeBackupVaultOperation,
+			ID:   "v1beta_describeBackupVault",
+		}
+	)
+	params, err := decodeV1betaDescribeBackupVaultParams(args, argsEscaped, r)
+	if err != nil {
+		err = &ogenerrors.DecodeParamsError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeParams", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	var response V1betaDescribeBackupVaultRes
+	if m := s.cfg.Middleware; m != nil {
+		mreq := middleware.Request{
+			Context:          ctx,
+			OperationName:    V1betaDescribeBackupVaultOperation,
+			OperationSummary: "Describe a backup vault",
+			OperationID:      "v1beta_describeBackupVault",
+			Body:             nil,
+			Params: middleware.Parameters{
+				{
+					Name: "includeDeleted",
+					In:   "query",
+				}: params.IncludeDeleted,
+				{
+					Name: "backupVaultId",
+					In:   "path",
+				}: params.BackupVaultId,
+				{
+					Name: "projectNumber",
+					In:   "path",
+				}: params.ProjectNumber,
+				{
+					Name: "locationId",
+					In:   "path",
+				}: params.LocationId,
+				{
+					Name: "x-correlation-id",
+					In:   "header",
+				}: params.XCorrelationID,
+			},
+			Raw: r,
+		}
+
+		type (
+			Request  = struct{}
+			Params   = V1betaDescribeBackupVaultParams
+			Response = V1betaDescribeBackupVaultRes
+		)
+		response, err = middleware.HookMiddleware[
+			Request,
+			Params,
+			Response,
+		](
+			m,
+			mreq,
+			unpackV1betaDescribeBackupVaultParams,
+			func(ctx context.Context, request Request, params Params) (response Response, err error) {
+				response, err = s.h.V1betaDescribeBackupVault(ctx, params)
+				return response, err
+			},
+		)
+	} else {
+		response, err = s.h.V1betaDescribeBackupVault(ctx, params)
+	}
+	if err != nil {
+		if errRes, ok := errors.Into[*ErrorStatusCode](err); ok {
+			if err := encodeErrorResponse(errRes, w, span); err != nil {
+				defer recordError("Internal", err)
+			}
+			return
+		}
+		if errors.Is(err, ht.ErrNotImplemented) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+			return
+		}
+		if err := encodeErrorResponse(s.h.NewError(ctx, err), w, span); err != nil {
+			defer recordError("Internal", err)
+		}
+		return
+	}
+
+	if err := encodeV1betaDescribeBackupVaultResponse(response, w, span); err != nil {
 		defer recordError("EncodeResponse", err)
 		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
 			s.cfg.ErrorHandler(ctx, w, r, err)
@@ -3328,6 +4322,178 @@ func (s *Server) handleV1betaDescribeVolumeRequest(args [3]string, argsEscaped b
 	}
 }
 
+// handleV1betaGetMultipleActiveDirectoriesRequest handles v1beta_getMultipleActiveDirectories operation.
+//
+// Returns descriptions of Active Directory credentials that is listed in request body.
+//
+// POST /v1beta/projects/{projectNumber}/locations/{locationId}/getMultipleActiveDirectories
+func (s *Server) handleV1betaGetMultipleActiveDirectoriesRequest(args [2]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
+	statusWriter := &codeRecorder{ResponseWriter: w}
+	w = statusWriter
+	otelAttrs := []attribute.KeyValue{
+		otelogen.OperationID("v1beta_getMultipleActiveDirectories"),
+		semconv.HTTPRequestMethodKey.String("POST"),
+		semconv.HTTPRouteKey.String("/v1beta/projects/{projectNumber}/locations/{locationId}/getMultipleActiveDirectories"),
+	}
+
+	// Start a span for this request.
+	ctx, span := s.cfg.Tracer.Start(r.Context(), V1betaGetMultipleActiveDirectoriesOperation,
+		trace.WithAttributes(otelAttrs...),
+		serverSpanKind,
+	)
+	defer span.End()
+
+	// Add Labeler to context.
+	labeler := &Labeler{attrs: otelAttrs}
+	ctx = contextWithLabeler(ctx, labeler)
+
+	// Run stopwatch.
+	startTime := time.Now()
+	defer func() {
+		elapsedDuration := time.Since(startTime)
+
+		attrSet := labeler.AttributeSet()
+		attrs := attrSet.ToSlice()
+		code := statusWriter.status
+		if code != 0 {
+			codeAttr := semconv.HTTPResponseStatusCode(code)
+			attrs = append(attrs, codeAttr)
+			span.SetAttributes(codeAttr)
+		}
+		attrOpt := metric.WithAttributes(attrs...)
+
+		// Increment request counter.
+		s.requests.Add(ctx, 1, attrOpt)
+
+		// Use floating point division here for higher precision (instead of Millisecond method).
+		s.duration.Record(ctx, float64(elapsedDuration)/float64(time.Millisecond), attrOpt)
+	}()
+
+	var (
+		recordError = func(stage string, err error) {
+			span.RecordError(err)
+
+			// https://opentelemetry.io/docs/specs/semconv/http/http-spans/#status
+			// Span Status MUST be left unset if HTTP status code was in the 1xx, 2xx or 3xx ranges,
+			// unless there was another error (e.g., network error receiving the response body; or 3xx codes with
+			// max redirects exceeded), in which case status MUST be set to Error.
+			code := statusWriter.status
+			if code >= 100 && code < 500 {
+				span.SetStatus(codes.Error, stage)
+			}
+
+			attrSet := labeler.AttributeSet()
+			attrs := attrSet.ToSlice()
+			if code != 0 {
+				attrs = append(attrs, semconv.HTTPResponseStatusCode(code))
+			}
+
+			s.errors.Add(ctx, 1, metric.WithAttributes(attrs...))
+		}
+		err          error
+		opErrContext = ogenerrors.OperationContext{
+			Name: V1betaGetMultipleActiveDirectoriesOperation,
+			ID:   "v1beta_getMultipleActiveDirectories",
+		}
+	)
+	params, err := decodeV1betaGetMultipleActiveDirectoriesParams(args, argsEscaped, r)
+	if err != nil {
+		err = &ogenerrors.DecodeParamsError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeParams", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+	request, close, err := s.decodeV1betaGetMultipleActiveDirectoriesRequest(r)
+	if err != nil {
+		err = &ogenerrors.DecodeRequestError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeRequest", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+	defer func() {
+		if err := close(); err != nil {
+			recordError("CloseRequest", err)
+		}
+	}()
+
+	var response V1betaGetMultipleActiveDirectoriesRes
+	if m := s.cfg.Middleware; m != nil {
+		mreq := middleware.Request{
+			Context:          ctx,
+			OperationName:    V1betaGetMultipleActiveDirectoriesOperation,
+			OperationSummary: "List specified Active Directories' credentials",
+			OperationID:      "v1beta_getMultipleActiveDirectories",
+			Body:             request,
+			Params: middleware.Parameters{
+				{
+					Name: "projectNumber",
+					In:   "path",
+				}: params.ProjectNumber,
+				{
+					Name: "locationId",
+					In:   "path",
+				}: params.LocationId,
+				{
+					Name: "x-correlation-id",
+					In:   "header",
+				}: params.XCorrelationID,
+			},
+			Raw: r,
+		}
+
+		type (
+			Request  = *ActiveDirectoryIDListV1beta
+			Params   = V1betaGetMultipleActiveDirectoriesParams
+			Response = V1betaGetMultipleActiveDirectoriesRes
+		)
+		response, err = middleware.HookMiddleware[
+			Request,
+			Params,
+			Response,
+		](
+			m,
+			mreq,
+			unpackV1betaGetMultipleActiveDirectoriesParams,
+			func(ctx context.Context, request Request, params Params) (response Response, err error) {
+				response, err = s.h.V1betaGetMultipleActiveDirectories(ctx, request, params)
+				return response, err
+			},
+		)
+	} else {
+		response, err = s.h.V1betaGetMultipleActiveDirectories(ctx, request, params)
+	}
+	if err != nil {
+		if errRes, ok := errors.Into[*ErrorStatusCode](err); ok {
+			if err := encodeErrorResponse(errRes, w, span); err != nil {
+				defer recordError("Internal", err)
+			}
+			return
+		}
+		if errors.Is(err, ht.ErrNotImplemented) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+			return
+		}
+		if err := encodeErrorResponse(s.h.NewError(ctx, err), w, span); err != nil {
+			defer recordError("Internal", err)
+		}
+		return
+	}
+
+	if err := encodeV1betaGetMultipleActiveDirectoriesResponse(response, w, span); err != nil {
+		defer recordError("EncodeResponse", err)
+		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+		}
+		return
+	}
+}
+
 // handleV1betaGetMultipleBackupPoliciesRequest handles v1beta_getMultipleBackupPolicies operation.
 //
 // Returns descriptions of backup policies that is listed in request body.
@@ -3492,6 +4658,178 @@ func (s *Server) handleV1betaGetMultipleBackupPoliciesRequest(args [2]string, ar
 	}
 
 	if err := encodeV1betaGetMultipleBackupPoliciesResponse(response, w, span); err != nil {
+		defer recordError("EncodeResponse", err)
+		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+		}
+		return
+	}
+}
+
+// handleV1betaGetMultipleBackupVaultsRequest handles v1beta_getMultipleBackupVaults operation.
+//
+// Returns descriptions of backup vaults that is listed in request body.
+//
+// POST /v1beta/projects/{projectNumber}/locations/{locationId}/getMultipleBackupVaults
+func (s *Server) handleV1betaGetMultipleBackupVaultsRequest(args [2]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
+	statusWriter := &codeRecorder{ResponseWriter: w}
+	w = statusWriter
+	otelAttrs := []attribute.KeyValue{
+		otelogen.OperationID("v1beta_getMultipleBackupVaults"),
+		semconv.HTTPRequestMethodKey.String("POST"),
+		semconv.HTTPRouteKey.String("/v1beta/projects/{projectNumber}/locations/{locationId}/getMultipleBackupVaults"),
+	}
+
+	// Start a span for this request.
+	ctx, span := s.cfg.Tracer.Start(r.Context(), V1betaGetMultipleBackupVaultsOperation,
+		trace.WithAttributes(otelAttrs...),
+		serverSpanKind,
+	)
+	defer span.End()
+
+	// Add Labeler to context.
+	labeler := &Labeler{attrs: otelAttrs}
+	ctx = contextWithLabeler(ctx, labeler)
+
+	// Run stopwatch.
+	startTime := time.Now()
+	defer func() {
+		elapsedDuration := time.Since(startTime)
+
+		attrSet := labeler.AttributeSet()
+		attrs := attrSet.ToSlice()
+		code := statusWriter.status
+		if code != 0 {
+			codeAttr := semconv.HTTPResponseStatusCode(code)
+			attrs = append(attrs, codeAttr)
+			span.SetAttributes(codeAttr)
+		}
+		attrOpt := metric.WithAttributes(attrs...)
+
+		// Increment request counter.
+		s.requests.Add(ctx, 1, attrOpt)
+
+		// Use floating point division here for higher precision (instead of Millisecond method).
+		s.duration.Record(ctx, float64(elapsedDuration)/float64(time.Millisecond), attrOpt)
+	}()
+
+	var (
+		recordError = func(stage string, err error) {
+			span.RecordError(err)
+
+			// https://opentelemetry.io/docs/specs/semconv/http/http-spans/#status
+			// Span Status MUST be left unset if HTTP status code was in the 1xx, 2xx or 3xx ranges,
+			// unless there was another error (e.g., network error receiving the response body; or 3xx codes with
+			// max redirects exceeded), in which case status MUST be set to Error.
+			code := statusWriter.status
+			if code >= 100 && code < 500 {
+				span.SetStatus(codes.Error, stage)
+			}
+
+			attrSet := labeler.AttributeSet()
+			attrs := attrSet.ToSlice()
+			if code != 0 {
+				attrs = append(attrs, semconv.HTTPResponseStatusCode(code))
+			}
+
+			s.errors.Add(ctx, 1, metric.WithAttributes(attrs...))
+		}
+		err          error
+		opErrContext = ogenerrors.OperationContext{
+			Name: V1betaGetMultipleBackupVaultsOperation,
+			ID:   "v1beta_getMultipleBackupVaults",
+		}
+	)
+	params, err := decodeV1betaGetMultipleBackupVaultsParams(args, argsEscaped, r)
+	if err != nil {
+		err = &ogenerrors.DecodeParamsError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeParams", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+	request, close, err := s.decodeV1betaGetMultipleBackupVaultsRequest(r)
+	if err != nil {
+		err = &ogenerrors.DecodeRequestError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeRequest", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+	defer func() {
+		if err := close(); err != nil {
+			recordError("CloseRequest", err)
+		}
+	}()
+
+	var response V1betaGetMultipleBackupVaultsRes
+	if m := s.cfg.Middleware; m != nil {
+		mreq := middleware.Request{
+			Context:          ctx,
+			OperationName:    V1betaGetMultipleBackupVaultsOperation,
+			OperationSummary: "List specified backup vaults",
+			OperationID:      "v1beta_getMultipleBackupVaults",
+			Body:             request,
+			Params: middleware.Parameters{
+				{
+					Name: "projectNumber",
+					In:   "path",
+				}: params.ProjectNumber,
+				{
+					Name: "locationId",
+					In:   "path",
+				}: params.LocationId,
+				{
+					Name: "x-correlation-id",
+					In:   "header",
+				}: params.XCorrelationID,
+			},
+			Raw: r,
+		}
+
+		type (
+			Request  = *BackupVaultUUIDListV1beta
+			Params   = V1betaGetMultipleBackupVaultsParams
+			Response = V1betaGetMultipleBackupVaultsRes
+		)
+		response, err = middleware.HookMiddleware[
+			Request,
+			Params,
+			Response,
+		](
+			m,
+			mreq,
+			unpackV1betaGetMultipleBackupVaultsParams,
+			func(ctx context.Context, request Request, params Params) (response Response, err error) {
+				response, err = s.h.V1betaGetMultipleBackupVaults(ctx, request, params)
+				return response, err
+			},
+		)
+	} else {
+		response, err = s.h.V1betaGetMultipleBackupVaults(ctx, request, params)
+	}
+	if err != nil {
+		if errRes, ok := errors.Into[*ErrorStatusCode](err); ok {
+			if err := encodeErrorResponse(errRes, w, span); err != nil {
+				defer recordError("Internal", err)
+			}
+			return
+		}
+		if errors.Is(err, ht.ErrNotImplemented) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+			return
+		}
+		if err := encodeErrorResponse(s.h.NewError(ctx, err), w, span); err != nil {
+			defer recordError("Internal", err)
+		}
+		return
+	}
+
+	if err := encodeV1betaGetMultipleBackupVaultsResponse(response, w, span); err != nil {
 		defer recordError("EncodeResponse", err)
 		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
 			s.cfg.ErrorHandler(ctx, w, r, err)
@@ -5885,6 +7223,163 @@ func (s *Server) handleV1betaInternalUpdateVolumeReplicationRequest(args [3]stri
 	}
 }
 
+// handleV1betaListActiveDirectoriesRequest handles v1beta_listActiveDirectories operation.
+//
+// Returns descriptions of all Active Directory credentials owned by the caller.
+//
+// GET /v1beta/projects/{projectNumber}/locations/{locationId}/activeDirectories
+func (s *Server) handleV1betaListActiveDirectoriesRequest(args [2]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
+	statusWriter := &codeRecorder{ResponseWriter: w}
+	w = statusWriter
+	otelAttrs := []attribute.KeyValue{
+		otelogen.OperationID("v1beta_listActiveDirectories"),
+		semconv.HTTPRequestMethodKey.String("GET"),
+		semconv.HTTPRouteKey.String("/v1beta/projects/{projectNumber}/locations/{locationId}/activeDirectories"),
+	}
+
+	// Start a span for this request.
+	ctx, span := s.cfg.Tracer.Start(r.Context(), V1betaListActiveDirectoriesOperation,
+		trace.WithAttributes(otelAttrs...),
+		serverSpanKind,
+	)
+	defer span.End()
+
+	// Add Labeler to context.
+	labeler := &Labeler{attrs: otelAttrs}
+	ctx = contextWithLabeler(ctx, labeler)
+
+	// Run stopwatch.
+	startTime := time.Now()
+	defer func() {
+		elapsedDuration := time.Since(startTime)
+
+		attrSet := labeler.AttributeSet()
+		attrs := attrSet.ToSlice()
+		code := statusWriter.status
+		if code != 0 {
+			codeAttr := semconv.HTTPResponseStatusCode(code)
+			attrs = append(attrs, codeAttr)
+			span.SetAttributes(codeAttr)
+		}
+		attrOpt := metric.WithAttributes(attrs...)
+
+		// Increment request counter.
+		s.requests.Add(ctx, 1, attrOpt)
+
+		// Use floating point division here for higher precision (instead of Millisecond method).
+		s.duration.Record(ctx, float64(elapsedDuration)/float64(time.Millisecond), attrOpt)
+	}()
+
+	var (
+		recordError = func(stage string, err error) {
+			span.RecordError(err)
+
+			// https://opentelemetry.io/docs/specs/semconv/http/http-spans/#status
+			// Span Status MUST be left unset if HTTP status code was in the 1xx, 2xx or 3xx ranges,
+			// unless there was another error (e.g., network error receiving the response body; or 3xx codes with
+			// max redirects exceeded), in which case status MUST be set to Error.
+			code := statusWriter.status
+			if code >= 100 && code < 500 {
+				span.SetStatus(codes.Error, stage)
+			}
+
+			attrSet := labeler.AttributeSet()
+			attrs := attrSet.ToSlice()
+			if code != 0 {
+				attrs = append(attrs, semconv.HTTPResponseStatusCode(code))
+			}
+
+			s.errors.Add(ctx, 1, metric.WithAttributes(attrs...))
+		}
+		err          error
+		opErrContext = ogenerrors.OperationContext{
+			Name: V1betaListActiveDirectoriesOperation,
+			ID:   "v1beta_listActiveDirectories",
+		}
+	)
+	params, err := decodeV1betaListActiveDirectoriesParams(args, argsEscaped, r)
+	if err != nil {
+		err = &ogenerrors.DecodeParamsError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeParams", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	var response V1betaListActiveDirectoriesRes
+	if m := s.cfg.Middleware; m != nil {
+		mreq := middleware.Request{
+			Context:          ctx,
+			OperationName:    V1betaListActiveDirectoriesOperation,
+			OperationSummary: "List all Active Directory credentials",
+			OperationID:      "v1beta_listActiveDirectories",
+			Body:             nil,
+			Params: middleware.Parameters{
+				{
+					Name: "projectNumber",
+					In:   "path",
+				}: params.ProjectNumber,
+				{
+					Name: "locationId",
+					In:   "path",
+				}: params.LocationId,
+				{
+					Name: "x-correlation-id",
+					In:   "header",
+				}: params.XCorrelationID,
+			},
+			Raw: r,
+		}
+
+		type (
+			Request  = struct{}
+			Params   = V1betaListActiveDirectoriesParams
+			Response = V1betaListActiveDirectoriesRes
+		)
+		response, err = middleware.HookMiddleware[
+			Request,
+			Params,
+			Response,
+		](
+			m,
+			mreq,
+			unpackV1betaListActiveDirectoriesParams,
+			func(ctx context.Context, request Request, params Params) (response Response, err error) {
+				response, err = s.h.V1betaListActiveDirectories(ctx, params)
+				return response, err
+			},
+		)
+	} else {
+		response, err = s.h.V1betaListActiveDirectories(ctx, params)
+	}
+	if err != nil {
+		if errRes, ok := errors.Into[*ErrorStatusCode](err); ok {
+			if err := encodeErrorResponse(errRes, w, span); err != nil {
+				defer recordError("Internal", err)
+			}
+			return
+		}
+		if errors.Is(err, ht.ErrNotImplemented) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+			return
+		}
+		if err := encodeErrorResponse(s.h.NewError(ctx, err), w, span); err != nil {
+			defer recordError("Internal", err)
+		}
+		return
+	}
+
+	if err := encodeV1betaListActiveDirectoriesResponse(response, w, span); err != nil {
+		defer recordError("EncodeResponse", err)
+		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+		}
+		return
+	}
+}
+
 // handleV1betaListBackupPoliciesRequest handles v1beta_listBackupPolicies operation.
 //
 // Returns list of all available backup policies.
@@ -6034,6 +7529,167 @@ func (s *Server) handleV1betaListBackupPoliciesRequest(args [2]string, argsEscap
 	}
 
 	if err := encodeV1betaListBackupPoliciesResponse(response, w, span); err != nil {
+		defer recordError("EncodeResponse", err)
+		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+		}
+		return
+	}
+}
+
+// handleV1betaListBackupVaultsRequest handles v1beta_listBackupVaults operation.
+//
+// Returns descriptions of all backup vaults.
+//
+// GET /v1beta/projects/{projectNumber}/locations/{locationId}/backupVaults
+func (s *Server) handleV1betaListBackupVaultsRequest(args [2]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
+	statusWriter := &codeRecorder{ResponseWriter: w}
+	w = statusWriter
+	otelAttrs := []attribute.KeyValue{
+		otelogen.OperationID("v1beta_listBackupVaults"),
+		semconv.HTTPRequestMethodKey.String("GET"),
+		semconv.HTTPRouteKey.String("/v1beta/projects/{projectNumber}/locations/{locationId}/backupVaults"),
+	}
+
+	// Start a span for this request.
+	ctx, span := s.cfg.Tracer.Start(r.Context(), V1betaListBackupVaultsOperation,
+		trace.WithAttributes(otelAttrs...),
+		serverSpanKind,
+	)
+	defer span.End()
+
+	// Add Labeler to context.
+	labeler := &Labeler{attrs: otelAttrs}
+	ctx = contextWithLabeler(ctx, labeler)
+
+	// Run stopwatch.
+	startTime := time.Now()
+	defer func() {
+		elapsedDuration := time.Since(startTime)
+
+		attrSet := labeler.AttributeSet()
+		attrs := attrSet.ToSlice()
+		code := statusWriter.status
+		if code != 0 {
+			codeAttr := semconv.HTTPResponseStatusCode(code)
+			attrs = append(attrs, codeAttr)
+			span.SetAttributes(codeAttr)
+		}
+		attrOpt := metric.WithAttributes(attrs...)
+
+		// Increment request counter.
+		s.requests.Add(ctx, 1, attrOpt)
+
+		// Use floating point division here for higher precision (instead of Millisecond method).
+		s.duration.Record(ctx, float64(elapsedDuration)/float64(time.Millisecond), attrOpt)
+	}()
+
+	var (
+		recordError = func(stage string, err error) {
+			span.RecordError(err)
+
+			// https://opentelemetry.io/docs/specs/semconv/http/http-spans/#status
+			// Span Status MUST be left unset if HTTP status code was in the 1xx, 2xx or 3xx ranges,
+			// unless there was another error (e.g., network error receiving the response body; or 3xx codes with
+			// max redirects exceeded), in which case status MUST be set to Error.
+			code := statusWriter.status
+			if code >= 100 && code < 500 {
+				span.SetStatus(codes.Error, stage)
+			}
+
+			attrSet := labeler.AttributeSet()
+			attrs := attrSet.ToSlice()
+			if code != 0 {
+				attrs = append(attrs, semconv.HTTPResponseStatusCode(code))
+			}
+
+			s.errors.Add(ctx, 1, metric.WithAttributes(attrs...))
+		}
+		err          error
+		opErrContext = ogenerrors.OperationContext{
+			Name: V1betaListBackupVaultsOperation,
+			ID:   "v1beta_listBackupVaults",
+		}
+	)
+	params, err := decodeV1betaListBackupVaultsParams(args, argsEscaped, r)
+	if err != nil {
+		err = &ogenerrors.DecodeParamsError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeParams", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	var response V1betaListBackupVaultsRes
+	if m := s.cfg.Middleware; m != nil {
+		mreq := middleware.Request{
+			Context:          ctx,
+			OperationName:    V1betaListBackupVaultsOperation,
+			OperationSummary: "Describe all backup vaults for a project",
+			OperationID:      "v1beta_listBackupVaults",
+			Body:             nil,
+			Params: middleware.Parameters{
+				{
+					Name: "includeDeleted",
+					In:   "query",
+				}: params.IncludeDeleted,
+				{
+					Name: "projectNumber",
+					In:   "path",
+				}: params.ProjectNumber,
+				{
+					Name: "locationId",
+					In:   "path",
+				}: params.LocationId,
+				{
+					Name: "x-correlation-id",
+					In:   "header",
+				}: params.XCorrelationID,
+			},
+			Raw: r,
+		}
+
+		type (
+			Request  = struct{}
+			Params   = V1betaListBackupVaultsParams
+			Response = V1betaListBackupVaultsRes
+		)
+		response, err = middleware.HookMiddleware[
+			Request,
+			Params,
+			Response,
+		](
+			m,
+			mreq,
+			unpackV1betaListBackupVaultsParams,
+			func(ctx context.Context, request Request, params Params) (response Response, err error) {
+				response, err = s.h.V1betaListBackupVaults(ctx, params)
+				return response, err
+			},
+		)
+	} else {
+		response, err = s.h.V1betaListBackupVaults(ctx, params)
+	}
+	if err != nil {
+		if errRes, ok := errors.Into[*ErrorStatusCode](err); ok {
+			if err := encodeErrorResponse(errRes, w, span); err != nil {
+				defer recordError("Internal", err)
+			}
+			return
+		}
+		if errors.Is(err, ht.ErrNotImplemented) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+			return
+		}
+		if err := encodeErrorResponse(s.h.NewError(ctx, err), w, span); err != nil {
+			defer recordError("Internal", err)
+		}
+		return
+	}
+
+	if err := encodeV1betaListBackupVaultsResponse(response, w, span); err != nil {
 		defer recordError("EncodeResponse", err)
 		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
 			s.cfg.ErrorHandler(ctx, w, r, err)
@@ -7522,6 +9178,182 @@ func (s *Server) handleV1betaSyncReplicationRequest(args [4]string, argsEscaped 
 	}
 }
 
+// handleV1betaUpdateActiveDirectoryRequest handles v1beta_updateActiveDirectory operation.
+//
+// Update the Active Directory credentials.
+//
+// PUT /v1beta/projects/{projectNumber}/locations/{locationId}/activeDirectories/{activeDirectoryId}
+func (s *Server) handleV1betaUpdateActiveDirectoryRequest(args [3]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
+	statusWriter := &codeRecorder{ResponseWriter: w}
+	w = statusWriter
+	otelAttrs := []attribute.KeyValue{
+		otelogen.OperationID("v1beta_updateActiveDirectory"),
+		semconv.HTTPRequestMethodKey.String("PUT"),
+		semconv.HTTPRouteKey.String("/v1beta/projects/{projectNumber}/locations/{locationId}/activeDirectories/{activeDirectoryId}"),
+	}
+
+	// Start a span for this request.
+	ctx, span := s.cfg.Tracer.Start(r.Context(), V1betaUpdateActiveDirectoryOperation,
+		trace.WithAttributes(otelAttrs...),
+		serverSpanKind,
+	)
+	defer span.End()
+
+	// Add Labeler to context.
+	labeler := &Labeler{attrs: otelAttrs}
+	ctx = contextWithLabeler(ctx, labeler)
+
+	// Run stopwatch.
+	startTime := time.Now()
+	defer func() {
+		elapsedDuration := time.Since(startTime)
+
+		attrSet := labeler.AttributeSet()
+		attrs := attrSet.ToSlice()
+		code := statusWriter.status
+		if code != 0 {
+			codeAttr := semconv.HTTPResponseStatusCode(code)
+			attrs = append(attrs, codeAttr)
+			span.SetAttributes(codeAttr)
+		}
+		attrOpt := metric.WithAttributes(attrs...)
+
+		// Increment request counter.
+		s.requests.Add(ctx, 1, attrOpt)
+
+		// Use floating point division here for higher precision (instead of Millisecond method).
+		s.duration.Record(ctx, float64(elapsedDuration)/float64(time.Millisecond), attrOpt)
+	}()
+
+	var (
+		recordError = func(stage string, err error) {
+			span.RecordError(err)
+
+			// https://opentelemetry.io/docs/specs/semconv/http/http-spans/#status
+			// Span Status MUST be left unset if HTTP status code was in the 1xx, 2xx or 3xx ranges,
+			// unless there was another error (e.g., network error receiving the response body; or 3xx codes with
+			// max redirects exceeded), in which case status MUST be set to Error.
+			code := statusWriter.status
+			if code >= 100 && code < 500 {
+				span.SetStatus(codes.Error, stage)
+			}
+
+			attrSet := labeler.AttributeSet()
+			attrs := attrSet.ToSlice()
+			if code != 0 {
+				attrs = append(attrs, semconv.HTTPResponseStatusCode(code))
+			}
+
+			s.errors.Add(ctx, 1, metric.WithAttributes(attrs...))
+		}
+		err          error
+		opErrContext = ogenerrors.OperationContext{
+			Name: V1betaUpdateActiveDirectoryOperation,
+			ID:   "v1beta_updateActiveDirectory",
+		}
+	)
+	params, err := decodeV1betaUpdateActiveDirectoryParams(args, argsEscaped, r)
+	if err != nil {
+		err = &ogenerrors.DecodeParamsError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeParams", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+	request, close, err := s.decodeV1betaUpdateActiveDirectoryRequest(r)
+	if err != nil {
+		err = &ogenerrors.DecodeRequestError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeRequest", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+	defer func() {
+		if err := close(); err != nil {
+			recordError("CloseRequest", err)
+		}
+	}()
+
+	var response V1betaUpdateActiveDirectoryRes
+	if m := s.cfg.Middleware; m != nil {
+		mreq := middleware.Request{
+			Context:          ctx,
+			OperationName:    V1betaUpdateActiveDirectoryOperation,
+			OperationSummary: "Update Active Directory credentials",
+			OperationID:      "v1beta_updateActiveDirectory",
+			Body:             request,
+			Params: middleware.Parameters{
+				{
+					Name: "projectNumber",
+					In:   "path",
+				}: params.ProjectNumber,
+				{
+					Name: "locationId",
+					In:   "path",
+				}: params.LocationId,
+				{
+					Name: "x-correlation-id",
+					In:   "header",
+				}: params.XCorrelationID,
+				{
+					Name: "activeDirectoryId",
+					In:   "path",
+				}: params.ActiveDirectoryId,
+			},
+			Raw: r,
+		}
+
+		type (
+			Request  = *ActiveDirectoryUpdateV1beta
+			Params   = V1betaUpdateActiveDirectoryParams
+			Response = V1betaUpdateActiveDirectoryRes
+		)
+		response, err = middleware.HookMiddleware[
+			Request,
+			Params,
+			Response,
+		](
+			m,
+			mreq,
+			unpackV1betaUpdateActiveDirectoryParams,
+			func(ctx context.Context, request Request, params Params) (response Response, err error) {
+				response, err = s.h.V1betaUpdateActiveDirectory(ctx, request, params)
+				return response, err
+			},
+		)
+	} else {
+		response, err = s.h.V1betaUpdateActiveDirectory(ctx, request, params)
+	}
+	if err != nil {
+		if errRes, ok := errors.Into[*ErrorStatusCode](err); ok {
+			if err := encodeErrorResponse(errRes, w, span); err != nil {
+				defer recordError("Internal", err)
+			}
+			return
+		}
+		if errors.Is(err, ht.ErrNotImplemented) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+			return
+		}
+		if err := encodeErrorResponse(s.h.NewError(ctx, err), w, span); err != nil {
+			defer recordError("Internal", err)
+		}
+		return
+	}
+
+	if err := encodeV1betaUpdateActiveDirectoryResponse(response, w, span); err != nil {
+		defer recordError("EncodeResponse", err)
+		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+		}
+		return
+	}
+}
+
 // handleV1betaUpdateBackupPolicyRequest handles v1beta_updateBackupPolicy operation.
 //
 // Update the backup policy.
@@ -7690,6 +9522,182 @@ func (s *Server) handleV1betaUpdateBackupPolicyRequest(args [3]string, argsEscap
 	}
 
 	if err := encodeV1betaUpdateBackupPolicyResponse(response, w, span); err != nil {
+		defer recordError("EncodeResponse", err)
+		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+		}
+		return
+	}
+}
+
+// handleV1betaUpdateBackupVaultRequest handles v1beta_updateBackupVault operation.
+//
+// Update the backup vault.
+//
+// PUT /v1beta/projects/{projectNumber}/locations/{locationId}/backupVaults/{backupVaultId}
+func (s *Server) handleV1betaUpdateBackupVaultRequest(args [3]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
+	statusWriter := &codeRecorder{ResponseWriter: w}
+	w = statusWriter
+	otelAttrs := []attribute.KeyValue{
+		otelogen.OperationID("v1beta_updateBackupVault"),
+		semconv.HTTPRequestMethodKey.String("PUT"),
+		semconv.HTTPRouteKey.String("/v1beta/projects/{projectNumber}/locations/{locationId}/backupVaults/{backupVaultId}"),
+	}
+
+	// Start a span for this request.
+	ctx, span := s.cfg.Tracer.Start(r.Context(), V1betaUpdateBackupVaultOperation,
+		trace.WithAttributes(otelAttrs...),
+		serverSpanKind,
+	)
+	defer span.End()
+
+	// Add Labeler to context.
+	labeler := &Labeler{attrs: otelAttrs}
+	ctx = contextWithLabeler(ctx, labeler)
+
+	// Run stopwatch.
+	startTime := time.Now()
+	defer func() {
+		elapsedDuration := time.Since(startTime)
+
+		attrSet := labeler.AttributeSet()
+		attrs := attrSet.ToSlice()
+		code := statusWriter.status
+		if code != 0 {
+			codeAttr := semconv.HTTPResponseStatusCode(code)
+			attrs = append(attrs, codeAttr)
+			span.SetAttributes(codeAttr)
+		}
+		attrOpt := metric.WithAttributes(attrs...)
+
+		// Increment request counter.
+		s.requests.Add(ctx, 1, attrOpt)
+
+		// Use floating point division here for higher precision (instead of Millisecond method).
+		s.duration.Record(ctx, float64(elapsedDuration)/float64(time.Millisecond), attrOpt)
+	}()
+
+	var (
+		recordError = func(stage string, err error) {
+			span.RecordError(err)
+
+			// https://opentelemetry.io/docs/specs/semconv/http/http-spans/#status
+			// Span Status MUST be left unset if HTTP status code was in the 1xx, 2xx or 3xx ranges,
+			// unless there was another error (e.g., network error receiving the response body; or 3xx codes with
+			// max redirects exceeded), in which case status MUST be set to Error.
+			code := statusWriter.status
+			if code >= 100 && code < 500 {
+				span.SetStatus(codes.Error, stage)
+			}
+
+			attrSet := labeler.AttributeSet()
+			attrs := attrSet.ToSlice()
+			if code != 0 {
+				attrs = append(attrs, semconv.HTTPResponseStatusCode(code))
+			}
+
+			s.errors.Add(ctx, 1, metric.WithAttributes(attrs...))
+		}
+		err          error
+		opErrContext = ogenerrors.OperationContext{
+			Name: V1betaUpdateBackupVaultOperation,
+			ID:   "v1beta_updateBackupVault",
+		}
+	)
+	params, err := decodeV1betaUpdateBackupVaultParams(args, argsEscaped, r)
+	if err != nil {
+		err = &ogenerrors.DecodeParamsError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeParams", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+	request, close, err := s.decodeV1betaUpdateBackupVaultRequest(r)
+	if err != nil {
+		err = &ogenerrors.DecodeRequestError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeRequest", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+	defer func() {
+		if err := close(); err != nil {
+			recordError("CloseRequest", err)
+		}
+	}()
+
+	var response V1betaUpdateBackupVaultRes
+	if m := s.cfg.Middleware; m != nil {
+		mreq := middleware.Request{
+			Context:          ctx,
+			OperationName:    V1betaUpdateBackupVaultOperation,
+			OperationSummary: "Update backup vault",
+			OperationID:      "v1beta_updateBackupVault",
+			Body:             request,
+			Params: middleware.Parameters{
+				{
+					Name: "backupVaultId",
+					In:   "path",
+				}: params.BackupVaultId,
+				{
+					Name: "projectNumber",
+					In:   "path",
+				}: params.ProjectNumber,
+				{
+					Name: "locationId",
+					In:   "path",
+				}: params.LocationId,
+				{
+					Name: "x-correlation-id",
+					In:   "header",
+				}: params.XCorrelationID,
+			},
+			Raw: r,
+		}
+
+		type (
+			Request  = *BackupVaultUpdateV1beta
+			Params   = V1betaUpdateBackupVaultParams
+			Response = V1betaUpdateBackupVaultRes
+		)
+		response, err = middleware.HookMiddleware[
+			Request,
+			Params,
+			Response,
+		](
+			m,
+			mreq,
+			unpackV1betaUpdateBackupVaultParams,
+			func(ctx context.Context, request Request, params Params) (response Response, err error) {
+				response, err = s.h.V1betaUpdateBackupVault(ctx, request, params)
+				return response, err
+			},
+		)
+	} else {
+		response, err = s.h.V1betaUpdateBackupVault(ctx, request, params)
+	}
+	if err != nil {
+		if errRes, ok := errors.Into[*ErrorStatusCode](err); ok {
+			if err := encodeErrorResponse(errRes, w, span); err != nil {
+				defer recordError("Internal", err)
+			}
+			return
+		}
+		if errors.Is(err, ht.ErrNotImplemented) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+			return
+		}
+		if err := encodeErrorResponse(s.h.NewError(ctx, err), w, span); err != nil {
+			defer recordError("Internal", err)
+		}
+		return
+	}
+
+	if err := encodeV1betaUpdateBackupVaultResponse(response, w, span); err != nil {
 		defer recordError("EncodeResponse", err)
 		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
 			s.cfg.ErrorHandler(ctx, w, r, err)
