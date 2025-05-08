@@ -2643,6 +2643,18 @@ func TestSimpleExportPolicyRuleV1betaHasRootAccess_Examples(t *testing.T) {
 		})
 	}
 }
+func TestSnapshotIDListV1beta_EncodeDecode(t *testing.T) {
+	var typ SnapshotIDListV1beta
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 SnapshotIDListV1beta
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
 func TestSnapshotPolicyV1beta_EncodeDecode(t *testing.T) {
 	var typ SnapshotPolicyV1beta
 	typ.SetFake()
@@ -2654,6 +2666,59 @@ func TestSnapshotPolicyV1beta_EncodeDecode(t *testing.T) {
 
 	var typ2 SnapshotPolicyV1beta
 	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestSnapshotV1beta_EncodeDecode(t *testing.T) {
+	var typ SnapshotV1beta
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 SnapshotV1beta
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestSnapshotV1betaSnapshotState_EncodeDecode(t *testing.T) {
+	var typ SnapshotV1betaSnapshotState
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 SnapshotV1betaSnapshotState
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+
+func TestSnapshotV1betaSnapshotState_Examples(t *testing.T) {
+
+	for i, tc := range []struct {
+		Input string
+	}{
+		{Input: "\"READY\""},
+	} {
+		tc := tc
+		t.Run(fmt.Sprintf("Test%d", i+1), func(t *testing.T) {
+			var typ SnapshotV1betaSnapshotState
+
+			if err := typ.Decode(jx.DecodeStr(tc.Input)); err != nil {
+				if validateErr, ok := errors.Into[*validate.Error](err); ok {
+					t.Skipf("Validation error: %v", validateErr)
+					return
+				}
+				require.NoErrorf(t, err, "Input: %s", tc.Input)
+			}
+
+			e := jx.Encoder{}
+			typ.Encode(&e)
+			require.True(t, std.Valid(e.Bytes()), "Encoded: %s", e.Bytes())
+
+			var typ2 SnapshotV1betaSnapshotState
+			require.NoError(t, typ2.Decode(jx.DecodeBytes(e.Bytes())))
+		})
+	}
 }
 func TestStatusV1Beta_EncodeDecode(t *testing.T) {
 	var typ StatusV1Beta
@@ -5569,6 +5634,102 @@ func TestV1betaGetMultipleReplicationsUnprocessableEntity_EncodeDecode(t *testin
 	require.True(t, std.Valid(data), "Encoded: %s", data)
 
 	var typ2 V1betaGetMultipleReplicationsUnprocessableEntity
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1betaGetMultipleSnapshotsBadRequest_EncodeDecode(t *testing.T) {
+	var typ V1betaGetMultipleSnapshotsBadRequest
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaGetMultipleSnapshotsBadRequest
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1betaGetMultipleSnapshotsForbidden_EncodeDecode(t *testing.T) {
+	var typ V1betaGetMultipleSnapshotsForbidden
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaGetMultipleSnapshotsForbidden
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1betaGetMultipleSnapshotsInternalServerError_EncodeDecode(t *testing.T) {
+	var typ V1betaGetMultipleSnapshotsInternalServerError
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaGetMultipleSnapshotsInternalServerError
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1betaGetMultipleSnapshotsNotFound_EncodeDecode(t *testing.T) {
+	var typ V1betaGetMultipleSnapshotsNotFound
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaGetMultipleSnapshotsNotFound
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1betaGetMultipleSnapshotsOK_EncodeDecode(t *testing.T) {
+	var typ V1betaGetMultipleSnapshotsOK
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaGetMultipleSnapshotsOK
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1betaGetMultipleSnapshotsTooManyRequests_EncodeDecode(t *testing.T) {
+	var typ V1betaGetMultipleSnapshotsTooManyRequests
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaGetMultipleSnapshotsTooManyRequests
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1betaGetMultipleSnapshotsUnauthorized_EncodeDecode(t *testing.T) {
+	var typ V1betaGetMultipleSnapshotsUnauthorized
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaGetMultipleSnapshotsUnauthorized
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1betaGetMultipleSnapshotsUnprocessableEntity_EncodeDecode(t *testing.T) {
+	var typ V1betaGetMultipleSnapshotsUnprocessableEntity
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaGetMultipleSnapshotsUnprocessableEntity
 	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
 }
 func TestV1betaGetMultipleVolumesBadRequest_EncodeDecode(t *testing.T) {

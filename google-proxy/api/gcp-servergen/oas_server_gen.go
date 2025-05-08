@@ -213,6 +213,12 @@ type Handler interface {
 	//
 	// POST /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeResourceId}/getMultipleReplications
 	V1betaGetMultipleReplications(ctx context.Context, req *ReplicationURIListV1beta, params V1betaGetMultipleReplicationsParams) (V1betaGetMultipleReplicationsRes, error)
+	// V1betaGetMultipleSnapshots implements v1beta_getMultipleSnapshots operation.
+	//
+	// Returns descriptions of snapshots that is listed in request body and belong to specified volume.
+	//
+	// POST /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeResourceId}/getMultipleSnapshots
+	V1betaGetMultipleSnapshots(ctx context.Context, req *SnapshotIDListV1beta, params V1betaGetMultipleSnapshotsParams) (V1betaGetMultipleSnapshotsRes, error)
 	// V1betaGetMultipleVolumes implements v1beta_getMultipleVolumes operation.
 	//
 	// Returns descriptions of volumes that is listed in request body.

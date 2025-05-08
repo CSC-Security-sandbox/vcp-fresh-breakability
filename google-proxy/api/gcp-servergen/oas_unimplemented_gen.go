@@ -317,6 +317,15 @@ func (UnimplementedHandler) V1betaGetMultipleReplications(ctx context.Context, r
 	return r, ht.ErrNotImplemented
 }
 
+// V1betaGetMultipleSnapshots implements v1beta_getMultipleSnapshots operation.
+//
+// Returns descriptions of snapshots that is listed in request body and belong to specified volume.
+//
+// POST /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeResourceId}/getMultipleSnapshots
+func (UnimplementedHandler) V1betaGetMultipleSnapshots(ctx context.Context, req *SnapshotIDListV1beta, params V1betaGetMultipleSnapshotsParams) (r V1betaGetMultipleSnapshotsRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
 // V1betaGetMultipleVolumes implements v1beta_getMultipleVolumes operation.
 //
 // Returns descriptions of volumes that is listed in request body.

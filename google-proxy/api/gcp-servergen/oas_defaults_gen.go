@@ -307,6 +307,18 @@ func (s *SnapshotPolicyV1beta) setDefaults() {
 }
 
 // setDefaults set default value of fields.
+func (s *SnapshotV1beta) setDefaults() {
+	{
+		val := float64(0)
+		s.UsedBytes.SetTo(val)
+	}
+	{
+		val := StorageClassV1beta("HARDWARE")
+		s.StorageClass.SetTo(val)
+	}
+}
+
+// setDefaults set default value of fields.
 func (s *TieringPolicyV1beta) setDefaults() {
 	{
 		val := int32(31)

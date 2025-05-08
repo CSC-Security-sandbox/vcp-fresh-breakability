@@ -8195,6 +8195,52 @@ func (o OptSnapshotPolicyV1beta) Or(d SnapshotPolicyV1beta) SnapshotPolicyV1beta
 	return d
 }
 
+// NewOptSnapshotV1betaSnapshotState returns new OptSnapshotV1betaSnapshotState with value set to v.
+func NewOptSnapshotV1betaSnapshotState(v SnapshotV1betaSnapshotState) OptSnapshotV1betaSnapshotState {
+	return OptSnapshotV1betaSnapshotState{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptSnapshotV1betaSnapshotState is optional SnapshotV1betaSnapshotState.
+type OptSnapshotV1betaSnapshotState struct {
+	Value SnapshotV1betaSnapshotState
+	Set   bool
+}
+
+// IsSet returns true if OptSnapshotV1betaSnapshotState was set.
+func (o OptSnapshotV1betaSnapshotState) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptSnapshotV1betaSnapshotState) Reset() {
+	var v SnapshotV1betaSnapshotState
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptSnapshotV1betaSnapshotState) SetTo(v SnapshotV1betaSnapshotState) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptSnapshotV1betaSnapshotState) Get() (v SnapshotV1betaSnapshotState, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptSnapshotV1betaSnapshotState) Or(d SnapshotV1betaSnapshotState) SnapshotV1betaSnapshotState {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
 // NewOptStatusV1Beta returns new OptStatusV1Beta with value set to v.
 func NewOptStatusV1Beta(v StatusV1Beta) OptStatusV1Beta {
 	return OptStatusV1Beta{
@@ -11906,6 +11952,21 @@ func (s *SimpleExportPolicyRuleV1betaHasRootAccess) UnmarshalText(data []byte) e
 	}
 }
 
+// Ref: #/components/schemas/SnapshotIDList_v1beta
+type SnapshotIDListV1beta struct {
+	SnapshotUUIDs []string `json:"snapshotUUIDs"`
+}
+
+// GetSnapshotUUIDs returns the value of SnapshotUUIDs.
+func (s *SnapshotIDListV1beta) GetSnapshotUUIDs() []string {
+	return s.SnapshotUUIDs
+}
+
+// SetSnapshotUUIDs sets the value of SnapshotUUIDs.
+func (s *SnapshotIDListV1beta) SetSnapshotUUIDs(val []string) {
+	s.SnapshotUUIDs = val
+}
+
 // Snapshot policy for a volume.
 // Ref: #/components/schemas/SnapshotPolicy_v1beta
 type SnapshotPolicyV1beta struct {
@@ -11965,6 +12026,219 @@ func (s *SnapshotPolicyV1beta) SetWeeklySchedule(val OptWeeklyScheduleV1beta) {
 // SetMonthlySchedule sets the value of MonthlySchedule.
 func (s *SnapshotPolicyV1beta) SetMonthlySchedule(val OptMonthlyScheduleV1beta) {
 	s.MonthlySchedule = val
+}
+
+// Ref: #/components/schemas/Snapshot_v1beta
+type SnapshotV1beta struct {
+	// A human readable label for the resource which is restricted to letters, numbers, and hyphen, with
+	// the first character a letter, the last a letter or a number, and a 63 character maximum.
+	ResourceId string `json:"resourceId"`
+	// UUID v4 of the volume.
+	VolumeId OptString `json:"volumeId"`
+	// A human readable label for the volume resource.
+	VolumeResourceId OptString `json:"volumeResourceId"`
+	// Creation date of the resource.
+	Created OptDateTime `json:"created"`
+	// UUID v4 used to identify the snapshot.
+	SnapshotId OptString `json:"snapshotId"`
+	// Current storage usage for the snapshot in bytes.
+	UsedBytes    OptFloat64            `json:"usedBytes"`
+	StorageClass OptStorageClassV1beta `json:"storageClass"`
+	// The current lifecycle state of the resource.
+	SnapshotState OptSnapshotV1betaSnapshotState `json:"snapshotState"`
+	// Details about the current lifecycle state.
+	SnapshotStateDetails OptString `json:"snapshotStateDetails"`
+	// The desired zone for the snapshot.
+	Zone OptString `json:"zone"`
+	// Description of the snapshot.
+	Description OptString `json:"description"`
+}
+
+// GetResourceId returns the value of ResourceId.
+func (s *SnapshotV1beta) GetResourceId() string {
+	return s.ResourceId
+}
+
+// GetVolumeId returns the value of VolumeId.
+func (s *SnapshotV1beta) GetVolumeId() OptString {
+	return s.VolumeId
+}
+
+// GetVolumeResourceId returns the value of VolumeResourceId.
+func (s *SnapshotV1beta) GetVolumeResourceId() OptString {
+	return s.VolumeResourceId
+}
+
+// GetCreated returns the value of Created.
+func (s *SnapshotV1beta) GetCreated() OptDateTime {
+	return s.Created
+}
+
+// GetSnapshotId returns the value of SnapshotId.
+func (s *SnapshotV1beta) GetSnapshotId() OptString {
+	return s.SnapshotId
+}
+
+// GetUsedBytes returns the value of UsedBytes.
+func (s *SnapshotV1beta) GetUsedBytes() OptFloat64 {
+	return s.UsedBytes
+}
+
+// GetStorageClass returns the value of StorageClass.
+func (s *SnapshotV1beta) GetStorageClass() OptStorageClassV1beta {
+	return s.StorageClass
+}
+
+// GetSnapshotState returns the value of SnapshotState.
+func (s *SnapshotV1beta) GetSnapshotState() OptSnapshotV1betaSnapshotState {
+	return s.SnapshotState
+}
+
+// GetSnapshotStateDetails returns the value of SnapshotStateDetails.
+func (s *SnapshotV1beta) GetSnapshotStateDetails() OptString {
+	return s.SnapshotStateDetails
+}
+
+// GetZone returns the value of Zone.
+func (s *SnapshotV1beta) GetZone() OptString {
+	return s.Zone
+}
+
+// GetDescription returns the value of Description.
+func (s *SnapshotV1beta) GetDescription() OptString {
+	return s.Description
+}
+
+// SetResourceId sets the value of ResourceId.
+func (s *SnapshotV1beta) SetResourceId(val string) {
+	s.ResourceId = val
+}
+
+// SetVolumeId sets the value of VolumeId.
+func (s *SnapshotV1beta) SetVolumeId(val OptString) {
+	s.VolumeId = val
+}
+
+// SetVolumeResourceId sets the value of VolumeResourceId.
+func (s *SnapshotV1beta) SetVolumeResourceId(val OptString) {
+	s.VolumeResourceId = val
+}
+
+// SetCreated sets the value of Created.
+func (s *SnapshotV1beta) SetCreated(val OptDateTime) {
+	s.Created = val
+}
+
+// SetSnapshotId sets the value of SnapshotId.
+func (s *SnapshotV1beta) SetSnapshotId(val OptString) {
+	s.SnapshotId = val
+}
+
+// SetUsedBytes sets the value of UsedBytes.
+func (s *SnapshotV1beta) SetUsedBytes(val OptFloat64) {
+	s.UsedBytes = val
+}
+
+// SetStorageClass sets the value of StorageClass.
+func (s *SnapshotV1beta) SetStorageClass(val OptStorageClassV1beta) {
+	s.StorageClass = val
+}
+
+// SetSnapshotState sets the value of SnapshotState.
+func (s *SnapshotV1beta) SetSnapshotState(val OptSnapshotV1betaSnapshotState) {
+	s.SnapshotState = val
+}
+
+// SetSnapshotStateDetails sets the value of SnapshotStateDetails.
+func (s *SnapshotV1beta) SetSnapshotStateDetails(val OptString) {
+	s.SnapshotStateDetails = val
+}
+
+// SetZone sets the value of Zone.
+func (s *SnapshotV1beta) SetZone(val OptString) {
+	s.Zone = val
+}
+
+// SetDescription sets the value of Description.
+func (s *SnapshotV1beta) SetDescription(val OptString) {
+	s.Description = val
+}
+
+// The current lifecycle state of the resource.
+type SnapshotV1betaSnapshotState string
+
+const (
+	SnapshotV1betaSnapshotStateSTATEUNSPECIFIED SnapshotV1betaSnapshotState = "STATE_UNSPECIFIED"
+	SnapshotV1betaSnapshotStateCREATING         SnapshotV1betaSnapshotState = "CREATING"
+	SnapshotV1betaSnapshotStateREADY            SnapshotV1betaSnapshotState = "READY"
+	SnapshotV1betaSnapshotStateUPDATING         SnapshotV1betaSnapshotState = "UPDATING"
+	SnapshotV1betaSnapshotStateDISABLED         SnapshotV1betaSnapshotState = "DISABLED"
+	SnapshotV1betaSnapshotStateDELETING         SnapshotV1betaSnapshotState = "DELETING"
+	SnapshotV1betaSnapshotStateERROR            SnapshotV1betaSnapshotState = "ERROR"
+)
+
+// AllValues returns all SnapshotV1betaSnapshotState values.
+func (SnapshotV1betaSnapshotState) AllValues() []SnapshotV1betaSnapshotState {
+	return []SnapshotV1betaSnapshotState{
+		SnapshotV1betaSnapshotStateSTATEUNSPECIFIED,
+		SnapshotV1betaSnapshotStateCREATING,
+		SnapshotV1betaSnapshotStateREADY,
+		SnapshotV1betaSnapshotStateUPDATING,
+		SnapshotV1betaSnapshotStateDISABLED,
+		SnapshotV1betaSnapshotStateDELETING,
+		SnapshotV1betaSnapshotStateERROR,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s SnapshotV1betaSnapshotState) MarshalText() ([]byte, error) {
+	switch s {
+	case SnapshotV1betaSnapshotStateSTATEUNSPECIFIED:
+		return []byte(s), nil
+	case SnapshotV1betaSnapshotStateCREATING:
+		return []byte(s), nil
+	case SnapshotV1betaSnapshotStateREADY:
+		return []byte(s), nil
+	case SnapshotV1betaSnapshotStateUPDATING:
+		return []byte(s), nil
+	case SnapshotV1betaSnapshotStateDISABLED:
+		return []byte(s), nil
+	case SnapshotV1betaSnapshotStateDELETING:
+		return []byte(s), nil
+	case SnapshotV1betaSnapshotStateERROR:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *SnapshotV1betaSnapshotState) UnmarshalText(data []byte) error {
+	switch SnapshotV1betaSnapshotState(data) {
+	case SnapshotV1betaSnapshotStateSTATEUNSPECIFIED:
+		*s = SnapshotV1betaSnapshotStateSTATEUNSPECIFIED
+		return nil
+	case SnapshotV1betaSnapshotStateCREATING:
+		*s = SnapshotV1betaSnapshotStateCREATING
+		return nil
+	case SnapshotV1betaSnapshotStateREADY:
+		*s = SnapshotV1betaSnapshotStateREADY
+		return nil
+	case SnapshotV1betaSnapshotStateUPDATING:
+		*s = SnapshotV1betaSnapshotStateUPDATING
+		return nil
+	case SnapshotV1betaSnapshotStateDISABLED:
+		*s = SnapshotV1betaSnapshotStateDISABLED
+		return nil
+	case SnapshotV1betaSnapshotStateDELETING:
+		*s = SnapshotV1betaSnapshotStateDELETING
+		return nil
+	case SnapshotV1betaSnapshotStateERROR:
+		*s = SnapshotV1betaSnapshotStateERROR
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
 }
 
 // Ref: #/components/schemas/Status_v1Beta
@@ -13330,6 +13604,50 @@ func (*V1betaGetMultipleReplicationsUnauthorized) v1betaGetMultipleReplicationsR
 type V1betaGetMultipleReplicationsUnprocessableEntity Error
 
 func (*V1betaGetMultipleReplicationsUnprocessableEntity) v1betaGetMultipleReplicationsRes() {}
+
+type V1betaGetMultipleSnapshotsBadRequest Error
+
+func (*V1betaGetMultipleSnapshotsBadRequest) v1betaGetMultipleSnapshotsRes() {}
+
+type V1betaGetMultipleSnapshotsForbidden Error
+
+func (*V1betaGetMultipleSnapshotsForbidden) v1betaGetMultipleSnapshotsRes() {}
+
+type V1betaGetMultipleSnapshotsInternalServerError Error
+
+func (*V1betaGetMultipleSnapshotsInternalServerError) v1betaGetMultipleSnapshotsRes() {}
+
+type V1betaGetMultipleSnapshotsNotFound Error
+
+func (*V1betaGetMultipleSnapshotsNotFound) v1betaGetMultipleSnapshotsRes() {}
+
+type V1betaGetMultipleSnapshotsOK struct {
+	Snapshots []SnapshotV1beta `json:"snapshots"`
+}
+
+// GetSnapshots returns the value of Snapshots.
+func (s *V1betaGetMultipleSnapshotsOK) GetSnapshots() []SnapshotV1beta {
+	return s.Snapshots
+}
+
+// SetSnapshots sets the value of Snapshots.
+func (s *V1betaGetMultipleSnapshotsOK) SetSnapshots(val []SnapshotV1beta) {
+	s.Snapshots = val
+}
+
+func (*V1betaGetMultipleSnapshotsOK) v1betaGetMultipleSnapshotsRes() {}
+
+type V1betaGetMultipleSnapshotsTooManyRequests Error
+
+func (*V1betaGetMultipleSnapshotsTooManyRequests) v1betaGetMultipleSnapshotsRes() {}
+
+type V1betaGetMultipleSnapshotsUnauthorized Error
+
+func (*V1betaGetMultipleSnapshotsUnauthorized) v1betaGetMultipleSnapshotsRes() {}
+
+type V1betaGetMultipleSnapshotsUnprocessableEntity Error
+
+func (*V1betaGetMultipleSnapshotsUnprocessableEntity) v1betaGetMultipleSnapshotsRes() {}
 
 type V1betaGetMultipleVolumesBadRequest Error
 

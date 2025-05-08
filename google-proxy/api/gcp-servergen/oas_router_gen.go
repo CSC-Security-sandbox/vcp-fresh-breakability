@@ -1281,28 +1281,66 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 											break
 										}
 										switch elem[0] {
-										case 'g': // Prefix: "getMultipleReplications"
+										case 'g': // Prefix: "getMultiple"
 
-											if l := len("getMultipleReplications"); len(elem) >= l && elem[0:l] == "getMultipleReplications" {
+											if l := len("getMultiple"); len(elem) >= l && elem[0:l] == "getMultiple" {
 												elem = elem[l:]
 											} else {
 												break
 											}
 
 											if len(elem) == 0 {
-												// Leaf node.
-												switch r.Method {
-												case "POST":
-													s.handleV1betaGetMultipleReplicationsRequest([3]string{
-														args[0],
-														args[1],
-														args[2],
-													}, elemIsEscaped, w, r)
-												default:
-													s.notAllowed(w, r, "POST")
+												break
+											}
+											switch elem[0] {
+											case 'R': // Prefix: "Replications"
+
+												if l := len("Replications"); len(elem) >= l && elem[0:l] == "Replications" {
+													elem = elem[l:]
+												} else {
+													break
 												}
 
-												return
+												if len(elem) == 0 {
+													// Leaf node.
+													switch r.Method {
+													case "POST":
+														s.handleV1betaGetMultipleReplicationsRequest([3]string{
+															args[0],
+															args[1],
+															args[2],
+														}, elemIsEscaped, w, r)
+													default:
+														s.notAllowed(w, r, "POST")
+													}
+
+													return
+												}
+
+											case 'S': // Prefix: "Snapshots"
+
+												if l := len("Snapshots"); len(elem) >= l && elem[0:l] == "Snapshots" {
+													elem = elem[l:]
+												} else {
+													break
+												}
+
+												if len(elem) == 0 {
+													// Leaf node.
+													switch r.Method {
+													case "POST":
+														s.handleV1betaGetMultipleSnapshotsRequest([3]string{
+															args[0],
+															args[1],
+															args[2],
+														}, elemIsEscaped, w, r)
+													default:
+														s.notAllowed(w, r, "POST")
+													}
+
+													return
+												}
+
 											}
 
 										case 'r': // Prefix: "replications"
@@ -2916,28 +2954,66 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 											break
 										}
 										switch elem[0] {
-										case 'g': // Prefix: "getMultipleReplications"
+										case 'g': // Prefix: "getMultiple"
 
-											if l := len("getMultipleReplications"); len(elem) >= l && elem[0:l] == "getMultipleReplications" {
+											if l := len("getMultiple"); len(elem) >= l && elem[0:l] == "getMultiple" {
 												elem = elem[l:]
 											} else {
 												break
 											}
 
 											if len(elem) == 0 {
-												// Leaf node.
-												switch method {
-												case "POST":
-													r.name = V1betaGetMultipleReplicationsOperation
-													r.summary = "List specific replications"
-													r.operationID = "v1beta_getMultipleReplications"
-													r.pathPattern = "/v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeResourceId}/getMultipleReplications"
-													r.args = args
-													r.count = 3
-													return r, true
-												default:
-													return
+												break
+											}
+											switch elem[0] {
+											case 'R': // Prefix: "Replications"
+
+												if l := len("Replications"); len(elem) >= l && elem[0:l] == "Replications" {
+													elem = elem[l:]
+												} else {
+													break
 												}
+
+												if len(elem) == 0 {
+													// Leaf node.
+													switch method {
+													case "POST":
+														r.name = V1betaGetMultipleReplicationsOperation
+														r.summary = "List specific replications"
+														r.operationID = "v1beta_getMultipleReplications"
+														r.pathPattern = "/v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeResourceId}/getMultipleReplications"
+														r.args = args
+														r.count = 3
+														return r, true
+													default:
+														return
+													}
+												}
+
+											case 'S': // Prefix: "Snapshots"
+
+												if l := len("Snapshots"); len(elem) >= l && elem[0:l] == "Snapshots" {
+													elem = elem[l:]
+												} else {
+													break
+												}
+
+												if len(elem) == 0 {
+													// Leaf node.
+													switch method {
+													case "POST":
+														r.name = V1betaGetMultipleSnapshotsOperation
+														r.summary = "List specified snapshots"
+														r.operationID = "v1beta_getMultipleSnapshots"
+														r.pathPattern = "/v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeResourceId}/getMultipleSnapshots"
+														r.args = args
+														r.count = 3
+														return r, true
+													default:
+														return
+													}
+												}
+
 											}
 
 										case 'r': // Prefix: "replications"

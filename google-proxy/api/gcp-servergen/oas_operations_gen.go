@@ -39,6 +39,7 @@ const (
 	V1betaGetMultipleHostGroupsOperation              OperationName = "V1betaGetMultipleHostGroups"
 	V1betaGetMultiplePoolsOperation                   OperationName = "V1betaGetMultiplePools"
 	V1betaGetMultipleReplicationsOperation            OperationName = "V1betaGetMultipleReplications"
+	V1betaGetMultipleSnapshotsOperation               OperationName = "V1betaGetMultipleSnapshots"
 	V1betaGetMultipleVolumesOperation                 OperationName = "V1betaGetMultipleVolumes"
 	V1betaInternalAuthorizeVolumeReplicationOperation OperationName = "V1betaInternalAuthorizeVolumeReplication"
 	V1betaInternalCreateClusterPeerOperation          OperationName = "V1betaInternalCreateClusterPeer"

@@ -2386,6 +2386,15 @@ func (s *OptSnapshotPolicyV1beta) SetFake() {
 }
 
 // SetFake set fake values.
+func (s *OptSnapshotV1betaSnapshotState) SetFake() {
+	var elem SnapshotV1betaSnapshotState
+	{
+		elem.SetFake()
+	}
+	s.SetTo(elem)
+}
+
+// SetFake set fake values.
 func (s *OptStatusV1Beta) SetFake() {
 	var elem StatusV1Beta
 	{
@@ -3366,6 +3375,22 @@ func (s *SimpleExportPolicyRuleV1betaHasRootAccess) SetFake() {
 }
 
 // SetFake set fake values.
+func (s *SnapshotIDListV1beta) SetFake() {
+	{
+		{
+			s.SnapshotUUIDs = nil
+			for i := 0; i < 1; i++ {
+				var elem string
+				{
+					elem = "string"
+				}
+				s.SnapshotUUIDs = append(s.SnapshotUUIDs, elem)
+			}
+		}
+	}
+}
+
+// SetFake set fake values.
 func (s *SnapshotPolicyV1beta) SetFake() {
 	{
 		{
@@ -3392,6 +3417,70 @@ func (s *SnapshotPolicyV1beta) SetFake() {
 			s.MonthlySchedule.SetFake()
 		}
 	}
+}
+
+// SetFake set fake values.
+func (s *SnapshotV1beta) SetFake() {
+	{
+		{
+			s.ResourceId = "string"
+		}
+	}
+	{
+		{
+			s.VolumeId.SetFake()
+		}
+	}
+	{
+		{
+			s.VolumeResourceId.SetFake()
+		}
+	}
+	{
+		{
+			s.Created.SetFake()
+		}
+	}
+	{
+		{
+			s.SnapshotId.SetFake()
+		}
+	}
+	{
+		{
+			s.UsedBytes.SetFake()
+		}
+	}
+	{
+		{
+			s.StorageClass.SetFake()
+		}
+	}
+	{
+		{
+			s.SnapshotState.SetFake()
+		}
+	}
+	{
+		{
+			s.SnapshotStateDetails.SetFake()
+		}
+	}
+	{
+		{
+			s.Zone.SetFake()
+		}
+	}
+	{
+		{
+			s.Description.SetFake()
+		}
+	}
+}
+
+// SetFake set fake values.
+func (s *SnapshotV1betaSnapshotState) SetFake() {
+	*s = SnapshotV1betaSnapshotStateSTATEUNSPECIFIED
 }
 
 // SetFake set fake values.
@@ -5687,6 +5776,85 @@ func (s *V1betaGetMultipleReplicationsUnprocessableEntity) SetFake() {
 		unwrapped.SetFake()
 	}
 	*s = V1betaGetMultipleReplicationsUnprocessableEntity(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaGetMultipleSnapshotsBadRequest) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaGetMultipleSnapshotsBadRequest(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaGetMultipleSnapshotsForbidden) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaGetMultipleSnapshotsForbidden(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaGetMultipleSnapshotsInternalServerError) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaGetMultipleSnapshotsInternalServerError(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaGetMultipleSnapshotsNotFound) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaGetMultipleSnapshotsNotFound(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaGetMultipleSnapshotsOK) SetFake() {
+	{
+		{
+			s.Snapshots = nil
+			for i := 0; i < 0; i++ {
+				var elem SnapshotV1beta
+				{
+					elem.SetFake()
+				}
+				s.Snapshots = append(s.Snapshots, elem)
+			}
+		}
+	}
+}
+
+// SetFake set fake values.
+func (s *V1betaGetMultipleSnapshotsTooManyRequests) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaGetMultipleSnapshotsTooManyRequests(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaGetMultipleSnapshotsUnauthorized) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaGetMultipleSnapshotsUnauthorized(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaGetMultipleSnapshotsUnprocessableEntity) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaGetMultipleSnapshotsUnprocessableEntity(unwrapped)
 }
 
 // SetFake set fake values.

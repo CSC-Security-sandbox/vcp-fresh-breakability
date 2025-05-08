@@ -133,6 +133,10 @@ type V1betaGetMultipleReplicationsRes interface {
 	v1betaGetMultipleReplicationsRes()
 }
 
+type V1betaGetMultipleSnapshotsRes interface {
+	v1betaGetMultipleSnapshotsRes()
+}
+
 type V1betaGetMultipleVolumesRes interface {
 	v1betaGetMultipleVolumesRes()
 }
