@@ -85,24 +85,57 @@ func convertToBackupsV1beta(bv *models.BackupV1beta) gcpgenserver.BackupV1beta {
 	if bv.EnforcedRetentionEndTime != nil {
 		enforcedTime = *bv.EnforcedRetentionEndTime
 	}
+	var snapshotName string
+	if bv.SourceSnapshot != nil {
+		snapshotName = *bv.SourceSnapshot
+	}
+	var satisfiesPzs bool
+	if bv.SatisfiesPzs != nil {
+		satisfiesPzs = *bv.SatisfiesPzs
+	}
+	var satisfiesPzi bool
+	if bv.SatisfiesPzi != nil {
+		satisfiesPzi = *bv.SatisfiesPzi
+	}
+
+	var assetLocationMetadata *gcpgenserver.AssetLocationMetadataV2
+	if bv.AssetLocationMetadata != nil {
+		var assets []gcpgenserver.ChildAssetV2
+		inChildAssets := bv.AssetLocationMetadata.ChildAssets
+		for _, asset := range inChildAssets {
+			var cvpAsset gcpgenserver.ChildAssetV2
+			cvpAsset.AssetType = gcpgenserver.NewOptString(asset.AssetType)
+			cvpAsset.AssetNames = asset.AssetNames
+			assets = append(assets, cvpAsset)
+		}
+		assetLocationMetadata = &gcpgenserver.AssetLocationMetadataV2{
+			ChildAssets: assets,
+		}
+	}
+
 	return gcpgenserver.BackupV1beta{
-		ResourceId:               gcpgenserver.OptString{Value: bv.ResourceID},
-		VolumeId:                 gcpgenserver.OptString{Value: bv.VolumeID},
-		State:                    gcpgenserver.OptBackupV1betaState{Value: gcpgenserver.BackupV1betaState(bv.State)},
-		Created:                  gcpgenserver.OptDateTime{Value: time.Time(bv.Created)},
-		EnforcedRetentionEndTime: gcpgenserver.OptDateTime{Value: time.Time(enforcedTime)},
-		BackupId:                 gcpgenserver.OptString{Value: bv.BackupID},
-		VolumeUsageBytes:         gcpgenserver.OptInt64{Value: *bv.VolumeUsageBytes},
-		SourceVolume:             gcpgenserver.OptString{Value: bv.SourceVolume},
-		BackupVaultId:            gcpgenserver.OptString{Value: *bv.BackupVaultID},
-		Description:              gcpgenserver.OptString{Value: *bv.Description},
-		SourceSnapshot:           gcpgenserver.OptString{Value: *bv.SourceSnapshot},
-		BackupType:               gcpgenserver.OptBackupV1betaBackupType{Value: gcpgenserver.BackupV1betaBackupType(bv.BackupType)},
-		BackupChainBytes:         gcpgenserver.OptInt64{Value: *bv.BackupChainBytes},
-		SatisfiesPzs:             gcpgenserver.OptBool{Value: *bv.SatisfiesPzs},
-		SatisfiesPzi:             gcpgenserver.OptBool{Value: *bv.SatisfiesPzi},
-		VolumeRegion:             gcpgenserver.OptString{Value: *bv.VolumeRegion},
-		BackupRegion:             gcpgenserver.OptString{Value: *bv.BackupRegion},
-		AssetLocationMetadata:    gcpgenserver.OptAssetLocationMetadataV2{Value: gcpgenserver.AssetLocationMetadataV2{}},
+		ResourceId:               gcpgenserver.NewOptString(bv.ResourceID),
+		VolumeId:                 gcpgenserver.NewOptString(bv.VolumeID),
+		State:                    gcpgenserver.NewOptBackupV1betaState(gcpgenserver.BackupV1betaState(bv.State)),
+		Created:                  gcpgenserver.NewOptDateTime(time.Time(bv.Created)),
+		EnforcedRetentionEndTime: gcpgenserver.NewOptDateTime(time.Time(enforcedTime)),
+		BackupId:                 gcpgenserver.NewOptString(bv.BackupID),
+		VolumeUsageBytes:         gcpgenserver.NewOptInt64(*bv.VolumeUsageBytes),
+		SourceVolume:             gcpgenserver.NewOptString(bv.SourceVolume),
+		BackupVaultId:            gcpgenserver.NewOptString(*bv.BackupVaultID),
+		Description:              gcpgenserver.NewOptString(*bv.Description),
+		SourceSnapshot:           gcpgenserver.NewOptString(snapshotName),
+		BackupType:               gcpgenserver.NewOptBackupV1betaBackupType(gcpgenserver.BackupV1betaBackupType(bv.BackupType)),
+		BackupChainBytes:         gcpgenserver.NewOptInt64(*bv.BackupChainBytes),
+		SatisfiesPzs:             gcpgenserver.NewOptBool(satisfiesPzs),
+		SatisfiesPzi:             gcpgenserver.NewOptBool(satisfiesPzi),
+		VolumeRegion:             gcpgenserver.NewOptString(*bv.VolumeRegion),
+		BackupRegion:             gcpgenserver.NewOptString(*bv.BackupRegion),
+		AssetLocationMetadata: func() gcpgenserver.OptAssetLocationMetadataV2 {
+			if assetLocationMetadata != nil {
+				return gcpgenserver.NewOptAssetLocationMetadataV2(*assetLocationMetadata)
+			}
+			return gcpgenserver.OptAssetLocationMetadataV2{}
+		}(),
 	}
 }
