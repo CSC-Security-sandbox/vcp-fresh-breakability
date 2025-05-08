@@ -482,13 +482,13 @@ func convertBackupVaultV1Beta(bv *models.BackupVaultV1beta) gcpgenserver.BackupV
 		convertedBackupVault.SourceBackupVault = gcpgenserver.NewOptString(*bv.SourceBackupVault)
 	}
 	if bv.SourceRegion != nil {
-		convertedBackupVault.BackupRegion = gcpgenserver.NewOptString(*bv.SourceRegion)
+		convertedBackupVault.SourceRegion = gcpgenserver.NewOptString(*bv.SourceRegion)
 	}
 	if bv.Description != nil {
-		convertedBackupVault.BackupRegion = gcpgenserver.NewOptString(*bv.Description)
+		convertedBackupVault.Description = gcpgenserver.NewOptString(*bv.Description)
 	}
 	if bv.ResourceID != nil {
-		convertedBackupVault.BackupRegion = gcpgenserver.NewOptString(*bv.ResourceID)
+		convertedBackupVault.ResourceId = *bv.ResourceID
 	}
 	if bv.BackupVaultType != nil {
 		convertedBackupVault.BackupVaultType = gcpgenserver.NewOptBackupVaultV1betaBackupVaultType(gcpgenserver.BackupVaultV1betaBackupVaultType(*bv.BackupVaultType))
