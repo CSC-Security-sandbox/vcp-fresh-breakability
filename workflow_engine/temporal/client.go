@@ -13,7 +13,10 @@ import (
 	_ "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/postgres"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine"
+	"go.opentelemetry.io/otel"
 	"go.temporal.io/sdk/client"
+	"go.temporal.io/sdk/contrib/opentelemetry"
+	"go.temporal.io/sdk/interceptor"
 	"go.temporal.io/sdk/worker"
 )
 
@@ -103,9 +106,25 @@ func registerWorkflowsAndActivities(worker worker.Worker, dbcon database.Storage
 // If these environment variables are not set, the client.Options
 // instance returned will be based on the SDK's default configuration.
 func createClientOptionsFromEnv(cfg workflow_engine.ClientConfig, logger log.Logger) (client.Options, error) {
+	tracingInterceptor, err := opentelemetry.NewTracingInterceptor(opentelemetry.TracerOptions{
+		Tracer: otel.GetTracerProvider().Tracer("Temporal-Worker"),
+	})
+	if err != nil {
+		logger.Error("Unable to create interceptor", "error", err)
+		tracingInterceptor = nil
+	}
 	clientOpts := client.Options{
 		HostPort:  cfg.GetHostPort(),
 		Namespace: cfg.GetNamespace(),
+		Interceptors: func() []interceptor.ClientInterceptor {
+			if tracingInterceptor != nil {
+				return []interceptor.ClientInterceptor{tracingInterceptor}
+			}
+			return nil
+		}(),
+		MetricsHandler: opentelemetry.NewMetricsHandler(opentelemetry.MetricsHandlerOptions{
+			Meter: otel.GetMeterProvider().Meter("Temporal-Worker"),
+		}),
 	}
 
 	if cfg.GetTLSCertPath() != "" && cfg.GetTLSKeyPath() != "" {
