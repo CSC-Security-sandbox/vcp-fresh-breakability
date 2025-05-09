@@ -94,7 +94,7 @@ type SourceImage struct {
 func DeploymentsInsert(ctx context.Context, name, region, zone, network, subnet, projectId, snHostProject string, size int) (*[]map[string]string, error) {
 	// slog := ctx.Value(middleware.ContextSLoggerKey).(log.Logger)
 	slog := log.NewLogger()
-	err := SetupNetwork(slog, projectId, region)
+	err := SetupNetwork(slog, projectId, snHostProject, network, region)
 	if err != nil {
 		return nil, err
 	}
@@ -314,7 +314,7 @@ func DeleteDeployment(ctx context.Context, projectId, deploymentName string) err
 	return nil
 }
 
-func SetupNetwork(slog log.Logger, project string, tpregion string) error {
+func SetupNetwork(slog log.Logger, project, snHostProject, network, tpregion string) error {
 	projectID := project
 	region := tpregion
 	sourceRanges := strings.Split(firewallSourceRange, ",")
@@ -336,7 +336,6 @@ func SetupNetwork(slog log.Logger, project string, tpregion string) error {
 	i := 1
 	for vpcName, subnetName := range vpcSubnetMap {
 		firewallName := fmt.Sprintf("ingress-%s", vpcName)
-
 		// Check if VPC exists
 		_, err = computeService.Networks.Get(projectID, vpcName).Context(ctx).Do()
 		if err != nil {
@@ -431,6 +430,37 @@ func SetupNetwork(slog log.Logger, project string, tpregion string) error {
 	}
 
 	slog.Infof("All VPCs, subnets, and firewall rules created successfully in project %s!\n", projectID)
+
+	slog.Infof("Checking if firewall rule: iscsi-ingress exists for VPC: %s...\n", network)
+	_, err = computeService.Firewalls.Get(snHostProject, "iscsi-ingress").Context(ctx).Do()
+	if err != nil {
+		if gErr, ok := err.(*googleapi.Error); ok && gErr.Code == 404 {
+			slog.Infof("Creating firewall rule: iscsi-ingress for VPC: %s...\n", network)
+			_, err = computeService.Firewalls.Insert(snHostProject, &compute.Firewall{
+				Name:    "iscsi-ingress",
+				Network: fmt.Sprintf("projects/%s/global/networks/%s", snHostProject, network),
+				Allowed: []*compute.FirewallAllowed{
+					{
+						IPProtocol: "tcp",
+						Ports:      []string{"3260"}, // iSCSI port
+					},
+				},
+				SourceRanges: []string{"10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16"},
+				Direction:    "INGRESS",
+				Priority:     1000,
+			}).Context(ctx).Do()
+			if err != nil {
+				slog.Errorf("Failed to create firewall rule iscsi-ingress: %v", err)
+				return err
+			}
+		} else {
+			slog.Errorf("Failed to check firewall rule iscsi-ingress: %v", err)
+			return err
+		}
+	} else {
+		slog.Infof("Firewall rule iscsi-ingress already exists.\n")
+	}
+
 	return nil
 }
 

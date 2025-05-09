@@ -146,6 +146,7 @@ func (j *PoolActivity) SaveNodeDetails(ctx context.Context, pool *datamodel.Pool
 			StateDetails:    models.LifeCycleStateAvailableDetails,
 			NodeAttributes:  &datamodel.NodeDetails{ExternalUUID: vsaNode.ExternalUUID, InstanceType: node.InstanceType},
 			ZoneName:        node.Zone,
+			AccountID:       pool.AccountID,
 		}
 		se := *j.SE
 		if _, err = se.CreateNode(ctx, rec); err != nil {
@@ -279,6 +280,15 @@ func (j *PoolActivity) CreateSvmForPool(ctx context.Context, pool *datamodel.Poo
 		return nil, err
 	}
 	return svmRec, nil
+}
+
+func (j *PoolActivity) EnableIscsiServiceForSVM(ctx context.Context, node *models.Node, svmUUID string) error {
+	provider := GetProviderByNode(node)
+	err := provider.IscsiServiceCreate(svmUUID)
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 func (j *PoolActivity) CreateLifForSvm(ctx context.Context, node *models.Node, cluster []map[string]string, pool *datamodel.Pool, svm *datamodel.Svm) error {

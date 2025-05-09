@@ -1,7 +1,6 @@
 package workflows
 
 import (
-
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
@@ -156,6 +155,10 @@ func (wf *PoolWorkflow) Run(ctx workflow.Context, params *common.CreatePoolParam
 
 	var svm datamodel.Svm
 	err = workflow.ExecuteActivity(ctx, poolActivity.CreateSvmForPool, dbPool, node).Get(ctx, &svm)
+	if err != nil {
+		return nil, err
+	}
+	err = workflow.ExecuteActivity(ctx, poolActivity.EnableIscsiServiceForSVM, node, svm.SvmDetails.ExternalUUID).Get(ctx, &svm)
 	if err != nil {
 		return nil, err
 	}

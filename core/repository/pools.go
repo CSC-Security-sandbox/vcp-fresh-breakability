@@ -33,27 +33,31 @@ func (d *DataStoreRepository) CreatePool(ctx context.Context, pool *datamodel.Po
 		return nil, err
 	}
 	// Fixme: The logger should be fetched from ctx
-	defer commitOrRollbackOnError(slogger.NewLogger(), tx, &err)
+	logger := slogger.NewLogger()
+	defer commitOrRollbackOnError(logger, tx, &err)
 
-	var dbpool datamodel.Pool
-	err = tx.Where("name = ?", pool.Name).Where("account_id = ?", pool.AccountID).First(&dbpool).Error
-	if errors.Is(err, gorm.ErrRecordNotFound) {
+	var dbpool *datamodel.Pool
+	err1 := tx.Where("name = ?", pool.Name).Where("account_id = ?", pool.AccountID).First(&dbpool).Error
+	if errors.Is(err1, gorm.ErrRecordNotFound) {
 		pool.UUID = utils.RandomUUID()
 		pool.State = models.LifeCycleStateCreating
 		pool.StateDetails = models.LifeCycleStateCreatingDetails
 		pool.CreatedAt = time.Now()
 		pool.UpdatedAt = pool.CreatedAt
 		pool.Account.ID = pool.AccountID
-		err := tx.Create(&pool).Error
+		err = tx.Create(&pool).Error
 		if err != nil {
 			return nil, err
 		}
 
-		dbPool, err := getPoolWithDetails(tx, &datamodel.Pool{BaseModel: datamodel.BaseModel{UUID: pool.UUID}})
+		dbpool, err = getPoolWithDetails(tx, &datamodel.Pool{BaseModel: datamodel.BaseModel{UUID: pool.UUID}})
 		if err != nil {
 			return nil, err
 		}
-		return dbPool, nil
+		return dbpool, nil
+	} else if err1 != nil {
+		logger.Errorf("Error while checking if pool exists: %v", err1)
+		return nil, err1
 	}
 	return nil, errors.New("pool already exists")
 }
@@ -79,7 +83,7 @@ func (d *DataStoreRepository) UpdatePool(ctx context.Context, pool *datamodel.Po
 	dbPool.State = pool.State
 	dbPool.StateDetails = pool.StateDetails
 
-	if err := tx.Updates(dbPool).Error; err != nil {
+	if err = tx.Updates(dbPool).Error; err != nil {
 		return err
 	}
 	return nil

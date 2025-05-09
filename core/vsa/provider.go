@@ -28,6 +28,7 @@ type Provider interface {
 	IgroupExists(name, svm string) (bool, error)
 	LunCreate(params LunCreateParams) (*ProviderResponse, error)
 	LunMapCreate(params LunMapCreateParams) error
+	IscsiServiceCreate(svmUUID string) error
 }
 
 type OntapRestProvider struct {

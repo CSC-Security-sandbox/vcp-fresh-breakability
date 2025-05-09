@@ -60,7 +60,7 @@ func (d *DataStoreRepository) UpdateJob(ctx context.Context, id string, status s
 
 	job.UpdatedAt = time.Now()
 	job.State = status
-	if err := tx.Updates(job).Error; err != nil {
+	if err = tx.Updates(job).Error; err != nil {
 		return err
 	}
 	return nil

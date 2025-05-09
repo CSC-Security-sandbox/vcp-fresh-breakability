@@ -128,3 +128,14 @@ func (rc *OntapRestProvider) IgroupExists(name, svm string) (bool, error) {
 
 	return true, nil
 }
+
+// IscsiServiceCreate creates an iSCSI service by calling the ONTAP REST Client
+func (rc *OntapRestProvider) IscsiServiceCreate(svmUUID string) error {
+	client := getOntapClientFunc(rc.ClientParams)
+	err := client.SAN().IscsiServiceCreate(&ontapRest.IscsiCreateParams{
+		SvmUUID: svmUUID})
+	if err != nil {
+		return err
+	}
+	return nil
+}
