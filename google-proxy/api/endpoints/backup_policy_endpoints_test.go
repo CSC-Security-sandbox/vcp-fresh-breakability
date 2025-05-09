@@ -869,10 +869,12 @@ func TestV1betaUpdateBackupPolicy(t *testing.T) {
 			ProjectNumber:  "12345",
 			XCorrelationID: gcpgenserver.NewOptString("test-correlation-id"),
 		}
-		req := &gcpgenserver.BackupPolicyScheduleV1beta{
+		req := &gcpgenserver.BackupPolicyUpdateV1beta{
 			DailyBackupLimit:   gcpgenserver.NewOptInt(1234),
 			MonthlyBackupLimit: gcpgenserver.NewOptInt(1234),
 			WeeklyBackupLimit:  gcpgenserver.NewOptInt(1234),
+			Enabled:            gcpgenserver.NewOptBool(true),
+			Description:        gcpgenserver.NewOptString("test-description"),
 		}
 
 		// Define mock response
@@ -918,7 +920,7 @@ func TestV1betaUpdateBackupPolicy(t *testing.T) {
 			XCorrelationID: gcpgenserver.NewOptString("test-correlation-id"),
 		}
 		// Define request
-		req := &gcpgenserver.BackupPolicyScheduleV1beta{}
+		req := &gcpgenserver.BackupPolicyUpdateV1beta{}
 		// Define mock error
 		errorCode := float64(400)
 		errorMessage := "Bad Request"
@@ -961,7 +963,7 @@ func TestV1betaUpdateBackupPolicy(t *testing.T) {
 			XCorrelationID: gcpgenserver.NewOptString("test-correlation-id"),
 		}
 		// Define request
-		req := &gcpgenserver.BackupPolicyScheduleV1beta{}
+		req := &gcpgenserver.BackupPolicyUpdateV1beta{}
 		// Define mock error
 		errorCode := float64(401)
 		errorMessage := "Unauthorized error"
@@ -1004,7 +1006,7 @@ func TestV1betaUpdateBackupPolicy(t *testing.T) {
 			XCorrelationID: gcpgenserver.NewOptString("test-correlation-id"),
 		}
 		// Define request
-		req := &gcpgenserver.BackupPolicyScheduleV1beta{}
+		req := &gcpgenserver.BackupPolicyUpdateV1beta{}
 		// Define mock error
 		errorCode := float64(403)
 		errorMessage := "Forbidden error"
@@ -1047,7 +1049,7 @@ func TestV1betaUpdateBackupPolicy(t *testing.T) {
 			XCorrelationID: gcpgenserver.NewOptString("test-correlation-id"),
 		}
 		// Define request
-		req := &gcpgenserver.BackupPolicyScheduleV1beta{}
+		req := &gcpgenserver.BackupPolicyUpdateV1beta{}
 		// Define mock error
 		errorCode := float64(500)
 		errorMessage := "default error"
@@ -1090,7 +1092,7 @@ func TestV1betaUpdateBackupPolicy(t *testing.T) {
 			XCorrelationID: gcpgenserver.NewOptString("test-correlation-id"),
 		}
 		// Define request
-		req := &gcpgenserver.BackupPolicyScheduleV1beta{}
+		req := &gcpgenserver.BackupPolicyUpdateV1beta{}
 		// Define mock error
 		errorCode := float64(500)
 		errorMessage := "unknown error during the update backup policy"

@@ -512,17 +512,29 @@ func convertToOperationV1beta(res *models.OperationV1beta) *gcpgenserver.Operati
 func convertToKmsConfigV1beta(res *models.KmsConfigV1beta) *gcpgenserver.KmsConfigV1beta {
 	state := gcpgenserver.KmsConfigV1betaKmsState(res.KmsState)
 	kmsConfigV1beta := &gcpgenserver.KmsConfigV1beta{
-		UUID:                gcpgenserver.NewOptString(res.UUID),
-		ServiceAccountEmail: gcpgenserver.NewOptString(res.ServiceAccountEmail),
-		KeyFullPath:         *res.KeyFullPath,
-		KmsState:            gcpgenserver.NewOptKmsConfigV1betaKmsState(state),
-		KmsStateDetails:     gcpgenserver.NewOptString(res.KmsStateDetails),
-		Description:         gcpgenserver.NewOptString(*res.Description),
-		CreatedTime:         gcpgenserver.NewOptDateTime(time.Time(res.CreatedTime)),
-		UpdatedTime:         gcpgenserver.NewOptDateTime(time.Time(*res.UpdatedTime)),
-		DeletedTime:         gcpgenserver.NewOptDateTime(time.Time(*res.DeletedTime)),
-		Instructions:        gcpgenserver.NewOptString(res.Instructions),
-		ResourceId:          gcpgenserver.NewOptString(*res.ResourceID),
+		UUID:            gcpgenserver.NewOptString(res.UUID),
+		KmsState:        gcpgenserver.NewOptKmsConfigV1betaKmsState(state),
+		KmsStateDetails: gcpgenserver.NewOptString(res.KmsStateDetails),
+		Description:     gcpgenserver.NewOptString(*res.Description),
+		CreatedTime:     gcpgenserver.NewOptDateTime(time.Time(res.CreatedTime)),
+	}
+	if res.KeyFullPath != nil {
+		kmsConfigV1beta.KeyFullPath = *res.KeyFullPath
+	}
+	if res.DeletedTime != nil {
+		kmsConfigV1beta.DeletedTime = gcpgenserver.NewOptDateTime(time.Time(*res.DeletedTime))
+	}
+	if res.Instructions != "" {
+		kmsConfigV1beta.Instructions = gcpgenserver.NewOptString(res.Instructions)
+	}
+	if res.ServiceAccountEmail != "" {
+		kmsConfigV1beta.ServiceAccountEmail = gcpgenserver.NewOptString(res.ServiceAccountEmail)
+	}
+	if res.UpdatedTime != nil {
+		kmsConfigV1beta.UpdatedTime = gcpgenserver.NewOptDateTime(time.Time(*res.UpdatedTime))
+	}
+	if res.ResourceID != nil {
+		kmsConfigV1beta.ResourceId = gcpgenserver.NewOptString(*res.ResourceID)
 	}
 	return kmsConfigV1beta
 }

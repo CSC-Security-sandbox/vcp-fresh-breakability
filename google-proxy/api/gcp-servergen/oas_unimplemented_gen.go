@@ -551,7 +551,7 @@ func (UnimplementedHandler) V1betaUpdateActiveDirectory(ctx context.Context, req
 // Update the backup policy.
 //
 // PUT /v1beta/projects/{projectNumber}/locations/{locationId}/backupPolicies/{backupPolicyId}
-func (UnimplementedHandler) V1betaUpdateBackupPolicy(ctx context.Context, req *BackupPolicyScheduleV1beta, params V1betaUpdateBackupPolicyParams) (r V1betaUpdateBackupPolicyRes, _ error) {
+func (UnimplementedHandler) V1betaUpdateBackupPolicy(ctx context.Context, req *BackupPolicyUpdateV1beta, params V1betaUpdateBackupPolicyParams) (r V1betaUpdateBackupPolicyRes, _ error) {
 	return r, ht.ErrNotImplemented
 }
 

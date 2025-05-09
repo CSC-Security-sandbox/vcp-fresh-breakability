@@ -9836,7 +9836,7 @@ func (s *Server) handleV1betaUpdateBackupPolicyRequest(args [3]string, argsEscap
 		}
 
 		type (
-			Request  = *BackupPolicyScheduleV1beta
+			Request  = *BackupPolicyUpdateV1beta
 			Params   = V1betaUpdateBackupPolicyParams
 			Response = V1betaUpdateBackupPolicyRes
 		)

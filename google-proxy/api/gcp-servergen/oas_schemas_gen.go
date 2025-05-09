@@ -747,6 +747,8 @@ type BackupPolicyCreateV1beta struct {
 	// Limit to number of monthly backups. Note that the sum of daily, weekly and monthly backups should
 	// be greater than 1.
 	MonthlyBackupLimit OptInt `json:"monthlyBackupLimit"`
+	// If enabled, backup policy will be available for any volume to use.
+	Enabled OptBool `json:"enabled"`
 }
 
 // GetResourceId returns the value of ResourceId.
@@ -774,6 +776,11 @@ func (s *BackupPolicyCreateV1beta) GetMonthlyBackupLimit() OptInt {
 	return s.MonthlyBackupLimit
 }
 
+// GetEnabled returns the value of Enabled.
+func (s *BackupPolicyCreateV1beta) GetEnabled() OptBool {
+	return s.Enabled
+}
+
 // SetResourceId sets the value of ResourceId.
 func (s *BackupPolicyCreateV1beta) SetResourceId(val string) {
 	s.ResourceId = val
@@ -797,6 +804,11 @@ func (s *BackupPolicyCreateV1beta) SetWeeklyBackupLimit(val OptInt) {
 // SetMonthlyBackupLimit sets the value of MonthlyBackupLimit.
 func (s *BackupPolicyCreateV1beta) SetMonthlyBackupLimit(val OptInt) {
 	s.MonthlyBackupLimit = val
+}
+
+// SetEnabled sets the value of Enabled.
+func (s *BackupPolicyCreateV1beta) SetEnabled(val OptBool) {
+	s.Enabled = val
 }
 
 // Merged schema.
@@ -945,20 +957,44 @@ func (*BackupPolicyDetailsV1beta) v1betaDescribeBackupPolicyRes() {}
 type BackupPolicyDetailsV1betaState string
 
 const (
-	BackupPolicyDetailsV1betaStateSTATEUNSPECIFIEDCREATINGUPDATINGDELETINGREADYDELETEDERROR BackupPolicyDetailsV1betaState = "STATE_UNSPECIFIED - CREATING - UPDATING - DELETING - READY - DELETED - ERROR"
+	BackupPolicyDetailsV1betaStateSTATEUNSPECIFIED BackupPolicyDetailsV1betaState = "STATE_UNSPECIFIED"
+	BackupPolicyDetailsV1betaStateCREATING         BackupPolicyDetailsV1betaState = "CREATING"
+	BackupPolicyDetailsV1betaStateUPDATING         BackupPolicyDetailsV1betaState = "UPDATING"
+	BackupPolicyDetailsV1betaStateDELETING         BackupPolicyDetailsV1betaState = "DELETING"
+	BackupPolicyDetailsV1betaStateREADY            BackupPolicyDetailsV1betaState = "READY"
+	BackupPolicyDetailsV1betaStateDELETED          BackupPolicyDetailsV1betaState = "DELETED"
+	BackupPolicyDetailsV1betaStateERROR            BackupPolicyDetailsV1betaState = "ERROR"
 )
 
 // AllValues returns all BackupPolicyDetailsV1betaState values.
 func (BackupPolicyDetailsV1betaState) AllValues() []BackupPolicyDetailsV1betaState {
 	return []BackupPolicyDetailsV1betaState{
-		BackupPolicyDetailsV1betaStateSTATEUNSPECIFIEDCREATINGUPDATINGDELETINGREADYDELETEDERROR,
+		BackupPolicyDetailsV1betaStateSTATEUNSPECIFIED,
+		BackupPolicyDetailsV1betaStateCREATING,
+		BackupPolicyDetailsV1betaStateUPDATING,
+		BackupPolicyDetailsV1betaStateDELETING,
+		BackupPolicyDetailsV1betaStateREADY,
+		BackupPolicyDetailsV1betaStateDELETED,
+		BackupPolicyDetailsV1betaStateERROR,
 	}
 }
 
 // MarshalText implements encoding.TextMarshaler.
 func (s BackupPolicyDetailsV1betaState) MarshalText() ([]byte, error) {
 	switch s {
-	case BackupPolicyDetailsV1betaStateSTATEUNSPECIFIEDCREATINGUPDATINGDELETINGREADYDELETEDERROR:
+	case BackupPolicyDetailsV1betaStateSTATEUNSPECIFIED:
+		return []byte(s), nil
+	case BackupPolicyDetailsV1betaStateCREATING:
+		return []byte(s), nil
+	case BackupPolicyDetailsV1betaStateUPDATING:
+		return []byte(s), nil
+	case BackupPolicyDetailsV1betaStateDELETING:
+		return []byte(s), nil
+	case BackupPolicyDetailsV1betaStateREADY:
+		return []byte(s), nil
+	case BackupPolicyDetailsV1betaStateDELETED:
+		return []byte(s), nil
+	case BackupPolicyDetailsV1betaStateERROR:
 		return []byte(s), nil
 	default:
 		return nil, errors.Errorf("invalid value: %q", s)
@@ -968,8 +1004,26 @@ func (s BackupPolicyDetailsV1betaState) MarshalText() ([]byte, error) {
 // UnmarshalText implements encoding.TextUnmarshaler.
 func (s *BackupPolicyDetailsV1betaState) UnmarshalText(data []byte) error {
 	switch BackupPolicyDetailsV1betaState(data) {
-	case BackupPolicyDetailsV1betaStateSTATEUNSPECIFIEDCREATINGUPDATINGDELETINGREADYDELETEDERROR:
-		*s = BackupPolicyDetailsV1betaStateSTATEUNSPECIFIEDCREATINGUPDATINGDELETINGREADYDELETEDERROR
+	case BackupPolicyDetailsV1betaStateSTATEUNSPECIFIED:
+		*s = BackupPolicyDetailsV1betaStateSTATEUNSPECIFIED
+		return nil
+	case BackupPolicyDetailsV1betaStateCREATING:
+		*s = BackupPolicyDetailsV1betaStateCREATING
+		return nil
+	case BackupPolicyDetailsV1betaStateUPDATING:
+		*s = BackupPolicyDetailsV1betaStateUPDATING
+		return nil
+	case BackupPolicyDetailsV1betaStateDELETING:
+		*s = BackupPolicyDetailsV1betaStateDELETING
+		return nil
+	case BackupPolicyDetailsV1betaStateREADY:
+		*s = BackupPolicyDetailsV1betaStateREADY
+		return nil
+	case BackupPolicyDetailsV1betaStateDELETED:
+		*s = BackupPolicyDetailsV1betaStateDELETED
+		return nil
+	case BackupPolicyDetailsV1betaStateERROR:
+		*s = BackupPolicyDetailsV1betaStateERROR
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
@@ -991,9 +1045,9 @@ func (s *BackupPolicyIDListV1beta) SetBackupPolicyUUIDs(val []string) {
 	s.BackupPolicyUUIDs = val
 }
 
-// Request object for backup policy schedules.
-// Ref: #/components/schemas/BackupPolicySchedule_v1beta
-type BackupPolicyScheduleV1beta struct {
+// Merged schema.
+// Ref: #/components/schemas/BackupPolicyUpdate_v1beta
+type BackupPolicyUpdateV1beta struct {
 	// Limit to number of daily backups. Note that the sum of daily, weekly and monthly backups should be
 	// greater than 1.
 	DailyBackupLimit OptInt `json:"dailyBackupLimit"`
@@ -1003,36 +1057,59 @@ type BackupPolicyScheduleV1beta struct {
 	// Limit to number of monthly backups. Note that the sum of daily, weekly and monthly backups should
 	// be greater than 1.
 	MonthlyBackupLimit OptInt `json:"monthlyBackupLimit"`
+	// If enabled, backup policy will be available for any volume to use.
+	Enabled     OptBool   `json:"enabled"`
+	Description OptString `json:"description"`
 }
 
 // GetDailyBackupLimit returns the value of DailyBackupLimit.
-func (s *BackupPolicyScheduleV1beta) GetDailyBackupLimit() OptInt {
+func (s *BackupPolicyUpdateV1beta) GetDailyBackupLimit() OptInt {
 	return s.DailyBackupLimit
 }
 
 // GetWeeklyBackupLimit returns the value of WeeklyBackupLimit.
-func (s *BackupPolicyScheduleV1beta) GetWeeklyBackupLimit() OptInt {
+func (s *BackupPolicyUpdateV1beta) GetWeeklyBackupLimit() OptInt {
 	return s.WeeklyBackupLimit
 }
 
 // GetMonthlyBackupLimit returns the value of MonthlyBackupLimit.
-func (s *BackupPolicyScheduleV1beta) GetMonthlyBackupLimit() OptInt {
+func (s *BackupPolicyUpdateV1beta) GetMonthlyBackupLimit() OptInt {
 	return s.MonthlyBackupLimit
 }
 
+// GetEnabled returns the value of Enabled.
+func (s *BackupPolicyUpdateV1beta) GetEnabled() OptBool {
+	return s.Enabled
+}
+
+// GetDescription returns the value of Description.
+func (s *BackupPolicyUpdateV1beta) GetDescription() OptString {
+	return s.Description
+}
+
 // SetDailyBackupLimit sets the value of DailyBackupLimit.
-func (s *BackupPolicyScheduleV1beta) SetDailyBackupLimit(val OptInt) {
+func (s *BackupPolicyUpdateV1beta) SetDailyBackupLimit(val OptInt) {
 	s.DailyBackupLimit = val
 }
 
 // SetWeeklyBackupLimit sets the value of WeeklyBackupLimit.
-func (s *BackupPolicyScheduleV1beta) SetWeeklyBackupLimit(val OptInt) {
+func (s *BackupPolicyUpdateV1beta) SetWeeklyBackupLimit(val OptInt) {
 	s.WeeklyBackupLimit = val
 }
 
 // SetMonthlyBackupLimit sets the value of MonthlyBackupLimit.
-func (s *BackupPolicyScheduleV1beta) SetMonthlyBackupLimit(val OptInt) {
+func (s *BackupPolicyUpdateV1beta) SetMonthlyBackupLimit(val OptInt) {
 	s.MonthlyBackupLimit = val
+}
+
+// SetEnabled sets the value of Enabled.
+func (s *BackupPolicyUpdateV1beta) SetEnabled(val OptBool) {
+	s.Enabled = val
+}
+
+// SetDescription sets the value of Description.
+func (s *BackupPolicyUpdateV1beta) SetDescription(val OptString) {
+	s.Description = val
 }
 
 // Backup Policy.
@@ -1168,20 +1245,44 @@ func (s *BackupPolicyV1beta) SetMonthlyBackupLimit(val OptInt) {
 type BackupPolicyV1betaState string
 
 const (
-	BackupPolicyV1betaStateSTATEUNSPECIFIEDCREATINGUPDATINGDELETINGREADYDELETEDERROR BackupPolicyV1betaState = "STATE_UNSPECIFIED - CREATING - UPDATING - DELETING - READY - DELETED - ERROR"
+	BackupPolicyV1betaStateSTATEUNSPECIFIED BackupPolicyV1betaState = "STATE_UNSPECIFIED"
+	BackupPolicyV1betaStateCREATING         BackupPolicyV1betaState = "CREATING"
+	BackupPolicyV1betaStateUPDATING         BackupPolicyV1betaState = "UPDATING"
+	BackupPolicyV1betaStateDELETING         BackupPolicyV1betaState = "DELETING"
+	BackupPolicyV1betaStateREADY            BackupPolicyV1betaState = "READY"
+	BackupPolicyV1betaStateDELETED          BackupPolicyV1betaState = "DELETED"
+	BackupPolicyV1betaStateERROR            BackupPolicyV1betaState = "ERROR"
 )
 
 // AllValues returns all BackupPolicyV1betaState values.
 func (BackupPolicyV1betaState) AllValues() []BackupPolicyV1betaState {
 	return []BackupPolicyV1betaState{
-		BackupPolicyV1betaStateSTATEUNSPECIFIEDCREATINGUPDATINGDELETINGREADYDELETEDERROR,
+		BackupPolicyV1betaStateSTATEUNSPECIFIED,
+		BackupPolicyV1betaStateCREATING,
+		BackupPolicyV1betaStateUPDATING,
+		BackupPolicyV1betaStateDELETING,
+		BackupPolicyV1betaStateREADY,
+		BackupPolicyV1betaStateDELETED,
+		BackupPolicyV1betaStateERROR,
 	}
 }
 
 // MarshalText implements encoding.TextMarshaler.
 func (s BackupPolicyV1betaState) MarshalText() ([]byte, error) {
 	switch s {
-	case BackupPolicyV1betaStateSTATEUNSPECIFIEDCREATINGUPDATINGDELETINGREADYDELETEDERROR:
+	case BackupPolicyV1betaStateSTATEUNSPECIFIED:
+		return []byte(s), nil
+	case BackupPolicyV1betaStateCREATING:
+		return []byte(s), nil
+	case BackupPolicyV1betaStateUPDATING:
+		return []byte(s), nil
+	case BackupPolicyV1betaStateDELETING:
+		return []byte(s), nil
+	case BackupPolicyV1betaStateREADY:
+		return []byte(s), nil
+	case BackupPolicyV1betaStateDELETED:
+		return []byte(s), nil
+	case BackupPolicyV1betaStateERROR:
 		return []byte(s), nil
 	default:
 		return nil, errors.Errorf("invalid value: %q", s)
@@ -1191,8 +1292,26 @@ func (s BackupPolicyV1betaState) MarshalText() ([]byte, error) {
 // UnmarshalText implements encoding.TextUnmarshaler.
 func (s *BackupPolicyV1betaState) UnmarshalText(data []byte) error {
 	switch BackupPolicyV1betaState(data) {
-	case BackupPolicyV1betaStateSTATEUNSPECIFIEDCREATINGUPDATINGDELETINGREADYDELETEDERROR:
-		*s = BackupPolicyV1betaStateSTATEUNSPECIFIEDCREATINGUPDATINGDELETINGREADYDELETEDERROR
+	case BackupPolicyV1betaStateSTATEUNSPECIFIED:
+		*s = BackupPolicyV1betaStateSTATEUNSPECIFIED
+		return nil
+	case BackupPolicyV1betaStateCREATING:
+		*s = BackupPolicyV1betaStateCREATING
+		return nil
+	case BackupPolicyV1betaStateUPDATING:
+		*s = BackupPolicyV1betaStateUPDATING
+		return nil
+	case BackupPolicyV1betaStateDELETING:
+		*s = BackupPolicyV1betaStateDELETING
+		return nil
+	case BackupPolicyV1betaStateREADY:
+		*s = BackupPolicyV1betaStateREADY
+		return nil
+	case BackupPolicyV1betaStateDELETED:
+		*s = BackupPolicyV1betaStateDELETED
+		return nil
+	case BackupPolicyV1betaStateERROR:
+		*s = BackupPolicyV1betaStateERROR
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)

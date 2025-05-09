@@ -1841,7 +1841,7 @@ func (s *Server) decodeV1betaUpdateActiveDirectoryRequest(r *http.Request) (
 }
 
 func (s *Server) decodeV1betaUpdateBackupPolicyRequest(r *http.Request) (
-	req *BackupPolicyScheduleV1beta,
+	req *BackupPolicyUpdateV1beta,
 	close func() error,
 	rerr error,
 ) {
@@ -1880,7 +1880,7 @@ func (s *Server) decodeV1betaUpdateBackupPolicyRequest(r *http.Request) (
 
 		d := jx.DecodeBytes(buf)
 
-		var request BackupPolicyScheduleV1beta
+		var request BackupPolicyUpdateV1beta
 		if err := func() error {
 			if err := request.Decode(d); err != nil {
 				return err

@@ -7457,12 +7457,12 @@ components:
           description: The current state of the backup policy
           enum:
             - STATE_UNSPECIFIED
-              - CREATING
-              - UPDATING
-              - DELETING
-              - READY
-              - DELETED
-              - ERROR
+            - CREATING
+            - UPDATING
+            - DELETING
+            - READY
+            - DELETED
+            - ERROR
           example: READY
         volumeCount:
           type: integer
@@ -7506,13 +7506,13 @@ components:
         - $ref: '#/components/schemas/ResourceName_v1beta'
         - $ref: '#/components/schemas/Description_v1beta'
         - $ref: '#/components/schemas/BackupPolicySchedule_v1beta'
-      properties:
-        enabled:
-          type: boolean
-          description: If enabled, backup policy will be available for any volume to
-            use.
-          example: true
-          default: true
+        - properties:
+            enabled:
+              type: boolean
+              description: If enabled, backup policy will be available for any volume to
+                use.
+              example: true
+              default: true
     BackupPolicyDetails_v1beta:
       type: object
       title: Backup policy Details response
@@ -7531,21 +7531,22 @@ components:
               x-nullable: true
     BackupPolicyUpdate_v1beta:
       title: BackupPolicyUpdate
+      type: object
       description: Request object for updating backup policies
-      properties:
-        enabled:
-          type: boolean
-          description: If enabled, backup policy will be available for any volume to
-            use.
-          example: true
-          x-nullable: true
-        description:
-          type: string
-          example: My Resource Description
-          x-nullable: true
-          maxLength: 2048
       allOf:
         - $ref: '#/components/schemas/BackupPolicySchedule_v1beta'
+        - properties:
+            enabled:
+              type: boolean
+              description: If enabled, backup policy will be available for any volume to
+                use.
+              example: true
+              x-nullable: true
+            description:
+              type: string
+              example: My Resource Description
+              x-nullable: true
+              maxLength: 2048
     BackupPolicySchedule_v1beta:
       type: object
       description: Request object for backup policy schedules

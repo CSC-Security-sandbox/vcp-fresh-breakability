@@ -372,7 +372,7 @@ type Handler interface {
 	// Update the backup policy.
 	//
 	// PUT /v1beta/projects/{projectNumber}/locations/{locationId}/backupPolicies/{backupPolicyId}
-	V1betaUpdateBackupPolicy(ctx context.Context, req *BackupPolicyScheduleV1beta, params V1betaUpdateBackupPolicyParams) (V1betaUpdateBackupPolicyRes, error)
+	V1betaUpdateBackupPolicy(ctx context.Context, req *BackupPolicyUpdateV1beta, params V1betaUpdateBackupPolicyParams) (V1betaUpdateBackupPolicyRes, error)
 	// V1betaUpdateBackupVault implements v1beta_updateBackupVault operation.
 	//
 	// Update the backup vault.

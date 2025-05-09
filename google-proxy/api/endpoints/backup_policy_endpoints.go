@@ -21,6 +21,7 @@ func (h Handler) V1betaCreateBackupPolicy(ctx context.Context, req *gcpgenserver
 	descriptionV1beta := models.DescriptionV1beta{
 		Description: &req.Description.Value,
 	}
+	enabled := req.Enabled.Value
 	dailyBackupLimit := int64(req.DailyBackupLimit.Value)
 	monthlyBackupLimit := int64(req.MonthlyBackupLimit.Value)
 	weeklyBackupLimit := int64(req.WeeklyBackupLimit.Value)
@@ -34,6 +35,7 @@ func (h Handler) V1betaCreateBackupPolicy(ctx context.Context, req *gcpgenserver
 		ResourceNameV1beta:         resourceNameV1beta,
 		DescriptionV1beta:          descriptionV1beta,
 		BackupPolicyScheduleV1beta: backupPolicyScheduleV1beta,
+		Enabled:                    &enabled,
 	}
 	createBackupPolicyParams := &backup_policy.V1betaCreateBackupPolicyParams{
 		LocationID:     params.LocationId,
@@ -344,10 +346,12 @@ func (h Handler) V1betaListBackupPolicies(ctx context.Context, params gcpgenserv
 	return &operationResponse, nil
 }
 
-func (h Handler) V1betaUpdateBackupPolicy(ctx context.Context, req *gcpgenserver.BackupPolicyScheduleV1beta, params gcpgenserver.V1betaUpdateBackupPolicyParams) (gcpgenserver.V1betaUpdateBackupPolicyRes, error) {
+func (h Handler) V1betaUpdateBackupPolicy(ctx context.Context, req *gcpgenserver.BackupPolicyUpdateV1beta, params gcpgenserver.V1betaUpdateBackupPolicyParams) (gcpgenserver.V1betaUpdateBackupPolicyRes, error) {
 	logger := utils.GetLoggerFromContext(ctx)
 	jwtToken := utils.GetJWTTokenFromContext(ctx)
 	cvpClient := createClient(logger, jwtToken)
+	description := req.Description.Value
+	enabled := req.Enabled.Value
 	dailyBackupLimit := int64(req.DailyBackupLimit.Value)
 	monthlyBackupLimit := int64(req.MonthlyBackupLimit.Value)
 	weeklyBackupLimit := int64(req.WeeklyBackupLimit.Value)
@@ -359,6 +363,8 @@ func (h Handler) V1betaUpdateBackupPolicy(ctx context.Context, req *gcpgenserver
 	}
 	body := &models.BackupPolicyUpdateV1beta{
 		BackupPolicyScheduleV1beta: backupPolicyScheduleV1beta,
+		Description:                &description,
+		Enabled:                    &enabled,
 	}
 
 	updateBackupPolicyParams := &backup_policy.V1betaUpdateBackupPolicyParams{
@@ -450,18 +456,28 @@ func convertToBackupPolicyDetailsV1beta(res *backup_policy.V1betaDescribeBackupP
 }
 
 func convertToBackupPolicyV1beta(bp *models.BackupPolicyV1beta) gcpgenserver.BackupPolicyV1beta {
-	state := gcpgenserver.BackupPolicyV1betaState(bp.State)
 	backupPolicy := gcpgenserver.BackupPolicyV1beta{
-		ResourceId:         *bp.ResourceID,
-		BackupPolicyId:     gcpgenserver.NewOptString(bp.BackupPolicyID),
-		Enabled:            *bp.Enabled,
-		Description:        gcpgenserver.NewOptString(*bp.Description),
-		CreatedAt:          gcpgenserver.NewOptDateTime(time.Time(*bp.CreatedAt)),
-		State:              gcpgenserver.NewOptBackupPolicyV1betaState(state),
-		VolumeCount:        gcpgenserver.NewOptInt(int(*bp.VolumeCount)),
-		DailyBackupLimit:   gcpgenserver.NewOptInt(int(*bp.DailyBackupLimit)),
-		WeeklyBackupLimit:  gcpgenserver.NewOptInt(int(*bp.WeeklyBackupLimit)),
-		MonthlyBackupLimit: gcpgenserver.NewOptInt(int(*bp.MonthlyBackupLimit)),
+		ResourceId:     *bp.ResourceID,
+		BackupPolicyId: gcpgenserver.NewOptString(bp.BackupPolicyID),
+		Enabled:        *bp.Enabled,
+		Description:    gcpgenserver.NewOptString(*bp.Description),
+		CreatedAt:      gcpgenserver.NewOptDateTime(time.Time(*bp.CreatedAt)),
+	}
+	if bp.VolumeCount != nil {
+		backupPolicy.VolumeCount = gcpgenserver.NewOptInt(int(*bp.VolumeCount))
+	}
+	if bp.State != "" {
+		state := gcpgenserver.BackupPolicyV1betaState(bp.State)
+		backupPolicy.State = gcpgenserver.NewOptBackupPolicyV1betaState(state)
+	}
+	if bp.DailyBackupLimit != nil {
+		backupPolicy.DailyBackupLimit = gcpgenserver.NewOptInt(int(*bp.DailyBackupLimit))
+	}
+	if bp.WeeklyBackupLimit != nil {
+		backupPolicy.WeeklyBackupLimit = gcpgenserver.NewOptInt(int(*bp.WeeklyBackupLimit))
+	}
+	if bp.MonthlyBackupLimit != nil {
+		backupPolicy.MonthlyBackupLimit = gcpgenserver.NewOptInt(int(*bp.MonthlyBackupLimit))
 	}
 	return backupPolicy
 }

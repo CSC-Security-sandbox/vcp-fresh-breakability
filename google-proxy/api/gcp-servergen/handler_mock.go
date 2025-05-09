@@ -21,6 +21,113 @@ func (_m *MockHandler) EXPECT() *MockHandler_Expecter {
 	return &MockHandler_Expecter{mock: &_m.Mock}
 }
 
+// GetHealth provides a mock function with given fields: ctx
+func (_m *MockHandler) GetHealth(ctx context.Context) (GetHealthRes, error) {
+	ret := _m.Called(ctx)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetHealth")
+	}
+
+	var r0 GetHealthRes
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context) (GetHealthRes, error)); ok {
+		return rf(ctx)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context) GetHealthRes); ok {
+		r0 = rf(ctx)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(GetHealthRes)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context) error); ok {
+		r1 = rf(ctx)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockHandler_GetHealth_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetHealth'
+type MockHandler_GetHealth_Call struct {
+	*mock.Call
+}
+
+// GetHealth is a helper method to define mock.On call
+//   - ctx context.Context
+func (_e *MockHandler_Expecter) GetHealth(ctx interface{}) *MockHandler_GetHealth_Call {
+	return &MockHandler_GetHealth_Call{Call: _e.mock.On("GetHealth", ctx)}
+}
+
+func (_c *MockHandler_GetHealth_Call) Run(run func(ctx context.Context)) *MockHandler_GetHealth_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context))
+	})
+	return _c
+}
+
+func (_c *MockHandler_GetHealth_Call) Return(_a0 GetHealthRes, _a1 error) *MockHandler_GetHealth_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockHandler_GetHealth_Call) RunAndReturn(run func(context.Context) (GetHealthRes, error)) *MockHandler_GetHealth_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// NewError provides a mock function with given fields: ctx, err
+func (_m *MockHandler) NewError(ctx context.Context, err error) *ErrorStatusCode {
+	ret := _m.Called(ctx, err)
+
+	if len(ret) == 0 {
+		panic("no return value specified for NewError")
+	}
+
+	var r0 *ErrorStatusCode
+	if rf, ok := ret.Get(0).(func(context.Context, error) *ErrorStatusCode); ok {
+		r0 = rf(ctx, err)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*ErrorStatusCode)
+		}
+	}
+
+	return r0
+}
+
+// MockHandler_NewError_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'NewError'
+type MockHandler_NewError_Call struct {
+	*mock.Call
+}
+
+// NewError is a helper method to define mock.On call
+//   - ctx context.Context
+//   - err error
+func (_e *MockHandler_Expecter) NewError(ctx interface{}, err interface{}) *MockHandler_NewError_Call {
+	return &MockHandler_NewError_Call{Call: _e.mock.On("NewError", ctx, err)}
+}
+
+func (_c *MockHandler_NewError_Call) Run(run func(ctx context.Context, err error)) *MockHandler_NewError_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(error))
+	})
+	return _c
+}
+
+func (_c *MockHandler_NewError_Call) Return(_a0 *ErrorStatusCode) *MockHandler_NewError_Call {
+	_c.Call.Return(_a0)
+	return _c
+}
+
+func (_c *MockHandler_NewError_Call) RunAndReturn(run func(context.Context, error) *ErrorStatusCode) *MockHandler_NewError_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // V1betaCheckKmsConfig provides a mock function with given fields: ctx, params
 func (_m *MockHandler) V1betaCheckKmsConfig(ctx context.Context, params V1betaCheckKmsConfigParams) (V1betaCheckKmsConfigRes, error) {
 	ret := _m.Called(ctx, params)
@@ -76,6 +183,66 @@ func (_c *MockHandler_V1betaCheckKmsConfig_Call) Return(_a0 V1betaCheckKmsConfig
 }
 
 func (_c *MockHandler_V1betaCheckKmsConfig_Call) RunAndReturn(run func(context.Context, V1betaCheckKmsConfigParams) (V1betaCheckKmsConfigRes, error)) *MockHandler_V1betaCheckKmsConfig_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// V1betaCreateActiveDirectory provides a mock function with given fields: ctx, req, params
+func (_m *MockHandler) V1betaCreateActiveDirectory(ctx context.Context, req *ActiveDirectoryV1beta, params V1betaCreateActiveDirectoryParams) (V1betaCreateActiveDirectoryRes, error) {
+	ret := _m.Called(ctx, req, params)
+
+	if len(ret) == 0 {
+		panic("no return value specified for V1betaCreateActiveDirectory")
+	}
+
+	var r0 V1betaCreateActiveDirectoryRes
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, *ActiveDirectoryV1beta, V1betaCreateActiveDirectoryParams) (V1betaCreateActiveDirectoryRes, error)); ok {
+		return rf(ctx, req, params)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, *ActiveDirectoryV1beta, V1betaCreateActiveDirectoryParams) V1betaCreateActiveDirectoryRes); ok {
+		r0 = rf(ctx, req, params)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(V1betaCreateActiveDirectoryRes)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, *ActiveDirectoryV1beta, V1betaCreateActiveDirectoryParams) error); ok {
+		r1 = rf(ctx, req, params)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockHandler_V1betaCreateActiveDirectory_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'V1betaCreateActiveDirectory'
+type MockHandler_V1betaCreateActiveDirectory_Call struct {
+	*mock.Call
+}
+
+// V1betaCreateActiveDirectory is a helper method to define mock.On call
+//   - ctx context.Context
+//   - req *ActiveDirectoryV1beta
+//   - params V1betaCreateActiveDirectoryParams
+func (_e *MockHandler_Expecter) V1betaCreateActiveDirectory(ctx interface{}, req interface{}, params interface{}) *MockHandler_V1betaCreateActiveDirectory_Call {
+	return &MockHandler_V1betaCreateActiveDirectory_Call{Call: _e.mock.On("V1betaCreateActiveDirectory", ctx, req, params)}
+}
+
+func (_c *MockHandler_V1betaCreateActiveDirectory_Call) Run(run func(ctx context.Context, req *ActiveDirectoryV1beta, params V1betaCreateActiveDirectoryParams)) *MockHandler_V1betaCreateActiveDirectory_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(*ActiveDirectoryV1beta), args[2].(V1betaCreateActiveDirectoryParams))
+	})
+	return _c
+}
+
+func (_c *MockHandler_V1betaCreateActiveDirectory_Call) Return(_a0 V1betaCreateActiveDirectoryRes, _a1 error) *MockHandler_V1betaCreateActiveDirectory_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockHandler_V1betaCreateActiveDirectory_Call) RunAndReturn(run func(context.Context, *ActiveDirectoryV1beta, V1betaCreateActiveDirectoryParams) (V1betaCreateActiveDirectoryRes, error)) *MockHandler_V1betaCreateActiveDirectory_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -136,6 +303,66 @@ func (_c *MockHandler_V1betaCreateBackupPolicy_Call) Return(_a0 V1betaCreateBack
 }
 
 func (_c *MockHandler_V1betaCreateBackupPolicy_Call) RunAndReturn(run func(context.Context, *BackupPolicyCreateV1beta, V1betaCreateBackupPolicyParams) (V1betaCreateBackupPolicyRes, error)) *MockHandler_V1betaCreateBackupPolicy_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// V1betaCreateBackupVault provides a mock function with given fields: ctx, req, params
+func (_m *MockHandler) V1betaCreateBackupVault(ctx context.Context, req *BackupVaultCreateV1beta, params V1betaCreateBackupVaultParams) (V1betaCreateBackupVaultRes, error) {
+	ret := _m.Called(ctx, req, params)
+
+	if len(ret) == 0 {
+		panic("no return value specified for V1betaCreateBackupVault")
+	}
+
+	var r0 V1betaCreateBackupVaultRes
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, *BackupVaultCreateV1beta, V1betaCreateBackupVaultParams) (V1betaCreateBackupVaultRes, error)); ok {
+		return rf(ctx, req, params)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, *BackupVaultCreateV1beta, V1betaCreateBackupVaultParams) V1betaCreateBackupVaultRes); ok {
+		r0 = rf(ctx, req, params)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(V1betaCreateBackupVaultRes)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, *BackupVaultCreateV1beta, V1betaCreateBackupVaultParams) error); ok {
+		r1 = rf(ctx, req, params)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockHandler_V1betaCreateBackupVault_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'V1betaCreateBackupVault'
+type MockHandler_V1betaCreateBackupVault_Call struct {
+	*mock.Call
+}
+
+// V1betaCreateBackupVault is a helper method to define mock.On call
+//   - ctx context.Context
+//   - req *BackupVaultCreateV1beta
+//   - params V1betaCreateBackupVaultParams
+func (_e *MockHandler_Expecter) V1betaCreateBackupVault(ctx interface{}, req interface{}, params interface{}) *MockHandler_V1betaCreateBackupVault_Call {
+	return &MockHandler_V1betaCreateBackupVault_Call{Call: _e.mock.On("V1betaCreateBackupVault", ctx, req, params)}
+}
+
+func (_c *MockHandler_V1betaCreateBackupVault_Call) Run(run func(ctx context.Context, req *BackupVaultCreateV1beta, params V1betaCreateBackupVaultParams)) *MockHandler_V1betaCreateBackupVault_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(*BackupVaultCreateV1beta), args[2].(V1betaCreateBackupVaultParams))
+	})
+	return _c
+}
+
+func (_c *MockHandler_V1betaCreateBackupVault_Call) Return(_a0 V1betaCreateBackupVaultRes, _a1 error) *MockHandler_V1betaCreateBackupVault_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockHandler_V1betaCreateBackupVault_Call) RunAndReturn(run func(context.Context, *BackupVaultCreateV1beta, V1betaCreateBackupVaultParams) (V1betaCreateBackupVaultRes, error)) *MockHandler_V1betaCreateBackupVault_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -320,6 +547,66 @@ func (_c *MockHandler_V1betaCreatePool_Call) RunAndReturn(run func(context.Conte
 	return _c
 }
 
+// V1betaCreateReplication provides a mock function with given fields: ctx, req, params
+func (_m *MockHandler) V1betaCreateReplication(ctx context.Context, req *ReplicationCreateV1beta, params V1betaCreateReplicationParams) (V1betaCreateReplicationRes, error) {
+	ret := _m.Called(ctx, req, params)
+
+	if len(ret) == 0 {
+		panic("no return value specified for V1betaCreateReplication")
+	}
+
+	var r0 V1betaCreateReplicationRes
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, *ReplicationCreateV1beta, V1betaCreateReplicationParams) (V1betaCreateReplicationRes, error)); ok {
+		return rf(ctx, req, params)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, *ReplicationCreateV1beta, V1betaCreateReplicationParams) V1betaCreateReplicationRes); ok {
+		r0 = rf(ctx, req, params)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(V1betaCreateReplicationRes)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, *ReplicationCreateV1beta, V1betaCreateReplicationParams) error); ok {
+		r1 = rf(ctx, req, params)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockHandler_V1betaCreateReplication_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'V1betaCreateReplication'
+type MockHandler_V1betaCreateReplication_Call struct {
+	*mock.Call
+}
+
+// V1betaCreateReplication is a helper method to define mock.On call
+//   - ctx context.Context
+//   - req *ReplicationCreateV1beta
+//   - params V1betaCreateReplicationParams
+func (_e *MockHandler_Expecter) V1betaCreateReplication(ctx interface{}, req interface{}, params interface{}) *MockHandler_V1betaCreateReplication_Call {
+	return &MockHandler_V1betaCreateReplication_Call{Call: _e.mock.On("V1betaCreateReplication", ctx, req, params)}
+}
+
+func (_c *MockHandler_V1betaCreateReplication_Call) Run(run func(ctx context.Context, req *ReplicationCreateV1beta, params V1betaCreateReplicationParams)) *MockHandler_V1betaCreateReplication_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(*ReplicationCreateV1beta), args[2].(V1betaCreateReplicationParams))
+	})
+	return _c
+}
+
+func (_c *MockHandler_V1betaCreateReplication_Call) Return(_a0 V1betaCreateReplicationRes, _a1 error) *MockHandler_V1betaCreateReplication_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockHandler_V1betaCreateReplication_Call) RunAndReturn(run func(context.Context, *ReplicationCreateV1beta, V1betaCreateReplicationParams) (V1betaCreateReplicationRes, error)) *MockHandler_V1betaCreateReplication_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // V1betaCreateVolume provides a mock function with given fields: ctx, req, params
 func (_m *MockHandler) V1betaCreateVolume(ctx context.Context, req *VolumeCreateV1beta, params V1betaCreateVolumeParams) (V1betaCreateVolumeRes, error) {
 	ret := _m.Called(ctx, req, params)
@@ -380,6 +667,65 @@ func (_c *MockHandler_V1betaCreateVolume_Call) RunAndReturn(run func(context.Con
 	return _c
 }
 
+// V1betaDeleteActiveDirectory provides a mock function with given fields: ctx, params
+func (_m *MockHandler) V1betaDeleteActiveDirectory(ctx context.Context, params V1betaDeleteActiveDirectoryParams) (V1betaDeleteActiveDirectoryRes, error) {
+	ret := _m.Called(ctx, params)
+
+	if len(ret) == 0 {
+		panic("no return value specified for V1betaDeleteActiveDirectory")
+	}
+
+	var r0 V1betaDeleteActiveDirectoryRes
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, V1betaDeleteActiveDirectoryParams) (V1betaDeleteActiveDirectoryRes, error)); ok {
+		return rf(ctx, params)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, V1betaDeleteActiveDirectoryParams) V1betaDeleteActiveDirectoryRes); ok {
+		r0 = rf(ctx, params)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(V1betaDeleteActiveDirectoryRes)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, V1betaDeleteActiveDirectoryParams) error); ok {
+		r1 = rf(ctx, params)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockHandler_V1betaDeleteActiveDirectory_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'V1betaDeleteActiveDirectory'
+type MockHandler_V1betaDeleteActiveDirectory_Call struct {
+	*mock.Call
+}
+
+// V1betaDeleteActiveDirectory is a helper method to define mock.On call
+//   - ctx context.Context
+//   - params V1betaDeleteActiveDirectoryParams
+func (_e *MockHandler_Expecter) V1betaDeleteActiveDirectory(ctx interface{}, params interface{}) *MockHandler_V1betaDeleteActiveDirectory_Call {
+	return &MockHandler_V1betaDeleteActiveDirectory_Call{Call: _e.mock.On("V1betaDeleteActiveDirectory", ctx, params)}
+}
+
+func (_c *MockHandler_V1betaDeleteActiveDirectory_Call) Run(run func(ctx context.Context, params V1betaDeleteActiveDirectoryParams)) *MockHandler_V1betaDeleteActiveDirectory_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(V1betaDeleteActiveDirectoryParams))
+	})
+	return _c
+}
+
+func (_c *MockHandler_V1betaDeleteActiveDirectory_Call) Return(_a0 V1betaDeleteActiveDirectoryRes, _a1 error) *MockHandler_V1betaDeleteActiveDirectory_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockHandler_V1betaDeleteActiveDirectory_Call) RunAndReturn(run func(context.Context, V1betaDeleteActiveDirectoryParams) (V1betaDeleteActiveDirectoryRes, error)) *MockHandler_V1betaDeleteActiveDirectory_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // V1betaDeleteBackupPolicy provides a mock function with given fields: ctx, params
 func (_m *MockHandler) V1betaDeleteBackupPolicy(ctx context.Context, params V1betaDeleteBackupPolicyParams) (V1betaDeleteBackupPolicyRes, error) {
 	ret := _m.Called(ctx, params)
@@ -435,6 +781,65 @@ func (_c *MockHandler_V1betaDeleteBackupPolicy_Call) Return(_a0 V1betaDeleteBack
 }
 
 func (_c *MockHandler_V1betaDeleteBackupPolicy_Call) RunAndReturn(run func(context.Context, V1betaDeleteBackupPolicyParams) (V1betaDeleteBackupPolicyRes, error)) *MockHandler_V1betaDeleteBackupPolicy_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// V1betaDeleteBackupVault provides a mock function with given fields: ctx, params
+func (_m *MockHandler) V1betaDeleteBackupVault(ctx context.Context, params V1betaDeleteBackupVaultParams) (V1betaDeleteBackupVaultRes, error) {
+	ret := _m.Called(ctx, params)
+
+	if len(ret) == 0 {
+		panic("no return value specified for V1betaDeleteBackupVault")
+	}
+
+	var r0 V1betaDeleteBackupVaultRes
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, V1betaDeleteBackupVaultParams) (V1betaDeleteBackupVaultRes, error)); ok {
+		return rf(ctx, params)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, V1betaDeleteBackupVaultParams) V1betaDeleteBackupVaultRes); ok {
+		r0 = rf(ctx, params)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(V1betaDeleteBackupVaultRes)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, V1betaDeleteBackupVaultParams) error); ok {
+		r1 = rf(ctx, params)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockHandler_V1betaDeleteBackupVault_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'V1betaDeleteBackupVault'
+type MockHandler_V1betaDeleteBackupVault_Call struct {
+	*mock.Call
+}
+
+// V1betaDeleteBackupVault is a helper method to define mock.On call
+//   - ctx context.Context
+//   - params V1betaDeleteBackupVaultParams
+func (_e *MockHandler_Expecter) V1betaDeleteBackupVault(ctx interface{}, params interface{}) *MockHandler_V1betaDeleteBackupVault_Call {
+	return &MockHandler_V1betaDeleteBackupVault_Call{Call: _e.mock.On("V1betaDeleteBackupVault", ctx, params)}
+}
+
+func (_c *MockHandler_V1betaDeleteBackupVault_Call) Run(run func(ctx context.Context, params V1betaDeleteBackupVaultParams)) *MockHandler_V1betaDeleteBackupVault_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(V1betaDeleteBackupVaultParams))
+	})
+	return _c
+}
+
+func (_c *MockHandler_V1betaDeleteBackupVault_Call) Return(_a0 V1betaDeleteBackupVaultRes, _a1 error) *MockHandler_V1betaDeleteBackupVault_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockHandler_V1betaDeleteBackupVault_Call) RunAndReturn(run func(context.Context, V1betaDeleteBackupVaultParams) (V1betaDeleteBackupVaultRes, error)) *MockHandler_V1betaDeleteBackupVault_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -616,6 +1021,66 @@ func (_c *MockHandler_V1betaDeletePool_Call) RunAndReturn(run func(context.Conte
 	return _c
 }
 
+// V1betaDeleteReplication provides a mock function with given fields: ctx, req, params
+func (_m *MockHandler) V1betaDeleteReplication(ctx context.Context, req *ReplicationDeleteV1beta, params V1betaDeleteReplicationParams) (V1betaDeleteReplicationRes, error) {
+	ret := _m.Called(ctx, req, params)
+
+	if len(ret) == 0 {
+		panic("no return value specified for V1betaDeleteReplication")
+	}
+
+	var r0 V1betaDeleteReplicationRes
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, *ReplicationDeleteV1beta, V1betaDeleteReplicationParams) (V1betaDeleteReplicationRes, error)); ok {
+		return rf(ctx, req, params)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, *ReplicationDeleteV1beta, V1betaDeleteReplicationParams) V1betaDeleteReplicationRes); ok {
+		r0 = rf(ctx, req, params)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(V1betaDeleteReplicationRes)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, *ReplicationDeleteV1beta, V1betaDeleteReplicationParams) error); ok {
+		r1 = rf(ctx, req, params)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockHandler_V1betaDeleteReplication_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'V1betaDeleteReplication'
+type MockHandler_V1betaDeleteReplication_Call struct {
+	*mock.Call
+}
+
+// V1betaDeleteReplication is a helper method to define mock.On call
+//   - ctx context.Context
+//   - req *ReplicationDeleteV1beta
+//   - params V1betaDeleteReplicationParams
+func (_e *MockHandler_Expecter) V1betaDeleteReplication(ctx interface{}, req interface{}, params interface{}) *MockHandler_V1betaDeleteReplication_Call {
+	return &MockHandler_V1betaDeleteReplication_Call{Call: _e.mock.On("V1betaDeleteReplication", ctx, req, params)}
+}
+
+func (_c *MockHandler_V1betaDeleteReplication_Call) Run(run func(ctx context.Context, req *ReplicationDeleteV1beta, params V1betaDeleteReplicationParams)) *MockHandler_V1betaDeleteReplication_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(*ReplicationDeleteV1beta), args[2].(V1betaDeleteReplicationParams))
+	})
+	return _c
+}
+
+func (_c *MockHandler_V1betaDeleteReplication_Call) Return(_a0 V1betaDeleteReplicationRes, _a1 error) *MockHandler_V1betaDeleteReplication_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockHandler_V1betaDeleteReplication_Call) RunAndReturn(run func(context.Context, *ReplicationDeleteV1beta, V1betaDeleteReplicationParams) (V1betaDeleteReplicationRes, error)) *MockHandler_V1betaDeleteReplication_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // V1betaDeleteVolume provides a mock function with given fields: ctx, req, params
 func (_m *MockHandler) V1betaDeleteVolume(ctx context.Context, req OptV1betaDeleteVolumeReq, params V1betaDeleteVolumeParams) (V1betaDeleteVolumeRes, error) {
 	ret := _m.Called(ctx, req, params)
@@ -676,6 +1141,65 @@ func (_c *MockHandler_V1betaDeleteVolume_Call) RunAndReturn(run func(context.Con
 	return _c
 }
 
+// V1betaDescribeActiveDirectory provides a mock function with given fields: ctx, params
+func (_m *MockHandler) V1betaDescribeActiveDirectory(ctx context.Context, params V1betaDescribeActiveDirectoryParams) (V1betaDescribeActiveDirectoryRes, error) {
+	ret := _m.Called(ctx, params)
+
+	if len(ret) == 0 {
+		panic("no return value specified for V1betaDescribeActiveDirectory")
+	}
+
+	var r0 V1betaDescribeActiveDirectoryRes
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, V1betaDescribeActiveDirectoryParams) (V1betaDescribeActiveDirectoryRes, error)); ok {
+		return rf(ctx, params)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, V1betaDescribeActiveDirectoryParams) V1betaDescribeActiveDirectoryRes); ok {
+		r0 = rf(ctx, params)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(V1betaDescribeActiveDirectoryRes)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, V1betaDescribeActiveDirectoryParams) error); ok {
+		r1 = rf(ctx, params)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockHandler_V1betaDescribeActiveDirectory_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'V1betaDescribeActiveDirectory'
+type MockHandler_V1betaDescribeActiveDirectory_Call struct {
+	*mock.Call
+}
+
+// V1betaDescribeActiveDirectory is a helper method to define mock.On call
+//   - ctx context.Context
+//   - params V1betaDescribeActiveDirectoryParams
+func (_e *MockHandler_Expecter) V1betaDescribeActiveDirectory(ctx interface{}, params interface{}) *MockHandler_V1betaDescribeActiveDirectory_Call {
+	return &MockHandler_V1betaDescribeActiveDirectory_Call{Call: _e.mock.On("V1betaDescribeActiveDirectory", ctx, params)}
+}
+
+func (_c *MockHandler_V1betaDescribeActiveDirectory_Call) Run(run func(ctx context.Context, params V1betaDescribeActiveDirectoryParams)) *MockHandler_V1betaDescribeActiveDirectory_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(V1betaDescribeActiveDirectoryParams))
+	})
+	return _c
+}
+
+func (_c *MockHandler_V1betaDescribeActiveDirectory_Call) Return(_a0 V1betaDescribeActiveDirectoryRes, _a1 error) *MockHandler_V1betaDescribeActiveDirectory_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockHandler_V1betaDescribeActiveDirectory_Call) RunAndReturn(run func(context.Context, V1betaDescribeActiveDirectoryParams) (V1betaDescribeActiveDirectoryRes, error)) *MockHandler_V1betaDescribeActiveDirectory_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // V1betaDescribeBackupPolicy provides a mock function with given fields: ctx, params
 func (_m *MockHandler) V1betaDescribeBackupPolicy(ctx context.Context, params V1betaDescribeBackupPolicyParams) (V1betaDescribeBackupPolicyRes, error) {
 	ret := _m.Called(ctx, params)
@@ -731,6 +1255,65 @@ func (_c *MockHandler_V1betaDescribeBackupPolicy_Call) Return(_a0 V1betaDescribe
 }
 
 func (_c *MockHandler_V1betaDescribeBackupPolicy_Call) RunAndReturn(run func(context.Context, V1betaDescribeBackupPolicyParams) (V1betaDescribeBackupPolicyRes, error)) *MockHandler_V1betaDescribeBackupPolicy_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// V1betaDescribeBackupVault provides a mock function with given fields: ctx, params
+func (_m *MockHandler) V1betaDescribeBackupVault(ctx context.Context, params V1betaDescribeBackupVaultParams) (V1betaDescribeBackupVaultRes, error) {
+	ret := _m.Called(ctx, params)
+
+	if len(ret) == 0 {
+		panic("no return value specified for V1betaDescribeBackupVault")
+	}
+
+	var r0 V1betaDescribeBackupVaultRes
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, V1betaDescribeBackupVaultParams) (V1betaDescribeBackupVaultRes, error)); ok {
+		return rf(ctx, params)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, V1betaDescribeBackupVaultParams) V1betaDescribeBackupVaultRes); ok {
+		r0 = rf(ctx, params)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(V1betaDescribeBackupVaultRes)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, V1betaDescribeBackupVaultParams) error); ok {
+		r1 = rf(ctx, params)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockHandler_V1betaDescribeBackupVault_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'V1betaDescribeBackupVault'
+type MockHandler_V1betaDescribeBackupVault_Call struct {
+	*mock.Call
+}
+
+// V1betaDescribeBackupVault is a helper method to define mock.On call
+//   - ctx context.Context
+//   - params V1betaDescribeBackupVaultParams
+func (_e *MockHandler_Expecter) V1betaDescribeBackupVault(ctx interface{}, params interface{}) *MockHandler_V1betaDescribeBackupVault_Call {
+	return &MockHandler_V1betaDescribeBackupVault_Call{Call: _e.mock.On("V1betaDescribeBackupVault", ctx, params)}
+}
+
+func (_c *MockHandler_V1betaDescribeBackupVault_Call) Run(run func(ctx context.Context, params V1betaDescribeBackupVaultParams)) *MockHandler_V1betaDescribeBackupVault_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(V1betaDescribeBackupVaultParams))
+	})
+	return _c
+}
+
+func (_c *MockHandler_V1betaDescribeBackupVault_Call) Return(_a0 V1betaDescribeBackupVaultRes, _a1 error) *MockHandler_V1betaDescribeBackupVault_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockHandler_V1betaDescribeBackupVault_Call) RunAndReturn(run func(context.Context, V1betaDescribeBackupVaultParams) (V1betaDescribeBackupVaultRes, error)) *MockHandler_V1betaDescribeBackupVault_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -853,6 +1436,65 @@ func (_c *MockHandler_V1betaDescribeKmsConfiguration_Call) RunAndReturn(run func
 	return _c
 }
 
+// V1betaDescribeOperation provides a mock function with given fields: ctx, params
+func (_m *MockHandler) V1betaDescribeOperation(ctx context.Context, params V1betaDescribeOperationParams) (V1betaDescribeOperationRes, error) {
+	ret := _m.Called(ctx, params)
+
+	if len(ret) == 0 {
+		panic("no return value specified for V1betaDescribeOperation")
+	}
+
+	var r0 V1betaDescribeOperationRes
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, V1betaDescribeOperationParams) (V1betaDescribeOperationRes, error)); ok {
+		return rf(ctx, params)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, V1betaDescribeOperationParams) V1betaDescribeOperationRes); ok {
+		r0 = rf(ctx, params)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(V1betaDescribeOperationRes)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, V1betaDescribeOperationParams) error); ok {
+		r1 = rf(ctx, params)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockHandler_V1betaDescribeOperation_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'V1betaDescribeOperation'
+type MockHandler_V1betaDescribeOperation_Call struct {
+	*mock.Call
+}
+
+// V1betaDescribeOperation is a helper method to define mock.On call
+//   - ctx context.Context
+//   - params V1betaDescribeOperationParams
+func (_e *MockHandler_Expecter) V1betaDescribeOperation(ctx interface{}, params interface{}) *MockHandler_V1betaDescribeOperation_Call {
+	return &MockHandler_V1betaDescribeOperation_Call{Call: _e.mock.On("V1betaDescribeOperation", ctx, params)}
+}
+
+func (_c *MockHandler_V1betaDescribeOperation_Call) Run(run func(ctx context.Context, params V1betaDescribeOperationParams)) *MockHandler_V1betaDescribeOperation_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(V1betaDescribeOperationParams))
+	})
+	return _c
+}
+
+func (_c *MockHandler_V1betaDescribeOperation_Call) Return(_a0 V1betaDescribeOperationRes, _a1 error) *MockHandler_V1betaDescribeOperation_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockHandler_V1betaDescribeOperation_Call) RunAndReturn(run func(context.Context, V1betaDescribeOperationParams) (V1betaDescribeOperationRes, error)) *MockHandler_V1betaDescribeOperation_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // V1betaDescribePool provides a mock function with given fields: ctx, params
 func (_m *MockHandler) V1betaDescribePool(ctx context.Context, params V1betaDescribePoolParams) (V1betaDescribePoolRes, error) {
 	ret := _m.Called(ctx, params)
@@ -971,6 +1613,66 @@ func (_c *MockHandler_V1betaDescribeVolume_Call) RunAndReturn(run func(context.C
 	return _c
 }
 
+// V1betaGetMultipleActiveDirectories provides a mock function with given fields: ctx, req, params
+func (_m *MockHandler) V1betaGetMultipleActiveDirectories(ctx context.Context, req *ActiveDirectoryIDListV1beta, params V1betaGetMultipleActiveDirectoriesParams) (V1betaGetMultipleActiveDirectoriesRes, error) {
+	ret := _m.Called(ctx, req, params)
+
+	if len(ret) == 0 {
+		panic("no return value specified for V1betaGetMultipleActiveDirectories")
+	}
+
+	var r0 V1betaGetMultipleActiveDirectoriesRes
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, *ActiveDirectoryIDListV1beta, V1betaGetMultipleActiveDirectoriesParams) (V1betaGetMultipleActiveDirectoriesRes, error)); ok {
+		return rf(ctx, req, params)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, *ActiveDirectoryIDListV1beta, V1betaGetMultipleActiveDirectoriesParams) V1betaGetMultipleActiveDirectoriesRes); ok {
+		r0 = rf(ctx, req, params)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(V1betaGetMultipleActiveDirectoriesRes)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, *ActiveDirectoryIDListV1beta, V1betaGetMultipleActiveDirectoriesParams) error); ok {
+		r1 = rf(ctx, req, params)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockHandler_V1betaGetMultipleActiveDirectories_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'V1betaGetMultipleActiveDirectories'
+type MockHandler_V1betaGetMultipleActiveDirectories_Call struct {
+	*mock.Call
+}
+
+// V1betaGetMultipleActiveDirectories is a helper method to define mock.On call
+//   - ctx context.Context
+//   - req *ActiveDirectoryIDListV1beta
+//   - params V1betaGetMultipleActiveDirectoriesParams
+func (_e *MockHandler_Expecter) V1betaGetMultipleActiveDirectories(ctx interface{}, req interface{}, params interface{}) *MockHandler_V1betaGetMultipleActiveDirectories_Call {
+	return &MockHandler_V1betaGetMultipleActiveDirectories_Call{Call: _e.mock.On("V1betaGetMultipleActiveDirectories", ctx, req, params)}
+}
+
+func (_c *MockHandler_V1betaGetMultipleActiveDirectories_Call) Run(run func(ctx context.Context, req *ActiveDirectoryIDListV1beta, params V1betaGetMultipleActiveDirectoriesParams)) *MockHandler_V1betaGetMultipleActiveDirectories_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(*ActiveDirectoryIDListV1beta), args[2].(V1betaGetMultipleActiveDirectoriesParams))
+	})
+	return _c
+}
+
+func (_c *MockHandler_V1betaGetMultipleActiveDirectories_Call) Return(_a0 V1betaGetMultipleActiveDirectoriesRes, _a1 error) *MockHandler_V1betaGetMultipleActiveDirectories_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockHandler_V1betaGetMultipleActiveDirectories_Call) RunAndReturn(run func(context.Context, *ActiveDirectoryIDListV1beta, V1betaGetMultipleActiveDirectoriesParams) (V1betaGetMultipleActiveDirectoriesRes, error)) *MockHandler_V1betaGetMultipleActiveDirectories_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // V1betaGetMultipleBackupPolicies provides a mock function with given fields: ctx, req, params
 func (_m *MockHandler) V1betaGetMultipleBackupPolicies(ctx context.Context, req *BackupPolicyIDListV1beta, params V1betaGetMultipleBackupPoliciesParams) (V1betaGetMultipleBackupPoliciesRes, error) {
 	ret := _m.Called(ctx, req, params)
@@ -1027,6 +1729,126 @@ func (_c *MockHandler_V1betaGetMultipleBackupPolicies_Call) Return(_a0 V1betaGet
 }
 
 func (_c *MockHandler_V1betaGetMultipleBackupPolicies_Call) RunAndReturn(run func(context.Context, *BackupPolicyIDListV1beta, V1betaGetMultipleBackupPoliciesParams) (V1betaGetMultipleBackupPoliciesRes, error)) *MockHandler_V1betaGetMultipleBackupPolicies_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// V1betaGetMultipleBackupVaults provides a mock function with given fields: ctx, req, params
+func (_m *MockHandler) V1betaGetMultipleBackupVaults(ctx context.Context, req *BackupVaultUUIDListV1beta, params V1betaGetMultipleBackupVaultsParams) (V1betaGetMultipleBackupVaultsRes, error) {
+	ret := _m.Called(ctx, req, params)
+
+	if len(ret) == 0 {
+		panic("no return value specified for V1betaGetMultipleBackupVaults")
+	}
+
+	var r0 V1betaGetMultipleBackupVaultsRes
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, *BackupVaultUUIDListV1beta, V1betaGetMultipleBackupVaultsParams) (V1betaGetMultipleBackupVaultsRes, error)); ok {
+		return rf(ctx, req, params)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, *BackupVaultUUIDListV1beta, V1betaGetMultipleBackupVaultsParams) V1betaGetMultipleBackupVaultsRes); ok {
+		r0 = rf(ctx, req, params)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(V1betaGetMultipleBackupVaultsRes)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, *BackupVaultUUIDListV1beta, V1betaGetMultipleBackupVaultsParams) error); ok {
+		r1 = rf(ctx, req, params)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockHandler_V1betaGetMultipleBackupVaults_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'V1betaGetMultipleBackupVaults'
+type MockHandler_V1betaGetMultipleBackupVaults_Call struct {
+	*mock.Call
+}
+
+// V1betaGetMultipleBackupVaults is a helper method to define mock.On call
+//   - ctx context.Context
+//   - req *BackupVaultUUIDListV1beta
+//   - params V1betaGetMultipleBackupVaultsParams
+func (_e *MockHandler_Expecter) V1betaGetMultipleBackupVaults(ctx interface{}, req interface{}, params interface{}) *MockHandler_V1betaGetMultipleBackupVaults_Call {
+	return &MockHandler_V1betaGetMultipleBackupVaults_Call{Call: _e.mock.On("V1betaGetMultipleBackupVaults", ctx, req, params)}
+}
+
+func (_c *MockHandler_V1betaGetMultipleBackupVaults_Call) Run(run func(ctx context.Context, req *BackupVaultUUIDListV1beta, params V1betaGetMultipleBackupVaultsParams)) *MockHandler_V1betaGetMultipleBackupVaults_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(*BackupVaultUUIDListV1beta), args[2].(V1betaGetMultipleBackupVaultsParams))
+	})
+	return _c
+}
+
+func (_c *MockHandler_V1betaGetMultipleBackupVaults_Call) Return(_a0 V1betaGetMultipleBackupVaultsRes, _a1 error) *MockHandler_V1betaGetMultipleBackupVaults_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockHandler_V1betaGetMultipleBackupVaults_Call) RunAndReturn(run func(context.Context, *BackupVaultUUIDListV1beta, V1betaGetMultipleBackupVaultsParams) (V1betaGetMultipleBackupVaultsRes, error)) *MockHandler_V1betaGetMultipleBackupVaults_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// V1betaGetMultipleBackups provides a mock function with given fields: ctx, req, params
+func (_m *MockHandler) V1betaGetMultipleBackups(ctx context.Context, req *BackupUUIDListV1beta, params V1betaGetMultipleBackupsParams) (V1betaGetMultipleBackupsRes, error) {
+	ret := _m.Called(ctx, req, params)
+
+	if len(ret) == 0 {
+		panic("no return value specified for V1betaGetMultipleBackups")
+	}
+
+	var r0 V1betaGetMultipleBackupsRes
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, *BackupUUIDListV1beta, V1betaGetMultipleBackupsParams) (V1betaGetMultipleBackupsRes, error)); ok {
+		return rf(ctx, req, params)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, *BackupUUIDListV1beta, V1betaGetMultipleBackupsParams) V1betaGetMultipleBackupsRes); ok {
+		r0 = rf(ctx, req, params)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(V1betaGetMultipleBackupsRes)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, *BackupUUIDListV1beta, V1betaGetMultipleBackupsParams) error); ok {
+		r1 = rf(ctx, req, params)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockHandler_V1betaGetMultipleBackups_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'V1betaGetMultipleBackups'
+type MockHandler_V1betaGetMultipleBackups_Call struct {
+	*mock.Call
+}
+
+// V1betaGetMultipleBackups is a helper method to define mock.On call
+//   - ctx context.Context
+//   - req *BackupUUIDListV1beta
+//   - params V1betaGetMultipleBackupsParams
+func (_e *MockHandler_Expecter) V1betaGetMultipleBackups(ctx interface{}, req interface{}, params interface{}) *MockHandler_V1betaGetMultipleBackups_Call {
+	return &MockHandler_V1betaGetMultipleBackups_Call{Call: _e.mock.On("V1betaGetMultipleBackups", ctx, req, params)}
+}
+
+func (_c *MockHandler_V1betaGetMultipleBackups_Call) Run(run func(ctx context.Context, req *BackupUUIDListV1beta, params V1betaGetMultipleBackupsParams)) *MockHandler_V1betaGetMultipleBackups_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(*BackupUUIDListV1beta), args[2].(V1betaGetMultipleBackupsParams))
+	})
+	return _c
+}
+
+func (_c *MockHandler_V1betaGetMultipleBackups_Call) Return(_a0 V1betaGetMultipleBackupsRes, _a1 error) *MockHandler_V1betaGetMultipleBackups_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockHandler_V1betaGetMultipleBackups_Call) RunAndReturn(run func(context.Context, *BackupUUIDListV1beta, V1betaGetMultipleBackupsParams) (V1betaGetMultipleBackupsRes, error)) *MockHandler_V1betaGetMultipleBackups_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -1151,6 +1973,126 @@ func (_c *MockHandler_V1betaGetMultiplePools_Call) RunAndReturn(run func(context
 	return _c
 }
 
+// V1betaGetMultipleReplications provides a mock function with given fields: ctx, req, params
+func (_m *MockHandler) V1betaGetMultipleReplications(ctx context.Context, req *ReplicationURIListV1beta, params V1betaGetMultipleReplicationsParams) (V1betaGetMultipleReplicationsRes, error) {
+	ret := _m.Called(ctx, req, params)
+
+	if len(ret) == 0 {
+		panic("no return value specified for V1betaGetMultipleReplications")
+	}
+
+	var r0 V1betaGetMultipleReplicationsRes
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, *ReplicationURIListV1beta, V1betaGetMultipleReplicationsParams) (V1betaGetMultipleReplicationsRes, error)); ok {
+		return rf(ctx, req, params)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, *ReplicationURIListV1beta, V1betaGetMultipleReplicationsParams) V1betaGetMultipleReplicationsRes); ok {
+		r0 = rf(ctx, req, params)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(V1betaGetMultipleReplicationsRes)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, *ReplicationURIListV1beta, V1betaGetMultipleReplicationsParams) error); ok {
+		r1 = rf(ctx, req, params)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockHandler_V1betaGetMultipleReplications_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'V1betaGetMultipleReplications'
+type MockHandler_V1betaGetMultipleReplications_Call struct {
+	*mock.Call
+}
+
+// V1betaGetMultipleReplications is a helper method to define mock.On call
+//   - ctx context.Context
+//   - req *ReplicationURIListV1beta
+//   - params V1betaGetMultipleReplicationsParams
+func (_e *MockHandler_Expecter) V1betaGetMultipleReplications(ctx interface{}, req interface{}, params interface{}) *MockHandler_V1betaGetMultipleReplications_Call {
+	return &MockHandler_V1betaGetMultipleReplications_Call{Call: _e.mock.On("V1betaGetMultipleReplications", ctx, req, params)}
+}
+
+func (_c *MockHandler_V1betaGetMultipleReplications_Call) Run(run func(ctx context.Context, req *ReplicationURIListV1beta, params V1betaGetMultipleReplicationsParams)) *MockHandler_V1betaGetMultipleReplications_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(*ReplicationURIListV1beta), args[2].(V1betaGetMultipleReplicationsParams))
+	})
+	return _c
+}
+
+func (_c *MockHandler_V1betaGetMultipleReplications_Call) Return(_a0 V1betaGetMultipleReplicationsRes, _a1 error) *MockHandler_V1betaGetMultipleReplications_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockHandler_V1betaGetMultipleReplications_Call) RunAndReturn(run func(context.Context, *ReplicationURIListV1beta, V1betaGetMultipleReplicationsParams) (V1betaGetMultipleReplicationsRes, error)) *MockHandler_V1betaGetMultipleReplications_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// V1betaGetMultipleSnapshots provides a mock function with given fields: ctx, req, params
+func (_m *MockHandler) V1betaGetMultipleSnapshots(ctx context.Context, req *SnapshotIDListV1beta, params V1betaGetMultipleSnapshotsParams) (V1betaGetMultipleSnapshotsRes, error) {
+	ret := _m.Called(ctx, req, params)
+
+	if len(ret) == 0 {
+		panic("no return value specified for V1betaGetMultipleSnapshots")
+	}
+
+	var r0 V1betaGetMultipleSnapshotsRes
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, *SnapshotIDListV1beta, V1betaGetMultipleSnapshotsParams) (V1betaGetMultipleSnapshotsRes, error)); ok {
+		return rf(ctx, req, params)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, *SnapshotIDListV1beta, V1betaGetMultipleSnapshotsParams) V1betaGetMultipleSnapshotsRes); ok {
+		r0 = rf(ctx, req, params)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(V1betaGetMultipleSnapshotsRes)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, *SnapshotIDListV1beta, V1betaGetMultipleSnapshotsParams) error); ok {
+		r1 = rf(ctx, req, params)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockHandler_V1betaGetMultipleSnapshots_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'V1betaGetMultipleSnapshots'
+type MockHandler_V1betaGetMultipleSnapshots_Call struct {
+	*mock.Call
+}
+
+// V1betaGetMultipleSnapshots is a helper method to define mock.On call
+//   - ctx context.Context
+//   - req *SnapshotIDListV1beta
+//   - params V1betaGetMultipleSnapshotsParams
+func (_e *MockHandler_Expecter) V1betaGetMultipleSnapshots(ctx interface{}, req interface{}, params interface{}) *MockHandler_V1betaGetMultipleSnapshots_Call {
+	return &MockHandler_V1betaGetMultipleSnapshots_Call{Call: _e.mock.On("V1betaGetMultipleSnapshots", ctx, req, params)}
+}
+
+func (_c *MockHandler_V1betaGetMultipleSnapshots_Call) Run(run func(ctx context.Context, req *SnapshotIDListV1beta, params V1betaGetMultipleSnapshotsParams)) *MockHandler_V1betaGetMultipleSnapshots_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(*SnapshotIDListV1beta), args[2].(V1betaGetMultipleSnapshotsParams))
+	})
+	return _c
+}
+
+func (_c *MockHandler_V1betaGetMultipleSnapshots_Call) Return(_a0 V1betaGetMultipleSnapshotsRes, _a1 error) *MockHandler_V1betaGetMultipleSnapshots_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockHandler_V1betaGetMultipleSnapshots_Call) RunAndReturn(run func(context.Context, *SnapshotIDListV1beta, V1betaGetMultipleSnapshotsParams) (V1betaGetMultipleSnapshotsRes, error)) *MockHandler_V1betaGetMultipleSnapshots_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // V1betaGetMultipleVolumes provides a mock function with given fields: ctx, req, params
 func (_m *MockHandler) V1betaGetMultipleVolumes(ctx context.Context, req *VolumeIDListV1beta, params V1betaGetMultipleVolumesParams) (V1betaGetMultipleVolumesRes, error) {
 	ret := _m.Called(ctx, req, params)
@@ -1211,6 +2153,660 @@ func (_c *MockHandler_V1betaGetMultipleVolumes_Call) RunAndReturn(run func(conte
 	return _c
 }
 
+// V1betaInternalAuthorizeVolumeReplication provides a mock function with given fields: ctx, req, params
+func (_m *MockHandler) V1betaInternalAuthorizeVolumeReplication(ctx context.Context, req *VolumeReplicationCreateInternalV1beta, params V1betaInternalAuthorizeVolumeReplicationParams) (V1betaInternalAuthorizeVolumeReplicationRes, error) {
+	ret := _m.Called(ctx, req, params)
+
+	if len(ret) == 0 {
+		panic("no return value specified for V1betaInternalAuthorizeVolumeReplication")
+	}
+
+	var r0 V1betaInternalAuthorizeVolumeReplicationRes
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, *VolumeReplicationCreateInternalV1beta, V1betaInternalAuthorizeVolumeReplicationParams) (V1betaInternalAuthorizeVolumeReplicationRes, error)); ok {
+		return rf(ctx, req, params)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, *VolumeReplicationCreateInternalV1beta, V1betaInternalAuthorizeVolumeReplicationParams) V1betaInternalAuthorizeVolumeReplicationRes); ok {
+		r0 = rf(ctx, req, params)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(V1betaInternalAuthorizeVolumeReplicationRes)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, *VolumeReplicationCreateInternalV1beta, V1betaInternalAuthorizeVolumeReplicationParams) error); ok {
+		r1 = rf(ctx, req, params)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockHandler_V1betaInternalAuthorizeVolumeReplication_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'V1betaInternalAuthorizeVolumeReplication'
+type MockHandler_V1betaInternalAuthorizeVolumeReplication_Call struct {
+	*mock.Call
+}
+
+// V1betaInternalAuthorizeVolumeReplication is a helper method to define mock.On call
+//   - ctx context.Context
+//   - req *VolumeReplicationCreateInternalV1beta
+//   - params V1betaInternalAuthorizeVolumeReplicationParams
+func (_e *MockHandler_Expecter) V1betaInternalAuthorizeVolumeReplication(ctx interface{}, req interface{}, params interface{}) *MockHandler_V1betaInternalAuthorizeVolumeReplication_Call {
+	return &MockHandler_V1betaInternalAuthorizeVolumeReplication_Call{Call: _e.mock.On("V1betaInternalAuthorizeVolumeReplication", ctx, req, params)}
+}
+
+func (_c *MockHandler_V1betaInternalAuthorizeVolumeReplication_Call) Run(run func(ctx context.Context, req *VolumeReplicationCreateInternalV1beta, params V1betaInternalAuthorizeVolumeReplicationParams)) *MockHandler_V1betaInternalAuthorizeVolumeReplication_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(*VolumeReplicationCreateInternalV1beta), args[2].(V1betaInternalAuthorizeVolumeReplicationParams))
+	})
+	return _c
+}
+
+func (_c *MockHandler_V1betaInternalAuthorizeVolumeReplication_Call) Return(_a0 V1betaInternalAuthorizeVolumeReplicationRes, _a1 error) *MockHandler_V1betaInternalAuthorizeVolumeReplication_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockHandler_V1betaInternalAuthorizeVolumeReplication_Call) RunAndReturn(run func(context.Context, *VolumeReplicationCreateInternalV1beta, V1betaInternalAuthorizeVolumeReplicationParams) (V1betaInternalAuthorizeVolumeReplicationRes, error)) *MockHandler_V1betaInternalAuthorizeVolumeReplication_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// V1betaInternalCreateClusterPeer provides a mock function with given fields: ctx, req, params
+func (_m *MockHandler) V1betaInternalCreateClusterPeer(ctx context.Context, req *ClusterPeerV1, params V1betaInternalCreateClusterPeerParams) (V1betaInternalCreateClusterPeerRes, error) {
+	ret := _m.Called(ctx, req, params)
+
+	if len(ret) == 0 {
+		panic("no return value specified for V1betaInternalCreateClusterPeer")
+	}
+
+	var r0 V1betaInternalCreateClusterPeerRes
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, *ClusterPeerV1, V1betaInternalCreateClusterPeerParams) (V1betaInternalCreateClusterPeerRes, error)); ok {
+		return rf(ctx, req, params)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, *ClusterPeerV1, V1betaInternalCreateClusterPeerParams) V1betaInternalCreateClusterPeerRes); ok {
+		r0 = rf(ctx, req, params)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(V1betaInternalCreateClusterPeerRes)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, *ClusterPeerV1, V1betaInternalCreateClusterPeerParams) error); ok {
+		r1 = rf(ctx, req, params)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockHandler_V1betaInternalCreateClusterPeer_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'V1betaInternalCreateClusterPeer'
+type MockHandler_V1betaInternalCreateClusterPeer_Call struct {
+	*mock.Call
+}
+
+// V1betaInternalCreateClusterPeer is a helper method to define mock.On call
+//   - ctx context.Context
+//   - req *ClusterPeerV1
+//   - params V1betaInternalCreateClusterPeerParams
+func (_e *MockHandler_Expecter) V1betaInternalCreateClusterPeer(ctx interface{}, req interface{}, params interface{}) *MockHandler_V1betaInternalCreateClusterPeer_Call {
+	return &MockHandler_V1betaInternalCreateClusterPeer_Call{Call: _e.mock.On("V1betaInternalCreateClusterPeer", ctx, req, params)}
+}
+
+func (_c *MockHandler_V1betaInternalCreateClusterPeer_Call) Run(run func(ctx context.Context, req *ClusterPeerV1, params V1betaInternalCreateClusterPeerParams)) *MockHandler_V1betaInternalCreateClusterPeer_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(*ClusterPeerV1), args[2].(V1betaInternalCreateClusterPeerParams))
+	})
+	return _c
+}
+
+func (_c *MockHandler_V1betaInternalCreateClusterPeer_Call) Return(_a0 V1betaInternalCreateClusterPeerRes, _a1 error) *MockHandler_V1betaInternalCreateClusterPeer_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockHandler_V1betaInternalCreateClusterPeer_Call) RunAndReturn(run func(context.Context, *ClusterPeerV1, V1betaInternalCreateClusterPeerParams) (V1betaInternalCreateClusterPeerRes, error)) *MockHandler_V1betaInternalCreateClusterPeer_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// V1betaInternalCreateVolumeReplication provides a mock function with given fields: ctx, req, params
+func (_m *MockHandler) V1betaInternalCreateVolumeReplication(ctx context.Context, req *VolumeReplicationCreateInternalV1beta, params V1betaInternalCreateVolumeReplicationParams) (V1betaInternalCreateVolumeReplicationRes, error) {
+	ret := _m.Called(ctx, req, params)
+
+	if len(ret) == 0 {
+		panic("no return value specified for V1betaInternalCreateVolumeReplication")
+	}
+
+	var r0 V1betaInternalCreateVolumeReplicationRes
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, *VolumeReplicationCreateInternalV1beta, V1betaInternalCreateVolumeReplicationParams) (V1betaInternalCreateVolumeReplicationRes, error)); ok {
+		return rf(ctx, req, params)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, *VolumeReplicationCreateInternalV1beta, V1betaInternalCreateVolumeReplicationParams) V1betaInternalCreateVolumeReplicationRes); ok {
+		r0 = rf(ctx, req, params)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(V1betaInternalCreateVolumeReplicationRes)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, *VolumeReplicationCreateInternalV1beta, V1betaInternalCreateVolumeReplicationParams) error); ok {
+		r1 = rf(ctx, req, params)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockHandler_V1betaInternalCreateVolumeReplication_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'V1betaInternalCreateVolumeReplication'
+type MockHandler_V1betaInternalCreateVolumeReplication_Call struct {
+	*mock.Call
+}
+
+// V1betaInternalCreateVolumeReplication is a helper method to define mock.On call
+//   - ctx context.Context
+//   - req *VolumeReplicationCreateInternalV1beta
+//   - params V1betaInternalCreateVolumeReplicationParams
+func (_e *MockHandler_Expecter) V1betaInternalCreateVolumeReplication(ctx interface{}, req interface{}, params interface{}) *MockHandler_V1betaInternalCreateVolumeReplication_Call {
+	return &MockHandler_V1betaInternalCreateVolumeReplication_Call{Call: _e.mock.On("V1betaInternalCreateVolumeReplication", ctx, req, params)}
+}
+
+func (_c *MockHandler_V1betaInternalCreateVolumeReplication_Call) Run(run func(ctx context.Context, req *VolumeReplicationCreateInternalV1beta, params V1betaInternalCreateVolumeReplicationParams)) *MockHandler_V1betaInternalCreateVolumeReplication_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(*VolumeReplicationCreateInternalV1beta), args[2].(V1betaInternalCreateVolumeReplicationParams))
+	})
+	return _c
+}
+
+func (_c *MockHandler_V1betaInternalCreateVolumeReplication_Call) Return(_a0 V1betaInternalCreateVolumeReplicationRes, _a1 error) *MockHandler_V1betaInternalCreateVolumeReplication_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockHandler_V1betaInternalCreateVolumeReplication_Call) RunAndReturn(run func(context.Context, *VolumeReplicationCreateInternalV1beta, V1betaInternalCreateVolumeReplicationParams) (V1betaInternalCreateVolumeReplicationRes, error)) *MockHandler_V1betaInternalCreateVolumeReplication_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// V1betaInternalDeleteVolumeReplication provides a mock function with given fields: ctx, params
+func (_m *MockHandler) V1betaInternalDeleteVolumeReplication(ctx context.Context, params V1betaInternalDeleteVolumeReplicationParams) (V1betaInternalDeleteVolumeReplicationRes, error) {
+	ret := _m.Called(ctx, params)
+
+	if len(ret) == 0 {
+		panic("no return value specified for V1betaInternalDeleteVolumeReplication")
+	}
+
+	var r0 V1betaInternalDeleteVolumeReplicationRes
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, V1betaInternalDeleteVolumeReplicationParams) (V1betaInternalDeleteVolumeReplicationRes, error)); ok {
+		return rf(ctx, params)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, V1betaInternalDeleteVolumeReplicationParams) V1betaInternalDeleteVolumeReplicationRes); ok {
+		r0 = rf(ctx, params)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(V1betaInternalDeleteVolumeReplicationRes)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, V1betaInternalDeleteVolumeReplicationParams) error); ok {
+		r1 = rf(ctx, params)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockHandler_V1betaInternalDeleteVolumeReplication_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'V1betaInternalDeleteVolumeReplication'
+type MockHandler_V1betaInternalDeleteVolumeReplication_Call struct {
+	*mock.Call
+}
+
+// V1betaInternalDeleteVolumeReplication is a helper method to define mock.On call
+//   - ctx context.Context
+//   - params V1betaInternalDeleteVolumeReplicationParams
+func (_e *MockHandler_Expecter) V1betaInternalDeleteVolumeReplication(ctx interface{}, params interface{}) *MockHandler_V1betaInternalDeleteVolumeReplication_Call {
+	return &MockHandler_V1betaInternalDeleteVolumeReplication_Call{Call: _e.mock.On("V1betaInternalDeleteVolumeReplication", ctx, params)}
+}
+
+func (_c *MockHandler_V1betaInternalDeleteVolumeReplication_Call) Run(run func(ctx context.Context, params V1betaInternalDeleteVolumeReplicationParams)) *MockHandler_V1betaInternalDeleteVolumeReplication_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(V1betaInternalDeleteVolumeReplicationParams))
+	})
+	return _c
+}
+
+func (_c *MockHandler_V1betaInternalDeleteVolumeReplication_Call) Return(_a0 V1betaInternalDeleteVolumeReplicationRes, _a1 error) *MockHandler_V1betaInternalDeleteVolumeReplication_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockHandler_V1betaInternalDeleteVolumeReplication_Call) RunAndReturn(run func(context.Context, V1betaInternalDeleteVolumeReplicationParams) (V1betaInternalDeleteVolumeReplicationRes, error)) *MockHandler_V1betaInternalDeleteVolumeReplication_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// V1betaInternalDescribePool provides a mock function with given fields: ctx, params
+func (_m *MockHandler) V1betaInternalDescribePool(ctx context.Context, params V1betaInternalDescribePoolParams) (V1betaInternalDescribePoolRes, error) {
+	ret := _m.Called(ctx, params)
+
+	if len(ret) == 0 {
+		panic("no return value specified for V1betaInternalDescribePool")
+	}
+
+	var r0 V1betaInternalDescribePoolRes
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, V1betaInternalDescribePoolParams) (V1betaInternalDescribePoolRes, error)); ok {
+		return rf(ctx, params)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, V1betaInternalDescribePoolParams) V1betaInternalDescribePoolRes); ok {
+		r0 = rf(ctx, params)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(V1betaInternalDescribePoolRes)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, V1betaInternalDescribePoolParams) error); ok {
+		r1 = rf(ctx, params)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockHandler_V1betaInternalDescribePool_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'V1betaInternalDescribePool'
+type MockHandler_V1betaInternalDescribePool_Call struct {
+	*mock.Call
+}
+
+// V1betaInternalDescribePool is a helper method to define mock.On call
+//   - ctx context.Context
+//   - params V1betaInternalDescribePoolParams
+func (_e *MockHandler_Expecter) V1betaInternalDescribePool(ctx interface{}, params interface{}) *MockHandler_V1betaInternalDescribePool_Call {
+	return &MockHandler_V1betaInternalDescribePool_Call{Call: _e.mock.On("V1betaInternalDescribePool", ctx, params)}
+}
+
+func (_c *MockHandler_V1betaInternalDescribePool_Call) Run(run func(ctx context.Context, params V1betaInternalDescribePoolParams)) *MockHandler_V1betaInternalDescribePool_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(V1betaInternalDescribePoolParams))
+	})
+	return _c
+}
+
+func (_c *MockHandler_V1betaInternalDescribePool_Call) Return(_a0 V1betaInternalDescribePoolRes, _a1 error) *MockHandler_V1betaInternalDescribePool_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockHandler_V1betaInternalDescribePool_Call) RunAndReturn(run func(context.Context, V1betaInternalDescribePoolParams) (V1betaInternalDescribePoolRes, error)) *MockHandler_V1betaInternalDescribePool_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// V1betaInternalDescribeVolumeReplication provides a mock function with given fields: ctx, params
+func (_m *MockHandler) V1betaInternalDescribeVolumeReplication(ctx context.Context, params V1betaInternalDescribeVolumeReplicationParams) (V1betaInternalDescribeVolumeReplicationRes, error) {
+	ret := _m.Called(ctx, params)
+
+	if len(ret) == 0 {
+		panic("no return value specified for V1betaInternalDescribeVolumeReplication")
+	}
+
+	var r0 V1betaInternalDescribeVolumeReplicationRes
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, V1betaInternalDescribeVolumeReplicationParams) (V1betaInternalDescribeVolumeReplicationRes, error)); ok {
+		return rf(ctx, params)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, V1betaInternalDescribeVolumeReplicationParams) V1betaInternalDescribeVolumeReplicationRes); ok {
+		r0 = rf(ctx, params)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(V1betaInternalDescribeVolumeReplicationRes)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, V1betaInternalDescribeVolumeReplicationParams) error); ok {
+		r1 = rf(ctx, params)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockHandler_V1betaInternalDescribeVolumeReplication_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'V1betaInternalDescribeVolumeReplication'
+type MockHandler_V1betaInternalDescribeVolumeReplication_Call struct {
+	*mock.Call
+}
+
+// V1betaInternalDescribeVolumeReplication is a helper method to define mock.On call
+//   - ctx context.Context
+//   - params V1betaInternalDescribeVolumeReplicationParams
+func (_e *MockHandler_Expecter) V1betaInternalDescribeVolumeReplication(ctx interface{}, params interface{}) *MockHandler_V1betaInternalDescribeVolumeReplication_Call {
+	return &MockHandler_V1betaInternalDescribeVolumeReplication_Call{Call: _e.mock.On("V1betaInternalDescribeVolumeReplication", ctx, params)}
+}
+
+func (_c *MockHandler_V1betaInternalDescribeVolumeReplication_Call) Run(run func(ctx context.Context, params V1betaInternalDescribeVolumeReplicationParams)) *MockHandler_V1betaInternalDescribeVolumeReplication_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(V1betaInternalDescribeVolumeReplicationParams))
+	})
+	return _c
+}
+
+func (_c *MockHandler_V1betaInternalDescribeVolumeReplication_Call) Return(_a0 V1betaInternalDescribeVolumeReplicationRes, _a1 error) *MockHandler_V1betaInternalDescribeVolumeReplication_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockHandler_V1betaInternalDescribeVolumeReplication_Call) RunAndReturn(run func(context.Context, V1betaInternalDescribeVolumeReplicationParams) (V1betaInternalDescribeVolumeReplicationRes, error)) *MockHandler_V1betaInternalDescribeVolumeReplication_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// V1betaInternalReleaseVolumeReplication provides a mock function with given fields: ctx, params
+func (_m *MockHandler) V1betaInternalReleaseVolumeReplication(ctx context.Context, params V1betaInternalReleaseVolumeReplicationParams) (V1betaInternalReleaseVolumeReplicationRes, error) {
+	ret := _m.Called(ctx, params)
+
+	if len(ret) == 0 {
+		panic("no return value specified for V1betaInternalReleaseVolumeReplication")
+	}
+
+	var r0 V1betaInternalReleaseVolumeReplicationRes
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, V1betaInternalReleaseVolumeReplicationParams) (V1betaInternalReleaseVolumeReplicationRes, error)); ok {
+		return rf(ctx, params)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, V1betaInternalReleaseVolumeReplicationParams) V1betaInternalReleaseVolumeReplicationRes); ok {
+		r0 = rf(ctx, params)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(V1betaInternalReleaseVolumeReplicationRes)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, V1betaInternalReleaseVolumeReplicationParams) error); ok {
+		r1 = rf(ctx, params)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockHandler_V1betaInternalReleaseVolumeReplication_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'V1betaInternalReleaseVolumeReplication'
+type MockHandler_V1betaInternalReleaseVolumeReplication_Call struct {
+	*mock.Call
+}
+
+// V1betaInternalReleaseVolumeReplication is a helper method to define mock.On call
+//   - ctx context.Context
+//   - params V1betaInternalReleaseVolumeReplicationParams
+func (_e *MockHandler_Expecter) V1betaInternalReleaseVolumeReplication(ctx interface{}, params interface{}) *MockHandler_V1betaInternalReleaseVolumeReplication_Call {
+	return &MockHandler_V1betaInternalReleaseVolumeReplication_Call{Call: _e.mock.On("V1betaInternalReleaseVolumeReplication", ctx, params)}
+}
+
+func (_c *MockHandler_V1betaInternalReleaseVolumeReplication_Call) Run(run func(ctx context.Context, params V1betaInternalReleaseVolumeReplicationParams)) *MockHandler_V1betaInternalReleaseVolumeReplication_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(V1betaInternalReleaseVolumeReplicationParams))
+	})
+	return _c
+}
+
+func (_c *MockHandler_V1betaInternalReleaseVolumeReplication_Call) Return(_a0 V1betaInternalReleaseVolumeReplicationRes, _a1 error) *MockHandler_V1betaInternalReleaseVolumeReplication_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockHandler_V1betaInternalReleaseVolumeReplication_Call) RunAndReturn(run func(context.Context, V1betaInternalReleaseVolumeReplicationParams) (V1betaInternalReleaseVolumeReplicationRes, error)) *MockHandler_V1betaInternalReleaseVolumeReplication_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// V1betaInternalResumeVolumeReplication provides a mock function with given fields: ctx, params
+func (_m *MockHandler) V1betaInternalResumeVolumeReplication(ctx context.Context, params V1betaInternalResumeVolumeReplicationParams) (V1betaInternalResumeVolumeReplicationRes, error) {
+	ret := _m.Called(ctx, params)
+
+	if len(ret) == 0 {
+		panic("no return value specified for V1betaInternalResumeVolumeReplication")
+	}
+
+	var r0 V1betaInternalResumeVolumeReplicationRes
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, V1betaInternalResumeVolumeReplicationParams) (V1betaInternalResumeVolumeReplicationRes, error)); ok {
+		return rf(ctx, params)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, V1betaInternalResumeVolumeReplicationParams) V1betaInternalResumeVolumeReplicationRes); ok {
+		r0 = rf(ctx, params)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(V1betaInternalResumeVolumeReplicationRes)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, V1betaInternalResumeVolumeReplicationParams) error); ok {
+		r1 = rf(ctx, params)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockHandler_V1betaInternalResumeVolumeReplication_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'V1betaInternalResumeVolumeReplication'
+type MockHandler_V1betaInternalResumeVolumeReplication_Call struct {
+	*mock.Call
+}
+
+// V1betaInternalResumeVolumeReplication is a helper method to define mock.On call
+//   - ctx context.Context
+//   - params V1betaInternalResumeVolumeReplicationParams
+func (_e *MockHandler_Expecter) V1betaInternalResumeVolumeReplication(ctx interface{}, params interface{}) *MockHandler_V1betaInternalResumeVolumeReplication_Call {
+	return &MockHandler_V1betaInternalResumeVolumeReplication_Call{Call: _e.mock.On("V1betaInternalResumeVolumeReplication", ctx, params)}
+}
+
+func (_c *MockHandler_V1betaInternalResumeVolumeReplication_Call) Run(run func(ctx context.Context, params V1betaInternalResumeVolumeReplicationParams)) *MockHandler_V1betaInternalResumeVolumeReplication_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(V1betaInternalResumeVolumeReplicationParams))
+	})
+	return _c
+}
+
+func (_c *MockHandler_V1betaInternalResumeVolumeReplication_Call) Return(_a0 V1betaInternalResumeVolumeReplicationRes, _a1 error) *MockHandler_V1betaInternalResumeVolumeReplication_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockHandler_V1betaInternalResumeVolumeReplication_Call) RunAndReturn(run func(context.Context, V1betaInternalResumeVolumeReplicationParams) (V1betaInternalResumeVolumeReplicationRes, error)) *MockHandler_V1betaInternalResumeVolumeReplication_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// V1betaInternalStopVolumeReplication provides a mock function with given fields: ctx, req, params
+func (_m *MockHandler) V1betaInternalStopVolumeReplication(ctx context.Context, req *V1betaInternalStopVolumeReplicationReq, params V1betaInternalStopVolumeReplicationParams) (V1betaInternalStopVolumeReplicationRes, error) {
+	ret := _m.Called(ctx, req, params)
+
+	if len(ret) == 0 {
+		panic("no return value specified for V1betaInternalStopVolumeReplication")
+	}
+
+	var r0 V1betaInternalStopVolumeReplicationRes
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, *V1betaInternalStopVolumeReplicationReq, V1betaInternalStopVolumeReplicationParams) (V1betaInternalStopVolumeReplicationRes, error)); ok {
+		return rf(ctx, req, params)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, *V1betaInternalStopVolumeReplicationReq, V1betaInternalStopVolumeReplicationParams) V1betaInternalStopVolumeReplicationRes); ok {
+		r0 = rf(ctx, req, params)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(V1betaInternalStopVolumeReplicationRes)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, *V1betaInternalStopVolumeReplicationReq, V1betaInternalStopVolumeReplicationParams) error); ok {
+		r1 = rf(ctx, req, params)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockHandler_V1betaInternalStopVolumeReplication_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'V1betaInternalStopVolumeReplication'
+type MockHandler_V1betaInternalStopVolumeReplication_Call struct {
+	*mock.Call
+}
+
+// V1betaInternalStopVolumeReplication is a helper method to define mock.On call
+//   - ctx context.Context
+//   - req *V1betaInternalStopVolumeReplicationReq
+//   - params V1betaInternalStopVolumeReplicationParams
+func (_e *MockHandler_Expecter) V1betaInternalStopVolumeReplication(ctx interface{}, req interface{}, params interface{}) *MockHandler_V1betaInternalStopVolumeReplication_Call {
+	return &MockHandler_V1betaInternalStopVolumeReplication_Call{Call: _e.mock.On("V1betaInternalStopVolumeReplication", ctx, req, params)}
+}
+
+func (_c *MockHandler_V1betaInternalStopVolumeReplication_Call) Run(run func(ctx context.Context, req *V1betaInternalStopVolumeReplicationReq, params V1betaInternalStopVolumeReplicationParams)) *MockHandler_V1betaInternalStopVolumeReplication_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(*V1betaInternalStopVolumeReplicationReq), args[2].(V1betaInternalStopVolumeReplicationParams))
+	})
+	return _c
+}
+
+func (_c *MockHandler_V1betaInternalStopVolumeReplication_Call) Return(_a0 V1betaInternalStopVolumeReplicationRes, _a1 error) *MockHandler_V1betaInternalStopVolumeReplication_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockHandler_V1betaInternalStopVolumeReplication_Call) RunAndReturn(run func(context.Context, *V1betaInternalStopVolumeReplicationReq, V1betaInternalStopVolumeReplicationParams) (V1betaInternalStopVolumeReplicationRes, error)) *MockHandler_V1betaInternalStopVolumeReplication_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// V1betaInternalUpdateVolumeReplication provides a mock function with given fields: ctx, req, params
+func (_m *MockHandler) V1betaInternalUpdateVolumeReplication(ctx context.Context, req *VolumeReplicationUpdateInternalV1beta, params V1betaInternalUpdateVolumeReplicationParams) (V1betaInternalUpdateVolumeReplicationRes, error) {
+	ret := _m.Called(ctx, req, params)
+
+	if len(ret) == 0 {
+		panic("no return value specified for V1betaInternalUpdateVolumeReplication")
+	}
+
+	var r0 V1betaInternalUpdateVolumeReplicationRes
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, *VolumeReplicationUpdateInternalV1beta, V1betaInternalUpdateVolumeReplicationParams) (V1betaInternalUpdateVolumeReplicationRes, error)); ok {
+		return rf(ctx, req, params)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, *VolumeReplicationUpdateInternalV1beta, V1betaInternalUpdateVolumeReplicationParams) V1betaInternalUpdateVolumeReplicationRes); ok {
+		r0 = rf(ctx, req, params)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(V1betaInternalUpdateVolumeReplicationRes)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, *VolumeReplicationUpdateInternalV1beta, V1betaInternalUpdateVolumeReplicationParams) error); ok {
+		r1 = rf(ctx, req, params)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockHandler_V1betaInternalUpdateVolumeReplication_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'V1betaInternalUpdateVolumeReplication'
+type MockHandler_V1betaInternalUpdateVolumeReplication_Call struct {
+	*mock.Call
+}
+
+// V1betaInternalUpdateVolumeReplication is a helper method to define mock.On call
+//   - ctx context.Context
+//   - req *VolumeReplicationUpdateInternalV1beta
+//   - params V1betaInternalUpdateVolumeReplicationParams
+func (_e *MockHandler_Expecter) V1betaInternalUpdateVolumeReplication(ctx interface{}, req interface{}, params interface{}) *MockHandler_V1betaInternalUpdateVolumeReplication_Call {
+	return &MockHandler_V1betaInternalUpdateVolumeReplication_Call{Call: _e.mock.On("V1betaInternalUpdateVolumeReplication", ctx, req, params)}
+}
+
+func (_c *MockHandler_V1betaInternalUpdateVolumeReplication_Call) Run(run func(ctx context.Context, req *VolumeReplicationUpdateInternalV1beta, params V1betaInternalUpdateVolumeReplicationParams)) *MockHandler_V1betaInternalUpdateVolumeReplication_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(*VolumeReplicationUpdateInternalV1beta), args[2].(V1betaInternalUpdateVolumeReplicationParams))
+	})
+	return _c
+}
+
+func (_c *MockHandler_V1betaInternalUpdateVolumeReplication_Call) Return(_a0 V1betaInternalUpdateVolumeReplicationRes, _a1 error) *MockHandler_V1betaInternalUpdateVolumeReplication_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockHandler_V1betaInternalUpdateVolumeReplication_Call) RunAndReturn(run func(context.Context, *VolumeReplicationUpdateInternalV1beta, V1betaInternalUpdateVolumeReplicationParams) (V1betaInternalUpdateVolumeReplicationRes, error)) *MockHandler_V1betaInternalUpdateVolumeReplication_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// V1betaListActiveDirectories provides a mock function with given fields: ctx, params
+func (_m *MockHandler) V1betaListActiveDirectories(ctx context.Context, params V1betaListActiveDirectoriesParams) (V1betaListActiveDirectoriesRes, error) {
+	ret := _m.Called(ctx, params)
+
+	if len(ret) == 0 {
+		panic("no return value specified for V1betaListActiveDirectories")
+	}
+
+	var r0 V1betaListActiveDirectoriesRes
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, V1betaListActiveDirectoriesParams) (V1betaListActiveDirectoriesRes, error)); ok {
+		return rf(ctx, params)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, V1betaListActiveDirectoriesParams) V1betaListActiveDirectoriesRes); ok {
+		r0 = rf(ctx, params)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(V1betaListActiveDirectoriesRes)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, V1betaListActiveDirectoriesParams) error); ok {
+		r1 = rf(ctx, params)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockHandler_V1betaListActiveDirectories_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'V1betaListActiveDirectories'
+type MockHandler_V1betaListActiveDirectories_Call struct {
+	*mock.Call
+}
+
+// V1betaListActiveDirectories is a helper method to define mock.On call
+//   - ctx context.Context
+//   - params V1betaListActiveDirectoriesParams
+func (_e *MockHandler_Expecter) V1betaListActiveDirectories(ctx interface{}, params interface{}) *MockHandler_V1betaListActiveDirectories_Call {
+	return &MockHandler_V1betaListActiveDirectories_Call{Call: _e.mock.On("V1betaListActiveDirectories", ctx, params)}
+}
+
+func (_c *MockHandler_V1betaListActiveDirectories_Call) Run(run func(ctx context.Context, params V1betaListActiveDirectoriesParams)) *MockHandler_V1betaListActiveDirectories_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(V1betaListActiveDirectoriesParams))
+	})
+	return _c
+}
+
+func (_c *MockHandler_V1betaListActiveDirectories_Call) Return(_a0 V1betaListActiveDirectoriesRes, _a1 error) *MockHandler_V1betaListActiveDirectories_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockHandler_V1betaListActiveDirectories_Call) RunAndReturn(run func(context.Context, V1betaListActiveDirectoriesParams) (V1betaListActiveDirectoriesRes, error)) *MockHandler_V1betaListActiveDirectories_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // V1betaListBackupPolicies provides a mock function with given fields: ctx, params
 func (_m *MockHandler) V1betaListBackupPolicies(ctx context.Context, params V1betaListBackupPoliciesParams) (V1betaListBackupPoliciesRes, error) {
 	ret := _m.Called(ctx, params)
@@ -1266,6 +2862,65 @@ func (_c *MockHandler_V1betaListBackupPolicies_Call) Return(_a0 V1betaListBackup
 }
 
 func (_c *MockHandler_V1betaListBackupPolicies_Call) RunAndReturn(run func(context.Context, V1betaListBackupPoliciesParams) (V1betaListBackupPoliciesRes, error)) *MockHandler_V1betaListBackupPolicies_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// V1betaListBackupVaults provides a mock function with given fields: ctx, params
+func (_m *MockHandler) V1betaListBackupVaults(ctx context.Context, params V1betaListBackupVaultsParams) (V1betaListBackupVaultsRes, error) {
+	ret := _m.Called(ctx, params)
+
+	if len(ret) == 0 {
+		panic("no return value specified for V1betaListBackupVaults")
+	}
+
+	var r0 V1betaListBackupVaultsRes
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, V1betaListBackupVaultsParams) (V1betaListBackupVaultsRes, error)); ok {
+		return rf(ctx, params)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, V1betaListBackupVaultsParams) V1betaListBackupVaultsRes); ok {
+		r0 = rf(ctx, params)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(V1betaListBackupVaultsRes)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, V1betaListBackupVaultsParams) error); ok {
+		r1 = rf(ctx, params)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockHandler_V1betaListBackupVaults_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'V1betaListBackupVaults'
+type MockHandler_V1betaListBackupVaults_Call struct {
+	*mock.Call
+}
+
+// V1betaListBackupVaults is a helper method to define mock.On call
+//   - ctx context.Context
+//   - params V1betaListBackupVaultsParams
+func (_e *MockHandler_Expecter) V1betaListBackupVaults(ctx interface{}, params interface{}) *MockHandler_V1betaListBackupVaults_Call {
+	return &MockHandler_V1betaListBackupVaults_Call{Call: _e.mock.On("V1betaListBackupVaults", ctx, params)}
+}
+
+func (_c *MockHandler_V1betaListBackupVaults_Call) Run(run func(ctx context.Context, params V1betaListBackupVaultsParams)) *MockHandler_V1betaListBackupVaults_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(V1betaListBackupVaultsParams))
+	})
+	return _c
+}
+
+func (_c *MockHandler_V1betaListBackupVaults_Call) Return(_a0 V1betaListBackupVaultsRes, _a1 error) *MockHandler_V1betaListBackupVaults_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockHandler_V1betaListBackupVaults_Call) RunAndReturn(run func(context.Context, V1betaListBackupVaultsParams) (V1betaListBackupVaultsRes, error)) *MockHandler_V1betaListBackupVaults_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -1447,6 +3102,65 @@ func (_c *MockHandler_V1betaListPools_Call) RunAndReturn(run func(context.Contex
 	return _c
 }
 
+// V1betaListReplications provides a mock function with given fields: ctx, params
+func (_m *MockHandler) V1betaListReplications(ctx context.Context, params V1betaListReplicationsParams) (V1betaListReplicationsRes, error) {
+	ret := _m.Called(ctx, params)
+
+	if len(ret) == 0 {
+		panic("no return value specified for V1betaListReplications")
+	}
+
+	var r0 V1betaListReplicationsRes
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, V1betaListReplicationsParams) (V1betaListReplicationsRes, error)); ok {
+		return rf(ctx, params)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, V1betaListReplicationsParams) V1betaListReplicationsRes); ok {
+		r0 = rf(ctx, params)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(V1betaListReplicationsRes)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, V1betaListReplicationsParams) error); ok {
+		r1 = rf(ctx, params)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockHandler_V1betaListReplications_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'V1betaListReplications'
+type MockHandler_V1betaListReplications_Call struct {
+	*mock.Call
+}
+
+// V1betaListReplications is a helper method to define mock.On call
+//   - ctx context.Context
+//   - params V1betaListReplicationsParams
+func (_e *MockHandler_Expecter) V1betaListReplications(ctx interface{}, params interface{}) *MockHandler_V1betaListReplications_Call {
+	return &MockHandler_V1betaListReplications_Call{Call: _e.mock.On("V1betaListReplications", ctx, params)}
+}
+
+func (_c *MockHandler_V1betaListReplications_Call) Run(run func(ctx context.Context, params V1betaListReplicationsParams)) *MockHandler_V1betaListReplications_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(V1betaListReplicationsParams))
+	})
+	return _c
+}
+
+func (_c *MockHandler_V1betaListReplications_Call) Return(_a0 V1betaListReplicationsRes, _a1 error) *MockHandler_V1betaListReplications_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockHandler_V1betaListReplications_Call) RunAndReturn(run func(context.Context, V1betaListReplicationsParams) (V1betaListReplicationsRes, error)) *MockHandler_V1betaListReplications_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // V1betaListVolumes provides a mock function with given fields: ctx, params
 func (_m *MockHandler) V1betaListVolumes(ctx context.Context, params V1betaListVolumesParams) (V1betaListVolumesRes, error) {
 	ret := _m.Called(ctx, params)
@@ -1506,8 +3220,305 @@ func (_c *MockHandler_V1betaListVolumes_Call) RunAndReturn(run func(context.Cont
 	return _c
 }
 
+// V1betaResumeReplication provides a mock function with given fields: ctx, params
+func (_m *MockHandler) V1betaResumeReplication(ctx context.Context, params V1betaResumeReplicationParams) (V1betaResumeReplicationRes, error) {
+	ret := _m.Called(ctx, params)
+
+	if len(ret) == 0 {
+		panic("no return value specified for V1betaResumeReplication")
+	}
+
+	var r0 V1betaResumeReplicationRes
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, V1betaResumeReplicationParams) (V1betaResumeReplicationRes, error)); ok {
+		return rf(ctx, params)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, V1betaResumeReplicationParams) V1betaResumeReplicationRes); ok {
+		r0 = rf(ctx, params)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(V1betaResumeReplicationRes)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, V1betaResumeReplicationParams) error); ok {
+		r1 = rf(ctx, params)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockHandler_V1betaResumeReplication_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'V1betaResumeReplication'
+type MockHandler_V1betaResumeReplication_Call struct {
+	*mock.Call
+}
+
+// V1betaResumeReplication is a helper method to define mock.On call
+//   - ctx context.Context
+//   - params V1betaResumeReplicationParams
+func (_e *MockHandler_Expecter) V1betaResumeReplication(ctx interface{}, params interface{}) *MockHandler_V1betaResumeReplication_Call {
+	return &MockHandler_V1betaResumeReplication_Call{Call: _e.mock.On("V1betaResumeReplication", ctx, params)}
+}
+
+func (_c *MockHandler_V1betaResumeReplication_Call) Run(run func(ctx context.Context, params V1betaResumeReplicationParams)) *MockHandler_V1betaResumeReplication_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(V1betaResumeReplicationParams))
+	})
+	return _c
+}
+
+func (_c *MockHandler_V1betaResumeReplication_Call) Return(_a0 V1betaResumeReplicationRes, _a1 error) *MockHandler_V1betaResumeReplication_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockHandler_V1betaResumeReplication_Call) RunAndReturn(run func(context.Context, V1betaResumeReplicationParams) (V1betaResumeReplicationRes, error)) *MockHandler_V1betaResumeReplication_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// V1betaReverseAndResumeReplication provides a mock function with given fields: ctx, params
+func (_m *MockHandler) V1betaReverseAndResumeReplication(ctx context.Context, params V1betaReverseAndResumeReplicationParams) (V1betaReverseAndResumeReplicationRes, error) {
+	ret := _m.Called(ctx, params)
+
+	if len(ret) == 0 {
+		panic("no return value specified for V1betaReverseAndResumeReplication")
+	}
+
+	var r0 V1betaReverseAndResumeReplicationRes
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, V1betaReverseAndResumeReplicationParams) (V1betaReverseAndResumeReplicationRes, error)); ok {
+		return rf(ctx, params)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, V1betaReverseAndResumeReplicationParams) V1betaReverseAndResumeReplicationRes); ok {
+		r0 = rf(ctx, params)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(V1betaReverseAndResumeReplicationRes)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, V1betaReverseAndResumeReplicationParams) error); ok {
+		r1 = rf(ctx, params)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockHandler_V1betaReverseAndResumeReplication_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'V1betaReverseAndResumeReplication'
+type MockHandler_V1betaReverseAndResumeReplication_Call struct {
+	*mock.Call
+}
+
+// V1betaReverseAndResumeReplication is a helper method to define mock.On call
+//   - ctx context.Context
+//   - params V1betaReverseAndResumeReplicationParams
+func (_e *MockHandler_Expecter) V1betaReverseAndResumeReplication(ctx interface{}, params interface{}) *MockHandler_V1betaReverseAndResumeReplication_Call {
+	return &MockHandler_V1betaReverseAndResumeReplication_Call{Call: _e.mock.On("V1betaReverseAndResumeReplication", ctx, params)}
+}
+
+func (_c *MockHandler_V1betaReverseAndResumeReplication_Call) Run(run func(ctx context.Context, params V1betaReverseAndResumeReplicationParams)) *MockHandler_V1betaReverseAndResumeReplication_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(V1betaReverseAndResumeReplicationParams))
+	})
+	return _c
+}
+
+func (_c *MockHandler_V1betaReverseAndResumeReplication_Call) Return(_a0 V1betaReverseAndResumeReplicationRes, _a1 error) *MockHandler_V1betaReverseAndResumeReplication_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockHandler_V1betaReverseAndResumeReplication_Call) RunAndReturn(run func(context.Context, V1betaReverseAndResumeReplicationParams) (V1betaReverseAndResumeReplicationRes, error)) *MockHandler_V1betaReverseAndResumeReplication_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// V1betaStopReplication provides a mock function with given fields: ctx, req, params
+func (_m *MockHandler) V1betaStopReplication(ctx context.Context, req *ReplicationStopV1beta, params V1betaStopReplicationParams) (V1betaStopReplicationRes, error) {
+	ret := _m.Called(ctx, req, params)
+
+	if len(ret) == 0 {
+		panic("no return value specified for V1betaStopReplication")
+	}
+
+	var r0 V1betaStopReplicationRes
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, *ReplicationStopV1beta, V1betaStopReplicationParams) (V1betaStopReplicationRes, error)); ok {
+		return rf(ctx, req, params)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, *ReplicationStopV1beta, V1betaStopReplicationParams) V1betaStopReplicationRes); ok {
+		r0 = rf(ctx, req, params)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(V1betaStopReplicationRes)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, *ReplicationStopV1beta, V1betaStopReplicationParams) error); ok {
+		r1 = rf(ctx, req, params)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockHandler_V1betaStopReplication_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'V1betaStopReplication'
+type MockHandler_V1betaStopReplication_Call struct {
+	*mock.Call
+}
+
+// V1betaStopReplication is a helper method to define mock.On call
+//   - ctx context.Context
+//   - req *ReplicationStopV1beta
+//   - params V1betaStopReplicationParams
+func (_e *MockHandler_Expecter) V1betaStopReplication(ctx interface{}, req interface{}, params interface{}) *MockHandler_V1betaStopReplication_Call {
+	return &MockHandler_V1betaStopReplication_Call{Call: _e.mock.On("V1betaStopReplication", ctx, req, params)}
+}
+
+func (_c *MockHandler_V1betaStopReplication_Call) Run(run func(ctx context.Context, req *ReplicationStopV1beta, params V1betaStopReplicationParams)) *MockHandler_V1betaStopReplication_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(*ReplicationStopV1beta), args[2].(V1betaStopReplicationParams))
+	})
+	return _c
+}
+
+func (_c *MockHandler_V1betaStopReplication_Call) Return(_a0 V1betaStopReplicationRes, _a1 error) *MockHandler_V1betaStopReplication_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockHandler_V1betaStopReplication_Call) RunAndReturn(run func(context.Context, *ReplicationStopV1beta, V1betaStopReplicationParams) (V1betaStopReplicationRes, error)) *MockHandler_V1betaStopReplication_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// V1betaSyncReplication provides a mock function with given fields: ctx, params
+func (_m *MockHandler) V1betaSyncReplication(ctx context.Context, params V1betaSyncReplicationParams) (V1betaSyncReplicationRes, error) {
+	ret := _m.Called(ctx, params)
+
+	if len(ret) == 0 {
+		panic("no return value specified for V1betaSyncReplication")
+	}
+
+	var r0 V1betaSyncReplicationRes
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, V1betaSyncReplicationParams) (V1betaSyncReplicationRes, error)); ok {
+		return rf(ctx, params)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, V1betaSyncReplicationParams) V1betaSyncReplicationRes); ok {
+		r0 = rf(ctx, params)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(V1betaSyncReplicationRes)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, V1betaSyncReplicationParams) error); ok {
+		r1 = rf(ctx, params)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockHandler_V1betaSyncReplication_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'V1betaSyncReplication'
+type MockHandler_V1betaSyncReplication_Call struct {
+	*mock.Call
+}
+
+// V1betaSyncReplication is a helper method to define mock.On call
+//   - ctx context.Context
+//   - params V1betaSyncReplicationParams
+func (_e *MockHandler_Expecter) V1betaSyncReplication(ctx interface{}, params interface{}) *MockHandler_V1betaSyncReplication_Call {
+	return &MockHandler_V1betaSyncReplication_Call{Call: _e.mock.On("V1betaSyncReplication", ctx, params)}
+}
+
+func (_c *MockHandler_V1betaSyncReplication_Call) Run(run func(ctx context.Context, params V1betaSyncReplicationParams)) *MockHandler_V1betaSyncReplication_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(V1betaSyncReplicationParams))
+	})
+	return _c
+}
+
+func (_c *MockHandler_V1betaSyncReplication_Call) Return(_a0 V1betaSyncReplicationRes, _a1 error) *MockHandler_V1betaSyncReplication_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockHandler_V1betaSyncReplication_Call) RunAndReturn(run func(context.Context, V1betaSyncReplicationParams) (V1betaSyncReplicationRes, error)) *MockHandler_V1betaSyncReplication_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// V1betaUpdateActiveDirectory provides a mock function with given fields: ctx, req, params
+func (_m *MockHandler) V1betaUpdateActiveDirectory(ctx context.Context, req *ActiveDirectoryUpdateV1beta, params V1betaUpdateActiveDirectoryParams) (V1betaUpdateActiveDirectoryRes, error) {
+	ret := _m.Called(ctx, req, params)
+
+	if len(ret) == 0 {
+		panic("no return value specified for V1betaUpdateActiveDirectory")
+	}
+
+	var r0 V1betaUpdateActiveDirectoryRes
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, *ActiveDirectoryUpdateV1beta, V1betaUpdateActiveDirectoryParams) (V1betaUpdateActiveDirectoryRes, error)); ok {
+		return rf(ctx, req, params)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, *ActiveDirectoryUpdateV1beta, V1betaUpdateActiveDirectoryParams) V1betaUpdateActiveDirectoryRes); ok {
+		r0 = rf(ctx, req, params)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(V1betaUpdateActiveDirectoryRes)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, *ActiveDirectoryUpdateV1beta, V1betaUpdateActiveDirectoryParams) error); ok {
+		r1 = rf(ctx, req, params)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockHandler_V1betaUpdateActiveDirectory_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'V1betaUpdateActiveDirectory'
+type MockHandler_V1betaUpdateActiveDirectory_Call struct {
+	*mock.Call
+}
+
+// V1betaUpdateActiveDirectory is a helper method to define mock.On call
+//   - ctx context.Context
+//   - req *ActiveDirectoryUpdateV1beta
+//   - params V1betaUpdateActiveDirectoryParams
+func (_e *MockHandler_Expecter) V1betaUpdateActiveDirectory(ctx interface{}, req interface{}, params interface{}) *MockHandler_V1betaUpdateActiveDirectory_Call {
+	return &MockHandler_V1betaUpdateActiveDirectory_Call{Call: _e.mock.On("V1betaUpdateActiveDirectory", ctx, req, params)}
+}
+
+func (_c *MockHandler_V1betaUpdateActiveDirectory_Call) Run(run func(ctx context.Context, req *ActiveDirectoryUpdateV1beta, params V1betaUpdateActiveDirectoryParams)) *MockHandler_V1betaUpdateActiveDirectory_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(*ActiveDirectoryUpdateV1beta), args[2].(V1betaUpdateActiveDirectoryParams))
+	})
+	return _c
+}
+
+func (_c *MockHandler_V1betaUpdateActiveDirectory_Call) Return(_a0 V1betaUpdateActiveDirectoryRes, _a1 error) *MockHandler_V1betaUpdateActiveDirectory_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockHandler_V1betaUpdateActiveDirectory_Call) RunAndReturn(run func(context.Context, *ActiveDirectoryUpdateV1beta, V1betaUpdateActiveDirectoryParams) (V1betaUpdateActiveDirectoryRes, error)) *MockHandler_V1betaUpdateActiveDirectory_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // V1betaUpdateBackupPolicy provides a mock function with given fields: ctx, req, params
-func (_m *MockHandler) V1betaUpdateBackupPolicy(ctx context.Context, req *BackupPolicyScheduleV1beta, params V1betaUpdateBackupPolicyParams) (V1betaUpdateBackupPolicyRes, error) {
+func (_m *MockHandler) V1betaUpdateBackupPolicy(ctx context.Context, req *BackupPolicyUpdateV1beta, params V1betaUpdateBackupPolicyParams) (V1betaUpdateBackupPolicyRes, error) {
 	ret := _m.Called(ctx, req, params)
 
 	if len(ret) == 0 {
@@ -1516,10 +3527,10 @@ func (_m *MockHandler) V1betaUpdateBackupPolicy(ctx context.Context, req *Backup
 
 	var r0 V1betaUpdateBackupPolicyRes
 	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, *BackupPolicyScheduleV1beta, V1betaUpdateBackupPolicyParams) (V1betaUpdateBackupPolicyRes, error)); ok {
+	if rf, ok := ret.Get(0).(func(context.Context, *BackupPolicyUpdateV1beta, V1betaUpdateBackupPolicyParams) (V1betaUpdateBackupPolicyRes, error)); ok {
 		return rf(ctx, req, params)
 	}
-	if rf, ok := ret.Get(0).(func(context.Context, *BackupPolicyScheduleV1beta, V1betaUpdateBackupPolicyParams) V1betaUpdateBackupPolicyRes); ok {
+	if rf, ok := ret.Get(0).(func(context.Context, *BackupPolicyUpdateV1beta, V1betaUpdateBackupPolicyParams) V1betaUpdateBackupPolicyRes); ok {
 		r0 = rf(ctx, req, params)
 	} else {
 		if ret.Get(0) != nil {
@@ -1527,7 +3538,7 @@ func (_m *MockHandler) V1betaUpdateBackupPolicy(ctx context.Context, req *Backup
 		}
 	}
 
-	if rf, ok := ret.Get(1).(func(context.Context, *BackupPolicyScheduleV1beta, V1betaUpdateBackupPolicyParams) error); ok {
+	if rf, ok := ret.Get(1).(func(context.Context, *BackupPolicyUpdateV1beta, V1betaUpdateBackupPolicyParams) error); ok {
 		r1 = rf(ctx, req, params)
 	} else {
 		r1 = ret.Error(1)
@@ -1543,15 +3554,15 @@ type MockHandler_V1betaUpdateBackupPolicy_Call struct {
 
 // V1betaUpdateBackupPolicy is a helper method to define mock.On call
 //   - ctx context.Context
-//   - req *BackupPolicyScheduleV1beta
+//   - req *BackupPolicyUpdateV1beta
 //   - params V1betaUpdateBackupPolicyParams
 func (_e *MockHandler_Expecter) V1betaUpdateBackupPolicy(ctx interface{}, req interface{}, params interface{}) *MockHandler_V1betaUpdateBackupPolicy_Call {
 	return &MockHandler_V1betaUpdateBackupPolicy_Call{Call: _e.mock.On("V1betaUpdateBackupPolicy", ctx, req, params)}
 }
 
-func (_c *MockHandler_V1betaUpdateBackupPolicy_Call) Run(run func(ctx context.Context, req *BackupPolicyScheduleV1beta, params V1betaUpdateBackupPolicyParams)) *MockHandler_V1betaUpdateBackupPolicy_Call {
+func (_c *MockHandler_V1betaUpdateBackupPolicy_Call) Run(run func(ctx context.Context, req *BackupPolicyUpdateV1beta, params V1betaUpdateBackupPolicyParams)) *MockHandler_V1betaUpdateBackupPolicy_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context), args[1].(*BackupPolicyScheduleV1beta), args[2].(V1betaUpdateBackupPolicyParams))
+		run(args[0].(context.Context), args[1].(*BackupPolicyUpdateV1beta), args[2].(V1betaUpdateBackupPolicyParams))
 	})
 	return _c
 }
@@ -1561,7 +3572,67 @@ func (_c *MockHandler_V1betaUpdateBackupPolicy_Call) Return(_a0 V1betaUpdateBack
 	return _c
 }
 
-func (_c *MockHandler_V1betaUpdateBackupPolicy_Call) RunAndReturn(run func(context.Context, *BackupPolicyScheduleV1beta, V1betaUpdateBackupPolicyParams) (V1betaUpdateBackupPolicyRes, error)) *MockHandler_V1betaUpdateBackupPolicy_Call {
+func (_c *MockHandler_V1betaUpdateBackupPolicy_Call) RunAndReturn(run func(context.Context, *BackupPolicyUpdateV1beta, V1betaUpdateBackupPolicyParams) (V1betaUpdateBackupPolicyRes, error)) *MockHandler_V1betaUpdateBackupPolicy_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// V1betaUpdateBackupVault provides a mock function with given fields: ctx, req, params
+func (_m *MockHandler) V1betaUpdateBackupVault(ctx context.Context, req *BackupVaultUpdateV1beta, params V1betaUpdateBackupVaultParams) (V1betaUpdateBackupVaultRes, error) {
+	ret := _m.Called(ctx, req, params)
+
+	if len(ret) == 0 {
+		panic("no return value specified for V1betaUpdateBackupVault")
+	}
+
+	var r0 V1betaUpdateBackupVaultRes
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, *BackupVaultUpdateV1beta, V1betaUpdateBackupVaultParams) (V1betaUpdateBackupVaultRes, error)); ok {
+		return rf(ctx, req, params)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, *BackupVaultUpdateV1beta, V1betaUpdateBackupVaultParams) V1betaUpdateBackupVaultRes); ok {
+		r0 = rf(ctx, req, params)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(V1betaUpdateBackupVaultRes)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, *BackupVaultUpdateV1beta, V1betaUpdateBackupVaultParams) error); ok {
+		r1 = rf(ctx, req, params)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockHandler_V1betaUpdateBackupVault_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'V1betaUpdateBackupVault'
+type MockHandler_V1betaUpdateBackupVault_Call struct {
+	*mock.Call
+}
+
+// V1betaUpdateBackupVault is a helper method to define mock.On call
+//   - ctx context.Context
+//   - req *BackupVaultUpdateV1beta
+//   - params V1betaUpdateBackupVaultParams
+func (_e *MockHandler_Expecter) V1betaUpdateBackupVault(ctx interface{}, req interface{}, params interface{}) *MockHandler_V1betaUpdateBackupVault_Call {
+	return &MockHandler_V1betaUpdateBackupVault_Call{Call: _e.mock.On("V1betaUpdateBackupVault", ctx, req, params)}
+}
+
+func (_c *MockHandler_V1betaUpdateBackupVault_Call) Run(run func(ctx context.Context, req *BackupVaultUpdateV1beta, params V1betaUpdateBackupVaultParams)) *MockHandler_V1betaUpdateBackupVault_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(*BackupVaultUpdateV1beta), args[2].(V1betaUpdateBackupVaultParams))
+	})
+	return _c
+}
+
+func (_c *MockHandler_V1betaUpdateBackupVault_Call) Return(_a0 V1betaUpdateBackupVaultRes, _a1 error) *MockHandler_V1betaUpdateBackupVault_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockHandler_V1betaUpdateBackupVault_Call) RunAndReturn(run func(context.Context, *BackupVaultUpdateV1beta, V1betaUpdateBackupVaultParams) (V1betaUpdateBackupVaultRes, error)) *MockHandler_V1betaUpdateBackupVault_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -1742,6 +3813,66 @@ func (_c *MockHandler_V1betaUpdatePool_Call) Return(_a0 V1betaUpdatePoolRes, _a1
 }
 
 func (_c *MockHandler_V1betaUpdatePool_Call) RunAndReturn(run func(context.Context, *PoolUpdateV1beta, V1betaUpdatePoolParams) (V1betaUpdatePoolRes, error)) *MockHandler_V1betaUpdatePool_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// V1betaUpdateReplication provides a mock function with given fields: ctx, req, params
+func (_m *MockHandler) V1betaUpdateReplication(ctx context.Context, req *ReplicationUpdateV1beta, params V1betaUpdateReplicationParams) (V1betaUpdateReplicationRes, error) {
+	ret := _m.Called(ctx, req, params)
+
+	if len(ret) == 0 {
+		panic("no return value specified for V1betaUpdateReplication")
+	}
+
+	var r0 V1betaUpdateReplicationRes
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, *ReplicationUpdateV1beta, V1betaUpdateReplicationParams) (V1betaUpdateReplicationRes, error)); ok {
+		return rf(ctx, req, params)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, *ReplicationUpdateV1beta, V1betaUpdateReplicationParams) V1betaUpdateReplicationRes); ok {
+		r0 = rf(ctx, req, params)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(V1betaUpdateReplicationRes)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, *ReplicationUpdateV1beta, V1betaUpdateReplicationParams) error); ok {
+		r1 = rf(ctx, req, params)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockHandler_V1betaUpdateReplication_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'V1betaUpdateReplication'
+type MockHandler_V1betaUpdateReplication_Call struct {
+	*mock.Call
+}
+
+// V1betaUpdateReplication is a helper method to define mock.On call
+//   - ctx context.Context
+//   - req *ReplicationUpdateV1beta
+//   - params V1betaUpdateReplicationParams
+func (_e *MockHandler_Expecter) V1betaUpdateReplication(ctx interface{}, req interface{}, params interface{}) *MockHandler_V1betaUpdateReplication_Call {
+	return &MockHandler_V1betaUpdateReplication_Call{Call: _e.mock.On("V1betaUpdateReplication", ctx, req, params)}
+}
+
+func (_c *MockHandler_V1betaUpdateReplication_Call) Run(run func(ctx context.Context, req *ReplicationUpdateV1beta, params V1betaUpdateReplicationParams)) *MockHandler_V1betaUpdateReplication_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(*ReplicationUpdateV1beta), args[2].(V1betaUpdateReplicationParams))
+	})
+	return _c
+}
+
+func (_c *MockHandler_V1betaUpdateReplication_Call) Return(_a0 V1betaUpdateReplicationRes, _a1 error) *MockHandler_V1betaUpdateReplication_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockHandler_V1betaUpdateReplication_Call) RunAndReturn(run func(context.Context, *ReplicationUpdateV1beta, V1betaUpdateReplicationParams) (V1betaUpdateReplicationRes, error)) *MockHandler_V1betaUpdateReplication_Call {
 	_c.Call.Return(run)
 	return _c
 }

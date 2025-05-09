@@ -1461,14 +1461,21 @@ func (s *BackupPolicyCreateV1beta) encodeFields(e *jx.Encoder) {
 			s.MonthlyBackupLimit.Encode(e)
 		}
 	}
+	{
+		if s.Enabled.Set {
+			e.FieldStart("enabled")
+			s.Enabled.Encode(e)
+		}
+	}
 }
 
-var jsonFieldsNameOfBackupPolicyCreateV1beta = [5]string{
+var jsonFieldsNameOfBackupPolicyCreateV1beta = [6]string{
 	0: "resourceId",
 	1: "description",
 	2: "dailyBackupLimit",
 	3: "weeklyBackupLimit",
 	4: "monthlyBackupLimit",
+	5: "enabled",
 }
 
 // Decode decodes BackupPolicyCreateV1beta from json.
@@ -1532,6 +1539,16 @@ func (s *BackupPolicyCreateV1beta) Decode(d *jx.Decoder) error {
 				return nil
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"monthlyBackupLimit\"")
+			}
+		case "enabled":
+			if err := func() error {
+				s.Enabled.Reset()
+				if err := s.Enabled.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"enabled\"")
 			}
 		default:
 			return d.Skip()
@@ -1884,8 +1901,20 @@ func (s *BackupPolicyDetailsV1betaState) Decode(d *jx.Decoder) error {
 	}
 	// Try to use constant string.
 	switch BackupPolicyDetailsV1betaState(v) {
-	case BackupPolicyDetailsV1betaStateSTATEUNSPECIFIEDCREATINGUPDATINGDELETINGREADYDELETEDERROR:
-		*s = BackupPolicyDetailsV1betaStateSTATEUNSPECIFIEDCREATINGUPDATINGDELETINGREADYDELETEDERROR
+	case BackupPolicyDetailsV1betaStateSTATEUNSPECIFIED:
+		*s = BackupPolicyDetailsV1betaStateSTATEUNSPECIFIED
+	case BackupPolicyDetailsV1betaStateCREATING:
+		*s = BackupPolicyDetailsV1betaStateCREATING
+	case BackupPolicyDetailsV1betaStateUPDATING:
+		*s = BackupPolicyDetailsV1betaStateUPDATING
+	case BackupPolicyDetailsV1betaStateDELETING:
+		*s = BackupPolicyDetailsV1betaStateDELETING
+	case BackupPolicyDetailsV1betaStateREADY:
+		*s = BackupPolicyDetailsV1betaStateREADY
+	case BackupPolicyDetailsV1betaStateDELETED:
+		*s = BackupPolicyDetailsV1betaStateDELETED
+	case BackupPolicyDetailsV1betaStateERROR:
+		*s = BackupPolicyDetailsV1betaStateERROR
 	default:
 		*s = BackupPolicyDetailsV1betaState(v)
 	}
@@ -2015,14 +2044,14 @@ func (s *BackupPolicyIDListV1beta) UnmarshalJSON(data []byte) error {
 }
 
 // Encode implements json.Marshaler.
-func (s *BackupPolicyScheduleV1beta) Encode(e *jx.Encoder) {
+func (s *BackupPolicyUpdateV1beta) Encode(e *jx.Encoder) {
 	e.ObjStart()
 	s.encodeFields(e)
 	e.ObjEnd()
 }
 
 // encodeFields encodes fields.
-func (s *BackupPolicyScheduleV1beta) encodeFields(e *jx.Encoder) {
+func (s *BackupPolicyUpdateV1beta) encodeFields(e *jx.Encoder) {
 	{
 		if s.DailyBackupLimit.Set {
 			e.FieldStart("dailyBackupLimit")
@@ -2041,18 +2070,32 @@ func (s *BackupPolicyScheduleV1beta) encodeFields(e *jx.Encoder) {
 			s.MonthlyBackupLimit.Encode(e)
 		}
 	}
+	{
+		if s.Enabled.Set {
+			e.FieldStart("enabled")
+			s.Enabled.Encode(e)
+		}
+	}
+	{
+		if s.Description.Set {
+			e.FieldStart("description")
+			s.Description.Encode(e)
+		}
+	}
 }
 
-var jsonFieldsNameOfBackupPolicyScheduleV1beta = [3]string{
+var jsonFieldsNameOfBackupPolicyUpdateV1beta = [5]string{
 	0: "dailyBackupLimit",
 	1: "weeklyBackupLimit",
 	2: "monthlyBackupLimit",
+	3: "enabled",
+	4: "description",
 }
 
-// Decode decodes BackupPolicyScheduleV1beta from json.
-func (s *BackupPolicyScheduleV1beta) Decode(d *jx.Decoder) error {
+// Decode decodes BackupPolicyUpdateV1beta from json.
+func (s *BackupPolicyUpdateV1beta) Decode(d *jx.Decoder) error {
 	if s == nil {
-		return errors.New("invalid: unable to decode BackupPolicyScheduleV1beta to nil")
+		return errors.New("invalid: unable to decode BackupPolicyUpdateV1beta to nil")
 	}
 	s.setDefaults()
 
@@ -2088,26 +2131,46 @@ func (s *BackupPolicyScheduleV1beta) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"monthlyBackupLimit\"")
 			}
+		case "enabled":
+			if err := func() error {
+				s.Enabled.Reset()
+				if err := s.Enabled.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"enabled\"")
+			}
+		case "description":
+			if err := func() error {
+				s.Description.Reset()
+				if err := s.Description.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"description\"")
+			}
 		default:
 			return d.Skip()
 		}
 		return nil
 	}); err != nil {
-		return errors.Wrap(err, "decode BackupPolicyScheduleV1beta")
+		return errors.Wrap(err, "decode BackupPolicyUpdateV1beta")
 	}
 
 	return nil
 }
 
 // MarshalJSON implements stdjson.Marshaler.
-func (s *BackupPolicyScheduleV1beta) MarshalJSON() ([]byte, error) {
+func (s *BackupPolicyUpdateV1beta) MarshalJSON() ([]byte, error) {
 	e := jx.Encoder{}
 	s.Encode(&e)
 	return e.Bytes(), nil
 }
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
-func (s *BackupPolicyScheduleV1beta) UnmarshalJSON(data []byte) error {
+func (s *BackupPolicyUpdateV1beta) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }
@@ -2379,8 +2442,20 @@ func (s *BackupPolicyV1betaState) Decode(d *jx.Decoder) error {
 	}
 	// Try to use constant string.
 	switch BackupPolicyV1betaState(v) {
-	case BackupPolicyV1betaStateSTATEUNSPECIFIEDCREATINGUPDATINGDELETINGREADYDELETEDERROR:
-		*s = BackupPolicyV1betaStateSTATEUNSPECIFIEDCREATINGUPDATINGDELETINGREADYDELETEDERROR
+	case BackupPolicyV1betaStateSTATEUNSPECIFIED:
+		*s = BackupPolicyV1betaStateSTATEUNSPECIFIED
+	case BackupPolicyV1betaStateCREATING:
+		*s = BackupPolicyV1betaStateCREATING
+	case BackupPolicyV1betaStateUPDATING:
+		*s = BackupPolicyV1betaStateUPDATING
+	case BackupPolicyV1betaStateDELETING:
+		*s = BackupPolicyV1betaStateDELETING
+	case BackupPolicyV1betaStateREADY:
+		*s = BackupPolicyV1betaStateREADY
+	case BackupPolicyV1betaStateDELETED:
+		*s = BackupPolicyV1betaStateDELETED
+	case BackupPolicyV1betaStateERROR:
+		*s = BackupPolicyV1betaStateERROR
 	default:
 		*s = BackupPolicyV1betaState(v)
 	}

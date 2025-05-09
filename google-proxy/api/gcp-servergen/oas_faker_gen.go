@@ -368,6 +368,11 @@ func (s *BackupPolicyCreateV1beta) SetFake() {
 			s.MonthlyBackupLimit.SetFake()
 		}
 	}
+	{
+		{
+			s.Enabled.SetFake()
+		}
+	}
 }
 
 // SetFake set fake values.
@@ -438,7 +443,7 @@ func (s *BackupPolicyDetailsV1beta) SetFake() {
 
 // SetFake set fake values.
 func (s *BackupPolicyDetailsV1betaState) SetFake() {
-	*s = BackupPolicyDetailsV1betaStateSTATEUNSPECIFIEDCREATINGUPDATINGDELETINGREADYDELETEDERROR
+	*s = BackupPolicyDetailsV1betaStateSTATEUNSPECIFIED
 }
 
 // SetFake set fake values.
@@ -458,7 +463,7 @@ func (s *BackupPolicyIDListV1beta) SetFake() {
 }
 
 // SetFake set fake values.
-func (s *BackupPolicyScheduleV1beta) SetFake() {
+func (s *BackupPolicyUpdateV1beta) SetFake() {
 	{
 		{
 			s.DailyBackupLimit.SetFake()
@@ -472,6 +477,16 @@ func (s *BackupPolicyScheduleV1beta) SetFake() {
 	{
 		{
 			s.MonthlyBackupLimit.SetFake()
+		}
+	}
+	{
+		{
+			s.Enabled.SetFake()
+		}
+	}
+	{
+		{
+			s.Description.SetFake()
 		}
 	}
 }
@@ -532,7 +547,7 @@ func (s *BackupPolicyV1beta) SetFake() {
 
 // SetFake set fake values.
 func (s *BackupPolicyV1betaState) SetFake() {
-	*s = BackupPolicyV1betaStateSTATEUNSPECIFIEDCREATINGUPDATINGDELETINGREADYDELETEDERROR
+	*s = BackupPolicyV1betaStateSTATEUNSPECIFIED
 }
 
 // SetFake set fake values.

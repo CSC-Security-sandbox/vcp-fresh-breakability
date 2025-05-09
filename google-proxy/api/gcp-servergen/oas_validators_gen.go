@@ -1153,7 +1153,19 @@ func (s *BackupPolicyDetailsV1beta) Validate() error {
 
 func (s BackupPolicyDetailsV1betaState) Validate() error {
 	switch s {
-	case "STATE_UNSPECIFIED - CREATING - UPDATING - DELETING - READY - DELETED - ERROR":
+	case "STATE_UNSPECIFIED":
+		return nil
+	case "CREATING":
+		return nil
+	case "UPDATING":
+		return nil
+	case "DELETING":
+		return nil
+	case "READY":
+		return nil
+	case "DELETED":
+		return nil
+	case "ERROR":
 		return nil
 	default:
 		return errors.Errorf("invalid value: %v", s)
@@ -1216,7 +1228,7 @@ func (s *BackupPolicyIDListV1beta) Validate() error {
 	return nil
 }
 
-func (s *BackupPolicyScheduleV1beta) Validate() error {
+func (s *BackupPolicyUpdateV1beta) Validate() error {
 	if s == nil {
 		return validate.ErrNilPointer
 	}
@@ -1300,6 +1312,32 @@ func (s *BackupPolicyScheduleV1beta) Validate() error {
 	}(); err != nil {
 		failures = append(failures, validate.FieldError{
 			Name:  "monthlyBackupLimit",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if value, ok := s.Description.Get(); ok {
+			if err := func() error {
+				if err := (validate.String{
+					MinLength:    0,
+					MinLengthSet: false,
+					MaxLength:    2048,
+					MaxLengthSet: true,
+					Email:        false,
+					Hostname:     false,
+					Regex:        nil,
+				}).Validate(string(value)); err != nil {
+					return errors.Wrap(err, "string")
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "description",
 			Error: err,
 		})
 	}
@@ -1467,7 +1505,19 @@ func (s *BackupPolicyV1beta) Validate() error {
 
 func (s BackupPolicyV1betaState) Validate() error {
 	switch s {
-	case "STATE_UNSPECIFIED - CREATING - UPDATING - DELETING - READY - DELETED - ERROR":
+	case "STATE_UNSPECIFIED":
+		return nil
+	case "CREATING":
+		return nil
+	case "UPDATING":
+		return nil
+	case "DELETING":
+		return nil
+	case "READY":
+		return nil
+	case "DELETED":
+		return nil
+	case "ERROR":
 		return nil
 	default:
 		return errors.Errorf("invalid value: %v", s)

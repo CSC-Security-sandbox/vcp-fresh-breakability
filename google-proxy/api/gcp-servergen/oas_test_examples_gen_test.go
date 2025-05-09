@@ -247,8 +247,8 @@ func TestBackupPolicyIDListV1beta_EncodeDecode(t *testing.T) {
 	var typ2 BackupPolicyIDListV1beta
 	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
 }
-func TestBackupPolicyScheduleV1beta_EncodeDecode(t *testing.T) {
-	var typ BackupPolicyScheduleV1beta
+func TestBackupPolicyUpdateV1beta_EncodeDecode(t *testing.T) {
+	var typ BackupPolicyUpdateV1beta
 	typ.SetFake()
 
 	e := jx.Encoder{}
@@ -256,7 +256,7 @@ func TestBackupPolicyScheduleV1beta_EncodeDecode(t *testing.T) {
 	data := e.Bytes()
 	require.True(t, std.Valid(data), "Encoded: %s", data)
 
-	var typ2 BackupPolicyScheduleV1beta
+	var typ2 BackupPolicyUpdateV1beta
 	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
 }
 func TestBackupPolicyV1beta_EncodeDecode(t *testing.T) {

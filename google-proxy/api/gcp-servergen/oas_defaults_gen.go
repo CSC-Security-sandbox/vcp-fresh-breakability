@@ -72,6 +72,10 @@ func (s *BackupPolicyCreateV1beta) setDefaults() {
 		val := int(0)
 		s.MonthlyBackupLimit.SetTo(val)
 	}
+	{
+		val := bool(true)
+		s.Enabled.SetTo(val)
+	}
 }
 
 // setDefaults set default value of fields.
@@ -99,7 +103,7 @@ func (s *BackupPolicyDetailsV1beta) setDefaults() {
 }
 
 // setDefaults set default value of fields.
-func (s *BackupPolicyScheduleV1beta) setDefaults() {
+func (s *BackupPolicyUpdateV1beta) setDefaults() {
 	{
 		val := int(0)
 		s.DailyBackupLimit.SetTo(val)
