@@ -2,9 +2,6 @@ package api
 
 import (
 	"context"
-	"time"
-
-	"github.com/go-openapi/strfmt"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/cvpapi/backups"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/models"
 	gcpgenserver "github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/api/gcp-servergen"
@@ -81,59 +78,36 @@ func (h Handler) V1betaGetMultipleBackups(ctx context.Context, req *gcpgenserver
 }
 
 func convertToBackupsV1beta(bv *models.BackupV1beta) gcpgenserver.BackupV1beta {
-	var enforcedTime strfmt.DateTime
-	if bv.EnforcedRetentionEndTime != nil {
-		enforcedTime = *bv.EnforcedRetentionEndTime
-	}
-	var snapshotName string
-	if bv.SourceSnapshot != nil {
-		snapshotName = *bv.SourceSnapshot
-	}
-	var satisfiesPzs bool
-	if bv.SatisfiesPzs != nil {
-		satisfiesPzs = *bv.SatisfiesPzs
-	}
-	var satisfiesPzi bool
-	if bv.SatisfiesPzi != nil {
-		satisfiesPzi = *bv.SatisfiesPzi
-	}
-
-	var assetLocationMetadata *gcpgenserver.AssetLocationMetadataV2
-	if bv.AssetLocationMetadata != nil {
-		var assets []gcpgenserver.ChildAssetV2
-		inChildAssets := bv.AssetLocationMetadata.ChildAssets
-		for _, asset := range inChildAssets {
-			var cvpAsset gcpgenserver.ChildAssetV2
-			cvpAsset.AssetType = gcpgenserver.NewOptString(asset.AssetType)
-			cvpAsset.AssetNames = asset.AssetNames
-			assets = append(assets, cvpAsset)
-		}
-		assetLocationMetadata = &gcpgenserver.AssetLocationMetadataV2{
-			ChildAssets: assets,
-		}
-	}
-
 	return gcpgenserver.BackupV1beta{
-		ResourceId:               gcpgenserver.NewOptString(bv.ResourceID),
-		VolumeId:                 gcpgenserver.NewOptString(bv.VolumeID),
+		ResourceId:               utils.GetOptString(&bv.ResourceID),
+		VolumeId:                 utils.GetOptString(&bv.VolumeID),
 		State:                    gcpgenserver.NewOptBackupV1betaState(gcpgenserver.BackupV1betaState(bv.State)),
-		Created:                  gcpgenserver.NewOptDateTime(time.Time(bv.Created)),
-		EnforcedRetentionEndTime: gcpgenserver.NewOptDateTime(time.Time(enforcedTime)),
-		BackupId:                 gcpgenserver.NewOptString(bv.BackupID),
-		VolumeUsageBytes:         gcpgenserver.NewOptInt64(*bv.VolumeUsageBytes),
-		SourceVolume:             gcpgenserver.NewOptString(bv.SourceVolume),
-		BackupVaultId:            gcpgenserver.NewOptString(*bv.BackupVaultID),
-		Description:              gcpgenserver.NewOptString(*bv.Description),
-		SourceSnapshot:           gcpgenserver.NewOptString(snapshotName),
+		Created:                  utils.GetOptDateTime(&bv.Created),
+		EnforcedRetentionEndTime: utils.GetOptDateTime(bv.EnforcedRetentionEndTime),
+		BackupId:                 utils.GetOptString(&bv.BackupID),
+		VolumeUsageBytes:         utils.GetOptInt64(bv.VolumeUsageBytes),
+		SourceVolume:             utils.GetOptString(&bv.SourceVolume),
+		BackupVaultId:            utils.GetOptString(bv.BackupVaultID),
+		Description:              utils.GetOptString(bv.Description),
+		SourceSnapshot:           utils.GetOptString(bv.SourceSnapshot),
 		BackupType:               gcpgenserver.NewOptBackupV1betaBackupType(gcpgenserver.BackupV1betaBackupType(bv.BackupType)),
-		BackupChainBytes:         gcpgenserver.NewOptInt64(*bv.BackupChainBytes),
-		SatisfiesPzs:             gcpgenserver.NewOptBool(satisfiesPzs),
-		SatisfiesPzi:             gcpgenserver.NewOptBool(satisfiesPzi),
-		VolumeRegion:             gcpgenserver.NewOptString(*bv.VolumeRegion),
-		BackupRegion:             gcpgenserver.NewOptString(*bv.BackupRegion),
+		BackupChainBytes:         utils.GetOptInt64(bv.BackupChainBytes),
+		SatisfiesPzs:             utils.GetOptBool(bv.SatisfiesPzs),
+		SatisfiesPzi:             utils.GetOptBool(bv.SatisfiesPzi),
+		VolumeRegion:             utils.GetOptString(bv.VolumeRegion),
+		BackupRegion:             utils.GetOptString(bv.BackupRegion),
 		AssetLocationMetadata: func() gcpgenserver.OptAssetLocationMetadataV2 {
-			if assetLocationMetadata != nil {
-				return gcpgenserver.NewOptAssetLocationMetadataV2(*assetLocationMetadata)
+			if bv.AssetLocationMetadata != nil {
+				var assets []gcpgenserver.ChildAssetV2
+				for _, asset := range bv.AssetLocationMetadata.ChildAssets {
+					assets = append(assets, gcpgenserver.ChildAssetV2{
+						AssetType:  utils.GetOptString(&asset.AssetType),
+						AssetNames: asset.AssetNames,
+					})
+				}
+				return gcpgenserver.NewOptAssetLocationMetadataV2(gcpgenserver.AssetLocationMetadataV2{
+					ChildAssets: assets,
+				})
 			}
 			return gcpgenserver.OptAssetLocationMetadataV2{}
 		}(),

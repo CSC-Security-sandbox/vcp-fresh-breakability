@@ -8,7 +8,9 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"time"
 
+	"github.com/go-openapi/strfmt"
 	gcpgenserver "github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/api/gcp-servergen"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
@@ -183,4 +185,36 @@ func ConvertToBytes(size float64, unit Unit) (int64, error) {
 	default:
 		return 0, fmt.Errorf("invalid unit: %v", unit)
 	}
+}
+
+// GetOptString safely converts a pointer to a string into an OptString.
+func GetOptString(value *string) gcpgenserver.OptString {
+	if value != nil {
+		return gcpgenserver.NewOptString(*value)
+	}
+	return gcpgenserver.OptString{}
+}
+
+// GetOptInt64 safely converts a pointer to an int64 into an OptInt64.
+func GetOptInt64(value *int64) gcpgenserver.OptInt64 {
+	if value != nil {
+		return gcpgenserver.NewOptInt64(*value)
+	}
+	return gcpgenserver.OptInt64{}
+}
+
+// GetOptBool safely converts a pointer to a bool into an OptBool.
+func GetOptBool(value *bool) gcpgenserver.OptBool {
+	if value != nil {
+		return gcpgenserver.NewOptBool(*value)
+	}
+	return gcpgenserver.OptBool{}
+}
+
+// GetOptDateTime safely converts a pointer to a strfmt.DateTime into an OptDateTime.
+func GetOptDateTime(value *strfmt.DateTime) gcpgenserver.OptDateTime {
+	if value != nil {
+		return gcpgenserver.NewOptDateTime(time.Time(*value))
+	}
+	return gcpgenserver.OptDateTime{}
 }
