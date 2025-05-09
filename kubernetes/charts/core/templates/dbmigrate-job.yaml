@@ -1,0 +1,87 @@
+{{- if and (.Values.enabled) (.Values.enableDbMigration) }}
+kind: Job
+apiVersion: batch/v1
+metadata:
+  name: vcp-dbmigrate
+  namespace: {{ .Release.Namespace }}
+  annotations:
+    {{- if .Release.IsUpgrade }}
+    "helm.sh/hook": pre-upgrade
+    "helm.sh/hook-weight": "-4"
+    "helm.sh/hook-delete-policy": before-hook-creation,hook-succeeded
+    {{- else }}
+    "helm.sh/hook": pre-install
+    "helm.sh/hook-weight": "-5"
+    "helm.sh/hook-delete-policy": before-hook-creation,hook-succeeded
+    {{- end }}
+    {{- include "vcp-dbmigrate.kubernetes.annotations" . | nindent 4 }}
+    {{- include "vcp-dbmigrate.helmchart.annotations" . | nindent 4 }}
+  labels:
+    {{- include "vcp-dbmigrate.kubernetes.labels" . | nindent 4 }}
+    {{- include "vcp-dbmigrate.helmchart.labels" . | nindent 4 }}
+spec:
+  backoffLimit: 0
+  ttlSecondsAfterFinished: {{ .Values.ttlSecondsAfterFinished | default 3600 }}
+  template:
+    metadata:
+      annotations:
+        {{- include "vcp-dbmigrate.kubernetes.annotations" . | nindent 8 }}
+        {{- include "vcp-dbmigrate.helmchart.annotations" . | nindent 8 }}
+      labels:
+        {{- include "vcp-dbmigrate.kubernetes.labels" . | nindent 8 }}
+        {{- include "vcp-dbmigrate.helmchart.labels" . | nindent 8 }}
+    spec:
+      serviceAccountName: {{ .Values.serviceAccountName }}
+      containers:
+        - name: vcp-dbmigrate
+          {{- if .Release.IsUpgrade }}
+          command: ["/bin/sh"]
+          args:
+            - "-c"
+            {{ if .Values.msiEnabled | default false }}
+            - "/vcp-db-migrate --migrate --admin-msi-user={{ .Values.msiUser | default "defaultMSIUser" }}"
+            {{- else }}
+            - "/vcp-db-migrate --migrate --admin-user={{ .Values.dbAdminUser | default "defaultUser" }} --admin-pass={{ .Values.dbAdminPassword | default "defaultPassword" }} "
+            {{- end }}
+          {{- else }}
+          command: ["/bin/sh"]
+          args:
+            - "-c"
+            {{ if .Values.msiEnabled | default false }}
+            - "/vcp-db-migrate --setup  --admin-msi-user={{ .Values.msiUser | default "defaultUser" }} && /vcp-db-migrate --migrate  --admin-msi-user={{ .Values.msiUser | default "defaultUser" }}"
+            {{- else }}
+            - "/vcp-db-migrate --setup --admin-pass={{ .Values.dbAdminPassword | default "defaultPassword" }} --admin-user={{ .Values.dbAdminUser | default "defaultUser" }} && /vcp-db-migrate --migrate --admin-pass={{ .Values.dbAdminPassword | default "defaultPassword" }} --admin-user={{ .Values.dbAdminUser | default "defaultUser" }}"
+            {{- end }}
+          {{- end }}
+          {{- if .Values.images.vcpDbMigrate.secondary }}
+          image: "{{- include "containerImage" (list . (dict "name" "vcpDbMigrate" "secondary" true)) | trim -}}"
+          {{- else }}
+          image: "{{- include "containerImage" (list . (dict "name" "vcpDbMigrate" "secondary" false)) | trim -}}"
+          {{- end }}
+
+          imagePullPolicy: {{ .Values.images.vcpDbMigrate.pullPolicy }}
+          env:
+            - name: DB_USER
+              value: {{ .Values.database.user | default "newuser" | quote }}
+            - name: DB_PASSWORD
+              value: {{ .Values.database.password | default "newpass" | quote }}
+            - name: DB_HOST
+              value: {{ .Values.database.host | default "localhost" | quote }}
+            - name: DB_PORT
+              value: {{ .Values.database.port | default "5432" | quote }}
+            - name: DB_NAME
+              value: {{ .Values.database.name | default "vcp" | quote }}
+            - name: DB_TYPE
+              value: {{ .Values.database.type | default "postgres" | quote }}
+
+          resources:
+            limits:
+              cpu: {{ .Values.resources.limits.cpu }}
+              memory: {{ .Values.resources.limits.memory }}
+            requests:
+              cpu: {{ .Values.resources.requests.cpu }}
+              memory: {{ .Values.resources.requests.memory }}
+      restartPolicy: Never
+{{- end }}
+
+

@@ -1,3 +1,10 @@
+enabled: true
+enableDbMigration: true
+ttlSecondsAfterFinished: 3600
+dbAdminUser: dbAdminUser
+dbAdminPassword: dbAdminPassword
+msiEnabled: false
+msiUser: db-msi-user
 serviceAccountName: vcp-core
 
 replicaCount: 1
@@ -8,7 +15,29 @@ images:
     tag: v25044.0.0-dev.6
     secondary: false
     pullPolicy: IfNotPresent
+  vcpDbMigrate:
+    name: vcp-db-migrate
+    tag: v1
+    secondary: false
+    pullPolicy: IfNotPresent
+    
 
 service:
   type: ClusterIP
   appPort: 8081
+
+database:
+  host: postgres-service
+  user: vcp-db-user
+  password: vcp-db-pass
+  name: vcp
+  port: 5432
+  type: postgres
+
+resources:
+  limits:
+    cpu: 1000m
+    memory: 512Mi
+  requests:
+    cpu: 200m
+    memory: 256Mi
