@@ -1,5 +1,10 @@
 package vsa
 
+import (
+	"github.com/go-openapi/strfmt"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
+)
+
 type ProviderDetails struct {
 	IPAddress          string `json:"ipAddress"`
 	UserName           string `json:"userName"`
@@ -87,4 +92,31 @@ type LunMapCreateParams struct {
 	LunName    string
 	SvmName    string
 	IGroupName []string
+}
+
+type CreateClusterPeerParams struct {
+	PeerAddresses       []string
+	PeerName            string
+	IPSpace             string
+	VolumeUUID          string
+	AccountUUID         string
+	InterclusterLifList []string
+	ExpiryTime          *strfmt.DateTime
+	GeneratePassphrase  bool
+	Passphrase          *string
+}
+
+type ClusterPeer struct {
+	UUID                string
+	PeerAddresses       []string
+	PeerClusterName     string
+	Availability        string
+	AuthenticationState string
+	Passphrase          *log.Secret
+	IPSpace             string
+	ExternalUUID        string
+	HostUUID            string
+	AccountUUID         string
+	AccountName         string
+	ExpiryTime          *strfmt.DateTime
 }

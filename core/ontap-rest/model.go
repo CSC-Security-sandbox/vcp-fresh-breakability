@@ -2,6 +2,7 @@ package ontap_rest
 
 import (
 	"strconv"
+	"strings"
 	"time"
 
 	cr "github.com/go-openapi/runtime/client"
@@ -13,6 +14,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/ontap-rest/client/storage"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/ontap-rest/client/svm"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/ontap-rest/models"
+	priv "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/ontap-rest/priv/client/operations"
 	privmodels "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/ontap-rest/priv/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
@@ -1400,6 +1402,7 @@ type ClusterPeerCreateParams struct {
 	GeneratePassphrase bool
 	IPSpace            string
 	ExpiryTime         *string
+	Passphrase         *string
 }
 
 // ClusterPeer is a simple wrapper of models.ClusterPeer
@@ -1936,6 +1939,104 @@ func iscsiServiceCreateParamsToONTAP(params *IscsiCreateParams) *san.IscsiServic
 			UUID: &params.SvmUUID,
 		},
 	})
+	return otParams
+}
+
+func convertListClusterPeerFromREST(resp *cluster.ClusterPeerCollectionGetOK) []*ClusterPeerResponse {
+	var clusterPeers []*ClusterPeerResponse
+	for _, peer := range resp.Payload.ClusterPeerResponseInlineRecords {
+		var ipAddresses []string
+		for _, ipAddress := range peer.Remote.IPAddresses {
+			ipAddresses = append(ipAddresses, string(*ipAddress))
+		}
+		clusterPeer := ClusterPeerResponse{
+			UUID:                nillable.FromPointer(peer.UUID),
+			PeerClusterName:     nillable.FromPointer(peer.Remote.Name),
+			AuthenticationState: nillable.FromPointer(peer.Authentication.State),
+			Availability:        nillable.FromPointer(peer.Status.State),
+			IPAddresses:         ipAddresses,
+			ExpiryTime:          nillable.FromPointer(peer.Authentication.ExpiryTime),
+		}
+		clusterPeers = append(clusterPeers, &clusterPeer)
+	}
+	return clusterPeers
+}
+
+func convertClusterPeerCreateFromREST(created *priv.ClusterPeerCreateCreated) *ClusterPeerCreateResponse {
+	uuid := ""
+	if created.Payload.ClusterPeerResponseInlineRecords[0].Links.Self != nil {
+		theLink := created.Payload.ClusterPeerResponseInlineRecords[0].Links.Self.Href
+		parts := strings.Split(*theLink, "/")
+
+		uuid = parts[len(parts)-1]
+	}
+	return &ClusterPeerCreateResponse{
+		GeneratedPassphrase: created.Payload.ClusterPeerResponseInlineRecords[0].Authentication.Passphrase,
+		ClusterPeerUUID:     uuid,
+		ExpiryTime:          created.Payload.ClusterPeerResponseInlineRecords[0].Authentication.ExpiryTime,
+	}
+}
+
+func clusterPeerIDToONTAPDelete(clusterPeerID string, timeout time.Duration) *cluster.ClusterPeerDeleteParams {
+	otDeleteParams := cluster.ClusterPeerDeleteParams{}
+	otDeleteParams.SetTimeout(timeout)
+	return otDeleteParams.WithUUID(clusterPeerID)
+}
+
+func clusterPeerIDToONTAPGet(clusterPeerID string) *cluster.ClusterPeerGetParams {
+	otGetParams := cluster.NewClusterPeerGetParams()
+	otGetParams.SetUUID(clusterPeerID)
+	return otGetParams
+}
+
+func convertClusterPeerFromREST(resp *cluster.ClusterPeerGetOK) *ClusterPeerResponse {
+	if resp == nil {
+		return nil
+	}
+	peer := resp.Payload
+	if peer.Remote == nil {
+		return nil
+	}
+	var ipAddresses []string
+	for _, ipAddress := range peer.Remote.IPAddresses {
+		ipAddresses = append(ipAddresses, string(*ipAddress))
+	}
+	clusterPeer := ClusterPeerResponse{
+		UUID:                nillable.FromPointer(peer.UUID),
+		PeerClusterName:     nillable.FromPointer(peer.Remote.Name),
+		AuthenticationState: nillable.FromPointer(peer.Authentication.State),
+		Availability:        nillable.FromPointer(peer.Status.State),
+		IPAddresses:         ipAddresses,
+		ExpiryTime:          nillable.FromPointer(peer.Authentication.ExpiryTime),
+	}
+	return &clusterPeer
+}
+
+func clusterPeerToONTAPCreate(params ClusterPeerCreateParams) *priv.ClusterPeerCreateParams {
+	otParams := priv.NewClusterPeerCreateParams()
+	var ipAddresses []*privmodels.IPAddress
+	for _, address := range params.IPAddresses {
+		ipAddresses = append(ipAddresses, nillable.ToPointer(privmodels.IPAddress(address)))
+	}
+	generatePassphrase := true
+
+	clusterPeer := &privmodels.ClusterPeer{
+		Name: &params.Name,
+		Remote: &privmodels.ClusterPeerInlineRemote{
+			IPAddresses: ipAddresses,
+		},
+		Authentication: &privmodels.ClusterPeerInlineAuthentication{
+			GeneratePassphrase: &generatePassphrase,
+			ExpiryTime:         params.ExpiryTime,
+		},
+		LocalRole: nillable.ToPointer("external-peer"),
+		Ipspace: &privmodels.ClusterPeerInlineIpspace{
+			Name: &params.IPSpace,
+		},
+	}
+
+	otParams.SetReturnRecords(nillable.ToPointer(true))
+	otParams.SetInfo(clusterPeer)
 	return otParams
 }
 

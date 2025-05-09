@@ -29,6 +29,11 @@ type Provider interface {
 	LunCreate(params LunCreateParams) (*ProviderResponse, error)
 	LunMapCreate(params LunMapCreateParams) error
 	IscsiServiceCreate(svmUUID string) error
+	CreateClusterPeer(params CreateClusterPeerParams) (*ClusterPeer, error)
+	AcceptClusterPeer(params CreateClusterPeerParams) (*ClusterPeer, error)
+	DeleteClusterPeer(clusterPeerID string) error
+	GetClusterPeer(clusterPeerID string) (*ClusterPeer, error)
+	ListClusterPeers() ([]*ClusterPeer, error)
 }
 
 type OntapRestProvider struct {
