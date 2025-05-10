@@ -4813,8 +4813,9 @@ components:
           description: The URL of the type
           example: type.googleapis.com/google.protobuf.Struct
         AnyValue:
-          type: object
-          properties: {}
+          title: response
+          additionalProperties:
+            type: object
     Status_v1Beta:
       title: Status
       type: object
@@ -8711,7 +8712,7 @@ components:
         type: string
       required: true
     xCorrelationIdHeader:
-      name: x-correlation-id
+      name: X-Correlation-ID
       in: header
       description: Correlation identifier
       schema:

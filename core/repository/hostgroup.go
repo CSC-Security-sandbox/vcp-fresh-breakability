@@ -9,6 +9,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	customerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
+	slogger "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 	"gorm.io/gorm"
 )
 
@@ -27,25 +28,35 @@ func getHostGroupWithDetails(db *gorm.DB, hostGroup *datamodel.HostGroup) (*data
 
 func (d *DataStoreRepository) CreateHostGroup(ctx context.Context, hostGroup *datamodel.HostGroup) (*datamodel.HostGroup, error) {
 	db := d.db.GORM().WithContext(ctx)
+	tx, err := startTransaction(db)
+	if err != nil {
+		return nil, err
+	}
+	// Fixme: The logger should be fetched from ctx
+	logger := slogger.NewLogger()
+	defer commitOrRollbackOnError(slogger.NewLogger(), tx, &err)
 	var dbHostGroup datamodel.HostGroup
-	err := db.Where("name = ?", hostGroup.Name).Where("account_id = ?", hostGroup.AccountID).First(&dbHostGroup).Error
-	if errors.Is(err, gorm.ErrRecordNotFound) {
+	err1 := tx.Where("name = ?", hostGroup.Name).Where("account_id = ?", hostGroup.AccountID).First(&dbHostGroup).Error
+	if errors.Is(err1, gorm.ErrRecordNotFound) {
 		hostGroup.UUID = utils.RandomUUID()
 		hostGroup.CreatedAt = time.Now()
 		hostGroup.UpdatedAt = hostGroup.CreatedAt
 
 		hostGroup.State = models.LifeCycleStateREADY
 		hostGroup.StateDetails = models.LifeCycleStateAvailableDetails
-		err := db.Create(&hostGroup).Error
+		err := tx.Create(&hostGroup).Error
 		if err != nil {
 			return nil, err
 		}
 
-		dbHostGroup, err := getHostGroupWithDetails(db, &datamodel.HostGroup{BaseModel: datamodel.BaseModel{UUID: hostGroup.UUID}})
+		dbHostGroup, err := getHostGroupWithDetails(tx, &datamodel.HostGroup{BaseModel: datamodel.BaseModel{UUID: hostGroup.UUID}})
 		if err != nil {
 			return nil, err
 		}
 		return dbHostGroup, nil
+	} else if err1 != nil {
+		logger.Errorf("Error while checking if hostgroup exists: %v", err1)
+		return nil, err1
 	}
 	return nil, customerrors.NewConflictErr("hostgroup already exists")
 }

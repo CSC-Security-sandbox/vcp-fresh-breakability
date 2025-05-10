@@ -17,6 +17,7 @@ type GoogleServices interface {
 	GetTenantProject(consumerVPC string, customerProjectNumber string, tenantProjectRegion string) (string, error)
 	CreateSubnetwork(consumerVPC, region, tenantProjectNumber string) (*servicenetworking.Subnetwork, error)
 	AddSubnetwork(request *servicenetworking.AddSubnetworkRequest, tenantProjectNumber string) (*servicenetworking.Operation, error)
+	ReleaseSubnetwork(region, tenantProjectNumber, subnetwork string) error
 }
 
 type TenancyInfo struct {

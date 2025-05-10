@@ -3,6 +3,7 @@ package errors
 // SvmLockedError defines an error for when a svm is locked
 type SvmLockedError struct {
 	error
+	trackingID int
 }
 
 // NewSvmLockedError returns an SvmLockedError
@@ -13,8 +14,14 @@ func NewSvmLockedError() error {
 // NewSvmLockedErrorWithTrackingID returns an SvmLockedError with trackingID
 func NewSvmLockedErrorWithTrackingID() error {
 	return &SvmLockedError{
-		error: New("Unable to perform operation. Wait a few minutes, and then try the operation again. If the error persists, contact technical support for assistance"),
+		error:      New("Unable to perform operation. Wait a few minutes, and then try the operation again. If the error persists, contact technical support for assistance"),
+		trackingID: LockedSVM,
 	}
+}
+
+// GetTrackingID returns the tracking id for the error
+func (e *SvmLockedError) GetTrackingID() int {
+	return e.trackingID
 }
 
 // IsSvmLockedError checks whether the specified error is an SvmLockedError

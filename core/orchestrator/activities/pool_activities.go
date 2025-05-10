@@ -18,6 +18,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
+	"gorm.io/gorm"
 )
 
 type PoolActivity struct {
@@ -40,7 +41,7 @@ var (
 
 func (j *PoolActivity) CreatingPool(ctx context.Context, pool *datamodel.Pool) (*datamodel.Pool, error) {
 	se := *j.SE
-	return se.CreatePool(ctx, pool)
+	return se.CreatingPool(ctx, pool)
 }
 
 func (j *PoolActivity) FailedPool(ctx context.Context, pool *datamodel.Pool, errMessage string) error {
@@ -50,11 +51,9 @@ func (j *PoolActivity) FailedPool(ctx context.Context, pool *datamodel.Pool, err
 	return se.UpdatePool(ctx, pool)
 }
 
-func (j *PoolActivity) CreatedPool(ctx context.Context, pool *datamodel.Pool) error {
+func (j *PoolActivity) CreatedPool(ctx context.Context, pool *datamodel.Pool) (*datamodel.Pool, error) {
 	se := *j.SE
-	pool.State = models.LifeCycleStateAvailable
-	pool.StateDetails = models.LifeCycleStateAvailableDetails
-	return se.UpdatePool(ctx, pool)
+	return se.CreatedPool(ctx, pool)
 }
 
 func (j *PoolActivity) CreateTenancy(ctx context.Context, params commonparams.CreatePoolParams) (*commonparams.TenancyInfo, error) {
@@ -120,9 +119,9 @@ func (j *PoolActivity) DeployDeploymentManager(ctx context.Context, deploymentNa
 	return common.DeploymentsInsert(ctx, deploymentName, region, zone, network, subnet, projectId, snHostProject, size)
 }
 
-func (j *PoolActivity) SavePoolWithClusterDetails(ctx context.Context, poolName string, accountName string, cluster *datamodel.ClusterDetails) error {
+func (j *PoolActivity) SavePoolWithClusterDetails(ctx context.Context, dbPool *datamodel.Pool, cluster *datamodel.ClusterDetails) error {
 	se := *j.SE
-	return se.SavePoolWithVsaClusterDetails(ctx, poolName, accountName, cluster)
+	return se.SavePoolWithVsaClusterDetails(ctx, dbPool, cluster)
 }
 
 func (j *PoolActivity) SaveNodeDetails(ctx context.Context, pool *datamodel.Pool, cluster *[]map[string]string) error {
@@ -142,7 +141,7 @@ func (j *PoolActivity) SaveNodeDetails(ctx context.Context, pool *datamodel.Pool
 			Name:            node.Name,
 			EndpointAddress: node.EndpointAddress,
 			PoolID:          pool.ID,
-			State:           models.LifeCycleStateAvailable,
+			State:           models.LifeCycleStateREADY,
 			StateDetails:    models.LifeCycleStateAvailableDetails,
 			NodeAttributes:  &datamodel.NodeDetails{ExternalUUID: vsaNode.ExternalUUID, InstanceType: node.InstanceType},
 			ZoneName:        node.Zone,
@@ -341,4 +340,221 @@ func (j *PoolActivity) GetProxyIP(ctx context.Context, dataLif string) (string, 
 func (j *PoolActivity) CreateNetworkIpRoute(ctx context.Context, node *models.Node, svmName string, gateway string) error {
 	provider := GetProviderByNode(node)
 	return provider.CreateNetworkIpRoute(vsa.CreateNetworkIPRouteParams{SvmName: svmName, Gateway: gateway})
+}
+
+func (j *PoolActivity) GetPool(ctx context.Context, pool *datamodel.Pool) (*datamodel.Pool, error) {
+	se := *j.SE
+	return se.GetPool(ctx, pool.UUID, 0)
+}
+
+func (j *PoolActivity) DeletingPoolResources(ctx context.Context, pool *datamodel.Pool) (*datamodel.Pool, error) {
+	se := *j.SE
+	// Update SVM, and Pool States to Deleting
+	if err := deletingSVMs(ctx, se, pool); err != nil {
+		return nil, err
+	}
+
+	if err := deletingNodes(ctx, se, pool); err != nil {
+		return nil, err
+	}
+
+	if err := se.DeletingPool(ctx, pool); err != nil {
+		return nil, fmt.Errorf("failed to delete pool record %s: %w", pool.Name, err)
+	}
+	return pool, nil
+}
+
+func (j *PoolActivity) DeleteDeployment(ctx context.Context, pool *datamodel.Pool) (*datamodel.Pool, error) {
+	if pool.ClusterDetails.ExternalName == "" {
+		return nil, errors.New("pool cannot be deleted with active clusters")
+	}
+	clusterName := pool.ClusterDetails.ExternalName
+	err := common.DeleteDeployment(ctx, pool.Account.Name, clusterName)
+	if err != nil {
+		return nil, errors.New("failed to delete cluster" + clusterName + " " + err.Error())
+	}
+	return pool, nil
+}
+
+func (j *PoolActivity) ReleaseSubnet(ctx context.Context, pool *datamodel.Pool) error {
+	se := *j.SE
+	logger := log.NewLogger()
+	conditions := [][]interface{}{{"account_id = ?", pool.AccountID}}
+	conditions = append(conditions, []interface{}{"network = ?", pool.Network})
+	pools, err := se.ListPools(ctx, conditions)
+	if err != nil {
+		return err
+	}
+	if len(pools) > 1 {
+		logger.Info("Skipping release subnetwork as there are other pools in the same region for the account")
+		return nil
+	}
+	var gService hyperscaler.GoogleServices
+	gcpService := &google.GcpServices{
+		Ctx:    ctx,
+		Logger: logger,
+	}
+	gService = gcpService
+
+	gcpService.Logger.Debug("gcpService initialized")
+
+	gcpService.Logger.Debug("Calling InitializeClients")
+	err = gService.InitializeClients()
+	if err != nil || !gService.IsAdminClientInitialized() {
+		gcpService.Logger.Debug("Initialisation of service failed")
+		return errors.New("initialisation of service failed")
+	}
+
+	consumerVpc := pool.Network
+	accountName := pool.Account.Name
+	subnetwork := "vsa-" + region
+
+	tenantProjectNumber, err := gService.GetTenantProject(consumerVpc, accountName, region)
+	if err != nil {
+		gcpService.Logger.Errorf("Error finding tenancy unit: %v", err)
+		return err
+	}
+
+	err = gService.ReleaseSubnetwork(region, tenantProjectNumber, subnetwork)
+	if err != nil {
+		gcpService.Logger.Errorf("Error Releasing subnetwork: %v", err)
+		return err
+	}
+
+	return nil
+}
+
+func (j *PoolActivity) DeletePoolResources(ctx context.Context, pool *datamodel.Pool) (*datamodel.Pool, error) {
+	se := *j.SE
+
+	// Delete LIFs
+	if err := deleteLIFs(ctx, se, pool); err != nil {
+		return nil, err
+	}
+
+	// Delete SVMs
+	if err := deleteSVMs(ctx, se, pool); err != nil {
+		return nil, err
+	}
+
+	// Delete nodes
+	if err := deleteNodes(ctx, se, pool); err != nil {
+		return nil, err
+	}
+
+	// Delete the pool itself from a database
+	if err := se.DeletePool(ctx, pool); err != nil {
+		return nil, err
+	}
+	return pool, nil
+}
+
+// deletingSVMs updates svm status to deleting.
+func deletingSVMs(ctx context.Context, se database.Storage, pool *datamodel.Pool) error {
+	// Retrieve the svms associated with the pool
+	svms, err := se.GetSvmsByPoolID(ctx, pool.ID)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return errors.New("SVM not found")
+		}
+		return err
+	}
+	for _, svm := range svms {
+		if err = se.DeletingSVM(ctx, svm); err != nil {
+			return fmt.Errorf("failed to update SVM record to deleting %s: %w", svm.Name, err)
+		}
+	}
+
+	return nil
+}
+
+// deletingNodes updates nodes status to deleting.
+func deletingNodes(ctx context.Context, se database.Storage, pool *datamodel.Pool) error {
+	// Retrieve the nodes associated with the pool
+	nodes, err := se.GetNodesByPoolID(ctx, pool.ID)
+	if err != nil {
+		return fmt.Errorf("failed to retrieve nodes for pool %d: %w", pool.ID, err)
+	}
+
+	// Delete each node
+	for _, node := range nodes {
+		// Delete the node record from the database
+		if err := se.DeletingNode(ctx, node); err != nil {
+			return fmt.Errorf("failed to delete node record %s: %w", node.Name, err)
+		}
+	}
+
+	return nil
+}
+
+// deleteSVMs deletes all SVMs and their associated database records.
+func deleteSVMs(ctx context.Context, se database.Storage, pool *datamodel.Pool) error {
+	// Get SVMs by pool ID
+	svms, err := se.GetSvmsByPoolID(ctx, pool.ID)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return errors.New("SVM not found")
+		}
+		return err
+	}
+
+	for _, svm := range svms {
+		// Delete the SVM record from the database
+		if svm.DeletedAt != nil && svm.DeletedAt.Valid {
+			continue
+		}
+		if err := se.DeleteSVM(ctx, svm); err != nil {
+			return fmt.Errorf("failed to delete SVM record %s: %w", pool.Name, err)
+		}
+	}
+
+	return nil
+}
+
+// deleteLIFs deletes LIFs database records associated with the given Nodes.
+func deleteLIFs(ctx context.Context, se database.Storage, pool *datamodel.Pool) error {
+	// Retrieve the nodes associated with the pool
+	nodes, err := se.GetNodesByPoolID(ctx, pool.ID)
+	if err != nil {
+		return fmt.Errorf("failed to retrieve nodes for pool %d: %w", pool.ID, err)
+	}
+
+	// Delete each LIF
+	for _, node := range nodes {
+		// Retrieve the LIFs associated with the Node
+		lif, err := se.GetLifByNodeID(ctx, node.ID, node.AccountID)
+		if err != nil {
+			return fmt.Errorf("failed to retrieve LIFs for Node %s: %w", node.Name, err)
+		}
+
+		if lif.DeletedAt != nil && lif.DeletedAt.Valid {
+			continue
+		}
+
+		// Delete the LIF record from the database
+		if err := se.DeleteLif(ctx, lif); err != nil {
+			return fmt.Errorf("failed to delete LIF record %s: %w", lif.Name, err)
+		}
+	}
+
+	return nil
+}
+
+// deleteNodes deletes node database records associated with the given pool.
+func deleteNodes(ctx context.Context, se database.Storage, pool *datamodel.Pool) error {
+	// Retrieve the nodes associated with the pool
+	nodes, err := se.GetNodesByPoolID(ctx, pool.ID)
+	if err != nil {
+		return fmt.Errorf("failed to retrieve nodes for pool %d: %w", pool.ID, err)
+	}
+
+	// Delete each node
+	for _, node := range nodes {
+		// Delete the node record from the database
+		if err := se.DeleteNode(ctx, node); err != nil {
+			return fmt.Errorf("failed to update node record to deleting %s: %w", node.Name, err)
+		}
+	}
+
+	return nil
 }

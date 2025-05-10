@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"net/http"
 	"os"
 	"os/signal"
@@ -14,6 +13,7 @@ import (
 	"github.com/go-faster/errors"
 	"github.com/google/uuid"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/common"
+	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database"
 	_ "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/postgres"
@@ -176,8 +176,8 @@ func initializeTemporalClient(ctx context.Context, logger log.Logger) (workflow_
 
 func setupHTTPServer(cfg *common.Config, handler http.Handler, logger log.Logger) *http.Server {
 	mux := chi.NewRouter()
-	mux.Use(middleware.AuthMiddleware)
 	mux.Use(log.LoggingMiddleware)
+	mux.Use(middleware.AuthMiddleware)
 	mux.Use(chimiddleware.Recoverer)
 	mux.Mount("/", handler)
 

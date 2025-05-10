@@ -51,7 +51,7 @@ func unpackV1betaCheckKmsConfigParams(packed middleware.Parameters) (params V1be
 	}
 	{
 		key := middleware.ParameterKey{
-			Name: "x-correlation-id",
+			Name: "X-Correlation-ID",
 			In:   "header",
 		}
 		if v, ok := packed[key]; ok {
@@ -246,10 +246,10 @@ func decodeV1betaCheckKmsConfigParams(args [3]string, argsEscaped bool, r *http.
 			Err:  err,
 		}
 	}
-	// Decode header: x-correlation-id.
+	// Decode header: X-Correlation-ID.
 	if err := func() error {
 		cfg := uri.HeaderParameterDecodingConfig{
-			Name:    "x-correlation-id",
+			Name:    "X-Correlation-ID",
 			Explode: false,
 		}
 		if err := h.HasParam(cfg); err == nil {
@@ -280,7 +280,7 @@ func decodeV1betaCheckKmsConfigParams(args [3]string, argsEscaped bool, r *http.
 		return nil
 	}(); err != nil {
 		return params, &ogenerrors.DecodeParamError{
-			Name: "x-correlation-id",
+			Name: "X-Correlation-ID",
 			In:   "header",
 			Err:  err,
 		}
@@ -315,7 +315,7 @@ func unpackV1betaCreateActiveDirectoryParams(packed middleware.Parameters) (para
 	}
 	{
 		key := middleware.ParameterKey{
-			Name: "x-correlation-id",
+			Name: "X-Correlation-ID",
 			In:   "header",
 		}
 		if v, ok := packed[key]; ok {
@@ -449,10 +449,10 @@ func decodeV1betaCreateActiveDirectoryParams(args [2]string, argsEscaped bool, r
 			Err:  err,
 		}
 	}
-	// Decode header: x-correlation-id.
+	// Decode header: X-Correlation-ID.
 	if err := func() error {
 		cfg := uri.HeaderParameterDecodingConfig{
-			Name:    "x-correlation-id",
+			Name:    "X-Correlation-ID",
 			Explode: false,
 		}
 		if err := h.HasParam(cfg); err == nil {
@@ -483,7 +483,7 @@ func decodeV1betaCreateActiveDirectoryParams(args [2]string, argsEscaped bool, r
 		return nil
 	}(); err != nil {
 		return params, &ogenerrors.DecodeParamError{
-			Name: "x-correlation-id",
+			Name: "X-Correlation-ID",
 			In:   "header",
 			Err:  err,
 		}
@@ -518,7 +518,7 @@ func unpackV1betaCreateBackupPolicyParams(packed middleware.Parameters) (params 
 	}
 	{
 		key := middleware.ParameterKey{
-			Name: "x-correlation-id",
+			Name: "X-Correlation-ID",
 			In:   "header",
 		}
 		if v, ok := packed[key]; ok {
@@ -652,10 +652,10 @@ func decodeV1betaCreateBackupPolicyParams(args [2]string, argsEscaped bool, r *h
 			Err:  err,
 		}
 	}
-	// Decode header: x-correlation-id.
+	// Decode header: X-Correlation-ID.
 	if err := func() error {
 		cfg := uri.HeaderParameterDecodingConfig{
-			Name:    "x-correlation-id",
+			Name:    "X-Correlation-ID",
 			Explode: false,
 		}
 		if err := h.HasParam(cfg); err == nil {
@@ -686,7 +686,7 @@ func decodeV1betaCreateBackupPolicyParams(args [2]string, argsEscaped bool, r *h
 		return nil
 	}(); err != nil {
 		return params, &ogenerrors.DecodeParamError{
-			Name: "x-correlation-id",
+			Name: "X-Correlation-ID",
 			In:   "header",
 			Err:  err,
 		}
@@ -721,7 +721,7 @@ func unpackV1betaCreateBackupVaultParams(packed middleware.Parameters) (params V
 	}
 	{
 		key := middleware.ParameterKey{
-			Name: "x-correlation-id",
+			Name: "X-Correlation-ID",
 			In:   "header",
 		}
 		if v, ok := packed[key]; ok {
@@ -855,10 +855,10 @@ func decodeV1betaCreateBackupVaultParams(args [2]string, argsEscaped bool, r *ht
 			Err:  err,
 		}
 	}
-	// Decode header: x-correlation-id.
+	// Decode header: X-Correlation-ID.
 	if err := func() error {
 		cfg := uri.HeaderParameterDecodingConfig{
-			Name:    "x-correlation-id",
+			Name:    "X-Correlation-ID",
 			Explode: false,
 		}
 		if err := h.HasParam(cfg); err == nil {
@@ -889,7 +889,7 @@ func decodeV1betaCreateBackupVaultParams(args [2]string, argsEscaped bool, r *ht
 		return nil
 	}(); err != nil {
 		return params, &ogenerrors.DecodeParamError{
-			Name: "x-correlation-id",
+			Name: "X-Correlation-ID",
 			In:   "header",
 			Err:  err,
 		}
@@ -924,7 +924,7 @@ func unpackV1betaCreateHostGroupParams(packed middleware.Parameters) (params V1b
 	}
 	{
 		key := middleware.ParameterKey{
-			Name: "x-correlation-id",
+			Name: "X-Correlation-ID",
 			In:   "header",
 		}
 		if v, ok := packed[key]; ok {
@@ -1058,10 +1058,10 @@ func decodeV1betaCreateHostGroupParams(args [2]string, argsEscaped bool, r *http
 			Err:  err,
 		}
 	}
-	// Decode header: x-correlation-id.
+	// Decode header: X-Correlation-ID.
 	if err := func() error {
 		cfg := uri.HeaderParameterDecodingConfig{
-			Name:    "x-correlation-id",
+			Name:    "X-Correlation-ID",
 			Explode: false,
 		}
 		if err := h.HasParam(cfg); err == nil {
@@ -1092,7 +1092,7 @@ func decodeV1betaCreateHostGroupParams(args [2]string, argsEscaped bool, r *http
 		return nil
 	}(); err != nil {
 		return params, &ogenerrors.DecodeParamError{
-			Name: "x-correlation-id",
+			Name: "X-Correlation-ID",
 			In:   "header",
 			Err:  err,
 		}
@@ -1127,7 +1127,7 @@ func unpackV1betaCreateKmsConfigurationParams(packed middleware.Parameters) (par
 	}
 	{
 		key := middleware.ParameterKey{
-			Name: "x-correlation-id",
+			Name: "X-Correlation-ID",
 			In:   "header",
 		}
 		if v, ok := packed[key]; ok {
@@ -1261,10 +1261,10 @@ func decodeV1betaCreateKmsConfigurationParams(args [2]string, argsEscaped bool, 
 			Err:  err,
 		}
 	}
-	// Decode header: x-correlation-id.
+	// Decode header: X-Correlation-ID.
 	if err := func() error {
 		cfg := uri.HeaderParameterDecodingConfig{
-			Name:    "x-correlation-id",
+			Name:    "X-Correlation-ID",
 			Explode: false,
 		}
 		if err := h.HasParam(cfg); err == nil {
@@ -1295,7 +1295,7 @@ func decodeV1betaCreateKmsConfigurationParams(args [2]string, argsEscaped bool, 
 		return nil
 	}(); err != nil {
 		return params, &ogenerrors.DecodeParamError{
-			Name: "x-correlation-id",
+			Name: "X-Correlation-ID",
 			In:   "header",
 			Err:  err,
 		}
@@ -1330,7 +1330,7 @@ func unpackV1betaCreatePoolParams(packed middleware.Parameters) (params V1betaCr
 	}
 	{
 		key := middleware.ParameterKey{
-			Name: "x-correlation-id",
+			Name: "X-Correlation-ID",
 			In:   "header",
 		}
 		if v, ok := packed[key]; ok {
@@ -1464,10 +1464,10 @@ func decodeV1betaCreatePoolParams(args [2]string, argsEscaped bool, r *http.Requ
 			Err:  err,
 		}
 	}
-	// Decode header: x-correlation-id.
+	// Decode header: X-Correlation-ID.
 	if err := func() error {
 		cfg := uri.HeaderParameterDecodingConfig{
-			Name:    "x-correlation-id",
+			Name:    "X-Correlation-ID",
 			Explode: false,
 		}
 		if err := h.HasParam(cfg); err == nil {
@@ -1498,7 +1498,7 @@ func decodeV1betaCreatePoolParams(args [2]string, argsEscaped bool, r *http.Requ
 		return nil
 	}(); err != nil {
 		return params, &ogenerrors.DecodeParamError{
-			Name: "x-correlation-id",
+			Name: "X-Correlation-ID",
 			In:   "header",
 			Err:  err,
 		}
@@ -1542,7 +1542,7 @@ func unpackV1betaCreateReplicationParams(packed middleware.Parameters) (params V
 	}
 	{
 		key := middleware.ParameterKey{
-			Name: "x-correlation-id",
+			Name: "X-Correlation-ID",
 			In:   "header",
 		}
 		if v, ok := packed[key]; ok {
@@ -1737,10 +1737,10 @@ func decodeV1betaCreateReplicationParams(args [3]string, argsEscaped bool, r *ht
 			Err:  err,
 		}
 	}
-	// Decode header: x-correlation-id.
+	// Decode header: X-Correlation-ID.
 	if err := func() error {
 		cfg := uri.HeaderParameterDecodingConfig{
-			Name:    "x-correlation-id",
+			Name:    "X-Correlation-ID",
 			Explode: false,
 		}
 		if err := h.HasParam(cfg); err == nil {
@@ -1771,7 +1771,7 @@ func decodeV1betaCreateReplicationParams(args [3]string, argsEscaped bool, r *ht
 		return nil
 	}(); err != nil {
 		return params, &ogenerrors.DecodeParamError{
-			Name: "x-correlation-id",
+			Name: "X-Correlation-ID",
 			In:   "header",
 			Err:  err,
 		}
@@ -1806,7 +1806,7 @@ func unpackV1betaCreateVolumeParams(packed middleware.Parameters) (params V1beta
 	}
 	{
 		key := middleware.ParameterKey{
-			Name: "x-correlation-id",
+			Name: "X-Correlation-ID",
 			In:   "header",
 		}
 		if v, ok := packed[key]; ok {
@@ -1940,10 +1940,10 @@ func decodeV1betaCreateVolumeParams(args [2]string, argsEscaped bool, r *http.Re
 			Err:  err,
 		}
 	}
-	// Decode header: x-correlation-id.
+	// Decode header: X-Correlation-ID.
 	if err := func() error {
 		cfg := uri.HeaderParameterDecodingConfig{
-			Name:    "x-correlation-id",
+			Name:    "X-Correlation-ID",
 			Explode: false,
 		}
 		if err := h.HasParam(cfg); err == nil {
@@ -1974,7 +1974,7 @@ func decodeV1betaCreateVolumeParams(args [2]string, argsEscaped bool, r *http.Re
 		return nil
 	}(); err != nil {
 		return params, &ogenerrors.DecodeParamError{
-			Name: "x-correlation-id",
+			Name: "X-Correlation-ID",
 			In:   "header",
 			Err:  err,
 		}
@@ -2011,7 +2011,7 @@ func unpackV1betaDeleteActiveDirectoryParams(packed middleware.Parameters) (para
 	}
 	{
 		key := middleware.ParameterKey{
-			Name: "x-correlation-id",
+			Name: "X-Correlation-ID",
 			In:   "header",
 		}
 		if v, ok := packed[key]; ok {
@@ -2152,10 +2152,10 @@ func decodeV1betaDeleteActiveDirectoryParams(args [3]string, argsEscaped bool, r
 			Err:  err,
 		}
 	}
-	// Decode header: x-correlation-id.
+	// Decode header: X-Correlation-ID.
 	if err := func() error {
 		cfg := uri.HeaderParameterDecodingConfig{
-			Name:    "x-correlation-id",
+			Name:    "X-Correlation-ID",
 			Explode: false,
 		}
 		if err := h.HasParam(cfg); err == nil {
@@ -2186,7 +2186,7 @@ func decodeV1betaDeleteActiveDirectoryParams(args [3]string, argsEscaped bool, r
 		return nil
 	}(); err != nil {
 		return params, &ogenerrors.DecodeParamError{
-			Name: "x-correlation-id",
+			Name: "X-Correlation-ID",
 			In:   "header",
 			Err:  err,
 		}
@@ -2291,7 +2291,7 @@ func unpackV1betaDeleteBackupPolicyParams(packed middleware.Parameters) (params 
 	}
 	{
 		key := middleware.ParameterKey{
-			Name: "x-correlation-id",
+			Name: "X-Correlation-ID",
 			In:   "header",
 		}
 		if v, ok := packed[key]; ok {
@@ -2486,10 +2486,10 @@ func decodeV1betaDeleteBackupPolicyParams(args [3]string, argsEscaped bool, r *h
 			Err:  err,
 		}
 	}
-	// Decode header: x-correlation-id.
+	// Decode header: X-Correlation-ID.
 	if err := func() error {
 		cfg := uri.HeaderParameterDecodingConfig{
-			Name:    "x-correlation-id",
+			Name:    "X-Correlation-ID",
 			Explode: false,
 		}
 		if err := h.HasParam(cfg); err == nil {
@@ -2520,7 +2520,7 @@ func decodeV1betaDeleteBackupPolicyParams(args [3]string, argsEscaped bool, r *h
 		return nil
 	}(); err != nil {
 		return params, &ogenerrors.DecodeParamError{
-			Name: "x-correlation-id",
+			Name: "X-Correlation-ID",
 			In:   "header",
 			Err:  err,
 		}
@@ -2564,7 +2564,7 @@ func unpackV1betaDeleteBackupVaultParams(packed middleware.Parameters) (params V
 	}
 	{
 		key := middleware.ParameterKey{
-			Name: "x-correlation-id",
+			Name: "X-Correlation-ID",
 			In:   "header",
 		}
 		if v, ok := packed[key]; ok {
@@ -2759,10 +2759,10 @@ func decodeV1betaDeleteBackupVaultParams(args [3]string, argsEscaped bool, r *ht
 			Err:  err,
 		}
 	}
-	// Decode header: x-correlation-id.
+	// Decode header: X-Correlation-ID.
 	if err := func() error {
 		cfg := uri.HeaderParameterDecodingConfig{
-			Name:    "x-correlation-id",
+			Name:    "X-Correlation-ID",
 			Explode: false,
 		}
 		if err := h.HasParam(cfg); err == nil {
@@ -2793,7 +2793,7 @@ func decodeV1betaDeleteBackupVaultParams(args [3]string, argsEscaped bool, r *ht
 		return nil
 	}(); err != nil {
 		return params, &ogenerrors.DecodeParamError{
-			Name: "x-correlation-id",
+			Name: "X-Correlation-ID",
 			In:   "header",
 			Err:  err,
 		}
@@ -2837,7 +2837,7 @@ func unpackV1betaDeleteHostGroupParams(packed middleware.Parameters) (params V1b
 	}
 	{
 		key := middleware.ParameterKey{
-			Name: "x-correlation-id",
+			Name: "X-Correlation-ID",
 			In:   "header",
 		}
 		if v, ok := packed[key]; ok {
@@ -3032,10 +3032,10 @@ func decodeV1betaDeleteHostGroupParams(args [3]string, argsEscaped bool, r *http
 			Err:  err,
 		}
 	}
-	// Decode header: x-correlation-id.
+	// Decode header: X-Correlation-ID.
 	if err := func() error {
 		cfg := uri.HeaderParameterDecodingConfig{
-			Name:    "x-correlation-id",
+			Name:    "X-Correlation-ID",
 			Explode: false,
 		}
 		if err := h.HasParam(cfg); err == nil {
@@ -3066,7 +3066,7 @@ func decodeV1betaDeleteHostGroupParams(args [3]string, argsEscaped bool, r *http
 		return nil
 	}(); err != nil {
 		return params, &ogenerrors.DecodeParamError{
-			Name: "x-correlation-id",
+			Name: "X-Correlation-ID",
 			In:   "header",
 			Err:  err,
 		}
@@ -3110,7 +3110,7 @@ func unpackV1betaDeleteKmsConfigurationParams(packed middleware.Parameters) (par
 	}
 	{
 		key := middleware.ParameterKey{
-			Name: "x-correlation-id",
+			Name: "X-Correlation-ID",
 			In:   "header",
 		}
 		if v, ok := packed[key]; ok {
@@ -3305,10 +3305,10 @@ func decodeV1betaDeleteKmsConfigurationParams(args [3]string, argsEscaped bool, 
 			Err:  err,
 		}
 	}
-	// Decode header: x-correlation-id.
+	// Decode header: X-Correlation-ID.
 	if err := func() error {
 		cfg := uri.HeaderParameterDecodingConfig{
-			Name:    "x-correlation-id",
+			Name:    "X-Correlation-ID",
 			Explode: false,
 		}
 		if err := h.HasParam(cfg); err == nil {
@@ -3339,7 +3339,7 @@ func decodeV1betaDeleteKmsConfigurationParams(args [3]string, argsEscaped bool, 
 		return nil
 	}(); err != nil {
 		return params, &ogenerrors.DecodeParamError{
-			Name: "x-correlation-id",
+			Name: "X-Correlation-ID",
 			In:   "header",
 			Err:  err,
 		}
@@ -3383,7 +3383,7 @@ func unpackV1betaDeletePoolParams(packed middleware.Parameters) (params V1betaDe
 	}
 	{
 		key := middleware.ParameterKey{
-			Name: "x-correlation-id",
+			Name: "X-Correlation-ID",
 			In:   "header",
 		}
 		if v, ok := packed[key]; ok {
@@ -3578,10 +3578,10 @@ func decodeV1betaDeletePoolParams(args [3]string, argsEscaped bool, r *http.Requ
 			Err:  err,
 		}
 	}
-	// Decode header: x-correlation-id.
+	// Decode header: X-Correlation-ID.
 	if err := func() error {
 		cfg := uri.HeaderParameterDecodingConfig{
-			Name:    "x-correlation-id",
+			Name:    "X-Correlation-ID",
 			Explode: false,
 		}
 		if err := h.HasParam(cfg); err == nil {
@@ -3612,7 +3612,7 @@ func decodeV1betaDeletePoolParams(args [3]string, argsEscaped bool, r *http.Requ
 		return nil
 	}(); err != nil {
 		return params, &ogenerrors.DecodeParamError{
-			Name: "x-correlation-id",
+			Name: "X-Correlation-ID",
 			In:   "header",
 			Err:  err,
 		}
@@ -3665,7 +3665,7 @@ func unpackV1betaDeleteReplicationParams(packed middleware.Parameters) (params V
 	}
 	{
 		key := middleware.ParameterKey{
-			Name: "x-correlation-id",
+			Name: "X-Correlation-ID",
 			In:   "header",
 		}
 		if v, ok := packed[key]; ok {
@@ -3921,10 +3921,10 @@ func decodeV1betaDeleteReplicationParams(args [4]string, argsEscaped bool, r *ht
 			Err:  err,
 		}
 	}
-	// Decode header: x-correlation-id.
+	// Decode header: X-Correlation-ID.
 	if err := func() error {
 		cfg := uri.HeaderParameterDecodingConfig{
-			Name:    "x-correlation-id",
+			Name:    "X-Correlation-ID",
 			Explode: false,
 		}
 		if err := h.HasParam(cfg); err == nil {
@@ -3955,7 +3955,7 @@ func decodeV1betaDeleteReplicationParams(args [4]string, argsEscaped bool, r *ht
 		return nil
 	}(); err != nil {
 		return params, &ogenerrors.DecodeParamError{
-			Name: "x-correlation-id",
+			Name: "X-Correlation-ID",
 			In:   "header",
 			Err:  err,
 		}
@@ -3992,7 +3992,7 @@ func unpackV1betaDeleteVolumeParams(packed middleware.Parameters) (params V1beta
 	}
 	{
 		key := middleware.ParameterKey{
-			Name: "x-correlation-id",
+			Name: "X-Correlation-ID",
 			In:   "header",
 		}
 		if v, ok := packed[key]; ok {
@@ -4133,10 +4133,10 @@ func decodeV1betaDeleteVolumeParams(args [3]string, argsEscaped bool, r *http.Re
 			Err:  err,
 		}
 	}
-	// Decode header: x-correlation-id.
+	// Decode header: X-Correlation-ID.
 	if err := func() error {
 		cfg := uri.HeaderParameterDecodingConfig{
-			Name:    "x-correlation-id",
+			Name:    "X-Correlation-ID",
 			Explode: false,
 		}
 		if err := h.HasParam(cfg); err == nil {
@@ -4167,7 +4167,7 @@ func decodeV1betaDeleteVolumeParams(args [3]string, argsEscaped bool, r *http.Re
 		return nil
 	}(); err != nil {
 		return params, &ogenerrors.DecodeParamError{
-			Name: "x-correlation-id",
+			Name: "X-Correlation-ID",
 			In:   "header",
 			Err:  err,
 		}
@@ -4265,7 +4265,7 @@ func unpackV1betaDescribeActiveDirectoryParams(packed middleware.Parameters) (pa
 	}
 	{
 		key := middleware.ParameterKey{
-			Name: "x-correlation-id",
+			Name: "X-Correlation-ID",
 			In:   "header",
 		}
 		if v, ok := packed[key]; ok {
@@ -4406,10 +4406,10 @@ func decodeV1betaDescribeActiveDirectoryParams(args [3]string, argsEscaped bool,
 			Err:  err,
 		}
 	}
-	// Decode header: x-correlation-id.
+	// Decode header: X-Correlation-ID.
 	if err := func() error {
 		cfg := uri.HeaderParameterDecodingConfig{
-			Name:    "x-correlation-id",
+			Name:    "X-Correlation-ID",
 			Explode: false,
 		}
 		if err := h.HasParam(cfg); err == nil {
@@ -4440,7 +4440,7 @@ func decodeV1betaDescribeActiveDirectoryParams(args [3]string, argsEscaped bool,
 		return nil
 	}(); err != nil {
 		return params, &ogenerrors.DecodeParamError{
-			Name: "x-correlation-id",
+			Name: "X-Correlation-ID",
 			In:   "header",
 			Err:  err,
 		}
@@ -4545,7 +4545,7 @@ func unpackV1betaDescribeBackupPolicyParams(packed middleware.Parameters) (param
 	}
 	{
 		key := middleware.ParameterKey{
-			Name: "x-correlation-id",
+			Name: "X-Correlation-ID",
 			In:   "header",
 		}
 		if v, ok := packed[key]; ok {
@@ -4740,10 +4740,10 @@ func decodeV1betaDescribeBackupPolicyParams(args [3]string, argsEscaped bool, r 
 			Err:  err,
 		}
 	}
-	// Decode header: x-correlation-id.
+	// Decode header: X-Correlation-ID.
 	if err := func() error {
 		cfg := uri.HeaderParameterDecodingConfig{
-			Name:    "x-correlation-id",
+			Name:    "X-Correlation-ID",
 			Explode: false,
 		}
 		if err := h.HasParam(cfg); err == nil {
@@ -4774,7 +4774,7 @@ func decodeV1betaDescribeBackupPolicyParams(args [3]string, argsEscaped bool, r 
 		return nil
 	}(); err != nil {
 		return params, &ogenerrors.DecodeParamError{
-			Name: "x-correlation-id",
+			Name: "X-Correlation-ID",
 			In:   "header",
 			Err:  err,
 		}
@@ -4829,7 +4829,7 @@ func unpackV1betaDescribeBackupVaultParams(packed middleware.Parameters) (params
 	}
 	{
 		key := middleware.ParameterKey{
-			Name: "x-correlation-id",
+			Name: "X-Correlation-ID",
 			In:   "header",
 		}
 		if v, ok := packed[key]; ok {
@@ -5071,10 +5071,10 @@ func decodeV1betaDescribeBackupVaultParams(args [3]string, argsEscaped bool, r *
 			Err:  err,
 		}
 	}
-	// Decode header: x-correlation-id.
+	// Decode header: X-Correlation-ID.
 	if err := func() error {
 		cfg := uri.HeaderParameterDecodingConfig{
-			Name:    "x-correlation-id",
+			Name:    "X-Correlation-ID",
 			Explode: false,
 		}
 		if err := h.HasParam(cfg); err == nil {
@@ -5105,7 +5105,7 @@ func decodeV1betaDescribeBackupVaultParams(args [3]string, argsEscaped bool, r *
 		return nil
 	}(); err != nil {
 		return params, &ogenerrors.DecodeParamError{
-			Name: "x-correlation-id",
+			Name: "X-Correlation-ID",
 			In:   "header",
 			Err:  err,
 		}
@@ -5149,7 +5149,7 @@ func unpackV1betaDescribeHostGroupParams(packed middleware.Parameters) (params V
 	}
 	{
 		key := middleware.ParameterKey{
-			Name: "x-correlation-id",
+			Name: "X-Correlation-ID",
 			In:   "header",
 		}
 		if v, ok := packed[key]; ok {
@@ -5344,10 +5344,10 @@ func decodeV1betaDescribeHostGroupParams(args [3]string, argsEscaped bool, r *ht
 			Err:  err,
 		}
 	}
-	// Decode header: x-correlation-id.
+	// Decode header: X-Correlation-ID.
 	if err := func() error {
 		cfg := uri.HeaderParameterDecodingConfig{
-			Name:    "x-correlation-id",
+			Name:    "X-Correlation-ID",
 			Explode: false,
 		}
 		if err := h.HasParam(cfg); err == nil {
@@ -5378,7 +5378,7 @@ func decodeV1betaDescribeHostGroupParams(args [3]string, argsEscaped bool, r *ht
 		return nil
 	}(); err != nil {
 		return params, &ogenerrors.DecodeParamError{
-			Name: "x-correlation-id",
+			Name: "X-Correlation-ID",
 			In:   "header",
 			Err:  err,
 		}
@@ -5422,7 +5422,7 @@ func unpackV1betaDescribeKmsConfigurationParams(packed middleware.Parameters) (p
 	}
 	{
 		key := middleware.ParameterKey{
-			Name: "x-correlation-id",
+			Name: "X-Correlation-ID",
 			In:   "header",
 		}
 		if v, ok := packed[key]; ok {
@@ -5617,10 +5617,10 @@ func decodeV1betaDescribeKmsConfigurationParams(args [3]string, argsEscaped bool
 			Err:  err,
 		}
 	}
-	// Decode header: x-correlation-id.
+	// Decode header: X-Correlation-ID.
 	if err := func() error {
 		cfg := uri.HeaderParameterDecodingConfig{
-			Name:    "x-correlation-id",
+			Name:    "X-Correlation-ID",
 			Explode: false,
 		}
 		if err := h.HasParam(cfg); err == nil {
@@ -5651,7 +5651,7 @@ func decodeV1betaDescribeKmsConfigurationParams(args [3]string, argsEscaped bool
 		return nil
 	}(); err != nil {
 		return params, &ogenerrors.DecodeParamError{
-			Name: "x-correlation-id",
+			Name: "X-Correlation-ID",
 			In:   "header",
 			Err:  err,
 		}
@@ -5695,7 +5695,7 @@ func unpackV1betaDescribeOperationParams(packed middleware.Parameters) (params V
 	}
 	{
 		key := middleware.ParameterKey{
-			Name: "x-correlation-id",
+			Name: "X-Correlation-ID",
 			In:   "header",
 		}
 		if v, ok := packed[key]; ok {
@@ -5890,10 +5890,10 @@ func decodeV1betaDescribeOperationParams(args [3]string, argsEscaped bool, r *ht
 			Err:  err,
 		}
 	}
-	// Decode header: x-correlation-id.
+	// Decode header: X-Correlation-ID.
 	if err := func() error {
 		cfg := uri.HeaderParameterDecodingConfig{
-			Name:    "x-correlation-id",
+			Name:    "X-Correlation-ID",
 			Explode: false,
 		}
 		if err := h.HasParam(cfg); err == nil {
@@ -5924,7 +5924,7 @@ func decodeV1betaDescribeOperationParams(args [3]string, argsEscaped bool, r *ht
 		return nil
 	}(); err != nil {
 		return params, &ogenerrors.DecodeParamError{
-			Name: "x-correlation-id",
+			Name: "X-Correlation-ID",
 			In:   "header",
 			Err:  err,
 		}
@@ -5968,7 +5968,7 @@ func unpackV1betaDescribePoolParams(packed middleware.Parameters) (params V1beta
 	}
 	{
 		key := middleware.ParameterKey{
-			Name: "x-correlation-id",
+			Name: "X-Correlation-ID",
 			In:   "header",
 		}
 		if v, ok := packed[key]; ok {
@@ -6163,10 +6163,10 @@ func decodeV1betaDescribePoolParams(args [3]string, argsEscaped bool, r *http.Re
 			Err:  err,
 		}
 	}
-	// Decode header: x-correlation-id.
+	// Decode header: X-Correlation-ID.
 	if err := func() error {
 		cfg := uri.HeaderParameterDecodingConfig{
-			Name:    "x-correlation-id",
+			Name:    "X-Correlation-ID",
 			Explode: false,
 		}
 		if err := h.HasParam(cfg); err == nil {
@@ -6197,7 +6197,7 @@ func decodeV1betaDescribePoolParams(args [3]string, argsEscaped bool, r *http.Re
 		return nil
 	}(); err != nil {
 		return params, &ogenerrors.DecodeParamError{
-			Name: "x-correlation-id",
+			Name: "X-Correlation-ID",
 			In:   "header",
 			Err:  err,
 		}
@@ -6234,7 +6234,7 @@ func unpackV1betaDescribeVolumeParams(packed middleware.Parameters) (params V1be
 	}
 	{
 		key := middleware.ParameterKey{
-			Name: "x-correlation-id",
+			Name: "X-Correlation-ID",
 			In:   "header",
 		}
 		if v, ok := packed[key]; ok {
@@ -6375,10 +6375,10 @@ func decodeV1betaDescribeVolumeParams(args [3]string, argsEscaped bool, r *http.
 			Err:  err,
 		}
 	}
-	// Decode header: x-correlation-id.
+	// Decode header: X-Correlation-ID.
 	if err := func() error {
 		cfg := uri.HeaderParameterDecodingConfig{
-			Name:    "x-correlation-id",
+			Name:    "X-Correlation-ID",
 			Explode: false,
 		}
 		if err := h.HasParam(cfg); err == nil {
@@ -6409,7 +6409,7 @@ func decodeV1betaDescribeVolumeParams(args [3]string, argsEscaped bool, r *http.
 		return nil
 	}(); err != nil {
 		return params, &ogenerrors.DecodeParamError{
-			Name: "x-correlation-id",
+			Name: "X-Correlation-ID",
 			In:   "header",
 			Err:  err,
 		}
@@ -6505,7 +6505,7 @@ func unpackV1betaGetMultipleActiveDirectoriesParams(packed middleware.Parameters
 	}
 	{
 		key := middleware.ParameterKey{
-			Name: "x-correlation-id",
+			Name: "X-Correlation-ID",
 			In:   "header",
 		}
 		if v, ok := packed[key]; ok {
@@ -6639,10 +6639,10 @@ func decodeV1betaGetMultipleActiveDirectoriesParams(args [2]string, argsEscaped 
 			Err:  err,
 		}
 	}
-	// Decode header: x-correlation-id.
+	// Decode header: X-Correlation-ID.
 	if err := func() error {
 		cfg := uri.HeaderParameterDecodingConfig{
-			Name:    "x-correlation-id",
+			Name:    "X-Correlation-ID",
 			Explode: false,
 		}
 		if err := h.HasParam(cfg); err == nil {
@@ -6673,7 +6673,7 @@ func decodeV1betaGetMultipleActiveDirectoriesParams(args [2]string, argsEscaped 
 		return nil
 	}(); err != nil {
 		return params, &ogenerrors.DecodeParamError{
-			Name: "x-correlation-id",
+			Name: "X-Correlation-ID",
 			In:   "header",
 			Err:  err,
 		}
@@ -6708,7 +6708,7 @@ func unpackV1betaGetMultipleBackupPoliciesParams(packed middleware.Parameters) (
 	}
 	{
 		key := middleware.ParameterKey{
-			Name: "x-correlation-id",
+			Name: "X-Correlation-ID",
 			In:   "header",
 		}
 		if v, ok := packed[key]; ok {
@@ -6842,10 +6842,10 @@ func decodeV1betaGetMultipleBackupPoliciesParams(args [2]string, argsEscaped boo
 			Err:  err,
 		}
 	}
-	// Decode header: x-correlation-id.
+	// Decode header: X-Correlation-ID.
 	if err := func() error {
 		cfg := uri.HeaderParameterDecodingConfig{
-			Name:    "x-correlation-id",
+			Name:    "X-Correlation-ID",
 			Explode: false,
 		}
 		if err := h.HasParam(cfg); err == nil {
@@ -6876,7 +6876,7 @@ func decodeV1betaGetMultipleBackupPoliciesParams(args [2]string, argsEscaped boo
 		return nil
 	}(); err != nil {
 		return params, &ogenerrors.DecodeParamError{
-			Name: "x-correlation-id",
+			Name: "X-Correlation-ID",
 			In:   "header",
 			Err:  err,
 		}
@@ -6911,7 +6911,7 @@ func unpackV1betaGetMultipleBackupVaultsParams(packed middleware.Parameters) (pa
 	}
 	{
 		key := middleware.ParameterKey{
-			Name: "x-correlation-id",
+			Name: "X-Correlation-ID",
 			In:   "header",
 		}
 		if v, ok := packed[key]; ok {
@@ -7045,10 +7045,10 @@ func decodeV1betaGetMultipleBackupVaultsParams(args [2]string, argsEscaped bool,
 			Err:  err,
 		}
 	}
-	// Decode header: x-correlation-id.
+	// Decode header: X-Correlation-ID.
 	if err := func() error {
 		cfg := uri.HeaderParameterDecodingConfig{
-			Name:    "x-correlation-id",
+			Name:    "X-Correlation-ID",
 			Explode: false,
 		}
 		if err := h.HasParam(cfg); err == nil {
@@ -7079,7 +7079,7 @@ func decodeV1betaGetMultipleBackupVaultsParams(args [2]string, argsEscaped bool,
 		return nil
 	}(); err != nil {
 		return params, &ogenerrors.DecodeParamError{
-			Name: "x-correlation-id",
+			Name: "X-Correlation-ID",
 			In:   "header",
 			Err:  err,
 		}
@@ -7123,7 +7123,7 @@ func unpackV1betaGetMultipleBackupsParams(packed middleware.Parameters) (params 
 	}
 	{
 		key := middleware.ParameterKey{
-			Name: "x-correlation-id",
+			Name: "X-Correlation-ID",
 			In:   "header",
 		}
 		if v, ok := packed[key]; ok {
@@ -7318,10 +7318,10 @@ func decodeV1betaGetMultipleBackupsParams(args [3]string, argsEscaped bool, r *h
 			Err:  err,
 		}
 	}
-	// Decode header: x-correlation-id.
+	// Decode header: X-Correlation-ID.
 	if err := func() error {
 		cfg := uri.HeaderParameterDecodingConfig{
-			Name:    "x-correlation-id",
+			Name:    "X-Correlation-ID",
 			Explode: false,
 		}
 		if err := h.HasParam(cfg); err == nil {
@@ -7352,7 +7352,7 @@ func decodeV1betaGetMultipleBackupsParams(args [3]string, argsEscaped bool, r *h
 		return nil
 	}(); err != nil {
 		return params, &ogenerrors.DecodeParamError{
-			Name: "x-correlation-id",
+			Name: "X-Correlation-ID",
 			In:   "header",
 			Err:  err,
 		}
@@ -7387,7 +7387,7 @@ func unpackV1betaGetMultipleHostGroupsParams(packed middleware.Parameters) (para
 	}
 	{
 		key := middleware.ParameterKey{
-			Name: "x-correlation-id",
+			Name: "X-Correlation-ID",
 			In:   "header",
 		}
 		if v, ok := packed[key]; ok {
@@ -7521,10 +7521,10 @@ func decodeV1betaGetMultipleHostGroupsParams(args [2]string, argsEscaped bool, r
 			Err:  err,
 		}
 	}
-	// Decode header: x-correlation-id.
+	// Decode header: X-Correlation-ID.
 	if err := func() error {
 		cfg := uri.HeaderParameterDecodingConfig{
-			Name:    "x-correlation-id",
+			Name:    "X-Correlation-ID",
 			Explode: false,
 		}
 		if err := h.HasParam(cfg); err == nil {
@@ -7555,7 +7555,7 @@ func decodeV1betaGetMultipleHostGroupsParams(args [2]string, argsEscaped bool, r
 		return nil
 	}(); err != nil {
 		return params, &ogenerrors.DecodeParamError{
-			Name: "x-correlation-id",
+			Name: "X-Correlation-ID",
 			In:   "header",
 			Err:  err,
 		}
@@ -7590,7 +7590,7 @@ func unpackV1betaGetMultiplePoolsParams(packed middleware.Parameters) (params V1
 	}
 	{
 		key := middleware.ParameterKey{
-			Name: "x-correlation-id",
+			Name: "X-Correlation-ID",
 			In:   "header",
 		}
 		if v, ok := packed[key]; ok {
@@ -7724,10 +7724,10 @@ func decodeV1betaGetMultiplePoolsParams(args [2]string, argsEscaped bool, r *htt
 			Err:  err,
 		}
 	}
-	// Decode header: x-correlation-id.
+	// Decode header: X-Correlation-ID.
 	if err := func() error {
 		cfg := uri.HeaderParameterDecodingConfig{
-			Name:    "x-correlation-id",
+			Name:    "X-Correlation-ID",
 			Explode: false,
 		}
 		if err := h.HasParam(cfg); err == nil {
@@ -7758,7 +7758,7 @@ func decodeV1betaGetMultiplePoolsParams(args [2]string, argsEscaped bool, r *htt
 		return nil
 	}(); err != nil {
 		return params, &ogenerrors.DecodeParamError{
-			Name: "x-correlation-id",
+			Name: "X-Correlation-ID",
 			In:   "header",
 			Err:  err,
 		}
@@ -7802,7 +7802,7 @@ func unpackV1betaGetMultipleReplicationsParams(packed middleware.Parameters) (pa
 	}
 	{
 		key := middleware.ParameterKey{
-			Name: "x-correlation-id",
+			Name: "X-Correlation-ID",
 			In:   "header",
 		}
 		if v, ok := packed[key]; ok {
@@ -7997,10 +7997,10 @@ func decodeV1betaGetMultipleReplicationsParams(args [3]string, argsEscaped bool,
 			Err:  err,
 		}
 	}
-	// Decode header: x-correlation-id.
+	// Decode header: X-Correlation-ID.
 	if err := func() error {
 		cfg := uri.HeaderParameterDecodingConfig{
-			Name:    "x-correlation-id",
+			Name:    "X-Correlation-ID",
 			Explode: false,
 		}
 		if err := h.HasParam(cfg); err == nil {
@@ -8031,7 +8031,7 @@ func decodeV1betaGetMultipleReplicationsParams(args [3]string, argsEscaped bool,
 		return nil
 	}(); err != nil {
 		return params, &ogenerrors.DecodeParamError{
-			Name: "x-correlation-id",
+			Name: "X-Correlation-ID",
 			In:   "header",
 			Err:  err,
 		}
@@ -8075,7 +8075,7 @@ func unpackV1betaGetMultipleSnapshotsParams(packed middleware.Parameters) (param
 	}
 	{
 		key := middleware.ParameterKey{
-			Name: "x-correlation-id",
+			Name: "X-Correlation-ID",
 			In:   "header",
 		}
 		if v, ok := packed[key]; ok {
@@ -8270,10 +8270,10 @@ func decodeV1betaGetMultipleSnapshotsParams(args [3]string, argsEscaped bool, r 
 			Err:  err,
 		}
 	}
-	// Decode header: x-correlation-id.
+	// Decode header: X-Correlation-ID.
 	if err := func() error {
 		cfg := uri.HeaderParameterDecodingConfig{
-			Name:    "x-correlation-id",
+			Name:    "X-Correlation-ID",
 			Explode: false,
 		}
 		if err := h.HasParam(cfg); err == nil {
@@ -8304,7 +8304,7 @@ func decodeV1betaGetMultipleSnapshotsParams(args [3]string, argsEscaped bool, r 
 		return nil
 	}(); err != nil {
 		return params, &ogenerrors.DecodeParamError{
-			Name: "x-correlation-id",
+			Name: "X-Correlation-ID",
 			In:   "header",
 			Err:  err,
 		}
@@ -8339,7 +8339,7 @@ func unpackV1betaGetMultipleVolumesParams(packed middleware.Parameters) (params 
 	}
 	{
 		key := middleware.ParameterKey{
-			Name: "x-correlation-id",
+			Name: "X-Correlation-ID",
 			In:   "header",
 		}
 		if v, ok := packed[key]; ok {
@@ -8473,10 +8473,10 @@ func decodeV1betaGetMultipleVolumesParams(args [2]string, argsEscaped bool, r *h
 			Err:  err,
 		}
 	}
-	// Decode header: x-correlation-id.
+	// Decode header: X-Correlation-ID.
 	if err := func() error {
 		cfg := uri.HeaderParameterDecodingConfig{
-			Name:    "x-correlation-id",
+			Name:    "X-Correlation-ID",
 			Explode: false,
 		}
 		if err := h.HasParam(cfg); err == nil {
@@ -8507,7 +8507,7 @@ func decodeV1betaGetMultipleVolumesParams(args [2]string, argsEscaped bool, r *h
 		return nil
 	}(); err != nil {
 		return params, &ogenerrors.DecodeParamError{
-			Name: "x-correlation-id",
+			Name: "X-Correlation-ID",
 			In:   "header",
 			Err:  err,
 		}
@@ -8542,7 +8542,7 @@ func unpackV1betaInternalAuthorizeVolumeReplicationParams(packed middleware.Para
 	}
 	{
 		key := middleware.ParameterKey{
-			Name: "x-correlation-id",
+			Name: "X-Correlation-ID",
 			In:   "header",
 		}
 		if v, ok := packed[key]; ok {
@@ -8676,10 +8676,10 @@ func decodeV1betaInternalAuthorizeVolumeReplicationParams(args [2]string, argsEs
 			Err:  err,
 		}
 	}
-	// Decode header: x-correlation-id.
+	// Decode header: X-Correlation-ID.
 	if err := func() error {
 		cfg := uri.HeaderParameterDecodingConfig{
-			Name:    "x-correlation-id",
+			Name:    "X-Correlation-ID",
 			Explode: false,
 		}
 		if err := h.HasParam(cfg); err == nil {
@@ -8710,7 +8710,7 @@ func decodeV1betaInternalAuthorizeVolumeReplicationParams(args [2]string, argsEs
 		return nil
 	}(); err != nil {
 		return params, &ogenerrors.DecodeParamError{
-			Name: "x-correlation-id",
+			Name: "X-Correlation-ID",
 			In:   "header",
 			Err:  err,
 		}
@@ -8745,7 +8745,7 @@ func unpackV1betaInternalCreateClusterPeerParams(packed middleware.Parameters) (
 	}
 	{
 		key := middleware.ParameterKey{
-			Name: "x-correlation-id",
+			Name: "X-Correlation-ID",
 			In:   "header",
 		}
 		if v, ok := packed[key]; ok {
@@ -8879,10 +8879,10 @@ func decodeV1betaInternalCreateClusterPeerParams(args [2]string, argsEscaped boo
 			Err:  err,
 		}
 	}
-	// Decode header: x-correlation-id.
+	// Decode header: X-Correlation-ID.
 	if err := func() error {
 		cfg := uri.HeaderParameterDecodingConfig{
-			Name:    "x-correlation-id",
+			Name:    "X-Correlation-ID",
 			Explode: false,
 		}
 		if err := h.HasParam(cfg); err == nil {
@@ -8913,7 +8913,7 @@ func decodeV1betaInternalCreateClusterPeerParams(args [2]string, argsEscaped boo
 		return nil
 	}(); err != nil {
 		return params, &ogenerrors.DecodeParamError{
-			Name: "x-correlation-id",
+			Name: "X-Correlation-ID",
 			In:   "header",
 			Err:  err,
 		}
@@ -8948,7 +8948,7 @@ func unpackV1betaInternalCreateVolumeReplicationParams(packed middleware.Paramet
 	}
 	{
 		key := middleware.ParameterKey{
-			Name: "x-correlation-id",
+			Name: "X-Correlation-ID",
 			In:   "header",
 		}
 		if v, ok := packed[key]; ok {
@@ -9082,10 +9082,10 @@ func decodeV1betaInternalCreateVolumeReplicationParams(args [2]string, argsEscap
 			Err:  err,
 		}
 	}
-	// Decode header: x-correlation-id.
+	// Decode header: X-Correlation-ID.
 	if err := func() error {
 		cfg := uri.HeaderParameterDecodingConfig{
-			Name:    "x-correlation-id",
+			Name:    "X-Correlation-ID",
 			Explode: false,
 		}
 		if err := h.HasParam(cfg); err == nil {
@@ -9116,7 +9116,7 @@ func decodeV1betaInternalCreateVolumeReplicationParams(args [2]string, argsEscap
 		return nil
 	}(); err != nil {
 		return params, &ogenerrors.DecodeParamError{
-			Name: "x-correlation-id",
+			Name: "X-Correlation-ID",
 			In:   "header",
 			Err:  err,
 		}
@@ -9165,7 +9165,7 @@ func unpackV1betaInternalDeleteVolumeReplicationParams(packed middleware.Paramet
 	}
 	{
 		key := middleware.ParameterKey{
-			Name: "x-correlation-id",
+			Name: "X-Correlation-ID",
 			In:   "header",
 		}
 		if v, ok := packed[key]; ok {
@@ -9388,10 +9388,10 @@ func decodeV1betaInternalDeleteVolumeReplicationParams(args [3]string, argsEscap
 			Err:  err,
 		}
 	}
-	// Decode header: x-correlation-id.
+	// Decode header: X-Correlation-ID.
 	if err := func() error {
 		cfg := uri.HeaderParameterDecodingConfig{
-			Name:    "x-correlation-id",
+			Name:    "X-Correlation-ID",
 			Explode: false,
 		}
 		if err := h.HasParam(cfg); err == nil {
@@ -9422,7 +9422,7 @@ func decodeV1betaInternalDeleteVolumeReplicationParams(args [3]string, argsEscap
 		return nil
 	}(); err != nil {
 		return params, &ogenerrors.DecodeParamError{
-			Name: "x-correlation-id",
+			Name: "X-Correlation-ID",
 			In:   "header",
 			Err:  err,
 		}
@@ -9588,7 +9588,7 @@ func unpackV1betaInternalDescribePoolParams(packed middleware.Parameters) (param
 	}
 	{
 		key := middleware.ParameterKey{
-			Name: "x-correlation-id",
+			Name: "X-Correlation-ID",
 			In:   "header",
 		}
 		if v, ok := packed[key]; ok {
@@ -9783,10 +9783,10 @@ func decodeV1betaInternalDescribePoolParams(args [3]string, argsEscaped bool, r 
 			Err:  err,
 		}
 	}
-	// Decode header: x-correlation-id.
+	// Decode header: X-Correlation-ID.
 	if err := func() error {
 		cfg := uri.HeaderParameterDecodingConfig{
-			Name:    "x-correlation-id",
+			Name:    "X-Correlation-ID",
 			Explode: false,
 		}
 		if err := h.HasParam(cfg); err == nil {
@@ -9817,7 +9817,7 @@ func decodeV1betaInternalDescribePoolParams(args [3]string, argsEscaped bool, r 
 		return nil
 	}(); err != nil {
 		return params, &ogenerrors.DecodeParamError{
-			Name: "x-correlation-id",
+			Name: "X-Correlation-ID",
 			In:   "header",
 			Err:  err,
 		}
@@ -9860,7 +9860,7 @@ func unpackV1betaInternalDescribeVolumeReplicationParams(packed middleware.Param
 	}
 	{
 		key := middleware.ParameterKey{
-			Name: "x-correlation-id",
+			Name: "X-Correlation-ID",
 			In:   "header",
 		}
 		if v, ok := packed[key]; ok {
@@ -10055,10 +10055,10 @@ func decodeV1betaInternalDescribeVolumeReplicationParams(args [3]string, argsEsc
 			Err:  err,
 		}
 	}
-	// Decode header: x-correlation-id.
+	// Decode header: X-Correlation-ID.
 	if err := func() error {
 		cfg := uri.HeaderParameterDecodingConfig{
-			Name:    "x-correlation-id",
+			Name:    "X-Correlation-ID",
 			Explode: false,
 		}
 		if err := h.HasParam(cfg); err == nil {
@@ -10089,7 +10089,7 @@ func decodeV1betaInternalDescribeVolumeReplicationParams(args [3]string, argsEsc
 		return nil
 	}(); err != nil {
 		return params, &ogenerrors.DecodeParamError{
-			Name: "x-correlation-id",
+			Name: "X-Correlation-ID",
 			In:   "header",
 			Err:  err,
 		}
@@ -10132,7 +10132,7 @@ func unpackV1betaInternalReleaseVolumeReplicationParams(packed middleware.Parame
 	}
 	{
 		key := middleware.ParameterKey{
-			Name: "x-correlation-id",
+			Name: "X-Correlation-ID",
 			In:   "header",
 		}
 		if v, ok := packed[key]; ok {
@@ -10327,10 +10327,10 @@ func decodeV1betaInternalReleaseVolumeReplicationParams(args [3]string, argsEsca
 			Err:  err,
 		}
 	}
-	// Decode header: x-correlation-id.
+	// Decode header: X-Correlation-ID.
 	if err := func() error {
 		cfg := uri.HeaderParameterDecodingConfig{
-			Name:    "x-correlation-id",
+			Name:    "X-Correlation-ID",
 			Explode: false,
 		}
 		if err := h.HasParam(cfg); err == nil {
@@ -10361,7 +10361,7 @@ func decodeV1betaInternalReleaseVolumeReplicationParams(args [3]string, argsEsca
 		return nil
 	}(); err != nil {
 		return params, &ogenerrors.DecodeParamError{
-			Name: "x-correlation-id",
+			Name: "X-Correlation-ID",
 			In:   "header",
 			Err:  err,
 		}
@@ -10415,7 +10415,7 @@ func unpackV1betaInternalResumeVolumeReplicationParams(packed middleware.Paramet
 	}
 	{
 		key := middleware.ParameterKey{
-			Name: "x-correlation-id",
+			Name: "X-Correlation-ID",
 			In:   "header",
 		}
 		if v, ok := packed[key]; ok {
@@ -10652,10 +10652,10 @@ func decodeV1betaInternalResumeVolumeReplicationParams(args [3]string, argsEscap
 			Err:  err,
 		}
 	}
-	// Decode header: x-correlation-id.
+	// Decode header: X-Correlation-ID.
 	if err := func() error {
 		cfg := uri.HeaderParameterDecodingConfig{
-			Name:    "x-correlation-id",
+			Name:    "X-Correlation-ID",
 			Explode: false,
 		}
 		if err := h.HasParam(cfg); err == nil {
@@ -10686,7 +10686,7 @@ func decodeV1betaInternalResumeVolumeReplicationParams(args [3]string, argsEscap
 		return nil
 	}(); err != nil {
 		return params, &ogenerrors.DecodeParamError{
-			Name: "x-correlation-id",
+			Name: "X-Correlation-ID",
 			In:   "header",
 			Err:  err,
 		}
@@ -10729,7 +10729,7 @@ func unpackV1betaInternalStopVolumeReplicationParams(packed middleware.Parameter
 	}
 	{
 		key := middleware.ParameterKey{
-			Name: "x-correlation-id",
+			Name: "X-Correlation-ID",
 			In:   "header",
 		}
 		if v, ok := packed[key]; ok {
@@ -10924,10 +10924,10 @@ func decodeV1betaInternalStopVolumeReplicationParams(args [3]string, argsEscaped
 			Err:  err,
 		}
 	}
-	// Decode header: x-correlation-id.
+	// Decode header: X-Correlation-ID.
 	if err := func() error {
 		cfg := uri.HeaderParameterDecodingConfig{
-			Name:    "x-correlation-id",
+			Name:    "X-Correlation-ID",
 			Explode: false,
 		}
 		if err := h.HasParam(cfg); err == nil {
@@ -10958,7 +10958,7 @@ func decodeV1betaInternalStopVolumeReplicationParams(args [3]string, argsEscaped
 		return nil
 	}(); err != nil {
 		return params, &ogenerrors.DecodeParamError{
-			Name: "x-correlation-id",
+			Name: "X-Correlation-ID",
 			In:   "header",
 			Err:  err,
 		}
@@ -11001,7 +11001,7 @@ func unpackV1betaInternalUpdateVolumeReplicationParams(packed middleware.Paramet
 	}
 	{
 		key := middleware.ParameterKey{
-			Name: "x-correlation-id",
+			Name: "X-Correlation-ID",
 			In:   "header",
 		}
 		if v, ok := packed[key]; ok {
@@ -11196,10 +11196,10 @@ func decodeV1betaInternalUpdateVolumeReplicationParams(args [3]string, argsEscap
 			Err:  err,
 		}
 	}
-	// Decode header: x-correlation-id.
+	// Decode header: X-Correlation-ID.
 	if err := func() error {
 		cfg := uri.HeaderParameterDecodingConfig{
-			Name:    "x-correlation-id",
+			Name:    "X-Correlation-ID",
 			Explode: false,
 		}
 		if err := h.HasParam(cfg); err == nil {
@@ -11230,7 +11230,7 @@ func decodeV1betaInternalUpdateVolumeReplicationParams(args [3]string, argsEscap
 		return nil
 	}(); err != nil {
 		return params, &ogenerrors.DecodeParamError{
-			Name: "x-correlation-id",
+			Name: "X-Correlation-ID",
 			In:   "header",
 			Err:  err,
 		}
@@ -11265,7 +11265,7 @@ func unpackV1betaListActiveDirectoriesParams(packed middleware.Parameters) (para
 	}
 	{
 		key := middleware.ParameterKey{
-			Name: "x-correlation-id",
+			Name: "X-Correlation-ID",
 			In:   "header",
 		}
 		if v, ok := packed[key]; ok {
@@ -11399,10 +11399,10 @@ func decodeV1betaListActiveDirectoriesParams(args [2]string, argsEscaped bool, r
 			Err:  err,
 		}
 	}
-	// Decode header: x-correlation-id.
+	// Decode header: X-Correlation-ID.
 	if err := func() error {
 		cfg := uri.HeaderParameterDecodingConfig{
-			Name:    "x-correlation-id",
+			Name:    "X-Correlation-ID",
 			Explode: false,
 		}
 		if err := h.HasParam(cfg); err == nil {
@@ -11433,7 +11433,7 @@ func decodeV1betaListActiveDirectoriesParams(args [2]string, argsEscaped bool, r
 		return nil
 	}(); err != nil {
 		return params, &ogenerrors.DecodeParamError{
-			Name: "x-correlation-id",
+			Name: "X-Correlation-ID",
 			In:   "header",
 			Err:  err,
 		}
@@ -11468,7 +11468,7 @@ func unpackV1betaListBackupPoliciesParams(packed middleware.Parameters) (params 
 	}
 	{
 		key := middleware.ParameterKey{
-			Name: "x-correlation-id",
+			Name: "X-Correlation-ID",
 			In:   "header",
 		}
 		if v, ok := packed[key]; ok {
@@ -11602,10 +11602,10 @@ func decodeV1betaListBackupPoliciesParams(args [2]string, argsEscaped bool, r *h
 			Err:  err,
 		}
 	}
-	// Decode header: x-correlation-id.
+	// Decode header: X-Correlation-ID.
 	if err := func() error {
 		cfg := uri.HeaderParameterDecodingConfig{
-			Name:    "x-correlation-id",
+			Name:    "X-Correlation-ID",
 			Explode: false,
 		}
 		if err := h.HasParam(cfg); err == nil {
@@ -11636,7 +11636,7 @@ func decodeV1betaListBackupPoliciesParams(args [2]string, argsEscaped bool, r *h
 		return nil
 	}(); err != nil {
 		return params, &ogenerrors.DecodeParamError{
-			Name: "x-correlation-id",
+			Name: "X-Correlation-ID",
 			In:   "header",
 			Err:  err,
 		}
@@ -11681,7 +11681,7 @@ func unpackV1betaListBackupVaultsParams(packed middleware.Parameters) (params V1
 	}
 	{
 		key := middleware.ParameterKey{
-			Name: "x-correlation-id",
+			Name: "X-Correlation-ID",
 			In:   "header",
 		}
 		if v, ok := packed[key]; ok {
@@ -11862,10 +11862,10 @@ func decodeV1betaListBackupVaultsParams(args [2]string, argsEscaped bool, r *htt
 			Err:  err,
 		}
 	}
-	// Decode header: x-correlation-id.
+	// Decode header: X-Correlation-ID.
 	if err := func() error {
 		cfg := uri.HeaderParameterDecodingConfig{
-			Name:    "x-correlation-id",
+			Name:    "X-Correlation-ID",
 			Explode: false,
 		}
 		if err := h.HasParam(cfg); err == nil {
@@ -11896,7 +11896,7 @@ func decodeV1betaListBackupVaultsParams(args [2]string, argsEscaped bool, r *htt
 		return nil
 	}(); err != nil {
 		return params, &ogenerrors.DecodeParamError{
-			Name: "x-correlation-id",
+			Name: "X-Correlation-ID",
 			In:   "header",
 			Err:  err,
 		}
@@ -11931,7 +11931,7 @@ func unpackV1betaListHostGroupsParams(packed middleware.Parameters) (params V1be
 	}
 	{
 		key := middleware.ParameterKey{
-			Name: "x-correlation-id",
+			Name: "X-Correlation-ID",
 			In:   "header",
 		}
 		if v, ok := packed[key]; ok {
@@ -12065,10 +12065,10 @@ func decodeV1betaListHostGroupsParams(args [2]string, argsEscaped bool, r *http.
 			Err:  err,
 		}
 	}
-	// Decode header: x-correlation-id.
+	// Decode header: X-Correlation-ID.
 	if err := func() error {
 		cfg := uri.HeaderParameterDecodingConfig{
-			Name:    "x-correlation-id",
+			Name:    "X-Correlation-ID",
 			Explode: false,
 		}
 		if err := h.HasParam(cfg); err == nil {
@@ -12099,7 +12099,7 @@ func decodeV1betaListHostGroupsParams(args [2]string, argsEscaped bool, r *http.
 		return nil
 	}(); err != nil {
 		return params, &ogenerrors.DecodeParamError{
-			Name: "x-correlation-id",
+			Name: "X-Correlation-ID",
 			In:   "header",
 			Err:  err,
 		}
@@ -12134,7 +12134,7 @@ func unpackV1betaListKmsConfigurationsParams(packed middleware.Parameters) (para
 	}
 	{
 		key := middleware.ParameterKey{
-			Name: "x-correlation-id",
+			Name: "X-Correlation-ID",
 			In:   "header",
 		}
 		if v, ok := packed[key]; ok {
@@ -12268,10 +12268,10 @@ func decodeV1betaListKmsConfigurationsParams(args [2]string, argsEscaped bool, r
 			Err:  err,
 		}
 	}
-	// Decode header: x-correlation-id.
+	// Decode header: X-Correlation-ID.
 	if err := func() error {
 		cfg := uri.HeaderParameterDecodingConfig{
-			Name:    "x-correlation-id",
+			Name:    "X-Correlation-ID",
 			Explode: false,
 		}
 		if err := h.HasParam(cfg); err == nil {
@@ -12302,7 +12302,7 @@ func decodeV1betaListKmsConfigurationsParams(args [2]string, argsEscaped bool, r
 		return nil
 	}(); err != nil {
 		return params, &ogenerrors.DecodeParamError{
-			Name: "x-correlation-id",
+			Name: "X-Correlation-ID",
 			In:   "header",
 			Err:  err,
 		}
@@ -12339,7 +12339,7 @@ func unpackV1betaListPoolsParams(packed middleware.Parameters) (params V1betaLis
 	}
 	{
 		key := middleware.ParameterKey{
-			Name: "x-correlation-id",
+			Name: "X-Correlation-ID",
 			In:   "header",
 		}
 		if v, ok := packed[key]; ok {
@@ -12483,10 +12483,10 @@ func decodeV1betaListPoolsParams(args [2]string, argsEscaped bool, r *http.Reque
 			Err:  err,
 		}
 	}
-	// Decode header: x-correlation-id.
+	// Decode header: X-Correlation-ID.
 	if err := func() error {
 		cfg := uri.HeaderParameterDecodingConfig{
-			Name:    "x-correlation-id",
+			Name:    "X-Correlation-ID",
 			Explode: false,
 		}
 		if err := h.HasParam(cfg); err == nil {
@@ -12517,7 +12517,7 @@ func decodeV1betaListPoolsParams(args [2]string, argsEscaped bool, r *http.Reque
 		return nil
 	}(); err != nil {
 		return params, &ogenerrors.DecodeParamError{
-			Name: "x-correlation-id",
+			Name: "X-Correlation-ID",
 			In:   "header",
 			Err:  err,
 		}
@@ -12598,7 +12598,7 @@ func unpackV1betaListReplicationsParams(packed middleware.Parameters) (params V1
 	}
 	{
 		key := middleware.ParameterKey{
-			Name: "x-correlation-id",
+			Name: "X-Correlation-ID",
 			In:   "header",
 		}
 		if v, ok := packed[key]; ok {
@@ -12732,10 +12732,10 @@ func decodeV1betaListReplicationsParams(args [2]string, argsEscaped bool, r *htt
 			Err:  err,
 		}
 	}
-	// Decode header: x-correlation-id.
+	// Decode header: X-Correlation-ID.
 	if err := func() error {
 		cfg := uri.HeaderParameterDecodingConfig{
-			Name:    "x-correlation-id",
+			Name:    "X-Correlation-ID",
 			Explode: false,
 		}
 		if err := h.HasParam(cfg); err == nil {
@@ -12766,7 +12766,7 @@ func decodeV1betaListReplicationsParams(args [2]string, argsEscaped bool, r *htt
 		return nil
 	}(); err != nil {
 		return params, &ogenerrors.DecodeParamError{
-			Name: "x-correlation-id",
+			Name: "X-Correlation-ID",
 			In:   "header",
 			Err:  err,
 		}
@@ -12809,7 +12809,7 @@ func unpackV1betaListVolumesParams(packed middleware.Parameters) (params V1betaL
 	}
 	{
 		key := middleware.ParameterKey{
-			Name: "x-correlation-id",
+			Name: "X-Correlation-ID",
 			In:   "header",
 		}
 		if v, ok := packed[key]; ok {
@@ -12980,10 +12980,10 @@ func decodeV1betaListVolumesParams(args [2]string, argsEscaped bool, r *http.Req
 			Err:  err,
 		}
 	}
-	// Decode header: x-correlation-id.
+	// Decode header: X-Correlation-ID.
 	if err := func() error {
 		cfg := uri.HeaderParameterDecodingConfig{
-			Name:    "x-correlation-id",
+			Name:    "X-Correlation-ID",
 			Explode: false,
 		}
 		if err := h.HasParam(cfg); err == nil {
@@ -13014,7 +13014,7 @@ func decodeV1betaListVolumesParams(args [2]string, argsEscaped bool, r *http.Req
 		return nil
 	}(); err != nil {
 		return params, &ogenerrors.DecodeParamError{
-			Name: "x-correlation-id",
+			Name: "X-Correlation-ID",
 			In:   "header",
 			Err:  err,
 		}
@@ -13259,7 +13259,7 @@ func unpackV1betaResumeReplicationParams(packed middleware.Parameters) (params V
 	}
 	{
 		key := middleware.ParameterKey{
-			Name: "x-correlation-id",
+			Name: "X-Correlation-ID",
 			In:   "header",
 		}
 		if v, ok := packed[key]; ok {
@@ -13515,10 +13515,10 @@ func decodeV1betaResumeReplicationParams(args [4]string, argsEscaped bool, r *ht
 			Err:  err,
 		}
 	}
-	// Decode header: x-correlation-id.
+	// Decode header: X-Correlation-ID.
 	if err := func() error {
 		cfg := uri.HeaderParameterDecodingConfig{
-			Name:    "x-correlation-id",
+			Name:    "X-Correlation-ID",
 			Explode: false,
 		}
 		if err := h.HasParam(cfg); err == nil {
@@ -13549,7 +13549,7 @@ func decodeV1betaResumeReplicationParams(args [4]string, argsEscaped bool, r *ht
 		return nil
 	}(); err != nil {
 		return params, &ogenerrors.DecodeParamError{
-			Name: "x-correlation-id",
+			Name: "X-Correlation-ID",
 			In:   "header",
 			Err:  err,
 		}
@@ -13602,7 +13602,7 @@ func unpackV1betaReverseAndResumeReplicationParams(packed middleware.Parameters)
 	}
 	{
 		key := middleware.ParameterKey{
-			Name: "x-correlation-id",
+			Name: "X-Correlation-ID",
 			In:   "header",
 		}
 		if v, ok := packed[key]; ok {
@@ -13858,10 +13858,10 @@ func decodeV1betaReverseAndResumeReplicationParams(args [4]string, argsEscaped b
 			Err:  err,
 		}
 	}
-	// Decode header: x-correlation-id.
+	// Decode header: X-Correlation-ID.
 	if err := func() error {
 		cfg := uri.HeaderParameterDecodingConfig{
-			Name:    "x-correlation-id",
+			Name:    "X-Correlation-ID",
 			Explode: false,
 		}
 		if err := h.HasParam(cfg); err == nil {
@@ -13892,7 +13892,7 @@ func decodeV1betaReverseAndResumeReplicationParams(args [4]string, argsEscaped b
 		return nil
 	}(); err != nil {
 		return params, &ogenerrors.DecodeParamError{
-			Name: "x-correlation-id",
+			Name: "X-Correlation-ID",
 			In:   "header",
 			Err:  err,
 		}
@@ -13945,7 +13945,7 @@ func unpackV1betaStopReplicationParams(packed middleware.Parameters) (params V1b
 	}
 	{
 		key := middleware.ParameterKey{
-			Name: "x-correlation-id",
+			Name: "X-Correlation-ID",
 			In:   "header",
 		}
 		if v, ok := packed[key]; ok {
@@ -14201,10 +14201,10 @@ func decodeV1betaStopReplicationParams(args [4]string, argsEscaped bool, r *http
 			Err:  err,
 		}
 	}
-	// Decode header: x-correlation-id.
+	// Decode header: X-Correlation-ID.
 	if err := func() error {
 		cfg := uri.HeaderParameterDecodingConfig{
-			Name:    "x-correlation-id",
+			Name:    "X-Correlation-ID",
 			Explode: false,
 		}
 		if err := h.HasParam(cfg); err == nil {
@@ -14235,7 +14235,7 @@ func decodeV1betaStopReplicationParams(args [4]string, argsEscaped bool, r *http
 		return nil
 	}(); err != nil {
 		return params, &ogenerrors.DecodeParamError{
-			Name: "x-correlation-id",
+			Name: "X-Correlation-ID",
 			In:   "header",
 			Err:  err,
 		}
@@ -14288,7 +14288,7 @@ func unpackV1betaSyncReplicationParams(packed middleware.Parameters) (params V1b
 	}
 	{
 		key := middleware.ParameterKey{
-			Name: "x-correlation-id",
+			Name: "X-Correlation-ID",
 			In:   "header",
 		}
 		if v, ok := packed[key]; ok {
@@ -14544,10 +14544,10 @@ func decodeV1betaSyncReplicationParams(args [4]string, argsEscaped bool, r *http
 			Err:  err,
 		}
 	}
-	// Decode header: x-correlation-id.
+	// Decode header: X-Correlation-ID.
 	if err := func() error {
 		cfg := uri.HeaderParameterDecodingConfig{
-			Name:    "x-correlation-id",
+			Name:    "X-Correlation-ID",
 			Explode: false,
 		}
 		if err := h.HasParam(cfg); err == nil {
@@ -14578,7 +14578,7 @@ func decodeV1betaSyncReplicationParams(args [4]string, argsEscaped bool, r *http
 		return nil
 	}(); err != nil {
 		return params, &ogenerrors.DecodeParamError{
-			Name: "x-correlation-id",
+			Name: "X-Correlation-ID",
 			In:   "header",
 			Err:  err,
 		}
@@ -14615,7 +14615,7 @@ func unpackV1betaUpdateActiveDirectoryParams(packed middleware.Parameters) (para
 	}
 	{
 		key := middleware.ParameterKey{
-			Name: "x-correlation-id",
+			Name: "X-Correlation-ID",
 			In:   "header",
 		}
 		if v, ok := packed[key]; ok {
@@ -14756,10 +14756,10 @@ func decodeV1betaUpdateActiveDirectoryParams(args [3]string, argsEscaped bool, r
 			Err:  err,
 		}
 	}
-	// Decode header: x-correlation-id.
+	// Decode header: X-Correlation-ID.
 	if err := func() error {
 		cfg := uri.HeaderParameterDecodingConfig{
-			Name:    "x-correlation-id",
+			Name:    "X-Correlation-ID",
 			Explode: false,
 		}
 		if err := h.HasParam(cfg); err == nil {
@@ -14790,7 +14790,7 @@ func decodeV1betaUpdateActiveDirectoryParams(args [3]string, argsEscaped bool, r
 		return nil
 	}(); err != nil {
 		return params, &ogenerrors.DecodeParamError{
-			Name: "x-correlation-id",
+			Name: "X-Correlation-ID",
 			In:   "header",
 			Err:  err,
 		}
@@ -14895,7 +14895,7 @@ func unpackV1betaUpdateBackupPolicyParams(packed middleware.Parameters) (params 
 	}
 	{
 		key := middleware.ParameterKey{
-			Name: "x-correlation-id",
+			Name: "X-Correlation-ID",
 			In:   "header",
 		}
 		if v, ok := packed[key]; ok {
@@ -15090,10 +15090,10 @@ func decodeV1betaUpdateBackupPolicyParams(args [3]string, argsEscaped bool, r *h
 			Err:  err,
 		}
 	}
-	// Decode header: x-correlation-id.
+	// Decode header: X-Correlation-ID.
 	if err := func() error {
 		cfg := uri.HeaderParameterDecodingConfig{
-			Name:    "x-correlation-id",
+			Name:    "X-Correlation-ID",
 			Explode: false,
 		}
 		if err := h.HasParam(cfg); err == nil {
@@ -15124,7 +15124,7 @@ func decodeV1betaUpdateBackupPolicyParams(args [3]string, argsEscaped bool, r *h
 		return nil
 	}(); err != nil {
 		return params, &ogenerrors.DecodeParamError{
-			Name: "x-correlation-id",
+			Name: "X-Correlation-ID",
 			In:   "header",
 			Err:  err,
 		}
@@ -15168,7 +15168,7 @@ func unpackV1betaUpdateBackupVaultParams(packed middleware.Parameters) (params V
 	}
 	{
 		key := middleware.ParameterKey{
-			Name: "x-correlation-id",
+			Name: "X-Correlation-ID",
 			In:   "header",
 		}
 		if v, ok := packed[key]; ok {
@@ -15363,10 +15363,10 @@ func decodeV1betaUpdateBackupVaultParams(args [3]string, argsEscaped bool, r *ht
 			Err:  err,
 		}
 	}
-	// Decode header: x-correlation-id.
+	// Decode header: X-Correlation-ID.
 	if err := func() error {
 		cfg := uri.HeaderParameterDecodingConfig{
-			Name:    "x-correlation-id",
+			Name:    "X-Correlation-ID",
 			Explode: false,
 		}
 		if err := h.HasParam(cfg); err == nil {
@@ -15397,7 +15397,7 @@ func decodeV1betaUpdateBackupVaultParams(args [3]string, argsEscaped bool, r *ht
 		return nil
 	}(); err != nil {
 		return params, &ogenerrors.DecodeParamError{
-			Name: "x-correlation-id",
+			Name: "X-Correlation-ID",
 			In:   "header",
 			Err:  err,
 		}
@@ -15441,7 +15441,7 @@ func unpackV1betaUpdateHostGroupParams(packed middleware.Parameters) (params V1b
 	}
 	{
 		key := middleware.ParameterKey{
-			Name: "x-correlation-id",
+			Name: "X-Correlation-ID",
 			In:   "header",
 		}
 		if v, ok := packed[key]; ok {
@@ -15636,10 +15636,10 @@ func decodeV1betaUpdateHostGroupParams(args [3]string, argsEscaped bool, r *http
 			Err:  err,
 		}
 	}
-	// Decode header: x-correlation-id.
+	// Decode header: X-Correlation-ID.
 	if err := func() error {
 		cfg := uri.HeaderParameterDecodingConfig{
-			Name:    "x-correlation-id",
+			Name:    "X-Correlation-ID",
 			Explode: false,
 		}
 		if err := h.HasParam(cfg); err == nil {
@@ -15670,7 +15670,7 @@ func decodeV1betaUpdateHostGroupParams(args [3]string, argsEscaped bool, r *http
 		return nil
 	}(); err != nil {
 		return params, &ogenerrors.DecodeParamError{
-			Name: "x-correlation-id",
+			Name: "X-Correlation-ID",
 			In:   "header",
 			Err:  err,
 		}
@@ -15714,7 +15714,7 @@ func unpackV1betaUpdateKmsConfigurationParams(packed middleware.Parameters) (par
 	}
 	{
 		key := middleware.ParameterKey{
-			Name: "x-correlation-id",
+			Name: "X-Correlation-ID",
 			In:   "header",
 		}
 		if v, ok := packed[key]; ok {
@@ -15909,10 +15909,10 @@ func decodeV1betaUpdateKmsConfigurationParams(args [3]string, argsEscaped bool, 
 			Err:  err,
 		}
 	}
-	// Decode header: x-correlation-id.
+	// Decode header: X-Correlation-ID.
 	if err := func() error {
 		cfg := uri.HeaderParameterDecodingConfig{
-			Name:    "x-correlation-id",
+			Name:    "X-Correlation-ID",
 			Explode: false,
 		}
 		if err := h.HasParam(cfg); err == nil {
@@ -15943,7 +15943,7 @@ func decodeV1betaUpdateKmsConfigurationParams(args [3]string, argsEscaped bool, 
 		return nil
 	}(); err != nil {
 		return params, &ogenerrors.DecodeParamError{
-			Name: "x-correlation-id",
+			Name: "X-Correlation-ID",
 			In:   "header",
 			Err:  err,
 		}
@@ -15987,7 +15987,7 @@ func unpackV1betaUpdatePoolParams(packed middleware.Parameters) (params V1betaUp
 	}
 	{
 		key := middleware.ParameterKey{
-			Name: "x-correlation-id",
+			Name: "X-Correlation-ID",
 			In:   "header",
 		}
 		if v, ok := packed[key]; ok {
@@ -16182,10 +16182,10 @@ func decodeV1betaUpdatePoolParams(args [3]string, argsEscaped bool, r *http.Requ
 			Err:  err,
 		}
 	}
-	// Decode header: x-correlation-id.
+	// Decode header: X-Correlation-ID.
 	if err := func() error {
 		cfg := uri.HeaderParameterDecodingConfig{
-			Name:    "x-correlation-id",
+			Name:    "X-Correlation-ID",
 			Explode: false,
 		}
 		if err := h.HasParam(cfg); err == nil {
@@ -16216,7 +16216,7 @@ func decodeV1betaUpdatePoolParams(args [3]string, argsEscaped bool, r *http.Requ
 		return nil
 	}(); err != nil {
 		return params, &ogenerrors.DecodeParamError{
-			Name: "x-correlation-id",
+			Name: "X-Correlation-ID",
 			In:   "header",
 			Err:  err,
 		}
@@ -16269,7 +16269,7 @@ func unpackV1betaUpdateReplicationParams(packed middleware.Parameters) (params V
 	}
 	{
 		key := middleware.ParameterKey{
-			Name: "x-correlation-id",
+			Name: "X-Correlation-ID",
 			In:   "header",
 		}
 		if v, ok := packed[key]; ok {
@@ -16525,10 +16525,10 @@ func decodeV1betaUpdateReplicationParams(args [4]string, argsEscaped bool, r *ht
 			Err:  err,
 		}
 	}
-	// Decode header: x-correlation-id.
+	// Decode header: X-Correlation-ID.
 	if err := func() error {
 		cfg := uri.HeaderParameterDecodingConfig{
-			Name:    "x-correlation-id",
+			Name:    "X-Correlation-ID",
 			Explode: false,
 		}
 		if err := h.HasParam(cfg); err == nil {
@@ -16559,7 +16559,7 @@ func decodeV1betaUpdateReplicationParams(args [4]string, argsEscaped bool, r *ht
 		return nil
 	}(); err != nil {
 		return params, &ogenerrors.DecodeParamError{
-			Name: "x-correlation-id",
+			Name: "X-Correlation-ID",
 			In:   "header",
 			Err:  err,
 		}
@@ -16596,7 +16596,7 @@ func unpackV1betaUpdateVolumeParams(packed middleware.Parameters) (params V1beta
 	}
 	{
 		key := middleware.ParameterKey{
-			Name: "x-correlation-id",
+			Name: "X-Correlation-ID",
 			In:   "header",
 		}
 		if v, ok := packed[key]; ok {
@@ -16737,10 +16737,10 @@ func decodeV1betaUpdateVolumeParams(args [3]string, argsEscaped bool, r *http.Re
 			Err:  err,
 		}
 	}
-	// Decode header: x-correlation-id.
+	// Decode header: X-Correlation-ID.
 	if err := func() error {
 		cfg := uri.HeaderParameterDecodingConfig{
-			Name:    "x-correlation-id",
+			Name:    "X-Correlation-ID",
 			Explode: false,
 		}
 		if err := h.HasParam(cfg); err == nil {
@@ -16771,7 +16771,7 @@ func decodeV1betaUpdateVolumeParams(args [3]string, argsEscaped bool, r *http.Re
 		return nil
 	}(); err != nil {
 		return params, &ogenerrors.DecodeParamError{
-			Name: "x-correlation-id",
+			Name: "X-Correlation-ID",
 			In:   "header",
 			Err:  err,
 		}

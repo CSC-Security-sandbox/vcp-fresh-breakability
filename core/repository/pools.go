@@ -15,7 +15,8 @@ import (
 )
 
 var (
-	getPoolWithDetails = _getPoolWithDetails
+	getPoolWithDetails  = _getPoolWithDetails
+	listPoolWithDetails = _listPoolWithDetails
 )
 
 type DataStoreRepository struct {
@@ -26,7 +27,36 @@ func NewDataStoreRepository(db *gormWrapper.Wrapper) *DataStoreRepository {
 	return &DataStoreRepository{db: db}
 }
 
-func (d *DataStoreRepository) CreatePool(ctx context.Context, pool *datamodel.Pool) (*datamodel.Pool, error) {
+// CreatedPool converts created pool to available pool
+func (d *DataStoreRepository) CreatedPool(ctx context.Context, pool *datamodel.Pool) (*datamodel.Pool, error) {
+	db := d.db.GORM().WithContext(ctx)
+	tx, err := startTransaction(db)
+	if err != nil {
+		return nil, err
+	}
+	// Fixme: The logger should be fetched from ctx
+	defer commitOrRollbackOnError(slogger.NewLogger(), tx, &err)
+	err = tx.Where("name = ?", pool.Name).Where("account_id = ?", pool.AccountID).First(&pool).Error
+	if err != nil {
+		return nil, err
+	}
+	pool.State = models.LifeCycleStateREADY
+	pool.StateDetails = models.LifeCycleStateAvailableDetails
+	pool.UpdatedAt = time.Now()
+	err = tx.Updates(pool).Error
+	if err != nil {
+		return nil, err
+	}
+
+	dbPool, err := getPoolWithDetails(db, &datamodel.Pool{BaseModel: datamodel.BaseModel{UUID: pool.UUID}})
+	if err != nil {
+		return nil, err
+	}
+	return dbPool, nil
+}
+
+// CreatingPool creates a new pool in the database
+func (d *DataStoreRepository) CreatingPool(ctx context.Context, pool *datamodel.Pool) (*datamodel.Pool, error) {
 	db := d.db.GORM().WithContext(ctx)
 	tx, err := startTransaction(db)
 	if err != nil {
@@ -36,8 +66,8 @@ func (d *DataStoreRepository) CreatePool(ctx context.Context, pool *datamodel.Po
 	logger := slogger.NewLogger()
 	defer commitOrRollbackOnError(logger, tx, &err)
 
-	var dbpool *datamodel.Pool
-	err1 := tx.Where("name = ?", pool.Name).Where("account_id = ?", pool.AccountID).First(&dbpool).Error
+	var dbPool *datamodel.Pool
+	err1 := tx.Where("name = ?", pool.Name).Where("account_id = ?", pool.AccountID).First(&dbPool).Error
 	if errors.Is(err1, gorm.ErrRecordNotFound) {
 		pool.UUID = utils.RandomUUID()
 		pool.State = models.LifeCycleStateCreating
@@ -50,20 +80,21 @@ func (d *DataStoreRepository) CreatePool(ctx context.Context, pool *datamodel.Po
 			return nil, err
 		}
 
-		dbpool, err = getPoolWithDetails(tx, &datamodel.Pool{BaseModel: datamodel.BaseModel{UUID: pool.UUID}})
+		dbPool, err = getPoolWithDetails(tx, &datamodel.Pool{BaseModel: datamodel.BaseModel{UUID: pool.UUID}})
 		if err != nil {
 			return nil, err
 		}
-		return dbpool, nil
+		return dbPool, nil
 	} else if err1 != nil {
 		logger.Errorf("Error while checking if pool exists: %v", err1)
 		return nil, err1
 	}
-	return nil, errors.New("pool already exists")
+	return nil, customerrors.NewConflictErr("pool already exists")
 }
 
-func (d *DataStoreRepository) GetPool(ctx context.Context, poolUUID string) (*datamodel.Pool, error) {
-	return getPoolWithDetails(d.db.GORM().WithContext(ctx), &datamodel.Pool{BaseModel: datamodel.BaseModel{UUID: poolUUID}})
+// GetPool retrieves a pool by its UUID
+func (d *DataStoreRepository) GetPool(ctx context.Context, poolUUID string, accountID int64) (*datamodel.Pool, error) {
+	return getPoolWithDetails(d.db.GORM().WithContext(ctx), &datamodel.Pool{BaseModel: datamodel.BaseModel{UUID: poolUUID}, AccountID: accountID})
 }
 
 func (d *DataStoreRepository) UpdatePool(ctx context.Context, pool *datamodel.Pool) error {
@@ -89,14 +120,45 @@ func (d *DataStoreRepository) UpdatePool(ctx context.Context, pool *datamodel.Po
 	return nil
 }
 
-func (d *DataStoreRepository) DeletePool(ctx context.Context, id string) error {
-	// TODO implement me
-	panic("implement me")
+// DeletePool deletes a pool from the database
+func (d *DataStoreRepository) DeletePool(ctx context.Context, pool *datamodel.Pool) error {
+	db := d.db.GORM().WithContext(ctx)
+	tx, err := startTransaction(db)
+	if err != nil {
+		return err
+	}
+	// Fixme: The logger should be fetched from ctx
+	defer commitOrRollbackOnError(slogger.NewLogger(), tx, &err)
+	pool.DeletedAt = &gorm.DeletedAt{Time: time.Now(), Valid: true}
+	pool.State = models.LifeCycleStateDeleted
+	pool.StateDetails = models.LifeCycleStateDeletedDetails
+	err = tx.Updates(pool).Error
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
-func (d *DataStoreRepository) ListPools(ctx context.Context) ([]*datamodel.Pool, error) {
-	// TODO implement me
-	panic("implement me")
+// DeletingPool updates the pool entry to deleting state
+func (d *DataStoreRepository) DeletingPool(ctx context.Context, pool *datamodel.Pool) error {
+	db := d.db.GORM().WithContext(ctx)
+	tx, err := startTransaction(db)
+	if err != nil {
+		return err
+	}
+	// Fixme: The logger should be fetched from ctx
+	defer commitOrRollbackOnError(slogger.NewLogger(), tx, &err)
+	pool.State = models.LifeCycleStateDeleting
+	pool.StateDetails = models.LifeCycleStateDeletingDetails
+	err = tx.Updates(pool).Error
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (d *DataStoreRepository) ListPools(ctx context.Context, conditions [][]interface{}) ([]*datamodel.Pool, error) {
+	return listPoolWithDetails(d.db.ApplyFilter(conditions).GORM().WithContext(ctx))
 }
 
 func (d *DataStoreRepository) GetPoolByVendorID(ctx context.Context, vendorID string) (*datamodel.Pool, error) {
@@ -107,29 +169,33 @@ func _getPoolWithDetails(db *gorm.DB, query *datamodel.Pool) (*datamodel.Pool, e
 	pool := &datamodel.Pool{}
 	err := db.Preload("Account").First(&pool, query).Error
 	if err != nil {
-		return nil, customerrors.ConvertToNotFoundErrIfContainsMessage(err, "record not found", "pool", nil)
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, customerrors.NewNotFoundErr("pool not found", nil)
+		}
+		return nil, err
 	}
 	return pool, nil
 }
 
-func (d *DataStoreRepository) SavePoolWithVsaClusterDetails(ctx context.Context, poolName string, accountName string, cluster *datamodel.ClusterDetails) error {
+func _listPoolWithDetails(db *gorm.DB) ([]*datamodel.Pool, error) {
+	var pools []*datamodel.Pool
+	err := db.Preload("Account").Find(&pools).Error
+	if err != nil {
+		return nil, err
+	}
+	return pools, nil
+}
+
+func (d *DataStoreRepository) SavePoolWithVsaClusterDetails(ctx context.Context, pool *datamodel.Pool, cluster *datamodel.ClusterDetails) error {
 	db := d.db.GORM().WithContext(ctx)
-	account, err := getAccount(db, &datamodel.Account{Name: accountName})
-	if errors.Is(err, gorm.ErrRecordNotFound) {
-		return errors.New("pool not found")
-	}
+	tx, err := startTransaction(db)
 	if err != nil {
 		return err
 	}
-	pool, err := getPoolWithDetails(db, &datamodel.Pool{Name: poolName, AccountID: account.ID})
-	if errors.Is(err, gorm.ErrRecordNotFound) {
-		return errors.New("pool not found")
-	}
-	if err != nil {
-		return err
-	}
+	// Fixme: The logger should be fetched from ctx
+	defer commitOrRollbackOnError(slogger.NewLogger(), tx, &err)
 	pool.ClusterDetails = *cluster
-	err = db.Model(&pool).Updates(map[string]interface{}{
+	err = tx.Model(&pool).Updates(map[string]interface{}{
 		"cluster_details": pool.ClusterDetails,
 	}).Error
 	if err != nil {

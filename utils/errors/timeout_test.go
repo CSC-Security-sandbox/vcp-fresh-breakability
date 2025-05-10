@@ -40,7 +40,7 @@ func TestIsTimeoutErr(t *testing.T) {
 
 func TestConvertToTimeoutErrorIfIOtimeout(t *testing.T) {
 	t.Run("WhenErrorIsNil", func(tt *testing.T) {
-		result := ConvertToTimeoutErrorIfIOtimeout(nil, "module")
+		result := ConvertToTimeoutErrrIfIOtimeout(nil, "module")
 		if result != nil {
 			tt.Errorf("Expected nil, got: %v", result)
 		}
@@ -48,7 +48,7 @@ func TestConvertToTimeoutErrorIfIOtimeout(t *testing.T) {
 
 	t.Run("WhenErrorIsIOTimeoutAndModuleIsEmpty", func(tt *testing.T) {
 		err := New("i/o timeout")
-		result := ConvertToTimeoutErrorIfIOtimeout(err, "")
+		result := ConvertToTimeoutErrrIfIOtimeout(err, "")
 		if result == nil {
 			tt.Error("Expected a non-nil error")
 		} else {
@@ -64,7 +64,7 @@ func TestConvertToTimeoutErrorIfIOtimeout(t *testing.T) {
 
 	t.Run("WhenErrorIsIOTimeoutAndModuleIsProvided", func(tt *testing.T) {
 		err := New("i/o timeout")
-		result := ConvertToTimeoutErrorIfIOtimeout(err, "TestModule")
+		result := ConvertToTimeoutErrrIfIOtimeout(err, "TestModule")
 		if result == nil {
 			tt.Error("Expected a non-nil error")
 		} else {
@@ -81,7 +81,7 @@ func TestConvertToTimeoutErrorIfIOtimeout(t *testing.T) {
 
 	t.Run("WhenErrorIsContextDeadlineExceeded", func(tt *testing.T) {
 		err := New("context deadline exceeded")
-		result := ConvertToTimeoutErrorIfIOtimeout(err, "AnotherModule")
+		result := ConvertToTimeoutErrrIfIOtimeout(err, "AnotherModule")
 		if result == nil {
 			tt.Error("Expected a non-nil error")
 		} else {
@@ -98,7 +98,7 @@ func TestConvertToTimeoutErrorIfIOtimeout(t *testing.T) {
 
 	t.Run("WhenErrorDoesNotMatchConditions", func(tt *testing.T) {
 		err := New("some other error")
-		result := ConvertToTimeoutErrorIfIOtimeout(err, "module")
+		result := ConvertToTimeoutErrrIfIOtimeout(err, "module")
 		if !errors.Is(result, err) {
 			tt.Errorf("Expected original error, got: %v", result)
 		}

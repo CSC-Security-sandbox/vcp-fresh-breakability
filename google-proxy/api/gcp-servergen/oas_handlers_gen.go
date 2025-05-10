@@ -267,7 +267,7 @@ func (s *Server) handleV1betaCheckKmsConfigRequest(args [3]string, argsEscaped b
 					In:   "path",
 				}: params.KmsConfigId,
 				{
-					Name: "x-correlation-id",
+					Name: "X-Correlation-ID",
 					In:   "header",
 				}: params.XCorrelationID,
 			},
@@ -439,7 +439,7 @@ func (s *Server) handleV1betaCreateActiveDirectoryRequest(args [2]string, argsEs
 					In:   "path",
 				}: params.LocationId,
 				{
-					Name: "x-correlation-id",
+					Name: "X-Correlation-ID",
 					In:   "header",
 				}: params.XCorrelationID,
 			},
@@ -611,7 +611,7 @@ func (s *Server) handleV1betaCreateBackupPolicyRequest(args [2]string, argsEscap
 					In:   "path",
 				}: params.LocationId,
 				{
-					Name: "x-correlation-id",
+					Name: "X-Correlation-ID",
 					In:   "header",
 				}: params.XCorrelationID,
 			},
@@ -783,7 +783,7 @@ func (s *Server) handleV1betaCreateBackupVaultRequest(args [2]string, argsEscape
 					In:   "path",
 				}: params.LocationId,
 				{
-					Name: "x-correlation-id",
+					Name: "X-Correlation-ID",
 					In:   "header",
 				}: params.XCorrelationID,
 			},
@@ -955,7 +955,7 @@ func (s *Server) handleV1betaCreateHostGroupRequest(args [2]string, argsEscaped 
 					In:   "path",
 				}: params.LocationId,
 				{
-					Name: "x-correlation-id",
+					Name: "X-Correlation-ID",
 					In:   "header",
 				}: params.XCorrelationID,
 			},
@@ -1127,7 +1127,7 @@ func (s *Server) handleV1betaCreateKmsConfigurationRequest(args [2]string, argsE
 					In:   "path",
 				}: params.LocationId,
 				{
-					Name: "x-correlation-id",
+					Name: "X-Correlation-ID",
 					In:   "header",
 				}: params.XCorrelationID,
 			},
@@ -1299,7 +1299,7 @@ func (s *Server) handleV1betaCreatePoolRequest(args [2]string, argsEscaped bool,
 					In:   "path",
 				}: params.LocationId,
 				{
-					Name: "x-correlation-id",
+					Name: "X-Correlation-ID",
 					In:   "header",
 				}: params.XCorrelationID,
 			},
@@ -1475,7 +1475,7 @@ func (s *Server) handleV1betaCreateReplicationRequest(args [3]string, argsEscape
 					In:   "path",
 				}: params.VolumeResourceId,
 				{
-					Name: "x-correlation-id",
+					Name: "X-Correlation-ID",
 					In:   "header",
 				}: params.XCorrelationID,
 			},
@@ -1648,7 +1648,7 @@ func (s *Server) handleV1betaCreateVolumeRequest(args [2]string, argsEscaped boo
 					In:   "path",
 				}: params.LocationId,
 				{
-					Name: "x-correlation-id",
+					Name: "X-Correlation-ID",
 					In:   "header",
 				}: params.XCorrelationID,
 			},
@@ -1807,7 +1807,7 @@ func (s *Server) handleV1betaDeleteActiveDirectoryRequest(args [3]string, argsEs
 					In:   "path",
 				}: params.LocationId,
 				{
-					Name: "x-correlation-id",
+					Name: "X-Correlation-ID",
 					In:   "header",
 				}: params.XCorrelationID,
 				{
@@ -1972,7 +1972,7 @@ func (s *Server) handleV1betaDeleteBackupPolicyRequest(args [3]string, argsEscap
 					In:   "path",
 				}: params.LocationId,
 				{
-					Name: "x-correlation-id",
+					Name: "X-Correlation-ID",
 					In:   "header",
 				}: params.XCorrelationID,
 			},
@@ -2133,7 +2133,7 @@ func (s *Server) handleV1betaDeleteBackupVaultRequest(args [3]string, argsEscape
 					In:   "path",
 				}: params.LocationId,
 				{
-					Name: "x-correlation-id",
+					Name: "X-Correlation-ID",
 					In:   "header",
 				}: params.XCorrelationID,
 			},
@@ -2294,7 +2294,7 @@ func (s *Server) handleV1betaDeleteHostGroupRequest(args [3]string, argsEscaped 
 					In:   "path",
 				}: params.LocationId,
 				{
-					Name: "x-correlation-id",
+					Name: "X-Correlation-ID",
 					In:   "header",
 				}: params.XCorrelationID,
 			},
@@ -2455,7 +2455,7 @@ func (s *Server) handleV1betaDeleteKmsConfigurationRequest(args [3]string, argsE
 					In:   "path",
 				}: params.KmsConfigId,
 				{
-					Name: "x-correlation-id",
+					Name: "X-Correlation-ID",
 					In:   "header",
 				}: params.XCorrelationID,
 			},
@@ -2618,7 +2618,7 @@ func (s *Server) handleV1betaDeletePoolRequest(args [3]string, argsEscaped bool,
 					In:   "path",
 				}: params.LocationId,
 				{
-					Name: "x-correlation-id",
+					Name: "X-Correlation-ID",
 					In:   "header",
 				}: params.XCorrelationID,
 			},
@@ -2798,7 +2798,7 @@ func (s *Server) handleV1betaDeleteReplicationRequest(args [4]string, argsEscape
 					In:   "path",
 				}: params.ReplicationResourceId,
 				{
-					Name: "x-correlation-id",
+					Name: "X-Correlation-ID",
 					In:   "header",
 				}: params.XCorrelationID,
 			},
@@ -2972,7 +2972,7 @@ func (s *Server) handleV1betaDeleteVolumeRequest(args [3]string, argsEscaped boo
 					In:   "path",
 				}: params.LocationId,
 				{
-					Name: "x-correlation-id",
+					Name: "X-Correlation-ID",
 					In:   "header",
 				}: params.XCorrelationID,
 				{
@@ -3133,7 +3133,7 @@ func (s *Server) handleV1betaDescribeActiveDirectoryRequest(args [3]string, args
 					In:   "path",
 				}: params.LocationId,
 				{
-					Name: "x-correlation-id",
+					Name: "X-Correlation-ID",
 					In:   "header",
 				}: params.XCorrelationID,
 				{
@@ -3298,7 +3298,7 @@ func (s *Server) handleV1betaDescribeBackupPolicyRequest(args [3]string, argsEsc
 					In:   "path",
 				}: params.LocationId,
 				{
-					Name: "x-correlation-id",
+					Name: "X-Correlation-ID",
 					In:   "header",
 				}: params.XCorrelationID,
 			},
@@ -3463,7 +3463,7 @@ func (s *Server) handleV1betaDescribeBackupVaultRequest(args [3]string, argsEsca
 					In:   "path",
 				}: params.LocationId,
 				{
-					Name: "x-correlation-id",
+					Name: "X-Correlation-ID",
 					In:   "header",
 				}: params.XCorrelationID,
 			},
@@ -3624,7 +3624,7 @@ func (s *Server) handleV1betaDescribeHostGroupRequest(args [3]string, argsEscape
 					In:   "path",
 				}: params.LocationId,
 				{
-					Name: "x-correlation-id",
+					Name: "X-Correlation-ID",
 					In:   "header",
 				}: params.XCorrelationID,
 			},
@@ -3785,7 +3785,7 @@ func (s *Server) handleV1betaDescribeKmsConfigurationRequest(args [3]string, arg
 					In:   "path",
 				}: params.KmsConfigId,
 				{
-					Name: "x-correlation-id",
+					Name: "X-Correlation-ID",
 					In:   "header",
 				}: params.XCorrelationID,
 			},
@@ -3946,7 +3946,7 @@ func (s *Server) handleV1betaDescribeOperationRequest(args [3]string, argsEscape
 					In:   "path",
 				}: params.OperationId,
 				{
-					Name: "x-correlation-id",
+					Name: "X-Correlation-ID",
 					In:   "header",
 				}: params.XCorrelationID,
 			},
@@ -4107,7 +4107,7 @@ func (s *Server) handleV1betaDescribePoolRequest(args [3]string, argsEscaped boo
 					In:   "path",
 				}: params.LocationId,
 				{
-					Name: "x-correlation-id",
+					Name: "X-Correlation-ID",
 					In:   "header",
 				}: params.XCorrelationID,
 			},
@@ -4264,7 +4264,7 @@ func (s *Server) handleV1betaDescribeVolumeRequest(args [3]string, argsEscaped b
 					In:   "path",
 				}: params.LocationId,
 				{
-					Name: "x-correlation-id",
+					Name: "X-Correlation-ID",
 					In:   "header",
 				}: params.XCorrelationID,
 				{
@@ -4440,7 +4440,7 @@ func (s *Server) handleV1betaGetMultipleActiveDirectoriesRequest(args [2]string,
 					In:   "path",
 				}: params.LocationId,
 				{
-					Name: "x-correlation-id",
+					Name: "X-Correlation-ID",
 					In:   "header",
 				}: params.XCorrelationID,
 			},
@@ -4612,7 +4612,7 @@ func (s *Server) handleV1betaGetMultipleBackupPoliciesRequest(args [2]string, ar
 					In:   "path",
 				}: params.LocationId,
 				{
-					Name: "x-correlation-id",
+					Name: "X-Correlation-ID",
 					In:   "header",
 				}: params.XCorrelationID,
 			},
@@ -4784,7 +4784,7 @@ func (s *Server) handleV1betaGetMultipleBackupVaultsRequest(args [2]string, args
 					In:   "path",
 				}: params.LocationId,
 				{
-					Name: "x-correlation-id",
+					Name: "X-Correlation-ID",
 					In:   "header",
 				}: params.XCorrelationID,
 			},
@@ -4960,7 +4960,7 @@ func (s *Server) handleV1betaGetMultipleBackupsRequest(args [3]string, argsEscap
 					In:   "path",
 				}: params.BackupVaultId,
 				{
-					Name: "x-correlation-id",
+					Name: "X-Correlation-ID",
 					In:   "header",
 				}: params.XCorrelationID,
 			},
@@ -5132,7 +5132,7 @@ func (s *Server) handleV1betaGetMultipleHostGroupsRequest(args [2]string, argsEs
 					In:   "path",
 				}: params.LocationId,
 				{
-					Name: "x-correlation-id",
+					Name: "X-Correlation-ID",
 					In:   "header",
 				}: params.XCorrelationID,
 			},
@@ -5304,7 +5304,7 @@ func (s *Server) handleV1betaGetMultiplePoolsRequest(args [2]string, argsEscaped
 					In:   "path",
 				}: params.LocationId,
 				{
-					Name: "x-correlation-id",
+					Name: "X-Correlation-ID",
 					In:   "header",
 				}: params.XCorrelationID,
 			},
@@ -5480,7 +5480,7 @@ func (s *Server) handleV1betaGetMultipleReplicationsRequest(args [3]string, args
 					In:   "path",
 				}: params.VolumeResourceId,
 				{
-					Name: "x-correlation-id",
+					Name: "X-Correlation-ID",
 					In:   "header",
 				}: params.XCorrelationID,
 			},
@@ -5656,7 +5656,7 @@ func (s *Server) handleV1betaGetMultipleSnapshotsRequest(args [3]string, argsEsc
 					In:   "path",
 				}: params.VolumeResourceId,
 				{
-					Name: "x-correlation-id",
+					Name: "X-Correlation-ID",
 					In:   "header",
 				}: params.XCorrelationID,
 			},
@@ -5828,7 +5828,7 @@ func (s *Server) handleV1betaGetMultipleVolumesRequest(args [2]string, argsEscap
 					In:   "path",
 				}: params.LocationId,
 				{
-					Name: "x-correlation-id",
+					Name: "X-Correlation-ID",
 					In:   "header",
 				}: params.XCorrelationID,
 			},
@@ -6000,7 +6000,7 @@ func (s *Server) handleV1betaInternalAuthorizeVolumeReplicationRequest(args [2]s
 					In:   "path",
 				}: params.LocationId,
 				{
-					Name: "x-correlation-id",
+					Name: "X-Correlation-ID",
 					In:   "header",
 				}: params.XCorrelationID,
 			},
@@ -6172,7 +6172,7 @@ func (s *Server) handleV1betaInternalCreateClusterPeerRequest(args [2]string, ar
 					In:   "path",
 				}: params.LocationId,
 				{
-					Name: "x-correlation-id",
+					Name: "X-Correlation-ID",
 					In:   "header",
 				}: params.XCorrelationID,
 			},
@@ -6344,7 +6344,7 @@ func (s *Server) handleV1betaInternalCreateVolumeReplicationRequest(args [2]stri
 					In:   "path",
 				}: params.LocationId,
 				{
-					Name: "x-correlation-id",
+					Name: "X-Correlation-ID",
 					In:   "header",
 				}: params.XCorrelationID,
 			},
@@ -6505,7 +6505,7 @@ func (s *Server) handleV1betaInternalDeleteVolumeReplicationRequest(args [3]stri
 					In:   "path",
 				}: params.LocationId,
 				{
-					Name: "x-correlation-id",
+					Name: "X-Correlation-ID",
 					In:   "header",
 				}: params.XCorrelationID,
 				{
@@ -6678,7 +6678,7 @@ func (s *Server) handleV1betaInternalDescribePoolRequest(args [3]string, argsEsc
 					In:   "path",
 				}: params.PoolName,
 				{
-					Name: "x-correlation-id",
+					Name: "X-Correlation-ID",
 					In:   "header",
 				}: params.XCorrelationID,
 			},
@@ -6839,7 +6839,7 @@ func (s *Server) handleV1betaInternalDescribeVolumeReplicationRequest(args [3]st
 					In:   "path",
 				}: params.VolumeReplicationId,
 				{
-					Name: "x-correlation-id",
+					Name: "X-Correlation-ID",
 					In:   "header",
 				}: params.XCorrelationID,
 			},
@@ -7000,7 +7000,7 @@ func (s *Server) handleV1betaInternalReleaseVolumeReplicationRequest(args [3]str
 					In:   "path",
 				}: params.VolumeReplicationId,
 				{
-					Name: "x-correlation-id",
+					Name: "X-Correlation-ID",
 					In:   "header",
 				}: params.XCorrelationID,
 			},
@@ -7167,7 +7167,7 @@ func (s *Server) handleV1betaInternalResumeVolumeReplicationRequest(args [3]stri
 					In:   "path",
 				}: params.VolumeReplicationId,
 				{
-					Name: "x-correlation-id",
+					Name: "X-Correlation-ID",
 					In:   "header",
 				}: params.XCorrelationID,
 			},
@@ -7345,7 +7345,7 @@ func (s *Server) handleV1betaInternalStopVolumeReplicationRequest(args [3]string
 					In:   "path",
 				}: params.VolumeReplicationId,
 				{
-					Name: "x-correlation-id",
+					Name: "X-Correlation-ID",
 					In:   "header",
 				}: params.XCorrelationID,
 			},
@@ -7521,7 +7521,7 @@ func (s *Server) handleV1betaInternalUpdateVolumeReplicationRequest(args [3]stri
 					In:   "path",
 				}: params.VolumeReplicationId,
 				{
-					Name: "x-correlation-id",
+					Name: "X-Correlation-ID",
 					In:   "header",
 				}: params.XCorrelationID,
 			},
@@ -7678,7 +7678,7 @@ func (s *Server) handleV1betaListActiveDirectoriesRequest(args [2]string, argsEs
 					In:   "path",
 				}: params.LocationId,
 				{
-					Name: "x-correlation-id",
+					Name: "X-Correlation-ID",
 					In:   "header",
 				}: params.XCorrelationID,
 			},
@@ -7835,7 +7835,7 @@ func (s *Server) handleV1betaListBackupPoliciesRequest(args [2]string, argsEscap
 					In:   "path",
 				}: params.LocationId,
 				{
-					Name: "x-correlation-id",
+					Name: "X-Correlation-ID",
 					In:   "header",
 				}: params.XCorrelationID,
 			},
@@ -7996,7 +7996,7 @@ func (s *Server) handleV1betaListBackupVaultsRequest(args [2]string, argsEscaped
 					In:   "path",
 				}: params.LocationId,
 				{
-					Name: "x-correlation-id",
+					Name: "X-Correlation-ID",
 					In:   "header",
 				}: params.XCorrelationID,
 			},
@@ -8153,7 +8153,7 @@ func (s *Server) handleV1betaListHostGroupsRequest(args [2]string, argsEscaped b
 					In:   "path",
 				}: params.LocationId,
 				{
-					Name: "x-correlation-id",
+					Name: "X-Correlation-ID",
 					In:   "header",
 				}: params.XCorrelationID,
 			},
@@ -8310,7 +8310,7 @@ func (s *Server) handleV1betaListKmsConfigurationsRequest(args [2]string, argsEs
 					In:   "path",
 				}: params.LocationId,
 				{
-					Name: "x-correlation-id",
+					Name: "X-Correlation-ID",
 					In:   "header",
 				}: params.XCorrelationID,
 			},
@@ -8467,7 +8467,7 @@ func (s *Server) handleV1betaListPoolsRequest(args [2]string, argsEscaped bool, 
 					In:   "path",
 				}: params.LocationId,
 				{
-					Name: "x-correlation-id",
+					Name: "X-Correlation-ID",
 					In:   "header",
 				}: params.XCorrelationID,
 				{
@@ -8628,7 +8628,7 @@ func (s *Server) handleV1betaListReplicationsRequest(args [2]string, argsEscaped
 					In:   "path",
 				}: params.LocationId,
 				{
-					Name: "x-correlation-id",
+					Name: "X-Correlation-ID",
 					In:   "header",
 				}: params.XCorrelationID,
 			},
@@ -8785,7 +8785,7 @@ func (s *Server) handleV1betaListVolumesRequest(args [2]string, argsEscaped bool
 					In:   "path",
 				}: params.LocationId,
 				{
-					Name: "x-correlation-id",
+					Name: "X-Correlation-ID",
 					In:   "header",
 				}: params.XCorrelationID,
 				{
@@ -8966,7 +8966,7 @@ func (s *Server) handleV1betaResumeReplicationRequest(args [4]string, argsEscape
 					In:   "path",
 				}: params.ReplicationResourceId,
 				{
-					Name: "x-correlation-id",
+					Name: "X-Correlation-ID",
 					In:   "header",
 				}: params.XCorrelationID,
 			},
@@ -9131,7 +9131,7 @@ func (s *Server) handleV1betaReverseAndResumeReplicationRequest(args [4]string, 
 					In:   "path",
 				}: params.ReplicationResourceId,
 				{
-					Name: "x-correlation-id",
+					Name: "X-Correlation-ID",
 					In:   "header",
 				}: params.XCorrelationID,
 			},
@@ -9311,7 +9311,7 @@ func (s *Server) handleV1betaStopReplicationRequest(args [4]string, argsEscaped 
 					In:   "path",
 				}: params.ReplicationResourceId,
 				{
-					Name: "x-correlation-id",
+					Name: "X-Correlation-ID",
 					In:   "header",
 				}: params.XCorrelationID,
 			},
@@ -9476,7 +9476,7 @@ func (s *Server) handleV1betaSyncReplicationRequest(args [4]string, argsEscaped 
 					In:   "path",
 				}: params.ReplicationResourceId,
 				{
-					Name: "x-correlation-id",
+					Name: "X-Correlation-ID",
 					In:   "header",
 				}: params.XCorrelationID,
 			},
@@ -9648,7 +9648,7 @@ func (s *Server) handleV1betaUpdateActiveDirectoryRequest(args [3]string, argsEs
 					In:   "path",
 				}: params.LocationId,
 				{
-					Name: "x-correlation-id",
+					Name: "X-Correlation-ID",
 					In:   "header",
 				}: params.XCorrelationID,
 				{
@@ -9828,7 +9828,7 @@ func (s *Server) handleV1betaUpdateBackupPolicyRequest(args [3]string, argsEscap
 					In:   "path",
 				}: params.LocationId,
 				{
-					Name: "x-correlation-id",
+					Name: "X-Correlation-ID",
 					In:   "header",
 				}: params.XCorrelationID,
 			},
@@ -10004,7 +10004,7 @@ func (s *Server) handleV1betaUpdateBackupVaultRequest(args [3]string, argsEscape
 					In:   "path",
 				}: params.LocationId,
 				{
-					Name: "x-correlation-id",
+					Name: "X-Correlation-ID",
 					In:   "header",
 				}: params.XCorrelationID,
 			},
@@ -10180,7 +10180,7 @@ func (s *Server) handleV1betaUpdateHostGroupRequest(args [3]string, argsEscaped 
 					In:   "path",
 				}: params.LocationId,
 				{
-					Name: "x-correlation-id",
+					Name: "X-Correlation-ID",
 					In:   "header",
 				}: params.XCorrelationID,
 			},
@@ -10356,7 +10356,7 @@ func (s *Server) handleV1betaUpdateKmsConfigurationRequest(args [3]string, argsE
 					In:   "path",
 				}: params.KmsConfigId,
 				{
-					Name: "x-correlation-id",
+					Name: "X-Correlation-ID",
 					In:   "header",
 				}: params.XCorrelationID,
 			},
@@ -10532,7 +10532,7 @@ func (s *Server) handleV1betaUpdatePoolRequest(args [3]string, argsEscaped bool,
 					In:   "path",
 				}: params.LocationId,
 				{
-					Name: "x-correlation-id",
+					Name: "X-Correlation-ID",
 					In:   "header",
 				}: params.XCorrelationID,
 			},
@@ -10712,7 +10712,7 @@ func (s *Server) handleV1betaUpdateReplicationRequest(args [4]string, argsEscape
 					In:   "path",
 				}: params.ReplicationResourceId,
 				{
-					Name: "x-correlation-id",
+					Name: "X-Correlation-ID",
 					In:   "header",
 				}: params.XCorrelationID,
 			},
@@ -10884,7 +10884,7 @@ func (s *Server) handleV1betaUpdateVolumeRequest(args [3]string, argsEscaped boo
 					In:   "path",
 				}: params.LocationId,
 				{
-					Name: "x-correlation-id",
+					Name: "X-Correlation-ID",
 					In:   "header",
 				}: params.XCorrelationID,
 				{

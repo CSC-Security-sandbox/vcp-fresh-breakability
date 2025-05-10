@@ -13,7 +13,7 @@ type CreatePoolParams struct {
 	QosType                 string
 	Tags                    string
 	SizeInBytes             uint64
-	CoolAccess              bool
+	AllowAutoTiering        bool
 	CurrentZone             string
 	VendorSubNetID          string
 	Zones                   []string
@@ -64,4 +64,10 @@ type CreateLunMapParams struct {
 	LunName   string
 	SvmName   string
 	HostNames []string
+}
+
+// DeletePoolParams describes parameters supplied to DeletePool
+type DeletePoolParams struct {
+	AccountName string
+	PoolID      string
 }

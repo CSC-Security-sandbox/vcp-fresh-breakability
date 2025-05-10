@@ -4,7 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware"
+	"github.com/google/uuid"
 	"google.golang.org/api/option"
 	"net/http"
 	"os"
@@ -13,6 +13,7 @@ import (
 	mexporter "github.com/GoogleCloudPlatform/opentelemetry-operations-go/exporter/metric"
 	texporter "github.com/GoogleCloudPlatform/opentelemetry-operations-go/exporter/trace"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/propagation"
 	"go.opentelemetry.io/otel/sdk/metric"
@@ -106,7 +107,7 @@ func NewRequestLogger(r *http.Request) Logger {
 }
 
 func extractFieldsFromHttpRequest(r *http.Request) Logger {
-	correlationID := r.Header.Get(requestCorrelationID)
+	correlationID := GetCorrelationID(r) // r.Header.Get(requestCorrelationID)
 	logger := NewLogger().WithFields("requestFields", Fields{
 		"requestCorrelationID": correlationID,
 		"requestID":            r.Header.Get(requestID),
@@ -172,6 +173,15 @@ func SetupOpenTelemetry(ctx context.Context) (shutdown func(context.Context) err
 	otel.SetMeterProvider(metricProvider)
 
 	return shutdown, nil
+}
+
+func GetCorrelationID(req *http.Request) string {
+	tmp := req.Header.Get("X-Correlation-ID")
+	if tmp != "" {
+		return tmp
+	}
+
+	return uuid.NewString()
 }
 
 // Secret is a type that represents a secret value, such as a password

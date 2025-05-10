@@ -45,7 +45,7 @@ func (gcpService *GcpServices) GetTenantProject(consumerNetwork string, customer
 	return "", errors.New(fmt.Sprintf("VPC peering network for TenancyUnit '%s' not found. Use the correct vpc name and ensure VPC network peering with tenant project has already been established.", consumerNetwork))
 }
 
-// AddSubnetwork calls GCP addSubnetwork API and return a long running operation.
+// AddSubnetwork calls GCP addSubnetwork API and return a long-running operation.
 func (gcpService *GcpServices) AddSubnetwork(request *servicenetworking.AddSubnetworkRequest, tenantProjectNumber string) (*servicenetworking.Operation, error) {
 	parent := fmt.Sprintf("services/%s/projects/%s", gcpService.GetServiceNetworkingEndpoint(), tenantProjectNumber)
 	tu, err := gcpService.AdminGCPService.networkingService.Services.AddSubnetwork(parent, request).Do()
@@ -64,6 +64,25 @@ func (gcpService *GcpServices) AddSubnetwork(request *servicenetworking.AddSubne
 	}
 	gcpService.Logger.Debug(fmt.Sprintf("AddSubnetwork successful : Operation: %s", tu.Name))
 	return tu, nil
+}
+
+// ReleaseSubnetwork calls GCP releaseSubnetwork API and return a long-running operation.
+func (gcpService *GcpServices) ReleaseSubnetwork(region, tenantProjectNumber, subnetwork string) error {
+	op, err := gcpService.AdminGCPService.computeService.Subnetworks.Delete(tenantProjectNumber, region, subnetwork).Do()
+	if err != nil {
+		if strings.Contains(err.Error(), "notFound") {
+			return errors.NewNotFoundErr("compute.Subnetwork", &subnetwork)
+		}
+		gcpService.Logger.Debug("Failed to delete subnetwork...")
+		return err
+	}
+
+	err = waitForComputeOperation(*gcpService, tenantProjectNumber, region, op.Name)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 // CreateSubnetwork creates GCP subnetwork

@@ -37,17 +37,17 @@ func (o *Orchestrator) CreateVolume(ctx context.Context, params *common.CreateVo
 func _createVolume(ctx context.Context, se database.Storage, temporal client.Client, params *common.CreateVolumeParams) (*models.Volume, string, error) {
 	logger := utils.GetLoggerFromContext(ctx)
 
-	err := validateCreateVolumeParams(ctx, se, params)
-	if err != nil {
-		return nil, "", err
-	}
-
 	account, err := getOrCreateAccount(ctx, se, params.AccountName)
 	if err != nil {
 		return nil, "", err
 	}
 
-	pool, err := se.GetPool(ctx, params.PoolID)
+	err = validateCreateVolumeParams(ctx, se, params, account.ID)
+	if err != nil {
+		return nil, "", err
+	}
+
+	pool, err := se.GetPool(ctx, params.PoolID, account.ID)
 	if err != nil {
 		return nil, "", err
 	}
@@ -69,7 +69,7 @@ func _createVolume(ctx context.Context, se database.Storage, temporal client.Cli
 		return nil, "", err
 	}
 
-	dbVolume := &datamodel.Volume{
+	volumeObj := &datamodel.Volume{
 		Name:        params.Name,
 		Account:     account,
 		AccountID:   account.ID,
@@ -86,12 +86,16 @@ func _createVolume(ctx context.Context, se database.Storage, temporal client.Cli
 	}
 
 	if params.BlockProperties != nil {
-		dbVolume.VolumeAttributes.BlockProperties = &datamodel.BlockProperties{
+		volumeObj.VolumeAttributes.BlockProperties = &datamodel.BlockProperties{
 			OSType:         params.BlockProperties.OSType,
 			HostGroupUUIDs: params.BlockProperties.HostGroupUUIDs,
 		}
 	}
 
+	dbVolume, err := se.CreateVolume(ctx, volumeObj)
+	if err != nil {
+		return nil, "", err
+	}
 	_, err = temporal.ExecuteWorkflow(context.Background(),
 		client.StartWorkflowOptions{
 			TaskQueue:             workflowengine.CustomerTaskQueue,
@@ -107,9 +111,6 @@ func _createVolume(ctx context.Context, se database.Storage, temporal client.Cli
 		logger.Error("Failed to start create volume workflow: ", "error", err)
 		return nil, "", err
 	}
-
-	dbVolume.State = models.LifeCycleStateCreating
-	dbVolume.State = models.LifeCycleStateCreatingDetails
 	return convertDatastoreVolumeToModel(dbVolume, nil), createdJob.UUID, nil
 }
 
@@ -147,18 +148,18 @@ func _getIPAddressForVolume(ctx context.Context, se database.Storage, volume *da
 	return lif.IPAddress, nil
 }
 
-func _validateCreateVolumeParams(ctx context.Context, se database.Storage, params *common.CreateVolumeParams) error {
+func _validateCreateVolumeParams(ctx context.Context, se database.Storage, params *common.CreateVolumeParams, accountID int64) error {
 	if params.QuotaInBytes < minQuotaInBytesVolume || params.QuotaInBytes > maxQuotaInBytesVolume {
 		return customerrors.NewUserInputValidationErr("volume size must be between 100 GiB and 102,400 GiB.")
 	}
 
-	pool, err := se.GetPool(ctx, params.PoolID)
+	pool, err := se.GetPool(ctx, params.PoolID, accountID)
 	if err != nil {
 		return err
 	}
 
-	if pool.State != models.LifeCycleStateAvailable {
-		return customerrors.NewUserInputValidationErr("pool is not available")
+	if pool.State != models.LifeCycleStateREADY {
+		return customerrors.NewUserInputValidationErr("pool is not ready")
 	}
 
 	if params.Network == "" {
@@ -172,8 +173,8 @@ func _validateCreateVolumeParams(ctx context.Context, se database.Storage, param
 		return err
 	}
 
-	if svm.State != models.LifeCycleStateAvailable {
-		return customerrors.NewUserInputValidationErr("svm is not available")
+	if svm.State != models.LifeCycleStateREADY {
+		return customerrors.NewUserInputValidationErr("svm is not ready")
 	}
 
 	nodes, err := se.GetNodesByPoolID(ctx, pool.ID)
@@ -189,8 +190,8 @@ func _validateCreateVolumeParams(ctx context.Context, se database.Storage, param
 	}
 
 	for _, node := range nodes {
-		if node.State != models.LifeCycleStateAvailable {
-			return customerrors.NewUserInputValidationErr("node is not available")
+		if node.State != models.LifeCycleStateREADY {
+			return customerrors.NewUserInputValidationErr("node is not ready")
 		}
 		lif, err := se.GetLifForNode(ctx, node.ID, node.AccountID)
 		if err != nil {

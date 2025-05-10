@@ -1090,9 +1090,9 @@ func (s *AnyV1Beta) encodeFields(e *jx.Encoder) {
 		e.Str(s.Type)
 	}
 	{
-		if s.AnyValue != nil {
+		if len(s.AnyValue) != 0 {
 			e.FieldStart("AnyValue")
-			s.AnyValue.Encode(e)
+			e.Raw(s.AnyValue)
 		}
 	}
 }
@@ -1125,12 +1125,11 @@ func (s *AnyV1Beta) Decode(d *jx.Decoder) error {
 			}
 		case "AnyValue":
 			if err := func() error {
-				s.AnyValue = nil
-				var elem AnyV1BetaAnyValue
-				if err := elem.Decode(d); err != nil {
+				v, err := d.RawAppend(nil)
+				s.AnyValue = jx.Raw(v)
+				if err != nil {
 					return err
 				}
-				s.AnyValue = &elem
 				return nil
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"AnyValue\"")
@@ -1187,50 +1186,6 @@ func (s *AnyV1Beta) MarshalJSON() ([]byte, error) {
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
 func (s *AnyV1Beta) UnmarshalJSON(data []byte) error {
-	d := jx.DecodeBytes(data)
-	return s.Decode(d)
-}
-
-// Encode implements json.Marshaler.
-func (s *AnyV1BetaAnyValue) Encode(e *jx.Encoder) {
-	e.ObjStart()
-	s.encodeFields(e)
-	e.ObjEnd()
-}
-
-// encodeFields encodes fields.
-func (s *AnyV1BetaAnyValue) encodeFields(e *jx.Encoder) {
-}
-
-var jsonFieldsNameOfAnyV1BetaAnyValue = [0]string{}
-
-// Decode decodes AnyV1BetaAnyValue from json.
-func (s *AnyV1BetaAnyValue) Decode(d *jx.Decoder) error {
-	if s == nil {
-		return errors.New("invalid: unable to decode AnyV1BetaAnyValue to nil")
-	}
-
-	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
-		switch string(k) {
-		default:
-			return d.Skip()
-		}
-	}); err != nil {
-		return errors.Wrap(err, "decode AnyV1BetaAnyValue")
-	}
-
-	return nil
-}
-
-// MarshalJSON implements stdjson.Marshaler.
-func (s *AnyV1BetaAnyValue) MarshalJSON() ([]byte, error) {
-	e := jx.Encoder{}
-	s.Encode(&e)
-	return e.Bytes(), nil
-}
-
-// UnmarshalJSON implements stdjson.Unmarshaler.
-func (s *AnyV1BetaAnyValue) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }

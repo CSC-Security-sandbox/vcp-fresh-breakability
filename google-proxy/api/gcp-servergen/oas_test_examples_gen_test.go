@@ -134,18 +134,6 @@ func TestAnyV1Beta_EncodeDecode(t *testing.T) {
 	var typ2 AnyV1Beta
 	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
 }
-func TestAnyV1BetaAnyValue_EncodeDecode(t *testing.T) {
-	var typ AnyV1BetaAnyValue
-	typ.SetFake()
-
-	e := jx.Encoder{}
-	typ.Encode(&e)
-	data := e.Bytes()
-	require.True(t, std.Valid(data), "Encoded: %s", data)
-
-	var typ2 AnyV1BetaAnyValue
-	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
-}
 func TestAssetLocationMetadataV2_EncodeDecode(t *testing.T) {
 	var typ AssetLocationMetadataV2
 	typ.SetFake()

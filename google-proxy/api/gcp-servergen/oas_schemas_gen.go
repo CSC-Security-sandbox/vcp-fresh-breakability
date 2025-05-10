@@ -636,8 +636,8 @@ func (s *ActiveDirectoryV1betaActiveDirectoryState) UnmarshalText(data []byte) e
 // Ref: #/components/schemas/Any_v1Beta
 type AnyV1Beta struct {
 	// The URL of the type.
-	Type     string             `json:"@type"`
-	AnyValue *AnyV1BetaAnyValue `json:"AnyValue"`
+	Type     string `json:"@type"`
+	AnyValue jx.Raw `json:"AnyValue"`
 }
 
 // GetType returns the value of Type.
@@ -646,7 +646,7 @@ func (s *AnyV1Beta) GetType() string {
 }
 
 // GetAnyValue returns the value of AnyValue.
-func (s *AnyV1Beta) GetAnyValue() *AnyV1BetaAnyValue {
+func (s *AnyV1Beta) GetAnyValue() jx.Raw {
 	return s.AnyValue
 }
 
@@ -656,11 +656,9 @@ func (s *AnyV1Beta) SetType(val string) {
 }
 
 // SetAnyValue sets the value of AnyValue.
-func (s *AnyV1Beta) SetAnyValue(val *AnyV1BetaAnyValue) {
+func (s *AnyV1Beta) SetAnyValue(val jx.Raw) {
 	s.AnyValue = val
 }
-
-type AnyV1BetaAnyValue struct{}
 
 // Location metadata.
 // Ref: #/components/schemas/AssetLocationMetadata_v2

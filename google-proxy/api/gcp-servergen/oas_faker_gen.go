@@ -291,14 +291,10 @@ func (s *AnyV1Beta) SetFake() {
 		}
 	}
 	{
-		{ // Keep pointer nil to prevent infinite recursion.
-			s.AnyValue = nil
+		{
+			s.AnyValue = []byte("null")
 		}
 	}
-}
-
-// SetFake set fake values.
-func (s *AnyV1BetaAnyValue) SetFake() {
 }
 
 // SetFake set fake values.

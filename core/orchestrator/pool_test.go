@@ -2,7 +2,6 @@ package orchestrator
 
 import (
 	"context"
-	"go.temporal.io/sdk/client"
 	"testing"
 	"time"
 
@@ -11,7 +10,9 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
+	"go.temporal.io/sdk/client"
 	"gorm.io/gorm"
 )
 
@@ -24,14 +25,14 @@ func TestConvertDatastorePoolToModel_ValidPool_ReturnsCorrectModel(t *testing.T)
 			UpdatedAt: time.Now(),
 			DeletedAt: &deletedAt,
 		},
-		Name:         "Test Pool",
-		Description:  "Test Description",
-		SizeInBytes:  1024,
-		State:        "active",
-		StateDetails: "running",
-		CoolAccess:   true,
-		Network:      "test-network",
-		ServiceLevel: "premium",
+		Name:             "Test Pool",
+		Description:      "Test Description",
+		SizeInBytes:      1024,
+		State:            "active",
+		StateDetails:     "running",
+		AllowAutoTiering: true,
+		Network:          "test-network",
+		ServiceLevel:     "premium",
 	}
 	accountName := "test-account"
 
@@ -47,7 +48,7 @@ func TestConvertDatastorePoolToModel_ValidPool_ReturnsCorrectModel(t *testing.T)
 	assert.Equal(t, uint64(datastorePool.SizeInBytes), result.SizeInBytes)
 	assert.Equal(t, datastorePool.State, result.State)
 	assert.Equal(t, datastorePool.StateDetails, result.StateDetails)
-	assert.Equal(t, datastorePool.CoolAccess, result.CoolAccess)
+	assert.Equal(t, datastorePool.AllowAutoTiering, result.AllowAutoTiering)
 	assert.Equal(t, datastorePool.Network, result.VendorSubNetID)
 	assert.Equal(t, datastorePool.ServiceLevel, result.ServiceLevel)
 }
@@ -60,14 +61,14 @@ func TestConvertDatastorePoolToModel_NilDeletedAt_ReturnsNilDeletedAt(t *testing
 			UpdatedAt: time.Now(),
 			DeletedAt: nil,
 		},
-		Name:         "Test Pool",
-		Description:  "Test Description",
-		SizeInBytes:  1024,
-		State:        "active",
-		StateDetails: "running",
-		CoolAccess:   true,
-		Network:      "test-network",
-		ServiceLevel: "premium",
+		Name:             "Test Pool",
+		Description:      "Test Description",
+		SizeInBytes:      1024,
+		State:            "active",
+		StateDetails:     "running",
+		AllowAutoTiering: true,
+		Network:          "test-network",
+		ServiceLevel:     "premium",
 	}
 	accountName := "test-account"
 
@@ -85,14 +86,14 @@ func TestConvertDatastorePoolToModel_InvalidDeletedAt_ReturnsNilDeletedAt(t *tes
 			UpdatedAt: time.Now(),
 			DeletedAt: &invalidDeletedAt,
 		},
-		Name:         "Test Pool",
-		Description:  "Test Description",
-		SizeInBytes:  1024,
-		State:        "active",
-		StateDetails: "running",
-		CoolAccess:   true,
-		Network:      "test-network",
-		ServiceLevel: "premium",
+		Name:             "Test Pool",
+		Description:      "Test Description",
+		SizeInBytes:      1024,
+		State:            "active",
+		StateDetails:     "running",
+		AllowAutoTiering: true,
+		Network:          "test-network",
+		ServiceLevel:     "premium",
 	}
 	accountName := "test-account"
 
@@ -104,17 +105,23 @@ func TestConvertDatastorePoolToModel_InvalidDeletedAt_ReturnsNilDeletedAt(t *tes
 func TestCreatePool(t *testing.T) {
 	t.Run("WhenGetOrCreateAccountFails", func(tt *testing.T) {
 		ctx := context.Background()
-		se := database.Storage(nil)
+		mockLogger := log.NewLogger()
+		ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, mockLogger)
+		// Create a PersistenceStore instance with the in-memory database
+		se, err := database.NewTestStorage(mockLogger)
+		if err != nil {
+			t.Fatalf("Failed to create test storage: %v", err)
+		}
 		temporal := client.Client(nil)
 
 		params := &common.CreatePoolParams{
-			AccountName:    "test_account",
-			Region:         "test_region",
-			Name:           "test_pool",
-			VendorID:       "test_vendor",
-			SizeInBytes:    1024,
-			CoolAccess:     true,
-			VendorSubNetID: "test_network",
+			AccountName:      "test_account",
+			Region:           "test_region",
+			Name:             "test_pool",
+			VendorID:         "test_vendor",
+			SizeInBytes:      1024,
+			AllowAutoTiering: true,
+			VendorSubNetID:   "test_network",
 			CustomPerformanceParams: &common.CustomPerformanceParams{
 				Enabled:    true,
 				Throughput: 64,
@@ -126,7 +133,7 @@ func TestCreatePool(t *testing.T) {
 			return nil, errors.New("account not found")
 		}
 
-		_, _, err := createPool(ctx, se, temporal, params)
+		_, _, err = createPool(ctx, se, temporal, params)
 		if err == nil {
 			t.Errorf("Expected error, got nil")
 		}
@@ -136,17 +143,23 @@ func TestCreatePool(t *testing.T) {
 	})
 	t.Run("WhenValidatePoolParamFails", func(tt *testing.T) {
 		ctx := context.Background()
-		se := database.Storage(nil)
+		mockLogger := log.NewLogger()
+		ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, mockLogger)
+		// Create a PersistenceStore instance with the in-memory database
+		se, err := database.NewTestStorage(mockLogger)
+		if err != nil {
+			t.Fatalf("Failed to create test storage: %v", err)
+		}
 		temporal := client.Client(nil)
 
 		params := &common.CreatePoolParams{
-			AccountName:    "test_account",
-			Region:         "test_region",
-			Name:           "test_pool",
-			VendorID:       "test_vendor",
-			SizeInBytes:    1024,
-			CoolAccess:     true,
-			VendorSubNetID: "test_network",
+			AccountName:      "test_account",
+			Region:           "test_region",
+			Name:             "test_pool",
+			VendorID:         "test_vendor",
+			SizeInBytes:      1024,
+			AllowAutoTiering: true,
+			VendorSubNetID:   "test_network",
 			CustomPerformanceParams: &common.CustomPerformanceParams{
 				Enabled:    true,
 				Throughput: 64,
@@ -167,7 +180,7 @@ func TestCreatePool(t *testing.T) {
 			return errors.New("invalid pool params")
 		}
 
-		_, _, err := createPool(ctx, se, temporal, params)
+		_, _, err = createPool(ctx, se, temporal, params)
 		if err == nil {
 			t.Errorf("Expected error, got nil")
 		}
@@ -177,8 +190,8 @@ func TestCreatePool(t *testing.T) {
 	})
 	t.Run("WhenCreatePoolFails", func(tt *testing.T) {
 		ctx := context.Background()
-
 		mockLogger := log.NewLogger()
+		ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, mockLogger)
 		// Create a PersistenceStore instance with the in-memory database
 		store, err := database.NewTestStorage(mockLogger)
 		if err != nil {
@@ -197,13 +210,13 @@ func TestCreatePool(t *testing.T) {
 		}
 
 		params := &common.CreatePoolParams{
-			AccountName:    "test_account",
-			Region:         "test_region",
-			Name:           "test_pool",
-			VendorID:       "test_vendor",
-			SizeInBytes:    1024,
-			CoolAccess:     true,
-			VendorSubNetID: "test_network",
+			AccountName:      "test_account",
+			Region:           "test_region",
+			Name:             "test_pool",
+			VendorID:         "test_vendor",
+			SizeInBytes:      1024,
+			AllowAutoTiering: true,
+			VendorSubNetID:   "test_network",
 			CustomPerformanceParams: &common.CustomPerformanceParams{
 				Enabled:    true,
 				Throughput: 64,
@@ -238,8 +251,8 @@ func TestCreatePool(t *testing.T) {
 	})
 	t.Run("WhenCreatePoolSucceeds", func(tt *testing.T) {
 		ctx := context.Background()
-
 		mockLogger := log.NewLogger()
+		ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, mockLogger)
 		// Create a PersistenceStore instance with the in-memory database
 		store, err := database.NewTestStorage(mockLogger)
 		if err != nil {
@@ -257,13 +270,13 @@ func TestCreatePool(t *testing.T) {
 		}
 
 		params := &common.CreatePoolParams{
-			AccountName:    "test_account",
-			Region:         "test_region",
-			Name:           "test_pool",
-			VendorID:       "test_vendor",
-			SizeInBytes:    1024,
-			CoolAccess:     true,
-			VendorSubNetID: "test_network",
+			AccountName:      "test_account",
+			Region:           "test_region",
+			Name:             "test_pool",
+			VendorID:         "test_vendor",
+			SizeInBytes:      1024,
+			AllowAutoTiering: true,
+			VendorSubNetID:   "test_network",
 			CustomPerformanceParams: &common.CustomPerformanceParams{
 				Enabled:    true,
 				Throughput: 64,
@@ -314,7 +327,7 @@ func TestGetPool(t *testing.T) {
 			storage: store,
 		}
 
-		_, err = orch.GetPool(ctx, "non-existent-uuid")
+		_, err = orch.GetPool(ctx, "non-existent-uuid", "")
 		if err == nil {
 			tt.Errorf("Expected error, got nil")
 		}
@@ -361,7 +374,7 @@ func TestGetPool(t *testing.T) {
 			tt.Fatalf("Failed to create pool: %v", err)
 		}
 
-		result, err := orch.GetPool(ctx, "test-pool-uuid")
+		result, err := orch.GetPool(ctx, "test-pool-uuid", "")
 		if err != nil {
 			tt.Errorf("Expected no error, got %v", err)
 		}
@@ -470,4 +483,174 @@ func TestValidateCreatePoolParams_WithValidSize_ReturnsNil(t *testing.T) {
 	if err != nil {
 		t.Errorf("Expected nil, got error: %v", err)
 	}
+}
+
+func TestDeletePool(t *testing.T) {
+	t.Run("WhenGetOrCreateAccountFails", func(tt *testing.T) {
+		ctx := context.Background()
+		se := database.Storage(nil)
+		temporal := client.Client(nil)
+
+		params := &common.DeletePoolParams{
+			AccountName: "test_account",
+			PoolID:      "test_pool_id",
+		}
+
+		getOrCreateAccount = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return nil, errors.New("account not found")
+		}
+
+		_, _, err := deletePool(ctx, temporal, se, params)
+		if err == nil {
+			t.Errorf("Expected error, got nil")
+		}
+		if err.Error() != "account not found" {
+			t.Errorf("Expected error 'account not found', got %v", err)
+		}
+	})
+	t.Run("WhenPoolDoesNotExist", func(tt *testing.T) {
+		ctx := context.Background()
+
+		mockLogger := log.NewLogger()
+		// Create a PersistenceStore instance with the in-memory database
+		store, err := database.NewTestStorage(mockLogger)
+		temporal := client.Client(nil)
+		if err != nil {
+			t.Fatalf("Failed to create test storage: %v", err)
+		}
+
+		// Clear the in-memory database
+		err = database.ClearInMemoryDB(store.DB())
+		if err != nil {
+			t.Fatalf("Failed to clean up test storage: %v", err)
+		}
+
+		params := &common.DeletePoolParams{
+			AccountName: "test_account",
+			PoolID:      "non_existent_pool_id",
+		}
+
+		getOrCreateAccount = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return &datamodel.Account{Name: "test_account"}, nil
+		}
+
+		_, _, err = deletePool(ctx, temporal, store, params)
+		if err == nil {
+			t.Errorf("Expected error, got nil")
+		}
+		if err.Error() != "pool not found" {
+			t.Errorf("Expected error 'pool not found', got %v", err)
+		}
+	})
+	t.Run("WhenDeletePoolSucceeds", func(tt *testing.T) {
+		ctx := context.Background()
+
+		mockLogger := log.NewLogger()
+		store, err := database.NewTestStorage(mockLogger)
+		if err != nil {
+			tt.Fatalf("Failed to create test storage: %v", err)
+		}
+
+		err = database.ClearInMemoryDB(store.DB())
+		if err != nil {
+			tt.Fatalf("Failed to clean up test storage: %v", err)
+		}
+
+		orch := Orchestrator{
+			storage:  store,
+			temporal: client.Client(nil),
+		}
+
+		// Create account
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{UUID: "test-account-uuid"},
+			Name:      "test_account",
+		}
+		err = store.DB().Create(account).Error
+		if err != nil {
+			tt.Fatalf("Failed to create account: %v", err)
+		}
+
+		// Create pool
+		pool := &datamodel.Pool{
+			BaseModel: datamodel.BaseModel{UUID: "test-pool-uuid"},
+			Name:      "test_pool",
+			AccountID: account.ID,
+		}
+		err = store.DB().Create(pool).Error
+		if err != nil {
+			tt.Fatalf("Failed to create pool: %v", err)
+		}
+
+		// Create SVM
+		svm := &datamodel.Svm{
+			BaseModel: datamodel.BaseModel{UUID: "test-svm-uuid"},
+			Name:      "test_svm",
+			PoolID:    pool.ID,
+			AccountID: account.ID,
+		}
+		err = store.DB().Create(svm).Error
+		if err != nil {
+			tt.Fatalf("Failed to create SVM: %v", err)
+		}
+
+		// Create nodes
+		node1 := &datamodel.Node{
+			BaseModel: datamodel.BaseModel{UUID: "test-node-uuid1"},
+			Name:      "test_node1",
+			PoolID:    pool.ID,
+			AccountID: account.ID,
+		}
+		err = store.DB().Create(node1).Error
+		if err != nil {
+			tt.Fatalf("Failed to create node: %v", err)
+		}
+
+		node2 := &datamodel.Node{
+			BaseModel: datamodel.BaseModel{UUID: "test-node-uuid2"},
+			Name:      "test_node2",
+			PoolID:    pool.ID,
+			AccountID: account.ID,
+		}
+		err = store.DB().Create(node2).Error
+		if err != nil {
+			tt.Fatalf("Failed to create node: %v", err)
+		}
+
+		// Create LIF
+		lif1 := &datamodel.Lif{
+			BaseModel: datamodel.BaseModel{UUID: "test-lif-uuid1"},
+			Name:      "test_lif1",
+			NodeID:    node1.ID,
+			AccountID: account.ID,
+		}
+		err = store.DB().Create(lif1).Error
+		if err != nil {
+			tt.Fatalf("Failed to create LIF: %v", err)
+		}
+
+		lif2 := &datamodel.Lif{
+			BaseModel: datamodel.BaseModel{UUID: "test-lif-uuid2"},
+			Name:      "test_lif2",
+			NodeID:    node2.ID,
+			AccountID: account.ID,
+		}
+		err = store.DB().Create(lif2).Error
+		if err != nil {
+			tt.Fatalf("Failed to create LIF: %v", err)
+		}
+
+		// Delete pool
+		params := &common.DeletePoolParams{
+			AccountName: "test_account",
+			PoolID:      "test-pool-uuid",
+		}
+
+		result, _, err := orch.DeletePool(ctx, params)
+		if err != nil {
+			tt.Errorf("Expected nil, got error: %v", err)
+		}
+		assert.Equal(tt, pool.Name, result.Name)
+		assert.Equal(tt, account.Name, result.AccountName)
+	})
 }

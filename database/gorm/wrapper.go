@@ -83,3 +83,23 @@ func (w *Wrapper) Where(query interface{}, args ...interface{}) *Wrapper {
 func (w *Wrapper) WithContext(ctx context.Context) *Wrapper {
 	return &Wrapper{db: w.db.WithContext(ctx)}
 }
+
+// Unscoped is used when you're querying the same table unscoped in a transaction
+func (w *Wrapper) Unscoped() *Wrapper {
+	return &Wrapper{db: w.db.Unscoped()}
+}
+
+func (w *Wrapper) ApplyFilter(conditions [][]interface{}) *Wrapper {
+	db := &Wrapper{db: w.db}
+	for _, condition := range conditions {
+		if len(condition) > 0 {
+			if query, ok := condition[0].(string); ok {
+				args := condition[1:]
+				db = db.Where(query, args...)
+			} else if query == "unscoped" {
+				db = db.Unscoped()
+			}
+		}
+	}
+	return db
+}

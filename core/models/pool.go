@@ -12,10 +12,11 @@ type Pool struct {
 	AccountName             string
 	VendorID                string
 	Region                  string
+	Zone                    string
 	TotalThroughputMibps    float64
 	UtilizedThroughputMibps float64
 	Tags                    string
-	CoolAccess              bool
+	AllowAutoTiering        bool
 	VendorSubNetID          string
 	AllocatedBytes          float64
 	NumberOfVolumes         int64

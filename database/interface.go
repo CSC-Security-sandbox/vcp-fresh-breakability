@@ -49,13 +49,15 @@ type (
 
 // DataStore defines all operations
 type DataStore interface {
-	CreatePool(ctx context.Context, pool *datamodel.Pool) (*datamodel.Pool, error)
-	GetPool(ctx context.Context, poolUUID string) (*datamodel.Pool, error)
+	CreatedPool(ctx context.Context, pool *datamodel.Pool) (*datamodel.Pool, error)
+	CreatingPool(ctx context.Context, pool *datamodel.Pool) (*datamodel.Pool, error)
+	GetPool(ctx context.Context, poolUUID string, accountID int64) (*datamodel.Pool, error)
 	UpdatePool(ctx context.Context, pool *datamodel.Pool) error
-	DeletePool(ctx context.Context, id string) error
-	ListPools(ctx context.Context) ([]*datamodel.Pool, error)
+	DeletePool(ctx context.Context, pool *datamodel.Pool) error
+	DeletingPool(ctx context.Context, pool *datamodel.Pool) error
+	ListPools(ctx context.Context, conditions [][]interface{}) ([]*datamodel.Pool, error)
 	GetPoolByVendorID(ctx context.Context, vendorID string) (*datamodel.Pool, error)
-	SavePoolWithVsaClusterDetails(ctx context.Context, poolName string, accountName string, cluster *datamodel.ClusterDetails) error
+	SavePoolWithVsaClusterDetails(ctx context.Context, pool *datamodel.Pool, cluster *datamodel.ClusterDetails) error
 
 	CreateVolume(ctx context.Context, volume *datamodel.Volume) (*datamodel.Volume, error)
 	GetVolume(ctx context.Context, id string) (*datamodel.Volume, error)
@@ -63,6 +65,8 @@ type DataStore interface {
 	DeleteVolume(ctx context.Context, id string) (*datamodel.Volume, error)
 	UpdateVolumeState(ctx context.Context, id string, state string, stateDetails string) (*datamodel.Volume, error)
 	ListVolumes(ctx context.Context) ([]*datamodel.Volume, error)
+	GetVolumesByPoolID(ctx context.Context, poolID int64) ([]*datamodel.Volume, error)
+	GetVolumeCountByPoolID(ctx context.Context, poolID int64) (int64, error)
 
 	GetAccount(ctx context.Context, name string) (*datamodel.Account, error)
 	CreateAccount(ctx context.Context, account *datamodel.Account) (*datamodel.Account, error)
@@ -77,6 +81,7 @@ type DataStore interface {
 	CreateNode(ctx context.Context, node *datamodel.Node) (*datamodel.Node, error)
 
 	CreateSVM(ctx context.Context, svm *datamodel.Svm) (*datamodel.Svm, error)
+	GetSvmsByPoolID(ctx context.Context, poolID int64) ([]*datamodel.Svm, error)
 
 	CreateLif(ctx context.Context, lif *datamodel.Lif) (*datamodel.Lif, error)
 	GetLifForNode(ctx context.Context, nodeID int64, accountID int64) (*datamodel.Lif, error)
@@ -84,4 +89,10 @@ type DataStore interface {
 	CreateHostGroup(ctx context.Context, hostGroup *datamodel.HostGroup) (*datamodel.HostGroup, error)
 	GetHostGroup(ctx context.Context, id string, accountID int64) (*datamodel.HostGroup, error)
 	GetMultipleHostGroups(ctx context.Context, ids []string, accountID int64) ([]*datamodel.HostGroup, error)
+	GetLifByNodeID(ctx context.Context, nodeID int64, accountID int64) (*datamodel.Lif, error)
+	DeleteLif(ctx context.Context, lif *datamodel.Lif) error
+	DeleteNode(ctx context.Context, node *datamodel.Node) error
+	DeletingNode(ctx context.Context, node *datamodel.Node) error
+	DeleteSVM(ctx context.Context, svm *datamodel.Svm) error
+	DeletingSVM(ctx context.Context, svm *datamodel.Svm) error
 }

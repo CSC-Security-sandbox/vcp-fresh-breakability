@@ -9,36 +9,53 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	customerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
+	slogger "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 	"gorm.io/gorm"
 )
 
-func (d *DataStoreRepository) CreateSVM(ctx context.Context, svm *datamodel.Svm) (*datamodel.Svm, error) {
-	var dbSvm datamodel.Svm
-	err := d.db.GORM().WithContext(ctx).Transaction(func(tx *gorm.DB) error {
-		err := tx.Where("account_id = ?", svm.AccountID).Where("name = ?", svm.Name).Where("pool_id = ?", svm.PoolID).First(&dbSvm).Error
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			svm.UUID = utils.RandomUUID()
-			svm.CreatedAt = time.Now()
-			svm.UpdatedAt = svm.CreatedAt
-			svm.State = models.LifeCycleStateAvailable
-			svm.StateDetails = models.LifeCycleStateAvailableDetails
-
-			err = tx.Create(svm).Error
-			if err != nil {
-				return err
-			}
-			err = tx.Where("account_id = ?", svm.AccountID).Where("name = ?", svm.Name).Where("pool_id = ?", svm.PoolID).First(&dbSvm).Error
-			if err != nil {
-				return err
-			}
-			return nil
-		}
-		return errors.New("svm already exists")
-	})
+// GetSvmsByPoolID retrieves SVMs by its corresponding pool ID
+func (d *DataStoreRepository) GetSvmsByPoolID(ctx context.Context, poolID int64) ([]*datamodel.Svm, error) {
+	var svms []*datamodel.Svm
+	err := d.db.GORM().Unscoped().WithContext(ctx).Where("pool_id = ?", poolID).Find(&svms).Error
 	if err != nil {
 		return nil, err
 	}
-	return &dbSvm, nil
+	return svms, nil
+}
+
+// CreateSVM creates a new SVM in the database
+func (d *DataStoreRepository) CreateSVM(ctx context.Context, svm *datamodel.Svm) (*datamodel.Svm, error) {
+	var dbSvm datamodel.Svm
+	db := d.db.GORM().WithContext(ctx)
+	tx, err := startTransaction(db)
+	if err != nil {
+		return nil, err
+	}
+	// Fixme: The logger should be fetched from ctx
+	logger := slogger.NewLogger()
+	defer commitOrRollbackOnError(slogger.NewLogger(), tx, &err)
+	err1 := tx.Where("account_id = ?", svm.AccountID).Where("name = ?", svm.Name).Where("pool_id = ?", svm.PoolID).First(&dbSvm).Error
+	if errors.Is(err1, gorm.ErrRecordNotFound) {
+		svm.UUID = utils.RandomUUID()
+		svm.CreatedAt = time.Now()
+		svm.UpdatedAt = svm.CreatedAt
+		svm.State = models.LifeCycleStateREADY
+		svm.StateDetails = models.LifeCycleStateAvailableDetails
+
+		err = tx.Create(svm).Error
+		if err != nil {
+			return nil, err
+		}
+		err = tx.Where("account_id = ?", svm.AccountID).Where("name = ?", svm.Name).Where("pool_id = ?", svm.PoolID).First(&dbSvm).Error
+		if err != nil {
+			return nil, err
+		}
+		return &dbSvm, nil
+	} else if err1 != nil {
+		logger.Errorf("Error while checking if svm exists: %v", err1)
+		return nil, err1
+	}
+	return nil, customerrors.NewConflictErr("svm already exists")
 }
 
 func (d *DataStoreRepository) GetSvmForPoolID(ctx context.Context, poolID int64) (*datamodel.Svm, error) {
@@ -52,4 +69,41 @@ func getSvmWithDetails(db *gorm.DB, query *datamodel.Svm) (*datamodel.Svm, error
 		return nil, customerrors.ConvertToNotFoundErrIfContainsMessage(err, "record not found", "svm", nil)
 	}
 	return svm, nil
+}
+
+// DeleteSVM deletes an SVM from the database
+func (d *DataStoreRepository) DeleteSVM(ctx context.Context, svm *datamodel.Svm) error {
+	db := d.db.GORM().WithContext(ctx)
+	tx, err := startTransaction(db)
+	if err != nil {
+		return err
+	}
+	// Fixme: The logger should be fetched from ctx
+	defer commitOrRollbackOnError(slogger.NewLogger(), tx, &err)
+	svm.DeletedAt = &gorm.DeletedAt{Time: time.Now(), Valid: true}
+	svm.State = models.LifeCycleStateDeleted
+	svm.StateDetails = models.LifeCycleStateDeletedDetails
+	err = tx.Updates(svm).Error
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+// DeletingSVM deletes an SVM from the database
+func (d *DataStoreRepository) DeletingSVM(ctx context.Context, svm *datamodel.Svm) error {
+	db := d.db.GORM().WithContext(ctx)
+	tx, err := startTransaction(db)
+	if err != nil {
+		return err
+	}
+	// Fixme: The logger should be fetched from ctx
+	defer commitOrRollbackOnError(slogger.NewLogger(), tx, &err)
+	svm.State = models.LifeCycleStateDeleting
+	svm.StateDetails = models.LifeCycleStateDeletingDetails
+	err = tx.Updates(svm).Error
+	if err != nil {
+		return err
+	}
+	return nil
 }

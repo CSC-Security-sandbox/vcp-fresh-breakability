@@ -85,9 +85,9 @@ func (t *TemporalWorkflowEngine) GetTemporalClient() client.Client {
 
 func registerWorkflowsAndActivities(worker worker.Worker, dbcon database.Storage) {
 	worker.RegisterWorkflow(workflows.CreatePoolWorkflow)
+	worker.RegisterWorkflow(workflows.DeletePoolWorkflow)
 	worker.RegisterWorkflow(workflows.CreateVolumeWorkflow)
 	worker.RegisterWorkflow(workflows.DeleteVolumeWorkflow)
-
 	worker.RegisterActivity(&activities.CommonActivities{SE: &dbcon})
 	worker.RegisterActivity(&activities.PoolActivity{SE: &dbcon})
 	worker.RegisterActivity(&activities.VolumeCreateActivity{SE: &dbcon})

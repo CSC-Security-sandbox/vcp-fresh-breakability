@@ -337,28 +337,35 @@ func isDatabaseExistsError(err error) bool {
 
 // Implement PersistenceStore interface by delegating to repositories
 
-func (s *PersistenceStore) CreatePool(ctx context.Context, pool *datamodel.Pool) (*datamodel.Pool, error) {
-	return s.dataStore.CreatePool(ctx, pool)
+func (s *PersistenceStore) CreatedPool(ctx context.Context, pool *datamodel.Pool) (*datamodel.Pool, error) {
+	return s.dataStore.CreatedPool(ctx, pool)
 }
 
-func (s *PersistenceStore) GetPool(ctx context.Context, poolUUID string) (*datamodel.Pool, error) {
-	return s.dataStore.GetPool(ctx, poolUUID)
+func (s *PersistenceStore) CreatingPool(ctx context.Context, pool *datamodel.Pool) (*datamodel.Pool, error) {
+	return s.dataStore.CreatingPool(ctx, pool)
+}
+func (s *PersistenceStore) GetPool(ctx context.Context, poolUUID string, accountID int64) (*datamodel.Pool, error) {
+	return s.dataStore.GetPool(ctx, poolUUID, accountID)
 }
 
 func (s *PersistenceStore) UpdatePool(ctx context.Context, pool *datamodel.Pool) error {
 	return s.dataStore.UpdatePool(ctx, pool)
 }
 
-func (s *PersistenceStore) DeletePool(ctx context.Context, id string) error {
-	return s.dataStore.DeletePool(ctx, id)
+func (s *PersistenceStore) DeletePool(ctx context.Context, pool *datamodel.Pool) error {
+	return s.dataStore.DeletePool(ctx, pool)
 }
 
-func (s *PersistenceStore) ListPools(ctx context.Context) ([]*datamodel.Pool, error) {
-	return s.dataStore.ListPools(ctx)
+func (s *PersistenceStore) DeletingPool(ctx context.Context, pool *datamodel.Pool) error {
+	return s.dataStore.DeletingPool(ctx, pool)
 }
 
-func (s *PersistenceStore) SavePoolWithVsaClusterDetails(ctx context.Context, poolName string, accountName string, cluster *datamodel.ClusterDetails) error {
-	return s.dataStore.SavePoolWithVsaClusterDetails(ctx, poolName, accountName, cluster)
+func (s *PersistenceStore) ListPools(ctx context.Context, conditions [][]interface{}) ([]*datamodel.Pool, error) {
+	return s.dataStore.ListPools(ctx, conditions)
+}
+
+func (s *PersistenceStore) SavePoolWithVsaClusterDetails(ctx context.Context, pool *datamodel.Pool, cluster *datamodel.ClusterDetails) error {
+	return s.dataStore.SavePoolWithVsaClusterDetails(ctx, pool, cluster)
 }
 
 func (s *PersistenceStore) CreateVolume(ctx context.Context, volume *datamodel.Volume) (*datamodel.Volume, error) {
@@ -383,6 +390,14 @@ func (s *PersistenceStore) UpdateVolumeState(ctx context.Context, id string, sta
 
 func (s *PersistenceStore) ListVolumes(ctx context.Context) ([]*datamodel.Volume, error) {
 	return s.dataStore.ListVolumes(ctx)
+}
+
+func (s *PersistenceStore) GetVolumesByPoolID(ctx context.Context, poolID int64) ([]*datamodel.Volume, error) {
+	return s.dataStore.GetVolumesByPoolID(ctx, poolID)
+}
+
+func (s *PersistenceStore) GetVolumeCountByPoolID(ctx context.Context, poolID int64) (int64, error) {
+	return s.dataStore.GetVolumeCountByPoolID(ctx, poolID)
 }
 
 func (s *PersistenceStore) GetAccount(ctx context.Context, name string) (*datamodel.Account, error) {
@@ -425,8 +440,36 @@ func (s *PersistenceStore) CreateSVM(ctx context.Context, svm *datamodel.Svm) (*
 	return s.dataStore.CreateSVM(ctx, svm)
 }
 
+func (s *PersistenceStore) GetSvmsByPoolID(ctx context.Context, poolID int64) ([]*datamodel.Svm, error) {
+	return s.dataStore.GetSvmsByPoolID(ctx, poolID)
+}
+
 func (s *PersistenceStore) CreateLif(ctx context.Context, lif *datamodel.Lif) (*datamodel.Lif, error) {
 	return s.dataStore.CreateLif(ctx, lif)
+}
+
+func (s *PersistenceStore) GetLifByNodeID(ctx context.Context, nodeID int64, accountID int64) (*datamodel.Lif, error) {
+	return s.dataStore.GetLifByNodeID(ctx, nodeID, 0)
+}
+
+func (s *PersistenceStore) DeleteSVM(ctx context.Context, svm *datamodel.Svm) error {
+	return s.dataStore.DeleteSVM(ctx, svm)
+}
+
+func (s *PersistenceStore) DeletingSVM(ctx context.Context, svm *datamodel.Svm) error {
+	return s.dataStore.DeletingSVM(ctx, svm)
+}
+
+func (s *PersistenceStore) DeleteLif(ctx context.Context, lif *datamodel.Lif) error {
+	return s.dataStore.DeleteLif(ctx, lif)
+}
+
+func (s *PersistenceStore) DeleteNode(ctx context.Context, node *datamodel.Node) error {
+	return s.dataStore.DeleteNode(ctx, node)
+}
+
+func (s *PersistenceStore) DeletingNode(ctx context.Context, node *datamodel.Node) error {
+	return s.dataStore.DeletingNode(ctx, node)
 }
 
 func (s *PersistenceStore) GetLifForNode(ctx context.Context, nodeID int64, accountID int64) (*datamodel.Lif, error) {

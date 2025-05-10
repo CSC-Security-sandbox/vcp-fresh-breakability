@@ -85,11 +85,7 @@ func (wf *volumeCreateWorkflow) Run(ctx workflow.Context, volume *datamodel.Volu
 	}
 	ctx = workflow.WithActivityOptions(ctx, ao)
 
-	dbVolume := &datamodel.Volume{}
-	err = workflow.ExecuteActivity(ctx, volumeActivity.CreateVolume, &volume).Get(ctx, &dbVolume)
-	if err != nil {
-		return nil, err
-	}
+	dbVolume := volume
 
 	var hostGroups []*datamodel.HostGroup
 	err = workflow.ExecuteActivity(ctx, volumeActivity.GetHosts, &volume).Get(ctx, &hostGroups)

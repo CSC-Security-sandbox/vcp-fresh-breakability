@@ -2,12 +2,14 @@ package repository
 
 import (
 	"context"
+	"testing"
+	
 	"github.com/stretchr/testify/assert"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	gormwrapper "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/gorm"
+	customerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"gorm.io/gorm"
-	"testing"
 )
 
 func TestGetVolume(t *testing.T) {
@@ -66,7 +68,7 @@ func TestGetVolume(t *testing.T) {
 
 		volume, err := store.GetVolume(context.Background(), "test-volume-uuid")
 		assert.Nil(tt, volume, "Expected nil volume, got %v", volume)
-		if err != gorm.ErrRecordNotFound {
+		if !customerrors.IsNotFoundErr(err) {
 			tt.Errorf("Expected error %v, got %v", gorm.ErrRecordNotFound, err)
 		}
 	})
@@ -222,8 +224,7 @@ func TestDeleteVolume(t *testing.T) {
 		assert.Equal(tt, "", deletedVolume.StateDetails, "Expected volume state details %v, got %v", "", deletedVolume.StateDetails)
 
 		_, err = store.GetVolume(context.Background(), volume.UUID)
-		assert.EqualError(tt, err, "record not found", "Expected no error, got %v", err)
-		if err != gorm.ErrRecordNotFound {
+		if !customerrors.IsNotFoundErr(err) {
 			tt.Errorf("Expected error %v, got %v", gorm.ErrRecordNotFound, err)
 		}
 	})
@@ -238,8 +239,7 @@ func TestDeleteVolume(t *testing.T) {
 
 		deletedVolume, err := store.DeleteVolume(context.Background(), "dummy")
 		assert.Nil(tt, deletedVolume, "Expected nil volume, got %v", deletedVolume)
-		assert.EqualError(tt, err, "record not found", "Expected no error, got %v", err)
-		if err != gorm.ErrRecordNotFound {
+		if !customerrors.IsNotFoundErr(err) {
 			tt.Errorf("Expected error %v, got %v", gorm.ErrRecordNotFound, err)
 		}
 	})
@@ -307,8 +307,8 @@ func TestUpdateVolumeState(t *testing.T) {
 
 		updatedVolume, err := store.UpdateVolumeState(context.Background(), "dummy", models.LifeCycleStateDeleted, "")
 		assert.Nil(tt, updatedVolume, "Expected nil volume, got %v", updatedVolume)
-		assert.EqualError(tt, err, "record not found", "Expected no error, got %v", err)
-		if err != gorm.ErrRecordNotFound {
+		assert.ErrorContains(tt, err, "not found", "Expected no error, got %v", err)
+		if !customerrors.IsNotFoundErr(err) {
 			tt.Errorf("Expected error %v, got %v", gorm.ErrRecordNotFound, err)
 		}
 	})

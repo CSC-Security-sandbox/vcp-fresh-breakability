@@ -2,12 +2,14 @@ package repository
 
 import (
 	"context"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"time"
 
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	customerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
+	slogger "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 	"gorm.io/gorm"
 )
 
@@ -18,26 +20,34 @@ var (
 
 func (d *DataStoreRepository) CreateVolume(ctx context.Context, volume *datamodel.Volume) (*datamodel.Volume, error) {
 	db := d.db.GORM().WithContext(ctx)
-
-	if db.Where("name = ?", volume.Name).Where("account_id = ?", volume.AccountID).First(&volume).Error != nil {
+	tx, err1 := startTransaction(db)
+	if err1 != nil {
+		return nil, err1
+	}
+	var err error
+	// Fixme: The logger should be fetched from ctx
+	defer commitOrRollbackOnError(slogger.NewLogger(), tx, &err)
+	err2 := tx.Where("name = ?", volume.Name).Where("account_id = ?", volume.AccountID).First(&volume).Error
+	if errors.Is(err2, gorm.ErrRecordNotFound) {
 		volume.UUID = utils.RandomUUID()
 		volume.State = models.LifeCycleStateCreating
 		volume.StateDetails = models.LifeCycleStateCreatingDetails
 		volume.CreatedAt = time.Now()
 		volume.UpdatedAt = volume.CreatedAt
 
-		err := db.Create(volume).Error
+		err = tx.Create(volume).Error
 		if err != nil {
 			return nil, err
 		}
-
-		dbVolume, err := d.GetVolume(ctx, volume.UUID)
+		volume, err = getVolumeWithDetails(tx, &datamodel.Volume{BaseModel: datamodel.BaseModel{UUID: volume.UUID}})
 		if err != nil {
 			return nil, err
 		}
-		return dbVolume, nil
+		return volume, nil
+	} else if err2 != nil {
+		return nil, err1
 	}
-	return nil, customerrors.NewUserInputValidationErr("volume already exists")
+	return nil, customerrors.NewConflictErr("volume already exists")
 }
 
 func (d *DataStoreRepository) GetVolume(ctx context.Context, volUUID string) (*datamodel.Volume, error) {
@@ -46,12 +56,18 @@ func (d *DataStoreRepository) GetVolume(ctx context.Context, volUUID string) (*d
 
 func (d *DataStoreRepository) UpdateVolume(ctx context.Context, volume *datamodel.Volume) error {
 	db := d.db.GORM().WithContext(ctx)
-	dbVolume, err := getVolumeWithDetails(db, &datamodel.Volume{BaseModel: datamodel.BaseModel{UUID: volume.UUID}})
+	tx, err := startTransaction(db)
+	if err != nil {
+		return err
+	}
+	// Fixme: The logger should be fetched from ctx
+	defer commitOrRollbackOnError(slogger.NewLogger(), tx, &err)
+	dbVolume, err := getVolumeWithDetails(tx, &datamodel.Volume{BaseModel: datamodel.BaseModel{UUID: volume.UUID}})
 	if err != nil {
 		return err
 	}
 
-	err = db.Model(&dbVolume).Updates(datamodel.Volume{
+	err = tx.Model(&dbVolume).Updates(datamodel.Volume{
 		VolumeAttributes: volume.VolumeAttributes,
 		State:            volume.State,
 		StateDetails:     volume.StateDetails,
@@ -64,11 +80,25 @@ func (d *DataStoreRepository) UpdateVolume(ctx context.Context, volume *datamode
 }
 
 func (d *DataStoreRepository) DeleteVolume(ctx context.Context, volumeUUID string) (*datamodel.Volume, error) {
-	return deleteVolume(d.db.GORM().WithContext(ctx), volumeUUID)
+	db := d.db.GORM().WithContext(ctx)
+	tx, err := startTransaction(db)
+	if err != nil {
+		return nil, err
+	}
+	// Fixme: The logger should be fetched from ctx
+	defer commitOrRollbackOnError(slogger.NewLogger(), tx, &err)
+	return deleteVolume(tx, volumeUUID)
 }
 
 func (d *DataStoreRepository) UpdateVolumeState(ctx context.Context, volumeUUID string, state string, stateDetails string) (*datamodel.Volume, error) {
-	return updateVolumeState(d.db.GORM().WithContext(ctx), volumeUUID, state, stateDetails)
+	db := d.db.GORM().WithContext(ctx)
+	tx, err := startTransaction(db)
+	if err != nil {
+		return nil, err
+	}
+	// Fixme: The logger should be fetched from ctx
+	defer commitOrRollbackOnError(slogger.NewLogger(), tx, &err)
+	return updateVolumeState(tx, volumeUUID, state, stateDetails)
 }
 
 func _deleteVolume(db *gorm.DB, volumeUUID string) (*datamodel.Volume, error) {
@@ -115,4 +145,22 @@ func getVolumeWithDetails(db *gorm.DB, query *datamodel.Volume) (*datamodel.Volu
 		return nil, customerrors.ConvertToNotFoundErrIfContainsMessage(err, "record not found", "host group", &volume.UUID)
 	}
 	return volume, nil
+}
+
+func (d *DataStoreRepository) GetVolumesByPoolID(ctx context.Context, poolID int64) ([]*datamodel.Volume, error) {
+	var volumes []*datamodel.Volume
+	err := d.db.GORM().WithContext(ctx).Preload("Account").Preload("Pool").Preload("Svm").Where("pool_id = ?", poolID).Find(&volumes).Error
+	if err != nil {
+		return nil, err
+	}
+	return volumes, nil
+}
+
+func (d *DataStoreRepository) GetVolumeCountByPoolID(ctx context.Context, poolID int64) (int64, error) {
+	var count int64
+	err := d.db.GORM().WithContext(ctx).Model(&datamodel.Volume{}).Where("pool_id = ?", poolID).Count(&count).Error
+	if err != nil {
+		return 0, err
+	}
+	return count, nil
 }

@@ -17,7 +17,8 @@ const (
 type JobType string
 
 const (
-	JobTypeCreatePool   JobType = "CREATE_POOL"
+	JobTypeCreatePool JobType = "CREATE_POOL"
+	JobTypeDeletePool JobType = "DELETE_POOL"
 	JobTypeCreateVolume JobType = "CREATE_VOLUME"
 	JobTypeDeleteVolume JobType = "DELETE_VOLUME"
 )

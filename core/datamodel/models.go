@@ -12,22 +12,23 @@ import (
 
 type Pool struct {
 	BaseModel
-	Name           string         `gorm:"column:name"`
-	Description    string         `gorm:"column:description"`
-	State          string         `gorm:"column:state"`
-	StateDetails   string         `gorm:"column:state_details"`
-	VendorID       string         `gorm:"column:vendor_id"`
-	ServiceLevel   string         `gorm:"column:service_level"`
-	SizeInBytes    int64          `gorm:"column:size_in_bytes"`
-	UsedBytes      int64          `gorm:"column:used_bytes"`
-	Network        string         `gorm:"column:network;type:varchar(2048)"`
-	CoolAccess     bool           `gorm:"column:cool_access;default:false"`
-	AccountID      int64          `gorm:"column:account_id"`
-	Account        *Account       `gorm:"ForeignKey:AccountID;AssociationForeignKey:ID;constraint:OnDelete:CASCADE,OnUpdate:RESTRICT;"`
-	PoolAttributes JSONB          `gorm:"column:pool_attributes;type:jsonb"`
-	ClusterDetails ClusterDetails `gorm:"column:cluster_details;type:jsonb"`
-	Username       string         `gorm:"column:username"`
-	Password       string         `gorm:"column:password"`
+	Name             string         `gorm:"column:name"`
+	Description      string         `gorm:"column:description"`
+	State            string         `gorm:"column:state"`
+	StateDetails     string         `gorm:"column:state_details"`
+	VendorID         string         `gorm:"column:vendor_id"`
+	ServiceLevel     string         `gorm:"column:service_level"`
+	SizeInBytes      int64          `gorm:"column:size_in_bytes"`
+	UsedBytes        int64          `gorm:"column:used_bytes"`
+	Network          string         `gorm:"column:network;type:varchar(2048)"`
+	AllowAutoTiering bool           `gorm:"column:allow_auto_tiering;default:false"`
+	AccountID        int64          `gorm:"column:account_id"`
+	Account          *Account       `gorm:"ForeignKey:AccountID;AssociationForeignKey:ID;constraint:OnDelete:CASCADE,OnUpdate:RESTRICT;"`
+	PoolAttributes   JSONB          `gorm:"column:pool_attributes;type:jsonb"`
+	ClusterDetails   ClusterDetails `gorm:"column:cluster_details;type:jsonb"`
+	QosType          string         `gorm:"column:qos_type"`
+	Username         string         `gorm:"column:username"`
+	Password         string         `gorm:"column:password"`
 }
 
 type ClusterDetails struct {

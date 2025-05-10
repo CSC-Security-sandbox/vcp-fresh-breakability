@@ -7,6 +7,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	gormwrapper "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/gorm"
+	customerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"gorm.io/gorm"
 )
 
@@ -47,7 +48,7 @@ func TestGetPool(t *testing.T) {
 			tt.Fatalf("Failed to create pool: %v", err)
 		}
 
-		result, err := store.GetPool(context.Background(), "test-pool-uuid")
+		result, err := store.GetPool(context.Background(), "test-pool-uuid", 0)
 		if err != nil {
 			tt.Errorf("Expected no error, got %v", err)
 		}
@@ -71,11 +72,11 @@ func TestGetPool(t *testing.T) {
 			tt.Fatalf("Failed to clean up test database: %v", err)
 		}
 
-		_, err = store.GetPool(context.Background(), "test-pool-uuid")
+		_, err = store.GetPool(context.Background(), "test-pool-uuid", 0)
 		if err == nil {
 			tt.Errorf("Expected error, got nil")
 		}
-		if err != gorm.ErrRecordNotFound {
+		if !customerrors.IsNotFoundErr(err) {
 			tt.Errorf("Expected error %v, got %v", gorm.ErrRecordNotFound, err)
 		}
 	})
@@ -147,7 +148,7 @@ func TestGetPoolWithVendorID(t *testing.T) {
 		if err == nil {
 			tt.Errorf("Expected error, got nil")
 		}
-		if err != gorm.ErrRecordNotFound {
+		if !customerrors.IsNotFoundErr(err) {
 			tt.Errorf("Expected error %v, got %v", gorm.ErrRecordNotFound, err)
 		}
 	})
@@ -184,7 +185,7 @@ func TestCreatePool(t *testing.T) {
 			Account: account,
 		}
 
-		createdPool, err := store.CreatePool(context.Background(), pool)
+		createdPool, err := store.CreatingPool(context.Background(), pool)
 		if err != nil {
 			tt.Errorf("Expected no error, got %v", err)
 		}
@@ -229,7 +230,7 @@ func TestCreatePool(t *testing.T) {
 			tt.Fatalf("Failed to create pool: %v", err)
 		}
 
-		_, err = store.CreatePool(context.Background(), pool)
+		_, err = store.CreatingPool(context.Background(), pool)
 		if err == nil {
 			tt.Errorf("Expected error, got nil")
 		}
@@ -281,7 +282,7 @@ func TestSavePoolWithVsaClusterDetails(t *testing.T) {
 			OntapVersion: "9.10.1",
 		}
 
-		err = store.SavePoolWithVsaClusterDetails(context.Background(), pool.Name, account.Name, clusterDetails)
+		err = store.SavePoolWithVsaClusterDetails(context.Background(), pool, clusterDetails)
 		if err != nil {
 			tt.Errorf("Expected no error, got %v", err)
 		}
@@ -296,72 +297,6 @@ func TestSavePoolWithVsaClusterDetails(t *testing.T) {
 		}
 		if updatedPool.ClusterDetails.OntapVersion != clusterDetails.OntapVersion {
 			tt.Errorf("Expected ONTAP version %v, got %v", clusterDetails.OntapVersion, updatedPool.ClusterDetails.OntapVersion)
-		}
-	})
-
-	t.Run("WhenAccountDoesNotExist", func(tt *testing.T) {
-		db, err := SetupTestDB()
-		if err != nil {
-			tt.Fatalf("Failed to set up test database: %v", err)
-		}
-		wrapper := gormwrapper.New(db)
-		store := NewDataStoreRepository(wrapper)
-
-		err = ClearInMemoryDB(store.db.GORM())
-		if err != nil {
-			tt.Fatalf("Failed to clean up test database: %v", err)
-		}
-
-		clusterDetails := &datamodel.ClusterDetails{
-			ExternalName: "test-cluster",
-			OntapVersion: "9.10.1",
-		}
-
-		err = store.SavePoolWithVsaClusterDetails(context.Background(), "test_pool", "non-existent-account", clusterDetails)
-		if err == nil {
-			tt.Errorf("Expected error, got nil")
-		}
-		if err.Error() != "pool not found" {
-			tt.Errorf("Expected error 'pool not found', got %v", err)
-		}
-	})
-
-	t.Run("WhenPoolDoesNotExist", func(tt *testing.T) {
-		db, err := SetupTestDB()
-		if err != nil {
-			tt.Fatalf("Failed to set up test database: %v", err)
-		}
-		wrapper := gormwrapper.New(db)
-		store := NewDataStoreRepository(wrapper)
-
-		err = ClearInMemoryDB(store.db.GORM())
-		if err != nil {
-			tt.Fatalf("Failed to clean up test database: %v", err)
-		}
-
-		account := &datamodel.Account{
-			BaseModel: datamodel.BaseModel{
-				ID:   1,
-				UUID: "test-account-uuid",
-			},
-			Name: "test_account",
-		}
-		err = store.db.Create(account).Error()
-		if err != nil {
-			tt.Fatalf("Failed to create account: %v", err)
-		}
-
-		clusterDetails := &datamodel.ClusterDetails{
-			ExternalName: "test-cluster",
-			OntapVersion: "9.10.1",
-		}
-
-		err = store.SavePoolWithVsaClusterDetails(context.Background(), "non-existent-pool", account.Name, clusterDetails)
-		if err == nil {
-			tt.Errorf("Expected error, got nil")
-		}
-		if err.Error() != "pool not found" {
-			tt.Errorf("Expected error 'pool not found', got %v", err)
 		}
 	})
 }

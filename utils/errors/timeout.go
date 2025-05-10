@@ -23,8 +23,8 @@ func IsTimeoutErr(err error) bool {
 	return is
 }
 
-// ConvertToTimeoutErrorIfIOtimeout converts error to timeout error if error is IOtimeout
-func ConvertToTimeoutErrorIfIOtimeout(err error, module string) error {
+// ConvertToTimeoutErrrIfIOtimeout converts error to timeout error if error is IOtimeout
+func ConvertToTimeoutErrrIfIOtimeout(err error, module string) error {
 	if err != nil && (strings.Contains(err.Error(), "i/o timeout") || strings.Contains(err.Error(), "context deadline exceeded")) {
 		if module == "" {
 			return NewTimeoutErr("i/o timeout")

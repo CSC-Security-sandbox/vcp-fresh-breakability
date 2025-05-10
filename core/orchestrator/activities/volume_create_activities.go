@@ -110,7 +110,7 @@ func (a *VolumeCreateActivity) UpdateVolumeDetails(ctx context.Context, volume *
 	se := *a.SE
 
 	volume.VolumeAttributes.ExternalUUID = volCreateResponse.ExternalUUID
-	volume.State = models.LifeCycleStateAvailable
+	volume.State = models.LifeCycleStateREADY
 	volume.StateDetails = models.LifeCycleStateAvailableDetails
 
 	if err := se.UpdateVolume(ctx, volume); err != nil {
