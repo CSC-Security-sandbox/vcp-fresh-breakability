@@ -2,6 +2,7 @@ package api
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 
 	"github.com/go-faster/jx"
@@ -60,13 +61,13 @@ func (h Handler) V1betaDescribeOperation(ctx context.Context, params gcpgenserve
 			return &gcpgenserver.OperationV1beta{
 				Name:     gcpgenserver.NewOptString(fmt.Sprintf("/v1beta/projects/%s/locations/%s/operations/%s", params.ProjectNumber, params.LocationId, params.OperationId)),
 				Done:     gcpgenserver.NewOptBool(jobNotFinished),
-				Response: jx.Raw(jobNewStateDetails),
+				Response: encodeOperationV1Beta(jobNewStateDetails),
 			}, nil
 		case models.JobsStatePROCESSING:
 			return &gcpgenserver.OperationV1beta{
 				Done:     gcpgenserver.NewOptBool(jobNotFinished),
 				Name:     gcpgenserver.NewOptString(fmt.Sprintf("/v1beta/projects/%s/locations/%s/operations/%s", params.ProjectNumber, params.LocationId, params.OperationId)),
-				Response: jx.Raw(jobInProgressDetails),
+				Response: encodeOperationV1Beta(jobInProgressDetails),
 			}, nil
 		case models.JobsStateDONE:
 			return &gcpgenserver.OperationV1beta{
@@ -93,4 +94,9 @@ func convertOperationToOperationV1Beta(op *cvpmodels.OperationV1beta) *gcpgenser
 		Name: gcpgenserver.NewOptString(op.Name),
 		Done: gcpgenserver.NewOptBool(*op.Done),
 	}
+}
+
+func encodeOperationV1Beta(res interface{}) jx.Raw {
+	data, _ := json.Marshal(res)
+	return data
 }
