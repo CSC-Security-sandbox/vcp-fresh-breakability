@@ -29,18 +29,10 @@ build:
       requires:
         - image: base
           alias: BASE
-    - image: ghcr.io/vcp-vsa-control-plane/workflow-server
-      context: .
-      docker:
-        dockerfile: workflow-server/Dockerfile
-      requires:
-        - image: base
-          alias: BASE
 manifests:
   rawYaml:
     - google-proxy/kubernetes/*
     - core/kubernetes/*
-    - workflow-server/kubernetes/*
 portForward:
   - resourceType: deployment
     resourceName: google-proxy
@@ -50,10 +42,6 @@ portForward:
     resourceName: core-service
     port: 8080    
     localPort: 9001
-  - resourceType: deployment
-    resourceName: workflow-server
-    port: 50051
-    localPort: 9003
 profiles:
   - name: gcb
     build:

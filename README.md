@@ -37,9 +37,7 @@ The code is organized into the following directories:
 ├── workflow-executor -  This directory contains the code for the Workflow Executor.
 │   ├── starter 
 │   └── worker 
-└── workflow-server - This directory contains the code for the Workflow Server.
-    ├── config
-    └── kubernetes
+└── workflow-engine - This directory contains the code for the workflow client integration.
 ```
 #### Running the code
 

@@ -13,8 +13,6 @@ dependencies:
     version: 25044.0.0-dev.6
     condition:
       core.enabled
-  - name: workflow-server
-    version: 25044.0.0-dev.6
   - name: google-proxy
     version: 25044.0.0-dev.6
     condition:

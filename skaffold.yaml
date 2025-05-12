@@ -16,15 +16,6 @@ build:
       requires:
         - image: base
           alias: BASE
-#    - image: firestore-emulator
-#      context: .
-#    - image: workflow-server
-#      context: .
-#      docker:
-#        dockerfile: workflow-server/Dockerfile
-#      requires:
-#        - image: base
-#          alias: BASE
     - image: base
       context: .
       docker:
@@ -34,7 +25,6 @@ manifests:
     - google-proxy/kubernetes/*
     - core/kubernetes/*
     - postgres/kubernetes/*
-#    - workflow-server/kubernetes/*
   helm:
     releases:
       - name: local-temporal
@@ -57,10 +47,6 @@ portForward:
     resourceName: postgres
     port: 5432
     localPort: 5432
-#  - resourceType: deployment
-#    resourceName: workflow-server
-#    port: 50051
-#    localPort: 9003
   - resourceType: service
     resourceName: local-temporal-web
     namespace: default
