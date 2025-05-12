@@ -34,3 +34,4 @@ vendor/
 # Build directories
 bin/
 build/
+/kubernetes/charts/*.tgz
