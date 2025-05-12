@@ -14,8 +14,9 @@ import (
 )
 
 var (
-	updateVolumeState = _updateVolumeState
-	deleteVolume      = _deleteVolume
+	updateVolumeState  = _updateVolumeState
+	deleteVolume       = _deleteVolume
+	getMultipleVolumes = _getMultipleVolumes
 )
 
 func (d *DataStoreRepository) CreateVolume(ctx context.Context, volume *datamodel.Volume) (*datamodel.Volume, error) {
@@ -163,4 +164,17 @@ func (d *DataStoreRepository) GetVolumeCountByPoolID(ctx context.Context, poolID
 		return 0, err
 	}
 	return count, nil
+}
+
+func (d *DataStoreRepository) GetMultipleVolumes(ctx context.Context, conditions [][]interface{}) ([]*datamodel.Volume, error) {
+	return getMultipleVolumes(d.db.ApplyFilter(conditions).GORM().WithContext(ctx))
+}
+
+func _getMultipleVolumes(db *gorm.DB) ([]*datamodel.Volume, error) {
+	var volumes []*datamodel.Volume
+	err := db.Preload("Account").Preload("Pool").Preload("Svm").Find(&volumes).Error
+	if err != nil {
+		return nil, err
+	}
+	return volumes, nil
 }

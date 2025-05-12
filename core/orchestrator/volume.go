@@ -321,3 +321,29 @@ func (o *Orchestrator) DeleteVolume(ctx context.Context, volumeId string) (*mode
 	volume.StateDetails = models.LifeCycleStateDeletingDetails
 	return convertDatastoreVolumeToModel(volume, nil), createdJob.UUID, nil
 }
+
+func (o *Orchestrator) GetMultipleVolumes(ctx context.Context, volumeIds []string, accountName string) ([]*models.Volume, error) {
+	se := o.storage
+
+	account, err := getOrCreateAccount(ctx, se, accountName)
+	if err != nil {
+		return nil, err
+	}
+
+	conditions := [][]interface{}{{"account_id = ?", account.ID}}
+	conditions = append(conditions, []interface{}{"uuid in ?", volumeIds})
+	volumes, err := se.GetMultipleVolumes(ctx, conditions)
+	if err != nil {
+		return nil, err
+	}
+
+	var result []*models.Volume
+	for _, volume := range volumes {
+		ipAddress, err := getIPAddressForVolume(ctx, se, volume)
+		if err != nil {
+			return nil, err
+		}
+		result = append(result, convertDatastoreVolumeToModel(volume, &ipAddress))
+	}
+	return result, nil
+}

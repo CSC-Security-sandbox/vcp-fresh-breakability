@@ -400,6 +400,10 @@ func (s *PersistenceStore) GetVolumeCountByPoolID(ctx context.Context, poolID in
 	return s.dataStore.GetVolumeCountByPoolID(ctx, poolID)
 }
 
+func (s *PersistenceStore) GetMultipleVolumes(ctx context.Context, conditions [][]interface{}) ([]*datamodel.Volume, error) {
+	return s.dataStore.GetMultipleVolumes(ctx, conditions)
+}
+
 func (s *PersistenceStore) GetAccount(ctx context.Context, name string) (*datamodel.Account, error) {
 	return s.dataStore.GetAccount(ctx, name)
 }
