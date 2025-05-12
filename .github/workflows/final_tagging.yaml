@@ -1,0 +1,56 @@
+name: Final Tagging Workflow
+on:
+  push:
+    paths:
+      - ../../cicd/release-cmd/promotional.yaml
+
+jobs:
+  final_tagging:
+    permissions:
+      contents: write
+      actions: read
+      packages: write
+
+    runs-on: [ self-hosted,linux ]
+    container:
+      image: ghcr.io/vcp-vsa-control-plane/vsacictl:v4
+      options: --user root
+
+    steps:
+      - name: Checkout codes
+        uses: actions/checkout@v2
+
+      - name: Set up Go
+        uses: actions/setup-go@v3
+        with:
+          go-version-file: go.mod
+
+      - name: Configure Git
+        run: |
+          USERNAME=${{ github.actor }}
+          echo "Fetching email for $USERNAME"
+          EMAIL=$(curl -s -H "Authorization: token ${{ secrets.GHVSA_PAT }}" https://api.github.com/users/$USERNAME | jq -r '.email')
+          if [ "$EMAIL" == "null" ]; then
+            EMAIL="$USERNAME@users.noreply.github.com"
+          fi
+          echo "Using email: $EMAIL"
+          echo "Using username: $USERNAME"
+          git config --global user.email "$EMAIL"
+          git config --global user.name "$USERNAME"
+
+        # TODO: use Github bot account here
+
+      - name: Run Promotional logic
+        id: promotional_logic_binary
+        run: go run main.go tag promotional
+        env:
+          GH_PAT: ${{ secrets.GHVSA_PAT }}
+
+      - name: Log in to the Container registry
+        run: |
+          echo "${{ secrets.GHVSA_PAT }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
+
+      - name: Build and push Docker images
+        run: skaffold build --filename=.github/scripts/skaffold_ci.yaml -t ${{ steps.promotional_logic_binary.outputs.FINAL_TAG }}
+
+
