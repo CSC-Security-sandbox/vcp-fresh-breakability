@@ -10,14 +10,14 @@ import (
 	"github.com/ogen-go/ogen/validate"
 )
 
-func (s *ActiveDirectoryIDListV1beta) Validate() error {
+func (s *ActiveDirectoryIdListV1beta) Validate() error {
 	if s == nil {
 		return validate.ErrNilPointer
 	}
 
 	var failures []validate.FieldError
 	if err := func() error {
-		if s.ActiveDirectoryUUIDs == nil {
+		if s.ActiveDirectoryUuids == nil {
 			return errors.New("nil is invalid value")
 		}
 		if err := (validate.Array{
@@ -25,11 +25,11 @@ func (s *ActiveDirectoryIDListV1beta) Validate() error {
 			MinLengthSet: true,
 			MaxLength:    0,
 			MaxLengthSet: false,
-		}).ValidateLength(len(s.ActiveDirectoryUUIDs)); err != nil {
+		}).ValidateLength(len(s.ActiveDirectoryUuids)); err != nil {
 			return errors.Wrap(err, "array")
 		}
 		var failures []validate.FieldError
-		for i, elem := range s.ActiveDirectoryUUIDs {
+		for i, elem := range s.ActiveDirectoryUuids {
 			if err := func() error {
 				if err := (validate.String{
 					MinLength:    0,
@@ -56,7 +56,7 @@ func (s *ActiveDirectoryIDListV1beta) Validate() error {
 		return nil
 	}(); err != nil {
 		failures = append(failures, validate.FieldError{
-			Name:  "activeDirectoryUUIDs",
+			Name:  "activeDirectoryUuids",
 			Error: err,
 		})
 	}
@@ -1172,14 +1172,14 @@ func (s BackupPolicyDetailsV1betaState) Validate() error {
 	}
 }
 
-func (s *BackupPolicyIDListV1beta) Validate() error {
+func (s *BackupPolicyIdListV1beta) Validate() error {
 	if s == nil {
 		return validate.ErrNilPointer
 	}
 
 	var failures []validate.FieldError
 	if err := func() error {
-		if s.BackupPolicyUUIDs == nil {
+		if s.BackupPolicyUuids == nil {
 			return errors.New("nil is invalid value")
 		}
 		if err := (validate.Array{
@@ -1187,11 +1187,11 @@ func (s *BackupPolicyIDListV1beta) Validate() error {
 			MinLengthSet: true,
 			MaxLength:    0,
 			MaxLengthSet: false,
-		}).ValidateLength(len(s.BackupPolicyUUIDs)); err != nil {
+		}).ValidateLength(len(s.BackupPolicyUuids)); err != nil {
 			return errors.Wrap(err, "array")
 		}
 		var failures []validate.FieldError
-		for i, elem := range s.BackupPolicyUUIDs {
+		for i, elem := range s.BackupPolicyUuids {
 			if err := func() error {
 				if err := (validate.String{
 					MinLength:    0,
@@ -1218,7 +1218,7 @@ func (s *BackupPolicyIDListV1beta) Validate() error {
 		return nil
 	}(); err != nil {
 		failures = append(failures, validate.FieldError{
-			Name:  "backupPolicyUUIDs",
+			Name:  "backupPolicyUuids",
 			Error: err,
 		})
 	}
@@ -1602,14 +1602,14 @@ func (s *BackupRetentionPolicyV1beta) Validate() error {
 	return nil
 }
 
-func (s *BackupUUIDListV1beta) Validate() error {
+func (s *BackupUuidListV1beta) Validate() error {
 	if s == nil {
 		return validate.ErrNilPointer
 	}
 
 	var failures []validate.FieldError
 	if err := func() error {
-		if s.BackupUUIDs == nil {
+		if s.BackupUuids == nil {
 			return errors.New("nil is invalid value")
 		}
 		if err := (validate.Array{
@@ -1617,11 +1617,11 @@ func (s *BackupUUIDListV1beta) Validate() error {
 			MinLengthSet: true,
 			MaxLength:    0,
 			MaxLengthSet: false,
-		}).ValidateLength(len(s.BackupUUIDs)); err != nil {
+		}).ValidateLength(len(s.BackupUuids)); err != nil {
 			return errors.Wrap(err, "array")
 		}
 		var failures []validate.FieldError
-		for i, elem := range s.BackupUUIDs {
+		for i, elem := range s.BackupUuids {
 			if err := func() error {
 				if err := (validate.String{
 					MinLength:    0,
@@ -1648,7 +1648,7 @@ func (s *BackupUUIDListV1beta) Validate() error {
 		return nil
 	}(); err != nil {
 		failures = append(failures, validate.FieldError{
-			Name:  "backupUUIDs",
+			Name:  "backupUuids",
 			Error: err,
 		})
 	}
@@ -1952,14 +1952,44 @@ func (s *BackupVaultCreateV1beta) Validate() error {
 	return nil
 }
 
-func (s *BackupVaultUUIDListV1beta) Validate() error {
+func (s *BackupVaultUpdateV1beta) Validate() error {
 	if s == nil {
 		return validate.ErrNilPointer
 	}
 
 	var failures []validate.FieldError
 	if err := func() error {
-		if s.BackupVaultUUIDs == nil {
+		if value, ok := s.BackupRetentionPolicy.Get(); ok {
+			if err := func() error {
+				if err := value.Validate(); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "backupRetentionPolicy",
+			Error: err,
+		})
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+	return nil
+}
+
+func (s *BackupVaultUuidListV1beta) Validate() error {
+	if s == nil {
+		return validate.ErrNilPointer
+	}
+
+	var failures []validate.FieldError
+	if err := func() error {
+		if s.BackupVaultUuids == nil {
 			return errors.New("nil is invalid value")
 		}
 		if err := (validate.Array{
@@ -1967,11 +1997,11 @@ func (s *BackupVaultUUIDListV1beta) Validate() error {
 			MinLengthSet: true,
 			MaxLength:    0,
 			MaxLengthSet: false,
-		}).ValidateLength(len(s.BackupVaultUUIDs)); err != nil {
+		}).ValidateLength(len(s.BackupVaultUuids)); err != nil {
 			return errors.Wrap(err, "array")
 		}
 		var failures []validate.FieldError
-		for i, elem := range s.BackupVaultUUIDs {
+		for i, elem := range s.BackupVaultUuids {
 			if err := func() error {
 				if err := (validate.String{
 					MinLength:    0,
@@ -1998,37 +2028,7 @@ func (s *BackupVaultUUIDListV1beta) Validate() error {
 		return nil
 	}(); err != nil {
 		failures = append(failures, validate.FieldError{
-			Name:  "backupVaultUUIDs",
-			Error: err,
-		})
-	}
-	if len(failures) > 0 {
-		return &validate.Error{Fields: failures}
-	}
-	return nil
-}
-
-func (s *BackupVaultUpdateV1beta) Validate() error {
-	if s == nil {
-		return validate.ErrNilPointer
-	}
-
-	var failures []validate.FieldError
-	if err := func() error {
-		if value, ok := s.BackupRetentionPolicy.Get(); ok {
-			if err := func() error {
-				if err := value.Validate(); err != nil {
-					return err
-				}
-				return nil
-			}(); err != nil {
-				return err
-			}
-		}
-		return nil
-	}(); err != nil {
-		failures = append(failures, validate.FieldError{
-			Name:  "backupRetentionPolicy",
+			Name:  "backupVaultUuids",
 			Error: err,
 		})
 	}
@@ -2996,7 +2996,7 @@ func (s *HostGroupIdListV1beta) Validate() error {
 
 	var failures []validate.FieldError
 	if err := func() error {
-		if s.HostGroupUUIDs == nil {
+		if s.HostGroupUuids == nil {
 			return errors.New("nil is invalid value")
 		}
 		if err := (validate.Array{
@@ -3004,11 +3004,11 @@ func (s *HostGroupIdListV1beta) Validate() error {
 			MinLengthSet: true,
 			MaxLength:    0,
 			MaxLengthSet: false,
-		}).ValidateLength(len(s.HostGroupUUIDs)); err != nil {
+		}).ValidateLength(len(s.HostGroupUuids)); err != nil {
 			return errors.Wrap(err, "array")
 		}
 		var failures []validate.FieldError
-		for i, elem := range s.HostGroupUUIDs {
+		for i, elem := range s.HostGroupUuids {
 			if err := func() error {
 				if err := (validate.String{
 					MinLength:    0,
@@ -3035,7 +3035,7 @@ func (s *HostGroupIdListV1beta) Validate() error {
 		return nil
 	}(); err != nil {
 		failures = append(failures, validate.FieldError{
-			Name:  "hostGroupUUIDs",
+			Name:  "hostGroupUuids",
 			Error: err,
 		})
 	}
@@ -3388,7 +3388,7 @@ func (s HybridReplicationParametersV1betaHybridReplicationType) Validate() error
 		return nil
 	case "CONTINUOUS_REPLICATION":
 		return nil
-	case "HYBRID_REPLICATION_TYPE_UNSPECIFIED":
+	case "HYBRId_REPLICATION_TYPE_UNSPECIFIED":
 		return nil
 	case "ONPREM_REPLICATION":
 		return nil
@@ -3993,14 +3993,14 @@ func (s *OperationV1beta) Validate() error {
 	return nil
 }
 
-func (s *PoolIDListV1beta) Validate() error {
+func (s *PoolIdListV1beta) Validate() error {
 	if s == nil {
 		return validate.ErrNilPointer
 	}
 
 	var failures []validate.FieldError
 	if err := func() error {
-		if s.PoolUUIDs == nil {
+		if s.PoolUuids == nil {
 			return errors.New("nil is invalid value")
 		}
 		if err := (validate.Array{
@@ -4008,11 +4008,11 @@ func (s *PoolIDListV1beta) Validate() error {
 			MinLengthSet: true,
 			MaxLength:    0,
 			MaxLengthSet: false,
-		}).ValidateLength(len(s.PoolUUIDs)); err != nil {
+		}).ValidateLength(len(s.PoolUuids)); err != nil {
 			return errors.Wrap(err, "array")
 		}
 		var failures []validate.FieldError
-		for i, elem := range s.PoolUUIDs {
+		for i, elem := range s.PoolUuids {
 			if err := func() error {
 				if err := (validate.String{
 					MinLength:    0,
@@ -4039,7 +4039,7 @@ func (s *PoolIDListV1beta) Validate() error {
 		return nil
 	}(); err != nil {
 		failures = append(failures, validate.FieldError{
-			Name:  "poolUUIDs",
+			Name:  "poolUuids",
 			Error: err,
 		})
 	}
@@ -4538,7 +4538,7 @@ func (s *PoolV1beta) Validate() error {
 		})
 	}
 	if err := func() error {
-		if value, ok := s.HostUUID.Get(); ok {
+		if value, ok := s.HostUuid.Get(); ok {
 			if err := func() error {
 				if err := (validate.String{
 					MinLength:    36,
@@ -4559,7 +4559,7 @@ func (s *PoolV1beta) Validate() error {
 		return nil
 	}(); err != nil {
 		failures = append(failures, validate.FieldError{
-			Name:  "hostUUID",
+			Name:  "hostUuid",
 			Error: err,
 		})
 	}
@@ -5235,7 +5235,7 @@ func (s *ReplicationV1beta) Validate() error {
 
 func (s ReplicationV1betaHybridReplicationType) Validate() error {
 	switch s {
-	case "HYBRID_REPLICATION_TYPE_UNSPECIFIED":
+	case "HYBRId_REPLICATION_TYPE_UNSPECIFIED":
 		return nil
 	case "MIGRATION":
 		return nil
@@ -5568,14 +5568,14 @@ func (s SimpleExportPolicyRuleV1betaHasRootAccess) Validate() error {
 	}
 }
 
-func (s *SnapshotIDListV1beta) Validate() error {
+func (s *SnapshotIdListV1beta) Validate() error {
 	if s == nil {
 		return validate.ErrNilPointer
 	}
 
 	var failures []validate.FieldError
 	if err := func() error {
-		if s.SnapshotUUIDs == nil {
+		if s.SnapshotUuids == nil {
 			return errors.New("nil is invalid value")
 		}
 		if err := (validate.Array{
@@ -5583,11 +5583,11 @@ func (s *SnapshotIDListV1beta) Validate() error {
 			MinLengthSet: true,
 			MaxLength:    0,
 			MaxLengthSet: false,
-		}).ValidateLength(len(s.SnapshotUUIDs)); err != nil {
+		}).ValidateLength(len(s.SnapshotUuids)); err != nil {
 			return errors.Wrap(err, "array")
 		}
 		var failures []validate.FieldError
-		for i, elem := range s.SnapshotUUIDs {
+		for i, elem := range s.SnapshotUuids {
 			if err := func() error {
 				if err := (validate.String{
 					MinLength:    0,
@@ -5614,7 +5614,7 @@ func (s *SnapshotIDListV1beta) Validate() error {
 		return nil
 	}(); err != nil {
 		failures = append(failures, validate.FieldError{
-			Name:  "snapshotUUIDs",
+			Name:  "snapshotUuids",
 			Error: err,
 		})
 	}
@@ -10566,14 +10566,14 @@ func (s VolumeCreateV1betaVolumeType) Validate() error {
 	}
 }
 
-func (s *VolumeIDListV1beta) Validate() error {
+func (s *VolumeIdListV1beta) Validate() error {
 	if s == nil {
 		return validate.ErrNilPointer
 	}
 
 	var failures []validate.FieldError
 	if err := func() error {
-		if s.VolumeUUIDs == nil {
+		if s.VolumeUuids == nil {
 			return errors.New("nil is invalid value")
 		}
 		if err := (validate.Array{
@@ -10581,11 +10581,11 @@ func (s *VolumeIDListV1beta) Validate() error {
 			MinLengthSet: true,
 			MaxLength:    0,
 			MaxLengthSet: false,
-		}).ValidateLength(len(s.VolumeUUIDs)); err != nil {
+		}).ValidateLength(len(s.VolumeUuids)); err != nil {
 			return errors.Wrap(err, "array")
 		}
 		var failures []validate.FieldError
-		for i, elem := range s.VolumeUUIDs {
+		for i, elem := range s.VolumeUuids {
 			if err := func() error {
 				if err := (validate.String{
 					MinLength:    0,
@@ -10612,7 +10612,7 @@ func (s *VolumeIDListV1beta) Validate() error {
 		return nil
 	}(); err != nil {
 		failures = append(failures, validate.FieldError{
-			Name:  "volumeUUIDs",
+			Name:  "volumeUuids",
 			Error: err,
 		})
 	}
@@ -10629,7 +10629,7 @@ func (s *VolumeReplicationCreateInternalV1beta) Validate() error {
 
 	var failures []validate.FieldError
 	if err := func() error {
-		if value, ok := s.VolumeReplicationUUID.Get(); ok {
+		if value, ok := s.VolumeReplicationUuid.Get(); ok {
 			if err := func() error {
 				if err := (validate.String{
 					MinLength:    36,
@@ -10650,7 +10650,7 @@ func (s *VolumeReplicationCreateInternalV1beta) Validate() error {
 		return nil
 	}(); err != nil {
 		failures = append(failures, validate.FieldError{
-			Name:  "volumeReplicationUUID",
+			Name:  "volumeReplicationUuid",
 			Error: err,
 		})
 	}
@@ -10834,7 +10834,7 @@ func (s *VolumeReplicationCreateInternalV1beta) Validate() error {
 		})
 	}
 	if err := func() error {
-		if value, ok := s.DestinationVolumeUUID.Get(); ok {
+		if value, ok := s.DestinationVolumeUuid.Get(); ok {
 			if err := func() error {
 				if err := (validate.String{
 					MinLength:    36,
@@ -10855,7 +10855,7 @@ func (s *VolumeReplicationCreateInternalV1beta) Validate() error {
 		return nil
 	}(); err != nil {
 		failures = append(failures, validate.FieldError{
-			Name:  "destinationVolumeUUID",
+			Name:  "destinationVolumeUuid",
 			Error: err,
 		})
 	}
@@ -11011,7 +11011,7 @@ func (s VolumeReplicationCreateInternalV1betaEndpointType) Validate() error {
 
 func (s VolumeReplicationCreateInternalV1betaHybridReplicationType) Validate() error {
 	switch s {
-	case "HYBRID_REPLICATION_TYPE_UNSPECIFIED":
+	case "HYBRId_REPLICATION_TYPE_UNSPECIFIED":
 		return nil
 	case "MIGRATION":
 		return nil
@@ -11104,7 +11104,7 @@ func (s *VolumeReplicationInternalV1beta) Validate() error {
 
 	var failures []validate.FieldError
 	if err := func() error {
-		if value, ok := s.VolumeReplicationUUID.Get(); ok {
+		if value, ok := s.VolumeReplicationUuid.Get(); ok {
 			if err := func() error {
 				if err := (validate.String{
 					MinLength:    36,
@@ -11125,7 +11125,7 @@ func (s *VolumeReplicationInternalV1beta) Validate() error {
 		return nil
 	}(); err != nil {
 		failures = append(failures, validate.FieldError{
-			Name:  "volumeReplicationUUID",
+			Name:  "volumeReplicationUuid",
 			Error: err,
 		})
 	}
@@ -11309,7 +11309,7 @@ func (s *VolumeReplicationInternalV1beta) Validate() error {
 		})
 	}
 	if err := func() error {
-		if value, ok := s.DestinationVolumeUUID.Get(); ok {
+		if value, ok := s.DestinationVolumeUuid.Get(); ok {
 			if err := func() error {
 				if err := (validate.String{
 					MinLength:    36,
@@ -11330,7 +11330,7 @@ func (s *VolumeReplicationInternalV1beta) Validate() error {
 		return nil
 	}(); err != nil {
 		failures = append(failures, validate.FieldError{
-			Name:  "destinationVolumeUUID",
+			Name:  "destinationVolumeUuid",
 			Error: err,
 		})
 	}
@@ -11486,7 +11486,7 @@ func (s VolumeReplicationInternalV1betaEndpointType) Validate() error {
 
 func (s VolumeReplicationInternalV1betaHybridReplicationType) Validate() error {
 	switch s {
-	case "HYBRID_REPLICATION_TYPE_UNSPECIFIED":
+	case "HYBRId_REPLICATION_TYPE_UNSPECIFIED":
 		return nil
 	case "MIGRATION":
 		return nil

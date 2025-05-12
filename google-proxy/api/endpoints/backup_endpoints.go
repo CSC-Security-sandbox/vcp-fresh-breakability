@@ -9,13 +9,13 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/nillable"
 )
 
-func (h Handler) V1betaGetMultipleBackups(ctx context.Context, req *gcpgenserver.BackupUUIDListV1beta, params gcpgenserver.V1betaGetMultipleBackupsParams) (gcpgenserver.V1betaGetMultipleBackupsRes, error) {
+func (h Handler) V1betaGetMultipleBackups(ctx context.Context, req *gcpgenserver.BackupUuidListV1beta, params gcpgenserver.V1betaGetMultipleBackupsParams) (gcpgenserver.V1betaGetMultipleBackupsRes, error) {
 	logger := utils.GetLoggerFromContext(ctx)
 	jwtToken := utils.GetJWTTokenFromContext(ctx)
 	cvpClient := createClient(logger, jwtToken)
 
 	var backupUUIDs []string
-	backupUUIDs = append(backupUUIDs, req.BackupUUIDs...)
+	backupUUIDs = append(backupUUIDs, req.BackupUuids...)
 
 	body := &models.BackupUUIDListV1beta{
 		BackupUUIDs: backupUUIDs,

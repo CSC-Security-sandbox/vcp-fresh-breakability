@@ -64,7 +64,7 @@ type Handler interface {
 	V1betaCreateReplication(ctx context.Context, req *ReplicationCreateV1beta, params V1betaCreateReplicationParams) (V1betaCreateReplicationRes, error)
 	// V1betaCreateVolume implements v1beta_createVolume operation.
 	//
-	// Create a new empty volume or a volume from a backup/snapshot if backup-ID/snapshot-ID is in the
+	// Create a new empty volume or a volume from a backup/snapshot if backup-Id/snapshot-Id is in the
 	// body parameters.
 	//
 	// POST /v1beta/projects/{projectNumber}/locations/{locationId}/volumes
@@ -125,13 +125,13 @@ type Handler interface {
 	V1betaDeleteVolume(ctx context.Context, req OptV1betaDeleteVolumeReq, params V1betaDeleteVolumeParams) (V1betaDeleteVolumeRes, error)
 	// V1betaDescribeActiveDirectory implements v1beta_describeActiveDirectory operation.
 	//
-	// Returns the description of the specified Active Directory credentials by active-directory ID.
+	// Returns the description of the specified Active Directory credentials by active-directory Id.
 	//
 	// GET /v1beta/projects/{projectNumber}/locations/{locationId}/activeDirectories/{activeDirectoryId}
 	V1betaDescribeActiveDirectory(ctx context.Context, params V1betaDescribeActiveDirectoryParams) (V1betaDescribeActiveDirectoryRes, error)
 	// V1betaDescribeBackupPolicy implements v1beta_describeBackupPolicy operation.
 	//
-	// Returns the description of the specified backup policy by backup policy ID.
+	// Returns the description of the specified backup policy by backup policy Id.
 	//
 	// GET /v1beta/projects/{projectNumber}/locations/{locationId}/backupPolicies/{backupPolicyId}
 	V1betaDescribeBackupPolicy(ctx context.Context, params V1betaDescribeBackupPolicyParams) (V1betaDescribeBackupPolicyRes, error)
@@ -149,7 +149,7 @@ type Handler interface {
 	V1betaDescribeHostGroup(ctx context.Context, params V1betaDescribeHostGroupParams) (V1betaDescribeHostGroupRes, error)
 	// V1betaDescribeKmsConfiguration implements v1beta_describeKmsConfiguration operation.
 	//
-	// Returns the description of a KMS configuration specified by KMS configuration ID.
+	// Returns the description of a KMS configuration specified by KMS configuration Id.
 	//
 	// GET /v1beta/projects/{projectNumber}/locations/{locationId}/storage/kmsConfig/{kmsConfigId}
 	V1betaDescribeKmsConfiguration(ctx context.Context, params V1betaDescribeKmsConfigurationParams) (V1betaDescribeKmsConfigurationRes, error)
@@ -161,13 +161,13 @@ type Handler interface {
 	V1betaDescribeOperation(ctx context.Context, params V1betaDescribeOperationParams) (V1betaDescribeOperationRes, error)
 	// V1betaDescribePool implements v1beta_describePool operation.
 	//
-	// Returns the description of the specified pool by pool ID.
+	// Returns the description of the specified pool by pool Id.
 	//
 	// GET /v1beta/projects/{projectNumber}/locations/{locationId}/pools/{poolId}
 	V1betaDescribePool(ctx context.Context, params V1betaDescribePoolParams) (V1betaDescribePoolRes, error)
 	// V1betaDescribeVolume implements v1beta_describeVolume operation.
 	//
-	// Returns the description of the specified volume by volume ID.
+	// Returns the description of the specified volume by volume Id.
 	//
 	// GET /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}
 	V1betaDescribeVolume(ctx context.Context, params V1betaDescribeVolumeParams) (V1betaDescribeVolumeRes, error)
@@ -176,25 +176,25 @@ type Handler interface {
 	// Returns descriptions of Active Directory credentials that is listed in request body.
 	//
 	// POST /v1beta/projects/{projectNumber}/locations/{locationId}/getMultipleActiveDirectories
-	V1betaGetMultipleActiveDirectories(ctx context.Context, req *ActiveDirectoryIDListV1beta, params V1betaGetMultipleActiveDirectoriesParams) (V1betaGetMultipleActiveDirectoriesRes, error)
+	V1betaGetMultipleActiveDirectories(ctx context.Context, req *ActiveDirectoryIdListV1beta, params V1betaGetMultipleActiveDirectoriesParams) (V1betaGetMultipleActiveDirectoriesRes, error)
 	// V1betaGetMultipleBackupPolicies implements v1beta_getMultipleBackupPolicies operation.
 	//
 	// Returns descriptions of backup policies that is listed in request body.
 	//
 	// POST /v1beta/projects/{projectNumber}/locations/{locationId}/getMultipleBackupPolicies
-	V1betaGetMultipleBackupPolicies(ctx context.Context, req *BackupPolicyIDListV1beta, params V1betaGetMultipleBackupPoliciesParams) (V1betaGetMultipleBackupPoliciesRes, error)
+	V1betaGetMultipleBackupPolicies(ctx context.Context, req *BackupPolicyIdListV1beta, params V1betaGetMultipleBackupPoliciesParams) (V1betaGetMultipleBackupPoliciesRes, error)
 	// V1betaGetMultipleBackupVaults implements v1beta_getMultipleBackupVaults operation.
 	//
 	// Returns descriptions of backup vaults that is listed in request body.
 	//
 	// POST /v1beta/projects/{projectNumber}/locations/{locationId}/getMultipleBackupVaults
-	V1betaGetMultipleBackupVaults(ctx context.Context, req *BackupVaultUUIDListV1beta, params V1betaGetMultipleBackupVaultsParams) (V1betaGetMultipleBackupVaultsRes, error)
+	V1betaGetMultipleBackupVaults(ctx context.Context, req *BackupVaultUuidListV1beta, params V1betaGetMultipleBackupVaultsParams) (V1betaGetMultipleBackupVaultsRes, error)
 	// V1betaGetMultipleBackups implements v1beta_getMultipleBackups operation.
 	//
 	// Returns descriptions of backups that is listed in request body.
 	//
 	// POST /v1beta/projects/{projectNumber}/locations/{locationId}/backupVaults/{backupVaultId}/getMultipleBackups
-	V1betaGetMultipleBackups(ctx context.Context, req *BackupUUIDListV1beta, params V1betaGetMultipleBackupsParams) (V1betaGetMultipleBackupsRes, error)
+	V1betaGetMultipleBackups(ctx context.Context, req *BackupUuidListV1beta, params V1betaGetMultipleBackupsParams) (V1betaGetMultipleBackupsRes, error)
 	// V1betaGetMultipleHostGroups implements v1beta_getMultipleHostGroups operation.
 	//
 	// Returns descriptions of HostGroups that are listed in request body.
@@ -206,7 +206,7 @@ type Handler interface {
 	// Returns descriptions of pools that is listed in request body.
 	//
 	// POST /v1beta/projects/{projectNumber}/locations/{locationId}/getMultiplePools
-	V1betaGetMultiplePools(ctx context.Context, req *PoolIDListV1beta, params V1betaGetMultiplePoolsParams) (V1betaGetMultiplePoolsRes, error)
+	V1betaGetMultiplePools(ctx context.Context, req *PoolIdListV1beta, params V1betaGetMultiplePoolsParams) (V1betaGetMultiplePoolsRes, error)
 	// V1betaGetMultipleReplications implements v1beta_getMultipleReplications operation.
 	//
 	// Returns selected replication objects.
@@ -218,13 +218,13 @@ type Handler interface {
 	// Returns descriptions of snapshots that is listed in request body and belong to specified volume.
 	//
 	// POST /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeResourceId}/getMultipleSnapshots
-	V1betaGetMultipleSnapshots(ctx context.Context, req *SnapshotIDListV1beta, params V1betaGetMultipleSnapshotsParams) (V1betaGetMultipleSnapshotsRes, error)
+	V1betaGetMultipleSnapshots(ctx context.Context, req *SnapshotIdListV1beta, params V1betaGetMultipleSnapshotsParams) (V1betaGetMultipleSnapshotsRes, error)
 	// V1betaGetMultipleVolumes implements v1beta_getMultipleVolumes operation.
 	//
 	// Returns descriptions of volumes that is listed in request body.
 	//
 	// POST /v1beta/projects/{projectNumber}/locations/{locationId}/getMultipleVolumes
-	V1betaGetMultipleVolumes(ctx context.Context, req *VolumeIDListV1beta, params V1betaGetMultipleVolumesParams) (V1betaGetMultipleVolumesRes, error)
+	V1betaGetMultipleVolumes(ctx context.Context, req *VolumeIdListV1beta, params V1betaGetMultipleVolumesParams) (V1betaGetMultipleVolumesRes, error)
 	// V1betaInternalAuthorizeVolumeReplication implements v1beta_internalAuthorizeVolumeReplication operation.
 	//
 	// Authorize a volume replication on the source.
@@ -251,13 +251,13 @@ type Handler interface {
 	V1betaInternalDeleteVolumeReplication(ctx context.Context, params V1betaInternalDeleteVolumeReplicationParams) (V1betaInternalDeleteVolumeReplicationRes, error)
 	// V1betaInternalDescribePool implements v1beta_internalDescribePool operation.
 	//
-	// Returns the description of the specified volume replication by volume replication ID.
+	// Returns the description of the specified volume replication by volume replication Id.
 	//
 	// GET /v1beta/internal/projects/{projectNumber}/locations/{locationId}/pool/{poolName}
 	V1betaInternalDescribePool(ctx context.Context, params V1betaInternalDescribePoolParams) (V1betaInternalDescribePoolRes, error)
 	// V1betaInternalDescribeVolumeReplication implements v1beta_internalDescribeVolumeReplication operation.
 	//
-	// Returns the description of the specified volume replication by volume replication ID.
+	// Returns the description of the specified volume replication by volume replication Id.
 	//
 	// GET /v1beta/internal/projects/{projectNumber}/locations/{locationId}/volumeReplication/{volumeReplicationId}
 	V1betaInternalDescribeVolumeReplication(ctx context.Context, params V1betaInternalDescribeVolumeReplicationParams) (V1betaInternalDescribeVolumeReplicationRes, error)

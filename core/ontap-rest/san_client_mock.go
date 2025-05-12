@@ -73,6 +73,122 @@ func (_c *MockSANClient_IGroupCreate_Call) RunAndReturn(run func(*IgroupCreatePa
 	return _c
 }
 
+// IGroupGet provides a mock function with given fields: params
+func (_m *MockSANClient) IGroupGet(params *IgroupGetParams) (*Igroup, error) {
+	ret := _m.Called(params)
+
+	if len(ret) == 0 {
+		panic("no return value specified for IGroupGet")
+	}
+
+	var r0 *Igroup
+	var r1 error
+	if rf, ok := ret.Get(0).(func(*IgroupGetParams) (*Igroup, error)); ok {
+		return rf(params)
+	}
+	if rf, ok := ret.Get(0).(func(*IgroupGetParams) *Igroup); ok {
+		r0 = rf(params)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*Igroup)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(*IgroupGetParams) error); ok {
+		r1 = rf(params)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockSANClient_IGroupGet_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'IGroupGet'
+type MockSANClient_IGroupGet_Call struct {
+	*mock.Call
+}
+
+// IGroupGet is a helper method to define mock.On call
+//   - params *IgroupGetParams
+func (_e *MockSANClient_Expecter) IGroupGet(params interface{}) *MockSANClient_IGroupGet_Call {
+	return &MockSANClient_IGroupGet_Call{Call: _e.mock.On("IGroupGet", params)}
+}
+
+func (_c *MockSANClient_IGroupGet_Call) Run(run func(params *IgroupGetParams)) *MockSANClient_IGroupGet_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(*IgroupGetParams))
+	})
+	return _c
+}
+
+func (_c *MockSANClient_IGroupGet_Call) Return(_a0 *Igroup, _a1 error) *MockSANClient_IGroupGet_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockSANClient_IGroupGet_Call) RunAndReturn(run func(*IgroupGetParams) (*Igroup, error)) *MockSANClient_IGroupGet_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// IGroupsGet provides a mock function with given fields: params
+func (_m *MockSANClient) IGroupsGet(params *IgroupGetParams) ([]*Igroup, error) {
+	ret := _m.Called(params)
+
+	if len(ret) == 0 {
+		panic("no return value specified for IGroupsGet")
+	}
+
+	var r0 []*Igroup
+	var r1 error
+	if rf, ok := ret.Get(0).(func(*IgroupGetParams) ([]*Igroup, error)); ok {
+		return rf(params)
+	}
+	if rf, ok := ret.Get(0).(func(*IgroupGetParams) []*Igroup); ok {
+		r0 = rf(params)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]*Igroup)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(*IgroupGetParams) error); ok {
+		r1 = rf(params)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockSANClient_IGroupsGet_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'IGroupsGet'
+type MockSANClient_IGroupsGet_Call struct {
+	*mock.Call
+}
+
+// IGroupsGet is a helper method to define mock.On call
+//   - params *IgroupGetParams
+func (_e *MockSANClient_Expecter) IGroupsGet(params interface{}) *MockSANClient_IGroupsGet_Call {
+	return &MockSANClient_IGroupsGet_Call{Call: _e.mock.On("IGroupsGet", params)}
+}
+
+func (_c *MockSANClient_IGroupsGet_Call) Run(run func(params *IgroupGetParams)) *MockSANClient_IGroupsGet_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(*IgroupGetParams))
+	})
+	return _c
+}
+
+func (_c *MockSANClient_IGroupsGet_Call) Return(_a0 []*Igroup, _a1 error) *MockSANClient_IGroupsGet_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockSANClient_IGroupsGet_Call) RunAndReturn(run func(*IgroupGetParams) ([]*Igroup, error)) *MockSANClient_IGroupsGet_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // IscsiServiceCreate provides a mock function with given fields: params
 func (_m *MockSANClient) IscsiServiceCreate(params *IscsiCreateParams) error {
 	ret := _m.Called(params)

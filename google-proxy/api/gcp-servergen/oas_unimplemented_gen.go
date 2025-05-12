@@ -96,7 +96,7 @@ func (UnimplementedHandler) V1betaCreateReplication(ctx context.Context, req *Re
 
 // V1betaCreateVolume implements v1beta_createVolume operation.
 //
-// Create a new empty volume or a volume from a backup/snapshot if backup-ID/snapshot-ID is in the
+// Create a new empty volume or a volume from a backup/snapshot if backup-Id/snapshot-Id is in the
 // body parameters.
 //
 // POST /v1beta/projects/{projectNumber}/locations/{locationId}/volumes
@@ -184,7 +184,7 @@ func (UnimplementedHandler) V1betaDeleteVolume(ctx context.Context, req OptV1bet
 
 // V1betaDescribeActiveDirectory implements v1beta_describeActiveDirectory operation.
 //
-// Returns the description of the specified Active Directory credentials by active-directory ID.
+// Returns the description of the specified Active Directory credentials by active-directory Id.
 //
 // GET /v1beta/projects/{projectNumber}/locations/{locationId}/activeDirectories/{activeDirectoryId}
 func (UnimplementedHandler) V1betaDescribeActiveDirectory(ctx context.Context, params V1betaDescribeActiveDirectoryParams) (r V1betaDescribeActiveDirectoryRes, _ error) {
@@ -193,7 +193,7 @@ func (UnimplementedHandler) V1betaDescribeActiveDirectory(ctx context.Context, p
 
 // V1betaDescribeBackupPolicy implements v1beta_describeBackupPolicy operation.
 //
-// Returns the description of the specified backup policy by backup policy ID.
+// Returns the description of the specified backup policy by backup policy Id.
 //
 // GET /v1beta/projects/{projectNumber}/locations/{locationId}/backupPolicies/{backupPolicyId}
 func (UnimplementedHandler) V1betaDescribeBackupPolicy(ctx context.Context, params V1betaDescribeBackupPolicyParams) (r V1betaDescribeBackupPolicyRes, _ error) {
@@ -220,7 +220,7 @@ func (UnimplementedHandler) V1betaDescribeHostGroup(ctx context.Context, params 
 
 // V1betaDescribeKmsConfiguration implements v1beta_describeKmsConfiguration operation.
 //
-// Returns the description of a KMS configuration specified by KMS configuration ID.
+// Returns the description of a KMS configuration specified by KMS configuration Id.
 //
 // GET /v1beta/projects/{projectNumber}/locations/{locationId}/storage/kmsConfig/{kmsConfigId}
 func (UnimplementedHandler) V1betaDescribeKmsConfiguration(ctx context.Context, params V1betaDescribeKmsConfigurationParams) (r V1betaDescribeKmsConfigurationRes, _ error) {
@@ -238,7 +238,7 @@ func (UnimplementedHandler) V1betaDescribeOperation(ctx context.Context, params 
 
 // V1betaDescribePool implements v1beta_describePool operation.
 //
-// Returns the description of the specified pool by pool ID.
+// Returns the description of the specified pool by pool Id.
 //
 // GET /v1beta/projects/{projectNumber}/locations/{locationId}/pools/{poolId}
 func (UnimplementedHandler) V1betaDescribePool(ctx context.Context, params V1betaDescribePoolParams) (r V1betaDescribePoolRes, _ error) {
@@ -247,7 +247,7 @@ func (UnimplementedHandler) V1betaDescribePool(ctx context.Context, params V1bet
 
 // V1betaDescribeVolume implements v1beta_describeVolume operation.
 //
-// Returns the description of the specified volume by volume ID.
+// Returns the description of the specified volume by volume Id.
 //
 // GET /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}
 func (UnimplementedHandler) V1betaDescribeVolume(ctx context.Context, params V1betaDescribeVolumeParams) (r V1betaDescribeVolumeRes, _ error) {
@@ -259,7 +259,7 @@ func (UnimplementedHandler) V1betaDescribeVolume(ctx context.Context, params V1b
 // Returns descriptions of Active Directory credentials that is listed in request body.
 //
 // POST /v1beta/projects/{projectNumber}/locations/{locationId}/getMultipleActiveDirectories
-func (UnimplementedHandler) V1betaGetMultipleActiveDirectories(ctx context.Context, req *ActiveDirectoryIDListV1beta, params V1betaGetMultipleActiveDirectoriesParams) (r V1betaGetMultipleActiveDirectoriesRes, _ error) {
+func (UnimplementedHandler) V1betaGetMultipleActiveDirectories(ctx context.Context, req *ActiveDirectoryIdListV1beta, params V1betaGetMultipleActiveDirectoriesParams) (r V1betaGetMultipleActiveDirectoriesRes, _ error) {
 	return r, ht.ErrNotImplemented
 }
 
@@ -268,7 +268,7 @@ func (UnimplementedHandler) V1betaGetMultipleActiveDirectories(ctx context.Conte
 // Returns descriptions of backup policies that is listed in request body.
 //
 // POST /v1beta/projects/{projectNumber}/locations/{locationId}/getMultipleBackupPolicies
-func (UnimplementedHandler) V1betaGetMultipleBackupPolicies(ctx context.Context, req *BackupPolicyIDListV1beta, params V1betaGetMultipleBackupPoliciesParams) (r V1betaGetMultipleBackupPoliciesRes, _ error) {
+func (UnimplementedHandler) V1betaGetMultipleBackupPolicies(ctx context.Context, req *BackupPolicyIdListV1beta, params V1betaGetMultipleBackupPoliciesParams) (r V1betaGetMultipleBackupPoliciesRes, _ error) {
 	return r, ht.ErrNotImplemented
 }
 
@@ -277,7 +277,7 @@ func (UnimplementedHandler) V1betaGetMultipleBackupPolicies(ctx context.Context,
 // Returns descriptions of backup vaults that is listed in request body.
 //
 // POST /v1beta/projects/{projectNumber}/locations/{locationId}/getMultipleBackupVaults
-func (UnimplementedHandler) V1betaGetMultipleBackupVaults(ctx context.Context, req *BackupVaultUUIDListV1beta, params V1betaGetMultipleBackupVaultsParams) (r V1betaGetMultipleBackupVaultsRes, _ error) {
+func (UnimplementedHandler) V1betaGetMultipleBackupVaults(ctx context.Context, req *BackupVaultUuidListV1beta, params V1betaGetMultipleBackupVaultsParams) (r V1betaGetMultipleBackupVaultsRes, _ error) {
 	return r, ht.ErrNotImplemented
 }
 
@@ -286,7 +286,7 @@ func (UnimplementedHandler) V1betaGetMultipleBackupVaults(ctx context.Context, r
 // Returns descriptions of backups that is listed in request body.
 //
 // POST /v1beta/projects/{projectNumber}/locations/{locationId}/backupVaults/{backupVaultId}/getMultipleBackups
-func (UnimplementedHandler) V1betaGetMultipleBackups(ctx context.Context, req *BackupUUIDListV1beta, params V1betaGetMultipleBackupsParams) (r V1betaGetMultipleBackupsRes, _ error) {
+func (UnimplementedHandler) V1betaGetMultipleBackups(ctx context.Context, req *BackupUuidListV1beta, params V1betaGetMultipleBackupsParams) (r V1betaGetMultipleBackupsRes, _ error) {
 	return r, ht.ErrNotImplemented
 }
 
@@ -304,7 +304,7 @@ func (UnimplementedHandler) V1betaGetMultipleHostGroups(ctx context.Context, req
 // Returns descriptions of pools that is listed in request body.
 //
 // POST /v1beta/projects/{projectNumber}/locations/{locationId}/getMultiplePools
-func (UnimplementedHandler) V1betaGetMultiplePools(ctx context.Context, req *PoolIDListV1beta, params V1betaGetMultiplePoolsParams) (r V1betaGetMultiplePoolsRes, _ error) {
+func (UnimplementedHandler) V1betaGetMultiplePools(ctx context.Context, req *PoolIdListV1beta, params V1betaGetMultiplePoolsParams) (r V1betaGetMultiplePoolsRes, _ error) {
 	return r, ht.ErrNotImplemented
 }
 
@@ -322,7 +322,7 @@ func (UnimplementedHandler) V1betaGetMultipleReplications(ctx context.Context, r
 // Returns descriptions of snapshots that is listed in request body and belong to specified volume.
 //
 // POST /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeResourceId}/getMultipleSnapshots
-func (UnimplementedHandler) V1betaGetMultipleSnapshots(ctx context.Context, req *SnapshotIDListV1beta, params V1betaGetMultipleSnapshotsParams) (r V1betaGetMultipleSnapshotsRes, _ error) {
+func (UnimplementedHandler) V1betaGetMultipleSnapshots(ctx context.Context, req *SnapshotIdListV1beta, params V1betaGetMultipleSnapshotsParams) (r V1betaGetMultipleSnapshotsRes, _ error) {
 	return r, ht.ErrNotImplemented
 }
 
@@ -331,7 +331,7 @@ func (UnimplementedHandler) V1betaGetMultipleSnapshots(ctx context.Context, req 
 // Returns descriptions of volumes that is listed in request body.
 //
 // POST /v1beta/projects/{projectNumber}/locations/{locationId}/getMultipleVolumes
-func (UnimplementedHandler) V1betaGetMultipleVolumes(ctx context.Context, req *VolumeIDListV1beta, params V1betaGetMultipleVolumesParams) (r V1betaGetMultipleVolumesRes, _ error) {
+func (UnimplementedHandler) V1betaGetMultipleVolumes(ctx context.Context, req *VolumeIdListV1beta, params V1betaGetMultipleVolumesParams) (r V1betaGetMultipleVolumesRes, _ error) {
 	return r, ht.ErrNotImplemented
 }
 
@@ -373,7 +373,7 @@ func (UnimplementedHandler) V1betaInternalDeleteVolumeReplication(ctx context.Co
 
 // V1betaInternalDescribePool implements v1beta_internalDescribePool operation.
 //
-// Returns the description of the specified volume replication by volume replication ID.
+// Returns the description of the specified volume replication by volume replication Id.
 //
 // GET /v1beta/internal/projects/{projectNumber}/locations/{locationId}/pool/{poolName}
 func (UnimplementedHandler) V1betaInternalDescribePool(ctx context.Context, params V1betaInternalDescribePoolParams) (r V1betaInternalDescribePoolRes, _ error) {
@@ -382,7 +382,7 @@ func (UnimplementedHandler) V1betaInternalDescribePool(ctx context.Context, para
 
 // V1betaInternalDescribeVolumeReplication implements v1beta_internalDescribeVolumeReplication operation.
 //
-// Returns the description of the specified volume replication by volume replication ID.
+// Returns the description of the specified volume replication by volume replication Id.
 //
 // GET /v1beta/internal/projects/{projectNumber}/locations/{locationId}/volumeReplication/{volumeReplicationId}
 func (UnimplementedHandler) V1betaInternalDescribeVolumeReplication(ctx context.Context, params V1betaInternalDescribeVolumeReplicationParams) (r V1betaInternalDescribeVolumeReplicationRes, _ error) {

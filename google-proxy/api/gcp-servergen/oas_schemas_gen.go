@@ -14,19 +14,19 @@ func (s *ErrorStatusCode) Error() string {
 	return fmt.Sprintf("code %d: %+v", s.StatusCode, s.Response)
 }
 
-// Ref: #/components/schemas/ActiveDirectoryIDList_v1beta
-type ActiveDirectoryIDListV1beta struct {
-	ActiveDirectoryUUIDs []string `json:"activeDirectoryUUIDs"`
+// Ref: #/components/schemas/ActiveDirectoryIdList_v1beta
+type ActiveDirectoryIdListV1beta struct {
+	ActiveDirectoryUuids []string `json:"activeDirectoryUuids"`
 }
 
-// GetActiveDirectoryUUIDs returns the value of ActiveDirectoryUUIDs.
-func (s *ActiveDirectoryIDListV1beta) GetActiveDirectoryUUIDs() []string {
-	return s.ActiveDirectoryUUIDs
+// GetActiveDirectoryUuids returns the value of ActiveDirectoryUuids.
+func (s *ActiveDirectoryIdListV1beta) GetActiveDirectoryUuids() []string {
+	return s.ActiveDirectoryUuids
 }
 
-// SetActiveDirectoryUUIDs sets the value of ActiveDirectoryUUIDs.
-func (s *ActiveDirectoryIDListV1beta) SetActiveDirectoryUUIDs(val []string) {
-	s.ActiveDirectoryUUIDs = val
+// SetActiveDirectoryUuids sets the value of ActiveDirectoryUuids.
+func (s *ActiveDirectoryIdListV1beta) SetActiveDirectoryUuids(val []string) {
+	s.ActiveDirectoryUuids = val
 }
 
 // Ref: #/components/schemas/ActiveDirectoryUpdate_v1beta
@@ -251,7 +251,7 @@ func (s *ActiveDirectoryUpdateV1beta) SetDescription(val OptString) {
 
 // Ref: #/components/schemas/ActiveDirectory_v1beta
 type ActiveDirectoryV1beta struct {
-	// UUID v4 used to identify the Active Directory credentials.
+	// Uuid v4 used to identify the Active Directory credentials.
 	ActiveDirectoryId OptString `json:"activeDirectoryId"`
 	// Username of the Active Directory domain administrator.
 	Username string `json:"username"`
@@ -679,9 +679,9 @@ func (s *AssetLocationMetadataV2) SetChildAssets(val []ChildAssetV2) {
 // Volume backup properties.
 // Ref: #/components/schemas/BackupConfig_v1beta
 type BackupConfigV1beta struct {
-	// Backup policy resource ID.
+	// Backup policy resource Id.
 	BackupPolicyId OptNilString `json:"backupPolicyId"`
-	// Backup vault resource ID.
+	// Backup vault resource Id.
 	BackupVaultId OptNilString `json:"backupVaultId"`
 	// Indicates whether policy is enable or disabled on the volume.
 	ScheduledBackupEnabled OptNilBool `json:"scheduledBackupEnabled"`
@@ -815,7 +815,7 @@ type BackupPolicyDetailsV1beta struct {
 	// A human readable label for the resource which is restricted to letters, numbers, and hyphen, with
 	// the first character a letter, the last a letter or a number, and a 63 character maximum.
 	ResourceId string `json:"resourceId"`
-	// UUID v4 used to identify the backup policy.
+	// Uuid v4 used to identify the backup policy.
 	BackupPolicyId OptString `json:"backupPolicyId"`
 	// If enabled, backup policy will be available for any volume to use.
 	Enabled bool `json:"enabled"`
@@ -1028,19 +1028,19 @@ func (s *BackupPolicyDetailsV1betaState) UnmarshalText(data []byte) error {
 	}
 }
 
-// Ref: #/components/schemas/BackupPolicyIDList_v1beta
-type BackupPolicyIDListV1beta struct {
-	BackupPolicyUUIDs []string `json:"backupPolicyUUIDs"`
+// Ref: #/components/schemas/BackupPolicyIdList_v1beta
+type BackupPolicyIdListV1beta struct {
+	BackupPolicyUuids []string `json:"backupPolicyUuids"`
 }
 
-// GetBackupPolicyUUIDs returns the value of BackupPolicyUUIDs.
-func (s *BackupPolicyIDListV1beta) GetBackupPolicyUUIDs() []string {
-	return s.BackupPolicyUUIDs
+// GetBackupPolicyUuids returns the value of BackupPolicyUuids.
+func (s *BackupPolicyIdListV1beta) GetBackupPolicyUuids() []string {
+	return s.BackupPolicyUuids
 }
 
-// SetBackupPolicyUUIDs sets the value of BackupPolicyUUIDs.
-func (s *BackupPolicyIDListV1beta) SetBackupPolicyUUIDs(val []string) {
-	s.BackupPolicyUUIDs = val
+// SetBackupPolicyUuids sets the value of BackupPolicyUuids.
+func (s *BackupPolicyIdListV1beta) SetBackupPolicyUuids(val []string) {
+	s.BackupPolicyUuids = val
 }
 
 // Merged schema.
@@ -1116,7 +1116,7 @@ type BackupPolicyV1beta struct {
 	// A human readable label for the resource which is restricted to letters, numbers, and hyphen, with
 	// the first character a letter, the last a letter or a number, and a 63 character maximum.
 	ResourceId string `json:"resourceId"`
-	// UUID v4 used to identify the backup policy.
+	// Uuid v4 used to identify the backup policy.
 	BackupPolicyId OptString `json:"backupPolicyId"`
 	// If enabled, backup policy will be available for any volume to use.
 	Enabled bool `json:"enabled"`
@@ -1444,19 +1444,19 @@ func (s *BackupRetentionPolicyV1beta) SetManualBackupImmutable(val OptBool) {
 	s.ManualBackupImmutable = val
 }
 
-// Ref: #/components/schemas/BackupUUIDList_v1beta
-type BackupUUIDListV1beta struct {
-	BackupUUIDs []string `json:"backupUUIDs"`
+// Ref: #/components/schemas/BackupUuidList_v1beta
+type BackupUuidListV1beta struct {
+	BackupUuids []string `json:"backupUuids"`
 }
 
-// GetBackupUUIDs returns the value of BackupUUIDs.
-func (s *BackupUUIDListV1beta) GetBackupUUIDs() []string {
-	return s.BackupUUIDs
+// GetBackupUuids returns the value of BackupUuids.
+func (s *BackupUuidListV1beta) GetBackupUuids() []string {
+	return s.BackupUuids
 }
 
-// SetBackupUUIDs sets the value of BackupUUIDs.
-func (s *BackupUUIDListV1beta) SetBackupUUIDs(val []string) {
-	s.BackupUUIDs = val
+// SetBackupUuids sets the value of BackupUuids.
+func (s *BackupUuidListV1beta) SetBackupUuids(val []string) {
+	s.BackupUuids = val
 }
 
 // Ref: #/components/schemas/Backup_v1beta
@@ -1464,7 +1464,7 @@ type BackupV1beta struct {
 	// A human readable label for the resource which is restricted to letters, numbers, and hyphen, with
 	// the first character a letter, the last a letter or a number, and a 63 character maximum.
 	ResourceId OptString `json:"resourceId"`
-	// UUID v4 of the volume.
+	// Uuid v4 of the volume.
 	VolumeId OptString `json:"volumeId"`
 	// The current lifecycle state of the resource.
 	State OptBackupV1betaState `json:"state"`
@@ -1472,13 +1472,13 @@ type BackupV1beta struct {
 	Created OptDateTime `json:"created"`
 	// Backup enforced-retention end time.
 	EnforcedRetentionEndTime OptDateTime `json:"enforcedRetentionEndTime"`
-	// UUID v4 used to identify the backup.
+	// Uuid v4 used to identify the backup.
 	BackupId OptString `json:"backupId"`
 	// Current size for the backup in bytes.
 	VolumeUsageBytes OptInt64 `json:"volumeUsageBytes"`
 	// Display name of the volume.
 	SourceVolume OptString `json:"sourceVolume"`
-	// UUID v4 used to identify the backup vault ID.
+	// Uuid v4 used to identify the backup vault Id.
 	BackupVaultId OptString `json:"backupVaultId"`
 	// Description of the backup.
 	Description OptString `json:"description"`
@@ -1856,21 +1856,6 @@ func (s *BackupVaultCreateV1beta) SetBackupRetentionPolicy(val OptBackupRetentio
 	s.BackupRetentionPolicy = val
 }
 
-// Ref: #/components/schemas/BackupVaultUUIDList_v1beta
-type BackupVaultUUIDListV1beta struct {
-	BackupVaultUUIDs []string `json:"backupVaultUUIDs"`
-}
-
-// GetBackupVaultUUIDs returns the value of BackupVaultUUIDs.
-func (s *BackupVaultUUIDListV1beta) GetBackupVaultUUIDs() []string {
-	return s.BackupVaultUUIDs
-}
-
-// SetBackupVaultUUIDs sets the value of BackupVaultUUIDs.
-func (s *BackupVaultUUIDListV1beta) SetBackupVaultUUIDs(val []string) {
-	s.BackupVaultUUIDs = val
-}
-
 // Ref: #/components/schemas/BackupVaultUpdate_v1beta
 type BackupVaultUpdateV1beta struct {
 	// Description of the resource.
@@ -1898,9 +1883,24 @@ func (s *BackupVaultUpdateV1beta) SetBackupRetentionPolicy(val OptBackupRetentio
 	s.BackupRetentionPolicy = val
 }
 
+// Ref: #/components/schemas/BackupVaultUuidList_v1beta
+type BackupVaultUuidListV1beta struct {
+	BackupVaultUuids []string `json:"backupVaultUuids"`
+}
+
+// GetBackupVaultUuids returns the value of BackupVaultUuids.
+func (s *BackupVaultUuidListV1beta) GetBackupVaultUuids() []string {
+	return s.BackupVaultUuids
+}
+
+// SetBackupVaultUuids sets the value of BackupVaultUuids.
+func (s *BackupVaultUuidListV1beta) SetBackupVaultUuids(val []string) {
+	s.BackupVaultUuids = val
+}
+
 // Ref: #/components/schemas/BackupVault_v1beta
 type BackupVaultV1beta struct {
-	// UUID v4 used to identify the ID of the resource.
+	// Uuid v4 used to identify the Id of the resource.
 	BackupVaultId OptString `json:"backupVaultId"`
 	// Human readable name of the backup vault.
 	ResourceId string `json:"resourceId"`
@@ -2181,7 +2181,7 @@ func (s *BackupVaultV1betaState) UnmarshalText(data []byte) error {
 // Ref: #/components/schemas/BlockProperties_v1beta
 type BlockPropertiesV1beta struct {
 	OsType OptBlockPropertiesV1betaOsType `json:"osType"`
-	// List of UUID v4 used to identify the HostGroups. A volume can be mapped to multiple HostGroups as
+	// List of Uuid v4 used to identify the HostGroups. A volume can be mapped to multiple HostGroups as
 	// long as each HostGroup has a distinct set of hosts.
 	HostGroupIds []string `json:"hostGroupIds"`
 }
@@ -2318,7 +2318,7 @@ func (s *ChildAssetV2) SetAssetNames(val []string) {
 
 // Ref: #/components/schemas/ClusterPeer_v1
 type ClusterPeerV1 struct {
-	// UUID v4 used to identify a resource.
+	// Uuid v4 used to identify a resource.
 	UUID OptString `json:"uuid"`
 	// List of peer IPv4 addresses.
 	PeerAddresses []string `json:"peerAddresses"`
@@ -3035,17 +3035,17 @@ func (*Health) getHealthRes() {}
 
 // Ref: #/components/schemas/hostGroupIdList_v1beta
 type HostGroupIdListV1beta struct {
-	HostGroupUUIDs []string `json:"hostGroupUUIDs"`
+	HostGroupUuids []string `json:"hostGroupUuids"`
 }
 
-// GetHostGroupUUIDs returns the value of HostGroupUUIDs.
-func (s *HostGroupIdListV1beta) GetHostGroupUUIDs() []string {
-	return s.HostGroupUUIDs
+// GetHostGroupUuids returns the value of HostGroupUuids.
+func (s *HostGroupIdListV1beta) GetHostGroupUuids() []string {
+	return s.HostGroupUuids
 }
 
-// SetHostGroupUUIDs sets the value of HostGroupUUIDs.
-func (s *HostGroupIdListV1beta) SetHostGroupUUIDs(val []string) {
-	s.HostGroupUUIDs = val
+// SetHostGroupUuids sets the value of HostGroupUuids.
+func (s *HostGroupIdListV1beta) SetHostGroupUuids(val []string) {
+	s.HostGroupUuids = val
 }
 
 // Ref: #/components/schemas/HostGroupUpdate_v1beta
@@ -3078,7 +3078,7 @@ func (s *HostGroupUpdateV1beta) SetHosts(val []string) {
 
 // Ref: #/components/schemas/HostGroup_v1beta
 type HostGroupV1beta struct {
-	// UUID v4 used to identify the HostGroup.
+	// Uuid v4 used to identify the HostGroup.
 	HostGroupId OptString `json:"hostGroupId"`
 	// A human readable label for the HostGroup.
 	ResourceId string `json:"resourceId"`
@@ -3647,7 +3647,7 @@ type HybridReplicationParametersV1betaHybridReplicationType string
 const (
 	HybridReplicationParametersV1betaHybridReplicationTypeMIGRATION                        HybridReplicationParametersV1betaHybridReplicationType = "MIGRATION"
 	HybridReplicationParametersV1betaHybridReplicationTypeCONTINUOUSREPLICATION            HybridReplicationParametersV1betaHybridReplicationType = "CONTINUOUS_REPLICATION"
-	HybridReplicationParametersV1betaHybridReplicationTypeHYBRIDREPLICATIONTYPEUNSPECIFIED HybridReplicationParametersV1betaHybridReplicationType = "HYBRID_REPLICATION_TYPE_UNSPECIFIED"
+	HybridReplicationParametersV1betaHybridReplicationTypeHYBRIdREPLICATIONTYPEUNSPECIFIED HybridReplicationParametersV1betaHybridReplicationType = "HYBRId_REPLICATION_TYPE_UNSPECIFIED"
 	HybridReplicationParametersV1betaHybridReplicationTypeONPREMREPLICATION                HybridReplicationParametersV1betaHybridReplicationType = "ONPREM_REPLICATION"
 	HybridReplicationParametersV1betaHybridReplicationTypeREVERSEONPREMREPLICATION         HybridReplicationParametersV1betaHybridReplicationType = "REVERSE_ONPREM_REPLICATION"
 )
@@ -3657,7 +3657,7 @@ func (HybridReplicationParametersV1betaHybridReplicationType) AllValues() []Hybr
 	return []HybridReplicationParametersV1betaHybridReplicationType{
 		HybridReplicationParametersV1betaHybridReplicationTypeMIGRATION,
 		HybridReplicationParametersV1betaHybridReplicationTypeCONTINUOUSREPLICATION,
-		HybridReplicationParametersV1betaHybridReplicationTypeHYBRIDREPLICATIONTYPEUNSPECIFIED,
+		HybridReplicationParametersV1betaHybridReplicationTypeHYBRIdREPLICATIONTYPEUNSPECIFIED,
 		HybridReplicationParametersV1betaHybridReplicationTypeONPREMREPLICATION,
 		HybridReplicationParametersV1betaHybridReplicationTypeREVERSEONPREMREPLICATION,
 	}
@@ -3670,7 +3670,7 @@ func (s HybridReplicationParametersV1betaHybridReplicationType) MarshalText() ([
 		return []byte(s), nil
 	case HybridReplicationParametersV1betaHybridReplicationTypeCONTINUOUSREPLICATION:
 		return []byte(s), nil
-	case HybridReplicationParametersV1betaHybridReplicationTypeHYBRIDREPLICATIONTYPEUNSPECIFIED:
+	case HybridReplicationParametersV1betaHybridReplicationTypeHYBRIdREPLICATIONTYPEUNSPECIFIED:
 		return []byte(s), nil
 	case HybridReplicationParametersV1betaHybridReplicationTypeONPREMREPLICATION:
 		return []byte(s), nil
@@ -3690,8 +3690,8 @@ func (s *HybridReplicationParametersV1betaHybridReplicationType) UnmarshalText(d
 	case HybridReplicationParametersV1betaHybridReplicationTypeCONTINUOUSREPLICATION:
 		*s = HybridReplicationParametersV1betaHybridReplicationTypeCONTINUOUSREPLICATION
 		return nil
-	case HybridReplicationParametersV1betaHybridReplicationTypeHYBRIDREPLICATIONTYPEUNSPECIFIED:
-		*s = HybridReplicationParametersV1betaHybridReplicationTypeHYBRIDREPLICATIONTYPEUNSPECIFIED
+	case HybridReplicationParametersV1betaHybridReplicationTypeHYBRIdREPLICATIONTYPEUNSPECIFIED:
+		*s = HybridReplicationParametersV1betaHybridReplicationTypeHYBRIdREPLICATIONTYPEUNSPECIFIED
 		return nil
 	case HybridReplicationParametersV1betaHybridReplicationTypeONPREMREPLICATION:
 		*s = HybridReplicationParametersV1betaHybridReplicationTypeONPREMREPLICATION
@@ -3782,13 +3782,13 @@ func (s *HybridReplicationUserCommandsV1beta) SetCommands(val []string) {
 
 // Ref: #/components/schemas/Job_v1beta
 type JobV1beta struct {
-	// UUID v4 used to identify the job.
+	// Uuid v4 used to identify the job.
 	JobId OptString `json:"jobId"`
 	// Creation date of the resource.
 	Created OptDateTime `json:"created"`
-	// UUID v4 used to identify the worker performing the job.
+	// Uuid v4 used to identify the worker performing the job.
 	WorkerId OptString `json:"workerId"`
-	// UUID v4 used to identify the object to which the job relates.
+	// Uuid v4 used to identify the object to which the job relates.
 	ObjectId OptString `json:"objectId"`
 	// The type of the object to which the job relates.
 	ObjectType OptJobV1betaObjectType `json:"objectType"`
@@ -4143,11 +4143,11 @@ func (s *KmsConfigHealthCheckV1beta) SetInstructions(val OptString) {
 // Customer managed encryption key configuration.
 // Ref: #/components/schemas/KmsConfigUpdate_v1beta
 type KmsConfigUpdateV1beta struct {
-	// Includes key ring, key-ring location, key name and key project ID.
+	// Includes key ring, key-ring location, key name and key project Id.
 	KeyFullPath OptString `json:"keyFullPath"`
 	// Description of the KMS configuration.
 	Description OptString `json:"description"`
-	// Resource ID for KMS configuration.
+	// Resource Id for KMS configuration.
 	ResourceId OptString `json:"resourceId"`
 }
 
@@ -4184,11 +4184,11 @@ func (s *KmsConfigUpdateV1beta) SetResourceId(val OptString) {
 // Customer managed encryption key configuration.
 // Ref: #/components/schemas/KmsConfig_v1beta
 type KmsConfigV1beta struct {
-	// UUID v4 used to identify the KMS configuration.
+	// Uuid v4 used to identify the KMS configuration.
 	UUID OptString `json:"uuid"`
 	// Service account email which will have access to key through Google IAM policy.
 	ServiceAccountEmail OptString `json:"serviceAccountEmail"`
-	// Includes key ring, key-ring location, key-name and key project ID.
+	// Includes key ring, key-ring location, key-name and key project Id.
 	KeyFullPath string `json:"keyFullPath"`
 	// The current lifecycle state of the configuration.
 	KmsState OptKmsConfigV1betaKmsState `json:"kmsState"`
@@ -4204,7 +4204,7 @@ type KmsConfigV1beta struct {
 	DeletedTime OptDateTime `json:"deletedTime"`
 	// Instructions to provide the access to encryption key.
 	Instructions OptString `json:"instructions"`
-	// Resource ID for KMS configuration.
+	// Resource Id for KMS configuration.
 	ResourceId OptString `json:"resourceId"`
 }
 
@@ -9692,19 +9692,19 @@ func (o OptWeeklyScheduleV1beta) Or(d WeeklyScheduleV1beta) WeeklyScheduleV1beta
 	return d
 }
 
-// Ref: #/components/schemas/PoolIDList_v1beta
-type PoolIDListV1beta struct {
-	PoolUUIDs []string `json:"poolUUIDs"`
+// Ref: #/components/schemas/PoolIdList_v1beta
+type PoolIdListV1beta struct {
+	PoolUuids []string `json:"poolUuids"`
 }
 
-// GetPoolUUIDs returns the value of PoolUUIDs.
-func (s *PoolIDListV1beta) GetPoolUUIDs() []string {
-	return s.PoolUUIDs
+// GetPoolUuids returns the value of PoolUuids.
+func (s *PoolIdListV1beta) GetPoolUuids() []string {
+	return s.PoolUuids
 }
 
-// SetPoolUUIDs sets the value of PoolUUIDs.
-func (s *PoolIDListV1beta) SetPoolUUIDs(val []string) {
-	s.PoolUUIDs = val
+// SetPoolUuids sets the value of PoolUuids.
+func (s *PoolIdListV1beta) SetPoolUuids(val []string) {
+	s.PoolUuids = val
 }
 
 // Ref: #/components/schemas/PoolUpdate_v1beta
@@ -9719,7 +9719,7 @@ type PoolUpdateV1beta struct {
 	GlobalAccessAllowed OptNilBool `json:"globalAccessAllowed"`
 	// JSON dictionary of resource labels to allow linking of billing labels to a pool.
 	Labels OptPoolUpdateV1betaLabels `json:"labels"`
-	// UUID of Active Directory configuration.
+	// Uuid of Active Directory configuration.
 	ActiveDirectoryConfigId OptNilString `json:"activeDirectoryConfigId"`
 	// Flag indicating if the pool supports auto tiering enabled volumes or not.
 	AllowAutoTiering OptNilBool `json:"allowAutoTiering"`
@@ -9924,18 +9924,18 @@ func (s *PoolUpdateV1betaQosType) UnmarshalText(data []byte) error {
 
 // Ref: #/components/schemas/Pool_v1beta
 type PoolV1beta struct {
-	// UUID of Active Directory configuration.
+	// Uuid of Active Directory configuration.
 	ActiveDirectoryConfigId OptNilString `json:"activeDirectoryConfigId"`
-	// The resource ID for the connected Active Directory.
+	// The resource Id for the connected Active Directory.
 	ActiveDirectoryResourceId OptString `json:"activeDirectoryResourceId"`
-	// UUID of the key to be used for encryption.
+	// Uuid of the key to be used for encryption.
 	KmsConfigId OptNilString `json:"kmsConfigId"`
-	// The resource ID for the connected KMS configuration.
+	// The resource Id for the connected KMS configuration.
 	KmsConfigResourceId OptString `json:"kmsConfigResourceId"`
 	// Servicenetworking.connections.network value that is returned after creating a successful VPC
 	// peering connection via the GCP service-networking API.
 	Network string `json:"network"`
-	// UUID v4 used to identify the pool.
+	// Uuid v4 used to identify the pool.
 	PoolId OptString `json:"poolId"`
 	// A human readable label for the resource which is restricted to letters, numbers, and hyphen, with
 	// the first character a letter, the last a letter or a number, and a 63 character maximum.
@@ -9988,8 +9988,8 @@ type PoolV1beta struct {
 	// Flag indicating if the pool supports hot-tier resize on reaching the hot-tier threshold (not valid
 	// for FLEX).
 	EnableHotTierAutoResize OptNilBool `json:"enableHotTierAutoResize"`
-	// UUID v4 used to identify the host.
-	HostUUID OptString `json:"hostUUID"`
+	// Uuid v4 used to identify the host.
+	HostUuid OptString `json:"hostUuid"`
 	// Flag indicating if the pool satisfies zonal isolation.
 	SatisfiesPzi OptNilBool `json:"satisfies_pzi"`
 	// Flag indicating if the pool satisfies zonal separation.
@@ -10158,9 +10158,9 @@ func (s *PoolV1beta) GetEnableHotTierAutoResize() OptNilBool {
 	return s.EnableHotTierAutoResize
 }
 
-// GetHostUUID returns the value of HostUUID.
-func (s *PoolV1beta) GetHostUUID() OptString {
-	return s.HostUUID
+// GetHostUuid returns the value of HostUuid.
+func (s *PoolV1beta) GetHostUuid() OptString {
+	return s.HostUuid
 }
 
 // GetSatisfiesPzi returns the value of SatisfiesPzi.
@@ -10348,9 +10348,9 @@ func (s *PoolV1beta) SetEnableHotTierAutoResize(val OptNilBool) {
 	s.EnableHotTierAutoResize = val
 }
 
-// SetHostUUID sets the value of HostUUID.
-func (s *PoolV1beta) SetHostUUID(val OptString) {
-	s.HostUUID = val
+// SetHostUuid sets the value of HostUuid.
+func (s *PoolV1beta) SetHostUuid(val OptString) {
+	s.HostUuid = val
 }
 
 // SetSatisfiesPzi sets the value of SatisfiesPzi.
@@ -11018,7 +11018,7 @@ func (s *ReplicationUpdateV1betaReplicationSchedule) UnmarshalText(data []byte) 
 // Container for replication information.
 // Ref: #/components/schemas/Replication_v1beta
 type ReplicationV1beta struct {
-	// UUID v4 used to identify the volume replication.
+	// Uuid v4 used to identify the volume replication.
 	ReplicationId OptString `json:"replicationId"`
 	// A human readable label for the resource which is restricted to letters, numbers, and hyphen, with
 	// the first character a letter, the last a letter or a number, and a 63 character maximum.
@@ -11257,7 +11257,7 @@ func (s *ReplicationV1beta) SetHybridReplicationUserCommands(val OptHybridReplic
 type ReplicationV1betaHybridReplicationType string
 
 const (
-	ReplicationV1betaHybridReplicationTypeHYBRIDREPLICATIONTYPEUNSPECIFIED ReplicationV1betaHybridReplicationType = "HYBRID_REPLICATION_TYPE_UNSPECIFIED"
+	ReplicationV1betaHybridReplicationTypeHYBRIdREPLICATIONTYPEUNSPECIFIED ReplicationV1betaHybridReplicationType = "HYBRId_REPLICATION_TYPE_UNSPECIFIED"
 	ReplicationV1betaHybridReplicationTypeMIGRATION                        ReplicationV1betaHybridReplicationType = "MIGRATION"
 	ReplicationV1betaHybridReplicationTypeCONTINUOUSREPLICATION            ReplicationV1betaHybridReplicationType = "CONTINUOUS_REPLICATION"
 	ReplicationV1betaHybridReplicationTypeONPREMREPLICATION                ReplicationV1betaHybridReplicationType = "ONPREM_REPLICATION"
@@ -11267,7 +11267,7 @@ const (
 // AllValues returns all ReplicationV1betaHybridReplicationType values.
 func (ReplicationV1betaHybridReplicationType) AllValues() []ReplicationV1betaHybridReplicationType {
 	return []ReplicationV1betaHybridReplicationType{
-		ReplicationV1betaHybridReplicationTypeHYBRIDREPLICATIONTYPEUNSPECIFIED,
+		ReplicationV1betaHybridReplicationTypeHYBRIdREPLICATIONTYPEUNSPECIFIED,
 		ReplicationV1betaHybridReplicationTypeMIGRATION,
 		ReplicationV1betaHybridReplicationTypeCONTINUOUSREPLICATION,
 		ReplicationV1betaHybridReplicationTypeONPREMREPLICATION,
@@ -11278,7 +11278,7 @@ func (ReplicationV1betaHybridReplicationType) AllValues() []ReplicationV1betaHyb
 // MarshalText implements encoding.TextMarshaler.
 func (s ReplicationV1betaHybridReplicationType) MarshalText() ([]byte, error) {
 	switch s {
-	case ReplicationV1betaHybridReplicationTypeHYBRIDREPLICATIONTYPEUNSPECIFIED:
+	case ReplicationV1betaHybridReplicationTypeHYBRIdREPLICATIONTYPEUNSPECIFIED:
 		return []byte(s), nil
 	case ReplicationV1betaHybridReplicationTypeMIGRATION:
 		return []byte(s), nil
@@ -11296,8 +11296,8 @@ func (s ReplicationV1betaHybridReplicationType) MarshalText() ([]byte, error) {
 // UnmarshalText implements encoding.TextUnmarshaler.
 func (s *ReplicationV1betaHybridReplicationType) UnmarshalText(data []byte) error {
 	switch ReplicationV1betaHybridReplicationType(data) {
-	case ReplicationV1betaHybridReplicationTypeHYBRIDREPLICATIONTYPEUNSPECIFIED:
-		*s = ReplicationV1betaHybridReplicationTypeHYBRIDREPLICATIONTYPEUNSPECIFIED
+	case ReplicationV1betaHybridReplicationTypeHYBRIdREPLICATIONTYPEUNSPECIFIED:
+		*s = ReplicationV1betaHybridReplicationTypeHYBRIdREPLICATIONTYPEUNSPECIFIED
 		return nil
 	case ReplicationV1betaHybridReplicationTypeMIGRATION:
 		*s = ReplicationV1betaHybridReplicationTypeMIGRATION
@@ -11635,7 +11635,7 @@ func (s *ReplicationV1betaState) UnmarshalText(data []byte) error {
 type ReplicationVolumeInformationV1beta struct {
 	// Full URI of volume.
 	VolumeName OptString `json:"volumeName"`
-	// UUID v4 used to identify the volume replication.
+	// Uuid v4 used to identify the volume replication.
 	VolumeId OptString `json:"volumeId"`
 }
 
@@ -11806,10 +11806,10 @@ func (s *SMBSettingsV1betaItem) UnmarshalText(data []byte) error {
 // Ref: #/components/schemas/SimpleExportPolicyRule_v1beta
 type SimpleExportPolicyRuleV1beta struct {
 	// Defines the client ingress specification (allowed clients) as a comma separated string with IPv4
-	// CIDRs and IPv4 host addresses.
+	// CIdRs and IPv4 host addresses.
 	AllowedClients string `json:"allowedClients"`
 	// If enabled (true or on) the rule defines that no_root_squash is set, else if it is disabled (false
-	// or off) root_squash is set and user ID mapped to anonymous user 65534. The response will always be
+	// or off) root_squash is set and user Id mapped to anonymous user 65534. The response will always be
 	// true or false and never on/off. If the value is set to null the response will always be set to the
 	// default of true.
 	HasRootAccess OptNilSimpleExportPolicyRuleV1betaHasRootAccess `json:"hasRootAccess"`
@@ -12011,7 +12011,7 @@ func (s *SimpleExportPolicyRuleV1betaAccessType) UnmarshalText(data []byte) erro
 }
 
 // If enabled (true or on) the rule defines that no_root_squash is set, else if it is disabled (false
-// or off) root_squash is set and user ID mapped to anonymous user 65534. The response will always be
+// or off) root_squash is set and user Id mapped to anonymous user 65534. The response will always be
 // true or false and never on/off. If the value is set to null the response will always be set to the
 // default of true.
 type SimpleExportPolicyRuleV1betaHasRootAccess string
@@ -12069,19 +12069,19 @@ func (s *SimpleExportPolicyRuleV1betaHasRootAccess) UnmarshalText(data []byte) e
 	}
 }
 
-// Ref: #/components/schemas/SnapshotIDList_v1beta
-type SnapshotIDListV1beta struct {
-	SnapshotUUIDs []string `json:"snapshotUUIDs"`
+// Ref: #/components/schemas/SnapshotIdList_v1beta
+type SnapshotIdListV1beta struct {
+	SnapshotUuids []string `json:"snapshotUuids"`
 }
 
-// GetSnapshotUUIDs returns the value of SnapshotUUIDs.
-func (s *SnapshotIDListV1beta) GetSnapshotUUIDs() []string {
-	return s.SnapshotUUIDs
+// GetSnapshotUuids returns the value of SnapshotUuids.
+func (s *SnapshotIdListV1beta) GetSnapshotUuids() []string {
+	return s.SnapshotUuids
 }
 
-// SetSnapshotUUIDs sets the value of SnapshotUUIDs.
-func (s *SnapshotIDListV1beta) SetSnapshotUUIDs(val []string) {
-	s.SnapshotUUIDs = val
+// SetSnapshotUuids sets the value of SnapshotUuids.
+func (s *SnapshotIdListV1beta) SetSnapshotUuids(val []string) {
+	s.SnapshotUuids = val
 }
 
 // Snapshot policy for a volume.
@@ -12150,13 +12150,13 @@ type SnapshotV1beta struct {
 	// A human readable label for the resource which is restricted to letters, numbers, and hyphen, with
 	// the first character a letter, the last a letter or a number, and a 63 character maximum.
 	ResourceId string `json:"resourceId"`
-	// UUID v4 of the volume.
+	// Uuid v4 of the volume.
 	VolumeId OptString `json:"volumeId"`
 	// A human readable label for the volume resource.
 	VolumeResourceId OptString `json:"volumeResourceId"`
 	// Creation date of the resource.
 	Created OptDateTime `json:"created"`
-	// UUID v4 used to identify the snapshot.
+	// Uuid v4 used to identify the snapshot.
 	SnapshotId OptString `json:"snapshotId"`
 	// Current storage usage for the snapshot in bytes.
 	UsedBytes    OptFloat64            `json:"usedBytes"`
@@ -13167,7 +13167,7 @@ type V1betaDeleteVolumeNoContent struct{}
 func (*V1betaDeleteVolumeNoContent) v1betaDeleteVolumeRes() {}
 
 type V1betaDeleteVolumeReq struct {
-	// Delete all the associated backups for the given volume ID or not.
+	// Delete all the associated backups for the given volume Id or not.
 	DeleteAssociatedBackups OptBool `json:"deleteAssociatedBackups"`
 }
 
@@ -14955,9 +14955,9 @@ func (s *VolumeBackupDetailsV1beta) SetPolicyEnabled(val OptBool) {
 // Ref: #/components/schemas/VolumeCreate_v1beta
 type VolumeCreateV1beta struct {
 	Volume VolumeV1beta `json:"volume"`
-	// UUID v4 used to identify the Snapshot.
+	// Uuid v4 used to identify the Snapshot.
 	SnapshotId OptString `json:"snapshotId"`
-	// UUID v4 used to identify the backup.
+	// Uuid v4 used to identify the backup.
 	BackupId OptString `json:"backupId"`
 	// Complete resource path of the backup.
 	BackupPath OptString `json:"backupPath"`
@@ -15068,26 +15068,26 @@ func (s *VolumeCreateV1betaVolumeType) UnmarshalText(data []byte) error {
 	}
 }
 
-// Ref: #/components/schemas/VolumeIDList_v1beta
-type VolumeIDListV1beta struct {
-	VolumeUUIDs []string `json:"volumeUUIDs"`
+// Ref: #/components/schemas/VolumeIdList_v1beta
+type VolumeIdListV1beta struct {
+	VolumeUuids []string `json:"volumeUuids"`
 }
 
-// GetVolumeUUIDs returns the value of VolumeUUIDs.
-func (s *VolumeIDListV1beta) GetVolumeUUIDs() []string {
-	return s.VolumeUUIDs
+// GetVolumeUuids returns the value of VolumeUuids.
+func (s *VolumeIdListV1beta) GetVolumeUuids() []string {
+	return s.VolumeUuids
 }
 
-// SetVolumeUUIDs sets the value of VolumeUUIDs.
-func (s *VolumeIDListV1beta) SetVolumeUUIDs(val []string) {
-	s.VolumeUUIDs = val
+// SetVolumeUuids sets the value of VolumeUuids.
+func (s *VolumeIdListV1beta) SetVolumeUuids(val []string) {
+	s.VolumeUuids = val
 }
 
 // Merged schema.
 // Ref: #/components/schemas/VolumeReplicationCreateInternal_v1beta
 type VolumeReplicationCreateInternalV1beta struct {
-	// UUID v4 of volume replication.
-	VolumeReplicationUUID OptString `json:"volumeReplicationUUID"`
+	// Uuid v4 of volume replication.
+	VolumeReplicationUuid OptString `json:"volumeReplicationUuid"`
 	// The current lifecycle state of the resource.
 	LifeCycleState OptVolumeReplicationCreateInternalV1betaLifeCycleState `json:"lifeCycleState"`
 	// Details about the current lifecycle state.
@@ -15099,7 +15099,7 @@ type VolumeReplicationCreateInternalV1beta struct {
 	ReplicationSchedule OptVolumeReplicationCreateInternalV1betaReplicationSchedule `json:"replicationSchedule"`
 	// The remote region for the other end of the volume replication.
 	RemoteRegion string `json:"remoteRegion"`
-	// The resource ID of the remote volume.
+	// The resource Id of the remote volume.
 	RemoteResourceId string `json:"remoteResourceId"`
 	// The source endpoint host for the volume replication.
 	SourceHostName string `json:"sourceHostName"`
@@ -15113,8 +15113,8 @@ type VolumeReplicationCreateInternalV1beta struct {
 	DestinationServerName string `json:"destinationServerName"`
 	// The destination endpoint volume for the volume replication.
 	DestinationVolumeName string `json:"destinationVolumeName"`
-	// UUID v4 of the destination volume.
-	DestinationVolumeUUID OptString `json:"destinationVolumeUUID"`
+	// Uuid v4 of the destination volume.
+	DestinationVolumeUuid OptString `json:"destinationVolumeUuid"`
 	// A human readable label for the volume replication.
 	Name OptString `json:"name"`
 	// The mirror state of the volume replication.
@@ -15171,9 +15171,9 @@ type VolumeReplicationCreateInternalV1beta struct {
 	CcfeRemoteURI OptString `json:"ccfeRemoteURI"`
 }
 
-// GetVolumeReplicationUUID returns the value of VolumeReplicationUUID.
-func (s *VolumeReplicationCreateInternalV1beta) GetVolumeReplicationUUID() OptString {
-	return s.VolumeReplicationUUID
+// GetVolumeReplicationUuid returns the value of VolumeReplicationUuid.
+func (s *VolumeReplicationCreateInternalV1beta) GetVolumeReplicationUuid() OptString {
+	return s.VolumeReplicationUuid
 }
 
 // GetLifeCycleState returns the value of LifeCycleState.
@@ -15241,9 +15241,9 @@ func (s *VolumeReplicationCreateInternalV1beta) GetDestinationVolumeName() strin
 	return s.DestinationVolumeName
 }
 
-// GetDestinationVolumeUUID returns the value of DestinationVolumeUUID.
-func (s *VolumeReplicationCreateInternalV1beta) GetDestinationVolumeUUID() OptString {
-	return s.DestinationVolumeUUID
+// GetDestinationVolumeUuid returns the value of DestinationVolumeUuid.
+func (s *VolumeReplicationCreateInternalV1beta) GetDestinationVolumeUuid() OptString {
+	return s.DestinationVolumeUuid
 }
 
 // GetName returns the value of Name.
@@ -15361,9 +15361,9 @@ func (s *VolumeReplicationCreateInternalV1beta) GetCcfeRemoteURI() OptString {
 	return s.CcfeRemoteURI
 }
 
-// SetVolumeReplicationUUID sets the value of VolumeReplicationUUID.
-func (s *VolumeReplicationCreateInternalV1beta) SetVolumeReplicationUUID(val OptString) {
-	s.VolumeReplicationUUID = val
+// SetVolumeReplicationUuid sets the value of VolumeReplicationUuid.
+func (s *VolumeReplicationCreateInternalV1beta) SetVolumeReplicationUuid(val OptString) {
+	s.VolumeReplicationUuid = val
 }
 
 // SetLifeCycleState sets the value of LifeCycleState.
@@ -15431,9 +15431,9 @@ func (s *VolumeReplicationCreateInternalV1beta) SetDestinationVolumeName(val str
 	s.DestinationVolumeName = val
 }
 
-// SetDestinationVolumeUUID sets the value of DestinationVolumeUUID.
-func (s *VolumeReplicationCreateInternalV1beta) SetDestinationVolumeUUID(val OptString) {
-	s.DestinationVolumeUUID = val
+// SetDestinationVolumeUuid sets the value of DestinationVolumeUuid.
+func (s *VolumeReplicationCreateInternalV1beta) SetDestinationVolumeUuid(val OptString) {
+	s.DestinationVolumeUuid = val
 }
 
 // SetName sets the value of Name.
@@ -15605,7 +15605,7 @@ func (s *VolumeReplicationCreateInternalV1betaEndpointType) UnmarshalText(data [
 type VolumeReplicationCreateInternalV1betaHybridReplicationType string
 
 const (
-	VolumeReplicationCreateInternalV1betaHybridReplicationTypeHYBRIDREPLICATIONTYPEUNSPECIFIED VolumeReplicationCreateInternalV1betaHybridReplicationType = "HYBRID_REPLICATION_TYPE_UNSPECIFIED"
+	VolumeReplicationCreateInternalV1betaHybridReplicationTypeHYBRIdREPLICATIONTYPEUNSPECIFIED VolumeReplicationCreateInternalV1betaHybridReplicationType = "HYBRId_REPLICATION_TYPE_UNSPECIFIED"
 	VolumeReplicationCreateInternalV1betaHybridReplicationTypeMIGRATION                        VolumeReplicationCreateInternalV1betaHybridReplicationType = "MIGRATION"
 	VolumeReplicationCreateInternalV1betaHybridReplicationTypeCONTINUOUSREPLICATION            VolumeReplicationCreateInternalV1betaHybridReplicationType = "CONTINUOUS_REPLICATION"
 	VolumeReplicationCreateInternalV1betaHybridReplicationTypeONPREMREPLICATION                VolumeReplicationCreateInternalV1betaHybridReplicationType = "ONPREM_REPLICATION"
@@ -15615,7 +15615,7 @@ const (
 // AllValues returns all VolumeReplicationCreateInternalV1betaHybridReplicationType values.
 func (VolumeReplicationCreateInternalV1betaHybridReplicationType) AllValues() []VolumeReplicationCreateInternalV1betaHybridReplicationType {
 	return []VolumeReplicationCreateInternalV1betaHybridReplicationType{
-		VolumeReplicationCreateInternalV1betaHybridReplicationTypeHYBRIDREPLICATIONTYPEUNSPECIFIED,
+		VolumeReplicationCreateInternalV1betaHybridReplicationTypeHYBRIdREPLICATIONTYPEUNSPECIFIED,
 		VolumeReplicationCreateInternalV1betaHybridReplicationTypeMIGRATION,
 		VolumeReplicationCreateInternalV1betaHybridReplicationTypeCONTINUOUSREPLICATION,
 		VolumeReplicationCreateInternalV1betaHybridReplicationTypeONPREMREPLICATION,
@@ -15626,7 +15626,7 @@ func (VolumeReplicationCreateInternalV1betaHybridReplicationType) AllValues() []
 // MarshalText implements encoding.TextMarshaler.
 func (s VolumeReplicationCreateInternalV1betaHybridReplicationType) MarshalText() ([]byte, error) {
 	switch s {
-	case VolumeReplicationCreateInternalV1betaHybridReplicationTypeHYBRIDREPLICATIONTYPEUNSPECIFIED:
+	case VolumeReplicationCreateInternalV1betaHybridReplicationTypeHYBRIdREPLICATIONTYPEUNSPECIFIED:
 		return []byte(s), nil
 	case VolumeReplicationCreateInternalV1betaHybridReplicationTypeMIGRATION:
 		return []byte(s), nil
@@ -15644,8 +15644,8 @@ func (s VolumeReplicationCreateInternalV1betaHybridReplicationType) MarshalText(
 // UnmarshalText implements encoding.TextUnmarshaler.
 func (s *VolumeReplicationCreateInternalV1betaHybridReplicationType) UnmarshalText(data []byte) error {
 	switch VolumeReplicationCreateInternalV1betaHybridReplicationType(data) {
-	case VolumeReplicationCreateInternalV1betaHybridReplicationTypeHYBRIDREPLICATIONTYPEUNSPECIFIED:
-		*s = VolumeReplicationCreateInternalV1betaHybridReplicationTypeHYBRIDREPLICATIONTYPEUNSPECIFIED
+	case VolumeReplicationCreateInternalV1betaHybridReplicationTypeHYBRIdREPLICATIONTYPEUNSPECIFIED:
+		*s = VolumeReplicationCreateInternalV1betaHybridReplicationTypeHYBRIdREPLICATIONTYPEUNSPECIFIED
 		return nil
 	case VolumeReplicationCreateInternalV1betaHybridReplicationTypeMIGRATION:
 		*s = VolumeReplicationCreateInternalV1betaHybridReplicationTypeMIGRATION
@@ -15947,8 +15947,8 @@ func (s *VolumeReplicationCreateInternalV1betaReplicationSchedule) UnmarshalText
 // destination in a replication relationship.
 // Ref: #/components/schemas/VolumeReplicationInternal_v1beta
 type VolumeReplicationInternalV1beta struct {
-	// UUID v4 of volume replication.
-	VolumeReplicationUUID OptString `json:"volumeReplicationUUID"`
+	// Uuid v4 of volume replication.
+	VolumeReplicationUuid OptString `json:"volumeReplicationUuid"`
 	// The current lifecycle state of the resource.
 	LifeCycleState OptVolumeReplicationInternalV1betaLifeCycleState `json:"lifeCycleState"`
 	// Details about the current lifecycle state.
@@ -15960,7 +15960,7 @@ type VolumeReplicationInternalV1beta struct {
 	ReplicationSchedule OptVolumeReplicationInternalV1betaReplicationSchedule `json:"replicationSchedule"`
 	// The remote region for the other end of the volume replication.
 	RemoteRegion string `json:"remoteRegion"`
-	// The resource ID of the remote volume.
+	// The resource Id of the remote volume.
 	RemoteResourceId string `json:"remoteResourceId"`
 	// The source endpoint host for the volume replication.
 	SourceHostName string `json:"sourceHostName"`
@@ -15974,8 +15974,8 @@ type VolumeReplicationInternalV1beta struct {
 	DestinationServerName string `json:"destinationServerName"`
 	// The destination endpoint volume for the volume replication.
 	DestinationVolumeName string `json:"destinationVolumeName"`
-	// UUID v4 of the destination volume.
-	DestinationVolumeUUID OptString `json:"destinationVolumeUUID"`
+	// Uuid v4 of the destination volume.
+	DestinationVolumeUuid OptString `json:"destinationVolumeUuid"`
 	// A human readable label for the volume replication.
 	Name OptString `json:"name"`
 	// The mirror state of the volume replication.
@@ -16028,9 +16028,9 @@ type VolumeReplicationInternalV1beta struct {
 	Labels OptVolumeReplicationInternalV1betaLabels `json:"labels"`
 }
 
-// GetVolumeReplicationUUID returns the value of VolumeReplicationUUID.
-func (s *VolumeReplicationInternalV1beta) GetVolumeReplicationUUID() OptString {
-	return s.VolumeReplicationUUID
+// GetVolumeReplicationUuid returns the value of VolumeReplicationUuid.
+func (s *VolumeReplicationInternalV1beta) GetVolumeReplicationUuid() OptString {
+	return s.VolumeReplicationUuid
 }
 
 // GetLifeCycleState returns the value of LifeCycleState.
@@ -16098,9 +16098,9 @@ func (s *VolumeReplicationInternalV1beta) GetDestinationVolumeName() string {
 	return s.DestinationVolumeName
 }
 
-// GetDestinationVolumeUUID returns the value of DestinationVolumeUUID.
-func (s *VolumeReplicationInternalV1beta) GetDestinationVolumeUUID() OptString {
-	return s.DestinationVolumeUUID
+// GetDestinationVolumeUuid returns the value of DestinationVolumeUuid.
+func (s *VolumeReplicationInternalV1beta) GetDestinationVolumeUuid() OptString {
+	return s.DestinationVolumeUuid
 }
 
 // GetName returns the value of Name.
@@ -16203,9 +16203,9 @@ func (s *VolumeReplicationInternalV1beta) GetLabels() OptVolumeReplicationIntern
 	return s.Labels
 }
 
-// SetVolumeReplicationUUID sets the value of VolumeReplicationUUID.
-func (s *VolumeReplicationInternalV1beta) SetVolumeReplicationUUID(val OptString) {
-	s.VolumeReplicationUUID = val
+// SetVolumeReplicationUuid sets the value of VolumeReplicationUuid.
+func (s *VolumeReplicationInternalV1beta) SetVolumeReplicationUuid(val OptString) {
+	s.VolumeReplicationUuid = val
 }
 
 // SetLifeCycleState sets the value of LifeCycleState.
@@ -16273,9 +16273,9 @@ func (s *VolumeReplicationInternalV1beta) SetDestinationVolumeName(val string) {
 	s.DestinationVolumeName = val
 }
 
-// SetDestinationVolumeUUID sets the value of DestinationVolumeUUID.
-func (s *VolumeReplicationInternalV1beta) SetDestinationVolumeUUID(val OptString) {
-	s.DestinationVolumeUUID = val
+// SetDestinationVolumeUuid sets the value of DestinationVolumeUuid.
+func (s *VolumeReplicationInternalV1beta) SetDestinationVolumeUuid(val OptString) {
+	s.DestinationVolumeUuid = val
 }
 
 // SetName sets the value of Name.
@@ -16441,7 +16441,7 @@ func (s *VolumeReplicationInternalV1betaEndpointType) UnmarshalText(data []byte)
 type VolumeReplicationInternalV1betaHybridReplicationType string
 
 const (
-	VolumeReplicationInternalV1betaHybridReplicationTypeHYBRIDREPLICATIONTYPEUNSPECIFIED VolumeReplicationInternalV1betaHybridReplicationType = "HYBRID_REPLICATION_TYPE_UNSPECIFIED"
+	VolumeReplicationInternalV1betaHybridReplicationTypeHYBRIdREPLICATIONTYPEUNSPECIFIED VolumeReplicationInternalV1betaHybridReplicationType = "HYBRId_REPLICATION_TYPE_UNSPECIFIED"
 	VolumeReplicationInternalV1betaHybridReplicationTypeMIGRATION                        VolumeReplicationInternalV1betaHybridReplicationType = "MIGRATION"
 	VolumeReplicationInternalV1betaHybridReplicationTypeCONTINUOUSREPLICATION            VolumeReplicationInternalV1betaHybridReplicationType = "CONTINUOUS_REPLICATION"
 	VolumeReplicationInternalV1betaHybridReplicationTypeONPREMREPLICATION                VolumeReplicationInternalV1betaHybridReplicationType = "ONPREM_REPLICATION"
@@ -16451,7 +16451,7 @@ const (
 // AllValues returns all VolumeReplicationInternalV1betaHybridReplicationType values.
 func (VolumeReplicationInternalV1betaHybridReplicationType) AllValues() []VolumeReplicationInternalV1betaHybridReplicationType {
 	return []VolumeReplicationInternalV1betaHybridReplicationType{
-		VolumeReplicationInternalV1betaHybridReplicationTypeHYBRIDREPLICATIONTYPEUNSPECIFIED,
+		VolumeReplicationInternalV1betaHybridReplicationTypeHYBRIdREPLICATIONTYPEUNSPECIFIED,
 		VolumeReplicationInternalV1betaHybridReplicationTypeMIGRATION,
 		VolumeReplicationInternalV1betaHybridReplicationTypeCONTINUOUSREPLICATION,
 		VolumeReplicationInternalV1betaHybridReplicationTypeONPREMREPLICATION,
@@ -16462,7 +16462,7 @@ func (VolumeReplicationInternalV1betaHybridReplicationType) AllValues() []Volume
 // MarshalText implements encoding.TextMarshaler.
 func (s VolumeReplicationInternalV1betaHybridReplicationType) MarshalText() ([]byte, error) {
 	switch s {
-	case VolumeReplicationInternalV1betaHybridReplicationTypeHYBRIDREPLICATIONTYPEUNSPECIFIED:
+	case VolumeReplicationInternalV1betaHybridReplicationTypeHYBRIdREPLICATIONTYPEUNSPECIFIED:
 		return []byte(s), nil
 	case VolumeReplicationInternalV1betaHybridReplicationTypeMIGRATION:
 		return []byte(s), nil
@@ -16480,8 +16480,8 @@ func (s VolumeReplicationInternalV1betaHybridReplicationType) MarshalText() ([]b
 // UnmarshalText implements encoding.TextUnmarshaler.
 func (s *VolumeReplicationInternalV1betaHybridReplicationType) UnmarshalText(data []byte) error {
 	switch VolumeReplicationInternalV1betaHybridReplicationType(data) {
-	case VolumeReplicationInternalV1betaHybridReplicationTypeHYBRIDREPLICATIONTYPEUNSPECIFIED:
-		*s = VolumeReplicationInternalV1betaHybridReplicationTypeHYBRIDREPLICATIONTYPEUNSPECIFIED
+	case VolumeReplicationInternalV1betaHybridReplicationTypeHYBRIdREPLICATIONTYPEUNSPECIFIED:
+		*s = VolumeReplicationInternalV1betaHybridReplicationTypeHYBRIdREPLICATIONTYPEUNSPECIFIED
 		return nil
 	case VolumeReplicationInternalV1betaHybridReplicationTypeMIGRATION:
 		*s = VolumeReplicationInternalV1betaHybridReplicationTypeMIGRATION
@@ -16920,14 +16920,14 @@ type VolumeUpdateV1beta struct {
 	RestrictedActions RestrictedActionsV1beta `json:"restrictedActions"`
 	SmbSettings       SMBSettingsV1beta       `json:"smbSettings"`
 	// UNIX permissions for NFS volume accepted in octal 4 digit format. First digit selects the set user
-	// ID(4), set group ID (2) and sticky (1) attributes. Second digit selects permission for the owner
+	// Id(4), set group Id (2) and sticky (1) attributes. Second digit selects permission for the owner
 	// of the file: read (4), write (2) and execute (1). Third selects permissions for other users in the
 	// same group. the fourth for other users not in the group. "0755" - gives read/write/execute
 	// permissions to owner and read/execute to group and other users.
 	UnixPermissions OptNilString `json:"unixPermissions"`
 	// JSON dictionary of resource labels to allow linking of billing labels to a volume.
 	Labels OptVolumeUpdateV1betaLabels `json:"labels"`
-	// UUID v4 used to identify the pool.
+	// Uuid v4 used to identify the pool.
 	PoolId OptNilString `json:"poolId"`
 	// Description of the volume.
 	Description OptNilString `json:"description"`
@@ -17100,7 +17100,7 @@ type VolumeV1beta struct {
 	// A human readable label for the resource which is restricted to letters, numbers, and hyphen, with
 	// the first character a letter, the last a letter or a number, and a 63 character maximum.
 	ResourceId string `json:"resourceId"`
-	// UUID v4 of the volume.
+	// Uuid v4 of the volume.
 	VolumeId OptString `json:"volumeId"`
 	// Creation date of the resource.
 	Created OptDateTime `json:"created"`
@@ -17109,22 +17109,22 @@ type VolumeV1beta struct {
 	// A creation token must be supplied by the caller and is used by the API to ensure idempotent
 	// creation of a volume. Subsequent calls to the create-volume operation using the same creation
 	// token will have no effect. The creation token can be any user supplied string e.g. a randomly
-	// generated v4 UUID.
+	// generated v4 Uuid.
 	CreationToken string `json:"creationToken"`
-	// UUID of the pool ID under which volumes get created.
+	// Uuid of the pool Id under which volumes get created.
 	PoolId NilString `json:"poolId"`
 	// A human readable label for the pool.
 	PoolResourceId OptNilString `json:"poolResourceId"`
-	// UUID of the key to be used for encryption.
+	// Uuid of the key to be used for encryption.
 	KmsConfigId OptNilString `json:"kmsConfigId"`
-	// The resource ID for the connected KMS configuration.
+	// The resource Id for the connected KMS configuration.
 	KmsConfigResourceId OptNilString `json:"kmsConfigResourceId"`
 	// Servicenetworking.connections.network value that is returned after creating a successful VPC
 	// peering connection via the GCP service networking API.
 	Network OptString `json:"network"`
-	// UUID of Active Directory configuration.
+	// Uuid of Active Directory configuration.
 	ActiveDirectoryConfigId OptNilString `json:"activeDirectoryConfigId"`
-	// The resource ID for the connected Active Directory.
+	// The resource Id for the connected Active Directory.
 	ActiveDirectoryResourceId OptNilString `json:"activeDirectoryResourceId"`
 	// The service level of the volume. Will be specified as premium or extreme, which will be equivalent
 	// to having specified performance medium or high, respectively.  However, if any service level's
@@ -17174,7 +17174,7 @@ type VolumeV1beta struct {
 	// Flag indicating if the volume is NFS LDAP enabled or not.
 	LdapEnabled OptNilBool `json:"ldapEnabled"`
 	// UNIX permissions for NFS volume accepted in octal 4 digit format. First digit selects the set user
-	// ID(4), set group ID (2) and sticky (1) attributes. Second digit selects permission for the owner
+	// Id(4), set group Id (2) and sticky (1) attributes. Second digit selects permission for the owner
 	// of the file: read (4), write (2) and execute (1). Third selects permissions for other users in the
 	// same group. the fourth for other users not in the group. "0755" - gives read/write/execute
 	// permissions to owner and read/execute to group and other users.

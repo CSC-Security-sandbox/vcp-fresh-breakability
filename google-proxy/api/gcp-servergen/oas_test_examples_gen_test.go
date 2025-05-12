@@ -16,8 +16,8 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestActiveDirectoryIDListV1beta_EncodeDecode(t *testing.T) {
-	var typ ActiveDirectoryIDListV1beta
+func TestActiveDirectoryIdListV1beta_EncodeDecode(t *testing.T) {
+	var typ ActiveDirectoryIdListV1beta
 	typ.SetFake()
 
 	e := jx.Encoder{}
@@ -25,7 +25,7 @@ func TestActiveDirectoryIDListV1beta_EncodeDecode(t *testing.T) {
 	data := e.Bytes()
 	require.True(t, std.Valid(data), "Encoded: %s", data)
 
-	var typ2 ActiveDirectoryIDListV1beta
+	var typ2 ActiveDirectoryIdListV1beta
 	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
 }
 func TestActiveDirectoryUpdateV1beta_EncodeDecode(t *testing.T) {
@@ -223,8 +223,8 @@ func TestBackupPolicyDetailsV1betaState_Examples(t *testing.T) {
 		})
 	}
 }
-func TestBackupPolicyIDListV1beta_EncodeDecode(t *testing.T) {
-	var typ BackupPolicyIDListV1beta
+func TestBackupPolicyIdListV1beta_EncodeDecode(t *testing.T) {
+	var typ BackupPolicyIdListV1beta
 	typ.SetFake()
 
 	e := jx.Encoder{}
@@ -232,7 +232,7 @@ func TestBackupPolicyIDListV1beta_EncodeDecode(t *testing.T) {
 	data := e.Bytes()
 	require.True(t, std.Valid(data), "Encoded: %s", data)
 
-	var typ2 BackupPolicyIDListV1beta
+	var typ2 BackupPolicyIdListV1beta
 	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
 }
 func TestBackupPolicyUpdateV1beta_EncodeDecode(t *testing.T) {
@@ -324,8 +324,8 @@ func TestBackupRetentionPolicyV1beta_EncodeDecode(t *testing.T) {
 	var typ2 BackupRetentionPolicyV1beta
 	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
 }
-func TestBackupUUIDListV1beta_EncodeDecode(t *testing.T) {
-	var typ BackupUUIDListV1beta
+func TestBackupUuidListV1beta_EncodeDecode(t *testing.T) {
+	var typ BackupUuidListV1beta
 	typ.SetFake()
 
 	e := jx.Encoder{}
@@ -333,7 +333,7 @@ func TestBackupUUIDListV1beta_EncodeDecode(t *testing.T) {
 	data := e.Bytes()
 	require.True(t, std.Valid(data), "Encoded: %s", data)
 
-	var typ2 BackupUUIDListV1beta
+	var typ2 BackupUuidListV1beta
 	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
 }
 func TestBackupV1beta_EncodeDecode(t *testing.T) {
@@ -413,18 +413,6 @@ func TestBackupVaultCreateV1beta_EncodeDecode(t *testing.T) {
 	var typ2 BackupVaultCreateV1beta
 	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
 }
-func TestBackupVaultUUIDListV1beta_EncodeDecode(t *testing.T) {
-	var typ BackupVaultUUIDListV1beta
-	typ.SetFake()
-
-	e := jx.Encoder{}
-	typ.Encode(&e)
-	data := e.Bytes()
-	require.True(t, std.Valid(data), "Encoded: %s", data)
-
-	var typ2 BackupVaultUUIDListV1beta
-	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
-}
 func TestBackupVaultUpdateV1beta_EncodeDecode(t *testing.T) {
 	var typ BackupVaultUpdateV1beta
 	typ.SetFake()
@@ -435,6 +423,18 @@ func TestBackupVaultUpdateV1beta_EncodeDecode(t *testing.T) {
 	require.True(t, std.Valid(data), "Encoded: %s", data)
 
 	var typ2 BackupVaultUpdateV1beta
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestBackupVaultUuidListV1beta_EncodeDecode(t *testing.T) {
+	var typ BackupVaultUuidListV1beta
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 BackupVaultUuidListV1beta
 	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
 }
 func TestBackupVaultV1beta_EncodeDecode(t *testing.T) {
@@ -1446,8 +1446,8 @@ func TestKmsConfigV1beta_Examples(t *testing.T) {
 	for i, tc := range []struct {
 		Input string
 	}{
-		{Input: "{\"application/json\":{\"createdTime\":\"2017-01-29T09:10:32.212Z\",\"description\":\"Description of the KMS configuration\",\"keyFullPath\":\"projects/projectID/locations/keyRingLocation/keyRings/keyRing/cryptoKeys/keyName\",\"kmsState\":\"READY\",\"kmsStateDetails\":\"Kms config is ready for use\",\"resourceId\":\"my-resource\",\"updatedTime\":\"2017-01-29T09:10:32.212Z\",\"uuid\":\"9760acf5-4638-11e7-9bdb-020073ca7773\"}}"},
-		{Input: "{\"application/json\":{\"createdTime\":\"2017-01-29T09:10:32.212Z\",\"description\":\"My KMS description\",\"keyFullPath\":\"projects/projectID/locations/us/keyRings/keyRing/cryptoKeys/keyName\",\"kmsState\":\"READY\",\"kmsStateDetails\":\"Kms config is ready for use\",\"resourceId\":\"my-resource\",\"updatedTime\":\"2017-01-29T09:10:32.212Z\",\"uuid\":\"9760acf5-4638-11e7-9bdb-020073ca7773\"}}"},
+		{Input: "{\"application/json\":{\"createdTime\":\"2017-01-29T09:10:32.212Z\",\"description\":\"Description of the KMS configuration\",\"keyFullPath\":\"projects/projectId/locations/keyRingLocation/keyRings/keyRing/cryptoKeys/keyName\",\"kmsState\":\"READY\",\"kmsStateDetails\":\"Kms config is ready for use\",\"resourceId\":\"my-resource\",\"updatedTime\":\"2017-01-29T09:10:32.212Z\",\"uuid\":\"9760acf5-4638-11e7-9bdb-020073ca7773\"}}"},
+		{Input: "{\"application/json\":{\"createdTime\":\"2017-01-29T09:10:32.212Z\",\"description\":\"My KMS description\",\"keyFullPath\":\"projects/projectId/locations/us/keyRings/keyRing/cryptoKeys/keyName\",\"kmsState\":\"READY\",\"kmsStateDetails\":\"Kms config is ready for use\",\"resourceId\":\"my-resource\",\"updatedTime\":\"2017-01-29T09:10:32.212Z\",\"uuid\":\"9760acf5-4638-11e7-9bdb-020073ca7773\"}}"},
 	} {
 		tc := tc
 		t.Run(fmt.Sprintf("Test%d", i+1), func(t *testing.T) {
@@ -1556,7 +1556,7 @@ func TestOperationV1beta_Examples(t *testing.T) {
 		{Input: "{\"application/json\":{\"done\":\"true,\",\"name\":\"/v1beta/projects/1088371202435/locations/us-central1/operations/00000000-0000-0000-0000-000000000000\",\"response\":{\"backupPolicyId\":\"f060c640-74c3-4d10-89e5-c3bc5036ee3e\",\"createdAt\":\"2024-11-22T04:46:34.653Z\",\"dailyBackupLimit\":24,\"description\":\"My Resource Description\",\"enabled\":false,\"monthlyBackupLimit\":24,\"resourceId\":\"delete-case\",\"state\":\"READY\",\"volumeBackups\":[],\"volumeCount\":0,\"weeklyBackupLimit\":24}}}"},
 		{Input: "{\"application/json\":{\"done\":\"true,\",\"name\":\"/v1beta/projects/1088371202435/locations/us-central1/operations/00000000-0000-0000-0000-000000000000\",\"response\":{\"backupPolicyId\":\"f060c640-74c3-4d10-89e5-c3bc5036ee3e\",\"createdAt\":\"2024-11-22T04:46:34.653Z\",\"dailyBackupLimit\":24,\"description\":\"My Resource Description\",\"enabled\":false,\"monthlyBackupLimit\":24,\"resourceId\":\"delete-case\",\"state\":\"READY\",\"volumeCount\":0,\"weeklyBackupLimit\":24}}}"},
 		{Input: "{\"application/json\":{\"done\":\"true,\",\"name\":\"/v1beta/projects/1088371202435/locations/us-central1/operations/00000000-0000-0000-0000-000000000000\"}}"},
-		{Input: "{\"application/json\":{\"done\":false,\"name\":\"/v1beta/projects/123456789/locations/some-location1/operations/ba2c8826-2627-057c-42ba-343ee7ab1ebe\",\"response\":{\"createdTime\":\"2024-02-07T14:55:52.441Z\",\"description\":\"My kms description\",\"keyFullPath\":\"projects/projectID/locations/us/keyRings/keyRing/cryptoKeys/keyName\",\"kmsState\":\"CREATING\",\"kmsStateDetails\":\"Creating Kms config settings\",\"resourceId\":\"my-resource\",\"updatedTime\":\"2024-02-07T14:55:52.441Z\",\"uuid\":\"06048ff8-98e8-7090-5559-f671bc440d67\"}}}"},
+		{Input: "{\"application/json\":{\"done\":false,\"name\":\"/v1beta/projects/123456789/locations/some-location1/operations/ba2c8826-2627-057c-42ba-343ee7ab1ebe\",\"response\":{\"createdTime\":\"2024-02-07T14:55:52.441Z\",\"description\":\"My kms description\",\"keyFullPath\":\"projects/projectId/locations/us/keyRings/keyRing/cryptoKeys/keyName\",\"kmsState\":\"CREATING\",\"kmsStateDetails\":\"Creating Kms config settings\",\"resourceId\":\"my-resource\",\"updatedTime\":\"2024-02-07T14:55:52.441Z\",\"uuid\":\"06048ff8-98e8-7090-5559-f671bc440d67\"}}}"},
 		{Input: "{\"application/json\":{\"done\":false,\"name\":\"/v1beta/projects/123456789/locations/some-location1/operations/ba2c8826-2627-057c-42ba-343ee7ab1ebe\"}}"},
 		{Input: "{\"application/json\":{\"done\":true,\"name\":\"/v1beta/projects/123456789/locations/some-location1/operations/00000000-0000-0000-0000-000000000000\",\"response\":{\"DNS\":\"101.102.103.104\",\"activeDirectoryId\":\"9fbf76ef-9964-07d1-5f57-0e8f867e0367\",\"activeDirectoryState\":\"READY\",\"activeDirectoryStateDetails\":\"Credentials saved and available for use\",\"administrators\":[\"batman\",\"clarkkent\"],\"aesEncryption\":false,\"allowLocalNFSUsersWithLdap\":false,\"backupOperators\":[\"batman\",\"clarkkent\"],\"createdAt\":\"2024-01-26T16:08:38.841Z\",\"description\":\"My active directory description\",\"domain\":\"krypton.com\",\"encryptDCConnections\":false,\"kdcHostname\":\"2BOVAEKB44B\",\"kdcIP\":\"101.102.103.104\",\"ldapSigning\":false,\"netBIOS\":\"cvserver\",\"organizationalUnit\":\"CN=Computers\",\"password\":\"******************\",\"resourceId\":\"my-active-directory\",\"securityOperators\":[\"batman\"],\"site\":\"Default-First-Site-Name\",\"updatedAt\":\"2024-01-26T16:08:38.841Z\",\"username\":\"superman\"}}}"},
 		{Input: "{\"application/json\":{\"done\":true,\"name\":\"/v1beta/projects/123456789/locations/some-location1/operations/00000000-0000-0000-0000-000000000000\"}}"},
@@ -1599,8 +1599,8 @@ func TestOperationV1beta_Examples(t *testing.T) {
 		})
 	}
 }
-func TestPoolIDListV1beta_EncodeDecode(t *testing.T) {
-	var typ PoolIDListV1beta
+func TestPoolIdListV1beta_EncodeDecode(t *testing.T) {
+	var typ PoolIdListV1beta
 	typ.SetFake()
 
 	e := jx.Encoder{}
@@ -1608,7 +1608,7 @@ func TestPoolIDListV1beta_EncodeDecode(t *testing.T) {
 	data := e.Bytes()
 	require.True(t, std.Valid(data), "Encoded: %s", data)
 
-	var typ2 PoolIDListV1beta
+	var typ2 PoolIdListV1beta
 	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
 }
 func TestPoolUpdateV1beta_EncodeDecode(t *testing.T) {
@@ -2631,8 +2631,8 @@ func TestSimpleExportPolicyRuleV1betaHasRootAccess_Examples(t *testing.T) {
 		})
 	}
 }
-func TestSnapshotIDListV1beta_EncodeDecode(t *testing.T) {
-	var typ SnapshotIDListV1beta
+func TestSnapshotIdListV1beta_EncodeDecode(t *testing.T) {
+	var typ SnapshotIdListV1beta
 	typ.SetFake()
 
 	e := jx.Encoder{}
@@ -2640,7 +2640,7 @@ func TestSnapshotIDListV1beta_EncodeDecode(t *testing.T) {
 	data := e.Bytes()
 	require.True(t, std.Valid(data), "Encoded: %s", data)
 
-	var typ2 SnapshotIDListV1beta
+	var typ2 SnapshotIdListV1beta
 	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
 }
 func TestSnapshotPolicyV1beta_EncodeDecode(t *testing.T) {
@@ -8636,8 +8636,8 @@ func TestVolumeCreateV1betaVolumeType_EncodeDecode(t *testing.T) {
 	var typ2 VolumeCreateV1betaVolumeType
 	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
 }
-func TestVolumeIDListV1beta_EncodeDecode(t *testing.T) {
-	var typ VolumeIDListV1beta
+func TestVolumeIdListV1beta_EncodeDecode(t *testing.T) {
+	var typ VolumeIdListV1beta
 	typ.SetFake()
 
 	e := jx.Encoder{}
@@ -8645,7 +8645,7 @@ func TestVolumeIDListV1beta_EncodeDecode(t *testing.T) {
 	data := e.Bytes()
 	require.True(t, std.Valid(data), "Encoded: %s", data)
 
-	var typ2 VolumeIDListV1beta
+	var typ2 VolumeIdListV1beta
 	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
 }
 func TestVolumeReplicationCreateInternalV1beta_EncodeDecode(t *testing.T) {
@@ -9248,7 +9248,7 @@ func TestVolumeV1beta_Examples(t *testing.T) {
 	for i, tc := range []struct {
 		Input string
 	}{
-		{Input: "{\"activeDirectoryConfigUUID\":\"8064bdf5-4638-11e7-9bdb-020073ca7773\",\"backupConfig\":{\"backupPolicyId\":\"a990e99b-e2ec-c361-f463-67a54815b26d\",\"backupVaultId\":\"a990e99b-e2ec-c361-f463-67a54815b26d\",\"scheduledBackupEnabled\":true},\"created\":\"2016-11-29T20:14:50.459Z\",\"creationToken\":\"happily-successful-einstein\",\"description\":\"My volume description\",\"encryptionType\":\"SERVICE_MANAGED\",\"exportPolicy\":{\"rules\":[{\"accessType\":\"READ_WRITE\",\"allowedClients\":\"0.0.0.0/0\",\"nfsv3\":true,\"nfsv4\":false,\"ruleIndex\":1}]},\"kmsConfigId\":\"2653acf5-4638-11e7-9bdb-020073ca7773\",\"labels\":{\"someKey\":\"SomeValue\",\"someKey2\":\"SomeValue2\"},\"protocols\":[\"NFSV3\"],\"quotaInBytes\":100000000000000,\"resourceId\":\"my-volume\",\"securityStyle\":\"UNIX\",\"serviceLevel\":\"EXTREME\",\"snapReserve\":20,\"snapshotPolicy\":{\"dailySchedule\":{\"hour\":23,\"minute\":10,\"snapshotsToKeep\":24},\"enabled\":true,\"hourlySchedule\":{\"minute\":0,\"snapshotsToKeep\":6},\"monthlySchedule\":{\"daysOfMonth\":\"15,31\",\"hour\":23,\"minute\":59,\"snapshotsToKeep\":12},\"weeklySchedule\":{\"day\":\"Monday, Wednesday, Friday\",\"hour\":23,\"minute\":59,\"snapshotsToKeep\":7}},\"tieringPolicy\":{\"coolingThresholdDays\":40,\"tierAction\":\"ENABLE\"},\"unixPermissions\":\"0755\",\"usedBytes\":38786062792785,\"volumeId\":\"49b96a2F-4a38-6fa4-2CC6-F598Ef2f8a0E\",\"volumeState\":\"READY\",\"volumeStateDetails\":\"Available for use\"}"},
+		{Input: "{\"activeDirectoryConfigUuid\":\"8064bdf5-4638-11e7-9bdb-020073ca7773\",\"backupConfig\":{\"backupPolicyId\":\"a990e99b-e2ec-c361-f463-67a54815b26d\",\"backupVaultId\":\"a990e99b-e2ec-c361-f463-67a54815b26d\",\"scheduledBackupEnabled\":true},\"created\":\"2016-11-29T20:14:50.459Z\",\"creationToken\":\"happily-successful-einstein\",\"description\":\"My volume description\",\"encryptionType\":\"SERVICE_MANAGED\",\"exportPolicy\":{\"rules\":[{\"accessType\":\"READ_WRITE\",\"allowedClients\":\"0.0.0.0/0\",\"nfsv3\":true,\"nfsv4\":false,\"ruleIndex\":1}]},\"kmsConfigId\":\"2653acf5-4638-11e7-9bdb-020073ca7773\",\"labels\":{\"someKey\":\"SomeValue\",\"someKey2\":\"SomeValue2\"},\"protocols\":[\"NFSV3\"],\"quotaInBytes\":100000000000000,\"resourceId\":\"my-volume\",\"securityStyle\":\"UNIX\",\"serviceLevel\":\"EXTREME\",\"snapReserve\":20,\"snapshotPolicy\":{\"dailySchedule\":{\"hour\":23,\"minute\":10,\"snapshotsToKeep\":24},\"enabled\":true,\"hourlySchedule\":{\"minute\":0,\"snapshotsToKeep\":6},\"monthlySchedule\":{\"daysOfMonth\":\"15,31\",\"hour\":23,\"minute\":59,\"snapshotsToKeep\":12},\"weeklySchedule\":{\"day\":\"Monday, Wednesday, Friday\",\"hour\":23,\"minute\":59,\"snapshotsToKeep\":7}},\"tieringPolicy\":{\"coolingThresholdDays\":40,\"tierAction\":\"ENABLE\"},\"unixPermissions\":\"0755\",\"usedBytes\":38786062792785,\"volumeId\":\"49b96a2F-4a38-6fa4-2CC6-F598Ef2f8a0E\",\"volumeState\":\"READY\",\"volumeStateDetails\":\"Available for use\"}"},
 	} {
 		tc := tc
 		t.Run(fmt.Sprintf("Test%d", i+1), func(t *testing.T) {

@@ -185,7 +185,7 @@ func (h Handler) V1betaDeletePool(ctx context.Context, params gcpgenserver.V1bet
 }
 
 // V1betaGetMultiplePools handles the request to get multiple pools.
-func (h Handler) V1betaGetMultiplePools(ctx context.Context, req *gcpgenserver.PoolIDListV1beta, params gcpgenserver.V1betaGetMultiplePoolsParams) (gcpgenserver.V1betaGetMultiplePoolsRes, error) {
+func (h Handler) V1betaGetMultiplePools(ctx context.Context, req *gcpgenserver.PoolIdListV1beta, params gcpgenserver.V1betaGetMultiplePoolsParams) (gcpgenserver.V1betaGetMultiplePoolsRes, error) {
 	logger := utils.GetLoggerFromContext(ctx)
 	jwtToken := utils.GetJWTTokenFromContext(ctx)
 	cvpClient := createClient(logger, jwtToken)
@@ -194,7 +194,7 @@ func (h Handler) V1betaGetMultiplePools(ctx context.Context, req *gcpgenserver.P
 		LocationID:    params.LocationId,
 		ProjectNumber: params.ProjectNumber,
 		Body: &cvpmodels.PoolIDListV1beta{
-			PoolUUIDs: req.PoolUUIDs,
+			PoolUUIDs: req.PoolUuids,
 		},
 	}
 	resp, err := cvpClient.Pools.V1betaGetMultiplePools(getMultiplePoolsParams)
@@ -250,21 +250,21 @@ func (h Handler) V1betaGetMultiplePools(ctx context.Context, req *gcpgenserver.P
 		}, nil
 	}
 
-	if req.PoolUUIDs == nil {
+	if req.PoolUuids == nil {
 		return &gcpgenserver.V1betaGetMultiplePoolsBadRequest{
 			Code:    400,
 			Message: "PoolUUIDs is required",
 		}, nil
 	}
 
-	if len(req.PoolUUIDs) > 1000 {
+	if len(req.PoolUuids) > 1000 {
 		return &gcpgenserver.V1betaGetMultiplePoolsBadRequest{
 			Code:    float64(400),
 			Message: "poolUUIDs in body should have at most 1000 items",
 		}, nil
 	}
 
-	pools, err := h.Orchestrator.GetMultiplePools(ctx, params.ProjectNumber, req.PoolUUIDs)
+	pools, err := h.Orchestrator.GetMultiplePools(ctx, params.ProjectNumber, req.PoolUuids)
 	if err != nil {
 		return &gcpgenserver.V1betaGetMultiplePoolsInternalServerError{}, err
 	}

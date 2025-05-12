@@ -721,7 +721,7 @@ func (s *Server) decodeV1betaDeleteVolumeRequest(r *http.Request) (
 }
 
 func (s *Server) decodeV1betaGetMultipleActiveDirectoriesRequest(r *http.Request) (
-	req *ActiveDirectoryIDListV1beta,
+	req *ActiveDirectoryIdListV1beta,
 	close func() error,
 	rerr error,
 ) {
@@ -760,7 +760,7 @@ func (s *Server) decodeV1betaGetMultipleActiveDirectoriesRequest(r *http.Request
 
 		d := jx.DecodeBytes(buf)
 
-		var request ActiveDirectoryIDListV1beta
+		var request ActiveDirectoryIdListV1beta
 		if err := func() error {
 			if err := request.Decode(d); err != nil {
 				return err
@@ -792,7 +792,7 @@ func (s *Server) decodeV1betaGetMultipleActiveDirectoriesRequest(r *http.Request
 }
 
 func (s *Server) decodeV1betaGetMultipleBackupPoliciesRequest(r *http.Request) (
-	req *BackupPolicyIDListV1beta,
+	req *BackupPolicyIdListV1beta,
 	close func() error,
 	rerr error,
 ) {
@@ -831,7 +831,7 @@ func (s *Server) decodeV1betaGetMultipleBackupPoliciesRequest(r *http.Request) (
 
 		d := jx.DecodeBytes(buf)
 
-		var request BackupPolicyIDListV1beta
+		var request BackupPolicyIdListV1beta
 		if err := func() error {
 			if err := request.Decode(d); err != nil {
 				return err
@@ -863,7 +863,7 @@ func (s *Server) decodeV1betaGetMultipleBackupPoliciesRequest(r *http.Request) (
 }
 
 func (s *Server) decodeV1betaGetMultipleBackupVaultsRequest(r *http.Request) (
-	req *BackupVaultUUIDListV1beta,
+	req *BackupVaultUuidListV1beta,
 	close func() error,
 	rerr error,
 ) {
@@ -902,7 +902,7 @@ func (s *Server) decodeV1betaGetMultipleBackupVaultsRequest(r *http.Request) (
 
 		d := jx.DecodeBytes(buf)
 
-		var request BackupVaultUUIDListV1beta
+		var request BackupVaultUuidListV1beta
 		if err := func() error {
 			if err := request.Decode(d); err != nil {
 				return err
@@ -934,7 +934,7 @@ func (s *Server) decodeV1betaGetMultipleBackupVaultsRequest(r *http.Request) (
 }
 
 func (s *Server) decodeV1betaGetMultipleBackupsRequest(r *http.Request) (
-	req *BackupUUIDListV1beta,
+	req *BackupUuidListV1beta,
 	close func() error,
 	rerr error,
 ) {
@@ -973,7 +973,7 @@ func (s *Server) decodeV1betaGetMultipleBackupsRequest(r *http.Request) (
 
 		d := jx.DecodeBytes(buf)
 
-		var request BackupUUIDListV1beta
+		var request BackupUuidListV1beta
 		if err := func() error {
 			if err := request.Decode(d); err != nil {
 				return err
@@ -1076,7 +1076,7 @@ func (s *Server) decodeV1betaGetMultipleHostGroupsRequest(r *http.Request) (
 }
 
 func (s *Server) decodeV1betaGetMultiplePoolsRequest(r *http.Request) (
-	req *PoolIDListV1beta,
+	req *PoolIdListV1beta,
 	close func() error,
 	rerr error,
 ) {
@@ -1115,7 +1115,7 @@ func (s *Server) decodeV1betaGetMultiplePoolsRequest(r *http.Request) (
 
 		d := jx.DecodeBytes(buf)
 
-		var request PoolIDListV1beta
+		var request PoolIdListV1beta
 		if err := func() error {
 			if err := request.Decode(d); err != nil {
 				return err
@@ -1218,7 +1218,7 @@ func (s *Server) decodeV1betaGetMultipleReplicationsRequest(r *http.Request) (
 }
 
 func (s *Server) decodeV1betaGetMultipleSnapshotsRequest(r *http.Request) (
-	req *SnapshotIDListV1beta,
+	req *SnapshotIdListV1beta,
 	close func() error,
 	rerr error,
 ) {
@@ -1257,7 +1257,7 @@ func (s *Server) decodeV1betaGetMultipleSnapshotsRequest(r *http.Request) (
 
 		d := jx.DecodeBytes(buf)
 
-		var request SnapshotIDListV1beta
+		var request SnapshotIdListV1beta
 		if err := func() error {
 			if err := request.Decode(d); err != nil {
 				return err
@@ -1289,7 +1289,7 @@ func (s *Server) decodeV1betaGetMultipleSnapshotsRequest(r *http.Request) (
 }
 
 func (s *Server) decodeV1betaGetMultipleVolumesRequest(r *http.Request) (
-	req *VolumeIDListV1beta,
+	req *VolumeIdListV1beta,
 	close func() error,
 	rerr error,
 ) {
@@ -1328,7 +1328,7 @@ func (s *Server) decodeV1betaGetMultipleVolumesRequest(r *http.Request) (
 
 		d := jx.DecodeBytes(buf)
 
-		var request VolumeIDListV1beta
+		var request VolumeIdListV1beta
 		if err := func() error {
 			if err := request.Decode(d); err != nil {
 				return err

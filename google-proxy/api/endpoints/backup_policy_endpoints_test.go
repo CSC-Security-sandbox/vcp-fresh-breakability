@@ -1402,8 +1402,8 @@ func TestV1GetMultipleBackupPolicies(t *testing.T) {
 			ProjectNumber:  "12345",
 			XCorrelationID: gcpgenserver.NewOptString("test-correlation-id"),
 		}
-		req := &gcpgenserver.BackupPolicyIDListV1beta{
-			BackupPolicyUUIDs: []string{"backup-policy-id-1"},
+		req := &gcpgenserver.BackupPolicyIdListV1beta{
+			BackupPolicyUuids: []string{"backup-policy-id-1"},
 		}
 
 		// Define mock response
@@ -1467,7 +1467,7 @@ func TestV1GetMultipleBackupPolicies(t *testing.T) {
 			XCorrelationID: gcpgenserver.NewOptString("test-correlation-id"),
 		}
 		// Define request
-		req := &gcpgenserver.BackupPolicyIDListV1beta{}
+		req := &gcpgenserver.BackupPolicyIdListV1beta{}
 
 		// Define mock error
 		errorCode := float64(400)
@@ -1510,7 +1510,7 @@ func TestV1GetMultipleBackupPolicies(t *testing.T) {
 			XCorrelationID: gcpgenserver.NewOptString("test-correlation-id"),
 		}
 		// Define request
-		req := &gcpgenserver.BackupPolicyIDListV1beta{}
+		req := &gcpgenserver.BackupPolicyIdListV1beta{}
 
 		// Define mock error
 		errorCode := float64(401)
@@ -1553,7 +1553,7 @@ func TestV1GetMultipleBackupPolicies(t *testing.T) {
 			XCorrelationID: gcpgenserver.NewOptString("test-correlation-id"),
 		}
 		// Define request
-		req := &gcpgenserver.BackupPolicyIDListV1beta{}
+		req := &gcpgenserver.BackupPolicyIdListV1beta{}
 
 		// Define mock error
 		errorCode := float64(403)
@@ -1596,7 +1596,7 @@ func TestV1GetMultipleBackupPolicies(t *testing.T) {
 			XCorrelationID: gcpgenserver.NewOptString("test-correlation-id"),
 		}
 		// Define request
-		req := &gcpgenserver.BackupPolicyIDListV1beta{}
+		req := &gcpgenserver.BackupPolicyIdListV1beta{}
 
 		// Define mock error
 		errorCode := float64(500)
@@ -1639,7 +1639,7 @@ func TestV1GetMultipleBackupPolicies(t *testing.T) {
 			XCorrelationID: gcpgenserver.NewOptString("test-correlation-id"),
 		}
 		// Define request
-		req := &gcpgenserver.BackupPolicyIDListV1beta{}
+		req := &gcpgenserver.BackupPolicyIdListV1beta{}
 
 		// Define mock error
 		errorCode := float64(500)

@@ -29,8 +29,8 @@ func TestV1GetMultipleBackups(t *testing.T) {
 			XCorrelationID: gcpgenserver.NewOptString("test-correlation-id"),
 			BackupVaultId:  "test-backup-vault-id",
 		}
-		req := &gcpgenserver.BackupUUIDListV1beta{
-			BackupUUIDs: []string{"backup-id-1"},
+		req := &gcpgenserver.BackupUuidListV1beta{
+			BackupUuids: []string{"backup-id-1"},
 		}
 
 		backup := []*models.BackupV1beta{}
@@ -102,7 +102,7 @@ func TestV1GetMultipleBackups(t *testing.T) {
 			XCorrelationID: gcpgenserver.NewOptString("test-correlation-id"),
 		}
 		// Define request
-		req := &gcpgenserver.BackupUUIDListV1beta{}
+		req := &gcpgenserver.BackupUuidListV1beta{}
 
 		// Define mock error
 		errorCode := float64(400)
@@ -144,7 +144,7 @@ func TestV1GetMultipleBackups(t *testing.T) {
 			XCorrelationID: gcpgenserver.NewOptString("test-correlation-id"),
 		}
 		// Define request
-		req := &gcpgenserver.BackupUUIDListV1beta{}
+		req := &gcpgenserver.BackupUuidListV1beta{}
 
 		// Define mock error
 		errorCode := float64(401)
@@ -186,7 +186,7 @@ func TestV1GetMultipleBackups(t *testing.T) {
 			XCorrelationID: gcpgenserver.NewOptString("test-correlation-id"),
 		}
 		// Define request
-		req := &gcpgenserver.BackupUUIDListV1beta{}
+		req := &gcpgenserver.BackupUuidListV1beta{}
 
 		// Define mock error
 		errorCode := float64(403)

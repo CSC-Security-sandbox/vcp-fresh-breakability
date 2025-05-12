@@ -235,10 +235,10 @@ func (h Handler) V1betaDescribeBackupVault(ctx context.Context, params gcpgenser
 	return &response, nil
 }
 
-func (h Handler) V1betaGetMultipleBackupVaults(ctx context.Context, req *gcpgenserver.BackupVaultUUIDListV1beta, params gcpgenserver.V1betaGetMultipleBackupVaultsParams) (r gcpgenserver.V1betaGetMultipleBackupVaultsRes, _ error) {
+func (h Handler) V1betaGetMultipleBackupVaults(ctx context.Context, req *gcpgenserver.BackupVaultUuidListV1beta, params gcpgenserver.V1betaGetMultipleBackupVaultsParams) (r gcpgenserver.V1betaGetMultipleBackupVaultsRes, _ error) {
 	logger := utils.GetLoggerFromContext(ctx)
 	body := &models.BackupVaultUUIDListV1beta{
-		BackupVaultUUIDs: req.BackupVaultUUIDs,
+		BackupVaultUUIDs: req.BackupVaultUuids,
 	}
 	listParams := &backup_vault.V1betaGetMultipleBackupVaultsParams{
 		LocationID:     params.LocationId,

@@ -1614,7 +1614,7 @@ func (_c *MockHandler_V1betaDescribeVolume_Call) RunAndReturn(run func(context.C
 }
 
 // V1betaGetMultipleActiveDirectories provides a mock function with given fields: ctx, req, params
-func (_m *MockHandler) V1betaGetMultipleActiveDirectories(ctx context.Context, req *ActiveDirectoryIDListV1beta, params V1betaGetMultipleActiveDirectoriesParams) (V1betaGetMultipleActiveDirectoriesRes, error) {
+func (_m *MockHandler) V1betaGetMultipleActiveDirectories(ctx context.Context, req *ActiveDirectoryIdListV1beta, params V1betaGetMultipleActiveDirectoriesParams) (V1betaGetMultipleActiveDirectoriesRes, error) {
 	ret := _m.Called(ctx, req, params)
 
 	if len(ret) == 0 {
@@ -1623,10 +1623,10 @@ func (_m *MockHandler) V1betaGetMultipleActiveDirectories(ctx context.Context, r
 
 	var r0 V1betaGetMultipleActiveDirectoriesRes
 	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, *ActiveDirectoryIDListV1beta, V1betaGetMultipleActiveDirectoriesParams) (V1betaGetMultipleActiveDirectoriesRes, error)); ok {
+	if rf, ok := ret.Get(0).(func(context.Context, *ActiveDirectoryIdListV1beta, V1betaGetMultipleActiveDirectoriesParams) (V1betaGetMultipleActiveDirectoriesRes, error)); ok {
 		return rf(ctx, req, params)
 	}
-	if rf, ok := ret.Get(0).(func(context.Context, *ActiveDirectoryIDListV1beta, V1betaGetMultipleActiveDirectoriesParams) V1betaGetMultipleActiveDirectoriesRes); ok {
+	if rf, ok := ret.Get(0).(func(context.Context, *ActiveDirectoryIdListV1beta, V1betaGetMultipleActiveDirectoriesParams) V1betaGetMultipleActiveDirectoriesRes); ok {
 		r0 = rf(ctx, req, params)
 	} else {
 		if ret.Get(0) != nil {
@@ -1634,7 +1634,7 @@ func (_m *MockHandler) V1betaGetMultipleActiveDirectories(ctx context.Context, r
 		}
 	}
 
-	if rf, ok := ret.Get(1).(func(context.Context, *ActiveDirectoryIDListV1beta, V1betaGetMultipleActiveDirectoriesParams) error); ok {
+	if rf, ok := ret.Get(1).(func(context.Context, *ActiveDirectoryIdListV1beta, V1betaGetMultipleActiveDirectoriesParams) error); ok {
 		r1 = rf(ctx, req, params)
 	} else {
 		r1 = ret.Error(1)
@@ -1650,15 +1650,15 @@ type MockHandler_V1betaGetMultipleActiveDirectories_Call struct {
 
 // V1betaGetMultipleActiveDirectories is a helper method to define mock.On call
 //   - ctx context.Context
-//   - req *ActiveDirectoryIDListV1beta
+//   - req *ActiveDirectoryIdListV1beta
 //   - params V1betaGetMultipleActiveDirectoriesParams
 func (_e *MockHandler_Expecter) V1betaGetMultipleActiveDirectories(ctx interface{}, req interface{}, params interface{}) *MockHandler_V1betaGetMultipleActiveDirectories_Call {
 	return &MockHandler_V1betaGetMultipleActiveDirectories_Call{Call: _e.mock.On("V1betaGetMultipleActiveDirectories", ctx, req, params)}
 }
 
-func (_c *MockHandler_V1betaGetMultipleActiveDirectories_Call) Run(run func(ctx context.Context, req *ActiveDirectoryIDListV1beta, params V1betaGetMultipleActiveDirectoriesParams)) *MockHandler_V1betaGetMultipleActiveDirectories_Call {
+func (_c *MockHandler_V1betaGetMultipleActiveDirectories_Call) Run(run func(ctx context.Context, req *ActiveDirectoryIdListV1beta, params V1betaGetMultipleActiveDirectoriesParams)) *MockHandler_V1betaGetMultipleActiveDirectories_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context), args[1].(*ActiveDirectoryIDListV1beta), args[2].(V1betaGetMultipleActiveDirectoriesParams))
+		run(args[0].(context.Context), args[1].(*ActiveDirectoryIdListV1beta), args[2].(V1betaGetMultipleActiveDirectoriesParams))
 	})
 	return _c
 }
@@ -1668,13 +1668,13 @@ func (_c *MockHandler_V1betaGetMultipleActiveDirectories_Call) Return(_a0 V1beta
 	return _c
 }
 
-func (_c *MockHandler_V1betaGetMultipleActiveDirectories_Call) RunAndReturn(run func(context.Context, *ActiveDirectoryIDListV1beta, V1betaGetMultipleActiveDirectoriesParams) (V1betaGetMultipleActiveDirectoriesRes, error)) *MockHandler_V1betaGetMultipleActiveDirectories_Call {
+func (_c *MockHandler_V1betaGetMultipleActiveDirectories_Call) RunAndReturn(run func(context.Context, *ActiveDirectoryIdListV1beta, V1betaGetMultipleActiveDirectoriesParams) (V1betaGetMultipleActiveDirectoriesRes, error)) *MockHandler_V1betaGetMultipleActiveDirectories_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // V1betaGetMultipleBackupPolicies provides a mock function with given fields: ctx, req, params
-func (_m *MockHandler) V1betaGetMultipleBackupPolicies(ctx context.Context, req *BackupPolicyIDListV1beta, params V1betaGetMultipleBackupPoliciesParams) (V1betaGetMultipleBackupPoliciesRes, error) {
+func (_m *MockHandler) V1betaGetMultipleBackupPolicies(ctx context.Context, req *BackupPolicyIdListV1beta, params V1betaGetMultipleBackupPoliciesParams) (V1betaGetMultipleBackupPoliciesRes, error) {
 	ret := _m.Called(ctx, req, params)
 
 	if len(ret) == 0 {
@@ -1683,10 +1683,10 @@ func (_m *MockHandler) V1betaGetMultipleBackupPolicies(ctx context.Context, req 
 
 	var r0 V1betaGetMultipleBackupPoliciesRes
 	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, *BackupPolicyIDListV1beta, V1betaGetMultipleBackupPoliciesParams) (V1betaGetMultipleBackupPoliciesRes, error)); ok {
+	if rf, ok := ret.Get(0).(func(context.Context, *BackupPolicyIdListV1beta, V1betaGetMultipleBackupPoliciesParams) (V1betaGetMultipleBackupPoliciesRes, error)); ok {
 		return rf(ctx, req, params)
 	}
-	if rf, ok := ret.Get(0).(func(context.Context, *BackupPolicyIDListV1beta, V1betaGetMultipleBackupPoliciesParams) V1betaGetMultipleBackupPoliciesRes); ok {
+	if rf, ok := ret.Get(0).(func(context.Context, *BackupPolicyIdListV1beta, V1betaGetMultipleBackupPoliciesParams) V1betaGetMultipleBackupPoliciesRes); ok {
 		r0 = rf(ctx, req, params)
 	} else {
 		if ret.Get(0) != nil {
@@ -1694,7 +1694,7 @@ func (_m *MockHandler) V1betaGetMultipleBackupPolicies(ctx context.Context, req 
 		}
 	}
 
-	if rf, ok := ret.Get(1).(func(context.Context, *BackupPolicyIDListV1beta, V1betaGetMultipleBackupPoliciesParams) error); ok {
+	if rf, ok := ret.Get(1).(func(context.Context, *BackupPolicyIdListV1beta, V1betaGetMultipleBackupPoliciesParams) error); ok {
 		r1 = rf(ctx, req, params)
 	} else {
 		r1 = ret.Error(1)
@@ -1710,15 +1710,15 @@ type MockHandler_V1betaGetMultipleBackupPolicies_Call struct {
 
 // V1betaGetMultipleBackupPolicies is a helper method to define mock.On call
 //   - ctx context.Context
-//   - req *BackupPolicyIDListV1beta
+//   - req *BackupPolicyIdListV1beta
 //   - params V1betaGetMultipleBackupPoliciesParams
 func (_e *MockHandler_Expecter) V1betaGetMultipleBackupPolicies(ctx interface{}, req interface{}, params interface{}) *MockHandler_V1betaGetMultipleBackupPolicies_Call {
 	return &MockHandler_V1betaGetMultipleBackupPolicies_Call{Call: _e.mock.On("V1betaGetMultipleBackupPolicies", ctx, req, params)}
 }
 
-func (_c *MockHandler_V1betaGetMultipleBackupPolicies_Call) Run(run func(ctx context.Context, req *BackupPolicyIDListV1beta, params V1betaGetMultipleBackupPoliciesParams)) *MockHandler_V1betaGetMultipleBackupPolicies_Call {
+func (_c *MockHandler_V1betaGetMultipleBackupPolicies_Call) Run(run func(ctx context.Context, req *BackupPolicyIdListV1beta, params V1betaGetMultipleBackupPoliciesParams)) *MockHandler_V1betaGetMultipleBackupPolicies_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context), args[1].(*BackupPolicyIDListV1beta), args[2].(V1betaGetMultipleBackupPoliciesParams))
+		run(args[0].(context.Context), args[1].(*BackupPolicyIdListV1beta), args[2].(V1betaGetMultipleBackupPoliciesParams))
 	})
 	return _c
 }
@@ -1728,13 +1728,13 @@ func (_c *MockHandler_V1betaGetMultipleBackupPolicies_Call) Return(_a0 V1betaGet
 	return _c
 }
 
-func (_c *MockHandler_V1betaGetMultipleBackupPolicies_Call) RunAndReturn(run func(context.Context, *BackupPolicyIDListV1beta, V1betaGetMultipleBackupPoliciesParams) (V1betaGetMultipleBackupPoliciesRes, error)) *MockHandler_V1betaGetMultipleBackupPolicies_Call {
+func (_c *MockHandler_V1betaGetMultipleBackupPolicies_Call) RunAndReturn(run func(context.Context, *BackupPolicyIdListV1beta, V1betaGetMultipleBackupPoliciesParams) (V1betaGetMultipleBackupPoliciesRes, error)) *MockHandler_V1betaGetMultipleBackupPolicies_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // V1betaGetMultipleBackupVaults provides a mock function with given fields: ctx, req, params
-func (_m *MockHandler) V1betaGetMultipleBackupVaults(ctx context.Context, req *BackupVaultUUIDListV1beta, params V1betaGetMultipleBackupVaultsParams) (V1betaGetMultipleBackupVaultsRes, error) {
+func (_m *MockHandler) V1betaGetMultipleBackupVaults(ctx context.Context, req *BackupVaultUuidListV1beta, params V1betaGetMultipleBackupVaultsParams) (V1betaGetMultipleBackupVaultsRes, error) {
 	ret := _m.Called(ctx, req, params)
 
 	if len(ret) == 0 {
@@ -1743,10 +1743,10 @@ func (_m *MockHandler) V1betaGetMultipleBackupVaults(ctx context.Context, req *B
 
 	var r0 V1betaGetMultipleBackupVaultsRes
 	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, *BackupVaultUUIDListV1beta, V1betaGetMultipleBackupVaultsParams) (V1betaGetMultipleBackupVaultsRes, error)); ok {
+	if rf, ok := ret.Get(0).(func(context.Context, *BackupVaultUuidListV1beta, V1betaGetMultipleBackupVaultsParams) (V1betaGetMultipleBackupVaultsRes, error)); ok {
 		return rf(ctx, req, params)
 	}
-	if rf, ok := ret.Get(0).(func(context.Context, *BackupVaultUUIDListV1beta, V1betaGetMultipleBackupVaultsParams) V1betaGetMultipleBackupVaultsRes); ok {
+	if rf, ok := ret.Get(0).(func(context.Context, *BackupVaultUuidListV1beta, V1betaGetMultipleBackupVaultsParams) V1betaGetMultipleBackupVaultsRes); ok {
 		r0 = rf(ctx, req, params)
 	} else {
 		if ret.Get(0) != nil {
@@ -1754,7 +1754,7 @@ func (_m *MockHandler) V1betaGetMultipleBackupVaults(ctx context.Context, req *B
 		}
 	}
 
-	if rf, ok := ret.Get(1).(func(context.Context, *BackupVaultUUIDListV1beta, V1betaGetMultipleBackupVaultsParams) error); ok {
+	if rf, ok := ret.Get(1).(func(context.Context, *BackupVaultUuidListV1beta, V1betaGetMultipleBackupVaultsParams) error); ok {
 		r1 = rf(ctx, req, params)
 	} else {
 		r1 = ret.Error(1)
@@ -1770,15 +1770,15 @@ type MockHandler_V1betaGetMultipleBackupVaults_Call struct {
 
 // V1betaGetMultipleBackupVaults is a helper method to define mock.On call
 //   - ctx context.Context
-//   - req *BackupVaultUUIDListV1beta
+//   - req *BackupVaultUuidListV1beta
 //   - params V1betaGetMultipleBackupVaultsParams
 func (_e *MockHandler_Expecter) V1betaGetMultipleBackupVaults(ctx interface{}, req interface{}, params interface{}) *MockHandler_V1betaGetMultipleBackupVaults_Call {
 	return &MockHandler_V1betaGetMultipleBackupVaults_Call{Call: _e.mock.On("V1betaGetMultipleBackupVaults", ctx, req, params)}
 }
 
-func (_c *MockHandler_V1betaGetMultipleBackupVaults_Call) Run(run func(ctx context.Context, req *BackupVaultUUIDListV1beta, params V1betaGetMultipleBackupVaultsParams)) *MockHandler_V1betaGetMultipleBackupVaults_Call {
+func (_c *MockHandler_V1betaGetMultipleBackupVaults_Call) Run(run func(ctx context.Context, req *BackupVaultUuidListV1beta, params V1betaGetMultipleBackupVaultsParams)) *MockHandler_V1betaGetMultipleBackupVaults_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context), args[1].(*BackupVaultUUIDListV1beta), args[2].(V1betaGetMultipleBackupVaultsParams))
+		run(args[0].(context.Context), args[1].(*BackupVaultUuidListV1beta), args[2].(V1betaGetMultipleBackupVaultsParams))
 	})
 	return _c
 }
@@ -1788,13 +1788,13 @@ func (_c *MockHandler_V1betaGetMultipleBackupVaults_Call) Return(_a0 V1betaGetMu
 	return _c
 }
 
-func (_c *MockHandler_V1betaGetMultipleBackupVaults_Call) RunAndReturn(run func(context.Context, *BackupVaultUUIDListV1beta, V1betaGetMultipleBackupVaultsParams) (V1betaGetMultipleBackupVaultsRes, error)) *MockHandler_V1betaGetMultipleBackupVaults_Call {
+func (_c *MockHandler_V1betaGetMultipleBackupVaults_Call) RunAndReturn(run func(context.Context, *BackupVaultUuidListV1beta, V1betaGetMultipleBackupVaultsParams) (V1betaGetMultipleBackupVaultsRes, error)) *MockHandler_V1betaGetMultipleBackupVaults_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // V1betaGetMultipleBackups provides a mock function with given fields: ctx, req, params
-func (_m *MockHandler) V1betaGetMultipleBackups(ctx context.Context, req *BackupUUIDListV1beta, params V1betaGetMultipleBackupsParams) (V1betaGetMultipleBackupsRes, error) {
+func (_m *MockHandler) V1betaGetMultipleBackups(ctx context.Context, req *BackupUuidListV1beta, params V1betaGetMultipleBackupsParams) (V1betaGetMultipleBackupsRes, error) {
 	ret := _m.Called(ctx, req, params)
 
 	if len(ret) == 0 {
@@ -1803,10 +1803,10 @@ func (_m *MockHandler) V1betaGetMultipleBackups(ctx context.Context, req *Backup
 
 	var r0 V1betaGetMultipleBackupsRes
 	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, *BackupUUIDListV1beta, V1betaGetMultipleBackupsParams) (V1betaGetMultipleBackupsRes, error)); ok {
+	if rf, ok := ret.Get(0).(func(context.Context, *BackupUuidListV1beta, V1betaGetMultipleBackupsParams) (V1betaGetMultipleBackupsRes, error)); ok {
 		return rf(ctx, req, params)
 	}
-	if rf, ok := ret.Get(0).(func(context.Context, *BackupUUIDListV1beta, V1betaGetMultipleBackupsParams) V1betaGetMultipleBackupsRes); ok {
+	if rf, ok := ret.Get(0).(func(context.Context, *BackupUuidListV1beta, V1betaGetMultipleBackupsParams) V1betaGetMultipleBackupsRes); ok {
 		r0 = rf(ctx, req, params)
 	} else {
 		if ret.Get(0) != nil {
@@ -1814,7 +1814,7 @@ func (_m *MockHandler) V1betaGetMultipleBackups(ctx context.Context, req *Backup
 		}
 	}
 
-	if rf, ok := ret.Get(1).(func(context.Context, *BackupUUIDListV1beta, V1betaGetMultipleBackupsParams) error); ok {
+	if rf, ok := ret.Get(1).(func(context.Context, *BackupUuidListV1beta, V1betaGetMultipleBackupsParams) error); ok {
 		r1 = rf(ctx, req, params)
 	} else {
 		r1 = ret.Error(1)
@@ -1830,15 +1830,15 @@ type MockHandler_V1betaGetMultipleBackups_Call struct {
 
 // V1betaGetMultipleBackups is a helper method to define mock.On call
 //   - ctx context.Context
-//   - req *BackupUUIDListV1beta
+//   - req *BackupUuidListV1beta
 //   - params V1betaGetMultipleBackupsParams
 func (_e *MockHandler_Expecter) V1betaGetMultipleBackups(ctx interface{}, req interface{}, params interface{}) *MockHandler_V1betaGetMultipleBackups_Call {
 	return &MockHandler_V1betaGetMultipleBackups_Call{Call: _e.mock.On("V1betaGetMultipleBackups", ctx, req, params)}
 }
 
-func (_c *MockHandler_V1betaGetMultipleBackups_Call) Run(run func(ctx context.Context, req *BackupUUIDListV1beta, params V1betaGetMultipleBackupsParams)) *MockHandler_V1betaGetMultipleBackups_Call {
+func (_c *MockHandler_V1betaGetMultipleBackups_Call) Run(run func(ctx context.Context, req *BackupUuidListV1beta, params V1betaGetMultipleBackupsParams)) *MockHandler_V1betaGetMultipleBackups_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context), args[1].(*BackupUUIDListV1beta), args[2].(V1betaGetMultipleBackupsParams))
+		run(args[0].(context.Context), args[1].(*BackupUuidListV1beta), args[2].(V1betaGetMultipleBackupsParams))
 	})
 	return _c
 }
@@ -1848,7 +1848,7 @@ func (_c *MockHandler_V1betaGetMultipleBackups_Call) Return(_a0 V1betaGetMultipl
 	return _c
 }
 
-func (_c *MockHandler_V1betaGetMultipleBackups_Call) RunAndReturn(run func(context.Context, *BackupUUIDListV1beta, V1betaGetMultipleBackupsParams) (V1betaGetMultipleBackupsRes, error)) *MockHandler_V1betaGetMultipleBackups_Call {
+func (_c *MockHandler_V1betaGetMultipleBackups_Call) RunAndReturn(run func(context.Context, *BackupUuidListV1beta, V1betaGetMultipleBackupsParams) (V1betaGetMultipleBackupsRes, error)) *MockHandler_V1betaGetMultipleBackups_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -1914,7 +1914,7 @@ func (_c *MockHandler_V1betaGetMultipleHostGroups_Call) RunAndReturn(run func(co
 }
 
 // V1betaGetMultiplePools provides a mock function with given fields: ctx, req, params
-func (_m *MockHandler) V1betaGetMultiplePools(ctx context.Context, req *PoolIDListV1beta, params V1betaGetMultiplePoolsParams) (V1betaGetMultiplePoolsRes, error) {
+func (_m *MockHandler) V1betaGetMultiplePools(ctx context.Context, req *PoolIdListV1beta, params V1betaGetMultiplePoolsParams) (V1betaGetMultiplePoolsRes, error) {
 	ret := _m.Called(ctx, req, params)
 
 	if len(ret) == 0 {
@@ -1923,10 +1923,10 @@ func (_m *MockHandler) V1betaGetMultiplePools(ctx context.Context, req *PoolIDLi
 
 	var r0 V1betaGetMultiplePoolsRes
 	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, *PoolIDListV1beta, V1betaGetMultiplePoolsParams) (V1betaGetMultiplePoolsRes, error)); ok {
+	if rf, ok := ret.Get(0).(func(context.Context, *PoolIdListV1beta, V1betaGetMultiplePoolsParams) (V1betaGetMultiplePoolsRes, error)); ok {
 		return rf(ctx, req, params)
 	}
-	if rf, ok := ret.Get(0).(func(context.Context, *PoolIDListV1beta, V1betaGetMultiplePoolsParams) V1betaGetMultiplePoolsRes); ok {
+	if rf, ok := ret.Get(0).(func(context.Context, *PoolIdListV1beta, V1betaGetMultiplePoolsParams) V1betaGetMultiplePoolsRes); ok {
 		r0 = rf(ctx, req, params)
 	} else {
 		if ret.Get(0) != nil {
@@ -1934,7 +1934,7 @@ func (_m *MockHandler) V1betaGetMultiplePools(ctx context.Context, req *PoolIDLi
 		}
 	}
 
-	if rf, ok := ret.Get(1).(func(context.Context, *PoolIDListV1beta, V1betaGetMultiplePoolsParams) error); ok {
+	if rf, ok := ret.Get(1).(func(context.Context, *PoolIdListV1beta, V1betaGetMultiplePoolsParams) error); ok {
 		r1 = rf(ctx, req, params)
 	} else {
 		r1 = ret.Error(1)
@@ -1950,15 +1950,15 @@ type MockHandler_V1betaGetMultiplePools_Call struct {
 
 // V1betaGetMultiplePools is a helper method to define mock.On call
 //   - ctx context.Context
-//   - req *PoolIDListV1beta
+//   - req *PoolIdListV1beta
 //   - params V1betaGetMultiplePoolsParams
 func (_e *MockHandler_Expecter) V1betaGetMultiplePools(ctx interface{}, req interface{}, params interface{}) *MockHandler_V1betaGetMultiplePools_Call {
 	return &MockHandler_V1betaGetMultiplePools_Call{Call: _e.mock.On("V1betaGetMultiplePools", ctx, req, params)}
 }
 
-func (_c *MockHandler_V1betaGetMultiplePools_Call) Run(run func(ctx context.Context, req *PoolIDListV1beta, params V1betaGetMultiplePoolsParams)) *MockHandler_V1betaGetMultiplePools_Call {
+func (_c *MockHandler_V1betaGetMultiplePools_Call) Run(run func(ctx context.Context, req *PoolIdListV1beta, params V1betaGetMultiplePoolsParams)) *MockHandler_V1betaGetMultiplePools_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context), args[1].(*PoolIDListV1beta), args[2].(V1betaGetMultiplePoolsParams))
+		run(args[0].(context.Context), args[1].(*PoolIdListV1beta), args[2].(V1betaGetMultiplePoolsParams))
 	})
 	return _c
 }
@@ -1968,7 +1968,7 @@ func (_c *MockHandler_V1betaGetMultiplePools_Call) Return(_a0 V1betaGetMultipleP
 	return _c
 }
 
-func (_c *MockHandler_V1betaGetMultiplePools_Call) RunAndReturn(run func(context.Context, *PoolIDListV1beta, V1betaGetMultiplePoolsParams) (V1betaGetMultiplePoolsRes, error)) *MockHandler_V1betaGetMultiplePools_Call {
+func (_c *MockHandler_V1betaGetMultiplePools_Call) RunAndReturn(run func(context.Context, *PoolIdListV1beta, V1betaGetMultiplePoolsParams) (V1betaGetMultiplePoolsRes, error)) *MockHandler_V1betaGetMultiplePools_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -2034,7 +2034,7 @@ func (_c *MockHandler_V1betaGetMultipleReplications_Call) RunAndReturn(run func(
 }
 
 // V1betaGetMultipleSnapshots provides a mock function with given fields: ctx, req, params
-func (_m *MockHandler) V1betaGetMultipleSnapshots(ctx context.Context, req *SnapshotIDListV1beta, params V1betaGetMultipleSnapshotsParams) (V1betaGetMultipleSnapshotsRes, error) {
+func (_m *MockHandler) V1betaGetMultipleSnapshots(ctx context.Context, req *SnapshotIdListV1beta, params V1betaGetMultipleSnapshotsParams) (V1betaGetMultipleSnapshotsRes, error) {
 	ret := _m.Called(ctx, req, params)
 
 	if len(ret) == 0 {
@@ -2043,10 +2043,10 @@ func (_m *MockHandler) V1betaGetMultipleSnapshots(ctx context.Context, req *Snap
 
 	var r0 V1betaGetMultipleSnapshotsRes
 	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, *SnapshotIDListV1beta, V1betaGetMultipleSnapshotsParams) (V1betaGetMultipleSnapshotsRes, error)); ok {
+	if rf, ok := ret.Get(0).(func(context.Context, *SnapshotIdListV1beta, V1betaGetMultipleSnapshotsParams) (V1betaGetMultipleSnapshotsRes, error)); ok {
 		return rf(ctx, req, params)
 	}
-	if rf, ok := ret.Get(0).(func(context.Context, *SnapshotIDListV1beta, V1betaGetMultipleSnapshotsParams) V1betaGetMultipleSnapshotsRes); ok {
+	if rf, ok := ret.Get(0).(func(context.Context, *SnapshotIdListV1beta, V1betaGetMultipleSnapshotsParams) V1betaGetMultipleSnapshotsRes); ok {
 		r0 = rf(ctx, req, params)
 	} else {
 		if ret.Get(0) != nil {
@@ -2054,7 +2054,7 @@ func (_m *MockHandler) V1betaGetMultipleSnapshots(ctx context.Context, req *Snap
 		}
 	}
 
-	if rf, ok := ret.Get(1).(func(context.Context, *SnapshotIDListV1beta, V1betaGetMultipleSnapshotsParams) error); ok {
+	if rf, ok := ret.Get(1).(func(context.Context, *SnapshotIdListV1beta, V1betaGetMultipleSnapshotsParams) error); ok {
 		r1 = rf(ctx, req, params)
 	} else {
 		r1 = ret.Error(1)
@@ -2070,15 +2070,15 @@ type MockHandler_V1betaGetMultipleSnapshots_Call struct {
 
 // V1betaGetMultipleSnapshots is a helper method to define mock.On call
 //   - ctx context.Context
-//   - req *SnapshotIDListV1beta
+//   - req *SnapshotIdListV1beta
 //   - params V1betaGetMultipleSnapshotsParams
 func (_e *MockHandler_Expecter) V1betaGetMultipleSnapshots(ctx interface{}, req interface{}, params interface{}) *MockHandler_V1betaGetMultipleSnapshots_Call {
 	return &MockHandler_V1betaGetMultipleSnapshots_Call{Call: _e.mock.On("V1betaGetMultipleSnapshots", ctx, req, params)}
 }
 
-func (_c *MockHandler_V1betaGetMultipleSnapshots_Call) Run(run func(ctx context.Context, req *SnapshotIDListV1beta, params V1betaGetMultipleSnapshotsParams)) *MockHandler_V1betaGetMultipleSnapshots_Call {
+func (_c *MockHandler_V1betaGetMultipleSnapshots_Call) Run(run func(ctx context.Context, req *SnapshotIdListV1beta, params V1betaGetMultipleSnapshotsParams)) *MockHandler_V1betaGetMultipleSnapshots_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context), args[1].(*SnapshotIDListV1beta), args[2].(V1betaGetMultipleSnapshotsParams))
+		run(args[0].(context.Context), args[1].(*SnapshotIdListV1beta), args[2].(V1betaGetMultipleSnapshotsParams))
 	})
 	return _c
 }
@@ -2088,13 +2088,13 @@ func (_c *MockHandler_V1betaGetMultipleSnapshots_Call) Return(_a0 V1betaGetMulti
 	return _c
 }
 
-func (_c *MockHandler_V1betaGetMultipleSnapshots_Call) RunAndReturn(run func(context.Context, *SnapshotIDListV1beta, V1betaGetMultipleSnapshotsParams) (V1betaGetMultipleSnapshotsRes, error)) *MockHandler_V1betaGetMultipleSnapshots_Call {
+func (_c *MockHandler_V1betaGetMultipleSnapshots_Call) RunAndReturn(run func(context.Context, *SnapshotIdListV1beta, V1betaGetMultipleSnapshotsParams) (V1betaGetMultipleSnapshotsRes, error)) *MockHandler_V1betaGetMultipleSnapshots_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // V1betaGetMultipleVolumes provides a mock function with given fields: ctx, req, params
-func (_m *MockHandler) V1betaGetMultipleVolumes(ctx context.Context, req *VolumeIDListV1beta, params V1betaGetMultipleVolumesParams) (V1betaGetMultipleVolumesRes, error) {
+func (_m *MockHandler) V1betaGetMultipleVolumes(ctx context.Context, req *VolumeIdListV1beta, params V1betaGetMultipleVolumesParams) (V1betaGetMultipleVolumesRes, error) {
 	ret := _m.Called(ctx, req, params)
 
 	if len(ret) == 0 {
@@ -2103,10 +2103,10 @@ func (_m *MockHandler) V1betaGetMultipleVolumes(ctx context.Context, req *Volume
 
 	var r0 V1betaGetMultipleVolumesRes
 	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, *VolumeIDListV1beta, V1betaGetMultipleVolumesParams) (V1betaGetMultipleVolumesRes, error)); ok {
+	if rf, ok := ret.Get(0).(func(context.Context, *VolumeIdListV1beta, V1betaGetMultipleVolumesParams) (V1betaGetMultipleVolumesRes, error)); ok {
 		return rf(ctx, req, params)
 	}
-	if rf, ok := ret.Get(0).(func(context.Context, *VolumeIDListV1beta, V1betaGetMultipleVolumesParams) V1betaGetMultipleVolumesRes); ok {
+	if rf, ok := ret.Get(0).(func(context.Context, *VolumeIdListV1beta, V1betaGetMultipleVolumesParams) V1betaGetMultipleVolumesRes); ok {
 		r0 = rf(ctx, req, params)
 	} else {
 		if ret.Get(0) != nil {
@@ -2114,7 +2114,7 @@ func (_m *MockHandler) V1betaGetMultipleVolumes(ctx context.Context, req *Volume
 		}
 	}
 
-	if rf, ok := ret.Get(1).(func(context.Context, *VolumeIDListV1beta, V1betaGetMultipleVolumesParams) error); ok {
+	if rf, ok := ret.Get(1).(func(context.Context, *VolumeIdListV1beta, V1betaGetMultipleVolumesParams) error); ok {
 		r1 = rf(ctx, req, params)
 	} else {
 		r1 = ret.Error(1)
@@ -2130,15 +2130,15 @@ type MockHandler_V1betaGetMultipleVolumes_Call struct {
 
 // V1betaGetMultipleVolumes is a helper method to define mock.On call
 //   - ctx context.Context
-//   - req *VolumeIDListV1beta
+//   - req *VolumeIdListV1beta
 //   - params V1betaGetMultipleVolumesParams
 func (_e *MockHandler_Expecter) V1betaGetMultipleVolumes(ctx interface{}, req interface{}, params interface{}) *MockHandler_V1betaGetMultipleVolumes_Call {
 	return &MockHandler_V1betaGetMultipleVolumes_Call{Call: _e.mock.On("V1betaGetMultipleVolumes", ctx, req, params)}
 }
 
-func (_c *MockHandler_V1betaGetMultipleVolumes_Call) Run(run func(ctx context.Context, req *VolumeIDListV1beta, params V1betaGetMultipleVolumesParams)) *MockHandler_V1betaGetMultipleVolumes_Call {
+func (_c *MockHandler_V1betaGetMultipleVolumes_Call) Run(run func(ctx context.Context, req *VolumeIdListV1beta, params V1betaGetMultipleVolumesParams)) *MockHandler_V1betaGetMultipleVolumes_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context), args[1].(*VolumeIDListV1beta), args[2].(V1betaGetMultipleVolumesParams))
+		run(args[0].(context.Context), args[1].(*VolumeIdListV1beta), args[2].(V1betaGetMultipleVolumesParams))
 	})
 	return _c
 }
@@ -2148,7 +2148,7 @@ func (_c *MockHandler_V1betaGetMultipleVolumes_Call) Return(_a0 V1betaGetMultipl
 	return _c
 }
 
-func (_c *MockHandler_V1betaGetMultipleVolumes_Call) RunAndReturn(run func(context.Context, *VolumeIDListV1beta, V1betaGetMultipleVolumesParams) (V1betaGetMultipleVolumesRes, error)) *MockHandler_V1betaGetMultipleVolumes_Call {
+func (_c *MockHandler_V1betaGetMultipleVolumes_Call) RunAndReturn(run func(context.Context, *VolumeIdListV1beta, V1betaGetMultipleVolumesParams) (V1betaGetMultipleVolumesRes, error)) *MockHandler_V1betaGetMultipleVolumes_Call {
 	_c.Call.Return(run)
 	return _c
 }

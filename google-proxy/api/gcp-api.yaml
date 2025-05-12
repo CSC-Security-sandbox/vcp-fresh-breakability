@@ -230,11 +230,11 @@ paths:
         - $ref: '#/components/parameters/locationIdPathParameter'
         - $ref: '#/components/parameters/xCorrelationIdHeader'
       requestBody:
-        description: A list of pool UUIDs to return.
+        description: A list of pool Uuids to return.
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/PoolIDList_v1beta'
+              $ref: '#/components/schemas/PoolIdList_v1beta'
         required: true
       responses:
         "200":
@@ -303,7 +303,7 @@ paths:
       tags:
         - pools
       summary: Describe a pool
-      description: Returns the description of the specified pool by pool ID.
+      description: Returns the description of the specified pool by pool Id.
       operationId: v1beta_describePool
       parameters:
         - $ref: '#/components/parameters/poolIdPathParameter'
@@ -483,7 +483,7 @@ paths:
       tags:
         - volumes
       summary: Describe a volume
-      description: Returns the description of the specified volume by volume ID.
+      description: Returns the description of the specified volume by volume Id.
       operationId: v1beta_describeVolume
       parameters:
         - $ref: '#/components/parameters/projectNumberPathParameter'
@@ -491,7 +491,7 @@ paths:
         - $ref: '#/components/parameters/xCorrelationIdHeader'
         - name: volumeId
           in: path
-          description: UUID v4 used to identify the volume
+          description: Uuid v4 used to identify the volume
           required: true
           schema:
             maxLength: 36
@@ -520,7 +520,7 @@ paths:
                 snapReserve: 20
                 encryptionType: SERVICE_MANAGED
                 description: My volume description
-                activeDirectoryConfigUUID: 8064bdf5-4638-11e7-9bdb-020073ca7773
+                activeDirectoryConfigUuid: 8064bdf5-4638-11e7-9bdb-020073ca7773
                 kmsConfigId: 2653acf5-4638-11e7-9bdb-020073ca7773
                 labels:
                   someKey: SomeValue
@@ -590,7 +590,7 @@ paths:
         - $ref: '#/components/parameters/xCorrelationIdHeader'
         - name: volumeId
           in: path
-          description: UUID v4 used to identify the volume
+          description: Uuid v4 used to identify the volume
           required: true
           schema:
             maxLength: 36
@@ -710,7 +710,7 @@ paths:
         - $ref: '#/components/parameters/xCorrelationIdHeader'
         - name: volumeId
           in: path
-          description: UUID v4 used to identify the volume
+          description: Uuid v4 used to identify the volume
           required: true
           schema:
             maxLength: 36
@@ -726,7 +726,7 @@ paths:
                 deleteAssociatedBackups:
                   type: boolean
                   description: Delete all the associated backups for the given volume
-                    ID or not
+                    Id or not
                   example: false
               nullable: false
               x-nullable: false
@@ -779,7 +779,7 @@ paths:
         - $ref: '#/components/parameters/includeDeletedQueryParameter'
         - name: poolId
           in: query
-          description: UUID v4 used to identify the pool
+          description: Uuid v4 used to identify the pool
           schema:
             maxLength: 36
             minLength: 36
@@ -827,7 +827,7 @@ paths:
                     snapReserve: 20
                     encryptionType: SERVICE_MANAGED
                     description: My volume description
-                    activeDirectoryConfigUUID: 8064bdf5-4638-11e7-9bdb-020073ca7773
+                    activeDirectoryConfigUuid: 8064bdf5-4638-11e7-9bdb-020073ca7773
                     kmsConfigId: 2653acf5-4638-11e7-9bdb-020073ca7773
                     labels:
                       someKey: SomeValue
@@ -885,7 +885,7 @@ paths:
                     snapReserve: 20
                     encryptionType: SERVICE_MANAGED
                     description: My volume description
-                    activeDirectoryConfigUUID: 8064bdf5-4638-11e7-9bdb-020073ca7773
+                    activeDirectoryConfigUuid: 8064bdf5-4638-11e7-9bdb-020073ca7773
                     kmsConfigId: 2653acf5-4638-11e7-9bdb-020073ca7773
                     labels:
                       someKey: SomeValue
@@ -953,7 +953,7 @@ paths:
         - volumes
       summary: Create a new volume
       description: Create a new empty volume or a volume from a backup/snapshot if
-        backup-ID/snapshot-ID is in the body parameters.
+        backup-Id/snapshot-Id is in the body parameters.
       operationId: v1beta_createVolume
       parameters:
         - $ref: '#/components/parameters/projectNumberPathParameter'
@@ -1047,11 +1047,11 @@ paths:
         - $ref: '#/components/parameters/locationIdPathParameter'
         - $ref: '#/components/parameters/xCorrelationIdHeader'
       requestBody:
-        description: A list of volume UUIDs to return.
+        description: A list of volume Uuids to return.
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/VolumeIDList_v1beta'
+              $ref: '#/components/schemas/VolumeIdList_v1beta'
         required: true
       responses:
         "200":
@@ -1081,7 +1081,7 @@ paths:
                     quotaInBytes: 50000000000000
                     snapReserve: 20
                     encryptionType: SERVICE_MANAGED
-                    activeDirectoryConfigUUID: 8064bdf5-4638-11e7-9bdb-020073ca7773
+                    activeDirectoryConfigUuid: 8064bdf5-4638-11e7-9bdb-020073ca7773
                     kmsConfigId: 2653acf5-4638-11e7-9bdb-020073ca7773
                     labels:
                       someKey: SomeValue
@@ -1196,7 +1196,7 @@ paths:
                     quotaInBytes: 1000000000000
                     snapReserve: 20
                     encryptionType: SERVICE_MANAGED
-                    activeDirectoryConfigUUID: 8064bdf5-4638-11e7-9bdb-020073ca7773
+                    activeDirectoryConfigUuid: 8064bdf5-4638-11e7-9bdb-020073ca7773
                     kmsConfigId: 2653acf5-4638-11e7-9bdb-020073ca7773
                     labels:
                       someKey: SomeValue
@@ -1286,7 +1286,7 @@ paths:
                           $ref: '#/components/schemas/HostGroup_v1beta'
               example:
                 hostGroups:
-                  - HostGroupsID: 123e4567-e89b-12d3-a456-426614174000
+                  - HostGroupsId: 123e4567-e89b-12d3-a456-426614174000
                     resourceId: my-host-group
                     description: "HostGroup for storage access"
                     created: "2024-01-24T13:54:14.374Z"
@@ -1560,7 +1560,7 @@ paths:
         - $ref: '#/components/parameters/locationIdPathParameter'
         - $ref: '#/components/parameters/xCorrelationIdHeader'
       requestBody:
-        description: A list of HostGroup UUIDs to return.
+        description: A list of HostGroup Uuids to return.
         content:
           application/json:
             schema:
@@ -2430,7 +2430,7 @@ paths:
       operationId: v1beta_describeActiveDirectory
       summary: Describe Active Directory credentials
       description: Returns the description of the specified Active Directory credentials
-        by active-directory ID.
+        by active-directory Id.
       tags:
         - activeDirectories
       parameters:
@@ -2624,11 +2624,11 @@ paths:
         - $ref: '#/components/parameters/locationIdPathParameter'
         - $ref: '#/components/parameters/xCorrelationIdHeader'
       requestBody:
-        description: A list of Active Directory UUIDs to return.
+        description: A list of Active Directory Uuids to return.
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/ActiveDirectoryIDList_v1beta'
+              $ref: '#/components/schemas/ActiveDirectoryIdList_v1beta'
         required: true
       responses:
         '200':
@@ -2967,11 +2967,11 @@ paths:
         - $ref: '#/components/parameters/locationIdPathParameter'
         - $ref: '#/components/parameters/xCorrelationIdHeader'
       requestBody:
-        description: A list of backup vault UUIDs to return.
+        description: A list of backup vault Uuids to return.
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/BackupVaultUUIDList_v1beta'
+              $ref: '#/components/schemas/BackupVaultUuidList_v1beta'
         required: true
       responses:
         '200':
@@ -3045,7 +3045,7 @@ paths:
               example:
                 kms-configurations:
                   - uuid: 9760acf5-4638-11e7-9bdb-020073ca7773
-                    keyFullPath: projects/projectID/locations/keyRingLocation/keyRings/keyRing/cryptoKeys/keyName
+                    keyFullPath: projects/projectId/locations/keyRingLocation/keyRings/keyRing/cryptoKeys/keyName
                     kmsState: READY
                     kmsStateDetails: Kms config is ready for use
                     description: Description of the KMS configuration
@@ -3103,7 +3103,7 @@ paths:
                   response:
                     createdTime: '2024-02-07T14:55:52.441Z'
                     description: My kms description
-                    keyFullPath: projects/projectID/locations/us/keyRings/keyRing/cryptoKeys/keyName
+                    keyFullPath: projects/projectId/locations/us/keyRings/keyRing/cryptoKeys/keyName
                     kmsState: CREATING
                     kmsStateDetails: Creating Kms config settings
                     resourceId: my-resource
@@ -3135,7 +3135,7 @@ paths:
         - kms-configurations
       summary: Describe KMS configuration
       description: Returns the description of a KMS configuration specified by KMS
-        configuration ID.
+        configuration Id.
       operationId: v1beta_describeKmsConfiguration
       parameters:
         - $ref: '#/components/parameters/projectNumberPathParameter'
@@ -3152,7 +3152,7 @@ paths:
               example:
                 application/json:
                   uuid: 9760acf5-4638-11e7-9bdb-020073ca7773
-                  keyFullPath: projects/projectID/locations/keyRingLocation/keyRings/keyRing/cryptoKeys/keyName
+                  keyFullPath: projects/projectId/locations/keyRingLocation/keyRings/keyRing/cryptoKeys/keyName
                   kmsState: READY
                   kmsStateDetails: Kms config is ready for use
                   description: Description of the KMS configuration
@@ -3209,7 +3209,7 @@ paths:
               example:
                 application/json:
                   uuid: 9760acf5-4638-11e7-9bdb-020073ca7773
-                  keyFullPath: projects/projectID/locations/us/keyRings/keyRing/cryptoKeys/keyName
+                  keyFullPath: projects/projectId/locations/us/keyRings/keyRing/cryptoKeys/keyName
                   kmsState: READY
                   kmsStateDetails: Kms config is ready for use
                   description: My KMS description
@@ -3444,7 +3444,7 @@ paths:
       operationId: v1beta_describeBackupPolicy
       summary: Describe a backup policy
       description: Returns the description of the specified backup policy by backup
-        policy ID.
+        policy Id.
       tags:
         - backup-policy
       parameters:
@@ -3628,11 +3628,11 @@ paths:
         - $ref: '#/components/parameters/backupVaultIdPathParameter'
         - $ref: '#/components/parameters/xCorrelationIdHeader'
       requestBody:
-        description: A list of backup UUIDs to return.
+        description: A list of backup Uuids to return.
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/BackupUUIDList_v1beta'
+              $ref: '#/components/schemas/BackupUuidList_v1beta'
         required: true
       responses:
         '200':
@@ -3696,11 +3696,11 @@ paths:
         - $ref: '#/components/parameters/locationIdPathParameter'
         - $ref: '#/components/parameters/xCorrelationIdHeader'
       requestBody:
-        description: A list of backup policy UUIDs to return.
+        description: A list of backup policy Uuids to return.
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/BackupPolicyIDList_v1beta'
+              $ref: '#/components/schemas/BackupPolicyIdList_v1beta'
         required: true
       responses:
         '200':
@@ -3845,7 +3845,7 @@ paths:
     get:
       operationId: v1beta_internalDescribeVolumeReplication
       summary: Describe a volume replication
-      description: Returns the description of the specified volume replication by volume replication ID.
+      description: Returns the description of the specified volume replication by volume replication Id.
       tags:
         - v1Beta_internal
       parameters:
@@ -4202,7 +4202,7 @@ paths:
     get:
       operationId: v1beta_internalDescribePool
       summary: Describe a pool
-      description: Returns the description of the specified volume replication by volume replication ID.
+      description: Returns the description of the specified volume replication by volume replication Id.
       tags:
         - v1Beta_internal
       parameters:
@@ -4253,11 +4253,11 @@ paths:
         - $ref: '#/components/parameters/volumeResourceIdPathParameter'
         - $ref: '#/components/parameters/xCorrelationIdHeader'
       requestBody:
-        description: A list of snapshot UUIDs to return.
+        description: A list of snapshot Uuids to return.
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/SnapshotIDList_v1beta'
+              $ref: '#/components/schemas/SnapshotIdList_v1beta'
         required: true
       responses:
         '200':
@@ -4357,11 +4357,11 @@ components:
         - destinationServerName
         - destinationVolumeName
       properties:
-        volumeReplicationUUID:
-          title: volumeReplicationUUID
+        volumeReplicationUuid:
+          title: volumeReplicationUuid
           type: string
           readOnly: true
-          description: UUID v4 of volume replication
+          description: Uuid v4 of volume replication
           pattern: >-
             ^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$
           maxLength: 36
@@ -4420,7 +4420,7 @@ components:
         remoteResourceId:
           title: remoteResourceId
           type: string
-          description: The resource ID of the remote volume
+          description: The resource Id of the remote volume
           example: destination-volume
         sourceHostName:
           title: sourceHostName
@@ -4458,9 +4458,9 @@ components:
           description: The destination endpoint volume for the volume replication
           example: awesome_volume_name
           minLength: 1
-        destinationVolumeUUID:
+        destinationVolumeUuid:
           type: string
-          description: UUID v4 of the destination volume
+          description: Uuid v4 of the destination volume
           pattern: >-
             ^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$
           maxLength: 36
@@ -4489,7 +4489,7 @@ components:
           x-nullable: true
           x-omitempty: true
           enum:
-            - HYBRID_REPLICATION_TYPE_UNSPECIFIED
+            - HYBRId_REPLICATION_TYPE_UNSPECIFIED
             - MIGRATION
             - CONTINUOUS_REPLICATION
             - ONPREM_REPLICATION
@@ -4677,19 +4677,19 @@ components:
             All characters must use UTF-8 encoding, and international characters are allowed.
             Must start with a lowercase letter or international character.
           example: { "some-key": "some-value", "some-key2": "some-value2" }
-    ReplicationIDList_v1beta:
-      title: ReplicationIDList
+    ReplicationIdList_v1beta:
+      title: ReplicationIdList
       type: object
       required:
-        - replicationUUIDs
+        - replicationUuids
       properties:
-        replicationUUIDs:
-          title: replicationUUIDs
+        replicationUuids:
+          title: replicationUuids
           type: array
           minItems: 1
           items:
             type: string
-            description: UUID v4 used to identify the replication
+            description: Uuid v4 used to identify the replication
             pattern: >-
               ^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$
             example: "9760acf5-4638-11e7-9bdb-020073ca3333"
@@ -4701,7 +4701,7 @@ components:
           title: uuid
           type: string
           readOnly: true
-          description: UUID v4 used to identify a resource
+          description: Uuid v4 used to identify a resource
           pattern: "^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$"
           maxLength: 36
           minLength: 36
@@ -4868,11 +4868,11 @@ components:
         hostGroupIds:
           title: hostGroupIds
           type: array
-          description: List of UUID v4 used to identify the HostGroups. A volume can be mapped to multiple HostGroups as long as each HostGroup has a distinct set of hosts.
+          description: List of Uuid v4 used to identify the HostGroups. A volume can be mapped to multiple HostGroups as long as each HostGroup has a distinct set of hosts.
           items:
             type: string
             pattern: "^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$"
-            description: UUID v4 used to identify the HostGroup
+            description: Uuid v4 used to identify the HostGroup
             example: 9760acf5-4638-11e7-9bdb-020073ca3333
     OSType_v1beta:
       title: OSType
@@ -4894,7 +4894,7 @@ components:
         hostGroupId:
           title: hostGroupId
           type: string
-          description: UUID v4 used to identify the HostGroup
+          description: Uuid v4 used to identify the HostGroup
           readOnly: true
           example: 123e4567-e89b-12d3-a456-426614174000
         resourceId:
@@ -5031,7 +5031,7 @@ components:
           minLength: 36
           pattern: "^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$"
           type: string
-          description: UUID of Active Directory configuration
+          description: Uuid of Active Directory configuration
           nullable: true
           example: 9760acf5-4638-11e7-9bdb-020073ca7773
         allowAutoTiering:
@@ -5098,13 +5098,13 @@ components:
           minLength: 36
           pattern: "^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$"
           type: string
-          description: UUID of Active Directory configuration
+          description: Uuid of Active Directory configuration
           nullable: true
           example: 9760acf5-4638-11e7-9bdb-020073ca7773
         activeDirectoryResourceId:
           title: activeDirectoryResourceId
           type: string
-          description: The resource ID for the connected Active Directory
+          description: The resource Id for the connected Active Directory
           readOnly: true
           example: projects/my-project-1/locations/eu-west-1/activeDirectories/mydirectory
         kmsConfigId:
@@ -5112,13 +5112,13 @@ components:
           minLength: 36
           pattern: "^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$"
           type: string
-          description: UUID of the key to be used for encryption.
+          description: Uuid of the key to be used for encryption.
           nullable: true
           example: 6aae31f1-f685-4fda-b875-db0ea99235fc
         kmsConfigResourceId:
           title: kmsConfigResourceId
           type: string
-          description: The resource ID for the connected KMS configuration
+          description: The resource Id for the connected KMS configuration
           readOnly: true
           example: projects/my-project-1/locations/eu-west-1/kmsConfigs/myconfig
         network:
@@ -5135,7 +5135,7 @@ components:
           minLength: 36
           pattern: "^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$"
           type: string
-          description: UUID v4 used to identify the pool
+          description: Uuid v4 used to identify the pool
           readOnly: true
           example: 9760acf5-4638-11e7-9bdb-020073ca7773
         resourceId:
@@ -5329,13 +5329,13 @@ components:
           description: Flag indicating if the pool supports hot-tier resize on reaching
             the hot-tier threshold (not valid for FLEX)
           nullable: true
-        hostUUID:
-          title: hostUUID
+        hostUuid:
+          title: hostUuid
           maxLength: 36
           minLength: 36
           pattern: "^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$"
           type: string
-          description: UUID v4 used to identify the host
+          description: Uuid v4 used to identify the host
           readOnly: true
           example: 9760acf5-4638-11e7-9bdb-020073ca7773
         satisfies_pzi:
@@ -5404,7 +5404,7 @@ components:
           minLength: 36
           pattern: "^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$"
           type: string
-          description: UUID v4 of the volume
+          description: Uuid v4 of the volume
           readOnly: true
           example: 9760acf5-4638-11e7-9bdb-020073ca0001
         created:
@@ -5433,7 +5433,7 @@ components:
             by the API to ensure idempotent creation of a volume. Subsequent calls
             to the create-volume operation using the same creation token will have
             no effect. The creation token can be any user supplied string e.g. a randomly
-            generated v4 UUID.
+            generated v4 Uuid.
           example: hopefully-sufficient-newton
         poolId:
           title: poolId
@@ -5441,7 +5441,7 @@ components:
           minLength: 36
           pattern: "^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$"
           type: string
-          description: UUID of the pool ID under which volumes get created.
+          description: Uuid of the pool Id under which volumes get created.
           nullable: true
           example: 9760acf5-4638-11e7-9bdb-020073ca7773
         poolResourceId:
@@ -5456,14 +5456,14 @@ components:
           minLength: 36
           pattern: "^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$"
           type: string
-          description: UUID of the key to be used for encryption.
+          description: Uuid of the key to be used for encryption.
           nullable: true
           readOnly: true
           example: 6aae31f1-f685-4fda-b875-db0ea99235fc
         kmsConfigResourceId:
           title: kmsConfigResourceId
           type: string
-          description: The resource ID for the connected KMS configuration
+          description: The resource Id for the connected KMS configuration
           nullable: true
           readOnly: true
           example: projects/my-project-1/locations/eu-west-1/kmsConfigs/myconfig
@@ -5481,14 +5481,14 @@ components:
           minLength: 36
           pattern: "^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$"
           type: string
-          description: UUID of Active Directory configuration
+          description: Uuid of Active Directory configuration
           nullable: true
           readOnly: true
           example: 9760acf5-4638-11e7-9bdb-020073ca7773
         activeDirectoryResourceId:
           title: activeDirectoryResourceId
           type: string
-          description: The resource ID for the connected Active Directory
+          description: The resource Id for the connected Active Directory
           nullable: true
           readOnly: true
           example: projects/my-project-1/locations/eu-west-1/activeDirectories/mydirectory
@@ -5664,7 +5664,7 @@ components:
           minLength: 4
           type: string
           description: "UNIX permissions for NFS volume accepted in octal 4 digit\
-            \ format. First digit selects the set user ID(4), set group ID (2) and\
+            \ format. First digit selects the set user Id(4), set group Id (2) and\
             \ sticky (1) attributes. Second digit selects permission for the owner\
             \ of the file: read (4), write (2) and execute (1). Third selects permissions\
             \ for other users in the same group. the fourth for other users not in\
@@ -5735,20 +5735,20 @@ components:
           example: 24
         cacheParameters:
           $ref: '#/components/schemas/FlexCache_v1beta'
-    VolumeIDList_v1beta:
-      title: VolumeIDList
+    VolumeIdList_v1beta:
+      title: VolumeIdList
       required:
-        - volumeUUIDs
+        - volumeUuids
       type: object
       properties:
-        volumeUUIDs:
-          title: volumeUUIDs
+        volumeUuids:
+          title: volumeUuids
           minItems: 1
           type: array
           items:
             pattern: "^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$"
             type: string
-            description: UUID v4 used to identify the volume
+            description: Uuid v4 used to identify the volume
             example: 9760acf5-4638-11e7-9bdb-020073ca3333
     VolumeCreate_v1beta:
       title: VolumeCreate
@@ -5764,7 +5764,7 @@ components:
           minLength: 36
           pattern: "^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$"
           type: string
-          description: UUID v4 used to identify the Snapshot
+          description: Uuid v4 used to identify the Snapshot
           example: 9760acf5-4638-11e7-9bdb-020073ca3333
         backupId:
           title: backupId
@@ -5772,7 +5772,7 @@ components:
           minLength: 36
           pattern: "^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$"
           type: string
-          description: UUID v4 used to identify the backup
+          description: Uuid v4 used to identify the backup
           example: 463811e7-9760-acf5-9bdb-020073ca3333
         backupPath:
           title: backupPath
@@ -5841,7 +5841,7 @@ components:
           minLength: 4
           type: string
           description: "UNIX permissions for NFS volume accepted in octal 4 digit\
-            \ format. First digit selects the set user ID(4), set group ID (2) and\
+            \ format. First digit selects the set user Id(4), set group Id (2) and\
             \ sticky (1) attributes. Second digit selects permission for the owner\
             \ of the file: read (4), write (2) and execute (1). Third selects permissions\
             \ for other users in the same group. the fourth for other users not in\
@@ -5866,7 +5866,7 @@ components:
           minLength: 36
           pattern: "^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$"
           type: string
-          description: UUID v4 used to identify the pool
+          description: Uuid v4 used to identify the pool
           nullable: true
           example: 9760acf5-4638-11e7-9bdb-020073ca7773
         description:
@@ -6062,12 +6062,12 @@ components:
       properties:
         backupPolicyId:
           type: string
-          description: Backup policy resource ID
+          description: Backup policy resource Id
           nullable: true
           example: 9760acf5-4638-11e7-9bdb-020073ca7773
         backupVaultId:
           type: string
-          description: Backup vault resource ID
+          description: Backup vault resource Id
           nullable: true
           example: 9760acf5-4638-11e7-9bdb-020073ca7773
         scheduledBackupEnabled:
@@ -6135,14 +6135,14 @@ components:
           minLength: 1
           type: string
           description: Defines the client ingress specification (allowed clients)
-            as a comma separated string with IPv4 CIDRs and IPv4 host addresses.
+            as a comma separated string with IPv4 CIdRs and IPv4 host addresses.
           example: 0.0.0.0/0
           default: 0.0.0.0/0
         hasRootAccess:
           type: string
           description: "If enabled (true or on) the rule defines that no_root_squash\
             \ is set, else if it is disabled (false or off) root_squash is set and\
-            \ user ID mapped to anonymous user 65534. The response will always be\
+            \ user Id mapped to anonymous user 65534. The response will always be\
             \ true or false and never on/off. If the value is set to null the response\
             \ will always be set to the default of true."
           nullable: true
@@ -6434,7 +6434,7 @@ components:
           enum:
             - MIGRATION
             - CONTINUOUS_REPLICATION
-            - HYBRID_REPLICATION_TYPE_UNSPECIFIED
+            - HYBRId_REPLICATION_TYPE_UNSPECIFIED
             - ONPREM_REPLICATION
             - REVERSE_ONPREM_REPLICATION
         peerVolumeName:
@@ -6534,7 +6534,7 @@ components:
           title: replicationId
           type: string
           readOnly: true
-          description: UUID v4 used to identify the volume replication
+          description: Uuid v4 used to identify the volume replication
           pattern: >-
             ^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$
           maxLength: 36
@@ -6676,7 +6676,7 @@ components:
           x-nullable: true
           x-omitempty: true
           enum:
-            - HYBRID_REPLICATION_TYPE_UNSPECIFIED
+            - HYBRId_REPLICATION_TYPE_UNSPECIFIED
             - MIGRATION
             - CONTINUOUS_REPLICATION
             - ONPREM_REPLICATION
@@ -6838,7 +6838,7 @@ components:
           type: string
           title: VolumeId
           readOnly: true
-          description: UUID v4 used to identify the volume replication
+          description: Uuid v4 used to identify the volume replication
           pattern: >-
             ^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$
           maxLength: 36
@@ -6998,35 +6998,35 @@ components:
             - //container.googleapis.com/projects/xxxx/locations/xxxx/clusters/xxxx
           items:
             type: string
-    PoolIDList_v1beta:
-      title: PoolIDList
+    PoolIdList_v1beta:
+      title: PoolIdList
       required:
-        - poolUUIDs
+        - poolUuids
       type: object
       properties:
-        poolUUIDs:
-          title: poolUUIDs
+        poolUuids:
+          title: poolUuids
           minItems: 1
           type: array
           items:
             pattern: "^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$"
             type: string
-            description: UUID v4 used to identify the pool
+            description: Uuid v4 used to identify the pool
             example: 9760acf5-4638-11e7-9bdb-020073ca3333
     hostGroupIdList_v1beta:
       title: hostGroupIdList
       required:
-        - hostGroupUUIDs
+        - hostGroupUuids
       type: object
       properties:
-        hostGroupUUIDs:
-          title: hostGroupUUIDs
+        hostGroupUuids:
+          title: hostGroupUuids
           minItems: 1
           type: array
           items:
             pattern: "^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$"
             type: string
-            description: UUID v4 used to identify Host group
+            description: Uuid v4 used to identify Host group
             example: 9760acf5-4638-11e7-9bdb-020073ca3333
     Job_v1beta:
       title: Job
@@ -7038,7 +7038,7 @@ components:
           minLength: 36
           pattern: "^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$"
           type: string
-          description: UUID v4 used to identify the job
+          description: Uuid v4 used to identify the job
           readOnly: true
           example: 9760acf5-4638-11e7-9bdb-020073ca3333
         created:
@@ -7054,7 +7054,7 @@ components:
           minLength: 36
           pattern: "^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$"
           type: string
-          description: UUID v4 used to identify the worker performing the job
+          description: Uuid v4 used to identify the worker performing the job
           readOnly: true
           example: 9760acf5-4638-11e7-9bdb-020073ca3333
         objectId:
@@ -7063,7 +7063,7 @@ components:
           minLength: 36
           pattern: "^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$"
           type: string
-          description: UUID v4 used to identify the object to which the job relates
+          description: Uuid v4 used to identify the object to which the job relates
           readOnly: true
           example: 9760acf5-4638-11e7-9bdb-020073ca3333
         objectType:
@@ -7155,10 +7155,10 @@ components:
         - keyFullPath
       properties:
         uuid:
-          title: UUID
+          title: Uuid
           type: string
           readOnly: true
-          description: UUID v4 used to identify the KMS configuration
+          description: Uuid v4 used to identify the KMS configuration
           pattern: ^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$
           maxLength: 36
           minLength: 36
@@ -7174,8 +7174,8 @@ components:
           title: keyFullPath
           type: string
           description: Includes key ring, key-ring location, key-name and key project
-            ID
-          example: projects/projectID/locations/us/keyRings/keyRing/cryptoKeys/keyName
+            Id
+          example: projects/projectId/locations/us/keyRings/keyRing/cryptoKeys/keyName
         kmsState:
           title: state
           type: string
@@ -7244,7 +7244,7 @@ components:
         resourceId:
           title: resourceId
           type: string
-          description: Resource ID for KMS configuration
+          description: Resource Id for KMS configuration
           example: my-resource
           minLength: 1
           pattern: ^[a-z]([a-z0-9-]{0,61}[a-z0-9])?$
@@ -7258,10 +7258,10 @@ components:
         - keyFullPath
       properties:
         uuid:
-          title: UUID
+          title: Uuid
           type: string
           readOnly: true
-          description: UUID v4 used to identify the KMS configuration
+          description: Uuid v4 used to identify the KMS configuration
           pattern: ^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$
           maxLength: 36
           minLength: 36
@@ -7277,8 +7277,8 @@ components:
           title: keyFullPath
           type: string
           description: Includes key ring, key-ring location, key name and key project
-            ID
-          example: projects/projectID/locations/us/keyRings/keyRing/cryptoKeys/keyName
+            Id
+          example: projects/projectId/locations/us/keyRings/keyRing/cryptoKeys/keyName
         kmsState:
           title: state
           type: string
@@ -7346,7 +7346,7 @@ components:
         resourceId:
           title: resourceId
           type: string
-          description: Resource ID for KMS configuration
+          description: Resource Id for KMS configuration
           example: myResourceId
           minLength: 1
           pattern: ^[a-z]([a-z0-9-]{0,61}[a-z0-9])?$
@@ -7374,8 +7374,8 @@ components:
           title: keyFullPath
           type: string
           description: Includes key ring, key-ring location, key name and key project
-            ID
-          example: projects/projectID/locations/us/keyRings/keyRing/cryptoKeys/keyName
+            Id
+          example: projects/projectId/locations/us/keyRings/keyRing/cryptoKeys/keyName
         description:
           title: description
           type: string
@@ -7386,24 +7386,24 @@ components:
         resourceId:
           title: resourceId
           type: string
-          description: Resource ID for KMS configuration
+          description: Resource Id for KMS configuration
           minLength: 1
           pattern: ^[a-z]([a-z0-9-]{0,61}[a-z0-9])?$
           maxLength: 63
           example: my-resource
           x-nullable: true
-    kmsConfigIDList_v1beta:
-      title: kmsConfigIDList
+    kmsConfigIdList_v1beta:
+      title: kmsConfigIdList
       required:
-        - kmsConfigIDs
+        - kmsConfigIds
       properties:
-        kmsConfigIDs:
-          title: kmsConfigIDs
+        kmsConfigIds:
+          title: kmsConfigIds
           type: array
           minItems: 1
           items:
             type: string
-            description: UUID used to identify the KMS encryption keys
+            description: Uuid used to identify the KMS encryption keys
             pattern: ^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$
             example: 9760acf5-4638-11e7-9bdb-020073ca3333
     BackupPolicy_v1beta:
@@ -7426,7 +7426,7 @@ components:
           title: backupPolicyId
           type: string
           readOnly: true
-          description: UUID v4 used to identify the backup policy
+          description: Uuid v4 used to identify the backup policy
           pattern: ^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$
           maxLength: 36
           minLength: 36
@@ -7595,7 +7595,7 @@ components:
           title: volumeId
           type: string
           readOnly: true
-          description: UUID v4 of the volume
+          description: Uuid v4 of the volume
           pattern: >-
             ^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$
           maxLength: 36
@@ -7635,7 +7635,7 @@ components:
           title: backupId
           type: string
           readOnly: true
-          description: UUID v4 used to identify the backup
+          description: Uuid v4 used to identify the backup
           pattern: >-
             ^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$
           maxLength: 36
@@ -7657,7 +7657,7 @@ components:
           readOnly: true
           description: Display name of the volume
         backupVaultId:
-          description: UUID v4 used to identify the backup vault ID
+          description: Uuid v4 used to identify the backup vault Id
           type: string
           pattern: >-
             ^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$
@@ -7751,35 +7751,35 @@ components:
           items:
             type: string
           example: [ "storage.googleapis.com/Bucket/bucket1" ]
-    BackupUUIDList_v1beta:
+    BackupUuidList_v1beta:
       type: object
-      title: BackupUUIDList
+      title: BackupUuidList
       required:
-        - backupUUIDs
+        - backupUuids
       properties:
-        backupUUIDs:
-          title: backupUUIDs
+        backupUuids:
+          title: backupUuids
           type: array
           minItems: 1
           items:
             type: string
-            description: UUID v4 used to identify the backup
+            description: Uuid v4 used to identify the backup
             pattern: >-
               ^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$
             example: 9760acf5-4638-11e7-9bdb-020073ca3333
-    BackupPolicyIDList_v1beta:
+    BackupPolicyIdList_v1beta:
       type: object
-      title: BackupPolicyIDList
+      title: BackupPolicyIdList
       required:
-        - backupPolicyUUIDs
+        - backupPolicyUuids
       properties:
-        backupPolicyUUIDs:
-          title: backupPolicyUUIDs
+        backupPolicyUuids:
+          title: backupPolicyUuids
           type: array
           minItems: 1
           items:
             type: string
-            description: UUID v4 used to identify the backup policy
+            description: Uuid v4 used to identify the backup policy
             pattern: ^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$
             example: 9760acf5-4638-11e7-9bdb-020073ca3333
     VolumeBackupDetails_v1beta:
@@ -7845,7 +7845,7 @@ components:
           title: activeDirectoryId
           type: string
           readOnly: true
-          description: UUID v4 used to identify the Active Directory credentials
+          description: Uuid v4 used to identify the Active Directory credentials
           pattern: ^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$
           maxLength: 36
           minLength: 36
@@ -8196,19 +8196,19 @@ components:
           example: My active directory description
           x-nullable: true
           maxLength: 2048
-    ActiveDirectoryIDList_v1beta:
-      title: ActiveDirectoryIDList
+    ActiveDirectoryIdList_v1beta:
+      title: ActiveDirectoryIdList
       type: object
       required:
-        - activeDirectoryUUIDs
+        - activeDirectoryUuids
       properties:
-        activeDirectoryUUIDs:
-          title: activeDirectoryUUIDs
+        activeDirectoryUuids:
+          title: activeDirectoryUuids
           type: array
           minItems: 1
           items:
             type: string
-            description: UUID v4 used to identify the Active Directory
+            description: Uuid v4 used to identify the Active Directory
             pattern: ^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$
             example: 9760acf5-4638-11e7-9bdb-020073ca3333
     BackupVault_v1beta:
@@ -8218,10 +8218,10 @@ components:
         - resourceId
       properties:
         backupVaultId:
-          title: UUID
+          title: Uuid
           type: string
           readOnly: true
-          description: UUID v4 used to identify the ID of the resource
+          description: Uuid v4 used to identify the Id of the resource
           pattern: ^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$
           maxLength: 36
           minLength: 36
@@ -8257,14 +8257,14 @@ components:
         destinationBackupVault:
           title: destinationBackupVault
           type: string
-          example: projects/projectID/locations/location/location/backupVaults/name
+          example: projects/projectId/locations/location/location/backupVaults/name
           description: The destination region backup vault
           x-nullable: true
         sourceBackupVault:
           title: sourceBackupVault
           type: string
           description: The source region backup vault
-          example: projects/projectID/locations/location/location/backupVaults/name
+          example: projects/projectId/locations/location/location/backupVaults/name
           x-nullable: true
         backupVaultType:
           title: backupVaultType
@@ -8419,34 +8419,34 @@ components:
           x-nullable: true
         backupRetentionPolicy:
           $ref: '#/components/schemas/BackupRetentionPolicyUpdate_v1beta'
-    BackupVaultUUIDList_v1beta:
-      title: BackupUUIDList
+    BackupVaultUuidList_v1beta:
+      title: BackupUuidList
       type: object
       required:
-        - backupVaultUUIDs
+        - backupVaultUuids
       properties:
-        backupVaultUUIDs:
-          title: backupVaultUUIDs
+        backupVaultUuids:
+          title: backupVaultUuids
           type: array
           minItems: 1
           items:
             type: string
-            description: UUID v4 used to identify the backup vault
+            description: Uuid v4 used to identify the backup vault
             pattern: ^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$
             example: 9760acf5-4638-11e7-9bdb-020073ca3333
-    SnapshotIDList_v1beta:
-      title: SnapshotIDList
+    SnapshotIdList_v1beta:
+      title: SnapshotIdList
       required:
-        - snapshotUUIDs
+        - snapshotUuids
       type: object
       properties:
-        snapshotUUIDs:
-          title: snapshotUUIDs
+        snapshotUuids:
+          title: snapshotUuids
           type: array
           minItems: 1
           items:
             type: string
-            description: UUID v4 used to identify the snapshot
+            description: Uuid v4 used to identify the snapshot
             pattern: "^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$"
             example: 9760acf5-4638-11e7-9bdb-020073ca3333
     Snapshot_v1beta:
@@ -8467,7 +8467,7 @@ components:
           title: volumeId
           type: string
           readOnly: true
-          description: UUID v4 of the volume
+          description: Uuid v4 of the volume
           pattern: ^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$
           maxLength: 36
           minLength: 36
@@ -8489,7 +8489,7 @@ components:
           title: snapshotId
           type: string
           readOnly: true
-          description: UUID v4 used to identify the snapshot
+          description: Uuid v4 used to identify the snapshot
           pattern: ^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$
           maxLength: 36
           minLength: 36
@@ -8666,7 +8666,7 @@ components:
     operationIdPathParameter:
       name: operationId
       in: path
-      description: UUIDv4 used to identity a long running operation
+      description: Uuidv4 used to identity a long running operation
       schema:
         pattern: ^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$
         maxLength: 36
@@ -8676,7 +8676,7 @@ components:
     poolIdPathParameter:
       name: poolId
       in: path
-      description: UUID v4 used to identify the pool
+      description: Uuid v4 used to identify the pool
       required: true
       schema:
         maxLength: 36
@@ -8686,7 +8686,7 @@ components:
     volumeResourceIdPathParameter:
       name: volumeResourceId
       in: path
-      description: Resource ID used to identify the volume
+      description: Resource Id used to identify the volume
       schema:
         maxLength: 63
         pattern: "^(?:-|([a-z]([a-z0-9-]{0,61}[a-z0-9])?))$"
@@ -8695,7 +8695,7 @@ components:
     replicationResourceIdPathParameter:
       name: replicationResourceId
       in: path
-      description: Resource ID used to identify the replication
+      description: Resource Id used to identify the replication
       schema:
         maxLength: 63
         pattern: "^[a-z]([a-z0-9-]{0,61}[a-z0-9])?$"
@@ -8704,7 +8704,7 @@ components:
     activeDirectoryIdPathParameter:
       name: activeDirectoryId
       in: path
-      description: UUID v4 used to identify the Active Directory credentials
+      description: Uuid v4 used to identify the Active Directory credentials
       schema:
         pattern: ^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$
         maxLength: 36
@@ -8728,7 +8728,7 @@ components:
     hostGroupIdPathParameter:
       name: hostGroupId
       in: path
-      description: UUID v4 used to identify the HostGroup
+      description: Uuid v4 used to identify the HostGroup
       required: true
       schema:
         maxLength: 36
@@ -8738,7 +8738,7 @@ components:
     KmsConfigIdPathParameter:
       name: kmsConfigId
       in: path
-      description: UUID v4 used to identify the GCP KMS credentials
+      description: Uuid v4 used to identify the GCP KMS credentials
       required: true
       schema:
         maxLength: 36
@@ -8748,7 +8748,7 @@ components:
     backupPolicyIdPathParameter:
       name: backupPolicyId
       in: path
-      description: UUID v4 used to identify the backup policy
+      description: Uuid v4 used to identify the backup policy
       required: true
       schema:
         maxLength: 36
@@ -8761,7 +8761,7 @@ components:
       required: true
       schema:
         type: string
-        description: UUID v4 used to identify the volume replication
+        description: Uuid v4 used to identify the volume replication
         pattern: >-
           ^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$
         maxLength: 36
@@ -8779,7 +8779,7 @@ components:
     backupVaultIdPathParameter:
       name: backupVaultId
       in: path
-      description: UUID v4 used to identify the backup vault
+      description: Uuid v4 used to identify the backup vault
       required: true
       schema:
         pattern: ^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$

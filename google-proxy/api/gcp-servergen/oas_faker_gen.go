@@ -8,16 +8,16 @@ import (
 )
 
 // SetFake set fake values.
-func (s *ActiveDirectoryIDListV1beta) SetFake() {
+func (s *ActiveDirectoryIdListV1beta) SetFake() {
 	{
 		{
-			s.ActiveDirectoryUUIDs = nil
+			s.ActiveDirectoryUuids = nil
 			for i := 0; i < 1; i++ {
 				var elem string
 				{
 					elem = "string"
 				}
-				s.ActiveDirectoryUUIDs = append(s.ActiveDirectoryUUIDs, elem)
+				s.ActiveDirectoryUuids = append(s.ActiveDirectoryUuids, elem)
 			}
 		}
 	}
@@ -443,16 +443,16 @@ func (s *BackupPolicyDetailsV1betaState) SetFake() {
 }
 
 // SetFake set fake values.
-func (s *BackupPolicyIDListV1beta) SetFake() {
+func (s *BackupPolicyIdListV1beta) SetFake() {
 	{
 		{
-			s.BackupPolicyUUIDs = nil
+			s.BackupPolicyUuids = nil
 			for i := 0; i < 1; i++ {
 				var elem string
 				{
 					elem = "string"
 				}
-				s.BackupPolicyUUIDs = append(s.BackupPolicyUUIDs, elem)
+				s.BackupPolicyUuids = append(s.BackupPolicyUuids, elem)
 			}
 		}
 	}
@@ -605,16 +605,16 @@ func (s *BackupRetentionPolicyV1beta) SetFake() {
 }
 
 // SetFake set fake values.
-func (s *BackupUUIDListV1beta) SetFake() {
+func (s *BackupUuidListV1beta) SetFake() {
 	{
 		{
-			s.BackupUUIDs = nil
+			s.BackupUuids = nil
 			for i := 0; i < 1; i++ {
 				var elem string
 				{
 					elem = "string"
 				}
-				s.BackupUUIDs = append(s.BackupUUIDs, elem)
+				s.BackupUuids = append(s.BackupUuids, elem)
 			}
 		}
 	}
@@ -749,22 +749,6 @@ func (s *BackupVaultCreateV1beta) SetFake() {
 }
 
 // SetFake set fake values.
-func (s *BackupVaultUUIDListV1beta) SetFake() {
-	{
-		{
-			s.BackupVaultUUIDs = nil
-			for i := 0; i < 1; i++ {
-				var elem string
-				{
-					elem = "string"
-				}
-				s.BackupVaultUUIDs = append(s.BackupVaultUUIDs, elem)
-			}
-		}
-	}
-}
-
-// SetFake set fake values.
 func (s *BackupVaultUpdateV1beta) SetFake() {
 	{
 		{
@@ -774,6 +758,22 @@ func (s *BackupVaultUpdateV1beta) SetFake() {
 	{
 		{
 			s.BackupRetentionPolicy.SetFake()
+		}
+	}
+}
+
+// SetFake set fake values.
+func (s *BackupVaultUuidListV1beta) SetFake() {
+	{
+		{
+			s.BackupVaultUuids = nil
+			for i := 0; i < 1; i++ {
+				var elem string
+				{
+					elem = "string"
+				}
+				s.BackupVaultUuids = append(s.BackupVaultUuids, elem)
+			}
 		}
 	}
 }
@@ -1247,13 +1247,13 @@ func (s *Health) SetFake() {
 func (s *HostGroupIdListV1beta) SetFake() {
 	{
 		{
-			s.HostGroupUUIDs = nil
+			s.HostGroupUuids = nil
 			for i := 0; i < 1; i++ {
 				var elem string
 				{
 					elem = "string"
 				}
-				s.HostGroupUUIDs = append(s.HostGroupUUIDs, elem)
+				s.HostGroupUuids = append(s.HostGroupUuids, elem)
 			}
 		}
 	}
@@ -2667,16 +2667,16 @@ func (s *OptWeeklyScheduleV1beta) SetFake() {
 }
 
 // SetFake set fake values.
-func (s *PoolIDListV1beta) SetFake() {
+func (s *PoolIdListV1beta) SetFake() {
 	{
 		{
-			s.PoolUUIDs = nil
+			s.PoolUuids = nil
 			for i := 0; i < 1; i++ {
 				var elem string
 				{
 					elem = "string"
 				}
-				s.PoolUUIDs = append(s.PoolUUIDs, elem)
+				s.PoolUuids = append(s.PoolUuids, elem)
 			}
 		}
 	}
@@ -2926,7 +2926,7 @@ func (s *PoolV1beta) SetFake() {
 	}
 	{
 		{
-			s.HostUUID.SetFake()
+			s.HostUuid.SetFake()
 		}
 	}
 	{
@@ -3226,7 +3226,7 @@ func (s *ReplicationV1beta) SetFake() {
 
 // SetFake set fake values.
 func (s *ReplicationV1betaHybridReplicationType) SetFake() {
-	*s = ReplicationV1betaHybridReplicationTypeHYBRIDREPLICATIONTYPEUNSPECIFIED
+	*s = ReplicationV1betaHybridReplicationTypeHYBRIdREPLICATIONTYPEUNSPECIFIED
 }
 
 // SetFake set fake values.
@@ -3386,16 +3386,16 @@ func (s *SimpleExportPolicyRuleV1betaHasRootAccess) SetFake() {
 }
 
 // SetFake set fake values.
-func (s *SnapshotIDListV1beta) SetFake() {
+func (s *SnapshotIdListV1beta) SetFake() {
 	{
 		{
-			s.SnapshotUUIDs = nil
+			s.SnapshotUuids = nil
 			for i := 0; i < 1; i++ {
 				var elem string
 				{
 					elem = "string"
 				}
-				s.SnapshotUUIDs = append(s.SnapshotUUIDs, elem)
+				s.SnapshotUuids = append(s.SnapshotUuids, elem)
 			}
 		}
 	}
@@ -8150,16 +8150,16 @@ func (s *VolumeCreateV1betaVolumeType) SetFake() {
 }
 
 // SetFake set fake values.
-func (s *VolumeIDListV1beta) SetFake() {
+func (s *VolumeIdListV1beta) SetFake() {
 	{
 		{
-			s.VolumeUUIDs = nil
+			s.VolumeUuids = nil
 			for i := 0; i < 1; i++ {
 				var elem string
 				{
 					elem = "string"
 				}
-				s.VolumeUUIDs = append(s.VolumeUUIDs, elem)
+				s.VolumeUuids = append(s.VolumeUuids, elem)
 			}
 		}
 	}
@@ -8169,7 +8169,7 @@ func (s *VolumeIDListV1beta) SetFake() {
 func (s *VolumeReplicationCreateInternalV1beta) SetFake() {
 	{
 		{
-			s.VolumeReplicationUUID.SetFake()
+			s.VolumeReplicationUuid.SetFake()
 		}
 	}
 	{
@@ -8239,7 +8239,7 @@ func (s *VolumeReplicationCreateInternalV1beta) SetFake() {
 	}
 	{
 		{
-			s.DestinationVolumeUUID.SetFake()
+			s.DestinationVolumeUuid.SetFake()
 		}
 	}
 	{
@@ -8373,7 +8373,7 @@ func (s *VolumeReplicationCreateInternalV1betaEndpointType) SetFake() {
 
 // SetFake set fake values.
 func (s *VolumeReplicationCreateInternalV1betaHybridReplicationType) SetFake() {
-	*s = VolumeReplicationCreateInternalV1betaHybridReplicationTypeHYBRIDREPLICATIONTYPEUNSPECIFIED
+	*s = VolumeReplicationCreateInternalV1betaHybridReplicationTypeHYBRIdREPLICATIONTYPEUNSPECIFIED
 }
 
 // SetFake set fake values.
@@ -8416,7 +8416,7 @@ func (s *VolumeReplicationCreateInternalV1betaReplicationSchedule) SetFake() {
 func (s *VolumeReplicationInternalV1beta) SetFake() {
 	{
 		{
-			s.VolumeReplicationUUID.SetFake()
+			s.VolumeReplicationUuid.SetFake()
 		}
 	}
 	{
@@ -8486,7 +8486,7 @@ func (s *VolumeReplicationInternalV1beta) SetFake() {
 	}
 	{
 		{
-			s.DestinationVolumeUUID.SetFake()
+			s.DestinationVolumeUuid.SetFake()
 		}
 	}
 	{
@@ -8605,7 +8605,7 @@ func (s *VolumeReplicationInternalV1betaEndpointType) SetFake() {
 
 // SetFake set fake values.
 func (s *VolumeReplicationInternalV1betaHybridReplicationType) SetFake() {
-	*s = VolumeReplicationInternalV1betaHybridReplicationTypeHYBRIDREPLICATIONTYPEUNSPECIFIED
+	*s = VolumeReplicationInternalV1betaHybridReplicationTypeHYBRIdREPLICATIONTYPEUNSPECIFIED
 }
 
 // SetFake set fake values.

@@ -11,7 +11,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/nillable"
 )
 
-func (h Handler) V1betaGetMultipleSnapshots(ctx context.Context, req *gcpgenserver.SnapshotIDListV1beta, params gcpgenserver.V1betaGetMultipleSnapshotsParams) (gcpgenserver.V1betaGetMultipleSnapshotsRes, error) {
+func (h Handler) V1betaGetMultipleSnapshots(ctx context.Context, req *gcpgenserver.SnapshotIdListV1beta, params gcpgenserver.V1betaGetMultipleSnapshotsParams) (gcpgenserver.V1betaGetMultipleSnapshotsRes, error) {
 	logger := utils.GetLoggerFromContext(ctx)
 	reqPrams := &snapshots.V1betaGetMultipleSnapshotsParams{
 		LocationID:     params.LocationId,
@@ -19,7 +19,7 @@ func (h Handler) V1betaGetMultipleSnapshots(ctx context.Context, req *gcpgenserv
 		VolumeID:       params.VolumeResourceId,
 		XCorrelationID: &params.XCorrelationID.Value,
 		Body: &models.SnapshotIDListV1beta{
-			SnapshotUUIDs: req.SnapshotUUIDs,
+			SnapshotUUIDs: req.SnapshotUuids,
 		},
 	}
 	jwtToken := utils.GetJWTTokenFromContext(ctx)

@@ -1531,7 +1531,7 @@ func (s *Server) handleV1betaCreateReplicationRequest(args [3]string, argsEscape
 
 // handleV1betaCreateVolumeRequest handles v1beta_createVolume operation.
 //
-// Create a new empty volume or a volume from a backup/snapshot if backup-ID/snapshot-ID is in the
+// Create a new empty volume or a volume from a backup/snapshot if backup-Id/snapshot-Id is in the
 // body parameters.
 //
 // POST /v1beta/projects/{projectNumber}/locations/{locationId}/volumes
@@ -3032,7 +3032,7 @@ func (s *Server) handleV1betaDeleteVolumeRequest(args [3]string, argsEscaped boo
 
 // handleV1betaDescribeActiveDirectoryRequest handles v1beta_describeActiveDirectory operation.
 //
-// Returns the description of the specified Active Directory credentials by active-directory ID.
+// Returns the description of the specified Active Directory credentials by active-directory Id.
 //
 // GET /v1beta/projects/{projectNumber}/locations/{locationId}/activeDirectories/{activeDirectoryId}
 func (s *Server) handleV1betaDescribeActiveDirectoryRequest(args [3]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -3193,7 +3193,7 @@ func (s *Server) handleV1betaDescribeActiveDirectoryRequest(args [3]string, args
 
 // handleV1betaDescribeBackupPolicyRequest handles v1beta_describeBackupPolicy operation.
 //
-// Returns the description of the specified backup policy by backup policy ID.
+// Returns the description of the specified backup policy by backup policy Id.
 //
 // GET /v1beta/projects/{projectNumber}/locations/{locationId}/backupPolicies/{backupPolicyId}
 func (s *Server) handleV1betaDescribeBackupPolicyRequest(args [3]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -3680,7 +3680,7 @@ func (s *Server) handleV1betaDescribeHostGroupRequest(args [3]string, argsEscape
 
 // handleV1betaDescribeKmsConfigurationRequest handles v1beta_describeKmsConfiguration operation.
 //
-// Returns the description of a KMS configuration specified by KMS configuration ID.
+// Returns the description of a KMS configuration specified by KMS configuration Id.
 //
 // GET /v1beta/projects/{projectNumber}/locations/{locationId}/storage/kmsConfig/{kmsConfigId}
 func (s *Server) handleV1betaDescribeKmsConfigurationRequest(args [3]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -4002,7 +4002,7 @@ func (s *Server) handleV1betaDescribeOperationRequest(args [3]string, argsEscape
 
 // handleV1betaDescribePoolRequest handles v1beta_describePool operation.
 //
-// Returns the description of the specified pool by pool ID.
+// Returns the description of the specified pool by pool Id.
 //
 // GET /v1beta/projects/{projectNumber}/locations/{locationId}/pools/{poolId}
 func (s *Server) handleV1betaDescribePoolRequest(args [3]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -4163,7 +4163,7 @@ func (s *Server) handleV1betaDescribePoolRequest(args [3]string, argsEscaped boo
 
 // handleV1betaDescribeVolumeRequest handles v1beta_describeVolume operation.
 //
-// Returns the description of the specified volume by volume ID.
+// Returns the description of the specified volume by volume Id.
 //
 // GET /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}
 func (s *Server) handleV1betaDescribeVolumeRequest(args [3]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -4448,7 +4448,7 @@ func (s *Server) handleV1betaGetMultipleActiveDirectoriesRequest(args [2]string,
 		}
 
 		type (
-			Request  = *ActiveDirectoryIDListV1beta
+			Request  = *ActiveDirectoryIdListV1beta
 			Params   = V1betaGetMultipleActiveDirectoriesParams
 			Response = V1betaGetMultipleActiveDirectoriesRes
 		)
@@ -4620,7 +4620,7 @@ func (s *Server) handleV1betaGetMultipleBackupPoliciesRequest(args [2]string, ar
 		}
 
 		type (
-			Request  = *BackupPolicyIDListV1beta
+			Request  = *BackupPolicyIdListV1beta
 			Params   = V1betaGetMultipleBackupPoliciesParams
 			Response = V1betaGetMultipleBackupPoliciesRes
 		)
@@ -4792,7 +4792,7 @@ func (s *Server) handleV1betaGetMultipleBackupVaultsRequest(args [2]string, args
 		}
 
 		type (
-			Request  = *BackupVaultUUIDListV1beta
+			Request  = *BackupVaultUuidListV1beta
 			Params   = V1betaGetMultipleBackupVaultsParams
 			Response = V1betaGetMultipleBackupVaultsRes
 		)
@@ -4968,7 +4968,7 @@ func (s *Server) handleV1betaGetMultipleBackupsRequest(args [3]string, argsEscap
 		}
 
 		type (
-			Request  = *BackupUUIDListV1beta
+			Request  = *BackupUuidListV1beta
 			Params   = V1betaGetMultipleBackupsParams
 			Response = V1betaGetMultipleBackupsRes
 		)
@@ -5312,7 +5312,7 @@ func (s *Server) handleV1betaGetMultiplePoolsRequest(args [2]string, argsEscaped
 		}
 
 		type (
-			Request  = *PoolIDListV1beta
+			Request  = *PoolIdListV1beta
 			Params   = V1betaGetMultiplePoolsParams
 			Response = V1betaGetMultiplePoolsRes
 		)
@@ -5664,7 +5664,7 @@ func (s *Server) handleV1betaGetMultipleSnapshotsRequest(args [3]string, argsEsc
 		}
 
 		type (
-			Request  = *SnapshotIDListV1beta
+			Request  = *SnapshotIdListV1beta
 			Params   = V1betaGetMultipleSnapshotsParams
 			Response = V1betaGetMultipleSnapshotsRes
 		)
@@ -5836,7 +5836,7 @@ func (s *Server) handleV1betaGetMultipleVolumesRequest(args [2]string, argsEscap
 		}
 
 		type (
-			Request  = *VolumeIDListV1beta
+			Request  = *VolumeIdListV1beta
 			Params   = V1betaGetMultipleVolumesParams
 			Response = V1betaGetMultipleVolumesRes
 		)
@@ -6573,7 +6573,7 @@ func (s *Server) handleV1betaInternalDeleteVolumeReplicationRequest(args [3]stri
 
 // handleV1betaInternalDescribePoolRequest handles v1beta_internalDescribePool operation.
 //
-// Returns the description of the specified volume replication by volume replication ID.
+// Returns the description of the specified volume replication by volume replication Id.
 //
 // GET /v1beta/internal/projects/{projectNumber}/locations/{locationId}/pool/{poolName}
 func (s *Server) handleV1betaInternalDescribePoolRequest(args [3]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -6734,7 +6734,7 @@ func (s *Server) handleV1betaInternalDescribePoolRequest(args [3]string, argsEsc
 
 // handleV1betaInternalDescribeVolumeReplicationRequest handles v1beta_internalDescribeVolumeReplication operation.
 //
-// Returns the description of the specified volume replication by volume replication ID.
+// Returns the description of the specified volume replication by volume replication Id.
 //
 // GET /v1beta/internal/projects/{projectNumber}/locations/{locationId}/volumeReplication/{volumeReplicationId}
 func (s *Server) handleV1betaInternalDescribeVolumeReplicationRequest(args [3]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {

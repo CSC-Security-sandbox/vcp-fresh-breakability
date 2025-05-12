@@ -1657,8 +1657,8 @@ func TestV1betaGetMultipleActiveDirectories(t *testing.T) {
 			XCorrelationID: gcpgenserver.NewOptString("test-correlation-id"),
 		}
 		// Define request
-		req := &gcpgenserver.ActiveDirectoryIDListV1beta{
-			ActiveDirectoryUUIDs: []string{"AD0"},
+		req := &gcpgenserver.ActiveDirectoryIdListV1beta{
+			ActiveDirectoryUuids: []string{"AD0"},
 		}
 
 		ads := make([]*models.ActiveDirectoryV1beta, 0)
@@ -1720,8 +1720,8 @@ func TestV1betaGetMultipleActiveDirectories(t *testing.T) {
 			XCorrelationID: gcpgenserver.NewOptString("test-correlation-id"),
 		}
 		// Define request
-		req := &gcpgenserver.ActiveDirectoryIDListV1beta{
-			ActiveDirectoryUUIDs: []string{"AD0"},
+		req := &gcpgenserver.ActiveDirectoryIdListV1beta{
+			ActiveDirectoryUuids: []string{"AD0"},
 		}
 
 		// Define mock error
@@ -1764,8 +1764,8 @@ func TestV1betaGetMultipleActiveDirectories(t *testing.T) {
 			XCorrelationID: gcpgenserver.NewOptString("test-correlation-id"),
 		}
 		// Define request
-		req := &gcpgenserver.ActiveDirectoryIDListV1beta{
-			ActiveDirectoryUUIDs: []string{"AD0"},
+		req := &gcpgenserver.ActiveDirectoryIdListV1beta{
+			ActiveDirectoryUuids: []string{"AD0"},
 		}
 
 		// Define mock error
@@ -1809,8 +1809,8 @@ func TestV1betaGetMultipleActiveDirectories(t *testing.T) {
 			XCorrelationID: gcpgenserver.NewOptString("test-correlation-id"),
 		}
 		// Define request
-		req := &gcpgenserver.ActiveDirectoryIDListV1beta{
-			ActiveDirectoryUUIDs: []string{"AD0"},
+		req := &gcpgenserver.ActiveDirectoryIdListV1beta{
+			ActiveDirectoryUuids: []string{"AD0"},
 		}
 
 		// Define mock error
@@ -1855,8 +1855,8 @@ func TestV1betaGetMultipleActiveDirectories(t *testing.T) {
 			XCorrelationID: gcpgenserver.NewOptString("test-correlation-id"),
 		}
 		// Define request
-		req := &gcpgenserver.ActiveDirectoryIDListV1beta{
-			ActiveDirectoryUUIDs: []string{"AD0"},
+		req := &gcpgenserver.ActiveDirectoryIdListV1beta{
+			ActiveDirectoryUuids: []string{"AD0"},
 		}
 
 		// Define mock error
@@ -1901,8 +1901,8 @@ func TestV1betaGetMultipleActiveDirectories(t *testing.T) {
 			XCorrelationID: gcpgenserver.NewOptString("test-correlation-id"),
 		}
 		// Define request
-		req := &gcpgenserver.ActiveDirectoryIDListV1beta{
-			ActiveDirectoryUUIDs: []string{"AD0"},
+		req := &gcpgenserver.ActiveDirectoryIdListV1beta{
+			ActiveDirectoryUuids: []string{"AD0"},
 		}
 
 		// Define mock error
@@ -1947,8 +1947,8 @@ func TestV1betaGetMultipleActiveDirectories(t *testing.T) {
 			XCorrelationID: gcpgenserver.NewOptString("test-correlation-id"),
 		}
 		// Define request
-		req := &gcpgenserver.ActiveDirectoryIDListV1beta{
-			ActiveDirectoryUUIDs: []string{"AD0"},
+		req := &gcpgenserver.ActiveDirectoryIdListV1beta{
+			ActiveDirectoryUuids: []string{"AD0"},
 		}
 
 		// Define mock error
@@ -1992,8 +1992,8 @@ func TestV1betaGetMultipleActiveDirectories(t *testing.T) {
 			XCorrelationID: gcpgenserver.NewOptString("test-correlation-id"),
 		}
 		// Define request
-		req := &gcpgenserver.ActiveDirectoryIDListV1beta{
-			ActiveDirectoryUUIDs: []string{"AD0"},
+		req := &gcpgenserver.ActiveDirectoryIdListV1beta{
+			ActiveDirectoryUuids: []string{"AD0"},
 		}
 		// Define mock error
 		errorMessage := "unknown error during the get multiple active directories"

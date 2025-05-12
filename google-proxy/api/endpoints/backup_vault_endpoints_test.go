@@ -1570,8 +1570,8 @@ func TestV1betaGetMultipleBackupVaults(t *testing.T) {
 			XCorrelationID: gcpgenserver.NewOptString("test-correlation-id"),
 		}
 		// Define request
-		req := &gcpgenserver.BackupVaultUUIDListV1beta{
-			BackupVaultUUIDs: []string{"bvid-1"},
+		req := &gcpgenserver.BackupVaultUuidListV1beta{
+			BackupVaultUuids: []string{"bvid-1"},
 		}
 
 		bvs := make([]*models.BackupVaultV1beta, 0)
@@ -1626,8 +1626,8 @@ func TestV1betaGetMultipleBackupVaults(t *testing.T) {
 			XCorrelationID: gcpgenserver.NewOptString("test-correlation-id"),
 		}
 		// Define request
-		req := &gcpgenserver.BackupVaultUUIDListV1beta{
-			BackupVaultUUIDs: []string{"BV0"},
+		req := &gcpgenserver.BackupVaultUuidListV1beta{
+			BackupVaultUuids: []string{"BV0"},
 		}
 
 		// Define mock error
@@ -1670,8 +1670,8 @@ func TestV1betaGetMultipleBackupVaults(t *testing.T) {
 			XCorrelationID: gcpgenserver.NewOptString("test-correlation-id"),
 		}
 		// Define request
-		req := &gcpgenserver.BackupVaultUUIDListV1beta{
-			BackupVaultUUIDs: []string{"BV0"},
+		req := &gcpgenserver.BackupVaultUuidListV1beta{
+			BackupVaultUuids: []string{"BV0"},
 		}
 
 		// Define mock error
@@ -1715,8 +1715,8 @@ func TestV1betaGetMultipleBackupVaults(t *testing.T) {
 			XCorrelationID: gcpgenserver.NewOptString("test-correlation-id"),
 		}
 		// Define request
-		req := &gcpgenserver.BackupVaultUUIDListV1beta{
-			BackupVaultUUIDs: []string{"BV0"},
+		req := &gcpgenserver.BackupVaultUuidListV1beta{
+			BackupVaultUuids: []string{"BV0"},
 		}
 
 		// Define mock error
@@ -1761,8 +1761,8 @@ func TestV1betaGetMultipleBackupVaults(t *testing.T) {
 			XCorrelationID: gcpgenserver.NewOptString("test-correlation-id"),
 		}
 		// Define request
-		req := &gcpgenserver.BackupVaultUUIDListV1beta{
-			BackupVaultUUIDs: []string{"BV0"},
+		req := &gcpgenserver.BackupVaultUuidListV1beta{
+			BackupVaultUuids: []string{"BV0"},
 		}
 
 		// Define mock error
@@ -1807,8 +1807,8 @@ func TestV1betaGetMultipleBackupVaults(t *testing.T) {
 			XCorrelationID: gcpgenserver.NewOptString("test-correlation-id"),
 		}
 		// Define request
-		req := &gcpgenserver.BackupVaultUUIDListV1beta{
-			BackupVaultUUIDs: []string{"BV0"},
+		req := &gcpgenserver.BackupVaultUuidListV1beta{
+			BackupVaultUuids: []string{"BV0"},
 		}
 
 		// Define mock error
@@ -1852,8 +1852,8 @@ func TestV1betaGetMultipleBackupVaults(t *testing.T) {
 			XCorrelationID: gcpgenserver.NewOptString("test-correlation-id"),
 		}
 		// Define request
-		req := &gcpgenserver.BackupVaultUUIDListV1beta{
-			BackupVaultUUIDs: []string{"BV0"},
+		req := &gcpgenserver.BackupVaultUuidListV1beta{
+			BackupVaultUuids: []string{"BV0"},
 		}
 
 		// Define mock error

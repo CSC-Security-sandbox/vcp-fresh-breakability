@@ -244,10 +244,10 @@ func (h Handler) V1betaDescribeActiveDirectory(ctx context.Context, params gcpge
 	return &adV1BetaModel, nil
 }
 
-func (h Handler) V1betaGetMultipleActiveDirectories(ctx context.Context, req *gcpgenserver.ActiveDirectoryIDListV1beta, params gcpgenserver.V1betaGetMultipleActiveDirectoriesParams) (r gcpgenserver.V1betaGetMultipleActiveDirectoriesRes, _ error) {
+func (h Handler) V1betaGetMultipleActiveDirectories(ctx context.Context, req *gcpgenserver.ActiveDirectoryIdListV1beta, params gcpgenserver.V1betaGetMultipleActiveDirectoriesParams) (r gcpgenserver.V1betaGetMultipleActiveDirectoriesRes, _ error) {
 	logger := utils.GetLoggerFromContext(ctx)
 	body := &models.ActiveDirectoryIDListV1beta{
-		ActiveDirectoryUUIDs: req.ActiveDirectoryUUIDs,
+		ActiveDirectoryUUIDs: req.ActiveDirectoryUuids,
 	}
 	reqPrams := &active_directories.V1betaGetMultipleActiveDirectoriesParams{
 		LocationID:     params.LocationId,

@@ -210,13 +210,13 @@ func (h Handler) V1betaDescribeBackupPolicy(ctx context.Context, params gcpgense
 	return convertToBackupPolicyDetailsV1beta(res), nil
 }
 
-func (h Handler) V1betaGetMultipleBackupPolicies(ctx context.Context, req *gcpgenserver.BackupPolicyIDListV1beta, params gcpgenserver.V1betaGetMultipleBackupPoliciesParams) (gcpgenserver.V1betaGetMultipleBackupPoliciesRes, error) {
+func (h Handler) V1betaGetMultipleBackupPolicies(ctx context.Context, req *gcpgenserver.BackupPolicyIdListV1beta, params gcpgenserver.V1betaGetMultipleBackupPoliciesParams) (gcpgenserver.V1betaGetMultipleBackupPoliciesRes, error) {
 	logger := utils.GetLoggerFromContext(ctx)
 	jwtToken := utils.GetJWTTokenFromContext(ctx)
 	cvpClient := createClient(logger, jwtToken)
 
 	var backupPolicyUUIDs []string
-	backupPolicyUUIDs = append(backupPolicyUUIDs, req.BackupPolicyUUIDs...)
+	backupPolicyUUIDs = append(backupPolicyUUIDs, req.BackupPolicyUuids...)
 
 	body := &models.BackupPolicyIDListV1beta{
 		BackupPolicyUUIDs: backupPolicyUUIDs,

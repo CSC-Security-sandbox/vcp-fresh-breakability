@@ -349,6 +349,54 @@ func (_c *MockGoogleServices_IsAdminClientInitialized_Call) RunAndReturn(run fun
 	return _c
 }
 
+// ReleaseSubnetwork provides a mock function with given fields: region, tenantProjectNumber, subnetwork
+func (_m *MockGoogleServices) ReleaseSubnetwork(region string, tenantProjectNumber string, subnetwork string) error {
+	ret := _m.Called(region, tenantProjectNumber, subnetwork)
+
+	if len(ret) == 0 {
+		panic("no return value specified for ReleaseSubnetwork")
+	}
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(string, string, string) error); ok {
+		r0 = rf(region, tenantProjectNumber, subnetwork)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// MockGoogleServices_ReleaseSubnetwork_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'ReleaseSubnetwork'
+type MockGoogleServices_ReleaseSubnetwork_Call struct {
+	*mock.Call
+}
+
+// ReleaseSubnetwork is a helper method to define mock.On call
+//   - region string
+//   - tenantProjectNumber string
+//   - subnetwork string
+func (_e *MockGoogleServices_Expecter) ReleaseSubnetwork(region interface{}, tenantProjectNumber interface{}, subnetwork interface{}) *MockGoogleServices_ReleaseSubnetwork_Call {
+	return &MockGoogleServices_ReleaseSubnetwork_Call{Call: _e.mock.On("ReleaseSubnetwork", region, tenantProjectNumber, subnetwork)}
+}
+
+func (_c *MockGoogleServices_ReleaseSubnetwork_Call) Run(run func(region string, tenantProjectNumber string, subnetwork string)) *MockGoogleServices_ReleaseSubnetwork_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(string), args[1].(string), args[2].(string))
+	})
+	return _c
+}
+
+func (_c *MockGoogleServices_ReleaseSubnetwork_Call) Return(_a0 error) *MockGoogleServices_ReleaseSubnetwork_Call {
+	_c.Call.Return(_a0)
+	return _c
+}
+
+func (_c *MockGoogleServices_ReleaseSubnetwork_Call) RunAndReturn(run func(string, string, string) error) *MockGoogleServices_ReleaseSubnetwork_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // NewMockGoogleServices creates a new instance of MockGoogleServices. It also registers a testing interface on the mock and a cleanup function to assert the mocks expectations.
 // The first argument is typically a *testing.T value.
 func NewMockGoogleServices(t interface {

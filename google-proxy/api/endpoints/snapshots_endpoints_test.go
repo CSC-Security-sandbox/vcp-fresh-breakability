@@ -24,8 +24,8 @@ func TestHandler_V1betaGetMultipleSnapshots(t *testing.T) {
 			VolumeResourceId: "volume-resource-id",
 			XCorrelationID:   gcpserver.NewOptString("X-Correlation-ID"),
 		}
-		req := &gcpserver.SnapshotIDListV1beta{
-			SnapshotUUIDs: []string{"uri1", "uri2"},
+		req := &gcpserver.SnapshotIdListV1beta{
+			SnapshotUuids: []string{"uri1", "uri2"},
 		}
 
 		errorMessage := "BadRequest error"
@@ -63,8 +63,8 @@ func TestHandler_V1betaGetMultipleSnapshots(t *testing.T) {
 			VolumeResourceId: "volume-resource-id",
 			XCorrelationID:   gcpserver.NewOptString("X-Correlation-ID"),
 		}
-		req := &gcpserver.SnapshotIDListV1beta{
-			SnapshotUUIDs: []string{"uri1", "uri2"},
+		req := &gcpserver.SnapshotIdListV1beta{
+			SnapshotUuids: []string{"uri1", "uri2"},
 		}
 
 		errorMessage := "Unauthorized error"
@@ -102,8 +102,8 @@ func TestHandler_V1betaGetMultipleSnapshots(t *testing.T) {
 			VolumeResourceId: "volume-resource-id",
 			XCorrelationID:   gcpserver.NewOptString("X-Correlation-ID"),
 		}
-		req := &gcpserver.SnapshotIDListV1beta{
-			SnapshotUUIDs: []string{"uri1", "uri2"},
+		req := &gcpserver.SnapshotIdListV1beta{
+			SnapshotUuids: []string{"uri1", "uri2"},
 		}
 
 		errorMessage := "Forbidden error"
@@ -141,8 +141,8 @@ func TestHandler_V1betaGetMultipleSnapshots(t *testing.T) {
 			VolumeResourceId: "volume-resource-id",
 			XCorrelationID:   gcpserver.NewOptString("X-Correlation-ID"),
 		}
-		req := &gcpserver.SnapshotIDListV1beta{
-			SnapshotUUIDs: []string{"uri1", "uri2"},
+		req := &gcpserver.SnapshotIdListV1beta{
+			SnapshotUuids: []string{"uri1", "uri2"},
 		}
 
 		errorMessage := "Too many requests"
@@ -180,8 +180,8 @@ func TestHandler_V1betaGetMultipleSnapshots(t *testing.T) {
 			VolumeResourceId: "volume-resource-id",
 			XCorrelationID:   gcpserver.NewOptString("X-Correlation-ID"),
 		}
-		req := &gcpserver.SnapshotIDListV1beta{
-			SnapshotUUIDs: []string{"uri1", "uri2"},
+		req := &gcpserver.SnapshotIdListV1beta{
+			SnapshotUuids: []string{"uri1", "uri2"},
 		}
 
 		description := "description"

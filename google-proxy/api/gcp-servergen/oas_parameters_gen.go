@@ -21,7 +21,7 @@ type V1betaCheckKmsConfigParams struct {
 	ProjectNumber string
 	// The location/region to perform the operation in.
 	LocationId string
-	// UUID v4 used to identify the GCP KMS credentials.
+	// Uuid v4 used to identify the GCP KMS credentials.
 	KmsConfigId string
 	// Correlation identifier.
 	XCorrelationID OptString
@@ -1512,7 +1512,7 @@ type V1betaCreateReplicationParams struct {
 	ProjectNumber string
 	// The location/region to perform the operation in.
 	LocationId string
-	// Resource ID used to identify the volume.
+	// Resource Id used to identify the volume.
 	VolumeResourceId string
 	// Correlation identifier.
 	XCorrelationID OptString
@@ -1990,7 +1990,7 @@ type V1betaDeleteActiveDirectoryParams struct {
 	LocationId string
 	// Correlation identifier.
 	XCorrelationID OptString
-	// UUID v4 used to identify the Active Directory credentials.
+	// Uuid v4 used to identify the Active Directory credentials.
 	ActiveDirectoryId string
 }
 
@@ -2257,7 +2257,7 @@ func decodeV1betaDeleteActiveDirectoryParams(args [3]string, argsEscaped bool, r
 
 // V1betaDeleteBackupPolicyParams is parameters of v1beta_deleteBackupPolicy operation.
 type V1betaDeleteBackupPolicyParams struct {
-	// UUID v4 used to identify the backup policy.
+	// Uuid v4 used to identify the backup policy.
 	BackupPolicyId string
 	// The project number of the GCP project owning the resource being acted upon.
 	ProjectNumber string
@@ -2530,7 +2530,7 @@ func decodeV1betaDeleteBackupPolicyParams(args [3]string, argsEscaped bool, r *h
 
 // V1betaDeleteBackupVaultParams is parameters of v1beta_deleteBackupVault operation.
 type V1betaDeleteBackupVaultParams struct {
-	// UUID v4 used to identify the backup vault.
+	// Uuid v4 used to identify the backup vault.
 	BackupVaultId string
 	// The project number of the GCP project owning the resource being acted upon.
 	ProjectNumber string
@@ -2803,7 +2803,7 @@ func decodeV1betaDeleteBackupVaultParams(args [3]string, argsEscaped bool, r *ht
 
 // V1betaDeleteHostGroupParams is parameters of v1beta_deleteHostGroup operation.
 type V1betaDeleteHostGroupParams struct {
-	// UUID v4 used to identify the HostGroup.
+	// Uuid v4 used to identify the HostGroup.
 	HostGroupId string
 	// The project number of the GCP project owning the resource being acted upon.
 	ProjectNumber string
@@ -3080,7 +3080,7 @@ type V1betaDeleteKmsConfigurationParams struct {
 	ProjectNumber string
 	// The location/region to perform the operation in.
 	LocationId string
-	// UUID v4 used to identify the GCP KMS credentials.
+	// Uuid v4 used to identify the GCP KMS credentials.
 	KmsConfigId string
 	// Correlation identifier.
 	XCorrelationID OptString
@@ -3349,7 +3349,7 @@ func decodeV1betaDeleteKmsConfigurationParams(args [3]string, argsEscaped bool, 
 
 // V1betaDeletePoolParams is parameters of v1beta_deletePool operation.
 type V1betaDeletePoolParams struct {
-	// UUID v4 used to identify the pool.
+	// Uuid v4 used to identify the pool.
 	PoolId string
 	// The project number of the GCP project owning the resource being acted upon.
 	ProjectNumber string
@@ -3626,9 +3626,9 @@ type V1betaDeleteReplicationParams struct {
 	ProjectNumber string
 	// The location/region to perform the operation in.
 	LocationId string
-	// Resource ID used to identify the volume.
+	// Resource Id used to identify the volume.
 	VolumeResourceId string
-	// Resource ID used to identify the replication.
+	// Resource Id used to identify the replication.
 	ReplicationResourceId string
 	// Correlation identifier.
 	XCorrelationID OptString
@@ -3971,7 +3971,7 @@ type V1betaDeleteVolumeParams struct {
 	LocationId string
 	// Correlation identifier.
 	XCorrelationID OptString
-	// UUID v4 used to identify the volume.
+	// Uuid v4 used to identify the volume.
 	VolumeId string
 }
 
@@ -4244,7 +4244,7 @@ type V1betaDescribeActiveDirectoryParams struct {
 	LocationId string
 	// Correlation identifier.
 	XCorrelationID OptString
-	// UUID v4 used to identify the Active Directory credentials.
+	// Uuid v4 used to identify the Active Directory credentials.
 	ActiveDirectoryId string
 }
 
@@ -4511,7 +4511,7 @@ func decodeV1betaDescribeActiveDirectoryParams(args [3]string, argsEscaped bool,
 
 // V1betaDescribeBackupPolicyParams is parameters of v1beta_describeBackupPolicy operation.
 type V1betaDescribeBackupPolicyParams struct {
-	// UUID v4 used to identify the backup policy.
+	// Uuid v4 used to identify the backup policy.
 	BackupPolicyId string
 	// The project number of the GCP project owning the resource being acted upon.
 	ProjectNumber string
@@ -4786,7 +4786,7 @@ func decodeV1betaDescribeBackupPolicyParams(args [3]string, argsEscaped bool, r 
 type V1betaDescribeBackupVaultParams struct {
 	// If true, response will include deleted backup vaults.
 	IncludeDeleted OptBool
-	// UUID v4 used to identify the backup vault.
+	// Uuid v4 used to identify the backup vault.
 	BackupVaultId string
 	// The project number of the GCP project owning the resource being acted upon.
 	ProjectNumber string
@@ -5115,7 +5115,7 @@ func decodeV1betaDescribeBackupVaultParams(args [3]string, argsEscaped bool, r *
 
 // V1betaDescribeHostGroupParams is parameters of v1beta_describeHostGroup operation.
 type V1betaDescribeHostGroupParams struct {
-	// UUID v4 used to identify the HostGroup.
+	// Uuid v4 used to identify the HostGroup.
 	HostGroupId string
 	// The project number of the GCP project owning the resource being acted upon.
 	ProjectNumber string
@@ -5392,7 +5392,7 @@ type V1betaDescribeKmsConfigurationParams struct {
 	ProjectNumber string
 	// The location/region to perform the operation in.
 	LocationId string
-	// UUID v4 used to identify the GCP KMS credentials.
+	// Uuid v4 used to identify the GCP KMS credentials.
 	KmsConfigId string
 	// Correlation identifier.
 	XCorrelationID OptString
@@ -5665,7 +5665,7 @@ type V1betaDescribeOperationParams struct {
 	ProjectNumber string
 	// The location/region to perform the operation in.
 	LocationId string
-	// UUIDv4 used to identity a long running operation.
+	// Uuidv4 used to identity a long running operation.
 	OperationId string
 	// Correlation identifier.
 	XCorrelationID OptString
@@ -5934,7 +5934,7 @@ func decodeV1betaDescribeOperationParams(args [3]string, argsEscaped bool, r *ht
 
 // V1betaDescribePoolParams is parameters of v1beta_describePool operation.
 type V1betaDescribePoolParams struct {
-	// UUID v4 used to identify the pool.
+	// Uuid v4 used to identify the pool.
 	PoolId string
 	// The project number of the GCP project owning the resource being acted upon.
 	ProjectNumber string
@@ -6213,7 +6213,7 @@ type V1betaDescribeVolumeParams struct {
 	LocationId string
 	// Correlation identifier.
 	XCorrelationID OptString
-	// UUID v4 used to identify the volume.
+	// Uuid v4 used to identify the volume.
 	VolumeId string
 }
 
@@ -7093,7 +7093,7 @@ type V1betaGetMultipleBackupsParams struct {
 	ProjectNumber string
 	// The location/region to perform the operation in.
 	LocationId string
-	// UUID v4 used to identify the backup vault.
+	// Uuid v4 used to identify the backup vault.
 	BackupVaultId string
 	// Correlation identifier.
 	XCorrelationID OptString
@@ -7772,7 +7772,7 @@ type V1betaGetMultipleReplicationsParams struct {
 	ProjectNumber string
 	// The location/region to perform the operation in.
 	LocationId string
-	// Resource ID used to identify the volume.
+	// Resource Id used to identify the volume.
 	VolumeResourceId string
 	// Correlation identifier.
 	XCorrelationID OptString
@@ -8045,7 +8045,7 @@ type V1betaGetMultipleSnapshotsParams struct {
 	ProjectNumber string
 	// The location/region to perform the operation in.
 	LocationId string
-	// Resource ID used to identify the volume.
+	// Resource Id used to identify the volume.
 	VolumeResourceId string
 	// Correlation identifier.
 	XCorrelationID OptString
@@ -12784,7 +12784,7 @@ type V1betaListVolumesParams struct {
 	XCorrelationID OptString
 	// If true, response will include deleted resources.
 	IncludeDeleted OptBool
-	// UUID v4 used to identify the pool.
+	// Uuid v4 used to identify the pool.
 	PoolId OptString
 	// If true, export policy and snapshot policy will be included for each file system.
 	IncludePolicies OptBool
@@ -13220,9 +13220,9 @@ type V1betaResumeReplicationParams struct {
 	ProjectNumber string
 	// The location/region to perform the operation in.
 	LocationId string
-	// Resource ID used to identify the volume.
+	// Resource Id used to identify the volume.
 	VolumeResourceId string
-	// Resource ID used to identify the replication.
+	// Resource Id used to identify the replication.
 	ReplicationResourceId string
 	// Correlation identifier.
 	XCorrelationID OptString
@@ -13563,9 +13563,9 @@ type V1betaReverseAndResumeReplicationParams struct {
 	ProjectNumber string
 	// The location/region to perform the operation in.
 	LocationId string
-	// Resource ID used to identify the volume.
+	// Resource Id used to identify the volume.
 	VolumeResourceId string
-	// Resource ID used to identify the replication.
+	// Resource Id used to identify the replication.
 	ReplicationResourceId string
 	// Correlation identifier.
 	XCorrelationID OptString
@@ -13906,9 +13906,9 @@ type V1betaStopReplicationParams struct {
 	ProjectNumber string
 	// The location/region to perform the operation in.
 	LocationId string
-	// Resource ID used to identify the volume.
+	// Resource Id used to identify the volume.
 	VolumeResourceId string
-	// Resource ID used to identify the replication.
+	// Resource Id used to identify the replication.
 	ReplicationResourceId string
 	// Correlation identifier.
 	XCorrelationID OptString
@@ -14249,9 +14249,9 @@ type V1betaSyncReplicationParams struct {
 	ProjectNumber string
 	// The location/region to perform the operation in.
 	LocationId string
-	// Resource ID used to identify the volume.
+	// Resource Id used to identify the volume.
 	VolumeResourceId string
-	// Resource ID used to identify the replication.
+	// Resource Id used to identify the replication.
 	ReplicationResourceId string
 	// Correlation identifier.
 	XCorrelationID OptString
@@ -14594,7 +14594,7 @@ type V1betaUpdateActiveDirectoryParams struct {
 	LocationId string
 	// Correlation identifier.
 	XCorrelationID OptString
-	// UUID v4 used to identify the Active Directory credentials.
+	// Uuid v4 used to identify the Active Directory credentials.
 	ActiveDirectoryId string
 }
 
@@ -14861,7 +14861,7 @@ func decodeV1betaUpdateActiveDirectoryParams(args [3]string, argsEscaped bool, r
 
 // V1betaUpdateBackupPolicyParams is parameters of v1beta_updateBackupPolicy operation.
 type V1betaUpdateBackupPolicyParams struct {
-	// UUID v4 used to identify the backup policy.
+	// Uuid v4 used to identify the backup policy.
 	BackupPolicyId string
 	// The project number of the GCP project owning the resource being acted upon.
 	ProjectNumber string
@@ -15134,7 +15134,7 @@ func decodeV1betaUpdateBackupPolicyParams(args [3]string, argsEscaped bool, r *h
 
 // V1betaUpdateBackupVaultParams is parameters of v1beta_updateBackupVault operation.
 type V1betaUpdateBackupVaultParams struct {
-	// UUID v4 used to identify the backup vault.
+	// Uuid v4 used to identify the backup vault.
 	BackupVaultId string
 	// The project number of the GCP project owning the resource being acted upon.
 	ProjectNumber string
@@ -15407,7 +15407,7 @@ func decodeV1betaUpdateBackupVaultParams(args [3]string, argsEscaped bool, r *ht
 
 // V1betaUpdateHostGroupParams is parameters of v1beta_updateHostGroup operation.
 type V1betaUpdateHostGroupParams struct {
-	// UUID v4 used to identify the HostGroup.
+	// Uuid v4 used to identify the HostGroup.
 	HostGroupId string
 	// The project number of the GCP project owning the resource being acted upon.
 	ProjectNumber string
@@ -15684,7 +15684,7 @@ type V1betaUpdateKmsConfigurationParams struct {
 	ProjectNumber string
 	// The location/region to perform the operation in.
 	LocationId string
-	// UUID v4 used to identify the GCP KMS credentials.
+	// Uuid v4 used to identify the GCP KMS credentials.
 	KmsConfigId string
 	// Correlation identifier.
 	XCorrelationID OptString
@@ -15953,7 +15953,7 @@ func decodeV1betaUpdateKmsConfigurationParams(args [3]string, argsEscaped bool, 
 
 // V1betaUpdatePoolParams is parameters of v1beta_updatePool operation.
 type V1betaUpdatePoolParams struct {
-	// UUID v4 used to identify the pool.
+	// Uuid v4 used to identify the pool.
 	PoolId string
 	// The project number of the GCP project owning the resource being acted upon.
 	ProjectNumber string
@@ -16230,9 +16230,9 @@ type V1betaUpdateReplicationParams struct {
 	ProjectNumber string
 	// The location/region to perform the operation in.
 	LocationId string
-	// Resource ID used to identify the volume.
+	// Resource Id used to identify the volume.
 	VolumeResourceId string
-	// Resource ID used to identify the replication.
+	// Resource Id used to identify the replication.
 	ReplicationResourceId string
 	// Correlation identifier.
 	XCorrelationID OptString
@@ -16575,7 +16575,7 @@ type V1betaUpdateVolumeParams struct {
 	LocationId string
 	// Correlation identifier.
 	XCorrelationID OptString
-	// UUID v4 used to identify the volume.
+	// Uuid v4 used to identify the volume.
 	VolumeId string
 }
 

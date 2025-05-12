@@ -15,41 +15,41 @@ import (
 )
 
 // Encode implements json.Marshaler.
-func (s *ActiveDirectoryIDListV1beta) Encode(e *jx.Encoder) {
+func (s *ActiveDirectoryIdListV1beta) Encode(e *jx.Encoder) {
 	e.ObjStart()
 	s.encodeFields(e)
 	e.ObjEnd()
 }
 
 // encodeFields encodes fields.
-func (s *ActiveDirectoryIDListV1beta) encodeFields(e *jx.Encoder) {
+func (s *ActiveDirectoryIdListV1beta) encodeFields(e *jx.Encoder) {
 	{
-		e.FieldStart("activeDirectoryUUIDs")
+		e.FieldStart("activeDirectoryUuids")
 		e.ArrStart()
-		for _, elem := range s.ActiveDirectoryUUIDs {
+		for _, elem := range s.ActiveDirectoryUuids {
 			e.Str(elem)
 		}
 		e.ArrEnd()
 	}
 }
 
-var jsonFieldsNameOfActiveDirectoryIDListV1beta = [1]string{
-	0: "activeDirectoryUUIDs",
+var jsonFieldsNameOfActiveDirectoryIdListV1beta = [1]string{
+	0: "activeDirectoryUuids",
 }
 
-// Decode decodes ActiveDirectoryIDListV1beta from json.
-func (s *ActiveDirectoryIDListV1beta) Decode(d *jx.Decoder) error {
+// Decode decodes ActiveDirectoryIdListV1beta from json.
+func (s *ActiveDirectoryIdListV1beta) Decode(d *jx.Decoder) error {
 	if s == nil {
-		return errors.New("invalid: unable to decode ActiveDirectoryIDListV1beta to nil")
+		return errors.New("invalid: unable to decode ActiveDirectoryIdListV1beta to nil")
 	}
 	var requiredBitSet [1]uint8
 
 	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
 		switch string(k) {
-		case "activeDirectoryUUIDs":
+		case "activeDirectoryUuids":
 			requiredBitSet[0] |= 1 << 0
 			if err := func() error {
-				s.ActiveDirectoryUUIDs = make([]string, 0)
+				s.ActiveDirectoryUuids = make([]string, 0)
 				if err := d.Arr(func(d *jx.Decoder) error {
 					var elem string
 					v, err := d.Str()
@@ -57,21 +57,21 @@ func (s *ActiveDirectoryIDListV1beta) Decode(d *jx.Decoder) error {
 					if err != nil {
 						return err
 					}
-					s.ActiveDirectoryUUIDs = append(s.ActiveDirectoryUUIDs, elem)
+					s.ActiveDirectoryUuids = append(s.ActiveDirectoryUuids, elem)
 					return nil
 				}); err != nil {
 					return err
 				}
 				return nil
 			}(); err != nil {
-				return errors.Wrap(err, "decode field \"activeDirectoryUUIDs\"")
+				return errors.Wrap(err, "decode field \"activeDirectoryUuids\"")
 			}
 		default:
 			return d.Skip()
 		}
 		return nil
 	}); err != nil {
-		return errors.Wrap(err, "decode ActiveDirectoryIDListV1beta")
+		return errors.Wrap(err, "decode ActiveDirectoryIdListV1beta")
 	}
 	// Validate required fields.
 	var failures []validate.FieldError
@@ -88,8 +88,8 @@ func (s *ActiveDirectoryIDListV1beta) Decode(d *jx.Decoder) error {
 				bitIdx := bits.TrailingZeros8(result)
 				fieldIdx := i*8 + bitIdx
 				var name string
-				if fieldIdx < len(jsonFieldsNameOfActiveDirectoryIDListV1beta) {
-					name = jsonFieldsNameOfActiveDirectoryIDListV1beta[fieldIdx]
+				if fieldIdx < len(jsonFieldsNameOfActiveDirectoryIdListV1beta) {
+					name = jsonFieldsNameOfActiveDirectoryIdListV1beta[fieldIdx]
 				} else {
 					name = strconv.Itoa(fieldIdx)
 				}
@@ -110,14 +110,14 @@ func (s *ActiveDirectoryIDListV1beta) Decode(d *jx.Decoder) error {
 }
 
 // MarshalJSON implements stdjson.Marshaler.
-func (s *ActiveDirectoryIDListV1beta) MarshalJSON() ([]byte, error) {
+func (s *ActiveDirectoryIdListV1beta) MarshalJSON() ([]byte, error) {
 	e := jx.Encoder{}
 	s.Encode(&e)
 	return e.Bytes(), nil
 }
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
-func (s *ActiveDirectoryIDListV1beta) UnmarshalJSON(data []byte) error {
+func (s *ActiveDirectoryIdListV1beta) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }
@@ -1891,41 +1891,41 @@ func (s *BackupPolicyDetailsV1betaState) UnmarshalJSON(data []byte) error {
 }
 
 // Encode implements json.Marshaler.
-func (s *BackupPolicyIDListV1beta) Encode(e *jx.Encoder) {
+func (s *BackupPolicyIdListV1beta) Encode(e *jx.Encoder) {
 	e.ObjStart()
 	s.encodeFields(e)
 	e.ObjEnd()
 }
 
 // encodeFields encodes fields.
-func (s *BackupPolicyIDListV1beta) encodeFields(e *jx.Encoder) {
+func (s *BackupPolicyIdListV1beta) encodeFields(e *jx.Encoder) {
 	{
-		e.FieldStart("backupPolicyUUIDs")
+		e.FieldStart("backupPolicyUuids")
 		e.ArrStart()
-		for _, elem := range s.BackupPolicyUUIDs {
+		for _, elem := range s.BackupPolicyUuids {
 			e.Str(elem)
 		}
 		e.ArrEnd()
 	}
 }
 
-var jsonFieldsNameOfBackupPolicyIDListV1beta = [1]string{
-	0: "backupPolicyUUIDs",
+var jsonFieldsNameOfBackupPolicyIdListV1beta = [1]string{
+	0: "backupPolicyUuids",
 }
 
-// Decode decodes BackupPolicyIDListV1beta from json.
-func (s *BackupPolicyIDListV1beta) Decode(d *jx.Decoder) error {
+// Decode decodes BackupPolicyIdListV1beta from json.
+func (s *BackupPolicyIdListV1beta) Decode(d *jx.Decoder) error {
 	if s == nil {
-		return errors.New("invalid: unable to decode BackupPolicyIDListV1beta to nil")
+		return errors.New("invalid: unable to decode BackupPolicyIdListV1beta to nil")
 	}
 	var requiredBitSet [1]uint8
 
 	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
 		switch string(k) {
-		case "backupPolicyUUIDs":
+		case "backupPolicyUuids":
 			requiredBitSet[0] |= 1 << 0
 			if err := func() error {
-				s.BackupPolicyUUIDs = make([]string, 0)
+				s.BackupPolicyUuids = make([]string, 0)
 				if err := d.Arr(func(d *jx.Decoder) error {
 					var elem string
 					v, err := d.Str()
@@ -1933,21 +1933,21 @@ func (s *BackupPolicyIDListV1beta) Decode(d *jx.Decoder) error {
 					if err != nil {
 						return err
 					}
-					s.BackupPolicyUUIDs = append(s.BackupPolicyUUIDs, elem)
+					s.BackupPolicyUuids = append(s.BackupPolicyUuids, elem)
 					return nil
 				}); err != nil {
 					return err
 				}
 				return nil
 			}(); err != nil {
-				return errors.Wrap(err, "decode field \"backupPolicyUUIDs\"")
+				return errors.Wrap(err, "decode field \"backupPolicyUuids\"")
 			}
 		default:
 			return d.Skip()
 		}
 		return nil
 	}); err != nil {
-		return errors.Wrap(err, "decode BackupPolicyIDListV1beta")
+		return errors.Wrap(err, "decode BackupPolicyIdListV1beta")
 	}
 	// Validate required fields.
 	var failures []validate.FieldError
@@ -1964,8 +1964,8 @@ func (s *BackupPolicyIDListV1beta) Decode(d *jx.Decoder) error {
 				bitIdx := bits.TrailingZeros8(result)
 				fieldIdx := i*8 + bitIdx
 				var name string
-				if fieldIdx < len(jsonFieldsNameOfBackupPolicyIDListV1beta) {
-					name = jsonFieldsNameOfBackupPolicyIDListV1beta[fieldIdx]
+				if fieldIdx < len(jsonFieldsNameOfBackupPolicyIdListV1beta) {
+					name = jsonFieldsNameOfBackupPolicyIdListV1beta[fieldIdx]
 				} else {
 					name = strconv.Itoa(fieldIdx)
 				}
@@ -1986,14 +1986,14 @@ func (s *BackupPolicyIDListV1beta) Decode(d *jx.Decoder) error {
 }
 
 // MarshalJSON implements stdjson.Marshaler.
-func (s *BackupPolicyIDListV1beta) MarshalJSON() ([]byte, error) {
+func (s *BackupPolicyIdListV1beta) MarshalJSON() ([]byte, error) {
 	e := jx.Encoder{}
 	s.Encode(&e)
 	return e.Bytes(), nil
 }
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
-func (s *BackupPolicyIDListV1beta) UnmarshalJSON(data []byte) error {
+func (s *BackupPolicyIdListV1beta) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }
@@ -2694,41 +2694,41 @@ func (s *BackupRetentionPolicyV1beta) UnmarshalJSON(data []byte) error {
 }
 
 // Encode implements json.Marshaler.
-func (s *BackupUUIDListV1beta) Encode(e *jx.Encoder) {
+func (s *BackupUuidListV1beta) Encode(e *jx.Encoder) {
 	e.ObjStart()
 	s.encodeFields(e)
 	e.ObjEnd()
 }
 
 // encodeFields encodes fields.
-func (s *BackupUUIDListV1beta) encodeFields(e *jx.Encoder) {
+func (s *BackupUuidListV1beta) encodeFields(e *jx.Encoder) {
 	{
-		e.FieldStart("backupUUIDs")
+		e.FieldStart("backupUuids")
 		e.ArrStart()
-		for _, elem := range s.BackupUUIDs {
+		for _, elem := range s.BackupUuids {
 			e.Str(elem)
 		}
 		e.ArrEnd()
 	}
 }
 
-var jsonFieldsNameOfBackupUUIDListV1beta = [1]string{
-	0: "backupUUIDs",
+var jsonFieldsNameOfBackupUuidListV1beta = [1]string{
+	0: "backupUuids",
 }
 
-// Decode decodes BackupUUIDListV1beta from json.
-func (s *BackupUUIDListV1beta) Decode(d *jx.Decoder) error {
+// Decode decodes BackupUuidListV1beta from json.
+func (s *BackupUuidListV1beta) Decode(d *jx.Decoder) error {
 	if s == nil {
-		return errors.New("invalid: unable to decode BackupUUIDListV1beta to nil")
+		return errors.New("invalid: unable to decode BackupUuidListV1beta to nil")
 	}
 	var requiredBitSet [1]uint8
 
 	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
 		switch string(k) {
-		case "backupUUIDs":
+		case "backupUuids":
 			requiredBitSet[0] |= 1 << 0
 			if err := func() error {
-				s.BackupUUIDs = make([]string, 0)
+				s.BackupUuids = make([]string, 0)
 				if err := d.Arr(func(d *jx.Decoder) error {
 					var elem string
 					v, err := d.Str()
@@ -2736,21 +2736,21 @@ func (s *BackupUUIDListV1beta) Decode(d *jx.Decoder) error {
 					if err != nil {
 						return err
 					}
-					s.BackupUUIDs = append(s.BackupUUIDs, elem)
+					s.BackupUuids = append(s.BackupUuids, elem)
 					return nil
 				}); err != nil {
 					return err
 				}
 				return nil
 			}(); err != nil {
-				return errors.Wrap(err, "decode field \"backupUUIDs\"")
+				return errors.Wrap(err, "decode field \"backupUuids\"")
 			}
 		default:
 			return d.Skip()
 		}
 		return nil
 	}); err != nil {
-		return errors.Wrap(err, "decode BackupUUIDListV1beta")
+		return errors.Wrap(err, "decode BackupUuidListV1beta")
 	}
 	// Validate required fields.
 	var failures []validate.FieldError
@@ -2767,8 +2767,8 @@ func (s *BackupUUIDListV1beta) Decode(d *jx.Decoder) error {
 				bitIdx := bits.TrailingZeros8(result)
 				fieldIdx := i*8 + bitIdx
 				var name string
-				if fieldIdx < len(jsonFieldsNameOfBackupUUIDListV1beta) {
-					name = jsonFieldsNameOfBackupUUIDListV1beta[fieldIdx]
+				if fieldIdx < len(jsonFieldsNameOfBackupUuidListV1beta) {
+					name = jsonFieldsNameOfBackupUuidListV1beta[fieldIdx]
 				} else {
 					name = strconv.Itoa(fieldIdx)
 				}
@@ -2789,14 +2789,14 @@ func (s *BackupUUIDListV1beta) Decode(d *jx.Decoder) error {
 }
 
 // MarshalJSON implements stdjson.Marshaler.
-func (s *BackupUUIDListV1beta) MarshalJSON() ([]byte, error) {
+func (s *BackupUuidListV1beta) MarshalJSON() ([]byte, error) {
 	e := jx.Encoder{}
 	s.Encode(&e)
 	return e.Bytes(), nil
 }
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
-func (s *BackupUUIDListV1beta) UnmarshalJSON(data []byte) error {
+func (s *BackupUuidListV1beta) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }
@@ -3361,114 +3361,6 @@ func (s *BackupVaultCreateV1beta) UnmarshalJSON(data []byte) error {
 }
 
 // Encode implements json.Marshaler.
-func (s *BackupVaultUUIDListV1beta) Encode(e *jx.Encoder) {
-	e.ObjStart()
-	s.encodeFields(e)
-	e.ObjEnd()
-}
-
-// encodeFields encodes fields.
-func (s *BackupVaultUUIDListV1beta) encodeFields(e *jx.Encoder) {
-	{
-		e.FieldStart("backupVaultUUIDs")
-		e.ArrStart()
-		for _, elem := range s.BackupVaultUUIDs {
-			e.Str(elem)
-		}
-		e.ArrEnd()
-	}
-}
-
-var jsonFieldsNameOfBackupVaultUUIDListV1beta = [1]string{
-	0: "backupVaultUUIDs",
-}
-
-// Decode decodes BackupVaultUUIDListV1beta from json.
-func (s *BackupVaultUUIDListV1beta) Decode(d *jx.Decoder) error {
-	if s == nil {
-		return errors.New("invalid: unable to decode BackupVaultUUIDListV1beta to nil")
-	}
-	var requiredBitSet [1]uint8
-
-	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
-		switch string(k) {
-		case "backupVaultUUIDs":
-			requiredBitSet[0] |= 1 << 0
-			if err := func() error {
-				s.BackupVaultUUIDs = make([]string, 0)
-				if err := d.Arr(func(d *jx.Decoder) error {
-					var elem string
-					v, err := d.Str()
-					elem = string(v)
-					if err != nil {
-						return err
-					}
-					s.BackupVaultUUIDs = append(s.BackupVaultUUIDs, elem)
-					return nil
-				}); err != nil {
-					return err
-				}
-				return nil
-			}(); err != nil {
-				return errors.Wrap(err, "decode field \"backupVaultUUIDs\"")
-			}
-		default:
-			return d.Skip()
-		}
-		return nil
-	}); err != nil {
-		return errors.Wrap(err, "decode BackupVaultUUIDListV1beta")
-	}
-	// Validate required fields.
-	var failures []validate.FieldError
-	for i, mask := range [1]uint8{
-		0b00000001,
-	} {
-		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
-			// Mask only required fields and check equality to mask using XOR.
-			//
-			// If XOR result is not zero, result is not equal to expected, so some fields are missed.
-			// Bits of fields which would be set are actually bits of missed fields.
-			missed := bits.OnesCount8(result)
-			for bitN := 0; bitN < missed; bitN++ {
-				bitIdx := bits.TrailingZeros8(result)
-				fieldIdx := i*8 + bitIdx
-				var name string
-				if fieldIdx < len(jsonFieldsNameOfBackupVaultUUIDListV1beta) {
-					name = jsonFieldsNameOfBackupVaultUUIDListV1beta[fieldIdx]
-				} else {
-					name = strconv.Itoa(fieldIdx)
-				}
-				failures = append(failures, validate.FieldError{
-					Name:  name,
-					Error: validate.ErrFieldRequired,
-				})
-				// Reset bit.
-				result &^= 1 << bitIdx
-			}
-		}
-	}
-	if len(failures) > 0 {
-		return &validate.Error{Fields: failures}
-	}
-
-	return nil
-}
-
-// MarshalJSON implements stdjson.Marshaler.
-func (s *BackupVaultUUIDListV1beta) MarshalJSON() ([]byte, error) {
-	e := jx.Encoder{}
-	s.Encode(&e)
-	return e.Bytes(), nil
-}
-
-// UnmarshalJSON implements stdjson.Unmarshaler.
-func (s *BackupVaultUUIDListV1beta) UnmarshalJSON(data []byte) error {
-	d := jx.DecodeBytes(data)
-	return s.Decode(d)
-}
-
-// Encode implements json.Marshaler.
 func (s *BackupVaultUpdateV1beta) Encode(e *jx.Encoder) {
 	e.ObjStart()
 	s.encodeFields(e)
@@ -3544,6 +3436,114 @@ func (s *BackupVaultUpdateV1beta) MarshalJSON() ([]byte, error) {
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
 func (s *BackupVaultUpdateV1beta) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode implements json.Marshaler.
+func (s *BackupVaultUuidListV1beta) Encode(e *jx.Encoder) {
+	e.ObjStart()
+	s.encodeFields(e)
+	e.ObjEnd()
+}
+
+// encodeFields encodes fields.
+func (s *BackupVaultUuidListV1beta) encodeFields(e *jx.Encoder) {
+	{
+		e.FieldStart("backupVaultUuids")
+		e.ArrStart()
+		for _, elem := range s.BackupVaultUuids {
+			e.Str(elem)
+		}
+		e.ArrEnd()
+	}
+}
+
+var jsonFieldsNameOfBackupVaultUuidListV1beta = [1]string{
+	0: "backupVaultUuids",
+}
+
+// Decode decodes BackupVaultUuidListV1beta from json.
+func (s *BackupVaultUuidListV1beta) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode BackupVaultUuidListV1beta to nil")
+	}
+	var requiredBitSet [1]uint8
+
+	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
+		switch string(k) {
+		case "backupVaultUuids":
+			requiredBitSet[0] |= 1 << 0
+			if err := func() error {
+				s.BackupVaultUuids = make([]string, 0)
+				if err := d.Arr(func(d *jx.Decoder) error {
+					var elem string
+					v, err := d.Str()
+					elem = string(v)
+					if err != nil {
+						return err
+					}
+					s.BackupVaultUuids = append(s.BackupVaultUuids, elem)
+					return nil
+				}); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"backupVaultUuids\"")
+			}
+		default:
+			return d.Skip()
+		}
+		return nil
+	}); err != nil {
+		return errors.Wrap(err, "decode BackupVaultUuidListV1beta")
+	}
+	// Validate required fields.
+	var failures []validate.FieldError
+	for i, mask := range [1]uint8{
+		0b00000001,
+	} {
+		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
+			// Mask only required fields and check equality to mask using XOR.
+			//
+			// If XOR result is not zero, result is not equal to expected, so some fields are missed.
+			// Bits of fields which would be set are actually bits of missed fields.
+			missed := bits.OnesCount8(result)
+			for bitN := 0; bitN < missed; bitN++ {
+				bitIdx := bits.TrailingZeros8(result)
+				fieldIdx := i*8 + bitIdx
+				var name string
+				if fieldIdx < len(jsonFieldsNameOfBackupVaultUuidListV1beta) {
+					name = jsonFieldsNameOfBackupVaultUuidListV1beta[fieldIdx]
+				} else {
+					name = strconv.Itoa(fieldIdx)
+				}
+				failures = append(failures, validate.FieldError{
+					Name:  name,
+					Error: validate.ErrFieldRequired,
+				})
+				// Reset bit.
+				result &^= 1 << bitIdx
+			}
+		}
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *BackupVaultUuidListV1beta) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *BackupVaultUuidListV1beta) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }
@@ -5827,9 +5827,9 @@ func (s *HostGroupIdListV1beta) Encode(e *jx.Encoder) {
 // encodeFields encodes fields.
 func (s *HostGroupIdListV1beta) encodeFields(e *jx.Encoder) {
 	{
-		e.FieldStart("hostGroupUUIDs")
+		e.FieldStart("hostGroupUuids")
 		e.ArrStart()
-		for _, elem := range s.HostGroupUUIDs {
+		for _, elem := range s.HostGroupUuids {
 			e.Str(elem)
 		}
 		e.ArrEnd()
@@ -5837,7 +5837,7 @@ func (s *HostGroupIdListV1beta) encodeFields(e *jx.Encoder) {
 }
 
 var jsonFieldsNameOfHostGroupIdListV1beta = [1]string{
-	0: "hostGroupUUIDs",
+	0: "hostGroupUuids",
 }
 
 // Decode decodes HostGroupIdListV1beta from json.
@@ -5849,10 +5849,10 @@ func (s *HostGroupIdListV1beta) Decode(d *jx.Decoder) error {
 
 	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
 		switch string(k) {
-		case "hostGroupUUIDs":
+		case "hostGroupUuids":
 			requiredBitSet[0] |= 1 << 0
 			if err := func() error {
-				s.HostGroupUUIDs = make([]string, 0)
+				s.HostGroupUuids = make([]string, 0)
 				if err := d.Arr(func(d *jx.Decoder) error {
 					var elem string
 					v, err := d.Str()
@@ -5860,14 +5860,14 @@ func (s *HostGroupIdListV1beta) Decode(d *jx.Decoder) error {
 					if err != nil {
 						return err
 					}
-					s.HostGroupUUIDs = append(s.HostGroupUUIDs, elem)
+					s.HostGroupUuids = append(s.HostGroupUuids, elem)
 					return nil
 				}); err != nil {
 					return err
 				}
 				return nil
 			}(); err != nil {
-				return errors.Wrap(err, "decode field \"hostGroupUUIDs\"")
+				return errors.Wrap(err, "decode field \"hostGroupUuids\"")
 			}
 		default:
 			return d.Skip()
@@ -6987,8 +6987,8 @@ func (s *HybridReplicationParametersV1betaHybridReplicationType) Decode(d *jx.De
 		*s = HybridReplicationParametersV1betaHybridReplicationTypeMIGRATION
 	case HybridReplicationParametersV1betaHybridReplicationTypeCONTINUOUSREPLICATION:
 		*s = HybridReplicationParametersV1betaHybridReplicationTypeCONTINUOUSREPLICATION
-	case HybridReplicationParametersV1betaHybridReplicationTypeHYBRIDREPLICATIONTYPEUNSPECIFIED:
-		*s = HybridReplicationParametersV1betaHybridReplicationTypeHYBRIDREPLICATIONTYPEUNSPECIFIED
+	case HybridReplicationParametersV1betaHybridReplicationTypeHYBRIdREPLICATIONTYPEUNSPECIFIED:
+		*s = HybridReplicationParametersV1betaHybridReplicationTypeHYBRIdREPLICATIONTYPEUNSPECIFIED
 	case HybridReplicationParametersV1betaHybridReplicationTypeONPREMREPLICATION:
 		*s = HybridReplicationParametersV1betaHybridReplicationTypeONPREMREPLICATION
 	case HybridReplicationParametersV1betaHybridReplicationTypeREVERSEONPREMREPLICATION:
@@ -12275,41 +12275,41 @@ func (s *OptWeeklyScheduleV1beta) UnmarshalJSON(data []byte) error {
 }
 
 // Encode implements json.Marshaler.
-func (s *PoolIDListV1beta) Encode(e *jx.Encoder) {
+func (s *PoolIdListV1beta) Encode(e *jx.Encoder) {
 	e.ObjStart()
 	s.encodeFields(e)
 	e.ObjEnd()
 }
 
 // encodeFields encodes fields.
-func (s *PoolIDListV1beta) encodeFields(e *jx.Encoder) {
+func (s *PoolIdListV1beta) encodeFields(e *jx.Encoder) {
 	{
-		e.FieldStart("poolUUIDs")
+		e.FieldStart("poolUuids")
 		e.ArrStart()
-		for _, elem := range s.PoolUUIDs {
+		for _, elem := range s.PoolUuids {
 			e.Str(elem)
 		}
 		e.ArrEnd()
 	}
 }
 
-var jsonFieldsNameOfPoolIDListV1beta = [1]string{
-	0: "poolUUIDs",
+var jsonFieldsNameOfPoolIdListV1beta = [1]string{
+	0: "poolUuids",
 }
 
-// Decode decodes PoolIDListV1beta from json.
-func (s *PoolIDListV1beta) Decode(d *jx.Decoder) error {
+// Decode decodes PoolIdListV1beta from json.
+func (s *PoolIdListV1beta) Decode(d *jx.Decoder) error {
 	if s == nil {
-		return errors.New("invalid: unable to decode PoolIDListV1beta to nil")
+		return errors.New("invalid: unable to decode PoolIdListV1beta to nil")
 	}
 	var requiredBitSet [1]uint8
 
 	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
 		switch string(k) {
-		case "poolUUIDs":
+		case "poolUuids":
 			requiredBitSet[0] |= 1 << 0
 			if err := func() error {
-				s.PoolUUIDs = make([]string, 0)
+				s.PoolUuids = make([]string, 0)
 				if err := d.Arr(func(d *jx.Decoder) error {
 					var elem string
 					v, err := d.Str()
@@ -12317,21 +12317,21 @@ func (s *PoolIDListV1beta) Decode(d *jx.Decoder) error {
 					if err != nil {
 						return err
 					}
-					s.PoolUUIDs = append(s.PoolUUIDs, elem)
+					s.PoolUuids = append(s.PoolUuids, elem)
 					return nil
 				}); err != nil {
 					return err
 				}
 				return nil
 			}(); err != nil {
-				return errors.Wrap(err, "decode field \"poolUUIDs\"")
+				return errors.Wrap(err, "decode field \"poolUuids\"")
 			}
 		default:
 			return d.Skip()
 		}
 		return nil
 	}); err != nil {
-		return errors.Wrap(err, "decode PoolIDListV1beta")
+		return errors.Wrap(err, "decode PoolIdListV1beta")
 	}
 	// Validate required fields.
 	var failures []validate.FieldError
@@ -12348,8 +12348,8 @@ func (s *PoolIDListV1beta) Decode(d *jx.Decoder) error {
 				bitIdx := bits.TrailingZeros8(result)
 				fieldIdx := i*8 + bitIdx
 				var name string
-				if fieldIdx < len(jsonFieldsNameOfPoolIDListV1beta) {
-					name = jsonFieldsNameOfPoolIDListV1beta[fieldIdx]
+				if fieldIdx < len(jsonFieldsNameOfPoolIdListV1beta) {
+					name = jsonFieldsNameOfPoolIdListV1beta[fieldIdx]
 				} else {
 					name = strconv.Itoa(fieldIdx)
 				}
@@ -12370,14 +12370,14 @@ func (s *PoolIDListV1beta) Decode(d *jx.Decoder) error {
 }
 
 // MarshalJSON implements stdjson.Marshaler.
-func (s *PoolIDListV1beta) MarshalJSON() ([]byte, error) {
+func (s *PoolIdListV1beta) MarshalJSON() ([]byte, error) {
 	e := jx.Encoder{}
 	s.Encode(&e)
 	return e.Bytes(), nil
 }
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
-func (s *PoolIDListV1beta) UnmarshalJSON(data []byte) error {
+func (s *PoolIdListV1beta) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }
@@ -12933,9 +12933,9 @@ func (s *PoolV1beta) encodeFields(e *jx.Encoder) {
 		}
 	}
 	{
-		if s.HostUUID.Set {
-			e.FieldStart("hostUUID")
-			s.HostUUID.Encode(e)
+		if s.HostUuid.Set {
+			e.FieldStart("hostUuid")
+			s.HostUuid.Encode(e)
 		}
 	}
 	{
@@ -13008,7 +13008,7 @@ var jsonFieldsNameOfPoolV1beta = [38]string{
 	28: "allowAutoTiering",
 	29: "hotTierSizeInBytes",
 	30: "enableHotTierAutoResize",
-	31: "hostUUID",
+	31: "hostUuid",
 	32: "satisfies_pzi",
 	33: "satisfies_pzs",
 	34: "assetLocationMetadata",
@@ -13343,15 +13343,15 @@ func (s *PoolV1beta) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"enableHotTierAutoResize\"")
 			}
-		case "hostUUID":
+		case "hostUuid":
 			if err := func() error {
-				s.HostUUID.Reset()
-				if err := s.HostUUID.Decode(d); err != nil {
+				s.HostUuid.Reset()
+				if err := s.HostUuid.Decode(d); err != nil {
 					return err
 				}
 				return nil
 			}(); err != nil {
-				return errors.Wrap(err, "decode field \"hostUUID\"")
+				return errors.Wrap(err, "decode field \"hostUuid\"")
 			}
 		case "satisfies_pzi":
 			if err := func() error {
@@ -14910,8 +14910,8 @@ func (s *ReplicationV1betaHybridReplicationType) Decode(d *jx.Decoder) error {
 	}
 	// Try to use constant string.
 	switch ReplicationV1betaHybridReplicationType(v) {
-	case ReplicationV1betaHybridReplicationTypeHYBRIDREPLICATIONTYPEUNSPECIFIED:
-		*s = ReplicationV1betaHybridReplicationTypeHYBRIDREPLICATIONTYPEUNSPECIFIED
+	case ReplicationV1betaHybridReplicationTypeHYBRIdREPLICATIONTYPEUNSPECIFIED:
+		*s = ReplicationV1betaHybridReplicationTypeHYBRIdREPLICATIONTYPEUNSPECIFIED
 	case ReplicationV1betaHybridReplicationTypeMIGRATION:
 		*s = ReplicationV1betaHybridReplicationTypeMIGRATION
 	case ReplicationV1betaHybridReplicationTypeCONTINUOUSREPLICATION:
@@ -15835,41 +15835,41 @@ func (s *SimpleExportPolicyRuleV1betaHasRootAccess) UnmarshalJSON(data []byte) e
 }
 
 // Encode implements json.Marshaler.
-func (s *SnapshotIDListV1beta) Encode(e *jx.Encoder) {
+func (s *SnapshotIdListV1beta) Encode(e *jx.Encoder) {
 	e.ObjStart()
 	s.encodeFields(e)
 	e.ObjEnd()
 }
 
 // encodeFields encodes fields.
-func (s *SnapshotIDListV1beta) encodeFields(e *jx.Encoder) {
+func (s *SnapshotIdListV1beta) encodeFields(e *jx.Encoder) {
 	{
-		e.FieldStart("snapshotUUIDs")
+		e.FieldStart("snapshotUuids")
 		e.ArrStart()
-		for _, elem := range s.SnapshotUUIDs {
+		for _, elem := range s.SnapshotUuids {
 			e.Str(elem)
 		}
 		e.ArrEnd()
 	}
 }
 
-var jsonFieldsNameOfSnapshotIDListV1beta = [1]string{
-	0: "snapshotUUIDs",
+var jsonFieldsNameOfSnapshotIdListV1beta = [1]string{
+	0: "snapshotUuids",
 }
 
-// Decode decodes SnapshotIDListV1beta from json.
-func (s *SnapshotIDListV1beta) Decode(d *jx.Decoder) error {
+// Decode decodes SnapshotIdListV1beta from json.
+func (s *SnapshotIdListV1beta) Decode(d *jx.Decoder) error {
 	if s == nil {
-		return errors.New("invalid: unable to decode SnapshotIDListV1beta to nil")
+		return errors.New("invalid: unable to decode SnapshotIdListV1beta to nil")
 	}
 	var requiredBitSet [1]uint8
 
 	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
 		switch string(k) {
-		case "snapshotUUIDs":
+		case "snapshotUuids":
 			requiredBitSet[0] |= 1 << 0
 			if err := func() error {
-				s.SnapshotUUIDs = make([]string, 0)
+				s.SnapshotUuids = make([]string, 0)
 				if err := d.Arr(func(d *jx.Decoder) error {
 					var elem string
 					v, err := d.Str()
@@ -15877,21 +15877,21 @@ func (s *SnapshotIDListV1beta) Decode(d *jx.Decoder) error {
 					if err != nil {
 						return err
 					}
-					s.SnapshotUUIDs = append(s.SnapshotUUIDs, elem)
+					s.SnapshotUuids = append(s.SnapshotUuids, elem)
 					return nil
 				}); err != nil {
 					return err
 				}
 				return nil
 			}(); err != nil {
-				return errors.Wrap(err, "decode field \"snapshotUUIDs\"")
+				return errors.Wrap(err, "decode field \"snapshotUuids\"")
 			}
 		default:
 			return d.Skip()
 		}
 		return nil
 	}); err != nil {
-		return errors.Wrap(err, "decode SnapshotIDListV1beta")
+		return errors.Wrap(err, "decode SnapshotIdListV1beta")
 	}
 	// Validate required fields.
 	var failures []validate.FieldError
@@ -15908,8 +15908,8 @@ func (s *SnapshotIDListV1beta) Decode(d *jx.Decoder) error {
 				bitIdx := bits.TrailingZeros8(result)
 				fieldIdx := i*8 + bitIdx
 				var name string
-				if fieldIdx < len(jsonFieldsNameOfSnapshotIDListV1beta) {
-					name = jsonFieldsNameOfSnapshotIDListV1beta[fieldIdx]
+				if fieldIdx < len(jsonFieldsNameOfSnapshotIdListV1beta) {
+					name = jsonFieldsNameOfSnapshotIdListV1beta[fieldIdx]
 				} else {
 					name = strconv.Itoa(fieldIdx)
 				}
@@ -15930,14 +15930,14 @@ func (s *SnapshotIDListV1beta) Decode(d *jx.Decoder) error {
 }
 
 // MarshalJSON implements stdjson.Marshaler.
-func (s *SnapshotIDListV1beta) MarshalJSON() ([]byte, error) {
+func (s *SnapshotIdListV1beta) MarshalJSON() ([]byte, error) {
 	e := jx.Encoder{}
 	s.Encode(&e)
 	return e.Bytes(), nil
 }
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
-func (s *SnapshotIDListV1beta) UnmarshalJSON(data []byte) error {
+func (s *SnapshotIdListV1beta) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }
@@ -36327,41 +36327,41 @@ func (s *VolumeCreateV1betaVolumeType) UnmarshalJSON(data []byte) error {
 }
 
 // Encode implements json.Marshaler.
-func (s *VolumeIDListV1beta) Encode(e *jx.Encoder) {
+func (s *VolumeIdListV1beta) Encode(e *jx.Encoder) {
 	e.ObjStart()
 	s.encodeFields(e)
 	e.ObjEnd()
 }
 
 // encodeFields encodes fields.
-func (s *VolumeIDListV1beta) encodeFields(e *jx.Encoder) {
+func (s *VolumeIdListV1beta) encodeFields(e *jx.Encoder) {
 	{
-		e.FieldStart("volumeUUIDs")
+		e.FieldStart("volumeUuids")
 		e.ArrStart()
-		for _, elem := range s.VolumeUUIDs {
+		for _, elem := range s.VolumeUuids {
 			e.Str(elem)
 		}
 		e.ArrEnd()
 	}
 }
 
-var jsonFieldsNameOfVolumeIDListV1beta = [1]string{
-	0: "volumeUUIDs",
+var jsonFieldsNameOfVolumeIdListV1beta = [1]string{
+	0: "volumeUuids",
 }
 
-// Decode decodes VolumeIDListV1beta from json.
-func (s *VolumeIDListV1beta) Decode(d *jx.Decoder) error {
+// Decode decodes VolumeIdListV1beta from json.
+func (s *VolumeIdListV1beta) Decode(d *jx.Decoder) error {
 	if s == nil {
-		return errors.New("invalid: unable to decode VolumeIDListV1beta to nil")
+		return errors.New("invalid: unable to decode VolumeIdListV1beta to nil")
 	}
 	var requiredBitSet [1]uint8
 
 	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
 		switch string(k) {
-		case "volumeUUIDs":
+		case "volumeUuids":
 			requiredBitSet[0] |= 1 << 0
 			if err := func() error {
-				s.VolumeUUIDs = make([]string, 0)
+				s.VolumeUuids = make([]string, 0)
 				if err := d.Arr(func(d *jx.Decoder) error {
 					var elem string
 					v, err := d.Str()
@@ -36369,21 +36369,21 @@ func (s *VolumeIDListV1beta) Decode(d *jx.Decoder) error {
 					if err != nil {
 						return err
 					}
-					s.VolumeUUIDs = append(s.VolumeUUIDs, elem)
+					s.VolumeUuids = append(s.VolumeUuids, elem)
 					return nil
 				}); err != nil {
 					return err
 				}
 				return nil
 			}(); err != nil {
-				return errors.Wrap(err, "decode field \"volumeUUIDs\"")
+				return errors.Wrap(err, "decode field \"volumeUuids\"")
 			}
 		default:
 			return d.Skip()
 		}
 		return nil
 	}); err != nil {
-		return errors.Wrap(err, "decode VolumeIDListV1beta")
+		return errors.Wrap(err, "decode VolumeIdListV1beta")
 	}
 	// Validate required fields.
 	var failures []validate.FieldError
@@ -36400,8 +36400,8 @@ func (s *VolumeIDListV1beta) Decode(d *jx.Decoder) error {
 				bitIdx := bits.TrailingZeros8(result)
 				fieldIdx := i*8 + bitIdx
 				var name string
-				if fieldIdx < len(jsonFieldsNameOfVolumeIDListV1beta) {
-					name = jsonFieldsNameOfVolumeIDListV1beta[fieldIdx]
+				if fieldIdx < len(jsonFieldsNameOfVolumeIdListV1beta) {
+					name = jsonFieldsNameOfVolumeIdListV1beta[fieldIdx]
 				} else {
 					name = strconv.Itoa(fieldIdx)
 				}
@@ -36422,14 +36422,14 @@ func (s *VolumeIDListV1beta) Decode(d *jx.Decoder) error {
 }
 
 // MarshalJSON implements stdjson.Marshaler.
-func (s *VolumeIDListV1beta) MarshalJSON() ([]byte, error) {
+func (s *VolumeIdListV1beta) MarshalJSON() ([]byte, error) {
 	e := jx.Encoder{}
 	s.Encode(&e)
 	return e.Bytes(), nil
 }
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
-func (s *VolumeIDListV1beta) UnmarshalJSON(data []byte) error {
+func (s *VolumeIdListV1beta) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }
@@ -36444,9 +36444,9 @@ func (s *VolumeReplicationCreateInternalV1beta) Encode(e *jx.Encoder) {
 // encodeFields encodes fields.
 func (s *VolumeReplicationCreateInternalV1beta) encodeFields(e *jx.Encoder) {
 	{
-		if s.VolumeReplicationUUID.Set {
-			e.FieldStart("volumeReplicationUUID")
-			s.VolumeReplicationUUID.Encode(e)
+		if s.VolumeReplicationUuid.Set {
+			e.FieldStart("volumeReplicationUuid")
+			s.VolumeReplicationUuid.Encode(e)
 		}
 	}
 	{
@@ -36510,9 +36510,9 @@ func (s *VolumeReplicationCreateInternalV1beta) encodeFields(e *jx.Encoder) {
 		e.Str(s.DestinationVolumeName)
 	}
 	{
-		if s.DestinationVolumeUUID.Set {
-			e.FieldStart("destinationVolumeUUID")
-			s.DestinationVolumeUUID.Encode(e)
+		if s.DestinationVolumeUuid.Set {
+			e.FieldStart("destinationVolumeUuid")
+			s.DestinationVolumeUuid.Encode(e)
 		}
 	}
 	{
@@ -36660,7 +36660,7 @@ func (s *VolumeReplicationCreateInternalV1beta) encodeFields(e *jx.Encoder) {
 }
 
 var jsonFieldsNameOfVolumeReplicationCreateInternalV1beta = [38]string{
-	0:  "volumeReplicationUUID",
+	0:  "volumeReplicationUuid",
 	1:  "lifeCycleState",
 	2:  "lifeCycleStateDetails",
 	3:  "endpointType",
@@ -36674,7 +36674,7 @@ var jsonFieldsNameOfVolumeReplicationCreateInternalV1beta = [38]string{
 	11: "destinationHostName",
 	12: "destinationServerName",
 	13: "destinationVolumeName",
-	14: "destinationVolumeUUID",
+	14: "destinationVolumeUuid",
 	15: "name",
 	16: "mirrorState",
 	17: "hybridReplicationType",
@@ -36709,15 +36709,15 @@ func (s *VolumeReplicationCreateInternalV1beta) Decode(d *jx.Decoder) error {
 
 	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
 		switch string(k) {
-		case "volumeReplicationUUID":
+		case "volumeReplicationUuid":
 			if err := func() error {
-				s.VolumeReplicationUUID.Reset()
-				if err := s.VolumeReplicationUUID.Decode(d); err != nil {
+				s.VolumeReplicationUuid.Reset()
+				if err := s.VolumeReplicationUuid.Decode(d); err != nil {
 					return err
 				}
 				return nil
 			}(); err != nil {
-				return errors.Wrap(err, "decode field \"volumeReplicationUUID\"")
+				return errors.Wrap(err, "decode field \"volumeReplicationUuid\"")
 			}
 		case "lifeCycleState":
 			if err := func() error {
@@ -36865,15 +36865,15 @@ func (s *VolumeReplicationCreateInternalV1beta) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"destinationVolumeName\"")
 			}
-		case "destinationVolumeUUID":
+		case "destinationVolumeUuid":
 			if err := func() error {
-				s.DestinationVolumeUUID.Reset()
-				if err := s.DestinationVolumeUUID.Decode(d); err != nil {
+				s.DestinationVolumeUuid.Reset()
+				if err := s.DestinationVolumeUuid.Decode(d); err != nil {
 					return err
 				}
 				return nil
 			}(); err != nil {
-				return errors.Wrap(err, "decode field \"destinationVolumeUUID\"")
+				return errors.Wrap(err, "decode field \"destinationVolumeUuid\"")
 			}
 		case "name":
 			if err := func() error {
@@ -37230,8 +37230,8 @@ func (s *VolumeReplicationCreateInternalV1betaHybridReplicationType) Decode(d *j
 	}
 	// Try to use constant string.
 	switch VolumeReplicationCreateInternalV1betaHybridReplicationType(v) {
-	case VolumeReplicationCreateInternalV1betaHybridReplicationTypeHYBRIDREPLICATIONTYPEUNSPECIFIED:
-		*s = VolumeReplicationCreateInternalV1betaHybridReplicationTypeHYBRIDREPLICATIONTYPEUNSPECIFIED
+	case VolumeReplicationCreateInternalV1betaHybridReplicationTypeHYBRIdREPLICATIONTYPEUNSPECIFIED:
+		*s = VolumeReplicationCreateInternalV1betaHybridReplicationTypeHYBRIdREPLICATIONTYPEUNSPECIFIED
 	case VolumeReplicationCreateInternalV1betaHybridReplicationTypeMIGRATION:
 		*s = VolumeReplicationCreateInternalV1betaHybridReplicationTypeMIGRATION
 	case VolumeReplicationCreateInternalV1betaHybridReplicationTypeCONTINUOUSREPLICATION:
@@ -37542,9 +37542,9 @@ func (s *VolumeReplicationInternalV1beta) Encode(e *jx.Encoder) {
 // encodeFields encodes fields.
 func (s *VolumeReplicationInternalV1beta) encodeFields(e *jx.Encoder) {
 	{
-		if s.VolumeReplicationUUID.Set {
-			e.FieldStart("volumeReplicationUUID")
-			s.VolumeReplicationUUID.Encode(e)
+		if s.VolumeReplicationUuid.Set {
+			e.FieldStart("volumeReplicationUuid")
+			s.VolumeReplicationUuid.Encode(e)
 		}
 	}
 	{
@@ -37608,9 +37608,9 @@ func (s *VolumeReplicationInternalV1beta) encodeFields(e *jx.Encoder) {
 		e.Str(s.DestinationVolumeName)
 	}
 	{
-		if s.DestinationVolumeUUID.Set {
-			e.FieldStart("destinationVolumeUUID")
-			s.DestinationVolumeUUID.Encode(e)
+		if s.DestinationVolumeUuid.Set {
+			e.FieldStart("destinationVolumeUuid")
+			s.DestinationVolumeUuid.Encode(e)
 		}
 	}
 	{
@@ -37740,7 +37740,7 @@ func (s *VolumeReplicationInternalV1beta) encodeFields(e *jx.Encoder) {
 }
 
 var jsonFieldsNameOfVolumeReplicationInternalV1beta = [35]string{
-	0:  "volumeReplicationUUID",
+	0:  "volumeReplicationUuid",
 	1:  "lifeCycleState",
 	2:  "lifeCycleStateDetails",
 	3:  "endpointType",
@@ -37754,7 +37754,7 @@ var jsonFieldsNameOfVolumeReplicationInternalV1beta = [35]string{
 	11: "destinationHostName",
 	12: "destinationServerName",
 	13: "destinationVolumeName",
-	14: "destinationVolumeUUID",
+	14: "destinationVolumeUuid",
 	15: "name",
 	16: "mirrorState",
 	17: "hybridReplicationType",
@@ -37786,15 +37786,15 @@ func (s *VolumeReplicationInternalV1beta) Decode(d *jx.Decoder) error {
 
 	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
 		switch string(k) {
-		case "volumeReplicationUUID":
+		case "volumeReplicationUuid":
 			if err := func() error {
-				s.VolumeReplicationUUID.Reset()
-				if err := s.VolumeReplicationUUID.Decode(d); err != nil {
+				s.VolumeReplicationUuid.Reset()
+				if err := s.VolumeReplicationUuid.Decode(d); err != nil {
 					return err
 				}
 				return nil
 			}(); err != nil {
-				return errors.Wrap(err, "decode field \"volumeReplicationUUID\"")
+				return errors.Wrap(err, "decode field \"volumeReplicationUuid\"")
 			}
 		case "lifeCycleState":
 			if err := func() error {
@@ -37942,15 +37942,15 @@ func (s *VolumeReplicationInternalV1beta) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"destinationVolumeName\"")
 			}
-		case "destinationVolumeUUID":
+		case "destinationVolumeUuid":
 			if err := func() error {
-				s.DestinationVolumeUUID.Reset()
-				if err := s.DestinationVolumeUUID.Decode(d); err != nil {
+				s.DestinationVolumeUuid.Reset()
+				if err := s.DestinationVolumeUuid.Decode(d); err != nil {
 					return err
 				}
 				return nil
 			}(); err != nil {
-				return errors.Wrap(err, "decode field \"destinationVolumeUUID\"")
+				return errors.Wrap(err, "decode field \"destinationVolumeUuid\"")
 			}
 		case "name":
 			if err := func() error {
@@ -38277,8 +38277,8 @@ func (s *VolumeReplicationInternalV1betaHybridReplicationType) Decode(d *jx.Deco
 	}
 	// Try to use constant string.
 	switch VolumeReplicationInternalV1betaHybridReplicationType(v) {
-	case VolumeReplicationInternalV1betaHybridReplicationTypeHYBRIDREPLICATIONTYPEUNSPECIFIED:
-		*s = VolumeReplicationInternalV1betaHybridReplicationTypeHYBRIDREPLICATIONTYPEUNSPECIFIED
+	case VolumeReplicationInternalV1betaHybridReplicationTypeHYBRIdREPLICATIONTYPEUNSPECIFIED:
+		*s = VolumeReplicationInternalV1betaHybridReplicationTypeHYBRIdREPLICATIONTYPEUNSPECIFIED
 	case VolumeReplicationInternalV1betaHybridReplicationTypeMIGRATION:
 		*s = VolumeReplicationInternalV1betaHybridReplicationTypeMIGRATION
 	case VolumeReplicationInternalV1betaHybridReplicationTypeCONTINUOUSREPLICATION:
