@@ -134,8 +134,10 @@ func (wf *PoolWorkflow) RunCreatePoolWorkflow(ctx workflow.Context, params *comm
 	}
 
 	clusterDetails := &datamodel.ClusterDetails{
-		ExternalName: clusterName,
-		OntapVersion: ontapVersion,
+		ExternalName:          clusterName,
+		OntapVersion:          ontapVersion,
+		RegionalTenantProject: tenancyDetails.RegionalTenantProject,
+		SnHostProject:         tenancyDetails.SnHostProject,
 	}
 
 	err = workflow.ExecuteActivity(ctx, poolActivity.SavePoolWithClusterDetails, dbPool, clusterDetails).Get(ctx, nil)

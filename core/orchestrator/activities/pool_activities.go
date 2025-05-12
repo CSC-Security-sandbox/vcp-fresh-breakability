@@ -357,10 +357,7 @@ func (j *PoolActivity) DeletingPoolResources(ctx context.Context, pool *datamode
 	if err := deletingNodes(ctx, se, pool); err != nil {
 		return nil, err
 	}
-
-	if err := se.DeletingPool(ctx, pool); err != nil {
-		return nil, fmt.Errorf("failed to delete pool record %s: %w", pool.Name, err)
-	}
+	
 	return pool, nil
 }
 
@@ -369,7 +366,7 @@ func (j *PoolActivity) DeleteDeployment(ctx context.Context, pool *datamodel.Poo
 		return nil, errors.New("pool cannot be deleted with active clusters")
 	}
 	clusterName := pool.ClusterDetails.ExternalName
-	err := common.DeleteDeployment(ctx, pool.Account.Name, clusterName)
+	err := common.DeleteDeployment(ctx, pool.ClusterDetails.RegionalTenantProject, clusterName)
 	if err != nil {
 		return nil, errors.New("failed to delete cluster" + clusterName + " " + err.Error())
 	}

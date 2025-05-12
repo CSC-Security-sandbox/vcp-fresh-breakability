@@ -174,6 +174,9 @@ func _deletePool(ctx context.Context, temporal client.Client, se database.Storag
 		logger.Error("Failed to create job in database", "error", err)
 		return nil, "", err
 	}
+	if err = se.DeletingPool(ctx, pool); err != nil {
+		return nil, "", err
+	}
 
 	_, err = temporal.ExecuteWorkflow(context.Background(),
 		client.StartWorkflowOptions{

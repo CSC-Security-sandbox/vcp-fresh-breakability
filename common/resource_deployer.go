@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 	logger "golang.org/x/exp/slog"
 	"golang.org/x/oauth2/google"
@@ -282,7 +281,7 @@ func getInstanceDetails(projectId, instanceName, zone string) (map[string]string
 }
 
 func DeleteDeployment(ctx context.Context, projectId, deploymentName string) error {
-	slog := ctx.Value(middleware.ContextSLoggerKey).(log.Logger)
+	slog := log.NewLogger()
 	deploymentmanagerService, err := deploymentmanager.NewService(ctx)
 	if err != nil {
 		return err
@@ -308,6 +307,7 @@ func DeleteDeployment(ctx context.Context, projectId, deploymentName string) err
 			slog.Infof("Deployment deleted successfully!")
 			break
 		}
+		slog.Infof("Delete status: %s", operation.Status)
 		time.Sleep(2 * time.Second)
 	}
 
