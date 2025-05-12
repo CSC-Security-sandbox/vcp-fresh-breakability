@@ -4,7 +4,7 @@ on:
   push:
     branches:
       - main
-    
+
 jobs:
   create_pre_release_vsa_control_plane:
     name: Create Pre-Release and Publish Docker images
@@ -24,12 +24,12 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v3
         with:
-          go-version-file: go.mod        
+          go-version-file: go.mod
 
       - name: Log in to the Container registry
         run: |
           echo "${{ secrets.GHVSA_PAT }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
-      
+
       - name: Fetch new tag
         id: fetch_new_tag
         run: |
@@ -40,14 +40,53 @@ jobs:
       - name: Build and push Docker images
         run: skaffold build --filename=.github/scripts/skaffold_ci.yaml -t ${{ env.newTag }}
         env:
-          newTag: ${{ steps.fetch_new_tag.outputs.newTag }} 
+          newTag: ${{ steps.fetch_new_tag.outputs.newTag }}
 
 
       - name: Create a release
         run: gh release create -R https://github.com/${{ github.repository }} --generate-notes --prerelease ${{env.newTag}}
         env:
           GITHUB_TOKEN: ${{ secrets.GHVSA_PAT }}  # TODO: use Github bot account here
-          GITHUB_REPOSITORY: ${{ github.event.repository.name }}     
-          newTag: ${{ steps.fetch_new_tag.outputs.newTag }} 
+          GITHUB_REPOSITORY: ${{ github.event.repository.name }}
+          newTag: ${{ steps.fetch_new_tag.outputs.newTag }}
+
+    outputs:
+      newTag: ${{ steps.fetch_new_tag.outputs.newTag }}
+
+  update_jira_component_version:
+      name: Update JIRA component version
+      needs: create_pre_release_vsa_control_plane
+      runs-on: [ ubuntu-22.04 ]
+      container:
+        image: ghcr.io/vcp-vsa-control-plane/vsacictl:v6
+        options: -v /var/run/docker.sock:/var/run/docker.sock --user root
+
+      steps:
+        - name: Check out the repo
+          uses: actions/checkout@v2
+
+        - name: Set up Go
+          uses: actions/setup-go@v3
+          with:
+            go-version-file: go.mod
+
+        - name: Fetch token
+          uses: actions/create-github-app-token@v1
+          id: token
+          with:
+            owner: ${{ github.repository_owner }}
+            app-id: ${{ secrets.VCP_CI_GH_APP_ID }}
+            private-key: ${{ secrets.VCP_CI_GH_PRIVATE_KEY }}
+            repositories: |
+              vsa-control-plane
+
+        - name: Run jira tag_component_version
+          env:
+            PR_TITLE: ${{ github.event.pull_request.title }}
+            JIRA_API_TOKEN: ${{ secrets.VCP_CI_JIRA_BOT_PAT }}
+            GITHUB_TOKEN: ${{ steps.token.outputs.token }}
+            PR_USER: ${{ github.event.pull_request.user.login }}
+            NEW_TAG: ${{ needs.create_pre_release_vsa_control_plane.outputs.newTag }}
+          run: vsacictl jira tag_component_version
           
             

@@ -1,7 +1,9 @@
 package jira
 
 import (
+	"encoding/json"
 	"fmt"
+	"log"
 	"os"
 	"regexp"
 
@@ -77,10 +79,34 @@ func GetJiraIssue(jiraID string, credentials ClientCredentials, baseURL string) 
 	return issue, nil
 }
 
+func UpdateJiraWithPayload(updatedPayload map[string]interface{}, issueID string, credentials ClientCredentials, baseURL string) error {
+	tp := jira.BearerAuthTransport{
+		Token: credentials.Password,
+	}
+
+	client, err := jira.NewClient(tp.Client(), baseURL)
+	if err != nil {
+		return fmt.Errorf("failed to create Jira client: %w", err)
+	}
+
+	payload, _ := json.Marshal(updatedPayload)
+	log.Printf("Request Payload: %s\n", string(payload))
+
+	// Perform the update
+	_, err = client.Issue.UpdateIssue(issueID, updatedPayload)
+	if err != nil {
+		return fmt.Errorf("failed to update payload: %w", err)
+	}
+
+	log.Println("Successfully updated JIRA issue")
+	return nil
+}
+
 func init() {
 	username = os.Getenv(jiraApiUser)
 	password = os.Getenv(jiraApiToken)
 	jiraServerUrl = os.Getenv(jiraServer)
 
 	JiraCmd.AddCommand(allowMergeCmd)
+	JiraCmd.AddCommand(tagJiraComponentVersionCmd)
 }
