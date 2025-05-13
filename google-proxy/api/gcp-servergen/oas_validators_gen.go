@@ -11951,16 +11951,23 @@ func (s *VolumeV1beta) Validate() error {
 		})
 	}
 	if err := func() error {
-		if err := (validate.String{
-			MinLength:    1,
-			MinLengthSet: true,
-			MaxLength:    80,
-			MaxLengthSet: true,
-			Email:        false,
-			Hostname:     false,
-			Regex:        regexMap["^[a-zA-Z][a-zA-Z0-9\\-_]{0,79}$"],
-		}).Validate(string(s.CreationToken)); err != nil {
-			return errors.Wrap(err, "string")
+		if value, ok := s.CreationToken.Get(); ok {
+			if err := func() error {
+				if err := (validate.String{
+					MinLength:    1,
+					MinLengthSet: true,
+					MaxLength:    80,
+					MaxLengthSet: true,
+					Email:        false,
+					Hostname:     false,
+					Regex:        regexMap["^[a-zA-Z][a-zA-Z0-9\\-_]{0,79}$"],
+				}).Validate(string(value)); err != nil {
+					return errors.Wrap(err, "string")
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
 		}
 		return nil
 	}(); err != nil {

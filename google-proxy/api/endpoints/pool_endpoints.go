@@ -239,7 +239,9 @@ func (h Handler) V1betaGetMultiplePools(ctx context.Context, req *gcpgenserver.P
 	}
 
 	var cvpPools []gcpgenserver.PoolV1beta
-	cvpPools = append(cvpPools, convertToPoolsV1beta(resp.Payload.Pools)...)
+	if resp != nil && resp.Payload != nil && resp.Payload.Pools != nil {
+		cvpPools = append(cvpPools, convertToPoolsV1beta(resp.Payload.Pools)...)
+	}
 
 	// Validate the location
 	_, _, parsingErr := utils.ParseAndValidateRegionAndZone(params.LocationId)
@@ -348,6 +350,8 @@ func convertToPoolV1Beta(pool *models.Pool) *gcpgenserver.PoolV1beta {
 		TotalIops:                gcpgenserver.NewOptNilFloat64(float64(iops)),
 		QosType:                  gcpgenserver.NewOptNilPoolV1betaQosType(gcpgenserver.PoolV1betaQosType(pool.QosType)),
 		CustomPerformanceEnabled: gcpgenserver.NewOptBool(customPerformanceEnabled),
+		// Unified Pool is set true for VSA pools
+		UnifiedPool: gcpgenserver.NewOptBool(true),
 	}
 }
 
@@ -424,5 +428,7 @@ func convertToPoolV1beta(pool *cvpmodels.PoolV1beta) *gcpgenserver.PoolV1beta {
 		SatisfiesPzi:              gcpgenserver.NewOptNilBool(*pool.SatisfiesPzi),
 		SatisfiesPzs:              gcpgenserver.NewOptNilBool(*pool.SatisfiesPzs),
 		AssetLocationMetadata:     gcpgenserver.NewOptNilPoolV1betaAssetLocationMetadata(assetLocationMetadata),
+		// Unified Pool is set false for SDE pools
+		UnifiedPool: gcpgenserver.NewOptBool(false),
 	}
 }

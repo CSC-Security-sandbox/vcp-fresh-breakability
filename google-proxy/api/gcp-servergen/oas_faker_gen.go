@@ -8800,7 +8800,7 @@ func (s *VolumeV1beta) SetFake() {
 	}
 	{
 		{
-			s.CreationToken = "string"
+			s.CreationToken.SetFake()
 		}
 	}
 	{

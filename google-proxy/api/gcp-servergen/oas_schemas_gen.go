@@ -17110,7 +17110,7 @@ type VolumeV1beta struct {
 	// creation of a volume. Subsequent calls to the create-volume operation using the same creation
 	// token will have no effect. The creation token can be any user supplied string e.g. a randomly
 	// generated v4 Uuid.
-	CreationToken string `json:"creationToken"`
+	CreationToken OptString `json:"creationToken"`
 	// Uuid of the pool Id under which volumes get created.
 	PoolId NilString `json:"poolId"`
 	// A human readable label for the pool.
@@ -17222,7 +17222,7 @@ func (s *VolumeV1beta) GetDeleted() OptNilDateTime {
 }
 
 // GetCreationToken returns the value of CreationToken.
-func (s *VolumeV1beta) GetCreationToken() string {
+func (s *VolumeV1beta) GetCreationToken() OptString {
 	return s.CreationToken
 }
 
@@ -17457,7 +17457,7 @@ func (s *VolumeV1beta) SetDeleted(val OptNilDateTime) {
 }
 
 // SetCreationToken sets the value of CreationToken.
-func (s *VolumeV1beta) SetCreationToken(val string) {
+func (s *VolumeV1beta) SetCreationToken(val OptString) {
 	s.CreationToken = val
 }
 

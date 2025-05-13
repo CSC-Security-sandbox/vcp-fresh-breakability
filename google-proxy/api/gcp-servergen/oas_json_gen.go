@@ -39176,8 +39176,10 @@ func (s *VolumeV1beta) encodeFields(e *jx.Encoder) {
 		}
 	}
 	{
-		e.FieldStart("creationToken")
-		e.Str(s.CreationToken)
+		if s.CreationToken.Set {
+			e.FieldStart("creationToken")
+			s.CreationToken.Encode(e)
+		}
 	}
 	{
 		e.FieldStart("poolId")
@@ -39540,11 +39542,9 @@ func (s *VolumeV1beta) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"deleted\"")
 			}
 		case "creationToken":
-			requiredBitSet[0] |= 1 << 4
 			if err := func() error {
-				v, err := d.Str()
-				s.CreationToken = string(v)
-				if err != nil {
+				s.CreationToken.Reset()
+				if err := s.CreationToken.Decode(d); err != nil {
 					return err
 				}
 				return nil
@@ -39994,7 +39994,7 @@ func (s *VolumeV1beta) Decode(d *jx.Decoder) error {
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [6]uint8{
-		0b00110001,
+		0b00100001,
 		0b00000000,
 		0b00000000,
 		0b01000000,

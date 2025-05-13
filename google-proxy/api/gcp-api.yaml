@@ -5384,7 +5384,6 @@ components:
     Volume_v1beta:
       title: Volume v1beta model definition
       required:
-        - creationToken
         - poolId
         - protocols
         - resourceId
