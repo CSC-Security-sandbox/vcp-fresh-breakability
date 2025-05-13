@@ -7,7 +7,8 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
-	"go.temporal.io/sdk/log"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 	"go.temporal.io/sdk/workflow"
 )
 
@@ -62,7 +63,11 @@ type BaseWorkflow struct {
 func (bw *BaseWorkflow) Setup(ctx workflow.Context, input interface{}) error {
 	bw.ID = input.(struct{ ID string }).ID
 	bw.CustomerID = input.(struct{ CustomerID string }).CustomerID
-	bw.Logger = workflow.GetLogger(ctx)
+	logger, err := util.GetLogger(ctx)
+	if err != nil {
+		return err
+	}
+	bw.Logger = logger
 
 	return nil
 }

@@ -10,7 +10,6 @@ import (
 
 func TestCreateClientOptionsFromEnv(t *testing.T) {
 	logger := log.NewLogger()
-
 	t.Run("should return client options without TLS when cert and key paths are empty", func(t *testing.T) {
 		mockCfg := new(workflow_engine.MockClientConfig)
 		mockCfg.On("GetHostPort").Return("localhost:7233")

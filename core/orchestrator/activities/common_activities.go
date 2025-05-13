@@ -6,6 +6,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 )
 
 type CommonActivities struct {
@@ -15,6 +16,11 @@ type CommonActivities struct {
 // UpdateJobStatus updates the status of a job in the database.
 func (j CommonActivities) UpdateJobStatus(ctx context.Context, job *datamodel.Job) error {
 	se := *j.SE
+	logger, err := util.GetLogger(ctx)
+	if err != nil {
+		return err
+	}
+	logger.Infof("updating job: %s with status: %s", job.UUID, job.State)
 	return se.UpdateJob(ctx, job.UUID, job.State)
 }
 

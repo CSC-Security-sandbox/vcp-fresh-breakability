@@ -9,4 +9,5 @@ const (
 	CorrelationIDName     ContextString = "x-correlation-id"
 	ContextSLoggerKey     ContextString = "ctxSLogger"
 	HeaderContextKey      ContextString = "headerContextKey"
+	TemporalSLoggerKey    ContextString = "fields"
 )

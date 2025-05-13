@@ -13,11 +13,13 @@ import (
 	_ "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/postgres"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 	"go.opentelemetry.io/otel"
 	"go.temporal.io/sdk/client"
 	"go.temporal.io/sdk/contrib/opentelemetry"
 	"go.temporal.io/sdk/interceptor"
 	"go.temporal.io/sdk/worker"
+	"go.temporal.io/sdk/workflow"
 )
 
 const (
@@ -33,7 +35,7 @@ func (t *TemporalWorkflowEngine) LoadConfig() workflow_engine.ClientConfig {
 	return LoadTemporalConfig()
 }
 
-func (t *TemporalWorkflowEngine) InitializeClient(ctx context.Context, cfg workflow_engine.ClientConfig, logger log.Logger) error {
+func (t *TemporalWorkflowEngine) InitializeClient(cfg workflow_engine.ClientConfig, logger log.Logger) error {
 	// Initialize the temporal server client
 	clientOptions, err := createClientOptionsFromEnv(cfg, logger)
 	if err != nil {
@@ -137,5 +139,10 @@ func createClientOptionsFromEnv(cfg workflow_engine.ClientConfig, logger log.Log
 			Certificates: []tls.Certificate{cert},
 		}
 	}
+
+	clientOpts.ContextPropagators = []workflow.ContextPropagator{
+		util.NewContextMapPropagator(),
+	}
+
 	return clientOpts, nil
 }

@@ -7,7 +7,12 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
+	commonpb "go.temporal.io/api/common/v1"
+	"go.temporal.io/sdk/converter"
 	"go.temporal.io/sdk/testsuite"
+	"go.temporal.io/sdk/workflow"
 	"testing"
 )
 
@@ -97,7 +102,14 @@ func (m *MockCommonActivities) GetNode(ctx context.Context, poolId int64) (*data
 func TestCreatePoolWorkflow(t *testing.T) {
 	var ts testsuite.WorkflowTestSuite
 	env := ts.NewTestWorkflowEnvironment()
-
+	env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+	encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{})
+	mockHeader := &commonpb.Header{
+		Fields: map[string]*commonpb.Payload{
+			"logParam": encodedValue,
+		},
+	}
+	env.SetHeader(mockHeader)
 	// Mock activities
 	mockPoolActivity := new(MockPoolActivity)
 	mockCommonActivities := new(MockCommonActivities)
@@ -138,6 +150,7 @@ func TestCreatePoolWorkflow(t *testing.T) {
 		SubnetworkName:        "test-subnet",
 		RegionalTenantProject: "test-project",
 		SnHostProject:         "test-host-project",
+		Gateway:               "192.168.1.254",
 	}, nil)
 
 	mockPoolActivity.On("CreatingPool", mock.Anything, pool).Return(&datamodel.Pool{
@@ -156,7 +169,6 @@ func TestCreatePoolWorkflow(t *testing.T) {
 	mockPoolActivity.On("SaveNodeDetails", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	mockPoolActivity.On("CreateSvmForPool", mock.Anything, mock.Anything, mock.Anything).Return(&datamodel.Svm{Name: "test-svm"}, nil)
 	mockPoolActivity.On("CreateLifForSvm", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
-	mockPoolActivity.On("GetProxyIP", mock.Anything, mock.Anything).Return("192.168.1.254", nil)
 	mockPoolActivity.On("CreateNetworkIpRoute", mock.Anything, mock.Anything, "test-svm", "192.168.1.254").Return(nil)
 	mockPoolActivity.On("CreatedPool", mock.Anything, mock.Anything).Return(nil)
 

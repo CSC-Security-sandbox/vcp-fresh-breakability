@@ -89,8 +89,13 @@ func getLogger(config Config) Logger {
 // LoggingMiddleware injects a logger into the request context
 func LoggingMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		logger := NewRequestLogger(r)
+		// Populating logger with fields like requestID, correlationID, traceURL, etc
+		logger, logFields := NewRequestLogger(r)
 		ctx := context.WithValue(r.Context(), middleware.ContextSLoggerKey, logger)
+		// Populating the context with fields required for logger
+		// creation. These values will be used in context propagation
+		// and logger initialization later
+		ctx = context.WithValue(ctx, middleware.TemporalSLoggerKey, logFields)
 		r = r.WithContext(ctx)
 		next.ServeHTTP(w, r)
 	})
@@ -102,19 +107,20 @@ func NewLogger() Logger {
 	return logger
 }
 
-func NewRequestLogger(r *http.Request) Logger {
+func NewRequestLogger(r *http.Request) (Logger, Fields) {
 	return extractFieldsFromHttpRequest(r)
 }
 
-func extractFieldsFromHttpRequest(r *http.Request) Logger {
-	correlationID := GetCorrelationID(r) // r.Header.Get(requestCorrelationID)
-	logger := NewLogger().WithFields("requestFields", Fields{
+func extractFieldsFromHttpRequest(r *http.Request) (Logger, Fields) {
+	correlationID := GetCorrelationID(r)
+	fields := Fields{
 		"requestCorrelationID": correlationID,
 		"requestID":            r.Header.Get(requestID),
 		"traceMethod":          r.Method,
 		"traceURL":             r.URL.String(),
-	})
-	return logger
+	}
+	logger := NewLogger().WithFields("requestFields", fields)
+	return logger, fields
 }
 
 // SetupOpenTelemetry sets up the OpenTelemetry SDK and exporters for metrics and

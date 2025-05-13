@@ -5,7 +5,8 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
 	gcpgenserver "github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/api/gcp-servergen"
-	"go.temporal.io/sdk/log"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 	"go.temporal.io/sdk/temporal"
 	"go.temporal.io/sdk/workflow"
 )
@@ -52,11 +53,14 @@ func (wf *volumeDeleteWorkflow) Setup(ctx workflow.Context, input interface{}) e
 	wf.ID = info.WorkflowExecution.ID
 	wf.CustomerID = volume.Account.Name
 	wf.Status = "created"
-	wf.Logger = log.With(
-		workflow.GetLogger(ctx),
-		"workflowID", wf.ID,
-		"customerID", wf.CustomerID,
-	)
+	logger, err := util.GetLogger(ctx)
+	if err != nil {
+		return err
+	}
+	wf.Logger = logger.With(log.Fields{
+		"workflowID": wf.ID,
+		"customerID": wf.CustomerID,
+	})
 
 	return workflow.SetQueryHandler(ctx, "status", func() (*volumeDeleteWorkflowStatus, error) {
 		return &volumeDeleteWorkflowStatus{

@@ -2,7 +2,6 @@ package orchestrator
 
 import (
 	"context"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware"
 
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/hyperscaler"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/hyperscaler/google"
@@ -22,7 +21,7 @@ func FindTenancyAndGetSubnetwork(ctx context.Context, consumerVPC string, custom
 	var gService hyperscaler.GoogleServices
 	gcpService := &google.GcpServices{
 		Ctx:    ctx,
-		Logger: ctx.Value(middleware.ContextSLoggerKey).(log.Logger),
+		Logger: log.NewLogger(),
 	}
 	gService = gcpService
 

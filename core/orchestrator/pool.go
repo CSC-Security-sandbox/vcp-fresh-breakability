@@ -82,7 +82,7 @@ func _createPool(ctx context.Context, se database.Storage, temporal client.Clien
 	if err != nil {
 		return nil, "", err
 	}
-	_, err = temporal.ExecuteWorkflow(context.Background(),
+	_, err = temporal.ExecuteWorkflow(ctx,
 		client.StartWorkflowOptions{
 			TaskQueue:             workflowengine.CustomerTaskQueue,
 			ID:                    createdJob.WorkflowID,

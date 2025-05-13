@@ -60,7 +60,7 @@ func main() {
 
 	eg, ctx := errgroup.WithContext(ctx)
 	// Initialize Temporal client
-	workflowClient, err := initializeTemporalClient(ctx, logger)
+	workflowClient, err := initializeTemporalClient(logger)
 	if err != nil {
 		logger.Error("Failed to initialize Temporal client", "error", err.Error())
 		os.Exit(1)
@@ -96,7 +96,7 @@ func main() {
 			os.Exit(1)
 		}
 	}
-	httpServer := setupHTTPServer(cfg, gcpServer, logger)
+	httpServer := setupHTTPServer(cfg, gcpServer)
 
 	// Start HTTP server
 	eg.Go(func() error {
@@ -163,10 +163,10 @@ func closeDatabase(dbCon database.Storage, logger log.Logger) {
 	}
 }
 
-func initializeTemporalClient(ctx context.Context, logger log.Logger) (workflow_engine.TemporalWorkflowEngine, error) {
+func initializeTemporalClient(logger log.Logger) (workflow_engine.TemporalWorkflowEngine, error) {
 	workflowClient := workflow_engine.TemporalWorkflowEngine{}
 	workflowCfg := workflowClient.LoadConfig()
-	err := workflowClient.InitializeClient(ctx, workflowCfg, logger)
+	err := workflowClient.InitializeClient(workflowCfg, logger)
 	if err != nil {
 		logger.Error("client error: %w", "error", err.Error())
 		return workflowClient, err
@@ -174,7 +174,7 @@ func initializeTemporalClient(ctx context.Context, logger log.Logger) (workflow_
 	return workflowClient, nil
 }
 
-func setupHTTPServer(cfg *common.Config, handler http.Handler, logger log.Logger) *http.Server {
+func setupHTTPServer(cfg *common.Config, handler http.Handler) *http.Server {
 	mux := chi.NewRouter()
 	mux.Use(log.LoggingMiddleware)
 	mux.Use(middleware.AuthMiddleware)

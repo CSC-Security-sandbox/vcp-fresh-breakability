@@ -96,7 +96,7 @@ func _createVolume(ctx context.Context, se database.Storage, temporal client.Cli
 	if err != nil {
 		return nil, "", err
 	}
-	_, err = temporal.ExecuteWorkflow(context.Background(),
+	_, err = temporal.ExecuteWorkflow(ctx,
 		client.StartWorkflowOptions{
 			TaskQueue:             workflowengine.CustomerTaskQueue,
 			ID:                    createdJob.WorkflowID,
@@ -303,7 +303,7 @@ func (o *Orchestrator) DeleteVolume(ctx context.Context, volumeId string) (*mode
 		return nil, "", err
 	}
 
-	_, err = o.temporal.ExecuteWorkflow(context.Background(),
+	_, err = o.temporal.ExecuteWorkflow(ctx,
 		client.StartWorkflowOptions{
 			TaskQueue:             workflowengine.CustomerTaskQueue,
 			ID:                    createdJob.WorkflowID,

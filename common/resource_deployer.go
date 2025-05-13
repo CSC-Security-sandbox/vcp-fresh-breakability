@@ -9,6 +9,7 @@ import (
 
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 	logger "golang.org/x/exp/slog"
 	"golang.org/x/oauth2/google"
 	"google.golang.org/api/cloudresourcemanager/v1"
@@ -91,9 +92,11 @@ type SourceImage struct {
 
 // DeploymentsInsert creates a new Deployment Manager deployment.
 func DeploymentsInsert(ctx context.Context, name, region, zone, network, subnet, projectId, snHostProject string, size int) (*[]map[string]string, error) {
-	// slog := ctx.Value(middleware.ContextSLoggerKey).(log.Logger)
-	slog := log.NewLogger()
-	err := SetupNetwork(slog, projectId, snHostProject, network, region)
+	slog, err := util.GetLogger(ctx)
+	if err != nil {
+		return nil, err
+	}
+	err = SetupNetwork(slog, projectId, snHostProject, network, region)
 	if err != nil {
 		return nil, err
 	}

@@ -17,7 +17,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 	"gorm.io/gorm"
 )
 
@@ -66,11 +66,15 @@ func (j *PoolActivity) CreateTenancy(ctx context.Context, params commonparams.Cr
 
 // FindTenancyAndGetSubnetwork finds the tenancy unit and creates a subnetwork for the tenant project
 func FindTenancyAndGetSubnetwork(ctx context.Context, consumerVPC string, customerProjectNumber string, tenantProjectRegion *string) (*commonparams.TenancyInfo, error) {
+	logger, logErr := util.GetLogger(ctx)
+	if logErr != nil {
+		return nil, logErr
+	}
 	// need to pass tenantProjectRegion only in case of CBR where region != the regional region as set from env variable
 	var gService hyperscaler.GoogleServices
 	gcpService := &google.GcpServices{
 		Ctx:    ctx,
-		Logger: log.NewLogger(),
+		Logger: logger,
 	}
 	gService = gcpService
 
@@ -180,7 +184,10 @@ func GetProviderByNode(node *models.Node) *vsa.OntapRestProvider {
 
 func (j *PoolActivity) WaitForNodes(ctx context.Context, node *models.Node) error {
 	provider := GetProviderByNode(node)
-	logger := log.NewLogger()
+	logger, err := util.GetLogger(ctx)
+	if err != nil {
+		return err
+	}
 	startTime := time.Now()
 	attempt := 0
 	pollIntervalDuration := time.Duration(pollInterval) * time.Second
@@ -218,7 +225,10 @@ func (j *PoolActivity) WaitForNodes(ctx context.Context, node *models.Node) erro
 
 func (j *PoolActivity) WaitForAggr(ctx context.Context, node *models.Node) error {
 	provider := GetProviderByNode(node)
-	logger := log.NewLogger()
+	logger, err := util.GetLogger(ctx)
+	if err != nil {
+		return err
+	}
 	startTime := time.Now()
 	attempt := 0
 	pollInterval := time.Duration(pollInterval) * time.Second
@@ -375,7 +385,10 @@ func (j *PoolActivity) DeleteDeployment(ctx context.Context, pool *datamodel.Poo
 
 func (j *PoolActivity) ReleaseSubnet(ctx context.Context, pool *datamodel.Pool) error {
 	se := *j.SE
-	logger := log.NewLogger()
+	logger, err := util.GetLogger(ctx)
+	if err != nil {
+		return err
+	}
 	conditions := [][]interface{}{{"account_id = ?", pool.AccountID}}
 	conditions = append(conditions, []interface{}{"network = ?", pool.Network})
 	pools, err := se.ListPools(ctx, conditions)

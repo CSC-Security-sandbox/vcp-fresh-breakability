@@ -6,7 +6,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database"
-	logger "golang.org/x/exp/slog"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 )
 
 type VolumeDeleteActivity struct {
@@ -14,8 +14,12 @@ type VolumeDeleteActivity struct {
 }
 
 func (a *VolumeDeleteActivity) DeleteVolumeInONTAP(ctx context.Context, volume *datamodel.Volume, node *models.Node) error {
+	logger, err := util.GetLogger(ctx)
+	if err != nil {
+		return err
+	}
 	provider := GetProviderByNode(node)
-	err := provider.DeleteVolume(volume.VolumeAttributes.ExternalUUID, volume.Name)
+	err = provider.DeleteVolume(volume.VolumeAttributes.ExternalUUID, volume.Name)
 	if err != nil {
 		return err
 	}
@@ -25,9 +29,13 @@ func (a *VolumeDeleteActivity) DeleteVolumeInONTAP(ctx context.Context, volume *
 }
 
 func (a *VolumeDeleteActivity) DeleteVolume(ctx context.Context, volume *datamodel.Volume) error {
+	logger, err := util.GetLogger(ctx)
+	if err != nil {
+		return err
+	}
 	se := *a.SE
 
-	_, err := se.DeleteVolume(ctx, volume.UUID)
+	_, err = se.DeleteVolume(ctx, volume.UUID)
 	if err != nil {
 		return err
 	}

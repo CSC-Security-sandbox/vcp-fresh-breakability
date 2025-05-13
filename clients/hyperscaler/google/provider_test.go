@@ -9,6 +9,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 	"google.golang.org/api/compute/v1"
 	"google.golang.org/api/option"
@@ -78,7 +79,7 @@ func TestNewGoogleClient(t *testing.T) {
 		initializeManagementService = func(ctx context.Context) (*serviceconsumermanagement.APIService, error) {
 			return nil, errors.New("initializeManagementService failed")
 		}
-		res, err := _newGoogleClient(context.Background())
+		res, err := _newGoogleClient(context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{}))
 		if res != nil {
 			t.Error("unexpected result returned")
 		}
@@ -97,7 +98,7 @@ func TestNewGoogleClient(t *testing.T) {
 		initializeNetworkingService = func(ctx context.Context) (*servicenetworking.APIService, error) {
 			return nil, errors.New("initializeNetworkingService failed")
 		}
-		res, err := _newGoogleClient(context.Background())
+		res, err := _newGoogleClient(context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{}))
 		if res != nil {
 			t.Error("unexpected result returned")
 		}
@@ -122,7 +123,7 @@ func TestNewGoogleClient(t *testing.T) {
 		initializeComputeService = func(ctx context.Context) (*compute.Service, error) {
 			return nil, errors.New("initializeComputeService failed")
 		}
-		res, err := _newGoogleClient(context.Background())
+		res, err := _newGoogleClient(context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{}))
 		if res != nil {
 			t.Error("unexpected result returned")
 		}
@@ -152,7 +153,7 @@ func TestNewGoogleClient(t *testing.T) {
 				BasePath: "",
 			}, nil
 		}
-		_, err := _newGoogleClient(context.Background())
+		_, err := _newGoogleClient(context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{}))
 		if err != nil {
 			t.Error("Unexpected error")
 		}

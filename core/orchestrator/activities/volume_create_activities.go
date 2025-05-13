@@ -10,7 +10,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
-	logger "golang.org/x/exp/slog"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 )
 
 const (
@@ -28,6 +28,10 @@ func (a *VolumeCreateActivity) CreateVolume(ctx context.Context, volume *datamod
 }
 
 func (a *VolumeCreateActivity) CreateVolumeInONTAP(ctx context.Context, volume *datamodel.Volume, node *models.Node) (*vsa.VolumeResponse, error) {
+	logger, err := util.GetLogger(ctx)
+	if err != nil {
+		return nil, err
+	}
 	provider := GetProviderByNode(node)
 	res, err := provider.CreateVolume(vsa.CreateVolumeParams{
 		VolumeName:    volume.Name,
@@ -45,6 +49,10 @@ func (a *VolumeCreateActivity) CreateVolumeInONTAP(ctx context.Context, volume *
 }
 
 func (a *VolumeCreateActivity) CreateIgroup(ctx context.Context, volume *datamodel.Volume, hostParams []*common.HostParams, node *models.Node) error {
+	logger, err := util.GetLogger(ctx)
+	if err != nil {
+		return err
+	}
 	provider := GetProviderByNode(node)
 
 	// FixMe: What if a new host is added to the host group?
@@ -72,6 +80,10 @@ func (a *VolumeCreateActivity) CreateIgroup(ctx context.Context, volume *datamod
 }
 
 func (a *VolumeCreateActivity) CreateLun(ctx context.Context, volume *datamodel.Volume, node *models.Node, availableSpace int64) (string, error) {
+	logger, err := util.GetLogger(ctx)
+	if err != nil {
+		return "", err
+	}
 	provider := GetProviderByNode(node)
 	halfGiB, _ := utils.ConvertToBytes(0.5, utils.GiB)
 	size := availableSpace - halfGiB
@@ -92,8 +104,12 @@ func (a *VolumeCreateActivity) CreateLun(ctx context.Context, volume *datamodel.
 }
 
 func (a *VolumeCreateActivity) CreateLunMap(ctx context.Context, params *common.CreateLunMapParams, node *models.Node) error {
+	logger, err := util.GetLogger(ctx)
+	if err != nil {
+		return err
+	}
 	provider := GetProviderByNode(node)
-	err := provider.LunMapCreate(vsa.LunMapCreateParams{
+	err = provider.LunMapCreate(vsa.LunMapCreateParams{
 		LunName:    params.LunName,
 		SvmName:    params.SvmName,
 		IGroupName: params.HostNames,
