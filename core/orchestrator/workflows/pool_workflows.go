@@ -1,6 +1,8 @@
 package workflows
 
 import (
+	"time"
+
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
@@ -8,10 +10,16 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database"
 	gcpgenserver "github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/api/gcp-servergen"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 	"go.temporal.io/sdk/temporal"
 	"go.temporal.io/sdk/workflow"
+)
+
+var (
+	waitTimeVSADeployment = env.GetUint64("VSA_DEPLOYMENT_TIMEOUT_MIN", 20)
+	pollInterval          = env.GetUint64("VSA_DEPLOYMENT_POLL_INTERVAL_SEC", 30)
 )
 
 type PoolWorkflow struct {
@@ -121,12 +129,21 @@ func (wf *PoolWorkflow) RunCreatePoolWorkflow(ctx workflow.Context, params *comm
 		InstanceType:    (*vsaCluster)[0]["MachineType"],
 	}
 
-	err = workflow.ExecuteActivity(ctx, poolActivity.WaitForNodes, node).Get(ctx, nil)
+	pollingOptions := workflow.ActivityOptions{
+		StartToCloseTimeout: time.Duration(waitTimeVSADeployment) * time.Minute,
+		RetryPolicy: &temporal.RetryPolicy{
+			BackoffCoefficient: retryPolicy.BackoffCoefficient,
+			InitialInterval:    time.Duration(pollInterval) * time.Second,
+		},
+	}
+	pollingCtx := workflow.WithActivityOptions(ctx, pollingOptions)
+
+	err = workflow.ExecuteActivity(pollingCtx, poolActivity.CheckForNodes, node).Get(pollingCtx, nil)
 	if err != nil {
 		return nil, err
 	}
 
-	err = workflow.ExecuteActivity(ctx, poolActivity.WaitForAggr, node).Get(ctx, nil)
+	err = workflow.ExecuteActivity(pollingCtx, poolActivity.CheckForAggr, node).Get(pollingCtx, nil)
 	if err != nil {
 		return nil, err
 	}

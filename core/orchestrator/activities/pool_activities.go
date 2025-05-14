@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"strings"
-	"time"
 
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/hyperscaler"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/hyperscaler/google"
@@ -33,10 +32,8 @@ const (
 )
 
 var (
-	pollInterval          = env.GetUint64("VSA_DEPLOYMENT_POLL_INTERVAL_SEC", 30)
-	waitTimeVSADeployment = env.GetUint64("VSA_DEPLOYMENT_TIMEOUT_MIN", 20)
-	homePort              = env.GetString("VSA_NODE_HOME_PORT", "e0e")
-	region                = env.GetString("REGION", "")
+	homePort = env.GetString("VSA_NODE_HOME_PORT", "e0e")
+	region   = env.GetString("REGION", "")
 )
 
 func (j *PoolActivity) CreatingPool(ctx context.Context, pool *datamodel.Pool) (*datamodel.Pool, error) {
@@ -182,85 +179,46 @@ func GetProviderByNode(node *models.Node) *vsa.OntapRestProvider {
 	})
 }
 
-func (j *PoolActivity) WaitForNodes(ctx context.Context, node *models.Node) error {
+func (j *PoolActivity) CheckForNodes(ctx context.Context, node *models.Node) error {
 	provider := GetProviderByNode(node)
 	logger, err := util.GetLogger(ctx)
 	if err != nil {
 		return err
 	}
-	startTime := time.Now()
-	attempt := 0
-	pollIntervalDuration := time.Duration(pollInterval) * time.Second
-	timeoutDuration := time.Duration(waitTimeVSADeployment) * time.Minute
-	logMsg := "nodes"
 
-	// Create a context that automatically cancels after the timeout.
-	timeoutCtx, cancel := context.WithTimeout(ctx, timeoutDuration)
-	defer cancel()
-	ticker := time.NewTicker(pollIntervalDuration)
-	defer ticker.Stop()
-
-	for {
-		select {
-		case <-timeoutCtx.Done():
-			cancel()
-			ticker.Stop()
-			return fmt.Errorf("timeout waiting for %s after %v", logMsg, time.Since(startTime))
-		case <-ticker.C:
-			attempt++
-			elapsed := time.Since(startTime)
-			logger.Infof("Attempt %d after %v: checking %s...", attempt, elapsed, logMsg)
-
-			ready, err := provider.AreAllNodeUpAndRunning()
-			if err != nil {
-				logger.Errorf("Error checking %s: %v", logMsg, err)
-			}
-			if ready {
-				logger.Infof("%s is available after %v on attempt %d.", logMsg, elapsed, attempt)
-				return nil
-			}
-		}
+	ready, err := provider.AreAllNodeUpAndRunning()
+	if err != nil {
+		logger.Errorf("Error checking nodes availability, error: %v", err)
+		return err
 	}
+
+	if !ready {
+		logger.Info("nodes are not available, will recheck after 60s")
+		return errors.New("nodes are not available")
+	}
+
+	return nil
 }
 
-func (j *PoolActivity) WaitForAggr(ctx context.Context, node *models.Node) error {
+func (j *PoolActivity) CheckForAggr(ctx context.Context, node *models.Node) error {
 	provider := GetProviderByNode(node)
 	logger, err := util.GetLogger(ctx)
 	if err != nil {
 		return err
 	}
-	startTime := time.Now()
-	attempt := 0
-	pollInterval := time.Duration(pollInterval) * time.Second
-	timeout := time.Duration(waitTimeVSADeployment) * time.Minute
-	logMsg := "aggregate " + aggregateName
 
-	// Create a context that automatically cancels after the timeout.
-	timeoutCtx, cancel := context.WithTimeout(ctx, timeout)
-	defer cancel()
-
-	ticker := time.NewTicker(pollInterval)
-	defer ticker.Stop()
-
-	for {
-		select {
-		case <-timeoutCtx.Done():
-			return fmt.Errorf("timeout waiting for %s after %v", logMsg, time.Since(startTime))
-		case <-ticker.C:
-			attempt++
-			elapsed := time.Since(startTime)
-			logger.Infof("Attempt %d after %v: checking %s...", attempt, elapsed, logMsg)
-
-			ready, err := provider.IsAggregateOnline(aggregateName)
-			if err != nil {
-				logger.Errorf("Error checking %s: %v", logMsg, err)
-			}
-			if ready {
-				logger.Infof("%s is available after %v on attempt %d.", logMsg, elapsed, attempt)
-				return nil
-			}
-		}
+	ready, err := provider.IsAggregateOnline(aggregateName)
+	if err != nil {
+		logger.Errorf("Error checking aggregate: %s status, error: %v", aggregateName, err)
+		return err
 	}
+
+	if !ready {
+		logger.Infof("aggregate: %s is not available, will recheck after 60s", aggregateName)
+		return errors.New("aggregate: " + aggregateName + " is not available")
+	}
+
+	return nil
 }
 
 func (j *PoolActivity) GetOntapVersion(ctx context.Context, node *models.Node) (*string, error) {
@@ -367,7 +325,7 @@ func (j *PoolActivity) DeletingPoolResources(ctx context.Context, pool *datamode
 	if err := deletingNodes(ctx, se, pool); err != nil {
 		return nil, err
 	}
-	
+
 	return pool, nil
 }
 

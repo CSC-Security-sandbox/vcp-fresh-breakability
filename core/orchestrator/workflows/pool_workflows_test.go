@@ -35,23 +35,13 @@ func (m *MockPoolActivity) DeployDeploymentManager(ctx context.Context, clusterN
 	return args.Get(0).(*[]map[string]string), args.Error(1)
 }
 
-func (m *MockPoolActivity) WaitForNodes(ctx context.Context, node *models.Node) error {
-	args := m.Called(ctx, node)
-	return args.Error(0)
-}
-
-func (m *MockPoolActivity) WaitForAggr(ctx context.Context, node *models.Node) error {
-	args := m.Called(ctx, node)
-	return args.Error(0)
-}
-
 func (m *MockPoolActivity) GetOntapVersion(ctx context.Context, node *models.Node) (string, error) {
 	args := m.Called(ctx, node)
 	return args.String(0), args.Error(1)
 }
 
-func (m *MockPoolActivity) SavePoolWithClusterDetails(ctx context.Context, poolName, accountName string, clusterDetails *datamodel.ClusterDetails) error {
-	args := m.Called(ctx, poolName, accountName, clusterDetails)
+func (m *MockPoolActivity) SavePoolWithClusterDetails(ctx context.Context, dbPool *datamodel.Pool, clusterDetails *datamodel.ClusterDetails) error {
+	args := m.Called(ctx, dbPool, clusterDetails)
 	return args.Error(0)
 }
 
@@ -83,6 +73,21 @@ func (m *MockPoolActivity) CreateNetworkIpRoute(ctx context.Context, node *model
 func (m *MockPoolActivity) CreatedPool(ctx context.Context, pool *datamodel.Pool) error {
 	args := m.Called(ctx, pool)
 	return args.Error(0)
+}
+
+func (m *MockPoolActivity) CheckForNodes(ctx context.Context, node *models.Node) error {
+	args := m.Called(ctx, node)
+	return args.Error(0)
+}
+
+func (m *MockPoolActivity) CheckForAggr(ctx context.Context, node *models.Node) error {
+	args := m.Called(ctx, node)
+	return args.Error(0)
+}
+
+func (m *MockPoolActivity) EnableIscsiServiceForSVM(ctx context.Context, node *models.Node, svmUUID string) (*datamodel.Svm, error) {
+	args := m.Called(ctx, node, svmUUID)
+	return args.Get(0).(*datamodel.Svm), args.Error(1)
 }
 
 type MockCommonActivities struct {
@@ -117,17 +122,18 @@ func TestCreatePoolWorkflow(t *testing.T) {
 	env.RegisterActivity(mockPoolActivity.CreateTenancy)
 	env.RegisterActivity(mockPoolActivity.CreatingPool)
 	env.RegisterActivity(mockPoolActivity.DeployDeploymentManager)
-	env.RegisterActivity(mockPoolActivity.WaitForNodes)
-	env.RegisterActivity(mockPoolActivity.WaitForAggr)
 	env.RegisterActivity(mockPoolActivity.GetOntapVersion)
 	env.RegisterActivity(mockPoolActivity.SavePoolWithClusterDetails)
 	env.RegisterActivity(mockPoolActivity.SaveNodeDetails)
 	env.RegisterActivity(mockPoolActivity.CreateSvmForPool)
+	env.RegisterActivity(mockPoolActivity.EnableIscsiServiceForSVM)
 	env.RegisterActivity(mockPoolActivity.CreateLifForSvm)
 	env.RegisterActivity(mockPoolActivity.GetProxyIP)
 	env.RegisterActivity(mockPoolActivity.CreateNetworkIpRoute)
 	env.RegisterActivity(mockPoolActivity.CreatedPool)
 	env.RegisterActivity(mockCommonActivities.UpdateJobStatus)
+	env.RegisterActivity(mockPoolActivity.CheckForNodes)
+	env.RegisterActivity(mockPoolActivity.CheckForAggr)
 
 	// Set up test data
 	params := &common.CreatePoolParams{
@@ -153,24 +159,20 @@ func TestCreatePoolWorkflow(t *testing.T) {
 		Gateway:               "192.168.1.254",
 	}, nil)
 
-	mockPoolActivity.On("CreatingPool", mock.Anything, pool).Return(&datamodel.Pool{
-		Username: "test-user",
-		Password: "test-password",
-	}, nil)
-
 	mockPoolActivity.On("DeployDeploymentManager", mock.Anything, "test-pool-vsa", "test-region", "test-zone", "test-network", "test-subnet", "test-project", "test-host-project", 1).Return(&[]map[string]string{
 		{"Name": "node1", "NodeIp": "192.168.1.1", "Zone": "test-zone", "MachineType": "n1-standard-4"},
 	}, nil)
 
-	mockPoolActivity.On("WaitForNodes", mock.Anything, mock.Anything).Return(nil)
-	mockPoolActivity.On("WaitForAggr", mock.Anything, mock.Anything).Return(nil)
 	mockPoolActivity.On("GetOntapVersion", mock.Anything, mock.Anything).Return("9.10.1", nil)
-	mockPoolActivity.On("SavePoolWithClusterDetails", mock.Anything, "test-pool", "test-account", mock.Anything).Return(nil)
+	mockPoolActivity.On("SavePoolWithClusterDetails", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	mockPoolActivity.On("SaveNodeDetails", mock.Anything, mock.Anything, mock.Anything).Return(nil)
-	mockPoolActivity.On("CreateSvmForPool", mock.Anything, mock.Anything, mock.Anything).Return(&datamodel.Svm{Name: "test-svm"}, nil)
+	mockPoolActivity.On("CreateSvmForPool", mock.Anything, mock.Anything, mock.Anything).Return(&datamodel.Svm{Name: "test-svm", SvmDetails: &datamodel.SvmDetails{ExternalUUID: "test_uuid"}}, nil)
+	mockPoolActivity.On("EnableIscsiServiceForSVM", mock.Anything, mock.Anything, mock.Anything).Return(&datamodel.Svm{Name: "test-svm"}, nil)
 	mockPoolActivity.On("CreateLifForSvm", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	mockPoolActivity.On("CreateNetworkIpRoute", mock.Anything, mock.Anything, "test-svm", "192.168.1.254").Return(nil)
 	mockPoolActivity.On("CreatedPool", mock.Anything, mock.Anything).Return(nil)
+	mockPoolActivity.On("CheckForNodes", mock.Anything, mock.Anything).Return(nil)
+	mockPoolActivity.On("CheckForAggr", mock.Anything, mock.Anything).Return(nil)
 
 	// Execute workflow
 	env.ExecuteWorkflow(CreatePoolWorkflow, params, pool)
