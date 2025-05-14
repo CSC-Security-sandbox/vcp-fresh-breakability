@@ -41,6 +41,7 @@ jobs:
         run: skaffold build --filename=.github/scripts/skaffold_ci.yaml -t ${{ env.newTag }}
         env:
           newTag: ${{ steps.fetch_new_tag.outputs.newTag }}
+          GHVSA_PAT: ${{ secrets.GHVSA_PAT }}  # TODO: use Github bot account here
 
 
       - name: Create a release

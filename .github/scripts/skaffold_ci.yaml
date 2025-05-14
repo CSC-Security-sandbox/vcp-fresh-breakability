@@ -19,6 +19,8 @@ build:
       context: .
       docker:
         dockerfile: google-proxy/Dockerfile
+        buildArgs:
+          GHVSA_PAT: "{{.GHVSA_PAT}}"
       requires:
         - image: base
           alias: BASE
@@ -40,7 +42,7 @@ portForward:
     localPort: 9000
   - resourceType: deployment
     resourceName: core-service
-    port: 8080    
+    port: 8080
     localPort: 9001
 profiles:
   - name: gcb

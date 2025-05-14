@@ -259,7 +259,7 @@ func convertModelToVCPVolume(volume *models.Volume) *gcpgenserver.VolumeV1beta {
 			res.MountPoints = append(res.MountPoints, gcpgenserver.MountPointV1beta{
 				IpAddress:    gcpgenserver.NewOptString(volume.IPAddress),
 				Protocol:     gcpgenserver.NewOptProtocolsV1beta(gcpgenserver.ProtocolsV1betaISCSI),
-				Instructions: getMountInstructions(volume.BlockProperties.OSType, volume.IPAddress),
+				Instructions: getMountInstructions(volume.BlockProperties.OSType, volume.IPAddress, volume.DisplayName),
 			})
 		}
 	}
@@ -267,7 +267,7 @@ func convertModelToVCPVolume(volume *models.Volume) *gcpgenserver.VolumeV1beta {
 	return res
 }
 
-func getMountInstructions(osType string, ipAddress string) gcpgenserver.OptString {
+func getMountInstructions(osType string, ipAddress string, volName string) gcpgenserver.OptString {
 	instructions := ""
 	switch osType {
 	case "LINUX":
@@ -292,10 +292,10 @@ $ lsblk
 If the LUN doesn't have a filesystem, create one (e.g, ext4):
 $ sudo mkfs.ext4 /dev/sdb
 Create a mount point and mount the device:
-$ sudo mkdir /mnt/icsi-oras-u02
-$ sudo mount /dev/sdb /mnt/icsci-oras-u02
+$ sudo mkdir /mnt/%s
+$ sudo mount /dev/sdb /mnt/%s
 To mount automatically on reboot, add to /etc/stab:
-$ /dev/sdb /ant/iscs1-oras-u02 ext4 defaults 0 0`, ipAddress, ipAddress)
+$ /dev/sdb /mnt/%s ext4 defaults 0 0`, ipAddress, ipAddress, "lun_"+volName, "lun_"+volName, "lun_"+volName)
 		return gcpgenserver.NewOptString(instructions)
 	case "WINDOWS":
 		instructions = `Mount instructions for iSCS target on Windows

@@ -36,6 +36,7 @@ type ClusterDetails struct {
 	OntapVersion          string `json:"ontap_version"`
 	RegionalTenantProject string `json:"regional_tenant_project"`
 	SnHostProject         string `json:"sn_host_project"`
+	Network               string `json:"network"`
 }
 
 // Node represents the public.nodes table in the database

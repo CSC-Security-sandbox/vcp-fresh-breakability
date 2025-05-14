@@ -8,7 +8,7 @@ import (
 const (
 	expectedNodeCount  = 2
 	ipSpaceName        = "Default"
-	defaultNetmask     = "255.255.255.255"
+	DefaultNetmask     = "255.255.255.255"
 	iscsiServicePolicy = "default-data-iscsi"
 )
 

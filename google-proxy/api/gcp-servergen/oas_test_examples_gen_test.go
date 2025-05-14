@@ -1668,47 +1668,6 @@ func TestPoolUpdateV1betaLabels_Examples(t *testing.T) {
 		})
 	}
 }
-func TestPoolUpdateV1betaQosType_EncodeDecode(t *testing.T) {
-	var typ PoolUpdateV1betaQosType
-	typ.SetFake()
-
-	e := jx.Encoder{}
-	typ.Encode(&e)
-	data := e.Bytes()
-	require.True(t, std.Valid(data), "Encoded: %s", data)
-
-	var typ2 PoolUpdateV1betaQosType
-	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
-}
-
-func TestPoolUpdateV1betaQosType_Examples(t *testing.T) {
-
-	for i, tc := range []struct {
-		Input string
-	}{
-		{Input: "\"auto\""},
-	} {
-		tc := tc
-		t.Run(fmt.Sprintf("Test%d", i+1), func(t *testing.T) {
-			var typ PoolUpdateV1betaQosType
-
-			if err := typ.Decode(jx.DecodeStr(tc.Input)); err != nil {
-				if validateErr, ok := errors.Into[*validate.Error](err); ok {
-					t.Skipf("Validation error: %v", validateErr)
-					return
-				}
-				require.NoErrorf(t, err, "Input: %s", tc.Input)
-			}
-
-			e := jx.Encoder{}
-			typ.Encode(&e)
-			require.True(t, std.Valid(e.Bytes()), "Encoded: %s", e.Bytes())
-
-			var typ2 PoolUpdateV1betaQosType
-			require.NoError(t, typ2.Decode(jx.DecodeBytes(e.Bytes())))
-		})
-	}
-}
 func TestPoolV1beta_EncodeDecode(t *testing.T) {
 	var typ PoolV1beta
 	typ.SetFake()
@@ -1815,47 +1774,6 @@ func TestPoolV1betaLabels_Examples(t *testing.T) {
 
 			var typ2 PoolV1betaLabels
 			typ2 = make(PoolV1betaLabels)
-			require.NoError(t, typ2.Decode(jx.DecodeBytes(e.Bytes())))
-		})
-	}
-}
-func TestPoolV1betaQosType_EncodeDecode(t *testing.T) {
-	var typ PoolV1betaQosType
-	typ.SetFake()
-
-	e := jx.Encoder{}
-	typ.Encode(&e)
-	data := e.Bytes()
-	require.True(t, std.Valid(data), "Encoded: %s", data)
-
-	var typ2 PoolV1betaQosType
-	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
-}
-
-func TestPoolV1betaQosType_Examples(t *testing.T) {
-
-	for i, tc := range []struct {
-		Input string
-	}{
-		{Input: "\"auto\""},
-	} {
-		tc := tc
-		t.Run(fmt.Sprintf("Test%d", i+1), func(t *testing.T) {
-			var typ PoolV1betaQosType
-
-			if err := typ.Decode(jx.DecodeStr(tc.Input)); err != nil {
-				if validateErr, ok := errors.Into[*validate.Error](err); ok {
-					t.Skipf("Validation error: %v", validateErr)
-					return
-				}
-				require.NoErrorf(t, err, "Input: %s", tc.Input)
-			}
-
-			e := jx.Encoder{}
-			typ.Encode(&e)
-			require.True(t, std.Valid(e.Bytes()), "Encoded: %s", e.Bytes())
-
-			var typ2 PoolV1betaQosType
 			require.NoError(t, typ2.Decode(jx.DecodeBytes(e.Bytes())))
 		})
 	}

@@ -178,7 +178,7 @@ func _deletePool(ctx context.Context, temporal client.Client, se database.Storag
 		return nil, "", err
 	}
 
-	_, err = temporal.ExecuteWorkflow(context.Background(),
+	_, err = temporal.ExecuteWorkflow(ctx,
 		client.StartWorkflowOptions{
 			TaskQueue:             workflowengine.CustomerTaskQueue,
 			ID:                    createdJob.WorkflowID,

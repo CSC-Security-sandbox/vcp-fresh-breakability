@@ -202,24 +202,24 @@ func _validateCreateVolumeParams(ctx context.Context, se database.Storage, param
 		}
 	}
 
-	if params.BlockProperties != nil {
-		hostGroupUUIDs := params.BlockProperties.HostGroupUUIDs
-		if len(hostGroupUUIDs) == 0 {
-			return customerrors.NewUserInputValidationErr("HostGroup UUIDs are required")
-		}
-		hostGroups, err := se.GetMultipleHostGroups(ctx, params.BlockProperties.HostGroupUUIDs, pool.Account.ID)
-		if err != nil {
-			return err
-		}
-		if len(params.BlockProperties.HostGroupUUIDs) != len(hostGroups) {
-			return customerrors.NewUserInputValidationErr("could not find some of the host groups, please check the hostgroup details and try with valid host group names.")
-		}
-		for _, hostGroup := range hostGroups {
-			if hostGroup.State != models.LifeCycleStateREADY {
-				return customerrors.NewUserInputValidationErr(fmt.Sprintf("host group %s is not available", hostGroup.Name))
-			}
-		}
-	}
+	// if params.BlockProperties != nil {
+	//	hostGroupUUIDs := params.BlockProperties.HostGroupUUIDs
+	//	if len(hostGroupUUIDs) == 0 {
+	//		return customerrors.NewUserInputValidationErr("HostGroup UUIDs are required")
+	//	}
+	//	hostGroups, err := se.GetMultipleHostGroups(ctx, params.BlockProperties.HostGroupUUIDs, pool.Account.ID)
+	//	if err != nil {
+	//		return err
+	//	}
+	//	if len(params.BlockProperties.HostGroupUUIDs) != len(hostGroups) {
+	//		return customerrors.NewUserInputValidationErr("could not find some of the host groups, please check the hostgroup details and try with valid host group names.")
+	//	}
+	//	for _, hostGroup := range hostGroups {
+	//		if hostGroup.State != models.LifeCycleStateREADY {
+	//			return customerrors.NewUserInputValidationErr(fmt.Sprintf("host group %s is not available", hostGroup.Name))
+	//		}
+	//	}
+	// }
 	return nil
 }
 

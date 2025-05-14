@@ -348,7 +348,7 @@ func convertToPoolV1Beta(pool *models.Pool) *gcpgenserver.PoolV1beta {
 		StoragePoolStateDetails:  gcpgenserver.NewOptString(pool.StateDetails),
 		ServiceLevel:             gcpgenserver.PoolV1betaServiceLevel(pool.ServiceLevel),
 		TotalIops:                gcpgenserver.NewOptNilFloat64(float64(iops)),
-		QosType:                  gcpgenserver.NewOptNilPoolV1betaQosType(gcpgenserver.PoolV1betaQosType(pool.QosType)),
+		QosType:                  gcpgenserver.NewOptNilString(pool.QosType),
 		CustomPerformanceEnabled: gcpgenserver.NewOptBool(customPerformanceEnabled),
 		// Unified Pool is set true for VSA pools
 		UnifiedPool: gcpgenserver.NewOptBool(true),
@@ -399,36 +399,64 @@ func convertToPoolV1beta(pool *cvpmodels.PoolV1beta) *gcpgenserver.PoolV1beta {
 		DeletedAt:                 gcpgenserver.NewOptNilDateTime(deletedAt),
 		ResourceId:                *pool.ResourceID,
 		Network:                   *pool.Network,
-		AllocatedBytes:            gcpgenserver.NewOptNilFloat64(*pool.AllocatedBytes),
+		AllocatedBytes:            SafeFloat64(pool.AllocatedBytes),
 		SizeInBytes:               *pool.SizeInBytes,
-		TotalThroughputMibps:      gcpgenserver.NewOptNilFloat64(*pool.TotalThroughputMibps),
-		AvailableThroughputMibps:  gcpgenserver.NewOptNilFloat64(*pool.AvailableThroughputMibps),
+		TotalThroughputMibps:      SafeFloat64(pool.TotalThroughputMibps),
+		AvailableThroughputMibps:  SafeFloat64(pool.AvailableThroughputMibps),
 		ServiceLevel:              gcpgenserver.PoolV1betaServiceLevel(*pool.ServiceLevel),
-		TotalIops:                 gcpgenserver.NewOptNilFloat64(*pool.TotalIops),
+		TotalIops:                 SafeFloat64(pool.TotalIops),
 		CustomPerformanceEnabled:  gcpgenserver.NewOptBool(pool.CustomPerformanceEnabled),
 		Zone:                      gcpgenserver.NewOptString(pool.Zone),
 		StorageClass:              gcpgenserver.NewOptStorageClassV1beta(gcpgenserver.StorageClassV1beta(*pool.StorageClass)),
 		StoragePoolState:          gcpgenserver.NewOptPoolV1betaStoragePoolState(gcpgenserver.PoolV1betaStoragePoolState(pool.StoragePoolState)),
-		NumberOfVolumes:           gcpgenserver.NewOptNilInt32(int32(*pool.NumberOfVolumes)),
+		NumberOfVolumes:           SafeInt64ToInt32(pool.NumberOfVolumes),
 		StoragePoolStateDetails:   gcpgenserver.NewOptString(pool.StateDetails),
-		Description:               gcpgenserver.NewOptNilString(*pool.Description),
-		AllowAutoTiering:          gcpgenserver.NewOptNilBool(*pool.AllowAutoTiering),
-		HotTierSizeInBytes:        gcpgenserver.NewOptNilFloat64(*pool.HotTierSizeInBytes),
-		EnableHotTierAutoResize:   gcpgenserver.NewOptNilBool(*pool.EnableHotTierAutoResize),
-		KmsConfigId:               gcpgenserver.NewOptNilString(*pool.KmsConfigID),
+		Description:               SafeString(pool.Description),
+		AllowAutoTiering:          SafeBool(pool.AllowAutoTiering),
+		HotTierSizeInBytes:        SafeFloat64(pool.HotTierSizeInBytes),
+		EnableHotTierAutoResize:   SafeBool(pool.EnableHotTierAutoResize),
+		KmsConfigId:               SafeString(pool.KmsConfigID),
 		KmsConfigResourceId:       gcpgenserver.NewOptString(pool.KmsConfigResourceID),
-		ActiveDirectoryConfigId:   gcpgenserver.NewOptNilString(*pool.ActiveDirectoryConfigID),
+		ActiveDirectoryConfigId:   SafeString(pool.ActiveDirectoryConfigID),
 		ActiveDirectoryResourceId: gcpgenserver.NewOptString(pool.ActiveDirectoryResourceID),
-		LdapEnabled:               gcpgenserver.NewOptNilBool(*pool.LdapEnabled),
+		LdapEnabled:               SafeBool(pool.LdapEnabled),
 		EncryptionType:            gcpgenserver.NewOptPoolV1betaEncryptionType(gcpgenserver.PoolV1betaEncryptionType(pool.EncryptionType)),
-		GlobalAccessAllowed:       gcpgenserver.NewOptNilBool(*pool.GlobalAccessAllowed),
+		GlobalAccessAllowed:       SafeBool(pool.GlobalAccessAllowed),
 		Labels:                    gcpgenserver.NewOptPoolV1betaLabels(pool.Labels),
 		SecondaryZone:             gcpgenserver.NewOptString(pool.SecondaryZone),
-		QosType:                   gcpgenserver.NewOptNilPoolV1betaQosType(gcpgenserver.PoolV1betaQosType(*pool.QosType)),
-		SatisfiesPzi:              gcpgenserver.NewOptNilBool(*pool.SatisfiesPzi),
-		SatisfiesPzs:              gcpgenserver.NewOptNilBool(*pool.SatisfiesPzs),
+		QosType:                   SafeString(pool.QosType),
+		SatisfiesPzi:              SafeBool(pool.SatisfiesPzi),
+		SatisfiesPzs:              SafeBool(pool.SatisfiesPzs),
 		AssetLocationMetadata:     gcpgenserver.NewOptNilPoolV1betaAssetLocationMetadata(assetLocationMetadata),
 		// Unified Pool is set false for SDE pools
 		UnifiedPool: gcpgenserver.NewOptBool(false),
 	}
+}
+
+func SafeString(value *string) gcpgenserver.OptNilString {
+	if value == nil {
+		return gcpgenserver.OptNilString{}
+	}
+	return gcpgenserver.NewOptNilString(*value)
+}
+
+func SafeFloat64(value *float64) gcpgenserver.OptNilFloat64 {
+	if value == nil {
+		return gcpgenserver.OptNilFloat64{}
+	}
+	return gcpgenserver.NewOptNilFloat64(*value)
+}
+
+func SafeInt64ToInt32(value *int64) gcpgenserver.OptNilInt32 {
+	if value == nil {
+		return gcpgenserver.OptNilInt32{}
+	}
+	return gcpgenserver.NewOptNilInt32(int32(*value))
+}
+
+func SafeBool(value *bool) gcpgenserver.OptNilBool {
+	if value == nil {
+		return gcpgenserver.NewOptNilBool(false)
+	}
+	return gcpgenserver.NewOptNilBool(*value)
 }

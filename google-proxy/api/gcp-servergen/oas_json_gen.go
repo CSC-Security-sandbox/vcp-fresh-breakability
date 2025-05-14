@@ -10336,55 +10336,6 @@ func (s *OptNilInt64) UnmarshalJSON(data []byte) error {
 	return s.Decode(d)
 }
 
-// Encode encodes PoolUpdateV1betaQosType as json.
-func (o OptNilPoolUpdateV1betaQosType) Encode(e *jx.Encoder) {
-	if !o.Set {
-		return
-	}
-	if o.Null {
-		e.Null()
-		return
-	}
-	e.Str(string(o.Value))
-}
-
-// Decode decodes PoolUpdateV1betaQosType from json.
-func (o *OptNilPoolUpdateV1betaQosType) Decode(d *jx.Decoder) error {
-	if o == nil {
-		return errors.New("invalid: unable to decode OptNilPoolUpdateV1betaQosType to nil")
-	}
-	if d.Next() == jx.Null {
-		if err := d.Null(); err != nil {
-			return err
-		}
-
-		var v PoolUpdateV1betaQosType
-		o.Value = v
-		o.Set = true
-		o.Null = true
-		return nil
-	}
-	o.Set = true
-	o.Null = false
-	if err := o.Value.Decode(d); err != nil {
-		return err
-	}
-	return nil
-}
-
-// MarshalJSON implements stdjson.Marshaler.
-func (s OptNilPoolUpdateV1betaQosType) MarshalJSON() ([]byte, error) {
-	e := jx.Encoder{}
-	s.Encode(&e)
-	return e.Bytes(), nil
-}
-
-// UnmarshalJSON implements stdjson.Unmarshaler.
-func (s *OptNilPoolUpdateV1betaQosType) UnmarshalJSON(data []byte) error {
-	d := jx.DecodeBytes(data)
-	return s.Decode(d)
-}
-
 // Encode encodes PoolV1betaAssetLocationMetadata as json.
 func (o OptNilPoolV1betaAssetLocationMetadata) Encode(e *jx.Encoder) {
 	if !o.Set {
@@ -10430,55 +10381,6 @@ func (s OptNilPoolV1betaAssetLocationMetadata) MarshalJSON() ([]byte, error) {
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
 func (s *OptNilPoolV1betaAssetLocationMetadata) UnmarshalJSON(data []byte) error {
-	d := jx.DecodeBytes(data)
-	return s.Decode(d)
-}
-
-// Encode encodes PoolV1betaQosType as json.
-func (o OptNilPoolV1betaQosType) Encode(e *jx.Encoder) {
-	if !o.Set {
-		return
-	}
-	if o.Null {
-		e.Null()
-		return
-	}
-	e.Str(string(o.Value))
-}
-
-// Decode decodes PoolV1betaQosType from json.
-func (o *OptNilPoolV1betaQosType) Decode(d *jx.Decoder) error {
-	if o == nil {
-		return errors.New("invalid: unable to decode OptNilPoolV1betaQosType to nil")
-	}
-	if d.Next() == jx.Null {
-		if err := d.Null(); err != nil {
-			return err
-		}
-
-		var v PoolV1betaQosType
-		o.Value = v
-		o.Set = true
-		o.Null = true
-		return nil
-	}
-	o.Set = true
-	o.Null = false
-	if err := o.Value.Decode(d); err != nil {
-		return err
-	}
-	return nil
-}
-
-// MarshalJSON implements stdjson.Marshaler.
-func (s OptNilPoolV1betaQosType) MarshalJSON() ([]byte, error) {
-	e := jx.Encoder{}
-	s.Encode(&e)
-	return e.Bytes(), nil
-}
-
-// UnmarshalJSON implements stdjson.Unmarshaler.
-func (s *OptNilPoolV1betaQosType) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }
@@ -12705,46 +12607,6 @@ func (s *PoolUpdateV1betaLabels) UnmarshalJSON(data []byte) error {
 	return s.Decode(d)
 }
 
-// Encode encodes PoolUpdateV1betaQosType as json.
-func (s PoolUpdateV1betaQosType) Encode(e *jx.Encoder) {
-	e.Str(string(s))
-}
-
-// Decode decodes PoolUpdateV1betaQosType from json.
-func (s *PoolUpdateV1betaQosType) Decode(d *jx.Decoder) error {
-	if s == nil {
-		return errors.New("invalid: unable to decode PoolUpdateV1betaQosType to nil")
-	}
-	v, err := d.StrBytes()
-	if err != nil {
-		return err
-	}
-	// Try to use constant string.
-	switch PoolUpdateV1betaQosType(v) {
-	case PoolUpdateV1betaQosTypeAuto:
-		*s = PoolUpdateV1betaQosTypeAuto
-	case PoolUpdateV1betaQosTypeManual:
-		*s = PoolUpdateV1betaQosTypeManual
-	default:
-		*s = PoolUpdateV1betaQosType(v)
-	}
-
-	return nil
-}
-
-// MarshalJSON implements stdjson.Marshaler.
-func (s PoolUpdateV1betaQosType) MarshalJSON() ([]byte, error) {
-	e := jx.Encoder{}
-	s.Encode(&e)
-	return e.Bytes(), nil
-}
-
-// UnmarshalJSON implements stdjson.Unmarshaler.
-func (s *PoolUpdateV1betaQosType) UnmarshalJSON(data []byte) error {
-	d := jx.DecodeBytes(data)
-	return s.Decode(d)
-}
-
 // Encode implements json.Marshaler.
 func (s *PoolV1beta) Encode(e *jx.Encoder) {
 	e.ObjStart()
@@ -13628,46 +13490,6 @@ func (s PoolV1betaLabels) MarshalJSON() ([]byte, error) {
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
 func (s *PoolV1betaLabels) UnmarshalJSON(data []byte) error {
-	d := jx.DecodeBytes(data)
-	return s.Decode(d)
-}
-
-// Encode encodes PoolV1betaQosType as json.
-func (s PoolV1betaQosType) Encode(e *jx.Encoder) {
-	e.Str(string(s))
-}
-
-// Decode decodes PoolV1betaQosType from json.
-func (s *PoolV1betaQosType) Decode(d *jx.Decoder) error {
-	if s == nil {
-		return errors.New("invalid: unable to decode PoolV1betaQosType to nil")
-	}
-	v, err := d.StrBytes()
-	if err != nil {
-		return err
-	}
-	// Try to use constant string.
-	switch PoolV1betaQosType(v) {
-	case PoolV1betaQosTypeAuto:
-		*s = PoolV1betaQosTypeAuto
-	case PoolV1betaQosTypeManual:
-		*s = PoolV1betaQosTypeManual
-	default:
-		*s = PoolV1betaQosType(v)
-	}
-
-	return nil
-}
-
-// MarshalJSON implements stdjson.Marshaler.
-func (s PoolV1betaQosType) MarshalJSON() ([]byte, error) {
-	e := jx.Encoder{}
-	s.Encode(&e)
-	return e.Bytes(), nil
-}
-
-// UnmarshalJSON implements stdjson.Unmarshaler.
-func (s *PoolV1betaQosType) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }

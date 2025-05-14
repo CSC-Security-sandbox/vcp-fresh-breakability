@@ -225,7 +225,7 @@ func (s *OperationV1beta) setDefaults() {
 // setDefaults set default value of fields.
 func (s *PoolV1beta) setDefaults() {
 	{
-		val := PoolV1betaQosType("auto")
+		val := string("auto")
 		s.QosType.SetTo(val)
 	}
 	{

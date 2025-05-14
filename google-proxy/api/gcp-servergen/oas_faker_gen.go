@@ -2205,19 +2205,7 @@ func (s *OptNilInt64) SetFake() {
 }
 
 // SetFake set fake values.
-func (s *OptNilPoolUpdateV1betaQosType) SetFake() {
-	s.Null = true
-	s.Set = true
-}
-
-// SetFake set fake values.
 func (s *OptNilPoolV1betaAssetLocationMetadata) SetFake() {
-	s.Null = true
-	s.Set = true
-}
-
-// SetFake set fake values.
-func (s *OptNilPoolV1betaQosType) SetFake() {
 	s.Null = true
 	s.Set = true
 }
@@ -2763,11 +2751,6 @@ func (s *PoolUpdateV1betaLabels) SetFake() {
 }
 
 // SetFake set fake values.
-func (s *PoolUpdateV1betaQosType) SetFake() {
-	*s = PoolUpdateV1betaQosTypeAuto
-}
-
-// SetFake set fake values.
 func (s *PoolV1beta) SetFake() {
 	{
 		{
@@ -2984,11 +2967,6 @@ func (s *PoolV1betaLabels) SetFake() {
 	for i := 0; i < 0; i++ {
 		m[fmt.Sprintf("fake%d", i)] = elem
 	}
-}
-
-// SetFake set fake values.
-func (s *PoolV1betaQosType) SetFake() {
-	*s = PoolV1betaQosTypeAuto
 }
 
 // SetFake set fake values.

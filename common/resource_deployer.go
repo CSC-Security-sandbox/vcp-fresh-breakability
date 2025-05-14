@@ -90,13 +90,22 @@ type SourceImage struct {
 	Name string `yaml:"name"`
 }
 
+func SetupNetwork(projectId, snHostProject, network, tpregion string) error {
+	slog := log.NewLogger()
+	err := setupNetwork(slog, projectId, snHostProject, network, tpregion)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
 // DeploymentsInsert creates a new Deployment Manager deployment.
 func DeploymentsInsert(ctx context.Context, name, region, zone, network, subnet, projectId, snHostProject string, size int) (*[]map[string]string, error) {
 	slog, err := util.GetLogger(ctx)
 	if err != nil {
 		return nil, err
 	}
-	err = SetupNetwork(slog, projectId, snHostProject, network, region)
+	err = setupNetwork(slog, projectId, snHostProject, network, region)
 	if err != nil {
 		return nil, err
 	}
@@ -107,6 +116,7 @@ func DeploymentsInsert(ctx context.Context, name, region, zone, network, subnet,
 	if err != nil {
 		slog.Errorf("Error granting permission: %v", err)
 	}
+
 	deploymentmanagerService, err := deploymentmanager.NewService(ctx)
 	if err != nil {
 		return nil, err
@@ -317,7 +327,7 @@ func DeleteDeployment(ctx context.Context, projectId, deploymentName string) err
 	return nil
 }
 
-func SetupNetwork(slog log.Logger, project, snHostProject, network, tpregion string) error {
+func setupNetwork(slog log.Logger, project, snHostProject, network, tpregion string) error {
 	projectID := project
 	region := tpregion
 	sourceRanges := strings.Split(firewallSourceRange, ",")

@@ -1,5 +1,14 @@
 ARG BASE
 FROM golang:1.24.1 as builder
+
+
+# Pass GitHub token as a build argument
+ARG GHVSA_PAT
+
+# Configure Git to use the token for authentication
+RUN git config --global url."https://${GHVSA_PAT}:x-oauth-basic@github.com/".insteadOf "https://github.com/"
+
+
 WORKDIR /code
 COPY google-proxy google-proxy/
 COPY common common/
@@ -18,5 +27,10 @@ WORKDIR /code/google-proxy
 RUN go build -gcflags="${SKAFFOLD_GO_GCFLAGS}" -trimpath -o /app .
 
 FROM $BASE
+
+## Install bash
+#RUN apt-get update && apt-get install -y bash && rm -rf /var/lib/apt/lists/*
+
+
 COPY --from=builder /app .
 COPY common/vsa_config common/vsa_config

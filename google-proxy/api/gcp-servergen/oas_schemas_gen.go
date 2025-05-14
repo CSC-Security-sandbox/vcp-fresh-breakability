@@ -7072,69 +7072,6 @@ func (o OptNilInt64) Or(d int64) int64 {
 	return d
 }
 
-// NewOptNilPoolUpdateV1betaQosType returns new OptNilPoolUpdateV1betaQosType with value set to v.
-func NewOptNilPoolUpdateV1betaQosType(v PoolUpdateV1betaQosType) OptNilPoolUpdateV1betaQosType {
-	return OptNilPoolUpdateV1betaQosType{
-		Value: v,
-		Set:   true,
-	}
-}
-
-// OptNilPoolUpdateV1betaQosType is optional nullable PoolUpdateV1betaQosType.
-type OptNilPoolUpdateV1betaQosType struct {
-	Value PoolUpdateV1betaQosType
-	Set   bool
-	Null  bool
-}
-
-// IsSet returns true if OptNilPoolUpdateV1betaQosType was set.
-func (o OptNilPoolUpdateV1betaQosType) IsSet() bool { return o.Set }
-
-// Reset unsets value.
-func (o *OptNilPoolUpdateV1betaQosType) Reset() {
-	var v PoolUpdateV1betaQosType
-	o.Value = v
-	o.Set = false
-	o.Null = false
-}
-
-// SetTo sets value to v.
-func (o *OptNilPoolUpdateV1betaQosType) SetTo(v PoolUpdateV1betaQosType) {
-	o.Set = true
-	o.Null = false
-	o.Value = v
-}
-
-// IsNull returns true if value is Null.
-func (o OptNilPoolUpdateV1betaQosType) IsNull() bool { return o.Null }
-
-// SetToNull sets value to null.
-func (o *OptNilPoolUpdateV1betaQosType) SetToNull() {
-	o.Set = true
-	o.Null = true
-	var v PoolUpdateV1betaQosType
-	o.Value = v
-}
-
-// Get returns value and boolean that denotes whether value was set.
-func (o OptNilPoolUpdateV1betaQosType) Get() (v PoolUpdateV1betaQosType, ok bool) {
-	if o.Null {
-		return v, false
-	}
-	if !o.Set {
-		return v, false
-	}
-	return o.Value, true
-}
-
-// Or returns value if set, or given parameter if does not.
-func (o OptNilPoolUpdateV1betaQosType) Or(d PoolUpdateV1betaQosType) PoolUpdateV1betaQosType {
-	if v, ok := o.Get(); ok {
-		return v
-	}
-	return d
-}
-
 // NewOptNilPoolV1betaAssetLocationMetadata returns new OptNilPoolV1betaAssetLocationMetadata with value set to v.
 func NewOptNilPoolV1betaAssetLocationMetadata(v PoolV1betaAssetLocationMetadata) OptNilPoolV1betaAssetLocationMetadata {
 	return OptNilPoolV1betaAssetLocationMetadata{
@@ -7192,69 +7129,6 @@ func (o OptNilPoolV1betaAssetLocationMetadata) Get() (v PoolV1betaAssetLocationM
 
 // Or returns value if set, or given parameter if does not.
 func (o OptNilPoolV1betaAssetLocationMetadata) Or(d PoolV1betaAssetLocationMetadata) PoolV1betaAssetLocationMetadata {
-	if v, ok := o.Get(); ok {
-		return v
-	}
-	return d
-}
-
-// NewOptNilPoolV1betaQosType returns new OptNilPoolV1betaQosType with value set to v.
-func NewOptNilPoolV1betaQosType(v PoolV1betaQosType) OptNilPoolV1betaQosType {
-	return OptNilPoolV1betaQosType{
-		Value: v,
-		Set:   true,
-	}
-}
-
-// OptNilPoolV1betaQosType is optional nullable PoolV1betaQosType.
-type OptNilPoolV1betaQosType struct {
-	Value PoolV1betaQosType
-	Set   bool
-	Null  bool
-}
-
-// IsSet returns true if OptNilPoolV1betaQosType was set.
-func (o OptNilPoolV1betaQosType) IsSet() bool { return o.Set }
-
-// Reset unsets value.
-func (o *OptNilPoolV1betaQosType) Reset() {
-	var v PoolV1betaQosType
-	o.Value = v
-	o.Set = false
-	o.Null = false
-}
-
-// SetTo sets value to v.
-func (o *OptNilPoolV1betaQosType) SetTo(v PoolV1betaQosType) {
-	o.Set = true
-	o.Null = false
-	o.Value = v
-}
-
-// IsNull returns true if value is Null.
-func (o OptNilPoolV1betaQosType) IsNull() bool { return o.Null }
-
-// SetToNull sets value to null.
-func (o *OptNilPoolV1betaQosType) SetToNull() {
-	o.Set = true
-	o.Null = true
-	var v PoolV1betaQosType
-	o.Value = v
-}
-
-// Get returns value and boolean that denotes whether value was set.
-func (o OptNilPoolV1betaQosType) Get() (v PoolV1betaQosType, ok bool) {
-	if o.Null {
-		return v, false
-	}
-	if !o.Set {
-		return v, false
-	}
-	return o.Value, true
-}
-
-// Or returns value if set, or given parameter if does not.
-func (o OptNilPoolV1betaQosType) Or(d PoolV1betaQosType) PoolV1betaQosType {
 	if v, ok := o.Get(); ok {
 		return v
 	}
@@ -9729,7 +9603,7 @@ type PoolUpdateV1beta struct {
 	// for FLEX).
 	EnableHotTierAutoResize OptNilBool `json:"enableHotTierAutoResize"`
 	// The type of QoS for the pool.
-	QosType OptNilPoolUpdateV1betaQosType `json:"qosType"`
+	QosType OptNilString `json:"qosType"`
 	// Flag indicating if the custom performance is enabled for the pool.
 	CustomPerformanceEnabled OptNilBool `json:"customPerformanceEnabled"`
 	// Total throughput of a pool in MiBps.
@@ -9784,7 +9658,7 @@ func (s *PoolUpdateV1beta) GetEnableHotTierAutoResize() OptNilBool {
 }
 
 // GetQosType returns the value of QosType.
-func (s *PoolUpdateV1beta) GetQosType() OptNilPoolUpdateV1betaQosType {
+func (s *PoolUpdateV1beta) GetQosType() OptNilString {
 	return s.QosType
 }
 
@@ -9849,7 +9723,7 @@ func (s *PoolUpdateV1beta) SetEnableHotTierAutoResize(val OptNilBool) {
 }
 
 // SetQosType sets the value of QosType.
-func (s *PoolUpdateV1beta) SetQosType(val OptNilPoolUpdateV1betaQosType) {
+func (s *PoolUpdateV1beta) SetQosType(val OptNilString) {
 	s.QosType = val
 }
 
@@ -9880,48 +9754,6 @@ func (s *PoolUpdateV1betaLabels) init() PoolUpdateV1betaLabels {
 	return m
 }
 
-// The type of QoS for the pool.
-type PoolUpdateV1betaQosType string
-
-const (
-	PoolUpdateV1betaQosTypeAuto   PoolUpdateV1betaQosType = "auto"
-	PoolUpdateV1betaQosTypeManual PoolUpdateV1betaQosType = "manual"
-)
-
-// AllValues returns all PoolUpdateV1betaQosType values.
-func (PoolUpdateV1betaQosType) AllValues() []PoolUpdateV1betaQosType {
-	return []PoolUpdateV1betaQosType{
-		PoolUpdateV1betaQosTypeAuto,
-		PoolUpdateV1betaQosTypeManual,
-	}
-}
-
-// MarshalText implements encoding.TextMarshaler.
-func (s PoolUpdateV1betaQosType) MarshalText() ([]byte, error) {
-	switch s {
-	case PoolUpdateV1betaQosTypeAuto:
-		return []byte(s), nil
-	case PoolUpdateV1betaQosTypeManual:
-		return []byte(s), nil
-	default:
-		return nil, errors.Errorf("invalid value: %q", s)
-	}
-}
-
-// UnmarshalText implements encoding.TextUnmarshaler.
-func (s *PoolUpdateV1betaQosType) UnmarshalText(data []byte) error {
-	switch PoolUpdateV1betaQosType(data) {
-	case PoolUpdateV1betaQosTypeAuto:
-		*s = PoolUpdateV1betaQosTypeAuto
-		return nil
-	case PoolUpdateV1betaQosTypeManual:
-		*s = PoolUpdateV1betaQosTypeManual
-		return nil
-	default:
-		return errors.Errorf("invalid value: %q", data)
-	}
-}
-
 // Ref: #/components/schemas/Pool_v1beta
 type PoolV1beta struct {
 	// Uuid of Active Directory configuration.
@@ -9943,7 +9775,7 @@ type PoolV1beta struct {
 	// The service level of the storage pool can either be premium, standard, flex or extreme.
 	ServiceLevel PoolV1betaServiceLevel `json:"serviceLevel"`
 	// The type of QoS for the pool.
-	QosType OptNilPoolV1betaQosType `json:"qosType"`
+	QosType OptNilString `json:"qosType"`
 	// Size of the pool in bytes.
 	SizeInBytes float64 `json:"sizeInBytes"`
 	// Total size of allocated volumes in bytes.
@@ -10044,7 +9876,7 @@ func (s *PoolV1beta) GetServiceLevel() PoolV1betaServiceLevel {
 }
 
 // GetQosType returns the value of QosType.
-func (s *PoolV1beta) GetQosType() OptNilPoolV1betaQosType {
+func (s *PoolV1beta) GetQosType() OptNilString {
 	return s.QosType
 }
 
@@ -10234,7 +10066,7 @@ func (s *PoolV1beta) SetServiceLevel(val PoolV1betaServiceLevel) {
 }
 
 // SetQosType sets the value of QosType.
-func (s *PoolV1beta) SetQosType(val OptNilPoolV1betaQosType) {
+func (s *PoolV1beta) SetQosType(val OptNilString) {
 	s.QosType = val
 }
 
@@ -10452,48 +10284,6 @@ func (s *PoolV1betaLabels) init() PoolV1betaLabels {
 		*s = m
 	}
 	return m
-}
-
-// The type of QoS for the pool.
-type PoolV1betaQosType string
-
-const (
-	PoolV1betaQosTypeAuto   PoolV1betaQosType = "auto"
-	PoolV1betaQosTypeManual PoolV1betaQosType = "manual"
-)
-
-// AllValues returns all PoolV1betaQosType values.
-func (PoolV1betaQosType) AllValues() []PoolV1betaQosType {
-	return []PoolV1betaQosType{
-		PoolV1betaQosTypeAuto,
-		PoolV1betaQosTypeManual,
-	}
-}
-
-// MarshalText implements encoding.TextMarshaler.
-func (s PoolV1betaQosType) MarshalText() ([]byte, error) {
-	switch s {
-	case PoolV1betaQosTypeAuto:
-		return []byte(s), nil
-	case PoolV1betaQosTypeManual:
-		return []byte(s), nil
-	default:
-		return nil, errors.Errorf("invalid value: %q", s)
-	}
-}
-
-// UnmarshalText implements encoding.TextUnmarshaler.
-func (s *PoolV1betaQosType) UnmarshalText(data []byte) error {
-	switch PoolV1betaQosType(data) {
-	case PoolV1betaQosTypeAuto:
-		*s = PoolV1betaQosTypeAuto
-		return nil
-	case PoolV1betaQosTypeManual:
-		*s = PoolV1betaQosTypeManual
-		return nil
-	default:
-		return errors.Errorf("invalid value: %q", data)
-	}
 }
 
 // The service level of the storage pool can either be premium, standard, flex or extreme.

@@ -4144,24 +4144,6 @@ func (s *PoolUpdateV1beta) Validate() error {
 		})
 	}
 	if err := func() error {
-		if value, ok := s.QosType.Get(); ok {
-			if err := func() error {
-				if err := value.Validate(); err != nil {
-					return err
-				}
-				return nil
-			}(); err != nil {
-				return err
-			}
-		}
-		return nil
-	}(); err != nil {
-		failures = append(failures, validate.FieldError{
-			Name:  "qosType",
-			Error: err,
-		})
-	}
-	if err := func() error {
 		if value, ok := s.TotalThroughputMibps.Get(); ok {
 			if err := func() error {
 				if err := (validate.Float{}).Validate(float64(value)); err != nil {
@@ -4201,17 +4183,6 @@ func (s *PoolUpdateV1beta) Validate() error {
 		return &validate.Error{Fields: failures}
 	}
 	return nil
-}
-
-func (s PoolUpdateV1betaQosType) Validate() error {
-	switch s {
-	case "auto":
-		return nil
-	case "manual":
-		return nil
-	default:
-		return errors.Errorf("invalid value: %v", s)
-	}
 }
 
 func (s *PoolV1beta) Validate() error {
@@ -4344,24 +4315,6 @@ func (s *PoolV1beta) Validate() error {
 	}(); err != nil {
 		failures = append(failures, validate.FieldError{
 			Name:  "serviceLevel",
-			Error: err,
-		})
-	}
-	if err := func() error {
-		if value, ok := s.QosType.Get(); ok {
-			if err := func() error {
-				if err := value.Validate(); err != nil {
-					return err
-				}
-				return nil
-			}(); err != nil {
-				return err
-			}
-		}
-		return nil
-	}(); err != nil {
-		failures = append(failures, validate.FieldError{
-			Name:  "qosType",
 			Error: err,
 		})
 	}
@@ -4640,17 +4593,6 @@ func (s PoolV1betaEncryptionType) Validate() error {
 	case "SERVICE_MANAGED":
 		return nil
 	case "CLOUD_KMS":
-		return nil
-	default:
-		return errors.Errorf("invalid value: %v", s)
-	}
-}
-
-func (s PoolV1betaQosType) Validate() error {
-	switch s {
-	case "auto":
-		return nil
-	case "manual":
 		return nil
 	default:
 		return errors.Errorf("invalid value: %v", s)
@@ -11947,32 +11889,6 @@ func (s *VolumeV1beta) Validate() error {
 	}(); err != nil {
 		failures = append(failures, validate.FieldError{
 			Name:  "volumeId",
-			Error: err,
-		})
-	}
-	if err := func() error {
-		if value, ok := s.CreationToken.Get(); ok {
-			if err := func() error {
-				if err := (validate.String{
-					MinLength:    1,
-					MinLengthSet: true,
-					MaxLength:    80,
-					MaxLengthSet: true,
-					Email:        false,
-					Hostname:     false,
-					Regex:        regexMap["^[a-zA-Z][a-zA-Z0-9\\-_]{0,79}$"],
-				}).Validate(string(value)); err != nil {
-					return errors.Wrap(err, "string")
-				}
-				return nil
-			}(); err != nil {
-				return err
-			}
-		}
-		return nil
-	}(); err != nil {
-		failures = append(failures, validate.FieldError{
-			Name:  "creationToken",
 			Error: err,
 		})
 	}

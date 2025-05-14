@@ -1,8 +1,6 @@
 package workflows
 
 import (
-	"time"
-
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
@@ -15,6 +13,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 	"go.temporal.io/sdk/temporal"
 	"go.temporal.io/sdk/workflow"
+	"netapp.com/vsa/lifecycle-manager/pkg/vlmconfig"
 )
 
 var (
@@ -101,11 +100,6 @@ func (wf *PoolWorkflow) RunCreatePoolWorkflow(ctx workflow.Context, params *comm
 	}
 	ctx = workflow.WithActivityOptions(ctx, ao)
 	dbPool := pool
-	defer func() {
-		if err != nil {
-			_ = workflow.ExecuteActivity(ctx, poolActivity.FailedPool, dbPool, err.Error()).Get(ctx, nil)
-		}
-	}()
 
 	tenancyDetails := &common.TenancyInfo{}
 	err = workflow.ExecuteActivity(ctx, poolActivity.CreateTenancy, params).Get(ctx, &tenancyDetails)
@@ -115,39 +109,25 @@ func (wf *PoolWorkflow) RunCreatePoolWorkflow(ctx workflow.Context, params *comm
 
 	clusterName := params.Name + "-vsa"
 	sizeInGB := utils.BytesToGigabytes(params.SizeInBytes)
-	var vsaCluster *[]map[string]string
-	err = workflow.ExecuteActivity(ctx, poolActivity.DeployDeploymentManager, clusterName, params.Region, params.CurrentZone, tenancyDetails.Network, tenancyDetails.SubnetworkName, tenancyDetails.RegionalTenantProject, tenancyDetails.SnHostProject, sizeInGB).Get(ctx, &vsaCluster)
-	if err != nil {
-		return nil, err
-	}
-	node := &models.Node{
-		Name:            (*vsaCluster)[0]["Name"],
-		EndpointAddress: (*vsaCluster)[0]["NodeIp"],
-		Username:        pool.Username,
-		Password:        pool.Password,
-		Zone:            (*vsaCluster)[0]["Zone"],
-		InstanceType:    (*vsaCluster)[0]["MachineType"],
-	}
 
-	pollingOptions := workflow.ActivityOptions{
-		StartToCloseTimeout: time.Duration(waitTimeVSADeployment) * time.Minute,
-		RetryPolicy: &temporal.RetryPolicy{
-			BackoffCoefficient: retryPolicy.BackoffCoefficient,
-			InitialInterval:    time.Duration(pollInterval) * time.Second,
-		},
-	}
-	pollingCtx := workflow.WithActivityOptions(ctx, pollingOptions)
-
-	err = workflow.ExecuteActivity(pollingCtx, poolActivity.CheckForNodes, node).Get(pollingCtx, nil)
+	err = workflow.ExecuteActivity(ctx, poolActivity.SetupNetwork, params.Region, tenancyDetails.Network, tenancyDetails.RegionalTenantProject, tenancyDetails.SnHostProject).Get(ctx, nil)
 	if err != nil {
 		return nil, err
 	}
 
-	err = workflow.ExecuteActivity(pollingCtx, poolActivity.CheckForAggr, node).Get(pollingCtx, nil)
+	cfg := &vlmconfig.VLMConfig{}
+	err = workflow.ExecuteActivity(ctx, poolActivity.CreateVSACluster, clusterName, params.Region, params.CurrentZone, tenancyDetails.Network, tenancyDetails.SubnetworkName, tenancyDetails.RegionalTenantProject, tenancyDetails.SnHostProject, sizeInGB).Get(ctx, cfg)
 	if err != nil {
 		return nil, err
 	}
 
+	node := &models.Node{}
+	err = workflow.ExecuteActivity(ctx, poolActivity.SaveVSANodeDetails, dbPool, cfg).Get(ctx, node)
+	if err != nil {
+		return nil, err
+	}
+	node.Username = pool.Username
+	node.Password = pool.Password
 	var ontapVersion string
 	err = workflow.ExecuteActivity(ctx, poolActivity.GetOntapVersion, node).Get(ctx, &ontapVersion)
 	if err != nil {
@@ -159,6 +139,7 @@ func (wf *PoolWorkflow) RunCreatePoolWorkflow(ctx workflow.Context, params *comm
 		OntapVersion:          ontapVersion,
 		RegionalTenantProject: tenancyDetails.RegionalTenantProject,
 		SnHostProject:         tenancyDetails.SnHostProject,
+		Network:               tenancyDetails.Network,
 	}
 
 	err = workflow.ExecuteActivity(ctx, poolActivity.SavePoolWithClusterDetails, dbPool, clusterDetails).Get(ctx, nil)
@@ -166,30 +147,11 @@ func (wf *PoolWorkflow) RunCreatePoolWorkflow(ctx workflow.Context, params *comm
 		return nil, err
 	}
 
-	err = workflow.ExecuteActivity(ctx, poolActivity.SaveNodeDetails, dbPool, vsaCluster).Get(ctx, nil)
+	err = workflow.ExecuteActivity(ctx, poolActivity.CreateVSASVM, dbPool, cfg).Get(ctx, nil)
 	if err != nil {
 		return nil, err
 	}
 
-	var svm datamodel.Svm
-	err = workflow.ExecuteActivity(ctx, poolActivity.CreateSvmForPool, dbPool, node).Get(ctx, &svm)
-	if err != nil {
-		return nil, err
-	}
-	err = workflow.ExecuteActivity(ctx, poolActivity.EnableIscsiServiceForSVM, node, svm.SvmDetails.ExternalUUID).Get(ctx, &svm)
-	if err != nil {
-		return nil, err
-	}
-
-	err = workflow.ExecuteActivity(ctx, poolActivity.CreateLifForSvm, node, *vsaCluster, dbPool, svm).Get(ctx, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	err = workflow.ExecuteActivity(ctx, poolActivity.CreateNetworkIpRoute, node, svm.Name, tenancyDetails.Gateway).Get(ctx, nil)
-	if err != nil {
-		return nil, err
-	}
 	err = workflow.ExecuteActivity(ctx, poolActivity.CreatedPool, dbPool).Get(ctx, nil)
 	return nil, err
 }
@@ -286,7 +248,7 @@ func (wf *PoolWorkflow) RunDeletePoolWorkflow(ctx workflow.Context, params *comm
 		return nil, err
 	}
 
-	err = workflow.ExecuteActivity(ctx, poolActivity.DeleteDeployment, dbPool).Get(ctx, nil)
+	err = workflow.ExecuteActivity(ctx, poolActivity.DeleteVSADeployment, dbPool).Get(ctx, nil)
 	if err != nil {
 		return nil, err
 	}
