@@ -2,7 +2,7 @@ package jira
 
 import (
 	"log"
-	"main/cmd/github"
+	ghutils "main/cmd/github"
 	"os"
 	"strings"
 
@@ -25,7 +25,7 @@ var allowMainCmd = &cobra.Command{
 func allowMain() error {
 	_, credentials := GetJiraUrlCredentials()
 
-	jiraID, err := ExtractJiraID(github.PrTitle)
+	jiraID, err := ExtractJiraID(ghutils.PrTitle)
 	if err != nil {
 		log.Println("Error:", err)
 		os.Exit(1)
@@ -52,14 +52,14 @@ func allowMain() error {
 		os.Exit(1)
 	}
 
-	user, err := github.GetGithubUser(github.GhToken, github.PrUser)
+	user, err := ghutils.GetGithubUser(ghutils.GhToken, ghutils.PrUser)
 	if err != nil {
 		log.Println("Error:", err)
 		os.Exit(1)
 	}
 
 	if user.Email == nil {
-		log.Println("Error: Email not available for user:", github.PrUser)
+		log.Println("Error: Email not available for user:", ghutils.PrUser)
 		os.Exit(1)
 	}
 

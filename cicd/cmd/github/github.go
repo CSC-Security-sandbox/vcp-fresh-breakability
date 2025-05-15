@@ -1,10 +1,11 @@
-package github
+package ghutils
 
 import (
 	"context"
 	"fmt"
 	gh "github.com/google/go-github/v50/github"
 	"golang.org/x/oauth2"
+	"log"
 	"os"
 )
 
@@ -13,6 +14,44 @@ var (
 	GhToken string
 	PrUser  string
 )
+
+func GetPRTitleByCommit(ghToken, owner, repo, commitSHA string) (string, error) {
+	client, err := NewGithubClient(ghToken)
+	if err != nil {
+		return "", err
+	}
+	log.Printf("Owner: %s, Repo: %s, CommitSHA: %s\n", owner, repo, commitSHA)
+	if owner == "" || repo == "" || commitSHA == "" {
+		return "", fmt.Errorf("repository owner, name, or commit SHA is not set")
+	}
+
+	ctx := context.Background()
+	prs, _, err := client.PullRequests.ListPullRequestsWithCommit(ctx, owner, repo, commitSHA, nil)
+	if err != nil {
+		return "", fmt.Errorf("error fetching pull requests: %w", err)
+	}
+
+	for _, pr := range prs {
+		if pr.GetMerged() {
+			return pr.GetTitle(), nil
+		}
+	}
+
+	return "", fmt.Errorf("no merged pull request found for the given commit")
+}
+
+func NewGithubClient(ghToken string) (*gh.Client, error) {
+	if ghToken == "" {
+		return nil, fmt.Errorf("GITHUB_TOKEN is not set")
+	}
+
+	ctx := context.Background()
+	ts := oauth2.StaticTokenSource(&oauth2.Token{AccessToken: ghToken})
+	tc := oauth2.NewClient(ctx, ts)
+	client := gh.NewClient(tc)
+
+	return client, nil
+}
 
 func GetGithubUser(ghToken, prUser string) (*gh.User, error) {
 	if ghToken == "" {

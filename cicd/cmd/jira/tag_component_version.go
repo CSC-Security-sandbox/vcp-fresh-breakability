@@ -3,12 +3,16 @@ package jira
 import (
 	"github.com/spf13/cobra"
 	"log"
-	"main/cmd/github"
+	ghutils "main/cmd/github"
 	"os"
 )
 
 var (
-	newTag string
+	newTag    string
+	ghToken   string
+	owner     string
+	repo      string
+	commitSHA string
 )
 
 var tagJiraComponentVersionCmd = &cobra.Command{
@@ -28,7 +32,11 @@ func updateComponentVersionTag() error {
 	log.Println("Updating jira component tag to:", newTag)
 
 	_, credentials := GetJiraUrlCredentials()
-	jiraID, err := ExtractJiraID(github.PrTitle)
+	prTitle, err := ghutils.GetPRTitleByCommit(ghToken, owner, repo, commitSHA)
+	if err != nil {
+		log.Fatalf("Error fetching PR title: %v", err)
+	}
+	jiraID, err := ExtractJiraID(prTitle)
 	if err != nil {
 		log.Println("Error:", err)
 		os.Exit(1)
@@ -44,10 +52,13 @@ func updateComponentVersionTag() error {
 	if err != nil {
 		log.Println("Error:", err)
 	}
-
 	return nil
 }
 
 func init() {
 	newTag = os.Getenv("NEW_TAG")
+	ghToken = os.Getenv("GITHUB_TOKEN")
+	owner = os.Getenv("PR_USER")
+	repo = os.Getenv("REPOSITORY")
+	commitSHA = os.Getenv("GITHUB_SHA")
 }

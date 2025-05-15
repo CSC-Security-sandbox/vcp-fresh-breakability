@@ -68,7 +68,7 @@ jobs:
           repositories: |
             vsa-control-plane
 
-      - name: Run Jira check
+      - name: Run Jira allow_merge main
         env:
           PR_TITLE: ${{ github.event.pull_request.title }}
           JIRA_API_TOKEN: ${{ secrets.VCP_CI_JIRA_BOT_PAT }}

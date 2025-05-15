@@ -55,39 +55,39 @@ jobs:
       newTag: ${{ steps.fetch_new_tag.outputs.newTag }}
 
   update_jira_component_version:
-      name: Update JIRA component version
-      needs: create_pre_release_vsa_control_plane
-      runs-on: [ ubuntu-22.04 ]
-      container:
-        image: ghcr.io/vcp-vsa-control-plane/vsacictl:v6
-        options: -v /var/run/docker.sock:/var/run/docker.sock --user root
+    name: Update JIRA component version
+    needs: create_pre_release_vsa_control_plane
+    runs-on: [ ubuntu-22.04 ]
+    container:
+      image: ghcr.io/vcp-vsa-control-plane/vsacictl:v9
+      options: -v /var/run/docker.sock:/var/run/docker.sock --user root
 
-      steps:
-        - name: Check out the repo
-          uses: actions/checkout@v2
+    steps:
+      - name: Check out the repo
+        uses: actions/checkout@v2
 
-        - name: Set up Go
-          uses: actions/setup-go@v3
-          with:
-            go-version-file: go.mod
+      - name: Set up Go
+        uses: actions/setup-go@v3
+        with:
+          go-version-file: go.mod
 
-        - name: Fetch token
-          uses: actions/create-github-app-token@v1
-          id: token
-          with:
-            owner: ${{ github.repository_owner }}
-            app-id: ${{ secrets.VCP_CI_GH_APP_ID }}
-            private-key: ${{ secrets.VCP_CI_GH_PRIVATE_KEY }}
-            repositories: |
-              vsa-control-plane
+      - name: Fetch token
+        uses: actions/create-github-app-token@v1
+        id: token
+        with:
+          owner: ${{ github.repository_owner }}
+          app-id: ${{ secrets.VCP_CI_GH_APP_ID }}
+          private-key: ${{ secrets.VCP_CI_GH_PRIVATE_KEY }}
+          repositories: |
+            vsa-control-plane
 
-        - name: Run jira tag_component_version
-          env:
-            PR_TITLE: ${{ github.event.pull_request.title }}
-            JIRA_API_TOKEN: ${{ secrets.VCP_CI_JIRA_BOT_PAT }}
-            GITHUB_TOKEN: ${{ steps.token.outputs.token }}
-            PR_USER: ${{ github.event.pull_request.user.login }}
-            NEW_TAG: ${{ needs.create_pre_release_vsa_control_plane.outputs.newTag }}
-          run: vsacictl jira tag_component_version
-          
-            
+      - name: Run jira tag_component_version
+        env:
+          PR_TITLE: ${{ github.event.head_commit.message }}
+          JIRA_API_TOKEN: ${{ secrets.VCP_CI_JIRA_BOT_PAT }}
+          GITHUB_TOKEN: ${{ steps.token.outputs.token }}
+          PR_USER: ${{ github.event.pull_request.user.login }}
+          REPOSITORY: ${{ github.repository }}
+          GITHUB_SHA: ${{ github.sha }}
+          NEW_TAG: ${{ needs.create_pre_release_vsa_control_plane.outputs.newTag }}
+        run: vsacictl jira tag_component_version
