@@ -2,10 +2,12 @@ global:
   primaryImageRegistry: ghcr.io
   primaryImageRegistryPath: vcp-vsa-control-plane
   primaryImageRegistryPasswordAuth: true
-  secondaryImageRegistry: ""
-  secondaryImageRegistryPath: ""
+  primaryImagePullSecretName: ghcr.io
+  secondaryImageRegistry: "europe-north1-docker.pkg.dev/gcnv-artifact-registry-nonprod"
+  secondaryImageRegistryPath: "vcp-container-images"
   secondaryImageRegistryPasswordAuth: false
   nodeSelector:
     nodeType: vsacp-nodes
   chartPrimaryImageRegistry: ""
   chartSecondaryImageRegistry: ""
+  environment: gcp

@@ -5,8 +5,8 @@ replicaCount: 1
 images:
   googleProxy:
     name: google-proxy
-    tag: v25044.0.0-dev.6
-    secondary: false
+    tag: v25044.0.0-dev.65
+    secondary: true
     pullPolicy: IfNotPresent
 
 service:
@@ -20,4 +20,9 @@ database:
   name: vcp
   adminUser: postgres
   adminPassword: testpass
+
+
+# Annotations
+serviceAccountAnnotations:
+  "iam.gke.io/gcp-service-account": vcp-ci@gcnv-artifact-registry-nonprod.iam.gserviceaccount.com
 

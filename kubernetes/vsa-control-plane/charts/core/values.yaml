@@ -12,13 +12,13 @@ replicaCount: 1
 images:
   core:
     name: core
-    tag: v25044.0.0-dev.6
-    secondary: false
+    tag: v25044.0.0-dev.65
+    secondary: true
     pullPolicy: IfNotPresent
   vcpDbMigrate:
     name: vcp-db-migrate
     tag: v1
-    secondary: false
+    secondary: true
     pullPolicy: IfNotPresent
     
 
@@ -41,3 +41,7 @@ resources:
   requests:
     cpu: 200m
     memory: 256Mi
+
+# Annotations
+serviceAccountAnnotations:
+  "iam.gke.io/gcp-service-account": vcp-ci@gcnv-artifact-registry-nonprod.iam.gserviceaccount.com

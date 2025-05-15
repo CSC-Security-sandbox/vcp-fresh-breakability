@@ -22,6 +22,7 @@ spec:
     spec:
       nodeSelector:
         {{- toYaml .Values.global.nodeSelector | nindent 8 }}
+        iam.gke.io/gke-metadata-server-enabled: "true"
       serviceAccountName: {{ .Values.serviceAccountName }}
       containers:
         - name: google-proxy

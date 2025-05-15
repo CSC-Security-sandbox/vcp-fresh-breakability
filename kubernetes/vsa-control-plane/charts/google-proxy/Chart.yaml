@@ -1,6 +1,6 @@
 apiVersion: v2
 name: google-proxy
 description: A Helm chart for deploying Google Proxy
-version: 25044.0.0-dev.6
-appVersion: "v25044.0.0-dev.6"
+version: "25044.0.0-dev.65"
+appVersion: "v25044.0.0-dev.65"
 deprecated: false
