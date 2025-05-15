@@ -17,6 +17,7 @@ type Config struct {
 	IdleTimeout         time.Duration
 	ReadHeaderTimeout   time.Duration
 	RunMigrationOnStart bool
+	MSIEnabled          bool
 
 	// Database connection details
 	DBType     string // Type of database (e.g., "postgres", "mysql", "sqlite", "mssql").
@@ -51,6 +52,7 @@ type Config struct {
 	// Admin database credentials (Use only when necessary)
 	DBAdminUser     string // Admin user for privileged operations.
 	DBAdminPassword string // Admin password (Avoid hardcoding, use secret management tools).
+	MSIDBUser       string // MSI user
 }
 
 func LoadConfig() *Config {
@@ -63,7 +65,7 @@ func LoadConfig() *Config {
 	readHeaderTimeout := parseDuration(env.GetString("READ_HEADER_TIMEOUT", "2s"))
 
 	runMigrationOnStart := env.GetBool("RUN_MIGRATION_ON_START", false)
-
+	msiEnabled := env.GetBool("MSI_ENABLED", false)
 	dbType := env.GetString("DB_TYPE", "postgres")
 	dbHost := env.GetString("DB_HOST", "")
 	dbPort := env.GetString("DB_PORT", "5432")
@@ -78,7 +80,7 @@ func LoadConfig() *Config {
 	MigrationPath := env.GetString("MIGRATION_PATH", "migrations/core")
 	dbAdminUser := env.GetString("DB_ADMIN_USER", "")
 	dbAdminPassword := env.GetString("DB_ADMIN_PASSWORD", "")
-
+	dbMSIUser := env.GetString("DB_MSI_USER", "")
 	location, err := time.LoadLocation(dbTimeZone)
 	if err != nil {
 		slog.Error("Invalid timezone: %v", err)
@@ -108,6 +110,8 @@ func LoadConfig() *Config {
 		MigrationPath:       MigrationPath,
 		DBAdminUser:         dbAdminUser,
 		DBAdminPassword:     dbAdminPassword,
+		MSIEnabled:          msiEnabled,
+		MSIDBUser:           dbMSIUser,
 	}
 }
 

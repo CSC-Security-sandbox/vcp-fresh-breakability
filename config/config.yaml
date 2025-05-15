@@ -1,0 +1,10 @@
+MSI_ENABLED: false
+RUN_MIGRATION_ON_START: true
+DB_HOST: localhost
+DB_PORT: 5432
+DB_USER: postgres
+DB_PASSWORD: postgres
+DB_ADMIN_USER: postgres
+DB_ADMIN_PASSWORD: postgres
+DB_NAME: vcp
+DB_MSI_USER:

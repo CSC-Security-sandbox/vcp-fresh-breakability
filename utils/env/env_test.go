@@ -1,6 +1,7 @@
 package env
 
 import (
+	"fmt"
 	"os"
 	"testing"
 
@@ -30,6 +31,64 @@ func TestHasEnv(t *testing.T) {
 		if err != nil {
 			t.Errorf("Error unsetting environment variable %s: %v", key, err)
 		}
+	})
+}
+
+// TestGetFromVolumeOrEnv tests the getFromVolumeOrEnv function.
+func TestGetFromVolumeOrEnv(t *testing.T) {
+	key := "TEST_KEY"
+	value := "test_value"
+
+	t.Run("WhenKeyExistsInLocalConfig", func(tt *testing.T) {
+		useVolumeEnv = true
+		localConfig = map[string]string{key: value}
+		val, err := getFromVolumeOrEnv(key)
+		assert.NoError(tt, err)
+		assert.Equal(tt, value, val)
+	})
+
+	t.Run("WhenKeyExistsInVolumeFile", func(tt *testing.T) {
+		useVolumeEnv = true
+		localConfig = nil
+		volumeEnvPath = "./test_config.yaml"
+		yamlData := fmt.Sprintf("%s: %s\n", key, value)
+		err := os.WriteFile(volumeEnvPath, []byte(yamlData), 0644)
+		assert.NoError(tt, err)
+		defer func(name string) {
+			err := os.Remove(name)
+			if err != nil {
+				tt.Fail()
+			}
+		}(volumeEnvPath)
+
+		val, err := getFromVolumeOrEnv(key)
+		assert.NoError(tt, err)
+		assert.Equal(tt, value, val)
+	})
+
+	t.Run("WhenKeyExistsInEnvironmentVariable", func(tt *testing.T) {
+		useVolumeEnv = false
+		localConfig = nil
+		err := os.Setenv(key, value)
+		assert.NoError(tt, err)
+		defer func(key string) {
+			err := os.Unsetenv(key)
+			if err != nil {
+				tt.Fail()
+			}
+		}(key)
+
+		val, err := getFromVolumeOrEnv(key)
+		assert.NoError(tt, err)
+		assert.Equal(tt, value, val)
+	})
+
+	t.Run("WhenKeyDoesNotExistAnywhere", func(tt *testing.T) {
+		useVolumeEnv = false
+		localConfig = nil
+		val, err := getFromVolumeOrEnv(key)
+		assert.Error(tt, err)
+		assert.Empty(tt, val)
 	})
 }
 

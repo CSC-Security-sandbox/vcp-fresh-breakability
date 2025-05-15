@@ -134,6 +134,12 @@ func InitializeDatabase(ctx context.Context, cfg *common.Config, logger log.Logg
 		AdminUser:       cfg.DBAdminUser,
 		AdminPassword:   cfg.DBAdminPassword,
 	}
+	if cfg.MSIEnabled {
+		// When MSI is enabled, set the database user credentials from MSIDBUser
+		dbConfig.User = cfg.MSIDBUser
+		dbConfig.AdminUser = cfg.MSIDBUser
+	}
+
 	db, err := database.New(dbConfig, logger)
 	if err != nil {
 		return nil, err
