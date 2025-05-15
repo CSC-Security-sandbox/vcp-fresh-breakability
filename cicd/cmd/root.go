@@ -1,9 +1,10 @@
 package cmd
 
 import (
-	"main/cmd/coverage"
 	"main/cmd/jira"
 	"main/cmd/lint"
+	"main/cmd/release-cmd/tag"
+	"main/cmd/unit-test"
 	"os"
 
 	"github.com/joho/godotenv"
@@ -27,6 +28,7 @@ func Execute() {
 func init() {
 	_ = godotenv.Load()
 	rootCmd.AddCommand(jira.JiraCmd)
-	rootCmd.AddCommand(coverage.CoverageCmd)
+	rootCmd.AddCommand(unitTest.UnitTestCmd)
 	rootCmd.AddCommand(lint.LintCmd)
+	rootCmd.AddCommand(tag.TagCmd)
 }

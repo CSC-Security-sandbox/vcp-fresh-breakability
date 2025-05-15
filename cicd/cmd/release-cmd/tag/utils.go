@@ -19,7 +19,7 @@ type SetupConfig struct {
 var SetupConfigobject SetupConfig
 
 func init() {
-	errLoad := loadYaml("./release-cmd/promotional.yaml")
+	errLoad := loadYaml("./cicd/cmd/release-cmd/promotional.yaml")
 	if errLoad != nil {
 		log.Fatal(errLoad)
 		return

@@ -13,11 +13,6 @@ linters:
     - depguard
     - gosec
 
-linters-settings:
-  govet:
-    exclude-rules:
-      - path: "netapp.com/vsa/lifecycle-manager/pkg/vlmclient"
-
 run:
   timeout: 5m
   skip-dirs:

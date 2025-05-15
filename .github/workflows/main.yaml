@@ -76,10 +76,10 @@ jobs:
           PR_USER: ${{ github.event.pull_request.user.login }}
         run: vsacictl jira allow_merge main
 
-  ut-and-coverage:
+  unit_tests:
       runs-on: [ self-hosted,linux ]
       container:
-        image: ghcr.io/vcp-vsa-control-plane/vsacictl:v4
+        image: ghcr.io/vcp-vsa-control-plane/vsacictl:v8
         options: --user root
 
       steps:
@@ -91,10 +91,29 @@ jobs:
           with:
             go-version-file: go.mod
 
-        - name: Run golang coverage
-          env:
-            COVERAGE_THRESHOLD: 90
-          run: vsacictl coverage --filtered
+        - name: Run golang unit tests
+          run: vsacictl unit-test
+
+  coverage:
+    needs: unit_tests
+    runs-on: [ self-hosted,linux ]
+    container:
+      image: ghcr.io/vcp-vsa-control-plane/vsacictl:v8
+      options: --user root
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      - name: Set up Go
+        uses: actions/setup-go@v3
+        with:
+          go-version-file: go.mod
+
+      - name: Run golang coverage
+        env:
+          COVERAGE_THRESHOLD: 90
+        run: vsacictl unit-test --coverage --filtered
 
   verify_generated:
     name: Verify Generated
@@ -122,7 +141,7 @@ jobs:
   lint:
     runs-on: [self-hosted,linux]
     container:
-      image: ghcr.io/vcp-vsa-control-plane/vsacictl:v4
+      image: ghcr.io/vcp-vsa-control-plane/vsacictl:v8
       options: --user root
 
     steps:

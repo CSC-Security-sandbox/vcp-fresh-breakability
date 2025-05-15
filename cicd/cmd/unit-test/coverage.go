@@ -1,11 +1,10 @@
-package coverage
+package unitTest
 
 import (
 	"bufio"
 	"bytes"
 	"fmt"
 	"github.com/spf13/cobra"
-	"io"
 	"log"
 	"os"
 	"os/exec"
@@ -13,12 +12,11 @@ import (
 	"strings"
 )
 
-var CoverageCmd = &cobra.Command{
-	Use:   "coverage",
+var UnitTestCmd = &cobra.Command{
+	Use:   "unit-test",
 	Short: "A cli used to control all coverage functionalities",
 	RunE: func(cmd *cobra.Command, args []string) error {
-		// Call RunTestsWithCoverage with the value of the filtered flag
-		if err := RunTestsWithCoverage(filtered); err != nil {
+		if err := RunTestsWithCoverage(filtered, coverage); err != nil {
 			return err
 		}
 		return nil
@@ -29,73 +27,106 @@ const coverageFile = "coverage.out"
 const excludeFile = "./exclude-from-code-coverage"
 
 var filtered bool
+var coverage bool
 
-func RunTestsWithCoverage(filtered bool) error {
+func RunTestsWithCoverage(filtered bool, coverage bool) error {
 	if err := runGoTests(); err != nil {
 		log.Println("Error running Go tests:", err)
 		os.Exit(1)
 	}
+
+	if !coverage {
+		return nil
+	}
+
 	log.Println("Go unit tests completed successfully.")
+
 	if filtered {
 		if err := filterCoverageFile(); err != nil {
 			log.Println("Error filtering coverage file:", err)
 			os.Exit(1)
 		}
 	}
-	log.Println("Generating coverage report...")
-	if _, err := os.Stat(coverageFile); os.IsNotExist(err) {
-		log.Println("Error: failed to generate coverage report")
-		os.Exit(1)
-	}
 
-	overallCoverage, err := extractOverallCoverage()
-	if err != nil {
-		log.Println("Error extracting overall coverage:", err)
-		os.Exit(1)
-	}
-
-	// Parse the coverage threshold from the environment variable
-	coverageThresholdStr := os.Getenv("COVERAGE_THRESHOLD")
-	if coverageThresholdStr == "" {
-		log.Println("Error: COVERAGE_THRESHOLD environment variable is not set")
-		os.Exit(1)
-	}
-
-	coverageThreshold, err := strconv.Atoi(coverageThresholdStr)
-	if err != nil {
-		log.Println("Error parsing COVERAGE_THRESHOLD:", err)
-		os.Exit(1)
-	}
-
-	// Convert overallCoverage to a float
-	overallCoverageFloat, err := strconv.ParseFloat(overallCoverage, 64)
-	if err != nil {
-		log.Println("Error parsing overall coverage percentage:", err)
-		os.Exit(1)
-	}
-
-	// Compare coverage with the threshold
-	if overallCoverageFloat < float64(coverageThreshold) {
-		log.Printf("Error: coverage %.2f%% is below the threshold of %d%%\n", overallCoverageFloat, coverageThreshold)
-		os.Exit(1)
-	}
-
-	log.Printf("Coverage %.2f%% meets the threshold of %d%%.\n", overallCoverageFloat, coverageThreshold)
-
-	if err := os.Remove(coverageFile); err != nil {
-		log.Println("Error removing coverage file:", err)
+	if err := generateCoverageReport(); err != nil {
+		log.Println("Error generating coverage report:", err)
 		os.Exit(1)
 	}
 
 	return nil
 }
 
+func generateCoverageReport() error {
+	log.Println("Generating coverage report...")
+
+	if _, err := os.Stat(coverageFile); os.IsNotExist(err) {
+		return fmt.Errorf("failed to generate coverage report")
+	}
+
+	overallCoverage, err := extractOverallCoverage()
+	if err != nil {
+		return fmt.Errorf("error extracting overall coverage: %w", err)
+	}
+
+	coverageThreshold, err := getCoverageThreshold()
+	if err != nil {
+		return err
+	}
+
+	if err := compareCoverageWithThreshold(overallCoverage, coverageThreshold); err != nil {
+		return err
+	}
+
+	if err := os.Remove(coverageFile); err != nil {
+		return fmt.Errorf("error removing coverage file: %w", err)
+	}
+
+	return nil
+}
+
+func getCoverageThreshold() (int, error) {
+	coverageThresholdStr := os.Getenv("COVERAGE_THRESHOLD")
+	if coverageThresholdStr == "" {
+		return 0, fmt.Errorf("COVERAGE_THRESHOLD environment variable is not set")
+	}
+
+	coverageThreshold, err := strconv.Atoi(coverageThresholdStr)
+	if err != nil {
+		return 0, fmt.Errorf("error parsing COVERAGE_THRESHOLD: %w", err)
+	}
+
+	return coverageThreshold, nil
+}
+
+func compareCoverageWithThreshold(overallCoverage string, coverageThreshold int) error {
+	overallCoverageFloat, err := strconv.ParseFloat(overallCoverage, 64)
+	if err != nil {
+		return fmt.Errorf("error parsing overall coverage percentage: %w", err)
+	}
+
+	if overallCoverageFloat < float64(coverageThreshold) {
+		return fmt.Errorf("coverage %.2f%% is below the threshold of %d%%", overallCoverageFloat, coverageThreshold)
+	}
+
+	log.Printf("Coverage %.2f%% meets the threshold of %d%%.\n", overallCoverageFloat, coverageThreshold)
+	return nil
+}
+
 func runGoTests() error {
 	log.Println("Running Go unit tests with coverage...")
+	var stdout, stderr bytes.Buffer
 	cmd := exec.Command("go", "test", "./...", "-cover", "-coverprofile="+coverageFile)
-	cmd.Stdout = io.Discard
-	cmd.Stderr = io.Discard
-	return cmd.Run()
+	cmd.Stdout = &stdout
+	cmd.Stderr = &stderr
+	log.Println("Running gotest command..")
+	if err := cmd.Run(); err != nil {
+		log.Println("Error running Go tests:", err)
+		log.Println("Stdout output:", stdout.String())
+		log.Println("Stderr output:", stderr.String())
+		return err
+	}
+	log.Println("Go tests completed successfully.")
+	return nil
 }
 
 func filterCoverageFile() error {
@@ -171,5 +202,6 @@ func extractOverallCoverage() (string, error) {
 
 func init() {
 	// Add the filtered flag to the CoverageCmd
-	CoverageCmd.Flags().BoolVarP(&filtered, "filtered", "f", false, "Filter the coverage report")
+	UnitTestCmd.Flags().BoolVarP(&filtered, "filtered", "f", false, "Filter the coverage report")
+	UnitTestCmd.Flags().BoolVarP(&coverage, "coverage", "u", false, "Run unit tests only")
 }
