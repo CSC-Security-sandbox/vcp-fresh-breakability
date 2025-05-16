@@ -7072,6 +7072,69 @@ func (o OptNilInt64) Or(d int64) int64 {
 	return d
 }
 
+// NewOptNilPoolInternalV1betaAssetLocationMetadata returns new OptNilPoolInternalV1betaAssetLocationMetadata with value set to v.
+func NewOptNilPoolInternalV1betaAssetLocationMetadata(v PoolInternalV1betaAssetLocationMetadata) OptNilPoolInternalV1betaAssetLocationMetadata {
+	return OptNilPoolInternalV1betaAssetLocationMetadata{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptNilPoolInternalV1betaAssetLocationMetadata is optional nullable PoolInternalV1betaAssetLocationMetadata.
+type OptNilPoolInternalV1betaAssetLocationMetadata struct {
+	Value PoolInternalV1betaAssetLocationMetadata
+	Set   bool
+	Null  bool
+}
+
+// IsSet returns true if OptNilPoolInternalV1betaAssetLocationMetadata was set.
+func (o OptNilPoolInternalV1betaAssetLocationMetadata) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptNilPoolInternalV1betaAssetLocationMetadata) Reset() {
+	var v PoolInternalV1betaAssetLocationMetadata
+	o.Value = v
+	o.Set = false
+	o.Null = false
+}
+
+// SetTo sets value to v.
+func (o *OptNilPoolInternalV1betaAssetLocationMetadata) SetTo(v PoolInternalV1betaAssetLocationMetadata) {
+	o.Set = true
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o OptNilPoolInternalV1betaAssetLocationMetadata) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *OptNilPoolInternalV1betaAssetLocationMetadata) SetToNull() {
+	o.Set = true
+	o.Null = true
+	var v PoolInternalV1betaAssetLocationMetadata
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptNilPoolInternalV1betaAssetLocationMetadata) Get() (v PoolInternalV1betaAssetLocationMetadata, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptNilPoolInternalV1betaAssetLocationMetadata) Or(d PoolInternalV1betaAssetLocationMetadata) PoolInternalV1betaAssetLocationMetadata {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
 // NewOptNilPoolV1betaAssetLocationMetadata returns new OptNilPoolV1betaAssetLocationMetadata with value set to v.
 func NewOptNilPoolV1betaAssetLocationMetadata(v PoolV1betaAssetLocationMetadata) OptNilPoolV1betaAssetLocationMetadata {
 	return OptNilPoolV1betaAssetLocationMetadata{
@@ -7444,6 +7507,144 @@ func (o OptNilVolumeReplicationUpdateInternalV1betaReplicationSchedule) Get() (v
 
 // Or returns value if set, or given parameter if does not.
 func (o OptNilVolumeReplicationUpdateInternalV1betaReplicationSchedule) Or(d VolumeReplicationUpdateInternalV1betaReplicationSchedule) VolumeReplicationUpdateInternalV1betaReplicationSchedule {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptPoolInternalV1betaEncryptionType returns new OptPoolInternalV1betaEncryptionType with value set to v.
+func NewOptPoolInternalV1betaEncryptionType(v PoolInternalV1betaEncryptionType) OptPoolInternalV1betaEncryptionType {
+	return OptPoolInternalV1betaEncryptionType{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptPoolInternalV1betaEncryptionType is optional PoolInternalV1betaEncryptionType.
+type OptPoolInternalV1betaEncryptionType struct {
+	Value PoolInternalV1betaEncryptionType
+	Set   bool
+}
+
+// IsSet returns true if OptPoolInternalV1betaEncryptionType was set.
+func (o OptPoolInternalV1betaEncryptionType) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptPoolInternalV1betaEncryptionType) Reset() {
+	var v PoolInternalV1betaEncryptionType
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptPoolInternalV1betaEncryptionType) SetTo(v PoolInternalV1betaEncryptionType) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptPoolInternalV1betaEncryptionType) Get() (v PoolInternalV1betaEncryptionType, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptPoolInternalV1betaEncryptionType) Or(d PoolInternalV1betaEncryptionType) PoolInternalV1betaEncryptionType {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptPoolInternalV1betaLabels returns new OptPoolInternalV1betaLabels with value set to v.
+func NewOptPoolInternalV1betaLabels(v PoolInternalV1betaLabels) OptPoolInternalV1betaLabels {
+	return OptPoolInternalV1betaLabels{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptPoolInternalV1betaLabels is optional PoolInternalV1betaLabels.
+type OptPoolInternalV1betaLabels struct {
+	Value PoolInternalV1betaLabels
+	Set   bool
+}
+
+// IsSet returns true if OptPoolInternalV1betaLabels was set.
+func (o OptPoolInternalV1betaLabels) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptPoolInternalV1betaLabels) Reset() {
+	var v PoolInternalV1betaLabels
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptPoolInternalV1betaLabels) SetTo(v PoolInternalV1betaLabels) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptPoolInternalV1betaLabels) Get() (v PoolInternalV1betaLabels, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptPoolInternalV1betaLabels) Or(d PoolInternalV1betaLabels) PoolInternalV1betaLabels {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptPoolInternalV1betaStoragePoolState returns new OptPoolInternalV1betaStoragePoolState with value set to v.
+func NewOptPoolInternalV1betaStoragePoolState(v PoolInternalV1betaStoragePoolState) OptPoolInternalV1betaStoragePoolState {
+	return OptPoolInternalV1betaStoragePoolState{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptPoolInternalV1betaStoragePoolState is optional PoolInternalV1betaStoragePoolState.
+type OptPoolInternalV1betaStoragePoolState struct {
+	Value PoolInternalV1betaStoragePoolState
+	Set   bool
+}
+
+// IsSet returns true if OptPoolInternalV1betaStoragePoolState was set.
+func (o OptPoolInternalV1betaStoragePoolState) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptPoolInternalV1betaStoragePoolState) Reset() {
+	var v PoolInternalV1betaStoragePoolState
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptPoolInternalV1betaStoragePoolState) SetTo(v PoolInternalV1betaStoragePoolState) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptPoolInternalV1betaStoragePoolState) Get() (v PoolInternalV1betaStoragePoolState, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptPoolInternalV1betaStoragePoolState) Or(d PoolInternalV1betaStoragePoolState) PoolInternalV1betaStoragePoolState {
 	if v, ok := o.Get(); ok {
 		return v
 	}
@@ -9581,6 +9782,684 @@ func (s *PoolIdListV1beta) SetPoolUuids(val []string) {
 	s.PoolUuids = val
 }
 
+// Ref: #/components/schemas/PoolInternal_v1beta
+type PoolInternalV1beta struct {
+	// Uuid of Active Directory configuration.
+	ActiveDirectoryConfigId OptNilString `json:"activeDirectoryConfigId"`
+	// The resource Id for the connected Active Directory.
+	ActiveDirectoryResourceId OptString `json:"activeDirectoryResourceId"`
+	// Uuid of the key to be used for encryption.
+	KmsConfigId OptNilString `json:"kmsConfigId"`
+	// The resource Id for the connected KMS configuration.
+	KmsConfigResourceId OptString `json:"kmsConfigResourceId"`
+	// Servicenetworking.connections.network value that is returned after creating a successful VPC
+	// peering connection via the GCP service-networking API.
+	Network string `json:"network"`
+	// Uuid v4 used to identify the pool.
+	PoolId OptString `json:"poolId"`
+	// A human readable label for the resource which is restricted to letters, numbers, and hyphen, with
+	// the first character a letter, the last a letter or a number, and a 63 character maximum.
+	ResourceId string `json:"resourceId"`
+	// The service level of the storage pool can either be premium, standard, flex or extreme.
+	ServiceLevel PoolInternalV1betaServiceLevel `json:"serviceLevel"`
+	// The type of QoS for the pool.
+	QosType OptNilString `json:"qosType"`
+	// Size of the pool in bytes.
+	SizeInBytes float64 `json:"sizeInBytes"`
+	// Total size of allocated volumes in bytes.
+	AllocatedBytes OptNilFloat64 `json:"allocatedBytes"`
+	// Total throughput of the pool in MiBps.
+	TotalThroughputMibps OptNilFloat64 `json:"totalThroughputMibps"`
+	// Throughput available for the volumes in MiBps.
+	AvailableThroughputMibps OptNilFloat64 `json:"availableThroughputMibps"`
+	// Number of volumes in a pool.
+	NumberOfVolumes OptNilInt32 `json:"numberOfVolumes"`
+	// The current lifecycle state of the resource.
+	StoragePoolState OptPoolInternalV1betaStoragePoolState `json:"storagePoolState"`
+	// Details about the current lifecycle state.
+	StoragePoolStateDetails OptString `json:"storagePoolStateDetails"`
+	// Creation date of the resource.
+	CreatedAt OptDateTime `json:"createdAt"`
+	// Date of last update of the resource.
+	UpdatedAt OptDateTime `json:"updatedAt"`
+	// Date the resource was deleted.
+	DeletedAt    OptNilDateTime        `json:"deletedAt"`
+	StorageClass OptStorageClassV1beta `json:"storageClass"`
+	// Details about the current state.
+	StateDetails OptString `json:"stateDetails"`
+	// Description of the pool.
+	Description OptNilString `json:"description"`
+	// Flag indicating if the pool supports LDAP enabled volumes or not.
+	LdapEnabled OptNilBool `json:"ldapEnabled"`
+	// Type of encryption used for pool, Can either service managed key (service_managed) or cloud_kms.
+	EncryptionType OptPoolInternalV1betaEncryptionType `json:"encryptionType"`
+	// The desired zone for the storage pool.
+	Zone OptString `json:"zone"`
+	// The desired zone for the failover.
+	SecondaryZone OptString `json:"secondaryZone"`
+	// Flag indicating the enablement of global access on the load balancers.
+	GlobalAccessAllowed OptNilBool `json:"globalAccessAllowed"`
+	// JSON dictionary of resource labels to allow linking of billing labels to a pool.
+	Labels OptPoolInternalV1betaLabels `json:"labels"`
+	// Flag indicating if the pool supports auto tiering enabled volumes or not.
+	AllowAutoTiering OptNilBool `json:"allowAutoTiering"`
+	// Hot-tier size of the pool (in bytes) if auto-tiering is enabled (valid only for FLEX).
+	HotTierSizeInBytes OptNilFloat64 `json:"hotTierSizeInBytes"`
+	// Flag indicating if the pool supports hot-tier resize on reaching the hot-tier threshold (not valid
+	// for FLEX).
+	EnableHotTierAutoResize OptNilBool `json:"enableHotTierAutoResize"`
+	// Uuid v4 used to identify the host.
+	HostUuid OptString `json:"hostUuid"`
+	// Flag indicating if the pool satisfies zonal isolation.
+	SatisfiesPzi OptNilBool `json:"satisfies_pzi"`
+	// Flag indicating if the pool satisfies zonal separation.
+	SatisfiesPzs          OptNilBool                                    `json:"satisfies_pzs"`
+	AssetLocationMetadata OptNilPoolInternalV1betaAssetLocationMetadata `json:"assetLocationMetadata"`
+	// Flag indicating if the custom performance is enabled for the pool.
+	CustomPerformanceEnabled OptBool `json:"customPerformanceEnabled"`
+	// The total iops set for a pool.
+	TotalIops OptNilFloat64 `json:"totalIops"`
+	// Indicates if the pool type is unified.
+	UnifiedPool OptBool `json:"unifiedPool"`
+}
+
+// GetActiveDirectoryConfigId returns the value of ActiveDirectoryConfigId.
+func (s *PoolInternalV1beta) GetActiveDirectoryConfigId() OptNilString {
+	return s.ActiveDirectoryConfigId
+}
+
+// GetActiveDirectoryResourceId returns the value of ActiveDirectoryResourceId.
+func (s *PoolInternalV1beta) GetActiveDirectoryResourceId() OptString {
+	return s.ActiveDirectoryResourceId
+}
+
+// GetKmsConfigId returns the value of KmsConfigId.
+func (s *PoolInternalV1beta) GetKmsConfigId() OptNilString {
+	return s.KmsConfigId
+}
+
+// GetKmsConfigResourceId returns the value of KmsConfigResourceId.
+func (s *PoolInternalV1beta) GetKmsConfigResourceId() OptString {
+	return s.KmsConfigResourceId
+}
+
+// GetNetwork returns the value of Network.
+func (s *PoolInternalV1beta) GetNetwork() string {
+	return s.Network
+}
+
+// GetPoolId returns the value of PoolId.
+func (s *PoolInternalV1beta) GetPoolId() OptString {
+	return s.PoolId
+}
+
+// GetResourceId returns the value of ResourceId.
+func (s *PoolInternalV1beta) GetResourceId() string {
+	return s.ResourceId
+}
+
+// GetServiceLevel returns the value of ServiceLevel.
+func (s *PoolInternalV1beta) GetServiceLevel() PoolInternalV1betaServiceLevel {
+	return s.ServiceLevel
+}
+
+// GetQosType returns the value of QosType.
+func (s *PoolInternalV1beta) GetQosType() OptNilString {
+	return s.QosType
+}
+
+// GetSizeInBytes returns the value of SizeInBytes.
+func (s *PoolInternalV1beta) GetSizeInBytes() float64 {
+	return s.SizeInBytes
+}
+
+// GetAllocatedBytes returns the value of AllocatedBytes.
+func (s *PoolInternalV1beta) GetAllocatedBytes() OptNilFloat64 {
+	return s.AllocatedBytes
+}
+
+// GetTotalThroughputMibps returns the value of TotalThroughputMibps.
+func (s *PoolInternalV1beta) GetTotalThroughputMibps() OptNilFloat64 {
+	return s.TotalThroughputMibps
+}
+
+// GetAvailableThroughputMibps returns the value of AvailableThroughputMibps.
+func (s *PoolInternalV1beta) GetAvailableThroughputMibps() OptNilFloat64 {
+	return s.AvailableThroughputMibps
+}
+
+// GetNumberOfVolumes returns the value of NumberOfVolumes.
+func (s *PoolInternalV1beta) GetNumberOfVolumes() OptNilInt32 {
+	return s.NumberOfVolumes
+}
+
+// GetStoragePoolState returns the value of StoragePoolState.
+func (s *PoolInternalV1beta) GetStoragePoolState() OptPoolInternalV1betaStoragePoolState {
+	return s.StoragePoolState
+}
+
+// GetStoragePoolStateDetails returns the value of StoragePoolStateDetails.
+func (s *PoolInternalV1beta) GetStoragePoolStateDetails() OptString {
+	return s.StoragePoolStateDetails
+}
+
+// GetCreatedAt returns the value of CreatedAt.
+func (s *PoolInternalV1beta) GetCreatedAt() OptDateTime {
+	return s.CreatedAt
+}
+
+// GetUpdatedAt returns the value of UpdatedAt.
+func (s *PoolInternalV1beta) GetUpdatedAt() OptDateTime {
+	return s.UpdatedAt
+}
+
+// GetDeletedAt returns the value of DeletedAt.
+func (s *PoolInternalV1beta) GetDeletedAt() OptNilDateTime {
+	return s.DeletedAt
+}
+
+// GetStorageClass returns the value of StorageClass.
+func (s *PoolInternalV1beta) GetStorageClass() OptStorageClassV1beta {
+	return s.StorageClass
+}
+
+// GetStateDetails returns the value of StateDetails.
+func (s *PoolInternalV1beta) GetStateDetails() OptString {
+	return s.StateDetails
+}
+
+// GetDescription returns the value of Description.
+func (s *PoolInternalV1beta) GetDescription() OptNilString {
+	return s.Description
+}
+
+// GetLdapEnabled returns the value of LdapEnabled.
+func (s *PoolInternalV1beta) GetLdapEnabled() OptNilBool {
+	return s.LdapEnabled
+}
+
+// GetEncryptionType returns the value of EncryptionType.
+func (s *PoolInternalV1beta) GetEncryptionType() OptPoolInternalV1betaEncryptionType {
+	return s.EncryptionType
+}
+
+// GetZone returns the value of Zone.
+func (s *PoolInternalV1beta) GetZone() OptString {
+	return s.Zone
+}
+
+// GetSecondaryZone returns the value of SecondaryZone.
+func (s *PoolInternalV1beta) GetSecondaryZone() OptString {
+	return s.SecondaryZone
+}
+
+// GetGlobalAccessAllowed returns the value of GlobalAccessAllowed.
+func (s *PoolInternalV1beta) GetGlobalAccessAllowed() OptNilBool {
+	return s.GlobalAccessAllowed
+}
+
+// GetLabels returns the value of Labels.
+func (s *PoolInternalV1beta) GetLabels() OptPoolInternalV1betaLabels {
+	return s.Labels
+}
+
+// GetAllowAutoTiering returns the value of AllowAutoTiering.
+func (s *PoolInternalV1beta) GetAllowAutoTiering() OptNilBool {
+	return s.AllowAutoTiering
+}
+
+// GetHotTierSizeInBytes returns the value of HotTierSizeInBytes.
+func (s *PoolInternalV1beta) GetHotTierSizeInBytes() OptNilFloat64 {
+	return s.HotTierSizeInBytes
+}
+
+// GetEnableHotTierAutoResize returns the value of EnableHotTierAutoResize.
+func (s *PoolInternalV1beta) GetEnableHotTierAutoResize() OptNilBool {
+	return s.EnableHotTierAutoResize
+}
+
+// GetHostUuid returns the value of HostUuid.
+func (s *PoolInternalV1beta) GetHostUuid() OptString {
+	return s.HostUuid
+}
+
+// GetSatisfiesPzi returns the value of SatisfiesPzi.
+func (s *PoolInternalV1beta) GetSatisfiesPzi() OptNilBool {
+	return s.SatisfiesPzi
+}
+
+// GetSatisfiesPzs returns the value of SatisfiesPzs.
+func (s *PoolInternalV1beta) GetSatisfiesPzs() OptNilBool {
+	return s.SatisfiesPzs
+}
+
+// GetAssetLocationMetadata returns the value of AssetLocationMetadata.
+func (s *PoolInternalV1beta) GetAssetLocationMetadata() OptNilPoolInternalV1betaAssetLocationMetadata {
+	return s.AssetLocationMetadata
+}
+
+// GetCustomPerformanceEnabled returns the value of CustomPerformanceEnabled.
+func (s *PoolInternalV1beta) GetCustomPerformanceEnabled() OptBool {
+	return s.CustomPerformanceEnabled
+}
+
+// GetTotalIops returns the value of TotalIops.
+func (s *PoolInternalV1beta) GetTotalIops() OptNilFloat64 {
+	return s.TotalIops
+}
+
+// GetUnifiedPool returns the value of UnifiedPool.
+func (s *PoolInternalV1beta) GetUnifiedPool() OptBool {
+	return s.UnifiedPool
+}
+
+// SetActiveDirectoryConfigId sets the value of ActiveDirectoryConfigId.
+func (s *PoolInternalV1beta) SetActiveDirectoryConfigId(val OptNilString) {
+	s.ActiveDirectoryConfigId = val
+}
+
+// SetActiveDirectoryResourceId sets the value of ActiveDirectoryResourceId.
+func (s *PoolInternalV1beta) SetActiveDirectoryResourceId(val OptString) {
+	s.ActiveDirectoryResourceId = val
+}
+
+// SetKmsConfigId sets the value of KmsConfigId.
+func (s *PoolInternalV1beta) SetKmsConfigId(val OptNilString) {
+	s.KmsConfigId = val
+}
+
+// SetKmsConfigResourceId sets the value of KmsConfigResourceId.
+func (s *PoolInternalV1beta) SetKmsConfigResourceId(val OptString) {
+	s.KmsConfigResourceId = val
+}
+
+// SetNetwork sets the value of Network.
+func (s *PoolInternalV1beta) SetNetwork(val string) {
+	s.Network = val
+}
+
+// SetPoolId sets the value of PoolId.
+func (s *PoolInternalV1beta) SetPoolId(val OptString) {
+	s.PoolId = val
+}
+
+// SetResourceId sets the value of ResourceId.
+func (s *PoolInternalV1beta) SetResourceId(val string) {
+	s.ResourceId = val
+}
+
+// SetServiceLevel sets the value of ServiceLevel.
+func (s *PoolInternalV1beta) SetServiceLevel(val PoolInternalV1betaServiceLevel) {
+	s.ServiceLevel = val
+}
+
+// SetQosType sets the value of QosType.
+func (s *PoolInternalV1beta) SetQosType(val OptNilString) {
+	s.QosType = val
+}
+
+// SetSizeInBytes sets the value of SizeInBytes.
+func (s *PoolInternalV1beta) SetSizeInBytes(val float64) {
+	s.SizeInBytes = val
+}
+
+// SetAllocatedBytes sets the value of AllocatedBytes.
+func (s *PoolInternalV1beta) SetAllocatedBytes(val OptNilFloat64) {
+	s.AllocatedBytes = val
+}
+
+// SetTotalThroughputMibps sets the value of TotalThroughputMibps.
+func (s *PoolInternalV1beta) SetTotalThroughputMibps(val OptNilFloat64) {
+	s.TotalThroughputMibps = val
+}
+
+// SetAvailableThroughputMibps sets the value of AvailableThroughputMibps.
+func (s *PoolInternalV1beta) SetAvailableThroughputMibps(val OptNilFloat64) {
+	s.AvailableThroughputMibps = val
+}
+
+// SetNumberOfVolumes sets the value of NumberOfVolumes.
+func (s *PoolInternalV1beta) SetNumberOfVolumes(val OptNilInt32) {
+	s.NumberOfVolumes = val
+}
+
+// SetStoragePoolState sets the value of StoragePoolState.
+func (s *PoolInternalV1beta) SetStoragePoolState(val OptPoolInternalV1betaStoragePoolState) {
+	s.StoragePoolState = val
+}
+
+// SetStoragePoolStateDetails sets the value of StoragePoolStateDetails.
+func (s *PoolInternalV1beta) SetStoragePoolStateDetails(val OptString) {
+	s.StoragePoolStateDetails = val
+}
+
+// SetCreatedAt sets the value of CreatedAt.
+func (s *PoolInternalV1beta) SetCreatedAt(val OptDateTime) {
+	s.CreatedAt = val
+}
+
+// SetUpdatedAt sets the value of UpdatedAt.
+func (s *PoolInternalV1beta) SetUpdatedAt(val OptDateTime) {
+	s.UpdatedAt = val
+}
+
+// SetDeletedAt sets the value of DeletedAt.
+func (s *PoolInternalV1beta) SetDeletedAt(val OptNilDateTime) {
+	s.DeletedAt = val
+}
+
+// SetStorageClass sets the value of StorageClass.
+func (s *PoolInternalV1beta) SetStorageClass(val OptStorageClassV1beta) {
+	s.StorageClass = val
+}
+
+// SetStateDetails sets the value of StateDetails.
+func (s *PoolInternalV1beta) SetStateDetails(val OptString) {
+	s.StateDetails = val
+}
+
+// SetDescription sets the value of Description.
+func (s *PoolInternalV1beta) SetDescription(val OptNilString) {
+	s.Description = val
+}
+
+// SetLdapEnabled sets the value of LdapEnabled.
+func (s *PoolInternalV1beta) SetLdapEnabled(val OptNilBool) {
+	s.LdapEnabled = val
+}
+
+// SetEncryptionType sets the value of EncryptionType.
+func (s *PoolInternalV1beta) SetEncryptionType(val OptPoolInternalV1betaEncryptionType) {
+	s.EncryptionType = val
+}
+
+// SetZone sets the value of Zone.
+func (s *PoolInternalV1beta) SetZone(val OptString) {
+	s.Zone = val
+}
+
+// SetSecondaryZone sets the value of SecondaryZone.
+func (s *PoolInternalV1beta) SetSecondaryZone(val OptString) {
+	s.SecondaryZone = val
+}
+
+// SetGlobalAccessAllowed sets the value of GlobalAccessAllowed.
+func (s *PoolInternalV1beta) SetGlobalAccessAllowed(val OptNilBool) {
+	s.GlobalAccessAllowed = val
+}
+
+// SetLabels sets the value of Labels.
+func (s *PoolInternalV1beta) SetLabels(val OptPoolInternalV1betaLabels) {
+	s.Labels = val
+}
+
+// SetAllowAutoTiering sets the value of AllowAutoTiering.
+func (s *PoolInternalV1beta) SetAllowAutoTiering(val OptNilBool) {
+	s.AllowAutoTiering = val
+}
+
+// SetHotTierSizeInBytes sets the value of HotTierSizeInBytes.
+func (s *PoolInternalV1beta) SetHotTierSizeInBytes(val OptNilFloat64) {
+	s.HotTierSizeInBytes = val
+}
+
+// SetEnableHotTierAutoResize sets the value of EnableHotTierAutoResize.
+func (s *PoolInternalV1beta) SetEnableHotTierAutoResize(val OptNilBool) {
+	s.EnableHotTierAutoResize = val
+}
+
+// SetHostUuid sets the value of HostUuid.
+func (s *PoolInternalV1beta) SetHostUuid(val OptString) {
+	s.HostUuid = val
+}
+
+// SetSatisfiesPzi sets the value of SatisfiesPzi.
+func (s *PoolInternalV1beta) SetSatisfiesPzi(val OptNilBool) {
+	s.SatisfiesPzi = val
+}
+
+// SetSatisfiesPzs sets the value of SatisfiesPzs.
+func (s *PoolInternalV1beta) SetSatisfiesPzs(val OptNilBool) {
+	s.SatisfiesPzs = val
+}
+
+// SetAssetLocationMetadata sets the value of AssetLocationMetadata.
+func (s *PoolInternalV1beta) SetAssetLocationMetadata(val OptNilPoolInternalV1betaAssetLocationMetadata) {
+	s.AssetLocationMetadata = val
+}
+
+// SetCustomPerformanceEnabled sets the value of CustomPerformanceEnabled.
+func (s *PoolInternalV1beta) SetCustomPerformanceEnabled(val OptBool) {
+	s.CustomPerformanceEnabled = val
+}
+
+// SetTotalIops sets the value of TotalIops.
+func (s *PoolInternalV1beta) SetTotalIops(val OptNilFloat64) {
+	s.TotalIops = val
+}
+
+// SetUnifiedPool sets the value of UnifiedPool.
+func (s *PoolInternalV1beta) SetUnifiedPool(val OptBool) {
+	s.UnifiedPool = val
+}
+
+func (*PoolInternalV1beta) v1betaInternalDescribePoolRes() {}
+
+type PoolInternalV1betaAssetLocationMetadata struct {
+	ChildAssets OptNilChildAssetArray `json:"child_assets"`
+}
+
+// GetChildAssets returns the value of ChildAssets.
+func (s *PoolInternalV1betaAssetLocationMetadata) GetChildAssets() OptNilChildAssetArray {
+	return s.ChildAssets
+}
+
+// SetChildAssets sets the value of ChildAssets.
+func (s *PoolInternalV1betaAssetLocationMetadata) SetChildAssets(val OptNilChildAssetArray) {
+	s.ChildAssets = val
+}
+
+// Type of encryption used for pool, Can either service managed key (service_managed) or cloud_kms.
+type PoolInternalV1betaEncryptionType string
+
+const (
+	PoolInternalV1betaEncryptionTypeSERVICEMANAGED PoolInternalV1betaEncryptionType = "SERVICE_MANAGED"
+	PoolInternalV1betaEncryptionTypeCLOUDKMS       PoolInternalV1betaEncryptionType = "CLOUD_KMS"
+)
+
+// AllValues returns all PoolInternalV1betaEncryptionType values.
+func (PoolInternalV1betaEncryptionType) AllValues() []PoolInternalV1betaEncryptionType {
+	return []PoolInternalV1betaEncryptionType{
+		PoolInternalV1betaEncryptionTypeSERVICEMANAGED,
+		PoolInternalV1betaEncryptionTypeCLOUDKMS,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s PoolInternalV1betaEncryptionType) MarshalText() ([]byte, error) {
+	switch s {
+	case PoolInternalV1betaEncryptionTypeSERVICEMANAGED:
+		return []byte(s), nil
+	case PoolInternalV1betaEncryptionTypeCLOUDKMS:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *PoolInternalV1betaEncryptionType) UnmarshalText(data []byte) error {
+	switch PoolInternalV1betaEncryptionType(data) {
+	case PoolInternalV1betaEncryptionTypeSERVICEMANAGED:
+		*s = PoolInternalV1betaEncryptionTypeSERVICEMANAGED
+		return nil
+	case PoolInternalV1betaEncryptionTypeCLOUDKMS:
+		*s = PoolInternalV1betaEncryptionTypeCLOUDKMS
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// JSON dictionary of resource labels to allow linking of billing labels to a pool.
+type PoolInternalV1betaLabels map[string]string
+
+func (s *PoolInternalV1betaLabels) init() PoolInternalV1betaLabels {
+	m := *s
+	if m == nil {
+		m = map[string]string{}
+		*s = m
+	}
+	return m
+}
+
+// The service level of the storage pool can either be premium, standard, flex or extreme.
+type PoolInternalV1betaServiceLevel string
+
+const (
+	PoolInternalV1betaServiceLevelSERVICELEVELUNSPECIFIED PoolInternalV1betaServiceLevel = "SERVICE_LEVEL_UNSPECIFIED"
+	PoolInternalV1betaServiceLevelFLEX                    PoolInternalV1betaServiceLevel = "FLEX"
+	PoolInternalV1betaServiceLevelSTANDARD                PoolInternalV1betaServiceLevel = "STANDARD"
+	PoolInternalV1betaServiceLevelPREMIUM                 PoolInternalV1betaServiceLevel = "PREMIUM"
+	PoolInternalV1betaServiceLevelEXTREME                 PoolInternalV1betaServiceLevel = "EXTREME"
+)
+
+// AllValues returns all PoolInternalV1betaServiceLevel values.
+func (PoolInternalV1betaServiceLevel) AllValues() []PoolInternalV1betaServiceLevel {
+	return []PoolInternalV1betaServiceLevel{
+		PoolInternalV1betaServiceLevelSERVICELEVELUNSPECIFIED,
+		PoolInternalV1betaServiceLevelFLEX,
+		PoolInternalV1betaServiceLevelSTANDARD,
+		PoolInternalV1betaServiceLevelPREMIUM,
+		PoolInternalV1betaServiceLevelEXTREME,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s PoolInternalV1betaServiceLevel) MarshalText() ([]byte, error) {
+	switch s {
+	case PoolInternalV1betaServiceLevelSERVICELEVELUNSPECIFIED:
+		return []byte(s), nil
+	case PoolInternalV1betaServiceLevelFLEX:
+		return []byte(s), nil
+	case PoolInternalV1betaServiceLevelSTANDARD:
+		return []byte(s), nil
+	case PoolInternalV1betaServiceLevelPREMIUM:
+		return []byte(s), nil
+	case PoolInternalV1betaServiceLevelEXTREME:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *PoolInternalV1betaServiceLevel) UnmarshalText(data []byte) error {
+	switch PoolInternalV1betaServiceLevel(data) {
+	case PoolInternalV1betaServiceLevelSERVICELEVELUNSPECIFIED:
+		*s = PoolInternalV1betaServiceLevelSERVICELEVELUNSPECIFIED
+		return nil
+	case PoolInternalV1betaServiceLevelFLEX:
+		*s = PoolInternalV1betaServiceLevelFLEX
+		return nil
+	case PoolInternalV1betaServiceLevelSTANDARD:
+		*s = PoolInternalV1betaServiceLevelSTANDARD
+		return nil
+	case PoolInternalV1betaServiceLevelPREMIUM:
+		*s = PoolInternalV1betaServiceLevelPREMIUM
+		return nil
+	case PoolInternalV1betaServiceLevelEXTREME:
+		*s = PoolInternalV1betaServiceLevelEXTREME
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// The current lifecycle state of the resource.
+type PoolInternalV1betaStoragePoolState string
+
+const (
+	PoolInternalV1betaStoragePoolStateSTATEUNSPECIFIED PoolInternalV1betaStoragePoolState = "STATE_UNSPECIFIED"
+	PoolInternalV1betaStoragePoolStateCREATING         PoolInternalV1betaStoragePoolState = "CREATING"
+	PoolInternalV1betaStoragePoolStateREADY            PoolInternalV1betaStoragePoolState = "READY"
+	PoolInternalV1betaStoragePoolStateUPDATING         PoolInternalV1betaStoragePoolState = "UPDATING"
+	PoolInternalV1betaStoragePoolStateRESTORING        PoolInternalV1betaStoragePoolState = "RESTORING"
+	PoolInternalV1betaStoragePoolStateDISABLED         PoolInternalV1betaStoragePoolState = "DISABLED"
+	PoolInternalV1betaStoragePoolStateDELETING         PoolInternalV1betaStoragePoolState = "DELETING"
+	PoolInternalV1betaStoragePoolStateERROR            PoolInternalV1betaStoragePoolState = "ERROR"
+)
+
+// AllValues returns all PoolInternalV1betaStoragePoolState values.
+func (PoolInternalV1betaStoragePoolState) AllValues() []PoolInternalV1betaStoragePoolState {
+	return []PoolInternalV1betaStoragePoolState{
+		PoolInternalV1betaStoragePoolStateSTATEUNSPECIFIED,
+		PoolInternalV1betaStoragePoolStateCREATING,
+		PoolInternalV1betaStoragePoolStateREADY,
+		PoolInternalV1betaStoragePoolStateUPDATING,
+		PoolInternalV1betaStoragePoolStateRESTORING,
+		PoolInternalV1betaStoragePoolStateDISABLED,
+		PoolInternalV1betaStoragePoolStateDELETING,
+		PoolInternalV1betaStoragePoolStateERROR,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s PoolInternalV1betaStoragePoolState) MarshalText() ([]byte, error) {
+	switch s {
+	case PoolInternalV1betaStoragePoolStateSTATEUNSPECIFIED:
+		return []byte(s), nil
+	case PoolInternalV1betaStoragePoolStateCREATING:
+		return []byte(s), nil
+	case PoolInternalV1betaStoragePoolStateREADY:
+		return []byte(s), nil
+	case PoolInternalV1betaStoragePoolStateUPDATING:
+		return []byte(s), nil
+	case PoolInternalV1betaStoragePoolStateRESTORING:
+		return []byte(s), nil
+	case PoolInternalV1betaStoragePoolStateDISABLED:
+		return []byte(s), nil
+	case PoolInternalV1betaStoragePoolStateDELETING:
+		return []byte(s), nil
+	case PoolInternalV1betaStoragePoolStateERROR:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *PoolInternalV1betaStoragePoolState) UnmarshalText(data []byte) error {
+	switch PoolInternalV1betaStoragePoolState(data) {
+	case PoolInternalV1betaStoragePoolStateSTATEUNSPECIFIED:
+		*s = PoolInternalV1betaStoragePoolStateSTATEUNSPECIFIED
+		return nil
+	case PoolInternalV1betaStoragePoolStateCREATING:
+		*s = PoolInternalV1betaStoragePoolStateCREATING
+		return nil
+	case PoolInternalV1betaStoragePoolStateREADY:
+		*s = PoolInternalV1betaStoragePoolStateREADY
+		return nil
+	case PoolInternalV1betaStoragePoolStateUPDATING:
+		*s = PoolInternalV1betaStoragePoolStateUPDATING
+		return nil
+	case PoolInternalV1betaStoragePoolStateRESTORING:
+		*s = PoolInternalV1betaStoragePoolStateRESTORING
+		return nil
+	case PoolInternalV1betaStoragePoolStateDISABLED:
+		*s = PoolInternalV1betaStoragePoolStateDISABLED
+		return nil
+	case PoolInternalV1betaStoragePoolStateDELETING:
+		*s = PoolInternalV1betaStoragePoolStateDELETING
+		return nil
+	case PoolInternalV1betaStoragePoolStateERROR:
+		*s = PoolInternalV1betaStoragePoolStateERROR
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
 // Ref: #/components/schemas/PoolUpdate_v1beta
 type PoolUpdateV1beta struct {
 	// Maximum size allowed for a pool in bytes.
@@ -10215,8 +11094,7 @@ func (s *PoolV1beta) SetUnifiedPool(val OptBool) {
 	s.UnifiedPool = val
 }
 
-func (*PoolV1beta) v1betaDescribePoolRes()         {}
-func (*PoolV1beta) v1betaInternalDescribePoolRes() {}
+func (*PoolV1beta) v1betaDescribePoolRes() {}
 
 type PoolV1betaAssetLocationMetadata struct {
 	ChildAssets OptNilChildAssetArray `json:"child_assets"`

@@ -22,11 +22,12 @@ func TestCreateVolume_Success(t *testing.T) {
 	rc := &OntapRestProvider{}
 
 	volumeName := "testVolume"
+	volSpace := int64(1024)
 	params := CreateVolumeParams{
 		VolumeName:    volumeName,
 		SvmName:       "testSVM",
 		AggregateName: "testAggregate",
-		Size:          int64(1024),
+		Size:          volSpace,
 		VolumeType:    "rw",
 	}
 
@@ -38,6 +39,9 @@ func TestCreateVolume_Success(t *testing.T) {
 		Volume: models.Volume{
 			UUID: nillable.ToPointer("testUUID"),
 			Name: &volumeName,
+			Space: &models.VolumeInlineSpace{
+				Available: &volSpace,
+			},
 		},
 	}
 

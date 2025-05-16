@@ -170,7 +170,7 @@ func _getPoolWithDetails(db *gorm.DB, query *datamodel.Pool) (*datamodel.Pool, e
 	err := db.Preload("Account").First(&pool, query).Error
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, customerrors.NewNotFoundErr("pool not found", nil)
+			return nil, customerrors.NewNotFoundErr("pool", nil)
 		}
 		return nil, err
 	}

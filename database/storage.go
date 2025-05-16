@@ -82,7 +82,15 @@ func SetupInMemoryDB() (*gorm.DB, error) {
 	}
 
 	// Perform any necessary migrations or setup here
-	err = db.AutoMigrate(&datamodel.Pool{}, &datamodel.Volume{}, &datamodel.Account{}, &datamodel.Svm{}, &datamodel.Node{})
+	err = db.AutoMigrate(&datamodel.Pool{},
+		&datamodel.Volume{},
+		&datamodel.Account{},
+		&datamodel.Svm{},
+		&datamodel.Node{},
+		&datamodel.Lif{},
+		&datamodel.HostGroup{},
+		&datamodel.Job{},
+	)
 	if err != nil {
 		return nil, err
 	}

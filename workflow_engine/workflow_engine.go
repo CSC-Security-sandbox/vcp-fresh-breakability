@@ -21,3 +21,8 @@ type WorkflowEngine interface {
 	RunWorker(ctx context.Context, client client.Client) error
 	CloseClient(client client.Client)
 }
+
+// TemporalTestClient is an interface that extends the client.Client interface for testing purposes.
+type TemporalTestClient interface {
+	client.Client
+}

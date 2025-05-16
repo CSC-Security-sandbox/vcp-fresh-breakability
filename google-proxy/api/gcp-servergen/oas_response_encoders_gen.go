@@ -7034,7 +7034,7 @@ func encodeV1betaInternalDeleteVolumeReplicationResponse(response V1betaInternal
 
 func encodeV1betaInternalDescribePoolResponse(response V1betaInternalDescribePoolRes, w http.ResponseWriter, span trace.Span) error {
 	switch response := response.(type) {
-	case *PoolV1beta:
+	case *PoolInternalV1beta:
 		if err := func() error {
 			if err := response.Validate(); err != nil {
 				return err

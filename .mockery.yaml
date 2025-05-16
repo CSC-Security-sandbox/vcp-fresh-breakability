@@ -55,6 +55,9 @@ packages:
     config:
       inpackage: True
       dir: "{{.InterfaceDir}}"
+      replace-type:
+        - "go.temporal.io/sdk/internal=go.temporal.io/sdk/client"
     interfaces:
       ClientConfig:
       WorkflowEngine:
+      TemporalTestClient:

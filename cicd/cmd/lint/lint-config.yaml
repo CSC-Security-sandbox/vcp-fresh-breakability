@@ -27,3 +27,4 @@ run:
   skip-files:
     - workflow_engine/workflow_engine_mock.go
     - workflow_engine/client_config_mock.go
+    - workflow_engine/temporal_test_client_mock.go

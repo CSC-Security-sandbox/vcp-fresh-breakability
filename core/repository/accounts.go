@@ -26,7 +26,7 @@ func getAccount(db *gorm.DB, query *datamodel.Account) (*datamodel.Account, erro
 	err := db.First(&account, query).Error
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, customerrors.NewNotFoundErr("account not found", nil)
+			return nil, customerrors.NewNotFoundErr("account", nil)
 		}
 		return nil, err
 	}

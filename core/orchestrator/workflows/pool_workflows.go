@@ -8,17 +8,11 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database"
 	gcpgenserver "github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/api/gcp-servergen"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 	"go.temporal.io/sdk/temporal"
 	"go.temporal.io/sdk/workflow"
 	"netapp.com/vsa/lifecycle-manager/pkg/vlmconfig"
-)
-
-var (
-	waitTimeVSADeployment = env.GetUint64("VSA_DEPLOYMENT_TIMEOUT_MIN", 20)
-	pollInterval          = env.GetUint64("VSA_DEPLOYMENT_POLL_INTERVAL_SEC", 30)
 )
 
 type PoolWorkflow struct {

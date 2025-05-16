@@ -10336,6 +10336,55 @@ func (s *OptNilInt64) UnmarshalJSON(data []byte) error {
 	return s.Decode(d)
 }
 
+// Encode encodes PoolInternalV1betaAssetLocationMetadata as json.
+func (o OptNilPoolInternalV1betaAssetLocationMetadata) Encode(e *jx.Encoder) {
+	if !o.Set {
+		return
+	}
+	if o.Null {
+		e.Null()
+		return
+	}
+	o.Value.Encode(e)
+}
+
+// Decode decodes PoolInternalV1betaAssetLocationMetadata from json.
+func (o *OptNilPoolInternalV1betaAssetLocationMetadata) Decode(d *jx.Decoder) error {
+	if o == nil {
+		return errors.New("invalid: unable to decode OptNilPoolInternalV1betaAssetLocationMetadata to nil")
+	}
+	if d.Next() == jx.Null {
+		if err := d.Null(); err != nil {
+			return err
+		}
+
+		var v PoolInternalV1betaAssetLocationMetadata
+		o.Value = v
+		o.Set = true
+		o.Null = true
+		return nil
+	}
+	o.Set = true
+	o.Null = false
+	if err := o.Value.Decode(d); err != nil {
+		return err
+	}
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s OptNilPoolInternalV1betaAssetLocationMetadata) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *OptNilPoolInternalV1betaAssetLocationMetadata) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
 // Encode encodes PoolV1betaAssetLocationMetadata as json.
 func (o OptNilPoolV1betaAssetLocationMetadata) Encode(e *jx.Encoder) {
 	if !o.Set {
@@ -10642,6 +10691,106 @@ func (s OptNilVolumeReplicationUpdateInternalV1betaReplicationSchedule) MarshalJ
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
 func (s *OptNilVolumeReplicationUpdateInternalV1betaReplicationSchedule) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes PoolInternalV1betaEncryptionType as json.
+func (o OptPoolInternalV1betaEncryptionType) Encode(e *jx.Encoder) {
+	if !o.Set {
+		return
+	}
+	e.Str(string(o.Value))
+}
+
+// Decode decodes PoolInternalV1betaEncryptionType from json.
+func (o *OptPoolInternalV1betaEncryptionType) Decode(d *jx.Decoder) error {
+	if o == nil {
+		return errors.New("invalid: unable to decode OptPoolInternalV1betaEncryptionType to nil")
+	}
+	o.Set = true
+	if err := o.Value.Decode(d); err != nil {
+		return err
+	}
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s OptPoolInternalV1betaEncryptionType) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *OptPoolInternalV1betaEncryptionType) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes PoolInternalV1betaLabels as json.
+func (o OptPoolInternalV1betaLabels) Encode(e *jx.Encoder) {
+	if !o.Set {
+		return
+	}
+	o.Value.Encode(e)
+}
+
+// Decode decodes PoolInternalV1betaLabels from json.
+func (o *OptPoolInternalV1betaLabels) Decode(d *jx.Decoder) error {
+	if o == nil {
+		return errors.New("invalid: unable to decode OptPoolInternalV1betaLabels to nil")
+	}
+	o.Set = true
+	o.Value = make(PoolInternalV1betaLabels)
+	if err := o.Value.Decode(d); err != nil {
+		return err
+	}
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s OptPoolInternalV1betaLabels) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *OptPoolInternalV1betaLabels) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes PoolInternalV1betaStoragePoolState as json.
+func (o OptPoolInternalV1betaStoragePoolState) Encode(e *jx.Encoder) {
+	if !o.Set {
+		return
+	}
+	e.Str(string(o.Value))
+}
+
+// Decode decodes PoolInternalV1betaStoragePoolState from json.
+func (o *OptPoolInternalV1betaStoragePoolState) Decode(d *jx.Decoder) error {
+	if o == nil {
+		return errors.New("invalid: unable to decode OptPoolInternalV1betaStoragePoolState to nil")
+	}
+	o.Set = true
+	if err := o.Value.Decode(d); err != nil {
+		return err
+	}
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s OptPoolInternalV1betaStoragePoolState) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *OptPoolInternalV1betaStoragePoolState) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }
@@ -12280,6 +12429,991 @@ func (s *PoolIdListV1beta) MarshalJSON() ([]byte, error) {
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
 func (s *PoolIdListV1beta) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode implements json.Marshaler.
+func (s *PoolInternalV1beta) Encode(e *jx.Encoder) {
+	e.ObjStart()
+	s.encodeFields(e)
+	e.ObjEnd()
+}
+
+// encodeFields encodes fields.
+func (s *PoolInternalV1beta) encodeFields(e *jx.Encoder) {
+	{
+		if s.ActiveDirectoryConfigId.Set {
+			e.FieldStart("activeDirectoryConfigId")
+			s.ActiveDirectoryConfigId.Encode(e)
+		}
+	}
+	{
+		if s.ActiveDirectoryResourceId.Set {
+			e.FieldStart("activeDirectoryResourceId")
+			s.ActiveDirectoryResourceId.Encode(e)
+		}
+	}
+	{
+		if s.KmsConfigId.Set {
+			e.FieldStart("kmsConfigId")
+			s.KmsConfigId.Encode(e)
+		}
+	}
+	{
+		if s.KmsConfigResourceId.Set {
+			e.FieldStart("kmsConfigResourceId")
+			s.KmsConfigResourceId.Encode(e)
+		}
+	}
+	{
+		e.FieldStart("network")
+		e.Str(s.Network)
+	}
+	{
+		if s.PoolId.Set {
+			e.FieldStart("poolId")
+			s.PoolId.Encode(e)
+		}
+	}
+	{
+		e.FieldStart("resourceId")
+		e.Str(s.ResourceId)
+	}
+	{
+		e.FieldStart("serviceLevel")
+		s.ServiceLevel.Encode(e)
+	}
+	{
+		if s.QosType.Set {
+			e.FieldStart("qosType")
+			s.QosType.Encode(e)
+		}
+	}
+	{
+		e.FieldStart("sizeInBytes")
+		e.Float64(s.SizeInBytes)
+	}
+	{
+		if s.AllocatedBytes.Set {
+			e.FieldStart("allocatedBytes")
+			s.AllocatedBytes.Encode(e)
+		}
+	}
+	{
+		if s.TotalThroughputMibps.Set {
+			e.FieldStart("totalThroughputMibps")
+			s.TotalThroughputMibps.Encode(e)
+		}
+	}
+	{
+		if s.AvailableThroughputMibps.Set {
+			e.FieldStart("availableThroughputMibps")
+			s.AvailableThroughputMibps.Encode(e)
+		}
+	}
+	{
+		if s.NumberOfVolumes.Set {
+			e.FieldStart("numberOfVolumes")
+			s.NumberOfVolumes.Encode(e)
+		}
+	}
+	{
+		if s.StoragePoolState.Set {
+			e.FieldStart("storagePoolState")
+			s.StoragePoolState.Encode(e)
+		}
+	}
+	{
+		if s.StoragePoolStateDetails.Set {
+			e.FieldStart("storagePoolStateDetails")
+			s.StoragePoolStateDetails.Encode(e)
+		}
+	}
+	{
+		if s.CreatedAt.Set {
+			e.FieldStart("createdAt")
+			s.CreatedAt.Encode(e, json.EncodeDateTime)
+		}
+	}
+	{
+		if s.UpdatedAt.Set {
+			e.FieldStart("updatedAt")
+			s.UpdatedAt.Encode(e, json.EncodeDateTime)
+		}
+	}
+	{
+		if s.DeletedAt.Set {
+			e.FieldStart("deletedAt")
+			s.DeletedAt.Encode(e, json.EncodeDateTime)
+		}
+	}
+	{
+		if s.StorageClass.Set {
+			e.FieldStart("storageClass")
+			s.StorageClass.Encode(e)
+		}
+	}
+	{
+		if s.StateDetails.Set {
+			e.FieldStart("stateDetails")
+			s.StateDetails.Encode(e)
+		}
+	}
+	{
+		if s.Description.Set {
+			e.FieldStart("description")
+			s.Description.Encode(e)
+		}
+	}
+	{
+		if s.LdapEnabled.Set {
+			e.FieldStart("ldapEnabled")
+			s.LdapEnabled.Encode(e)
+		}
+	}
+	{
+		if s.EncryptionType.Set {
+			e.FieldStart("encryptionType")
+			s.EncryptionType.Encode(e)
+		}
+	}
+	{
+		if s.Zone.Set {
+			e.FieldStart("zone")
+			s.Zone.Encode(e)
+		}
+	}
+	{
+		if s.SecondaryZone.Set {
+			e.FieldStart("secondaryZone")
+			s.SecondaryZone.Encode(e)
+		}
+	}
+	{
+		if s.GlobalAccessAllowed.Set {
+			e.FieldStart("globalAccessAllowed")
+			s.GlobalAccessAllowed.Encode(e)
+		}
+	}
+	{
+		if s.Labels.Set {
+			e.FieldStart("labels")
+			s.Labels.Encode(e)
+		}
+	}
+	{
+		if s.AllowAutoTiering.Set {
+			e.FieldStart("allowAutoTiering")
+			s.AllowAutoTiering.Encode(e)
+		}
+	}
+	{
+		if s.HotTierSizeInBytes.Set {
+			e.FieldStart("hotTierSizeInBytes")
+			s.HotTierSizeInBytes.Encode(e)
+		}
+	}
+	{
+		if s.EnableHotTierAutoResize.Set {
+			e.FieldStart("enableHotTierAutoResize")
+			s.EnableHotTierAutoResize.Encode(e)
+		}
+	}
+	{
+		if s.HostUuid.Set {
+			e.FieldStart("hostUuid")
+			s.HostUuid.Encode(e)
+		}
+	}
+	{
+		if s.SatisfiesPzi.Set {
+			e.FieldStart("satisfies_pzi")
+			s.SatisfiesPzi.Encode(e)
+		}
+	}
+	{
+		if s.SatisfiesPzs.Set {
+			e.FieldStart("satisfies_pzs")
+			s.SatisfiesPzs.Encode(e)
+		}
+	}
+	{
+		if s.AssetLocationMetadata.Set {
+			e.FieldStart("assetLocationMetadata")
+			s.AssetLocationMetadata.Encode(e)
+		}
+	}
+	{
+		if s.CustomPerformanceEnabled.Set {
+			e.FieldStart("customPerformanceEnabled")
+			s.CustomPerformanceEnabled.Encode(e)
+		}
+	}
+	{
+		if s.TotalIops.Set {
+			e.FieldStart("totalIops")
+			s.TotalIops.Encode(e)
+		}
+	}
+	{
+		if s.UnifiedPool.Set {
+			e.FieldStart("unifiedPool")
+			s.UnifiedPool.Encode(e)
+		}
+	}
+}
+
+var jsonFieldsNameOfPoolInternalV1beta = [38]string{
+	0:  "activeDirectoryConfigId",
+	1:  "activeDirectoryResourceId",
+	2:  "kmsConfigId",
+	3:  "kmsConfigResourceId",
+	4:  "network",
+	5:  "poolId",
+	6:  "resourceId",
+	7:  "serviceLevel",
+	8:  "qosType",
+	9:  "sizeInBytes",
+	10: "allocatedBytes",
+	11: "totalThroughputMibps",
+	12: "availableThroughputMibps",
+	13: "numberOfVolumes",
+	14: "storagePoolState",
+	15: "storagePoolStateDetails",
+	16: "createdAt",
+	17: "updatedAt",
+	18: "deletedAt",
+	19: "storageClass",
+	20: "stateDetails",
+	21: "description",
+	22: "ldapEnabled",
+	23: "encryptionType",
+	24: "zone",
+	25: "secondaryZone",
+	26: "globalAccessAllowed",
+	27: "labels",
+	28: "allowAutoTiering",
+	29: "hotTierSizeInBytes",
+	30: "enableHotTierAutoResize",
+	31: "hostUuid",
+	32: "satisfies_pzi",
+	33: "satisfies_pzs",
+	34: "assetLocationMetadata",
+	35: "customPerformanceEnabled",
+	36: "totalIops",
+	37: "unifiedPool",
+}
+
+// Decode decodes PoolInternalV1beta from json.
+func (s *PoolInternalV1beta) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode PoolInternalV1beta to nil")
+	}
+	var requiredBitSet [5]uint8
+	s.setDefaults()
+
+	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
+		switch string(k) {
+		case "activeDirectoryConfigId":
+			if err := func() error {
+				s.ActiveDirectoryConfigId.Reset()
+				if err := s.ActiveDirectoryConfigId.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"activeDirectoryConfigId\"")
+			}
+		case "activeDirectoryResourceId":
+			if err := func() error {
+				s.ActiveDirectoryResourceId.Reset()
+				if err := s.ActiveDirectoryResourceId.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"activeDirectoryResourceId\"")
+			}
+		case "kmsConfigId":
+			if err := func() error {
+				s.KmsConfigId.Reset()
+				if err := s.KmsConfigId.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"kmsConfigId\"")
+			}
+		case "kmsConfigResourceId":
+			if err := func() error {
+				s.KmsConfigResourceId.Reset()
+				if err := s.KmsConfigResourceId.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"kmsConfigResourceId\"")
+			}
+		case "network":
+			requiredBitSet[0] |= 1 << 4
+			if err := func() error {
+				v, err := d.Str()
+				s.Network = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"network\"")
+			}
+		case "poolId":
+			if err := func() error {
+				s.PoolId.Reset()
+				if err := s.PoolId.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"poolId\"")
+			}
+		case "resourceId":
+			requiredBitSet[0] |= 1 << 6
+			if err := func() error {
+				v, err := d.Str()
+				s.ResourceId = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"resourceId\"")
+			}
+		case "serviceLevel":
+			requiredBitSet[0] |= 1 << 7
+			if err := func() error {
+				if err := s.ServiceLevel.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"serviceLevel\"")
+			}
+		case "qosType":
+			if err := func() error {
+				s.QosType.Reset()
+				if err := s.QosType.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"qosType\"")
+			}
+		case "sizeInBytes":
+			requiredBitSet[1] |= 1 << 1
+			if err := func() error {
+				v, err := d.Float64()
+				s.SizeInBytes = float64(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"sizeInBytes\"")
+			}
+		case "allocatedBytes":
+			if err := func() error {
+				s.AllocatedBytes.Reset()
+				if err := s.AllocatedBytes.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"allocatedBytes\"")
+			}
+		case "totalThroughputMibps":
+			if err := func() error {
+				s.TotalThroughputMibps.Reset()
+				if err := s.TotalThroughputMibps.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"totalThroughputMibps\"")
+			}
+		case "availableThroughputMibps":
+			if err := func() error {
+				s.AvailableThroughputMibps.Reset()
+				if err := s.AvailableThroughputMibps.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"availableThroughputMibps\"")
+			}
+		case "numberOfVolumes":
+			if err := func() error {
+				s.NumberOfVolumes.Reset()
+				if err := s.NumberOfVolumes.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"numberOfVolumes\"")
+			}
+		case "storagePoolState":
+			if err := func() error {
+				s.StoragePoolState.Reset()
+				if err := s.StoragePoolState.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"storagePoolState\"")
+			}
+		case "storagePoolStateDetails":
+			if err := func() error {
+				s.StoragePoolStateDetails.Reset()
+				if err := s.StoragePoolStateDetails.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"storagePoolStateDetails\"")
+			}
+		case "createdAt":
+			if err := func() error {
+				s.CreatedAt.Reset()
+				if err := s.CreatedAt.Decode(d, json.DecodeDateTime); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"createdAt\"")
+			}
+		case "updatedAt":
+			if err := func() error {
+				s.UpdatedAt.Reset()
+				if err := s.UpdatedAt.Decode(d, json.DecodeDateTime); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"updatedAt\"")
+			}
+		case "deletedAt":
+			if err := func() error {
+				s.DeletedAt.Reset()
+				if err := s.DeletedAt.Decode(d, json.DecodeDateTime); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"deletedAt\"")
+			}
+		case "storageClass":
+			if err := func() error {
+				s.StorageClass.Reset()
+				if err := s.StorageClass.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"storageClass\"")
+			}
+		case "stateDetails":
+			if err := func() error {
+				s.StateDetails.Reset()
+				if err := s.StateDetails.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"stateDetails\"")
+			}
+		case "description":
+			if err := func() error {
+				s.Description.Reset()
+				if err := s.Description.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"description\"")
+			}
+		case "ldapEnabled":
+			if err := func() error {
+				s.LdapEnabled.Reset()
+				if err := s.LdapEnabled.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"ldapEnabled\"")
+			}
+		case "encryptionType":
+			if err := func() error {
+				s.EncryptionType.Reset()
+				if err := s.EncryptionType.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"encryptionType\"")
+			}
+		case "zone":
+			if err := func() error {
+				s.Zone.Reset()
+				if err := s.Zone.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"zone\"")
+			}
+		case "secondaryZone":
+			if err := func() error {
+				s.SecondaryZone.Reset()
+				if err := s.SecondaryZone.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"secondaryZone\"")
+			}
+		case "globalAccessAllowed":
+			if err := func() error {
+				s.GlobalAccessAllowed.Reset()
+				if err := s.GlobalAccessAllowed.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"globalAccessAllowed\"")
+			}
+		case "labels":
+			if err := func() error {
+				s.Labels.Reset()
+				if err := s.Labels.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"labels\"")
+			}
+		case "allowAutoTiering":
+			if err := func() error {
+				s.AllowAutoTiering.Reset()
+				if err := s.AllowAutoTiering.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"allowAutoTiering\"")
+			}
+		case "hotTierSizeInBytes":
+			if err := func() error {
+				s.HotTierSizeInBytes.Reset()
+				if err := s.HotTierSizeInBytes.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"hotTierSizeInBytes\"")
+			}
+		case "enableHotTierAutoResize":
+			if err := func() error {
+				s.EnableHotTierAutoResize.Reset()
+				if err := s.EnableHotTierAutoResize.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"enableHotTierAutoResize\"")
+			}
+		case "hostUuid":
+			if err := func() error {
+				s.HostUuid.Reset()
+				if err := s.HostUuid.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"hostUuid\"")
+			}
+		case "satisfies_pzi":
+			if err := func() error {
+				s.SatisfiesPzi.Reset()
+				if err := s.SatisfiesPzi.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"satisfies_pzi\"")
+			}
+		case "satisfies_pzs":
+			if err := func() error {
+				s.SatisfiesPzs.Reset()
+				if err := s.SatisfiesPzs.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"satisfies_pzs\"")
+			}
+		case "assetLocationMetadata":
+			if err := func() error {
+				s.AssetLocationMetadata.Reset()
+				if err := s.AssetLocationMetadata.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"assetLocationMetadata\"")
+			}
+		case "customPerformanceEnabled":
+			if err := func() error {
+				s.CustomPerformanceEnabled.Reset()
+				if err := s.CustomPerformanceEnabled.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"customPerformanceEnabled\"")
+			}
+		case "totalIops":
+			if err := func() error {
+				s.TotalIops.Reset()
+				if err := s.TotalIops.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"totalIops\"")
+			}
+		case "unifiedPool":
+			if err := func() error {
+				s.UnifiedPool.Reset()
+				if err := s.UnifiedPool.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"unifiedPool\"")
+			}
+		default:
+			return d.Skip()
+		}
+		return nil
+	}); err != nil {
+		return errors.Wrap(err, "decode PoolInternalV1beta")
+	}
+	// Validate required fields.
+	var failures []validate.FieldError
+	for i, mask := range [5]uint8{
+		0b11010000,
+		0b00000010,
+		0b00000000,
+		0b00000000,
+		0b00000000,
+	} {
+		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
+			// Mask only required fields and check equality to mask using XOR.
+			//
+			// If XOR result is not zero, result is not equal to expected, so some fields are missed.
+			// Bits of fields which would be set are actually bits of missed fields.
+			missed := bits.OnesCount8(result)
+			for bitN := 0; bitN < missed; bitN++ {
+				bitIdx := bits.TrailingZeros8(result)
+				fieldIdx := i*8 + bitIdx
+				var name string
+				if fieldIdx < len(jsonFieldsNameOfPoolInternalV1beta) {
+					name = jsonFieldsNameOfPoolInternalV1beta[fieldIdx]
+				} else {
+					name = strconv.Itoa(fieldIdx)
+				}
+				failures = append(failures, validate.FieldError{
+					Name:  name,
+					Error: validate.ErrFieldRequired,
+				})
+				// Reset bit.
+				result &^= 1 << bitIdx
+			}
+		}
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *PoolInternalV1beta) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *PoolInternalV1beta) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode implements json.Marshaler.
+func (s *PoolInternalV1betaAssetLocationMetadata) Encode(e *jx.Encoder) {
+	e.ObjStart()
+	s.encodeFields(e)
+	e.ObjEnd()
+}
+
+// encodeFields encodes fields.
+func (s *PoolInternalV1betaAssetLocationMetadata) encodeFields(e *jx.Encoder) {
+	{
+		if s.ChildAssets.Set {
+			e.FieldStart("child_assets")
+			s.ChildAssets.Encode(e)
+		}
+	}
+}
+
+var jsonFieldsNameOfPoolInternalV1betaAssetLocationMetadata = [1]string{
+	0: "child_assets",
+}
+
+// Decode decodes PoolInternalV1betaAssetLocationMetadata from json.
+func (s *PoolInternalV1betaAssetLocationMetadata) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode PoolInternalV1betaAssetLocationMetadata to nil")
+	}
+
+	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
+		switch string(k) {
+		case "child_assets":
+			if err := func() error {
+				s.ChildAssets.Reset()
+				if err := s.ChildAssets.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"child_assets\"")
+			}
+		default:
+			return d.Skip()
+		}
+		return nil
+	}); err != nil {
+		return errors.Wrap(err, "decode PoolInternalV1betaAssetLocationMetadata")
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *PoolInternalV1betaAssetLocationMetadata) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *PoolInternalV1betaAssetLocationMetadata) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes PoolInternalV1betaEncryptionType as json.
+func (s PoolInternalV1betaEncryptionType) Encode(e *jx.Encoder) {
+	e.Str(string(s))
+}
+
+// Decode decodes PoolInternalV1betaEncryptionType from json.
+func (s *PoolInternalV1betaEncryptionType) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode PoolInternalV1betaEncryptionType to nil")
+	}
+	v, err := d.StrBytes()
+	if err != nil {
+		return err
+	}
+	// Try to use constant string.
+	switch PoolInternalV1betaEncryptionType(v) {
+	case PoolInternalV1betaEncryptionTypeSERVICEMANAGED:
+		*s = PoolInternalV1betaEncryptionTypeSERVICEMANAGED
+	case PoolInternalV1betaEncryptionTypeCLOUDKMS:
+		*s = PoolInternalV1betaEncryptionTypeCLOUDKMS
+	default:
+		*s = PoolInternalV1betaEncryptionType(v)
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s PoolInternalV1betaEncryptionType) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *PoolInternalV1betaEncryptionType) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode implements json.Marshaler.
+func (s PoolInternalV1betaLabels) Encode(e *jx.Encoder) {
+	e.ObjStart()
+	s.encodeFields(e)
+	e.ObjEnd()
+}
+
+// encodeFields implements json.Marshaler.
+func (s PoolInternalV1betaLabels) encodeFields(e *jx.Encoder) {
+	for k, elem := range s {
+		e.FieldStart(k)
+
+		e.Str(elem)
+	}
+}
+
+// Decode decodes PoolInternalV1betaLabels from json.
+func (s *PoolInternalV1betaLabels) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode PoolInternalV1betaLabels to nil")
+	}
+	m := s.init()
+	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
+		var elem string
+		if err := func() error {
+			v, err := d.Str()
+			elem = string(v)
+			if err != nil {
+				return err
+			}
+			return nil
+		}(); err != nil {
+			return errors.Wrapf(err, "decode field %q", k)
+		}
+		m[string(k)] = elem
+		return nil
+	}); err != nil {
+		return errors.Wrap(err, "decode PoolInternalV1betaLabels")
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s PoolInternalV1betaLabels) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *PoolInternalV1betaLabels) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes PoolInternalV1betaServiceLevel as json.
+func (s PoolInternalV1betaServiceLevel) Encode(e *jx.Encoder) {
+	e.Str(string(s))
+}
+
+// Decode decodes PoolInternalV1betaServiceLevel from json.
+func (s *PoolInternalV1betaServiceLevel) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode PoolInternalV1betaServiceLevel to nil")
+	}
+	v, err := d.StrBytes()
+	if err != nil {
+		return err
+	}
+	// Try to use constant string.
+	switch PoolInternalV1betaServiceLevel(v) {
+	case PoolInternalV1betaServiceLevelSERVICELEVELUNSPECIFIED:
+		*s = PoolInternalV1betaServiceLevelSERVICELEVELUNSPECIFIED
+	case PoolInternalV1betaServiceLevelFLEX:
+		*s = PoolInternalV1betaServiceLevelFLEX
+	case PoolInternalV1betaServiceLevelSTANDARD:
+		*s = PoolInternalV1betaServiceLevelSTANDARD
+	case PoolInternalV1betaServiceLevelPREMIUM:
+		*s = PoolInternalV1betaServiceLevelPREMIUM
+	case PoolInternalV1betaServiceLevelEXTREME:
+		*s = PoolInternalV1betaServiceLevelEXTREME
+	default:
+		*s = PoolInternalV1betaServiceLevel(v)
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s PoolInternalV1betaServiceLevel) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *PoolInternalV1betaServiceLevel) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes PoolInternalV1betaStoragePoolState as json.
+func (s PoolInternalV1betaStoragePoolState) Encode(e *jx.Encoder) {
+	e.Str(string(s))
+}
+
+// Decode decodes PoolInternalV1betaStoragePoolState from json.
+func (s *PoolInternalV1betaStoragePoolState) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode PoolInternalV1betaStoragePoolState to nil")
+	}
+	v, err := d.StrBytes()
+	if err != nil {
+		return err
+	}
+	// Try to use constant string.
+	switch PoolInternalV1betaStoragePoolState(v) {
+	case PoolInternalV1betaStoragePoolStateSTATEUNSPECIFIED:
+		*s = PoolInternalV1betaStoragePoolStateSTATEUNSPECIFIED
+	case PoolInternalV1betaStoragePoolStateCREATING:
+		*s = PoolInternalV1betaStoragePoolStateCREATING
+	case PoolInternalV1betaStoragePoolStateREADY:
+		*s = PoolInternalV1betaStoragePoolStateREADY
+	case PoolInternalV1betaStoragePoolStateUPDATING:
+		*s = PoolInternalV1betaStoragePoolStateUPDATING
+	case PoolInternalV1betaStoragePoolStateRESTORING:
+		*s = PoolInternalV1betaStoragePoolStateRESTORING
+	case PoolInternalV1betaStoragePoolStateDISABLED:
+		*s = PoolInternalV1betaStoragePoolStateDISABLED
+	case PoolInternalV1betaStoragePoolStateDELETING:
+		*s = PoolInternalV1betaStoragePoolStateDELETING
+	case PoolInternalV1betaStoragePoolStateERROR:
+		*s = PoolInternalV1betaStoragePoolStateERROR
+	default:
+		*s = PoolInternalV1betaStoragePoolState(v)
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s PoolInternalV1betaStoragePoolState) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *PoolInternalV1betaStoragePoolState) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }

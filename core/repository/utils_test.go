@@ -15,6 +15,8 @@ func TestCommitOrRollbackOnError(t *testing.T) {
 
 		// Simulate a panic
 		defer func() {
+			// Unpatch
+			commitOrRollbackTransaction = _commitOrRollbackTransaction
 			if r := recover(); r == nil {
 				tt.Errorf("Expected panic, but got none")
 			}
@@ -32,8 +34,5 @@ func TestCommitOrRollbackOnError(t *testing.T) {
 		if err.Error() != "panic: Simulated panic" {
 			tt.Errorf("Expected error message 'panic: Simulated panic', got '%v'", err)
 		}
-
-		// Unpatch
-		commitOrRollbackTransaction = _commitOrRollbackTransaction
 	})
 }

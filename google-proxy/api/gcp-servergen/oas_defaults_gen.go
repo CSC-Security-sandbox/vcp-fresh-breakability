@@ -223,6 +223,34 @@ func (s *OperationV1beta) setDefaults() {
 }
 
 // setDefaults set default value of fields.
+func (s *PoolInternalV1beta) setDefaults() {
+	{
+		val := string("auto")
+		s.QosType.SetTo(val)
+	}
+	{
+		val := float64(2199023255552)
+		s.SizeInBytes = val
+	}
+	{
+		val := StorageClassV1beta("HARDWARE")
+		s.StorageClass.SetTo(val)
+	}
+	{
+		val := bool(false)
+		s.LdapEnabled.SetTo(val)
+	}
+	{
+		val := bool(false)
+		s.CustomPerformanceEnabled.SetTo(val)
+	}
+	{
+		val := bool(false)
+		s.UnifiedPool.SetTo(val)
+	}
+}
+
+// setDefaults set default value of fields.
 func (s *PoolV1beta) setDefaults() {
 	{
 		val := string("auto")

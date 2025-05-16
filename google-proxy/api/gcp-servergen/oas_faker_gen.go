@@ -2205,6 +2205,12 @@ func (s *OptNilInt64) SetFake() {
 }
 
 // SetFake set fake values.
+func (s *OptNilPoolInternalV1betaAssetLocationMetadata) SetFake() {
+	s.Null = true
+	s.Set = true
+}
+
+// SetFake set fake values.
 func (s *OptNilPoolV1betaAssetLocationMetadata) SetFake() {
 	s.Null = true
 	s.Set = true
@@ -2238,6 +2244,33 @@ func (s *OptNilTieringPolicyV1betaTierAction) SetFake() {
 func (s *OptNilVolumeReplicationUpdateInternalV1betaReplicationSchedule) SetFake() {
 	s.Null = true
 	s.Set = true
+}
+
+// SetFake set fake values.
+func (s *OptPoolInternalV1betaEncryptionType) SetFake() {
+	var elem PoolInternalV1betaEncryptionType
+	{
+		elem.SetFake()
+	}
+	s.SetTo(elem)
+}
+
+// SetFake set fake values.
+func (s *OptPoolInternalV1betaLabels) SetFake() {
+	var elem PoolInternalV1betaLabels
+	{
+		elem.SetFake()
+	}
+	s.SetTo(elem)
+}
+
+// SetFake set fake values.
+func (s *OptPoolInternalV1betaStoragePoolState) SetFake() {
+	var elem PoolInternalV1betaStoragePoolState
+	{
+		elem.SetFake()
+	}
+	s.SetTo(elem)
 }
 
 // SetFake set fake values.
@@ -2668,6 +2701,235 @@ func (s *PoolIdListV1beta) SetFake() {
 			}
 		}
 	}
+}
+
+// SetFake set fake values.
+func (s *PoolInternalV1beta) SetFake() {
+	{
+		{
+			s.ActiveDirectoryConfigId.SetFake()
+		}
+	}
+	{
+		{
+			s.ActiveDirectoryResourceId.SetFake()
+		}
+	}
+	{
+		{
+			s.KmsConfigId.SetFake()
+		}
+	}
+	{
+		{
+			s.KmsConfigResourceId.SetFake()
+		}
+	}
+	{
+		{
+			s.Network = "string"
+		}
+	}
+	{
+		{
+			s.PoolId.SetFake()
+		}
+	}
+	{
+		{
+			s.ResourceId = "string"
+		}
+	}
+	{
+		{
+			s.ServiceLevel.SetFake()
+		}
+	}
+	{
+		{
+			s.QosType.SetFake()
+		}
+	}
+	{
+		{
+			s.SizeInBytes = float64(0)
+		}
+	}
+	{
+		{
+			s.AllocatedBytes.SetFake()
+		}
+	}
+	{
+		{
+			s.TotalThroughputMibps.SetFake()
+		}
+	}
+	{
+		{
+			s.AvailableThroughputMibps.SetFake()
+		}
+	}
+	{
+		{
+			s.NumberOfVolumes.SetFake()
+		}
+	}
+	{
+		{
+			s.StoragePoolState.SetFake()
+		}
+	}
+	{
+		{
+			s.StoragePoolStateDetails.SetFake()
+		}
+	}
+	{
+		{
+			s.CreatedAt.SetFake()
+		}
+	}
+	{
+		{
+			s.UpdatedAt.SetFake()
+		}
+	}
+	{
+		{
+			s.DeletedAt.SetFake()
+		}
+	}
+	{
+		{
+			s.StorageClass.SetFake()
+		}
+	}
+	{
+		{
+			s.StateDetails.SetFake()
+		}
+	}
+	{
+		{
+			s.Description.SetFake()
+		}
+	}
+	{
+		{
+			s.LdapEnabled.SetFake()
+		}
+	}
+	{
+		{
+			s.EncryptionType.SetFake()
+		}
+	}
+	{
+		{
+			s.Zone.SetFake()
+		}
+	}
+	{
+		{
+			s.SecondaryZone.SetFake()
+		}
+	}
+	{
+		{
+			s.GlobalAccessAllowed.SetFake()
+		}
+	}
+	{
+		{
+			s.Labels.SetFake()
+		}
+	}
+	{
+		{
+			s.AllowAutoTiering.SetFake()
+		}
+	}
+	{
+		{
+			s.HotTierSizeInBytes.SetFake()
+		}
+	}
+	{
+		{
+			s.EnableHotTierAutoResize.SetFake()
+		}
+	}
+	{
+		{
+			s.HostUuid.SetFake()
+		}
+	}
+	{
+		{
+			s.SatisfiesPzi.SetFake()
+		}
+	}
+	{
+		{
+			s.SatisfiesPzs.SetFake()
+		}
+	}
+	{
+		{
+			s.AssetLocationMetadata.SetFake()
+		}
+	}
+	{
+		{
+			s.CustomPerformanceEnabled.SetFake()
+		}
+	}
+	{
+		{
+			s.TotalIops.SetFake()
+		}
+	}
+	{
+		{
+			s.UnifiedPool.SetFake()
+		}
+	}
+}
+
+// SetFake set fake values.
+func (s *PoolInternalV1betaAssetLocationMetadata) SetFake() {
+	{
+		{
+			s.ChildAssets.SetFake()
+		}
+	}
+}
+
+// SetFake set fake values.
+func (s *PoolInternalV1betaEncryptionType) SetFake() {
+	*s = PoolInternalV1betaEncryptionTypeSERVICEMANAGED
+}
+
+// SetFake set fake values.
+func (s *PoolInternalV1betaLabels) SetFake() {
+	var (
+		elem string
+		m    map[string]string = s.init()
+	)
+	for i := 0; i < 0; i++ {
+		m[fmt.Sprintf("fake%d", i)] = elem
+	}
+}
+
+// SetFake set fake values.
+func (s *PoolInternalV1betaServiceLevel) SetFake() {
+	*s = PoolInternalV1betaServiceLevelSERVICELEVELUNSPECIFIED
+}
+
+// SetFake set fake values.
+func (s *PoolInternalV1betaStoragePoolState) SetFake() {
+	*s = PoolInternalV1betaStoragePoolStateSTATEUNSPECIFIED
 }
 
 // SetFake set fake values.

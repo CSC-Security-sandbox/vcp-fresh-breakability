@@ -2,7 +2,7 @@ package orchestrator
 
 import (
 	"context"
-	"gorm.io/gorm"
+	"strings"
 	"testing"
 
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
@@ -189,8 +189,8 @@ func TestGetAccountWithName(t *testing.T) {
 		if err == nil {
 			tt.Errorf("Expected error, got nil")
 		}
-		if err.Error() != "record not found" {
-			tt.Errorf("Expected error '%v', got %v", gorm.ErrRecordNotFound, err)
+		if !strings.Contains(err.Error(), "account not found") {
+			tt.Errorf("Expected error '%v', got %v", "account not found", err)
 		}
 		if account != nil {
 			tt.Errorf("Expected nil account, got %v", account)

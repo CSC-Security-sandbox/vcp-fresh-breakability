@@ -19,6 +19,10 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/nillable"
 )
 
+var (
+	parseAndValidateRegionAndZone = utils.ParseAndValidateRegionAndZone
+)
+
 // V1betaDescribePool handles the request to describe a pool.
 func (h Handler) V1betaDescribePool(ctx context.Context, params gcpgenserver.V1betaDescribePoolParams) (gcpgenserver.V1betaDescribePoolRes, error) {
 	logger := utils.GetLoggerFromContext(ctx)
@@ -47,7 +51,7 @@ func (h Handler) V1betaCreatePool(ctx context.Context, req *gcpgenserver.PoolV1b
 			Message: "UnifiedPool must be set to true",
 		}, nil
 	}
-	region, zone, parsingErr := utils.ParseAndValidateRegionAndZone(params.LocationId)
+	region, zone, parsingErr := parseAndValidateRegionAndZone(req.Zone.Value)
 	if parsingErr != nil {
 		return &gcpgenserver.V1betaCreatePoolBadRequest{
 			Code:    parsingErr.Code,
@@ -122,7 +126,7 @@ func (h Handler) V1betaDeletePool(ctx context.Context, params gcpgenserver.V1bet
 	logger := ctx.Value(middleware.ContextSLoggerKey).(log.Logger)
 
 	// Validate the location
-	_, _, parsingErr := utils.ParseAndValidateRegionAndZone(params.LocationId)
+	_, _, parsingErr := parseAndValidateRegionAndZone(params.LocationId)
 	if parsingErr != nil {
 		return &gcpgenserver.V1betaDeletePoolBadRequest{
 			Code:    parsingErr.Code,
@@ -244,7 +248,7 @@ func (h Handler) V1betaGetMultiplePools(ctx context.Context, req *gcpgenserver.P
 	}
 
 	// Validate the location
-	_, _, parsingErr := utils.ParseAndValidateRegionAndZone(params.LocationId)
+	_, _, parsingErr := parseAndValidateRegionAndZone(params.LocationId)
 	if parsingErr != nil {
 		return &gcpgenserver.V1betaGetMultiplePoolsBadRequest{
 			Code:    parsingErr.Code,

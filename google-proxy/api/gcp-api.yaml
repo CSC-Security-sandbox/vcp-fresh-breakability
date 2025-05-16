@@ -1648,11 +1648,10 @@ paths:
                     done: true
                     error:
                       code: 400
-                      details: null
+                      name: /v1beta/projects/123456789/locations/some-location1/operations/ba2c8826-2627-057c-42ba-343ee7ab1ebe
                       message: Error when creating destination volume - Could not query
                         DNS server. Verify that the network configuration is correct and
                         that DNS servers are available.
-                    name: /v1beta/projects/123456789/locations/some-location1/operations/ba2c8826-2627-057c-42ba-343ee7ab1ebe
         '400':
           $ref: '#/components/responses/StandardError-400'
         '401':
@@ -2004,37 +2003,38 @@ paths:
               schema:
                 $ref: '#/components/schemas/Operation_v1beta'
               example:
-                "done": false
-                "name": "/v1beta/projects/123456789/locations/some-location1/operations/ba2c8826-2627-057c-42ba-343ee7ab1ebe"
-                "response": {
-                  "created": "2024-01-24T11:13:24.245Z",
-                  "description": "My replication",
-                  "destination": {
-                    "volumeId": "20074ffe-4f2e-89d8-0ecf-7071ddce6030",
-                    "volumeName": "projects/123456789/locations/some-location2/volumes/my-destination-volume"
-                  },
-                  "healthy": true,
-                  "mirrorState": "MIRRORED",
-                  "replicationId": "3cc26ebf-b59a-ee3a-6854-47ca35f45691",
-                  "replicationSchedule": "HOURLY",
-                  "resourceId": "my-replication",
-                  "role": "SOURCE",
-                  "source": {
-                    "volumeId": "b78e8675-7e6f-64ec-3ec2-163753add2d5",
-                    "volumeName": "projects/123456789/locations/some-location1/volumes/my-source-volume"
-                  },
-                  "state": "UPDATING",
-                  "stateDetails": "Stop in progress",
-                  "stateDetailsCode": 0,
-                  "transferStats": {
-                    "lagTime": 169,
-                    "lastTransferDuration": 2,
-                    "lastTransferEndTime": "2024-01-26T15:52:43.000Z",
-                    "lastTransferSize": 3560,
-                    "totalTransferBytes": 1147392,
-                    "totalTransferTimeSecs": 660
+                application/json:
+                  done: false
+                  name: /v1beta/projects/123456789/locations/some-location1/operations/ba2c8826-2627-057c-42ba-343ee7ab1ebe
+                  response: {
+                    created: '2024-01-24T11:13:24.245Z',
+                    description: My replication,
+                    destination: {
+                      volumeId: 20074ffe-4f2e-89d8-0ecf-7071ddce6030,
+                      volumeName: projects/123456789/locations/some-location2/volumes/my-destination-volume
+                    },
+                    healthy: true,
+                    mirrorState: MIRRORED,
+                    replicationId: 3cc26ebf-b59a-ee3a-6854-47ca35f45691,
+                    replicationSchedule: HOURLY,
+                    resourceId: my-replication,
+                    role: SOURCE,
+                    source: {
+                      volumeId: b78e8675-7e6f-64ec-3ec2-163753add2d5,
+                      volumeName: projects/123456789/locations/some-location1/volumes/my-source-volume
+                    },
+                    state: UPDATING,
+                    stateDetails: Stop in progress,
+                    stateDetailsCode: 0,
+                    transferStats: {
+                      lagTime: 169,
+                      lastTransferDuration: 2,
+                      lastTransferEndTime: '2024-01-26T15:52:43.000Z',
+                      lastTransferSize: 3560,
+                      totalTransferBytes: 1147392,
+                      totalTransferTimeSecs: 660
+                    }
                   }
-                }
         '400':
           $ref: '#/components/responses/StandardError-400'
         '401':
@@ -2076,37 +2076,38 @@ paths:
               schema:
                 $ref: '#/components/schemas/Operation_v1beta'
               example:
-                "done": false,
-                "name": "/v1beta/projects/123456789/locations/some-location1/operations/ba2c8826-2627-057c-42ba-343ee7ab1ebe"
-                "response": {
-                  "created": "2024-01-24T11:13:24.245Z",
-                  "description": "My replication",
-                  "destination": {
-                    "volumeId": "20074ffe-4f2e-89d8-0ecf-7071ddce6030",
-                    "volumeName": "projects/123456789/locations/some-location2/volumes/my-destination-volume"
-                  },
-                  "healthy": true,
-                  "mirrorState": "STOPPED",
-                  "replicationId": "3cc26ebf-b59a-ee3a-6854-47ca35f45691",
-                  "replicationSchedule": "EVERY_10_MINUTES",
-                  "resourceId": "my-replication",
-                  "role": "SOURCE",
-                  "source": {
-                    "volumeId": "b78e8675-7e6f-64ec-3ec2-163753add2d5",
-                    "volumeName": "projects/123456789/locations/some-location1/volumes/my-source-volume"
-                  },
-                  "state": "UPDATING",
-                  "stateDetails": "Update in progress",
-                  "stateDetailsCode": 0,
-                  "transferStats": {
-                    "lagTime": 421,
-                    "lastTransferDuration": 2,
-                    "lastTransferEndTime": "2024-01-25T12:14:25.000Z",
-                    "lastTransferSize": 3560,
-                    "totalTransferBytes": 556432,
-                    "totalTransferTimeSecs": 314
+                application/json:
+                  done: false,
+                  name: /v1beta/projects/123456789/locations/some-location1/operations/ba2c8826-2627-057c-42ba-343ee7ab1ebe
+                  response: {
+                    created: '2024-01-24T11:13:24.245Z',
+                    description: My replication,
+                    destination: {
+                      volumeId: 20074ffe-4f2e-89d8-0ecf-7071ddce6030,
+                      volumeName: projects/123456789/locations/some-location2/volumes/my-destination-volume
+                    },
+                    healthy: true,
+                    mirrorState: STOPPED,
+                    replicationId: 3cc26ebf-b59a-ee3a-6854-47ca35f45691,
+                    replicationSchedule: EVERY_10_MINUTES,
+                    resourceId: my-replication,
+                    role: SOURCE,
+                    source: {
+                      volumeId: b78e8675-7e6f-64ec-3ec2-163753add2d5,
+                      volumeName: projects/123456789/locations/some-location1/volumes/my-source-volume
+                    },
+                    state: UPDATING,
+                    stateDetails: Update in progress,
+                    stateDetailsCode: 0,
+                    transferStats: {
+                      lagTime: 421,
+                      lastTransferDuration: 2,
+                      lastTransferEndTime: '2024-01-25T12:14:25.000Z',
+                      lastTransferSize: 3560,
+                      totalTransferBytes: 556432,
+                      totalTransferTimeSecs: 314
+                    }
                   }
-                }
         '400':
           $ref: '#/components/responses/StandardError-400'
         '401':
@@ -2148,27 +2149,28 @@ paths:
               schema:
                 $ref: '#/components/schemas/Operation_v1beta'
               example:
-                "done": false
-                "name": "/v1beta/projects/123456789/locations/some-location1/operations/ba2c8826-2627-057c-42ba-343ee7ab1ebe"
-                "response": {
-                  "created": "2024-01-29T10:59:26.168Z",
-                  "description": "My replication",
-                  "destination": {
-                    "volumeId": "1a65c06a-94a1-f850-0a1a-d0d07b6f7560",
-                    "volumeName": "projects/123456789/locations/some-location1/volumes/my-source-volume"
-                  },
-                  "healthy": true,
-                  "mirrorState": "PREPARING",
-                  "replicationSchedule": "HOURLY",
-                  "resourceId": "my-replication",
-                  "role": "DESTINATION",
-                  "source": {
-                    "volumeId": "a02acf13-00ae-8d17-3f9a-e6daa1473d5b",
-                    "volumeName": "projects/123456789/locations/some-location2/volumes/my-destination-volume"
-                  },
-                  "state": "UPDATING",
-                  "stateDetailsCode": 0
-                }
+                application/json:
+                  done: false
+                  name: /v1beta/projects/123456789/locations/some-location1/operations/ba2c8826-2627-057c-42ba-343ee7ab1ebe
+                  response: {
+                    created: '2024-01-29T10:59:26.168Z',
+                    description: My replication,
+                    destination: {
+                      volumeId: 1a65c06a-94a1-f850-0a1a-d0d07b6f7560,
+                      volumeName: projects/123456789/locations/some-location1/volumes/my-source-volume
+                    },
+                    healthy: true,
+                    mirrorState: PREPARING,
+                    replicationSchedule: HOURLY,
+                    resourceId: my-replication,
+                    role: DESTINATION,
+                    source: {
+                      volumeId: a02acf13-00ae-8d17-3f9a-e6daa1473d5b,
+                      volumeName: projects/123456789/locations/some-location2/volumes/my-destination-volume
+                    },
+                    state: UPDATING,
+                    stateDetailsCode: 0
+                  }
         '400':
           $ref: '#/components/responses/StandardError-400'
         '401':
@@ -2210,37 +2212,38 @@ paths:
               schema:
                 $ref: '#/components/schemas/Operation_v1beta'
               example:
-                "done": false,
-                "name": "/v1beta/projects/123456789/locations/some-location1/operations/ba2c8826-2627-057c-42ba-343ee7ab1ebe"
-                "response": {
-                  "created": "2024-01-24T11:13:24.245Z",
-                  "description": "My replication",
-                  "destination": {
-                    "volumeId": "20074ffe-4f2e-89d8-0ecf-7071ddce6030",
-                    "volumeName": "projects/123456789/locations/some-location2/volumes/my-destination-volume"
-                  },
-                  "healthy": true,
-                  "mirrorState": "MIRRORED",
-                  "replicationId": "3cc26ebf-b59a-ee3a-6854-47ca35f45691",
-                  "replicationSchedule": "EVERY_10_MINUTES",
-                  "resourceId": "my-replication",
-                  "role": "SOURCE",
-                  "source": {
-                    "volumeId": "b78e8675-7e6f-64ec-3ec2-163753add2d5",
-                    "volumeName": "projects/123456789/locations/some-location1/volumes/my-source-volume"
-                  },
-                  "state": "UPDATING",
-                  "stateDetails": "Sync in progress",
-                  "stateDetailsCode": 0,
-                  "transferStats": {
-                    "lagTime": 421,
-                    "lastTransferDuration": 2,
-                    "lastTransferEndTime": "2024-01-25T12:14:25.000Z",
-                    "lastTransferSize": 3560,
-                    "totalTransferBytes": 556432,
-                    "totalTransferTimeSecs": 314
+                application/json:
+                  done: false,
+                  name: /v1beta/projects/123456789/locations/some-location1/operations/ba2c8826-2627-057c-42ba-343ee7ab1ebe
+                  response: {
+                    created: '2024-01-24T11:13:24.245Z',
+                    description: My replication,
+                    destination: {
+                      volumeId: 20074ffe-4f2e-89d8-0ecf-7071ddce6030,
+                      volumeName: projects/123456789/locations/some-location2/volumes/my-destination-volume
+                    },
+                    healthy: true,
+                    mirrorState: MIRRORED,
+                    replicationId: 3cc26ebf-b59a-ee3a-6854-47ca35f45691,
+                    replicationSchedule: EVERY_10_MINUTES,
+                    resourceId: my-replication,
+                    role: SOURCE,
+                    source: {
+                      volumeId: b78e8675-7e6f-64ec-3ec2-163753add2d5,
+                      volumeName: projects/123456789/locations/some-location1/volumes/my-source-volume
+                    },
+                    state: UPDATING,
+                    stateDetails: Sync in progress,
+                    stateDetailsCode: 0,
+                    transferStats: {
+                      lagTime: 421,
+                      lastTransferDuration: 2,
+                      lastTransferEndTime: '2024-01-25T12:14:25.000Z',
+                      lastTransferSize: 3560,
+                      totalTransferBytes: 556432,
+                      totalTransferTimeSecs: 314
+                    }
                   }
-                }
         '400':
           $ref: '#/components/responses/StandardError-400'
         '401':
