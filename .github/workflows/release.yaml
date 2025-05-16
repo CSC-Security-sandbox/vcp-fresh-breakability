@@ -5,6 +5,10 @@ on:
     branches:
       - main
 
+permissions:
+  packages: write
+  contents: read
+
 jobs:
   create_pre_release_vsa_control_plane:
     name: Create Pre-Release and Publish Docker images
@@ -12,10 +16,6 @@ jobs:
     container:
       image: ghcr.io/vcp-vsa-control-plane/vsa-builder:v2
       options: --user root
-
-    permissions:
-      packages: write
-      contents: read
 
     steps:
       - name: Check out the repo
@@ -81,12 +81,25 @@ jobs:
           repositories: |
             vsa-control-plane
 
+      - name: Fetch PR user and details
+        id: fetch_pr_user_and_details
+        run: |
+          PR_DETAILS=$(gh api repos/${{ github.repository }}/commits/${{ github.sha }}/pulls --jq '.[0]')
+          PR_USER=$(echo "$PR_DETAILS" | jq -r '.user.login')
+          PR_TITLE=$(echo "$PR_DETAILS" | jq -r '.title')
+          echo "PR_USER=$PR_USER" >> $GITHUB_ENV
+          echo "PR_TITLE=$PR_TITLE" >> $GITHUB_ENV
+          echo "PR User: $PR_USER"
+          echo "PR Title: $PR_TITLE"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GHVSA_PAT }}
+
       - name: Run jira tag_component_version
         env:
-          PR_TITLE: ${{ github.event.head_commit.message }}
+          PR_TITLE: ${{ env.PR_TITLE }}
           JIRA_API_TOKEN: ${{ secrets.VCP_CI_JIRA_BOT_PAT }}
           GITHUB_TOKEN: ${{ steps.token.outputs.token }}
-          PR_USER: ${{ github.event.pull_request.user.login }}
+          PR_USER: ${{ env.PR_USER }}
           REPOSITORY: ${{ github.repository }}
           GITHUB_SHA: ${{ github.sha }}
           NEW_TAG: ${{ needs.create_pre_release_vsa_control_plane.outputs.newTag }}
