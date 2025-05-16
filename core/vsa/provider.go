@@ -34,6 +34,7 @@ type Provider interface {
 	DeleteClusterPeer(clusterPeerID string) error
 	GetClusterPeer(clusterPeerID string) (*ClusterPeer, error)
 	ListClusterPeers() ([]*ClusterPeer, error)
+	CreateVolumeReplicationSchedule(schedule string) error
 }
 
 type OntapRestProvider struct {

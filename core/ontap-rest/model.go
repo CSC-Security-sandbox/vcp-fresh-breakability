@@ -2172,3 +2172,61 @@ func igroupGetParamsToONTAP(params *IgroupGetParams) *san.IgroupCollectionGetPar
 	otParams.SetReturnTimeout(returnTimeoutNoJob)
 	return otParams
 }
+
+// scheduleCreateParamsToONTAP converts ScheduleCreateParams to ONTAP API parameters.
+func scheduleCreateParamsToONTAP(params *ScheduleCreateParams) *cluster.ScheduleCreateParams {
+	otParams := cluster.NewScheduleCreateParams()
+	if params == nil {
+		return otParams
+	}
+
+	hours := make([]*int64, len(params.Hours))
+	for i, val := range params.Hours {
+		int64Val := int64(val)
+		hours[i] = &int64Val
+	}
+	minutes := make([]*int64, len(params.Minutes))
+	for i, val := range params.Minutes {
+		int64Val := int64(val)
+		minutes[i] = &int64Val
+	}
+	months := make([]*int64, len(params.Months))
+	for i, val := range params.Months {
+		int64Val := int64(val)
+		months[i] = &int64Val
+	}
+	weekdays := make([]*int64, len(params.DaysOfWeek))
+	for i, val := range params.DaysOfWeek {
+		int64Val := int64(val)
+		weekdays[i] = &int64Val
+	}
+	days := make([]*int64, len(params.DaysOfMonth))
+	for i, val := range params.DaysOfMonth {
+		int64Val := int64(val)
+		days[i] = &int64Val
+	}
+
+	otParams.Info = &models.Schedule{
+		Name: &params.Name,
+		Cron: &models.ScheduleInlineCron{
+			Hours:    hours,
+			Months:   months,
+			Days:     days,
+			Weekdays: weekdays,
+			Minutes:  minutes,
+		},
+	}
+	return otParams
+}
+
+// scheduleCollectionGetParamsToONTAP converts ScheduleCollectionGetParams to ONTAP API parameters.
+func scheduleCollectionGetParamsToONTAP(params *ScheduleCollectionGetParams) *cluster.ScheduleCollectionGetParams {
+	otParams := cluster.NewScheduleCollectionGetParams()
+	if params == nil {
+		return otParams
+	}
+
+	otParams.Fields = params.Fields
+	otParams.Name = &params.Name
+	return otParams
+}

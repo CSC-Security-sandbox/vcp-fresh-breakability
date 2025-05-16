@@ -5,6 +5,7 @@ import (
 
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/ontap-rest/client/cluster"
 	securitypriv "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/ontap-rest/priv/client/operations"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/nillable"
 )
 
@@ -20,6 +21,8 @@ type ClusterClient interface { // generate:mock
 	ClusterPeerCreate(params ClusterPeerCreateParams) (*ClusterPeerCreateResponse, error)
 	ClusterPeerDelete(clusterPeerID string) error
 	ClusterPeerGet(clusterPeerID string) (*ClusterPeerResponse, error)
+	ScheduleCreate(params *ScheduleCreateParams) error
+	ScheduleCollectionGet(sfp *ScheduleCollectionGetParams, ucbf UserCallbackFunc[[]*Schedule]) error
 }
 
 type clusterClient struct {
@@ -101,4 +104,42 @@ func (cc *clusterClient) ClusterPeerGet(clusterPeerID string) (*ClusterPeerRespo
 func getListClusterPeerParams() *cluster.ClusterPeerCollectionGetParams {
 	return cluster.NewClusterPeerCollectionGetParams().
 		WithFields([]string{"authentication", "name", "remote", "status", "uuid"})
+}
+
+// ScheduleCreate invokes pkg/ontap-rest/client/cluster/Client.ScheduleCreate
+func (cc *clusterClient) ScheduleCreate(params *ScheduleCreateParams) error {
+	_, err := cc.api.ScheduleCreate(scheduleCreateParamsToONTAP(params), nil)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+var paginateScheduleCollectionGet = _paginate[[]*Schedule]
+
+// ScheduleCollectionGet invokes pkg/ontap-rest/client/cluster/Client.ScheduleCollectionGet
+func (cc *clusterClient) ScheduleCollectionGet(sfp *ScheduleCollectionGetParams, ucbf UserCallbackFunc[[]*Schedule]) error {
+	if sfp == nil || sfp.Name == "" {
+		return errors.New("no name filter provided for ScheduleCollectionGet")
+	}
+	otParams := scheduleCollectionGetParamsToONTAP(sfp)
+
+	return paginateScheduleCollectionGet(func(next string) ([]*Schedule, string, error) {
+		otParams.SetContext(setNext(otParams.Context, next))
+
+		rsp, err := cc.api.ScheduleCollectionGet(otParams, nil)
+		if err != nil {
+			return nil, "", err
+		}
+
+		resp := make([]*Schedule, nillable.FromPointer(rsp.Payload.NumRecords))
+		for i, s := range rsp.Payload.ScheduleResponseInlineRecords {
+			resp[i] = &Schedule{Schedule: *s}
+		}
+		if rsp.Payload.Links != nil && rsp.Payload.Links.Next != nil {
+			return resp, nillable.FromPointer(rsp.Payload.Links.Next.Href), nil
+		}
+
+		return resp, "", nil
+	}, ucbf)
 }

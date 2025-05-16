@@ -146,3 +146,147 @@ func TestClusterPeerGet(t *testing.T) {
 		assert.NotEmpty(tt, response)
 	})
 }
+
+func TestScheduleCreate(t *testing.T) {
+	t.Run("WhenRESTCallFails", func(tt *testing.T) {
+		mcs := cluster.NewMockClientService(tt)
+		client := &clusterClient{api: mcs}
+		expectedError := errors.New("something went wrong")
+		params := &ScheduleCreateParams{
+			Name:        "policy-1",
+			Months:      []int{3},
+			DaysOfMonth: []int{5, 6},
+			DaysOfWeek:  []int{2},
+			Hours:       []int{3, 6},
+			Minutes:     []int{2},
+		}
+		expectedSchedule := &models.Schedule{
+			Name: &params.Name,
+			Cron: &models.ScheduleInlineCron{
+				Months:   []*int64{nillable.GetInt64Ptr(3)},
+				Days:     []*int64{nillable.GetInt64Ptr(5), nillable.GetInt64Ptr(6)},
+				Weekdays: []*int64{nillable.GetInt64Ptr(2)},
+				Hours:    []*int64{nillable.GetInt64Ptr(3), nillable.GetInt64Ptr(6)},
+				Minutes:  []*int64{nillable.GetInt64Ptr(2)},
+			},
+		}
+
+		go func() {
+			defer mcs.MockClientServiceDone()
+
+			err := client.ScheduleCreate(params)
+			assert.Equal(tt, expectedError, err)
+		}()
+
+		mcs.AssertScheduleCreate(cluster.NewScheduleCreateParams().WithInfo(expectedSchedule), nil, nil, nil, expectedError)
+		mcs.AssertMockClientServiceDone()
+	})
+	t.Run("WhenSuccessful", func(tt *testing.T) {
+		mcs := cluster.NewMockClientService(tt)
+		client := &clusterClient{api: mcs}
+
+		params := &ScheduleCreateParams{
+			Name:        "policy-1",
+			Months:      []int{3},
+			DaysOfMonth: []int{5, 6},
+			DaysOfWeek:  []int{2},
+			Hours:       []int{3, 6},
+			Minutes:     []int{2},
+		}
+		expectedSchedule := &models.Schedule{
+			Name: &params.Name,
+			Cron: &models.ScheduleInlineCron{
+				Months:   []*int64{nillable.GetInt64Ptr(3)},
+				Days:     []*int64{nillable.GetInt64Ptr(5), nillable.GetInt64Ptr(6)},
+				Weekdays: []*int64{nillable.GetInt64Ptr(2)},
+				Hours:    []*int64{nillable.GetInt64Ptr(3), nillable.GetInt64Ptr(6)},
+				Minutes:  []*int64{nillable.GetInt64Ptr(2)},
+			},
+		}
+
+		go func() {
+			defer mcs.MockClientServiceDone()
+
+			err := client.ScheduleCreate(params)
+			assert.Nil(tt, err)
+		}()
+
+		mcs.AssertScheduleCreate(cluster.NewScheduleCreateParams().WithInfo(expectedSchedule), nil, nil, &cluster.ScheduleCreateCreated{}, nil)
+		mcs.AssertMockClientServiceDone()
+	})
+}
+
+func TestScheduleCollectionGet(t *testing.T) {
+	t.Run("WhenFilterNil", func(tt *testing.T) {
+		funcCalled := false
+		transport := &mockTransport{err: errors.New("something went wrong")}
+		clust := cluster.New(transport, nil)
+		client := &clusterClient{api: clust}
+		err := client.ScheduleCollectionGet(nil, func(schedules []*Schedule) error {
+			funcCalled = true
+			return nil
+		})
+		assert.EqualError(tt, err, "no name filter provided for ScheduleCollectionGet")
+		assert.False(tt, funcCalled)
+	})
+	t.Run("WhenNoNameFilter", func(tt *testing.T) {
+		funcCalled := false
+		transport := &mockTransport{err: errors.New("something went wrong")}
+		clust := cluster.New(transport, nil)
+		client := &clusterClient{api: clust}
+		err := client.ScheduleCollectionGet(&ScheduleCollectionGetParams{}, func(schedules []*Schedule) error {
+			funcCalled = true
+			return nil
+		})
+		assert.EqualError(tt, err, "no name filter provided for ScheduleCollectionGet")
+		assert.False(tt, funcCalled)
+	})
+	t.Run("WhenRESTCallFails", func(tt *testing.T) {
+		funcCalled := false
+		transport := &mockTransport{err: errors.New("something went wrong")}
+		clust := cluster.New(transport, nil)
+		client := &clusterClient{api: clust}
+		err := client.ScheduleCollectionGet(&ScheduleCollectionGetParams{Name: "a name"}, func(schedules []*Schedule) error {
+			funcCalled = true
+			return nil
+		})
+		assert.EqualError(tt, err, transport.err.Error())
+		assert.False(tt, funcCalled)
+	})
+	t.Run("WhenUserCallBackFuncFails", func(tt *testing.T) {
+		funcCalled := false
+		transport := &mockTransport{response: &cluster.ScheduleCollectionGetOK{
+			Payload: &models.ScheduleResponse{NumRecords: nillable.ToPointer(int64(1)), ScheduleResponseInlineRecords: []*models.Schedule{{}}},
+		}}
+		clust := cluster.New(transport, nil)
+		client := &clusterClient{api: clust}
+		err := client.ScheduleCollectionGet(&ScheduleCollectionGetParams{Name: "a name"}, func(schedules []*Schedule) error {
+			funcCalled = true
+			return errors.New("func failed")
+		})
+		assert.EqualError(tt, err, "func failed")
+		assert.True(tt, funcCalled)
+	})
+	t.Run("WhenSuccessful", func(tt *testing.T) {
+		funcCalled := false
+		transport := &mockTransport{response: &cluster.ScheduleCollectionGetOK{
+			Payload: &models.ScheduleResponse{
+				NumRecords: nillable.ToPointer(int64(3)),
+				ScheduleResponseInlineRecords: []*models.Schedule{
+					{},
+					{},
+					{},
+				}},
+		}}
+		clust := cluster.New(transport, nil)
+		client := &clusterClient{api: clust}
+		err := client.ScheduleCollectionGet(&ScheduleCollectionGetParams{Name: "a name"}, func(schedules []*Schedule) error {
+			funcCalled = true
+			expected := []*Schedule{{}, {}, {}}
+			assert.Equal(tt, expected, schedules)
+			return nil
+		})
+		assert.NoError(tt, err)
+		assert.True(tt, funcCalled)
+	})
+}

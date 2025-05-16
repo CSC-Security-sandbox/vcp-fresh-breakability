@@ -340,6 +340,99 @@ func (_c *MockClusterClient_NodesGet_Call) RunAndReturn(run func(*NodesGetParams
 	return _c
 }
 
+// ScheduleCollectionGet provides a mock function with given fields: sfp, ucbf
+func (_m *MockClusterClient) ScheduleCollectionGet(sfp *ScheduleCollectionGetParams, ucbf UserCallbackFunc[[]*Schedule]) error {
+	ret := _m.Called(sfp, ucbf)
+
+	if len(ret) == 0 {
+		panic("no return value specified for ScheduleCollectionGet")
+	}
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(*ScheduleCollectionGetParams, UserCallbackFunc[[]*Schedule]) error); ok {
+		r0 = rf(sfp, ucbf)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// MockClusterClient_ScheduleCollectionGet_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'ScheduleCollectionGet'
+type MockClusterClient_ScheduleCollectionGet_Call struct {
+	*mock.Call
+}
+
+// ScheduleCollectionGet is a helper method to define mock.On call
+//   - sfp *ScheduleCollectionGetParams
+//   - ucbf UserCallbackFunc[[]*Schedule]
+func (_e *MockClusterClient_Expecter) ScheduleCollectionGet(sfp interface{}, ucbf interface{}) *MockClusterClient_ScheduleCollectionGet_Call {
+	return &MockClusterClient_ScheduleCollectionGet_Call{Call: _e.mock.On("ScheduleCollectionGet", sfp, ucbf)}
+}
+
+func (_c *MockClusterClient_ScheduleCollectionGet_Call) Run(run func(sfp *ScheduleCollectionGetParams, ucbf UserCallbackFunc[[]*Schedule])) *MockClusterClient_ScheduleCollectionGet_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(*ScheduleCollectionGetParams), args[1].(UserCallbackFunc[[]*Schedule]))
+	})
+	return _c
+}
+
+func (_c *MockClusterClient_ScheduleCollectionGet_Call) Return(_a0 error) *MockClusterClient_ScheduleCollectionGet_Call {
+	_c.Call.Return(_a0)
+	return _c
+}
+
+func (_c *MockClusterClient_ScheduleCollectionGet_Call) RunAndReturn(run func(*ScheduleCollectionGetParams, UserCallbackFunc[[]*Schedule]) error) *MockClusterClient_ScheduleCollectionGet_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// ScheduleCreate provides a mock function with given fields: params
+func (_m *MockClusterClient) ScheduleCreate(params *ScheduleCreateParams) error {
+	ret := _m.Called(params)
+
+	if len(ret) == 0 {
+		panic("no return value specified for ScheduleCreate")
+	}
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(*ScheduleCreateParams) error); ok {
+		r0 = rf(params)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// MockClusterClient_ScheduleCreate_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'ScheduleCreate'
+type MockClusterClient_ScheduleCreate_Call struct {
+	*mock.Call
+}
+
+// ScheduleCreate is a helper method to define mock.On call
+//   - params *ScheduleCreateParams
+func (_e *MockClusterClient_Expecter) ScheduleCreate(params interface{}) *MockClusterClient_ScheduleCreate_Call {
+	return &MockClusterClient_ScheduleCreate_Call{Call: _e.mock.On("ScheduleCreate", params)}
+}
+
+func (_c *MockClusterClient_ScheduleCreate_Call) Run(run func(params *ScheduleCreateParams)) *MockClusterClient_ScheduleCreate_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(*ScheduleCreateParams))
+	})
+	return _c
+}
+
+func (_c *MockClusterClient_ScheduleCreate_Call) Return(_a0 error) *MockClusterClient_ScheduleCreate_Call {
+	_c.Call.Return(_a0)
+	return _c
+}
+
+func (_c *MockClusterClient_ScheduleCreate_Call) RunAndReturn(run func(*ScheduleCreateParams) error) *MockClusterClient_ScheduleCreate_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // NewMockClusterClient creates a new instance of MockClusterClient. It also registers a testing interface on the mock and a cleanup function to assert the mocks expectations.
 // The first argument is typically a *testing.T value.
 func NewMockClusterClient(t interface {
