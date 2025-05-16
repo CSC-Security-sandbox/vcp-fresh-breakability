@@ -13,7 +13,7 @@ jobs:
 
     runs-on: [ self-hosted,linux ]
     container:
-      image: ghcr.io/vcp-vsa-control-plane/vsacictl:v4
+      image: ghcr.io/vcp-vsa-control-plane/vsacictl:v9
       options: --user root
 
     steps:
@@ -42,7 +42,7 @@ jobs:
 
       - name: Run release logic
         id: release_logic_binary
-        run: go run main.go tag release
+        run: vsacictl tag release
         env:
           GH_PAT: ${{ secrets.GHVSA_PAT }}
 
