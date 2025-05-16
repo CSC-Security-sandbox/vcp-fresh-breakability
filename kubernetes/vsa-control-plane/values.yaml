@@ -4,7 +4,7 @@ global:
   primaryImageRegistryPasswordAuth: true
   primaryImagePullSecretName: ghcr.io
   secondaryImageRegistry: "europe-north1-docker.pkg.dev/gcnv-artifact-registry-nonprod"
-  secondaryImageRegistryPath: "vcp-container-images"
+  secondaryImageRegistryPath: "vcp-container-images-us"
   secondaryImageRegistryPasswordAuth: false
   nodeSelector:
     nodeType: vsacp-nodes
