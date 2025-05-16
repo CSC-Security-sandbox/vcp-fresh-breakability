@@ -17,7 +17,7 @@ import (
 	gcpgenserver "github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/api/gcp-servergen"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
-	"golang.org/x/exp/slog"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 )
 
 var (
@@ -27,7 +27,7 @@ var (
 )
 
 func (h Handler) V1betaDescribeVolume(ctx context.Context, params gcpgenserver.V1betaDescribeVolumeParams) (gcpgenserver.V1betaDescribeVolumeRes, error) {
-	logger := utils.GetLoggerFromContext(ctx)
+	logger := util.GetLogger(ctx)
 	volume, err := h.Orchestrator.GetVolume(ctx, params.VolumeId)
 	if err != nil {
 		if errors.IsNotFoundErr(err) {
@@ -36,14 +36,14 @@ func (h Handler) V1betaDescribeVolume(ctx context.Context, params gcpgenserver.V
 				Message: "Volume not found",
 			}, nil
 		}
-		logger.Error("Failed to describe volume", slog.String("error", err.Error()))
+		logger.Error("Failed to describe volume", "error", err.Error())
 		return &gcpgenserver.V1betaDescribeVolumeInternalServerError{Code: 500, Message: "Internal server error"}, err
 	}
 	return convertModelToVCPVolume(volume), nil
 }
 
 func (h Handler) V1betaCreateVolume(ctx context.Context, req *gcpgenserver.VolumeCreateV1beta, params gcpgenserver.V1betaCreateVolumeParams) (gcpgenserver.V1betaCreateVolumeRes, error) {
-	logger := utils.GetLoggerFromContext(ctx)
+	logger := util.GetLogger(ctx)
 	region, _, parsingErr := utils.ParseAndValidateRegionAndZone(params.LocationId)
 	if parsingErr != nil {
 		return &gcpgenserver.V1betaCreateVolumeBadRequest{
@@ -61,7 +61,7 @@ func (h Handler) V1betaCreateVolume(ctx context.Context, req *gcpgenserver.Volum
 			}, nil
 		}
 
-		logger.Error("Failed to create volume", slog.String("error", err.Error()))
+		logger.Error("Failed to create volume", "error", err.Error())
 		return &gcpgenserver.V1betaCreateVolumeInternalServerError{Code: 500, Message: err.Error()}, err
 	}
 
@@ -74,7 +74,7 @@ func (h Handler) V1betaCreateVolume(ctx context.Context, req *gcpgenserver.Volum
 			}, nil
 		}
 
-		logger.Error("Failed to create volume", slog.String("error", err.Error()))
+		logger.Error("Failed to create volume", "error", err.Error())
 		return &gcpgenserver.V1betaCreateVolumeInternalServerError{Code: 500, Message: err.Error()}, err
 	}
 
@@ -147,7 +147,7 @@ func (h Handler) V1betaUpdateVolume(ctx context.Context, req *gcpgenserver.Volum
 }
 
 func (h Handler) V1betaDeleteVolume(ctx context.Context, req gcpgenserver.OptV1betaDeleteVolumeReq, params gcpgenserver.V1betaDeleteVolumeParams) (gcpgenserver.V1betaDeleteVolumeRes, error) {
-	logger := utils.GetLoggerFromContext(ctx)
+	logger := util.GetLogger(ctx)
 
 	volume, err := h.Orchestrator.GetVolume(ctx, params.VolumeId)
 	if err != nil {
@@ -158,7 +158,7 @@ func (h Handler) V1betaDeleteVolume(ctx context.Context, req gcpgenserver.OptV1b
 				Done: gcpgenserver.NewOptBool(true),
 			}, nil
 		}
-		logger.Error("Failed to delete volume", slog.String("error", err.Error()))
+		logger.Error("Failed to delete volume", "error", err.Error())
 		return &gcpgenserver.V1betaDeleteVolumeInternalServerError{
 			Code:    500,
 			Message: "Internal server error",
@@ -182,7 +182,7 @@ func (h Handler) V1betaDeleteVolume(ctx context.Context, req gcpgenserver.OptV1b
 				Done: gcpgenserver.NewOptBool(true),
 			}, nil
 		}
-		logger.Error("Failed to delete volume", slog.String("error", err.Error()))
+		logger.Error("Failed to delete volume", "error", err.Error())
 		return &gcpgenserver.V1betaDeleteVolumeInternalServerError{
 			Code:    500,
 			Message: "Internal server error",
@@ -342,10 +342,10 @@ complete the setup.`
 }
 
 func (h Handler) V1betaGetMultipleVolumes(ctx context.Context, req *gcpgenserver.VolumeIdListV1beta, params gcpgenserver.V1betaGetMultipleVolumesParams) (gcpgenserver.V1betaGetMultipleVolumesRes, error) {
-	log := utils.GetLoggerFromContext(ctx)
+	logger := util.GetLogger(ctx)
 	volumesModelVCP, err := h.Orchestrator.GetMultipleVolumes(ctx, req.VolumeUuids, params.ProjectNumber)
 	if err != nil {
-		log.Error("Failed to fetch volume", slog.String("error", err.Error()))
+		logger.Error("Failed to fetch volume", "error", err.Error())
 		return &gcpgenserver.V1betaGetMultipleVolumesInternalServerError{Code: 500, Message: "Internal server error"}, err
 	}
 
@@ -359,7 +359,7 @@ func (h Handler) V1betaGetMultipleVolumes(ctx context.Context, req *gcpgenserver
 }
 
 func _getMultipleVolumesFromCVP(ctx context.Context, req *gcpgenserver.VolumeIdListV1beta, params gcpgenserver.V1betaGetMultipleVolumesParams, vcpVolumes []gcpgenserver.VolumeV1beta) (gcpgenserver.V1betaGetMultipleVolumesRes, error) {
-	logger := utils.GetLoggerFromContext(ctx)
+	logger := util.GetLogger(ctx)
 	jwtToken := utils.GetJWTTokenFromContext(ctx)
 	cvpClient := createCVPClient(logger, jwtToken)
 

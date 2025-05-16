@@ -1,7 +1,10 @@
 package httphelpers
 
 import (
+	"bytes"
+	"context"
 	"fmt"
+	"github.com/google/uuid"
 	"net/http"
 	"net/http/httputil"
 	"time"
@@ -12,6 +15,7 @@ import (
 
 var (
 	httputilDumpRequestOut = httputil.DumpRequestOut
+	httputilDumpRequest    = httputil.DumpRequest
 	httputilDumpResponse   = httputil.DumpResponse
 	timeNow                = time.Now
 	timeSince              = time.Since
@@ -107,7 +111,7 @@ func (c *requestResponseLogger) RoundTrip(r *http.Request) (*http.Response, erro
 	if err != nil {
 		c.logger.With(log.Fields{
 			"httpRequest": req,
-			"requestBody": string(reqDump),
+			"requestBody": log.Sanitize(string(reqDump)),
 			"error":       err,
 		}).ErrorContext(r.Context(), fmt.Sprintf("%s - Error during request", callerInfo))
 		return httpResponse, err
@@ -120,7 +124,7 @@ func (c *requestResponseLogger) RoundTrip(r *http.Request) (*http.Response, erro
 	if err != nil {
 		c.logger.With(log.Fields{
 			"httpRequest": req,
-			"requestBody": string(reqDump),
+			"requestBody": log.Sanitize(string(reqDump)),
 			"error":       err,
 		}).ErrorContext(r.Context(), fmt.Sprintf("%s - Error while reading response body", callerInfo))
 		return nil, err
@@ -129,8 +133,106 @@ func (c *requestResponseLogger) RoundTrip(r *http.Request) (*http.Response, erro
 
 	c.logger.With(log.Fields{
 		"httpRequest":  req,
-		"requestBody":  string(reqDump),
-		"responseBody": string(responseDump),
-	}).ErrorContext(r.Context(), callerInfo)
+		"requestBody":  log.Sanitize(string(reqDump)),
+		"responseBody": log.Sanitize(string(responseDump)),
+	}).InfoContext(r.Context(), callerInfo)
 	return httpResponse, err
+}
+
+type bufferResponseWriter struct {
+	writer     http.ResponseWriter
+	buffer     *bytes.Buffer
+	statusCode int
+}
+
+func (rw *bufferResponseWriter) Header() http.Header {
+	return rw.writer.Header()
+}
+
+func (rw *bufferResponseWriter) Write(p []byte) (int, error) {
+	if rw.buffer != nil {
+		rw.buffer.Write(p)
+	}
+	return rw.writer.Write(p)
+}
+
+func (rw *bufferResponseWriter) WriteHeader(code int) {
+	if rw.buffer != nil {
+		_, err := fmt.Fprintf(rw.buffer, "%v: ", code)
+		if err != nil {
+			return
+		}
+	}
+	rw.writer.WriteHeader(code)
+	rw.statusCode = code
+}
+
+func LoggingHttpHandler(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		callerInfo := r.URL.Path
+		xCorrID := r.Header.Get(log.RequestCorrelationID)
+		if xCorrID == "" {
+			xCorrID = uuid.NewString()
+			r.Header.Add(log.RequestCorrelationID, xCorrID)
+		}
+		ctx := context.WithValue(r.Context(), middleware.CorrelationContextKey, xCorrID)
+		r = r.WithContext(ctx)
+		logger := log.NewLogger()
+
+		requestURL := r.RequestURI
+		serverIP := ""
+		ctxCallerInfo := r.Context().Value(middleware.CallerInfoContextKey)
+		if ctxCallerInfo != nil {
+			ctxCallerInfoVal, ok := ctxCallerInfo.(string)
+			if ok {
+				callerInfo = ctxCallerInfoVal
+			}
+		}
+
+		if r.URL != nil {
+			requestURL = r.URL.String()
+			serverIP = r.URL.Host
+		}
+
+		req := httpRequest{
+			RequestMethod: r.Method,
+			RequestUrl:    requestURL,
+			UserAgent:     r.UserAgent(),
+			ServerIp:      serverIP,
+			Protocol:      r.Proto,
+		}
+
+		reqDump, err := httputilDumpRequest(r, true)
+		if err != nil {
+			logger.With(log.Fields{
+				"httpRequest": req,
+				"error":       err,
+			}).ErrorContext(r.Context(), fmt.Sprintf("%s - Error while reading request body", callerInfo))
+			return
+		}
+
+		logger.With(log.Fields{
+			"requestBody": log.Sanitize(string(reqDump)),
+			"method":      r.Method,
+		}).InfoContext(r.Context(), fmt.Sprintf("Request - %s ", callerInfo))
+		req.RequestSize = fmt.Sprintf("%v", len(reqDump))
+
+		startTime := timeNow()
+
+		response := bytes.NewBufferString("")
+		rw := &bufferResponseWriter{writer: w, buffer: response, statusCode: http.StatusOK}
+		next.ServeHTTP(rw, r)
+
+		elapsedTime := timeSince(startTime)
+		req.Latency = elapsedTime.String()
+		req.Status = rw.statusCode
+
+		req.ResponseSize = fmt.Sprintf("%v", rw.buffer.Len())
+
+		logger.With(log.Fields{
+			"httpRequest":  req,
+			"requestBody":  log.Sanitize(string(reqDump)),
+			"responseBody": log.Sanitize(response.String()),
+		}).InfoContext(r.Context(), fmt.Sprintf("Response - %s ", callerInfo))
+	})
 }

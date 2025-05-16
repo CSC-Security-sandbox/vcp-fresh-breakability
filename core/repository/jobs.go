@@ -6,7 +6,7 @@ import (
 
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
-	slogger "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 	"gorm.io/gorm"
 )
 
@@ -20,8 +20,8 @@ func (d *DataStoreRepository) CreateJob(ctx context.Context, job *datamodel.Job)
 	if err != nil {
 		return nil, err
 	}
-	// Fixme: The logger should be fetched from ctx
-	defer commitOrRollbackOnError(slogger.NewLogger(), tx, &err)
+	logger := util.GetLogger(ctx)
+	defer commitOrRollbackOnError(logger, tx, &err)
 
 	job.UUID = utils.RandomUUID()
 	job.CreatedAt = time.Now()
@@ -50,8 +50,8 @@ func (d *DataStoreRepository) UpdateJob(ctx context.Context, id string, status s
 	if err != nil {
 		return err
 	}
-	// Fixme: The logger should be fetched from ctx
-	defer commitOrRollbackOnError(slogger.NewLogger(), tx, &err)
+	logger := util.GetLogger(ctx)
+	defer commitOrRollbackOnError(logger, tx, &err)
 
 	job, err := getJobWithDetails(tx, &datamodel.Job{BaseModel: datamodel.BaseModel{UUID: id}})
 	if err != nil {

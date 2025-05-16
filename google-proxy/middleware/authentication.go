@@ -19,6 +19,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
 	utilsmiddleware "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 	logger "golang.org/x/exp/slog"
 )
 
@@ -103,7 +104,7 @@ func AuthenticatedGCP(req *http.Request, handler func() middleware.Responder) mi
 	if runningEnv == "local" {
 		return handler()
 	}
-
+	slogger := req.Context().Value(utilsmiddleware.ContextSLoggerKey).(log.Logger)
 	authorizationHeader := req.Header.Get("authorization")
 
 	token, err := jwtParseWithClaims(authorizationHeader, &googleClaims{}, jwtKeyFunc)
@@ -114,24 +115,24 @@ func AuthenticatedGCP(req *http.Request, handler func() middleware.Responder) mi
 		token, err = jwtParseWithClaims(authorizationHeader, &googleClaims{}, jwtKeyFunc)
 	}
 	if err != nil {
-		logger.Error("Authentication failure", err)
+		slogger.Error("Authentication failure", err)
 		return &authenticationResponderGCP{code: http.StatusUnauthorized, message: "Authentication failure"}
 	}
 	if token == nil || !token.Valid {
-		logger.Error("Authentication failure", "err", "Received a nil token after parsing")
+		slogger.Error("Authentication failure", "err", "Received a nil token after parsing")
 		return &authenticationResponderGCP{code: http.StatusUnauthorized, message: "Authentication failure"}
 	}
 
 	claims, _ := token.Claims.(*googleClaims)
 	if claims == nil || claims.Google == nil {
-		logger.Error("Authentication failure", "err", "Claims missing from JWT")
+		slogger.Error("Authentication failure", "err", "Claims missing from JWT")
 		return &authenticationResponderGCP{code: http.StatusUnauthorized, message: "Authentication failure"}
 	}
 
 	tokenProjectNumber := strconv.Itoa(claims.Google.ConsumerProjectNumber)
 	err1 := validateProjectNumber(req, tokenProjectNumber)
 	if err1 != nil {
-		logger.Error("Authentication failure", err1)
+		slogger.Error("Authentication failure", err1)
 		return &authenticationResponderGCP{code: http.StatusUnauthorized, message: "Authentication failure"}
 	}
 
@@ -140,7 +141,7 @@ func AuthenticatedGCP(req *http.Request, handler func() middleware.Responder) mi
 
 func BatchAuthenticatedGCP(req *http.Request, handler func() middleware.Responder) middleware.Responder {
 	authorizationHeader := req.Header.Get("authorization")
-
+	slogger := req.Context().Value(utilsmiddleware.ContextSLoggerKey).(log.Logger)
 	token, err := jwtParseWithClaims(authorizationHeader, &googleClaims{}, jwtKeyFunc)
 	// clean the cache and force fetch the certs on errors
 	for retryCount := 1; retryCount < certCacheMaxRetryCount && err != nil && shouldRetry(err, retryErrors); retryCount++ {
@@ -149,11 +150,11 @@ func BatchAuthenticatedGCP(req *http.Request, handler func() middleware.Responde
 		token, err = jwtParseWithClaims(authorizationHeader, &googleClaims{}, jwtKeyFunc)
 	}
 	if err != nil {
-		logger.Error("Authentication failure", err)
+		slogger.Error("Authentication failure", err)
 		return &authenticationResponderGCP{code: http.StatusUnauthorized, message: "Authentication failure"}
 	}
 	if token == nil || !token.Valid {
-		logger.Error("Authentication failure", "Received a nil token after parsing")
+		slogger.Error("Authentication failure", "Received a nil token after parsing")
 		return &authenticationResponderGCP{code: http.StatusUnauthorized, message: "Authentication failure"}
 	}
 

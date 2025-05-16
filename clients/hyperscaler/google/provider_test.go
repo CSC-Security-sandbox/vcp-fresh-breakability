@@ -276,7 +276,9 @@ func TestGetServiceNetworkingEndpoint(t *testing.T) {
 		endpoint := "test-endpoint"
 		gService := &GcpServices{
 			AdminGCPService:           &AdminGCPService{},
-			serviceNetworkingEndpoint: endpoint}
+			serviceNetworkingEndpoint: endpoint,
+			Logger:                    log.NewLogger(),
+		}
 		res := gService.GetServiceNetworkingEndpoint()
 		if res == "" {
 			t.Error("Must have a value")
@@ -286,7 +288,7 @@ func TestGetServiceNetworkingEndpoint(t *testing.T) {
 		}
 	})
 	t.Run("WhenServiceNetworkingNotInitialised", func(t *testing.T) {
-		gService := &GcpServices{}
+		gService := &GcpServices{Logger: log.NewLogger()}
 		defer func() {
 			serviceNetworkingEndpoint = env.GetString("GCP_SERVICE_NETWORKING_ENDPOINT_URL", "endpoint.google")
 		}()
@@ -307,6 +309,7 @@ func TestGetServiceConsumerManagementEndpoint(t *testing.T) {
 		gService := &GcpServices{
 			AdminGCPService:                   &AdminGCPService{},
 			serviceConsumerManagementEndpoint: endpoint,
+			Logger:                            log.NewLogger(),
 		}
 		res := gService.GetServiceConsumerManagementEndpoint()
 		if res != endpoint {
@@ -314,7 +317,7 @@ func TestGetServiceConsumerManagementEndpoint(t *testing.T) {
 		}
 	})
 	t.Run("WhenConsumerManagementNotInitialised", func(t *testing.T) {
-		gService := &GcpServices{}
+		gService := &GcpServices{Logger: log.NewLogger()}
 		defer func() {
 			serviceConsumerManagementEndpoint = env.GetString("GCP_CONSUMER_MGMT_ENDPOINT_URL", "endpoint.google")
 		}()

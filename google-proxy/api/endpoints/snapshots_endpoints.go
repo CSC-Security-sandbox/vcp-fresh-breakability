@@ -9,10 +9,11 @@ import (
 	gcpgenserver "github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/api/gcp-servergen"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/nillable"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 )
 
 func (h Handler) V1betaGetMultipleSnapshots(ctx context.Context, req *gcpgenserver.SnapshotIdListV1beta, params gcpgenserver.V1betaGetMultipleSnapshotsParams) (gcpgenserver.V1betaGetMultipleSnapshotsRes, error) {
-	logger := utils.GetLoggerFromContext(ctx)
+	logger := util.GetLogger(ctx)
 	reqPrams := &snapshots.V1betaGetMultipleSnapshotsParams{
 		LocationID:     params.LocationId,
 		ProjectNumber:  params.ProjectNumber,

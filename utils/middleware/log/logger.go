@@ -182,21 +182,10 @@ func SetupOpenTelemetry(ctx context.Context) (shutdown func(context.Context) err
 }
 
 func GetCorrelationID(req *http.Request) string {
-	tmp := req.Header.Get("X-Correlation-ID")
+	tmp := req.Header.Get(RequestCorrelationID)
 	if tmp != "" {
 		return tmp
 	}
 
 	return uuid.NewString()
-}
-
-// Secret is a type that represents a secret value, such as a password
-type Secret string
-
-// PasswordMask defines the mask used when logging out a password
-const PasswordMask = "******************"
-
-// Secret defines a type that outputs the password mask when called with String()
-func (s Secret) String() string {
-	return PasswordMask
 }

@@ -12,10 +12,10 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/workflows"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
 	customerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	workflowengine "github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/temporal"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 	"go.temporal.io/api/enums/v1"
 	"go.temporal.io/sdk/client"
 	"gorm.io/gorm"
@@ -35,7 +35,7 @@ func (o *Orchestrator) CreateVolume(ctx context.Context, params *common.CreateVo
 }
 
 func _createVolume(ctx context.Context, se database.Storage, temporal client.Client, params *common.CreateVolumeParams) (*models.Volume, string, error) {
-	logger := utils.GetLoggerFromContext(ctx)
+	logger := util.GetLogger(ctx)
 
 	account, err := getOrCreateAccount(ctx, se, params.AccountName)
 	if err != nil {
@@ -276,7 +276,7 @@ func convertDatastoreVolumeToModel(volume *datamodel.Volume, ipAddress *string) 
 }
 
 func (o *Orchestrator) DeleteVolume(ctx context.Context, volumeId string) (*models.Volume, string, error) {
-	logger := utils.GetLoggerFromContext(ctx)
+	logger := util.GetLogger(ctx)
 	se := o.storage
 
 	volume, err := se.GetVolume(ctx, volumeId)

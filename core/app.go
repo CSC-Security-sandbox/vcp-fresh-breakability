@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware"
 	"net/http"
 	"os"
 	"os/signal"
@@ -16,6 +15,8 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/common"
 	coregenserver "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/core-api/core-servergen"
 	api "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/core-api/handler"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/httphelpers"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 	"golang.org/x/sync/errgroup"
 )
@@ -51,6 +52,7 @@ func main() {
 
 	// Setup HTTP router
 	mux := chi.NewRouter()
+	mux.Use(httphelpers.LoggingHttpHandler)
 	mux.Use(log.LoggingMiddleware)
 	mux.Use(chimiddleware.Recoverer)
 

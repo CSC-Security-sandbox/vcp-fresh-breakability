@@ -8,7 +8,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	customerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
-	slogger "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 	"gorm.io/gorm"
 )
 
@@ -33,9 +33,8 @@ func (d *DataStoreRepository) CreateLif(ctx context.Context, lif *datamodel.Lif)
 	if err != nil {
 		return nil, err
 	}
-	// Fixme: The logger should be fetched from ctx
-	logger := slogger.NewLogger()
-	defer commitOrRollbackOnError(slogger.NewLogger(), tx, &err)
+	logger := util.GetLogger(ctx)
+	defer commitOrRollbackOnError(logger, tx, &err)
 	err1 := tx.Where("name = ? and node_id = ? and account_id = ?", lif.Name, lif.NodeID, lif.AccountID).First(&dbLif).Error
 	if errors.Is(err1, gorm.ErrRecordNotFound) {
 		lif.UUID = utils.RandomUUID()
@@ -64,8 +63,8 @@ func (d *DataStoreRepository) DeleteLif(ctx context.Context, lif *datamodel.Lif)
 	if err != nil {
 		return err
 	}
-	// Fixme: The logger should be fetched from ctx
-	defer commitOrRollbackOnError(slogger.NewLogger(), tx, &err)
+	logger := util.GetLogger(ctx)
+	defer commitOrRollbackOnError(logger, tx, &err)
 	lif.DeletedAt = &gorm.DeletedAt{Time: time.Now(), Valid: true}
 	err = tx.Updates(lif).Error
 	if err != nil {

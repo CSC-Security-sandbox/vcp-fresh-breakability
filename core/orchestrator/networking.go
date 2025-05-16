@@ -7,7 +7,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/hyperscaler/google"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 	"google.golang.org/api/servicenetworking/v1"
 )
 
@@ -17,11 +17,12 @@ var (
 
 // FindTenancyAndGetSubnetwork finds the tenancy unit and creates a subnetwork for the tenant project
 func FindTenancyAndGetSubnetwork(ctx context.Context, consumerVPC string, customerProjectNumber string, tenantProjectRegion *string) (*string, *servicenetworking.Subnetwork, error) {
+	logger := util.GetLogger(ctx)
 	// need to pass tenantProjectRegion only in case of CBR where region != the regional region as set from env variable
 	var gService hyperscaler.GoogleServices
 	gcpService := &google.GcpServices{
 		Ctx:    ctx,
-		Logger: log.NewLogger(),
+		Logger: logger,
 	}
 	gService = gcpService
 

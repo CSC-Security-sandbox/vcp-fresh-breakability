@@ -14,9 +14,8 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
 	customerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 	workflowengine "github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/temporal"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 	"go.temporal.io/api/enums/v1"
 	"go.temporal.io/sdk/client"
 	"gorm.io/gorm"
@@ -43,7 +42,7 @@ func (o *Orchestrator) CreatePool(ctx context.Context, params *commonparams.Crea
 
 // createPool creates a new pool and triggers asynchronous creation processes.
 func _createPool(ctx context.Context, se database.Storage, temporal client.Client, params *commonparams.CreatePoolParams) (*models.Pool, string, error) {
-	logger := ctx.Value(middleware.ContextSLoggerKey).(log.Logger)
+	logger := util.GetLogger(ctx)
 	account, err := getOrCreateAccount(ctx, se, params.AccountName)
 	if err != nil {
 		return nil, "", err
@@ -139,7 +138,7 @@ func (o *Orchestrator) DeletePool(ctx context.Context, params *commonparams.Dele
 
 // _deletePool deletes the specified pool and its associated resources.
 func _deletePool(ctx context.Context, temporal client.Client, se database.Storage, params *commonparams.DeletePoolParams) (*models.Pool, string, error) {
-	logger := ctx.Value(middleware.ContextSLoggerKey).(log.Logger)
+	logger := util.GetLogger(ctx)
 	account, err := getAccountWithName(ctx, se, params.AccountName)
 	if err != nil {
 		return nil, "", err

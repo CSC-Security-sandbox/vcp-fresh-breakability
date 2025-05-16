@@ -8,7 +8,6 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
-	logger "golang.org/x/exp/slog"
 	"golang.org/x/oauth2/google"
 	"google.golang.org/api/compute/v1"
 	"google.golang.org/api/option"
@@ -82,10 +81,7 @@ func (gcpService *GcpServices) IsAdminClientInitialized() bool {
 
 // _initializeAdminClient creates a new googleService object using Workload identity and Initializes the services
 func _newGoogleClient(ctx context.Context) (*AdminGCPService, error) {
-	logger, err := util.GetLogger(ctx)
-	if err != nil {
-		return nil, err
-	}
+	logger := util.GetLogger(ctx)
 	logger.Debug("Calling initializeManagementService")
 	managementService, err := initializeManagementService(ctx)
 	if err != nil {
@@ -117,23 +113,24 @@ func _newGoogleClient(ctx context.Context) (*AdminGCPService, error) {
 
 // _initializeManagementService initializes the service consumer management API service
 func _initializeManagementService(ctx context.Context) (*serviceconsumermanagement.APIService, error) {
+	slogger := util.GetLogger(ctx)
 	scopesOption := option.WithScopes(serviceconsumermanagement.CloudPlatformScope)
 	opts := []option.ClientOption{scopesOption}
 
-	logger.Debug(fmt.Sprintf("opts: %#v", opts))
+	slogger.Debug(fmt.Sprintf("opts: %#v", opts))
 	if MockMetaDataHost != "" {
 		opts = append(opts, option.WithTokenSource(google.ComputeTokenSource("", serviceconsumermanagement.CloudPlatformScope)))
 	}
-	logger.Debug("creating newClient")
+	slogger.Debug("creating newClient")
 	client, endpoint, err := newClient(ctx, opts...)
 	if err != nil {
-		logger.Error("error while creating new client for _initializeManagementService", err)
+		slogger.Error("error while creating new client for _initializeManagementService", err)
 		return nil, err
 	}
 	client.Timeout = waitTimeoutMinutes
 	svc, err := serviceconsumermanagement.NewService(ctx, option.WithHTTPClient(client))
 	if err != nil {
-		logger.Error("serviceconsumermanagement.NewService error", err)
+		slogger.Error("serviceconsumermanagement.NewService error", err)
 		return nil, err
 	}
 	if endpoint != "" {
@@ -144,22 +141,23 @@ func _initializeManagementService(ctx context.Context) (*serviceconsumermanageme
 
 // _initializeNetworkingService initializes the service networking API service
 func _initializeNetworkingService(ctx context.Context) (*servicenetworking.APIService, error) {
+	slogger := util.GetLogger(ctx)
 	scopesOption := option.WithScopes(servicenetworking.CloudPlatformScope, servicenetworking.ServiceManagementScope)
 	opts := []option.ClientOption{scopesOption}
-	logger.Debug(fmt.Sprintf("opts: %#v", opts))
+	slogger.Debug(fmt.Sprintf("opts: %#v", opts))
 	if MockMetaDataHost != "" {
 		opts = append(opts, option.WithTokenSource(google.ComputeTokenSource("", servicenetworking.CloudPlatformScope, servicenetworking.ServiceManagementScope)))
 	}
-	logger.Debug("creating newClient")
+	slogger.Debug("creating newClient")
 	client, endpoint, err := newClient(ctx, opts...)
 	if err != nil {
-		logger.Error("error while creating new client for _initializeNetworkingService", err)
+		slogger.Error("error while creating new client for _initializeNetworkingService", err)
 		return nil, err
 	}
 	client.Timeout = defaultSleepTime
 	svc, err := servicenetworking.NewService(ctx, option.WithHTTPClient(client))
 	if err != nil {
-		logger.Error("servicenetworking.NewService error", err)
+		slogger.Error("servicenetworking.NewService error", err)
 		return nil, err
 	}
 	if endpoint != "" {
@@ -170,24 +168,25 @@ func _initializeNetworkingService(ctx context.Context) (*servicenetworking.APISe
 
 // _initializeComputeService initializes the compute API service in GCP
 func _initializeComputeService(ctx context.Context) (*compute.Service, error) {
+	slogger := util.GetLogger(ctx)
 	scopesOption := option.WithScopes(compute.ComputeReadonlyScope, compute.ComputeScope, compute.CloudPlatformScope)
 	opts := []option.ClientOption{scopesOption}
-	logger.Debug(fmt.Sprintf("opts: %#v", opts))
+	slogger.Debug(fmt.Sprintf("opts: %#v", opts))
 
 	if MockMetaDataHost != "" {
 		opts = append(opts, option.WithTokenSource(google.ComputeTokenSource("", compute.ComputeReadonlyScope, compute.ComputeScope, compute.CloudPlatformScope)))
 	}
-	logger.Debug("creating newClient")
+	slogger.Debug("creating newClient")
 	client, endpoint, err := newClient(ctx, opts...)
 	if err != nil {
-		logger.Error("error while creating new client for _initializeComputeService", err)
+		slogger.Error("error while creating new client for _initializeComputeService", err)
 		return nil, err
 	}
 	client.Timeout = defaultSleepTime
 
 	svc, err := compute.NewService(ctx, option.WithHTTPClient(client))
 	if err != nil {
-		logger.Error("compute.NewService error", err)
+		slogger.Error("compute.NewService error", err)
 		return nil, err
 	}
 
@@ -203,7 +202,7 @@ func (gcpService *GcpServices) GetServiceNetworkingEndpoint() string {
 	if gcpService.serviceNetworkingEndpoint == "" {
 		gcpService.serviceNetworkingEndpoint = serviceNetworkingEndpoint
 	}
-	logger.Debug("GetServiceNetworkingEndpoint : gcpService.serviceNetworkingEndpoint = ", gcpService.serviceNetworkingEndpoint)
+	gcpService.Logger.Debug("GetServiceNetworkingEndpoint : gcpService.serviceNetworkingEndpoint = ", gcpService.serviceNetworkingEndpoint)
 	return gcpService.serviceNetworkingEndpoint
 }
 
@@ -212,6 +211,6 @@ func (gcpService *GcpServices) GetServiceConsumerManagementEndpoint() string {
 	if gcpService.serviceConsumerManagementEndpoint == "" {
 		gcpService.serviceConsumerManagementEndpoint = serviceConsumerManagementEndpoint
 	}
-	logger.Debug("GetServiceConsumerManagementEndpoint : gcpService.serviceConsumerManagementEndpoint = ", gcpService.serviceConsumerManagementEndpoint)
+	gcpService.Logger.Debug("GetServiceConsumerManagementEndpoint : gcpService.serviceConsumerManagementEndpoint = ", gcpService.serviceConsumerManagementEndpoint)
 	return gcpService.serviceConsumerManagementEndpoint
 }

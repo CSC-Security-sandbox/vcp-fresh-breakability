@@ -10,8 +10,8 @@ import (
 )
 
 const (
-	requestID            = "x-request-id"
-	requestCorrelationID = "x-correlation-id"
+	requestID            = "X-Request-ID"
+	RequestCorrelationID = "X-Correlation-ID"
 )
 
 type Slogger struct {

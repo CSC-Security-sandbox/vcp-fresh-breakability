@@ -21,6 +21,7 @@ import (
 	gcpgenserver "github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/api/gcp-servergen"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/middleware"
 	utilsmiddleware "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/httphelpers"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 	workflow_engine "github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/temporal"
 	"golang.org/x/sync/errgroup"
@@ -182,6 +183,7 @@ func initializeTemporalClient(logger log.Logger) (workflow_engine.TemporalWorkfl
 
 func setupHTTPServer(cfg *common.Config, handler http.Handler) *http.Server {
 	mux := chi.NewRouter()
+	mux.Use(httphelpers.LoggingHttpHandler)
 	mux.Use(log.LoggingMiddleware)
 	mux.Use(middleware.AuthMiddleware)
 	mux.Use(chimiddleware.Recoverer)

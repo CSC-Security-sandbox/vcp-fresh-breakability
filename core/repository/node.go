@@ -9,7 +9,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	customerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
-	slogger "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 	"gorm.io/gorm"
 )
 
@@ -34,9 +34,8 @@ func (d *DataStoreRepository) CreateNode(ctx context.Context, node *datamodel.No
 	if err != nil {
 		return nil, err
 	}
-	// Fixme: The logger should be fetched from ctx
-	logger := slogger.NewLogger()
-	defer commitOrRollbackOnError(slogger.NewLogger(), tx, &err)
+	logger := util.GetLogger(ctx)
+	defer commitOrRollbackOnError(logger, tx, &err)
 	var dbNode datamodel.Node
 	err1 := tx.Where("name = ? and account_id = ?", node.Name, node.AccountID).First(&dbNode).Error
 	if errors.Is(err1, gorm.ErrRecordNotFound) {
@@ -69,8 +68,8 @@ func (d *DataStoreRepository) DeleteNode(ctx context.Context, node *datamodel.No
 	if err != nil {
 		return err
 	}
-	// Fixme: The logger should be fetched from ctx
-	defer commitOrRollbackOnError(slogger.NewLogger(), tx, &err)
+	logger := util.GetLogger(ctx)
+	defer commitOrRollbackOnError(logger, tx, &err)
 	node.DeletedAt = &gorm.DeletedAt{Time: time.Now(), Valid: true}
 	node.State = models.LifeCycleStateDeleted
 	node.StateDetails = models.LifeCycleStateDeletedDetails
@@ -88,8 +87,8 @@ func (d *DataStoreRepository) DeletingNode(ctx context.Context, node *datamodel.
 	if err != nil {
 		return err
 	}
-	// Fixme: The logger should be fetched from ctx
-	defer commitOrRollbackOnError(slogger.NewLogger(), tx, &err)
+	logger := util.GetLogger(ctx)
+	defer commitOrRollbackOnError(logger, tx, &err)
 	node.State = models.LifeCycleStateDeleting
 	node.StateDetails = models.LifeCycleStateDeletingDetails
 	err = tx.Updates(node).Error

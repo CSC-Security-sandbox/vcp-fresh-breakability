@@ -38,7 +38,7 @@ func _commitOrRollbackTransaction(log slogger.Logger, tx *gorm.DB, err *error) e
 	defer func() {
 		rollbackErr := parseDBError(tx.Rollback())
 		if rollbackErr != nil {
-			log.Error("Failed to rollback transaction", rollbackErr)
+			log.Error("Failed to rollback transaction", "error", rollbackErr)
 		}
 	}()
 

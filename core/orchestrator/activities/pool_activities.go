@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/vlm"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 	"netapp.com/vsa/lifecycle-manager/pkg/vlmconfig"
 	"os"
 	"strings"
@@ -68,10 +67,7 @@ func (j *PoolActivity) CreateTenancy(ctx context.Context, params commonparams.Cr
 
 // FindTenancyAndGetSubnetwork finds the tenancy unit and creates a subnetwork for the tenant project
 func FindTenancyAndGetSubnetwork(ctx context.Context, consumerVPC string, customerProjectNumber string, tenantProjectRegion *string) (*commonparams.TenancyInfo, error) {
-	logger, logErr := util.GetLogger(ctx)
-	if logErr != nil {
-		return nil, logErr
-	}
+	logger := util.GetLogger(ctx)
 	// need to pass tenantProjectRegion only in case of CBR where region != the regional region as set from env variable
 	var gService hyperscaler.GoogleServices
 	gcpService := &google.GcpServices{
@@ -125,8 +121,8 @@ func (j *PoolActivity) DeployDeploymentManager(ctx context.Context, deploymentNa
 	return common.DeploymentsInsert(ctx, deploymentName, region, zone, network, subnet, projectId, snHostProject, size)
 }
 
-func (j *PoolActivity) SetupNetwork(region, network, projectId, snHostProject string) error {
-	return common.SetupNetwork(projectId, snHostProject, network, region)
+func (j *PoolActivity) SetupNetwork(ctx context.Context, region, network, projectId, snHostProject string) error {
+	return common.SetupNetwork(ctx, projectId, snHostProject, network, region)
 }
 
 func (j *PoolActivity) SavePoolWithClusterDetails(ctx context.Context, dbPool *datamodel.Pool, cluster *datamodel.ClusterDetails) error {
@@ -190,10 +186,7 @@ func GetProviderByNode(node *models.Node) *vsa.OntapRestProvider {
 
 func (j *PoolActivity) CheckForNodes(ctx context.Context, node *models.Node) error {
 	provider := GetProviderByNode(node)
-	logger, err := util.GetLogger(ctx)
-	if err != nil {
-		return err
-	}
+	logger := util.GetLogger(ctx)
 
 	ready, err := provider.AreAllNodeUpAndRunning()
 	if err != nil {
@@ -211,10 +204,7 @@ func (j *PoolActivity) CheckForNodes(ctx context.Context, node *models.Node) err
 
 func (j *PoolActivity) CheckForAggr(ctx context.Context, node *models.Node) error {
 	provider := GetProviderByNode(node)
-	logger, err := util.GetLogger(ctx)
-	if err != nil {
-		return err
-	}
+	logger := util.GetLogger(ctx)
 
 	ready, err := provider.IsAggregateOnline(aggregateName)
 	if err != nil {
@@ -268,7 +258,7 @@ func (j *PoolActivity) EnableIscsiServiceForSVM(ctx context.Context, node *model
 }
 
 func (j *PoolActivity) CreateVSASVM(ctx context.Context, pool *datamodel.Pool, vlmConfig *vlmconfig.VLMConfig) error {
-	logger := log.NewLogger()
+	logger := util.GetLogger(ctx)
 	vlmClient := vlm.NewClient(ctx, logger, vlmConfig)
 	se := *j.SE
 	svmParam := &vlmconfig.SVMConfigParams{
@@ -324,7 +314,7 @@ func (j *PoolActivity) CreateVSASVM(ctx context.Context, pool *datamodel.Pool, v
 }
 
 func (j *PoolActivity) CreateVSACluster(ctx context.Context, deploymentName, region, zone, network, subnet, projectId, snHostProject string, size int) (*vlmconfig.VLMConfig, error) {
-	logger := log.NewLogger()
+	logger := util.GetLogger(ctx)
 	cfg := &vlmconfig.VLMConfig{}
 	err := prepareVlmConfig(cfg, deploymentName, region, zone, network, subnet, projectId, snHostProject)
 	if err != nil {
@@ -400,7 +390,7 @@ func (j *PoolActivity) DeleteVSADeployment(ctx context.Context, pool *datamodel.
 		return nil, err
 	}
 
-	logger := log.NewLogger()
+	logger := util.GetLogger(ctx)
 	cfg := &vlmconfig.VLMConfig{}
 	err = prepareVlmConfig(cfg, deploymentName, region, node[0].ZoneName, pool.ClusterDetails.Network, "vsa-"+region, pool.ClusterDetails.RegionalTenantProject, pool.ClusterDetails.SnHostProject)
 	if err != nil {
@@ -545,10 +535,7 @@ func (j *PoolActivity) DeleteDeployment(ctx context.Context, pool *datamodel.Poo
 
 func (j *PoolActivity) ReleaseSubnet(ctx context.Context, pool *datamodel.Pool) error {
 	se := *j.SE
-	logger, err := util.GetLogger(ctx)
-	if err != nil {
-		return err
-	}
+	logger := util.GetLogger(ctx)
 	conditions := [][]interface{}{{"account_id = ?", pool.AccountID}}
 	conditions = append(conditions, []interface{}{"network = ?", pool.Network})
 	pools, err := se.ListPools(ctx, conditions)

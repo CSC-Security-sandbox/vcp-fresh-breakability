@@ -10,7 +10,7 @@ import (
 	gormWrapper "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/gorm"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	customerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
-	slogger "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 	"gorm.io/gorm"
 )
 
@@ -34,8 +34,8 @@ func (d *DataStoreRepository) CreatedPool(ctx context.Context, pool *datamodel.P
 	if err != nil {
 		return nil, err
 	}
-	// Fixme: The logger should be fetched from ctx
-	defer commitOrRollbackOnError(slogger.NewLogger(), tx, &err)
+	logger := util.GetLogger(ctx)
+	defer commitOrRollbackOnError(logger, tx, &err)
 	err = tx.Where("name = ?", pool.Name).Where("account_id = ?", pool.AccountID).First(&pool).Error
 	if err != nil {
 		return nil, err
@@ -62,8 +62,7 @@ func (d *DataStoreRepository) CreatingPool(ctx context.Context, pool *datamodel.
 	if err != nil {
 		return nil, err
 	}
-	// Fixme: The logger should be fetched from ctx
-	logger := slogger.NewLogger()
+	logger := util.GetLogger(ctx)
 	defer commitOrRollbackOnError(logger, tx, &err)
 
 	var dbPool *datamodel.Pool
@@ -103,8 +102,8 @@ func (d *DataStoreRepository) UpdatePool(ctx context.Context, pool *datamodel.Po
 	if err != nil {
 		return err
 	}
-	// Fixme: The logger should be fetched from ctx
-	defer commitOrRollbackOnError(slogger.NewLogger(), tx, &err)
+	logger := util.GetLogger(ctx)
+	defer commitOrRollbackOnError(logger, tx, &err)
 
 	dbPool, err := getPoolWithDetails(tx, &datamodel.Pool{BaseModel: datamodel.BaseModel{UUID: pool.UUID}})
 	if err != nil {
@@ -127,8 +126,8 @@ func (d *DataStoreRepository) DeletePool(ctx context.Context, pool *datamodel.Po
 	if err != nil {
 		return err
 	}
-	// Fixme: The logger should be fetched from ctx
-	defer commitOrRollbackOnError(slogger.NewLogger(), tx, &err)
+	logger := util.GetLogger(ctx)
+	defer commitOrRollbackOnError(logger, tx, &err)
 	pool.DeletedAt = &gorm.DeletedAt{Time: time.Now(), Valid: true}
 	pool.State = models.LifeCycleStateDeleted
 	pool.StateDetails = models.LifeCycleStateDeletedDetails
@@ -146,8 +145,8 @@ func (d *DataStoreRepository) DeletingPool(ctx context.Context, pool *datamodel.
 	if err != nil {
 		return err
 	}
-	// Fixme: The logger should be fetched from ctx
-	defer commitOrRollbackOnError(slogger.NewLogger(), tx, &err)
+	logger := util.GetLogger(ctx)
+	defer commitOrRollbackOnError(logger, tx, &err)
 	pool.State = models.LifeCycleStateDeleting
 	pool.StateDetails = models.LifeCycleStateDeletingDetails
 	err = tx.Updates(pool).Error
@@ -192,8 +191,8 @@ func (d *DataStoreRepository) SavePoolWithVsaClusterDetails(ctx context.Context,
 	if err != nil {
 		return err
 	}
-	// Fixme: The logger should be fetched from ctx
-	defer commitOrRollbackOnError(slogger.NewLogger(), tx, &err)
+	logger := util.GetLogger(ctx)
+	defer commitOrRollbackOnError(logger, tx, &err)
 	pool.ClusterDetails = *cluster
 	err = tx.Model(&pool).Updates(map[string]interface{}{
 		"cluster_details": pool.ClusterDetails,

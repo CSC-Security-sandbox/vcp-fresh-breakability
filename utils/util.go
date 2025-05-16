@@ -15,14 +15,12 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 )
 
 var (
 	localRegion                   = env.GetString("LOCAL_REGION", "local")
 	parseRegionAndZone            = _parseRegionAndZone
 	ParseAndValidateRegionAndZone = _parseAndValidateRegionAndZone
-	GetLoggerFromContext          = getLoggerFromContext
 )
 
 func ValidateIPv4Address(ipAddr string) bool {
@@ -136,13 +134,6 @@ func _parseRegionAndZone(locationID string) (string, string, error) {
 		return "", "", errors.New(msg)
 	}
 	return region, zone, nil
-}
-
-func getLoggerFromContext(ctx context.Context) log.Logger {
-	if logger, ok := ctx.Value(middleware.ContextSLoggerKey).(log.Logger); ok {
-		return logger
-	}
-	return log.NewLogger()
 }
 
 // GetJWTTokenFromContext gets the JWT token from the context

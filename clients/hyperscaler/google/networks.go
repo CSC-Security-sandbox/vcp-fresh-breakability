@@ -36,7 +36,7 @@ func (gcpService *GcpServices) GetTenantProject(consumerNetwork string, customer
 		for _, tenantResource := range tenancy.TenantResources {
 			tenantProjectNumber := strings.TrimPrefix(tenantResource.Resource, "projects/")
 			if tenantResource.Tag == consumerNetwork+"-"+tenantProjectRegion {
-				gcpService.Logger.Info("Found tenancy for 1P for remote account id: %s : %s", consumerNetwork, tenantProjectNumber)
+				gcpService.Logger.Infof("Found tenancy for 1P for remote account id: %s : %s", consumerNetwork, tenantProjectNumber)
 				return tenantProjectNumber, nil
 			}
 		}

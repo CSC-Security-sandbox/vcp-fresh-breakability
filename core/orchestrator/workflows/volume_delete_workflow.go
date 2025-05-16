@@ -53,10 +53,7 @@ func (wf *volumeDeleteWorkflow) Setup(ctx workflow.Context, input interface{}) e
 	wf.ID = info.WorkflowExecution.ID
 	wf.CustomerID = volume.Account.Name
 	wf.Status = "created"
-	logger, err := util.GetLogger(ctx)
-	if err != nil {
-		return err
-	}
+	logger := util.GetLogger(ctx)
 	wf.Logger = logger.With(log.Fields{
 		"workflowID": wf.ID,
 		"customerID": wf.CustomerID,

@@ -9,7 +9,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	customerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
-	slogger "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 	"gorm.io/gorm"
 )
 
@@ -31,9 +31,8 @@ func (d *DataStoreRepository) CreateSVM(ctx context.Context, svm *datamodel.Svm)
 	if err != nil {
 		return nil, err
 	}
-	// Fixme: The logger should be fetched from ctx
-	logger := slogger.NewLogger()
-	defer commitOrRollbackOnError(slogger.NewLogger(), tx, &err)
+	logger := util.GetLogger(ctx)
+	defer commitOrRollbackOnError(logger, tx, &err)
 	err1 := tx.Where("account_id = ?", svm.AccountID).Where("name = ?", svm.Name).Where("pool_id = ?", svm.PoolID).First(&dbSvm).Error
 	if errors.Is(err1, gorm.ErrRecordNotFound) {
 		svm.UUID = utils.RandomUUID()
@@ -78,8 +77,8 @@ func (d *DataStoreRepository) DeleteSVM(ctx context.Context, svm *datamodel.Svm)
 	if err != nil {
 		return err
 	}
-	// Fixme: The logger should be fetched from ctx
-	defer commitOrRollbackOnError(slogger.NewLogger(), tx, &err)
+	logger := util.GetLogger(ctx)
+	defer commitOrRollbackOnError(logger, tx, &err)
 	svm.DeletedAt = &gorm.DeletedAt{Time: time.Now(), Valid: true}
 	svm.State = models.LifeCycleStateDeleted
 	svm.StateDetails = models.LifeCycleStateDeletedDetails
@@ -97,8 +96,8 @@ func (d *DataStoreRepository) DeletingSVM(ctx context.Context, svm *datamodel.Sv
 	if err != nil {
 		return err
 	}
-	// Fixme: The logger should be fetched from ctx
-	defer commitOrRollbackOnError(slogger.NewLogger(), tx, &err)
+	logger := util.GetLogger(ctx)
+	defer commitOrRollbackOnError(logger, tx, &err)
 	svm.State = models.LifeCycleStateDeleting
 	svm.StateDetails = models.LifeCycleStateDeletingDetails
 	err = tx.Updates(svm).Error

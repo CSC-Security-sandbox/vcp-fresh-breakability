@@ -8,7 +8,6 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database"
 	gcpgenserver "github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/api/gcp-servergen"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 	"go.temporal.io/sdk/temporal"
 	"go.temporal.io/sdk/workflow"
@@ -59,14 +58,9 @@ func (wf *PoolWorkflow) SetupCreateWorkflow(ctx workflow.Context, input interfac
 	wf.ID = info.WorkflowExecution.ID
 	wf.CustomerID = createPoolParams.AccountName
 	wf.Status = "created"
-	logger, err := util.GetLogger(ctx)
-	if err != nil {
-		return err
-	}
-	wf.Logger = logger.With(log.Fields{
-		"workflowID": wf.ID,
-		"customerID": wf.CustomerID,
-	})
+	ctx = util.AddExtraLoggerFields(ctx, map[string]interface{}{"workflowID": wf.ID, "customerID": wf.CustomerID})
+	logger := util.GetLogger(ctx)
+	wf.Logger = logger
 
 	return workflow.SetQueryHandler(ctx, "status", func() (*poolWorkflowStatus, error) {
 		return &poolWorkflowStatus{
@@ -188,14 +182,9 @@ func (wf *PoolWorkflow) SetupDeleteWorkflow(ctx workflow.Context, input interfac
 	deletePoolParams := input.(*common.DeletePoolParams)
 	wf.CustomerID = deletePoolParams.AccountName
 	wf.Status = "created"
-	logger, err := util.GetLogger(ctx)
-	if err != nil {
-		return err
-	}
-	wf.Logger = logger.With(log.Fields{
-		"workflowID": wf.ID,
-		"customerID": wf.CustomerID,
-	})
+	ctx = util.AddExtraLoggerFields(ctx, map[string]interface{}{"workflowID": wf.ID, "customerID": wf.CustomerID})
+	logger := util.GetLogger(ctx)
+	wf.Logger = logger
 
 	return workflow.SetQueryHandler(ctx, "status", func() (*poolWorkflowStatus, error) {
 		return &poolWorkflowStatus{

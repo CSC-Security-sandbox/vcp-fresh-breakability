@@ -7,13 +7,12 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator"
 	gcpgenserver "github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/api/gcp-servergen"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	customerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
-	"golang.org/x/exp/slog"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 )
 
 func (h Handler) V1betaDescribeHostGroup(ctx context.Context, params gcpgenserver.V1betaDescribeHostGroupParams) (gcpgenserver.V1betaDescribeHostGroupRes, error) {
-	logger := utils.GetLoggerFromContext(ctx)
+	logger := util.GetLogger(ctx)
 	hostGroup, err := h.Orchestrator.GetHostGroup(ctx, params.HostGroupId, params.ProjectNumber)
 	if err != nil {
 		if customerrors.IsNotFoundErr(err) {
@@ -22,14 +21,14 @@ func (h Handler) V1betaDescribeHostGroup(ctx context.Context, params gcpgenserve
 				Message: "host group not found",
 			}, nil
 		}
-		logger.Error("Failed to describe hostgroup", slog.String("error", err.Error()))
+		logger.Error("Failed to describe hostgroup", "error", err.Error())
 		return &gcpgenserver.V1betaDescribeHostGroupInternalServerError{}, err
 	}
 	return convertToHostGroupV1Beta(hostGroup), nil
 }
 
 func (h Handler) V1betaCreateHostGroup(ctx context.Context, req *gcpgenserver.HostGroupV1beta, params gcpgenserver.V1betaCreateHostGroupParams) (gcpgenserver.V1betaCreateHostGroupRes, error) {
-	logger := utils.GetLoggerFromContext(ctx)
+	logger := util.GetLogger(ctx)
 
 	createParams := &orchestrator.CreateHostGroupParams{
 		Name:      req.ResourceId,
@@ -58,7 +57,7 @@ func (h Handler) V1betaCreateHostGroup(ctx context.Context, req *gcpgenserver.Ho
 				Message: err.Error(),
 			}, nil
 		}
-		logger.Error("Failed to create hostgroup", slog.String("error", err.Error()))
+		logger.Error("Failed to create hostgroup", "error", err.Error())
 		return &gcpgenserver.V1betaCreateHostGroupInternalServerError{
 			Code:    500,
 			Message: "Internal server error",

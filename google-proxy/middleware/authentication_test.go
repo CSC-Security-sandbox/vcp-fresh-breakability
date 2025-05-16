@@ -2,6 +2,7 @@ package middleware
 
 import (
 	"bytes"
+	"context"
 	"crypto/rsa"
 	"errors"
 	"io"
@@ -16,6 +17,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	servergenModel "github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/api/gcp-servergen"
+	utilsmiddleware "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 )
 
 type testProducer struct {
@@ -42,6 +45,8 @@ func TestAuthenticatedGCP(t *testing.T) {
 	req := &http.Request{}
 	req.Header = make(http.Header)
 	req.Header.Set("Authorization", "")
+	mockLogger := log.NewLogger()
+	req = req.WithContext(context.WithValue(req.Context(), utilsmiddleware.ContextSLoggerKey, mockLogger))
 
 	t.Run("WhenParsingJWTWithClaimsReturnsError", func(tt *testing.T) {
 		jwtErr = errors.New("something went wrong")

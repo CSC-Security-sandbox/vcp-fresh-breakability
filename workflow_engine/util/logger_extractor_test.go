@@ -25,15 +25,14 @@ func (s *LoggerExtractorTestSuite) TestGetLoggerFromAPIContext() {
 	ctx := context.Background()
 	ctx = context.WithValue(ctx, middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
 
-	logger, err := GetLogger(ctx)
-	s.NoError(err)
+	logger := GetLogger(ctx)
 	s.NotNil(logger)
 }
 
 func (s *LoggerExtractorTestSuite) TestGetLoggerFromAPIContextNoLogger() {
 	ctx := context.Background()
-
-	logger, err := GetLogger(ctx)
+	apiCtx := apiContext{ctx: ctx}
+	logger, err := apiCtx.extractLogger()
 	s.Error(err)
 	s.Nil(logger)
 	s.EqualError(err, "no logger found in api context")
@@ -48,10 +47,7 @@ func (s *LoggerExtractorTestSuite) TestGetLoggerFromWorkflowContext() {
 }
 
 func (s *LoggerExtractorTestSuite) CheckNoLoggerInWorkflowContext(ctx workflow.Context) error {
-	logger, err := GetLogger(ctx)
-	if err != nil {
-		return err
-	}
+	logger := GetLogger(ctx)
 	if logger != nil {
 		return errors.New("logger found but was supposed to be not present")
 	}

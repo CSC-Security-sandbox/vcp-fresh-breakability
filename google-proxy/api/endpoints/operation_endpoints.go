@@ -11,9 +11,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	gcpgenserver "github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/api/gcp-servergen"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
-	"golang.org/x/exp/slog"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 )
 
 var (
@@ -27,7 +25,7 @@ const (
 )
 
 func (h Handler) V1betaDescribeOperation(ctx context.Context, params gcpgenserver.V1betaDescribeOperationParams) (gcpgenserver.V1betaDescribeOperationRes, error) {
-	logger := ctx.Value(middleware.ContextSLoggerKey).(log.Logger)
+	logger := util.GetLogger(ctx)
 	_, _, parsingErr := utils.ParseAndValidateRegionAndZone(params.LocationId)
 	if parsingErr != nil {
 		return &gcpgenserver.V1betaDescribeOperationBadRequest{
@@ -44,7 +42,7 @@ func (h Handler) V1betaDescribeOperation(ctx context.Context, params gcpgenserve
 	}
 	job, err := h.Orchestrator.GetJob(ctx, jobUUID.String())
 	if err != nil {
-		logger.Error("Failed to describe operation", slog.String("error", err.Error()))
+		logger.Error("Failed to describe operation", "error", err.Error())
 		return &gcpgenserver.V1betaDescribeOperationInternalServerError{
 			Code:    500,
 			Message: err.Error(),

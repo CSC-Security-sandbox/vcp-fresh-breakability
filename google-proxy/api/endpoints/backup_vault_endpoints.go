@@ -9,10 +9,11 @@ import (
 	gcpgenserver "github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/api/gcp-servergen"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/nillable"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 )
 
 func (h Handler) V1betaCreateBackupVault(ctx context.Context, req *gcpgenserver.BackupVaultCreateV1beta, params gcpgenserver.V1betaCreateBackupVaultParams) (r gcpgenserver.V1betaCreateBackupVaultRes, _ error) {
-	logger := utils.GetLoggerFromContext(ctx)
+	logger := util.GetLogger(ctx)
 	brPolicy := convertBackupRetentionPolicyToCvpModel(req.BackupRetentionPolicy)
 	body := &models.BackupVaultCreateV1beta{
 		BackupRegion:          &req.BackupRegion.Value,
@@ -92,7 +93,7 @@ func (h Handler) V1betaCreateBackupVault(ctx context.Context, req *gcpgenserver.
 	return createdOperationResponse, nil
 }
 func (h Handler) V1betaDeleteBackupVault(ctx context.Context, params gcpgenserver.V1betaDeleteBackupVaultParams) (r gcpgenserver.V1betaDeleteBackupVaultRes, _ error) {
-	logger := utils.GetLoggerFromContext(ctx)
+	logger := util.GetLogger(ctx)
 
 	deleteParams := &backup_vault.V1betaDeleteBackupVaultParams{
 		LocationID:     params.LocationId,
@@ -168,7 +169,7 @@ func (h Handler) V1betaDeleteBackupVault(ctx context.Context, params gcpgenserve
 }
 
 func (h Handler) V1betaDescribeBackupVault(ctx context.Context, params gcpgenserver.V1betaDescribeBackupVaultParams) (r gcpgenserver.V1betaDescribeBackupVaultRes, _ error) {
-	logger := utils.GetLoggerFromContext(ctx)
+	logger := util.GetLogger(ctx)
 	describeParams := &backup_vault.V1betaDescribeBackupVaultParams{
 		LocationID:     params.LocationId,
 		ProjectNumber:  params.ProjectNumber,
@@ -236,7 +237,7 @@ func (h Handler) V1betaDescribeBackupVault(ctx context.Context, params gcpgenser
 }
 
 func (h Handler) V1betaGetMultipleBackupVaults(ctx context.Context, req *gcpgenserver.BackupVaultUuidListV1beta, params gcpgenserver.V1betaGetMultipleBackupVaultsParams) (r gcpgenserver.V1betaGetMultipleBackupVaultsRes, _ error) {
-	logger := utils.GetLoggerFromContext(ctx)
+	logger := util.GetLogger(ctx)
 	body := &models.BackupVaultUUIDListV1beta{
 		BackupVaultUUIDs: req.BackupVaultUuids,
 	}
@@ -303,7 +304,7 @@ func (h Handler) V1betaGetMultipleBackupVaults(ctx context.Context, req *gcpgens
 }
 
 func (h Handler) V1betaListBackupVaults(ctx context.Context, params gcpgenserver.V1betaListBackupVaultsParams) (r gcpgenserver.V1betaListBackupVaultsRes, _ error) {
-	logger := utils.GetLoggerFromContext(ctx)
+	logger := util.GetLogger(ctx)
 	listParams := &backup_vault.V1betaListBackupVaultsParams{
 		LocationID:     params.LocationId,
 		ProjectNumber:  params.ProjectNumber,
@@ -326,7 +327,7 @@ func (h Handler) V1betaListBackupVaults(ctx context.Context, params gcpgenserver
 }
 
 func (h Handler) V1betaUpdateBackupVault(ctx context.Context, req *gcpgenserver.BackupVaultUpdateV1beta, params gcpgenserver.V1betaUpdateBackupVaultParams) (r gcpgenserver.V1betaUpdateBackupVaultRes, _ error) {
-	logger := utils.GetLoggerFromContext(ctx)
+	logger := util.GetLogger(ctx)
 	brPolicy := convertBackupRetentionPolicyToCvpModelForUpdate(req.BackupRetentionPolicy)
 	body := &models.BackupVaultUpdateV1beta{
 		BackupRetentionPolicy: brPolicy,

@@ -63,10 +63,7 @@ type BaseWorkflow struct {
 func (bw *BaseWorkflow) Setup(ctx workflow.Context, input interface{}) error {
 	bw.ID = input.(struct{ ID string }).ID
 	bw.CustomerID = input.(struct{ CustomerID string }).CustomerID
-	logger, err := util.GetLogger(ctx)
-	if err != nil {
-		return err
-	}
+	logger := util.GetLogger(ctx)
 	bw.Logger = logger
 
 	return nil

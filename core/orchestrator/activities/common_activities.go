@@ -16,10 +16,7 @@ type CommonActivities struct {
 // UpdateJobStatus updates the status of a job in the database.
 func (j CommonActivities) UpdateJobStatus(ctx context.Context, job *datamodel.Job) error {
 	se := *j.SE
-	logger, err := util.GetLogger(ctx)
-	if err != nil {
-		return err
-	}
+	logger := util.GetLogger(ctx)
 	logger.Infof("updating job: %s with status: %s", job.UUID, job.State)
 	return se.UpdateJob(ctx, job.UUID, job.State)
 }

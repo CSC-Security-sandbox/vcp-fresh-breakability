@@ -10,12 +10,13 @@ import (
 	gcpgenserver "github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/api/gcp-servergen"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/nillable"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 )
 
 var createClient = cvp.CreateClient
 
 func (h Handler) V1betaCreateActiveDirectory(ctx context.Context, req *gcpgenserver.ActiveDirectoryV1beta, params gcpgenserver.V1betaCreateActiveDirectoryParams) (r gcpgenserver.V1betaCreateActiveDirectoryRes, _ error) {
-	logger := utils.GetLoggerFromContext(ctx)
+	logger := util.GetLogger(ctx)
 	body := &models.ActiveDirectoryV1beta{
 		DNS:                        &req.DNS,
 		Domain:                     &req.Domain,
@@ -109,7 +110,7 @@ func (h Handler) V1betaCreateActiveDirectory(ctx context.Context, req *gcpgenser
 }
 
 func (h Handler) V1betaDeleteActiveDirectory(ctx context.Context, params gcpgenserver.V1betaDeleteActiveDirectoryParams) (r gcpgenserver.V1betaDeleteActiveDirectoryRes, _ error) {
-	logger := utils.GetLoggerFromContext(ctx)
+	logger := util.GetLogger(ctx)
 	pathParams := &active_directories.V1betaDeleteActiveDirectoryParams{
 		LocationID:        params.LocationId,
 		ProjectNumber:     params.ProjectNumber,
@@ -177,7 +178,7 @@ func (h Handler) V1betaDeleteActiveDirectory(ctx context.Context, params gcpgens
 }
 
 func (h Handler) V1betaDescribeActiveDirectory(ctx context.Context, params gcpgenserver.V1betaDescribeActiveDirectoryParams) (r gcpgenserver.V1betaDescribeActiveDirectoryRes, err error) {
-	logger := utils.GetLoggerFromContext(ctx)
+	logger := util.GetLogger(ctx)
 	pathParams := &active_directories.V1betaDescribeActiveDirectoryParams{
 		LocationID:        params.LocationId,
 		ProjectNumber:     params.ProjectNumber,
@@ -245,7 +246,7 @@ func (h Handler) V1betaDescribeActiveDirectory(ctx context.Context, params gcpge
 }
 
 func (h Handler) V1betaGetMultipleActiveDirectories(ctx context.Context, req *gcpgenserver.ActiveDirectoryIdListV1beta, params gcpgenserver.V1betaGetMultipleActiveDirectoriesParams) (r gcpgenserver.V1betaGetMultipleActiveDirectoriesRes, _ error) {
-	logger := utils.GetLoggerFromContext(ctx)
+	logger := util.GetLogger(ctx)
 	body := &models.ActiveDirectoryIDListV1beta{
 		ActiveDirectoryUUIDs: req.ActiveDirectoryUuids,
 	}
@@ -322,7 +323,7 @@ func (h Handler) V1betaGetMultipleActiveDirectories(ctx context.Context, req *gc
 }
 
 func (h Handler) V1betaUpdateActiveDirectory(ctx context.Context, req *gcpgenserver.ActiveDirectoryUpdateV1beta, params gcpgenserver.V1betaUpdateActiveDirectoryParams) (r gcpgenserver.V1betaUpdateActiveDirectoryRes, _ error) {
-	logger := utils.GetLoggerFromContext(ctx)
+	logger := util.GetLogger(ctx)
 	body := &models.ActiveDirectoryUpdateV1beta{
 		DNS:                        req.DNS.Value,
 		Domain:                     req.Domain.Value,
@@ -423,7 +424,7 @@ func (h Handler) V1betaUpdateActiveDirectory(ctx context.Context, req *gcpgenser
 }
 
 func (h Handler) V1betaListActiveDirectories(ctx context.Context, params gcpgenserver.V1betaListActiveDirectoriesParams) (gcpgenserver.V1betaListActiveDirectoriesRes, error) {
-	logger := utils.GetLoggerFromContext(ctx)
+	logger := util.GetLogger(ctx)
 	pathParams := &active_directories.V1betaListActiveDirectoriesParams{
 		LocationID:     params.LocationId,
 		ProjectNumber:  params.ProjectNumber,

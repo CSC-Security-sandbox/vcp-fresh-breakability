@@ -10,7 +10,6 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
-	logger "golang.org/x/exp/slog"
 	"golang.org/x/oauth2/google"
 	"google.golang.org/api/cloudresourcemanager/v1"
 	"google.golang.org/api/compute/v1"
@@ -90,8 +89,8 @@ type SourceImage struct {
 	Name string `yaml:"name"`
 }
 
-func SetupNetwork(projectId, snHostProject, network, tpregion string) error {
-	slog := log.NewLogger()
+func SetupNetwork(ctx context.Context, projectId, snHostProject, network, tpregion string) error {
+	slog := util.GetLogger(ctx)
 	err := setupNetwork(slog, projectId, snHostProject, network, tpregion)
 	if err != nil {
 		return err
@@ -101,11 +100,8 @@ func SetupNetwork(projectId, snHostProject, network, tpregion string) error {
 
 // DeploymentsInsert creates a new Deployment Manager deployment.
 func DeploymentsInsert(ctx context.Context, name, region, zone, network, subnet, projectId, snHostProject string, size int) (*[]map[string]string, error) {
-	slog, err := util.GetLogger(ctx)
-	if err != nil {
-		return nil, err
-	}
-	err = setupNetwork(slog, projectId, snHostProject, network, region)
+	slog := util.GetLogger(ctx)
+	err := setupNetwork(slog, projectId, snHostProject, network, region)
 	if err != nil {
 		return nil, err
 	}
@@ -294,7 +290,7 @@ func getInstanceDetails(projectId, instanceName, zone string) (map[string]string
 }
 
 func DeleteDeployment(ctx context.Context, projectId, deploymentName string) error {
-	slog := log.NewLogger()
+	slog := util.GetLogger(ctx)
 	deploymentmanagerService, err := deploymentmanager.NewService(ctx)
 	if err != nil {
 		return err
@@ -518,14 +514,14 @@ func grantComputeSubnetworkUsePermission(slog log.Logger, projectID, serviceAcco
 
 	scopesOption := option.WithScopes(cloudresourcemanager.CloudPlatformScope)
 	opts := []option.ClientOption{scopesOption}
-	logger.Debug(fmt.Sprintf("opts: %#v", opts))
+	slog.Debug(fmt.Sprintf("opts: %#v", opts))
 
 	opts = append(opts, option.WithTokenSource(google.ComputeTokenSource("", cloudresourcemanager.CloudPlatformScope)))
 
-	logger.Debug("creating newClient")
+	slog.Debug("creating newClient")
 	client, _, err := scopesHttp.NewClient(ctx, opts...)
 	if err != nil {
-		logger.Error("error while creating new client for _initializeNetworkingService", err)
+		slog.Error("error while creating new client for _initializeNetworkingService", "error", err)
 		return err
 	}
 	crmService, err := cloudresourcemanager.NewService(ctx, option.WithHTTPClient(client))
