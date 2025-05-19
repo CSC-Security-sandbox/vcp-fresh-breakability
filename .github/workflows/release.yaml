@@ -49,17 +49,47 @@ jobs:
         run: |
           echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
 
-      - id: 'auth'
-        name: 'Authenticate to Google Cloud'
-        uses: 'google-github-actions/auth@v0.4.0'
+      - name: Trim OIDC Requester ENVs
+        uses: actions/github-script@v7
+        id: script
+        timeout-minutes: 10
         with:
-          workload_identity_provider: 'projects/${{secrets.AR_GCP_PROJ_NUM}}/locations/global/workloadIdentityPools/${{secrets.AR_WLI_POOL}}/providers/${{secrets.AR_WLI_PROV}}'
-          service_account: '${{secrets.AR_GCP_SA}}@${{ secrets.AR_GCP_PROJ }}.iam.gserviceaccount.com'
+          script: |
+            const token = process.env['ACTIONS_RUNTIME_TOKEN']
+            const runtimeUrl = process.env['ACTIONS_ID_TOKEN_REQUEST_URL']
+            core.setOutput('TOKEN', token.trim())
+            core.setOutput('IDTOKENURL', runtimeUrl.trim())
+
+      - name: Get Github OIDC Token
+        id: tokenid
+        shell: bash
+        run: |
+          IDTOKEN=$(curl -H "Authorization: Bearer ${{steps.script.outputs.TOKEN}}" ${{steps.script.outputs.IDTOKENURL}}  -H "Accept: application/json; api-version=2.0" -H "Content-Type: application/json" -d "{}" | jq -r '.value')
+          echo $IDTOKEN
+          jwtd() {
+              if [[ -x $(command -v jq) ]]; then
+                  jq -R 'split(".") | .[0],.[1] | @base64d | fromjson' <<< "${1}"
+                  echo "Signature: $(echo "${1}" | awk -F'.' '{print $3}')"
+              fi
+          }
+          jwtd $IDTOKEN
+          echo "idToken=${IDTOKEN}" >> $GITHUB_OUTPUT
+
+
+      - name: Authenticate to gcloud
+        run: |
+          echo "${{ steps.tokenid.outputs.idToken }}" > /tmp/github-token.txt
+          gcloud iam workload-identity-pools create-cred-config "projects/${{secrets.AR_GCP_PROJ_NUM}}/locations/global/workloadIdentityPools/${{secrets.AR_WLI_POOL}}/providers/${{secrets.AR_WLI_PROV}}" \
+            --service-account="${{secrets.AR_GCP_SA}}@${{ secrets.AR_GCP_PROJ }}.iam.gserviceaccount.com" \
+            --output-file="/tmp/gcloud-creds.json" \
+            --credential-source-file="/tmp/github-token.txt"
+          gcloud auth login --cred-file="/tmp/gcloud-creds.json" --quiet
 
       - name: Configure Docker
         run: |
+          gcloud config set project ${{ secrets.AR_GCP_PROJ }} --quiet   
           gcloud auth configure-docker ${{secrets.AR_GCP_REGION}}-docker.pkg.dev --quiet
-          gcloud config set project ${{ secrets.AR_GCP_PROJ }} --quiet        
+          gcloud secrets versions access latest --secret="${{secrets.AR_PRIVATE_KEY}}" > /tmp/ec_private.pem    
 
       - name: Push images
         env:
