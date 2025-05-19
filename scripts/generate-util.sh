@@ -24,9 +24,9 @@ generate_checksums() {
 }
 
 generate_ontap_checksums() {
-  check_required_files swagger.yaml swagger_operations.txt swagger_models.txt
+  check_required_files swagger.yaml swagger_operations.txt
   local checksum_file="tempChecksumsFile.checksum"
-  generate_checksums "$checksum_file" "swagger.yaml" "swagger_operations.txt" "swagger_models.txt" "./client" "./models"
+  generate_checksums "$checksum_file" "swagger.yaml" "swagger_operations.txt" "./client" "./models"
   LC_ALL=C sort -k 3 "$checksum_file" > newChecksumsFile.checksum
   rm -f "$checksum_file"
 }

@@ -83,6 +83,16 @@ generate_client_code() {
   go mod tidy
 }
 
+generate_models_for_given_operations(){
+  echo "starting to generate swagger models for given operations"
+  go run ../../scripts/fetch_models.go
+  echo "successfully created swagger models for given operations"
+}
+
+cleanup() {
+  rm -f ./swagger_models.txt
+}
+
 generate_ontap_mocks() {
   echo "Generating mocks for ONTAP REST API..."
 
@@ -124,6 +134,8 @@ generate_ontap() {
     rm -rf ./client
     rm -rf ./models
 
+    generate_models_for_given_operations
+
     sort -u swagger_operations.txt > tempFile && mv tempFile swagger_operations.txt
     sort -u swagger_models.txt > tempFile && mv tempFile swagger_models.txt
 
@@ -134,6 +146,8 @@ generate_ontap() {
     generate_ontap_checksums
 
     mv newChecksumsFile.checksum ../../checksums/ontap-rest-checksums
+
+    cleanup
   else
     echo "Everything is up to date. Client code is already the latest."
     rm -f newChecksumsFile.checksum
