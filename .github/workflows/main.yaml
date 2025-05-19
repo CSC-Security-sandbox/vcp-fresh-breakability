@@ -119,7 +119,7 @@ jobs:
 
       - name: Run golang coverage
         env:
-          COVERAGE_THRESHOLD: 90
+          COVERAGE_THRESHOLD: ${{ vars.UNIT_TEST_THRESHOLD || 90 }}
         run: vsacictl unit-test --coverage --filtered
         # Add code just to check coverage instead of running again
         # eg - vsacictl check-coverage --threshold $COVERAGE_THRESHOLD coverage.out
