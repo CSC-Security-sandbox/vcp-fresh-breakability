@@ -2,7 +2,7 @@ name: Final Tagging Workflow
 on:
   push:
     paths:
-      - ../../cicd/release-cmd/promotional.yaml
+      - cicd/cmd/release-cmd/promotional.yaml
 
 jobs:
   final_tagging:
