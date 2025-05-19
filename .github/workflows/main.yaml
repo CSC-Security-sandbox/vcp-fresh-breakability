@@ -164,7 +164,7 @@ jobs:
           args=()
           while IFS= read -r line; do
             args+=(--exclude "$line")
-          done < cicd/cmd/unit-test/exclude-from-code-coverage    
+          done < cicd/cmd/unit-test/exclude-from-pr-coverage 
   
           diff-cover coverage.xml --compare-branch=origin/main --fail-under=80 "${args[@]}"
 
