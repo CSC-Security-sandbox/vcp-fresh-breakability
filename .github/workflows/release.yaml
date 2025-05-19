@@ -8,14 +8,19 @@ on:
 permissions:
   packages: write
   contents: read
+  id-token: write
 
 jobs:
   create_pre_release_vsa_control_plane:
     name: Create Pre-Release and Publish Docker images
     runs-on: [self-hosted,linux]
     container:
-      image: ghcr.io/vcp-vsa-control-plane/vsa-builder:v2
-      options: --user root
+      image: ghcr.io/vcp-vsa-control-plane/vsacictl:v7
+      options: -v /var/run/docker.sock:/var/run/docker.sock --user root
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
 
     steps:
       - name: Check out the repo
@@ -24,30 +29,125 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v3
         with:
-          go-version-file: go.mod
+          go-version-file: go.mod        
 
       - name: Log in to the Container registry
         run: |
-          echo "${{ secrets.GHVSA_PAT }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
+          echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
 
       - name: Fetch new tag
         id: fetch_new_tag
         run: |
           echo "newTag=$(go run .github/scripts/fetchLatestBuild.go 2>&1)" >> $GITHUB_OUTPUT
 
-
-
-      - name: Build and push Docker images
-        run: skaffold build --filename=.github/scripts/skaffold_ci.yaml -t ${{ env.newTag }}
+      - name: Build images
         env:
-          newTag: ${{ steps.fetch_new_tag.outputs.newTag }}
-          GHVSA_PAT: ${{ secrets.GHVSA_PAT }}  # TODO: use Github bot account here
+          IMAGES_TAG: ${{ steps.fetch_new_tag.outputs.newTag }}
+        run: skaffold build
 
+      - name: Log in to the Container registry
+        run: |
+          echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
+
+      - id: 'auth'
+        name: 'Authenticate to Google Cloud'
+        uses: 'google-github-actions/auth@v0.4.0'
+        with:
+          workload_identity_provider: 'projects/${{secrets.AR_GCP_PROJ_NUM}}/locations/global/workloadIdentityPools/${{secrets.AR_WLI_POOL}}/providers/${{secrets.AR_WLI_PROV}}'
+          service_account: '${{secrets.AR_GCP_SA}}@${{ secrets.AR_GCP_PROJ }}.iam.gserviceaccount.com'
+
+      - name: Configure Docker
+        run: |
+          gcloud auth configure-docker ${{secrets.AR_GCP_REGION}}-docker.pkg.dev --quiet
+          gcloud config set project ${{ secrets.AR_GCP_PROJ }} --quiet        
+
+      - name: Push images
+        env:
+          GCP_PROJECT: ${{ secrets.AR_GCP_PROJ }}
+          GHCR_REPO: ${{ secrets.GHCR_REPO }}
+          GCP_REPO: ${{ secrets.AR_GCP_REPO }}
+          IMAGES_TAG: ${{ steps.fetch_new_tag.outputs.newTag }}
+          GCP_REGION: ${{ secrets.AR_GCP_REGION }}
+        run: vsacictl images push
+
+      - name: Access Private Key
+        run: |
+          gcloud secrets versions access latest --secret="vsa-private" > /tmp/ec_private.pem
+
+      - name: Retrieve Public Key ID
+        id: retrieve_public_key_id
+        run: |
+          PUBLIC_KEY_ID=$(gcloud container binauthz attestors describe ${{secrets.AR_ATTESTOR_NAME}} --format='value(userOwnedGrafeasNote.publicKeys[0].id)')
+          echo "PUBLIC_KEY_ID=${PUBLIC_KEY_ID}" >> $GITHUB_ENV
+
+      - name: Generate Artifact URLs
+        id: generate_artifact_urls
+        shell: bash -e {0}
+        run: |
+          IMAGES=("core" "google-proxy")
+          for IMAGE in "${IMAGES[@]}"; do
+            ARTIFACT_URL=$(gcloud artifacts docker images list ${{secrets.AR_GCP_REGION}}-docker.pkg.dev/${{secrets.AR_GCP_PROJ}}/${{secrets.AR_GCP_REPO}}/${IMAGE} \
+            --include-tags \
+            --format="value(DIGEST)" \
+            --filter="TAGS:${{ steps.fetch_new_tag.outputs.newTag }}" | awk '{print "${{secrets.AR_GCP_REGION}}-docker.pkg.dev/${{secrets.AR_GCP_PROJ}}/${{secrets.AR_GCP_REPO}}/'${IMAGE}'@" $1}')
+            echo "${IMAGE}_ARTIFACT_URL=${ARTIFACT_URL}" >> $GITHUB_ENV
+          done
+
+      - name: Generate and Sign Payloads
+        shell: bash -e {0}
+        run: |
+          IMAGES=("core" "google-proxy")
+          for IMAGE in "${IMAGES[@]}"; do
+            ARTIFACT_URL=$(printenv "${IMAGE}_ARTIFACT_URL")
+            gcloud container binauthz create-signature-payload \
+            --artifact-url=${ARTIFACT_URL} > /tmp/${IMAGE}_payload.json
+            openssl dgst -sha256 -sign /tmp/ec_private.pem /tmp/${IMAGE}_payload.json > /tmp/${IMAGE}_signature
+          done
+
+      - name: Create Attestations
+        shell: bash -e {0}
+        run: |
+          IMAGES=("core" "google-proxy")
+          for IMAGE in "${IMAGES[@]}"; do
+            ARTIFACT_URL=$(printenv "${IMAGE}_ARTIFACT_URL")
+            gcloud container binauthz attestations create \
+            --project="${{secrets.AR_GCP_PROJ}}" \
+            --artifact-url="${ARTIFACT_URL}" \
+            --attestor="projects/${{secrets.AR_GCP_PROJ}}/attestors/${{secrets.AR_ATTESTOR_NAME}}" \
+            --signature-file=/tmp/${IMAGE}_signature \
+            --public-key-id="${{ env.PUBLIC_KEY_ID }}" \
+            --validate
+          done
+
+      - name: Helm Login to Artifact Registry
+        run: |
+          gcloud auth print-access-token | helm registry login -u oauth2accesstoken --password-stdin https://${{secrets.AR_GCP_REGION}}-docker.pkg.dev
+          helm registry login ghcr.io -u ${{github.actor}} --password ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Update Versions of helm charts
+        run: |
+          ./.github/scripts/updateHelmVersion.sh ${{ steps.fetch_new_tag.outputs.newTag }}
+
+      - name: Package Helm Charts
+        run: |
+          helm package kubernetes/vsa-control-plane --destination ./helm-packages
+
+      - name: Push Helm Charts to GHCR
+        run: |
+          for CHART in ./helm-packages/*.tgz; do
+            helm push $CHART oci://ghcr.io/${{ github.repository_owner }}
+          done
+
+      - name: Push Helm Charts to Artifact Registry
+        run: |
+          for CHART in ./helm-packages/*.tgz; do
+            helm push $CHART oci://${{ secrets.AR_GCP_REGION }}-docker.pkg.dev/${{ secrets.AR_GCP_PROJ }}/${{secrets.AR_HELM_REPO}}
+          done           
 
       - name: Create a release
-        run: gh release create -R https://github.com/${{ github.repository }} --generate-notes --prerelease ${{env.newTag}}
+        run: gh release create -R https://github.com/${{ github.repository }} --generate-notes --prerelease ${{steps.fetch_new_tag.outputs.newTag}}
         env:
-          GITHUB_TOKEN: ${{ secrets.GHVSA_PAT }}  # TODO: use Github bot account here
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GITHUB_REPOSITORY: ${{ github.event.repository.name }}
           newTag: ${{ steps.fetch_new_tag.outputs.newTag }}
 
@@ -92,7 +192,7 @@ jobs:
           echo "PR User: $PR_USER"
           echo "PR Title: $PR_TITLE"
         env:
-          GITHUB_TOKEN: ${{ secrets.GHVSA_PAT }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Run jira tag_component_version
         env:

@@ -5,7 +5,7 @@ replicaCount: 1
 images:
   googleProxy:
     name: google-proxy
-    tag: v25044.0.0-dev.65
+    tag: v0.0.0
     secondary: true
     pullPolicy: IfNotPresent
 

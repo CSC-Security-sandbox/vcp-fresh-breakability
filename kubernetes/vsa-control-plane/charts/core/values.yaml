@@ -12,12 +12,12 @@ replicaCount: 1
 images:
   core:
     name: core
-    tag: v25044.0.0-dev.65
+    tag: v0.0.0
     secondary: true
     pullPolicy: IfNotPresent
   vcpDbMigrate:
     name: vcp-db-migrate
-    tag: v1
+    tag: v0.0.0
     secondary: true
     pullPolicy: IfNotPresent
     

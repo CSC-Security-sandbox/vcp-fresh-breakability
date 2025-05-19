@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"main/cmd/images"
 	"main/cmd/jira"
 	"main/cmd/lint"
 	"main/cmd/release-cmd/tag"
@@ -30,5 +31,6 @@ func init() {
 	rootCmd.AddCommand(jira.JiraCmd)
 	rootCmd.AddCommand(unitTest.UnitTestCmd)
 	rootCmd.AddCommand(lint.LintCmd)
+	rootCmd.AddCommand(images.ImagesCmd)
 	rootCmd.AddCommand(tag.TagCmd)
 }

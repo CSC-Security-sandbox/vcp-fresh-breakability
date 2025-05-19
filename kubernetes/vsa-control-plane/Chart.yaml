@@ -3,17 +3,17 @@ apiVersion: v2
 description: VSA Control Plane
 name: vsa-control-plane
 home: https://github.com/VCP-VSA-control-Plane/vsa-control-plane
-version: "25044.0.0-dev.65"
-appVersion: "v25044.0.0-dev.65"
+version: "0.0.0"
+appVersion: "v0.0.0"
 deprecated: false
 maintainers:
   - name: "team-warriors"
 dependencies:
   - name: core
-    version: 25044.0.0-dev.65
+    version: 0.0.0
     condition:
       core.enabled
   - name: google-proxy
-    version: 25044.0.0-dev.65
+    version: 0.0.0
     condition:
       google-proxy.enabled

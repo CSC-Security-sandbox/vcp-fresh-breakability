@@ -30,4 +30,11 @@ USER github
 
 COPY bin/build/linux/vsacictl /usr/local/bin/
 
-USER github
+USER root
+
+RUN chown github:github /usr/local/bin/vsacictl && \
+  chmod +x /usr/local/bin/vsacictl
+
+RUN mkdir -p /workspace && chown github:github /workspace
+
+WORKDIR /workspace
