@@ -18,11 +18,11 @@ const (
 )
 
 type VolumeCreateActivity struct {
-	SE *database.Storage
+	SE database.Storage
 }
 
 func (a *VolumeCreateActivity) CreateVolume(ctx context.Context, volume *datamodel.Volume) (*datamodel.Volume, error) {
-	se := *a.SE
+	se := a.SE
 
 	return se.CreateVolume(ctx, volume)
 }
@@ -111,7 +111,7 @@ func (a *VolumeCreateActivity) CreateLunMap(ctx context.Context, params *common.
 }
 
 func (a *VolumeCreateActivity) UpdateVolumeDetails(ctx context.Context, volume *datamodel.Volume, volCreateResponse *vsa.ProviderResponse) error {
-	se := *a.SE
+	se := a.SE
 
 	volume.VolumeAttributes.ExternalUUID = volCreateResponse.ExternalUUID
 	volume.State = models.LifeCycleStateREADY
@@ -125,7 +125,7 @@ func (a *VolumeCreateActivity) UpdateVolumeDetails(ctx context.Context, volume *
 }
 
 func (a *VolumeCreateActivity) GetHosts(ctx context.Context, volume *datamodel.Volume) ([]*datamodel.HostGroup, error) {
-	se := *a.SE
+	se := a.SE
 
 	if volume.VolumeAttributes.BlockProperties == nil {
 		return nil, errors.New("block properties not found")

@@ -10,7 +10,6 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/workflows"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database"
-	_ "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/postgres"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
@@ -90,10 +89,11 @@ func registerWorkflowsAndActivities(worker worker.Worker, dbcon database.Storage
 	worker.RegisterWorkflow(workflows.DeletePoolWorkflow)
 	worker.RegisterWorkflow(workflows.CreateVolumeWorkflow)
 	worker.RegisterWorkflow(workflows.DeleteVolumeWorkflow)
-	worker.RegisterActivity(&activities.CommonActivities{SE: &dbcon})
+
+	worker.RegisterActivity(&activities.CommonActivities{SE: dbcon})
 	worker.RegisterActivity(&activities.PoolActivity{SE: &dbcon})
-	worker.RegisterActivity(&activities.VolumeCreateActivity{SE: &dbcon})
-	worker.RegisterActivity(&activities.VolumeDeleteActivity{SE: &dbcon})
+	worker.RegisterActivity(&activities.VolumeCreateActivity{SE: dbcon})
+	worker.RegisterActivity(&activities.VolumeDeleteActivity{SE: dbcon})
 }
 
 // CreateClientOptionsFromEnv creates a client.Options instance, configures

@@ -107,7 +107,7 @@ func (wf *volumeCreateWorkflow) Run(ctx workflow.Context, volume *datamodel.Volu
 		return nil, err
 	}
 
-	hostParams := createHostParamsFromHostGroups(hostGroups, volume)
+	hostParams := createHostParamsFromHostGroups(hostGroups, dbVolume)
 	err = workflow.ExecuteActivity(ctx, volumeActivity.CreateIgroup, &dbVolume, &hostParams, &node).Get(ctx, nil)
 	if err != nil {
 		return nil, err

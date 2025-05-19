@@ -17,6 +17,7 @@ go.work
 # GoLand project files
 .idea/
 *.env
+.run/
 
 # macOS specific files
 .DS_Store

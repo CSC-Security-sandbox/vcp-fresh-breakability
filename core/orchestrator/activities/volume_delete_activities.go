@@ -10,7 +10,7 @@ import (
 )
 
 type VolumeDeleteActivity struct {
-	SE *database.Storage
+	SE database.Storage
 }
 
 func (a *VolumeDeleteActivity) DeleteVolumeInONTAP(ctx context.Context, volume *datamodel.Volume, node *models.Node) error {
@@ -27,7 +27,7 @@ func (a *VolumeDeleteActivity) DeleteVolumeInONTAP(ctx context.Context, volume *
 
 func (a *VolumeDeleteActivity) DeleteVolume(ctx context.Context, volume *datamodel.Volume) error {
 	logger := util.GetLogger(ctx)
-	se := *a.SE
+	se := a.SE
 
 	_, err := se.DeleteVolume(ctx, volume.UUID)
 	if err != nil {

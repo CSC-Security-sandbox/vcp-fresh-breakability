@@ -10,20 +10,20 @@ import (
 )
 
 type CommonActivities struct {
-	SE *database.Storage
+	SE database.Storage
 }
 
 // UpdateJobStatus updates the status of a job in the database.
 func (j CommonActivities) UpdateJobStatus(ctx context.Context, job *datamodel.Job) error {
-	se := *j.SE
 	logger := util.GetLogger(ctx)
+	se := j.SE
 	logger.Infof("updating job: %s with status: %s", job.UUID, job.State)
 	return se.UpdateJob(ctx, job.UUID, job.State)
 }
 
 // GetNode retrieves the node associated with the given pool ID.
 func (j CommonActivities) GetNode(ctx context.Context, poolId int64) (*datamodel.Node, error) {
-	se := *j.SE
+	se := j.SE
 
 	nodes, err := se.GetNodesByPoolID(ctx, poolId)
 	if err != nil {

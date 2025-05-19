@@ -411,6 +411,52 @@ func (_c *MockProvider_CreateVolume_Call) RunAndReturn(run func(CreateVolumePara
 	return _c
 }
 
+// CreateVolumeReplicationSchedule provides a mock function with given fields: schedule
+func (_m *MockProvider) CreateVolumeReplicationSchedule(schedule string) error {
+	ret := _m.Called(schedule)
+
+	if len(ret) == 0 {
+		panic("no return value specified for CreateVolumeReplicationSchedule")
+	}
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(string) error); ok {
+		r0 = rf(schedule)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// MockProvider_CreateVolumeReplicationSchedule_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'CreateVolumeReplicationSchedule'
+type MockProvider_CreateVolumeReplicationSchedule_Call struct {
+	*mock.Call
+}
+
+// CreateVolumeReplicationSchedule is a helper method to define mock.On call
+//   - schedule string
+func (_e *MockProvider_Expecter) CreateVolumeReplicationSchedule(schedule interface{}) *MockProvider_CreateVolumeReplicationSchedule_Call {
+	return &MockProvider_CreateVolumeReplicationSchedule_Call{Call: _e.mock.On("CreateVolumeReplicationSchedule", schedule)}
+}
+
+func (_c *MockProvider_CreateVolumeReplicationSchedule_Call) Run(run func(schedule string)) *MockProvider_CreateVolumeReplicationSchedule_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(string))
+	})
+	return _c
+}
+
+func (_c *MockProvider_CreateVolumeReplicationSchedule_Call) Return(_a0 error) *MockProvider_CreateVolumeReplicationSchedule_Call {
+	_c.Call.Return(_a0)
+	return _c
+}
+
+func (_c *MockProvider_CreateVolumeReplicationSchedule_Call) RunAndReturn(run func(string) error) *MockProvider_CreateVolumeReplicationSchedule_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // DeleteClusterPeer provides a mock function with given fields: clusterPeerID
 func (_m *MockProvider) DeleteClusterPeer(clusterPeerID string) error {
 	ret := _m.Called(clusterPeerID)

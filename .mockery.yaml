@@ -61,3 +61,12 @@ packages:
       ClientConfig:
       WorkflowEngine:
       TemporalTestClient:
+  github.com/vcp-vsa-control-Plane/vsa-control-plane/database:
+    config:
+      dir: "{{.InterfaceDir}}"
+      inpackage: True
+    interfaces:
+      DataStore:
+      Storage:
+      Transaction:
+      DbConfig:

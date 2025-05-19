@@ -24,6 +24,10 @@ import (
 	"gorm.io/gorm"
 )
 
+var (
+	GetProviderByNode = _getProviderByNode
+)
+
 type PoolActivity struct {
 	SE *database.Storage
 }
@@ -173,7 +177,7 @@ func PrepareNodeFromVsaClusterDetails(details map[string]string, pool *datamodel
 	}
 }
 
-func GetProviderByNode(node *models.Node) *vsa.OntapRestProvider {
+func _getProviderByNode(node *models.Node) vsa.Provider {
 	// as we don't have any other provider, we can directly return the ontap_rest provider
 	return vsa.NewProvider(vsa.ProviderDetails{
 		IPAddress: node.EndpointAddress,
