@@ -242,6 +242,51 @@ func (_c *MockClientConfig_GetTLSKeyPath_Call) RunAndReturn(run func() string) *
 	return _c
 }
 
+// ShouldEnableDataEncryption provides a mock function with no fields
+func (_m *MockClientConfig) ShouldEnableDataEncryption() bool {
+	ret := _m.Called()
+
+	if len(ret) == 0 {
+		panic("no return value specified for ShouldEnableDataEncryption")
+	}
+
+	var r0 bool
+	if rf, ok := ret.Get(0).(func() bool); ok {
+		r0 = rf()
+	} else {
+		r0 = ret.Get(0).(bool)
+	}
+
+	return r0
+}
+
+// MockClientConfig_ShouldEnableDataEncryption_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'ShouldEnableDataEncryption'
+type MockClientConfig_ShouldEnableDataEncryption_Call struct {
+	*mock.Call
+}
+
+// ShouldEnableDataEncryption is a helper method to define mock.On call
+func (_e *MockClientConfig_Expecter) ShouldEnableDataEncryption() *MockClientConfig_ShouldEnableDataEncryption_Call {
+	return &MockClientConfig_ShouldEnableDataEncryption_Call{Call: _e.mock.On("ShouldEnableDataEncryption")}
+}
+
+func (_c *MockClientConfig_ShouldEnableDataEncryption_Call) Run(run func()) *MockClientConfig_ShouldEnableDataEncryption_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run()
+	})
+	return _c
+}
+
+func (_c *MockClientConfig_ShouldEnableDataEncryption_Call) Return(_a0 bool) *MockClientConfig_ShouldEnableDataEncryption_Call {
+	_c.Call.Return(_a0)
+	return _c
+}
+
+func (_c *MockClientConfig_ShouldEnableDataEncryption_Call) RunAndReturn(run func() bool) *MockClientConfig_ShouldEnableDataEncryption_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // NewMockClientConfig creates a new instance of MockClientConfig. It also registers a testing interface on the mock and a cleanup function to assert the mocks expectations.
 // The first argument is typically a *testing.T value.
 func NewMockClientConfig(t interface {

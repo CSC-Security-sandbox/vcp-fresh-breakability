@@ -16,6 +16,7 @@ import (
 	"go.opentelemetry.io/otel"
 	"go.temporal.io/sdk/client"
 	"go.temporal.io/sdk/contrib/opentelemetry"
+	"go.temporal.io/sdk/converter"
 	"go.temporal.io/sdk/interceptor"
 	"go.temporal.io/sdk/worker"
 	"go.temporal.io/sdk/workflow"
@@ -42,12 +43,12 @@ func (t *TemporalWorkflowEngine) InitializeClient(cfg workflow_engine.ClientConf
 		os.Exit(1)
 	}
 
-	// This will be needed as we want ot send encrypted data to temporal server. Will uncomment this in the upcoming MRs.
-	// if cfg.TemporalEncryptionID != "" {
-	//	logger.Info("Enabling encrypting Data Converter using key ID '%s'", "temporalEncryptionID", cfg.TemporalEncryptionID)
-	//	defaultDataConverter := converter.GetDefaultDataConverter()
-	//	clientOptions.DataConverter = util.NewEncryptionDataConverter(defaultDataConverter, cfg.TemporalEncryptionID)
-	// }
+	if cfg.ShouldEnableDataEncryption() && cfg.GetEncryptionID() != "" {
+		logger.Infof("Enabling encrypting Data Converter: %s", cfg.GetEncryptionID())
+		defaultDataConverter := converter.GetDefaultDataConverter()
+		// TODO: Store the Data Encryption Key in a Secret Management Service and add logic to retrieve the secret at runtime
+		clientOptions.DataConverter = util.NewEncryptionDataConverter(defaultDataConverter, cfg.GetEncryptionID())
+	}
 
 	var temporalClient client.Client
 	for {

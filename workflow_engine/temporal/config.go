@@ -10,11 +10,12 @@ import (
 
 type TemporalConfig struct {
 	// Temporal settings
-	TemporalHostPort      string // Host and port of the Temporal server (e.g., "localhost:7233").
-	TemporalNamespaceName string // Namespace name for Temporal (e.g., "default").
-	TemporalTLSCertPath   string // Path to the TLS certificate for Temporal.
-	TemporalTLSKeyPath    string // Path to the TLS key for Temporal.
-	TemporalEncryptionID  string // Encryption ID for Temporal (e.g., "").
+	TemporalHostPort             string // Host and port of the Temporal server (e.g., "localhost:7233").
+	TemporalNamespaceName        string // Namespace name for Temporal (e.g., "default").
+	TemporalTLSCertPath          string // Path to the TLS certificate for Temporal.
+	TemporalTLSKeyPath           string // Path to the TLS key for Temporal.
+	EnableTemporalDataEncryption bool   // Flag indicating whether Temporal Data Encryption is to be enabled
+	TemporalEncryptionID         string // Encryption ID for Temporal (e.g., "").
 }
 
 func (c *TemporalConfig) GetHostPort() string {
@@ -33,6 +34,10 @@ func (c *TemporalConfig) GetTLSKeyPath() string {
 	return c.TemporalTLSKeyPath
 }
 
+func (c *TemporalConfig) ShouldEnableDataEncryption() bool {
+	return c.EnableTemporalDataEncryption
+}
+
 func (c *TemporalConfig) GetEncryptionID() string {
 	return c.TemporalEncryptionID
 }
@@ -42,14 +47,16 @@ func LoadTemporalConfig() *TemporalConfig {
 	temporalNamespaceName := env.GetString("TEMPORAL_NAMESPACE", "default")
 	temporalTlsCertPath := env.GetString("TEMPORAL_TLS_CERT", "")
 	temporalTlsKeyPath := env.GetString("TEMPORAL_TLS_KEY", "")
+	enableTemporalDataEncryption := env.GetBool("ENABLE_TEMPORAL_DATA_ENCRYPTION", false)
 	temporalEncryptionID := env.GetString("TEMPORAL_ENCRYPTION_ID", "")
 
 	return &TemporalConfig{
-		TemporalHostPort:      temporalHostPort,
-		TemporalNamespaceName: temporalNamespaceName,
-		TemporalTLSCertPath:   temporalTlsCertPath,
-		TemporalTLSKeyPath:    temporalTlsKeyPath,
-		TemporalEncryptionID:  temporalEncryptionID,
+		TemporalHostPort:             temporalHostPort,
+		TemporalNamespaceName:        temporalNamespaceName,
+		TemporalTLSCertPath:          temporalTlsCertPath,
+		TemporalTLSKeyPath:           temporalTlsKeyPath,
+		EnableTemporalDataEncryption: enableTemporalDataEncryption,
+		TemporalEncryptionID:         temporalEncryptionID,
 	}
 }
 

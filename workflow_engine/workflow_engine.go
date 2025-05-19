@@ -12,6 +12,7 @@ type ClientConfig interface {
 	GetNamespace() string
 	GetTLSCertPath() string
 	GetTLSKeyPath() string
+	ShouldEnableDataEncryption() bool
 	GetEncryptionID() string
 }
 
