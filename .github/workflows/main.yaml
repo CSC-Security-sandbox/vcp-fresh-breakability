@@ -77,28 +77,35 @@ jobs:
         run: vsacictl jira allow_merge main
 
   unit_tests:
-      runs-on: [ self-hosted,linux ]
-      container:
-        image: ghcr.io/vcp-vsa-control-plane/vsacictl:v8
-        options: --user root
+    runs-on: [ self-hosted,linux ]
+    container:
+      image: ghcr.io/vcp-vsa-control-plane/vsacictl:v11
+      options: --user root
 
-      steps:
-        - name: Checkout code
-          uses: actions/checkout@v2
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
 
-        - name: Set up Go
-          uses: actions/setup-go@v3
-          with:
-            go-version-file: go.mod
+      - name: Set up Go
+        uses: actions/setup-go@v3
+        with:
+          go-version-file: go.mod
 
-        - name: Run golang unit tests
-          run: vsacictl unit-test
+      - name: Run golang unit tests with coverage
+        run: vsacictl unit-test
+
+      - name: Upload coverage report
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage.out
+          retention-days: 1
+          path: .
 
   coverage:
     needs: unit_tests
     runs-on: [ self-hosted,linux ]
     container:
-      image: ghcr.io/vcp-vsa-control-plane/vsacictl:v8
+      image: ghcr.io/vcp-vsa-control-plane/vsacictl:v11
       options: --user root
 
     steps:
@@ -114,6 +121,52 @@ jobs:
         env:
           COVERAGE_THRESHOLD: 90
         run: vsacictl unit-test --coverage --filtered
+        # Add code just to check coverage instead of running again
+        # eg - vsacictl check-coverage --threshold $COVERAGE_THRESHOLD coverage.out
+
+  pr-coverage:
+    needs: unit_tests
+    runs-on: [ self-hosted,linux ]
+    container:
+      image: ghcr.io/vcp-vsa-control-plane/vsacictl:v11
+      options: --user root
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+
+      - name: Set up Go
+        uses: actions/setup-go@v3
+        with:
+          go-version-file: go.mod
+
+      - name: Install tools
+        run: |
+          python3 -m pip install diff-cover==9.2.4
+          go install github.com/axw/gocov/gocov@latest
+          go install github.com/AlekSi/gocov-xml@latest
+
+      - name: Download coverage report
+        uses: actions/download-artifact@v4
+        with:
+          name: coverage.out
+          path: .
+
+      - name: Convert coverage to XML
+        run: |
+          gocov convert coverage.out | gocov-xml > coverage.xml
+
+      - name: Fail if coverage is insufficient
+        shell: bash
+        run: |
+          args=()
+          while IFS= read -r line; do
+            args+=(--exclude "$line")
+          done < cicd/cmd/unit-test/exclude-from-code-coverage    
+  
+          diff-cover coverage.xml --compare-branch=origin/main --fail-under=80 "${args[@]}"
 
   verify_generated:
     name: Verify Generated
@@ -141,7 +194,7 @@ jobs:
   lint:
     runs-on: [self-hosted,linux]
     container:
-      image: ghcr.io/vcp-vsa-control-plane/vsacictl:v8
+      image: ghcr.io/vcp-vsa-control-plane/vsacictl:v11
       options: --user root
 
     steps:

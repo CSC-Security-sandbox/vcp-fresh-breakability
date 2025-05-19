@@ -11,6 +11,8 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 )
 
+var NewMigrator = newMigrator
+
 type MigratorInterface interface {
 	Migrate(db *gormwrapper.Wrapper, ctx context.Context) error
 	Rollback(db *gormwrapper.Wrapper, ctx context.Context) error
@@ -47,7 +49,7 @@ func getModels() []interface{} {
 }
 
 // NewMigrator creates a new migrator instance.
-func NewMigrator(config DbConfig, logger log.Logger) (MigratorInterface, error) {
+func newMigrator(config DbConfig, logger log.Logger) (MigratorInterface, error) {
 	switch config.Type {
 	case DatabaseTypeSQLite:
 		return &sqllite.Migrator{

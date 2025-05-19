@@ -118,6 +118,10 @@ func runGoTests() error {
 	cmd := exec.Command("go", "test", "./...", "-cover", "-coverprofile="+coverageFile)
 	cmd.Stdout = &stdout
 	cmd.Stderr = &stderr
+
+	// Set GOEXPERIMENT env var in addition to the current env
+	cmd.Env = append(os.Environ(), "GOEXPERIMENT=boringcrypto,nocoverageredesign")
+
 	log.Println("Running gotest command..")
 	if err := cmd.Run(); err != nil {
 		log.Println("Error running Go tests:", err)

@@ -63,10 +63,16 @@ packages:
       TemporalTestClient:
   github.com/vcp-vsa-control-Plane/vsa-control-plane/database:
     config:
-      dir: "{{.InterfaceDir}}"
       inpackage: True
+      dir: "{{.InterfaceDir}}"
     interfaces:
-      DataStore:
       Storage:
+      MigratorInterface:
+      DataStore:
       Transaction:
-      DbConfig:
+  github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log:
+    config:
+      inpackage: True
+      dir: "{{.InterfaceDir}}"
+    interfaces:
+      Logger:

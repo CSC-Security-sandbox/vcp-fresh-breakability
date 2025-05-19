@@ -1,6 +1,6 @@
-clients/core-api
-clients/cvp
-clients/ontap-rest
-core/core-api/core-servergen
-google-proxy/api/gcp-servergen
-_mock.go
+clients/core-api/*
+clients/cvp/*
+clients/ontap-rest/*
+core/core-api/core-servergen/*
+google-proxy/api/gcp-servergen/*
+*_mock.go
