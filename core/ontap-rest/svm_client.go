@@ -9,7 +9,7 @@ import (
 )
 
 // SVMClient describes an SVM client
-type SVMClient interface { // generate:mock
+type SVMClient interface {
 	SvmGet(params *SvmGetParams) (*Svm, error)
 	SvmCreate(params *SvmCreateParams) (*Svm, *JobAccepted, error)
 	SvmDelete(externalSvmUUID string) (bool, *JobAccepted, error)
@@ -90,7 +90,7 @@ func (sc *svmClient) SvmDelete(externalSvmUUID string) (bool, *JobAccepted, erro
 	}, nil
 }
 
-// SvmModify invokes pkg/ontap-rest/client/svm/Client.SvmModify
+// SvmModify invokes clients/ontap-rest/client/svm/Client.SvmModify
 func (sc *svmClient) SvmModify(params *SvmModifyParams) (bool, *JobAccepted, error) {
 	_, res, err := sc.api.SvmModify(svmModifyParamsToOntap(params), nil)
 	if err != nil {

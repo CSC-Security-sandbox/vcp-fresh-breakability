@@ -8,6 +8,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/ontap-rest/models"
 	ontaprest "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/ontap-rest"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/nillable"
 )
 
@@ -340,4 +341,230 @@ func TestGetAggregateByName_Error(t *testing.T) {
 
 	mockStorage.AssertExpectations(t)
 	mockClient.AssertExpectations(t)
+}
+
+func TestIgroupGet(t *testing.T) {
+	t.Run("WhenIgroupExists_ThenReturnIgroupDetails", func(tt *testing.T) {
+		mockSAN := new(ontaprest.MockSANClient)
+		mockClient := new(ontaprest.MockRESTClient)
+		mockClient.On("SAN").Return(mockSAN)
+
+		getOntapClientFunc = func(params ontaprest.RESTClientParams) ontaprest.RESTClient {
+			return mockClient
+		}
+		rc := &OntapRestProvider{}
+
+		mockIgroup := &ontaprest.Igroup{
+			Igroup: models.Igroup{
+				Name: nillable.ToPointer("testIgroup"),
+				UUID: nillable.ToPointer("testUUID"),
+			},
+		}
+
+		mockSAN.On("IGroupGet", mock.Anything).Return(mockIgroup, nil)
+
+		igroup, err := rc.IgroupGet("testIgroup", "testSVM")
+
+		assert.NoError(tt, err)
+		assert.NotNil(tt, igroup)
+		assert.Equal(tt, "testIgroup", *igroup.Name)
+		assert.Equal(tt, "testUUID", *igroup.UUID)
+
+		mockSAN.AssertExpectations(tt)
+		mockClient.AssertExpectations(tt)
+	})
+
+	t.Run("WhenIgroupDoesNotExist_ThenReturnNil", func(tt *testing.T) {
+		mockSAN := new(ontaprest.MockSANClient)
+		mockClient := new(ontaprest.MockRESTClient)
+		mockClient.On("SAN").Return(mockSAN)
+
+		getOntapClientFunc = func(params ontaprest.RESTClientParams) ontaprest.RESTClient {
+			return mockClient
+		}
+		rc := &OntapRestProvider{}
+
+		mockSAN.On("IGroupGet", mock.Anything).Return(nil, nil)
+
+		igroup, err := rc.IgroupGet("testIgroup", "testSVM")
+
+		assert.NoError(tt, err)
+		assert.Nil(tt, igroup)
+
+		mockSAN.AssertExpectations(tt)
+		mockClient.AssertExpectations(tt)
+	})
+
+	t.Run("WhenFetchingIgroupFails_ThenReturnError", func(tt *testing.T) {
+		mockSAN := new(ontaprest.MockSANClient)
+		mockClient := new(ontaprest.MockRESTClient)
+		mockClient.On("SAN").Return(mockSAN)
+
+		getOntapClientFunc = func(params ontaprest.RESTClientParams) ontaprest.RESTClient {
+			return mockClient
+		}
+		rc := &OntapRestProvider{}
+
+		mockSAN.On("IGroupGet", mock.Anything).Return(nil, errors.New("fetch error"))
+
+		igroup, err := rc.IgroupGet("testIgroup", "testSVM")
+
+		assert.Error(tt, err)
+		assert.Nil(tt, igroup)
+		assert.Equal(tt, "fetch error", err.Error())
+
+		mockSAN.AssertExpectations(tt)
+		mockClient.AssertExpectations(tt)
+	})
+}
+
+func TestIgroupExists(t *testing.T) {
+	t.Run("WhenIgroupExists_ThenReturnTrue", func(tt *testing.T) {
+		mockSAN := new(ontaprest.MockSANClient)
+		mockClient := new(ontaprest.MockRESTClient)
+		mockClient.On("SAN").Return(mockSAN)
+
+		getOntapClientFunc = func(params ontaprest.RESTClientParams) ontaprest.RESTClient {
+			return mockClient
+		}
+		rc := &OntapRestProvider{}
+
+		mockIgroup := &ontaprest.Igroup{
+			Igroup: models.Igroup{
+				Name: nillable.ToPointer("testIgroup"),
+			},
+		}
+
+		mockSAN.On("IGroupGet", mock.Anything).Return(mockIgroup, nil)
+
+		exists, err := rc.IgroupExists("testIgroup", "testSVM")
+
+		assert.NoError(tt, err)
+		assert.True(tt, exists)
+
+		mockSAN.AssertExpectations(tt)
+		mockClient.AssertExpectations(tt)
+	})
+
+	t.Run("WhenIgroupDoesNotExist_ThenReturnFalse", func(tt *testing.T) {
+		mockSAN := new(ontaprest.MockSANClient)
+		mockClient := new(ontaprest.MockRESTClient)
+		mockClient.On("SAN").Return(mockSAN)
+
+		getOntapClientFunc = func(params ontaprest.RESTClientParams) ontaprest.RESTClient {
+			return mockClient
+		}
+		rc := &OntapRestProvider{}
+
+		mockSAN.On("IGroupGet", mock.Anything).Return(nil, nil)
+
+		exists, err := rc.IgroupExists("testIgroup", "testSVM")
+
+		assert.NoError(tt, err)
+		assert.False(tt, exists)
+
+		mockSAN.AssertExpectations(tt)
+		mockClient.AssertExpectations(tt)
+	})
+
+	t.Run("WhenFetchingIgroupFailsWithNotFoundError_ThenReturnFalse", func(tt *testing.T) {
+		mockSAN := new(ontaprest.MockSANClient)
+		mockClient := new(ontaprest.MockRESTClient)
+		mockClient.On("SAN").Return(mockSAN)
+
+		getOntapClientFunc = func(params ontaprest.RESTClientParams) ontaprest.RESTClient {
+			return mockClient
+		}
+		rc := &OntapRestProvider{}
+
+		mockSAN.On("IGroupGet", mock.Anything).Return(nil, errors.NewNotFoundErr("Igroup", nil))
+
+		exists, err := rc.IgroupExists("testIgroup", "testSVM")
+
+		assert.NoError(tt, err)
+		assert.False(tt, exists)
+
+		mockSAN.AssertExpectations(tt)
+		mockClient.AssertExpectations(tt)
+	})
+
+	t.Run("WhenFetchingIgroupFailsWithOtherError_ThenReturnError", func(tt *testing.T) {
+		mockSAN := new(ontaprest.MockSANClient)
+		mockClient := new(ontaprest.MockRESTClient)
+		mockClient.On("SAN").Return(mockSAN)
+
+		getOntapClientFunc = func(params ontaprest.RESTClientParams) ontaprest.RESTClient {
+			return mockClient
+		}
+		rc := &OntapRestProvider{}
+
+		mockSAN.On("IGroupGet", mock.Anything).Return(nil, errors.New("fetch error"))
+
+		exists, err := rc.IgroupExists("testIgroup", "testSVM")
+
+		assert.Error(tt, err)
+		assert.False(tt, exists)
+		assert.Equal(tt, "fetch error", err.Error())
+
+		mockSAN.AssertExpectations(tt)
+		mockClient.AssertExpectations(tt)
+	})
+}
+func TestIscsiServiceCreate(t *testing.T) {
+	t.Run("WhenIscsiServiceIsCreatedSuccessfully_ThenReturnNil", func(tt *testing.T) {
+		mockSAN := new(ontaprest.MockSANClient)
+		mockClient := new(ontaprest.MockRESTClient)
+		mockClient.On("SAN").Return(mockSAN)
+
+		getOntapClientFunc = func(params ontaprest.RESTClientParams) ontaprest.RESTClient {
+			return mockClient
+		}
+		rc := &OntapRestProvider{}
+
+		mockSAN.On("IscsiServiceCreate", mock.Anything).Return(nil)
+
+		err := rc.IscsiServiceCreate("testSvmUUID")
+
+		assert.NoError(tt, err)
+
+		mockSAN.AssertExpectations(tt)
+		mockClient.AssertExpectations(tt)
+	})
+
+	t.Run("WhenIscsiServiceCreationFails_ThenReturnError", func(tt *testing.T) {
+		mockSAN := new(ontaprest.MockSANClient)
+		mockClient := new(ontaprest.MockRESTClient)
+		mockClient.On("SAN").Return(mockSAN)
+
+		getOntapClientFunc = func(params ontaprest.RESTClientParams) ontaprest.RESTClient {
+			return mockClient
+		}
+		rc := &OntapRestProvider{}
+
+		mockSAN.On("IscsiServiceCreate", mock.Anything).Return(errors.New("creation error"))
+
+		err := rc.IscsiServiceCreate("testSvmUUID")
+
+		assert.Error(tt, err)
+		assert.Equal(tt, "creation error", err.Error())
+
+		mockSAN.AssertExpectations(tt)
+		mockClient.AssertExpectations(tt)
+	})
+}
+
+func TestGetOntapClient(t *testing.T) {
+	t.Run("WhenValidClientParamsProvided_ThenReturnOntapRestClient", func(tt *testing.T) {
+		clientParams := ontaprest.RESTClientParams{
+			Host:     "test-host",
+			Username: "test-user",
+			Password: "test-password",
+			Trace:    log.NewLogger().(*log.Slogger),
+		}
+
+		client := getOntapClient(clientParams)
+
+		assert.NotNil(tt, client)
+		assert.Equal(tt, clientParams.Host, client.Host())
+	})
 }

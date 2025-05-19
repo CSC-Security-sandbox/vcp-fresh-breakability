@@ -4,12 +4,13 @@ import (
 	"bufio"
 	"bytes"
 	"fmt"
-	"github.com/spf13/cobra"
 	"log"
 	"os"
 	"os/exec"
 	"strconv"
 	"strings"
+
+	"github.com/spf13/cobra"
 )
 
 var UnitTestCmd = &cobra.Command{
@@ -24,7 +25,7 @@ var UnitTestCmd = &cobra.Command{
 }
 
 const coverageFile = "coverage.out"
-const excludeFile = "./exclude-from-code-coverage"
+const excludeFile = "./cicd/cmd/unit-test/exclude-from-code-coverage"
 
 var filtered bool
 var coverage bool

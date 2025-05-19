@@ -33,12 +33,12 @@ type clusterClient struct {
 var paginateNodesGet = _paginate[[]*Node]
 
 // NodesGet invokes pkg/ontap-rest/client/cluster/Client.NodesGet
-func (c clusterClient) NodesGet(params *NodesGetParams, ucbf UserCallbackFunc[[]*Node]) error {
+func (cc clusterClient) NodesGet(params *NodesGetParams, ucbf UserCallbackFunc[[]*Node]) error {
 	otParams := nodesGetParamsToONTAP(params)
 	return paginateNodesGet(func(next string) ([]*Node, string, error) {
 		otParams.SetContext(setNext(otParams.Context, next))
 
-		rsp, err := c.api.NodesGet(otParams, nil)
+		rsp, err := cc.api.NodesGet(otParams, nil)
 		if err != nil {
 			return nil, "", err
 		}
@@ -56,8 +56,8 @@ func (c clusterClient) NodesGet(params *NodesGetParams, ucbf UserCallbackFunc[[]
 }
 
 // GetONTAPVersion returns the ONTAP version
-func (c clusterClient) GetONTAPVersion() (*string, error) {
-	cluster, err := c.api.ClusterGet(cluster.NewClusterGetParams().WithFields([]string{"version"}), nil)
+func (cc clusterClient) GetONTAPVersion() (*string, error) {
+	cluster, err := cc.api.ClusterGet(cluster.NewClusterGetParams().WithFields([]string{"version"}), nil)
 	if err != nil {
 		return nil, err
 	}

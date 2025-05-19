@@ -4,3 +4,5 @@ clients/ontap-rest/
 core/core-api/core-servergen/
 google-proxy/api/gcp-servergen/
 _mock.go
+tools/
+cmd/

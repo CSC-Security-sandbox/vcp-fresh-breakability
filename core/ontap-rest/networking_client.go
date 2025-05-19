@@ -10,7 +10,7 @@ import (
 )
 
 // NetworkingClient describes a networking client
-type NetworkingClient interface { // generate:mock
+type NetworkingClient interface {
 	NetworkIPInterfacesGet(params *NetworkIPInterfacesGetParams, ucbf UserCallbackFunc[[]*IPInterface]) error
 	NetworkIPRouteCreateDefault(params *NetworkIPDefaultRouteCreateParams) error
 	NetworkIPInterfaceCreate(params *NetworkIPInterfacesCreateParams) (*IPInterface, error)

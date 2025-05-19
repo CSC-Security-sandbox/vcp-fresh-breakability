@@ -4,7 +4,6 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/go-openapi/runtime"
 	"github.com/stretchr/testify/assert"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/ontap-rest/client/cluster"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/ontap-rest/models"
@@ -12,15 +11,6 @@ import (
 	privmodels "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/ontap-rest/priv/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/nillable"
 )
-
-type mockTransport struct {
-	response interface{}
-	err      error
-}
-
-func (mock *mockTransport) Submit(*runtime.ClientOperation) (interface{}, error) {
-	return mock.response, mock.err
-}
 
 func TestClusterPeerList(t *testing.T) {
 	t.Run("WhenRESTCallFails", func(tt *testing.T) {
@@ -288,5 +278,63 @@ func TestScheduleCollectionGet(t *testing.T) {
 		})
 		assert.NoError(tt, err)
 		assert.True(tt, funcCalled)
+	})
+}
+
+func TestNodesGet(t *testing.T) {
+	t.Run("WhenRESTCallFails_ThenReturnError", func(tt *testing.T) {
+		transport := &mockTransport{err: errors.New("something went wrong")}
+		clust := cluster.New(transport, nil)
+		client := &clusterClient{api: clust}
+		err := client.NodesGet(&NodesGetParams{}, func(nodes []*Node) error { return nil })
+		assert.EqualError(tt, err, transport.err.Error())
+	})
+
+	t.Run("WhenSuccessful_ThenReturnNodes", func(tt *testing.T) {
+		nodeName := "node1"
+		transport := &mockTransport{response: &cluster.NodesGetOK{
+			Payload: &models.NodeResponse{
+				NodeResponseInlineRecords: []*models.NodeResponseInlineRecordsInlineArrayItem{
+					{Name: &nodeName},
+				},
+				NumRecords: nillable.ToPointer(int64(1)),
+			},
+		}}
+		clust := cluster.New(transport, nil)
+		client := &clusterClient{api: clust}
+		var nodes []*Node
+		err := client.NodesGet(&NodesGetParams{}, func(n []*Node) error {
+			nodes = n
+			return nil
+		})
+		assert.NoError(tt, err)
+		assert.Len(tt, nodes, 1)
+		assert.Equal(tt, nodeName, *nodes[0].Name)
+	})
+}
+
+func TestGetONTAPVersion(t *testing.T) {
+	t.Run("WhenRESTCallFails_ThenReturnError", func(tt *testing.T) {
+		transport := &mockTransport{err: errors.New("something went wrong")}
+		clust := cluster.New(transport, nil)
+		client := &clusterClient{api: clust}
+		version, err := client.GetONTAPVersion()
+		assert.EqualError(tt, err, transport.err.Error())
+		assert.Nil(tt, version)
+	})
+
+	t.Run("WhenSuccessful_ThenReturnVersion", func(tt *testing.T) {
+		version := "9.10.1"
+		transport := &mockTransport{response: &cluster.ClusterGetOK{
+			Payload: &models.Cluster{
+				Version: &models.ClusterInlineVersion{Full: &version},
+			},
+		}}
+		clust := cluster.New(transport, nil)
+		client := &clusterClient{api: clust}
+		result, err := client.GetONTAPVersion()
+		assert.NoError(tt, err)
+		assert.NotNil(tt, result)
+		assert.Equal(tt, version, *result)
 	})
 }

@@ -6,7 +6,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/nillable"
 )
 
-type StorageClient interface { // generate:mock
+type StorageClient interface {
 	AggregateCollectionGet(params *AggregateCollectionGetParams, ucbf UserCallbackFunc[[]*Aggregate]) error
 	AggregateFindByName(params *AggregateCollectionGetParams) (*Aggregate, error)
 	AggregateModify(params *AggregateModifyParams) (*AggregateSimulate, *JobAccepted, error)
@@ -300,12 +300,14 @@ func (sc *storageClient) CloudStoreCreate(params *storage.CloudStoreCreateParams
 	if err != nil {
 		return nil, err
 	}
-	if responseAccepted != nil {
-		return &JobAccepted{
-			JobUUID: responseAccepted.Payload.Job.UUID.String(),
-		}, nil
+
+	if responseAccepted == nil || responseAccepted.Payload == nil || responseAccepted.Payload.Job == nil {
+		return nil, errors.New("unexpected response from CloudStoreCreate")
 	}
-	return nil, nil
+
+	return &JobAccepted{
+		JobUUID: responseAccepted.Payload.Job.UUID.String(),
+	}, nil
 }
 
 // VolumeCreate invokes pkg/ontap-rest/client/storage/Client.VolumeCreate

@@ -22,8 +22,8 @@ func (sc *securityClient) GcpKmsCreate(params *GcpKmsCreateParams) ([]*GcpKms, e
 		return nil, err
 	}
 
-	if response == nil {
-		return nil, errors.New("unhandled response in GcpKmsCreate")
+	if response == nil || response.Payload == nil {
+		return nil, errors.New("unexpected response from GcpKmsCreate")
 	}
 
 	resp := make([]*GcpKms, nillable.FromPointer(response.Payload.NumRecords))
