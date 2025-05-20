@@ -4,9 +4,9 @@ build:
   local:
     push: false
     concurrency: 0
-    tagPolicy:
-      envTemplate:
-        template: "{{.IMAGES_TAG}}"
+  tagPolicy:
+    envTemplate:
+      template: "{{.IMAGES_TAG}}"
   artifacts:
     - image: google-proxy
       context: .

@@ -159,6 +159,15 @@ else
   exit 1
 fi
 
+# cosign install
+printf "\n\t Install cosign\n"
+if curl -O -L "https://github.com/sigstore/cosign/releases/latest/download/cosign-linux-amd64" && sudo mv cosign-linux-amd64 /usr/local/bin/cosign && sudo chmod +x /usr/local/bin/cosign; then
+  printf "cosign installed"
+else
+  printf "::error:: Failed to install cosign"
+  exit 1
+fi
+
 # install gosu https://github.com/tianon/gosu
 GOSU_URL="https://github.com/tianon/gosu/releases/download/1.14/gosu-amd64"
 GOSU_ASC_URL="${GOSU_URL}.asc"
