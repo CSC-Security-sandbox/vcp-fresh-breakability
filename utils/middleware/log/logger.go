@@ -52,14 +52,16 @@ var (
 )
 
 type Config struct {
-	LogLevel  string
-	AddSource bool
+	LogLevel   string
+	AddSource  bool
+	LoggerType string
 }
 
 func init() {
 	config = Config{
-		AddSource: env.AddSource,
-		LogLevel:  env.LogLevel,
+		AddSource:  env.AddSource,
+		LogLevel:   env.LogLevel,
+		LoggerType: env.LoggerType,
 	}
 }
 
@@ -73,7 +75,7 @@ const (
 func getLogger(config Config) Logger {
 	var logger Logger
 	var err error
-	switch LoggerType(strings.ToLower(env.LoggerType)) {
+	switch LoggerType(strings.ToLower(config.LoggerType)) {
 	case LoggerTypeSlog:
 		logger, err = getSlogger(config)
 	// Add other logger types here if needed
