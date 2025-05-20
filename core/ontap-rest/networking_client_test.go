@@ -2,6 +2,7 @@ package ontap_rest
 
 import (
 	"errors"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/nillable"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -307,5 +308,44 @@ func TestNetworkIPRouteCreateDefault(t *testing.T) {
 		client := &networkingClient{api: networkAPI}
 		err := client.NetworkIPRouteCreateDefault(&NetworkIPDefaultRouteCreateParams{})
 		assert.NoError(tt, err)
+	})
+}
+
+func TestNetworkingClient_InterclusterLifGet(t *testing.T) {
+	t.Run("WhenRESTCallFails", func(tt *testing.T) {
+		transport := &mockTransport{err: errors.New("something went wrong")}
+		n := networking.New(transport, nil)
+		client := &networkingClient{api: n}
+		servicePolicyName := "default-intercluster"
+		networkIPInterfacesGetParams := &NetworkIPInterfacesGetParams{BaseParams: BaseParams{Fields: []string{"ip.address"}}, ServicePolicyName: &servicePolicyName}
+
+		response, err := client.InterclusterLifsGet(networkIPInterfacesGetParams)
+		if response != nil {
+			tt.Errorf("Unexpected response returned: %v", response)
+		}
+		if err != transport.err {
+			tt.Errorf("Unexpected error returned: %v", err)
+		}
+	})
+	t.Run("WhenSuccessful", func(tt *testing.T) {
+		mcs := networking.NewMockClientService(tt)
+		client := &networkingClient{api: mcs}
+		pp := &NetworkIPInterfacesGetParams{}
+		firstBatchOntap := []*models.IPInterface{
+			{Name: nillable.ToPointer("1")},
+			{Name: nillable.ToPointer("2")},
+			{Name: nillable.ToPointer("3")},
+		}
+		go func() {
+			defer mcs.MockClientServiceDone()
+			res, err := client.InterclusterLifsGet(pp)
+			assert.Nil(tt, err)
+			assert.Equal(tt, 3, len(res))
+		}()
+		otpp := networkIPInterfacesGetParamsToONTAP(pp)
+		mcs.AssertNetworkIPInterfacesGet(otpp, nil, nil, &networking.NetworkIPInterfacesGetOK{
+			Payload: &models.IPInterfaceResponse{
+				IPInterfaceResponseInlineRecords: firstBatchOntap,
+			}}, nil)
 	})
 }

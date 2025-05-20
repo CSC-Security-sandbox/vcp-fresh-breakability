@@ -598,10 +598,11 @@ type BreakFileLocksParams struct {
 // NetworkIPInterfacesGetParams is the input param struct for networkingClient.NetworkIPInterfacesGet
 type NetworkIPInterfacesGetParams struct {
 	BaseParams
-	SvmUUID   *string
-	SvmName   *string
-	Name      *string
-	IPAddress *string
+	SvmUUID           *string
+	SvmName           *string
+	Name              *string
+	IPAddress         *string
+	ServicePolicyName *string
 }
 
 func networkIPInterfacesGetParamsToONTAP(params *NetworkIPInterfacesGetParams) *networking.NetworkIPInterfacesGetParams {
@@ -612,10 +613,21 @@ func networkIPInterfacesGetParamsToONTAP(params *NetworkIPInterfacesGetParams) *
 
 	otParams.SetMaxRecords(getConstrainedMaxRecords(params.MaxRecords))
 	otParams.SetFields(params.Fields)
-	otParams.SetSvmName(params.SvmName)
-	otParams.SetName(params.Name)
-	otParams.SetSvmUUID(params.SvmUUID)
-	otParams.SetIPAddress(params.IPAddress)
+	if params.SvmName != nil {
+		otParams.SetSvmName(params.SvmName)
+	}
+	if params.Name != nil {
+		otParams.SetName(params.Name)
+	}
+	if params.SvmUUID != nil {
+		otParams.SetSvmUUID(params.SvmUUID)
+	}
+	if params.IPAddress != nil {
+		otParams.SetIPAddress(params.IPAddress)
+	}
+	if params.ServicePolicyName != nil {
+		otParams.SetServicePolicyName(params.ServicePolicyName)
+	}
 	return otParams
 }
 
@@ -2229,4 +2241,9 @@ func scheduleCollectionGetParamsToONTAP(params *ScheduleCollectionGetParams) *cl
 	otParams.Fields = params.Fields
 	otParams.Name = &params.Name
 	return otParams
+}
+
+// InterclusterLif is a simple wrapper for models.IPInterface
+type InterclusterLif struct {
+	models.IPInterface
 }

@@ -2,6 +2,7 @@ package vsa
 
 import (
 	"github.com/go-openapi/strfmt"
+	ontaprestmodel "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/ontap-rest/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 )
 
@@ -119,4 +120,14 @@ type ClusterPeer struct {
 	AccountUUID         string
 	AccountName         string
 	ExpiryTime          *strfmt.DateTime
+}
+
+// InterclusterLif describes the storage model for intercluster LIFs
+type InterclusterLif struct {
+	Name     string
+	Address  ontaprestmodel.IPAddress
+	NetMask  string
+	IPSpace  string
+	NodeUUID string
+	UUID     string
 }

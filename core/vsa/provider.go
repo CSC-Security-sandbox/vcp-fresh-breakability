@@ -35,6 +35,7 @@ type Provider interface {
 	GetClusterPeer(clusterPeerID string) (*ClusterPeer, error)
 	ListClusterPeers() ([]*ClusterPeer, error)
 	CreateVolumeReplicationSchedule(schedule string) error
+	GetInterclusterLIFs(servicePolicyName string) ([]*InterclusterLif, error)
 }
 
 type OntapRestProvider struct {

@@ -24,6 +24,8 @@ type NetworkingClient interface {
 	IpspaceExists(name string) (bool, error)
 	IpspaceCreate(name string) error
 	IpspaceDelete(params *IpspaceDeleteParams) error
+
+	InterclusterLifsGet(params *NetworkIPInterfacesGetParams) ([]*IPInterface, error)
 }
 
 type networkingClient struct {
@@ -201,4 +203,22 @@ func (nc *networkingClient) NetworkIPInterfaceCreate(params *NetworkIPInterfaces
 	}
 
 	return &IPInterface{IPInterface: *rsp.Payload.IPInterfaceResponseInlineRecords[0]}, nil
+}
+
+func (nc *networkingClient) InterclusterLifsGet(params *NetworkIPInterfacesGetParams) ([]*IPInterface, error) {
+	otParams := networkIPInterfacesGetParamsToONTAP(params)
+	resp, err := nc.api.NetworkIPInterfacesGet(otParams, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	interfaces := make([]*IPInterface, len(resp.Payload.IPInterfaceResponseInlineRecords))
+	for i, ip := range resp.Payload.IPInterfaceResponseInlineRecords {
+		interfaces[i] = &IPInterface{IPInterface: *ip}
+	}
+	if resp.Payload.Links != nil && resp.Payload.Links.Next != nil {
+		return interfaces, nil
+	}
+
+	return interfaces, nil
 }
