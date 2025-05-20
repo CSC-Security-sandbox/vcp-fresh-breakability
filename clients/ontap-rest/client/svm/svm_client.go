@@ -122,6 +122,12 @@ type ClientService interface {
 
 	SvmPeerCollectionGet(params *SvmPeerCollectionGetParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*SvmPeerCollectionGetOK, error)
 
+	SvmPeerCreate(params *SvmPeerCreateParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*SvmPeerCreateCreated, *SvmPeerCreateAccepted, error)
+
+	SvmPeerDelete(params *SvmPeerDeleteParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*SvmPeerDeleteOK, *SvmPeerDeleteAccepted, error)
+
+	SvmPeerModify(params *SvmPeerModifyParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*SvmPeerModifyOK, *SvmPeerModifyAccepted, error)
+
 	SetTransport(transport runtime.ClientTransport)
 }
 
@@ -1100,6 +1106,193 @@ func (a *Client) SvmPeerCollectionGet(params *SvmPeerCollectionGetParams, authIn
 	// unexpected success response
 	unexpectedSuccess := result.(*SvmPeerCollectionGetDefault)
 	return nil, runtime.NewAPIError("unexpected success response: content available as default response in error", unexpectedSuccess, unexpectedSuccess.Code())
+}
+
+/*
+	SvmPeerCreate Creates a new SVM peer relationship.
+
+### Important notes
+  - The create request accepts peer SVM name as input instead of peer SVM UUID as the local cluster cannot validate peer SVM based on UUID.
+  - The input parameter `name` refers to the local name of the peer SVM. The `peer cluster name` parameter is optional for creating intracluster SVM peer relationships.
+
+### Required properties
+* `svm.name` or `svm.uuid` - SVM name or SVM UUID
+* `peer.svm.name` or `peer.svm.uuid` - Peer SVM name or Peer SVM UUID
+* `peer.cluster.name` or `peer.cluster.uuid` - Peer cluster name or peer cluster UUID
+* `applications` - Peering applications
+### Related ONTAP commands
+* `vserver peer create`
+### Example
+Creates a new SVM peer relationship.
+<br/>
+```
+POST "/api/svm/peers" '{"svm":{"name":"vs1"}, "peer.cluster.name":"cluster2", "peer.svm.name":"VS1", "applications":["snapmirror"]}'
+```
+<br/>
+### Learn more
+* [`DOC /svm/peers`](#docs-svm-svm_peers)
+*/
+func (a *Client) SvmPeerCreate(params *SvmPeerCreateParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*SvmPeerCreateCreated, *SvmPeerCreateAccepted, error) {
+	// TODO: Validate the params before sending
+	if params == nil {
+		params = NewSvmPeerCreateParams()
+	}
+	op := &runtime.ClientOperation{
+		ID:                 "svm_peer_create",
+		Method:             "POST",
+		PathPattern:        "/svm/peers",
+		ProducesMediaTypes: []string{"application/json", "application/hal+json"},
+		ConsumesMediaTypes: []string{"application/json", "application/hal+json"},
+		Schemes:            []string{"https"},
+		Params:             params,
+		Reader:             &SvmPeerCreateReader{formats: a.formats},
+		AuthInfo:           authInfo,
+		Context:            params.Context,
+		Client:             params.HTTPClient,
+	}
+	for _, opt := range opts {
+		opt(op)
+	}
+
+	result, err := a.transport.Submit(op)
+	if err != nil {
+		return nil, nil, err
+	}
+	switch value := result.(type) {
+	case *SvmPeerCreateCreated:
+		return value, nil, nil
+	case *SvmPeerCreateAccepted:
+		return nil, value, nil
+	}
+	// unexpected success response
+	unexpectedSuccess := result.(*SvmPeerCreateDefault)
+	return nil, nil, runtime.NewAPIError("unexpected success response: content available as default response in error", unexpectedSuccess, unexpectedSuccess.Code())
+}
+
+/*
+	SvmPeerDelete Deletes the SVM peer relationship.
+
+### Related ONTAP commands
+* `vserver peer delete`
+### Example
+ 1. Deletes an SVM peer relationship.
+    <br/>
+    ```
+    DELETE "/api/svm/peers/d3268a74-ee76-11e8-a9bb-005056ac6dc9"
+    ```
+    <br/>
+ 2. Deletes an SVM peer relationship using force flag
+    <br/>
+    ```
+    DELETE "/api/svm/peers/d3268a74-ee76-11e8-a9bb-005056ac6dc9" '{"force": "true"}'
+    ```
+    <br/>
+
+### Learn more
+* [`DOC /svm/peers`](#docs-svm-svm_peers)
+*/
+func (a *Client) SvmPeerDelete(params *SvmPeerDeleteParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*SvmPeerDeleteOK, *SvmPeerDeleteAccepted, error) {
+	// TODO: Validate the params before sending
+	if params == nil {
+		params = NewSvmPeerDeleteParams()
+	}
+	op := &runtime.ClientOperation{
+		ID:                 "svm_peer_delete",
+		Method:             "DELETE",
+		PathPattern:        "/svm/peers/{uuid}",
+		ProducesMediaTypes: []string{"application/json", "application/hal+json"},
+		ConsumesMediaTypes: []string{"application/json", "application/hal+json"},
+		Schemes:            []string{"https"},
+		Params:             params,
+		Reader:             &SvmPeerDeleteReader{formats: a.formats},
+		AuthInfo:           authInfo,
+		Context:            params.Context,
+		Client:             params.HTTPClient,
+	}
+	for _, opt := range opts {
+		opt(op)
+	}
+
+	result, err := a.transport.Submit(op)
+	if err != nil {
+		return nil, nil, err
+	}
+	switch value := result.(type) {
+	case *SvmPeerDeleteOK:
+		return value, nil, nil
+	case *SvmPeerDeleteAccepted:
+		return nil, value, nil
+	}
+	// unexpected success response
+	unexpectedSuccess := result.(*SvmPeerDeleteDefault)
+	return nil, nil, runtime.NewAPIError("unexpected success response: content available as default response in error", unexpectedSuccess, unexpectedSuccess.Code())
+}
+
+/*
+	SvmPeerModify Updates the SVM peer relationship.
+
+### Related ONTAP commands
+* `vserver peer modify`
+### Examples
+The following examples show how to update an SVM peer relationship. The input parameter 'name' refers to the local name of the peer SVM.
+<br/>
+ 1. Accepts an SVM peer relationship
+    <br/>
+    ```
+    PATCH "/api/svm/peers/d3268a74-ee76-11e8-a9bb-005056ac6dc9" '{"state":"peered"}'
+    ```
+    <br/>
+ 2. Updates the local name of an SVM peer relationship
+    <br/>
+    ```
+    PATCH "/api/svm/peers/d3268a74-ee76-11e8-a9bb-005056ac6dc9" '{"name":"vs2"}'
+    ```
+    <br/>
+ 2. Suspends an SVM peer relationship using force flag
+    <br/>
+    ```
+    PATCH "/api/svm/peers/d3268a74-ee76-11e8-a9bb-005056ac6dc9" '{"state":"suspended", "force": "true"}'
+    ```
+    <br/>
+
+### Learn more
+* [`DOC /svm/peers`](#docs-svm-svm_peers)
+*/
+func (a *Client) SvmPeerModify(params *SvmPeerModifyParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*SvmPeerModifyOK, *SvmPeerModifyAccepted, error) {
+	// TODO: Validate the params before sending
+	if params == nil {
+		params = NewSvmPeerModifyParams()
+	}
+	op := &runtime.ClientOperation{
+		ID:                 "svm_peer_modify",
+		Method:             "PATCH",
+		PathPattern:        "/svm/peers/{uuid}",
+		ProducesMediaTypes: []string{"application/json", "application/hal+json"},
+		ConsumesMediaTypes: []string{"application/json", "application/hal+json"},
+		Schemes:            []string{"https"},
+		Params:             params,
+		Reader:             &SvmPeerModifyReader{formats: a.formats},
+		AuthInfo:           authInfo,
+		Context:            params.Context,
+		Client:             params.HTTPClient,
+	}
+	for _, opt := range opts {
+		opt(op)
+	}
+
+	result, err := a.transport.Submit(op)
+	if err != nil {
+		return nil, nil, err
+	}
+	switch value := result.(type) {
+	case *SvmPeerModifyOK:
+		return value, nil, nil
+	case *SvmPeerModifyAccepted:
+		return nil, value, nil
+	}
+	// unexpected success response
+	unexpectedSuccess := result.(*SvmPeerModifyDefault)
+	return nil, nil, runtime.NewAPIError("unexpected success response: content available as default response in error", unexpectedSuccess, unexpectedSuccess.Code())
 }
 
 // SetTransport changes the transport on the client

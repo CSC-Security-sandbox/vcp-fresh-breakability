@@ -445,9 +445,9 @@
 723021238 5092 ./client/storage/volume_get_responses.go
 2094745395 23158 ./client/storage/volume_modify_parameters.go
 304290640 24479 ./client/storage/volume_modify_responses.go
-1700820988 16240 ./client/svm/client_service_mock.go
-2657374383 15204 ./client/svm/client_service_mock_test.go
-3725530053 43576 ./client/svm/svm_client.go
+1470363769 19102 ./client/svm/client_service_mock.go
+1019368199 16865 ./client/svm/client_service_mock_test.go
+1719142321 50381 ./client/svm/svm_client.go
 1293273945 85239 ./client/svm/svm_collection_get_parameters.go
 2301978094 5453 ./client/svm/svm_collection_get_responses.go
 243402267 6469 ./client/svm/svm_create_parameters.go
@@ -472,6 +472,12 @@
 3358644029 8576 ./client/svm/svm_modify_responses.go
 1918604856 17122 ./client/svm/svm_peer_collection_get_parameters.go
 871645788 6105 ./client/svm/svm_peer_collection_get_responses.go
+2445589060 6736 ./client/svm/svm_peer_create_parameters.go
+4001154202 8968 ./client/svm/svm_peer_create_responses.go
+4277163718 6419 ./client/svm/svm_peer_delete_parameters.go
+2857115275 7947 ./client/svm/svm_peer_delete_responses.go
+690365697 6196 ./client/svm/svm_peer_modify_parameters.go
+3134325006 8521 ./client/svm/svm_peer_modify_responses.go
 3015875537 7580 ./models/account_application.go
 373368037 3728 ./models/active_directory_discovered_server_reference.go
 1517062442 2766 ./models/active_directory_security.go
@@ -753,6 +759,7 @@
 3948440704 8329 ./models/svm_migration_volume_response.go
 3806777024 30285 ./models/svm_peer.go
 1985581190 2342 ./models/svm_peer_applications.go
+778315493 4031 ./models/svm_peer_job_link_response.go
 2296691932 2348 ./models/svm_peer_permission_applications.go
 2037878788 7803 ./models/svm_peer_response.go
 1873496998 7606 ./models/svm_response.go
@@ -781,4 +788,4 @@
 4173203049 6726 ./models/zapp_s3_bucket_application_components_access_policies.go
 290990735 3069 ./models/zapp_s3_bucket_application_components_access_policies_conditions.go
 3407305603 24004610 swagger.yaml
-3955279388 4818 swagger_operations.txt
+2713856928 4866 swagger_operations.txt

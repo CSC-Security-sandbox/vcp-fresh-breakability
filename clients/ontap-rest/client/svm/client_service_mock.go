@@ -298,3 +298,42 @@ func (mock *MockClientService) AssertSvmPeerCollectionGet(params *SvmPeerCollect
 	mock.assertCall(<-mock.calls, &mockClientServiceCall{name: "SvmPeerCollectionGet", params: []interface{}{&params, &authInfo, &opts}})
 	mock.returns <- []interface{}{&ret0, &ret1}
 }
+
+// SvmPeerCreate mocks a call to ClientService.SvmPeerCreate
+func (mock *MockClientService) SvmPeerCreate(params *SvmPeerCreateParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*SvmPeerCreateCreated, *SvmPeerCreateAccepted, error) {
+	mock.calls <- &mockClientServiceCall{name: "SvmPeerCreate", params: []interface{}{&params, &authInfo, &opts}}
+	ret := (<-mock.returns).([]interface{})
+	return *ret[0].(**SvmPeerCreateCreated), *ret[1].(**SvmPeerCreateAccepted), *ret[2].(*error)
+}
+
+// AssertSvmPeerCreate verifies that SvmPeerCreate has been invoked
+func (mock *MockClientService) AssertSvmPeerCreate(params *SvmPeerCreateParams, authInfo runtime.ClientAuthInfoWriter, opts []ClientOption, ret0 *SvmPeerCreateCreated, ret1 *SvmPeerCreateAccepted, ret2 error) {
+	mock.assertCall(<-mock.calls, &mockClientServiceCall{name: "SvmPeerCreate", params: []interface{}{&params, &authInfo, &opts}})
+	mock.returns <- []interface{}{&ret0, &ret1, &ret2}
+}
+
+// SvmPeerDelete mocks a call to ClientService.SvmPeerDelete
+func (mock *MockClientService) SvmPeerDelete(params *SvmPeerDeleteParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*SvmPeerDeleteOK, *SvmPeerDeleteAccepted, error) {
+	mock.calls <- &mockClientServiceCall{name: "SvmPeerDelete", params: []interface{}{&params, &authInfo, &opts}}
+	ret := (<-mock.returns).([]interface{})
+	return *ret[0].(**SvmPeerDeleteOK), *ret[1].(**SvmPeerDeleteAccepted), *ret[2].(*error)
+}
+
+// AssertSvmPeerDelete verifies that SvmPeerDelete has been invoked
+func (mock *MockClientService) AssertSvmPeerDelete(params *SvmPeerDeleteParams, authInfo runtime.ClientAuthInfoWriter, opts []ClientOption, ret0 *SvmPeerDeleteOK, ret1 *SvmPeerDeleteAccepted, ret2 error) {
+	mock.assertCall(<-mock.calls, &mockClientServiceCall{name: "SvmPeerDelete", params: []interface{}{&params, &authInfo, &opts}})
+	mock.returns <- []interface{}{&ret0, &ret1, &ret2}
+}
+
+// SvmPeerModify mocks a call to ClientService.SvmPeerModify
+func (mock *MockClientService) SvmPeerModify(params *SvmPeerModifyParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*SvmPeerModifyOK, *SvmPeerModifyAccepted, error) {
+	mock.calls <- &mockClientServiceCall{name: "SvmPeerModify", params: []interface{}{&params, &authInfo, &opts}}
+	ret := (<-mock.returns).([]interface{})
+	return *ret[0].(**SvmPeerModifyOK), *ret[1].(**SvmPeerModifyAccepted), *ret[2].(*error)
+}
+
+// AssertSvmPeerModify verifies that SvmPeerModify has been invoked
+func (mock *MockClientService) AssertSvmPeerModify(params *SvmPeerModifyParams, authInfo runtime.ClientAuthInfoWriter, opts []ClientOption, ret0 *SvmPeerModifyOK, ret1 *SvmPeerModifyAccepted, ret2 error) {
+	mock.assertCall(<-mock.calls, &mockClientServiceCall{name: "SvmPeerModify", params: []interface{}{&params, &authInfo, &opts}})
+	mock.returns <- []interface{}{&ret0, &ret1, &ret2}
+}

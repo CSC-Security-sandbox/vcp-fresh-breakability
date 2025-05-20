@@ -473,3 +473,54 @@ func TestMockClientServiceSvmPeerCollectionGet(t *testing.T) {
 	mockClientService.AssertSvmPeerCollectionGet(params, authInfo, opts, ret0, ret1)
 	mockClientService.AssertMockClientServiceDone()
 }
+
+func TestMockClientServiceSvmPeerCreate(t *testing.T) {
+	mockClientService := NewMockClientService(t)
+	var params *SvmPeerCreateParams
+	var authInfo runtime.ClientAuthInfoWriter
+	var opts []ClientOption
+	var ret0 *SvmPeerCreateCreated
+	var ret1 *SvmPeerCreateAccepted
+	var ret2 error
+	go func() {
+		defer mockClientService.MockClientServiceDone()
+		_, _, _ = mockClientService.SvmPeerCreate(params, authInfo, opts...)
+	}()
+
+	mockClientService.AssertSvmPeerCreate(params, authInfo, opts, ret0, ret1, ret2)
+	mockClientService.AssertMockClientServiceDone()
+}
+
+func TestMockClientServiceSvmPeerDelete(t *testing.T) {
+	mockClientService := NewMockClientService(t)
+	var params *SvmPeerDeleteParams
+	var authInfo runtime.ClientAuthInfoWriter
+	var opts []ClientOption
+	var ret0 *SvmPeerDeleteOK
+	var ret1 *SvmPeerDeleteAccepted
+	var ret2 error
+	go func() {
+		defer mockClientService.MockClientServiceDone()
+		_, _, _ = mockClientService.SvmPeerDelete(params, authInfo, opts...)
+	}()
+
+	mockClientService.AssertSvmPeerDelete(params, authInfo, opts, ret0, ret1, ret2)
+	mockClientService.AssertMockClientServiceDone()
+}
+
+func TestMockClientServiceSvmPeerModify(t *testing.T) {
+	mockClientService := NewMockClientService(t)
+	var params *SvmPeerModifyParams
+	var authInfo runtime.ClientAuthInfoWriter
+	var opts []ClientOption
+	var ret0 *SvmPeerModifyOK
+	var ret1 *SvmPeerModifyAccepted
+	var ret2 error
+	go func() {
+		defer mockClientService.MockClientServiceDone()
+		_, _, _ = mockClientService.SvmPeerModify(params, authInfo, opts...)
+	}()
+
+	mockClientService.AssertSvmPeerModify(params, authInfo, opts, ret0, ret1, ret2)
+	mockClientService.AssertMockClientServiceDone()
+}

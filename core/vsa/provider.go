@@ -1,6 +1,7 @@
 package vsa
 
 import (
+	ontaprestmodels "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/ontap-rest/models"
 	ontapRest "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/ontap-rest"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 )
@@ -36,6 +37,10 @@ type Provider interface {
 	ListClusterPeers() ([]*ClusterPeer, error)
 	CreateVolumeReplicationSchedule(schedule string) error
 	GetInterclusterLIFs(servicePolicyName string) ([]*InterclusterLif, error)
+	CreateSvmPeering(srcClusterName, srcSVMName, dstSVMName string, snapmirrorApplication ontaprestmodels.SvmPeerApplications) error
+	AcceptSvmPeering(srcSVMName, dstSVMName string) error
+	GetSVMPeer(localSVMName, remoteSVMName *string) (*SvmPeer, error)
+	DeleteSVMPeer(svmPeerUUID string) error
 }
 
 type OntapRestProvider struct {

@@ -14,11 +14,16 @@ type SVMClient interface {
 	SvmCreate(params *SvmCreateParams) (*Svm, *JobAccepted, error)
 	SvmDelete(externalSvmUUID string) (bool, *JobAccepted, error)
 	SvmModify(params *SvmModifyParams) (bool, *JobAccepted, error)
+	SvmPeerCollectionGet(params *SvmPeerGetCollectionParams) ([]*SvmPeer, error)
+	SvmPeerCreate(params *SvmPeerCreateParams) error
+	SvmPeerModify(params *SvmPeerModifyParams) error
+	SvmPeerDelete(params *SvmPeerDeleteParams) error
 }
 
 type svmClient struct {
 	api     svm.ClientService
 	apiPriv *securitypriv.ClientService
+	poller  Poller
 }
 
 // SvmGet invokes pkg/ontap-rest/client/svm/Client.SvmGet
@@ -102,4 +107,60 @@ func (sc *svmClient) SvmModify(params *SvmModifyParams) (bool, *JobAccepted, err
 	}
 
 	return true, nil, nil
+}
+
+// SvmPeerCollectionGet invokes pkg/ontap-rest/svm/Client.SvmPeerCollectionGet
+func (sc *svmClient) SvmPeerCollectionGet(params *SvmPeerGetCollectionParams) ([]*SvmPeer, error) {
+	response, err := sc.api.SvmPeerCollectionGet(svmPeerGetCollectionParamsToONTAP(params), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	resp := make([]*SvmPeer, nillable.FromPointer(response.Payload.NumRecords))
+	for i, svmPeer := range response.Payload.SvmPeerResponseInlineRecords {
+		resp[i] = &SvmPeer{SvmPeer: *svmPeer}
+	}
+	return resp, nil
+}
+
+// SvmPeerCreate invokes pkg/ontap-rest/svm/Client.SvmPeerCreate
+func (sc *svmClient) SvmPeerCreate(params *SvmPeerCreateParams) error {
+	_, accepted, err := sc.api.SvmPeerCreate(svmPeerCreateParamsToONTAP(params), nil)
+	if err != nil {
+		return err
+	}
+	if accepted != nil {
+		if err = sc.poller.Poll(accepted.Payload.Job.UUID.String()); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// SvmPeerModify invokes pkg/ontap-rest/svm/Client.SvmPeerModify
+func (sc *svmClient) SvmPeerModify(params *SvmPeerModifyParams) error {
+	_, accepted, err := sc.api.SvmPeerModify(svmPeerModifyParamsToONTAP(params), nil)
+	if err != nil {
+		return err
+	}
+	if accepted != nil {
+		if err = sc.poller.Poll(accepted.Payload.Job.UUID.String()); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// SvmPeerDelete invokes pkg/ontap-rest/svm/Client.SvmPeerDelete
+func (sc *svmClient) SvmPeerDelete(params *SvmPeerDeleteParams) error {
+	_, accepted, err := sc.api.SvmPeerDelete(svmPeerDeleteParamsToONTAP(params), nil)
+	if err != nil {
+		return err
+	}
+	if accepted != nil {
+		if err = sc.poller.Poll(accepted.Payload.Job.UUID.String()); err != nil {
+			return err
+		}
+	}
+	return nil
 }

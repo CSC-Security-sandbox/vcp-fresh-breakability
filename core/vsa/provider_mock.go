@@ -4,6 +4,7 @@ package vsa
 
 import (
 	mock "github.com/stretchr/testify/mock"
+	models "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/ontap-rest/models"
 	ontap_rest "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/ontap-rest"
 )
 
@@ -74,6 +75,53 @@ func (_c *MockProvider_AcceptClusterPeer_Call) Return(_a0 *ClusterPeer, _a1 erro
 }
 
 func (_c *MockProvider_AcceptClusterPeer_Call) RunAndReturn(run func(CreateClusterPeerParams) (*ClusterPeer, error)) *MockProvider_AcceptClusterPeer_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// AcceptSvmPeering provides a mock function with given fields: srcSVMName, dstSVMName
+func (_m *MockProvider) AcceptSvmPeering(srcSVMName string, dstSVMName string) error {
+	ret := _m.Called(srcSVMName, dstSVMName)
+
+	if len(ret) == 0 {
+		panic("no return value specified for AcceptSvmPeering")
+	}
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(string, string) error); ok {
+		r0 = rf(srcSVMName, dstSVMName)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// MockProvider_AcceptSvmPeering_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'AcceptSvmPeering'
+type MockProvider_AcceptSvmPeering_Call struct {
+	*mock.Call
+}
+
+// AcceptSvmPeering is a helper method to define mock.On call
+//   - srcSVMName string
+//   - dstSVMName string
+func (_e *MockProvider_Expecter) AcceptSvmPeering(srcSVMName interface{}, dstSVMName interface{}) *MockProvider_AcceptSvmPeering_Call {
+	return &MockProvider_AcceptSvmPeering_Call{Call: _e.mock.On("AcceptSvmPeering", srcSVMName, dstSVMName)}
+}
+
+func (_c *MockProvider_AcceptSvmPeering_Call) Run(run func(srcSVMName string, dstSVMName string)) *MockProvider_AcceptSvmPeering_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(string), args[1].(string))
+	})
+	return _c
+}
+
+func (_c *MockProvider_AcceptSvmPeering_Call) Return(_a0 error) *MockProvider_AcceptSvmPeering_Call {
+	_c.Call.Return(_a0)
+	return _c
+}
+
+func (_c *MockProvider_AcceptSvmPeering_Call) RunAndReturn(run func(string, string) error) *MockProvider_AcceptSvmPeering_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -353,6 +401,55 @@ func (_c *MockProvider_CreateSVM_Call) RunAndReturn(run func(CreateSvmParams) (*
 	return _c
 }
 
+// CreateSvmPeering provides a mock function with given fields: srcClusterName, srcSVMName, dstSVMName, snapmirrorApplication
+func (_m *MockProvider) CreateSvmPeering(srcClusterName string, srcSVMName string, dstSVMName string, snapmirrorApplication models.SvmPeerApplications) error {
+	ret := _m.Called(srcClusterName, srcSVMName, dstSVMName, snapmirrorApplication)
+
+	if len(ret) == 0 {
+		panic("no return value specified for CreateSvmPeering")
+	}
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(string, string, string, models.SvmPeerApplications) error); ok {
+		r0 = rf(srcClusterName, srcSVMName, dstSVMName, snapmirrorApplication)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// MockProvider_CreateSvmPeering_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'CreateSvmPeering'
+type MockProvider_CreateSvmPeering_Call struct {
+	*mock.Call
+}
+
+// CreateSvmPeering is a helper method to define mock.On call
+//   - srcClusterName string
+//   - srcSVMName string
+//   - dstSVMName string
+//   - snapmirrorApplication models.SvmPeerApplications
+func (_e *MockProvider_Expecter) CreateSvmPeering(srcClusterName interface{}, srcSVMName interface{}, dstSVMName interface{}, snapmirrorApplication interface{}) *MockProvider_CreateSvmPeering_Call {
+	return &MockProvider_CreateSvmPeering_Call{Call: _e.mock.On("CreateSvmPeering", srcClusterName, srcSVMName, dstSVMName, snapmirrorApplication)}
+}
+
+func (_c *MockProvider_CreateSvmPeering_Call) Run(run func(srcClusterName string, srcSVMName string, dstSVMName string, snapmirrorApplication models.SvmPeerApplications)) *MockProvider_CreateSvmPeering_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(string), args[1].(string), args[2].(string), args[3].(models.SvmPeerApplications))
+	})
+	return _c
+}
+
+func (_c *MockProvider_CreateSvmPeering_Call) Return(_a0 error) *MockProvider_CreateSvmPeering_Call {
+	_c.Call.Return(_a0)
+	return _c
+}
+
+func (_c *MockProvider_CreateSvmPeering_Call) RunAndReturn(run func(string, string, string, models.SvmPeerApplications) error) *MockProvider_CreateSvmPeering_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // CreateVolume provides a mock function with given fields: params
 func (_m *MockProvider) CreateVolume(params CreateVolumeParams) (*VolumeResponse, error) {
 	ret := _m.Called(params)
@@ -499,6 +596,52 @@ func (_c *MockProvider_DeleteClusterPeer_Call) Return(_a0 error) *MockProvider_D
 }
 
 func (_c *MockProvider_DeleteClusterPeer_Call) RunAndReturn(run func(string) error) *MockProvider_DeleteClusterPeer_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// DeleteSVMPeer provides a mock function with given fields: svmPeerUUID
+func (_m *MockProvider) DeleteSVMPeer(svmPeerUUID string) error {
+	ret := _m.Called(svmPeerUUID)
+
+	if len(ret) == 0 {
+		panic("no return value specified for DeleteSVMPeer")
+	}
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(string) error); ok {
+		r0 = rf(svmPeerUUID)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// MockProvider_DeleteSVMPeer_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'DeleteSVMPeer'
+type MockProvider_DeleteSVMPeer_Call struct {
+	*mock.Call
+}
+
+// DeleteSVMPeer is a helper method to define mock.On call
+//   - svmPeerUUID string
+func (_e *MockProvider_Expecter) DeleteSVMPeer(svmPeerUUID interface{}) *MockProvider_DeleteSVMPeer_Call {
+	return &MockProvider_DeleteSVMPeer_Call{Call: _e.mock.On("DeleteSVMPeer", svmPeerUUID)}
+}
+
+func (_c *MockProvider_DeleteSVMPeer_Call) Run(run func(svmPeerUUID string)) *MockProvider_DeleteSVMPeer_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(string))
+	})
+	return _c
+}
+
+func (_c *MockProvider_DeleteSVMPeer_Call) Return(_a0 error) *MockProvider_DeleteSVMPeer_Call {
+	_c.Call.Return(_a0)
+	return _c
+}
+
+func (_c *MockProvider_DeleteSVMPeer_Call) RunAndReturn(run func(string) error) *MockProvider_DeleteSVMPeer_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -834,6 +977,65 @@ func (_c *MockProvider_GetONTAPVersion_Call) Return(_a0 *string, _a1 error) *Moc
 }
 
 func (_c *MockProvider_GetONTAPVersion_Call) RunAndReturn(run func() (*string, error)) *MockProvider_GetONTAPVersion_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// GetSVMPeer provides a mock function with given fields: localSVMName, remoteSVMName
+func (_m *MockProvider) GetSVMPeer(localSVMName *string, remoteSVMName *string) (*SvmPeer, error) {
+	ret := _m.Called(localSVMName, remoteSVMName)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetSVMPeer")
+	}
+
+	var r0 *SvmPeer
+	var r1 error
+	if rf, ok := ret.Get(0).(func(*string, *string) (*SvmPeer, error)); ok {
+		return rf(localSVMName, remoteSVMName)
+	}
+	if rf, ok := ret.Get(0).(func(*string, *string) *SvmPeer); ok {
+		r0 = rf(localSVMName, remoteSVMName)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*SvmPeer)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(*string, *string) error); ok {
+		r1 = rf(localSVMName, remoteSVMName)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockProvider_GetSVMPeer_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetSVMPeer'
+type MockProvider_GetSVMPeer_Call struct {
+	*mock.Call
+}
+
+// GetSVMPeer is a helper method to define mock.On call
+//   - localSVMName *string
+//   - remoteSVMName *string
+func (_e *MockProvider_Expecter) GetSVMPeer(localSVMName interface{}, remoteSVMName interface{}) *MockProvider_GetSVMPeer_Call {
+	return &MockProvider_GetSVMPeer_Call{Call: _e.mock.On("GetSVMPeer", localSVMName, remoteSVMName)}
+}
+
+func (_c *MockProvider_GetSVMPeer_Call) Run(run func(localSVMName *string, remoteSVMName *string)) *MockProvider_GetSVMPeer_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(*string), args[1].(*string))
+	})
+	return _c
+}
+
+func (_c *MockProvider_GetSVMPeer_Call) Return(_a0 *SvmPeer, _a1 error) *MockProvider_GetSVMPeer_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockProvider_GetSVMPeer_Call) RunAndReturn(run func(*string, *string) (*SvmPeer, error)) *MockProvider_GetSVMPeer_Call {
 	_c.Call.Return(run)
 	return _c
 }

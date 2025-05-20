@@ -50,6 +50,18 @@ type Lif struct {
 	SubnetMask   string
 }
 
+// SvmPeer describes SvmPeer information retrieved from ONTAP
+type SvmPeer struct {
+	UUID            string
+	Applications    []string
+	State           string
+	LocalSvmName    string
+	LocalSvmUUID    string
+	PeerSvmName     string
+	PeerSvmUUID     string
+	PeerClusterName string
+}
+
 type CreateNetworkIPRouteParams struct {
 	SvmName string
 	Gateway string

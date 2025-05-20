@@ -203,6 +203,9 @@ svm_migration_modify
 svm_migration_volume_collection_get
 svm_modify
 svm_peer_collection_get
+svm_peer_create
+svm_peer_delete
+svm_peer_modify
 svm_unlock_create
 unix_group_collection_get
 unix_group_create

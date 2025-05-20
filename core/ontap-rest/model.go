@@ -1342,13 +1342,6 @@ type SvmPeer struct {
 	models.SvmPeer
 }
 
-// SvmPeerGetCollectionParams is the input params struct for svm_client.SvmPeerCollectionGet
-type SvmPeerGetCollectionParams struct {
-	BaseParams
-	SvmName     *string
-	PeerSvmName *string
-}
-
 // NsSwitchSource contains slice of nsSwitchSource db values
 type NsSwitchSource struct {
 	NsSwitchSourceGroup    []*models.NsswitchSource
@@ -2246,4 +2239,76 @@ func scheduleCollectionGetParamsToONTAP(params *ScheduleCollectionGetParams) *cl
 // InterclusterLif is a simple wrapper for models.IPInterface
 type InterclusterLif struct {
 	models.IPInterface
+}
+
+// SvmPeerGetCollectionParams is the input params struct for svm_client.SvmPeerCollectionGet
+type SvmPeerGetCollectionParams struct {
+	BaseParams
+	SvmName     *string
+	PeerSvmName *string
+}
+
+func svmPeerGetCollectionParamsToONTAP(params *SvmPeerGetCollectionParams) *svm.SvmPeerCollectionGetParams {
+	otParams := svm.NewSvmPeerCollectionGetParams()
+	if params == nil {
+		return otParams
+	}
+	otParams.SetSvmName(params.SvmName)
+	otParams.SetPeerSvmName(params.PeerSvmName)
+	otParams.SetFields(params.Fields)
+
+	return otParams
+}
+
+// SvmPeerCreateParams is the input params struct for svm_client.SvmPeerCreate
+type SvmPeerCreateParams struct {
+	BaseParams
+	models.SvmPeer
+}
+
+func svmPeerCreateParamsToONTAP(params *SvmPeerCreateParams) *svm.SvmPeerCreateParams {
+	otParams := svm.NewSvmPeerCreateParams()
+	if params == nil {
+		return otParams
+	}
+
+	otParams.SetInfo(&params.SvmPeer)
+	otParams.SetReturnTimeout(&returnTimeout)
+	return otParams
+}
+
+// SvmPeerModifyParams is the input params struct for svm_client.SvmPeerModify
+type SvmPeerModifyParams struct {
+	BaseParams
+	UUID    string
+	SvmPeer models.SvmPeer
+}
+
+func svmPeerModifyParamsToONTAP(params *SvmPeerModifyParams) *svm.SvmPeerModifyParams {
+	otParams := svm.NewSvmPeerModifyParams()
+	if params == nil {
+		return otParams
+	}
+
+	otParams.SetUUID(params.UUID)
+	otParams.SetInfo(&params.SvmPeer)
+	otParams.SetReturnTimeout(&returnTimeout)
+	return otParams
+}
+
+// SvmPeerDeleteParams is the input params struct for svm_client.SvmPeerDelete
+type SvmPeerDeleteParams struct {
+	BaseParams
+	SvmPeerUUID string
+}
+
+func svmPeerDeleteParamsToONTAP(params *SvmPeerDeleteParams) *svm.SvmPeerDeleteParams {
+	otParams := svm.NewSvmPeerDeleteParams()
+	if params == nil {
+		return otParams
+	}
+
+	otParams.SetUUID(params.SvmPeerUUID)
+	otParams.SetReturnTimeout(&returnTimeout)
+	return otParams
 }
