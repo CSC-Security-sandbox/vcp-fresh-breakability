@@ -14,7 +14,7 @@ jobs:
     name: Create Pre-Release and Publish Docker images
     runs-on: [self-hosted,linux]
     container:
-      image: ghcr.io/vcp-vsa-control-plane/vsacictl:v13
+      image: ghcr.io/vcp-vsa-control-plane/vsacictl:st4
       options: --user root
     permissions:
       contents: read
@@ -44,6 +44,7 @@ jobs:
         run: |
           skaffold config set default-repo ""
           skaffold build 
+          make vcp-db-migrate-image imageVersion=${{ steps.fetch_new_tag.outputs.newTag }}
 
 
       - name: Log in to the Container registry
@@ -104,29 +105,27 @@ jobs:
         id: get-digest
         run: |
           repo="${1:-VCP-VSA-control-Plane/vsa-control-plane}"  
-          
+        
           token=$(curl -s "https://ghcr.io/token?service=ghcr.io&scope=repository:${repo}:pull" \
-          -u "${{github.actor}}:${{secrets.GHVSA_PAT}}")
+          -u "${{github.actor}}:${{secrets.GHVSA_PAT}}") 
           
           token_value=$(echo "$token" | jq -r '.token')
           
-          digest=$(curl -s -H "Authorization: Bearer $token_value" \
-          -H "Accept: application/vnd.oci.image.manifest.v1+json" \
-          https://ghcr.io/v2/VCP-VSA-control-Plane/google-proxy/manifests/${{ steps.fetch_new_tag.outputs.newTag }} | jq -r '.config.digest')
-          
-          echo "google-proxy-digest=$digest" >> $GITHUB_ENV
-          
-          digest=$(curl -s -H "Authorization: Bearer $token_value" \
-          -H "Accept: application/vnd.oci.image.manifest.v1+json" \
-          https://ghcr.io/v2/VCP-VSA-control-Plane/core/manifests/${{ steps.fetch_new_tag.outputs.newTag }} | jq -r '.config.digest')
-          
-          echo "core-digest=$digest" >> $GITHUB_ENV
+          IMAGES=("core" "google-proxy" "vcp-db-migrate")
+          for IMAGE in "${IMAGES[@]}"; do
+            digest=$(curl -s -H "Authorization: Bearer $token_value" \
+            -H "Accept: application/vnd.oci.image.manifest.v1+json" \
+            https://ghcr.io/v2/VCP-VSA-control-Plane/${IMAGE}/manifests/${{ steps.fetch_new_tag.outputs.newTag }} | jq -r '.config.digest')
+            echo "${IMAGE}-digest=$digest" >> $GITHUB_ENV
+          done
+        shell: bash -e {0}
+      
 
       - name: Sign the GHCR Image using cosign
         run: |
           gcloud secrets versions access latest --secret="${{vars.GH_COSIGN_PUB_KEY}}" > /tmp/cosign.pub
           gcloud secrets versions access latest --secret="${{vars.GH_COSIGN_PVT_KEY}}" > /tmp/cosign.key
-          IMAGES=("core" "google-proxy")
+          IMAGES=("core" "google-proxy" "vcp-db-migrate")
           for IMAGE in "${IMAGES[@]}"; do
             digest=$(printenv "${IMAGE}-digest")
             COSIGN_PASSWORD="" cosign sign --key /tmp/cosign.key  ghcr.io/vcp-vsa-control-plane/${IMAGE}@$digest --tlog-upload=false
@@ -148,7 +147,7 @@ jobs:
         id: generate_artifact_urls
         shell: bash -e {0}
         run: |
-          IMAGES=("core" "google-proxy")
+          IMAGES=("core" "google-proxy" "vcp-db-migrate")
           for IMAGE in "${IMAGES[@]}"; do
             ARTIFACT_URL=$(gcloud artifacts docker images list ${{secrets.AR_GCP_REGION}}-docker.pkg.dev/${{secrets.AR_GCP_PROJ}}/${{secrets.AR_GCP_REPO}}/${IMAGE} \
             --include-tags \
@@ -160,7 +159,7 @@ jobs:
       - name: Generate and Sign Payloads
         shell: bash -e {0}
         run: |
-          IMAGES=("core" "google-proxy")
+          IMAGES=("core" "google-proxy" "vcp-db-migrate")
           for IMAGE in "${IMAGES[@]}"; do
             ARTIFACT_URL=$(printenv "${IMAGE}_ARTIFACT_URL")
             gcloud container binauthz create-signature-payload \
@@ -171,7 +170,7 @@ jobs:
       - name: Create Attestations
         shell: bash -e {0}
         run: |
-          IMAGES=("core" "google-proxy")
+          IMAGES=("core" "google-proxy" "vcp-db-migrate")
           for IMAGE in "${IMAGES[@]}"; do
             ARTIFACT_URL=$(printenv "${IMAGE}_ARTIFACT_URL")
             gcloud container binauthz attestations create \
@@ -223,7 +222,7 @@ jobs:
     needs: create_pre_release_vsa_control_plane
     runs-on: [ ubuntu-22.04 ]
     container:
-      image: ghcr.io/vcp-vsa-control-plane/vsacictl:v9
+      image: ghcr.io/vcp-vsa-control-plane/vsacictl:st4
       options: -v /var/run/docker.sock:/var/run/docker.sock --user root
 
     steps:

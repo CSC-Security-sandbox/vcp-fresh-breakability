@@ -1,5 +1,5 @@
 imageVersion ?= latest
-IMAGE_TAG_GOOGLE_PROXY_MIGRATE := ghcr.io/vcp-vsa-control-plane/vcp-db-migrate:${imageVersion}
+IMAGE_TAG_GOOGLE_PROXY_MIGRATE := vcp-db-migrate:${imageVersion}
 
 .PHONY: fix-imports
 fix-imports:
@@ -18,7 +18,7 @@ generate-cvp-client:
 
 .PHONY: vcp-db-migrate-image
 vcp-db-migrate-image: vcp-db-migrate-linux
-	docker buildx build -t ${IMAGE_TAG_GOOGLE_PROXY_MIGRATE} --platform "linux/amd64,linux/arm64" --push -f core/migrate.Dockerfile .
+	docker buildx build -t ${IMAGE_TAG_GOOGLE_PROXY_MIGRATE} --platform linux/amd64 -f core/migrate.Dockerfile .
 
 .PHONY: vcp-db-migrate-linux
 vcp-db-migrate-linux:
