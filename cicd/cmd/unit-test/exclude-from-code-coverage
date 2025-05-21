@@ -3,7 +3,7 @@ clients/cvp/
 clients/ontap-rest/
 core/core-api/core-servergen/
 google-proxy/api/gcp-servergen/
-clients/google-proxy-client/oas*
+clients/google-proxy-client/oas
 _mock.go
 tools/
 cmd/
