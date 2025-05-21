@@ -2,6 +2,7 @@ package utils
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"net"
 	"net/http"
@@ -19,8 +20,11 @@ import (
 
 var (
 	localRegion                   = env.GetString("LOCAL_REGION", "local")
+	PairedRegions                 = env.GetString("VCP_PAIRED_REGIONS", "")
 	parseRegionAndZone            = _parseRegionAndZone
 	ParseAndValidateRegionAndZone = _parseAndValidateRegionAndZone
+	GetPairedRegionURI            = _getPairedRegionURI
+	ConvertStringToMap            = _convertStringToMap
 )
 
 func ValidateIPv4Address(ipAddr string) bool {
@@ -208,4 +212,35 @@ func GetOptDateTime(value *strfmt.DateTime) gcpgenserver.OptDateTime {
 		return gcpgenserver.NewOptDateTime(time.Time(*value))
 	}
 	return gcpgenserver.OptDateTime{}
+}
+
+// _getPairedRegionURI retrieves the URI of the paired region for the given region from a predefined in the configmap.
+// Returns an error if the paired regions are not defined or the region is not found in the mapping.
+func _getPairedRegionURI(region string) (string, error) {
+	if PairedRegions == "" {
+		return "", errors.New("paired regions not defined for this region")
+	}
+	sMap, err := ConvertStringToMap(PairedRegions)
+	if err != nil {
+		return "", err
+	}
+
+	uri, ok := sMap[region]
+	if !ok {
+		return "", errors.New("region not found in paired regions list")
+	}
+	return uri, nil
+}
+
+// _convertStringToMap converts a JSON-formatted string into a map[string]string.
+// It expects the input string to be a valid JSON object with string keys and values.
+// Returns an error if the JSON is invalid or cannot be unmarshalled into the map.
+func _convertStringToMap(s string) (map[string]string, error) {
+	var mapSlice map[string]string
+	sMapBytes := []byte(s)
+	err := json.Unmarshal(sMapBytes, &mapSlice)
+	if err != nil {
+		return nil, errors.New("error when unmarshalling response")
+	}
+	return mapSlice, nil
 }

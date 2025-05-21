@@ -3,6 +3,10 @@ package utils
 import (
 	"strings"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 )
 
 func TestValidateIPv4Address(t *testing.T) {
@@ -215,4 +219,69 @@ func TestConvertToBytes(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestConvertStringToMap(t *testing.T) {
+	t.Run("WhenErrorMarshalling", func(tt *testing.T) {
+		inputString := "{\"an-awesome-place\" : }"
+		s, err := ConvertStringToMap(inputString)
+		require.EqualError(tt, err, "error when unmarshalling response")
+		assert.Nil(tt, s)
+	})
+	t.Run("WhenOk", func(tt *testing.T) {
+		inputString := "{\"an-awesome-place\" : \"http:10.10.10.1\", \"ok-place\" : \"10.100\"}"
+		s, err := ConvertStringToMap(inputString)
+		assert.NoError(tt, err)
+		assert.Equal(tt, "http:10.10.10.1", s["an-awesome-place"])
+	})
+}
+
+func TestGetPairedRegionURI(t *testing.T) {
+	PairedRegions = "{\"an-awesome-place\" : \"someIp\"}"
+	t.Run("WhenNotFound", func(tt *testing.T) {
+		regions := make(map[string]string)
+		regions["ok-place"] = "someIp"
+		defer func() {
+			ConvertStringToMap = _convertStringToMap
+		}()
+		ConvertStringToMap = func(s string) (map[string]string, error) {
+			return regions, nil
+		}
+		region, err := GetPairedRegionURI("an-awesome-place")
+		require.EqualError(tt, err, "region not found in paired regions list")
+		assert.Equal(tt, "", region)
+	})
+	t.Run("WhenConvertReturnsError", func(tt *testing.T) {
+		defer func() {
+			ConvertStringToMap = _convertStringToMap
+		}()
+		ConvertStringToMap = func(s string) (map[string]string, error) {
+			return nil, errors.New("some error")
+		}
+		region, err := GetPairedRegionURI("west")
+		require.EqualError(tt, err, "some error")
+		assert.Equal(tt, "", region)
+	})
+	t.Run("WhenFound", func(tt *testing.T) {
+		regions := make(map[string]string)
+		regions["an-awesome-place"] = "someIp"
+		region, err := GetPairedRegionURI("an-awesome-place")
+		require.NoError(tt, err, "region unexpectedly not found")
+		assert.Equal(tt, "someIp", region)
+	})
+	t.Run("WhenNothingDefinedInConfig", func(tt *testing.T) {
+		regions := make(map[string]string)
+		regions["an-awesome-place"] = "someIp"
+		PairedRegions = ""
+		defer func() {
+			ConvertStringToMap = _convertStringToMap
+			PairedRegions = "{\"an-awesome-place\" : \"someIp\"}"
+		}()
+		ConvertStringToMap = func(s string) (map[string]string, error) {
+			return regions, nil
+		}
+		region, err := GetPairedRegionURI("an-awesome-place")
+		require.EqualError(tt, err, "paired regions not defined for this region")
+		assert.Equal(tt, "", region)
+	})
 }
