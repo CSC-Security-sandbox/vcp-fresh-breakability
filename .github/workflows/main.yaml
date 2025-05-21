@@ -92,7 +92,7 @@ jobs:
           go-version-file: go.mod
 
       - name: Run golang unit tests with coverage
-        run: vsacictl unit-test
+        run: vsacictl unit-test --filtered
 
       - name: Upload coverage report
         uses: actions/upload-artifact@v4
@@ -161,12 +161,7 @@ jobs:
       - name: Fail if coverage is insufficient
         shell: bash
         run: |
-          args=()
-          while IFS= read -r line; do
-            args+=(--exclude "$line")
-          done < cicd/cmd/unit-test/exclude-from-pr-coverage 
-  
-          diff-cover coverage.xml --compare-branch=origin/main --fail-under=80 "${args[@]}"
+          diff-cover coverage.xml --compare-branch=origin/main --fail-under=80
 
   verify_generated:
     name: Verify Generated

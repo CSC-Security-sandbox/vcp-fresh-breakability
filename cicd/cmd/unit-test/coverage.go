@@ -36,10 +36,6 @@ func RunTestsWithCoverage(filtered bool, coverage bool) error {
 		os.Exit(1)
 	}
 
-	if !coverage {
-		return nil
-	}
-
 	log.Println("Go unit tests completed successfully.")
 
 	if filtered {
@@ -47,6 +43,10 @@ func RunTestsWithCoverage(filtered bool, coverage bool) error {
 			log.Println("Error filtering coverage file:", err)
 			os.Exit(1)
 		}
+	}
+
+	if !coverage {
+		return nil
 	}
 
 	if err := generateCoverageReport(); err != nil {
