@@ -18,7 +18,7 @@ func main() {
 	}
 
 	// Define the tag pattern to match
-	tagPattern := "*-DEV.*"
+	tagPattern := "2*-DEV.*"
 
 	// Execute the git command to list tags sorted by version (descending)
 	cmd := exec.Command("git", "tag", "-l", "--sort=-v:refname", tagPattern)
@@ -46,12 +46,12 @@ func main() {
 		log.Printf("Error incrementing tag:", err)
 		os.Exit(1)
 	}
-        log.SetFlags(0)
+	log.SetFlags(0)
 	log.Printf(newTag)
-        log.SetFlags(log.LstdFlags)
+	log.SetFlags(log.LstdFlags)
 }
 
-// fetchTags fetches the latest tags from the remote repository 
+// fetchTags fetches the latest tags from the remote repository
 func fetchTags() error {
 	cmd := exec.Command("git", "fetch", "--tags")
 	output, err := cmd.CombinedOutput()
