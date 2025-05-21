@@ -116,4 +116,4 @@ require (
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
 
-replace netapp.com/vsa/lifecycle-manager => github.com/VCP-VSA-control-Plane/temp-vsa-pkg v1.0.2
+replace netapp.com/vsa/lifecycle-manager => github.com/VCP-VSA-control-Plane/temp-vsa-pkg v1.0.5

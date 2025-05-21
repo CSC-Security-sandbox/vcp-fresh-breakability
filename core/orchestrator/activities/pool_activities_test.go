@@ -237,8 +237,8 @@ func Test_prepareVlmConfig_Success(t *testing.T) {
 	assert.Equal(t, "test-deployment", cfg.Deployment.DeploymentID)
 	assert.Equal(t, "test-region", cfg.Deployment.Region)
 	assert.Equal(t, "test-zone", cfg.Deployment.Zone.Zone1)
-	assert.Equal(t, "test-network", cfg.Deployment.NetConfig[vlmconfig.LIFTypeData].VPC)
-	assert.Equal(t, "test-sn-host-project", cfg.Deployment.NetConfig[vlmconfig.LIFTypeData].GCPNetworkConfig.SubnetProjectID)
+	assert.Equal(t, "test-network", cfg.Deployment.NetConfig[vlmconfig.LIFTypeInterCluster].VPC)
+	assert.Equal(t, "test-sn-host-project", cfg.Deployment.NetConfig[vlmconfig.LIFTypeInterCluster].GCPNetworkConfig.SubnetProjectID)
 }
 
 func Test_prepareVlmConfig_FileNotFound(t *testing.T) {

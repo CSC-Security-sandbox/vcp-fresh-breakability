@@ -19,6 +19,9 @@ go.work
 *.env
 .run/
 
+# VS Code settings
+.vscode/
+
 # macOS specific files
 .DS_Store
 

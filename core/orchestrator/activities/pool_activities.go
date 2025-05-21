@@ -41,6 +41,9 @@ var (
 	DeletingSVMs                = _deletingSVMs
 )
 
+const defaultServiceAccountPattern ="-compute@developer.gserviceaccount.com"
+
+
 type PoolActivity struct {
 	SE database.Storage
 }
@@ -235,6 +238,7 @@ func (j *PoolActivity) CreateVSACluster(ctx context.Context, deploymentName, reg
 
 	err = vlmClient.VSAClusterDeployCreate(ctx, cfg)
 	if err != nil {
+		logger.Error("Failed to create VSA cluster", "error", err)
 		return nil, err
 	}
 	return cfg, nil
@@ -281,9 +285,16 @@ func _prepareVlmConfig(cfg *vlmconfig.VLMConfig, deploymentName, region, zone, n
 	}
 
 	// assign network configuration for data LIF from snHostProject
-	assignNetworkConfig(cfg, vlmconfig.LIFTypeData, network, subnet, snHostProject)
-	cfg.Deployment.GCPConfig.ProjectID = projectId
-	cfg.Deployment.GCPConfig.ImageProjectID = projectId
+	assignNetworkConfig(cfg, vlmconfig.LIFTypeInterCluster, network, subnet, snHostProject)
+
+	svcAccount := projectId + defaultServiceAccountPattern // FIXME : need to to discuss on what service account to be passed
+
+	cfg.Deployment.GCPConfig = vlmconfig.GCPConfig{
+		ProjectID:          projectId,
+		ImageProjectID:     projectId,
+		ServiceAccountEmail: svcAccount,
+	}
+
 	cfg.Deployment.OntapCredentials.Username = env.GetString("VSA_NODE_USERNAME", "")
 	cfg.Deployment.OntapCredentials.Password = env.GetString("VSA_NODE_PASSWORD", "")
 

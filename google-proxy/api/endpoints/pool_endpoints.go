@@ -50,7 +50,7 @@ func (h Handler) V1betaCreatePool(ctx context.Context, req *gcpgenserver.PoolV1b
 			Message: "UnifiedPool must be set to true",
 		}, nil
 	}
-	region, zone, parsingErr := parseAndValidateRegionAndZone(req.Zone.Value)
+	region, zone, parsingErr := parseAndValidateRegionAndZone(params.LocationId)
 	if parsingErr != nil {
 		return &gcpgenserver.V1betaCreatePoolBadRequest{
 			Code:    parsingErr.Code,
