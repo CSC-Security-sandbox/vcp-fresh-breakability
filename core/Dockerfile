@@ -1,5 +1,12 @@
 ARG BASE
 FROM golang:1.24.1 as builder
+
+# Pass GitHub token as a build argument
+ARG GHVSA_PAT
+
+# Configure Git to use the token for authentication
+RUN git config --global url."https://${GHVSA_PAT}:x-oauth-basic@github.com/".insteadOf "https://github.com/"
+
 WORKDIR /code
 COPY core core/
 COPY common common/

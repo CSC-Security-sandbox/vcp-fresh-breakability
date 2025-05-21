@@ -107,5 +107,6 @@ minikube start
 Then, redeploy:
 
 ```bash
+export GHVSA_PAT=<your_github_pat>
 skaffold dev
 ```

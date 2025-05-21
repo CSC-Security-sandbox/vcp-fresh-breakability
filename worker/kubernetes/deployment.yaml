@@ -1,0 +1,80 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: vcp
+  labels:
+    name: vcp
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: vcp-worker
+  namespace: vcp
+  labels:
+    app: vcp-worker
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: vcp-worker
+  template:
+    metadata:
+      labels:
+        app: vcp-worker
+    spec:
+      containers:
+        - name: vcp-worker
+          image: vcp-worker
+          imagePullPolicy: Never
+          ports:
+            - containerPort: 8080
+              name: http
+          env:
+            - name: TEMPORAL_ADDRESS
+              value: local-temporal-frontend.default.svc.cluster.local:7233
+            - name: ENV
+              value: local
+            - name: GCP_PROXY_PORT
+              value: "8090"
+            - name: DB_TYPE
+              value: postgres
+            - name: DB_HOST
+              value: postgres.default.svc.cluster.local
+            - name: DB_PORT
+              value: "5432"
+            - name: DB_USER
+              value: postgres
+            - name: DB_PASSWORD
+              value: "testpass"
+            - name: DB_NAME
+              value: postgres
+            - name: DB_SSL_MODE
+              value: disable
+            - name: DB_TIMEZONE
+              value: UTC
+            - name: DB_MAX_OPEN_CONNS
+              value: "25"
+            - name: DB_MAX_IDLE_CONNS
+              value: "25"
+            - name: DB_CONN_MAX_LIFETIME
+              value: 1h
+            - name: MIGRATION_PATH
+              value: migrations/core
+            - name: DB_ADMIN_USER
+              value: postgres
+            - name: DB_ADMIN_PASSWORD
+              value: "testpass"
+            - name: RUN_MIGRATION_ON_START
+              value: "true"
+            - name: GCE_METADATA_HOST
+              value: localhost:9090
+            - name: GCP_CONSUMER_MGMT_ENDPOINT_URL
+              value: autopush-netapp.sandbox.googleapis.com
+            - name: GCP_SERVICE_NETWORKING_ENDPOINT_URL
+              value: netapp-tst-autopush-endpoint.appspot.com
+            - name: LOCAL_REGION
+              value: australia-southeast1
+            - name: VSA_NODE_PASSWORD
+              value: ""
+            - name: VSA_NODE_USERNAME
+              value: admin

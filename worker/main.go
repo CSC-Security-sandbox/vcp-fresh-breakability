@@ -1,0 +1,98 @@
+package main
+
+import (
+	"context"
+	"os"
+
+	"github.com/google/uuid"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/workflows"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database"
+	utilsmiddleware "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/worker/db"
+	tManagerPkg "github.com/vcp-vsa-control-Plane/vsa-control-plane/worker/temporalmanager"
+	workflowEngine "github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/temporal"
+	"golang.org/x/sync/errgroup"
+)
+
+// main is the entry point of the worker application. It initializes the Temporal worker,
+// database connection, registers workflows and activities, and starts the worker.
+func main() {
+	ctx := context.WithValue(context.Background(), utilsmiddleware.CorrelationContextKey, uuid.NewString())
+	eg, ctx := errgroup.WithContext(ctx)
+	logger := log.NewLogger()
+	logger.Info("Starting temporal worker")
+
+	// Create a Temporal client
+	workflowClient, err := initializeTemporalClient(logger)
+	if err != nil {
+		logger.Error("Failed to initialize Temporal client", "error", err.Error())
+		os.Exit(1)
+	}
+
+	// create database connection
+	dbConn, err := db.GetDbConnection(ctx, logger)
+	if err != nil {
+		logger.Error("Failed to get database connection", "error", err.Error())
+		os.Exit(1)
+	}
+	defer db.CloseDatabase(dbConn, logger)
+	logger.Info("Database connection established", "connection", dbConn)
+
+	// Initialize the temporal server client
+	temporalManager := tManagerPkg.TemporalManager{
+		Client: workflowClient.GetTemporalClient(),
+		Config: workflowClient.LoadConfig(),
+		DBConn: dbConn,
+	}
+	defer workflowClient.CloseClient(workflowClient.GetTemporalClient())
+
+	// Create a new worker
+	worker := tManagerPkg.NewWorker(temporalManager.GetClient(), workflowEngine.CustomerTaskQueue)
+
+	logger.Info("registering workflows and activities")
+	RegisterWorkflowsAndActivities(*worker, dbConn)
+
+	// Start the worker
+	eg.Go(func() error {
+		if err := worker.Run(); err != nil {
+			logger.Error("Failed to run worker", "error", err.Error())
+			return err
+		}
+		return nil
+	})
+	// Wait for all goroutines to complete
+	if err := eg.Wait(); err != nil {
+		logger.Error("Error while running worker", "error", err.Error())
+		os.Exit(1)
+	}
+
+	logger.Info("All goroutines completed successfully")
+}
+
+// initializeTemporalClient initializes and returns a TemporalWorkflowEngine client.
+// It loads the configuration, initializes the client, and logs any errors encountered.
+func initializeTemporalClient(logger log.Logger) (workflowEngine.TemporalWorkflowEngine, error) {
+	workflowClient := workflowEngine.TemporalWorkflowEngine{}
+	workflowCfg := workflowClient.LoadConfig()
+	err := workflowClient.InitializeClient(workflowCfg, logger)
+	if err != nil {
+		logger.Error("client error: %w", "error", err.Error())
+		return workflowClient, err
+	}
+	return workflowClient, nil
+}
+
+// main is the entry point of the worker application. It initializes the Temporal worker
+func RegisterWorkflowsAndActivities(worker tManagerPkg.Worker, dbcon database.Storage) {
+	worker.RegisterWorkflow(workflows.CreatePoolWorkflow)
+	worker.RegisterWorkflow(workflows.DeletePoolWorkflow)
+	worker.RegisterWorkflow(workflows.CreateVolumeWorkflow)
+	worker.RegisterWorkflow(workflows.DeleteVolumeWorkflow)
+
+	worker.RegisterActivity(&activities.CommonActivities{SE: dbcon})
+	worker.RegisterActivity(&activities.PoolActivity{SE: dbcon})
+	worker.RegisterActivity(&activities.VolumeCreateActivity{SE: dbcon})
+	worker.RegisterActivity(&activities.VolumeDeleteActivity{SE: dbcon})
+}

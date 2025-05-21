@@ -59,7 +59,6 @@ func main() {
 	}
 	defer closeDatabase(dbCon, logger)
 
-	eg, ctx := errgroup.WithContext(ctx)
 	// Initialize Temporal client
 	workflowClient, err := initializeTemporalClient(logger)
 	if err != nil {
@@ -67,15 +66,6 @@ func main() {
 		os.Exit(1)
 	}
 	defer workflowClient.CloseClient(workflowClient.GetTemporalClient())
-	// Use errgroup to manage goroutines and context
-
-	eg.Go(func() error {
-		if err := workflowClient.RunWorker(ctx, workflowClient.GetTemporalClient(), dbCon); err != nil {
-			logger.Error("Failed to run worker", "error", err.Error())
-			return err
-		}
-		return nil
-	})
 
 	// Create GCP proxy server and inject required dependencies
 	orch := orchestrator.NewOrchestrator(dbCon, workflowClient.GetTemporalClient())
@@ -99,6 +89,8 @@ func main() {
 	}
 	httpServer := setupHTTPServer(cfg, gcpServer)
 
+	// Use errgroup to manage goroutines and context
+	eg, ctx := errgroup.WithContext(ctx)
 	// Start HTTP server
 	eg.Go(func() error {
 		logger.Info("Starting HTTP server on " + cfg.GCPHost + ":" + cfg.GCPPort)
@@ -118,7 +110,7 @@ func main() {
 	logger.Info("Server stopped gracefully")
 }
 
-func InitializeDatabase(ctx context.Context, cfg *common.Config, logger log.Logger) (database.Storage, error) {
+func GetDBConfig(cfg *common.Config) database.DbConfig {
 	dbConfig := database.DbConfig{
 		Type:            cfg.DBType,
 		Host:            cfg.DBHost,
@@ -140,7 +132,11 @@ func InitializeDatabase(ctx context.Context, cfg *common.Config, logger log.Logg
 		dbConfig.User = cfg.MSIDBUser
 		dbConfig.AdminUser = cfg.MSIDBUser
 	}
+	return dbConfig
+}
 
+func InitializeDatabase(ctx context.Context, cfg *common.Config, logger log.Logger) (database.Storage, error) {
+	dbConfig := GetDBConfig(cfg)
 	db, err := database.New(dbConfig, logger)
 	if err != nil {
 		return nil, err

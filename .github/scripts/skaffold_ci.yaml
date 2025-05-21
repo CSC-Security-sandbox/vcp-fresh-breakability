@@ -28,6 +28,17 @@ build:
       context: .
       docker:
         dockerfile: core/Dockerfile
+        buildArgs:
+          GHVSA_PAT: "{{.GHVSA_PAT}}"
+      requires:
+        - image: base
+          alias: BASE
+    - image: ghcr.io/vcp-vsa-control-plane/vcp-worker
+      context: .
+      docker:
+        dockerfile: worker/Dockerfile
+        buildArgs:
+          GHVSA_PAT: "{{.GHVSA_PAT}}"
       requires:
         - image: base
           alias: BASE
@@ -35,6 +46,7 @@ manifests:
   rawYaml:
     - google-proxy/kubernetes/*
     - core/kubernetes/*
+    - worker/kubernetes/*
 portForward:
   - resourceType: deployment
     resourceName: google-proxy
@@ -44,6 +56,10 @@ portForward:
     resourceName: core-service
     port: 8080
     localPort: 9001
+  - resourceType: deployment
+    resourceName: vcp-worker
+    port: 8080
+    localPort: 9002
 profiles:
   - name: gcb
     build:

@@ -17,10 +17,21 @@ build:
       requires:
         - image: core
           alias: BASE
+    - image: worker
+      context: .
+      docker:
+          dockerfile: worker/Dockerfile
+          buildArgs:
+            GHVSA_PAT: "{{.GHVSA_PAT}}"
+      requires:
+        - image: base
+          alias: BASE
     - image: core
       context: .
       docker:
         dockerfile: core/Dockerfile
+        buildArgs:
+          GHVSA_PAT: "{{.GHVSA_PAT}}"
       requires:
         - image: base
           alias: BASE
@@ -33,6 +44,7 @@ manifests:
     - google-proxy/kubernetes/*
     - core/kubernetes/*
     - postgres/kubernetes/*
+    - worker/kubernetes/*
   helm:
     releases:
       - name: local-temporal
