@@ -92,7 +92,7 @@ func registerWorkflowsAndActivities(worker worker.Worker, dbcon database.Storage
 	worker.RegisterWorkflow(workflows.DeleteVolumeWorkflow)
 
 	worker.RegisterActivity(&activities.CommonActivities{SE: dbcon})
-	worker.RegisterActivity(&activities.PoolActivity{SE: &dbcon})
+	worker.RegisterActivity(&activities.PoolActivity{SE: dbcon})
 	worker.RegisterActivity(&activities.VolumeCreateActivity{SE: dbcon})
 	worker.RegisterActivity(&activities.VolumeDeleteActivity{SE: dbcon})
 }

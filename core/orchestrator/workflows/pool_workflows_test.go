@@ -4,7 +4,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
@@ -69,7 +68,7 @@ func TestCreatePoolWorkflow(t *testing.T) {
 	env.AssertExpectations(t)
 }
 
-func TestRunDeletePoolWorkflow_FailedPoolInvokedOnError(t *testing.T) {
+func TestDeletePoolWorkflow(t *testing.T) {
 	var ts testsuite.WorkflowTestSuite
 	env := ts.NewTestWorkflowEnvironment()
 	env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
@@ -80,38 +79,32 @@ func TestRunDeletePoolWorkflow_FailedPoolInvokedOnError(t *testing.T) {
 		},
 	}
 	env.SetHeader(mockHeader)
-
-	// Register the activity implementation
+	env.RegisterActivity(&activities.CommonActivities{})
 	env.RegisterActivity(&activities.PoolActivity{})
 
+	// Set up test data
 	params := &common.DeletePoolParams{
+		PoolID:      "test-pool",
 		AccountName: "test-account",
-		PoolID:      "test-pool-id",
 	}
-	pool := &datamodel.Pool{}
+	pool := &datamodel.Pool{
+		Username: "test-user",
+		Password: "test-password",
+	}
 
-	// Mock activities
+	// Mock activity responses
+	env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
 	env.OnActivity("GetPool", mock.Anything, mock.Anything).Return(nil, nil)
-
-	env.OnActivity("FailedPool", mock.Anything, mock.Anything, mock.Anything).Return(nil)
-	env.OnActivity("DeletingPoolResources", mock.Anything, mock.Anything, mock.Anything).Return(nil, errors.New("delete resources failed"))
-
-	// Register the workflow
-	env.RegisterWorkflow(func(ctx workflow.Context, params *common.DeletePoolParams, pool *datamodel.Pool) (interface{}, error) {
-		wf := &PoolWorkflow{}
-		return wf.RunDeletePoolWorkflow(ctx, params, pool)
-	})
+	env.OnActivity("DeletingPoolResources", mock.Anything, mock.Anything).Return(nil, nil)
+	env.OnActivity("DeleteVSADeployment", mock.Anything, mock.Anything).Return(nil, nil)
+	env.OnActivity("ReleaseSubnet", mock.Anything, mock.Anything).Return(nil)
+	env.OnActivity("DeletePoolResources", mock.Anything, mock.Anything).Return(nil, nil)
 
 	// Execute workflow
-	env.ExecuteWorkflow(func(ctx workflow.Context, params *common.DeletePoolParams, pool *datamodel.Pool) (interface{}, error) {
-		wf := &PoolWorkflow{}
-		return wf.RunDeletePoolWorkflow(ctx, params, pool)
-	}, params, pool)
+	env.ExecuteWorkflow(DeletePoolWorkflow, params, pool)
 
-	// Assert workflow failed
+	// Assert workflow execution
 	assert.True(t, env.IsWorkflowCompleted())
-	assert.Error(t, env.GetWorkflowError())
-
-	// Assert FailedPool was called
+	assert.NoError(t, env.GetWorkflowError())
 	env.AssertExpectations(t)
 }

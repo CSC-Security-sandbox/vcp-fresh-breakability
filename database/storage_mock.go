@@ -7,6 +7,7 @@ import (
 
 	datamodel "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	gorm "gorm.io/gorm"
+
 	mock "github.com/stretchr/testify/mock"
 )
 

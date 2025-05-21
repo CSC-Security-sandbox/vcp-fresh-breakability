@@ -4,7 +4,9 @@ import (
 	"context"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	gormwrapper "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/gorm"
 	customerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
@@ -297,6 +299,295 @@ func TestSavePoolWithVsaClusterDetails(t *testing.T) {
 		}
 		if updatedPool.ClusterDetails.OntapVersion != clusterDetails.OntapVersion {
 			tt.Errorf("Expected ONTAP version %v, got %v", clusterDetails.OntapVersion, updatedPool.ClusterDetails.OntapVersion)
+		}
+	})
+}
+
+func TestDeletePool(t *testing.T) {
+	t.Run("ReturnsErrorWhenPoolDoesNotExist", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		if err != nil {
+			t.Fatalf("Failed to set up test database: %v", err)
+		}
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		if err != nil {
+			t.Fatalf("Failed to clean up test database: %v", err)
+		}
+
+		pool := &datamodel.Pool{BaseModel: datamodel.BaseModel{UUID: "non-existent-uuid"}}
+
+		_, err = store.GetPool(context.Background(), pool.UUID, 0)
+		if err == nil {
+			t.Errorf("Expected error, got nil")
+		}
+		if !customerrors.IsNotFoundErr(err) {
+			t.Errorf("Expected not found error, got %v", err)
+		}
+	})
+
+	t.Run("UpdatesPoolStateSuccessfully", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		if err != nil {
+			t.Fatalf("Failed to set up test database: %v", err)
+		}
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		if err != nil {
+			t.Fatalf("Failed to clean up test database: %v", err)
+		}
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{
+				ID:   1,
+				UUID: "test-account-uuid",
+			},
+			Name: "test_account",
+		}
+		err = store.db.Create(account).Error()
+		if err != nil {
+			t.Fatalf("Failed to create account: %v", err)
+		}
+
+		pool := &datamodel.Pool{
+			BaseModel: datamodel.BaseModel{UUID: "test-pool-uuid"},
+			Name:      "test_pool",
+			AccountID: account.ID,
+			Account:   account,
+			State:     models.LifeCycleStateCreating,
+		}
+		err = store.db.Create(pool).Error()
+		if err != nil {
+			t.Fatalf("Failed to create pool: %v", err)
+		}
+
+		pool.State = models.LifeCycleStateREADY
+		pool.StateDetails = models.LifeCycleStateAvailableDetails
+
+		err = store.UpdatePool(context.Background(), pool)
+		if err != nil {
+			t.Errorf("Expected no error, got %v", err)
+		}
+
+		updatedPool := &datamodel.Pool{}
+		err = store.db.GORM().First(updatedPool, "uuid = ?", pool.UUID).Error
+		if err != nil {
+			t.Fatalf("Failed to fetch updated pool: %v", err)
+		}
+		if updatedPool.State != models.LifeCycleStateREADY {
+			t.Errorf("Expected state %v, got %v", models.LifeCycleStateREADY, updatedPool.State)
+		}
+		if updatedPool.StateDetails != models.LifeCycleStateAvailableDetails {
+			t.Errorf("Expected state details %v, got %v", models.LifeCycleStateAvailableDetails, updatedPool.StateDetails)
+		}
+	})
+	t.Run("DeletesPoolSuccessfully", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		if err != nil {
+			t.Fatalf("Failed to set up test database: %v", err)
+		}
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		if err != nil {
+			t.Fatalf("Failed to clean up test database: %v", err)
+		}
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{
+				ID:   1,
+				UUID: "test-account-uuid",
+			},
+			Name: "test_account",
+		}
+		err = store.db.Create(account).Error()
+		if err != nil {
+			t.Fatalf("Failed to create account: %v", err)
+		}
+
+		pool := &datamodel.Pool{
+			BaseModel: datamodel.BaseModel{UUID: "test-pool-uuid"},
+			Name:      "test_pool",
+			AccountID: account.ID,
+			Account:   account,
+		}
+		err = store.db.Create(pool).Error()
+		if err != nil {
+			t.Fatalf("Failed to create pool: %v", err)
+		}
+
+		err = store.DeletePool(context.Background(), pool)
+		if err != nil {
+			t.Errorf("Expected no error, got %v", err)
+		}
+
+		deletedPool := &datamodel.Pool{}
+		err = store.db.GORM().First(deletedPool, "uuid = ?", pool.UUID).Error
+		if !errors.Is(err, gorm.ErrRecordNotFound) {
+			t.Errorf("Expected record not found error, got %v", err)
+		}
+	})
+}
+
+func TestDeletingPool(t *testing.T) {
+	t.Run("ReturnsErrorWhenPoolDoesNotExist", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		if err != nil {
+			tt.Fatalf("Failed to set up test database: %v", err)
+		}
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		if err != nil {
+			tt.Fatalf("Failed to clean up test database: %v", err)
+		}
+
+		pool := &datamodel.Pool{BaseModel: datamodel.BaseModel{UUID: "non-existent-uuid"}}
+
+		err = store.DeletingPool(context.Background(), pool)
+		if err == nil {
+			tt.Errorf("Expected error, got nil")
+		}
+		assert.Error(tt, err)
+	})
+
+	t.Run("UpdatesPoolStateToDeletingSuccessfully", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		if err != nil {
+			tt.Fatalf("Failed to set up test database: %v", err)
+		}
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		if err != nil {
+			tt.Fatalf("Failed to clean up test database: %v", err)
+		}
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{
+				ID:   1,
+				UUID: "test-account-uuid",
+			},
+			Name: "test_account",
+		}
+		err = store.db.Create(account).Error()
+		if err != nil {
+			tt.Fatalf("Failed to create account: %v", err)
+		}
+
+		pool := &datamodel.Pool{
+			BaseModel: datamodel.BaseModel{UUID: "test-pool-uuid"},
+			Name:      "test_pool",
+			AccountID: account.ID,
+			Account:   account,
+			State:     models.LifeCycleStateREADY,
+		}
+		err = store.db.Create(pool).Error()
+		if err != nil {
+			tt.Fatalf("Failed to create pool: %v", err)
+		}
+
+		err = store.DeletingPool(context.Background(), pool)
+		if err != nil {
+			tt.Errorf("Expected no error, got %v", err)
+		}
+
+		updatedPool := &datamodel.Pool{}
+		err = store.db.GORM().First(updatedPool, "uuid = ?", pool.UUID).Error
+		if err != nil {
+			tt.Fatalf("Failed to fetch updated pool: %v", err)
+		}
+		if updatedPool.State != models.LifeCycleStateDeleting {
+			tt.Errorf("Expected state %v, got %v", models.LifeCycleStateDeleting, updatedPool.State)
+		}
+		if updatedPool.StateDetails != models.LifeCycleStateDeletingDetails {
+			tt.Errorf("Expected state details %v, got %v", models.LifeCycleStateDeletingDetails, updatedPool.StateDetails)
+		}
+	})
+}
+
+func TestCreatedPool(t *testing.T) {
+	t.Run("ReturnsErrorWhenPoolDoesNotExist", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		if err != nil {
+			tt.Fatalf("Failed to set up test database: %v", err)
+		}
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		if err != nil {
+			tt.Fatalf("Failed to clean up test database: %v", err)
+		}
+
+		pool := &datamodel.Pool{
+			Name:      "non-existent-pool",
+			AccountID: 1,
+		}
+
+		_, err = store.CreatedPool(context.Background(), pool)
+		if err == nil {
+			tt.Errorf("Expected error, got nil")
+		}
+		if !errors.Is(err, gorm.ErrRecordNotFound) {
+			tt.Errorf("Expected not found error, got %v", err)
+		}
+	})
+
+	t.Run("UpdatesPoolStateToReadySuccessfully", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		if err != nil {
+			tt.Fatalf("Failed to set up test database: %v", err)
+		}
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		if err != nil {
+			tt.Fatalf("Failed to clean up test database: %v", err)
+		}
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{
+				ID:   1,
+				UUID: "test-account-uuid",
+			},
+			Name: "test_account",
+		}
+		err = store.db.Create(account).Error()
+		if err != nil {
+			tt.Fatalf("Failed to create account: %v", err)
+		}
+
+		pool := &datamodel.Pool{
+			BaseModel: datamodel.BaseModel{UUID: "test-pool-uuid"},
+			Name:      "test_pool",
+			AccountID: account.ID,
+			Account:   account,
+			State:     models.LifeCycleStateCreating,
+		}
+		err = store.db.Create(pool).Error()
+		if err != nil {
+			tt.Fatalf("Failed to create pool: %v", err)
+		}
+
+		updatedPool, err := store.CreatedPool(context.Background(), pool)
+		if err != nil {
+			tt.Errorf("Expected no error, got %v", err)
+		}
+
+		if updatedPool.State != models.LifeCycleStateREADY {
+			tt.Errorf("Expected state %v, got %v", models.LifeCycleStateREADY, updatedPool.State)
+		}
+		if updatedPool.StateDetails != models.LifeCycleStateAvailableDetails {
+			tt.Errorf("Expected state details %v, got %v", models.LifeCycleStateAvailableDetails, updatedPool.StateDetails)
 		}
 	})
 }

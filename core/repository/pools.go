@@ -36,22 +36,19 @@ func (d *DataStoreRepository) CreatedPool(ctx context.Context, pool *datamodel.P
 	}
 	logger := util.GetLogger(ctx)
 	defer commitOrRollbackOnError(logger, tx, &err)
-	err = tx.Where("name = ?", pool.Name).Where("account_id = ?", pool.AccountID).First(&pool).Error
+	dbPool := &datamodel.Pool{}
+	err = tx.Where("name = ?", pool.Name).Where("account_id = ?", pool.AccountID).First(&dbPool).Error
 	if err != nil {
 		return nil, err
 	}
-	pool.State = models.LifeCycleStateREADY
-	pool.StateDetails = models.LifeCycleStateAvailableDetails
-	pool.UpdatedAt = time.Now()
-	err = tx.Updates(pool).Error
+	dbPool.State = models.LifeCycleStateREADY
+	dbPool.StateDetails = models.LifeCycleStateAvailableDetails
+	dbPool.UpdatedAt = time.Now()
+	err = tx.Updates(dbPool).Error
 	if err != nil {
 		return nil, err
 	}
-
-	dbPool, err := getPoolWithDetails(db, &datamodel.Pool{BaseModel: datamodel.BaseModel{UUID: pool.UUID}})
-	if err != nil {
-		return nil, err
-	}
+	
 	return dbPool, nil
 }
 
