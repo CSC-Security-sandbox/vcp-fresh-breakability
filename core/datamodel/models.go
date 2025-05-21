@@ -241,6 +241,50 @@ type NodeDetails struct {
 	InstanceType string `json:"instance_type"`
 }
 
+type VolumeReplication struct {
+	BaseModel
+	Name                  string              `gorm:"column:name"`
+	Description           string              `gorm:"column:description"`
+	State                 string              `gorm:"column:state"`
+	StateDetails          string              `gorm:"column:state_details"`
+	Uri                   string              `gorm:"column:uri"`
+	ReplicationAttributes *ReplicationDetails `gorm:"column:replication_attributes;type:jsonb"`
+	MirrorState           *string             `gorm:"column:mirror_state"`
+	RelationshipStatus    *string             `gorm:"column:relationship_status"`
+	TotalProgress         int64               `gorm:"column:total_progress"`
+	TotalTransferBytes    int64               `gorm:"column:total_transfer_bytes"`
+	TotalTransferTimeSecs int64               `gorm:"column:total_transfer_time_secs"`
+	LastTransferSize      int64               `gorm:"column:last_transfer_size"`
+	LastTransferError     int64               `gorm:"column:last_transfer_error"`
+	LastTransferDuration  int64               `gorm:"column:last_transfer_duration"`
+	LastTransferEndTime   *time.Time          `gorm:"column:last_transfer_end_time"`
+	ProgressLastUpdated   *time.Time          `gorm:"column:progress_last_updated"`
+	LastUpdatedFromOntap  time.Time           `gorm:"column:last_updated_from_ontap"`
+	LagTime               int64               `gorm:"column:lag_time"`
+	AccountID             int64               `gorm:"column:account_id"`
+	Account               *Account            `gorm:"ForeignKey:AccountID;AssociationForeignKey:ID;constraint:OnDelete:CASCADE,OnUpdate:RESTRICT;"`
+	VolumeID              int64               `gorm:"column:volume_id"`
+	Volume                *Volume             `gorm:"ForeignKey:VolumeID;AssociationForeignKey:ID;constraint:OnDelete:CASCADE,OnUpdate:RESTRICT;"`
+}
+
+type ReplicationDetails struct {
+	EndpointType               string `json:"endpoint_type"`
+	ReplicationType            string `json:"replication_type"`
+	ReplicationSchedule        string `json:"replication_schedule"`
+	SourceVolumeUUID           string `json:"source_volume_uuid"`
+	SourceRegion               string `json:"source_region"`
+	SourceHostName             string `json:"source_host_name"`
+	SourceReplicationUUID      string `json:"source_replication_uuid"`
+	SourceSvmName              string `json:"source_svm_name"`
+	SourceVolumeName           string `json:"source_volume_name"`
+	DestinationVolumeUUID      string `json:"destination_volume_uuid"`
+	DestinationRegion          string `json:"destination_region"`
+	DestinationHostName        string `json:"destination_host_name"`
+	DestinationReplicationUUID string `json:"destination_replication_uuid"`
+	DestinationSvmName         string `json:"destination_svm_name"`
+	DestinationVolumeName      string `json:"destination_volume_name"`
+}
+
 func (nd NodeDetails) Scan(value interface{}) error {
 	bytes, ok := value.([]byte)
 	if !ok {

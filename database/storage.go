@@ -380,6 +380,26 @@ func (s *PersistenceStore) CreateVolume(ctx context.Context, volume *datamodel.V
 	return s.dataStore.CreateVolume(ctx, volume)
 }
 
+func (s *PersistenceStore) CreateVolumeReplication(ctx context.Context, volumeRep *datamodel.VolumeReplication) (*datamodel.VolumeReplication, error) {
+	return s.dataStore.CreateVolumeReplication(ctx, volumeRep)
+}
+
+func (s *PersistenceStore) GetVolumeReplication(ctx context.Context, id string) (*datamodel.VolumeReplication, error) {
+	return s.dataStore.GetVolumeReplication(ctx, id)
+}
+
+func (s *PersistenceStore) UpdateVolumeReplicationStates(ctx context.Context, volumeRep *datamodel.VolumeReplication) error {
+	return s.dataStore.UpdateVolumeReplicationStates(ctx, volumeRep)
+}
+
+func (s *PersistenceStore) UpdateVolumeReplicationTransferStats(ctx context.Context, volumeRep *datamodel.VolumeReplication) error {
+	return s.dataStore.UpdateVolumeReplicationTransferStats(ctx, volumeRep)
+}
+
+func (s *PersistenceStore) DeleteVolumeReplication(ctx context.Context, volumeReplicationID string) (*datamodel.VolumeReplication, error) {
+	return s.dataStore.DeleteVolumeReplication(ctx, volumeReplicationID)
+}
+
 func (s *PersistenceStore) GetVolume(ctx context.Context, id string) (*datamodel.Volume, error) {
 	return s.dataStore.GetVolume(ctx, id)
 }

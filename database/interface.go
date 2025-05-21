@@ -69,6 +69,12 @@ type DataStore interface {
 	GetVolumeCountByPoolID(ctx context.Context, poolID int64) (int64, error)
 	GetMultipleVolumes(ctx context.Context, conditions [][]interface{}) ([]*datamodel.Volume, error)
 
+	CreateVolumeReplication(ctx context.Context, volumeRep *datamodel.VolumeReplication) (*datamodel.VolumeReplication, error)
+	GetVolumeReplication(ctx context.Context, id string) (*datamodel.VolumeReplication, error)
+	UpdateVolumeReplicationStates(ctx context.Context, volumeRep *datamodel.VolumeReplication) error
+	UpdateVolumeReplicationTransferStats(ctx context.Context, volumeRep *datamodel.VolumeReplication) error
+	DeleteVolumeReplication(ctx context.Context, volumeReplicationID string) (*datamodel.VolumeReplication, error)
+
 	GetAccount(ctx context.Context, name string) (*datamodel.Account, error)
 	CreateAccount(ctx context.Context, account *datamodel.Account) (*datamodel.Account, error)
 

@@ -39,6 +39,7 @@ func getModels() []interface{} {
 	return []interface{}{
 		datamodel.Pool{},
 		datamodel.Volume{},
+		datamodel.VolumeReplication{},
 		datamodel.Account{},
 		datamodel.Node{},
 		datamodel.Lif{},
