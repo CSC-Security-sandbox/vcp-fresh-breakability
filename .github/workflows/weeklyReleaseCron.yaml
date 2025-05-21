@@ -53,7 +53,7 @@ jobs:
           echo "${{ secrets.GHVSA_PAT }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
 
       - name: Build and push RC Docker images
-        run: skaffold build --filename=.github/scripts/skaffold_ci.yaml -t ${{ steps.promotional_logic_binary.outputs.RC_TAG }}
+        run: skaffold build --filename=.github/scripts/skaffold_ci.yaml -t ${{ steps.release_logic_binary.outputs.RC_TAG }}
 
       - name: Build and push Dev Docker images
-        run: skaffold build --filename=.github/scripts/skaffold_ci.yaml -t ${{ steps.promotional_logic_binary.outputs.DEV_TAG }}
+        run: skaffold build --filename=.github/scripts/skaffold_ci.yaml -t ${{ steps.release_logic_binary.outputs.DEV_TAG }}
