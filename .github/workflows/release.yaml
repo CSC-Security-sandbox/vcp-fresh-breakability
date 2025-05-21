@@ -249,10 +249,10 @@ jobs:
         id: fetch_pr_user_and_details
         run: |
           PR_DETAILS=$(gh api repos/${{ github.repository }}/commits/${{ github.sha }}/pulls --jq '.[0]')
-          PR_USER=$(echo "$PR_DETAILS" | jq -r '.user.login')
-          PR_TITLE=$(echo "$PR_DETAILS" | jq -r '.title')
-          echo "PR_USER=$PR_USER" >> $GITHUB_ENV
-          echo "PR_TITLE=$PR_TITLE" >> $GITHUB_ENV
+          PR_USER=$(echo "$PR_DETAILS" | jq -r '.user.login | @sh')
+          PR_TITLE=$(echo "$PR_DETAILS" | jq -r '.title | @sh')
+          echo "PR_USER=$(echo $PR_USER | tr -d \')" >> $GITHUB_ENV
+          echo "PR_TITLE=$(echo $PR_TITLE | tr -d \')" >> $GITHUB_ENV
           echo "PR User: $PR_USER"
           echo "PR Title: $PR_TITLE"
         env:
