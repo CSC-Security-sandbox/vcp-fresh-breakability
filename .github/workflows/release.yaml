@@ -46,6 +46,25 @@ jobs:
           skaffold build 
           make vcp-db-migrate-image imageVersion=${{ steps.fetch_new_tag.outputs.newTag }}
 
+      - name: Check if digest exists in the gcloud or not
+        shell: bash -e {0}
+        run: |
+          ALL_DIGESTS_EXIST=1
+          IMAGES=("core" "google-proxy" "vcp-db-migrate")
+          for IMAGE in "${IMAGES[@]}"; do
+              gcpDigest=$(docker inspect "$IMAGE:${{ steps.fetch_new_tag.outputs.newTag }}" | jq -r '.[] | .RepoDigests[] | select(contains("-docker.pkg.dev"))')
+              echo "gcp digest is $gcpDigest"
+              if [[ -n "$gcpDigest" ]]; then
+               echo "Digest for image ${IMAGE} exists in Google Artifact Registry."
+               echo "${IMAGE}_DIGEST_EXISTS=1" >> $GITHUB_ENV 
+              else
+                echo "Digest for image ${IMAGE} does not exist in Google Artifact Registry."
+                echo "${IMAGE}_DIGEST_EXISTS=0" >> $GITHUB_ENV 
+                ALL_DIGESTS_EXIST=0
+              fi
+          done
+          echo "ALL_DIGESTS_EXIST=$ALL_DIGESTS_EXIST" >> $GITHUB_ENV             
+
 
       - name: Log in to the Container registry
         run: |
@@ -90,7 +109,6 @@ jobs:
           gcloud config set project ${{ secrets.AR_GCP_PROJ }} --quiet
           gcloud auth configure-docker ${{secrets.AR_GCP_REGION}}-docker.pkg.dev --quiet
           gcloud secrets versions access latest --secret="${{secrets.AR_PRIVATE_KEY}}" > /tmp/ec_private.pem
-          
 
       - name: Push images
         env:
@@ -134,16 +152,19 @@ jobs:
         shell: bash -e {0}
         
       - name: Access Private Key
+        if: ${{ env.ALL_DIGESTS_EXIST == '0' }}
         run: |
           gcloud secrets versions access latest --secret="${{secrets.AR_PRIVATE_KEY}}" > /tmp/ec_private.pem
 
       - name: Retrieve Public Key ID
+        if: ${{ env.ALL_DIGESTS_EXIST == '0' }}
         id: retrieve_public_key_id
         run: |
           PUBLIC_KEY_ID=$(gcloud container binauthz attestors describe ${{secrets.AR_ATTESTOR_NAME}} --format='value(userOwnedGrafeasNote.publicKeys[0].id)')
           echo "PUBLIC_KEY_ID=${PUBLIC_KEY_ID}" >> $GITHUB_ENV
 
       - name: Generate Artifact URLs
+        if: ${{ env.ALL_DIGESTS_EXIST == '0' }}
         id: generate_artifact_urls
         shell: bash -e {0}
         run: |
@@ -157,6 +178,7 @@ jobs:
           done
 
       - name: Generate and Sign Payloads
+        if: ${{ env.ALL_DIGESTS_EXIST == '0' }}
         shell: bash -e {0}
         run: |
           IMAGES=("core" "google-proxy" "vcp-db-migrate")
@@ -168,18 +190,24 @@ jobs:
           done
 
       - name: Create Attestations
+        if: ${{ env.ALL_DIGESTS_EXIST == '0' }}
         shell: bash -e {0}
         run: |
           IMAGES=("core" "google-proxy" "vcp-db-migrate")
           for IMAGE in "${IMAGES[@]}"; do
-            ARTIFACT_URL=$(printenv "${IMAGE}_ARTIFACT_URL")
-            gcloud container binauthz attestations create \
-            --project="${{secrets.AR_GCP_PROJ}}" \
-            --artifact-url="${ARTIFACT_URL}" \
-            --attestor="projects/${{secrets.AR_GCP_PROJ}}/attestors/${{secrets.AR_ATTESTOR_NAME}}" \
-            --signature-file=/tmp/${IMAGE}_signature \
-            --public-key-id="${{ env.PUBLIC_KEY_ID }}" \
-            --validate
+            if [[ "$(printenv "${IMAGE}_DIGEST_EXISTS")" == "0" ]]; then
+              ARTIFACT_URL=$(printenv "${IMAGE}_ARTIFACT_URL")
+              gcloud container binauthz attestations create \
+              --project="${{secrets.AR_GCP_PROJ}}" \
+              --artifact-url="${ARTIFACT_URL}" \
+              --attestor="projects/${{secrets.AR_GCP_PROJ}}/attestors/${{secrets.AR_ATTESTOR_NAME}}" \
+              --signature-file=/tmp/${IMAGE}_signature \
+              --public-key-id="${{ env.PUBLIC_KEY_ID }}" \
+              --validate
+              echo "Attestation created for image ${IMAGE}."
+            else
+              echo "Signed Digest for image ${IMAGE} already exists in Google Artifact Registry. Skipping attestation."
+            fi
           done
 
       - name: Helm Login to Artifact Registry
