@@ -29,7 +29,7 @@ var (
 	ConvertFromRESTError = _convertFromRESTError
 )
 
-func _convertFromRESTError(logger log.Slogger, err error) error {
+func _convertFromRESTError(logger log.Logger, err error) error {
 	switch t := err.(type) {
 	case ontapRESTError:
 		if t.GetPayload() != nil &&
@@ -57,7 +57,7 @@ func _convertFromRESTError(logger log.Slogger, err error) error {
 	return err
 }
 
-func handleError(logger log.Slogger, code, message string) error {
+func handleError(logger log.Logger, code, message string) error {
 	if strings.Contains(message, "entry doesn't exist") || strings.Contains(message, "entry not found") {
 		return errors.NewNotFoundErr("entry", nil)
 	}
@@ -71,7 +71,7 @@ func handleError(logger log.Slogger, code, message string) error {
 
 var convertToUserFacingError = _convertToUserFacingError
 
-func _convertToUserFacingError(traceLog log.Slogger, reason string) error {
+func _convertToUserFacingError(traceLog log.Logger, reason string) error {
 	// MD: NotFound and Conflict errors are used by the idempotency layer to make ontap-REST calls resilient against connection disruption
 	// Make sure you understand that before adding them here
 	reason = convertONTAPErrToRegexCompatibleErr(reason)

@@ -53,7 +53,7 @@ func TestPoll(t *testing.T) {
 
 	t.Run("WhenPollingTimesOut_ThenReturnTimeoutError", func(tt *testing.T) {
 		mcs := cluster.NewMockClientService(t)
-		pp := &poller{logger: *log.NewLogger().(*log.Slogger), api: mcs}
+		pp := &poller{logger: log.NewLogger().(*log.Slogger), api: mcs}
 
 		oldTimeout := timeout
 		oldWait := wait
