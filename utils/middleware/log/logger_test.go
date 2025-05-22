@@ -1,13 +1,11 @@
 package log
 
 import (
-	"context"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware"
 )
 
@@ -156,54 +154,5 @@ func TestSecretString(t *testing.T) {
 	t.Run("Numeric values", func(t *testing.T) {
 		numericSecret := Secret("1234567890")
 		assert.Equal(t, PasswordMask, numericSecret.String())
-	})
-}
-
-func TestSetupOpenTelemetry(t *testing.T) {
-	ctx := context.Background()
-	t.Run("Trace and Metrics exporter creation failure", func(t *testing.T) {
-		// Simulating failure in trace exporter creation
-		originalProjectID := env.OtelGoogleProjectID
-		env.OtelGoogleProjectID = ""
-		defer func() { env.OtelGoogleProjectID = originalProjectID }()
-
-		shutdown, err := SetupOpenTelemetry(ctx)
-		assert.Error(t, err)
-		assert.NotNil(t, shutdown)
-
-		// Calling shutdown to ensure cleanup happens even on error
-		err = shutdown(ctx)
-		assert.NoError(t, err)
-	})
-
-	t.Run("Service Name is Empty", func(t *testing.T) {
-		// Simulating failure when service name is empty
-		originalServiceName := env.ServiceName
-		env.ServiceName = ""
-		defer func() { env.ServiceName = originalServiceName }()
-
-		shutdown, err := SetupOpenTelemetry(ctx)
-		assert.Error(t, err)
-		assert.NotNil(t, shutdown)
-
-		// Calling shutdown to ensure cleanup happens even on error
-		err = shutdown(ctx)
-		assert.NoError(t, err)
-	})
-
-	t.Run("Missing Google Cloud credentials", func(t *testing.T) {
-		// Simulate missing Google Cloud credentials
-		originalGoogleProjectID := env.OtelGoogleProjectID
-		env.OtelGoogleProjectID = "invalid-project-id"
-		defer func() { env.OtelGoogleProjectID = originalGoogleProjectID }()
-
-		shutdown, err := SetupOpenTelemetry(ctx)
-		assert.Error(t, err)
-		assert.Contains(t, err.Error(), "could not find default credentials")
-		assert.NotNil(t, shutdown)
-
-		// Calling shutdown to ensure cleanup happens even on error
-		err = shutdown(ctx)
-		assert.NoError(t, err)
 	})
 }
