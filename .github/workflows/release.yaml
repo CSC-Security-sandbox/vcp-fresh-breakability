@@ -123,7 +123,6 @@ jobs:
         id: get-digest
         run: |
           repo="${1:-VCP-VSA-control-Plane/vsa-control-plane}"  
-        
           token=$(curl -s "https://ghcr.io/token?service=ghcr.io&scope=repository:${repo}:pull" \
           -u "${{github.actor}}:${{secrets.GHVSA_PAT}}") 
           
@@ -137,7 +136,6 @@ jobs:
             echo "${IMAGE}-digest=$digest" >> $GITHUB_ENV
           done
         shell: bash -e {0}
-      
 
       - name: Sign the GHCR Image using cosign
         run: |
@@ -150,7 +148,6 @@ jobs:
             cosign verify --key /tmp/cosign.pub  ghcr.io/vcp-vsa-control-plane/${IMAGE}@$digest --insecure-ignore-tlog=true
           done
         shell: bash -e {0}
-        
       - name: Access Private Key
         if: ${{ env.ALL_DIGESTS_EXIST == '0' }}
         run: |
@@ -262,26 +259,14 @@ jobs:
         with:
           go-version-file: go.mod
 
-      - name: Fetch token
-        uses: actions/create-github-app-token@v1
-        id: token
-        with:
-          owner: ${{ github.repository_owner }}
-          app-id: ${{ secrets.VCP_CI_GH_APP_ID }}
-          private-key: ${{ secrets.VCP_CI_GH_PRIVATE_KEY }}
-          repositories: |
-            vsa-control-plane
-
       - name: Fetch PR user and details
         id: fetch_pr_user_and_details
         run: |
-          PR_DETAILS=$(gh api repos/${{ github.repository }}/commits/${{ github.sha }}/pulls --jq '.[0]')
+          PR_DETAILS=$(gh api repos/VCP-VSA-control-Plane/vsa-control-plane/commits/${{ github.sha }}/pulls --jq '.[0]')
           PR_USER=$(echo "$PR_DETAILS" | jq -r '.user.login | @sh')
           PR_TITLE=$(echo "$PR_DETAILS" | jq -r '.title | @sh')
           echo "PR_USER=$(echo $PR_USER | tr -d \')" >> $GITHUB_ENV
           echo "PR_TITLE=$(echo $PR_TITLE | tr -d \')" >> $GITHUB_ENV
-          echo "PR User: $PR_USER"
-          echo "PR Title: $PR_TITLE"
         env:
           GITHUB_TOKEN: ${{ secrets.GHVSA_PAT }}
 
@@ -291,7 +276,7 @@ jobs:
           JIRA_API_TOKEN: ${{ secrets.VCP_CI_JIRA_BOT_PAT }}
           GITHUB_TOKEN: ${{ steps.token.outputs.token }}
           PR_USER: ${{ env.PR_USER }}
-          REPOSITORY: ${{ github.repository }}
+          REPOSITORY: VCP-VSA-control-Plane/vsa-control-plane
           GITHUB_SHA: ${{ github.sha }}
           NEW_TAG: ${{ needs.create_pre_release_vsa_control_plane.outputs.newTag }}
         run: vsacictl jira tag_component_version
