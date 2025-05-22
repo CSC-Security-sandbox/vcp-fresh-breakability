@@ -4,38 +4,28 @@ import (
 	"bufio"
 	"bytes"
 	"fmt"
+	"github.com/spf13/cobra"
 	"log"
 	"os"
 	"os/exec"
 	"strconv"
 	"strings"
-
-	"github.com/spf13/cobra"
 )
 
-var UnitTestCmd = &cobra.Command{
-	Use:   "unit-test",
-	Short: "A cli used to control all coverage functionalities",
+var CoverageCmd = &cobra.Command{
+	Use:   "coverage",
+	Short: "A cli used to control code coverage functionalities",
 	RunE: func(cmd *cobra.Command, args []string) error {
-		if err := RunTestsWithCoverage(filtered, coverage); err != nil {
+		if err := RunTestsWithCoverage(filtered); err != nil {
 			return err
 		}
 		return nil
 	},
 }
 
-const coverageFile = "coverage.out"
-const excludeFile = "./cicd/cmd/unit-test/exclude-from-code-coverage"
-
 var filtered bool
-var coverage bool
 
-func RunTestsWithCoverage(filtered bool, coverage bool) error {
-	if err := runGoTests(); err != nil {
-		log.Println("Error running Go tests:", err)
-		os.Exit(1)
-	}
-
+func RunTestsWithCoverage(filtered bool) error {
 	log.Println("Go unit tests completed successfully.")
 
 	if filtered {
@@ -43,10 +33,6 @@ func RunTestsWithCoverage(filtered bool, coverage bool) error {
 			log.Println("Error filtering coverage file:", err)
 			os.Exit(1)
 		}
-	}
-
-	if !coverage {
-		return nil
 	}
 
 	if err := generateCoverageReport(); err != nil {
@@ -110,27 +96,6 @@ func compareCoverageWithThreshold(overallCoverage string, coverageThreshold int)
 	}
 
 	log.Printf("Coverage %.2f%% meets the threshold of %d%%.\n", overallCoverageFloat, coverageThreshold)
-	return nil
-}
-
-func runGoTests() error {
-	log.Println("Running Go unit tests with coverage...")
-	var stdout, stderr bytes.Buffer
-	cmd := exec.Command("go", "test", "./...", "-cover", "-coverprofile="+coverageFile)
-	cmd.Stdout = &stdout
-	cmd.Stderr = &stderr
-
-	// Set GOEXPERIMENT env var in addition to the current env
-	cmd.Env = append(os.Environ(), "GOEXPERIMENT=boringcrypto,nocoverageredesign")
-
-	log.Println("Running gotest command..")
-	if err := cmd.Run(); err != nil {
-		log.Println("Error running Go tests:", err)
-		log.Println("Stdout output:", stdout.String())
-		log.Println("Stderr output:", stderr.String())
-		return err
-	}
-	log.Println("Go tests completed successfully.")
 	return nil
 }
 
@@ -206,7 +171,5 @@ func extractOverallCoverage() (string, error) {
 }
 
 func init() {
-	// Add the filtered flag to the CoverageCmd
-	UnitTestCmd.Flags().BoolVarP(&filtered, "filtered", "f", false, "Filter the coverage report")
-	UnitTestCmd.Flags().BoolVarP(&coverage, "coverage", "u", false, "Run unit tests only")
+	CoverageCmd.Flags().BoolVarP(&filtered, "filtered", "f", false, "Filter the coverage report")
 }

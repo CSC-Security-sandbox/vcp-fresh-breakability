@@ -45,7 +45,7 @@ jobs:
   common:
     runs-on: [ ubuntu-22.04 ]
     container:
-      image: ghcr.io/vcp-vsa-control-plane/vsacictl:v4
+      image: ghcr.io/vcp-vsa-control-plane/vsacictl:v13
       options: -v /var/run/docker.sock:/var/run/docker.sock --user root
 
     steps:
@@ -79,7 +79,7 @@ jobs:
   unit_tests:
     runs-on: [ self-hosted,linux ]
     container:
-      image: ghcr.io/vcp-vsa-control-plane/vsacictl:v12
+      image: ghcr.io/vcp-vsa-control-plane/vsacictl:v13
       options: --user root
 
     steps:
@@ -92,20 +92,20 @@ jobs:
           go-version-file: go.mod
 
       - name: Run golang unit tests with coverage
-        run: vsacictl unit-test --filtered
+        run: vsacictl unit-test
 
       - name: Upload coverage report
         uses: actions/upload-artifact@v4
         with:
           name: coverage.out
           retention-days: 1
-          path: .
+          path: coverage.out
 
   coverage:
     needs: unit_tests
     runs-on: [ self-hosted,linux ]
     container:
-      image: ghcr.io/vcp-vsa-control-plane/vsacictl:v12
+      image: ghcr.io/vcp-vsa-control-plane/vsacictl:v13
       options: --user root
 
     steps:
@@ -117,18 +117,22 @@ jobs:
         with:
           go-version-file: go.mod
 
+      - name: Download coverage report
+        uses: actions/download-artifact@v4
+        with:
+          name: coverage.out
+          path: .
+
       - name: Run golang coverage
         env:
           COVERAGE_THRESHOLD: ${{ vars.UNIT_TEST_THRESHOLD || 90 }}
-        run: vsacictl unit-test --coverage --filtered
-        # Add code just to check coverage instead of running again
-        # eg - vsacictl check-coverage --threshold $COVERAGE_THRESHOLD coverage.out
+        run: vsacictl unit-test coverage --filtered
 
   pr-coverage:
     needs: unit_tests
     runs-on: [ self-hosted,linux ]
     container:
-      image: ghcr.io/vcp-vsa-control-plane/vsacictl:v12
+      image: ghcr.io/vcp-vsa-control-plane/vsacictl:v13
       options: --user root
 
     steps:
@@ -189,7 +193,7 @@ jobs:
   lint:
     runs-on: [self-hosted,linux]
     container:
-      image: ghcr.io/vcp-vsa-control-plane/vsacictl:v12
+      image: ghcr.io/vcp-vsa-control-plane/vsacictl:v13
       options: --user root
 
     steps:
