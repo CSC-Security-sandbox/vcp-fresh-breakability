@@ -45,11 +45,9 @@ jobs:
   common:
     runs-on: [ ubuntu-22.04 ]
     container:
-      image: ghcr.io/vcp-vsa-control-plane/vsacictl:v13
+      image: ghcr.io/vcp-vsa-control-plane/vsacictl:v14
       options: -v /var/run/docker.sock:/var/run/docker.sock --user root
-
     steps:
-
       - name: Checkout codes
         uses: actions/checkout@v2
 
@@ -68,18 +66,19 @@ jobs:
           repositories: |
             vsa-control-plane
 
-      - name: Run Jira allow_merge main
+      - name: Run Jira check
         env:
           PR_TITLE: ${{ github.event.pull_request.title }}
           JIRA_API_TOKEN: ${{ secrets.VCP_CI_JIRA_BOT_PAT }}
           GITHUB_TOKEN: ${{ steps.token.outputs.token }}
           PR_USER: ${{ github.event.pull_request.user.login }}
-        run: vsacictl jira allow_merge main
+          BASE_BRANCH: ${{github.base_ref}}
+        run: vsacictl jira allow_merge
 
   unit_tests:
     runs-on: [ self-hosted,linux ]
     container:
-      image: ghcr.io/vcp-vsa-control-plane/vsacictl:v13
+      image: ghcr.io/vcp-vsa-control-plane/vsacictl:v14
       options: --user root
 
     steps:
@@ -105,7 +104,7 @@ jobs:
     needs: unit_tests
     runs-on: [ self-hosted,linux ]
     container:
-      image: ghcr.io/vcp-vsa-control-plane/vsacictl:v13
+      image: ghcr.io/vcp-vsa-control-plane/vsacictl:v14
       options: --user root
 
     steps:
@@ -132,7 +131,7 @@ jobs:
     needs: unit_tests
     runs-on: [ self-hosted,linux ]
     container:
-      image: ghcr.io/vcp-vsa-control-plane/vsacictl:v13
+      image: ghcr.io/vcp-vsa-control-plane/vsacictl:v14
       options: --user root
 
     steps:
@@ -193,7 +192,7 @@ jobs:
   lint:
     runs-on: [self-hosted,linux]
     container:
-      image: ghcr.io/vcp-vsa-control-plane/vsacictl:v13
+      image: ghcr.io/vcp-vsa-control-plane/vsacictl:v14
       options: --user root
 
     steps:

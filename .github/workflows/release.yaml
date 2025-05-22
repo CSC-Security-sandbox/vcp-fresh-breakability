@@ -14,7 +14,7 @@ jobs:
     name: Create Pre-Release and Publish Docker images
     runs-on: [self-hosted,linux]
     container:
-      image: ghcr.io/vcp-vsa-control-plane/vsacictl:v13
+      image: ghcr.io/vcp-vsa-control-plane/vsacictl:v14
       options: --user root
     permissions:
       contents: read
@@ -247,7 +247,7 @@ jobs:
     needs: create_pre_release_vsa_control_plane
     runs-on: [ ubuntu-22.04 ]
     container:
-      image: ghcr.io/vcp-vsa-control-plane/vsacictl:v13
+      image: ghcr.io/vcp-vsa-control-plane/vsacictl:v14
       options: -v /var/run/docker.sock:/var/run/docker.sock --user root
 
     steps:
