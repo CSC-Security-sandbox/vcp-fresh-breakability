@@ -78,7 +78,7 @@ jobs:
   unit_tests:
     runs-on: [ self-hosted,linux ]
     container:
-      image: ghcr.io/vcp-vsa-control-plane/vsacictl:v14
+      image: ghcr.io/vcp-vsa-control-plane/vsacictl:v15
       options: --user root
 
     steps:
@@ -91,7 +91,7 @@ jobs:
           go-version-file: go.mod
 
       - name: Run golang unit tests with coverage
-        run: vsacictl unit-test
+        run: vsacictl unit-test --filtered
 
       - name: Upload coverage report
         uses: actions/upload-artifact@v4
@@ -104,7 +104,7 @@ jobs:
     needs: unit_tests
     runs-on: [ self-hosted,linux ]
     container:
-      image: ghcr.io/vcp-vsa-control-plane/vsacictl:v14
+      image: ghcr.io/vcp-vsa-control-plane/vsacictl:v15
       options: --user root
 
     steps:
@@ -125,7 +125,7 @@ jobs:
       - name: Run golang coverage
         env:
           COVERAGE_THRESHOLD: ${{ vars.UNIT_TEST_THRESHOLD || 90 }}
-        run: vsacictl unit-test coverage --filtered
+        run: vsacictl unit-test coverage
 
   pr-coverage:
     needs: unit_tests

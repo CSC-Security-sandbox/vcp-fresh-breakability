@@ -1,8 +1,6 @@
 package unitTest
 
 import (
-	"bufio"
-	"bytes"
 	"fmt"
 	"github.com/spf13/cobra"
 	"log"
@@ -16,7 +14,9 @@ var CoverageCmd = &cobra.Command{
 	Use:   "coverage",
 	Short: "A cli used to control code coverage functionalities",
 	RunE: func(cmd *cobra.Command, args []string) error {
-		if err := RunTestsWithCoverage(filtered); err != nil {
+		if err := generateCoverageReport(); err != nil {
+			log.Println("Error generating coverage report:", err)
+			os.Exit(1)
 			return err
 		}
 		return nil
@@ -24,24 +24,6 @@ var CoverageCmd = &cobra.Command{
 }
 
 var filtered bool
-
-func RunTestsWithCoverage(filtered bool) error {
-	log.Println("Go unit tests completed successfully.")
-
-	if filtered {
-		if err := filterCoverageFile(); err != nil {
-			log.Println("Error filtering coverage file:", err)
-			os.Exit(1)
-		}
-	}
-
-	if err := generateCoverageReport(); err != nil {
-		log.Println("Error generating coverage report:", err)
-		os.Exit(1)
-	}
-
-	return nil
-}
 
 func generateCoverageReport() error {
 	log.Println("Generating coverage report...")
@@ -99,57 +81,6 @@ func compareCoverageWithThreshold(overallCoverage string, coverageThreshold int)
 	return nil
 }
 
-func filterCoverageFile() error {
-	log.Println("Filtering files from coverage report...")
-
-	// Open the exclude patterns file
-	excludeFile, err := os.Open(excludeFile)
-	if err != nil {
-		return fmt.Errorf("failed to open exclude patterns file: %w", err)
-	}
-	defer excludeFile.Close()
-
-	// Read exclude patterns into a slice
-	var excludePatterns []string
-	scanner := bufio.NewScanner(excludeFile)
-	for scanner.Scan() {
-		excludePatterns = append(excludePatterns, scanner.Text())
-	}
-	if err := scanner.Err(); err != nil {
-		return fmt.Errorf("error reading exclude patterns file: %w", err)
-	}
-
-	// Open the coverage file
-	inputFile, err := os.Open(coverageFile)
-	if err != nil {
-		return fmt.Errorf("failed to open coverage file: %w", err)
-	}
-	defer inputFile.Close()
-
-	// Filter lines based on exclude patterns
-	var buffer bytes.Buffer
-	scanner = bufio.NewScanner(inputFile)
-	for scanner.Scan() {
-		line := scanner.Text()
-		exclude := false
-		for _, pattern := range excludePatterns {
-			if strings.Contains(line, pattern) {
-				exclude = true
-				break
-			}
-		}
-		if !exclude {
-			buffer.WriteString(line + "\n")
-		}
-	}
-	if err := scanner.Err(); err != nil {
-		return fmt.Errorf("error reading coverage file: %w", err)
-	}
-
-	// Write the filtered content back to the coverage file
-	return os.WriteFile(coverageFile, buffer.Bytes(), 0644)
-}
-
 func extractOverallCoverage() (string, error) {
 	cmd := exec.Command("go", "tool", "cover", "-func="+coverageFile)
 	output, err := cmd.Output()
@@ -168,8 +99,4 @@ func extractOverallCoverage() (string, error) {
 	}
 
 	return "", fmt.Errorf("failed to extract overall coverage percentage")
-}
-
-func init() {
-	CoverageCmd.Flags().BoolVarP(&filtered, "filtered", "f", false, "Filter the coverage report")
 }
