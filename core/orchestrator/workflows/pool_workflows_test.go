@@ -62,6 +62,11 @@ func TestCreatePoolWorkflow(t *testing.T) {
 	// Execute workflow
 	env.ExecuteWorkflow(CreatePoolWorkflow, params, pool)
 
+	_, err := env.QueryWorkflowByID("default-test-workflow-id", "status")
+	if err != nil {
+		t.Fatalf("Failed to query workflow: %v", err)
+	}
+
 	// Assert workflow execution
 	assert.True(t, env.IsWorkflowCompleted())
 	assert.NoError(t, env.GetWorkflowError())
@@ -102,6 +107,11 @@ func TestDeletePoolWorkflow(t *testing.T) {
 
 	// Execute workflow
 	env.ExecuteWorkflow(DeletePoolWorkflow, params, pool)
+
+	_, err := env.QueryWorkflowByID("default-test-workflow-id", "status")
+	if err != nil {
+		t.Fatalf("Failed to query workflow: %v", err)
+	}
 
 	// Assert workflow execution
 	assert.True(t, env.IsWorkflowCompleted())

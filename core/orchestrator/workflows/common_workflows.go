@@ -8,7 +8,6 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 	"go.temporal.io/sdk/workflow"
 )
 
@@ -48,7 +47,6 @@ type WorkflowInterface interface {
 	Setup(ctx workflow.Context, input interface{}) error
 	Run(ctx workflow.Context, args ...interface{}) (interface{}, error)
 	UpdateJobStatus(ctx workflow.Context, status string, err error) error
-	Revert(ctx workflow.Context) error
 }
 
 // BaseWorkflow provides common functionalities for all workflows.
@@ -59,28 +57,10 @@ type BaseWorkflow struct {
 	Logger     log.Logger
 }
 
-// Setup sets up the workflow with a Logger and initial values.
-func (bw *BaseWorkflow) Setup(ctx workflow.Context, input interface{}) error {
-	bw.ID = input.(struct{ ID string }).ID
-	bw.CustomerID = input.(struct{ CustomerID string }).CustomerID
-	logger := util.GetLogger(ctx)
-	bw.Logger = logger
-
-	return nil
-}
-
-// Run is a placeholder implementation for the workflow's main logic.
-func (bw *BaseWorkflow) Run(ctx workflow.Context, args ...interface{}) (interface{}, error) {
-	bw.Logger.Info("Running workflow", "ID", bw.ID)
-	// Add workflow logic here
-	return nil, nil
-}
-
-// Revert is a placeholder implementation for the workflow's revert logic.
-func (bw *BaseWorkflow) Revert(ctx workflow.Context) error {
-	bw.Logger.Info("Reverting workflow", "ID", bw.ID)
-	// Add workflow logic here
-	return nil
+type WorkflowStatus struct {
+	ID         string `json:"id"`
+	Status     string `json:"status"`
+	CustomerID string `json:"customer_id"`
 }
 
 func (bw *BaseWorkflow) GetDefaultActivityOptions(ctx workflow.Context) workflow.ActivityOptions {

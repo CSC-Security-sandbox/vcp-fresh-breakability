@@ -7,7 +7,6 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
 	gcpgenserver "github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/api/gcp-servergen"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 	"go.temporal.io/sdk/temporal"
 	"go.temporal.io/sdk/workflow"
@@ -17,11 +16,8 @@ type volumeCreateWorkflow struct {
 	BaseWorkflow
 }
 
-type volumeCreateWorkflowStatus struct {
-	ID         string
-	customerID string
-	status     string
-}
+// Enforcing the WorkflowInterface on volumeCreateWorkflow
+var _ WorkflowInterface = &volumeCreateWorkflow{}
 
 // CreateVolumeWorkflow Volume Workflow process volume related requests from a customer.
 func CreateVolumeWorkflow(ctx workflow.Context, params *common.CreateVolumeParams, volume *datamodel.Volume) (gcpgenserver.V1betaDescribeVolumeRes, error) {
@@ -54,22 +50,21 @@ func (wf *volumeCreateWorkflow) Setup(ctx workflow.Context, input interface{}) e
 	wf.ID = info.WorkflowExecution.ID
 	wf.CustomerID = createPoolParams.AccountName
 	wf.Status = "created"
+	ctx = util.AddExtraLoggerFields(ctx, map[string]interface{}{"workflowID": wf.ID, "customerID": wf.CustomerID})
 	logger := util.GetLogger(ctx)
-	wf.Logger = logger.With(log.Fields{
-		"workflowID": wf.ID,
-		"customerID": wf.CustomerID,
-	})
+	wf.Logger = logger
 
-	return workflow.SetQueryHandler(ctx, "status", func() (*volumeCreateWorkflowStatus, error) {
-		return &volumeCreateWorkflowStatus{
+	return workflow.SetQueryHandler(ctx, "status", func() (*WorkflowStatus, error) {
+		return &WorkflowStatus{
 			ID:         wf.ID,
-			status:     wf.Status,
-			customerID: wf.CustomerID,
+			Status:     wf.Status,
+			CustomerID: wf.CustomerID,
 		}, nil
 	})
 }
 
-func (wf *volumeCreateWorkflow) Run(ctx workflow.Context, volume *datamodel.Volume) (interface{}, error) {
+func (wf *volumeCreateWorkflow) Run(ctx workflow.Context, args ...interface{}) (interface{}, error) {
+	volume := args[0].(*datamodel.Volume)
 	volumeActivity := &activities.VolumeCreateActivity{}
 	retryPolicy, err := PopulateRetryPolicyParams()
 	if err != nil {

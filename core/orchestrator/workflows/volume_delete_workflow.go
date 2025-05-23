@@ -5,7 +5,6 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
 	gcpgenserver "github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/api/gcp-servergen"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 	"go.temporal.io/sdk/temporal"
 	"go.temporal.io/sdk/workflow"
@@ -16,11 +15,8 @@ type volumeDeleteWorkflow struct {
 	BaseWorkflow
 }
 
-type volumeDeleteWorkflowStatus struct {
-	ID         string
-	customerID string
-	status     string
-}
+// Enforcing the WorkflowInterface on volumeDeleteWorkflow
+var _ WorkflowInterface = &volumeDeleteWorkflow{}
 
 // DeleteVolumeWorkflow Delete Volume Workflow process volume related requests from a customer.
 func DeleteVolumeWorkflow(ctx workflow.Context, volume *datamodel.Volume) (gcpgenserver.V1betaDescribeVolumeRes, error) {
@@ -53,22 +49,21 @@ func (wf *volumeDeleteWorkflow) Setup(ctx workflow.Context, input interface{}) e
 	wf.ID = info.WorkflowExecution.ID
 	wf.CustomerID = volume.Account.Name
 	wf.Status = "created"
+	ctx = util.AddExtraLoggerFields(ctx, map[string]interface{}{"workflowID": wf.ID, "customerID": wf.CustomerID})
 	logger := util.GetLogger(ctx)
-	wf.Logger = logger.With(log.Fields{
-		"workflowID": wf.ID,
-		"customerID": wf.CustomerID,
-	})
+	wf.Logger = logger
 
-	return workflow.SetQueryHandler(ctx, "status", func() (*volumeDeleteWorkflowStatus, error) {
-		return &volumeDeleteWorkflowStatus{
+	return workflow.SetQueryHandler(ctx, "status", func() (*WorkflowStatus, error) {
+		return &WorkflowStatus{
 			ID:         wf.ID,
-			status:     wf.Status,
-			customerID: wf.CustomerID,
+			Status:     wf.Status,
+			CustomerID: wf.CustomerID,
 		}, nil
 	})
 }
 
-func (wf *volumeDeleteWorkflow) Run(ctx workflow.Context, volume *datamodel.Volume) (interface{}, error) {
+func (wf *volumeDeleteWorkflow) Run(ctx workflow.Context, args ...interface{}) (interface{}, error) {
+	volume := args[0].(*datamodel.Volume)
 	deleteActivity := &activities.VolumeDeleteActivity{}
 	retryPolicy, err := PopulateRetryPolicyParams()
 	if err != nil {

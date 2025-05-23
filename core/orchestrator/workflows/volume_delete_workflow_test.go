@@ -103,6 +103,9 @@ func (s *VolumeDeleteTestSuite) Test_DeleteVolumeWorkflow_Failure() {
 	}
 	s.env.ExecuteWorkflow(DeleteVolumeWorkflow, volume)
 
+	_, err := s.env.QueryWorkflowByID("default-test-workflow-id", "status")
+	assert.Nil(s.T(), err)
+
 	// Assert workflow failed
 	assert.True(s.T(), s.env.IsWorkflowCompleted())
 	assert.NotNil(s.T(), s.env.GetWorkflowError())
