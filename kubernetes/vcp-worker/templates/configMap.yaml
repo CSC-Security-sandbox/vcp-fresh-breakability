@@ -1,0 +1,32 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "vcp-worker.configMapName" . }}
+  namespace: {{ .Release.Namespace }}
+  annotations:
+    "helm.sh/hook": pre-install,pre-upgrade
+  labels:
+    app: {{ .Values.app.name }}
+data:
+  TEMPORAL_ADDRESS: {{ .Values.workerConfig.temporalAddress | quote }}
+  ENV: {{ .Values.workerConfig.env | quote }}
+  GCP_PROXY_PORT: {{ .Values.workerConfig.gcpProxyPort | quote }}
+  DB_TYPE: {{ .Values.workerConfig.database.type | quote }}
+  DB_HOST: {{ .Values.workerConfig.database.host | quote }}
+  DB_PORT: {{ .Values.workerConfig.database.port | quote }}
+  DB_USER: {{ .Values.workerConfig.database.user | quote }}
+  DB_NAME: {{ .Values.workerConfig.database.dbname | quote }}
+  DB_ADMIN_USER: {{ .Values.workerConfig.database.adminUser | quote }}
+  DB_SSL_MODE: {{ .Values.workerConfig.database.sslMode | quote }}
+  DB_TIMEZONE: {{ .Values.workerConfig.database.timezone | quote }}
+  DB_MAX_OPEN_CONNS: {{ .Values.workerConfig.database.maxConns | quote }}
+  DB_MAX_IDLE_CONNS: {{ .Values.workerConfig.database.maxIdleConns | quote }}
+  DB_CONN_MAX_LIFETIME: {{ .Values.workerConfig.database.maxConnLifetime | quote }}
+  RUN_MIGRATION_ON_START: {{ .Values.workerConfig.database.runMigrationOnStart | quote }}
+  MIGRATION_PATH: {{ .Values.workerConfig.database.migrationPath | quote }}
+  GCE_METADATA_HOST: {{ .Values.workerConfig.gceMetadataHost | quote }}
+  GCP_CONSUMER_MGMT_ENDPOINT_URL: {{ .Values.workerConfig.gcpConsumerMgmtEndpointUrl | quote }}
+  GCP_SERVICE_NETWORKING_ENDPOINT_URL: {{ .Values.workerConfig.gcpServiceNetworkingEndpointUrl | quote }}
+  LOCAL_REGION: {{ .Values.workerConfig.localRegion | quote }}
+  VSA_NODE_USERNAME: {{ .Values.workerConfig.vsaNodeUsername | quote }}
+

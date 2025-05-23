@@ -1,7 +1,31 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: vcp
+  labels:
+    name: vcp
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: google-proxy-service
+  namespace: vcp
+  labels:
+    app: google-proxy
+spec:
+  type: ClusterIP
+  ports:
+    - port: 8080
+      targetPort: 8080
+      name: http
+  selector:
+    app: google-proxy
+---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: google-proxy
+  namespace: vcp
   labels:
     app: google-proxy
 spec:
@@ -21,7 +45,7 @@ spec:
             - containerPort: 8080
           env:
             - name: DB_HOST
-              value: postgres
+              value: postgres.default.svc.cluster.local
             - name: DB_USER
               value: postgres
             - name: DB_PASSWORD

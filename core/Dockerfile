@@ -18,11 +18,18 @@ COPY workflow_engine workflow_engine/
 COPY go.mod go.mod
 COPY go.sum go.sum
 
+# Download dependencies and cache them
+RUN go mod download
+
 # `skaffold debug` sets SKAFFOLD_GO_GCFLAGS to disable compiler optimizations
 ARG SKAFFOLD_GO_GCFLAGS
 WORKDIR /code/core
 RUN go build -gcflags="${SKAFFOLD_GO_GCFLAGS}" -trimpath -o /app .
 
 FROM $BASE
-COPY --from=builder /app .
+COPY --from=builder /app /app
 COPY --from=builder /code/core/errors/errors.json /errors.json
+
+# Set ownership and permissions
+USER nonroot:nonroot
+

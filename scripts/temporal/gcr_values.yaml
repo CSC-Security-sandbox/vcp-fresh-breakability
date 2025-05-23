@@ -1,0 +1,64 @@
+debug: false
+# Annotate the service account with the GCP service account for Workload Identity and gcr image pull
+serviceAccount:
+  create: true
+  name: "temporal-server-ksa"
+#  extraAnnotations:
+#    iam.gke.io/gcp-service-account: service-acc@project_id.iam.gserviceaccount.com
+server:
+  enabled: true
+  replicaCount: 1
+  config:
+    persistence:
+      default:
+        driver: "sql"
+        sql:
+          driver: "postgres12"
+          host: postgres.default.svc.cluster.local
+          port: 5432
+          database: temporal
+          user: postgres
+          password: testpass
+          maxConns: 20
+          maxIdleConns: 20
+          maxConnLifetime: "1h"
+      visibility:
+        driver: "sql"
+
+        sql:
+          driver: "postgres12"
+          host: postgres.default.svc.cluster.local
+          port: 5432
+          database: temporal_visibility
+          user: postgres
+          password: testpass
+          maxConns: 20
+          maxIdleConns: 20
+          maxConnLifetime: "1h"
+
+schema:
+  createDatabase:
+    enabled: true
+  setup:
+    enabled: true
+  update:
+    enabled: true
+
+postgresql:
+  enabled: true
+
+# Disabling cassandra, mysql, prometheus, grafana, and elasticsearch as they are not needed for this deployment
+cassandra:
+  enabled: false
+
+mysql:
+  enabled: false
+
+prometheus:
+  enabled: false
+
+grafana:
+  enabled: false
+
+elasticsearch:
+  enabled: false

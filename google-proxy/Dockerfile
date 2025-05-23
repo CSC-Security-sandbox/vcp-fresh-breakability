@@ -21,6 +21,9 @@ COPY workflow_engine workflow_engine/
 COPY go.mod go.mod
 COPY go.sum go.sum
 
+# Download dependencies and cache them
+RUN go mod download
+
 # `skaffold debug` sets SKAFFOLD_GO_GCFLAGS to disable compiler optimizations
 ARG SKAFFOLD_GO_GCFLAGS
 WORKDIR /code/google-proxy
@@ -32,5 +35,8 @@ FROM $BASE
 #RUN apt-get update && apt-get install -y bash && rm -rf /var/lib/apt/lists/*
 
 
-COPY --from=builder /app .
+COPY --from=builder /app /app
 COPY common/vsa_config common/vsa_config
+
+# Set ownership and permissions
+USER nonroot:nonroot

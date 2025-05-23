@@ -1,7 +1,15 @@
 apiVersion: v1
+kind: Namespace
+metadata:
+  name: vcp
+  labels:
+    name: vcp
+---
+apiVersion: v1
 kind: Service
 metadata:
   name: core-service
+  namespace: vcp
   labels:
     app: core-service
 spec:
@@ -16,6 +24,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: core-service
+  namespace: vcp
   labels:
     app: core-service
 spec:

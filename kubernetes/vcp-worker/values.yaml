@@ -1,0 +1,48 @@
+# Application configuration
+app:
+  name: "vcp-worker"
+  replicas: 1
+
+serviceAccount:
+  name: "vcp-worker-ksa"
+#  annotations:
+#    "helm.sh/deprecated": false
+
+#imagePullSecrets:
+#    - name: "temporal-worker-image-pull-secret"
+
+# Image configuration
+image:
+  repository: "ghcr.io/vcp-vsa-control-plane/vcp-worker"
+  tag: "0.0.1"
+  pullPolicy: "IfNotPresent"
+
+# Worker configuration
+workerConfig:
+  temporalAddress: "temporal-frontend.temporal.svc.cluster.local:7233"
+  env: "local"
+  gcpProxyPort: "8090"
+  gceMetadataHost: "localhost:9090"
+  gcpConsumerMgmtEndpointUrl: "autopush-netapp.sandbox.googleapis.com"
+  gcpServiceNetworkingEndpointUrl: "netapp-tst-autopush-endpoint.appspot.com"
+  localRegion: "australia-southeast1"
+  vsaNodeUsername: "admin"
+  vsaNodePassword: ""
+
+  # Database configuration
+  database:
+    type: "postgres"
+    sslMode: "disable"
+    timezone: "UTC"
+    runMigrationOnStart: "true"
+    migrationPath: "migrations/core"
+    host: postgres.default.svc.cluster.local
+    port: 5432
+    user: postgres
+    password: testpass
+    adminUser: adminUser
+    adminPassword: adminPassword
+    dbname: postgres
+    maxConns: 20
+    maxIdleConns: 20
+    maxConnLifetime: "1h"

@@ -9,8 +9,10 @@ DEFAULT_CHART_VERSION="0.60.0"
 CHART_VERSION="${TEMPORAL_CHART_VERSION:-$DEFAULT_CHART_VERSION}"
 GITHUB_ORG="vcp-vsa-control-plane"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-CHART_DIR="$(cd "${SCRIPT_DIR}/../../kubernetes/charts/temporal" && pwd)"
+CHART_DIR="$(cd "${SCRIPT_DIR}/../../kubernetes/temporal" && pwd)"
 TEMP_DIR="/tmp/temporal"
+REGISTRY_TYPE="ghcr" # Default registry type (ghcr or gcr)
+GCR_REPO_URL="gcr.io" # Default GCR repository URL
 
 # Check if yq is installed
 if ! command -v yq &> /dev/null; then
@@ -28,11 +30,13 @@ fi
 
 # Function to display usage information
 usage() {
-  echo "Usage: $0 [-v CHART_VERSION] [-o GITHUB_ORG]"
+  echo "Usage: $0 [-v CHART_VERSION] [-o GITHUB_ORG] [-r REGISTRY_TYPE] [-g GCR_REPO_URL]"
   echo ""
   echo "Options:"
   echo "  -v CHART_VERSION  Temporal Helm chart version to use (default: $CHART_VERSION)"
   echo "  -o GITHUB_ORG     GitHub organization or username for image repositories (default: $GITHUB_ORG)"
+  echo "  -r REGISTRY_TYPE  Registry type to use (ghcr or gcr, default: $REGISTRY_TYPE)"
+  echo "  -g GCR_REPO_URL   GCR repository URL (default: $GCR_REPO_URL, only used when REGISTRY_TYPE is gcr)"
   echo "  -h                Display this help message"
   echo ""
   echo "Environment Variables:"
@@ -42,19 +46,31 @@ usage() {
 }
 
 # Parse command line arguments
-while getopts "v:o:h" opt; do
+while getopts "v:o:r:g:h" opt; do
   case $opt in
     v) CHART_VERSION="$OPTARG" ;;
     o) GITHUB_ORG="$OPTARG" ;;
+    r) REGISTRY_TYPE="$OPTARG" ;;
+    g) GCR_REPO_URL="$OPTARG" ;;
     h) usage ;;
     *) usage ;;
   esac
 done
 
+# Validate registry type
+if [ "$REGISTRY_TYPE" != "ghcr" ] && [ "$REGISTRY_TYPE" != "gcr" ]; then
+  echo "Error: Invalid registry type (-r). Must be 'ghcr' or 'gcr'"
+  usage
+fi
+
 echo "=== Temporal Helm Chart Generator ==="
 echo "Chart Version: $CHART_VERSION"
 echo "GitHub Organization: $GITHUB_ORG"
 echo "Chart Directory: $CHART_DIR"
+echo "Registry Type: $REGISTRY_TYPE"
+if [ "$REGISTRY_TYPE" = "gcr" ]; then
+  echo "GCR Repository URL: $GCR_REPO_URL"
+fi
 echo ""
 
 # Pull the Temporal Helm chart
@@ -79,9 +95,9 @@ rm -rf "$CHART_DIR/ci"
 rm -rf "$CHART_DIR/values"
 rm "$CHART_DIR/Chart.lock"
 
-# Update repository values in Chart.yaml
-echo "Updating repository values in Chart.yaml..."
-yq e '.dependencies[].repository = "file://dev/null"' -i "$CHART_DIR/Chart.yaml"
+echo "Deleting unwanted subchart  dependencies. like prometheus, grafana, cassandra, etc..."
+rm -rf "$CHART_DIR/charts/"
+yq e 'del(.dependencies)' -i "$CHART_DIR/Chart.yaml"
 
 # Function to recursively process Chart.yaml files
 process_chart_yaml() {
@@ -102,15 +118,6 @@ process_chart_yaml() {
       yq e 'del(.dependencies)' -i "$chart_dir/Chart.yaml"
     fi
   fi
-
-  # Recursively process all subdirectories that might contain charts
-  if [ -d "$chart_dir/charts" ]; then
-    for subchart in "$chart_dir/charts"/*; do
-      if [ -d "$subchart" ]; then
-        process_chart_yaml "$subchart"
-      fi
-    done
-  fi
 }
 
 # Delete specified sections from Chart.yaml files recursively
@@ -119,9 +126,18 @@ process_chart_yaml "$CHART_DIR"
 
 # Update image repositories in values.yaml
 echo "Updating image repositories in values.yaml..."
-yq e ".server.image.repository = \"ghcr.io/$GITHUB_ORG/temporalio-server\"" -i "$CHART_DIR/values.yaml"
-yq e ".admintools.image.repository = \"ghcr.io/$GITHUB_ORG/temporalio-admin-tools\"" -i "$CHART_DIR/values.yaml"
-yq e ".web.image.repository = \"ghcr.io/$GITHUB_ORG/temporalio-ui\"" -i "$CHART_DIR/values.yaml"
+
+# Determine registry URL based on registry type
+REGISTRY_URL=""
+if [ "$REGISTRY_TYPE" = "ghcr" ]; then
+  REGISTRY_URL="ghcr.io/$GITHUB_ORG"
+elif [ "$REGISTRY_TYPE" = "gcr" ]; then
+  REGISTRY_URL="$GCR_REPO_URL/$GITHUB_ORG"
+fi
+echo "Registry URL: $REGISTRY_URL"
+yq e ".server.image.repository = \"$REGISTRY_URL/temporalio-server\"" -i "$CHART_DIR/values.yaml"
+yq e ".admintools.image.repository = \"$REGISTRY_URL/temporalio-admin-tools\"" -i "$CHART_DIR/values.yaml"
+yq e ".web.image.repository = \"$REGISTRY_URL/temporalio-ui\"" -i "$CHART_DIR/values.yaml"
 
 # Clean up
 echo "Cleaning up temporary files..."
@@ -131,7 +147,14 @@ echo ""
 echo "=== Summary ==="
 echo "Temporal Helm chart version $CHART_VERSION has been generated and customized"
 echo "Chart location: $CHART_DIR"
-echo "Image repositories have been updated to use ghcr.io/$GITHUB_ORG/"
+if [ "$REGISTRY_TYPE" = "ghcr" ]; then
+  echo "Image repositories have been updated to use ghcr.io/$GITHUB_ORG/"
+elif [ "$REGISTRY_TYPE" = "gcr" ]; then
+  echo "Image repositories have been updated to use $GCR_REPO_URL/$GITHUB_ORG/"
+fi
+
+echo "Validate the generated chart using the following command:"
+echo "helm template ./kubernetes/temporal -f ./scripts/temporal/gcr_values.yaml "
 
 echo ""
 echo "Done!"

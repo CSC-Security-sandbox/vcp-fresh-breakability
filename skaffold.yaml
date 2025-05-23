@@ -18,7 +18,7 @@ build:
       requires:
         - image: core
           alias: BASE
-    - image: worker
+    - image: vcp-worker
       context: .
       docker:
           dockerfile: worker/Dockerfile
@@ -59,16 +59,19 @@ manifests:
         valuesFiles:
           - ./tools/temporal-deployment/local/values.yaml
 portForward:
-  - resourceType: deployment
-    resourceName: google-proxy
+  - resourceType: service
+    resourceName: google-proxy-service
+    namespace: vcp
     port: 8080
     localPort: 9000
-  - resourceType: deployment
+  - resourceType: service
     resourceName: core-service
-    port: 8080
+    namespace: vcp
+    port: 50051
     localPort: 9001
-  - resourceType: deployment
+  - resourceType: service
     resourceName: postgres
+    namespace: default
     port: 5432
     localPort: 5432
   - resourceType: service
