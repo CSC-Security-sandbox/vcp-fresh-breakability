@@ -9,7 +9,7 @@ import (
 
 type Handler struct {
 	oasgenserver.UnimplementedHandler
-	Orchestrator *orchestrator.Orchestrator
+	Orchestrator orchestrator.OrchestratorFactory
 }
 
 func (h Handler) GetHealth(ctx context.Context) (oasgenserver.GetHealthRes, error) {

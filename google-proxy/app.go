@@ -68,7 +68,7 @@ func main() {
 	defer workflowClient.CloseClient(workflowClient.GetTemporalClient())
 
 	// Create GCP proxy server and inject required dependencies
-	orch := orchestrator.NewOrchestrator(dbCon, workflowClient.GetTemporalClient())
+	orch := orchestrator.GetNewOrchestrator(dbCon, workflowClient.GetTemporalClient())
 	newHandler := api.Handler{Orchestrator: orch} // inject the orchestrator into the handler
 	gcpServer, err := gcpgenserver.NewServer(newHandler)
 	if err != nil {

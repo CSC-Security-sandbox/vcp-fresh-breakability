@@ -41,8 +41,7 @@ var (
 	DeletingSVMs                = _deletingSVMs
 )
 
-const defaultServiceAccountPattern ="-compute@developer.gserviceaccount.com"
-
+const defaultServiceAccountPattern = "-compute@developer.gserviceaccount.com"
 
 type PoolActivity struct {
 	SE database.Storage
@@ -162,7 +161,6 @@ func _getProviderByNode(node *models.Node) vsa.Provider {
 }
 
 func _getVLMClient(ctx context.Context, logger log.Logger, vlmConfig *vlmconfig.VLMConfig) vlm.ClientFactory {
-	// as we don't have any other provider, we can directly return the ontap_rest provider
 	return vlm.NewClient(ctx, logger, vlmConfig)
 }
 
@@ -290,8 +288,8 @@ func _prepareVlmConfig(cfg *vlmconfig.VLMConfig, deploymentName, region, zone, n
 	svcAccount := projectId + defaultServiceAccountPattern // FIXME : need to to discuss on what service account to be passed
 
 	cfg.Deployment.GCPConfig = vlmconfig.GCPConfig{
-		ProjectID:          projectId,
-		ImageProjectID:     projectId,
+		ProjectID:           projectId,
+		ImageProjectID:      projectId,
 		ServiceAccountEmail: svcAccount,
 	}
 

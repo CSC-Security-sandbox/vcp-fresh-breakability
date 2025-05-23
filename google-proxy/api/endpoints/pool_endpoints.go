@@ -25,6 +25,14 @@ var (
 // V1betaDescribePool handles the request to describe a pool.
 func (h Handler) V1betaDescribePool(ctx context.Context, params gcpgenserver.V1betaDescribePoolParams) (gcpgenserver.V1betaDescribePoolRes, error) {
 	logger := util.GetLogger(ctx)
+	// Validate the location
+	_, _, parsingErr := parseAndValidateRegionAndZone(params.LocationId)
+	if parsingErr != nil {
+		return &gcpgenserver.V1betaDescribePoolBadRequest{
+			Code:    parsingErr.Code,
+			Message: parsingErr.Message,
+		}, nil
+	}
 	pool, err := h.Orchestrator.GetPool(ctx, params.PoolId, params.ProjectNumber)
 	if err != nil {
 		if errors.IsNotFoundErr(err) {
@@ -287,7 +295,7 @@ func (h Handler) V1betaListPools(ctx context.Context, params gcpgenserver.V1beta
 	logger := util.GetLogger(ctx)
 
 	// Validate the location
-	_, _, parsingErr := utils.ParseAndValidateRegionAndZone(params.LocationId)
+	_, _, parsingErr := parseAndValidateRegionAndZone(params.LocationId)
 	if parsingErr != nil {
 		return &gcpgenserver.V1betaListPoolsBadRequest{
 			Code:    parsingErr.Code,

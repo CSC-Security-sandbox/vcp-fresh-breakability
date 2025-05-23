@@ -435,6 +435,65 @@ func (_c *MockDataStore_CreateVolume_Call) RunAndReturn(run func(context.Context
 	return _c
 }
 
+// CreateVolumeReplication provides a mock function with given fields: ctx, volumeRep
+func (_m *MockDataStore) CreateVolumeReplication(ctx context.Context, volumeRep *datamodel.VolumeReplication) (*datamodel.VolumeReplication, error) {
+	ret := _m.Called(ctx, volumeRep)
+
+	if len(ret) == 0 {
+		panic("no return value specified for CreateVolumeReplication")
+	}
+
+	var r0 *datamodel.VolumeReplication
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, *datamodel.VolumeReplication) (*datamodel.VolumeReplication, error)); ok {
+		return rf(ctx, volumeRep)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, *datamodel.VolumeReplication) *datamodel.VolumeReplication); ok {
+		r0 = rf(ctx, volumeRep)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*datamodel.VolumeReplication)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, *datamodel.VolumeReplication) error); ok {
+		r1 = rf(ctx, volumeRep)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockDataStore_CreateVolumeReplication_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'CreateVolumeReplication'
+type MockDataStore_CreateVolumeReplication_Call struct {
+	*mock.Call
+}
+
+// CreateVolumeReplication is a helper method to define mock.On call
+//   - ctx context.Context
+//   - volumeRep *datamodel.VolumeReplication
+func (_e *MockDataStore_Expecter) CreateVolumeReplication(ctx interface{}, volumeRep interface{}) *MockDataStore_CreateVolumeReplication_Call {
+	return &MockDataStore_CreateVolumeReplication_Call{Call: _e.mock.On("CreateVolumeReplication", ctx, volumeRep)}
+}
+
+func (_c *MockDataStore_CreateVolumeReplication_Call) Run(run func(ctx context.Context, volumeRep *datamodel.VolumeReplication)) *MockDataStore_CreateVolumeReplication_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(*datamodel.VolumeReplication))
+	})
+	return _c
+}
+
+func (_c *MockDataStore_CreateVolumeReplication_Call) Return(_a0 *datamodel.VolumeReplication, _a1 error) *MockDataStore_CreateVolumeReplication_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockDataStore_CreateVolumeReplication_Call) RunAndReturn(run func(context.Context, *datamodel.VolumeReplication) (*datamodel.VolumeReplication, error)) *MockDataStore_CreateVolumeReplication_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // CreatedPool provides a mock function with given fields: ctx, pool
 func (_m *MockDataStore) CreatedPool(ctx context.Context, pool *datamodel.Pool) (*datamodel.Pool, error) {
 	ret := _m.Called(ctx, pool)
@@ -796,6 +855,65 @@ func (_c *MockDataStore_DeleteVolume_Call) Return(_a0 *datamodel.Volume, _a1 err
 }
 
 func (_c *MockDataStore_DeleteVolume_Call) RunAndReturn(run func(context.Context, string) (*datamodel.Volume, error)) *MockDataStore_DeleteVolume_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// DeleteVolumeReplication provides a mock function with given fields: ctx, volumeReplicationID
+func (_m *MockDataStore) DeleteVolumeReplication(ctx context.Context, volumeReplicationID string) (*datamodel.VolumeReplication, error) {
+	ret := _m.Called(ctx, volumeReplicationID)
+
+	if len(ret) == 0 {
+		panic("no return value specified for DeleteVolumeReplication")
+	}
+
+	var r0 *datamodel.VolumeReplication
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, string) (*datamodel.VolumeReplication, error)); ok {
+		return rf(ctx, volumeReplicationID)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, string) *datamodel.VolumeReplication); ok {
+		r0 = rf(ctx, volumeReplicationID)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*datamodel.VolumeReplication)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, string) error); ok {
+		r1 = rf(ctx, volumeReplicationID)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockDataStore_DeleteVolumeReplication_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'DeleteVolumeReplication'
+type MockDataStore_DeleteVolumeReplication_Call struct {
+	*mock.Call
+}
+
+// DeleteVolumeReplication is a helper method to define mock.On call
+//   - ctx context.Context
+//   - volumeReplicationID string
+func (_e *MockDataStore_Expecter) DeleteVolumeReplication(ctx interface{}, volumeReplicationID interface{}) *MockDataStore_DeleteVolumeReplication_Call {
+	return &MockDataStore_DeleteVolumeReplication_Call{Call: _e.mock.On("DeleteVolumeReplication", ctx, volumeReplicationID)}
+}
+
+func (_c *MockDataStore_DeleteVolumeReplication_Call) Run(run func(ctx context.Context, volumeReplicationID string)) *MockDataStore_DeleteVolumeReplication_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(string))
+	})
+	return _c
+}
+
+func (_c *MockDataStore_DeleteVolumeReplication_Call) Return(_a0 *datamodel.VolumeReplication, _a1 error) *MockDataStore_DeleteVolumeReplication_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockDataStore_DeleteVolumeReplication_Call) RunAndReturn(run func(context.Context, string) (*datamodel.VolumeReplication, error)) *MockDataStore_DeleteVolumeReplication_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -1770,6 +1888,65 @@ func (_c *MockDataStore_GetVolumeCountByPoolID_Call) RunAndReturn(run func(conte
 	return _c
 }
 
+// GetVolumeReplication provides a mock function with given fields: ctx, id
+func (_m *MockDataStore) GetVolumeReplication(ctx context.Context, id string) (*datamodel.VolumeReplication, error) {
+	ret := _m.Called(ctx, id)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetVolumeReplication")
+	}
+
+	var r0 *datamodel.VolumeReplication
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, string) (*datamodel.VolumeReplication, error)); ok {
+		return rf(ctx, id)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, string) *datamodel.VolumeReplication); ok {
+		r0 = rf(ctx, id)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*datamodel.VolumeReplication)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, string) error); ok {
+		r1 = rf(ctx, id)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockDataStore_GetVolumeReplication_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetVolumeReplication'
+type MockDataStore_GetVolumeReplication_Call struct {
+	*mock.Call
+}
+
+// GetVolumeReplication is a helper method to define mock.On call
+//   - ctx context.Context
+//   - id string
+func (_e *MockDataStore_Expecter) GetVolumeReplication(ctx interface{}, id interface{}) *MockDataStore_GetVolumeReplication_Call {
+	return &MockDataStore_GetVolumeReplication_Call{Call: _e.mock.On("GetVolumeReplication", ctx, id)}
+}
+
+func (_c *MockDataStore_GetVolumeReplication_Call) Run(run func(ctx context.Context, id string)) *MockDataStore_GetVolumeReplication_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(string))
+	})
+	return _c
+}
+
+func (_c *MockDataStore_GetVolumeReplication_Call) Return(_a0 *datamodel.VolumeReplication, _a1 error) *MockDataStore_GetVolumeReplication_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockDataStore_GetVolumeReplication_Call) RunAndReturn(run func(context.Context, string) (*datamodel.VolumeReplication, error)) *MockDataStore_GetVolumeReplication_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // GetVolumesByPoolID provides a mock function with given fields: ctx, poolID
 func (_m *MockDataStore) GetVolumesByPoolID(ctx context.Context, poolID int64) ([]*datamodel.Volume, error) {
 	ret := _m.Called(ctx, poolID)
@@ -2132,6 +2309,100 @@ func (_c *MockDataStore_UpdateVolume_Call) Return(_a0 error) *MockDataStore_Upda
 }
 
 func (_c *MockDataStore_UpdateVolume_Call) RunAndReturn(run func(context.Context, *datamodel.Volume) error) *MockDataStore_UpdateVolume_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// UpdateVolumeReplicationStates provides a mock function with given fields: ctx, volumeRep
+func (_m *MockDataStore) UpdateVolumeReplicationStates(ctx context.Context, volumeRep *datamodel.VolumeReplication) error {
+	ret := _m.Called(ctx, volumeRep)
+
+	if len(ret) == 0 {
+		panic("no return value specified for UpdateVolumeReplicationStates")
+	}
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(context.Context, *datamodel.VolumeReplication) error); ok {
+		r0 = rf(ctx, volumeRep)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// MockDataStore_UpdateVolumeReplicationStates_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'UpdateVolumeReplicationStates'
+type MockDataStore_UpdateVolumeReplicationStates_Call struct {
+	*mock.Call
+}
+
+// UpdateVolumeReplicationStates is a helper method to define mock.On call
+//   - ctx context.Context
+//   - volumeRep *datamodel.VolumeReplication
+func (_e *MockDataStore_Expecter) UpdateVolumeReplicationStates(ctx interface{}, volumeRep interface{}) *MockDataStore_UpdateVolumeReplicationStates_Call {
+	return &MockDataStore_UpdateVolumeReplicationStates_Call{Call: _e.mock.On("UpdateVolumeReplicationStates", ctx, volumeRep)}
+}
+
+func (_c *MockDataStore_UpdateVolumeReplicationStates_Call) Run(run func(ctx context.Context, volumeRep *datamodel.VolumeReplication)) *MockDataStore_UpdateVolumeReplicationStates_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(*datamodel.VolumeReplication))
+	})
+	return _c
+}
+
+func (_c *MockDataStore_UpdateVolumeReplicationStates_Call) Return(_a0 error) *MockDataStore_UpdateVolumeReplicationStates_Call {
+	_c.Call.Return(_a0)
+	return _c
+}
+
+func (_c *MockDataStore_UpdateVolumeReplicationStates_Call) RunAndReturn(run func(context.Context, *datamodel.VolumeReplication) error) *MockDataStore_UpdateVolumeReplicationStates_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// UpdateVolumeReplicationTransferStats provides a mock function with given fields: ctx, volumeRep
+func (_m *MockDataStore) UpdateVolumeReplicationTransferStats(ctx context.Context, volumeRep *datamodel.VolumeReplication) error {
+	ret := _m.Called(ctx, volumeRep)
+
+	if len(ret) == 0 {
+		panic("no return value specified for UpdateVolumeReplicationTransferStats")
+	}
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(context.Context, *datamodel.VolumeReplication) error); ok {
+		r0 = rf(ctx, volumeRep)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// MockDataStore_UpdateVolumeReplicationTransferStats_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'UpdateVolumeReplicationTransferStats'
+type MockDataStore_UpdateVolumeReplicationTransferStats_Call struct {
+	*mock.Call
+}
+
+// UpdateVolumeReplicationTransferStats is a helper method to define mock.On call
+//   - ctx context.Context
+//   - volumeRep *datamodel.VolumeReplication
+func (_e *MockDataStore_Expecter) UpdateVolumeReplicationTransferStats(ctx interface{}, volumeRep interface{}) *MockDataStore_UpdateVolumeReplicationTransferStats_Call {
+	return &MockDataStore_UpdateVolumeReplicationTransferStats_Call{Call: _e.mock.On("UpdateVolumeReplicationTransferStats", ctx, volumeRep)}
+}
+
+func (_c *MockDataStore_UpdateVolumeReplicationTransferStats_Call) Run(run func(ctx context.Context, volumeRep *datamodel.VolumeReplication)) *MockDataStore_UpdateVolumeReplicationTransferStats_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(*datamodel.VolumeReplication))
+	})
+	return _c
+}
+
+func (_c *MockDataStore_UpdateVolumeReplicationTransferStats_Call) Return(_a0 error) *MockDataStore_UpdateVolumeReplicationTransferStats_Call {
+	_c.Call.Return(_a0)
+	return _c
+}
+
+func (_c *MockDataStore_UpdateVolumeReplicationTransferStats_Call) RunAndReturn(run func(context.Context, *datamodel.VolumeReplication) error) *MockDataStore_UpdateVolumeReplicationTransferStats_Call {
 	_c.Call.Return(run)
 	return _c
 }
