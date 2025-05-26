@@ -13,7 +13,7 @@ func SetupTestDB() (*gorm.DB, error) {
 	}
 
 	// Perform any necessary migrations or setup here
-	err = db.AutoMigrate(&datamodel.Pool{}, &datamodel.Volume{}, &datamodel.VolumeReplication{}, &datamodel.Account{}, &datamodel.Svm{}, &datamodel.Node{}, &datamodel.Lif{}, &datamodel.Job{})
+	err = db.AutoMigrate(&datamodel.Pool{}, &datamodel.Volume{}, &datamodel.VolumeReplication{}, &datamodel.Account{}, &datamodel.HostGroup{}, &datamodel.Svm{}, &datamodel.Node{}, &datamodel.Lif{}, &datamodel.Job{})
 	if err != nil {
 		return nil, err
 	}
@@ -26,6 +26,7 @@ func ClearInMemoryDB(db *gorm.DB) error {
 	tables := []interface{}{
 		&datamodel.Pool{},
 		&datamodel.Volume{},
+		&datamodel.HostGroup{},
 		&datamodel.Account{},
 		&datamodel.VolumeReplication{},
 		&datamodel.Node{},
