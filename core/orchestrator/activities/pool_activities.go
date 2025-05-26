@@ -48,7 +48,7 @@ type PoolActivity struct {
 }
 
 const (
-	aggregateName  = "dataaggr_01"
+	aggregateName  = "aggr1"
 	defaultSvmName = "gcnv-default-svm"
 	lifNameFormat  = "san_lif_%s"
 	enableIscsi    = true
