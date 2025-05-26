@@ -1,703 +1,2115 @@
 package orchestrator
 
-// func TestGetVolume(t *testing.T) {
-//	t.Run("WhenVolumeDoesNotExist", func(tt *testing.T) {
-//		ctx := context.Background()
-//
-//		mockLogger := log.NewLogger()
-//		store, err := database.NewTestStorage(mockLogger)
-//		if err != nil {
-//			tt.Fatalf("Failed to create test storage: %v", err)
-//		}
-//
-//		// Clear the in-memory database
-//		err = database.ClearInMemoryDB(store.DB())
-//		if err != nil {
-//			t.Fatalf("Failed to clean up test storage: %v", err)
-//		}
-//
-//		orch := Orchestrator{
-//			storage: store,
-//		}
-//
-//		volume, err := orch.GetVolume(ctx, "non-existent-uuid")
-//		assert.EqualError(tt, err, "volume not found")
-//		assert.Nil(tt, volume, "Expected nil volume")
-//	})
-//
-//	t.Run("WhenVolumeExists", func(tt *testing.T) {
-//		ctx := context.Background()
-//
-//		mockLogger := log.NewLogger()
-//		store, err := database.NewTestStorage(mockLogger)
-//		if err != nil {
-//			tt.Fatalf("Failed to create test storage: %v", err)
-//		}
-//
-//		// Clear the in-memory database
-//		err = database.ClearInMemoryDB(store.DB())
-//		if err != nil {
-//			t.Fatalf("Failed to clean up test storage: %v", err)
-//		}
-//
-//		orch := Orchestrator{
-//			storage: store,
-//		}
-//
-//		account := &datamodel.Account{
-//			BaseModel: datamodel.BaseModel{UUID: "test-account-uuid"},
-//			Name:      "test_account",
-//		}
-//		err = store.DB().Create(account).Error
-//		if err != nil {
-//			tt.Fatalf("Failed to create account: %v", err)
-//		}
-//
-//		pool := &datamodel.Pool{
-//			BaseModel: datamodel.BaseModel{UUID: "test-pool-uuid"},
-//			Name:      "test_pool",
-//			AccountID: account.ID,
-//		}
-//
-//		err = store.DB().Create(pool).Error
-//		if err != nil {
-//			tt.Fatalf("Failed to create account: %v", err)
-//		}
-//
-//		node := &datamodel.Node{
-//			BaseModel:       datamodel.BaseModel{UUID: "test-volume-uuid"},
-//			Name:            "test_node",
-//			AccountID:       account.ID,
-//			EndpointAddress: "12.12.12.12",
-//			PoolID:          pool.ID,
-//		}
-//		err = store.DB().Create(node).Error
-//		assert.NoError(tt, err, "Failed to create node")
-//
-//		volume := &datamodel.Volume{
-//			BaseModel: datamodel.BaseModel{UUID: "test-volume-uuid"},
-//			Name:      "test_volume",
-//			AccountID: account.ID,
-//			Pool:      pool,
-//			PoolID:    pool.ID,
-//		}
-//		err = store.DB().Create(volume).Error
-//		assert.NoError(tt, err, "Failed to create volume")
-//
-//		result, err := orch.GetVolume(ctx, "test-volume-uuid")
-//		assert.NoError(tt, err, "Failed to get volume")
-//		assert.Equal(tt, volume.Name, result.DisplayName)
-//		assert.Equal(tt, account.Name, result.AccountName)
-//	})
-// }
-//
-// func TestCreateVolume(t *testing.T) {
-//	t.Run("WhenGetOrCreateAccountFails", func(tt *testing.T) {
-//		ctx := context.Background()
-//		se := database.Storage(nil)
-//
-//		params := &CreateVolumeParams{
-//			AccountName:  "test_account",
-//			Region:       "test_region",
-//			Name:         "test_pool",
-//			VendorID:     "test_vendor",
-//			QuotaInBytes: minQuotaInBytesPool,
-//			Protocols:    []string{"NFS"},
-//			Description:  "Some description",
-//			DisplayName:  "Some display name",
-//		}
-//
-//		getOrCreateAccount = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
-//			return nil, errors.New("account not found")
-//		}
-//
-//		volume, err := createVolume(ctx, se, params)
-//		assert.EqualError(tt, err, "account not found")
-//		assert.Nil(tt, volume)
-//	})
-//	t.Run("WhenValidateCreateVolumeParamFails", func(tt *testing.T) {
-//		ctx := context.Background()
-//		se := database.Storage(nil)
-//
-//		params := &CreateVolumeParams{
-//			AccountName:  "test_account",
-//			Region:       "test_region",
-//			Name:         "test_pool",
-//			VendorID:     "test_vendor",
-//			QuotaInBytes: minQuotaInBytesPool,
-//			Protocols:    []string{"NFS"},
-//			Description:  "Some description",
-//			DisplayName:  "Some display name",
-//		}
-//
-//		dbAccount := &datamodel.Account{
-//			BaseModel: datamodel.BaseModel{
-//				UUID: "test-uuid",
-//			},
-//			Name: "test_account",
-//		}
-//		getOrCreateAccount = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
-//			return dbAccount, nil
-//		}
-//		validateCreateVolumeParams = func(ctx context.Context, se database.Storage, params *CreateVolumeParams) error {
-//			return errors.New("invalid volume params")
-//		}
-//		defer func() {
-//			getOrCreateAccount = _getOrCreateAccount
-//			validateCreateVolumeParams = _validateCreateVolumeParams
-//		}()
-//
-//		_, err := createVolume(ctx, se, params)
-//		assert.EqualError(tt, err, "invalid volume params")
-//	})
-//	t.Run("WhenGetPoolForCreateVolumeFails", func(tt *testing.T) {
-//		ctx := context.Background()
-//
-//		mockLogger := log.NewLogger()
-//		// Create a PersistenceStore instance with the in-memory database
-//		store, err := database.NewTestStorage(mockLogger)
-//		if err != nil {
-//			t.Fatalf("Failed to create test storage: %v", err)
-//		}
-//
-//		// Clear the in-memory database
-//		err = database.ClearInMemoryDB(store.DB())
-//		if err != nil {
-//			t.Fatalf("Failed to clean up test storage: %v", err)
-//		}
-//
-//		account := &datamodel.Account{
-//			BaseModel: datamodel.BaseModel{UUID: "test-account-uuid"},
-//			Name:      "test_account",
-//		}
-//		err = store.DB().Create(account).Error
-//		if err != nil {
-//			tt.Fatalf("Failed to create account: %v", err)
-//		}
-//
-//		params := &CreateVolumeParams{
-//			AccountName:  "test_account",
-//			Region:       "test_region",
-//			Name:         "test_pool",
-//			VendorID:     "test_vendor",
-//			QuotaInBytes: minQuotaInBytesPool,
-//			Protocols:    []string{"NFS"},
-//			Description:  "Some description",
-//			DisplayName:  "Some display name",
-//			PoolID:       "test-pool-uuid",
-//		}
-//
-//		dbAccount := &datamodel.Account{
-//			BaseModel: datamodel.BaseModel{
-//				UUID: "test-uuid",
-//			},
-//			Name: "test_account",
-//		}
-//		getOrCreateAccount = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
-//			return dbAccount, nil
-//		}
-//		validateCreateVolumeParams = func(ctx context.Context, se database.Storage, params *CreateVolumeParams) error {
-//			return nil
-//		}
-//		defer func() {
-//			getOrCreateAccount = _getOrCreateAccount
-//			validateCreateVolumeParams = _validateCreateVolumeParams
-//		}()
-//		volume, err := createVolume(ctx, store, params)
-//		assert.Nil(tt, volume, "Expected nil volume")
-//		assert.EqualError(tt, err, "pool not found")
-//	})
-//	t.Run("WhenGetSvmForCreateVolumeFails", func(tt *testing.T) {
-//		ctx := context.Background()
-//
-//		mockLogger := log.NewLogger()
-//		// Create a PersistenceStore instance with the in-memory database
-//		store, err := database.NewTestStorage(mockLogger)
-//		if err != nil {
-//			t.Fatalf("Failed to create test storage: %v", err)
-//		}
-//
-//		// Clear the in-memory database
-//		err = database.ClearInMemoryDB(store.DB())
-//		if err != nil {
-//			t.Fatalf("Failed to clean up test storage: %v", err)
-//		}
-//
-//		account := &datamodel.Account{
-//			BaseModel: datamodel.BaseModel{UUID: "test-account-uuid"},
-//			Name:      "test_account",
-//		}
-//		err = store.DB().Create(account).Error
-//		if err != nil {
-//			tt.Fatalf("Failed to create account: %v", err)
-//		}
-//
-//		pool := &datamodel.Pool{
-//			BaseModel: datamodel.BaseModel{UUID: "test-pool-uuid"},
-//			Name:      "test_pool",
-//			AccountID: account.ID,
-//		}
-//
-//		err = store.DB().Create(pool).Error
-//		if err != nil {
-//			tt.Fatalf("Failed to create pool: %v", err)
-//		}
-//
-//		params := &CreateVolumeParams{
-//			AccountName:  "test_account",
-//			Region:       "test_region",
-//			Name:         "test_pool",
-//			VendorID:     "test_vendor",
-//			QuotaInBytes: minQuotaInBytesPool,
-//			Protocols:    []string{"NFS"},
-//			Description:  "Some description",
-//			DisplayName:  "Some display name",
-//			PoolID:       "test-pool-uuid",
-//		}
-//
-//		dbAccount := &datamodel.Account{
-//			BaseModel: datamodel.BaseModel{
-//				UUID: "test-uuid",
-//			},
-//			Name: "test_account",
-//		}
-//		getOrCreateAccount = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
-//			return dbAccount, nil
-//		}
-//		validateCreateVolumeParams = func(ctx context.Context, se database.Storage, params *CreateVolumeParams) error {
-//			return nil
-//		}
-//		defer func() {
-//			getOrCreateAccount = _getOrCreateAccount
-//			validateCreateVolumeParams = _validateCreateVolumeParams
-//		}()
-//		volume, err := createVolume(ctx, store, params)
-//		assert.Nil(tt, volume, "Expected nil volume")
-//		assert.EqualError(tt, err, "svm not found")
-//	})
-//	t.Run("WhenCreateVolumeSuccess", func(tt *testing.T) {
-//		ctx := context.Background()
-//
-//		mockLogger := log.NewLogger()
-//		// Create a PersistenceStore instance with the in-memory database
-//		store, err := database.NewTestStorage(mockLogger)
-//		if err != nil {
-//			t.Fatalf("Failed to create test storage: %v", err)
-//		}
-//
-//		orch := Orchestrator{
-//			storage: store,
-//		}
-//
-//		// Clear the in-memory database
-//		err = database.ClearInMemoryDB(store.DB())
-//		if err != nil {
-//			t.Fatalf("Failed to clean up test storage: %v", err)
-//		}
-//
-//		account := &datamodel.Account{
-//			BaseModel: datamodel.BaseModel{UUID: "test-account-uuid"},
-//			Name:      "test_account",
-//		}
-//		err = store.DB().Create(account).Error
-//		if err != nil {
-//			tt.Fatalf("Failed to create account: %v", err)
-//		}
-//
-//		pool := &datamodel.Pool{
-//			BaseModel: datamodel.BaseModel{UUID: "test-pool-uuid"},
-//			Name:      "test_pool",
-//			AccountID: account.ID,
-//		}
-//
-//		err = store.DB().Create(pool).Error
-//		if err != nil {
-//			tt.Fatalf("Failed to create pool: %v", err)
-//		}
-//
-//		svm := &datamodel.Svm{
-//			BaseModel: datamodel.BaseModel{UUID: "test-svm-uuid"},
-//			Name:      "test_svm",
-//			AccountID: account.ID,
-//			PoolID:    pool.ID,
-//			Pool:      pool,
-//		}
-//
-//		err = store.DB().Create(svm).Error
-//		if err != nil {
-//			tt.Fatalf("Failed to create svm: %v", err)
-//		}
-//
-//		params := &CreateVolumeParams{
-//			AccountName:    "test_account",
-//			Region:         "test_region",
-//			Name:           "test_volume",
-//			VendorID:       "test_vendor",
-//			QuotaInBytes:   minQuotaInBytesPool,
-//			Protocols:      []string{"NFS"},
-//			Description:    "Some description",
-//			DisplayName:    "Some display name",
-//			PoolID:         "test-pool-uuid",
-//			CreationToken:  "test-creation-token",
-//			Network: "test-subnet-id",
-//		}
-//
-//		dbAccount := &datamodel.Account{
-//			BaseModel: datamodel.BaseModel{
-//				UUID: "test-uuid",
-//			},
-//			Name: "test_account",
-//		}
-//		getOrCreateAccount = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
-//			return dbAccount, nil
-//		}
-//		validateCreateVolumeParams = func(ctx context.Context, se database.Storage, params *CreateVolumeParams) error {
-//			return nil
-//		}
-//		createVolumeAsync = func(ctx context.Context, se database.Storage, params *CreateVolumeParams) error {
-//			return nil
-//		}
-//		defer func() {
-//			getOrCreateAccount = _getOrCreateAccount
-//			validateCreateVolumeParams = _validateCreateVolumeParams
-//			createVolumeAsync = _createVolumeAsync
-//		}()
-//		volume, err := orch.CreateVolume(ctx, params)
-//		assert.NotNil(tt, volume, "Expected nil volume")
-//		assert.NoError(tt, err, "error not found")
-//		assert.Equal(tt, volume.DisplayName, "test_volume")
-//		assert.Equal(tt, volume.AccountName, "test_account")
-//		assert.Equal(tt, volume.PoolID, "test-pool-uuid")
-//		assert.Equal(tt, volume.PoolName, "test_pool")
-//		assert.Equal(tt, volume.VendorID, "")
-//		assert.Equal(tt, volume.Network, "test-subnet-id")
-//		assert.Equal(tt, volume.CreationToken, "test-creation-token")
-//		assert.Equal(tt, volume.Description, "Some description")
-//		assert.Equal(tt, volume.ProtocolTypes, []string{"NFS"})
-//		assert.Equal(tt, volume.QuotaInBytes, minQuotaInBytesPool)
-//		assert.Equal(tt, volume.LifeCycleState, "CREATING")
-//		assert.Equal(tt, volume.LifeCycleStateDetails, "Creation in progress")
-//	})
-//	t.Run("WhenCreateVolumeAsyncFails", func(tt *testing.T) {
-//		ctx := context.Background()
-//
-//		mockLogger := log.NewLogger()
-//		// Create a PersistenceStore instance with the in-memory database
-//		store, err := database.NewTestStorage(mockLogger)
-//		if err != nil {
-//			t.Fatalf("Failed to create test storage: %v", err)
-//		}
-//
-//		orch := Orchestrator{
-//			storage: store,
-//		}
-//
-//		// Clear the in-memory database
-//		err = database.ClearInMemoryDB(store.DB())
-//		if err != nil {
-//			t.Fatalf("Failed to clean up test storage: %v", err)
-//		}
-//
-//		account := &datamodel.Account{
-//			BaseModel: datamodel.BaseModel{UUID: "test-account-uuid"},
-//			Name:      "test_account",
-//		}
-//		err = store.DB().Create(account).Error
-//		if err != nil {
-//			tt.Fatalf("Failed to create account: %v", err)
-//		}
-//
-//		pool := &datamodel.Pool{
-//			BaseModel: datamodel.BaseModel{UUID: "test-pool-uuid"},
-//			Name:      "test_pool",
-//			AccountID: account.ID,
-//		}
-//
-//		err = store.DB().Create(pool).Error
-//		if err != nil {
-//			tt.Fatalf("Failed to create pool: %v", err)
-//		}
-//
-//		svm := &datamodel.Svm{
-//			BaseModel: datamodel.BaseModel{UUID: "test-svm-uuid"},
-//			Name:      "test_svm",
-//			AccountID: account.ID,
-//			PoolID:    pool.ID,
-//			Pool:      pool,
-//		}
-//
-//		err = store.DB().Create(svm).Error
-//		if err != nil {
-//			tt.Fatalf("Failed to create svm: %v", err)
-//		}
-//
-//		params := &CreateVolumeParams{
-//			AccountName:    "test_account",
-//			Region:         "test_region",
-//			Name:           "test_volume",
-//			VendorID:       "test_vendor",
-//			QuotaInBytes:   minQuotaInBytesPool,
-//			Protocols:      []string{"NFS"},
-//			Description:    "Some description",
-//			DisplayName:    "Some display name",
-//			PoolID:         "test-pool-uuid",
-//			CreationToken:  "test-creation-token",
-//			Network: "test-subnet-id",
-//		}
-//
-//		dbAccount := &datamodel.Account{
-//			BaseModel: datamodel.BaseModel{
-//				UUID: "test-uuid",
-//			},
-//			Name: "test_account",
-//		}
-//		getOrCreateAccount = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
-//			return dbAccount, nil
-//		}
-//		validateCreateVolumeParams = func(ctx context.Context, se database.Storage, params *CreateVolumeParams) error {
-//			return nil
-//		}
-//		createVolumeAsync = func(ctx context.Context, se database.Storage, params *CreateVolumeParams) error {
-//			return errors.New("failed to create volume async")
-//		}
-//		defer func() {
-//			getOrCreateAccount = _getOrCreateAccount
-//			validateCreateVolumeParams = _validateCreateVolumeParams
-//			createVolumeAsync = _createVolumeAsync
-//		}()
-//		volume, err := orch.CreateVolume(ctx, params)
-//		assert.NotNil(tt, volume, "Expected nil volume")
-//		assert.NoError(tt, err, "error not found")
-//		assert.Equal(tt, volume.DisplayName, "test_volume")
-//		assert.Equal(tt, volume.AccountName, "test_account")
-//		assert.Equal(tt, volume.PoolID, "test-pool-uuid")
-//		assert.Equal(tt, volume.PoolName, "test_pool")
-//		assert.Equal(tt, volume.VendorID, "")
-//		assert.Equal(tt, volume.Network, "test-subnet-id")
-//		assert.Equal(tt, volume.CreationToken, "test-creation-token")
-//		assert.Equal(tt, volume.Description, "Some description")
-//		assert.Equal(tt, volume.ProtocolTypes, []string{"NFS"})
-//		assert.Equal(tt, volume.QuotaInBytes, minQuotaInBytesPool)
-//		assert.Equal(tt, volume.LifeCycleState, "CREATING")
-//		assert.Equal(tt, volume.LifeCycleStateDetails, "Creation in progress")
-//	})
-// }
-//
-// func TestDeleteVolume(t *testing.T) {
-//	t.Run("WhenGetVolumeNotFound", func(tt *testing.T) {
-//		ctx := context.Background()
-//
-//		mockLogger := log.NewLogger()
-//		store, err := database.NewTestStorage(mockLogger)
-//		if err != nil {
-//			tt.Fatalf("Failed to create test storage: %v", err)
-//		}
-//
-//		// Clear the in-memory database
-//		err = database.ClearInMemoryDB(store.DB())
-//		if err != nil {
-//			t.Fatalf("Failed to clean up test storage: %v", err)
-//		}
-//
-//		orch := Orchestrator{
-//			storage: store,
-//		}
-//
-//		deleteVolumeAsync = func(ctx context.Context, se database.Storage, volumeId string) error {
-//			return nil
-//		}
-//		defer func() {
-//			deleteVolumeAsync = _deleteVolumeAsync
-//		}()
-//
-//		_, err = orch.DeleteVolume(ctx, "non-existent-uuid")
-//		assert.EqualError(tt, err, "volume not found")
-//	})
-//	t.Run("WhenVolumeExistsAndSuccess", func(tt *testing.T) {
-//		ctx := context.Background()
-//
-//		mockLogger := log.NewLogger()
-//		store, err := database.NewTestStorage(mockLogger)
-//		if err != nil {
-//			tt.Fatalf("Failed to create test storage: %v", err)
-//		}
-//
-//		// Clear the in-memory database
-//		err = database.ClearInMemoryDB(store.DB())
-//		if err != nil {
-//			t.Fatalf("Failed to clean up test storage: %v", err)
-//		}
-//
-//		orch := Orchestrator{
-//			storage: store,
-//		}
-//
-//		account := &datamodel.Account{
-//			BaseModel: datamodel.BaseModel{UUID: "test-account-uuid"},
-//			Name:      "test_account",
-//		}
-//		err = store.DB().Create(account).Error
-//		if err != nil {
-//			tt.Fatalf("Failed to create account: %v", err)
-//		}
-//
-//		pool := &datamodel.Pool{
-//			BaseModel: datamodel.BaseModel{UUID: "test-pool-uuid"},
-//			Name:      "test_pool",
-//			AccountID: account.ID,
-//		}
-//
-//		err = store.DB().Create(pool).Error
-//		if err != nil {
-//			tt.Fatalf("Failed to create account: %v", err)
-//		}
-//
-//		volume := &datamodel.Volume{
-//			BaseModel: datamodel.BaseModel{UUID: "test-volume-uuid"},
-//			Name:      "test_volume",
-//			AccountID: account.ID,
-//			Pool:      pool,
-//			PoolID:    pool.ID,
-//		}
-//		err = store.DB().Create(volume).Error
-//		assert.NoError(tt, err, "Failed to create volume")
-//
-//		deleteVolumeAsync = func(ctx context.Context, se database.Storage, volumeId string) error {
-//			return nil
-//		}
-//		defer func() {
-//			deleteVolumeAsync = _deleteVolumeAsync
-//		}()
-//
-//		volumeResp, err := orch.DeleteVolume(ctx, "test-volume-uuid")
-//		assert.NoError(tt, err, "Failed to get volume")
-//		assert.Equal(tt, volume.Name, volumeResp.DisplayName)
-//		assert.Equal(tt, account.Name, volumeResp.AccountName)
-//		assert.Equal(tt, volumeResp.LifeCycleState, models.LifeCycleStateDeleting)
-//		assert.Equal(tt, volumeResp.LifeCycleStateDetails, models.LifeCycleStateDeletingDetails)
-//	})
-//	t.Run("WhenVolumeAlreadyDeletingVolume", func(tt *testing.T) {
-//		ctx := context.Background()
-//
-//		mockLogger := log.NewLogger()
-//		store, err := database.NewTestStorage(mockLogger)
-//		if err != nil {
-//			tt.Fatalf("Failed to create test storage: %v", err)
-//		}
-//
-//		// Clear the in-memory database
-//		err = database.ClearInMemoryDB(store.DB())
-//		if err != nil {
-//			t.Fatalf("Failed to clean up test storage: %v", err)
-//		}
-//
-//		orch := Orchestrator{
-//			storage: store,
-//		}
-//
-//		account := &datamodel.Account{
-//			BaseModel: datamodel.BaseModel{UUID: "test-account-uuid"},
-//			Name:      "test_account",
-//		}
-//		err = store.DB().Create(account).Error
-//		if err != nil {
-//			tt.Fatalf("Failed to create account: %v", err)
-//		}
-//
-//		pool := &datamodel.Pool{
-//			BaseModel: datamodel.BaseModel{UUID: "test-pool-uuid"},
-//			Name:      "test_pool",
-//			AccountID: account.ID,
-//		}
-//
-//		err = store.DB().Create(pool).Error
-//		if err != nil {
-//			tt.Fatalf("Failed to create account: %v", err)
-//		}
-//
-//		volume := &datamodel.Volume{
-//			BaseModel:    datamodel.BaseModel{UUID: "test-volume-uuid"},
-//			Name:         "test_volume",
-//			AccountID:    account.ID,
-//			Pool:         pool,
-//			PoolID:       pool.ID,
-//			State:        models.LifeCycleStateDeleting,
-//			StateDetails: models.LifeCycleStateDeletingDetails,
-//		}
-//		err = store.DB().Create(volume).Error
-//		assert.NoError(tt, err, "Failed to create volume")
-//
-//		deleteVolumeAsync = func(ctx context.Context, se database.Storage, volumeId string) error {
-//			return nil
-//		}
-//		defer func() {
-//			deleteVolumeAsync = _deleteVolumeAsync
-//		}()
-//
-//		volumeResp, err := orch.DeleteVolume(ctx, "test-volume-uuid")
-//		assert.EqualError(tt, err, "volume is already in deleting state")
-//		assert.Nil(tt, volumeResp, "Expected nil volume")
-//	})
-//	t.Run("WhenVolumeAlreadyDeletingVolumeAndAsyncFlowFails", func(tt *testing.T) {
-//		ctx := context.Background()
-//
-//		mockLogger := log.NewLogger()
-//		store, err := database.NewTestStorage(mockLogger)
-//		if err != nil {
-//			tt.Fatalf("Failed to create test storage: %v", err)
-//		}
-//
-//		// Clear the in-memory database
-//		err = database.ClearInMemoryDB(store.DB())
-//		if err != nil {
-//			t.Fatalf("Failed to clean up test storage: %v", err)
-//		}
-//
-//		orch := Orchestrator{
-//			storage: store,
-//		}
-//
-//		account := &datamodel.Account{
-//			BaseModel: datamodel.BaseModel{UUID: "test-account-uuid"},
-//			Name:      "test_account",
-//		}
-//		err = store.DB().Create(account).Error
-//		if err != nil {
-//			tt.Fatalf("Failed to create account: %v", err)
-//		}
-//
-//		pool := &datamodel.Pool{
-//			BaseModel: datamodel.BaseModel{UUID: "test-pool-uuid"},
-//			Name:      "test_pool",
-//			AccountID: account.ID,
-//		}
-//
-//		err = store.DB().Create(pool).Error
-//		if err != nil {
-//			tt.Fatalf("Failed to create account: %v", err)
-//		}
-//
-//		volume := &datamodel.Volume{
-//			BaseModel:    datamodel.BaseModel{UUID: "test-volume-uuid"},
-//			Name:         "test_volume",
-//			AccountID:    account.ID,
-//			Pool:         pool,
-//			PoolID:       pool.ID,
-//			State:        models.LifeCycleStateDeleting,
-//			StateDetails: models.LifeCycleStateDeletingDetails,
-//		}
-//		err = store.DB().Create(volume).Error
-//		assert.NoError(tt, err, "Failed to create volume")
-//
-//		deleteVolumeAsync = func(ctx context.Context, se database.Storage, volumeId string) error {
-//			return errors.New("Some error")
-//		}
-//		defer func() {
-//			deleteVolumeAsync = _deleteVolumeAsync
-//		}()
-//
-//		volumeResp, err := orch.DeleteVolume(ctx, "test-volume-uuid")
-//		assert.EqualError(tt, err, "volume is already in deleting state")
-//		assert.Nil(tt, volumeResp, "Expected nil volume")
-//	})
-// }
+import (
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware"
+	"testing"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
+	workflowEngineMock "github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine"
+	"golang.org/x/net/context"
+)
+
+func TestGetVolume(t *testing.T) {
+	t.Run("WhenVolumeDoesNotExist", func(tt *testing.T) {
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+
+		mockLogger := log.NewLogger()
+		store, err := database.NewTestStorage(mockLogger)
+		if err != nil {
+			tt.Fatalf("Failed to create test storage: %v", err)
+		}
+
+		// Clear the in-memory database
+		err = database.ClearInMemoryDB(store.DB())
+		if err != nil {
+			t.Fatalf("Failed to clean up test storage: %v", err)
+		}
+
+		orch := Orchestrator{
+			storage: store,
+		}
+
+		volume, err := orch.GetVolume(ctx, "non-existent-uuid")
+		assert.EqualError(tt, err, "volume not found")
+		assert.Nil(tt, volume, "Expected nil volume")
+	})
+	t.Run("WhenVolumeExists", func(tt *testing.T) {
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+
+		mockLogger := log.NewLogger()
+		store, err := database.NewTestStorage(mockLogger)
+		if err != nil {
+			tt.Fatalf("Failed to create test storage: %v", err)
+		}
+
+		// Clear the in-memory database
+		err = database.ClearInMemoryDB(store.DB())
+		if err != nil {
+			t.Fatalf("Failed to clean up test storage: %v", err)
+		}
+
+		orch := Orchestrator{
+			storage: store,
+		}
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{UUID: "test-account-uuid"},
+			Name:      "test_account",
+		}
+		err = store.DB().Create(account).Error
+		if err != nil {
+			tt.Fatalf("Failed to create account: %v", err)
+		}
+
+		pool := &datamodel.Pool{
+			BaseModel: datamodel.BaseModel{UUID: "test-pool-uuid"},
+			Name:      "test_pool",
+			AccountID: account.ID,
+		}
+
+		err = store.DB().Create(pool).Error
+		if err != nil {
+			tt.Fatalf("Failed to create account: %v", err)
+		}
+
+		node := &datamodel.Node{
+			BaseModel:       datamodel.BaseModel{UUID: "test-volume-uuid"},
+			Name:            "test_node",
+			AccountID:       account.ID,
+			EndpointAddress: "12.12.12.12",
+			PoolID:          pool.ID,
+		}
+		err = store.DB().Create(node).Error
+		assert.NoError(tt, err, "Failed to create node")
+
+		lif := &datamodel.Lif{
+			BaseModel: datamodel.BaseModel{UUID: "test-volume-uuid"},
+			Name:      "test_node",
+			AccountID: account.ID,
+			IPAddress: "1.1.1.1",
+			NodeID:    node.ID,
+		}
+		err = store.DB().Create(lif).Error
+		assert.NoError(tt, err, "Failed to create node")
+
+		volume := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{UUID: "test-volume-uuid"},
+			Name:      "test_volume",
+			AccountID: account.ID,
+			Pool:      pool,
+			PoolID:    pool.ID,
+		}
+		err = store.DB().Create(volume).Error
+		assert.NoError(tt, err, "Failed to create volume")
+
+		result, err := orch.GetVolume(ctx, "test-volume-uuid")
+		assert.NoError(tt, err, "Failed to get volume")
+		assert.Equal(tt, volume.Name, result.DisplayName)
+		assert.Equal(tt, account.Name, result.AccountName)
+	})
+	t.Run("WhenVolumeExistsWithNoLif", func(tt *testing.T) {
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+
+		mockLogger := log.NewLogger()
+		store, err := database.NewTestStorage(mockLogger)
+		if err != nil {
+			tt.Fatalf("Failed to create test storage: %v", err)
+		}
+
+		// Clear the in-memory database
+		err = database.ClearInMemoryDB(store.DB())
+		if err != nil {
+			t.Fatalf("Failed to clean up test storage: %v", err)
+		}
+
+		orch := Orchestrator{
+			storage: store,
+		}
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{UUID: "test-account-uuid"},
+			Name:      "test_account",
+		}
+		err = store.DB().Create(account).Error
+		if err != nil {
+			tt.Fatalf("Failed to create account: %v", err)
+		}
+
+		pool := &datamodel.Pool{
+			BaseModel: datamodel.BaseModel{UUID: "test-pool-uuid"},
+			Name:      "test_pool",
+			AccountID: account.ID,
+		}
+
+		err = store.DB().Create(pool).Error
+		if err != nil {
+			tt.Fatalf("Failed to create account: %v", err)
+		}
+
+		node := &datamodel.Node{
+			BaseModel:       datamodel.BaseModel{UUID: "test-volume-uuid"},
+			Name:            "test_node",
+			AccountID:       account.ID,
+			EndpointAddress: "12.12.12.12",
+			PoolID:          pool.ID,
+		}
+		err = store.DB().Create(node).Error
+		assert.NoError(tt, err, "Failed to create node")
+
+		volume := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{UUID: "test-volume-uuid"},
+			Name:      "test_volume",
+			AccountID: account.ID,
+			Pool:      pool,
+			PoolID:    pool.ID,
+		}
+		err = store.DB().Create(volume).Error
+		assert.NoError(tt, err, "Failed to create volume")
+
+		result, err := orch.GetVolume(ctx, "test-volume-uuid")
+		assert.EqualError(tt, err, "lif not found")
+		assert.Nil(tt, result, "Expected nil volume")
+	})
+}
+
+func TestCreateVolume(t *testing.T) {
+	t.Run("WhenGetOrCreateAccountFails", func(tt *testing.T) {
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+		se := database.Storage(nil)
+
+		params := &common.CreateVolumeParams{
+			AccountName:  "test_account",
+			Region:       "test_region",
+			Name:         "test_pool",
+			VendorID:     "test_vendor",
+			QuotaInBytes: minQuotaInBytesPool,
+			Protocols:    []string{"NFS"},
+			Description:  "Some description",
+			DisplayName:  "Some display name",
+		}
+
+		getOrCreateAccount = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return nil, errors.New("account not found")
+		}
+		temporal := workflowEngineMock.NewMockTemporalTestClient(t)
+
+		volume, _, err := createVolume(ctx, se, temporal, params)
+		assert.EqualError(tt, err, "account not found")
+		assert.Nil(tt, volume)
+	})
+	t.Run("WhenValidateCreateVolumeParamFails", func(tt *testing.T) {
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+		se := database.Storage(nil)
+
+		params := &common.CreateVolumeParams{
+			AccountName:  "test_account",
+			Region:       "test_region",
+			Name:         "test_pool",
+			VendorID:     "test_vendor",
+			QuotaInBytes: minQuotaInBytesPool,
+			Protocols:    []string{"NFS"},
+			Description:  "Some description",
+			DisplayName:  "Some display name",
+		}
+
+		dbAccount := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{
+				UUID: "test-uuid",
+			},
+			Name: "test_account",
+		}
+		getOrCreateAccount = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return dbAccount, nil
+		}
+		validateCreateVolumeParams = func(ctx context.Context, se database.Storage, params *common.CreateVolumeParams, accountID int64) error {
+			return errors.New("invalid volume params")
+		}
+		defer func() {
+			getOrCreateAccount = _getOrCreateAccount
+			validateCreateVolumeParams = _validateCreateVolumeParams
+		}()
+		temporal := workflowEngineMock.NewMockTemporalTestClient(t)
+
+		volume, _, err := createVolume(ctx, se, temporal, params)
+		assert.EqualError(tt, err, "invalid volume params")
+		assert.Nil(tt, volume)
+	})
+	t.Run("WhenGetPoolForCreateVolumeFails", func(tt *testing.T) {
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+
+		mockLogger := log.NewLogger()
+		// Create a PersistenceStore instance with the in-memory database
+		store, err := database.NewTestStorage(mockLogger)
+		if err != nil {
+			t.Fatalf("Failed to create test storage: %v", err)
+		}
+
+		// Clear the in-memory database
+		err = database.ClearInMemoryDB(store.DB())
+		if err != nil {
+			t.Fatalf("Failed to clean up test storage: %v", err)
+		}
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{UUID: "test-account-uuid"},
+			Name:      "test_account",
+		}
+		err = store.DB().Create(account).Error
+		if err != nil {
+			tt.Fatalf("Failed to create account: %v", err)
+		}
+
+		params := &common.CreateVolumeParams{
+			AccountName:  "test_account",
+			Region:       "test_region",
+			Name:         "test_pool",
+			VendorID:     "test_vendor",
+			QuotaInBytes: minQuotaInBytesPool,
+			Protocols:    []string{"NFS"},
+			Description:  "Some description",
+			DisplayName:  "Some display name",
+			PoolID:       "test-pool-uuid",
+		}
+
+		dbAccount := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{
+				UUID: "test-uuid",
+			},
+			Name: "test_account",
+		}
+		getOrCreateAccount = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return dbAccount, nil
+		}
+		validateCreateVolumeParams = func(ctx context.Context, se database.Storage, params *common.CreateVolumeParams, accountID int64) error {
+			return nil
+		}
+		defer func() {
+			getOrCreateAccount = _getOrCreateAccount
+			validateCreateVolumeParams = _validateCreateVolumeParams
+		}()
+		temporal := workflowEngineMock.NewMockTemporalTestClient(t)
+
+		volume, _, err := createVolume(ctx, store, temporal, params)
+		assert.Nil(tt, volume, "Expected nil volume")
+		assert.EqualError(tt, err, "pool not found")
+	})
+	t.Run("WhenGetSvmForCreateVolumeFails", func(tt *testing.T) {
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+
+		mockLogger := log.NewLogger()
+		// Create a PersistenceStore instance with the in-memory database
+		store, err := database.NewTestStorage(mockLogger)
+		if err != nil {
+			t.Fatalf("Failed to create test storage: %v", err)
+		}
+
+		// Clear the in-memory database
+		err = database.ClearInMemoryDB(store.DB())
+		if err != nil {
+			t.Fatalf("Failed to clean up test storage: %v", err)
+		}
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{UUID: "test-account-uuid"},
+			Name:      "test_account",
+		}
+		err = store.DB().Create(account).Error
+		if err != nil {
+			tt.Fatalf("Failed to create account: %v", err)
+		}
+
+		pool := &datamodel.Pool{
+			BaseModel: datamodel.BaseModel{UUID: "test-pool-uuid"},
+			Name:      "test_pool",
+			AccountID: account.ID,
+		}
+
+		err = store.DB().Create(pool).Error
+		if err != nil {
+			tt.Fatalf("Failed to create pool: %v", err)
+		}
+
+		params := &common.CreateVolumeParams{
+			AccountName:  "test_account",
+			Region:       "test_region",
+			Name:         "test_pool",
+			VendorID:     "test_vendor",
+			QuotaInBytes: minQuotaInBytesPool,
+			Protocols:    []string{"NFS"},
+			Description:  "Some description",
+			DisplayName:  "Some display name",
+			PoolID:       "test-pool-uuid",
+		}
+
+		dbAccount := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{
+				UUID: "test-uuid",
+			},
+			Name: "test_account",
+		}
+		getOrCreateAccount = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return dbAccount, nil
+		}
+		validateCreateVolumeParams = func(ctx context.Context, se database.Storage, params *common.CreateVolumeParams, accountID int64) error {
+			return nil
+		}
+		defer func() {
+			getOrCreateAccount = _getOrCreateAccount
+			validateCreateVolumeParams = _validateCreateVolumeParams
+		}()
+		temporal := workflowEngineMock.NewMockTemporalTestClient(t)
+		volume, _, err := createVolume(ctx, store, temporal, params)
+		assert.Nil(tt, volume, "Expected nil volume")
+		assert.EqualError(tt, err, "svm not found")
+	})
+	t.Run("WhenCreateVolumeSuccess", func(tt *testing.T) {
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+
+		mockLogger := log.NewLogger()
+		// Create a PersistenceStore instance with the in-memory database
+		store, err := database.NewTestStorage(mockLogger)
+		if err != nil {
+			t.Fatalf("Failed to create test storage: %v", err)
+		}
+
+		// Clear the in-memory database
+		err = database.ClearInMemoryDB(store.DB())
+		if err != nil {
+			t.Fatalf("Failed to clean up test storage: %v", err)
+		}
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{UUID: "test-account-uuid"},
+			Name:      "test_account",
+		}
+		err = store.DB().Create(account).Error
+		if err != nil {
+			tt.Fatalf("Failed to create account: %v", err)
+		}
+
+		pool := &datamodel.Pool{
+			BaseModel: datamodel.BaseModel{UUID: "test-pool-uuid"},
+			Name:      "test_pool",
+			AccountID: account.ID,
+		}
+
+		err = store.DB().Create(pool).Error
+		if err != nil {
+			tt.Fatalf("Failed to create pool: %v", err)
+		}
+
+		svm := &datamodel.Svm{
+			BaseModel: datamodel.BaseModel{UUID: "test-svm-uuid"},
+			Name:      "test_svm",
+			AccountID: account.ID,
+			PoolID:    pool.ID,
+			Pool:      pool,
+		}
+
+		err = store.DB().Create(svm).Error
+		if err != nil {
+			tt.Fatalf("Failed to create svm: %v", err)
+		}
+
+		params := &common.CreateVolumeParams{
+			AccountName:   "test_account",
+			Region:        "test_region",
+			Name:          "test_volume",
+			VendorID:      "test_vendor",
+			QuotaInBytes:  minQuotaInBytesPool,
+			Protocols:     []string{"NFS"},
+			Description:   "Some description",
+			DisplayName:   "Some display name",
+			PoolID:        "test-pool-uuid",
+			CreationToken: "test-creation-token",
+		}
+
+		dbAccount := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{
+				UUID: "test-uuid",
+			},
+			Name: "test_account",
+		}
+		getOrCreateAccount = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return dbAccount, nil
+		}
+		validateCreateVolumeParams = func(ctx context.Context, se database.Storage, params *common.CreateVolumeParams, accountID int64) error {
+			return nil
+		}
+
+		defer func() {
+			getOrCreateAccount = _getOrCreateAccount
+			validateCreateVolumeParams = _validateCreateVolumeParams
+		}()
+		temporal := workflowEngineMock.NewMockTemporalTestClient(t)
+		temporal.EXPECT().ExecuteWorkflow(mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil).Once()
+		volume, _, err := createVolume(ctx, store, temporal, params)
+		assert.NotNil(tt, volume, "Expected nil volume")
+		assert.NoError(tt, err, "error not found")
+		assert.Equal(tt, volume.DisplayName, "test_volume")
+		assert.Equal(tt, volume.AccountName, "test_account")
+		assert.Equal(tt, volume.PoolID, "test-pool-uuid")
+		assert.Equal(tt, volume.PoolName, "test_pool")
+		assert.Equal(tt, volume.VendorID, "")
+		assert.Equal(tt, volume.CreationToken, "test-creation-token")
+		assert.Equal(tt, volume.Description, "Some description")
+		assert.Equal(tt, volume.ProtocolTypes, []string{"NFS"})
+		assert.Equal(tt, volume.QuotaInBytes, minQuotaInBytesPool)
+		assert.Equal(tt, volume.LifeCycleState, "CREATING")
+		assert.Equal(tt, volume.LifeCycleStateDetails, "Creation in progress")
+	})
+	t.Run("WhenCreateVolumeAsyncFails", func(tt *testing.T) {
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+
+		mockLogger := log.NewLogger()
+		// Create a PersistenceStore instance with the in-memory database
+		store, err := database.NewTestStorage(mockLogger)
+		if err != nil {
+			t.Fatalf("Failed to create test storage: %v", err)
+		}
+
+		// Clear the in-memory database
+		err = database.ClearInMemoryDB(store.DB())
+		if err != nil {
+			t.Fatalf("Failed to clean up test storage: %v", err)
+		}
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{UUID: "test-account-uuid"},
+			Name:      "test_account",
+		}
+		err = store.DB().Create(account).Error
+		if err != nil {
+			tt.Fatalf("Failed to create account: %v", err)
+		}
+
+		pool := &datamodel.Pool{
+			BaseModel: datamodel.BaseModel{UUID: "test-pool-uuid"},
+			Name:      "test_pool",
+			AccountID: account.ID,
+		}
+
+		err = store.DB().Create(pool).Error
+		if err != nil {
+			tt.Fatalf("Failed to create pool: %v", err)
+		}
+
+		svm := &datamodel.Svm{
+			BaseModel: datamodel.BaseModel{UUID: "test-svm-uuid"},
+			Name:      "test_svm",
+			AccountID: account.ID,
+			PoolID:    pool.ID,
+			Pool:      pool,
+		}
+
+		err = store.DB().Create(svm).Error
+		if err != nil {
+			tt.Fatalf("Failed to create svm: %v", err)
+		}
+
+		params := &common.CreateVolumeParams{
+			AccountName:   "test_account",
+			Region:        "test_region",
+			Name:          "test_volume",
+			VendorID:      "test_vendor",
+			QuotaInBytes:  minQuotaInBytesPool,
+			Protocols:     []string{"NFS"},
+			Description:   "Some description",
+			DisplayName:   "Some display name",
+			PoolID:        "test-pool-uuid",
+			CreationToken: "test-creation-token",
+		}
+
+		dbAccount := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{
+				UUID: "test-uuid",
+			},
+			Name: "test_account",
+		}
+		getOrCreateAccount = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return dbAccount, nil
+		}
+		validateCreateVolumeParams = func(ctx context.Context, se database.Storage, params *common.CreateVolumeParams, accountID int64) error {
+			return nil
+		}
+
+		defer func() {
+			getOrCreateAccount = _getOrCreateAccount
+			validateCreateVolumeParams = _validateCreateVolumeParams
+		}()
+		temporal := workflowEngineMock.NewMockTemporalTestClient(t)
+		temporal.EXPECT().ExecuteWorkflow(mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, errors.New("workflow error")).Once()
+
+		volume, _, err := createVolume(ctx, store, temporal, params)
+		assert.Nil(tt, volume, "Expected nil volume")
+		assert.EqualError(tt, err, "workflow error")
+	})
+}
+
+func TestDeleteVolume(t *testing.T) {
+	t.Run("WhenGetVolumeNotFound", func(tt *testing.T) {
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+
+		mockLogger := log.NewLogger()
+		store, err := database.NewTestStorage(mockLogger)
+		if err != nil {
+			tt.Fatalf("Failed to create test storage: %v", err)
+		}
+
+		// Clear the in-memory database
+		err = database.ClearInMemoryDB(store.DB())
+		if err != nil {
+			t.Fatalf("Failed to clean up test storage: %v", err)
+		}
+
+		orch := Orchestrator{
+			storage: store,
+		}
+
+		_, _, err = orch.DeleteVolume(ctx, "non-existent-uuid")
+		assert.EqualError(tt, err, "volume not found")
+	})
+	t.Run("WhenVolumeExistsAndSuccess", func(tt *testing.T) {
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+
+		mockLogger := log.NewLogger()
+		store, err := database.NewTestStorage(mockLogger)
+		if err != nil {
+			tt.Fatalf("Failed to create test storage: %v", err)
+		}
+
+		// Clear the in-memory database
+		err = database.ClearInMemoryDB(store.DB())
+		if err != nil {
+			t.Fatalf("Failed to clean up test storage: %v", err)
+		}
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{UUID: "test-account-uuid"},
+			Name:      "test_account",
+		}
+		err = store.DB().Create(account).Error
+		if err != nil {
+			tt.Fatalf("Failed to create account: %v", err)
+		}
+
+		pool := &datamodel.Pool{
+			BaseModel: datamodel.BaseModel{UUID: "test-pool-uuid"},
+			Name:      "test_pool",
+			AccountID: account.ID,
+		}
+
+		err = store.DB().Create(pool).Error
+		if err != nil {
+			tt.Fatalf("Failed to create account: %v", err)
+		}
+
+		volume := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{UUID: "test-volume-uuid"},
+			Name:      "test_volume",
+			AccountID: account.ID,
+			Pool:      pool,
+			PoolID:    pool.ID,
+		}
+		err = store.DB().Create(volume).Error
+		assert.NoError(tt, err, "Failed to create volume")
+
+		temporal := workflowEngineMock.NewMockTemporalTestClient(t)
+		temporal.EXPECT().ExecuteWorkflow(ctx, mock.Anything, mock.AnythingOfType("func(internal.Context, *datamodel.Volume) (gcpserver.V1betaDescribeVolumeRes, error)"), mock.Anything).Return(nil, nil)
+
+		volumeResp, _, err := deleteVolume(ctx, store, temporal, "test-volume-uuid")
+		assert.NoError(tt, err, "Failed to get volume")
+		assert.Equal(tt, volume.Name, volumeResp.DisplayName)
+		assert.Equal(tt, account.Name, volumeResp.AccountName)
+		assert.Equal(tt, volumeResp.LifeCycleState, models.LifeCycleStateDeleting)
+		assert.Equal(tt, volumeResp.LifeCycleStateDetails, models.LifeCycleStateDeletingDetails)
+	})
+	t.Run("WhenVolumeAlreadyDeletingVolume", func(tt *testing.T) {
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+
+		mockLogger := log.NewLogger()
+		store, err := database.NewTestStorage(mockLogger)
+		if err != nil {
+			tt.Fatalf("Failed to create test storage: %v", err)
+		}
+
+		// Clear the in-memory database
+		err = database.ClearInMemoryDB(store.DB())
+		if err != nil {
+			t.Fatalf("Failed to clean up test storage: %v", err)
+		}
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{UUID: "test-account-uuid"},
+			Name:      "test_account",
+		}
+		err = store.DB().Create(account).Error
+		if err != nil {
+			tt.Fatalf("Failed to create account: %v", err)
+		}
+
+		pool := &datamodel.Pool{
+			BaseModel: datamodel.BaseModel{UUID: "test-pool-uuid"},
+			Name:      "test_pool",
+			AccountID: account.ID,
+		}
+
+		err = store.DB().Create(pool).Error
+		if err != nil {
+			tt.Fatalf("Failed to create account: %v", err)
+		}
+
+		volume := &datamodel.Volume{
+			BaseModel:    datamodel.BaseModel{UUID: "test-volume-uuid"},
+			Name:         "test_volume",
+			AccountID:    account.ID,
+			Pool:         pool,
+			PoolID:       pool.ID,
+			State:        models.LifeCycleStateDeleting,
+			StateDetails: models.LifeCycleStateDeletingDetails,
+		}
+		err = store.DB().Create(volume).Error
+		assert.NoError(tt, err, "Failed to create volume")
+
+		temporal := workflowEngineMock.NewMockTemporalTestClient(t)
+
+		volumeResp, _, err := deleteVolume(ctx, store, temporal, "test-volume-uuid")
+		assert.EqualError(tt, err, "volume is already in deleting state")
+		assert.Nil(tt, volumeResp, "Expected nil volume")
+	})
+	t.Run("WhenVolumeAlreadyDeletingVolumeAndAsyncFlowFails", func(tt *testing.T) {
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+
+		mockLogger := log.NewLogger()
+		store, err := database.NewTestStorage(mockLogger)
+		if err != nil {
+			tt.Fatalf("Failed to create test storage: %v", err)
+		}
+
+		// Clear the in-memory database
+		err = database.ClearInMemoryDB(store.DB())
+		if err != nil {
+			t.Fatalf("Failed to clean up test storage: %v", err)
+		}
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{UUID: "test-account-uuid"},
+			Name:      "test_account",
+		}
+		err = store.DB().Create(account).Error
+		if err != nil {
+			tt.Fatalf("Failed to create account: %v", err)
+		}
+
+		pool := &datamodel.Pool{
+			BaseModel: datamodel.BaseModel{UUID: "test-pool-uuid"},
+			Name:      "test_pool",
+			AccountID: account.ID,
+		}
+
+		err = store.DB().Create(pool).Error
+		if err != nil {
+			tt.Fatalf("Failed to create account: %v", err)
+		}
+
+		volume := &datamodel.Volume{
+			BaseModel:    datamodel.BaseModel{UUID: "test-volume-uuid"},
+			Name:         "test_volume",
+			AccountID:    account.ID,
+			Pool:         pool,
+			PoolID:       pool.ID,
+			State:        models.LifeCycleStateREADY,
+			StateDetails: models.LifeCycleStateAvailableDetails,
+		}
+		err = store.DB().Create(volume).Error
+		assert.NoError(tt, err, "Failed to create volume")
+
+		temporal := workflowEngineMock.NewMockTemporalTestClient(t)
+		temporal.EXPECT().ExecuteWorkflow(ctx, mock.Anything, mock.AnythingOfType("func(internal.Context, *datamodel.Volume) (gcpserver.V1betaDescribeVolumeRes, error)"), mock.Anything).Return(nil, errors.New("some error"))
+
+		volumeResp, _, err := deleteVolume(ctx, store, temporal, "test-volume-uuid")
+		assert.EqualError(tt, err, "some error")
+		assert.Nil(tt, volumeResp, "Expected nil volume")
+	})
+}
+
+func TestGetMultipleVolumes(t *testing.T) {
+	t.Run("WhenGetMultipleVolumesSuccess", func(tt *testing.T) {
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+
+		mockLogger := log.NewLogger()
+		store, err := database.NewTestStorage(mockLogger)
+		if err != nil {
+			tt.Fatalf("Failed to create test storage: %v", err)
+		}
+
+		// Clear the in-memory database
+		err = database.ClearInMemoryDB(store.DB())
+		if err != nil {
+			t.Fatalf("Failed to clean up test storage: %v", err)
+		}
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{UUID: "test-account-uuid"},
+			Name:      "test_account",
+		}
+		err = store.DB().Create(account).Error
+		if err != nil {
+			tt.Fatalf("Failed to create account: %v", err)
+		}
+
+		pool := &datamodel.Pool{
+			BaseModel: datamodel.BaseModel{UUID: "test-pool-uuid"},
+			Name:      "test_pool",
+			AccountID: account.ID,
+		}
+
+		err = store.DB().Create(pool).Error
+		if err != nil {
+			tt.Fatalf("Failed to create account: %v", err)
+		}
+
+		svm := &datamodel.Svm{
+			BaseModel: datamodel.BaseModel{UUID: "test-pool-uuid"},
+			Name:      "test_pool",
+			AccountID: account.ID,
+		}
+
+		err = store.DB().Create(svm).Error
+		if err != nil {
+			tt.Fatalf("Failed to create svm: %v", err)
+		}
+
+		volume := &datamodel.Volume{
+			BaseModel:    datamodel.BaseModel{UUID: "a"},
+			Name:         "a",
+			AccountID:    account.ID,
+			Account:      account,
+			Pool:         pool,
+			PoolID:       pool.ID,
+			SvmID:        svm.ID,
+			Svm:          svm,
+			State:        models.LifeCycleStateREADY,
+			StateDetails: models.LifeCycleStateAvailableDetails,
+		}
+		err = store.DB().Create(volume).Error
+		assert.NoError(tt, err, "Failed to create volume")
+
+		node := &datamodel.Node{
+			BaseModel:       datamodel.BaseModel{UUID: "test-volume-uuid"},
+			Name:            "test_node",
+			AccountID:       account.ID,
+			EndpointAddress: "12.12.12.12",
+			PoolID:          pool.ID,
+			State:           models.LifeCycleStateREADY,
+		}
+		err = store.DB().Create(node).Error
+		assert.NoError(tt, err, "Failed to create node")
+
+		lif := &datamodel.Lif{
+			BaseModel: datamodel.BaseModel{UUID: "test-volume-uuid"},
+			Name:      "test_node",
+			AccountID: account.ID,
+			IPAddress: "1.1.1.1",
+			NodeID:    node.ID,
+		}
+		err = store.DB().Create(lif).Error
+		assert.NoError(tt, err, "Failed to create node")
+
+		volume = &datamodel.Volume{
+			BaseModel:    datamodel.BaseModel{UUID: "b"},
+			Name:         "b",
+			AccountID:    account.ID,
+			Pool:         pool,
+			PoolID:       pool.ID,
+			State:        models.LifeCycleStateREADY,
+			StateDetails: models.LifeCycleStateAvailableDetails,
+		}
+		err = store.DB().Create(volume).Error
+		assert.NoError(tt, err, "Failed to create volume")
+
+		orch := Orchestrator{
+			storage: store,
+		}
+		getOrCreateAccount = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return account, nil
+		}
+		defer func() {
+			getOrCreateAccount = _getOrCreateAccount
+		}()
+
+		volumeResp, err := orch.GetMultipleVolumes(ctx, []string{"a", "b"}, account.Name)
+		assert.Nil(tt, err, "some error")
+		assert.Len(tt, volumeResp, 2)
+	})
+	t.Run("WhenGetMultipleVolumesGetIPAddressForVolumeFails", func(tt *testing.T) {
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+
+		mockLogger := log.NewLogger()
+		store, err := database.NewTestStorage(mockLogger)
+		if err != nil {
+			tt.Fatalf("Failed to create test storage: %v", err)
+		}
+
+		// Clear the in-memory database
+		err = database.ClearInMemoryDB(store.DB())
+		if err != nil {
+			t.Fatalf("Failed to clean up test storage: %v", err)
+		}
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{UUID: "test-account-uuid"},
+			Name:      "test_account",
+		}
+		err = store.DB().Create(account).Error
+		if err != nil {
+			tt.Fatalf("Failed to create account: %v", err)
+		}
+
+		pool := &datamodel.Pool{
+			BaseModel: datamodel.BaseModel{UUID: "test-pool-uuid"},
+			Name:      "test_pool",
+			AccountID: account.ID,
+		}
+
+		err = store.DB().Create(pool).Error
+		if err != nil {
+			tt.Fatalf("Failed to create account: %v", err)
+		}
+
+		volume := &datamodel.Volume{
+			BaseModel:    datamodel.BaseModel{UUID: "a"},
+			Name:         "a",
+			AccountID:    account.ID,
+			Pool:         pool,
+			PoolID:       pool.ID,
+			State:        models.LifeCycleStateREADY,
+			StateDetails: models.LifeCycleStateAvailableDetails,
+		}
+		err = store.DB().Create(volume).Error
+		assert.NoError(tt, err, "Failed to create volume")
+
+		node := &datamodel.Node{
+			BaseModel:       datamodel.BaseModel{UUID: "test-volume-uuid"},
+			Name:            "test_node",
+			AccountID:       account.ID,
+			EndpointAddress: "12.12.12.12",
+			PoolID:          pool.ID,
+		}
+		err = store.DB().Create(node).Error
+		assert.NoError(tt, err, "Failed to create node")
+
+		lif := &datamodel.Lif{
+			BaseModel: datamodel.BaseModel{UUID: "test-volume-uuid"},
+			Name:      "test_node",
+			AccountID: account.ID,
+			IPAddress: "1.1.1.1",
+			NodeID:    node.ID,
+		}
+		err = store.DB().Create(lif).Error
+		assert.NoError(tt, err, "Failed to create node")
+
+		volume = &datamodel.Volume{
+			BaseModel:    datamodel.BaseModel{UUID: "b"},
+			Name:         "b",
+			AccountID:    account.ID,
+			Pool:         pool,
+			PoolID:       pool.ID,
+			State:        models.LifeCycleStateREADY,
+			StateDetails: models.LifeCycleStateAvailableDetails,
+		}
+		err = store.DB().Create(volume).Error
+		assert.NoError(tt, err, "Failed to create volume")
+
+		orch := Orchestrator{
+			storage: store,
+		}
+
+		getIPAddressForVolume = func(ctx context.Context, se database.Storage, volume *datamodel.Volume) (string, error) {
+			return "", errors.New("some error")
+		}
+		getOrCreateAccount = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return account, nil
+		}
+		defer func() {
+			getOrCreateAccount = _getOrCreateAccount
+			getIPAddressForVolume = _getIPAddressForVolume
+		}()
+
+		volumeResp, err := orch.GetMultipleVolumes(ctx, []string{"a", "b"}, account.Name)
+		assert.EqualError(tt, err, "some error")
+		assert.Len(tt, volumeResp, 0)
+	})
+}
+
+func TestValidateCreateVolumeParams(t *testing.T) {
+	t.Run("WhenValidateCreateVolumeParamsSuccess", func(tt *testing.T) {
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+
+		mockLogger := log.NewLogger()
+		store, err := database.NewTestStorage(mockLogger)
+		if err != nil {
+			tt.Fatalf("Failed to create test storage: %v", err)
+		}
+
+		// Clear the in-memory database
+		err = database.ClearInMemoryDB(store.DB())
+		if err != nil {
+			t.Fatalf("Failed to clean up test storage: %v", err)
+		}
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{UUID: "test-account-uuid"},
+			Name:      "test_account",
+		}
+		err = store.DB().Create(account).Error
+		if err != nil {
+			tt.Fatalf("Failed to create account: %v", err)
+		}
+
+		pool := &datamodel.Pool{
+			BaseModel: datamodel.BaseModel{UUID: "test-pool-uuid"},
+			Name:      "test_pool",
+			AccountID: account.ID,
+			State:     models.LifeCycleStateREADY,
+			Network:   "somevpc",
+		}
+
+		err = store.DB().Create(pool).Error
+		if err != nil {
+			tt.Fatalf("Failed to create account: %v", err)
+		}
+
+		svm := &datamodel.Svm{
+			BaseModel: datamodel.BaseModel{UUID: "test-pool-uuid"},
+			Name:      "test_pool",
+			AccountID: account.ID,
+			PoolID:    pool.ID,
+			State:     models.LifeCycleStateREADY,
+		}
+
+		err = store.DB().Create(svm).Error
+		if err != nil {
+			tt.Fatalf("Failed to create svm: %v", err)
+		}
+
+		volume := &datamodel.Volume{
+			BaseModel:    datamodel.BaseModel{UUID: "a"},
+			Name:         "a",
+			AccountID:    account.ID,
+			Pool:         pool,
+			PoolID:       pool.ID,
+			SvmID:        svm.ID,
+			Svm:          svm,
+			State:        models.LifeCycleStateREADY,
+			StateDetails: models.LifeCycleStateAvailableDetails,
+		}
+		err = store.DB().Create(volume).Error
+		assert.NoError(tt, err, "Failed to create volume")
+
+		node1 := &datamodel.Node{
+			BaseModel:       datamodel.BaseModel{UUID: "test-volume-uuid1"},
+			Name:            "test_node1",
+			AccountID:       account.ID,
+			EndpointAddress: "12.12.12.12",
+			PoolID:          pool.ID,
+			State:           models.LifeCycleStateREADY,
+		}
+		err = store.DB().Create(node1).Error
+		assert.NoError(tt, err, "Failed to create node")
+
+		node2 := &datamodel.Node{
+			BaseModel:       datamodel.BaseModel{UUID: "test-volume-uuid2"},
+			Name:            "test_node2",
+			AccountID:       account.ID,
+			EndpointAddress: "12.12.12.12",
+			PoolID:          pool.ID,
+			State:           models.LifeCycleStateREADY,
+		}
+		err = store.DB().Create(node2).Error
+		assert.NoError(tt, err, "Failed to create node")
+
+		lif := &datamodel.Lif{
+			BaseModel: datamodel.BaseModel{UUID: "test-volume-uuid1"},
+			Name:      "test_node",
+			AccountID: account.ID,
+			IPAddress: "1.1.1.1",
+			NodeID:    node1.ID,
+		}
+		err = store.DB().Create(lif).Error
+		assert.NoError(tt, err, "Failed to create node")
+
+		lif2 := &datamodel.Lif{
+			BaseModel: datamodel.BaseModel{UUID: "test-volume-uuid2"},
+			Name:      "test_node",
+			AccountID: account.ID,
+			IPAddress: "1.1.1.1",
+			NodeID:    node2.ID,
+		}
+		err = store.DB().Create(lif2).Error
+		assert.NoError(tt, err, "Failed to create node")
+
+		volume = &datamodel.Volume{
+			BaseModel:    datamodel.BaseModel{UUID: "b"},
+			Name:         "b",
+			AccountID:    account.ID,
+			Pool:         pool,
+			PoolID:       pool.ID,
+			State:        models.LifeCycleStateREADY,
+			StateDetails: models.LifeCycleStateAvailableDetails,
+		}
+		err = store.DB().Create(volume).Error
+		assert.NoError(tt, err, "Failed to create volume")
+
+		params := &common.CreateVolumeParams{
+			Name:         "dummy-name",
+			PoolID:       pool.UUID,
+			QuotaInBytes: minQuotaInBytesPool + 1,
+		}
+
+		err = validateCreateVolumeParams(ctx, store, params, account.ID)
+		assert.Nil(tt, err, "some error")
+	})
+	t.Run("WhenPoolNotFound", func(tt *testing.T) {
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+
+		mockLogger := log.NewLogger()
+		store, err := database.NewTestStorage(mockLogger)
+		if err != nil {
+			tt.Fatalf("Failed to create test storage: %v", err)
+		}
+
+		// Clear the in-memory database
+		err = database.ClearInMemoryDB(store.DB())
+		if err != nil {
+			t.Fatalf("Failed to clean up test storage: %v", err)
+		}
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{UUID: "test-account-uuid"},
+			Name:      "test_account",
+		}
+		err = store.DB().Create(account).Error
+		if err != nil {
+			tt.Fatalf("Failed to create account: %v", err)
+		}
+
+		params := &common.CreateVolumeParams{
+			Name:         "dummy-name",
+			PoolID:       "non-existent-pool",
+			QuotaInBytes: minQuotaInBytesPool + 1,
+		}
+
+		err = validateCreateVolumeParams(ctx, store, params, account.ID)
+		assert.EqualError(tt, err, "pool not found")
+	})
+	t.Run("WhenPoolStateNotReady", func(tt *testing.T) {
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+
+		mockLogger := log.NewLogger()
+		store, err := database.NewTestStorage(mockLogger)
+		if err != nil {
+			tt.Fatalf("Failed to create test storage: %v", err)
+		}
+
+		// Clear the in-memory database
+		err = database.ClearInMemoryDB(store.DB())
+		if err != nil {
+			t.Fatalf("Failed to clean up test storage: %v", err)
+		}
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{UUID: "test-account-uuid"},
+			Name:      "test_account",
+		}
+		err = store.DB().Create(account).Error
+		if err != nil {
+			tt.Fatalf("Failed to create account: %v", err)
+		}
+
+		pool := &datamodel.Pool{
+			BaseModel: datamodel.BaseModel{UUID: "test-pool-uuid"},
+			Name:      "test_pool",
+			AccountID: account.ID,
+			State:     models.LifeCycleStateAvailable,
+		}
+
+		err = store.DB().Create(pool).Error
+		if err != nil {
+			tt.Fatalf("Failed to create account: %v", err)
+		}
+
+		params := &common.CreateVolumeParams{
+			Name:         "dummy-name",
+			PoolID:       pool.UUID,
+			QuotaInBytes: minQuotaInBytesPool + 1,
+		}
+
+		err = validateCreateVolumeParams(ctx, store, params, account.ID)
+		assert.EqualError(tt, err, "pool is not ready")
+	})
+	t.Run("WhenQuotaIsTooSmall", func(tt *testing.T) {
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+
+		mockLogger := log.NewLogger()
+		store, err := database.NewTestStorage(mockLogger)
+		if err != nil {
+			tt.Fatalf("Failed to create test storage: %v", err)
+		}
+
+		// Clear the in-memory database
+		err = database.ClearInMemoryDB(store.DB())
+		if err != nil {
+			t.Fatalf("Failed to clean up test storage: %v", err)
+		}
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{UUID: "test-account-uuid"},
+			Name:      "test_account",
+		}
+		err = store.DB().Create(account).Error
+		if err != nil {
+			tt.Fatalf("Failed to create account: %v", err)
+		}
+
+		pool := &datamodel.Pool{
+			BaseModel: datamodel.BaseModel{UUID: "test-pool-uuid"},
+			Name:      "test_pool",
+			AccountID: account.ID,
+			State:     models.LifeCycleStateREADY,
+		}
+
+		err = store.DB().Create(pool).Error
+		if err != nil {
+			tt.Fatalf("Failed to create account: %v", err)
+		}
+
+		params := &common.CreateVolumeParams{
+			Name:         "dummy-name",
+			PoolID:       pool.UUID,
+			QuotaInBytes: minQuotaInBytesVolume - 1,
+		}
+
+		err = validateCreateVolumeParams(ctx, store, params, account.ID)
+		assert.EqualError(tt, err, "volume size must be between 100 GiB and 102,400 GiB.")
+	})
+	t.Run("WhenPoolNetworkIsNotSameAsVolume", func(tt *testing.T) {
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+
+		mockLogger := log.NewLogger()
+		store, err := database.NewTestStorage(mockLogger)
+		if err != nil {
+			tt.Fatalf("Failed to create test storage: %v", err)
+		}
+
+		// Clear the in-memory database
+		err = database.ClearInMemoryDB(store.DB())
+		if err != nil {
+			t.Fatalf("Failed to clean up test storage: %v", err)
+		}
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{UUID: "test-account-uuid"},
+			Name:      "test_account",
+		}
+		err = store.DB().Create(account).Error
+		if err != nil {
+			tt.Fatalf("Failed to create account: %v", err)
+		}
+
+		pool := &datamodel.Pool{
+			BaseModel: datamodel.BaseModel{UUID: "test-pool-uuid"},
+			Name:      "test_pool",
+			AccountID: account.ID,
+			State:     models.LifeCycleStateREADY,
+		}
+
+		err = store.DB().Create(pool).Error
+		if err != nil {
+			tt.Fatalf("Failed to create account: %v", err)
+		}
+
+		params := &common.CreateVolumeParams{
+			Name:         "dummy-name",
+			PoolID:       pool.UUID,
+			QuotaInBytes: minQuotaInBytesVolume + 1,
+			Network:      "dummy-network",
+		}
+
+		err = validateCreateVolumeParams(ctx, store, params, account.ID)
+		assert.EqualError(tt, err, "pool network and volume network should be same")
+	})
+	t.Run("WhenSvmforPoolIdIsNotThere", func(tt *testing.T) {
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+
+		mockLogger := log.NewLogger()
+		store, err := database.NewTestStorage(mockLogger)
+		if err != nil {
+			tt.Fatalf("Failed to create test storage: %v", err)
+		}
+
+		// Clear the in-memory database
+		err = database.ClearInMemoryDB(store.DB())
+		if err != nil {
+			t.Fatalf("Failed to clean up test storage: %v", err)
+		}
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{UUID: "test-account-uuid"},
+			Name:      "test_account",
+		}
+		err = store.DB().Create(account).Error
+		if err != nil {
+			tt.Fatalf("Failed to create account: %v", err)
+		}
+
+		pool := &datamodel.Pool{
+			BaseModel: datamodel.BaseModel{UUID: "test-pool-uuid"},
+			Name:      "test_pool",
+			AccountID: account.ID,
+			State:     models.LifeCycleStateREADY,
+		}
+
+		err = store.DB().Create(pool).Error
+		if err != nil {
+			tt.Fatalf("Failed to create account: %v", err)
+		}
+
+		params := &common.CreateVolumeParams{
+			Name:         "dummy-name",
+			PoolID:       pool.UUID,
+			QuotaInBytes: minQuotaInBytesVolume + 1,
+		}
+
+		err = validateCreateVolumeParams(ctx, store, params, account.ID)
+		assert.EqualError(tt, err, "svm not found")
+	})
+	t.Run("WhenSvmforPoolIdNotInRightState", func(tt *testing.T) {
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+
+		mockLogger := log.NewLogger()
+		store, err := database.NewTestStorage(mockLogger)
+		if err != nil {
+			tt.Fatalf("Failed to create test storage: %v", err)
+		}
+
+		// Clear the in-memory database
+		err = database.ClearInMemoryDB(store.DB())
+		if err != nil {
+			t.Fatalf("Failed to clean up test storage: %v", err)
+		}
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{UUID: "test-account-uuid"},
+			Name:      "test_account",
+		}
+		err = store.DB().Create(account).Error
+		if err != nil {
+			tt.Fatalf("Failed to create account: %v", err)
+		}
+
+		pool := &datamodel.Pool{
+			BaseModel: datamodel.BaseModel{UUID: "test-pool-uuid"},
+			Name:      "test_pool",
+			AccountID: account.ID,
+			State:     models.LifeCycleStateREADY,
+		}
+
+		err = store.DB().Create(pool).Error
+		if err != nil {
+			tt.Fatalf("Failed to create account: %v", err)
+		}
+
+		svm := &datamodel.Svm{
+			BaseModel: datamodel.BaseModel{UUID: "test-pool-uuid"},
+			Name:      "test_pool",
+			AccountID: account.ID,
+			PoolID:    pool.ID,
+			State:     models.LifeCycleStateDeleted,
+		}
+
+		err = store.DB().Create(svm).Error
+		if err != nil {
+			tt.Fatalf("Failed to create svm: %v", err)
+		}
+
+		params := &common.CreateVolumeParams{
+			Name:         "dummy-name",
+			PoolID:       pool.UUID,
+			QuotaInBytes: minQuotaInBytesVolume + 1,
+		}
+
+		err = validateCreateVolumeParams(ctx, store, params, account.ID)
+		assert.EqualError(tt, err, "svm is not ready")
+	})
+	t.Run("WhenCountOfNodes<2", func(tt *testing.T) {
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+
+		mockLogger := log.NewLogger()
+		store, err := database.NewTestStorage(mockLogger)
+		if err != nil {
+			tt.Fatalf("Failed to create test storage: %v", err)
+		}
+
+		// Clear the in-memory database
+		err = database.ClearInMemoryDB(store.DB())
+		if err != nil {
+			t.Fatalf("Failed to clean up test storage: %v", err)
+		}
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{UUID: "test-account-uuid"},
+			Name:      "test_account",
+		}
+		err = store.DB().Create(account).Error
+		if err != nil {
+			tt.Fatalf("Failed to create account: %v", err)
+		}
+
+		pool := &datamodel.Pool{
+			BaseModel: datamodel.BaseModel{UUID: "test-pool-uuid"},
+			Name:      "test_pool",
+			AccountID: account.ID,
+			State:     models.LifeCycleStateREADY,
+		}
+
+		err = store.DB().Create(pool).Error
+		if err != nil {
+			tt.Fatalf("Failed to create account: %v", err)
+		}
+
+		svm := &datamodel.Svm{
+			BaseModel: datamodel.BaseModel{UUID: "test-pool-uuid"},
+			Name:      "test_pool",
+			AccountID: account.ID,
+			PoolID:    pool.ID,
+			State:     models.LifeCycleStateREADY,
+		}
+
+		err = store.DB().Create(svm).Error
+		if err != nil {
+			tt.Fatalf("Failed to create svm: %v", err)
+		}
+
+		volume := &datamodel.Volume{
+			BaseModel:    datamodel.BaseModel{UUID: "a"},
+			Name:         "a",
+			AccountID:    account.ID,
+			Pool:         pool,
+			PoolID:       pool.ID,
+			State:        models.LifeCycleStateREADY,
+			StateDetails: models.LifeCycleStateAvailableDetails,
+		}
+		err = store.DB().Create(volume).Error
+		assert.NoError(tt, err, "Failed to create volume")
+
+		params := &common.CreateVolumeParams{
+			Name:         "dummy-name",
+			PoolID:       pool.UUID,
+			QuotaInBytes: minQuotaInBytesVolume + 1,
+		}
+
+		err = validateCreateVolumeParams(ctx, store, params, account.ID)
+		assert.EqualError(tt, err, "required count of nodes not found")
+	})
+	t.Run("WhenNodesNotInReadyState", func(tt *testing.T) {
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+
+		mockLogger := log.NewLogger()
+		store, err := database.NewTestStorage(mockLogger)
+		if err != nil {
+			tt.Fatalf("Failed to create test storage: %v", err)
+		}
+
+		// Clear the in-memory database
+		err = database.ClearInMemoryDB(store.DB())
+		if err != nil {
+			t.Fatalf("Failed to clean up test storage: %v", err)
+		}
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{UUID: "test-account-uuid"},
+			Name:      "test_account",
+		}
+		err = store.DB().Create(account).Error
+		if err != nil {
+			tt.Fatalf("Failed to create account: %v", err)
+		}
+
+		pool := &datamodel.Pool{
+			BaseModel: datamodel.BaseModel{UUID: "test-pool-uuid"},
+			Name:      "test_pool",
+			AccountID: account.ID,
+			State:     models.LifeCycleStateREADY,
+		}
+
+		err = store.DB().Create(pool).Error
+		if err != nil {
+			tt.Fatalf("Failed to create account: %v", err)
+		}
+
+		svm := &datamodel.Svm{
+			BaseModel: datamodel.BaseModel{UUID: "test-pool-uuid"},
+			Name:      "test_pool",
+			AccountID: account.ID,
+			PoolID:    pool.ID,
+			State:     models.LifeCycleStateREADY,
+		}
+
+		err = store.DB().Create(svm).Error
+		if err != nil {
+			tt.Fatalf("Failed to create svm: %v", err)
+		}
+
+		node1 := &datamodel.Node{
+			BaseModel:       datamodel.BaseModel{UUID: "test-volume-uuid1"},
+			Name:            "test_node1",
+			AccountID:       account.ID,
+			EndpointAddress: "12.12.12.12",
+			PoolID:          pool.ID,
+			State:           models.LifeCycleStateDeleted,
+		}
+		err = store.DB().Create(node1).Error
+		assert.NoError(tt, err, "Failed to create node")
+
+		node2 := &datamodel.Node{
+			BaseModel:       datamodel.BaseModel{UUID: "test-volume-uuid2"},
+			Name:            "test_node2",
+			AccountID:       account.ID,
+			EndpointAddress: "12.12.12.12",
+			PoolID:          pool.ID,
+			State:           models.LifeCycleStateREADY,
+		}
+		err = store.DB().Create(node2).Error
+		assert.NoError(tt, err, "Failed to create node")
+
+		params := &common.CreateVolumeParams{
+			Name:         "dummy-name",
+			PoolID:       pool.UUID,
+			QuotaInBytes: minQuotaInBytesVolume + 1,
+		}
+
+		err = validateCreateVolumeParams(ctx, store, params, account.ID)
+		assert.EqualError(tt, err, "node is not ready")
+	})
+	t.Run("WhenGetLifForNodeFails", func(tt *testing.T) {
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+
+		mockLogger := log.NewLogger()
+		store, err := database.NewTestStorage(mockLogger)
+		if err != nil {
+			tt.Fatalf("Failed to create test storage: %v", err)
+		}
+
+		// Clear the in-memory database
+		err = database.ClearInMemoryDB(store.DB())
+		if err != nil {
+			t.Fatalf("Failed to clean up test storage: %v", err)
+		}
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{UUID: "test-account-uuid"},
+			Name:      "test_account",
+		}
+		err = store.DB().Create(account).Error
+		if err != nil {
+			tt.Fatalf("Failed to create account: %v", err)
+		}
+
+		pool := &datamodel.Pool{
+			BaseModel: datamodel.BaseModel{UUID: "test-pool-uuid"},
+			Name:      "test_pool",
+			AccountID: account.ID,
+			State:     models.LifeCycleStateREADY,
+		}
+
+		err = store.DB().Create(pool).Error
+		if err != nil {
+			tt.Fatalf("Failed to create account: %v", err)
+		}
+
+		svm := &datamodel.Svm{
+			BaseModel: datamodel.BaseModel{UUID: "test-pool-uuid"},
+			Name:      "test_pool",
+			AccountID: account.ID,
+			PoolID:    pool.ID,
+			State:     models.LifeCycleStateREADY,
+		}
+
+		err = store.DB().Create(svm).Error
+		if err != nil {
+			tt.Fatalf("Failed to create svm: %v", err)
+		}
+
+		node1 := &datamodel.Node{
+			BaseModel:       datamodel.BaseModel{UUID: "test-volume-uuid1"},
+			Name:            "test_node1",
+			AccountID:       account.ID,
+			EndpointAddress: "12.12.12.12",
+			PoolID:          pool.ID,
+			State:           models.LifeCycleStateREADY,
+		}
+		err = store.DB().Create(node1).Error
+		assert.NoError(tt, err, "Failed to create node")
+
+		node2 := &datamodel.Node{
+			BaseModel:       datamodel.BaseModel{UUID: "test-volume-uuid2"},
+			Name:            "test_node2",
+			AccountID:       account.ID,
+			EndpointAddress: "12.12.12.12",
+			PoolID:          pool.ID,
+			State:           models.LifeCycleStateREADY,
+		}
+		err = store.DB().Create(node2).Error
+		assert.NoError(tt, err, "Failed to create node")
+
+		params := &common.CreateVolumeParams{
+			Name:         "dummy-name",
+			PoolID:       pool.UUID,
+			QuotaInBytes: minQuotaInBytesVolume + 1,
+		}
+
+		err = validateCreateVolumeParams(ctx, store, params, account.ID)
+		assert.EqualError(tt, err, "lif not found")
+	})
+	t.Run("WhenGetLifNameNotAvailable", func(tt *testing.T) {
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+
+		mockLogger := log.NewLogger()
+		store, err := database.NewTestStorage(mockLogger)
+		if err != nil {
+			tt.Fatalf("Failed to create test storage: %v", err)
+		}
+
+		// Clear the in-memory database
+		err = database.ClearInMemoryDB(store.DB())
+		if err != nil {
+			t.Fatalf("Failed to clean up test storage: %v", err)
+		}
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{UUID: "test-account-uuid"},
+			Name:      "test_account",
+		}
+		err = store.DB().Create(account).Error
+		if err != nil {
+			tt.Fatalf("Failed to create account: %v", err)
+		}
+
+		pool := &datamodel.Pool{
+			BaseModel: datamodel.BaseModel{UUID: "test-pool-uuid"},
+			Name:      "test_pool",
+			AccountID: account.ID,
+			State:     models.LifeCycleStateREADY,
+		}
+
+		err = store.DB().Create(pool).Error
+		if err != nil {
+			tt.Fatalf("Failed to create account: %v", err)
+		}
+
+		svm := &datamodel.Svm{
+			BaseModel: datamodel.BaseModel{UUID: "test-pool-uuid"},
+			Name:      "test_pool",
+			AccountID: account.ID,
+			PoolID:    pool.ID,
+			State:     models.LifeCycleStateREADY,
+		}
+
+		err = store.DB().Create(svm).Error
+		if err != nil {
+			tt.Fatalf("Failed to create svm: %v", err)
+		}
+
+		node1 := &datamodel.Node{
+			BaseModel:       datamodel.BaseModel{UUID: "test-volume-uuid1"},
+			Name:            "test_node1",
+			AccountID:       account.ID,
+			EndpointAddress: "12.12.12.12",
+			PoolID:          pool.ID,
+			State:           models.LifeCycleStateREADY,
+		}
+		err = store.DB().Create(node1).Error
+		assert.NoError(tt, err, "Failed to create node")
+
+		node2 := &datamodel.Node{
+			BaseModel:       datamodel.BaseModel{UUID: "test-volume-uuid2"},
+			Name:            "test_node2",
+			AccountID:       account.ID,
+			EndpointAddress: "12.12.12.12",
+			PoolID:          pool.ID,
+			State:           models.LifeCycleStateREADY,
+		}
+		err = store.DB().Create(node2).Error
+		assert.NoError(tt, err, "Failed to create node")
+
+		lif := &datamodel.Lif{
+			BaseModel: datamodel.BaseModel{UUID: "test-volume-uuid1"},
+			Name:      "",
+			AccountID: account.ID,
+			IPAddress: "1.1.1.1",
+			NodeID:    node1.ID,
+		}
+		err = store.DB().Create(lif).Error
+		assert.NoError(tt, err, "Failed to create node")
+
+		lif2 := &datamodel.Lif{
+			BaseModel: datamodel.BaseModel{UUID: "test-volume-uuid2"},
+			Name:      "test_node",
+			AccountID: account.ID,
+			IPAddress: "1.1.1.1",
+			NodeID:    node2.ID,
+		}
+		err = store.DB().Create(lif2).Error
+		assert.NoError(tt, err, "Failed to create node")
+
+		params := &common.CreateVolumeParams{
+			Name:         "dummy-name",
+			PoolID:       pool.UUID,
+			QuotaInBytes: minQuotaInBytesVolume + 1,
+		}
+
+		err = validateCreateVolumeParams(ctx, store, params, account.ID)
+		assert.EqualError(tt, err, "lif for node test_node1 is not available")
+	})
+	t.Run("WhenBPAvailableWithNoHG", func(tt *testing.T) {
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+
+		mockLogger := log.NewLogger()
+		store, err := database.NewTestStorage(mockLogger)
+		if err != nil {
+			tt.Fatalf("Failed to create test storage: %v", err)
+		}
+
+		// Clear the in-memory database
+		err = database.ClearInMemoryDB(store.DB())
+		if err != nil {
+			t.Fatalf("Failed to clean up test storage: %v", err)
+		}
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{UUID: "test-account-uuid"},
+			Name:      "test_account",
+		}
+		err = store.DB().Create(account).Error
+		if err != nil {
+			tt.Fatalf("Failed to create account: %v", err)
+		}
+
+		pool := &datamodel.Pool{
+			BaseModel: datamodel.BaseModel{UUID: "test-pool-uuid"},
+			Name:      "test_pool",
+			AccountID: account.ID,
+			State:     models.LifeCycleStateREADY,
+		}
+
+		err = store.DB().Create(pool).Error
+		if err != nil {
+			tt.Fatalf("Failed to create account: %v", err)
+		}
+
+		svm := &datamodel.Svm{
+			BaseModel: datamodel.BaseModel{UUID: "test-pool-uuid"},
+			Name:      "test_pool",
+			AccountID: account.ID,
+			PoolID:    pool.ID,
+			State:     models.LifeCycleStateREADY,
+		}
+
+		err = store.DB().Create(svm).Error
+		if err != nil {
+			tt.Fatalf("Failed to create svm: %v", err)
+		}
+
+		node1 := &datamodel.Node{
+			BaseModel:       datamodel.BaseModel{UUID: "test-volume-uuid1"},
+			Name:            "test_node1",
+			AccountID:       account.ID,
+			EndpointAddress: "12.12.12.12",
+			PoolID:          pool.ID,
+			State:           models.LifeCycleStateREADY,
+		}
+		err = store.DB().Create(node1).Error
+		assert.NoError(tt, err, "Failed to create node")
+
+		node2 := &datamodel.Node{
+			BaseModel:       datamodel.BaseModel{UUID: "test-volume-uuid2"},
+			Name:            "test_node2",
+			AccountID:       account.ID,
+			EndpointAddress: "12.12.12.12",
+			PoolID:          pool.ID,
+			State:           models.LifeCycleStateREADY,
+		}
+		err = store.DB().Create(node2).Error
+		assert.NoError(tt, err, "Failed to create node")
+
+		lif := &datamodel.Lif{
+			BaseModel: datamodel.BaseModel{UUID: "test-volume-uuid1"},
+			Name:      "name",
+			AccountID: account.ID,
+			IPAddress: "1.1.1.1",
+			NodeID:    node1.ID,
+		}
+		err = store.DB().Create(lif).Error
+		assert.NoError(tt, err, "Failed to create node")
+
+		lif2 := &datamodel.Lif{
+			BaseModel: datamodel.BaseModel{UUID: "test-volume-uuid2"},
+			Name:      "test_node",
+			AccountID: account.ID,
+			IPAddress: "1.1.1.1",
+			NodeID:    node2.ID,
+		}
+		err = store.DB().Create(lif2).Error
+		assert.NoError(tt, err, "Failed to create node")
+
+		params := &common.CreateVolumeParams{
+			Name:         "dummy-name",
+			PoolID:       pool.UUID,
+			QuotaInBytes: minQuotaInBytesVolume + 1,
+			BlockProperties: &models.BlockProperties{
+				OSType: "linux",
+			},
+		}
+
+		err = validateCreateVolumeParams(ctx, store, params, account.ID)
+		assert.Nil(tt, err)
+	})
+	t.Run("WhenBPAvailableWithInvalidHG", func(tt *testing.T) {
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+
+		mockLogger := log.NewLogger()
+		store, err := database.NewTestStorage(mockLogger)
+		if err != nil {
+			tt.Fatalf("Failed to create test storage: %v", err)
+		}
+
+		// Clear the in-memory database
+		err = database.ClearInMemoryDB(store.DB())
+		if err != nil {
+			t.Fatalf("Failed to clean up test storage: %v", err)
+		}
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{UUID: "test-account-uuid"},
+			Name:      "test_account",
+		}
+		err = store.DB().Create(account).Error
+		if err != nil {
+			tt.Fatalf("Failed to create account: %v", err)
+		}
+
+		pool := &datamodel.Pool{
+			BaseModel: datamodel.BaseModel{UUID: "test-pool-uuid"},
+			Name:      "test_pool",
+			AccountID: account.ID,
+			State:     models.LifeCycleStateREADY,
+		}
+
+		err = store.DB().Create(pool).Error
+		if err != nil {
+			tt.Fatalf("Failed to create account: %v", err)
+		}
+
+		svm := &datamodel.Svm{
+			BaseModel: datamodel.BaseModel{UUID: "test-pool-uuid"},
+			Name:      "test_pool",
+			AccountID: account.ID,
+			PoolID:    pool.ID,
+			State:     models.LifeCycleStateREADY,
+		}
+
+		err = store.DB().Create(svm).Error
+		if err != nil {
+			tt.Fatalf("Failed to create svm: %v", err)
+		}
+
+		node1 := &datamodel.Node{
+			BaseModel:       datamodel.BaseModel{UUID: "test-volume-uuid1"},
+			Name:            "test_node1",
+			AccountID:       account.ID,
+			EndpointAddress: "12.12.12.12",
+			PoolID:          pool.ID,
+			State:           models.LifeCycleStateREADY,
+		}
+		err = store.DB().Create(node1).Error
+		assert.NoError(tt, err, "Failed to create node")
+
+		node2 := &datamodel.Node{
+			BaseModel:       datamodel.BaseModel{UUID: "test-volume-uuid2"},
+			Name:            "test_node2",
+			AccountID:       account.ID,
+			EndpointAddress: "12.12.12.12",
+			PoolID:          pool.ID,
+			State:           models.LifeCycleStateREADY,
+		}
+		err = store.DB().Create(node2).Error
+		assert.NoError(tt, err, "Failed to create node")
+
+		lif := &datamodel.Lif{
+			BaseModel: datamodel.BaseModel{UUID: "test-volume-uuid1"},
+			Name:      "name",
+			AccountID: account.ID,
+			IPAddress: "1.1.1.1",
+			NodeID:    node1.ID,
+		}
+		err = store.DB().Create(lif).Error
+		assert.NoError(tt, err, "Failed to create node")
+
+		lif2 := &datamodel.Lif{
+			BaseModel: datamodel.BaseModel{UUID: "test-volume-uuid2"},
+			Name:      "test_node",
+			AccountID: account.ID,
+			IPAddress: "1.1.1.1",
+			NodeID:    node2.ID,
+		}
+		err = store.DB().Create(lif2).Error
+		assert.NoError(tt, err, "Failed to create node")
+
+		params := &common.CreateVolumeParams{
+			Name:         "dummy-name",
+			PoolID:       pool.UUID,
+			QuotaInBytes: minQuotaInBytesVolume + 1,
+			BlockProperties: &models.BlockProperties{
+				OSType:         "linux",
+				HostGroupUUIDs: []string{"1"},
+			},
+		}
+
+		err = validateCreateVolumeParams(ctx, store, params, account.ID)
+		assert.EqualError(tt, err, "could not find some of the host groups, please check the hostgroup details and try with valid host group names.")
+	})
+	t.Run("WhenBPAvailableWithInvalidHGState", func(tt *testing.T) {
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+
+		mockLogger := log.NewLogger()
+		store, err := database.NewTestStorage(mockLogger)
+		if err != nil {
+			tt.Fatalf("Failed to create test storage: %v", err)
+		}
+
+		// Clear the in-memory database
+		err = database.ClearInMemoryDB(store.DB())
+		if err != nil {
+			t.Fatalf("Failed to clean up test storage: %v", err)
+		}
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{UUID: "test-account-uuid"},
+			Name:      "test_account",
+		}
+		err = store.DB().Create(account).Error
+		if err != nil {
+			tt.Fatalf("Failed to create account: %v", err)
+		}
+
+		pool := &datamodel.Pool{
+			BaseModel: datamodel.BaseModel{UUID: "test-pool-uuid"},
+			Name:      "test_pool",
+			AccountID: account.ID,
+			State:     models.LifeCycleStateREADY,
+		}
+
+		err = store.DB().Create(pool).Error
+		if err != nil {
+			tt.Fatalf("Failed to create account: %v", err)
+		}
+
+		svm := &datamodel.Svm{
+			BaseModel: datamodel.BaseModel{UUID: "test-pool-uuid"},
+			Name:      "test_pool",
+			AccountID: account.ID,
+			PoolID:    pool.ID,
+			State:     models.LifeCycleStateREADY,
+		}
+
+		err = store.DB().Create(svm).Error
+		if err != nil {
+			tt.Fatalf("Failed to create svm: %v", err)
+		}
+
+		node1 := &datamodel.Node{
+			BaseModel:       datamodel.BaseModel{UUID: "test-volume-uuid1"},
+			Name:            "test_node1",
+			AccountID:       account.ID,
+			EndpointAddress: "12.12.12.12",
+			PoolID:          pool.ID,
+			State:           models.LifeCycleStateREADY,
+		}
+		err = store.DB().Create(node1).Error
+		assert.NoError(tt, err, "Failed to create node")
+
+		node2 := &datamodel.Node{
+			BaseModel:       datamodel.BaseModel{UUID: "test-volume-uuid2"},
+			Name:            "test_node2",
+			AccountID:       account.ID,
+			EndpointAddress: "12.12.12.12",
+			PoolID:          pool.ID,
+			State:           models.LifeCycleStateREADY,
+		}
+		err = store.DB().Create(node2).Error
+		assert.NoError(tt, err, "Failed to create node")
+
+		lif := &datamodel.Lif{
+			BaseModel: datamodel.BaseModel{UUID: "test-volume-uuid1"},
+			Name:      "name",
+			AccountID: account.ID,
+			IPAddress: "1.1.1.1",
+			NodeID:    node1.ID,
+		}
+		err = store.DB().Create(lif).Error
+		assert.NoError(tt, err, "Failed to create node")
+
+		lif2 := &datamodel.Lif{
+			BaseModel: datamodel.BaseModel{UUID: "test-volume-uuid2"},
+			Name:      "test_node",
+			AccountID: account.ID,
+			IPAddress: "1.1.1.1",
+			NodeID:    node2.ID,
+		}
+		err = store.DB().Create(lif2).Error
+		assert.NoError(tt, err, "Failed to create node")
+
+		hg := &datamodel.HostGroup{
+			BaseModel: datamodel.BaseModel{UUID: "testhg"},
+			Name:      "testhg",
+			AccountID: account.ID,
+			State:     models.LifeCycleStateDeleted,
+		}
+		err = store.DB().Create(hg).Error
+		assert.NoError(tt, err, "Failed to create node")
+
+		params := &common.CreateVolumeParams{
+			Name:         "dummy-name",
+			PoolID:       pool.UUID,
+			QuotaInBytes: minQuotaInBytesVolume + 1,
+			BlockProperties: &models.BlockProperties{
+				OSType:         "linux",
+				HostGroupUUIDs: []string{"testhg"},
+			},
+		}
+
+		err = validateCreateVolumeParams(ctx, store, params, account.ID)
+		assert.EqualError(tt, err, "host group testhg is not available")
+	})
+	t.Run("WhenBPAvailableWithRightState", func(tt *testing.T) {
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+
+		mockLogger := log.NewLogger()
+		store, err := database.NewTestStorage(mockLogger)
+		if err != nil {
+			tt.Fatalf("Failed to create test storage: %v", err)
+		}
+
+		// Clear the in-memory database
+		err = database.ClearInMemoryDB(store.DB())
+		if err != nil {
+			t.Fatalf("Failed to clean up test storage: %v", err)
+		}
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{UUID: "test-account-uuid"},
+			Name:      "test_account",
+		}
+		err = store.DB().Create(account).Error
+		if err != nil {
+			tt.Fatalf("Failed to create account: %v", err)
+		}
+
+		pool := &datamodel.Pool{
+			BaseModel: datamodel.BaseModel{UUID: "test-pool-uuid"},
+			Name:      "test_pool",
+			AccountID: account.ID,
+			State:     models.LifeCycleStateREADY,
+		}
+
+		err = store.DB().Create(pool).Error
+		if err != nil {
+			tt.Fatalf("Failed to create account: %v", err)
+		}
+
+		svm := &datamodel.Svm{
+			BaseModel: datamodel.BaseModel{UUID: "test-pool-uuid"},
+			Name:      "test_pool",
+			AccountID: account.ID,
+			PoolID:    pool.ID,
+			State:     models.LifeCycleStateREADY,
+		}
+
+		err = store.DB().Create(svm).Error
+		if err != nil {
+			tt.Fatalf("Failed to create svm: %v", err)
+		}
+
+		node1 := &datamodel.Node{
+			BaseModel:       datamodel.BaseModel{UUID: "test-volume-uuid1"},
+			Name:            "test_node1",
+			AccountID:       account.ID,
+			EndpointAddress: "12.12.12.12",
+			PoolID:          pool.ID,
+			State:           models.LifeCycleStateREADY,
+		}
+		err = store.DB().Create(node1).Error
+		assert.NoError(tt, err, "Failed to create node")
+
+		node2 := &datamodel.Node{
+			BaseModel:       datamodel.BaseModel{UUID: "test-volume-uuid2"},
+			Name:            "test_node2",
+			AccountID:       account.ID,
+			EndpointAddress: "12.12.12.12",
+			PoolID:          pool.ID,
+			State:           models.LifeCycleStateREADY,
+		}
+		err = store.DB().Create(node2).Error
+		assert.NoError(tt, err, "Failed to create node")
+
+		lif := &datamodel.Lif{
+			BaseModel: datamodel.BaseModel{UUID: "test-volume-uuid1"},
+			Name:      "name",
+			AccountID: account.ID,
+			IPAddress: "1.1.1.1",
+			NodeID:    node1.ID,
+		}
+		err = store.DB().Create(lif).Error
+		assert.NoError(tt, err, "Failed to create node")
+
+		lif2 := &datamodel.Lif{
+			BaseModel: datamodel.BaseModel{UUID: "test-volume-uuid2"},
+			Name:      "test_node",
+			AccountID: account.ID,
+			IPAddress: "1.1.1.1",
+			NodeID:    node2.ID,
+		}
+		err = store.DB().Create(lif2).Error
+		assert.NoError(tt, err, "Failed to create node")
+
+		hg := &datamodel.HostGroup{
+			BaseModel: datamodel.BaseModel{UUID: "test-volume-uuid2"},
+			Name:      "testhg",
+			AccountID: account.ID,
+			State:     models.LifeCycleStateREADY,
+		}
+		err = store.DB().Create(hg).Error
+		assert.NoError(tt, err, "Failed to create node")
+
+		params := &common.CreateVolumeParams{
+			Name:         "dummy-name",
+			PoolID:       pool.UUID,
+			QuotaInBytes: minQuotaInBytesVolume + 1,
+			BlockProperties: &models.BlockProperties{
+				OSType:         "linux",
+				HostGroupUUIDs: []string{"test-volume-uuid2"},
+			},
+		}
+
+		err = validateCreateVolumeParams(ctx, store, params, account.ID)
+		assert.Nil(tt, err)
+	})
+}

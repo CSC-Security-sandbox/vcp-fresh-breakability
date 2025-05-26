@@ -104,6 +104,11 @@ func ClearInMemoryDB(db *gorm.DB) error {
 		&datamodel.Pool{},
 		&datamodel.Volume{},
 		&datamodel.Account{},
+		&datamodel.Svm{},
+		&datamodel.Node{},
+		&datamodel.Lif{},
+		&datamodel.HostGroup{},
+		&datamodel.Job{},
 	}
 
 	for _, table := range tables {

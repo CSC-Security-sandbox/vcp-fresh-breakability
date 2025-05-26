@@ -437,20 +437,42 @@ func _getMultipleVolumesFromCVP(ctx context.Context, req *gcpgenserver.VolumeIdL
 }
 
 func _convertVolumeV1betaCVPToModel(in *cvpmodels.VolumeV1beta) gcpgenserver.VolumeV1beta {
+	var deletedAt time.Time
+	if in.Deleted != nil {
+		deletedAt = time.Time(*in.Deleted)
+	}
 	volume := gcpgenserver.VolumeV1beta{
-		ResourceId:         *in.ResourceID,
-		VolumeId:           gcpgenserver.NewOptString(in.VolumeID),
-		Created:            gcpgenserver.NewOptDateTime(time.Time(in.Created)),
-		Deleted:            gcpgenserver.NewOptNilDateTime(time.Time(*in.Deleted)),
-		VolumeState:        gcpgenserver.NewOptVolumeV1betaVolumeState(gcpgenserver.VolumeV1betaVolumeState(in.VolumeState)),
-		VolumeStateDetails: gcpgenserver.NewOptString(in.VolumeStateDetails),
-		CreationToken:      gcpgenserver.NewOptString(*in.CreationToken),
-		UsedBytes:          gcpgenserver.NewOptNilFloat64(*in.UsedBytes),
-		SecurityStyle:      gcpgenserver.NewOptVolumeV1betaSecurityStyle(gcpgenserver.VolumeV1betaSecurityStyle(in.SecurityStyle)),
-		ServiceLevel:       gcpgenserver.NewOptVolumeV1betaServiceLevel(gcpgenserver.VolumeV1betaServiceLevel(in.ServiceLevel)),
-		EncryptionType:     gcpgenserver.NewOptVolumeV1betaEncryptionType(gcpgenserver.VolumeV1betaEncryptionType(in.EncryptionType)),
-		Network:            gcpgenserver.NewOptString(in.Network),
-		Zone:               gcpgenserver.NewOptString(in.Zone),
+		ResourceId:              *in.ResourceID,
+		VolumeId:                gcpgenserver.NewOptString(in.VolumeID),
+		Created:                 gcpgenserver.NewOptDateTime(time.Time(in.Created)),
+		Deleted:                 gcpgenserver.NewOptNilDateTime(deletedAt),
+		VolumeState:             gcpgenserver.NewOptVolumeV1betaVolumeState(gcpgenserver.VolumeV1betaVolumeState(in.VolumeState)),
+		VolumeStateDetails:      gcpgenserver.NewOptString(in.VolumeStateDetails),
+		SecurityStyle:           gcpgenserver.NewOptVolumeV1betaSecurityStyle(gcpgenserver.VolumeV1betaSecurityStyle(in.SecurityStyle)),
+		ServiceLevel:            gcpgenserver.NewOptVolumeV1betaServiceLevel(gcpgenserver.VolumeV1betaServiceLevel(in.ServiceLevel)),
+		EncryptionType:          gcpgenserver.NewOptVolumeV1betaEncryptionType(gcpgenserver.VolumeV1betaEncryptionType(in.EncryptionType)),
+		Network:                 gcpgenserver.NewOptString(in.Network),
+		Zone:                    gcpgenserver.NewOptString(in.Zone),
+		UsedBytes:               utils.SafeFloat64(in.UsedBytes),
+		IsOnPremMigration:       utils.SafeBool(in.IsOnPremMigration),
+		Description:             utils.SafeString(in.Description),
+		KerberosEnabled:         utils.SafeBool(in.KerberosEnabled),
+		LdapEnabled:             utils.SafeBool(in.LdapEnabled),
+		UnixPermissions:         utils.SafeString(in.UnixPermissions),
+		SecondaryZone:           utils.SafeString(in.SecondaryZone),
+		MultipleEndpoints:       utils.SafeBool(in.MultipleEndpoints),
+		LargeCapacity:           utils.SafeBool(in.LargeCapacity),
+		QuotaInBytes:            utils.SafeOptFloat64(in.QuotaInBytes),
+		SnapReserve:             utils.SafeOptFloat64(in.SnapReserve),
+		PoolResourceId:          utils.SafeString(in.PoolResourceID),
+		ActiveDirectoryConfigId: utils.SafeString(in.ActiveDirectoryConfigID),
+		SnapshotDirectory:       utils.GetOptBool(in.SnapshotDirectory),
+		KmsConfigId:             utils.SafeString(in.KmsConfigID),
+		KmsConfigResourceId:     utils.SafeString(in.KmsConfigResourceID),
+		ColdTierSizeGib:         utils.SafeFloat64(in.ColdTierSizeGib),
+		InReplication:           utils.GetOptBool(in.InReplication),
+		IsDataProtection:        utils.GetOptBool(in.IsDataProtection),
+		CreationToken:           utils.GetOptString(in.CreationToken),
 	}
 
 	if in.ExportPolicy != nil {
@@ -458,7 +480,16 @@ func _convertVolumeV1betaCVPToModel(in *cvpmodels.VolumeV1beta) gcpgenserver.Vol
 		if in.ExportPolicy.Rules != nil {
 			exportPolicyV1beta.Rules = make([]gcpgenserver.SimpleExportPolicyRuleV1beta, 0)
 			for _, rule := range in.ExportPolicy.Rules {
-				exportRule := gcpgenserver.SimpleExportPolicyRuleV1beta{}
+				exportRule := gcpgenserver.SimpleExportPolicyRuleV1beta{
+					Kerberos5ReadOnly:   utils.SafeBool(rule.Kerberos5ReadOnly),
+					Kerberos5ReadWrite:  utils.SafeBool(rule.Kerberos5ReadWrite),
+					Kerberos5iReadOnly:  utils.SafeBool(rule.Kerberos5iReadOnly),
+					Kerberos5iReadWrite: utils.SafeBool(rule.Kerberos5iReadWrite),
+					Kerberos5pReadOnly:  utils.SafeBool(rule.Kerberos5pReadOnly),
+					Kerberos5pReadWrite: utils.SafeBool(rule.Kerberos5pReadWrite),
+					Nfsv3:               utils.SafeBool(rule.Nfsv3),
+					Nfsv4:               utils.SafeBool(rule.Nfsv4),
+				}
 				if rule.AccessType != nil {
 					exportRule.AccessType = gcpgenserver.SimpleExportPolicyRuleV1betaAccessType(*rule.AccessType)
 				}
@@ -469,38 +500,6 @@ func _convertVolumeV1betaCVPToModel(in *cvpmodels.VolumeV1beta) gcpgenserver.Vol
 
 				if rule.HasRootAccess != nil {
 					exportRule.HasRootAccess = gcpgenserver.NewOptNilSimpleExportPolicyRuleV1betaHasRootAccess(gcpgenserver.SimpleExportPolicyRuleV1betaHasRootAccess(*rule.HasRootAccess))
-				}
-
-				if rule.Kerberos5ReadOnly != nil {
-					exportRule.Kerberos5ReadOnly = gcpgenserver.NewOptNilBool(*rule.Kerberos5ReadOnly)
-				}
-
-				if rule.Kerberos5ReadWrite != nil {
-					exportRule.Kerberos5ReadWrite = gcpgenserver.NewOptNilBool(*rule.Kerberos5ReadWrite)
-				}
-
-				if rule.Kerberos5iReadOnly != nil {
-					exportRule.Kerberos5iReadOnly = gcpgenserver.NewOptNilBool(*rule.Kerberos5iReadOnly)
-				}
-
-				if rule.Kerberos5iReadWrite != nil {
-					exportRule.Kerberos5iReadWrite = gcpgenserver.NewOptNilBool(*rule.Kerberos5iReadWrite)
-				}
-
-				if rule.Kerberos5pReadOnly != nil {
-					exportRule.Kerberos5pReadOnly = gcpgenserver.NewOptNilBool(*rule.Kerberos5pReadOnly)
-				}
-
-				if rule.Kerberos5pReadWrite != nil {
-					exportRule.Kerberos5pReadWrite = gcpgenserver.NewOptNilBool(*rule.Kerberos5pReadWrite)
-				}
-
-				if rule.Nfsv3 != nil {
-					exportRule.Nfsv3 = gcpgenserver.NewOptNilBool(*rule.Nfsv3)
-				}
-
-				if rule.Nfsv4 != nil {
-					exportRule.Nfsv4 = gcpgenserver.NewOptNilBool(*rule.Nfsv4)
 				}
 
 				exportPolicyV1beta.Rules = append(exportPolicyV1beta.Rules, exportRule)
@@ -517,17 +516,10 @@ func _convertVolumeV1betaCVPToModel(in *cvpmodels.VolumeV1beta) gcpgenserver.Vol
 	}
 
 	if in.BackupConfig != nil {
-		backupConfigV1beta := gcpgenserver.BackupConfigV1beta{}
-		if in.BackupConfig.BackupVaultID != nil {
-			backupConfigV1beta.BackupVaultId = gcpgenserver.NewOptNilString(*in.BackupConfig.BackupVaultID)
-		}
-
-		if in.BackupConfig.BackupPolicyID != nil {
-			backupConfigV1beta.BackupPolicyId = gcpgenserver.NewOptNilString(*in.BackupConfig.BackupPolicyID)
-		}
-
-		if in.BackupConfig.BackupChainBytes != nil {
-			backupConfigV1beta.BackupChainBytes = gcpgenserver.NewOptNilInt64(*in.BackupConfig.BackupChainBytes)
+		backupConfigV1beta := gcpgenserver.BackupConfigV1beta{
+			BackupPolicyId:   utils.SafeString(in.BackupConfig.BackupPolicyID),
+			BackupVaultId:    utils.SafeString(in.BackupConfig.BackupVaultID),
+			BackupChainBytes: utils.SafeInt64(in.BackupConfig.BackupChainBytes),
 		}
 
 		volume.BackupConfig = gcpgenserver.NewOptBackupConfigV1beta(backupConfigV1beta)
@@ -541,10 +533,6 @@ func _convertVolumeV1betaCVPToModel(in *cvpmodels.VolumeV1beta) gcpgenserver.Vol
 		volume.Labels = gcpgenserver.NewOptVolumeV1betaLabels(labels)
 	}
 
-	if in.IsDataProtection != nil {
-		volume.IsDataProtection = gcpgenserver.NewOptBool(*in.IsDataProtection)
-	}
-
 	if in.Protocols != nil {
 		for _, protocol := range in.Protocols {
 			var protocolV1beta gcpgenserver.ProtocolsV1beta
@@ -556,16 +544,8 @@ func _convertVolumeV1betaCVPToModel(in *cvpmodels.VolumeV1beta) gcpgenserver.Vol
 		}
 	}
 
-	if in.IsOnPremMigration != nil {
-		volume.IsOnPremMigration = gcpgenserver.NewOptNilBool(*in.IsOnPremMigration)
-	}
-
 	if in.StorageClass != nil {
 		volume.StorageClass = gcpgenserver.NewOptStorageClassV1beta(gcpgenserver.StorageClassV1beta(*in.StorageClass))
-	}
-
-	if in.Description != nil {
-		volume.Description = gcpgenserver.NewOptNilString(*in.Description)
 	}
 
 	if in.TieringPolicy != nil {
@@ -575,98 +555,43 @@ func _convertVolumeV1betaCVPToModel(in *cvpmodels.VolumeV1beta) gcpgenserver.Vol
 		volume.TieringPolicy = gcpgenserver.NewOptTieringPolicyV1beta(tieringPolicyV1beta)
 	}
 
-	if in.KerberosEnabled != nil {
-		volume.KerberosEnabled = gcpgenserver.NewOptNilBool(*in.KerberosEnabled)
-	}
-
-	if in.InReplication != nil {
-		volume.InReplication = gcpgenserver.NewOptBool(*in.InReplication)
-	}
-
-	if in.LdapEnabled != nil {
-		volume.LdapEnabled = gcpgenserver.NewOptNilBool(*in.LdapEnabled)
-	}
-
-	if in.UnixPermissions != nil {
-		volume.UnixPermissions = gcpgenserver.NewOptNilString(*in.UnixPermissions)
-	}
-	if in.SecondaryZone != nil {
-		volume.SecondaryZone = gcpgenserver.NewOptNilString(*in.SecondaryZone)
-	}
-
-	if in.MultipleEndpoints != nil {
-		volume.MultipleEndpoints = gcpgenserver.NewOptNilBool(*in.MultipleEndpoints)
-	}
-
-	if in.LargeCapacity != nil {
-		volume.LargeCapacity = gcpgenserver.NewOptNilBool(*in.LargeCapacity)
-	}
 	var snapshotPolicy *gcpgenserver.SnapshotPolicyV1beta
 	if in.SnapshotPolicy != nil {
 		if in.SnapshotPolicy.Enabled != nil && *in.SnapshotPolicy.Enabled {
 			var hourlySchedule *gcpgenserver.HourlyScheduleV1beta
 			if in.SnapshotPolicy.HourlySchedule != nil {
-				hourlySchedule = &gcpgenserver.HourlyScheduleV1beta{}
-				if in.SnapshotPolicy.HourlySchedule.Minute != nil {
-					hourlySchedule.Minute = gcpgenserver.NewOptFloat64(*in.SnapshotPolicy.HourlySchedule.Minute)
-				}
-
-				if in.SnapshotPolicy.HourlySchedule.SnapshotsToKeep != nil {
-					hourlySchedule.SnapshotsToKeep = gcpgenserver.NewOptFloat64(*in.SnapshotPolicy.HourlySchedule.SnapshotsToKeep)
+				hourlySchedule = &gcpgenserver.HourlyScheduleV1beta{
+					Minute:          utils.SafeOptFloat64(in.SnapshotPolicy.HourlySchedule.Minute),
+					SnapshotsToKeep: utils.SafeOptFloat64(in.SnapshotPolicy.HourlySchedule.SnapshotsToKeep),
 				}
 			}
 
 			var dailySchedule *gcpgenserver.DailyScheduleV1beta
 			if in.SnapshotPolicy.DailySchedule != nil {
-				dailySchedule = &gcpgenserver.DailyScheduleV1beta{}
-				if in.SnapshotPolicy.DailySchedule.Hour != nil {
-					dailySchedule.Hour = gcpgenserver.NewOptFloat64(*in.SnapshotPolicy.DailySchedule.Hour)
-				}
-
-				if in.SnapshotPolicy.DailySchedule.Minute != nil {
-					dailySchedule.Hour = gcpgenserver.NewOptFloat64(*in.SnapshotPolicy.DailySchedule.Minute)
-				}
-
-				if in.SnapshotPolicy.DailySchedule.SnapshotsToKeep != nil {
-					dailySchedule.Hour = gcpgenserver.NewOptFloat64(*in.SnapshotPolicy.DailySchedule.SnapshotsToKeep)
+				dailySchedule = &gcpgenserver.DailyScheduleV1beta{
+					Hour:            utils.SafeOptFloat64(in.SnapshotPolicy.DailySchedule.Hour),
+					Minute:          utils.SafeOptFloat64(in.SnapshotPolicy.DailySchedule.Minute),
+					SnapshotsToKeep: utils.SafeOptFloat64(in.SnapshotPolicy.DailySchedule.SnapshotsToKeep),
 				}
 			}
 
 			var weeklySchedule *gcpgenserver.WeeklyScheduleV1beta
 			if in.SnapshotPolicy.WeeklySchedule != nil {
 				weeklySchedule = &gcpgenserver.WeeklyScheduleV1beta{
-					Day: gcpgenserver.NewOptString(in.SnapshotPolicy.WeeklySchedule.Day),
-				}
-
-				if in.SnapshotPolicy.WeeklySchedule.Hour != nil {
-					weeklySchedule.Hour = gcpgenserver.NewOptFloat64(*in.SnapshotPolicy.WeeklySchedule.Hour)
-				}
-
-				if in.SnapshotPolicy.WeeklySchedule.Minute != nil {
-					weeklySchedule.Minute = gcpgenserver.NewOptFloat64(*in.SnapshotPolicy.WeeklySchedule.Minute)
-				}
-
-				if in.SnapshotPolicy.WeeklySchedule.SnapshotsToKeep != nil {
-					weeklySchedule.SnapshotsToKeep = gcpgenserver.NewOptFloat64(*in.SnapshotPolicy.WeeklySchedule.SnapshotsToKeep)
+					Day:             gcpgenserver.NewOptString(in.SnapshotPolicy.WeeklySchedule.Day),
+					Hour:            utils.SafeOptFloat64(in.SnapshotPolicy.WeeklySchedule.Hour),
+					Minute:          utils.SafeOptFloat64(in.SnapshotPolicy.WeeklySchedule.Minute),
+					SnapshotsToKeep: utils.SafeOptFloat64(in.SnapshotPolicy.WeeklySchedule.SnapshotsToKeep),
 				}
 			}
 
 			var monthlySchedule *gcpgenserver.MonthlyScheduleV1beta
 			if in.SnapshotPolicy.MonthlySchedule != nil {
 				monthlySchedule = &gcpgenserver.MonthlyScheduleV1beta{
-					DaysOfMonth: gcpgenserver.NewOptString(in.SnapshotPolicy.MonthlySchedule.DaysOfMonth),
-				}
-
-				if in.SnapshotPolicy.MonthlySchedule.Hour != nil {
-					monthlySchedule.Hour = gcpgenserver.NewOptFloat64(*in.SnapshotPolicy.MonthlySchedule.Hour)
-				}
-
-				if in.SnapshotPolicy.MonthlySchedule.Minute != nil {
-					monthlySchedule.Hour = gcpgenserver.NewOptFloat64(*in.SnapshotPolicy.MonthlySchedule.Minute)
-				}
-
-				if in.SnapshotPolicy.MonthlySchedule.SnapshotsToKeep != nil {
-					monthlySchedule.Hour = gcpgenserver.NewOptFloat64(*in.SnapshotPolicy.MonthlySchedule.SnapshotsToKeep)
+					DaysOfMonth:     gcpgenserver.NewOptString(in.SnapshotPolicy.MonthlySchedule.DaysOfMonth),
+					Hour:            utils.SafeOptFloat64(in.SnapshotPolicy.MonthlySchedule.Hour),
+					Minute:          utils.SafeOptFloat64(in.SnapshotPolicy.MonthlySchedule.Minute),
+					SnapshotsToKeep: utils.SafeOptFloat64(in.SnapshotPolicy.MonthlySchedule.SnapshotsToKeep),
 				}
 			}
 
@@ -675,9 +600,7 @@ func _convertVolumeV1betaCVPToModel(in *cvpmodels.VolumeV1beta) gcpgenserver.Vol
 				WeeklySchedule:  gcpgenserver.NewOptWeeklyScheduleV1beta(*weeklySchedule),
 				MonthlySchedule: gcpgenserver.NewOptMonthlyScheduleV1beta(*monthlySchedule),
 				HourlySchedule:  gcpgenserver.NewOptHourlyScheduleV1beta(*hourlySchedule),
-			}
-			if in.SnapshotPolicy.Enabled != nil {
-				snapshotPolicy.Enabled = gcpgenserver.NewOptNilBool(*in.SnapshotPolicy.Enabled)
+				Enabled:         utils.SafeBool(in.SnapshotPolicy.Enabled),
 			}
 		}
 		volume.SnapshotPolicy = gcpgenserver.NewOptSnapshotPolicyV1beta(*snapshotPolicy)
@@ -699,48 +622,8 @@ func _convertVolumeV1betaCVPToModel(in *cvpmodels.VolumeV1beta) gcpgenserver.Vol
 		}
 	}
 
-	if in.UsedBytes != nil {
-		volume.UsedBytes = gcpgenserver.NewOptNilFloat64(*in.UsedBytes)
-	}
-
-	if in.QuotaInBytes != nil {
-		volume.QuotaInBytes = gcpgenserver.NewOptFloat64(*in.QuotaInBytes)
-	}
-
-	if in.SnapReserve != nil {
-		volume.SnapReserve = gcpgenserver.NewOptFloat64(*in.SnapReserve)
-	}
-
 	if in.PoolID != nil {
 		volume.PoolId = gcpgenserver.NewNilString(*in.PoolID)
-	}
-
-	if in.PoolResourceID != nil {
-		volume.PoolResourceId = gcpgenserver.NewOptNilString(*in.PoolResourceID)
-	}
-
-	if in.ActiveDirectoryConfigID != nil {
-		volume.ActiveDirectoryConfigId = gcpgenserver.NewOptNilString(*in.ActiveDirectoryConfigID)
-	}
-
-	if in.ActiveDirectoryResourceID != nil {
-		volume.ActiveDirectoryResourceId = gcpgenserver.NewOptNilString(*in.ActiveDirectoryResourceID)
-	}
-
-	if in.SnapshotDirectory != nil {
-		volume.SnapshotDirectory = gcpgenserver.NewOptBool(*in.SnapshotDirectory)
-	}
-
-	if in.KmsConfigID != nil {
-		volume.KmsConfigId = gcpgenserver.NewOptNilString(*in.KmsConfigID)
-	}
-
-	if in.KmsConfigResourceID != nil {
-		volume.KmsConfigResourceId = gcpgenserver.NewOptNilString(*in.KmsConfigResourceID)
-	}
-
-	if in.ColdTierSizeGib == nil {
-		volume.ColdTierSizeGib = gcpgenserver.NewOptNilFloat64(*in.ColdTierSizeGib)
 	}
 
 	return volume

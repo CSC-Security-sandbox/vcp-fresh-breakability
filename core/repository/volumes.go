@@ -143,7 +143,7 @@ func getVolumeWithDetails(db *gorm.DB, query *datamodel.Volume) (*datamodel.Volu
 	volume := &datamodel.Volume{}
 	err := db.Preload("Account").Preload("Pool").Preload("Svm").First(&volume, query).Error
 	if err != nil {
-		return nil, customerrors.ConvertToNotFoundErrIfContainsMessage(err, "record not found", "host group", &volume.UUID)
+		return nil, customerrors.ConvertToNotFoundErrIfContainsMessage(err, "record not found", "volume", nil)
 	}
 	return volume, nil
 }

@@ -214,6 +214,48 @@ func GetOptDateTime(value *strfmt.DateTime) gcpgenserver.OptDateTime {
 	return gcpgenserver.OptDateTime{}
 }
 
+func SafeString(value *string) gcpgenserver.OptNilString {
+	if value == nil {
+		return gcpgenserver.OptNilString{}
+	}
+	return gcpgenserver.NewOptNilString(*value)
+}
+
+func SafeFloat64(value *float64) gcpgenserver.OptNilFloat64 {
+	if value == nil {
+		return gcpgenserver.OptNilFloat64{}
+	}
+	return gcpgenserver.NewOptNilFloat64(*value)
+}
+
+func SafeInt64(value *int64) gcpgenserver.OptNilInt64 {
+	if value == nil {
+		return gcpgenserver.OptNilInt64{}
+	}
+	return gcpgenserver.NewOptNilInt64(*value)
+}
+
+func SafeInt64ToInt32(value *int64) gcpgenserver.OptNilInt32 {
+	if value == nil {
+		return gcpgenserver.OptNilInt32{}
+	}
+	return gcpgenserver.NewOptNilInt32(int32(*value))
+}
+
+func SafeBool(value *bool) gcpgenserver.OptNilBool {
+	if value == nil {
+		return gcpgenserver.NewOptNilBool(false)
+	}
+	return gcpgenserver.NewOptNilBool(*value)
+}
+
+func SafeOptFloat64(value *float64) gcpgenserver.OptFloat64 {
+	if value == nil {
+		return gcpgenserver.OptFloat64{}
+	}
+	return gcpgenserver.NewOptFloat64(*value)
+}
+
 // _getPairedRegionURI retrieves the URI of the paired region for the given region from a predefined in the configmap.
 // Returns an error if the paired regions are not defined or the region is not found in the mapping.
 func _getPairedRegionURI(region string) (string, error) {

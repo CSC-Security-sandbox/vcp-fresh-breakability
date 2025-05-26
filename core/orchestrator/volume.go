@@ -5,8 +5,6 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
-	"strings"
-
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
@@ -18,7 +16,6 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 	"go.temporal.io/api/enums/v1"
 	"go.temporal.io/sdk/client"
-	"gorm.io/gorm"
 )
 
 var (
@@ -27,6 +24,7 @@ var (
 	createVolume               = _createVolume
 	validateCreateVolumeParams = _validateCreateVolumeParams
 	getIPAddressForVolume      = _getIPAddressForVolume
+	deleteVolume               = _deleteVolume
 )
 
 // CreateVolume creates the specified volume and adds it to the list of volume belonging to the specified owner
@@ -120,9 +118,6 @@ func (o *Orchestrator) GetVolume(ctx context.Context, volumeId string) (*models.
 
 	volume, err := se.GetVolume(ctx, volumeId)
 	if err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, errors.New("volume not found")
-		}
 		return nil, err
 	}
 
@@ -179,9 +174,6 @@ func _validateCreateVolumeParams(ctx context.Context, se database.Storage, param
 
 	nodes, err := se.GetNodesByPoolID(ctx, pool.ID)
 	if err != nil {
-		if strings.Contains(err.Error(), "node not found") {
-			return customerrors.NewUserInputValidationErr("node not found")
-		}
 		return err
 	}
 
@@ -202,41 +194,24 @@ func _validateCreateVolumeParams(ctx context.Context, se database.Storage, param
 		}
 	}
 
-	// if params.BlockProperties != nil {
-	//	hostGroupUUIDs := params.BlockProperties.HostGroupUUIDs
-	//	if len(hostGroupUUIDs) == 0 {
-	//		return customerrors.NewUserInputValidationErr("HostGroup UUIDs are required")
-	//	}
-	//	hostGroups, err := se.GetMultipleHostGroups(ctx, params.BlockProperties.HostGroupUUIDs, pool.Account.ID)
-	//	if err != nil {
-	//		return err
-	//	}
-	//	if len(params.BlockProperties.HostGroupUUIDs) != len(hostGroups) {
-	//		return customerrors.NewUserInputValidationErr("could not find some of the host groups, please check the hostgroup details and try with valid host group names.")
-	//	}
-	//	for _, hostGroup := range hostGroups {
-	//		if hostGroup.State != models.LifeCycleStateREADY {
-	//			return customerrors.NewUserInputValidationErr(fmt.Sprintf("host group %s is not available", hostGroup.Name))
-	//		}
-	//	}
-	// }
+	if params.BlockProperties != nil {
+		hostGroupUUIDs := params.BlockProperties.HostGroupUUIDs
+		if len(hostGroupUUIDs) > 0 {
+			hostGroups, err := se.GetMultipleHostGroups(ctx, params.BlockProperties.HostGroupUUIDs, pool.Account.ID)
+			if err != nil {
+				return err
+			}
+			if len(params.BlockProperties.HostGroupUUIDs) != len(hostGroups) {
+				return customerrors.NewUserInputValidationErr("could not find some of the host groups, please check the hostgroup details and try with valid host group names.")
+			}
+			for _, hostGroup := range hostGroups {
+				if hostGroup.State != models.LifeCycleStateREADY {
+					return customerrors.NewUserInputValidationErr(fmt.Sprintf("host group %s is not available", hostGroup.Name))
+				}
+			}
+		}
+	}
 	return nil
-}
-
-// CreateVolumeParams describes parameters supplied to CreatePool
-type CreateVolumeParams struct {
-	AccountName     string
-	Region          string
-	Name            string
-	Description     string
-	VendorSubnetID  string
-	PoolID          string
-	VendorID        string
-	CreationToken   string
-	DisplayName     string
-	QuotaInBytes    uint64
-	Protocols       []string
-	BlockProperties *models.BlockProperties
 }
 
 func convertDatastoreVolumeToModel(volume *datamodel.Volume, ipAddress *string) *models.Volume {
@@ -276,14 +251,14 @@ func convertDatastoreVolumeToModel(volume *datamodel.Volume, ipAddress *string) 
 }
 
 func (o *Orchestrator) DeleteVolume(ctx context.Context, volumeId string) (*models.Volume, string, error) {
+	return deleteVolume(ctx, o.storage, o.temporal, volumeId)
+}
+
+func _deleteVolume(ctx context.Context, se database.Storage, temporal client.Client, volumeId string) (*models.Volume, string, error) {
 	logger := util.GetLogger(ctx)
-	se := o.storage
 
 	volume, err := se.GetVolume(ctx, volumeId)
 	if err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, "", errors.New("volume not found")
-		}
 		return nil, "", err
 	}
 
@@ -303,7 +278,7 @@ func (o *Orchestrator) DeleteVolume(ctx context.Context, volumeId string) (*mode
 		return nil, "", err
 	}
 
-	_, err = o.temporal.ExecuteWorkflow(ctx,
+	_, err = temporal.ExecuteWorkflow(ctx,
 		client.StartWorkflowOptions{
 			TaskQueue:             workflowengine.CustomerTaskQueue,
 			ID:                    createdJob.WorkflowID,

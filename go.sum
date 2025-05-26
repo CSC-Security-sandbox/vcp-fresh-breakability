@@ -30,8 +30,6 @@ github.com/GoogleCloudPlatform/opentelemetry-operations-go/internal/resourcemapp
 github.com/GoogleCloudPlatform/opentelemetry-operations-go/internal/resourcemapping v0.51.0/go.mod h1:otE2jQekW/PqXk1Awf5lmfokJx4uwuqcj1ab5SpGeW0=
 github.com/Microsoft/go-winio v0.6.2 h1:F2VQgta7ecxGYO8k3ZZz3RS8fVIXVxONVUPlNERoyfY=
 github.com/Microsoft/go-winio v0.6.2/go.mod h1:yd8OoFMLzJbo9gZq8j5qaps8bJ9aShtEA8Ipt1oGCvU=
-github.com/VCP-VSA-control-Plane/temp-vsa-pkg v1.0.2 h1:yJl+bbdurfsdh3DClSQQTx4h97YxiDu43iGAlK511Ic=
-github.com/VCP-VSA-control-Plane/temp-vsa-pkg v1.0.2/go.mod h1:eliKrvY/t9JWxcNFRIssHnVyzwGaFKJ2wc7Mch/NbPY=
 github.com/VCP-VSA-control-Plane/temp-vsa-pkg v1.0.5 h1:BNcLM/IhVPCr24JBig5G+0QJ7NZ7zkhun2IvvDUMDHI=
 github.com/VCP-VSA-control-Plane/temp-vsa-pkg v1.0.5/go.mod h1:eliKrvY/t9JWxcNFRIssHnVyzwGaFKJ2wc7Mch/NbPY=
 github.com/asaskevich/govalidator v0.0.0-20230301143203-a9d515a09cc2 h1:DklsrG3dyBCFEj5IhUbnKptjxatkF07cF2ak3yi77so=

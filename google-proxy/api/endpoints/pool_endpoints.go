@@ -410,64 +410,36 @@ func convertToPoolV1beta(pool *cvpmodels.PoolV1beta) *gcpgenserver.PoolV1beta {
 		DeletedAt:                 gcpgenserver.NewOptNilDateTime(deletedAt),
 		ResourceId:                *pool.ResourceID,
 		Network:                   *pool.Network,
-		AllocatedBytes:            SafeFloat64(pool.AllocatedBytes),
+		AllocatedBytes:            utils.SafeFloat64(pool.AllocatedBytes),
 		SizeInBytes:               *pool.SizeInBytes,
-		TotalThroughputMibps:      SafeFloat64(pool.TotalThroughputMibps),
-		AvailableThroughputMibps:  SafeFloat64(pool.AvailableThroughputMibps),
+		TotalThroughputMibps:      utils.SafeFloat64(pool.TotalThroughputMibps),
+		AvailableThroughputMibps:  utils.SafeFloat64(pool.AvailableThroughputMibps),
 		ServiceLevel:              gcpgenserver.PoolV1betaServiceLevel(*pool.ServiceLevel),
-		TotalIops:                 SafeFloat64(pool.TotalIops),
+		TotalIops:                 utils.SafeFloat64(pool.TotalIops),
 		CustomPerformanceEnabled:  gcpgenserver.NewOptBool(pool.CustomPerformanceEnabled),
 		Zone:                      gcpgenserver.NewOptString(pool.Zone),
 		StorageClass:              gcpgenserver.NewOptStorageClassV1beta(gcpgenserver.StorageClassV1beta(*pool.StorageClass)),
 		StoragePoolState:          gcpgenserver.NewOptPoolV1betaStoragePoolState(gcpgenserver.PoolV1betaStoragePoolState(pool.StoragePoolState)),
-		NumberOfVolumes:           SafeInt64ToInt32(pool.NumberOfVolumes),
+		NumberOfVolumes:           utils.SafeInt64ToInt32(pool.NumberOfVolumes),
 		StoragePoolStateDetails:   gcpgenserver.NewOptString(pool.StateDetails),
-		Description:               SafeString(pool.Description),
-		AllowAutoTiering:          SafeBool(pool.AllowAutoTiering),
-		HotTierSizeInBytes:        SafeFloat64(pool.HotTierSizeInBytes),
-		EnableHotTierAutoResize:   SafeBool(pool.EnableHotTierAutoResize),
-		KmsConfigId:               SafeString(pool.KmsConfigID),
+		Description:               utils.SafeString(pool.Description),
+		AllowAutoTiering:          utils.SafeBool(pool.AllowAutoTiering),
+		HotTierSizeInBytes:        utils.SafeFloat64(pool.HotTierSizeInBytes),
+		EnableHotTierAutoResize:   utils.SafeBool(pool.EnableHotTierAutoResize),
+		KmsConfigId:               utils.SafeString(pool.KmsConfigID),
 		KmsConfigResourceId:       gcpgenserver.NewOptString(pool.KmsConfigResourceID),
-		ActiveDirectoryConfigId:   SafeString(pool.ActiveDirectoryConfigID),
+		ActiveDirectoryConfigId:   utils.SafeString(pool.ActiveDirectoryConfigID),
 		ActiveDirectoryResourceId: gcpgenserver.NewOptString(pool.ActiveDirectoryResourceID),
-		LdapEnabled:               SafeBool(pool.LdapEnabled),
+		LdapEnabled:               utils.SafeBool(pool.LdapEnabled),
 		EncryptionType:            gcpgenserver.NewOptPoolV1betaEncryptionType(gcpgenserver.PoolV1betaEncryptionType(pool.EncryptionType)),
-		GlobalAccessAllowed:       SafeBool(pool.GlobalAccessAllowed),
+		GlobalAccessAllowed:       utils.SafeBool(pool.GlobalAccessAllowed),
 		Labels:                    gcpgenserver.NewOptPoolV1betaLabels(pool.Labels),
 		SecondaryZone:             gcpgenserver.NewOptString(pool.SecondaryZone),
-		QosType:                   SafeString(pool.QosType),
-		SatisfiesPzi:              SafeBool(pool.SatisfiesPzi),
-		SatisfiesPzs:              SafeBool(pool.SatisfiesPzs),
+		QosType:                   utils.SafeString(pool.QosType),
+		SatisfiesPzi:              utils.SafeBool(pool.SatisfiesPzi),
+		SatisfiesPzs:              utils.SafeBool(pool.SatisfiesPzs),
 		AssetLocationMetadata:     gcpgenserver.NewOptNilPoolV1betaAssetLocationMetadata(assetLocationMetadata),
 		// Unified Pool is set false for SDE pools
 		UnifiedPool: gcpgenserver.NewOptBool(false),
 	}
-}
-
-func SafeString(value *string) gcpgenserver.OptNilString {
-	if value == nil {
-		return gcpgenserver.OptNilString{}
-	}
-	return gcpgenserver.NewOptNilString(*value)
-}
-
-func SafeFloat64(value *float64) gcpgenserver.OptNilFloat64 {
-	if value == nil {
-		return gcpgenserver.OptNilFloat64{}
-	}
-	return gcpgenserver.NewOptNilFloat64(*value)
-}
-
-func SafeInt64ToInt32(value *int64) gcpgenserver.OptNilInt32 {
-	if value == nil {
-		return gcpgenserver.OptNilInt32{}
-	}
-	return gcpgenserver.NewOptNilInt32(int32(*value))
-}
-
-func SafeBool(value *bool) gcpgenserver.OptNilBool {
-	if value == nil {
-		return gcpgenserver.NewOptNilBool(false)
-	}
-	return gcpgenserver.NewOptNilBool(*value)
 }

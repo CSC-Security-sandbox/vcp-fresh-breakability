@@ -6,6 +6,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	gcpgenserver "github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/api/gcp-servergen"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 )
 
@@ -216,6 +217,186 @@ func TestConvertToBytes(t *testing.T) {
 			}
 			if got != tt.want {
 				t.Errorf("ConvertToBytes(%v, %v) = %v, want %v", tt.size, tt.unit, got, tt.want)
+			}
+		})
+	}
+}
+
+func TestSafeOptFloat64(t *testing.T) {
+	tests := []struct {
+		name  string
+		input *float64
+		want  gcpgenserver.OptFloat64
+	}{
+		{"NilInput", nil, gcpgenserver.OptFloat64{}},
+		{"ValidInput", func() *float64 { v := 3.14; return &v }(), gcpgenserver.NewOptFloat64(3.14)},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := SafeOptFloat64(tt.input)
+			if got != tt.want {
+				t.Errorf("SafeOptFloat64(%v) = %v, want %v", tt.input, got, tt.want)
+			}
+		})
+	}
+}
+
+func TestSafeBool(t *testing.T) {
+	tests := []struct {
+		name  string
+		input *bool
+		want  gcpgenserver.OptNilBool
+	}{
+		{"NilInput", nil, gcpgenserver.NewOptNilBool(false)},
+		{"ValidInput", func() *bool { v := true; return &v }(), gcpgenserver.NewOptNilBool(true)},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := SafeBool(tt.input)
+			if got != tt.want {
+				t.Errorf("SafeBool(%v) = %v, want %v", tt.input, got, tt.want)
+			}
+		})
+	}
+}
+
+func TestSafeString(t *testing.T) {
+	tests := []struct {
+		name  string
+		input *string
+		want  gcpgenserver.OptNilString
+	}{
+		{"NilInput", nil, gcpgenserver.OptNilString{}},
+		{"ValidInput", func() *string { v := "true"; return &v }(), gcpgenserver.NewOptNilString("true")},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := SafeString(tt.input)
+			if got != tt.want {
+				t.Errorf("SafeBool(%v) = %v, want %v", tt.input, got, tt.want)
+			}
+		})
+	}
+}
+
+func TestSafeFloat64(t *testing.T) {
+	tests := []struct {
+		name  string
+		input *float64
+		want  gcpgenserver.OptNilFloat64
+	}{
+		{"NilInput", nil, gcpgenserver.OptNilFloat64{}},
+		{"ValidInput", func() *float64 { var v float64 = 1; return &v }(), gcpgenserver.NewOptNilFloat64(1)},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := SafeFloat64(tt.input)
+			if got != tt.want {
+				t.Errorf("SafeFloat64(%v) = %v, want %v", tt.input, got, tt.want)
+			}
+		})
+	}
+}
+
+func TestSafeInt64(t *testing.T) {
+	tests := []struct {
+		name  string
+		input *int64
+		want  gcpgenserver.OptNilInt64
+	}{
+		{"NilInput", nil, gcpgenserver.OptNilInt64{}},
+		{"ValidInput", func() *int64 { var v int64 = 1; return &v }(), gcpgenserver.NewOptNilInt64(1)},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := SafeInt64(tt.input)
+			if got != tt.want {
+				t.Errorf("SafeInt64(%v) = %v, want %v", tt.input, got, tt.want)
+			}
+		})
+	}
+}
+
+func TestSafeInt64ToInt32(t *testing.T) {
+	tests := []struct {
+		name  string
+		input *int64
+		want  gcpgenserver.OptNilInt32
+	}{
+		{"NilInput", nil, gcpgenserver.OptNilInt32{}},
+		{"ValidInput", func() *int64 { var v int64 = 1; return &v }(), gcpgenserver.NewOptNilInt32(1)},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := SafeInt64ToInt32(tt.input)
+			if got != tt.want {
+				t.Errorf("SafeInt64ToInt32(%v) = %v, want %v", tt.input, got, tt.want)
+			}
+		})
+	}
+}
+
+func TestGetOptString(t *testing.T) {
+	tests := []struct {
+		name  string
+		input *string
+		want  gcpgenserver.OptString
+	}{
+		{"NilInput", nil, gcpgenserver.OptString{}},
+		{"ValidInput", func() *string { v := "a"; return &v }(), gcpgenserver.NewOptString("a")},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := GetOptString(tt.input)
+			if got != tt.want {
+				t.Errorf("GetOptString(%v) = %v, want %v", tt.input, got, tt.want)
+			}
+		})
+	}
+}
+
+func TestGetOptInt64(t *testing.T) {
+	tests := []struct {
+		name  string
+		input *int64
+		want  gcpgenserver.OptInt64
+	}{
+		{"NilInput", nil, gcpgenserver.OptInt64{}},
+		{"ValidInput", func() *int64 { var v int64 = 1; return &v }(), gcpgenserver.NewOptInt64(1)},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := GetOptInt64(tt.input)
+			if got != tt.want {
+				t.Errorf("GetOptString(%v) = %v, want %v", tt.input, got, tt.want)
+			}
+		})
+	}
+}
+
+func TestGetOptBool(t *testing.T) {
+	tests := []struct {
+		name  string
+		input *bool
+		want  gcpgenserver.OptBool
+	}{
+		{"NilInput", nil, gcpgenserver.OptBool{}},
+		{"ValidInput", func() *bool { var v = true; return &v }(), gcpgenserver.NewOptBool(true)},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := GetOptBool(tt.input)
+			if got != tt.want {
+				t.Errorf("GetOptBool(%v) = %v, want %v", tt.input, got, tt.want)
 			}
 		})
 	}
