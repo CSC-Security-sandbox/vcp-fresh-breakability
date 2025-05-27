@@ -2,13 +2,59 @@ package repository
 
 import (
 	"context"
-	"fmt"
-	"github.com/stretchr/testify/assert"
+	"errors"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	gormwrapper "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/gorm"
+	customerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
+	slogger "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
+	"gorm.io/gorm"
 )
+
+func TestGetHostGroup(t *testing.T) {
+	t.Run("WhenHostGroupNotExists", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err, "Failed to set up test database")
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err, "Failed to clean up test database")
+
+		result, err := store.GetHostGroup(context.Background(), "hg", 1)
+		assert.EqualError(tt, err, "host group not found")
+		assert.Nil(tt, result, "Expected result to be nil")
+	})
+	t.Run("WhenHostGroupExists", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err, "Failed to set up test database")
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err, "Failed to clean up test database")
+
+		hg := &datamodel.HostGroup{
+			BaseModel: datamodel.BaseModel{
+				ID:   1,
+				UUID: "test-hg",
+			},
+			Name:      "test_hg",
+			AccountID: 1,
+		}
+		err = store.db.Create(hg).Error()
+		if err != nil {
+			tt.Fatalf("Failed to create hg: %v", err)
+		}
+
+		result, err := store.GetHostGroup(context.Background(), "test-hg", 1)
+		assert.NoError(tt, err, "Failed to get host group")
+		assert.NotNil(tt, result, "Expected result to be not nil")
+	})
+}
 
 func TestCreateHostGroup(t *testing.T) {
 	t.Run("WhenValidParams", func(tt *testing.T) {
@@ -36,7 +82,8 @@ func TestCreateHostGroup(t *testing.T) {
 
 		_, err = store.CreateHostGroup(ctx, hostGroup)
 		assert.NoError(tt, err, "Expected no error, got %v", err)
-		result, _ := store.GetHostGroup(ctx, hostGroup.UUID, account.ID)
+		result, err := store.GetHostGroup(ctx, hostGroup.UUID, account.ID)
+		assert.NoError(tt, err, "Expected no error, got %v", err)
 		assert.Equal(tt, hostGroup.Name, result.Name)
 		assert.NotEmpty(tt, result.UUID)
 	})
@@ -61,8 +108,43 @@ func TestCreateHostGroup(t *testing.T) {
 			Name:      "duplicate_hostgroup",
 			AccountID: account.ID,
 		}
+		err = store.db.Create(hostGroup).Error()
+		assert.NoError(tt, err, "Failed to create hostGroup")
+
 		_, err = store.CreateHostGroup(ctx, hostGroup)
-		assert.NoError(tt, err, "Failed to create host group")
+		assert.EqualError(tt, err, "hostgroup already exists")
+	})
+	t.Run("WithHostGroupReturnsError", func(tt *testing.T) {
+		ctx := context.Background()
+		db, err := SetupTestDB()
+		assert.NoError(tt, err, "Failed to set up test database")
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err, "Failed to clean up test database")
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{UUID: "test-account-uuid"},
+			Name:      "test_account",
+		}
+		err = store.db.Create(account).Error()
+		assert.NoError(tt, err, "Failed to create account")
+
+		hostGroup := &datamodel.HostGroup{
+			Name:      "duplicate_hostgroup",
+			AccountID: account.ID,
+		}
+		err = store.db.Create(hostGroup).Error()
+		assert.NoError(tt, err, "Failed to create hostGroup")
+
+		defer func() {
+			getHostGroupWithDetails = _getHostGroupWithDetails
+		}()
+
+		getHostGroupWithDetails = func(db *gorm.DB, hostGroup *datamodel.HostGroup) (*datamodel.HostGroup, error) {
+			return nil, customerrors.New("some error occurred")
+		}
 
 		_, err = store.CreateHostGroup(ctx, hostGroup)
 		assert.EqualError(tt, err, "hostgroup already exists")
@@ -109,7 +191,7 @@ func TestGetHostGroupWithDetails(t *testing.T) {
 		}
 
 		_, err = getHostGroupWithDetails(wrapper.GORM(), hostGroup)
-		assert.EqualError(tt, err, fmt.Sprintf("host group '%s' not found", hostGroup.UUID))
+		assert.EqualError(tt, err, "host group not found")
 	})
 }
 
@@ -203,5 +285,316 @@ func TestGetMultipleHostGroups(t *testing.T) {
 
 		_, err = store.GetMultipleHostGroups(ctx, []string{"test-hostgroup-uuid1"}, 999) // Invalid account ID
 		assert.Error(tt, err, "record not found")
+	})
+}
+
+func TestDeleteHostGroup(t *testing.T) {
+	t.Run("WhenHostGroupNotExists", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err, "Failed to set up test database")
+		store := NewDataStoreRepository(gormwrapper.New(db))
+
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err, "Failed to clean up test database")
+
+		getHostGroupWithDetails = func(db *gorm.DB, hostGroup *datamodel.HostGroup) (*datamodel.HostGroup, error) {
+			return nil, customerrors.NewNotFoundErr("host group", nil)
+		}
+
+		defer func() { getHostGroupWithDetails = _getHostGroupWithDetails }()
+		result, err := store.DeleteHostGroup(context.Background(), "hg1", 1)
+		assert.EqualError(tt, err, "host group not found")
+		assert.Nil(tt, result, "Expected result to be nil")
+	})
+	t.Run("WhenHostGroupExists", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err, "Failed to set up test database")
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err, "Failed to clean up test database")
+
+		hg := &datamodel.HostGroup{
+			BaseModel: datamodel.BaseModel{
+				ID:   1,
+				UUID: "test-hg1",
+			},
+			Name:      "test_hg",
+			AccountID: 1,
+			State:     models.LifeCycleStateREADY,
+		}
+		err = store.db.Create(hg).Error()
+		if err != nil {
+			tt.Fatalf("Failed to create hg: %v", err)
+		}
+
+		getHostGroupWithDetails = func(db *gorm.DB, hostGroup *datamodel.HostGroup) (*datamodel.HostGroup, error) {
+			return hg, nil
+		}
+		isHostGroupInUse = func(db *gorm.DB, hostGroupUUID string, accountID int64) (bool, error) {
+			return false, nil
+		}
+
+		defer func() {
+			getHostGroupWithDetails = _getHostGroupWithDetails
+			isHostGroupInUse = _isHostGroupInUse
+		}()
+
+		result, err := store.DeleteHostGroup(context.Background(), "test-hg1", 1)
+		assert.NoError(tt, err, "Failed to get host group")
+		assert.Equal(tt, result.State, models.LifeCycleStateDeleted, "Expected result to be nil")
+	})
+	t.Run("WhenHostGroupExistsAndInUse", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err, "Failed to set up test database")
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err, "Failed to clean up test database")
+
+		hg := &datamodel.HostGroup{
+			BaseModel: datamodel.BaseModel{
+				ID:   1,
+				UUID: "test-hg1",
+			},
+			Name:      "test_hg",
+			AccountID: 1,
+			State:     models.LifeCycleStateREADY,
+		}
+		err = store.db.Create(hg).Error()
+		if err != nil {
+			tt.Fatalf("Failed to create hg: %v", err)
+		}
+
+		getHostGroupWithDetails = func(db *gorm.DB, hostGroup *datamodel.HostGroup) (*datamodel.HostGroup, error) {
+			return hg, nil
+		}
+		isHostGroupInUse = func(db *gorm.DB, hostGroupUUID string, accountID int64) (bool, error) {
+			return true, nil
+		}
+
+		defer func() {
+			getHostGroupWithDetails = _getHostGroupWithDetails
+			isHostGroupInUse = _isHostGroupInUse
+		}()
+
+		result, err := store.DeleteHostGroup(context.Background(), "test-hg1", 1)
+		assert.EqualError(tt, err, "host group is in use by one or more volumes")
+		assert.Nil(tt, result)
+	})
+	t.Run("WhenHostGroupExistsAndInUseReturnsError", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err, "Failed to set up test database")
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err, "Failed to clean up test database")
+
+		hg := &datamodel.HostGroup{
+			BaseModel: datamodel.BaseModel{
+				ID:   1,
+				UUID: "test-hg1",
+			},
+			Name:      "test_hg",
+			AccountID: 1,
+			State:     models.LifeCycleStateREADY,
+		}
+		err = store.db.Create(hg).Error()
+		if err != nil {
+			tt.Fatalf("Failed to create hg: %v", err)
+		}
+
+		getHostGroupWithDetails = func(db *gorm.DB, hostGroup *datamodel.HostGroup) (*datamodel.HostGroup, error) {
+			return hg, nil
+		}
+		isHostGroupInUse = func(db *gorm.DB, hostGroupUUID string, accountID int64) (bool, error) {
+			return true, errors.New("some error occurred")
+		}
+
+		defer func() {
+			getHostGroupWithDetails = _getHostGroupWithDetails
+			isHostGroupInUse = _isHostGroupInUse
+		}()
+
+		result, err := store.DeleteHostGroup(context.Background(), "test-hg1", 1)
+		assert.EqualError(tt, err, "some error occurred")
+		assert.Nil(tt, result)
+	})
+}
+
+func TestUpdateHostGroupsState(t *testing.T) {
+	t.Run("WhenHostGroupNotExists", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err, "Failed to set up test database")
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err, "Failed to clean up test database")
+
+		getMultipleHostGroups = func(db *gorm.DB, hostGroupUUID []string, accountID int64) ([]*datamodel.HostGroup, error) {
+			return nil, customerrors.NewNotFoundErr("host group", nil)
+		}
+
+		defer func() { getMultipleHostGroups = _getMultipleHostGroups }()
+
+		err = store.UpdateHostGroupsState(context.Background(), []string{"hg1"}, 1, models.LifeCycleStateREADY, "")
+		assert.EqualError(tt, err, "host group not found")
+	})
+	t.Run("WhenHostGroupsExistsAndUpdateSucceeds", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err, "Failed to set up test database")
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err, "Failed to clean up test database")
+
+		hg1 := &datamodel.HostGroup{
+			BaseModel: datamodel.BaseModel{
+				ID:   1,
+				UUID: "test-hg1",
+			},
+			Name:      "test_hg",
+			AccountID: 1,
+			State:     models.LifeCycleStateREADY,
+		}
+		err = store.db.Create(hg1).Error()
+		if err != nil {
+			tt.Fatalf("Failed to create hg: %v", err)
+		}
+
+		hg2 := &datamodel.HostGroup{
+			BaseModel: datamodel.BaseModel{
+				ID:   2,
+				UUID: "test-hg2",
+			},
+			Name:      "test_hg",
+			AccountID: 1,
+			State:     models.LifeCycleStateREADY,
+		}
+		err = store.db.Create(hg2).Error()
+		if err != nil {
+			tt.Fatalf("Failed to create hg: %v", err)
+		}
+
+		startTransaction = func(db1 *gorm.DB) (*gorm.DB, error) {
+			return db, nil
+		}
+		commitOrRollbackOnError = func(log slogger.Logger, tx *gorm.DB, err *error) {}
+		defer func() {
+			startTransaction = _startTransaction
+			commitOrRollbackOnError = _commitOrRollbackOnError
+			getMultipleHostGroups = _getMultipleHostGroups
+		}()
+
+		getMultipleHostGroups = func(db *gorm.DB, hostGroupUUID []string, accountID int64) ([]*datamodel.HostGroup, error) {
+			return []*datamodel.HostGroup{hg1, hg2}, nil
+		}
+
+		err = store.UpdateHostGroupsState(context.Background(), []string{"hg1"}, 1, models.LifeCycleStateDeleted, "")
+		assert.NoError(tt, err, "Failed to get host group")
+	})
+}
+
+func TestIsHostGroupInUse(t *testing.T) {
+	t.Run("WhenIsHostGroupInUseFalse", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err, "Failed to set up test database")
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err, "Failed to clean up test database")
+
+		hg1 := &datamodel.HostGroup{
+			BaseModel: datamodel.BaseModel{
+				ID:   1,
+				UUID: "test-hg1",
+			},
+			Name:      "test_hg",
+			AccountID: 1,
+			State:     models.LifeCycleStateREADY,
+		}
+		err = store.db.Create(hg1).Error()
+		if err != nil {
+			tt.Fatalf("Failed to create hg: %v", err)
+		}
+
+		volumeWithHG = func(db *gorm.DB, hostGroupUUID string, accountID int64) error {
+			return gorm.ErrRecordNotFound
+		}
+
+		defer func() { volumeWithHG = _volumeWithHG }()
+		inUse, err := isHostGroupInUse(store.db.GORM(), hg1.UUID, hg1.AccountID)
+		assert.NoError(tt, err, "Failed to get host group")
+		assert.False(tt, inUse, "Expected host group to not be in use")
+	})
+	t.Run("WhenIsHostGroupInUseTrue", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err, "Failed to set up test database")
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err, "Failed to clean up test database")
+
+		hg1 := &datamodel.HostGroup{
+			BaseModel: datamodel.BaseModel{
+				ID:   1,
+				UUID: "test-hg1",
+			},
+			Name:      "test_hg",
+			AccountID: 1,
+			State:     models.LifeCycleStateREADY,
+		}
+		err = store.db.Create(hg1).Error()
+		if err != nil {
+			tt.Fatalf("Failed to create hg: %v", err)
+		}
+
+		volumeWithHG = func(db *gorm.DB, hostGroupUUID string, accountID int64) error {
+			return nil
+		}
+
+		defer func() { volumeWithHG = _volumeWithHG }()
+		inUse, err := isHostGroupInUse(store.db.GORM(), hg1.UUID, hg1.AccountID)
+		assert.NoError(tt, err, "Failed to get host group")
+		assert.True(tt, inUse, "Expected host group to not be in use")
+	})
+	t.Run("WhenIsHostGroupInUseReturnsError", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err, "Failed to set up test database")
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err, "Failed to clean up test database")
+
+		hg1 := &datamodel.HostGroup{
+			BaseModel: datamodel.BaseModel{
+				ID:   1,
+				UUID: "test-hg1",
+			},
+			Name:      "test_hg",
+			AccountID: 1,
+			State:     models.LifeCycleStateREADY,
+		}
+		err = store.db.Create(hg1).Error()
+		if err != nil {
+			tt.Fatalf("Failed to create hg: %v", err)
+		}
+
+		volumeWithHG = func(db *gorm.DB, hostGroupUUID string, accountID int64) error {
+			return errors.New("some error occurred")
+		}
+
+		defer func() { volumeWithHG = _volumeWithHG }()
+		inUse, err := isHostGroupInUse(store.db.GORM(), hg1.UUID, hg1.AccountID)
+		assert.EqualError(tt, err, "some error occurred")
+		assert.True(tt, inUse, "Expected host group to not be in use")
 	})
 }

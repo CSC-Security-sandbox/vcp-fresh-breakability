@@ -10,10 +10,12 @@ import (
 
 var (
 	commitOrRollbackTransaction = _commitOrRollbackTransaction
+	startTransaction            = _startTransaction
+	commitOrRollbackOnError     = _commitOrRollbackOnError
 )
 
 // startTransaction starts a new transaction
-func startTransaction(db *gorm.DB) (*gorm.DB, error) {
+func _startTransaction(db *gorm.DB) (*gorm.DB, error) {
 	if db == nil {
 		return nil, errors.New("DB connection is closed")
 	}
@@ -25,7 +27,7 @@ func startTransaction(db *gorm.DB) (*gorm.DB, error) {
 }
 
 // commitOrRollbackTransaction commits or rollbacks the transaction
-func commitOrRollbackOnError(log slogger.Logger, tx *gorm.DB, err *error) {
+func _commitOrRollbackOnError(log slogger.Logger, tx *gorm.DB, err *error) {
 	if r := recover(); r != nil {
 		*err = fmt.Errorf("panic: %v", r)
 	}

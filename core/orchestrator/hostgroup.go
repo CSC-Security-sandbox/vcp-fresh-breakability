@@ -2,15 +2,16 @@ package orchestrator
 
 import (
 	"context"
-
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database"
 )
 
 var (
-	createHostGroup = _createHostGroup
-	getHostGroup    = _getHostGroup
+	createHostGroup      = _createHostGroup
+	getHostGroup         = _getHostGroup
+	deleteHostGroup      = _deleteHostGroup
+	getMultipleHostGroup = _getMultipleHostGroup
 )
 
 type CreateHostGroupParams struct {
@@ -88,4 +89,47 @@ func convertDatastoreHostGroupToModel(hostGroup *datamodel.HostGroup, accountNam
 		Hosts:         hostGroup.Hosts.Hosts,
 		HostGroupType: hostGroup.HostGroupType,
 	}
+}
+
+// DeleteHostGroup deletes the host group with the specified UUID
+func (o *Orchestrator) DeleteHostGroup(ctx context.Context, accountName string, hostGroupUUID string) (*models.HostGroup, error) {
+	return deleteHostGroup(ctx, o.storage, hostGroupUUID, accountName)
+}
+
+func _deleteHostGroup(ctx context.Context, storage database.Storage, hostGroupUUID string, accountID string) (*models.HostGroup, error) {
+	account, err := storage.GetAccount(ctx, accountID)
+	if err != nil {
+		return nil, err
+	}
+
+	hostGroup, err := storage.DeleteHostGroup(ctx, hostGroupUUID, account.ID)
+	if err != nil {
+		return nil, err
+	}
+
+	return convertDatastoreHostGroupToModel(hostGroup, account.Name), nil
+}
+
+// GetMultipleHostGroups retrieves the specified host group UUID and returns it
+func (o *Orchestrator) GetMultipleHostGroups(ctx context.Context, accountName string, hostGroupUUIDs []string) ([]*models.HostGroup, error) {
+	return getMultipleHostGroup(ctx, o.storage, hostGroupUUIDs, accountName)
+}
+
+func _getMultipleHostGroup(ctx context.Context, storage database.Storage, hostGroupUUIDs []string, accountID string) ([]*models.HostGroup, error) {
+	account, err := storage.GetAccount(ctx, accountID)
+	if err != nil {
+		return nil, err
+	}
+
+	hostGroups, err := storage.GetMultipleHostGroups(ctx, hostGroupUUIDs, account.ID)
+	if err != nil {
+		return nil, err
+	}
+
+	convHostGroups := make([]*models.HostGroup, 0)
+	for _, hg := range hostGroups {
+		convHostGroups = append(convHostGroups, convertDatastoreHostGroupToModel(hg, account.Name))
+	}
+
+	return convHostGroups, nil
 }

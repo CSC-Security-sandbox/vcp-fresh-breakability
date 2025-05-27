@@ -3,6 +3,7 @@ package api
 import (
 	"context"
 	"encoding/json"
+
 	"github.com/go-faster/jx"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator"
@@ -29,6 +30,15 @@ func (h Handler) V1betaDescribeHostGroup(ctx context.Context, params gcpgenserve
 
 func (h Handler) V1betaCreateHostGroup(ctx context.Context, req *gcpgenserver.HostGroupV1beta, params gcpgenserver.V1betaCreateHostGroupParams) (gcpgenserver.V1betaCreateHostGroupRes, error) {
 	logger := util.GetLogger(ctx)
+
+	// Validate the location
+	_, _, parsingErr := parseAndValidateRegionAndZone(params.LocationId)
+	if parsingErr != nil {
+		return &gcpgenserver.V1betaCreateHostGroupBadRequest{
+			Code:    parsingErr.Code,
+			Message: parsingErr.Message,
+		}, nil
+	}
 
 	createParams := &orchestrator.CreateHostGroupParams{
 		Name:      req.ResourceId,
@@ -103,4 +113,62 @@ func convertToHostGroupV1Beta(hostGroup *models.HostGroup) *gcpgenserver.HostGro
 	}
 
 	return hostGroupV1Beta
+}
+
+func (h Handler) V1betaDeleteHostGroup(ctx context.Context, params gcpgenserver.V1betaDeleteHostGroupParams) (gcpgenserver.V1betaDeleteHostGroupRes, error) {
+	logger := util.GetLogger(ctx)
+
+	// Validate the location
+	_, _, parsingErr := parseAndValidateRegionAndZone(params.LocationId)
+	if parsingErr != nil {
+		return &gcpgenserver.V1betaDeleteHostGroupBadRequest{
+			Code:    parsingErr.Code,
+			Message: parsingErr.Message,
+		}, nil
+	}
+	_, err := h.Orchestrator.GetHostGroup(ctx, params.HostGroupId, params.ProjectNumber)
+	if err != nil {
+		if customerrors.IsNotFoundErr(err) {
+			return &gcpgenserver.V1betaDeleteHostGroupNoContent{}, nil
+		}
+		logger.Error("Failed to delete hostgroup", "error", err.Error())
+		return &gcpgenserver.V1betaDeleteHostGroupInternalServerError{
+			Code:    500,
+			Message: "Internal server error",
+		}, err
+	}
+
+	_, err = h.Orchestrator.DeleteHostGroup(ctx, params.ProjectNumber, params.HostGroupId)
+	if err != nil {
+		if customerrors.IsUserInputValidationErr(err) {
+			return &gcpgenserver.V1betaDeleteHostGroupBadRequest{
+				Code:    400,
+				Message: err.Error(),
+			}, nil
+		}
+		logger.Error("Failed to delete hostgroup", "error", err.Error())
+		return &gcpgenserver.V1betaDeleteHostGroupInternalServerError{
+			Code:    500,
+			Message: "Internal server error",
+		}, err
+	}
+	return &gcpgenserver.V1betaDeleteHostGroupNoContent{}, nil
+}
+
+func (h Handler) V1betaGetMultipleHostGroups(ctx context.Context, req *gcpgenserver.HostGroupIdListV1beta, params gcpgenserver.V1betaGetMultipleHostGroupsParams) (gcpgenserver.V1betaGetMultipleHostGroupsRes, error) {
+	logger := util.GetLogger(ctx)
+	hg, err := h.Orchestrator.GetMultipleHostGroups(ctx, params.ProjectNumber, req.HostGroupUuids)
+	if err != nil {
+		logger.Error("Failed to get multiple hostgroup", "error", err.Error())
+		return &gcpgenserver.V1betaGetMultipleHostGroupsInternalServerError{
+			Code:    500,
+			Message: "Internal server error",
+		}, err
+	}
+
+	resp := &gcpgenserver.V1betaGetMultipleHostGroupsOK{}
+	for _, hostGroup := range hg {
+		resp.HostGroups = append(resp.HostGroups, *convertToHostGroupV1Beta(hostGroup))
+	}
+	return resp, nil
 }

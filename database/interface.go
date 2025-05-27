@@ -96,6 +96,9 @@ type DataStore interface {
 	CreateHostGroup(ctx context.Context, hostGroup *datamodel.HostGroup) (*datamodel.HostGroup, error)
 	GetHostGroup(ctx context.Context, id string, accountID int64) (*datamodel.HostGroup, error)
 	GetMultipleHostGroups(ctx context.Context, ids []string, accountID int64) ([]*datamodel.HostGroup, error)
+	DeleteHostGroup(ctx context.Context, hostGroupUUID string, accountID int64) (*datamodel.HostGroup, error)
+	UpdateHostGroupsState(ctx context.Context, hostGroupUUID []string, accountID int64, state string, stateDetails string) error
+
 	GetLifByNodeID(ctx context.Context, nodeID int64, accountID int64) (*datamodel.Lif, error)
 	DeleteLif(ctx context.Context, lif *datamodel.Lif) error
 	DeleteNode(ctx context.Context, node *datamodel.Node) error

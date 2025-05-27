@@ -28,6 +28,8 @@ func ClearInMemoryDB(db *gorm.DB) error {
 		&datamodel.Volume{},
 		&datamodel.HostGroup{},
 		&datamodel.Account{},
+		&datamodel.Svm{},
+		&datamodel.HostGroup{},
 		&datamodel.VolumeReplication{},
 		&datamodel.Node{},
 		&datamodel.Svm{},

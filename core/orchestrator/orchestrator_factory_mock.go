@@ -216,6 +216,66 @@ func (_c *MockOrchestratorFactory_CreateVolume_Call) RunAndReturn(run func(conte
 	return _c
 }
 
+// DeleteHostGroup provides a mock function with given fields: ctx, hostGroupUUID, accountID
+func (_m *MockOrchestratorFactory) DeleteHostGroup(ctx context.Context, hostGroupUUID string, accountID string) (*models.HostGroup, error) {
+	ret := _m.Called(ctx, hostGroupUUID, accountID)
+
+	if len(ret) == 0 {
+		panic("no return value specified for DeleteHostGroup")
+	}
+
+	var r0 *models.HostGroup
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, string, string) (*models.HostGroup, error)); ok {
+		return rf(ctx, hostGroupUUID, accountID)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, string, string) *models.HostGroup); ok {
+		r0 = rf(ctx, hostGroupUUID, accountID)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*models.HostGroup)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, string, string) error); ok {
+		r1 = rf(ctx, hostGroupUUID, accountID)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockOrchestratorFactory_DeleteHostGroup_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'DeleteHostGroup'
+type MockOrchestratorFactory_DeleteHostGroup_Call struct {
+	*mock.Call
+}
+
+// DeleteHostGroup is a helper method to define mock.On call
+//   - ctx context.Context
+//   - hostGroupUUID string
+//   - accountID string
+func (_e *MockOrchestratorFactory_Expecter) DeleteHostGroup(ctx interface{}, hostGroupUUID interface{}, accountID interface{}) *MockOrchestratorFactory_DeleteHostGroup_Call {
+	return &MockOrchestratorFactory_DeleteHostGroup_Call{Call: _e.mock.On("DeleteHostGroup", ctx, hostGroupUUID, accountID)}
+}
+
+func (_c *MockOrchestratorFactory_DeleteHostGroup_Call) Run(run func(ctx context.Context, hostGroupUUID string, accountID string)) *MockOrchestratorFactory_DeleteHostGroup_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(string), args[2].(string))
+	})
+	return _c
+}
+
+func (_c *MockOrchestratorFactory_DeleteHostGroup_Call) Return(_a0 *models.HostGroup, _a1 error) *MockOrchestratorFactory_DeleteHostGroup_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockOrchestratorFactory_DeleteHostGroup_Call) RunAndReturn(run func(context.Context, string, string) (*models.HostGroup, error)) *MockOrchestratorFactory_DeleteHostGroup_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // DeletePool provides a mock function with given fields: ctx, params
 func (_m *MockOrchestratorFactory) DeletePool(ctx context.Context, params *common.DeletePoolParams) (*models.Pool, string, error) {
 	ret := _m.Called(ctx, params)
@@ -463,6 +523,66 @@ func (_c *MockOrchestratorFactory_GetJob_Call) Return(_a0 *models.Job, _a1 error
 }
 
 func (_c *MockOrchestratorFactory_GetJob_Call) RunAndReturn(run func(context.Context, string) (*models.Job, error)) *MockOrchestratorFactory_GetJob_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// GetMultipleHostGroups provides a mock function with given fields: ctx, accountName, hostGroupUUIDs
+func (_m *MockOrchestratorFactory) GetMultipleHostGroups(ctx context.Context, accountName string, hostGroupUUIDs []string) ([]*models.HostGroup, error) {
+	ret := _m.Called(ctx, accountName, hostGroupUUIDs)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetMultipleHostGroups")
+	}
+
+	var r0 []*models.HostGroup
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, string, []string) ([]*models.HostGroup, error)); ok {
+		return rf(ctx, accountName, hostGroupUUIDs)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, string, []string) []*models.HostGroup); ok {
+		r0 = rf(ctx, accountName, hostGroupUUIDs)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]*models.HostGroup)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, string, []string) error); ok {
+		r1 = rf(ctx, accountName, hostGroupUUIDs)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockOrchestratorFactory_GetMultipleHostGroups_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetMultipleHostGroups'
+type MockOrchestratorFactory_GetMultipleHostGroups_Call struct {
+	*mock.Call
+}
+
+// GetMultipleHostGroups is a helper method to define mock.On call
+//   - ctx context.Context
+//   - accountName string
+//   - hostGroupUUIDs []string
+func (_e *MockOrchestratorFactory_Expecter) GetMultipleHostGroups(ctx interface{}, accountName interface{}, hostGroupUUIDs interface{}) *MockOrchestratorFactory_GetMultipleHostGroups_Call {
+	return &MockOrchestratorFactory_GetMultipleHostGroups_Call{Call: _e.mock.On("GetMultipleHostGroups", ctx, accountName, hostGroupUUIDs)}
+}
+
+func (_c *MockOrchestratorFactory_GetMultipleHostGroups_Call) Run(run func(ctx context.Context, accountName string, hostGroupUUIDs []string)) *MockOrchestratorFactory_GetMultipleHostGroups_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(string), args[2].([]string))
+	})
+	return _c
+}
+
+func (_c *MockOrchestratorFactory_GetMultipleHostGroups_Call) Return(_a0 []*models.HostGroup, _a1 error) *MockOrchestratorFactory_GetMultipleHostGroups_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockOrchestratorFactory_GetMultipleHostGroups_Call) RunAndReturn(run func(context.Context, string, []string) ([]*models.HostGroup, error)) *MockOrchestratorFactory_GetMultipleHostGroups_Call {
 	_c.Call.Return(run)
 	return _c
 }

@@ -19,6 +19,8 @@ type OrchestratorFactory interface {
 
 	CreateHostGroup(ctx context.Context, params *CreateHostGroupParams) (*models.HostGroup, error)
 	GetHostGroup(ctx context.Context, hostGroupUUID string, accountID string) (*models.HostGroup, error)
+	DeleteHostGroup(ctx context.Context, hostGroupUUID string, accountID string) (*models.HostGroup, error)
+	GetMultipleHostGroups(ctx context.Context, accountName string, hostGroupUUIDs []string) ([]*models.HostGroup, error)
 
 	CreateVolume(ctx context.Context, params *commonparams.CreateVolumeParams) (*models.Volume, string, error)
 	GetVolume(ctx context.Context, volumeId string) (*models.Volume, error)
