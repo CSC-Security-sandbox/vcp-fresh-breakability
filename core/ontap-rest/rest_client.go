@@ -24,6 +24,7 @@ type RESTClient interface { // generate:mock
 	Storage() StorageClient
 	SVM() SVMClient
 	Poll(jobUUID string) error
+	Snapmirror() SnapmirrorClient
 }
 
 type restClient struct {
@@ -36,6 +37,7 @@ type restClient struct {
 	storage                   *storageClient
 	svm                       *svmClient
 	poller                    Poller
+	snapmirror                *snapmirrorClient
 }
 
 // RESTClientParams describes the parameters for creating a new RESTClient
@@ -146,4 +148,9 @@ func (rc *restClient) Security() SecurityClient {
 // SAN returns a SAN client
 func (rc *restClient) SAN() SANClient {
 	return rc.san
+}
+
+// Snapmirror returns a Snapmirror client
+func (rc *restClient) Snapmirror() SnapmirrorClient {
+	return rc.snapmirror
 }

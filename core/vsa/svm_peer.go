@@ -85,10 +85,11 @@ func (rc *OntapRestProvider) acceptSVMPeer(svmPeerUUID string) error {
 	return client.SVM().SvmPeerModify(params)
 }
 
-func (rc *OntapRestProvider) DeleteSVMPeer(svmPeerUUID string) error {
+func (rc *OntapRestProvider) DeleteSVMPeer(svmPeerUUID string, force bool) error {
 	client := getOntapClientFunc(rc.ClientParams)
 	params := &ontapRest.SvmPeerDeleteParams{
 		SvmPeerUUID: svmPeerUUID,
+		Force:       force,
 	}
 	return client.SVM().SvmPeerDelete(params)
 }

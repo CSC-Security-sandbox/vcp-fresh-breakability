@@ -1,6 +1,9 @@
 package vsa
 
 import (
+	"fmt"
+	"time"
+
 	"github.com/go-openapi/strfmt"
 	ontaprestmodel "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/ontap-rest/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
@@ -105,6 +108,96 @@ type LunMapCreateParams struct {
 	LunName    string
 	SvmName    string
 	IGroupName []string
+}
+
+// CreateVolumeReplicationParams describes parameters supplied to Provider.CreateVolumeReplication
+type CreateVolumeReplicationParams struct {
+	VolumeReplication *VolumeReplication
+	ReverseResync     bool
+}
+
+// DeleteVolumeReplicationParams describes parameters supplied to Provider.DeleteVolumeReplication
+type DeleteVolumeReplicationParams struct {
+	VolumeReplication *VolumeReplication
+	DestinationOnly   *bool
+	SourceOnly        *bool
+}
+
+// VolumeReplication describes a Volume Replication relationship object in the cloud volumes model
+type VolumeReplication struct {
+	UUID                          string
+	AccountUUID                   string
+	AccountName                   string
+	ClusterPeerID                 *uint64
+	Name                          *string
+	EndpointType                  string
+	RemoteRegion                  string
+	RemoteResourceID              string
+	SourceHostName                string
+	SourceSVMName                 string
+	SourceVolumeName              string
+	DestinationHostName           string
+	DestinationSVMName            string
+	DestinationVolumeName         string
+	DestinationVolumeUUID         string
+	DestinationVolumeExternalUUID string
+	ReplicationPolicy             string
+	ReplicationSchedule           string
+	LifeCycleState                string
+	LifeCycleStateDetails         string
+	MirrorState                   string
+	RelationshipStatus            string
+	Healthy                       bool
+	UnhealthyReason               string
+	Volume                        *volume
+	Jobs                          []*ontaprestmodel.Job
+	TotalTransferBytes            int64
+	TotalTransferTimeSecs         int64
+	LastTransferSize              uint64
+	LastTransferError             string
+	LastTransferDuration          int64
+	LastTransferEndTime           *time.Time
+	LagTime                       int64
+	Mounted                       bool
+	MaxTransferRate               int64
+	RelationshipID                string
+	CreatedAt                     time.Time
+	UpdatedAt                     time.Time
+	DeletedAt                     *time.Time
+	Description                   *string
+	DestinationOnly               *bool
+	SourceOnly                    *bool
+	Force                         *bool
+	Tags                          *string
+	ExternalUUID                  string
+	DestinationVolumeStorageClass string
+	SkipPeeringCleanup            *bool
+	ReplicationType               string
+}
+
+// SnapmirrorDestination describes SnapmirrorDestination information retrieved from ONTAP
+type SnapmirrorDestination struct {
+	DestinationPath    string
+	DestinationSVMName string
+	SourcePath         string
+	SourceSVMName      string
+	RelationshipUUID   string
+}
+
+type volume struct {
+	ontaprestmodel.Volume
+	ExternalUUID      string
+	IsOnPremMigration bool
+}
+
+// SourcePath returns the source path of an ONTAP snapmirror relationship in a <svm_name>:<volume_name> format
+func (v *VolumeReplication) SourcePath() string {
+	return fmt.Sprintf("%s:%s", v.SourceSVMName, v.SourceVolumeName)
+}
+
+// DestinationPath returns the destination path of an ONTAP snapmirror relationship in a <svm_name>:<volume_name> format
+func (v *VolumeReplication) DestinationPath() string {
+	return fmt.Sprintf("%s:%s", v.DestinationSVMName, v.DestinationVolumeName)
 }
 
 type CreateClusterPeerParams struct {

@@ -35,12 +35,17 @@ type Provider interface {
 	DeleteClusterPeer(clusterPeerID string) error
 	GetClusterPeer(clusterPeerID string) (*ClusterPeer, error)
 	ListClusterPeers() ([]*ClusterPeer, error)
-	CreateVolumeReplicationSchedule(schedule string) error
 	GetInterclusterLIFs(servicePolicyName string) ([]*InterclusterLif, error)
 	CreateSvmPeering(srcClusterName, srcSVMName, dstSVMName string, snapmirrorApplication ontaprestmodels.SvmPeerApplications) error
 	AcceptSvmPeering(srcSVMName, dstSVMName string) error
 	GetSVMPeer(localSVMName, remoteSVMName *string) (*SvmPeer, error)
-	DeleteSVMPeer(svmPeerUUID string) error
+	DeleteSVMPeer(svmPeerUUID string, force bool) error
+	CreateVolumeReplication(params *CreateVolumeReplicationParams) (*VolumeReplication, error)
+	AuthorizeVolumeReplication(params *CreateVolumeReplicationParams) (*VolumeReplication, error)
+	DeleteVolumeReplication(params *DeleteVolumeReplicationParams) (*VolumeReplication, error)
+	UpdateVolumeReplication(volRep *VolumeReplication) (*VolumeReplication, error)
+	ReleaseVolumeReplication(params *CreateVolumeReplicationParams) (*VolumeReplication, error)
+	ResyncVolumeReplication(volRep *VolumeReplication) (*VolumeReplication, error)
 	CreateSnapshot(params CreateSnapshotParams) (*SnapshotProviderResponse, error)
 }
 

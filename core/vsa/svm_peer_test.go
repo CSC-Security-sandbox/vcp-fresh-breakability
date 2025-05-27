@@ -191,7 +191,7 @@ func TestDeleteSvmPeer(t *testing.T) {
 		expectedError := errors.New("some error")
 		mockClient.On("SVM").Return(mm)
 		mm.On("SvmPeerDelete", mock.Anything).Return(expectedError).Times(1)
-		err := ontapProvider.DeleteSVMPeer(svmPeerUUID)
+		err := ontapProvider.DeleteSVMPeer(svmPeerUUID, false)
 		assert.Error(tt, err)
 		assert.Equal(tt, expectedError, err)
 	})
@@ -204,7 +204,7 @@ func TestDeleteSvmPeer(t *testing.T) {
 		ontapProvider := &OntapRestProvider{}
 		mockClient.On("SVM").Return(mm)
 		mm.On("SvmPeerDelete", mock.Anything).Return(nil).Times(1)
-		err := ontapProvider.DeleteSVMPeer(svmPeerUUID)
+		err := ontapProvider.DeleteSVMPeer(svmPeerUUID, false)
 		assert.NoError(tt, err)
 	})
 }

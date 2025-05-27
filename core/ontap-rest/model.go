@@ -11,6 +11,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/ontap-rest/client/networking"
 	san "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/ontap-rest/client/s_a_n"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/ontap-rest/client/security"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/ontap-rest/client/snapmirror"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/ontap-rest/client/storage"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/ontap-rest/client/svm"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/ontap-rest/models"
@@ -2300,6 +2301,7 @@ func svmPeerModifyParamsToONTAP(params *SvmPeerModifyParams) *svm.SvmPeerModifyP
 type SvmPeerDeleteParams struct {
 	BaseParams
 	SvmPeerUUID string
+	Force       bool
 }
 
 func svmPeerDeleteParamsToONTAP(params *SvmPeerDeleteParams) *svm.SvmPeerDeleteParams {
@@ -2310,5 +2312,161 @@ func svmPeerDeleteParamsToONTAP(params *SvmPeerDeleteParams) *svm.SvmPeerDeleteP
 
 	otParams.SetUUID(params.SvmPeerUUID)
 	otParams.SetReturnTimeout(&returnTimeout)
+
+	if params.Force {
+		otParams.SetForce(nillable.ToPointer("true"))
+	}
+	return otParams
+}
+
+func snapmirrorRelationshipCreateParamsToONTAP(params *SnapmirrorRelationshipCreateParams) *snapmirror.SnapmirrorRelationshipCreateParams {
+	otParams := snapmirror.NewSnapmirrorRelationshipCreateParams()
+	if params == nil {
+		return otParams
+	}
+
+	snapmirror := &models.SnapmirrorRelationship{
+		Destination: &models.SnapmirrorEndpoint{
+			Path: &params.DestinationPath,
+		},
+		Source: &models.SnapmirrorSourceEndpoint{
+			Path: &params.SourcePath,
+		},
+		Policy: &models.SnapmirrorRelationshipInlinePolicy{
+			Name: &params.Policy,
+		},
+	}
+	if params.Schedule != nil {
+		snapmirror.TransferSchedule = &models.SnapmirrorRelationshipInlineTransferSchedule{
+			Name: params.Schedule,
+		}
+	}
+
+	otParams.SetInfo(snapmirror)
+	returnRecords := "true"
+	otParams.SetReturnRecords(&returnRecords)
+	return otParams
+}
+
+func snapmirrorRelationshipSetStateParamsToONTAP(snapmirrorUUID string, state string) *snapmirror.SnapmirrorRelationshipModifyParams {
+	otParams := snapmirror.NewSnapmirrorRelationshipModifyParams()
+	if snapmirrorUUID == "" {
+		return otParams
+	}
+
+	snapmirror := &models.SnapmirrorRelationship{
+		State: &state,
+	}
+
+	otParams.SetUUID(snapmirrorUUID)
+	otParams.SetInfo(snapmirror)
+	return otParams
+}
+
+func snapmirrorRelationshipListParamsToONTAP(params *SnapmirrorRelationshipListParams) *snapmirror.SnapmirrorRelationshipsGetParams {
+	otParams := snapmirror.NewSnapmirrorRelationshipsGetParams()
+	if params == nil {
+		return otParams
+	}
+	otParams.SetDestinationPath(&params.DestinationPath)
+	otParams.SetSourcePath(&params.SourcePath)
+	return otParams
+}
+
+func snapmirrorRelationshipModifyParamsToONTAP(params *SnapmirrorRelationshipModifyParams) *snapmirror.SnapmirrorRelationshipModifyParams {
+	otParams := snapmirror.NewSnapmirrorRelationshipModifyParams()
+	if params == nil {
+		return otParams
+	}
+
+	info := &models.SnapmirrorRelationship{}
+	if params.TransferSchedule != nil {
+		info.TransferSchedule = &models.SnapmirrorRelationshipInlineTransferSchedule{
+			Name: params.TransferSchedule,
+		}
+	}
+
+	otParams.SetUUID(params.UUID)
+	otParams.SetInfo(info)
+	return otParams
+}
+
+func snapmirrorRelationshipListDestinationsParamsToONTAP(params *SnapmirrorRelationshipListDestinationsParams) *snapmirror.SnapmirrorRelationshipsGetParams {
+	otParams := snapmirror.NewSnapmirrorRelationshipsGetParams()
+	otParams.SetListDestinationsOnly(nillable.ToPointer("true"))
+	if params == nil {
+		return otParams
+	}
+	if params.DestinationPath != nil {
+		otParams.SetDestinationPath(params.DestinationPath)
+	}
+	if params.SourcePath != nil {
+		otParams.SetSourcePath(params.SourcePath)
+	}
+	if params.DestinationSVMName != nil {
+		otParams.SetDestinationSvmName(params.DestinationSVMName)
+	}
+	if params.SourceSVMName != nil {
+		otParams.SetSourceSvmName(params.SourceSVMName)
+	}
+	return otParams
+}
+
+func convertSnapmirrorRelationshipListFromREST(response *snapmirror.SnapmirrorRelationshipsGetOK) []*SnapmirrorRelationship {
+	var snapmirrorRelationships []*SnapmirrorRelationship
+	if response != nil && response.Payload != nil {
+		for _, record := range response.Payload.SnapmirrorRelationshipResponseInlineRecords {
+			snapmirrorRelationship := SnapmirrorRelationship{
+				*record,
+			}
+			snapmirrorRelationships = append(snapmirrorRelationships, &snapmirrorRelationship)
+		}
+	}
+	return snapmirrorRelationships
+}
+
+func convertSnapmirrorRelationshipGetFromREST(response *snapmirror.SnapmirrorRelationshipGetOK) *SnapmirrorRelationship {
+	if response != nil && response.Payload != nil {
+		snapmirrorRelationship := SnapmirrorRelationship{
+			*response.Payload,
+		}
+		return &snapmirrorRelationship
+	}
+	return nil
+}
+
+func snapmirrorRelationshipDeleteParamsToONTAP(params *SnapmirrorRelationshipDeleteParams) *snapmirror.SnapmirrorRelationshipDeleteParams {
+	otParams := snapmirror.NewSnapmirrorRelationshipDeleteParams()
+	if params == nil {
+		return otParams
+	}
+
+	otParams.SetUUID(params.UUID)
+	otParams.SetDestinationOnly(nillable.ToStringPtr(params.DestinationOnly))
+	otParams.SetSourceOnly(nillable.ToStringPtr(params.SourceOnly))
+	return otParams
+}
+
+func snapmirrorRelationshipReleaseParamsToONTAP(params *SnapmirrorRelationshipReleaseParams) *snapmirror.SnapmirrorRelationshipDeleteParams {
+	otParams := snapmirror.NewSnapmirrorRelationshipDeleteParams()
+	if params == nil {
+		return otParams
+	}
+
+	otParams.SetUUID(params.UUID)
+	if params.SourceInfoOnly != nil {
+		otParams.SetSourceInfoOnly(nillable.ToStringPtr(params.SourceInfoOnly))
+	} else {
+		otParams.SetSourceOnly(nillable.ToPointer("true"))
+	}
+	return otParams
+}
+
+func snapmirrorRelationshipGetParamsToONTAP(params *SnapmirrorRelationshipGetParams) *snapmirror.SnapmirrorRelationshipGetParams {
+	otParams := snapmirror.NewSnapmirrorRelationshipGetParams()
+	if params == nil {
+		return otParams
+	}
+	otParams.SetUUID(params.UUID)
 	return otParams
 }

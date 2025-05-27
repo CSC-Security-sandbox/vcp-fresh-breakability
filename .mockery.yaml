@@ -33,6 +33,7 @@ packages:
       SecurityClient:
       StorageClient:
       SVMClient:
+      SnapmirrorClient:
   github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa:
     config:
       dir: "{{.InterfaceDir}}"

@@ -181,6 +181,64 @@ func (_c *MockProvider_AreAllNodeUpAndRunning_Call) RunAndReturn(run func() (boo
 	return _c
 }
 
+// AuthorizeVolumeReplication provides a mock function with given fields: params
+func (_m *MockProvider) AuthorizeVolumeReplication(params *CreateVolumeReplicationParams) (*VolumeReplication, error) {
+	ret := _m.Called(params)
+
+	if len(ret) == 0 {
+		panic("no return value specified for AuthorizeVolumeReplication")
+	}
+
+	var r0 *VolumeReplication
+	var r1 error
+	if rf, ok := ret.Get(0).(func(*CreateVolumeReplicationParams) (*VolumeReplication, error)); ok {
+		return rf(params)
+	}
+	if rf, ok := ret.Get(0).(func(*CreateVolumeReplicationParams) *VolumeReplication); ok {
+		r0 = rf(params)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*VolumeReplication)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(*CreateVolumeReplicationParams) error); ok {
+		r1 = rf(params)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockProvider_AuthorizeVolumeReplication_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'AuthorizeVolumeReplication'
+type MockProvider_AuthorizeVolumeReplication_Call struct {
+	*mock.Call
+}
+
+// AuthorizeVolumeReplication is a helper method to define mock.On call
+//   - params *CreateVolumeReplicationParams
+func (_e *MockProvider_Expecter) AuthorizeVolumeReplication(params interface{}) *MockProvider_AuthorizeVolumeReplication_Call {
+	return &MockProvider_AuthorizeVolumeReplication_Call{Call: _e.mock.On("AuthorizeVolumeReplication", params)}
+}
+
+func (_c *MockProvider_AuthorizeVolumeReplication_Call) Run(run func(params *CreateVolumeReplicationParams)) *MockProvider_AuthorizeVolumeReplication_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(*CreateVolumeReplicationParams))
+	})
+	return _c
+}
+
+func (_c *MockProvider_AuthorizeVolumeReplication_Call) Return(_a0 *VolumeReplication, _a1 error) *MockProvider_AuthorizeVolumeReplication_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockProvider_AuthorizeVolumeReplication_Call) RunAndReturn(run func(*CreateVolumeReplicationParams) (*VolumeReplication, error)) *MockProvider_AuthorizeVolumeReplication_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // CreateClusterPeer provides a mock function with given fields: params
 func (_m *MockProvider) CreateClusterPeer(params CreateClusterPeerParams) (*ClusterPeer, error) {
 	ret := _m.Called(params)
@@ -566,48 +624,60 @@ func (_c *MockProvider_CreateVolume_Call) RunAndReturn(run func(CreateVolumePara
 	return _c
 }
 
-// CreateVolumeReplicationSchedule provides a mock function with given fields: schedule
-func (_m *MockProvider) CreateVolumeReplicationSchedule(schedule string) error {
-	ret := _m.Called(schedule)
+// CreateVolumeReplication provides a mock function with given fields: params
+func (_m *MockProvider) CreateVolumeReplication(params *CreateVolumeReplicationParams) (*VolumeReplication, error) {
+	ret := _m.Called(params)
 
 	if len(ret) == 0 {
-		panic("no return value specified for CreateVolumeReplicationSchedule")
+		panic("no return value specified for CreateVolumeReplication")
 	}
 
-	var r0 error
-	if rf, ok := ret.Get(0).(func(string) error); ok {
-		r0 = rf(schedule)
+	var r0 *VolumeReplication
+	var r1 error
+	if rf, ok := ret.Get(0).(func(*CreateVolumeReplicationParams) (*VolumeReplication, error)); ok {
+		return rf(params)
+	}
+	if rf, ok := ret.Get(0).(func(*CreateVolumeReplicationParams) *VolumeReplication); ok {
+		r0 = rf(params)
 	} else {
-		r0 = ret.Error(0)
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*VolumeReplication)
+		}
 	}
 
-	return r0
+	if rf, ok := ret.Get(1).(func(*CreateVolumeReplicationParams) error); ok {
+		r1 = rf(params)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
 }
 
-// MockProvider_CreateVolumeReplicationSchedule_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'CreateVolumeReplicationSchedule'
-type MockProvider_CreateVolumeReplicationSchedule_Call struct {
+// MockProvider_CreateVolumeReplication_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'CreateVolumeReplication'
+type MockProvider_CreateVolumeReplication_Call struct {
 	*mock.Call
 }
 
-// CreateVolumeReplicationSchedule is a helper method to define mock.On call
-//   - schedule string
-func (_e *MockProvider_Expecter) CreateVolumeReplicationSchedule(schedule interface{}) *MockProvider_CreateVolumeReplicationSchedule_Call {
-	return &MockProvider_CreateVolumeReplicationSchedule_Call{Call: _e.mock.On("CreateVolumeReplicationSchedule", schedule)}
+// CreateVolumeReplication is a helper method to define mock.On call
+//   - params *CreateVolumeReplicationParams
+func (_e *MockProvider_Expecter) CreateVolumeReplication(params interface{}) *MockProvider_CreateVolumeReplication_Call {
+	return &MockProvider_CreateVolumeReplication_Call{Call: _e.mock.On("CreateVolumeReplication", params)}
 }
 
-func (_c *MockProvider_CreateVolumeReplicationSchedule_Call) Run(run func(schedule string)) *MockProvider_CreateVolumeReplicationSchedule_Call {
+func (_c *MockProvider_CreateVolumeReplication_Call) Run(run func(params *CreateVolumeReplicationParams)) *MockProvider_CreateVolumeReplication_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(string))
+		run(args[0].(*CreateVolumeReplicationParams))
 	})
 	return _c
 }
 
-func (_c *MockProvider_CreateVolumeReplicationSchedule_Call) Return(_a0 error) *MockProvider_CreateVolumeReplicationSchedule_Call {
-	_c.Call.Return(_a0)
+func (_c *MockProvider_CreateVolumeReplication_Call) Return(_a0 *VolumeReplication, _a1 error) *MockProvider_CreateVolumeReplication_Call {
+	_c.Call.Return(_a0, _a1)
 	return _c
 }
 
-func (_c *MockProvider_CreateVolumeReplicationSchedule_Call) RunAndReturn(run func(string) error) *MockProvider_CreateVolumeReplicationSchedule_Call {
+func (_c *MockProvider_CreateVolumeReplication_Call) RunAndReturn(run func(*CreateVolumeReplicationParams) (*VolumeReplication, error)) *MockProvider_CreateVolumeReplication_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -658,17 +728,17 @@ func (_c *MockProvider_DeleteClusterPeer_Call) RunAndReturn(run func(string) err
 	return _c
 }
 
-// DeleteSVMPeer provides a mock function with given fields: svmPeerUUID
-func (_m *MockProvider) DeleteSVMPeer(svmPeerUUID string) error {
-	ret := _m.Called(svmPeerUUID)
+// DeleteSVMPeer provides a mock function with given fields: svmPeerUUID, force
+func (_m *MockProvider) DeleteSVMPeer(svmPeerUUID string, force bool) error {
+	ret := _m.Called(svmPeerUUID, force)
 
 	if len(ret) == 0 {
 		panic("no return value specified for DeleteSVMPeer")
 	}
 
 	var r0 error
-	if rf, ok := ret.Get(0).(func(string) error); ok {
-		r0 = rf(svmPeerUUID)
+	if rf, ok := ret.Get(0).(func(string, bool) error); ok {
+		r0 = rf(svmPeerUUID, force)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -683,13 +753,14 @@ type MockProvider_DeleteSVMPeer_Call struct {
 
 // DeleteSVMPeer is a helper method to define mock.On call
 //   - svmPeerUUID string
-func (_e *MockProvider_Expecter) DeleteSVMPeer(svmPeerUUID interface{}) *MockProvider_DeleteSVMPeer_Call {
-	return &MockProvider_DeleteSVMPeer_Call{Call: _e.mock.On("DeleteSVMPeer", svmPeerUUID)}
+//   - force bool
+func (_e *MockProvider_Expecter) DeleteSVMPeer(svmPeerUUID interface{}, force interface{}) *MockProvider_DeleteSVMPeer_Call {
+	return &MockProvider_DeleteSVMPeer_Call{Call: _e.mock.On("DeleteSVMPeer", svmPeerUUID, force)}
 }
 
-func (_c *MockProvider_DeleteSVMPeer_Call) Run(run func(svmPeerUUID string)) *MockProvider_DeleteSVMPeer_Call {
+func (_c *MockProvider_DeleteSVMPeer_Call) Run(run func(svmPeerUUID string, force bool)) *MockProvider_DeleteSVMPeer_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(string))
+		run(args[0].(string), args[1].(bool))
 	})
 	return _c
 }
@@ -699,7 +770,7 @@ func (_c *MockProvider_DeleteSVMPeer_Call) Return(_a0 error) *MockProvider_Delet
 	return _c
 }
 
-func (_c *MockProvider_DeleteSVMPeer_Call) RunAndReturn(run func(string) error) *MockProvider_DeleteSVMPeer_Call {
+func (_c *MockProvider_DeleteSVMPeer_Call) RunAndReturn(run func(string, bool) error) *MockProvider_DeleteSVMPeer_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -747,6 +818,64 @@ func (_c *MockProvider_DeleteVolume_Call) Return(_a0 error) *MockProvider_Delete
 }
 
 func (_c *MockProvider_DeleteVolume_Call) RunAndReturn(run func(string, string) error) *MockProvider_DeleteVolume_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// DeleteVolumeReplication provides a mock function with given fields: params
+func (_m *MockProvider) DeleteVolumeReplication(params *DeleteVolumeReplicationParams) (*VolumeReplication, error) {
+	ret := _m.Called(params)
+
+	if len(ret) == 0 {
+		panic("no return value specified for DeleteVolumeReplication")
+	}
+
+	var r0 *VolumeReplication
+	var r1 error
+	if rf, ok := ret.Get(0).(func(*DeleteVolumeReplicationParams) (*VolumeReplication, error)); ok {
+		return rf(params)
+	}
+	if rf, ok := ret.Get(0).(func(*DeleteVolumeReplicationParams) *VolumeReplication); ok {
+		r0 = rf(params)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*VolumeReplication)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(*DeleteVolumeReplicationParams) error); ok {
+		r1 = rf(params)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockProvider_DeleteVolumeReplication_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'DeleteVolumeReplication'
+type MockProvider_DeleteVolumeReplication_Call struct {
+	*mock.Call
+}
+
+// DeleteVolumeReplication is a helper method to define mock.On call
+//   - params *DeleteVolumeReplicationParams
+func (_e *MockProvider_Expecter) DeleteVolumeReplication(params interface{}) *MockProvider_DeleteVolumeReplication_Call {
+	return &MockProvider_DeleteVolumeReplication_Call{Call: _e.mock.On("DeleteVolumeReplication", params)}
+}
+
+func (_c *MockProvider_DeleteVolumeReplication_Call) Run(run func(params *DeleteVolumeReplicationParams)) *MockProvider_DeleteVolumeReplication_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(*DeleteVolumeReplicationParams))
+	})
+	return _c
+}
+
+func (_c *MockProvider_DeleteVolumeReplication_Call) Return(_a0 *VolumeReplication, _a1 error) *MockProvider_DeleteVolumeReplication_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockProvider_DeleteVolumeReplication_Call) RunAndReturn(run func(*DeleteVolumeReplicationParams) (*VolumeReplication, error)) *MockProvider_DeleteVolumeReplication_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -1529,6 +1658,180 @@ func (_c *MockProvider_LunMapCreate_Call) Return(_a0 error) *MockProvider_LunMap
 }
 
 func (_c *MockProvider_LunMapCreate_Call) RunAndReturn(run func(LunMapCreateParams) error) *MockProvider_LunMapCreate_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// ReleaseVolumeReplication provides a mock function with given fields: params
+func (_m *MockProvider) ReleaseVolumeReplication(params *CreateVolumeReplicationParams) (*VolumeReplication, error) {
+	ret := _m.Called(params)
+
+	if len(ret) == 0 {
+		panic("no return value specified for ReleaseVolumeReplication")
+	}
+
+	var r0 *VolumeReplication
+	var r1 error
+	if rf, ok := ret.Get(0).(func(*CreateVolumeReplicationParams) (*VolumeReplication, error)); ok {
+		return rf(params)
+	}
+	if rf, ok := ret.Get(0).(func(*CreateVolumeReplicationParams) *VolumeReplication); ok {
+		r0 = rf(params)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*VolumeReplication)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(*CreateVolumeReplicationParams) error); ok {
+		r1 = rf(params)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockProvider_ReleaseVolumeReplication_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'ReleaseVolumeReplication'
+type MockProvider_ReleaseVolumeReplication_Call struct {
+	*mock.Call
+}
+
+// ReleaseVolumeReplication is a helper method to define mock.On call
+//   - params *CreateVolumeReplicationParams
+func (_e *MockProvider_Expecter) ReleaseVolumeReplication(params interface{}) *MockProvider_ReleaseVolumeReplication_Call {
+	return &MockProvider_ReleaseVolumeReplication_Call{Call: _e.mock.On("ReleaseVolumeReplication", params)}
+}
+
+func (_c *MockProvider_ReleaseVolumeReplication_Call) Run(run func(params *CreateVolumeReplicationParams)) *MockProvider_ReleaseVolumeReplication_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(*CreateVolumeReplicationParams))
+	})
+	return _c
+}
+
+func (_c *MockProvider_ReleaseVolumeReplication_Call) Return(_a0 *VolumeReplication, _a1 error) *MockProvider_ReleaseVolumeReplication_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockProvider_ReleaseVolumeReplication_Call) RunAndReturn(run func(*CreateVolumeReplicationParams) (*VolumeReplication, error)) *MockProvider_ReleaseVolumeReplication_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// ResyncVolumeReplication provides a mock function with given fields: volRep
+func (_m *MockProvider) ResyncVolumeReplication(volRep *VolumeReplication) (*VolumeReplication, error) {
+	ret := _m.Called(volRep)
+
+	if len(ret) == 0 {
+		panic("no return value specified for ResyncVolumeReplication")
+	}
+
+	var r0 *VolumeReplication
+	var r1 error
+	if rf, ok := ret.Get(0).(func(*VolumeReplication) (*VolumeReplication, error)); ok {
+		return rf(volRep)
+	}
+	if rf, ok := ret.Get(0).(func(*VolumeReplication) *VolumeReplication); ok {
+		r0 = rf(volRep)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*VolumeReplication)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(*VolumeReplication) error); ok {
+		r1 = rf(volRep)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockProvider_ResyncVolumeReplication_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'ResyncVolumeReplication'
+type MockProvider_ResyncVolumeReplication_Call struct {
+	*mock.Call
+}
+
+// ResyncVolumeReplication is a helper method to define mock.On call
+//   - volRep *VolumeReplication
+func (_e *MockProvider_Expecter) ResyncVolumeReplication(volRep interface{}) *MockProvider_ResyncVolumeReplication_Call {
+	return &MockProvider_ResyncVolumeReplication_Call{Call: _e.mock.On("ResyncVolumeReplication", volRep)}
+}
+
+func (_c *MockProvider_ResyncVolumeReplication_Call) Run(run func(volRep *VolumeReplication)) *MockProvider_ResyncVolumeReplication_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(*VolumeReplication))
+	})
+	return _c
+}
+
+func (_c *MockProvider_ResyncVolumeReplication_Call) Return(_a0 *VolumeReplication, _a1 error) *MockProvider_ResyncVolumeReplication_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockProvider_ResyncVolumeReplication_Call) RunAndReturn(run func(*VolumeReplication) (*VolumeReplication, error)) *MockProvider_ResyncVolumeReplication_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// UpdateVolumeReplication provides a mock function with given fields: volRep
+func (_m *MockProvider) UpdateVolumeReplication(volRep *VolumeReplication) (*VolumeReplication, error) {
+	ret := _m.Called(volRep)
+
+	if len(ret) == 0 {
+		panic("no return value specified for UpdateVolumeReplication")
+	}
+
+	var r0 *VolumeReplication
+	var r1 error
+	if rf, ok := ret.Get(0).(func(*VolumeReplication) (*VolumeReplication, error)); ok {
+		return rf(volRep)
+	}
+	if rf, ok := ret.Get(0).(func(*VolumeReplication) *VolumeReplication); ok {
+		r0 = rf(volRep)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*VolumeReplication)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(*VolumeReplication) error); ok {
+		r1 = rf(volRep)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockProvider_UpdateVolumeReplication_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'UpdateVolumeReplication'
+type MockProvider_UpdateVolumeReplication_Call struct {
+	*mock.Call
+}
+
+// UpdateVolumeReplication is a helper method to define mock.On call
+//   - volRep *VolumeReplication
+func (_e *MockProvider_Expecter) UpdateVolumeReplication(volRep interface{}) *MockProvider_UpdateVolumeReplication_Call {
+	return &MockProvider_UpdateVolumeReplication_Call{Call: _e.mock.On("UpdateVolumeReplication", volRep)}
+}
+
+func (_c *MockProvider_UpdateVolumeReplication_Call) Run(run func(volRep *VolumeReplication)) *MockProvider_UpdateVolumeReplication_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(*VolumeReplication))
+	})
+	return _c
+}
+
+func (_c *MockProvider_UpdateVolumeReplication_Call) Return(_a0 *VolumeReplication, _a1 error) *MockProvider_UpdateVolumeReplication_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockProvider_UpdateVolumeReplication_Call) RunAndReturn(run func(*VolumeReplication) (*VolumeReplication, error)) *MockProvider_UpdateVolumeReplication_Call {
 	_c.Call.Return(run)
 	return _c
 }
