@@ -8,6 +8,11 @@ ARG GHVSA_PAT
 RUN git config --global url."https://${GHVSA_PAT}:x-oauth-basic@github.com/".insteadOf "https://github.com/"
 
 WORKDIR /code
+COPY go.mod go.mod
+COPY go.sum go.sum
+# Download dependencies and cache them
+RUN go mod download
+
 COPY core core/
 COPY common common/
 COPY database database/
@@ -15,11 +20,6 @@ COPY config config/
 COPY utils utils/
 COPY clients clients/
 COPY workflow_engine workflow_engine/
-COPY go.mod go.mod
-COPY go.sum go.sum
-
-# Download dependencies and cache them
-RUN go mod download
 
 # `skaffold debug` sets SKAFFOLD_GO_GCFLAGS to disable compiler optimizations
 ARG SKAFFOLD_GO_GCFLAGS

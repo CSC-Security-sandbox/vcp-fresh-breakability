@@ -42,7 +42,7 @@ workerConfig:
     password: testpass
     adminUser: adminUser
     adminPassword: adminPassword
-    dbname: postgres
+    dbname: vcp
     maxConns: 20
     maxIdleConns: 20
     maxConnLifetime: "1h"

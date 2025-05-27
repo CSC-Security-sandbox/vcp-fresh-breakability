@@ -47,7 +47,7 @@ spec:
             - name: DB_PASSWORD
               value: "testpass"
             - name: DB_NAME
-              value: postgres
+              value: vcp
             - name: DB_SSL_MODE
               value: disable
             - name: DB_TIMEZONE
@@ -67,7 +67,7 @@ spec:
             - name: RUN_MIGRATION_ON_START
               value: "true"
             - name: GCE_METADATA_HOST
-              value: localhost:9090
+              value: host.minikube.internal:9090
             - name: GCP_CONSUMER_MGMT_ENDPOINT_URL
               value: autopush-netapp.sandbox.googleapis.com
             - name: GCP_SERVICE_NETWORKING_ENDPOINT_URL

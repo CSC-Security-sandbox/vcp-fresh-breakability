@@ -8,6 +8,12 @@ build:
     envTemplate:
       template: "{{.IMAGES_TAG}}"
   artifacts:
+    - image: base
+      context: .
+      docker:
+        dockerfile: common/Dockerfile
+        buildArgs:
+          noCache: true
     - image: google-proxy
       context: .
       docker:
@@ -17,15 +23,6 @@ build:
           noCache: true
       requires:
         - image: core
-          alias: BASE
-    - image: vcp-worker
-      context: .
-      docker:
-          dockerfile: worker/Dockerfile
-          buildArgs:
-            GHVSA_PAT: "{{.GHVSA_PAT}}"
-      requires:
-        - image: base
           alias: BASE
     - image: core
       context: .
@@ -37,12 +34,15 @@ build:
       requires:
         - image: base
           alias: BASE
-    - image: base
+    - image: vcp-worker
       context: .
       docker:
-        dockerfile: common/Dockerfile
+        dockerfile: worker/Dockerfile
         buildArgs:
-          noCache: true
+          GHVSA_PAT: "{{.GHVSA_PAT}}"
+      requires:
+        - image: base
+          alias: BASE
 manifests:
   rawYaml:
     - google-proxy/kubernetes/*

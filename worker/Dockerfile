@@ -7,6 +7,9 @@ RUN git config --global url."https://${GHVSA_PAT}:x-oauth-basic@github.com/".ins
 WORKDIR /code
 COPY go.mod go.mod
 COPY go.sum go.sum
+# Download dependencies and cache them
+RUN go mod download
+
 COPY core core/
 COPY common common/
 COPY database database/
@@ -16,9 +19,6 @@ COPY google-proxy google-proxy/
 COPY clients clients/
 COPY worker worker/
 COPY workflow_engine workflow_engine/
-
-# Download dependencies and cache them
-RUN go mod download
 
 ARG SKAFFOLD_GO_GCFLAGS
 WORKDIR /code/worker
@@ -30,6 +30,7 @@ FROM $BASE
 # Copy the binary from the builder stage
 COPY --from=builder /app /app
 COPY --from=builder /code/core/errors/errors.json /errors.json
+COPY --from=builder /code/common/vsa_config/vlm-config.json /common/vsa_config/vlm-config.json
 
 # Set ownership and permissions
 USER nonroot:nonroot
