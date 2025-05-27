@@ -143,3 +143,15 @@ type InterclusterLif struct {
 	NodeUUID string
 	UUID     string
 }
+
+type CreateSnapshotParams struct {
+	VolumeUUID string
+	Name       string
+	Comment    string
+}
+
+type SnapshotProviderResponse struct {
+	ProviderResponse
+	SizeInBytes        int64
+	LogicalSizeInBytes int64
+}

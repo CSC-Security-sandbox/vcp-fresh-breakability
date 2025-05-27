@@ -37,6 +37,10 @@ type V1betaCreateReplicationRes interface {
 	v1betaCreateReplicationRes()
 }
 
+type V1betaCreateSnapshotRes interface {
+	v1betaCreateSnapshotRes()
+}
+
 type V1betaCreateVolumeRes interface {
 	v1betaCreateVolumeRes()
 }

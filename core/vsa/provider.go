@@ -41,6 +41,7 @@ type Provider interface {
 	AcceptSvmPeering(srcSVMName, dstSVMName string) error
 	GetSVMPeer(localSVMName, remoteSVMName *string) (*SvmPeer, error)
 	DeleteSVMPeer(svmPeerUUID string) error
+	CreateSnapshot(params CreateSnapshotParams) (*SnapshotProviderResponse, error)
 }
 
 type OntapRestProvider struct {

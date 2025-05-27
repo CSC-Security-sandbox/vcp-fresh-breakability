@@ -1,13 +1,13 @@
 package temporalmanager_test
 
 import (
-	"github.com/stretchr/testify/assert"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/worker/temporalmanager"
-	"go.temporal.io/sdk/workflow"
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/assert"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/worker/temporalmanager"
 	"go.temporal.io/sdk/client"
+	"go.temporal.io/sdk/workflow"
 )
 
 // SampleWorkflow is a simple workflow that appends a suffix to the input string.

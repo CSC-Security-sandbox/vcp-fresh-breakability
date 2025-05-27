@@ -62,6 +62,12 @@ type Handler interface {
 	//
 	// POST /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeResourceId}/replications
 	V1betaCreateReplication(ctx context.Context, req *ReplicationCreateV1beta, params V1betaCreateReplicationParams) (V1betaCreateReplicationRes, error)
+	// V1betaCreateSnapshot implements v1beta_createSnapshot operation.
+	//
+	// Create a new snapshot in the specified volume.
+	//
+	// POST /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/snapshot
+	V1betaCreateSnapshot(ctx context.Context, req *VolumeSnapshotCreateV1beta, params V1betaCreateSnapshotParams) (V1betaCreateSnapshotRes, error)
 	// V1betaCreateVolume implements v1beta_createVolume operation.
 	//
 	// Create a new empty volume or a volume from a backup/snapshot if backup-Id/snapshot-Id is in the
@@ -217,7 +223,7 @@ type Handler interface {
 	//
 	// Returns descriptions of snapshots that is listed in request body and belong to specified volume.
 	//
-	// POST /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeResourceId}/getMultipleSnapshots
+	// POST /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/getMultipleSnapshots
 	V1betaGetMultipleSnapshots(ctx context.Context, req *SnapshotIdListV1beta, params V1betaGetMultipleSnapshotsParams) (V1betaGetMultipleSnapshotsRes, error)
 	// V1betaGetMultipleVolumes implements v1beta_getMultipleVolumes operation.
 	//

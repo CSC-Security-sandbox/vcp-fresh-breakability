@@ -106,4 +106,8 @@ type DataStore interface {
 	DeletingNode(ctx context.Context, node *datamodel.Node) error
 	DeleteSVM(ctx context.Context, svm *datamodel.Svm) error
 	DeletingSVM(ctx context.Context, svm *datamodel.Svm) error
+
+	CreatingSnapshot(ctx context.Context, snapshot *datamodel.Snapshot) (*datamodel.Snapshot, error)
+	UpdateSnapshot(ctx context.Context, snapshot *datamodel.Snapshot) error
+	GetAppConsistentSnapshotsForVolume(ctx context.Context, accountID, volumeID int64) ([]*datamodel.Snapshot, error)
 }

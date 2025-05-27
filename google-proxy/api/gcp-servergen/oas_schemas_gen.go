@@ -4677,6 +4677,7 @@ func (*OperationV1beta) v1betaCreateBackupVaultRes()           {}
 func (*OperationV1beta) v1betaCreateKmsConfigurationRes()      {}
 func (*OperationV1beta) v1betaCreatePoolRes()                  {}
 func (*OperationV1beta) v1betaCreateReplicationRes()           {}
+func (*OperationV1beta) v1betaCreateSnapshotRes()              {}
 func (*OperationV1beta) v1betaCreateVolumeRes()                {}
 func (*OperationV1beta) v1betaDeleteActiveDirectoryRes()       {}
 func (*OperationV1beta) v1betaDeleteBackupPolicyRes()          {}
@@ -13577,6 +13578,38 @@ type V1betaCreateReplicationUnprocessableEntity Error
 
 func (*V1betaCreateReplicationUnprocessableEntity) v1betaCreateReplicationRes() {}
 
+type V1betaCreateSnapshotBadRequest Error
+
+func (*V1betaCreateSnapshotBadRequest) v1betaCreateSnapshotRes() {}
+
+type V1betaCreateSnapshotConflict Error
+
+func (*V1betaCreateSnapshotConflict) v1betaCreateSnapshotRes() {}
+
+type V1betaCreateSnapshotForbidden Error
+
+func (*V1betaCreateSnapshotForbidden) v1betaCreateSnapshotRes() {}
+
+type V1betaCreateSnapshotInternalServerError Error
+
+func (*V1betaCreateSnapshotInternalServerError) v1betaCreateSnapshotRes() {}
+
+type V1betaCreateSnapshotNotFound Error
+
+func (*V1betaCreateSnapshotNotFound) v1betaCreateSnapshotRes() {}
+
+type V1betaCreateSnapshotTooManyRequests Error
+
+func (*V1betaCreateSnapshotTooManyRequests) v1betaCreateSnapshotRes() {}
+
+type V1betaCreateSnapshotUnauthorized Error
+
+func (*V1betaCreateSnapshotUnauthorized) v1betaCreateSnapshotRes() {}
+
+type V1betaCreateSnapshotUnprocessableEntity Error
+
+func (*V1betaCreateSnapshotUnprocessableEntity) v1betaCreateSnapshotRes() {}
+
 type V1betaCreateVolumeBadRequest Error
 
 func (*V1betaCreateVolumeBadRequest) v1betaCreateVolumeRes() {}
@@ -17591,6 +17624,47 @@ func (s *VolumeReplicationUpdateInternalV1betaReplicationSchedule) UnmarshalText
 	default:
 		return errors.Errorf("invalid value: %q", data)
 	}
+}
+
+// Merged schema.
+// Ref: #/components/schemas/VolumeSnapshotCreate_v1beta
+type VolumeSnapshotCreateV1beta struct {
+	// A human readable label for the resource which is restricted to letters, numbers, and hyphen, with
+	// the first character a letter, the last a letter or a number, and a 63 character maximum.
+	ResourceId  string    `json:"resourceId"`
+	Description OptString `json:"description"`
+	// Whether the snapshot should be application consistent or not.
+	IsAppConsistent OptBool `json:"isAppConsistent"`
+}
+
+// GetResourceId returns the value of ResourceId.
+func (s *VolumeSnapshotCreateV1beta) GetResourceId() string {
+	return s.ResourceId
+}
+
+// GetDescription returns the value of Description.
+func (s *VolumeSnapshotCreateV1beta) GetDescription() OptString {
+	return s.Description
+}
+
+// GetIsAppConsistent returns the value of IsAppConsistent.
+func (s *VolumeSnapshotCreateV1beta) GetIsAppConsistent() OptBool {
+	return s.IsAppConsistent
+}
+
+// SetResourceId sets the value of ResourceId.
+func (s *VolumeSnapshotCreateV1beta) SetResourceId(val string) {
+	s.ResourceId = val
+}
+
+// SetDescription sets the value of Description.
+func (s *VolumeSnapshotCreateV1beta) SetDescription(val OptString) {
+	s.Description = val
+}
+
+// SetIsAppConsistent sets the value of IsAppConsistent.
+func (s *VolumeSnapshotCreateV1beta) SetIsAppConsistent(val OptBool) {
+	s.IsAppConsistent = val
 }
 
 // Ref: #/components/schemas/VolumeUpdate_v1beta

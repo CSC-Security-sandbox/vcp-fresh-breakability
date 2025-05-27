@@ -1,7 +1,12 @@
 package ontap_rest
 
 import (
+	"strconv"
+
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/ontap-rest/client/storage"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/ontap-rest/models"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/nillable"
 )
@@ -26,6 +31,9 @@ type StorageClient interface {
 	VolumeModify(params *VolumeModifyParams) (bool, *JobAccepted, error)
 	VolumeCreate(params *VolumeCreateParams) (*Volume, *JobAccepted, error)
 	VolumeDelete(params *VolumeDeleteParams) error
+
+	SnapshotCreate(params *SnapshotCreateParams) (*Snapshot, *JobAccepted, error)
+	SnapshotGet(params *SnapshotGetParams) (*Snapshot, error)
 }
 
 type storageClient struct {
@@ -354,4 +362,62 @@ func (sc *storageClient) VolumeDelete(params *VolumeDeleteParams) error {
 
 	_, _, err := sc.api.VolumeDeleteCollection(volumeDeleteParamsToONTAPCollectionDelete(params), nil)
 	return err
+}
+
+// SnapshotCreate invokes pkg/ontap-rest/client/storage/Client.CreateSnapshot to create Snapshot in a volume
+func (sc *storageClient) SnapshotCreate(params *SnapshotCreateParams) (*Snapshot, *JobAccepted, error) {
+	created, accepted, err := sc.api.SnapshotCreate(snapshotCreateParamsToONTAP(params), nil)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	if created != nil {
+		if len(created.Payload.Records) != 1 {
+			return nil, nil, errors.Errorf("SnapshotCreate invalid created response from storage server - Expected a single record but got: '%d'", len(created.Payload.Records))
+		}
+		return &Snapshot{Snapshot: *created.Payload.Records[0]}, nil, nil
+	}
+
+	if len(accepted.Payload.Records) != 1 {
+		return nil, nil, errors.Errorf("SnapshotCreate invalid accepted response from storage server - Expected a single record but got: '%d'", len(accepted.Payload.Records))
+	}
+
+	return &Snapshot{Snapshot: *accepted.Payload.Records[0]},
+		&JobAccepted{
+			JobUUID:      string(*accepted.Payload.Job.UUID),
+			ResourceUUID: *accepted.Payload.Records[0].UUID},
+		nil
+}
+
+func (sc *storageClient) SnapshotGet(params *SnapshotGetParams) (*Snapshot, error) {
+	snapshot, err := sc.api.SnapshotGet(snapshotGetParamsToONTAP(params), nil)
+	if err != nil {
+		return nil, err
+	}
+	return &Snapshot{Snapshot: *snapshot.Payload}, nil
+}
+
+func snapshotCreateParamsToONTAP(params *SnapshotCreateParams) *storage.SnapshotCreateParams {
+	if params == nil {
+		return nil
+	}
+	returnTimeout = strconv.FormatInt(int64(utils.GetConstraintInteger(env.GetUint("ONTAP_REST_SYNC_RETURN_TIMEOUT_SECONDS", 15), 0, 15, 15)), 10)
+	return storage.NewSnapshotCreateParams().
+		WithVolumeUUID(params.VolumeUUID).
+		WithInfo(&models.Snapshot{
+			Name:    &params.Name,
+			Comment: params.Comment,
+		}).
+		WithReturnRecords(nillable.ToPointer("true")).
+		WithReturnTimeout(&returnTimeout)
+}
+
+func snapshotGetParamsToONTAP(params *SnapshotGetParams) *storage.SnapshotGetParams {
+	if params == nil {
+		return nil
+	}
+	return storage.NewSnapshotGetParams().
+		WithUUID(params.UUID).
+		WithVolumeUUID(params.VolumeUUID).
+		WithFields(params.Fields)
 }

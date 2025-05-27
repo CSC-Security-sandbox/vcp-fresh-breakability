@@ -401,6 +401,64 @@ func (_c *MockProvider_CreateSVM_Call) RunAndReturn(run func(CreateSvmParams) (*
 	return _c
 }
 
+// CreateSnapshot provides a mock function with given fields: params
+func (_m *MockProvider) CreateSnapshot(params CreateSnapshotParams) (*SnapshotProviderResponse, error) {
+	ret := _m.Called(params)
+
+	if len(ret) == 0 {
+		panic("no return value specified for CreateSnapshot")
+	}
+
+	var r0 *SnapshotProviderResponse
+	var r1 error
+	if rf, ok := ret.Get(0).(func(CreateSnapshotParams) (*SnapshotProviderResponse, error)); ok {
+		return rf(params)
+	}
+	if rf, ok := ret.Get(0).(func(CreateSnapshotParams) *SnapshotProviderResponse); ok {
+		r0 = rf(params)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*SnapshotProviderResponse)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(CreateSnapshotParams) error); ok {
+		r1 = rf(params)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockProvider_CreateSnapshot_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'CreateSnapshot'
+type MockProvider_CreateSnapshot_Call struct {
+	*mock.Call
+}
+
+// CreateSnapshot is a helper method to define mock.On call
+//   - params CreateSnapshotParams
+func (_e *MockProvider_Expecter) CreateSnapshot(params interface{}) *MockProvider_CreateSnapshot_Call {
+	return &MockProvider_CreateSnapshot_Call{Call: _e.mock.On("CreateSnapshot", params)}
+}
+
+func (_c *MockProvider_CreateSnapshot_Call) Run(run func(params CreateSnapshotParams)) *MockProvider_CreateSnapshot_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(CreateSnapshotParams))
+	})
+	return _c
+}
+
+func (_c *MockProvider_CreateSnapshot_Call) Return(_a0 *SnapshotProviderResponse, _a1 error) *MockProvider_CreateSnapshot_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockProvider_CreateSnapshot_Call) RunAndReturn(run func(CreateSnapshotParams) (*SnapshotProviderResponse, error)) *MockProvider_CreateSnapshot_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // CreateSvmPeering provides a mock function with given fields: srcClusterName, srcSVMName, dstSVMName, snapmirrorApplication
 func (_m *MockProvider) CreateSvmPeering(srcClusterName string, srcSVMName string, dstSVMName string, snapmirrorApplication models.SvmPeerApplications) error {
 	ret := _m.Called(srcClusterName, srcSVMName, dstSVMName, snapmirrorApplication)

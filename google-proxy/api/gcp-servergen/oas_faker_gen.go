@@ -4396,6 +4396,78 @@ func (s *V1betaCreateReplicationUnprocessableEntity) SetFake() {
 }
 
 // SetFake set fake values.
+func (s *V1betaCreateSnapshotBadRequest) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaCreateSnapshotBadRequest(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaCreateSnapshotConflict) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaCreateSnapshotConflict(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaCreateSnapshotForbidden) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaCreateSnapshotForbidden(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaCreateSnapshotInternalServerError) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaCreateSnapshotInternalServerError(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaCreateSnapshotNotFound) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaCreateSnapshotNotFound(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaCreateSnapshotTooManyRequests) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaCreateSnapshotTooManyRequests(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaCreateSnapshotUnauthorized) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaCreateSnapshotUnauthorized(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaCreateSnapshotUnprocessableEntity) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaCreateSnapshotUnprocessableEntity(unwrapped)
+}
+
+// SetFake set fake values.
 func (s *V1betaCreateVolumeBadRequest) SetFake() {
 	var unwrapped Error
 	{
@@ -8934,6 +9006,25 @@ func (s *VolumeReplicationUpdateInternalV1betaLabels) SetFake() {
 // SetFake set fake values.
 func (s *VolumeReplicationUpdateInternalV1betaReplicationSchedule) SetFake() {
 	*s = VolumeReplicationUpdateInternalV1betaReplicationSchedule10minutely
+}
+
+// SetFake set fake values.
+func (s *VolumeSnapshotCreateV1beta) SetFake() {
+	{
+		{
+			s.ResourceId = "string"
+		}
+	}
+	{
+		{
+			s.Description.SetFake()
+		}
+	}
+	{
+		{
+			s.IsAppConsistent.SetFake()
+		}
+	}
 }
 
 // SetFake set fake values.

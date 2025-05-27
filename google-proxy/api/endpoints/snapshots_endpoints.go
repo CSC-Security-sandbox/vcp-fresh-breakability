@@ -2,12 +2,17 @@ package api
 
 import (
 	"context"
+	"encoding/json"
 	"time"
 
+	"github.com/go-faster/jx"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/cvpapi/snapshots"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/models"
+	cvpmodels "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/models"
+	coremodels "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	gcpgenserver "github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/api/gcp-servergen"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/nillable"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 )
@@ -17,9 +22,9 @@ func (h Handler) V1betaGetMultipleSnapshots(ctx context.Context, req *gcpgenserv
 	reqPrams := &snapshots.V1betaGetMultipleSnapshotsParams{
 		LocationID:     params.LocationId,
 		ProjectNumber:  params.ProjectNumber,
-		VolumeID:       params.VolumeResourceId,
+		VolumeID:       params.VolumeId,
 		XCorrelationID: &params.XCorrelationID.Value,
-		Body: &models.SnapshotIDListV1beta{
+		Body: &cvpmodels.SnapshotIDListV1beta{
 			SnapshotUUIDs: req.SnapshotUuids,
 		},
 	}
@@ -92,7 +97,82 @@ func (h Handler) V1betaGetMultipleSnapshots(ctx context.Context, req *gcpgenserv
 	return &snapResponse, nil
 }
 
-func convertToSnapshotsV1Beta(snap *models.SnapshotV1beta) gcpgenserver.SnapshotV1beta {
+func (h Handler) V1betaCreateSnapshot(ctx context.Context, req *gcpgenserver.VolumeSnapshotCreateV1beta, params gcpgenserver.V1betaCreateSnapshotParams) (gcpgenserver.V1betaCreateSnapshotRes, error) {
+	logger := util.GetLogger(ctx)
+	volumeId := params.VolumeId
+	region, zone, parsingErr := parseAndValidateRegionAndZone(params.LocationId)
+	if parsingErr != nil {
+		return &gcpgenserver.V1betaCreateSnapshotBadRequest{
+			Code:    400,
+			Message: parsingErr.GetMessage(),
+		}, nil
+	}
+
+	param := &common.CreateSnapshotParams{
+		AccountName: params.ProjectNumber,
+		VolumeID:    volumeId,
+		Name:        req.ResourceId,
+	}
+	if req.Description.IsSet() {
+		param.Description = req.GetDescription().Value
+	} else {
+		param.Description = ""
+	}
+
+	if req.IsAppConsistent.IsSet() {
+		param.IsAppConsistent = req.IsAppConsistent.Value
+	} else {
+		param.IsAppConsistent = false
+	}
+
+	snapshot, jobUUID, err := h.Orchestrator.CreateSnapshot(ctx, param)
+
+	if err != nil {
+		if errors.IsUserInputValidationErr(err) || errors.IsNotFoundErr(err) {
+			return &gcpgenserver.V1betaCreateSnapshotBadRequest{
+				Code:    400,
+				Message: err.Error(),
+			}, nil
+		} else if errors.IsConflictErr(err) {
+			return &gcpgenserver.V1betaCreateSnapshotConflict{
+				Code:    409,
+				Message: err.Error(),
+			}, nil
+		}
+
+		logger.Errorf("Failed to create snapshot: %v", err)
+		return &gcpgenserver.V1betaCreateSnapshotInternalServerError{Code: 500, Message: err.Error()}, err
+	}
+
+	vcpSnapshot := convertModelToVCPSnapshot(snapshot)
+	if zone != "" {
+		vcpSnapshot.Zone = gcpgenserver.NewOptString(zone)
+	} else {
+		vcpSnapshot.Zone = gcpgenserver.NewOptString(region)
+	}
+
+	resp, err := encodeSnapshotV1(vcpSnapshot)
+	if err != nil {
+		logger.Errorf("Failed to encode snapshot response: %v", err)
+		return &gcpgenserver.V1betaCreateSnapshotInternalServerError{Code: 500, Message: err.Error()}, err
+	}
+
+	operationID := "/v1beta/projects/" + params.ProjectNumber + "/locations/" + params.LocationId + "/operations/" + jobUUID
+	if snapshot.LifeCycleState == coremodels.LifeCycleStateCreating {
+		return &gcpgenserver.OperationV1beta{
+			Name:     gcpgenserver.NewOptString(operationID),
+			Response: resp,
+			Done:     gcpgenserver.NewOptBool(false),
+		}, nil
+	}
+	return &gcpgenserver.OperationV1beta{
+		Name:     gcpgenserver.NewOptString(operationID),
+		Response: resp,
+		Done:     gcpgenserver.NewOptBool(true),
+	}, nil
+}
+
+func convertToSnapshotsV1Beta(snap *cvpmodels.SnapshotV1beta) gcpgenserver.SnapshotV1beta {
 	snapshot := gcpgenserver.SnapshotV1beta{
 		ResourceId:           nillable.GetString(snap.Description, ""),
 		SnapshotId:           gcpgenserver.NewOptString(snap.SnapshotID),
@@ -111,4 +191,29 @@ func convertToSnapshotsV1Beta(snap *models.SnapshotV1beta) gcpgenserver.Snapshot
 		snapshot.StorageClass = gcpgenserver.NewOptStorageClassV1beta(gcpgenserver.StorageClassV1betaHARDWARE)
 	}
 	return snapshot
+}
+
+// encodeVolumeV1 encodes a PoolV1 struct to JSON.
+func encodeSnapshotV1(snapShotV1beta *gcpgenserver.SnapshotV1beta) (jx.Raw, error) {
+	data, err := json.Marshal(snapShotV1beta)
+	if err != nil {
+		return nil, err
+	}
+	return data, nil
+}
+
+func convertModelToVCPSnapshot(snapshot *coremodels.Snapshot) *gcpgenserver.SnapshotV1beta {
+	if snapshot == nil {
+		return nil
+	}
+	return &gcpgenserver.SnapshotV1beta{
+		ResourceId:           snapshot.Name,
+		SnapshotId:           gcpgenserver.NewOptString(snapshot.UUID),
+		VolumeId:             gcpgenserver.NewOptString(snapshot.VolumeUUID),
+		VolumeResourceId:     gcpgenserver.NewOptString(snapshot.VolumeName),
+		Created:              gcpgenserver.NewOptDateTime(snapshot.CreatedAt),
+		SnapshotState:        gcpgenserver.NewOptSnapshotV1betaSnapshotState(gcpgenserver.SnapshotV1betaSnapshotState(snapshot.LifeCycleState)),
+		SnapshotStateDetails: gcpgenserver.NewOptString(snapshot.LifeCycleStateDetails),
+		Description:          gcpgenserver.NewOptString(snapshot.Description),
+	}
 }

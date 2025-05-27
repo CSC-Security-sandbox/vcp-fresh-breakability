@@ -671,3 +671,159 @@ func TestVolumeModify(t *testing.T) {
 		assert.Equal(tt, jobUUID, job.JobUUID)
 	})
 }
+
+func TestSnapshotCreate(t *testing.T) {
+	t.Run("WhenRESTCallFails_ThenReturnError", func(tt *testing.T) {
+		transport := &mockTransport{err: errors.New("something went wrong")}
+		storageAPI := storage.New(transport, nil)
+		client := &storageClient{api: storageAPI}
+		response, job, err := client.SnapshotCreate(&SnapshotCreateParams{})
+		assert.EqualError(tt, err, transport.err.Error())
+		assert.Nil(tt, response)
+		assert.Nil(tt, job)
+	})
+
+	t.Run("WhenResponseHasNoSnapshotInfo_ThenReturnUnexpectedResponseError", func(tt *testing.T) {
+		transport := &mockTransport{response: &storage.SnapshotCreateCreated{
+			Payload: &models.SnapshotJobLinkResponse{
+				Records: []*models.Snapshot{},
+			},
+		}}
+		storageAPI := storage.New(transport, nil)
+		client := &storageClient{api: storageAPI}
+		response, job, err := client.SnapshotCreate(&SnapshotCreateParams{})
+		assert.EqualError(tt, err, "SnapshotCreate invalid created response from storage server - Expected a single record but got: '0'")
+		assert.Nil(tt, response)
+		assert.Nil(tt, job)
+	})
+
+	t.Run("WhenResponseHasMultipleSnapshots_ThenReturnUnexpectedResponseError", func(tt *testing.T) {
+		snapshotName1 := "snapshot1"
+		snapshotName2 := "snapshot2"
+		transport := &mockTransport{response: &storage.SnapshotCreateCreated{
+			Payload: &models.SnapshotJobLinkResponse{
+				Records: []*models.Snapshot{
+					{Name: &snapshotName1},
+					{Name: &snapshotName2},
+				},
+			},
+		}}
+		storageAPI := storage.New(transport, nil)
+		client := &storageClient{api: storageAPI}
+		response, job, err := client.SnapshotCreate(&SnapshotCreateParams{})
+		assert.EqualError(tt, err, "SnapshotCreate invalid created response from storage server - Expected a single record but got: '2'")
+		assert.Nil(tt, response)
+		assert.Nil(tt, job)
+	})
+
+	t.Run("WhenSuccessfulWithCreatedResponse_ThenReturnSnapshot", func(tt *testing.T) {
+		snapshotName := "test-snapshot"
+		transport := &mockTransport{response: &storage.SnapshotCreateCreated{
+			Payload: &models.SnapshotJobLinkResponse{
+				Records: []*models.Snapshot{{Name: &snapshotName}},
+			},
+		}}
+		storageAPI := storage.New(transport, nil)
+		client := &storageClient{api: storageAPI}
+		response, job, err := client.SnapshotCreate(&SnapshotCreateParams{})
+		assert.NoError(tt, err)
+		assert.NotNil(tt, response)
+		assert.Nil(tt, job)
+		assert.Equal(tt, snapshotName, *response.Name)
+	})
+
+	t.Run("WhenSuccessfulWithAcceptedResponse_ThenReturnSnapshotAndJob", func(tt *testing.T) {
+		snapshotName := "test-snapshot"
+		UUID := "uuid"
+		jobUUID := "job-uuid"
+		transport := &mockTransport{response: &storage.SnapshotCreateAccepted{
+			Payload: &models.SnapshotJobLinkResponse{
+				Records: []*models.Snapshot{{Name: &snapshotName, UUID: &UUID}},
+				Job:     &models.JobLink{UUID: nillable.ToPointer(strfmt.UUID(jobUUID))},
+			},
+		}}
+		storageAPI := storage.New(transport, nil)
+		client := &storageClient{api: storageAPI}
+		response, job, err := client.SnapshotCreate(&SnapshotCreateParams{})
+		assert.NoError(tt, err)
+		assert.NotNil(tt, response)
+		assert.NotNil(tt, job)
+		assert.Equal(tt, snapshotName, *response.Name)
+		assert.Equal(tt, jobUUID, job.JobUUID)
+	})
+
+	t.Run("WhenEmptyRecordsInResponse_ThenThrowError", func(tt *testing.T) {
+		transport := &mockTransport{response: &storage.SnapshotCreateAccepted{
+			Payload: &models.SnapshotJobLinkResponse{
+				Records: []*models.Snapshot{},
+			},
+		}}
+		storageAPI := storage.New(transport, nil)
+		client := &storageClient{api: storageAPI}
+		response, job, err := client.SnapshotCreate(&SnapshotCreateParams{})
+		assert.ErrorContains(tt, err, "SnapshotCreate invalid accepted response from storage server - Expected a single record but got: '0'")
+		assert.Nil(tt, response)
+		assert.Nil(tt, job)
+	})
+
+	t.Run("WhenMoreThanOneRecordsInResponse_ThenThrowError", func(tt *testing.T) {
+		snapshotName := "test-snapshot"
+		transport := &mockTransport{response: &storage.SnapshotCreateAccepted{
+			Payload: &models.SnapshotJobLinkResponse{
+				Records: []*models.Snapshot{{Name: &snapshotName}, {Name: &snapshotName}},
+			},
+		}}
+		storageAPI := storage.New(transport, nil)
+		client := &storageClient{api: storageAPI}
+		response, job, err := client.SnapshotCreate(&SnapshotCreateParams{})
+		assert.EqualError(tt, err, "SnapshotCreate invalid accepted response from storage server - Expected a single record but got: '2'")
+		assert.Nil(tt, response)
+		assert.Nil(tt, job)
+	})
+}
+
+func TestSnapshotGet(t *testing.T) {
+	t.Run("WhenRESTCallFails_ThenReturnError", func(tt *testing.T) {
+		transport := &mockTransport{err: errors.New("something went wrong")}
+		storageAPI := storage.New(transport, nil)
+		client := &storageClient{api: storageAPI}
+		snapshot, err := client.SnapshotGet(&SnapshotGetParams{})
+		assert.EqualError(tt, err, transport.err.Error())
+		assert.Nil(tt, snapshot)
+	})
+
+	t.Run("WhenResponseIsSuccessful_ThenReturnSnapshot", func(tt *testing.T) {
+		snapshotName := "snapshot1"
+		transport := &mockTransport{response: &storage.SnapshotGetOK{
+			Payload: &models.Snapshot{
+				Name: &snapshotName,
+			},
+		}}
+		storageAPI := storage.New(transport, nil)
+		client := &storageClient{api: storageAPI}
+		snapshot, err := client.SnapshotGet(&SnapshotGetParams{})
+		assert.NoError(tt, err)
+		assert.NotNil(tt, snapshot)
+		assert.Equal(tt, snapshotName, *snapshot.Name)
+	})
+}
+
+func TestSnapshotGetParamsToONTAP(t *testing.T) {
+	t.Run("WhenParamsIsNil_ThenReturnNil", func(tt *testing.T) {
+		result := snapshotGetParamsToONTAP(nil)
+		assert.Nil(tt, result)
+	})
+
+	t.Run("WhenParamsIsNotNil_ThenFieldsAreMapped", func(tt *testing.T) {
+		uuid := "snap-uuid"
+		volumeUUID := "vol-uuid"
+		params := &SnapshotGetParams{
+			UUID:       uuid,
+			VolumeUUID: volumeUUID,
+		}
+		result := snapshotGetParamsToONTAP(params)
+		assert.NotNil(tt, result)
+		assert.Equal(tt, uuid, result.UUID)
+		assert.Equal(tt, volumeUUID, result.VolumeUUID)
+	})
+}

@@ -2,16 +2,21 @@ package api
 
 import (
 	"context"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/nillable"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/cvpapi"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/cvpapi/snapshots"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/models"
+	coremodels "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	gcpserver "github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/api/gcp-servergen"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/nillable"
 )
 
 func TestHandler_V1betaGetMultipleSnapshots(t *testing.T) {
@@ -19,10 +24,10 @@ func TestHandler_V1betaGetMultipleSnapshots(t *testing.T) {
 		mockClient := snapshots.NewMockClientService(tt)
 
 		params := gcpserver.V1betaGetMultipleSnapshotsParams{
-			LocationId:       "location-id",
-			ProjectNumber:    "project-number",
-			VolumeResourceId: "volume-resource-id",
-			XCorrelationID:   gcpserver.NewOptString("X-Correlation-ID"),
+			LocationId:     "location-id",
+			ProjectNumber:  "project-number",
+			VolumeId:       "volume-resource-id",
+			XCorrelationID: gcpserver.NewOptString("X-Correlation-ID"),
 		}
 		req := &gcpserver.SnapshotIdListV1beta{
 			SnapshotUuids: []string{"uri1", "uri2"},
@@ -58,10 +63,10 @@ func TestHandler_V1betaGetMultipleSnapshots(t *testing.T) {
 		mockClient := snapshots.NewMockClientService(tt)
 
 		params := gcpserver.V1betaGetMultipleSnapshotsParams{
-			LocationId:       "location-id",
-			ProjectNumber:    "project-number",
-			VolumeResourceId: "volume-resource-id",
-			XCorrelationID:   gcpserver.NewOptString("X-Correlation-ID"),
+			LocationId:     "location-id",
+			ProjectNumber:  "project-number",
+			VolumeId:       "volume-resource-id",
+			XCorrelationID: gcpserver.NewOptString("X-Correlation-ID"),
 		}
 		req := &gcpserver.SnapshotIdListV1beta{
 			SnapshotUuids: []string{"uri1", "uri2"},
@@ -97,10 +102,10 @@ func TestHandler_V1betaGetMultipleSnapshots(t *testing.T) {
 		mockClient := snapshots.NewMockClientService(tt)
 
 		params := gcpserver.V1betaGetMultipleSnapshotsParams{
-			LocationId:       "location-id",
-			ProjectNumber:    "project-number",
-			VolumeResourceId: "volume-resource-id",
-			XCorrelationID:   gcpserver.NewOptString("X-Correlation-ID"),
+			LocationId:     "location-id",
+			ProjectNumber:  "project-number",
+			VolumeId:       "volume-resource-id",
+			XCorrelationID: gcpserver.NewOptString("X-Correlation-ID"),
 		}
 		req := &gcpserver.SnapshotIdListV1beta{
 			SnapshotUuids: []string{"uri1", "uri2"},
@@ -136,10 +141,10 @@ func TestHandler_V1betaGetMultipleSnapshots(t *testing.T) {
 		mockClient := snapshots.NewMockClientService(tt)
 
 		params := gcpserver.V1betaGetMultipleSnapshotsParams{
-			LocationId:       "location-id",
-			ProjectNumber:    "project-number",
-			VolumeResourceId: "volume-resource-id",
-			XCorrelationID:   gcpserver.NewOptString("X-Correlation-ID"),
+			LocationId:     "location-id",
+			ProjectNumber:  "project-number",
+			VolumeId:       "volume-resource-id",
+			XCorrelationID: gcpserver.NewOptString("X-Correlation-ID"),
 		}
 		req := &gcpserver.SnapshotIdListV1beta{
 			SnapshotUuids: []string{"uri1", "uri2"},
@@ -175,10 +180,10 @@ func TestHandler_V1betaGetMultipleSnapshots(t *testing.T) {
 		mockClient := snapshots.NewMockClientService(tt)
 
 		params := gcpserver.V1betaGetMultipleSnapshotsParams{
-			LocationId:       "location-id",
-			ProjectNumber:    "project-number",
-			VolumeResourceId: "volume-resource-id",
-			XCorrelationID:   gcpserver.NewOptString("X-Correlation-ID"),
+			LocationId:     "location-id",
+			ProjectNumber:  "project-number",
+			VolumeId:       "volume-resource-id",
+			XCorrelationID: gcpserver.NewOptString("X-Correlation-ID"),
 		}
 		req := &gcpserver.SnapshotIdListV1beta{
 			SnapshotUuids: []string{"uri1", "uri2"},
@@ -216,6 +221,206 @@ func TestHandler_V1betaGetMultipleSnapshots(t *testing.T) {
 	})
 }
 
+func TestV1betaCreateSnapshot(t *testing.T) {
+	t.Run("WhenRegionParsingError", func(tt *testing.T) {
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		params := gcpserver.V1betaCreateSnapshotParams{
+			LocationId:    "location-id",
+			ProjectNumber: "project-number",
+			VolumeId:      "test-volume-id",
+		}
+		req := &gcpserver.VolumeSnapshotCreateV1beta{
+			ResourceId:      "test-snapshot-id",
+			Description:     gcpserver.NewOptString("test-description"),
+			IsAppConsistent: gcpserver.NewOptBool(false),
+		}
+		parseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpserver.Error) {
+			return "", "", &gcpserver.Error{
+				Code:    400,
+				Message: "Invalid location ID",
+			}
+		}
+
+		handler := Handler{
+			Orchestrator: mockOrchestrator,
+		}
+		defer func() {
+			parseAndValidateRegionAndZone = utils.ParseAndValidateRegionAndZone
+		}()
+
+		result, _ := handler.V1betaCreateSnapshot(context.Background(), req, params)
+
+		assert.NotNil(tt, result)
+		assert.Equal(tt, float64(400), result.(*gcpserver.V1betaCreateSnapshotBadRequest).Code)
+		assert.Equal(tt, "Invalid location ID", result.(*gcpserver.V1betaCreateSnapshotBadRequest).Message)
+	})
+
+	t.Run("WhenCreateSnapshotReturnsError", func(tt *testing.T) {
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		params := gcpserver.V1betaCreateSnapshotParams{
+			LocationId:    "location-id",
+			ProjectNumber: "project-number",
+			VolumeId:      "test-volume-id",
+		}
+		req := &gcpserver.VolumeSnapshotCreateV1beta{
+			ResourceId:      "test-snapshot-id",
+			Description:     gcpserver.NewOptString("test-description"),
+			IsAppConsistent: gcpserver.NewOptBool(false),
+		}
+		parseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpserver.Error) {
+			return "us-east4", "us-east4", nil
+		}
+
+		defer func() {
+			parseAndValidateRegionAndZone = utils.ParseAndValidateRegionAndZone
+		}()
+
+		handler := Handler{
+			Orchestrator: mockOrchestrator,
+		}
+
+		mockOrchestrator.EXPECT().CreateSnapshot(mock.Anything, mock.Anything).Return(nil, "operation-id", errors.New("error"))
+
+		result, _ := handler.V1betaCreateSnapshot(context.Background(), req, params)
+
+		assert.NotNil(tt, result)
+		assert.Equal(tt, float64(500), result.(*gcpserver.V1betaCreateSnapshotInternalServerError).Code)
+	})
+
+	t.Run("WhenCreateSnapshotReturnsNotFoundError", func(tt *testing.T) {
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		params := gcpserver.V1betaCreateSnapshotParams{
+			LocationId:    "location-id",
+			ProjectNumber: "project-number",
+			VolumeId:      "test-volume-id",
+		}
+		req := &gcpserver.VolumeSnapshotCreateV1beta{
+			ResourceId:      "test-snapshot-id",
+			Description:     gcpserver.NewOptString("test-description"),
+			IsAppConsistent: gcpserver.NewOptBool(false),
+		}
+		parseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpserver.Error) {
+			return "us-east4", "us-east4", nil
+		}
+
+		defer func() {
+			parseAndValidateRegionAndZone = utils.ParseAndValidateRegionAndZone
+		}()
+
+		handler := Handler{
+			Orchestrator: mockOrchestrator,
+		}
+
+		mockOrchestrator.EXPECT().CreateSnapshot(mock.Anything, mock.Anything).Return(nil, "operation-id", errors.NewNotFoundErr("snapshot", nil))
+
+		result, err := handler.V1betaCreateSnapshot(context.Background(), req, params)
+
+		assert.NoError(tt, err)
+		assert.NotNil(tt, result)
+		assert.Equal(tt, float64(400), result.(*gcpserver.V1betaCreateSnapshotBadRequest).Code)
+	})
+
+	t.Run("WhenCreateSnapshotReturnsConflictError", func(tt *testing.T) {
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		params := gcpserver.V1betaCreateSnapshotParams{
+			LocationId:    "location-id",
+			ProjectNumber: "project-number",
+			VolumeId:      "test-volume-id",
+		}
+		req := &gcpserver.VolumeSnapshotCreateV1beta{
+			ResourceId:      "test-snapshot-id",
+			Description:     gcpserver.NewOptString("test-description"),
+			IsAppConsistent: gcpserver.NewOptBool(false),
+		}
+		parseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpserver.Error) {
+			return "us-east4", "us-east4", nil
+		}
+
+		defer func() {
+			parseAndValidateRegionAndZone = utils.ParseAndValidateRegionAndZone
+		}()
+
+		handler := Handler{
+			Orchestrator: mockOrchestrator,
+		}
+
+		mockOrchestrator.EXPECT().CreateSnapshot(mock.Anything, mock.Anything).Return(nil, "operation-id", errors.NewConflictErr("conflict"))
+
+		result, err := handler.V1betaCreateSnapshot(context.Background(), req, params)
+
+		assert.NoError(tt, err)
+		assert.NotNil(tt, result)
+		assert.Equal(tt, float64(409), result.(*gcpserver.V1betaCreateSnapshotConflict).Code)
+	})
+
+	t.Run("WhenCreateSnapshotReturnsConflictError", func(tt *testing.T) {
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		params := gcpserver.V1betaCreateSnapshotParams{
+			LocationId:    "location-id",
+			ProjectNumber: "project-number",
+			VolumeId:      "test-volume-id",
+		}
+		req := &gcpserver.VolumeSnapshotCreateV1beta{
+			ResourceId:      "test-snapshot-id",
+			Description:     gcpserver.NewOptString("test-description"),
+			IsAppConsistent: gcpserver.NewOptBool(false),
+		}
+		parseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpserver.Error) {
+			return "us-east4", "us-east4", nil
+		}
+
+		defer func() {
+			parseAndValidateRegionAndZone = utils.ParseAndValidateRegionAndZone
+		}()
+
+		handler := Handler{
+			Orchestrator: mockOrchestrator,
+		}
+
+		mockOrchestrator.EXPECT().CreateSnapshot(mock.Anything, mock.Anything).Return(nil, "operation-id", errors.NewUserInputValidationErr("validation error"))
+
+		result, err := handler.V1betaCreateSnapshot(context.Background(), req, params)
+
+		assert.NoError(tt, err)
+		assert.NotNil(tt, result)
+		assert.Equal(tt, float64(400), result.(*gcpserver.V1betaCreateSnapshotBadRequest).Code)
+	})
+
+	t.Run("WhenCreateSnapshotSucceeds", func(tt *testing.T) {
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		params := gcpserver.V1betaCreateSnapshotParams{
+			LocationId:    "location-id",
+			ProjectNumber: "project-number",
+			VolumeId:      "test-volume-id",
+		}
+		req := &gcpserver.VolumeSnapshotCreateV1beta{
+			ResourceId:      "test-snapshot-id",
+			Description:     gcpserver.NewOptString("test-description"),
+			IsAppConsistent: gcpserver.NewOptBool(false),
+		}
+		parseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpserver.Error) {
+			return "us-east4", "us-east4", nil
+		}
+
+		defer func() {
+			parseAndValidateRegionAndZone = utils.ParseAndValidateRegionAndZone
+		}()
+
+		handler := Handler{
+			Orchestrator: mockOrchestrator,
+		}
+
+		operationID := "/v1beta/projects/" + params.ProjectNumber + "/locations/" + params.LocationId + "/operations/" + "operation-id"
+		mockOrchestrator.EXPECT().CreateSnapshot(mock.Anything, mock.Anything).Return(&coremodels.Snapshot{BaseModel: coremodels.BaseModel{UUID: "new-snapshot-uuid"}}, "operation-id", nil)
+
+		result, err := handler.V1betaCreateSnapshot(context.Background(), req, params)
+
+		assert.NoError(tt, err)
+		assert.NotNil(tt, result)
+		assert.Equal(tt, operationID, result.(*gcpserver.OperationV1beta).Name.Value)
+	})
+}
+
 func Test_convertToSnapshotsV1Beta(t *testing.T) {
 	t.Run("WhenConvertToSnapshotsV1BetaSucceeds", func(tt *testing.T) {
 		snapshotV1betas := &models.SnapshotV1beta{
@@ -229,5 +434,36 @@ func Test_convertToSnapshotsV1Beta(t *testing.T) {
 		assert.Equal(t, result.SnapshotId.Value, snapshotV1betas.SnapshotID)
 		assert.Equal(t, result.Description.Value, *snapshotV1betas.Description)
 		assert.Equal(t, result.VolumeId.Value, snapshotV1betas.VolumeID)
+	})
+}
+
+func Test_convertModelToVCPSnapshot(t *testing.T) {
+	t.Run("All fields are mapped correctly", func(tt *testing.T) {
+		snapshot := &coremodels.Snapshot{
+			BaseModel: coremodels.BaseModel{
+				UUID:      "uuid-1",
+				CreatedAt: time.Now(),
+			},
+			Name:                  "snap-1",
+			VolumeUUID:            "vol-uuid-1",
+			VolumeName:            "vol-name-1",
+			LifeCycleState:        coremodels.LifeCycleStateREADY,
+			LifeCycleStateDetails: "details",
+			Description:           "desc",
+		}
+		result := convertModelToVCPSnapshot(snapshot)
+		assert.Equal(tt, snapshot.Name, result.ResourceId)
+		assert.Equal(tt, snapshot.UUID, result.SnapshotId.Value)
+		assert.Equal(tt, snapshot.VolumeUUID, result.VolumeId.Value)
+		assert.Equal(tt, snapshot.VolumeName, result.VolumeResourceId.Value)
+		assert.Equal(tt, time.Time(snapshot.CreatedAt), result.Created.Value)
+		assert.Equal(tt, string(snapshot.LifeCycleState), string(result.SnapshotState.Value))
+		assert.Equal(tt, snapshot.LifeCycleStateDetails, result.SnapshotStateDetails.Value)
+		assert.Equal(tt, snapshot.Description, result.Description.Value)
+	})
+
+	t.Run("Nil snapshot returns nil", func(tt *testing.T) {
+		result := convertModelToVCPSnapshot(nil)
+		assert.Nil(tt, result)
 	})
 }

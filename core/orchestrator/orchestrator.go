@@ -29,6 +29,8 @@ type OrchestratorFactory interface {
 	GetMultipleVolumes(ctx context.Context, volumeIds []string, accountName string) ([]*models.Volume, error)
 
 	GetJob(ctx context.Context, operationId string) (*models.Job, error)
+
+	CreateSnapshot(ctx context.Context, params *commonparams.CreateSnapshotParams) (*models.Snapshot, string, error)
 }
 
 type Orchestrator struct {

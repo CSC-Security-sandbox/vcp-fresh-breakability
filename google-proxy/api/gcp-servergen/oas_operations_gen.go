@@ -15,6 +15,7 @@ const (
 	V1betaCreateKmsConfigurationOperation             OperationName = "V1betaCreateKmsConfiguration"
 	V1betaCreatePoolOperation                         OperationName = "V1betaCreatePool"
 	V1betaCreateReplicationOperation                  OperationName = "V1betaCreateReplication"
+	V1betaCreateSnapshotOperation                     OperationName = "V1betaCreateSnapshot"
 	V1betaCreateVolumeOperation                       OperationName = "V1betaCreateVolume"
 	V1betaDeleteActiveDirectoryOperation              OperationName = "V1betaDeleteActiveDirectory"
 	V1betaDeleteBackupPolicyOperation                 OperationName = "V1betaDeleteBackupPolicy"

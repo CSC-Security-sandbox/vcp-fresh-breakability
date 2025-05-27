@@ -90,6 +90,7 @@ func SetupInMemoryDB() (*gorm.DB, error) {
 		&datamodel.Lif{},
 		&datamodel.HostGroup{},
 		&datamodel.Job{},
+		&datamodel.Snapshot{},
 	)
 	if err != nil {
 		return nil, err
@@ -109,6 +110,7 @@ func ClearInMemoryDB(db *gorm.DB) error {
 		&datamodel.Lif{},
 		&datamodel.HostGroup{},
 		&datamodel.Job{},
+		&datamodel.Snapshot{},
 	}
 
 	for _, table := range tables {
@@ -535,4 +537,16 @@ func (s *PersistenceStore) DeleteHostGroup(ctx context.Context, hostGroupUUID st
 
 func (s *PersistenceStore) UpdateHostGroupsState(ctx context.Context, hostGroupUUID []string, accountID int64, state string, stateDetails string) error {
 	return s.dataStore.UpdateHostGroupsState(ctx, hostGroupUUID, accountID, state, stateDetails)
+}
+
+func (s *PersistenceStore) CreatingSnapshot(ctx context.Context, snapshot *datamodel.Snapshot) (*datamodel.Snapshot, error) {
+	return s.dataStore.CreatingSnapshot(ctx, snapshot)
+}
+
+func (s *PersistenceStore) UpdateSnapshot(ctx context.Context, snapshot *datamodel.Snapshot) error {
+	return s.dataStore.UpdateSnapshot(ctx, snapshot)
+}
+
+func (s *PersistenceStore) GetAppConsistentSnapshotsForVolume(ctx context.Context, accountID, volumeID int64) ([]*datamodel.Snapshot, error) {
+	return s.dataStore.GetAppConsistentSnapshotsForVolume(ctx, accountID, volumeID)
 }

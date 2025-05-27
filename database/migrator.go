@@ -45,6 +45,7 @@ func getModels() []interface{} {
 		datamodel.Lif{},
 		datamodel.Svm{},
 		datamodel.Job{},
+		datamodel.Snapshot{},
 		datamodel.HostGroup{},
 	}
 }

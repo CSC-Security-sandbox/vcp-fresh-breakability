@@ -94,6 +94,15 @@ func (UnimplementedHandler) V1betaCreateReplication(ctx context.Context, req *Re
 	return r, ht.ErrNotImplemented
 }
 
+// V1betaCreateSnapshot implements v1beta_createSnapshot operation.
+//
+// Create a new snapshot in the specified volume.
+//
+// POST /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/snapshot
+func (UnimplementedHandler) V1betaCreateSnapshot(ctx context.Context, req *VolumeSnapshotCreateV1beta, params V1betaCreateSnapshotParams) (r V1betaCreateSnapshotRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
 // V1betaCreateVolume implements v1beta_createVolume operation.
 //
 // Create a new empty volume or a volume from a backup/snapshot if backup-Id/snapshot-Id is in the
@@ -321,7 +330,7 @@ func (UnimplementedHandler) V1betaGetMultipleReplications(ctx context.Context, r
 //
 // Returns descriptions of snapshots that is listed in request body and belong to specified volume.
 //
-// POST /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeResourceId}/getMultipleSnapshots
+// POST /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/getMultipleSnapshots
 func (UnimplementedHandler) V1betaGetMultipleSnapshots(ctx context.Context, req *SnapshotIdListV1beta, params V1betaGetMultipleSnapshotsParams) (r V1betaGetMultipleSnapshotsRes, _ error) {
 	return r, ht.ErrNotImplemented
 }

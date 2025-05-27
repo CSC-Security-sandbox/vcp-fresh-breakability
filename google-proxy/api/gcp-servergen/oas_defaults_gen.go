@@ -371,6 +371,14 @@ func (s *VolumeBackupDetailsV1beta) setDefaults() {
 }
 
 // setDefaults set default value of fields.
+func (s *VolumeSnapshotCreateV1beta) setDefaults() {
+	{
+		val := bool(false)
+		s.IsAppConsistent.SetTo(val)
+	}
+}
+
+// setDefaults set default value of fields.
 func (s *VolumeV1beta) setDefaults() {
 	{
 		val := VolumeV1betaServiceLevel("PREMIUM")

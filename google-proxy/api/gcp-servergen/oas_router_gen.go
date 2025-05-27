@@ -1552,6 +1552,30 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 											}
 
+										case 's': // Prefix: "snapshot"
+
+											if l := len("snapshot"); len(elem) >= l && elem[0:l] == "snapshot" {
+												elem = elem[l:]
+											} else {
+												break
+											}
+
+											if len(elem) == 0 {
+												// Leaf node.
+												switch r.Method {
+												case "POST":
+													s.handleV1betaCreateSnapshotRequest([3]string{
+														args[0],
+														args[1],
+														args[2],
+													}, elemIsEscaped, w, r)
+												default:
+													s.notAllowed(w, r, "POST")
+												}
+
+												return
+											}
+
 										}
 
 									}
@@ -3005,7 +3029,7 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 														r.name = V1betaGetMultipleSnapshotsOperation
 														r.summary = "List specified snapshots"
 														r.operationID = "v1beta_getMultipleSnapshots"
-														r.pathPattern = "/v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeResourceId}/getMultipleSnapshots"
+														r.pathPattern = "/v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/getMultipleSnapshots"
 														r.args = args
 														r.count = 3
 														return r, true
@@ -3219,6 +3243,30 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 
 												}
 
+											}
+
+										case 's': // Prefix: "snapshot"
+
+											if l := len("snapshot"); len(elem) >= l && elem[0:l] == "snapshot" {
+												elem = elem[l:]
+											} else {
+												break
+											}
+
+											if len(elem) == 0 {
+												// Leaf node.
+												switch method {
+												case "POST":
+													r.name = V1betaCreateSnapshotOperation
+													r.summary = "Create a snapshot"
+													r.operationID = "v1beta_createSnapshot"
+													r.pathPattern = "/v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/snapshot"
+													r.args = args
+													r.count = 3
+													return r, true
+												default:
+													return
+												}
 											}
 
 										}
