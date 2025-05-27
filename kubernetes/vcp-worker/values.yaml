@@ -1,3 +1,17 @@
+global:
+  primaryImageRegistry: ghcr.io
+  primaryImageRegistryPath: vcp-vsa-control-plane
+  primaryImageRegistryPasswordAuth: true
+  primaryImagePullSecretName: ghcr.io
+  secondaryImageRegistry: "europe-north1-docker.pkg.dev/gcnv-artifact-registry-nonprod"
+  secondaryImageRegistryPath: "vcp-container-images-us"
+  secondaryImageRegistryPasswordAuth: false
+  nodeSelector:
+    nodeType: vsacp-nodes
+  chartPrimaryImageRegistry: ""
+  chartSecondaryImageRegistry: ""
+  environment: gcp
+
 # Application configuration
 app:
   name: "vcp-worker"
@@ -12,17 +26,20 @@ serviceAccount:
 #    - name: "temporal-worker-image-pull-secret"
 
 # Image configuration
-image:
-  repository: "ghcr.io/vcp-vsa-control-plane/vcp-worker"
-  tag: "0.0.1"
-  pullPolicy: "IfNotPresent"
+
+images:
+  vcpWorker:
+    name: vcp-worker
+    tag: v0.0.0
+    secondary: true
+    pullPolicy: IfNotPresent
 
 # Worker configuration
 workerConfig:
   temporalAddress: "temporal-frontend.temporal.svc.cluster.local:7233"
-  env: "local"
+  env: ""
   gcpProxyPort: "8090"
-  gceMetadataHost: "localhost:9090"
+  gceMetadataHost: ""
   gcpConsumerMgmtEndpointUrl: "autopush-netapp.sandbox.googleapis.com"
   gcpServiceNetworkingEndpointUrl: "netapp-tst-autopush-endpoint.appspot.com"
   localRegion: "australia-southeast1"

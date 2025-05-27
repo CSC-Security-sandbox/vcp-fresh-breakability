@@ -14,7 +14,7 @@ jobs:
     name: Create Pre-Release and Publish Docker images
     runs-on: [self-hosted,linux]
     container:
-      image: ghcr.io/vcp-vsa-control-plane/vsacictl:v14
+      image: ghcr.io/vcp-vsa-control-plane/vsacictl:v15
       options: --user root
     permissions:
       contents: read
@@ -50,7 +50,7 @@ jobs:
         shell: bash -e {0}
         run: |
           ALL_DIGESTS_EXIST=1
-          IMAGES=("core" "google-proxy" "vcp-db-migrate")
+          IMAGES=("core" "google-proxy" "vcp-db-migrate" "vcp-worker")
           for IMAGE in "${IMAGES[@]}"; do
               gcpDigest=$(docker inspect "$IMAGE:${{ steps.fetch_new_tag.outputs.newTag }}" | jq -r '.[] | .RepoDigests[] | select(contains("-docker.pkg.dev"))')
               echo "gcp digest is $gcpDigest"
@@ -128,7 +128,7 @@ jobs:
           
           token_value=$(echo "$token" | jq -r '.token')
           
-          IMAGES=("core" "google-proxy" "vcp-db-migrate")
+          IMAGES=("core" "google-proxy" "vcp-db-migrate" "vcp-worker")
           for IMAGE in "${IMAGES[@]}"; do
             digest=$(curl -s -H "Authorization: Bearer $token_value" \
             -H "Accept: application/vnd.oci.image.manifest.v1+json" \
@@ -141,7 +141,7 @@ jobs:
         run: |
           gcloud secrets versions access latest --secret="${{vars.GH_COSIGN_PUB_KEY}}" > /tmp/cosign.pub
           gcloud secrets versions access latest --secret="${{vars.GH_COSIGN_PVT_KEY}}" > /tmp/cosign.key
-          IMAGES=("core" "google-proxy" "vcp-db-migrate")
+          IMAGES=("core" "google-proxy" "vcp-db-migrate" "vcp-worker")
           for IMAGE in "${IMAGES[@]}"; do
             digest=$(printenv "${IMAGE}-digest")
             COSIGN_PASSWORD="" cosign sign --key /tmp/cosign.key  ghcr.io/vcp-vsa-control-plane/${IMAGE}@$digest --tlog-upload=false
@@ -165,7 +165,7 @@ jobs:
         id: generate_artifact_urls
         shell: bash -e {0}
         run: |
-          IMAGES=("core" "google-proxy" "vcp-db-migrate")
+          IMAGES=("core" "google-proxy" "vcp-db-migrate" "vcp-worker")
           for IMAGE in "${IMAGES[@]}"; do
             ARTIFACT_URL=$(gcloud artifacts docker images list ${{secrets.AR_GCP_REGION}}-docker.pkg.dev/${{secrets.AR_GCP_PROJ}}/${{secrets.AR_GCP_REPO}}/${IMAGE} \
             --include-tags \
@@ -178,7 +178,7 @@ jobs:
         if: ${{ env.ALL_DIGESTS_EXIST == '0' }}
         shell: bash -e {0}
         run: |
-          IMAGES=("core" "google-proxy" "vcp-db-migrate")
+          IMAGES=("core" "google-proxy" "vcp-db-migrate" "vcp-worker")
           for IMAGE in "${IMAGES[@]}"; do
             ARTIFACT_URL=$(printenv "${IMAGE}_ARTIFACT_URL")
             gcloud container binauthz create-signature-payload \
@@ -190,7 +190,7 @@ jobs:
         if: ${{ env.ALL_DIGESTS_EXIST == '0' }}
         shell: bash -e {0}
         run: |
-          IMAGES=("core" "google-proxy" "vcp-db-migrate")
+          IMAGES=("core" "google-proxy" "vcp-db-migrate" "vcp-worker")
           for IMAGE in "${IMAGES[@]}"; do
             if [[ "$(printenv "${IMAGE}_DIGEST_EXISTS")" == "0" ]]; then
               ARTIFACT_URL=$(printenv "${IMAGE}_ARTIFACT_URL")
@@ -219,6 +219,7 @@ jobs:
       - name: Package Helm Charts
         run: |
           helm package kubernetes/vsa-control-plane --destination ./helm-packages
+          helm package kubernetes/vcp-worker --destination ./helm-packages
 
       - name: Push Helm Charts to GHCR
         run: |

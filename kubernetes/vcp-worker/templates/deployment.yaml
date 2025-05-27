@@ -18,8 +18,12 @@ spec:
       serviceAccountName: {{ .Values.serviceAccount.name }}
       containers:
         - name: {{ .Values.app.name }}
-          image: {{ printf "%s:%s" .Values.image.repository .Values.image.tag }}
-          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          {{- if .Values.images.vcpWorker.secondary }}
+          image: "{{- include "containerImage" (list . (dict "name" "vcpWorker" "secondary" true)) | trim -}}"
+          {{- else }}
+          image: "{{- include "containerImage" (list . (dict "name" "vcpWorker" "secondary" false)) | trim -}}"
+          {{- end }}
+          imagePullPolicy: {{ .Values.images.vcpWorker.pullPolicy }}
           envFrom:
             - configMapRef:
                 name: {{ include "vcp-worker.configMapName" . }}
