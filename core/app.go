@@ -12,6 +12,7 @@ import (
 	chimiddleware "github.com/go-chi/chi/v5/middleware"
 	"github.com/go-faster/errors"
 	"github.com/google/uuid"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/common"
 	coregenserver "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/core-api/core-servergen"
 	api "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/core-api/handler"
@@ -58,6 +59,7 @@ func main() {
 
 	// Mount the generated API handler
 	mux.Mount("/", http.Handler(oasserver))
+	mux.Handle("/metrics", promhttp.Handler())
 
 	cfg := common.LoadConfig()
 	// Setup HTTP server with proper timeouts

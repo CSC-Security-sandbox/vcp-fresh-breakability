@@ -2,24 +2,14 @@ package log
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"github.com/google/uuid"
-	"google.golang.org/api/option"
 	"net/http"
 	"os"
 	"strings"
 
-	mexporter "github.com/GoogleCloudPlatform/opentelemetry-operations-go/exporter/metric"
-	texporter "github.com/GoogleCloudPlatform/opentelemetry-operations-go/exporter/trace"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware"
-	"go.opentelemetry.io/otel"
-	"go.opentelemetry.io/otel/propagation"
-	"go.opentelemetry.io/otel/sdk/metric"
-	"go.opentelemetry.io/otel/sdk/resource"
-	"go.opentelemetry.io/otel/sdk/trace"
-	semconv "go.opentelemetry.io/otel/semconv/v1.26.0"
 )
 
 type Fields map[string]interface{}
@@ -49,6 +39,7 @@ type Logger interface {
 var (
 	defaultOutputStream = os.Stdout
 	config              Config
+	uuidNewString       = uuid.NewString
 )
 
 type Config struct {
@@ -115,9 +106,10 @@ func NewRequestLogger(r *http.Request) (Logger, Fields) {
 
 func extractFieldsFromHttpRequest(r *http.Request) (Logger, Fields) {
 	correlationID := GetCorrelationID(r)
+	requestID := GetRequestID(r)
 	fields := Fields{
 		"requestCorrelationID": correlationID,
-		"requestID":            r.Header.Get(requestID),
+		"requestID":            requestID,
 		"traceMethod":          r.Method,
 		"traceURL":             r.URL.String(),
 	}
@@ -125,69 +117,22 @@ func extractFieldsFromHttpRequest(r *http.Request) (Logger, Fields) {
 	return logger, fields
 }
 
-// SetupOpenTelemetry sets up the OpenTelemetry SDK and exporters for metrics and
-// traces. If it does not return an error, call shutdown for proper cleanup.
-func SetupOpenTelemetry(ctx context.Context) (shutdown func(context.Context) error, err error) {
-	var shutdownFuncs []func(context.Context) error
-
-	// shutdown combines shutdown functions from multiple OpenTelemetry
-	// components into a single function.
-	shutdown = func(ctx context.Context) error {
-		var err error
-		for _, fn := range shutdownFuncs {
-			err = errors.Join(err, fn(ctx))
-		}
-		shutdownFuncs = nil
-		return err
-	}
-
-	otel.SetTextMapPropagator(propagation.TraceContext{})
-
-	// If User wants to run this application locally and check the traces in Google Cloud Tracer, both these environment variables need to be set accordingly:
-	// - GOOGLE_CLOUD_PROJECT : <name_of_your_consumer_project>
-	// - GOOGLE_APPLICATION_CREDENTIALS : <Service_json_consumer_project>
-	traceExporter, err := texporter.New(texporter.WithProjectID(env.OtelGoogleProjectID),
-		texporter.WithTraceClientOptions([]option.ClientOption{option.WithTelemetryDisabled()}), // Disables default telemetry data sent by the Google Cloud Trace client.
-	)
-	if err != nil {
-		err = errors.Join(err, shutdown(ctx))
-		return
-	}
-	traceProvider := trace.NewTracerProvider(
-		trace.WithBatcher(traceExporter),
-		trace.WithResource(resource.NewWithAttributes(
-			semconv.SchemaURL,
-			semconv.ServiceNameKey.String(env.ServiceName),
-		)),
-	)
-	shutdownFuncs = append(shutdownFuncs, traceProvider.Shutdown)
-	otel.SetTracerProvider(traceProvider)
-
-	metricExporter, err := mexporter.New(mexporter.WithProjectID(env.OtelGoogleProjectID),
-		mexporter.WithMonitoringClientOptions(option.WithTelemetryDisabled()), // Disables default telemetry data sent by the Google Cloud Trace client.
-	)
-	if err != nil {
-		err = errors.Join(err, shutdown(ctx))
-		return
-	}
-	metricProvider := metric.NewMeterProvider(
-		metric.WithReader(metric.NewPeriodicReader(metricExporter)),
-		metric.WithResource(resource.NewWithAttributes(
-			semconv.SchemaURL,
-			semconv.ServiceNameKey.String(env.ServiceName),
-		)),
-	)
-	shutdownFuncs = append(shutdownFuncs, metricProvider.Shutdown)
-	otel.SetMeterProvider(metricProvider)
-
-	return shutdown, nil
+// GetCorrelationID retrieves the correlation ID from the request header.
+func GetCorrelationID(req *http.Request) string {
+	return GetHeaderID(req, RequestCorrelationID)
 }
 
-func GetCorrelationID(req *http.Request) string {
-	tmp := req.Header.Get(RequestCorrelationID)
-	if tmp != "" {
-		return tmp
-	}
+// GetRequestID retrieves the request ID from the request header.
+func GetRequestID(req *http.Request) string {
+	return GetHeaderID(req, RequestID)
+}
 
-	return uuid.NewString()
+// GetHeaderID retrieves or generates a unique ID for the given header key.
+func GetHeaderID(req *http.Request, headerKey string) string {
+	id := req.Header.Get(headerKey)
+	if id == "" {
+		id = uuidNewString()
+		req.Header.Set(headerKey, id)
+	}
+	return id
 }

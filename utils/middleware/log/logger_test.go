@@ -70,7 +70,7 @@ func TestLoggingMiddleware(t *testing.T) {
 		req, _ := http.NewRequest("GET", "/", nil)
 		req.Header.Set("X-Custom-Header", "CustomValue")
 		req.Header.Set(RequestCorrelationID, "test-correlation-id")
-		req.Header.Set(requestID, "test-request-id")
+		req.Header.Set(RequestID, "test-request-id")
 		rr := httptest.NewRecorder()
 
 		logmiddleware.ServeHTTP(rr, req)
@@ -82,7 +82,7 @@ func TestExtractFieldsFromHttpRequest(t *testing.T) {
 	t.Run("Extract fields from HTTP request", func(t *testing.T) {
 		req, _ := http.NewRequest("GET", "/", nil)
 		req.Header.Set(RequestCorrelationID, "test-correlation-id")
-		req.Header.Set(requestID, "test-request-id")
+		req.Header.Set(RequestID, "test-request-id")
 
 		logger, fields := extractFieldsFromHttpRequest(req)
 		assert.IsType(t, &Slogger{}, logger)
@@ -97,8 +97,8 @@ func TestExtractFieldsFromHttpRequest(t *testing.T) {
 		logger, fields := extractFieldsFromHttpRequest(req)
 		assert.IsType(t, &Slogger{}, logger)
 		assert.NotNil(t, fields)
-		assert.NotEmpty(t, fields["requestCorrelationID"]) // Should generate a new correlation ID
-		assert.Empty(t, fields["requestID"])
+		assert.NotEmpty(t, fields["requestCorrelationID"])
+		assert.NotEmpty(t, fields["requestID"])
 	})
 }
 

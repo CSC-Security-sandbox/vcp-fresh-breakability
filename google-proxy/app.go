@@ -12,6 +12,7 @@ import (
 	chimiddleware "github.com/go-chi/chi/v5/middleware"
 	"github.com/go-faster/errors"
 	"github.com/google/uuid"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/common"
 	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator"
@@ -184,6 +185,7 @@ func setupHTTPServer(cfg *common.Config, handler http.Handler) *http.Server {
 	mux.Use(middleware.AuthMiddleware)
 	mux.Use(chimiddleware.Recoverer)
 	mux.Mount("/", handler)
+	mux.Handle("/metrics", promhttp.Handler())
 
 	return &http.Server{
 		Addr:              cfg.GCPHost + ":" + cfg.GCPPort,

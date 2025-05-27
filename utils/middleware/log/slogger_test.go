@@ -1,12 +1,12 @@
 package log
 
 import (
+	"bytes"
 	"context"
 	"log/slog"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/mock"
 	"go.opentelemetry.io/otel/trace"
 )
 
@@ -49,158 +49,103 @@ func TestGetSlogger(t *testing.T) {
 	})
 }
 
-// TestSloggerWithFields tests the WithFields method of Slogger
-func TestSloggerWithFields(t *testing.T) {
-	t.Run("Add fields to logger", func(t *testing.T) {
-		mockLogger := NewMockLogger(t)
-		mockLogger.On("WithFields", "testFields", Fields{"key": "value"}).Return(mockLogger)
-
-		newLogger := mockLogger.WithFields("testFields", Fields{"key": "value"})
-		assert.NotNil(t, newLogger)
-		mockLogger.AssertCalled(t, "WithFields", "testFields", Fields{"key": "value"})
-		mockLogger.AssertExpectations(t)
-	})
-
-	t.Run("Add empty fields to logger", func(t *testing.T) {
-		mockLogger := NewMockLogger(t)
-		mockLogger.On("WithFields", "testFields", Fields{}).Return(mockLogger)
-
-		newLogger := mockLogger.WithFields("testFields", Fields{})
-		assert.NotNil(t, newLogger)
-		mockLogger.AssertCalled(t, "WithFields", "testFields", Fields{})
-		mockLogger.AssertExpectations(t)
-	})
-
-	t.Run("When Field is nil", func(t *testing.T) {
-		mockLogger := NewMockLogger(t)
-		var nilFields Fields = nil
-		mockLogger.On("WithFields", "nilfields", nilFields).Return(mockLogger)
-
-		newLogger := mockLogger.WithFields("nilfields", nilFields)
-		assert.NotNil(t, newLogger)
-		mockLogger.AssertCalled(t, "WithFields", "nilfields", nilFields)
-		mockLogger.AssertExpectations(t)
-	})
-}
-
-// TestSloggerWith tests the With method of Slogger
-func TestSloggerWith(t *testing.T) {
-	t.Run("Add fields to logger", func(t *testing.T) {
-		mockLogger := NewMockLogger(t)
-		mockLogger.On("With", Fields{"key": "value"}).Return(mockLogger)
-
-		newLogger := mockLogger.With(Fields{"key": "value"})
-		assert.NotNil(t, newLogger)
-		mockLogger.AssertCalled(t, "With", Fields{"key": "value"})
-		mockLogger.AssertExpectations(t)
-	})
-
-	t.Run("Add empty fields to logger", func(t *testing.T) {
-		mockLogger := NewMockLogger(t)
-		mockLogger.On("With", Fields{}).Return(mockLogger)
-
-		newLogger := mockLogger.With(Fields{})
-		assert.NotNil(t, newLogger)
-		mockLogger.AssertCalled(t, "With", Fields{})
-		mockLogger.AssertExpectations(t)
-	})
-
-	t.Run("When Field is nil", func(t *testing.T) {
-		mockLogger := NewMockLogger(t)
-		var nilFields Fields = nil
-		mockLogger.On("With", nilFields).Return(mockLogger) // Expect nil of type Fields
-
-		newLogger := mockLogger.With(nilFields) // Pass nil of type Fields
-		assert.NotNil(t, newLogger)
-		mockLogger.AssertCalled(t, "With", nilFields) // Assert nil of type Fields
-		mockLogger.AssertExpectations(t)
-	})
-}
-
 // TestSloggerLogMethods tests the logging methods of Slogger
 func TestSloggerLogMethods(t *testing.T) {
-	mockLogger := NewMockLogger(t)
-	t.Run("log error", func(t *testing.T) {
-		mockLogger.On("Error", "error message").Return()
-		mockLogger.Error("error message")
-		mockLogger.AssertCalled(t, "Error", "error message")
+	logger := &Slogger{}
+	t.Run("Error", func(t *testing.T) {
+		var buf bytes.Buffer
+		logger.slogger = slog.New(slog.NewJSONHandler(&buf, nil))
+		logger.Error("error message")
+		assert.Contains(t, buf.String(), "error message")
 	})
 
-	t.Run("log errorf", func(t *testing.T) {
-		mockLogger.On("Errorf", "error %s", "message").Return()
-		mockLogger.Errorf("error %s", "message")
-		mockLogger.AssertCalled(t, "Errorf", "error %s", "message")
+	t.Run("Errorf", func(t *testing.T) {
+		var buf bytes.Buffer
+		logger.slogger = slog.New(slog.NewJSONHandler(&buf, nil))
+		logger.Errorf("formatted %s", "errorf message")
+		assert.Contains(t, buf.String(), "formatted errorf message")
 	})
 
-	t.Run("log warn", func(t *testing.T) {
-		mockLogger.On("Warn", "warn message").Return()
-		mockLogger.Warn("warn message")
-		mockLogger.AssertCalled(t, "Warn", "warn message")
+	t.Run("Warn", func(t *testing.T) {
+		var buf bytes.Buffer
+		logger.slogger = slog.New(slog.NewJSONHandler(&buf, nil))
+		logger.Warn("warn message")
+		assert.Contains(t, buf.String(), "warn message")
 	})
 
-	t.Run("log warnf", func(t *testing.T) {
-		mockLogger.On("Warnf", "warn %s", "message").Return()
-		mockLogger.Warnf("warn %s", "message")
-		mockLogger.AssertCalled(t, "Warnf", "warn %s", "message")
+	t.Run("Warnf", func(t *testing.T) {
+		var buf bytes.Buffer
+		logger.slogger = slog.New(slog.NewJSONHandler(&buf, nil))
+		logger.Warnf("formatted %s", "warnf message")
+		assert.Contains(t, buf.String(), "formatted warnf message")
 	})
 
-	t.Run("log info", func(t *testing.T) {
-		mockLogger.On("Info", "info message").Return()
-		mockLogger.Info("info message")
-		mockLogger.AssertCalled(t, "Info", "info message")
+	t.Run("Info", func(t *testing.T) {
+		var buf bytes.Buffer
+		logger.slogger = slog.New(slog.NewJSONHandler(&buf, nil))
+		logger.Info("info message")
+		assert.Contains(t, buf.String(), "info message")
 	})
 
-	t.Run("log infof", func(t *testing.T) {
-		mockLogger.On("Infof", "info %s", "message").Return()
-		mockLogger.Infof("info %s", "message")
-		mockLogger.AssertCalled(t, "Infof", "info %s", "message")
+	t.Run("Infof", func(t *testing.T) {
+		var buf bytes.Buffer
+		logger.slogger = slog.New(slog.NewJSONHandler(&buf, nil))
+		logger.Infof("formatted %s", "infof message")
+		assert.Contains(t, buf.String(), "formatted infof message")
 	})
 
-	t.Run("log debug", func(t *testing.T) {
-		mockLogger.On("Debug", "debug message").Return()
-		mockLogger.Debug("debug message")
-		mockLogger.AssertCalled(t, "Debug", "debug message")
+	t.Run("Debug", func(t *testing.T) {
+		var buf bytes.Buffer
+		logger.slogger = slog.New(slog.NewJSONHandler(&buf, &slog.HandlerOptions{
+			Level: slog.LevelDebug,
+		}))
+		logger.Debug("debug message")
+		assert.Contains(t, buf.String(), "debug message")
 	})
 
-	t.Run("log debugf", func(t *testing.T) {
-		mockLogger.On("Debugf", "debug %s", "message").Return()
-		mockLogger.Debugf("debug %s", "message")
-		mockLogger.AssertCalled(t, "Debugf", "debug %s", "message")
+	t.Run("Debugf", func(t *testing.T) {
+		var buf bytes.Buffer
+		logger.slogger = slog.New(slog.NewJSONHandler(&buf, &slog.HandlerOptions{
+			Level: slog.LevelDebug,
+		}))
+		logger.Debugf("formatted %s", "debug message")
+		assert.Contains(t, buf.String(), "formatted debug message")
 	})
 }
 
 // TestSloggerContextLogMethods tests the context logging methods of Slogger
 func TestSloggerContextLogMethods(t *testing.T) {
-	mockLogger := NewMockLogger(t)
+	logger := &Slogger{}
 	ctx := context.Background()
-	t.Run("log info with context", func(t *testing.T) {
-		mockLogger.On("InfoContext", ctx, "info message", mock.Anything).Return()
-		mockLogger.InfoContext(ctx, "info message")
-		mockLogger.AssertCalled(t, "InfoContext", ctx, "info message", mock.Anything)
+
+	t.Run("InfoContext", func(t *testing.T) {
+		var buf bytes.Buffer
+		logger.slogger = slog.New(slog.NewJSONHandler(&buf, nil))
+		logger.InfoContext(ctx, "info message")
+		assert.Contains(t, buf.String(), "info message")
 	})
 
-	t.Run("log warn with context", func(t *testing.T) {
-		mockLogger.On("WarnContext", ctx, "warn message", mock.Anything).Return()
-		mockLogger.WarnContext(ctx, "warn message")
-		mockLogger.AssertCalled(t, "WarnContext", ctx, "warn message", mock.Anything)
+	t.Run("WarnContext", func(t *testing.T) {
+		var buf bytes.Buffer
+		logger.slogger = slog.New(slog.NewJSONHandler(&buf, nil))
+		logger.WarnContext(ctx, "warn message")
+		assert.Contains(t, buf.String(), "warn message")
 	})
 
-	t.Run("log error with context", func(t *testing.T) {
-		mockLogger.On("ErrorContext", ctx, "error message", mock.Anything).Return()
-		mockLogger.ErrorContext(ctx, "error message")
-		mockLogger.AssertCalled(t, "ErrorContext", ctx, "error message", mock.Anything)
+	t.Run("ErrorContext", func(t *testing.T) {
+		var buf bytes.Buffer
+		logger.slogger = slog.New(slog.NewJSONHandler(&buf, nil))
+		logger.ErrorContext(ctx, "error message")
+		assert.Contains(t, buf.String(), "error message")
 	})
 
-	t.Run("log debug with context", func(t *testing.T) {
-		mockLogger.On("DebugContext", ctx, "debug message", mock.Anything).Return()
-		mockLogger.DebugContext(ctx, "debug message")
-		mockLogger.AssertCalled(t, "DebugContext", ctx, "debug message", mock.Anything)
-	})
-
-	t.Run("log with nil context", func(t *testing.T) {
-		mockLogger.On("InfoContext", context.TODO(), "info message with nil context", mock.Anything).Return()
-		mockLogger.InfoContext(context.TODO(), "info message with nil context")
-		mockLogger.AssertCalled(t, "InfoContext", context.TODO(), "info message with nil context", mock.Anything)
+	t.Run("DebugContext", func(t *testing.T) {
+		var buf bytes.Buffer
+		logger.slogger = slog.New(slog.NewJSONHandler(&buf, &slog.HandlerOptions{
+			Level: slog.LevelDebug,
+		}))
+		logger.DebugContext(ctx, "debug message")
+		assert.Contains(t, buf.String(), "debug message")
 	})
 }
 
@@ -235,6 +180,25 @@ func TestSpanContextLogHandler(t *testing.T) {
 		err := handler.Handle(ctx, record)
 		assert.NoError(t, err)
 	})
+	t.Run("WithGroup creates a new handler with the specified group", func(t *testing.T) {
+		handler := handlerWithSpanContext(slog.NewJSONHandler(defaultOutputStream, nil))
+		groupedHandler := handler.WithGroup("testGroup")
+
+		assert.NotNil(t, groupedHandler)
+		assert.IsType(t, &spanContextLogHandler{}, groupedHandler)
+	})
+
+	t.Run("Enabled checks if the log level is enabled", func(t *testing.T) {
+		handler := handlerWithSpanContext(slog.NewJSONHandler(defaultOutputStream, &slog.HandlerOptions{
+			Level: slog.LevelDebug,
+		}))
+		ctx := context.Background()
+
+		assert.True(t, handler.Enabled(ctx, slog.LevelDebug))
+		assert.True(t, handler.Enabled(ctx, slog.LevelInfo))
+		assert.True(t, handler.Enabled(ctx, slog.LevelWarn))
+		assert.True(t, handler.Enabled(ctx, slog.LevelError))
+	})
 }
 
 // TestConvertLogLevel tests the convertLogLevel function
@@ -261,5 +225,176 @@ func TestConvertLogLevel(t *testing.T) {
 
 	t.Run("Convert mixed-case log level", func(t *testing.T) {
 		assert.Equal(t, slog.LevelWarn, convertLogLevel("WaRn"))
+	})
+}
+
+// TestReplacer tests the replacer function
+func TestReplacer(t *testing.T) {
+	t.Run("Replace log level key and value", func(t *testing.T) {
+		attr := slog.Attr{
+			Key:   slog.LevelKey,
+			Value: slog.AnyValue(slog.LevelWarn),
+		}
+		expected := slog.Attr{
+			Key:   "severity",
+			Value: slog.StringValue("WARNING"),
+		}
+		result := replacer(nil, attr)
+		assert.Equal(t, expected, result)
+	})
+
+	t.Run("Replace time key", func(t *testing.T) {
+		attr := slog.Attr{
+			Key:   slog.TimeKey,
+			Value: slog.StringValue("2023-01-01T00:00:00Z"),
+		}
+		expected := slog.Attr{
+			Key:   "timestamp",
+			Value: slog.StringValue("2023-01-01T00:00:00Z"),
+		}
+		result := replacer(nil, attr)
+		assert.Equal(t, expected, result)
+	})
+
+	t.Run("Replace message key", func(t *testing.T) {
+		attr := slog.Attr{
+			Key:   slog.MessageKey,
+			Value: slog.StringValue("test message"),
+		}
+		expected := slog.Attr{
+			Key:   "message",
+			Value: slog.StringValue("test message"),
+		}
+		result := replacer(nil, attr)
+		assert.Equal(t, expected, result)
+	})
+
+	t.Run("Do not replace unrelated key", func(t *testing.T) {
+		attr := slog.Attr{
+			Key:   "unrelatedKey",
+			Value: slog.StringValue("value"),
+		}
+		expected := slog.Attr{
+			Key:   "unrelatedKey",
+			Value: slog.StringValue("value"),
+		}
+		result := replacer(nil, attr)
+		assert.Equal(t, expected, result)
+	})
+}
+
+// TestSloggerWith tests the With method of Slogger
+func TestSloggerWith(t *testing.T) {
+	t.Run("Add fields to logger", func(t *testing.T) {
+		var buf bytes.Buffer
+		logger := &Slogger{
+			slogger: slog.New(slog.NewJSONHandler(&buf, nil)),
+		}
+
+		fields := Fields{"key1": "value1", "key2": 123, "key3": true}
+		newLogger := logger.With(fields)
+
+		assert.IsType(t, &Slogger{}, newLogger)
+
+		newLogger.(*Slogger).Info("test message")
+		logOutput := buf.String()
+
+		assert.Contains(t, logOutput, `"msg":"test message"`)
+		assert.Contains(t, logOutput, `"key1":"value1"`)
+		assert.Contains(t, logOutput, `"key2":123`)
+		assert.Contains(t, logOutput, `"key3":true`)
+	})
+
+	t.Run("Add empty fields to logger", func(t *testing.T) {
+		var buf bytes.Buffer
+		logger := &Slogger{
+			slogger: slog.New(slog.NewJSONHandler(&buf, &slog.HandlerOptions{})),
+		}
+
+		fields := Fields{}
+		newLogger := logger.With(fields)
+
+		assert.IsType(t, &Slogger{}, newLogger)
+
+		newLogger.(*Slogger).Info("test message")
+		logOutput := buf.String()
+
+		assert.Contains(t, logOutput, `"msg":"test message"`)
+		assert.NotContains(t, logOutput, `"key1"`)
+	})
+
+	t.Run("Add nil fields to logger", func(t *testing.T) {
+		var buf bytes.Buffer
+		logger := &Slogger{
+			slogger: slog.New(slog.NewJSONHandler(&buf, &slog.HandlerOptions{})),
+		}
+
+		var nilFields Fields = nil
+		newLogger := logger.With(nilFields)
+
+		assert.IsType(t, &Slogger{}, newLogger)
+
+		newLogger.(*Slogger).Info("test message")
+		logOutput := buf.String()
+
+		assert.Contains(t, logOutput, `"msg":"test message"`)
+		assert.NotContains(t, logOutput, `"key1"`)
+	})
+}
+
+// TestSloggerWithFields tests the WithFields method of Slogger
+func TestSloggerWithFields(t *testing.T) {
+	t.Run("Add fields to logger with field name", func(t *testing.T) {
+		var buf bytes.Buffer
+		logger := &Slogger{
+			slogger: slog.New(slog.NewJSONHandler(&buf, nil)),
+		}
+
+		fields := Fields{"key1": "value1", "key2": 123, "key3": true}
+		newLogger := logger.WithFields("FieldGroup", fields)
+
+		assert.IsType(t, &Slogger{}, newLogger)
+
+		newLogger.(*Slogger).Info("test message")
+		logOutput := buf.String()
+
+		assert.Contains(t, logOutput, `"msg":"test message"`)
+		assert.Contains(t, logOutput, `"FieldGroup":{"key1":"value1","key2":123,"key3":true}`)
+	})
+
+	t.Run("Add empty fields to logger with field name", func(t *testing.T) {
+		var buf bytes.Buffer
+		logger := &Slogger{
+			slogger: slog.New(slog.NewJSONHandler(&buf, nil)),
+		}
+
+		fields := Fields{}
+		newLogger := logger.WithFields("FieldGroup", fields)
+
+		assert.IsType(t, &Slogger{}, newLogger)
+
+		newLogger.(*Slogger).Info("test message")
+		logOutput := buf.String()
+
+		assert.Contains(t, logOutput, `"msg":"test message"`)
+		assert.Contains(t, logOutput, `"FieldGroup":{}`)
+	})
+
+	t.Run("Add nil fields to logger with field name", func(t *testing.T) {
+		var buf bytes.Buffer
+		logger := &Slogger{
+			slogger: slog.New(slog.NewJSONHandler(&buf, nil)),
+		}
+
+		var nilFields Fields = nil
+		newLogger := logger.WithFields("FieldGroup", nilFields)
+
+		assert.IsType(t, &Slogger{}, newLogger)
+
+		newLogger.(*Slogger).Info("test message")
+		logOutput := buf.String()
+
+		assert.Contains(t, logOutput, `"msg":"test message"`)
+		assert.Contains(t, logOutput, `"FieldGroup":null`)
 	})
 }
