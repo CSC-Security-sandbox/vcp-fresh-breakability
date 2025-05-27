@@ -62,3 +62,7 @@ spec:
               value: "local-temporal-frontend.default.svc.cluster.local:7233"
             - name: TEMPORAL_NAMESPACE
               value: "default"
+            - name: ENV
+              value: "local"
+            - name: LOCAL_REGION
+              value: "australia-southeast1"

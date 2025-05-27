@@ -75,6 +75,6 @@ spec:
             - name: LOCAL_REGION
               value: australia-southeast1
             - name: VSA_NODE_PASSWORD
-              value: ""
+              value: <vsa_node_password_here>
             - name: VSA_NODE_USERNAME
-              value: admin
+              value: <vsa_node_username_here>

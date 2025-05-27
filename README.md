@@ -77,30 +77,57 @@ Skaffold will automatically watch for changes in the code and rebuild and redepl
     skaffold dev --watch=false
 ```
 
-### Running Temporal Service Locally
+### How to Run VSA Using Skaffold Locally (Minikube Cluster)
 
-Prerequisites: 
-- Install Helm
+#### Prerequisites
+1. Install **Helm**.
+2. Ensure that you have **Skaffold** installed on your machine. Follow the [Skaffold installation guide](https://skaffold.dev/docs/install/).
+3. Make sure **Minikube** is installed and running. Follow the [Minikube installation guide](https://minikube.sigs.k8s.io/docs/start/).
 
-Deploy Services:
-```bash
+#### Steps
+
+##### 1. Update Environment Variables in Google Proxy Deployment File
+
+Modify the `worker/kubernetes/deployment.yaml` file to include the following environment variables:
+
+```yaml
+- name: VSA_NODE_PASSWORD
+  value: <vsa_node_password_here>
+- name: VSA_NODE_USERNAME
+  value: <vsa_node_username_here>
+```
+
+##### 2. Run Mock Metadata Server
+After starting Skaffold, ensure the mock metadata server is running.
+
+```
+go run tools/mock-metadata-server/app.go
+```
+
+##### 3. Run Skaffold
+Run the following command to start Skaffold:
+
+```
 skaffold dev
 ```
-This will deploy "google-proxy", "core-service", "postgres", and Temporal service in the "default" namespace of your local cluster.
 
-#### Handling Errors: 
-- pq: duplicate key value violates unique constraint "cluster_metadata_info_pkey"
-- Not enough hosts to serve the request
+This will build and deploy all the services to your local Kubernetes cluster. Once deployed, you can access the services using the following URLs:
 
-Solution: Clean the local cluster. 
+- Google Proxy: http://localhost:9000
+- Core Service: http://localhost:9001
+- Postgres: http://localhost:5432
+- Local Temporal Web: http://localhost:8080
+- Workflow Server: http://localhost:9003
 
-If using Minikube, reset it:
+#### Handling Errors
 
-```bash
-minikube delete
+Error: pq: duplicate key value violates unique constraint "cluster_metadata_info_pkey"
+Error: Not enough hosts to serve the request
+Solution: Clean the local cluster.
+
+If you are using Minikube, reset it by running the following commands:
 ```
-
-```bash
+minikube delete
 minikube start
 ```
 
