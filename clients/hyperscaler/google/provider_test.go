@@ -11,6 +11,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 	"google.golang.org/api/compute/v1"
 	"google.golang.org/api/option"
 	"google.golang.org/api/serviceconsumermanagement/v1"
@@ -19,9 +20,11 @@ import (
 )
 
 func TestInitializeClients(t *testing.T) {
+	ctx := context.Background()
 	t.Run("WhenAdminClientInitialised", func(t *testing.T) {
 		gService := &GcpServices{
-			Logger:          log.NewLogger(),
+			Ctx:             ctx,
+			Logger:          util.GetLogger(ctx),
 			AdminGCPService: &AdminGCPService{}}
 		err := gService.InitializeClients()
 		if err != nil {
@@ -30,7 +33,8 @@ func TestInitializeClients(t *testing.T) {
 	})
 	t.Run("InitializingAdmin", func(t *testing.T) {
 		gService := &GcpServices{
-			Logger: log.NewLogger()}
+			Ctx:    ctx,
+			Logger: util.GetLogger(ctx)}
 		admin := &AdminGCPService{}
 		newGoogleClient = func(ctx context.Context) (*AdminGCPService, error) {
 			return admin, nil
@@ -43,7 +47,8 @@ func TestInitializeClients(t *testing.T) {
 	})
 	t.Run("InitializeAdminFails", func(t *testing.T) {
 		gService := &GcpServices{
-			Logger: log.NewLogger()}
+			Ctx:    ctx,
+			Logger: util.GetLogger(ctx)}
 		admin := &AdminGCPService{}
 		newGoogleClient = func(ctx context.Context) (*AdminGCPService, error) {
 			return admin, errors.New("initializeAdminClient Failed")
@@ -277,7 +282,7 @@ func TestGetServiceNetworkingEndpoint(t *testing.T) {
 		gService := &GcpServices{
 			AdminGCPService:           &AdminGCPService{},
 			serviceNetworkingEndpoint: endpoint,
-			Logger:                    log.NewLogger(),
+			Logger:                    util.GetLogger(context.Background()),
 		}
 		res := gService.GetServiceNetworkingEndpoint()
 		if res == "" {
@@ -288,7 +293,9 @@ func TestGetServiceNetworkingEndpoint(t *testing.T) {
 		}
 	})
 	t.Run("WhenServiceNetworkingNotInitialised", func(t *testing.T) {
-		gService := &GcpServices{Logger: log.NewLogger()}
+		gService := &GcpServices{
+			Logger: util.GetLogger(context.Background()),
+		}
 		defer func() {
 			serviceNetworkingEndpoint = env.GetString("GCP_SERVICE_NETWORKING_ENDPOINT_URL", "endpoint.google")
 		}()
@@ -309,7 +316,7 @@ func TestGetServiceConsumerManagementEndpoint(t *testing.T) {
 		gService := &GcpServices{
 			AdminGCPService:                   &AdminGCPService{},
 			serviceConsumerManagementEndpoint: endpoint,
-			Logger:                            log.NewLogger(),
+			Logger:                            util.GetLogger(context.Background()),
 		}
 		res := gService.GetServiceConsumerManagementEndpoint()
 		if res != endpoint {
@@ -317,7 +324,9 @@ func TestGetServiceConsumerManagementEndpoint(t *testing.T) {
 		}
 	})
 	t.Run("WhenConsumerManagementNotInitialised", func(t *testing.T) {
-		gService := &GcpServices{Logger: log.NewLogger()}
+		gService := &GcpServices{
+			Logger: util.GetLogger(context.Background()),
+		}
 		defer func() {
 			serviceConsumerManagementEndpoint = env.GetString("GCP_CONSUMER_MGMT_ENDPOINT_URL", "endpoint.google")
 		}()

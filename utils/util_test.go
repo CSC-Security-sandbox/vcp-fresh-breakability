@@ -184,7 +184,7 @@ func TestParseProjectId(t *testing.T) {
 		_, _, err := ParseProjectId("invalid/network/format")
 		if err == nil {
 			tt.Error("Expected an error but got none")
-		} else if !strings.Contains(err.Error(), "VPC peering network for TenancyUnit") {
+		} else if !strings.Contains(err.Error(), "parseProjectId failed for network ") {
 			tt.Errorf("Unexpected error message: %s", err.Error())
 		}
 	})

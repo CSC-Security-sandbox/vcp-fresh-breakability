@@ -3,20 +3,24 @@ package google
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
 	"time"
 
+	models "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/hyperscaler/models"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
+	"google.golang.org/api/compute/v1"
 	"google.golang.org/api/option"
 	"google.golang.org/api/servicenetworking/v1"
 )
 
-func TestGetSearchRangeOperationStatus(t *testing.T) {
+func Test_GetServiceNetOpStatus(t *testing.T) {
 	url := "/v1/op"
-	t.Run("WhenGetSearchRangeOperationStatus", func(tt *testing.T) {
+	t.Run("WhenGetServiceNetOpStatusStatus", func(tt *testing.T) {
 		server := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
 			if req.URL.Path == url {
 				rw.WriteHeader(http.StatusInternalServerError)
@@ -37,7 +41,7 @@ func TestGetSearchRangeOperationStatus(t *testing.T) {
 			AdminGCPService:           &adminService,
 			Logger:                    log.NewLogger(),
 		}
-		out, err := getNetworkingOperationStatus(gService, "op")
+		out, err := getServiceNetOpStatus(gService, "op")
 		if err == nil {
 			tt.Error("Expected an error but got nothing")
 		} else {
@@ -75,7 +79,7 @@ func TestGetSearchRangeOperationStatus(t *testing.T) {
 			AdminGCPService:           &adminService,
 			Logger:                    log.NewLogger(),
 		}
-		out, err := getNetworkingOperationStatus(gService, "op")
+		out, err := getServiceNetOpStatus(gService, "op")
 		if err != nil {
 			tt.Errorf("Unexpected error: %s", err.Error())
 		} else {
@@ -90,217 +94,473 @@ func TestGetSearchRangeOperationStatus(t *testing.T) {
 	})
 }
 
-// func TestWaitForServiceNetworkOperationStatus(t *testing.T) {
-//	t.Run("WhenGetSearchRangeOperationStatusThrowsError", func(tt *testing.T) {
-//		expectedErr := errors.New("GetSearchRangeOperationStatus Error")
-//		operation := &servicenetworking.Operation{
-//			Name: "op",
-//			Response: []error{
-//				expectedErr,
-//			},
-//		}
-//		provider := &hyperscaler.MockGoogleServices{
-//			SearchRangeOperation: operation,
-//			Errs: []error{
-//				expectedErr,
-//			},
-//		}
-//		getNetworkingOperationStatus = func(gcpService *GcpServices, operation string) (*servicenetworking.Operation, error) {
-//			return nil, errors.New("initializeManagementService failed")
-//		}
-//		gcpService := &GcpServices{}
-//		oldWaitTimeout := waitTimeoutMinutes
-//		waitTimeoutMinutes = time.Second * 5
-//		defer func() {
-//			waitTimeoutMinutes = oldWaitTimeout
-//		}()
-//
-//		op, err := waitForServiceNetworkOperationStatus(gcpService, operation.Name)
-//		assert.Equal(tt, op, operation)
-//		assert.Equal(tt, err, expectedErr)
-//	})
-//	t.Run("WhenGetSearchRangeOperationReturnedWithError", func(tt *testing.T) {
-//		operation := &servicenetworking.Operation{
-//			Name: "op",
-//		}
-//		errMsg := "GetSearchRangeOperationStatus Error"
-//		resp := &servicenetworking.Operation{
-//			Name: operation.Name,
-//			Done: true,
-//			Error: &servicenetworking.Status{
-//				Message: errMsg,
-//			},
-//		}
-//		provider := &mock.MockGoogleServices{
-//			SearchRangeOperation: resp,
-//		}
-//
-//		gcpService := &GcpServices{}
-//		oldWaitTimeout := waitTimeoutMinutes
-//		waitTimeoutMinutes = time.Second * 5
-//		defer func() {
-//			waitTimeoutMinutes = oldWaitTimeout
-//		}()
-//		op, err := waitForServiceNetworkOperationStatus(gcpService, operation.Name)
-//		assert.Equal(tt, op.Name, operation.Name)
-//		assert.True(tt, op.Done)
-//		assert.Equal(tt, op.Error.Message, errMsg)
-//		assert.Error(tt, err, errMsg)
-//	})
-//	t.Run("WhenGetSearchRangeOperationReturnedWithoutError", func(tt *testing.T) {
-//		operation := &servicenetworking.Operation{
-//			Name: "op",
-//		}
-//		resp := &servicenetworking.Operation{
-//			Name: operation.Name,
-//			Done: true,
-//		}
-//		provider := &mock.MockGoogleServices{
-//			SearchRangeOperation: resp,
-//		}
-//
-//		gcpService := &GcpServices{}
-//		oldWaitTimeout := waitTimeoutMinutes
-//		waitTimeoutMinutes = time.Second * 5
-//		defer func() {
-//			waitTimeoutMinutes = oldWaitTimeout
-//		}()
-//		op, err := waitForServiceNetworkOperationStatus(gcpService, operation.Name)
-//		assert.Equal(tt, op.Name, operation.Name)
-//		assert.True(tt, op.Done)
-//		assert.NoError(tt, err)
-//	})
-//	t.Run("WhenGetSearchRangeOperationTimesOut", func(tt *testing.T) {
-//		operation := &servicenetworking.Operation{
-//			Name: "op",
-//		}
-//		provider := &mock.MockGoogleServices{
-//			SearchRangeOperation: operation,
-//		}
-//
-//		gcpService := &GcpServices{}
-//		oldWaitTimeout := waitTimeoutMinutes
-//		waitTimeoutMinutes = time.Second * 5
-//		defer func() {
-//			waitTimeoutMinutes = oldWaitTimeout
-//		}()
-//		op, err := waitForServiceNetworkOperationStatus(gcpService, operation.Name)
-//		assert.Nil(tt, op)
-//		assert.Error(tt, err, "Timeout while confirming service network google components")
-//	})
-// }
-//
-// func Test_waitForServiceNetworkOperationStatus(t *testing.T) {
-//	t.Run("WhenGetSearchRangeOperationStatusError", func(tt *testing.T) {
-//		defer testReset(t)
-//		mgs := hyperscaler.NewMockGoogleServices(tt)
-//		defer mgs.CloseMockGoogleServices()
-//		resp := &servicenetworking.Operation{
-//			Done: false,
-//			Name: "funcTest",
-//		}
-//		waitSleep = time.Millisecond * 5
-//		go func() {
-//			defer mgs.MockGoogleServicesDone()
-//			_, err := _waitForServiceNetworkOperationStatus(mgs, resp)
-//			if err == nil {
-//				tt.Error("Expected an error")
-//			} else if err.Error() != "GetSearchRangeOperationStatus failure" {
-//				tt.Errorf("Unexpected error returned: %s", err.Error())
-//			}
-//		}()
-//		mgs.AssertGetTrace(trace)
-//		mgs.AssertGetReporter(pr)
-//		mgs.AssertGetSearchRangeOperationStatus(resp.Name, nil, errors.New("GetSearchRangeOperationStatus failure"))
-//		mgs.AssertMockGoogleServicesDone()
-//	})
-//	t.Run("WhenGetSearchRangeOperationStatusNoError", func(tt *testing.T) {
-//		defer testReset(t)
-//		mgs := services.NewMockGoogleServices(tt)
-//		defer mgs.CloseMockGoogleServices()
-//
-//		resp := &servicenetworking.Operation{
-//			Done: true,
-//			Name: "funcTest",
-//		}
-//		waitSleep = time.Millisecond * 5
-//		go func() {
-//			defer mgs.MockGoogleServicesDone()
-//			ops, err := _waitForServiceNetworkOperationStatus(mgs, resp)
-//			if ops == nil {
-//				tt.Error("Expected Response")
-//			} else if err != nil {
-//				tt.Error("Unexpected error")
-//			} else if !reflect.DeepEqual(resp, ops) {
-//				tt.Error("Not Equal")
-//			}
-//		}()
-//		mgs.AssertGetTrace(trace)
-//		mgs.AssertGetReporter(pr)
-//		mgs.AssertGetSearchRangeOperationStatus(resp.Name, resp, nil)
-//		mgs.AssertMockGoogleServicesDone()
-//	})
-//	t.Run("WhenNoOperationError", func(tt *testing.T) {
-//		defer testReset(t)
-//		mgs := services.NewMockGoogleServices(tt)
-//		defer mgs.CloseMockGoogleServices()
-//		resp := &servicenetworking.Operation{
-//			Done: true,
-//			Name: "funcTest",
-//			Error: &servicenetworking.Status{
-//				Code:    9,
-//				Message: "I dont like this anymore",
-//			},
-//		}
-//
-//		isNotReady := errors.NewNotReadyErr("not ready")
-//
-//		go func() {
-//			defer mgs.MockGoogleServicesDone()
-//			ops, err := _waitForServiceNetworkOperationStatus(mgs, resp)
-//			if ops == nil {
-//				tt.Error("Expected an error")
-//			} else if err.Error() != "I dont like this anymore" {
-//				tt.Errorf("Unexpected error returned: %s", err.Error())
-//			} else if !reflect.DeepEqual(resp, ops) {
-//				tt.Error("Not Equal")
-//			}
-//
-//		}()
-//		mgs.AssertGetTrace(trace)
-//		mgs.AssertGetSearchRangeOperationStatus(resp.Name, nil, isNotReady)
-//		mgs.AssertGetSearchRangeOperationStatus(resp.Name, resp, nil)
-//		mgs.AssertMockGoogleServicesDone()
-//	})
-//	t.Run("WhenTimeoutError", func(tt *testing.T) {
-//		defer testReset(t)
-//		mgs := services.NewMockGoogleServices(tt)
-//		defer mgs.CloseMockGoogleServices()
-//
-//		resp := &servicenetworking.Operation{
-//			Done: false,
-//			Name: "funcTest",
-//			Error: &servicenetworking.Status{
-//				Code:    9,
-//				Message: "I dont like this anymore",
-//			},
-//		}
-//		waitTimeout = time.Millisecond
-//		waitSleep = waitTimeout + waitTimeout
-//
-//		go func() {
-//			defer mgs.MockGoogleServicesDone()
-//			_, err := _waitForServiceNetworkOperationStatus(mgs, resp)
-//			waitTimeout = time.Minute * 5
-//			waitSleep = time.Second * 3
-//			if err == nil {
-//				tt.Error("Expected an error")
-//			} else if err.Error() != "Timeout while confirming service network google components" {
-//				tt.Errorf("Unexpected error returned: %s", err.Error())
-//			}
-//		}()
-//		mgs.AssertGetTrace(trace)
-//		mgs.AssertGetSearchRangeOperationStatus(resp.Name, resp, nil)
-//		mgs.AssertMockGoogleServicesDone()
-//	})
-// }
+func Test_getComputeRegionalOpStatus(t *testing.T) {
+	url := "/projects/1079058383248/regions/us-central1/operations/op"
+	projectNumber := "1079058383248"
+	region := "us-central1"
+	operationName := "op"
+
+	t.Run("When_getComputeRegionalOpStatus", func(tt *testing.T) {
+		server := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
+			if req.URL.Path == url {
+				rw.WriteHeader(http.StatusInternalServerError)
+				return
+			}
+			rw.WriteHeader(http.StatusBadRequest)
+		}))
+		defer server.Close()
+		svc, err := compute.NewService(
+			context.TODO(), option.WithHTTPClient(&http.Client{Timeout: time.Second}), option.WithEndpoint(server.URL))
+		if err != nil {
+			t.Errorf("Error getting service up: '%s'", err.Error())
+		}
+		adminService := AdminGCPService{computeService: svc}
+
+		gService := &GcpServices{
+			serviceNetworkingEndpoint: "endpoint.goog",
+			AdminGCPService:           &adminService,
+			Logger:                    log.NewLogger(),
+		}
+		out, err := getComputeRegionalOpStatus(gService, projectNumber, region, operationName)
+		if err == nil {
+			tt.Error("Expected an error but got nothing")
+		} else {
+			if out != nil {
+				tt.Errorf("Unexpected output: %+v\n", out)
+			}
+			if !strings.Contains(err.Error(), "response code 500 with body") {
+				tt.Errorf("Unexpected error: %s", err.Error())
+			}
+		}
+	})
+	t.Run("WhenOK", func(tt *testing.T) {
+		resp := &servicenetworking.Operation{Name: "op1"}
+		server := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
+			if req.URL.Path == url {
+				response, err := json.Marshal(resp)
+				if err != nil {
+					rw.WriteHeader(http.StatusBadRequest)
+					return
+				}
+				_, _ = rw.Write(response)
+				return
+			}
+		}))
+		defer server.Close()
+		svc, err := compute.NewService(
+			context.TODO(), option.WithHTTPClient(&http.Client{Timeout: time.Second}), option.WithEndpoint(server.URL))
+		if err != nil {
+			t.Errorf("Error getting service up: '%s'", err.Error())
+		}
+		adminService := AdminGCPService{computeService: svc}
+
+		gService := &GcpServices{
+			serviceNetworkingEndpoint: "endpoint.goog",
+			AdminGCPService:           &adminService,
+			Logger:                    log.NewLogger(),
+		}
+		out, err := getComputeRegionalOpStatus(gService, projectNumber, region, operationName)
+		if err != nil {
+			tt.Errorf("Unexpected error: %s", err.Error())
+		} else {
+			if out == nil {
+				tt.Errorf("Output unexpectedly nil")
+			} else {
+				if out.Name != "op1" {
+					tt.Errorf("Unexpected operation name %s", out.Name)
+				}
+			}
+		}
+	})
+}
+
+func TestGetComputeGlobalOpStatus(t *testing.T) {
+	url := "/projects/1079058383248/global/operations/op"
+	t.Run("WhenGetComputeGlobalOpStatus", func(tt *testing.T) {
+		ctx := context.Background()
+		server := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
+			if req.URL.Path == url {
+				rw.WriteHeader(http.StatusInternalServerError)
+				return
+			}
+			rw.WriteHeader(http.StatusBadRequest)
+		}))
+		defer server.Close()
+		svc, err := compute.NewService(
+			ctx, option.WithHTTPClient(&http.Client{Timeout: time.Second}), option.WithEndpoint(server.URL))
+		if err != nil {
+			t.Errorf("Error getting service up: '%s'", err.Error())
+		}
+		adminService := AdminGCPService{computeService: svc}
+
+		gService := &GcpServices{
+			Ctx:             ctx,
+			AdminGCPService: &adminService,
+			Logger:          log.NewLogger(),
+		}
+		out, err := getComputeGlobalOpStatus(gService, "1079058383248", "op")
+		if err == nil {
+			tt.Error("Expected an error but got nothing")
+		} else {
+			if out != nil {
+				tt.Errorf("Unexpected output: %+v\n", out)
+			}
+			if !strings.Contains(err.Error(), "response code 500 with body") {
+				tt.Errorf("Unexpected error: %s", err.Error())
+			}
+		}
+	})
+	t.Run("WhenOK", func(tt *testing.T) {
+		resp := &compute.Operation{Name: "op1"}
+		server := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
+			if req.URL.Path == url {
+				response, err := json.Marshal(resp)
+				if err != nil {
+					rw.WriteHeader(http.StatusBadRequest)
+					return
+				}
+				_, _ = rw.Write(response)
+				return
+			}
+		}))
+		defer server.Close()
+		svc, err := compute.NewService(
+			context.TODO(), option.WithHTTPClient(&http.Client{Timeout: time.Second}), option.WithEndpoint(server.URL))
+		if err != nil {
+			t.Errorf("Error getting service up: '%s'", err.Error())
+		}
+		adminService := AdminGCPService{computeService: svc}
+
+		gService := &GcpServices{
+			AdminGCPService: &adminService,
+			Logger:          log.NewLogger(),
+		}
+		out, err := getComputeGlobalOpStatus(gService, "1079058383248", "op")
+		if err != nil {
+			tt.Errorf("Unexpected error: %s", err.Error())
+		} else {
+			if out == nil {
+				tt.Errorf("Output unexpectedly nil")
+			} else {
+				if out.Name != "op1" {
+					tt.Errorf("Unexpected operation name %s", out.Name)
+				}
+			}
+		}
+	})
+}
+
+func Test_waitForServiceNetworkOperationStatus(t *testing.T) {
+	mockLogger := log.NewLogger()
+	mockGcpService := &GcpServices{
+		Logger: mockLogger,
+	}
+
+	t.Run("OperationCompletesSuccessfully", func(t *testing.T) {
+		calls := 0
+		orig := getServiceNetOpStatus
+		getServiceNetOpStatus = func(gcpService *GcpServices, operationName string) (*models.ComputeOperation, error) {
+			calls++
+			if calls < 2 {
+				return &models.ComputeOperation{Done: false}, nil
+			}
+			return &models.ComputeOperation{Done: true}, nil
+		}
+		timeSleep = func(d time.Duration) {
+			if calls == 1 {
+				time.Sleep(time.Millisecond * 5)
+			}
+		}
+
+		defer func() {
+			getServiceNetOpStatus = orig
+			timeSleep = time.Sleep
+		}()
+
+		op, err := _waitForServiceNetworkOperationStatus(mockGcpService, "op1")
+		if err != nil {
+			t.Errorf("expected no error, got %v", err)
+		}
+		if op == nil || !op.Done {
+			t.Errorf("expected operation to be done")
+		}
+	})
+
+	t.Run("OperationReturnsError (not NotReady)", func(t *testing.T) {
+		orig := getServiceNetOpStatus
+		getServiceNetOpStatus = func(gcpService *GcpServices, operationName string) (*models.ComputeOperation, error) {
+			return nil, fmt.Errorf("some error")
+		}
+		timeSleep = func(d time.Duration) {
+			time.Sleep(time.Millisecond * 5)
+		}
+
+		defer func() {
+			getServiceNetOpStatus = orig
+			timeSleep = time.Sleep
+		}()
+
+		op, err := _waitForServiceNetworkOperationStatus(mockGcpService, "op2")
+		if err == nil {
+			t.Errorf("expected error, got nil")
+		}
+		if op != nil {
+			t.Errorf("expected nil op, got %+v", op)
+		}
+	})
+
+	t.Run("OperationReturnsNotReadyErrorThenSuccess", func(t *testing.T) {
+		calls := 0
+		orig := getServiceNetOpStatus
+		getServiceNetOpStatus = func(gcpService *GcpServices, operationName string) (*models.ComputeOperation, error) {
+			calls++
+			if calls < 2 {
+				return nil, errors.NewNotReadyErr("not ready")
+			}
+			return &models.ComputeOperation{Done: true}, nil
+		}
+
+		timeSleep = func(d time.Duration) {
+			time.Sleep(time.Millisecond * 5)
+		}
+		defer func() {
+			getServiceNetOpStatus = orig
+			timeSleep = time.Sleep
+		}()
+
+		op, err := _waitForServiceNetworkOperationStatus(mockGcpService, "op3")
+		if err != nil {
+			t.Errorf("expected no error, got %v", err)
+		}
+		if op == nil || !op.Done {
+			t.Errorf("expected operation to be done")
+		}
+	})
+
+	t.Run("OperationCompletesWithErrorResponse", func(t *testing.T) {
+		orig := getServiceNetOpStatus
+		getServiceNetOpStatus = func(gcpService *GcpServices, operationName string) (*models.ComputeOperation, error) {
+			return &models.ComputeOperation{Done: true, ErrorResponse: "operation failed"}, nil
+		}
+		timeSleep = func(d time.Duration) {
+			time.Sleep(time.Millisecond * 5)
+		}
+		defer func() {
+			getServiceNetOpStatus = orig
+			timeSleep = time.Sleep
+		}()
+
+		op, err := _waitForServiceNetworkOperationStatus(mockGcpService, "op4")
+		if err == nil || err.Error() != "operation failed" {
+			t.Errorf("expected error 'operation failed', got %v", err)
+		}
+		if op == nil || !op.Done {
+			t.Errorf("expected operation to be done")
+		}
+	})
+
+	t.Run("TimeoutWaitingForOperation", func(t *testing.T) {
+		origTimeout := waitTimeoutMinutes
+		origSleep := defaultSleepTime
+		waitTimeoutMinutes = time.Millisecond * 10
+		defaultSleepTime = time.Millisecond * 2
+
+		timeSleep = func(d time.Duration) {
+			time.Sleep(time.Millisecond * 5)
+		}
+		defer func() {
+			waitTimeoutMinutes = origTimeout
+			defaultSleepTime = origSleep
+			timeSleep = time.Sleep
+		}()
+		orig := getServiceNetOpStatus
+		getServiceNetOpStatus = func(gcpService *GcpServices, operationName string) (*models.ComputeOperation, error) {
+			return &models.ComputeOperation{Done: false}, nil
+		}
+		defer func() { getServiceNetOpStatus = orig }()
+
+		op, err := _waitForServiceNetworkOperationStatus(mockGcpService, "op5")
+		if err == nil || !strings.Contains(err.Error(), "Timeout while confirming service network google components") {
+			t.Errorf("expected timeout error, got %v", err)
+		}
+		if op != nil {
+			t.Errorf("expected nil op, got %+v", op)
+		}
+	})
+}
+
+// Unit tests for _waitForComputeNetGlobalOpStatus
+func Test_waitForComputeNetGlobalOpStatus(t *testing.T) {
+	mockLogger := log.NewLogger()
+	mockGcpService := &GcpServices{
+		Logger: mockLogger,
+	}
+
+	origGetComputeGlobalOpStatus := getComputeGlobalOpStatus
+	origTimeSleep := timeSleep
+	origWaitTimeout := waitTimeoutMinutes
+	origDefaultSleep := defaultSleepTime
+
+	defer func() {
+		getComputeGlobalOpStatus = origGetComputeGlobalOpStatus
+		timeSleep = origTimeSleep
+		waitTimeoutMinutes = origWaitTimeout
+		defaultSleepTime = origDefaultSleep
+	}()
+
+	t.Run("OperationCompletesSuccessfully", func(t *testing.T) {
+		calls := 0
+		getComputeGlobalOpStatus = func(gcpService *GcpServices, tenantProject, operationName string) (*models.ComputeOperation, error) {
+			calls++
+			if calls < 2 {
+				return &models.ComputeOperation{Status: "PENDING", Progress: 50}, nil
+			}
+			return &models.ComputeOperation{Status: "DONE", Progress: 100}, nil
+		}
+		timeSleep = func(d time.Duration) {}
+		op, err := _waitForComputeNetGlobalOpStatus(mockGcpService, "project", "op1")
+		if err != nil {
+			t.Errorf("expected no error, got %v", err)
+		}
+		if op == nil || op.Status != "DONE" || op.Progress != 100 {
+			t.Errorf("expected operation to be done, got %+v", op)
+		}
+	})
+
+	t.Run("OperationReturnsError (not NotReady)", func(t *testing.T) {
+		getComputeGlobalOpStatus = func(gcpService *GcpServices, tenantProject, operationName string) (*models.ComputeOperation, error) {
+			return nil, fmt.Errorf("some error")
+		}
+		timeSleep = func(d time.Duration) {}
+		op, err := _waitForComputeNetGlobalOpStatus(mockGcpService, "project", "op2")
+		if err == nil {
+			t.Errorf("expected error, got nil")
+		}
+		if op != nil {
+			t.Errorf("expected nil op, got %+v", op)
+		}
+	})
+
+	t.Run("OperationReturnsNotReadyErrorThenSuccess", func(t *testing.T) {
+		calls := 0
+		getComputeGlobalOpStatus = func(gcpService *GcpServices, tenantProject, operationName string) (*models.ComputeOperation, error) {
+			calls++
+			if calls < 2 {
+				return nil, errors.NewNotReadyErr("not ready")
+			}
+			return &models.ComputeOperation{Status: "DONE", Progress: 100}, nil
+		}
+		timeSleep = func(d time.Duration) {}
+		op, err := _waitForComputeNetGlobalOpStatus(mockGcpService, "project", "op3")
+		if err != nil {
+			t.Errorf("expected no error, got %v", err)
+		}
+		if op == nil || op.Status != "DONE" || op.Progress != 100 {
+			t.Errorf("expected operation to be done, got %+v", op)
+		}
+	})
+
+	t.Run("TimeoutWaitingForOperation", func(t *testing.T) {
+		waitTimeoutMinutes = time.Millisecond * 10
+		defaultSleepTime = time.Millisecond * 2
+		getComputeGlobalOpStatus = func(gcpService *GcpServices, tenantProject, operationName string) (*models.ComputeOperation, error) {
+			return &models.ComputeOperation{Status: "PENDING", Progress: 50}, nil
+		}
+		timeSleep = func(d time.Duration) { time.Sleep(time.Millisecond * 5) }
+		op, err := _waitForComputeNetGlobalOpStatus(mockGcpService, "project", "op4")
+		if err == nil || !strings.Contains(err.Error(), "Timeout while confirming compute network google components") {
+			t.Errorf("expected timeout error, got %v", err)
+		}
+		if op != nil {
+			t.Errorf("expected nil op, got %+v", op)
+		}
+	})
+}
+
+// Unit tests for _waitForComputeRegionalOperation
+func Test_waitForComputeRegionalOperation(t *testing.T) {
+	mockLogger := log.NewLogger()
+	mockGcpService := &GcpServices{
+		Logger: mockLogger,
+	}
+
+	origGetComputeRegionalOpStatus := getComputeRegionalOpStatus
+	origTimeSleep := timeSleep
+	origWaitTimeout := waitTimeoutMinutes
+	origDefaultSleep := defaultSleepTime
+
+	defer func() {
+		getComputeRegionalOpStatus = origGetComputeRegionalOpStatus
+		timeSleep = origTimeSleep
+		waitTimeoutMinutes = origWaitTimeout
+		defaultSleepTime = origDefaultSleep
+	}()
+
+	t.Run("OperationCompletesSuccessfully", func(t *testing.T) {
+		calls := 0
+		getComputeRegionalOpStatus = func(gcpService *GcpServices, projectNumber, region, operationName string) (*models.ComputeOperation, error) {
+			calls++
+			if calls < 2 {
+				return &models.ComputeOperation{Status: "PENDING", Progress: 50}, nil
+			}
+			return &models.ComputeOperation{Status: "DONE", Progress: 100}, nil
+		}
+		timeSleep = func(d time.Duration) {}
+		op, err := _waitForComputeRegionalOperation(mockGcpService, "project", "region", "op1")
+		if err != nil {
+			t.Errorf("expected no error, got %v", err)
+		}
+		if op == nil || op.Status != "DONE" || op.Progress != 100 {
+			t.Errorf("expected operation to be done, got %+v", op)
+		}
+	})
+
+	t.Run("OperationReturnsError (not NotReady)", func(t *testing.T) {
+		getComputeRegionalOpStatus = func(gcpService *GcpServices, projectNumber, region, operationName string) (*models.ComputeOperation, error) {
+			return nil, fmt.Errorf("some error")
+		}
+		timeSleep = func(d time.Duration) {}
+		op, err := _waitForComputeRegionalOperation(mockGcpService, "project", "region", "op2")
+		if err == nil {
+			t.Errorf("expected error, got nil")
+		}
+		if op != nil {
+			t.Errorf("expected nil op, got %+v", op)
+		}
+	})
+
+	t.Run("OperationReturnsNotReadyErrorThenSuccess", func(t *testing.T) {
+		calls := 0
+		getComputeRegionalOpStatus = func(gcpService *GcpServices, projectNumber, region, operationName string) (*models.ComputeOperation, error) {
+			calls++
+			if calls < 2 {
+				return nil, errors.NewNotReadyErr("not ready")
+			}
+			return &models.ComputeOperation{Status: "DONE", Progress: 100}, nil
+		}
+		timeSleep = func(d time.Duration) {}
+		op, err := _waitForComputeRegionalOperation(mockGcpService, "project", "region", "op3")
+		if err != nil {
+			t.Errorf("expected no error, got %v", err)
+		}
+		if op == nil || op.Status != "DONE" || op.Progress != 100 {
+			t.Errorf("expected operation to be done, got %+v", op)
+		}
+	})
+
+	t.Run("TimeoutWaitingForOperation", func(t *testing.T) {
+		waitTimeoutMinutes = time.Millisecond * 10
+		defaultSleepTime = time.Millisecond * 2
+		getComputeRegionalOpStatus = func(gcpService *GcpServices, projectNumber, region, operationName string) (*models.ComputeOperation, error) {
+			return &models.ComputeOperation{Status: "PENDING", Progress: 50}, nil
+		}
+		timeSleep = func(d time.Duration) { time.Sleep(time.Millisecond * 5) }
+		op, err := _waitForComputeRegionalOperation(mockGcpService, "project", "region", "op4")
+		if err == nil || !strings.Contains(err.Error(), "Timeout while confirming compute network google components") {
+			t.Errorf("expected timeout error, got %v", err)
+		}
+		if op != nil {
+			t.Errorf("expected nil op, got %+v", op)
+		}
+	})
+}

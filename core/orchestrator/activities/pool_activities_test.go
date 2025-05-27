@@ -2,13 +2,17 @@ package activities_test
 
 import (
 	"context"
+	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/hyperscaler"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/hyperscaler/google"
+	models "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/hyperscaler/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/vlm"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
+	coremodel "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
 	commonparams "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
@@ -16,6 +20,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 	"gorm.io/gorm"
 	"netapp.com/vsa/lifecycle-manager/pkg/vlmconfig"
 )
@@ -115,30 +120,6 @@ func TestCreateTenancy_Success(t *testing.T) {
 	mockStorage.AssertExpectations(t)
 }
 
-func TestSetupNetwork_Success(t *testing.T) {
-	// Arrange
-	mockStorage := database.NewMockStorage(t)
-	activity := activities.PoolActivity{SE: mockStorage}
-	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
-	setupNetwork := activities.SetupNetwork
-	defer func() { activities.SetupNetwork = setupNetwork }()
-
-	activities.SetupNetwork = func(ctx context.Context, projectId, snHostProject, network, tpregion string) error {
-		return nil
-	}
-	region := "test-region"
-	projectId := "test-project"
-	snHostProject := "test-sn-host-project"
-	network := "test-network"
-
-	// Act
-	err := activity.SetupNetwork(ctx, region, network, projectId, snHostProject)
-
-	// Assert
-	assert.NoError(t, err)
-	mockStorage.AssertExpectations(t)
-}
-
 func TestDeployDeploymentManager_Success(t *testing.T) {
 	// Arrange
 	mockStorage := database.NewMockStorage(t)
@@ -200,7 +181,7 @@ func TestGetONTAPProvider_Success(t *testing.T) {
 	defer func() { activities.GetProviderByNode = originalGetProviderByNode }() // Restore original function after test
 
 	// Mock GetProviderByNode to return the mock provider
-	activities.GetProviderByNode = func(node *models.Node) vsa.Provider {
+	activities.GetProviderByNode = func(node *coremodel.Node) vsa.Provider {
 		return mockProvider
 	}
 
@@ -209,7 +190,7 @@ func TestGetONTAPProvider_Success(t *testing.T) {
 	}
 
 	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
-	node := &models.Node{}
+	node := &coremodel.Node{}
 	ontapVersion := "9.10.1"
 	mockProvider.On("GetONTAPVersion", mock.Anything).Return(&ontapVersion, nil)
 
@@ -518,7 +499,7 @@ func Test_SaveNodeDetails_Success(t *testing.T) {
 	defer func() { activities.GetProviderByNode = originalGetProviderByNode }() // Restore original function after test
 
 	// Mock GetProviderByNode to return the mock provider
-	activities.GetProviderByNode = func(node *models.Node) vsa.Provider {
+	activities.GetProviderByNode = func(node *coremodel.Node) vsa.Provider {
 		return mockProvider
 	}
 	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
@@ -557,7 +538,7 @@ func Test_SaveNodeDetails_FailsToCreateNode(t *testing.T) {
 	defer func() { activities.GetProviderByNode = originalGetProviderByNode }() // Restore original function after test
 
 	// Mock GetProviderByNode to return the mock provider
-	activities.GetProviderByNode = func(node *models.Node) vsa.Provider {
+	activities.GetProviderByNode = func(node *coremodel.Node) vsa.Provider {
 		return mockProvider
 	}
 	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
@@ -747,11 +728,11 @@ func Test_CreateLifForSvm_Success(t *testing.T) {
 	}, nil).Once()
 	mockStorage.On("CreateLif", ctx, mock.Anything).Return(&datamodel.Lif{}, nil)
 
-	activities.GetProviderByNode = func(node *models.Node) vsa.Provider {
+	activities.GetProviderByNode = func(node *coremodel.Node) vsa.Provider {
 		return mockProvider
 	}
 
-	err := activity.CreateLifForSvm(ctx, &models.Node{}, cluster, pool, svm)
+	err := activity.CreateLifForSvm(ctx, &coremodel.Node{}, cluster, pool, svm)
 
 	assert.NoError(t, err)
 	mockStorage.AssertExpectations(t)
@@ -770,7 +751,7 @@ func Test_CreateLifForSvm_NotEnoughNodes(t *testing.T) {
 
 	mockStorage.On("GetNodesByPoolID", ctx, pool.ID).Return(nodes, nil)
 
-	err := activity.CreateLifForSvm(ctx, &models.Node{}, nil, pool, svm)
+	err := activity.CreateLifForSvm(ctx, &coremodel.Node{}, nil, pool, svm)
 
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "not enough nodes in the cluster")
@@ -794,7 +775,7 @@ func Test_CreateLifForSvm_MissingDataLif(t *testing.T) {
 		{BaseModel: datamodel.BaseModel{ID: 1}, Name: "node1"},
 		{BaseModel: datamodel.BaseModel{ID: 2}, Name: "node2"},
 	}
-	activities.GetProviderByNode = func(node *models.Node) vsa.Provider {
+	activities.GetProviderByNode = func(node *coremodel.Node) vsa.Provider {
 		return mockProvider
 	}
 
@@ -807,7 +788,7 @@ func Test_CreateLifForSvm_MissingDataLif(t *testing.T) {
 	mockStorage.On("GetNodesByPoolID", ctx, pool.ID).Return(nodes, nil)
 	mockStorage.On("CreateLif", ctx, mock.Anything).Return(&datamodel.Lif{}, nil)
 
-	err := activity.CreateLifForSvm(ctx, &models.Node{}, cluster, pool, svm)
+	err := activity.CreateLifForSvm(ctx, &coremodel.Node{}, cluster, pool, svm)
 
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "missing dataLif in cluster details for node index")
@@ -835,11 +816,11 @@ func Test_CreateLifForSvm_FailsToCreateLif(t *testing.T) {
 	mockStorage.On("GetNodesByPoolID", ctx, pool.ID).Return(nodes, nil)
 	mockProvider.On("CreateDataLIF", mock.Anything).Return(nil, errors.New("failed to create LIF")).Once()
 
-	activities.GetProviderByNode = func(node *models.Node) vsa.Provider {
+	activities.GetProviderByNode = func(node *coremodel.Node) vsa.Provider {
 		return mockProvider
 	}
 
-	err := activity.CreateLifForSvm(ctx, &models.Node{}, cluster, pool, svm)
+	err := activity.CreateLifForSvm(ctx, &coremodel.Node{}, cluster, pool, svm)
 
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "failed to create LIF")
@@ -1558,4 +1539,526 @@ func Test_SkipsSubnetReleaseWhenMultiplePoolsExist(t *testing.T) {
 
 	assert.NoError(t, err)
 	mockStorage.AssertExpectations(t)
+}
+
+func Test_setupNetworkWithFirewall(t *testing.T) {
+	ctx := context.TODO()
+	projectName := "test-project"
+	vpcName := "test-vpc"
+	region := "us-central1"
+	subnetIpCidrRange := "10.0.0.0/16"
+	firewallSourceRanges := []string{"0.0.0.0/0"}
+	firewallAllowedPortRules := []string{"tcp", "udp"}
+	subnetName := "test-subnet"
+	firewallPriority := int64(1000)
+	t.Run("WhenCreateVPCFails", func(tt *testing.T) {
+		errString := "Failed to create VPC"
+		err := errors.New(errString)
+
+		vpcCreate := activities.CreateVPC
+		setupNetwork := activities.SetupNetworkWithFirewall
+		GetGCPService := activities.GetGCPService
+		defer func() {
+			activities.CreateVPC = vpcCreate
+			activities.SetupNetworkWithFirewall = setupNetwork
+			activities.GetGCPService = GetGCPService
+		}()
+		activities.GetGCPService = func(ctx context.Context) (*google.GcpServices, error) {
+			return &google.GcpServices{}, nil
+		}
+		activities.CreateVPC = func(service hyperscaler.GoogleServices, projectName, vpcName string) error {
+			return err
+		}
+
+		errResp := activities.SetupNetworkWithFirewall(ctx, projectName, vpcName, &region, subnetName, subnetIpCidrRange, firewallPriority, "INGRESS", firewallSourceRanges, firewallAllowedPortRules)
+		assert.Equal(tt, errString, errResp.Error())
+	})
+	t.Run("WhenCreateSubnetFails", func(tt *testing.T) {
+		errString := "Failed to create subnet"
+		err := errors.New(errString)
+		vpcCreate := activities.CreateVPC
+		setupNetwork := activities.SetupNetworkWithFirewall
+		subnetCreate := activities.InsertSubnet
+		GetGCPService := activities.GetGCPService
+		defer func() {
+			activities.CreateVPC = vpcCreate
+			activities.SetupNetworkWithFirewall = setupNetwork
+			activities.InsertSubnet = subnetCreate
+			activities.GetGCPService = GetGCPService
+		}()
+		activities.GetGCPService = func(ctx context.Context) (*google.GcpServices, error) {
+			return &google.GcpServices{}, nil
+		}
+		activities.CreateVPC = func(service hyperscaler.GoogleServices, projectName, vpcName string) error {
+			return nil
+		}
+		activities.InsertSubnet = func(service hyperscaler.GoogleServices, projectName string, region *string, subnetName string, vpcName string, ipCidrRange string) error {
+			return err
+		}
+		errResp := activities.SetupNetworkWithFirewall(ctx, projectName, vpcName, &region, subnetName, subnetIpCidrRange, firewallPriority, "INGRESS", firewallSourceRanges, firewallAllowedPortRules)
+		assert.Equal(tt, errString, errResp.Error())
+	})
+	t.Run("WhenInsertFirewallFails", func(tt *testing.T) {
+		errString := "Failed to create firewall"
+		err := errors.New(errString)
+
+		vpcCreate := activities.CreateVPC
+		setupNetwork := activities.SetupNetworkWithFirewall
+		subnetCreate := activities.InsertSubnet
+		InsertFirewall := activities.InsertFirewall
+		GetGCPService := activities.GetGCPService
+		defer func() {
+			activities.CreateVPC = vpcCreate
+			activities.SetupNetworkWithFirewall = setupNetwork
+			activities.InsertSubnet = subnetCreate
+			activities.InsertFirewall = InsertFirewall
+			activities.GetGCPService = GetGCPService
+		}()
+		activities.GetGCPService = func(ctx context.Context) (*google.GcpServices, error) {
+			return &google.GcpServices{}, nil
+		}
+		activities.CreateVPC = func(service hyperscaler.GoogleServices, projectName, vpcName string) error {
+			return nil
+		}
+		activities.InsertSubnet = func(service hyperscaler.GoogleServices, projectName string, region *string, subnetName string, vpcName string, ipCidrRange string) error {
+			return nil
+		}
+		activities.InsertFirewall = func(service hyperscaler.GoogleServices, projectName, firewallName, vpcName string, priority int64, trafficDirection string, firewallSourceRanges, firewallAllowedPortRules []string) error {
+			return err
+		}
+		errResp := activities.SetupNetworkWithFirewall(ctx, projectName, vpcName, &region, subnetName, subnetIpCidrRange, firewallPriority, "INGRESS", firewallSourceRanges, firewallAllowedPortRules)
+		assert.Equal(tt, errString, errResp.Error())
+	})
+	t.Run("WhensetupNetworkWithFirewallSucceeds", func(tt *testing.T) {
+		vpcCreate := activities.CreateVPC
+		setupNetwork := activities.SetupNetworkWithFirewall
+		subnetCreate := activities.InsertSubnet
+		InsertFirewall := activities.InsertFirewall
+		GetGCPService := activities.GetGCPService
+		defer func() {
+			activities.CreateVPC = vpcCreate
+			activities.SetupNetworkWithFirewall = setupNetwork
+			activities.InsertSubnet = subnetCreate
+			activities.InsertFirewall = InsertFirewall
+			activities.GetGCPService = GetGCPService
+		}()
+		activities.GetGCPService = func(ctx context.Context) (*google.GcpServices, error) {
+			return &google.GcpServices{}, nil
+		}
+		activities.CreateVPC = func(service hyperscaler.GoogleServices, projectName, vpcName string) error {
+			return nil
+		}
+		activities.InsertSubnet = func(service hyperscaler.GoogleServices, projectName string, region *string, subnetName string, vpcName string, ipCidrRange string) error {
+			return nil
+		}
+		activities.InsertFirewall = func(service hyperscaler.GoogleServices, projectName, firewallName, vpcName string, priority int64, trafficDirection string, firewallSourceRanges, firewallAllowedPortRules []string) error {
+			return nil
+		}
+		errResp := activities.SetupNetworkWithFirewall(ctx, projectName, vpcName, &region, subnetName, subnetIpCidrRange, firewallPriority, "INGRESS", firewallSourceRanges, firewallAllowedPortRules)
+		assert.NoError(tt, errResp)
+	})
+}
+
+func Test_InsertFirewall(t *testing.T) {
+	projectName := "test-project"
+	vpcName := "test-vpc"
+	firewallName := "test-firewall"
+	priority := int64(1000)
+	direction := "INGRESS"
+	firewallSourceRanges := []string{"10.0.0.0/8", "192.168.0.0/16"}
+	firewallAllowedPortRules := []string{"tcp", "udp"}
+	ctx := context.TODO()
+	logger := util.GetLogger(ctx)
+	t.Run("WhenFirewallAlreadyExists", func(tt *testing.T) {
+		mgs := hyperscaler.NewMockGoogleServices(tt)
+
+		InsertFirewall := activities.InsertFirewall
+		defer func() {
+			activities.InsertFirewall = InsertFirewall
+		}()
+		mgs.On("GetLogger").Return(logger)
+		mgs.On("GetFirewall", projectName, firewallName).Return(&models.Firewall{}, nil)
+
+		err := activities.InsertFirewall(mgs, projectName, firewallName, vpcName, priority, direction, firewallSourceRanges, firewallAllowedPortRules)
+		assert.NoError(tt, err)
+		mgs.AssertExpectations(tt)
+	})
+
+	t.Run("WhenGetFirewallFailsWithNonNotFoundError", func(tt *testing.T) {
+		mgs := hyperscaler.NewMockGoogleServices(tt)
+
+		InsertFirewall := activities.InsertFirewall
+		defer func() {
+			activities.InsertFirewall = InsertFirewall
+		}()
+		errString := "unexpected error"
+		mgs.On("GetLogger").Return(logger)
+		mgs.On("GetFirewall", projectName, firewallName).Return(nil, errors.New(errString))
+
+		err := activities.InsertFirewall(mgs, projectName, firewallName, vpcName, priority, direction, firewallSourceRanges, firewallAllowedPortRules)
+		assert.EqualError(tt, err, fmt.Sprintf("Error getting subnet for project: %s, vpc name: %s, firewall name: %s. Error : %s", projectName, vpcName, firewallName, errString))
+		mgs.AssertExpectations(tt)
+	})
+
+	t.Run("WhenInsertFirewallFails", func(tt *testing.T) {
+		mgs := hyperscaler.NewMockGoogleServices(tt)
+
+		InsertFirewall := activities.InsertFirewall
+		defer func() {
+			activities.InsertFirewall = InsertFirewall
+		}()
+		errString := "failed to insert firewall"
+		mgs.On("GetLogger").Return(logger)
+		mgs.On("GetFirewall", projectName, firewallName).Return(nil, nil)
+		mgs.On("InsertFirewall", &models.Firewall{
+			ProjectName:      projectName,
+			Name:             firewallName,
+			VPCNetworkName:   vpcName,
+			Priority:         priority,
+			Direction:        direction,
+			SourceRanges:     firewallSourceRanges,
+			AllowedPortRules: firewallAllowedPortRules,
+		}).Return(errors.New(errString))
+
+		err := activities.InsertFirewall(mgs, projectName, firewallName, vpcName, priority, direction, firewallSourceRanges, firewallAllowedPortRules)
+		assert.EqualError(tt, err, errString)
+		mgs.AssertExpectations(tt)
+	})
+
+	t.Run("WhenInsertFirewallSucceeds", func(tt *testing.T) {
+		mgs := hyperscaler.NewMockGoogleServices(tt)
+
+		InsertFirewall := activities.InsertFirewall
+		defer func() {
+			activities.InsertFirewall = InsertFirewall
+		}()
+		mgs.On("GetLogger").Return(logger)
+		mgs.On("GetFirewall", projectName, firewallName).Return(nil, nil)
+		mgs.On("InsertFirewall", mock.Anything).Return(nil)
+
+		err := activities.InsertFirewall(mgs, projectName, firewallName, vpcName, priority, direction, firewallSourceRanges, firewallAllowedPortRules)
+		assert.NoError(tt, err)
+		mgs.AssertExpectations(tt)
+	})
+}
+
+func Test_CreateVPC(t *testing.T) {
+	projectName := "test-project"
+	vpcName := "test-vpc"
+
+	ctx := context.TODO()
+	logger := util.GetLogger(ctx)
+	t.Run("WhenVPCAlreadyExists", func(tt *testing.T) {
+		mgs := hyperscaler.NewMockGoogleServices(tt)
+
+		CreateVPC := activities.CreateVPC
+		defer func() {
+			activities.CreateVPC = CreateVPC
+		}()
+		mgs.On("GetLogger").Return(logger)
+		mgs.On("GetVPCNetwork", projectName, vpcName).Return(&models.VPCNetwork{}, nil)
+
+		err := activities.CreateVPC(mgs, projectName, vpcName)
+		assert.NoError(tt, err)
+		mgs.AssertExpectations(tt)
+	})
+
+	t.Run("WhenGetVPCNetworkFailsWithNonNotFoundError", func(tt *testing.T) {
+		mgs := hyperscaler.NewMockGoogleServices(tt)
+
+		CreateVPC := activities.CreateVPC
+		defer func() {
+			activities.CreateVPC = CreateVPC
+		}()
+		errString := "unexpected error"
+		mgs.On("GetLogger").Return(logger)
+		mgs.On("GetVPCNetwork", projectName, vpcName).Return(nil, errors.New(errString))
+
+		err := activities.CreateVPC(mgs, projectName, vpcName)
+		assert.EqualError(tt, err, fmt.Sprintf("Error getting vpc for project: %s and vpc name: %s. Error : %s", projectName, vpcName, errString))
+		mgs.AssertExpectations(tt)
+	})
+
+	t.Run("WhenGetVPCNetworkFailsWithNotFoundError", func(tt *testing.T) {
+		mgs := hyperscaler.NewMockGoogleServices(tt)
+
+		CreateVPC := activities.CreateVPC
+		defer func() {
+			activities.CreateVPC = CreateVPC
+		}()
+		errString := "not found"
+		mgs.On("GetLogger").Return(logger)
+		mgs.On("GetVPCNetwork", projectName, vpcName).Return(nil, errors.New(errString))
+		mgs.On("CreateVPC", &models.VPCNetwork{Name: vpcName, ProjectName: projectName}).Return(nil)
+
+		err := activities.CreateVPC(mgs, projectName, vpcName)
+		assert.Nil(tt, err)
+		mgs.AssertExpectations(tt)
+	})
+	t.Run("WhenCreateVPCFails", func(tt *testing.T) {
+		mgs := hyperscaler.NewMockGoogleServices(tt)
+
+		CreateVPC := activities.CreateVPC
+		defer func() {
+			activities.CreateVPC = CreateVPC
+		}()
+		errString := "failed to create VPC"
+		mgs.On("GetLogger").Return(logger)
+		mgs.On("GetVPCNetwork", projectName, vpcName).Return(nil, nil)
+		mgs.On("CreateVPC", &models.VPCNetwork{Name: vpcName, ProjectName: projectName}).Return(errors.New(errString))
+
+		err := activities.CreateVPC(mgs, projectName, vpcName)
+		assert.EqualError(tt, err, fmt.Sprintf("Error creating vpc for project: %s and vpc name: %s. Error : %s", projectName, vpcName, errString))
+		mgs.AssertExpectations(tt)
+	})
+
+	t.Run("WhenGetVPCNetworkAfterCreationFails", func(tt *testing.T) {
+		mgs := hyperscaler.NewMockGoogleServices(tt)
+
+		CreateVPC := activities.CreateVPC
+		defer func() {
+			activities.CreateVPC = CreateVPC
+		}()
+		errString := "failed to get VPC after creation"
+		mgs.On("GetLogger").Return(logger)
+		mgs.On("GetVPCNetwork", projectName, vpcName).Return(nil, nil).Once()
+		mgs.On("CreateVPC", &models.VPCNetwork{Name: vpcName, ProjectName: projectName}).Return(errors.New(errString))
+
+		err := activities.CreateVPC(mgs, projectName, vpcName)
+		assert.EqualError(tt, err, fmt.Sprintf("Error creating vpc for project: %s and vpc name: %s. Error : %s", projectName, vpcName, errString))
+		mgs.AssertExpectations(tt)
+	})
+
+	t.Run("WhenCreateVPCSucceeds", func(tt *testing.T) {
+		mgs := hyperscaler.NewMockGoogleServices(tt)
+
+		CreateVPC := activities.CreateVPC
+		defer func() {
+			activities.CreateVPC = CreateVPC
+		}()
+		mgs.On("GetLogger").Return(logger)
+		mgs.On("GetVPCNetwork", projectName, vpcName).Return(nil, nil).Once()
+		mgs.On("CreateVPC", &models.VPCNetwork{Name: vpcName, ProjectName: projectName}).Return(nil)
+
+		err := activities.CreateVPC(mgs, projectName, vpcName)
+		assert.NoError(tt, err)
+		mgs.AssertExpectations(tt)
+	})
+}
+
+func Test_InsertSubnet(t *testing.T) {
+	projectName := "test-project"
+	region := "us-central1"
+	subnetName := "test-subnet"
+	vpcName := "test-vpc"
+	ipCidrRange := "10.0.0.0/16"
+
+	ctx := context.TODO()
+	logger := util.GetLogger(ctx)
+	t.Run("WhenSubnetAlreadyExists", func(tt *testing.T) {
+		mgs := hyperscaler.NewMockGoogleServices(tt)
+
+		InsertSubnet := activities.InsertSubnet
+		defer func() {
+			activities.InsertSubnet = InsertSubnet
+		}()
+		mgs.On("GetLogger").Return(logger)
+		mgs.On("GetSubnetwork", projectName, region, subnetName).Return(&models.Subnet{}, nil)
+
+		err := activities.InsertSubnet(mgs, projectName, &region, subnetName, vpcName, ipCidrRange)
+		assert.NoError(tt, err)
+		mgs.AssertExpectations(tt)
+	})
+
+	t.Run("WhenGetSubnetworkFailsWithNonNotFoundError", func(tt *testing.T) {
+		mgs := hyperscaler.NewMockGoogleServices(tt)
+
+		InsertSubnet := activities.InsertSubnet
+		defer func() {
+			activities.InsertSubnet = InsertSubnet
+		}()
+		errString := "unexpected error"
+		mgs.On("GetLogger").Return(logger)
+		mgs.On("GetSubnetwork", projectName, region, subnetName).Return(nil, errors.New(errString))
+
+		err := activities.InsertSubnet(mgs, projectName, &region, subnetName, vpcName, ipCidrRange)
+		assert.EqualError(tt, err, "Error getting subnet for project: test-project, vpc name: test-vpc, subnet name: test-subnet. Error : "+errString)
+		mgs.AssertExpectations(tt)
+	})
+
+	t.Run("WhenCreateSubnetworkFails", func(tt *testing.T) {
+		mgs := hyperscaler.NewMockGoogleServices(tt)
+
+		InsertSubnet := activities.InsertSubnet
+		defer func() {
+			activities.InsertSubnet = InsertSubnet
+		}()
+		errString := "failed to create subnetwork"
+		mgs.On("GetLogger").Return(logger)
+		mgs.On("GetSubnetwork", projectName, region, subnetName).Return(nil, nil)
+		mgs.On("CreateSubnetwork", mock.Anything).Return(errors.New(errString))
+
+		err := activities.InsertSubnet(mgs, projectName, &region, subnetName, vpcName, ipCidrRange)
+		assert.EqualError(tt, err, errString)
+		mgs.AssertExpectations(tt)
+	})
+
+	t.Run("WhenCreateSubnetworkSucceeds", func(tt *testing.T) {
+		mgs := hyperscaler.NewMockGoogleServices(tt)
+
+		InsertSubnet := activities.InsertSubnet
+		defer func() {
+			activities.InsertSubnet = InsertSubnet
+		}()
+		mgs.On("GetLogger").Return(logger)
+		mgs.On("GetSubnetwork", projectName, region, subnetName).Return(nil, nil)
+		mgs.On("CreateSubnetwork", mock.Anything).Return(nil)
+
+		err := activities.InsertSubnet(mgs, projectName, &region, subnetName, vpcName, ipCidrRange)
+		assert.NoError(tt, err)
+		mgs.AssertExpectations(tt)
+	})
+}
+
+// Unit test for _newGcpServices in core/orchestrator/activities/pool_activities_test.go
+func Test_newGcpServices_ReturnsInitializedGcpServices(t *testing.T) {
+	ctx := context.TODO()
+	services := activities.NewGcpServices(ctx)
+
+	assert.NotNil(t, services)
+	assert.Equal(t, ctx, services.Ctx)
+	assert.NotNil(t, services.Logger)
+	assert.NotNil(t, services.Retry)
+}
+
+// Unit test for setupNetworkFirewallsForIscsi in core/orchestrator/activities/pool_activities_test.go
+func Test_setupNetworkFirewallsForIscsi(t *testing.T) {
+	mockService := new(hyperscaler.MockGoogleServices)
+	snHostProject := "test-sn-host-project"
+	network := "test-network"
+
+	firewallPriority := int64(1000)
+	ingressTrafficDirection := "INGRESS"
+	// Success case
+	t.Run("WhenSetupNetworkFirewallsForIscsiSucceeds", func(tt *testing.T) {
+		mockService.On("GetLogger").Return(util.GetLogger(context.TODO()))
+		activities.InsertFirewall = func(service hyperscaler.GoogleServices, project, name, network string, priority int64, direction string, sourceRanges, allowedPorts []string) error {
+			assert.Equal(t, snHostProject, project)
+			assert.Equal(t, "data-iscsi-ingress", name)
+			assert.Equal(t, network, network)
+			assert.Equal(t, firewallPriority, priority)
+			assert.Equal(t, ingressTrafficDirection, direction)
+			assert.ElementsMatch(t, []string{"10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16"}, sourceRanges)
+			assert.ElementsMatch(t, []string{"tcp", "3260"}, allowedPorts)
+			return nil
+		}
+		err := activities.SetupNetworkFirewallsForIscsi(mockService, snHostProject, network)
+		assert.NoError(t, err)
+	})
+	t.Run("WhenSetupNetworkFirewallsForIscsiFails", func(tt *testing.T) {
+		activities.InsertFirewall = func(service hyperscaler.GoogleServices, project, name, network string, priority int64, direction string, sourceRanges, allowedPorts []string) error {
+			return errors.New("firewall error")
+		}
+		err := activities.SetupNetworkFirewallsForIscsi(mockService, snHostProject, network)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "firewall error")
+	})
+}
+
+// Unit test for SetupNetwork in core/orchestrator/activities/pool_activities.go
+func TestPoolActivity_SetupNetwork(t *testing.T) {
+	mockStorage := database.NewMockStorage(t)
+	activity := activities.PoolActivity{SE: mockStorage}
+
+	ctx := context.TODO()
+	region := "us-central1"
+	project := "test-project"
+	snHostProject := "test-sn-host-project"
+	network := "test-network"
+	t.Run("WhenSetupNetworkSucceeds", func(tt *testing.T) {
+		originalGetGCPService := activities.GetGCPService
+		originalSetupNetworkWithFirewall := activities.SetupNetworkWithFirewall
+		originalSetupNetworkFirewallsForIscsi := activities.SetupNetworkFirewallsForIscsi
+		defer func() {
+			activities.GetGCPService = originalGetGCPService
+			activities.SetupNetworkWithFirewall = originalSetupNetworkWithFirewall
+			activities.SetupNetworkFirewallsForIscsi = originalSetupNetworkFirewallsForIscsi
+		}()
+
+		mockService := new(google.GcpServices)
+		activities.GetGCPService = func(ctx context.Context) (*google.GcpServices, error) {
+			return mockService, nil
+		}
+
+		// Success case
+		activities.SetupNetworkWithFirewall = func(ctx context.Context, project, vpcName string, region *string, subnetName, ipCidrRange string, firewallPriority int64, direction string, sourceRanges, allowedPortRules []string) error {
+			return nil
+		}
+		activities.SetupNetworkFirewallsForIscsi = func(service hyperscaler.GoogleServices, snHostProject, network string) error {
+			return nil
+		}
+		err := activity.SetupNetwork(ctx, region, project, snHostProject, network)
+		assert.NoError(t, err)
+	})
+	t.Run("WhenGetGCPServiceFails", func(tt *testing.T) {
+		originalGetGCPService := activities.GetGCPService
+		defer func() {
+			activities.GetGCPService = originalGetGCPService
+		}()
+
+		activities.GetGCPService = func(ctx context.Context) (*google.GcpServices, error) {
+			return nil, errors.New("failed to get GCP service")
+		}
+		err := activity.SetupNetwork(ctx, region, project, snHostProject, network)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "failed to get GCP service")
+	})
+	t.Run("WhenSetupNetworkWithFirewallFails", func(tt *testing.T) {
+		originalGetGCPService := activities.GetGCPService
+		originalSetupNetworkWithFirewall := activities.SetupNetworkWithFirewall
+		defer func() {
+			activities.GetGCPService = originalGetGCPService
+			activities.SetupNetworkWithFirewall = originalSetupNetworkWithFirewall
+		}()
+
+		mockService := new(google.GcpServices)
+		activities.GetGCPService = func(ctx context.Context) (*google.GcpServices, error) {
+			return mockService, nil
+		}
+		callCount := 0
+		activities.SetupNetworkWithFirewall = func(ctx context.Context, project, vpcName string, region *string, subnetName, ipCidrRange string, firewallPriority int64, direction string, sourceRanges, allowedPortRules []string) error {
+			callCount++
+			if callCount == 2 {
+				return errors.New("failed to setup network with firewall")
+			}
+			return nil
+		}
+		err := activity.SetupNetwork(ctx, region, project, snHostProject, network)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "failed to setup network with firewall")
+	})
+	t.Run("WhenSetupNetworkFirewallsForIscsiFails", func(tt *testing.T) {
+		originalGetGCPService := activities.GetGCPService
+		originalSetupNetworkWithFirewall := activities.SetupNetworkWithFirewall
+		originalSetupNetworkFirewallsForIscsi := activities.SetupNetworkFirewallsForIscsi
+		defer func() {
+			activities.GetGCPService = originalGetGCPService
+			activities.SetupNetworkWithFirewall = originalSetupNetworkWithFirewall
+			activities.SetupNetworkFirewallsForIscsi = originalSetupNetworkFirewallsForIscsi
+		}()
+		mockService := new(google.GcpServices)
+
+		activities.GetGCPService = func(ctx context.Context) (*google.GcpServices, error) {
+			return mockService, nil
+		}
+		activities.SetupNetworkWithFirewall = func(ctx context.Context, project, vpcName string, region *string, subnetName, ipCidrRange string, firewallPriority int64, direction string, sourceRanges, allowedPortRules []string) error {
+			return nil
+		}
+		activities.SetupNetworkFirewallsForIscsi = func(service hyperscaler.GoogleServices, snHostProject, network string) error {
+			return errors.New("failed to setup iscsi firewall")
+		}
+		err := activity.SetupNetwork(ctx, region, project, snHostProject, network)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "failed to setup iscsi firewall")
+	})
 }

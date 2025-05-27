@@ -152,7 +152,7 @@ func GetJWTTokenFromContext(ctx context.Context) string {
 func ParseProjectId(network string) (string, string, error) {
 	tmp := strings.Split(network, "/")
 	if len(tmp) != 5 {
-		return "", "", errors.New(fmt.Sprintf("VPC peering network for TenancyUnit '%s' not found", network))
+		return "", "", errors.New(fmt.Sprintf("parseProjectId failed for network : %s", network))
 	}
 	return tmp[1], tmp[4], nil
 }
