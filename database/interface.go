@@ -57,6 +57,7 @@ type DataStore interface {
 	DeletingPool(ctx context.Context, pool *datamodel.Pool) error
 	ListPools(ctx context.Context, conditions [][]interface{}) ([]*datamodel.Pool, error)
 	GetPoolByVendorID(ctx context.Context, vendorID string) (*datamodel.Pool, error)
+	GetPoolByName(ctx context.Context, conditions [][]interface{}) (*datamodel.Pool, error)
 	SavePoolWithVsaClusterDetails(ctx context.Context, pool *datamodel.Pool, cluster *datamodel.ClusterDetails) error
 
 	CreateVolume(ctx context.Context, volume *datamodel.Volume) (*datamodel.Volume, error)

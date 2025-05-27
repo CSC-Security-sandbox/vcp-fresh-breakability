@@ -9782,6 +9782,7 @@ func (s *PoolIdListV1beta) SetPoolUuids(val []string) {
 	s.PoolUuids = val
 }
 
+// Merged schema.
 // Ref: #/components/schemas/PoolInternal_v1beta
 type PoolInternalV1beta struct {
 	// Uuid of Active Directory configuration.
@@ -9861,6 +9862,10 @@ type PoolInternalV1beta struct {
 	TotalIops OptNilFloat64 `json:"totalIops"`
 	// Indicates if the pool type is unified.
 	UnifiedPool OptBool `json:"unifiedPool"`
+	// The name of the cluster.
+	ClusterName OptString `json:"clusterName"`
+	// Intercluster Lifs.
+	InterclusterLifs []string `json:"interclusterLifs"`
 }
 
 // GetActiveDirectoryConfigId returns the value of ActiveDirectoryConfigId.
@@ -10053,6 +10058,16 @@ func (s *PoolInternalV1beta) GetUnifiedPool() OptBool {
 	return s.UnifiedPool
 }
 
+// GetClusterName returns the value of ClusterName.
+func (s *PoolInternalV1beta) GetClusterName() OptString {
+	return s.ClusterName
+}
+
+// GetInterclusterLifs returns the value of InterclusterLifs.
+func (s *PoolInternalV1beta) GetInterclusterLifs() []string {
+	return s.InterclusterLifs
+}
+
 // SetActiveDirectoryConfigId sets the value of ActiveDirectoryConfigId.
 func (s *PoolInternalV1beta) SetActiveDirectoryConfigId(val OptNilString) {
 	s.ActiveDirectoryConfigId = val
@@ -10241,6 +10256,16 @@ func (s *PoolInternalV1beta) SetTotalIops(val OptNilFloat64) {
 // SetUnifiedPool sets the value of UnifiedPool.
 func (s *PoolInternalV1beta) SetUnifiedPool(val OptBool) {
 	s.UnifiedPool = val
+}
+
+// SetClusterName sets the value of ClusterName.
+func (s *PoolInternalV1beta) SetClusterName(val OptString) {
+	s.ClusterName = val
+}
+
+// SetInterclusterLifs sets the value of InterclusterLifs.
+func (s *PoolInternalV1beta) SetInterclusterLifs(val []string) {
+	s.InterclusterLifs = val
 }
 
 func (*PoolInternalV1beta) v1betaInternalDescribePoolRes() {}

@@ -12662,9 +12662,25 @@ func (s *PoolInternalV1beta) encodeFields(e *jx.Encoder) {
 			s.UnifiedPool.Encode(e)
 		}
 	}
+	{
+		if s.ClusterName.Set {
+			e.FieldStart("clusterName")
+			s.ClusterName.Encode(e)
+		}
+	}
+	{
+		if s.InterclusterLifs != nil {
+			e.FieldStart("interclusterLifs")
+			e.ArrStart()
+			for _, elem := range s.InterclusterLifs {
+				e.Str(elem)
+			}
+			e.ArrEnd()
+		}
+	}
 }
 
-var jsonFieldsNameOfPoolInternalV1beta = [38]string{
+var jsonFieldsNameOfPoolInternalV1beta = [40]string{
 	0:  "activeDirectoryConfigId",
 	1:  "activeDirectoryResourceId",
 	2:  "kmsConfigId",
@@ -12703,6 +12719,8 @@ var jsonFieldsNameOfPoolInternalV1beta = [38]string{
 	35: "customPerformanceEnabled",
 	36: "totalIops",
 	37: "unifiedPool",
+	38: "clusterName",
+	39: "interclusterLifs",
 }
 
 // Decode decodes PoolInternalV1beta from json.
@@ -13100,6 +13118,35 @@ func (s *PoolInternalV1beta) Decode(d *jx.Decoder) error {
 				return nil
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"unifiedPool\"")
+			}
+		case "clusterName":
+			if err := func() error {
+				s.ClusterName.Reset()
+				if err := s.ClusterName.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"clusterName\"")
+			}
+		case "interclusterLifs":
+			if err := func() error {
+				s.InterclusterLifs = make([]string, 0)
+				if err := d.Arr(func(d *jx.Decoder) error {
+					var elem string
+					v, err := d.Str()
+					elem = string(v)
+					if err != nil {
+						return err
+					}
+					s.InterclusterLifs = append(s.InterclusterLifs, elem)
+					return nil
+				}); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"interclusterLifs\"")
 			}
 		default:
 			return d.Skip()

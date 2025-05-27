@@ -2895,6 +2895,23 @@ func (s *PoolInternalV1beta) SetFake() {
 			s.UnifiedPool.SetFake()
 		}
 	}
+	{
+		{
+			s.ClusterName.SetFake()
+		}
+	}
+	{
+		{
+			s.InterclusterLifs = nil
+			for i := 0; i < 0; i++ {
+				var elem string
+				{
+					elem = "string"
+				}
+				s.InterclusterLifs = append(s.InterclusterLifs, elem)
+			}
+		}
+	}
 }
 
 // SetFake set fake values.

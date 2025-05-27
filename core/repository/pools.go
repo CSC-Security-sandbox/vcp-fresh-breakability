@@ -17,6 +17,7 @@ import (
 var (
 	getPoolWithDetails  = _getPoolWithDetails
 	listPoolWithDetails = _listPoolWithDetails
+	getPoolByName       = _getPoolByName
 )
 
 type DataStoreRepository struct {
@@ -48,7 +49,7 @@ func (d *DataStoreRepository) CreatedPool(ctx context.Context, pool *datamodel.P
 	if err != nil {
 		return nil, err
 	}
-	
+
 	return dbPool, nil
 }
 
@@ -164,6 +165,22 @@ func (d *DataStoreRepository) GetPoolByVendorID(ctx context.Context, vendorID st
 func _getPoolWithDetails(db *gorm.DB, query *datamodel.Pool) (*datamodel.Pool, error) {
 	pool := &datamodel.Pool{}
 	err := db.Preload("Account").First(&pool, query).Error
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, customerrors.NewNotFoundErr("pool", nil)
+		}
+		return nil, err
+	}
+	return pool, nil
+}
+
+func (d *DataStoreRepository) GetPoolByName(ctx context.Context, conditions [][]interface{}) (*datamodel.Pool, error) {
+	return getPoolByName(d.db.ApplyFilter(conditions).GORM().WithContext(ctx))
+}
+
+func _getPoolByName(db *gorm.DB) (*datamodel.Pool, error) {
+	pool := &datamodel.Pool{}
+	err := db.Preload("Account").First(&pool).Error
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, customerrors.NewNotFoundErr("pool", nil)

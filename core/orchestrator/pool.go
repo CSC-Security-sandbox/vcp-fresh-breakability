@@ -10,6 +10,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	commonparams "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/workflows"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
@@ -22,12 +23,14 @@ import (
 )
 
 var (
-	minQuotaInBytesPool      = env.GetUint64("MIN_QUOTA_IN_BYTES_POOL", 2199023255552) // 2TiB
-	createPool               = _createPool
-	ValidateCreatePoolParams = _validateCreatePoolParams
-	deletePool               = _deletePool
-	nodeUsername             = env.GetString("VSA_NODE_USERNAME", "")
-	nodePassword             = env.GetString("VSA_NODE_PASSWORD", "")
+	minQuotaInBytesPool          = env.GetUint64("MIN_QUOTA_IN_BYTES_POOL", 2199023255552) // 2TiB
+	createPool                   = _createPool
+	ValidateCreatePoolParams     = _validateCreatePoolParams
+	deletePool                   = _deletePool
+	nodeUsername                 = env.GetString("VSA_NODE_USERNAME", "")
+	nodePassword                 = env.GetString("VSA_NODE_PASSWORD", "")
+	getInterClusterLifsFromONTAP = _getInterClusterLifsFromONTAP
+	GetPoolByName                = _getPoolByName
 )
 
 const (
@@ -243,6 +246,88 @@ func (o *Orchestrator) GetPoolByVendorID(ctx context.Context, vendorID string) (
 		return nil, err
 	}
 	return convertDatastorePoolToModel(pool, pool.Account.Name), nil
+}
+
+// GetPoolByName retrieves a pool with the specified name and owner.
+func (o *Orchestrator) GetPoolByName(ctx context.Context, poolName string, accountName string, queryDepth int) (*models.Pool, error) {
+	return GetPoolByName(ctx, o.storage, poolName, accountName, queryDepth)
+}
+
+func _getPoolByName(ctx context.Context, se database.Storage, poolName string, accountName string, queryDepth int) (*models.Pool, error) {
+	logger := util.GetLogger(ctx)
+	account, err := getAccountWithName(ctx, se, accountName)
+	if err != nil {
+		return nil, err
+	}
+
+	conditions := [][]interface{}{{"name = ?", poolName}}
+	conditions = append(conditions, []interface{}{"account_id = ?", account.ID})
+	pools, err := se.GetPoolByName(ctx, conditions)
+	if err != nil {
+		return nil, err
+	}
+
+	nodes, err := se.GetNodesByPoolID(ctx, pools.ID)
+	if err != nil {
+		return nil, err
+	}
+
+	if len(nodes) == 0 {
+		return nil, customerrors.NewNotFoundErr("node", nil)
+	}
+
+	if queryDepth > 0 {
+		interClusterLifs, err := getInterClusterLifsFromONTAP(ctx, nodes, pools)
+		if err != nil {
+			logger.Error("Failed to get interCluster lifs", "error", err)
+			return nil, err
+		}
+
+		return convertDatastorePoolToModelWithIClifdetails(pools, interClusterLifs, accountName), nil
+	}
+
+	return convertDatastorePoolToModel(pools, pools.Name), nil
+}
+
+// getInterClusterLifFromONTAP retrieves inter-cluster LIFs from ONTAP.
+func _getInterClusterLifsFromONTAP(ctx context.Context, nodes []*datamodel.Node, pools *datamodel.Pool) ([]*vsa.InterclusterLif, error) {
+	logger := util.GetLogger(ctx)
+	node := prepareNodeForProvider(nodes[0], pools)
+	provider := GetProviderByNode(ctx, node)
+
+	interClusterLifs, err := provider.GetInterclusterLIFs("default-intercluster")
+	if err != nil {
+		logger.Error("Failed to get interCluster lifs", "error", err)
+		return nil, err
+	}
+	return interClusterLifs, nil
+}
+
+func prepareNodeForProvider(nodes *datamodel.Node, pools *datamodel.Pool) *models.Node {
+	return &models.Node{
+		Name:            nodes.Name,
+		EndpointAddress: nodes.EndpointAddress,
+		Username:        pools.Username,
+		Password:        pools.Password,
+		Zone:            nodes.ZoneName,
+		InstanceType:    nodes.NodeAttributes.InstanceType,
+	}
+}
+
+func convertDatastorePoolToModelWithIClifdetails(pools *datamodel.Pool, interClusterLifs []*vsa.InterclusterLif, accountName string) *models.Pool {
+	pool := convertDatastorePoolToModel(pools, accountName)
+
+	var icLifs []string
+	for _, icLif := range interClusterLifs {
+		icLifs = append(icLifs, string(icLif.Address))
+	}
+
+	pool.ClusterAttributes = &models.ClusterAttributes{
+		InterClusterLifs: icLifs,
+		ExternalName:     pools.ClusterDetails.ExternalName,
+	}
+
+	return pool
 }
 
 // CustomPerformanceParams is used to specify the custom performance parameters for a pool

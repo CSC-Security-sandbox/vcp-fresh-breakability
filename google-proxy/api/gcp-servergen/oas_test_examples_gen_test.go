@@ -1623,35 +1623,6 @@ func TestPoolInternalV1beta_EncodeDecode(t *testing.T) {
 	var typ2 PoolInternalV1beta
 	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
 }
-
-func TestPoolInternalV1beta_Examples(t *testing.T) {
-
-	for i, tc := range []struct {
-		Input string
-	}{
-		{Input: "{\"PoolId\":\"9760acf5-4638-11e7-9bdb-020073ca7773\",\"activeDirectoryConfigId\":\"9232dgf5-4638-11e7-9bdb-020073ca7773\",\"allowAutoTiering\":true,\"createdAt\":\"2016-11-28T19:30:23.123Z\",\"description\":\"My pool description\",\"kmsConfigId\":\"2653acf5-4638-11e7-9bdb-020073ca7773\",\"labels\":{\"someKey\":\"SomeValue\",\"someKey2\":\"SomeValue2\"},\"ldapEnabled\":false,\"network\":\"projects/1079058383248/global/networks/network-to-netapp2\",\"resourceId\":\"my-pool\",\"serviceLevel\":\"PREMIUM\",\"sizeInBytes\":2199023255552,\"storagePoolState\":\"READY\",\"updatedAt\":\"2016-11-28T19:30:23.123Z\"}"},
-	} {
-		tc := tc
-		t.Run(fmt.Sprintf("Test%d", i+1), func(t *testing.T) {
-			var typ PoolInternalV1beta
-
-			if err := typ.Decode(jx.DecodeStr(tc.Input)); err != nil {
-				if validateErr, ok := errors.Into[*validate.Error](err); ok {
-					t.Skipf("Validation error: %v", validateErr)
-					return
-				}
-				require.NoErrorf(t, err, "Input: %s", tc.Input)
-			}
-
-			e := jx.Encoder{}
-			typ.Encode(&e)
-			require.True(t, std.Valid(e.Bytes()), "Encoded: %s", e.Bytes())
-
-			var typ2 PoolInternalV1beta
-			require.NoError(t, typ2.Decode(jx.DecodeBytes(e.Bytes())))
-		})
-	}
-}
 func TestPoolInternalV1betaAssetLocationMetadata_EncodeDecode(t *testing.T) {
 	var typ PoolInternalV1betaAssetLocationMetadata
 	typ.SetFake()

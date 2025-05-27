@@ -4768,17 +4768,21 @@ components:
       title: PoolInternal
       allOf:
         - $ref: '#/components/schemas/Pool_v1beta'
-      properties:
-        clusterName:
-          title: clusterName
-          type: string
-          description: The name of the cluster
-          example: my-cluster
-        interclusterLifs:
-          title: interclusterLifs
-          type: array
-          description: Intercluster Lifs
-          example: [ '10.0.0.1', '10.0.0.2' ]
+        - type: object
+          properties:
+            clusterName:
+              title: clusterName
+              type: string
+              description: The name of the cluster
+              example: my-cluster
+            interclusterLifs:
+              title: interclusterLifs
+              type: array
+              description: Intercluster Lifs
+              items:
+                type: string
+                description: IP addresses of the intercluster LIFs
+              example: ['10.0.0.1', '10.0.0.2']
     ServiceLevel_v1beta:
       title: ServiceLevel
       type: object

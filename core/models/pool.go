@@ -41,6 +41,7 @@ type ClusterAttributes struct {
 	InstanceType      string
 	ExternalIpAddress string
 	InternalIpAddress string
+	InterClusterLifs  []string
 }
 
 // CustomPerformanceParams is used to specify the custom performance parameters for a pool

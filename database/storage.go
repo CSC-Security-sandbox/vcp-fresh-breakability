@@ -377,6 +377,10 @@ func (s *PersistenceStore) ListPools(ctx context.Context, conditions [][]interfa
 	return s.dataStore.ListPools(ctx, conditions)
 }
 
+func (s *PersistenceStore) GetPoolByName(ctx context.Context, conditions [][]interface{}) (*datamodel.Pool, error) {
+	return s.dataStore.GetPoolByName(ctx, conditions)
+}
+
 func (s *PersistenceStore) SavePoolWithVsaClusterDetails(ctx context.Context, pool *datamodel.Pool, cluster *datamodel.ClusterDetails) error {
 	return s.dataStore.SavePoolWithVsaClusterDetails(ctx, pool, cluster)
 }
