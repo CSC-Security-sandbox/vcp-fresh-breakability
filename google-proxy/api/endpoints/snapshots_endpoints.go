@@ -11,6 +11,7 @@ import (
 	coremodels "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	gcpgenserver "github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/api/gcp-servergen"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/helper"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/nillable"
@@ -19,6 +20,7 @@ import (
 
 func (h Handler) V1betaGetMultipleSnapshots(ctx context.Context, req *gcpgenserver.SnapshotIdListV1beta, params gcpgenserver.V1betaGetMultipleSnapshotsParams) (gcpgenserver.V1betaGetMultipleSnapshotsRes, error) {
 	logger := util.GetLogger(ctx)
+	helper.AddLabelerAttributes(ctx, params.ProjectNumber, params.LocationId)
 	reqPrams := &snapshots.V1betaGetMultipleSnapshotsParams{
 		LocationID:     params.LocationId,
 		ProjectNumber:  params.ProjectNumber,
@@ -99,6 +101,7 @@ func (h Handler) V1betaGetMultipleSnapshots(ctx context.Context, req *gcpgenserv
 
 func (h Handler) V1betaCreateSnapshot(ctx context.Context, req *gcpgenserver.VolumeSnapshotCreateV1beta, params gcpgenserver.V1betaCreateSnapshotParams) (gcpgenserver.V1betaCreateSnapshotRes, error) {
 	logger := util.GetLogger(ctx)
+	helper.AddLabelerAttributes(ctx, params.ProjectNumber, params.LocationId)
 	volumeId := params.VolumeId
 	region, zone, parsingErr := parseAndValidateRegionAndZone(params.LocationId)
 	if parsingErr != nil {

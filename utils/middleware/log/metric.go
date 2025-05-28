@@ -6,9 +6,7 @@ import (
 	"strings"
 
 	texporter "github.com/GoogleCloudPlatform/opentelemetry-operations-go/exporter/trace"
-	gcpgenserver "github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/api/gcp-servergen"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/exporters/prometheus"
@@ -21,9 +19,8 @@ import (
 )
 
 var (
-	gcpgenserverLabelerFromContext = gcpgenserver.LabelerFromContext
-	prometheusExporter             = prometheus.New
-	traceExporterFunc              = texporter.New
+	prometheusExporter = prometheus.New
+	traceExporterFunc  = texporter.New
 )
 
 // SetupOpenTelemetry sets up the OpenTelemetry SDK and exporters for metrics and
@@ -107,16 +104,4 @@ func SetupOpenTelemetry(ctx context.Context) (shutdown func(context.Context) err
 	}
 
 	return shutdown, err
-}
-
-// AddLabelerAttributes adds custom attributes like project number, location ID, and trace URL to the OpenTelemetry labeler from the context.
-func AddLabelerAttributes(ctx context.Context, projectNumber, locationId string) {
-	labeler, _ := gcpgenserverLabelerFromContext(ctx)
-	if loggerFields, ok := ctx.Value(middleware.TemporalSLoggerKey).(Fields); ok {
-		if traceURL, ok := loggerFields["traceURL"].(string); ok {
-			labeler.Add(attribute.String("http.route", traceURL))
-		}
-	}
-	labeler.Add(attribute.String("locationID", locationId))
-	labeler.Add(attribute.String("projectNumber", projectNumber))
 }
