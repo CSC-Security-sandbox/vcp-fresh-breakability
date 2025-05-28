@@ -32,23 +32,32 @@ func _commitOrRollbackOnError(log slogger.Logger, tx *gorm.DB, err *error) {
 		*err = fmt.Errorf("panic: %v", r)
 	}
 
-	*err = commitOrRollbackTransaction(log, tx, err)
+	commitErr := commitOrRollbackTransaction(log, tx, err)
+	if commitErr != nil {
+		if *err != nil {
+			*err = fmt.Errorf("%v; commit/rollback error: %w", *err, commitErr)
+		} else {
+			*err = commitErr
+		}
+	}
 }
 
-// commitOrRollbackTransaction commits the transaction if no error occurred
+// commitOrRollbackTransaction commits the transaction if no error occurred, otherwise rolls back
 func _commitOrRollbackTransaction(log slogger.Logger, tx *gorm.DB, err *error) error {
-	defer func() {
+	if *err != nil {
 		rollbackErr := parseDBError(tx.Rollback())
 		if rollbackErr != nil {
 			log.Error("Failed to rollback transaction", "error", rollbackErr)
+			return rollbackErr
 		}
-	}()
-
-	if *err != nil {
-		return *err
+	} else {
+		commitErr := parseDBError(tx.Commit())
+		if commitErr != nil {
+			log.Error("Failed to commit transaction", "error", commitErr)
+			return commitErr
+		}
 	}
-
-	return parseDBError(tx.Commit())
+	return *err
 }
 
 // parseDBError checks if there is any error in the transaction and returns it

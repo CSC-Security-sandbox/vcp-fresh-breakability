@@ -91,6 +91,7 @@ func SetupInMemoryDB() (*gorm.DB, error) {
 		&datamodel.HostGroup{},
 		&datamodel.Job{},
 		&datamodel.Snapshot{},
+		&datamodel.VolumeReplication{},
 	)
 	if err != nil {
 		return nil, err
@@ -298,9 +299,6 @@ func (s *PersistenceStore) Close() error {
 }
 
 func (s *PersistenceStore) HealthCheck() error {
-	s.mu.RLock()
-	defer s.mu.RUnlock()
-
 	if s.db == nil {
 		return fmt.Errorf("database connection is closed")
 	}
