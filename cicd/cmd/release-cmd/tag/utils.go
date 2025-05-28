@@ -142,7 +142,7 @@ func ReleaseGithub(preRelease bool, tagName string) {
 }
 
 func FetchDevTag() string {
-	tagPattern := "*-DEV.*"
+	tagPattern := "2*-DEV.*"
 	cmd := exec.Command("git", "tag", "-l", "--sort=-v:refname", tagPattern)
 	output, err := cmd.Output()
 	if err != nil {

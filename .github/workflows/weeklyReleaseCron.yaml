@@ -15,7 +15,7 @@ jobs:
 
     runs-on: [ self-hosted,linux ]
     container:
-      image: ghcr.io/vcp-vsa-control-plane/vsacictl:v9
+      image: ghcr.io/vcp-vsa-control-plane/vsacictl:v15
       options: --user root
 
     steps:
@@ -47,13 +47,22 @@ jobs:
         run: vsacictl tag release
         env:
           GH_PAT: ${{ secrets.GHVSA_PAT }}
+          GITHUB_OUTPUT: $GITHUB_ENV
 
-      - name: Log in to the Container registry
-        run: |
-          echo "${{ secrets.GHVSA_PAT }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
+    outputs:
+      rcTAG: ${{ steps.release_logic_binary.outputs.RC_TAG }}
+      devTAG: ${{ steps.release_logic_binary.outputs.DEV_TAG }}
 
-      - name: Build and push RC Docker images
-        run: skaffold build --filename=.github/scripts/skaffold_ci.yaml -t ${{ steps.release_logic_binary.outputs.RC_TAG }}
+  create_release_vsa_rc:
+    needs: release_branch
+    uses: ./.github/workflows/release_resources.yaml
+    secrets: inherit
+    with:
+      tag: ${{ needs.release_branch.outputs.rcTAG }}
 
-      - name: Build and push Dev Docker images
-        run: skaffold build --filename=.github/scripts/skaffold_ci.yaml -t ${{ steps.release_logic_binary.outputs.DEV_TAG }}
+  create_release_vsa_dev:
+    needs: release_branch
+    uses: ./.github/workflows/release_resources.yaml
+    secrets: inherit
+    with:
+      tag: ${{ needs.release_branch.outputs.devTAG }}

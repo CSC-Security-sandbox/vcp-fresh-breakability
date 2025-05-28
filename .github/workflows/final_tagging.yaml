@@ -1,8 +1,6 @@
 name: Final Tagging Workflow
 on:
-  push:
-    paths:
-      - cicd/cmd/release-cmd/promotional.yaml
+  workflow_dispatch:
 
 jobs:
   final_tagging:
@@ -13,7 +11,7 @@ jobs:
 
     runs-on: [ self-hosted,linux ]
     container:
-      image: ghcr.io/vcp-vsa-control-plane/vsacictl:v9
+      image: ghcr.io/vcp-vsa-control-plane/vsacictl:v15
       options: --user root
 
     steps:
@@ -45,12 +43,14 @@ jobs:
         run: vsacictl tag promotional
         env:
           GH_PAT: ${{ secrets.GHVSA_PAT }}
+          GITHUB_OUTPUT: $GITHUB_ENV
 
-      - name: Log in to the Container registry
-        run: |
-          echo "${{ secrets.GHVSA_PAT }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
+    outputs:
+      finalTag: ${{ steps.promotional_logic_binary.outputs.FINAL_TAG }}
 
-      - name: Build and push Docker images
-        run: skaffold build --filename=.github/scripts/skaffold_ci.yaml -t ${{ steps.promotional_logic_binary.outputs.FINAL_TAG }}
-
-
+  create_release_vsa_promotional:
+    needs: final_tagging
+    uses: ./.github/workflows/release_resources.yaml
+    secrets: inherit
+    with:
+      tag: ${{ needs.final_tagging.outputs.finalTag }}
