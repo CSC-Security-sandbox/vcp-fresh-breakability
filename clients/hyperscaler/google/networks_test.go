@@ -965,6 +965,23 @@ func Test_CreateSubnetworkForTenantProject(t *testing.T) {
 			tt.Errorf("Expected wait error, got: %v", err)
 		}
 	})
+	t.Run("WhenGoogleTimeout", func(tt *testing.T) {
+		gService := &GcpServices{Ctx: ctx, Logger: util.GetLogger(ctx)}
+		origCreate := createSubnetworkForTenantProject
+		createSubnetworkForTenantProject = func(*GcpServices, *servicenetworking.AddSubnetworkRequest, string) (*models.ComputeOperation, error) {
+			return &models.ComputeOperation{Name: "op-1"}, nil
+		}
+		defer func() { createSubnetworkForTenantProject = origCreate }()
+		origWait := waitForServiceNetworkOperationStatus
+		waitForServiceNetworkOperationStatus = func(*GcpServices, string) (*models.ComputeOperation, error) {
+			return nil, fmt.Errorf("Timeout while confirming service network google components")
+		}
+		defer func() { waitForServiceNetworkOperationStatus = origWait }()
+		_, err := gService.CreateSubnetworkForTenantProject(tenantProjectNumber, consumerNetwork, region)
+		if err == nil || !strings.Contains(err.Error(), "Timeout while confirming service network google components") {
+			tt.Errorf("Expected wait error, got: %v", err)
+		}
+	})
 
 	t.Run("WhenSuccess", func(tt *testing.T) {
 		gService := &GcpServices{Ctx: ctx, Logger: util.GetLogger(ctx)}
@@ -1170,6 +1187,184 @@ func Test_CreateVPCWithOperation(t *testing.T) {
 		err := gService.CreateVPC(vpcNetwork)
 		if err != nil {
 			tt.Errorf("Unexpected error: %v", err)
+		}
+	})
+}
+
+func Test_insertFirewall(t *testing.T) {
+	projectName := "1079058383248"
+	vpcName := "vpc1"
+	firewallRuleName := "ingress-" + vpcName
+	url := "/projects/" + projectName + "/global/firewalls"
+	firewallRequest := &models.Firewall{
+		Name:             firewallRuleName,
+		ProjectName:      projectName,
+		VPCNetworkName:   vpcName,
+		AllowedPortRules: []string{"tcp", "udp", "icmp"},
+		SourceRanges:     []string{"10.0.0.0/8", "172.16.0.0/12"},
+		Direction:        "INGRESS",
+		Priority:         1000,
+	}
+	t.Run("WhenG_insertFirewallFails", func(tt *testing.T) {
+		defer testReset(tt)
+		ctx := context.Background()
+		server := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
+			if req.URL.Path == url {
+				rw.WriteHeader(http.StatusInternalServerError)
+				return
+			}
+			rw.WriteHeader(http.StatusBadRequest)
+		}))
+		computeSvc, err := compute.NewService(
+			ctx, option.WithHTTPClient(&http.Client{Timeout: time.Second}), option.WithEndpoint(server.URL))
+		if err != nil {
+			t.Errorf("Error getting service up: '%s'", err.Error())
+		}
+
+		gService := &GcpServices{
+			AdminGCPService: &AdminGCPService{
+				computeService: computeSvc,
+			},
+			Logger: util.GetLogger(ctx),
+			Retry:  NewExponentialRetryStrategy(time.Millisecond, 3),
+		}
+		_, err = _insertFirewall(gService, firewallRequest)
+		if err == nil {
+			tt.Error("Expected an error but got nothing")
+		} else {
+			if !strings.Contains(err.Error(), "googleapi: got HTTP response code 500 with body") {
+				tt.Errorf("Unexpected error: %s", err.Error())
+			}
+		}
+	})
+
+	t.Run("WhenGetFirewallSuccess", func(tt *testing.T) {
+		defer testReset(tt)
+		ctx := context.Background()
+		counter := 0
+		resp := &compute.Firewall{Name: firewallRuleName}
+		server := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
+			if counter == 0 {
+				counter = 1
+				rw.WriteHeader(http.StatusInternalServerError)
+				return
+			}
+			if req.URL.Path == url {
+				response, err := json.Marshal(resp)
+				if err != nil {
+					rw.WriteHeader(http.StatusBadRequest)
+					return
+				}
+				_, _ = rw.Write(response)
+				return
+			}
+			rw.WriteHeader(http.StatusBadRequest)
+		}))
+		computeSvc, err := compute.NewService(
+			ctx, option.WithHTTPClient(&http.Client{Timeout: time.Second}), option.WithEndpoint(server.URL))
+		if err != nil {
+			t.Errorf("Error getting service up: '%s'", err.Error())
+		}
+
+		gService := &GcpServices{
+			AdminGCPService: &AdminGCPService{
+				computeService: computeSvc,
+			},
+			Ctx:    ctx,
+			Logger: util.GetLogger(ctx),
+			Retry:  NewExponentialRetryStrategy(time.Millisecond, 3),
+		}
+		out, err := _insertFirewall(gService, firewallRequest)
+		if err != nil {
+			tt.Errorf("Unexpected error: %s", err.Error())
+		} else {
+			if out == nil {
+				tt.Errorf("Output unexpectedly nil")
+			} else {
+				if out.Name != firewallRuleName {
+					tt.Errorf("Unexpected firewall name %s", out.Name)
+				}
+			}
+			if gService.Retry.GetRetryCount() != 0 {
+				tt.Errorf("RetryStrategy was not reset %d", gService.Retry.GetRetryCount())
+			}
+		}
+	})
+}
+
+func TestReleaseSubnetwork(t *testing.T) {
+	ctx := context.Background()
+	region := "us-central1"
+	tenantProjectNumber := "test-project"
+	subnetwork := "test-subnet"
+	deleteUrl := "/projects/test-project/regions/us-central1/subnetworks/test-subnet"
+
+	operationName := "test-operation"
+	t.Run("WhenDeleteSucceeds", func(tt *testing.T) {
+		server := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
+			if req.Method == http.MethodDelete && req.URL.Path == deleteUrl {
+				response, _ := json.Marshal(&compute.Operation{Name: operationName})
+				rw.WriteHeader(http.StatusOK)
+				_, _ = rw.Write(response)
+			}
+		}))
+		defer server.Close()
+
+		origDelete := waitForComputeOperation
+		waitForComputeOperation = func(gService GcpServices, project, region, operation string) error {
+			return nil
+		}
+		defer func() { waitForComputeOperation = origDelete }()
+
+		defer func() {}()
+		computeSvc, err := compute.NewService(
+			ctx, option.WithHTTPClient(&http.Client{Timeout: time.Second}), option.WithEndpoint(server.URL))
+		if err != nil {
+			tt.Fatalf("Failed to create compute service: %v", err)
+		}
+
+		gService := &GcpServices{
+			AdminGCPService: &AdminGCPService{
+				computeService: computeSvc,
+			},
+			Ctx:    ctx,
+			Logger: util.GetLogger(ctx),
+		}
+
+		err = gService.ReleaseSubnetwork(region, tenantProjectNumber, subnetwork)
+		if err != nil {
+			tt.Errorf("Unexpected error: %v", err)
+		}
+	})
+	t.Run("WhenDeleteReturnsOtherError", func(tt *testing.T) {
+		server := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
+			http.Error(rw, "internal error", http.StatusInternalServerError)
+		}))
+		defer server.Close()
+
+		computeSvc, err := compute.NewService(
+			ctx, option.WithHTTPClient(&http.Client{Timeout: time.Second}), option.WithEndpoint(server.URL))
+		if err != nil {
+			tt.Fatalf("Failed to create compute service: %v", err)
+		}
+
+		origDelete := waitForComputeOperation
+		waitForComputeOperation = func(gService GcpServices, project, region, operation string) error {
+			return nil
+		}
+		defer func() { waitForComputeOperation = origDelete }()
+
+		gService := &GcpServices{
+			AdminGCPService: &AdminGCPService{
+				computeService: computeSvc,
+			},
+			Ctx:    ctx,
+			Logger: util.GetLogger(ctx),
+		}
+
+		err = gService.ReleaseSubnetwork(region, tenantProjectNumber, subnetwork)
+		if err == nil || !strings.Contains(err.Error(), "internal error") {
+			tt.Errorf("Expected internal error, got: %v", err)
 		}
 	})
 }

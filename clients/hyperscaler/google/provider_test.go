@@ -144,6 +144,39 @@ func TestNewGoogleClient(t *testing.T) {
 		initializeNetworkingService = _initializeNetworkingService
 		initializeComputeService = _initializeComputeService
 	})
+	t.Run("initializeStorageClientServiceFails", func(t *testing.T) {
+		initializeManagementService = func(ctx context.Context) (*serviceconsumermanagement.APIService, error) {
+			return &serviceconsumermanagement.APIService{
+				BasePath: "",
+			}, nil
+		}
+		initializeNetworkingService = func(ctx context.Context) (*servicenetworking.APIService, error) {
+			return nil, nil
+		}
+		initializeComputeService = func(ctx context.Context) (*compute.Service, error) {
+			return &compute.Service{
+				BasePath: "",
+			}, nil
+		}
+		initializeStorageService = func(ctx context.Context) (*storage.Client, error) {
+			return nil, errors.New("initializeStorageService failed")
+		}
+
+		res, err := _newGoogleClient(context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{}))
+		if res != nil {
+			t.Error("unexpected result returned")
+		}
+		if err == nil {
+			t.Error("error was expected")
+		}
+		if err.Error() != "initializeStorageService failed" {
+			t.Error("Incorrect error response")
+		}
+		initializeManagementService = _initializeManagementService
+		initializeNetworkingService = _initializeNetworkingService
+		initializeComputeService = _initializeComputeService
+		initializeStorageService = _initializeStorageService
+	})
 	t.Run("WhenOK", func(t *testing.T) {
 		initializeManagementService = func(ctx context.Context) (*serviceconsumermanagement.APIService, error) {
 			return &serviceconsumermanagement.APIService{
@@ -343,6 +376,29 @@ func TestGetServiceConsumerManagementEndpoint(t *testing.T) {
 		if res != serviceConsumerManagementEndpoint {
 			t.Error("Must be = " + serviceConsumerManagementEndpoint)
 		}
+	})
+}
+
+func TestGcpServices_GetLogger(t *testing.T) {
+	ctx := context.Background()
+
+	t.Run("ReturnsExistingLogger", func(t *testing.T) {
+		logger := util.GetLogger(ctx)
+		gcpService := &GcpServices{
+			Ctx:    ctx,
+			Logger: logger,
+		}
+		got := gcpService.GetLogger()
+		assert.Equal(t, logger, got)
+	})
+
+	t.Run("InitializesLoggerIfNil", func(t *testing.T) {
+		gcpService := &GcpServices{
+			Ctx: ctx,
+		}
+		got := gcpService.GetLogger()
+		assert.NotNil(t, got)
+		assert.Equal(t, gcpService.Logger, got)
 	})
 }
 

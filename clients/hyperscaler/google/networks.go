@@ -69,15 +69,17 @@ func (gcpService *GcpServices) CreateSubnetworkForTenantProject(tenantProjectNum
 	if err != nil {
 		return nil, err
 	}
+	snProducerOperationName := snProducerOperation.Name
 	gcpService.Logger.Info(fmt.Sprintf("Waiting for service network operation status for tenant project : %s consumer peering network : %s", tenantProjectNumber, consumerPeeringNetwork))
-	_, err = waitForServiceNetworkOperationStatus(gcpService, snProducerOperation.Name)
+	snProducerOperation, err = waitForServiceNetworkOperationStatus(gcpService, snProducerOperationName)
 	if err != nil {
 		if strings.Contains(err.Error(), "Timeout while confirming service network google components") {
-			_, err = waitForServiceNetworkOperationStatus(gcpService, snProducerOperation.Name)
+			snProducerOperation, err = waitForServiceNetworkOperationStatus(gcpService, snProducerOperationName)
 			if err != nil {
 				gcpService.Logger.Errorf(fmt.Sprintf("Failed to get service networking operation status for tenant project : %s consumer peering network : %s with error : %v", tenantProjectNumber, consumerPeeringNetwork, err.Error()))
 				return nil, err
 			}
+			return snProducerOperation.Response, nil
 		}
 		gcpService.Logger.Errorf(fmt.Sprintf("Failed to get service networking operation status for tenant project : %s consumer peering network : %s with error : %v", tenantProjectNumber, consumerPeeringNetwork, err.Error()))
 		return nil, err

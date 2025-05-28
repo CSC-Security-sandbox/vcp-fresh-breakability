@@ -17,7 +17,6 @@ import (
 	"google.golang.org/api/serviceconsumermanagement/v1"
 	"google.golang.org/api/servicenetworking/v1"
 	scopesHttp "google.golang.org/api/transport/http"
-	"netapp.com/vsa/lifecycle-manager/pkg/log"
 )
 
 var (
@@ -93,8 +92,8 @@ func (gcpService *GcpServices) GetLogger() logger.Logger {
 
 // _initializeAdminClient creates a new googleService object using Workload identity and Initializes the services
 func _newGoogleClient(ctx context.Context) (*AdminGCPService, error) {
-	logger := util.GetLogger(ctx)
-	logger.Debug("Calling initializeManagementService")
+	log := util.GetLogger(ctx)
+	log.Debug("Calling initializeManagementService")
 	managementService, err := initializeManagementService(ctx)
 	if err != nil {
 		log.Error("Error initializeManagementService", err)
@@ -117,7 +116,7 @@ func _newGoogleClient(ctx context.Context) (*AdminGCPService, error) {
 
 	storageService, err := initializeStorageService(ctx)
 	if err != nil {
-		logger.Error("Error initializeStorageService", err)
+		log.Error("Error initializeStorageService", err)
 		return nil, err
 	}
 
