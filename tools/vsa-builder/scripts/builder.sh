@@ -99,6 +99,10 @@ else
   exit 1
 fi
 
+# Install jre
+printf "\n\t🐋 Install jre 🐋\n"
+apt-get -qy update && apt-get -qy install default-jre
+
 # Install helm
 printf "\n\t🐋 Install helm 3 🐋\n"
 curl -fsSL -o get_helm.sh https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 && chmod 700 get_helm.sh

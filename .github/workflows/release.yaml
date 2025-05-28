@@ -319,3 +319,37 @@ jobs:
           GITHUB_SHA: ${{ github.sha }}
           NEW_TAG: ${{ needs.create_pre_release_vsa_control_plane.outputs.newTag }}
         run: vsacictl jira tag_component_version
+
+  black_duck_scan_repo:
+    name: Run black duck scan on the repo
+    needs: create_pre_release_vsa_control_plane
+    runs-on: [ cvs-u24-sunilt-01 ]
+    container:
+      image: ghcr.io/vcp-vsa-control-plane/vsacictl:vs
+      options: -v /var/run/docker.sock:/var/run/docker.sock --mount type=bind,source=/bds-inspect,target=/bds-inspect,ro --user root
+
+    steps:
+      - name: Check out the repo
+        uses: actions/checkout@v2
+
+      - name: Set up Go
+        uses: actions/setup-go@v3
+        with:
+          go-version-file: go.mod
+
+      - name: Run BlackDuck Scan
+        run: |
+          keytool -import -alias example -keystore  "/usr/lib/jvm/java-11-openjdk-amd64/lib/security/cacerts" -file /bds-inspect/blackduck.eng.netapp.com.der --storepass changeit --noprompt
+          java -jar /bds-inspect/synopsys-detect-9.10.1.jar --detect.project.name="GCNV VSA Control Plane" \
+          --detect.project.version.name=current --blackduck.url=https://blackduck.eng.netapp.com \
+          --blackduck.api.token=${{ secrets.BLACKDUCKSCANSATOKEN }} --detect.cleanup=false \
+          --detect.source.path=repo-dir/ \
+          --detect.blackduck.signature.scanner.paths=repo-dir/ \
+          --detect.code.location.name=GCNV_VSA_Control_Plane_currrent_code \
+          --detect.tools=DETECTOR,SIGNATURE_SCAN --detect.detector.search.depth=50 \
+          --detect.detector.search.continue=true \
+          --blackduck.trust.cert=true --detect.blackduck.signature.scanner.snippet.matching=SNIPPET_MATCHING \
+          --detect.blackduck.signature.scanner.upload.source.mode=true --logging.level.detect=DEBUG \
+          --detect.go.path=/__w/_tool/go/1.24.1/x64/bin/go \
+          --detect.accuracy.required=NONE  -d
+        shell: bash -e {0}
