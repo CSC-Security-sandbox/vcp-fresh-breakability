@@ -13096,6 +13096,8 @@ func (s *SnapshotV1beta) SetDescription(val OptString) {
 	s.Description = val
 }
 
+func (*SnapshotV1beta) v1betaDescribeSnapshotRes() {}
+
 // The current lifecycle state of the resource.
 type SnapshotV1betaSnapshotState string
 
@@ -14247,6 +14249,30 @@ func (*V1betaDescribePoolUnauthorized) v1betaDescribePoolRes() {}
 type V1betaDescribePoolUnprocessableEntity Error
 
 func (*V1betaDescribePoolUnprocessableEntity) v1betaDescribePoolRes() {}
+
+type V1betaDescribeSnapshotBadRequest Error
+
+func (*V1betaDescribeSnapshotBadRequest) v1betaDescribeSnapshotRes() {}
+
+type V1betaDescribeSnapshotForbidden Error
+
+func (*V1betaDescribeSnapshotForbidden) v1betaDescribeSnapshotRes() {}
+
+type V1betaDescribeSnapshotInternalServerError Error
+
+func (*V1betaDescribeSnapshotInternalServerError) v1betaDescribeSnapshotRes() {}
+
+type V1betaDescribeSnapshotNotFound Error
+
+func (*V1betaDescribeSnapshotNotFound) v1betaDescribeSnapshotRes() {}
+
+type V1betaDescribeSnapshotTooManyRequests Error
+
+func (*V1betaDescribeSnapshotTooManyRequests) v1betaDescribeSnapshotRes() {}
+
+type V1betaDescribeSnapshotUnauthorized Error
+
+func (*V1betaDescribeSnapshotUnauthorized) v1betaDescribeSnapshotRes() {}
 
 type V1betaDescribeVolumeBadRequest Error
 

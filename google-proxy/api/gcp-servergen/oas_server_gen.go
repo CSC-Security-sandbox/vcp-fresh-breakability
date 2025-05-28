@@ -171,6 +171,12 @@ type Handler interface {
 	//
 	// GET /v1beta/projects/{projectNumber}/locations/{locationId}/pools/{poolId}
 	V1betaDescribePool(ctx context.Context, params V1betaDescribePoolParams) (V1betaDescribePoolRes, error)
+	// V1betaDescribeSnapshot implements v1beta_describeSnapshot operation.
+	//
+	// Get descriptions of the requested snapshot.
+	//
+	// GET /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/snapshot/{snapshotId}
+	V1betaDescribeSnapshot(ctx context.Context, params V1betaDescribeSnapshotParams) (V1betaDescribeSnapshotRes, error)
 	// V1betaDescribeVolume implements v1beta_describeVolume operation.
 	//
 	// Returns the description of the specified volume by volume Id.

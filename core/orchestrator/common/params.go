@@ -74,10 +74,19 @@ type DeletePoolParams struct {
 	PoolID      string
 }
 
+type SnapshotBaseParams struct {
+	AccountName string
+	VolumeID    string
+}
+
 type CreateSnapshotParams struct {
-	AccountName     string
+	SnapshotBaseParams
 	Name            string
 	Description     string
-	VolumeID        string
 	IsAppConsistent bool
+}
+
+type GetSnapshotParams struct {
+	SnapshotBaseParams
+	SnapshotUUID string
 }

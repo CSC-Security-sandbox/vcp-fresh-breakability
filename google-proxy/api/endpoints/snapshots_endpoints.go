@@ -112,9 +112,11 @@ func (h Handler) V1betaCreateSnapshot(ctx context.Context, req *gcpgenserver.Vol
 	}
 
 	param := &common.CreateSnapshotParams{
-		AccountName: params.ProjectNumber,
-		VolumeID:    volumeId,
-		Name:        req.ResourceId,
+		SnapshotBaseParams: common.SnapshotBaseParams{
+			AccountName: params.ProjectNumber,
+			VolumeID:    volumeId,
+		},
+		Name: req.ResourceId,
 	}
 	if req.Description.IsSet() {
 		param.Description = req.GetDescription().Value
@@ -173,6 +175,41 @@ func (h Handler) V1betaCreateSnapshot(ctx context.Context, req *gcpgenserver.Vol
 		Response: resp,
 		Done:     gcpgenserver.NewOptBool(true),
 	}, nil
+}
+
+func (h Handler) V1betaDescribeSnapshot(ctx context.Context, params gcpgenserver.V1betaDescribeSnapshotParams) (gcpgenserver.V1betaDescribeSnapshotRes, error) {
+	logger := util.GetLogger(ctx)
+	if params.SnapshotId == "" {
+		logger.Error("Snapshot ID is required for DescribeSnapshot")
+		return &gcpgenserver.V1betaDescribeSnapshotBadRequest{
+			Code:    400,
+			Message: "Snapshot ID is required",
+		}, nil
+	}
+	describeParams := &common.GetSnapshotParams{
+		SnapshotBaseParams: common.SnapshotBaseParams{
+			AccountName: params.ProjectNumber,
+			VolumeID:    params.VolumeId,
+		},
+		SnapshotUUID: params.SnapshotId,
+	}
+	snapshot, err := h.Orchestrator.GetSnapshot(ctx, describeParams)
+	if err != nil {
+		if errors.IsNotFoundErr(err) {
+			return &gcpgenserver.V1betaDescribeSnapshotNotFound{
+				Code:    404,
+				Message: err.Error(),
+			}, nil
+		} else if errors.IsUserInputValidationErr(err) {
+			return &gcpgenserver.V1betaDescribeSnapshotBadRequest{
+				Code:    400,
+				Message: err.Error(),
+			}, nil
+		}
+		logger.Errorf("Failed to get snapshot %s with error: %v", params.SnapshotId, err.Error())
+		return &gcpgenserver.V1betaDescribeSnapshotInternalServerError{Code: 500, Message: "Internal server error"}, err
+	}
+	return convertModelToVCPSnapshot(snapshot), nil
 }
 
 func convertToSnapshotsV1Beta(snap *cvpmodels.SnapshotV1beta) gcpgenserver.SnapshotV1beta {

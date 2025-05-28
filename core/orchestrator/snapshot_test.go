@@ -2,7 +2,9 @@ package orchestrator
 
 import (
 	"context"
+	"gorm.io/gorm"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -56,11 +58,13 @@ func TestOrchestrator_CreateSnapshot(t *testing.T) {
 		}
 
 		params := &common.CreateSnapshotParams{
+			SnapshotBaseParams: common.SnapshotBaseParams{
+				VolumeID:    volume.UUID,
+				AccountName: account.Name,
+			},
 			Name:            "test_snapshot",
 			IsAppConsistent: false,
-			VolumeID:        volume.UUID,
 			Description:     "test",
-			AccountName:     account.Name,
 		}
 
 		temporal.EXPECT().ExecuteWorkflow(mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil).Once()
@@ -111,12 +115,15 @@ func TestOrchestrator_CreateSnapshot(t *testing.T) {
 		}
 
 		params := &common.CreateSnapshotParams{
+			SnapshotBaseParams: common.SnapshotBaseParams{
+				VolumeID:    "volume.UUID",
+				AccountName: account.Name,
+			},
 			Name:            "test_snapshot",
 			IsAppConsistent: false,
-			VolumeID:        "test",
 			Description:     "test",
-			AccountName:     account.Name,
 		}
+
 		snapshot, _, err := orch.CreateSnapshot(ctx, params)
 		assert.Nil(tt, snapshot, "Expected nil snapshot")
 		if !errors.IsNotFoundErr(err) {
@@ -163,11 +170,13 @@ func TestOrchestrator_CreateSnapshot(t *testing.T) {
 		}
 
 		params := &common.CreateSnapshotParams{
+			SnapshotBaseParams: common.SnapshotBaseParams{
+				VolumeID:    volume.UUID,
+				AccountName: "account.Name",
+			},
 			Name:            "test_snapshot",
 			IsAppConsistent: false,
-			VolumeID:        "test",
 			Description:     "test",
-			AccountName:     "test",
 		}
 		snapshot, _, err := orch.CreateSnapshot(ctx, params)
 		assert.Nil(tt, snapshot, "Expected nil snapshot")
@@ -215,11 +224,13 @@ func TestOrchestrator_CreateSnapshot(t *testing.T) {
 		}
 
 		params := &common.CreateSnapshotParams{
+			SnapshotBaseParams: common.SnapshotBaseParams{
+				VolumeID:    volume.UUID,
+				AccountName: account.Name,
+			},
 			Name:            "test_snapshot",
 			IsAppConsistent: false,
-			VolumeID:        volume.UUID,
 			Description:     "test",
-			AccountName:     account.Name,
 		}
 
 		temporal.EXPECT().ExecuteWorkflow(mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, errors.New("workflow error")).Once()
@@ -277,24 +288,51 @@ func TestConvertDatastoreSnapshotToModel(t *testing.T) {
 	})
 }
 
-func TestValidateCreateSnapshotOperation(t *testing.T) {
+func TestVolumeOwnershipCheck(t *testing.T) {
 	t.Run("WhenAccountIDIsIncorrect", func(tt *testing.T) {
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+		mockLogger := log.NewLogger()
+		store, err := database.NewTestStorage(mockLogger)
+		if err != nil {
+			assert.FailNow(tt, "Failed to create test storage: "+err.Error())
+		}
 		volume := &datamodel.Volume{
 			BaseModel: datamodel.BaseModel{UUID: "test-volume-uuid"},
 			Name:      "test_volume",
 			AccountID: 1,
 		}
-		params := &common.CreateSnapshotParams{
-			Name: "test_snapshot",
-		}
 		account := &datamodel.Account{
 			BaseModel: datamodel.BaseModel{ID: 2, UUID: "test-account-uuid"},
+			Name:      "test_account",
 		}
 
-		err := validateCreatSnapshotOperation(volume, params, account)
-		assert.ErrorContains(tt, err, "Volume does not belong to the account.", nil)
+		isOwner := VolumeOwnershipCheck(ctx, store, volume.UUID, account.Name)
+		assert.False(tt, isOwner, "Expected ownership check to fail for incorrect account ID")
 	})
 
+	t.Run("WhenVolumeIsIncorrect", func(tt *testing.T) {
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+		mockLogger := log.NewLogger()
+		store, err := database.NewTestStorage(mockLogger)
+		if err != nil {
+			assert.FailNow(tt, "Failed to create test storage: "+err.Error())
+		}
+		volume := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{UUID: "test-volume-uuid"},
+			Name:      "test_volume",
+			AccountID: 2,
+		}
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{ID: 1, UUID: "test-account-uuid"},
+			Name:      "test_account",
+		}
+
+		isOwner := VolumeOwnershipCheck(ctx, store, volume.UUID, account.Name)
+		assert.False(tt, isOwner, "Expected ownership check to fail for incorrect account ID")
+	})
+}
+
+func TestValidateCreateSnapshotOperation(t *testing.T) {
 	t.Run("WhenParamsNameIsNil", func(tt *testing.T) {
 		volume := &datamodel.Volume{
 			BaseModel: datamodel.BaseModel{UUID: "test-volume-uuid"},
@@ -338,5 +376,183 @@ func TestValidateCreateSnapshotOperation(t *testing.T) {
 		}
 		err := validateCreatSnapshotOperation(volume, params, account)
 		assert.ErrorContains(tt, err, "volume is in deleting stage.")
+	})
+}
+
+func TestGetSnapshot(t *testing.T) {
+	t.Run("WhenSnapshotDoesNotExist", func(tt *testing.T) {
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+
+		mockLogger := log.NewLogger()
+		store, err := database.NewTestStorage(mockLogger)
+		assert.NoError(tt, err, "Failed to create test storage")
+
+		err = database.ClearInMemoryDB(store.DB())
+		if err != nil {
+			tt.Fatalf("Failed to clean up test storage: %v", err)
+		}
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{ID: 1, UUID: "test-account-uuid"},
+			Name:      "test_account",
+		}
+		err = store.DB().Create(account).Error
+		if err != nil {
+			tt.Fatalf("Failed to create account: %v", err)
+		}
+
+		volume := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{UUID: "test-volume-uuid"},
+			Name:      "test_volume",
+			AccountID: 1,
+		}
+		err = store.DB().Create(volume).Error
+		if err != nil {
+			tt.Fatalf("Failed to create volume: %v", err)
+		}
+
+		params := &common.GetSnapshotParams{
+			SnapshotBaseParams: common.SnapshotBaseParams{
+				VolumeID:    "test-volume-uuid",
+				AccountName: "test_account",
+			},
+			SnapshotUUID: "non-existent-uuid",
+		}
+
+		orch := Orchestrator{
+			storage: store,
+		}
+
+		snapshot, err := orch.GetSnapshot(ctx, params)
+		assert.EqualError(tt, err, "snapshot 'non-existent-uuid' not found")
+		assert.Nil(tt, snapshot, "Expected nil snapshot")
+	})
+
+	t.Run("WhenSnapshotExists", func(tt *testing.T) {
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+
+		mockLogger := log.NewLogger()
+		store, err := database.NewTestStorage(mockLogger)
+		assert.NoError(tt, err, "Failed to create test storage")
+
+		// Clear the in-memory database
+		err = database.ClearInMemoryDB(store.DB())
+		if err != nil {
+			t.Fatalf("Failed to clean up test storage: %v", err)
+		}
+
+		orch := Orchestrator{
+			storage: store,
+		}
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{ID: 1, UUID: "test-account-uuid"},
+			Name:      "test_account",
+		}
+		err = store.DB().Create(account).Error
+		assert.NoError(tt, err, "Failed to ClearInMemoryDB")
+
+		volume := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{ID: 1, UUID: "test-volume-uuid"},
+			Name:      "test_volume",
+			AccountID: account.ID,
+		}
+		err = store.DB().Create(volume).Error
+		assert.NoError(tt, err, "Failed to create volume")
+
+		snapshot := &datamodel.Snapshot{
+			BaseModel:    datamodel.BaseModel{UUID: "test-snapshot-uuid"},
+			Name:         "test_snapshot",
+			Description:  "Test snapshot description",
+			AccountID:    account.ID,
+			VolumeID:     volume.ID,
+			Account:      account,
+			Volume:       volume,
+			State:        models.LifeCycleStateAvailable,
+			StateDetails: "Available",
+		}
+		err = store.DB().Create(snapshot).Error
+		assert.NoError(tt, err, "Failed to create snapshot")
+
+		params := &common.GetSnapshotParams{
+			SnapshotBaseParams: common.SnapshotBaseParams{
+				VolumeID:    "test-volume-uuid",
+				AccountName: "test_account",
+			},
+			SnapshotUUID: "test-snapshot-uuid",
+		}
+
+		result, err := orch.GetSnapshot(ctx, params)
+		assert.NoError(tt, err, "Failed to get snapshot")
+		assert.Equal(tt, snapshot.Name, result.Name)
+		assert.Equal(tt, account.Name, result.AccountName)
+		assert.Equal(tt, volume.UUID, result.VolumeUUID)
+		assert.Equal(tt, volume.Name, result.VolumeName)
+	})
+
+	t.Run("WhenSnapshotIsDeleted", func(tt *testing.T) {
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+
+		mockLogger := log.NewLogger()
+		store, err := database.NewTestStorage(mockLogger)
+		if err != nil {
+			tt.Fatalf("Failed to create test storage: %v", err)
+		}
+
+		// Clear the in-memory database
+		err = database.ClearInMemoryDB(store.DB())
+		if err != nil {
+			t.Fatalf("Failed to clean up test storage: %v", err)
+		}
+
+		orch := Orchestrator{
+			storage: store,
+		}
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{UUID: "test-account-uuid"},
+			Name:      "test_account",
+		}
+		err = store.DB().Create(account).Error
+		if err != nil {
+			tt.Fatalf("Failed to create account: %v", err)
+		}
+
+		volume := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{UUID: "test-volume-uuid"},
+			Name:      "test_volume",
+			AccountID: account.ID,
+		}
+		err = store.DB().Create(volume).Error
+		assert.NoError(tt, err, "Failed to create volume")
+
+		// Create a deleted snapshot
+		deletedAt := &gorm.DeletedAt{Time: time.Now(), Valid: true}
+		snapshot := &datamodel.Snapshot{
+			BaseModel: datamodel.BaseModel{
+				UUID:      "test-snapshot-uuid",
+				DeletedAt: deletedAt,
+			},
+			Name:        "test_snapshot",
+			Description: "Test snapshot description",
+			AccountID:   account.ID,
+			VolumeID:    volume.ID,
+			Account:     account,
+			Volume:      volume,
+		}
+		err = store.DB().Create(snapshot).Error
+		assert.NoError(tt, err, "Failed to create snapshot")
+
+		params := &common.GetSnapshotParams{
+			SnapshotBaseParams: common.SnapshotBaseParams{
+				VolumeID:    "test-volume-uuid",
+				AccountName: "test_account",
+			},
+			SnapshotUUID: "test-snapshot-uuid",
+		}
+
+		result, err := orch.GetSnapshot(ctx, params)
+		assert.EqualError(tt, err, "snapshot 'test-snapshot-uuid' not found")
+		assert.Nil(tt, result, "Expected nil snapshot")
 	})
 }

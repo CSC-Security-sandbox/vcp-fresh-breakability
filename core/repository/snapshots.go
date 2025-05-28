@@ -50,11 +50,12 @@ func (d *DataStoreRepository) CreatingSnapshot(ctx context.Context, snapshot *da
 
 func getSnapshotWithDetails(db *gorm.DB, query *datamodel.Snapshot) (*datamodel.Snapshot, error) {
 	snapshot := &datamodel.Snapshot{}
-	err := db.First(&snapshot, query).Error
+	err := db.Preload("Account").Preload("Volume").First(&snapshot, query).Error
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, customerrors.NewNotFoundErr("snapshot", &query.UUID)
 		}
+		return nil, customerrors.Errorf("failed to retrieve snapshot details: %v", err)
 	}
 	return snapshot, nil
 }
@@ -86,6 +87,10 @@ func (d *DataStoreRepository) UpdateSnapshot(ctx context.Context, snapshot *data
 func (d *DataStoreRepository) GetAppConsistentSnapshotsForVolume(ctx context.Context, accountID, volumeID int64) ([]*datamodel.Snapshot, error) {
 	conditions := [][]interface{}{{"account_id = ?", accountID}, {"volume_id = ?", volumeID}, {"is_app_consistent = ?", true}}
 	return getSnapshotsWithCondition(d.db.ApplyFilter(conditions).GORM().WithContext(ctx))
+}
+
+func (d *DataStoreRepository) GetSnapshot(ctx context.Context, uuid string) (*datamodel.Snapshot, error) {
+	return getSnapshotWithDetails(d.db.GORM().WithContext(ctx), &datamodel.Snapshot{BaseModel: datamodel.BaseModel{UUID: uuid}})
 }
 
 func getSnapshotsWithCondition(db *gorm.DB) ([]*datamodel.Snapshot, error) {

@@ -52,7 +52,9 @@ func (s *SnapshotUnitTestSuite) TestCreateSnapshotWorkflowWorkflowExecutesSucces
 	snapshotCreateActivity := activities.SnapshotCreateActivity{SE: mockStorage}
 
 	params := &common.CreateSnapshotParams{
-		AccountName: "test-account",
+		SnapshotBaseParams: common.SnapshotBaseParams{
+			AccountName: "test-account",
+		},
 	}
 	snapshot := &datamodel.Snapshot{
 		Name: "test-snapshot",
@@ -89,8 +91,11 @@ func (s *SnapshotUnitTestSuite) TestCreateSnapshotWorkflowFailsOnActivityError()
 	snapshotCreateActivity := activities.SnapshotCreateActivity{SE: mockStorage}
 
 	params := &common.CreateSnapshotParams{
-		AccountName: "test-account",
+		SnapshotBaseParams: common.SnapshotBaseParams{
+			AccountName: "test-account",
+		},
 	}
+
 	snapshot := &datamodel.Snapshot{
 		Name: "test-snapshot",
 		Volume: &datamodel.Volume{
@@ -128,8 +133,11 @@ func (s *SnapshotUnitTestSuite) TestSnapshotCreateWorkflowRollbackOnFailure() {
 	s.env.RegisterActivity(&snapshotCreateActivity)
 
 	params := &common.CreateSnapshotParams{
-		AccountName: "test-account",
+		SnapshotBaseParams: common.SnapshotBaseParams{
+			AccountName: "test-account",
+		},
 	}
+
 	snapshot := &datamodel.Snapshot{
 		Name: "test-snapshot",
 		Volume: &datamodel.Volume{

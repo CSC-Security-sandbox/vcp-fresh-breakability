@@ -178,3 +178,16 @@ func _getMultipleVolumes(db *gorm.DB) ([]*datamodel.Volume, error) {
 	}
 	return volumes, nil
 }
+
+func (d *DataStoreRepository) VerifyVolumeOwnership(ctx context.Context, volumeUUID string, accountName string) (*datamodel.Volume, error) {
+	db := d.db.GORM().WithContext(ctx)
+	var account *datamodel.Account
+	if err := db.Where("name = ?", accountName).First(&account).Error; err != nil {
+		return nil, err
+	}
+	var volume *datamodel.Volume
+	if err := db.Where("uuid = ?", volumeUUID).Where("account_id= ?", account.ID).First(&volume).Error; err != nil {
+		return nil, err
+	}
+	return volume, nil
+}

@@ -2790,6 +2790,35 @@ func TestSnapshotV1beta_EncodeDecode(t *testing.T) {
 	var typ2 SnapshotV1beta
 	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
 }
+
+func TestSnapshotV1beta_Examples(t *testing.T) {
+
+	for i, tc := range []struct {
+		Input string
+	}{
+		{Input: "{\"application/json\":{\"created\":\"0001-01-01T00:00:00.000Z\",\"description\":\"My Resource Description\",\"resourceId\":\"my-snapshot-resource\",\"snapshotId\":\"1829d6e1-fbe0-87cb-150d-a32290162f0c\",\"snapshotState\":\"READY\",\"snapshotStateDetails\":\"Available for use\",\"storageClass\":\"HARDWARE\",\"usedBytes\":0,\"volumeId\":\"b78e8675-7e6f-64ec-3ec2-163753add2d5\",\"volumeResourceId\":\"my-volume-resource\"}}"},
+	} {
+		tc := tc
+		t.Run(fmt.Sprintf("Test%d", i+1), func(t *testing.T) {
+			var typ SnapshotV1beta
+
+			if err := typ.Decode(jx.DecodeStr(tc.Input)); err != nil {
+				if validateErr, ok := errors.Into[*validate.Error](err); ok {
+					t.Skipf("Validation error: %v", validateErr)
+					return
+				}
+				require.NoErrorf(t, err, "Input: %s", tc.Input)
+			}
+
+			e := jx.Encoder{}
+			typ.Encode(&e)
+			require.True(t, std.Valid(e.Bytes()), "Encoded: %s", e.Bytes())
+
+			var typ2 SnapshotV1beta
+			require.NoError(t, typ2.Decode(jx.DecodeBytes(e.Bytes())))
+		})
+	}
+}
 func TestSnapshotV1betaSnapshotState_EncodeDecode(t *testing.T) {
 	var typ SnapshotV1betaSnapshotState
 	typ.SetFake()
@@ -5133,6 +5162,78 @@ func TestV1betaDescribePoolUnprocessableEntity_EncodeDecode(t *testing.T) {
 	require.True(t, std.Valid(data), "Encoded: %s", data)
 
 	var typ2 V1betaDescribePoolUnprocessableEntity
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1betaDescribeSnapshotBadRequest_EncodeDecode(t *testing.T) {
+	var typ V1betaDescribeSnapshotBadRequest
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaDescribeSnapshotBadRequest
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1betaDescribeSnapshotForbidden_EncodeDecode(t *testing.T) {
+	var typ V1betaDescribeSnapshotForbidden
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaDescribeSnapshotForbidden
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1betaDescribeSnapshotInternalServerError_EncodeDecode(t *testing.T) {
+	var typ V1betaDescribeSnapshotInternalServerError
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaDescribeSnapshotInternalServerError
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1betaDescribeSnapshotNotFound_EncodeDecode(t *testing.T) {
+	var typ V1betaDescribeSnapshotNotFound
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaDescribeSnapshotNotFound
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1betaDescribeSnapshotTooManyRequests_EncodeDecode(t *testing.T) {
+	var typ V1betaDescribeSnapshotTooManyRequests
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaDescribeSnapshotTooManyRequests
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1betaDescribeSnapshotUnauthorized_EncodeDecode(t *testing.T) {
+	var typ V1betaDescribeSnapshotUnauthorized
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaDescribeSnapshotUnauthorized
 	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
 }
 func TestV1betaDescribeVolumeBadRequest_EncodeDecode(t *testing.T) {

@@ -137,3 +137,16 @@ Then, redeploy:
 export GHVSA_PAT=<your_github_pat>
 skaffold dev
 ```
+
+#### Linting locally
+```bash
+# Installing golangci-lint and vsacictl
+brew install golangci-lint
+brew upgrade golangci-lint
+cd ./cicd
+go build -o ~/go/bin/vsacictl .
+cd ..
+
+# Running vsacictl
+vsacictl lint
+```

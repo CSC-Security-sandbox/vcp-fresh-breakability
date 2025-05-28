@@ -254,6 +254,15 @@ func (UnimplementedHandler) V1betaDescribePool(ctx context.Context, params V1bet
 	return r, ht.ErrNotImplemented
 }
 
+// V1betaDescribeSnapshot implements v1beta_describeSnapshot operation.
+//
+// Get descriptions of the requested snapshot.
+//
+// GET /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/snapshot/{snapshotId}
+func (UnimplementedHandler) V1betaDescribeSnapshot(ctx context.Context, params V1betaDescribeSnapshotParams) (r V1betaDescribeSnapshotRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
 // V1betaDescribeVolume implements v1beta_describeVolume operation.
 //
 // Returns the description of the specified volume by volume Id.

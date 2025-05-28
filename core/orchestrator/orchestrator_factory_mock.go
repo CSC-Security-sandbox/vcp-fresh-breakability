@@ -953,6 +953,65 @@ func (_c *MockOrchestratorFactory_GetPoolByVendorID_Call) RunAndReturn(run func(
 	return _c
 }
 
+// GetSnapshot provides a mock function with given fields: ctx, params
+func (_m *MockOrchestratorFactory) GetSnapshot(ctx context.Context, params *common.GetSnapshotParams) (*models.Snapshot, error) {
+	ret := _m.Called(ctx, params)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetSnapshot")
+	}
+
+	var r0 *models.Snapshot
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, *common.GetSnapshotParams) (*models.Snapshot, error)); ok {
+		return rf(ctx, params)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, *common.GetSnapshotParams) *models.Snapshot); ok {
+		r0 = rf(ctx, params)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*models.Snapshot)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, *common.GetSnapshotParams) error); ok {
+		r1 = rf(ctx, params)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockOrchestratorFactory_GetSnapshot_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetSnapshot'
+type MockOrchestratorFactory_GetSnapshot_Call struct {
+	*mock.Call
+}
+
+// GetSnapshot is a helper method to define mock.On call
+//   - ctx context.Context
+//   - params *common.GetSnapshotParams
+func (_e *MockOrchestratorFactory_Expecter) GetSnapshot(ctx interface{}, params interface{}) *MockOrchestratorFactory_GetSnapshot_Call {
+	return &MockOrchestratorFactory_GetSnapshot_Call{Call: _e.mock.On("GetSnapshot", ctx, params)}
+}
+
+func (_c *MockOrchestratorFactory_GetSnapshot_Call) Run(run func(ctx context.Context, params *common.GetSnapshotParams)) *MockOrchestratorFactory_GetSnapshot_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(*common.GetSnapshotParams))
+	})
+	return _c
+}
+
+func (_c *MockOrchestratorFactory_GetSnapshot_Call) Return(_a0 *models.Snapshot, _a1 error) *MockOrchestratorFactory_GetSnapshot_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockOrchestratorFactory_GetSnapshot_Call) RunAndReturn(run func(context.Context, *common.GetSnapshotParams) (*models.Snapshot, error)) *MockOrchestratorFactory_GetSnapshot_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // GetVolume provides a mock function with given fields: ctx, volumeId
 func (_m *MockOrchestratorFactory) GetVolume(ctx context.Context, volumeId string) (*models.Volume, error) {
 	ret := _m.Called(ctx, volumeId)

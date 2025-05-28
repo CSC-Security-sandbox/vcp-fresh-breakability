@@ -69,6 +69,7 @@ type DataStore interface {
 	GetVolumesByPoolID(ctx context.Context, poolID int64) ([]*datamodel.Volume, error)
 	GetVolumeCountByPoolID(ctx context.Context, poolID int64) (int64, error)
 	GetMultipleVolumes(ctx context.Context, conditions [][]interface{}) ([]*datamodel.Volume, error)
+	VerifyVolumeOwnership(ctx context.Context, volumeID string, accountName string) (*datamodel.Volume, error)
 
 	CreateVolumeReplication(ctx context.Context, volumeRep *datamodel.VolumeReplication) (*datamodel.VolumeReplication, error)
 	GetVolumeReplication(ctx context.Context, id string) (*datamodel.VolumeReplication, error)
@@ -109,5 +110,6 @@ type DataStore interface {
 
 	CreatingSnapshot(ctx context.Context, snapshot *datamodel.Snapshot) (*datamodel.Snapshot, error)
 	UpdateSnapshot(ctx context.Context, snapshot *datamodel.Snapshot) error
+	GetSnapshot(ctx context.Context, uuid string) (*datamodel.Snapshot, error)
 	GetAppConsistentSnapshotsForVolume(ctx context.Context, accountID, volumeID int64) ([]*datamodel.Snapshot, error)
 }

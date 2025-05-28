@@ -31,6 +31,7 @@ type OrchestratorFactory interface {
 	GetJob(ctx context.Context, operationId string) (*models.Job, error)
 
 	CreateSnapshot(ctx context.Context, params *commonparams.CreateSnapshotParams) (*models.Snapshot, string, error)
+	GetSnapshot(ctx context.Context, params *commonparams.GetSnapshotParams) (*models.Snapshot, error)
 }
 
 type Orchestrator struct {

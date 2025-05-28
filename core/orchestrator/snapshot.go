@@ -21,7 +21,9 @@ const (
 )
 
 var (
-	createSnapshot = _createSnapshot
+	createSnapshot       = _createSnapshot
+	getSnapshot          = _getSnapshot
+	VolumeOwnershipCheck = _volumeOwnershipCheck
 )
 
 // CreateSnapshot creates the snapshot and adds to the specified volume belonging to the specified owner
@@ -42,6 +44,11 @@ func _createSnapshot(ctx context.Context, se database.Storage, temporal client.C
 	if err != nil {
 		logger.Errorf("Failed to get volume: %s. Error: %v", params.VolumeID, err)
 		return nil, "", errors.NewNotFoundErr("volume", &params.VolumeID)
+	}
+
+	if !VolumeOwnershipCheck(ctx, se, params.VolumeID, params.AccountName) {
+		logger.Errorf("Failed to validate volume ownership")
+		return nil, "", errors.NewUserInputValidationErr("failed to validate volume ownership")
 	}
 
 	if params.IsAppConsistent {
@@ -112,6 +119,28 @@ func _createSnapshot(ctx context.Context, se database.Storage, temporal client.C
 	return dataStoreSnap, job.UUID, nil
 }
 
+func (o *Orchestrator) GetSnapshot(ctx context.Context, params *common.GetSnapshotParams) (*models.Snapshot, error) {
+	return getSnapshot(ctx, o.storage, params)
+}
+
+func _getSnapshot(ctx context.Context, se database.Storage, params *common.GetSnapshotParams) (*models.Snapshot, error) {
+	logger := util.GetLogger(ctx)
+
+	if !VolumeOwnershipCheck(ctx, se, params.VolumeID, params.AccountName) {
+		logger.Errorf("Failed to validate volume ownership")
+		return nil, errors.NewUserInputValidationErr("failed to validate volume ownership")
+	}
+
+	snapshot, err := se.GetSnapshot(ctx, params.SnapshotUUID)
+	if err != nil {
+		logger.Errorf("Failed to get snapshot: %s. Error: %v", params.SnapshotUUID, err)
+		return nil, err
+	}
+
+	dataStoreSnap := convertDatastoreSnapshotToModel(snapshot)
+	return dataStoreSnap, nil
+}
+
 func convertDatastoreSnapshotToModel(snapshot *datamodel.Snapshot) *models.Snapshot {
 	if snapshot == nil {
 		return nil
@@ -140,11 +169,6 @@ func validateCreatSnapshotOperation(volume *datamodel.Volume, params *common.Cre
 		return errors.NewUserInputValidationErr("Snapshot name is empty. Please provide a valid name.")
 	}
 
-	// Let's do the resource ownership check first, so we don't give up any information about the volume
-	if volume.AccountID != account.ID {
-		return errors.NewBadRequestErr("Snapshot creation not allowed. Volume does not belong to the account.")
-	}
-
 	if volume.State == models.LifeCycleStateCreating {
 		return errors.NewNotReadyErr("Can not create a snapshot when volume is in creating stage.")
 	}
@@ -155,4 +179,16 @@ func validateCreatSnapshotOperation(volume *datamodel.Volume, params *common.Cre
 	// @TODO: Include DataProtection check when implemented
 
 	return nil
+}
+
+func _volumeOwnershipCheck(ctx context.Context, se database.Storage, volumeUUID string, accountName string) bool {
+	logger := util.GetLogger(ctx)
+
+	volume, err := se.VerifyVolumeOwnership(ctx, volumeUUID, accountName)
+	if err != nil {
+		logger.Errorf("Failed to verify volume ownership: %v", err)
+		return false
+	}
+
+	return volume != nil // If volume is nil, it means ownership verification failed
 }

@@ -446,3 +446,66 @@ func TestUpdateHostGroupsState(t *testing.T) {
 	err := store.UpdateHostGroupsState(ctx, []string{"hg-uuid"}, 0, "active", "ok")
 	assert.NoError(t, err)
 }
+
+// SNAPSHOT
+func TestCreatingSnapshot(t *testing.T) {
+	logger := &log.MockLogger{}
+	store, _ := NewTestStorage(logger)
+	ctx := context.Background()
+	ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, logger)
+	snap := &datamodel.Snapshot{Name: "snap1"}
+	created, err := store.CreatingSnapshot(ctx, snap)
+	assert.NoError(t, err)
+	assert.NotNil(t, created)
+	assert.Equal(t, "snap1", created.Name)
+}
+
+func TestUpdateSnapshot(t *testing.T) {
+	logger := &log.MockLogger{}
+	store, _ := NewTestStorage(logger)
+	ctx := context.Background()
+	ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, logger)
+	snap := &datamodel.Snapshot{Name: "snap2"}
+	created, err := store.CreatingSnapshot(ctx, snap)
+	assert.NoError(t, err)
+	created.Name = "snap2-updated"
+	err = store.UpdateSnapshot(ctx, created)
+	assert.NoError(t, err)
+}
+
+func TestGetSnapshot(t *testing.T) {
+	logger := &log.MockLogger{}
+	store, _ := NewTestStorage(logger)
+	ctx := context.Background()
+	ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, logger)
+	snap := &datamodel.Snapshot{Name: "snap3"}
+	created, err := store.CreatingSnapshot(ctx, snap)
+	assert.NoError(t, err)
+	found, err := store.GetSnapshot(ctx, created.UUID)
+	assert.NoError(t, err)
+	assert.NotNil(t, found)
+	assert.Equal(t, "snap3", found.Name)
+}
+
+func TestGetAppConsistentSnapshotsForVolume(t *testing.T) {
+	logger := &log.MockLogger{}
+	store, _ := NewTestStorage(logger)
+	ctx := context.Background()
+	ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, logger)
+	// Create account and volume for association
+	acc := &datamodel.Account{Name: "acc_snap"}
+	createdAcc, err := store.CreateAccount(ctx, acc)
+	assert.NoError(t, err)
+	vol := &datamodel.Volume{Name: "vol_snap", AccountID: createdAcc.ID}
+	createdVol, err := store.CreateVolume(ctx, vol)
+	assert.NoError(t, err)
+	// Create a snapshot associated with the account and volume
+	snap := &datamodel.Snapshot{Name: "snap4", AccountID: createdAcc.ID, VolumeID: createdVol.ID, IsAppConsistent: true}
+	_, err = store.CreatingSnapshot(ctx, snap)
+	assert.NoError(t, err)
+	// Query for snapshots
+	snaps, err := store.GetAppConsistentSnapshotsForVolume(ctx, createdAcc.ID, createdVol.ID)
+	assert.NoError(t, err)
+	assert.NotNil(t, snaps)
+	assert.GreaterOrEqual(t, len(snaps), 1)
+}

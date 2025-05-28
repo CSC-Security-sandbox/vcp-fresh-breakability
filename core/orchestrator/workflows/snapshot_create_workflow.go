@@ -18,11 +18,7 @@ type snapshotCreateWorkflow struct {
 	SE database.Storage
 }
 
-type snapshotCreateWorkflowStatus struct {
-	ID         string
-	customerID string
-	status     string
-}
+var _ WorkflowInterface = &snapshotCreateWorkflow{}
 
 // CreateSnapshotWorkflow Snapshot Workflow process snapshot related requests from a customer.
 func CreateSnapshotWorkflow(ctx workflow.Context, params *common.CreateSnapshotParams, snapshot *datamodel.Snapshot) (gcpgenserver.V1betaCreateSnapshotRes, error) {
@@ -48,7 +44,7 @@ func CreateSnapshotWorkflow(ctx workflow.Context, params *common.CreateSnapshotP
 			err = snapshotWf.UpdateJobStatus(ctx, string(models.JobsStateDONE), err)
 		}
 	}()
-	_, err = snapshotWf.Run(ctx, *snapshot)
+	_, err = snapshotWf.Run(ctx, snapshot)
 	if err != nil {
 		logger.Infof("Snapshot workflow run executed with error: %v", err)
 		return nil, err
@@ -68,17 +64,18 @@ func (wf *snapshotCreateWorkflow) Setup(ctx workflow.Context, input interface{})
 	logger := util.GetLogger(ctx)
 	wf.Logger = logger
 
-	return workflow.SetQueryHandler(ctx, "status", func() (*snapshotCreateWorkflowStatus, error) {
-		return &snapshotCreateWorkflowStatus{
+	return workflow.SetQueryHandler(ctx, "status", func() (*WorkflowStatus, error) {
+		return &WorkflowStatus{
 			ID:         wf.ID,
-			status:     wf.Status,
-			customerID: wf.CustomerID,
+			Status:     wf.Status,
+			CustomerID: wf.CustomerID,
 		}, nil
 	})
 }
 
 // Run executes the snapshot creation workflow, including creating the snapshot and updating its details.
-func (wf *snapshotCreateWorkflow) Run(ctx workflow.Context, snapshot datamodel.Snapshot) (interface{}, error) {
+func (wf *snapshotCreateWorkflow) Run(ctx workflow.Context, args ...interface{}) (interface{}, error) {
+	snapshot := args[0].(*datamodel.Snapshot)
 	logger := util.GetLogger(ctx)
 	snapshotActivity := &activities.SnapshotCreateActivity{}
 	retryPolicy, err := PopulateRetryPolicyParams()

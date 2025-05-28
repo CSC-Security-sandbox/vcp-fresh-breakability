@@ -19,10 +19,6 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 )
 
-var (
-	parseAndValidateRegionAndZone = utils.ParseAndValidateRegionAndZone
-)
-
 // V1betaDescribePool handles the request to describe a pool.
 func (h Handler) V1betaDescribePool(ctx context.Context, params gcpgenserver.V1betaDescribePoolParams) (gcpgenserver.V1betaDescribePoolRes, error) {
 	logger := util.GetLogger(ctx)

@@ -5558,6 +5558,60 @@ func (s *V1betaDescribePoolUnprocessableEntity) SetFake() {
 }
 
 // SetFake set fake values.
+func (s *V1betaDescribeSnapshotBadRequest) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaDescribeSnapshotBadRequest(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaDescribeSnapshotForbidden) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaDescribeSnapshotForbidden(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaDescribeSnapshotInternalServerError) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaDescribeSnapshotInternalServerError(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaDescribeSnapshotNotFound) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaDescribeSnapshotNotFound(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaDescribeSnapshotTooManyRequests) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaDescribeSnapshotTooManyRequests(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaDescribeSnapshotUnauthorized) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaDescribeSnapshotUnauthorized(unwrapped)
+}
+
+// SetFake set fake values.
 func (s *V1betaDescribeVolumeBadRequest) SetFake() {
 	var unwrapped Error
 	{

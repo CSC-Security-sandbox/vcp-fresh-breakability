@@ -441,6 +441,10 @@ func (s *PersistenceStore) GetMultipleVolumes(ctx context.Context, conditions []
 	return s.dataStore.GetMultipleVolumes(ctx, conditions)
 }
 
+func (s *PersistenceStore) VerifyVolumeOwnership(ctx context.Context, volumeID string, accountName string) (*datamodel.Volume, error) {
+	return s.dataStore.VerifyVolumeOwnership(ctx, volumeID, accountName)
+}
+
 func (s *PersistenceStore) GetAccount(ctx context.Context, name string) (*datamodel.Account, error) {
 	return s.dataStore.GetAccount(ctx, name)
 }
@@ -543,6 +547,10 @@ func (s *PersistenceStore) CreatingSnapshot(ctx context.Context, snapshot *datam
 
 func (s *PersistenceStore) UpdateSnapshot(ctx context.Context, snapshot *datamodel.Snapshot) error {
 	return s.dataStore.UpdateSnapshot(ctx, snapshot)
+}
+
+func (s *PersistenceStore) GetSnapshot(ctx context.Context, uuid string) (*datamodel.Snapshot, error) {
+	return s.dataStore.GetSnapshot(ctx, uuid)
 }
 
 func (s *PersistenceStore) GetAppConsistentSnapshotsForVolume(ctx context.Context, accountID, volumeID int64) ([]*datamodel.Snapshot, error) {

@@ -3,8 +3,8 @@
 package googleproxyclient
 
 import (
-	"fmt"
 	std "encoding/json"
+	"fmt"
 	"testing"
 
 	"github.com/go-faster/errors"
@@ -50,7 +50,8 @@ func TestActiveDirectoryV1beta_EncodeDecode(t *testing.T) {
 	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
 }
 
-func TestActiveDirectoryV1beta_Examples(t *testing.T) {	for i, tc := range []struct {
+func TestActiveDirectoryV1beta_Examples(t *testing.T) {
+	for i, tc := range []struct {
 		Input string
 	}{
 		{Input: "{\"application/json\":{\"DNS\":\"100.101.102.103\",\"activeDirectoryId\":\"9760acf5-4638-11e7-9bdb-020073ca7773\",\"activeDirectoryState\":\"READY\",\"activeDirectoryStateDetails\":\"Credentials saved and available for use\",\"aesEncryption\":true,\"backupOperators\":[\"Superman\",\"Batman\"],\"createdAt\":\"2017-01-29T09:10:32.212Z\",\"description\":\"My Active Directory description\",\"domain\":\"krypton.galaxy\",\"encryptDCConnections\":false,\"kdcHostName\":\"My Active Directory Machine\",\"ldapSigning\":true,\"netBIOS\":\"cvserver\",\"organizationalUnit\":\"CN=Computers\",\"password\":\"****************\",\"resourceId\":\"my-active-directory\",\"updatedAt\":\"2017-01-29T09:10:32.212Z\",\"username\":\"superman\"}}"},
@@ -89,7 +90,8 @@ func TestActiveDirectoryV1betaActiveDirectoryState_EncodeDecode(t *testing.T) {
 	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
 }
 
-func TestActiveDirectoryV1betaActiveDirectoryState_Examples(t *testing.T) {	for i, tc := range []struct {
+func TestActiveDirectoryV1betaActiveDirectoryState_Examples(t *testing.T) {
+	for i, tc := range []struct {
 		Input string
 	}{
 		{Input: "\"READY\""},
@@ -188,7 +190,8 @@ func TestBackupPolicyDetailsV1betaState_EncodeDecode(t *testing.T) {
 	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
 }
 
-func TestBackupPolicyDetailsV1betaState_Examples(t *testing.T) {	for i, tc := range []struct {
+func TestBackupPolicyDetailsV1betaState_Examples(t *testing.T) {
+	for i, tc := range []struct {
 		Input string
 	}{
 		{Input: "\"READY\""},
@@ -263,7 +266,8 @@ func TestBackupPolicyV1betaState_EncodeDecode(t *testing.T) {
 	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
 }
 
-func TestBackupPolicyV1betaState_Examples(t *testing.T) {	for i, tc := range []struct {
+func TestBackupPolicyV1betaState_Examples(t *testing.T) {
+	for i, tc := range []struct {
 		Input string
 	}{
 		{Input: "\"READY\""},
@@ -362,7 +366,8 @@ func TestBackupV1betaState_EncodeDecode(t *testing.T) {
 	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
 }
 
-func TestBackupV1betaState_Examples(t *testing.T) {	for i, tc := range []struct {
+func TestBackupV1betaState_Examples(t *testing.T) {
+	for i, tc := range []struct {
 		Input string
 	}{
 		{Input: "\"READY\""},
@@ -437,7 +442,8 @@ func TestBackupVaultV1beta_EncodeDecode(t *testing.T) {
 	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
 }
 
-func TestBackupVaultV1beta_Examples(t *testing.T) {	for i, tc := range []struct {
+func TestBackupVaultV1beta_Examples(t *testing.T) {
+	for i, tc := range []struct {
 		Input string
 	}{
 		{Input: "{\"application/json\":{\"backupVaultId\":\"9760acf5-4638-11e7-9bdb-020073ca3333\",\"created\":\"2017-02-02T00:00:00.000Z\",\"description\":\"Dummy description\",\"resourceId\":\"backupVault1\",\"state\":\"READY\",\"stateDetails\":\"Available for use\"}}"},
@@ -488,7 +494,8 @@ func TestBackupVaultV1betaState_EncodeDecode(t *testing.T) {
 	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
 }
 
-func TestBackupVaultV1betaState_Examples(t *testing.T) {	for i, tc := range []struct {
+func TestBackupVaultV1betaState_Examples(t *testing.T) {
+	for i, tc := range []struct {
 		Input string
 	}{
 		{Input: "\"available\""},
@@ -539,7 +546,8 @@ func TestBlockPropertiesV1betaOsType_EncodeDecode(t *testing.T) {
 	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
 }
 
-func TestBlockPropertiesV1betaOsType_Examples(t *testing.T) {	for i, tc := range []struct {
+func TestBlockPropertiesV1betaOsType_Examples(t *testing.T) {
+	for i, tc := range []struct {
 		Input string
 	}{
 		{Input: "\"LINUX\""},
@@ -614,7 +622,8 @@ func TestClusterPeerV1AuthenticationState_EncodeDecode(t *testing.T) {
 	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
 }
 
-func TestClusterPeerV1AuthenticationState_Examples(t *testing.T) {	for i, tc := range []struct {
+func TestClusterPeerV1AuthenticationState_Examples(t *testing.T) {
+	for i, tc := range []struct {
 		Input string
 	}{
 		{Input: "\"pending\""},
@@ -653,7 +662,8 @@ func TestClusterPeerV1Availability_EncodeDecode(t *testing.T) {
 	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
 }
 
-func TestClusterPeerV1Availability_Examples(t *testing.T) {	for i, tc := range []struct {
+func TestClusterPeerV1Availability_Examples(t *testing.T) {
+	for i, tc := range []struct {
 		Input string
 	}{
 		{Input: "\"available\""},
@@ -716,7 +726,8 @@ func TestError_EncodeDecode(t *testing.T) {
 	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
 }
 
-func TestError_Examples(t *testing.T) {	for i, tc := range []struct {
+func TestError_Examples(t *testing.T) {
+	for i, tc := range []struct {
 		Input string
 	}{
 		{Input: "{\"code\":1994,\"message\":\"Out of cheese error! Please reboot the Universe\"}"},
@@ -815,7 +826,8 @@ func TestFlexCacheV1betaCacheState_EncodeDecode(t *testing.T) {
 	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
 }
 
-func TestFlexCacheV1betaCacheState_Examples(t *testing.T) {	for i, tc := range []struct {
+func TestFlexCacheV1betaCacheState_Examples(t *testing.T) {
+	for i, tc := range []struct {
 		Input string
 	}{
 		{Input: "\"PEERED\""},
@@ -962,7 +974,8 @@ func TestHostGroupV1beta_EncodeDecode(t *testing.T) {
 	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
 }
 
-func TestHostGroupV1beta_Examples(t *testing.T) {	for i, tc := range []struct {
+func TestHostGroupV1beta_Examples(t *testing.T) {
+	for i, tc := range []struct {
 		Input string
 	}{
 		{Input: "{\"created\":\"2024-01-24T13:54:14.374Z\",\"description\":\"HostGroup for storage access\",\"hostGroupId\":\"123e4567-e89b-12d3-a456-426614174000\",\"hosts\":[\"iqn.1998-01.com.vmware:example1\"],\"osType\":\"LINUX\",\"resourceId\":\"my-host-group\",\"state\":\"READY\",\"stateDetails\":\"avilable for use\",\"type\":\"ISCSI_INITIATOR\",\"updated\":\"2024-01-25T10:00:00.000Z\"}"},
@@ -1001,7 +1014,8 @@ func TestHostGroupV1betaOsType_EncodeDecode(t *testing.T) {
 	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
 }
 
-func TestHostGroupV1betaOsType_Examples(t *testing.T) {	for i, tc := range []struct {
+func TestHostGroupV1betaOsType_Examples(t *testing.T) {
+	for i, tc := range []struct {
 		Input string
 	}{
 		{Input: "\"LINUX\""},
@@ -1040,7 +1054,8 @@ func TestHostGroupV1betaState_EncodeDecode(t *testing.T) {
 	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
 }
 
-func TestHostGroupV1betaState_Examples(t *testing.T) {	for i, tc := range []struct {
+func TestHostGroupV1betaState_Examples(t *testing.T) {
+	for i, tc := range []struct {
 		Input string
 	}{
 		{Input: "\"READY\""},
@@ -1080,7 +1095,8 @@ func TestHostGroupV1betaType_EncodeDecode(t *testing.T) {
 	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
 }
 
-func TestHostGroupV1betaType_Examples(t *testing.T) {	for i, tc := range []struct {
+func TestHostGroupV1betaType_Examples(t *testing.T) {
+	for i, tc := range []struct {
 		Input string
 	}{
 		{Input: "\"ISCSI_INITIATOR\""},
@@ -1169,7 +1185,8 @@ func TestHybridReplicationParametersV1betaLabels_EncodeDecode(t *testing.T) {
 	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
 }
 
-func TestHybridReplicationParametersV1betaLabels_Examples(t *testing.T) {	for i, tc := range []struct {
+func TestHybridReplicationParametersV1betaLabels_Examples(t *testing.T) {
+	for i, tc := range []struct {
 		Input string
 	}{
 		{Input: "{\"someKey\":\"SomeValue\",\"someKey2\":\"SomeValue2\"}"},
@@ -1246,7 +1263,8 @@ func TestJobV1betaAction_EncodeDecode(t *testing.T) {
 	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
 }
 
-func TestJobV1betaAction_Examples(t *testing.T) {	for i, tc := range []struct {
+func TestJobV1betaAction_Examples(t *testing.T) {
+	for i, tc := range []struct {
 		Input string
 	}{
 		{Input: "\"delete\""},
@@ -1285,7 +1303,8 @@ func TestJobV1betaObjectType_EncodeDecode(t *testing.T) {
 	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
 }
 
-func TestJobV1betaObjectType_Examples(t *testing.T) {	for i, tc := range []struct {
+func TestJobV1betaObjectType_Examples(t *testing.T) {
+	for i, tc := range []struct {
 		Input string
 	}{
 		{Input: "\"Volume\""},
@@ -1324,7 +1343,8 @@ func TestJobV1betaState_EncodeDecode(t *testing.T) {
 	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
 }
 
-func TestJobV1betaState_Examples(t *testing.T) {	for i, tc := range []struct {
+func TestJobV1betaState_Examples(t *testing.T) {
+	for i, tc := range []struct {
 		Input string
 	}{
 		{Input: "\"ongoing\""},
@@ -1399,7 +1419,8 @@ func TestKmsConfigV1beta_EncodeDecode(t *testing.T) {
 	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
 }
 
-func TestKmsConfigV1beta_Examples(t *testing.T) {	for i, tc := range []struct {
+func TestKmsConfigV1beta_Examples(t *testing.T) {
+	for i, tc := range []struct {
 		Input string
 	}{
 		{Input: "{\"application/json\":{\"createdTime\":\"2017-01-29T09:10:32.212Z\",\"description\":\"Description of the KMS configuration\",\"keyFullPath\":\"projects/projectId/locations/keyRingLocation/keyRings/keyRing/cryptoKeys/keyName\",\"kmsState\":\"READY\",\"kmsStateDetails\":\"Kms config is ready for use\",\"resourceId\":\"my-resource\",\"updatedTime\":\"2017-01-29T09:10:32.212Z\",\"uuid\":\"9760acf5-4638-11e7-9bdb-020073ca7773\"}}"},
@@ -1439,7 +1460,8 @@ func TestKmsConfigV1betaKmsState_EncodeDecode(t *testing.T) {
 	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
 }
 
-func TestKmsConfigV1betaKmsState_Examples(t *testing.T) {	for i, tc := range []struct {
+func TestKmsConfigV1betaKmsState_Examples(t *testing.T) {
+	for i, tc := range []struct {
 		Input string
 	}{
 		{Input: "\"READY\""},
@@ -1502,7 +1524,8 @@ func TestOperationV1beta_EncodeDecode(t *testing.T) {
 	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
 }
 
-func TestOperationV1beta_Examples(t *testing.T) {	for i, tc := range []struct {
+func TestOperationV1beta_Examples(t *testing.T) {
+	for i, tc := range []struct {
 		Input string
 	}{
 		{Input: "{\"application/json\":{\"done\":\"false,\",\"name\":\"/v1beta/projects/123456789/locations/some-location1/operations/ba2c8826-2627-057c-42ba-343ee7ab1ebe\",\"response\":{\"created\":\"2024-01-24T11:13:24.245Z\",\"description\":\"My replication\",\"destination\":{\"volumeId\":\"20074ffe-4f2e-89d8-0ecf-7071ddce6030\",\"volumeName\":\"projects/123456789/locations/some-location2/volumes/my-destination-volume\"},\"healthy\":true,\"mirrorState\":\"MIRRORED\",\"replicationId\":\"3cc26ebf-b59a-ee3a-6854-47ca35f45691\",\"replicationSchedule\":\"EVERY_10_MINUTES\",\"resourceId\":\"my-replication\",\"role\":\"SOURCE\",\"source\":{\"volumeId\":\"b78e8675-7e6f-64ec-3ec2-163753add2d5\",\"volumeName\":\"projects/123456789/locations/some-location1/volumes/my-source-volume\"},\"state\":\"UPDATING\",\"stateDetails\":\"Sync in progress\",\"stateDetailsCode\":0,\"transferStats\":{\"lagTime\":421,\"lastTransferDuration\":2,\"lastTransferEndTime\":\"2024-01-25T12:14:25.000Z\",\"lastTransferSize\":3560,\"totalTransferBytes\":556432,\"totalTransferTimeSecs\":314}}}}"},
@@ -1576,7 +1599,8 @@ func TestPoolInternalV1beta_EncodeDecode(t *testing.T) {
 	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
 }
 
-func TestPoolInternalV1beta_Examples(t *testing.T) {	for i, tc := range []struct {
+func TestPoolInternalV1beta_Examples(t *testing.T) {
+	for i, tc := range []struct {
 		Input string
 	}{
 		{Input: "{\"PoolId\":\"9760acf5-4638-11e7-9bdb-020073ca7773\",\"activeDirectoryConfigId\":\"9232dgf5-4638-11e7-9bdb-020073ca7773\",\"allowAutoTiering\":true,\"createdAt\":\"2016-11-28T19:30:23.123Z\",\"description\":\"My pool description\",\"kmsConfigId\":\"2653acf5-4638-11e7-9bdb-020073ca7773\",\"labels\":{\"someKey\":\"SomeValue\",\"someKey2\":\"SomeValue2\"},\"ldapEnabled\":false,\"network\":\"projects/1079058383248/global/networks/network-to-netapp2\",\"resourceId\":\"my-pool\",\"serviceLevel\":\"PREMIUM\",\"sizeInBytes\":2199023255552,\"storagePoolState\":\"READY\",\"updatedAt\":\"2016-11-28T19:30:23.123Z\"}"},
@@ -1641,7 +1665,8 @@ func TestPoolInternalV1betaLabels_EncodeDecode(t *testing.T) {
 	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
 }
 
-func TestPoolInternalV1betaLabels_Examples(t *testing.T) {	for i, tc := range []struct {
+func TestPoolInternalV1betaLabels_Examples(t *testing.T) {
+	for i, tc := range []struct {
 		Input string
 	}{
 		{Input: "{\"someKey\":\"SomeValue\",\"someKey2\":\"SomeValue2\"}"},
@@ -1682,7 +1707,8 @@ func TestPoolInternalV1betaServiceLevel_EncodeDecode(t *testing.T) {
 	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
 }
 
-func TestPoolInternalV1betaServiceLevel_Examples(t *testing.T) {	for i, tc := range []struct {
+func TestPoolInternalV1betaServiceLevel_Examples(t *testing.T) {
+	for i, tc := range []struct {
 		Input string
 	}{
 		{Input: "\"PREMIUM\""},
@@ -1721,7 +1747,8 @@ func TestPoolInternalV1betaStoragePoolState_EncodeDecode(t *testing.T) {
 	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
 }
 
-func TestPoolInternalV1betaStoragePoolState_Examples(t *testing.T) {	for i, tc := range []struct {
+func TestPoolInternalV1betaStoragePoolState_Examples(t *testing.T) {
+	for i, tc := range []struct {
 		Input string
 	}{
 		{Input: "\"READY\""},
@@ -1774,7 +1801,8 @@ func TestPoolUpdateV1betaLabels_EncodeDecode(t *testing.T) {
 	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
 }
 
-func TestPoolUpdateV1betaLabels_Examples(t *testing.T) {	for i, tc := range []struct {
+func TestPoolUpdateV1betaLabels_Examples(t *testing.T) {
+	for i, tc := range []struct {
 		Input string
 	}{
 		{Input: "{\"someKey\":\"SomeValue\",\"someKey2\":\"SomeValue2\"}"},
@@ -1815,7 +1843,8 @@ func TestPoolV1beta_EncodeDecode(t *testing.T) {
 	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
 }
 
-func TestPoolV1beta_Examples(t *testing.T) {	for i, tc := range []struct {
+func TestPoolV1beta_Examples(t *testing.T) {
+	for i, tc := range []struct {
 		Input string
 	}{
 		{Input: "{\"PoolId\":\"9760acf5-4638-11e7-9bdb-020073ca7773\",\"activeDirectoryConfigId\":\"9232dgf5-4638-11e7-9bdb-020073ca7773\",\"allowAutoTiering\":true,\"createdAt\":\"2016-11-28T19:30:23.123Z\",\"description\":\"My pool description\",\"kmsConfigId\":\"2653acf5-4638-11e7-9bdb-020073ca7773\",\"labels\":{\"someKey\":\"SomeValue\",\"someKey2\":\"SomeValue2\"},\"ldapEnabled\":false,\"network\":\"projects/1079058383248/global/networks/network-to-netapp2\",\"resourceId\":\"my-pool\",\"serviceLevel\":\"PREMIUM\",\"sizeInBytes\":2199023255552,\"storagePoolState\":\"READY\",\"updatedAt\":\"2016-11-28T19:30:23.123Z\"}"},
@@ -1880,7 +1909,8 @@ func TestPoolV1betaLabels_EncodeDecode(t *testing.T) {
 	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
 }
 
-func TestPoolV1betaLabels_Examples(t *testing.T) {	for i, tc := range []struct {
+func TestPoolV1betaLabels_Examples(t *testing.T) {
+	for i, tc := range []struct {
 		Input string
 	}{
 		{Input: "{\"someKey\":\"SomeValue\",\"someKey2\":\"SomeValue2\"}"},
@@ -1921,7 +1951,8 @@ func TestPoolV1betaServiceLevel_EncodeDecode(t *testing.T) {
 	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
 }
 
-func TestPoolV1betaServiceLevel_Examples(t *testing.T) {	for i, tc := range []struct {
+func TestPoolV1betaServiceLevel_Examples(t *testing.T) {
+	for i, tc := range []struct {
 		Input string
 	}{
 		{Input: "\"PREMIUM\""},
@@ -1960,7 +1991,8 @@ func TestPoolV1betaStoragePoolState_EncodeDecode(t *testing.T) {
 	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
 }
 
-func TestPoolV1betaStoragePoolState_Examples(t *testing.T) {	for i, tc := range []struct {
+func TestPoolV1betaStoragePoolState_Examples(t *testing.T) {
+	for i, tc := range []struct {
 		Input string
 	}{
 		{Input: "\"READY\""},
@@ -1999,7 +2031,8 @@ func TestProtocolsV1beta_EncodeDecode(t *testing.T) {
 	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
 }
 
-func TestProtocolsV1beta_Examples(t *testing.T) {	for i, tc := range []struct {
+func TestProtocolsV1beta_Examples(t *testing.T) {
+	for i, tc := range []struct {
 		Input string
 	}{
 		{Input: "\"NFSV3\""},
@@ -2052,7 +2085,8 @@ func TestReplicationCreateV1betaLabels_EncodeDecode(t *testing.T) {
 	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
 }
 
-func TestReplicationCreateV1betaLabels_Examples(t *testing.T) {	for i, tc := range []struct {
+func TestReplicationCreateV1betaLabels_Examples(t *testing.T) {
+	for i, tc := range []struct {
 		Input string
 	}{
 		{Input: "{\"some-key\":\"some-value\",\"some-key2\":\"some-value2\"}"},
@@ -2155,7 +2189,8 @@ func TestReplicationUpdateV1betaLabels_EncodeDecode(t *testing.T) {
 	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
 }
 
-func TestReplicationUpdateV1betaLabels_Examples(t *testing.T) {	for i, tc := range []struct {
+func TestReplicationUpdateV1betaLabels_Examples(t *testing.T) {
+	for i, tc := range []struct {
 		Input string
 	}{
 		{Input: "{\"some-key\":\"some-value\",\"some-key2\":\"some-value2\"}"},
@@ -2305,7 +2340,7 @@ func TestReplicationV1betaMirrorState_EncodeDecode(t *testing.T) {
 }
 
 func TestReplicationV1betaMirrorState_Examples(t *testing.T) {
-		for i, tc := range []struct {
+	for i, tc := range []struct {
 		Input string
 	}{
 		{Input: "\"MIRRORED\""},

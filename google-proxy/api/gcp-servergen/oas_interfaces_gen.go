@@ -105,6 +105,10 @@ type V1betaDescribePoolRes interface {
 	v1betaDescribePoolRes()
 }
 
+type V1betaDescribeSnapshotRes interface {
+	v1betaDescribeSnapshotRes()
+}
+
 type V1betaDescribeVolumeRes interface {
 	v1betaDescribeVolumeRes()
 }

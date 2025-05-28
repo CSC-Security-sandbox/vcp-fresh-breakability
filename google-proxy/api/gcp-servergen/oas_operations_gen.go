@@ -32,6 +32,7 @@ const (
 	V1betaDescribeKmsConfigurationOperation           OperationName = "V1betaDescribeKmsConfiguration"
 	V1betaDescribeOperationOperation                  OperationName = "V1betaDescribeOperation"
 	V1betaDescribePoolOperation                       OperationName = "V1betaDescribePool"
+	V1betaDescribeSnapshotOperation                   OperationName = "V1betaDescribeSnapshot"
 	V1betaDescribeVolumeOperation                     OperationName = "V1betaDescribeVolume"
 	V1betaGetMultipleActiveDirectoriesOperation       OperationName = "V1betaGetMultipleActiveDirectories"
 	V1betaGetMultipleBackupPoliciesOperation          OperationName = "V1betaGetMultipleBackupPolicies"

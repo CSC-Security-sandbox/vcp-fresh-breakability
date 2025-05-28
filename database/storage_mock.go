@@ -2032,6 +2032,65 @@ func (_c *MockStorage_GetPoolByVendorID_Call) RunAndReturn(run func(context.Cont
 	return _c
 }
 
+// GetSnapshot provides a mock function with given fields: ctx, uuid
+func (_m *MockStorage) GetSnapshot(ctx context.Context, uuid string) (*datamodel.Snapshot, error) {
+	ret := _m.Called(ctx, uuid)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetSnapshot")
+	}
+
+	var r0 *datamodel.Snapshot
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, string) (*datamodel.Snapshot, error)); ok {
+		return rf(ctx, uuid)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, string) *datamodel.Snapshot); ok {
+		r0 = rf(ctx, uuid)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*datamodel.Snapshot)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, string) error); ok {
+		r1 = rf(ctx, uuid)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockStorage_GetSnapshot_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetSnapshot'
+type MockStorage_GetSnapshot_Call struct {
+	*mock.Call
+}
+
+// GetSnapshot is a helper method to define mock.On call
+//   - ctx context.Context
+//   - uuid string
+func (_e *MockStorage_Expecter) GetSnapshot(ctx interface{}, uuid interface{}) *MockStorage_GetSnapshot_Call {
+	return &MockStorage_GetSnapshot_Call{Call: _e.mock.On("GetSnapshot", ctx, uuid)}
+}
+
+func (_c *MockStorage_GetSnapshot_Call) Run(run func(ctx context.Context, uuid string)) *MockStorage_GetSnapshot_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(string))
+	})
+	return _c
+}
+
+func (_c *MockStorage_GetSnapshot_Call) Return(_a0 *datamodel.Snapshot, _a1 error) *MockStorage_GetSnapshot_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockStorage_GetSnapshot_Call) RunAndReturn(run func(context.Context, string) (*datamodel.Snapshot, error)) *MockStorage_GetSnapshot_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // GetSvmForPoolID provides a mock function with given fields: ctx, poolID
 func (_m *MockStorage) GetSvmForPoolID(ctx context.Context, poolID int64) (*datamodel.Svm, error) {
 	ret := _m.Called(ctx, poolID)
@@ -3122,6 +3181,66 @@ func (_c *MockStorage_UpdateVolumeState_Call) Return(_a0 *datamodel.Volume, _a1 
 }
 
 func (_c *MockStorage_UpdateVolumeState_Call) RunAndReturn(run func(context.Context, string, string, string) (*datamodel.Volume, error)) *MockStorage_UpdateVolumeState_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// VerifyVolumeOwnership provides a mock function with given fields: ctx, volumeID, accountName
+func (_m *MockStorage) VerifyVolumeOwnership(ctx context.Context, volumeID string, accountName string) (*datamodel.Volume, error) {
+	ret := _m.Called(ctx, volumeID, accountName)
+
+	if len(ret) == 0 {
+		panic("no return value specified for VerifyVolumeOwnership")
+	}
+
+	var r0 *datamodel.Volume
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, string, string) (*datamodel.Volume, error)); ok {
+		return rf(ctx, volumeID, accountName)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, string, string) *datamodel.Volume); ok {
+		r0 = rf(ctx, volumeID, accountName)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*datamodel.Volume)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, string, string) error); ok {
+		r1 = rf(ctx, volumeID, accountName)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockStorage_VerifyVolumeOwnership_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'VerifyVolumeOwnership'
+type MockStorage_VerifyVolumeOwnership_Call struct {
+	*mock.Call
+}
+
+// VerifyVolumeOwnership is a helper method to define mock.On call
+//   - ctx context.Context
+//   - volumeID string
+//   - accountName string
+func (_e *MockStorage_Expecter) VerifyVolumeOwnership(ctx interface{}, volumeID interface{}, accountName interface{}) *MockStorage_VerifyVolumeOwnership_Call {
+	return &MockStorage_VerifyVolumeOwnership_Call{Call: _e.mock.On("VerifyVolumeOwnership", ctx, volumeID, accountName)}
+}
+
+func (_c *MockStorage_VerifyVolumeOwnership_Call) Run(run func(ctx context.Context, volumeID string, accountName string)) *MockStorage_VerifyVolumeOwnership_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(string), args[2].(string))
+	})
+	return _c
+}
+
+func (_c *MockStorage_VerifyVolumeOwnership_Call) Return(_a0 *datamodel.Volume, _a1 error) *MockStorage_VerifyVolumeOwnership_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockStorage_VerifyVolumeOwnership_Call) RunAndReturn(run func(context.Context, string, string) (*datamodel.Volume, error)) *MockStorage_VerifyVolumeOwnership_Call {
 	_c.Call.Return(run)
 	return _c
 }
