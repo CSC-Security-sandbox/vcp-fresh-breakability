@@ -16,37 +16,40 @@ import (
 	"github.com/go-openapi/strfmt"
 )
 
-// NewV1betaListBackupPoliciesParams creates a new V1betaListBackupPoliciesParams object,
-// with the default timeout for this client.
-//
-// Default values are not hydrated, since defaults are normally applied by the API server side.
-//
-// To enforce default values in parameter, use SetDefaults or WithDefaults.
+// NewV1betaListBackupPoliciesParams creates a new V1betaListBackupPoliciesParams object
+// with the default values initialized.
 func NewV1betaListBackupPoliciesParams() *V1betaListBackupPoliciesParams {
+	var ()
 	return &V1betaListBackupPoliciesParams{
+
 		timeout: cr.DefaultTimeout,
 	}
 }
 
 // NewV1betaListBackupPoliciesParamsWithTimeout creates a new V1betaListBackupPoliciesParams object
-// with the ability to set a timeout on a request.
+// with the default values initialized, and the ability to set a timeout on a request
 func NewV1betaListBackupPoliciesParamsWithTimeout(timeout time.Duration) *V1betaListBackupPoliciesParams {
+	var ()
 	return &V1betaListBackupPoliciesParams{
+
 		timeout: timeout,
 	}
 }
 
 // NewV1betaListBackupPoliciesParamsWithContext creates a new V1betaListBackupPoliciesParams object
-// with the ability to set a context for a request.
+// with the default values initialized, and the ability to set a context for a request
 func NewV1betaListBackupPoliciesParamsWithContext(ctx context.Context) *V1betaListBackupPoliciesParams {
+	var ()
 	return &V1betaListBackupPoliciesParams{
+
 		Context: ctx,
 	}
 }
 
 // NewV1betaListBackupPoliciesParamsWithHTTPClient creates a new V1betaListBackupPoliciesParams object
-// with the ability to set a custom HTTPClient for a request.
+// with the default values initialized, and the ability to set a custom HTTPClient for a request
 func NewV1betaListBackupPoliciesParamsWithHTTPClient(client *http.Client) *V1betaListBackupPoliciesParams {
+	var ()
 	return &V1betaListBackupPoliciesParams{
 		HTTPClient: client,
 	}
@@ -54,49 +57,29 @@ func NewV1betaListBackupPoliciesParamsWithHTTPClient(client *http.Client) *V1bet
 
 /*
 V1betaListBackupPoliciesParams contains all the parameters to send to the API endpoint
-
-	for the v1beta list backup policies operation.
-
-	Typically these are written to a http.Request.
+for the v1beta list backup policies operation typically these are written to a http.Request
 */
 type V1betaListBackupPoliciesParams struct {
 
-	/* LocationID.
+	/*LocationID
+	  The location/region to perform the operation in.
 
-	   The location/region to perform the operation in.
 	*/
 	LocationID string
+	/*ProjectNumber
+	  The project number of the GCP project owning the resource being acted upon
 
-	/* ProjectNumber.
-
-	   The project number of the GCP project owning the resource being acted upon
 	*/
 	ProjectNumber string
+	/*XCorrelationID
+	  Correlation identifier
 
-	/* XCorrelationID.
-
-	   Correlation identifier
 	*/
 	XCorrelationID *string
 
 	timeout    time.Duration
 	Context    context.Context
 	HTTPClient *http.Client
-}
-
-// WithDefaults hydrates default values in the v1beta list backup policies params (not the query body).
-//
-// All values with no default are reset to their zero value.
-func (o *V1betaListBackupPoliciesParams) WithDefaults() *V1betaListBackupPoliciesParams {
-	o.SetDefaults()
-	return o
-}
-
-// SetDefaults hydrates default values in the v1beta list backup policies params (not the query body).
-//
-// All values with no default are reset to their zero value.
-func (o *V1betaListBackupPoliciesParams) SetDefaults() {
-	// no default values defined for this parameter
 }
 
 // WithTimeout adds the timeout to the v1beta list backup policies params
@@ -189,6 +172,7 @@ func (o *V1betaListBackupPoliciesParams) WriteToRequest(r runtime.ClientRequest,
 		if err := r.SetHeaderParam("x-correlation-id", *o.XCorrelationID); err != nil {
 			return err
 		}
+
 	}
 
 	if len(res) > 0 {

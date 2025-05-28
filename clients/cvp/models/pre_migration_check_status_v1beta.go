@@ -6,7 +6,6 @@ package models
 // Editing this file might prove futile when you re-run the swagger generate command
 
 import (
-	"context"
 	"strconv"
 
 	"github.com/go-openapi/errors"
@@ -24,7 +23,6 @@ type PreMigrationCheckStatusV1beta struct {
 	// AccountType
 	//
 	// The type of the account - 1P or 3P
-	// Example: 1P
 	AccountType string `json:"AccountType,omitempty"`
 
 	// ongoing jobs
@@ -33,7 +31,6 @@ type PreMigrationCheckStatusV1beta struct {
 	// PreMigrationCheckProgressStatus
 	//
 	// The status of pre migration (any jobs are ongoing or not)
-	// Example: Some Jobs are in Progress, Please try migration after these jobs are finished
 	PreMigrationCheckProgressStatus string `json:"PreMigrationCheckProgressStatus,omitempty"`
 
 	// pre migration report
@@ -42,7 +39,6 @@ type PreMigrationCheckStatusV1beta struct {
 	// UserInstructions
 	//
 	// Instructions to be followed by the customer to take make sure the migration of resources happen correctly.
-	// Example: Please perform pre migration check api in the following regions and shared vpc accounts
 	UserInstructions string `json:"UserInstructions,omitempty"`
 }
 
@@ -65,6 +61,7 @@ func (m *PreMigrationCheckStatusV1beta) Validate(formats strfmt.Registry) error 
 }
 
 func (m *PreMigrationCheckStatusV1beta) validateOngoingJobs(formats strfmt.Registry) error {
+
 	if swag.IsZero(m.OngoingJobs) { // not required
 		return nil
 	}
@@ -78,8 +75,6 @@ func (m *PreMigrationCheckStatusV1beta) validateOngoingJobs(formats strfmt.Regis
 			if err := m.OngoingJobs[i].Validate(formats); err != nil {
 				if ve, ok := err.(*errors.Validation); ok {
 					return ve.ValidateName("OngoingJobs" + "." + strconv.Itoa(i))
-				} else if ce, ok := err.(*errors.CompositeError); ok {
-					return ce.ValidateName("OngoingJobs" + "." + strconv.Itoa(i))
 				}
 				return err
 			}
@@ -91,6 +86,7 @@ func (m *PreMigrationCheckStatusV1beta) validateOngoingJobs(formats strfmt.Regis
 }
 
 func (m *PreMigrationCheckStatusV1beta) validatePreMigrationReport(formats strfmt.Registry) error {
+
 	if swag.IsZero(m.PreMigrationReport) { // not required
 		return nil
 	}
@@ -99,72 +95,6 @@ func (m *PreMigrationCheckStatusV1beta) validatePreMigrationReport(formats strfm
 		if err := m.PreMigrationReport.Validate(formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("PreMigrationReport")
-			} else if ce, ok := err.(*errors.CompositeError); ok {
-				return ce.ValidateName("PreMigrationReport")
-			}
-			return err
-		}
-	}
-
-	return nil
-}
-
-// ContextValidate validate this pre migration check status v1beta based on the context it is used
-func (m *PreMigrationCheckStatusV1beta) ContextValidate(ctx context.Context, formats strfmt.Registry) error {
-	var res []error
-
-	if err := m.contextValidateOngoingJobs(ctx, formats); err != nil {
-		res = append(res, err)
-	}
-
-	if err := m.contextValidatePreMigrationReport(ctx, formats); err != nil {
-		res = append(res, err)
-	}
-
-	if len(res) > 0 {
-		return errors.CompositeValidationError(res...)
-	}
-	return nil
-}
-
-func (m *PreMigrationCheckStatusV1beta) contextValidateOngoingJobs(ctx context.Context, formats strfmt.Registry) error {
-
-	for i := 0; i < len(m.OngoingJobs); i++ {
-
-		if m.OngoingJobs[i] != nil {
-
-			if swag.IsZero(m.OngoingJobs[i]) { // not required
-				return nil
-			}
-
-			if err := m.OngoingJobs[i].ContextValidate(ctx, formats); err != nil {
-				if ve, ok := err.(*errors.Validation); ok {
-					return ve.ValidateName("OngoingJobs" + "." + strconv.Itoa(i))
-				} else if ce, ok := err.(*errors.CompositeError); ok {
-					return ce.ValidateName("OngoingJobs" + "." + strconv.Itoa(i))
-				}
-				return err
-			}
-		}
-
-	}
-
-	return nil
-}
-
-func (m *PreMigrationCheckStatusV1beta) contextValidatePreMigrationReport(ctx context.Context, formats strfmt.Registry) error {
-
-	if m.PreMigrationReport != nil {
-
-		if swag.IsZero(m.PreMigrationReport) { // not required
-			return nil
-		}
-
-		if err := m.PreMigrationReport.ContextValidate(ctx, formats); err != nil {
-			if ve, ok := err.(*errors.Validation); ok {
-				return ve.ValidateName("PreMigrationReport")
-			} else if ce, ok := err.(*errors.CompositeError); ok {
-				return ce.ValidateName("PreMigrationReport")
 			}
 			return err
 		}

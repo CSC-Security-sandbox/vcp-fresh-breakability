@@ -6,7 +6,6 @@ package models
 // Editing this file might prove futile when you re-run the swagger generate command
 
 import (
-	"context"
 	"encoding/json"
 
 	"github.com/go-openapi/errors"
@@ -23,53 +22,42 @@ import (
 type SimpleExportPolicyRuleV1beta struct {
 
 	// Defines the access type for clients matching the 'allowedClients' specification.
-	// Example: READ_ONLY
 	// Required: true
-	// Enum: ["ACCESS_TYPE_UNSPECIFIED","READ_NONE","READ_ONLY","READ_WRITE"]
+	// Enum: [ACCESS_TYPE_UNSPECIFIED READ_NONE READ_ONLY READ_WRITE]
 	AccessType *string `json:"accessType"`
 
 	// Defines the client ingress specification (allowed clients) as a comma separated string with IPv4 CIDRs and IPv4 host addresses.
-	// Example: 0.0.0.0/0
 	// Required: true
 	// Max Length: 4096
 	// Min Length: 1
 	AllowedClients *string `json:"allowedClients"`
 
 	// If enabled (true or on) the rule defines that no_root_squash is set, else if it is disabled (false or off) root_squash is set and user ID mapped to anonymous user 65534. The response will always be true or false and never on/off. If the value is set to null the response will always be set to the default of true.
-	// Example: true
-	// Enum: ["true","false","on","off"]
+	// Enum: [true false on off]
 	HasRootAccess *string `json:"hasRootAccess,omitempty"`
 
 	// If enabled (true) the rule defines a read only access for clients matching the 'allowedClients' specification. It enables NFS clients to mount using 'authentication' kerberos security mode.
-	// Example: false
 	Kerberos5ReadOnly *bool `json:"kerberos5ReadOnly,omitempty"`
 
 	// If enabled (true) the rule defines read and write access for clients matching the 'allowedClients' specification. It enables NFS clients to mount using 'authentication' kerberos security mode. The 'kerberos5ReadOnly' value  be ignored if this is enabled.
-	// Example: true
 	Kerberos5ReadWrite *bool `json:"kerberos5ReadWrite,omitempty"`
 
 	// If enabled (true) the rule defines a read only access for clients matching the 'allowedClients' specification. It enables NFS clients to mount using 'integrity' kerberos security mode.
-	// Example: false
 	Kerberos5iReadOnly *bool `json:"kerberos5iReadOnly,omitempty"`
 
 	// If enabled (true) the rule defines read and write access for clients matching the 'allowedClients' specification. It enables NFS clients to mount using 'integrity' kerberos security mode. The 'kerberos5iReadOnly' value shall be ignored if this is enabled.
-	// Example: true
 	Kerberos5iReadWrite *bool `json:"kerberos5iReadWrite,omitempty"`
 
 	// If enabled (true) the rule defines a read only access for clients matching the 'allowedClients' specification. It enables NFS clients to mount using 'privacy' kerberos security mode.
-	// Example: false
 	Kerberos5pReadOnly *bool `json:"kerberos5pReadOnly,omitempty"`
 
 	// If enabled (true) the rule defines read and write access for clients matching the 'allowedClients' specification. It enables NFS clients to mount using 'privacy' kerberos security mode. The 'kerberos5pReadOnly' value shall be ignored if this is enabled.
-	// Example: true
 	Kerberos5pReadWrite *bool `json:"kerberos5pReadWrite,omitempty"`
 
 	// If enabled (true) the rule allows NFSv3 protocol for clients matching the 'allowedClients' specification.
-	// Example: true
 	Nfsv3 *bool `json:"nfsv3,omitempty"`
 
 	// If enabled (true) the rule allows NFSv4 protocol for clients matching the 'allowedClients' specification.
-	// Example: false
 	Nfsv4 *bool `json:"nfsv4,omitempty"`
 }
 
@@ -150,11 +138,11 @@ func (m *SimpleExportPolicyRuleV1beta) validateAllowedClients(formats strfmt.Reg
 		return err
 	}
 
-	if err := validate.MinLength("allowedClients", "body", *m.AllowedClients, 1); err != nil {
+	if err := validate.MinLength("allowedClients", "body", string(*m.AllowedClients), 1); err != nil {
 		return err
 	}
 
-	if err := validate.MaxLength("allowedClients", "body", *m.AllowedClients, 4096); err != nil {
+	if err := validate.MaxLength("allowedClients", "body", string(*m.AllowedClients), 4096); err != nil {
 		return err
 	}
 
@@ -197,6 +185,7 @@ func (m *SimpleExportPolicyRuleV1beta) validateHasRootAccessEnum(path, location 
 }
 
 func (m *SimpleExportPolicyRuleV1beta) validateHasRootAccess(formats strfmt.Registry) error {
+
 	if swag.IsZero(m.HasRootAccess) { // not required
 		return nil
 	}
@@ -206,11 +195,6 @@ func (m *SimpleExportPolicyRuleV1beta) validateHasRootAccess(formats strfmt.Regi
 		return err
 	}
 
-	return nil
-}
-
-// ContextValidate validates this simple export policy rule v1beta based on context it is used
-func (m *SimpleExportPolicyRuleV1beta) ContextValidate(ctx context.Context, formats strfmt.Registry) error {
 	return nil
 }
 

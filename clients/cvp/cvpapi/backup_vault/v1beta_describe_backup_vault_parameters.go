@@ -17,110 +17,92 @@ import (
 	"github.com/go-openapi/swag"
 )
 
-// NewV1betaDescribeBackupVaultParams creates a new V1betaDescribeBackupVaultParams object,
-// with the default timeout for this client.
-//
-// Default values are not hydrated, since defaults are normally applied by the API server side.
-//
-// To enforce default values in parameter, use SetDefaults or WithDefaults.
+// NewV1betaDescribeBackupVaultParams creates a new V1betaDescribeBackupVaultParams object
+// with the default values initialized.
 func NewV1betaDescribeBackupVaultParams() *V1betaDescribeBackupVaultParams {
+	var (
+		includeDeletedDefault = bool(false)
+	)
 	return &V1betaDescribeBackupVaultParams{
+		IncludeDeleted: includeDeletedDefault,
+
 		timeout: cr.DefaultTimeout,
 	}
 }
 
 // NewV1betaDescribeBackupVaultParamsWithTimeout creates a new V1betaDescribeBackupVaultParams object
-// with the ability to set a timeout on a request.
+// with the default values initialized, and the ability to set a timeout on a request
 func NewV1betaDescribeBackupVaultParamsWithTimeout(timeout time.Duration) *V1betaDescribeBackupVaultParams {
+	var (
+		includeDeletedDefault = bool(false)
+	)
 	return &V1betaDescribeBackupVaultParams{
+		IncludeDeleted: includeDeletedDefault,
+
 		timeout: timeout,
 	}
 }
 
 // NewV1betaDescribeBackupVaultParamsWithContext creates a new V1betaDescribeBackupVaultParams object
-// with the ability to set a context for a request.
+// with the default values initialized, and the ability to set a context for a request
 func NewV1betaDescribeBackupVaultParamsWithContext(ctx context.Context) *V1betaDescribeBackupVaultParams {
+	var (
+		includeDeletedDefault = bool(false)
+	)
 	return &V1betaDescribeBackupVaultParams{
+		IncludeDeleted: includeDeletedDefault,
+
 		Context: ctx,
 	}
 }
 
 // NewV1betaDescribeBackupVaultParamsWithHTTPClient creates a new V1betaDescribeBackupVaultParams object
-// with the ability to set a custom HTTPClient for a request.
+// with the default values initialized, and the ability to set a custom HTTPClient for a request
 func NewV1betaDescribeBackupVaultParamsWithHTTPClient(client *http.Client) *V1betaDescribeBackupVaultParams {
+	var (
+		includeDeletedDefault = bool(false)
+	)
 	return &V1betaDescribeBackupVaultParams{
-		HTTPClient: client,
+		IncludeDeleted: includeDeletedDefault,
+		HTTPClient:     client,
 	}
 }
 
 /*
 V1betaDescribeBackupVaultParams contains all the parameters to send to the API endpoint
-
-	for the v1beta describe backup vault operation.
-
-	Typically these are written to a http.Request.
+for the v1beta describe backup vault operation typically these are written to a http.Request
 */
 type V1betaDescribeBackupVaultParams struct {
 
-	/* BackupVaultID.
+	/*BackupVaultID
+	  UUID v4 used to identify the backup vault
 
-	   UUID v4 used to identify the backup vault
 	*/
 	BackupVaultID string
+	/*IncludeDeleted
+	  If true, response will include deleted backup vaults
 
-	/* IncludeDeleted.
-
-	   If true, response will include deleted backup vaults
 	*/
 	IncludeDeleted bool
+	/*LocationID
+	  The location/region to perform the operation in.
 
-	/* LocationID.
-
-	   The location/region to perform the operation in.
 	*/
 	LocationID string
+	/*ProjectNumber
+	  The project number of the GCP project owning the resource being acted upon
 
-	/* ProjectNumber.
-
-	   The project number of the GCP project owning the resource being acted upon
 	*/
 	ProjectNumber string
+	/*XCorrelationID
+	  Correlation identifier
 
-	/* XCorrelationID.
-
-	   Correlation identifier
 	*/
 	XCorrelationID *string
 
 	timeout    time.Duration
 	Context    context.Context
 	HTTPClient *http.Client
-}
-
-// WithDefaults hydrates default values in the v1beta describe backup vault params (not the query body).
-//
-// All values with no default are reset to their zero value.
-func (o *V1betaDescribeBackupVaultParams) WithDefaults() *V1betaDescribeBackupVaultParams {
-	o.SetDefaults()
-	return o
-}
-
-// SetDefaults hydrates default values in the v1beta describe backup vault params (not the query body).
-//
-// All values with no default are reset to their zero value.
-func (o *V1betaDescribeBackupVaultParams) SetDefaults() {
-	var (
-		includeDeletedDefault = bool(false)
-	)
-
-	val := V1betaDescribeBackupVaultParams{
-		IncludeDeleted: includeDeletedDefault,
-	}
-
-	val.timeout = o.timeout
-	val.Context = o.Context
-	val.HTTPClient = o.HTTPClient
-	*o = val
 }
 
 // WithTimeout adds the timeout to the v1beta describe backup vault params
@@ -227,7 +209,6 @@ func (o *V1betaDescribeBackupVaultParams) WriteToRequest(r runtime.ClientRequest
 	// query param includeDeleted
 	qrIncludeDeleted := o.IncludeDeleted
 	qIncludeDeleted := swag.FormatBool(qrIncludeDeleted)
-
 	if err := r.SetQueryParam("includeDeleted", qIncludeDeleted); err != nil {
 		return err
 	}
@@ -248,6 +229,7 @@ func (o *V1betaDescribeBackupVaultParams) WriteToRequest(r runtime.ClientRequest
 		if err := r.SetHeaderParam("x-correlation-id", *o.XCorrelationID); err != nil {
 			return err
 		}
+
 	}
 
 	if len(res) > 0 {

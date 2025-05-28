@@ -6,12 +6,8 @@ package models
 // Editing this file might prove futile when you re-run the swagger generate command
 
 import (
-	"context"
-
-	"github.com/go-openapi/errors"
 	"github.com/go-openapi/strfmt"
 	"github.com/go-openapi/swag"
-	"github.com/go-openapi/validate"
 )
 
 // BatchReplicationVolumeInformationV1beta Volume information
@@ -22,42 +18,17 @@ type BatchReplicationVolumeInformationV1beta struct {
 	// VolumeId
 	//
 	// UUID v4 used to identify the volume replication
-	// Example: 9760acf5-4638-11e7-9bdb-020073ca7773
 	// Read Only: true
 	VolumeID string `json:"volumeId,omitempty"`
 
 	// VolumeName
 	//
 	// Full URI of volume
-	// Example: projects/965286636820/locations/australia-southeast1/volumes/ra-2-vol166783690116
 	VolumeName string `json:"volumeName,omitempty"`
 }
 
 // Validate validates this batch replication volume information v1beta
 func (m *BatchReplicationVolumeInformationV1beta) Validate(formats strfmt.Registry) error {
-	return nil
-}
-
-// ContextValidate validate this batch replication volume information v1beta based on the context it is used
-func (m *BatchReplicationVolumeInformationV1beta) ContextValidate(ctx context.Context, formats strfmt.Registry) error {
-	var res []error
-
-	if err := m.contextValidateVolumeID(ctx, formats); err != nil {
-		res = append(res, err)
-	}
-
-	if len(res) > 0 {
-		return errors.CompositeValidationError(res...)
-	}
-	return nil
-}
-
-func (m *BatchReplicationVolumeInformationV1beta) contextValidateVolumeID(ctx context.Context, formats strfmt.Registry) error {
-
-	if err := validate.ReadOnly(ctx, "volumeId", "body", string(m.VolumeID)); err != nil {
-		return err
-	}
-
 	return nil
 }
 

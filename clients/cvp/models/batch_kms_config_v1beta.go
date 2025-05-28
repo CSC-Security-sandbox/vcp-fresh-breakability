@@ -6,7 +6,6 @@ package models
 // Editing this file might prove futile when you re-run the swagger generate command
 
 import (
-	"context"
 	"encoding/json"
 
 	"github.com/go-openapi/errors"
@@ -23,27 +22,23 @@ type BatchKmsConfigV1beta struct {
 	// createdTime
 	//
 	// Creation date of the resource
-	// Example: 2016-11-28T19:30:23.123Z
 	// Format: date-time
 	CreatedTime *strfmt.DateTime `json:"createdTime,omitempty"`
 
 	// description
 	//
 	// Description of the GCP KMS configuration
-	// Example: kmsConfig description
 	Description *string `json:"description,omitempty"`
 
 	// keyFullPath
 	//
 	// Includes key ring, key-ring location, key name and key project ID
-	// Example: projects/projectID/locations/us/keyRings/keyRing/cryptoKeys/keyName
 	KeyFullPath string `json:"keyFullPath,omitempty"`
 
 	// state
 	//
 	// The state of the configuration
-	// Example: READY
-	// Enum: ["STATE_UNSPECIFIED","CREATING","READY","UPDATING","IN_USE","DELETING","ERROR","KEY_STATE_UNSPECIFIED","KEY_CHECK_PENDING","KEY_NOT_REACHABLE","DISABLING","DISABLED","DELETED","MIGRATING"]
+	// Enum: [STATE_UNSPECIFIED CREATING READY UPDATING IN_USE DELETING ERROR KEY_STATE_UNSPECIFIED KEY_CHECK_PENDING KEY_NOT_REACHABLE DISABLING DISABLED DELETED MIGRATING]
 	KmsState string `json:"kmsState,omitempty"`
 
 	// stateDetails
@@ -54,19 +49,16 @@ type BatchKmsConfigV1beta struct {
 	// resourceId
 	//
 	// Resource ID for KMS configuration
-	// Example: my-resource
 	ResourceID *string `json:"resourceId,omitempty"`
 
 	// service account email
 	//
 	// Service account email which will have access to key through Google IAM policy
-	// Example: service-account@example.com
 	ServiceAccountEmail string `json:"serviceAccountEmail,omitempty"`
 
 	// UUID
 	//
 	// UUID v4 used to identify the GCP KMS configuration
-	// Example: 9760acf5-4638-11e7-9bdb-020073ca7773
 	// Max Length: 36
 	// Min Length: 36
 	// Pattern: ^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$
@@ -96,6 +88,7 @@ func (m *BatchKmsConfigV1beta) Validate(formats strfmt.Registry) error {
 }
 
 func (m *BatchKmsConfigV1beta) validateCreatedTime(formats strfmt.Registry) error {
+
 	if swag.IsZero(m.CreatedTime) { // not required
 		return nil
 	}
@@ -173,6 +166,7 @@ func (m *BatchKmsConfigV1beta) validateKmsStateEnum(path, location string, value
 }
 
 func (m *BatchKmsConfigV1beta) validateKmsState(formats strfmt.Registry) error {
+
 	if swag.IsZero(m.KmsState) { // not required
 		return nil
 	}
@@ -186,27 +180,23 @@ func (m *BatchKmsConfigV1beta) validateKmsState(formats strfmt.Registry) error {
 }
 
 func (m *BatchKmsConfigV1beta) validateUUID(formats strfmt.Registry) error {
+
 	if swag.IsZero(m.UUID) { // not required
 		return nil
 	}
 
-	if err := validate.MinLength("uuid", "body", m.UUID, 36); err != nil {
+	if err := validate.MinLength("uuid", "body", string(m.UUID), 36); err != nil {
 		return err
 	}
 
-	if err := validate.MaxLength("uuid", "body", m.UUID, 36); err != nil {
+	if err := validate.MaxLength("uuid", "body", string(m.UUID), 36); err != nil {
 		return err
 	}
 
-	if err := validate.Pattern("uuid", "body", m.UUID, `^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$`); err != nil {
+	if err := validate.Pattern("uuid", "body", string(m.UUID), `^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$`); err != nil {
 		return err
 	}
 
-	return nil
-}
-
-// ContextValidate validates this batch kms config v1beta based on context it is used
-func (m *BatchKmsConfigV1beta) ContextValidate(ctx context.Context, formats strfmt.Registry) error {
 	return nil
 }
 

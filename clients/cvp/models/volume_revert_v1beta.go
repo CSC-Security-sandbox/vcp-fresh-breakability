@@ -6,8 +6,6 @@ package models
 // Editing this file might prove futile when you re-run the swagger generate command
 
 import (
-	"context"
-
 	"github.com/go-openapi/errors"
 	"github.com/go-openapi/strfmt"
 	"github.com/go-openapi/swag"
@@ -22,7 +20,6 @@ type VolumeRevertV1beta struct {
 	// snapshotId
 	//
 	// UUID v4 used to identify the snapshot
-	// Example: 9760acf5-4638-11e7-9bdb-020073ca3333
 	// Required: true
 	// Max Length: 36
 	// Min Length: 36
@@ -50,23 +47,18 @@ func (m *VolumeRevertV1beta) validateSnapshotID(formats strfmt.Registry) error {
 		return err
 	}
 
-	if err := validate.MinLength("snapshotId", "body", *m.SnapshotID, 36); err != nil {
+	if err := validate.MinLength("snapshotId", "body", string(*m.SnapshotID), 36); err != nil {
 		return err
 	}
 
-	if err := validate.MaxLength("snapshotId", "body", *m.SnapshotID, 36); err != nil {
+	if err := validate.MaxLength("snapshotId", "body", string(*m.SnapshotID), 36); err != nil {
 		return err
 	}
 
-	if err := validate.Pattern("snapshotId", "body", *m.SnapshotID, `^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$`); err != nil {
+	if err := validate.Pattern("snapshotId", "body", string(*m.SnapshotID), `^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$`); err != nil {
 		return err
 	}
 
-	return nil
-}
-
-// ContextValidate validates this volume revert v1beta based on context it is used
-func (m *VolumeRevertV1beta) ContextValidate(ctx context.Context, formats strfmt.Registry) error {
 	return nil
 }
 

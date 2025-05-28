@@ -16,37 +16,40 @@ import (
 	"github.com/go-openapi/strfmt"
 )
 
-// NewV1betaDeleteBackupPolicyParams creates a new V1betaDeleteBackupPolicyParams object,
-// with the default timeout for this client.
-//
-// Default values are not hydrated, since defaults are normally applied by the API server side.
-//
-// To enforce default values in parameter, use SetDefaults or WithDefaults.
+// NewV1betaDeleteBackupPolicyParams creates a new V1betaDeleteBackupPolicyParams object
+// with the default values initialized.
 func NewV1betaDeleteBackupPolicyParams() *V1betaDeleteBackupPolicyParams {
+	var ()
 	return &V1betaDeleteBackupPolicyParams{
+
 		timeout: cr.DefaultTimeout,
 	}
 }
 
 // NewV1betaDeleteBackupPolicyParamsWithTimeout creates a new V1betaDeleteBackupPolicyParams object
-// with the ability to set a timeout on a request.
+// with the default values initialized, and the ability to set a timeout on a request
 func NewV1betaDeleteBackupPolicyParamsWithTimeout(timeout time.Duration) *V1betaDeleteBackupPolicyParams {
+	var ()
 	return &V1betaDeleteBackupPolicyParams{
+
 		timeout: timeout,
 	}
 }
 
 // NewV1betaDeleteBackupPolicyParamsWithContext creates a new V1betaDeleteBackupPolicyParams object
-// with the ability to set a context for a request.
+// with the default values initialized, and the ability to set a context for a request
 func NewV1betaDeleteBackupPolicyParamsWithContext(ctx context.Context) *V1betaDeleteBackupPolicyParams {
+	var ()
 	return &V1betaDeleteBackupPolicyParams{
+
 		Context: ctx,
 	}
 }
 
 // NewV1betaDeleteBackupPolicyParamsWithHTTPClient creates a new V1betaDeleteBackupPolicyParams object
-// with the ability to set a custom HTTPClient for a request.
+// with the default values initialized, and the ability to set a custom HTTPClient for a request
 func NewV1betaDeleteBackupPolicyParamsWithHTTPClient(client *http.Client) *V1betaDeleteBackupPolicyParams {
+	var ()
 	return &V1betaDeleteBackupPolicyParams{
 		HTTPClient: client,
 	}
@@ -54,55 +57,34 @@ func NewV1betaDeleteBackupPolicyParamsWithHTTPClient(client *http.Client) *V1bet
 
 /*
 V1betaDeleteBackupPolicyParams contains all the parameters to send to the API endpoint
-
-	for the v1beta delete backup policy operation.
-
-	Typically these are written to a http.Request.
+for the v1beta delete backup policy operation typically these are written to a http.Request
 */
 type V1betaDeleteBackupPolicyParams struct {
 
-	/* BackupPolicyID.
+	/*BackupPolicyID
+	  UUID v4 used to identify the backup policy
 
-	   UUID v4 used to identify the backup policy
 	*/
 	BackupPolicyID string
+	/*LocationID
+	  The location/region to perform the operation in.
 
-	/* LocationID.
-
-	   The location/region to perform the operation in.
 	*/
 	LocationID string
+	/*ProjectNumber
+	  The project number of the GCP project owning the resource being acted upon
 
-	/* ProjectNumber.
-
-	   The project number of the GCP project owning the resource being acted upon
 	*/
 	ProjectNumber string
+	/*XCorrelationID
+	  Correlation identifier
 
-	/* XCorrelationID.
-
-	   Correlation identifier
 	*/
 	XCorrelationID *string
 
 	timeout    time.Duration
 	Context    context.Context
 	HTTPClient *http.Client
-}
-
-// WithDefaults hydrates default values in the v1beta delete backup policy params (not the query body).
-//
-// All values with no default are reset to their zero value.
-func (o *V1betaDeleteBackupPolicyParams) WithDefaults() *V1betaDeleteBackupPolicyParams {
-	o.SetDefaults()
-	return o
-}
-
-// SetDefaults hydrates default values in the v1beta delete backup policy params (not the query body).
-//
-// All values with no default are reset to their zero value.
-func (o *V1betaDeleteBackupPolicyParams) SetDefaults() {
-	// no default values defined for this parameter
 }
 
 // WithTimeout adds the timeout to the v1beta delete backup policy params
@@ -211,6 +193,7 @@ func (o *V1betaDeleteBackupPolicyParams) WriteToRequest(r runtime.ClientRequest,
 		if err := r.SetHeaderParam("x-correlation-id", *o.XCorrelationID); err != nil {
 			return err
 		}
+
 	}
 
 	if len(res) > 0 {

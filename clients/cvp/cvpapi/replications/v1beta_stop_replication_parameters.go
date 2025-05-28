@@ -18,37 +18,40 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/models"
 )
 
-// NewV1betaStopReplicationParams creates a new V1betaStopReplicationParams object,
-// with the default timeout for this client.
-//
-// Default values are not hydrated, since defaults are normally applied by the API server side.
-//
-// To enforce default values in parameter, use SetDefaults or WithDefaults.
+// NewV1betaStopReplicationParams creates a new V1betaStopReplicationParams object
+// with the default values initialized.
 func NewV1betaStopReplicationParams() *V1betaStopReplicationParams {
+	var ()
 	return &V1betaStopReplicationParams{
+
 		timeout: cr.DefaultTimeout,
 	}
 }
 
 // NewV1betaStopReplicationParamsWithTimeout creates a new V1betaStopReplicationParams object
-// with the ability to set a timeout on a request.
+// with the default values initialized, and the ability to set a timeout on a request
 func NewV1betaStopReplicationParamsWithTimeout(timeout time.Duration) *V1betaStopReplicationParams {
+	var ()
 	return &V1betaStopReplicationParams{
+
 		timeout: timeout,
 	}
 }
 
 // NewV1betaStopReplicationParamsWithContext creates a new V1betaStopReplicationParams object
-// with the ability to set a context for a request.
+// with the default values initialized, and the ability to set a context for a request
 func NewV1betaStopReplicationParamsWithContext(ctx context.Context) *V1betaStopReplicationParams {
+	var ()
 	return &V1betaStopReplicationParams{
+
 		Context: ctx,
 	}
 }
 
 // NewV1betaStopReplicationParamsWithHTTPClient creates a new V1betaStopReplicationParams object
-// with the ability to set a custom HTTPClient for a request.
+// with the default values initialized, and the ability to set a custom HTTPClient for a request
 func NewV1betaStopReplicationParamsWithHTTPClient(client *http.Client) *V1betaStopReplicationParams {
+	var ()
 	return &V1betaStopReplicationParams{
 		HTTPClient: client,
 	}
@@ -56,67 +59,44 @@ func NewV1betaStopReplicationParamsWithHTTPClient(client *http.Client) *V1betaSt
 
 /*
 V1betaStopReplicationParams contains all the parameters to send to the API endpoint
-
-	for the v1beta stop replication operation.
-
-	Typically these are written to a http.Request.
+for the v1beta stop replication operation typically these are written to a http.Request
 */
 type V1betaStopReplicationParams struct {
 
-	/* Body.
+	/*Body
+	  The required parameters to stop a replication.
 
-	   The required parameters to stop a replication.
 	*/
 	Body *models.ReplicationStopV1beta
+	/*LocationID
+	  The location/region to perform the operation in.
 
-	/* LocationID.
-
-	   The location/region to perform the operation in.
 	*/
 	LocationID string
+	/*ProjectNumber
+	  The project number of the GCP project owning the resource being acted upon
 
-	/* ProjectNumber.
-
-	   The project number of the GCP project owning the resource being acted upon
 	*/
 	ProjectNumber string
+	/*ReplicationResourceID
+	  Resource ID used to identify the replication
 
-	/* ReplicationResourceID.
-
-	   Resource ID used to identify the replication
 	*/
 	ReplicationResourceID string
+	/*VolumeResourceID
+	  Resource ID used to identify the volume
 
-	/* VolumeResourceID.
-
-	   Resource ID used to identify the volume
 	*/
 	VolumeResourceID string
+	/*XCorrelationID
+	  Correlation identifier
 
-	/* XCorrelationID.
-
-	   Correlation identifier
 	*/
 	XCorrelationID *string
 
 	timeout    time.Duration
 	Context    context.Context
 	HTTPClient *http.Client
-}
-
-// WithDefaults hydrates default values in the v1beta stop replication params (not the query body).
-//
-// All values with no default are reset to their zero value.
-func (o *V1betaStopReplicationParams) WithDefaults() *V1betaStopReplicationParams {
-	o.SetDefaults()
-	return o
-}
-
-// SetDefaults hydrates default values in the v1beta stop replication params (not the query body).
-//
-// All values with no default are reset to their zero value.
-func (o *V1betaStopReplicationParams) SetDefaults() {
-	// no default values defined for this parameter
 }
 
 // WithTimeout adds the timeout to the v1beta stop replication params
@@ -225,6 +205,7 @@ func (o *V1betaStopReplicationParams) WriteToRequest(r runtime.ClientRequest, re
 		return err
 	}
 	var res []error
+
 	if o.Body != nil {
 		if err := r.SetBodyParam(o.Body); err != nil {
 			return err
@@ -257,6 +238,7 @@ func (o *V1betaStopReplicationParams) WriteToRequest(r runtime.ClientRequest, re
 		if err := r.SetHeaderParam("x-correlation-id", *o.XCorrelationID); err != nil {
 			return err
 		}
+
 	}
 
 	if len(res) > 0 {

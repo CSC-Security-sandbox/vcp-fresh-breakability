@@ -6,7 +6,6 @@ package models
 // Editing this file might prove futile when you re-run the swagger generate command
 
 import (
-	"context"
 	"strconv"
 
 	"github.com/go-openapi/errors"
@@ -54,17 +53,12 @@ func (m *PoolIDListV1beta) validatePoolUUIDs(formats strfmt.Registry) error {
 
 	for i := 0; i < len(m.PoolUUIDs); i++ {
 
-		if err := validate.Pattern("poolUUIDs"+"."+strconv.Itoa(i), "body", m.PoolUUIDs[i], `^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$`); err != nil {
+		if err := validate.Pattern("poolUUIDs"+"."+strconv.Itoa(i), "body", string(m.PoolUUIDs[i]), `^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$`); err != nil {
 			return err
 		}
 
 	}
 
-	return nil
-}
-
-// ContextValidate validates this pool ID list v1beta based on context it is used
-func (m *PoolIDListV1beta) ContextValidate(ctx context.Context, formats strfmt.Registry) error {
 	return nil
 }
 

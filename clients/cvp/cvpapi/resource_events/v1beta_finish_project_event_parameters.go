@@ -18,37 +18,40 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/models"
 )
 
-// NewV1betaFinishProjectEventParams creates a new V1betaFinishProjectEventParams object,
-// with the default timeout for this client.
-//
-// Default values are not hydrated, since defaults are normally applied by the API server side.
-//
-// To enforce default values in parameter, use SetDefaults or WithDefaults.
+// NewV1betaFinishProjectEventParams creates a new V1betaFinishProjectEventParams object
+// with the default values initialized.
 func NewV1betaFinishProjectEventParams() *V1betaFinishProjectEventParams {
+	var ()
 	return &V1betaFinishProjectEventParams{
+
 		timeout: cr.DefaultTimeout,
 	}
 }
 
 // NewV1betaFinishProjectEventParamsWithTimeout creates a new V1betaFinishProjectEventParams object
-// with the ability to set a timeout on a request.
+// with the default values initialized, and the ability to set a timeout on a request
 func NewV1betaFinishProjectEventParamsWithTimeout(timeout time.Duration) *V1betaFinishProjectEventParams {
+	var ()
 	return &V1betaFinishProjectEventParams{
+
 		timeout: timeout,
 	}
 }
 
 // NewV1betaFinishProjectEventParamsWithContext creates a new V1betaFinishProjectEventParams object
-// with the ability to set a context for a request.
+// with the default values initialized, and the ability to set a context for a request
 func NewV1betaFinishProjectEventParamsWithContext(ctx context.Context) *V1betaFinishProjectEventParams {
+	var ()
 	return &V1betaFinishProjectEventParams{
+
 		Context: ctx,
 	}
 }
 
 // NewV1betaFinishProjectEventParamsWithHTTPClient creates a new V1betaFinishProjectEventParams object
-// with the ability to set a custom HTTPClient for a request.
+// with the default values initialized, and the ability to set a custom HTTPClient for a request
 func NewV1betaFinishProjectEventParamsWithHTTPClient(client *http.Client) *V1betaFinishProjectEventParams {
+	var ()
 	return &V1betaFinishProjectEventParams{
 		HTTPClient: client,
 	}
@@ -56,55 +59,34 @@ func NewV1betaFinishProjectEventParamsWithHTTPClient(client *http.Client) *V1bet
 
 /*
 V1betaFinishProjectEventParams contains all the parameters to send to the API endpoint
-
-	for the v1beta finish project event operation.
-
-	Typically these are written to a http.Request.
+for the v1beta finish project event operation typically these are written to a http.Request
 */
 type V1betaFinishProjectEventParams struct {
 
-	/* Body.
+	/*Body
+	  The required parameter to finish the project state update event
 
-	   The required parameter to finish the project state update event
 	*/
 	Body *models.ProjectStateUpdateV1beta
+	/*LocationID
+	  The location/region to perform the operation in.
 
-	/* LocationID.
-
-	   The location/region to perform the operation in.
 	*/
 	LocationID string
+	/*ProjectNumber
+	  The project number of the GCP project owning the resource being acted upon
 
-	/* ProjectNumber.
-
-	   The project number of the GCP project owning the resource being acted upon
 	*/
 	ProjectNumber string
+	/*XCorrelationID
+	  Correlation identifier
 
-	/* XCorrelationID.
-
-	   Correlation identifier
 	*/
 	XCorrelationID *string
 
 	timeout    time.Duration
 	Context    context.Context
 	HTTPClient *http.Client
-}
-
-// WithDefaults hydrates default values in the v1beta finish project event params (not the query body).
-//
-// All values with no default are reset to their zero value.
-func (o *V1betaFinishProjectEventParams) WithDefaults() *V1betaFinishProjectEventParams {
-	o.SetDefaults()
-	return o
-}
-
-// SetDefaults hydrates default values in the v1beta finish project event params (not the query body).
-//
-// All values with no default are reset to their zero value.
-func (o *V1betaFinishProjectEventParams) SetDefaults() {
-	// no default values defined for this parameter
 }
 
 // WithTimeout adds the timeout to the v1beta finish project event params
@@ -191,6 +173,7 @@ func (o *V1betaFinishProjectEventParams) WriteToRequest(r runtime.ClientRequest,
 		return err
 	}
 	var res []error
+
 	if o.Body != nil {
 		if err := r.SetBodyParam(o.Body); err != nil {
 			return err
@@ -213,6 +196,7 @@ func (o *V1betaFinishProjectEventParams) WriteToRequest(r runtime.ClientRequest,
 		if err := r.SetHeaderParam("x-correlation-id", *o.XCorrelationID); err != nil {
 			return err
 		}
+
 	}
 
 	if len(res) > 0 {

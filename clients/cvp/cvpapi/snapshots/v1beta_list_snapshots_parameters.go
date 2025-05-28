@@ -17,110 +17,92 @@ import (
 	"github.com/go-openapi/swag"
 )
 
-// NewV1betaListSnapshotsParams creates a new V1betaListSnapshotsParams object,
-// with the default timeout for this client.
-//
-// Default values are not hydrated, since defaults are normally applied by the API server side.
-//
-// To enforce default values in parameter, use SetDefaults or WithDefaults.
+// NewV1betaListSnapshotsParams creates a new V1betaListSnapshotsParams object
+// with the default values initialized.
 func NewV1betaListSnapshotsParams() *V1betaListSnapshotsParams {
+	var (
+		includeDeletedDefault = bool(false)
+	)
 	return &V1betaListSnapshotsParams{
+		IncludeDeleted: includeDeletedDefault,
+
 		timeout: cr.DefaultTimeout,
 	}
 }
 
 // NewV1betaListSnapshotsParamsWithTimeout creates a new V1betaListSnapshotsParams object
-// with the ability to set a timeout on a request.
+// with the default values initialized, and the ability to set a timeout on a request
 func NewV1betaListSnapshotsParamsWithTimeout(timeout time.Duration) *V1betaListSnapshotsParams {
+	var (
+		includeDeletedDefault = bool(false)
+	)
 	return &V1betaListSnapshotsParams{
+		IncludeDeleted: includeDeletedDefault,
+
 		timeout: timeout,
 	}
 }
 
 // NewV1betaListSnapshotsParamsWithContext creates a new V1betaListSnapshotsParams object
-// with the ability to set a context for a request.
+// with the default values initialized, and the ability to set a context for a request
 func NewV1betaListSnapshotsParamsWithContext(ctx context.Context) *V1betaListSnapshotsParams {
+	var (
+		includeDeletedDefault = bool(false)
+	)
 	return &V1betaListSnapshotsParams{
+		IncludeDeleted: includeDeletedDefault,
+
 		Context: ctx,
 	}
 }
 
 // NewV1betaListSnapshotsParamsWithHTTPClient creates a new V1betaListSnapshotsParams object
-// with the ability to set a custom HTTPClient for a request.
+// with the default values initialized, and the ability to set a custom HTTPClient for a request
 func NewV1betaListSnapshotsParamsWithHTTPClient(client *http.Client) *V1betaListSnapshotsParams {
+	var (
+		includeDeletedDefault = bool(false)
+	)
 	return &V1betaListSnapshotsParams{
-		HTTPClient: client,
+		IncludeDeleted: includeDeletedDefault,
+		HTTPClient:     client,
 	}
 }
 
 /*
 V1betaListSnapshotsParams contains all the parameters to send to the API endpoint
-
-	for the v1beta list snapshots operation.
-
-	Typically these are written to a http.Request.
+for the v1beta list snapshots operation typically these are written to a http.Request
 */
 type V1betaListSnapshotsParams struct {
 
-	/* IncludeDeleted.
+	/*IncludeDeleted
+	  If true, response will include deleted snapshots
 
-	   If true, response will include deleted snapshots
 	*/
 	IncludeDeleted bool
+	/*LocationID
+	  The location/region to perform the operation in.
 
-	/* LocationID.
-
-	   The location/region to perform the operation in.
 	*/
 	LocationID string
+	/*ProjectNumber
+	  The project number of the GCP project owning the resource being acted upon
 
-	/* ProjectNumber.
-
-	   The project number of the GCP project owning the resource being acted upon
 	*/
 	ProjectNumber string
+	/*VolumeID
+	  UUID v4 used to identify the volume
 
-	/* VolumeID.
-
-	   UUID v4 used to identify the volume
 	*/
 	VolumeID string
+	/*XCorrelationID
+	  Correlation identifier
 
-	/* XCorrelationID.
-
-	   Correlation identifier
 	*/
 	XCorrelationID *string
 
 	timeout    time.Duration
 	Context    context.Context
 	HTTPClient *http.Client
-}
-
-// WithDefaults hydrates default values in the v1beta list snapshots params (not the query body).
-//
-// All values with no default are reset to their zero value.
-func (o *V1betaListSnapshotsParams) WithDefaults() *V1betaListSnapshotsParams {
-	o.SetDefaults()
-	return o
-}
-
-// SetDefaults hydrates default values in the v1beta list snapshots params (not the query body).
-//
-// All values with no default are reset to their zero value.
-func (o *V1betaListSnapshotsParams) SetDefaults() {
-	var (
-		includeDeletedDefault = bool(false)
-	)
-
-	val := V1betaListSnapshotsParams{
-		IncludeDeleted: includeDeletedDefault,
-	}
-
-	val.timeout = o.timeout
-	val.Context = o.Context
-	val.HTTPClient = o.HTTPClient
-	*o = val
 }
 
 // WithTimeout adds the timeout to the v1beta list snapshots params
@@ -222,7 +204,6 @@ func (o *V1betaListSnapshotsParams) WriteToRequest(r runtime.ClientRequest, reg 
 	// query param includeDeleted
 	qrIncludeDeleted := o.IncludeDeleted
 	qIncludeDeleted := swag.FormatBool(qrIncludeDeleted)
-
 	if err := r.SetQueryParam("includeDeleted", qIncludeDeleted); err != nil {
 		return err
 	}
@@ -248,6 +229,7 @@ func (o *V1betaListSnapshotsParams) WriteToRequest(r runtime.ClientRequest, reg 
 		if err := r.SetHeaderParam("x-correlation-id", *o.XCorrelationID); err != nil {
 			return err
 		}
+
 	}
 
 	if len(res) > 0 {

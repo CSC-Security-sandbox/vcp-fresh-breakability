@@ -6,7 +6,6 @@ package quota_rules
 // Editing this file might prove futile when you re-run the swagger generate command
 
 import (
-	"encoding/json"
 	"fmt"
 	"io"
 
@@ -90,7 +89,7 @@ func NewV1betaListAllQuotaRulesOK() *V1betaListAllQuotaRulesOK {
 }
 
 /*
-V1betaListAllQuotaRulesOK describes a response with status code 200, with default header values.
+V1betaListAllQuotaRulesOK handles this case with default header values.
 
 OK
 */
@@ -98,44 +97,8 @@ type V1betaListAllQuotaRulesOK struct {
 	Payload []*models.QuotaRulesV1beta
 }
 
-// IsSuccess returns true when this v1beta list all quota rules o k response has a 2xx status code
-func (o *V1betaListAllQuotaRulesOK) IsSuccess() bool {
-	return true
-}
-
-// IsRedirect returns true when this v1beta list all quota rules o k response has a 3xx status code
-func (o *V1betaListAllQuotaRulesOK) IsRedirect() bool {
-	return false
-}
-
-// IsClientError returns true when this v1beta list all quota rules o k response has a 4xx status code
-func (o *V1betaListAllQuotaRulesOK) IsClientError() bool {
-	return false
-}
-
-// IsServerError returns true when this v1beta list all quota rules o k response has a 5xx status code
-func (o *V1betaListAllQuotaRulesOK) IsServerError() bool {
-	return false
-}
-
-// IsCode returns true when this v1beta list all quota rules o k response a status code equal to that given
-func (o *V1betaListAllQuotaRulesOK) IsCode(code int) bool {
-	return code == 200
-}
-
-// Code gets the status code for the v1beta list all quota rules o k response
-func (o *V1betaListAllQuotaRulesOK) Code() int {
-	return 200
-}
-
 func (o *V1betaListAllQuotaRulesOK) Error() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[GET /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/quotaRules][%d] v1betaListAllQuotaRulesOK %s", 200, payload)
-}
-
-func (o *V1betaListAllQuotaRulesOK) String() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[GET /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/quotaRules][%d] v1betaListAllQuotaRulesOK %s", 200, payload)
+	return fmt.Sprintf("[GET /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/quotaRules][%d] v1betaListAllQuotaRulesOK  %+v", 200, o.Payload)
 }
 
 func (o *V1betaListAllQuotaRulesOK) GetPayload() []*models.QuotaRulesV1beta {
@@ -158,7 +121,7 @@ func NewV1betaListAllQuotaRulesBadRequest() *V1betaListAllQuotaRulesBadRequest {
 }
 
 /*
-V1betaListAllQuotaRulesBadRequest describes a response with status code 400, with default header values.
+V1betaListAllQuotaRulesBadRequest handles this case with default header values.
 
 Bad request
 */
@@ -166,44 +129,8 @@ type V1betaListAllQuotaRulesBadRequest struct {
 	Payload *models.Error
 }
 
-// IsSuccess returns true when this v1beta list all quota rules bad request response has a 2xx status code
-func (o *V1betaListAllQuotaRulesBadRequest) IsSuccess() bool {
-	return false
-}
-
-// IsRedirect returns true when this v1beta list all quota rules bad request response has a 3xx status code
-func (o *V1betaListAllQuotaRulesBadRequest) IsRedirect() bool {
-	return false
-}
-
-// IsClientError returns true when this v1beta list all quota rules bad request response has a 4xx status code
-func (o *V1betaListAllQuotaRulesBadRequest) IsClientError() bool {
-	return true
-}
-
-// IsServerError returns true when this v1beta list all quota rules bad request response has a 5xx status code
-func (o *V1betaListAllQuotaRulesBadRequest) IsServerError() bool {
-	return false
-}
-
-// IsCode returns true when this v1beta list all quota rules bad request response a status code equal to that given
-func (o *V1betaListAllQuotaRulesBadRequest) IsCode(code int) bool {
-	return code == 400
-}
-
-// Code gets the status code for the v1beta list all quota rules bad request response
-func (o *V1betaListAllQuotaRulesBadRequest) Code() int {
-	return 400
-}
-
 func (o *V1betaListAllQuotaRulesBadRequest) Error() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[GET /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/quotaRules][%d] v1betaListAllQuotaRulesBadRequest %s", 400, payload)
-}
-
-func (o *V1betaListAllQuotaRulesBadRequest) String() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[GET /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/quotaRules][%d] v1betaListAllQuotaRulesBadRequest %s", 400, payload)
+	return fmt.Sprintf("[GET /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/quotaRules][%d] v1betaListAllQuotaRulesBadRequest  %+v", 400, o.Payload)
 }
 
 func (o *V1betaListAllQuotaRulesBadRequest) GetPayload() *models.Error {
@@ -228,7 +155,7 @@ func NewV1betaListAllQuotaRulesUnauthorized() *V1betaListAllQuotaRulesUnauthoriz
 }
 
 /*
-V1betaListAllQuotaRulesUnauthorized describes a response with status code 401, with default header values.
+V1betaListAllQuotaRulesUnauthorized handles this case with default header values.
 
 Unauthorized
 */
@@ -236,44 +163,8 @@ type V1betaListAllQuotaRulesUnauthorized struct {
 	Payload *models.Error
 }
 
-// IsSuccess returns true when this v1beta list all quota rules unauthorized response has a 2xx status code
-func (o *V1betaListAllQuotaRulesUnauthorized) IsSuccess() bool {
-	return false
-}
-
-// IsRedirect returns true when this v1beta list all quota rules unauthorized response has a 3xx status code
-func (o *V1betaListAllQuotaRulesUnauthorized) IsRedirect() bool {
-	return false
-}
-
-// IsClientError returns true when this v1beta list all quota rules unauthorized response has a 4xx status code
-func (o *V1betaListAllQuotaRulesUnauthorized) IsClientError() bool {
-	return true
-}
-
-// IsServerError returns true when this v1beta list all quota rules unauthorized response has a 5xx status code
-func (o *V1betaListAllQuotaRulesUnauthorized) IsServerError() bool {
-	return false
-}
-
-// IsCode returns true when this v1beta list all quota rules unauthorized response a status code equal to that given
-func (o *V1betaListAllQuotaRulesUnauthorized) IsCode(code int) bool {
-	return code == 401
-}
-
-// Code gets the status code for the v1beta list all quota rules unauthorized response
-func (o *V1betaListAllQuotaRulesUnauthorized) Code() int {
-	return 401
-}
-
 func (o *V1betaListAllQuotaRulesUnauthorized) Error() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[GET /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/quotaRules][%d] v1betaListAllQuotaRulesUnauthorized %s", 401, payload)
-}
-
-func (o *V1betaListAllQuotaRulesUnauthorized) String() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[GET /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/quotaRules][%d] v1betaListAllQuotaRulesUnauthorized %s", 401, payload)
+	return fmt.Sprintf("[GET /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/quotaRules][%d] v1betaListAllQuotaRulesUnauthorized  %+v", 401, o.Payload)
 }
 
 func (o *V1betaListAllQuotaRulesUnauthorized) GetPayload() *models.Error {
@@ -298,7 +189,7 @@ func NewV1betaListAllQuotaRulesForbidden() *V1betaListAllQuotaRulesForbidden {
 }
 
 /*
-V1betaListAllQuotaRulesForbidden describes a response with status code 403, with default header values.
+V1betaListAllQuotaRulesForbidden handles this case with default header values.
 
 Forbidden
 */
@@ -306,44 +197,8 @@ type V1betaListAllQuotaRulesForbidden struct {
 	Payload *models.Error
 }
 
-// IsSuccess returns true when this v1beta list all quota rules forbidden response has a 2xx status code
-func (o *V1betaListAllQuotaRulesForbidden) IsSuccess() bool {
-	return false
-}
-
-// IsRedirect returns true when this v1beta list all quota rules forbidden response has a 3xx status code
-func (o *V1betaListAllQuotaRulesForbidden) IsRedirect() bool {
-	return false
-}
-
-// IsClientError returns true when this v1beta list all quota rules forbidden response has a 4xx status code
-func (o *V1betaListAllQuotaRulesForbidden) IsClientError() bool {
-	return true
-}
-
-// IsServerError returns true when this v1beta list all quota rules forbidden response has a 5xx status code
-func (o *V1betaListAllQuotaRulesForbidden) IsServerError() bool {
-	return false
-}
-
-// IsCode returns true when this v1beta list all quota rules forbidden response a status code equal to that given
-func (o *V1betaListAllQuotaRulesForbidden) IsCode(code int) bool {
-	return code == 403
-}
-
-// Code gets the status code for the v1beta list all quota rules forbidden response
-func (o *V1betaListAllQuotaRulesForbidden) Code() int {
-	return 403
-}
-
 func (o *V1betaListAllQuotaRulesForbidden) Error() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[GET /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/quotaRules][%d] v1betaListAllQuotaRulesForbidden %s", 403, payload)
-}
-
-func (o *V1betaListAllQuotaRulesForbidden) String() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[GET /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/quotaRules][%d] v1betaListAllQuotaRulesForbidden %s", 403, payload)
+	return fmt.Sprintf("[GET /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/quotaRules][%d] v1betaListAllQuotaRulesForbidden  %+v", 403, o.Payload)
 }
 
 func (o *V1betaListAllQuotaRulesForbidden) GetPayload() *models.Error {
@@ -368,7 +223,7 @@ func NewV1betaListAllQuotaRulesNotFound() *V1betaListAllQuotaRulesNotFound {
 }
 
 /*
-V1betaListAllQuotaRulesNotFound describes a response with status code 404, with default header values.
+V1betaListAllQuotaRulesNotFound handles this case with default header values.
 
 Not found
 */
@@ -376,44 +231,8 @@ type V1betaListAllQuotaRulesNotFound struct {
 	Payload *models.Error
 }
 
-// IsSuccess returns true when this v1beta list all quota rules not found response has a 2xx status code
-func (o *V1betaListAllQuotaRulesNotFound) IsSuccess() bool {
-	return false
-}
-
-// IsRedirect returns true when this v1beta list all quota rules not found response has a 3xx status code
-func (o *V1betaListAllQuotaRulesNotFound) IsRedirect() bool {
-	return false
-}
-
-// IsClientError returns true when this v1beta list all quota rules not found response has a 4xx status code
-func (o *V1betaListAllQuotaRulesNotFound) IsClientError() bool {
-	return true
-}
-
-// IsServerError returns true when this v1beta list all quota rules not found response has a 5xx status code
-func (o *V1betaListAllQuotaRulesNotFound) IsServerError() bool {
-	return false
-}
-
-// IsCode returns true when this v1beta list all quota rules not found response a status code equal to that given
-func (o *V1betaListAllQuotaRulesNotFound) IsCode(code int) bool {
-	return code == 404
-}
-
-// Code gets the status code for the v1beta list all quota rules not found response
-func (o *V1betaListAllQuotaRulesNotFound) Code() int {
-	return 404
-}
-
 func (o *V1betaListAllQuotaRulesNotFound) Error() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[GET /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/quotaRules][%d] v1betaListAllQuotaRulesNotFound %s", 404, payload)
-}
-
-func (o *V1betaListAllQuotaRulesNotFound) String() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[GET /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/quotaRules][%d] v1betaListAllQuotaRulesNotFound %s", 404, payload)
+	return fmt.Sprintf("[GET /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/quotaRules][%d] v1betaListAllQuotaRulesNotFound  %+v", 404, o.Payload)
 }
 
 func (o *V1betaListAllQuotaRulesNotFound) GetPayload() *models.Error {
@@ -438,7 +257,7 @@ func NewV1betaListAllQuotaRulesUnprocessableEntity() *V1betaListAllQuotaRulesUnp
 }
 
 /*
-V1betaListAllQuotaRulesUnprocessableEntity describes a response with status code 422, with default header values.
+V1betaListAllQuotaRulesUnprocessableEntity handles this case with default header values.
 
 Unprocessable entity
 */
@@ -446,44 +265,8 @@ type V1betaListAllQuotaRulesUnprocessableEntity struct {
 	Payload *models.Error
 }
 
-// IsSuccess returns true when this v1beta list all quota rules unprocessable entity response has a 2xx status code
-func (o *V1betaListAllQuotaRulesUnprocessableEntity) IsSuccess() bool {
-	return false
-}
-
-// IsRedirect returns true when this v1beta list all quota rules unprocessable entity response has a 3xx status code
-func (o *V1betaListAllQuotaRulesUnprocessableEntity) IsRedirect() bool {
-	return false
-}
-
-// IsClientError returns true when this v1beta list all quota rules unprocessable entity response has a 4xx status code
-func (o *V1betaListAllQuotaRulesUnprocessableEntity) IsClientError() bool {
-	return true
-}
-
-// IsServerError returns true when this v1beta list all quota rules unprocessable entity response has a 5xx status code
-func (o *V1betaListAllQuotaRulesUnprocessableEntity) IsServerError() bool {
-	return false
-}
-
-// IsCode returns true when this v1beta list all quota rules unprocessable entity response a status code equal to that given
-func (o *V1betaListAllQuotaRulesUnprocessableEntity) IsCode(code int) bool {
-	return code == 422
-}
-
-// Code gets the status code for the v1beta list all quota rules unprocessable entity response
-func (o *V1betaListAllQuotaRulesUnprocessableEntity) Code() int {
-	return 422
-}
-
 func (o *V1betaListAllQuotaRulesUnprocessableEntity) Error() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[GET /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/quotaRules][%d] v1betaListAllQuotaRulesUnprocessableEntity %s", 422, payload)
-}
-
-func (o *V1betaListAllQuotaRulesUnprocessableEntity) String() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[GET /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/quotaRules][%d] v1betaListAllQuotaRulesUnprocessableEntity %s", 422, payload)
+	return fmt.Sprintf("[GET /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/quotaRules][%d] v1betaListAllQuotaRulesUnprocessableEntity  %+v", 422, o.Payload)
 }
 
 func (o *V1betaListAllQuotaRulesUnprocessableEntity) GetPayload() *models.Error {
@@ -508,7 +291,7 @@ func NewV1betaListAllQuotaRulesTooManyRequests() *V1betaListAllQuotaRulesTooMany
 }
 
 /*
-V1betaListAllQuotaRulesTooManyRequests describes a response with status code 429, with default header values.
+V1betaListAllQuotaRulesTooManyRequests handles this case with default header values.
 
 Too many requests
 */
@@ -516,44 +299,8 @@ type V1betaListAllQuotaRulesTooManyRequests struct {
 	Payload *models.Error
 }
 
-// IsSuccess returns true when this v1beta list all quota rules too many requests response has a 2xx status code
-func (o *V1betaListAllQuotaRulesTooManyRequests) IsSuccess() bool {
-	return false
-}
-
-// IsRedirect returns true when this v1beta list all quota rules too many requests response has a 3xx status code
-func (o *V1betaListAllQuotaRulesTooManyRequests) IsRedirect() bool {
-	return false
-}
-
-// IsClientError returns true when this v1beta list all quota rules too many requests response has a 4xx status code
-func (o *V1betaListAllQuotaRulesTooManyRequests) IsClientError() bool {
-	return true
-}
-
-// IsServerError returns true when this v1beta list all quota rules too many requests response has a 5xx status code
-func (o *V1betaListAllQuotaRulesTooManyRequests) IsServerError() bool {
-	return false
-}
-
-// IsCode returns true when this v1beta list all quota rules too many requests response a status code equal to that given
-func (o *V1betaListAllQuotaRulesTooManyRequests) IsCode(code int) bool {
-	return code == 429
-}
-
-// Code gets the status code for the v1beta list all quota rules too many requests response
-func (o *V1betaListAllQuotaRulesTooManyRequests) Code() int {
-	return 429
-}
-
 func (o *V1betaListAllQuotaRulesTooManyRequests) Error() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[GET /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/quotaRules][%d] v1betaListAllQuotaRulesTooManyRequests %s", 429, payload)
-}
-
-func (o *V1betaListAllQuotaRulesTooManyRequests) String() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[GET /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/quotaRules][%d] v1betaListAllQuotaRulesTooManyRequests %s", 429, payload)
+	return fmt.Sprintf("[GET /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/quotaRules][%d] v1betaListAllQuotaRulesTooManyRequests  %+v", 429, o.Payload)
 }
 
 func (o *V1betaListAllQuotaRulesTooManyRequests) GetPayload() *models.Error {
@@ -578,7 +325,7 @@ func NewV1betaListAllQuotaRulesInternalServerError() *V1betaListAllQuotaRulesInt
 }
 
 /*
-V1betaListAllQuotaRulesInternalServerError describes a response with status code 500, with default header values.
+V1betaListAllQuotaRulesInternalServerError handles this case with default header values.
 
 Internal server error
 */
@@ -586,44 +333,8 @@ type V1betaListAllQuotaRulesInternalServerError struct {
 	Payload *models.Error
 }
 
-// IsSuccess returns true when this v1beta list all quota rules internal server error response has a 2xx status code
-func (o *V1betaListAllQuotaRulesInternalServerError) IsSuccess() bool {
-	return false
-}
-
-// IsRedirect returns true when this v1beta list all quota rules internal server error response has a 3xx status code
-func (o *V1betaListAllQuotaRulesInternalServerError) IsRedirect() bool {
-	return false
-}
-
-// IsClientError returns true when this v1beta list all quota rules internal server error response has a 4xx status code
-func (o *V1betaListAllQuotaRulesInternalServerError) IsClientError() bool {
-	return false
-}
-
-// IsServerError returns true when this v1beta list all quota rules internal server error response has a 5xx status code
-func (o *V1betaListAllQuotaRulesInternalServerError) IsServerError() bool {
-	return true
-}
-
-// IsCode returns true when this v1beta list all quota rules internal server error response a status code equal to that given
-func (o *V1betaListAllQuotaRulesInternalServerError) IsCode(code int) bool {
-	return code == 500
-}
-
-// Code gets the status code for the v1beta list all quota rules internal server error response
-func (o *V1betaListAllQuotaRulesInternalServerError) Code() int {
-	return 500
-}
-
 func (o *V1betaListAllQuotaRulesInternalServerError) Error() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[GET /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/quotaRules][%d] v1betaListAllQuotaRulesInternalServerError %s", 500, payload)
-}
-
-func (o *V1betaListAllQuotaRulesInternalServerError) String() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[GET /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/quotaRules][%d] v1betaListAllQuotaRulesInternalServerError %s", 500, payload)
+	return fmt.Sprintf("[GET /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/quotaRules][%d] v1betaListAllQuotaRulesInternalServerError  %+v", 500, o.Payload)
 }
 
 func (o *V1betaListAllQuotaRulesInternalServerError) GetPayload() *models.Error {
@@ -650,7 +361,7 @@ func NewV1betaListAllQuotaRulesDefault(code int) *V1betaListAllQuotaRulesDefault
 }
 
 /*
-V1betaListAllQuotaRulesDefault describes a response with status code -1, with default header values.
+V1betaListAllQuotaRulesDefault handles this case with default header values.
 
 Unexpected error
 */
@@ -660,44 +371,13 @@ type V1betaListAllQuotaRulesDefault struct {
 	Payload *models.Error
 }
 
-// IsSuccess returns true when this v1beta list all quota rules default response has a 2xx status code
-func (o *V1betaListAllQuotaRulesDefault) IsSuccess() bool {
-	return o._statusCode/100 == 2
-}
-
-// IsRedirect returns true when this v1beta list all quota rules default response has a 3xx status code
-func (o *V1betaListAllQuotaRulesDefault) IsRedirect() bool {
-	return o._statusCode/100 == 3
-}
-
-// IsClientError returns true when this v1beta list all quota rules default response has a 4xx status code
-func (o *V1betaListAllQuotaRulesDefault) IsClientError() bool {
-	return o._statusCode/100 == 4
-}
-
-// IsServerError returns true when this v1beta list all quota rules default response has a 5xx status code
-func (o *V1betaListAllQuotaRulesDefault) IsServerError() bool {
-	return o._statusCode/100 == 5
-}
-
-// IsCode returns true when this v1beta list all quota rules default response a status code equal to that given
-func (o *V1betaListAllQuotaRulesDefault) IsCode(code int) bool {
-	return o._statusCode == code
-}
-
 // Code gets the status code for the v1beta list all quota rules default response
 func (o *V1betaListAllQuotaRulesDefault) Code() int {
 	return o._statusCode
 }
 
 func (o *V1betaListAllQuotaRulesDefault) Error() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[GET /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/quotaRules][%d] v1beta_listAllQuotaRules default %s", o._statusCode, payload)
-}
-
-func (o *V1betaListAllQuotaRulesDefault) String() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[GET /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/quotaRules][%d] v1beta_listAllQuotaRules default %s", o._statusCode, payload)
+	return fmt.Sprintf("[GET /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/quotaRules][%d] v1beta_listAllQuotaRules default  %+v", o._statusCode, o.Payload)
 }
 
 func (o *V1betaListAllQuotaRulesDefault) GetPayload() *models.Error {

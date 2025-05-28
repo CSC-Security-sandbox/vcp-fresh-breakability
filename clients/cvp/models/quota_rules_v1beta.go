@@ -6,7 +6,6 @@ package models
 // Editing this file might prove futile when you re-run the swagger generate command
 
 import (
-	"context"
 	"encoding/json"
 
 	"github.com/go-openapi/errors"
@@ -23,7 +22,6 @@ type QuotaRulesV1beta struct {
 	// createdAt
 	//
 	// Creation date of the resource
-	// Example: 2016-11-30T20:32:50.459Z
 	// Read Only: true
 	// Format: date-time
 	CreatedAt strfmt.DateTime `json:"createdAt,omitempty"`
@@ -31,21 +29,18 @@ type QuotaRulesV1beta struct {
 	// description
 	//
 	// Description of the quota rule
-	// Example: My quota Rules description
 	// Max Length: 2048
 	Description *string `json:"description,omitempty"`
 
 	// diskLimitInMib
 	//
 	// Total size limit in mebibytes for the user or group.
-	// Example: 1024
 	// Required: true
 	DiskLimitInMib *int64 `json:"diskLimitInMib"`
 
 	// quotaId
 	//
 	// UUID v4 used to identify the quota rule policy
-	// Example: 9760acf5-4638-11e7-9bdb-020073ca7773
 	// Read Only: true
 	// Max Length: 36
 	// Min Length: 36
@@ -55,22 +50,19 @@ type QuotaRulesV1beta struct {
 	// quotaTarget
 	//
 	// This parameter is required in POST only and can take either one of the UNIX user ID (UID) , UNIX group ID (GID ) or a Windows security identifier (SID) based on the quota type.
-	// Example: 1001
 	// Max Length: 255
 	QuotaTarget *string `json:"quotaTarget,omitempty"`
 
 	// quotaType
 	//
 	// This parameter specifies the quota type. This is required as input parameter in POST operation only and can take either one of the "individual_user_quota", "individual_group_quota" or "default_user_quota", "default_group_quota" values.
-	// Example: INDIVIDUAL_USER_QUOTA
 	// Required: true
-	// Enum: ["INDIVIDUAL_USER_QUOTA","INDIVIDUAL_GROUP_QUOTA","DEFAULT_USER_QUOTA","DEFAULT_GROUP_QUOTA"]
+	// Enum: [INDIVIDUAL_USER_QUOTA INDIVIDUAL_GROUP_QUOTA DEFAULT_USER_QUOTA DEFAULT_GROUP_QUOTA]
 	QuotaType *string `json:"quotaType"`
 
 	// resourceId
 	//
 	// Human readable name of the quota rule
-	// Example: quotarule1
 	// Required: true
 	// Max Length: 63
 	// Pattern: ^[a-z]([a-z0-9-]{0,61}[a-z0-9])?$
@@ -79,9 +71,8 @@ type QuotaRulesV1beta struct {
 	// state
 	//
 	// The current state of the quota rule
-	// Example: created
 	// Read Only: true
-	// Enum: ["CREATING","UPDATING","DELETING","READY","ERROR","STATE_UNSPECIFIED"]
+	// Enum: [CREATING UPDATING DELETING READY ERROR STATE_UNSPECIFIED]
 	State string `json:"state,omitempty"`
 
 	// stateDetails
@@ -93,7 +84,6 @@ type QuotaRulesV1beta struct {
 	// updatedAt
 	//
 	// Date of last update of the resource
-	// Example: 2016-11-29T20:32:50.459Z
 	// Read Only: true
 	// Format: date-time
 	UpdatedAt strfmt.DateTime `json:"updatedAt,omitempty"`
@@ -146,6 +136,7 @@ func (m *QuotaRulesV1beta) Validate(formats strfmt.Registry) error {
 }
 
 func (m *QuotaRulesV1beta) validateCreatedAt(formats strfmt.Registry) error {
+
 	if swag.IsZero(m.CreatedAt) { // not required
 		return nil
 	}
@@ -158,11 +149,12 @@ func (m *QuotaRulesV1beta) validateCreatedAt(formats strfmt.Registry) error {
 }
 
 func (m *QuotaRulesV1beta) validateDescription(formats strfmt.Registry) error {
+
 	if swag.IsZero(m.Description) { // not required
 		return nil
 	}
 
-	if err := validate.MaxLength("description", "body", *m.Description, 2048); err != nil {
+	if err := validate.MaxLength("description", "body", string(*m.Description), 2048); err != nil {
 		return err
 	}
 
@@ -179,19 +171,20 @@ func (m *QuotaRulesV1beta) validateDiskLimitInMib(formats strfmt.Registry) error
 }
 
 func (m *QuotaRulesV1beta) validateQuotaID(formats strfmt.Registry) error {
+
 	if swag.IsZero(m.QuotaID) { // not required
 		return nil
 	}
 
-	if err := validate.MinLength("quotaId", "body", m.QuotaID, 36); err != nil {
+	if err := validate.MinLength("quotaId", "body", string(m.QuotaID), 36); err != nil {
 		return err
 	}
 
-	if err := validate.MaxLength("quotaId", "body", m.QuotaID, 36); err != nil {
+	if err := validate.MaxLength("quotaId", "body", string(m.QuotaID), 36); err != nil {
 		return err
 	}
 
-	if err := validate.Pattern("quotaId", "body", m.QuotaID, `^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$`); err != nil {
+	if err := validate.Pattern("quotaId", "body", string(m.QuotaID), `^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$`); err != nil {
 		return err
 	}
 
@@ -199,11 +192,12 @@ func (m *QuotaRulesV1beta) validateQuotaID(formats strfmt.Registry) error {
 }
 
 func (m *QuotaRulesV1beta) validateQuotaTarget(formats strfmt.Registry) error {
+
 	if swag.IsZero(m.QuotaTarget) { // not required
 		return nil
 	}
 
-	if err := validate.MaxLength("quotaTarget", "body", *m.QuotaTarget, 255); err != nil {
+	if err := validate.MaxLength("quotaTarget", "body", string(*m.QuotaTarget), 255); err != nil {
 		return err
 	}
 
@@ -265,11 +259,11 @@ func (m *QuotaRulesV1beta) validateResourceID(formats strfmt.Registry) error {
 		return err
 	}
 
-	if err := validate.MaxLength("resourceId", "body", *m.ResourceID, 63); err != nil {
+	if err := validate.MaxLength("resourceId", "body", string(*m.ResourceID), 63); err != nil {
 		return err
 	}
 
-	if err := validate.Pattern("resourceId", "body", *m.ResourceID, `^[a-z]([a-z0-9-]{0,61}[a-z0-9])?$`); err != nil {
+	if err := validate.Pattern("resourceId", "body", string(*m.ResourceID), `^[a-z]([a-z0-9-]{0,61}[a-z0-9])?$`); err != nil {
 		return err
 	}
 
@@ -318,6 +312,7 @@ func (m *QuotaRulesV1beta) validateStateEnum(path, location string, value string
 }
 
 func (m *QuotaRulesV1beta) validateState(formats strfmt.Registry) error {
+
 	if swag.IsZero(m.State) { // not required
 		return nil
 	}
@@ -331,86 +326,12 @@ func (m *QuotaRulesV1beta) validateState(formats strfmt.Registry) error {
 }
 
 func (m *QuotaRulesV1beta) validateUpdatedAt(formats strfmt.Registry) error {
+
 	if swag.IsZero(m.UpdatedAt) { // not required
 		return nil
 	}
 
 	if err := validate.FormatOf("updatedAt", "body", "date-time", m.UpdatedAt.String(), formats); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-// ContextValidate validate this quota rules v1beta based on the context it is used
-func (m *QuotaRulesV1beta) ContextValidate(ctx context.Context, formats strfmt.Registry) error {
-	var res []error
-
-	if err := m.contextValidateCreatedAt(ctx, formats); err != nil {
-		res = append(res, err)
-	}
-
-	if err := m.contextValidateQuotaID(ctx, formats); err != nil {
-		res = append(res, err)
-	}
-
-	if err := m.contextValidateState(ctx, formats); err != nil {
-		res = append(res, err)
-	}
-
-	if err := m.contextValidateStateDetails(ctx, formats); err != nil {
-		res = append(res, err)
-	}
-
-	if err := m.contextValidateUpdatedAt(ctx, formats); err != nil {
-		res = append(res, err)
-	}
-
-	if len(res) > 0 {
-		return errors.CompositeValidationError(res...)
-	}
-	return nil
-}
-
-func (m *QuotaRulesV1beta) contextValidateCreatedAt(ctx context.Context, formats strfmt.Registry) error {
-
-	if err := validate.ReadOnly(ctx, "createdAt", "body", strfmt.DateTime(m.CreatedAt)); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (m *QuotaRulesV1beta) contextValidateQuotaID(ctx context.Context, formats strfmt.Registry) error {
-
-	if err := validate.ReadOnly(ctx, "quotaId", "body", string(m.QuotaID)); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (m *QuotaRulesV1beta) contextValidateState(ctx context.Context, formats strfmt.Registry) error {
-
-	if err := validate.ReadOnly(ctx, "state", "body", string(m.State)); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (m *QuotaRulesV1beta) contextValidateStateDetails(ctx context.Context, formats strfmt.Registry) error {
-
-	if err := validate.ReadOnly(ctx, "stateDetails", "body", string(m.StateDetails)); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (m *QuotaRulesV1beta) contextValidateUpdatedAt(ctx context.Context, formats strfmt.Registry) error {
-
-	if err := validate.ReadOnly(ctx, "updatedAt", "body", strfmt.DateTime(m.UpdatedAt)); err != nil {
 		return err
 	}
 

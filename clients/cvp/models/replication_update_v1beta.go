@@ -6,7 +6,6 @@ package models
 // Editing this file might prove futile when you re-run the swagger generate command
 
 import (
-	"context"
 	"encoding/json"
 
 	"github.com/go-openapi/errors"
@@ -23,25 +22,22 @@ type ReplicationUpdateV1beta struct {
 	// clusterLocation
 	//
 	// Name of source cluster associated with the hybrid replication, display purposes only
-	// Example: source-cluster-name
 	// Max Length: 2048
 	ClusterLocation *string `json:"clusterLocation,omitempty"`
 
 	// description
 	//
 	// Description of the replication
-	// Example: My replication description
 	// Max Length: 2048
 	Description *string `json:"description,omitempty"`
 
 	// labels
 	//
 	// JSON dictionary of resource labels to allow linking of billing labels to a replication, Can contain only lowercase letters, numeric characters, underscores, and dashes. All characters must use UTF-8 encoding, and international characters are allowed. Must start with a lowercase letter or international character.
-	// Example: {"some-key":"some-value","some-key2":"some-value2"}
 	Labels map[string]string `json:"labels,omitempty"`
 
 	// replicationSchedule
-	// Enum: ["REPLICATION_SCHEDULE_UNSPECIFIED","EVERY_10_MINUTES","HOURLY","DAILY"]
+	// Enum: [REPLICATION_SCHEDULE_UNSPECIFIED EVERY_10_MINUTES HOURLY DAILY]
 	ReplicationSchedule *string `json:"replicationSchedule,omitempty"`
 }
 
@@ -68,11 +64,12 @@ func (m *ReplicationUpdateV1beta) Validate(formats strfmt.Registry) error {
 }
 
 func (m *ReplicationUpdateV1beta) validateClusterLocation(formats strfmt.Registry) error {
+
 	if swag.IsZero(m.ClusterLocation) { // not required
 		return nil
 	}
 
-	if err := validate.MaxLength("clusterLocation", "body", *m.ClusterLocation, 2048); err != nil {
+	if err := validate.MaxLength("clusterLocation", "body", string(*m.ClusterLocation), 2048); err != nil {
 		return err
 	}
 
@@ -80,11 +77,12 @@ func (m *ReplicationUpdateV1beta) validateClusterLocation(formats strfmt.Registr
 }
 
 func (m *ReplicationUpdateV1beta) validateDescription(formats strfmt.Registry) error {
+
 	if swag.IsZero(m.Description) { // not required
 		return nil
 	}
 
-	if err := validate.MaxLength("description", "body", *m.Description, 2048); err != nil {
+	if err := validate.MaxLength("description", "body", string(*m.Description), 2048); err != nil {
 		return err
 	}
 
@@ -127,6 +125,7 @@ func (m *ReplicationUpdateV1beta) validateReplicationScheduleEnum(path, location
 }
 
 func (m *ReplicationUpdateV1beta) validateReplicationSchedule(formats strfmt.Registry) error {
+
 	if swag.IsZero(m.ReplicationSchedule) { // not required
 		return nil
 	}
@@ -136,11 +135,6 @@ func (m *ReplicationUpdateV1beta) validateReplicationSchedule(formats strfmt.Reg
 		return err
 	}
 
-	return nil
-}
-
-// ContextValidate validates this replication update v1beta based on context it is used
-func (m *ReplicationUpdateV1beta) ContextValidate(ctx context.Context, formats strfmt.Registry) error {
 	return nil
 }
 

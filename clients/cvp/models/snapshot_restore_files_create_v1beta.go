@@ -6,8 +6,6 @@ package models
 // Editing this file might prove futile when you re-run the swagger generate command
 
 import (
-	"context"
-
 	"github.com/go-openapi/strfmt"
 	"github.com/go-openapi/swag"
 )
@@ -20,21 +18,14 @@ import (
 type SnapshotRestoreFilesCreateV1beta struct {
 
 	// Directory path to restore the lists of file from a snapshot
-	// Example: /restore_dir
 	DestinationPath string `json:"destinationPath,omitempty"`
 
 	// Restore file list with a comma as a separator
-	// Example: ["/backup.txt","/restore.txt"]
 	FilePaths []string `json:"filePaths"`
 }
 
 // Validate validates this snapshot restore files create v1beta
 func (m *SnapshotRestoreFilesCreateV1beta) Validate(formats strfmt.Registry) error {
-	return nil
-}
-
-// ContextValidate validates this snapshot restore files create v1beta based on context it is used
-func (m *SnapshotRestoreFilesCreateV1beta) ContextValidate(ctx context.Context, formats strfmt.Registry) error {
 	return nil
 }
 

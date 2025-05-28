@@ -16,37 +16,40 @@ import (
 	"github.com/go-openapi/strfmt"
 )
 
-// NewV1betaGetLatestBackupStatusOnVolumeParams creates a new V1betaGetLatestBackupStatusOnVolumeParams object,
-// with the default timeout for this client.
-//
-// Default values are not hydrated, since defaults are normally applied by the API server side.
-//
-// To enforce default values in parameter, use SetDefaults or WithDefaults.
+// NewV1betaGetLatestBackupStatusOnVolumeParams creates a new V1betaGetLatestBackupStatusOnVolumeParams object
+// with the default values initialized.
 func NewV1betaGetLatestBackupStatusOnVolumeParams() *V1betaGetLatestBackupStatusOnVolumeParams {
+	var ()
 	return &V1betaGetLatestBackupStatusOnVolumeParams{
+
 		timeout: cr.DefaultTimeout,
 	}
 }
 
 // NewV1betaGetLatestBackupStatusOnVolumeParamsWithTimeout creates a new V1betaGetLatestBackupStatusOnVolumeParams object
-// with the ability to set a timeout on a request.
+// with the default values initialized, and the ability to set a timeout on a request
 func NewV1betaGetLatestBackupStatusOnVolumeParamsWithTimeout(timeout time.Duration) *V1betaGetLatestBackupStatusOnVolumeParams {
+	var ()
 	return &V1betaGetLatestBackupStatusOnVolumeParams{
+
 		timeout: timeout,
 	}
 }
 
 // NewV1betaGetLatestBackupStatusOnVolumeParamsWithContext creates a new V1betaGetLatestBackupStatusOnVolumeParams object
-// with the ability to set a context for a request.
+// with the default values initialized, and the ability to set a context for a request
 func NewV1betaGetLatestBackupStatusOnVolumeParamsWithContext(ctx context.Context) *V1betaGetLatestBackupStatusOnVolumeParams {
+	var ()
 	return &V1betaGetLatestBackupStatusOnVolumeParams{
+
 		Context: ctx,
 	}
 }
 
 // NewV1betaGetLatestBackupStatusOnVolumeParamsWithHTTPClient creates a new V1betaGetLatestBackupStatusOnVolumeParams object
-// with the ability to set a custom HTTPClient for a request.
+// with the default values initialized, and the ability to set a custom HTTPClient for a request
 func NewV1betaGetLatestBackupStatusOnVolumeParamsWithHTTPClient(client *http.Client) *V1betaGetLatestBackupStatusOnVolumeParams {
+	var ()
 	return &V1betaGetLatestBackupStatusOnVolumeParams{
 		HTTPClient: client,
 	}
@@ -54,55 +57,34 @@ func NewV1betaGetLatestBackupStatusOnVolumeParamsWithHTTPClient(client *http.Cli
 
 /*
 V1betaGetLatestBackupStatusOnVolumeParams contains all the parameters to send to the API endpoint
-
-	for the v1beta get latest backup status on volume operation.
-
-	Typically these are written to a http.Request.
+for the v1beta get latest backup status on volume operation typically these are written to a http.Request
 */
 type V1betaGetLatestBackupStatusOnVolumeParams struct {
 
-	/* LocationID.
+	/*LocationID
+	  The location/region to perform the operation in.
 
-	   The location/region to perform the operation in.
 	*/
 	LocationID string
+	/*ProjectNumber
+	  The project number of the GCP project owning the resource being acted upon
 
-	/* ProjectNumber.
-
-	   The project number of the GCP project owning the resource being acted upon
 	*/
 	ProjectNumber string
+	/*VolumeID
+	  UUID v4 used to identify the volume
 
-	/* VolumeID.
-
-	   UUID v4 used to identify the volume
 	*/
 	VolumeID string
+	/*XCorrelationID
+	  Correlation identifier
 
-	/* XCorrelationID.
-
-	   Correlation identifier
 	*/
 	XCorrelationID *string
 
 	timeout    time.Duration
 	Context    context.Context
 	HTTPClient *http.Client
-}
-
-// WithDefaults hydrates default values in the v1beta get latest backup status on volume params (not the query body).
-//
-// All values with no default are reset to their zero value.
-func (o *V1betaGetLatestBackupStatusOnVolumeParams) WithDefaults() *V1betaGetLatestBackupStatusOnVolumeParams {
-	o.SetDefaults()
-	return o
-}
-
-// SetDefaults hydrates default values in the v1beta get latest backup status on volume params (not the query body).
-//
-// All values with no default are reset to their zero value.
-func (o *V1betaGetLatestBackupStatusOnVolumeParams) SetDefaults() {
-	// no default values defined for this parameter
 }
 
 // WithTimeout adds the timeout to the v1beta get latest backup status on volume params
@@ -211,6 +193,7 @@ func (o *V1betaGetLatestBackupStatusOnVolumeParams) WriteToRequest(r runtime.Cli
 		if err := r.SetHeaderParam("x-correlation-id", *o.XCorrelationID); err != nil {
 			return err
 		}
+
 	}
 
 	if len(res) > 0 {

@@ -6,8 +6,6 @@ package models
 // Editing this file might prove futile when you re-run the swagger generate command
 
 import (
-	"context"
-
 	"github.com/go-openapi/errors"
 	"github.com/go-openapi/strfmt"
 	"github.com/go-openapi/swag"
@@ -24,20 +22,17 @@ type KmsConfigUpdateV1beta struct {
 	// description
 	//
 	// Description of the KMS configuration
-	// Example: My kms description
 	// Max Length: 2048
 	Description *string `json:"description,omitempty"`
 
 	// keyFullPath
 	//
 	// Includes key ring, key-ring location, key name and key project ID
-	// Example: projects/projectID/locations/us/keyRings/keyRing/cryptoKeys/keyName
 	KeyFullPath string `json:"keyFullPath,omitempty"`
 
 	// resourceId
 	//
 	// Resource ID for KMS configuration
-	// Example: my-resource
 	// Max Length: 63
 	// Min Length: 1
 	// Pattern: ^[a-z]([a-z0-9-]{0,61}[a-z0-9])?$
@@ -63,11 +58,12 @@ func (m *KmsConfigUpdateV1beta) Validate(formats strfmt.Registry) error {
 }
 
 func (m *KmsConfigUpdateV1beta) validateDescription(formats strfmt.Registry) error {
+
 	if swag.IsZero(m.Description) { // not required
 		return nil
 	}
 
-	if err := validate.MaxLength("description", "body", *m.Description, 2048); err != nil {
+	if err := validate.MaxLength("description", "body", string(*m.Description), 2048); err != nil {
 		return err
 	}
 
@@ -75,27 +71,23 @@ func (m *KmsConfigUpdateV1beta) validateDescription(formats strfmt.Registry) err
 }
 
 func (m *KmsConfigUpdateV1beta) validateResourceID(formats strfmt.Registry) error {
+
 	if swag.IsZero(m.ResourceID) { // not required
 		return nil
 	}
 
-	if err := validate.MinLength("resourceId", "body", *m.ResourceID, 1); err != nil {
+	if err := validate.MinLength("resourceId", "body", string(*m.ResourceID), 1); err != nil {
 		return err
 	}
 
-	if err := validate.MaxLength("resourceId", "body", *m.ResourceID, 63); err != nil {
+	if err := validate.MaxLength("resourceId", "body", string(*m.ResourceID), 63); err != nil {
 		return err
 	}
 
-	if err := validate.Pattern("resourceId", "body", *m.ResourceID, `^[a-z]([a-z0-9-]{0,61}[a-z0-9])?$`); err != nil {
+	if err := validate.Pattern("resourceId", "body", string(*m.ResourceID), `^[a-z]([a-z0-9-]{0,61}[a-z0-9])?$`); err != nil {
 		return err
 	}
 
-	return nil
-}
-
-// ContextValidate validates this kms config update v1beta based on context it is used
-func (m *KmsConfigUpdateV1beta) ContextValidate(ctx context.Context, formats strfmt.Registry) error {
 	return nil
 }
 

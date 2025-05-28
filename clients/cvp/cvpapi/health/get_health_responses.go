@@ -6,7 +6,6 @@ package health
 // Editing this file might prove futile when you re-run the swagger generate command
 
 import (
-	"encoding/json"
 	"fmt"
 	"io"
 
@@ -72,7 +71,7 @@ func NewGetHealthOK() *GetHealthOK {
 }
 
 /*
-GetHealthOK describes a response with status code 200, with default header values.
+GetHealthOK handles this case with default header values.
 
 OK
 */
@@ -80,44 +79,8 @@ type GetHealthOK struct {
 	Payload *models.Health
 }
 
-// IsSuccess returns true when this get health o k response has a 2xx status code
-func (o *GetHealthOK) IsSuccess() bool {
-	return true
-}
-
-// IsRedirect returns true when this get health o k response has a 3xx status code
-func (o *GetHealthOK) IsRedirect() bool {
-	return false
-}
-
-// IsClientError returns true when this get health o k response has a 4xx status code
-func (o *GetHealthOK) IsClientError() bool {
-	return false
-}
-
-// IsServerError returns true when this get health o k response has a 5xx status code
-func (o *GetHealthOK) IsServerError() bool {
-	return false
-}
-
-// IsCode returns true when this get health o k response a status code equal to that given
-func (o *GetHealthOK) IsCode(code int) bool {
-	return code == 200
-}
-
-// Code gets the status code for the get health o k response
-func (o *GetHealthOK) Code() int {
-	return 200
-}
-
 func (o *GetHealthOK) Error() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[GET /health][%d] getHealthOK %s", 200, payload)
-}
-
-func (o *GetHealthOK) String() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[GET /health][%d] getHealthOK %s", 200, payload)
+	return fmt.Sprintf("[GET /health][%d] getHealthOK  %+v", 200, o.Payload)
 }
 
 func (o *GetHealthOK) GetPayload() *models.Health {
@@ -142,7 +105,7 @@ func NewGetHealthBadRequest() *GetHealthBadRequest {
 }
 
 /*
-GetHealthBadRequest describes a response with status code 400, with default header values.
+GetHealthBadRequest handles this case with default header values.
 
 Bad request
 */
@@ -150,44 +113,8 @@ type GetHealthBadRequest struct {
 	Payload *models.Error
 }
 
-// IsSuccess returns true when this get health bad request response has a 2xx status code
-func (o *GetHealthBadRequest) IsSuccess() bool {
-	return false
-}
-
-// IsRedirect returns true when this get health bad request response has a 3xx status code
-func (o *GetHealthBadRequest) IsRedirect() bool {
-	return false
-}
-
-// IsClientError returns true when this get health bad request response has a 4xx status code
-func (o *GetHealthBadRequest) IsClientError() bool {
-	return true
-}
-
-// IsServerError returns true when this get health bad request response has a 5xx status code
-func (o *GetHealthBadRequest) IsServerError() bool {
-	return false
-}
-
-// IsCode returns true when this get health bad request response a status code equal to that given
-func (o *GetHealthBadRequest) IsCode(code int) bool {
-	return code == 400
-}
-
-// Code gets the status code for the get health bad request response
-func (o *GetHealthBadRequest) Code() int {
-	return 400
-}
-
 func (o *GetHealthBadRequest) Error() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[GET /health][%d] getHealthBadRequest %s", 400, payload)
-}
-
-func (o *GetHealthBadRequest) String() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[GET /health][%d] getHealthBadRequest %s", 400, payload)
+	return fmt.Sprintf("[GET /health][%d] getHealthBadRequest  %+v", 400, o.Payload)
 }
 
 func (o *GetHealthBadRequest) GetPayload() *models.Error {
@@ -212,7 +139,7 @@ func NewGetHealthForbidden() *GetHealthForbidden {
 }
 
 /*
-GetHealthForbidden describes a response with status code 403, with default header values.
+GetHealthForbidden handles this case with default header values.
 
 Forbidden
 */
@@ -220,44 +147,8 @@ type GetHealthForbidden struct {
 	Payload *models.Error
 }
 
-// IsSuccess returns true when this get health forbidden response has a 2xx status code
-func (o *GetHealthForbidden) IsSuccess() bool {
-	return false
-}
-
-// IsRedirect returns true when this get health forbidden response has a 3xx status code
-func (o *GetHealthForbidden) IsRedirect() bool {
-	return false
-}
-
-// IsClientError returns true when this get health forbidden response has a 4xx status code
-func (o *GetHealthForbidden) IsClientError() bool {
-	return true
-}
-
-// IsServerError returns true when this get health forbidden response has a 5xx status code
-func (o *GetHealthForbidden) IsServerError() bool {
-	return false
-}
-
-// IsCode returns true when this get health forbidden response a status code equal to that given
-func (o *GetHealthForbidden) IsCode(code int) bool {
-	return code == 403
-}
-
-// Code gets the status code for the get health forbidden response
-func (o *GetHealthForbidden) Code() int {
-	return 403
-}
-
 func (o *GetHealthForbidden) Error() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[GET /health][%d] getHealthForbidden %s", 403, payload)
-}
-
-func (o *GetHealthForbidden) String() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[GET /health][%d] getHealthForbidden %s", 403, payload)
+	return fmt.Sprintf("[GET /health][%d] getHealthForbidden  %+v", 403, o.Payload)
 }
 
 func (o *GetHealthForbidden) GetPayload() *models.Error {
@@ -282,7 +173,7 @@ func NewGetHealthNotFound() *GetHealthNotFound {
 }
 
 /*
-GetHealthNotFound describes a response with status code 404, with default header values.
+GetHealthNotFound handles this case with default header values.
 
 Not found
 */
@@ -290,44 +181,8 @@ type GetHealthNotFound struct {
 	Payload *models.Error
 }
 
-// IsSuccess returns true when this get health not found response has a 2xx status code
-func (o *GetHealthNotFound) IsSuccess() bool {
-	return false
-}
-
-// IsRedirect returns true when this get health not found response has a 3xx status code
-func (o *GetHealthNotFound) IsRedirect() bool {
-	return false
-}
-
-// IsClientError returns true when this get health not found response has a 4xx status code
-func (o *GetHealthNotFound) IsClientError() bool {
-	return true
-}
-
-// IsServerError returns true when this get health not found response has a 5xx status code
-func (o *GetHealthNotFound) IsServerError() bool {
-	return false
-}
-
-// IsCode returns true when this get health not found response a status code equal to that given
-func (o *GetHealthNotFound) IsCode(code int) bool {
-	return code == 404
-}
-
-// Code gets the status code for the get health not found response
-func (o *GetHealthNotFound) Code() int {
-	return 404
-}
-
 func (o *GetHealthNotFound) Error() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[GET /health][%d] getHealthNotFound %s", 404, payload)
-}
-
-func (o *GetHealthNotFound) String() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[GET /health][%d] getHealthNotFound %s", 404, payload)
+	return fmt.Sprintf("[GET /health][%d] getHealthNotFound  %+v", 404, o.Payload)
 }
 
 func (o *GetHealthNotFound) GetPayload() *models.Error {
@@ -352,7 +207,7 @@ func NewGetHealthInternalServerError() *GetHealthInternalServerError {
 }
 
 /*
-GetHealthInternalServerError describes a response with status code 500, with default header values.
+GetHealthInternalServerError handles this case with default header values.
 
 Internal server error
 */
@@ -360,44 +215,8 @@ type GetHealthInternalServerError struct {
 	Payload *models.Error
 }
 
-// IsSuccess returns true when this get health internal server error response has a 2xx status code
-func (o *GetHealthInternalServerError) IsSuccess() bool {
-	return false
-}
-
-// IsRedirect returns true when this get health internal server error response has a 3xx status code
-func (o *GetHealthInternalServerError) IsRedirect() bool {
-	return false
-}
-
-// IsClientError returns true when this get health internal server error response has a 4xx status code
-func (o *GetHealthInternalServerError) IsClientError() bool {
-	return false
-}
-
-// IsServerError returns true when this get health internal server error response has a 5xx status code
-func (o *GetHealthInternalServerError) IsServerError() bool {
-	return true
-}
-
-// IsCode returns true when this get health internal server error response a status code equal to that given
-func (o *GetHealthInternalServerError) IsCode(code int) bool {
-	return code == 500
-}
-
-// Code gets the status code for the get health internal server error response
-func (o *GetHealthInternalServerError) Code() int {
-	return 500
-}
-
 func (o *GetHealthInternalServerError) Error() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[GET /health][%d] getHealthInternalServerError %s", 500, payload)
-}
-
-func (o *GetHealthInternalServerError) String() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[GET /health][%d] getHealthInternalServerError %s", 500, payload)
+	return fmt.Sprintf("[GET /health][%d] getHealthInternalServerError  %+v", 500, o.Payload)
 }
 
 func (o *GetHealthInternalServerError) GetPayload() *models.Error {
@@ -424,7 +243,7 @@ func NewGetHealthDefault(code int) *GetHealthDefault {
 }
 
 /*
-GetHealthDefault describes a response with status code -1, with default header values.
+GetHealthDefault handles this case with default header values.
 
 Unexpected error
 */
@@ -434,44 +253,13 @@ type GetHealthDefault struct {
 	Payload *models.Error
 }
 
-// IsSuccess returns true when this get health default response has a 2xx status code
-func (o *GetHealthDefault) IsSuccess() bool {
-	return o._statusCode/100 == 2
-}
-
-// IsRedirect returns true when this get health default response has a 3xx status code
-func (o *GetHealthDefault) IsRedirect() bool {
-	return o._statusCode/100 == 3
-}
-
-// IsClientError returns true when this get health default response has a 4xx status code
-func (o *GetHealthDefault) IsClientError() bool {
-	return o._statusCode/100 == 4
-}
-
-// IsServerError returns true when this get health default response has a 5xx status code
-func (o *GetHealthDefault) IsServerError() bool {
-	return o._statusCode/100 == 5
-}
-
-// IsCode returns true when this get health default response a status code equal to that given
-func (o *GetHealthDefault) IsCode(code int) bool {
-	return o._statusCode == code
-}
-
 // Code gets the status code for the get health default response
 func (o *GetHealthDefault) Code() int {
 	return o._statusCode
 }
 
 func (o *GetHealthDefault) Error() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[GET /health][%d] getHealth default %s", o._statusCode, payload)
-}
-
-func (o *GetHealthDefault) String() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[GET /health][%d] getHealth default %s", o._statusCode, payload)
+	return fmt.Sprintf("[GET /health][%d] getHealth default  %+v", o._statusCode, o.Payload)
 }
 
 func (o *GetHealthDefault) GetPayload() *models.Error {

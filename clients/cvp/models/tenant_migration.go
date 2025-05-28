@@ -6,7 +6,6 @@ package models
 // Editing this file might prove futile when you re-run the swagger generate command
 
 import (
-	"context"
 	"encoding/json"
 	"strconv"
 
@@ -17,7 +16,6 @@ import (
 )
 
 // TenantMigration Tenant migration body
-// Example: {"stepsToExecute":["storage_create_pool","storage_create_network"]}
 //
 // swagger:model TenantMigration
 type TenantMigration struct {
@@ -60,6 +58,7 @@ func (m *TenantMigration) validateStepsToExecuteItemsEnum(path, location string,
 }
 
 func (m *TenantMigration) validateStepsToExecute(formats strfmt.Registry) error {
+
 	if swag.IsZero(m.StepsToExecute) { // not required
 		return nil
 	}
@@ -73,11 +72,6 @@ func (m *TenantMigration) validateStepsToExecute(formats strfmt.Registry) error 
 
 	}
 
-	return nil
-}
-
-// ContextValidate validates this tenant migration based on context it is used
-func (m *TenantMigration) ContextValidate(ctx context.Context, formats strfmt.Registry) error {
 	return nil
 }
 

@@ -2708,7 +2708,7 @@ type FlexCacheConfigV1beta struct {
 	// Flag indicating whether the atime based scrub is enabled for the FlexCache volume.
 	AtimeScrubEnabled OptNilBool `json:"atimeScrubEnabled"`
 	// Duration in days after which inactive files can be scrubbed from FlexCache volume.
-	AtimeScrubPeriod OptNilInt16 `json:"atimeScrubPeriod"`
+	AtimeScrubMinutes OptNilInt16 `json:"atimeScrubMinutes"`
 	// Flag indicating whether a CIFS change notification is enabled for the FlexCache volume.
 	CifsChangeNotifyEnabled OptNilBool `json:"cifsChangeNotifyEnabled"`
 }
@@ -2728,9 +2728,9 @@ func (s *FlexCacheConfigV1beta) GetAtimeScrubEnabled() OptNilBool {
 	return s.AtimeScrubEnabled
 }
 
-// GetAtimeScrubPeriod returns the value of AtimeScrubPeriod.
-func (s *FlexCacheConfigV1beta) GetAtimeScrubPeriod() OptNilInt16 {
-	return s.AtimeScrubPeriod
+// GetAtimeScrubMinutes returns the value of AtimeScrubMinutes.
+func (s *FlexCacheConfigV1beta) GetAtimeScrubMinutes() OptNilInt16 {
+	return s.AtimeScrubMinutes
 }
 
 // GetCifsChangeNotifyEnabled returns the value of CifsChangeNotifyEnabled.
@@ -2753,9 +2753,9 @@ func (s *FlexCacheConfigV1beta) SetAtimeScrubEnabled(val OptNilBool) {
 	s.AtimeScrubEnabled = val
 }
 
-// SetAtimeScrubPeriod sets the value of AtimeScrubPeriod.
-func (s *FlexCacheConfigV1beta) SetAtimeScrubPeriod(val OptNilInt16) {
-	s.AtimeScrubPeriod = val
+// SetAtimeScrubMinutes sets the value of AtimeScrubMinutes.
+func (s *FlexCacheConfigV1beta) SetAtimeScrubMinutes(val OptNilInt16) {
+	s.AtimeScrubMinutes = val
 }
 
 // SetCifsChangeNotifyEnabled sets the value of CifsChangeNotifyEnabled.
@@ -2772,7 +2772,7 @@ type FlexCachePrePopulateV1beta struct {
 	ExcludePathList OptNilStringArray `json:"excludePathList"`
 	// Flag indicating whether the directories listed with the pathList need to be recursively
 	// pre-populated.
-	IsRecursion OptNilBool `json:"isRecursion"`
+	Recursion OptNilBool `json:"recursion"`
 }
 
 // GetPathList returns the value of PathList.
@@ -2785,9 +2785,9 @@ func (s *FlexCachePrePopulateV1beta) GetExcludePathList() OptNilStringArray {
 	return s.ExcludePathList
 }
 
-// GetIsRecursion returns the value of IsRecursion.
-func (s *FlexCachePrePopulateV1beta) GetIsRecursion() OptNilBool {
-	return s.IsRecursion
+// GetRecursion returns the value of Recursion.
+func (s *FlexCachePrePopulateV1beta) GetRecursion() OptNilBool {
+	return s.Recursion
 }
 
 // SetPathList sets the value of PathList.
@@ -2800,9 +2800,9 @@ func (s *FlexCachePrePopulateV1beta) SetExcludePathList(val OptNilStringArray) {
 	s.ExcludePathList = val
 }
 
-// SetIsRecursion sets the value of IsRecursion.
-func (s *FlexCachePrePopulateV1beta) SetIsRecursion(val OptNilBool) {
-	s.IsRecursion = val
+// SetRecursion sets the value of Recursion.
+func (s *FlexCachePrePopulateV1beta) SetRecursion(val OptNilBool) {
+	s.Recursion = val
 }
 
 // FlexCache type volumes include an object containing details of the FlexCache.
@@ -2820,10 +2820,12 @@ type FlexCacheV1beta struct {
 	CacheConfig          OptFlexCacheConfigV1beta `json:"cacheConfig"`
 	// Current state of the FlexCache.
 	CacheState OptFlexCacheV1betaCacheState `json:"cacheState"`
+	// Previous state of the FlexCache.
+	PreviousCacheState OptFlexCacheV1betaPreviousCacheState `json:"previousCacheState"`
 	// Command used to establish peering for the FlexCache.
-	PeeringCommand OptString `json:"peeringCommand"`
+	Command OptString `json:"command"`
 	// DateTime value for when cluster peering command should expire.
-	PeeringCommandExpiryTime OptNilDateTime `json:"peeringCommandExpiryTime"`
+	CommandExpiryTime OptNilDateTime `json:"commandExpiryTime"`
 	// Temporary passphrase generated to accept cluster peering command.
 	Passphrase OptNilString `json:"passphrase"`
 }
@@ -2863,14 +2865,19 @@ func (s *FlexCacheV1beta) GetCacheState() OptFlexCacheV1betaCacheState {
 	return s.CacheState
 }
 
-// GetPeeringCommand returns the value of PeeringCommand.
-func (s *FlexCacheV1beta) GetPeeringCommand() OptString {
-	return s.PeeringCommand
+// GetPreviousCacheState returns the value of PreviousCacheState.
+func (s *FlexCacheV1beta) GetPreviousCacheState() OptFlexCacheV1betaPreviousCacheState {
+	return s.PreviousCacheState
 }
 
-// GetPeeringCommandExpiryTime returns the value of PeeringCommandExpiryTime.
-func (s *FlexCacheV1beta) GetPeeringCommandExpiryTime() OptNilDateTime {
-	return s.PeeringCommandExpiryTime
+// GetCommand returns the value of Command.
+func (s *FlexCacheV1beta) GetCommand() OptString {
+	return s.Command
+}
+
+// GetCommandExpiryTime returns the value of CommandExpiryTime.
+func (s *FlexCacheV1beta) GetCommandExpiryTime() OptNilDateTime {
+	return s.CommandExpiryTime
 }
 
 // GetPassphrase returns the value of Passphrase.
@@ -2913,14 +2920,19 @@ func (s *FlexCacheV1beta) SetCacheState(val OptFlexCacheV1betaCacheState) {
 	s.CacheState = val
 }
 
-// SetPeeringCommand sets the value of PeeringCommand.
-func (s *FlexCacheV1beta) SetPeeringCommand(val OptString) {
-	s.PeeringCommand = val
+// SetPreviousCacheState sets the value of PreviousCacheState.
+func (s *FlexCacheV1beta) SetPreviousCacheState(val OptFlexCacheV1betaPreviousCacheState) {
+	s.PreviousCacheState = val
 }
 
-// SetPeeringCommandExpiryTime sets the value of PeeringCommandExpiryTime.
-func (s *FlexCacheV1beta) SetPeeringCommandExpiryTime(val OptNilDateTime) {
-	s.PeeringCommandExpiryTime = val
+// SetCommand sets the value of Command.
+func (s *FlexCacheV1beta) SetCommand(val OptString) {
+	s.Command = val
+}
+
+// SetCommandExpiryTime sets the value of CommandExpiryTime.
+func (s *FlexCacheV1beta) SetCommandExpiryTime(val OptNilDateTime) {
+	s.CommandExpiryTime = val
 }
 
 // SetPassphrase sets the value of Passphrase.
@@ -2985,6 +2997,69 @@ func (s *FlexCacheV1betaCacheState) UnmarshalText(data []byte) error {
 		return nil
 	case FlexCacheV1betaCacheStateERROR:
 		*s = FlexCacheV1betaCacheStateERROR
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// Previous state of the FlexCache.
+type FlexCacheV1betaPreviousCacheState string
+
+const (
+	FlexCacheV1betaPreviousCacheStateCACHESTATEUNSPECIFIED FlexCacheV1betaPreviousCacheState = "CACHE_STATE_UNSPECIFIED"
+	FlexCacheV1betaPreviousCacheStatePENDINGCLUSTERPEERING FlexCacheV1betaPreviousCacheState = "PENDING_CLUSTER_PEERING"
+	FlexCacheV1betaPreviousCacheStatePENDINGSVMPEERING     FlexCacheV1betaPreviousCacheState = "PENDING_SVM_PEERING"
+	FlexCacheV1betaPreviousCacheStatePEERED                FlexCacheV1betaPreviousCacheState = "PEERED"
+	FlexCacheV1betaPreviousCacheStateERROR                 FlexCacheV1betaPreviousCacheState = "ERROR"
+)
+
+// AllValues returns all FlexCacheV1betaPreviousCacheState values.
+func (FlexCacheV1betaPreviousCacheState) AllValues() []FlexCacheV1betaPreviousCacheState {
+	return []FlexCacheV1betaPreviousCacheState{
+		FlexCacheV1betaPreviousCacheStateCACHESTATEUNSPECIFIED,
+		FlexCacheV1betaPreviousCacheStatePENDINGCLUSTERPEERING,
+		FlexCacheV1betaPreviousCacheStatePENDINGSVMPEERING,
+		FlexCacheV1betaPreviousCacheStatePEERED,
+		FlexCacheV1betaPreviousCacheStateERROR,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s FlexCacheV1betaPreviousCacheState) MarshalText() ([]byte, error) {
+	switch s {
+	case FlexCacheV1betaPreviousCacheStateCACHESTATEUNSPECIFIED:
+		return []byte(s), nil
+	case FlexCacheV1betaPreviousCacheStatePENDINGCLUSTERPEERING:
+		return []byte(s), nil
+	case FlexCacheV1betaPreviousCacheStatePENDINGSVMPEERING:
+		return []byte(s), nil
+	case FlexCacheV1betaPreviousCacheStatePEERED:
+		return []byte(s), nil
+	case FlexCacheV1betaPreviousCacheStateERROR:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *FlexCacheV1betaPreviousCacheState) UnmarshalText(data []byte) error {
+	switch FlexCacheV1betaPreviousCacheState(data) {
+	case FlexCacheV1betaPreviousCacheStateCACHESTATEUNSPECIFIED:
+		*s = FlexCacheV1betaPreviousCacheStateCACHESTATEUNSPECIFIED
+		return nil
+	case FlexCacheV1betaPreviousCacheStatePENDINGCLUSTERPEERING:
+		*s = FlexCacheV1betaPreviousCacheStatePENDINGCLUSTERPEERING
+		return nil
+	case FlexCacheV1betaPreviousCacheStatePENDINGSVMPEERING:
+		*s = FlexCacheV1betaPreviousCacheStatePENDINGSVMPEERING
+		return nil
+	case FlexCacheV1betaPreviousCacheStatePEERED:
+		*s = FlexCacheV1betaPreviousCacheStatePEERED
+		return nil
+	case FlexCacheV1betaPreviousCacheStateERROR:
+		*s = FlexCacheV1betaPreviousCacheStateERROR
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
@@ -5798,6 +5873,52 @@ func (o OptFlexCacheV1betaCacheState) Get() (v FlexCacheV1betaCacheState, ok boo
 
 // Or returns value if set, or given parameter if does not.
 func (o OptFlexCacheV1betaCacheState) Or(d FlexCacheV1betaCacheState) FlexCacheV1betaCacheState {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptFlexCacheV1betaPreviousCacheState returns new OptFlexCacheV1betaPreviousCacheState with value set to v.
+func NewOptFlexCacheV1betaPreviousCacheState(v FlexCacheV1betaPreviousCacheState) OptFlexCacheV1betaPreviousCacheState {
+	return OptFlexCacheV1betaPreviousCacheState{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptFlexCacheV1betaPreviousCacheState is optional FlexCacheV1betaPreviousCacheState.
+type OptFlexCacheV1betaPreviousCacheState struct {
+	Value FlexCacheV1betaPreviousCacheState
+	Set   bool
+}
+
+// IsSet returns true if OptFlexCacheV1betaPreviousCacheState was set.
+func (o OptFlexCacheV1betaPreviousCacheState) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptFlexCacheV1betaPreviousCacheState) Reset() {
+	var v FlexCacheV1betaPreviousCacheState
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptFlexCacheV1betaPreviousCacheState) SetTo(v FlexCacheV1betaPreviousCacheState) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptFlexCacheV1betaPreviousCacheState) Get() (v FlexCacheV1betaPreviousCacheState, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptFlexCacheV1betaPreviousCacheState) Or(d FlexCacheV1betaPreviousCacheState) FlexCacheV1betaPreviousCacheState {
 	if v, ok := o.Get(); ok {
 		return v
 	}

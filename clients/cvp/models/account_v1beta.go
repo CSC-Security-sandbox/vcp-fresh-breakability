@@ -6,7 +6,6 @@ package models
 // Editing this file might prove futile when you re-run the swagger generate command
 
 import (
-	"context"
 	"strconv"
 
 	"github.com/go-openapi/errors"
@@ -30,19 +29,16 @@ type AccountV1beta struct {
 	// isMigrated
 	//
 	// Set the account to enabled and adds the first-party tags if its "true"
-	// Example: true
 	IsMigrated bool `json:"isMigrated,omitempty"`
 
 	// isMigrating
 	//
 	// Sets the account to in migration if its "true" or set it to enabled if its "false"
-	// Example: true
 	IsMigrating bool `json:"isMigrating,omitempty"`
 
 	// state
 	//
 	// The state of the account
-	// Example: enabled
 	// Read Only: true
 	State string `json:"state,omitempty"`
 }
@@ -62,6 +58,7 @@ func (m *AccountV1beta) Validate(formats strfmt.Registry) error {
 }
 
 func (m *AccountV1beta) validateAccountTags(formats strfmt.Registry) error {
+
 	if swag.IsZero(m.AccountTags) { // not required
 		return nil
 	}
@@ -81,69 +78,11 @@ func (m *AccountV1beta) validateAccountTags(formats strfmt.Registry) error {
 			if err := m.AccountTags[i].Validate(formats); err != nil {
 				if ve, ok := err.(*errors.Validation); ok {
 					return ve.ValidateName("accountTags" + "." + strconv.Itoa(i))
-				} else if ce, ok := err.(*errors.CompositeError); ok {
-					return ce.ValidateName("accountTags" + "." + strconv.Itoa(i))
 				}
 				return err
 			}
 		}
 
-	}
-
-	return nil
-}
-
-// ContextValidate validate this account v1beta based on the context it is used
-func (m *AccountV1beta) ContextValidate(ctx context.Context, formats strfmt.Registry) error {
-	var res []error
-
-	if err := m.contextValidateAccountTags(ctx, formats); err != nil {
-		res = append(res, err)
-	}
-
-	if err := m.contextValidateState(ctx, formats); err != nil {
-		res = append(res, err)
-	}
-
-	if len(res) > 0 {
-		return errors.CompositeValidationError(res...)
-	}
-	return nil
-}
-
-func (m *AccountV1beta) contextValidateAccountTags(ctx context.Context, formats strfmt.Registry) error {
-
-	if err := validate.ReadOnly(ctx, "accountTags", "body", []*AccountTagV2(m.AccountTags)); err != nil {
-		return err
-	}
-
-	for i := 0; i < len(m.AccountTags); i++ {
-
-		if m.AccountTags[i] != nil {
-
-			if swag.IsZero(m.AccountTags[i]) { // not required
-				return nil
-			}
-
-			if err := m.AccountTags[i].ContextValidate(ctx, formats); err != nil {
-				if ve, ok := err.(*errors.Validation); ok {
-					return ve.ValidateName("accountTags" + "." + strconv.Itoa(i))
-				} else if ce, ok := err.(*errors.CompositeError); ok {
-					return ce.ValidateName("accountTags" + "." + strconv.Itoa(i))
-				}
-				return err
-			}
-		}
-
-	}
-
-	return nil
-}
-
-func (m *AccountV1beta) contextValidateState(ctx context.Context, formats strfmt.Registry) error {
-
-	if err := validate.ReadOnly(ctx, "state", "body", string(m.State)); err != nil {
-		return err
 	}
 
 	return nil

@@ -6,7 +6,6 @@ package models
 // Editing this file might prove futile when you re-run the swagger generate command
 
 import (
-	"context"
 	"encoding/json"
 
 	"github.com/go-openapi/errors"
@@ -32,7 +31,6 @@ type BackupV1beta struct {
 	// backupId
 	//
 	// UUID v4 used to identify the backup
-	// Example: 53fb64d6-ae8d-4166-b054-9f601a62e9fb
 	// Read Only: true
 	// Max Length: 36
 	// Min Length: 36
@@ -42,18 +40,16 @@ type BackupV1beta struct {
 	// backupRegion
 	//
 	// Name of the backup region
-	// Example: us-central1
 	BackupRegion *string `json:"backupRegion,omitempty"`
 
 	// backupType
 	//
 	// Type of backup, manually created or created by a backup policy
 	// Read Only: true
-	// Enum: ["MANUAL","SCHEDULED"]
+	// Enum: [MANUAL SCHEDULED]
 	BackupType string `json:"backupType,omitempty"`
 
 	// UUID v4 used to identify the backup vault ID
-	// Example: 40a79608-dcf8-4b67-8df6-c4ab40a5b246
 	// Max Length: 36
 	// Min Length: 36
 	// Pattern: ^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$
@@ -62,7 +58,6 @@ type BackupV1beta struct {
 	// created
 	//
 	// Creation date of the resource
-	// Example: 2016-11-30T20:32:50.459Z
 	// Read Only: true
 	// Format: date-time
 	Created strfmt.DateTime `json:"created,omitempty"`
@@ -70,14 +65,12 @@ type BackupV1beta struct {
 	// description
 	//
 	// Description of the backup
-	// Example: My Resource description
 	// Max Length: 2048
 	Description *string `json:"description,omitempty"`
 
 	// enforcedRetentionEndTime
 	//
 	// Backup enforced-retention end time
-	// Example: 2024-12-06T20:32:50.459Z
 	// Read Only: true
 	// Format: date-time
 	EnforcedRetentionEndTime *strfmt.DateTime `json:"enforcedRetentionEndTime,omitempty"`
@@ -85,25 +78,21 @@ type BackupV1beta struct {
 	// resourceId
 	//
 	// A human readable label for the resource which is restricted to letters, numbers, and hyphen, with the first character a letter, the last a letter or a number, and a 63 character maximum
-	// Example: my-resource
 	// Max Length: 63
 	// Pattern: ^[a-z]([a-z0-9-]{0,61}[a-z0-9])?$
 	ResourceID string `json:"resourceId,omitempty"`
 
 	// Flag describing whether backup supports zone isolation.
-	// Example: true
 	// Read Only: true
 	SatisfiesPzi *bool `json:"satisfiesPzi,omitempty"`
 
 	// Flag describing whether backup supports zone separation.
-	// Example: true
 	// Read Only: true
 	SatisfiesPzs *bool `json:"satisfiesPzs,omitempty"`
 
 	// source snapshot
 	//
 	// Name of the source snapshot
-	// Example: test_snapshot
 	// Read Only: true
 	SourceSnapshot *string `json:"sourceSnapshot,omitempty"`
 
@@ -116,15 +105,13 @@ type BackupV1beta struct {
 	// state
 	//
 	// The current lifecycle state of the resource
-	// Example: READY
 	// Read Only: true
-	// Enum: ["CREATING","READY","UPLOADING","RESTORING","DISABLED","DELETING","DELETED","ERROR"]
+	// Enum: [CREATING READY UPLOADING RESTORING DISABLED DELETING DELETED ERROR]
 	State string `json:"state,omitempty"`
 
 	// volumeId
 	//
 	// UUID v4 of the volume
-	// Example: 9760acf5-4638-11e7-9bdb-020073ca0001
 	// Read Only: true
 	// Max Length: 36
 	// Min Length: 36
@@ -134,13 +121,11 @@ type BackupV1beta struct {
 	// volumeRegion
 	//
 	// Name of the volume region
-	// Example: us-east4
 	VolumeRegion *string `json:"volumeRegion,omitempty"`
 
 	// volumeUsageBytes
 	//
 	// Current size for the backup in bytes
-	// Example: 101010
 	// Read Only: true
 	// Minimum: 0
 	VolumeUsageBytes *int64 `json:"volumeUsageBytes,omitempty"`
@@ -201,6 +186,7 @@ func (m *BackupV1beta) Validate(formats strfmt.Registry) error {
 }
 
 func (m *BackupV1beta) validateAssetLocationMetadata(formats strfmt.Registry) error {
+
 	if swag.IsZero(m.AssetLocationMetadata) { // not required
 		return nil
 	}
@@ -209,8 +195,6 @@ func (m *BackupV1beta) validateAssetLocationMetadata(formats strfmt.Registry) er
 		if err := m.AssetLocationMetadata.Validate(formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("assetLocationMetadata")
-			} else if ce, ok := err.(*errors.CompositeError); ok {
-				return ce.ValidateName("assetLocationMetadata")
 			}
 			return err
 		}
@@ -220,19 +204,20 @@ func (m *BackupV1beta) validateAssetLocationMetadata(formats strfmt.Registry) er
 }
 
 func (m *BackupV1beta) validateBackupID(formats strfmt.Registry) error {
+
 	if swag.IsZero(m.BackupID) { // not required
 		return nil
 	}
 
-	if err := validate.MinLength("backupId", "body", m.BackupID, 36); err != nil {
+	if err := validate.MinLength("backupId", "body", string(m.BackupID), 36); err != nil {
 		return err
 	}
 
-	if err := validate.MaxLength("backupId", "body", m.BackupID, 36); err != nil {
+	if err := validate.MaxLength("backupId", "body", string(m.BackupID), 36); err != nil {
 		return err
 	}
 
-	if err := validate.Pattern("backupId", "body", m.BackupID, `^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$`); err != nil {
+	if err := validate.Pattern("backupId", "body", string(m.BackupID), `^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$`); err != nil {
 		return err
 	}
 
@@ -269,6 +254,7 @@ func (m *BackupV1beta) validateBackupTypeEnum(path, location string, value strin
 }
 
 func (m *BackupV1beta) validateBackupType(formats strfmt.Registry) error {
+
 	if swag.IsZero(m.BackupType) { // not required
 		return nil
 	}
@@ -282,19 +268,20 @@ func (m *BackupV1beta) validateBackupType(formats strfmt.Registry) error {
 }
 
 func (m *BackupV1beta) validateBackupVaultID(formats strfmt.Registry) error {
+
 	if swag.IsZero(m.BackupVaultID) { // not required
 		return nil
 	}
 
-	if err := validate.MinLength("backupVaultId", "body", *m.BackupVaultID, 36); err != nil {
+	if err := validate.MinLength("backupVaultId", "body", string(*m.BackupVaultID), 36); err != nil {
 		return err
 	}
 
-	if err := validate.MaxLength("backupVaultId", "body", *m.BackupVaultID, 36); err != nil {
+	if err := validate.MaxLength("backupVaultId", "body", string(*m.BackupVaultID), 36); err != nil {
 		return err
 	}
 
-	if err := validate.Pattern("backupVaultId", "body", *m.BackupVaultID, `^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$`); err != nil {
+	if err := validate.Pattern("backupVaultId", "body", string(*m.BackupVaultID), `^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$`); err != nil {
 		return err
 	}
 
@@ -302,6 +289,7 @@ func (m *BackupV1beta) validateBackupVaultID(formats strfmt.Registry) error {
 }
 
 func (m *BackupV1beta) validateCreated(formats strfmt.Registry) error {
+
 	if swag.IsZero(m.Created) { // not required
 		return nil
 	}
@@ -314,11 +302,12 @@ func (m *BackupV1beta) validateCreated(formats strfmt.Registry) error {
 }
 
 func (m *BackupV1beta) validateDescription(formats strfmt.Registry) error {
+
 	if swag.IsZero(m.Description) { // not required
 		return nil
 	}
 
-	if err := validate.MaxLength("description", "body", *m.Description, 2048); err != nil {
+	if err := validate.MaxLength("description", "body", string(*m.Description), 2048); err != nil {
 		return err
 	}
 
@@ -326,6 +315,7 @@ func (m *BackupV1beta) validateDescription(formats strfmt.Registry) error {
 }
 
 func (m *BackupV1beta) validateEnforcedRetentionEndTime(formats strfmt.Registry) error {
+
 	if swag.IsZero(m.EnforcedRetentionEndTime) { // not required
 		return nil
 	}
@@ -338,15 +328,16 @@ func (m *BackupV1beta) validateEnforcedRetentionEndTime(formats strfmt.Registry)
 }
 
 func (m *BackupV1beta) validateResourceID(formats strfmt.Registry) error {
+
 	if swag.IsZero(m.ResourceID) { // not required
 		return nil
 	}
 
-	if err := validate.MaxLength("resourceId", "body", m.ResourceID, 63); err != nil {
+	if err := validate.MaxLength("resourceId", "body", string(m.ResourceID), 63); err != nil {
 		return err
 	}
 
-	if err := validate.Pattern("resourceId", "body", m.ResourceID, `^[a-z]([a-z0-9-]{0,61}[a-z0-9])?$`); err != nil {
+	if err := validate.Pattern("resourceId", "body", string(m.ResourceID), `^[a-z]([a-z0-9-]{0,61}[a-z0-9])?$`); err != nil {
 		return err
 	}
 
@@ -401,6 +392,7 @@ func (m *BackupV1beta) validateStateEnum(path, location string, value string) er
 }
 
 func (m *BackupV1beta) validateState(formats strfmt.Registry) error {
+
 	if swag.IsZero(m.State) { // not required
 		return nil
 	}
@@ -414,19 +406,20 @@ func (m *BackupV1beta) validateState(formats strfmt.Registry) error {
 }
 
 func (m *BackupV1beta) validateVolumeID(formats strfmt.Registry) error {
+
 	if swag.IsZero(m.VolumeID) { // not required
 		return nil
 	}
 
-	if err := validate.MinLength("volumeId", "body", m.VolumeID, 36); err != nil {
+	if err := validate.MinLength("volumeId", "body", string(m.VolumeID), 36); err != nil {
 		return err
 	}
 
-	if err := validate.MaxLength("volumeId", "body", m.VolumeID, 36); err != nil {
+	if err := validate.MaxLength("volumeId", "body", string(m.VolumeID), 36); err != nil {
 		return err
 	}
 
-	if err := validate.Pattern("volumeId", "body", m.VolumeID, `^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$`); err != nil {
+	if err := validate.Pattern("volumeId", "body", string(m.VolumeID), `^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$`); err != nil {
 		return err
 	}
 
@@ -434,202 +427,12 @@ func (m *BackupV1beta) validateVolumeID(formats strfmt.Registry) error {
 }
 
 func (m *BackupV1beta) validateVolumeUsageBytes(formats strfmt.Registry) error {
+
 	if swag.IsZero(m.VolumeUsageBytes) { // not required
 		return nil
 	}
 
-	if err := validate.MinimumInt("volumeUsageBytes", "body", *m.VolumeUsageBytes, 0, false); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-// ContextValidate validate this backup v1beta based on the context it is used
-func (m *BackupV1beta) ContextValidate(ctx context.Context, formats strfmt.Registry) error {
-	var res []error
-
-	if err := m.contextValidateAssetLocationMetadata(ctx, formats); err != nil {
-		res = append(res, err)
-	}
-
-	if err := m.contextValidateBackupChainBytes(ctx, formats); err != nil {
-		res = append(res, err)
-	}
-
-	if err := m.contextValidateBackupID(ctx, formats); err != nil {
-		res = append(res, err)
-	}
-
-	if err := m.contextValidateBackupType(ctx, formats); err != nil {
-		res = append(res, err)
-	}
-
-	if err := m.contextValidateCreated(ctx, formats); err != nil {
-		res = append(res, err)
-	}
-
-	if err := m.contextValidateEnforcedRetentionEndTime(ctx, formats); err != nil {
-		res = append(res, err)
-	}
-
-	if err := m.contextValidateSatisfiesPzi(ctx, formats); err != nil {
-		res = append(res, err)
-	}
-
-	if err := m.contextValidateSatisfiesPzs(ctx, formats); err != nil {
-		res = append(res, err)
-	}
-
-	if err := m.contextValidateSourceSnapshot(ctx, formats); err != nil {
-		res = append(res, err)
-	}
-
-	if err := m.contextValidateSourceVolume(ctx, formats); err != nil {
-		res = append(res, err)
-	}
-
-	if err := m.contextValidateState(ctx, formats); err != nil {
-		res = append(res, err)
-	}
-
-	if err := m.contextValidateVolumeID(ctx, formats); err != nil {
-		res = append(res, err)
-	}
-
-	if err := m.contextValidateVolumeUsageBytes(ctx, formats); err != nil {
-		res = append(res, err)
-	}
-
-	if len(res) > 0 {
-		return errors.CompositeValidationError(res...)
-	}
-	return nil
-}
-
-func (m *BackupV1beta) contextValidateAssetLocationMetadata(ctx context.Context, formats strfmt.Registry) error {
-
-	if m.AssetLocationMetadata != nil {
-
-		if swag.IsZero(m.AssetLocationMetadata) { // not required
-			return nil
-		}
-
-		if err := m.AssetLocationMetadata.ContextValidate(ctx, formats); err != nil {
-			if ve, ok := err.(*errors.Validation); ok {
-				return ve.ValidateName("assetLocationMetadata")
-			} else if ce, ok := err.(*errors.CompositeError); ok {
-				return ce.ValidateName("assetLocationMetadata")
-			}
-			return err
-		}
-	}
-
-	return nil
-}
-
-func (m *BackupV1beta) contextValidateBackupChainBytes(ctx context.Context, formats strfmt.Registry) error {
-
-	if err := validate.ReadOnly(ctx, "backupChainBytes", "body", m.BackupChainBytes); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (m *BackupV1beta) contextValidateBackupID(ctx context.Context, formats strfmt.Registry) error {
-
-	if err := validate.ReadOnly(ctx, "backupId", "body", string(m.BackupID)); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (m *BackupV1beta) contextValidateBackupType(ctx context.Context, formats strfmt.Registry) error {
-
-	if err := validate.ReadOnly(ctx, "backupType", "body", string(m.BackupType)); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (m *BackupV1beta) contextValidateCreated(ctx context.Context, formats strfmt.Registry) error {
-
-	if err := validate.ReadOnly(ctx, "created", "body", strfmt.DateTime(m.Created)); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (m *BackupV1beta) contextValidateEnforcedRetentionEndTime(ctx context.Context, formats strfmt.Registry) error {
-
-	if err := validate.ReadOnly(ctx, "enforcedRetentionEndTime", "body", m.EnforcedRetentionEndTime); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (m *BackupV1beta) contextValidateSatisfiesPzi(ctx context.Context, formats strfmt.Registry) error {
-
-	if err := validate.ReadOnly(ctx, "satisfiesPzi", "body", m.SatisfiesPzi); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (m *BackupV1beta) contextValidateSatisfiesPzs(ctx context.Context, formats strfmt.Registry) error {
-
-	if err := validate.ReadOnly(ctx, "satisfiesPzs", "body", m.SatisfiesPzs); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (m *BackupV1beta) contextValidateSourceSnapshot(ctx context.Context, formats strfmt.Registry) error {
-
-	if err := validate.ReadOnly(ctx, "sourceSnapshot", "body", m.SourceSnapshot); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (m *BackupV1beta) contextValidateSourceVolume(ctx context.Context, formats strfmt.Registry) error {
-
-	if err := validate.ReadOnly(ctx, "sourceVolume", "body", string(m.SourceVolume)); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (m *BackupV1beta) contextValidateState(ctx context.Context, formats strfmt.Registry) error {
-
-	if err := validate.ReadOnly(ctx, "state", "body", string(m.State)); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (m *BackupV1beta) contextValidateVolumeID(ctx context.Context, formats strfmt.Registry) error {
-
-	if err := validate.ReadOnly(ctx, "volumeId", "body", string(m.VolumeID)); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (m *BackupV1beta) contextValidateVolumeUsageBytes(ctx context.Context, formats strfmt.Registry) error {
-
-	if err := validate.ReadOnly(ctx, "volumeUsageBytes", "body", m.VolumeUsageBytes); err != nil {
+	if err := validate.Minimum("volumeUsageBytes", "body", float64(*m.VolumeUsageBytes), 0, false); err != nil {
 		return err
 	}
 

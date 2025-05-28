@@ -6,7 +6,6 @@ package snapshots
 // Editing this file might prove futile when you re-run the swagger generate command
 
 import (
-	"encoding/json"
 	"fmt"
 	"io"
 
@@ -110,7 +109,7 @@ func NewV1betaDeleteSnapshotAccepted() *V1betaDeleteSnapshotAccepted {
 }
 
 /*
-V1betaDeleteSnapshotAccepted describes a response with status code 202, with default header values.
+V1betaDeleteSnapshotAccepted handles this case with default header values.
 
 Deleting snapshot
 */
@@ -118,44 +117,8 @@ type V1betaDeleteSnapshotAccepted struct {
 	Payload *models.OperationV1beta
 }
 
-// IsSuccess returns true when this v1beta delete snapshot accepted response has a 2xx status code
-func (o *V1betaDeleteSnapshotAccepted) IsSuccess() bool {
-	return true
-}
-
-// IsRedirect returns true when this v1beta delete snapshot accepted response has a 3xx status code
-func (o *V1betaDeleteSnapshotAccepted) IsRedirect() bool {
-	return false
-}
-
-// IsClientError returns true when this v1beta delete snapshot accepted response has a 4xx status code
-func (o *V1betaDeleteSnapshotAccepted) IsClientError() bool {
-	return false
-}
-
-// IsServerError returns true when this v1beta delete snapshot accepted response has a 5xx status code
-func (o *V1betaDeleteSnapshotAccepted) IsServerError() bool {
-	return false
-}
-
-// IsCode returns true when this v1beta delete snapshot accepted response a status code equal to that given
-func (o *V1betaDeleteSnapshotAccepted) IsCode(code int) bool {
-	return code == 202
-}
-
-// Code gets the status code for the v1beta delete snapshot accepted response
-func (o *V1betaDeleteSnapshotAccepted) Code() int {
-	return 202
-}
-
 func (o *V1betaDeleteSnapshotAccepted) Error() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[DELETE /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/snapshots/{snapshotId}][%d] v1betaDeleteSnapshotAccepted %s", 202, payload)
-}
-
-func (o *V1betaDeleteSnapshotAccepted) String() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[DELETE /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/snapshots/{snapshotId}][%d] v1betaDeleteSnapshotAccepted %s", 202, payload)
+	return fmt.Sprintf("[DELETE /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/snapshots/{snapshotId}][%d] v1betaDeleteSnapshotAccepted  %+v", 202, o.Payload)
 }
 
 func (o *V1betaDeleteSnapshotAccepted) GetPayload() *models.OperationV1beta {
@@ -180,49 +143,15 @@ func NewV1betaDeleteSnapshotNoContent() *V1betaDeleteSnapshotNoContent {
 }
 
 /*
-V1betaDeleteSnapshotNoContent describes a response with status code 204, with default header values.
+V1betaDeleteSnapshotNoContent handles this case with default header values.
 
 No content
 */
 type V1betaDeleteSnapshotNoContent struct {
 }
 
-// IsSuccess returns true when this v1beta delete snapshot no content response has a 2xx status code
-func (o *V1betaDeleteSnapshotNoContent) IsSuccess() bool {
-	return true
-}
-
-// IsRedirect returns true when this v1beta delete snapshot no content response has a 3xx status code
-func (o *V1betaDeleteSnapshotNoContent) IsRedirect() bool {
-	return false
-}
-
-// IsClientError returns true when this v1beta delete snapshot no content response has a 4xx status code
-func (o *V1betaDeleteSnapshotNoContent) IsClientError() bool {
-	return false
-}
-
-// IsServerError returns true when this v1beta delete snapshot no content response has a 5xx status code
-func (o *V1betaDeleteSnapshotNoContent) IsServerError() bool {
-	return false
-}
-
-// IsCode returns true when this v1beta delete snapshot no content response a status code equal to that given
-func (o *V1betaDeleteSnapshotNoContent) IsCode(code int) bool {
-	return code == 204
-}
-
-// Code gets the status code for the v1beta delete snapshot no content response
-func (o *V1betaDeleteSnapshotNoContent) Code() int {
-	return 204
-}
-
 func (o *V1betaDeleteSnapshotNoContent) Error() string {
-	return fmt.Sprintf("[DELETE /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/snapshots/{snapshotId}][%d] v1betaDeleteSnapshotNoContent", 204)
-}
-
-func (o *V1betaDeleteSnapshotNoContent) String() string {
-	return fmt.Sprintf("[DELETE /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/snapshots/{snapshotId}][%d] v1betaDeleteSnapshotNoContent", 204)
+	return fmt.Sprintf("[DELETE /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/snapshots/{snapshotId}][%d] v1betaDeleteSnapshotNoContent ", 204)
 }
 
 func (o *V1betaDeleteSnapshotNoContent) readResponse(response runtime.ClientResponse, consumer runtime.Consumer, formats strfmt.Registry) error {
@@ -236,7 +165,7 @@ func NewV1betaDeleteSnapshotBadRequest() *V1betaDeleteSnapshotBadRequest {
 }
 
 /*
-V1betaDeleteSnapshotBadRequest describes a response with status code 400, with default header values.
+V1betaDeleteSnapshotBadRequest handles this case with default header values.
 
 Bad request
 */
@@ -244,44 +173,8 @@ type V1betaDeleteSnapshotBadRequest struct {
 	Payload *models.Error
 }
 
-// IsSuccess returns true when this v1beta delete snapshot bad request response has a 2xx status code
-func (o *V1betaDeleteSnapshotBadRequest) IsSuccess() bool {
-	return false
-}
-
-// IsRedirect returns true when this v1beta delete snapshot bad request response has a 3xx status code
-func (o *V1betaDeleteSnapshotBadRequest) IsRedirect() bool {
-	return false
-}
-
-// IsClientError returns true when this v1beta delete snapshot bad request response has a 4xx status code
-func (o *V1betaDeleteSnapshotBadRequest) IsClientError() bool {
-	return true
-}
-
-// IsServerError returns true when this v1beta delete snapshot bad request response has a 5xx status code
-func (o *V1betaDeleteSnapshotBadRequest) IsServerError() bool {
-	return false
-}
-
-// IsCode returns true when this v1beta delete snapshot bad request response a status code equal to that given
-func (o *V1betaDeleteSnapshotBadRequest) IsCode(code int) bool {
-	return code == 400
-}
-
-// Code gets the status code for the v1beta delete snapshot bad request response
-func (o *V1betaDeleteSnapshotBadRequest) Code() int {
-	return 400
-}
-
 func (o *V1betaDeleteSnapshotBadRequest) Error() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[DELETE /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/snapshots/{snapshotId}][%d] v1betaDeleteSnapshotBadRequest %s", 400, payload)
-}
-
-func (o *V1betaDeleteSnapshotBadRequest) String() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[DELETE /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/snapshots/{snapshotId}][%d] v1betaDeleteSnapshotBadRequest %s", 400, payload)
+	return fmt.Sprintf("[DELETE /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/snapshots/{snapshotId}][%d] v1betaDeleteSnapshotBadRequest  %+v", 400, o.Payload)
 }
 
 func (o *V1betaDeleteSnapshotBadRequest) GetPayload() *models.Error {
@@ -306,7 +199,7 @@ func NewV1betaDeleteSnapshotUnauthorized() *V1betaDeleteSnapshotUnauthorized {
 }
 
 /*
-V1betaDeleteSnapshotUnauthorized describes a response with status code 401, with default header values.
+V1betaDeleteSnapshotUnauthorized handles this case with default header values.
 
 Unauthorized
 */
@@ -314,44 +207,8 @@ type V1betaDeleteSnapshotUnauthorized struct {
 	Payload *models.Error
 }
 
-// IsSuccess returns true when this v1beta delete snapshot unauthorized response has a 2xx status code
-func (o *V1betaDeleteSnapshotUnauthorized) IsSuccess() bool {
-	return false
-}
-
-// IsRedirect returns true when this v1beta delete snapshot unauthorized response has a 3xx status code
-func (o *V1betaDeleteSnapshotUnauthorized) IsRedirect() bool {
-	return false
-}
-
-// IsClientError returns true when this v1beta delete snapshot unauthorized response has a 4xx status code
-func (o *V1betaDeleteSnapshotUnauthorized) IsClientError() bool {
-	return true
-}
-
-// IsServerError returns true when this v1beta delete snapshot unauthorized response has a 5xx status code
-func (o *V1betaDeleteSnapshotUnauthorized) IsServerError() bool {
-	return false
-}
-
-// IsCode returns true when this v1beta delete snapshot unauthorized response a status code equal to that given
-func (o *V1betaDeleteSnapshotUnauthorized) IsCode(code int) bool {
-	return code == 401
-}
-
-// Code gets the status code for the v1beta delete snapshot unauthorized response
-func (o *V1betaDeleteSnapshotUnauthorized) Code() int {
-	return 401
-}
-
 func (o *V1betaDeleteSnapshotUnauthorized) Error() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[DELETE /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/snapshots/{snapshotId}][%d] v1betaDeleteSnapshotUnauthorized %s", 401, payload)
-}
-
-func (o *V1betaDeleteSnapshotUnauthorized) String() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[DELETE /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/snapshots/{snapshotId}][%d] v1betaDeleteSnapshotUnauthorized %s", 401, payload)
+	return fmt.Sprintf("[DELETE /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/snapshots/{snapshotId}][%d] v1betaDeleteSnapshotUnauthorized  %+v", 401, o.Payload)
 }
 
 func (o *V1betaDeleteSnapshotUnauthorized) GetPayload() *models.Error {
@@ -376,7 +233,7 @@ func NewV1betaDeleteSnapshotForbidden() *V1betaDeleteSnapshotForbidden {
 }
 
 /*
-V1betaDeleteSnapshotForbidden describes a response with status code 403, with default header values.
+V1betaDeleteSnapshotForbidden handles this case with default header values.
 
 Forbidden
 */
@@ -384,44 +241,8 @@ type V1betaDeleteSnapshotForbidden struct {
 	Payload *models.Error
 }
 
-// IsSuccess returns true when this v1beta delete snapshot forbidden response has a 2xx status code
-func (o *V1betaDeleteSnapshotForbidden) IsSuccess() bool {
-	return false
-}
-
-// IsRedirect returns true when this v1beta delete snapshot forbidden response has a 3xx status code
-func (o *V1betaDeleteSnapshotForbidden) IsRedirect() bool {
-	return false
-}
-
-// IsClientError returns true when this v1beta delete snapshot forbidden response has a 4xx status code
-func (o *V1betaDeleteSnapshotForbidden) IsClientError() bool {
-	return true
-}
-
-// IsServerError returns true when this v1beta delete snapshot forbidden response has a 5xx status code
-func (o *V1betaDeleteSnapshotForbidden) IsServerError() bool {
-	return false
-}
-
-// IsCode returns true when this v1beta delete snapshot forbidden response a status code equal to that given
-func (o *V1betaDeleteSnapshotForbidden) IsCode(code int) bool {
-	return code == 403
-}
-
-// Code gets the status code for the v1beta delete snapshot forbidden response
-func (o *V1betaDeleteSnapshotForbidden) Code() int {
-	return 403
-}
-
 func (o *V1betaDeleteSnapshotForbidden) Error() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[DELETE /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/snapshots/{snapshotId}][%d] v1betaDeleteSnapshotForbidden %s", 403, payload)
-}
-
-func (o *V1betaDeleteSnapshotForbidden) String() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[DELETE /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/snapshots/{snapshotId}][%d] v1betaDeleteSnapshotForbidden %s", 403, payload)
+	return fmt.Sprintf("[DELETE /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/snapshots/{snapshotId}][%d] v1betaDeleteSnapshotForbidden  %+v", 403, o.Payload)
 }
 
 func (o *V1betaDeleteSnapshotForbidden) GetPayload() *models.Error {
@@ -446,7 +267,7 @@ func NewV1betaDeleteSnapshotRequestTimeout() *V1betaDeleteSnapshotRequestTimeout
 }
 
 /*
-V1betaDeleteSnapshotRequestTimeout describes a response with status code 408, with default header values.
+V1betaDeleteSnapshotRequestTimeout handles this case with default header values.
 
 Timeout
 */
@@ -454,44 +275,8 @@ type V1betaDeleteSnapshotRequestTimeout struct {
 	Payload *models.Error
 }
 
-// IsSuccess returns true when this v1beta delete snapshot request timeout response has a 2xx status code
-func (o *V1betaDeleteSnapshotRequestTimeout) IsSuccess() bool {
-	return false
-}
-
-// IsRedirect returns true when this v1beta delete snapshot request timeout response has a 3xx status code
-func (o *V1betaDeleteSnapshotRequestTimeout) IsRedirect() bool {
-	return false
-}
-
-// IsClientError returns true when this v1beta delete snapshot request timeout response has a 4xx status code
-func (o *V1betaDeleteSnapshotRequestTimeout) IsClientError() bool {
-	return true
-}
-
-// IsServerError returns true when this v1beta delete snapshot request timeout response has a 5xx status code
-func (o *V1betaDeleteSnapshotRequestTimeout) IsServerError() bool {
-	return false
-}
-
-// IsCode returns true when this v1beta delete snapshot request timeout response a status code equal to that given
-func (o *V1betaDeleteSnapshotRequestTimeout) IsCode(code int) bool {
-	return code == 408
-}
-
-// Code gets the status code for the v1beta delete snapshot request timeout response
-func (o *V1betaDeleteSnapshotRequestTimeout) Code() int {
-	return 408
-}
-
 func (o *V1betaDeleteSnapshotRequestTimeout) Error() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[DELETE /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/snapshots/{snapshotId}][%d] v1betaDeleteSnapshotRequestTimeout %s", 408, payload)
-}
-
-func (o *V1betaDeleteSnapshotRequestTimeout) String() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[DELETE /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/snapshots/{snapshotId}][%d] v1betaDeleteSnapshotRequestTimeout %s", 408, payload)
+	return fmt.Sprintf("[DELETE /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/snapshots/{snapshotId}][%d] v1betaDeleteSnapshotRequestTimeout  %+v", 408, o.Payload)
 }
 
 func (o *V1betaDeleteSnapshotRequestTimeout) GetPayload() *models.Error {
@@ -516,7 +301,7 @@ func NewV1betaDeleteSnapshotConflict() *V1betaDeleteSnapshotConflict {
 }
 
 /*
-V1betaDeleteSnapshotConflict describes a response with status code 409, with default header values.
+V1betaDeleteSnapshotConflict handles this case with default header values.
 
 Conflict
 */
@@ -524,44 +309,8 @@ type V1betaDeleteSnapshotConflict struct {
 	Payload *models.Error
 }
 
-// IsSuccess returns true when this v1beta delete snapshot conflict response has a 2xx status code
-func (o *V1betaDeleteSnapshotConflict) IsSuccess() bool {
-	return false
-}
-
-// IsRedirect returns true when this v1beta delete snapshot conflict response has a 3xx status code
-func (o *V1betaDeleteSnapshotConflict) IsRedirect() bool {
-	return false
-}
-
-// IsClientError returns true when this v1beta delete snapshot conflict response has a 4xx status code
-func (o *V1betaDeleteSnapshotConflict) IsClientError() bool {
-	return true
-}
-
-// IsServerError returns true when this v1beta delete snapshot conflict response has a 5xx status code
-func (o *V1betaDeleteSnapshotConflict) IsServerError() bool {
-	return false
-}
-
-// IsCode returns true when this v1beta delete snapshot conflict response a status code equal to that given
-func (o *V1betaDeleteSnapshotConflict) IsCode(code int) bool {
-	return code == 409
-}
-
-// Code gets the status code for the v1beta delete snapshot conflict response
-func (o *V1betaDeleteSnapshotConflict) Code() int {
-	return 409
-}
-
 func (o *V1betaDeleteSnapshotConflict) Error() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[DELETE /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/snapshots/{snapshotId}][%d] v1betaDeleteSnapshotConflict %s", 409, payload)
-}
-
-func (o *V1betaDeleteSnapshotConflict) String() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[DELETE /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/snapshots/{snapshotId}][%d] v1betaDeleteSnapshotConflict %s", 409, payload)
+	return fmt.Sprintf("[DELETE /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/snapshots/{snapshotId}][%d] v1betaDeleteSnapshotConflict  %+v", 409, o.Payload)
 }
 
 func (o *V1betaDeleteSnapshotConflict) GetPayload() *models.Error {
@@ -586,7 +335,7 @@ func NewV1betaDeleteSnapshotUnprocessableEntity() *V1betaDeleteSnapshotUnprocess
 }
 
 /*
-V1betaDeleteSnapshotUnprocessableEntity describes a response with status code 422, with default header values.
+V1betaDeleteSnapshotUnprocessableEntity handles this case with default header values.
 
 Unprocessable entity
 */
@@ -594,44 +343,8 @@ type V1betaDeleteSnapshotUnprocessableEntity struct {
 	Payload *models.Error
 }
 
-// IsSuccess returns true when this v1beta delete snapshot unprocessable entity response has a 2xx status code
-func (o *V1betaDeleteSnapshotUnprocessableEntity) IsSuccess() bool {
-	return false
-}
-
-// IsRedirect returns true when this v1beta delete snapshot unprocessable entity response has a 3xx status code
-func (o *V1betaDeleteSnapshotUnprocessableEntity) IsRedirect() bool {
-	return false
-}
-
-// IsClientError returns true when this v1beta delete snapshot unprocessable entity response has a 4xx status code
-func (o *V1betaDeleteSnapshotUnprocessableEntity) IsClientError() bool {
-	return true
-}
-
-// IsServerError returns true when this v1beta delete snapshot unprocessable entity response has a 5xx status code
-func (o *V1betaDeleteSnapshotUnprocessableEntity) IsServerError() bool {
-	return false
-}
-
-// IsCode returns true when this v1beta delete snapshot unprocessable entity response a status code equal to that given
-func (o *V1betaDeleteSnapshotUnprocessableEntity) IsCode(code int) bool {
-	return code == 422
-}
-
-// Code gets the status code for the v1beta delete snapshot unprocessable entity response
-func (o *V1betaDeleteSnapshotUnprocessableEntity) Code() int {
-	return 422
-}
-
 func (o *V1betaDeleteSnapshotUnprocessableEntity) Error() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[DELETE /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/snapshots/{snapshotId}][%d] v1betaDeleteSnapshotUnprocessableEntity %s", 422, payload)
-}
-
-func (o *V1betaDeleteSnapshotUnprocessableEntity) String() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[DELETE /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/snapshots/{snapshotId}][%d] v1betaDeleteSnapshotUnprocessableEntity %s", 422, payload)
+	return fmt.Sprintf("[DELETE /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/snapshots/{snapshotId}][%d] v1betaDeleteSnapshotUnprocessableEntity  %+v", 422, o.Payload)
 }
 
 func (o *V1betaDeleteSnapshotUnprocessableEntity) GetPayload() *models.Error {
@@ -656,7 +369,7 @@ func NewV1betaDeleteSnapshotTooManyRequests() *V1betaDeleteSnapshotTooManyReques
 }
 
 /*
-V1betaDeleteSnapshotTooManyRequests describes a response with status code 429, with default header values.
+V1betaDeleteSnapshotTooManyRequests handles this case with default header values.
 
 Too many requests
 */
@@ -664,44 +377,8 @@ type V1betaDeleteSnapshotTooManyRequests struct {
 	Payload *models.Error
 }
 
-// IsSuccess returns true when this v1beta delete snapshot too many requests response has a 2xx status code
-func (o *V1betaDeleteSnapshotTooManyRequests) IsSuccess() bool {
-	return false
-}
-
-// IsRedirect returns true when this v1beta delete snapshot too many requests response has a 3xx status code
-func (o *V1betaDeleteSnapshotTooManyRequests) IsRedirect() bool {
-	return false
-}
-
-// IsClientError returns true when this v1beta delete snapshot too many requests response has a 4xx status code
-func (o *V1betaDeleteSnapshotTooManyRequests) IsClientError() bool {
-	return true
-}
-
-// IsServerError returns true when this v1beta delete snapshot too many requests response has a 5xx status code
-func (o *V1betaDeleteSnapshotTooManyRequests) IsServerError() bool {
-	return false
-}
-
-// IsCode returns true when this v1beta delete snapshot too many requests response a status code equal to that given
-func (o *V1betaDeleteSnapshotTooManyRequests) IsCode(code int) bool {
-	return code == 429
-}
-
-// Code gets the status code for the v1beta delete snapshot too many requests response
-func (o *V1betaDeleteSnapshotTooManyRequests) Code() int {
-	return 429
-}
-
 func (o *V1betaDeleteSnapshotTooManyRequests) Error() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[DELETE /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/snapshots/{snapshotId}][%d] v1betaDeleteSnapshotTooManyRequests %s", 429, payload)
-}
-
-func (o *V1betaDeleteSnapshotTooManyRequests) String() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[DELETE /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/snapshots/{snapshotId}][%d] v1betaDeleteSnapshotTooManyRequests %s", 429, payload)
+	return fmt.Sprintf("[DELETE /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/snapshots/{snapshotId}][%d] v1betaDeleteSnapshotTooManyRequests  %+v", 429, o.Payload)
 }
 
 func (o *V1betaDeleteSnapshotTooManyRequests) GetPayload() *models.Error {
@@ -726,7 +403,7 @@ func NewV1betaDeleteSnapshotInternalServerError() *V1betaDeleteSnapshotInternalS
 }
 
 /*
-V1betaDeleteSnapshotInternalServerError describes a response with status code 500, with default header values.
+V1betaDeleteSnapshotInternalServerError handles this case with default header values.
 
 Internal server error
 */
@@ -734,44 +411,8 @@ type V1betaDeleteSnapshotInternalServerError struct {
 	Payload *models.Error
 }
 
-// IsSuccess returns true when this v1beta delete snapshot internal server error response has a 2xx status code
-func (o *V1betaDeleteSnapshotInternalServerError) IsSuccess() bool {
-	return false
-}
-
-// IsRedirect returns true when this v1beta delete snapshot internal server error response has a 3xx status code
-func (o *V1betaDeleteSnapshotInternalServerError) IsRedirect() bool {
-	return false
-}
-
-// IsClientError returns true when this v1beta delete snapshot internal server error response has a 4xx status code
-func (o *V1betaDeleteSnapshotInternalServerError) IsClientError() bool {
-	return false
-}
-
-// IsServerError returns true when this v1beta delete snapshot internal server error response has a 5xx status code
-func (o *V1betaDeleteSnapshotInternalServerError) IsServerError() bool {
-	return true
-}
-
-// IsCode returns true when this v1beta delete snapshot internal server error response a status code equal to that given
-func (o *V1betaDeleteSnapshotInternalServerError) IsCode(code int) bool {
-	return code == 500
-}
-
-// Code gets the status code for the v1beta delete snapshot internal server error response
-func (o *V1betaDeleteSnapshotInternalServerError) Code() int {
-	return 500
-}
-
 func (o *V1betaDeleteSnapshotInternalServerError) Error() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[DELETE /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/snapshots/{snapshotId}][%d] v1betaDeleteSnapshotInternalServerError %s", 500, payload)
-}
-
-func (o *V1betaDeleteSnapshotInternalServerError) String() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[DELETE /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/snapshots/{snapshotId}][%d] v1betaDeleteSnapshotInternalServerError %s", 500, payload)
+	return fmt.Sprintf("[DELETE /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/snapshots/{snapshotId}][%d] v1betaDeleteSnapshotInternalServerError  %+v", 500, o.Payload)
 }
 
 func (o *V1betaDeleteSnapshotInternalServerError) GetPayload() *models.Error {
@@ -796,57 +437,20 @@ func NewV1betaDeleteSnapshotServiceUnavailable() *V1betaDeleteSnapshotServiceUna
 }
 
 /*
-V1betaDeleteSnapshotServiceUnavailable describes a response with status code 503, with default header values.
+V1betaDeleteSnapshotServiceUnavailable handles this case with default header values.
 
 Service unavailable
 */
 type V1betaDeleteSnapshotServiceUnavailable struct {
-
-	/* A non-negative integer indicating the seconds to delay after the response is received
+	/*A non-negative integer indicating the seconds to delay after the response is received
 	 */
 	RetryAfter int64
 
 	Payload *models.Error
 }
 
-// IsSuccess returns true when this v1beta delete snapshot service unavailable response has a 2xx status code
-func (o *V1betaDeleteSnapshotServiceUnavailable) IsSuccess() bool {
-	return false
-}
-
-// IsRedirect returns true when this v1beta delete snapshot service unavailable response has a 3xx status code
-func (o *V1betaDeleteSnapshotServiceUnavailable) IsRedirect() bool {
-	return false
-}
-
-// IsClientError returns true when this v1beta delete snapshot service unavailable response has a 4xx status code
-func (o *V1betaDeleteSnapshotServiceUnavailable) IsClientError() bool {
-	return false
-}
-
-// IsServerError returns true when this v1beta delete snapshot service unavailable response has a 5xx status code
-func (o *V1betaDeleteSnapshotServiceUnavailable) IsServerError() bool {
-	return true
-}
-
-// IsCode returns true when this v1beta delete snapshot service unavailable response a status code equal to that given
-func (o *V1betaDeleteSnapshotServiceUnavailable) IsCode(code int) bool {
-	return code == 503
-}
-
-// Code gets the status code for the v1beta delete snapshot service unavailable response
-func (o *V1betaDeleteSnapshotServiceUnavailable) Code() int {
-	return 503
-}
-
 func (o *V1betaDeleteSnapshotServiceUnavailable) Error() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[DELETE /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/snapshots/{snapshotId}][%d] v1betaDeleteSnapshotServiceUnavailable %s", 503, payload)
-}
-
-func (o *V1betaDeleteSnapshotServiceUnavailable) String() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[DELETE /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/snapshots/{snapshotId}][%d] v1betaDeleteSnapshotServiceUnavailable %s", 503, payload)
+	return fmt.Sprintf("[DELETE /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/snapshots/{snapshotId}][%d] v1betaDeleteSnapshotServiceUnavailable  %+v", 503, o.Payload)
 }
 
 func (o *V1betaDeleteSnapshotServiceUnavailable) GetPayload() *models.Error {
@@ -855,16 +459,12 @@ func (o *V1betaDeleteSnapshotServiceUnavailable) GetPayload() *models.Error {
 
 func (o *V1betaDeleteSnapshotServiceUnavailable) readResponse(response runtime.ClientResponse, consumer runtime.Consumer, formats strfmt.Registry) error {
 
-	// hydrates response header Retry-After
-	hdrRetryAfter := response.GetHeader("Retry-After")
-
-	if hdrRetryAfter != "" {
-		valretryAfter, err := swag.ConvertInt64(hdrRetryAfter)
-		if err != nil {
-			return errors.InvalidType("Retry-After", "header", "int64", hdrRetryAfter)
-		}
-		o.RetryAfter = valretryAfter
+	// response header Retry-After
+	retryAfter, err := swag.ConvertInt64(response.GetHeader("Retry-After"))
+	if err != nil {
+		return errors.InvalidType("Retry-After", "header", "int64", response.GetHeader("Retry-After"))
 	}
+	o.RetryAfter = retryAfter
 
 	o.Payload = new(models.Error)
 
@@ -884,7 +484,7 @@ func NewV1betaDeleteSnapshotDefault(code int) *V1betaDeleteSnapshotDefault {
 }
 
 /*
-V1betaDeleteSnapshotDefault describes a response with status code -1, with default header values.
+V1betaDeleteSnapshotDefault handles this case with default header values.
 
 Unexpected error
 */
@@ -894,44 +494,13 @@ type V1betaDeleteSnapshotDefault struct {
 	Payload *models.Error
 }
 
-// IsSuccess returns true when this v1beta delete snapshot default response has a 2xx status code
-func (o *V1betaDeleteSnapshotDefault) IsSuccess() bool {
-	return o._statusCode/100 == 2
-}
-
-// IsRedirect returns true when this v1beta delete snapshot default response has a 3xx status code
-func (o *V1betaDeleteSnapshotDefault) IsRedirect() bool {
-	return o._statusCode/100 == 3
-}
-
-// IsClientError returns true when this v1beta delete snapshot default response has a 4xx status code
-func (o *V1betaDeleteSnapshotDefault) IsClientError() bool {
-	return o._statusCode/100 == 4
-}
-
-// IsServerError returns true when this v1beta delete snapshot default response has a 5xx status code
-func (o *V1betaDeleteSnapshotDefault) IsServerError() bool {
-	return o._statusCode/100 == 5
-}
-
-// IsCode returns true when this v1beta delete snapshot default response a status code equal to that given
-func (o *V1betaDeleteSnapshotDefault) IsCode(code int) bool {
-	return o._statusCode == code
-}
-
 // Code gets the status code for the v1beta delete snapshot default response
 func (o *V1betaDeleteSnapshotDefault) Code() int {
 	return o._statusCode
 }
 
 func (o *V1betaDeleteSnapshotDefault) Error() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[DELETE /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/snapshots/{snapshotId}][%d] v1beta_deleteSnapshot default %s", o._statusCode, payload)
-}
-
-func (o *V1betaDeleteSnapshotDefault) String() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[DELETE /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/snapshots/{snapshotId}][%d] v1beta_deleteSnapshot default %s", o._statusCode, payload)
+	return fmt.Sprintf("[DELETE /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/snapshots/{snapshotId}][%d] v1beta_deleteSnapshot default  %+v", o._statusCode, o.Payload)
 }
 
 func (o *V1betaDeleteSnapshotDefault) GetPayload() *models.Error {

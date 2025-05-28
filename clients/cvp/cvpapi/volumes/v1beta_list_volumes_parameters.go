@@ -17,122 +17,102 @@ import (
 	"github.com/go-openapi/swag"
 )
 
-// NewV1betaListVolumesParams creates a new V1betaListVolumesParams object,
-// with the default timeout for this client.
-//
-// Default values are not hydrated, since defaults are normally applied by the API server side.
-//
-// To enforce default values in parameter, use SetDefaults or WithDefaults.
+// NewV1betaListVolumesParams creates a new V1betaListVolumesParams object
+// with the default values initialized.
 func NewV1betaListVolumesParams() *V1betaListVolumesParams {
+	var (
+		includeDeletedDefault = bool(false)
+	)
 	return &V1betaListVolumesParams{
+		IncludeDeleted: includeDeletedDefault,
+
 		timeout: cr.DefaultTimeout,
 	}
 }
 
 // NewV1betaListVolumesParamsWithTimeout creates a new V1betaListVolumesParams object
-// with the ability to set a timeout on a request.
+// with the default values initialized, and the ability to set a timeout on a request
 func NewV1betaListVolumesParamsWithTimeout(timeout time.Duration) *V1betaListVolumesParams {
+	var (
+		includeDeletedDefault = bool(false)
+	)
 	return &V1betaListVolumesParams{
+		IncludeDeleted: includeDeletedDefault,
+
 		timeout: timeout,
 	}
 }
 
 // NewV1betaListVolumesParamsWithContext creates a new V1betaListVolumesParams object
-// with the ability to set a context for a request.
+// with the default values initialized, and the ability to set a context for a request
 func NewV1betaListVolumesParamsWithContext(ctx context.Context) *V1betaListVolumesParams {
+	var (
+		includeDeletedDefault = bool(false)
+	)
 	return &V1betaListVolumesParams{
+		IncludeDeleted: includeDeletedDefault,
+
 		Context: ctx,
 	}
 }
 
 // NewV1betaListVolumesParamsWithHTTPClient creates a new V1betaListVolumesParams object
-// with the ability to set a custom HTTPClient for a request.
+// with the default values initialized, and the ability to set a custom HTTPClient for a request
 func NewV1betaListVolumesParamsWithHTTPClient(client *http.Client) *V1betaListVolumesParams {
+	var (
+		includeDeletedDefault = bool(false)
+	)
 	return &V1betaListVolumesParams{
-		HTTPClient: client,
+		IncludeDeleted: includeDeletedDefault,
+		HTTPClient:     client,
 	}
 }
 
 /*
 V1betaListVolumesParams contains all the parameters to send to the API endpoint
-
-	for the v1beta list volumes operation.
-
-	Typically these are written to a http.Request.
+for the v1beta list volumes operation typically these are written to a http.Request
 */
 type V1betaListVolumesParams struct {
 
-	/* IncludeDeleted.
+	/*IncludeDeleted
+	  If true, response will include deleted volumes
 
-	   If true, response will include deleted volumes
 	*/
 	IncludeDeleted bool
+	/*IncludePolicies
+	  If true, export policy and snapshot policy will be included for each file system
 
-	/* IncludePolicies.
-
-	   If true, export policy and snapshot policy will be included for each file system
 	*/
 	IncludePolicies bool
+	/*IncludeSmbShareSettings
+	  If true, response will include SMB settings
 
-	/* IncludeSmbShareSettings.
-
-	   If true, response will include SMB settings
 	*/
 	IncludeSmbShareSettings bool
+	/*LocationID
+	  The location/region to perform the operation in.
 
-	/* LocationID.
-
-	   The location/region to perform the operation in.
 	*/
 	LocationID string
+	/*PoolID
+	  UUID v4 used to identify the pool
 
-	/* PoolID.
-
-	   UUID v4 used to identify the pool
 	*/
 	PoolID *string
+	/*ProjectNumber
+	  The project number of the GCP project owning the resource being acted upon
 
-	/* ProjectNumber.
-
-	   The project number of the GCP project owning the resource being acted upon
 	*/
 	ProjectNumber string
+	/*XCorrelationID
+	  Correlation identifier
 
-	/* XCorrelationID.
-
-	   Correlation identifier
 	*/
 	XCorrelationID *string
 
 	timeout    time.Duration
 	Context    context.Context
 	HTTPClient *http.Client
-}
-
-// WithDefaults hydrates default values in the v1beta list volumes params (not the query body).
-//
-// All values with no default are reset to their zero value.
-func (o *V1betaListVolumesParams) WithDefaults() *V1betaListVolumesParams {
-	o.SetDefaults()
-	return o
-}
-
-// SetDefaults hydrates default values in the v1beta list volumes params (not the query body).
-//
-// All values with no default are reset to their zero value.
-func (o *V1betaListVolumesParams) SetDefaults() {
-	var (
-		includeDeletedDefault = bool(false)
-	)
-
-	val := V1betaListVolumesParams{
-		IncludeDeleted: includeDeletedDefault,
-	}
-
-	val.timeout = o.timeout
-	val.Context = o.Context
-	val.HTTPClient = o.HTTPClient
-	*o = val
 }
 
 // WithTimeout adds the timeout to the v1beta list volumes params
@@ -256,7 +236,6 @@ func (o *V1betaListVolumesParams) WriteToRequest(r runtime.ClientRequest, reg st
 	// query param includeDeleted
 	qrIncludeDeleted := o.IncludeDeleted
 	qIncludeDeleted := swag.FormatBool(qrIncludeDeleted)
-
 	if err := r.SetQueryParam("includeDeleted", qIncludeDeleted); err != nil {
 		return err
 	}
@@ -264,7 +243,6 @@ func (o *V1betaListVolumesParams) WriteToRequest(r runtime.ClientRequest, reg st
 	// query param includePolicies
 	qrIncludePolicies := o.IncludePolicies
 	qIncludePolicies := swag.FormatBool(qrIncludePolicies)
-
 	if err := r.SetQueryParam("includePolicies", qIncludePolicies); err != nil {
 		return err
 	}
@@ -272,7 +250,6 @@ func (o *V1betaListVolumesParams) WriteToRequest(r runtime.ClientRequest, reg st
 	// query param includeSmbShareSettings
 	qrIncludeSmbShareSettings := o.IncludeSmbShareSettings
 	qIncludeSmbShareSettings := swag.FormatBool(qrIncludeSmbShareSettings)
-
 	if err := r.SetQueryParam("includeSmbShareSettings", qIncludeSmbShareSettings); err != nil {
 		return err
 	}
@@ -286,17 +263,16 @@ func (o *V1betaListVolumesParams) WriteToRequest(r runtime.ClientRequest, reg st
 
 		// query param poolId
 		var qrPoolID string
-
 		if o.PoolID != nil {
 			qrPoolID = *o.PoolID
 		}
 		qPoolID := qrPoolID
 		if qPoolID != "" {
-
 			if err := r.SetQueryParam("poolId", qPoolID); err != nil {
 				return err
 			}
 		}
+
 	}
 
 	// path param projectNumber
@@ -310,6 +286,7 @@ func (o *V1betaListVolumesParams) WriteToRequest(r runtime.ClientRequest, reg st
 		if err := r.SetHeaderParam("x-correlation-id", *o.XCorrelationID); err != nil {
 			return err
 		}
+
 	}
 
 	if len(res) > 0 {

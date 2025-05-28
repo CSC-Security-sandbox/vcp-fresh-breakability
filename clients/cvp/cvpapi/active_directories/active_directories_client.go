@@ -7,38 +7,12 @@ package active_directories
 
 import (
 	"github.com/go-openapi/runtime"
-	httptransport "github.com/go-openapi/runtime/client"
 	"github.com/go-openapi/strfmt"
 )
 
 // New creates a new active directories API client.
 func New(transport runtime.ClientTransport, formats strfmt.Registry) ClientService {
 	return &Client{transport: transport, formats: formats}
-}
-
-// New creates a new active directories API client with basic auth credentials.
-// It takes the following parameters:
-// - host: http host (github.com).
-// - basePath: any base path for the API client ("/v1", "/v3").
-// - scheme: http scheme ("http", "https").
-// - user: user for basic authentication header.
-// - password: password for basic authentication header.
-func NewClientWithBasicAuth(host, basePath, scheme, user, password string) ClientService {
-	transport := httptransport.New(host, basePath, []string{scheme})
-	transport.DefaultAuthentication = httptransport.BasicAuth(user, password)
-	return &Client{transport: transport, formats: strfmt.Default}
-}
-
-// New creates a new active directories API client with a bearer token for authentication.
-// It takes the following parameters:
-// - host: http host (github.com).
-// - basePath: any base path for the API client ("/v1", "/v3").
-// - scheme: http scheme ("http", "https").
-// - bearerToken: bearer token for Bearer authentication header.
-func NewClientWithBearerToken(host, basePath, scheme, bearerToken string) ClientService {
-	transport := httptransport.New(host, basePath, []string{scheme})
-	transport.DefaultAuthentication = httptransport.BearerToken(bearerToken)
-	return &Client{transport: transport, formats: strfmt.Default}
 }
 
 /*
@@ -49,22 +23,19 @@ type Client struct {
 	formats   strfmt.Registry
 }
 
-// ClientOption may be used to customize the behavior of Client methods.
-type ClientOption func(*runtime.ClientOperation)
-
 // ClientService is the interface for Client methods
 type ClientService interface {
-	V1betaCreateActiveDirectory(params *V1betaCreateActiveDirectoryParams, opts ...ClientOption) (*V1betaCreateActiveDirectoryAccepted, error)
+	V1betaCreateActiveDirectory(params *V1betaCreateActiveDirectoryParams) (*V1betaCreateActiveDirectoryAccepted, error)
 
-	V1betaDeleteActiveDirectory(params *V1betaDeleteActiveDirectoryParams, opts ...ClientOption) (*V1betaDeleteActiveDirectoryAccepted, error)
+	V1betaDeleteActiveDirectory(params *V1betaDeleteActiveDirectoryParams) (*V1betaDeleteActiveDirectoryAccepted, error)
 
-	V1betaDescribeActiveDirectory(params *V1betaDescribeActiveDirectoryParams, opts ...ClientOption) (*V1betaDescribeActiveDirectoryOK, error)
+	V1betaDescribeActiveDirectory(params *V1betaDescribeActiveDirectoryParams) (*V1betaDescribeActiveDirectoryOK, error)
 
-	V1betaGetMultipleActiveDirectories(params *V1betaGetMultipleActiveDirectoriesParams, opts ...ClientOption) (*V1betaGetMultipleActiveDirectoriesOK, error)
+	V1betaGetMultipleActiveDirectories(params *V1betaGetMultipleActiveDirectoriesParams) (*V1betaGetMultipleActiveDirectoriesOK, error)
 
-	V1betaListActiveDirectories(params *V1betaListActiveDirectoriesParams, opts ...ClientOption) (*V1betaListActiveDirectoriesOK, error)
+	V1betaListActiveDirectories(params *V1betaListActiveDirectoriesParams) (*V1betaListActiveDirectoriesOK, error)
 
-	V1betaUpdateActiveDirectory(params *V1betaUpdateActiveDirectoryParams, opts ...ClientOption) (*V1betaUpdateActiveDirectoryAccepted, error)
+	V1betaUpdateActiveDirectory(params *V1betaUpdateActiveDirectoryParams) (*V1betaUpdateActiveDirectoryAccepted, error)
 
 	SetTransport(transport runtime.ClientTransport)
 }
@@ -74,12 +45,13 @@ V1betaCreateActiveDirectory creates active directory credentials
 
 Creates Active Directory credentials for the active user
 */
-func (a *Client) V1betaCreateActiveDirectory(params *V1betaCreateActiveDirectoryParams, opts ...ClientOption) (*V1betaCreateActiveDirectoryAccepted, error) {
+func (a *Client) V1betaCreateActiveDirectory(params *V1betaCreateActiveDirectoryParams) (*V1betaCreateActiveDirectoryAccepted, error) {
 	// TODO: Validate the params before sending
 	if params == nil {
 		params = NewV1betaCreateActiveDirectoryParams()
 	}
-	op := &runtime.ClientOperation{
+
+	result, err := a.transport.Submit(&runtime.ClientOperation{
 		ID:                 "v1beta_createActiveDirectory",
 		Method:             "POST",
 		PathPattern:        "/v1beta/projects/{projectNumber}/locations/{locationId}/storage/activeDirectory",
@@ -90,12 +62,7 @@ func (a *Client) V1betaCreateActiveDirectory(params *V1betaCreateActiveDirectory
 		Reader:             &V1betaCreateActiveDirectoryReader{formats: a.formats},
 		Context:            params.Context,
 		Client:             params.HTTPClient,
-	}
-	for _, opt := range opts {
-		opt(op)
-	}
-
-	result, err := a.transport.Submit(op)
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -113,12 +80,13 @@ V1betaDeleteActiveDirectory deletes the active directory credentials
 
 Deletes the Active Directory credentials for the active user. This operation will never return resource not found, since that could be interpreted as resource already deleted, and therefore will return operation done instead.
 */
-func (a *Client) V1betaDeleteActiveDirectory(params *V1betaDeleteActiveDirectoryParams, opts ...ClientOption) (*V1betaDeleteActiveDirectoryAccepted, error) {
+func (a *Client) V1betaDeleteActiveDirectory(params *V1betaDeleteActiveDirectoryParams) (*V1betaDeleteActiveDirectoryAccepted, error) {
 	// TODO: Validate the params before sending
 	if params == nil {
 		params = NewV1betaDeleteActiveDirectoryParams()
 	}
-	op := &runtime.ClientOperation{
+
+	result, err := a.transport.Submit(&runtime.ClientOperation{
 		ID:                 "v1beta_deleteActiveDirectory",
 		Method:             "DELETE",
 		PathPattern:        "/v1beta/projects/{projectNumber}/locations/{locationId}/storage/activeDirectory/{activeDirectoryId}",
@@ -129,12 +97,7 @@ func (a *Client) V1betaDeleteActiveDirectory(params *V1betaDeleteActiveDirectory
 		Reader:             &V1betaDeleteActiveDirectoryReader{formats: a.formats},
 		Context:            params.Context,
 		Client:             params.HTTPClient,
-	}
-	for _, opt := range opts {
-		opt(op)
-	}
-
-	result, err := a.transport.Submit(op)
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -152,12 +115,13 @@ V1betaDescribeActiveDirectory describes active directory credentials
 
 Returns the description of the specified Active Directory credentials by active-directory ID.
 */
-func (a *Client) V1betaDescribeActiveDirectory(params *V1betaDescribeActiveDirectoryParams, opts ...ClientOption) (*V1betaDescribeActiveDirectoryOK, error) {
+func (a *Client) V1betaDescribeActiveDirectory(params *V1betaDescribeActiveDirectoryParams) (*V1betaDescribeActiveDirectoryOK, error) {
 	// TODO: Validate the params before sending
 	if params == nil {
 		params = NewV1betaDescribeActiveDirectoryParams()
 	}
-	op := &runtime.ClientOperation{
+
+	result, err := a.transport.Submit(&runtime.ClientOperation{
 		ID:                 "v1beta_describeActiveDirectory",
 		Method:             "GET",
 		PathPattern:        "/v1beta/projects/{projectNumber}/locations/{locationId}/storage/activeDirectory/{activeDirectoryId}",
@@ -168,12 +132,7 @@ func (a *Client) V1betaDescribeActiveDirectory(params *V1betaDescribeActiveDirec
 		Reader:             &V1betaDescribeActiveDirectoryReader{formats: a.formats},
 		Context:            params.Context,
 		Client:             params.HTTPClient,
-	}
-	for _, opt := range opts {
-		opt(op)
-	}
-
-	result, err := a.transport.Submit(op)
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -187,16 +146,17 @@ func (a *Client) V1betaDescribeActiveDirectory(params *V1betaDescribeActiveDirec
 }
 
 /*
-V1betaGetMultipleActiveDirectories lists specified active directories credentials
+V1betaGetMultipleActiveDirectories lists specified active directory credentials
 
 Returns descriptions of Active Directory credentials that is listed in request body.
 */
-func (a *Client) V1betaGetMultipleActiveDirectories(params *V1betaGetMultipleActiveDirectoriesParams, opts ...ClientOption) (*V1betaGetMultipleActiveDirectoriesOK, error) {
+func (a *Client) V1betaGetMultipleActiveDirectories(params *V1betaGetMultipleActiveDirectoriesParams) (*V1betaGetMultipleActiveDirectoriesOK, error) {
 	// TODO: Validate the params before sending
 	if params == nil {
 		params = NewV1betaGetMultipleActiveDirectoriesParams()
 	}
-	op := &runtime.ClientOperation{
+
+	result, err := a.transport.Submit(&runtime.ClientOperation{
 		ID:                 "v1beta_getMultipleActiveDirectories",
 		Method:             "POST",
 		PathPattern:        "/v1beta/projects/{projectNumber}/locations/{locationId}/storage/getMultipleActiveDirectories",
@@ -207,12 +167,7 @@ func (a *Client) V1betaGetMultipleActiveDirectories(params *V1betaGetMultipleAct
 		Reader:             &V1betaGetMultipleActiveDirectoriesReader{formats: a.formats},
 		Context:            params.Context,
 		Client:             params.HTTPClient,
-	}
-	for _, opt := range opts {
-		opt(op)
-	}
-
-	result, err := a.transport.Submit(op)
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -230,12 +185,13 @@ V1betaListActiveDirectories lists all active directory credentials
 
 Returns descriptions of all Active Directory credentials owned by the caller.
 */
-func (a *Client) V1betaListActiveDirectories(params *V1betaListActiveDirectoriesParams, opts ...ClientOption) (*V1betaListActiveDirectoriesOK, error) {
+func (a *Client) V1betaListActiveDirectories(params *V1betaListActiveDirectoriesParams) (*V1betaListActiveDirectoriesOK, error) {
 	// TODO: Validate the params before sending
 	if params == nil {
 		params = NewV1betaListActiveDirectoriesParams()
 	}
-	op := &runtime.ClientOperation{
+
+	result, err := a.transport.Submit(&runtime.ClientOperation{
 		ID:                 "v1beta_listActiveDirectories",
 		Method:             "GET",
 		PathPattern:        "/v1beta/projects/{projectNumber}/locations/{locationId}/storage/activeDirectory",
@@ -246,12 +202,7 @@ func (a *Client) V1betaListActiveDirectories(params *V1betaListActiveDirectories
 		Reader:             &V1betaListActiveDirectoriesReader{formats: a.formats},
 		Context:            params.Context,
 		Client:             params.HTTPClient,
-	}
-	for _, opt := range opts {
-		opt(op)
-	}
-
-	result, err := a.transport.Submit(op)
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -269,12 +220,13 @@ V1betaUpdateActiveDirectory updates active directory credentials
 
 Update the Active Directory credentials
 */
-func (a *Client) V1betaUpdateActiveDirectory(params *V1betaUpdateActiveDirectoryParams, opts ...ClientOption) (*V1betaUpdateActiveDirectoryAccepted, error) {
+func (a *Client) V1betaUpdateActiveDirectory(params *V1betaUpdateActiveDirectoryParams) (*V1betaUpdateActiveDirectoryAccepted, error) {
 	// TODO: Validate the params before sending
 	if params == nil {
 		params = NewV1betaUpdateActiveDirectoryParams()
 	}
-	op := &runtime.ClientOperation{
+
+	result, err := a.transport.Submit(&runtime.ClientOperation{
 		ID:                 "v1beta_updateActiveDirectory",
 		Method:             "PUT",
 		PathPattern:        "/v1beta/projects/{projectNumber}/locations/{locationId}/storage/activeDirectory/{activeDirectoryId}",
@@ -285,12 +237,7 @@ func (a *Client) V1betaUpdateActiveDirectory(params *V1betaUpdateActiveDirectory
 		Reader:             &V1betaUpdateActiveDirectoryReader{formats: a.formats},
 		Context:            params.Context,
 		Client:             params.HTTPClient,
-	}
-	for _, opt := range opts {
-		opt(op)
-	}
-
-	result, err := a.transport.Submit(op)
+	})
 	if err != nil {
 		return nil, err
 	}

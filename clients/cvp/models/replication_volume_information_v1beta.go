@@ -6,8 +6,6 @@ package models
 // Editing this file might prove futile when you re-run the swagger generate command
 
 import (
-	"context"
-
 	"github.com/go-openapi/errors"
 	"github.com/go-openapi/strfmt"
 	"github.com/go-openapi/swag"
@@ -22,7 +20,6 @@ type ReplicationVolumeInformationV1beta struct {
 	// VolumeId
 	//
 	// UUID v4 used to identify the volume replication
-	// Example: 9760acf5-4638-11e7-9bdb-020073ca7773
 	// Read Only: true
 	// Max Length: 36
 	// Min Length: 36
@@ -32,7 +29,6 @@ type ReplicationVolumeInformationV1beta struct {
 	// VolumeName
 	//
 	// Full URI of volume
-	// Example: projects/965286636820/locations/australia-southeast1/volumes/ra-2-vol166783690116
 	// Max Length: 255
 	// Min Length: 1
 	VolumeName string `json:"volumeName,omitempty"`
@@ -57,19 +53,20 @@ func (m *ReplicationVolumeInformationV1beta) Validate(formats strfmt.Registry) e
 }
 
 func (m *ReplicationVolumeInformationV1beta) validateVolumeID(formats strfmt.Registry) error {
+
 	if swag.IsZero(m.VolumeID) { // not required
 		return nil
 	}
 
-	if err := validate.MinLength("volumeId", "body", m.VolumeID, 36); err != nil {
+	if err := validate.MinLength("volumeId", "body", string(m.VolumeID), 36); err != nil {
 		return err
 	}
 
-	if err := validate.MaxLength("volumeId", "body", m.VolumeID, 36); err != nil {
+	if err := validate.MaxLength("volumeId", "body", string(m.VolumeID), 36); err != nil {
 		return err
 	}
 
-	if err := validate.Pattern("volumeId", "body", m.VolumeID, `^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$`); err != nil {
+	if err := validate.Pattern("volumeId", "body", string(m.VolumeID), `^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$`); err != nil {
 		return err
 	}
 
@@ -77,38 +74,16 @@ func (m *ReplicationVolumeInformationV1beta) validateVolumeID(formats strfmt.Reg
 }
 
 func (m *ReplicationVolumeInformationV1beta) validateVolumeName(formats strfmt.Registry) error {
+
 	if swag.IsZero(m.VolumeName) { // not required
 		return nil
 	}
 
-	if err := validate.MinLength("volumeName", "body", m.VolumeName, 1); err != nil {
+	if err := validate.MinLength("volumeName", "body", string(m.VolumeName), 1); err != nil {
 		return err
 	}
 
-	if err := validate.MaxLength("volumeName", "body", m.VolumeName, 255); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-// ContextValidate validate this replication volume information v1beta based on the context it is used
-func (m *ReplicationVolumeInformationV1beta) ContextValidate(ctx context.Context, formats strfmt.Registry) error {
-	var res []error
-
-	if err := m.contextValidateVolumeID(ctx, formats); err != nil {
-		res = append(res, err)
-	}
-
-	if len(res) > 0 {
-		return errors.CompositeValidationError(res...)
-	}
-	return nil
-}
-
-func (m *ReplicationVolumeInformationV1beta) contextValidateVolumeID(ctx context.Context, formats strfmt.Registry) error {
-
-	if err := validate.ReadOnly(ctx, "volumeId", "body", string(m.VolumeID)); err != nil {
+	if err := validate.MaxLength("volumeName", "body", string(m.VolumeName), 255); err != nil {
 		return err
 	}
 

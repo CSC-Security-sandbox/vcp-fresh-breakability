@@ -7,38 +7,12 @@ package kms_configurations
 
 import (
 	"github.com/go-openapi/runtime"
-	httptransport "github.com/go-openapi/runtime/client"
 	"github.com/go-openapi/strfmt"
 )
 
 // New creates a new kms configurations API client.
 func New(transport runtime.ClientTransport, formats strfmt.Registry) ClientService {
 	return &Client{transport: transport, formats: formats}
-}
-
-// New creates a new kms configurations API client with basic auth credentials.
-// It takes the following parameters:
-// - host: http host (github.com).
-// - basePath: any base path for the API client ("/v1", "/v3").
-// - scheme: http scheme ("http", "https").
-// - user: user for basic authentication header.
-// - password: password for basic authentication header.
-func NewClientWithBasicAuth(host, basePath, scheme, user, password string) ClientService {
-	transport := httptransport.New(host, basePath, []string{scheme})
-	transport.DefaultAuthentication = httptransport.BasicAuth(user, password)
-	return &Client{transport: transport, formats: strfmt.Default}
-}
-
-// New creates a new kms configurations API client with a bearer token for authentication.
-// It takes the following parameters:
-// - host: http host (github.com).
-// - basePath: any base path for the API client ("/v1", "/v3").
-// - scheme: http scheme ("http", "https").
-// - bearerToken: bearer token for Bearer authentication header.
-func NewClientWithBearerToken(host, basePath, scheme, bearerToken string) ClientService {
-	transport := httptransport.New(host, basePath, []string{scheme})
-	transport.DefaultAuthentication = httptransport.BearerToken(bearerToken)
-	return &Client{transport: transport, formats: strfmt.Default}
 }
 
 /*
@@ -49,41 +23,39 @@ type Client struct {
 	formats   strfmt.Registry
 }
 
-// ClientOption may be used to customize the behavior of Client methods.
-type ClientOption func(*runtime.ClientOperation)
-
 // ClientService is the interface for Client methods
 type ClientService interface {
-	V1betaCreateKmsConfiguration(params *V1betaCreateKmsConfigurationParams, opts ...ClientOption) (*V1betaCreateKmsConfigurationAccepted, error)
+	V1betaCreateKmsConfiguration(params *V1betaCreateKmsConfigurationParams) (*V1betaCreateKmsConfigurationAccepted, error)
 
-	V1betaCheckKmsConfig(params *V1betaCheckKmsConfigParams, opts ...ClientOption) (*V1betaCheckKmsConfigOK, error)
+	V1betaCheckKmsConfig(params *V1betaCheckKmsConfigParams) (*V1betaCheckKmsConfigOK, error)
 
-	V1betaDeleteKmsConfiguration(params *V1betaDeleteKmsConfigurationParams, opts ...ClientOption) (*V1betaDeleteKmsConfigurationAccepted, *V1betaDeleteKmsConfigurationNoContent, error)
+	V1betaDeleteKmsConfiguration(params *V1betaDeleteKmsConfigurationParams) (*V1betaDeleteKmsConfigurationAccepted, *V1betaDeleteKmsConfigurationNoContent, error)
 
-	V1betaDescribeKmsConfiguration(params *V1betaDescribeKmsConfigurationParams, opts ...ClientOption) (*V1betaDescribeKmsConfigurationOK, error)
+	V1betaDescribeKmsConfiguration(params *V1betaDescribeKmsConfigurationParams) (*V1betaDescribeKmsConfigurationOK, error)
 
-	V1betaEncryptVolumes(params *V1betaEncryptVolumesParams, opts ...ClientOption) (*V1betaEncryptVolumesAccepted, error)
+	V1betaEncryptVolumes(params *V1betaEncryptVolumesParams) (*V1betaEncryptVolumesAccepted, error)
 
-	V1betaGetMultipleKmsConfigs(params *V1betaGetMultipleKmsConfigsParams, opts ...ClientOption) (*V1betaGetMultipleKmsConfigsOK, error)
+	V1betaGetMultipleKmsConfigs(params *V1betaGetMultipleKmsConfigsParams) (*V1betaGetMultipleKmsConfigsOK, error)
 
-	V1betaListKmsConfigurations(params *V1betaListKmsConfigurationsParams, opts ...ClientOption) (*V1betaListKmsConfigurationsOK, error)
+	V1betaListKmsConfigurations(params *V1betaListKmsConfigurationsParams) (*V1betaListKmsConfigurationsOK, error)
 
-	V1betaUpdateKmsConfiguration(params *V1betaUpdateKmsConfigurationParams, opts ...ClientOption) (*V1betaUpdateKmsConfigurationOK, error)
+	V1betaUpdateKmsConfiguration(params *V1betaUpdateKmsConfigurationParams) (*V1betaUpdateKmsConfigurationOK, error)
 
 	SetTransport(transport runtime.ClientTransport)
 }
 
 /*
-V1betaCreateKmsConfiguration creates k m s configuration
+V1betaCreateKmsConfiguration creates a k m s configuration
 
 Create new KMS configuration for the active user
 */
-func (a *Client) V1betaCreateKmsConfiguration(params *V1betaCreateKmsConfigurationParams, opts ...ClientOption) (*V1betaCreateKmsConfigurationAccepted, error) {
+func (a *Client) V1betaCreateKmsConfiguration(params *V1betaCreateKmsConfigurationParams) (*V1betaCreateKmsConfigurationAccepted, error) {
 	// TODO: Validate the params before sending
 	if params == nil {
 		params = NewV1betaCreateKmsConfigurationParams()
 	}
-	op := &runtime.ClientOperation{
+
+	result, err := a.transport.Submit(&runtime.ClientOperation{
 		ID:                 "v1beta_CreateKmsConfiguration",
 		Method:             "POST",
 		PathPattern:        "/v1beta/projects/{projectNumber}/locations/{locationId}/storage/kmsConfig",
@@ -94,12 +66,7 @@ func (a *Client) V1betaCreateKmsConfiguration(params *V1betaCreateKmsConfigurati
 		Reader:             &V1betaCreateKmsConfigurationReader{formats: a.formats},
 		Context:            params.Context,
 		Client:             params.HTTPClient,
-	}
-	for _, opt := range opts {
-		opt(op)
-	}
-
-	result, err := a.transport.Submit(op)
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -117,12 +84,13 @@ V1betaCheckKmsConfig verifies k m s configuration reachability
 
 Verifies whether service account can access the configured key
 */
-func (a *Client) V1betaCheckKmsConfig(params *V1betaCheckKmsConfigParams, opts ...ClientOption) (*V1betaCheckKmsConfigOK, error) {
+func (a *Client) V1betaCheckKmsConfig(params *V1betaCheckKmsConfigParams) (*V1betaCheckKmsConfigOK, error) {
 	// TODO: Validate the params before sending
 	if params == nil {
 		params = NewV1betaCheckKmsConfigParams()
 	}
-	op := &runtime.ClientOperation{
+
+	result, err := a.transport.Submit(&runtime.ClientOperation{
 		ID:                 "v1beta_checkKmsConfig",
 		Method:             "GET",
 		PathPattern:        "/v1beta/projects/{projectNumber}/locations/{locationId}/storage/kmsConfig/{kmsConfigId}/check",
@@ -133,12 +101,7 @@ func (a *Client) V1betaCheckKmsConfig(params *V1betaCheckKmsConfigParams, opts .
 		Reader:             &V1betaCheckKmsConfigReader{formats: a.formats},
 		Context:            params.Context,
 		Client:             params.HTTPClient,
-	}
-	for _, opt := range opts {
-		opt(op)
-	}
-
-	result, err := a.transport.Submit(op)
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -156,12 +119,13 @@ V1betaDeleteKmsConfiguration deletes a k m s configuration
 
 Deletes KMS configuration for the active user
 */
-func (a *Client) V1betaDeleteKmsConfiguration(params *V1betaDeleteKmsConfigurationParams, opts ...ClientOption) (*V1betaDeleteKmsConfigurationAccepted, *V1betaDeleteKmsConfigurationNoContent, error) {
+func (a *Client) V1betaDeleteKmsConfiguration(params *V1betaDeleteKmsConfigurationParams) (*V1betaDeleteKmsConfigurationAccepted, *V1betaDeleteKmsConfigurationNoContent, error) {
 	// TODO: Validate the params before sending
 	if params == nil {
 		params = NewV1betaDeleteKmsConfigurationParams()
 	}
-	op := &runtime.ClientOperation{
+
+	result, err := a.transport.Submit(&runtime.ClientOperation{
 		ID:                 "v1beta_deleteKmsConfiguration",
 		Method:             "DELETE",
 		PathPattern:        "/v1beta/projects/{projectNumber}/locations/{locationId}/storage/kmsConfig/{kmsConfigId}",
@@ -172,12 +136,7 @@ func (a *Client) V1betaDeleteKmsConfiguration(params *V1betaDeleteKmsConfigurati
 		Reader:             &V1betaDeleteKmsConfigurationReader{formats: a.formats},
 		Context:            params.Context,
 		Client:             params.HTTPClient,
-	}
-	for _, opt := range opts {
-		opt(op)
-	}
-
-	result, err := a.transport.Submit(op)
+	})
 	if err != nil {
 		return nil, nil, err
 	}
@@ -193,16 +152,17 @@ func (a *Client) V1betaDeleteKmsConfiguration(params *V1betaDeleteKmsConfigurati
 }
 
 /*
-V1betaDescribeKmsConfiguration describes k m s configuration
+V1betaDescribeKmsConfiguration describes a k m s configuration
 
 Returns the description of a KMS configuration specified by KMS configuration ID.
 */
-func (a *Client) V1betaDescribeKmsConfiguration(params *V1betaDescribeKmsConfigurationParams, opts ...ClientOption) (*V1betaDescribeKmsConfigurationOK, error) {
+func (a *Client) V1betaDescribeKmsConfiguration(params *V1betaDescribeKmsConfigurationParams) (*V1betaDescribeKmsConfigurationOK, error) {
 	// TODO: Validate the params before sending
 	if params == nil {
 		params = NewV1betaDescribeKmsConfigurationParams()
 	}
-	op := &runtime.ClientOperation{
+
+	result, err := a.transport.Submit(&runtime.ClientOperation{
 		ID:                 "v1beta_describeKmsConfiguration",
 		Method:             "GET",
 		PathPattern:        "/v1beta/projects/{projectNumber}/locations/{locationId}/storage/kmsConfig/{kmsConfigId}",
@@ -213,12 +173,7 @@ func (a *Client) V1betaDescribeKmsConfiguration(params *V1betaDescribeKmsConfigu
 		Reader:             &V1betaDescribeKmsConfigurationReader{formats: a.formats},
 		Context:            params.Context,
 		Client:             params.HTTPClient,
-	}
-	for _, opt := range opts {
-		opt(op)
-	}
-
-	result, err := a.transport.Submit(op)
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -236,12 +191,13 @@ V1betaEncryptVolumes migrates volumes to g c p c m e k encryption
 
 Migrates all volumes to GCP CMEK encryption.
 */
-func (a *Client) V1betaEncryptVolumes(params *V1betaEncryptVolumesParams, opts ...ClientOption) (*V1betaEncryptVolumesAccepted, error) {
+func (a *Client) V1betaEncryptVolumes(params *V1betaEncryptVolumesParams) (*V1betaEncryptVolumesAccepted, error) {
 	// TODO: Validate the params before sending
 	if params == nil {
 		params = NewV1betaEncryptVolumesParams()
 	}
-	op := &runtime.ClientOperation{
+
+	result, err := a.transport.Submit(&runtime.ClientOperation{
 		ID:                 "v1beta_encryptVolumes",
 		Method:             "POST",
 		PathPattern:        "/v1beta/projects/{projectNumber}/locations/{locationId}/storage/kmsConfig/{kmsConfigId}/encryptVolumes",
@@ -252,12 +208,7 @@ func (a *Client) V1betaEncryptVolumes(params *V1betaEncryptVolumesParams, opts .
 		Reader:             &V1betaEncryptVolumesReader{formats: a.formats},
 		Context:            params.Context,
 		Client:             params.HTTPClient,
-	}
-	for _, opt := range opts {
-		opt(op)
-	}
-
-	result, err := a.transport.Submit(op)
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -275,12 +226,13 @@ V1betaGetMultipleKmsConfigs lists specified k m s configurations
 
 Returns descriptions of KMS configurations that are listed in request body.
 */
-func (a *Client) V1betaGetMultipleKmsConfigs(params *V1betaGetMultipleKmsConfigsParams, opts ...ClientOption) (*V1betaGetMultipleKmsConfigsOK, error) {
+func (a *Client) V1betaGetMultipleKmsConfigs(params *V1betaGetMultipleKmsConfigsParams) (*V1betaGetMultipleKmsConfigsOK, error) {
 	// TODO: Validate the params before sending
 	if params == nil {
 		params = NewV1betaGetMultipleKmsConfigsParams()
 	}
-	op := &runtime.ClientOperation{
+
+	result, err := a.transport.Submit(&runtime.ClientOperation{
 		ID:                 "v1beta_getMultipleKmsConfigs",
 		Method:             "POST",
 		PathPattern:        "/v1beta/projects/{projectNumber}/locations/{locationId}/storage/kmsConfig/getMultipleKmsConfigs",
@@ -291,12 +243,7 @@ func (a *Client) V1betaGetMultipleKmsConfigs(params *V1betaGetMultipleKmsConfigs
 		Reader:             &V1betaGetMultipleKmsConfigsReader{formats: a.formats},
 		Context:            params.Context,
 		Client:             params.HTTPClient,
-	}
-	for _, opt := range opts {
-		opt(op)
-	}
-
-	result, err := a.transport.Submit(op)
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -314,12 +261,13 @@ V1betaListKmsConfigurations lists all k m s configurations
 
 Returns descriptions of all KMS configurations owned by the caller.
 */
-func (a *Client) V1betaListKmsConfigurations(params *V1betaListKmsConfigurationsParams, opts ...ClientOption) (*V1betaListKmsConfigurationsOK, error) {
+func (a *Client) V1betaListKmsConfigurations(params *V1betaListKmsConfigurationsParams) (*V1betaListKmsConfigurationsOK, error) {
 	// TODO: Validate the params before sending
 	if params == nil {
 		params = NewV1betaListKmsConfigurationsParams()
 	}
-	op := &runtime.ClientOperation{
+
+	result, err := a.transport.Submit(&runtime.ClientOperation{
 		ID:                 "v1beta_listKmsConfigurations",
 		Method:             "GET",
 		PathPattern:        "/v1beta/projects/{projectNumber}/locations/{locationId}/storage/kmsConfig",
@@ -330,12 +278,7 @@ func (a *Client) V1betaListKmsConfigurations(params *V1betaListKmsConfigurations
 		Reader:             &V1betaListKmsConfigurationsReader{formats: a.formats},
 		Context:            params.Context,
 		Client:             params.HTTPClient,
-	}
-	for _, opt := range opts {
-		opt(op)
-	}
-
-	result, err := a.transport.Submit(op)
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -353,12 +296,13 @@ V1betaUpdateKmsConfiguration updates a k m s configuration
 
 Update the KMS configuration
 */
-func (a *Client) V1betaUpdateKmsConfiguration(params *V1betaUpdateKmsConfigurationParams, opts ...ClientOption) (*V1betaUpdateKmsConfigurationOK, error) {
+func (a *Client) V1betaUpdateKmsConfiguration(params *V1betaUpdateKmsConfigurationParams) (*V1betaUpdateKmsConfigurationOK, error) {
 	// TODO: Validate the params before sending
 	if params == nil {
 		params = NewV1betaUpdateKmsConfigurationParams()
 	}
-	op := &runtime.ClientOperation{
+
+	result, err := a.transport.Submit(&runtime.ClientOperation{
 		ID:                 "v1beta_updateKmsConfiguration",
 		Method:             "PUT",
 		PathPattern:        "/v1beta/projects/{projectNumber}/locations/{locationId}/storage/kmsConfig/{kmsConfigId}",
@@ -369,12 +313,7 @@ func (a *Client) V1betaUpdateKmsConfiguration(params *V1betaUpdateKmsConfigurati
 		Reader:             &V1betaUpdateKmsConfigurationReader{formats: a.formats},
 		Context:            params.Context,
 		Client:             params.HTTPClient,
-	}
-	for _, opt := range opts {
-		opt(op)
-	}
-
-	result, err := a.transport.Submit(op)
+	})
 	if err != nil {
 		return nil, err
 	}

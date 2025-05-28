@@ -18,37 +18,40 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/models"
 )
 
-// NewV1betaUpdateTenantMigrationAccountParams creates a new V1betaUpdateTenantMigrationAccountParams object,
-// with the default timeout for this client.
-//
-// Default values are not hydrated, since defaults are normally applied by the API server side.
-//
-// To enforce default values in parameter, use SetDefaults or WithDefaults.
+// NewV1betaUpdateTenantMigrationAccountParams creates a new V1betaUpdateTenantMigrationAccountParams object
+// with the default values initialized.
 func NewV1betaUpdateTenantMigrationAccountParams() *V1betaUpdateTenantMigrationAccountParams {
+	var ()
 	return &V1betaUpdateTenantMigrationAccountParams{
+
 		timeout: cr.DefaultTimeout,
 	}
 }
 
 // NewV1betaUpdateTenantMigrationAccountParamsWithTimeout creates a new V1betaUpdateTenantMigrationAccountParams object
-// with the ability to set a timeout on a request.
+// with the default values initialized, and the ability to set a timeout on a request
 func NewV1betaUpdateTenantMigrationAccountParamsWithTimeout(timeout time.Duration) *V1betaUpdateTenantMigrationAccountParams {
+	var ()
 	return &V1betaUpdateTenantMigrationAccountParams{
+
 		timeout: timeout,
 	}
 }
 
 // NewV1betaUpdateTenantMigrationAccountParamsWithContext creates a new V1betaUpdateTenantMigrationAccountParams object
-// with the ability to set a context for a request.
+// with the default values initialized, and the ability to set a context for a request
 func NewV1betaUpdateTenantMigrationAccountParamsWithContext(ctx context.Context) *V1betaUpdateTenantMigrationAccountParams {
+	var ()
 	return &V1betaUpdateTenantMigrationAccountParams{
+
 		Context: ctx,
 	}
 }
 
 // NewV1betaUpdateTenantMigrationAccountParamsWithHTTPClient creates a new V1betaUpdateTenantMigrationAccountParams object
-// with the ability to set a custom HTTPClient for a request.
+// with the default values initialized, and the ability to set a custom HTTPClient for a request
 func NewV1betaUpdateTenantMigrationAccountParamsWithHTTPClient(client *http.Client) *V1betaUpdateTenantMigrationAccountParams {
+	var ()
 	return &V1betaUpdateTenantMigrationAccountParams{
 		HTTPClient: client,
 	}
@@ -56,55 +59,34 @@ func NewV1betaUpdateTenantMigrationAccountParamsWithHTTPClient(client *http.Clie
 
 /*
 V1betaUpdateTenantMigrationAccountParams contains all the parameters to send to the API endpoint
-
-	for the v1beta update tenant migration account operation.
-
-	Typically these are written to a http.Request.
+for the v1beta update tenant migration account operation typically these are written to a http.Request
 */
 type V1betaUpdateTenantMigrationAccountParams struct {
 
-	/* Body.
+	/*Body
+	  The required parameter to perform tenant account operations
 
-	   The required parameter to perform tenant account operations
 	*/
 	Body *models.TenantAccountOperationV1beta
+	/*LocationID
+	  The location/region to perform the operation in.
 
-	/* LocationID.
-
-	   The location/region to perform the operation in.
 	*/
 	LocationID string
+	/*ProjectNumber
+	  The project number of the GCP project owning the resource being acted upon
 
-	/* ProjectNumber.
-
-	   The project number of the GCP project owning the resource being acted upon
 	*/
 	ProjectNumber string
+	/*XCorrelationID
+	  Correlation identifier
 
-	/* XCorrelationID.
-
-	   Correlation identifier
 	*/
 	XCorrelationID *string
 
 	timeout    time.Duration
 	Context    context.Context
 	HTTPClient *http.Client
-}
-
-// WithDefaults hydrates default values in the v1beta update tenant migration account params (not the query body).
-//
-// All values with no default are reset to their zero value.
-func (o *V1betaUpdateTenantMigrationAccountParams) WithDefaults() *V1betaUpdateTenantMigrationAccountParams {
-	o.SetDefaults()
-	return o
-}
-
-// SetDefaults hydrates default values in the v1beta update tenant migration account params (not the query body).
-//
-// All values with no default are reset to their zero value.
-func (o *V1betaUpdateTenantMigrationAccountParams) SetDefaults() {
-	// no default values defined for this parameter
 }
 
 // WithTimeout adds the timeout to the v1beta update tenant migration account params
@@ -191,6 +173,7 @@ func (o *V1betaUpdateTenantMigrationAccountParams) WriteToRequest(r runtime.Clie
 		return err
 	}
 	var res []error
+
 	if o.Body != nil {
 		if err := r.SetBodyParam(o.Body); err != nil {
 			return err
@@ -213,6 +196,7 @@ func (o *V1betaUpdateTenantMigrationAccountParams) WriteToRequest(r runtime.Clie
 		if err := r.SetHeaderParam("x-correlation-id", *o.XCorrelationID); err != nil {
 			return err
 		}
+
 	}
 
 	if len(res) > 0 {

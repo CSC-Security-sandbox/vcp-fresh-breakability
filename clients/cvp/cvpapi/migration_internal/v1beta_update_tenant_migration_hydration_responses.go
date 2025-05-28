@@ -6,7 +6,6 @@ package migration_internal
 // Editing this file might prove futile when you re-run the swagger generate command
 
 import (
-	"encoding/json"
 	"fmt"
 	"io"
 
@@ -90,7 +89,7 @@ func NewV1betaUpdateTenantMigrationHydrationOK() *V1betaUpdateTenantMigrationHyd
 }
 
 /*
-V1betaUpdateTenantMigrationHydrationOK describes a response with status code 200, with default header values.
+V1betaUpdateTenantMigrationHydrationOK handles this case with default header values.
 
 Updating tenant migration hydration
 */
@@ -98,44 +97,8 @@ type V1betaUpdateTenantMigrationHydrationOK struct {
 	Payload *models.HydrateResponseV2
 }
 
-// IsSuccess returns true when this v1beta update tenant migration hydration o k response has a 2xx status code
-func (o *V1betaUpdateTenantMigrationHydrationOK) IsSuccess() bool {
-	return true
-}
-
-// IsRedirect returns true when this v1beta update tenant migration hydration o k response has a 3xx status code
-func (o *V1betaUpdateTenantMigrationHydrationOK) IsRedirect() bool {
-	return false
-}
-
-// IsClientError returns true when this v1beta update tenant migration hydration o k response has a 4xx status code
-func (o *V1betaUpdateTenantMigrationHydrationOK) IsClientError() bool {
-	return false
-}
-
-// IsServerError returns true when this v1beta update tenant migration hydration o k response has a 5xx status code
-func (o *V1betaUpdateTenantMigrationHydrationOK) IsServerError() bool {
-	return false
-}
-
-// IsCode returns true when this v1beta update tenant migration hydration o k response a status code equal to that given
-func (o *V1betaUpdateTenantMigrationHydrationOK) IsCode(code int) bool {
-	return code == 200
-}
-
-// Code gets the status code for the v1beta update tenant migration hydration o k response
-func (o *V1betaUpdateTenantMigrationHydrationOK) Code() int {
-	return 200
-}
-
 func (o *V1betaUpdateTenantMigrationHydrationOK) Error() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[PUT /v1beta/internal/projects/{projectNumber}/locations/{locationId}/TenantMigrateHydrate][%d] v1betaUpdateTenantMigrationHydrationOK %s", 200, payload)
-}
-
-func (o *V1betaUpdateTenantMigrationHydrationOK) String() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[PUT /v1beta/internal/projects/{projectNumber}/locations/{locationId}/TenantMigrateHydrate][%d] v1betaUpdateTenantMigrationHydrationOK %s", 200, payload)
+	return fmt.Sprintf("[PUT /v1beta/internal/projects/{projectNumber}/locations/{locationId}/TenantMigrateHydrate][%d] v1betaUpdateTenantMigrationHydrationOK  %+v", 200, o.Payload)
 }
 
 func (o *V1betaUpdateTenantMigrationHydrationOK) GetPayload() *models.HydrateResponseV2 {
@@ -160,7 +123,7 @@ func NewV1betaUpdateTenantMigrationHydrationBadRequest() *V1betaUpdateTenantMigr
 }
 
 /*
-V1betaUpdateTenantMigrationHydrationBadRequest describes a response with status code 400, with default header values.
+V1betaUpdateTenantMigrationHydrationBadRequest handles this case with default header values.
 
 Bad request
 */
@@ -168,44 +131,8 @@ type V1betaUpdateTenantMigrationHydrationBadRequest struct {
 	Payload *models.Error
 }
 
-// IsSuccess returns true when this v1beta update tenant migration hydration bad request response has a 2xx status code
-func (o *V1betaUpdateTenantMigrationHydrationBadRequest) IsSuccess() bool {
-	return false
-}
-
-// IsRedirect returns true when this v1beta update tenant migration hydration bad request response has a 3xx status code
-func (o *V1betaUpdateTenantMigrationHydrationBadRequest) IsRedirect() bool {
-	return false
-}
-
-// IsClientError returns true when this v1beta update tenant migration hydration bad request response has a 4xx status code
-func (o *V1betaUpdateTenantMigrationHydrationBadRequest) IsClientError() bool {
-	return true
-}
-
-// IsServerError returns true when this v1beta update tenant migration hydration bad request response has a 5xx status code
-func (o *V1betaUpdateTenantMigrationHydrationBadRequest) IsServerError() bool {
-	return false
-}
-
-// IsCode returns true when this v1beta update tenant migration hydration bad request response a status code equal to that given
-func (o *V1betaUpdateTenantMigrationHydrationBadRequest) IsCode(code int) bool {
-	return code == 400
-}
-
-// Code gets the status code for the v1beta update tenant migration hydration bad request response
-func (o *V1betaUpdateTenantMigrationHydrationBadRequest) Code() int {
-	return 400
-}
-
 func (o *V1betaUpdateTenantMigrationHydrationBadRequest) Error() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[PUT /v1beta/internal/projects/{projectNumber}/locations/{locationId}/TenantMigrateHydrate][%d] v1betaUpdateTenantMigrationHydrationBadRequest %s", 400, payload)
-}
-
-func (o *V1betaUpdateTenantMigrationHydrationBadRequest) String() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[PUT /v1beta/internal/projects/{projectNumber}/locations/{locationId}/TenantMigrateHydrate][%d] v1betaUpdateTenantMigrationHydrationBadRequest %s", 400, payload)
+	return fmt.Sprintf("[PUT /v1beta/internal/projects/{projectNumber}/locations/{locationId}/TenantMigrateHydrate][%d] v1betaUpdateTenantMigrationHydrationBadRequest  %+v", 400, o.Payload)
 }
 
 func (o *V1betaUpdateTenantMigrationHydrationBadRequest) GetPayload() *models.Error {
@@ -230,7 +157,7 @@ func NewV1betaUpdateTenantMigrationHydrationUnauthorized() *V1betaUpdateTenantMi
 }
 
 /*
-V1betaUpdateTenantMigrationHydrationUnauthorized describes a response with status code 401, with default header values.
+V1betaUpdateTenantMigrationHydrationUnauthorized handles this case with default header values.
 
 Unauthorized
 */
@@ -238,44 +165,8 @@ type V1betaUpdateTenantMigrationHydrationUnauthorized struct {
 	Payload *models.Error
 }
 
-// IsSuccess returns true when this v1beta update tenant migration hydration unauthorized response has a 2xx status code
-func (o *V1betaUpdateTenantMigrationHydrationUnauthorized) IsSuccess() bool {
-	return false
-}
-
-// IsRedirect returns true when this v1beta update tenant migration hydration unauthorized response has a 3xx status code
-func (o *V1betaUpdateTenantMigrationHydrationUnauthorized) IsRedirect() bool {
-	return false
-}
-
-// IsClientError returns true when this v1beta update tenant migration hydration unauthorized response has a 4xx status code
-func (o *V1betaUpdateTenantMigrationHydrationUnauthorized) IsClientError() bool {
-	return true
-}
-
-// IsServerError returns true when this v1beta update tenant migration hydration unauthorized response has a 5xx status code
-func (o *V1betaUpdateTenantMigrationHydrationUnauthorized) IsServerError() bool {
-	return false
-}
-
-// IsCode returns true when this v1beta update tenant migration hydration unauthorized response a status code equal to that given
-func (o *V1betaUpdateTenantMigrationHydrationUnauthorized) IsCode(code int) bool {
-	return code == 401
-}
-
-// Code gets the status code for the v1beta update tenant migration hydration unauthorized response
-func (o *V1betaUpdateTenantMigrationHydrationUnauthorized) Code() int {
-	return 401
-}
-
 func (o *V1betaUpdateTenantMigrationHydrationUnauthorized) Error() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[PUT /v1beta/internal/projects/{projectNumber}/locations/{locationId}/TenantMigrateHydrate][%d] v1betaUpdateTenantMigrationHydrationUnauthorized %s", 401, payload)
-}
-
-func (o *V1betaUpdateTenantMigrationHydrationUnauthorized) String() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[PUT /v1beta/internal/projects/{projectNumber}/locations/{locationId}/TenantMigrateHydrate][%d] v1betaUpdateTenantMigrationHydrationUnauthorized %s", 401, payload)
+	return fmt.Sprintf("[PUT /v1beta/internal/projects/{projectNumber}/locations/{locationId}/TenantMigrateHydrate][%d] v1betaUpdateTenantMigrationHydrationUnauthorized  %+v", 401, o.Payload)
 }
 
 func (o *V1betaUpdateTenantMigrationHydrationUnauthorized) GetPayload() *models.Error {
@@ -300,7 +191,7 @@ func NewV1betaUpdateTenantMigrationHydrationForbidden() *V1betaUpdateTenantMigra
 }
 
 /*
-V1betaUpdateTenantMigrationHydrationForbidden describes a response with status code 403, with default header values.
+V1betaUpdateTenantMigrationHydrationForbidden handles this case with default header values.
 
 Forbidden
 */
@@ -308,44 +199,8 @@ type V1betaUpdateTenantMigrationHydrationForbidden struct {
 	Payload *models.Error
 }
 
-// IsSuccess returns true when this v1beta update tenant migration hydration forbidden response has a 2xx status code
-func (o *V1betaUpdateTenantMigrationHydrationForbidden) IsSuccess() bool {
-	return false
-}
-
-// IsRedirect returns true when this v1beta update tenant migration hydration forbidden response has a 3xx status code
-func (o *V1betaUpdateTenantMigrationHydrationForbidden) IsRedirect() bool {
-	return false
-}
-
-// IsClientError returns true when this v1beta update tenant migration hydration forbidden response has a 4xx status code
-func (o *V1betaUpdateTenantMigrationHydrationForbidden) IsClientError() bool {
-	return true
-}
-
-// IsServerError returns true when this v1beta update tenant migration hydration forbidden response has a 5xx status code
-func (o *V1betaUpdateTenantMigrationHydrationForbidden) IsServerError() bool {
-	return false
-}
-
-// IsCode returns true when this v1beta update tenant migration hydration forbidden response a status code equal to that given
-func (o *V1betaUpdateTenantMigrationHydrationForbidden) IsCode(code int) bool {
-	return code == 403
-}
-
-// Code gets the status code for the v1beta update tenant migration hydration forbidden response
-func (o *V1betaUpdateTenantMigrationHydrationForbidden) Code() int {
-	return 403
-}
-
 func (o *V1betaUpdateTenantMigrationHydrationForbidden) Error() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[PUT /v1beta/internal/projects/{projectNumber}/locations/{locationId}/TenantMigrateHydrate][%d] v1betaUpdateTenantMigrationHydrationForbidden %s", 403, payload)
-}
-
-func (o *V1betaUpdateTenantMigrationHydrationForbidden) String() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[PUT /v1beta/internal/projects/{projectNumber}/locations/{locationId}/TenantMigrateHydrate][%d] v1betaUpdateTenantMigrationHydrationForbidden %s", 403, payload)
+	return fmt.Sprintf("[PUT /v1beta/internal/projects/{projectNumber}/locations/{locationId}/TenantMigrateHydrate][%d] v1betaUpdateTenantMigrationHydrationForbidden  %+v", 403, o.Payload)
 }
 
 func (o *V1betaUpdateTenantMigrationHydrationForbidden) GetPayload() *models.Error {
@@ -370,7 +225,7 @@ func NewV1betaUpdateTenantMigrationHydrationNotFound() *V1betaUpdateTenantMigrat
 }
 
 /*
-V1betaUpdateTenantMigrationHydrationNotFound describes a response with status code 404, with default header values.
+V1betaUpdateTenantMigrationHydrationNotFound handles this case with default header values.
 
 Not found
 */
@@ -378,44 +233,8 @@ type V1betaUpdateTenantMigrationHydrationNotFound struct {
 	Payload *models.Error
 }
 
-// IsSuccess returns true when this v1beta update tenant migration hydration not found response has a 2xx status code
-func (o *V1betaUpdateTenantMigrationHydrationNotFound) IsSuccess() bool {
-	return false
-}
-
-// IsRedirect returns true when this v1beta update tenant migration hydration not found response has a 3xx status code
-func (o *V1betaUpdateTenantMigrationHydrationNotFound) IsRedirect() bool {
-	return false
-}
-
-// IsClientError returns true when this v1beta update tenant migration hydration not found response has a 4xx status code
-func (o *V1betaUpdateTenantMigrationHydrationNotFound) IsClientError() bool {
-	return true
-}
-
-// IsServerError returns true when this v1beta update tenant migration hydration not found response has a 5xx status code
-func (o *V1betaUpdateTenantMigrationHydrationNotFound) IsServerError() bool {
-	return false
-}
-
-// IsCode returns true when this v1beta update tenant migration hydration not found response a status code equal to that given
-func (o *V1betaUpdateTenantMigrationHydrationNotFound) IsCode(code int) bool {
-	return code == 404
-}
-
-// Code gets the status code for the v1beta update tenant migration hydration not found response
-func (o *V1betaUpdateTenantMigrationHydrationNotFound) Code() int {
-	return 404
-}
-
 func (o *V1betaUpdateTenantMigrationHydrationNotFound) Error() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[PUT /v1beta/internal/projects/{projectNumber}/locations/{locationId}/TenantMigrateHydrate][%d] v1betaUpdateTenantMigrationHydrationNotFound %s", 404, payload)
-}
-
-func (o *V1betaUpdateTenantMigrationHydrationNotFound) String() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[PUT /v1beta/internal/projects/{projectNumber}/locations/{locationId}/TenantMigrateHydrate][%d] v1betaUpdateTenantMigrationHydrationNotFound %s", 404, payload)
+	return fmt.Sprintf("[PUT /v1beta/internal/projects/{projectNumber}/locations/{locationId}/TenantMigrateHydrate][%d] v1betaUpdateTenantMigrationHydrationNotFound  %+v", 404, o.Payload)
 }
 
 func (o *V1betaUpdateTenantMigrationHydrationNotFound) GetPayload() *models.Error {
@@ -440,7 +259,7 @@ func NewV1betaUpdateTenantMigrationHydrationUnprocessableEntity() *V1betaUpdateT
 }
 
 /*
-V1betaUpdateTenantMigrationHydrationUnprocessableEntity describes a response with status code 422, with default header values.
+V1betaUpdateTenantMigrationHydrationUnprocessableEntity handles this case with default header values.
 
 Unprocessable entity
 */
@@ -448,44 +267,8 @@ type V1betaUpdateTenantMigrationHydrationUnprocessableEntity struct {
 	Payload *models.Error
 }
 
-// IsSuccess returns true when this v1beta update tenant migration hydration unprocessable entity response has a 2xx status code
-func (o *V1betaUpdateTenantMigrationHydrationUnprocessableEntity) IsSuccess() bool {
-	return false
-}
-
-// IsRedirect returns true when this v1beta update tenant migration hydration unprocessable entity response has a 3xx status code
-func (o *V1betaUpdateTenantMigrationHydrationUnprocessableEntity) IsRedirect() bool {
-	return false
-}
-
-// IsClientError returns true when this v1beta update tenant migration hydration unprocessable entity response has a 4xx status code
-func (o *V1betaUpdateTenantMigrationHydrationUnprocessableEntity) IsClientError() bool {
-	return true
-}
-
-// IsServerError returns true when this v1beta update tenant migration hydration unprocessable entity response has a 5xx status code
-func (o *V1betaUpdateTenantMigrationHydrationUnprocessableEntity) IsServerError() bool {
-	return false
-}
-
-// IsCode returns true when this v1beta update tenant migration hydration unprocessable entity response a status code equal to that given
-func (o *V1betaUpdateTenantMigrationHydrationUnprocessableEntity) IsCode(code int) bool {
-	return code == 422
-}
-
-// Code gets the status code for the v1beta update tenant migration hydration unprocessable entity response
-func (o *V1betaUpdateTenantMigrationHydrationUnprocessableEntity) Code() int {
-	return 422
-}
-
 func (o *V1betaUpdateTenantMigrationHydrationUnprocessableEntity) Error() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[PUT /v1beta/internal/projects/{projectNumber}/locations/{locationId}/TenantMigrateHydrate][%d] v1betaUpdateTenantMigrationHydrationUnprocessableEntity %s", 422, payload)
-}
-
-func (o *V1betaUpdateTenantMigrationHydrationUnprocessableEntity) String() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[PUT /v1beta/internal/projects/{projectNumber}/locations/{locationId}/TenantMigrateHydrate][%d] v1betaUpdateTenantMigrationHydrationUnprocessableEntity %s", 422, payload)
+	return fmt.Sprintf("[PUT /v1beta/internal/projects/{projectNumber}/locations/{locationId}/TenantMigrateHydrate][%d] v1betaUpdateTenantMigrationHydrationUnprocessableEntity  %+v", 422, o.Payload)
 }
 
 func (o *V1betaUpdateTenantMigrationHydrationUnprocessableEntity) GetPayload() *models.Error {
@@ -510,7 +293,7 @@ func NewV1betaUpdateTenantMigrationHydrationTooManyRequests() *V1betaUpdateTenan
 }
 
 /*
-V1betaUpdateTenantMigrationHydrationTooManyRequests describes a response with status code 429, with default header values.
+V1betaUpdateTenantMigrationHydrationTooManyRequests handles this case with default header values.
 
 Too many requests
 */
@@ -518,44 +301,8 @@ type V1betaUpdateTenantMigrationHydrationTooManyRequests struct {
 	Payload *models.Error
 }
 
-// IsSuccess returns true when this v1beta update tenant migration hydration too many requests response has a 2xx status code
-func (o *V1betaUpdateTenantMigrationHydrationTooManyRequests) IsSuccess() bool {
-	return false
-}
-
-// IsRedirect returns true when this v1beta update tenant migration hydration too many requests response has a 3xx status code
-func (o *V1betaUpdateTenantMigrationHydrationTooManyRequests) IsRedirect() bool {
-	return false
-}
-
-// IsClientError returns true when this v1beta update tenant migration hydration too many requests response has a 4xx status code
-func (o *V1betaUpdateTenantMigrationHydrationTooManyRequests) IsClientError() bool {
-	return true
-}
-
-// IsServerError returns true when this v1beta update tenant migration hydration too many requests response has a 5xx status code
-func (o *V1betaUpdateTenantMigrationHydrationTooManyRequests) IsServerError() bool {
-	return false
-}
-
-// IsCode returns true when this v1beta update tenant migration hydration too many requests response a status code equal to that given
-func (o *V1betaUpdateTenantMigrationHydrationTooManyRequests) IsCode(code int) bool {
-	return code == 429
-}
-
-// Code gets the status code for the v1beta update tenant migration hydration too many requests response
-func (o *V1betaUpdateTenantMigrationHydrationTooManyRequests) Code() int {
-	return 429
-}
-
 func (o *V1betaUpdateTenantMigrationHydrationTooManyRequests) Error() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[PUT /v1beta/internal/projects/{projectNumber}/locations/{locationId}/TenantMigrateHydrate][%d] v1betaUpdateTenantMigrationHydrationTooManyRequests %s", 429, payload)
-}
-
-func (o *V1betaUpdateTenantMigrationHydrationTooManyRequests) String() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[PUT /v1beta/internal/projects/{projectNumber}/locations/{locationId}/TenantMigrateHydrate][%d] v1betaUpdateTenantMigrationHydrationTooManyRequests %s", 429, payload)
+	return fmt.Sprintf("[PUT /v1beta/internal/projects/{projectNumber}/locations/{locationId}/TenantMigrateHydrate][%d] v1betaUpdateTenantMigrationHydrationTooManyRequests  %+v", 429, o.Payload)
 }
 
 func (o *V1betaUpdateTenantMigrationHydrationTooManyRequests) GetPayload() *models.Error {
@@ -580,7 +327,7 @@ func NewV1betaUpdateTenantMigrationHydrationInternalServerError() *V1betaUpdateT
 }
 
 /*
-V1betaUpdateTenantMigrationHydrationInternalServerError describes a response with status code 500, with default header values.
+V1betaUpdateTenantMigrationHydrationInternalServerError handles this case with default header values.
 
 Internal server error
 */
@@ -588,44 +335,8 @@ type V1betaUpdateTenantMigrationHydrationInternalServerError struct {
 	Payload *models.Error
 }
 
-// IsSuccess returns true when this v1beta update tenant migration hydration internal server error response has a 2xx status code
-func (o *V1betaUpdateTenantMigrationHydrationInternalServerError) IsSuccess() bool {
-	return false
-}
-
-// IsRedirect returns true when this v1beta update tenant migration hydration internal server error response has a 3xx status code
-func (o *V1betaUpdateTenantMigrationHydrationInternalServerError) IsRedirect() bool {
-	return false
-}
-
-// IsClientError returns true when this v1beta update tenant migration hydration internal server error response has a 4xx status code
-func (o *V1betaUpdateTenantMigrationHydrationInternalServerError) IsClientError() bool {
-	return false
-}
-
-// IsServerError returns true when this v1beta update tenant migration hydration internal server error response has a 5xx status code
-func (o *V1betaUpdateTenantMigrationHydrationInternalServerError) IsServerError() bool {
-	return true
-}
-
-// IsCode returns true when this v1beta update tenant migration hydration internal server error response a status code equal to that given
-func (o *V1betaUpdateTenantMigrationHydrationInternalServerError) IsCode(code int) bool {
-	return code == 500
-}
-
-// Code gets the status code for the v1beta update tenant migration hydration internal server error response
-func (o *V1betaUpdateTenantMigrationHydrationInternalServerError) Code() int {
-	return 500
-}
-
 func (o *V1betaUpdateTenantMigrationHydrationInternalServerError) Error() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[PUT /v1beta/internal/projects/{projectNumber}/locations/{locationId}/TenantMigrateHydrate][%d] v1betaUpdateTenantMigrationHydrationInternalServerError %s", 500, payload)
-}
-
-func (o *V1betaUpdateTenantMigrationHydrationInternalServerError) String() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[PUT /v1beta/internal/projects/{projectNumber}/locations/{locationId}/TenantMigrateHydrate][%d] v1betaUpdateTenantMigrationHydrationInternalServerError %s", 500, payload)
+	return fmt.Sprintf("[PUT /v1beta/internal/projects/{projectNumber}/locations/{locationId}/TenantMigrateHydrate][%d] v1betaUpdateTenantMigrationHydrationInternalServerError  %+v", 500, o.Payload)
 }
 
 func (o *V1betaUpdateTenantMigrationHydrationInternalServerError) GetPayload() *models.Error {
@@ -652,7 +363,7 @@ func NewV1betaUpdateTenantMigrationHydrationDefault(code int) *V1betaUpdateTenan
 }
 
 /*
-V1betaUpdateTenantMigrationHydrationDefault describes a response with status code -1, with default header values.
+V1betaUpdateTenantMigrationHydrationDefault handles this case with default header values.
 
 Unexpected error
 */
@@ -662,44 +373,13 @@ type V1betaUpdateTenantMigrationHydrationDefault struct {
 	Payload *models.Error
 }
 
-// IsSuccess returns true when this v1beta update tenant migration hydration default response has a 2xx status code
-func (o *V1betaUpdateTenantMigrationHydrationDefault) IsSuccess() bool {
-	return o._statusCode/100 == 2
-}
-
-// IsRedirect returns true when this v1beta update tenant migration hydration default response has a 3xx status code
-func (o *V1betaUpdateTenantMigrationHydrationDefault) IsRedirect() bool {
-	return o._statusCode/100 == 3
-}
-
-// IsClientError returns true when this v1beta update tenant migration hydration default response has a 4xx status code
-func (o *V1betaUpdateTenantMigrationHydrationDefault) IsClientError() bool {
-	return o._statusCode/100 == 4
-}
-
-// IsServerError returns true when this v1beta update tenant migration hydration default response has a 5xx status code
-func (o *V1betaUpdateTenantMigrationHydrationDefault) IsServerError() bool {
-	return o._statusCode/100 == 5
-}
-
-// IsCode returns true when this v1beta update tenant migration hydration default response a status code equal to that given
-func (o *V1betaUpdateTenantMigrationHydrationDefault) IsCode(code int) bool {
-	return o._statusCode == code
-}
-
 // Code gets the status code for the v1beta update tenant migration hydration default response
 func (o *V1betaUpdateTenantMigrationHydrationDefault) Code() int {
 	return o._statusCode
 }
 
 func (o *V1betaUpdateTenantMigrationHydrationDefault) Error() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[PUT /v1beta/internal/projects/{projectNumber}/locations/{locationId}/TenantMigrateHydrate][%d] v1beta_updateTenantMigrationHydration default %s", o._statusCode, payload)
-}
-
-func (o *V1betaUpdateTenantMigrationHydrationDefault) String() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[PUT /v1beta/internal/projects/{projectNumber}/locations/{locationId}/TenantMigrateHydrate][%d] v1beta_updateTenantMigrationHydration default %s", o._statusCode, payload)
+	return fmt.Sprintf("[PUT /v1beta/internal/projects/{projectNumber}/locations/{locationId}/TenantMigrateHydrate][%d] v1beta_updateTenantMigrationHydration default  %+v", o._statusCode, o.Payload)
 }
 
 func (o *V1betaUpdateTenantMigrationHydrationDefault) GetPayload() *models.Error {

@@ -7,38 +7,12 @@ package backup_policy
 
 import (
 	"github.com/go-openapi/runtime"
-	httptransport "github.com/go-openapi/runtime/client"
 	"github.com/go-openapi/strfmt"
 )
 
 // New creates a new backup policy API client.
 func New(transport runtime.ClientTransport, formats strfmt.Registry) ClientService {
 	return &Client{transport: transport, formats: formats}
-}
-
-// New creates a new backup policy API client with basic auth credentials.
-// It takes the following parameters:
-// - host: http host (github.com).
-// - basePath: any base path for the API client ("/v1", "/v3").
-// - scheme: http scheme ("http", "https").
-// - user: user for basic authentication header.
-// - password: password for basic authentication header.
-func NewClientWithBasicAuth(host, basePath, scheme, user, password string) ClientService {
-	transport := httptransport.New(host, basePath, []string{scheme})
-	transport.DefaultAuthentication = httptransport.BasicAuth(user, password)
-	return &Client{transport: transport, formats: strfmt.Default}
-}
-
-// New creates a new backup policy API client with a bearer token for authentication.
-// It takes the following parameters:
-// - host: http host (github.com).
-// - basePath: any base path for the API client ("/v1", "/v3").
-// - scheme: http scheme ("http", "https").
-// - bearerToken: bearer token for Bearer authentication header.
-func NewClientWithBearerToken(host, basePath, scheme, bearerToken string) ClientService {
-	transport := httptransport.New(host, basePath, []string{scheme})
-	transport.DefaultAuthentication = httptransport.BearerToken(bearerToken)
-	return &Client{transport: transport, formats: strfmt.Default}
 }
 
 /*
@@ -49,22 +23,19 @@ type Client struct {
 	formats   strfmt.Registry
 }
 
-// ClientOption may be used to customize the behavior of Client methods.
-type ClientOption func(*runtime.ClientOperation)
-
 // ClientService is the interface for Client methods
 type ClientService interface {
-	V1betaCreateBackupPolicy(params *V1betaCreateBackupPolicyParams, opts ...ClientOption) (*V1betaCreateBackupPolicyAccepted, error)
+	V1betaCreateBackupPolicy(params *V1betaCreateBackupPolicyParams) (*V1betaCreateBackupPolicyAccepted, error)
 
-	V1betaDeleteBackupPolicy(params *V1betaDeleteBackupPolicyParams, opts ...ClientOption) (*V1betaDeleteBackupPolicyAccepted, *V1betaDeleteBackupPolicyNoContent, error)
+	V1betaDeleteBackupPolicy(params *V1betaDeleteBackupPolicyParams) (*V1betaDeleteBackupPolicyAccepted, *V1betaDeleteBackupPolicyNoContent, error)
 
-	V1betaDescribeBackupPolicy(params *V1betaDescribeBackupPolicyParams, opts ...ClientOption) (*V1betaDescribeBackupPolicyOK, error)
+	V1betaDescribeBackupPolicy(params *V1betaDescribeBackupPolicyParams) (*V1betaDescribeBackupPolicyOK, error)
 
-	V1betaGetMultipleBackupPolicies(params *V1betaGetMultipleBackupPoliciesParams, opts ...ClientOption) (*V1betaGetMultipleBackupPoliciesOK, error)
+	V1betaGetMultipleBackupPolicies(params *V1betaGetMultipleBackupPoliciesParams) (*V1betaGetMultipleBackupPoliciesOK, error)
 
-	V1betaListBackupPolicies(params *V1betaListBackupPoliciesParams, opts ...ClientOption) (*V1betaListBackupPoliciesOK, error)
+	V1betaListBackupPolicies(params *V1betaListBackupPoliciesParams) (*V1betaListBackupPoliciesOK, error)
 
-	V1betaUpdateBackupPolicy(params *V1betaUpdateBackupPolicyParams, opts ...ClientOption) (*V1betaUpdateBackupPolicyAccepted, *V1betaUpdateBackupPolicyNoContent, error)
+	V1betaUpdateBackupPolicy(params *V1betaUpdateBackupPolicyParams) (*V1betaUpdateBackupPolicyAccepted, *V1betaUpdateBackupPolicyNoContent, error)
 
 	SetTransport(transport runtime.ClientTransport)
 }
@@ -74,12 +45,13 @@ V1betaCreateBackupPolicy creates a new backup policy
 
 Create a new backup policy.
 */
-func (a *Client) V1betaCreateBackupPolicy(params *V1betaCreateBackupPolicyParams, opts ...ClientOption) (*V1betaCreateBackupPolicyAccepted, error) {
+func (a *Client) V1betaCreateBackupPolicy(params *V1betaCreateBackupPolicyParams) (*V1betaCreateBackupPolicyAccepted, error) {
 	// TODO: Validate the params before sending
 	if params == nil {
 		params = NewV1betaCreateBackupPolicyParams()
 	}
-	op := &runtime.ClientOperation{
+
+	result, err := a.transport.Submit(&runtime.ClientOperation{
 		ID:                 "v1beta_createBackupPolicy",
 		Method:             "POST",
 		PathPattern:        "/v1beta/projects/{projectNumber}/locations/{locationId}/backupPolicies",
@@ -90,12 +62,7 @@ func (a *Client) V1betaCreateBackupPolicy(params *V1betaCreateBackupPolicyParams
 		Reader:             &V1betaCreateBackupPolicyReader{formats: a.formats},
 		Context:            params.Context,
 		Client:             params.HTTPClient,
-	}
-	for _, opt := range opts {
-		opt(op)
-	}
-
-	result, err := a.transport.Submit(op)
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -113,12 +80,13 @@ V1betaDeleteBackupPolicy deletes a backup policy
 
 Warning! This operation will permanently delete the backup policy.
 */
-func (a *Client) V1betaDeleteBackupPolicy(params *V1betaDeleteBackupPolicyParams, opts ...ClientOption) (*V1betaDeleteBackupPolicyAccepted, *V1betaDeleteBackupPolicyNoContent, error) {
+func (a *Client) V1betaDeleteBackupPolicy(params *V1betaDeleteBackupPolicyParams) (*V1betaDeleteBackupPolicyAccepted, *V1betaDeleteBackupPolicyNoContent, error) {
 	// TODO: Validate the params before sending
 	if params == nil {
 		params = NewV1betaDeleteBackupPolicyParams()
 	}
-	op := &runtime.ClientOperation{
+
+	result, err := a.transport.Submit(&runtime.ClientOperation{
 		ID:                 "v1beta_deleteBackupPolicy",
 		Method:             "DELETE",
 		PathPattern:        "/v1beta/projects/{projectNumber}/locations/{locationId}/backupPolicies/{backupPolicyId}",
@@ -129,12 +97,7 @@ func (a *Client) V1betaDeleteBackupPolicy(params *V1betaDeleteBackupPolicyParams
 		Reader:             &V1betaDeleteBackupPolicyReader{formats: a.formats},
 		Context:            params.Context,
 		Client:             params.HTTPClient,
-	}
-	for _, opt := range opts {
-		opt(op)
-	}
-
-	result, err := a.transport.Submit(op)
+	})
 	if err != nil {
 		return nil, nil, err
 	}
@@ -154,12 +117,13 @@ V1betaDescribeBackupPolicy describes a backup policy
 
 Returns the description of the specified backup policy by backup policy ID.
 */
-func (a *Client) V1betaDescribeBackupPolicy(params *V1betaDescribeBackupPolicyParams, opts ...ClientOption) (*V1betaDescribeBackupPolicyOK, error) {
+func (a *Client) V1betaDescribeBackupPolicy(params *V1betaDescribeBackupPolicyParams) (*V1betaDescribeBackupPolicyOK, error) {
 	// TODO: Validate the params before sending
 	if params == nil {
 		params = NewV1betaDescribeBackupPolicyParams()
 	}
-	op := &runtime.ClientOperation{
+
+	result, err := a.transport.Submit(&runtime.ClientOperation{
 		ID:                 "v1beta_describeBackupPolicy",
 		Method:             "GET",
 		PathPattern:        "/v1beta/projects/{projectNumber}/locations/{locationId}/backupPolicies/{backupPolicyId}",
@@ -170,12 +134,7 @@ func (a *Client) V1betaDescribeBackupPolicy(params *V1betaDescribeBackupPolicyPa
 		Reader:             &V1betaDescribeBackupPolicyReader{formats: a.formats},
 		Context:            params.Context,
 		Client:             params.HTTPClient,
-	}
-	for _, opt := range opts {
-		opt(op)
-	}
-
-	result, err := a.transport.Submit(op)
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -193,12 +152,13 @@ V1betaGetMultipleBackupPolicies lists specified backup policies
 
 Returns descriptions of backup policies that is listed in request body.
 */
-func (a *Client) V1betaGetMultipleBackupPolicies(params *V1betaGetMultipleBackupPoliciesParams, opts ...ClientOption) (*V1betaGetMultipleBackupPoliciesOK, error) {
+func (a *Client) V1betaGetMultipleBackupPolicies(params *V1betaGetMultipleBackupPoliciesParams) (*V1betaGetMultipleBackupPoliciesOK, error) {
 	// TODO: Validate the params before sending
 	if params == nil {
 		params = NewV1betaGetMultipleBackupPoliciesParams()
 	}
-	op := &runtime.ClientOperation{
+
+	result, err := a.transport.Submit(&runtime.ClientOperation{
 		ID:                 "v1beta_getMultipleBackupPolicies",
 		Method:             "POST",
 		PathPattern:        "/v1beta/projects/{projectNumber}/locations/{locationId}/getMultipleBackupPolicies",
@@ -209,12 +169,7 @@ func (a *Client) V1betaGetMultipleBackupPolicies(params *V1betaGetMultipleBackup
 		Reader:             &V1betaGetMultipleBackupPoliciesReader{formats: a.formats},
 		Context:            params.Context,
 		Client:             params.HTTPClient,
-	}
-	for _, opt := range opts {
-		opt(op)
-	}
-
-	result, err := a.transport.Submit(op)
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -232,12 +187,13 @@ V1betaListBackupPolicies lists all backup policies
 
 Returns list of all available backup policies.
 */
-func (a *Client) V1betaListBackupPolicies(params *V1betaListBackupPoliciesParams, opts ...ClientOption) (*V1betaListBackupPoliciesOK, error) {
+func (a *Client) V1betaListBackupPolicies(params *V1betaListBackupPoliciesParams) (*V1betaListBackupPoliciesOK, error) {
 	// TODO: Validate the params before sending
 	if params == nil {
 		params = NewV1betaListBackupPoliciesParams()
 	}
-	op := &runtime.ClientOperation{
+
+	result, err := a.transport.Submit(&runtime.ClientOperation{
 		ID:                 "v1beta_listBackupPolicies",
 		Method:             "GET",
 		PathPattern:        "/v1beta/projects/{projectNumber}/locations/{locationId}/backupPolicies",
@@ -248,12 +204,7 @@ func (a *Client) V1betaListBackupPolicies(params *V1betaListBackupPoliciesParams
 		Reader:             &V1betaListBackupPoliciesReader{formats: a.formats},
 		Context:            params.Context,
 		Client:             params.HTTPClient,
-	}
-	for _, opt := range opts {
-		opt(op)
-	}
-
-	result, err := a.transport.Submit(op)
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -271,12 +222,13 @@ V1betaUpdateBackupPolicy updates a backup policy
 
 Update the backup policy
 */
-func (a *Client) V1betaUpdateBackupPolicy(params *V1betaUpdateBackupPolicyParams, opts ...ClientOption) (*V1betaUpdateBackupPolicyAccepted, *V1betaUpdateBackupPolicyNoContent, error) {
+func (a *Client) V1betaUpdateBackupPolicy(params *V1betaUpdateBackupPolicyParams) (*V1betaUpdateBackupPolicyAccepted, *V1betaUpdateBackupPolicyNoContent, error) {
 	// TODO: Validate the params before sending
 	if params == nil {
 		params = NewV1betaUpdateBackupPolicyParams()
 	}
-	op := &runtime.ClientOperation{
+
+	result, err := a.transport.Submit(&runtime.ClientOperation{
 		ID:                 "v1beta_updateBackupPolicy",
 		Method:             "PUT",
 		PathPattern:        "/v1beta/projects/{projectNumber}/locations/{locationId}/backupPolicies/{backupPolicyId}",
@@ -287,12 +239,7 @@ func (a *Client) V1betaUpdateBackupPolicy(params *V1betaUpdateBackupPolicyParams
 		Reader:             &V1betaUpdateBackupPolicyReader{formats: a.formats},
 		Context:            params.Context,
 		Client:             params.HTTPClient,
-	}
-	for _, opt := range opts {
-		opt(op)
-	}
-
-	result, err := a.transport.Submit(op)
+	})
 	if err != nil {
 		return nil, nil, err
 	}

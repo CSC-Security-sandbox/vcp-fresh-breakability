@@ -6,8 +6,6 @@ package models
 // Editing this file might prove futile when you re-run the swagger generate command
 
 import (
-	"context"
-
 	"github.com/go-openapi/errors"
 	"github.com/go-openapi/strfmt"
 	"github.com/go-openapi/swag"
@@ -26,7 +24,6 @@ type BackupPolicyCreateV1beta struct {
 	BackupPolicyScheduleV1beta
 
 	// If enabled, backup policy will be available for any volume to use.
-	// Example: true
 	Enabled *bool `json:"enabled,omitempty"`
 }
 
@@ -115,29 +112,6 @@ func (m *BackupPolicyCreateV1beta) Validate(formats strfmt.Registry) error {
 	}
 	// validation for a type composition with BackupPolicyScheduleV1beta
 	if err := m.BackupPolicyScheduleV1beta.Validate(formats); err != nil {
-		res = append(res, err)
-	}
-
-	if len(res) > 0 {
-		return errors.CompositeValidationError(res...)
-	}
-	return nil
-}
-
-// ContextValidate validate this backup policy create v1beta based on the context it is used
-func (m *BackupPolicyCreateV1beta) ContextValidate(ctx context.Context, formats strfmt.Registry) error {
-	var res []error
-
-	// validation for a type composition with ResourceNameV1beta
-	if err := m.ResourceNameV1beta.ContextValidate(ctx, formats); err != nil {
-		res = append(res, err)
-	}
-	// validation for a type composition with DescriptionV1beta
-	if err := m.DescriptionV1beta.ContextValidate(ctx, formats); err != nil {
-		res = append(res, err)
-	}
-	// validation for a type composition with BackupPolicyScheduleV1beta
-	if err := m.BackupPolicyScheduleV1beta.ContextValidate(ctx, formats); err != nil {
 		res = append(res, err)
 	}
 

@@ -6,8 +6,6 @@ package models
 // Editing this file might prove futile when you re-run the swagger generate command
 
 import (
-	"context"
-
 	"github.com/go-openapi/errors"
 	"github.com/go-openapi/strfmt"
 	"github.com/go-openapi/swag"
@@ -33,13 +31,11 @@ type KmsConfigPreMigrationCheckReportV1beta struct {
 	// PreCheckErrorReport
 	//
 	// Any error observed during pre-check.
-	// Example: We couldn't find any first-party service accounts, please contact support.
 	PreCheckErrorReport string `json:"PreCheckErrorReport,omitempty"`
 
 	// success
 	//
 	// Is GCP KMS configuration pre-migration check successful.
-	// Example: false
 	// Required: true
 	ReadyToMigrate *bool `json:"ReadyToMigrate"`
 }
@@ -67,6 +63,7 @@ func (m *KmsConfigPreMigrationCheckReportV1beta) Validate(formats strfmt.Registr
 }
 
 func (m *KmsConfigPreMigrationCheckReportV1beta) validateFirstPartyServiceAccountHealth(formats strfmt.Registry) error {
+
 	if swag.IsZero(m.FirstPartyServiceAccountHealth) { // not required
 		return nil
 	}
@@ -75,8 +72,6 @@ func (m *KmsConfigPreMigrationCheckReportV1beta) validateFirstPartyServiceAccoun
 		if err := m.FirstPartyServiceAccountHealth.Validate(formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("FirstPartyServiceAccountHealth")
-			} else if ce, ok := err.(*errors.CompositeError); ok {
-				return ce.ValidateName("FirstPartyServiceAccountHealth")
 			}
 			return err
 		}
@@ -86,6 +81,7 @@ func (m *KmsConfigPreMigrationCheckReportV1beta) validateFirstPartyServiceAccoun
 }
 
 func (m *KmsConfigPreMigrationCheckReportV1beta) validateKmsConfigToBeMigrated(formats strfmt.Registry) error {
+
 	if swag.IsZero(m.KmsConfigToBeMigrated) { // not required
 		return nil
 	}
@@ -94,8 +90,6 @@ func (m *KmsConfigPreMigrationCheckReportV1beta) validateKmsConfigToBeMigrated(f
 		if err := m.KmsConfigToBeMigrated.Validate(formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("KmsConfigToBeMigrated")
-			} else if ce, ok := err.(*errors.CompositeError); ok {
-				return ce.ValidateName("KmsConfigToBeMigrated")
 			}
 			return err
 		}
@@ -108,66 +102,6 @@ func (m *KmsConfigPreMigrationCheckReportV1beta) validateReadyToMigrate(formats 
 
 	if err := validate.Required("ReadyToMigrate", "body", m.ReadyToMigrate); err != nil {
 		return err
-	}
-
-	return nil
-}
-
-// ContextValidate validate this kms config pre migration check report v1beta based on the context it is used
-func (m *KmsConfigPreMigrationCheckReportV1beta) ContextValidate(ctx context.Context, formats strfmt.Registry) error {
-	var res []error
-
-	if err := m.contextValidateFirstPartyServiceAccountHealth(ctx, formats); err != nil {
-		res = append(res, err)
-	}
-
-	if err := m.contextValidateKmsConfigToBeMigrated(ctx, formats); err != nil {
-		res = append(res, err)
-	}
-
-	if len(res) > 0 {
-		return errors.CompositeValidationError(res...)
-	}
-	return nil
-}
-
-func (m *KmsConfigPreMigrationCheckReportV1beta) contextValidateFirstPartyServiceAccountHealth(ctx context.Context, formats strfmt.Registry) error {
-
-	if m.FirstPartyServiceAccountHealth != nil {
-
-		if swag.IsZero(m.FirstPartyServiceAccountHealth) { // not required
-			return nil
-		}
-
-		if err := m.FirstPartyServiceAccountHealth.ContextValidate(ctx, formats); err != nil {
-			if ve, ok := err.(*errors.Validation); ok {
-				return ve.ValidateName("FirstPartyServiceAccountHealth")
-			} else if ce, ok := err.(*errors.CompositeError); ok {
-				return ce.ValidateName("FirstPartyServiceAccountHealth")
-			}
-			return err
-		}
-	}
-
-	return nil
-}
-
-func (m *KmsConfigPreMigrationCheckReportV1beta) contextValidateKmsConfigToBeMigrated(ctx context.Context, formats strfmt.Registry) error {
-
-	if m.KmsConfigToBeMigrated != nil {
-
-		if swag.IsZero(m.KmsConfigToBeMigrated) { // not required
-			return nil
-		}
-
-		if err := m.KmsConfigToBeMigrated.ContextValidate(ctx, formats); err != nil {
-			if ve, ok := err.(*errors.Validation); ok {
-				return ve.ValidateName("KmsConfigToBeMigrated")
-			} else if ce, ok := err.(*errors.CompositeError); ok {
-				return ce.ValidateName("KmsConfigToBeMigrated")
-			}
-			return err
-		}
 	}
 
 	return nil

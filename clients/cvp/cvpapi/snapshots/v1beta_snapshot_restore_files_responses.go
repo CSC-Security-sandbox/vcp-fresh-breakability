@@ -6,7 +6,6 @@ package snapshots
 // Editing this file might prove futile when you re-run the swagger generate command
 
 import (
-	"encoding/json"
 	"fmt"
 	"io"
 
@@ -96,7 +95,7 @@ func NewV1betaSnapshotRestoreFilesCreated() *V1betaSnapshotRestoreFilesCreated {
 }
 
 /*
-V1betaSnapshotRestoreFilesCreated describes a response with status code 201, with default header values.
+V1betaSnapshotRestoreFilesCreated handles this case with default header values.
 
 Created snapshot file restore
 */
@@ -104,44 +103,8 @@ type V1betaSnapshotRestoreFilesCreated struct {
 	Payload *models.OperationV1beta
 }
 
-// IsSuccess returns true when this v1beta snapshot restore files created response has a 2xx status code
-func (o *V1betaSnapshotRestoreFilesCreated) IsSuccess() bool {
-	return true
-}
-
-// IsRedirect returns true when this v1beta snapshot restore files created response has a 3xx status code
-func (o *V1betaSnapshotRestoreFilesCreated) IsRedirect() bool {
-	return false
-}
-
-// IsClientError returns true when this v1beta snapshot restore files created response has a 4xx status code
-func (o *V1betaSnapshotRestoreFilesCreated) IsClientError() bool {
-	return false
-}
-
-// IsServerError returns true when this v1beta snapshot restore files created response has a 5xx status code
-func (o *V1betaSnapshotRestoreFilesCreated) IsServerError() bool {
-	return false
-}
-
-// IsCode returns true when this v1beta snapshot restore files created response a status code equal to that given
-func (o *V1betaSnapshotRestoreFilesCreated) IsCode(code int) bool {
-	return code == 201
-}
-
-// Code gets the status code for the v1beta snapshot restore files created response
-func (o *V1betaSnapshotRestoreFilesCreated) Code() int {
-	return 201
-}
-
 func (o *V1betaSnapshotRestoreFilesCreated) Error() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/snapshots/{snapshotId}/restoreFiles][%d] v1betaSnapshotRestoreFilesCreated %s", 201, payload)
-}
-
-func (o *V1betaSnapshotRestoreFilesCreated) String() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/snapshots/{snapshotId}/restoreFiles][%d] v1betaSnapshotRestoreFilesCreated %s", 201, payload)
+	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/snapshots/{snapshotId}/restoreFiles][%d] v1betaSnapshotRestoreFilesCreated  %+v", 201, o.Payload)
 }
 
 func (o *V1betaSnapshotRestoreFilesCreated) GetPayload() *models.OperationV1beta {
@@ -166,7 +129,7 @@ func NewV1betaSnapshotRestoreFilesAccepted() *V1betaSnapshotRestoreFilesAccepted
 }
 
 /*
-V1betaSnapshotRestoreFilesAccepted describes a response with status code 202, with default header values.
+V1betaSnapshotRestoreFilesAccepted handles this case with default header values.
 
 Creating snapshot file restore
 */
@@ -174,44 +137,8 @@ type V1betaSnapshotRestoreFilesAccepted struct {
 	Payload *models.OperationV1beta
 }
 
-// IsSuccess returns true when this v1beta snapshot restore files accepted response has a 2xx status code
-func (o *V1betaSnapshotRestoreFilesAccepted) IsSuccess() bool {
-	return true
-}
-
-// IsRedirect returns true when this v1beta snapshot restore files accepted response has a 3xx status code
-func (o *V1betaSnapshotRestoreFilesAccepted) IsRedirect() bool {
-	return false
-}
-
-// IsClientError returns true when this v1beta snapshot restore files accepted response has a 4xx status code
-func (o *V1betaSnapshotRestoreFilesAccepted) IsClientError() bool {
-	return false
-}
-
-// IsServerError returns true when this v1beta snapshot restore files accepted response has a 5xx status code
-func (o *V1betaSnapshotRestoreFilesAccepted) IsServerError() bool {
-	return false
-}
-
-// IsCode returns true when this v1beta snapshot restore files accepted response a status code equal to that given
-func (o *V1betaSnapshotRestoreFilesAccepted) IsCode(code int) bool {
-	return code == 202
-}
-
-// Code gets the status code for the v1beta snapshot restore files accepted response
-func (o *V1betaSnapshotRestoreFilesAccepted) Code() int {
-	return 202
-}
-
 func (o *V1betaSnapshotRestoreFilesAccepted) Error() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/snapshots/{snapshotId}/restoreFiles][%d] v1betaSnapshotRestoreFilesAccepted %s", 202, payload)
-}
-
-func (o *V1betaSnapshotRestoreFilesAccepted) String() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/snapshots/{snapshotId}/restoreFiles][%d] v1betaSnapshotRestoreFilesAccepted %s", 202, payload)
+	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/snapshots/{snapshotId}/restoreFiles][%d] v1betaSnapshotRestoreFilesAccepted  %+v", 202, o.Payload)
 }
 
 func (o *V1betaSnapshotRestoreFilesAccepted) GetPayload() *models.OperationV1beta {
@@ -236,7 +163,7 @@ func NewV1betaSnapshotRestoreFilesBadRequest() *V1betaSnapshotRestoreFilesBadReq
 }
 
 /*
-V1betaSnapshotRestoreFilesBadRequest describes a response with status code 400, with default header values.
+V1betaSnapshotRestoreFilesBadRequest handles this case with default header values.
 
 Bad request
 */
@@ -244,44 +171,8 @@ type V1betaSnapshotRestoreFilesBadRequest struct {
 	Payload *models.Error
 }
 
-// IsSuccess returns true when this v1beta snapshot restore files bad request response has a 2xx status code
-func (o *V1betaSnapshotRestoreFilesBadRequest) IsSuccess() bool {
-	return false
-}
-
-// IsRedirect returns true when this v1beta snapshot restore files bad request response has a 3xx status code
-func (o *V1betaSnapshotRestoreFilesBadRequest) IsRedirect() bool {
-	return false
-}
-
-// IsClientError returns true when this v1beta snapshot restore files bad request response has a 4xx status code
-func (o *V1betaSnapshotRestoreFilesBadRequest) IsClientError() bool {
-	return true
-}
-
-// IsServerError returns true when this v1beta snapshot restore files bad request response has a 5xx status code
-func (o *V1betaSnapshotRestoreFilesBadRequest) IsServerError() bool {
-	return false
-}
-
-// IsCode returns true when this v1beta snapshot restore files bad request response a status code equal to that given
-func (o *V1betaSnapshotRestoreFilesBadRequest) IsCode(code int) bool {
-	return code == 400
-}
-
-// Code gets the status code for the v1beta snapshot restore files bad request response
-func (o *V1betaSnapshotRestoreFilesBadRequest) Code() int {
-	return 400
-}
-
 func (o *V1betaSnapshotRestoreFilesBadRequest) Error() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/snapshots/{snapshotId}/restoreFiles][%d] v1betaSnapshotRestoreFilesBadRequest %s", 400, payload)
-}
-
-func (o *V1betaSnapshotRestoreFilesBadRequest) String() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/snapshots/{snapshotId}/restoreFiles][%d] v1betaSnapshotRestoreFilesBadRequest %s", 400, payload)
+	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/snapshots/{snapshotId}/restoreFiles][%d] v1betaSnapshotRestoreFilesBadRequest  %+v", 400, o.Payload)
 }
 
 func (o *V1betaSnapshotRestoreFilesBadRequest) GetPayload() *models.Error {
@@ -306,7 +197,7 @@ func NewV1betaSnapshotRestoreFilesUnauthorized() *V1betaSnapshotRestoreFilesUnau
 }
 
 /*
-V1betaSnapshotRestoreFilesUnauthorized describes a response with status code 401, with default header values.
+V1betaSnapshotRestoreFilesUnauthorized handles this case with default header values.
 
 Unauthorized
 */
@@ -314,44 +205,8 @@ type V1betaSnapshotRestoreFilesUnauthorized struct {
 	Payload *models.Error
 }
 
-// IsSuccess returns true when this v1beta snapshot restore files unauthorized response has a 2xx status code
-func (o *V1betaSnapshotRestoreFilesUnauthorized) IsSuccess() bool {
-	return false
-}
-
-// IsRedirect returns true when this v1beta snapshot restore files unauthorized response has a 3xx status code
-func (o *V1betaSnapshotRestoreFilesUnauthorized) IsRedirect() bool {
-	return false
-}
-
-// IsClientError returns true when this v1beta snapshot restore files unauthorized response has a 4xx status code
-func (o *V1betaSnapshotRestoreFilesUnauthorized) IsClientError() bool {
-	return true
-}
-
-// IsServerError returns true when this v1beta snapshot restore files unauthorized response has a 5xx status code
-func (o *V1betaSnapshotRestoreFilesUnauthorized) IsServerError() bool {
-	return false
-}
-
-// IsCode returns true when this v1beta snapshot restore files unauthorized response a status code equal to that given
-func (o *V1betaSnapshotRestoreFilesUnauthorized) IsCode(code int) bool {
-	return code == 401
-}
-
-// Code gets the status code for the v1beta snapshot restore files unauthorized response
-func (o *V1betaSnapshotRestoreFilesUnauthorized) Code() int {
-	return 401
-}
-
 func (o *V1betaSnapshotRestoreFilesUnauthorized) Error() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/snapshots/{snapshotId}/restoreFiles][%d] v1betaSnapshotRestoreFilesUnauthorized %s", 401, payload)
-}
-
-func (o *V1betaSnapshotRestoreFilesUnauthorized) String() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/snapshots/{snapshotId}/restoreFiles][%d] v1betaSnapshotRestoreFilesUnauthorized %s", 401, payload)
+	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/snapshots/{snapshotId}/restoreFiles][%d] v1betaSnapshotRestoreFilesUnauthorized  %+v", 401, o.Payload)
 }
 
 func (o *V1betaSnapshotRestoreFilesUnauthorized) GetPayload() *models.Error {
@@ -376,7 +231,7 @@ func NewV1betaSnapshotRestoreFilesForbidden() *V1betaSnapshotRestoreFilesForbidd
 }
 
 /*
-V1betaSnapshotRestoreFilesForbidden describes a response with status code 403, with default header values.
+V1betaSnapshotRestoreFilesForbidden handles this case with default header values.
 
 Forbidden
 */
@@ -384,44 +239,8 @@ type V1betaSnapshotRestoreFilesForbidden struct {
 	Payload *models.Error
 }
 
-// IsSuccess returns true when this v1beta snapshot restore files forbidden response has a 2xx status code
-func (o *V1betaSnapshotRestoreFilesForbidden) IsSuccess() bool {
-	return false
-}
-
-// IsRedirect returns true when this v1beta snapshot restore files forbidden response has a 3xx status code
-func (o *V1betaSnapshotRestoreFilesForbidden) IsRedirect() bool {
-	return false
-}
-
-// IsClientError returns true when this v1beta snapshot restore files forbidden response has a 4xx status code
-func (o *V1betaSnapshotRestoreFilesForbidden) IsClientError() bool {
-	return true
-}
-
-// IsServerError returns true when this v1beta snapshot restore files forbidden response has a 5xx status code
-func (o *V1betaSnapshotRestoreFilesForbidden) IsServerError() bool {
-	return false
-}
-
-// IsCode returns true when this v1beta snapshot restore files forbidden response a status code equal to that given
-func (o *V1betaSnapshotRestoreFilesForbidden) IsCode(code int) bool {
-	return code == 403
-}
-
-// Code gets the status code for the v1beta snapshot restore files forbidden response
-func (o *V1betaSnapshotRestoreFilesForbidden) Code() int {
-	return 403
-}
-
 func (o *V1betaSnapshotRestoreFilesForbidden) Error() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/snapshots/{snapshotId}/restoreFiles][%d] v1betaSnapshotRestoreFilesForbidden %s", 403, payload)
-}
-
-func (o *V1betaSnapshotRestoreFilesForbidden) String() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/snapshots/{snapshotId}/restoreFiles][%d] v1betaSnapshotRestoreFilesForbidden %s", 403, payload)
+	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/snapshots/{snapshotId}/restoreFiles][%d] v1betaSnapshotRestoreFilesForbidden  %+v", 403, o.Payload)
 }
 
 func (o *V1betaSnapshotRestoreFilesForbidden) GetPayload() *models.Error {
@@ -446,7 +265,7 @@ func NewV1betaSnapshotRestoreFilesUnprocessableEntity() *V1betaSnapshotRestoreFi
 }
 
 /*
-V1betaSnapshotRestoreFilesUnprocessableEntity describes a response with status code 422, with default header values.
+V1betaSnapshotRestoreFilesUnprocessableEntity handles this case with default header values.
 
 Unprocessable entity
 */
@@ -454,44 +273,8 @@ type V1betaSnapshotRestoreFilesUnprocessableEntity struct {
 	Payload *models.Error
 }
 
-// IsSuccess returns true when this v1beta snapshot restore files unprocessable entity response has a 2xx status code
-func (o *V1betaSnapshotRestoreFilesUnprocessableEntity) IsSuccess() bool {
-	return false
-}
-
-// IsRedirect returns true when this v1beta snapshot restore files unprocessable entity response has a 3xx status code
-func (o *V1betaSnapshotRestoreFilesUnprocessableEntity) IsRedirect() bool {
-	return false
-}
-
-// IsClientError returns true when this v1beta snapshot restore files unprocessable entity response has a 4xx status code
-func (o *V1betaSnapshotRestoreFilesUnprocessableEntity) IsClientError() bool {
-	return true
-}
-
-// IsServerError returns true when this v1beta snapshot restore files unprocessable entity response has a 5xx status code
-func (o *V1betaSnapshotRestoreFilesUnprocessableEntity) IsServerError() bool {
-	return false
-}
-
-// IsCode returns true when this v1beta snapshot restore files unprocessable entity response a status code equal to that given
-func (o *V1betaSnapshotRestoreFilesUnprocessableEntity) IsCode(code int) bool {
-	return code == 422
-}
-
-// Code gets the status code for the v1beta snapshot restore files unprocessable entity response
-func (o *V1betaSnapshotRestoreFilesUnprocessableEntity) Code() int {
-	return 422
-}
-
 func (o *V1betaSnapshotRestoreFilesUnprocessableEntity) Error() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/snapshots/{snapshotId}/restoreFiles][%d] v1betaSnapshotRestoreFilesUnprocessableEntity %s", 422, payload)
-}
-
-func (o *V1betaSnapshotRestoreFilesUnprocessableEntity) String() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/snapshots/{snapshotId}/restoreFiles][%d] v1betaSnapshotRestoreFilesUnprocessableEntity %s", 422, payload)
+	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/snapshots/{snapshotId}/restoreFiles][%d] v1betaSnapshotRestoreFilesUnprocessableEntity  %+v", 422, o.Payload)
 }
 
 func (o *V1betaSnapshotRestoreFilesUnprocessableEntity) GetPayload() *models.Error {
@@ -516,7 +299,7 @@ func NewV1betaSnapshotRestoreFilesTooManyRequests() *V1betaSnapshotRestoreFilesT
 }
 
 /*
-V1betaSnapshotRestoreFilesTooManyRequests describes a response with status code 429, with default header values.
+V1betaSnapshotRestoreFilesTooManyRequests handles this case with default header values.
 
 Too many requests
 */
@@ -524,44 +307,8 @@ type V1betaSnapshotRestoreFilesTooManyRequests struct {
 	Payload *models.Error
 }
 
-// IsSuccess returns true when this v1beta snapshot restore files too many requests response has a 2xx status code
-func (o *V1betaSnapshotRestoreFilesTooManyRequests) IsSuccess() bool {
-	return false
-}
-
-// IsRedirect returns true when this v1beta snapshot restore files too many requests response has a 3xx status code
-func (o *V1betaSnapshotRestoreFilesTooManyRequests) IsRedirect() bool {
-	return false
-}
-
-// IsClientError returns true when this v1beta snapshot restore files too many requests response has a 4xx status code
-func (o *V1betaSnapshotRestoreFilesTooManyRequests) IsClientError() bool {
-	return true
-}
-
-// IsServerError returns true when this v1beta snapshot restore files too many requests response has a 5xx status code
-func (o *V1betaSnapshotRestoreFilesTooManyRequests) IsServerError() bool {
-	return false
-}
-
-// IsCode returns true when this v1beta snapshot restore files too many requests response a status code equal to that given
-func (o *V1betaSnapshotRestoreFilesTooManyRequests) IsCode(code int) bool {
-	return code == 429
-}
-
-// Code gets the status code for the v1beta snapshot restore files too many requests response
-func (o *V1betaSnapshotRestoreFilesTooManyRequests) Code() int {
-	return 429
-}
-
 func (o *V1betaSnapshotRestoreFilesTooManyRequests) Error() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/snapshots/{snapshotId}/restoreFiles][%d] v1betaSnapshotRestoreFilesTooManyRequests %s", 429, payload)
-}
-
-func (o *V1betaSnapshotRestoreFilesTooManyRequests) String() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/snapshots/{snapshotId}/restoreFiles][%d] v1betaSnapshotRestoreFilesTooManyRequests %s", 429, payload)
+	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/snapshots/{snapshotId}/restoreFiles][%d] v1betaSnapshotRestoreFilesTooManyRequests  %+v", 429, o.Payload)
 }
 
 func (o *V1betaSnapshotRestoreFilesTooManyRequests) GetPayload() *models.Error {
@@ -586,7 +333,7 @@ func NewV1betaSnapshotRestoreFilesInternalServerError() *V1betaSnapshotRestoreFi
 }
 
 /*
-V1betaSnapshotRestoreFilesInternalServerError describes a response with status code 500, with default header values.
+V1betaSnapshotRestoreFilesInternalServerError handles this case with default header values.
 
 Internal server error
 */
@@ -594,44 +341,8 @@ type V1betaSnapshotRestoreFilesInternalServerError struct {
 	Payload *models.Error
 }
 
-// IsSuccess returns true when this v1beta snapshot restore files internal server error response has a 2xx status code
-func (o *V1betaSnapshotRestoreFilesInternalServerError) IsSuccess() bool {
-	return false
-}
-
-// IsRedirect returns true when this v1beta snapshot restore files internal server error response has a 3xx status code
-func (o *V1betaSnapshotRestoreFilesInternalServerError) IsRedirect() bool {
-	return false
-}
-
-// IsClientError returns true when this v1beta snapshot restore files internal server error response has a 4xx status code
-func (o *V1betaSnapshotRestoreFilesInternalServerError) IsClientError() bool {
-	return false
-}
-
-// IsServerError returns true when this v1beta snapshot restore files internal server error response has a 5xx status code
-func (o *V1betaSnapshotRestoreFilesInternalServerError) IsServerError() bool {
-	return true
-}
-
-// IsCode returns true when this v1beta snapshot restore files internal server error response a status code equal to that given
-func (o *V1betaSnapshotRestoreFilesInternalServerError) IsCode(code int) bool {
-	return code == 500
-}
-
-// Code gets the status code for the v1beta snapshot restore files internal server error response
-func (o *V1betaSnapshotRestoreFilesInternalServerError) Code() int {
-	return 500
-}
-
 func (o *V1betaSnapshotRestoreFilesInternalServerError) Error() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/snapshots/{snapshotId}/restoreFiles][%d] v1betaSnapshotRestoreFilesInternalServerError %s", 500, payload)
-}
-
-func (o *V1betaSnapshotRestoreFilesInternalServerError) String() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/snapshots/{snapshotId}/restoreFiles][%d] v1betaSnapshotRestoreFilesInternalServerError %s", 500, payload)
+	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/snapshots/{snapshotId}/restoreFiles][%d] v1betaSnapshotRestoreFilesInternalServerError  %+v", 500, o.Payload)
 }
 
 func (o *V1betaSnapshotRestoreFilesInternalServerError) GetPayload() *models.Error {
@@ -656,7 +367,7 @@ func NewV1betaSnapshotRestoreFilesNotImplemented() *V1betaSnapshotRestoreFilesNo
 }
 
 /*
-V1betaSnapshotRestoreFilesNotImplemented describes a response with status code 501, with default header values.
+V1betaSnapshotRestoreFilesNotImplemented handles this case with default header values.
 
 Not implemented
 */
@@ -664,44 +375,8 @@ type V1betaSnapshotRestoreFilesNotImplemented struct {
 	Payload *models.Error
 }
 
-// IsSuccess returns true when this v1beta snapshot restore files not implemented response has a 2xx status code
-func (o *V1betaSnapshotRestoreFilesNotImplemented) IsSuccess() bool {
-	return false
-}
-
-// IsRedirect returns true when this v1beta snapshot restore files not implemented response has a 3xx status code
-func (o *V1betaSnapshotRestoreFilesNotImplemented) IsRedirect() bool {
-	return false
-}
-
-// IsClientError returns true when this v1beta snapshot restore files not implemented response has a 4xx status code
-func (o *V1betaSnapshotRestoreFilesNotImplemented) IsClientError() bool {
-	return false
-}
-
-// IsServerError returns true when this v1beta snapshot restore files not implemented response has a 5xx status code
-func (o *V1betaSnapshotRestoreFilesNotImplemented) IsServerError() bool {
-	return true
-}
-
-// IsCode returns true when this v1beta snapshot restore files not implemented response a status code equal to that given
-func (o *V1betaSnapshotRestoreFilesNotImplemented) IsCode(code int) bool {
-	return code == 501
-}
-
-// Code gets the status code for the v1beta snapshot restore files not implemented response
-func (o *V1betaSnapshotRestoreFilesNotImplemented) Code() int {
-	return 501
-}
-
 func (o *V1betaSnapshotRestoreFilesNotImplemented) Error() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/snapshots/{snapshotId}/restoreFiles][%d] v1betaSnapshotRestoreFilesNotImplemented %s", 501, payload)
-}
-
-func (o *V1betaSnapshotRestoreFilesNotImplemented) String() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/snapshots/{snapshotId}/restoreFiles][%d] v1betaSnapshotRestoreFilesNotImplemented %s", 501, payload)
+	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/snapshots/{snapshotId}/restoreFiles][%d] v1betaSnapshotRestoreFilesNotImplemented  %+v", 501, o.Payload)
 }
 
 func (o *V1betaSnapshotRestoreFilesNotImplemented) GetPayload() *models.Error {
@@ -728,7 +403,7 @@ func NewV1betaSnapshotRestoreFilesDefault(code int) *V1betaSnapshotRestoreFilesD
 }
 
 /*
-V1betaSnapshotRestoreFilesDefault describes a response with status code -1, with default header values.
+V1betaSnapshotRestoreFilesDefault handles this case with default header values.
 
 Unexpected error
 */
@@ -738,44 +413,13 @@ type V1betaSnapshotRestoreFilesDefault struct {
 	Payload *models.Error
 }
 
-// IsSuccess returns true when this v1beta snapshot restore files default response has a 2xx status code
-func (o *V1betaSnapshotRestoreFilesDefault) IsSuccess() bool {
-	return o._statusCode/100 == 2
-}
-
-// IsRedirect returns true when this v1beta snapshot restore files default response has a 3xx status code
-func (o *V1betaSnapshotRestoreFilesDefault) IsRedirect() bool {
-	return o._statusCode/100 == 3
-}
-
-// IsClientError returns true when this v1beta snapshot restore files default response has a 4xx status code
-func (o *V1betaSnapshotRestoreFilesDefault) IsClientError() bool {
-	return o._statusCode/100 == 4
-}
-
-// IsServerError returns true when this v1beta snapshot restore files default response has a 5xx status code
-func (o *V1betaSnapshotRestoreFilesDefault) IsServerError() bool {
-	return o._statusCode/100 == 5
-}
-
-// IsCode returns true when this v1beta snapshot restore files default response a status code equal to that given
-func (o *V1betaSnapshotRestoreFilesDefault) IsCode(code int) bool {
-	return o._statusCode == code
-}
-
 // Code gets the status code for the v1beta snapshot restore files default response
 func (o *V1betaSnapshotRestoreFilesDefault) Code() int {
 	return o._statusCode
 }
 
 func (o *V1betaSnapshotRestoreFilesDefault) Error() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/snapshots/{snapshotId}/restoreFiles][%d] v1beta_snapshotRestoreFiles default %s", o._statusCode, payload)
-}
-
-func (o *V1betaSnapshotRestoreFilesDefault) String() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/snapshots/{snapshotId}/restoreFiles][%d] v1beta_snapshotRestoreFiles default %s", o._statusCode, payload)
+	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/snapshots/{snapshotId}/restoreFiles][%d] v1beta_snapshotRestoreFiles default  %+v", o._statusCode, o.Payload)
 }
 
 func (o *V1betaSnapshotRestoreFilesDefault) GetPayload() *models.Error {

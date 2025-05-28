@@ -18,37 +18,40 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/models"
 )
 
-// NewV1betaCreatePoolParams creates a new V1betaCreatePoolParams object,
-// with the default timeout for this client.
-//
-// Default values are not hydrated, since defaults are normally applied by the API server side.
-//
-// To enforce default values in parameter, use SetDefaults or WithDefaults.
+// NewV1betaCreatePoolParams creates a new V1betaCreatePoolParams object
+// with the default values initialized.
 func NewV1betaCreatePoolParams() *V1betaCreatePoolParams {
+	var ()
 	return &V1betaCreatePoolParams{
+
 		timeout: cr.DefaultTimeout,
 	}
 }
 
 // NewV1betaCreatePoolParamsWithTimeout creates a new V1betaCreatePoolParams object
-// with the ability to set a timeout on a request.
+// with the default values initialized, and the ability to set a timeout on a request
 func NewV1betaCreatePoolParamsWithTimeout(timeout time.Duration) *V1betaCreatePoolParams {
+	var ()
 	return &V1betaCreatePoolParams{
+
 		timeout: timeout,
 	}
 }
 
 // NewV1betaCreatePoolParamsWithContext creates a new V1betaCreatePoolParams object
-// with the ability to set a context for a request.
+// with the default values initialized, and the ability to set a context for a request
 func NewV1betaCreatePoolParamsWithContext(ctx context.Context) *V1betaCreatePoolParams {
+	var ()
 	return &V1betaCreatePoolParams{
+
 		Context: ctx,
 	}
 }
 
 // NewV1betaCreatePoolParamsWithHTTPClient creates a new V1betaCreatePoolParams object
-// with the ability to set a custom HTTPClient for a request.
+// with the default values initialized, and the ability to set a custom HTTPClient for a request
 func NewV1betaCreatePoolParamsWithHTTPClient(client *http.Client) *V1betaCreatePoolParams {
+	var ()
 	return &V1betaCreatePoolParams{
 		HTTPClient: client,
 	}
@@ -56,55 +59,34 @@ func NewV1betaCreatePoolParamsWithHTTPClient(client *http.Client) *V1betaCreateP
 
 /*
 V1betaCreatePoolParams contains all the parameters to send to the API endpoint
-
-	for the v1beta create pool operation.
-
-	Typically these are written to a http.Request.
+for the v1beta create pool operation typically these are written to a http.Request
 */
 type V1betaCreatePoolParams struct {
 
-	/* Body.
+	/*Body
+	  The required parameters to create a new pool.
 
-	   The required parameters to create a new pool.
 	*/
 	Body *models.PoolV1beta
+	/*LocationID
+	  The location/region to perform the operation in.
 
-	/* LocationID.
-
-	   The location/region to perform the operation in.
 	*/
 	LocationID string
+	/*ProjectNumber
+	  The project number of the GCP project owning the resource being acted upon
 
-	/* ProjectNumber.
-
-	   The project number of the GCP project owning the resource being acted upon
 	*/
 	ProjectNumber string
+	/*XCorrelationID
+	  Correlation identifier
 
-	/* XCorrelationID.
-
-	   Correlation identifier
 	*/
 	XCorrelationID *string
 
 	timeout    time.Duration
 	Context    context.Context
 	HTTPClient *http.Client
-}
-
-// WithDefaults hydrates default values in the v1beta create pool params (not the query body).
-//
-// All values with no default are reset to their zero value.
-func (o *V1betaCreatePoolParams) WithDefaults() *V1betaCreatePoolParams {
-	o.SetDefaults()
-	return o
-}
-
-// SetDefaults hydrates default values in the v1beta create pool params (not the query body).
-//
-// All values with no default are reset to their zero value.
-func (o *V1betaCreatePoolParams) SetDefaults() {
-	// no default values defined for this parameter
 }
 
 // WithTimeout adds the timeout to the v1beta create pool params
@@ -191,6 +173,7 @@ func (o *V1betaCreatePoolParams) WriteToRequest(r runtime.ClientRequest, reg str
 		return err
 	}
 	var res []error
+
 	if o.Body != nil {
 		if err := r.SetBodyParam(o.Body); err != nil {
 			return err
@@ -213,6 +196,7 @@ func (o *V1betaCreatePoolParams) WriteToRequest(r runtime.ClientRequest, reg str
 		if err := r.SetHeaderParam("x-correlation-id", *o.XCorrelationID); err != nil {
 			return err
 		}
+
 	}
 
 	if len(res) > 0 {

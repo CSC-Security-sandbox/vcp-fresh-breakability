@@ -6,7 +6,6 @@ package feature_flags
 // Editing this file might prove futile when you re-run the swagger generate command
 
 import (
-	"encoding/json"
 	"fmt"
 	"io"
 
@@ -66,7 +65,7 @@ func NewV1betaGetFeatureFlagsOK() *V1betaGetFeatureFlagsOK {
 }
 
 /*
-V1betaGetFeatureFlagsOK describes a response with status code 200, with default header values.
+V1betaGetFeatureFlagsOK handles this case with default header values.
 
 OK
 */
@@ -74,44 +73,8 @@ type V1betaGetFeatureFlagsOK struct {
 	Payload models.CVPFeatureFlagsState
 }
 
-// IsSuccess returns true when this v1beta get feature flags o k response has a 2xx status code
-func (o *V1betaGetFeatureFlagsOK) IsSuccess() bool {
-	return true
-}
-
-// IsRedirect returns true when this v1beta get feature flags o k response has a 3xx status code
-func (o *V1betaGetFeatureFlagsOK) IsRedirect() bool {
-	return false
-}
-
-// IsClientError returns true when this v1beta get feature flags o k response has a 4xx status code
-func (o *V1betaGetFeatureFlagsOK) IsClientError() bool {
-	return false
-}
-
-// IsServerError returns true when this v1beta get feature flags o k response has a 5xx status code
-func (o *V1betaGetFeatureFlagsOK) IsServerError() bool {
-	return false
-}
-
-// IsCode returns true when this v1beta get feature flags o k response a status code equal to that given
-func (o *V1betaGetFeatureFlagsOK) IsCode(code int) bool {
-	return code == 200
-}
-
-// Code gets the status code for the v1beta get feature flags o k response
-func (o *V1betaGetFeatureFlagsOK) Code() int {
-	return 200
-}
-
 func (o *V1betaGetFeatureFlagsOK) Error() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[GET /featureFlagsState][%d] v1betaGetFeatureFlagsOK %s", 200, payload)
-}
-
-func (o *V1betaGetFeatureFlagsOK) String() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[GET /featureFlagsState][%d] v1betaGetFeatureFlagsOK %s", 200, payload)
+	return fmt.Sprintf("[GET /featureFlagsState][%d] v1betaGetFeatureFlagsOK  %+v", 200, o.Payload)
 }
 
 func (o *V1betaGetFeatureFlagsOK) GetPayload() models.CVPFeatureFlagsState {
@@ -134,7 +97,7 @@ func NewV1betaGetFeatureFlagsBadRequest() *V1betaGetFeatureFlagsBadRequest {
 }
 
 /*
-V1betaGetFeatureFlagsBadRequest describes a response with status code 400, with default header values.
+V1betaGetFeatureFlagsBadRequest handles this case with default header values.
 
 Bad request
 */
@@ -142,44 +105,8 @@ type V1betaGetFeatureFlagsBadRequest struct {
 	Payload *models.Error
 }
 
-// IsSuccess returns true when this v1beta get feature flags bad request response has a 2xx status code
-func (o *V1betaGetFeatureFlagsBadRequest) IsSuccess() bool {
-	return false
-}
-
-// IsRedirect returns true when this v1beta get feature flags bad request response has a 3xx status code
-func (o *V1betaGetFeatureFlagsBadRequest) IsRedirect() bool {
-	return false
-}
-
-// IsClientError returns true when this v1beta get feature flags bad request response has a 4xx status code
-func (o *V1betaGetFeatureFlagsBadRequest) IsClientError() bool {
-	return true
-}
-
-// IsServerError returns true when this v1beta get feature flags bad request response has a 5xx status code
-func (o *V1betaGetFeatureFlagsBadRequest) IsServerError() bool {
-	return false
-}
-
-// IsCode returns true when this v1beta get feature flags bad request response a status code equal to that given
-func (o *V1betaGetFeatureFlagsBadRequest) IsCode(code int) bool {
-	return code == 400
-}
-
-// Code gets the status code for the v1beta get feature flags bad request response
-func (o *V1betaGetFeatureFlagsBadRequest) Code() int {
-	return 400
-}
-
 func (o *V1betaGetFeatureFlagsBadRequest) Error() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[GET /featureFlagsState][%d] v1betaGetFeatureFlagsBadRequest %s", 400, payload)
-}
-
-func (o *V1betaGetFeatureFlagsBadRequest) String() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[GET /featureFlagsState][%d] v1betaGetFeatureFlagsBadRequest %s", 400, payload)
+	return fmt.Sprintf("[GET /featureFlagsState][%d] v1betaGetFeatureFlagsBadRequest  %+v", 400, o.Payload)
 }
 
 func (o *V1betaGetFeatureFlagsBadRequest) GetPayload() *models.Error {
@@ -204,7 +131,7 @@ func NewV1betaGetFeatureFlagsTooManyRequests() *V1betaGetFeatureFlagsTooManyRequ
 }
 
 /*
-V1betaGetFeatureFlagsTooManyRequests describes a response with status code 429, with default header values.
+V1betaGetFeatureFlagsTooManyRequests handles this case with default header values.
 
 Too many requests
 */
@@ -212,44 +139,8 @@ type V1betaGetFeatureFlagsTooManyRequests struct {
 	Payload *models.Error
 }
 
-// IsSuccess returns true when this v1beta get feature flags too many requests response has a 2xx status code
-func (o *V1betaGetFeatureFlagsTooManyRequests) IsSuccess() bool {
-	return false
-}
-
-// IsRedirect returns true when this v1beta get feature flags too many requests response has a 3xx status code
-func (o *V1betaGetFeatureFlagsTooManyRequests) IsRedirect() bool {
-	return false
-}
-
-// IsClientError returns true when this v1beta get feature flags too many requests response has a 4xx status code
-func (o *V1betaGetFeatureFlagsTooManyRequests) IsClientError() bool {
-	return true
-}
-
-// IsServerError returns true when this v1beta get feature flags too many requests response has a 5xx status code
-func (o *V1betaGetFeatureFlagsTooManyRequests) IsServerError() bool {
-	return false
-}
-
-// IsCode returns true when this v1beta get feature flags too many requests response a status code equal to that given
-func (o *V1betaGetFeatureFlagsTooManyRequests) IsCode(code int) bool {
-	return code == 429
-}
-
-// Code gets the status code for the v1beta get feature flags too many requests response
-func (o *V1betaGetFeatureFlagsTooManyRequests) Code() int {
-	return 429
-}
-
 func (o *V1betaGetFeatureFlagsTooManyRequests) Error() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[GET /featureFlagsState][%d] v1betaGetFeatureFlagsTooManyRequests %s", 429, payload)
-}
-
-func (o *V1betaGetFeatureFlagsTooManyRequests) String() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[GET /featureFlagsState][%d] v1betaGetFeatureFlagsTooManyRequests %s", 429, payload)
+	return fmt.Sprintf("[GET /featureFlagsState][%d] v1betaGetFeatureFlagsTooManyRequests  %+v", 429, o.Payload)
 }
 
 func (o *V1betaGetFeatureFlagsTooManyRequests) GetPayload() *models.Error {
@@ -274,7 +165,7 @@ func NewV1betaGetFeatureFlagsInternalServerError() *V1betaGetFeatureFlagsInterna
 }
 
 /*
-V1betaGetFeatureFlagsInternalServerError describes a response with status code 500, with default header values.
+V1betaGetFeatureFlagsInternalServerError handles this case with default header values.
 
 Internal server error
 */
@@ -282,44 +173,8 @@ type V1betaGetFeatureFlagsInternalServerError struct {
 	Payload *models.Error
 }
 
-// IsSuccess returns true when this v1beta get feature flags internal server error response has a 2xx status code
-func (o *V1betaGetFeatureFlagsInternalServerError) IsSuccess() bool {
-	return false
-}
-
-// IsRedirect returns true when this v1beta get feature flags internal server error response has a 3xx status code
-func (o *V1betaGetFeatureFlagsInternalServerError) IsRedirect() bool {
-	return false
-}
-
-// IsClientError returns true when this v1beta get feature flags internal server error response has a 4xx status code
-func (o *V1betaGetFeatureFlagsInternalServerError) IsClientError() bool {
-	return false
-}
-
-// IsServerError returns true when this v1beta get feature flags internal server error response has a 5xx status code
-func (o *V1betaGetFeatureFlagsInternalServerError) IsServerError() bool {
-	return true
-}
-
-// IsCode returns true when this v1beta get feature flags internal server error response a status code equal to that given
-func (o *V1betaGetFeatureFlagsInternalServerError) IsCode(code int) bool {
-	return code == 500
-}
-
-// Code gets the status code for the v1beta get feature flags internal server error response
-func (o *V1betaGetFeatureFlagsInternalServerError) Code() int {
-	return 500
-}
-
 func (o *V1betaGetFeatureFlagsInternalServerError) Error() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[GET /featureFlagsState][%d] v1betaGetFeatureFlagsInternalServerError %s", 500, payload)
-}
-
-func (o *V1betaGetFeatureFlagsInternalServerError) String() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[GET /featureFlagsState][%d] v1betaGetFeatureFlagsInternalServerError %s", 500, payload)
+	return fmt.Sprintf("[GET /featureFlagsState][%d] v1betaGetFeatureFlagsInternalServerError  %+v", 500, o.Payload)
 }
 
 func (o *V1betaGetFeatureFlagsInternalServerError) GetPayload() *models.Error {
@@ -346,7 +201,7 @@ func NewV1betaGetFeatureFlagsDefault(code int) *V1betaGetFeatureFlagsDefault {
 }
 
 /*
-V1betaGetFeatureFlagsDefault describes a response with status code -1, with default header values.
+V1betaGetFeatureFlagsDefault handles this case with default header values.
 
 Unexpected error
 */
@@ -356,44 +211,13 @@ type V1betaGetFeatureFlagsDefault struct {
 	Payload *models.Error
 }
 
-// IsSuccess returns true when this v1beta get feature flags default response has a 2xx status code
-func (o *V1betaGetFeatureFlagsDefault) IsSuccess() bool {
-	return o._statusCode/100 == 2
-}
-
-// IsRedirect returns true when this v1beta get feature flags default response has a 3xx status code
-func (o *V1betaGetFeatureFlagsDefault) IsRedirect() bool {
-	return o._statusCode/100 == 3
-}
-
-// IsClientError returns true when this v1beta get feature flags default response has a 4xx status code
-func (o *V1betaGetFeatureFlagsDefault) IsClientError() bool {
-	return o._statusCode/100 == 4
-}
-
-// IsServerError returns true when this v1beta get feature flags default response has a 5xx status code
-func (o *V1betaGetFeatureFlagsDefault) IsServerError() bool {
-	return o._statusCode/100 == 5
-}
-
-// IsCode returns true when this v1beta get feature flags default response a status code equal to that given
-func (o *V1betaGetFeatureFlagsDefault) IsCode(code int) bool {
-	return o._statusCode == code
-}
-
 // Code gets the status code for the v1beta get feature flags default response
 func (o *V1betaGetFeatureFlagsDefault) Code() int {
 	return o._statusCode
 }
 
 func (o *V1betaGetFeatureFlagsDefault) Error() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[GET /featureFlagsState][%d] v1beta_getFeatureFlags default %s", o._statusCode, payload)
-}
-
-func (o *V1betaGetFeatureFlagsDefault) String() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[GET /featureFlagsState][%d] v1beta_getFeatureFlags default %s", o._statusCode, payload)
+	return fmt.Sprintf("[GET /featureFlagsState][%d] v1beta_getFeatureFlags default  %+v", o._statusCode, o.Payload)
 }
 
 func (o *V1betaGetFeatureFlagsDefault) GetPayload() *models.Error {

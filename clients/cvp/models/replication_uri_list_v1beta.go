@@ -6,7 +6,6 @@ package models
 // Editing this file might prove futile when you re-run the swagger generate command
 
 import (
-	"context"
 	"strconv"
 
 	"github.com/go-openapi/errors"
@@ -54,17 +53,12 @@ func (m *ReplicationURIListV1beta) validateReplicationUris(formats strfmt.Regist
 
 	for i := 0; i < len(m.ReplicationUris); i++ {
 
-		if err := validate.Pattern("replicationUris"+"."+strconv.Itoa(i), "body", m.ReplicationUris[i], `^projects\/([^\/]+)\/locations\/([^\/]+)\/volumes\/([^\/]+)\/replications\/([^\/]+)$`); err != nil {
+		if err := validate.Pattern("replicationUris"+"."+strconv.Itoa(i), "body", string(m.ReplicationUris[i]), `^projects\/([^\/]+)\/locations\/([^\/]+)\/volumes\/([^\/]+)\/replications\/([^\/]+)$`); err != nil {
 			return err
 		}
 
 	}
 
-	return nil
-}
-
-// ContextValidate validates this replication URI list v1beta based on context it is used
-func (m *ReplicationURIListV1beta) ContextValidate(ctx context.Context, formats strfmt.Registry) error {
 	return nil
 }
 

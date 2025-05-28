@@ -6,7 +6,6 @@ package active_directories
 // Editing this file might prove futile when you re-run the swagger generate command
 
 import (
-	"encoding/json"
 	"fmt"
 	"io"
 
@@ -90,7 +89,7 @@ func NewV1betaDescribeActiveDirectoryOK() *V1betaDescribeActiveDirectoryOK {
 }
 
 /*
-V1betaDescribeActiveDirectoryOK describes a response with status code 200, with default header values.
+V1betaDescribeActiveDirectoryOK handles this case with default header values.
 
 OK
 */
@@ -98,44 +97,8 @@ type V1betaDescribeActiveDirectoryOK struct {
 	Payload *models.ActiveDirectoryV1beta
 }
 
-// IsSuccess returns true when this v1beta describe active directory o k response has a 2xx status code
-func (o *V1betaDescribeActiveDirectoryOK) IsSuccess() bool {
-	return true
-}
-
-// IsRedirect returns true when this v1beta describe active directory o k response has a 3xx status code
-func (o *V1betaDescribeActiveDirectoryOK) IsRedirect() bool {
-	return false
-}
-
-// IsClientError returns true when this v1beta describe active directory o k response has a 4xx status code
-func (o *V1betaDescribeActiveDirectoryOK) IsClientError() bool {
-	return false
-}
-
-// IsServerError returns true when this v1beta describe active directory o k response has a 5xx status code
-func (o *V1betaDescribeActiveDirectoryOK) IsServerError() bool {
-	return false
-}
-
-// IsCode returns true when this v1beta describe active directory o k response a status code equal to that given
-func (o *V1betaDescribeActiveDirectoryOK) IsCode(code int) bool {
-	return code == 200
-}
-
-// Code gets the status code for the v1beta describe active directory o k response
-func (o *V1betaDescribeActiveDirectoryOK) Code() int {
-	return 200
-}
-
 func (o *V1betaDescribeActiveDirectoryOK) Error() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[GET /v1beta/projects/{projectNumber}/locations/{locationId}/storage/activeDirectory/{activeDirectoryId}][%d] v1betaDescribeActiveDirectoryOK %s", 200, payload)
-}
-
-func (o *V1betaDescribeActiveDirectoryOK) String() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[GET /v1beta/projects/{projectNumber}/locations/{locationId}/storage/activeDirectory/{activeDirectoryId}][%d] v1betaDescribeActiveDirectoryOK %s", 200, payload)
+	return fmt.Sprintf("[GET /v1beta/projects/{projectNumber}/locations/{locationId}/storage/activeDirectory/{activeDirectoryId}][%d] v1betaDescribeActiveDirectoryOK  %+v", 200, o.Payload)
 }
 
 func (o *V1betaDescribeActiveDirectoryOK) GetPayload() *models.ActiveDirectoryV1beta {
@@ -160,7 +123,7 @@ func NewV1betaDescribeActiveDirectoryBadRequest() *V1betaDescribeActiveDirectory
 }
 
 /*
-V1betaDescribeActiveDirectoryBadRequest describes a response with status code 400, with default header values.
+V1betaDescribeActiveDirectoryBadRequest handles this case with default header values.
 
 Bad request
 */
@@ -168,44 +131,8 @@ type V1betaDescribeActiveDirectoryBadRequest struct {
 	Payload *models.Error
 }
 
-// IsSuccess returns true when this v1beta describe active directory bad request response has a 2xx status code
-func (o *V1betaDescribeActiveDirectoryBadRequest) IsSuccess() bool {
-	return false
-}
-
-// IsRedirect returns true when this v1beta describe active directory bad request response has a 3xx status code
-func (o *V1betaDescribeActiveDirectoryBadRequest) IsRedirect() bool {
-	return false
-}
-
-// IsClientError returns true when this v1beta describe active directory bad request response has a 4xx status code
-func (o *V1betaDescribeActiveDirectoryBadRequest) IsClientError() bool {
-	return true
-}
-
-// IsServerError returns true when this v1beta describe active directory bad request response has a 5xx status code
-func (o *V1betaDescribeActiveDirectoryBadRequest) IsServerError() bool {
-	return false
-}
-
-// IsCode returns true when this v1beta describe active directory bad request response a status code equal to that given
-func (o *V1betaDescribeActiveDirectoryBadRequest) IsCode(code int) bool {
-	return code == 400
-}
-
-// Code gets the status code for the v1beta describe active directory bad request response
-func (o *V1betaDescribeActiveDirectoryBadRequest) Code() int {
-	return 400
-}
-
 func (o *V1betaDescribeActiveDirectoryBadRequest) Error() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[GET /v1beta/projects/{projectNumber}/locations/{locationId}/storage/activeDirectory/{activeDirectoryId}][%d] v1betaDescribeActiveDirectoryBadRequest %s", 400, payload)
-}
-
-func (o *V1betaDescribeActiveDirectoryBadRequest) String() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[GET /v1beta/projects/{projectNumber}/locations/{locationId}/storage/activeDirectory/{activeDirectoryId}][%d] v1betaDescribeActiveDirectoryBadRequest %s", 400, payload)
+	return fmt.Sprintf("[GET /v1beta/projects/{projectNumber}/locations/{locationId}/storage/activeDirectory/{activeDirectoryId}][%d] v1betaDescribeActiveDirectoryBadRequest  %+v", 400, o.Payload)
 }
 
 func (o *V1betaDescribeActiveDirectoryBadRequest) GetPayload() *models.Error {
@@ -230,7 +157,7 @@ func NewV1betaDescribeActiveDirectoryUnauthorized() *V1betaDescribeActiveDirecto
 }
 
 /*
-V1betaDescribeActiveDirectoryUnauthorized describes a response with status code 401, with default header values.
+V1betaDescribeActiveDirectoryUnauthorized handles this case with default header values.
 
 Unauthorized
 */
@@ -238,44 +165,8 @@ type V1betaDescribeActiveDirectoryUnauthorized struct {
 	Payload *models.Error
 }
 
-// IsSuccess returns true when this v1beta describe active directory unauthorized response has a 2xx status code
-func (o *V1betaDescribeActiveDirectoryUnauthorized) IsSuccess() bool {
-	return false
-}
-
-// IsRedirect returns true when this v1beta describe active directory unauthorized response has a 3xx status code
-func (o *V1betaDescribeActiveDirectoryUnauthorized) IsRedirect() bool {
-	return false
-}
-
-// IsClientError returns true when this v1beta describe active directory unauthorized response has a 4xx status code
-func (o *V1betaDescribeActiveDirectoryUnauthorized) IsClientError() bool {
-	return true
-}
-
-// IsServerError returns true when this v1beta describe active directory unauthorized response has a 5xx status code
-func (o *V1betaDescribeActiveDirectoryUnauthorized) IsServerError() bool {
-	return false
-}
-
-// IsCode returns true when this v1beta describe active directory unauthorized response a status code equal to that given
-func (o *V1betaDescribeActiveDirectoryUnauthorized) IsCode(code int) bool {
-	return code == 401
-}
-
-// Code gets the status code for the v1beta describe active directory unauthorized response
-func (o *V1betaDescribeActiveDirectoryUnauthorized) Code() int {
-	return 401
-}
-
 func (o *V1betaDescribeActiveDirectoryUnauthorized) Error() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[GET /v1beta/projects/{projectNumber}/locations/{locationId}/storage/activeDirectory/{activeDirectoryId}][%d] v1betaDescribeActiveDirectoryUnauthorized %s", 401, payload)
-}
-
-func (o *V1betaDescribeActiveDirectoryUnauthorized) String() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[GET /v1beta/projects/{projectNumber}/locations/{locationId}/storage/activeDirectory/{activeDirectoryId}][%d] v1betaDescribeActiveDirectoryUnauthorized %s", 401, payload)
+	return fmt.Sprintf("[GET /v1beta/projects/{projectNumber}/locations/{locationId}/storage/activeDirectory/{activeDirectoryId}][%d] v1betaDescribeActiveDirectoryUnauthorized  %+v", 401, o.Payload)
 }
 
 func (o *V1betaDescribeActiveDirectoryUnauthorized) GetPayload() *models.Error {
@@ -300,7 +191,7 @@ func NewV1betaDescribeActiveDirectoryForbidden() *V1betaDescribeActiveDirectoryF
 }
 
 /*
-V1betaDescribeActiveDirectoryForbidden describes a response with status code 403, with default header values.
+V1betaDescribeActiveDirectoryForbidden handles this case with default header values.
 
 Forbidden
 */
@@ -308,44 +199,8 @@ type V1betaDescribeActiveDirectoryForbidden struct {
 	Payload *models.Error
 }
 
-// IsSuccess returns true when this v1beta describe active directory forbidden response has a 2xx status code
-func (o *V1betaDescribeActiveDirectoryForbidden) IsSuccess() bool {
-	return false
-}
-
-// IsRedirect returns true when this v1beta describe active directory forbidden response has a 3xx status code
-func (o *V1betaDescribeActiveDirectoryForbidden) IsRedirect() bool {
-	return false
-}
-
-// IsClientError returns true when this v1beta describe active directory forbidden response has a 4xx status code
-func (o *V1betaDescribeActiveDirectoryForbidden) IsClientError() bool {
-	return true
-}
-
-// IsServerError returns true when this v1beta describe active directory forbidden response has a 5xx status code
-func (o *V1betaDescribeActiveDirectoryForbidden) IsServerError() bool {
-	return false
-}
-
-// IsCode returns true when this v1beta describe active directory forbidden response a status code equal to that given
-func (o *V1betaDescribeActiveDirectoryForbidden) IsCode(code int) bool {
-	return code == 403
-}
-
-// Code gets the status code for the v1beta describe active directory forbidden response
-func (o *V1betaDescribeActiveDirectoryForbidden) Code() int {
-	return 403
-}
-
 func (o *V1betaDescribeActiveDirectoryForbidden) Error() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[GET /v1beta/projects/{projectNumber}/locations/{locationId}/storage/activeDirectory/{activeDirectoryId}][%d] v1betaDescribeActiveDirectoryForbidden %s", 403, payload)
-}
-
-func (o *V1betaDescribeActiveDirectoryForbidden) String() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[GET /v1beta/projects/{projectNumber}/locations/{locationId}/storage/activeDirectory/{activeDirectoryId}][%d] v1betaDescribeActiveDirectoryForbidden %s", 403, payload)
+	return fmt.Sprintf("[GET /v1beta/projects/{projectNumber}/locations/{locationId}/storage/activeDirectory/{activeDirectoryId}][%d] v1betaDescribeActiveDirectoryForbidden  %+v", 403, o.Payload)
 }
 
 func (o *V1betaDescribeActiveDirectoryForbidden) GetPayload() *models.Error {
@@ -370,7 +225,7 @@ func NewV1betaDescribeActiveDirectoryNotFound() *V1betaDescribeActiveDirectoryNo
 }
 
 /*
-V1betaDescribeActiveDirectoryNotFound describes a response with status code 404, with default header values.
+V1betaDescribeActiveDirectoryNotFound handles this case with default header values.
 
 Not found
 */
@@ -378,44 +233,8 @@ type V1betaDescribeActiveDirectoryNotFound struct {
 	Payload *models.Error
 }
 
-// IsSuccess returns true when this v1beta describe active directory not found response has a 2xx status code
-func (o *V1betaDescribeActiveDirectoryNotFound) IsSuccess() bool {
-	return false
-}
-
-// IsRedirect returns true when this v1beta describe active directory not found response has a 3xx status code
-func (o *V1betaDescribeActiveDirectoryNotFound) IsRedirect() bool {
-	return false
-}
-
-// IsClientError returns true when this v1beta describe active directory not found response has a 4xx status code
-func (o *V1betaDescribeActiveDirectoryNotFound) IsClientError() bool {
-	return true
-}
-
-// IsServerError returns true when this v1beta describe active directory not found response has a 5xx status code
-func (o *V1betaDescribeActiveDirectoryNotFound) IsServerError() bool {
-	return false
-}
-
-// IsCode returns true when this v1beta describe active directory not found response a status code equal to that given
-func (o *V1betaDescribeActiveDirectoryNotFound) IsCode(code int) bool {
-	return code == 404
-}
-
-// Code gets the status code for the v1beta describe active directory not found response
-func (o *V1betaDescribeActiveDirectoryNotFound) Code() int {
-	return 404
-}
-
 func (o *V1betaDescribeActiveDirectoryNotFound) Error() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[GET /v1beta/projects/{projectNumber}/locations/{locationId}/storage/activeDirectory/{activeDirectoryId}][%d] v1betaDescribeActiveDirectoryNotFound %s", 404, payload)
-}
-
-func (o *V1betaDescribeActiveDirectoryNotFound) String() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[GET /v1beta/projects/{projectNumber}/locations/{locationId}/storage/activeDirectory/{activeDirectoryId}][%d] v1betaDescribeActiveDirectoryNotFound %s", 404, payload)
+	return fmt.Sprintf("[GET /v1beta/projects/{projectNumber}/locations/{locationId}/storage/activeDirectory/{activeDirectoryId}][%d] v1betaDescribeActiveDirectoryNotFound  %+v", 404, o.Payload)
 }
 
 func (o *V1betaDescribeActiveDirectoryNotFound) GetPayload() *models.Error {
@@ -440,7 +259,7 @@ func NewV1betaDescribeActiveDirectoryUnprocessableEntity() *V1betaDescribeActive
 }
 
 /*
-V1betaDescribeActiveDirectoryUnprocessableEntity describes a response with status code 422, with default header values.
+V1betaDescribeActiveDirectoryUnprocessableEntity handles this case with default header values.
 
 Unprocessable entity
 */
@@ -448,44 +267,8 @@ type V1betaDescribeActiveDirectoryUnprocessableEntity struct {
 	Payload *models.Error
 }
 
-// IsSuccess returns true when this v1beta describe active directory unprocessable entity response has a 2xx status code
-func (o *V1betaDescribeActiveDirectoryUnprocessableEntity) IsSuccess() bool {
-	return false
-}
-
-// IsRedirect returns true when this v1beta describe active directory unprocessable entity response has a 3xx status code
-func (o *V1betaDescribeActiveDirectoryUnprocessableEntity) IsRedirect() bool {
-	return false
-}
-
-// IsClientError returns true when this v1beta describe active directory unprocessable entity response has a 4xx status code
-func (o *V1betaDescribeActiveDirectoryUnprocessableEntity) IsClientError() bool {
-	return true
-}
-
-// IsServerError returns true when this v1beta describe active directory unprocessable entity response has a 5xx status code
-func (o *V1betaDescribeActiveDirectoryUnprocessableEntity) IsServerError() bool {
-	return false
-}
-
-// IsCode returns true when this v1beta describe active directory unprocessable entity response a status code equal to that given
-func (o *V1betaDescribeActiveDirectoryUnprocessableEntity) IsCode(code int) bool {
-	return code == 422
-}
-
-// Code gets the status code for the v1beta describe active directory unprocessable entity response
-func (o *V1betaDescribeActiveDirectoryUnprocessableEntity) Code() int {
-	return 422
-}
-
 func (o *V1betaDescribeActiveDirectoryUnprocessableEntity) Error() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[GET /v1beta/projects/{projectNumber}/locations/{locationId}/storage/activeDirectory/{activeDirectoryId}][%d] v1betaDescribeActiveDirectoryUnprocessableEntity %s", 422, payload)
-}
-
-func (o *V1betaDescribeActiveDirectoryUnprocessableEntity) String() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[GET /v1beta/projects/{projectNumber}/locations/{locationId}/storage/activeDirectory/{activeDirectoryId}][%d] v1betaDescribeActiveDirectoryUnprocessableEntity %s", 422, payload)
+	return fmt.Sprintf("[GET /v1beta/projects/{projectNumber}/locations/{locationId}/storage/activeDirectory/{activeDirectoryId}][%d] v1betaDescribeActiveDirectoryUnprocessableEntity  %+v", 422, o.Payload)
 }
 
 func (o *V1betaDescribeActiveDirectoryUnprocessableEntity) GetPayload() *models.Error {
@@ -510,7 +293,7 @@ func NewV1betaDescribeActiveDirectoryTooManyRequests() *V1betaDescribeActiveDire
 }
 
 /*
-V1betaDescribeActiveDirectoryTooManyRequests describes a response with status code 429, with default header values.
+V1betaDescribeActiveDirectoryTooManyRequests handles this case with default header values.
 
 Too many requests
 */
@@ -518,44 +301,8 @@ type V1betaDescribeActiveDirectoryTooManyRequests struct {
 	Payload *models.Error
 }
 
-// IsSuccess returns true when this v1beta describe active directory too many requests response has a 2xx status code
-func (o *V1betaDescribeActiveDirectoryTooManyRequests) IsSuccess() bool {
-	return false
-}
-
-// IsRedirect returns true when this v1beta describe active directory too many requests response has a 3xx status code
-func (o *V1betaDescribeActiveDirectoryTooManyRequests) IsRedirect() bool {
-	return false
-}
-
-// IsClientError returns true when this v1beta describe active directory too many requests response has a 4xx status code
-func (o *V1betaDescribeActiveDirectoryTooManyRequests) IsClientError() bool {
-	return true
-}
-
-// IsServerError returns true when this v1beta describe active directory too many requests response has a 5xx status code
-func (o *V1betaDescribeActiveDirectoryTooManyRequests) IsServerError() bool {
-	return false
-}
-
-// IsCode returns true when this v1beta describe active directory too many requests response a status code equal to that given
-func (o *V1betaDescribeActiveDirectoryTooManyRequests) IsCode(code int) bool {
-	return code == 429
-}
-
-// Code gets the status code for the v1beta describe active directory too many requests response
-func (o *V1betaDescribeActiveDirectoryTooManyRequests) Code() int {
-	return 429
-}
-
 func (o *V1betaDescribeActiveDirectoryTooManyRequests) Error() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[GET /v1beta/projects/{projectNumber}/locations/{locationId}/storage/activeDirectory/{activeDirectoryId}][%d] v1betaDescribeActiveDirectoryTooManyRequests %s", 429, payload)
-}
-
-func (o *V1betaDescribeActiveDirectoryTooManyRequests) String() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[GET /v1beta/projects/{projectNumber}/locations/{locationId}/storage/activeDirectory/{activeDirectoryId}][%d] v1betaDescribeActiveDirectoryTooManyRequests %s", 429, payload)
+	return fmt.Sprintf("[GET /v1beta/projects/{projectNumber}/locations/{locationId}/storage/activeDirectory/{activeDirectoryId}][%d] v1betaDescribeActiveDirectoryTooManyRequests  %+v", 429, o.Payload)
 }
 
 func (o *V1betaDescribeActiveDirectoryTooManyRequests) GetPayload() *models.Error {
@@ -580,7 +327,7 @@ func NewV1betaDescribeActiveDirectoryInternalServerError() *V1betaDescribeActive
 }
 
 /*
-V1betaDescribeActiveDirectoryInternalServerError describes a response with status code 500, with default header values.
+V1betaDescribeActiveDirectoryInternalServerError handles this case with default header values.
 
 Internal server error
 */
@@ -588,44 +335,8 @@ type V1betaDescribeActiveDirectoryInternalServerError struct {
 	Payload *models.Error
 }
 
-// IsSuccess returns true when this v1beta describe active directory internal server error response has a 2xx status code
-func (o *V1betaDescribeActiveDirectoryInternalServerError) IsSuccess() bool {
-	return false
-}
-
-// IsRedirect returns true when this v1beta describe active directory internal server error response has a 3xx status code
-func (o *V1betaDescribeActiveDirectoryInternalServerError) IsRedirect() bool {
-	return false
-}
-
-// IsClientError returns true when this v1beta describe active directory internal server error response has a 4xx status code
-func (o *V1betaDescribeActiveDirectoryInternalServerError) IsClientError() bool {
-	return false
-}
-
-// IsServerError returns true when this v1beta describe active directory internal server error response has a 5xx status code
-func (o *V1betaDescribeActiveDirectoryInternalServerError) IsServerError() bool {
-	return true
-}
-
-// IsCode returns true when this v1beta describe active directory internal server error response a status code equal to that given
-func (o *V1betaDescribeActiveDirectoryInternalServerError) IsCode(code int) bool {
-	return code == 500
-}
-
-// Code gets the status code for the v1beta describe active directory internal server error response
-func (o *V1betaDescribeActiveDirectoryInternalServerError) Code() int {
-	return 500
-}
-
 func (o *V1betaDescribeActiveDirectoryInternalServerError) Error() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[GET /v1beta/projects/{projectNumber}/locations/{locationId}/storage/activeDirectory/{activeDirectoryId}][%d] v1betaDescribeActiveDirectoryInternalServerError %s", 500, payload)
-}
-
-func (o *V1betaDescribeActiveDirectoryInternalServerError) String() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[GET /v1beta/projects/{projectNumber}/locations/{locationId}/storage/activeDirectory/{activeDirectoryId}][%d] v1betaDescribeActiveDirectoryInternalServerError %s", 500, payload)
+	return fmt.Sprintf("[GET /v1beta/projects/{projectNumber}/locations/{locationId}/storage/activeDirectory/{activeDirectoryId}][%d] v1betaDescribeActiveDirectoryInternalServerError  %+v", 500, o.Payload)
 }
 
 func (o *V1betaDescribeActiveDirectoryInternalServerError) GetPayload() *models.Error {
@@ -652,7 +363,7 @@ func NewV1betaDescribeActiveDirectoryDefault(code int) *V1betaDescribeActiveDire
 }
 
 /*
-V1betaDescribeActiveDirectoryDefault describes a response with status code -1, with default header values.
+V1betaDescribeActiveDirectoryDefault handles this case with default header values.
 
 Unexpected error
 */
@@ -662,44 +373,13 @@ type V1betaDescribeActiveDirectoryDefault struct {
 	Payload *models.Error
 }
 
-// IsSuccess returns true when this v1beta describe active directory default response has a 2xx status code
-func (o *V1betaDescribeActiveDirectoryDefault) IsSuccess() bool {
-	return o._statusCode/100 == 2
-}
-
-// IsRedirect returns true when this v1beta describe active directory default response has a 3xx status code
-func (o *V1betaDescribeActiveDirectoryDefault) IsRedirect() bool {
-	return o._statusCode/100 == 3
-}
-
-// IsClientError returns true when this v1beta describe active directory default response has a 4xx status code
-func (o *V1betaDescribeActiveDirectoryDefault) IsClientError() bool {
-	return o._statusCode/100 == 4
-}
-
-// IsServerError returns true when this v1beta describe active directory default response has a 5xx status code
-func (o *V1betaDescribeActiveDirectoryDefault) IsServerError() bool {
-	return o._statusCode/100 == 5
-}
-
-// IsCode returns true when this v1beta describe active directory default response a status code equal to that given
-func (o *V1betaDescribeActiveDirectoryDefault) IsCode(code int) bool {
-	return o._statusCode == code
-}
-
 // Code gets the status code for the v1beta describe active directory default response
 func (o *V1betaDescribeActiveDirectoryDefault) Code() int {
 	return o._statusCode
 }
 
 func (o *V1betaDescribeActiveDirectoryDefault) Error() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[GET /v1beta/projects/{projectNumber}/locations/{locationId}/storage/activeDirectory/{activeDirectoryId}][%d] v1beta_describeActiveDirectory default %s", o._statusCode, payload)
-}
-
-func (o *V1betaDescribeActiveDirectoryDefault) String() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[GET /v1beta/projects/{projectNumber}/locations/{locationId}/storage/activeDirectory/{activeDirectoryId}][%d] v1beta_describeActiveDirectory default %s", o._statusCode, payload)
+	return fmt.Sprintf("[GET /v1beta/projects/{projectNumber}/locations/{locationId}/storage/activeDirectory/{activeDirectoryId}][%d] v1beta_describeActiveDirectory default  %+v", o._statusCode, o.Payload)
 }
 
 func (o *V1betaDescribeActiveDirectoryDefault) GetPayload() *models.Error {

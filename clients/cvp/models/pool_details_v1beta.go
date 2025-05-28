@@ -6,7 +6,6 @@ package models
 // Editing this file might prove futile when you re-run the swagger generate command
 
 import (
-	"context"
 	"strconv"
 
 	"github.com/go-openapi/errors"
@@ -25,26 +24,22 @@ type PoolDetailsV1beta struct {
 	// network
 	//
 	// Identifier for the vendor subnet
-	// Example: /subscriptions/e38be830-aea1-439f-abbf-6ed05dba1a53/resourceGroups/ms.nfs.testrg/providers/Microsoft/Subnets/subnet1
 	Network string `json:"Network,omitempty"`
 
 	// activeDirectoryId
 	//
 	// UUID v4 used to identify the Active Directory credentials.
-	// Example: 9760acf5-4638-11e7-9bdb-020073ca7773
 	// Max Length: 36
 	// Min Length: 36
 	// Pattern: ^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$
 	ActiveDirectory *string `json:"activeDirectory,omitempty"`
 
 	// Capacity in GiB of the pool
-	// Example: 100000000000000
 	CapacityGib *uint64 `json:"capacityGib,omitempty"`
 
 	// kmsConfigId
 	//
 	// UUID of the key to be used for encryption.
-	// Example: 6aae31f1-f685-4fda-b875-db0ea99235fc
 	// Max Length: 36
 	// Min Length: 36
 	// Pattern: ^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$
@@ -53,7 +48,6 @@ type PoolDetailsV1beta struct {
 	// kmsKeyName
 	//
 	// Name of the KMS key.
-	// Example: sample-encryption-key-name
 	// Read Only: true
 	KmsKeyName string `json:"kmsKeyName,omitempty"`
 
@@ -63,19 +57,15 @@ type PoolDetailsV1beta struct {
 	LdapEnabled *bool `json:"ldapEnabled,omitempty"`
 
 	// The human readable name of the pool
-	// Example: Some-pool-name
 	Name string `json:"name,omitempty"`
 
 	// The service level of the pool. Can be specified either by name or performance but will always be specified by name in responses. For backwards compatibility, can also be specified as basic, standard, or extreme, which will be equivalent to having specified performance low, medium, or high, respectively. However, if any service level's name is one of basic, standard, or extreme, the performance will be that of the service level, not the performance equivalent of the backwards compatibility.
-	// Example: medium.
 	ServiceLevel string `json:"serviceLevel,omitempty"`
 
 	// Allocated size of all volumes in GiB in the storage pool
-	// Example: 100000000000000
 	VolumeCapacityGib *uint64 `json:"volumeCapacityGib,omitempty"`
 
 	// Number of volumes in a pool
-	// Example: 20
 	VolumeCount int64 `json:"volumeCount,omitempty"`
 
 	// Details of volumes allocated to this pool.
@@ -105,19 +95,20 @@ func (m *PoolDetailsV1beta) Validate(formats strfmt.Registry) error {
 }
 
 func (m *PoolDetailsV1beta) validateActiveDirectory(formats strfmt.Registry) error {
+
 	if swag.IsZero(m.ActiveDirectory) { // not required
 		return nil
 	}
 
-	if err := validate.MinLength("activeDirectory", "body", *m.ActiveDirectory, 36); err != nil {
+	if err := validate.MinLength("activeDirectory", "body", string(*m.ActiveDirectory), 36); err != nil {
 		return err
 	}
 
-	if err := validate.MaxLength("activeDirectory", "body", *m.ActiveDirectory, 36); err != nil {
+	if err := validate.MaxLength("activeDirectory", "body", string(*m.ActiveDirectory), 36); err != nil {
 		return err
 	}
 
-	if err := validate.Pattern("activeDirectory", "body", *m.ActiveDirectory, `^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$`); err != nil {
+	if err := validate.Pattern("activeDirectory", "body", string(*m.ActiveDirectory), `^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$`); err != nil {
 		return err
 	}
 
@@ -125,19 +116,20 @@ func (m *PoolDetailsV1beta) validateActiveDirectory(formats strfmt.Registry) err
 }
 
 func (m *PoolDetailsV1beta) validateKmsConfigID(formats strfmt.Registry) error {
+
 	if swag.IsZero(m.KmsConfigID) { // not required
 		return nil
 	}
 
-	if err := validate.MinLength("kmsConfigId", "body", *m.KmsConfigID, 36); err != nil {
+	if err := validate.MinLength("kmsConfigId", "body", string(*m.KmsConfigID), 36); err != nil {
 		return err
 	}
 
-	if err := validate.MaxLength("kmsConfigId", "body", *m.KmsConfigID, 36); err != nil {
+	if err := validate.MaxLength("kmsConfigId", "body", string(*m.KmsConfigID), 36); err != nil {
 		return err
 	}
 
-	if err := validate.Pattern("kmsConfigId", "body", *m.KmsConfigID, `^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$`); err != nil {
+	if err := validate.Pattern("kmsConfigId", "body", string(*m.KmsConfigID), `^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$`); err != nil {
 		return err
 	}
 
@@ -145,6 +137,7 @@ func (m *PoolDetailsV1beta) validateKmsConfigID(formats strfmt.Registry) error {
 }
 
 func (m *PoolDetailsV1beta) validateVolumeDetails(formats strfmt.Registry) error {
+
 	if swag.IsZero(m.VolumeDetails) { // not required
 		return nil
 	}
@@ -158,60 +151,6 @@ func (m *PoolDetailsV1beta) validateVolumeDetails(formats strfmt.Registry) error
 			if err := m.VolumeDetails[i].Validate(formats); err != nil {
 				if ve, ok := err.(*errors.Validation); ok {
 					return ve.ValidateName("volumeDetails" + "." + strconv.Itoa(i))
-				} else if ce, ok := err.(*errors.CompositeError); ok {
-					return ce.ValidateName("volumeDetails" + "." + strconv.Itoa(i))
-				}
-				return err
-			}
-		}
-
-	}
-
-	return nil
-}
-
-// ContextValidate validate this pool details v1beta based on the context it is used
-func (m *PoolDetailsV1beta) ContextValidate(ctx context.Context, formats strfmt.Registry) error {
-	var res []error
-
-	if err := m.contextValidateKmsKeyName(ctx, formats); err != nil {
-		res = append(res, err)
-	}
-
-	if err := m.contextValidateVolumeDetails(ctx, formats); err != nil {
-		res = append(res, err)
-	}
-
-	if len(res) > 0 {
-		return errors.CompositeValidationError(res...)
-	}
-	return nil
-}
-
-func (m *PoolDetailsV1beta) contextValidateKmsKeyName(ctx context.Context, formats strfmt.Registry) error {
-
-	if err := validate.ReadOnly(ctx, "kmsKeyName", "body", string(m.KmsKeyName)); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (m *PoolDetailsV1beta) contextValidateVolumeDetails(ctx context.Context, formats strfmt.Registry) error {
-
-	for i := 0; i < len(m.VolumeDetails); i++ {
-
-		if m.VolumeDetails[i] != nil {
-
-			if swag.IsZero(m.VolumeDetails[i]) { // not required
-				return nil
-			}
-
-			if err := m.VolumeDetails[i].ContextValidate(ctx, formats); err != nil {
-				if ve, ok := err.(*errors.Validation); ok {
-					return ve.ValidateName("volumeDetails" + "." + strconv.Itoa(i))
-				} else if ce, ok := err.(*errors.CompositeError); ok {
-					return ce.ValidateName("volumeDetails" + "." + strconv.Itoa(i))
 				}
 				return err
 			}

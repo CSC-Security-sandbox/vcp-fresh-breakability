@@ -6,8 +6,6 @@ package models
 // Editing this file might prove futile when you re-run the swagger generate command
 
 import (
-	"context"
-
 	"github.com/go-openapi/errors"
 	"github.com/go-openapi/strfmt"
 	"github.com/go-openapi/swag"
@@ -22,7 +20,6 @@ import (
 type DescriptionV1beta struct {
 
 	// description
-	// Example: My Resource Description
 	// Max Length: 2048
 	Description *string `json:"description,omitempty"`
 }
@@ -42,19 +39,15 @@ func (m *DescriptionV1beta) Validate(formats strfmt.Registry) error {
 }
 
 func (m *DescriptionV1beta) validateDescription(formats strfmt.Registry) error {
+
 	if swag.IsZero(m.Description) { // not required
 		return nil
 	}
 
-	if err := validate.MaxLength("description", "body", *m.Description, 2048); err != nil {
+	if err := validate.MaxLength("description", "body", string(*m.Description), 2048); err != nil {
 		return err
 	}
 
-	return nil
-}
-
-// ContextValidate validates this description v1beta based on context it is used
-func (m *DescriptionV1beta) ContextValidate(ctx context.Context, formats strfmt.Registry) error {
 	return nil
 }
 

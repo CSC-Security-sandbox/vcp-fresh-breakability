@@ -6,8 +6,6 @@ package models
 // Editing this file might prove futile when you re-run the swagger generate command
 
 import (
-	"context"
-
 	"github.com/go-openapi/strfmt"
 	"github.com/go-openapi/swag"
 )
@@ -20,29 +18,21 @@ import (
 type VolumeBackupDetailsV1beta struct {
 
 	// Enabling the policy
-	// Example: true
 	PolicyEnabled *bool `json:"policyEnabled,omitempty"`
 
 	// Total scheduled backups count
 	//
 	// Number of scheduled backups for given volume
-	// Example: 24
 	ScheduledBackupCount int64 `json:"scheduledBackupCount,omitempty"`
 
 	// Volume name
 	//
 	// Volume name
-	// Example: Volume 1
 	VolumeName string `json:"volumeName,omitempty"`
 }
 
 // Validate validates this volume backup details v1beta
 func (m *VolumeBackupDetailsV1beta) Validate(formats strfmt.Registry) error {
-	return nil
-}
-
-// ContextValidate validates this volume backup details v1beta based on context it is used
-func (m *VolumeBackupDetailsV1beta) ContextValidate(ctx context.Context, formats strfmt.Registry) error {
 	return nil
 }
 

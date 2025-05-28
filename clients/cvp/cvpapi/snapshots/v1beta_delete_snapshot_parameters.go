@@ -16,37 +16,40 @@ import (
 	"github.com/go-openapi/strfmt"
 )
 
-// NewV1betaDeleteSnapshotParams creates a new V1betaDeleteSnapshotParams object,
-// with the default timeout for this client.
-//
-// Default values are not hydrated, since defaults are normally applied by the API server side.
-//
-// To enforce default values in parameter, use SetDefaults or WithDefaults.
+// NewV1betaDeleteSnapshotParams creates a new V1betaDeleteSnapshotParams object
+// with the default values initialized.
 func NewV1betaDeleteSnapshotParams() *V1betaDeleteSnapshotParams {
+	var ()
 	return &V1betaDeleteSnapshotParams{
+
 		timeout: cr.DefaultTimeout,
 	}
 }
 
 // NewV1betaDeleteSnapshotParamsWithTimeout creates a new V1betaDeleteSnapshotParams object
-// with the ability to set a timeout on a request.
+// with the default values initialized, and the ability to set a timeout on a request
 func NewV1betaDeleteSnapshotParamsWithTimeout(timeout time.Duration) *V1betaDeleteSnapshotParams {
+	var ()
 	return &V1betaDeleteSnapshotParams{
+
 		timeout: timeout,
 	}
 }
 
 // NewV1betaDeleteSnapshotParamsWithContext creates a new V1betaDeleteSnapshotParams object
-// with the ability to set a context for a request.
+// with the default values initialized, and the ability to set a context for a request
 func NewV1betaDeleteSnapshotParamsWithContext(ctx context.Context) *V1betaDeleteSnapshotParams {
+	var ()
 	return &V1betaDeleteSnapshotParams{
+
 		Context: ctx,
 	}
 }
 
 // NewV1betaDeleteSnapshotParamsWithHTTPClient creates a new V1betaDeleteSnapshotParams object
-// with the ability to set a custom HTTPClient for a request.
+// with the default values initialized, and the ability to set a custom HTTPClient for a request
 func NewV1betaDeleteSnapshotParamsWithHTTPClient(client *http.Client) *V1betaDeleteSnapshotParams {
+	var ()
 	return &V1betaDeleteSnapshotParams{
 		HTTPClient: client,
 	}
@@ -54,61 +57,39 @@ func NewV1betaDeleteSnapshotParamsWithHTTPClient(client *http.Client) *V1betaDel
 
 /*
 V1betaDeleteSnapshotParams contains all the parameters to send to the API endpoint
-
-	for the v1beta delete snapshot operation.
-
-	Typically these are written to a http.Request.
+for the v1beta delete snapshot operation typically these are written to a http.Request
 */
 type V1betaDeleteSnapshotParams struct {
 
-	/* LocationID.
+	/*LocationID
+	  The location/region to perform the operation in.
 
-	   The location/region to perform the operation in.
 	*/
 	LocationID string
+	/*ProjectNumber
+	  The project number of the GCP project owning the resource being acted upon
 
-	/* ProjectNumber.
-
-	   The project number of the GCP project owning the resource being acted upon
 	*/
 	ProjectNumber string
+	/*SnapshotID
+	  UUID v4 used to identify the snapshot
 
-	/* SnapshotID.
-
-	   UUID v4 used to identify the snapshot
 	*/
 	SnapshotID string
+	/*VolumeID
+	  UUID v4 used to identify the volume
 
-	/* VolumeID.
-
-	   UUID v4 used to identify the volume
 	*/
 	VolumeID string
+	/*XCorrelationID
+	  Correlation identifier
 
-	/* XCorrelationID.
-
-	   Correlation identifier
 	*/
 	XCorrelationID *string
 
 	timeout    time.Duration
 	Context    context.Context
 	HTTPClient *http.Client
-}
-
-// WithDefaults hydrates default values in the v1beta delete snapshot params (not the query body).
-//
-// All values with no default are reset to their zero value.
-func (o *V1betaDeleteSnapshotParams) WithDefaults() *V1betaDeleteSnapshotParams {
-	o.SetDefaults()
-	return o
-}
-
-// SetDefaults hydrates default values in the v1beta delete snapshot params (not the query body).
-//
-// All values with no default are reset to their zero value.
-func (o *V1betaDeleteSnapshotParams) SetDefaults() {
-	// no default values defined for this parameter
 }
 
 // WithTimeout adds the timeout to the v1beta delete snapshot params
@@ -233,6 +214,7 @@ func (o *V1betaDeleteSnapshotParams) WriteToRequest(r runtime.ClientRequest, reg
 		if err := r.SetHeaderParam("x-correlation-id", *o.XCorrelationID); err != nil {
 			return err
 		}
+
 	}
 
 	if len(res) > 0 {

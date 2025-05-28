@@ -6,7 +6,6 @@ package models
 // Editing this file might prove futile when you re-run the swagger generate command
 
 import (
-	"context"
 	"encoding/json"
 
 	"github.com/go-openapi/errors"
@@ -23,9 +22,8 @@ type StateUpdateV1beta struct {
 	// state
 	//
 	// New state to be updated
-	// Example: DELETE
 	// Required: true
-	// Enum: ["ON","OFF","DELETE"]
+	// Enum: [ON OFF DELETE]
 	State string `json:"state"`
 }
 
@@ -98,7 +96,7 @@ func (m *StateUpdateV1beta) validateStateEnum(path, location string, value strin
 
 func (m *StateUpdateV1beta) validateState(formats strfmt.Registry) error {
 
-	if err := validate.RequiredString("state", "body", m.State); err != nil {
+	if err := validate.RequiredString("state", "body", string(m.State)); err != nil {
 		return err
 	}
 
@@ -107,11 +105,6 @@ func (m *StateUpdateV1beta) validateState(formats strfmt.Registry) error {
 		return err
 	}
 
-	return nil
-}
-
-// ContextValidate validates this state update v1beta based on context it is used
-func (m *StateUpdateV1beta) ContextValidate(ctx context.Context, formats strfmt.Registry) error {
 	return nil
 }
 

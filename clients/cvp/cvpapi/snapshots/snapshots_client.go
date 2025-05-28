@@ -7,38 +7,12 @@ package snapshots
 
 import (
 	"github.com/go-openapi/runtime"
-	httptransport "github.com/go-openapi/runtime/client"
 	"github.com/go-openapi/strfmt"
 )
 
 // New creates a new snapshots API client.
 func New(transport runtime.ClientTransport, formats strfmt.Registry) ClientService {
 	return &Client{transport: transport, formats: formats}
-}
-
-// New creates a new snapshots API client with basic auth credentials.
-// It takes the following parameters:
-// - host: http host (github.com).
-// - basePath: any base path for the API client ("/v1", "/v3").
-// - scheme: http scheme ("http", "https").
-// - user: user for basic authentication header.
-// - password: password for basic authentication header.
-func NewClientWithBasicAuth(host, basePath, scheme, user, password string) ClientService {
-	transport := httptransport.New(host, basePath, []string{scheme})
-	transport.DefaultAuthentication = httptransport.BasicAuth(user, password)
-	return &Client{transport: transport, formats: strfmt.Default}
-}
-
-// New creates a new snapshots API client with a bearer token for authentication.
-// It takes the following parameters:
-// - host: http host (github.com).
-// - basePath: any base path for the API client ("/v1", "/v3").
-// - scheme: http scheme ("http", "https").
-// - bearerToken: bearer token for Bearer authentication header.
-func NewClientWithBearerToken(host, basePath, scheme, bearerToken string) ClientService {
-	transport := httptransport.New(host, basePath, []string{scheme})
-	transport.DefaultAuthentication = httptransport.BearerToken(bearerToken)
-	return &Client{transport: transport, formats: strfmt.Default}
 }
 
 /*
@@ -49,24 +23,21 @@ type Client struct {
 	formats   strfmt.Registry
 }
 
-// ClientOption may be used to customize the behavior of Client methods.
-type ClientOption func(*runtime.ClientOperation)
-
 // ClientService is the interface for Client methods
 type ClientService interface {
-	V1betaCreateSnapshot(params *V1betaCreateSnapshotParams, opts ...ClientOption) (*V1betaCreateSnapshotAccepted, error)
+	V1betaCreateSnapshot(params *V1betaCreateSnapshotParams) (*V1betaCreateSnapshotAccepted, error)
 
-	V1betaDeleteSnapshot(params *V1betaDeleteSnapshotParams, opts ...ClientOption) (*V1betaDeleteSnapshotAccepted, *V1betaDeleteSnapshotNoContent, error)
+	V1betaDeleteSnapshot(params *V1betaDeleteSnapshotParams) (*V1betaDeleteSnapshotAccepted, *V1betaDeleteSnapshotNoContent, error)
 
-	V1betaDescribeSnapshot(params *V1betaDescribeSnapshotParams, opts ...ClientOption) (*V1betaDescribeSnapshotOK, error)
+	V1betaDescribeSnapshot(params *V1betaDescribeSnapshotParams) (*V1betaDescribeSnapshotOK, error)
 
-	V1betaGetMultipleSnapshots(params *V1betaGetMultipleSnapshotsParams, opts ...ClientOption) (*V1betaGetMultipleSnapshotsOK, error)
+	V1betaGetMultipleSnapshots(params *V1betaGetMultipleSnapshotsParams) (*V1betaGetMultipleSnapshotsOK, error)
 
-	V1betaListSnapshots(params *V1betaListSnapshotsParams, opts ...ClientOption) (*V1betaListSnapshotsOK, error)
+	V1betaListSnapshots(params *V1betaListSnapshotsParams) (*V1betaListSnapshotsOK, error)
 
-	V1betaSnapshotRestoreFiles(params *V1betaSnapshotRestoreFilesParams, opts ...ClientOption) (*V1betaSnapshotRestoreFilesCreated, *V1betaSnapshotRestoreFilesAccepted, error)
+	V1betaSnapshotRestoreFiles(params *V1betaSnapshotRestoreFilesParams) (*V1betaSnapshotRestoreFilesCreated, *V1betaSnapshotRestoreFilesAccepted, error)
 
-	V1betaUpdateSnapshot(params *V1betaUpdateSnapshotParams, opts ...ClientOption) (*V1betaUpdateSnapshotAccepted, *V1betaUpdateSnapshotNoContent, error)
+	V1betaUpdateSnapshot(params *V1betaUpdateSnapshotParams) (*V1betaUpdateSnapshotAccepted, *V1betaUpdateSnapshotNoContent, error)
 
 	SetTransport(transport runtime.ClientTransport)
 }
@@ -76,12 +47,13 @@ V1betaCreateSnapshot creates a new snapshot for a volume
 
 Creates an ad-hoc snapshot for a volume. Use the snapshot policy parameter of a volume for automated snapshots.
 */
-func (a *Client) V1betaCreateSnapshot(params *V1betaCreateSnapshotParams, opts ...ClientOption) (*V1betaCreateSnapshotAccepted, error) {
+func (a *Client) V1betaCreateSnapshot(params *V1betaCreateSnapshotParams) (*V1betaCreateSnapshotAccepted, error) {
 	// TODO: Validate the params before sending
 	if params == nil {
 		params = NewV1betaCreateSnapshotParams()
 	}
-	op := &runtime.ClientOperation{
+
+	result, err := a.transport.Submit(&runtime.ClientOperation{
 		ID:                 "v1beta_createSnapshot",
 		Method:             "POST",
 		PathPattern:        "/v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/snapshots",
@@ -92,12 +64,7 @@ func (a *Client) V1betaCreateSnapshot(params *V1betaCreateSnapshotParams, opts .
 		Reader:             &V1betaCreateSnapshotReader{formats: a.formats},
 		Context:            params.Context,
 		Client:             params.HTTPClient,
-	}
-	for _, opt := range opts {
-		opt(op)
-	}
-
-	result, err := a.transport.Submit(op)
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -115,12 +82,13 @@ V1betaDeleteSnapshot deletes a snapshot for a volume
 
 Warning! This operation will permanently delete the snapshot. This operation will never return resource not found, since that could be interpreted as resource already deleted, and therefore will return operation done instead.
 */
-func (a *Client) V1betaDeleteSnapshot(params *V1betaDeleteSnapshotParams, opts ...ClientOption) (*V1betaDeleteSnapshotAccepted, *V1betaDeleteSnapshotNoContent, error) {
+func (a *Client) V1betaDeleteSnapshot(params *V1betaDeleteSnapshotParams) (*V1betaDeleteSnapshotAccepted, *V1betaDeleteSnapshotNoContent, error) {
 	// TODO: Validate the params before sending
 	if params == nil {
 		params = NewV1betaDeleteSnapshotParams()
 	}
-	op := &runtime.ClientOperation{
+
+	result, err := a.transport.Submit(&runtime.ClientOperation{
 		ID:                 "v1beta_deleteSnapshot",
 		Method:             "DELETE",
 		PathPattern:        "/v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/snapshots/{snapshotId}",
@@ -131,12 +99,7 @@ func (a *Client) V1betaDeleteSnapshot(params *V1betaDeleteSnapshotParams, opts .
 		Reader:             &V1betaDeleteSnapshotReader{formats: a.formats},
 		Context:            params.Context,
 		Client:             params.HTTPClient,
-	}
-	for _, opt := range opts {
-		opt(op)
-	}
-
-	result, err := a.transport.Submit(op)
+	})
 	if err != nil {
 		return nil, nil, err
 	}
@@ -156,12 +119,13 @@ V1betaDescribeSnapshot describes a snapshot for a volume
 
 Returns the description of the specified snapshot by volume ID and snapshot ID.
 */
-func (a *Client) V1betaDescribeSnapshot(params *V1betaDescribeSnapshotParams, opts ...ClientOption) (*V1betaDescribeSnapshotOK, error) {
+func (a *Client) V1betaDescribeSnapshot(params *V1betaDescribeSnapshotParams) (*V1betaDescribeSnapshotOK, error) {
 	// TODO: Validate the params before sending
 	if params == nil {
 		params = NewV1betaDescribeSnapshotParams()
 	}
-	op := &runtime.ClientOperation{
+
+	result, err := a.transport.Submit(&runtime.ClientOperation{
 		ID:                 "v1beta_describeSnapshot",
 		Method:             "GET",
 		PathPattern:        "/v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/snapshots/{snapshotId}",
@@ -172,12 +136,7 @@ func (a *Client) V1betaDescribeSnapshot(params *V1betaDescribeSnapshotParams, op
 		Reader:             &V1betaDescribeSnapshotReader{formats: a.formats},
 		Context:            params.Context,
 		Client:             params.HTTPClient,
-	}
-	for _, opt := range opts {
-		opt(op)
-	}
-
-	result, err := a.transport.Submit(op)
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -195,12 +154,13 @@ V1betaGetMultipleSnapshots lists specified snapshots
 
 Returns descriptions of snapshots that is listed in request body and belong to specified volume.
 */
-func (a *Client) V1betaGetMultipleSnapshots(params *V1betaGetMultipleSnapshotsParams, opts ...ClientOption) (*V1betaGetMultipleSnapshotsOK, error) {
+func (a *Client) V1betaGetMultipleSnapshots(params *V1betaGetMultipleSnapshotsParams) (*V1betaGetMultipleSnapshotsOK, error) {
 	// TODO: Validate the params before sending
 	if params == nil {
 		params = NewV1betaGetMultipleSnapshotsParams()
 	}
-	op := &runtime.ClientOperation{
+
+	result, err := a.transport.Submit(&runtime.ClientOperation{
 		ID:                 "v1beta_getMultipleSnapshots",
 		Method:             "POST",
 		PathPattern:        "/v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/getMultipleSnapshots",
@@ -211,12 +171,7 @@ func (a *Client) V1betaGetMultipleSnapshots(params *V1betaGetMultipleSnapshotsPa
 		Reader:             &V1betaGetMultipleSnapshotsReader{formats: a.formats},
 		Context:            params.Context,
 		Client:             params.HTTPClient,
-	}
-	for _, opt := range opts {
-		opt(op)
-	}
-
-	result, err := a.transport.Submit(op)
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -234,12 +189,13 @@ V1betaListSnapshots describes all snapshots for a volume
 
 Returns descriptions of all snapshots for a volume.
 */
-func (a *Client) V1betaListSnapshots(params *V1betaListSnapshotsParams, opts ...ClientOption) (*V1betaListSnapshotsOK, error) {
+func (a *Client) V1betaListSnapshots(params *V1betaListSnapshotsParams) (*V1betaListSnapshotsOK, error) {
 	// TODO: Validate the params before sending
 	if params == nil {
 		params = NewV1betaListSnapshotsParams()
 	}
-	op := &runtime.ClientOperation{
+
+	result, err := a.transport.Submit(&runtime.ClientOperation{
 		ID:                 "v1beta_listSnapshots",
 		Method:             "GET",
 		PathPattern:        "/v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/snapshots",
@@ -250,12 +206,7 @@ func (a *Client) V1betaListSnapshots(params *V1betaListSnapshotsParams, opts ...
 		Reader:             &V1betaListSnapshotsReader{formats: a.formats},
 		Context:            params.Context,
 		Client:             params.HTTPClient,
-	}
-	for _, opt := range opts {
-		opt(op)
-	}
-
-	result, err := a.transport.Submit(op)
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -273,12 +224,13 @@ V1betaSnapshotRestoreFiles restores files back to source volume
 
 Restore files back to source volume
 */
-func (a *Client) V1betaSnapshotRestoreFiles(params *V1betaSnapshotRestoreFilesParams, opts ...ClientOption) (*V1betaSnapshotRestoreFilesCreated, *V1betaSnapshotRestoreFilesAccepted, error) {
+func (a *Client) V1betaSnapshotRestoreFiles(params *V1betaSnapshotRestoreFilesParams) (*V1betaSnapshotRestoreFilesCreated, *V1betaSnapshotRestoreFilesAccepted, error) {
 	// TODO: Validate the params before sending
 	if params == nil {
 		params = NewV1betaSnapshotRestoreFilesParams()
 	}
-	op := &runtime.ClientOperation{
+
+	result, err := a.transport.Submit(&runtime.ClientOperation{
 		ID:                 "v1beta_snapshotRestoreFiles",
 		Method:             "POST",
 		PathPattern:        "/v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/snapshots/{snapshotId}/restoreFiles",
@@ -289,12 +241,7 @@ func (a *Client) V1betaSnapshotRestoreFiles(params *V1betaSnapshotRestoreFilesPa
 		Reader:             &V1betaSnapshotRestoreFilesReader{formats: a.formats},
 		Context:            params.Context,
 		Client:             params.HTTPClient,
-	}
-	for _, opt := range opts {
-		opt(op)
-	}
-
-	result, err := a.transport.Submit(op)
+	})
 	if err != nil {
 		return nil, nil, err
 	}
@@ -314,12 +261,13 @@ V1betaUpdateSnapshot updates a snapshot for a volume
 
 Update the snapshot
 */
-func (a *Client) V1betaUpdateSnapshot(params *V1betaUpdateSnapshotParams, opts ...ClientOption) (*V1betaUpdateSnapshotAccepted, *V1betaUpdateSnapshotNoContent, error) {
+func (a *Client) V1betaUpdateSnapshot(params *V1betaUpdateSnapshotParams) (*V1betaUpdateSnapshotAccepted, *V1betaUpdateSnapshotNoContent, error) {
 	// TODO: Validate the params before sending
 	if params == nil {
 		params = NewV1betaUpdateSnapshotParams()
 	}
-	op := &runtime.ClientOperation{
+
+	result, err := a.transport.Submit(&runtime.ClientOperation{
 		ID:                 "v1beta_updateSnapshot",
 		Method:             "PUT",
 		PathPattern:        "/v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/snapshots/{snapshotId}",
@@ -330,12 +278,7 @@ func (a *Client) V1betaUpdateSnapshot(params *V1betaUpdateSnapshotParams, opts .
 		Reader:             &V1betaUpdateSnapshotReader{formats: a.formats},
 		Context:            params.Context,
 		Client:             params.HTTPClient,
-	}
-	for _, opt := range opts {
-		opt(op)
-	}
-
-	result, err := a.transport.Submit(op)
+	})
 	if err != nil {
 		return nil, nil, err
 	}

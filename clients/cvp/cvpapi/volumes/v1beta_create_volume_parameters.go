@@ -18,37 +18,40 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/models"
 )
 
-// NewV1betaCreateVolumeParams creates a new V1betaCreateVolumeParams object,
-// with the default timeout for this client.
-//
-// Default values are not hydrated, since defaults are normally applied by the API server side.
-//
-// To enforce default values in parameter, use SetDefaults or WithDefaults.
+// NewV1betaCreateVolumeParams creates a new V1betaCreateVolumeParams object
+// with the default values initialized.
 func NewV1betaCreateVolumeParams() *V1betaCreateVolumeParams {
+	var ()
 	return &V1betaCreateVolumeParams{
+
 		timeout: cr.DefaultTimeout,
 	}
 }
 
 // NewV1betaCreateVolumeParamsWithTimeout creates a new V1betaCreateVolumeParams object
-// with the ability to set a timeout on a request.
+// with the default values initialized, and the ability to set a timeout on a request
 func NewV1betaCreateVolumeParamsWithTimeout(timeout time.Duration) *V1betaCreateVolumeParams {
+	var ()
 	return &V1betaCreateVolumeParams{
+
 		timeout: timeout,
 	}
 }
 
 // NewV1betaCreateVolumeParamsWithContext creates a new V1betaCreateVolumeParams object
-// with the ability to set a context for a request.
+// with the default values initialized, and the ability to set a context for a request
 func NewV1betaCreateVolumeParamsWithContext(ctx context.Context) *V1betaCreateVolumeParams {
+	var ()
 	return &V1betaCreateVolumeParams{
+
 		Context: ctx,
 	}
 }
 
 // NewV1betaCreateVolumeParamsWithHTTPClient creates a new V1betaCreateVolumeParams object
-// with the ability to set a custom HTTPClient for a request.
+// with the default values initialized, and the ability to set a custom HTTPClient for a request
 func NewV1betaCreateVolumeParamsWithHTTPClient(client *http.Client) *V1betaCreateVolumeParams {
+	var ()
 	return &V1betaCreateVolumeParams{
 		HTTPClient: client,
 	}
@@ -56,55 +59,34 @@ func NewV1betaCreateVolumeParamsWithHTTPClient(client *http.Client) *V1betaCreat
 
 /*
 V1betaCreateVolumeParams contains all the parameters to send to the API endpoint
-
-	for the v1beta create volume operation.
-
-	Typically these are written to a http.Request.
+for the v1beta create volume operation typically these are written to a http.Request
 */
 type V1betaCreateVolumeParams struct {
 
-	/* Body.
+	/*Body
+	  The required parameters to create a new volume.
 
-	   The required parameters to create a new volume.
 	*/
 	Body *models.VolumeCreateV1beta
+	/*LocationID
+	  The location/region to perform the operation in.
 
-	/* LocationID.
-
-	   The location/region to perform the operation in.
 	*/
 	LocationID string
+	/*ProjectNumber
+	  The project number of the GCP project owning the resource being acted upon
 
-	/* ProjectNumber.
-
-	   The project number of the GCP project owning the resource being acted upon
 	*/
 	ProjectNumber string
+	/*XCorrelationID
+	  Correlation identifier
 
-	/* XCorrelationID.
-
-	   Correlation identifier
 	*/
 	XCorrelationID *string
 
 	timeout    time.Duration
 	Context    context.Context
 	HTTPClient *http.Client
-}
-
-// WithDefaults hydrates default values in the v1beta create volume params (not the query body).
-//
-// All values with no default are reset to their zero value.
-func (o *V1betaCreateVolumeParams) WithDefaults() *V1betaCreateVolumeParams {
-	o.SetDefaults()
-	return o
-}
-
-// SetDefaults hydrates default values in the v1beta create volume params (not the query body).
-//
-// All values with no default are reset to their zero value.
-func (o *V1betaCreateVolumeParams) SetDefaults() {
-	// no default values defined for this parameter
 }
 
 // WithTimeout adds the timeout to the v1beta create volume params
@@ -191,6 +173,7 @@ func (o *V1betaCreateVolumeParams) WriteToRequest(r runtime.ClientRequest, reg s
 		return err
 	}
 	var res []error
+
 	if o.Body != nil {
 		if err := r.SetBodyParam(o.Body); err != nil {
 			return err
@@ -213,6 +196,7 @@ func (o *V1betaCreateVolumeParams) WriteToRequest(r runtime.ClientRequest, reg s
 		if err := r.SetHeaderParam("x-correlation-id", *o.XCorrelationID); err != nil {
 			return err
 		}
+
 	}
 
 	if len(res) > 0 {

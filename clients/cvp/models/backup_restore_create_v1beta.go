@@ -6,8 +6,6 @@ package models
 // Editing this file might prove futile when you re-run the swagger generate command
 
 import (
-	"context"
-
 	"github.com/go-openapi/errors"
 	"github.com/go-openapi/strfmt"
 	"github.com/go-openapi/swag"
@@ -24,7 +22,6 @@ type BackupRestoreCreateV1beta struct {
 	// backupId
 	//
 	// UUID v4 used to identify the backup
-	// Example: 463811e7-9760-acf5-9bdb-020073ca3333
 	// Max Length: 36
 	// Min Length: 36
 	// Pattern: ^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$
@@ -33,15 +30,12 @@ type BackupRestoreCreateV1beta struct {
 	// backupPath
 	//
 	// Complete resource path of the backup
-	// Example: projects/123456789/locations/us-e4/backupVaults/bv1/backups/backupName
 	BackupPath *string `json:"backupPath,omitempty"`
 
 	// Path to restore
-	// Example: /restore_dir
 	RestoreFilePath string `json:"restoreFilePath,omitempty"`
 
 	// Restore file list with a comma as a separator
-	// Example: ["/backup.txt","/restore.txt"]
 	SourceFileList []string `json:"sourceFileList"`
 }
 
@@ -60,27 +54,23 @@ func (m *BackupRestoreCreateV1beta) Validate(formats strfmt.Registry) error {
 }
 
 func (m *BackupRestoreCreateV1beta) validateBackupID(formats strfmt.Registry) error {
+
 	if swag.IsZero(m.BackupID) { // not required
 		return nil
 	}
 
-	if err := validate.MinLength("backupId", "body", *m.BackupID, 36); err != nil {
+	if err := validate.MinLength("backupId", "body", string(*m.BackupID), 36); err != nil {
 		return err
 	}
 
-	if err := validate.MaxLength("backupId", "body", *m.BackupID, 36); err != nil {
+	if err := validate.MaxLength("backupId", "body", string(*m.BackupID), 36); err != nil {
 		return err
 	}
 
-	if err := validate.Pattern("backupId", "body", *m.BackupID, `^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$`); err != nil {
+	if err := validate.Pattern("backupId", "body", string(*m.BackupID), `^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$`); err != nil {
 		return err
 	}
 
-	return nil
-}
-
-// ContextValidate validates this backup restore create v1beta based on context it is used
-func (m *BackupRestoreCreateV1beta) ContextValidate(ctx context.Context, formats strfmt.Registry) error {
 	return nil
 }
 

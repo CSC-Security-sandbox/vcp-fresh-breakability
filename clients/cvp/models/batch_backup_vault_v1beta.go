@@ -6,7 +6,6 @@ package models
 // Editing this file might prove futile when you re-run the swagger generate command
 
 import (
-	"context"
 	"encoding/json"
 
 	"github.com/go-openapi/errors"
@@ -23,7 +22,6 @@ type BatchBackupVaultV1beta struct {
 	// UUID
 	//
 	// UUID v4 used to identify the backup vault
-	// Example: 9760acf5-4638-11e7-9bdb-020073ca7773
 	// Max Length: 36
 	// Min Length: 36
 	// Pattern: ^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$
@@ -32,34 +30,29 @@ type BatchBackupVaultV1beta struct {
 	// createdAt
 	//
 	// Creation date of the resource
-	// Example: 2016-11-28T19:30:23.123Z
 	// Format: date-time
 	CreatedAt *strfmt.DateTime `json:"createdAt,omitempty"`
 
 	// description
 	//
 	// Description of backup vault
-	// Example: backupVault description
 	Description *string `json:"description,omitempty"`
 
 	// name
 	//
 	// Human readable name of the backup vault
-	// Example: my-resource
 	ResourceID *string `json:"resourceId,omitempty"`
 
 	// lifeCycleState
 	//
 	// The current state of the backup vault
-	// Example: READY
 	// Read Only: true
-	// Enum: ["CREATING","UPDATING","DELETING","READY","DELETED","ERROR"]
+	// Enum: [CREATING UPDATING DELETING READY DELETED ERROR]
 	State string `json:"state,omitempty"`
 
 	// lifeCycleStateDetails
 	//
 	// Details about the current lifecycle state
-	// Example: Available for use
 	StateDetails *string `json:"stateDetails,omitempty"`
 }
 
@@ -86,19 +79,20 @@ func (m *BatchBackupVaultV1beta) Validate(formats strfmt.Registry) error {
 }
 
 func (m *BatchBackupVaultV1beta) validateBackupVaultID(formats strfmt.Registry) error {
+
 	if swag.IsZero(m.BackupVaultID) { // not required
 		return nil
 	}
 
-	if err := validate.MinLength("backupVaultId", "body", m.BackupVaultID, 36); err != nil {
+	if err := validate.MinLength("backupVaultId", "body", string(m.BackupVaultID), 36); err != nil {
 		return err
 	}
 
-	if err := validate.MaxLength("backupVaultId", "body", m.BackupVaultID, 36); err != nil {
+	if err := validate.MaxLength("backupVaultId", "body", string(m.BackupVaultID), 36); err != nil {
 		return err
 	}
 
-	if err := validate.Pattern("backupVaultId", "body", m.BackupVaultID, `^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$`); err != nil {
+	if err := validate.Pattern("backupVaultId", "body", string(m.BackupVaultID), `^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$`); err != nil {
 		return err
 	}
 
@@ -106,6 +100,7 @@ func (m *BatchBackupVaultV1beta) validateBackupVaultID(formats strfmt.Registry) 
 }
 
 func (m *BatchBackupVaultV1beta) validateCreatedAt(formats strfmt.Registry) error {
+
 	if swag.IsZero(m.CreatedAt) { // not required
 		return nil
 	}
@@ -159,35 +154,13 @@ func (m *BatchBackupVaultV1beta) validateStateEnum(path, location string, value 
 }
 
 func (m *BatchBackupVaultV1beta) validateState(formats strfmt.Registry) error {
+
 	if swag.IsZero(m.State) { // not required
 		return nil
 	}
 
 	// value enum
 	if err := m.validateStateEnum("state", "body", m.State); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-// ContextValidate validate this batch backup vault v1beta based on the context it is used
-func (m *BatchBackupVaultV1beta) ContextValidate(ctx context.Context, formats strfmt.Registry) error {
-	var res []error
-
-	if err := m.contextValidateState(ctx, formats); err != nil {
-		res = append(res, err)
-	}
-
-	if len(res) > 0 {
-		return errors.CompositeValidationError(res...)
-	}
-	return nil
-}
-
-func (m *BatchBackupVaultV1beta) contextValidateState(ctx context.Context, formats strfmt.Registry) error {
-
-	if err := validate.ReadOnly(ctx, "state", "body", string(m.State)); err != nil {
 		return err
 	}
 

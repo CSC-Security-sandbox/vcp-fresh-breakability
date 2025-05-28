@@ -16,37 +16,40 @@ import (
 	"github.com/go-openapi/strfmt"
 )
 
-// NewV1betaDeleteActiveDirectoryParams creates a new V1betaDeleteActiveDirectoryParams object,
-// with the default timeout for this client.
-//
-// Default values are not hydrated, since defaults are normally applied by the API server side.
-//
-// To enforce default values in parameter, use SetDefaults or WithDefaults.
+// NewV1betaDeleteActiveDirectoryParams creates a new V1betaDeleteActiveDirectoryParams object
+// with the default values initialized.
 func NewV1betaDeleteActiveDirectoryParams() *V1betaDeleteActiveDirectoryParams {
+	var ()
 	return &V1betaDeleteActiveDirectoryParams{
+
 		timeout: cr.DefaultTimeout,
 	}
 }
 
 // NewV1betaDeleteActiveDirectoryParamsWithTimeout creates a new V1betaDeleteActiveDirectoryParams object
-// with the ability to set a timeout on a request.
+// with the default values initialized, and the ability to set a timeout on a request
 func NewV1betaDeleteActiveDirectoryParamsWithTimeout(timeout time.Duration) *V1betaDeleteActiveDirectoryParams {
+	var ()
 	return &V1betaDeleteActiveDirectoryParams{
+
 		timeout: timeout,
 	}
 }
 
 // NewV1betaDeleteActiveDirectoryParamsWithContext creates a new V1betaDeleteActiveDirectoryParams object
-// with the ability to set a context for a request.
+// with the default values initialized, and the ability to set a context for a request
 func NewV1betaDeleteActiveDirectoryParamsWithContext(ctx context.Context) *V1betaDeleteActiveDirectoryParams {
+	var ()
 	return &V1betaDeleteActiveDirectoryParams{
+
 		Context: ctx,
 	}
 }
 
 // NewV1betaDeleteActiveDirectoryParamsWithHTTPClient creates a new V1betaDeleteActiveDirectoryParams object
-// with the ability to set a custom HTTPClient for a request.
+// with the default values initialized, and the ability to set a custom HTTPClient for a request
 func NewV1betaDeleteActiveDirectoryParamsWithHTTPClient(client *http.Client) *V1betaDeleteActiveDirectoryParams {
+	var ()
 	return &V1betaDeleteActiveDirectoryParams{
 		HTTPClient: client,
 	}
@@ -54,55 +57,34 @@ func NewV1betaDeleteActiveDirectoryParamsWithHTTPClient(client *http.Client) *V1
 
 /*
 V1betaDeleteActiveDirectoryParams contains all the parameters to send to the API endpoint
-
-	for the v1beta delete active directory operation.
-
-	Typically these are written to a http.Request.
+for the v1beta delete active directory operation typically these are written to a http.Request
 */
 type V1betaDeleteActiveDirectoryParams struct {
 
-	/* ActiveDirectoryID.
+	/*ActiveDirectoryID
+	  UUID v4 used to identify the Active Directory credentials
 
-	   UUID v4 used to identify the Active Directory credentials
 	*/
 	ActiveDirectoryID string
+	/*LocationID
+	  The location/region to perform the operation in.
 
-	/* LocationID.
-
-	   The location/region to perform the operation in.
 	*/
 	LocationID string
+	/*ProjectNumber
+	  The project number of the GCP project owning the resource being acted upon
 
-	/* ProjectNumber.
-
-	   The project number of the GCP project owning the resource being acted upon
 	*/
 	ProjectNumber string
+	/*XCorrelationID
+	  Correlation identifier
 
-	/* XCorrelationID.
-
-	   Correlation identifier
 	*/
 	XCorrelationID *string
 
 	timeout    time.Duration
 	Context    context.Context
 	HTTPClient *http.Client
-}
-
-// WithDefaults hydrates default values in the v1beta delete active directory params (not the query body).
-//
-// All values with no default are reset to their zero value.
-func (o *V1betaDeleteActiveDirectoryParams) WithDefaults() *V1betaDeleteActiveDirectoryParams {
-	o.SetDefaults()
-	return o
-}
-
-// SetDefaults hydrates default values in the v1beta delete active directory params (not the query body).
-//
-// All values with no default are reset to their zero value.
-func (o *V1betaDeleteActiveDirectoryParams) SetDefaults() {
-	// no default values defined for this parameter
 }
 
 // WithTimeout adds the timeout to the v1beta delete active directory params
@@ -211,6 +193,7 @@ func (o *V1betaDeleteActiveDirectoryParams) WriteToRequest(r runtime.ClientReque
 		if err := r.SetHeaderParam("x-correlation-id", *o.XCorrelationID); err != nil {
 			return err
 		}
+
 	}
 
 	if len(res) > 0 {

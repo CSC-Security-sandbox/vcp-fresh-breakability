@@ -18,37 +18,40 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/models"
 )
 
-// NewV1betaUpdateTenantMigrationVolumeBillingParams creates a new V1betaUpdateTenantMigrationVolumeBillingParams object,
-// with the default timeout for this client.
-//
-// Default values are not hydrated, since defaults are normally applied by the API server side.
-//
-// To enforce default values in parameter, use SetDefaults or WithDefaults.
+// NewV1betaUpdateTenantMigrationVolumeBillingParams creates a new V1betaUpdateTenantMigrationVolumeBillingParams object
+// with the default values initialized.
 func NewV1betaUpdateTenantMigrationVolumeBillingParams() *V1betaUpdateTenantMigrationVolumeBillingParams {
+	var ()
 	return &V1betaUpdateTenantMigrationVolumeBillingParams{
+
 		timeout: cr.DefaultTimeout,
 	}
 }
 
 // NewV1betaUpdateTenantMigrationVolumeBillingParamsWithTimeout creates a new V1betaUpdateTenantMigrationVolumeBillingParams object
-// with the ability to set a timeout on a request.
+// with the default values initialized, and the ability to set a timeout on a request
 func NewV1betaUpdateTenantMigrationVolumeBillingParamsWithTimeout(timeout time.Duration) *V1betaUpdateTenantMigrationVolumeBillingParams {
+	var ()
 	return &V1betaUpdateTenantMigrationVolumeBillingParams{
+
 		timeout: timeout,
 	}
 }
 
 // NewV1betaUpdateTenantMigrationVolumeBillingParamsWithContext creates a new V1betaUpdateTenantMigrationVolumeBillingParams object
-// with the ability to set a context for a request.
+// with the default values initialized, and the ability to set a context for a request
 func NewV1betaUpdateTenantMigrationVolumeBillingParamsWithContext(ctx context.Context) *V1betaUpdateTenantMigrationVolumeBillingParams {
+	var ()
 	return &V1betaUpdateTenantMigrationVolumeBillingParams{
+
 		Context: ctx,
 	}
 }
 
 // NewV1betaUpdateTenantMigrationVolumeBillingParamsWithHTTPClient creates a new V1betaUpdateTenantMigrationVolumeBillingParams object
-// with the ability to set a custom HTTPClient for a request.
+// with the default values initialized, and the ability to set a custom HTTPClient for a request
 func NewV1betaUpdateTenantMigrationVolumeBillingParamsWithHTTPClient(client *http.Client) *V1betaUpdateTenantMigrationVolumeBillingParams {
+	var ()
 	return &V1betaUpdateTenantMigrationVolumeBillingParams{
 		HTTPClient: client,
 	}
@@ -56,55 +59,34 @@ func NewV1betaUpdateTenantMigrationVolumeBillingParamsWithHTTPClient(client *htt
 
 /*
 V1betaUpdateTenantMigrationVolumeBillingParams contains all the parameters to send to the API endpoint
-
-	for the v1beta update tenant migration volume billing operation.
-
-	Typically these are written to a http.Request.
+for the v1beta update tenant migration volume billing operation typically these are written to a http.Request
 */
 type V1betaUpdateTenantMigrationVolumeBillingParams struct {
 
-	/* Body.
+	/*Body
+	  The required parameter to update billing information
 
-	   The required parameter to update billing information
 	*/
 	Body *models.BillingV2
+	/*LocationID
+	  The location/region to perform the operation in.
 
-	/* LocationID.
-
-	   The location/region to perform the operation in.
 	*/
 	LocationID string
+	/*ProjectNumber
+	  The project number of the GCP project owning the resource being acted upon
 
-	/* ProjectNumber.
-
-	   The project number of the GCP project owning the resource being acted upon
 	*/
 	ProjectNumber string
+	/*XCorrelationID
+	  Correlation identifier
 
-	/* XCorrelationID.
-
-	   Correlation identifier
 	*/
 	XCorrelationID *string
 
 	timeout    time.Duration
 	Context    context.Context
 	HTTPClient *http.Client
-}
-
-// WithDefaults hydrates default values in the v1beta update tenant migration volume billing params (not the query body).
-//
-// All values with no default are reset to their zero value.
-func (o *V1betaUpdateTenantMigrationVolumeBillingParams) WithDefaults() *V1betaUpdateTenantMigrationVolumeBillingParams {
-	o.SetDefaults()
-	return o
-}
-
-// SetDefaults hydrates default values in the v1beta update tenant migration volume billing params (not the query body).
-//
-// All values with no default are reset to their zero value.
-func (o *V1betaUpdateTenantMigrationVolumeBillingParams) SetDefaults() {
-	// no default values defined for this parameter
 }
 
 // WithTimeout adds the timeout to the v1beta update tenant migration volume billing params
@@ -191,6 +173,7 @@ func (o *V1betaUpdateTenantMigrationVolumeBillingParams) WriteToRequest(r runtim
 		return err
 	}
 	var res []error
+
 	if o.Body != nil {
 		if err := r.SetBodyParam(o.Body); err != nil {
 			return err
@@ -213,6 +196,7 @@ func (o *V1betaUpdateTenantMigrationVolumeBillingParams) WriteToRequest(r runtim
 		if err := r.SetHeaderParam("x-correlation-id", *o.XCorrelationID); err != nil {
 			return err
 		}
+
 	}
 
 	if len(res) > 0 {

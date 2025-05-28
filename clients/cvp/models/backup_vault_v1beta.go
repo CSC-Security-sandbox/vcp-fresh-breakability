@@ -6,7 +6,6 @@ package models
 // Editing this file might prove futile when you re-run the swagger generate command
 
 import (
-	"context"
 	"encoding/json"
 
 	"github.com/go-openapi/errors"
@@ -33,7 +32,6 @@ type BackupVaultV1beta struct {
 	// UUID
 	//
 	// UUID v4 used to identify the ID of the resource
-	// Example: 87654321-4638-11e7-9bdb-123456789012
 	// Read Only: true
 	// Max Length: 36
 	// Min Length: 36
@@ -43,13 +41,12 @@ type BackupVaultV1beta struct {
 	// backupVaultType
 	//
 	// Type of the backup vault
-	// Enum: ["IN_REGION","CROSS_REGION"]
+	// Enum: [IN_REGION CROSS_REGION]
 	BackupVaultType *string `json:"backupVaultType,omitempty"`
 
 	// created
 	//
 	// Creation date of the resource
-	// Example: 2016-11-30T20:32:50.459Z
 	// Read Only: true
 	// Format: date-time
 	CreatedAt strfmt.DateTime `json:"createdAt,omitempty"`
@@ -57,7 +54,6 @@ type BackupVaultV1beta struct {
 	// deletedAt
 	//
 	// Date the resource was deleted
-	// Example: 2016-11-30T23:59:59.999Z
 	// Read Only: true
 	// Format: date-time
 	DeletedAt *strfmt.DateTime `json:"deletedAt,omitempty"`
@@ -65,19 +61,16 @@ type BackupVaultV1beta struct {
 	// description
 	//
 	// Description of backup vault
-	// Example: dummy description
 	Description *string `json:"description,omitempty"`
 
 	// destinationBackupVault
 	//
 	// The destination region backup vault
-	// Example: projects/projectID/locations/location/location/backupVaults/name
 	DestinationBackupVault *string `json:"destinationBackupVault,omitempty"`
 
 	// resourceId
 	//
 	// Human readable name of the backup vault
-	// Example: backupvault1
 	// Required: true
 	// Max Length: 63
 	// Pattern: ^[a-z]([a-z0-9-]{0,61}[a-z0-9])?$
@@ -86,13 +79,11 @@ type BackupVaultV1beta struct {
 	// sourceBackupVault
 	//
 	// The source region backup vault
-	// Example: projects/projectID/locations/location/location/backupVaults/name
 	SourceBackupVault *string `json:"sourceBackupVault,omitempty"`
 
 	// sourceRegion
 	//
 	// The source region of the backup
-	// Example: us-east4
 	// Max Length: 63
 	// Pattern: ^[a-z]([a-z0-9-]{0,61}[a-z0-9])?$
 	SourceRegion *string `json:"sourceRegion,omitempty"`
@@ -100,9 +91,8 @@ type BackupVaultV1beta struct {
 	// state
 	//
 	// The current state of the backup vault
-	// Example: available
 	// Read Only: true
-	// Enum: ["STATE_UNSPECIFIED","CREATING","UPDATING","DELETING","READY","DELETED","ERROR"]
+	// Enum: [STATE_UNSPECIFIED CREATING UPDATING DELETING READY DELETED ERROR]
 	State string `json:"state,omitempty"`
 
 	// stateDetails
@@ -159,15 +149,16 @@ func (m *BackupVaultV1beta) Validate(formats strfmt.Registry) error {
 }
 
 func (m *BackupVaultV1beta) validateBackupRegion(formats strfmt.Registry) error {
+
 	if swag.IsZero(m.BackupRegion) { // not required
 		return nil
 	}
 
-	if err := validate.MaxLength("backupRegion", "body", *m.BackupRegion, 63); err != nil {
+	if err := validate.MaxLength("backupRegion", "body", string(*m.BackupRegion), 63); err != nil {
 		return err
 	}
 
-	if err := validate.Pattern("backupRegion", "body", *m.BackupRegion, `^[a-z]([a-z0-9-]{0,61}[a-z0-9])?$`); err != nil {
+	if err := validate.Pattern("backupRegion", "body", string(*m.BackupRegion), `^[a-z]([a-z0-9-]{0,61}[a-z0-9])?$`); err != nil {
 		return err
 	}
 
@@ -175,6 +166,7 @@ func (m *BackupVaultV1beta) validateBackupRegion(formats strfmt.Registry) error 
 }
 
 func (m *BackupVaultV1beta) validateBackupRetentionPolicy(formats strfmt.Registry) error {
+
 	if swag.IsZero(m.BackupRetentionPolicy) { // not required
 		return nil
 	}
@@ -183,8 +175,6 @@ func (m *BackupVaultV1beta) validateBackupRetentionPolicy(formats strfmt.Registr
 		if err := m.BackupRetentionPolicy.Validate(formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("backupRetentionPolicy")
-			} else if ce, ok := err.(*errors.CompositeError); ok {
-				return ce.ValidateName("backupRetentionPolicy")
 			}
 			return err
 		}
@@ -194,19 +184,20 @@ func (m *BackupVaultV1beta) validateBackupRetentionPolicy(formats strfmt.Registr
 }
 
 func (m *BackupVaultV1beta) validateBackupVaultID(formats strfmt.Registry) error {
+
 	if swag.IsZero(m.BackupVaultID) { // not required
 		return nil
 	}
 
-	if err := validate.MinLength("backupVaultId", "body", m.BackupVaultID, 36); err != nil {
+	if err := validate.MinLength("backupVaultId", "body", string(m.BackupVaultID), 36); err != nil {
 		return err
 	}
 
-	if err := validate.MaxLength("backupVaultId", "body", m.BackupVaultID, 36); err != nil {
+	if err := validate.MaxLength("backupVaultId", "body", string(m.BackupVaultID), 36); err != nil {
 		return err
 	}
 
-	if err := validate.Pattern("backupVaultId", "body", m.BackupVaultID, `^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$`); err != nil {
+	if err := validate.Pattern("backupVaultId", "body", string(m.BackupVaultID), `^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$`); err != nil {
 		return err
 	}
 
@@ -243,6 +234,7 @@ func (m *BackupVaultV1beta) validateBackupVaultTypeEnum(path, location string, v
 }
 
 func (m *BackupVaultV1beta) validateBackupVaultType(formats strfmt.Registry) error {
+
 	if swag.IsZero(m.BackupVaultType) { // not required
 		return nil
 	}
@@ -256,6 +248,7 @@ func (m *BackupVaultV1beta) validateBackupVaultType(formats strfmt.Registry) err
 }
 
 func (m *BackupVaultV1beta) validateCreatedAt(formats strfmt.Registry) error {
+
 	if swag.IsZero(m.CreatedAt) { // not required
 		return nil
 	}
@@ -268,6 +261,7 @@ func (m *BackupVaultV1beta) validateCreatedAt(formats strfmt.Registry) error {
 }
 
 func (m *BackupVaultV1beta) validateDeletedAt(formats strfmt.Registry) error {
+
 	if swag.IsZero(m.DeletedAt) { // not required
 		return nil
 	}
@@ -285,11 +279,11 @@ func (m *BackupVaultV1beta) validateResourceID(formats strfmt.Registry) error {
 		return err
 	}
 
-	if err := validate.MaxLength("resourceId", "body", *m.ResourceID, 63); err != nil {
+	if err := validate.MaxLength("resourceId", "body", string(*m.ResourceID), 63); err != nil {
 		return err
 	}
 
-	if err := validate.Pattern("resourceId", "body", *m.ResourceID, `^[a-z]([a-z0-9-]{0,61}[a-z0-9])?$`); err != nil {
+	if err := validate.Pattern("resourceId", "body", string(*m.ResourceID), `^[a-z]([a-z0-9-]{0,61}[a-z0-9])?$`); err != nil {
 		return err
 	}
 
@@ -297,15 +291,16 @@ func (m *BackupVaultV1beta) validateResourceID(formats strfmt.Registry) error {
 }
 
 func (m *BackupVaultV1beta) validateSourceRegion(formats strfmt.Registry) error {
+
 	if swag.IsZero(m.SourceRegion) { // not required
 		return nil
 	}
 
-	if err := validate.MaxLength("sourceRegion", "body", *m.SourceRegion, 63); err != nil {
+	if err := validate.MaxLength("sourceRegion", "body", string(*m.SourceRegion), 63); err != nil {
 		return err
 	}
 
-	if err := validate.Pattern("sourceRegion", "body", *m.SourceRegion, `^[a-z]([a-z0-9-]{0,61}[a-z0-9])?$`); err != nil {
+	if err := validate.Pattern("sourceRegion", "body", string(*m.SourceRegion), `^[a-z]([a-z0-9-]{0,61}[a-z0-9])?$`); err != nil {
 		return err
 	}
 
@@ -357,112 +352,13 @@ func (m *BackupVaultV1beta) validateStateEnum(path, location string, value strin
 }
 
 func (m *BackupVaultV1beta) validateState(formats strfmt.Registry) error {
+
 	if swag.IsZero(m.State) { // not required
 		return nil
 	}
 
 	// value enum
 	if err := m.validateStateEnum("state", "body", m.State); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-// ContextValidate validate this backup vault v1beta based on the context it is used
-func (m *BackupVaultV1beta) ContextValidate(ctx context.Context, formats strfmt.Registry) error {
-	var res []error
-
-	if err := m.contextValidateBackupRetentionPolicy(ctx, formats); err != nil {
-		res = append(res, err)
-	}
-
-	if err := m.contextValidateBackupVaultID(ctx, formats); err != nil {
-		res = append(res, err)
-	}
-
-	if err := m.contextValidateCreatedAt(ctx, formats); err != nil {
-		res = append(res, err)
-	}
-
-	if err := m.contextValidateDeletedAt(ctx, formats); err != nil {
-		res = append(res, err)
-	}
-
-	if err := m.contextValidateState(ctx, formats); err != nil {
-		res = append(res, err)
-	}
-
-	if err := m.contextValidateStateDetails(ctx, formats); err != nil {
-		res = append(res, err)
-	}
-
-	if len(res) > 0 {
-		return errors.CompositeValidationError(res...)
-	}
-	return nil
-}
-
-func (m *BackupVaultV1beta) contextValidateBackupRetentionPolicy(ctx context.Context, formats strfmt.Registry) error {
-
-	if m.BackupRetentionPolicy != nil {
-
-		if swag.IsZero(m.BackupRetentionPolicy) { // not required
-			return nil
-		}
-
-		if err := m.BackupRetentionPolicy.ContextValidate(ctx, formats); err != nil {
-			if ve, ok := err.(*errors.Validation); ok {
-				return ve.ValidateName("backupRetentionPolicy")
-			} else if ce, ok := err.(*errors.CompositeError); ok {
-				return ce.ValidateName("backupRetentionPolicy")
-			}
-			return err
-		}
-	}
-
-	return nil
-}
-
-func (m *BackupVaultV1beta) contextValidateBackupVaultID(ctx context.Context, formats strfmt.Registry) error {
-
-	if err := validate.ReadOnly(ctx, "backupVaultId", "body", string(m.BackupVaultID)); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (m *BackupVaultV1beta) contextValidateCreatedAt(ctx context.Context, formats strfmt.Registry) error {
-
-	if err := validate.ReadOnly(ctx, "createdAt", "body", strfmt.DateTime(m.CreatedAt)); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (m *BackupVaultV1beta) contextValidateDeletedAt(ctx context.Context, formats strfmt.Registry) error {
-
-	if err := validate.ReadOnly(ctx, "deletedAt", "body", m.DeletedAt); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (m *BackupVaultV1beta) contextValidateState(ctx context.Context, formats strfmt.Registry) error {
-
-	if err := validate.ReadOnly(ctx, "state", "body", string(m.State)); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (m *BackupVaultV1beta) contextValidateStateDetails(ctx context.Context, formats strfmt.Registry) error {
-
-	if err := validate.ReadOnly(ctx, "stateDetails", "body", string(m.StateDetails)); err != nil {
 		return err
 	}
 

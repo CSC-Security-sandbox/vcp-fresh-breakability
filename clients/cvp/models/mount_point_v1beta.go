@@ -6,12 +6,9 @@ package models
 // Editing this file might prove futile when you re-run the swagger generate command
 
 import (
-	"context"
-
 	"github.com/go-openapi/errors"
 	"github.com/go-openapi/strfmt"
 	"github.com/go-openapi/swag"
-	"github.com/go-openapi/validate"
 )
 
 // MountPointV1beta MountPoint
@@ -22,28 +19,24 @@ type MountPointV1beta struct {
 	// export
 	//
 	// The volume's export path or share name
-	// Example: /hopefully-sufficient-newton
 	// Read Only: true
 	Export string `json:"export,omitempty"`
 
 	// exportFull
 	//
 	// The volume's full export path or share name, including server
-	// Example: 1.2.3.4:/hopefully-sufficient-newton
 	// Read Only: true
 	ExportFull string `json:"exportFull,omitempty"`
 
 	// instructions
 	//
 	// Instructions for mounting the volume
-	// Example: sudo mount -t nfs -o rw,hard,rsize=65536,wsize=65536,vers=3,tcp 1.2.3.4:/hopefully-sufficient-newton ./hopefully-sufficient-newton
 	// Read Only: true
 	Instructions string `json:"instructions,omitempty"`
 
 	// ipAddress
 	//
 	// The volume's IPv4 address
-	// Example: 1.2.3.4
 	// Read Only: true
 	IPAddress string `json:"ipAddress,omitempty"`
 
@@ -66,6 +59,7 @@ func (m *MountPointV1beta) Validate(formats strfmt.Registry) error {
 }
 
 func (m *MountPointV1beta) validateProtocol(formats strfmt.Registry) error {
+
 	if swag.IsZero(m.Protocol) { // not required
 		return nil
 	}
@@ -73,92 +67,6 @@ func (m *MountPointV1beta) validateProtocol(formats strfmt.Registry) error {
 	if err := m.Protocol.Validate(formats); err != nil {
 		if ve, ok := err.(*errors.Validation); ok {
 			return ve.ValidateName("protocol")
-		} else if ce, ok := err.(*errors.CompositeError); ok {
-			return ce.ValidateName("protocol")
-		}
-		return err
-	}
-
-	return nil
-}
-
-// ContextValidate validate this mount point v1beta based on the context it is used
-func (m *MountPointV1beta) ContextValidate(ctx context.Context, formats strfmt.Registry) error {
-	var res []error
-
-	if err := m.contextValidateExport(ctx, formats); err != nil {
-		res = append(res, err)
-	}
-
-	if err := m.contextValidateExportFull(ctx, formats); err != nil {
-		res = append(res, err)
-	}
-
-	if err := m.contextValidateInstructions(ctx, formats); err != nil {
-		res = append(res, err)
-	}
-
-	if err := m.contextValidateIPAddress(ctx, formats); err != nil {
-		res = append(res, err)
-	}
-
-	if err := m.contextValidateProtocol(ctx, formats); err != nil {
-		res = append(res, err)
-	}
-
-	if len(res) > 0 {
-		return errors.CompositeValidationError(res...)
-	}
-	return nil
-}
-
-func (m *MountPointV1beta) contextValidateExport(ctx context.Context, formats strfmt.Registry) error {
-
-	if err := validate.ReadOnly(ctx, "export", "body", string(m.Export)); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (m *MountPointV1beta) contextValidateExportFull(ctx context.Context, formats strfmt.Registry) error {
-
-	if err := validate.ReadOnly(ctx, "exportFull", "body", string(m.ExportFull)); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (m *MountPointV1beta) contextValidateInstructions(ctx context.Context, formats strfmt.Registry) error {
-
-	if err := validate.ReadOnly(ctx, "instructions", "body", string(m.Instructions)); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (m *MountPointV1beta) contextValidateIPAddress(ctx context.Context, formats strfmt.Registry) error {
-
-	if err := validate.ReadOnly(ctx, "ipAddress", "body", string(m.IPAddress)); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (m *MountPointV1beta) contextValidateProtocol(ctx context.Context, formats strfmt.Registry) error {
-
-	if swag.IsZero(m.Protocol) { // not required
-		return nil
-	}
-
-	if err := m.Protocol.ContextValidate(ctx, formats); err != nil {
-		if ve, ok := err.(*errors.Validation); ok {
-			return ve.ValidateName("protocol")
-		} else if ce, ok := err.(*errors.CompositeError); ok {
-			return ce.ValidateName("protocol")
 		}
 		return err
 	}

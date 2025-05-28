@@ -6,7 +6,6 @@ package models
 // Editing this file might prove futile when you re-run the swagger generate command
 
 import (
-	"context"
 	"encoding/json"
 
 	"github.com/go-openapi/errors"
@@ -23,7 +22,6 @@ type BatchBackupV1beta struct {
 	// backupId
 	//
 	// UUID v4 used to identify the backup
-	// Example: 9760acf5-4638-11e7-9bdb-020073ca3333
 	// Max Length: 36
 	// Min Length: 36
 	// Pattern: ^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$
@@ -32,57 +30,49 @@ type BatchBackupV1beta struct {
 	// backupType
 	//
 	// Type of backup, manually created (adhoc) or created by a schedule
-	// Enum: ["MANUAL","SCHEDULED"]
+	// Enum: [MANUAL SCHEDULED]
 	BackupType string `json:"backupType,omitempty"`
 
 	// UUID v4 used to identify the backup vault ID
-	// Example: 9760acf5-4638-11e7-9bdb-020073ca3333
 	// Pattern: ^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$
 	BackupVaultID *string `json:"backupVaultId,omitempty"`
 
 	// created
 	//
 	// Creation date of the resource
-	// Example: 2016-11-28T19:30:23.123Z
 	// Format: date-time
 	Created *strfmt.DateTime `json:"created,omitempty"`
 
 	// description
 	//
 	// Description of the backup
-	// Example: My Backup description
 	Description *string `json:"description,omitempty"`
 
 	// resourceId
 	//
 	// Human readable name of the backup
-	// Example: backup-name
 	ResourceID *string `json:"resourceId,omitempty"`
 
 	// sourceSnapshot
 	//
 	// Name of the snapshot
-	// Example: my-snapshot
 	SourceSnapshot *string `json:"sourceSnapshot,omitempty"`
 
 	// sourceVolume
 	//
 	// Display name of the volume
-	// Example: my-volume
 	SourceVolume *string `json:"sourceVolume,omitempty"`
 
 	// state
 	//
 	// The current state of the backup
-	// Example: READY
 	// Read Only: true
-	// Enum: ["CREATING","READY","UPLOADING","RESTORING","DISABLED","DELETING","DELETED","ERROR"]
+	// Enum: [CREATING READY UPLOADING RESTORING DISABLED DELETING DELETED ERROR]
 	State string `json:"state,omitempty"`
 
 	// volumeUsageBytes
 	//
 	// Current storage usage for the backup in bytes
-	// Example: 101010
 	VolumeUsageBytes *int64 `json:"volumeUsageBytes,omitempty"`
 }
 
@@ -117,19 +107,20 @@ func (m *BatchBackupV1beta) Validate(formats strfmt.Registry) error {
 }
 
 func (m *BatchBackupV1beta) validateBackupID(formats strfmt.Registry) error {
+
 	if swag.IsZero(m.BackupID) { // not required
 		return nil
 	}
 
-	if err := validate.MinLength("backupId", "body", m.BackupID, 36); err != nil {
+	if err := validate.MinLength("backupId", "body", string(m.BackupID), 36); err != nil {
 		return err
 	}
 
-	if err := validate.MaxLength("backupId", "body", m.BackupID, 36); err != nil {
+	if err := validate.MaxLength("backupId", "body", string(m.BackupID), 36); err != nil {
 		return err
 	}
 
-	if err := validate.Pattern("backupId", "body", m.BackupID, `^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$`); err != nil {
+	if err := validate.Pattern("backupId", "body", string(m.BackupID), `^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$`); err != nil {
 		return err
 	}
 
@@ -166,6 +157,7 @@ func (m *BatchBackupV1beta) validateBackupTypeEnum(path, location string, value 
 }
 
 func (m *BatchBackupV1beta) validateBackupType(formats strfmt.Registry) error {
+
 	if swag.IsZero(m.BackupType) { // not required
 		return nil
 	}
@@ -179,11 +171,12 @@ func (m *BatchBackupV1beta) validateBackupType(formats strfmt.Registry) error {
 }
 
 func (m *BatchBackupV1beta) validateBackupVaultID(formats strfmt.Registry) error {
+
 	if swag.IsZero(m.BackupVaultID) { // not required
 		return nil
 	}
 
-	if err := validate.Pattern("backupVaultId", "body", *m.BackupVaultID, `^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$`); err != nil {
+	if err := validate.Pattern("backupVaultId", "body", string(*m.BackupVaultID), `^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$`); err != nil {
 		return err
 	}
 
@@ -191,6 +184,7 @@ func (m *BatchBackupV1beta) validateBackupVaultID(formats strfmt.Registry) error
 }
 
 func (m *BatchBackupV1beta) validateCreated(formats strfmt.Registry) error {
+
 	if swag.IsZero(m.Created) { // not required
 		return nil
 	}
@@ -250,35 +244,13 @@ func (m *BatchBackupV1beta) validateStateEnum(path, location string, value strin
 }
 
 func (m *BatchBackupV1beta) validateState(formats strfmt.Registry) error {
+
 	if swag.IsZero(m.State) { // not required
 		return nil
 	}
 
 	// value enum
 	if err := m.validateStateEnum("state", "body", m.State); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-// ContextValidate validate this batch backup v1beta based on the context it is used
-func (m *BatchBackupV1beta) ContextValidate(ctx context.Context, formats strfmt.Registry) error {
-	var res []error
-
-	if err := m.contextValidateState(ctx, formats); err != nil {
-		res = append(res, err)
-	}
-
-	if len(res) > 0 {
-		return errors.CompositeValidationError(res...)
-	}
-	return nil
-}
-
-func (m *BatchBackupV1beta) contextValidateState(ctx context.Context, formats strfmt.Registry) error {
-
-	if err := validate.ReadOnly(ctx, "state", "body", string(m.State)); err != nil {
 		return err
 	}
 

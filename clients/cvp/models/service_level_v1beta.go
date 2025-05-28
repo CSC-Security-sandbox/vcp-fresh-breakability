@@ -6,7 +6,6 @@ package models
 // Editing this file might prove futile when you re-run the swagger generate command
 
 import (
-	"context"
 	"encoding/json"
 
 	"github.com/go-openapi/errors"
@@ -23,17 +22,15 @@ type ServiceLevelV1beta struct {
 	// name
 	//
 	// The name of the service level
-	// Example: PREMIUM
 	// Read Only: true
-	// Enum: ["SERVICE_LEVEL_UNSPECIFIED","FLEX","STANDARD","PREMIUM","EXTREME"]
+	// Enum: [SERVICE_LEVEL_UNSPECIFIED FLEX STANDARD PREMIUM EXTREME]
 	Name string `json:"name,omitempty"`
 
 	// performance
 	//
 	// The performance of the service level
-	// Example: high
 	// Read Only: true
-	// Enum: ["medium","high"]
+	// Enum: [medium high]
 	Performance string `json:"performance,omitempty"`
 }
 
@@ -94,6 +91,7 @@ func (m *ServiceLevelV1beta) validateNameEnum(path, location string, value strin
 }
 
 func (m *ServiceLevelV1beta) validateName(formats strfmt.Registry) error {
+
 	if swag.IsZero(m.Name) { // not required
 		return nil
 	}
@@ -136,48 +134,13 @@ func (m *ServiceLevelV1beta) validatePerformanceEnum(path, location string, valu
 }
 
 func (m *ServiceLevelV1beta) validatePerformance(formats strfmt.Registry) error {
+
 	if swag.IsZero(m.Performance) { // not required
 		return nil
 	}
 
 	// value enum
 	if err := m.validatePerformanceEnum("performance", "body", m.Performance); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-// ContextValidate validate this service level v1beta based on the context it is used
-func (m *ServiceLevelV1beta) ContextValidate(ctx context.Context, formats strfmt.Registry) error {
-	var res []error
-
-	if err := m.contextValidateName(ctx, formats); err != nil {
-		res = append(res, err)
-	}
-
-	if err := m.contextValidatePerformance(ctx, formats); err != nil {
-		res = append(res, err)
-	}
-
-	if len(res) > 0 {
-		return errors.CompositeValidationError(res...)
-	}
-	return nil
-}
-
-func (m *ServiceLevelV1beta) contextValidateName(ctx context.Context, formats strfmt.Registry) error {
-
-	if err := validate.ReadOnly(ctx, "name", "body", string(m.Name)); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (m *ServiceLevelV1beta) contextValidatePerformance(ctx context.Context, formats strfmt.Registry) error {
-
-	if err := validate.ReadOnly(ctx, "performance", "body", string(m.Performance)); err != nil {
 		return err
 	}
 

@@ -6,7 +6,6 @@ package models
 // Editing this file might prove futile when you re-run the swagger generate command
 
 import (
-	"context"
 	"strconv"
 
 	"github.com/go-openapi/errors"
@@ -54,17 +53,12 @@ func (m *KmsConfigIDListV1beta) validateKmsConfigIDs(formats strfmt.Registry) er
 
 	for i := 0; i < len(m.KmsConfigIDs); i++ {
 
-		if err := validate.Pattern("kmsConfigIDs"+"."+strconv.Itoa(i), "body", m.KmsConfigIDs[i], `^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$`); err != nil {
+		if err := validate.Pattern("kmsConfigIDs"+"."+strconv.Itoa(i), "body", string(m.KmsConfigIDs[i]), `^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$`); err != nil {
 			return err
 		}
 
 	}
 
-	return nil
-}
-
-// ContextValidate validates this kms config ID list v1beta based on context it is used
-func (m *KmsConfigIDListV1beta) ContextValidate(ctx context.Context, formats strfmt.Registry) error {
 	return nil
 }
 

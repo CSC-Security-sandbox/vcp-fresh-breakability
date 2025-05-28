@@ -6,7 +6,6 @@ package models
 // Editing this file might prove futile when you re-run the swagger generate command
 
 import (
-	"context"
 	"encoding/json"
 
 	"github.com/go-openapi/errors"
@@ -23,7 +22,6 @@ type ReplicationCreateV1beta struct {
 	// description
 	//
 	// Description of the replication
-	// Example: My replication description
 	// Max Length: 2048
 	Description *string `json:"description,omitempty"`
 
@@ -34,18 +32,16 @@ type ReplicationCreateV1beta struct {
 	// labels
 	//
 	// JSON dictionary of resource labels to allow linking of billing labels to a replication, Can contain only lowercase letters, numeric characters, underscores, and dashes. All characters must use UTF-8 encoding, and international characters are allowed. Must start with a lowercase letter or international character.
-	// Example: {"some-key":"some-value","some-key2":"some-value2"}
 	Labels map[string]string `json:"labels,omitempty"`
 
 	// replicationSchedule
 	// Required: true
-	// Enum: ["REPLICATION_SCHEDULE_UNSPECIFIED","EVERY_10_MINUTES","HOURLY","DAILY"]
+	// Enum: [REPLICATION_SCHEDULE_UNSPECIFIED EVERY_10_MINUTES HOURLY DAILY]
 	ReplicationSchedule *string `json:"replicationSchedule"`
 
 	// resourceId
 	//
 	// A human readable label for the replication resource which is restricted to letters, numbers, and hyphen, with the first character a letter, the last a letter or a number, and a 63 character maximum
-	// Example: my-replication-name
 	// Required: true
 	// Max Length: 63
 	// Pattern: ^[a-z]([a-z0-9-]{0,61}[a-z0-9])?$
@@ -79,11 +75,12 @@ func (m *ReplicationCreateV1beta) Validate(formats strfmt.Registry) error {
 }
 
 func (m *ReplicationCreateV1beta) validateDescription(formats strfmt.Registry) error {
+
 	if swag.IsZero(m.Description) { // not required
 		return nil
 	}
 
-	if err := validate.MaxLength("description", "body", *m.Description, 2048); err != nil {
+	if err := validate.MaxLength("description", "body", string(*m.Description), 2048); err != nil {
 		return err
 	}
 
@@ -100,8 +97,6 @@ func (m *ReplicationCreateV1beta) validateDestinationVolumeParameters(formats st
 		if err := m.DestinationVolumeParameters.Validate(formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("destinationVolumeParameters")
-			} else if ce, ok := err.(*errors.CompositeError); ok {
-				return ce.ValidateName("destinationVolumeParameters")
 			}
 			return err
 		}
@@ -165,43 +160,12 @@ func (m *ReplicationCreateV1beta) validateResourceID(formats strfmt.Registry) er
 		return err
 	}
 
-	if err := validate.MaxLength("resourceId", "body", *m.ResourceID, 63); err != nil {
+	if err := validate.MaxLength("resourceId", "body", string(*m.ResourceID), 63); err != nil {
 		return err
 	}
 
-	if err := validate.Pattern("resourceId", "body", *m.ResourceID, `^[a-z]([a-z0-9-]{0,61}[a-z0-9])?$`); err != nil {
+	if err := validate.Pattern("resourceId", "body", string(*m.ResourceID), `^[a-z]([a-z0-9-]{0,61}[a-z0-9])?$`); err != nil {
 		return err
-	}
-
-	return nil
-}
-
-// ContextValidate validate this replication create v1beta based on the context it is used
-func (m *ReplicationCreateV1beta) ContextValidate(ctx context.Context, formats strfmt.Registry) error {
-	var res []error
-
-	if err := m.contextValidateDestinationVolumeParameters(ctx, formats); err != nil {
-		res = append(res, err)
-	}
-
-	if len(res) > 0 {
-		return errors.CompositeValidationError(res...)
-	}
-	return nil
-}
-
-func (m *ReplicationCreateV1beta) contextValidateDestinationVolumeParameters(ctx context.Context, formats strfmt.Registry) error {
-
-	if m.DestinationVolumeParameters != nil {
-
-		if err := m.DestinationVolumeParameters.ContextValidate(ctx, formats); err != nil {
-			if ve, ok := err.(*errors.Validation); ok {
-				return ve.ValidateName("destinationVolumeParameters")
-			} else if ce, ok := err.(*errors.CompositeError); ok {
-				return ce.ValidateName("destinationVolumeParameters")
-			}
-			return err
-		}
 	}
 
 	return nil

@@ -6,8 +6,6 @@ package models
 // Editing this file might prove futile when you re-run the swagger generate command
 
 import (
-	"context"
-
 	"github.com/go-openapi/errors"
 	"github.com/go-openapi/strfmt"
 	"github.com/go-openapi/swag"
@@ -22,11 +20,9 @@ import (
 type VolumeDetailV1beta struct {
 
 	// Name of the resource
-	// Example: netapp-vol
 	Name string `json:"name,omitempty"`
 
 	// UUID used to identify the resource
-	// Example: 9760acf5-4638-11e7-9bdb-020073ca7773
 	// Max Length: 36
 	// Min Length: 36
 	// Pattern: ^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$
@@ -48,27 +44,23 @@ func (m *VolumeDetailV1beta) Validate(formats strfmt.Registry) error {
 }
 
 func (m *VolumeDetailV1beta) validateUUID(formats strfmt.Registry) error {
+
 	if swag.IsZero(m.UUID) { // not required
 		return nil
 	}
 
-	if err := validate.MinLength("uuid", "body", m.UUID, 36); err != nil {
+	if err := validate.MinLength("uuid", "body", string(m.UUID), 36); err != nil {
 		return err
 	}
 
-	if err := validate.MaxLength("uuid", "body", m.UUID, 36); err != nil {
+	if err := validate.MaxLength("uuid", "body", string(m.UUID), 36); err != nil {
 		return err
 	}
 
-	if err := validate.Pattern("uuid", "body", m.UUID, `^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$`); err != nil {
+	if err := validate.Pattern("uuid", "body", string(m.UUID), `^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$`); err != nil {
 		return err
 	}
 
-	return nil
-}
-
-// ContextValidate validates this volume detail v1beta based on context it is used
-func (m *VolumeDetailV1beta) ContextValidate(ctx context.Context, formats strfmt.Registry) error {
 	return nil
 }
 

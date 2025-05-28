@@ -6,7 +6,6 @@ package models
 // Editing this file might prove futile when you re-run the swagger generate command
 
 import (
-	"context"
 	"encoding/json"
 
 	"github.com/go-openapi/errors"
@@ -23,7 +22,6 @@ type BatchReplicationCVPV1beta struct {
 	// UUID
 	//
 	// UUID v4 of volume replication
-	// Example: 9760acf5-4638-11e7-9bdb-020073ca0001
 	// Read Only: true
 	// Max Length: 36
 	// Min Length: 36
@@ -33,120 +31,104 @@ type BatchReplicationCVPV1beta struct {
 	// createdAt
 	//
 	// Creation date of the resource
-	// Example: 2016-11-28T19:30:23.123Z
 	// Format: date-time
 	CreatedAt *strfmt.DateTime `json:"createdAt,omitempty"`
 
 	// description
 	//
 	// Description of the volume replication
-	// Example: fortress of solitude
 	Description *string `json:"description,omitempty"`
 
 	// destinationHostName
 	//
 	// The destination endpoint host for the volume replication
-	// Example: destination-host
 	DestinationHostName *string `json:"destinationHostName,omitempty"`
 
 	// destinationServerName
 	//
 	// The destination endpoint server for the volume replication
-	// Example: destination-server
 	DestinationServerName *string `json:"destinationServerName,omitempty"`
 
 	// destinationVolumeName
 	//
 	// The destination endpoint volume for the volume replication
-	// Example: destination-volume-name
 	DestinationVolumeName *string `json:"destinationVolumeName,omitempty"`
 
 	// endpointType
 	//
 	// Indicates whether the local volume is the source or destination for the volume replication or a restore endpoint
-	// Example: src
-	// Enum: ["src","dst","rst"]
+	// Enum: [src dst rst]
 	EndpointType *string `json:"endpointType,omitempty"`
 
 	// lastTransferError
 	//
 	// The last error that occurred during a transfer
-	// Example: Transfer aborted.
 	LastTransferError *string `json:"lastTransferError,omitempty"`
 
 	// lifeCycleState
 	//
 	// The current lifecycle state of the resource
-	// Example: available
-	// Enum: ["creating","available","updating","disabled","deleting","deleted","error"]
+	// Enum: [creating available updating disabled deleting deleted error]
 	LifeCycleState *string `json:"lifeCycleState,omitempty"`
 
 	// lifeCycleStateDetails
 	//
 	// Details about the current lifecycle state
-	// Example: Available for use
 	LifeCycleStateDetails *string `json:"lifeCycleStateDetails,omitempty"`
 
 	// mirrorState
 	//
 	// The mirror state of the volume replication
-	// Enum: ["uninitialized","mirrored","broken"]
+	// Enum: [uninitialized mirrored broken]
 	MirrorState *string `json:"mirrorState,omitempty"`
 
 	// name
 	//
 	// A human readable label for the the volume replication
-	// Example: important-data
 	Name *string `json:"name,omitempty"`
 
 	// relationshipStatus
 	//
 	// The status of the volume replication
-	// Enum: ["idle","transferring"]
+	// Enum: [idle transferring]
 	RelationshipStatus *string `json:"relationshipStatus,omitempty"`
 
 	// remoteRegion
 	//
 	// The remote region for the other end of the volume replication
-	// Example: some-location1
 	RemoteRegion *string `json:"remoteRegion,omitempty"`
 
 	// remoteResourceId
 	//
 	// The resource ID of the remote volume
-	// Example: destination-replication
 	RemoteResourceID *string `json:"remoteResourceId,omitempty"`
 
 	// replicationPolicy
-	// Enum: ["MirrorAllSnapshots","MirrorLatest","MirrorAndVault"]
+	// Enum: [MirrorAllSnapshots MirrorLatest MirrorAndVault]
 	ReplicationPolicy *string `json:"replicationPolicy,omitempty"`
 
 	// replicationSchedule
-	// Enum: ["10minutely","hourly","daily","weekly","monthly"]
+	// Enum: [10minutely hourly daily weekly monthly]
 	ReplicationSchedule *string `json:"replicationSchedule,omitempty"`
 
 	// sourceHostName
 	//
 	// The source endpoint host for the volume replication
-	// Example: awesome-host
 	SourceHostName *string `json:"sourceHostName,omitempty"`
 
 	// sourceServerName
 	//
 	// The source endpoint server for the volume replication
-	// Example: some-server
 	SourceServerName *string `json:"sourceServerName,omitempty"`
 
 	// sourceVolumeName
 	//
 	// The source endpoint volume for the volume replication
-	// Example: source-volume
 	SourceVolumeName *string `json:"sourceVolumeName,omitempty"`
 
 	// tags
 	//
 	// JSON dictionary of resource labels to allow linking of billing labels to a replication, Can contain only lowercase letters, numeric characters, underscores, and dashes. All characters must use UTF-8 encoding, and international characters are allowed. Must start with a lowercase letter or international character
-	// Example: {"some-key":"some-value","some-key2":"some-value2"}
 	Tags map[string]string `json:"tags,omitempty"`
 }
 
@@ -193,19 +175,20 @@ func (m *BatchReplicationCVPV1beta) Validate(formats strfmt.Registry) error {
 }
 
 func (m *BatchReplicationCVPV1beta) validateUUID(formats strfmt.Registry) error {
+
 	if swag.IsZero(m.UUID) { // not required
 		return nil
 	}
 
-	if err := validate.MinLength("UUID", "body", m.UUID, 36); err != nil {
+	if err := validate.MinLength("UUID", "body", string(m.UUID), 36); err != nil {
 		return err
 	}
 
-	if err := validate.MaxLength("UUID", "body", m.UUID, 36); err != nil {
+	if err := validate.MaxLength("UUID", "body", string(m.UUID), 36); err != nil {
 		return err
 	}
 
-	if err := validate.Pattern("UUID", "body", m.UUID, `^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$`); err != nil {
+	if err := validate.Pattern("UUID", "body", string(m.UUID), `^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$`); err != nil {
 		return err
 	}
 
@@ -213,6 +196,7 @@ func (m *BatchReplicationCVPV1beta) validateUUID(formats strfmt.Registry) error 
 }
 
 func (m *BatchReplicationCVPV1beta) validateCreatedAt(formats strfmt.Registry) error {
+
 	if swag.IsZero(m.CreatedAt) { // not required
 		return nil
 	}
@@ -257,6 +241,7 @@ func (m *BatchReplicationCVPV1beta) validateEndpointTypeEnum(path, location stri
 }
 
 func (m *BatchReplicationCVPV1beta) validateEndpointType(formats strfmt.Registry) error {
+
 	if swag.IsZero(m.EndpointType) { // not required
 		return nil
 	}
@@ -314,6 +299,7 @@ func (m *BatchReplicationCVPV1beta) validateLifeCycleStateEnum(path, location st
 }
 
 func (m *BatchReplicationCVPV1beta) validateLifeCycleState(formats strfmt.Registry) error {
+
 	if swag.IsZero(m.LifeCycleState) { // not required
 		return nil
 	}
@@ -359,6 +345,7 @@ func (m *BatchReplicationCVPV1beta) validateMirrorStateEnum(path, location strin
 }
 
 func (m *BatchReplicationCVPV1beta) validateMirrorState(formats strfmt.Registry) error {
+
 	if swag.IsZero(m.MirrorState) { // not required
 		return nil
 	}
@@ -401,6 +388,7 @@ func (m *BatchReplicationCVPV1beta) validateRelationshipStatusEnum(path, locatio
 }
 
 func (m *BatchReplicationCVPV1beta) validateRelationshipStatus(formats strfmt.Registry) error {
+
 	if swag.IsZero(m.RelationshipStatus) { // not required
 		return nil
 	}
@@ -446,6 +434,7 @@ func (m *BatchReplicationCVPV1beta) validateReplicationPolicyEnum(path, location
 }
 
 func (m *BatchReplicationCVPV1beta) validateReplicationPolicy(formats strfmt.Registry) error {
+
 	if swag.IsZero(m.ReplicationPolicy) { // not required
 		return nil
 	}
@@ -497,35 +486,13 @@ func (m *BatchReplicationCVPV1beta) validateReplicationScheduleEnum(path, locati
 }
 
 func (m *BatchReplicationCVPV1beta) validateReplicationSchedule(formats strfmt.Registry) error {
+
 	if swag.IsZero(m.ReplicationSchedule) { // not required
 		return nil
 	}
 
 	// value enum
 	if err := m.validateReplicationScheduleEnum("replicationSchedule", "body", *m.ReplicationSchedule); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-// ContextValidate validate this batch replication c v p v1beta based on the context it is used
-func (m *BatchReplicationCVPV1beta) ContextValidate(ctx context.Context, formats strfmt.Registry) error {
-	var res []error
-
-	if err := m.contextValidateUUID(ctx, formats); err != nil {
-		res = append(res, err)
-	}
-
-	if len(res) > 0 {
-		return errors.CompositeValidationError(res...)
-	}
-	return nil
-}
-
-func (m *BatchReplicationCVPV1beta) contextValidateUUID(ctx context.Context, formats strfmt.Registry) error {
-
-	if err := validate.ReadOnly(ctx, "UUID", "body", string(m.UUID)); err != nil {
 		return err
 	}
 

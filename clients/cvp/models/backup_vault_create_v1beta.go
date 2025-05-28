@@ -6,8 +6,6 @@ package models
 // Editing this file might prove futile when you re-run the swagger generate command
 
 import (
-	"context"
-
 	"github.com/go-openapi/errors"
 	"github.com/go-openapi/strfmt"
 	"github.com/go-openapi/swag"
@@ -65,15 +63,16 @@ func (m *BackupVaultCreateV1beta) Validate(formats strfmt.Registry) error {
 }
 
 func (m *BackupVaultCreateV1beta) validateBackupRegion(formats strfmt.Registry) error {
+
 	if swag.IsZero(m.BackupRegion) { // not required
 		return nil
 	}
 
-	if err := validate.MaxLength("backupRegion", "body", *m.BackupRegion, 63); err != nil {
+	if err := validate.MaxLength("backupRegion", "body", string(*m.BackupRegion), 63); err != nil {
 		return err
 	}
 
-	if err := validate.Pattern("backupRegion", "body", *m.BackupRegion, `^[a-z]([a-z0-9-]{0,61}[a-z0-9])?$`); err != nil {
+	if err := validate.Pattern("backupRegion", "body", string(*m.BackupRegion), `^[a-z]([a-z0-9-]{0,61}[a-z0-9])?$`); err != nil {
 		return err
 	}
 
@@ -81,6 +80,7 @@ func (m *BackupVaultCreateV1beta) validateBackupRegion(formats strfmt.Registry) 
 }
 
 func (m *BackupVaultCreateV1beta) validateBackupRetentionPolicy(formats strfmt.Registry) error {
+
 	if swag.IsZero(m.BackupRetentionPolicy) { // not required
 		return nil
 	}
@@ -89,8 +89,6 @@ func (m *BackupVaultCreateV1beta) validateBackupRetentionPolicy(formats strfmt.R
 		if err := m.BackupRetentionPolicy.Validate(formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("backupRetentionPolicy")
-			} else if ce, ok := err.(*errors.CompositeError); ok {
-				return ce.ValidateName("backupRetentionPolicy")
 			}
 			return err
 		}
@@ -100,51 +98,17 @@ func (m *BackupVaultCreateV1beta) validateBackupRetentionPolicy(formats strfmt.R
 }
 
 func (m *BackupVaultCreateV1beta) validateResourceID(formats strfmt.Registry) error {
+
 	if swag.IsZero(m.ResourceID) { // not required
 		return nil
 	}
 
-	if err := validate.MaxLength("resourceId", "body", m.ResourceID, 63); err != nil {
+	if err := validate.MaxLength("resourceId", "body", string(m.ResourceID), 63); err != nil {
 		return err
 	}
 
-	if err := validate.Pattern("resourceId", "body", m.ResourceID, `^[a-z]([a-z0-9-]{0,61}[a-z0-9])?$`); err != nil {
+	if err := validate.Pattern("resourceId", "body", string(m.ResourceID), `^[a-z]([a-z0-9-]{0,61}[a-z0-9])?$`); err != nil {
 		return err
-	}
-
-	return nil
-}
-
-// ContextValidate validate this backup vault create v1beta based on the context it is used
-func (m *BackupVaultCreateV1beta) ContextValidate(ctx context.Context, formats strfmt.Registry) error {
-	var res []error
-
-	if err := m.contextValidateBackupRetentionPolicy(ctx, formats); err != nil {
-		res = append(res, err)
-	}
-
-	if len(res) > 0 {
-		return errors.CompositeValidationError(res...)
-	}
-	return nil
-}
-
-func (m *BackupVaultCreateV1beta) contextValidateBackupRetentionPolicy(ctx context.Context, formats strfmt.Registry) error {
-
-	if m.BackupRetentionPolicy != nil {
-
-		if swag.IsZero(m.BackupRetentionPolicy) { // not required
-			return nil
-		}
-
-		if err := m.BackupRetentionPolicy.ContextValidate(ctx, formats); err != nil {
-			if ve, ok := err.(*errors.Validation); ok {
-				return ve.ValidateName("backupRetentionPolicy")
-			} else if ce, ok := err.(*errors.CompositeError); ok {
-				return ce.ValidateName("backupRetentionPolicy")
-			}
-			return err
-		}
 	}
 
 	return nil

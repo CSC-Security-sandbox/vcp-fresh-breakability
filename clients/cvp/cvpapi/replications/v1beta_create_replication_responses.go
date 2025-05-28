@@ -6,7 +6,6 @@ package replications
 // Editing this file might prove futile when you re-run the swagger generate command
 
 import (
-	"encoding/json"
 	"fmt"
 	"io"
 
@@ -90,7 +89,7 @@ func NewV1betaCreateReplicationAccepted() *V1betaCreateReplicationAccepted {
 }
 
 /*
-V1betaCreateReplicationAccepted describes a response with status code 202, with default header values.
+V1betaCreateReplicationAccepted handles this case with default header values.
 
 Creating replication
 */
@@ -98,44 +97,8 @@ type V1betaCreateReplicationAccepted struct {
 	Payload *models.OperationV1beta
 }
 
-// IsSuccess returns true when this v1beta create replication accepted response has a 2xx status code
-func (o *V1betaCreateReplicationAccepted) IsSuccess() bool {
-	return true
-}
-
-// IsRedirect returns true when this v1beta create replication accepted response has a 3xx status code
-func (o *V1betaCreateReplicationAccepted) IsRedirect() bool {
-	return false
-}
-
-// IsClientError returns true when this v1beta create replication accepted response has a 4xx status code
-func (o *V1betaCreateReplicationAccepted) IsClientError() bool {
-	return false
-}
-
-// IsServerError returns true when this v1beta create replication accepted response has a 5xx status code
-func (o *V1betaCreateReplicationAccepted) IsServerError() bool {
-	return false
-}
-
-// IsCode returns true when this v1beta create replication accepted response a status code equal to that given
-func (o *V1betaCreateReplicationAccepted) IsCode(code int) bool {
-	return code == 202
-}
-
-// Code gets the status code for the v1beta create replication accepted response
-func (o *V1betaCreateReplicationAccepted) Code() int {
-	return 202
-}
-
 func (o *V1betaCreateReplicationAccepted) Error() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeResourceId}/replications][%d] v1betaCreateReplicationAccepted %s", 202, payload)
-}
-
-func (o *V1betaCreateReplicationAccepted) String() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeResourceId}/replications][%d] v1betaCreateReplicationAccepted %s", 202, payload)
+	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeResourceId}/replications][%d] v1betaCreateReplicationAccepted  %+v", 202, o.Payload)
 }
 
 func (o *V1betaCreateReplicationAccepted) GetPayload() *models.OperationV1beta {
@@ -160,7 +123,7 @@ func NewV1betaCreateReplicationBadRequest() *V1betaCreateReplicationBadRequest {
 }
 
 /*
-V1betaCreateReplicationBadRequest describes a response with status code 400, with default header values.
+V1betaCreateReplicationBadRequest handles this case with default header values.
 
 Bad request
 */
@@ -168,44 +131,8 @@ type V1betaCreateReplicationBadRequest struct {
 	Payload *models.Error
 }
 
-// IsSuccess returns true when this v1beta create replication bad request response has a 2xx status code
-func (o *V1betaCreateReplicationBadRequest) IsSuccess() bool {
-	return false
-}
-
-// IsRedirect returns true when this v1beta create replication bad request response has a 3xx status code
-func (o *V1betaCreateReplicationBadRequest) IsRedirect() bool {
-	return false
-}
-
-// IsClientError returns true when this v1beta create replication bad request response has a 4xx status code
-func (o *V1betaCreateReplicationBadRequest) IsClientError() bool {
-	return true
-}
-
-// IsServerError returns true when this v1beta create replication bad request response has a 5xx status code
-func (o *V1betaCreateReplicationBadRequest) IsServerError() bool {
-	return false
-}
-
-// IsCode returns true when this v1beta create replication bad request response a status code equal to that given
-func (o *V1betaCreateReplicationBadRequest) IsCode(code int) bool {
-	return code == 400
-}
-
-// Code gets the status code for the v1beta create replication bad request response
-func (o *V1betaCreateReplicationBadRequest) Code() int {
-	return 400
-}
-
 func (o *V1betaCreateReplicationBadRequest) Error() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeResourceId}/replications][%d] v1betaCreateReplicationBadRequest %s", 400, payload)
-}
-
-func (o *V1betaCreateReplicationBadRequest) String() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeResourceId}/replications][%d] v1betaCreateReplicationBadRequest %s", 400, payload)
+	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeResourceId}/replications][%d] v1betaCreateReplicationBadRequest  %+v", 400, o.Payload)
 }
 
 func (o *V1betaCreateReplicationBadRequest) GetPayload() *models.Error {
@@ -230,7 +157,7 @@ func NewV1betaCreateReplicationUnauthorized() *V1betaCreateReplicationUnauthoriz
 }
 
 /*
-V1betaCreateReplicationUnauthorized describes a response with status code 401, with default header values.
+V1betaCreateReplicationUnauthorized handles this case with default header values.
 
 Unauthorized
 */
@@ -238,44 +165,8 @@ type V1betaCreateReplicationUnauthorized struct {
 	Payload *models.Error
 }
 
-// IsSuccess returns true when this v1beta create replication unauthorized response has a 2xx status code
-func (o *V1betaCreateReplicationUnauthorized) IsSuccess() bool {
-	return false
-}
-
-// IsRedirect returns true when this v1beta create replication unauthorized response has a 3xx status code
-func (o *V1betaCreateReplicationUnauthorized) IsRedirect() bool {
-	return false
-}
-
-// IsClientError returns true when this v1beta create replication unauthorized response has a 4xx status code
-func (o *V1betaCreateReplicationUnauthorized) IsClientError() bool {
-	return true
-}
-
-// IsServerError returns true when this v1beta create replication unauthorized response has a 5xx status code
-func (o *V1betaCreateReplicationUnauthorized) IsServerError() bool {
-	return false
-}
-
-// IsCode returns true when this v1beta create replication unauthorized response a status code equal to that given
-func (o *V1betaCreateReplicationUnauthorized) IsCode(code int) bool {
-	return code == 401
-}
-
-// Code gets the status code for the v1beta create replication unauthorized response
-func (o *V1betaCreateReplicationUnauthorized) Code() int {
-	return 401
-}
-
 func (o *V1betaCreateReplicationUnauthorized) Error() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeResourceId}/replications][%d] v1betaCreateReplicationUnauthorized %s", 401, payload)
-}
-
-func (o *V1betaCreateReplicationUnauthorized) String() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeResourceId}/replications][%d] v1betaCreateReplicationUnauthorized %s", 401, payload)
+	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeResourceId}/replications][%d] v1betaCreateReplicationUnauthorized  %+v", 401, o.Payload)
 }
 
 func (o *V1betaCreateReplicationUnauthorized) GetPayload() *models.Error {
@@ -300,7 +191,7 @@ func NewV1betaCreateReplicationForbidden() *V1betaCreateReplicationForbidden {
 }
 
 /*
-V1betaCreateReplicationForbidden describes a response with status code 403, with default header values.
+V1betaCreateReplicationForbidden handles this case with default header values.
 
 Forbidden
 */
@@ -308,44 +199,8 @@ type V1betaCreateReplicationForbidden struct {
 	Payload *models.Error
 }
 
-// IsSuccess returns true when this v1beta create replication forbidden response has a 2xx status code
-func (o *V1betaCreateReplicationForbidden) IsSuccess() bool {
-	return false
-}
-
-// IsRedirect returns true when this v1beta create replication forbidden response has a 3xx status code
-func (o *V1betaCreateReplicationForbidden) IsRedirect() bool {
-	return false
-}
-
-// IsClientError returns true when this v1beta create replication forbidden response has a 4xx status code
-func (o *V1betaCreateReplicationForbidden) IsClientError() bool {
-	return true
-}
-
-// IsServerError returns true when this v1beta create replication forbidden response has a 5xx status code
-func (o *V1betaCreateReplicationForbidden) IsServerError() bool {
-	return false
-}
-
-// IsCode returns true when this v1beta create replication forbidden response a status code equal to that given
-func (o *V1betaCreateReplicationForbidden) IsCode(code int) bool {
-	return code == 403
-}
-
-// Code gets the status code for the v1beta create replication forbidden response
-func (o *V1betaCreateReplicationForbidden) Code() int {
-	return 403
-}
-
 func (o *V1betaCreateReplicationForbidden) Error() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeResourceId}/replications][%d] v1betaCreateReplicationForbidden %s", 403, payload)
-}
-
-func (o *V1betaCreateReplicationForbidden) String() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeResourceId}/replications][%d] v1betaCreateReplicationForbidden %s", 403, payload)
+	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeResourceId}/replications][%d] v1betaCreateReplicationForbidden  %+v", 403, o.Payload)
 }
 
 func (o *V1betaCreateReplicationForbidden) GetPayload() *models.Error {
@@ -370,7 +225,7 @@ func NewV1betaCreateReplicationConflict() *V1betaCreateReplicationConflict {
 }
 
 /*
-V1betaCreateReplicationConflict describes a response with status code 409, with default header values.
+V1betaCreateReplicationConflict handles this case with default header values.
 
 Conflict
 */
@@ -378,44 +233,8 @@ type V1betaCreateReplicationConflict struct {
 	Payload *models.Error
 }
 
-// IsSuccess returns true when this v1beta create replication conflict response has a 2xx status code
-func (o *V1betaCreateReplicationConflict) IsSuccess() bool {
-	return false
-}
-
-// IsRedirect returns true when this v1beta create replication conflict response has a 3xx status code
-func (o *V1betaCreateReplicationConflict) IsRedirect() bool {
-	return false
-}
-
-// IsClientError returns true when this v1beta create replication conflict response has a 4xx status code
-func (o *V1betaCreateReplicationConflict) IsClientError() bool {
-	return true
-}
-
-// IsServerError returns true when this v1beta create replication conflict response has a 5xx status code
-func (o *V1betaCreateReplicationConflict) IsServerError() bool {
-	return false
-}
-
-// IsCode returns true when this v1beta create replication conflict response a status code equal to that given
-func (o *V1betaCreateReplicationConflict) IsCode(code int) bool {
-	return code == 409
-}
-
-// Code gets the status code for the v1beta create replication conflict response
-func (o *V1betaCreateReplicationConflict) Code() int {
-	return 409
-}
-
 func (o *V1betaCreateReplicationConflict) Error() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeResourceId}/replications][%d] v1betaCreateReplicationConflict %s", 409, payload)
-}
-
-func (o *V1betaCreateReplicationConflict) String() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeResourceId}/replications][%d] v1betaCreateReplicationConflict %s", 409, payload)
+	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeResourceId}/replications][%d] v1betaCreateReplicationConflict  %+v", 409, o.Payload)
 }
 
 func (o *V1betaCreateReplicationConflict) GetPayload() *models.Error {
@@ -440,7 +259,7 @@ func NewV1betaCreateReplicationUnprocessableEntity() *V1betaCreateReplicationUnp
 }
 
 /*
-V1betaCreateReplicationUnprocessableEntity describes a response with status code 422, with default header values.
+V1betaCreateReplicationUnprocessableEntity handles this case with default header values.
 
 Unprocessable entity
 */
@@ -448,44 +267,8 @@ type V1betaCreateReplicationUnprocessableEntity struct {
 	Payload *models.Error
 }
 
-// IsSuccess returns true when this v1beta create replication unprocessable entity response has a 2xx status code
-func (o *V1betaCreateReplicationUnprocessableEntity) IsSuccess() bool {
-	return false
-}
-
-// IsRedirect returns true when this v1beta create replication unprocessable entity response has a 3xx status code
-func (o *V1betaCreateReplicationUnprocessableEntity) IsRedirect() bool {
-	return false
-}
-
-// IsClientError returns true when this v1beta create replication unprocessable entity response has a 4xx status code
-func (o *V1betaCreateReplicationUnprocessableEntity) IsClientError() bool {
-	return true
-}
-
-// IsServerError returns true when this v1beta create replication unprocessable entity response has a 5xx status code
-func (o *V1betaCreateReplicationUnprocessableEntity) IsServerError() bool {
-	return false
-}
-
-// IsCode returns true when this v1beta create replication unprocessable entity response a status code equal to that given
-func (o *V1betaCreateReplicationUnprocessableEntity) IsCode(code int) bool {
-	return code == 422
-}
-
-// Code gets the status code for the v1beta create replication unprocessable entity response
-func (o *V1betaCreateReplicationUnprocessableEntity) Code() int {
-	return 422
-}
-
 func (o *V1betaCreateReplicationUnprocessableEntity) Error() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeResourceId}/replications][%d] v1betaCreateReplicationUnprocessableEntity %s", 422, payload)
-}
-
-func (o *V1betaCreateReplicationUnprocessableEntity) String() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeResourceId}/replications][%d] v1betaCreateReplicationUnprocessableEntity %s", 422, payload)
+	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeResourceId}/replications][%d] v1betaCreateReplicationUnprocessableEntity  %+v", 422, o.Payload)
 }
 
 func (o *V1betaCreateReplicationUnprocessableEntity) GetPayload() *models.Error {
@@ -510,7 +293,7 @@ func NewV1betaCreateReplicationTooManyRequests() *V1betaCreateReplicationTooMany
 }
 
 /*
-V1betaCreateReplicationTooManyRequests describes a response with status code 429, with default header values.
+V1betaCreateReplicationTooManyRequests handles this case with default header values.
 
 Too many requests
 */
@@ -518,44 +301,8 @@ type V1betaCreateReplicationTooManyRequests struct {
 	Payload *models.Error
 }
 
-// IsSuccess returns true when this v1beta create replication too many requests response has a 2xx status code
-func (o *V1betaCreateReplicationTooManyRequests) IsSuccess() bool {
-	return false
-}
-
-// IsRedirect returns true when this v1beta create replication too many requests response has a 3xx status code
-func (o *V1betaCreateReplicationTooManyRequests) IsRedirect() bool {
-	return false
-}
-
-// IsClientError returns true when this v1beta create replication too many requests response has a 4xx status code
-func (o *V1betaCreateReplicationTooManyRequests) IsClientError() bool {
-	return true
-}
-
-// IsServerError returns true when this v1beta create replication too many requests response has a 5xx status code
-func (o *V1betaCreateReplicationTooManyRequests) IsServerError() bool {
-	return false
-}
-
-// IsCode returns true when this v1beta create replication too many requests response a status code equal to that given
-func (o *V1betaCreateReplicationTooManyRequests) IsCode(code int) bool {
-	return code == 429
-}
-
-// Code gets the status code for the v1beta create replication too many requests response
-func (o *V1betaCreateReplicationTooManyRequests) Code() int {
-	return 429
-}
-
 func (o *V1betaCreateReplicationTooManyRequests) Error() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeResourceId}/replications][%d] v1betaCreateReplicationTooManyRequests %s", 429, payload)
-}
-
-func (o *V1betaCreateReplicationTooManyRequests) String() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeResourceId}/replications][%d] v1betaCreateReplicationTooManyRequests %s", 429, payload)
+	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeResourceId}/replications][%d] v1betaCreateReplicationTooManyRequests  %+v", 429, o.Payload)
 }
 
 func (o *V1betaCreateReplicationTooManyRequests) GetPayload() *models.Error {
@@ -580,7 +327,7 @@ func NewV1betaCreateReplicationInternalServerError() *V1betaCreateReplicationInt
 }
 
 /*
-V1betaCreateReplicationInternalServerError describes a response with status code 500, with default header values.
+V1betaCreateReplicationInternalServerError handles this case with default header values.
 
 Internal server error
 */
@@ -588,44 +335,8 @@ type V1betaCreateReplicationInternalServerError struct {
 	Payload *models.Error
 }
 
-// IsSuccess returns true when this v1beta create replication internal server error response has a 2xx status code
-func (o *V1betaCreateReplicationInternalServerError) IsSuccess() bool {
-	return false
-}
-
-// IsRedirect returns true when this v1beta create replication internal server error response has a 3xx status code
-func (o *V1betaCreateReplicationInternalServerError) IsRedirect() bool {
-	return false
-}
-
-// IsClientError returns true when this v1beta create replication internal server error response has a 4xx status code
-func (o *V1betaCreateReplicationInternalServerError) IsClientError() bool {
-	return false
-}
-
-// IsServerError returns true when this v1beta create replication internal server error response has a 5xx status code
-func (o *V1betaCreateReplicationInternalServerError) IsServerError() bool {
-	return true
-}
-
-// IsCode returns true when this v1beta create replication internal server error response a status code equal to that given
-func (o *V1betaCreateReplicationInternalServerError) IsCode(code int) bool {
-	return code == 500
-}
-
-// Code gets the status code for the v1beta create replication internal server error response
-func (o *V1betaCreateReplicationInternalServerError) Code() int {
-	return 500
-}
-
 func (o *V1betaCreateReplicationInternalServerError) Error() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeResourceId}/replications][%d] v1betaCreateReplicationInternalServerError %s", 500, payload)
-}
-
-func (o *V1betaCreateReplicationInternalServerError) String() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeResourceId}/replications][%d] v1betaCreateReplicationInternalServerError %s", 500, payload)
+	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeResourceId}/replications][%d] v1betaCreateReplicationInternalServerError  %+v", 500, o.Payload)
 }
 
 func (o *V1betaCreateReplicationInternalServerError) GetPayload() *models.Error {
@@ -652,7 +363,7 @@ func NewV1betaCreateReplicationDefault(code int) *V1betaCreateReplicationDefault
 }
 
 /*
-V1betaCreateReplicationDefault describes a response with status code -1, with default header values.
+V1betaCreateReplicationDefault handles this case with default header values.
 
 Unexpected error
 */
@@ -662,44 +373,13 @@ type V1betaCreateReplicationDefault struct {
 	Payload *models.Error
 }
 
-// IsSuccess returns true when this v1beta create replication default response has a 2xx status code
-func (o *V1betaCreateReplicationDefault) IsSuccess() bool {
-	return o._statusCode/100 == 2
-}
-
-// IsRedirect returns true when this v1beta create replication default response has a 3xx status code
-func (o *V1betaCreateReplicationDefault) IsRedirect() bool {
-	return o._statusCode/100 == 3
-}
-
-// IsClientError returns true when this v1beta create replication default response has a 4xx status code
-func (o *V1betaCreateReplicationDefault) IsClientError() bool {
-	return o._statusCode/100 == 4
-}
-
-// IsServerError returns true when this v1beta create replication default response has a 5xx status code
-func (o *V1betaCreateReplicationDefault) IsServerError() bool {
-	return o._statusCode/100 == 5
-}
-
-// IsCode returns true when this v1beta create replication default response a status code equal to that given
-func (o *V1betaCreateReplicationDefault) IsCode(code int) bool {
-	return o._statusCode == code
-}
-
 // Code gets the status code for the v1beta create replication default response
 func (o *V1betaCreateReplicationDefault) Code() int {
 	return o._statusCode
 }
 
 func (o *V1betaCreateReplicationDefault) Error() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeResourceId}/replications][%d] v1beta_createReplication default %s", o._statusCode, payload)
-}
-
-func (o *V1betaCreateReplicationDefault) String() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeResourceId}/replications][%d] v1beta_createReplication default %s", o._statusCode, payload)
+	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeResourceId}/replications][%d] v1beta_createReplication default  %+v", o._statusCode, o.Payload)
 }
 
 func (o *V1betaCreateReplicationDefault) GetPayload() *models.Error {

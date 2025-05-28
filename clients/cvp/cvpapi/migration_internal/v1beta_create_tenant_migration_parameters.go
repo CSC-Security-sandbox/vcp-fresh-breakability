@@ -18,37 +18,40 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/models"
 )
 
-// NewV1betaCreateTenantMigrationParams creates a new V1betaCreateTenantMigrationParams object,
-// with the default timeout for this client.
-//
-// Default values are not hydrated, since defaults are normally applied by the API server side.
-//
-// To enforce default values in parameter, use SetDefaults or WithDefaults.
+// NewV1betaCreateTenantMigrationParams creates a new V1betaCreateTenantMigrationParams object
+// with the default values initialized.
 func NewV1betaCreateTenantMigrationParams() *V1betaCreateTenantMigrationParams {
+	var ()
 	return &V1betaCreateTenantMigrationParams{
+
 		timeout: cr.DefaultTimeout,
 	}
 }
 
 // NewV1betaCreateTenantMigrationParamsWithTimeout creates a new V1betaCreateTenantMigrationParams object
-// with the ability to set a timeout on a request.
+// with the default values initialized, and the ability to set a timeout on a request
 func NewV1betaCreateTenantMigrationParamsWithTimeout(timeout time.Duration) *V1betaCreateTenantMigrationParams {
+	var ()
 	return &V1betaCreateTenantMigrationParams{
+
 		timeout: timeout,
 	}
 }
 
 // NewV1betaCreateTenantMigrationParamsWithContext creates a new V1betaCreateTenantMigrationParams object
-// with the ability to set a context for a request.
+// with the default values initialized, and the ability to set a context for a request
 func NewV1betaCreateTenantMigrationParamsWithContext(ctx context.Context) *V1betaCreateTenantMigrationParams {
+	var ()
 	return &V1betaCreateTenantMigrationParams{
+
 		Context: ctx,
 	}
 }
 
 // NewV1betaCreateTenantMigrationParamsWithHTTPClient creates a new V1betaCreateTenantMigrationParams object
-// with the ability to set a custom HTTPClient for a request.
+// with the default values initialized, and the ability to set a custom HTTPClient for a request
 func NewV1betaCreateTenantMigrationParamsWithHTTPClient(client *http.Client) *V1betaCreateTenantMigrationParams {
+	var ()
 	return &V1betaCreateTenantMigrationParams{
 		HTTPClient: client,
 	}
@@ -56,55 +59,34 @@ func NewV1betaCreateTenantMigrationParamsWithHTTPClient(client *http.Client) *V1
 
 /*
 V1betaCreateTenantMigrationParams contains all the parameters to send to the API endpoint
-
-	for the v1beta create tenant migration operation.
-
-	Typically these are written to a http.Request.
+for the v1beta create tenant migration operation typically these are written to a http.Request
 */
 type V1betaCreateTenantMigrationParams struct {
 
-	/* Body.
+	/*Body
+	  List of steps to execute.
 
-	   List of steps to execute.
 	*/
 	Body *models.TenantMigration
+	/*LocationID
+	  The location/region to perform the operation in.
 
-	/* LocationID.
-
-	   The location/region to perform the operation in.
 	*/
 	LocationID string
+	/*ProjectNumber
+	  The project number of the GCP project owning the resource being acted upon
 
-	/* ProjectNumber.
-
-	   The project number of the GCP project owning the resource being acted upon
 	*/
 	ProjectNumber string
+	/*XCorrelationID
+	  Correlation identifier
 
-	/* XCorrelationID.
-
-	   Correlation identifier
 	*/
 	XCorrelationID *string
 
 	timeout    time.Duration
 	Context    context.Context
 	HTTPClient *http.Client
-}
-
-// WithDefaults hydrates default values in the v1beta create tenant migration params (not the query body).
-//
-// All values with no default are reset to their zero value.
-func (o *V1betaCreateTenantMigrationParams) WithDefaults() *V1betaCreateTenantMigrationParams {
-	o.SetDefaults()
-	return o
-}
-
-// SetDefaults hydrates default values in the v1beta create tenant migration params (not the query body).
-//
-// All values with no default are reset to their zero value.
-func (o *V1betaCreateTenantMigrationParams) SetDefaults() {
-	// no default values defined for this parameter
 }
 
 // WithTimeout adds the timeout to the v1beta create tenant migration params
@@ -191,6 +173,7 @@ func (o *V1betaCreateTenantMigrationParams) WriteToRequest(r runtime.ClientReque
 		return err
 	}
 	var res []error
+
 	if o.Body != nil {
 		if err := r.SetBodyParam(o.Body); err != nil {
 			return err
@@ -213,6 +196,7 @@ func (o *V1betaCreateTenantMigrationParams) WriteToRequest(r runtime.ClientReque
 		if err := r.SetHeaderParam("x-correlation-id", *o.XCorrelationID); err != nil {
 			return err
 		}
+
 	}
 
 	if len(res) > 0 {

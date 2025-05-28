@@ -6,8 +6,6 @@ package models
 // Editing this file might prove futile when you re-run the swagger generate command
 
 import (
-	"context"
-
 	"github.com/go-openapi/strfmt"
 	"github.com/go-openapi/swag"
 )
@@ -20,23 +18,16 @@ type CVPFeatureFlag struct {
 	// name
 	//
 	// The feature flag name
-	// Example: feature1
 	FeatureName string `json:"featureName,omitempty"`
 
 	// featureValue
 	//
 	// The value of the feature flag
-	// Example: true
 	FeatureValue string `json:"featureValue,omitempty"`
 }
 
 // Validate validates this c v p feature flag
 func (m *CVPFeatureFlag) Validate(formats strfmt.Registry) error {
-	return nil
-}
-
-// ContextValidate validates this c v p feature flag based on context it is used
-func (m *CVPFeatureFlag) ContextValidate(ctx context.Context, formats strfmt.Registry) error {
 	return nil
 }
 

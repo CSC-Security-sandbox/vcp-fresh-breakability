@@ -17,37 +17,40 @@ import (
 	"github.com/go-openapi/swag"
 )
 
-// NewV1betaListBackupsParams creates a new V1betaListBackupsParams object,
-// with the default timeout for this client.
-//
-// Default values are not hydrated, since defaults are normally applied by the API server side.
-//
-// To enforce default values in parameter, use SetDefaults or WithDefaults.
+// NewV1betaListBackupsParams creates a new V1betaListBackupsParams object
+// with the default values initialized.
 func NewV1betaListBackupsParams() *V1betaListBackupsParams {
+	var ()
 	return &V1betaListBackupsParams{
+
 		timeout: cr.DefaultTimeout,
 	}
 }
 
 // NewV1betaListBackupsParamsWithTimeout creates a new V1betaListBackupsParams object
-// with the ability to set a timeout on a request.
+// with the default values initialized, and the ability to set a timeout on a request
 func NewV1betaListBackupsParamsWithTimeout(timeout time.Duration) *V1betaListBackupsParams {
+	var ()
 	return &V1betaListBackupsParams{
+
 		timeout: timeout,
 	}
 }
 
 // NewV1betaListBackupsParamsWithContext creates a new V1betaListBackupsParams object
-// with the ability to set a context for a request.
+// with the default values initialized, and the ability to set a context for a request
 func NewV1betaListBackupsParamsWithContext(ctx context.Context) *V1betaListBackupsParams {
+	var ()
 	return &V1betaListBackupsParams{
+
 		Context: ctx,
 	}
 }
 
 // NewV1betaListBackupsParamsWithHTTPClient creates a new V1betaListBackupsParams object
-// with the ability to set a custom HTTPClient for a request.
+// with the default values initialized, and the ability to set a custom HTTPClient for a request
 func NewV1betaListBackupsParamsWithHTTPClient(client *http.Client) *V1betaListBackupsParams {
+	var ()
 	return &V1betaListBackupsParams{
 		HTTPClient: client,
 	}
@@ -55,114 +58,82 @@ func NewV1betaListBackupsParamsWithHTTPClient(client *http.Client) *V1betaListBa
 
 /*
 V1betaListBackupsParams contains all the parameters to send to the API endpoint
-
-	for the v1beta list backups operation.
-
-	Typically these are written to a http.Request.
+for the v1beta list backups operation typically these are written to a http.Request
 */
 type V1betaListBackupsParams struct {
 
-	/* After.
-
-	     After cursor for `cursor pagination`.
+	/*After
+	  After cursor for `cursor pagination`.
 	The resources are returned after the resource with the provided UUID v4.
 	The resource with the provided UUID is not included in the returned list.
 	If defined, `limit` parameter is required and none of `before` and `offset` parameters can be defined.
 
+
 	*/
 	After *string
+	/*BackupVaultID
+	  UUID v4 used to identify the backup vault
 
-	/* BackupVaultID.
-
-	   UUID v4 used to identify the backup vault
 	*/
 	BackupVaultID string
-
-	/* Before.
-
-	     Before cursor for `cursor pagination`.
+	/*Before
+	  Before cursor for `cursor pagination`.
 	The resources are returned before the resource with the provided UUID v4.
 	The resource with the provided UUID is not included in the returned list.
 	If defined, `limit` parameter is required and none of `after` and `offset` parameters can be defined.
 
+
 	*/
 	Before *string
+	/*IncludeDeleted
+	  If true, response will include deleted backups
 
-	/* IncludeDeleted.
-
-	   If true, response will include deleted backups
 	*/
 	IncludeDeleted bool
-
-	/* Limit.
-
-	     Limit value for `cursor pagination` and `offset pagination`.
+	/*Limit
+	  Limit value for `cursor pagination` and `offset pagination`.
 	The maximum number of resources that are returned.
 
 
-	     Format: uint16
 	*/
 	Limit *uint16
+	/*LocationID
+	  The location/region to perform the operation in.
 
-	/* LocationID.
-
-	   The location/region to perform the operation in.
 	*/
 	LocationID string
-
-	/* Offset.
-
-	     Offset value for `offset pagination`.
+	/*Offset
+	  Offset value for `offset pagination`.
 	The (zero-based) offset of the first item in the collection to return.
 	If defined, `limit` parameter is required and none of `before` and `after` parameters can be defined.
 
 
-	     Format: uint64
 	*/
 	Offset *uint64
+	/*OnlyOrphanedBackups
+	  If true, response will include only orphaned backups under the mentioned project
 
-	/* OnlyOrphanedBackups.
-
-	   If true, response will include only orphaned backups under the mentioned project
 	*/
 	OnlyOrphanedBackups bool
+	/*ProjectNumber
+	  The project number of the GCP project owning the resource being acted upon
 
-	/* ProjectNumber.
-
-	   The project number of the GCP project owning the resource being acted upon
 	*/
 	ProjectNumber string
+	/*VolumeID
+	  Volume ID for which the backups are to be listed. If not present, all backups will be returned
 
-	/* VolumeID.
-
-	   Volume ID for which the backups are to be listed. If not present, all backups will be returned
 	*/
 	VolumeID string
+	/*XCorrelationID
+	  Correlation identifier
 
-	/* XCorrelationID.
-
-	   Correlation identifier
 	*/
 	XCorrelationID *string
 
 	timeout    time.Duration
 	Context    context.Context
 	HTTPClient *http.Client
-}
-
-// WithDefaults hydrates default values in the v1beta list backups params (not the query body).
-//
-// All values with no default are reset to their zero value.
-func (o *V1betaListBackupsParams) WithDefaults() *V1betaListBackupsParams {
-	o.SetDefaults()
-	return o
-}
-
-// SetDefaults hydrates default values in the v1beta list backups params (not the query body).
-//
-// All values with no default are reset to their zero value.
-func (o *V1betaListBackupsParams) SetDefaults() {
-	// no default values defined for this parameter
 }
 
 // WithTimeout adds the timeout to the v1beta list backups params
@@ -331,17 +302,16 @@ func (o *V1betaListBackupsParams) WriteToRequest(r runtime.ClientRequest, reg st
 
 		// query param after
 		var qrAfter string
-
 		if o.After != nil {
 			qrAfter = *o.After
 		}
 		qAfter := qrAfter
 		if qAfter != "" {
-
 			if err := r.SetQueryParam("after", qAfter); err != nil {
 				return err
 			}
 		}
+
 	}
 
 	// path param backupVaultId
@@ -353,23 +323,21 @@ func (o *V1betaListBackupsParams) WriteToRequest(r runtime.ClientRequest, reg st
 
 		// query param before
 		var qrBefore string
-
 		if o.Before != nil {
 			qrBefore = *o.Before
 		}
 		qBefore := qrBefore
 		if qBefore != "" {
-
 			if err := r.SetQueryParam("before", qBefore); err != nil {
 				return err
 			}
 		}
+
 	}
 
 	// query param includeDeleted
 	qrIncludeDeleted := o.IncludeDeleted
 	qIncludeDeleted := swag.FormatBool(qrIncludeDeleted)
-
 	if err := r.SetQueryParam("includeDeleted", qIncludeDeleted); err != nil {
 		return err
 	}
@@ -378,17 +346,16 @@ func (o *V1betaListBackupsParams) WriteToRequest(r runtime.ClientRequest, reg st
 
 		// query param limit
 		var qrLimit uint16
-
 		if o.Limit != nil {
 			qrLimit = *o.Limit
 		}
 		qLimit := swag.FormatUint16(qrLimit)
 		if qLimit != "" {
-
 			if err := r.SetQueryParam("limit", qLimit); err != nil {
 				return err
 			}
 		}
+
 	}
 
 	// path param locationId
@@ -400,23 +367,21 @@ func (o *V1betaListBackupsParams) WriteToRequest(r runtime.ClientRequest, reg st
 
 		// query param offset
 		var qrOffset uint64
-
 		if o.Offset != nil {
 			qrOffset = *o.Offset
 		}
 		qOffset := swag.FormatUint64(qrOffset)
 		if qOffset != "" {
-
 			if err := r.SetQueryParam("offset", qOffset); err != nil {
 				return err
 			}
 		}
+
 	}
 
 	// query param onlyOrphanedBackups
 	qrOnlyOrphanedBackups := o.OnlyOrphanedBackups
 	qOnlyOrphanedBackups := swag.FormatBool(qrOnlyOrphanedBackups)
-
 	if err := r.SetQueryParam("onlyOrphanedBackups", qOnlyOrphanedBackups); err != nil {
 		return err
 	}
@@ -429,7 +394,6 @@ func (o *V1betaListBackupsParams) WriteToRequest(r runtime.ClientRequest, reg st
 	// query param volumeId
 	qrVolumeID := o.VolumeID
 	qVolumeID := qrVolumeID
-
 	if err := r.SetQueryParam("volumeId", qVolumeID); err != nil {
 		return err
 	}
@@ -440,6 +404,7 @@ func (o *V1betaListBackupsParams) WriteToRequest(r runtime.ClientRequest, reg st
 		if err := r.SetHeaderParam("x-correlation-id", *o.XCorrelationID); err != nil {
 			return err
 		}
+
 	}
 
 	if len(res) > 0 {

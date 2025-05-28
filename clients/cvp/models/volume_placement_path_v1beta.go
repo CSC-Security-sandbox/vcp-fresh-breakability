@@ -6,12 +6,8 @@ package models
 // Editing this file might prove futile when you re-run the swagger generate command
 
 import (
-	"context"
-
-	"github.com/go-openapi/errors"
 	"github.com/go-openapi/strfmt"
 	"github.com/go-openapi/swag"
-	"github.com/go-openapi/validate"
 )
 
 // VolumePlacementPathV1beta VolumePlacementPath
@@ -22,96 +18,30 @@ type VolumePlacementPathV1beta struct {
 	// externalHostName
 	//
 	// The full name of the hosting cluster
-	// Example: awesome_cluster
 	// Read Only: true
 	ExternalHostName string `json:"externalHostName,omitempty"`
 
 	// externalHostUuid
 	//
 	// UUID v4 used to identify a host.
-	// Example: 87654321-4638-11e7-9bdb-123456789012
 	// Read Only: true
 	ExternalHostUUID string `json:"externalHostUuid,omitempty"`
 
 	// serverName
 	//
 	// The full name of the hosting server
-	// Example: awesome_server
 	// Read Only: true
 	ExternalServerName string `json:"externalServerName,omitempty"`
 
 	// volumeName
 	//
 	// The full external name of the volume
-	// Example: awesome_volume_name
 	// Read Only: true
 	ExternalVolumeName string `json:"externalVolumeName,omitempty"`
 }
 
 // Validate validates this volume placement path v1beta
 func (m *VolumePlacementPathV1beta) Validate(formats strfmt.Registry) error {
-	return nil
-}
-
-// ContextValidate validate this volume placement path v1beta based on the context it is used
-func (m *VolumePlacementPathV1beta) ContextValidate(ctx context.Context, formats strfmt.Registry) error {
-	var res []error
-
-	if err := m.contextValidateExternalHostName(ctx, formats); err != nil {
-		res = append(res, err)
-	}
-
-	if err := m.contextValidateExternalHostUUID(ctx, formats); err != nil {
-		res = append(res, err)
-	}
-
-	if err := m.contextValidateExternalServerName(ctx, formats); err != nil {
-		res = append(res, err)
-	}
-
-	if err := m.contextValidateExternalVolumeName(ctx, formats); err != nil {
-		res = append(res, err)
-	}
-
-	if len(res) > 0 {
-		return errors.CompositeValidationError(res...)
-	}
-	return nil
-}
-
-func (m *VolumePlacementPathV1beta) contextValidateExternalHostName(ctx context.Context, formats strfmt.Registry) error {
-
-	if err := validate.ReadOnly(ctx, "externalHostName", "body", string(m.ExternalHostName)); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (m *VolumePlacementPathV1beta) contextValidateExternalHostUUID(ctx context.Context, formats strfmt.Registry) error {
-
-	if err := validate.ReadOnly(ctx, "externalHostUuid", "body", string(m.ExternalHostUUID)); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (m *VolumePlacementPathV1beta) contextValidateExternalServerName(ctx context.Context, formats strfmt.Registry) error {
-
-	if err := validate.ReadOnly(ctx, "externalServerName", "body", string(m.ExternalServerName)); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (m *VolumePlacementPathV1beta) contextValidateExternalVolumeName(ctx context.Context, formats strfmt.Registry) error {
-
-	if err := validate.ReadOnly(ctx, "externalVolumeName", "body", string(m.ExternalVolumeName)); err != nil {
-		return err
-	}
-
 	return nil
 }
 

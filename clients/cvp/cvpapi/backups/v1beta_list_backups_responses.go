@@ -6,8 +6,6 @@ package backups
 // Editing this file might prove futile when you re-run the swagger generate command
 
 import (
-	"context"
-	"encoding/json"
 	"fmt"
 	"io"
 	"strconv"
@@ -88,7 +86,7 @@ func NewV1betaListBackupsOK() *V1betaListBackupsOK {
 }
 
 /*
-V1betaListBackupsOK describes a response with status code 200, with default header values.
+V1betaListBackupsOK handles this case with default header values.
 
 OK
 */
@@ -96,44 +94,8 @@ type V1betaListBackupsOK struct {
 	Payload *V1betaListBackupsOKBody
 }
 
-// IsSuccess returns true when this v1beta list backups o k response has a 2xx status code
-func (o *V1betaListBackupsOK) IsSuccess() bool {
-	return true
-}
-
-// IsRedirect returns true when this v1beta list backups o k response has a 3xx status code
-func (o *V1betaListBackupsOK) IsRedirect() bool {
-	return false
-}
-
-// IsClientError returns true when this v1beta list backups o k response has a 4xx status code
-func (o *V1betaListBackupsOK) IsClientError() bool {
-	return false
-}
-
-// IsServerError returns true when this v1beta list backups o k response has a 5xx status code
-func (o *V1betaListBackupsOK) IsServerError() bool {
-	return false
-}
-
-// IsCode returns true when this v1beta list backups o k response a status code equal to that given
-func (o *V1betaListBackupsOK) IsCode(code int) bool {
-	return code == 200
-}
-
-// Code gets the status code for the v1beta list backups o k response
-func (o *V1betaListBackupsOK) Code() int {
-	return 200
-}
-
 func (o *V1betaListBackupsOK) Error() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[GET /v1beta/projects/{projectNumber}/locations/{locationId}/backupVaults/{backupVaultId}/backups][%d] v1betaListBackupsOK %s", 200, payload)
-}
-
-func (o *V1betaListBackupsOK) String() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[GET /v1beta/projects/{projectNumber}/locations/{locationId}/backupVaults/{backupVaultId}/backups][%d] v1betaListBackupsOK %s", 200, payload)
+	return fmt.Sprintf("[GET /v1beta/projects/{projectNumber}/locations/{locationId}/backupVaults/{backupVaultId}/backups][%d] v1betaListBackupsOK  %+v", 200, o.Payload)
 }
 
 func (o *V1betaListBackupsOK) GetPayload() *V1betaListBackupsOKBody {
@@ -158,7 +120,7 @@ func NewV1betaListBackupsBadRequest() *V1betaListBackupsBadRequest {
 }
 
 /*
-V1betaListBackupsBadRequest describes a response with status code 400, with default header values.
+V1betaListBackupsBadRequest handles this case with default header values.
 
 Bad request
 */
@@ -166,44 +128,8 @@ type V1betaListBackupsBadRequest struct {
 	Payload *models.Error
 }
 
-// IsSuccess returns true when this v1beta list backups bad request response has a 2xx status code
-func (o *V1betaListBackupsBadRequest) IsSuccess() bool {
-	return false
-}
-
-// IsRedirect returns true when this v1beta list backups bad request response has a 3xx status code
-func (o *V1betaListBackupsBadRequest) IsRedirect() bool {
-	return false
-}
-
-// IsClientError returns true when this v1beta list backups bad request response has a 4xx status code
-func (o *V1betaListBackupsBadRequest) IsClientError() bool {
-	return true
-}
-
-// IsServerError returns true when this v1beta list backups bad request response has a 5xx status code
-func (o *V1betaListBackupsBadRequest) IsServerError() bool {
-	return false
-}
-
-// IsCode returns true when this v1beta list backups bad request response a status code equal to that given
-func (o *V1betaListBackupsBadRequest) IsCode(code int) bool {
-	return code == 400
-}
-
-// Code gets the status code for the v1beta list backups bad request response
-func (o *V1betaListBackupsBadRequest) Code() int {
-	return 400
-}
-
 func (o *V1betaListBackupsBadRequest) Error() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[GET /v1beta/projects/{projectNumber}/locations/{locationId}/backupVaults/{backupVaultId}/backups][%d] v1betaListBackupsBadRequest %s", 400, payload)
-}
-
-func (o *V1betaListBackupsBadRequest) String() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[GET /v1beta/projects/{projectNumber}/locations/{locationId}/backupVaults/{backupVaultId}/backups][%d] v1betaListBackupsBadRequest %s", 400, payload)
+	return fmt.Sprintf("[GET /v1beta/projects/{projectNumber}/locations/{locationId}/backupVaults/{backupVaultId}/backups][%d] v1betaListBackupsBadRequest  %+v", 400, o.Payload)
 }
 
 func (o *V1betaListBackupsBadRequest) GetPayload() *models.Error {
@@ -228,7 +154,7 @@ func NewV1betaListBackupsUnauthorized() *V1betaListBackupsUnauthorized {
 }
 
 /*
-V1betaListBackupsUnauthorized describes a response with status code 401, with default header values.
+V1betaListBackupsUnauthorized handles this case with default header values.
 
 Unauthorized
 */
@@ -236,44 +162,8 @@ type V1betaListBackupsUnauthorized struct {
 	Payload *models.Error
 }
 
-// IsSuccess returns true when this v1beta list backups unauthorized response has a 2xx status code
-func (o *V1betaListBackupsUnauthorized) IsSuccess() bool {
-	return false
-}
-
-// IsRedirect returns true when this v1beta list backups unauthorized response has a 3xx status code
-func (o *V1betaListBackupsUnauthorized) IsRedirect() bool {
-	return false
-}
-
-// IsClientError returns true when this v1beta list backups unauthorized response has a 4xx status code
-func (o *V1betaListBackupsUnauthorized) IsClientError() bool {
-	return true
-}
-
-// IsServerError returns true when this v1beta list backups unauthorized response has a 5xx status code
-func (o *V1betaListBackupsUnauthorized) IsServerError() bool {
-	return false
-}
-
-// IsCode returns true when this v1beta list backups unauthorized response a status code equal to that given
-func (o *V1betaListBackupsUnauthorized) IsCode(code int) bool {
-	return code == 401
-}
-
-// Code gets the status code for the v1beta list backups unauthorized response
-func (o *V1betaListBackupsUnauthorized) Code() int {
-	return 401
-}
-
 func (o *V1betaListBackupsUnauthorized) Error() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[GET /v1beta/projects/{projectNumber}/locations/{locationId}/backupVaults/{backupVaultId}/backups][%d] v1betaListBackupsUnauthorized %s", 401, payload)
-}
-
-func (o *V1betaListBackupsUnauthorized) String() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[GET /v1beta/projects/{projectNumber}/locations/{locationId}/backupVaults/{backupVaultId}/backups][%d] v1betaListBackupsUnauthorized %s", 401, payload)
+	return fmt.Sprintf("[GET /v1beta/projects/{projectNumber}/locations/{locationId}/backupVaults/{backupVaultId}/backups][%d] v1betaListBackupsUnauthorized  %+v", 401, o.Payload)
 }
 
 func (o *V1betaListBackupsUnauthorized) GetPayload() *models.Error {
@@ -298,7 +188,7 @@ func NewV1betaListBackupsForbidden() *V1betaListBackupsForbidden {
 }
 
 /*
-V1betaListBackupsForbidden describes a response with status code 403, with default header values.
+V1betaListBackupsForbidden handles this case with default header values.
 
 Forbidden
 */
@@ -306,44 +196,8 @@ type V1betaListBackupsForbidden struct {
 	Payload *models.Error
 }
 
-// IsSuccess returns true when this v1beta list backups forbidden response has a 2xx status code
-func (o *V1betaListBackupsForbidden) IsSuccess() bool {
-	return false
-}
-
-// IsRedirect returns true when this v1beta list backups forbidden response has a 3xx status code
-func (o *V1betaListBackupsForbidden) IsRedirect() bool {
-	return false
-}
-
-// IsClientError returns true when this v1beta list backups forbidden response has a 4xx status code
-func (o *V1betaListBackupsForbidden) IsClientError() bool {
-	return true
-}
-
-// IsServerError returns true when this v1beta list backups forbidden response has a 5xx status code
-func (o *V1betaListBackupsForbidden) IsServerError() bool {
-	return false
-}
-
-// IsCode returns true when this v1beta list backups forbidden response a status code equal to that given
-func (o *V1betaListBackupsForbidden) IsCode(code int) bool {
-	return code == 403
-}
-
-// Code gets the status code for the v1beta list backups forbidden response
-func (o *V1betaListBackupsForbidden) Code() int {
-	return 403
-}
-
 func (o *V1betaListBackupsForbidden) Error() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[GET /v1beta/projects/{projectNumber}/locations/{locationId}/backupVaults/{backupVaultId}/backups][%d] v1betaListBackupsForbidden %s", 403, payload)
-}
-
-func (o *V1betaListBackupsForbidden) String() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[GET /v1beta/projects/{projectNumber}/locations/{locationId}/backupVaults/{backupVaultId}/backups][%d] v1betaListBackupsForbidden %s", 403, payload)
+	return fmt.Sprintf("[GET /v1beta/projects/{projectNumber}/locations/{locationId}/backupVaults/{backupVaultId}/backups][%d] v1betaListBackupsForbidden  %+v", 403, o.Payload)
 }
 
 func (o *V1betaListBackupsForbidden) GetPayload() *models.Error {
@@ -368,7 +222,7 @@ func NewV1betaListBackupsNotFound() *V1betaListBackupsNotFound {
 }
 
 /*
-V1betaListBackupsNotFound describes a response with status code 404, with default header values.
+V1betaListBackupsNotFound handles this case with default header values.
 
 Not found
 */
@@ -376,44 +230,8 @@ type V1betaListBackupsNotFound struct {
 	Payload *models.Error
 }
 
-// IsSuccess returns true when this v1beta list backups not found response has a 2xx status code
-func (o *V1betaListBackupsNotFound) IsSuccess() bool {
-	return false
-}
-
-// IsRedirect returns true when this v1beta list backups not found response has a 3xx status code
-func (o *V1betaListBackupsNotFound) IsRedirect() bool {
-	return false
-}
-
-// IsClientError returns true when this v1beta list backups not found response has a 4xx status code
-func (o *V1betaListBackupsNotFound) IsClientError() bool {
-	return true
-}
-
-// IsServerError returns true when this v1beta list backups not found response has a 5xx status code
-func (o *V1betaListBackupsNotFound) IsServerError() bool {
-	return false
-}
-
-// IsCode returns true when this v1beta list backups not found response a status code equal to that given
-func (o *V1betaListBackupsNotFound) IsCode(code int) bool {
-	return code == 404
-}
-
-// Code gets the status code for the v1beta list backups not found response
-func (o *V1betaListBackupsNotFound) Code() int {
-	return 404
-}
-
 func (o *V1betaListBackupsNotFound) Error() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[GET /v1beta/projects/{projectNumber}/locations/{locationId}/backupVaults/{backupVaultId}/backups][%d] v1betaListBackupsNotFound %s", 404, payload)
-}
-
-func (o *V1betaListBackupsNotFound) String() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[GET /v1beta/projects/{projectNumber}/locations/{locationId}/backupVaults/{backupVaultId}/backups][%d] v1betaListBackupsNotFound %s", 404, payload)
+	return fmt.Sprintf("[GET /v1beta/projects/{projectNumber}/locations/{locationId}/backupVaults/{backupVaultId}/backups][%d] v1betaListBackupsNotFound  %+v", 404, o.Payload)
 }
 
 func (o *V1betaListBackupsNotFound) GetPayload() *models.Error {
@@ -438,7 +256,7 @@ func NewV1betaListBackupsInternalServerError() *V1betaListBackupsInternalServerE
 }
 
 /*
-V1betaListBackupsInternalServerError describes a response with status code 500, with default header values.
+V1betaListBackupsInternalServerError handles this case with default header values.
 
 Internal server error
 */
@@ -446,44 +264,8 @@ type V1betaListBackupsInternalServerError struct {
 	Payload *models.Error
 }
 
-// IsSuccess returns true when this v1beta list backups internal server error response has a 2xx status code
-func (o *V1betaListBackupsInternalServerError) IsSuccess() bool {
-	return false
-}
-
-// IsRedirect returns true when this v1beta list backups internal server error response has a 3xx status code
-func (o *V1betaListBackupsInternalServerError) IsRedirect() bool {
-	return false
-}
-
-// IsClientError returns true when this v1beta list backups internal server error response has a 4xx status code
-func (o *V1betaListBackupsInternalServerError) IsClientError() bool {
-	return false
-}
-
-// IsServerError returns true when this v1beta list backups internal server error response has a 5xx status code
-func (o *V1betaListBackupsInternalServerError) IsServerError() bool {
-	return true
-}
-
-// IsCode returns true when this v1beta list backups internal server error response a status code equal to that given
-func (o *V1betaListBackupsInternalServerError) IsCode(code int) bool {
-	return code == 500
-}
-
-// Code gets the status code for the v1beta list backups internal server error response
-func (o *V1betaListBackupsInternalServerError) Code() int {
-	return 500
-}
-
 func (o *V1betaListBackupsInternalServerError) Error() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[GET /v1beta/projects/{projectNumber}/locations/{locationId}/backupVaults/{backupVaultId}/backups][%d] v1betaListBackupsInternalServerError %s", 500, payload)
-}
-
-func (o *V1betaListBackupsInternalServerError) String() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[GET /v1beta/projects/{projectNumber}/locations/{locationId}/backupVaults/{backupVaultId}/backups][%d] v1betaListBackupsInternalServerError %s", 500, payload)
+	return fmt.Sprintf("[GET /v1beta/projects/{projectNumber}/locations/{locationId}/backupVaults/{backupVaultId}/backups][%d] v1betaListBackupsInternalServerError  %+v", 500, o.Payload)
 }
 
 func (o *V1betaListBackupsInternalServerError) GetPayload() *models.Error {
@@ -508,7 +290,7 @@ func NewV1betaListBackupsNotImplemented() *V1betaListBackupsNotImplemented {
 }
 
 /*
-V1betaListBackupsNotImplemented describes a response with status code 501, with default header values.
+V1betaListBackupsNotImplemented handles this case with default header values.
 
 Not implemented
 */
@@ -516,44 +298,8 @@ type V1betaListBackupsNotImplemented struct {
 	Payload *models.Error
 }
 
-// IsSuccess returns true when this v1beta list backups not implemented response has a 2xx status code
-func (o *V1betaListBackupsNotImplemented) IsSuccess() bool {
-	return false
-}
-
-// IsRedirect returns true when this v1beta list backups not implemented response has a 3xx status code
-func (o *V1betaListBackupsNotImplemented) IsRedirect() bool {
-	return false
-}
-
-// IsClientError returns true when this v1beta list backups not implemented response has a 4xx status code
-func (o *V1betaListBackupsNotImplemented) IsClientError() bool {
-	return false
-}
-
-// IsServerError returns true when this v1beta list backups not implemented response has a 5xx status code
-func (o *V1betaListBackupsNotImplemented) IsServerError() bool {
-	return true
-}
-
-// IsCode returns true when this v1beta list backups not implemented response a status code equal to that given
-func (o *V1betaListBackupsNotImplemented) IsCode(code int) bool {
-	return code == 501
-}
-
-// Code gets the status code for the v1beta list backups not implemented response
-func (o *V1betaListBackupsNotImplemented) Code() int {
-	return 501
-}
-
 func (o *V1betaListBackupsNotImplemented) Error() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[GET /v1beta/projects/{projectNumber}/locations/{locationId}/backupVaults/{backupVaultId}/backups][%d] v1betaListBackupsNotImplemented %s", 501, payload)
-}
-
-func (o *V1betaListBackupsNotImplemented) String() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[GET /v1beta/projects/{projectNumber}/locations/{locationId}/backupVaults/{backupVaultId}/backups][%d] v1betaListBackupsNotImplemented %s", 501, payload)
+	return fmt.Sprintf("[GET /v1beta/projects/{projectNumber}/locations/{locationId}/backupVaults/{backupVaultId}/backups][%d] v1betaListBackupsNotImplemented  %+v", 501, o.Payload)
 }
 
 func (o *V1betaListBackupsNotImplemented) GetPayload() *models.Error {
@@ -580,7 +326,7 @@ func NewV1betaListBackupsDefault(code int) *V1betaListBackupsDefault {
 }
 
 /*
-V1betaListBackupsDefault describes a response with status code -1, with default header values.
+V1betaListBackupsDefault handles this case with default header values.
 
 Unexpected error
 */
@@ -590,44 +336,13 @@ type V1betaListBackupsDefault struct {
 	Payload *models.Error
 }
 
-// IsSuccess returns true when this v1beta list backups default response has a 2xx status code
-func (o *V1betaListBackupsDefault) IsSuccess() bool {
-	return o._statusCode/100 == 2
-}
-
-// IsRedirect returns true when this v1beta list backups default response has a 3xx status code
-func (o *V1betaListBackupsDefault) IsRedirect() bool {
-	return o._statusCode/100 == 3
-}
-
-// IsClientError returns true when this v1beta list backups default response has a 4xx status code
-func (o *V1betaListBackupsDefault) IsClientError() bool {
-	return o._statusCode/100 == 4
-}
-
-// IsServerError returns true when this v1beta list backups default response has a 5xx status code
-func (o *V1betaListBackupsDefault) IsServerError() bool {
-	return o._statusCode/100 == 5
-}
-
-// IsCode returns true when this v1beta list backups default response a status code equal to that given
-func (o *V1betaListBackupsDefault) IsCode(code int) bool {
-	return o._statusCode == code
-}
-
 // Code gets the status code for the v1beta list backups default response
 func (o *V1betaListBackupsDefault) Code() int {
 	return o._statusCode
 }
 
 func (o *V1betaListBackupsDefault) Error() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[GET /v1beta/projects/{projectNumber}/locations/{locationId}/backupVaults/{backupVaultId}/backups][%d] v1beta_listBackups default %s", o._statusCode, payload)
-}
-
-func (o *V1betaListBackupsDefault) String() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[GET /v1beta/projects/{projectNumber}/locations/{locationId}/backupVaults/{backupVaultId}/backups][%d] v1beta_listBackups default %s", o._statusCode, payload)
+	return fmt.Sprintf("[GET /v1beta/projects/{projectNumber}/locations/{locationId}/backupVaults/{backupVaultId}/backups][%d] v1beta_listBackups default  %+v", o._statusCode, o.Payload)
 }
 
 func (o *V1betaListBackupsDefault) GetPayload() *models.Error {
@@ -718,47 +433,6 @@ func (o *V1betaListBackupsOKBody) validateBackups(formats strfmt.Registry) error
 			if err := o.Backups[i].Validate(formats); err != nil {
 				if ve, ok := err.(*errors.Validation); ok {
 					return ve.ValidateName("v1betaListBackupsOK" + "." + "backups" + "." + strconv.Itoa(i))
-				} else if ce, ok := err.(*errors.CompositeError); ok {
-					return ce.ValidateName("v1betaListBackupsOK" + "." + "backups" + "." + strconv.Itoa(i))
-				}
-				return err
-			}
-		}
-
-	}
-
-	return nil
-}
-
-// ContextValidate validate this v1beta list backups o k body based on the context it is used
-func (o *V1betaListBackupsOKBody) ContextValidate(ctx context.Context, formats strfmt.Registry) error {
-	var res []error
-
-	if err := o.contextValidateBackups(ctx, formats); err != nil {
-		res = append(res, err)
-	}
-
-	if len(res) > 0 {
-		return errors.CompositeValidationError(res...)
-	}
-	return nil
-}
-
-func (o *V1betaListBackupsOKBody) contextValidateBackups(ctx context.Context, formats strfmt.Registry) error {
-
-	for i := 0; i < len(o.Backups); i++ {
-
-		if o.Backups[i] != nil {
-
-			if swag.IsZero(o.Backups[i]) { // not required
-				return nil
-			}
-
-			if err := o.Backups[i].ContextValidate(ctx, formats); err != nil {
-				if ve, ok := err.(*errors.Validation); ok {
-					return ve.ValidateName("v1betaListBackupsOK" + "." + "backups" + "." + strconv.Itoa(i))
-				} else if ce, ok := err.(*errors.CompositeError); ok {
-					return ce.ValidateName("v1betaListBackupsOK" + "." + "backups" + "." + strconv.Itoa(i))
 				}
 				return err
 			}

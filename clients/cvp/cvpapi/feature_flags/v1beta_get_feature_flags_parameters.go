@@ -16,37 +16,40 @@ import (
 	"github.com/go-openapi/strfmt"
 )
 
-// NewV1betaGetFeatureFlagsParams creates a new V1betaGetFeatureFlagsParams object,
-// with the default timeout for this client.
-//
-// Default values are not hydrated, since defaults are normally applied by the API server side.
-//
-// To enforce default values in parameter, use SetDefaults or WithDefaults.
+// NewV1betaGetFeatureFlagsParams creates a new V1betaGetFeatureFlagsParams object
+// with the default values initialized.
 func NewV1betaGetFeatureFlagsParams() *V1betaGetFeatureFlagsParams {
+
 	return &V1betaGetFeatureFlagsParams{
+
 		timeout: cr.DefaultTimeout,
 	}
 }
 
 // NewV1betaGetFeatureFlagsParamsWithTimeout creates a new V1betaGetFeatureFlagsParams object
-// with the ability to set a timeout on a request.
+// with the default values initialized, and the ability to set a timeout on a request
 func NewV1betaGetFeatureFlagsParamsWithTimeout(timeout time.Duration) *V1betaGetFeatureFlagsParams {
+
 	return &V1betaGetFeatureFlagsParams{
+
 		timeout: timeout,
 	}
 }
 
 // NewV1betaGetFeatureFlagsParamsWithContext creates a new V1betaGetFeatureFlagsParams object
-// with the ability to set a context for a request.
+// with the default values initialized, and the ability to set a context for a request
 func NewV1betaGetFeatureFlagsParamsWithContext(ctx context.Context) *V1betaGetFeatureFlagsParams {
+
 	return &V1betaGetFeatureFlagsParams{
+
 		Context: ctx,
 	}
 }
 
 // NewV1betaGetFeatureFlagsParamsWithHTTPClient creates a new V1betaGetFeatureFlagsParams object
-// with the ability to set a custom HTTPClient for a request.
+// with the default values initialized, and the ability to set a custom HTTPClient for a request
 func NewV1betaGetFeatureFlagsParamsWithHTTPClient(client *http.Client) *V1betaGetFeatureFlagsParams {
+
 	return &V1betaGetFeatureFlagsParams{
 		HTTPClient: client,
 	}
@@ -54,30 +57,12 @@ func NewV1betaGetFeatureFlagsParamsWithHTTPClient(client *http.Client) *V1betaGe
 
 /*
 V1betaGetFeatureFlagsParams contains all the parameters to send to the API endpoint
-
-	for the v1beta get feature flags operation.
-
-	Typically these are written to a http.Request.
+for the v1beta get feature flags operation typically these are written to a http.Request
 */
 type V1betaGetFeatureFlagsParams struct {
 	timeout    time.Duration
 	Context    context.Context
 	HTTPClient *http.Client
-}
-
-// WithDefaults hydrates default values in the v1beta get feature flags params (not the query body).
-//
-// All values with no default are reset to their zero value.
-func (o *V1betaGetFeatureFlagsParams) WithDefaults() *V1betaGetFeatureFlagsParams {
-	o.SetDefaults()
-	return o
-}
-
-// SetDefaults hydrates default values in the v1beta get feature flags params (not the query body).
-//
-// All values with no default are reset to their zero value.
-func (o *V1betaGetFeatureFlagsParams) SetDefaults() {
-	// no default values defined for this parameter
 }
 
 // WithTimeout adds the timeout to the v1beta get feature flags params

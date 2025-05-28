@@ -6,8 +6,6 @@ package models
 // Editing this file might prove futile when you re-run the swagger generate command
 
 import (
-	"context"
-
 	"github.com/go-openapi/errors"
 	"github.com/go-openapi/strfmt"
 	"github.com/go-openapi/swag"
@@ -25,7 +23,6 @@ type CvpJobV1beta struct {
 	// CreatedAt
 	//
 	// Date of last update of the resource
-	// Example: 2016-11-29T20:32:50.459Z
 	// Read Only: true
 	// Format: date-time
 	CreatedAt strfmt.DateTime `json:"CreatedAt,omitempty"`
@@ -55,7 +52,6 @@ type CvpJobV1beta struct {
 	// ScheduledAt
 	//
 	// Scheduled run date of the resource
-	// Example: 2016-11-30T20:32:50.459Z
 	// Read Only: true
 	// Format: date-time
 	ScheduledAt strfmt.DateTime `json:"ScheduledAt,omitempty"`
@@ -69,7 +65,6 @@ type CvpJobV1beta struct {
 	// UpdatedAt
 	//
 	// Date of last update of the resource
-	// Example: 2016-11-29T20:32:50.459Z
 	// Read Only: true
 	// Format: date-time
 	UpdatedAt strfmt.DateTime `json:"UpdatedAt,omitempty"`
@@ -102,6 +97,7 @@ func (m *CvpJobV1beta) Validate(formats strfmt.Registry) error {
 }
 
 func (m *CvpJobV1beta) validateCreatedAt(formats strfmt.Registry) error {
+
 	if swag.IsZero(m.CreatedAt) { // not required
 		return nil
 	}
@@ -114,19 +110,20 @@ func (m *CvpJobV1beta) validateCreatedAt(formats strfmt.Registry) error {
 }
 
 func (m *CvpJobV1beta) validateJobUUID(formats strfmt.Registry) error {
+
 	if swag.IsZero(m.JobUUID) { // not required
 		return nil
 	}
 
-	if err := validate.MinLength("JobUuid", "body", m.JobUUID, 36); err != nil {
+	if err := validate.MinLength("JobUuid", "body", string(m.JobUUID), 36); err != nil {
 		return err
 	}
 
-	if err := validate.MaxLength("JobUuid", "body", m.JobUUID, 36); err != nil {
+	if err := validate.MaxLength("JobUuid", "body", string(m.JobUUID), 36); err != nil {
 		return err
 	}
 
-	if err := validate.Pattern("JobUuid", "body", m.JobUUID, `^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$`); err != nil {
+	if err := validate.Pattern("JobUuid", "body", string(m.JobUUID), `^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$`); err != nil {
 		return err
 	}
 
@@ -134,6 +131,7 @@ func (m *CvpJobV1beta) validateJobUUID(formats strfmt.Registry) error {
 }
 
 func (m *CvpJobV1beta) validateScheduledAt(formats strfmt.Registry) error {
+
 	if swag.IsZero(m.ScheduledAt) { // not required
 		return nil
 	}
@@ -146,60 +144,12 @@ func (m *CvpJobV1beta) validateScheduledAt(formats strfmt.Registry) error {
 }
 
 func (m *CvpJobV1beta) validateUpdatedAt(formats strfmt.Registry) error {
+
 	if swag.IsZero(m.UpdatedAt) { // not required
 		return nil
 	}
 
 	if err := validate.FormatOf("UpdatedAt", "body", "date-time", m.UpdatedAt.String(), formats); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-// ContextValidate validate this cvp job v1beta based on the context it is used
-func (m *CvpJobV1beta) ContextValidate(ctx context.Context, formats strfmt.Registry) error {
-	var res []error
-
-	if err := m.contextValidateCreatedAt(ctx, formats); err != nil {
-		res = append(res, err)
-	}
-
-	if err := m.contextValidateScheduledAt(ctx, formats); err != nil {
-		res = append(res, err)
-	}
-
-	if err := m.contextValidateUpdatedAt(ctx, formats); err != nil {
-		res = append(res, err)
-	}
-
-	if len(res) > 0 {
-		return errors.CompositeValidationError(res...)
-	}
-	return nil
-}
-
-func (m *CvpJobV1beta) contextValidateCreatedAt(ctx context.Context, formats strfmt.Registry) error {
-
-	if err := validate.ReadOnly(ctx, "CreatedAt", "body", strfmt.DateTime(m.CreatedAt)); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (m *CvpJobV1beta) contextValidateScheduledAt(ctx context.Context, formats strfmt.Registry) error {
-
-	if err := validate.ReadOnly(ctx, "ScheduledAt", "body", strfmt.DateTime(m.ScheduledAt)); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (m *CvpJobV1beta) contextValidateUpdatedAt(ctx context.Context, formats strfmt.Registry) error {
-
-	if err := validate.ReadOnly(ctx, "UpdatedAt", "body", strfmt.DateTime(m.UpdatedAt)); err != nil {
 		return err
 	}
 

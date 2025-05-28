@@ -7,38 +7,12 @@ package migration_internal
 
 import (
 	"github.com/go-openapi/runtime"
-	httptransport "github.com/go-openapi/runtime/client"
 	"github.com/go-openapi/strfmt"
 )
 
 // New creates a new migration internal API client.
 func New(transport runtime.ClientTransport, formats strfmt.Registry) ClientService {
 	return &Client{transport: transport, formats: formats}
-}
-
-// New creates a new migration internal API client with basic auth credentials.
-// It takes the following parameters:
-// - host: http host (github.com).
-// - basePath: any base path for the API client ("/v1", "/v3").
-// - scheme: http scheme ("http", "https").
-// - user: user for basic authentication header.
-// - password: password for basic authentication header.
-func NewClientWithBasicAuth(host, basePath, scheme, user, password string) ClientService {
-	transport := httptransport.New(host, basePath, []string{scheme})
-	transport.DefaultAuthentication = httptransport.BasicAuth(user, password)
-	return &Client{transport: transport, formats: strfmt.Default}
-}
-
-// New creates a new migration internal API client with a bearer token for authentication.
-// It takes the following parameters:
-// - host: http host (github.com).
-// - basePath: any base path for the API client ("/v1", "/v3").
-// - scheme: http scheme ("http", "https").
-// - bearerToken: bearer token for Bearer authentication header.
-func NewClientWithBearerToken(host, basePath, scheme, bearerToken string) ClientService {
-	transport := httptransport.New(host, basePath, []string{scheme})
-	transport.DefaultAuthentication = httptransport.BearerToken(bearerToken)
-	return &Client{transport: transport, formats: strfmt.Default}
 }
 
 /*
@@ -49,28 +23,25 @@ type Client struct {
 	formats   strfmt.Registry
 }
 
-// ClientOption may be used to customize the behavior of Client methods.
-type ClientOption func(*runtime.ClientOperation)
-
 // ClientService is the interface for Client methods
 type ClientService interface {
-	V1betaTenantMigratePreMigrationCheck(params *V1betaTenantMigratePreMigrationCheckParams, opts ...ClientOption) (*V1betaTenantMigratePreMigrationCheckOK, error)
+	V1betaTenantMigratePreMigrationCheck(params *V1betaTenantMigratePreMigrationCheckParams) (*V1betaTenantMigratePreMigrationCheckOK, error)
 
-	V1betaCreateTenantMigration(params *V1betaCreateTenantMigrationParams, opts ...ClientOption) (*V1betaCreateTenantMigrationAccepted, error)
+	V1betaCreateTenantMigration(params *V1betaCreateTenantMigrationParams) (*V1betaCreateTenantMigrationAccepted, error)
 
-	V1betaCreateTenantMigrationJob(params *V1betaCreateTenantMigrationJobParams, opts ...ClientOption) (*V1betaCreateTenantMigrationJobAccepted, error)
+	V1betaCreateTenantMigrationJob(params *V1betaCreateTenantMigrationJobParams) (*V1betaCreateTenantMigrationJobAccepted, error)
 
-	V1betaDescribeTenantMigration(params *V1betaDescribeTenantMigrationParams, opts ...ClientOption) (*V1betaDescribeTenantMigrationOK, error)
+	V1betaDescribeTenantMigration(params *V1betaDescribeTenantMigrationParams) (*V1betaDescribeTenantMigrationOK, error)
 
-	V1betaDescribeTenantMigrationOperation(params *V1betaDescribeTenantMigrationOperationParams, opts ...ClientOption) (*V1betaDescribeTenantMigrationOperationOK, error)
+	V1betaDescribeTenantMigrationOperation(params *V1betaDescribeTenantMigrationOperationParams) (*V1betaDescribeTenantMigrationOperationOK, error)
 
-	V1betaPremigrationcheck(params *V1betaPremigrationcheckParams, opts ...ClientOption) (*V1betaPremigrationcheckOK, error)
+	V1betaPremigrationcheck(params *V1betaPremigrationcheckParams) (*V1betaPremigrationcheckOK, error)
 
-	V1betaUpdateTenantMigrationAccount(params *V1betaUpdateTenantMigrationAccountParams, opts ...ClientOption) (*V1betaUpdateTenantMigrationAccountOK, error)
+	V1betaUpdateTenantMigrationAccount(params *V1betaUpdateTenantMigrationAccountParams) (*V1betaUpdateTenantMigrationAccountOK, error)
 
-	V1betaUpdateTenantMigrationHydration(params *V1betaUpdateTenantMigrationHydrationParams, opts ...ClientOption) (*V1betaUpdateTenantMigrationHydrationOK, error)
+	V1betaUpdateTenantMigrationHydration(params *V1betaUpdateTenantMigrationHydrationParams) (*V1betaUpdateTenantMigrationHydrationOK, error)
 
-	V1betaUpdateTenantMigrationVolumeBilling(params *V1betaUpdateTenantMigrationVolumeBillingParams, opts ...ClientOption) (*V1betaUpdateTenantMigrationVolumeBillingOK, error)
+	V1betaUpdateTenantMigrationVolumeBilling(params *V1betaUpdateTenantMigrationVolumeBillingParams) (*V1betaUpdateTenantMigrationVolumeBillingOK, error)
 
 	SetTransport(transport runtime.ClientTransport)
 }
@@ -80,12 +51,13 @@ V1betaTenantMigratePreMigrationCheck gets all resources that needed to be change
 
 Returns all the resources that will be changed during migration.
 */
-func (a *Client) V1betaTenantMigratePreMigrationCheck(params *V1betaTenantMigratePreMigrationCheckParams, opts ...ClientOption) (*V1betaTenantMigratePreMigrationCheckOK, error) {
+func (a *Client) V1betaTenantMigratePreMigrationCheck(params *V1betaTenantMigratePreMigrationCheckParams) (*V1betaTenantMigratePreMigrationCheckOK, error) {
 	// TODO: Validate the params before sending
 	if params == nil {
 		params = NewV1betaTenantMigratePreMigrationCheckParams()
 	}
-	op := &runtime.ClientOperation{
+
+	result, err := a.transport.Submit(&runtime.ClientOperation{
 		ID:                 "v1beta_TenantMigratePreMigrationCheck",
 		Method:             "GET",
 		PathPattern:        "/v1beta/internal/projects/{projectNumber}/locations/{locationId}/TenantMigrate/PreMigrateCheck",
@@ -96,12 +68,7 @@ func (a *Client) V1betaTenantMigratePreMigrationCheck(params *V1betaTenantMigrat
 		Reader:             &V1betaTenantMigratePreMigrationCheckReader{formats: a.formats},
 		Context:            params.Context,
 		Client:             params.HTTPClient,
-	}
-	for _, opt := range opts {
-		opt(op)
-	}
-
-	result, err := a.transport.Submit(op)
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -119,12 +86,13 @@ V1betaCreateTenantMigration starts a new migration job
 
 Performs migration of storage resources, network resources followed by hydration.
 */
-func (a *Client) V1betaCreateTenantMigration(params *V1betaCreateTenantMigrationParams, opts ...ClientOption) (*V1betaCreateTenantMigrationAccepted, error) {
+func (a *Client) V1betaCreateTenantMigration(params *V1betaCreateTenantMigrationParams) (*V1betaCreateTenantMigrationAccepted, error) {
 	// TODO: Validate the params before sending
 	if params == nil {
 		params = NewV1betaCreateTenantMigrationParams()
 	}
-	op := &runtime.ClientOperation{
+
+	result, err := a.transport.Submit(&runtime.ClientOperation{
 		ID:                 "v1beta_createTenantMigration",
 		Method:             "POST",
 		PathPattern:        "/v1beta/internal/projects/{projectNumber}/locations/{locationId}/TenantResourceMigrate",
@@ -135,12 +103,7 @@ func (a *Client) V1betaCreateTenantMigration(params *V1betaCreateTenantMigration
 		Reader:             &V1betaCreateTenantMigrationReader{formats: a.formats},
 		Context:            params.Context,
 		Client:             params.HTTPClient,
-	}
-	for _, opt := range opts {
-		opt(op)
-	}
-
-	result, err := a.transport.Submit(op)
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -158,12 +121,13 @@ V1betaCreateTenantMigrationJob creates a new tenant migration job
 
 Create a new tenant migration job.
 */
-func (a *Client) V1betaCreateTenantMigrationJob(params *V1betaCreateTenantMigrationJobParams, opts ...ClientOption) (*V1betaCreateTenantMigrationJobAccepted, error) {
+func (a *Client) V1betaCreateTenantMigrationJob(params *V1betaCreateTenantMigrationJobParams) (*V1betaCreateTenantMigrationJobAccepted, error) {
 	// TODO: Validate the params before sending
 	if params == nil {
 		params = NewV1betaCreateTenantMigrationJobParams()
 	}
-	op := &runtime.ClientOperation{
+
+	result, err := a.transport.Submit(&runtime.ClientOperation{
 		ID:                 "v1beta_createTenantMigrationJob",
 		Method:             "POST",
 		PathPattern:        "/v1beta/internal/projects/{projectNumber}/locations/{locationId}/TenantMigrate",
@@ -174,12 +138,7 @@ func (a *Client) V1betaCreateTenantMigrationJob(params *V1betaCreateTenantMigrat
 		Reader:             &V1betaCreateTenantMigrationJobReader{formats: a.formats},
 		Context:            params.Context,
 		Client:             params.HTTPClient,
-	}
-	for _, opt := range opts {
-		opt(op)
-	}
-
-	result, err := a.transport.Submit(op)
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -197,12 +156,13 @@ V1betaDescribeTenantMigration describes a tenant migration operation
 
 Returns the description of the specified migration by tenant migration ID.
 */
-func (a *Client) V1betaDescribeTenantMigration(params *V1betaDescribeTenantMigrationParams, opts ...ClientOption) (*V1betaDescribeTenantMigrationOK, error) {
+func (a *Client) V1betaDescribeTenantMigration(params *V1betaDescribeTenantMigrationParams) (*V1betaDescribeTenantMigrationOK, error) {
 	// TODO: Validate the params before sending
 	if params == nil {
 		params = NewV1betaDescribeTenantMigrationParams()
 	}
-	op := &runtime.ClientOperation{
+
+	result, err := a.transport.Submit(&runtime.ClientOperation{
 		ID:                 "v1beta_describeTenantMigration",
 		Method:             "GET",
 		PathPattern:        "/v1beta/internal/projects/{projectNumber}/locations/{locationId}/TenantResourceMigrate/{tenantResourceMigrationId}",
@@ -213,12 +173,7 @@ func (a *Client) V1betaDescribeTenantMigration(params *V1betaDescribeTenantMigra
 		Reader:             &V1betaDescribeTenantMigrationReader{formats: a.formats},
 		Context:            params.Context,
 		Client:             params.HTTPClient,
-	}
-	for _, opt := range opts {
-		opt(op)
-	}
-
-	result, err := a.transport.Submit(op)
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -234,12 +189,13 @@ func (a *Client) V1betaDescribeTenantMigration(params *V1betaDescribeTenantMigra
 /*
 V1betaDescribeTenantMigrationOperation describes a long running operation
 */
-func (a *Client) V1betaDescribeTenantMigrationOperation(params *V1betaDescribeTenantMigrationOperationParams, opts ...ClientOption) (*V1betaDescribeTenantMigrationOperationOK, error) {
+func (a *Client) V1betaDescribeTenantMigrationOperation(params *V1betaDescribeTenantMigrationOperationParams) (*V1betaDescribeTenantMigrationOperationOK, error) {
 	// TODO: Validate the params before sending
 	if params == nil {
 		params = NewV1betaDescribeTenantMigrationOperationParams()
 	}
-	op := &runtime.ClientOperation{
+
+	result, err := a.transport.Submit(&runtime.ClientOperation{
 		ID:                 "v1beta_describeTenantMigrationOperation",
 		Method:             "GET",
 		PathPattern:        "/v1beta/internal/projects/{projectNumber}/locations/{locationId}/TenantMigrate/{operationId}",
@@ -250,12 +206,7 @@ func (a *Client) V1betaDescribeTenantMigrationOperation(params *V1betaDescribeTe
 		Reader:             &V1betaDescribeTenantMigrationOperationReader{formats: a.formats},
 		Context:            params.Context,
 		Client:             params.HTTPClient,
-	}
-	for _, opt := range opts {
-		opt(op)
-	}
-
-	result, err := a.transport.Submit(op)
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -273,12 +224,13 @@ V1betaPremigrationcheck gets all resources that needed to be changed to 1 p form
 
 Returns all the resources that will be changed during migration.
 */
-func (a *Client) V1betaPremigrationcheck(params *V1betaPremigrationcheckParams, opts ...ClientOption) (*V1betaPremigrationcheckOK, error) {
+func (a *Client) V1betaPremigrationcheck(params *V1betaPremigrationcheckParams) (*V1betaPremigrationcheckOK, error) {
 	// TODO: Validate the params before sending
 	if params == nil {
 		params = NewV1betaPremigrationcheckParams()
 	}
-	op := &runtime.ClientOperation{
+
+	result, err := a.transport.Submit(&runtime.ClientOperation{
 		ID:                 "v1beta_premigrationcheck",
 		Method:             "GET",
 		PathPattern:        "/v1beta/internal/projects/{projectNumber}/locations/{locationId}/PreMigrateCheck",
@@ -289,12 +241,7 @@ func (a *Client) V1betaPremigrationcheck(params *V1betaPremigrationcheckParams, 
 		Reader:             &V1betaPremigrationcheckReader{formats: a.formats},
 		Context:            params.Context,
 		Client:             params.HTTPClient,
-	}
-	for _, opt := range opts {
-		opt(op)
-	}
-
-	result, err := a.transport.Submit(op)
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -312,12 +259,13 @@ V1betaUpdateTenantMigrationAccount updates the account state and tags of an acco
 
 Update the account state and tags of an account
 */
-func (a *Client) V1betaUpdateTenantMigrationAccount(params *V1betaUpdateTenantMigrationAccountParams, opts ...ClientOption) (*V1betaUpdateTenantMigrationAccountOK, error) {
+func (a *Client) V1betaUpdateTenantMigrationAccount(params *V1betaUpdateTenantMigrationAccountParams) (*V1betaUpdateTenantMigrationAccountOK, error) {
 	// TODO: Validate the params before sending
 	if params == nil {
 		params = NewV1betaUpdateTenantMigrationAccountParams()
 	}
-	op := &runtime.ClientOperation{
+
+	result, err := a.transport.Submit(&runtime.ClientOperation{
 		ID:                 "v1beta_updateTenantMigrationAccount",
 		Method:             "PUT",
 		PathPattern:        "/v1beta/internal/projects/{projectNumber}/locations/{locationId}/TenantMigrationAccount",
@@ -328,12 +276,7 @@ func (a *Client) V1betaUpdateTenantMigrationAccount(params *V1betaUpdateTenantMi
 		Reader:             &V1betaUpdateTenantMigrationAccountReader{formats: a.formats},
 		Context:            params.Context,
 		Client:             params.HTTPClient,
-	}
-	for _, opt := range opts {
-		opt(op)
-	}
-
-	result, err := a.transport.Submit(op)
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -351,12 +294,13 @@ V1betaUpdateTenantMigrationHydration updates hydration information for tenant mi
 
 Update hydration information for tenant migration.
 */
-func (a *Client) V1betaUpdateTenantMigrationHydration(params *V1betaUpdateTenantMigrationHydrationParams, opts ...ClientOption) (*V1betaUpdateTenantMigrationHydrationOK, error) {
+func (a *Client) V1betaUpdateTenantMigrationHydration(params *V1betaUpdateTenantMigrationHydrationParams) (*V1betaUpdateTenantMigrationHydrationOK, error) {
 	// TODO: Validate the params before sending
 	if params == nil {
 		params = NewV1betaUpdateTenantMigrationHydrationParams()
 	}
-	op := &runtime.ClientOperation{
+
+	result, err := a.transport.Submit(&runtime.ClientOperation{
 		ID:                 "v1beta_updateTenantMigrationHydration",
 		Method:             "PUT",
 		PathPattern:        "/v1beta/internal/projects/{projectNumber}/locations/{locationId}/TenantMigrateHydrate",
@@ -367,12 +311,7 @@ func (a *Client) V1betaUpdateTenantMigrationHydration(params *V1betaUpdateTenant
 		Reader:             &V1betaUpdateTenantMigrationHydrationReader{formats: a.formats},
 		Context:            params.Context,
 		Client:             params.HTTPClient,
-	}
-	for _, opt := range opts {
-		opt(op)
-	}
-
-	result, err := a.transport.Submit(op)
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -390,12 +329,13 @@ V1betaUpdateTenantMigrationVolumeBilling updates bill after value for all the vo
 
 Suspend 3P billing by setting bill_after for all the volumes within the project
 */
-func (a *Client) V1betaUpdateTenantMigrationVolumeBilling(params *V1betaUpdateTenantMigrationVolumeBillingParams, opts ...ClientOption) (*V1betaUpdateTenantMigrationVolumeBillingOK, error) {
+func (a *Client) V1betaUpdateTenantMigrationVolumeBilling(params *V1betaUpdateTenantMigrationVolumeBillingParams) (*V1betaUpdateTenantMigrationVolumeBillingOK, error) {
 	// TODO: Validate the params before sending
 	if params == nil {
 		params = NewV1betaUpdateTenantMigrationVolumeBillingParams()
 	}
-	op := &runtime.ClientOperation{
+
+	result, err := a.transport.Submit(&runtime.ClientOperation{
 		ID:                 "v1beta_updateTenantMigrationVolumeBilling",
 		Method:             "PUT",
 		PathPattern:        "/v1beta/internal/projects/{projectNumber}/locations/{locationId}/TenantMigrateBilling",
@@ -406,12 +346,7 @@ func (a *Client) V1betaUpdateTenantMigrationVolumeBilling(params *V1betaUpdateTe
 		Reader:             &V1betaUpdateTenantMigrationVolumeBillingReader{formats: a.formats},
 		Context:            params.Context,
 		Client:             params.HTTPClient,
-	}
-	for _, opt := range opts {
-		opt(op)
-	}
-
-	result, err := a.transport.Submit(op)
+	})
 	if err != nil {
 		return nil, err
 	}

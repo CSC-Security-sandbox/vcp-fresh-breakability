@@ -19,37 +19,40 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/models"
 )
 
-// NewV1betaBatchListBackupsParams creates a new V1betaBatchListBackupsParams object,
-// with the default timeout for this client.
-//
-// Default values are not hydrated, since defaults are normally applied by the API server side.
-//
-// To enforce default values in parameter, use SetDefaults or WithDefaults.
+// NewV1betaBatchListBackupsParams creates a new V1betaBatchListBackupsParams object
+// with the default values initialized.
 func NewV1betaBatchListBackupsParams() *V1betaBatchListBackupsParams {
+	var ()
 	return &V1betaBatchListBackupsParams{
+
 		timeout: cr.DefaultTimeout,
 	}
 }
 
 // NewV1betaBatchListBackupsParamsWithTimeout creates a new V1betaBatchListBackupsParams object
-// with the ability to set a timeout on a request.
+// with the default values initialized, and the ability to set a timeout on a request
 func NewV1betaBatchListBackupsParamsWithTimeout(timeout time.Duration) *V1betaBatchListBackupsParams {
+	var ()
 	return &V1betaBatchListBackupsParams{
+
 		timeout: timeout,
 	}
 }
 
 // NewV1betaBatchListBackupsParamsWithContext creates a new V1betaBatchListBackupsParams object
-// with the ability to set a context for a request.
+// with the default values initialized, and the ability to set a context for a request
 func NewV1betaBatchListBackupsParamsWithContext(ctx context.Context) *V1betaBatchListBackupsParams {
+	var ()
 	return &V1betaBatchListBackupsParams{
+
 		Context: ctx,
 	}
 }
 
 // NewV1betaBatchListBackupsParamsWithHTTPClient creates a new V1betaBatchListBackupsParams object
-// with the ability to set a custom HTTPClient for a request.
+// with the default values initialized, and the ability to set a custom HTTPClient for a request
 func NewV1betaBatchListBackupsParamsWithHTTPClient(client *http.Client) *V1betaBatchListBackupsParams {
+	var ()
 	return &V1betaBatchListBackupsParams{
 		HTTPClient: client,
 	}
@@ -57,55 +60,34 @@ func NewV1betaBatchListBackupsParamsWithHTTPClient(client *http.Client) *V1betaB
 
 /*
 V1betaBatchListBackupsParams contains all the parameters to send to the API endpoint
-
-	for the v1beta batch list backups operation.
-
-	Typically these are written to a http.Request.
+for the v1beta batch list backups operation typically these are written to a http.Request
 */
 type V1betaBatchListBackupsParams struct {
 
-	/* Body.
+	/*Body
+	  A list of backup UUIDs to return.
 
-	   A list of backup UUIDs to return.
 	*/
 	Body *models.BackupUUIDListV1beta
+	/*Fields
+	  Specify the fields to return.
 
-	/* Fields.
-
-	   Specify the fields to return.
 	*/
 	Fields []string
+	/*LocationID
+	  The location/region to perform the operation in.
 
-	/* LocationID.
-
-	   The location/region to perform the operation in.
 	*/
 	LocationID string
+	/*XCorrelationID
+	  Correlation identifier
 
-	/* XCorrelationID.
-
-	   Correlation identifier
 	*/
 	XCorrelationID *string
 
 	timeout    time.Duration
 	Context    context.Context
 	HTTPClient *http.Client
-}
-
-// WithDefaults hydrates default values in the v1beta batch list backups params (not the query body).
-//
-// All values with no default are reset to their zero value.
-func (o *V1betaBatchListBackupsParams) WithDefaults() *V1betaBatchListBackupsParams {
-	o.SetDefaults()
-	return o
-}
-
-// SetDefaults hydrates default values in the v1beta batch list backups params (not the query body).
-//
-// All values with no default are reset to their zero value.
-func (o *V1betaBatchListBackupsParams) SetDefaults() {
-	// no default values defined for this parameter
 }
 
 // WithTimeout adds the timeout to the v1beta batch list backups params
@@ -192,21 +174,19 @@ func (o *V1betaBatchListBackupsParams) WriteToRequest(r runtime.ClientRequest, r
 		return err
 	}
 	var res []error
+
 	if o.Body != nil {
 		if err := r.SetBodyParam(o.Body); err != nil {
 			return err
 		}
 	}
 
-	if o.Fields != nil {
+	valuesFields := o.Fields
 
-		// binding items for fields
-		joinedFields := o.bindParamFields(reg)
-
-		// query array param fields
-		if err := r.SetQueryParam("fields", joinedFields...); err != nil {
-			return err
-		}
+	joinedFields := swag.JoinByFormat(valuesFields, "csv")
+	// query array param fields
+	if err := r.SetQueryParam("fields", joinedFields...); err != nil {
+		return err
 	}
 
 	// path param locationId
@@ -220,27 +200,11 @@ func (o *V1betaBatchListBackupsParams) WriteToRequest(r runtime.ClientRequest, r
 		if err := r.SetHeaderParam("x-correlation-id", *o.XCorrelationID); err != nil {
 			return err
 		}
+
 	}
 
 	if len(res) > 0 {
 		return errors.CompositeValidationError(res...)
 	}
 	return nil
-}
-
-// bindParamV1betaBatchListBackups binds the parameter fields
-func (o *V1betaBatchListBackupsParams) bindParamFields(formats strfmt.Registry) []string {
-	fieldsIR := o.Fields
-
-	var fieldsIC []string
-	for _, fieldsIIR := range fieldsIR { // explode []string
-
-		fieldsIIV := fieldsIIR // string as string
-		fieldsIC = append(fieldsIC, fieldsIIV)
-	}
-
-	// items.CollectionFormat: "csv"
-	fieldsIS := swag.JoinByFormat(fieldsIC, "csv")
-
-	return fieldsIS
 }

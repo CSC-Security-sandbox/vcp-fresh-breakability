@@ -6,7 +6,6 @@ package migration_internal
 // Editing this file might prove futile when you re-run the swagger generate command
 
 import (
-	"encoding/json"
 	"fmt"
 	"io"
 
@@ -90,7 +89,7 @@ func NewV1betaUpdateTenantMigrationVolumeBillingOK() *V1betaUpdateTenantMigratio
 }
 
 /*
-V1betaUpdateTenantMigrationVolumeBillingOK describes a response with status code 200, with default header values.
+V1betaUpdateTenantMigrationVolumeBillingOK handles this case with default header values.
 
 OK
 */
@@ -98,44 +97,8 @@ type V1betaUpdateTenantMigrationVolumeBillingOK struct {
 	Payload *models.UpdateVolumeBillingResponseV2
 }
 
-// IsSuccess returns true when this v1beta update tenant migration volume billing o k response has a 2xx status code
-func (o *V1betaUpdateTenantMigrationVolumeBillingOK) IsSuccess() bool {
-	return true
-}
-
-// IsRedirect returns true when this v1beta update tenant migration volume billing o k response has a 3xx status code
-func (o *V1betaUpdateTenantMigrationVolumeBillingOK) IsRedirect() bool {
-	return false
-}
-
-// IsClientError returns true when this v1beta update tenant migration volume billing o k response has a 4xx status code
-func (o *V1betaUpdateTenantMigrationVolumeBillingOK) IsClientError() bool {
-	return false
-}
-
-// IsServerError returns true when this v1beta update tenant migration volume billing o k response has a 5xx status code
-func (o *V1betaUpdateTenantMigrationVolumeBillingOK) IsServerError() bool {
-	return false
-}
-
-// IsCode returns true when this v1beta update tenant migration volume billing o k response a status code equal to that given
-func (o *V1betaUpdateTenantMigrationVolumeBillingOK) IsCode(code int) bool {
-	return code == 200
-}
-
-// Code gets the status code for the v1beta update tenant migration volume billing o k response
-func (o *V1betaUpdateTenantMigrationVolumeBillingOK) Code() int {
-	return 200
-}
-
 func (o *V1betaUpdateTenantMigrationVolumeBillingOK) Error() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[PUT /v1beta/internal/projects/{projectNumber}/locations/{locationId}/TenantMigrateBilling][%d] v1betaUpdateTenantMigrationVolumeBillingOK %s", 200, payload)
-}
-
-func (o *V1betaUpdateTenantMigrationVolumeBillingOK) String() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[PUT /v1beta/internal/projects/{projectNumber}/locations/{locationId}/TenantMigrateBilling][%d] v1betaUpdateTenantMigrationVolumeBillingOK %s", 200, payload)
+	return fmt.Sprintf("[PUT /v1beta/internal/projects/{projectNumber}/locations/{locationId}/TenantMigrateBilling][%d] v1betaUpdateTenantMigrationVolumeBillingOK  %+v", 200, o.Payload)
 }
 
 func (o *V1betaUpdateTenantMigrationVolumeBillingOK) GetPayload() *models.UpdateVolumeBillingResponseV2 {
@@ -160,7 +123,7 @@ func NewV1betaUpdateTenantMigrationVolumeBillingBadRequest() *V1betaUpdateTenant
 }
 
 /*
-V1betaUpdateTenantMigrationVolumeBillingBadRequest describes a response with status code 400, with default header values.
+V1betaUpdateTenantMigrationVolumeBillingBadRequest handles this case with default header values.
 
 Bad request
 */
@@ -168,44 +131,8 @@ type V1betaUpdateTenantMigrationVolumeBillingBadRequest struct {
 	Payload *models.Error
 }
 
-// IsSuccess returns true when this v1beta update tenant migration volume billing bad request response has a 2xx status code
-func (o *V1betaUpdateTenantMigrationVolumeBillingBadRequest) IsSuccess() bool {
-	return false
-}
-
-// IsRedirect returns true when this v1beta update tenant migration volume billing bad request response has a 3xx status code
-func (o *V1betaUpdateTenantMigrationVolumeBillingBadRequest) IsRedirect() bool {
-	return false
-}
-
-// IsClientError returns true when this v1beta update tenant migration volume billing bad request response has a 4xx status code
-func (o *V1betaUpdateTenantMigrationVolumeBillingBadRequest) IsClientError() bool {
-	return true
-}
-
-// IsServerError returns true when this v1beta update tenant migration volume billing bad request response has a 5xx status code
-func (o *V1betaUpdateTenantMigrationVolumeBillingBadRequest) IsServerError() bool {
-	return false
-}
-
-// IsCode returns true when this v1beta update tenant migration volume billing bad request response a status code equal to that given
-func (o *V1betaUpdateTenantMigrationVolumeBillingBadRequest) IsCode(code int) bool {
-	return code == 400
-}
-
-// Code gets the status code for the v1beta update tenant migration volume billing bad request response
-func (o *V1betaUpdateTenantMigrationVolumeBillingBadRequest) Code() int {
-	return 400
-}
-
 func (o *V1betaUpdateTenantMigrationVolumeBillingBadRequest) Error() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[PUT /v1beta/internal/projects/{projectNumber}/locations/{locationId}/TenantMigrateBilling][%d] v1betaUpdateTenantMigrationVolumeBillingBadRequest %s", 400, payload)
-}
-
-func (o *V1betaUpdateTenantMigrationVolumeBillingBadRequest) String() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[PUT /v1beta/internal/projects/{projectNumber}/locations/{locationId}/TenantMigrateBilling][%d] v1betaUpdateTenantMigrationVolumeBillingBadRequest %s", 400, payload)
+	return fmt.Sprintf("[PUT /v1beta/internal/projects/{projectNumber}/locations/{locationId}/TenantMigrateBilling][%d] v1betaUpdateTenantMigrationVolumeBillingBadRequest  %+v", 400, o.Payload)
 }
 
 func (o *V1betaUpdateTenantMigrationVolumeBillingBadRequest) GetPayload() *models.Error {
@@ -230,7 +157,7 @@ func NewV1betaUpdateTenantMigrationVolumeBillingUnauthorized() *V1betaUpdateTena
 }
 
 /*
-V1betaUpdateTenantMigrationVolumeBillingUnauthorized describes a response with status code 401, with default header values.
+V1betaUpdateTenantMigrationVolumeBillingUnauthorized handles this case with default header values.
 
 Unauthorized
 */
@@ -238,44 +165,8 @@ type V1betaUpdateTenantMigrationVolumeBillingUnauthorized struct {
 	Payload *models.Error
 }
 
-// IsSuccess returns true when this v1beta update tenant migration volume billing unauthorized response has a 2xx status code
-func (o *V1betaUpdateTenantMigrationVolumeBillingUnauthorized) IsSuccess() bool {
-	return false
-}
-
-// IsRedirect returns true when this v1beta update tenant migration volume billing unauthorized response has a 3xx status code
-func (o *V1betaUpdateTenantMigrationVolumeBillingUnauthorized) IsRedirect() bool {
-	return false
-}
-
-// IsClientError returns true when this v1beta update tenant migration volume billing unauthorized response has a 4xx status code
-func (o *V1betaUpdateTenantMigrationVolumeBillingUnauthorized) IsClientError() bool {
-	return true
-}
-
-// IsServerError returns true when this v1beta update tenant migration volume billing unauthorized response has a 5xx status code
-func (o *V1betaUpdateTenantMigrationVolumeBillingUnauthorized) IsServerError() bool {
-	return false
-}
-
-// IsCode returns true when this v1beta update tenant migration volume billing unauthorized response a status code equal to that given
-func (o *V1betaUpdateTenantMigrationVolumeBillingUnauthorized) IsCode(code int) bool {
-	return code == 401
-}
-
-// Code gets the status code for the v1beta update tenant migration volume billing unauthorized response
-func (o *V1betaUpdateTenantMigrationVolumeBillingUnauthorized) Code() int {
-	return 401
-}
-
 func (o *V1betaUpdateTenantMigrationVolumeBillingUnauthorized) Error() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[PUT /v1beta/internal/projects/{projectNumber}/locations/{locationId}/TenantMigrateBilling][%d] v1betaUpdateTenantMigrationVolumeBillingUnauthorized %s", 401, payload)
-}
-
-func (o *V1betaUpdateTenantMigrationVolumeBillingUnauthorized) String() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[PUT /v1beta/internal/projects/{projectNumber}/locations/{locationId}/TenantMigrateBilling][%d] v1betaUpdateTenantMigrationVolumeBillingUnauthorized %s", 401, payload)
+	return fmt.Sprintf("[PUT /v1beta/internal/projects/{projectNumber}/locations/{locationId}/TenantMigrateBilling][%d] v1betaUpdateTenantMigrationVolumeBillingUnauthorized  %+v", 401, o.Payload)
 }
 
 func (o *V1betaUpdateTenantMigrationVolumeBillingUnauthorized) GetPayload() *models.Error {
@@ -300,7 +191,7 @@ func NewV1betaUpdateTenantMigrationVolumeBillingForbidden() *V1betaUpdateTenantM
 }
 
 /*
-V1betaUpdateTenantMigrationVolumeBillingForbidden describes a response with status code 403, with default header values.
+V1betaUpdateTenantMigrationVolumeBillingForbidden handles this case with default header values.
 
 Forbidden
 */
@@ -308,44 +199,8 @@ type V1betaUpdateTenantMigrationVolumeBillingForbidden struct {
 	Payload *models.Error
 }
 
-// IsSuccess returns true when this v1beta update tenant migration volume billing forbidden response has a 2xx status code
-func (o *V1betaUpdateTenantMigrationVolumeBillingForbidden) IsSuccess() bool {
-	return false
-}
-
-// IsRedirect returns true when this v1beta update tenant migration volume billing forbidden response has a 3xx status code
-func (o *V1betaUpdateTenantMigrationVolumeBillingForbidden) IsRedirect() bool {
-	return false
-}
-
-// IsClientError returns true when this v1beta update tenant migration volume billing forbidden response has a 4xx status code
-func (o *V1betaUpdateTenantMigrationVolumeBillingForbidden) IsClientError() bool {
-	return true
-}
-
-// IsServerError returns true when this v1beta update tenant migration volume billing forbidden response has a 5xx status code
-func (o *V1betaUpdateTenantMigrationVolumeBillingForbidden) IsServerError() bool {
-	return false
-}
-
-// IsCode returns true when this v1beta update tenant migration volume billing forbidden response a status code equal to that given
-func (o *V1betaUpdateTenantMigrationVolumeBillingForbidden) IsCode(code int) bool {
-	return code == 403
-}
-
-// Code gets the status code for the v1beta update tenant migration volume billing forbidden response
-func (o *V1betaUpdateTenantMigrationVolumeBillingForbidden) Code() int {
-	return 403
-}
-
 func (o *V1betaUpdateTenantMigrationVolumeBillingForbidden) Error() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[PUT /v1beta/internal/projects/{projectNumber}/locations/{locationId}/TenantMigrateBilling][%d] v1betaUpdateTenantMigrationVolumeBillingForbidden %s", 403, payload)
-}
-
-func (o *V1betaUpdateTenantMigrationVolumeBillingForbidden) String() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[PUT /v1beta/internal/projects/{projectNumber}/locations/{locationId}/TenantMigrateBilling][%d] v1betaUpdateTenantMigrationVolumeBillingForbidden %s", 403, payload)
+	return fmt.Sprintf("[PUT /v1beta/internal/projects/{projectNumber}/locations/{locationId}/TenantMigrateBilling][%d] v1betaUpdateTenantMigrationVolumeBillingForbidden  %+v", 403, o.Payload)
 }
 
 func (o *V1betaUpdateTenantMigrationVolumeBillingForbidden) GetPayload() *models.Error {
@@ -370,7 +225,7 @@ func NewV1betaUpdateTenantMigrationVolumeBillingNotFound() *V1betaUpdateTenantMi
 }
 
 /*
-V1betaUpdateTenantMigrationVolumeBillingNotFound describes a response with status code 404, with default header values.
+V1betaUpdateTenantMigrationVolumeBillingNotFound handles this case with default header values.
 
 Not found
 */
@@ -378,44 +233,8 @@ type V1betaUpdateTenantMigrationVolumeBillingNotFound struct {
 	Payload *models.Error
 }
 
-// IsSuccess returns true when this v1beta update tenant migration volume billing not found response has a 2xx status code
-func (o *V1betaUpdateTenantMigrationVolumeBillingNotFound) IsSuccess() bool {
-	return false
-}
-
-// IsRedirect returns true when this v1beta update tenant migration volume billing not found response has a 3xx status code
-func (o *V1betaUpdateTenantMigrationVolumeBillingNotFound) IsRedirect() bool {
-	return false
-}
-
-// IsClientError returns true when this v1beta update tenant migration volume billing not found response has a 4xx status code
-func (o *V1betaUpdateTenantMigrationVolumeBillingNotFound) IsClientError() bool {
-	return true
-}
-
-// IsServerError returns true when this v1beta update tenant migration volume billing not found response has a 5xx status code
-func (o *V1betaUpdateTenantMigrationVolumeBillingNotFound) IsServerError() bool {
-	return false
-}
-
-// IsCode returns true when this v1beta update tenant migration volume billing not found response a status code equal to that given
-func (o *V1betaUpdateTenantMigrationVolumeBillingNotFound) IsCode(code int) bool {
-	return code == 404
-}
-
-// Code gets the status code for the v1beta update tenant migration volume billing not found response
-func (o *V1betaUpdateTenantMigrationVolumeBillingNotFound) Code() int {
-	return 404
-}
-
 func (o *V1betaUpdateTenantMigrationVolumeBillingNotFound) Error() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[PUT /v1beta/internal/projects/{projectNumber}/locations/{locationId}/TenantMigrateBilling][%d] v1betaUpdateTenantMigrationVolumeBillingNotFound %s", 404, payload)
-}
-
-func (o *V1betaUpdateTenantMigrationVolumeBillingNotFound) String() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[PUT /v1beta/internal/projects/{projectNumber}/locations/{locationId}/TenantMigrateBilling][%d] v1betaUpdateTenantMigrationVolumeBillingNotFound %s", 404, payload)
+	return fmt.Sprintf("[PUT /v1beta/internal/projects/{projectNumber}/locations/{locationId}/TenantMigrateBilling][%d] v1betaUpdateTenantMigrationVolumeBillingNotFound  %+v", 404, o.Payload)
 }
 
 func (o *V1betaUpdateTenantMigrationVolumeBillingNotFound) GetPayload() *models.Error {
@@ -440,7 +259,7 @@ func NewV1betaUpdateTenantMigrationVolumeBillingUnprocessableEntity() *V1betaUpd
 }
 
 /*
-V1betaUpdateTenantMigrationVolumeBillingUnprocessableEntity describes a response with status code 422, with default header values.
+V1betaUpdateTenantMigrationVolumeBillingUnprocessableEntity handles this case with default header values.
 
 Unprocessable entity
 */
@@ -448,44 +267,8 @@ type V1betaUpdateTenantMigrationVolumeBillingUnprocessableEntity struct {
 	Payload *models.Error
 }
 
-// IsSuccess returns true when this v1beta update tenant migration volume billing unprocessable entity response has a 2xx status code
-func (o *V1betaUpdateTenantMigrationVolumeBillingUnprocessableEntity) IsSuccess() bool {
-	return false
-}
-
-// IsRedirect returns true when this v1beta update tenant migration volume billing unprocessable entity response has a 3xx status code
-func (o *V1betaUpdateTenantMigrationVolumeBillingUnprocessableEntity) IsRedirect() bool {
-	return false
-}
-
-// IsClientError returns true when this v1beta update tenant migration volume billing unprocessable entity response has a 4xx status code
-func (o *V1betaUpdateTenantMigrationVolumeBillingUnprocessableEntity) IsClientError() bool {
-	return true
-}
-
-// IsServerError returns true when this v1beta update tenant migration volume billing unprocessable entity response has a 5xx status code
-func (o *V1betaUpdateTenantMigrationVolumeBillingUnprocessableEntity) IsServerError() bool {
-	return false
-}
-
-// IsCode returns true when this v1beta update tenant migration volume billing unprocessable entity response a status code equal to that given
-func (o *V1betaUpdateTenantMigrationVolumeBillingUnprocessableEntity) IsCode(code int) bool {
-	return code == 422
-}
-
-// Code gets the status code for the v1beta update tenant migration volume billing unprocessable entity response
-func (o *V1betaUpdateTenantMigrationVolumeBillingUnprocessableEntity) Code() int {
-	return 422
-}
-
 func (o *V1betaUpdateTenantMigrationVolumeBillingUnprocessableEntity) Error() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[PUT /v1beta/internal/projects/{projectNumber}/locations/{locationId}/TenantMigrateBilling][%d] v1betaUpdateTenantMigrationVolumeBillingUnprocessableEntity %s", 422, payload)
-}
-
-func (o *V1betaUpdateTenantMigrationVolumeBillingUnprocessableEntity) String() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[PUT /v1beta/internal/projects/{projectNumber}/locations/{locationId}/TenantMigrateBilling][%d] v1betaUpdateTenantMigrationVolumeBillingUnprocessableEntity %s", 422, payload)
+	return fmt.Sprintf("[PUT /v1beta/internal/projects/{projectNumber}/locations/{locationId}/TenantMigrateBilling][%d] v1betaUpdateTenantMigrationVolumeBillingUnprocessableEntity  %+v", 422, o.Payload)
 }
 
 func (o *V1betaUpdateTenantMigrationVolumeBillingUnprocessableEntity) GetPayload() *models.Error {
@@ -510,7 +293,7 @@ func NewV1betaUpdateTenantMigrationVolumeBillingTooManyRequests() *V1betaUpdateT
 }
 
 /*
-V1betaUpdateTenantMigrationVolumeBillingTooManyRequests describes a response with status code 429, with default header values.
+V1betaUpdateTenantMigrationVolumeBillingTooManyRequests handles this case with default header values.
 
 Too many requests
 */
@@ -518,44 +301,8 @@ type V1betaUpdateTenantMigrationVolumeBillingTooManyRequests struct {
 	Payload *models.Error
 }
 
-// IsSuccess returns true when this v1beta update tenant migration volume billing too many requests response has a 2xx status code
-func (o *V1betaUpdateTenantMigrationVolumeBillingTooManyRequests) IsSuccess() bool {
-	return false
-}
-
-// IsRedirect returns true when this v1beta update tenant migration volume billing too many requests response has a 3xx status code
-func (o *V1betaUpdateTenantMigrationVolumeBillingTooManyRequests) IsRedirect() bool {
-	return false
-}
-
-// IsClientError returns true when this v1beta update tenant migration volume billing too many requests response has a 4xx status code
-func (o *V1betaUpdateTenantMigrationVolumeBillingTooManyRequests) IsClientError() bool {
-	return true
-}
-
-// IsServerError returns true when this v1beta update tenant migration volume billing too many requests response has a 5xx status code
-func (o *V1betaUpdateTenantMigrationVolumeBillingTooManyRequests) IsServerError() bool {
-	return false
-}
-
-// IsCode returns true when this v1beta update tenant migration volume billing too many requests response a status code equal to that given
-func (o *V1betaUpdateTenantMigrationVolumeBillingTooManyRequests) IsCode(code int) bool {
-	return code == 429
-}
-
-// Code gets the status code for the v1beta update tenant migration volume billing too many requests response
-func (o *V1betaUpdateTenantMigrationVolumeBillingTooManyRequests) Code() int {
-	return 429
-}
-
 func (o *V1betaUpdateTenantMigrationVolumeBillingTooManyRequests) Error() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[PUT /v1beta/internal/projects/{projectNumber}/locations/{locationId}/TenantMigrateBilling][%d] v1betaUpdateTenantMigrationVolumeBillingTooManyRequests %s", 429, payload)
-}
-
-func (o *V1betaUpdateTenantMigrationVolumeBillingTooManyRequests) String() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[PUT /v1beta/internal/projects/{projectNumber}/locations/{locationId}/TenantMigrateBilling][%d] v1betaUpdateTenantMigrationVolumeBillingTooManyRequests %s", 429, payload)
+	return fmt.Sprintf("[PUT /v1beta/internal/projects/{projectNumber}/locations/{locationId}/TenantMigrateBilling][%d] v1betaUpdateTenantMigrationVolumeBillingTooManyRequests  %+v", 429, o.Payload)
 }
 
 func (o *V1betaUpdateTenantMigrationVolumeBillingTooManyRequests) GetPayload() *models.Error {
@@ -580,7 +327,7 @@ func NewV1betaUpdateTenantMigrationVolumeBillingInternalServerError() *V1betaUpd
 }
 
 /*
-V1betaUpdateTenantMigrationVolumeBillingInternalServerError describes a response with status code 500, with default header values.
+V1betaUpdateTenantMigrationVolumeBillingInternalServerError handles this case with default header values.
 
 Internal server error
 */
@@ -588,44 +335,8 @@ type V1betaUpdateTenantMigrationVolumeBillingInternalServerError struct {
 	Payload *models.Error
 }
 
-// IsSuccess returns true when this v1beta update tenant migration volume billing internal server error response has a 2xx status code
-func (o *V1betaUpdateTenantMigrationVolumeBillingInternalServerError) IsSuccess() bool {
-	return false
-}
-
-// IsRedirect returns true when this v1beta update tenant migration volume billing internal server error response has a 3xx status code
-func (o *V1betaUpdateTenantMigrationVolumeBillingInternalServerError) IsRedirect() bool {
-	return false
-}
-
-// IsClientError returns true when this v1beta update tenant migration volume billing internal server error response has a 4xx status code
-func (o *V1betaUpdateTenantMigrationVolumeBillingInternalServerError) IsClientError() bool {
-	return false
-}
-
-// IsServerError returns true when this v1beta update tenant migration volume billing internal server error response has a 5xx status code
-func (o *V1betaUpdateTenantMigrationVolumeBillingInternalServerError) IsServerError() bool {
-	return true
-}
-
-// IsCode returns true when this v1beta update tenant migration volume billing internal server error response a status code equal to that given
-func (o *V1betaUpdateTenantMigrationVolumeBillingInternalServerError) IsCode(code int) bool {
-	return code == 500
-}
-
-// Code gets the status code for the v1beta update tenant migration volume billing internal server error response
-func (o *V1betaUpdateTenantMigrationVolumeBillingInternalServerError) Code() int {
-	return 500
-}
-
 func (o *V1betaUpdateTenantMigrationVolumeBillingInternalServerError) Error() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[PUT /v1beta/internal/projects/{projectNumber}/locations/{locationId}/TenantMigrateBilling][%d] v1betaUpdateTenantMigrationVolumeBillingInternalServerError %s", 500, payload)
-}
-
-func (o *V1betaUpdateTenantMigrationVolumeBillingInternalServerError) String() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[PUT /v1beta/internal/projects/{projectNumber}/locations/{locationId}/TenantMigrateBilling][%d] v1betaUpdateTenantMigrationVolumeBillingInternalServerError %s", 500, payload)
+	return fmt.Sprintf("[PUT /v1beta/internal/projects/{projectNumber}/locations/{locationId}/TenantMigrateBilling][%d] v1betaUpdateTenantMigrationVolumeBillingInternalServerError  %+v", 500, o.Payload)
 }
 
 func (o *V1betaUpdateTenantMigrationVolumeBillingInternalServerError) GetPayload() *models.Error {
@@ -652,7 +363,7 @@ func NewV1betaUpdateTenantMigrationVolumeBillingDefault(code int) *V1betaUpdateT
 }
 
 /*
-V1betaUpdateTenantMigrationVolumeBillingDefault describes a response with status code -1, with default header values.
+V1betaUpdateTenantMigrationVolumeBillingDefault handles this case with default header values.
 
 Unexpected error
 */
@@ -662,44 +373,13 @@ type V1betaUpdateTenantMigrationVolumeBillingDefault struct {
 	Payload *models.Error
 }
 
-// IsSuccess returns true when this v1beta update tenant migration volume billing default response has a 2xx status code
-func (o *V1betaUpdateTenantMigrationVolumeBillingDefault) IsSuccess() bool {
-	return o._statusCode/100 == 2
-}
-
-// IsRedirect returns true when this v1beta update tenant migration volume billing default response has a 3xx status code
-func (o *V1betaUpdateTenantMigrationVolumeBillingDefault) IsRedirect() bool {
-	return o._statusCode/100 == 3
-}
-
-// IsClientError returns true when this v1beta update tenant migration volume billing default response has a 4xx status code
-func (o *V1betaUpdateTenantMigrationVolumeBillingDefault) IsClientError() bool {
-	return o._statusCode/100 == 4
-}
-
-// IsServerError returns true when this v1beta update tenant migration volume billing default response has a 5xx status code
-func (o *V1betaUpdateTenantMigrationVolumeBillingDefault) IsServerError() bool {
-	return o._statusCode/100 == 5
-}
-
-// IsCode returns true when this v1beta update tenant migration volume billing default response a status code equal to that given
-func (o *V1betaUpdateTenantMigrationVolumeBillingDefault) IsCode(code int) bool {
-	return o._statusCode == code
-}
-
 // Code gets the status code for the v1beta update tenant migration volume billing default response
 func (o *V1betaUpdateTenantMigrationVolumeBillingDefault) Code() int {
 	return o._statusCode
 }
 
 func (o *V1betaUpdateTenantMigrationVolumeBillingDefault) Error() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[PUT /v1beta/internal/projects/{projectNumber}/locations/{locationId}/TenantMigrateBilling][%d] v1beta_updateTenantMigrationVolumeBilling default %s", o._statusCode, payload)
-}
-
-func (o *V1betaUpdateTenantMigrationVolumeBillingDefault) String() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[PUT /v1beta/internal/projects/{projectNumber}/locations/{locationId}/TenantMigrateBilling][%d] v1beta_updateTenantMigrationVolumeBilling default %s", o._statusCode, payload)
+	return fmt.Sprintf("[PUT /v1beta/internal/projects/{projectNumber}/locations/{locationId}/TenantMigrateBilling][%d] v1beta_updateTenantMigrationVolumeBilling default  %+v", o._statusCode, o.Payload)
 }
 
 func (o *V1betaUpdateTenantMigrationVolumeBillingDefault) GetPayload() *models.Error {

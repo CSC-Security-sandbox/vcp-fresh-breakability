@@ -6,7 +6,6 @@ package models
 // Editing this file might prove futile when you re-run the swagger generate command
 
 import (
-	"context"
 	"strconv"
 
 	"github.com/go-openapi/errors"
@@ -54,17 +53,12 @@ func (m *VolumeIDListV1beta) validateVolumeUUIDs(formats strfmt.Registry) error 
 
 	for i := 0; i < len(m.VolumeUUIDs); i++ {
 
-		if err := validate.Pattern("volumeUUIDs"+"."+strconv.Itoa(i), "body", m.VolumeUUIDs[i], `^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$`); err != nil {
+		if err := validate.Pattern("volumeUUIDs"+"."+strconv.Itoa(i), "body", string(m.VolumeUUIDs[i]), `^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$`); err != nil {
 			return err
 		}
 
 	}
 
-	return nil
-}
-
-// ContextValidate validates this volume ID list v1beta based on context it is used
-func (m *VolumeIDListV1beta) ContextValidate(ctx context.Context, formats strfmt.Registry) error {
 	return nil
 }
 

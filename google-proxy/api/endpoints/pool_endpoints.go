@@ -428,7 +428,7 @@ func convertToPoolV1beta(pool *cvpmodels.PoolV1beta) *gcpgenserver.PoolV1beta {
 		TotalIops:                 utils.SafeFloat64(pool.TotalIops),
 		CustomPerformanceEnabled:  gcpgenserver.NewOptBool(pool.CustomPerformanceEnabled),
 		Zone:                      gcpgenserver.NewOptString(pool.Zone),
-		StorageClass:              gcpgenserver.NewOptStorageClassV1beta(gcpgenserver.StorageClassV1beta(*pool.StorageClass)),
+		StorageClass:              gcpgenserver.NewOptStorageClassV1beta(gcpgenserver.StorageClassV1beta(pool.StorageClass)),
 		StoragePoolState:          gcpgenserver.NewOptPoolV1betaStoragePoolState(gcpgenserver.PoolV1betaStoragePoolState(pool.StoragePoolState)),
 		NumberOfVolumes:           utils.SafeInt64ToInt32(pool.NumberOfVolumes),
 		StoragePoolStateDetails:   gcpgenserver.NewOptString(pool.StateDetails),

@@ -6,7 +6,6 @@ package models
 // Editing this file might prove futile when you re-run the swagger generate command
 
 import (
-	"context"
 	"strconv"
 
 	"github.com/go-openapi/errors"
@@ -23,15 +22,12 @@ type DetailedReplicationResourcesForMigrationV1beta struct {
 	VolumeReplicationCVPV1beta
 
 	// Display name of the particular volume
-	// Example: vol1
 	DisplayName string `json:"displayName,omitempty"`
 
 	// Display name of the particular replication
-	// Example: volume1-replication
 	ReplicationName string `json:"replicationName,omitempty"`
 
 	// The service level of the pool. Can be specified either by name or performance but will always be specified by name in responses. For backwards compatibility, can also be specified as basic, standard, or extreme, which will be equivalent to having specified performance low, medium, or high, respectively. However, if any service level's name is one of basic, standard, or extreme, the performance will be that of the service level, not the performance equivalent of the backwards compatibility.
-	// Example: medium.
 	ServiceLevel string `json:"serviceLevel,omitempty"`
 
 	// volumeProtocolTypes
@@ -139,49 +135,6 @@ func (m *DetailedReplicationResourcesForMigrationV1beta) validateVolumeProtocolT
 		if err := m.VolumeProtocolTypes[i].Validate(formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("volumeProtocolTypes" + "." + strconv.Itoa(i))
-			} else if ce, ok := err.(*errors.CompositeError); ok {
-				return ce.ValidateName("volumeProtocolTypes" + "." + strconv.Itoa(i))
-			}
-			return err
-		}
-
-	}
-
-	return nil
-}
-
-// ContextValidate validate this detailed replication resources for migration v1beta based on the context it is used
-func (m *DetailedReplicationResourcesForMigrationV1beta) ContextValidate(ctx context.Context, formats strfmt.Registry) error {
-	var res []error
-
-	// validation for a type composition with VolumeReplicationCVPV1beta
-	if err := m.VolumeReplicationCVPV1beta.ContextValidate(ctx, formats); err != nil {
-		res = append(res, err)
-	}
-
-	if err := m.contextValidateVolumeProtocolTypes(ctx, formats); err != nil {
-		res = append(res, err)
-	}
-
-	if len(res) > 0 {
-		return errors.CompositeValidationError(res...)
-	}
-	return nil
-}
-
-func (m *DetailedReplicationResourcesForMigrationV1beta) contextValidateVolumeProtocolTypes(ctx context.Context, formats strfmt.Registry) error {
-
-	for i := 0; i < len(m.VolumeProtocolTypes); i++ {
-
-		if swag.IsZero(m.VolumeProtocolTypes[i]) { // not required
-			return nil
-		}
-
-		if err := m.VolumeProtocolTypes[i].ContextValidate(ctx, formats); err != nil {
-			if ve, ok := err.(*errors.Validation); ok {
-				return ve.ValidateName("volumeProtocolTypes" + "." + strconv.Itoa(i))
-			} else if ce, ok := err.(*errors.CompositeError); ok {
-				return ce.ValidateName("volumeProtocolTypes" + "." + strconv.Itoa(i))
 			}
 			return err
 		}

@@ -6,12 +6,8 @@ package models
 // Editing this file might prove futile when you re-run the swagger generate command
 
 import (
-	"context"
-
-	"github.com/go-openapi/errors"
 	"github.com/go-openapi/strfmt"
 	"github.com/go-openapi/swag"
-	"github.com/go-openapi/validate"
 )
 
 // HybridReplicationUserCommandsV1beta Hybrid Replication User commands
@@ -22,36 +18,12 @@ type HybridReplicationUserCommandsV1beta struct {
 	// commands
 	//
 	// Copy-paste-able snapmirror commands to be executed on on-prem cluster by customer.
-	// Example: ["snapmirror resync -destination-path svm_cvo:firstvolume -source-path svm_gcnv:vol_gcnv","job schedule cron create -name daily_1 -hour 1 -minute 0","snapmirror modify -destination-path svm_cvo:firstvolume -source-path svm_gcnv:vol_gcnv -schedule daily_1"]
 	// Read Only: true
 	Commands []string `json:"commands"`
 }
 
 // Validate validates this hybrid replication user commands v1beta
 func (m *HybridReplicationUserCommandsV1beta) Validate(formats strfmt.Registry) error {
-	return nil
-}
-
-// ContextValidate validate this hybrid replication user commands v1beta based on the context it is used
-func (m *HybridReplicationUserCommandsV1beta) ContextValidate(ctx context.Context, formats strfmt.Registry) error {
-	var res []error
-
-	if err := m.contextValidateCommands(ctx, formats); err != nil {
-		res = append(res, err)
-	}
-
-	if len(res) > 0 {
-		return errors.CompositeValidationError(res...)
-	}
-	return nil
-}
-
-func (m *HybridReplicationUserCommandsV1beta) contextValidateCommands(ctx context.Context, formats strfmt.Registry) error {
-
-	if err := validate.ReadOnly(ctx, "commands", "body", []string(m.Commands)); err != nil {
-		return err
-	}
-
 	return nil
 }
 

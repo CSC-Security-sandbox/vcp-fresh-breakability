@@ -18,37 +18,40 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/models"
 )
 
-// NewV1betaUpdateActiveDirectoryParams creates a new V1betaUpdateActiveDirectoryParams object,
-// with the default timeout for this client.
-//
-// Default values are not hydrated, since defaults are normally applied by the API server side.
-//
-// To enforce default values in parameter, use SetDefaults or WithDefaults.
+// NewV1betaUpdateActiveDirectoryParams creates a new V1betaUpdateActiveDirectoryParams object
+// with the default values initialized.
 func NewV1betaUpdateActiveDirectoryParams() *V1betaUpdateActiveDirectoryParams {
+	var ()
 	return &V1betaUpdateActiveDirectoryParams{
+
 		timeout: cr.DefaultTimeout,
 	}
 }
 
 // NewV1betaUpdateActiveDirectoryParamsWithTimeout creates a new V1betaUpdateActiveDirectoryParams object
-// with the ability to set a timeout on a request.
+// with the default values initialized, and the ability to set a timeout on a request
 func NewV1betaUpdateActiveDirectoryParamsWithTimeout(timeout time.Duration) *V1betaUpdateActiveDirectoryParams {
+	var ()
 	return &V1betaUpdateActiveDirectoryParams{
+
 		timeout: timeout,
 	}
 }
 
 // NewV1betaUpdateActiveDirectoryParamsWithContext creates a new V1betaUpdateActiveDirectoryParams object
-// with the ability to set a context for a request.
+// with the default values initialized, and the ability to set a context for a request
 func NewV1betaUpdateActiveDirectoryParamsWithContext(ctx context.Context) *V1betaUpdateActiveDirectoryParams {
+	var ()
 	return &V1betaUpdateActiveDirectoryParams{
+
 		Context: ctx,
 	}
 }
 
 // NewV1betaUpdateActiveDirectoryParamsWithHTTPClient creates a new V1betaUpdateActiveDirectoryParams object
-// with the ability to set a custom HTTPClient for a request.
+// with the default values initialized, and the ability to set a custom HTTPClient for a request
 func NewV1betaUpdateActiveDirectoryParamsWithHTTPClient(client *http.Client) *V1betaUpdateActiveDirectoryParams {
+	var ()
 	return &V1betaUpdateActiveDirectoryParams{
 		HTTPClient: client,
 	}
@@ -56,61 +59,39 @@ func NewV1betaUpdateActiveDirectoryParamsWithHTTPClient(client *http.Client) *V1
 
 /*
 V1betaUpdateActiveDirectoryParams contains all the parameters to send to the API endpoint
-
-	for the v1beta update active directory operation.
-
-	Typically these are written to a http.Request.
+for the v1beta update active directory operation typically these are written to a http.Request
 */
 type V1betaUpdateActiveDirectoryParams struct {
 
-	/* ActiveDirectoryID.
+	/*ActiveDirectoryID
+	  UUID v4 used to identify the Active Directory credentials
 
-	   UUID v4 used to identify the Active Directory credentials
 	*/
 	ActiveDirectoryID string
+	/*Body
+	  The parameters that can be updated
 
-	/* Body.
-
-	   The parameters that can be updated
 	*/
 	Body *models.ActiveDirectoryUpdateV1beta
+	/*LocationID
+	  The location/region to perform the operation in.
 
-	/* LocationID.
-
-	   The location/region to perform the operation in.
 	*/
 	LocationID string
+	/*ProjectNumber
+	  The project number of the GCP project owning the resource being acted upon
 
-	/* ProjectNumber.
-
-	   The project number of the GCP project owning the resource being acted upon
 	*/
 	ProjectNumber string
+	/*XCorrelationID
+	  Correlation identifier
 
-	/* XCorrelationID.
-
-	   Correlation identifier
 	*/
 	XCorrelationID *string
 
 	timeout    time.Duration
 	Context    context.Context
 	HTTPClient *http.Client
-}
-
-// WithDefaults hydrates default values in the v1beta update active directory params (not the query body).
-//
-// All values with no default are reset to their zero value.
-func (o *V1betaUpdateActiveDirectoryParams) WithDefaults() *V1betaUpdateActiveDirectoryParams {
-	o.SetDefaults()
-	return o
-}
-
-// SetDefaults hydrates default values in the v1beta update active directory params (not the query body).
-//
-// All values with no default are reset to their zero value.
-func (o *V1betaUpdateActiveDirectoryParams) SetDefaults() {
-	// no default values defined for this parameter
 }
 
 // WithTimeout adds the timeout to the v1beta update active directory params
@@ -213,6 +194,7 @@ func (o *V1betaUpdateActiveDirectoryParams) WriteToRequest(r runtime.ClientReque
 	if err := r.SetPathParam("activeDirectoryId", o.ActiveDirectoryID); err != nil {
 		return err
 	}
+
 	if o.Body != nil {
 		if err := r.SetBodyParam(o.Body); err != nil {
 			return err
@@ -235,6 +217,7 @@ func (o *V1betaUpdateActiveDirectoryParams) WriteToRequest(r runtime.ClientReque
 		if err := r.SetHeaderParam("x-correlation-id", *o.XCorrelationID); err != nil {
 			return err
 		}
+
 	}
 
 	if len(res) > 0 {

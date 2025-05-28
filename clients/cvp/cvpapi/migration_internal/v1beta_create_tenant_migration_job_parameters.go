@@ -16,37 +16,40 @@ import (
 	"github.com/go-openapi/strfmt"
 )
 
-// NewV1betaCreateTenantMigrationJobParams creates a new V1betaCreateTenantMigrationJobParams object,
-// with the default timeout for this client.
-//
-// Default values are not hydrated, since defaults are normally applied by the API server side.
-//
-// To enforce default values in parameter, use SetDefaults or WithDefaults.
+// NewV1betaCreateTenantMigrationJobParams creates a new V1betaCreateTenantMigrationJobParams object
+// with the default values initialized.
 func NewV1betaCreateTenantMigrationJobParams() *V1betaCreateTenantMigrationJobParams {
+	var ()
 	return &V1betaCreateTenantMigrationJobParams{
+
 		timeout: cr.DefaultTimeout,
 	}
 }
 
 // NewV1betaCreateTenantMigrationJobParamsWithTimeout creates a new V1betaCreateTenantMigrationJobParams object
-// with the ability to set a timeout on a request.
+// with the default values initialized, and the ability to set a timeout on a request
 func NewV1betaCreateTenantMigrationJobParamsWithTimeout(timeout time.Duration) *V1betaCreateTenantMigrationJobParams {
+	var ()
 	return &V1betaCreateTenantMigrationJobParams{
+
 		timeout: timeout,
 	}
 }
 
 // NewV1betaCreateTenantMigrationJobParamsWithContext creates a new V1betaCreateTenantMigrationJobParams object
-// with the ability to set a context for a request.
+// with the default values initialized, and the ability to set a context for a request
 func NewV1betaCreateTenantMigrationJobParamsWithContext(ctx context.Context) *V1betaCreateTenantMigrationJobParams {
+	var ()
 	return &V1betaCreateTenantMigrationJobParams{
+
 		Context: ctx,
 	}
 }
 
 // NewV1betaCreateTenantMigrationJobParamsWithHTTPClient creates a new V1betaCreateTenantMigrationJobParams object
-// with the ability to set a custom HTTPClient for a request.
+// with the default values initialized, and the ability to set a custom HTTPClient for a request
 func NewV1betaCreateTenantMigrationJobParamsWithHTTPClient(client *http.Client) *V1betaCreateTenantMigrationJobParams {
+	var ()
 	return &V1betaCreateTenantMigrationJobParams{
 		HTTPClient: client,
 	}
@@ -54,49 +57,29 @@ func NewV1betaCreateTenantMigrationJobParamsWithHTTPClient(client *http.Client) 
 
 /*
 V1betaCreateTenantMigrationJobParams contains all the parameters to send to the API endpoint
-
-	for the v1beta create tenant migration job operation.
-
-	Typically these are written to a http.Request.
+for the v1beta create tenant migration job operation typically these are written to a http.Request
 */
 type V1betaCreateTenantMigrationJobParams struct {
 
-	/* LocationID.
+	/*LocationID
+	  The location/region to perform the operation in.
 
-	   The location/region to perform the operation in.
 	*/
 	LocationID string
+	/*ProjectNumber
+	  The project number of the GCP project owning the resource being acted upon
 
-	/* ProjectNumber.
-
-	   The project number of the GCP project owning the resource being acted upon
 	*/
 	ProjectNumber string
+	/*XCorrelationID
+	  Correlation identifier
 
-	/* XCorrelationID.
-
-	   Correlation identifier
 	*/
 	XCorrelationID *string
 
 	timeout    time.Duration
 	Context    context.Context
 	HTTPClient *http.Client
-}
-
-// WithDefaults hydrates default values in the v1beta create tenant migration job params (not the query body).
-//
-// All values with no default are reset to their zero value.
-func (o *V1betaCreateTenantMigrationJobParams) WithDefaults() *V1betaCreateTenantMigrationJobParams {
-	o.SetDefaults()
-	return o
-}
-
-// SetDefaults hydrates default values in the v1beta create tenant migration job params (not the query body).
-//
-// All values with no default are reset to their zero value.
-func (o *V1betaCreateTenantMigrationJobParams) SetDefaults() {
-	// no default values defined for this parameter
 }
 
 // WithTimeout adds the timeout to the v1beta create tenant migration job params
@@ -189,6 +172,7 @@ func (o *V1betaCreateTenantMigrationJobParams) WriteToRequest(r runtime.ClientRe
 		if err := r.SetHeaderParam("x-correlation-id", *o.XCorrelationID); err != nil {
 			return err
 		}
+
 	}
 
 	if len(res) > 0 {

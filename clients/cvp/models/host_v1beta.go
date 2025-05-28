@@ -6,7 +6,6 @@ package models
 // Editing this file might prove futile when you re-run the swagger generate command
 
 import (
-	"context"
 	"encoding/json"
 	"strconv"
 
@@ -24,7 +23,6 @@ type HostV1beta struct {
 	// firstParty
 	//
 	// If true, then the customer is on-boarded as first party.
-	// Example: true
 	FirstParty bool `json:"firstParty,omitempty"`
 
 	// hostName
@@ -36,7 +34,6 @@ type HostV1beta struct {
 	// hostUUID
 	//
 	// UUID v4 used to identify for the unique ID
-	// Example: 9760acf5-4638-11e7-9bdb-020073ca3333
 	// Read Only: true
 	// Max Length: 36
 	// Min Length: 36
@@ -53,7 +50,7 @@ type HostV1beta struct {
 	//
 	// The current lifecycle state of the resource
 	// Read Only: true
-	// Enum: ["creating","available","idle","updating","deleting","deleted","restoring","error"]
+	// Enum: [creating available idle updating deleting deleted restoring error]
 	LifeCycleState string `json:"lifeCycleState,omitempty"`
 
 	// lifeCycleStateDetails
@@ -71,7 +68,6 @@ type HostV1beta struct {
 	// ownerName
 	//
 	// The account username of the user
-	// Example: 1079058383248
 	// Required: true
 	OwnerName *string `json:"ownerName"`
 
@@ -84,7 +80,6 @@ type HostV1beta struct {
 	// region
 	//
 	// The region in which the cluster should be created
-	// Example: us-west
 	// Required: true
 	Region *string `json:"region"`
 
@@ -96,14 +91,12 @@ type HostV1beta struct {
 	// remoteAccountID
 	//
 	// The service provider network identifier
-	// Example: projects/1079058383248/global/networks/network-to-netapp2
 	// Required: true
 	RemoteAccountID *string `json:"remoteAccountID"`
 
 	// zone
 	//
 	// Identifier for the zone
-	// Example: us-west-1b
 	// Required: true
 	Zone *string `json:"zone"`
 }
@@ -281,15 +274,15 @@ func (m *HostV1beta) validateHostUUID(formats strfmt.Registry) error {
 		return nil
 	}
 
-	if err := validate.MinLength("hostUUID", "body", m.HostUUID, 36); err != nil {
+	if err := validate.MinLength("hostUUID", "body", string(m.HostUUID), 36); err != nil {
 		return err
 	}
 
-	if err := validate.MaxLength("hostUUID", "body", m.HostUUID, 36); err != nil {
+	if err := validate.MaxLength("hostUUID", "body", string(m.HostUUID), 36); err != nil {
 		return err
 	}
 
-	if err := validate.Pattern("hostUUID", "body", m.HostUUID, `^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$`); err != nil {
+	if err := validate.Pattern("hostUUID", "body", string(m.HostUUID), `^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$`); err != nil {
 		return err
 	}
 
@@ -311,8 +304,6 @@ func (m *HostV1beta) validateJobs(formats strfmt.Registry) error {
 			if err := m.Jobs[i].Validate(formats); err != nil {
 				if ve, ok := err.(*errors.Validation); ok {
 					return ve.ValidateName("jobs" + "." + strconv.Itoa(i))
-				} else if ce, ok := err.(*errors.CompositeError); ok {
-					return ce.ValidateName("jobs" + "." + strconv.Itoa(i))
 				}
 				return err
 			}
@@ -387,127 +378,6 @@ func (m *HostV1beta) validateRemoteAccountID(formats strfmt.Registry) error {
 func (m *HostV1beta) validateZone(formats strfmt.Registry) error {
 
 	if err := validate.Required("zone", "body", m.Zone); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-// ContextValidate validate this host v1beta based on the context it is used
-func (m *HostV1beta) ContextValidate(ctx context.Context, formats strfmt.Registry) error {
-	var res []error
-
-	if err := m.contextValidateHostName(ctx, formats); err != nil {
-		res = append(res, err)
-	}
-
-	if err := m.contextValidateHostUUID(ctx, formats); err != nil {
-		res = append(res, err)
-	}
-
-	if err := m.contextValidateJobs(ctx, formats); err != nil {
-		res = append(res, err)
-	}
-
-	if err := m.contextValidateLifeCycleState(ctx, formats); err != nil {
-		res = append(res, err)
-	}
-
-	if err := m.contextValidateLifeCycleStateDetails(ctx, formats); err != nil {
-		res = append(res, err)
-	}
-
-	if err := m.contextValidateMeshManagementState(ctx, formats); err != nil {
-		res = append(res, err)
-	}
-
-	if err := m.contextValidateProject(ctx, formats); err != nil {
-		res = append(res, err)
-	}
-
-	if len(res) > 0 {
-		return errors.CompositeValidationError(res...)
-	}
-	return nil
-}
-
-func (m *HostV1beta) contextValidateHostName(ctx context.Context, formats strfmt.Registry) error {
-
-	if err := validate.ReadOnly(ctx, "hostName", "body", string(m.HostName)); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (m *HostV1beta) contextValidateHostUUID(ctx context.Context, formats strfmt.Registry) error {
-
-	if err := validate.ReadOnly(ctx, "hostUUID", "body", string(m.HostUUID)); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (m *HostV1beta) contextValidateJobs(ctx context.Context, formats strfmt.Registry) error {
-
-	if err := validate.ReadOnly(ctx, "jobs", "body", []*JobV1beta(m.Jobs)); err != nil {
-		return err
-	}
-
-	for i := 0; i < len(m.Jobs); i++ {
-
-		if m.Jobs[i] != nil {
-
-			if swag.IsZero(m.Jobs[i]) { // not required
-				return nil
-			}
-
-			if err := m.Jobs[i].ContextValidate(ctx, formats); err != nil {
-				if ve, ok := err.(*errors.Validation); ok {
-					return ve.ValidateName("jobs" + "." + strconv.Itoa(i))
-				} else if ce, ok := err.(*errors.CompositeError); ok {
-					return ce.ValidateName("jobs" + "." + strconv.Itoa(i))
-				}
-				return err
-			}
-		}
-
-	}
-
-	return nil
-}
-
-func (m *HostV1beta) contextValidateLifeCycleState(ctx context.Context, formats strfmt.Registry) error {
-
-	if err := validate.ReadOnly(ctx, "lifeCycleState", "body", string(m.LifeCycleState)); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (m *HostV1beta) contextValidateLifeCycleStateDetails(ctx context.Context, formats strfmt.Registry) error {
-
-	if err := validate.ReadOnly(ctx, "lifeCycleStateDetails", "body", string(m.LifeCycleStateDetails)); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (m *HostV1beta) contextValidateMeshManagementState(ctx context.Context, formats strfmt.Registry) error {
-
-	if err := validate.ReadOnly(ctx, "meshManagementState", "body", string(m.MeshManagementState)); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (m *HostV1beta) contextValidateProject(ctx context.Context, formats strfmt.Registry) error {
-
-	if err := validate.ReadOnly(ctx, "project", "body", string(m.Project)); err != nil {
 		return err
 	}
 

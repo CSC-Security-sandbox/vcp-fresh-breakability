@@ -6,7 +6,6 @@ package models
 // Editing this file might prove futile when you re-run the swagger generate command
 
 import (
-	"context"
 	"encoding/json"
 
 	"github.com/go-openapi/errors"
@@ -16,20 +15,10 @@ import (
 
 // ProtocolsV1beta protocol
 //
-// Protocol type through which volume can be accessed
-// Example: NFSV3
+// # Protocol type through which volume can be accessed
 //
 // swagger:model protocols_v1beta
 type ProtocolsV1beta string
-
-func NewProtocolsV1beta(value ProtocolsV1beta) *ProtocolsV1beta {
-	return &value
-}
-
-// Pointer returns a pointer to a freshly-allocated ProtocolsV1beta.
-func (m ProtocolsV1beta) Pointer() *ProtocolsV1beta {
-	return &m
-}
 
 const (
 
@@ -78,10 +67,5 @@ func (m ProtocolsV1beta) Validate(formats strfmt.Registry) error {
 	if len(res) > 0 {
 		return errors.CompositeValidationError(res...)
 	}
-	return nil
-}
-
-// ContextValidate validates this protocols v1beta based on context it is used
-func (m ProtocolsV1beta) ContextValidate(ctx context.Context, formats strfmt.Registry) error {
 	return nil
 }

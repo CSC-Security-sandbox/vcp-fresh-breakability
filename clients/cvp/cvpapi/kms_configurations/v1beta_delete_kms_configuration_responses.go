@@ -6,7 +6,6 @@ package kms_configurations
 // Editing this file might prove futile when you re-run the swagger generate command
 
 import (
-	"encoding/json"
 	"fmt"
 	"io"
 
@@ -102,7 +101,7 @@ func NewV1betaDeleteKmsConfigurationAccepted() *V1betaDeleteKmsConfigurationAcce
 }
 
 /*
-V1betaDeleteKmsConfigurationAccepted describes a response with status code 202, with default header values.
+V1betaDeleteKmsConfigurationAccepted handles this case with default header values.
 
 Deleting KMS configurations
 */
@@ -110,44 +109,8 @@ type V1betaDeleteKmsConfigurationAccepted struct {
 	Payload *models.OperationV1beta
 }
 
-// IsSuccess returns true when this v1beta delete kms configuration accepted response has a 2xx status code
-func (o *V1betaDeleteKmsConfigurationAccepted) IsSuccess() bool {
-	return true
-}
-
-// IsRedirect returns true when this v1beta delete kms configuration accepted response has a 3xx status code
-func (o *V1betaDeleteKmsConfigurationAccepted) IsRedirect() bool {
-	return false
-}
-
-// IsClientError returns true when this v1beta delete kms configuration accepted response has a 4xx status code
-func (o *V1betaDeleteKmsConfigurationAccepted) IsClientError() bool {
-	return false
-}
-
-// IsServerError returns true when this v1beta delete kms configuration accepted response has a 5xx status code
-func (o *V1betaDeleteKmsConfigurationAccepted) IsServerError() bool {
-	return false
-}
-
-// IsCode returns true when this v1beta delete kms configuration accepted response a status code equal to that given
-func (o *V1betaDeleteKmsConfigurationAccepted) IsCode(code int) bool {
-	return code == 202
-}
-
-// Code gets the status code for the v1beta delete kms configuration accepted response
-func (o *V1betaDeleteKmsConfigurationAccepted) Code() int {
-	return 202
-}
-
 func (o *V1betaDeleteKmsConfigurationAccepted) Error() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[DELETE /v1beta/projects/{projectNumber}/locations/{locationId}/storage/kmsConfig/{kmsConfigId}][%d] v1betaDeleteKmsConfigurationAccepted %s", 202, payload)
-}
-
-func (o *V1betaDeleteKmsConfigurationAccepted) String() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[DELETE /v1beta/projects/{projectNumber}/locations/{locationId}/storage/kmsConfig/{kmsConfigId}][%d] v1betaDeleteKmsConfigurationAccepted %s", 202, payload)
+	return fmt.Sprintf("[DELETE /v1beta/projects/{projectNumber}/locations/{locationId}/storage/kmsConfig/{kmsConfigId}][%d] v1betaDeleteKmsConfigurationAccepted  %+v", 202, o.Payload)
 }
 
 func (o *V1betaDeleteKmsConfigurationAccepted) GetPayload() *models.OperationV1beta {
@@ -172,49 +135,15 @@ func NewV1betaDeleteKmsConfigurationNoContent() *V1betaDeleteKmsConfigurationNoC
 }
 
 /*
-V1betaDeleteKmsConfigurationNoContent describes a response with status code 204, with default header values.
+V1betaDeleteKmsConfigurationNoContent handles this case with default header values.
 
 No content
 */
 type V1betaDeleteKmsConfigurationNoContent struct {
 }
 
-// IsSuccess returns true when this v1beta delete kms configuration no content response has a 2xx status code
-func (o *V1betaDeleteKmsConfigurationNoContent) IsSuccess() bool {
-	return true
-}
-
-// IsRedirect returns true when this v1beta delete kms configuration no content response has a 3xx status code
-func (o *V1betaDeleteKmsConfigurationNoContent) IsRedirect() bool {
-	return false
-}
-
-// IsClientError returns true when this v1beta delete kms configuration no content response has a 4xx status code
-func (o *V1betaDeleteKmsConfigurationNoContent) IsClientError() bool {
-	return false
-}
-
-// IsServerError returns true when this v1beta delete kms configuration no content response has a 5xx status code
-func (o *V1betaDeleteKmsConfigurationNoContent) IsServerError() bool {
-	return false
-}
-
-// IsCode returns true when this v1beta delete kms configuration no content response a status code equal to that given
-func (o *V1betaDeleteKmsConfigurationNoContent) IsCode(code int) bool {
-	return code == 204
-}
-
-// Code gets the status code for the v1beta delete kms configuration no content response
-func (o *V1betaDeleteKmsConfigurationNoContent) Code() int {
-	return 204
-}
-
 func (o *V1betaDeleteKmsConfigurationNoContent) Error() string {
-	return fmt.Sprintf("[DELETE /v1beta/projects/{projectNumber}/locations/{locationId}/storage/kmsConfig/{kmsConfigId}][%d] v1betaDeleteKmsConfigurationNoContent", 204)
-}
-
-func (o *V1betaDeleteKmsConfigurationNoContent) String() string {
-	return fmt.Sprintf("[DELETE /v1beta/projects/{projectNumber}/locations/{locationId}/storage/kmsConfig/{kmsConfigId}][%d] v1betaDeleteKmsConfigurationNoContent", 204)
+	return fmt.Sprintf("[DELETE /v1beta/projects/{projectNumber}/locations/{locationId}/storage/kmsConfig/{kmsConfigId}][%d] v1betaDeleteKmsConfigurationNoContent ", 204)
 }
 
 func (o *V1betaDeleteKmsConfigurationNoContent) readResponse(response runtime.ClientResponse, consumer runtime.Consumer, formats strfmt.Registry) error {
@@ -228,7 +157,7 @@ func NewV1betaDeleteKmsConfigurationBadRequest() *V1betaDeleteKmsConfigurationBa
 }
 
 /*
-V1betaDeleteKmsConfigurationBadRequest describes a response with status code 400, with default header values.
+V1betaDeleteKmsConfigurationBadRequest handles this case with default header values.
 
 Bad request
 */
@@ -236,44 +165,8 @@ type V1betaDeleteKmsConfigurationBadRequest struct {
 	Payload *models.Error
 }
 
-// IsSuccess returns true when this v1beta delete kms configuration bad request response has a 2xx status code
-func (o *V1betaDeleteKmsConfigurationBadRequest) IsSuccess() bool {
-	return false
-}
-
-// IsRedirect returns true when this v1beta delete kms configuration bad request response has a 3xx status code
-func (o *V1betaDeleteKmsConfigurationBadRequest) IsRedirect() bool {
-	return false
-}
-
-// IsClientError returns true when this v1beta delete kms configuration bad request response has a 4xx status code
-func (o *V1betaDeleteKmsConfigurationBadRequest) IsClientError() bool {
-	return true
-}
-
-// IsServerError returns true when this v1beta delete kms configuration bad request response has a 5xx status code
-func (o *V1betaDeleteKmsConfigurationBadRequest) IsServerError() bool {
-	return false
-}
-
-// IsCode returns true when this v1beta delete kms configuration bad request response a status code equal to that given
-func (o *V1betaDeleteKmsConfigurationBadRequest) IsCode(code int) bool {
-	return code == 400
-}
-
-// Code gets the status code for the v1beta delete kms configuration bad request response
-func (o *V1betaDeleteKmsConfigurationBadRequest) Code() int {
-	return 400
-}
-
 func (o *V1betaDeleteKmsConfigurationBadRequest) Error() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[DELETE /v1beta/projects/{projectNumber}/locations/{locationId}/storage/kmsConfig/{kmsConfigId}][%d] v1betaDeleteKmsConfigurationBadRequest %s", 400, payload)
-}
-
-func (o *V1betaDeleteKmsConfigurationBadRequest) String() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[DELETE /v1beta/projects/{projectNumber}/locations/{locationId}/storage/kmsConfig/{kmsConfigId}][%d] v1betaDeleteKmsConfigurationBadRequest %s", 400, payload)
+	return fmt.Sprintf("[DELETE /v1beta/projects/{projectNumber}/locations/{locationId}/storage/kmsConfig/{kmsConfigId}][%d] v1betaDeleteKmsConfigurationBadRequest  %+v", 400, o.Payload)
 }
 
 func (o *V1betaDeleteKmsConfigurationBadRequest) GetPayload() *models.Error {
@@ -298,7 +191,7 @@ func NewV1betaDeleteKmsConfigurationUnauthorized() *V1betaDeleteKmsConfiguration
 }
 
 /*
-V1betaDeleteKmsConfigurationUnauthorized describes a response with status code 401, with default header values.
+V1betaDeleteKmsConfigurationUnauthorized handles this case with default header values.
 
 Unauthorized
 */
@@ -306,44 +199,8 @@ type V1betaDeleteKmsConfigurationUnauthorized struct {
 	Payload *models.Error
 }
 
-// IsSuccess returns true when this v1beta delete kms configuration unauthorized response has a 2xx status code
-func (o *V1betaDeleteKmsConfigurationUnauthorized) IsSuccess() bool {
-	return false
-}
-
-// IsRedirect returns true when this v1beta delete kms configuration unauthorized response has a 3xx status code
-func (o *V1betaDeleteKmsConfigurationUnauthorized) IsRedirect() bool {
-	return false
-}
-
-// IsClientError returns true when this v1beta delete kms configuration unauthorized response has a 4xx status code
-func (o *V1betaDeleteKmsConfigurationUnauthorized) IsClientError() bool {
-	return true
-}
-
-// IsServerError returns true when this v1beta delete kms configuration unauthorized response has a 5xx status code
-func (o *V1betaDeleteKmsConfigurationUnauthorized) IsServerError() bool {
-	return false
-}
-
-// IsCode returns true when this v1beta delete kms configuration unauthorized response a status code equal to that given
-func (o *V1betaDeleteKmsConfigurationUnauthorized) IsCode(code int) bool {
-	return code == 401
-}
-
-// Code gets the status code for the v1beta delete kms configuration unauthorized response
-func (o *V1betaDeleteKmsConfigurationUnauthorized) Code() int {
-	return 401
-}
-
 func (o *V1betaDeleteKmsConfigurationUnauthorized) Error() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[DELETE /v1beta/projects/{projectNumber}/locations/{locationId}/storage/kmsConfig/{kmsConfigId}][%d] v1betaDeleteKmsConfigurationUnauthorized %s", 401, payload)
-}
-
-func (o *V1betaDeleteKmsConfigurationUnauthorized) String() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[DELETE /v1beta/projects/{projectNumber}/locations/{locationId}/storage/kmsConfig/{kmsConfigId}][%d] v1betaDeleteKmsConfigurationUnauthorized %s", 401, payload)
+	return fmt.Sprintf("[DELETE /v1beta/projects/{projectNumber}/locations/{locationId}/storage/kmsConfig/{kmsConfigId}][%d] v1betaDeleteKmsConfigurationUnauthorized  %+v", 401, o.Payload)
 }
 
 func (o *V1betaDeleteKmsConfigurationUnauthorized) GetPayload() *models.Error {
@@ -368,7 +225,7 @@ func NewV1betaDeleteKmsConfigurationForbidden() *V1betaDeleteKmsConfigurationFor
 }
 
 /*
-V1betaDeleteKmsConfigurationForbidden describes a response with status code 403, with default header values.
+V1betaDeleteKmsConfigurationForbidden handles this case with default header values.
 
 Forbidden
 */
@@ -376,44 +233,8 @@ type V1betaDeleteKmsConfigurationForbidden struct {
 	Payload *models.Error
 }
 
-// IsSuccess returns true when this v1beta delete kms configuration forbidden response has a 2xx status code
-func (o *V1betaDeleteKmsConfigurationForbidden) IsSuccess() bool {
-	return false
-}
-
-// IsRedirect returns true when this v1beta delete kms configuration forbidden response has a 3xx status code
-func (o *V1betaDeleteKmsConfigurationForbidden) IsRedirect() bool {
-	return false
-}
-
-// IsClientError returns true when this v1beta delete kms configuration forbidden response has a 4xx status code
-func (o *V1betaDeleteKmsConfigurationForbidden) IsClientError() bool {
-	return true
-}
-
-// IsServerError returns true when this v1beta delete kms configuration forbidden response has a 5xx status code
-func (o *V1betaDeleteKmsConfigurationForbidden) IsServerError() bool {
-	return false
-}
-
-// IsCode returns true when this v1beta delete kms configuration forbidden response a status code equal to that given
-func (o *V1betaDeleteKmsConfigurationForbidden) IsCode(code int) bool {
-	return code == 403
-}
-
-// Code gets the status code for the v1beta delete kms configuration forbidden response
-func (o *V1betaDeleteKmsConfigurationForbidden) Code() int {
-	return 403
-}
-
 func (o *V1betaDeleteKmsConfigurationForbidden) Error() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[DELETE /v1beta/projects/{projectNumber}/locations/{locationId}/storage/kmsConfig/{kmsConfigId}][%d] v1betaDeleteKmsConfigurationForbidden %s", 403, payload)
-}
-
-func (o *V1betaDeleteKmsConfigurationForbidden) String() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[DELETE /v1beta/projects/{projectNumber}/locations/{locationId}/storage/kmsConfig/{kmsConfigId}][%d] v1betaDeleteKmsConfigurationForbidden %s", 403, payload)
+	return fmt.Sprintf("[DELETE /v1beta/projects/{projectNumber}/locations/{locationId}/storage/kmsConfig/{kmsConfigId}][%d] v1betaDeleteKmsConfigurationForbidden  %+v", 403, o.Payload)
 }
 
 func (o *V1betaDeleteKmsConfigurationForbidden) GetPayload() *models.Error {
@@ -438,7 +259,7 @@ func NewV1betaDeleteKmsConfigurationNotFound() *V1betaDeleteKmsConfigurationNotF
 }
 
 /*
-V1betaDeleteKmsConfigurationNotFound describes a response with status code 404, with default header values.
+V1betaDeleteKmsConfigurationNotFound handles this case with default header values.
 
 Not found
 */
@@ -446,44 +267,8 @@ type V1betaDeleteKmsConfigurationNotFound struct {
 	Payload *models.Error
 }
 
-// IsSuccess returns true when this v1beta delete kms configuration not found response has a 2xx status code
-func (o *V1betaDeleteKmsConfigurationNotFound) IsSuccess() bool {
-	return false
-}
-
-// IsRedirect returns true when this v1beta delete kms configuration not found response has a 3xx status code
-func (o *V1betaDeleteKmsConfigurationNotFound) IsRedirect() bool {
-	return false
-}
-
-// IsClientError returns true when this v1beta delete kms configuration not found response has a 4xx status code
-func (o *V1betaDeleteKmsConfigurationNotFound) IsClientError() bool {
-	return true
-}
-
-// IsServerError returns true when this v1beta delete kms configuration not found response has a 5xx status code
-func (o *V1betaDeleteKmsConfigurationNotFound) IsServerError() bool {
-	return false
-}
-
-// IsCode returns true when this v1beta delete kms configuration not found response a status code equal to that given
-func (o *V1betaDeleteKmsConfigurationNotFound) IsCode(code int) bool {
-	return code == 404
-}
-
-// Code gets the status code for the v1beta delete kms configuration not found response
-func (o *V1betaDeleteKmsConfigurationNotFound) Code() int {
-	return 404
-}
-
 func (o *V1betaDeleteKmsConfigurationNotFound) Error() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[DELETE /v1beta/projects/{projectNumber}/locations/{locationId}/storage/kmsConfig/{kmsConfigId}][%d] v1betaDeleteKmsConfigurationNotFound %s", 404, payload)
-}
-
-func (o *V1betaDeleteKmsConfigurationNotFound) String() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[DELETE /v1beta/projects/{projectNumber}/locations/{locationId}/storage/kmsConfig/{kmsConfigId}][%d] v1betaDeleteKmsConfigurationNotFound %s", 404, payload)
+	return fmt.Sprintf("[DELETE /v1beta/projects/{projectNumber}/locations/{locationId}/storage/kmsConfig/{kmsConfigId}][%d] v1betaDeleteKmsConfigurationNotFound  %+v", 404, o.Payload)
 }
 
 func (o *V1betaDeleteKmsConfigurationNotFound) GetPayload() *models.Error {
@@ -508,7 +293,7 @@ func NewV1betaDeleteKmsConfigurationConflict() *V1betaDeleteKmsConfigurationConf
 }
 
 /*
-V1betaDeleteKmsConfigurationConflict describes a response with status code 409, with default header values.
+V1betaDeleteKmsConfigurationConflict handles this case with default header values.
 
 Conflict
 */
@@ -516,44 +301,8 @@ type V1betaDeleteKmsConfigurationConflict struct {
 	Payload *models.Error
 }
 
-// IsSuccess returns true when this v1beta delete kms configuration conflict response has a 2xx status code
-func (o *V1betaDeleteKmsConfigurationConflict) IsSuccess() bool {
-	return false
-}
-
-// IsRedirect returns true when this v1beta delete kms configuration conflict response has a 3xx status code
-func (o *V1betaDeleteKmsConfigurationConflict) IsRedirect() bool {
-	return false
-}
-
-// IsClientError returns true when this v1beta delete kms configuration conflict response has a 4xx status code
-func (o *V1betaDeleteKmsConfigurationConflict) IsClientError() bool {
-	return true
-}
-
-// IsServerError returns true when this v1beta delete kms configuration conflict response has a 5xx status code
-func (o *V1betaDeleteKmsConfigurationConflict) IsServerError() bool {
-	return false
-}
-
-// IsCode returns true when this v1beta delete kms configuration conflict response a status code equal to that given
-func (o *V1betaDeleteKmsConfigurationConflict) IsCode(code int) bool {
-	return code == 409
-}
-
-// Code gets the status code for the v1beta delete kms configuration conflict response
-func (o *V1betaDeleteKmsConfigurationConflict) Code() int {
-	return 409
-}
-
 func (o *V1betaDeleteKmsConfigurationConflict) Error() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[DELETE /v1beta/projects/{projectNumber}/locations/{locationId}/storage/kmsConfig/{kmsConfigId}][%d] v1betaDeleteKmsConfigurationConflict %s", 409, payload)
-}
-
-func (o *V1betaDeleteKmsConfigurationConflict) String() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[DELETE /v1beta/projects/{projectNumber}/locations/{locationId}/storage/kmsConfig/{kmsConfigId}][%d] v1betaDeleteKmsConfigurationConflict %s", 409, payload)
+	return fmt.Sprintf("[DELETE /v1beta/projects/{projectNumber}/locations/{locationId}/storage/kmsConfig/{kmsConfigId}][%d] v1betaDeleteKmsConfigurationConflict  %+v", 409, o.Payload)
 }
 
 func (o *V1betaDeleteKmsConfigurationConflict) GetPayload() *models.Error {
@@ -578,7 +327,7 @@ func NewV1betaDeleteKmsConfigurationUnprocessableEntity() *V1betaDeleteKmsConfig
 }
 
 /*
-V1betaDeleteKmsConfigurationUnprocessableEntity describes a response with status code 422, with default header values.
+V1betaDeleteKmsConfigurationUnprocessableEntity handles this case with default header values.
 
 Unprocessable entity
 */
@@ -586,44 +335,8 @@ type V1betaDeleteKmsConfigurationUnprocessableEntity struct {
 	Payload *models.Error
 }
 
-// IsSuccess returns true when this v1beta delete kms configuration unprocessable entity response has a 2xx status code
-func (o *V1betaDeleteKmsConfigurationUnprocessableEntity) IsSuccess() bool {
-	return false
-}
-
-// IsRedirect returns true when this v1beta delete kms configuration unprocessable entity response has a 3xx status code
-func (o *V1betaDeleteKmsConfigurationUnprocessableEntity) IsRedirect() bool {
-	return false
-}
-
-// IsClientError returns true when this v1beta delete kms configuration unprocessable entity response has a 4xx status code
-func (o *V1betaDeleteKmsConfigurationUnprocessableEntity) IsClientError() bool {
-	return true
-}
-
-// IsServerError returns true when this v1beta delete kms configuration unprocessable entity response has a 5xx status code
-func (o *V1betaDeleteKmsConfigurationUnprocessableEntity) IsServerError() bool {
-	return false
-}
-
-// IsCode returns true when this v1beta delete kms configuration unprocessable entity response a status code equal to that given
-func (o *V1betaDeleteKmsConfigurationUnprocessableEntity) IsCode(code int) bool {
-	return code == 422
-}
-
-// Code gets the status code for the v1beta delete kms configuration unprocessable entity response
-func (o *V1betaDeleteKmsConfigurationUnprocessableEntity) Code() int {
-	return 422
-}
-
 func (o *V1betaDeleteKmsConfigurationUnprocessableEntity) Error() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[DELETE /v1beta/projects/{projectNumber}/locations/{locationId}/storage/kmsConfig/{kmsConfigId}][%d] v1betaDeleteKmsConfigurationUnprocessableEntity %s", 422, payload)
-}
-
-func (o *V1betaDeleteKmsConfigurationUnprocessableEntity) String() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[DELETE /v1beta/projects/{projectNumber}/locations/{locationId}/storage/kmsConfig/{kmsConfigId}][%d] v1betaDeleteKmsConfigurationUnprocessableEntity %s", 422, payload)
+	return fmt.Sprintf("[DELETE /v1beta/projects/{projectNumber}/locations/{locationId}/storage/kmsConfig/{kmsConfigId}][%d] v1betaDeleteKmsConfigurationUnprocessableEntity  %+v", 422, o.Payload)
 }
 
 func (o *V1betaDeleteKmsConfigurationUnprocessableEntity) GetPayload() *models.Error {
@@ -648,7 +361,7 @@ func NewV1betaDeleteKmsConfigurationTooManyRequests() *V1betaDeleteKmsConfigurat
 }
 
 /*
-V1betaDeleteKmsConfigurationTooManyRequests describes a response with status code 429, with default header values.
+V1betaDeleteKmsConfigurationTooManyRequests handles this case with default header values.
 
 Too many requests
 */
@@ -656,44 +369,8 @@ type V1betaDeleteKmsConfigurationTooManyRequests struct {
 	Payload *models.Error
 }
 
-// IsSuccess returns true when this v1beta delete kms configuration too many requests response has a 2xx status code
-func (o *V1betaDeleteKmsConfigurationTooManyRequests) IsSuccess() bool {
-	return false
-}
-
-// IsRedirect returns true when this v1beta delete kms configuration too many requests response has a 3xx status code
-func (o *V1betaDeleteKmsConfigurationTooManyRequests) IsRedirect() bool {
-	return false
-}
-
-// IsClientError returns true when this v1beta delete kms configuration too many requests response has a 4xx status code
-func (o *V1betaDeleteKmsConfigurationTooManyRequests) IsClientError() bool {
-	return true
-}
-
-// IsServerError returns true when this v1beta delete kms configuration too many requests response has a 5xx status code
-func (o *V1betaDeleteKmsConfigurationTooManyRequests) IsServerError() bool {
-	return false
-}
-
-// IsCode returns true when this v1beta delete kms configuration too many requests response a status code equal to that given
-func (o *V1betaDeleteKmsConfigurationTooManyRequests) IsCode(code int) bool {
-	return code == 429
-}
-
-// Code gets the status code for the v1beta delete kms configuration too many requests response
-func (o *V1betaDeleteKmsConfigurationTooManyRequests) Code() int {
-	return 429
-}
-
 func (o *V1betaDeleteKmsConfigurationTooManyRequests) Error() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[DELETE /v1beta/projects/{projectNumber}/locations/{locationId}/storage/kmsConfig/{kmsConfigId}][%d] v1betaDeleteKmsConfigurationTooManyRequests %s", 429, payload)
-}
-
-func (o *V1betaDeleteKmsConfigurationTooManyRequests) String() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[DELETE /v1beta/projects/{projectNumber}/locations/{locationId}/storage/kmsConfig/{kmsConfigId}][%d] v1betaDeleteKmsConfigurationTooManyRequests %s", 429, payload)
+	return fmt.Sprintf("[DELETE /v1beta/projects/{projectNumber}/locations/{locationId}/storage/kmsConfig/{kmsConfigId}][%d] v1betaDeleteKmsConfigurationTooManyRequests  %+v", 429, o.Payload)
 }
 
 func (o *V1betaDeleteKmsConfigurationTooManyRequests) GetPayload() *models.Error {
@@ -718,7 +395,7 @@ func NewV1betaDeleteKmsConfigurationInternalServerError() *V1betaDeleteKmsConfig
 }
 
 /*
-V1betaDeleteKmsConfigurationInternalServerError describes a response with status code 500, with default header values.
+V1betaDeleteKmsConfigurationInternalServerError handles this case with default header values.
 
 Internal server error
 */
@@ -726,44 +403,8 @@ type V1betaDeleteKmsConfigurationInternalServerError struct {
 	Payload *models.Error
 }
 
-// IsSuccess returns true when this v1beta delete kms configuration internal server error response has a 2xx status code
-func (o *V1betaDeleteKmsConfigurationInternalServerError) IsSuccess() bool {
-	return false
-}
-
-// IsRedirect returns true when this v1beta delete kms configuration internal server error response has a 3xx status code
-func (o *V1betaDeleteKmsConfigurationInternalServerError) IsRedirect() bool {
-	return false
-}
-
-// IsClientError returns true when this v1beta delete kms configuration internal server error response has a 4xx status code
-func (o *V1betaDeleteKmsConfigurationInternalServerError) IsClientError() bool {
-	return false
-}
-
-// IsServerError returns true when this v1beta delete kms configuration internal server error response has a 5xx status code
-func (o *V1betaDeleteKmsConfigurationInternalServerError) IsServerError() bool {
-	return true
-}
-
-// IsCode returns true when this v1beta delete kms configuration internal server error response a status code equal to that given
-func (o *V1betaDeleteKmsConfigurationInternalServerError) IsCode(code int) bool {
-	return code == 500
-}
-
-// Code gets the status code for the v1beta delete kms configuration internal server error response
-func (o *V1betaDeleteKmsConfigurationInternalServerError) Code() int {
-	return 500
-}
-
 func (o *V1betaDeleteKmsConfigurationInternalServerError) Error() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[DELETE /v1beta/projects/{projectNumber}/locations/{locationId}/storage/kmsConfig/{kmsConfigId}][%d] v1betaDeleteKmsConfigurationInternalServerError %s", 500, payload)
-}
-
-func (o *V1betaDeleteKmsConfigurationInternalServerError) String() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[DELETE /v1beta/projects/{projectNumber}/locations/{locationId}/storage/kmsConfig/{kmsConfigId}][%d] v1betaDeleteKmsConfigurationInternalServerError %s", 500, payload)
+	return fmt.Sprintf("[DELETE /v1beta/projects/{projectNumber}/locations/{locationId}/storage/kmsConfig/{kmsConfigId}][%d] v1betaDeleteKmsConfigurationInternalServerError  %+v", 500, o.Payload)
 }
 
 func (o *V1betaDeleteKmsConfigurationInternalServerError) GetPayload() *models.Error {
@@ -790,7 +431,7 @@ func NewV1betaDeleteKmsConfigurationDefault(code int) *V1betaDeleteKmsConfigurat
 }
 
 /*
-V1betaDeleteKmsConfigurationDefault describes a response with status code -1, with default header values.
+V1betaDeleteKmsConfigurationDefault handles this case with default header values.
 
 Unexpected error
 */
@@ -800,44 +441,13 @@ type V1betaDeleteKmsConfigurationDefault struct {
 	Payload *models.Error
 }
 
-// IsSuccess returns true when this v1beta delete kms configuration default response has a 2xx status code
-func (o *V1betaDeleteKmsConfigurationDefault) IsSuccess() bool {
-	return o._statusCode/100 == 2
-}
-
-// IsRedirect returns true when this v1beta delete kms configuration default response has a 3xx status code
-func (o *V1betaDeleteKmsConfigurationDefault) IsRedirect() bool {
-	return o._statusCode/100 == 3
-}
-
-// IsClientError returns true when this v1beta delete kms configuration default response has a 4xx status code
-func (o *V1betaDeleteKmsConfigurationDefault) IsClientError() bool {
-	return o._statusCode/100 == 4
-}
-
-// IsServerError returns true when this v1beta delete kms configuration default response has a 5xx status code
-func (o *V1betaDeleteKmsConfigurationDefault) IsServerError() bool {
-	return o._statusCode/100 == 5
-}
-
-// IsCode returns true when this v1beta delete kms configuration default response a status code equal to that given
-func (o *V1betaDeleteKmsConfigurationDefault) IsCode(code int) bool {
-	return o._statusCode == code
-}
-
 // Code gets the status code for the v1beta delete kms configuration default response
 func (o *V1betaDeleteKmsConfigurationDefault) Code() int {
 	return o._statusCode
 }
 
 func (o *V1betaDeleteKmsConfigurationDefault) Error() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[DELETE /v1beta/projects/{projectNumber}/locations/{locationId}/storage/kmsConfig/{kmsConfigId}][%d] v1beta_deleteKmsConfiguration default %s", o._statusCode, payload)
-}
-
-func (o *V1betaDeleteKmsConfigurationDefault) String() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[DELETE /v1beta/projects/{projectNumber}/locations/{locationId}/storage/kmsConfig/{kmsConfigId}][%d] v1beta_deleteKmsConfiguration default %s", o._statusCode, payload)
+	return fmt.Sprintf("[DELETE /v1beta/projects/{projectNumber}/locations/{locationId}/storage/kmsConfig/{kmsConfigId}][%d] v1beta_deleteKmsConfiguration default  %+v", o._statusCode, o.Payload)
 }
 
 func (o *V1betaDeleteKmsConfigurationDefault) GetPayload() *models.Error {

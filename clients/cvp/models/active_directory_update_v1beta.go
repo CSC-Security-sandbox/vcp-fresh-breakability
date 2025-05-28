@@ -6,7 +6,6 @@ package models
 // Editing this file might prove futile when you re-run the swagger generate command
 
 import (
-	"context"
 	"strconv"
 
 	"github.com/go-openapi/errors"
@@ -23,45 +22,38 @@ type ActiveDirectoryUpdateV1beta struct {
 	// DNS
 	//
 	// Comma separated list of DNS server IP addresses for the Active Directory domain. Can only include a maximum of 3 items
-	// Example: 101.102.103.104
 	// Pattern: ^(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)((, ?)(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?))*$
 	DNS string `json:"DNS,omitempty"`
 
 	// administrators
 	//
 	// Users to be added to the built-in administrators Active-directory group. The usernames must be unique, and entries cannot include @ or \. The entire list will be validated and rejected as whole if one or more entries are invalid.
-	// Example: ["batman","clarkkent"]
 	Administrators []string `json:"administrators"`
 
 	// aesEncryption
 	//
 	// If enabled, AES encryption will be enabled for SMB communication.
-	// Example: false
 	AesEncryption *bool `json:"aesEncryption,omitempty"`
 
 	// allowLocalNFSUsersWithLdap
 	//
 	// If enabled, allowLocalNFSUsersWithLdap will allow access to local users as well as LDAP users. If access is needed for only LDAP users, it has to be disabled.
-	// Example: false
 	AllowLocalNFSUsersWithLdap *bool `json:"allowLocalNFSUsersWithLdap,omitempty"`
 
 	// backupOperators
 	//
 	// Users to be added to the built-in backup operator Active-directory group. The usernames must be unique, and entries cannot include @ or \. The entire list will be validated and rejected as whole if one or more entries are invalid.
-	// Example: ["batman","clarkkent"]
 	BackupOperators []string `json:"backupOperators"`
 
 	// description
 	//
 	// Description of the Active Directory
-	// Example: My active directory description
 	// Max Length: 2048
 	Description *string `json:"description,omitempty"`
 
 	// domain
 	//
 	// Name of the Active Directory domain
-	// Example: krypton.com
 	// Max Length: 255
 	// Min Length: 1
 	// Pattern: ^[A-Za-z0-9](?:[A-Za-z0-9_-]*[A-Za-z0-9])?(\.[A-Za-z0-9](?:[A-Za-z0-9_-]*[A-Za-z0-9])?)*$
@@ -70,13 +62,11 @@ type ActiveDirectoryUpdateV1beta struct {
 	// encryptDCConnections
 	//
 	// If enabled, traffic between the SMB server to domain controller (DC) will be encrypted.
-	// Example: false
 	EncryptDCConnections *bool `json:"encryptDCConnections,omitempty"`
 
 	// kdcHostname
 	//
 	// Name of the Active Directory machine. This optional parameter is used only while creating kerberos volume
-	// Example: 2BOVAEKB44B
 	// Max Length: 64
 	// Min Length: 1
 	KdcHostname string `json:"kdcHostname,omitempty"`
@@ -84,7 +74,6 @@ type ActiveDirectoryUpdateV1beta struct {
 	// kdcIP
 	//
 	// KDC server IP address for the Active Directory machine. This optional parameter is used only while creating kerberos volume.
-	// Example: 101.102.103.104
 	// Max Length: 15
 	// Min Length: 7
 	KdcIP string `json:"kdcIP,omitempty"`
@@ -92,13 +81,11 @@ type ActiveDirectoryUpdateV1beta struct {
 	// ldapSigning
 	//
 	// Specifies whether or not the LDAP traffic needs to be signed.
-	// Example: false
 	LdapSigning *bool `json:"ldapSigning,omitempty"`
 
 	// netBIOS
 	//
 	// NetBIOS name prefix of the server
-	// Example: cvserver
 	// Max Length: 10
 	// Min Length: 1
 	NetBIOS string `json:"netBIOS,omitempty"`
@@ -106,14 +93,12 @@ type ActiveDirectoryUpdateV1beta struct {
 	// organizationalUnit
 	//
 	// The Organizational Unit (OU) within the Windows Active Directory the user belongs to.
-	// Example: CN=Computers
 	// Max Length: 255
 	OrganizationalUnit *string `json:"organizationalUnit,omitempty"`
 
 	// password
 	//
 	// Password of the Active Directory domain administrator
-	// Example: iluvpancakes
 	// Max Length: 255
 	// Min Length: 1
 	Password string `json:"password,omitempty"`
@@ -121,20 +106,17 @@ type ActiveDirectoryUpdateV1beta struct {
 	// securityOperators
 	//
 	// Domain users to be given the SeSecurityPrivilege
-	// Example: ["batman"]
 	SecurityOperators []string `json:"securityOperators"`
 
 	// site
 	//
 	// The Active Directory site the service will limit domain controller discovery to. Site names have to be at least 2 characters long (an empty string clears site assignment), can contain only alphabetical characters (A-Z), numeric characters (0-9), the minus sign (-), and the period (.). Period characters are allowed only when they are used to delimit the components of domain style names.
-	// Example: Default-First-Site-Name
 	// Max Length: 63
 	Site *string `json:"site,omitempty"`
 
 	// username
 	//
 	// Username of the Active Directory domain administrator
-	// Example: superman
 	// Max Length: 255
 	// Min Length: 1
 	Username string `json:"username,omitempty"`
@@ -203,11 +185,12 @@ func (m *ActiveDirectoryUpdateV1beta) Validate(formats strfmt.Registry) error {
 }
 
 func (m *ActiveDirectoryUpdateV1beta) validateDNS(formats strfmt.Registry) error {
+
 	if swag.IsZero(m.DNS) { // not required
 		return nil
 	}
 
-	if err := validate.Pattern("DNS", "body", m.DNS, `^(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)((, ?)(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?))*$`); err != nil {
+	if err := validate.Pattern("DNS", "body", string(m.DNS), `^(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)((, ?)(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?))*$`); err != nil {
 		return err
 	}
 
@@ -215,17 +198,18 @@ func (m *ActiveDirectoryUpdateV1beta) validateDNS(formats strfmt.Registry) error
 }
 
 func (m *ActiveDirectoryUpdateV1beta) validateAdministrators(formats strfmt.Registry) error {
+
 	if swag.IsZero(m.Administrators) { // not required
 		return nil
 	}
 
 	for i := 0; i < len(m.Administrators); i++ {
 
-		if err := validate.MinLength("administrators"+"."+strconv.Itoa(i), "body", m.Administrators[i], 1); err != nil {
+		if err := validate.MinLength("administrators"+"."+strconv.Itoa(i), "body", string(m.Administrators[i]), 1); err != nil {
 			return err
 		}
 
-		if err := validate.MaxLength("administrators"+"."+strconv.Itoa(i), "body", m.Administrators[i], 255); err != nil {
+		if err := validate.MaxLength("administrators"+"."+strconv.Itoa(i), "body", string(m.Administrators[i]), 255); err != nil {
 			return err
 		}
 
@@ -235,17 +219,18 @@ func (m *ActiveDirectoryUpdateV1beta) validateAdministrators(formats strfmt.Regi
 }
 
 func (m *ActiveDirectoryUpdateV1beta) validateBackupOperators(formats strfmt.Registry) error {
+
 	if swag.IsZero(m.BackupOperators) { // not required
 		return nil
 	}
 
 	for i := 0; i < len(m.BackupOperators); i++ {
 
-		if err := validate.MinLength("backupOperators"+"."+strconv.Itoa(i), "body", m.BackupOperators[i], 1); err != nil {
+		if err := validate.MinLength("backupOperators"+"."+strconv.Itoa(i), "body", string(m.BackupOperators[i]), 1); err != nil {
 			return err
 		}
 
-		if err := validate.MaxLength("backupOperators"+"."+strconv.Itoa(i), "body", m.BackupOperators[i], 255); err != nil {
+		if err := validate.MaxLength("backupOperators"+"."+strconv.Itoa(i), "body", string(m.BackupOperators[i]), 255); err != nil {
 			return err
 		}
 
@@ -255,11 +240,12 @@ func (m *ActiveDirectoryUpdateV1beta) validateBackupOperators(formats strfmt.Reg
 }
 
 func (m *ActiveDirectoryUpdateV1beta) validateDescription(formats strfmt.Registry) error {
+
 	if swag.IsZero(m.Description) { // not required
 		return nil
 	}
 
-	if err := validate.MaxLength("description", "body", *m.Description, 2048); err != nil {
+	if err := validate.MaxLength("description", "body", string(*m.Description), 2048); err != nil {
 		return err
 	}
 
@@ -267,19 +253,20 @@ func (m *ActiveDirectoryUpdateV1beta) validateDescription(formats strfmt.Registr
 }
 
 func (m *ActiveDirectoryUpdateV1beta) validateDomain(formats strfmt.Registry) error {
+
 	if swag.IsZero(m.Domain) { // not required
 		return nil
 	}
 
-	if err := validate.MinLength("domain", "body", m.Domain, 1); err != nil {
+	if err := validate.MinLength("domain", "body", string(m.Domain), 1); err != nil {
 		return err
 	}
 
-	if err := validate.MaxLength("domain", "body", m.Domain, 255); err != nil {
+	if err := validate.MaxLength("domain", "body", string(m.Domain), 255); err != nil {
 		return err
 	}
 
-	if err := validate.Pattern("domain", "body", m.Domain, `^[A-Za-z0-9](?:[A-Za-z0-9_-]*[A-Za-z0-9])?(\.[A-Za-z0-9](?:[A-Za-z0-9_-]*[A-Za-z0-9])?)*$`); err != nil {
+	if err := validate.Pattern("domain", "body", string(m.Domain), `^[A-Za-z0-9](?:[A-Za-z0-9_-]*[A-Za-z0-9])?(\.[A-Za-z0-9](?:[A-Za-z0-9_-]*[A-Za-z0-9])?)*$`); err != nil {
 		return err
 	}
 
@@ -287,15 +274,16 @@ func (m *ActiveDirectoryUpdateV1beta) validateDomain(formats strfmt.Registry) er
 }
 
 func (m *ActiveDirectoryUpdateV1beta) validateKdcHostname(formats strfmt.Registry) error {
+
 	if swag.IsZero(m.KdcHostname) { // not required
 		return nil
 	}
 
-	if err := validate.MinLength("kdcHostname", "body", m.KdcHostname, 1); err != nil {
+	if err := validate.MinLength("kdcHostname", "body", string(m.KdcHostname), 1); err != nil {
 		return err
 	}
 
-	if err := validate.MaxLength("kdcHostname", "body", m.KdcHostname, 64); err != nil {
+	if err := validate.MaxLength("kdcHostname", "body", string(m.KdcHostname), 64); err != nil {
 		return err
 	}
 
@@ -303,15 +291,16 @@ func (m *ActiveDirectoryUpdateV1beta) validateKdcHostname(formats strfmt.Registr
 }
 
 func (m *ActiveDirectoryUpdateV1beta) validateKdcIP(formats strfmt.Registry) error {
+
 	if swag.IsZero(m.KdcIP) { // not required
 		return nil
 	}
 
-	if err := validate.MinLength("kdcIP", "body", m.KdcIP, 7); err != nil {
+	if err := validate.MinLength("kdcIP", "body", string(m.KdcIP), 7); err != nil {
 		return err
 	}
 
-	if err := validate.MaxLength("kdcIP", "body", m.KdcIP, 15); err != nil {
+	if err := validate.MaxLength("kdcIP", "body", string(m.KdcIP), 15); err != nil {
 		return err
 	}
 
@@ -319,15 +308,16 @@ func (m *ActiveDirectoryUpdateV1beta) validateKdcIP(formats strfmt.Registry) err
 }
 
 func (m *ActiveDirectoryUpdateV1beta) validateNetBIOS(formats strfmt.Registry) error {
+
 	if swag.IsZero(m.NetBIOS) { // not required
 		return nil
 	}
 
-	if err := validate.MinLength("netBIOS", "body", m.NetBIOS, 1); err != nil {
+	if err := validate.MinLength("netBIOS", "body", string(m.NetBIOS), 1); err != nil {
 		return err
 	}
 
-	if err := validate.MaxLength("netBIOS", "body", m.NetBIOS, 10); err != nil {
+	if err := validate.MaxLength("netBIOS", "body", string(m.NetBIOS), 10); err != nil {
 		return err
 	}
 
@@ -335,11 +325,12 @@ func (m *ActiveDirectoryUpdateV1beta) validateNetBIOS(formats strfmt.Registry) e
 }
 
 func (m *ActiveDirectoryUpdateV1beta) validateOrganizationalUnit(formats strfmt.Registry) error {
+
 	if swag.IsZero(m.OrganizationalUnit) { // not required
 		return nil
 	}
 
-	if err := validate.MaxLength("organizationalUnit", "body", *m.OrganizationalUnit, 255); err != nil {
+	if err := validate.MaxLength("organizationalUnit", "body", string(*m.OrganizationalUnit), 255); err != nil {
 		return err
 	}
 
@@ -347,15 +338,16 @@ func (m *ActiveDirectoryUpdateV1beta) validateOrganizationalUnit(formats strfmt.
 }
 
 func (m *ActiveDirectoryUpdateV1beta) validatePassword(formats strfmt.Registry) error {
+
 	if swag.IsZero(m.Password) { // not required
 		return nil
 	}
 
-	if err := validate.MinLength("password", "body", m.Password, 1); err != nil {
+	if err := validate.MinLength("password", "body", string(m.Password), 1); err != nil {
 		return err
 	}
 
-	if err := validate.MaxLength("password", "body", m.Password, 255); err != nil {
+	if err := validate.MaxLength("password", "body", string(m.Password), 255); err != nil {
 		return err
 	}
 
@@ -363,17 +355,18 @@ func (m *ActiveDirectoryUpdateV1beta) validatePassword(formats strfmt.Registry) 
 }
 
 func (m *ActiveDirectoryUpdateV1beta) validateSecurityOperators(formats strfmt.Registry) error {
+
 	if swag.IsZero(m.SecurityOperators) { // not required
 		return nil
 	}
 
 	for i := 0; i < len(m.SecurityOperators); i++ {
 
-		if err := validate.MinLength("securityOperators"+"."+strconv.Itoa(i), "body", m.SecurityOperators[i], 1); err != nil {
+		if err := validate.MinLength("securityOperators"+"."+strconv.Itoa(i), "body", string(m.SecurityOperators[i]), 1); err != nil {
 			return err
 		}
 
-		if err := validate.MaxLength("securityOperators"+"."+strconv.Itoa(i), "body", m.SecurityOperators[i], 255); err != nil {
+		if err := validate.MaxLength("securityOperators"+"."+strconv.Itoa(i), "body", string(m.SecurityOperators[i]), 255); err != nil {
 			return err
 		}
 
@@ -383,11 +376,12 @@ func (m *ActiveDirectoryUpdateV1beta) validateSecurityOperators(formats strfmt.R
 }
 
 func (m *ActiveDirectoryUpdateV1beta) validateSite(formats strfmt.Registry) error {
+
 	if swag.IsZero(m.Site) { // not required
 		return nil
 	}
 
-	if err := validate.MaxLength("site", "body", *m.Site, 63); err != nil {
+	if err := validate.MaxLength("site", "body", string(*m.Site), 63); err != nil {
 		return err
 	}
 
@@ -395,23 +389,19 @@ func (m *ActiveDirectoryUpdateV1beta) validateSite(formats strfmt.Registry) erro
 }
 
 func (m *ActiveDirectoryUpdateV1beta) validateUsername(formats strfmt.Registry) error {
+
 	if swag.IsZero(m.Username) { // not required
 		return nil
 	}
 
-	if err := validate.MinLength("username", "body", m.Username, 1); err != nil {
+	if err := validate.MinLength("username", "body", string(m.Username), 1); err != nil {
 		return err
 	}
 
-	if err := validate.MaxLength("username", "body", m.Username, 255); err != nil {
+	if err := validate.MaxLength("username", "body", string(m.Username), 255); err != nil {
 		return err
 	}
 
-	return nil
-}
-
-// ContextValidate validates this active directory update v1beta based on context it is used
-func (m *ActiveDirectoryUpdateV1beta) ContextValidate(ctx context.Context, formats strfmt.Registry) error {
 	return nil
 }
 

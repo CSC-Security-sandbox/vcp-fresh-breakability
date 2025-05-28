@@ -7,38 +7,12 @@ package quota_rules
 
 import (
 	"github.com/go-openapi/runtime"
-	httptransport "github.com/go-openapi/runtime/client"
 	"github.com/go-openapi/strfmt"
 )
 
 // New creates a new quota rules API client.
 func New(transport runtime.ClientTransport, formats strfmt.Registry) ClientService {
 	return &Client{transport: transport, formats: formats}
-}
-
-// New creates a new quota rules API client with basic auth credentials.
-// It takes the following parameters:
-// - host: http host (github.com).
-// - basePath: any base path for the API client ("/v1", "/v3").
-// - scheme: http scheme ("http", "https").
-// - user: user for basic authentication header.
-// - password: password for basic authentication header.
-func NewClientWithBasicAuth(host, basePath, scheme, user, password string) ClientService {
-	transport := httptransport.New(host, basePath, []string{scheme})
-	transport.DefaultAuthentication = httptransport.BasicAuth(user, password)
-	return &Client{transport: transport, formats: strfmt.Default}
-}
-
-// New creates a new quota rules API client with a bearer token for authentication.
-// It takes the following parameters:
-// - host: http host (github.com).
-// - basePath: any base path for the API client ("/v1", "/v3").
-// - scheme: http scheme ("http", "https").
-// - bearerToken: bearer token for Bearer authentication header.
-func NewClientWithBearerToken(host, basePath, scheme, bearerToken string) ClientService {
-	transport := httptransport.New(host, basePath, []string{scheme})
-	transport.DefaultAuthentication = httptransport.BearerToken(bearerToken)
-	return &Client{transport: transport, formats: strfmt.Default}
 }
 
 /*
@@ -49,37 +23,35 @@ type Client struct {
 	formats   strfmt.Registry
 }
 
-// ClientOption may be used to customize the behavior of Client methods.
-type ClientOption func(*runtime.ClientOperation)
-
 // ClientService is the interface for Client methods
 type ClientService interface {
-	V1betaCreateQuotaRule(params *V1betaCreateQuotaRuleParams, opts ...ClientOption) (*V1betaCreateQuotaRuleOK, *V1betaCreateQuotaRuleAccepted, error)
+	V1betaCreateQuotaRule(params *V1betaCreateQuotaRuleParams) (*V1betaCreateQuotaRuleOK, *V1betaCreateQuotaRuleAccepted, error)
 
-	V1betaDeleteQuotaRule(params *V1betaDeleteQuotaRuleParams, opts ...ClientOption) (*V1betaDeleteQuotaRuleAccepted, *V1betaDeleteQuotaRuleNoContent, error)
+	V1betaDeleteQuotaRule(params *V1betaDeleteQuotaRuleParams) (*V1betaDeleteQuotaRuleAccepted, *V1betaDeleteQuotaRuleNoContent, error)
 
-	V1betaDescribeQuotaRule(params *V1betaDescribeQuotaRuleParams, opts ...ClientOption) (*V1betaDescribeQuotaRuleOK, error)
+	V1betaDescribeQuotaRule(params *V1betaDescribeQuotaRuleParams) (*V1betaDescribeQuotaRuleOK, error)
 
-	V1betaGetMultipleQuotaRules(params *V1betaGetMultipleQuotaRulesParams, opts ...ClientOption) (*V1betaGetMultipleQuotaRulesOK, error)
+	V1betaGetMultipleQuotaRules(params *V1betaGetMultipleQuotaRulesParams) (*V1betaGetMultipleQuotaRulesOK, error)
 
-	V1betaListAllQuotaRules(params *V1betaListAllQuotaRulesParams, opts ...ClientOption) (*V1betaListAllQuotaRulesOK, error)
+	V1betaListAllQuotaRules(params *V1betaListAllQuotaRulesParams) (*V1betaListAllQuotaRulesOK, error)
 
-	V1betaUpdateQuotaRule(params *V1betaUpdateQuotaRuleParams, opts ...ClientOption) (*V1betaUpdateQuotaRuleAccepted, error)
+	V1betaUpdateQuotaRule(params *V1betaUpdateQuotaRuleParams) (*V1betaUpdateQuotaRuleAccepted, error)
 
 	SetTransport(transport runtime.ClientTransport)
 }
 
 /*
-V1betaCreateQuotaRule creates quota rule for a volume
+V1betaCreateQuotaRule creates a quota rule for a volume
 
 Creates a new quota rule for the volume
 */
-func (a *Client) V1betaCreateQuotaRule(params *V1betaCreateQuotaRuleParams, opts ...ClientOption) (*V1betaCreateQuotaRuleOK, *V1betaCreateQuotaRuleAccepted, error) {
+func (a *Client) V1betaCreateQuotaRule(params *V1betaCreateQuotaRuleParams) (*V1betaCreateQuotaRuleOK, *V1betaCreateQuotaRuleAccepted, error) {
 	// TODO: Validate the params before sending
 	if params == nil {
 		params = NewV1betaCreateQuotaRuleParams()
 	}
-	op := &runtime.ClientOperation{
+
+	result, err := a.transport.Submit(&runtime.ClientOperation{
 		ID:                 "v1beta_createQuotaRule",
 		Method:             "POST",
 		PathPattern:        "/v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/quotaRules",
@@ -90,12 +62,7 @@ func (a *Client) V1betaCreateQuotaRule(params *V1betaCreateQuotaRuleParams, opts
 		Reader:             &V1betaCreateQuotaRuleReader{formats: a.formats},
 		Context:            params.Context,
 		Client:             params.HTTPClient,
-	}
-	for _, opt := range opts {
-		opt(op)
-	}
-
-	result, err := a.transport.Submit(op)
+	})
 	if err != nil {
 		return nil, nil, err
 	}
@@ -111,16 +78,17 @@ func (a *Client) V1betaCreateQuotaRule(params *V1betaCreateQuotaRuleParams, opts
 }
 
 /*
-V1betaDeleteQuotaRule deletes quota rule
+V1betaDeleteQuotaRule deletes a quota rule
 
-Delete quota rule
+Delete a quota rule
 */
-func (a *Client) V1betaDeleteQuotaRule(params *V1betaDeleteQuotaRuleParams, opts ...ClientOption) (*V1betaDeleteQuotaRuleAccepted, *V1betaDeleteQuotaRuleNoContent, error) {
+func (a *Client) V1betaDeleteQuotaRule(params *V1betaDeleteQuotaRuleParams) (*V1betaDeleteQuotaRuleAccepted, *V1betaDeleteQuotaRuleNoContent, error) {
 	// TODO: Validate the params before sending
 	if params == nil {
 		params = NewV1betaDeleteQuotaRuleParams()
 	}
-	op := &runtime.ClientOperation{
+
+	result, err := a.transport.Submit(&runtime.ClientOperation{
 		ID:                 "v1beta_deleteQuotaRule",
 		Method:             "DELETE",
 		PathPattern:        "/v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/quotaRules/{quotaRuleId}",
@@ -131,12 +99,7 @@ func (a *Client) V1betaDeleteQuotaRule(params *V1betaDeleteQuotaRuleParams, opts
 		Reader:             &V1betaDeleteQuotaRuleReader{formats: a.formats},
 		Context:            params.Context,
 		Client:             params.HTTPClient,
-	}
-	for _, opt := range opts {
-		opt(op)
-	}
-
-	result, err := a.transport.Submit(op)
+	})
 	if err != nil {
 		return nil, nil, err
 	}
@@ -156,12 +119,13 @@ V1betaDescribeQuotaRule describes quota rule
 
 Returns the description of the quota rule by quota rule ID.
 */
-func (a *Client) V1betaDescribeQuotaRule(params *V1betaDescribeQuotaRuleParams, opts ...ClientOption) (*V1betaDescribeQuotaRuleOK, error) {
+func (a *Client) V1betaDescribeQuotaRule(params *V1betaDescribeQuotaRuleParams) (*V1betaDescribeQuotaRuleOK, error) {
 	// TODO: Validate the params before sending
 	if params == nil {
 		params = NewV1betaDescribeQuotaRuleParams()
 	}
-	op := &runtime.ClientOperation{
+
+	result, err := a.transport.Submit(&runtime.ClientOperation{
 		ID:                 "v1beta_describeQuotaRule",
 		Method:             "GET",
 		PathPattern:        "/v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/quotaRules/{quotaRuleId}",
@@ -172,12 +136,7 @@ func (a *Client) V1betaDescribeQuotaRule(params *V1betaDescribeQuotaRuleParams, 
 		Reader:             &V1betaDescribeQuotaRuleReader{formats: a.formats},
 		Context:            params.Context,
 		Client:             params.HTTPClient,
-	}
-	for _, opt := range opts {
-		opt(op)
-	}
-
-	result, err := a.transport.Submit(op)
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -195,12 +154,13 @@ V1betaGetMultipleQuotaRules lists specified quota rules
 
 Returns descriptions of quota rules that is listed in request body
 */
-func (a *Client) V1betaGetMultipleQuotaRules(params *V1betaGetMultipleQuotaRulesParams, opts ...ClientOption) (*V1betaGetMultipleQuotaRulesOK, error) {
+func (a *Client) V1betaGetMultipleQuotaRules(params *V1betaGetMultipleQuotaRulesParams) (*V1betaGetMultipleQuotaRulesOK, error) {
 	// TODO: Validate the params before sending
 	if params == nil {
 		params = NewV1betaGetMultipleQuotaRulesParams()
 	}
-	op := &runtime.ClientOperation{
+
+	result, err := a.transport.Submit(&runtime.ClientOperation{
 		ID:                 "v1beta_getMultipleQuotaRules",
 		Method:             "POST",
 		PathPattern:        "/v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/getMultipleQuotaRules",
@@ -211,12 +171,7 @@ func (a *Client) V1betaGetMultipleQuotaRules(params *V1betaGetMultipleQuotaRules
 		Reader:             &V1betaGetMultipleQuotaRulesReader{formats: a.formats},
 		Context:            params.Context,
 		Client:             params.HTTPClient,
-	}
-	for _, opt := range opts {
-		opt(op)
-	}
-
-	result, err := a.transport.Submit(op)
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -234,12 +189,13 @@ V1betaListAllQuotaRules lists all quota rules for a volume
 
 Returns descriptions of all quota rules for the volume
 */
-func (a *Client) V1betaListAllQuotaRules(params *V1betaListAllQuotaRulesParams, opts ...ClientOption) (*V1betaListAllQuotaRulesOK, error) {
+func (a *Client) V1betaListAllQuotaRules(params *V1betaListAllQuotaRulesParams) (*V1betaListAllQuotaRulesOK, error) {
 	// TODO: Validate the params before sending
 	if params == nil {
 		params = NewV1betaListAllQuotaRulesParams()
 	}
-	op := &runtime.ClientOperation{
+
+	result, err := a.transport.Submit(&runtime.ClientOperation{
 		ID:                 "v1beta_listAllQuotaRules",
 		Method:             "GET",
 		PathPattern:        "/v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/quotaRules",
@@ -250,12 +206,7 @@ func (a *Client) V1betaListAllQuotaRules(params *V1betaListAllQuotaRulesParams, 
 		Reader:             &V1betaListAllQuotaRulesReader{formats: a.formats},
 		Context:            params.Context,
 		Client:             params.HTTPClient,
-	}
-	for _, opt := range opts {
-		opt(op)
-	}
-
-	result, err := a.transport.Submit(op)
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -269,16 +220,17 @@ func (a *Client) V1betaListAllQuotaRules(params *V1betaListAllQuotaRulesParams, 
 }
 
 /*
-V1betaUpdateQuotaRule updates quota rule
+V1betaUpdateQuotaRule updates a quota rule
 
-Update quota rule
+Update a quota rule
 */
-func (a *Client) V1betaUpdateQuotaRule(params *V1betaUpdateQuotaRuleParams, opts ...ClientOption) (*V1betaUpdateQuotaRuleAccepted, error) {
+func (a *Client) V1betaUpdateQuotaRule(params *V1betaUpdateQuotaRuleParams) (*V1betaUpdateQuotaRuleAccepted, error) {
 	// TODO: Validate the params before sending
 	if params == nil {
 		params = NewV1betaUpdateQuotaRuleParams()
 	}
-	op := &runtime.ClientOperation{
+
+	result, err := a.transport.Submit(&runtime.ClientOperation{
 		ID:                 "v1beta_updateQuotaRule",
 		Method:             "PUT",
 		PathPattern:        "/v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/quotaRules/{quotaRuleId}",
@@ -289,12 +241,7 @@ func (a *Client) V1betaUpdateQuotaRule(params *V1betaUpdateQuotaRuleParams, opts
 		Reader:             &V1betaUpdateQuotaRuleReader{formats: a.formats},
 		Context:            params.Context,
 		Client:             params.HTTPClient,
-	}
-	for _, opt := range opts {
-		opt(op)
-	}
-
-	result, err := a.transport.Submit(op)
+	})
 	if err != nil {
 		return nil, err
 	}

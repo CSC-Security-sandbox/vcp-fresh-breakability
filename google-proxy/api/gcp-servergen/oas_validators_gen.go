@@ -2755,7 +2755,7 @@ func (s *FlexCacheConfigV1beta) Validate() error {
 		})
 	}
 	if err := func() error {
-		if value, ok := s.AtimeScrubPeriod.Get(); ok {
+		if value, ok := s.AtimeScrubMinutes.Get(); ok {
 			if err := func() error {
 				if err := (validate.Int{
 					MinSet:        true,
@@ -2777,7 +2777,7 @@ func (s *FlexCacheConfigV1beta) Validate() error {
 		return nil
 	}(); err != nil {
 		failures = append(failures, validate.FieldError{
-			Name:  "atimeScrubPeriod",
+			Name:  "atimeScrubMinutes",
 			Error: err,
 		})
 	}
@@ -2918,6 +2918,24 @@ func (s *FlexCacheV1beta) Validate() error {
 			Error: err,
 		})
 	}
+	if err := func() error {
+		if value, ok := s.PreviousCacheState.Get(); ok {
+			if err := func() error {
+				if err := value.Validate(); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "previousCacheState",
+			Error: err,
+		})
+	}
 	if len(failures) > 0 {
 		return &validate.Error{Fields: failures}
 	}
@@ -2925,6 +2943,23 @@ func (s *FlexCacheV1beta) Validate() error {
 }
 
 func (s FlexCacheV1betaCacheState) Validate() error {
+	switch s {
+	case "CACHE_STATE_UNSPECIFIED":
+		return nil
+	case "PENDING_CLUSTER_PEERING":
+		return nil
+	case "PENDING_SVM_PEERING":
+		return nil
+	case "PEERED":
+		return nil
+	case "ERROR":
+		return nil
+	default:
+		return errors.Errorf("invalid value: %v", s)
+	}
+}
+
+func (s FlexCacheV1betaPreviousCacheState) Validate() error {
 	switch s {
 	case "CACHE_STATE_UNSPECIFIED":
 		return nil

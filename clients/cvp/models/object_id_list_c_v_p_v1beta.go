@@ -6,7 +6,6 @@ package models
 // Editing this file might prove futile when you re-run the swagger generate command
 
 import (
-	"context"
 	"strconv"
 
 	"github.com/go-openapi/errors"
@@ -54,25 +53,20 @@ func (m *ObjectIDListCVPV1beta) validateUUIDs(formats strfmt.Registry) error {
 
 	for i := 0; i < len(m.UUIDs); i++ {
 
-		if err := validate.MinLength("UUIDs"+"."+strconv.Itoa(i), "body", m.UUIDs[i], 36); err != nil {
+		if err := validate.MinLength("UUIDs"+"."+strconv.Itoa(i), "body", string(m.UUIDs[i]), 36); err != nil {
 			return err
 		}
 
-		if err := validate.MaxLength("UUIDs"+"."+strconv.Itoa(i), "body", m.UUIDs[i], 36); err != nil {
+		if err := validate.MaxLength("UUIDs"+"."+strconv.Itoa(i), "body", string(m.UUIDs[i]), 36); err != nil {
 			return err
 		}
 
-		if err := validate.Pattern("UUIDs"+"."+strconv.Itoa(i), "body", m.UUIDs[i], `^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$`); err != nil {
+		if err := validate.Pattern("UUIDs"+"."+strconv.Itoa(i), "body", string(m.UUIDs[i]), `^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$`); err != nil {
 			return err
 		}
 
 	}
 
-	return nil
-}
-
-// ContextValidate validates this object ID list c v p v1beta based on context it is used
-func (m *ObjectIDListCVPV1beta) ContextValidate(ctx context.Context, formats strfmt.Registry) error {
 	return nil
 }
 

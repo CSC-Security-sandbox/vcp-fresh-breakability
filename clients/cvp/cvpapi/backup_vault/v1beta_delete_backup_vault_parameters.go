@@ -16,37 +16,40 @@ import (
 	"github.com/go-openapi/strfmt"
 )
 
-// NewV1betaDeleteBackupVaultParams creates a new V1betaDeleteBackupVaultParams object,
-// with the default timeout for this client.
-//
-// Default values are not hydrated, since defaults are normally applied by the API server side.
-//
-// To enforce default values in parameter, use SetDefaults or WithDefaults.
+// NewV1betaDeleteBackupVaultParams creates a new V1betaDeleteBackupVaultParams object
+// with the default values initialized.
 func NewV1betaDeleteBackupVaultParams() *V1betaDeleteBackupVaultParams {
+	var ()
 	return &V1betaDeleteBackupVaultParams{
+
 		timeout: cr.DefaultTimeout,
 	}
 }
 
 // NewV1betaDeleteBackupVaultParamsWithTimeout creates a new V1betaDeleteBackupVaultParams object
-// with the ability to set a timeout on a request.
+// with the default values initialized, and the ability to set a timeout on a request
 func NewV1betaDeleteBackupVaultParamsWithTimeout(timeout time.Duration) *V1betaDeleteBackupVaultParams {
+	var ()
 	return &V1betaDeleteBackupVaultParams{
+
 		timeout: timeout,
 	}
 }
 
 // NewV1betaDeleteBackupVaultParamsWithContext creates a new V1betaDeleteBackupVaultParams object
-// with the ability to set a context for a request.
+// with the default values initialized, and the ability to set a context for a request
 func NewV1betaDeleteBackupVaultParamsWithContext(ctx context.Context) *V1betaDeleteBackupVaultParams {
+	var ()
 	return &V1betaDeleteBackupVaultParams{
+
 		Context: ctx,
 	}
 }
 
 // NewV1betaDeleteBackupVaultParamsWithHTTPClient creates a new V1betaDeleteBackupVaultParams object
-// with the ability to set a custom HTTPClient for a request.
+// with the default values initialized, and the ability to set a custom HTTPClient for a request
 func NewV1betaDeleteBackupVaultParamsWithHTTPClient(client *http.Client) *V1betaDeleteBackupVaultParams {
+	var ()
 	return &V1betaDeleteBackupVaultParams{
 		HTTPClient: client,
 	}
@@ -54,55 +57,34 @@ func NewV1betaDeleteBackupVaultParamsWithHTTPClient(client *http.Client) *V1beta
 
 /*
 V1betaDeleteBackupVaultParams contains all the parameters to send to the API endpoint
-
-	for the v1beta delete backup vault operation.
-
-	Typically these are written to a http.Request.
+for the v1beta delete backup vault operation typically these are written to a http.Request
 */
 type V1betaDeleteBackupVaultParams struct {
 
-	/* BackupVaultID.
+	/*BackupVaultID
+	  UUID v4 used to identify the backup vault
 
-	   UUID v4 used to identify the backup vault
 	*/
 	BackupVaultID string
+	/*LocationID
+	  The location/region to perform the operation in.
 
-	/* LocationID.
-
-	   The location/region to perform the operation in.
 	*/
 	LocationID string
+	/*ProjectNumber
+	  The project number of the GCP project owning the resource being acted upon
 
-	/* ProjectNumber.
-
-	   The project number of the GCP project owning the resource being acted upon
 	*/
 	ProjectNumber string
+	/*XCorrelationID
+	  Correlation identifier
 
-	/* XCorrelationID.
-
-	   Correlation identifier
 	*/
 	XCorrelationID *string
 
 	timeout    time.Duration
 	Context    context.Context
 	HTTPClient *http.Client
-}
-
-// WithDefaults hydrates default values in the v1beta delete backup vault params (not the query body).
-//
-// All values with no default are reset to their zero value.
-func (o *V1betaDeleteBackupVaultParams) WithDefaults() *V1betaDeleteBackupVaultParams {
-	o.SetDefaults()
-	return o
-}
-
-// SetDefaults hydrates default values in the v1beta delete backup vault params (not the query body).
-//
-// All values with no default are reset to their zero value.
-func (o *V1betaDeleteBackupVaultParams) SetDefaults() {
-	// no default values defined for this parameter
 }
 
 // WithTimeout adds the timeout to the v1beta delete backup vault params
@@ -211,6 +193,7 @@ func (o *V1betaDeleteBackupVaultParams) WriteToRequest(r runtime.ClientRequest, 
 		if err := r.SetHeaderParam("x-correlation-id", *o.XCorrelationID); err != nil {
 			return err
 		}
+
 	}
 
 	if len(res) > 0 {

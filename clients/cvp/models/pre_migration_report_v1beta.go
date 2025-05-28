@@ -6,7 +6,6 @@ package models
 // Editing this file might prove futile when you re-run the swagger generate command
 
 import (
-	"context"
 	"strconv"
 
 	"github.com/go-openapi/errors"
@@ -115,6 +114,7 @@ func (m *PreMigrationReportV1beta) Validate(formats strfmt.Registry) error {
 }
 
 func (m *PreMigrationReportV1beta) validateAllResources(formats strfmt.Registry) error {
+
 	if swag.IsZero(m.AllResources) { // not required
 		return nil
 	}
@@ -128,8 +128,6 @@ func (m *PreMigrationReportV1beta) validateAllResources(formats strfmt.Registry)
 			if err := m.AllResources[i].Validate(formats); err != nil {
 				if ve, ok := err.(*errors.Validation); ok {
 					return ve.ValidateName("AllResources" + "." + strconv.Itoa(i))
-				} else if ce, ok := err.(*errors.CompositeError); ok {
-					return ce.ValidateName("AllResources" + "." + strconv.Itoa(i))
 				}
 				return err
 			}
@@ -141,6 +139,7 @@ func (m *PreMigrationReportV1beta) validateAllResources(formats strfmt.Registry)
 }
 
 func (m *PreMigrationReportV1beta) validateCountOfResources(formats strfmt.Registry) error {
+
 	if swag.IsZero(m.CountOfResources) { // not required
 		return nil
 	}
@@ -154,8 +153,6 @@ func (m *PreMigrationReportV1beta) validateCountOfResources(formats strfmt.Regis
 			if err := m.CountOfResources[i].Validate(formats); err != nil {
 				if ve, ok := err.(*errors.Validation); ok {
 					return ve.ValidateName("CountOfResources" + "." + strconv.Itoa(i))
-				} else if ce, ok := err.(*errors.CompositeError); ok {
-					return ce.ValidateName("CountOfResources" + "." + strconv.Itoa(i))
 				}
 				return err
 			}
@@ -167,6 +164,7 @@ func (m *PreMigrationReportV1beta) validateCountOfResources(formats strfmt.Regis
 }
 
 func (m *PreMigrationReportV1beta) validateDetailedReplicationResources(formats strfmt.Registry) error {
+
 	if swag.IsZero(m.DetailedReplicationResources) { // not required
 		return nil
 	}
@@ -180,8 +178,6 @@ func (m *PreMigrationReportV1beta) validateDetailedReplicationResources(formats 
 			if err := m.DetailedReplicationResources[i].Validate(formats); err != nil {
 				if ve, ok := err.(*errors.Validation); ok {
 					return ve.ValidateName("DetailedReplicationResources" + "." + strconv.Itoa(i))
-				} else if ce, ok := err.(*errors.CompositeError); ok {
-					return ce.ValidateName("DetailedReplicationResources" + "." + strconv.Itoa(i))
 				}
 				return err
 			}
@@ -193,6 +189,7 @@ func (m *PreMigrationReportV1beta) validateDetailedReplicationResources(formats 
 }
 
 func (m *PreMigrationReportV1beta) validateKmsConfigs(formats strfmt.Registry) error {
+
 	if swag.IsZero(m.KmsConfigs) { // not required
 		return nil
 	}
@@ -201,8 +198,6 @@ func (m *PreMigrationReportV1beta) validateKmsConfigs(formats strfmt.Registry) e
 		if err := m.KmsConfigs.Validate(formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("KmsConfigs")
-			} else if ce, ok := err.(*errors.CompositeError); ok {
-				return ce.ValidateName("KmsConfigs")
 			}
 			return err
 		}
@@ -212,6 +207,7 @@ func (m *PreMigrationReportV1beta) validateKmsConfigs(formats strfmt.Registry) e
 }
 
 func (m *PreMigrationReportV1beta) validatePoolExtreme(formats strfmt.Registry) error {
+
 	if swag.IsZero(m.PoolExtreme) { // not required
 		return nil
 	}
@@ -225,8 +221,6 @@ func (m *PreMigrationReportV1beta) validatePoolExtreme(formats strfmt.Registry) 
 			if err := m.PoolExtreme[i].Validate(formats); err != nil {
 				if ve, ok := err.(*errors.Validation); ok {
 					return ve.ValidateName("PoolExtreme" + "." + strconv.Itoa(i))
-				} else if ce, ok := err.(*errors.CompositeError); ok {
-					return ce.ValidateName("PoolExtreme" + "." + strconv.Itoa(i))
 				}
 				return err
 			}
@@ -238,6 +232,7 @@ func (m *PreMigrationReportV1beta) validatePoolExtreme(formats strfmt.Registry) 
 }
 
 func (m *PreMigrationReportV1beta) validatePoolPremium(formats strfmt.Registry) error {
+
 	if swag.IsZero(m.PoolPremium) { // not required
 		return nil
 	}
@@ -251,8 +246,6 @@ func (m *PreMigrationReportV1beta) validatePoolPremium(formats strfmt.Registry) 
 			if err := m.PoolPremium[i].Validate(formats); err != nil {
 				if ve, ok := err.(*errors.Validation); ok {
 					return ve.ValidateName("PoolPremium" + "." + strconv.Itoa(i))
-				} else if ce, ok := err.(*errors.CompositeError); ok {
-					return ce.ValidateName("PoolPremium" + "." + strconv.Itoa(i))
 				}
 				return err
 			}
@@ -264,6 +257,7 @@ func (m *PreMigrationReportV1beta) validatePoolPremium(formats strfmt.Registry) 
 }
 
 func (m *PreMigrationReportV1beta) validatePoolStandard(formats strfmt.Registry) error {
+
 	if swag.IsZero(m.PoolStandard) { // not required
 		return nil
 	}
@@ -277,8 +271,6 @@ func (m *PreMigrationReportV1beta) validatePoolStandard(formats strfmt.Registry)
 			if err := m.PoolStandard[i].Validate(formats); err != nil {
 				if ve, ok := err.(*errors.Validation); ok {
 					return ve.ValidateName("PoolStandard" + "." + strconv.Itoa(i))
-				} else if ce, ok := err.(*errors.CompositeError); ok {
-					return ce.ValidateName("PoolStandard" + "." + strconv.Itoa(i))
 				}
 				return err
 			}
@@ -290,6 +282,7 @@ func (m *PreMigrationReportV1beta) validatePoolStandard(formats strfmt.Registry)
 }
 
 func (m *PreMigrationReportV1beta) validateReplicationResources(formats strfmt.Registry) error {
+
 	if swag.IsZero(m.ReplicationResources) { // not required
 		return nil
 	}
@@ -303,8 +296,6 @@ func (m *PreMigrationReportV1beta) validateReplicationResources(formats strfmt.R
 			if err := m.ReplicationResources[i].Validate(formats); err != nil {
 				if ve, ok := err.(*errors.Validation); ok {
 					return ve.ValidateName("ReplicationResources" + "." + strconv.Itoa(i))
-				} else if ce, ok := err.(*errors.CompositeError); ok {
-					return ce.ValidateName("ReplicationResources" + "." + strconv.Itoa(i))
 				}
 				return err
 			}
@@ -330,8 +321,6 @@ func (m *PreMigrationReportV1beta) validateResourcesForMigration(formats strfmt.
 			if err := m.ResourcesForMigration[i].Validate(formats); err != nil {
 				if ve, ok := err.(*errors.Validation); ok {
 					return ve.ValidateName("ResourcesForMigration" + "." + strconv.Itoa(i))
-				} else if ce, ok := err.(*errors.CompositeError); ok {
-					return ce.ValidateName("ResourcesForMigration" + "." + strconv.Itoa(i))
 				}
 				return err
 			}
@@ -343,6 +332,7 @@ func (m *PreMigrationReportV1beta) validateResourcesForMigration(formats strfmt.
 }
 
 func (m *PreMigrationReportV1beta) validateSharedVPCProjects(formats strfmt.Registry) error {
+
 	if swag.IsZero(m.SharedVPCProjects) { // not required
 		return nil
 	}
@@ -351,8 +341,6 @@ func (m *PreMigrationReportV1beta) validateSharedVPCProjects(formats strfmt.Regi
 		if err := m.SharedVPCProjects.Validate(formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("SharedVPCProjects")
-			} else if ce, ok := err.(*errors.CompositeError); ok {
-				return ce.ValidateName("SharedVPCProjects")
 			}
 			return err
 		}
@@ -362,6 +350,7 @@ func (m *PreMigrationReportV1beta) validateSharedVPCProjects(formats strfmt.Regi
 }
 
 func (m *PreMigrationReportV1beta) validateUnSupportedConfiguration(formats strfmt.Registry) error {
+
 	if swag.IsZero(m.UnSupportedConfiguration) { // not required
 		return nil
 	}
@@ -375,329 +364,6 @@ func (m *PreMigrationReportV1beta) validateUnSupportedConfiguration(formats strf
 			if err := m.UnSupportedConfiguration[i].Validate(formats); err != nil {
 				if ve, ok := err.(*errors.Validation); ok {
 					return ve.ValidateName("UnSupportedConfiguration" + "." + strconv.Itoa(i))
-				} else if ce, ok := err.(*errors.CompositeError); ok {
-					return ce.ValidateName("UnSupportedConfiguration" + "." + strconv.Itoa(i))
-				}
-				return err
-			}
-		}
-
-	}
-
-	return nil
-}
-
-// ContextValidate validate this pre migration report v1beta based on the context it is used
-func (m *PreMigrationReportV1beta) ContextValidate(ctx context.Context, formats strfmt.Registry) error {
-	var res []error
-
-	if err := m.contextValidateAllResources(ctx, formats); err != nil {
-		res = append(res, err)
-	}
-
-	if err := m.contextValidateCountOfResources(ctx, formats); err != nil {
-		res = append(res, err)
-	}
-
-	if err := m.contextValidateDetailedReplicationResources(ctx, formats); err != nil {
-		res = append(res, err)
-	}
-
-	if err := m.contextValidateKmsConfigs(ctx, formats); err != nil {
-		res = append(res, err)
-	}
-
-	if err := m.contextValidatePoolExtreme(ctx, formats); err != nil {
-		res = append(res, err)
-	}
-
-	if err := m.contextValidatePoolPremium(ctx, formats); err != nil {
-		res = append(res, err)
-	}
-
-	if err := m.contextValidatePoolStandard(ctx, formats); err != nil {
-		res = append(res, err)
-	}
-
-	if err := m.contextValidateReplicationResources(ctx, formats); err != nil {
-		res = append(res, err)
-	}
-
-	if err := m.contextValidateResourcesForMigration(ctx, formats); err != nil {
-		res = append(res, err)
-	}
-
-	if err := m.contextValidateSharedVPCProjects(ctx, formats); err != nil {
-		res = append(res, err)
-	}
-
-	if err := m.contextValidateUnSupportedConfiguration(ctx, formats); err != nil {
-		res = append(res, err)
-	}
-
-	if len(res) > 0 {
-		return errors.CompositeValidationError(res...)
-	}
-	return nil
-}
-
-func (m *PreMigrationReportV1beta) contextValidateAllResources(ctx context.Context, formats strfmt.Registry) error {
-
-	for i := 0; i < len(m.AllResources); i++ {
-
-		if m.AllResources[i] != nil {
-
-			if swag.IsZero(m.AllResources[i]) { // not required
-				return nil
-			}
-
-			if err := m.AllResources[i].ContextValidate(ctx, formats); err != nil {
-				if ve, ok := err.(*errors.Validation); ok {
-					return ve.ValidateName("AllResources" + "." + strconv.Itoa(i))
-				} else if ce, ok := err.(*errors.CompositeError); ok {
-					return ce.ValidateName("AllResources" + "." + strconv.Itoa(i))
-				}
-				return err
-			}
-		}
-
-	}
-
-	return nil
-}
-
-func (m *PreMigrationReportV1beta) contextValidateCountOfResources(ctx context.Context, formats strfmt.Registry) error {
-
-	for i := 0; i < len(m.CountOfResources); i++ {
-
-		if m.CountOfResources[i] != nil {
-
-			if swag.IsZero(m.CountOfResources[i]) { // not required
-				return nil
-			}
-
-			if err := m.CountOfResources[i].ContextValidate(ctx, formats); err != nil {
-				if ve, ok := err.(*errors.Validation); ok {
-					return ve.ValidateName("CountOfResources" + "." + strconv.Itoa(i))
-				} else if ce, ok := err.(*errors.CompositeError); ok {
-					return ce.ValidateName("CountOfResources" + "." + strconv.Itoa(i))
-				}
-				return err
-			}
-		}
-
-	}
-
-	return nil
-}
-
-func (m *PreMigrationReportV1beta) contextValidateDetailedReplicationResources(ctx context.Context, formats strfmt.Registry) error {
-
-	for i := 0; i < len(m.DetailedReplicationResources); i++ {
-
-		if m.DetailedReplicationResources[i] != nil {
-
-			if swag.IsZero(m.DetailedReplicationResources[i]) { // not required
-				return nil
-			}
-
-			if err := m.DetailedReplicationResources[i].ContextValidate(ctx, formats); err != nil {
-				if ve, ok := err.(*errors.Validation); ok {
-					return ve.ValidateName("DetailedReplicationResources" + "." + strconv.Itoa(i))
-				} else if ce, ok := err.(*errors.CompositeError); ok {
-					return ce.ValidateName("DetailedReplicationResources" + "." + strconv.Itoa(i))
-				}
-				return err
-			}
-		}
-
-	}
-
-	return nil
-}
-
-func (m *PreMigrationReportV1beta) contextValidateKmsConfigs(ctx context.Context, formats strfmt.Registry) error {
-
-	if m.KmsConfigs != nil {
-
-		if swag.IsZero(m.KmsConfigs) { // not required
-			return nil
-		}
-
-		if err := m.KmsConfigs.ContextValidate(ctx, formats); err != nil {
-			if ve, ok := err.(*errors.Validation); ok {
-				return ve.ValidateName("KmsConfigs")
-			} else if ce, ok := err.(*errors.CompositeError); ok {
-				return ce.ValidateName("KmsConfigs")
-			}
-			return err
-		}
-	}
-
-	return nil
-}
-
-func (m *PreMigrationReportV1beta) contextValidatePoolExtreme(ctx context.Context, formats strfmt.Registry) error {
-
-	for i := 0; i < len(m.PoolExtreme); i++ {
-
-		if m.PoolExtreme[i] != nil {
-
-			if swag.IsZero(m.PoolExtreme[i]) { // not required
-				return nil
-			}
-
-			if err := m.PoolExtreme[i].ContextValidate(ctx, formats); err != nil {
-				if ve, ok := err.(*errors.Validation); ok {
-					return ve.ValidateName("PoolExtreme" + "." + strconv.Itoa(i))
-				} else if ce, ok := err.(*errors.CompositeError); ok {
-					return ce.ValidateName("PoolExtreme" + "." + strconv.Itoa(i))
-				}
-				return err
-			}
-		}
-
-	}
-
-	return nil
-}
-
-func (m *PreMigrationReportV1beta) contextValidatePoolPremium(ctx context.Context, formats strfmt.Registry) error {
-
-	for i := 0; i < len(m.PoolPremium); i++ {
-
-		if m.PoolPremium[i] != nil {
-
-			if swag.IsZero(m.PoolPremium[i]) { // not required
-				return nil
-			}
-
-			if err := m.PoolPremium[i].ContextValidate(ctx, formats); err != nil {
-				if ve, ok := err.(*errors.Validation); ok {
-					return ve.ValidateName("PoolPremium" + "." + strconv.Itoa(i))
-				} else if ce, ok := err.(*errors.CompositeError); ok {
-					return ce.ValidateName("PoolPremium" + "." + strconv.Itoa(i))
-				}
-				return err
-			}
-		}
-
-	}
-
-	return nil
-}
-
-func (m *PreMigrationReportV1beta) contextValidatePoolStandard(ctx context.Context, formats strfmt.Registry) error {
-
-	for i := 0; i < len(m.PoolStandard); i++ {
-
-		if m.PoolStandard[i] != nil {
-
-			if swag.IsZero(m.PoolStandard[i]) { // not required
-				return nil
-			}
-
-			if err := m.PoolStandard[i].ContextValidate(ctx, formats); err != nil {
-				if ve, ok := err.(*errors.Validation); ok {
-					return ve.ValidateName("PoolStandard" + "." + strconv.Itoa(i))
-				} else if ce, ok := err.(*errors.CompositeError); ok {
-					return ce.ValidateName("PoolStandard" + "." + strconv.Itoa(i))
-				}
-				return err
-			}
-		}
-
-	}
-
-	return nil
-}
-
-func (m *PreMigrationReportV1beta) contextValidateReplicationResources(ctx context.Context, formats strfmt.Registry) error {
-
-	for i := 0; i < len(m.ReplicationResources); i++ {
-
-		if m.ReplicationResources[i] != nil {
-
-			if swag.IsZero(m.ReplicationResources[i]) { // not required
-				return nil
-			}
-
-			if err := m.ReplicationResources[i].ContextValidate(ctx, formats); err != nil {
-				if ve, ok := err.(*errors.Validation); ok {
-					return ve.ValidateName("ReplicationResources" + "." + strconv.Itoa(i))
-				} else if ce, ok := err.(*errors.CompositeError); ok {
-					return ce.ValidateName("ReplicationResources" + "." + strconv.Itoa(i))
-				}
-				return err
-			}
-		}
-
-	}
-
-	return nil
-}
-
-func (m *PreMigrationReportV1beta) contextValidateResourcesForMigration(ctx context.Context, formats strfmt.Registry) error {
-
-	for i := 0; i < len(m.ResourcesForMigration); i++ {
-
-		if m.ResourcesForMigration[i] != nil {
-
-			if swag.IsZero(m.ResourcesForMigration[i]) { // not required
-				return nil
-			}
-
-			if err := m.ResourcesForMigration[i].ContextValidate(ctx, formats); err != nil {
-				if ve, ok := err.(*errors.Validation); ok {
-					return ve.ValidateName("ResourcesForMigration" + "." + strconv.Itoa(i))
-				} else if ce, ok := err.(*errors.CompositeError); ok {
-					return ce.ValidateName("ResourcesForMigration" + "." + strconv.Itoa(i))
-				}
-				return err
-			}
-		}
-
-	}
-
-	return nil
-}
-
-func (m *PreMigrationReportV1beta) contextValidateSharedVPCProjects(ctx context.Context, formats strfmt.Registry) error {
-
-	if m.SharedVPCProjects != nil {
-
-		if swag.IsZero(m.SharedVPCProjects) { // not required
-			return nil
-		}
-
-		if err := m.SharedVPCProjects.ContextValidate(ctx, formats); err != nil {
-			if ve, ok := err.(*errors.Validation); ok {
-				return ve.ValidateName("SharedVPCProjects")
-			} else if ce, ok := err.(*errors.CompositeError); ok {
-				return ce.ValidateName("SharedVPCProjects")
-			}
-			return err
-		}
-	}
-
-	return nil
-}
-
-func (m *PreMigrationReportV1beta) contextValidateUnSupportedConfiguration(ctx context.Context, formats strfmt.Registry) error {
-
-	for i := 0; i < len(m.UnSupportedConfiguration); i++ {
-
-		if m.UnSupportedConfiguration[i] != nil {
-
-			if swag.IsZero(m.UnSupportedConfiguration[i]) { // not required
-				return nil
-			}
-
-			if err := m.UnSupportedConfiguration[i].ContextValidate(ctx, formats); err != nil {
-				if ve, ok := err.(*errors.Validation); ok {
-					return ve.ValidateName("UnSupportedConfiguration" + "." + strconv.Itoa(i))
-				} else if ce, ok := err.(*errors.CompositeError); ok {
-					return ce.ValidateName("UnSupportedConfiguration" + "." + strconv.Itoa(i))
 				}
 				return err
 			}
@@ -742,7 +408,6 @@ type PreMigrationReportV1betaSharedVPCProjects struct {
 	// UserInstructions
 	//
 	// Instructions to be followed by the customer to take make sure the migration of resources happen correctly.
-	// Example: Please enable the disabled shared vpc projects
 	UserInstructions string `json:"UserInstructions,omitempty"`
 }
 
@@ -765,6 +430,7 @@ func (m *PreMigrationReportV1betaSharedVPCProjects) Validate(formats strfmt.Regi
 }
 
 func (m *PreMigrationReportV1betaSharedVPCProjects) validateDisabledProjects(formats strfmt.Registry) error {
+
 	if swag.IsZero(m.DisabledProjects) { // not required
 		return nil
 	}
@@ -778,8 +444,6 @@ func (m *PreMigrationReportV1betaSharedVPCProjects) validateDisabledProjects(for
 			if err := m.DisabledProjects[i].Validate(formats); err != nil {
 				if ve, ok := err.(*errors.Validation); ok {
 					return ve.ValidateName("SharedVPCProjects" + "." + "DisabledProjects" + "." + strconv.Itoa(i))
-				} else if ce, ok := err.(*errors.CompositeError); ok {
-					return ce.ValidateName("SharedVPCProjects" + "." + "DisabledProjects" + "." + strconv.Itoa(i))
 				}
 				return err
 			}
@@ -791,6 +455,7 @@ func (m *PreMigrationReportV1betaSharedVPCProjects) validateDisabledProjects(for
 }
 
 func (m *PreMigrationReportV1betaSharedVPCProjects) validateEnabledProjects(formats strfmt.Registry) error {
+
 	if swag.IsZero(m.EnabledProjects) { // not required
 		return nil
 	}
@@ -804,76 +469,6 @@ func (m *PreMigrationReportV1betaSharedVPCProjects) validateEnabledProjects(form
 			if err := m.EnabledProjects[i].Validate(formats); err != nil {
 				if ve, ok := err.(*errors.Validation); ok {
 					return ve.ValidateName("SharedVPCProjects" + "." + "EnabledProjects" + "." + strconv.Itoa(i))
-				} else if ce, ok := err.(*errors.CompositeError); ok {
-					return ce.ValidateName("SharedVPCProjects" + "." + "EnabledProjects" + "." + strconv.Itoa(i))
-				}
-				return err
-			}
-		}
-
-	}
-
-	return nil
-}
-
-// ContextValidate validate this pre migration report v1beta shared v p c projects based on the context it is used
-func (m *PreMigrationReportV1betaSharedVPCProjects) ContextValidate(ctx context.Context, formats strfmt.Registry) error {
-	var res []error
-
-	if err := m.contextValidateDisabledProjects(ctx, formats); err != nil {
-		res = append(res, err)
-	}
-
-	if err := m.contextValidateEnabledProjects(ctx, formats); err != nil {
-		res = append(res, err)
-	}
-
-	if len(res) > 0 {
-		return errors.CompositeValidationError(res...)
-	}
-	return nil
-}
-
-func (m *PreMigrationReportV1betaSharedVPCProjects) contextValidateDisabledProjects(ctx context.Context, formats strfmt.Registry) error {
-
-	for i := 0; i < len(m.DisabledProjects); i++ {
-
-		if m.DisabledProjects[i] != nil {
-
-			if swag.IsZero(m.DisabledProjects[i]) { // not required
-				return nil
-			}
-
-			if err := m.DisabledProjects[i].ContextValidate(ctx, formats); err != nil {
-				if ve, ok := err.(*errors.Validation); ok {
-					return ve.ValidateName("SharedVPCProjects" + "." + "DisabledProjects" + "." + strconv.Itoa(i))
-				} else if ce, ok := err.(*errors.CompositeError); ok {
-					return ce.ValidateName("SharedVPCProjects" + "." + "DisabledProjects" + "." + strconv.Itoa(i))
-				}
-				return err
-			}
-		}
-
-	}
-
-	return nil
-}
-
-func (m *PreMigrationReportV1betaSharedVPCProjects) contextValidateEnabledProjects(ctx context.Context, formats strfmt.Registry) error {
-
-	for i := 0; i < len(m.EnabledProjects); i++ {
-
-		if m.EnabledProjects[i] != nil {
-
-			if swag.IsZero(m.EnabledProjects[i]) { // not required
-				return nil
-			}
-
-			if err := m.EnabledProjects[i].ContextValidate(ctx, formats); err != nil {
-				if ve, ok := err.(*errors.Validation); ok {
-					return ve.ValidateName("SharedVPCProjects" + "." + "EnabledProjects" + "." + strconv.Itoa(i))
-				} else if ce, ok := err.(*errors.CompositeError); ok {
-					return ce.ValidateName("SharedVPCProjects" + "." + "EnabledProjects" + "." + strconv.Itoa(i))
 				}
 				return err
 			}

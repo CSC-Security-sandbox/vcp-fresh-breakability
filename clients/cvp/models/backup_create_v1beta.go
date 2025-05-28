@@ -6,8 +6,6 @@ package models
 // Editing this file might prove futile when you re-run the swagger generate command
 
 import (
-	"context"
-
 	"github.com/go-openapi/errors"
 	"github.com/go-openapi/strfmt"
 	"github.com/go-openapi/swag"
@@ -109,33 +107,6 @@ func (m *BackupCreateV1beta) Validate(formats strfmt.Registry) error {
 	}
 	// validation for a type composition with SnapshotIDV1beta
 	if err := m.SnapshotIDV1beta.Validate(formats); err != nil {
-		res = append(res, err)
-	}
-
-	if len(res) > 0 {
-		return errors.CompositeValidationError(res...)
-	}
-	return nil
-}
-
-// ContextValidate validate this backup create v1beta based on the context it is used
-func (m *BackupCreateV1beta) ContextValidate(ctx context.Context, formats strfmt.Registry) error {
-	var res []error
-
-	// validation for a type composition with ResourceNameV1beta
-	if err := m.ResourceNameV1beta.ContextValidate(ctx, formats); err != nil {
-		res = append(res, err)
-	}
-	// validation for a type composition with DescriptionV1beta
-	if err := m.DescriptionV1beta.ContextValidate(ctx, formats); err != nil {
-		res = append(res, err)
-	}
-	// validation for a type composition with VolumeIDV1beta
-	if err := m.VolumeIDV1beta.ContextValidate(ctx, formats); err != nil {
-		res = append(res, err)
-	}
-	// validation for a type composition with SnapshotIDV1beta
-	if err := m.SnapshotIDV1beta.ContextValidate(ctx, formats); err != nil {
 		res = append(res, err)
 	}
 

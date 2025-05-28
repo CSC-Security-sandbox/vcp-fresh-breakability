@@ -7,38 +7,12 @@ package batch
 
 import (
 	"github.com/go-openapi/runtime"
-	httptransport "github.com/go-openapi/runtime/client"
 	"github.com/go-openapi/strfmt"
 )
 
 // New creates a new batch API client.
 func New(transport runtime.ClientTransport, formats strfmt.Registry) ClientService {
 	return &Client{transport: transport, formats: formats}
-}
-
-// New creates a new batch API client with basic auth credentials.
-// It takes the following parameters:
-// - host: http host (github.com).
-// - basePath: any base path for the API client ("/v1", "/v3").
-// - scheme: http scheme ("http", "https").
-// - user: user for basic authentication header.
-// - password: password for basic authentication header.
-func NewClientWithBasicAuth(host, basePath, scheme, user, password string) ClientService {
-	transport := httptransport.New(host, basePath, []string{scheme})
-	transport.DefaultAuthentication = httptransport.BasicAuth(user, password)
-	return &Client{transport: transport, formats: strfmt.Default}
-}
-
-// New creates a new batch API client with a bearer token for authentication.
-// It takes the following parameters:
-// - host: http host (github.com).
-// - basePath: any base path for the API client ("/v1", "/v3").
-// - scheme: http scheme ("http", "https").
-// - bearerToken: bearer token for Bearer authentication header.
-func NewClientWithBearerToken(host, basePath, scheme, bearerToken string) ClientService {
-	transport := httptransport.New(host, basePath, []string{scheme})
-	transport.DefaultAuthentication = httptransport.BearerToken(bearerToken)
-	return &Client{transport: transport, formats: strfmt.Default}
 }
 
 /*
@@ -49,28 +23,25 @@ type Client struct {
 	formats   strfmt.Registry
 }
 
-// ClientOption may be used to customize the behavior of Client methods.
-type ClientOption func(*runtime.ClientOperation)
-
 // ClientService is the interface for Client methods
 type ClientService interface {
-	V1betaBatchListActiveDirectories(params *V1betaBatchListActiveDirectoriesParams, opts ...ClientOption) (*V1betaBatchListActiveDirectoriesOK, error)
+	V1betaBatchListActiveDirectories(params *V1betaBatchListActiveDirectoriesParams) (*V1betaBatchListActiveDirectoriesOK, error)
 
-	V1betaBatchListBackupPolicies(params *V1betaBatchListBackupPoliciesParams, opts ...ClientOption) (*V1betaBatchListBackupPoliciesOK, error)
+	V1betaBatchListBackupPolicies(params *V1betaBatchListBackupPoliciesParams) (*V1betaBatchListBackupPoliciesOK, error)
 
-	V1betaBatchListBackupVaults(params *V1betaBatchListBackupVaultsParams, opts ...ClientOption) (*V1betaBatchListBackupVaultsOK, error)
+	V1betaBatchListBackupVaults(params *V1betaBatchListBackupVaultsParams) (*V1betaBatchListBackupVaultsOK, error)
 
-	V1betaBatchListBackups(params *V1betaBatchListBackupsParams, opts ...ClientOption) (*V1betaBatchListBackupsOK, error)
+	V1betaBatchListBackups(params *V1betaBatchListBackupsParams) (*V1betaBatchListBackupsOK, error)
 
-	V1betaBatchListKmsConfigs(params *V1betaBatchListKmsConfigsParams, opts ...ClientOption) (*V1betaBatchListKmsConfigsOK, error)
+	V1betaBatchListKmsConfigs(params *V1betaBatchListKmsConfigsParams) (*V1betaBatchListKmsConfigsOK, error)
 
-	V1betaBatchListPools(params *V1betaBatchListPoolsParams, opts ...ClientOption) (*V1betaBatchListPoolsOK, error)
+	V1betaBatchListPools(params *V1betaBatchListPoolsParams) (*V1betaBatchListPoolsOK, error)
 
-	V1betaBatchListReplications(params *V1betaBatchListReplicationsParams, opts ...ClientOption) (*V1betaBatchListReplicationsOK, error)
+	V1betaBatchListReplications(params *V1betaBatchListReplicationsParams) (*V1betaBatchListReplicationsOK, error)
 
-	V1betaBatchListSnapshots(params *V1betaBatchListSnapshotsParams, opts ...ClientOption) (*V1betaBatchListSnapshotsOK, error)
+	V1betaBatchListSnapshots(params *V1betaBatchListSnapshotsParams) (*V1betaBatchListSnapshotsOK, error)
 
-	V1betaBatchListVolumes(params *V1betaBatchListVolumesParams, opts ...ClientOption) (*V1betaBatchListVolumesOK, error)
+	V1betaBatchListVolumes(params *V1betaBatchListVolumesParams) (*V1betaBatchListVolumesOK, error)
 
 	SetTransport(transport runtime.ClientTransport)
 }
@@ -80,12 +51,13 @@ V1betaBatchListActiveDirectories batches lists all active directories with the g
 
 Batch lists all Active Directories with the given UUIDs
 */
-func (a *Client) V1betaBatchListActiveDirectories(params *V1betaBatchListActiveDirectoriesParams, opts ...ClientOption) (*V1betaBatchListActiveDirectoriesOK, error) {
+func (a *Client) V1betaBatchListActiveDirectories(params *V1betaBatchListActiveDirectoriesParams) (*V1betaBatchListActiveDirectoriesOK, error) {
 	// TODO: Validate the params before sending
 	if params == nil {
 		params = NewV1betaBatchListActiveDirectoriesParams()
 	}
-	op := &runtime.ClientOperation{
+
+	result, err := a.transport.Submit(&runtime.ClientOperation{
 		ID:                 "v1beta_batchListActiveDirectories",
 		Method:             "POST",
 		PathPattern:        "/v1beta/locations/{locationId}/batch/activeDirectories",
@@ -96,12 +68,7 @@ func (a *Client) V1betaBatchListActiveDirectories(params *V1betaBatchListActiveD
 		Reader:             &V1betaBatchListActiveDirectoriesReader{formats: a.formats},
 		Context:            params.Context,
 		Client:             params.HTTPClient,
-	}
-	for _, opt := range opts {
-		opt(op)
-	}
-
-	result, err := a.transport.Submit(op)
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -119,12 +86,13 @@ V1betaBatchListBackupPolicies batches lists all backup policies with the given u
 
 Batch lists all backup policies with the given UUIDs
 */
-func (a *Client) V1betaBatchListBackupPolicies(params *V1betaBatchListBackupPoliciesParams, opts ...ClientOption) (*V1betaBatchListBackupPoliciesOK, error) {
+func (a *Client) V1betaBatchListBackupPolicies(params *V1betaBatchListBackupPoliciesParams) (*V1betaBatchListBackupPoliciesOK, error) {
 	// TODO: Validate the params before sending
 	if params == nil {
 		params = NewV1betaBatchListBackupPoliciesParams()
 	}
-	op := &runtime.ClientOperation{
+
+	result, err := a.transport.Submit(&runtime.ClientOperation{
 		ID:                 "v1beta_batchListBackupPolicies",
 		Method:             "POST",
 		PathPattern:        "/v1beta/locations/{locationId}/batch/backupPolicies",
@@ -135,12 +103,7 @@ func (a *Client) V1betaBatchListBackupPolicies(params *V1betaBatchListBackupPoli
 		Reader:             &V1betaBatchListBackupPoliciesReader{formats: a.formats},
 		Context:            params.Context,
 		Client:             params.HTTPClient,
-	}
-	for _, opt := range opts {
-		opt(op)
-	}
-
-	result, err := a.transport.Submit(op)
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -158,12 +121,13 @@ V1betaBatchListBackupVaults batches lists all backup vaults with the given u UI 
 
 Batch lists all backup vaults with the given UUIDs
 */
-func (a *Client) V1betaBatchListBackupVaults(params *V1betaBatchListBackupVaultsParams, opts ...ClientOption) (*V1betaBatchListBackupVaultsOK, error) {
+func (a *Client) V1betaBatchListBackupVaults(params *V1betaBatchListBackupVaultsParams) (*V1betaBatchListBackupVaultsOK, error) {
 	// TODO: Validate the params before sending
 	if params == nil {
 		params = NewV1betaBatchListBackupVaultsParams()
 	}
-	op := &runtime.ClientOperation{
+
+	result, err := a.transport.Submit(&runtime.ClientOperation{
 		ID:                 "v1beta_batchListBackupVaults",
 		Method:             "POST",
 		PathPattern:        "/v1beta/locations/{locationId}/batch/backupVaults",
@@ -174,12 +138,7 @@ func (a *Client) V1betaBatchListBackupVaults(params *V1betaBatchListBackupVaults
 		Reader:             &V1betaBatchListBackupVaultsReader{formats: a.formats},
 		Context:            params.Context,
 		Client:             params.HTTPClient,
-	}
-	for _, opt := range opts {
-		opt(op)
-	}
-
-	result, err := a.transport.Submit(op)
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -197,12 +156,13 @@ V1betaBatchListBackups batches lists all backups with the given u UI ds
 
 Batch lists all backups with the given UUIDs
 */
-func (a *Client) V1betaBatchListBackups(params *V1betaBatchListBackupsParams, opts ...ClientOption) (*V1betaBatchListBackupsOK, error) {
+func (a *Client) V1betaBatchListBackups(params *V1betaBatchListBackupsParams) (*V1betaBatchListBackupsOK, error) {
 	// TODO: Validate the params before sending
 	if params == nil {
 		params = NewV1betaBatchListBackupsParams()
 	}
-	op := &runtime.ClientOperation{
+
+	result, err := a.transport.Submit(&runtime.ClientOperation{
 		ID:                 "v1beta_batchListBackups",
 		Method:             "POST",
 		PathPattern:        "/v1beta/locations/{locationId}/batch/backups",
@@ -213,12 +173,7 @@ func (a *Client) V1betaBatchListBackups(params *V1betaBatchListBackupsParams, op
 		Reader:             &V1betaBatchListBackupsReader{formats: a.formats},
 		Context:            params.Context,
 		Client:             params.HTTPClient,
-	}
-	for _, opt := range opts {
-		opt(op)
-	}
-
-	result, err := a.transport.Submit(op)
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -236,12 +191,13 @@ V1betaBatchListKmsConfigs batches lists all k m s configurations with the given 
 
 Batch lists all KMS configurations with the given UUIDs
 */
-func (a *Client) V1betaBatchListKmsConfigs(params *V1betaBatchListKmsConfigsParams, opts ...ClientOption) (*V1betaBatchListKmsConfigsOK, error) {
+func (a *Client) V1betaBatchListKmsConfigs(params *V1betaBatchListKmsConfigsParams) (*V1betaBatchListKmsConfigsOK, error) {
 	// TODO: Validate the params before sending
 	if params == nil {
 		params = NewV1betaBatchListKmsConfigsParams()
 	}
-	op := &runtime.ClientOperation{
+
+	result, err := a.transport.Submit(&runtime.ClientOperation{
 		ID:                 "v1beta_batchListKmsConfigs",
 		Method:             "POST",
 		PathPattern:        "/v1beta/locations/{locationId}/batch/kmsConfigs",
@@ -252,12 +208,7 @@ func (a *Client) V1betaBatchListKmsConfigs(params *V1betaBatchListKmsConfigsPara
 		Reader:             &V1betaBatchListKmsConfigsReader{formats: a.formats},
 		Context:            params.Context,
 		Client:             params.HTTPClient,
-	}
-	for _, opt := range opts {
-		opt(op)
-	}
-
-	result, err := a.transport.Submit(op)
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -275,12 +226,13 @@ V1betaBatchListPools batches lists all pools with the given u UI ds
 
 Batch lists all pools with the given UUIDs
 */
-func (a *Client) V1betaBatchListPools(params *V1betaBatchListPoolsParams, opts ...ClientOption) (*V1betaBatchListPoolsOK, error) {
+func (a *Client) V1betaBatchListPools(params *V1betaBatchListPoolsParams) (*V1betaBatchListPoolsOK, error) {
 	// TODO: Validate the params before sending
 	if params == nil {
 		params = NewV1betaBatchListPoolsParams()
 	}
-	op := &runtime.ClientOperation{
+
+	result, err := a.transport.Submit(&runtime.ClientOperation{
 		ID:                 "v1beta_batchListPools",
 		Method:             "POST",
 		PathPattern:        "/v1beta/locations/{locationId}/batch/pools",
@@ -291,12 +243,7 @@ func (a *Client) V1betaBatchListPools(params *V1betaBatchListPoolsParams, opts .
 		Reader:             &V1betaBatchListPoolsReader{formats: a.formats},
 		Context:            params.Context,
 		Client:             params.HTTPClient,
-	}
-	for _, opt := range opts {
-		opt(op)
-	}
-
-	result, err := a.transport.Submit(op)
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -314,12 +261,13 @@ V1betaBatchListReplications batches lists all replications with the given u r is
 
 Batch lists all replications with the given URIs
 */
-func (a *Client) V1betaBatchListReplications(params *V1betaBatchListReplicationsParams, opts ...ClientOption) (*V1betaBatchListReplicationsOK, error) {
+func (a *Client) V1betaBatchListReplications(params *V1betaBatchListReplicationsParams) (*V1betaBatchListReplicationsOK, error) {
 	// TODO: Validate the params before sending
 	if params == nil {
 		params = NewV1betaBatchListReplicationsParams()
 	}
-	op := &runtime.ClientOperation{
+
+	result, err := a.transport.Submit(&runtime.ClientOperation{
 		ID:                 "v1beta_batchListReplications",
 		Method:             "POST",
 		PathPattern:        "/v1beta/locations/{locationId}/batch/replications",
@@ -330,12 +278,7 @@ func (a *Client) V1betaBatchListReplications(params *V1betaBatchListReplications
 		Reader:             &V1betaBatchListReplicationsReader{formats: a.formats},
 		Context:            params.Context,
 		Client:             params.HTTPClient,
-	}
-	for _, opt := range opts {
-		opt(op)
-	}
-
-	result, err := a.transport.Submit(op)
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -349,16 +292,17 @@ func (a *Client) V1betaBatchListReplications(params *V1betaBatchListReplications
 }
 
 /*
-V1betaBatchListSnapshots batches lists all snapshots with the given u UI ds
+V1betaBatchListSnapshots batches list all snapshots with the given u UI ds
 
-Batch lists all snapshots with the given UUIDs
+Batch list all snapshots with the given UUIDs
 */
-func (a *Client) V1betaBatchListSnapshots(params *V1betaBatchListSnapshotsParams, opts ...ClientOption) (*V1betaBatchListSnapshotsOK, error) {
+func (a *Client) V1betaBatchListSnapshots(params *V1betaBatchListSnapshotsParams) (*V1betaBatchListSnapshotsOK, error) {
 	// TODO: Validate the params before sending
 	if params == nil {
 		params = NewV1betaBatchListSnapshotsParams()
 	}
-	op := &runtime.ClientOperation{
+
+	result, err := a.transport.Submit(&runtime.ClientOperation{
 		ID:                 "v1beta_batchListSnapshots",
 		Method:             "POST",
 		PathPattern:        "/v1beta/locations/{locationId}/batch/snapshots",
@@ -369,12 +313,7 @@ func (a *Client) V1betaBatchListSnapshots(params *V1betaBatchListSnapshotsParams
 		Reader:             &V1betaBatchListSnapshotsReader{formats: a.formats},
 		Context:            params.Context,
 		Client:             params.HTTPClient,
-	}
-	for _, opt := range opts {
-		opt(op)
-	}
-
-	result, err := a.transport.Submit(op)
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -392,12 +331,13 @@ V1betaBatchListVolumes batches lists all volumes with the given u UI ds
 
 Batch lists all volumes with the given UUIDs
 */
-func (a *Client) V1betaBatchListVolumes(params *V1betaBatchListVolumesParams, opts ...ClientOption) (*V1betaBatchListVolumesOK, error) {
+func (a *Client) V1betaBatchListVolumes(params *V1betaBatchListVolumesParams) (*V1betaBatchListVolumesOK, error) {
 	// TODO: Validate the params before sending
 	if params == nil {
 		params = NewV1betaBatchListVolumesParams()
 	}
-	op := &runtime.ClientOperation{
+
+	result, err := a.transport.Submit(&runtime.ClientOperation{
 		ID:                 "v1beta_batchListVolumes",
 		Method:             "POST",
 		PathPattern:        "/v1beta/locations/{locationId}/batch/volumes",
@@ -408,12 +348,7 @@ func (a *Client) V1betaBatchListVolumes(params *V1betaBatchListVolumesParams, op
 		Reader:             &V1betaBatchListVolumesReader{formats: a.formats},
 		Context:            params.Context,
 		Client:             params.HTTPClient,
-	}
-	for _, opt := range opts {
-		opt(op)
-	}
-
-	result, err := a.transport.Submit(op)
+	})
 	if err != nil {
 		return nil, err
 	}

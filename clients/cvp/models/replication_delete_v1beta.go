@@ -6,8 +6,6 @@ package models
 // Editing this file might prove futile when you re-run the swagger generate command
 
 import (
-	"context"
-
 	"github.com/go-openapi/errors"
 	"github.com/go-openapi/strfmt"
 	"github.com/go-openapi/swag"
@@ -22,7 +20,6 @@ type ReplicationDeleteV1beta struct {
 	// cleanupResourcesJobId
 	//
 	// Full URI of the job to clean up resources
-	// Example: /v1beta/projects/my-project-1/locations/eu-west-1/operations/9760acf5-4638-11e7-9bdb-020073ca7773
 	// Max Length: 255
 	CleanupResourcesJobID string `json:"cleanupResourcesJobId,omitempty"`
 }
@@ -42,19 +39,15 @@ func (m *ReplicationDeleteV1beta) Validate(formats strfmt.Registry) error {
 }
 
 func (m *ReplicationDeleteV1beta) validateCleanupResourcesJobID(formats strfmt.Registry) error {
+
 	if swag.IsZero(m.CleanupResourcesJobID) { // not required
 		return nil
 	}
 
-	if err := validate.MaxLength("cleanupResourcesJobId", "body", m.CleanupResourcesJobID, 255); err != nil {
+	if err := validate.MaxLength("cleanupResourcesJobId", "body", string(m.CleanupResourcesJobID), 255); err != nil {
 		return err
 	}
 
-	return nil
-}
-
-// ContextValidate validates this replication delete v1beta based on context it is used
-func (m *ReplicationDeleteV1beta) ContextValidate(ctx context.Context, formats strfmt.Registry) error {
 	return nil
 }
 

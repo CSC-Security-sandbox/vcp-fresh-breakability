@@ -18,37 +18,40 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/models"
 )
 
-// NewV1betaGetMultipleQuotaRulesParams creates a new V1betaGetMultipleQuotaRulesParams object,
-// with the default timeout for this client.
-//
-// Default values are not hydrated, since defaults are normally applied by the API server side.
-//
-// To enforce default values in parameter, use SetDefaults or WithDefaults.
+// NewV1betaGetMultipleQuotaRulesParams creates a new V1betaGetMultipleQuotaRulesParams object
+// with the default values initialized.
 func NewV1betaGetMultipleQuotaRulesParams() *V1betaGetMultipleQuotaRulesParams {
+	var ()
 	return &V1betaGetMultipleQuotaRulesParams{
+
 		timeout: cr.DefaultTimeout,
 	}
 }
 
 // NewV1betaGetMultipleQuotaRulesParamsWithTimeout creates a new V1betaGetMultipleQuotaRulesParams object
-// with the ability to set a timeout on a request.
+// with the default values initialized, and the ability to set a timeout on a request
 func NewV1betaGetMultipleQuotaRulesParamsWithTimeout(timeout time.Duration) *V1betaGetMultipleQuotaRulesParams {
+	var ()
 	return &V1betaGetMultipleQuotaRulesParams{
+
 		timeout: timeout,
 	}
 }
 
 // NewV1betaGetMultipleQuotaRulesParamsWithContext creates a new V1betaGetMultipleQuotaRulesParams object
-// with the ability to set a context for a request.
+// with the default values initialized, and the ability to set a context for a request
 func NewV1betaGetMultipleQuotaRulesParamsWithContext(ctx context.Context) *V1betaGetMultipleQuotaRulesParams {
+	var ()
 	return &V1betaGetMultipleQuotaRulesParams{
+
 		Context: ctx,
 	}
 }
 
 // NewV1betaGetMultipleQuotaRulesParamsWithHTTPClient creates a new V1betaGetMultipleQuotaRulesParams object
-// with the ability to set a custom HTTPClient for a request.
+// with the default values initialized, and the ability to set a custom HTTPClient for a request
 func NewV1betaGetMultipleQuotaRulesParamsWithHTTPClient(client *http.Client) *V1betaGetMultipleQuotaRulesParams {
+	var ()
 	return &V1betaGetMultipleQuotaRulesParams{
 		HTTPClient: client,
 	}
@@ -56,61 +59,39 @@ func NewV1betaGetMultipleQuotaRulesParamsWithHTTPClient(client *http.Client) *V1
 
 /*
 V1betaGetMultipleQuotaRulesParams contains all the parameters to send to the API endpoint
-
-	for the v1beta get multiple quota rules operation.
-
-	Typically these are written to a http.Request.
+for the v1beta get multiple quota rules operation typically these are written to a http.Request
 */
 type V1betaGetMultipleQuotaRulesParams struct {
 
-	/* Body.
+	/*Body
+	  A list of quota rule UUIDs to return
 
-	   A list of quota rule UUIDs to return
 	*/
 	Body *models.QuotaRuleIDListV1beta
+	/*LocationID
+	  The location/region to perform the operation in.
 
-	/* LocationID.
-
-	   The location/region to perform the operation in.
 	*/
 	LocationID string
+	/*ProjectNumber
+	  The project number of the GCP project owning the resource being acted upon
 
-	/* ProjectNumber.
-
-	   The project number of the GCP project owning the resource being acted upon
 	*/
 	ProjectNumber string
+	/*VolumeID
+	  UUID v4 used to identify the volume
 
-	/* VolumeID.
-
-	   UUID v4 used to identify the volume
 	*/
 	VolumeID string
+	/*XCorrelationID
+	  Correlation identifier
 
-	/* XCorrelationID.
-
-	   Correlation identifier
 	*/
 	XCorrelationID *string
 
 	timeout    time.Duration
 	Context    context.Context
 	HTTPClient *http.Client
-}
-
-// WithDefaults hydrates default values in the v1beta get multiple quota rules params (not the query body).
-//
-// All values with no default are reset to their zero value.
-func (o *V1betaGetMultipleQuotaRulesParams) WithDefaults() *V1betaGetMultipleQuotaRulesParams {
-	o.SetDefaults()
-	return o
-}
-
-// SetDefaults hydrates default values in the v1beta get multiple quota rules params (not the query body).
-//
-// All values with no default are reset to their zero value.
-func (o *V1betaGetMultipleQuotaRulesParams) SetDefaults() {
-	// no default values defined for this parameter
 }
 
 // WithTimeout adds the timeout to the v1beta get multiple quota rules params
@@ -208,6 +189,7 @@ func (o *V1betaGetMultipleQuotaRulesParams) WriteToRequest(r runtime.ClientReque
 		return err
 	}
 	var res []error
+
 	if o.Body != nil {
 		if err := r.SetBodyParam(o.Body); err != nil {
 			return err
@@ -235,6 +217,7 @@ func (o *V1betaGetMultipleQuotaRulesParams) WriteToRequest(r runtime.ClientReque
 		if err := r.SetHeaderParam("x-correlation-id", *o.XCorrelationID); err != nil {
 			return err
 		}
+
 	}
 
 	if len(res) > 0 {

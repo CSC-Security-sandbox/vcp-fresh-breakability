@@ -6,8 +6,6 @@ package models
 // Editing this file might prove futile when you re-run the swagger generate command
 
 import (
-	"context"
-
 	"github.com/go-openapi/errors"
 	"github.com/go-openapi/strfmt"
 	"github.com/go-openapi/swag"
@@ -22,7 +20,6 @@ type SystemDataV1beta struct {
 	// createdAt
 	//
 	// The timestamp of resource creation (UTC)
-	// Example: 2016-11-30T23:59:59.999Z
 	// Read Only: true
 	// Format: date-time
 	CreatedAt *strfmt.DateTime `json:"createdAt,omitempty"`
@@ -44,7 +41,6 @@ type SystemDataV1beta struct {
 	// lastModifiedAt
 	//
 	// The timestamp of resource last modification (UTC)
-	// Example: 2016-11-30T23:59:59.999Z
 	// Read Only: true
 	// Format: date-time
 	LastModifiedAt *strfmt.DateTime `json:"lastModifiedAt,omitempty"`
@@ -83,6 +79,7 @@ func (m *SystemDataV1beta) Validate(formats strfmt.Registry) error {
 }
 
 func (m *SystemDataV1beta) validateCreatedAt(formats strfmt.Registry) error {
+
 	if swag.IsZero(m.CreatedAt) { // not required
 		return nil
 	}
@@ -95,99 +92,12 @@ func (m *SystemDataV1beta) validateCreatedAt(formats strfmt.Registry) error {
 }
 
 func (m *SystemDataV1beta) validateLastModifiedAt(formats strfmt.Registry) error {
+
 	if swag.IsZero(m.LastModifiedAt) { // not required
 		return nil
 	}
 
 	if err := validate.FormatOf("lastModifiedAt", "body", "date-time", m.LastModifiedAt.String(), formats); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-// ContextValidate validate this system data v1beta based on the context it is used
-func (m *SystemDataV1beta) ContextValidate(ctx context.Context, formats strfmt.Registry) error {
-	var res []error
-
-	if err := m.contextValidateCreatedAt(ctx, formats); err != nil {
-		res = append(res, err)
-	}
-
-	if err := m.contextValidateCreatedBy(ctx, formats); err != nil {
-		res = append(res, err)
-	}
-
-	if err := m.contextValidateCreatedByType(ctx, formats); err != nil {
-		res = append(res, err)
-	}
-
-	if err := m.contextValidateLastModifiedAt(ctx, formats); err != nil {
-		res = append(res, err)
-	}
-
-	if err := m.contextValidateLastModifiedBy(ctx, formats); err != nil {
-		res = append(res, err)
-	}
-
-	if err := m.contextValidateLastModifiedByType(ctx, formats); err != nil {
-		res = append(res, err)
-	}
-
-	if len(res) > 0 {
-		return errors.CompositeValidationError(res...)
-	}
-	return nil
-}
-
-func (m *SystemDataV1beta) contextValidateCreatedAt(ctx context.Context, formats strfmt.Registry) error {
-
-	if err := validate.ReadOnly(ctx, "createdAt", "body", m.CreatedAt); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (m *SystemDataV1beta) contextValidateCreatedBy(ctx context.Context, formats strfmt.Registry) error {
-
-	if err := validate.ReadOnly(ctx, "createdBy", "body", string(m.CreatedBy)); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (m *SystemDataV1beta) contextValidateCreatedByType(ctx context.Context, formats strfmt.Registry) error {
-
-	if err := validate.ReadOnly(ctx, "createdByType", "body", string(m.CreatedByType)); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (m *SystemDataV1beta) contextValidateLastModifiedAt(ctx context.Context, formats strfmt.Registry) error {
-
-	if err := validate.ReadOnly(ctx, "lastModifiedAt", "body", m.LastModifiedAt); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (m *SystemDataV1beta) contextValidateLastModifiedBy(ctx context.Context, formats strfmt.Registry) error {
-
-	if err := validate.ReadOnly(ctx, "lastModifiedBy", "body", string(m.LastModifiedBy)); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (m *SystemDataV1beta) contextValidateLastModifiedByType(ctx context.Context, formats strfmt.Registry) error {
-
-	if err := validate.ReadOnly(ctx, "lastModifiedByType", "body", string(m.LastModifiedByType)); err != nil {
 		return err
 	}
 

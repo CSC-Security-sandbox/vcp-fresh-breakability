@@ -6,7 +6,6 @@ package migration_internal
 // Editing this file might prove futile when you re-run the swagger generate command
 
 import (
-	"encoding/json"
 	"fmt"
 	"io"
 
@@ -90,7 +89,7 @@ func NewV1betaPremigrationcheckOK() *V1betaPremigrationcheckOK {
 }
 
 /*
-V1betaPremigrationcheckOK describes a response with status code 200, with default header values.
+V1betaPremigrationcheckOK handles this case with default header values.
 
 OK
 */
@@ -98,44 +97,8 @@ type V1betaPremigrationcheckOK struct {
 	Payload *models.PreMigrationCheckStatusV1beta
 }
 
-// IsSuccess returns true when this v1beta premigrationcheck o k response has a 2xx status code
-func (o *V1betaPremigrationcheckOK) IsSuccess() bool {
-	return true
-}
-
-// IsRedirect returns true when this v1beta premigrationcheck o k response has a 3xx status code
-func (o *V1betaPremigrationcheckOK) IsRedirect() bool {
-	return false
-}
-
-// IsClientError returns true when this v1beta premigrationcheck o k response has a 4xx status code
-func (o *V1betaPremigrationcheckOK) IsClientError() bool {
-	return false
-}
-
-// IsServerError returns true when this v1beta premigrationcheck o k response has a 5xx status code
-func (o *V1betaPremigrationcheckOK) IsServerError() bool {
-	return false
-}
-
-// IsCode returns true when this v1beta premigrationcheck o k response a status code equal to that given
-func (o *V1betaPremigrationcheckOK) IsCode(code int) bool {
-	return code == 200
-}
-
-// Code gets the status code for the v1beta premigrationcheck o k response
-func (o *V1betaPremigrationcheckOK) Code() int {
-	return 200
-}
-
 func (o *V1betaPremigrationcheckOK) Error() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[GET /v1beta/internal/projects/{projectNumber}/locations/{locationId}/PreMigrateCheck][%d] v1betaPremigrationcheckOK %s", 200, payload)
-}
-
-func (o *V1betaPremigrationcheckOK) String() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[GET /v1beta/internal/projects/{projectNumber}/locations/{locationId}/PreMigrateCheck][%d] v1betaPremigrationcheckOK %s", 200, payload)
+	return fmt.Sprintf("[GET /v1beta/internal/projects/{projectNumber}/locations/{locationId}/PreMigrateCheck][%d] v1betaPremigrationcheckOK  %+v", 200, o.Payload)
 }
 
 func (o *V1betaPremigrationcheckOK) GetPayload() *models.PreMigrationCheckStatusV1beta {
@@ -160,7 +123,7 @@ func NewV1betaPremigrationcheckBadRequest() *V1betaPremigrationcheckBadRequest {
 }
 
 /*
-V1betaPremigrationcheckBadRequest describes a response with status code 400, with default header values.
+V1betaPremigrationcheckBadRequest handles this case with default header values.
 
 Bad request
 */
@@ -168,44 +131,8 @@ type V1betaPremigrationcheckBadRequest struct {
 	Payload *models.Error
 }
 
-// IsSuccess returns true when this v1beta premigrationcheck bad request response has a 2xx status code
-func (o *V1betaPremigrationcheckBadRequest) IsSuccess() bool {
-	return false
-}
-
-// IsRedirect returns true when this v1beta premigrationcheck bad request response has a 3xx status code
-func (o *V1betaPremigrationcheckBadRequest) IsRedirect() bool {
-	return false
-}
-
-// IsClientError returns true when this v1beta premigrationcheck bad request response has a 4xx status code
-func (o *V1betaPremigrationcheckBadRequest) IsClientError() bool {
-	return true
-}
-
-// IsServerError returns true when this v1beta premigrationcheck bad request response has a 5xx status code
-func (o *V1betaPremigrationcheckBadRequest) IsServerError() bool {
-	return false
-}
-
-// IsCode returns true when this v1beta premigrationcheck bad request response a status code equal to that given
-func (o *V1betaPremigrationcheckBadRequest) IsCode(code int) bool {
-	return code == 400
-}
-
-// Code gets the status code for the v1beta premigrationcheck bad request response
-func (o *V1betaPremigrationcheckBadRequest) Code() int {
-	return 400
-}
-
 func (o *V1betaPremigrationcheckBadRequest) Error() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[GET /v1beta/internal/projects/{projectNumber}/locations/{locationId}/PreMigrateCheck][%d] v1betaPremigrationcheckBadRequest %s", 400, payload)
-}
-
-func (o *V1betaPremigrationcheckBadRequest) String() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[GET /v1beta/internal/projects/{projectNumber}/locations/{locationId}/PreMigrateCheck][%d] v1betaPremigrationcheckBadRequest %s", 400, payload)
+	return fmt.Sprintf("[GET /v1beta/internal/projects/{projectNumber}/locations/{locationId}/PreMigrateCheck][%d] v1betaPremigrationcheckBadRequest  %+v", 400, o.Payload)
 }
 
 func (o *V1betaPremigrationcheckBadRequest) GetPayload() *models.Error {
@@ -230,7 +157,7 @@ func NewV1betaPremigrationcheckUnauthorized() *V1betaPremigrationcheckUnauthoriz
 }
 
 /*
-V1betaPremigrationcheckUnauthorized describes a response with status code 401, with default header values.
+V1betaPremigrationcheckUnauthorized handles this case with default header values.
 
 Unauthorized
 */
@@ -238,44 +165,8 @@ type V1betaPremigrationcheckUnauthorized struct {
 	Payload *models.Error
 }
 
-// IsSuccess returns true when this v1beta premigrationcheck unauthorized response has a 2xx status code
-func (o *V1betaPremigrationcheckUnauthorized) IsSuccess() bool {
-	return false
-}
-
-// IsRedirect returns true when this v1beta premigrationcheck unauthorized response has a 3xx status code
-func (o *V1betaPremigrationcheckUnauthorized) IsRedirect() bool {
-	return false
-}
-
-// IsClientError returns true when this v1beta premigrationcheck unauthorized response has a 4xx status code
-func (o *V1betaPremigrationcheckUnauthorized) IsClientError() bool {
-	return true
-}
-
-// IsServerError returns true when this v1beta premigrationcheck unauthorized response has a 5xx status code
-func (o *V1betaPremigrationcheckUnauthorized) IsServerError() bool {
-	return false
-}
-
-// IsCode returns true when this v1beta premigrationcheck unauthorized response a status code equal to that given
-func (o *V1betaPremigrationcheckUnauthorized) IsCode(code int) bool {
-	return code == 401
-}
-
-// Code gets the status code for the v1beta premigrationcheck unauthorized response
-func (o *V1betaPremigrationcheckUnauthorized) Code() int {
-	return 401
-}
-
 func (o *V1betaPremigrationcheckUnauthorized) Error() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[GET /v1beta/internal/projects/{projectNumber}/locations/{locationId}/PreMigrateCheck][%d] v1betaPremigrationcheckUnauthorized %s", 401, payload)
-}
-
-func (o *V1betaPremigrationcheckUnauthorized) String() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[GET /v1beta/internal/projects/{projectNumber}/locations/{locationId}/PreMigrateCheck][%d] v1betaPremigrationcheckUnauthorized %s", 401, payload)
+	return fmt.Sprintf("[GET /v1beta/internal/projects/{projectNumber}/locations/{locationId}/PreMigrateCheck][%d] v1betaPremigrationcheckUnauthorized  %+v", 401, o.Payload)
 }
 
 func (o *V1betaPremigrationcheckUnauthorized) GetPayload() *models.Error {
@@ -300,7 +191,7 @@ func NewV1betaPremigrationcheckForbidden() *V1betaPremigrationcheckForbidden {
 }
 
 /*
-V1betaPremigrationcheckForbidden describes a response with status code 403, with default header values.
+V1betaPremigrationcheckForbidden handles this case with default header values.
 
 Forbidden
 */
@@ -308,44 +199,8 @@ type V1betaPremigrationcheckForbidden struct {
 	Payload *models.Error
 }
 
-// IsSuccess returns true when this v1beta premigrationcheck forbidden response has a 2xx status code
-func (o *V1betaPremigrationcheckForbidden) IsSuccess() bool {
-	return false
-}
-
-// IsRedirect returns true when this v1beta premigrationcheck forbidden response has a 3xx status code
-func (o *V1betaPremigrationcheckForbidden) IsRedirect() bool {
-	return false
-}
-
-// IsClientError returns true when this v1beta premigrationcheck forbidden response has a 4xx status code
-func (o *V1betaPremigrationcheckForbidden) IsClientError() bool {
-	return true
-}
-
-// IsServerError returns true when this v1beta premigrationcheck forbidden response has a 5xx status code
-func (o *V1betaPremigrationcheckForbidden) IsServerError() bool {
-	return false
-}
-
-// IsCode returns true when this v1beta premigrationcheck forbidden response a status code equal to that given
-func (o *V1betaPremigrationcheckForbidden) IsCode(code int) bool {
-	return code == 403
-}
-
-// Code gets the status code for the v1beta premigrationcheck forbidden response
-func (o *V1betaPremigrationcheckForbidden) Code() int {
-	return 403
-}
-
 func (o *V1betaPremigrationcheckForbidden) Error() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[GET /v1beta/internal/projects/{projectNumber}/locations/{locationId}/PreMigrateCheck][%d] v1betaPremigrationcheckForbidden %s", 403, payload)
-}
-
-func (o *V1betaPremigrationcheckForbidden) String() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[GET /v1beta/internal/projects/{projectNumber}/locations/{locationId}/PreMigrateCheck][%d] v1betaPremigrationcheckForbidden %s", 403, payload)
+	return fmt.Sprintf("[GET /v1beta/internal/projects/{projectNumber}/locations/{locationId}/PreMigrateCheck][%d] v1betaPremigrationcheckForbidden  %+v", 403, o.Payload)
 }
 
 func (o *V1betaPremigrationcheckForbidden) GetPayload() *models.Error {
@@ -370,7 +225,7 @@ func NewV1betaPremigrationcheckNotFound() *V1betaPremigrationcheckNotFound {
 }
 
 /*
-V1betaPremigrationcheckNotFound describes a response with status code 404, with default header values.
+V1betaPremigrationcheckNotFound handles this case with default header values.
 
 Not found
 */
@@ -378,44 +233,8 @@ type V1betaPremigrationcheckNotFound struct {
 	Payload *models.Error
 }
 
-// IsSuccess returns true when this v1beta premigrationcheck not found response has a 2xx status code
-func (o *V1betaPremigrationcheckNotFound) IsSuccess() bool {
-	return false
-}
-
-// IsRedirect returns true when this v1beta premigrationcheck not found response has a 3xx status code
-func (o *V1betaPremigrationcheckNotFound) IsRedirect() bool {
-	return false
-}
-
-// IsClientError returns true when this v1beta premigrationcheck not found response has a 4xx status code
-func (o *V1betaPremigrationcheckNotFound) IsClientError() bool {
-	return true
-}
-
-// IsServerError returns true when this v1beta premigrationcheck not found response has a 5xx status code
-func (o *V1betaPremigrationcheckNotFound) IsServerError() bool {
-	return false
-}
-
-// IsCode returns true when this v1beta premigrationcheck not found response a status code equal to that given
-func (o *V1betaPremigrationcheckNotFound) IsCode(code int) bool {
-	return code == 404
-}
-
-// Code gets the status code for the v1beta premigrationcheck not found response
-func (o *V1betaPremigrationcheckNotFound) Code() int {
-	return 404
-}
-
 func (o *V1betaPremigrationcheckNotFound) Error() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[GET /v1beta/internal/projects/{projectNumber}/locations/{locationId}/PreMigrateCheck][%d] v1betaPremigrationcheckNotFound %s", 404, payload)
-}
-
-func (o *V1betaPremigrationcheckNotFound) String() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[GET /v1beta/internal/projects/{projectNumber}/locations/{locationId}/PreMigrateCheck][%d] v1betaPremigrationcheckNotFound %s", 404, payload)
+	return fmt.Sprintf("[GET /v1beta/internal/projects/{projectNumber}/locations/{locationId}/PreMigrateCheck][%d] v1betaPremigrationcheckNotFound  %+v", 404, o.Payload)
 }
 
 func (o *V1betaPremigrationcheckNotFound) GetPayload() *models.Error {
@@ -440,7 +259,7 @@ func NewV1betaPremigrationcheckTooManyRequests() *V1betaPremigrationcheckTooMany
 }
 
 /*
-V1betaPremigrationcheckTooManyRequests describes a response with status code 429, with default header values.
+V1betaPremigrationcheckTooManyRequests handles this case with default header values.
 
 Too many requests
 */
@@ -448,44 +267,8 @@ type V1betaPremigrationcheckTooManyRequests struct {
 	Payload *models.Error
 }
 
-// IsSuccess returns true when this v1beta premigrationcheck too many requests response has a 2xx status code
-func (o *V1betaPremigrationcheckTooManyRequests) IsSuccess() bool {
-	return false
-}
-
-// IsRedirect returns true when this v1beta premigrationcheck too many requests response has a 3xx status code
-func (o *V1betaPremigrationcheckTooManyRequests) IsRedirect() bool {
-	return false
-}
-
-// IsClientError returns true when this v1beta premigrationcheck too many requests response has a 4xx status code
-func (o *V1betaPremigrationcheckTooManyRequests) IsClientError() bool {
-	return true
-}
-
-// IsServerError returns true when this v1beta premigrationcheck too many requests response has a 5xx status code
-func (o *V1betaPremigrationcheckTooManyRequests) IsServerError() bool {
-	return false
-}
-
-// IsCode returns true when this v1beta premigrationcheck too many requests response a status code equal to that given
-func (o *V1betaPremigrationcheckTooManyRequests) IsCode(code int) bool {
-	return code == 429
-}
-
-// Code gets the status code for the v1beta premigrationcheck too many requests response
-func (o *V1betaPremigrationcheckTooManyRequests) Code() int {
-	return 429
-}
-
 func (o *V1betaPremigrationcheckTooManyRequests) Error() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[GET /v1beta/internal/projects/{projectNumber}/locations/{locationId}/PreMigrateCheck][%d] v1betaPremigrationcheckTooManyRequests %s", 429, payload)
-}
-
-func (o *V1betaPremigrationcheckTooManyRequests) String() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[GET /v1beta/internal/projects/{projectNumber}/locations/{locationId}/PreMigrateCheck][%d] v1betaPremigrationcheckTooManyRequests %s", 429, payload)
+	return fmt.Sprintf("[GET /v1beta/internal/projects/{projectNumber}/locations/{locationId}/PreMigrateCheck][%d] v1betaPremigrationcheckTooManyRequests  %+v", 429, o.Payload)
 }
 
 func (o *V1betaPremigrationcheckTooManyRequests) GetPayload() *models.Error {
@@ -510,7 +293,7 @@ func NewV1betaPremigrationcheckInternalServerError() *V1betaPremigrationcheckInt
 }
 
 /*
-V1betaPremigrationcheckInternalServerError describes a response with status code 500, with default header values.
+V1betaPremigrationcheckInternalServerError handles this case with default header values.
 
 Internal server error
 */
@@ -518,44 +301,8 @@ type V1betaPremigrationcheckInternalServerError struct {
 	Payload *models.Error
 }
 
-// IsSuccess returns true when this v1beta premigrationcheck internal server error response has a 2xx status code
-func (o *V1betaPremigrationcheckInternalServerError) IsSuccess() bool {
-	return false
-}
-
-// IsRedirect returns true when this v1beta premigrationcheck internal server error response has a 3xx status code
-func (o *V1betaPremigrationcheckInternalServerError) IsRedirect() bool {
-	return false
-}
-
-// IsClientError returns true when this v1beta premigrationcheck internal server error response has a 4xx status code
-func (o *V1betaPremigrationcheckInternalServerError) IsClientError() bool {
-	return false
-}
-
-// IsServerError returns true when this v1beta premigrationcheck internal server error response has a 5xx status code
-func (o *V1betaPremigrationcheckInternalServerError) IsServerError() bool {
-	return true
-}
-
-// IsCode returns true when this v1beta premigrationcheck internal server error response a status code equal to that given
-func (o *V1betaPremigrationcheckInternalServerError) IsCode(code int) bool {
-	return code == 500
-}
-
-// Code gets the status code for the v1beta premigrationcheck internal server error response
-func (o *V1betaPremigrationcheckInternalServerError) Code() int {
-	return 500
-}
-
 func (o *V1betaPremigrationcheckInternalServerError) Error() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[GET /v1beta/internal/projects/{projectNumber}/locations/{locationId}/PreMigrateCheck][%d] v1betaPremigrationcheckInternalServerError %s", 500, payload)
-}
-
-func (o *V1betaPremigrationcheckInternalServerError) String() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[GET /v1beta/internal/projects/{projectNumber}/locations/{locationId}/PreMigrateCheck][%d] v1betaPremigrationcheckInternalServerError %s", 500, payload)
+	return fmt.Sprintf("[GET /v1beta/internal/projects/{projectNumber}/locations/{locationId}/PreMigrateCheck][%d] v1betaPremigrationcheckInternalServerError  %+v", 500, o.Payload)
 }
 
 func (o *V1betaPremigrationcheckInternalServerError) GetPayload() *models.Error {
@@ -580,7 +327,7 @@ func NewV1betaPremigrationcheckNotImplemented() *V1betaPremigrationcheckNotImple
 }
 
 /*
-V1betaPremigrationcheckNotImplemented describes a response with status code 501, with default header values.
+V1betaPremigrationcheckNotImplemented handles this case with default header values.
 
 Not implemented
 */
@@ -588,44 +335,8 @@ type V1betaPremigrationcheckNotImplemented struct {
 	Payload *models.Error
 }
 
-// IsSuccess returns true when this v1beta premigrationcheck not implemented response has a 2xx status code
-func (o *V1betaPremigrationcheckNotImplemented) IsSuccess() bool {
-	return false
-}
-
-// IsRedirect returns true when this v1beta premigrationcheck not implemented response has a 3xx status code
-func (o *V1betaPremigrationcheckNotImplemented) IsRedirect() bool {
-	return false
-}
-
-// IsClientError returns true when this v1beta premigrationcheck not implemented response has a 4xx status code
-func (o *V1betaPremigrationcheckNotImplemented) IsClientError() bool {
-	return false
-}
-
-// IsServerError returns true when this v1beta premigrationcheck not implemented response has a 5xx status code
-func (o *V1betaPremigrationcheckNotImplemented) IsServerError() bool {
-	return true
-}
-
-// IsCode returns true when this v1beta premigrationcheck not implemented response a status code equal to that given
-func (o *V1betaPremigrationcheckNotImplemented) IsCode(code int) bool {
-	return code == 501
-}
-
-// Code gets the status code for the v1beta premigrationcheck not implemented response
-func (o *V1betaPremigrationcheckNotImplemented) Code() int {
-	return 501
-}
-
 func (o *V1betaPremigrationcheckNotImplemented) Error() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[GET /v1beta/internal/projects/{projectNumber}/locations/{locationId}/PreMigrateCheck][%d] v1betaPremigrationcheckNotImplemented %s", 501, payload)
-}
-
-func (o *V1betaPremigrationcheckNotImplemented) String() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[GET /v1beta/internal/projects/{projectNumber}/locations/{locationId}/PreMigrateCheck][%d] v1betaPremigrationcheckNotImplemented %s", 501, payload)
+	return fmt.Sprintf("[GET /v1beta/internal/projects/{projectNumber}/locations/{locationId}/PreMigrateCheck][%d] v1betaPremigrationcheckNotImplemented  %+v", 501, o.Payload)
 }
 
 func (o *V1betaPremigrationcheckNotImplemented) GetPayload() *models.Error {
@@ -652,7 +363,7 @@ func NewV1betaPremigrationcheckDefault(code int) *V1betaPremigrationcheckDefault
 }
 
 /*
-V1betaPremigrationcheckDefault describes a response with status code -1, with default header values.
+V1betaPremigrationcheckDefault handles this case with default header values.
 
 Unexpected error
 */
@@ -662,44 +373,13 @@ type V1betaPremigrationcheckDefault struct {
 	Payload *models.Error
 }
 
-// IsSuccess returns true when this v1beta premigrationcheck default response has a 2xx status code
-func (o *V1betaPremigrationcheckDefault) IsSuccess() bool {
-	return o._statusCode/100 == 2
-}
-
-// IsRedirect returns true when this v1beta premigrationcheck default response has a 3xx status code
-func (o *V1betaPremigrationcheckDefault) IsRedirect() bool {
-	return o._statusCode/100 == 3
-}
-
-// IsClientError returns true when this v1beta premigrationcheck default response has a 4xx status code
-func (o *V1betaPremigrationcheckDefault) IsClientError() bool {
-	return o._statusCode/100 == 4
-}
-
-// IsServerError returns true when this v1beta premigrationcheck default response has a 5xx status code
-func (o *V1betaPremigrationcheckDefault) IsServerError() bool {
-	return o._statusCode/100 == 5
-}
-
-// IsCode returns true when this v1beta premigrationcheck default response a status code equal to that given
-func (o *V1betaPremigrationcheckDefault) IsCode(code int) bool {
-	return o._statusCode == code
-}
-
 // Code gets the status code for the v1beta premigrationcheck default response
 func (o *V1betaPremigrationcheckDefault) Code() int {
 	return o._statusCode
 }
 
 func (o *V1betaPremigrationcheckDefault) Error() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[GET /v1beta/internal/projects/{projectNumber}/locations/{locationId}/PreMigrateCheck][%d] v1beta_premigrationcheck default %s", o._statusCode, payload)
-}
-
-func (o *V1betaPremigrationcheckDefault) String() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[GET /v1beta/internal/projects/{projectNumber}/locations/{locationId}/PreMigrateCheck][%d] v1beta_premigrationcheck default %s", o._statusCode, payload)
+	return fmt.Sprintf("[GET /v1beta/internal/projects/{projectNumber}/locations/{locationId}/PreMigrateCheck][%d] v1beta_premigrationcheck default  %+v", o._statusCode, o.Payload)
 }
 
 func (o *V1betaPremigrationcheckDefault) GetPayload() *models.Error {

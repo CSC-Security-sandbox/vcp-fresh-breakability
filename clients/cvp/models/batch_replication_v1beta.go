@@ -6,7 +6,6 @@ package models
 // Editing this file might prove futile when you re-run the swagger generate command
 
 import (
-	"context"
 	"encoding/json"
 
 	"github.com/go-openapi/errors"
@@ -23,14 +22,12 @@ type BatchReplicationV1beta struct {
 	// created
 	//
 	// Creation date of the resource
-	// Example: 2016-11-28T19:30:23.123Z
 	// Format: date-time
 	Created *strfmt.DateTime `json:"created,omitempty"`
 
 	// description
 	//
 	// Description of the volume replication
-	// Example: fortress of solitude
 	Description *string `json:"description,omitempty"`
 
 	// destination
@@ -39,20 +36,17 @@ type BatchReplicationV1beta struct {
 	// labels
 	//
 	// JSON dictionary of resource labels to allow linking of billing labels to a replication, Can contain only lowercase letters, numeric characters, underscores, and dashes. All characters must use UTF-8 encoding, and international characters are allowed. Must start with a lowercase letter or international character
-	// Example: {"some-key":"some-value","some-key2":"some-value2"}
 	Labels map[string]string `json:"labels,omitempty"`
 
 	// mirrorState
 	//
 	// The mirror state of the volume replication
-	// Example: MIRRORED
-	// Enum: ["PREPARING","UNINITIALIZED","MIRRORED","STOPPED","TRANSFERRING"]
+	// Enum: [PREPARING UNINITIALIZED MIRRORED STOPPED TRANSFERRING]
 	MirrorState string `json:"mirrorState,omitempty"`
 
 	// replicationId
 	//
 	// UUID v4 used to identify the volume replication
-	// Example: 9760acf5-4638-11e7-9bdb-020073ca7773
 	// Read Only: true
 	// Max Length: 36
 	// Min Length: 36
@@ -60,18 +54,16 @@ type BatchReplicationV1beta struct {
 	ReplicationID string `json:"replicationId,omitempty"`
 
 	// replicationSchedule
-	// Enum: ["EVERY_10_MINUTES","HOURLY","DAILY"]
+	// Enum: [EVERY_10_MINUTES HOURLY DAILY]
 	ReplicationSchedule string `json:"replicationSchedule,omitempty"`
 
 	// A human readable label for the resource which is restricted to letters, numbers, and hyphen, with the first character a letter, the last a letter or a number, and a 63 character maximum
-	// Example: my-volume-replication
 	ResourceID *string `json:"resourceId,omitempty"`
 
 	// role
 	//
 	// Indicates whether the local volume is the source or destination for the volume replication
-	// Example: DESTINATION
-	// Enum: ["SOURCE","DESTINATION"]
+	// Enum: [SOURCE DESTINATION]
 	Role *string `json:"role,omitempty"`
 
 	// source
@@ -80,14 +72,12 @@ type BatchReplicationV1beta struct {
 	// state
 	//
 	// The current lifecycle state of the replication
-	// Example: READY
-	// Enum: ["STATE_UNSPECIFIED","UPDATING","CREATING","READY","DELETING","DISABLED","ERROR"]
+	// Enum: [STATE_UNSPECIFIED UPDATING CREATING READY DELETING DISABLED ERROR]
 	State string `json:"state,omitempty"`
 
 	// stateDetails
 	//
 	// Details about the current lifecycle state
-	// Example: Available for use
 	StateDetails *string `json:"stateDetails,omitempty"`
 }
 
@@ -134,6 +124,7 @@ func (m *BatchReplicationV1beta) Validate(formats strfmt.Registry) error {
 }
 
 func (m *BatchReplicationV1beta) validateCreated(formats strfmt.Registry) error {
+
 	if swag.IsZero(m.Created) { // not required
 		return nil
 	}
@@ -146,6 +137,7 @@ func (m *BatchReplicationV1beta) validateCreated(formats strfmt.Registry) error 
 }
 
 func (m *BatchReplicationV1beta) validateDestination(formats strfmt.Registry) error {
+
 	if swag.IsZero(m.Destination) { // not required
 		return nil
 	}
@@ -154,8 +146,6 @@ func (m *BatchReplicationV1beta) validateDestination(formats strfmt.Registry) er
 		if err := m.Destination.Validate(formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("destination")
-			} else if ce, ok := err.(*errors.CompositeError); ok {
-				return ce.ValidateName("destination")
 			}
 			return err
 		}
@@ -203,6 +193,7 @@ func (m *BatchReplicationV1beta) validateMirrorStateEnum(path, location string, 
 }
 
 func (m *BatchReplicationV1beta) validateMirrorState(formats strfmt.Registry) error {
+
 	if swag.IsZero(m.MirrorState) { // not required
 		return nil
 	}
@@ -216,19 +207,20 @@ func (m *BatchReplicationV1beta) validateMirrorState(formats strfmt.Registry) er
 }
 
 func (m *BatchReplicationV1beta) validateReplicationID(formats strfmt.Registry) error {
+
 	if swag.IsZero(m.ReplicationID) { // not required
 		return nil
 	}
 
-	if err := validate.MinLength("replicationId", "body", m.ReplicationID, 36); err != nil {
+	if err := validate.MinLength("replicationId", "body", string(m.ReplicationID), 36); err != nil {
 		return err
 	}
 
-	if err := validate.MaxLength("replicationId", "body", m.ReplicationID, 36); err != nil {
+	if err := validate.MaxLength("replicationId", "body", string(m.ReplicationID), 36); err != nil {
 		return err
 	}
 
-	if err := validate.Pattern("replicationId", "body", m.ReplicationID, `^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$`); err != nil {
+	if err := validate.Pattern("replicationId", "body", string(m.ReplicationID), `^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$`); err != nil {
 		return err
 	}
 
@@ -268,6 +260,7 @@ func (m *BatchReplicationV1beta) validateReplicationScheduleEnum(path, location 
 }
 
 func (m *BatchReplicationV1beta) validateReplicationSchedule(formats strfmt.Registry) error {
+
 	if swag.IsZero(m.ReplicationSchedule) { // not required
 		return nil
 	}
@@ -310,6 +303,7 @@ func (m *BatchReplicationV1beta) validateRoleEnum(path, location string, value s
 }
 
 func (m *BatchReplicationV1beta) validateRole(formats strfmt.Registry) error {
+
 	if swag.IsZero(m.Role) { // not required
 		return nil
 	}
@@ -323,6 +317,7 @@ func (m *BatchReplicationV1beta) validateRole(formats strfmt.Registry) error {
 }
 
 func (m *BatchReplicationV1beta) validateSource(formats strfmt.Registry) error {
+
 	if swag.IsZero(m.Source) { // not required
 		return nil
 	}
@@ -331,8 +326,6 @@ func (m *BatchReplicationV1beta) validateSource(formats strfmt.Registry) error {
 		if err := m.Source.Validate(formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("source")
-			} else if ce, ok := err.(*errors.CompositeError); ok {
-				return ce.ValidateName("source")
 			}
 			return err
 		}
@@ -386,6 +379,7 @@ func (m *BatchReplicationV1beta) validateStateEnum(path, location string, value 
 }
 
 func (m *BatchReplicationV1beta) validateState(formats strfmt.Registry) error {
+
 	if swag.IsZero(m.State) { // not required
 		return nil
 	}
@@ -393,79 +387,6 @@ func (m *BatchReplicationV1beta) validateState(formats strfmt.Registry) error {
 	// value enum
 	if err := m.validateStateEnum("state", "body", m.State); err != nil {
 		return err
-	}
-
-	return nil
-}
-
-// ContextValidate validate this batch replication v1beta based on the context it is used
-func (m *BatchReplicationV1beta) ContextValidate(ctx context.Context, formats strfmt.Registry) error {
-	var res []error
-
-	if err := m.contextValidateDestination(ctx, formats); err != nil {
-		res = append(res, err)
-	}
-
-	if err := m.contextValidateReplicationID(ctx, formats); err != nil {
-		res = append(res, err)
-	}
-
-	if err := m.contextValidateSource(ctx, formats); err != nil {
-		res = append(res, err)
-	}
-
-	if len(res) > 0 {
-		return errors.CompositeValidationError(res...)
-	}
-	return nil
-}
-
-func (m *BatchReplicationV1beta) contextValidateDestination(ctx context.Context, formats strfmt.Registry) error {
-
-	if m.Destination != nil {
-
-		if swag.IsZero(m.Destination) { // not required
-			return nil
-		}
-
-		if err := m.Destination.ContextValidate(ctx, formats); err != nil {
-			if ve, ok := err.(*errors.Validation); ok {
-				return ve.ValidateName("destination")
-			} else if ce, ok := err.(*errors.CompositeError); ok {
-				return ce.ValidateName("destination")
-			}
-			return err
-		}
-	}
-
-	return nil
-}
-
-func (m *BatchReplicationV1beta) contextValidateReplicationID(ctx context.Context, formats strfmt.Registry) error {
-
-	if err := validate.ReadOnly(ctx, "replicationId", "body", string(m.ReplicationID)); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (m *BatchReplicationV1beta) contextValidateSource(ctx context.Context, formats strfmt.Registry) error {
-
-	if m.Source != nil {
-
-		if swag.IsZero(m.Source) { // not required
-			return nil
-		}
-
-		if err := m.Source.ContextValidate(ctx, formats); err != nil {
-			if ve, ok := err.(*errors.Validation); ok {
-				return ve.ValidateName("source")
-			} else if ce, ok := err.(*errors.CompositeError); ok {
-				return ce.ValidateName("source")
-			}
-			return err
-		}
 	}
 
 	return nil

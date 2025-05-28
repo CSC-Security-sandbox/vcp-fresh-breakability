@@ -6,7 +6,6 @@ package replications
 // Editing this file might prove futile when you re-run the swagger generate command
 
 import (
-	"encoding/json"
 	"fmt"
 	"io"
 
@@ -96,7 +95,7 @@ func NewV1betaStopReplicationAccepted() *V1betaStopReplicationAccepted {
 }
 
 /*
-V1betaStopReplicationAccepted describes a response with status code 202, with default header values.
+V1betaStopReplicationAccepted handles this case with default header values.
 
 Stopping replication
 */
@@ -104,44 +103,8 @@ type V1betaStopReplicationAccepted struct {
 	Payload *models.OperationV1beta
 }
 
-// IsSuccess returns true when this v1beta stop replication accepted response has a 2xx status code
-func (o *V1betaStopReplicationAccepted) IsSuccess() bool {
-	return true
-}
-
-// IsRedirect returns true when this v1beta stop replication accepted response has a 3xx status code
-func (o *V1betaStopReplicationAccepted) IsRedirect() bool {
-	return false
-}
-
-// IsClientError returns true when this v1beta stop replication accepted response has a 4xx status code
-func (o *V1betaStopReplicationAccepted) IsClientError() bool {
-	return false
-}
-
-// IsServerError returns true when this v1beta stop replication accepted response has a 5xx status code
-func (o *V1betaStopReplicationAccepted) IsServerError() bool {
-	return false
-}
-
-// IsCode returns true when this v1beta stop replication accepted response a status code equal to that given
-func (o *V1betaStopReplicationAccepted) IsCode(code int) bool {
-	return code == 202
-}
-
-// Code gets the status code for the v1beta stop replication accepted response
-func (o *V1betaStopReplicationAccepted) Code() int {
-	return 202
-}
-
 func (o *V1betaStopReplicationAccepted) Error() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeResourceId}/replications/{replicationResourceId}/stop][%d] v1betaStopReplicationAccepted %s", 202, payload)
-}
-
-func (o *V1betaStopReplicationAccepted) String() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeResourceId}/replications/{replicationResourceId}/stop][%d] v1betaStopReplicationAccepted %s", 202, payload)
+	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeResourceId}/replications/{replicationResourceId}/stop][%d] v1betaStopReplicationAccepted  %+v", 202, o.Payload)
 }
 
 func (o *V1betaStopReplicationAccepted) GetPayload() *models.OperationV1beta {
@@ -166,7 +129,7 @@ func NewV1betaStopReplicationBadRequest() *V1betaStopReplicationBadRequest {
 }
 
 /*
-V1betaStopReplicationBadRequest describes a response with status code 400, with default header values.
+V1betaStopReplicationBadRequest handles this case with default header values.
 
 Bad request
 */
@@ -174,44 +137,8 @@ type V1betaStopReplicationBadRequest struct {
 	Payload *models.Error
 }
 
-// IsSuccess returns true when this v1beta stop replication bad request response has a 2xx status code
-func (o *V1betaStopReplicationBadRequest) IsSuccess() bool {
-	return false
-}
-
-// IsRedirect returns true when this v1beta stop replication bad request response has a 3xx status code
-func (o *V1betaStopReplicationBadRequest) IsRedirect() bool {
-	return false
-}
-
-// IsClientError returns true when this v1beta stop replication bad request response has a 4xx status code
-func (o *V1betaStopReplicationBadRequest) IsClientError() bool {
-	return true
-}
-
-// IsServerError returns true when this v1beta stop replication bad request response has a 5xx status code
-func (o *V1betaStopReplicationBadRequest) IsServerError() bool {
-	return false
-}
-
-// IsCode returns true when this v1beta stop replication bad request response a status code equal to that given
-func (o *V1betaStopReplicationBadRequest) IsCode(code int) bool {
-	return code == 400
-}
-
-// Code gets the status code for the v1beta stop replication bad request response
-func (o *V1betaStopReplicationBadRequest) Code() int {
-	return 400
-}
-
 func (o *V1betaStopReplicationBadRequest) Error() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeResourceId}/replications/{replicationResourceId}/stop][%d] v1betaStopReplicationBadRequest %s", 400, payload)
-}
-
-func (o *V1betaStopReplicationBadRequest) String() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeResourceId}/replications/{replicationResourceId}/stop][%d] v1betaStopReplicationBadRequest %s", 400, payload)
+	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeResourceId}/replications/{replicationResourceId}/stop][%d] v1betaStopReplicationBadRequest  %+v", 400, o.Payload)
 }
 
 func (o *V1betaStopReplicationBadRequest) GetPayload() *models.Error {
@@ -236,7 +163,7 @@ func NewV1betaStopReplicationUnauthorized() *V1betaStopReplicationUnauthorized {
 }
 
 /*
-V1betaStopReplicationUnauthorized describes a response with status code 401, with default header values.
+V1betaStopReplicationUnauthorized handles this case with default header values.
 
 Unauthorized
 */
@@ -244,44 +171,8 @@ type V1betaStopReplicationUnauthorized struct {
 	Payload *models.Error
 }
 
-// IsSuccess returns true when this v1beta stop replication unauthorized response has a 2xx status code
-func (o *V1betaStopReplicationUnauthorized) IsSuccess() bool {
-	return false
-}
-
-// IsRedirect returns true when this v1beta stop replication unauthorized response has a 3xx status code
-func (o *V1betaStopReplicationUnauthorized) IsRedirect() bool {
-	return false
-}
-
-// IsClientError returns true when this v1beta stop replication unauthorized response has a 4xx status code
-func (o *V1betaStopReplicationUnauthorized) IsClientError() bool {
-	return true
-}
-
-// IsServerError returns true when this v1beta stop replication unauthorized response has a 5xx status code
-func (o *V1betaStopReplicationUnauthorized) IsServerError() bool {
-	return false
-}
-
-// IsCode returns true when this v1beta stop replication unauthorized response a status code equal to that given
-func (o *V1betaStopReplicationUnauthorized) IsCode(code int) bool {
-	return code == 401
-}
-
-// Code gets the status code for the v1beta stop replication unauthorized response
-func (o *V1betaStopReplicationUnauthorized) Code() int {
-	return 401
-}
-
 func (o *V1betaStopReplicationUnauthorized) Error() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeResourceId}/replications/{replicationResourceId}/stop][%d] v1betaStopReplicationUnauthorized %s", 401, payload)
-}
-
-func (o *V1betaStopReplicationUnauthorized) String() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeResourceId}/replications/{replicationResourceId}/stop][%d] v1betaStopReplicationUnauthorized %s", 401, payload)
+	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeResourceId}/replications/{replicationResourceId}/stop][%d] v1betaStopReplicationUnauthorized  %+v", 401, o.Payload)
 }
 
 func (o *V1betaStopReplicationUnauthorized) GetPayload() *models.Error {
@@ -306,7 +197,7 @@ func NewV1betaStopReplicationForbidden() *V1betaStopReplicationForbidden {
 }
 
 /*
-V1betaStopReplicationForbidden describes a response with status code 403, with default header values.
+V1betaStopReplicationForbidden handles this case with default header values.
 
 Forbidden
 */
@@ -314,44 +205,8 @@ type V1betaStopReplicationForbidden struct {
 	Payload *models.Error
 }
 
-// IsSuccess returns true when this v1beta stop replication forbidden response has a 2xx status code
-func (o *V1betaStopReplicationForbidden) IsSuccess() bool {
-	return false
-}
-
-// IsRedirect returns true when this v1beta stop replication forbidden response has a 3xx status code
-func (o *V1betaStopReplicationForbidden) IsRedirect() bool {
-	return false
-}
-
-// IsClientError returns true when this v1beta stop replication forbidden response has a 4xx status code
-func (o *V1betaStopReplicationForbidden) IsClientError() bool {
-	return true
-}
-
-// IsServerError returns true when this v1beta stop replication forbidden response has a 5xx status code
-func (o *V1betaStopReplicationForbidden) IsServerError() bool {
-	return false
-}
-
-// IsCode returns true when this v1beta stop replication forbidden response a status code equal to that given
-func (o *V1betaStopReplicationForbidden) IsCode(code int) bool {
-	return code == 403
-}
-
-// Code gets the status code for the v1beta stop replication forbidden response
-func (o *V1betaStopReplicationForbidden) Code() int {
-	return 403
-}
-
 func (o *V1betaStopReplicationForbidden) Error() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeResourceId}/replications/{replicationResourceId}/stop][%d] v1betaStopReplicationForbidden %s", 403, payload)
-}
-
-func (o *V1betaStopReplicationForbidden) String() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeResourceId}/replications/{replicationResourceId}/stop][%d] v1betaStopReplicationForbidden %s", 403, payload)
+	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeResourceId}/replications/{replicationResourceId}/stop][%d] v1betaStopReplicationForbidden  %+v", 403, o.Payload)
 }
 
 func (o *V1betaStopReplicationForbidden) GetPayload() *models.Error {
@@ -376,7 +231,7 @@ func NewV1betaStopReplicationNotFound() *V1betaStopReplicationNotFound {
 }
 
 /*
-V1betaStopReplicationNotFound describes a response with status code 404, with default header values.
+V1betaStopReplicationNotFound handles this case with default header values.
 
 Not found
 */
@@ -384,44 +239,8 @@ type V1betaStopReplicationNotFound struct {
 	Payload *models.Error
 }
 
-// IsSuccess returns true when this v1beta stop replication not found response has a 2xx status code
-func (o *V1betaStopReplicationNotFound) IsSuccess() bool {
-	return false
-}
-
-// IsRedirect returns true when this v1beta stop replication not found response has a 3xx status code
-func (o *V1betaStopReplicationNotFound) IsRedirect() bool {
-	return false
-}
-
-// IsClientError returns true when this v1beta stop replication not found response has a 4xx status code
-func (o *V1betaStopReplicationNotFound) IsClientError() bool {
-	return true
-}
-
-// IsServerError returns true when this v1beta stop replication not found response has a 5xx status code
-func (o *V1betaStopReplicationNotFound) IsServerError() bool {
-	return false
-}
-
-// IsCode returns true when this v1beta stop replication not found response a status code equal to that given
-func (o *V1betaStopReplicationNotFound) IsCode(code int) bool {
-	return code == 404
-}
-
-// Code gets the status code for the v1beta stop replication not found response
-func (o *V1betaStopReplicationNotFound) Code() int {
-	return 404
-}
-
 func (o *V1betaStopReplicationNotFound) Error() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeResourceId}/replications/{replicationResourceId}/stop][%d] v1betaStopReplicationNotFound %s", 404, payload)
-}
-
-func (o *V1betaStopReplicationNotFound) String() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeResourceId}/replications/{replicationResourceId}/stop][%d] v1betaStopReplicationNotFound %s", 404, payload)
+	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeResourceId}/replications/{replicationResourceId}/stop][%d] v1betaStopReplicationNotFound  %+v", 404, o.Payload)
 }
 
 func (o *V1betaStopReplicationNotFound) GetPayload() *models.Error {
@@ -446,7 +265,7 @@ func NewV1betaStopReplicationConflict() *V1betaStopReplicationConflict {
 }
 
 /*
-V1betaStopReplicationConflict describes a response with status code 409, with default header values.
+V1betaStopReplicationConflict handles this case with default header values.
 
 Conflict
 */
@@ -454,44 +273,8 @@ type V1betaStopReplicationConflict struct {
 	Payload *models.Error
 }
 
-// IsSuccess returns true when this v1beta stop replication conflict response has a 2xx status code
-func (o *V1betaStopReplicationConflict) IsSuccess() bool {
-	return false
-}
-
-// IsRedirect returns true when this v1beta stop replication conflict response has a 3xx status code
-func (o *V1betaStopReplicationConflict) IsRedirect() bool {
-	return false
-}
-
-// IsClientError returns true when this v1beta stop replication conflict response has a 4xx status code
-func (o *V1betaStopReplicationConflict) IsClientError() bool {
-	return true
-}
-
-// IsServerError returns true when this v1beta stop replication conflict response has a 5xx status code
-func (o *V1betaStopReplicationConflict) IsServerError() bool {
-	return false
-}
-
-// IsCode returns true when this v1beta stop replication conflict response a status code equal to that given
-func (o *V1betaStopReplicationConflict) IsCode(code int) bool {
-	return code == 409
-}
-
-// Code gets the status code for the v1beta stop replication conflict response
-func (o *V1betaStopReplicationConflict) Code() int {
-	return 409
-}
-
 func (o *V1betaStopReplicationConflict) Error() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeResourceId}/replications/{replicationResourceId}/stop][%d] v1betaStopReplicationConflict %s", 409, payload)
-}
-
-func (o *V1betaStopReplicationConflict) String() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeResourceId}/replications/{replicationResourceId}/stop][%d] v1betaStopReplicationConflict %s", 409, payload)
+	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeResourceId}/replications/{replicationResourceId}/stop][%d] v1betaStopReplicationConflict  %+v", 409, o.Payload)
 }
 
 func (o *V1betaStopReplicationConflict) GetPayload() *models.Error {
@@ -516,7 +299,7 @@ func NewV1betaStopReplicationUnprocessableEntity() *V1betaStopReplicationUnproce
 }
 
 /*
-V1betaStopReplicationUnprocessableEntity describes a response with status code 422, with default header values.
+V1betaStopReplicationUnprocessableEntity handles this case with default header values.
 
 Unprocessable entity
 */
@@ -524,44 +307,8 @@ type V1betaStopReplicationUnprocessableEntity struct {
 	Payload *models.Error
 }
 
-// IsSuccess returns true when this v1beta stop replication unprocessable entity response has a 2xx status code
-func (o *V1betaStopReplicationUnprocessableEntity) IsSuccess() bool {
-	return false
-}
-
-// IsRedirect returns true when this v1beta stop replication unprocessable entity response has a 3xx status code
-func (o *V1betaStopReplicationUnprocessableEntity) IsRedirect() bool {
-	return false
-}
-
-// IsClientError returns true when this v1beta stop replication unprocessable entity response has a 4xx status code
-func (o *V1betaStopReplicationUnprocessableEntity) IsClientError() bool {
-	return true
-}
-
-// IsServerError returns true when this v1beta stop replication unprocessable entity response has a 5xx status code
-func (o *V1betaStopReplicationUnprocessableEntity) IsServerError() bool {
-	return false
-}
-
-// IsCode returns true when this v1beta stop replication unprocessable entity response a status code equal to that given
-func (o *V1betaStopReplicationUnprocessableEntity) IsCode(code int) bool {
-	return code == 422
-}
-
-// Code gets the status code for the v1beta stop replication unprocessable entity response
-func (o *V1betaStopReplicationUnprocessableEntity) Code() int {
-	return 422
-}
-
 func (o *V1betaStopReplicationUnprocessableEntity) Error() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeResourceId}/replications/{replicationResourceId}/stop][%d] v1betaStopReplicationUnprocessableEntity %s", 422, payload)
-}
-
-func (o *V1betaStopReplicationUnprocessableEntity) String() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeResourceId}/replications/{replicationResourceId}/stop][%d] v1betaStopReplicationUnprocessableEntity %s", 422, payload)
+	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeResourceId}/replications/{replicationResourceId}/stop][%d] v1betaStopReplicationUnprocessableEntity  %+v", 422, o.Payload)
 }
 
 func (o *V1betaStopReplicationUnprocessableEntity) GetPayload() *models.Error {
@@ -586,7 +333,7 @@ func NewV1betaStopReplicationTooManyRequests() *V1betaStopReplicationTooManyRequ
 }
 
 /*
-V1betaStopReplicationTooManyRequests describes a response with status code 429, with default header values.
+V1betaStopReplicationTooManyRequests handles this case with default header values.
 
 Too many requests
 */
@@ -594,44 +341,8 @@ type V1betaStopReplicationTooManyRequests struct {
 	Payload *models.Error
 }
 
-// IsSuccess returns true when this v1beta stop replication too many requests response has a 2xx status code
-func (o *V1betaStopReplicationTooManyRequests) IsSuccess() bool {
-	return false
-}
-
-// IsRedirect returns true when this v1beta stop replication too many requests response has a 3xx status code
-func (o *V1betaStopReplicationTooManyRequests) IsRedirect() bool {
-	return false
-}
-
-// IsClientError returns true when this v1beta stop replication too many requests response has a 4xx status code
-func (o *V1betaStopReplicationTooManyRequests) IsClientError() bool {
-	return true
-}
-
-// IsServerError returns true when this v1beta stop replication too many requests response has a 5xx status code
-func (o *V1betaStopReplicationTooManyRequests) IsServerError() bool {
-	return false
-}
-
-// IsCode returns true when this v1beta stop replication too many requests response a status code equal to that given
-func (o *V1betaStopReplicationTooManyRequests) IsCode(code int) bool {
-	return code == 429
-}
-
-// Code gets the status code for the v1beta stop replication too many requests response
-func (o *V1betaStopReplicationTooManyRequests) Code() int {
-	return 429
-}
-
 func (o *V1betaStopReplicationTooManyRequests) Error() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeResourceId}/replications/{replicationResourceId}/stop][%d] v1betaStopReplicationTooManyRequests %s", 429, payload)
-}
-
-func (o *V1betaStopReplicationTooManyRequests) String() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeResourceId}/replications/{replicationResourceId}/stop][%d] v1betaStopReplicationTooManyRequests %s", 429, payload)
+	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeResourceId}/replications/{replicationResourceId}/stop][%d] v1betaStopReplicationTooManyRequests  %+v", 429, o.Payload)
 }
 
 func (o *V1betaStopReplicationTooManyRequests) GetPayload() *models.Error {
@@ -656,7 +367,7 @@ func NewV1betaStopReplicationInternalServerError() *V1betaStopReplicationInterna
 }
 
 /*
-V1betaStopReplicationInternalServerError describes a response with status code 500, with default header values.
+V1betaStopReplicationInternalServerError handles this case with default header values.
 
 Internal server error
 */
@@ -664,44 +375,8 @@ type V1betaStopReplicationInternalServerError struct {
 	Payload *models.Error
 }
 
-// IsSuccess returns true when this v1beta stop replication internal server error response has a 2xx status code
-func (o *V1betaStopReplicationInternalServerError) IsSuccess() bool {
-	return false
-}
-
-// IsRedirect returns true when this v1beta stop replication internal server error response has a 3xx status code
-func (o *V1betaStopReplicationInternalServerError) IsRedirect() bool {
-	return false
-}
-
-// IsClientError returns true when this v1beta stop replication internal server error response has a 4xx status code
-func (o *V1betaStopReplicationInternalServerError) IsClientError() bool {
-	return false
-}
-
-// IsServerError returns true when this v1beta stop replication internal server error response has a 5xx status code
-func (o *V1betaStopReplicationInternalServerError) IsServerError() bool {
-	return true
-}
-
-// IsCode returns true when this v1beta stop replication internal server error response a status code equal to that given
-func (o *V1betaStopReplicationInternalServerError) IsCode(code int) bool {
-	return code == 500
-}
-
-// Code gets the status code for the v1beta stop replication internal server error response
-func (o *V1betaStopReplicationInternalServerError) Code() int {
-	return 500
-}
-
 func (o *V1betaStopReplicationInternalServerError) Error() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeResourceId}/replications/{replicationResourceId}/stop][%d] v1betaStopReplicationInternalServerError %s", 500, payload)
-}
-
-func (o *V1betaStopReplicationInternalServerError) String() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeResourceId}/replications/{replicationResourceId}/stop][%d] v1betaStopReplicationInternalServerError %s", 500, payload)
+	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeResourceId}/replications/{replicationResourceId}/stop][%d] v1betaStopReplicationInternalServerError  %+v", 500, o.Payload)
 }
 
 func (o *V1betaStopReplicationInternalServerError) GetPayload() *models.Error {
@@ -728,7 +403,7 @@ func NewV1betaStopReplicationDefault(code int) *V1betaStopReplicationDefault {
 }
 
 /*
-V1betaStopReplicationDefault describes a response with status code -1, with default header values.
+V1betaStopReplicationDefault handles this case with default header values.
 
 Unexpected error
 */
@@ -738,44 +413,13 @@ type V1betaStopReplicationDefault struct {
 	Payload *models.Error
 }
 
-// IsSuccess returns true when this v1beta stop replication default response has a 2xx status code
-func (o *V1betaStopReplicationDefault) IsSuccess() bool {
-	return o._statusCode/100 == 2
-}
-
-// IsRedirect returns true when this v1beta stop replication default response has a 3xx status code
-func (o *V1betaStopReplicationDefault) IsRedirect() bool {
-	return o._statusCode/100 == 3
-}
-
-// IsClientError returns true when this v1beta stop replication default response has a 4xx status code
-func (o *V1betaStopReplicationDefault) IsClientError() bool {
-	return o._statusCode/100 == 4
-}
-
-// IsServerError returns true when this v1beta stop replication default response has a 5xx status code
-func (o *V1betaStopReplicationDefault) IsServerError() bool {
-	return o._statusCode/100 == 5
-}
-
-// IsCode returns true when this v1beta stop replication default response a status code equal to that given
-func (o *V1betaStopReplicationDefault) IsCode(code int) bool {
-	return o._statusCode == code
-}
-
 // Code gets the status code for the v1beta stop replication default response
 func (o *V1betaStopReplicationDefault) Code() int {
 	return o._statusCode
 }
 
 func (o *V1betaStopReplicationDefault) Error() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeResourceId}/replications/{replicationResourceId}/stop][%d] v1beta_stopReplication default %s", o._statusCode, payload)
-}
-
-func (o *V1betaStopReplicationDefault) String() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeResourceId}/replications/{replicationResourceId}/stop][%d] v1beta_stopReplication default %s", o._statusCode, payload)
+	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeResourceId}/replications/{replicationResourceId}/stop][%d] v1beta_stopReplication default  %+v", o._statusCode, o.Payload)
 }
 
 func (o *V1betaStopReplicationDefault) GetPayload() *models.Error {

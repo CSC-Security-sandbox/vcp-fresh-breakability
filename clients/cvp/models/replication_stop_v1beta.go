@@ -6,8 +6,6 @@ package models
 // Editing this file might prove futile when you re-run the swagger generate command
 
 import (
-	"context"
-
 	"github.com/go-openapi/strfmt"
 	"github.com/go-openapi/swag"
 )
@@ -25,11 +23,6 @@ type ReplicationStopV1beta struct {
 
 // Validate validates this replication stop v1beta
 func (m *ReplicationStopV1beta) Validate(formats strfmt.Registry) error {
-	return nil
-}
-
-// ContextValidate validates this replication stop v1beta based on context it is used
-func (m *ReplicationStopV1beta) ContextValidate(ctx context.Context, formats strfmt.Registry) error {
 	return nil
 }
 

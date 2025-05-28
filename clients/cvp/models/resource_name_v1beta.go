@@ -6,8 +6,6 @@ package models
 // Editing this file might prove futile when you re-run the swagger generate command
 
 import (
-	"context"
-
 	"github.com/go-openapi/errors"
 	"github.com/go-openapi/strfmt"
 	"github.com/go-openapi/swag"
@@ -22,7 +20,6 @@ import (
 type ResourceNameV1beta struct {
 
 	// A human readable label for the resource which is restricted to letters, numbers, and hyphen, with the first character a letter, the last a letter or a number, and a 63 character maximum
-	// Example: my-resource
 	// Required: true
 	// Max Length: 63
 	// Min Length: 1
@@ -50,23 +47,18 @@ func (m *ResourceNameV1beta) validateResourceID(formats strfmt.Registry) error {
 		return err
 	}
 
-	if err := validate.MinLength("resourceId", "body", *m.ResourceID, 1); err != nil {
+	if err := validate.MinLength("resourceId", "body", string(*m.ResourceID), 1); err != nil {
 		return err
 	}
 
-	if err := validate.MaxLength("resourceId", "body", *m.ResourceID, 63); err != nil {
+	if err := validate.MaxLength("resourceId", "body", string(*m.ResourceID), 63); err != nil {
 		return err
 	}
 
-	if err := validate.Pattern("resourceId", "body", *m.ResourceID, `^[a-z]([a-z0-9-]{0,61}[a-z0-9])?$`); err != nil {
+	if err := validate.Pattern("resourceId", "body", string(*m.ResourceID), `^[a-z]([a-z0-9-]{0,61}[a-z0-9])?$`); err != nil {
 		return err
 	}
 
-	return nil
-}
-
-// ContextValidate validates this resource name v1beta based on context it is used
-func (m *ResourceNameV1beta) ContextValidate(ctx context.Context, formats strfmt.Registry) error {
 	return nil
 }
 

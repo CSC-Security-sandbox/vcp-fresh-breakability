@@ -6,8 +6,6 @@ package quota_rules
 // Editing this file might prove futile when you re-run the swagger generate command
 
 import (
-	"context"
-	"encoding/json"
 	"fmt"
 	"io"
 	"strconv"
@@ -100,7 +98,7 @@ func NewV1betaGetMultipleQuotaRulesOK() *V1betaGetMultipleQuotaRulesOK {
 }
 
 /*
-V1betaGetMultipleQuotaRulesOK describes a response with status code 200, with default header values.
+V1betaGetMultipleQuotaRulesOK handles this case with default header values.
 
 OK
 */
@@ -108,44 +106,8 @@ type V1betaGetMultipleQuotaRulesOK struct {
 	Payload *V1betaGetMultipleQuotaRulesOKBody
 }
 
-// IsSuccess returns true when this v1beta get multiple quota rules o k response has a 2xx status code
-func (o *V1betaGetMultipleQuotaRulesOK) IsSuccess() bool {
-	return true
-}
-
-// IsRedirect returns true when this v1beta get multiple quota rules o k response has a 3xx status code
-func (o *V1betaGetMultipleQuotaRulesOK) IsRedirect() bool {
-	return false
-}
-
-// IsClientError returns true when this v1beta get multiple quota rules o k response has a 4xx status code
-func (o *V1betaGetMultipleQuotaRulesOK) IsClientError() bool {
-	return false
-}
-
-// IsServerError returns true when this v1beta get multiple quota rules o k response has a 5xx status code
-func (o *V1betaGetMultipleQuotaRulesOK) IsServerError() bool {
-	return false
-}
-
-// IsCode returns true when this v1beta get multiple quota rules o k response a status code equal to that given
-func (o *V1betaGetMultipleQuotaRulesOK) IsCode(code int) bool {
-	return code == 200
-}
-
-// Code gets the status code for the v1beta get multiple quota rules o k response
-func (o *V1betaGetMultipleQuotaRulesOK) Code() int {
-	return 200
-}
-
 func (o *V1betaGetMultipleQuotaRulesOK) Error() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/getMultipleQuotaRules][%d] v1betaGetMultipleQuotaRulesOK %s", 200, payload)
-}
-
-func (o *V1betaGetMultipleQuotaRulesOK) String() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/getMultipleQuotaRules][%d] v1betaGetMultipleQuotaRulesOK %s", 200, payload)
+	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/getMultipleQuotaRules][%d] v1betaGetMultipleQuotaRulesOK  %+v", 200, o.Payload)
 }
 
 func (o *V1betaGetMultipleQuotaRulesOK) GetPayload() *V1betaGetMultipleQuotaRulesOKBody {
@@ -170,7 +132,7 @@ func NewV1betaGetMultipleQuotaRulesBadRequest() *V1betaGetMultipleQuotaRulesBadR
 }
 
 /*
-V1betaGetMultipleQuotaRulesBadRequest describes a response with status code 400, with default header values.
+V1betaGetMultipleQuotaRulesBadRequest handles this case with default header values.
 
 Bad request
 */
@@ -178,44 +140,8 @@ type V1betaGetMultipleQuotaRulesBadRequest struct {
 	Payload *models.Error
 }
 
-// IsSuccess returns true when this v1beta get multiple quota rules bad request response has a 2xx status code
-func (o *V1betaGetMultipleQuotaRulesBadRequest) IsSuccess() bool {
-	return false
-}
-
-// IsRedirect returns true when this v1beta get multiple quota rules bad request response has a 3xx status code
-func (o *V1betaGetMultipleQuotaRulesBadRequest) IsRedirect() bool {
-	return false
-}
-
-// IsClientError returns true when this v1beta get multiple quota rules bad request response has a 4xx status code
-func (o *V1betaGetMultipleQuotaRulesBadRequest) IsClientError() bool {
-	return true
-}
-
-// IsServerError returns true when this v1beta get multiple quota rules bad request response has a 5xx status code
-func (o *V1betaGetMultipleQuotaRulesBadRequest) IsServerError() bool {
-	return false
-}
-
-// IsCode returns true when this v1beta get multiple quota rules bad request response a status code equal to that given
-func (o *V1betaGetMultipleQuotaRulesBadRequest) IsCode(code int) bool {
-	return code == 400
-}
-
-// Code gets the status code for the v1beta get multiple quota rules bad request response
-func (o *V1betaGetMultipleQuotaRulesBadRequest) Code() int {
-	return 400
-}
-
 func (o *V1betaGetMultipleQuotaRulesBadRequest) Error() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/getMultipleQuotaRules][%d] v1betaGetMultipleQuotaRulesBadRequest %s", 400, payload)
-}
-
-func (o *V1betaGetMultipleQuotaRulesBadRequest) String() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/getMultipleQuotaRules][%d] v1betaGetMultipleQuotaRulesBadRequest %s", 400, payload)
+	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/getMultipleQuotaRules][%d] v1betaGetMultipleQuotaRulesBadRequest  %+v", 400, o.Payload)
 }
 
 func (o *V1betaGetMultipleQuotaRulesBadRequest) GetPayload() *models.Error {
@@ -240,7 +166,7 @@ func NewV1betaGetMultipleQuotaRulesUnauthorized() *V1betaGetMultipleQuotaRulesUn
 }
 
 /*
-V1betaGetMultipleQuotaRulesUnauthorized describes a response with status code 401, with default header values.
+V1betaGetMultipleQuotaRulesUnauthorized handles this case with default header values.
 
 Unauthorized
 */
@@ -248,44 +174,8 @@ type V1betaGetMultipleQuotaRulesUnauthorized struct {
 	Payload *models.Error
 }
 
-// IsSuccess returns true when this v1beta get multiple quota rules unauthorized response has a 2xx status code
-func (o *V1betaGetMultipleQuotaRulesUnauthorized) IsSuccess() bool {
-	return false
-}
-
-// IsRedirect returns true when this v1beta get multiple quota rules unauthorized response has a 3xx status code
-func (o *V1betaGetMultipleQuotaRulesUnauthorized) IsRedirect() bool {
-	return false
-}
-
-// IsClientError returns true when this v1beta get multiple quota rules unauthorized response has a 4xx status code
-func (o *V1betaGetMultipleQuotaRulesUnauthorized) IsClientError() bool {
-	return true
-}
-
-// IsServerError returns true when this v1beta get multiple quota rules unauthorized response has a 5xx status code
-func (o *V1betaGetMultipleQuotaRulesUnauthorized) IsServerError() bool {
-	return false
-}
-
-// IsCode returns true when this v1beta get multiple quota rules unauthorized response a status code equal to that given
-func (o *V1betaGetMultipleQuotaRulesUnauthorized) IsCode(code int) bool {
-	return code == 401
-}
-
-// Code gets the status code for the v1beta get multiple quota rules unauthorized response
-func (o *V1betaGetMultipleQuotaRulesUnauthorized) Code() int {
-	return 401
-}
-
 func (o *V1betaGetMultipleQuotaRulesUnauthorized) Error() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/getMultipleQuotaRules][%d] v1betaGetMultipleQuotaRulesUnauthorized %s", 401, payload)
-}
-
-func (o *V1betaGetMultipleQuotaRulesUnauthorized) String() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/getMultipleQuotaRules][%d] v1betaGetMultipleQuotaRulesUnauthorized %s", 401, payload)
+	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/getMultipleQuotaRules][%d] v1betaGetMultipleQuotaRulesUnauthorized  %+v", 401, o.Payload)
 }
 
 func (o *V1betaGetMultipleQuotaRulesUnauthorized) GetPayload() *models.Error {
@@ -310,7 +200,7 @@ func NewV1betaGetMultipleQuotaRulesForbidden() *V1betaGetMultipleQuotaRulesForbi
 }
 
 /*
-V1betaGetMultipleQuotaRulesForbidden describes a response with status code 403, with default header values.
+V1betaGetMultipleQuotaRulesForbidden handles this case with default header values.
 
 Forbidden
 */
@@ -318,44 +208,8 @@ type V1betaGetMultipleQuotaRulesForbidden struct {
 	Payload *models.Error
 }
 
-// IsSuccess returns true when this v1beta get multiple quota rules forbidden response has a 2xx status code
-func (o *V1betaGetMultipleQuotaRulesForbidden) IsSuccess() bool {
-	return false
-}
-
-// IsRedirect returns true when this v1beta get multiple quota rules forbidden response has a 3xx status code
-func (o *V1betaGetMultipleQuotaRulesForbidden) IsRedirect() bool {
-	return false
-}
-
-// IsClientError returns true when this v1beta get multiple quota rules forbidden response has a 4xx status code
-func (o *V1betaGetMultipleQuotaRulesForbidden) IsClientError() bool {
-	return true
-}
-
-// IsServerError returns true when this v1beta get multiple quota rules forbidden response has a 5xx status code
-func (o *V1betaGetMultipleQuotaRulesForbidden) IsServerError() bool {
-	return false
-}
-
-// IsCode returns true when this v1beta get multiple quota rules forbidden response a status code equal to that given
-func (o *V1betaGetMultipleQuotaRulesForbidden) IsCode(code int) bool {
-	return code == 403
-}
-
-// Code gets the status code for the v1beta get multiple quota rules forbidden response
-func (o *V1betaGetMultipleQuotaRulesForbidden) Code() int {
-	return 403
-}
-
 func (o *V1betaGetMultipleQuotaRulesForbidden) Error() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/getMultipleQuotaRules][%d] v1betaGetMultipleQuotaRulesForbidden %s", 403, payload)
-}
-
-func (o *V1betaGetMultipleQuotaRulesForbidden) String() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/getMultipleQuotaRules][%d] v1betaGetMultipleQuotaRulesForbidden %s", 403, payload)
+	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/getMultipleQuotaRules][%d] v1betaGetMultipleQuotaRulesForbidden  %+v", 403, o.Payload)
 }
 
 func (o *V1betaGetMultipleQuotaRulesForbidden) GetPayload() *models.Error {
@@ -380,7 +234,7 @@ func NewV1betaGetMultipleQuotaRulesNotFound() *V1betaGetMultipleQuotaRulesNotFou
 }
 
 /*
-V1betaGetMultipleQuotaRulesNotFound describes a response with status code 404, with default header values.
+V1betaGetMultipleQuotaRulesNotFound handles this case with default header values.
 
 Not found
 */
@@ -388,44 +242,8 @@ type V1betaGetMultipleQuotaRulesNotFound struct {
 	Payload *models.Error
 }
 
-// IsSuccess returns true when this v1beta get multiple quota rules not found response has a 2xx status code
-func (o *V1betaGetMultipleQuotaRulesNotFound) IsSuccess() bool {
-	return false
-}
-
-// IsRedirect returns true when this v1beta get multiple quota rules not found response has a 3xx status code
-func (o *V1betaGetMultipleQuotaRulesNotFound) IsRedirect() bool {
-	return false
-}
-
-// IsClientError returns true when this v1beta get multiple quota rules not found response has a 4xx status code
-func (o *V1betaGetMultipleQuotaRulesNotFound) IsClientError() bool {
-	return true
-}
-
-// IsServerError returns true when this v1beta get multiple quota rules not found response has a 5xx status code
-func (o *V1betaGetMultipleQuotaRulesNotFound) IsServerError() bool {
-	return false
-}
-
-// IsCode returns true when this v1beta get multiple quota rules not found response a status code equal to that given
-func (o *V1betaGetMultipleQuotaRulesNotFound) IsCode(code int) bool {
-	return code == 404
-}
-
-// Code gets the status code for the v1beta get multiple quota rules not found response
-func (o *V1betaGetMultipleQuotaRulesNotFound) Code() int {
-	return 404
-}
-
 func (o *V1betaGetMultipleQuotaRulesNotFound) Error() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/getMultipleQuotaRules][%d] v1betaGetMultipleQuotaRulesNotFound %s", 404, payload)
-}
-
-func (o *V1betaGetMultipleQuotaRulesNotFound) String() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/getMultipleQuotaRules][%d] v1betaGetMultipleQuotaRulesNotFound %s", 404, payload)
+	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/getMultipleQuotaRules][%d] v1betaGetMultipleQuotaRulesNotFound  %+v", 404, o.Payload)
 }
 
 func (o *V1betaGetMultipleQuotaRulesNotFound) GetPayload() *models.Error {
@@ -450,7 +268,7 @@ func NewV1betaGetMultipleQuotaRulesUnprocessableEntity() *V1betaGetMultipleQuota
 }
 
 /*
-V1betaGetMultipleQuotaRulesUnprocessableEntity describes a response with status code 422, with default header values.
+V1betaGetMultipleQuotaRulesUnprocessableEntity handles this case with default header values.
 
 Unprocessable entity
 */
@@ -458,44 +276,8 @@ type V1betaGetMultipleQuotaRulesUnprocessableEntity struct {
 	Payload *models.Error
 }
 
-// IsSuccess returns true when this v1beta get multiple quota rules unprocessable entity response has a 2xx status code
-func (o *V1betaGetMultipleQuotaRulesUnprocessableEntity) IsSuccess() bool {
-	return false
-}
-
-// IsRedirect returns true when this v1beta get multiple quota rules unprocessable entity response has a 3xx status code
-func (o *V1betaGetMultipleQuotaRulesUnprocessableEntity) IsRedirect() bool {
-	return false
-}
-
-// IsClientError returns true when this v1beta get multiple quota rules unprocessable entity response has a 4xx status code
-func (o *V1betaGetMultipleQuotaRulesUnprocessableEntity) IsClientError() bool {
-	return true
-}
-
-// IsServerError returns true when this v1beta get multiple quota rules unprocessable entity response has a 5xx status code
-func (o *V1betaGetMultipleQuotaRulesUnprocessableEntity) IsServerError() bool {
-	return false
-}
-
-// IsCode returns true when this v1beta get multiple quota rules unprocessable entity response a status code equal to that given
-func (o *V1betaGetMultipleQuotaRulesUnprocessableEntity) IsCode(code int) bool {
-	return code == 422
-}
-
-// Code gets the status code for the v1beta get multiple quota rules unprocessable entity response
-func (o *V1betaGetMultipleQuotaRulesUnprocessableEntity) Code() int {
-	return 422
-}
-
 func (o *V1betaGetMultipleQuotaRulesUnprocessableEntity) Error() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/getMultipleQuotaRules][%d] v1betaGetMultipleQuotaRulesUnprocessableEntity %s", 422, payload)
-}
-
-func (o *V1betaGetMultipleQuotaRulesUnprocessableEntity) String() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/getMultipleQuotaRules][%d] v1betaGetMultipleQuotaRulesUnprocessableEntity %s", 422, payload)
+	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/getMultipleQuotaRules][%d] v1betaGetMultipleQuotaRulesUnprocessableEntity  %+v", 422, o.Payload)
 }
 
 func (o *V1betaGetMultipleQuotaRulesUnprocessableEntity) GetPayload() *models.Error {
@@ -520,7 +302,7 @@ func NewV1betaGetMultipleQuotaRulesTooManyRequests() *V1betaGetMultipleQuotaRule
 }
 
 /*
-V1betaGetMultipleQuotaRulesTooManyRequests describes a response with status code 429, with default header values.
+V1betaGetMultipleQuotaRulesTooManyRequests handles this case with default header values.
 
 Too many requests
 */
@@ -528,44 +310,8 @@ type V1betaGetMultipleQuotaRulesTooManyRequests struct {
 	Payload *models.Error
 }
 
-// IsSuccess returns true when this v1beta get multiple quota rules too many requests response has a 2xx status code
-func (o *V1betaGetMultipleQuotaRulesTooManyRequests) IsSuccess() bool {
-	return false
-}
-
-// IsRedirect returns true when this v1beta get multiple quota rules too many requests response has a 3xx status code
-func (o *V1betaGetMultipleQuotaRulesTooManyRequests) IsRedirect() bool {
-	return false
-}
-
-// IsClientError returns true when this v1beta get multiple quota rules too many requests response has a 4xx status code
-func (o *V1betaGetMultipleQuotaRulesTooManyRequests) IsClientError() bool {
-	return true
-}
-
-// IsServerError returns true when this v1beta get multiple quota rules too many requests response has a 5xx status code
-func (o *V1betaGetMultipleQuotaRulesTooManyRequests) IsServerError() bool {
-	return false
-}
-
-// IsCode returns true when this v1beta get multiple quota rules too many requests response a status code equal to that given
-func (o *V1betaGetMultipleQuotaRulesTooManyRequests) IsCode(code int) bool {
-	return code == 429
-}
-
-// Code gets the status code for the v1beta get multiple quota rules too many requests response
-func (o *V1betaGetMultipleQuotaRulesTooManyRequests) Code() int {
-	return 429
-}
-
 func (o *V1betaGetMultipleQuotaRulesTooManyRequests) Error() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/getMultipleQuotaRules][%d] v1betaGetMultipleQuotaRulesTooManyRequests %s", 429, payload)
-}
-
-func (o *V1betaGetMultipleQuotaRulesTooManyRequests) String() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/getMultipleQuotaRules][%d] v1betaGetMultipleQuotaRulesTooManyRequests %s", 429, payload)
+	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/getMultipleQuotaRules][%d] v1betaGetMultipleQuotaRulesTooManyRequests  %+v", 429, o.Payload)
 }
 
 func (o *V1betaGetMultipleQuotaRulesTooManyRequests) GetPayload() *models.Error {
@@ -590,7 +336,7 @@ func NewV1betaGetMultipleQuotaRulesInternalServerError() *V1betaGetMultipleQuota
 }
 
 /*
-V1betaGetMultipleQuotaRulesInternalServerError describes a response with status code 500, with default header values.
+V1betaGetMultipleQuotaRulesInternalServerError handles this case with default header values.
 
 Internal server error
 */
@@ -598,44 +344,8 @@ type V1betaGetMultipleQuotaRulesInternalServerError struct {
 	Payload *models.Error
 }
 
-// IsSuccess returns true when this v1beta get multiple quota rules internal server error response has a 2xx status code
-func (o *V1betaGetMultipleQuotaRulesInternalServerError) IsSuccess() bool {
-	return false
-}
-
-// IsRedirect returns true when this v1beta get multiple quota rules internal server error response has a 3xx status code
-func (o *V1betaGetMultipleQuotaRulesInternalServerError) IsRedirect() bool {
-	return false
-}
-
-// IsClientError returns true when this v1beta get multiple quota rules internal server error response has a 4xx status code
-func (o *V1betaGetMultipleQuotaRulesInternalServerError) IsClientError() bool {
-	return false
-}
-
-// IsServerError returns true when this v1beta get multiple quota rules internal server error response has a 5xx status code
-func (o *V1betaGetMultipleQuotaRulesInternalServerError) IsServerError() bool {
-	return true
-}
-
-// IsCode returns true when this v1beta get multiple quota rules internal server error response a status code equal to that given
-func (o *V1betaGetMultipleQuotaRulesInternalServerError) IsCode(code int) bool {
-	return code == 500
-}
-
-// Code gets the status code for the v1beta get multiple quota rules internal server error response
-func (o *V1betaGetMultipleQuotaRulesInternalServerError) Code() int {
-	return 500
-}
-
 func (o *V1betaGetMultipleQuotaRulesInternalServerError) Error() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/getMultipleQuotaRules][%d] v1betaGetMultipleQuotaRulesInternalServerError %s", 500, payload)
-}
-
-func (o *V1betaGetMultipleQuotaRulesInternalServerError) String() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/getMultipleQuotaRules][%d] v1betaGetMultipleQuotaRulesInternalServerError %s", 500, payload)
+	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/getMultipleQuotaRules][%d] v1betaGetMultipleQuotaRulesInternalServerError  %+v", 500, o.Payload)
 }
 
 func (o *V1betaGetMultipleQuotaRulesInternalServerError) GetPayload() *models.Error {
@@ -660,7 +370,7 @@ func NewV1betaGetMultipleQuotaRulesNotImplemented() *V1betaGetMultipleQuotaRules
 }
 
 /*
-V1betaGetMultipleQuotaRulesNotImplemented describes a response with status code 501, with default header values.
+V1betaGetMultipleQuotaRulesNotImplemented handles this case with default header values.
 
 Not implemented
 */
@@ -668,44 +378,8 @@ type V1betaGetMultipleQuotaRulesNotImplemented struct {
 	Payload *models.Error
 }
 
-// IsSuccess returns true when this v1beta get multiple quota rules not implemented response has a 2xx status code
-func (o *V1betaGetMultipleQuotaRulesNotImplemented) IsSuccess() bool {
-	return false
-}
-
-// IsRedirect returns true when this v1beta get multiple quota rules not implemented response has a 3xx status code
-func (o *V1betaGetMultipleQuotaRulesNotImplemented) IsRedirect() bool {
-	return false
-}
-
-// IsClientError returns true when this v1beta get multiple quota rules not implemented response has a 4xx status code
-func (o *V1betaGetMultipleQuotaRulesNotImplemented) IsClientError() bool {
-	return false
-}
-
-// IsServerError returns true when this v1beta get multiple quota rules not implemented response has a 5xx status code
-func (o *V1betaGetMultipleQuotaRulesNotImplemented) IsServerError() bool {
-	return true
-}
-
-// IsCode returns true when this v1beta get multiple quota rules not implemented response a status code equal to that given
-func (o *V1betaGetMultipleQuotaRulesNotImplemented) IsCode(code int) bool {
-	return code == 501
-}
-
-// Code gets the status code for the v1beta get multiple quota rules not implemented response
-func (o *V1betaGetMultipleQuotaRulesNotImplemented) Code() int {
-	return 501
-}
-
 func (o *V1betaGetMultipleQuotaRulesNotImplemented) Error() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/getMultipleQuotaRules][%d] v1betaGetMultipleQuotaRulesNotImplemented %s", 501, payload)
-}
-
-func (o *V1betaGetMultipleQuotaRulesNotImplemented) String() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/getMultipleQuotaRules][%d] v1betaGetMultipleQuotaRulesNotImplemented %s", 501, payload)
+	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/getMultipleQuotaRules][%d] v1betaGetMultipleQuotaRulesNotImplemented  %+v", 501, o.Payload)
 }
 
 func (o *V1betaGetMultipleQuotaRulesNotImplemented) GetPayload() *models.Error {
@@ -732,7 +406,7 @@ func NewV1betaGetMultipleQuotaRulesDefault(code int) *V1betaGetMultipleQuotaRule
 }
 
 /*
-V1betaGetMultipleQuotaRulesDefault describes a response with status code -1, with default header values.
+V1betaGetMultipleQuotaRulesDefault handles this case with default header values.
 
 Unexpected error
 */
@@ -742,44 +416,13 @@ type V1betaGetMultipleQuotaRulesDefault struct {
 	Payload *models.Error
 }
 
-// IsSuccess returns true when this v1beta get multiple quota rules default response has a 2xx status code
-func (o *V1betaGetMultipleQuotaRulesDefault) IsSuccess() bool {
-	return o._statusCode/100 == 2
-}
-
-// IsRedirect returns true when this v1beta get multiple quota rules default response has a 3xx status code
-func (o *V1betaGetMultipleQuotaRulesDefault) IsRedirect() bool {
-	return o._statusCode/100 == 3
-}
-
-// IsClientError returns true when this v1beta get multiple quota rules default response has a 4xx status code
-func (o *V1betaGetMultipleQuotaRulesDefault) IsClientError() bool {
-	return o._statusCode/100 == 4
-}
-
-// IsServerError returns true when this v1beta get multiple quota rules default response has a 5xx status code
-func (o *V1betaGetMultipleQuotaRulesDefault) IsServerError() bool {
-	return o._statusCode/100 == 5
-}
-
-// IsCode returns true when this v1beta get multiple quota rules default response a status code equal to that given
-func (o *V1betaGetMultipleQuotaRulesDefault) IsCode(code int) bool {
-	return o._statusCode == code
-}
-
 // Code gets the status code for the v1beta get multiple quota rules default response
 func (o *V1betaGetMultipleQuotaRulesDefault) Code() int {
 	return o._statusCode
 }
 
 func (o *V1betaGetMultipleQuotaRulesDefault) Error() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/getMultipleQuotaRules][%d] v1beta_getMultipleQuotaRules default %s", o._statusCode, payload)
-}
-
-func (o *V1betaGetMultipleQuotaRulesDefault) String() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/getMultipleQuotaRules][%d] v1beta_getMultipleQuotaRules default %s", o._statusCode, payload)
+	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/getMultipleQuotaRules][%d] v1beta_getMultipleQuotaRules default  %+v", o._statusCode, o.Payload)
 }
 
 func (o *V1betaGetMultipleQuotaRulesDefault) GetPayload() *models.Error {
@@ -870,47 +513,6 @@ func (o *V1betaGetMultipleQuotaRulesOKBody) validateQuotaRules(formats strfmt.Re
 			if err := o.QuotaRules[i].Validate(formats); err != nil {
 				if ve, ok := err.(*errors.Validation); ok {
 					return ve.ValidateName("v1betaGetMultipleQuotaRulesOK" + "." + "quotaRules" + "." + strconv.Itoa(i))
-				} else if ce, ok := err.(*errors.CompositeError); ok {
-					return ce.ValidateName("v1betaGetMultipleQuotaRulesOK" + "." + "quotaRules" + "." + strconv.Itoa(i))
-				}
-				return err
-			}
-		}
-
-	}
-
-	return nil
-}
-
-// ContextValidate validate this v1beta get multiple quota rules o k body based on the context it is used
-func (o *V1betaGetMultipleQuotaRulesOKBody) ContextValidate(ctx context.Context, formats strfmt.Registry) error {
-	var res []error
-
-	if err := o.contextValidateQuotaRules(ctx, formats); err != nil {
-		res = append(res, err)
-	}
-
-	if len(res) > 0 {
-		return errors.CompositeValidationError(res...)
-	}
-	return nil
-}
-
-func (o *V1betaGetMultipleQuotaRulesOKBody) contextValidateQuotaRules(ctx context.Context, formats strfmt.Registry) error {
-
-	for i := 0; i < len(o.QuotaRules); i++ {
-
-		if o.QuotaRules[i] != nil {
-
-			if swag.IsZero(o.QuotaRules[i]) { // not required
-				return nil
-			}
-
-			if err := o.QuotaRules[i].ContextValidate(ctx, formats); err != nil {
-				if ve, ok := err.(*errors.Validation); ok {
-					return ve.ValidateName("v1betaGetMultipleQuotaRulesOK" + "." + "quotaRules" + "." + strconv.Itoa(i))
-				} else if ce, ok := err.(*errors.CompositeError); ok {
-					return ce.ValidateName("v1betaGetMultipleQuotaRulesOK" + "." + "quotaRules" + "." + strconv.Itoa(i))
 				}
 				return err
 			}

@@ -6,8 +6,6 @@ package models
 // Editing this file might prove futile when you re-run the swagger generate command
 
 import (
-	"context"
-
 	"github.com/go-openapi/errors"
 	"github.com/go-openapi/strfmt"
 	"github.com/go-openapi/swag"
@@ -21,19 +19,15 @@ import (
 type ReplicationResourcesForMigrationV1beta struct {
 
 	// Display name of the particular volume
-	// Example: vol1
 	DisplayName string `json:"displayName,omitempty"`
 
 	// Remote resource ID of the particular replication
-	// Example: d0d9bcd2-2535-1e34-c549-07113d0640cf
 	RemoteResourceID string `json:"remoteResourceID,omitempty"`
 
 	// Display name of the particular replication
-	// Example: volume1-replication
 	ReplicationName string `json:"replicationName,omitempty"`
 
 	// The service level of the pool. Can be specified either by name or performance but will always be specified by name in responses. For backwards compatibility, can also be specified as basic, standard, or extreme, which will be equivalent to having specified performance low, medium, or high, respectively. However, if any service level's name is one of basic, standard, or extreme, the performance will be that of the service level, not the performance equivalent of the backwards compatibility.
-	// Example: medium.
 	ServiceLevel string `json:"serviceLevel,omitempty"`
 }
 
@@ -101,11 +95,6 @@ func (m *ReplicationResourcesForMigrationV1beta) Validate(formats strfmt.Registr
 	if len(res) > 0 {
 		return errors.CompositeValidationError(res...)
 	}
-	return nil
-}
-
-// ContextValidate validates this replication resources for migration v1beta based on context it is used
-func (m *ReplicationResourcesForMigrationV1beta) ContextValidate(ctx context.Context, formats strfmt.Registry) error {
 	return nil
 }
 

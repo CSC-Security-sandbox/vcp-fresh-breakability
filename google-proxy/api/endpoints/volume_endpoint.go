@@ -451,6 +451,7 @@ func _convertVolumeV1betaCVPToModel(in *cvpmodels.VolumeV1beta) gcpgenserver.Vol
 		SecurityStyle:           gcpgenserver.NewOptVolumeV1betaSecurityStyle(gcpgenserver.VolumeV1betaSecurityStyle(in.SecurityStyle)),
 		ServiceLevel:            gcpgenserver.NewOptVolumeV1betaServiceLevel(gcpgenserver.VolumeV1betaServiceLevel(in.ServiceLevel)),
 		EncryptionType:          gcpgenserver.NewOptVolumeV1betaEncryptionType(gcpgenserver.VolumeV1betaEncryptionType(in.EncryptionType)),
+		StorageClass:            gcpgenserver.NewOptStorageClassV1beta(gcpgenserver.StorageClassV1beta(in.StorageClass)),
 		Network:                 gcpgenserver.NewOptString(in.Network),
 		Zone:                    gcpgenserver.NewOptString(in.Zone),
 		UsedBytes:               utils.SafeFloat64(in.UsedBytes),
@@ -544,10 +545,6 @@ func _convertVolumeV1betaCVPToModel(in *cvpmodels.VolumeV1beta) gcpgenserver.Vol
 		}
 	}
 
-	if in.StorageClass != nil {
-		volume.StorageClass = gcpgenserver.NewOptStorageClassV1beta(gcpgenserver.StorageClassV1beta(*in.StorageClass))
-	}
-
 	if in.TieringPolicy != nil {
 		tieringPolicyV1beta := gcpgenserver.TieringPolicyV1beta{
 			TierAction: gcpgenserver.NewOptNilTieringPolicyV1betaTierAction(gcpgenserver.TieringPolicyV1betaTierAction(*in.TieringPolicy.TierAction)),
@@ -624,6 +621,45 @@ func _convertVolumeV1betaCVPToModel(in *cvpmodels.VolumeV1beta) gcpgenserver.Vol
 
 	if in.PoolID != nil {
 		volume.PoolId = gcpgenserver.NewNilString(*in.PoolID)
+	}
+
+	if in.CacheParameters != nil {
+		flexCachePrePopulateV1beta := gcpgenserver.FlexCachePrePopulateV1beta{}
+		cacheConfigV1beta := gcpgenserver.FlexCacheConfigV1beta{}
+
+		if in.CacheParameters.CacheConfig != nil {
+			cacheConfigV1beta = gcpgenserver.FlexCacheConfigV1beta{
+				WritebackEnabled:        gcpgenserver.NewOptNilBool(*in.CacheParameters.CacheConfig.WritebackEnabled),
+				AtimeScrubEnabled:       gcpgenserver.NewOptNilBool(*in.CacheParameters.CacheConfig.AtimeScrubEnabled),
+				AtimeScrubMinutes:       gcpgenserver.NewOptNilInt16(*in.CacheParameters.CacheConfig.AtimeScrubMinutes),
+				CifsChangeNotifyEnabled: gcpgenserver.NewOptNilBool(*in.CacheParameters.CacheConfig.CifsChangeNotifyEnabled),
+			}
+		}
+
+		if in.CacheParameters.CacheConfig.PrePopulate != nil {
+			flexCachePrePopulateV1beta = gcpgenserver.FlexCachePrePopulateV1beta{
+				PathList:        gcpgenserver.NewOptNilStringArray(in.CacheParameters.CacheConfig.PrePopulate.PathList),
+				ExcludePathList: gcpgenserver.NewOptNilStringArray(in.CacheParameters.CacheConfig.PrePopulate.ExcludePathList),
+				Recursion:       gcpgenserver.NewOptNilBool(*in.CacheParameters.CacheConfig.PrePopulate.Recursion),
+			}
+		}
+
+		cacheConfigV1beta.PrePopulate = gcpgenserver.NewOptFlexCachePrePopulateV1beta(flexCachePrePopulateV1beta)
+
+		cacheParams := gcpgenserver.FlexCacheV1beta{
+			PeerVolumeName:       gcpgenserver.NewOptString(in.CacheParameters.PeerVolumeName),
+			PeerClusterName:      gcpgenserver.NewOptString(in.CacheParameters.PeerClusterName),
+			PeerSvmName:          gcpgenserver.NewOptString(in.CacheParameters.PeerSvmName),
+			PeerIpAddresses:      in.CacheParameters.PeerIPAddresses,
+			EnableGlobalFileLock: gcpgenserver.NewOptNilBool(*in.CacheParameters.EnableGlobalFileLock),
+			CacheConfig:          gcpgenserver.NewOptFlexCacheConfigV1beta(cacheConfigV1beta),
+			CacheState:           gcpgenserver.NewOptFlexCacheV1betaCacheState(gcpgenserver.FlexCacheV1betaCacheState(in.CacheParameters.CacheState)),
+			Command:              gcpgenserver.NewOptString(in.CacheParameters.Command),
+			CommandExpiryTime:    gcpgenserver.NewOptNilDateTime(time.Time(*in.CacheParameters.CommandExpiryTime)),
+			Passphrase:           gcpgenserver.NewOptNilString(*in.CacheParameters.Passphrase),
+		}
+
+		volume.CacheParameters = gcpgenserver.NewOptFlexCacheV1beta(cacheParams)
 	}
 
 	return volume

@@ -6,7 +6,6 @@ package active_directories
 // Editing this file might prove futile when you re-run the swagger generate command
 
 import (
-	"encoding/json"
 	"fmt"
 	"io"
 
@@ -90,7 +89,7 @@ func NewV1betaDeleteActiveDirectoryAccepted() *V1betaDeleteActiveDirectoryAccept
 }
 
 /*
-V1betaDeleteActiveDirectoryAccepted describes a response with status code 202, with default header values.
+V1betaDeleteActiveDirectoryAccepted handles this case with default header values.
 
 Deleting Active Directory
 */
@@ -98,44 +97,8 @@ type V1betaDeleteActiveDirectoryAccepted struct {
 	Payload *models.OperationV1beta
 }
 
-// IsSuccess returns true when this v1beta delete active directory accepted response has a 2xx status code
-func (o *V1betaDeleteActiveDirectoryAccepted) IsSuccess() bool {
-	return true
-}
-
-// IsRedirect returns true when this v1beta delete active directory accepted response has a 3xx status code
-func (o *V1betaDeleteActiveDirectoryAccepted) IsRedirect() bool {
-	return false
-}
-
-// IsClientError returns true when this v1beta delete active directory accepted response has a 4xx status code
-func (o *V1betaDeleteActiveDirectoryAccepted) IsClientError() bool {
-	return false
-}
-
-// IsServerError returns true when this v1beta delete active directory accepted response has a 5xx status code
-func (o *V1betaDeleteActiveDirectoryAccepted) IsServerError() bool {
-	return false
-}
-
-// IsCode returns true when this v1beta delete active directory accepted response a status code equal to that given
-func (o *V1betaDeleteActiveDirectoryAccepted) IsCode(code int) bool {
-	return code == 202
-}
-
-// Code gets the status code for the v1beta delete active directory accepted response
-func (o *V1betaDeleteActiveDirectoryAccepted) Code() int {
-	return 202
-}
-
 func (o *V1betaDeleteActiveDirectoryAccepted) Error() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[DELETE /v1beta/projects/{projectNumber}/locations/{locationId}/storage/activeDirectory/{activeDirectoryId}][%d] v1betaDeleteActiveDirectoryAccepted %s", 202, payload)
-}
-
-func (o *V1betaDeleteActiveDirectoryAccepted) String() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[DELETE /v1beta/projects/{projectNumber}/locations/{locationId}/storage/activeDirectory/{activeDirectoryId}][%d] v1betaDeleteActiveDirectoryAccepted %s", 202, payload)
+	return fmt.Sprintf("[DELETE /v1beta/projects/{projectNumber}/locations/{locationId}/storage/activeDirectory/{activeDirectoryId}][%d] v1betaDeleteActiveDirectoryAccepted  %+v", 202, o.Payload)
 }
 
 func (o *V1betaDeleteActiveDirectoryAccepted) GetPayload() *models.OperationV1beta {
@@ -160,7 +123,7 @@ func NewV1betaDeleteActiveDirectoryBadRequest() *V1betaDeleteActiveDirectoryBadR
 }
 
 /*
-V1betaDeleteActiveDirectoryBadRequest describes a response with status code 400, with default header values.
+V1betaDeleteActiveDirectoryBadRequest handles this case with default header values.
 
 Bad request
 */
@@ -168,44 +131,8 @@ type V1betaDeleteActiveDirectoryBadRequest struct {
 	Payload *models.Error
 }
 
-// IsSuccess returns true when this v1beta delete active directory bad request response has a 2xx status code
-func (o *V1betaDeleteActiveDirectoryBadRequest) IsSuccess() bool {
-	return false
-}
-
-// IsRedirect returns true when this v1beta delete active directory bad request response has a 3xx status code
-func (o *V1betaDeleteActiveDirectoryBadRequest) IsRedirect() bool {
-	return false
-}
-
-// IsClientError returns true when this v1beta delete active directory bad request response has a 4xx status code
-func (o *V1betaDeleteActiveDirectoryBadRequest) IsClientError() bool {
-	return true
-}
-
-// IsServerError returns true when this v1beta delete active directory bad request response has a 5xx status code
-func (o *V1betaDeleteActiveDirectoryBadRequest) IsServerError() bool {
-	return false
-}
-
-// IsCode returns true when this v1beta delete active directory bad request response a status code equal to that given
-func (o *V1betaDeleteActiveDirectoryBadRequest) IsCode(code int) bool {
-	return code == 400
-}
-
-// Code gets the status code for the v1beta delete active directory bad request response
-func (o *V1betaDeleteActiveDirectoryBadRequest) Code() int {
-	return 400
-}
-
 func (o *V1betaDeleteActiveDirectoryBadRequest) Error() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[DELETE /v1beta/projects/{projectNumber}/locations/{locationId}/storage/activeDirectory/{activeDirectoryId}][%d] v1betaDeleteActiveDirectoryBadRequest %s", 400, payload)
-}
-
-func (o *V1betaDeleteActiveDirectoryBadRequest) String() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[DELETE /v1beta/projects/{projectNumber}/locations/{locationId}/storage/activeDirectory/{activeDirectoryId}][%d] v1betaDeleteActiveDirectoryBadRequest %s", 400, payload)
+	return fmt.Sprintf("[DELETE /v1beta/projects/{projectNumber}/locations/{locationId}/storage/activeDirectory/{activeDirectoryId}][%d] v1betaDeleteActiveDirectoryBadRequest  %+v", 400, o.Payload)
 }
 
 func (o *V1betaDeleteActiveDirectoryBadRequest) GetPayload() *models.Error {
@@ -230,7 +157,7 @@ func NewV1betaDeleteActiveDirectoryUnauthorized() *V1betaDeleteActiveDirectoryUn
 }
 
 /*
-V1betaDeleteActiveDirectoryUnauthorized describes a response with status code 401, with default header values.
+V1betaDeleteActiveDirectoryUnauthorized handles this case with default header values.
 
 Unauthorized
 */
@@ -238,44 +165,8 @@ type V1betaDeleteActiveDirectoryUnauthorized struct {
 	Payload *models.Error
 }
 
-// IsSuccess returns true when this v1beta delete active directory unauthorized response has a 2xx status code
-func (o *V1betaDeleteActiveDirectoryUnauthorized) IsSuccess() bool {
-	return false
-}
-
-// IsRedirect returns true when this v1beta delete active directory unauthorized response has a 3xx status code
-func (o *V1betaDeleteActiveDirectoryUnauthorized) IsRedirect() bool {
-	return false
-}
-
-// IsClientError returns true when this v1beta delete active directory unauthorized response has a 4xx status code
-func (o *V1betaDeleteActiveDirectoryUnauthorized) IsClientError() bool {
-	return true
-}
-
-// IsServerError returns true when this v1beta delete active directory unauthorized response has a 5xx status code
-func (o *V1betaDeleteActiveDirectoryUnauthorized) IsServerError() bool {
-	return false
-}
-
-// IsCode returns true when this v1beta delete active directory unauthorized response a status code equal to that given
-func (o *V1betaDeleteActiveDirectoryUnauthorized) IsCode(code int) bool {
-	return code == 401
-}
-
-// Code gets the status code for the v1beta delete active directory unauthorized response
-func (o *V1betaDeleteActiveDirectoryUnauthorized) Code() int {
-	return 401
-}
-
 func (o *V1betaDeleteActiveDirectoryUnauthorized) Error() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[DELETE /v1beta/projects/{projectNumber}/locations/{locationId}/storage/activeDirectory/{activeDirectoryId}][%d] v1betaDeleteActiveDirectoryUnauthorized %s", 401, payload)
-}
-
-func (o *V1betaDeleteActiveDirectoryUnauthorized) String() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[DELETE /v1beta/projects/{projectNumber}/locations/{locationId}/storage/activeDirectory/{activeDirectoryId}][%d] v1betaDeleteActiveDirectoryUnauthorized %s", 401, payload)
+	return fmt.Sprintf("[DELETE /v1beta/projects/{projectNumber}/locations/{locationId}/storage/activeDirectory/{activeDirectoryId}][%d] v1betaDeleteActiveDirectoryUnauthorized  %+v", 401, o.Payload)
 }
 
 func (o *V1betaDeleteActiveDirectoryUnauthorized) GetPayload() *models.Error {
@@ -300,7 +191,7 @@ func NewV1betaDeleteActiveDirectoryForbidden() *V1betaDeleteActiveDirectoryForbi
 }
 
 /*
-V1betaDeleteActiveDirectoryForbidden describes a response with status code 403, with default header values.
+V1betaDeleteActiveDirectoryForbidden handles this case with default header values.
 
 Forbidden
 */
@@ -308,44 +199,8 @@ type V1betaDeleteActiveDirectoryForbidden struct {
 	Payload *models.Error
 }
 
-// IsSuccess returns true when this v1beta delete active directory forbidden response has a 2xx status code
-func (o *V1betaDeleteActiveDirectoryForbidden) IsSuccess() bool {
-	return false
-}
-
-// IsRedirect returns true when this v1beta delete active directory forbidden response has a 3xx status code
-func (o *V1betaDeleteActiveDirectoryForbidden) IsRedirect() bool {
-	return false
-}
-
-// IsClientError returns true when this v1beta delete active directory forbidden response has a 4xx status code
-func (o *V1betaDeleteActiveDirectoryForbidden) IsClientError() bool {
-	return true
-}
-
-// IsServerError returns true when this v1beta delete active directory forbidden response has a 5xx status code
-func (o *V1betaDeleteActiveDirectoryForbidden) IsServerError() bool {
-	return false
-}
-
-// IsCode returns true when this v1beta delete active directory forbidden response a status code equal to that given
-func (o *V1betaDeleteActiveDirectoryForbidden) IsCode(code int) bool {
-	return code == 403
-}
-
-// Code gets the status code for the v1beta delete active directory forbidden response
-func (o *V1betaDeleteActiveDirectoryForbidden) Code() int {
-	return 403
-}
-
 func (o *V1betaDeleteActiveDirectoryForbidden) Error() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[DELETE /v1beta/projects/{projectNumber}/locations/{locationId}/storage/activeDirectory/{activeDirectoryId}][%d] v1betaDeleteActiveDirectoryForbidden %s", 403, payload)
-}
-
-func (o *V1betaDeleteActiveDirectoryForbidden) String() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[DELETE /v1beta/projects/{projectNumber}/locations/{locationId}/storage/activeDirectory/{activeDirectoryId}][%d] v1betaDeleteActiveDirectoryForbidden %s", 403, payload)
+	return fmt.Sprintf("[DELETE /v1beta/projects/{projectNumber}/locations/{locationId}/storage/activeDirectory/{activeDirectoryId}][%d] v1betaDeleteActiveDirectoryForbidden  %+v", 403, o.Payload)
 }
 
 func (o *V1betaDeleteActiveDirectoryForbidden) GetPayload() *models.Error {
@@ -370,7 +225,7 @@ func NewV1betaDeleteActiveDirectoryConflict() *V1betaDeleteActiveDirectoryConfli
 }
 
 /*
-V1betaDeleteActiveDirectoryConflict describes a response with status code 409, with default header values.
+V1betaDeleteActiveDirectoryConflict handles this case with default header values.
 
 Conflict
 */
@@ -378,44 +233,8 @@ type V1betaDeleteActiveDirectoryConflict struct {
 	Payload *models.Error
 }
 
-// IsSuccess returns true when this v1beta delete active directory conflict response has a 2xx status code
-func (o *V1betaDeleteActiveDirectoryConflict) IsSuccess() bool {
-	return false
-}
-
-// IsRedirect returns true when this v1beta delete active directory conflict response has a 3xx status code
-func (o *V1betaDeleteActiveDirectoryConflict) IsRedirect() bool {
-	return false
-}
-
-// IsClientError returns true when this v1beta delete active directory conflict response has a 4xx status code
-func (o *V1betaDeleteActiveDirectoryConflict) IsClientError() bool {
-	return true
-}
-
-// IsServerError returns true when this v1beta delete active directory conflict response has a 5xx status code
-func (o *V1betaDeleteActiveDirectoryConflict) IsServerError() bool {
-	return false
-}
-
-// IsCode returns true when this v1beta delete active directory conflict response a status code equal to that given
-func (o *V1betaDeleteActiveDirectoryConflict) IsCode(code int) bool {
-	return code == 409
-}
-
-// Code gets the status code for the v1beta delete active directory conflict response
-func (o *V1betaDeleteActiveDirectoryConflict) Code() int {
-	return 409
-}
-
 func (o *V1betaDeleteActiveDirectoryConflict) Error() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[DELETE /v1beta/projects/{projectNumber}/locations/{locationId}/storage/activeDirectory/{activeDirectoryId}][%d] v1betaDeleteActiveDirectoryConflict %s", 409, payload)
-}
-
-func (o *V1betaDeleteActiveDirectoryConflict) String() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[DELETE /v1beta/projects/{projectNumber}/locations/{locationId}/storage/activeDirectory/{activeDirectoryId}][%d] v1betaDeleteActiveDirectoryConflict %s", 409, payload)
+	return fmt.Sprintf("[DELETE /v1beta/projects/{projectNumber}/locations/{locationId}/storage/activeDirectory/{activeDirectoryId}][%d] v1betaDeleteActiveDirectoryConflict  %+v", 409, o.Payload)
 }
 
 func (o *V1betaDeleteActiveDirectoryConflict) GetPayload() *models.Error {
@@ -440,7 +259,7 @@ func NewV1betaDeleteActiveDirectoryUnprocessableEntity() *V1betaDeleteActiveDire
 }
 
 /*
-V1betaDeleteActiveDirectoryUnprocessableEntity describes a response with status code 422, with default header values.
+V1betaDeleteActiveDirectoryUnprocessableEntity handles this case with default header values.
 
 Unprocessable entity
 */
@@ -448,44 +267,8 @@ type V1betaDeleteActiveDirectoryUnprocessableEntity struct {
 	Payload *models.Error
 }
 
-// IsSuccess returns true when this v1beta delete active directory unprocessable entity response has a 2xx status code
-func (o *V1betaDeleteActiveDirectoryUnprocessableEntity) IsSuccess() bool {
-	return false
-}
-
-// IsRedirect returns true when this v1beta delete active directory unprocessable entity response has a 3xx status code
-func (o *V1betaDeleteActiveDirectoryUnprocessableEntity) IsRedirect() bool {
-	return false
-}
-
-// IsClientError returns true when this v1beta delete active directory unprocessable entity response has a 4xx status code
-func (o *V1betaDeleteActiveDirectoryUnprocessableEntity) IsClientError() bool {
-	return true
-}
-
-// IsServerError returns true when this v1beta delete active directory unprocessable entity response has a 5xx status code
-func (o *V1betaDeleteActiveDirectoryUnprocessableEntity) IsServerError() bool {
-	return false
-}
-
-// IsCode returns true when this v1beta delete active directory unprocessable entity response a status code equal to that given
-func (o *V1betaDeleteActiveDirectoryUnprocessableEntity) IsCode(code int) bool {
-	return code == 422
-}
-
-// Code gets the status code for the v1beta delete active directory unprocessable entity response
-func (o *V1betaDeleteActiveDirectoryUnprocessableEntity) Code() int {
-	return 422
-}
-
 func (o *V1betaDeleteActiveDirectoryUnprocessableEntity) Error() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[DELETE /v1beta/projects/{projectNumber}/locations/{locationId}/storage/activeDirectory/{activeDirectoryId}][%d] v1betaDeleteActiveDirectoryUnprocessableEntity %s", 422, payload)
-}
-
-func (o *V1betaDeleteActiveDirectoryUnprocessableEntity) String() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[DELETE /v1beta/projects/{projectNumber}/locations/{locationId}/storage/activeDirectory/{activeDirectoryId}][%d] v1betaDeleteActiveDirectoryUnprocessableEntity %s", 422, payload)
+	return fmt.Sprintf("[DELETE /v1beta/projects/{projectNumber}/locations/{locationId}/storage/activeDirectory/{activeDirectoryId}][%d] v1betaDeleteActiveDirectoryUnprocessableEntity  %+v", 422, o.Payload)
 }
 
 func (o *V1betaDeleteActiveDirectoryUnprocessableEntity) GetPayload() *models.Error {
@@ -510,7 +293,7 @@ func NewV1betaDeleteActiveDirectoryTooManyRequests() *V1betaDeleteActiveDirector
 }
 
 /*
-V1betaDeleteActiveDirectoryTooManyRequests describes a response with status code 429, with default header values.
+V1betaDeleteActiveDirectoryTooManyRequests handles this case with default header values.
 
 Too many requests
 */
@@ -518,44 +301,8 @@ type V1betaDeleteActiveDirectoryTooManyRequests struct {
 	Payload *models.Error
 }
 
-// IsSuccess returns true when this v1beta delete active directory too many requests response has a 2xx status code
-func (o *V1betaDeleteActiveDirectoryTooManyRequests) IsSuccess() bool {
-	return false
-}
-
-// IsRedirect returns true when this v1beta delete active directory too many requests response has a 3xx status code
-func (o *V1betaDeleteActiveDirectoryTooManyRequests) IsRedirect() bool {
-	return false
-}
-
-// IsClientError returns true when this v1beta delete active directory too many requests response has a 4xx status code
-func (o *V1betaDeleteActiveDirectoryTooManyRequests) IsClientError() bool {
-	return true
-}
-
-// IsServerError returns true when this v1beta delete active directory too many requests response has a 5xx status code
-func (o *V1betaDeleteActiveDirectoryTooManyRequests) IsServerError() bool {
-	return false
-}
-
-// IsCode returns true when this v1beta delete active directory too many requests response a status code equal to that given
-func (o *V1betaDeleteActiveDirectoryTooManyRequests) IsCode(code int) bool {
-	return code == 429
-}
-
-// Code gets the status code for the v1beta delete active directory too many requests response
-func (o *V1betaDeleteActiveDirectoryTooManyRequests) Code() int {
-	return 429
-}
-
 func (o *V1betaDeleteActiveDirectoryTooManyRequests) Error() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[DELETE /v1beta/projects/{projectNumber}/locations/{locationId}/storage/activeDirectory/{activeDirectoryId}][%d] v1betaDeleteActiveDirectoryTooManyRequests %s", 429, payload)
-}
-
-func (o *V1betaDeleteActiveDirectoryTooManyRequests) String() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[DELETE /v1beta/projects/{projectNumber}/locations/{locationId}/storage/activeDirectory/{activeDirectoryId}][%d] v1betaDeleteActiveDirectoryTooManyRequests %s", 429, payload)
+	return fmt.Sprintf("[DELETE /v1beta/projects/{projectNumber}/locations/{locationId}/storage/activeDirectory/{activeDirectoryId}][%d] v1betaDeleteActiveDirectoryTooManyRequests  %+v", 429, o.Payload)
 }
 
 func (o *V1betaDeleteActiveDirectoryTooManyRequests) GetPayload() *models.Error {
@@ -580,7 +327,7 @@ func NewV1betaDeleteActiveDirectoryInternalServerError() *V1betaDeleteActiveDire
 }
 
 /*
-V1betaDeleteActiveDirectoryInternalServerError describes a response with status code 500, with default header values.
+V1betaDeleteActiveDirectoryInternalServerError handles this case with default header values.
 
 Internal server error
 */
@@ -588,44 +335,8 @@ type V1betaDeleteActiveDirectoryInternalServerError struct {
 	Payload *models.Error
 }
 
-// IsSuccess returns true when this v1beta delete active directory internal server error response has a 2xx status code
-func (o *V1betaDeleteActiveDirectoryInternalServerError) IsSuccess() bool {
-	return false
-}
-
-// IsRedirect returns true when this v1beta delete active directory internal server error response has a 3xx status code
-func (o *V1betaDeleteActiveDirectoryInternalServerError) IsRedirect() bool {
-	return false
-}
-
-// IsClientError returns true when this v1beta delete active directory internal server error response has a 4xx status code
-func (o *V1betaDeleteActiveDirectoryInternalServerError) IsClientError() bool {
-	return false
-}
-
-// IsServerError returns true when this v1beta delete active directory internal server error response has a 5xx status code
-func (o *V1betaDeleteActiveDirectoryInternalServerError) IsServerError() bool {
-	return true
-}
-
-// IsCode returns true when this v1beta delete active directory internal server error response a status code equal to that given
-func (o *V1betaDeleteActiveDirectoryInternalServerError) IsCode(code int) bool {
-	return code == 500
-}
-
-// Code gets the status code for the v1beta delete active directory internal server error response
-func (o *V1betaDeleteActiveDirectoryInternalServerError) Code() int {
-	return 500
-}
-
 func (o *V1betaDeleteActiveDirectoryInternalServerError) Error() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[DELETE /v1beta/projects/{projectNumber}/locations/{locationId}/storage/activeDirectory/{activeDirectoryId}][%d] v1betaDeleteActiveDirectoryInternalServerError %s", 500, payload)
-}
-
-func (o *V1betaDeleteActiveDirectoryInternalServerError) String() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[DELETE /v1beta/projects/{projectNumber}/locations/{locationId}/storage/activeDirectory/{activeDirectoryId}][%d] v1betaDeleteActiveDirectoryInternalServerError %s", 500, payload)
+	return fmt.Sprintf("[DELETE /v1beta/projects/{projectNumber}/locations/{locationId}/storage/activeDirectory/{activeDirectoryId}][%d] v1betaDeleteActiveDirectoryInternalServerError  %+v", 500, o.Payload)
 }
 
 func (o *V1betaDeleteActiveDirectoryInternalServerError) GetPayload() *models.Error {
@@ -652,7 +363,7 @@ func NewV1betaDeleteActiveDirectoryDefault(code int) *V1betaDeleteActiveDirector
 }
 
 /*
-V1betaDeleteActiveDirectoryDefault describes a response with status code -1, with default header values.
+V1betaDeleteActiveDirectoryDefault handles this case with default header values.
 
 Unexpected error
 */
@@ -662,44 +373,13 @@ type V1betaDeleteActiveDirectoryDefault struct {
 	Payload *models.Error
 }
 
-// IsSuccess returns true when this v1beta delete active directory default response has a 2xx status code
-func (o *V1betaDeleteActiveDirectoryDefault) IsSuccess() bool {
-	return o._statusCode/100 == 2
-}
-
-// IsRedirect returns true when this v1beta delete active directory default response has a 3xx status code
-func (o *V1betaDeleteActiveDirectoryDefault) IsRedirect() bool {
-	return o._statusCode/100 == 3
-}
-
-// IsClientError returns true when this v1beta delete active directory default response has a 4xx status code
-func (o *V1betaDeleteActiveDirectoryDefault) IsClientError() bool {
-	return o._statusCode/100 == 4
-}
-
-// IsServerError returns true when this v1beta delete active directory default response has a 5xx status code
-func (o *V1betaDeleteActiveDirectoryDefault) IsServerError() bool {
-	return o._statusCode/100 == 5
-}
-
-// IsCode returns true when this v1beta delete active directory default response a status code equal to that given
-func (o *V1betaDeleteActiveDirectoryDefault) IsCode(code int) bool {
-	return o._statusCode == code
-}
-
 // Code gets the status code for the v1beta delete active directory default response
 func (o *V1betaDeleteActiveDirectoryDefault) Code() int {
 	return o._statusCode
 }
 
 func (o *V1betaDeleteActiveDirectoryDefault) Error() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[DELETE /v1beta/projects/{projectNumber}/locations/{locationId}/storage/activeDirectory/{activeDirectoryId}][%d] v1beta_deleteActiveDirectory default %s", o._statusCode, payload)
-}
-
-func (o *V1betaDeleteActiveDirectoryDefault) String() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[DELETE /v1beta/projects/{projectNumber}/locations/{locationId}/storage/activeDirectory/{activeDirectoryId}][%d] v1beta_deleteActiveDirectory default %s", o._statusCode, payload)
+	return fmt.Sprintf("[DELETE /v1beta/projects/{projectNumber}/locations/{locationId}/storage/activeDirectory/{activeDirectoryId}][%d] v1beta_deleteActiveDirectory default  %+v", o._statusCode, o.Payload)
 }
 
 func (o *V1betaDeleteActiveDirectoryDefault) GetPayload() *models.Error {

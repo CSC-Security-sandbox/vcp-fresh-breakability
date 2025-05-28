@@ -6,7 +6,6 @@ package backups
 // Editing this file might prove futile when you re-run the swagger generate command
 
 import (
-	"encoding/json"
 	"fmt"
 	"io"
 
@@ -108,7 +107,7 @@ func NewV1betaDeleteBackupUnderBackupVaultOK() *V1betaDeleteBackupUnderBackupVau
 }
 
 /*
-V1betaDeleteBackupUnderBackupVaultOK describes a response with status code 200, with default header values.
+V1betaDeleteBackupUnderBackupVaultOK handles this case with default header values.
 
 Deleted backup
 */
@@ -116,44 +115,8 @@ type V1betaDeleteBackupUnderBackupVaultOK struct {
 	Payload *models.OperationV1beta
 }
 
-// IsSuccess returns true when this v1beta delete backup under backup vault o k response has a 2xx status code
-func (o *V1betaDeleteBackupUnderBackupVaultOK) IsSuccess() bool {
-	return true
-}
-
-// IsRedirect returns true when this v1beta delete backup under backup vault o k response has a 3xx status code
-func (o *V1betaDeleteBackupUnderBackupVaultOK) IsRedirect() bool {
-	return false
-}
-
-// IsClientError returns true when this v1beta delete backup under backup vault o k response has a 4xx status code
-func (o *V1betaDeleteBackupUnderBackupVaultOK) IsClientError() bool {
-	return false
-}
-
-// IsServerError returns true when this v1beta delete backup under backup vault o k response has a 5xx status code
-func (o *V1betaDeleteBackupUnderBackupVaultOK) IsServerError() bool {
-	return false
-}
-
-// IsCode returns true when this v1beta delete backup under backup vault o k response a status code equal to that given
-func (o *V1betaDeleteBackupUnderBackupVaultOK) IsCode(code int) bool {
-	return code == 200
-}
-
-// Code gets the status code for the v1beta delete backup under backup vault o k response
-func (o *V1betaDeleteBackupUnderBackupVaultOK) Code() int {
-	return 200
-}
-
 func (o *V1betaDeleteBackupUnderBackupVaultOK) Error() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[DELETE /v1beta/projects/{projectNumber}/locations/{locationId}/backupVaults/{backupVaultId}/backups/{backupId}][%d] v1betaDeleteBackupUnderBackupVaultOK %s", 200, payload)
-}
-
-func (o *V1betaDeleteBackupUnderBackupVaultOK) String() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[DELETE /v1beta/projects/{projectNumber}/locations/{locationId}/backupVaults/{backupVaultId}/backups/{backupId}][%d] v1betaDeleteBackupUnderBackupVaultOK %s", 200, payload)
+	return fmt.Sprintf("[DELETE /v1beta/projects/{projectNumber}/locations/{locationId}/backupVaults/{backupVaultId}/backups/{backupId}][%d] v1betaDeleteBackupUnderBackupVaultOK  %+v", 200, o.Payload)
 }
 
 func (o *V1betaDeleteBackupUnderBackupVaultOK) GetPayload() *models.OperationV1beta {
@@ -178,7 +141,7 @@ func NewV1betaDeleteBackupUnderBackupVaultAccepted() *V1betaDeleteBackupUnderBac
 }
 
 /*
-V1betaDeleteBackupUnderBackupVaultAccepted describes a response with status code 202, with default header values.
+V1betaDeleteBackupUnderBackupVaultAccepted handles this case with default header values.
 
 Deleting backup
 */
@@ -186,44 +149,8 @@ type V1betaDeleteBackupUnderBackupVaultAccepted struct {
 	Payload *models.OperationV1beta
 }
 
-// IsSuccess returns true when this v1beta delete backup under backup vault accepted response has a 2xx status code
-func (o *V1betaDeleteBackupUnderBackupVaultAccepted) IsSuccess() bool {
-	return true
-}
-
-// IsRedirect returns true when this v1beta delete backup under backup vault accepted response has a 3xx status code
-func (o *V1betaDeleteBackupUnderBackupVaultAccepted) IsRedirect() bool {
-	return false
-}
-
-// IsClientError returns true when this v1beta delete backup under backup vault accepted response has a 4xx status code
-func (o *V1betaDeleteBackupUnderBackupVaultAccepted) IsClientError() bool {
-	return false
-}
-
-// IsServerError returns true when this v1beta delete backup under backup vault accepted response has a 5xx status code
-func (o *V1betaDeleteBackupUnderBackupVaultAccepted) IsServerError() bool {
-	return false
-}
-
-// IsCode returns true when this v1beta delete backup under backup vault accepted response a status code equal to that given
-func (o *V1betaDeleteBackupUnderBackupVaultAccepted) IsCode(code int) bool {
-	return code == 202
-}
-
-// Code gets the status code for the v1beta delete backup under backup vault accepted response
-func (o *V1betaDeleteBackupUnderBackupVaultAccepted) Code() int {
-	return 202
-}
-
 func (o *V1betaDeleteBackupUnderBackupVaultAccepted) Error() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[DELETE /v1beta/projects/{projectNumber}/locations/{locationId}/backupVaults/{backupVaultId}/backups/{backupId}][%d] v1betaDeleteBackupUnderBackupVaultAccepted %s", 202, payload)
-}
-
-func (o *V1betaDeleteBackupUnderBackupVaultAccepted) String() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[DELETE /v1beta/projects/{projectNumber}/locations/{locationId}/backupVaults/{backupVaultId}/backups/{backupId}][%d] v1betaDeleteBackupUnderBackupVaultAccepted %s", 202, payload)
+	return fmt.Sprintf("[DELETE /v1beta/projects/{projectNumber}/locations/{locationId}/backupVaults/{backupVaultId}/backups/{backupId}][%d] v1betaDeleteBackupUnderBackupVaultAccepted  %+v", 202, o.Payload)
 }
 
 func (o *V1betaDeleteBackupUnderBackupVaultAccepted) GetPayload() *models.OperationV1beta {
@@ -248,7 +175,7 @@ func NewV1betaDeleteBackupUnderBackupVaultBadRequest() *V1betaDeleteBackupUnderB
 }
 
 /*
-V1betaDeleteBackupUnderBackupVaultBadRequest describes a response with status code 400, with default header values.
+V1betaDeleteBackupUnderBackupVaultBadRequest handles this case with default header values.
 
 Bad request
 */
@@ -256,44 +183,8 @@ type V1betaDeleteBackupUnderBackupVaultBadRequest struct {
 	Payload *models.Error
 }
 
-// IsSuccess returns true when this v1beta delete backup under backup vault bad request response has a 2xx status code
-func (o *V1betaDeleteBackupUnderBackupVaultBadRequest) IsSuccess() bool {
-	return false
-}
-
-// IsRedirect returns true when this v1beta delete backup under backup vault bad request response has a 3xx status code
-func (o *V1betaDeleteBackupUnderBackupVaultBadRequest) IsRedirect() bool {
-	return false
-}
-
-// IsClientError returns true when this v1beta delete backup under backup vault bad request response has a 4xx status code
-func (o *V1betaDeleteBackupUnderBackupVaultBadRequest) IsClientError() bool {
-	return true
-}
-
-// IsServerError returns true when this v1beta delete backup under backup vault bad request response has a 5xx status code
-func (o *V1betaDeleteBackupUnderBackupVaultBadRequest) IsServerError() bool {
-	return false
-}
-
-// IsCode returns true when this v1beta delete backup under backup vault bad request response a status code equal to that given
-func (o *V1betaDeleteBackupUnderBackupVaultBadRequest) IsCode(code int) bool {
-	return code == 400
-}
-
-// Code gets the status code for the v1beta delete backup under backup vault bad request response
-func (o *V1betaDeleteBackupUnderBackupVaultBadRequest) Code() int {
-	return 400
-}
-
 func (o *V1betaDeleteBackupUnderBackupVaultBadRequest) Error() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[DELETE /v1beta/projects/{projectNumber}/locations/{locationId}/backupVaults/{backupVaultId}/backups/{backupId}][%d] v1betaDeleteBackupUnderBackupVaultBadRequest %s", 400, payload)
-}
-
-func (o *V1betaDeleteBackupUnderBackupVaultBadRequest) String() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[DELETE /v1beta/projects/{projectNumber}/locations/{locationId}/backupVaults/{backupVaultId}/backups/{backupId}][%d] v1betaDeleteBackupUnderBackupVaultBadRequest %s", 400, payload)
+	return fmt.Sprintf("[DELETE /v1beta/projects/{projectNumber}/locations/{locationId}/backupVaults/{backupVaultId}/backups/{backupId}][%d] v1betaDeleteBackupUnderBackupVaultBadRequest  %+v", 400, o.Payload)
 }
 
 func (o *V1betaDeleteBackupUnderBackupVaultBadRequest) GetPayload() *models.Error {
@@ -318,7 +209,7 @@ func NewV1betaDeleteBackupUnderBackupVaultUnauthorized() *V1betaDeleteBackupUnde
 }
 
 /*
-V1betaDeleteBackupUnderBackupVaultUnauthorized describes a response with status code 401, with default header values.
+V1betaDeleteBackupUnderBackupVaultUnauthorized handles this case with default header values.
 
 Unauthorized
 */
@@ -326,44 +217,8 @@ type V1betaDeleteBackupUnderBackupVaultUnauthorized struct {
 	Payload *models.Error
 }
 
-// IsSuccess returns true when this v1beta delete backup under backup vault unauthorized response has a 2xx status code
-func (o *V1betaDeleteBackupUnderBackupVaultUnauthorized) IsSuccess() bool {
-	return false
-}
-
-// IsRedirect returns true when this v1beta delete backup under backup vault unauthorized response has a 3xx status code
-func (o *V1betaDeleteBackupUnderBackupVaultUnauthorized) IsRedirect() bool {
-	return false
-}
-
-// IsClientError returns true when this v1beta delete backup under backup vault unauthorized response has a 4xx status code
-func (o *V1betaDeleteBackupUnderBackupVaultUnauthorized) IsClientError() bool {
-	return true
-}
-
-// IsServerError returns true when this v1beta delete backup under backup vault unauthorized response has a 5xx status code
-func (o *V1betaDeleteBackupUnderBackupVaultUnauthorized) IsServerError() bool {
-	return false
-}
-
-// IsCode returns true when this v1beta delete backup under backup vault unauthorized response a status code equal to that given
-func (o *V1betaDeleteBackupUnderBackupVaultUnauthorized) IsCode(code int) bool {
-	return code == 401
-}
-
-// Code gets the status code for the v1beta delete backup under backup vault unauthorized response
-func (o *V1betaDeleteBackupUnderBackupVaultUnauthorized) Code() int {
-	return 401
-}
-
 func (o *V1betaDeleteBackupUnderBackupVaultUnauthorized) Error() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[DELETE /v1beta/projects/{projectNumber}/locations/{locationId}/backupVaults/{backupVaultId}/backups/{backupId}][%d] v1betaDeleteBackupUnderBackupVaultUnauthorized %s", 401, payload)
-}
-
-func (o *V1betaDeleteBackupUnderBackupVaultUnauthorized) String() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[DELETE /v1beta/projects/{projectNumber}/locations/{locationId}/backupVaults/{backupVaultId}/backups/{backupId}][%d] v1betaDeleteBackupUnderBackupVaultUnauthorized %s", 401, payload)
+	return fmt.Sprintf("[DELETE /v1beta/projects/{projectNumber}/locations/{locationId}/backupVaults/{backupVaultId}/backups/{backupId}][%d] v1betaDeleteBackupUnderBackupVaultUnauthorized  %+v", 401, o.Payload)
 }
 
 func (o *V1betaDeleteBackupUnderBackupVaultUnauthorized) GetPayload() *models.Error {
@@ -388,7 +243,7 @@ func NewV1betaDeleteBackupUnderBackupVaultForbidden() *V1betaDeleteBackupUnderBa
 }
 
 /*
-V1betaDeleteBackupUnderBackupVaultForbidden describes a response with status code 403, with default header values.
+V1betaDeleteBackupUnderBackupVaultForbidden handles this case with default header values.
 
 Forbidden
 */
@@ -396,44 +251,8 @@ type V1betaDeleteBackupUnderBackupVaultForbidden struct {
 	Payload *models.Error
 }
 
-// IsSuccess returns true when this v1beta delete backup under backup vault forbidden response has a 2xx status code
-func (o *V1betaDeleteBackupUnderBackupVaultForbidden) IsSuccess() bool {
-	return false
-}
-
-// IsRedirect returns true when this v1beta delete backup under backup vault forbidden response has a 3xx status code
-func (o *V1betaDeleteBackupUnderBackupVaultForbidden) IsRedirect() bool {
-	return false
-}
-
-// IsClientError returns true when this v1beta delete backup under backup vault forbidden response has a 4xx status code
-func (o *V1betaDeleteBackupUnderBackupVaultForbidden) IsClientError() bool {
-	return true
-}
-
-// IsServerError returns true when this v1beta delete backup under backup vault forbidden response has a 5xx status code
-func (o *V1betaDeleteBackupUnderBackupVaultForbidden) IsServerError() bool {
-	return false
-}
-
-// IsCode returns true when this v1beta delete backup under backup vault forbidden response a status code equal to that given
-func (o *V1betaDeleteBackupUnderBackupVaultForbidden) IsCode(code int) bool {
-	return code == 403
-}
-
-// Code gets the status code for the v1beta delete backup under backup vault forbidden response
-func (o *V1betaDeleteBackupUnderBackupVaultForbidden) Code() int {
-	return 403
-}
-
 func (o *V1betaDeleteBackupUnderBackupVaultForbidden) Error() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[DELETE /v1beta/projects/{projectNumber}/locations/{locationId}/backupVaults/{backupVaultId}/backups/{backupId}][%d] v1betaDeleteBackupUnderBackupVaultForbidden %s", 403, payload)
-}
-
-func (o *V1betaDeleteBackupUnderBackupVaultForbidden) String() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[DELETE /v1beta/projects/{projectNumber}/locations/{locationId}/backupVaults/{backupVaultId}/backups/{backupId}][%d] v1betaDeleteBackupUnderBackupVaultForbidden %s", 403, payload)
+	return fmt.Sprintf("[DELETE /v1beta/projects/{projectNumber}/locations/{locationId}/backupVaults/{backupVaultId}/backups/{backupId}][%d] v1betaDeleteBackupUnderBackupVaultForbidden  %+v", 403, o.Payload)
 }
 
 func (o *V1betaDeleteBackupUnderBackupVaultForbidden) GetPayload() *models.Error {
@@ -458,7 +277,7 @@ func NewV1betaDeleteBackupUnderBackupVaultNotFound() *V1betaDeleteBackupUnderBac
 }
 
 /*
-V1betaDeleteBackupUnderBackupVaultNotFound describes a response with status code 404, with default header values.
+V1betaDeleteBackupUnderBackupVaultNotFound handles this case with default header values.
 
 Not found
 */
@@ -466,44 +285,8 @@ type V1betaDeleteBackupUnderBackupVaultNotFound struct {
 	Payload *models.Error
 }
 
-// IsSuccess returns true when this v1beta delete backup under backup vault not found response has a 2xx status code
-func (o *V1betaDeleteBackupUnderBackupVaultNotFound) IsSuccess() bool {
-	return false
-}
-
-// IsRedirect returns true when this v1beta delete backup under backup vault not found response has a 3xx status code
-func (o *V1betaDeleteBackupUnderBackupVaultNotFound) IsRedirect() bool {
-	return false
-}
-
-// IsClientError returns true when this v1beta delete backup under backup vault not found response has a 4xx status code
-func (o *V1betaDeleteBackupUnderBackupVaultNotFound) IsClientError() bool {
-	return true
-}
-
-// IsServerError returns true when this v1beta delete backup under backup vault not found response has a 5xx status code
-func (o *V1betaDeleteBackupUnderBackupVaultNotFound) IsServerError() bool {
-	return false
-}
-
-// IsCode returns true when this v1beta delete backup under backup vault not found response a status code equal to that given
-func (o *V1betaDeleteBackupUnderBackupVaultNotFound) IsCode(code int) bool {
-	return code == 404
-}
-
-// Code gets the status code for the v1beta delete backup under backup vault not found response
-func (o *V1betaDeleteBackupUnderBackupVaultNotFound) Code() int {
-	return 404
-}
-
 func (o *V1betaDeleteBackupUnderBackupVaultNotFound) Error() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[DELETE /v1beta/projects/{projectNumber}/locations/{locationId}/backupVaults/{backupVaultId}/backups/{backupId}][%d] v1betaDeleteBackupUnderBackupVaultNotFound %s", 404, payload)
-}
-
-func (o *V1betaDeleteBackupUnderBackupVaultNotFound) String() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[DELETE /v1beta/projects/{projectNumber}/locations/{locationId}/backupVaults/{backupVaultId}/backups/{backupId}][%d] v1betaDeleteBackupUnderBackupVaultNotFound %s", 404, payload)
+	return fmt.Sprintf("[DELETE /v1beta/projects/{projectNumber}/locations/{locationId}/backupVaults/{backupVaultId}/backups/{backupId}][%d] v1betaDeleteBackupUnderBackupVaultNotFound  %+v", 404, o.Payload)
 }
 
 func (o *V1betaDeleteBackupUnderBackupVaultNotFound) GetPayload() *models.Error {
@@ -528,7 +311,7 @@ func NewV1betaDeleteBackupUnderBackupVaultConflict() *V1betaDeleteBackupUnderBac
 }
 
 /*
-V1betaDeleteBackupUnderBackupVaultConflict describes a response with status code 409, with default header values.
+V1betaDeleteBackupUnderBackupVaultConflict handles this case with default header values.
 
 Conflict
 */
@@ -536,44 +319,8 @@ type V1betaDeleteBackupUnderBackupVaultConflict struct {
 	Payload *models.Error
 }
 
-// IsSuccess returns true when this v1beta delete backup under backup vault conflict response has a 2xx status code
-func (o *V1betaDeleteBackupUnderBackupVaultConflict) IsSuccess() bool {
-	return false
-}
-
-// IsRedirect returns true when this v1beta delete backup under backup vault conflict response has a 3xx status code
-func (o *V1betaDeleteBackupUnderBackupVaultConflict) IsRedirect() bool {
-	return false
-}
-
-// IsClientError returns true when this v1beta delete backup under backup vault conflict response has a 4xx status code
-func (o *V1betaDeleteBackupUnderBackupVaultConflict) IsClientError() bool {
-	return true
-}
-
-// IsServerError returns true when this v1beta delete backup under backup vault conflict response has a 5xx status code
-func (o *V1betaDeleteBackupUnderBackupVaultConflict) IsServerError() bool {
-	return false
-}
-
-// IsCode returns true when this v1beta delete backup under backup vault conflict response a status code equal to that given
-func (o *V1betaDeleteBackupUnderBackupVaultConflict) IsCode(code int) bool {
-	return code == 409
-}
-
-// Code gets the status code for the v1beta delete backup under backup vault conflict response
-func (o *V1betaDeleteBackupUnderBackupVaultConflict) Code() int {
-	return 409
-}
-
 func (o *V1betaDeleteBackupUnderBackupVaultConflict) Error() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[DELETE /v1beta/projects/{projectNumber}/locations/{locationId}/backupVaults/{backupVaultId}/backups/{backupId}][%d] v1betaDeleteBackupUnderBackupVaultConflict %s", 409, payload)
-}
-
-func (o *V1betaDeleteBackupUnderBackupVaultConflict) String() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[DELETE /v1beta/projects/{projectNumber}/locations/{locationId}/backupVaults/{backupVaultId}/backups/{backupId}][%d] v1betaDeleteBackupUnderBackupVaultConflict %s", 409, payload)
+	return fmt.Sprintf("[DELETE /v1beta/projects/{projectNumber}/locations/{locationId}/backupVaults/{backupVaultId}/backups/{backupId}][%d] v1betaDeleteBackupUnderBackupVaultConflict  %+v", 409, o.Payload)
 }
 
 func (o *V1betaDeleteBackupUnderBackupVaultConflict) GetPayload() *models.Error {
@@ -598,7 +345,7 @@ func NewV1betaDeleteBackupUnderBackupVaultUnprocessableEntity() *V1betaDeleteBac
 }
 
 /*
-V1betaDeleteBackupUnderBackupVaultUnprocessableEntity describes a response with status code 422, with default header values.
+V1betaDeleteBackupUnderBackupVaultUnprocessableEntity handles this case with default header values.
 
 Unprocessable entity
 */
@@ -606,44 +353,8 @@ type V1betaDeleteBackupUnderBackupVaultUnprocessableEntity struct {
 	Payload *models.Error
 }
 
-// IsSuccess returns true when this v1beta delete backup under backup vault unprocessable entity response has a 2xx status code
-func (o *V1betaDeleteBackupUnderBackupVaultUnprocessableEntity) IsSuccess() bool {
-	return false
-}
-
-// IsRedirect returns true when this v1beta delete backup under backup vault unprocessable entity response has a 3xx status code
-func (o *V1betaDeleteBackupUnderBackupVaultUnprocessableEntity) IsRedirect() bool {
-	return false
-}
-
-// IsClientError returns true when this v1beta delete backup under backup vault unprocessable entity response has a 4xx status code
-func (o *V1betaDeleteBackupUnderBackupVaultUnprocessableEntity) IsClientError() bool {
-	return true
-}
-
-// IsServerError returns true when this v1beta delete backup under backup vault unprocessable entity response has a 5xx status code
-func (o *V1betaDeleteBackupUnderBackupVaultUnprocessableEntity) IsServerError() bool {
-	return false
-}
-
-// IsCode returns true when this v1beta delete backup under backup vault unprocessable entity response a status code equal to that given
-func (o *V1betaDeleteBackupUnderBackupVaultUnprocessableEntity) IsCode(code int) bool {
-	return code == 422
-}
-
-// Code gets the status code for the v1beta delete backup under backup vault unprocessable entity response
-func (o *V1betaDeleteBackupUnderBackupVaultUnprocessableEntity) Code() int {
-	return 422
-}
-
 func (o *V1betaDeleteBackupUnderBackupVaultUnprocessableEntity) Error() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[DELETE /v1beta/projects/{projectNumber}/locations/{locationId}/backupVaults/{backupVaultId}/backups/{backupId}][%d] v1betaDeleteBackupUnderBackupVaultUnprocessableEntity %s", 422, payload)
-}
-
-func (o *V1betaDeleteBackupUnderBackupVaultUnprocessableEntity) String() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[DELETE /v1beta/projects/{projectNumber}/locations/{locationId}/backupVaults/{backupVaultId}/backups/{backupId}][%d] v1betaDeleteBackupUnderBackupVaultUnprocessableEntity %s", 422, payload)
+	return fmt.Sprintf("[DELETE /v1beta/projects/{projectNumber}/locations/{locationId}/backupVaults/{backupVaultId}/backups/{backupId}][%d] v1betaDeleteBackupUnderBackupVaultUnprocessableEntity  %+v", 422, o.Payload)
 }
 
 func (o *V1betaDeleteBackupUnderBackupVaultUnprocessableEntity) GetPayload() *models.Error {
@@ -668,7 +379,7 @@ func NewV1betaDeleteBackupUnderBackupVaultTooManyRequests() *V1betaDeleteBackupU
 }
 
 /*
-V1betaDeleteBackupUnderBackupVaultTooManyRequests describes a response with status code 429, with default header values.
+V1betaDeleteBackupUnderBackupVaultTooManyRequests handles this case with default header values.
 
 Too many requests
 */
@@ -676,44 +387,8 @@ type V1betaDeleteBackupUnderBackupVaultTooManyRequests struct {
 	Payload *models.Error
 }
 
-// IsSuccess returns true when this v1beta delete backup under backup vault too many requests response has a 2xx status code
-func (o *V1betaDeleteBackupUnderBackupVaultTooManyRequests) IsSuccess() bool {
-	return false
-}
-
-// IsRedirect returns true when this v1beta delete backup under backup vault too many requests response has a 3xx status code
-func (o *V1betaDeleteBackupUnderBackupVaultTooManyRequests) IsRedirect() bool {
-	return false
-}
-
-// IsClientError returns true when this v1beta delete backup under backup vault too many requests response has a 4xx status code
-func (o *V1betaDeleteBackupUnderBackupVaultTooManyRequests) IsClientError() bool {
-	return true
-}
-
-// IsServerError returns true when this v1beta delete backup under backup vault too many requests response has a 5xx status code
-func (o *V1betaDeleteBackupUnderBackupVaultTooManyRequests) IsServerError() bool {
-	return false
-}
-
-// IsCode returns true when this v1beta delete backup under backup vault too many requests response a status code equal to that given
-func (o *V1betaDeleteBackupUnderBackupVaultTooManyRequests) IsCode(code int) bool {
-	return code == 429
-}
-
-// Code gets the status code for the v1beta delete backup under backup vault too many requests response
-func (o *V1betaDeleteBackupUnderBackupVaultTooManyRequests) Code() int {
-	return 429
-}
-
 func (o *V1betaDeleteBackupUnderBackupVaultTooManyRequests) Error() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[DELETE /v1beta/projects/{projectNumber}/locations/{locationId}/backupVaults/{backupVaultId}/backups/{backupId}][%d] v1betaDeleteBackupUnderBackupVaultTooManyRequests %s", 429, payload)
-}
-
-func (o *V1betaDeleteBackupUnderBackupVaultTooManyRequests) String() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[DELETE /v1beta/projects/{projectNumber}/locations/{locationId}/backupVaults/{backupVaultId}/backups/{backupId}][%d] v1betaDeleteBackupUnderBackupVaultTooManyRequests %s", 429, payload)
+	return fmt.Sprintf("[DELETE /v1beta/projects/{projectNumber}/locations/{locationId}/backupVaults/{backupVaultId}/backups/{backupId}][%d] v1betaDeleteBackupUnderBackupVaultTooManyRequests  %+v", 429, o.Payload)
 }
 
 func (o *V1betaDeleteBackupUnderBackupVaultTooManyRequests) GetPayload() *models.Error {
@@ -738,7 +413,7 @@ func NewV1betaDeleteBackupUnderBackupVaultInternalServerError() *V1betaDeleteBac
 }
 
 /*
-V1betaDeleteBackupUnderBackupVaultInternalServerError describes a response with status code 500, with default header values.
+V1betaDeleteBackupUnderBackupVaultInternalServerError handles this case with default header values.
 
 Internal server error
 */
@@ -746,44 +421,8 @@ type V1betaDeleteBackupUnderBackupVaultInternalServerError struct {
 	Payload *models.Error
 }
 
-// IsSuccess returns true when this v1beta delete backup under backup vault internal server error response has a 2xx status code
-func (o *V1betaDeleteBackupUnderBackupVaultInternalServerError) IsSuccess() bool {
-	return false
-}
-
-// IsRedirect returns true when this v1beta delete backup under backup vault internal server error response has a 3xx status code
-func (o *V1betaDeleteBackupUnderBackupVaultInternalServerError) IsRedirect() bool {
-	return false
-}
-
-// IsClientError returns true when this v1beta delete backup under backup vault internal server error response has a 4xx status code
-func (o *V1betaDeleteBackupUnderBackupVaultInternalServerError) IsClientError() bool {
-	return false
-}
-
-// IsServerError returns true when this v1beta delete backup under backup vault internal server error response has a 5xx status code
-func (o *V1betaDeleteBackupUnderBackupVaultInternalServerError) IsServerError() bool {
-	return true
-}
-
-// IsCode returns true when this v1beta delete backup under backup vault internal server error response a status code equal to that given
-func (o *V1betaDeleteBackupUnderBackupVaultInternalServerError) IsCode(code int) bool {
-	return code == 500
-}
-
-// Code gets the status code for the v1beta delete backup under backup vault internal server error response
-func (o *V1betaDeleteBackupUnderBackupVaultInternalServerError) Code() int {
-	return 500
-}
-
 func (o *V1betaDeleteBackupUnderBackupVaultInternalServerError) Error() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[DELETE /v1beta/projects/{projectNumber}/locations/{locationId}/backupVaults/{backupVaultId}/backups/{backupId}][%d] v1betaDeleteBackupUnderBackupVaultInternalServerError %s", 500, payload)
-}
-
-func (o *V1betaDeleteBackupUnderBackupVaultInternalServerError) String() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[DELETE /v1beta/projects/{projectNumber}/locations/{locationId}/backupVaults/{backupVaultId}/backups/{backupId}][%d] v1betaDeleteBackupUnderBackupVaultInternalServerError %s", 500, payload)
+	return fmt.Sprintf("[DELETE /v1beta/projects/{projectNumber}/locations/{locationId}/backupVaults/{backupVaultId}/backups/{backupId}][%d] v1betaDeleteBackupUnderBackupVaultInternalServerError  %+v", 500, o.Payload)
 }
 
 func (o *V1betaDeleteBackupUnderBackupVaultInternalServerError) GetPayload() *models.Error {
@@ -808,7 +447,7 @@ func NewV1betaDeleteBackupUnderBackupVaultNotImplemented() *V1betaDeleteBackupUn
 }
 
 /*
-V1betaDeleteBackupUnderBackupVaultNotImplemented describes a response with status code 501, with default header values.
+V1betaDeleteBackupUnderBackupVaultNotImplemented handles this case with default header values.
 
 Not implemented
 */
@@ -816,44 +455,8 @@ type V1betaDeleteBackupUnderBackupVaultNotImplemented struct {
 	Payload *models.Error
 }
 
-// IsSuccess returns true when this v1beta delete backup under backup vault not implemented response has a 2xx status code
-func (o *V1betaDeleteBackupUnderBackupVaultNotImplemented) IsSuccess() bool {
-	return false
-}
-
-// IsRedirect returns true when this v1beta delete backup under backup vault not implemented response has a 3xx status code
-func (o *V1betaDeleteBackupUnderBackupVaultNotImplemented) IsRedirect() bool {
-	return false
-}
-
-// IsClientError returns true when this v1beta delete backup under backup vault not implemented response has a 4xx status code
-func (o *V1betaDeleteBackupUnderBackupVaultNotImplemented) IsClientError() bool {
-	return false
-}
-
-// IsServerError returns true when this v1beta delete backup under backup vault not implemented response has a 5xx status code
-func (o *V1betaDeleteBackupUnderBackupVaultNotImplemented) IsServerError() bool {
-	return true
-}
-
-// IsCode returns true when this v1beta delete backup under backup vault not implemented response a status code equal to that given
-func (o *V1betaDeleteBackupUnderBackupVaultNotImplemented) IsCode(code int) bool {
-	return code == 501
-}
-
-// Code gets the status code for the v1beta delete backup under backup vault not implemented response
-func (o *V1betaDeleteBackupUnderBackupVaultNotImplemented) Code() int {
-	return 501
-}
-
 func (o *V1betaDeleteBackupUnderBackupVaultNotImplemented) Error() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[DELETE /v1beta/projects/{projectNumber}/locations/{locationId}/backupVaults/{backupVaultId}/backups/{backupId}][%d] v1betaDeleteBackupUnderBackupVaultNotImplemented %s", 501, payload)
-}
-
-func (o *V1betaDeleteBackupUnderBackupVaultNotImplemented) String() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[DELETE /v1beta/projects/{projectNumber}/locations/{locationId}/backupVaults/{backupVaultId}/backups/{backupId}][%d] v1betaDeleteBackupUnderBackupVaultNotImplemented %s", 501, payload)
+	return fmt.Sprintf("[DELETE /v1beta/projects/{projectNumber}/locations/{locationId}/backupVaults/{backupVaultId}/backups/{backupId}][%d] v1betaDeleteBackupUnderBackupVaultNotImplemented  %+v", 501, o.Payload)
 }
 
 func (o *V1betaDeleteBackupUnderBackupVaultNotImplemented) GetPayload() *models.Error {
@@ -880,7 +483,7 @@ func NewV1betaDeleteBackupUnderBackupVaultDefault(code int) *V1betaDeleteBackupU
 }
 
 /*
-V1betaDeleteBackupUnderBackupVaultDefault describes a response with status code -1, with default header values.
+V1betaDeleteBackupUnderBackupVaultDefault handles this case with default header values.
 
 Unexpected error
 */
@@ -890,44 +493,13 @@ type V1betaDeleteBackupUnderBackupVaultDefault struct {
 	Payload *models.Error
 }
 
-// IsSuccess returns true when this v1beta delete backup under backup vault default response has a 2xx status code
-func (o *V1betaDeleteBackupUnderBackupVaultDefault) IsSuccess() bool {
-	return o._statusCode/100 == 2
-}
-
-// IsRedirect returns true when this v1beta delete backup under backup vault default response has a 3xx status code
-func (o *V1betaDeleteBackupUnderBackupVaultDefault) IsRedirect() bool {
-	return o._statusCode/100 == 3
-}
-
-// IsClientError returns true when this v1beta delete backup under backup vault default response has a 4xx status code
-func (o *V1betaDeleteBackupUnderBackupVaultDefault) IsClientError() bool {
-	return o._statusCode/100 == 4
-}
-
-// IsServerError returns true when this v1beta delete backup under backup vault default response has a 5xx status code
-func (o *V1betaDeleteBackupUnderBackupVaultDefault) IsServerError() bool {
-	return o._statusCode/100 == 5
-}
-
-// IsCode returns true when this v1beta delete backup under backup vault default response a status code equal to that given
-func (o *V1betaDeleteBackupUnderBackupVaultDefault) IsCode(code int) bool {
-	return o._statusCode == code
-}
-
 // Code gets the status code for the v1beta delete backup under backup vault default response
 func (o *V1betaDeleteBackupUnderBackupVaultDefault) Code() int {
 	return o._statusCode
 }
 
 func (o *V1betaDeleteBackupUnderBackupVaultDefault) Error() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[DELETE /v1beta/projects/{projectNumber}/locations/{locationId}/backupVaults/{backupVaultId}/backups/{backupId}][%d] v1beta_deleteBackupUnderBackupVault default %s", o._statusCode, payload)
-}
-
-func (o *V1betaDeleteBackupUnderBackupVaultDefault) String() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[DELETE /v1beta/projects/{projectNumber}/locations/{locationId}/backupVaults/{backupVaultId}/backups/{backupId}][%d] v1beta_deleteBackupUnderBackupVault default %s", o._statusCode, payload)
+	return fmt.Sprintf("[DELETE /v1beta/projects/{projectNumber}/locations/{locationId}/backupVaults/{backupVaultId}/backups/{backupId}][%d] v1beta_deleteBackupUnderBackupVault default  %+v", o._statusCode, o.Payload)
 }
 
 func (o *V1betaDeleteBackupUnderBackupVaultDefault) GetPayload() *models.Error {

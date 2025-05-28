@@ -6,7 +6,6 @@ package models
 // Editing this file might prove futile when you re-run the swagger generate command
 
 import (
-	"context"
 	"encoding/json"
 
 	"github.com/go-openapi/errors"
@@ -21,7 +20,6 @@ import (
 type PoolUpdateV1beta struct {
 
 	// UUID of Active Directory configuration
-	// Example: 9760acf5-4638-11e7-9bdb-020073ca7773
 	// Max Length: 36
 	// Min Length: 36
 	// Pattern: ^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$
@@ -40,7 +38,6 @@ type PoolUpdateV1beta struct {
 	// description
 	//
 	// Description of the pool
-	// Example: My Pool description
 	// Max Length: 2048
 	Description *string `json:"description,omitempty"`
 
@@ -52,50 +49,42 @@ type PoolUpdateV1beta struct {
 	// globalAccessAllowed
 	//
 	// Flag indicating the enablement of global access on the load balancers
-	// Example: true
 	GlobalAccessAllowed *bool `json:"globalAccessAllowed,omitempty"`
 
 	// hotTierSizeInBytes
 	//
 	// Hot-tier size of the pool (in bytes) if auto-tiering is enabled (valid only for FLEX)
-	// Example: 1099511627776
 	HotTierSizeInBytes *float64 `json:"hotTierSizeInBytes,omitempty"`
 
 	// labels
 	//
 	// JSON dictionary of resource labels to allow linking of billing labels to a pool
-	// Example: {"someKey":"SomeValue","someKey2":"SomeValue2"}
 	Labels map[string]string `json:"labels,omitempty"`
 
 	// qosType
 	//
 	// The type of QoS for the pool
-	// Example: auto
-	// Enum: ["auto","manual"]
+	// Enum: [auto manual]
 	QosType *string `json:"qosType,omitempty"`
 
 	// sizeInBytes
 	//
 	// Maximum size allowed for a pool in bytes.
-	// Example: 12094627905536
 	SizeInBytes *float64 `json:"sizeInBytes,omitempty"`
 
 	// totalIops
 	//
 	// The total iops set for a pool.
-	// Example: 1600
 	TotalIops *float64 `json:"totalIops,omitempty"`
 
 	// totalThroughputMibps
 	//
 	// Total throughput of a pool in MiBps
-	// Example: 164
 	TotalThroughputMibps *float64 `json:"totalThroughputMibps,omitempty"`
 
 	// zone
 	//
 	// The target zone to which the storage pool has to be migrated.
-	// Example: us-east1-b
 	Zone string `json:"zone,omitempty"`
 }
 
@@ -122,19 +111,20 @@ func (m *PoolUpdateV1beta) Validate(formats strfmt.Registry) error {
 }
 
 func (m *PoolUpdateV1beta) validateActiveDirectoryConfigID(formats strfmt.Registry) error {
+
 	if swag.IsZero(m.ActiveDirectoryConfigID) { // not required
 		return nil
 	}
 
-	if err := validate.MinLength("activeDirectoryConfigId", "body", *m.ActiveDirectoryConfigID, 36); err != nil {
+	if err := validate.MinLength("activeDirectoryConfigId", "body", string(*m.ActiveDirectoryConfigID), 36); err != nil {
 		return err
 	}
 
-	if err := validate.MaxLength("activeDirectoryConfigId", "body", *m.ActiveDirectoryConfigID, 36); err != nil {
+	if err := validate.MaxLength("activeDirectoryConfigId", "body", string(*m.ActiveDirectoryConfigID), 36); err != nil {
 		return err
 	}
 
-	if err := validate.Pattern("activeDirectoryConfigId", "body", *m.ActiveDirectoryConfigID, `^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$`); err != nil {
+	if err := validate.Pattern("activeDirectoryConfigId", "body", string(*m.ActiveDirectoryConfigID), `^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$`); err != nil {
 		return err
 	}
 
@@ -142,11 +132,12 @@ func (m *PoolUpdateV1beta) validateActiveDirectoryConfigID(formats strfmt.Regist
 }
 
 func (m *PoolUpdateV1beta) validateDescription(formats strfmt.Registry) error {
+
 	if swag.IsZero(m.Description) { // not required
 		return nil
 	}
 
-	if err := validate.MaxLength("description", "body", *m.Description, 2048); err != nil {
+	if err := validate.MaxLength("description", "body", string(*m.Description), 2048); err != nil {
 		return err
 	}
 
@@ -183,6 +174,7 @@ func (m *PoolUpdateV1beta) validateQosTypeEnum(path, location string, value stri
 }
 
 func (m *PoolUpdateV1beta) validateQosType(formats strfmt.Registry) error {
+
 	if swag.IsZero(m.QosType) { // not required
 		return nil
 	}
@@ -192,11 +184,6 @@ func (m *PoolUpdateV1beta) validateQosType(formats strfmt.Registry) error {
 		return err
 	}
 
-	return nil
-}
-
-// ContextValidate validates this pool update v1beta based on context it is used
-func (m *PoolUpdateV1beta) ContextValidate(ctx context.Context, formats strfmt.Registry) error {
 	return nil
 }
 

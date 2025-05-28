@@ -6,13 +6,11 @@ package models
 // Editing this file might prove futile when you re-run the swagger generate command
 
 import (
-	"context"
 	"strconv"
 
 	"github.com/go-openapi/errors"
 	"github.com/go-openapi/strfmt"
 	"github.com/go-openapi/swag"
-	"github.com/go-openapi/validate"
 )
 
 // QuotaRulesCVPV1beta Quota Rules
@@ -107,56 +105,6 @@ func (m *QuotaRulesCVPV1beta) validateJobs(formats strfmt.Registry) error {
 			if err := m.Jobs[i].Validate(formats); err != nil {
 				if ve, ok := err.(*errors.Validation); ok {
 					return ve.ValidateName("jobs" + "." + strconv.Itoa(i))
-				} else if ce, ok := err.(*errors.CompositeError); ok {
-					return ce.ValidateName("jobs" + "." + strconv.Itoa(i))
-				}
-				return err
-			}
-		}
-
-	}
-
-	return nil
-}
-
-// ContextValidate validate this quota rules c v p v1beta based on the context it is used
-func (m *QuotaRulesCVPV1beta) ContextValidate(ctx context.Context, formats strfmt.Registry) error {
-	var res []error
-
-	// validation for a type composition with QuotaRulesV1beta
-	if err := m.QuotaRulesV1beta.ContextValidate(ctx, formats); err != nil {
-		res = append(res, err)
-	}
-
-	if err := m.contextValidateJobs(ctx, formats); err != nil {
-		res = append(res, err)
-	}
-
-	if len(res) > 0 {
-		return errors.CompositeValidationError(res...)
-	}
-	return nil
-}
-
-func (m *QuotaRulesCVPV1beta) contextValidateJobs(ctx context.Context, formats strfmt.Registry) error {
-
-	if err := validate.ReadOnly(ctx, "jobs", "body", []*JobV1beta(m.Jobs)); err != nil {
-		return err
-	}
-
-	for i := 0; i < len(m.Jobs); i++ {
-
-		if m.Jobs[i] != nil {
-
-			if swag.IsZero(m.Jobs[i]) { // not required
-				return nil
-			}
-
-			if err := m.Jobs[i].ContextValidate(ctx, formats); err != nil {
-				if ve, ok := err.(*errors.Validation); ok {
-					return ve.ValidateName("jobs" + "." + strconv.Itoa(i))
-				} else if ce, ok := err.(*errors.CompositeError); ok {
-					return ce.ValidateName("jobs" + "." + strconv.Itoa(i))
 				}
 				return err
 			}

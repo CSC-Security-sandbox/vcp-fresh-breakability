@@ -16,37 +16,40 @@ import (
 	"github.com/go-openapi/strfmt"
 )
 
-// NewV1betaListActiveDirectoriesParams creates a new V1betaListActiveDirectoriesParams object,
-// with the default timeout for this client.
-//
-// Default values are not hydrated, since defaults are normally applied by the API server side.
-//
-// To enforce default values in parameter, use SetDefaults or WithDefaults.
+// NewV1betaListActiveDirectoriesParams creates a new V1betaListActiveDirectoriesParams object
+// with the default values initialized.
 func NewV1betaListActiveDirectoriesParams() *V1betaListActiveDirectoriesParams {
+	var ()
 	return &V1betaListActiveDirectoriesParams{
+
 		timeout: cr.DefaultTimeout,
 	}
 }
 
 // NewV1betaListActiveDirectoriesParamsWithTimeout creates a new V1betaListActiveDirectoriesParams object
-// with the ability to set a timeout on a request.
+// with the default values initialized, and the ability to set a timeout on a request
 func NewV1betaListActiveDirectoriesParamsWithTimeout(timeout time.Duration) *V1betaListActiveDirectoriesParams {
+	var ()
 	return &V1betaListActiveDirectoriesParams{
+
 		timeout: timeout,
 	}
 }
 
 // NewV1betaListActiveDirectoriesParamsWithContext creates a new V1betaListActiveDirectoriesParams object
-// with the ability to set a context for a request.
+// with the default values initialized, and the ability to set a context for a request
 func NewV1betaListActiveDirectoriesParamsWithContext(ctx context.Context) *V1betaListActiveDirectoriesParams {
+	var ()
 	return &V1betaListActiveDirectoriesParams{
+
 		Context: ctx,
 	}
 }
 
 // NewV1betaListActiveDirectoriesParamsWithHTTPClient creates a new V1betaListActiveDirectoriesParams object
-// with the ability to set a custom HTTPClient for a request.
+// with the default values initialized, and the ability to set a custom HTTPClient for a request
 func NewV1betaListActiveDirectoriesParamsWithHTTPClient(client *http.Client) *V1betaListActiveDirectoriesParams {
+	var ()
 	return &V1betaListActiveDirectoriesParams{
 		HTTPClient: client,
 	}
@@ -54,49 +57,29 @@ func NewV1betaListActiveDirectoriesParamsWithHTTPClient(client *http.Client) *V1
 
 /*
 V1betaListActiveDirectoriesParams contains all the parameters to send to the API endpoint
-
-	for the v1beta list active directories operation.
-
-	Typically these are written to a http.Request.
+for the v1beta list active directories operation typically these are written to a http.Request
 */
 type V1betaListActiveDirectoriesParams struct {
 
-	/* LocationID.
+	/*LocationID
+	  The location/region to perform the operation in.
 
-	   The location/region to perform the operation in.
 	*/
 	LocationID string
+	/*ProjectNumber
+	  The project number of the GCP project owning the resource being acted upon
 
-	/* ProjectNumber.
-
-	   The project number of the GCP project owning the resource being acted upon
 	*/
 	ProjectNumber string
+	/*XCorrelationID
+	  Correlation identifier
 
-	/* XCorrelationID.
-
-	   Correlation identifier
 	*/
 	XCorrelationID *string
 
 	timeout    time.Duration
 	Context    context.Context
 	HTTPClient *http.Client
-}
-
-// WithDefaults hydrates default values in the v1beta list active directories params (not the query body).
-//
-// All values with no default are reset to their zero value.
-func (o *V1betaListActiveDirectoriesParams) WithDefaults() *V1betaListActiveDirectoriesParams {
-	o.SetDefaults()
-	return o
-}
-
-// SetDefaults hydrates default values in the v1beta list active directories params (not the query body).
-//
-// All values with no default are reset to their zero value.
-func (o *V1betaListActiveDirectoriesParams) SetDefaults() {
-	// no default values defined for this parameter
 }
 
 // WithTimeout adds the timeout to the v1beta list active directories params
@@ -189,6 +172,7 @@ func (o *V1betaListActiveDirectoriesParams) WriteToRequest(r runtime.ClientReque
 		if err := r.SetHeaderParam("x-correlation-id", *o.XCorrelationID); err != nil {
 			return err
 		}
+
 	}
 
 	if len(res) > 0 {

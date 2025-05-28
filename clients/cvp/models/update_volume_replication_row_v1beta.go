@@ -6,8 +6,6 @@ package models
 // Editing this file might prove futile when you re-run the swagger generate command
 
 import (
-	"context"
-
 	"github.com/go-openapi/errors"
 	"github.com/go-openapi/strfmt"
 	"github.com/go-openapi/swag"
@@ -81,19 +79,20 @@ func (m *UpdateVolumeReplicationRowV1beta) Validate(formats strfmt.Registry) err
 }
 
 func (m *UpdateVolumeReplicationRowV1beta) validateDestinationReplicationID(formats strfmt.Registry) error {
+
 	if swag.IsZero(m.DestinationReplicationID) { // not required
 		return nil
 	}
 
-	if err := validate.MinLength("destinationReplicationID", "body", m.DestinationReplicationID, 36); err != nil {
+	if err := validate.MinLength("destinationReplicationID", "body", string(m.DestinationReplicationID), 36); err != nil {
 		return err
 	}
 
-	if err := validate.MaxLength("destinationReplicationID", "body", m.DestinationReplicationID, 36); err != nil {
+	if err := validate.MaxLength("destinationReplicationID", "body", string(m.DestinationReplicationID), 36); err != nil {
 		return err
 	}
 
-	if err := validate.Pattern("destinationReplicationID", "body", m.DestinationReplicationID, `^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$`); err != nil {
+	if err := validate.Pattern("destinationReplicationID", "body", string(m.DestinationReplicationID), `^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$`); err != nil {
 		return err
 	}
 
@@ -101,19 +100,20 @@ func (m *UpdateVolumeReplicationRowV1beta) validateDestinationReplicationID(form
 }
 
 func (m *UpdateVolumeReplicationRowV1beta) validateDestinationVolumeID(formats strfmt.Registry) error {
+
 	if swag.IsZero(m.DestinationVolumeID) { // not required
 		return nil
 	}
 
-	if err := validate.MinLength("destinationVolumeID", "body", m.DestinationVolumeID, 36); err != nil {
+	if err := validate.MinLength("destinationVolumeID", "body", string(m.DestinationVolumeID), 36); err != nil {
 		return err
 	}
 
-	if err := validate.MaxLength("destinationVolumeID", "body", m.DestinationVolumeID, 36); err != nil {
+	if err := validate.MaxLength("destinationVolumeID", "body", string(m.DestinationVolumeID), 36); err != nil {
 		return err
 	}
 
-	if err := validate.Pattern("destinationVolumeID", "body", m.DestinationVolumeID, `^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$`); err != nil {
+	if err := validate.Pattern("destinationVolumeID", "body", string(m.DestinationVolumeID), `^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$`); err != nil {
 		return err
 	}
 
@@ -121,19 +121,20 @@ func (m *UpdateVolumeReplicationRowV1beta) validateDestinationVolumeID(formats s
 }
 
 func (m *UpdateVolumeReplicationRowV1beta) validateSourceReplicationID(formats strfmt.Registry) error {
+
 	if swag.IsZero(m.SourceReplicationID) { // not required
 		return nil
 	}
 
-	if err := validate.MinLength("sourceReplicationID", "body", m.SourceReplicationID, 36); err != nil {
+	if err := validate.MinLength("sourceReplicationID", "body", string(m.SourceReplicationID), 36); err != nil {
 		return err
 	}
 
-	if err := validate.MaxLength("sourceReplicationID", "body", m.SourceReplicationID, 36); err != nil {
+	if err := validate.MaxLength("sourceReplicationID", "body", string(m.SourceReplicationID), 36); err != nil {
 		return err
 	}
 
-	if err := validate.Pattern("sourceReplicationID", "body", m.SourceReplicationID, `^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$`); err != nil {
+	if err := validate.Pattern("sourceReplicationID", "body", string(m.SourceReplicationID), `^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$`); err != nil {
 		return err
 	}
 
@@ -141,27 +142,23 @@ func (m *UpdateVolumeReplicationRowV1beta) validateSourceReplicationID(formats s
 }
 
 func (m *UpdateVolumeReplicationRowV1beta) validateSourceVolumeID(formats strfmt.Registry) error {
+
 	if swag.IsZero(m.SourceVolumeID) { // not required
 		return nil
 	}
 
-	if err := validate.MinLength("sourceVolumeID", "body", m.SourceVolumeID, 36); err != nil {
+	if err := validate.MinLength("sourceVolumeID", "body", string(m.SourceVolumeID), 36); err != nil {
 		return err
 	}
 
-	if err := validate.MaxLength("sourceVolumeID", "body", m.SourceVolumeID, 36); err != nil {
+	if err := validate.MaxLength("sourceVolumeID", "body", string(m.SourceVolumeID), 36); err != nil {
 		return err
 	}
 
-	if err := validate.Pattern("sourceVolumeID", "body", m.SourceVolumeID, `^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$`); err != nil {
+	if err := validate.Pattern("sourceVolumeID", "body", string(m.SourceVolumeID), `^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$`); err != nil {
 		return err
 	}
 
-	return nil
-}
-
-// ContextValidate validates this update volume replication row v1beta based on context it is used
-func (m *UpdateVolumeReplicationRowV1beta) ContextValidate(ctx context.Context, formats strfmt.Registry) error {
 	return nil
 }
 

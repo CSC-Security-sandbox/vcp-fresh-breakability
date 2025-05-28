@@ -6,8 +6,6 @@ package models
 // Editing this file might prove futile when you re-run the swagger generate command
 
 import (
-	"context"
-
 	"github.com/go-openapi/errors"
 	"github.com/go-openapi/strfmt"
 	"github.com/go-openapi/swag"
@@ -22,7 +20,6 @@ type BatchBackupPolicyScheduleV1beta struct {
 	// Daily backup limit
 	//
 	// Limit to number of daily backups. Note that the sum of daily, weekly and monthly backups should be greater than 1
-	// Example: 24
 	// Maximum: 1019
 	// Minimum: 0
 	DailyBackupLimit *int64 `json:"dailyBackupLimit,omitempty"`
@@ -30,7 +27,6 @@ type BatchBackupPolicyScheduleV1beta struct {
 	// Monthly backup limit
 	//
 	// Limit to number of monthly backups. Note that the sum of daily, weekly and monthly backups should be greater than 1
-	// Example: 24
 	// Maximum: 1019
 	// Minimum: 0
 	MonthlyBackupLimit *int64 `json:"monthlyBackupLimit,omitempty"`
@@ -38,7 +34,6 @@ type BatchBackupPolicyScheduleV1beta struct {
 	// Weekly backup limit
 	//
 	// Limit to number of weekly backups. Note that the sum of daily, weekly and monthly backups should be greater than 1
-	// Example: 24
 	// Maximum: 1019
 	// Minimum: 0
 	WeeklyBackupLimit *int64 `json:"weeklyBackupLimit,omitempty"`
@@ -67,15 +62,16 @@ func (m *BatchBackupPolicyScheduleV1beta) Validate(formats strfmt.Registry) erro
 }
 
 func (m *BatchBackupPolicyScheduleV1beta) validateDailyBackupLimit(formats strfmt.Registry) error {
+
 	if swag.IsZero(m.DailyBackupLimit) { // not required
 		return nil
 	}
 
-	if err := validate.MinimumInt("dailyBackupLimit", "body", *m.DailyBackupLimit, 0, false); err != nil {
+	if err := validate.MinimumInt("dailyBackupLimit", "body", int64(*m.DailyBackupLimit), 0, false); err != nil {
 		return err
 	}
 
-	if err := validate.MaximumInt("dailyBackupLimit", "body", *m.DailyBackupLimit, 1019, false); err != nil {
+	if err := validate.MaximumInt("dailyBackupLimit", "body", int64(*m.DailyBackupLimit), 1019, false); err != nil {
 		return err
 	}
 
@@ -83,15 +79,16 @@ func (m *BatchBackupPolicyScheduleV1beta) validateDailyBackupLimit(formats strfm
 }
 
 func (m *BatchBackupPolicyScheduleV1beta) validateMonthlyBackupLimit(formats strfmt.Registry) error {
+
 	if swag.IsZero(m.MonthlyBackupLimit) { // not required
 		return nil
 	}
 
-	if err := validate.MinimumInt("monthlyBackupLimit", "body", *m.MonthlyBackupLimit, 0, false); err != nil {
+	if err := validate.MinimumInt("monthlyBackupLimit", "body", int64(*m.MonthlyBackupLimit), 0, false); err != nil {
 		return err
 	}
 
-	if err := validate.MaximumInt("monthlyBackupLimit", "body", *m.MonthlyBackupLimit, 1019, false); err != nil {
+	if err := validate.MaximumInt("monthlyBackupLimit", "body", int64(*m.MonthlyBackupLimit), 1019, false); err != nil {
 		return err
 	}
 
@@ -99,23 +96,19 @@ func (m *BatchBackupPolicyScheduleV1beta) validateMonthlyBackupLimit(formats str
 }
 
 func (m *BatchBackupPolicyScheduleV1beta) validateWeeklyBackupLimit(formats strfmt.Registry) error {
+
 	if swag.IsZero(m.WeeklyBackupLimit) { // not required
 		return nil
 	}
 
-	if err := validate.MinimumInt("weeklyBackupLimit", "body", *m.WeeklyBackupLimit, 0, false); err != nil {
+	if err := validate.MinimumInt("weeklyBackupLimit", "body", int64(*m.WeeklyBackupLimit), 0, false); err != nil {
 		return err
 	}
 
-	if err := validate.MaximumInt("weeklyBackupLimit", "body", *m.WeeklyBackupLimit, 1019, false); err != nil {
+	if err := validate.MaximumInt("weeklyBackupLimit", "body", int64(*m.WeeklyBackupLimit), 1019, false); err != nil {
 		return err
 	}
 
-	return nil
-}
-
-// ContextValidate validates this batch backup policy schedule v1beta based on context it is used
-func (m *BatchBackupPolicyScheduleV1beta) ContextValidate(ctx context.Context, formats strfmt.Registry) error {
 	return nil
 }
 

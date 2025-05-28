@@ -6,8 +6,6 @@ package models
 // Editing this file might prove futile when you re-run the swagger generate command
 
 import (
-	"context"
-
 	"github.com/go-openapi/errors"
 	"github.com/go-openapi/strfmt"
 	"github.com/go-openapi/swag"
@@ -22,7 +20,6 @@ import (
 type BackupUpdateV1beta struct {
 
 	// description
-	// Example: My Resource Description
 	// Required: true
 	// Max Length: 2048
 	Description *string `json:"description"`
@@ -48,15 +45,10 @@ func (m *BackupUpdateV1beta) validateDescription(formats strfmt.Registry) error 
 		return err
 	}
 
-	if err := validate.MaxLength("description", "body", *m.Description, 2048); err != nil {
+	if err := validate.MaxLength("description", "body", string(*m.Description), 2048); err != nil {
 		return err
 	}
 
-	return nil
-}
-
-// ContextValidate validates this backup update v1beta based on context it is used
-func (m *BackupUpdateV1beta) ContextValidate(ctx context.Context, formats strfmt.Registry) error {
 	return nil
 }
 

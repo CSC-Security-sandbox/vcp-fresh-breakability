@@ -6,7 +6,6 @@ package models
 // Editing this file might prove futile when you re-run the swagger generate command
 
 import (
-	"context"
 	"encoding/json"
 
 	"github.com/go-openapi/errors"
@@ -25,13 +24,11 @@ type ReplicationV1beta struct {
 	// clusterLocation
 	//
 	// Location of the cluster
-	// Example: us-east1
 	ClusterLocation *string `json:"clusterLocation,omitempty"`
 
 	// created
 	//
 	// Creation date of the resource
-	// Example: 2016-11-28T19:30:23.123Z
 	// Read Only: true
 	// Format: date-time
 	Created strfmt.DateTime `json:"created,omitempty"`
@@ -39,7 +36,6 @@ type ReplicationV1beta struct {
 	// description
 	//
 	// Description of the replication
-	// Example: My replication description
 	// Max Length: 2048
 	Description *string `json:"description,omitempty"`
 
@@ -56,7 +52,6 @@ type ReplicationV1beta struct {
 	//   healthy. It has missed a scheduled
 	//   transfer, or has experienced a manual
 	//   update failure.
-	// Example: true
 	// Read Only: true
 	Healthy *bool `json:"healthy,omitempty"`
 
@@ -66,8 +61,7 @@ type ReplicationV1beta struct {
 	// hybridReplicationType
 	//
 	// Type of hybrid replication
-	// Example: MIGRATION
-	// Enum: ["HYBRID_REPLICATION_TYPE_UNSPECIFIED","MIGRATION","CONTINUOUS_REPLICATION","ONPREM_REPLICATION","REVERSE_ONPREM_REPLICATION"]
+	// Enum: [HYBRID_REPLICATION_TYPE_UNSPECIFIED MIGRATION CONTINUOUS_REPLICATION ONPREM_REPLICATION REVERSE_ONPREM_REPLICATION]
 	HybridReplicationType *string `json:"hybridReplicationType,omitempty"`
 
 	// hybrid replication user commands
@@ -76,21 +70,18 @@ type ReplicationV1beta struct {
 	// labels
 	//
 	// JSON dictionary of resource labels to allow linking of billing labels to a replication, Can contain only lowercase letters, numeric characters, underscores, and dashes. All characters must use UTF-8 encoding, and international characters are allowed. Must start with a lowercase letter or international character.
-	// Example: {"some-key":"some-value","some-key2":"some-value2"}
 	Labels map[string]string `json:"labels,omitempty"`
 
 	// mirrorState
 	//
 	// The mirror state of the volume replication
-	// Example: MIRRORED
 	// Read Only: true
-	// Enum: ["MIRROR_STATE_UNSPECIFIED","PREPARING","UNINITIALIZED","MIRRORED","STOPPED","ABORTED","TRANSFERRING","BASELINE_TRANSFERRING","EXTERNALLY_MANAGED"]
+	// Enum: [MIRROR_STATE_UNSPECIFIED PREPARING UNINITIALIZED MIRRORED STOPPED ABORTED TRANSFERRING BASELINE_TRANSFERRING EXTERNALLY_MANAGED]
 	MirrorState string `json:"mirrorState,omitempty"`
 
 	// replicationId
 	//
 	// UUID v4 used to identify the volume replication
-	// Example: 9760acf5-4638-11e7-9bdb-020073ca7773
 	// Read Only: true
 	// Max Length: 36
 	// Min Length: 36
@@ -98,12 +89,10 @@ type ReplicationV1beta struct {
 	ReplicationID string `json:"replicationId,omitempty"`
 
 	// replicationSchedule
-	// Example: HOURLY
-	// Enum: ["REPLICATION_SCHEDULE_UNSPECIFIED","EVERY_10_MINUTES","HOURLY","DAILY"]
+	// Enum: [REPLICATION_SCHEDULE_UNSPECIFIED EVERY_10_MINUTES HOURLY DAILY]
 	ReplicationSchedule string `json:"replicationSchedule,omitempty"`
 
 	// A human readable label for the resource which is restricted to letters, numbers, and hyphen, with the first character a letter, the last a letter or a number, and a 63 character maximum
-	// Example: my-replication
 	// Max Length: 63
 	// Min Length: 1
 	// Pattern: ^[a-z]([a-z0-9-]{0,61}[a-z0-9])?$
@@ -112,8 +101,7 @@ type ReplicationV1beta struct {
 	// role
 	//
 	// Indicates whether the local volume is the source or destination for the volume replication
-	// Example: DESTINATION
-	// Enum: ["REPLICATION_ROLE_UNSPECIFIED","SOURCE","DESTINATION"]
+	// Enum: [REPLICATION_ROLE_UNSPECIFIED SOURCE DESTINATION]
 	Role string `json:"role,omitempty"`
 
 	// source
@@ -122,22 +110,19 @@ type ReplicationV1beta struct {
 	// state
 	//
 	// The current lifecycle state of the replication
-	// Example: READY
 	// Read Only: true
-	// Enum: ["STATE_UNSPECIFIED","UPDATING","CREATING","READY","DELETING","DISABLED","ERROR","PENDING_CLUSTER_PEERING","PENDING_SVM_PEERING","PENDING_REMOTE_RESYNC","EXTERNALLY_MANAGED_REPLICATION"]
+	// Enum: [STATE_UNSPECIFIED UPDATING CREATING READY DELETING DISABLED ERROR PENDING_CLUSTER_PEERING PENDING_SVM_PEERING PENDING_REMOTE_RESYNC EXTERNALLY_MANAGED_REPLICATION]
 	State string `json:"state,omitempty"`
 
 	// stateDetails
 	//
 	// Details about the current lifecycle state
-	// Example: Available for use
 	// Read Only: true
 	StateDetails string `json:"stateDetails,omitempty"`
 
 	// stateDetailsCode
 	//
 	// Numeric representation of current state details.
-	// Example: 100001
 	// Read Only: true
 	StateDetailsCode int32 `json:"stateDetailsCode"`
 
@@ -212,6 +197,7 @@ func (m *ReplicationV1beta) Validate(formats strfmt.Registry) error {
 }
 
 func (m *ReplicationV1beta) validateCreated(formats strfmt.Registry) error {
+
 	if swag.IsZero(m.Created) { // not required
 		return nil
 	}
@@ -224,11 +210,12 @@ func (m *ReplicationV1beta) validateCreated(formats strfmt.Registry) error {
 }
 
 func (m *ReplicationV1beta) validateDescription(formats strfmt.Registry) error {
+
 	if swag.IsZero(m.Description) { // not required
 		return nil
 	}
 
-	if err := validate.MaxLength("description", "body", *m.Description, 2048); err != nil {
+	if err := validate.MaxLength("description", "body", string(*m.Description), 2048); err != nil {
 		return err
 	}
 
@@ -236,6 +223,7 @@ func (m *ReplicationV1beta) validateDescription(formats strfmt.Registry) error {
 }
 
 func (m *ReplicationV1beta) validateDestination(formats strfmt.Registry) error {
+
 	if swag.IsZero(m.Destination) { // not required
 		return nil
 	}
@@ -244,8 +232,6 @@ func (m *ReplicationV1beta) validateDestination(formats strfmt.Registry) error {
 		if err := m.Destination.Validate(formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("destination")
-			} else if ce, ok := err.(*errors.CompositeError); ok {
-				return ce.ValidateName("destination")
 			}
 			return err
 		}
@@ -255,6 +241,7 @@ func (m *ReplicationV1beta) validateDestination(formats strfmt.Registry) error {
 }
 
 func (m *ReplicationV1beta) validateHybridPeeringDetails(formats strfmt.Registry) error {
+
 	if swag.IsZero(m.HybridPeeringDetails) { // not required
 		return nil
 	}
@@ -263,8 +250,6 @@ func (m *ReplicationV1beta) validateHybridPeeringDetails(formats strfmt.Registry
 		if err := m.HybridPeeringDetails.Validate(formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("hybridPeeringDetails")
-			} else if ce, ok := err.(*errors.CompositeError); ok {
-				return ce.ValidateName("hybridPeeringDetails")
 			}
 			return err
 		}
@@ -312,6 +297,7 @@ func (m *ReplicationV1beta) validateHybridReplicationTypeEnum(path, location str
 }
 
 func (m *ReplicationV1beta) validateHybridReplicationType(formats strfmt.Registry) error {
+
 	if swag.IsZero(m.HybridReplicationType) { // not required
 		return nil
 	}
@@ -325,6 +311,7 @@ func (m *ReplicationV1beta) validateHybridReplicationType(formats strfmt.Registr
 }
 
 func (m *ReplicationV1beta) validateHybridReplicationUserCommands(formats strfmt.Registry) error {
+
 	if swag.IsZero(m.HybridReplicationUserCommands) { // not required
 		return nil
 	}
@@ -333,8 +320,6 @@ func (m *ReplicationV1beta) validateHybridReplicationUserCommands(formats strfmt
 		if err := m.HybridReplicationUserCommands.Validate(formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("hybridReplicationUserCommands")
-			} else if ce, ok := err.(*errors.CompositeError); ok {
-				return ce.ValidateName("hybridReplicationUserCommands")
 			}
 			return err
 		}
@@ -394,6 +379,7 @@ func (m *ReplicationV1beta) validateMirrorStateEnum(path, location string, value
 }
 
 func (m *ReplicationV1beta) validateMirrorState(formats strfmt.Registry) error {
+
 	if swag.IsZero(m.MirrorState) { // not required
 		return nil
 	}
@@ -407,19 +393,20 @@ func (m *ReplicationV1beta) validateMirrorState(formats strfmt.Registry) error {
 }
 
 func (m *ReplicationV1beta) validateReplicationID(formats strfmt.Registry) error {
+
 	if swag.IsZero(m.ReplicationID) { // not required
 		return nil
 	}
 
-	if err := validate.MinLength("replicationId", "body", m.ReplicationID, 36); err != nil {
+	if err := validate.MinLength("replicationId", "body", string(m.ReplicationID), 36); err != nil {
 		return err
 	}
 
-	if err := validate.MaxLength("replicationId", "body", m.ReplicationID, 36); err != nil {
+	if err := validate.MaxLength("replicationId", "body", string(m.ReplicationID), 36); err != nil {
 		return err
 	}
 
-	if err := validate.Pattern("replicationId", "body", m.ReplicationID, `^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$`); err != nil {
+	if err := validate.Pattern("replicationId", "body", string(m.ReplicationID), `^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$`); err != nil {
 		return err
 	}
 
@@ -462,6 +449,7 @@ func (m *ReplicationV1beta) validateReplicationScheduleEnum(path, location strin
 }
 
 func (m *ReplicationV1beta) validateReplicationSchedule(formats strfmt.Registry) error {
+
 	if swag.IsZero(m.ReplicationSchedule) { // not required
 		return nil
 	}
@@ -475,19 +463,20 @@ func (m *ReplicationV1beta) validateReplicationSchedule(formats strfmt.Registry)
 }
 
 func (m *ReplicationV1beta) validateResourceID(formats strfmt.Registry) error {
+
 	if swag.IsZero(m.ResourceID) { // not required
 		return nil
 	}
 
-	if err := validate.MinLength("resourceId", "body", m.ResourceID, 1); err != nil {
+	if err := validate.MinLength("resourceId", "body", string(m.ResourceID), 1); err != nil {
 		return err
 	}
 
-	if err := validate.MaxLength("resourceId", "body", m.ResourceID, 63); err != nil {
+	if err := validate.MaxLength("resourceId", "body", string(m.ResourceID), 63); err != nil {
 		return err
 	}
 
-	if err := validate.Pattern("resourceId", "body", m.ResourceID, `^[a-z]([a-z0-9-]{0,61}[a-z0-9])?$`); err != nil {
+	if err := validate.Pattern("resourceId", "body", string(m.ResourceID), `^[a-z]([a-z0-9-]{0,61}[a-z0-9])?$`); err != nil {
 		return err
 	}
 
@@ -527,6 +516,7 @@ func (m *ReplicationV1beta) validateRoleEnum(path, location string, value string
 }
 
 func (m *ReplicationV1beta) validateRole(formats strfmt.Registry) error {
+
 	if swag.IsZero(m.Role) { // not required
 		return nil
 	}
@@ -540,6 +530,7 @@ func (m *ReplicationV1beta) validateRole(formats strfmt.Registry) error {
 }
 
 func (m *ReplicationV1beta) validateSource(formats strfmt.Registry) error {
+
 	if swag.IsZero(m.Source) { // not required
 		return nil
 	}
@@ -548,8 +539,6 @@ func (m *ReplicationV1beta) validateSource(formats strfmt.Registry) error {
 		if err := m.Source.Validate(formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("source")
-			} else if ce, ok := err.(*errors.CompositeError); ok {
-				return ce.ValidateName("source")
 			}
 			return err
 		}
@@ -615,6 +604,7 @@ func (m *ReplicationV1beta) validateStateEnum(path, location string, value strin
 }
 
 func (m *ReplicationV1beta) validateState(formats strfmt.Registry) error {
+
 	if swag.IsZero(m.State) { // not required
 		return nil
 	}
@@ -628,6 +618,7 @@ func (m *ReplicationV1beta) validateState(formats strfmt.Registry) error {
 }
 
 func (m *ReplicationV1beta) validateTransferStats(formats strfmt.Registry) error {
+
 	if swag.IsZero(m.TransferStats) { // not required
 		return nil
 	}
@@ -636,234 +627,6 @@ func (m *ReplicationV1beta) validateTransferStats(formats strfmt.Registry) error
 		if err := m.TransferStats.Validate(formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("transferStats")
-			} else if ce, ok := err.(*errors.CompositeError); ok {
-				return ce.ValidateName("transferStats")
-			}
-			return err
-		}
-	}
-
-	return nil
-}
-
-// ContextValidate validate this replication v1beta based on the context it is used
-func (m *ReplicationV1beta) ContextValidate(ctx context.Context, formats strfmt.Registry) error {
-	var res []error
-
-	if err := m.contextValidateCreated(ctx, formats); err != nil {
-		res = append(res, err)
-	}
-
-	if err := m.contextValidateDestination(ctx, formats); err != nil {
-		res = append(res, err)
-	}
-
-	if err := m.contextValidateHealthy(ctx, formats); err != nil {
-		res = append(res, err)
-	}
-
-	if err := m.contextValidateHybridPeeringDetails(ctx, formats); err != nil {
-		res = append(res, err)
-	}
-
-	if err := m.contextValidateHybridReplicationUserCommands(ctx, formats); err != nil {
-		res = append(res, err)
-	}
-
-	if err := m.contextValidateMirrorState(ctx, formats); err != nil {
-		res = append(res, err)
-	}
-
-	if err := m.contextValidateReplicationID(ctx, formats); err != nil {
-		res = append(res, err)
-	}
-
-	if err := m.contextValidateSource(ctx, formats); err != nil {
-		res = append(res, err)
-	}
-
-	if err := m.contextValidateState(ctx, formats); err != nil {
-		res = append(res, err)
-	}
-
-	if err := m.contextValidateStateDetails(ctx, formats); err != nil {
-		res = append(res, err)
-	}
-
-	if err := m.contextValidateStateDetailsCode(ctx, formats); err != nil {
-		res = append(res, err)
-	}
-
-	if err := m.contextValidateTransferStats(ctx, formats); err != nil {
-		res = append(res, err)
-	}
-
-	if len(res) > 0 {
-		return errors.CompositeValidationError(res...)
-	}
-	return nil
-}
-
-func (m *ReplicationV1beta) contextValidateCreated(ctx context.Context, formats strfmt.Registry) error {
-
-	if err := validate.ReadOnly(ctx, "created", "body", strfmt.DateTime(m.Created)); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (m *ReplicationV1beta) contextValidateDestination(ctx context.Context, formats strfmt.Registry) error {
-
-	if m.Destination != nil {
-
-		if swag.IsZero(m.Destination) { // not required
-			return nil
-		}
-
-		if err := m.Destination.ContextValidate(ctx, formats); err != nil {
-			if ve, ok := err.(*errors.Validation); ok {
-				return ve.ValidateName("destination")
-			} else if ce, ok := err.(*errors.CompositeError); ok {
-				return ce.ValidateName("destination")
-			}
-			return err
-		}
-	}
-
-	return nil
-}
-
-func (m *ReplicationV1beta) contextValidateHealthy(ctx context.Context, formats strfmt.Registry) error {
-
-	if err := validate.ReadOnly(ctx, "healthy", "body", m.Healthy); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (m *ReplicationV1beta) contextValidateHybridPeeringDetails(ctx context.Context, formats strfmt.Registry) error {
-
-	if m.HybridPeeringDetails != nil {
-
-		if swag.IsZero(m.HybridPeeringDetails) { // not required
-			return nil
-		}
-
-		if err := m.HybridPeeringDetails.ContextValidate(ctx, formats); err != nil {
-			if ve, ok := err.(*errors.Validation); ok {
-				return ve.ValidateName("hybridPeeringDetails")
-			} else if ce, ok := err.(*errors.CompositeError); ok {
-				return ce.ValidateName("hybridPeeringDetails")
-			}
-			return err
-		}
-	}
-
-	return nil
-}
-
-func (m *ReplicationV1beta) contextValidateHybridReplicationUserCommands(ctx context.Context, formats strfmt.Registry) error {
-
-	if m.HybridReplicationUserCommands != nil {
-
-		if swag.IsZero(m.HybridReplicationUserCommands) { // not required
-			return nil
-		}
-
-		if err := m.HybridReplicationUserCommands.ContextValidate(ctx, formats); err != nil {
-			if ve, ok := err.(*errors.Validation); ok {
-				return ve.ValidateName("hybridReplicationUserCommands")
-			} else if ce, ok := err.(*errors.CompositeError); ok {
-				return ce.ValidateName("hybridReplicationUserCommands")
-			}
-			return err
-		}
-	}
-
-	return nil
-}
-
-func (m *ReplicationV1beta) contextValidateMirrorState(ctx context.Context, formats strfmt.Registry) error {
-
-	if err := validate.ReadOnly(ctx, "mirrorState", "body", string(m.MirrorState)); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (m *ReplicationV1beta) contextValidateReplicationID(ctx context.Context, formats strfmt.Registry) error {
-
-	if err := validate.ReadOnly(ctx, "replicationId", "body", string(m.ReplicationID)); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (m *ReplicationV1beta) contextValidateSource(ctx context.Context, formats strfmt.Registry) error {
-
-	if m.Source != nil {
-
-		if swag.IsZero(m.Source) { // not required
-			return nil
-		}
-
-		if err := m.Source.ContextValidate(ctx, formats); err != nil {
-			if ve, ok := err.(*errors.Validation); ok {
-				return ve.ValidateName("source")
-			} else if ce, ok := err.(*errors.CompositeError); ok {
-				return ce.ValidateName("source")
-			}
-			return err
-		}
-	}
-
-	return nil
-}
-
-func (m *ReplicationV1beta) contextValidateState(ctx context.Context, formats strfmt.Registry) error {
-
-	if err := validate.ReadOnly(ctx, "state", "body", string(m.State)); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (m *ReplicationV1beta) contextValidateStateDetails(ctx context.Context, formats strfmt.Registry) error {
-
-	if err := validate.ReadOnly(ctx, "stateDetails", "body", string(m.StateDetails)); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (m *ReplicationV1beta) contextValidateStateDetailsCode(ctx context.Context, formats strfmt.Registry) error {
-
-	if err := validate.ReadOnly(ctx, "stateDetailsCode", "body", int32(m.StateDetailsCode)); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (m *ReplicationV1beta) contextValidateTransferStats(ctx context.Context, formats strfmt.Registry) error {
-
-	if m.TransferStats != nil {
-
-		if swag.IsZero(m.TransferStats) { // not required
-			return nil
-		}
-
-		if err := m.TransferStats.ContextValidate(ctx, formats); err != nil {
-			if ve, ok := err.(*errors.Validation); ok {
-				return ve.ValidateName("transferStats")
-			} else if ce, ok := err.(*errors.CompositeError); ok {
-				return ce.ValidateName("transferStats")
 			}
 			return err
 		}

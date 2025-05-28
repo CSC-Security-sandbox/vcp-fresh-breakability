@@ -6,7 +6,6 @@ package pools
 // Editing this file might prove futile when you re-run the swagger generate command
 
 import (
-	"encoding/json"
 	"fmt"
 	"io"
 
@@ -96,7 +95,7 @@ func NewV1betaDirectoryServiceDiagnosisAccepted() *V1betaDirectoryServiceDiagnos
 }
 
 /*
-V1betaDirectoryServiceDiagnosisAccepted describes a response with status code 202, with default header values.
+V1betaDirectoryServiceDiagnosisAccepted handles this case with default header values.
 
 Checking directory service configuration
 */
@@ -104,44 +103,8 @@ type V1betaDirectoryServiceDiagnosisAccepted struct {
 	Payload *models.OperationV1beta
 }
 
-// IsSuccess returns true when this v1beta directory service diagnosis accepted response has a 2xx status code
-func (o *V1betaDirectoryServiceDiagnosisAccepted) IsSuccess() bool {
-	return true
-}
-
-// IsRedirect returns true when this v1beta directory service diagnosis accepted response has a 3xx status code
-func (o *V1betaDirectoryServiceDiagnosisAccepted) IsRedirect() bool {
-	return false
-}
-
-// IsClientError returns true when this v1beta directory service diagnosis accepted response has a 4xx status code
-func (o *V1betaDirectoryServiceDiagnosisAccepted) IsClientError() bool {
-	return false
-}
-
-// IsServerError returns true when this v1beta directory service diagnosis accepted response has a 5xx status code
-func (o *V1betaDirectoryServiceDiagnosisAccepted) IsServerError() bool {
-	return false
-}
-
-// IsCode returns true when this v1beta directory service diagnosis accepted response a status code equal to that given
-func (o *V1betaDirectoryServiceDiagnosisAccepted) IsCode(code int) bool {
-	return code == 202
-}
-
-// Code gets the status code for the v1beta directory service diagnosis accepted response
-func (o *V1betaDirectoryServiceDiagnosisAccepted) Code() int {
-	return 202
-}
-
 func (o *V1betaDirectoryServiceDiagnosisAccepted) Error() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/pools/{poolId}/directoryService][%d] v1betaDirectoryServiceDiagnosisAccepted %s", 202, payload)
-}
-
-func (o *V1betaDirectoryServiceDiagnosisAccepted) String() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/pools/{poolId}/directoryService][%d] v1betaDirectoryServiceDiagnosisAccepted %s", 202, payload)
+	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/pools/{poolId}/directoryService][%d] v1betaDirectoryServiceDiagnosisAccepted  %+v", 202, o.Payload)
 }
 
 func (o *V1betaDirectoryServiceDiagnosisAccepted) GetPayload() *models.OperationV1beta {
@@ -166,7 +129,7 @@ func NewV1betaDirectoryServiceDiagnosisBadRequest() *V1betaDirectoryServiceDiagn
 }
 
 /*
-V1betaDirectoryServiceDiagnosisBadRequest describes a response with status code 400, with default header values.
+V1betaDirectoryServiceDiagnosisBadRequest handles this case with default header values.
 
 Bad request
 */
@@ -174,44 +137,8 @@ type V1betaDirectoryServiceDiagnosisBadRequest struct {
 	Payload *models.Error
 }
 
-// IsSuccess returns true when this v1beta directory service diagnosis bad request response has a 2xx status code
-func (o *V1betaDirectoryServiceDiagnosisBadRequest) IsSuccess() bool {
-	return false
-}
-
-// IsRedirect returns true when this v1beta directory service diagnosis bad request response has a 3xx status code
-func (o *V1betaDirectoryServiceDiagnosisBadRequest) IsRedirect() bool {
-	return false
-}
-
-// IsClientError returns true when this v1beta directory service diagnosis bad request response has a 4xx status code
-func (o *V1betaDirectoryServiceDiagnosisBadRequest) IsClientError() bool {
-	return true
-}
-
-// IsServerError returns true when this v1beta directory service diagnosis bad request response has a 5xx status code
-func (o *V1betaDirectoryServiceDiagnosisBadRequest) IsServerError() bool {
-	return false
-}
-
-// IsCode returns true when this v1beta directory service diagnosis bad request response a status code equal to that given
-func (o *V1betaDirectoryServiceDiagnosisBadRequest) IsCode(code int) bool {
-	return code == 400
-}
-
-// Code gets the status code for the v1beta directory service diagnosis bad request response
-func (o *V1betaDirectoryServiceDiagnosisBadRequest) Code() int {
-	return 400
-}
-
 func (o *V1betaDirectoryServiceDiagnosisBadRequest) Error() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/pools/{poolId}/directoryService][%d] v1betaDirectoryServiceDiagnosisBadRequest %s", 400, payload)
-}
-
-func (o *V1betaDirectoryServiceDiagnosisBadRequest) String() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/pools/{poolId}/directoryService][%d] v1betaDirectoryServiceDiagnosisBadRequest %s", 400, payload)
+	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/pools/{poolId}/directoryService][%d] v1betaDirectoryServiceDiagnosisBadRequest  %+v", 400, o.Payload)
 }
 
 func (o *V1betaDirectoryServiceDiagnosisBadRequest) GetPayload() *models.Error {
@@ -236,7 +163,7 @@ func NewV1betaDirectoryServiceDiagnosisUnauthorized() *V1betaDirectoryServiceDia
 }
 
 /*
-V1betaDirectoryServiceDiagnosisUnauthorized describes a response with status code 401, with default header values.
+V1betaDirectoryServiceDiagnosisUnauthorized handles this case with default header values.
 
 Unauthorized
 */
@@ -244,44 +171,8 @@ type V1betaDirectoryServiceDiagnosisUnauthorized struct {
 	Payload *models.Error
 }
 
-// IsSuccess returns true when this v1beta directory service diagnosis unauthorized response has a 2xx status code
-func (o *V1betaDirectoryServiceDiagnosisUnauthorized) IsSuccess() bool {
-	return false
-}
-
-// IsRedirect returns true when this v1beta directory service diagnosis unauthorized response has a 3xx status code
-func (o *V1betaDirectoryServiceDiagnosisUnauthorized) IsRedirect() bool {
-	return false
-}
-
-// IsClientError returns true when this v1beta directory service diagnosis unauthorized response has a 4xx status code
-func (o *V1betaDirectoryServiceDiagnosisUnauthorized) IsClientError() bool {
-	return true
-}
-
-// IsServerError returns true when this v1beta directory service diagnosis unauthorized response has a 5xx status code
-func (o *V1betaDirectoryServiceDiagnosisUnauthorized) IsServerError() bool {
-	return false
-}
-
-// IsCode returns true when this v1beta directory service diagnosis unauthorized response a status code equal to that given
-func (o *V1betaDirectoryServiceDiagnosisUnauthorized) IsCode(code int) bool {
-	return code == 401
-}
-
-// Code gets the status code for the v1beta directory service diagnosis unauthorized response
-func (o *V1betaDirectoryServiceDiagnosisUnauthorized) Code() int {
-	return 401
-}
-
 func (o *V1betaDirectoryServiceDiagnosisUnauthorized) Error() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/pools/{poolId}/directoryService][%d] v1betaDirectoryServiceDiagnosisUnauthorized %s", 401, payload)
-}
-
-func (o *V1betaDirectoryServiceDiagnosisUnauthorized) String() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/pools/{poolId}/directoryService][%d] v1betaDirectoryServiceDiagnosisUnauthorized %s", 401, payload)
+	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/pools/{poolId}/directoryService][%d] v1betaDirectoryServiceDiagnosisUnauthorized  %+v", 401, o.Payload)
 }
 
 func (o *V1betaDirectoryServiceDiagnosisUnauthorized) GetPayload() *models.Error {
@@ -306,7 +197,7 @@ func NewV1betaDirectoryServiceDiagnosisForbidden() *V1betaDirectoryServiceDiagno
 }
 
 /*
-V1betaDirectoryServiceDiagnosisForbidden describes a response with status code 403, with default header values.
+V1betaDirectoryServiceDiagnosisForbidden handles this case with default header values.
 
 Forbidden
 */
@@ -314,44 +205,8 @@ type V1betaDirectoryServiceDiagnosisForbidden struct {
 	Payload *models.Error
 }
 
-// IsSuccess returns true when this v1beta directory service diagnosis forbidden response has a 2xx status code
-func (o *V1betaDirectoryServiceDiagnosisForbidden) IsSuccess() bool {
-	return false
-}
-
-// IsRedirect returns true when this v1beta directory service diagnosis forbidden response has a 3xx status code
-func (o *V1betaDirectoryServiceDiagnosisForbidden) IsRedirect() bool {
-	return false
-}
-
-// IsClientError returns true when this v1beta directory service diagnosis forbidden response has a 4xx status code
-func (o *V1betaDirectoryServiceDiagnosisForbidden) IsClientError() bool {
-	return true
-}
-
-// IsServerError returns true when this v1beta directory service diagnosis forbidden response has a 5xx status code
-func (o *V1betaDirectoryServiceDiagnosisForbidden) IsServerError() bool {
-	return false
-}
-
-// IsCode returns true when this v1beta directory service diagnosis forbidden response a status code equal to that given
-func (o *V1betaDirectoryServiceDiagnosisForbidden) IsCode(code int) bool {
-	return code == 403
-}
-
-// Code gets the status code for the v1beta directory service diagnosis forbidden response
-func (o *V1betaDirectoryServiceDiagnosisForbidden) Code() int {
-	return 403
-}
-
 func (o *V1betaDirectoryServiceDiagnosisForbidden) Error() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/pools/{poolId}/directoryService][%d] v1betaDirectoryServiceDiagnosisForbidden %s", 403, payload)
-}
-
-func (o *V1betaDirectoryServiceDiagnosisForbidden) String() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/pools/{poolId}/directoryService][%d] v1betaDirectoryServiceDiagnosisForbidden %s", 403, payload)
+	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/pools/{poolId}/directoryService][%d] v1betaDirectoryServiceDiagnosisForbidden  %+v", 403, o.Payload)
 }
 
 func (o *V1betaDirectoryServiceDiagnosisForbidden) GetPayload() *models.Error {
@@ -376,7 +231,7 @@ func NewV1betaDirectoryServiceDiagnosisNotFound() *V1betaDirectoryServiceDiagnos
 }
 
 /*
-V1betaDirectoryServiceDiagnosisNotFound describes a response with status code 404, with default header values.
+V1betaDirectoryServiceDiagnosisNotFound handles this case with default header values.
 
 Not found
 */
@@ -384,44 +239,8 @@ type V1betaDirectoryServiceDiagnosisNotFound struct {
 	Payload *models.Error
 }
 
-// IsSuccess returns true when this v1beta directory service diagnosis not found response has a 2xx status code
-func (o *V1betaDirectoryServiceDiagnosisNotFound) IsSuccess() bool {
-	return false
-}
-
-// IsRedirect returns true when this v1beta directory service diagnosis not found response has a 3xx status code
-func (o *V1betaDirectoryServiceDiagnosisNotFound) IsRedirect() bool {
-	return false
-}
-
-// IsClientError returns true when this v1beta directory service diagnosis not found response has a 4xx status code
-func (o *V1betaDirectoryServiceDiagnosisNotFound) IsClientError() bool {
-	return true
-}
-
-// IsServerError returns true when this v1beta directory service diagnosis not found response has a 5xx status code
-func (o *V1betaDirectoryServiceDiagnosisNotFound) IsServerError() bool {
-	return false
-}
-
-// IsCode returns true when this v1beta directory service diagnosis not found response a status code equal to that given
-func (o *V1betaDirectoryServiceDiagnosisNotFound) IsCode(code int) bool {
-	return code == 404
-}
-
-// Code gets the status code for the v1beta directory service diagnosis not found response
-func (o *V1betaDirectoryServiceDiagnosisNotFound) Code() int {
-	return 404
-}
-
 func (o *V1betaDirectoryServiceDiagnosisNotFound) Error() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/pools/{poolId}/directoryService][%d] v1betaDirectoryServiceDiagnosisNotFound %s", 404, payload)
-}
-
-func (o *V1betaDirectoryServiceDiagnosisNotFound) String() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/pools/{poolId}/directoryService][%d] v1betaDirectoryServiceDiagnosisNotFound %s", 404, payload)
+	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/pools/{poolId}/directoryService][%d] v1betaDirectoryServiceDiagnosisNotFound  %+v", 404, o.Payload)
 }
 
 func (o *V1betaDirectoryServiceDiagnosisNotFound) GetPayload() *models.Error {
@@ -446,7 +265,7 @@ func NewV1betaDirectoryServiceDiagnosisConflict() *V1betaDirectoryServiceDiagnos
 }
 
 /*
-V1betaDirectoryServiceDiagnosisConflict describes a response with status code 409, with default header values.
+V1betaDirectoryServiceDiagnosisConflict handles this case with default header values.
 
 Conflict
 */
@@ -454,44 +273,8 @@ type V1betaDirectoryServiceDiagnosisConflict struct {
 	Payload *models.Error
 }
 
-// IsSuccess returns true when this v1beta directory service diagnosis conflict response has a 2xx status code
-func (o *V1betaDirectoryServiceDiagnosisConflict) IsSuccess() bool {
-	return false
-}
-
-// IsRedirect returns true when this v1beta directory service diagnosis conflict response has a 3xx status code
-func (o *V1betaDirectoryServiceDiagnosisConflict) IsRedirect() bool {
-	return false
-}
-
-// IsClientError returns true when this v1beta directory service diagnosis conflict response has a 4xx status code
-func (o *V1betaDirectoryServiceDiagnosisConflict) IsClientError() bool {
-	return true
-}
-
-// IsServerError returns true when this v1beta directory service diagnosis conflict response has a 5xx status code
-func (o *V1betaDirectoryServiceDiagnosisConflict) IsServerError() bool {
-	return false
-}
-
-// IsCode returns true when this v1beta directory service diagnosis conflict response a status code equal to that given
-func (o *V1betaDirectoryServiceDiagnosisConflict) IsCode(code int) bool {
-	return code == 409
-}
-
-// Code gets the status code for the v1beta directory service diagnosis conflict response
-func (o *V1betaDirectoryServiceDiagnosisConflict) Code() int {
-	return 409
-}
-
 func (o *V1betaDirectoryServiceDiagnosisConflict) Error() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/pools/{poolId}/directoryService][%d] v1betaDirectoryServiceDiagnosisConflict %s", 409, payload)
-}
-
-func (o *V1betaDirectoryServiceDiagnosisConflict) String() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/pools/{poolId}/directoryService][%d] v1betaDirectoryServiceDiagnosisConflict %s", 409, payload)
+	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/pools/{poolId}/directoryService][%d] v1betaDirectoryServiceDiagnosisConflict  %+v", 409, o.Payload)
 }
 
 func (o *V1betaDirectoryServiceDiagnosisConflict) GetPayload() *models.Error {
@@ -516,7 +299,7 @@ func NewV1betaDirectoryServiceDiagnosisUnprocessableEntity() *V1betaDirectorySer
 }
 
 /*
-V1betaDirectoryServiceDiagnosisUnprocessableEntity describes a response with status code 422, with default header values.
+V1betaDirectoryServiceDiagnosisUnprocessableEntity handles this case with default header values.
 
 Unprocessable entity
 */
@@ -524,44 +307,8 @@ type V1betaDirectoryServiceDiagnosisUnprocessableEntity struct {
 	Payload *models.Error
 }
 
-// IsSuccess returns true when this v1beta directory service diagnosis unprocessable entity response has a 2xx status code
-func (o *V1betaDirectoryServiceDiagnosisUnprocessableEntity) IsSuccess() bool {
-	return false
-}
-
-// IsRedirect returns true when this v1beta directory service diagnosis unprocessable entity response has a 3xx status code
-func (o *V1betaDirectoryServiceDiagnosisUnprocessableEntity) IsRedirect() bool {
-	return false
-}
-
-// IsClientError returns true when this v1beta directory service diagnosis unprocessable entity response has a 4xx status code
-func (o *V1betaDirectoryServiceDiagnosisUnprocessableEntity) IsClientError() bool {
-	return true
-}
-
-// IsServerError returns true when this v1beta directory service diagnosis unprocessable entity response has a 5xx status code
-func (o *V1betaDirectoryServiceDiagnosisUnprocessableEntity) IsServerError() bool {
-	return false
-}
-
-// IsCode returns true when this v1beta directory service diagnosis unprocessable entity response a status code equal to that given
-func (o *V1betaDirectoryServiceDiagnosisUnprocessableEntity) IsCode(code int) bool {
-	return code == 422
-}
-
-// Code gets the status code for the v1beta directory service diagnosis unprocessable entity response
-func (o *V1betaDirectoryServiceDiagnosisUnprocessableEntity) Code() int {
-	return 422
-}
-
 func (o *V1betaDirectoryServiceDiagnosisUnprocessableEntity) Error() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/pools/{poolId}/directoryService][%d] v1betaDirectoryServiceDiagnosisUnprocessableEntity %s", 422, payload)
-}
-
-func (o *V1betaDirectoryServiceDiagnosisUnprocessableEntity) String() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/pools/{poolId}/directoryService][%d] v1betaDirectoryServiceDiagnosisUnprocessableEntity %s", 422, payload)
+	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/pools/{poolId}/directoryService][%d] v1betaDirectoryServiceDiagnosisUnprocessableEntity  %+v", 422, o.Payload)
 }
 
 func (o *V1betaDirectoryServiceDiagnosisUnprocessableEntity) GetPayload() *models.Error {
@@ -586,7 +333,7 @@ func NewV1betaDirectoryServiceDiagnosisTooManyRequests() *V1betaDirectoryService
 }
 
 /*
-V1betaDirectoryServiceDiagnosisTooManyRequests describes a response with status code 429, with default header values.
+V1betaDirectoryServiceDiagnosisTooManyRequests handles this case with default header values.
 
 Too many requests
 */
@@ -594,44 +341,8 @@ type V1betaDirectoryServiceDiagnosisTooManyRequests struct {
 	Payload *models.Error
 }
 
-// IsSuccess returns true when this v1beta directory service diagnosis too many requests response has a 2xx status code
-func (o *V1betaDirectoryServiceDiagnosisTooManyRequests) IsSuccess() bool {
-	return false
-}
-
-// IsRedirect returns true when this v1beta directory service diagnosis too many requests response has a 3xx status code
-func (o *V1betaDirectoryServiceDiagnosisTooManyRequests) IsRedirect() bool {
-	return false
-}
-
-// IsClientError returns true when this v1beta directory service diagnosis too many requests response has a 4xx status code
-func (o *V1betaDirectoryServiceDiagnosisTooManyRequests) IsClientError() bool {
-	return true
-}
-
-// IsServerError returns true when this v1beta directory service diagnosis too many requests response has a 5xx status code
-func (o *V1betaDirectoryServiceDiagnosisTooManyRequests) IsServerError() bool {
-	return false
-}
-
-// IsCode returns true when this v1beta directory service diagnosis too many requests response a status code equal to that given
-func (o *V1betaDirectoryServiceDiagnosisTooManyRequests) IsCode(code int) bool {
-	return code == 429
-}
-
-// Code gets the status code for the v1beta directory service diagnosis too many requests response
-func (o *V1betaDirectoryServiceDiagnosisTooManyRequests) Code() int {
-	return 429
-}
-
 func (o *V1betaDirectoryServiceDiagnosisTooManyRequests) Error() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/pools/{poolId}/directoryService][%d] v1betaDirectoryServiceDiagnosisTooManyRequests %s", 429, payload)
-}
-
-func (o *V1betaDirectoryServiceDiagnosisTooManyRequests) String() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/pools/{poolId}/directoryService][%d] v1betaDirectoryServiceDiagnosisTooManyRequests %s", 429, payload)
+	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/pools/{poolId}/directoryService][%d] v1betaDirectoryServiceDiagnosisTooManyRequests  %+v", 429, o.Payload)
 }
 
 func (o *V1betaDirectoryServiceDiagnosisTooManyRequests) GetPayload() *models.Error {
@@ -656,7 +367,7 @@ func NewV1betaDirectoryServiceDiagnosisInternalServerError() *V1betaDirectorySer
 }
 
 /*
-V1betaDirectoryServiceDiagnosisInternalServerError describes a response with status code 500, with default header values.
+V1betaDirectoryServiceDiagnosisInternalServerError handles this case with default header values.
 
 Internal server error
 */
@@ -664,44 +375,8 @@ type V1betaDirectoryServiceDiagnosisInternalServerError struct {
 	Payload *models.Error
 }
 
-// IsSuccess returns true when this v1beta directory service diagnosis internal server error response has a 2xx status code
-func (o *V1betaDirectoryServiceDiagnosisInternalServerError) IsSuccess() bool {
-	return false
-}
-
-// IsRedirect returns true when this v1beta directory service diagnosis internal server error response has a 3xx status code
-func (o *V1betaDirectoryServiceDiagnosisInternalServerError) IsRedirect() bool {
-	return false
-}
-
-// IsClientError returns true when this v1beta directory service diagnosis internal server error response has a 4xx status code
-func (o *V1betaDirectoryServiceDiagnosisInternalServerError) IsClientError() bool {
-	return false
-}
-
-// IsServerError returns true when this v1beta directory service diagnosis internal server error response has a 5xx status code
-func (o *V1betaDirectoryServiceDiagnosisInternalServerError) IsServerError() bool {
-	return true
-}
-
-// IsCode returns true when this v1beta directory service diagnosis internal server error response a status code equal to that given
-func (o *V1betaDirectoryServiceDiagnosisInternalServerError) IsCode(code int) bool {
-	return code == 500
-}
-
-// Code gets the status code for the v1beta directory service diagnosis internal server error response
-func (o *V1betaDirectoryServiceDiagnosisInternalServerError) Code() int {
-	return 500
-}
-
 func (o *V1betaDirectoryServiceDiagnosisInternalServerError) Error() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/pools/{poolId}/directoryService][%d] v1betaDirectoryServiceDiagnosisInternalServerError %s", 500, payload)
-}
-
-func (o *V1betaDirectoryServiceDiagnosisInternalServerError) String() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/pools/{poolId}/directoryService][%d] v1betaDirectoryServiceDiagnosisInternalServerError %s", 500, payload)
+	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/pools/{poolId}/directoryService][%d] v1betaDirectoryServiceDiagnosisInternalServerError  %+v", 500, o.Payload)
 }
 
 func (o *V1betaDirectoryServiceDiagnosisInternalServerError) GetPayload() *models.Error {
@@ -728,7 +403,7 @@ func NewV1betaDirectoryServiceDiagnosisDefault(code int) *V1betaDirectoryService
 }
 
 /*
-V1betaDirectoryServiceDiagnosisDefault describes a response with status code -1, with default header values.
+V1betaDirectoryServiceDiagnosisDefault handles this case with default header values.
 
 Unexpected error
 */
@@ -738,44 +413,13 @@ type V1betaDirectoryServiceDiagnosisDefault struct {
 	Payload *models.Error
 }
 
-// IsSuccess returns true when this v1beta directory service diagnosis default response has a 2xx status code
-func (o *V1betaDirectoryServiceDiagnosisDefault) IsSuccess() bool {
-	return o._statusCode/100 == 2
-}
-
-// IsRedirect returns true when this v1beta directory service diagnosis default response has a 3xx status code
-func (o *V1betaDirectoryServiceDiagnosisDefault) IsRedirect() bool {
-	return o._statusCode/100 == 3
-}
-
-// IsClientError returns true when this v1beta directory service diagnosis default response has a 4xx status code
-func (o *V1betaDirectoryServiceDiagnosisDefault) IsClientError() bool {
-	return o._statusCode/100 == 4
-}
-
-// IsServerError returns true when this v1beta directory service diagnosis default response has a 5xx status code
-func (o *V1betaDirectoryServiceDiagnosisDefault) IsServerError() bool {
-	return o._statusCode/100 == 5
-}
-
-// IsCode returns true when this v1beta directory service diagnosis default response a status code equal to that given
-func (o *V1betaDirectoryServiceDiagnosisDefault) IsCode(code int) bool {
-	return o._statusCode == code
-}
-
 // Code gets the status code for the v1beta directory service diagnosis default response
 func (o *V1betaDirectoryServiceDiagnosisDefault) Code() int {
 	return o._statusCode
 }
 
 func (o *V1betaDirectoryServiceDiagnosisDefault) Error() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/pools/{poolId}/directoryService][%d] v1beta_directoryServiceDiagnosis default %s", o._statusCode, payload)
-}
-
-func (o *V1betaDirectoryServiceDiagnosisDefault) String() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/pools/{poolId}/directoryService][%d] v1beta_directoryServiceDiagnosis default %s", o._statusCode, payload)
+	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/pools/{poolId}/directoryService][%d] v1beta_directoryServiceDiagnosis default  %+v", o._statusCode, o.Payload)
 }
 
 func (o *V1betaDirectoryServiceDiagnosisDefault) GetPayload() *models.Error {

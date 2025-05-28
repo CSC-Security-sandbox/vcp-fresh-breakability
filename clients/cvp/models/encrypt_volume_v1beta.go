@@ -6,8 +6,6 @@ package models
 // Editing this file might prove futile when you re-run the swagger generate command
 
 import (
-	"context"
-
 	"github.com/go-openapi/errors"
 	"github.com/go-openapi/strfmt"
 	"github.com/go-openapi/swag"
@@ -37,6 +35,7 @@ func (m *EncryptVolumeV1beta) Validate(formats strfmt.Registry) error {
 }
 
 func (m *EncryptVolumeV1beta) validateEncryptionStatus(formats strfmt.Registry) error {
+
 	if swag.IsZero(m.EncryptionStatus) { // not required
 		return nil
 	}
@@ -45,43 +44,6 @@ func (m *EncryptVolumeV1beta) validateEncryptionStatus(formats strfmt.Registry) 
 		if err := m.EncryptionStatus.Validate(formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("EncryptionStatus")
-			} else if ce, ok := err.(*errors.CompositeError); ok {
-				return ce.ValidateName("EncryptionStatus")
-			}
-			return err
-		}
-	}
-
-	return nil
-}
-
-// ContextValidate validate this encrypt volume v1beta based on the context it is used
-func (m *EncryptVolumeV1beta) ContextValidate(ctx context.Context, formats strfmt.Registry) error {
-	var res []error
-
-	if err := m.contextValidateEncryptionStatus(ctx, formats); err != nil {
-		res = append(res, err)
-	}
-
-	if len(res) > 0 {
-		return errors.CompositeValidationError(res...)
-	}
-	return nil
-}
-
-func (m *EncryptVolumeV1beta) contextValidateEncryptionStatus(ctx context.Context, formats strfmt.Registry) error {
-
-	if m.EncryptionStatus != nil {
-
-		if swag.IsZero(m.EncryptionStatus) { // not required
-			return nil
-		}
-
-		if err := m.EncryptionStatus.ContextValidate(ctx, formats); err != nil {
-			if ve, ok := err.(*errors.Validation); ok {
-				return ve.ValidateName("EncryptionStatus")
-			} else if ce, ok := err.(*errors.CompositeError); ok {
-				return ce.ValidateName("EncryptionStatus")
 			}
 			return err
 		}

@@ -6,7 +6,6 @@ package resource_events
 // Editing this file might prove futile when you re-run the swagger generate command
 
 import (
-	"encoding/json"
 	"fmt"
 	"io"
 
@@ -122,7 +121,7 @@ func NewV1betaStartProjectEventCreated() *V1betaStartProjectEventCreated {
 }
 
 /*
-V1betaStartProjectEventCreated describes a response with status code 201, with default header values.
+V1betaStartProjectEventCreated handles this case with default header values.
 
 Started the project state update event
 */
@@ -130,44 +129,8 @@ type V1betaStartProjectEventCreated struct {
 	Payload *models.OperationV1beta
 }
 
-// IsSuccess returns true when this v1beta start project event created response has a 2xx status code
-func (o *V1betaStartProjectEventCreated) IsSuccess() bool {
-	return true
-}
-
-// IsRedirect returns true when this v1beta start project event created response has a 3xx status code
-func (o *V1betaStartProjectEventCreated) IsRedirect() bool {
-	return false
-}
-
-// IsClientError returns true when this v1beta start project event created response has a 4xx status code
-func (o *V1betaStartProjectEventCreated) IsClientError() bool {
-	return false
-}
-
-// IsServerError returns true when this v1beta start project event created response has a 5xx status code
-func (o *V1betaStartProjectEventCreated) IsServerError() bool {
-	return false
-}
-
-// IsCode returns true when this v1beta start project event created response a status code equal to that given
-func (o *V1betaStartProjectEventCreated) IsCode(code int) bool {
-	return code == 201
-}
-
-// Code gets the status code for the v1beta start project event created response
-func (o *V1betaStartProjectEventCreated) Code() int {
-	return 201
-}
-
 func (o *V1betaStartProjectEventCreated) Error() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/startProjectEvent][%d] v1betaStartProjectEventCreated %s", 201, payload)
-}
-
-func (o *V1betaStartProjectEventCreated) String() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/startProjectEvent][%d] v1betaStartProjectEventCreated %s", 201, payload)
+	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/startProjectEvent][%d] v1betaStartProjectEventCreated  %+v", 201, o.Payload)
 }
 
 func (o *V1betaStartProjectEventCreated) GetPayload() *models.OperationV1beta {
@@ -192,7 +155,7 @@ func NewV1betaStartProjectEventAccepted() *V1betaStartProjectEventAccepted {
 }
 
 /*
-V1betaStartProjectEventAccepted describes a response with status code 202, with default header values.
+V1betaStartProjectEventAccepted handles this case with default header values.
 
 Starting the project state update event
 */
@@ -200,44 +163,8 @@ type V1betaStartProjectEventAccepted struct {
 	Payload *models.OperationV1beta
 }
 
-// IsSuccess returns true when this v1beta start project event accepted response has a 2xx status code
-func (o *V1betaStartProjectEventAccepted) IsSuccess() bool {
-	return true
-}
-
-// IsRedirect returns true when this v1beta start project event accepted response has a 3xx status code
-func (o *V1betaStartProjectEventAccepted) IsRedirect() bool {
-	return false
-}
-
-// IsClientError returns true when this v1beta start project event accepted response has a 4xx status code
-func (o *V1betaStartProjectEventAccepted) IsClientError() bool {
-	return false
-}
-
-// IsServerError returns true when this v1beta start project event accepted response has a 5xx status code
-func (o *V1betaStartProjectEventAccepted) IsServerError() bool {
-	return false
-}
-
-// IsCode returns true when this v1beta start project event accepted response a status code equal to that given
-func (o *V1betaStartProjectEventAccepted) IsCode(code int) bool {
-	return code == 202
-}
-
-// Code gets the status code for the v1beta start project event accepted response
-func (o *V1betaStartProjectEventAccepted) Code() int {
-	return 202
-}
-
 func (o *V1betaStartProjectEventAccepted) Error() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/startProjectEvent][%d] v1betaStartProjectEventAccepted %s", 202, payload)
-}
-
-func (o *V1betaStartProjectEventAccepted) String() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/startProjectEvent][%d] v1betaStartProjectEventAccepted %s", 202, payload)
+	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/startProjectEvent][%d] v1betaStartProjectEventAccepted  %+v", 202, o.Payload)
 }
 
 func (o *V1betaStartProjectEventAccepted) GetPayload() *models.OperationV1beta {
@@ -262,49 +189,15 @@ func NewV1betaStartProjectEventNoContent() *V1betaStartProjectEventNoContent {
 }
 
 /*
-V1betaStartProjectEventNoContent describes a response with status code 204, with default header values.
+V1betaStartProjectEventNoContent handles this case with default header values.
 
 No content
 */
 type V1betaStartProjectEventNoContent struct {
 }
 
-// IsSuccess returns true when this v1beta start project event no content response has a 2xx status code
-func (o *V1betaStartProjectEventNoContent) IsSuccess() bool {
-	return true
-}
-
-// IsRedirect returns true when this v1beta start project event no content response has a 3xx status code
-func (o *V1betaStartProjectEventNoContent) IsRedirect() bool {
-	return false
-}
-
-// IsClientError returns true when this v1beta start project event no content response has a 4xx status code
-func (o *V1betaStartProjectEventNoContent) IsClientError() bool {
-	return false
-}
-
-// IsServerError returns true when this v1beta start project event no content response has a 5xx status code
-func (o *V1betaStartProjectEventNoContent) IsServerError() bool {
-	return false
-}
-
-// IsCode returns true when this v1beta start project event no content response a status code equal to that given
-func (o *V1betaStartProjectEventNoContent) IsCode(code int) bool {
-	return code == 204
-}
-
-// Code gets the status code for the v1beta start project event no content response
-func (o *V1betaStartProjectEventNoContent) Code() int {
-	return 204
-}
-
 func (o *V1betaStartProjectEventNoContent) Error() string {
-	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/startProjectEvent][%d] v1betaStartProjectEventNoContent", 204)
-}
-
-func (o *V1betaStartProjectEventNoContent) String() string {
-	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/startProjectEvent][%d] v1betaStartProjectEventNoContent", 204)
+	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/startProjectEvent][%d] v1betaStartProjectEventNoContent ", 204)
 }
 
 func (o *V1betaStartProjectEventNoContent) readResponse(response runtime.ClientResponse, consumer runtime.Consumer, formats strfmt.Registry) error {
@@ -318,7 +211,7 @@ func NewV1betaStartProjectEventBadRequest() *V1betaStartProjectEventBadRequest {
 }
 
 /*
-V1betaStartProjectEventBadRequest describes a response with status code 400, with default header values.
+V1betaStartProjectEventBadRequest handles this case with default header values.
 
 Bad request
 */
@@ -326,44 +219,8 @@ type V1betaStartProjectEventBadRequest struct {
 	Payload *models.Error
 }
 
-// IsSuccess returns true when this v1beta start project event bad request response has a 2xx status code
-func (o *V1betaStartProjectEventBadRequest) IsSuccess() bool {
-	return false
-}
-
-// IsRedirect returns true when this v1beta start project event bad request response has a 3xx status code
-func (o *V1betaStartProjectEventBadRequest) IsRedirect() bool {
-	return false
-}
-
-// IsClientError returns true when this v1beta start project event bad request response has a 4xx status code
-func (o *V1betaStartProjectEventBadRequest) IsClientError() bool {
-	return true
-}
-
-// IsServerError returns true when this v1beta start project event bad request response has a 5xx status code
-func (o *V1betaStartProjectEventBadRequest) IsServerError() bool {
-	return false
-}
-
-// IsCode returns true when this v1beta start project event bad request response a status code equal to that given
-func (o *V1betaStartProjectEventBadRequest) IsCode(code int) bool {
-	return code == 400
-}
-
-// Code gets the status code for the v1beta start project event bad request response
-func (o *V1betaStartProjectEventBadRequest) Code() int {
-	return 400
-}
-
 func (o *V1betaStartProjectEventBadRequest) Error() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/startProjectEvent][%d] v1betaStartProjectEventBadRequest %s", 400, payload)
-}
-
-func (o *V1betaStartProjectEventBadRequest) String() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/startProjectEvent][%d] v1betaStartProjectEventBadRequest %s", 400, payload)
+	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/startProjectEvent][%d] v1betaStartProjectEventBadRequest  %+v", 400, o.Payload)
 }
 
 func (o *V1betaStartProjectEventBadRequest) GetPayload() *models.Error {
@@ -388,7 +245,7 @@ func NewV1betaStartProjectEventUnauthorized() *V1betaStartProjectEventUnauthoriz
 }
 
 /*
-V1betaStartProjectEventUnauthorized describes a response with status code 401, with default header values.
+V1betaStartProjectEventUnauthorized handles this case with default header values.
 
 Unauthorized
 */
@@ -396,44 +253,8 @@ type V1betaStartProjectEventUnauthorized struct {
 	Payload *models.Error
 }
 
-// IsSuccess returns true when this v1beta start project event unauthorized response has a 2xx status code
-func (o *V1betaStartProjectEventUnauthorized) IsSuccess() bool {
-	return false
-}
-
-// IsRedirect returns true when this v1beta start project event unauthorized response has a 3xx status code
-func (o *V1betaStartProjectEventUnauthorized) IsRedirect() bool {
-	return false
-}
-
-// IsClientError returns true when this v1beta start project event unauthorized response has a 4xx status code
-func (o *V1betaStartProjectEventUnauthorized) IsClientError() bool {
-	return true
-}
-
-// IsServerError returns true when this v1beta start project event unauthorized response has a 5xx status code
-func (o *V1betaStartProjectEventUnauthorized) IsServerError() bool {
-	return false
-}
-
-// IsCode returns true when this v1beta start project event unauthorized response a status code equal to that given
-func (o *V1betaStartProjectEventUnauthorized) IsCode(code int) bool {
-	return code == 401
-}
-
-// Code gets the status code for the v1beta start project event unauthorized response
-func (o *V1betaStartProjectEventUnauthorized) Code() int {
-	return 401
-}
-
 func (o *V1betaStartProjectEventUnauthorized) Error() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/startProjectEvent][%d] v1betaStartProjectEventUnauthorized %s", 401, payload)
-}
-
-func (o *V1betaStartProjectEventUnauthorized) String() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/startProjectEvent][%d] v1betaStartProjectEventUnauthorized %s", 401, payload)
+	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/startProjectEvent][%d] v1betaStartProjectEventUnauthorized  %+v", 401, o.Payload)
 }
 
 func (o *V1betaStartProjectEventUnauthorized) GetPayload() *models.Error {
@@ -458,7 +279,7 @@ func NewV1betaStartProjectEventForbidden() *V1betaStartProjectEventForbidden {
 }
 
 /*
-V1betaStartProjectEventForbidden describes a response with status code 403, with default header values.
+V1betaStartProjectEventForbidden handles this case with default header values.
 
 Forbidden
 */
@@ -466,44 +287,8 @@ type V1betaStartProjectEventForbidden struct {
 	Payload *models.Error
 }
 
-// IsSuccess returns true when this v1beta start project event forbidden response has a 2xx status code
-func (o *V1betaStartProjectEventForbidden) IsSuccess() bool {
-	return false
-}
-
-// IsRedirect returns true when this v1beta start project event forbidden response has a 3xx status code
-func (o *V1betaStartProjectEventForbidden) IsRedirect() bool {
-	return false
-}
-
-// IsClientError returns true when this v1beta start project event forbidden response has a 4xx status code
-func (o *V1betaStartProjectEventForbidden) IsClientError() bool {
-	return true
-}
-
-// IsServerError returns true when this v1beta start project event forbidden response has a 5xx status code
-func (o *V1betaStartProjectEventForbidden) IsServerError() bool {
-	return false
-}
-
-// IsCode returns true when this v1beta start project event forbidden response a status code equal to that given
-func (o *V1betaStartProjectEventForbidden) IsCode(code int) bool {
-	return code == 403
-}
-
-// Code gets the status code for the v1beta start project event forbidden response
-func (o *V1betaStartProjectEventForbidden) Code() int {
-	return 403
-}
-
 func (o *V1betaStartProjectEventForbidden) Error() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/startProjectEvent][%d] v1betaStartProjectEventForbidden %s", 403, payload)
-}
-
-func (o *V1betaStartProjectEventForbidden) String() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/startProjectEvent][%d] v1betaStartProjectEventForbidden %s", 403, payload)
+	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/startProjectEvent][%d] v1betaStartProjectEventForbidden  %+v", 403, o.Payload)
 }
 
 func (o *V1betaStartProjectEventForbidden) GetPayload() *models.Error {
@@ -528,7 +313,7 @@ func NewV1betaStartProjectEventNotFound() *V1betaStartProjectEventNotFound {
 }
 
 /*
-V1betaStartProjectEventNotFound describes a response with status code 404, with default header values.
+V1betaStartProjectEventNotFound handles this case with default header values.
 
 Not found
 */
@@ -536,44 +321,8 @@ type V1betaStartProjectEventNotFound struct {
 	Payload *models.Error
 }
 
-// IsSuccess returns true when this v1beta start project event not found response has a 2xx status code
-func (o *V1betaStartProjectEventNotFound) IsSuccess() bool {
-	return false
-}
-
-// IsRedirect returns true when this v1beta start project event not found response has a 3xx status code
-func (o *V1betaStartProjectEventNotFound) IsRedirect() bool {
-	return false
-}
-
-// IsClientError returns true when this v1beta start project event not found response has a 4xx status code
-func (o *V1betaStartProjectEventNotFound) IsClientError() bool {
-	return true
-}
-
-// IsServerError returns true when this v1beta start project event not found response has a 5xx status code
-func (o *V1betaStartProjectEventNotFound) IsServerError() bool {
-	return false
-}
-
-// IsCode returns true when this v1beta start project event not found response a status code equal to that given
-func (o *V1betaStartProjectEventNotFound) IsCode(code int) bool {
-	return code == 404
-}
-
-// Code gets the status code for the v1beta start project event not found response
-func (o *V1betaStartProjectEventNotFound) Code() int {
-	return 404
-}
-
 func (o *V1betaStartProjectEventNotFound) Error() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/startProjectEvent][%d] v1betaStartProjectEventNotFound %s", 404, payload)
-}
-
-func (o *V1betaStartProjectEventNotFound) String() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/startProjectEvent][%d] v1betaStartProjectEventNotFound %s", 404, payload)
+	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/startProjectEvent][%d] v1betaStartProjectEventNotFound  %+v", 404, o.Payload)
 }
 
 func (o *V1betaStartProjectEventNotFound) GetPayload() *models.Error {
@@ -598,7 +347,7 @@ func NewV1betaStartProjectEventConflict() *V1betaStartProjectEventConflict {
 }
 
 /*
-V1betaStartProjectEventConflict describes a response with status code 409, with default header values.
+V1betaStartProjectEventConflict handles this case with default header values.
 
 Conflict
 */
@@ -606,44 +355,8 @@ type V1betaStartProjectEventConflict struct {
 	Payload *models.Error
 }
 
-// IsSuccess returns true when this v1beta start project event conflict response has a 2xx status code
-func (o *V1betaStartProjectEventConflict) IsSuccess() bool {
-	return false
-}
-
-// IsRedirect returns true when this v1beta start project event conflict response has a 3xx status code
-func (o *V1betaStartProjectEventConflict) IsRedirect() bool {
-	return false
-}
-
-// IsClientError returns true when this v1beta start project event conflict response has a 4xx status code
-func (o *V1betaStartProjectEventConflict) IsClientError() bool {
-	return true
-}
-
-// IsServerError returns true when this v1beta start project event conflict response has a 5xx status code
-func (o *V1betaStartProjectEventConflict) IsServerError() bool {
-	return false
-}
-
-// IsCode returns true when this v1beta start project event conflict response a status code equal to that given
-func (o *V1betaStartProjectEventConflict) IsCode(code int) bool {
-	return code == 409
-}
-
-// Code gets the status code for the v1beta start project event conflict response
-func (o *V1betaStartProjectEventConflict) Code() int {
-	return 409
-}
-
 func (o *V1betaStartProjectEventConflict) Error() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/startProjectEvent][%d] v1betaStartProjectEventConflict %s", 409, payload)
-}
-
-func (o *V1betaStartProjectEventConflict) String() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/startProjectEvent][%d] v1betaStartProjectEventConflict %s", 409, payload)
+	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/startProjectEvent][%d] v1betaStartProjectEventConflict  %+v", 409, o.Payload)
 }
 
 func (o *V1betaStartProjectEventConflict) GetPayload() *models.Error {
@@ -668,7 +381,7 @@ func NewV1betaStartProjectEventUnprocessableEntity() *V1betaStartProjectEventUnp
 }
 
 /*
-V1betaStartProjectEventUnprocessableEntity describes a response with status code 422, with default header values.
+V1betaStartProjectEventUnprocessableEntity handles this case with default header values.
 
 Unprocessable entity
 */
@@ -676,44 +389,8 @@ type V1betaStartProjectEventUnprocessableEntity struct {
 	Payload *models.Error
 }
 
-// IsSuccess returns true when this v1beta start project event unprocessable entity response has a 2xx status code
-func (o *V1betaStartProjectEventUnprocessableEntity) IsSuccess() bool {
-	return false
-}
-
-// IsRedirect returns true when this v1beta start project event unprocessable entity response has a 3xx status code
-func (o *V1betaStartProjectEventUnprocessableEntity) IsRedirect() bool {
-	return false
-}
-
-// IsClientError returns true when this v1beta start project event unprocessable entity response has a 4xx status code
-func (o *V1betaStartProjectEventUnprocessableEntity) IsClientError() bool {
-	return true
-}
-
-// IsServerError returns true when this v1beta start project event unprocessable entity response has a 5xx status code
-func (o *V1betaStartProjectEventUnprocessableEntity) IsServerError() bool {
-	return false
-}
-
-// IsCode returns true when this v1beta start project event unprocessable entity response a status code equal to that given
-func (o *V1betaStartProjectEventUnprocessableEntity) IsCode(code int) bool {
-	return code == 422
-}
-
-// Code gets the status code for the v1beta start project event unprocessable entity response
-func (o *V1betaStartProjectEventUnprocessableEntity) Code() int {
-	return 422
-}
-
 func (o *V1betaStartProjectEventUnprocessableEntity) Error() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/startProjectEvent][%d] v1betaStartProjectEventUnprocessableEntity %s", 422, payload)
-}
-
-func (o *V1betaStartProjectEventUnprocessableEntity) String() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/startProjectEvent][%d] v1betaStartProjectEventUnprocessableEntity %s", 422, payload)
+	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/startProjectEvent][%d] v1betaStartProjectEventUnprocessableEntity  %+v", 422, o.Payload)
 }
 
 func (o *V1betaStartProjectEventUnprocessableEntity) GetPayload() *models.Error {
@@ -738,7 +415,7 @@ func NewV1betaStartProjectEventTooManyRequests() *V1betaStartProjectEventTooMany
 }
 
 /*
-V1betaStartProjectEventTooManyRequests describes a response with status code 429, with default header values.
+V1betaStartProjectEventTooManyRequests handles this case with default header values.
 
 Too many requests
 */
@@ -746,44 +423,8 @@ type V1betaStartProjectEventTooManyRequests struct {
 	Payload *models.Error
 }
 
-// IsSuccess returns true when this v1beta start project event too many requests response has a 2xx status code
-func (o *V1betaStartProjectEventTooManyRequests) IsSuccess() bool {
-	return false
-}
-
-// IsRedirect returns true when this v1beta start project event too many requests response has a 3xx status code
-func (o *V1betaStartProjectEventTooManyRequests) IsRedirect() bool {
-	return false
-}
-
-// IsClientError returns true when this v1beta start project event too many requests response has a 4xx status code
-func (o *V1betaStartProjectEventTooManyRequests) IsClientError() bool {
-	return true
-}
-
-// IsServerError returns true when this v1beta start project event too many requests response has a 5xx status code
-func (o *V1betaStartProjectEventTooManyRequests) IsServerError() bool {
-	return false
-}
-
-// IsCode returns true when this v1beta start project event too many requests response a status code equal to that given
-func (o *V1betaStartProjectEventTooManyRequests) IsCode(code int) bool {
-	return code == 429
-}
-
-// Code gets the status code for the v1beta start project event too many requests response
-func (o *V1betaStartProjectEventTooManyRequests) Code() int {
-	return 429
-}
-
 func (o *V1betaStartProjectEventTooManyRequests) Error() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/startProjectEvent][%d] v1betaStartProjectEventTooManyRequests %s", 429, payload)
-}
-
-func (o *V1betaStartProjectEventTooManyRequests) String() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/startProjectEvent][%d] v1betaStartProjectEventTooManyRequests %s", 429, payload)
+	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/startProjectEvent][%d] v1betaStartProjectEventTooManyRequests  %+v", 429, o.Payload)
 }
 
 func (o *V1betaStartProjectEventTooManyRequests) GetPayload() *models.Error {
@@ -808,7 +449,7 @@ func NewV1betaStartProjectEventInternalServerError() *V1betaStartProjectEventInt
 }
 
 /*
-V1betaStartProjectEventInternalServerError describes a response with status code 500, with default header values.
+V1betaStartProjectEventInternalServerError handles this case with default header values.
 
 Internal server error
 */
@@ -816,44 +457,8 @@ type V1betaStartProjectEventInternalServerError struct {
 	Payload *models.Error
 }
 
-// IsSuccess returns true when this v1beta start project event internal server error response has a 2xx status code
-func (o *V1betaStartProjectEventInternalServerError) IsSuccess() bool {
-	return false
-}
-
-// IsRedirect returns true when this v1beta start project event internal server error response has a 3xx status code
-func (o *V1betaStartProjectEventInternalServerError) IsRedirect() bool {
-	return false
-}
-
-// IsClientError returns true when this v1beta start project event internal server error response has a 4xx status code
-func (o *V1betaStartProjectEventInternalServerError) IsClientError() bool {
-	return false
-}
-
-// IsServerError returns true when this v1beta start project event internal server error response has a 5xx status code
-func (o *V1betaStartProjectEventInternalServerError) IsServerError() bool {
-	return true
-}
-
-// IsCode returns true when this v1beta start project event internal server error response a status code equal to that given
-func (o *V1betaStartProjectEventInternalServerError) IsCode(code int) bool {
-	return code == 500
-}
-
-// Code gets the status code for the v1beta start project event internal server error response
-func (o *V1betaStartProjectEventInternalServerError) Code() int {
-	return 500
-}
-
 func (o *V1betaStartProjectEventInternalServerError) Error() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/startProjectEvent][%d] v1betaStartProjectEventInternalServerError %s", 500, payload)
-}
-
-func (o *V1betaStartProjectEventInternalServerError) String() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/startProjectEvent][%d] v1betaStartProjectEventInternalServerError %s", 500, payload)
+	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/startProjectEvent][%d] v1betaStartProjectEventInternalServerError  %+v", 500, o.Payload)
 }
 
 func (o *V1betaStartProjectEventInternalServerError) GetPayload() *models.Error {
@@ -878,7 +483,7 @@ func NewV1betaStartProjectEventNotImplemented() *V1betaStartProjectEventNotImple
 }
 
 /*
-V1betaStartProjectEventNotImplemented describes a response with status code 501, with default header values.
+V1betaStartProjectEventNotImplemented handles this case with default header values.
 
 Not implemented
 */
@@ -886,44 +491,8 @@ type V1betaStartProjectEventNotImplemented struct {
 	Payload *models.Error
 }
 
-// IsSuccess returns true when this v1beta start project event not implemented response has a 2xx status code
-func (o *V1betaStartProjectEventNotImplemented) IsSuccess() bool {
-	return false
-}
-
-// IsRedirect returns true when this v1beta start project event not implemented response has a 3xx status code
-func (o *V1betaStartProjectEventNotImplemented) IsRedirect() bool {
-	return false
-}
-
-// IsClientError returns true when this v1beta start project event not implemented response has a 4xx status code
-func (o *V1betaStartProjectEventNotImplemented) IsClientError() bool {
-	return false
-}
-
-// IsServerError returns true when this v1beta start project event not implemented response has a 5xx status code
-func (o *V1betaStartProjectEventNotImplemented) IsServerError() bool {
-	return true
-}
-
-// IsCode returns true when this v1beta start project event not implemented response a status code equal to that given
-func (o *V1betaStartProjectEventNotImplemented) IsCode(code int) bool {
-	return code == 501
-}
-
-// Code gets the status code for the v1beta start project event not implemented response
-func (o *V1betaStartProjectEventNotImplemented) Code() int {
-	return 501
-}
-
 func (o *V1betaStartProjectEventNotImplemented) Error() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/startProjectEvent][%d] v1betaStartProjectEventNotImplemented %s", 501, payload)
-}
-
-func (o *V1betaStartProjectEventNotImplemented) String() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/startProjectEvent][%d] v1betaStartProjectEventNotImplemented %s", 501, payload)
+	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/startProjectEvent][%d] v1betaStartProjectEventNotImplemented  %+v", 501, o.Payload)
 }
 
 func (o *V1betaStartProjectEventNotImplemented) GetPayload() *models.Error {
@@ -948,57 +517,20 @@ func NewV1betaStartProjectEventServiceUnavailable() *V1betaStartProjectEventServ
 }
 
 /*
-V1betaStartProjectEventServiceUnavailable describes a response with status code 503, with default header values.
+V1betaStartProjectEventServiceUnavailable handles this case with default header values.
 
 Service unavailable
 */
 type V1betaStartProjectEventServiceUnavailable struct {
-
-	/* A non-negative integer indicating the seconds to delay after the response is received
+	/*A non-negative integer indicating the seconds to delay after the response is received
 	 */
 	RetryAfter int64
 
 	Payload *models.Error
 }
 
-// IsSuccess returns true when this v1beta start project event service unavailable response has a 2xx status code
-func (o *V1betaStartProjectEventServiceUnavailable) IsSuccess() bool {
-	return false
-}
-
-// IsRedirect returns true when this v1beta start project event service unavailable response has a 3xx status code
-func (o *V1betaStartProjectEventServiceUnavailable) IsRedirect() bool {
-	return false
-}
-
-// IsClientError returns true when this v1beta start project event service unavailable response has a 4xx status code
-func (o *V1betaStartProjectEventServiceUnavailable) IsClientError() bool {
-	return false
-}
-
-// IsServerError returns true when this v1beta start project event service unavailable response has a 5xx status code
-func (o *V1betaStartProjectEventServiceUnavailable) IsServerError() bool {
-	return true
-}
-
-// IsCode returns true when this v1beta start project event service unavailable response a status code equal to that given
-func (o *V1betaStartProjectEventServiceUnavailable) IsCode(code int) bool {
-	return code == 503
-}
-
-// Code gets the status code for the v1beta start project event service unavailable response
-func (o *V1betaStartProjectEventServiceUnavailable) Code() int {
-	return 503
-}
-
 func (o *V1betaStartProjectEventServiceUnavailable) Error() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/startProjectEvent][%d] v1betaStartProjectEventServiceUnavailable %s", 503, payload)
-}
-
-func (o *V1betaStartProjectEventServiceUnavailable) String() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/startProjectEvent][%d] v1betaStartProjectEventServiceUnavailable %s", 503, payload)
+	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/startProjectEvent][%d] v1betaStartProjectEventServiceUnavailable  %+v", 503, o.Payload)
 }
 
 func (o *V1betaStartProjectEventServiceUnavailable) GetPayload() *models.Error {
@@ -1007,16 +539,12 @@ func (o *V1betaStartProjectEventServiceUnavailable) GetPayload() *models.Error {
 
 func (o *V1betaStartProjectEventServiceUnavailable) readResponse(response runtime.ClientResponse, consumer runtime.Consumer, formats strfmt.Registry) error {
 
-	// hydrates response header Retry-After
-	hdrRetryAfter := response.GetHeader("Retry-After")
-
-	if hdrRetryAfter != "" {
-		valretryAfter, err := swag.ConvertInt64(hdrRetryAfter)
-		if err != nil {
-			return errors.InvalidType("Retry-After", "header", "int64", hdrRetryAfter)
-		}
-		o.RetryAfter = valretryAfter
+	// response header Retry-After
+	retryAfter, err := swag.ConvertInt64(response.GetHeader("Retry-After"))
+	if err != nil {
+		return errors.InvalidType("Retry-After", "header", "int64", response.GetHeader("Retry-After"))
 	}
+	o.RetryAfter = retryAfter
 
 	o.Payload = new(models.Error)
 
@@ -1036,7 +564,7 @@ func NewV1betaStartProjectEventDefault(code int) *V1betaStartProjectEventDefault
 }
 
 /*
-V1betaStartProjectEventDefault describes a response with status code -1, with default header values.
+V1betaStartProjectEventDefault handles this case with default header values.
 
 Unexpected error
 */
@@ -1046,44 +574,13 @@ type V1betaStartProjectEventDefault struct {
 	Payload *models.Error
 }
 
-// IsSuccess returns true when this v1beta start project event default response has a 2xx status code
-func (o *V1betaStartProjectEventDefault) IsSuccess() bool {
-	return o._statusCode/100 == 2
-}
-
-// IsRedirect returns true when this v1beta start project event default response has a 3xx status code
-func (o *V1betaStartProjectEventDefault) IsRedirect() bool {
-	return o._statusCode/100 == 3
-}
-
-// IsClientError returns true when this v1beta start project event default response has a 4xx status code
-func (o *V1betaStartProjectEventDefault) IsClientError() bool {
-	return o._statusCode/100 == 4
-}
-
-// IsServerError returns true when this v1beta start project event default response has a 5xx status code
-func (o *V1betaStartProjectEventDefault) IsServerError() bool {
-	return o._statusCode/100 == 5
-}
-
-// IsCode returns true when this v1beta start project event default response a status code equal to that given
-func (o *V1betaStartProjectEventDefault) IsCode(code int) bool {
-	return o._statusCode == code
-}
-
 // Code gets the status code for the v1beta start project event default response
 func (o *V1betaStartProjectEventDefault) Code() int {
 	return o._statusCode
 }
 
 func (o *V1betaStartProjectEventDefault) Error() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/startProjectEvent][%d] v1beta_startProjectEvent default %s", o._statusCode, payload)
-}
-
-func (o *V1betaStartProjectEventDefault) String() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/startProjectEvent][%d] v1beta_startProjectEvent default %s", o._statusCode, payload)
+	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/startProjectEvent][%d] v1beta_startProjectEvent default  %+v", o._statusCode, o.Payload)
 }
 
 func (o *V1betaStartProjectEventDefault) GetPayload() *models.Error {

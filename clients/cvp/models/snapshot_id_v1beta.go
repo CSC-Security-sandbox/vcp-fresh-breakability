@@ -6,8 +6,6 @@ package models
 // Editing this file might prove futile when you re-run the swagger generate command
 
 import (
-	"context"
-
 	"github.com/go-openapi/errors"
 	"github.com/go-openapi/strfmt"
 	"github.com/go-openapi/swag"
@@ -22,7 +20,6 @@ import (
 type SnapshotIDV1beta struct {
 
 	// UUID v4 of the snapshot
-	// Example: 0ddaee2c-a92d-4e6c-bb72-d7d373c1d43
 	// Max Length: 36
 	// Min Length: 36
 	// Pattern: ^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$
@@ -44,27 +41,23 @@ func (m *SnapshotIDV1beta) Validate(formats strfmt.Registry) error {
 }
 
 func (m *SnapshotIDV1beta) validateSnapshotID(formats strfmt.Registry) error {
+
 	if swag.IsZero(m.SnapshotID) { // not required
 		return nil
 	}
 
-	if err := validate.MinLength("SnapshotId", "body", m.SnapshotID, 36); err != nil {
+	if err := validate.MinLength("SnapshotId", "body", string(m.SnapshotID), 36); err != nil {
 		return err
 	}
 
-	if err := validate.MaxLength("SnapshotId", "body", m.SnapshotID, 36); err != nil {
+	if err := validate.MaxLength("SnapshotId", "body", string(m.SnapshotID), 36); err != nil {
 		return err
 	}
 
-	if err := validate.Pattern("SnapshotId", "body", m.SnapshotID, `^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$`); err != nil {
+	if err := validate.Pattern("SnapshotId", "body", string(m.SnapshotID), `^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$`); err != nil {
 		return err
 	}
 
-	return nil
-}
-
-// ContextValidate validates this snapshot Id v1beta based on context it is used
-func (m *SnapshotIDV1beta) ContextValidate(ctx context.Context, formats strfmt.Registry) error {
 	return nil
 }
 

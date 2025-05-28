@@ -6,7 +6,6 @@ package models
 // Editing this file might prove futile when you re-run the swagger generate command
 
 import (
-	"context"
 	"encoding/json"
 
 	"github.com/go-openapi/errors"
@@ -25,7 +24,6 @@ type KmsConfigV1beta struct {
 	// createdTime
 	//
 	// Creation date of the resource
-	// Example: 2016-11-28T19:30:23.123Z
 	// Read Only: true
 	// Format: date-time
 	CreatedTime strfmt.DateTime `json:"createdTime,omitempty"`
@@ -33,7 +31,6 @@ type KmsConfigV1beta struct {
 	// deletedTime
 	//
 	// Date the resource was deleted
-	// Example: 2016-11-30T23:59:59.999Z
 	// Read Only: true
 	// Format: date-time
 	DeletedTime *strfmt.DateTime `json:"deletedTime,omitempty"`
@@ -41,43 +38,37 @@ type KmsConfigV1beta struct {
 	// description
 	//
 	// Description of the KMS configuration
-	// Example: My kms description
 	// Max Length: 2048
 	Description *string `json:"description,omitempty"`
 
 	// instructions
 	//
 	// Instructions to provide the access to encryption key.
-	// Example: gcloud kms keys add-iam-policy-binding key_Name --keyring keyring_Name\\ --location key_Ring_Location\\ --member serviceAccount:service_Account_Name\\ --role roles/cloudkms.cryptoKeyEncrypterDecrypter
 	// Read Only: true
 	Instructions string `json:"instructions,omitempty"`
 
 	// keyFullPath
 	//
 	// Includes key ring, key-ring location, key-name and key project ID
-	// Example: projects/projectID/locations/us/keyRings/keyRing/cryptoKeys/keyName
 	// Required: true
 	KeyFullPath *string `json:"keyFullPath"`
 
 	// state
 	//
 	// The current lifecycle state of the configuration
-	// Example: READY
 	// Read Only: true
-	// Enum: ["STATE_UNSPECIFIED","CREATING","READY","UPDATING","IN_USE","DELETING","ERROR","KEY_STATE_UNSPECIFIED","KEY_CHECK_PENDING","KEY_NOT_REACHABLE","DISABLING","DISABLED","DELETED","MIGRATING"]
+	// Enum: [STATE_UNSPECIFIED CREATING READY UPDATING IN_USE DELETING ERROR KEY_STATE_UNSPECIFIED KEY_CHECK_PENDING KEY_NOT_REACHABLE DISABLING DISABLED DELETED MIGRATING]
 	KmsState string `json:"kmsState,omitempty"`
 
 	// stateDetails
 	//
 	// Details about the current KMS configuration state
-	// Example: Credentials saved and available for use
 	// Read Only: true
 	KmsStateDetails string `json:"kmsStateDetails,omitempty"`
 
 	// resourceId
 	//
 	// Resource ID for KMS configuration
-	// Example: my-resource
 	// Max Length: 63
 	// Min Length: 1
 	// Pattern: ^[a-z]([a-z0-9-]{0,61}[a-z0-9])?$
@@ -86,14 +77,12 @@ type KmsConfigV1beta struct {
 	// service account email.
 	//
 	// Service account email which will have access to key through Google IAM policy.
-	// Example: service-account@example.com
 	// Read Only: true
 	ServiceAccountEmail string `json:"serviceAccountEmail,omitempty"`
 
 	// updatedTime
 	//
 	// Date of last update of the resource
-	// Example: 2016-11-29T20:32:50.459Z
 	// Read Only: true
 	// Format: date-time
 	UpdatedTime *strfmt.DateTime `json:"updatedTime,omitempty"`
@@ -101,7 +90,6 @@ type KmsConfigV1beta struct {
 	// UUID
 	//
 	// UUID v4 used to identify the KMS configuration
-	// Example: 9760acf5-4638-11e7-9bdb-020073ca7773
 	// Read Only: true
 	// Max Length: 36
 	// Min Length: 36
@@ -152,6 +140,7 @@ func (m *KmsConfigV1beta) Validate(formats strfmt.Registry) error {
 }
 
 func (m *KmsConfigV1beta) validateCreatedTime(formats strfmt.Registry) error {
+
 	if swag.IsZero(m.CreatedTime) { // not required
 		return nil
 	}
@@ -164,6 +153,7 @@ func (m *KmsConfigV1beta) validateCreatedTime(formats strfmt.Registry) error {
 }
 
 func (m *KmsConfigV1beta) validateDeletedTime(formats strfmt.Registry) error {
+
 	if swag.IsZero(m.DeletedTime) { // not required
 		return nil
 	}
@@ -176,11 +166,12 @@ func (m *KmsConfigV1beta) validateDeletedTime(formats strfmt.Registry) error {
 }
 
 func (m *KmsConfigV1beta) validateDescription(formats strfmt.Registry) error {
+
 	if swag.IsZero(m.Description) { // not required
 		return nil
 	}
 
-	if err := validate.MaxLength("description", "body", *m.Description, 2048); err != nil {
+	if err := validate.MaxLength("description", "body", string(*m.Description), 2048); err != nil {
 		return err
 	}
 
@@ -262,6 +253,7 @@ func (m *KmsConfigV1beta) validateKmsStateEnum(path, location string, value stri
 }
 
 func (m *KmsConfigV1beta) validateKmsState(formats strfmt.Registry) error {
+
 	if swag.IsZero(m.KmsState) { // not required
 		return nil
 	}
@@ -275,19 +267,20 @@ func (m *KmsConfigV1beta) validateKmsState(formats strfmt.Registry) error {
 }
 
 func (m *KmsConfigV1beta) validateResourceID(formats strfmt.Registry) error {
+
 	if swag.IsZero(m.ResourceID) { // not required
 		return nil
 	}
 
-	if err := validate.MinLength("resourceId", "body", *m.ResourceID, 1); err != nil {
+	if err := validate.MinLength("resourceId", "body", string(*m.ResourceID), 1); err != nil {
 		return err
 	}
 
-	if err := validate.MaxLength("resourceId", "body", *m.ResourceID, 63); err != nil {
+	if err := validate.MaxLength("resourceId", "body", string(*m.ResourceID), 63); err != nil {
 		return err
 	}
 
-	if err := validate.Pattern("resourceId", "body", *m.ResourceID, `^[a-z]([a-z0-9-]{0,61}[a-z0-9])?$`); err != nil {
+	if err := validate.Pattern("resourceId", "body", string(*m.ResourceID), `^[a-z]([a-z0-9-]{0,61}[a-z0-9])?$`); err != nil {
 		return err
 	}
 
@@ -295,6 +288,7 @@ func (m *KmsConfigV1beta) validateResourceID(formats strfmt.Registry) error {
 }
 
 func (m *KmsConfigV1beta) validateUpdatedTime(formats strfmt.Registry) error {
+
 	if swag.IsZero(m.UpdatedTime) { // not required
 		return nil
 	}
@@ -307,133 +301,20 @@ func (m *KmsConfigV1beta) validateUpdatedTime(formats strfmt.Registry) error {
 }
 
 func (m *KmsConfigV1beta) validateUUID(formats strfmt.Registry) error {
+
 	if swag.IsZero(m.UUID) { // not required
 		return nil
 	}
 
-	if err := validate.MinLength("uuid", "body", m.UUID, 36); err != nil {
+	if err := validate.MinLength("uuid", "body", string(m.UUID), 36); err != nil {
 		return err
 	}
 
-	if err := validate.MaxLength("uuid", "body", m.UUID, 36); err != nil {
+	if err := validate.MaxLength("uuid", "body", string(m.UUID), 36); err != nil {
 		return err
 	}
 
-	if err := validate.Pattern("uuid", "body", m.UUID, `^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$`); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-// ContextValidate validate this kms config v1beta based on the context it is used
-func (m *KmsConfigV1beta) ContextValidate(ctx context.Context, formats strfmt.Registry) error {
-	var res []error
-
-	if err := m.contextValidateCreatedTime(ctx, formats); err != nil {
-		res = append(res, err)
-	}
-
-	if err := m.contextValidateDeletedTime(ctx, formats); err != nil {
-		res = append(res, err)
-	}
-
-	if err := m.contextValidateInstructions(ctx, formats); err != nil {
-		res = append(res, err)
-	}
-
-	if err := m.contextValidateKmsState(ctx, formats); err != nil {
-		res = append(res, err)
-	}
-
-	if err := m.contextValidateKmsStateDetails(ctx, formats); err != nil {
-		res = append(res, err)
-	}
-
-	if err := m.contextValidateServiceAccountEmail(ctx, formats); err != nil {
-		res = append(res, err)
-	}
-
-	if err := m.contextValidateUpdatedTime(ctx, formats); err != nil {
-		res = append(res, err)
-	}
-
-	if err := m.contextValidateUUID(ctx, formats); err != nil {
-		res = append(res, err)
-	}
-
-	if len(res) > 0 {
-		return errors.CompositeValidationError(res...)
-	}
-	return nil
-}
-
-func (m *KmsConfigV1beta) contextValidateCreatedTime(ctx context.Context, formats strfmt.Registry) error {
-
-	if err := validate.ReadOnly(ctx, "createdTime", "body", strfmt.DateTime(m.CreatedTime)); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (m *KmsConfigV1beta) contextValidateDeletedTime(ctx context.Context, formats strfmt.Registry) error {
-
-	if err := validate.ReadOnly(ctx, "deletedTime", "body", m.DeletedTime); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (m *KmsConfigV1beta) contextValidateInstructions(ctx context.Context, formats strfmt.Registry) error {
-
-	if err := validate.ReadOnly(ctx, "instructions", "body", string(m.Instructions)); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (m *KmsConfigV1beta) contextValidateKmsState(ctx context.Context, formats strfmt.Registry) error {
-
-	if err := validate.ReadOnly(ctx, "kmsState", "body", string(m.KmsState)); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (m *KmsConfigV1beta) contextValidateKmsStateDetails(ctx context.Context, formats strfmt.Registry) error {
-
-	if err := validate.ReadOnly(ctx, "kmsStateDetails", "body", string(m.KmsStateDetails)); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (m *KmsConfigV1beta) contextValidateServiceAccountEmail(ctx context.Context, formats strfmt.Registry) error {
-
-	if err := validate.ReadOnly(ctx, "serviceAccountEmail", "body", string(m.ServiceAccountEmail)); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (m *KmsConfigV1beta) contextValidateUpdatedTime(ctx context.Context, formats strfmt.Registry) error {
-
-	if err := validate.ReadOnly(ctx, "updatedTime", "body", m.UpdatedTime); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (m *KmsConfigV1beta) contextValidateUUID(ctx context.Context, formats strfmt.Registry) error {
-
-	if err := validate.ReadOnly(ctx, "uuid", "body", string(m.UUID)); err != nil {
+	if err := validate.Pattern("uuid", "body", string(m.UUID), `^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$`); err != nil {
 		return err
 	}
 

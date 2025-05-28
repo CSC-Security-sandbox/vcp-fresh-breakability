@@ -6,8 +6,6 @@ package snapshots
 // Editing this file might prove futile when you re-run the swagger generate command
 
 import (
-	"context"
-	"encoding/json"
 	"fmt"
 	"io"
 	"strconv"
@@ -94,7 +92,7 @@ func NewV1betaGetMultipleSnapshotsOK() *V1betaGetMultipleSnapshotsOK {
 }
 
 /*
-V1betaGetMultipleSnapshotsOK describes a response with status code 200, with default header values.
+V1betaGetMultipleSnapshotsOK handles this case with default header values.
 
 OK
 */
@@ -102,44 +100,8 @@ type V1betaGetMultipleSnapshotsOK struct {
 	Payload *V1betaGetMultipleSnapshotsOKBody
 }
 
-// IsSuccess returns true when this v1beta get multiple snapshots o k response has a 2xx status code
-func (o *V1betaGetMultipleSnapshotsOK) IsSuccess() bool {
-	return true
-}
-
-// IsRedirect returns true when this v1beta get multiple snapshots o k response has a 3xx status code
-func (o *V1betaGetMultipleSnapshotsOK) IsRedirect() bool {
-	return false
-}
-
-// IsClientError returns true when this v1beta get multiple snapshots o k response has a 4xx status code
-func (o *V1betaGetMultipleSnapshotsOK) IsClientError() bool {
-	return false
-}
-
-// IsServerError returns true when this v1beta get multiple snapshots o k response has a 5xx status code
-func (o *V1betaGetMultipleSnapshotsOK) IsServerError() bool {
-	return false
-}
-
-// IsCode returns true when this v1beta get multiple snapshots o k response a status code equal to that given
-func (o *V1betaGetMultipleSnapshotsOK) IsCode(code int) bool {
-	return code == 200
-}
-
-// Code gets the status code for the v1beta get multiple snapshots o k response
-func (o *V1betaGetMultipleSnapshotsOK) Code() int {
-	return 200
-}
-
 func (o *V1betaGetMultipleSnapshotsOK) Error() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/getMultipleSnapshots][%d] v1betaGetMultipleSnapshotsOK %s", 200, payload)
-}
-
-func (o *V1betaGetMultipleSnapshotsOK) String() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/getMultipleSnapshots][%d] v1betaGetMultipleSnapshotsOK %s", 200, payload)
+	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/getMultipleSnapshots][%d] v1betaGetMultipleSnapshotsOK  %+v", 200, o.Payload)
 }
 
 func (o *V1betaGetMultipleSnapshotsOK) GetPayload() *V1betaGetMultipleSnapshotsOKBody {
@@ -164,7 +126,7 @@ func NewV1betaGetMultipleSnapshotsBadRequest() *V1betaGetMultipleSnapshotsBadReq
 }
 
 /*
-V1betaGetMultipleSnapshotsBadRequest describes a response with status code 400, with default header values.
+V1betaGetMultipleSnapshotsBadRequest handles this case with default header values.
 
 Bad request
 */
@@ -172,44 +134,8 @@ type V1betaGetMultipleSnapshotsBadRequest struct {
 	Payload *models.Error
 }
 
-// IsSuccess returns true when this v1beta get multiple snapshots bad request response has a 2xx status code
-func (o *V1betaGetMultipleSnapshotsBadRequest) IsSuccess() bool {
-	return false
-}
-
-// IsRedirect returns true when this v1beta get multiple snapshots bad request response has a 3xx status code
-func (o *V1betaGetMultipleSnapshotsBadRequest) IsRedirect() bool {
-	return false
-}
-
-// IsClientError returns true when this v1beta get multiple snapshots bad request response has a 4xx status code
-func (o *V1betaGetMultipleSnapshotsBadRequest) IsClientError() bool {
-	return true
-}
-
-// IsServerError returns true when this v1beta get multiple snapshots bad request response has a 5xx status code
-func (o *V1betaGetMultipleSnapshotsBadRequest) IsServerError() bool {
-	return false
-}
-
-// IsCode returns true when this v1beta get multiple snapshots bad request response a status code equal to that given
-func (o *V1betaGetMultipleSnapshotsBadRequest) IsCode(code int) bool {
-	return code == 400
-}
-
-// Code gets the status code for the v1beta get multiple snapshots bad request response
-func (o *V1betaGetMultipleSnapshotsBadRequest) Code() int {
-	return 400
-}
-
 func (o *V1betaGetMultipleSnapshotsBadRequest) Error() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/getMultipleSnapshots][%d] v1betaGetMultipleSnapshotsBadRequest %s", 400, payload)
-}
-
-func (o *V1betaGetMultipleSnapshotsBadRequest) String() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/getMultipleSnapshots][%d] v1betaGetMultipleSnapshotsBadRequest %s", 400, payload)
+	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/getMultipleSnapshots][%d] v1betaGetMultipleSnapshotsBadRequest  %+v", 400, o.Payload)
 }
 
 func (o *V1betaGetMultipleSnapshotsBadRequest) GetPayload() *models.Error {
@@ -234,7 +160,7 @@ func NewV1betaGetMultipleSnapshotsUnauthorized() *V1betaGetMultipleSnapshotsUnau
 }
 
 /*
-V1betaGetMultipleSnapshotsUnauthorized describes a response with status code 401, with default header values.
+V1betaGetMultipleSnapshotsUnauthorized handles this case with default header values.
 
 Unauthorized
 */
@@ -242,44 +168,8 @@ type V1betaGetMultipleSnapshotsUnauthorized struct {
 	Payload *models.Error
 }
 
-// IsSuccess returns true when this v1beta get multiple snapshots unauthorized response has a 2xx status code
-func (o *V1betaGetMultipleSnapshotsUnauthorized) IsSuccess() bool {
-	return false
-}
-
-// IsRedirect returns true when this v1beta get multiple snapshots unauthorized response has a 3xx status code
-func (o *V1betaGetMultipleSnapshotsUnauthorized) IsRedirect() bool {
-	return false
-}
-
-// IsClientError returns true when this v1beta get multiple snapshots unauthorized response has a 4xx status code
-func (o *V1betaGetMultipleSnapshotsUnauthorized) IsClientError() bool {
-	return true
-}
-
-// IsServerError returns true when this v1beta get multiple snapshots unauthorized response has a 5xx status code
-func (o *V1betaGetMultipleSnapshotsUnauthorized) IsServerError() bool {
-	return false
-}
-
-// IsCode returns true when this v1beta get multiple snapshots unauthorized response a status code equal to that given
-func (o *V1betaGetMultipleSnapshotsUnauthorized) IsCode(code int) bool {
-	return code == 401
-}
-
-// Code gets the status code for the v1beta get multiple snapshots unauthorized response
-func (o *V1betaGetMultipleSnapshotsUnauthorized) Code() int {
-	return 401
-}
-
 func (o *V1betaGetMultipleSnapshotsUnauthorized) Error() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/getMultipleSnapshots][%d] v1betaGetMultipleSnapshotsUnauthorized %s", 401, payload)
-}
-
-func (o *V1betaGetMultipleSnapshotsUnauthorized) String() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/getMultipleSnapshots][%d] v1betaGetMultipleSnapshotsUnauthorized %s", 401, payload)
+	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/getMultipleSnapshots][%d] v1betaGetMultipleSnapshotsUnauthorized  %+v", 401, o.Payload)
 }
 
 func (o *V1betaGetMultipleSnapshotsUnauthorized) GetPayload() *models.Error {
@@ -304,7 +194,7 @@ func NewV1betaGetMultipleSnapshotsForbidden() *V1betaGetMultipleSnapshotsForbidd
 }
 
 /*
-V1betaGetMultipleSnapshotsForbidden describes a response with status code 403, with default header values.
+V1betaGetMultipleSnapshotsForbidden handles this case with default header values.
 
 Forbidden
 */
@@ -312,44 +202,8 @@ type V1betaGetMultipleSnapshotsForbidden struct {
 	Payload *models.Error
 }
 
-// IsSuccess returns true when this v1beta get multiple snapshots forbidden response has a 2xx status code
-func (o *V1betaGetMultipleSnapshotsForbidden) IsSuccess() bool {
-	return false
-}
-
-// IsRedirect returns true when this v1beta get multiple snapshots forbidden response has a 3xx status code
-func (o *V1betaGetMultipleSnapshotsForbidden) IsRedirect() bool {
-	return false
-}
-
-// IsClientError returns true when this v1beta get multiple snapshots forbidden response has a 4xx status code
-func (o *V1betaGetMultipleSnapshotsForbidden) IsClientError() bool {
-	return true
-}
-
-// IsServerError returns true when this v1beta get multiple snapshots forbidden response has a 5xx status code
-func (o *V1betaGetMultipleSnapshotsForbidden) IsServerError() bool {
-	return false
-}
-
-// IsCode returns true when this v1beta get multiple snapshots forbidden response a status code equal to that given
-func (o *V1betaGetMultipleSnapshotsForbidden) IsCode(code int) bool {
-	return code == 403
-}
-
-// Code gets the status code for the v1beta get multiple snapshots forbidden response
-func (o *V1betaGetMultipleSnapshotsForbidden) Code() int {
-	return 403
-}
-
 func (o *V1betaGetMultipleSnapshotsForbidden) Error() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/getMultipleSnapshots][%d] v1betaGetMultipleSnapshotsForbidden %s", 403, payload)
-}
-
-func (o *V1betaGetMultipleSnapshotsForbidden) String() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/getMultipleSnapshots][%d] v1betaGetMultipleSnapshotsForbidden %s", 403, payload)
+	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/getMultipleSnapshots][%d] v1betaGetMultipleSnapshotsForbidden  %+v", 403, o.Payload)
 }
 
 func (o *V1betaGetMultipleSnapshotsForbidden) GetPayload() *models.Error {
@@ -374,7 +228,7 @@ func NewV1betaGetMultipleSnapshotsNotFound() *V1betaGetMultipleSnapshotsNotFound
 }
 
 /*
-V1betaGetMultipleSnapshotsNotFound describes a response with status code 404, with default header values.
+V1betaGetMultipleSnapshotsNotFound handles this case with default header values.
 
 Not found
 */
@@ -382,44 +236,8 @@ type V1betaGetMultipleSnapshotsNotFound struct {
 	Payload *models.Error
 }
 
-// IsSuccess returns true when this v1beta get multiple snapshots not found response has a 2xx status code
-func (o *V1betaGetMultipleSnapshotsNotFound) IsSuccess() bool {
-	return false
-}
-
-// IsRedirect returns true when this v1beta get multiple snapshots not found response has a 3xx status code
-func (o *V1betaGetMultipleSnapshotsNotFound) IsRedirect() bool {
-	return false
-}
-
-// IsClientError returns true when this v1beta get multiple snapshots not found response has a 4xx status code
-func (o *V1betaGetMultipleSnapshotsNotFound) IsClientError() bool {
-	return true
-}
-
-// IsServerError returns true when this v1beta get multiple snapshots not found response has a 5xx status code
-func (o *V1betaGetMultipleSnapshotsNotFound) IsServerError() bool {
-	return false
-}
-
-// IsCode returns true when this v1beta get multiple snapshots not found response a status code equal to that given
-func (o *V1betaGetMultipleSnapshotsNotFound) IsCode(code int) bool {
-	return code == 404
-}
-
-// Code gets the status code for the v1beta get multiple snapshots not found response
-func (o *V1betaGetMultipleSnapshotsNotFound) Code() int {
-	return 404
-}
-
 func (o *V1betaGetMultipleSnapshotsNotFound) Error() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/getMultipleSnapshots][%d] v1betaGetMultipleSnapshotsNotFound %s", 404, payload)
-}
-
-func (o *V1betaGetMultipleSnapshotsNotFound) String() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/getMultipleSnapshots][%d] v1betaGetMultipleSnapshotsNotFound %s", 404, payload)
+	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/getMultipleSnapshots][%d] v1betaGetMultipleSnapshotsNotFound  %+v", 404, o.Payload)
 }
 
 func (o *V1betaGetMultipleSnapshotsNotFound) GetPayload() *models.Error {
@@ -444,7 +262,7 @@ func NewV1betaGetMultipleSnapshotsUnprocessableEntity() *V1betaGetMultipleSnapsh
 }
 
 /*
-V1betaGetMultipleSnapshotsUnprocessableEntity describes a response with status code 422, with default header values.
+V1betaGetMultipleSnapshotsUnprocessableEntity handles this case with default header values.
 
 Unprocessable entity
 */
@@ -452,44 +270,8 @@ type V1betaGetMultipleSnapshotsUnprocessableEntity struct {
 	Payload *models.Error
 }
 
-// IsSuccess returns true when this v1beta get multiple snapshots unprocessable entity response has a 2xx status code
-func (o *V1betaGetMultipleSnapshotsUnprocessableEntity) IsSuccess() bool {
-	return false
-}
-
-// IsRedirect returns true when this v1beta get multiple snapshots unprocessable entity response has a 3xx status code
-func (o *V1betaGetMultipleSnapshotsUnprocessableEntity) IsRedirect() bool {
-	return false
-}
-
-// IsClientError returns true when this v1beta get multiple snapshots unprocessable entity response has a 4xx status code
-func (o *V1betaGetMultipleSnapshotsUnprocessableEntity) IsClientError() bool {
-	return true
-}
-
-// IsServerError returns true when this v1beta get multiple snapshots unprocessable entity response has a 5xx status code
-func (o *V1betaGetMultipleSnapshotsUnprocessableEntity) IsServerError() bool {
-	return false
-}
-
-// IsCode returns true when this v1beta get multiple snapshots unprocessable entity response a status code equal to that given
-func (o *V1betaGetMultipleSnapshotsUnprocessableEntity) IsCode(code int) bool {
-	return code == 422
-}
-
-// Code gets the status code for the v1beta get multiple snapshots unprocessable entity response
-func (o *V1betaGetMultipleSnapshotsUnprocessableEntity) Code() int {
-	return 422
-}
-
 func (o *V1betaGetMultipleSnapshotsUnprocessableEntity) Error() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/getMultipleSnapshots][%d] v1betaGetMultipleSnapshotsUnprocessableEntity %s", 422, payload)
-}
-
-func (o *V1betaGetMultipleSnapshotsUnprocessableEntity) String() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/getMultipleSnapshots][%d] v1betaGetMultipleSnapshotsUnprocessableEntity %s", 422, payload)
+	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/getMultipleSnapshots][%d] v1betaGetMultipleSnapshotsUnprocessableEntity  %+v", 422, o.Payload)
 }
 
 func (o *V1betaGetMultipleSnapshotsUnprocessableEntity) GetPayload() *models.Error {
@@ -514,7 +296,7 @@ func NewV1betaGetMultipleSnapshotsTooManyRequests() *V1betaGetMultipleSnapshotsT
 }
 
 /*
-V1betaGetMultipleSnapshotsTooManyRequests describes a response with status code 429, with default header values.
+V1betaGetMultipleSnapshotsTooManyRequests handles this case with default header values.
 
 Too many requests
 */
@@ -522,44 +304,8 @@ type V1betaGetMultipleSnapshotsTooManyRequests struct {
 	Payload *models.Error
 }
 
-// IsSuccess returns true when this v1beta get multiple snapshots too many requests response has a 2xx status code
-func (o *V1betaGetMultipleSnapshotsTooManyRequests) IsSuccess() bool {
-	return false
-}
-
-// IsRedirect returns true when this v1beta get multiple snapshots too many requests response has a 3xx status code
-func (o *V1betaGetMultipleSnapshotsTooManyRequests) IsRedirect() bool {
-	return false
-}
-
-// IsClientError returns true when this v1beta get multiple snapshots too many requests response has a 4xx status code
-func (o *V1betaGetMultipleSnapshotsTooManyRequests) IsClientError() bool {
-	return true
-}
-
-// IsServerError returns true when this v1beta get multiple snapshots too many requests response has a 5xx status code
-func (o *V1betaGetMultipleSnapshotsTooManyRequests) IsServerError() bool {
-	return false
-}
-
-// IsCode returns true when this v1beta get multiple snapshots too many requests response a status code equal to that given
-func (o *V1betaGetMultipleSnapshotsTooManyRequests) IsCode(code int) bool {
-	return code == 429
-}
-
-// Code gets the status code for the v1beta get multiple snapshots too many requests response
-func (o *V1betaGetMultipleSnapshotsTooManyRequests) Code() int {
-	return 429
-}
-
 func (o *V1betaGetMultipleSnapshotsTooManyRequests) Error() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/getMultipleSnapshots][%d] v1betaGetMultipleSnapshotsTooManyRequests %s", 429, payload)
-}
-
-func (o *V1betaGetMultipleSnapshotsTooManyRequests) String() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/getMultipleSnapshots][%d] v1betaGetMultipleSnapshotsTooManyRequests %s", 429, payload)
+	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/getMultipleSnapshots][%d] v1betaGetMultipleSnapshotsTooManyRequests  %+v", 429, o.Payload)
 }
 
 func (o *V1betaGetMultipleSnapshotsTooManyRequests) GetPayload() *models.Error {
@@ -584,7 +330,7 @@ func NewV1betaGetMultipleSnapshotsInternalServerError() *V1betaGetMultipleSnapsh
 }
 
 /*
-V1betaGetMultipleSnapshotsInternalServerError describes a response with status code 500, with default header values.
+V1betaGetMultipleSnapshotsInternalServerError handles this case with default header values.
 
 Internal server error
 */
@@ -592,44 +338,8 @@ type V1betaGetMultipleSnapshotsInternalServerError struct {
 	Payload *models.Error
 }
 
-// IsSuccess returns true when this v1beta get multiple snapshots internal server error response has a 2xx status code
-func (o *V1betaGetMultipleSnapshotsInternalServerError) IsSuccess() bool {
-	return false
-}
-
-// IsRedirect returns true when this v1beta get multiple snapshots internal server error response has a 3xx status code
-func (o *V1betaGetMultipleSnapshotsInternalServerError) IsRedirect() bool {
-	return false
-}
-
-// IsClientError returns true when this v1beta get multiple snapshots internal server error response has a 4xx status code
-func (o *V1betaGetMultipleSnapshotsInternalServerError) IsClientError() bool {
-	return false
-}
-
-// IsServerError returns true when this v1beta get multiple snapshots internal server error response has a 5xx status code
-func (o *V1betaGetMultipleSnapshotsInternalServerError) IsServerError() bool {
-	return true
-}
-
-// IsCode returns true when this v1beta get multiple snapshots internal server error response a status code equal to that given
-func (o *V1betaGetMultipleSnapshotsInternalServerError) IsCode(code int) bool {
-	return code == 500
-}
-
-// Code gets the status code for the v1beta get multiple snapshots internal server error response
-func (o *V1betaGetMultipleSnapshotsInternalServerError) Code() int {
-	return 500
-}
-
 func (o *V1betaGetMultipleSnapshotsInternalServerError) Error() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/getMultipleSnapshots][%d] v1betaGetMultipleSnapshotsInternalServerError %s", 500, payload)
-}
-
-func (o *V1betaGetMultipleSnapshotsInternalServerError) String() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/getMultipleSnapshots][%d] v1betaGetMultipleSnapshotsInternalServerError %s", 500, payload)
+	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/getMultipleSnapshots][%d] v1betaGetMultipleSnapshotsInternalServerError  %+v", 500, o.Payload)
 }
 
 func (o *V1betaGetMultipleSnapshotsInternalServerError) GetPayload() *models.Error {
@@ -656,7 +366,7 @@ func NewV1betaGetMultipleSnapshotsDefault(code int) *V1betaGetMultipleSnapshotsD
 }
 
 /*
-V1betaGetMultipleSnapshotsDefault describes a response with status code -1, with default header values.
+V1betaGetMultipleSnapshotsDefault handles this case with default header values.
 
 Unexpected error
 */
@@ -666,44 +376,13 @@ type V1betaGetMultipleSnapshotsDefault struct {
 	Payload *models.Error
 }
 
-// IsSuccess returns true when this v1beta get multiple snapshots default response has a 2xx status code
-func (o *V1betaGetMultipleSnapshotsDefault) IsSuccess() bool {
-	return o._statusCode/100 == 2
-}
-
-// IsRedirect returns true when this v1beta get multiple snapshots default response has a 3xx status code
-func (o *V1betaGetMultipleSnapshotsDefault) IsRedirect() bool {
-	return o._statusCode/100 == 3
-}
-
-// IsClientError returns true when this v1beta get multiple snapshots default response has a 4xx status code
-func (o *V1betaGetMultipleSnapshotsDefault) IsClientError() bool {
-	return o._statusCode/100 == 4
-}
-
-// IsServerError returns true when this v1beta get multiple snapshots default response has a 5xx status code
-func (o *V1betaGetMultipleSnapshotsDefault) IsServerError() bool {
-	return o._statusCode/100 == 5
-}
-
-// IsCode returns true when this v1beta get multiple snapshots default response a status code equal to that given
-func (o *V1betaGetMultipleSnapshotsDefault) IsCode(code int) bool {
-	return o._statusCode == code
-}
-
 // Code gets the status code for the v1beta get multiple snapshots default response
 func (o *V1betaGetMultipleSnapshotsDefault) Code() int {
 	return o._statusCode
 }
 
 func (o *V1betaGetMultipleSnapshotsDefault) Error() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/getMultipleSnapshots][%d] v1beta_getMultipleSnapshots default %s", o._statusCode, payload)
-}
-
-func (o *V1betaGetMultipleSnapshotsDefault) String() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/getMultipleSnapshots][%d] v1beta_getMultipleSnapshots default %s", o._statusCode, payload)
+	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/getMultipleSnapshots][%d] v1beta_getMultipleSnapshots default  %+v", o._statusCode, o.Payload)
 }
 
 func (o *V1betaGetMultipleSnapshotsDefault) GetPayload() *models.Error {
@@ -794,47 +473,6 @@ func (o *V1betaGetMultipleSnapshotsOKBody) validateSnapshots(formats strfmt.Regi
 			if err := o.Snapshots[i].Validate(formats); err != nil {
 				if ve, ok := err.(*errors.Validation); ok {
 					return ve.ValidateName("v1betaGetMultipleSnapshotsOK" + "." + "snapshots" + "." + strconv.Itoa(i))
-				} else if ce, ok := err.(*errors.CompositeError); ok {
-					return ce.ValidateName("v1betaGetMultipleSnapshotsOK" + "." + "snapshots" + "." + strconv.Itoa(i))
-				}
-				return err
-			}
-		}
-
-	}
-
-	return nil
-}
-
-// ContextValidate validate this v1beta get multiple snapshots o k body based on the context it is used
-func (o *V1betaGetMultipleSnapshotsOKBody) ContextValidate(ctx context.Context, formats strfmt.Registry) error {
-	var res []error
-
-	if err := o.contextValidateSnapshots(ctx, formats); err != nil {
-		res = append(res, err)
-	}
-
-	if len(res) > 0 {
-		return errors.CompositeValidationError(res...)
-	}
-	return nil
-}
-
-func (o *V1betaGetMultipleSnapshotsOKBody) contextValidateSnapshots(ctx context.Context, formats strfmt.Registry) error {
-
-	for i := 0; i < len(o.Snapshots); i++ {
-
-		if o.Snapshots[i] != nil {
-
-			if swag.IsZero(o.Snapshots[i]) { // not required
-				return nil
-			}
-
-			if err := o.Snapshots[i].ContextValidate(ctx, formats); err != nil {
-				if ve, ok := err.(*errors.Validation); ok {
-					return ve.ValidateName("v1betaGetMultipleSnapshotsOK" + "." + "snapshots" + "." + strconv.Itoa(i))
-				} else if ce, ok := err.(*errors.CompositeError); ok {
-					return ce.ValidateName("v1betaGetMultipleSnapshotsOK" + "." + "snapshots" + "." + strconv.Itoa(i))
 				}
 				return err
 			}

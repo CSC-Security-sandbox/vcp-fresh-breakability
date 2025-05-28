@@ -6,8 +6,6 @@ package models
 // Editing this file might prove futile when you re-run the swagger generate command
 
 import (
-	"context"
-
 	"github.com/go-openapi/errors"
 	"github.com/go-openapi/strfmt"
 	"github.com/go-openapi/swag"
@@ -15,7 +13,6 @@ import (
 )
 
 // Error Error response
-// Example: {"code":1994,"message":"Out of cheese error! Please reboot the Universe"}
 //
 // swagger:model Error
 type Error struct {
@@ -58,15 +55,10 @@ func (m *Error) validateCode(formats strfmt.Registry) error {
 
 func (m *Error) validateMessage(formats strfmt.Registry) error {
 
-	if err := validate.RequiredString("message", "body", m.Message); err != nil {
+	if err := validate.RequiredString("message", "body", string(m.Message)); err != nil {
 		return err
 	}
 
-	return nil
-}
-
-// ContextValidate validates this error based on context it is used
-func (m *Error) ContextValidate(ctx context.Context, formats strfmt.Registry) error {
 	return nil
 }
 

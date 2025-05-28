@@ -3,7 +3,9 @@ package api
 import (
 	"context"
 	"testing"
+	"time"
 
+	"github.com/go-openapi/strfmt"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/cvpapi"
@@ -481,5 +483,115 @@ func TestV1betaGetMultipleVolumes(t *testing.T) {
 		result, err := handler.V1betaGetMultipleVolumes(context.Background(), req, params)
 		assert.Nil(tt, err)
 		assert.Len(tt, result.(*gcpgenserver.V1betaGetMultipleVolumesOK).Volumes, 2)
+	})
+}
+
+func TestConvertVolumeV1betaCVPToModel(t *testing.T) {
+	t.Run("ConvertVolumeV1betaCVPToModelWithFlexCacheParams", func(tt *testing.T) {
+		backupConfig := &cvpmodels.BackupConfigV1beta{
+			BackupChainBytes: nillable.GetInt64Ptr(10199181),
+			BackupPolicyID:   nillable.GetStringPtr("backup-policy-id"),
+			BackupVaultID:    nillable.GetStringPtr("backup-vault-id"),
+		}
+
+		cachePrepopulate := &cvpmodels.FlexCachePrePopulateV1beta{
+			ExcludePathList: []string{"/exclude1", "/exclude2"},
+			PathList:        []string{"/path1", "/path2"},
+			Recursion:       nillable.GetBoolPtr(true),
+		}
+
+		cacheConfig := &cvpmodels.FlexCacheConfigV1beta{
+			AtimeScrubEnabled:       nillable.GetBoolPtr(true),
+			AtimeScrubMinutes:       nillable.GetInt16Ptr(30),
+			CifsChangeNotifyEnabled: nillable.GetBoolPtr(true),
+			PrePopulate:             cachePrepopulate,
+			WritebackEnabled:        nillable.GetBoolPtr(true),
+		}
+
+		timeNowStrfmt := strfmt.DateTime(time.Now())
+
+		cachePrams := &cvpmodels.FlexCacheV1beta{
+			CacheConfig:          cacheConfig,
+			Command:              "test-command",
+			CommandExpiryTime:    &timeNowStrfmt,
+			EnableGlobalFileLock: nillable.GetBoolPtr(true),
+			Passphrase:           nillable.GetStringPtr("test-passphrase"),
+			PeerClusterName:      "alderan",
+			PeerIPAddresses:      []string{"10.0.0.1", "10.0.0.2"},
+			PeerSvmName:          "peer-svm",
+			PeerVolumeName:       "peer-volume",
+		}
+
+		input := &cvpmodels.VolumeV1beta{
+			ActiveDirectoryConfigID:     nillable.GetStringPtr("ad-config-id"),
+			BackupConfig:                backupConfig,
+			CacheParameters:             cachePrams,
+			ColdTierSizeGib:             nillable.GetFloat64Ptr(10.5),
+			Created:                     strfmt.DateTime(time.Now()),
+			CreationToken:               nillable.GetStringPtr("test-token"),
+			DedicatedCapacity:           nillable.GetBoolPtr(true),
+			Deleted:                     &timeNowStrfmt,
+			Description:                 nillable.GetStringPtr("test description"),
+			ExportPolicy:                nil,
+			InReplication:               nillable.GetBoolPtr(false),
+			IsDataProtection:            nillable.GetBoolPtr(true),
+			IsOnPremMigration:           nillable.GetBoolPtr(false),
+			KerberosEnabled:             nillable.GetBoolPtr(true),
+			KmsConfigID:                 nillable.GetStringPtr("kms-config-id"),
+			KmsConfigResourceID:         nillable.GetStringPtr("kms-resource-id"),
+			Labels:                      map[string]string{"env": "test", "team": "avatar"},
+			LargeCapacity:               nillable.GetBoolPtr(false),
+			LargeVolumeConstituentCount: nillable.GetInt32Ptr(5),
+			LdapEnabled:                 nillable.GetBoolPtr(true),
+			MountPoints:                 nil,
+			MultipleEndpoints:           nillable.GetBoolPtr(true),
+			Network:                     "network-id",
+			PoolID:                      nillable.GetStringPtr("pool-id"),
+			PoolResourceID:              nillable.GetStringPtr("pool-resource-id"),
+			Protocols:                   []cvpmodels.ProtocolsV1beta{cvpmodels.ProtocolsV1betaNFSV3},
+			QuotaInBytes:                nillable.GetFloat64Ptr(2048),
+			ResourceID:                  nillable.GetStringPtr("resource-id"),
+			RestrictedActions:           []string{"action1", "action2"},
+			SecondaryZone:               nillable.GetStringPtr("secondary-zone"),
+			SecurityStyle:               "unix",
+			ServiceLevel:                cvpmodels.ServiceLevelV1betaNameFLEX,
+			SmbSettings:                 []string{"smb1", "smb2"},
+			SnapReserve:                 nillable.GetFloat64Ptr(100),
+			SnapshotDirectory:           nillable.GetBoolPtr(true),
+			SnapshotPolicy:              nil,
+			ThroughputMibps:             nillable.GetFloat64Ptr(150),
+			TieringPolicy:               nil,
+			UnixPermissions:             nillable.GetStringPtr("755"),
+			UsedBytes:                   nillable.GetFloat64Ptr(1024),
+			VolumeID:                    "vol-123",
+			VolumeState:                 "active",
+			VolumeStateDetails:          "in use",
+			Zone:                        "us-central1",
+		}
+
+		res := _convertVolumeV1betaCVPToModel(input)
+
+		assert.Equal(tt, "ad-config-id", res.ActiveDirectoryConfigId.Value)
+		assert.Equal(tt, "test-token", res.CreationToken.Value)
+		assert.Equal(tt, "test description", res.Description.Value)
+		assert.Equal(tt, "pool-id", res.PoolId.Value)
+		assert.Equal(tt, "pool-resource-id", res.PoolResourceId.Value)
+		assert.Equal(tt, "resource-id", res.ResourceId)
+		assert.Equal(tt, "vol-123", res.VolumeId.Value)
+		assert.Equal(tt, gcpgenserver.NewOptVolumeV1betaServiceLevel(gcpgenserver.VolumeV1betaServiceLevelFLEX), res.ServiceLevel)
+		assert.Equal(tt, "us-central1", res.Zone.Value)
+		assert.Equal(tt, "test-passphrase", res.CacheParameters.Value.Passphrase.Value)
+		assert.Equal(tt, "peer-svm", res.CacheParameters.Value.PeerSvmName.Value)
+		assert.Equal(tt, "peer-volume", res.CacheParameters.Value.PeerVolumeName.Value)
+		assert.Equal(tt, "test-command", res.CacheParameters.Value.Command.Value)
+		assert.Equal(tt, "alderan", res.CacheParameters.Value.PeerClusterName.Value)
+		assert.Equal(tt, "test-passphrase", res.CacheParameters.Value.Passphrase.Value)
+		assert.Equal(tt, "network-id", res.Network.Value)
+		assert.Equal(tt, "pool-id", res.PoolId.Value)
+		assert.Equal(tt, "pool-resource-id", res.PoolResourceId.Value)
+
+		assert.Equal(tt, int64(10199181), res.BackupConfig.Value.BackupChainBytes.Value)
+		assert.Equal(tt, "backup-policy-id", res.BackupConfig.Value.BackupPolicyId.Value)
+		assert.Equal(tt, "backup-vault-id", res.BackupConfig.Value.BackupVaultId.Value)
 	})
 }

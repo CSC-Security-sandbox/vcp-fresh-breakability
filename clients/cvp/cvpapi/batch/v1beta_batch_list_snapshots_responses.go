@@ -6,7 +6,6 @@ package batch
 // Editing this file might prove futile when you re-run the swagger generate command
 
 import (
-	"encoding/json"
 	"fmt"
 	"io"
 
@@ -72,7 +71,7 @@ func NewV1betaBatchListSnapshotsOK() *V1betaBatchListSnapshotsOK {
 }
 
 /*
-V1betaBatchListSnapshotsOK describes a response with status code 200, with default header values.
+V1betaBatchListSnapshotsOK handles this case with default header values.
 
 OK
 */
@@ -80,44 +79,8 @@ type V1betaBatchListSnapshotsOK struct {
 	Payload []*models.BatchSnapshotV1beta
 }
 
-// IsSuccess returns true when this v1beta batch list snapshots o k response has a 2xx status code
-func (o *V1betaBatchListSnapshotsOK) IsSuccess() bool {
-	return true
-}
-
-// IsRedirect returns true when this v1beta batch list snapshots o k response has a 3xx status code
-func (o *V1betaBatchListSnapshotsOK) IsRedirect() bool {
-	return false
-}
-
-// IsClientError returns true when this v1beta batch list snapshots o k response has a 4xx status code
-func (o *V1betaBatchListSnapshotsOK) IsClientError() bool {
-	return false
-}
-
-// IsServerError returns true when this v1beta batch list snapshots o k response has a 5xx status code
-func (o *V1betaBatchListSnapshotsOK) IsServerError() bool {
-	return false
-}
-
-// IsCode returns true when this v1beta batch list snapshots o k response a status code equal to that given
-func (o *V1betaBatchListSnapshotsOK) IsCode(code int) bool {
-	return code == 200
-}
-
-// Code gets the status code for the v1beta batch list snapshots o k response
-func (o *V1betaBatchListSnapshotsOK) Code() int {
-	return 200
-}
-
 func (o *V1betaBatchListSnapshotsOK) Error() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[POST /v1beta/locations/{locationId}/batch/snapshots][%d] v1betaBatchListSnapshotsOK %s", 200, payload)
-}
-
-func (o *V1betaBatchListSnapshotsOK) String() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[POST /v1beta/locations/{locationId}/batch/snapshots][%d] v1betaBatchListSnapshotsOK %s", 200, payload)
+	return fmt.Sprintf("[POST /v1beta/locations/{locationId}/batch/snapshots][%d] v1betaBatchListSnapshotsOK  %+v", 200, o.Payload)
 }
 
 func (o *V1betaBatchListSnapshotsOK) GetPayload() []*models.BatchSnapshotV1beta {
@@ -140,7 +103,7 @@ func NewV1betaBatchListSnapshotsBadRequest() *V1betaBatchListSnapshotsBadRequest
 }
 
 /*
-V1betaBatchListSnapshotsBadRequest describes a response with status code 400, with default header values.
+V1betaBatchListSnapshotsBadRequest handles this case with default header values.
 
 Bad request
 */
@@ -148,44 +111,8 @@ type V1betaBatchListSnapshotsBadRequest struct {
 	Payload *models.Error
 }
 
-// IsSuccess returns true when this v1beta batch list snapshots bad request response has a 2xx status code
-func (o *V1betaBatchListSnapshotsBadRequest) IsSuccess() bool {
-	return false
-}
-
-// IsRedirect returns true when this v1beta batch list snapshots bad request response has a 3xx status code
-func (o *V1betaBatchListSnapshotsBadRequest) IsRedirect() bool {
-	return false
-}
-
-// IsClientError returns true when this v1beta batch list snapshots bad request response has a 4xx status code
-func (o *V1betaBatchListSnapshotsBadRequest) IsClientError() bool {
-	return true
-}
-
-// IsServerError returns true when this v1beta batch list snapshots bad request response has a 5xx status code
-func (o *V1betaBatchListSnapshotsBadRequest) IsServerError() bool {
-	return false
-}
-
-// IsCode returns true when this v1beta batch list snapshots bad request response a status code equal to that given
-func (o *V1betaBatchListSnapshotsBadRequest) IsCode(code int) bool {
-	return code == 400
-}
-
-// Code gets the status code for the v1beta batch list snapshots bad request response
-func (o *V1betaBatchListSnapshotsBadRequest) Code() int {
-	return 400
-}
-
 func (o *V1betaBatchListSnapshotsBadRequest) Error() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[POST /v1beta/locations/{locationId}/batch/snapshots][%d] v1betaBatchListSnapshotsBadRequest %s", 400, payload)
-}
-
-func (o *V1betaBatchListSnapshotsBadRequest) String() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[POST /v1beta/locations/{locationId}/batch/snapshots][%d] v1betaBatchListSnapshotsBadRequest %s", 400, payload)
+	return fmt.Sprintf("[POST /v1beta/locations/{locationId}/batch/snapshots][%d] v1betaBatchListSnapshotsBadRequest  %+v", 400, o.Payload)
 }
 
 func (o *V1betaBatchListSnapshotsBadRequest) GetPayload() *models.Error {
@@ -210,7 +137,7 @@ func NewV1betaBatchListSnapshotsUnauthorized() *V1betaBatchListSnapshotsUnauthor
 }
 
 /*
-V1betaBatchListSnapshotsUnauthorized describes a response with status code 401, with default header values.
+V1betaBatchListSnapshotsUnauthorized handles this case with default header values.
 
 Unauthorized
 */
@@ -218,44 +145,8 @@ type V1betaBatchListSnapshotsUnauthorized struct {
 	Payload *models.Error
 }
 
-// IsSuccess returns true when this v1beta batch list snapshots unauthorized response has a 2xx status code
-func (o *V1betaBatchListSnapshotsUnauthorized) IsSuccess() bool {
-	return false
-}
-
-// IsRedirect returns true when this v1beta batch list snapshots unauthorized response has a 3xx status code
-func (o *V1betaBatchListSnapshotsUnauthorized) IsRedirect() bool {
-	return false
-}
-
-// IsClientError returns true when this v1beta batch list snapshots unauthorized response has a 4xx status code
-func (o *V1betaBatchListSnapshotsUnauthorized) IsClientError() bool {
-	return true
-}
-
-// IsServerError returns true when this v1beta batch list snapshots unauthorized response has a 5xx status code
-func (o *V1betaBatchListSnapshotsUnauthorized) IsServerError() bool {
-	return false
-}
-
-// IsCode returns true when this v1beta batch list snapshots unauthorized response a status code equal to that given
-func (o *V1betaBatchListSnapshotsUnauthorized) IsCode(code int) bool {
-	return code == 401
-}
-
-// Code gets the status code for the v1beta batch list snapshots unauthorized response
-func (o *V1betaBatchListSnapshotsUnauthorized) Code() int {
-	return 401
-}
-
 func (o *V1betaBatchListSnapshotsUnauthorized) Error() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[POST /v1beta/locations/{locationId}/batch/snapshots][%d] v1betaBatchListSnapshotsUnauthorized %s", 401, payload)
-}
-
-func (o *V1betaBatchListSnapshotsUnauthorized) String() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[POST /v1beta/locations/{locationId}/batch/snapshots][%d] v1betaBatchListSnapshotsUnauthorized %s", 401, payload)
+	return fmt.Sprintf("[POST /v1beta/locations/{locationId}/batch/snapshots][%d] v1betaBatchListSnapshotsUnauthorized  %+v", 401, o.Payload)
 }
 
 func (o *V1betaBatchListSnapshotsUnauthorized) GetPayload() *models.Error {
@@ -280,7 +171,7 @@ func NewV1betaBatchListSnapshotsForbidden() *V1betaBatchListSnapshotsForbidden {
 }
 
 /*
-V1betaBatchListSnapshotsForbidden describes a response with status code 403, with default header values.
+V1betaBatchListSnapshotsForbidden handles this case with default header values.
 
 Forbidden
 */
@@ -288,44 +179,8 @@ type V1betaBatchListSnapshotsForbidden struct {
 	Payload *models.Error
 }
 
-// IsSuccess returns true when this v1beta batch list snapshots forbidden response has a 2xx status code
-func (o *V1betaBatchListSnapshotsForbidden) IsSuccess() bool {
-	return false
-}
-
-// IsRedirect returns true when this v1beta batch list snapshots forbidden response has a 3xx status code
-func (o *V1betaBatchListSnapshotsForbidden) IsRedirect() bool {
-	return false
-}
-
-// IsClientError returns true when this v1beta batch list snapshots forbidden response has a 4xx status code
-func (o *V1betaBatchListSnapshotsForbidden) IsClientError() bool {
-	return true
-}
-
-// IsServerError returns true when this v1beta batch list snapshots forbidden response has a 5xx status code
-func (o *V1betaBatchListSnapshotsForbidden) IsServerError() bool {
-	return false
-}
-
-// IsCode returns true when this v1beta batch list snapshots forbidden response a status code equal to that given
-func (o *V1betaBatchListSnapshotsForbidden) IsCode(code int) bool {
-	return code == 403
-}
-
-// Code gets the status code for the v1beta batch list snapshots forbidden response
-func (o *V1betaBatchListSnapshotsForbidden) Code() int {
-	return 403
-}
-
 func (o *V1betaBatchListSnapshotsForbidden) Error() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[POST /v1beta/locations/{locationId}/batch/snapshots][%d] v1betaBatchListSnapshotsForbidden %s", 403, payload)
-}
-
-func (o *V1betaBatchListSnapshotsForbidden) String() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[POST /v1beta/locations/{locationId}/batch/snapshots][%d] v1betaBatchListSnapshotsForbidden %s", 403, payload)
+	return fmt.Sprintf("[POST /v1beta/locations/{locationId}/batch/snapshots][%d] v1betaBatchListSnapshotsForbidden  %+v", 403, o.Payload)
 }
 
 func (o *V1betaBatchListSnapshotsForbidden) GetPayload() *models.Error {
@@ -350,7 +205,7 @@ func NewV1betaBatchListSnapshotsInternalServerError() *V1betaBatchListSnapshotsI
 }
 
 /*
-V1betaBatchListSnapshotsInternalServerError describes a response with status code 500, with default header values.
+V1betaBatchListSnapshotsInternalServerError handles this case with default header values.
 
 Internal server error
 */
@@ -358,44 +213,8 @@ type V1betaBatchListSnapshotsInternalServerError struct {
 	Payload *models.Error
 }
 
-// IsSuccess returns true when this v1beta batch list snapshots internal server error response has a 2xx status code
-func (o *V1betaBatchListSnapshotsInternalServerError) IsSuccess() bool {
-	return false
-}
-
-// IsRedirect returns true when this v1beta batch list snapshots internal server error response has a 3xx status code
-func (o *V1betaBatchListSnapshotsInternalServerError) IsRedirect() bool {
-	return false
-}
-
-// IsClientError returns true when this v1beta batch list snapshots internal server error response has a 4xx status code
-func (o *V1betaBatchListSnapshotsInternalServerError) IsClientError() bool {
-	return false
-}
-
-// IsServerError returns true when this v1beta batch list snapshots internal server error response has a 5xx status code
-func (o *V1betaBatchListSnapshotsInternalServerError) IsServerError() bool {
-	return true
-}
-
-// IsCode returns true when this v1beta batch list snapshots internal server error response a status code equal to that given
-func (o *V1betaBatchListSnapshotsInternalServerError) IsCode(code int) bool {
-	return code == 500
-}
-
-// Code gets the status code for the v1beta batch list snapshots internal server error response
-func (o *V1betaBatchListSnapshotsInternalServerError) Code() int {
-	return 500
-}
-
 func (o *V1betaBatchListSnapshotsInternalServerError) Error() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[POST /v1beta/locations/{locationId}/batch/snapshots][%d] v1betaBatchListSnapshotsInternalServerError %s", 500, payload)
-}
-
-func (o *V1betaBatchListSnapshotsInternalServerError) String() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[POST /v1beta/locations/{locationId}/batch/snapshots][%d] v1betaBatchListSnapshotsInternalServerError %s", 500, payload)
+	return fmt.Sprintf("[POST /v1beta/locations/{locationId}/batch/snapshots][%d] v1betaBatchListSnapshotsInternalServerError  %+v", 500, o.Payload)
 }
 
 func (o *V1betaBatchListSnapshotsInternalServerError) GetPayload() *models.Error {
@@ -422,7 +241,7 @@ func NewV1betaBatchListSnapshotsDefault(code int) *V1betaBatchListSnapshotsDefau
 }
 
 /*
-V1betaBatchListSnapshotsDefault describes a response with status code -1, with default header values.
+V1betaBatchListSnapshotsDefault handles this case with default header values.
 
 Unexpected error
 */
@@ -432,44 +251,13 @@ type V1betaBatchListSnapshotsDefault struct {
 	Payload *models.Error
 }
 
-// IsSuccess returns true when this v1beta batch list snapshots default response has a 2xx status code
-func (o *V1betaBatchListSnapshotsDefault) IsSuccess() bool {
-	return o._statusCode/100 == 2
-}
-
-// IsRedirect returns true when this v1beta batch list snapshots default response has a 3xx status code
-func (o *V1betaBatchListSnapshotsDefault) IsRedirect() bool {
-	return o._statusCode/100 == 3
-}
-
-// IsClientError returns true when this v1beta batch list snapshots default response has a 4xx status code
-func (o *V1betaBatchListSnapshotsDefault) IsClientError() bool {
-	return o._statusCode/100 == 4
-}
-
-// IsServerError returns true when this v1beta batch list snapshots default response has a 5xx status code
-func (o *V1betaBatchListSnapshotsDefault) IsServerError() bool {
-	return o._statusCode/100 == 5
-}
-
-// IsCode returns true when this v1beta batch list snapshots default response a status code equal to that given
-func (o *V1betaBatchListSnapshotsDefault) IsCode(code int) bool {
-	return o._statusCode == code
-}
-
 // Code gets the status code for the v1beta batch list snapshots default response
 func (o *V1betaBatchListSnapshotsDefault) Code() int {
 	return o._statusCode
 }
 
 func (o *V1betaBatchListSnapshotsDefault) Error() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[POST /v1beta/locations/{locationId}/batch/snapshots][%d] v1beta_batchListSnapshots default %s", o._statusCode, payload)
-}
-
-func (o *V1betaBatchListSnapshotsDefault) String() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[POST /v1beta/locations/{locationId}/batch/snapshots][%d] v1beta_batchListSnapshots default %s", o._statusCode, payload)
+	return fmt.Sprintf("[POST /v1beta/locations/{locationId}/batch/snapshots][%d] v1beta_batchListSnapshots default  %+v", o._statusCode, o.Payload)
 }
 
 func (o *V1betaBatchListSnapshotsDefault) GetPayload() *models.Error {

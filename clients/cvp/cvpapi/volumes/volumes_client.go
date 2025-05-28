@@ -7,38 +7,12 @@ package volumes
 
 import (
 	"github.com/go-openapi/runtime"
-	httptransport "github.com/go-openapi/runtime/client"
 	"github.com/go-openapi/strfmt"
 )
 
 // New creates a new volumes API client.
 func New(transport runtime.ClientTransport, formats strfmt.Registry) ClientService {
 	return &Client{transport: transport, formats: formats}
-}
-
-// New creates a new volumes API client with basic auth credentials.
-// It takes the following parameters:
-// - host: http host (github.com).
-// - basePath: any base path for the API client ("/v1", "/v3").
-// - scheme: http scheme ("http", "https").
-// - user: user for basic authentication header.
-// - password: password for basic authentication header.
-func NewClientWithBasicAuth(host, basePath, scheme, user, password string) ClientService {
-	transport := httptransport.New(host, basePath, []string{scheme})
-	transport.DefaultAuthentication = httptransport.BasicAuth(user, password)
-	return &Client{transport: transport, formats: strfmt.Default}
-}
-
-// New creates a new volumes API client with a bearer token for authentication.
-// It takes the following parameters:
-// - host: http host (github.com).
-// - basePath: any base path for the API client ("/v1", "/v3").
-// - scheme: http scheme ("http", "https").
-// - bearerToken: bearer token for Bearer authentication header.
-func NewClientWithBearerToken(host, basePath, scheme, bearerToken string) ClientService {
-	transport := httptransport.New(host, basePath, []string{scheme})
-	transport.DefaultAuthentication = httptransport.BearerToken(bearerToken)
-	return &Client{transport: transport, formats: strfmt.Default}
 }
 
 /*
@@ -49,28 +23,27 @@ type Client struct {
 	formats   strfmt.Registry
 }
 
-// ClientOption may be used to customize the behavior of Client methods.
-type ClientOption func(*runtime.ClientOperation)
-
 // ClientService is the interface for Client methods
 type ClientService interface {
-	V1betaCreateVolume(params *V1betaCreateVolumeParams, opts ...ClientOption) (*V1betaCreateVolumeAccepted, error)
+	V1betaCreateVolume(params *V1betaCreateVolumeParams) (*V1betaCreateVolumeAccepted, error)
 
-	V1betaDeleteVolume(params *V1betaDeleteVolumeParams, opts ...ClientOption) (*V1betaDeleteVolumeAccepted, *V1betaDeleteVolumeNoContent, error)
+	V1betaDeleteVolume(params *V1betaDeleteVolumeParams) (*V1betaDeleteVolumeAccepted, *V1betaDeleteVolumeNoContent, error)
 
-	V1betaDescribeVolume(params *V1betaDescribeVolumeParams, opts ...ClientOption) (*V1betaDescribeVolumeOK, error)
+	V1betaDescribeVolume(params *V1betaDescribeVolumeParams) (*V1betaDescribeVolumeOK, error)
 
-	V1betaGetLatestBackupStatusOnVolume(params *V1betaGetLatestBackupStatusOnVolumeParams, opts ...ClientOption) (*V1betaGetLatestBackupStatusOnVolumeOK, error)
+	V1betaEstablishVolumePeering(params *V1betaEstablishVolumePeeringParams) (*V1betaEstablishVolumePeeringAccepted, error)
 
-	V1betaGetLatestRestoreStatusOnVolume(params *V1betaGetLatestRestoreStatusOnVolumeParams, opts ...ClientOption) (*V1betaGetLatestRestoreStatusOnVolumeOK, error)
+	V1betaGetLatestBackupStatusOnVolume(params *V1betaGetLatestBackupStatusOnVolumeParams) (*V1betaGetLatestBackupStatusOnVolumeOK, error)
 
-	V1betaGetMultipleVolumes(params *V1betaGetMultipleVolumesParams, opts ...ClientOption) (*V1betaGetMultipleVolumesOK, error)
+	V1betaGetLatestRestoreStatusOnVolume(params *V1betaGetLatestRestoreStatusOnVolumeParams) (*V1betaGetLatestRestoreStatusOnVolumeOK, error)
 
-	V1betaListVolumes(params *V1betaListVolumesParams, opts ...ClientOption) (*V1betaListVolumesOK, error)
+	V1betaGetMultipleVolumes(params *V1betaGetMultipleVolumesParams) (*V1betaGetMultipleVolumesOK, error)
 
-	V1betaRevertVolume(params *V1betaRevertVolumeParams, opts ...ClientOption) (*V1betaRevertVolumeAccepted, *V1betaRevertVolumeNoContent, error)
+	V1betaListVolumes(params *V1betaListVolumesParams) (*V1betaListVolumesOK, error)
 
-	V1betaUpdateVolume(params *V1betaUpdateVolumeParams, opts ...ClientOption) (*V1betaUpdateVolumeAccepted, *V1betaUpdateVolumeNoContent, error)
+	V1betaRevertVolume(params *V1betaRevertVolumeParams) (*V1betaRevertVolumeAccepted, *V1betaRevertVolumeNoContent, error)
+
+	V1betaUpdateVolume(params *V1betaUpdateVolumeParams) (*V1betaUpdateVolumeAccepted, *V1betaUpdateVolumeNoContent, error)
 
 	SetTransport(transport runtime.ClientTransport)
 }
@@ -80,12 +53,13 @@ V1betaCreateVolume creates a new volume
 
 Create a new empty volume or a volume from a backup/snapshot if backup-ID/snapshot-ID is in the body parameters.
 */
-func (a *Client) V1betaCreateVolume(params *V1betaCreateVolumeParams, opts ...ClientOption) (*V1betaCreateVolumeAccepted, error) {
+func (a *Client) V1betaCreateVolume(params *V1betaCreateVolumeParams) (*V1betaCreateVolumeAccepted, error) {
 	// TODO: Validate the params before sending
 	if params == nil {
 		params = NewV1betaCreateVolumeParams()
 	}
-	op := &runtime.ClientOperation{
+
+	result, err := a.transport.Submit(&runtime.ClientOperation{
 		ID:                 "v1beta_createVolume",
 		Method:             "POST",
 		PathPattern:        "/v1beta/projects/{projectNumber}/locations/{locationId}/volumes",
@@ -96,12 +70,7 @@ func (a *Client) V1betaCreateVolume(params *V1betaCreateVolumeParams, opts ...Cl
 		Reader:             &V1betaCreateVolumeReader{formats: a.formats},
 		Context:            params.Context,
 		Client:             params.HTTPClient,
-	}
-	for _, opt := range opts {
-		opt(op)
-	}
-
-	result, err := a.transport.Submit(op)
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -119,12 +88,13 @@ V1betaDeleteVolume deletes a volume
 
 Warning! This operation will permanently delete the volume. This operation will never return resource not found, since that could be interpreted as resource already deleted, and therefore will return operation done instead.
 */
-func (a *Client) V1betaDeleteVolume(params *V1betaDeleteVolumeParams, opts ...ClientOption) (*V1betaDeleteVolumeAccepted, *V1betaDeleteVolumeNoContent, error) {
+func (a *Client) V1betaDeleteVolume(params *V1betaDeleteVolumeParams) (*V1betaDeleteVolumeAccepted, *V1betaDeleteVolumeNoContent, error) {
 	// TODO: Validate the params before sending
 	if params == nil {
 		params = NewV1betaDeleteVolumeParams()
 	}
-	op := &runtime.ClientOperation{
+
+	result, err := a.transport.Submit(&runtime.ClientOperation{
 		ID:                 "v1beta_deleteVolume",
 		Method:             "DELETE",
 		PathPattern:        "/v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}",
@@ -135,12 +105,7 @@ func (a *Client) V1betaDeleteVolume(params *V1betaDeleteVolumeParams, opts ...Cl
 		Reader:             &V1betaDeleteVolumeReader{formats: a.formats},
 		Context:            params.Context,
 		Client:             params.HTTPClient,
-	}
-	for _, opt := range opts {
-		opt(op)
-	}
-
-	result, err := a.transport.Submit(op)
+	})
 	if err != nil {
 		return nil, nil, err
 	}
@@ -160,12 +125,13 @@ V1betaDescribeVolume describes a volume
 
 Returns the description of the specified volume by volume ID.
 */
-func (a *Client) V1betaDescribeVolume(params *V1betaDescribeVolumeParams, opts ...ClientOption) (*V1betaDescribeVolumeOK, error) {
+func (a *Client) V1betaDescribeVolume(params *V1betaDescribeVolumeParams) (*V1betaDescribeVolumeOK, error) {
 	// TODO: Validate the params before sending
 	if params == nil {
 		params = NewV1betaDescribeVolumeParams()
 	}
-	op := &runtime.ClientOperation{
+
+	result, err := a.transport.Submit(&runtime.ClientOperation{
 		ID:                 "v1beta_describeVolume",
 		Method:             "GET",
 		PathPattern:        "/v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}",
@@ -176,12 +142,7 @@ func (a *Client) V1betaDescribeVolume(params *V1betaDescribeVolumeParams, opts .
 		Reader:             &V1betaDescribeVolumeReader{formats: a.formats},
 		Context:            params.Context,
 		Client:             params.HTTPClient,
-	}
-	for _, opt := range opts {
-		opt(op)
-	}
-
-	result, err := a.transport.Submit(op)
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -195,16 +156,52 @@ func (a *Client) V1betaDescribeVolume(params *V1betaDescribeVolumeParams, opts .
 }
 
 /*
+V1betaEstablishVolumePeering establishes peering for a flexcache volume
+
+Establishes peering for a flexcache volume in the specified project and location.
+*/
+func (a *Client) V1betaEstablishVolumePeering(params *V1betaEstablishVolumePeeringParams) (*V1betaEstablishVolumePeeringAccepted, error) {
+	// TODO: Validate the params before sending
+	if params == nil {
+		params = NewV1betaEstablishVolumePeeringParams()
+	}
+
+	result, err := a.transport.Submit(&runtime.ClientOperation{
+		ID:                 "v1beta_establishVolumePeering",
+		Method:             "POST",
+		PathPattern:        "/v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeResourceId}/establishPeering",
+		ProducesMediaTypes: []string{"application/json"},
+		ConsumesMediaTypes: []string{"application/json"},
+		Schemes:            []string{"http", "https"},
+		Params:             params,
+		Reader:             &V1betaEstablishVolumePeeringReader{formats: a.formats},
+		Context:            params.Context,
+		Client:             params.HTTPClient,
+	})
+	if err != nil {
+		return nil, err
+	}
+	success, ok := result.(*V1betaEstablishVolumePeeringAccepted)
+	if ok {
+		return success, nil
+	}
+	// unexpected success response
+	unexpectedSuccess := result.(*V1betaEstablishVolumePeeringDefault)
+	return nil, runtime.NewAPIError("unexpected success response: content available as default response in error", unexpectedSuccess, unexpectedSuccess.Code())
+}
+
+/*
 V1betaGetLatestBackupStatusOnVolume gets the latest backup status of a volume
 
 Returns the current backup status of a volume
 */
-func (a *Client) V1betaGetLatestBackupStatusOnVolume(params *V1betaGetLatestBackupStatusOnVolumeParams, opts ...ClientOption) (*V1betaGetLatestBackupStatusOnVolumeOK, error) {
+func (a *Client) V1betaGetLatestBackupStatusOnVolume(params *V1betaGetLatestBackupStatusOnVolumeParams) (*V1betaGetLatestBackupStatusOnVolumeOK, error) {
 	// TODO: Validate the params before sending
 	if params == nil {
 		params = NewV1betaGetLatestBackupStatusOnVolumeParams()
 	}
-	op := &runtime.ClientOperation{
+
+	result, err := a.transport.Submit(&runtime.ClientOperation{
 		ID:                 "v1beta_getLatestBackupStatusOnVolume",
 		Method:             "GET",
 		PathPattern:        "/v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/latestBackupStatus",
@@ -215,12 +212,7 @@ func (a *Client) V1betaGetLatestBackupStatusOnVolume(params *V1betaGetLatestBack
 		Reader:             &V1betaGetLatestBackupStatusOnVolumeReader{formats: a.formats},
 		Context:            params.Context,
 		Client:             params.HTTPClient,
-	}
-	for _, opt := range opts {
-		opt(op)
-	}
-
-	result, err := a.transport.Submit(op)
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -238,12 +230,13 @@ V1betaGetLatestRestoreStatusOnVolume gets the latest backup restore status of a 
 
 Returns the latest restore status of a volume
 */
-func (a *Client) V1betaGetLatestRestoreStatusOnVolume(params *V1betaGetLatestRestoreStatusOnVolumeParams, opts ...ClientOption) (*V1betaGetLatestRestoreStatusOnVolumeOK, error) {
+func (a *Client) V1betaGetLatestRestoreStatusOnVolume(params *V1betaGetLatestRestoreStatusOnVolumeParams) (*V1betaGetLatestRestoreStatusOnVolumeOK, error) {
 	// TODO: Validate the params before sending
 	if params == nil {
 		params = NewV1betaGetLatestRestoreStatusOnVolumeParams()
 	}
-	op := &runtime.ClientOperation{
+
+	result, err := a.transport.Submit(&runtime.ClientOperation{
 		ID:                 "v1beta_getLatestRestoreStatusOnVolume",
 		Method:             "GET",
 		PathPattern:        "/v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/latestRestoreStatus",
@@ -254,12 +247,7 @@ func (a *Client) V1betaGetLatestRestoreStatusOnVolume(params *V1betaGetLatestRes
 		Reader:             &V1betaGetLatestRestoreStatusOnVolumeReader{formats: a.formats},
 		Context:            params.Context,
 		Client:             params.HTTPClient,
-	}
-	for _, opt := range opts {
-		opt(op)
-	}
-
-	result, err := a.transport.Submit(op)
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -277,12 +265,13 @@ V1betaGetMultipleVolumes lists specified volumes
 
 Returns descriptions of volumes that is listed in request body.
 */
-func (a *Client) V1betaGetMultipleVolumes(params *V1betaGetMultipleVolumesParams, opts ...ClientOption) (*V1betaGetMultipleVolumesOK, error) {
+func (a *Client) V1betaGetMultipleVolumes(params *V1betaGetMultipleVolumesParams) (*V1betaGetMultipleVolumesOK, error) {
 	// TODO: Validate the params before sending
 	if params == nil {
 		params = NewV1betaGetMultipleVolumesParams()
 	}
-	op := &runtime.ClientOperation{
+
+	result, err := a.transport.Submit(&runtime.ClientOperation{
 		ID:                 "v1beta_getMultipleVolumes",
 		Method:             "POST",
 		PathPattern:        "/v1beta/projects/{projectNumber}/locations/{locationId}/getMultipleVolumes",
@@ -293,12 +282,7 @@ func (a *Client) V1betaGetMultipleVolumes(params *V1betaGetMultipleVolumesParams
 		Reader:             &V1betaGetMultipleVolumesReader{formats: a.formats},
 		Context:            params.Context,
 		Client:             params.HTTPClient,
-	}
-	for _, opt := range opts {
-		opt(op)
-	}
-
-	result, err := a.transport.Submit(op)
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -316,12 +300,13 @@ V1betaListVolumes lists all volumes
 
 Returns descriptions of all volumes owned by the caller.
 */
-func (a *Client) V1betaListVolumes(params *V1betaListVolumesParams, opts ...ClientOption) (*V1betaListVolumesOK, error) {
+func (a *Client) V1betaListVolumes(params *V1betaListVolumesParams) (*V1betaListVolumesOK, error) {
 	// TODO: Validate the params before sending
 	if params == nil {
 		params = NewV1betaListVolumesParams()
 	}
-	op := &runtime.ClientOperation{
+
+	result, err := a.transport.Submit(&runtime.ClientOperation{
 		ID:                 "v1beta_listVolumes",
 		Method:             "GET",
 		PathPattern:        "/v1beta/projects/{projectNumber}/locations/{locationId}/volumes",
@@ -332,12 +317,7 @@ func (a *Client) V1betaListVolumes(params *V1betaListVolumesParams, opts ...Clie
 		Reader:             &V1betaListVolumesReader{formats: a.formats},
 		Context:            params.Context,
 		Client:             params.HTTPClient,
-	}
-	for _, opt := range opts {
-		opt(op)
-	}
-
-	result, err := a.transport.Submit(op)
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -355,12 +335,13 @@ V1betaRevertVolume reverts a volume to a snapshot
 
 Warning! This operation will permanently revert all changes made after the snapshot was created.
 */
-func (a *Client) V1betaRevertVolume(params *V1betaRevertVolumeParams, opts ...ClientOption) (*V1betaRevertVolumeAccepted, *V1betaRevertVolumeNoContent, error) {
+func (a *Client) V1betaRevertVolume(params *V1betaRevertVolumeParams) (*V1betaRevertVolumeAccepted, *V1betaRevertVolumeNoContent, error) {
 	// TODO: Validate the params before sending
 	if params == nil {
 		params = NewV1betaRevertVolumeParams()
 	}
-	op := &runtime.ClientOperation{
+
+	result, err := a.transport.Submit(&runtime.ClientOperation{
 		ID:                 "v1beta_revertVolume",
 		Method:             "POST",
 		PathPattern:        "/v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/Revert",
@@ -371,12 +352,7 @@ func (a *Client) V1betaRevertVolume(params *V1betaRevertVolumeParams, opts ...Cl
 		Reader:             &V1betaRevertVolumeReader{formats: a.formats},
 		Context:            params.Context,
 		Client:             params.HTTPClient,
-	}
-	for _, opt := range opts {
-		opt(op)
-	}
-
-	result, err := a.transport.Submit(op)
+	})
 	if err != nil {
 		return nil, nil, err
 	}
@@ -396,12 +372,13 @@ V1betaUpdateVolume updates a volume
 
 Update the volume
 */
-func (a *Client) V1betaUpdateVolume(params *V1betaUpdateVolumeParams, opts ...ClientOption) (*V1betaUpdateVolumeAccepted, *V1betaUpdateVolumeNoContent, error) {
+func (a *Client) V1betaUpdateVolume(params *V1betaUpdateVolumeParams) (*V1betaUpdateVolumeAccepted, *V1betaUpdateVolumeNoContent, error) {
 	// TODO: Validate the params before sending
 	if params == nil {
 		params = NewV1betaUpdateVolumeParams()
 	}
-	op := &runtime.ClientOperation{
+
+	result, err := a.transport.Submit(&runtime.ClientOperation{
 		ID:                 "v1beta_updateVolume",
 		Method:             "PUT",
 		PathPattern:        "/v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}",
@@ -412,12 +389,7 @@ func (a *Client) V1betaUpdateVolume(params *V1betaUpdateVolumeParams, opts ...Cl
 		Reader:             &V1betaUpdateVolumeReader{formats: a.formats},
 		Context:            params.Context,
 		Client:             params.HTTPClient,
-	}
-	for _, opt := range opts {
-		opt(op)
-	}
-
-	result, err := a.transport.Submit(op)
+	})
 	if err != nil {
 		return nil, nil, err
 	}

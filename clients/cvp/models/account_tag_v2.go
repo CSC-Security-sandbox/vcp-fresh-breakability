@@ -6,8 +6,6 @@ package models
 // Editing this file might prove futile when you re-run the swagger generate command
 
 import (
-	"context"
-
 	"github.com/go-openapi/errors"
 	"github.com/go-openapi/strfmt"
 	"github.com/go-openapi/swag"
@@ -50,15 +48,16 @@ func (m *AccountTagV2) Validate(formats strfmt.Registry) error {
 }
 
 func (m *AccountTagV2) validateKey(formats strfmt.Registry) error {
+
 	if swag.IsZero(m.Key) { // not required
 		return nil
 	}
 
-	if err := validate.MinLength("key", "body", m.Key, 1); err != nil {
+	if err := validate.MinLength("key", "body", string(m.Key), 1); err != nil {
 		return err
 	}
 
-	if err := validate.MaxLength("key", "body", m.Key, 63); err != nil {
+	if err := validate.MaxLength("key", "body", string(m.Key), 63); err != nil {
 		return err
 	}
 
@@ -66,19 +65,15 @@ func (m *AccountTagV2) validateKey(formats strfmt.Registry) error {
 }
 
 func (m *AccountTagV2) validateValue(formats strfmt.Registry) error {
+
 	if swag.IsZero(m.Value) { // not required
 		return nil
 	}
 
-	if err := validate.MaxLength("value", "body", m.Value, 63); err != nil {
+	if err := validate.MaxLength("value", "body", string(m.Value), 63); err != nil {
 		return err
 	}
 
-	return nil
-}
-
-// ContextValidate validates this account tag v2 based on context it is used
-func (m *AccountTagV2) ContextValidate(ctx context.Context, formats strfmt.Registry) error {
 	return nil
 }
 

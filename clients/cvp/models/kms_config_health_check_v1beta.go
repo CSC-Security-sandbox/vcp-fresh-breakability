@@ -6,8 +6,6 @@ package models
 // Editing this file might prove futile when you re-run the swagger generate command
 
 import (
-	"context"
-
 	"github.com/go-openapi/errors"
 	"github.com/go-openapi/strfmt"
 	"github.com/go-openapi/swag"
@@ -24,20 +22,17 @@ type KmsConfigHealthCheckV1beta struct {
 	// HealthError
 	//
 	// Error if configuration is not healthy
-	// Example: Service account 'service-account@example.com' doesn't have access to key 'test-key'
 	HealthError string `json:"healthError,omitempty"`
 
 	// instructions
 	//
 	// Instructions to provide the access to encryption key.
-	// Example: gcloud kms keys add-iam-policy-binding key_Name --keyring keyring_Name\\ --location key_Ring_Location\\ --member serviceAccount:service_Account_Name\\ --role roles/cloudkms.cryptoKeyEncrypterDecrypter
 	// Read Only: true
 	Instructions string `json:"instructions,omitempty"`
 
 	// IsHealthy
 	//
 	// Is customer key configured correctly to encrypt the volume.
-	// Example: false
 	// Required: true
 	IsHealthy *bool `json:"isHealthy"`
 }
@@ -59,29 +54,6 @@ func (m *KmsConfigHealthCheckV1beta) Validate(formats strfmt.Registry) error {
 func (m *KmsConfigHealthCheckV1beta) validateIsHealthy(formats strfmt.Registry) error {
 
 	if err := validate.Required("isHealthy", "body", m.IsHealthy); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-// ContextValidate validate this kms config health check v1beta based on the context it is used
-func (m *KmsConfigHealthCheckV1beta) ContextValidate(ctx context.Context, formats strfmt.Registry) error {
-	var res []error
-
-	if err := m.contextValidateInstructions(ctx, formats); err != nil {
-		res = append(res, err)
-	}
-
-	if len(res) > 0 {
-		return errors.CompositeValidationError(res...)
-	}
-	return nil
-}
-
-func (m *KmsConfigHealthCheckV1beta) contextValidateInstructions(ctx context.Context, formats strfmt.Registry) error {
-
-	if err := validate.ReadOnly(ctx, "instructions", "body", string(m.Instructions)); err != nil {
 		return err
 	}
 

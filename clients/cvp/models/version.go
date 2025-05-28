@@ -6,8 +6,6 @@ package models
 // Editing this file might prove futile when you re-run the swagger generate command
 
 import (
-	"context"
-
 	"github.com/go-openapi/errors"
 	"github.com/go-openapi/strfmt"
 	"github.com/go-openapi/swag"
@@ -22,7 +20,6 @@ type Version struct {
 	// apiVersion
 	//
 	// The current version of the API
-	// Example: 3.17.57
 	// Read Only: true
 	// Pattern: ^[0-9]+\.[0-9]+\.[0-9]+
 	APIVersion string `json:"apiVersion,omitempty"`
@@ -30,7 +27,6 @@ type Version struct {
 	// sdeVersion
 	//
 	// The current version of the SDE
-	// Example: 2.12.5
 	// Read Only: true
 	// Pattern: ^[0-9]+\.[0-9]+\.[0-9]+
 	SdeVersion string `json:"sdeVersion,omitempty"`
@@ -55,11 +51,12 @@ func (m *Version) Validate(formats strfmt.Registry) error {
 }
 
 func (m *Version) validateAPIVersion(formats strfmt.Registry) error {
+
 	if swag.IsZero(m.APIVersion) { // not required
 		return nil
 	}
 
-	if err := validate.Pattern("apiVersion", "body", m.APIVersion, `^[0-9]+\.[0-9]+\.[0-9]+`); err != nil {
+	if err := validate.Pattern("apiVersion", "body", string(m.APIVersion), `^[0-9]+\.[0-9]+\.[0-9]+`); err != nil {
 		return err
 	}
 
@@ -67,47 +64,12 @@ func (m *Version) validateAPIVersion(formats strfmt.Registry) error {
 }
 
 func (m *Version) validateSdeVersion(formats strfmt.Registry) error {
+
 	if swag.IsZero(m.SdeVersion) { // not required
 		return nil
 	}
 
-	if err := validate.Pattern("sdeVersion", "body", m.SdeVersion, `^[0-9]+\.[0-9]+\.[0-9]+`); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-// ContextValidate validate this version based on the context it is used
-func (m *Version) ContextValidate(ctx context.Context, formats strfmt.Registry) error {
-	var res []error
-
-	if err := m.contextValidateAPIVersion(ctx, formats); err != nil {
-		res = append(res, err)
-	}
-
-	if err := m.contextValidateSdeVersion(ctx, formats); err != nil {
-		res = append(res, err)
-	}
-
-	if len(res) > 0 {
-		return errors.CompositeValidationError(res...)
-	}
-	return nil
-}
-
-func (m *Version) contextValidateAPIVersion(ctx context.Context, formats strfmt.Registry) error {
-
-	if err := validate.ReadOnly(ctx, "apiVersion", "body", string(m.APIVersion)); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (m *Version) contextValidateSdeVersion(ctx context.Context, formats strfmt.Registry) error {
-
-	if err := validate.ReadOnly(ctx, "sdeVersion", "body", string(m.SdeVersion)); err != nil {
+	if err := validate.Pattern("sdeVersion", "body", string(m.SdeVersion), `^[0-9]+\.[0-9]+\.[0-9]+`); err != nil {
 		return err
 	}
 

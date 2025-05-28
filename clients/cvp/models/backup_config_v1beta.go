@@ -6,12 +6,8 @@ package models
 // Editing this file might prove futile when you re-run the swagger generate command
 
 import (
-	"context"
-
-	"github.com/go-openapi/errors"
 	"github.com/go-openapi/strfmt"
 	"github.com/go-openapi/swag"
-	"github.com/go-openapi/validate"
 )
 
 // BackupConfigV1beta BackupConfig
@@ -28,11 +24,9 @@ type BackupConfigV1beta struct {
 	BackupChainBytes *int64 `json:"backupChainBytes,omitempty"`
 
 	// Backup policy resource ID
-	// Example: 9760acf5-4638-11e7-9bdb-020073ca7773
 	BackupPolicyID *string `json:"backupPolicyId,omitempty"`
 
 	// Backup vault resource ID
-	// Example: 9760acf5-4638-11e7-9bdb-020073ca7773
 	BackupVaultID *string `json:"backupVaultId,omitempty"`
 
 	// Indicates whether policy is enable or disabled on the volume
@@ -41,29 +35,6 @@ type BackupConfigV1beta struct {
 
 // Validate validates this backup config v1beta
 func (m *BackupConfigV1beta) Validate(formats strfmt.Registry) error {
-	return nil
-}
-
-// ContextValidate validate this backup config v1beta based on the context it is used
-func (m *BackupConfigV1beta) ContextValidate(ctx context.Context, formats strfmt.Registry) error {
-	var res []error
-
-	if err := m.contextValidateBackupChainBytes(ctx, formats); err != nil {
-		res = append(res, err)
-	}
-
-	if len(res) > 0 {
-		return errors.CompositeValidationError(res...)
-	}
-	return nil
-}
-
-func (m *BackupConfigV1beta) contextValidateBackupChainBytes(ctx context.Context, formats strfmt.Registry) error {
-
-	if err := validate.ReadOnly(ctx, "backupChainBytes", "body", m.BackupChainBytes); err != nil {
-		return err
-	}
-
 	return nil
 }
 

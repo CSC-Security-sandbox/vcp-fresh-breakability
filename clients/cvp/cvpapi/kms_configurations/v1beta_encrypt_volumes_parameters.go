@@ -16,37 +16,40 @@ import (
 	"github.com/go-openapi/strfmt"
 )
 
-// NewV1betaEncryptVolumesParams creates a new V1betaEncryptVolumesParams object,
-// with the default timeout for this client.
-//
-// Default values are not hydrated, since defaults are normally applied by the API server side.
-//
-// To enforce default values in parameter, use SetDefaults or WithDefaults.
+// NewV1betaEncryptVolumesParams creates a new V1betaEncryptVolumesParams object
+// with the default values initialized.
 func NewV1betaEncryptVolumesParams() *V1betaEncryptVolumesParams {
+	var ()
 	return &V1betaEncryptVolumesParams{
+
 		timeout: cr.DefaultTimeout,
 	}
 }
 
 // NewV1betaEncryptVolumesParamsWithTimeout creates a new V1betaEncryptVolumesParams object
-// with the ability to set a timeout on a request.
+// with the default values initialized, and the ability to set a timeout on a request
 func NewV1betaEncryptVolumesParamsWithTimeout(timeout time.Duration) *V1betaEncryptVolumesParams {
+	var ()
 	return &V1betaEncryptVolumesParams{
+
 		timeout: timeout,
 	}
 }
 
 // NewV1betaEncryptVolumesParamsWithContext creates a new V1betaEncryptVolumesParams object
-// with the ability to set a context for a request.
+// with the default values initialized, and the ability to set a context for a request
 func NewV1betaEncryptVolumesParamsWithContext(ctx context.Context) *V1betaEncryptVolumesParams {
+	var ()
 	return &V1betaEncryptVolumesParams{
+
 		Context: ctx,
 	}
 }
 
 // NewV1betaEncryptVolumesParamsWithHTTPClient creates a new V1betaEncryptVolumesParams object
-// with the ability to set a custom HTTPClient for a request.
+// with the default values initialized, and the ability to set a custom HTTPClient for a request
 func NewV1betaEncryptVolumesParamsWithHTTPClient(client *http.Client) *V1betaEncryptVolumesParams {
+	var ()
 	return &V1betaEncryptVolumesParams{
 		HTTPClient: client,
 	}
@@ -54,55 +57,34 @@ func NewV1betaEncryptVolumesParamsWithHTTPClient(client *http.Client) *V1betaEnc
 
 /*
 V1betaEncryptVolumesParams contains all the parameters to send to the API endpoint
-
-	for the v1beta encrypt volumes operation.
-
-	Typically these are written to a http.Request.
+for the v1beta encrypt volumes operation typically these are written to a http.Request
 */
 type V1betaEncryptVolumesParams struct {
 
-	/* KmsConfigID.
+	/*KmsConfigID
+	  UUID v4 used to identify the GCP KMS credentials
 
-	   UUID v4 used to identify the GCP KMS credentials
 	*/
 	KmsConfigID string
+	/*LocationID
+	  The location/region to perform the operation in.
 
-	/* LocationID.
-
-	   The location/region to perform the operation in.
 	*/
 	LocationID string
+	/*ProjectNumber
+	  The project number of the GCP project owning the resource being acted upon
 
-	/* ProjectNumber.
-
-	   The project number of the GCP project owning the resource being acted upon
 	*/
 	ProjectNumber string
+	/*XCorrelationID
+	  Correlation identifier
 
-	/* XCorrelationID.
-
-	   Correlation identifier
 	*/
 	XCorrelationID *string
 
 	timeout    time.Duration
 	Context    context.Context
 	HTTPClient *http.Client
-}
-
-// WithDefaults hydrates default values in the v1beta encrypt volumes params (not the query body).
-//
-// All values with no default are reset to their zero value.
-func (o *V1betaEncryptVolumesParams) WithDefaults() *V1betaEncryptVolumesParams {
-	o.SetDefaults()
-	return o
-}
-
-// SetDefaults hydrates default values in the v1beta encrypt volumes params (not the query body).
-//
-// All values with no default are reset to their zero value.
-func (o *V1betaEncryptVolumesParams) SetDefaults() {
-	// no default values defined for this parameter
 }
 
 // WithTimeout adds the timeout to the v1beta encrypt volumes params
@@ -211,6 +193,7 @@ func (o *V1betaEncryptVolumesParams) WriteToRequest(r runtime.ClientRequest, reg
 		if err := r.SetHeaderParam("x-correlation-id", *o.XCorrelationID); err != nil {
 			return err
 		}
+
 	}
 
 	if len(res) > 0 {

@@ -6,7 +6,6 @@ package pools
 // Editing this file might prove futile when you re-run the swagger generate command
 
 import (
-	"encoding/json"
 	"fmt"
 	"io"
 
@@ -90,7 +89,7 @@ func NewV1betaCreatePoolAccepted() *V1betaCreatePoolAccepted {
 }
 
 /*
-V1betaCreatePoolAccepted describes a response with status code 202, with default header values.
+V1betaCreatePoolAccepted handles this case with default header values.
 
 Creating pool
 */
@@ -98,44 +97,8 @@ type V1betaCreatePoolAccepted struct {
 	Payload *models.OperationV1beta
 }
 
-// IsSuccess returns true when this v1beta create pool accepted response has a 2xx status code
-func (o *V1betaCreatePoolAccepted) IsSuccess() bool {
-	return true
-}
-
-// IsRedirect returns true when this v1beta create pool accepted response has a 3xx status code
-func (o *V1betaCreatePoolAccepted) IsRedirect() bool {
-	return false
-}
-
-// IsClientError returns true when this v1beta create pool accepted response has a 4xx status code
-func (o *V1betaCreatePoolAccepted) IsClientError() bool {
-	return false
-}
-
-// IsServerError returns true when this v1beta create pool accepted response has a 5xx status code
-func (o *V1betaCreatePoolAccepted) IsServerError() bool {
-	return false
-}
-
-// IsCode returns true when this v1beta create pool accepted response a status code equal to that given
-func (o *V1betaCreatePoolAccepted) IsCode(code int) bool {
-	return code == 202
-}
-
-// Code gets the status code for the v1beta create pool accepted response
-func (o *V1betaCreatePoolAccepted) Code() int {
-	return 202
-}
-
 func (o *V1betaCreatePoolAccepted) Error() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/pools][%d] v1betaCreatePoolAccepted %s", 202, payload)
-}
-
-func (o *V1betaCreatePoolAccepted) String() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/pools][%d] v1betaCreatePoolAccepted %s", 202, payload)
+	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/pools][%d] v1betaCreatePoolAccepted  %+v", 202, o.Payload)
 }
 
 func (o *V1betaCreatePoolAccepted) GetPayload() *models.OperationV1beta {
@@ -160,7 +123,7 @@ func NewV1betaCreatePoolBadRequest() *V1betaCreatePoolBadRequest {
 }
 
 /*
-V1betaCreatePoolBadRequest describes a response with status code 400, with default header values.
+V1betaCreatePoolBadRequest handles this case with default header values.
 
 Bad request
 */
@@ -168,44 +131,8 @@ type V1betaCreatePoolBadRequest struct {
 	Payload *models.Error
 }
 
-// IsSuccess returns true when this v1beta create pool bad request response has a 2xx status code
-func (o *V1betaCreatePoolBadRequest) IsSuccess() bool {
-	return false
-}
-
-// IsRedirect returns true when this v1beta create pool bad request response has a 3xx status code
-func (o *V1betaCreatePoolBadRequest) IsRedirect() bool {
-	return false
-}
-
-// IsClientError returns true when this v1beta create pool bad request response has a 4xx status code
-func (o *V1betaCreatePoolBadRequest) IsClientError() bool {
-	return true
-}
-
-// IsServerError returns true when this v1beta create pool bad request response has a 5xx status code
-func (o *V1betaCreatePoolBadRequest) IsServerError() bool {
-	return false
-}
-
-// IsCode returns true when this v1beta create pool bad request response a status code equal to that given
-func (o *V1betaCreatePoolBadRequest) IsCode(code int) bool {
-	return code == 400
-}
-
-// Code gets the status code for the v1beta create pool bad request response
-func (o *V1betaCreatePoolBadRequest) Code() int {
-	return 400
-}
-
 func (o *V1betaCreatePoolBadRequest) Error() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/pools][%d] v1betaCreatePoolBadRequest %s", 400, payload)
-}
-
-func (o *V1betaCreatePoolBadRequest) String() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/pools][%d] v1betaCreatePoolBadRequest %s", 400, payload)
+	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/pools][%d] v1betaCreatePoolBadRequest  %+v", 400, o.Payload)
 }
 
 func (o *V1betaCreatePoolBadRequest) GetPayload() *models.Error {
@@ -230,7 +157,7 @@ func NewV1betaCreatePoolUnauthorized() *V1betaCreatePoolUnauthorized {
 }
 
 /*
-V1betaCreatePoolUnauthorized describes a response with status code 401, with default header values.
+V1betaCreatePoolUnauthorized handles this case with default header values.
 
 Unauthorized
 */
@@ -238,44 +165,8 @@ type V1betaCreatePoolUnauthorized struct {
 	Payload *models.Error
 }
 
-// IsSuccess returns true when this v1beta create pool unauthorized response has a 2xx status code
-func (o *V1betaCreatePoolUnauthorized) IsSuccess() bool {
-	return false
-}
-
-// IsRedirect returns true when this v1beta create pool unauthorized response has a 3xx status code
-func (o *V1betaCreatePoolUnauthorized) IsRedirect() bool {
-	return false
-}
-
-// IsClientError returns true when this v1beta create pool unauthorized response has a 4xx status code
-func (o *V1betaCreatePoolUnauthorized) IsClientError() bool {
-	return true
-}
-
-// IsServerError returns true when this v1beta create pool unauthorized response has a 5xx status code
-func (o *V1betaCreatePoolUnauthorized) IsServerError() bool {
-	return false
-}
-
-// IsCode returns true when this v1beta create pool unauthorized response a status code equal to that given
-func (o *V1betaCreatePoolUnauthorized) IsCode(code int) bool {
-	return code == 401
-}
-
-// Code gets the status code for the v1beta create pool unauthorized response
-func (o *V1betaCreatePoolUnauthorized) Code() int {
-	return 401
-}
-
 func (o *V1betaCreatePoolUnauthorized) Error() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/pools][%d] v1betaCreatePoolUnauthorized %s", 401, payload)
-}
-
-func (o *V1betaCreatePoolUnauthorized) String() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/pools][%d] v1betaCreatePoolUnauthorized %s", 401, payload)
+	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/pools][%d] v1betaCreatePoolUnauthorized  %+v", 401, o.Payload)
 }
 
 func (o *V1betaCreatePoolUnauthorized) GetPayload() *models.Error {
@@ -300,7 +191,7 @@ func NewV1betaCreatePoolForbidden() *V1betaCreatePoolForbidden {
 }
 
 /*
-V1betaCreatePoolForbidden describes a response with status code 403, with default header values.
+V1betaCreatePoolForbidden handles this case with default header values.
 
 Forbidden
 */
@@ -308,44 +199,8 @@ type V1betaCreatePoolForbidden struct {
 	Payload *models.Error
 }
 
-// IsSuccess returns true when this v1beta create pool forbidden response has a 2xx status code
-func (o *V1betaCreatePoolForbidden) IsSuccess() bool {
-	return false
-}
-
-// IsRedirect returns true when this v1beta create pool forbidden response has a 3xx status code
-func (o *V1betaCreatePoolForbidden) IsRedirect() bool {
-	return false
-}
-
-// IsClientError returns true when this v1beta create pool forbidden response has a 4xx status code
-func (o *V1betaCreatePoolForbidden) IsClientError() bool {
-	return true
-}
-
-// IsServerError returns true when this v1beta create pool forbidden response has a 5xx status code
-func (o *V1betaCreatePoolForbidden) IsServerError() bool {
-	return false
-}
-
-// IsCode returns true when this v1beta create pool forbidden response a status code equal to that given
-func (o *V1betaCreatePoolForbidden) IsCode(code int) bool {
-	return code == 403
-}
-
-// Code gets the status code for the v1beta create pool forbidden response
-func (o *V1betaCreatePoolForbidden) Code() int {
-	return 403
-}
-
 func (o *V1betaCreatePoolForbidden) Error() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/pools][%d] v1betaCreatePoolForbidden %s", 403, payload)
-}
-
-func (o *V1betaCreatePoolForbidden) String() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/pools][%d] v1betaCreatePoolForbidden %s", 403, payload)
+	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/pools][%d] v1betaCreatePoolForbidden  %+v", 403, o.Payload)
 }
 
 func (o *V1betaCreatePoolForbidden) GetPayload() *models.Error {
@@ -370,7 +225,7 @@ func NewV1betaCreatePoolConflict() *V1betaCreatePoolConflict {
 }
 
 /*
-V1betaCreatePoolConflict describes a response with status code 409, with default header values.
+V1betaCreatePoolConflict handles this case with default header values.
 
 Conflict
 */
@@ -378,44 +233,8 @@ type V1betaCreatePoolConflict struct {
 	Payload *models.Error
 }
 
-// IsSuccess returns true when this v1beta create pool conflict response has a 2xx status code
-func (o *V1betaCreatePoolConflict) IsSuccess() bool {
-	return false
-}
-
-// IsRedirect returns true when this v1beta create pool conflict response has a 3xx status code
-func (o *V1betaCreatePoolConflict) IsRedirect() bool {
-	return false
-}
-
-// IsClientError returns true when this v1beta create pool conflict response has a 4xx status code
-func (o *V1betaCreatePoolConflict) IsClientError() bool {
-	return true
-}
-
-// IsServerError returns true when this v1beta create pool conflict response has a 5xx status code
-func (o *V1betaCreatePoolConflict) IsServerError() bool {
-	return false
-}
-
-// IsCode returns true when this v1beta create pool conflict response a status code equal to that given
-func (o *V1betaCreatePoolConflict) IsCode(code int) bool {
-	return code == 409
-}
-
-// Code gets the status code for the v1beta create pool conflict response
-func (o *V1betaCreatePoolConflict) Code() int {
-	return 409
-}
-
 func (o *V1betaCreatePoolConflict) Error() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/pools][%d] v1betaCreatePoolConflict %s", 409, payload)
-}
-
-func (o *V1betaCreatePoolConflict) String() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/pools][%d] v1betaCreatePoolConflict %s", 409, payload)
+	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/pools][%d] v1betaCreatePoolConflict  %+v", 409, o.Payload)
 }
 
 func (o *V1betaCreatePoolConflict) GetPayload() *models.Error {
@@ -440,7 +259,7 @@ func NewV1betaCreatePoolUnprocessableEntity() *V1betaCreatePoolUnprocessableEnti
 }
 
 /*
-V1betaCreatePoolUnprocessableEntity describes a response with status code 422, with default header values.
+V1betaCreatePoolUnprocessableEntity handles this case with default header values.
 
 Unprocessable entity
 */
@@ -448,44 +267,8 @@ type V1betaCreatePoolUnprocessableEntity struct {
 	Payload *models.Error
 }
 
-// IsSuccess returns true when this v1beta create pool unprocessable entity response has a 2xx status code
-func (o *V1betaCreatePoolUnprocessableEntity) IsSuccess() bool {
-	return false
-}
-
-// IsRedirect returns true when this v1beta create pool unprocessable entity response has a 3xx status code
-func (o *V1betaCreatePoolUnprocessableEntity) IsRedirect() bool {
-	return false
-}
-
-// IsClientError returns true when this v1beta create pool unprocessable entity response has a 4xx status code
-func (o *V1betaCreatePoolUnprocessableEntity) IsClientError() bool {
-	return true
-}
-
-// IsServerError returns true when this v1beta create pool unprocessable entity response has a 5xx status code
-func (o *V1betaCreatePoolUnprocessableEntity) IsServerError() bool {
-	return false
-}
-
-// IsCode returns true when this v1beta create pool unprocessable entity response a status code equal to that given
-func (o *V1betaCreatePoolUnprocessableEntity) IsCode(code int) bool {
-	return code == 422
-}
-
-// Code gets the status code for the v1beta create pool unprocessable entity response
-func (o *V1betaCreatePoolUnprocessableEntity) Code() int {
-	return 422
-}
-
 func (o *V1betaCreatePoolUnprocessableEntity) Error() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/pools][%d] v1betaCreatePoolUnprocessableEntity %s", 422, payload)
-}
-
-func (o *V1betaCreatePoolUnprocessableEntity) String() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/pools][%d] v1betaCreatePoolUnprocessableEntity %s", 422, payload)
+	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/pools][%d] v1betaCreatePoolUnprocessableEntity  %+v", 422, o.Payload)
 }
 
 func (o *V1betaCreatePoolUnprocessableEntity) GetPayload() *models.Error {
@@ -510,7 +293,7 @@ func NewV1betaCreatePoolTooManyRequests() *V1betaCreatePoolTooManyRequests {
 }
 
 /*
-V1betaCreatePoolTooManyRequests describes a response with status code 429, with default header values.
+V1betaCreatePoolTooManyRequests handles this case with default header values.
 
 Too many requests
 */
@@ -518,44 +301,8 @@ type V1betaCreatePoolTooManyRequests struct {
 	Payload *models.Error
 }
 
-// IsSuccess returns true when this v1beta create pool too many requests response has a 2xx status code
-func (o *V1betaCreatePoolTooManyRequests) IsSuccess() bool {
-	return false
-}
-
-// IsRedirect returns true when this v1beta create pool too many requests response has a 3xx status code
-func (o *V1betaCreatePoolTooManyRequests) IsRedirect() bool {
-	return false
-}
-
-// IsClientError returns true when this v1beta create pool too many requests response has a 4xx status code
-func (o *V1betaCreatePoolTooManyRequests) IsClientError() bool {
-	return true
-}
-
-// IsServerError returns true when this v1beta create pool too many requests response has a 5xx status code
-func (o *V1betaCreatePoolTooManyRequests) IsServerError() bool {
-	return false
-}
-
-// IsCode returns true when this v1beta create pool too many requests response a status code equal to that given
-func (o *V1betaCreatePoolTooManyRequests) IsCode(code int) bool {
-	return code == 429
-}
-
-// Code gets the status code for the v1beta create pool too many requests response
-func (o *V1betaCreatePoolTooManyRequests) Code() int {
-	return 429
-}
-
 func (o *V1betaCreatePoolTooManyRequests) Error() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/pools][%d] v1betaCreatePoolTooManyRequests %s", 429, payload)
-}
-
-func (o *V1betaCreatePoolTooManyRequests) String() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/pools][%d] v1betaCreatePoolTooManyRequests %s", 429, payload)
+	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/pools][%d] v1betaCreatePoolTooManyRequests  %+v", 429, o.Payload)
 }
 
 func (o *V1betaCreatePoolTooManyRequests) GetPayload() *models.Error {
@@ -580,7 +327,7 @@ func NewV1betaCreatePoolInternalServerError() *V1betaCreatePoolInternalServerErr
 }
 
 /*
-V1betaCreatePoolInternalServerError describes a response with status code 500, with default header values.
+V1betaCreatePoolInternalServerError handles this case with default header values.
 
 Internal server error
 */
@@ -588,44 +335,8 @@ type V1betaCreatePoolInternalServerError struct {
 	Payload *models.Error
 }
 
-// IsSuccess returns true when this v1beta create pool internal server error response has a 2xx status code
-func (o *V1betaCreatePoolInternalServerError) IsSuccess() bool {
-	return false
-}
-
-// IsRedirect returns true when this v1beta create pool internal server error response has a 3xx status code
-func (o *V1betaCreatePoolInternalServerError) IsRedirect() bool {
-	return false
-}
-
-// IsClientError returns true when this v1beta create pool internal server error response has a 4xx status code
-func (o *V1betaCreatePoolInternalServerError) IsClientError() bool {
-	return false
-}
-
-// IsServerError returns true when this v1beta create pool internal server error response has a 5xx status code
-func (o *V1betaCreatePoolInternalServerError) IsServerError() bool {
-	return true
-}
-
-// IsCode returns true when this v1beta create pool internal server error response a status code equal to that given
-func (o *V1betaCreatePoolInternalServerError) IsCode(code int) bool {
-	return code == 500
-}
-
-// Code gets the status code for the v1beta create pool internal server error response
-func (o *V1betaCreatePoolInternalServerError) Code() int {
-	return 500
-}
-
 func (o *V1betaCreatePoolInternalServerError) Error() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/pools][%d] v1betaCreatePoolInternalServerError %s", 500, payload)
-}
-
-func (o *V1betaCreatePoolInternalServerError) String() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/pools][%d] v1betaCreatePoolInternalServerError %s", 500, payload)
+	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/pools][%d] v1betaCreatePoolInternalServerError  %+v", 500, o.Payload)
 }
 
 func (o *V1betaCreatePoolInternalServerError) GetPayload() *models.Error {
@@ -652,7 +363,7 @@ func NewV1betaCreatePoolDefault(code int) *V1betaCreatePoolDefault {
 }
 
 /*
-V1betaCreatePoolDefault describes a response with status code -1, with default header values.
+V1betaCreatePoolDefault handles this case with default header values.
 
 Unexpected error
 */
@@ -662,44 +373,13 @@ type V1betaCreatePoolDefault struct {
 	Payload *models.Error
 }
 
-// IsSuccess returns true when this v1beta create pool default response has a 2xx status code
-func (o *V1betaCreatePoolDefault) IsSuccess() bool {
-	return o._statusCode/100 == 2
-}
-
-// IsRedirect returns true when this v1beta create pool default response has a 3xx status code
-func (o *V1betaCreatePoolDefault) IsRedirect() bool {
-	return o._statusCode/100 == 3
-}
-
-// IsClientError returns true when this v1beta create pool default response has a 4xx status code
-func (o *V1betaCreatePoolDefault) IsClientError() bool {
-	return o._statusCode/100 == 4
-}
-
-// IsServerError returns true when this v1beta create pool default response has a 5xx status code
-func (o *V1betaCreatePoolDefault) IsServerError() bool {
-	return o._statusCode/100 == 5
-}
-
-// IsCode returns true when this v1beta create pool default response a status code equal to that given
-func (o *V1betaCreatePoolDefault) IsCode(code int) bool {
-	return o._statusCode == code
-}
-
 // Code gets the status code for the v1beta create pool default response
 func (o *V1betaCreatePoolDefault) Code() int {
 	return o._statusCode
 }
 
 func (o *V1betaCreatePoolDefault) Error() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/pools][%d] v1beta_createPool default %s", o._statusCode, payload)
-}
-
-func (o *V1betaCreatePoolDefault) String() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/pools][%d] v1beta_createPool default %s", o._statusCode, payload)
+	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/pools][%d] v1beta_createPool default  %+v", o._statusCode, o.Payload)
 }
 
 func (o *V1betaCreatePoolDefault) GetPayload() *models.Error {

@@ -6,7 +6,6 @@ package models
 // Editing this file might prove futile when you re-run the swagger generate command
 
 import (
-	"context"
 	"encoding/json"
 	"strconv"
 
@@ -26,7 +25,6 @@ type TenantResourceMigrateV2 struct {
 	// created
 	//
 	// Creation date of the resource
-	// Example: 2016-11-30T20:32:50.459Z
 	// Read Only: true
 	// Format: date-time
 	Created strfmt.DateTime `json:"created,omitempty"`
@@ -40,22 +38,19 @@ type TenantResourceMigrateV2 struct {
 	// lifeCycleState
 	//
 	// The current lifecycle state of the resource
-	// Example: available
 	// Read Only: true
-	// Enum: ["creating","available","updating","disabled","deleting","deleted","restoring","error"]
+	// Enum: [creating available updating disabled deleting deleted restoring error]
 	LifeCycleState string `json:"lifeCycleState,omitempty"`
 
 	// lifeCycleStateDetails
 	//
 	// Details about the current lifecycle state
-	// Example: Error connecting to remote service
 	// Read Only: true
 	LifeCycleStateDetails string `json:"lifeCycleStateDetails,omitempty"`
 
 	// ownerId
 	//
 	// UUID v4 used to identify the owner of the resource
-	// Example: 87654321-4638-11e7-9bdb-123456789012
 	// Read Only: true
 	// Max Length: 36
 	// Min Length: 36
@@ -65,7 +60,6 @@ type TenantResourceMigrateV2 struct {
 	// tenantMigratonId
 	//
 	// UUID v4 used to identify the tenant resource
-	// Example: 9760acf5-4638-11e7-9bdb-020073ca3333
 	// Read Only: true
 	// Max Length: 36
 	// Min Length: 36
@@ -104,6 +98,7 @@ func (m *TenantResourceMigrateV2) Validate(formats strfmt.Registry) error {
 }
 
 func (m *TenantResourceMigrateV2) validateCreated(formats strfmt.Registry) error {
+
 	if swag.IsZero(m.Created) { // not required
 		return nil
 	}
@@ -116,6 +111,7 @@ func (m *TenantResourceMigrateV2) validateCreated(formats strfmt.Registry) error
 }
 
 func (m *TenantResourceMigrateV2) validateJobs(formats strfmt.Registry) error {
+
 	if swag.IsZero(m.Jobs) { // not required
 		return nil
 	}
@@ -129,8 +125,6 @@ func (m *TenantResourceMigrateV2) validateJobs(formats strfmt.Registry) error {
 			if err := m.Jobs[i].Validate(formats); err != nil {
 				if ve, ok := err.(*errors.Validation); ok {
 					return ve.ValidateName("jobs" + "." + strconv.Itoa(i))
-				} else if ce, ok := err.(*errors.CompositeError); ok {
-					return ce.ValidateName("jobs" + "." + strconv.Itoa(i))
 				}
 				return err
 			}
@@ -189,6 +183,7 @@ func (m *TenantResourceMigrateV2) validateLifeCycleStateEnum(path, location stri
 }
 
 func (m *TenantResourceMigrateV2) validateLifeCycleState(formats strfmt.Registry) error {
+
 	if swag.IsZero(m.LifeCycleState) { // not required
 		return nil
 	}
@@ -202,19 +197,20 @@ func (m *TenantResourceMigrateV2) validateLifeCycleState(formats strfmt.Registry
 }
 
 func (m *TenantResourceMigrateV2) validateOwnerID(formats strfmt.Registry) error {
+
 	if swag.IsZero(m.OwnerID) { // not required
 		return nil
 	}
 
-	if err := validate.MinLength("ownerId", "body", m.OwnerID, 36); err != nil {
+	if err := validate.MinLength("ownerId", "body", string(m.OwnerID), 36); err != nil {
 		return err
 	}
 
-	if err := validate.MaxLength("ownerId", "body", m.OwnerID, 36); err != nil {
+	if err := validate.MaxLength("ownerId", "body", string(m.OwnerID), 36); err != nil {
 		return err
 	}
 
-	if err := validate.Pattern("ownerId", "body", m.OwnerID, `^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$`); err != nil {
+	if err := validate.Pattern("ownerId", "body", string(m.OwnerID), `^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$`); err != nil {
 		return err
 	}
 
@@ -222,127 +218,20 @@ func (m *TenantResourceMigrateV2) validateOwnerID(formats strfmt.Registry) error
 }
 
 func (m *TenantResourceMigrateV2) validateTenantMigratonID(formats strfmt.Registry) error {
+
 	if swag.IsZero(m.TenantMigratonID) { // not required
 		return nil
 	}
 
-	if err := validate.MinLength("tenantMigratonId", "body", m.TenantMigratonID, 36); err != nil {
+	if err := validate.MinLength("tenantMigratonId", "body", string(m.TenantMigratonID), 36); err != nil {
 		return err
 	}
 
-	if err := validate.MaxLength("tenantMigratonId", "body", m.TenantMigratonID, 36); err != nil {
+	if err := validate.MaxLength("tenantMigratonId", "body", string(m.TenantMigratonID), 36); err != nil {
 		return err
 	}
 
-	if err := validate.Pattern("tenantMigratonId", "body", m.TenantMigratonID, `^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$`); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-// ContextValidate validate this tenant resource migrate v2 based on the context it is used
-func (m *TenantResourceMigrateV2) ContextValidate(ctx context.Context, formats strfmt.Registry) error {
-	var res []error
-
-	if err := m.contextValidateCreated(ctx, formats); err != nil {
-		res = append(res, err)
-	}
-
-	if err := m.contextValidateJobs(ctx, formats); err != nil {
-		res = append(res, err)
-	}
-
-	if err := m.contextValidateLifeCycleState(ctx, formats); err != nil {
-		res = append(res, err)
-	}
-
-	if err := m.contextValidateLifeCycleStateDetails(ctx, formats); err != nil {
-		res = append(res, err)
-	}
-
-	if err := m.contextValidateOwnerID(ctx, formats); err != nil {
-		res = append(res, err)
-	}
-
-	if err := m.contextValidateTenantMigratonID(ctx, formats); err != nil {
-		res = append(res, err)
-	}
-
-	if len(res) > 0 {
-		return errors.CompositeValidationError(res...)
-	}
-	return nil
-}
-
-func (m *TenantResourceMigrateV2) contextValidateCreated(ctx context.Context, formats strfmt.Registry) error {
-
-	if err := validate.ReadOnly(ctx, "created", "body", strfmt.DateTime(m.Created)); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (m *TenantResourceMigrateV2) contextValidateJobs(ctx context.Context, formats strfmt.Registry) error {
-
-	if err := validate.ReadOnly(ctx, "jobs", "body", []*JobV1beta(m.Jobs)); err != nil {
-		return err
-	}
-
-	for i := 0; i < len(m.Jobs); i++ {
-
-		if m.Jobs[i] != nil {
-
-			if swag.IsZero(m.Jobs[i]) { // not required
-				return nil
-			}
-
-			if err := m.Jobs[i].ContextValidate(ctx, formats); err != nil {
-				if ve, ok := err.(*errors.Validation); ok {
-					return ve.ValidateName("jobs" + "." + strconv.Itoa(i))
-				} else if ce, ok := err.(*errors.CompositeError); ok {
-					return ce.ValidateName("jobs" + "." + strconv.Itoa(i))
-				}
-				return err
-			}
-		}
-
-	}
-
-	return nil
-}
-
-func (m *TenantResourceMigrateV2) contextValidateLifeCycleState(ctx context.Context, formats strfmt.Registry) error {
-
-	if err := validate.ReadOnly(ctx, "lifeCycleState", "body", string(m.LifeCycleState)); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (m *TenantResourceMigrateV2) contextValidateLifeCycleStateDetails(ctx context.Context, formats strfmt.Registry) error {
-
-	if err := validate.ReadOnly(ctx, "lifeCycleStateDetails", "body", string(m.LifeCycleStateDetails)); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (m *TenantResourceMigrateV2) contextValidateOwnerID(ctx context.Context, formats strfmt.Registry) error {
-
-	if err := validate.ReadOnly(ctx, "ownerId", "body", string(m.OwnerID)); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (m *TenantResourceMigrateV2) contextValidateTenantMigratonID(ctx context.Context, formats strfmt.Registry) error {
-
-	if err := validate.ReadOnly(ctx, "tenantMigratonId", "body", string(m.TenantMigratonID)); err != nil {
+	if err := validate.Pattern("tenantMigratonId", "body", string(m.TenantMigratonID), `^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$`); err != nil {
 		return err
 	}
 

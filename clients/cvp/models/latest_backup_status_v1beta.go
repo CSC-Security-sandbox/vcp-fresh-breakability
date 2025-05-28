@@ -6,7 +6,6 @@ package models
 // Editing this file might prove futile when you re-run the swagger generate command
 
 import (
-	"context"
 	"encoding/json"
 
 	"github.com/go-openapi/errors"
@@ -25,7 +24,6 @@ type LatestBackupStatusV1beta struct {
 	// BackupProgressBytes
 	//
 	// Displays the total number of bytes transferred for the ongoing operation
-	// Example: 4000000000000
 	// Read Only: true
 	BackupProgressBytes int64 `json:"backupProgressBytes,omitempty"`
 
@@ -40,7 +38,6 @@ type LatestBackupStatusV1beta struct {
 	// isRestore
 	//
 	// True if it is a restore relationship status, false if it is a backup relationship status.
-	// Example: false
 	IsRestore *bool `json:"isRestore,omitempty"`
 
 	// isTransferring
@@ -52,42 +49,37 @@ type LatestBackupStatusV1beta struct {
 	// lastBackupBytes
 	//
 	// This value describes the last transfer size.
-	// Example: 4000000000000
 	// Read Only: true
 	LastBackupBytes int64 `json:"lastBackupBytes,omitempty"`
 
 	// lastBackupError
 	//
 	// A message describing the cause of the last transfer failure.
-	// Example: Something went wrong
 	// Read Only: true
 	LastBackupError string `json:"lastBackupError,omitempty"`
 
 	// lastBackupType
 	//
 	// This value describes the last transfer type.
-	// Example: Something went wrong
 	// Read Only: true
-	// Enum: ["UNKNOWN","UPDATE","INITIAZLIZE","RESYNC","RESTORE","CHECK","FILE_RESTORE","CGGRS_INITIALIZE","CGGRS_RESYNC","CG_UPDATE","CGINTIALIZE","CG_RESYNC"]
+	// Enum: [UNKNOWN UPDATE INITIAZLIZE RESYNC RESTORE CHECK FILE_RESTORE CGGRS_INITIALIZE CGGRS_RESYNC CG_UPDATE CGINTIALIZE CG_RESYNC]
 	LastBackupType string `json:"lastBackupType,omitempty"`
 
 	// mirrorState
 	//
 	// The mirror state of volume backup relationship
-	// Enum: ["uninitialized","mirrored","broken"]
+	// Enum: [uninitialized mirrored broken]
 	MirrorState string `json:"mirrorState,omitempty"`
 
 	// totalBackupBytes
 	//
 	// This value describes the last transfer bytes.
-	// Example: 4000000000000
 	// Read Only: true
 	TotalBackupBytes int64 `json:"totalBackupBytes,omitempty"`
 
 	// unhealthyReason
 	//
 	// A message describing the cause of unhealthy status.
-	// Example: Something went wrong
 	// Read Only: true
 	UnhealthyReason string `json:"unhealthyReason,omitempty"`
 }
@@ -170,6 +162,7 @@ func (m *LatestBackupStatusV1beta) validateLastBackupTypeEnum(path, location str
 }
 
 func (m *LatestBackupStatusV1beta) validateLastBackupType(formats strfmt.Registry) error {
+
 	if swag.IsZero(m.LastBackupType) { // not required
 		return nil
 	}
@@ -215,113 +208,13 @@ func (m *LatestBackupStatusV1beta) validateMirrorStateEnum(path, location string
 }
 
 func (m *LatestBackupStatusV1beta) validateMirrorState(formats strfmt.Registry) error {
+
 	if swag.IsZero(m.MirrorState) { // not required
 		return nil
 	}
 
 	// value enum
 	if err := m.validateMirrorStateEnum("mirrorState", "body", m.MirrorState); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-// ContextValidate validate this latest backup status v1beta based on the context it is used
-func (m *LatestBackupStatusV1beta) ContextValidate(ctx context.Context, formats strfmt.Registry) error {
-	var res []error
-
-	if err := m.contextValidateBackupProgressBytes(ctx, formats); err != nil {
-		res = append(res, err)
-	}
-
-	if err := m.contextValidateIsTransferring(ctx, formats); err != nil {
-		res = append(res, err)
-	}
-
-	if err := m.contextValidateLastBackupBytes(ctx, formats); err != nil {
-		res = append(res, err)
-	}
-
-	if err := m.contextValidateLastBackupError(ctx, formats); err != nil {
-		res = append(res, err)
-	}
-
-	if err := m.contextValidateLastBackupType(ctx, formats); err != nil {
-		res = append(res, err)
-	}
-
-	if err := m.contextValidateTotalBackupBytes(ctx, formats); err != nil {
-		res = append(res, err)
-	}
-
-	if err := m.contextValidateUnhealthyReason(ctx, formats); err != nil {
-		res = append(res, err)
-	}
-
-	if len(res) > 0 {
-		return errors.CompositeValidationError(res...)
-	}
-	return nil
-}
-
-func (m *LatestBackupStatusV1beta) contextValidateBackupProgressBytes(ctx context.Context, formats strfmt.Registry) error {
-
-	if err := validate.ReadOnly(ctx, "backupProgressBytes", "body", int64(m.BackupProgressBytes)); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (m *LatestBackupStatusV1beta) contextValidateIsTransferring(ctx context.Context, formats strfmt.Registry) error {
-
-	if err := validate.ReadOnly(ctx, "isTransferring", "body", m.IsTransferring); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (m *LatestBackupStatusV1beta) contextValidateLastBackupBytes(ctx context.Context, formats strfmt.Registry) error {
-
-	if err := validate.ReadOnly(ctx, "lastBackupBytes", "body", int64(m.LastBackupBytes)); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (m *LatestBackupStatusV1beta) contextValidateLastBackupError(ctx context.Context, formats strfmt.Registry) error {
-
-	if err := validate.ReadOnly(ctx, "lastBackupError", "body", string(m.LastBackupError)); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (m *LatestBackupStatusV1beta) contextValidateLastBackupType(ctx context.Context, formats strfmt.Registry) error {
-
-	if err := validate.ReadOnly(ctx, "lastBackupType", "body", string(m.LastBackupType)); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (m *LatestBackupStatusV1beta) contextValidateTotalBackupBytes(ctx context.Context, formats strfmt.Registry) error {
-
-	if err := validate.ReadOnly(ctx, "totalBackupBytes", "body", int64(m.TotalBackupBytes)); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (m *LatestBackupStatusV1beta) contextValidateUnhealthyReason(ctx context.Context, formats strfmt.Registry) error {
-
-	if err := validate.ReadOnly(ctx, "unhealthyReason", "body", string(m.UnhealthyReason)); err != nil {
 		return err
 	}
 

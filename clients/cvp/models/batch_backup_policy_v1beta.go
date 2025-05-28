@@ -6,8 +6,6 @@ package models
 // Editing this file might prove futile when you re-run the swagger generate command
 
 import (
-	"context"
-
 	"github.com/go-openapi/errors"
 	"github.com/go-openapi/strfmt"
 	"github.com/go-openapi/swag"
@@ -23,7 +21,6 @@ type BatchBackupPolicyV1beta struct {
 	// backupPolicyId
 	//
 	// UUID v4 used to identify the backup policy
-	// Example: 9760acf5-4638-11e7-9bdb-020073ca3333
 	// Max Length: 36
 	// Min Length: 36
 	// Pattern: ^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$
@@ -32,28 +29,23 @@ type BatchBackupPolicyV1beta struct {
 	// createdAt
 	//
 	// The timestamp of resource creation (UTC)
-	// Example: 2016-11-30T23:59:59.999Z
 	// Format: date-time
 	CreatedAt *strfmt.DateTime `json:"createdAt,omitempty"`
 
 	// description
 	//
 	// Description of the backup policy
-	// Example: My backup policy description
 	Description *string `json:"description,omitempty"`
 
 	// If enabled, backup policy will be available for any volume to use. Default is false
-	// Example: true
 	Enabled *bool `json:"enabled,omitempty"`
 
 	// resourceId
 	//
 	// A human readable label for the resource which is restricted to letters, numbers, and hyphen, with the first character a letter, the last a letter or a number, and a 63 character maximum
-	// Example: my-backup-policy
 	ResourceID *string `json:"resourceId,omitempty"`
 
 	// Total volumes assigned to the backup policy
-	// Example: 6
 	VolumeCount *int64 `json:"volumeCount,omitempty"`
 }
 
@@ -166,19 +158,20 @@ func (m *BatchBackupPolicyV1beta) Validate(formats strfmt.Registry) error {
 }
 
 func (m *BatchBackupPolicyV1beta) validateBackupPolicyID(formats strfmt.Registry) error {
+
 	if swag.IsZero(m.BackupPolicyID) { // not required
 		return nil
 	}
 
-	if err := validate.MinLength("backupPolicyId", "body", m.BackupPolicyID, 36); err != nil {
+	if err := validate.MinLength("backupPolicyId", "body", string(m.BackupPolicyID), 36); err != nil {
 		return err
 	}
 
-	if err := validate.MaxLength("backupPolicyId", "body", m.BackupPolicyID, 36); err != nil {
+	if err := validate.MaxLength("backupPolicyId", "body", string(m.BackupPolicyID), 36); err != nil {
 		return err
 	}
 
-	if err := validate.Pattern("backupPolicyId", "body", m.BackupPolicyID, `^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$`); err != nil {
+	if err := validate.Pattern("backupPolicyId", "body", string(m.BackupPolicyID), `^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$`); err != nil {
 		return err
 	}
 
@@ -186,6 +179,7 @@ func (m *BatchBackupPolicyV1beta) validateBackupPolicyID(formats strfmt.Registry
 }
 
 func (m *BatchBackupPolicyV1beta) validateCreatedAt(formats strfmt.Registry) error {
+
 	if swag.IsZero(m.CreatedAt) { // not required
 		return nil
 	}
@@ -194,21 +188,6 @@ func (m *BatchBackupPolicyV1beta) validateCreatedAt(formats strfmt.Registry) err
 		return err
 	}
 
-	return nil
-}
-
-// ContextValidate validate this batch backup policy v1beta based on the context it is used
-func (m *BatchBackupPolicyV1beta) ContextValidate(ctx context.Context, formats strfmt.Registry) error {
-	var res []error
-
-	// validation for a type composition with BatchBackupPolicyScheduleV1beta
-	if err := m.BatchBackupPolicyScheduleV1beta.ContextValidate(ctx, formats); err != nil {
-		res = append(res, err)
-	}
-
-	if len(res) > 0 {
-		return errors.CompositeValidationError(res...)
-	}
 	return nil
 }
 

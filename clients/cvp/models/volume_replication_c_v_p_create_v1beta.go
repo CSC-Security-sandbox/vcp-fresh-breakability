@@ -6,8 +6,6 @@ package models
 // Editing this file might prove futile when you re-run the swagger generate command
 
 import (
-	"context"
-
 	"github.com/go-openapi/errors"
 	"github.com/go-openapi/strfmt"
 	"github.com/go-openapi/swag"
@@ -98,21 +96,6 @@ func (m *VolumeReplicationCVPCreateV1beta) Validate(formats strfmt.Registry) err
 
 	// validation for a type composition with VolumeReplicationCVPV1beta
 	if err := m.VolumeReplicationCVPV1beta.Validate(formats); err != nil {
-		res = append(res, err)
-	}
-
-	if len(res) > 0 {
-		return errors.CompositeValidationError(res...)
-	}
-	return nil
-}
-
-// ContextValidate validate this volume replication c v p create v1beta based on the context it is used
-func (m *VolumeReplicationCVPCreateV1beta) ContextValidate(ctx context.Context, formats strfmt.Registry) error {
-	var res []error
-
-	// validation for a type composition with VolumeReplicationCVPV1beta
-	if err := m.VolumeReplicationCVPV1beta.ContextValidate(ctx, formats); err != nil {
 		res = append(res, err)
 	}
 

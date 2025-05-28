@@ -6,7 +6,6 @@ package replications
 // Editing this file might prove futile when you re-run the swagger generate command
 
 import (
-	"encoding/json"
 	"fmt"
 	"io"
 
@@ -96,7 +95,7 @@ func NewV1betaReverseAndResumeReplicationAccepted() *V1betaReverseAndResumeRepli
 }
 
 /*
-V1betaReverseAndResumeReplicationAccepted describes a response with status code 202, with default header values.
+V1betaReverseAndResumeReplicationAccepted handles this case with default header values.
 
 Reversing and resuming replication
 */
@@ -104,44 +103,8 @@ type V1betaReverseAndResumeReplicationAccepted struct {
 	Payload *models.OperationV1beta
 }
 
-// IsSuccess returns true when this v1beta reverse and resume replication accepted response has a 2xx status code
-func (o *V1betaReverseAndResumeReplicationAccepted) IsSuccess() bool {
-	return true
-}
-
-// IsRedirect returns true when this v1beta reverse and resume replication accepted response has a 3xx status code
-func (o *V1betaReverseAndResumeReplicationAccepted) IsRedirect() bool {
-	return false
-}
-
-// IsClientError returns true when this v1beta reverse and resume replication accepted response has a 4xx status code
-func (o *V1betaReverseAndResumeReplicationAccepted) IsClientError() bool {
-	return false
-}
-
-// IsServerError returns true when this v1beta reverse and resume replication accepted response has a 5xx status code
-func (o *V1betaReverseAndResumeReplicationAccepted) IsServerError() bool {
-	return false
-}
-
-// IsCode returns true when this v1beta reverse and resume replication accepted response a status code equal to that given
-func (o *V1betaReverseAndResumeReplicationAccepted) IsCode(code int) bool {
-	return code == 202
-}
-
-// Code gets the status code for the v1beta reverse and resume replication accepted response
-func (o *V1betaReverseAndResumeReplicationAccepted) Code() int {
-	return 202
-}
-
 func (o *V1betaReverseAndResumeReplicationAccepted) Error() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeResourceId}/replications/{replicationResourceId}/reverseAndResumeReplication][%d] v1betaReverseAndResumeReplicationAccepted %s", 202, payload)
-}
-
-func (o *V1betaReverseAndResumeReplicationAccepted) String() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeResourceId}/replications/{replicationResourceId}/reverseAndResumeReplication][%d] v1betaReverseAndResumeReplicationAccepted %s", 202, payload)
+	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeResourceId}/replications/{replicationResourceId}/reverseAndResumeReplication][%d] v1betaReverseAndResumeReplicationAccepted  %+v", 202, o.Payload)
 }
 
 func (o *V1betaReverseAndResumeReplicationAccepted) GetPayload() *models.OperationV1beta {
@@ -166,7 +129,7 @@ func NewV1betaReverseAndResumeReplicationBadRequest() *V1betaReverseAndResumeRep
 }
 
 /*
-V1betaReverseAndResumeReplicationBadRequest describes a response with status code 400, with default header values.
+V1betaReverseAndResumeReplicationBadRequest handles this case with default header values.
 
 Bad request
 */
@@ -174,44 +137,8 @@ type V1betaReverseAndResumeReplicationBadRequest struct {
 	Payload *models.Error
 }
 
-// IsSuccess returns true when this v1beta reverse and resume replication bad request response has a 2xx status code
-func (o *V1betaReverseAndResumeReplicationBadRequest) IsSuccess() bool {
-	return false
-}
-
-// IsRedirect returns true when this v1beta reverse and resume replication bad request response has a 3xx status code
-func (o *V1betaReverseAndResumeReplicationBadRequest) IsRedirect() bool {
-	return false
-}
-
-// IsClientError returns true when this v1beta reverse and resume replication bad request response has a 4xx status code
-func (o *V1betaReverseAndResumeReplicationBadRequest) IsClientError() bool {
-	return true
-}
-
-// IsServerError returns true when this v1beta reverse and resume replication bad request response has a 5xx status code
-func (o *V1betaReverseAndResumeReplicationBadRequest) IsServerError() bool {
-	return false
-}
-
-// IsCode returns true when this v1beta reverse and resume replication bad request response a status code equal to that given
-func (o *V1betaReverseAndResumeReplicationBadRequest) IsCode(code int) bool {
-	return code == 400
-}
-
-// Code gets the status code for the v1beta reverse and resume replication bad request response
-func (o *V1betaReverseAndResumeReplicationBadRequest) Code() int {
-	return 400
-}
-
 func (o *V1betaReverseAndResumeReplicationBadRequest) Error() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeResourceId}/replications/{replicationResourceId}/reverseAndResumeReplication][%d] v1betaReverseAndResumeReplicationBadRequest %s", 400, payload)
-}
-
-func (o *V1betaReverseAndResumeReplicationBadRequest) String() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeResourceId}/replications/{replicationResourceId}/reverseAndResumeReplication][%d] v1betaReverseAndResumeReplicationBadRequest %s", 400, payload)
+	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeResourceId}/replications/{replicationResourceId}/reverseAndResumeReplication][%d] v1betaReverseAndResumeReplicationBadRequest  %+v", 400, o.Payload)
 }
 
 func (o *V1betaReverseAndResumeReplicationBadRequest) GetPayload() *models.Error {
@@ -236,7 +163,7 @@ func NewV1betaReverseAndResumeReplicationUnauthorized() *V1betaReverseAndResumeR
 }
 
 /*
-V1betaReverseAndResumeReplicationUnauthorized describes a response with status code 401, with default header values.
+V1betaReverseAndResumeReplicationUnauthorized handles this case with default header values.
 
 Unauthorized
 */
@@ -244,44 +171,8 @@ type V1betaReverseAndResumeReplicationUnauthorized struct {
 	Payload *models.Error
 }
 
-// IsSuccess returns true when this v1beta reverse and resume replication unauthorized response has a 2xx status code
-func (o *V1betaReverseAndResumeReplicationUnauthorized) IsSuccess() bool {
-	return false
-}
-
-// IsRedirect returns true when this v1beta reverse and resume replication unauthorized response has a 3xx status code
-func (o *V1betaReverseAndResumeReplicationUnauthorized) IsRedirect() bool {
-	return false
-}
-
-// IsClientError returns true when this v1beta reverse and resume replication unauthorized response has a 4xx status code
-func (o *V1betaReverseAndResumeReplicationUnauthorized) IsClientError() bool {
-	return true
-}
-
-// IsServerError returns true when this v1beta reverse and resume replication unauthorized response has a 5xx status code
-func (o *V1betaReverseAndResumeReplicationUnauthorized) IsServerError() bool {
-	return false
-}
-
-// IsCode returns true when this v1beta reverse and resume replication unauthorized response a status code equal to that given
-func (o *V1betaReverseAndResumeReplicationUnauthorized) IsCode(code int) bool {
-	return code == 401
-}
-
-// Code gets the status code for the v1beta reverse and resume replication unauthorized response
-func (o *V1betaReverseAndResumeReplicationUnauthorized) Code() int {
-	return 401
-}
-
 func (o *V1betaReverseAndResumeReplicationUnauthorized) Error() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeResourceId}/replications/{replicationResourceId}/reverseAndResumeReplication][%d] v1betaReverseAndResumeReplicationUnauthorized %s", 401, payload)
-}
-
-func (o *V1betaReverseAndResumeReplicationUnauthorized) String() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeResourceId}/replications/{replicationResourceId}/reverseAndResumeReplication][%d] v1betaReverseAndResumeReplicationUnauthorized %s", 401, payload)
+	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeResourceId}/replications/{replicationResourceId}/reverseAndResumeReplication][%d] v1betaReverseAndResumeReplicationUnauthorized  %+v", 401, o.Payload)
 }
 
 func (o *V1betaReverseAndResumeReplicationUnauthorized) GetPayload() *models.Error {
@@ -306,7 +197,7 @@ func NewV1betaReverseAndResumeReplicationForbidden() *V1betaReverseAndResumeRepl
 }
 
 /*
-V1betaReverseAndResumeReplicationForbidden describes a response with status code 403, with default header values.
+V1betaReverseAndResumeReplicationForbidden handles this case with default header values.
 
 Forbidden
 */
@@ -314,44 +205,8 @@ type V1betaReverseAndResumeReplicationForbidden struct {
 	Payload *models.Error
 }
 
-// IsSuccess returns true when this v1beta reverse and resume replication forbidden response has a 2xx status code
-func (o *V1betaReverseAndResumeReplicationForbidden) IsSuccess() bool {
-	return false
-}
-
-// IsRedirect returns true when this v1beta reverse and resume replication forbidden response has a 3xx status code
-func (o *V1betaReverseAndResumeReplicationForbidden) IsRedirect() bool {
-	return false
-}
-
-// IsClientError returns true when this v1beta reverse and resume replication forbidden response has a 4xx status code
-func (o *V1betaReverseAndResumeReplicationForbidden) IsClientError() bool {
-	return true
-}
-
-// IsServerError returns true when this v1beta reverse and resume replication forbidden response has a 5xx status code
-func (o *V1betaReverseAndResumeReplicationForbidden) IsServerError() bool {
-	return false
-}
-
-// IsCode returns true when this v1beta reverse and resume replication forbidden response a status code equal to that given
-func (o *V1betaReverseAndResumeReplicationForbidden) IsCode(code int) bool {
-	return code == 403
-}
-
-// Code gets the status code for the v1beta reverse and resume replication forbidden response
-func (o *V1betaReverseAndResumeReplicationForbidden) Code() int {
-	return 403
-}
-
 func (o *V1betaReverseAndResumeReplicationForbidden) Error() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeResourceId}/replications/{replicationResourceId}/reverseAndResumeReplication][%d] v1betaReverseAndResumeReplicationForbidden %s", 403, payload)
-}
-
-func (o *V1betaReverseAndResumeReplicationForbidden) String() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeResourceId}/replications/{replicationResourceId}/reverseAndResumeReplication][%d] v1betaReverseAndResumeReplicationForbidden %s", 403, payload)
+	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeResourceId}/replications/{replicationResourceId}/reverseAndResumeReplication][%d] v1betaReverseAndResumeReplicationForbidden  %+v", 403, o.Payload)
 }
 
 func (o *V1betaReverseAndResumeReplicationForbidden) GetPayload() *models.Error {
@@ -376,7 +231,7 @@ func NewV1betaReverseAndResumeReplicationNotFound() *V1betaReverseAndResumeRepli
 }
 
 /*
-V1betaReverseAndResumeReplicationNotFound describes a response with status code 404, with default header values.
+V1betaReverseAndResumeReplicationNotFound handles this case with default header values.
 
 Not found
 */
@@ -384,44 +239,8 @@ type V1betaReverseAndResumeReplicationNotFound struct {
 	Payload *models.Error
 }
 
-// IsSuccess returns true when this v1beta reverse and resume replication not found response has a 2xx status code
-func (o *V1betaReverseAndResumeReplicationNotFound) IsSuccess() bool {
-	return false
-}
-
-// IsRedirect returns true when this v1beta reverse and resume replication not found response has a 3xx status code
-func (o *V1betaReverseAndResumeReplicationNotFound) IsRedirect() bool {
-	return false
-}
-
-// IsClientError returns true when this v1beta reverse and resume replication not found response has a 4xx status code
-func (o *V1betaReverseAndResumeReplicationNotFound) IsClientError() bool {
-	return true
-}
-
-// IsServerError returns true when this v1beta reverse and resume replication not found response has a 5xx status code
-func (o *V1betaReverseAndResumeReplicationNotFound) IsServerError() bool {
-	return false
-}
-
-// IsCode returns true when this v1beta reverse and resume replication not found response a status code equal to that given
-func (o *V1betaReverseAndResumeReplicationNotFound) IsCode(code int) bool {
-	return code == 404
-}
-
-// Code gets the status code for the v1beta reverse and resume replication not found response
-func (o *V1betaReverseAndResumeReplicationNotFound) Code() int {
-	return 404
-}
-
 func (o *V1betaReverseAndResumeReplicationNotFound) Error() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeResourceId}/replications/{replicationResourceId}/reverseAndResumeReplication][%d] v1betaReverseAndResumeReplicationNotFound %s", 404, payload)
-}
-
-func (o *V1betaReverseAndResumeReplicationNotFound) String() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeResourceId}/replications/{replicationResourceId}/reverseAndResumeReplication][%d] v1betaReverseAndResumeReplicationNotFound %s", 404, payload)
+	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeResourceId}/replications/{replicationResourceId}/reverseAndResumeReplication][%d] v1betaReverseAndResumeReplicationNotFound  %+v", 404, o.Payload)
 }
 
 func (o *V1betaReverseAndResumeReplicationNotFound) GetPayload() *models.Error {
@@ -446,7 +265,7 @@ func NewV1betaReverseAndResumeReplicationConflict() *V1betaReverseAndResumeRepli
 }
 
 /*
-V1betaReverseAndResumeReplicationConflict describes a response with status code 409, with default header values.
+V1betaReverseAndResumeReplicationConflict handles this case with default header values.
 
 Conflict
 */
@@ -454,44 +273,8 @@ type V1betaReverseAndResumeReplicationConflict struct {
 	Payload *models.Error
 }
 
-// IsSuccess returns true when this v1beta reverse and resume replication conflict response has a 2xx status code
-func (o *V1betaReverseAndResumeReplicationConflict) IsSuccess() bool {
-	return false
-}
-
-// IsRedirect returns true when this v1beta reverse and resume replication conflict response has a 3xx status code
-func (o *V1betaReverseAndResumeReplicationConflict) IsRedirect() bool {
-	return false
-}
-
-// IsClientError returns true when this v1beta reverse and resume replication conflict response has a 4xx status code
-func (o *V1betaReverseAndResumeReplicationConflict) IsClientError() bool {
-	return true
-}
-
-// IsServerError returns true when this v1beta reverse and resume replication conflict response has a 5xx status code
-func (o *V1betaReverseAndResumeReplicationConflict) IsServerError() bool {
-	return false
-}
-
-// IsCode returns true when this v1beta reverse and resume replication conflict response a status code equal to that given
-func (o *V1betaReverseAndResumeReplicationConflict) IsCode(code int) bool {
-	return code == 409
-}
-
-// Code gets the status code for the v1beta reverse and resume replication conflict response
-func (o *V1betaReverseAndResumeReplicationConflict) Code() int {
-	return 409
-}
-
 func (o *V1betaReverseAndResumeReplicationConflict) Error() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeResourceId}/replications/{replicationResourceId}/reverseAndResumeReplication][%d] v1betaReverseAndResumeReplicationConflict %s", 409, payload)
-}
-
-func (o *V1betaReverseAndResumeReplicationConflict) String() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeResourceId}/replications/{replicationResourceId}/reverseAndResumeReplication][%d] v1betaReverseAndResumeReplicationConflict %s", 409, payload)
+	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeResourceId}/replications/{replicationResourceId}/reverseAndResumeReplication][%d] v1betaReverseAndResumeReplicationConflict  %+v", 409, o.Payload)
 }
 
 func (o *V1betaReverseAndResumeReplicationConflict) GetPayload() *models.Error {
@@ -516,7 +299,7 @@ func NewV1betaReverseAndResumeReplicationUnprocessableEntity() *V1betaReverseAnd
 }
 
 /*
-V1betaReverseAndResumeReplicationUnprocessableEntity describes a response with status code 422, with default header values.
+V1betaReverseAndResumeReplicationUnprocessableEntity handles this case with default header values.
 
 Unprocessable entity
 */
@@ -524,44 +307,8 @@ type V1betaReverseAndResumeReplicationUnprocessableEntity struct {
 	Payload *models.Error
 }
 
-// IsSuccess returns true when this v1beta reverse and resume replication unprocessable entity response has a 2xx status code
-func (o *V1betaReverseAndResumeReplicationUnprocessableEntity) IsSuccess() bool {
-	return false
-}
-
-// IsRedirect returns true when this v1beta reverse and resume replication unprocessable entity response has a 3xx status code
-func (o *V1betaReverseAndResumeReplicationUnprocessableEntity) IsRedirect() bool {
-	return false
-}
-
-// IsClientError returns true when this v1beta reverse and resume replication unprocessable entity response has a 4xx status code
-func (o *V1betaReverseAndResumeReplicationUnprocessableEntity) IsClientError() bool {
-	return true
-}
-
-// IsServerError returns true when this v1beta reverse and resume replication unprocessable entity response has a 5xx status code
-func (o *V1betaReverseAndResumeReplicationUnprocessableEntity) IsServerError() bool {
-	return false
-}
-
-// IsCode returns true when this v1beta reverse and resume replication unprocessable entity response a status code equal to that given
-func (o *V1betaReverseAndResumeReplicationUnprocessableEntity) IsCode(code int) bool {
-	return code == 422
-}
-
-// Code gets the status code for the v1beta reverse and resume replication unprocessable entity response
-func (o *V1betaReverseAndResumeReplicationUnprocessableEntity) Code() int {
-	return 422
-}
-
 func (o *V1betaReverseAndResumeReplicationUnprocessableEntity) Error() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeResourceId}/replications/{replicationResourceId}/reverseAndResumeReplication][%d] v1betaReverseAndResumeReplicationUnprocessableEntity %s", 422, payload)
-}
-
-func (o *V1betaReverseAndResumeReplicationUnprocessableEntity) String() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeResourceId}/replications/{replicationResourceId}/reverseAndResumeReplication][%d] v1betaReverseAndResumeReplicationUnprocessableEntity %s", 422, payload)
+	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeResourceId}/replications/{replicationResourceId}/reverseAndResumeReplication][%d] v1betaReverseAndResumeReplicationUnprocessableEntity  %+v", 422, o.Payload)
 }
 
 func (o *V1betaReverseAndResumeReplicationUnprocessableEntity) GetPayload() *models.Error {
@@ -586,7 +333,7 @@ func NewV1betaReverseAndResumeReplicationTooManyRequests() *V1betaReverseAndResu
 }
 
 /*
-V1betaReverseAndResumeReplicationTooManyRequests describes a response with status code 429, with default header values.
+V1betaReverseAndResumeReplicationTooManyRequests handles this case with default header values.
 
 Too many requests
 */
@@ -594,44 +341,8 @@ type V1betaReverseAndResumeReplicationTooManyRequests struct {
 	Payload *models.Error
 }
 
-// IsSuccess returns true when this v1beta reverse and resume replication too many requests response has a 2xx status code
-func (o *V1betaReverseAndResumeReplicationTooManyRequests) IsSuccess() bool {
-	return false
-}
-
-// IsRedirect returns true when this v1beta reverse and resume replication too many requests response has a 3xx status code
-func (o *V1betaReverseAndResumeReplicationTooManyRequests) IsRedirect() bool {
-	return false
-}
-
-// IsClientError returns true when this v1beta reverse and resume replication too many requests response has a 4xx status code
-func (o *V1betaReverseAndResumeReplicationTooManyRequests) IsClientError() bool {
-	return true
-}
-
-// IsServerError returns true when this v1beta reverse and resume replication too many requests response has a 5xx status code
-func (o *V1betaReverseAndResumeReplicationTooManyRequests) IsServerError() bool {
-	return false
-}
-
-// IsCode returns true when this v1beta reverse and resume replication too many requests response a status code equal to that given
-func (o *V1betaReverseAndResumeReplicationTooManyRequests) IsCode(code int) bool {
-	return code == 429
-}
-
-// Code gets the status code for the v1beta reverse and resume replication too many requests response
-func (o *V1betaReverseAndResumeReplicationTooManyRequests) Code() int {
-	return 429
-}
-
 func (o *V1betaReverseAndResumeReplicationTooManyRequests) Error() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeResourceId}/replications/{replicationResourceId}/reverseAndResumeReplication][%d] v1betaReverseAndResumeReplicationTooManyRequests %s", 429, payload)
-}
-
-func (o *V1betaReverseAndResumeReplicationTooManyRequests) String() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeResourceId}/replications/{replicationResourceId}/reverseAndResumeReplication][%d] v1betaReverseAndResumeReplicationTooManyRequests %s", 429, payload)
+	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeResourceId}/replications/{replicationResourceId}/reverseAndResumeReplication][%d] v1betaReverseAndResumeReplicationTooManyRequests  %+v", 429, o.Payload)
 }
 
 func (o *V1betaReverseAndResumeReplicationTooManyRequests) GetPayload() *models.Error {
@@ -656,7 +367,7 @@ func NewV1betaReverseAndResumeReplicationInternalServerError() *V1betaReverseAnd
 }
 
 /*
-V1betaReverseAndResumeReplicationInternalServerError describes a response with status code 500, with default header values.
+V1betaReverseAndResumeReplicationInternalServerError handles this case with default header values.
 
 Internal server error
 */
@@ -664,44 +375,8 @@ type V1betaReverseAndResumeReplicationInternalServerError struct {
 	Payload *models.Error
 }
 
-// IsSuccess returns true when this v1beta reverse and resume replication internal server error response has a 2xx status code
-func (o *V1betaReverseAndResumeReplicationInternalServerError) IsSuccess() bool {
-	return false
-}
-
-// IsRedirect returns true when this v1beta reverse and resume replication internal server error response has a 3xx status code
-func (o *V1betaReverseAndResumeReplicationInternalServerError) IsRedirect() bool {
-	return false
-}
-
-// IsClientError returns true when this v1beta reverse and resume replication internal server error response has a 4xx status code
-func (o *V1betaReverseAndResumeReplicationInternalServerError) IsClientError() bool {
-	return false
-}
-
-// IsServerError returns true when this v1beta reverse and resume replication internal server error response has a 5xx status code
-func (o *V1betaReverseAndResumeReplicationInternalServerError) IsServerError() bool {
-	return true
-}
-
-// IsCode returns true when this v1beta reverse and resume replication internal server error response a status code equal to that given
-func (o *V1betaReverseAndResumeReplicationInternalServerError) IsCode(code int) bool {
-	return code == 500
-}
-
-// Code gets the status code for the v1beta reverse and resume replication internal server error response
-func (o *V1betaReverseAndResumeReplicationInternalServerError) Code() int {
-	return 500
-}
-
 func (o *V1betaReverseAndResumeReplicationInternalServerError) Error() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeResourceId}/replications/{replicationResourceId}/reverseAndResumeReplication][%d] v1betaReverseAndResumeReplicationInternalServerError %s", 500, payload)
-}
-
-func (o *V1betaReverseAndResumeReplicationInternalServerError) String() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeResourceId}/replications/{replicationResourceId}/reverseAndResumeReplication][%d] v1betaReverseAndResumeReplicationInternalServerError %s", 500, payload)
+	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeResourceId}/replications/{replicationResourceId}/reverseAndResumeReplication][%d] v1betaReverseAndResumeReplicationInternalServerError  %+v", 500, o.Payload)
 }
 
 func (o *V1betaReverseAndResumeReplicationInternalServerError) GetPayload() *models.Error {
@@ -728,7 +403,7 @@ func NewV1betaReverseAndResumeReplicationDefault(code int) *V1betaReverseAndResu
 }
 
 /*
-V1betaReverseAndResumeReplicationDefault describes a response with status code -1, with default header values.
+V1betaReverseAndResumeReplicationDefault handles this case with default header values.
 
 Unexpected error
 */
@@ -738,44 +413,13 @@ type V1betaReverseAndResumeReplicationDefault struct {
 	Payload *models.Error
 }
 
-// IsSuccess returns true when this v1beta reverse and resume replication default response has a 2xx status code
-func (o *V1betaReverseAndResumeReplicationDefault) IsSuccess() bool {
-	return o._statusCode/100 == 2
-}
-
-// IsRedirect returns true when this v1beta reverse and resume replication default response has a 3xx status code
-func (o *V1betaReverseAndResumeReplicationDefault) IsRedirect() bool {
-	return o._statusCode/100 == 3
-}
-
-// IsClientError returns true when this v1beta reverse and resume replication default response has a 4xx status code
-func (o *V1betaReverseAndResumeReplicationDefault) IsClientError() bool {
-	return o._statusCode/100 == 4
-}
-
-// IsServerError returns true when this v1beta reverse and resume replication default response has a 5xx status code
-func (o *V1betaReverseAndResumeReplicationDefault) IsServerError() bool {
-	return o._statusCode/100 == 5
-}
-
-// IsCode returns true when this v1beta reverse and resume replication default response a status code equal to that given
-func (o *V1betaReverseAndResumeReplicationDefault) IsCode(code int) bool {
-	return o._statusCode == code
-}
-
 // Code gets the status code for the v1beta reverse and resume replication default response
 func (o *V1betaReverseAndResumeReplicationDefault) Code() int {
 	return o._statusCode
 }
 
 func (o *V1betaReverseAndResumeReplicationDefault) Error() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeResourceId}/replications/{replicationResourceId}/reverseAndResumeReplication][%d] v1beta_reverseAndResumeReplication default %s", o._statusCode, payload)
-}
-
-func (o *V1betaReverseAndResumeReplicationDefault) String() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeResourceId}/replications/{replicationResourceId}/reverseAndResumeReplication][%d] v1beta_reverseAndResumeReplication default %s", o._statusCode, payload)
+	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeResourceId}/replications/{replicationResourceId}/reverseAndResumeReplication][%d] v1beta_reverseAndResumeReplication default  %+v", o._statusCode, o.Payload)
 }
 
 func (o *V1betaReverseAndResumeReplicationDefault) GetPayload() *models.Error {

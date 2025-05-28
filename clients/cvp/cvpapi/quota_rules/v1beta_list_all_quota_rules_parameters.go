@@ -16,37 +16,40 @@ import (
 	"github.com/go-openapi/strfmt"
 )
 
-// NewV1betaListAllQuotaRulesParams creates a new V1betaListAllQuotaRulesParams object,
-// with the default timeout for this client.
-//
-// Default values are not hydrated, since defaults are normally applied by the API server side.
-//
-// To enforce default values in parameter, use SetDefaults or WithDefaults.
+// NewV1betaListAllQuotaRulesParams creates a new V1betaListAllQuotaRulesParams object
+// with the default values initialized.
 func NewV1betaListAllQuotaRulesParams() *V1betaListAllQuotaRulesParams {
+	var ()
 	return &V1betaListAllQuotaRulesParams{
+
 		timeout: cr.DefaultTimeout,
 	}
 }
 
 // NewV1betaListAllQuotaRulesParamsWithTimeout creates a new V1betaListAllQuotaRulesParams object
-// with the ability to set a timeout on a request.
+// with the default values initialized, and the ability to set a timeout on a request
 func NewV1betaListAllQuotaRulesParamsWithTimeout(timeout time.Duration) *V1betaListAllQuotaRulesParams {
+	var ()
 	return &V1betaListAllQuotaRulesParams{
+
 		timeout: timeout,
 	}
 }
 
 // NewV1betaListAllQuotaRulesParamsWithContext creates a new V1betaListAllQuotaRulesParams object
-// with the ability to set a context for a request.
+// with the default values initialized, and the ability to set a context for a request
 func NewV1betaListAllQuotaRulesParamsWithContext(ctx context.Context) *V1betaListAllQuotaRulesParams {
+	var ()
 	return &V1betaListAllQuotaRulesParams{
+
 		Context: ctx,
 	}
 }
 
 // NewV1betaListAllQuotaRulesParamsWithHTTPClient creates a new V1betaListAllQuotaRulesParams object
-// with the ability to set a custom HTTPClient for a request.
+// with the default values initialized, and the ability to set a custom HTTPClient for a request
 func NewV1betaListAllQuotaRulesParamsWithHTTPClient(client *http.Client) *V1betaListAllQuotaRulesParams {
+	var ()
 	return &V1betaListAllQuotaRulesParams{
 		HTTPClient: client,
 	}
@@ -54,55 +57,34 @@ func NewV1betaListAllQuotaRulesParamsWithHTTPClient(client *http.Client) *V1beta
 
 /*
 V1betaListAllQuotaRulesParams contains all the parameters to send to the API endpoint
-
-	for the v1beta list all quota rules operation.
-
-	Typically these are written to a http.Request.
+for the v1beta list all quota rules operation typically these are written to a http.Request
 */
 type V1betaListAllQuotaRulesParams struct {
 
-	/* LocationID.
+	/*LocationID
+	  The location/region to perform the operation in.
 
-	   The location/region to perform the operation in.
 	*/
 	LocationID string
+	/*ProjectNumber
+	  The project number of the GCP project owning the resource being acted upon
 
-	/* ProjectNumber.
-
-	   The project number of the GCP project owning the resource being acted upon
 	*/
 	ProjectNumber string
+	/*VolumeID
+	  UUID v4 used to identify the volume
 
-	/* VolumeID.
-
-	   UUID v4 used to identify the volume
 	*/
 	VolumeID string
+	/*XCorrelationID
+	  Correlation identifier
 
-	/* XCorrelationID.
-
-	   Correlation identifier
 	*/
 	XCorrelationID *string
 
 	timeout    time.Duration
 	Context    context.Context
 	HTTPClient *http.Client
-}
-
-// WithDefaults hydrates default values in the v1beta list all quota rules params (not the query body).
-//
-// All values with no default are reset to their zero value.
-func (o *V1betaListAllQuotaRulesParams) WithDefaults() *V1betaListAllQuotaRulesParams {
-	o.SetDefaults()
-	return o
-}
-
-// SetDefaults hydrates default values in the v1beta list all quota rules params (not the query body).
-//
-// All values with no default are reset to their zero value.
-func (o *V1betaListAllQuotaRulesParams) SetDefaults() {
-	// no default values defined for this parameter
 }
 
 // WithTimeout adds the timeout to the v1beta list all quota rules params
@@ -211,6 +193,7 @@ func (o *V1betaListAllQuotaRulesParams) WriteToRequest(r runtime.ClientRequest, 
 		if err := r.SetHeaderParam("x-correlation-id", *o.XCorrelationID); err != nil {
 			return err
 		}
+
 	}
 
 	if len(res) > 0 {

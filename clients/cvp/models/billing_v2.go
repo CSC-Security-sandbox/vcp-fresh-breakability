@@ -6,8 +6,6 @@ package models
 // Editing this file might prove futile when you re-run the swagger generate command
 
 import (
-	"context"
-
 	"github.com/go-openapi/errors"
 	"github.com/go-openapi/strfmt"
 	"github.com/go-openapi/swag"
@@ -22,7 +20,6 @@ import (
 type BillingV2 struct {
 
 	// Account ID of tenant project undergoing migration
-	// Example: 225751136894 or test-project
 	// Required: true
 	ProjectID *string `json:"projectId"`
 }
@@ -47,11 +44,6 @@ func (m *BillingV2) validateProjectID(formats strfmt.Registry) error {
 		return err
 	}
 
-	return nil
-}
-
-// ContextValidate validates this billing v2 based on context it is used
-func (m *BillingV2) ContextValidate(ctx context.Context, formats strfmt.Registry) error {
 	return nil
 }
 

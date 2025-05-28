@@ -6,8 +6,6 @@ package models
 // Editing this file might prove futile when you re-run the swagger generate command
 
 import (
-	"context"
-
 	"github.com/go-openapi/errors"
 	"github.com/go-openapi/strfmt"
 	"github.com/go-openapi/swag"
@@ -22,7 +20,6 @@ import (
 type VolumeIDV1beta struct {
 
 	// UUID v4 of the volume
-	// Example: 9760acf5-4638-11e7-9bdb-020073ca0001
 	// Required: true
 	// Max Length: 36
 	// Min Length: 36
@@ -50,23 +47,18 @@ func (m *VolumeIDV1beta) validateVolumeID(formats strfmt.Registry) error {
 		return err
 	}
 
-	if err := validate.MinLength("volumeId", "body", *m.VolumeID, 36); err != nil {
+	if err := validate.MinLength("volumeId", "body", string(*m.VolumeID), 36); err != nil {
 		return err
 	}
 
-	if err := validate.MaxLength("volumeId", "body", *m.VolumeID, 36); err != nil {
+	if err := validate.MaxLength("volumeId", "body", string(*m.VolumeID), 36); err != nil {
 		return err
 	}
 
-	if err := validate.Pattern("volumeId", "body", *m.VolumeID, `^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$`); err != nil {
+	if err := validate.Pattern("volumeId", "body", string(*m.VolumeID), `^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$`); err != nil {
 		return err
 	}
 
-	return nil
-}
-
-// ContextValidate validates this volume Id v1beta based on context it is used
-func (m *VolumeIDV1beta) ContextValidate(ctx context.Context, formats strfmt.Registry) error {
 	return nil
 }
 

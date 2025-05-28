@@ -6,8 +6,6 @@ package models
 // Editing this file might prove futile when you re-run the swagger generate command
 
 import (
-	"context"
-
 	"github.com/go-openapi/errors"
 	"github.com/go-openapi/strfmt"
 	"github.com/go-openapi/swag"
@@ -42,6 +40,7 @@ func (m *BackupVaultUpdateV1beta) Validate(formats strfmt.Registry) error {
 }
 
 func (m *BackupVaultUpdateV1beta) validateBackupRetentionPolicy(formats strfmt.Registry) error {
+
 	if swag.IsZero(m.BackupRetentionPolicy) { // not required
 		return nil
 	}
@@ -50,43 +49,6 @@ func (m *BackupVaultUpdateV1beta) validateBackupRetentionPolicy(formats strfmt.R
 		if err := m.BackupRetentionPolicy.Validate(formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("backupRetentionPolicy")
-			} else if ce, ok := err.(*errors.CompositeError); ok {
-				return ce.ValidateName("backupRetentionPolicy")
-			}
-			return err
-		}
-	}
-
-	return nil
-}
-
-// ContextValidate validate this backup vault update v1beta based on the context it is used
-func (m *BackupVaultUpdateV1beta) ContextValidate(ctx context.Context, formats strfmt.Registry) error {
-	var res []error
-
-	if err := m.contextValidateBackupRetentionPolicy(ctx, formats); err != nil {
-		res = append(res, err)
-	}
-
-	if len(res) > 0 {
-		return errors.CompositeValidationError(res...)
-	}
-	return nil
-}
-
-func (m *BackupVaultUpdateV1beta) contextValidateBackupRetentionPolicy(ctx context.Context, formats strfmt.Registry) error {
-
-	if m.BackupRetentionPolicy != nil {
-
-		if swag.IsZero(m.BackupRetentionPolicy) { // not required
-			return nil
-		}
-
-		if err := m.BackupRetentionPolicy.ContextValidate(ctx, formats); err != nil {
-			if ve, ok := err.(*errors.Validation); ok {
-				return ve.ValidateName("backupRetentionPolicy")
-			} else if ce, ok := err.(*errors.CompositeError); ok {
-				return ce.ValidateName("backupRetentionPolicy")
 			}
 			return err
 		}

@@ -6,7 +6,6 @@ package models
 // Editing this file might prove futile when you re-run the swagger generate command
 
 import (
-	"context"
 	"encoding/json"
 
 	"github.com/go-openapi/errors"
@@ -21,22 +20,18 @@ import (
 type BatchSnapshotV1beta struct {
 
 	// Creation date of the resource
-	// Example: 2016-11-30T20:32:50.459Z
 	// Read Only: true
 	// Format: date-time
 	Created *strfmt.DateTime `json:"created,omitempty"`
 
 	// Description of the snapshot
-	// Example: My snapshot description
 	Description *string `json:"description,omitempty"`
 
 	// A human readable label for the resource
-	// Example: snapshot-resource
 	// Max Length: 255
 	ResourceID *string `json:"resourceId,omitempty"`
 
 	// UUID v4 used to identify the snapshot
-	// Example: 9760acf5-4638-11e7-9bdb-020073ca3333
 	// Read Only: true
 	// Max Length: 36
 	// Min Length: 36
@@ -44,47 +39,40 @@ type BatchSnapshotV1beta struct {
 	SnapshotID string `json:"snapshotId,omitempty"`
 
 	// The current lifecycle state of the snapshot
-	// Example: READY
 	// Read Only: true
-	// Enum: ["STATE_UNSPECIFIED","CREATING","READY","UPDATING","RESTORING","DELETED","DISABLED","DELETING","ERROR"]
+	// Enum: [STATE_UNSPECIFIED CREATING READY UPDATING RESTORING DELETED DISABLED DELETING ERROR]
 	SnapshotState string `json:"snapshotState,omitempty"`
 
 	// Details about the current lifecycle state
-	// Example: Available for use
 	SnapshotStateDetails *string `json:"snapshotStateDetails,omitempty"`
 
 	// storageClass
 	//
 	// Storage class of the volume, either software or hardware
-	// Example: HARDWARE
 	// Read Only: true
 	StorageClass string `json:"storageClass,omitempty"`
 
 	// usedBytes
 	//
 	// Current storage usage for the snapshot in bytes
-	// Example: 101010
 	// Minimum: 0
 	UsedBytes *float64 `json:"usedBytes,omitempty"`
 
 	// volumeId
 	//
 	// UUID v4 of the volume
-	// Example: 9760acf5-4638-11e7-9bdb-020073ca0001
 	// Max Length: 36
 	// Min Length: 36
 	// Pattern: ^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$
 	VolumeID *string `json:"volumeId,omitempty"`
 
 	// A human readable label for the volume resource
-	// Example: volume
 	// Max Length: 255
 	VolumeResourceID *string `json:"volumeResourceId,omitempty"`
 
 	// zone
 	//
 	// The name of the zone in which the snapshot is present
-	// Example: us-east4-a
 	Zone *string `json:"zone,omitempty"`
 }
 
@@ -127,6 +115,7 @@ func (m *BatchSnapshotV1beta) Validate(formats strfmt.Registry) error {
 }
 
 func (m *BatchSnapshotV1beta) validateCreated(formats strfmt.Registry) error {
+
 	if swag.IsZero(m.Created) { // not required
 		return nil
 	}
@@ -139,11 +128,12 @@ func (m *BatchSnapshotV1beta) validateCreated(formats strfmt.Registry) error {
 }
 
 func (m *BatchSnapshotV1beta) validateResourceID(formats strfmt.Registry) error {
+
 	if swag.IsZero(m.ResourceID) { // not required
 		return nil
 	}
 
-	if err := validate.MaxLength("resourceId", "body", *m.ResourceID, 255); err != nil {
+	if err := validate.MaxLength("resourceId", "body", string(*m.ResourceID), 255); err != nil {
 		return err
 	}
 
@@ -151,19 +141,20 @@ func (m *BatchSnapshotV1beta) validateResourceID(formats strfmt.Registry) error 
 }
 
 func (m *BatchSnapshotV1beta) validateSnapshotID(formats strfmt.Registry) error {
+
 	if swag.IsZero(m.SnapshotID) { // not required
 		return nil
 	}
 
-	if err := validate.MinLength("snapshotId", "body", m.SnapshotID, 36); err != nil {
+	if err := validate.MinLength("snapshotId", "body", string(m.SnapshotID), 36); err != nil {
 		return err
 	}
 
-	if err := validate.MaxLength("snapshotId", "body", m.SnapshotID, 36); err != nil {
+	if err := validate.MaxLength("snapshotId", "body", string(m.SnapshotID), 36); err != nil {
 		return err
 	}
 
-	if err := validate.Pattern("snapshotId", "body", m.SnapshotID, `^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$`); err != nil {
+	if err := validate.Pattern("snapshotId", "body", string(m.SnapshotID), `^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$`); err != nil {
 		return err
 	}
 
@@ -221,6 +212,7 @@ func (m *BatchSnapshotV1beta) validateSnapshotStateEnum(path, location string, v
 }
 
 func (m *BatchSnapshotV1beta) validateSnapshotState(formats strfmt.Registry) error {
+
 	if swag.IsZero(m.SnapshotState) { // not required
 		return nil
 	}
@@ -234,11 +226,12 @@ func (m *BatchSnapshotV1beta) validateSnapshotState(formats strfmt.Registry) err
 }
 
 func (m *BatchSnapshotV1beta) validateUsedBytes(formats strfmt.Registry) error {
+
 	if swag.IsZero(m.UsedBytes) { // not required
 		return nil
 	}
 
-	if err := validate.Minimum("usedBytes", "body", *m.UsedBytes, 0, false); err != nil {
+	if err := validate.Minimum("usedBytes", "body", float64(*m.UsedBytes), 0, false); err != nil {
 		return err
 	}
 
@@ -246,19 +239,20 @@ func (m *BatchSnapshotV1beta) validateUsedBytes(formats strfmt.Registry) error {
 }
 
 func (m *BatchSnapshotV1beta) validateVolumeID(formats strfmt.Registry) error {
+
 	if swag.IsZero(m.VolumeID) { // not required
 		return nil
 	}
 
-	if err := validate.MinLength("volumeId", "body", *m.VolumeID, 36); err != nil {
+	if err := validate.MinLength("volumeId", "body", string(*m.VolumeID), 36); err != nil {
 		return err
 	}
 
-	if err := validate.MaxLength("volumeId", "body", *m.VolumeID, 36); err != nil {
+	if err := validate.MaxLength("volumeId", "body", string(*m.VolumeID), 36); err != nil {
 		return err
 	}
 
-	if err := validate.Pattern("volumeId", "body", *m.VolumeID, `^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$`); err != nil {
+	if err := validate.Pattern("volumeId", "body", string(*m.VolumeID), `^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$`); err != nil {
 		return err
 	}
 
@@ -266,73 +260,12 @@ func (m *BatchSnapshotV1beta) validateVolumeID(formats strfmt.Registry) error {
 }
 
 func (m *BatchSnapshotV1beta) validateVolumeResourceID(formats strfmt.Registry) error {
+
 	if swag.IsZero(m.VolumeResourceID) { // not required
 		return nil
 	}
 
-	if err := validate.MaxLength("volumeResourceId", "body", *m.VolumeResourceID, 255); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-// ContextValidate validate this batch snapshot v1beta based on the context it is used
-func (m *BatchSnapshotV1beta) ContextValidate(ctx context.Context, formats strfmt.Registry) error {
-	var res []error
-
-	if err := m.contextValidateCreated(ctx, formats); err != nil {
-		res = append(res, err)
-	}
-
-	if err := m.contextValidateSnapshotID(ctx, formats); err != nil {
-		res = append(res, err)
-	}
-
-	if err := m.contextValidateSnapshotState(ctx, formats); err != nil {
-		res = append(res, err)
-	}
-
-	if err := m.contextValidateStorageClass(ctx, formats); err != nil {
-		res = append(res, err)
-	}
-
-	if len(res) > 0 {
-		return errors.CompositeValidationError(res...)
-	}
-	return nil
-}
-
-func (m *BatchSnapshotV1beta) contextValidateCreated(ctx context.Context, formats strfmt.Registry) error {
-
-	if err := validate.ReadOnly(ctx, "created", "body", m.Created); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (m *BatchSnapshotV1beta) contextValidateSnapshotID(ctx context.Context, formats strfmt.Registry) error {
-
-	if err := validate.ReadOnly(ctx, "snapshotId", "body", string(m.SnapshotID)); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (m *BatchSnapshotV1beta) contextValidateSnapshotState(ctx context.Context, formats strfmt.Registry) error {
-
-	if err := validate.ReadOnly(ctx, "snapshotState", "body", string(m.SnapshotState)); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (m *BatchSnapshotV1beta) contextValidateStorageClass(ctx context.Context, formats strfmt.Registry) error {
-
-	if err := validate.ReadOnly(ctx, "storageClass", "body", string(m.StorageClass)); err != nil {
+	if err := validate.MaxLength("volumeResourceId", "body", string(*m.VolumeResourceID), 255); err != nil {
 		return err
 	}
 

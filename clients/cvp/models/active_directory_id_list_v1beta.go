@@ -6,7 +6,6 @@ package models
 // Editing this file might prove futile when you re-run the swagger generate command
 
 import (
-	"context"
 	"strconv"
 
 	"github.com/go-openapi/errors"
@@ -54,17 +53,12 @@ func (m *ActiveDirectoryIDListV1beta) validateActiveDirectoryUUIDs(formats strfm
 
 	for i := 0; i < len(m.ActiveDirectoryUUIDs); i++ {
 
-		if err := validate.Pattern("activeDirectoryUUIDs"+"."+strconv.Itoa(i), "body", m.ActiveDirectoryUUIDs[i], `^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$`); err != nil {
+		if err := validate.Pattern("activeDirectoryUUIDs"+"."+strconv.Itoa(i), "body", string(m.ActiveDirectoryUUIDs[i]), `^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$`); err != nil {
 			return err
 		}
 
 	}
 
-	return nil
-}
-
-// ContextValidate validates this active directory ID list v1beta based on context it is used
-func (m *ActiveDirectoryIDListV1beta) ContextValidate(ctx context.Context, formats strfmt.Registry) error {
 	return nil
 }
 

@@ -185,8 +185,8 @@ func convertToSnapshotsV1Beta(snap *cvpmodels.SnapshotV1beta) gcpgenserver.Snaps
 		Zone:                 gcpgenserver.NewOptString(snap.Zone),
 		Description:          gcpgenserver.NewOptString(nillable.GetString(snap.Description, "")),
 	}
-	if snap.StorageClass != nil {
-		snapshot.StorageClass = gcpgenserver.NewOptStorageClassV1beta(gcpgenserver.StorageClassV1beta(*snap.StorageClass))
+	if snap.StorageClass == "" {
+		snapshot.StorageClass = gcpgenserver.NewOptStorageClassV1beta(gcpgenserver.StorageClassV1beta(snap.StorageClass))
 	} else {
 		snapshot.StorageClass = gcpgenserver.NewOptStorageClassV1beta(gcpgenserver.StorageClassV1betaHARDWARE)
 	}

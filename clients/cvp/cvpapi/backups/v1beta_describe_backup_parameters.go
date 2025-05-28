@@ -16,37 +16,40 @@ import (
 	"github.com/go-openapi/strfmt"
 )
 
-// NewV1betaDescribeBackupParams creates a new V1betaDescribeBackupParams object,
-// with the default timeout for this client.
-//
-// Default values are not hydrated, since defaults are normally applied by the API server side.
-//
-// To enforce default values in parameter, use SetDefaults or WithDefaults.
+// NewV1betaDescribeBackupParams creates a new V1betaDescribeBackupParams object
+// with the default values initialized.
 func NewV1betaDescribeBackupParams() *V1betaDescribeBackupParams {
+	var ()
 	return &V1betaDescribeBackupParams{
+
 		timeout: cr.DefaultTimeout,
 	}
 }
 
 // NewV1betaDescribeBackupParamsWithTimeout creates a new V1betaDescribeBackupParams object
-// with the ability to set a timeout on a request.
+// with the default values initialized, and the ability to set a timeout on a request
 func NewV1betaDescribeBackupParamsWithTimeout(timeout time.Duration) *V1betaDescribeBackupParams {
+	var ()
 	return &V1betaDescribeBackupParams{
+
 		timeout: timeout,
 	}
 }
 
 // NewV1betaDescribeBackupParamsWithContext creates a new V1betaDescribeBackupParams object
-// with the ability to set a context for a request.
+// with the default values initialized, and the ability to set a context for a request
 func NewV1betaDescribeBackupParamsWithContext(ctx context.Context) *V1betaDescribeBackupParams {
+	var ()
 	return &V1betaDescribeBackupParams{
+
 		Context: ctx,
 	}
 }
 
 // NewV1betaDescribeBackupParamsWithHTTPClient creates a new V1betaDescribeBackupParams object
-// with the ability to set a custom HTTPClient for a request.
+// with the default values initialized, and the ability to set a custom HTTPClient for a request
 func NewV1betaDescribeBackupParamsWithHTTPClient(client *http.Client) *V1betaDescribeBackupParams {
+	var ()
 	return &V1betaDescribeBackupParams{
 		HTTPClient: client,
 	}
@@ -54,67 +57,44 @@ func NewV1betaDescribeBackupParamsWithHTTPClient(client *http.Client) *V1betaDes
 
 /*
 V1betaDescribeBackupParams contains all the parameters to send to the API endpoint
-
-	for the v1beta describe backup operation.
-
-	Typically these are written to a http.Request.
+for the v1beta describe backup operation typically these are written to a http.Request
 */
 type V1betaDescribeBackupParams struct {
 
-	/* BackupID.
+	/*BackupID
+	  UUID v4 used to identify the backup
 
-	   UUID v4 used to identify the backup
 	*/
 	BackupID string
+	/*BackupVaultID
+	  UUID v4 used to identify the backup vault
 
-	/* BackupVaultID.
-
-	   UUID v4 used to identify the backup vault
 	*/
 	BackupVaultID string
+	/*LocationID
+	  The location/region to perform the operation in.
 
-	/* LocationID.
-
-	   The location/region to perform the operation in.
 	*/
 	LocationID string
+	/*ProjectNumber
+	  The project number of the GCP project owning the resource being acted upon
 
-	/* ProjectNumber.
-
-	   The project number of the GCP project owning the resource being acted upon
 	*/
 	ProjectNumber string
+	/*VolumeID
+	  Describe a backup under a backup vault
 
-	/* VolumeID.
-
-	   Describe a backup under a backup vault
 	*/
 	VolumeID *string
+	/*XCorrelationID
+	  Correlation identifier
 
-	/* XCorrelationID.
-
-	   Correlation identifier
 	*/
 	XCorrelationID *string
 
 	timeout    time.Duration
 	Context    context.Context
 	HTTPClient *http.Client
-}
-
-// WithDefaults hydrates default values in the v1beta describe backup params (not the query body).
-//
-// All values with no default are reset to their zero value.
-func (o *V1betaDescribeBackupParams) WithDefaults() *V1betaDescribeBackupParams {
-	o.SetDefaults()
-	return o
-}
-
-// SetDefaults hydrates default values in the v1beta describe backup params (not the query body).
-//
-// All values with no default are reset to their zero value.
-func (o *V1betaDescribeBackupParams) SetDefaults() {
-	// no default values defined for this parameter
 }
 
 // WithTimeout adds the timeout to the v1beta describe backup params
@@ -248,17 +228,16 @@ func (o *V1betaDescribeBackupParams) WriteToRequest(r runtime.ClientRequest, reg
 
 		// query param volumeId
 		var qrVolumeID string
-
 		if o.VolumeID != nil {
 			qrVolumeID = *o.VolumeID
 		}
 		qVolumeID := qrVolumeID
 		if qVolumeID != "" {
-
 			if err := r.SetQueryParam("volumeId", qVolumeID); err != nil {
 				return err
 			}
 		}
+
 	}
 
 	if o.XCorrelationID != nil {
@@ -267,6 +246,7 @@ func (o *V1betaDescribeBackupParams) WriteToRequest(r runtime.ClientRequest, reg
 		if err := r.SetHeaderParam("x-correlation-id", *o.XCorrelationID); err != nil {
 			return err
 		}
+
 	}
 
 	if len(res) > 0 {

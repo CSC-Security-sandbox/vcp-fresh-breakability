@@ -6,7 +6,6 @@ package async
 // Editing this file might prove futile when you re-run the swagger generate command
 
 import (
-	"encoding/json"
 	"fmt"
 	"io"
 
@@ -98,7 +97,7 @@ func NewV1betaDescribeOperationOK() *V1betaDescribeOperationOK {
 }
 
 /*
-V1betaDescribeOperationOK describes a response with status code 200, with default header values.
+V1betaDescribeOperationOK handles this case with default header values.
 
 OK
 */
@@ -106,44 +105,8 @@ type V1betaDescribeOperationOK struct {
 	Payload *models.OperationV1beta
 }
 
-// IsSuccess returns true when this v1beta describe operation o k response has a 2xx status code
-func (o *V1betaDescribeOperationOK) IsSuccess() bool {
-	return true
-}
-
-// IsRedirect returns true when this v1beta describe operation o k response has a 3xx status code
-func (o *V1betaDescribeOperationOK) IsRedirect() bool {
-	return false
-}
-
-// IsClientError returns true when this v1beta describe operation o k response has a 4xx status code
-func (o *V1betaDescribeOperationOK) IsClientError() bool {
-	return false
-}
-
-// IsServerError returns true when this v1beta describe operation o k response has a 5xx status code
-func (o *V1betaDescribeOperationOK) IsServerError() bool {
-	return false
-}
-
-// IsCode returns true when this v1beta describe operation o k response a status code equal to that given
-func (o *V1betaDescribeOperationOK) IsCode(code int) bool {
-	return code == 200
-}
-
-// Code gets the status code for the v1beta describe operation o k response
-func (o *V1betaDescribeOperationOK) Code() int {
-	return 200
-}
-
 func (o *V1betaDescribeOperationOK) Error() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[GET /v1beta/projects/{projectNumber}/locations/{locationId}/operations/{operationId}][%d] v1betaDescribeOperationOK %s", 200, payload)
-}
-
-func (o *V1betaDescribeOperationOK) String() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[GET /v1beta/projects/{projectNumber}/locations/{locationId}/operations/{operationId}][%d] v1betaDescribeOperationOK %s", 200, payload)
+	return fmt.Sprintf("[GET /v1beta/projects/{projectNumber}/locations/{locationId}/operations/{operationId}][%d] v1betaDescribeOperationOK  %+v", 200, o.Payload)
 }
 
 func (o *V1betaDescribeOperationOK) GetPayload() *models.OperationV1beta {
@@ -168,7 +131,7 @@ func NewV1betaDescribeOperationBadRequest() *V1betaDescribeOperationBadRequest {
 }
 
 /*
-V1betaDescribeOperationBadRequest describes a response with status code 400, with default header values.
+V1betaDescribeOperationBadRequest handles this case with default header values.
 
 Bad request
 */
@@ -176,44 +139,8 @@ type V1betaDescribeOperationBadRequest struct {
 	Payload *models.Error
 }
 
-// IsSuccess returns true when this v1beta describe operation bad request response has a 2xx status code
-func (o *V1betaDescribeOperationBadRequest) IsSuccess() bool {
-	return false
-}
-
-// IsRedirect returns true when this v1beta describe operation bad request response has a 3xx status code
-func (o *V1betaDescribeOperationBadRequest) IsRedirect() bool {
-	return false
-}
-
-// IsClientError returns true when this v1beta describe operation bad request response has a 4xx status code
-func (o *V1betaDescribeOperationBadRequest) IsClientError() bool {
-	return true
-}
-
-// IsServerError returns true when this v1beta describe operation bad request response has a 5xx status code
-func (o *V1betaDescribeOperationBadRequest) IsServerError() bool {
-	return false
-}
-
-// IsCode returns true when this v1beta describe operation bad request response a status code equal to that given
-func (o *V1betaDescribeOperationBadRequest) IsCode(code int) bool {
-	return code == 400
-}
-
-// Code gets the status code for the v1beta describe operation bad request response
-func (o *V1betaDescribeOperationBadRequest) Code() int {
-	return 400
-}
-
 func (o *V1betaDescribeOperationBadRequest) Error() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[GET /v1beta/projects/{projectNumber}/locations/{locationId}/operations/{operationId}][%d] v1betaDescribeOperationBadRequest %s", 400, payload)
-}
-
-func (o *V1betaDescribeOperationBadRequest) String() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[GET /v1beta/projects/{projectNumber}/locations/{locationId}/operations/{operationId}][%d] v1betaDescribeOperationBadRequest %s", 400, payload)
+	return fmt.Sprintf("[GET /v1beta/projects/{projectNumber}/locations/{locationId}/operations/{operationId}][%d] v1betaDescribeOperationBadRequest  %+v", 400, o.Payload)
 }
 
 func (o *V1betaDescribeOperationBadRequest) GetPayload() *models.Error {
@@ -238,7 +165,7 @@ func NewV1betaDescribeOperationUnauthorized() *V1betaDescribeOperationUnauthoriz
 }
 
 /*
-V1betaDescribeOperationUnauthorized describes a response with status code 401, with default header values.
+V1betaDescribeOperationUnauthorized handles this case with default header values.
 
 Unauthorized
 */
@@ -246,44 +173,8 @@ type V1betaDescribeOperationUnauthorized struct {
 	Payload *models.Error
 }
 
-// IsSuccess returns true when this v1beta describe operation unauthorized response has a 2xx status code
-func (o *V1betaDescribeOperationUnauthorized) IsSuccess() bool {
-	return false
-}
-
-// IsRedirect returns true when this v1beta describe operation unauthorized response has a 3xx status code
-func (o *V1betaDescribeOperationUnauthorized) IsRedirect() bool {
-	return false
-}
-
-// IsClientError returns true when this v1beta describe operation unauthorized response has a 4xx status code
-func (o *V1betaDescribeOperationUnauthorized) IsClientError() bool {
-	return true
-}
-
-// IsServerError returns true when this v1beta describe operation unauthorized response has a 5xx status code
-func (o *V1betaDescribeOperationUnauthorized) IsServerError() bool {
-	return false
-}
-
-// IsCode returns true when this v1beta describe operation unauthorized response a status code equal to that given
-func (o *V1betaDescribeOperationUnauthorized) IsCode(code int) bool {
-	return code == 401
-}
-
-// Code gets the status code for the v1beta describe operation unauthorized response
-func (o *V1betaDescribeOperationUnauthorized) Code() int {
-	return 401
-}
-
 func (o *V1betaDescribeOperationUnauthorized) Error() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[GET /v1beta/projects/{projectNumber}/locations/{locationId}/operations/{operationId}][%d] v1betaDescribeOperationUnauthorized %s", 401, payload)
-}
-
-func (o *V1betaDescribeOperationUnauthorized) String() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[GET /v1beta/projects/{projectNumber}/locations/{locationId}/operations/{operationId}][%d] v1betaDescribeOperationUnauthorized %s", 401, payload)
+	return fmt.Sprintf("[GET /v1beta/projects/{projectNumber}/locations/{locationId}/operations/{operationId}][%d] v1betaDescribeOperationUnauthorized  %+v", 401, o.Payload)
 }
 
 func (o *V1betaDescribeOperationUnauthorized) GetPayload() *models.Error {
@@ -308,7 +199,7 @@ func NewV1betaDescribeOperationForbidden() *V1betaDescribeOperationForbidden {
 }
 
 /*
-V1betaDescribeOperationForbidden describes a response with status code 403, with default header values.
+V1betaDescribeOperationForbidden handles this case with default header values.
 
 Forbidden
 */
@@ -316,44 +207,8 @@ type V1betaDescribeOperationForbidden struct {
 	Payload *models.Error
 }
 
-// IsSuccess returns true when this v1beta describe operation forbidden response has a 2xx status code
-func (o *V1betaDescribeOperationForbidden) IsSuccess() bool {
-	return false
-}
-
-// IsRedirect returns true when this v1beta describe operation forbidden response has a 3xx status code
-func (o *V1betaDescribeOperationForbidden) IsRedirect() bool {
-	return false
-}
-
-// IsClientError returns true when this v1beta describe operation forbidden response has a 4xx status code
-func (o *V1betaDescribeOperationForbidden) IsClientError() bool {
-	return true
-}
-
-// IsServerError returns true when this v1beta describe operation forbidden response has a 5xx status code
-func (o *V1betaDescribeOperationForbidden) IsServerError() bool {
-	return false
-}
-
-// IsCode returns true when this v1beta describe operation forbidden response a status code equal to that given
-func (o *V1betaDescribeOperationForbidden) IsCode(code int) bool {
-	return code == 403
-}
-
-// Code gets the status code for the v1beta describe operation forbidden response
-func (o *V1betaDescribeOperationForbidden) Code() int {
-	return 403
-}
-
 func (o *V1betaDescribeOperationForbidden) Error() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[GET /v1beta/projects/{projectNumber}/locations/{locationId}/operations/{operationId}][%d] v1betaDescribeOperationForbidden %s", 403, payload)
-}
-
-func (o *V1betaDescribeOperationForbidden) String() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[GET /v1beta/projects/{projectNumber}/locations/{locationId}/operations/{operationId}][%d] v1betaDescribeOperationForbidden %s", 403, payload)
+	return fmt.Sprintf("[GET /v1beta/projects/{projectNumber}/locations/{locationId}/operations/{operationId}][%d] v1betaDescribeOperationForbidden  %+v", 403, o.Payload)
 }
 
 func (o *V1betaDescribeOperationForbidden) GetPayload() *models.Error {
@@ -378,7 +233,7 @@ func NewV1betaDescribeOperationNotFound() *V1betaDescribeOperationNotFound {
 }
 
 /*
-V1betaDescribeOperationNotFound describes a response with status code 404, with default header values.
+V1betaDescribeOperationNotFound handles this case with default header values.
 
 Not found
 */
@@ -386,44 +241,8 @@ type V1betaDescribeOperationNotFound struct {
 	Payload *models.Error
 }
 
-// IsSuccess returns true when this v1beta describe operation not found response has a 2xx status code
-func (o *V1betaDescribeOperationNotFound) IsSuccess() bool {
-	return false
-}
-
-// IsRedirect returns true when this v1beta describe operation not found response has a 3xx status code
-func (o *V1betaDescribeOperationNotFound) IsRedirect() bool {
-	return false
-}
-
-// IsClientError returns true when this v1beta describe operation not found response has a 4xx status code
-func (o *V1betaDescribeOperationNotFound) IsClientError() bool {
-	return true
-}
-
-// IsServerError returns true when this v1beta describe operation not found response has a 5xx status code
-func (o *V1betaDescribeOperationNotFound) IsServerError() bool {
-	return false
-}
-
-// IsCode returns true when this v1beta describe operation not found response a status code equal to that given
-func (o *V1betaDescribeOperationNotFound) IsCode(code int) bool {
-	return code == 404
-}
-
-// Code gets the status code for the v1beta describe operation not found response
-func (o *V1betaDescribeOperationNotFound) Code() int {
-	return 404
-}
-
 func (o *V1betaDescribeOperationNotFound) Error() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[GET /v1beta/projects/{projectNumber}/locations/{locationId}/operations/{operationId}][%d] v1betaDescribeOperationNotFound %s", 404, payload)
-}
-
-func (o *V1betaDescribeOperationNotFound) String() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[GET /v1beta/projects/{projectNumber}/locations/{locationId}/operations/{operationId}][%d] v1betaDescribeOperationNotFound %s", 404, payload)
+	return fmt.Sprintf("[GET /v1beta/projects/{projectNumber}/locations/{locationId}/operations/{operationId}][%d] v1betaDescribeOperationNotFound  %+v", 404, o.Payload)
 }
 
 func (o *V1betaDescribeOperationNotFound) GetPayload() *models.Error {
@@ -448,7 +267,7 @@ func NewV1betaDescribeOperationUnprocessableEntity() *V1betaDescribeOperationUnp
 }
 
 /*
-V1betaDescribeOperationUnprocessableEntity describes a response with status code 422, with default header values.
+V1betaDescribeOperationUnprocessableEntity handles this case with default header values.
 
 Unprocessable entity
 */
@@ -456,44 +275,8 @@ type V1betaDescribeOperationUnprocessableEntity struct {
 	Payload *models.Error
 }
 
-// IsSuccess returns true when this v1beta describe operation unprocessable entity response has a 2xx status code
-func (o *V1betaDescribeOperationUnprocessableEntity) IsSuccess() bool {
-	return false
-}
-
-// IsRedirect returns true when this v1beta describe operation unprocessable entity response has a 3xx status code
-func (o *V1betaDescribeOperationUnprocessableEntity) IsRedirect() bool {
-	return false
-}
-
-// IsClientError returns true when this v1beta describe operation unprocessable entity response has a 4xx status code
-func (o *V1betaDescribeOperationUnprocessableEntity) IsClientError() bool {
-	return true
-}
-
-// IsServerError returns true when this v1beta describe operation unprocessable entity response has a 5xx status code
-func (o *V1betaDescribeOperationUnprocessableEntity) IsServerError() bool {
-	return false
-}
-
-// IsCode returns true when this v1beta describe operation unprocessable entity response a status code equal to that given
-func (o *V1betaDescribeOperationUnprocessableEntity) IsCode(code int) bool {
-	return code == 422
-}
-
-// Code gets the status code for the v1beta describe operation unprocessable entity response
-func (o *V1betaDescribeOperationUnprocessableEntity) Code() int {
-	return 422
-}
-
 func (o *V1betaDescribeOperationUnprocessableEntity) Error() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[GET /v1beta/projects/{projectNumber}/locations/{locationId}/operations/{operationId}][%d] v1betaDescribeOperationUnprocessableEntity %s", 422, payload)
-}
-
-func (o *V1betaDescribeOperationUnprocessableEntity) String() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[GET /v1beta/projects/{projectNumber}/locations/{locationId}/operations/{operationId}][%d] v1betaDescribeOperationUnprocessableEntity %s", 422, payload)
+	return fmt.Sprintf("[GET /v1beta/projects/{projectNumber}/locations/{locationId}/operations/{operationId}][%d] v1betaDescribeOperationUnprocessableEntity  %+v", 422, o.Payload)
 }
 
 func (o *V1betaDescribeOperationUnprocessableEntity) GetPayload() *models.Error {
@@ -518,7 +301,7 @@ func NewV1betaDescribeOperationTooManyRequests() *V1betaDescribeOperationTooMany
 }
 
 /*
-V1betaDescribeOperationTooManyRequests describes a response with status code 429, with default header values.
+V1betaDescribeOperationTooManyRequests handles this case with default header values.
 
 Too many requests
 */
@@ -526,44 +309,8 @@ type V1betaDescribeOperationTooManyRequests struct {
 	Payload *models.Error
 }
 
-// IsSuccess returns true when this v1beta describe operation too many requests response has a 2xx status code
-func (o *V1betaDescribeOperationTooManyRequests) IsSuccess() bool {
-	return false
-}
-
-// IsRedirect returns true when this v1beta describe operation too many requests response has a 3xx status code
-func (o *V1betaDescribeOperationTooManyRequests) IsRedirect() bool {
-	return false
-}
-
-// IsClientError returns true when this v1beta describe operation too many requests response has a 4xx status code
-func (o *V1betaDescribeOperationTooManyRequests) IsClientError() bool {
-	return true
-}
-
-// IsServerError returns true when this v1beta describe operation too many requests response has a 5xx status code
-func (o *V1betaDescribeOperationTooManyRequests) IsServerError() bool {
-	return false
-}
-
-// IsCode returns true when this v1beta describe operation too many requests response a status code equal to that given
-func (o *V1betaDescribeOperationTooManyRequests) IsCode(code int) bool {
-	return code == 429
-}
-
-// Code gets the status code for the v1beta describe operation too many requests response
-func (o *V1betaDescribeOperationTooManyRequests) Code() int {
-	return 429
-}
-
 func (o *V1betaDescribeOperationTooManyRequests) Error() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[GET /v1beta/projects/{projectNumber}/locations/{locationId}/operations/{operationId}][%d] v1betaDescribeOperationTooManyRequests %s", 429, payload)
-}
-
-func (o *V1betaDescribeOperationTooManyRequests) String() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[GET /v1beta/projects/{projectNumber}/locations/{locationId}/operations/{operationId}][%d] v1betaDescribeOperationTooManyRequests %s", 429, payload)
+	return fmt.Sprintf("[GET /v1beta/projects/{projectNumber}/locations/{locationId}/operations/{operationId}][%d] v1betaDescribeOperationTooManyRequests  %+v", 429, o.Payload)
 }
 
 func (o *V1betaDescribeOperationTooManyRequests) GetPayload() *models.Error {
@@ -588,7 +335,7 @@ func NewV1betaDescribeOperationInternalServerError() *V1betaDescribeOperationInt
 }
 
 /*
-V1betaDescribeOperationInternalServerError describes a response with status code 500, with default header values.
+V1betaDescribeOperationInternalServerError handles this case with default header values.
 
 Internal server error
 */
@@ -596,44 +343,8 @@ type V1betaDescribeOperationInternalServerError struct {
 	Payload *models.Error
 }
 
-// IsSuccess returns true when this v1beta describe operation internal server error response has a 2xx status code
-func (o *V1betaDescribeOperationInternalServerError) IsSuccess() bool {
-	return false
-}
-
-// IsRedirect returns true when this v1beta describe operation internal server error response has a 3xx status code
-func (o *V1betaDescribeOperationInternalServerError) IsRedirect() bool {
-	return false
-}
-
-// IsClientError returns true when this v1beta describe operation internal server error response has a 4xx status code
-func (o *V1betaDescribeOperationInternalServerError) IsClientError() bool {
-	return false
-}
-
-// IsServerError returns true when this v1beta describe operation internal server error response has a 5xx status code
-func (o *V1betaDescribeOperationInternalServerError) IsServerError() bool {
-	return true
-}
-
-// IsCode returns true when this v1beta describe operation internal server error response a status code equal to that given
-func (o *V1betaDescribeOperationInternalServerError) IsCode(code int) bool {
-	return code == 500
-}
-
-// Code gets the status code for the v1beta describe operation internal server error response
-func (o *V1betaDescribeOperationInternalServerError) Code() int {
-	return 500
-}
-
 func (o *V1betaDescribeOperationInternalServerError) Error() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[GET /v1beta/projects/{projectNumber}/locations/{locationId}/operations/{operationId}][%d] v1betaDescribeOperationInternalServerError %s", 500, payload)
-}
-
-func (o *V1betaDescribeOperationInternalServerError) String() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[GET /v1beta/projects/{projectNumber}/locations/{locationId}/operations/{operationId}][%d] v1betaDescribeOperationInternalServerError %s", 500, payload)
+	return fmt.Sprintf("[GET /v1beta/projects/{projectNumber}/locations/{locationId}/operations/{operationId}][%d] v1betaDescribeOperationInternalServerError  %+v", 500, o.Payload)
 }
 
 func (o *V1betaDescribeOperationInternalServerError) GetPayload() *models.Error {
@@ -658,57 +369,20 @@ func NewV1betaDescribeOperationServiceUnavailable() *V1betaDescribeOperationServ
 }
 
 /*
-V1betaDescribeOperationServiceUnavailable describes a response with status code 503, with default header values.
+V1betaDescribeOperationServiceUnavailable handles this case with default header values.
 
 Service unavailable
 */
 type V1betaDescribeOperationServiceUnavailable struct {
-
-	/* A non-negative integer indicating the seconds to delay after the response is received
+	/*A non-negative integer indicating the seconds to delay after the response is received
 	 */
 	RetryAfter int64
 
 	Payload *models.Error
 }
 
-// IsSuccess returns true when this v1beta describe operation service unavailable response has a 2xx status code
-func (o *V1betaDescribeOperationServiceUnavailable) IsSuccess() bool {
-	return false
-}
-
-// IsRedirect returns true when this v1beta describe operation service unavailable response has a 3xx status code
-func (o *V1betaDescribeOperationServiceUnavailable) IsRedirect() bool {
-	return false
-}
-
-// IsClientError returns true when this v1beta describe operation service unavailable response has a 4xx status code
-func (o *V1betaDescribeOperationServiceUnavailable) IsClientError() bool {
-	return false
-}
-
-// IsServerError returns true when this v1beta describe operation service unavailable response has a 5xx status code
-func (o *V1betaDescribeOperationServiceUnavailable) IsServerError() bool {
-	return true
-}
-
-// IsCode returns true when this v1beta describe operation service unavailable response a status code equal to that given
-func (o *V1betaDescribeOperationServiceUnavailable) IsCode(code int) bool {
-	return code == 503
-}
-
-// Code gets the status code for the v1beta describe operation service unavailable response
-func (o *V1betaDescribeOperationServiceUnavailable) Code() int {
-	return 503
-}
-
 func (o *V1betaDescribeOperationServiceUnavailable) Error() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[GET /v1beta/projects/{projectNumber}/locations/{locationId}/operations/{operationId}][%d] v1betaDescribeOperationServiceUnavailable %s", 503, payload)
-}
-
-func (o *V1betaDescribeOperationServiceUnavailable) String() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[GET /v1beta/projects/{projectNumber}/locations/{locationId}/operations/{operationId}][%d] v1betaDescribeOperationServiceUnavailable %s", 503, payload)
+	return fmt.Sprintf("[GET /v1beta/projects/{projectNumber}/locations/{locationId}/operations/{operationId}][%d] v1betaDescribeOperationServiceUnavailable  %+v", 503, o.Payload)
 }
 
 func (o *V1betaDescribeOperationServiceUnavailable) GetPayload() *models.Error {
@@ -717,16 +391,12 @@ func (o *V1betaDescribeOperationServiceUnavailable) GetPayload() *models.Error {
 
 func (o *V1betaDescribeOperationServiceUnavailable) readResponse(response runtime.ClientResponse, consumer runtime.Consumer, formats strfmt.Registry) error {
 
-	// hydrates response header Retry-After
-	hdrRetryAfter := response.GetHeader("Retry-After")
-
-	if hdrRetryAfter != "" {
-		valretryAfter, err := swag.ConvertInt64(hdrRetryAfter)
-		if err != nil {
-			return errors.InvalidType("Retry-After", "header", "int64", hdrRetryAfter)
-		}
-		o.RetryAfter = valretryAfter
+	// response header Retry-After
+	retryAfter, err := swag.ConvertInt64(response.GetHeader("Retry-After"))
+	if err != nil {
+		return errors.InvalidType("Retry-After", "header", "int64", response.GetHeader("Retry-After"))
 	}
+	o.RetryAfter = retryAfter
 
 	o.Payload = new(models.Error)
 
@@ -746,7 +416,7 @@ func NewV1betaDescribeOperationDefault(code int) *V1betaDescribeOperationDefault
 }
 
 /*
-V1betaDescribeOperationDefault describes a response with status code -1, with default header values.
+V1betaDescribeOperationDefault handles this case with default header values.
 
 Unexpected error
 */
@@ -756,44 +426,13 @@ type V1betaDescribeOperationDefault struct {
 	Payload *models.Error
 }
 
-// IsSuccess returns true when this v1beta describe operation default response has a 2xx status code
-func (o *V1betaDescribeOperationDefault) IsSuccess() bool {
-	return o._statusCode/100 == 2
-}
-
-// IsRedirect returns true when this v1beta describe operation default response has a 3xx status code
-func (o *V1betaDescribeOperationDefault) IsRedirect() bool {
-	return o._statusCode/100 == 3
-}
-
-// IsClientError returns true when this v1beta describe operation default response has a 4xx status code
-func (o *V1betaDescribeOperationDefault) IsClientError() bool {
-	return o._statusCode/100 == 4
-}
-
-// IsServerError returns true when this v1beta describe operation default response has a 5xx status code
-func (o *V1betaDescribeOperationDefault) IsServerError() bool {
-	return o._statusCode/100 == 5
-}
-
-// IsCode returns true when this v1beta describe operation default response a status code equal to that given
-func (o *V1betaDescribeOperationDefault) IsCode(code int) bool {
-	return o._statusCode == code
-}
-
 // Code gets the status code for the v1beta describe operation default response
 func (o *V1betaDescribeOperationDefault) Code() int {
 	return o._statusCode
 }
 
 func (o *V1betaDescribeOperationDefault) Error() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[GET /v1beta/projects/{projectNumber}/locations/{locationId}/operations/{operationId}][%d] v1beta_describeOperation default %s", o._statusCode, payload)
-}
-
-func (o *V1betaDescribeOperationDefault) String() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[GET /v1beta/projects/{projectNumber}/locations/{locationId}/operations/{operationId}][%d] v1beta_describeOperation default %s", o._statusCode, payload)
+	return fmt.Sprintf("[GET /v1beta/projects/{projectNumber}/locations/{locationId}/operations/{operationId}][%d] v1beta_describeOperation default  %+v", o._statusCode, o.Payload)
 }
 
 func (o *V1betaDescribeOperationDefault) GetPayload() *models.Error {

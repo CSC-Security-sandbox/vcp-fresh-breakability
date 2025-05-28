@@ -6,7 +6,6 @@ package kms_configurations
 // Editing this file might prove futile when you re-run the swagger generate command
 
 import (
-	"encoding/json"
 	"fmt"
 	"io"
 
@@ -96,7 +95,7 @@ func NewV1betaEncryptVolumesAccepted() *V1betaEncryptVolumesAccepted {
 }
 
 /*
-V1betaEncryptVolumesAccepted describes a response with status code 202, with default header values.
+V1betaEncryptVolumesAccepted handles this case with default header values.
 
 OK
 */
@@ -104,44 +103,8 @@ type V1betaEncryptVolumesAccepted struct {
 	Payload *models.OperationV1beta
 }
 
-// IsSuccess returns true when this v1beta encrypt volumes accepted response has a 2xx status code
-func (o *V1betaEncryptVolumesAccepted) IsSuccess() bool {
-	return true
-}
-
-// IsRedirect returns true when this v1beta encrypt volumes accepted response has a 3xx status code
-func (o *V1betaEncryptVolumesAccepted) IsRedirect() bool {
-	return false
-}
-
-// IsClientError returns true when this v1beta encrypt volumes accepted response has a 4xx status code
-func (o *V1betaEncryptVolumesAccepted) IsClientError() bool {
-	return false
-}
-
-// IsServerError returns true when this v1beta encrypt volumes accepted response has a 5xx status code
-func (o *V1betaEncryptVolumesAccepted) IsServerError() bool {
-	return false
-}
-
-// IsCode returns true when this v1beta encrypt volumes accepted response a status code equal to that given
-func (o *V1betaEncryptVolumesAccepted) IsCode(code int) bool {
-	return code == 202
-}
-
-// Code gets the status code for the v1beta encrypt volumes accepted response
-func (o *V1betaEncryptVolumesAccepted) Code() int {
-	return 202
-}
-
 func (o *V1betaEncryptVolumesAccepted) Error() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/storage/kmsConfig/{kmsConfigId}/encryptVolumes][%d] v1betaEncryptVolumesAccepted %s", 202, payload)
-}
-
-func (o *V1betaEncryptVolumesAccepted) String() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/storage/kmsConfig/{kmsConfigId}/encryptVolumes][%d] v1betaEncryptVolumesAccepted %s", 202, payload)
+	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/storage/kmsConfig/{kmsConfigId}/encryptVolumes][%d] v1betaEncryptVolumesAccepted  %+v", 202, o.Payload)
 }
 
 func (o *V1betaEncryptVolumesAccepted) GetPayload() *models.OperationV1beta {
@@ -166,7 +129,7 @@ func NewV1betaEncryptVolumesBadRequest() *V1betaEncryptVolumesBadRequest {
 }
 
 /*
-V1betaEncryptVolumesBadRequest describes a response with status code 400, with default header values.
+V1betaEncryptVolumesBadRequest handles this case with default header values.
 
 Bad request
 */
@@ -174,44 +137,8 @@ type V1betaEncryptVolumesBadRequest struct {
 	Payload *models.Error
 }
 
-// IsSuccess returns true when this v1beta encrypt volumes bad request response has a 2xx status code
-func (o *V1betaEncryptVolumesBadRequest) IsSuccess() bool {
-	return false
-}
-
-// IsRedirect returns true when this v1beta encrypt volumes bad request response has a 3xx status code
-func (o *V1betaEncryptVolumesBadRequest) IsRedirect() bool {
-	return false
-}
-
-// IsClientError returns true when this v1beta encrypt volumes bad request response has a 4xx status code
-func (o *V1betaEncryptVolumesBadRequest) IsClientError() bool {
-	return true
-}
-
-// IsServerError returns true when this v1beta encrypt volumes bad request response has a 5xx status code
-func (o *V1betaEncryptVolumesBadRequest) IsServerError() bool {
-	return false
-}
-
-// IsCode returns true when this v1beta encrypt volumes bad request response a status code equal to that given
-func (o *V1betaEncryptVolumesBadRequest) IsCode(code int) bool {
-	return code == 400
-}
-
-// Code gets the status code for the v1beta encrypt volumes bad request response
-func (o *V1betaEncryptVolumesBadRequest) Code() int {
-	return 400
-}
-
 func (o *V1betaEncryptVolumesBadRequest) Error() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/storage/kmsConfig/{kmsConfigId}/encryptVolumes][%d] v1betaEncryptVolumesBadRequest %s", 400, payload)
-}
-
-func (o *V1betaEncryptVolumesBadRequest) String() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/storage/kmsConfig/{kmsConfigId}/encryptVolumes][%d] v1betaEncryptVolumesBadRequest %s", 400, payload)
+	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/storage/kmsConfig/{kmsConfigId}/encryptVolumes][%d] v1betaEncryptVolumesBadRequest  %+v", 400, o.Payload)
 }
 
 func (o *V1betaEncryptVolumesBadRequest) GetPayload() *models.Error {
@@ -236,7 +163,7 @@ func NewV1betaEncryptVolumesUnauthorized() *V1betaEncryptVolumesUnauthorized {
 }
 
 /*
-V1betaEncryptVolumesUnauthorized describes a response with status code 401, with default header values.
+V1betaEncryptVolumesUnauthorized handles this case with default header values.
 
 Unauthorized
 */
@@ -244,44 +171,8 @@ type V1betaEncryptVolumesUnauthorized struct {
 	Payload *models.Error
 }
 
-// IsSuccess returns true when this v1beta encrypt volumes unauthorized response has a 2xx status code
-func (o *V1betaEncryptVolumesUnauthorized) IsSuccess() bool {
-	return false
-}
-
-// IsRedirect returns true when this v1beta encrypt volumes unauthorized response has a 3xx status code
-func (o *V1betaEncryptVolumesUnauthorized) IsRedirect() bool {
-	return false
-}
-
-// IsClientError returns true when this v1beta encrypt volumes unauthorized response has a 4xx status code
-func (o *V1betaEncryptVolumesUnauthorized) IsClientError() bool {
-	return true
-}
-
-// IsServerError returns true when this v1beta encrypt volumes unauthorized response has a 5xx status code
-func (o *V1betaEncryptVolumesUnauthorized) IsServerError() bool {
-	return false
-}
-
-// IsCode returns true when this v1beta encrypt volumes unauthorized response a status code equal to that given
-func (o *V1betaEncryptVolumesUnauthorized) IsCode(code int) bool {
-	return code == 401
-}
-
-// Code gets the status code for the v1beta encrypt volumes unauthorized response
-func (o *V1betaEncryptVolumesUnauthorized) Code() int {
-	return 401
-}
-
 func (o *V1betaEncryptVolumesUnauthorized) Error() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/storage/kmsConfig/{kmsConfigId}/encryptVolumes][%d] v1betaEncryptVolumesUnauthorized %s", 401, payload)
-}
-
-func (o *V1betaEncryptVolumesUnauthorized) String() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/storage/kmsConfig/{kmsConfigId}/encryptVolumes][%d] v1betaEncryptVolumesUnauthorized %s", 401, payload)
+	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/storage/kmsConfig/{kmsConfigId}/encryptVolumes][%d] v1betaEncryptVolumesUnauthorized  %+v", 401, o.Payload)
 }
 
 func (o *V1betaEncryptVolumesUnauthorized) GetPayload() *models.Error {
@@ -306,7 +197,7 @@ func NewV1betaEncryptVolumesForbidden() *V1betaEncryptVolumesForbidden {
 }
 
 /*
-V1betaEncryptVolumesForbidden describes a response with status code 403, with default header values.
+V1betaEncryptVolumesForbidden handles this case with default header values.
 
 Forbidden
 */
@@ -314,44 +205,8 @@ type V1betaEncryptVolumesForbidden struct {
 	Payload *models.Error
 }
 
-// IsSuccess returns true when this v1beta encrypt volumes forbidden response has a 2xx status code
-func (o *V1betaEncryptVolumesForbidden) IsSuccess() bool {
-	return false
-}
-
-// IsRedirect returns true when this v1beta encrypt volumes forbidden response has a 3xx status code
-func (o *V1betaEncryptVolumesForbidden) IsRedirect() bool {
-	return false
-}
-
-// IsClientError returns true when this v1beta encrypt volumes forbidden response has a 4xx status code
-func (o *V1betaEncryptVolumesForbidden) IsClientError() bool {
-	return true
-}
-
-// IsServerError returns true when this v1beta encrypt volumes forbidden response has a 5xx status code
-func (o *V1betaEncryptVolumesForbidden) IsServerError() bool {
-	return false
-}
-
-// IsCode returns true when this v1beta encrypt volumes forbidden response a status code equal to that given
-func (o *V1betaEncryptVolumesForbidden) IsCode(code int) bool {
-	return code == 403
-}
-
-// Code gets the status code for the v1beta encrypt volumes forbidden response
-func (o *V1betaEncryptVolumesForbidden) Code() int {
-	return 403
-}
-
 func (o *V1betaEncryptVolumesForbidden) Error() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/storage/kmsConfig/{kmsConfigId}/encryptVolumes][%d] v1betaEncryptVolumesForbidden %s", 403, payload)
-}
-
-func (o *V1betaEncryptVolumesForbidden) String() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/storage/kmsConfig/{kmsConfigId}/encryptVolumes][%d] v1betaEncryptVolumesForbidden %s", 403, payload)
+	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/storage/kmsConfig/{kmsConfigId}/encryptVolumes][%d] v1betaEncryptVolumesForbidden  %+v", 403, o.Payload)
 }
 
 func (o *V1betaEncryptVolumesForbidden) GetPayload() *models.Error {
@@ -376,7 +231,7 @@ func NewV1betaEncryptVolumesNotFound() *V1betaEncryptVolumesNotFound {
 }
 
 /*
-V1betaEncryptVolumesNotFound describes a response with status code 404, with default header values.
+V1betaEncryptVolumesNotFound handles this case with default header values.
 
 Not found
 */
@@ -384,44 +239,8 @@ type V1betaEncryptVolumesNotFound struct {
 	Payload *models.Error
 }
 
-// IsSuccess returns true when this v1beta encrypt volumes not found response has a 2xx status code
-func (o *V1betaEncryptVolumesNotFound) IsSuccess() bool {
-	return false
-}
-
-// IsRedirect returns true when this v1beta encrypt volumes not found response has a 3xx status code
-func (o *V1betaEncryptVolumesNotFound) IsRedirect() bool {
-	return false
-}
-
-// IsClientError returns true when this v1beta encrypt volumes not found response has a 4xx status code
-func (o *V1betaEncryptVolumesNotFound) IsClientError() bool {
-	return true
-}
-
-// IsServerError returns true when this v1beta encrypt volumes not found response has a 5xx status code
-func (o *V1betaEncryptVolumesNotFound) IsServerError() bool {
-	return false
-}
-
-// IsCode returns true when this v1beta encrypt volumes not found response a status code equal to that given
-func (o *V1betaEncryptVolumesNotFound) IsCode(code int) bool {
-	return code == 404
-}
-
-// Code gets the status code for the v1beta encrypt volumes not found response
-func (o *V1betaEncryptVolumesNotFound) Code() int {
-	return 404
-}
-
 func (o *V1betaEncryptVolumesNotFound) Error() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/storage/kmsConfig/{kmsConfigId}/encryptVolumes][%d] v1betaEncryptVolumesNotFound %s", 404, payload)
-}
-
-func (o *V1betaEncryptVolumesNotFound) String() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/storage/kmsConfig/{kmsConfigId}/encryptVolumes][%d] v1betaEncryptVolumesNotFound %s", 404, payload)
+	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/storage/kmsConfig/{kmsConfigId}/encryptVolumes][%d] v1betaEncryptVolumesNotFound  %+v", 404, o.Payload)
 }
 
 func (o *V1betaEncryptVolumesNotFound) GetPayload() *models.Error {
@@ -446,7 +265,7 @@ func NewV1betaEncryptVolumesConflict() *V1betaEncryptVolumesConflict {
 }
 
 /*
-V1betaEncryptVolumesConflict describes a response with status code 409, with default header values.
+V1betaEncryptVolumesConflict handles this case with default header values.
 
 Conflict
 */
@@ -454,44 +273,8 @@ type V1betaEncryptVolumesConflict struct {
 	Payload *models.Error
 }
 
-// IsSuccess returns true when this v1beta encrypt volumes conflict response has a 2xx status code
-func (o *V1betaEncryptVolumesConflict) IsSuccess() bool {
-	return false
-}
-
-// IsRedirect returns true when this v1beta encrypt volumes conflict response has a 3xx status code
-func (o *V1betaEncryptVolumesConflict) IsRedirect() bool {
-	return false
-}
-
-// IsClientError returns true when this v1beta encrypt volumes conflict response has a 4xx status code
-func (o *V1betaEncryptVolumesConflict) IsClientError() bool {
-	return true
-}
-
-// IsServerError returns true when this v1beta encrypt volumes conflict response has a 5xx status code
-func (o *V1betaEncryptVolumesConflict) IsServerError() bool {
-	return false
-}
-
-// IsCode returns true when this v1beta encrypt volumes conflict response a status code equal to that given
-func (o *V1betaEncryptVolumesConflict) IsCode(code int) bool {
-	return code == 409
-}
-
-// Code gets the status code for the v1beta encrypt volumes conflict response
-func (o *V1betaEncryptVolumesConflict) Code() int {
-	return 409
-}
-
 func (o *V1betaEncryptVolumesConflict) Error() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/storage/kmsConfig/{kmsConfigId}/encryptVolumes][%d] v1betaEncryptVolumesConflict %s", 409, payload)
-}
-
-func (o *V1betaEncryptVolumesConflict) String() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/storage/kmsConfig/{kmsConfigId}/encryptVolumes][%d] v1betaEncryptVolumesConflict %s", 409, payload)
+	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/storage/kmsConfig/{kmsConfigId}/encryptVolumes][%d] v1betaEncryptVolumesConflict  %+v", 409, o.Payload)
 }
 
 func (o *V1betaEncryptVolumesConflict) GetPayload() *models.Error {
@@ -516,7 +299,7 @@ func NewV1betaEncryptVolumesUnprocessableEntity() *V1betaEncryptVolumesUnprocess
 }
 
 /*
-V1betaEncryptVolumesUnprocessableEntity describes a response with status code 422, with default header values.
+V1betaEncryptVolumesUnprocessableEntity handles this case with default header values.
 
 Unprocessable entity
 */
@@ -524,44 +307,8 @@ type V1betaEncryptVolumesUnprocessableEntity struct {
 	Payload *models.Error
 }
 
-// IsSuccess returns true when this v1beta encrypt volumes unprocessable entity response has a 2xx status code
-func (o *V1betaEncryptVolumesUnprocessableEntity) IsSuccess() bool {
-	return false
-}
-
-// IsRedirect returns true when this v1beta encrypt volumes unprocessable entity response has a 3xx status code
-func (o *V1betaEncryptVolumesUnprocessableEntity) IsRedirect() bool {
-	return false
-}
-
-// IsClientError returns true when this v1beta encrypt volumes unprocessable entity response has a 4xx status code
-func (o *V1betaEncryptVolumesUnprocessableEntity) IsClientError() bool {
-	return true
-}
-
-// IsServerError returns true when this v1beta encrypt volumes unprocessable entity response has a 5xx status code
-func (o *V1betaEncryptVolumesUnprocessableEntity) IsServerError() bool {
-	return false
-}
-
-// IsCode returns true when this v1beta encrypt volumes unprocessable entity response a status code equal to that given
-func (o *V1betaEncryptVolumesUnprocessableEntity) IsCode(code int) bool {
-	return code == 422
-}
-
-// Code gets the status code for the v1beta encrypt volumes unprocessable entity response
-func (o *V1betaEncryptVolumesUnprocessableEntity) Code() int {
-	return 422
-}
-
 func (o *V1betaEncryptVolumesUnprocessableEntity) Error() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/storage/kmsConfig/{kmsConfigId}/encryptVolumes][%d] v1betaEncryptVolumesUnprocessableEntity %s", 422, payload)
-}
-
-func (o *V1betaEncryptVolumesUnprocessableEntity) String() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/storage/kmsConfig/{kmsConfigId}/encryptVolumes][%d] v1betaEncryptVolumesUnprocessableEntity %s", 422, payload)
+	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/storage/kmsConfig/{kmsConfigId}/encryptVolumes][%d] v1betaEncryptVolumesUnprocessableEntity  %+v", 422, o.Payload)
 }
 
 func (o *V1betaEncryptVolumesUnprocessableEntity) GetPayload() *models.Error {
@@ -586,7 +333,7 @@ func NewV1betaEncryptVolumesTooManyRequests() *V1betaEncryptVolumesTooManyReques
 }
 
 /*
-V1betaEncryptVolumesTooManyRequests describes a response with status code 429, with default header values.
+V1betaEncryptVolumesTooManyRequests handles this case with default header values.
 
 Too many requests
 */
@@ -594,44 +341,8 @@ type V1betaEncryptVolumesTooManyRequests struct {
 	Payload *models.Error
 }
 
-// IsSuccess returns true when this v1beta encrypt volumes too many requests response has a 2xx status code
-func (o *V1betaEncryptVolumesTooManyRequests) IsSuccess() bool {
-	return false
-}
-
-// IsRedirect returns true when this v1beta encrypt volumes too many requests response has a 3xx status code
-func (o *V1betaEncryptVolumesTooManyRequests) IsRedirect() bool {
-	return false
-}
-
-// IsClientError returns true when this v1beta encrypt volumes too many requests response has a 4xx status code
-func (o *V1betaEncryptVolumesTooManyRequests) IsClientError() bool {
-	return true
-}
-
-// IsServerError returns true when this v1beta encrypt volumes too many requests response has a 5xx status code
-func (o *V1betaEncryptVolumesTooManyRequests) IsServerError() bool {
-	return false
-}
-
-// IsCode returns true when this v1beta encrypt volumes too many requests response a status code equal to that given
-func (o *V1betaEncryptVolumesTooManyRequests) IsCode(code int) bool {
-	return code == 429
-}
-
-// Code gets the status code for the v1beta encrypt volumes too many requests response
-func (o *V1betaEncryptVolumesTooManyRequests) Code() int {
-	return 429
-}
-
 func (o *V1betaEncryptVolumesTooManyRequests) Error() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/storage/kmsConfig/{kmsConfigId}/encryptVolumes][%d] v1betaEncryptVolumesTooManyRequests %s", 429, payload)
-}
-
-func (o *V1betaEncryptVolumesTooManyRequests) String() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/storage/kmsConfig/{kmsConfigId}/encryptVolumes][%d] v1betaEncryptVolumesTooManyRequests %s", 429, payload)
+	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/storage/kmsConfig/{kmsConfigId}/encryptVolumes][%d] v1betaEncryptVolumesTooManyRequests  %+v", 429, o.Payload)
 }
 
 func (o *V1betaEncryptVolumesTooManyRequests) GetPayload() *models.Error {
@@ -656,7 +367,7 @@ func NewV1betaEncryptVolumesInternalServerError() *V1betaEncryptVolumesInternalS
 }
 
 /*
-V1betaEncryptVolumesInternalServerError describes a response with status code 500, with default header values.
+V1betaEncryptVolumesInternalServerError handles this case with default header values.
 
 Internal server error
 */
@@ -664,44 +375,8 @@ type V1betaEncryptVolumesInternalServerError struct {
 	Payload *models.Error
 }
 
-// IsSuccess returns true when this v1beta encrypt volumes internal server error response has a 2xx status code
-func (o *V1betaEncryptVolumesInternalServerError) IsSuccess() bool {
-	return false
-}
-
-// IsRedirect returns true when this v1beta encrypt volumes internal server error response has a 3xx status code
-func (o *V1betaEncryptVolumesInternalServerError) IsRedirect() bool {
-	return false
-}
-
-// IsClientError returns true when this v1beta encrypt volumes internal server error response has a 4xx status code
-func (o *V1betaEncryptVolumesInternalServerError) IsClientError() bool {
-	return false
-}
-
-// IsServerError returns true when this v1beta encrypt volumes internal server error response has a 5xx status code
-func (o *V1betaEncryptVolumesInternalServerError) IsServerError() bool {
-	return true
-}
-
-// IsCode returns true when this v1beta encrypt volumes internal server error response a status code equal to that given
-func (o *V1betaEncryptVolumesInternalServerError) IsCode(code int) bool {
-	return code == 500
-}
-
-// Code gets the status code for the v1beta encrypt volumes internal server error response
-func (o *V1betaEncryptVolumesInternalServerError) Code() int {
-	return 500
-}
-
 func (o *V1betaEncryptVolumesInternalServerError) Error() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/storage/kmsConfig/{kmsConfigId}/encryptVolumes][%d] v1betaEncryptVolumesInternalServerError %s", 500, payload)
-}
-
-func (o *V1betaEncryptVolumesInternalServerError) String() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/storage/kmsConfig/{kmsConfigId}/encryptVolumes][%d] v1betaEncryptVolumesInternalServerError %s", 500, payload)
+	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/storage/kmsConfig/{kmsConfigId}/encryptVolumes][%d] v1betaEncryptVolumesInternalServerError  %+v", 500, o.Payload)
 }
 
 func (o *V1betaEncryptVolumesInternalServerError) GetPayload() *models.Error {
@@ -728,7 +403,7 @@ func NewV1betaEncryptVolumesDefault(code int) *V1betaEncryptVolumesDefault {
 }
 
 /*
-V1betaEncryptVolumesDefault describes a response with status code -1, with default header values.
+V1betaEncryptVolumesDefault handles this case with default header values.
 
 Unexpected error
 */
@@ -738,44 +413,13 @@ type V1betaEncryptVolumesDefault struct {
 	Payload *models.Error
 }
 
-// IsSuccess returns true when this v1beta encrypt volumes default response has a 2xx status code
-func (o *V1betaEncryptVolumesDefault) IsSuccess() bool {
-	return o._statusCode/100 == 2
-}
-
-// IsRedirect returns true when this v1beta encrypt volumes default response has a 3xx status code
-func (o *V1betaEncryptVolumesDefault) IsRedirect() bool {
-	return o._statusCode/100 == 3
-}
-
-// IsClientError returns true when this v1beta encrypt volumes default response has a 4xx status code
-func (o *V1betaEncryptVolumesDefault) IsClientError() bool {
-	return o._statusCode/100 == 4
-}
-
-// IsServerError returns true when this v1beta encrypt volumes default response has a 5xx status code
-func (o *V1betaEncryptVolumesDefault) IsServerError() bool {
-	return o._statusCode/100 == 5
-}
-
-// IsCode returns true when this v1beta encrypt volumes default response a status code equal to that given
-func (o *V1betaEncryptVolumesDefault) IsCode(code int) bool {
-	return o._statusCode == code
-}
-
 // Code gets the status code for the v1beta encrypt volumes default response
 func (o *V1betaEncryptVolumesDefault) Code() int {
 	return o._statusCode
 }
 
 func (o *V1betaEncryptVolumesDefault) Error() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/storage/kmsConfig/{kmsConfigId}/encryptVolumes][%d] v1beta_encryptVolumes default %s", o._statusCode, payload)
-}
-
-func (o *V1betaEncryptVolumesDefault) String() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/storage/kmsConfig/{kmsConfigId}/encryptVolumes][%d] v1beta_encryptVolumes default %s", o._statusCode, payload)
+	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/storage/kmsConfig/{kmsConfigId}/encryptVolumes][%d] v1beta_encryptVolumes default  %+v", o._statusCode, o.Payload)
 }
 
 func (o *V1betaEncryptVolumesDefault) GetPayload() *models.Error {

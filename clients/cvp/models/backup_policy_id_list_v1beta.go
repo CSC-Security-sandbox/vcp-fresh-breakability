@@ -6,7 +6,6 @@ package models
 // Editing this file might prove futile when you re-run the swagger generate command
 
 import (
-	"context"
 	"strconv"
 
 	"github.com/go-openapi/errors"
@@ -54,17 +53,12 @@ func (m *BackupPolicyIDListV1beta) validateBackupPolicyUUIDs(formats strfmt.Regi
 
 	for i := 0; i < len(m.BackupPolicyUUIDs); i++ {
 
-		if err := validate.Pattern("backupPolicyUUIDs"+"."+strconv.Itoa(i), "body", m.BackupPolicyUUIDs[i], `^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$`); err != nil {
+		if err := validate.Pattern("backupPolicyUUIDs"+"."+strconv.Itoa(i), "body", string(m.BackupPolicyUUIDs[i]), `^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$`); err != nil {
 			return err
 		}
 
 	}
 
-	return nil
-}
-
-// ContextValidate validates this backup policy ID list v1beta based on context it is used
-func (m *BackupPolicyIDListV1beta) ContextValidate(ctx context.Context, formats strfmt.Registry) error {
 	return nil
 }
 

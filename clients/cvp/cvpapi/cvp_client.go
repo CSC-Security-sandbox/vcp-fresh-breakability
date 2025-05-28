@@ -26,9 +26,10 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/cvpapi/resource_events"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/cvpapi/snapshots"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/cvpapi/storage"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/cvpapi/v1_beta_internal"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/cvpapi/version"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/cvpapi/version1"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/cvpapi/volumes"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/cvpapi/volumes_v1beta"
 )
 
 // Default cvp HTTP client.
@@ -89,9 +90,10 @@ func New(transport runtime.ClientTransport, formats strfmt.Registry) *Cvp {
 	cli.ResourceEvents = resource_events.New(transport, formats)
 	cli.Snapshots = snapshots.New(transport, formats)
 	cli.Storage = storage.New(transport, formats)
+	cli.V1BetaInternal = v1_beta_internal.New(transport, formats)
 	cli.Version = version.New(transport, formats)
-	cli.Version1 = version1.New(transport, formats)
 	cli.Volumes = volumes.New(transport, formats)
+	cli.VolumesV1beta = volumes_v1beta.New(transport, formats)
 	return cli
 }
 
@@ -168,11 +170,13 @@ type Cvp struct {
 
 	Storage storage.ClientService
 
+	V1BetaInternal v1_beta_internal.ClientService
+
 	Version version.ClientService
 
-	Version1 version1.ClientService
-
 	Volumes volumes.ClientService
+
+	VolumesV1beta volumes_v1beta.ClientService
 
 	Transport runtime.ClientTransport
 }
@@ -196,7 +200,8 @@ func (c *Cvp) SetTransport(transport runtime.ClientTransport) {
 	c.ResourceEvents.SetTransport(transport)
 	c.Snapshots.SetTransport(transport)
 	c.Storage.SetTransport(transport)
+	c.V1BetaInternal.SetTransport(transport)
 	c.Version.SetTransport(transport)
-	c.Version1.SetTransport(transport)
 	c.Volumes.SetTransport(transport)
+	c.VolumesV1beta.SetTransport(transport)
 }

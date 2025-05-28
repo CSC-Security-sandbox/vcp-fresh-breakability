@@ -6,7 +6,6 @@ package models
 // Editing this file might prove futile when you re-run the swagger generate command
 
 import (
-	"context"
 	"encoding/json"
 
 	"github.com/go-openapi/errors"
@@ -20,15 +19,6 @@ import (
 //
 // swagger:model StorageClass_v1beta
 type StorageClassV1beta string
-
-func NewStorageClassV1beta(value StorageClassV1beta) *StorageClassV1beta {
-	return &value
-}
-
-// Pointer returns a pointer to a freshly-allocated StorageClassV1beta.
-func (m StorageClassV1beta) Pointer() *StorageClassV1beta {
-	return &m
-}
 
 const (
 
@@ -74,10 +64,5 @@ func (m StorageClassV1beta) Validate(formats strfmt.Registry) error {
 	if len(res) > 0 {
 		return errors.CompositeValidationError(res...)
 	}
-	return nil
-}
-
-// ContextValidate validates this storage class v1beta based on context it is used
-func (m StorageClassV1beta) ContextValidate(ctx context.Context, formats strfmt.Registry) error {
 	return nil
 }

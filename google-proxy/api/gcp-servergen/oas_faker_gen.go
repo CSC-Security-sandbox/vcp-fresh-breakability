@@ -1085,7 +1085,7 @@ func (s *FlexCacheConfigV1beta) SetFake() {
 	}
 	{
 		{
-			s.AtimeScrubPeriod.SetFake()
+			s.AtimeScrubMinutes.SetFake()
 		}
 	}
 	{
@@ -1109,7 +1109,7 @@ func (s *FlexCachePrePopulateV1beta) SetFake() {
 	}
 	{
 		{
-			s.IsRecursion.SetFake()
+			s.Recursion.SetFake()
 		}
 	}
 }
@@ -1160,12 +1160,17 @@ func (s *FlexCacheV1beta) SetFake() {
 	}
 	{
 		{
-			s.PeeringCommand.SetFake()
+			s.PreviousCacheState.SetFake()
 		}
 	}
 	{
 		{
-			s.PeeringCommandExpiryTime.SetFake()
+			s.Command.SetFake()
+		}
+	}
+	{
+		{
+			s.CommandExpiryTime.SetFake()
 		}
 	}
 	{
@@ -1178,6 +1183,11 @@ func (s *FlexCacheV1beta) SetFake() {
 // SetFake set fake values.
 func (s *FlexCacheV1betaCacheState) SetFake() {
 	*s = FlexCacheV1betaCacheStateCACHESTATEUNSPECIFIED
+}
+
+// SetFake set fake values.
+func (s *FlexCacheV1betaPreviousCacheState) SetFake() {
+	*s = FlexCacheV1betaPreviousCacheStateCACHESTATEUNSPECIFIED
 }
 
 // SetFake set fake values.
@@ -1994,6 +2004,15 @@ func (s *OptFlexCacheV1beta) SetFake() {
 // SetFake set fake values.
 func (s *OptFlexCacheV1betaCacheState) SetFake() {
 	var elem FlexCacheV1betaCacheState
+	{
+		elem.SetFake()
+	}
+	s.SetTo(elem)
+}
+
+// SetFake set fake values.
+func (s *OptFlexCacheV1betaPreviousCacheState) SetFake() {
+	var elem FlexCacheV1betaPreviousCacheState
 	{
 		elem.SetFake()
 	}

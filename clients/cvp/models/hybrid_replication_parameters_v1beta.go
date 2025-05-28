@@ -6,7 +6,6 @@ package models
 // Editing this file might prove futile when you re-run the swagger generate command
 
 import (
-	"context"
 	"encoding/json"
 	"strconv"
 
@@ -26,14 +25,12 @@ type HybridReplicationParametersV1beta struct {
 	// clusterLocation
 	//
 	// Name of source cluster associated with the hybrid replication, display purposes only
-	// Example: source-cluster-name
 	// Max Length: 2048
 	ClusterLocation *string `json:"clusterLocation,omitempty"`
 
 	// description
 	//
 	// A description about this hybrid replication relationship
-	// Example: My description about this hybrid replication relationship
 	// Max Length: 2048
 	Description *string `json:"description,omitempty"`
 
@@ -41,19 +38,17 @@ type HybridReplicationParametersV1beta struct {
 	//
 	// The type of replication
 	// Required: true
-	// Enum: ["MIGRATION","CONTINUOUS_REPLICATION","HYBRID_REPLICATION_TYPE_UNSPECIFIED","ONPREM_REPLICATION","REVERSE_ONPREM_REPLICATION"]
+	// Enum: [MIGRATION CONTINUOUS_REPLICATION HYBRID_REPLICATION_TYPE_UNSPECIFIED ONPREM_REPLICATION REVERSE_ONPREM_REPLICATION]
 	HybridReplicationType *string `json:"hybridReplicationType"`
 
 	// labels
 	//
 	// JSON dictionary of resource labels to allow linking of billing labels to a replication
-	// Example: {"someKey":"SomeValue","someKey2":"SomeValue2"}
 	Labels map[string]string `json:"labels"`
 
 	// largeVolumeConstituentCount
 	//
 	// The count of number of Constituent Volumes for the large volume.
-	// Example: 24
 	LargeVolumeConstituentCount *int32 `json:"largeVolumeConstituentCount,omitempty"`
 
 	// peerClusterName
@@ -82,12 +77,11 @@ type HybridReplicationParametersV1beta struct {
 	// peeringCommandExpiryTime
 	//
 	// DateTime value for when cluster peering command should expire.
-	// Example: 2024-04-20T16:21:01+01:00
 	// Format: date-time
 	PeeringCommandExpiryTime *strfmt.DateTime `json:"peeringCommandExpiryTime,omitempty"`
 
 	// replicationSchedule
-	// Enum: ["EVERY_10_MINUTES","HOURLY","DAILY"]
+	// Enum: [EVERY_10_MINUTES HOURLY DAILY]
 	ReplicationSchedule string `json:"replicationSchedule,omitempty"`
 
 	// resourceId
@@ -150,11 +144,12 @@ func (m *HybridReplicationParametersV1beta) Validate(formats strfmt.Registry) er
 }
 
 func (m *HybridReplicationParametersV1beta) validateClusterLocation(formats strfmt.Registry) error {
+
 	if swag.IsZero(m.ClusterLocation) { // not required
 		return nil
 	}
 
-	if err := validate.MaxLength("clusterLocation", "body", *m.ClusterLocation, 2048); err != nil {
+	if err := validate.MaxLength("clusterLocation", "body", string(*m.ClusterLocation), 2048); err != nil {
 		return err
 	}
 
@@ -162,11 +157,12 @@ func (m *HybridReplicationParametersV1beta) validateClusterLocation(formats strf
 }
 
 func (m *HybridReplicationParametersV1beta) validateDescription(formats strfmt.Registry) error {
+
 	if swag.IsZero(m.Description) { // not required
 		return nil
 	}
 
-	if err := validate.MaxLength("description", "body", *m.Description, 2048); err != nil {
+	if err := validate.MaxLength("description", "body", string(*m.Description), 2048); err != nil {
 		return err
 	}
 
@@ -248,7 +244,7 @@ func (m *HybridReplicationParametersV1beta) validatePeerIPAddresses(formats strf
 
 	for i := 0; i < len(m.PeerIPAddresses); i++ {
 
-		if err := validate.Pattern("peerIpAddresses"+"."+strconv.Itoa(i), "body", m.PeerIPAddresses[i], `^[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}$`); err != nil {
+		if err := validate.Pattern("peerIpAddresses"+"."+strconv.Itoa(i), "body", string(m.PeerIPAddresses[i]), `^[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}$`); err != nil {
 			return err
 		}
 
@@ -276,6 +272,7 @@ func (m *HybridReplicationParametersV1beta) validatePeerVolumeName(formats strfm
 }
 
 func (m *HybridReplicationParametersV1beta) validatePeeringCommandExpiryTime(formats strfmt.Registry) error {
+
 	if swag.IsZero(m.PeeringCommandExpiryTime) { // not required
 		return nil
 	}
@@ -320,6 +317,7 @@ func (m *HybridReplicationParametersV1beta) validateReplicationScheduleEnum(path
 }
 
 func (m *HybridReplicationParametersV1beta) validateReplicationSchedule(formats strfmt.Registry) error {
+
 	if swag.IsZero(m.ReplicationSchedule) { // not required
 		return nil
 	}
@@ -338,19 +336,14 @@ func (m *HybridReplicationParametersV1beta) validateResourceID(formats strfmt.Re
 		return err
 	}
 
-	if err := validate.MaxLength("resourceId", "body", *m.ResourceID, 63); err != nil {
+	if err := validate.MaxLength("resourceId", "body", string(*m.ResourceID), 63); err != nil {
 		return err
 	}
 
-	if err := validate.Pattern("resourceId", "body", *m.ResourceID, `^[a-z]([a-z0-9-]{0,61}[a-z0-9])?$`); err != nil {
+	if err := validate.Pattern("resourceId", "body", string(*m.ResourceID), `^[a-z]([a-z0-9-]{0,61}[a-z0-9])?$`); err != nil {
 		return err
 	}
 
-	return nil
-}
-
-// ContextValidate validates this hybrid replication parameters v1beta based on context it is used
-func (m *HybridReplicationParametersV1beta) ContextValidate(ctx context.Context, formats strfmt.Registry) error {
 	return nil
 }
 

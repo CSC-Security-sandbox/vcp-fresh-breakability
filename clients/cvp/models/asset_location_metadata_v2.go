@@ -6,13 +6,11 @@ package models
 // Editing this file might prove futile when you re-run the swagger generate command
 
 import (
-	"context"
 	"strconv"
 
 	"github.com/go-openapi/errors"
 	"github.com/go-openapi/strfmt"
 	"github.com/go-openapi/swag"
-	"github.com/go-openapi/validate"
 )
 
 // AssetLocationMetadataV2 assetLocationMetadata
@@ -42,6 +40,7 @@ func (m *AssetLocationMetadataV2) Validate(formats strfmt.Registry) error {
 }
 
 func (m *AssetLocationMetadataV2) validateChildAssets(formats strfmt.Registry) error {
+
 	if swag.IsZero(m.ChildAssets) { // not required
 		return nil
 	}
@@ -55,51 +54,6 @@ func (m *AssetLocationMetadataV2) validateChildAssets(formats strfmt.Registry) e
 			if err := m.ChildAssets[i].Validate(formats); err != nil {
 				if ve, ok := err.(*errors.Validation); ok {
 					return ve.ValidateName("child_assets" + "." + strconv.Itoa(i))
-				} else if ce, ok := err.(*errors.CompositeError); ok {
-					return ce.ValidateName("child_assets" + "." + strconv.Itoa(i))
-				}
-				return err
-			}
-		}
-
-	}
-
-	return nil
-}
-
-// ContextValidate validate this asset location metadata v2 based on the context it is used
-func (m *AssetLocationMetadataV2) ContextValidate(ctx context.Context, formats strfmt.Registry) error {
-	var res []error
-
-	if err := m.contextValidateChildAssets(ctx, formats); err != nil {
-		res = append(res, err)
-	}
-
-	if len(res) > 0 {
-		return errors.CompositeValidationError(res...)
-	}
-	return nil
-}
-
-func (m *AssetLocationMetadataV2) contextValidateChildAssets(ctx context.Context, formats strfmt.Registry) error {
-
-	if err := validate.ReadOnly(ctx, "child_assets", "body", []*ChildAssetV2(m.ChildAssets)); err != nil {
-		return err
-	}
-
-	for i := 0; i < len(m.ChildAssets); i++ {
-
-		if m.ChildAssets[i] != nil {
-
-			if swag.IsZero(m.ChildAssets[i]) { // not required
-				return nil
-			}
-
-			if err := m.ChildAssets[i].ContextValidate(ctx, formats); err != nil {
-				if ve, ok := err.(*errors.Validation); ok {
-					return ve.ValidateName("child_assets" + "." + strconv.Itoa(i))
-				} else if ce, ok := err.(*errors.CompositeError); ok {
-					return ce.ValidateName("child_assets" + "." + strconv.Itoa(i))
 				}
 				return err
 			}

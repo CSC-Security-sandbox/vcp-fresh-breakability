@@ -115,7 +115,7 @@ func TestV1betaGetMultiplePools(t *testing.T) {
 					{
 						PoolID:       "uuid1",
 						ResourceID:   &resourceId,
-						StorageClass: cvpmodels.NewStorageClassV1beta("storage-class-1"),
+						StorageClass: cvpmodels.StorageClassV1beta("storage-class-1"),
 						ServiceLevel: &serviceLevel,
 						Network:      &network,
 						SizeInBytes:  &sizeInBytes,

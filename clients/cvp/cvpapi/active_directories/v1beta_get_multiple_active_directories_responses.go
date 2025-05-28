@@ -6,8 +6,6 @@ package active_directories
 // Editing this file might prove futile when you re-run the swagger generate command
 
 import (
-	"context"
-	"encoding/json"
 	"fmt"
 	"io"
 	"strconv"
@@ -88,7 +86,7 @@ func NewV1betaGetMultipleActiveDirectoriesOK() *V1betaGetMultipleActiveDirectori
 }
 
 /*
-V1betaGetMultipleActiveDirectoriesOK describes a response with status code 200, with default header values.
+V1betaGetMultipleActiveDirectoriesOK handles this case with default header values.
 
 OK
 */
@@ -96,44 +94,8 @@ type V1betaGetMultipleActiveDirectoriesOK struct {
 	Payload *V1betaGetMultipleActiveDirectoriesOKBody
 }
 
-// IsSuccess returns true when this v1beta get multiple active directories o k response has a 2xx status code
-func (o *V1betaGetMultipleActiveDirectoriesOK) IsSuccess() bool {
-	return true
-}
-
-// IsRedirect returns true when this v1beta get multiple active directories o k response has a 3xx status code
-func (o *V1betaGetMultipleActiveDirectoriesOK) IsRedirect() bool {
-	return false
-}
-
-// IsClientError returns true when this v1beta get multiple active directories o k response has a 4xx status code
-func (o *V1betaGetMultipleActiveDirectoriesOK) IsClientError() bool {
-	return false
-}
-
-// IsServerError returns true when this v1beta get multiple active directories o k response has a 5xx status code
-func (o *V1betaGetMultipleActiveDirectoriesOK) IsServerError() bool {
-	return false
-}
-
-// IsCode returns true when this v1beta get multiple active directories o k response a status code equal to that given
-func (o *V1betaGetMultipleActiveDirectoriesOK) IsCode(code int) bool {
-	return code == 200
-}
-
-// Code gets the status code for the v1beta get multiple active directories o k response
-func (o *V1betaGetMultipleActiveDirectoriesOK) Code() int {
-	return 200
-}
-
 func (o *V1betaGetMultipleActiveDirectoriesOK) Error() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/storage/getMultipleActiveDirectories][%d] v1betaGetMultipleActiveDirectoriesOK %s", 200, payload)
-}
-
-func (o *V1betaGetMultipleActiveDirectoriesOK) String() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/storage/getMultipleActiveDirectories][%d] v1betaGetMultipleActiveDirectoriesOK %s", 200, payload)
+	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/storage/getMultipleActiveDirectories][%d] v1betaGetMultipleActiveDirectoriesOK  %+v", 200, o.Payload)
 }
 
 func (o *V1betaGetMultipleActiveDirectoriesOK) GetPayload() *V1betaGetMultipleActiveDirectoriesOKBody {
@@ -158,7 +120,7 @@ func NewV1betaGetMultipleActiveDirectoriesBadRequest() *V1betaGetMultipleActiveD
 }
 
 /*
-V1betaGetMultipleActiveDirectoriesBadRequest describes a response with status code 400, with default header values.
+V1betaGetMultipleActiveDirectoriesBadRequest handles this case with default header values.
 
 Bad request
 */
@@ -166,44 +128,8 @@ type V1betaGetMultipleActiveDirectoriesBadRequest struct {
 	Payload *models.Error
 }
 
-// IsSuccess returns true when this v1beta get multiple active directories bad request response has a 2xx status code
-func (o *V1betaGetMultipleActiveDirectoriesBadRequest) IsSuccess() bool {
-	return false
-}
-
-// IsRedirect returns true when this v1beta get multiple active directories bad request response has a 3xx status code
-func (o *V1betaGetMultipleActiveDirectoriesBadRequest) IsRedirect() bool {
-	return false
-}
-
-// IsClientError returns true when this v1beta get multiple active directories bad request response has a 4xx status code
-func (o *V1betaGetMultipleActiveDirectoriesBadRequest) IsClientError() bool {
-	return true
-}
-
-// IsServerError returns true when this v1beta get multiple active directories bad request response has a 5xx status code
-func (o *V1betaGetMultipleActiveDirectoriesBadRequest) IsServerError() bool {
-	return false
-}
-
-// IsCode returns true when this v1beta get multiple active directories bad request response a status code equal to that given
-func (o *V1betaGetMultipleActiveDirectoriesBadRequest) IsCode(code int) bool {
-	return code == 400
-}
-
-// Code gets the status code for the v1beta get multiple active directories bad request response
-func (o *V1betaGetMultipleActiveDirectoriesBadRequest) Code() int {
-	return 400
-}
-
 func (o *V1betaGetMultipleActiveDirectoriesBadRequest) Error() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/storage/getMultipleActiveDirectories][%d] v1betaGetMultipleActiveDirectoriesBadRequest %s", 400, payload)
-}
-
-func (o *V1betaGetMultipleActiveDirectoriesBadRequest) String() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/storage/getMultipleActiveDirectories][%d] v1betaGetMultipleActiveDirectoriesBadRequest %s", 400, payload)
+	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/storage/getMultipleActiveDirectories][%d] v1betaGetMultipleActiveDirectoriesBadRequest  %+v", 400, o.Payload)
 }
 
 func (o *V1betaGetMultipleActiveDirectoriesBadRequest) GetPayload() *models.Error {
@@ -228,7 +154,7 @@ func NewV1betaGetMultipleActiveDirectoriesUnauthorized() *V1betaGetMultipleActiv
 }
 
 /*
-V1betaGetMultipleActiveDirectoriesUnauthorized describes a response with status code 401, with default header values.
+V1betaGetMultipleActiveDirectoriesUnauthorized handles this case with default header values.
 
 Unauthorized
 */
@@ -236,44 +162,8 @@ type V1betaGetMultipleActiveDirectoriesUnauthorized struct {
 	Payload *models.Error
 }
 
-// IsSuccess returns true when this v1beta get multiple active directories unauthorized response has a 2xx status code
-func (o *V1betaGetMultipleActiveDirectoriesUnauthorized) IsSuccess() bool {
-	return false
-}
-
-// IsRedirect returns true when this v1beta get multiple active directories unauthorized response has a 3xx status code
-func (o *V1betaGetMultipleActiveDirectoriesUnauthorized) IsRedirect() bool {
-	return false
-}
-
-// IsClientError returns true when this v1beta get multiple active directories unauthorized response has a 4xx status code
-func (o *V1betaGetMultipleActiveDirectoriesUnauthorized) IsClientError() bool {
-	return true
-}
-
-// IsServerError returns true when this v1beta get multiple active directories unauthorized response has a 5xx status code
-func (o *V1betaGetMultipleActiveDirectoriesUnauthorized) IsServerError() bool {
-	return false
-}
-
-// IsCode returns true when this v1beta get multiple active directories unauthorized response a status code equal to that given
-func (o *V1betaGetMultipleActiveDirectoriesUnauthorized) IsCode(code int) bool {
-	return code == 401
-}
-
-// Code gets the status code for the v1beta get multiple active directories unauthorized response
-func (o *V1betaGetMultipleActiveDirectoriesUnauthorized) Code() int {
-	return 401
-}
-
 func (o *V1betaGetMultipleActiveDirectoriesUnauthorized) Error() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/storage/getMultipleActiveDirectories][%d] v1betaGetMultipleActiveDirectoriesUnauthorized %s", 401, payload)
-}
-
-func (o *V1betaGetMultipleActiveDirectoriesUnauthorized) String() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/storage/getMultipleActiveDirectories][%d] v1betaGetMultipleActiveDirectoriesUnauthorized %s", 401, payload)
+	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/storage/getMultipleActiveDirectories][%d] v1betaGetMultipleActiveDirectoriesUnauthorized  %+v", 401, o.Payload)
 }
 
 func (o *V1betaGetMultipleActiveDirectoriesUnauthorized) GetPayload() *models.Error {
@@ -298,7 +188,7 @@ func NewV1betaGetMultipleActiveDirectoriesForbidden() *V1betaGetMultipleActiveDi
 }
 
 /*
-V1betaGetMultipleActiveDirectoriesForbidden describes a response with status code 403, with default header values.
+V1betaGetMultipleActiveDirectoriesForbidden handles this case with default header values.
 
 Forbidden
 */
@@ -306,44 +196,8 @@ type V1betaGetMultipleActiveDirectoriesForbidden struct {
 	Payload *models.Error
 }
 
-// IsSuccess returns true when this v1beta get multiple active directories forbidden response has a 2xx status code
-func (o *V1betaGetMultipleActiveDirectoriesForbidden) IsSuccess() bool {
-	return false
-}
-
-// IsRedirect returns true when this v1beta get multiple active directories forbidden response has a 3xx status code
-func (o *V1betaGetMultipleActiveDirectoriesForbidden) IsRedirect() bool {
-	return false
-}
-
-// IsClientError returns true when this v1beta get multiple active directories forbidden response has a 4xx status code
-func (o *V1betaGetMultipleActiveDirectoriesForbidden) IsClientError() bool {
-	return true
-}
-
-// IsServerError returns true when this v1beta get multiple active directories forbidden response has a 5xx status code
-func (o *V1betaGetMultipleActiveDirectoriesForbidden) IsServerError() bool {
-	return false
-}
-
-// IsCode returns true when this v1beta get multiple active directories forbidden response a status code equal to that given
-func (o *V1betaGetMultipleActiveDirectoriesForbidden) IsCode(code int) bool {
-	return code == 403
-}
-
-// Code gets the status code for the v1beta get multiple active directories forbidden response
-func (o *V1betaGetMultipleActiveDirectoriesForbidden) Code() int {
-	return 403
-}
-
 func (o *V1betaGetMultipleActiveDirectoriesForbidden) Error() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/storage/getMultipleActiveDirectories][%d] v1betaGetMultipleActiveDirectoriesForbidden %s", 403, payload)
-}
-
-func (o *V1betaGetMultipleActiveDirectoriesForbidden) String() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/storage/getMultipleActiveDirectories][%d] v1betaGetMultipleActiveDirectoriesForbidden %s", 403, payload)
+	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/storage/getMultipleActiveDirectories][%d] v1betaGetMultipleActiveDirectoriesForbidden  %+v", 403, o.Payload)
 }
 
 func (o *V1betaGetMultipleActiveDirectoriesForbidden) GetPayload() *models.Error {
@@ -368,7 +222,7 @@ func NewV1betaGetMultipleActiveDirectoriesNotFound() *V1betaGetMultipleActiveDir
 }
 
 /*
-V1betaGetMultipleActiveDirectoriesNotFound describes a response with status code 404, with default header values.
+V1betaGetMultipleActiveDirectoriesNotFound handles this case with default header values.
 
 Not found
 */
@@ -376,44 +230,8 @@ type V1betaGetMultipleActiveDirectoriesNotFound struct {
 	Payload *models.Error
 }
 
-// IsSuccess returns true when this v1beta get multiple active directories not found response has a 2xx status code
-func (o *V1betaGetMultipleActiveDirectoriesNotFound) IsSuccess() bool {
-	return false
-}
-
-// IsRedirect returns true when this v1beta get multiple active directories not found response has a 3xx status code
-func (o *V1betaGetMultipleActiveDirectoriesNotFound) IsRedirect() bool {
-	return false
-}
-
-// IsClientError returns true when this v1beta get multiple active directories not found response has a 4xx status code
-func (o *V1betaGetMultipleActiveDirectoriesNotFound) IsClientError() bool {
-	return true
-}
-
-// IsServerError returns true when this v1beta get multiple active directories not found response has a 5xx status code
-func (o *V1betaGetMultipleActiveDirectoriesNotFound) IsServerError() bool {
-	return false
-}
-
-// IsCode returns true when this v1beta get multiple active directories not found response a status code equal to that given
-func (o *V1betaGetMultipleActiveDirectoriesNotFound) IsCode(code int) bool {
-	return code == 404
-}
-
-// Code gets the status code for the v1beta get multiple active directories not found response
-func (o *V1betaGetMultipleActiveDirectoriesNotFound) Code() int {
-	return 404
-}
-
 func (o *V1betaGetMultipleActiveDirectoriesNotFound) Error() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/storage/getMultipleActiveDirectories][%d] v1betaGetMultipleActiveDirectoriesNotFound %s", 404, payload)
-}
-
-func (o *V1betaGetMultipleActiveDirectoriesNotFound) String() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/storage/getMultipleActiveDirectories][%d] v1betaGetMultipleActiveDirectoriesNotFound %s", 404, payload)
+	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/storage/getMultipleActiveDirectories][%d] v1betaGetMultipleActiveDirectoriesNotFound  %+v", 404, o.Payload)
 }
 
 func (o *V1betaGetMultipleActiveDirectoriesNotFound) GetPayload() *models.Error {
@@ -438,7 +256,7 @@ func NewV1betaGetMultipleActiveDirectoriesTooManyRequests() *V1betaGetMultipleAc
 }
 
 /*
-V1betaGetMultipleActiveDirectoriesTooManyRequests describes a response with status code 429, with default header values.
+V1betaGetMultipleActiveDirectoriesTooManyRequests handles this case with default header values.
 
 Too many requests
 */
@@ -446,44 +264,8 @@ type V1betaGetMultipleActiveDirectoriesTooManyRequests struct {
 	Payload *models.Error
 }
 
-// IsSuccess returns true when this v1beta get multiple active directories too many requests response has a 2xx status code
-func (o *V1betaGetMultipleActiveDirectoriesTooManyRequests) IsSuccess() bool {
-	return false
-}
-
-// IsRedirect returns true when this v1beta get multiple active directories too many requests response has a 3xx status code
-func (o *V1betaGetMultipleActiveDirectoriesTooManyRequests) IsRedirect() bool {
-	return false
-}
-
-// IsClientError returns true when this v1beta get multiple active directories too many requests response has a 4xx status code
-func (o *V1betaGetMultipleActiveDirectoriesTooManyRequests) IsClientError() bool {
-	return true
-}
-
-// IsServerError returns true when this v1beta get multiple active directories too many requests response has a 5xx status code
-func (o *V1betaGetMultipleActiveDirectoriesTooManyRequests) IsServerError() bool {
-	return false
-}
-
-// IsCode returns true when this v1beta get multiple active directories too many requests response a status code equal to that given
-func (o *V1betaGetMultipleActiveDirectoriesTooManyRequests) IsCode(code int) bool {
-	return code == 429
-}
-
-// Code gets the status code for the v1beta get multiple active directories too many requests response
-func (o *V1betaGetMultipleActiveDirectoriesTooManyRequests) Code() int {
-	return 429
-}
-
 func (o *V1betaGetMultipleActiveDirectoriesTooManyRequests) Error() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/storage/getMultipleActiveDirectories][%d] v1betaGetMultipleActiveDirectoriesTooManyRequests %s", 429, payload)
-}
-
-func (o *V1betaGetMultipleActiveDirectoriesTooManyRequests) String() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/storage/getMultipleActiveDirectories][%d] v1betaGetMultipleActiveDirectoriesTooManyRequests %s", 429, payload)
+	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/storage/getMultipleActiveDirectories][%d] v1betaGetMultipleActiveDirectoriesTooManyRequests  %+v", 429, o.Payload)
 }
 
 func (o *V1betaGetMultipleActiveDirectoriesTooManyRequests) GetPayload() *models.Error {
@@ -508,7 +290,7 @@ func NewV1betaGetMultipleActiveDirectoriesInternalServerError() *V1betaGetMultip
 }
 
 /*
-V1betaGetMultipleActiveDirectoriesInternalServerError describes a response with status code 500, with default header values.
+V1betaGetMultipleActiveDirectoriesInternalServerError handles this case with default header values.
 
 Internal server error
 */
@@ -516,44 +298,8 @@ type V1betaGetMultipleActiveDirectoriesInternalServerError struct {
 	Payload *models.Error
 }
 
-// IsSuccess returns true when this v1beta get multiple active directories internal server error response has a 2xx status code
-func (o *V1betaGetMultipleActiveDirectoriesInternalServerError) IsSuccess() bool {
-	return false
-}
-
-// IsRedirect returns true when this v1beta get multiple active directories internal server error response has a 3xx status code
-func (o *V1betaGetMultipleActiveDirectoriesInternalServerError) IsRedirect() bool {
-	return false
-}
-
-// IsClientError returns true when this v1beta get multiple active directories internal server error response has a 4xx status code
-func (o *V1betaGetMultipleActiveDirectoriesInternalServerError) IsClientError() bool {
-	return false
-}
-
-// IsServerError returns true when this v1beta get multiple active directories internal server error response has a 5xx status code
-func (o *V1betaGetMultipleActiveDirectoriesInternalServerError) IsServerError() bool {
-	return true
-}
-
-// IsCode returns true when this v1beta get multiple active directories internal server error response a status code equal to that given
-func (o *V1betaGetMultipleActiveDirectoriesInternalServerError) IsCode(code int) bool {
-	return code == 500
-}
-
-// Code gets the status code for the v1beta get multiple active directories internal server error response
-func (o *V1betaGetMultipleActiveDirectoriesInternalServerError) Code() int {
-	return 500
-}
-
 func (o *V1betaGetMultipleActiveDirectoriesInternalServerError) Error() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/storage/getMultipleActiveDirectories][%d] v1betaGetMultipleActiveDirectoriesInternalServerError %s", 500, payload)
-}
-
-func (o *V1betaGetMultipleActiveDirectoriesInternalServerError) String() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/storage/getMultipleActiveDirectories][%d] v1betaGetMultipleActiveDirectoriesInternalServerError %s", 500, payload)
+	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/storage/getMultipleActiveDirectories][%d] v1betaGetMultipleActiveDirectoriesInternalServerError  %+v", 500, o.Payload)
 }
 
 func (o *V1betaGetMultipleActiveDirectoriesInternalServerError) GetPayload() *models.Error {
@@ -580,7 +326,7 @@ func NewV1betaGetMultipleActiveDirectoriesDefault(code int) *V1betaGetMultipleAc
 }
 
 /*
-V1betaGetMultipleActiveDirectoriesDefault describes a response with status code -1, with default header values.
+V1betaGetMultipleActiveDirectoriesDefault handles this case with default header values.
 
 Unexpected error
 */
@@ -590,44 +336,13 @@ type V1betaGetMultipleActiveDirectoriesDefault struct {
 	Payload *models.Error
 }
 
-// IsSuccess returns true when this v1beta get multiple active directories default response has a 2xx status code
-func (o *V1betaGetMultipleActiveDirectoriesDefault) IsSuccess() bool {
-	return o._statusCode/100 == 2
-}
-
-// IsRedirect returns true when this v1beta get multiple active directories default response has a 3xx status code
-func (o *V1betaGetMultipleActiveDirectoriesDefault) IsRedirect() bool {
-	return o._statusCode/100 == 3
-}
-
-// IsClientError returns true when this v1beta get multiple active directories default response has a 4xx status code
-func (o *V1betaGetMultipleActiveDirectoriesDefault) IsClientError() bool {
-	return o._statusCode/100 == 4
-}
-
-// IsServerError returns true when this v1beta get multiple active directories default response has a 5xx status code
-func (o *V1betaGetMultipleActiveDirectoriesDefault) IsServerError() bool {
-	return o._statusCode/100 == 5
-}
-
-// IsCode returns true when this v1beta get multiple active directories default response a status code equal to that given
-func (o *V1betaGetMultipleActiveDirectoriesDefault) IsCode(code int) bool {
-	return o._statusCode == code
-}
-
 // Code gets the status code for the v1beta get multiple active directories default response
 func (o *V1betaGetMultipleActiveDirectoriesDefault) Code() int {
 	return o._statusCode
 }
 
 func (o *V1betaGetMultipleActiveDirectoriesDefault) Error() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/storage/getMultipleActiveDirectories][%d] v1beta_getMultipleActiveDirectories default %s", o._statusCode, payload)
-}
-
-func (o *V1betaGetMultipleActiveDirectoriesDefault) String() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/storage/getMultipleActiveDirectories][%d] v1beta_getMultipleActiveDirectories default %s", o._statusCode, payload)
+	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/storage/getMultipleActiveDirectories][%d] v1beta_getMultipleActiveDirectories default  %+v", o._statusCode, o.Payload)
 }
 
 func (o *V1betaGetMultipleActiveDirectoriesDefault) GetPayload() *models.Error {
@@ -718,47 +433,6 @@ func (o *V1betaGetMultipleActiveDirectoriesOKBody) validateActiveDirectories(for
 			if err := o.ActiveDirectories[i].Validate(formats); err != nil {
 				if ve, ok := err.(*errors.Validation); ok {
 					return ve.ValidateName("v1betaGetMultipleActiveDirectoriesOK" + "." + "activeDirectories" + "." + strconv.Itoa(i))
-				} else if ce, ok := err.(*errors.CompositeError); ok {
-					return ce.ValidateName("v1betaGetMultipleActiveDirectoriesOK" + "." + "activeDirectories" + "." + strconv.Itoa(i))
-				}
-				return err
-			}
-		}
-
-	}
-
-	return nil
-}
-
-// ContextValidate validate this v1beta get multiple active directories o k body based on the context it is used
-func (o *V1betaGetMultipleActiveDirectoriesOKBody) ContextValidate(ctx context.Context, formats strfmt.Registry) error {
-	var res []error
-
-	if err := o.contextValidateActiveDirectories(ctx, formats); err != nil {
-		res = append(res, err)
-	}
-
-	if len(res) > 0 {
-		return errors.CompositeValidationError(res...)
-	}
-	return nil
-}
-
-func (o *V1betaGetMultipleActiveDirectoriesOKBody) contextValidateActiveDirectories(ctx context.Context, formats strfmt.Registry) error {
-
-	for i := 0; i < len(o.ActiveDirectories); i++ {
-
-		if o.ActiveDirectories[i] != nil {
-
-			if swag.IsZero(o.ActiveDirectories[i]) { // not required
-				return nil
-			}
-
-			if err := o.ActiveDirectories[i].ContextValidate(ctx, formats); err != nil {
-				if ve, ok := err.(*errors.Validation); ok {
-					return ve.ValidateName("v1betaGetMultipleActiveDirectoriesOK" + "." + "activeDirectories" + "." + strconv.Itoa(i))
-				} else if ce, ok := err.(*errors.CompositeError); ok {
-					return ce.ValidateName("v1betaGetMultipleActiveDirectoriesOK" + "." + "activeDirectories" + "." + strconv.Itoa(i))
 				}
 				return err
 			}

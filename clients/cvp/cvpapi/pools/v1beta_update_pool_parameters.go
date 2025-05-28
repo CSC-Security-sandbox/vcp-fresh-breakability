@@ -18,37 +18,40 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/models"
 )
 
-// NewV1betaUpdatePoolParams creates a new V1betaUpdatePoolParams object,
-// with the default timeout for this client.
-//
-// Default values are not hydrated, since defaults are normally applied by the API server side.
-//
-// To enforce default values in parameter, use SetDefaults or WithDefaults.
+// NewV1betaUpdatePoolParams creates a new V1betaUpdatePoolParams object
+// with the default values initialized.
 func NewV1betaUpdatePoolParams() *V1betaUpdatePoolParams {
+	var ()
 	return &V1betaUpdatePoolParams{
+
 		timeout: cr.DefaultTimeout,
 	}
 }
 
 // NewV1betaUpdatePoolParamsWithTimeout creates a new V1betaUpdatePoolParams object
-// with the ability to set a timeout on a request.
+// with the default values initialized, and the ability to set a timeout on a request
 func NewV1betaUpdatePoolParamsWithTimeout(timeout time.Duration) *V1betaUpdatePoolParams {
+	var ()
 	return &V1betaUpdatePoolParams{
+
 		timeout: timeout,
 	}
 }
 
 // NewV1betaUpdatePoolParamsWithContext creates a new V1betaUpdatePoolParams object
-// with the ability to set a context for a request.
+// with the default values initialized, and the ability to set a context for a request
 func NewV1betaUpdatePoolParamsWithContext(ctx context.Context) *V1betaUpdatePoolParams {
+	var ()
 	return &V1betaUpdatePoolParams{
+
 		Context: ctx,
 	}
 }
 
 // NewV1betaUpdatePoolParamsWithHTTPClient creates a new V1betaUpdatePoolParams object
-// with the ability to set a custom HTTPClient for a request.
+// with the default values initialized, and the ability to set a custom HTTPClient for a request
 func NewV1betaUpdatePoolParamsWithHTTPClient(client *http.Client) *V1betaUpdatePoolParams {
+	var ()
 	return &V1betaUpdatePoolParams{
 		HTTPClient: client,
 	}
@@ -56,61 +59,39 @@ func NewV1betaUpdatePoolParamsWithHTTPClient(client *http.Client) *V1betaUpdateP
 
 /*
 V1betaUpdatePoolParams contains all the parameters to send to the API endpoint
-
-	for the v1beta update pool operation.
-
-	Typically these are written to a http.Request.
+for the v1beta update pool operation typically these are written to a http.Request
 */
 type V1betaUpdatePoolParams struct {
 
-	/* Body.
+	/*Body
+	  The parameters that can be updated
 
-	   The parameters that can be updated
 	*/
 	Body *models.PoolUpdateV1beta
+	/*LocationID
+	  The location/region to perform the operation in.
 
-	/* LocationID.
-
-	   The location/region to perform the operation in.
 	*/
 	LocationID string
+	/*PoolID
+	  UUID v4 used to identify the pool
 
-	/* PoolID.
-
-	   UUID v4 used to identify the pool
 	*/
 	PoolID string
+	/*ProjectNumber
+	  The project number of the GCP project owning the resource being acted upon
 
-	/* ProjectNumber.
-
-	   The project number of the GCP project owning the resource being acted upon
 	*/
 	ProjectNumber string
+	/*XCorrelationID
+	  Correlation identifier
 
-	/* XCorrelationID.
-
-	   Correlation identifier
 	*/
 	XCorrelationID *string
 
 	timeout    time.Duration
 	Context    context.Context
 	HTTPClient *http.Client
-}
-
-// WithDefaults hydrates default values in the v1beta update pool params (not the query body).
-//
-// All values with no default are reset to their zero value.
-func (o *V1betaUpdatePoolParams) WithDefaults() *V1betaUpdatePoolParams {
-	o.SetDefaults()
-	return o
-}
-
-// SetDefaults hydrates default values in the v1beta update pool params (not the query body).
-//
-// All values with no default are reset to their zero value.
-func (o *V1betaUpdatePoolParams) SetDefaults() {
-	// no default values defined for this parameter
 }
 
 // WithTimeout adds the timeout to the v1beta update pool params
@@ -208,6 +189,7 @@ func (o *V1betaUpdatePoolParams) WriteToRequest(r runtime.ClientRequest, reg str
 		return err
 	}
 	var res []error
+
 	if o.Body != nil {
 		if err := r.SetBodyParam(o.Body); err != nil {
 			return err
@@ -235,6 +217,7 @@ func (o *V1betaUpdatePoolParams) WriteToRequest(r runtime.ClientRequest, reg str
 		if err := r.SetHeaderParam("x-correlation-id", *o.XCorrelationID); err != nil {
 			return err
 		}
+
 	}
 
 	if len(res) > 0 {

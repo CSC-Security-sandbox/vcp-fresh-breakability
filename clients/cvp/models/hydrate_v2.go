@@ -6,7 +6,6 @@ package models
 // Editing this file might prove futile when you re-run the swagger generate command
 
 import (
-	"context"
 	"encoding/json"
 
 	"github.com/go-openapi/errors"
@@ -23,13 +22,12 @@ import (
 type HydrateV2 struct {
 
 	// Account ID of tenant project undergoing migration
-	// Example: 225751136894 or test-project
 	// Required: true
 	ProjectID *string `json:"projectId"`
 
 	// Type of resource for which hydration need to be performed
 	// Required: true
-	// Enum: ["Pool","Volume","ActiveDirectory","Snapshot"]
+	// Enum: [Pool Volume ActiveDirectory Snapshot]
 	ResourceType *string `json:"resourceType"`
 }
 
@@ -106,11 +104,6 @@ func (m *HydrateV2) validateResourceType(formats strfmt.Registry) error {
 		return err
 	}
 
-	return nil
-}
-
-// ContextValidate validates this hydrate v2 based on context it is used
-func (m *HydrateV2) ContextValidate(ctx context.Context, formats strfmt.Registry) error {
 	return nil
 }
 

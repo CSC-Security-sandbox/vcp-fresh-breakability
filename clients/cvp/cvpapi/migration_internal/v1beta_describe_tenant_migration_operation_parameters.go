@@ -16,37 +16,40 @@ import (
 	"github.com/go-openapi/strfmt"
 )
 
-// NewV1betaDescribeTenantMigrationOperationParams creates a new V1betaDescribeTenantMigrationOperationParams object,
-// with the default timeout for this client.
-//
-// Default values are not hydrated, since defaults are normally applied by the API server side.
-//
-// To enforce default values in parameter, use SetDefaults or WithDefaults.
+// NewV1betaDescribeTenantMigrationOperationParams creates a new V1betaDescribeTenantMigrationOperationParams object
+// with the default values initialized.
 func NewV1betaDescribeTenantMigrationOperationParams() *V1betaDescribeTenantMigrationOperationParams {
+	var ()
 	return &V1betaDescribeTenantMigrationOperationParams{
+
 		timeout: cr.DefaultTimeout,
 	}
 }
 
 // NewV1betaDescribeTenantMigrationOperationParamsWithTimeout creates a new V1betaDescribeTenantMigrationOperationParams object
-// with the ability to set a timeout on a request.
+// with the default values initialized, and the ability to set a timeout on a request
 func NewV1betaDescribeTenantMigrationOperationParamsWithTimeout(timeout time.Duration) *V1betaDescribeTenantMigrationOperationParams {
+	var ()
 	return &V1betaDescribeTenantMigrationOperationParams{
+
 		timeout: timeout,
 	}
 }
 
 // NewV1betaDescribeTenantMigrationOperationParamsWithContext creates a new V1betaDescribeTenantMigrationOperationParams object
-// with the ability to set a context for a request.
+// with the default values initialized, and the ability to set a context for a request
 func NewV1betaDescribeTenantMigrationOperationParamsWithContext(ctx context.Context) *V1betaDescribeTenantMigrationOperationParams {
+	var ()
 	return &V1betaDescribeTenantMigrationOperationParams{
+
 		Context: ctx,
 	}
 }
 
 // NewV1betaDescribeTenantMigrationOperationParamsWithHTTPClient creates a new V1betaDescribeTenantMigrationOperationParams object
-// with the ability to set a custom HTTPClient for a request.
+// with the default values initialized, and the ability to set a custom HTTPClient for a request
 func NewV1betaDescribeTenantMigrationOperationParamsWithHTTPClient(client *http.Client) *V1betaDescribeTenantMigrationOperationParams {
+	var ()
 	return &V1betaDescribeTenantMigrationOperationParams{
 		HTTPClient: client,
 	}
@@ -54,55 +57,34 @@ func NewV1betaDescribeTenantMigrationOperationParamsWithHTTPClient(client *http.
 
 /*
 V1betaDescribeTenantMigrationOperationParams contains all the parameters to send to the API endpoint
-
-	for the v1beta describe tenant migration operation operation.
-
-	Typically these are written to a http.Request.
+for the v1beta describe tenant migration operation operation typically these are written to a http.Request
 */
 type V1betaDescribeTenantMigrationOperationParams struct {
 
-	/* LocationID.
+	/*LocationID
+	  The location/region to perform the operation in.
 
-	   The location/region to perform the operation in.
 	*/
 	LocationID string
+	/*OperationID
+	  UUIDv4 used ot identity a long running operation
 
-	/* OperationID.
-
-	   UUIDv4 used ot identity a long running operation
 	*/
 	OperationID string
+	/*ProjectNumber
+	  The project number of the GCP project owning the resource being acted upon
 
-	/* ProjectNumber.
-
-	   The project number of the GCP project owning the resource being acted upon
 	*/
 	ProjectNumber string
+	/*XCorrelationID
+	  Correlation identifier
 
-	/* XCorrelationID.
-
-	   Correlation identifier
 	*/
 	XCorrelationID *string
 
 	timeout    time.Duration
 	Context    context.Context
 	HTTPClient *http.Client
-}
-
-// WithDefaults hydrates default values in the v1beta describe tenant migration operation params (not the query body).
-//
-// All values with no default are reset to their zero value.
-func (o *V1betaDescribeTenantMigrationOperationParams) WithDefaults() *V1betaDescribeTenantMigrationOperationParams {
-	o.SetDefaults()
-	return o
-}
-
-// SetDefaults hydrates default values in the v1beta describe tenant migration operation params (not the query body).
-//
-// All values with no default are reset to their zero value.
-func (o *V1betaDescribeTenantMigrationOperationParams) SetDefaults() {
-	// no default values defined for this parameter
 }
 
 // WithTimeout adds the timeout to the v1beta describe tenant migration operation params
@@ -211,6 +193,7 @@ func (o *V1betaDescribeTenantMigrationOperationParams) WriteToRequest(r runtime.
 		if err := r.SetHeaderParam("x-correlation-id", *o.XCorrelationID); err != nil {
 			return err
 		}
+
 	}
 
 	if len(res) > 0 {

@@ -16,37 +16,40 @@ import (
 	"github.com/go-openapi/strfmt"
 )
 
-// NewV1betaListReplicationsParams creates a new V1betaListReplicationsParams object,
-// with the default timeout for this client.
-//
-// Default values are not hydrated, since defaults are normally applied by the API server side.
-//
-// To enforce default values in parameter, use SetDefaults or WithDefaults.
+// NewV1betaListReplicationsParams creates a new V1betaListReplicationsParams object
+// with the default values initialized.
 func NewV1betaListReplicationsParams() *V1betaListReplicationsParams {
+	var ()
 	return &V1betaListReplicationsParams{
+
 		timeout: cr.DefaultTimeout,
 	}
 }
 
 // NewV1betaListReplicationsParamsWithTimeout creates a new V1betaListReplicationsParams object
-// with the ability to set a timeout on a request.
+// with the default values initialized, and the ability to set a timeout on a request
 func NewV1betaListReplicationsParamsWithTimeout(timeout time.Duration) *V1betaListReplicationsParams {
+	var ()
 	return &V1betaListReplicationsParams{
+
 		timeout: timeout,
 	}
 }
 
 // NewV1betaListReplicationsParamsWithContext creates a new V1betaListReplicationsParams object
-// with the ability to set a context for a request.
+// with the default values initialized, and the ability to set a context for a request
 func NewV1betaListReplicationsParamsWithContext(ctx context.Context) *V1betaListReplicationsParams {
+	var ()
 	return &V1betaListReplicationsParams{
+
 		Context: ctx,
 	}
 }
 
 // NewV1betaListReplicationsParamsWithHTTPClient creates a new V1betaListReplicationsParams object
-// with the ability to set a custom HTTPClient for a request.
+// with the default values initialized, and the ability to set a custom HTTPClient for a request
 func NewV1betaListReplicationsParamsWithHTTPClient(client *http.Client) *V1betaListReplicationsParams {
+	var ()
 	return &V1betaListReplicationsParams{
 		HTTPClient: client,
 	}
@@ -54,49 +57,29 @@ func NewV1betaListReplicationsParamsWithHTTPClient(client *http.Client) *V1betaL
 
 /*
 V1betaListReplicationsParams contains all the parameters to send to the API endpoint
-
-	for the v1beta list replications operation.
-
-	Typically these are written to a http.Request.
+for the v1beta list replications operation typically these are written to a http.Request
 */
 type V1betaListReplicationsParams struct {
 
-	/* LocationID.
+	/*LocationID
+	  The location/region to perform the operation in.
 
-	   The location/region to perform the operation in.
 	*/
 	LocationID string
+	/*ProjectNumber
+	  The project number of the GCP project owning the resource being acted upon
 
-	/* ProjectNumber.
-
-	   The project number of the GCP project owning the resource being acted upon
 	*/
 	ProjectNumber string
+	/*XCorrelationID
+	  Correlation identifier
 
-	/* XCorrelationID.
-
-	   Correlation identifier
 	*/
 	XCorrelationID *string
 
 	timeout    time.Duration
 	Context    context.Context
 	HTTPClient *http.Client
-}
-
-// WithDefaults hydrates default values in the v1beta list replications params (not the query body).
-//
-// All values with no default are reset to their zero value.
-func (o *V1betaListReplicationsParams) WithDefaults() *V1betaListReplicationsParams {
-	o.SetDefaults()
-	return o
-}
-
-// SetDefaults hydrates default values in the v1beta list replications params (not the query body).
-//
-// All values with no default are reset to their zero value.
-func (o *V1betaListReplicationsParams) SetDefaults() {
-	// no default values defined for this parameter
 }
 
 // WithTimeout adds the timeout to the v1beta list replications params
@@ -189,6 +172,7 @@ func (o *V1betaListReplicationsParams) WriteToRequest(r runtime.ClientRequest, r
 		if err := r.SetHeaderParam("x-correlation-id", *o.XCorrelationID); err != nil {
 			return err
 		}
+
 	}
 
 	if len(res) > 0 {

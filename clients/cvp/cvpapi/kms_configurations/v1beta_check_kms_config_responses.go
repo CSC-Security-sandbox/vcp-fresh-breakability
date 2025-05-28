@@ -6,7 +6,6 @@ package kms_configurations
 // Editing this file might prove futile when you re-run the swagger generate command
 
 import (
-	"encoding/json"
 	"fmt"
 	"io"
 
@@ -96,7 +95,7 @@ func NewV1betaCheckKmsConfigOK() *V1betaCheckKmsConfigOK {
 }
 
 /*
-V1betaCheckKmsConfigOK describes a response with status code 200, with default header values.
+V1betaCheckKmsConfigOK handles this case with default header values.
 
 OK
 */
@@ -104,44 +103,8 @@ type V1betaCheckKmsConfigOK struct {
 	Payload *models.KmsConfigCheckV1beta
 }
 
-// IsSuccess returns true when this v1beta check kms config o k response has a 2xx status code
-func (o *V1betaCheckKmsConfigOK) IsSuccess() bool {
-	return true
-}
-
-// IsRedirect returns true when this v1beta check kms config o k response has a 3xx status code
-func (o *V1betaCheckKmsConfigOK) IsRedirect() bool {
-	return false
-}
-
-// IsClientError returns true when this v1beta check kms config o k response has a 4xx status code
-func (o *V1betaCheckKmsConfigOK) IsClientError() bool {
-	return false
-}
-
-// IsServerError returns true when this v1beta check kms config o k response has a 5xx status code
-func (o *V1betaCheckKmsConfigOK) IsServerError() bool {
-	return false
-}
-
-// IsCode returns true when this v1beta check kms config o k response a status code equal to that given
-func (o *V1betaCheckKmsConfigOK) IsCode(code int) bool {
-	return code == 200
-}
-
-// Code gets the status code for the v1beta check kms config o k response
-func (o *V1betaCheckKmsConfigOK) Code() int {
-	return 200
-}
-
 func (o *V1betaCheckKmsConfigOK) Error() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[GET /v1beta/projects/{projectNumber}/locations/{locationId}/storage/kmsConfig/{kmsConfigId}/check][%d] v1betaCheckKmsConfigOK %s", 200, payload)
-}
-
-func (o *V1betaCheckKmsConfigOK) String() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[GET /v1beta/projects/{projectNumber}/locations/{locationId}/storage/kmsConfig/{kmsConfigId}/check][%d] v1betaCheckKmsConfigOK %s", 200, payload)
+	return fmt.Sprintf("[GET /v1beta/projects/{projectNumber}/locations/{locationId}/storage/kmsConfig/{kmsConfigId}/check][%d] v1betaCheckKmsConfigOK  %+v", 200, o.Payload)
 }
 
 func (o *V1betaCheckKmsConfigOK) GetPayload() *models.KmsConfigCheckV1beta {
@@ -166,7 +129,7 @@ func NewV1betaCheckKmsConfigBadRequest() *V1betaCheckKmsConfigBadRequest {
 }
 
 /*
-V1betaCheckKmsConfigBadRequest describes a response with status code 400, with default header values.
+V1betaCheckKmsConfigBadRequest handles this case with default header values.
 
 Bad request
 */
@@ -174,44 +137,8 @@ type V1betaCheckKmsConfigBadRequest struct {
 	Payload *models.Error
 }
 
-// IsSuccess returns true when this v1beta check kms config bad request response has a 2xx status code
-func (o *V1betaCheckKmsConfigBadRequest) IsSuccess() bool {
-	return false
-}
-
-// IsRedirect returns true when this v1beta check kms config bad request response has a 3xx status code
-func (o *V1betaCheckKmsConfigBadRequest) IsRedirect() bool {
-	return false
-}
-
-// IsClientError returns true when this v1beta check kms config bad request response has a 4xx status code
-func (o *V1betaCheckKmsConfigBadRequest) IsClientError() bool {
-	return true
-}
-
-// IsServerError returns true when this v1beta check kms config bad request response has a 5xx status code
-func (o *V1betaCheckKmsConfigBadRequest) IsServerError() bool {
-	return false
-}
-
-// IsCode returns true when this v1beta check kms config bad request response a status code equal to that given
-func (o *V1betaCheckKmsConfigBadRequest) IsCode(code int) bool {
-	return code == 400
-}
-
-// Code gets the status code for the v1beta check kms config bad request response
-func (o *V1betaCheckKmsConfigBadRequest) Code() int {
-	return 400
-}
-
 func (o *V1betaCheckKmsConfigBadRequest) Error() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[GET /v1beta/projects/{projectNumber}/locations/{locationId}/storage/kmsConfig/{kmsConfigId}/check][%d] v1betaCheckKmsConfigBadRequest %s", 400, payload)
-}
-
-func (o *V1betaCheckKmsConfigBadRequest) String() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[GET /v1beta/projects/{projectNumber}/locations/{locationId}/storage/kmsConfig/{kmsConfigId}/check][%d] v1betaCheckKmsConfigBadRequest %s", 400, payload)
+	return fmt.Sprintf("[GET /v1beta/projects/{projectNumber}/locations/{locationId}/storage/kmsConfig/{kmsConfigId}/check][%d] v1betaCheckKmsConfigBadRequest  %+v", 400, o.Payload)
 }
 
 func (o *V1betaCheckKmsConfigBadRequest) GetPayload() *models.Error {
@@ -236,7 +163,7 @@ func NewV1betaCheckKmsConfigUnauthorized() *V1betaCheckKmsConfigUnauthorized {
 }
 
 /*
-V1betaCheckKmsConfigUnauthorized describes a response with status code 401, with default header values.
+V1betaCheckKmsConfigUnauthorized handles this case with default header values.
 
 Unauthorized
 */
@@ -244,44 +171,8 @@ type V1betaCheckKmsConfigUnauthorized struct {
 	Payload *models.Error
 }
 
-// IsSuccess returns true when this v1beta check kms config unauthorized response has a 2xx status code
-func (o *V1betaCheckKmsConfigUnauthorized) IsSuccess() bool {
-	return false
-}
-
-// IsRedirect returns true when this v1beta check kms config unauthorized response has a 3xx status code
-func (o *V1betaCheckKmsConfigUnauthorized) IsRedirect() bool {
-	return false
-}
-
-// IsClientError returns true when this v1beta check kms config unauthorized response has a 4xx status code
-func (o *V1betaCheckKmsConfigUnauthorized) IsClientError() bool {
-	return true
-}
-
-// IsServerError returns true when this v1beta check kms config unauthorized response has a 5xx status code
-func (o *V1betaCheckKmsConfigUnauthorized) IsServerError() bool {
-	return false
-}
-
-// IsCode returns true when this v1beta check kms config unauthorized response a status code equal to that given
-func (o *V1betaCheckKmsConfigUnauthorized) IsCode(code int) bool {
-	return code == 401
-}
-
-// Code gets the status code for the v1beta check kms config unauthorized response
-func (o *V1betaCheckKmsConfigUnauthorized) Code() int {
-	return 401
-}
-
 func (o *V1betaCheckKmsConfigUnauthorized) Error() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[GET /v1beta/projects/{projectNumber}/locations/{locationId}/storage/kmsConfig/{kmsConfigId}/check][%d] v1betaCheckKmsConfigUnauthorized %s", 401, payload)
-}
-
-func (o *V1betaCheckKmsConfigUnauthorized) String() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[GET /v1beta/projects/{projectNumber}/locations/{locationId}/storage/kmsConfig/{kmsConfigId}/check][%d] v1betaCheckKmsConfigUnauthorized %s", 401, payload)
+	return fmt.Sprintf("[GET /v1beta/projects/{projectNumber}/locations/{locationId}/storage/kmsConfig/{kmsConfigId}/check][%d] v1betaCheckKmsConfigUnauthorized  %+v", 401, o.Payload)
 }
 
 func (o *V1betaCheckKmsConfigUnauthorized) GetPayload() *models.Error {
@@ -306,7 +197,7 @@ func NewV1betaCheckKmsConfigForbidden() *V1betaCheckKmsConfigForbidden {
 }
 
 /*
-V1betaCheckKmsConfigForbidden describes a response with status code 403, with default header values.
+V1betaCheckKmsConfigForbidden handles this case with default header values.
 
 Forbidden
 */
@@ -314,44 +205,8 @@ type V1betaCheckKmsConfigForbidden struct {
 	Payload *models.Error
 }
 
-// IsSuccess returns true when this v1beta check kms config forbidden response has a 2xx status code
-func (o *V1betaCheckKmsConfigForbidden) IsSuccess() bool {
-	return false
-}
-
-// IsRedirect returns true when this v1beta check kms config forbidden response has a 3xx status code
-func (o *V1betaCheckKmsConfigForbidden) IsRedirect() bool {
-	return false
-}
-
-// IsClientError returns true when this v1beta check kms config forbidden response has a 4xx status code
-func (o *V1betaCheckKmsConfigForbidden) IsClientError() bool {
-	return true
-}
-
-// IsServerError returns true when this v1beta check kms config forbidden response has a 5xx status code
-func (o *V1betaCheckKmsConfigForbidden) IsServerError() bool {
-	return false
-}
-
-// IsCode returns true when this v1beta check kms config forbidden response a status code equal to that given
-func (o *V1betaCheckKmsConfigForbidden) IsCode(code int) bool {
-	return code == 403
-}
-
-// Code gets the status code for the v1beta check kms config forbidden response
-func (o *V1betaCheckKmsConfigForbidden) Code() int {
-	return 403
-}
-
 func (o *V1betaCheckKmsConfigForbidden) Error() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[GET /v1beta/projects/{projectNumber}/locations/{locationId}/storage/kmsConfig/{kmsConfigId}/check][%d] v1betaCheckKmsConfigForbidden %s", 403, payload)
-}
-
-func (o *V1betaCheckKmsConfigForbidden) String() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[GET /v1beta/projects/{projectNumber}/locations/{locationId}/storage/kmsConfig/{kmsConfigId}/check][%d] v1betaCheckKmsConfigForbidden %s", 403, payload)
+	return fmt.Sprintf("[GET /v1beta/projects/{projectNumber}/locations/{locationId}/storage/kmsConfig/{kmsConfigId}/check][%d] v1betaCheckKmsConfigForbidden  %+v", 403, o.Payload)
 }
 
 func (o *V1betaCheckKmsConfigForbidden) GetPayload() *models.Error {
@@ -376,7 +231,7 @@ func NewV1betaCheckKmsConfigNotFound() *V1betaCheckKmsConfigNotFound {
 }
 
 /*
-V1betaCheckKmsConfigNotFound describes a response with status code 404, with default header values.
+V1betaCheckKmsConfigNotFound handles this case with default header values.
 
 Not found
 */
@@ -384,44 +239,8 @@ type V1betaCheckKmsConfigNotFound struct {
 	Payload *models.Error
 }
 
-// IsSuccess returns true when this v1beta check kms config not found response has a 2xx status code
-func (o *V1betaCheckKmsConfigNotFound) IsSuccess() bool {
-	return false
-}
-
-// IsRedirect returns true when this v1beta check kms config not found response has a 3xx status code
-func (o *V1betaCheckKmsConfigNotFound) IsRedirect() bool {
-	return false
-}
-
-// IsClientError returns true when this v1beta check kms config not found response has a 4xx status code
-func (o *V1betaCheckKmsConfigNotFound) IsClientError() bool {
-	return true
-}
-
-// IsServerError returns true when this v1beta check kms config not found response has a 5xx status code
-func (o *V1betaCheckKmsConfigNotFound) IsServerError() bool {
-	return false
-}
-
-// IsCode returns true when this v1beta check kms config not found response a status code equal to that given
-func (o *V1betaCheckKmsConfigNotFound) IsCode(code int) bool {
-	return code == 404
-}
-
-// Code gets the status code for the v1beta check kms config not found response
-func (o *V1betaCheckKmsConfigNotFound) Code() int {
-	return 404
-}
-
 func (o *V1betaCheckKmsConfigNotFound) Error() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[GET /v1beta/projects/{projectNumber}/locations/{locationId}/storage/kmsConfig/{kmsConfigId}/check][%d] v1betaCheckKmsConfigNotFound %s", 404, payload)
-}
-
-func (o *V1betaCheckKmsConfigNotFound) String() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[GET /v1beta/projects/{projectNumber}/locations/{locationId}/storage/kmsConfig/{kmsConfigId}/check][%d] v1betaCheckKmsConfigNotFound %s", 404, payload)
+	return fmt.Sprintf("[GET /v1beta/projects/{projectNumber}/locations/{locationId}/storage/kmsConfig/{kmsConfigId}/check][%d] v1betaCheckKmsConfigNotFound  %+v", 404, o.Payload)
 }
 
 func (o *V1betaCheckKmsConfigNotFound) GetPayload() *models.Error {
@@ -446,7 +265,7 @@ func NewV1betaCheckKmsConfigConflict() *V1betaCheckKmsConfigConflict {
 }
 
 /*
-V1betaCheckKmsConfigConflict describes a response with status code 409, with default header values.
+V1betaCheckKmsConfigConflict handles this case with default header values.
 
 Conflict
 */
@@ -454,44 +273,8 @@ type V1betaCheckKmsConfigConflict struct {
 	Payload *models.Error
 }
 
-// IsSuccess returns true when this v1beta check kms config conflict response has a 2xx status code
-func (o *V1betaCheckKmsConfigConflict) IsSuccess() bool {
-	return false
-}
-
-// IsRedirect returns true when this v1beta check kms config conflict response has a 3xx status code
-func (o *V1betaCheckKmsConfigConflict) IsRedirect() bool {
-	return false
-}
-
-// IsClientError returns true when this v1beta check kms config conflict response has a 4xx status code
-func (o *V1betaCheckKmsConfigConflict) IsClientError() bool {
-	return true
-}
-
-// IsServerError returns true when this v1beta check kms config conflict response has a 5xx status code
-func (o *V1betaCheckKmsConfigConflict) IsServerError() bool {
-	return false
-}
-
-// IsCode returns true when this v1beta check kms config conflict response a status code equal to that given
-func (o *V1betaCheckKmsConfigConflict) IsCode(code int) bool {
-	return code == 409
-}
-
-// Code gets the status code for the v1beta check kms config conflict response
-func (o *V1betaCheckKmsConfigConflict) Code() int {
-	return 409
-}
-
 func (o *V1betaCheckKmsConfigConflict) Error() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[GET /v1beta/projects/{projectNumber}/locations/{locationId}/storage/kmsConfig/{kmsConfigId}/check][%d] v1betaCheckKmsConfigConflict %s", 409, payload)
-}
-
-func (o *V1betaCheckKmsConfigConflict) String() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[GET /v1beta/projects/{projectNumber}/locations/{locationId}/storage/kmsConfig/{kmsConfigId}/check][%d] v1betaCheckKmsConfigConflict %s", 409, payload)
+	return fmt.Sprintf("[GET /v1beta/projects/{projectNumber}/locations/{locationId}/storage/kmsConfig/{kmsConfigId}/check][%d] v1betaCheckKmsConfigConflict  %+v", 409, o.Payload)
 }
 
 func (o *V1betaCheckKmsConfigConflict) GetPayload() *models.Error {
@@ -516,7 +299,7 @@ func NewV1betaCheckKmsConfigUnprocessableEntity() *V1betaCheckKmsConfigUnprocess
 }
 
 /*
-V1betaCheckKmsConfigUnprocessableEntity describes a response with status code 422, with default header values.
+V1betaCheckKmsConfigUnprocessableEntity handles this case with default header values.
 
 Unprocessable entity
 */
@@ -524,44 +307,8 @@ type V1betaCheckKmsConfigUnprocessableEntity struct {
 	Payload *models.Error
 }
 
-// IsSuccess returns true when this v1beta check kms config unprocessable entity response has a 2xx status code
-func (o *V1betaCheckKmsConfigUnprocessableEntity) IsSuccess() bool {
-	return false
-}
-
-// IsRedirect returns true when this v1beta check kms config unprocessable entity response has a 3xx status code
-func (o *V1betaCheckKmsConfigUnprocessableEntity) IsRedirect() bool {
-	return false
-}
-
-// IsClientError returns true when this v1beta check kms config unprocessable entity response has a 4xx status code
-func (o *V1betaCheckKmsConfigUnprocessableEntity) IsClientError() bool {
-	return true
-}
-
-// IsServerError returns true when this v1beta check kms config unprocessable entity response has a 5xx status code
-func (o *V1betaCheckKmsConfigUnprocessableEntity) IsServerError() bool {
-	return false
-}
-
-// IsCode returns true when this v1beta check kms config unprocessable entity response a status code equal to that given
-func (o *V1betaCheckKmsConfigUnprocessableEntity) IsCode(code int) bool {
-	return code == 422
-}
-
-// Code gets the status code for the v1beta check kms config unprocessable entity response
-func (o *V1betaCheckKmsConfigUnprocessableEntity) Code() int {
-	return 422
-}
-
 func (o *V1betaCheckKmsConfigUnprocessableEntity) Error() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[GET /v1beta/projects/{projectNumber}/locations/{locationId}/storage/kmsConfig/{kmsConfigId}/check][%d] v1betaCheckKmsConfigUnprocessableEntity %s", 422, payload)
-}
-
-func (o *V1betaCheckKmsConfigUnprocessableEntity) String() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[GET /v1beta/projects/{projectNumber}/locations/{locationId}/storage/kmsConfig/{kmsConfigId}/check][%d] v1betaCheckKmsConfigUnprocessableEntity %s", 422, payload)
+	return fmt.Sprintf("[GET /v1beta/projects/{projectNumber}/locations/{locationId}/storage/kmsConfig/{kmsConfigId}/check][%d] v1betaCheckKmsConfigUnprocessableEntity  %+v", 422, o.Payload)
 }
 
 func (o *V1betaCheckKmsConfigUnprocessableEntity) GetPayload() *models.Error {
@@ -586,7 +333,7 @@ func NewV1betaCheckKmsConfigTooManyRequests() *V1betaCheckKmsConfigTooManyReques
 }
 
 /*
-V1betaCheckKmsConfigTooManyRequests describes a response with status code 429, with default header values.
+V1betaCheckKmsConfigTooManyRequests handles this case with default header values.
 
 Too many requests
 */
@@ -594,44 +341,8 @@ type V1betaCheckKmsConfigTooManyRequests struct {
 	Payload *models.Error
 }
 
-// IsSuccess returns true when this v1beta check kms config too many requests response has a 2xx status code
-func (o *V1betaCheckKmsConfigTooManyRequests) IsSuccess() bool {
-	return false
-}
-
-// IsRedirect returns true when this v1beta check kms config too many requests response has a 3xx status code
-func (o *V1betaCheckKmsConfigTooManyRequests) IsRedirect() bool {
-	return false
-}
-
-// IsClientError returns true when this v1beta check kms config too many requests response has a 4xx status code
-func (o *V1betaCheckKmsConfigTooManyRequests) IsClientError() bool {
-	return true
-}
-
-// IsServerError returns true when this v1beta check kms config too many requests response has a 5xx status code
-func (o *V1betaCheckKmsConfigTooManyRequests) IsServerError() bool {
-	return false
-}
-
-// IsCode returns true when this v1beta check kms config too many requests response a status code equal to that given
-func (o *V1betaCheckKmsConfigTooManyRequests) IsCode(code int) bool {
-	return code == 429
-}
-
-// Code gets the status code for the v1beta check kms config too many requests response
-func (o *V1betaCheckKmsConfigTooManyRequests) Code() int {
-	return 429
-}
-
 func (o *V1betaCheckKmsConfigTooManyRequests) Error() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[GET /v1beta/projects/{projectNumber}/locations/{locationId}/storage/kmsConfig/{kmsConfigId}/check][%d] v1betaCheckKmsConfigTooManyRequests %s", 429, payload)
-}
-
-func (o *V1betaCheckKmsConfigTooManyRequests) String() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[GET /v1beta/projects/{projectNumber}/locations/{locationId}/storage/kmsConfig/{kmsConfigId}/check][%d] v1betaCheckKmsConfigTooManyRequests %s", 429, payload)
+	return fmt.Sprintf("[GET /v1beta/projects/{projectNumber}/locations/{locationId}/storage/kmsConfig/{kmsConfigId}/check][%d] v1betaCheckKmsConfigTooManyRequests  %+v", 429, o.Payload)
 }
 
 func (o *V1betaCheckKmsConfigTooManyRequests) GetPayload() *models.Error {
@@ -656,7 +367,7 @@ func NewV1betaCheckKmsConfigInternalServerError() *V1betaCheckKmsConfigInternalS
 }
 
 /*
-V1betaCheckKmsConfigInternalServerError describes a response with status code 500, with default header values.
+V1betaCheckKmsConfigInternalServerError handles this case with default header values.
 
 Internal server error
 */
@@ -664,44 +375,8 @@ type V1betaCheckKmsConfigInternalServerError struct {
 	Payload *models.Error
 }
 
-// IsSuccess returns true when this v1beta check kms config internal server error response has a 2xx status code
-func (o *V1betaCheckKmsConfigInternalServerError) IsSuccess() bool {
-	return false
-}
-
-// IsRedirect returns true when this v1beta check kms config internal server error response has a 3xx status code
-func (o *V1betaCheckKmsConfigInternalServerError) IsRedirect() bool {
-	return false
-}
-
-// IsClientError returns true when this v1beta check kms config internal server error response has a 4xx status code
-func (o *V1betaCheckKmsConfigInternalServerError) IsClientError() bool {
-	return false
-}
-
-// IsServerError returns true when this v1beta check kms config internal server error response has a 5xx status code
-func (o *V1betaCheckKmsConfigInternalServerError) IsServerError() bool {
-	return true
-}
-
-// IsCode returns true when this v1beta check kms config internal server error response a status code equal to that given
-func (o *V1betaCheckKmsConfigInternalServerError) IsCode(code int) bool {
-	return code == 500
-}
-
-// Code gets the status code for the v1beta check kms config internal server error response
-func (o *V1betaCheckKmsConfigInternalServerError) Code() int {
-	return 500
-}
-
 func (o *V1betaCheckKmsConfigInternalServerError) Error() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[GET /v1beta/projects/{projectNumber}/locations/{locationId}/storage/kmsConfig/{kmsConfigId}/check][%d] v1betaCheckKmsConfigInternalServerError %s", 500, payload)
-}
-
-func (o *V1betaCheckKmsConfigInternalServerError) String() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[GET /v1beta/projects/{projectNumber}/locations/{locationId}/storage/kmsConfig/{kmsConfigId}/check][%d] v1betaCheckKmsConfigInternalServerError %s", 500, payload)
+	return fmt.Sprintf("[GET /v1beta/projects/{projectNumber}/locations/{locationId}/storage/kmsConfig/{kmsConfigId}/check][%d] v1betaCheckKmsConfigInternalServerError  %+v", 500, o.Payload)
 }
 
 func (o *V1betaCheckKmsConfigInternalServerError) GetPayload() *models.Error {
@@ -728,7 +403,7 @@ func NewV1betaCheckKmsConfigDefault(code int) *V1betaCheckKmsConfigDefault {
 }
 
 /*
-V1betaCheckKmsConfigDefault describes a response with status code -1, with default header values.
+V1betaCheckKmsConfigDefault handles this case with default header values.
 
 Unexpected error
 */
@@ -738,44 +413,13 @@ type V1betaCheckKmsConfigDefault struct {
 	Payload *models.Error
 }
 
-// IsSuccess returns true when this v1beta check kms config default response has a 2xx status code
-func (o *V1betaCheckKmsConfigDefault) IsSuccess() bool {
-	return o._statusCode/100 == 2
-}
-
-// IsRedirect returns true when this v1beta check kms config default response has a 3xx status code
-func (o *V1betaCheckKmsConfigDefault) IsRedirect() bool {
-	return o._statusCode/100 == 3
-}
-
-// IsClientError returns true when this v1beta check kms config default response has a 4xx status code
-func (o *V1betaCheckKmsConfigDefault) IsClientError() bool {
-	return o._statusCode/100 == 4
-}
-
-// IsServerError returns true when this v1beta check kms config default response has a 5xx status code
-func (o *V1betaCheckKmsConfigDefault) IsServerError() bool {
-	return o._statusCode/100 == 5
-}
-
-// IsCode returns true when this v1beta check kms config default response a status code equal to that given
-func (o *V1betaCheckKmsConfigDefault) IsCode(code int) bool {
-	return o._statusCode == code
-}
-
 // Code gets the status code for the v1beta check kms config default response
 func (o *V1betaCheckKmsConfigDefault) Code() int {
 	return o._statusCode
 }
 
 func (o *V1betaCheckKmsConfigDefault) Error() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[GET /v1beta/projects/{projectNumber}/locations/{locationId}/storage/kmsConfig/{kmsConfigId}/check][%d] v1beta_checkKmsConfig default %s", o._statusCode, payload)
-}
-
-func (o *V1betaCheckKmsConfigDefault) String() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[GET /v1beta/projects/{projectNumber}/locations/{locationId}/storage/kmsConfig/{kmsConfigId}/check][%d] v1beta_checkKmsConfig default %s", o._statusCode, payload)
+	return fmt.Sprintf("[GET /v1beta/projects/{projectNumber}/locations/{locationId}/storage/kmsConfig/{kmsConfigId}/check][%d] v1beta_checkKmsConfig default  %+v", o._statusCode, o.Payload)
 }
 
 func (o *V1betaCheckKmsConfigDefault) GetPayload() *models.Error {

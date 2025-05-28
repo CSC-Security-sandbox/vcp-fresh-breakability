@@ -7,38 +7,12 @@ package replications
 
 import (
 	"github.com/go-openapi/runtime"
-	httptransport "github.com/go-openapi/runtime/client"
 	"github.com/go-openapi/strfmt"
 )
 
 // New creates a new replications API client.
 func New(transport runtime.ClientTransport, formats strfmt.Registry) ClientService {
 	return &Client{transport: transport, formats: formats}
-}
-
-// New creates a new replications API client with basic auth credentials.
-// It takes the following parameters:
-// - host: http host (github.com).
-// - basePath: any base path for the API client ("/v1", "/v3").
-// - scheme: http scheme ("http", "https").
-// - user: user for basic authentication header.
-// - password: password for basic authentication header.
-func NewClientWithBasicAuth(host, basePath, scheme, user, password string) ClientService {
-	transport := httptransport.New(host, basePath, []string{scheme})
-	transport.DefaultAuthentication = httptransport.BasicAuth(user, password)
-	return &Client{transport: transport, formats: strfmt.Default}
-}
-
-// New creates a new replications API client with a bearer token for authentication.
-// It takes the following parameters:
-// - host: http host (github.com).
-// - basePath: any base path for the API client ("/v1", "/v3").
-// - scheme: http scheme ("http", "https").
-// - bearerToken: bearer token for Bearer authentication header.
-func NewClientWithBearerToken(host, basePath, scheme, bearerToken string) ClientService {
-	transport := httptransport.New(host, basePath, []string{scheme})
-	transport.DefaultAuthentication = httptransport.BearerToken(bearerToken)
-	return &Client{transport: transport, formats: strfmt.Default}
 }
 
 /*
@@ -49,30 +23,27 @@ type Client struct {
 	formats   strfmt.Registry
 }
 
-// ClientOption may be used to customize the behavior of Client methods.
-type ClientOption func(*runtime.ClientOperation)
-
 // ClientService is the interface for Client methods
 type ClientService interface {
-	V1betaCreateReplication(params *V1betaCreateReplicationParams, opts ...ClientOption) (*V1betaCreateReplicationAccepted, error)
+	V1betaCreateReplication(params *V1betaCreateReplicationParams) (*V1betaCreateReplicationAccepted, error)
 
-	V1betaDeleteReplication(params *V1betaDeleteReplicationParams, opts ...ClientOption) (*V1betaDeleteReplicationAccepted, error)
+	V1betaDeleteReplication(params *V1betaDeleteReplicationParams) (*V1betaDeleteReplicationAccepted, error)
 
-	V1betaEstablishPeering(params *V1betaEstablishPeeringParams, opts ...ClientOption) (*V1betaEstablishPeeringAccepted, error)
+	V1betaEstablishPeering(params *V1betaEstablishPeeringParams) (*V1betaEstablishPeeringAccepted, error)
 
-	V1betaGetMultipleReplications(params *V1betaGetMultipleReplicationsParams, opts ...ClientOption) (*V1betaGetMultipleReplicationsOK, error)
+	V1betaGetMultipleReplications(params *V1betaGetMultipleReplicationsParams) (*V1betaGetMultipleReplicationsOK, error)
 
-	V1betaListReplications(params *V1betaListReplicationsParams, opts ...ClientOption) (*V1betaListReplicationsOK, error)
+	V1betaListReplications(params *V1betaListReplicationsParams) (*V1betaListReplicationsOK, error)
 
-	V1betaResumeReplication(params *V1betaResumeReplicationParams, opts ...ClientOption) (*V1betaResumeReplicationAccepted, error)
+	V1betaResumeReplication(params *V1betaResumeReplicationParams) (*V1betaResumeReplicationAccepted, error)
 
-	V1betaReverseAndResumeReplication(params *V1betaReverseAndResumeReplicationParams, opts ...ClientOption) (*V1betaReverseAndResumeReplicationAccepted, error)
+	V1betaReverseAndResumeReplication(params *V1betaReverseAndResumeReplicationParams) (*V1betaReverseAndResumeReplicationAccepted, error)
 
-	V1betaStopReplication(params *V1betaStopReplicationParams, opts ...ClientOption) (*V1betaStopReplicationAccepted, error)
+	V1betaStopReplication(params *V1betaStopReplicationParams) (*V1betaStopReplicationAccepted, error)
 
-	V1betaSyncReplication(params *V1betaSyncReplicationParams, opts ...ClientOption) (*V1betaSyncReplicationAccepted, error)
+	V1betaSyncReplication(params *V1betaSyncReplicationParams) (*V1betaSyncReplicationAccepted, error)
 
-	V1betaUpdateReplication(params *V1betaUpdateReplicationParams, opts ...ClientOption) (*V1betaUpdateReplicationAccepted, *V1betaUpdateReplicationNoContent, error)
+	V1betaUpdateReplication(params *V1betaUpdateReplicationParams) (*V1betaUpdateReplicationAccepted, *V1betaUpdateReplicationNoContent, error)
 
 	SetTransport(transport runtime.ClientTransport)
 }
@@ -82,12 +53,13 @@ V1betaCreateReplication creates a new replication
 
 Create a new volume replication.
 */
-func (a *Client) V1betaCreateReplication(params *V1betaCreateReplicationParams, opts ...ClientOption) (*V1betaCreateReplicationAccepted, error) {
+func (a *Client) V1betaCreateReplication(params *V1betaCreateReplicationParams) (*V1betaCreateReplicationAccepted, error) {
 	// TODO: Validate the params before sending
 	if params == nil {
 		params = NewV1betaCreateReplicationParams()
 	}
-	op := &runtime.ClientOperation{
+
+	result, err := a.transport.Submit(&runtime.ClientOperation{
 		ID:                 "v1beta_createReplication",
 		Method:             "POST",
 		PathPattern:        "/v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeResourceId}/replications",
@@ -98,12 +70,7 @@ func (a *Client) V1betaCreateReplication(params *V1betaCreateReplicationParams, 
 		Reader:             &V1betaCreateReplicationReader{formats: a.formats},
 		Context:            params.Context,
 		Client:             params.HTTPClient,
-	}
-	for _, opt := range opts {
-		opt(op)
-	}
-
-	result, err := a.transport.Submit(op)
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -117,16 +84,17 @@ func (a *Client) V1betaCreateReplication(params *V1betaCreateReplicationParams, 
 }
 
 /*
-V1betaDeleteReplication deletes replication
+V1betaDeleteReplication deletes a replication
 
-Delete replication
+Delete a replication
 */
-func (a *Client) V1betaDeleteReplication(params *V1betaDeleteReplicationParams, opts ...ClientOption) (*V1betaDeleteReplicationAccepted, error) {
+func (a *Client) V1betaDeleteReplication(params *V1betaDeleteReplicationParams) (*V1betaDeleteReplicationAccepted, error) {
 	// TODO: Validate the params before sending
 	if params == nil {
 		params = NewV1betaDeleteReplicationParams()
 	}
-	op := &runtime.ClientOperation{
+
+	result, err := a.transport.Submit(&runtime.ClientOperation{
 		ID:                 "v1beta_deleteReplication",
 		Method:             "DELETE",
 		PathPattern:        "/v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeResourceId}/replications/{replicationResourceId}",
@@ -137,12 +105,7 @@ func (a *Client) V1betaDeleteReplication(params *V1betaDeleteReplicationParams, 
 		Reader:             &V1betaDeleteReplicationReader{formats: a.formats},
 		Context:            params.Context,
 		Client:             params.HTTPClient,
-	}
-	for _, opt := range opts {
-		opt(op)
-	}
-
-	result, err := a.transport.Submit(op)
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -160,12 +123,13 @@ V1betaEstablishPeering peers local cluster to g c n v
 
 Peer local cluster to GCNV
 */
-func (a *Client) V1betaEstablishPeering(params *V1betaEstablishPeeringParams, opts ...ClientOption) (*V1betaEstablishPeeringAccepted, error) {
+func (a *Client) V1betaEstablishPeering(params *V1betaEstablishPeeringParams) (*V1betaEstablishPeeringAccepted, error) {
 	// TODO: Validate the params before sending
 	if params == nil {
 		params = NewV1betaEstablishPeeringParams()
 	}
-	op := &runtime.ClientOperation{
+
+	result, err := a.transport.Submit(&runtime.ClientOperation{
 		ID:                 "v1beta_establishPeering",
 		Method:             "POST",
 		PathPattern:        "/v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeResourceId}/replications/{replicationResourceId}/establishPeering",
@@ -176,12 +140,7 @@ func (a *Client) V1betaEstablishPeering(params *V1betaEstablishPeeringParams, op
 		Reader:             &V1betaEstablishPeeringReader{formats: a.formats},
 		Context:            params.Context,
 		Client:             params.HTTPClient,
-	}
-	for _, opt := range opts {
-		opt(op)
-	}
-
-	result, err := a.transport.Submit(op)
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -199,12 +158,13 @@ V1betaGetMultipleReplications lists specific replications
 
 Returns selected replication objects
 */
-func (a *Client) V1betaGetMultipleReplications(params *V1betaGetMultipleReplicationsParams, opts ...ClientOption) (*V1betaGetMultipleReplicationsOK, error) {
+func (a *Client) V1betaGetMultipleReplications(params *V1betaGetMultipleReplicationsParams) (*V1betaGetMultipleReplicationsOK, error) {
 	// TODO: Validate the params before sending
 	if params == nil {
 		params = NewV1betaGetMultipleReplicationsParams()
 	}
-	op := &runtime.ClientOperation{
+
+	result, err := a.transport.Submit(&runtime.ClientOperation{
 		ID:                 "v1beta_getMultipleReplications",
 		Method:             "POST",
 		PathPattern:        "/v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeResourceId}/getMultipleReplications",
@@ -215,12 +175,7 @@ func (a *Client) V1betaGetMultipleReplications(params *V1betaGetMultipleReplicat
 		Reader:             &V1betaGetMultipleReplicationsReader{formats: a.formats},
 		Context:            params.Context,
 		Client:             params.HTTPClient,
-	}
-	for _, opt := range opts {
-		opt(op)
-	}
-
-	result, err := a.transport.Submit(op)
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -238,12 +193,13 @@ V1betaListReplications lists all volume replications
 
 Returns a list of all volume replications owned by the user
 */
-func (a *Client) V1betaListReplications(params *V1betaListReplicationsParams, opts ...ClientOption) (*V1betaListReplicationsOK, error) {
+func (a *Client) V1betaListReplications(params *V1betaListReplicationsParams) (*V1betaListReplicationsOK, error) {
 	// TODO: Validate the params before sending
 	if params == nil {
 		params = NewV1betaListReplicationsParams()
 	}
-	op := &runtime.ClientOperation{
+
+	result, err := a.transport.Submit(&runtime.ClientOperation{
 		ID:                 "v1beta_listReplications",
 		Method:             "GET",
 		PathPattern:        "/v1beta/projects/{projectNumber}/locations/{locationId}/replications",
@@ -254,12 +210,7 @@ func (a *Client) V1betaListReplications(params *V1betaListReplicationsParams, op
 		Reader:             &V1betaListReplicationsReader{formats: a.formats},
 		Context:            params.Context,
 		Client:             params.HTTPClient,
-	}
-	for _, opt := range opts {
-		opt(op)
-	}
-
-	result, err := a.transport.Submit(op)
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -273,16 +224,17 @@ func (a *Client) V1betaListReplications(params *V1betaListReplicationsParams, op
 }
 
 /*
-V1betaResumeReplication resumes replication
+V1betaResumeReplication resumes a replication
 
 Resume a replication.
 */
-func (a *Client) V1betaResumeReplication(params *V1betaResumeReplicationParams, opts ...ClientOption) (*V1betaResumeReplicationAccepted, error) {
+func (a *Client) V1betaResumeReplication(params *V1betaResumeReplicationParams) (*V1betaResumeReplicationAccepted, error) {
 	// TODO: Validate the params before sending
 	if params == nil {
 		params = NewV1betaResumeReplicationParams()
 	}
-	op := &runtime.ClientOperation{
+
+	result, err := a.transport.Submit(&runtime.ClientOperation{
 		ID:                 "v1beta_resumeReplication",
 		Method:             "POST",
 		PathPattern:        "/v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeResourceId}/replications/{replicationResourceId}/resume",
@@ -293,12 +245,7 @@ func (a *Client) V1betaResumeReplication(params *V1betaResumeReplicationParams, 
 		Reader:             &V1betaResumeReplicationReader{formats: a.formats},
 		Context:            params.Context,
 		Client:             params.HTTPClient,
-	}
-	for _, opt := range opts {
-		opt(op)
-	}
-
-	result, err := a.transport.Submit(op)
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -316,12 +263,13 @@ V1betaReverseAndResumeReplication reverses and resume a replication
 
 Reverse and resume a replication.
 */
-func (a *Client) V1betaReverseAndResumeReplication(params *V1betaReverseAndResumeReplicationParams, opts ...ClientOption) (*V1betaReverseAndResumeReplicationAccepted, error) {
+func (a *Client) V1betaReverseAndResumeReplication(params *V1betaReverseAndResumeReplicationParams) (*V1betaReverseAndResumeReplicationAccepted, error) {
 	// TODO: Validate the params before sending
 	if params == nil {
 		params = NewV1betaReverseAndResumeReplicationParams()
 	}
-	op := &runtime.ClientOperation{
+
+	result, err := a.transport.Submit(&runtime.ClientOperation{
 		ID:                 "v1beta_reverseAndResumeReplication",
 		Method:             "POST",
 		PathPattern:        "/v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeResourceId}/replications/{replicationResourceId}/reverseAndResumeReplication",
@@ -332,12 +280,7 @@ func (a *Client) V1betaReverseAndResumeReplication(params *V1betaReverseAndResum
 		Reader:             &V1betaReverseAndResumeReplicationReader{formats: a.formats},
 		Context:            params.Context,
 		Client:             params.HTTPClient,
-	}
-	for _, opt := range opts {
-		opt(op)
-	}
-
-	result, err := a.transport.Submit(op)
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -351,16 +294,17 @@ func (a *Client) V1betaReverseAndResumeReplication(params *V1betaReverseAndResum
 }
 
 /*
-V1betaStopReplication stops replication
+V1betaStopReplication stops a replication
 
-Stops a replication.
+Stop a replication.
 */
-func (a *Client) V1betaStopReplication(params *V1betaStopReplicationParams, opts ...ClientOption) (*V1betaStopReplicationAccepted, error) {
+func (a *Client) V1betaStopReplication(params *V1betaStopReplicationParams) (*V1betaStopReplicationAccepted, error) {
 	// TODO: Validate the params before sending
 	if params == nil {
 		params = NewV1betaStopReplicationParams()
 	}
-	op := &runtime.ClientOperation{
+
+	result, err := a.transport.Submit(&runtime.ClientOperation{
 		ID:                 "v1beta_stopReplication",
 		Method:             "POST",
 		PathPattern:        "/v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeResourceId}/replications/{replicationResourceId}/stop",
@@ -371,12 +315,7 @@ func (a *Client) V1betaStopReplication(params *V1betaStopReplicationParams, opts
 		Reader:             &V1betaStopReplicationReader{formats: a.formats},
 		Context:            params.Context,
 		Client:             params.HTTPClient,
-	}
-	for _, opt := range opts {
-		opt(op)
-	}
-
-	result, err := a.transport.Submit(op)
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -390,16 +329,17 @@ func (a *Client) V1betaStopReplication(params *V1betaStopReplicationParams, opts
 }
 
 /*
-V1betaSyncReplication syncs replication
+V1betaSyncReplication syncs a replication
 
 Sync a replication.
 */
-func (a *Client) V1betaSyncReplication(params *V1betaSyncReplicationParams, opts ...ClientOption) (*V1betaSyncReplicationAccepted, error) {
+func (a *Client) V1betaSyncReplication(params *V1betaSyncReplicationParams) (*V1betaSyncReplicationAccepted, error) {
 	// TODO: Validate the params before sending
 	if params == nil {
 		params = NewV1betaSyncReplicationParams()
 	}
-	op := &runtime.ClientOperation{
+
+	result, err := a.transport.Submit(&runtime.ClientOperation{
 		ID:                 "v1beta_syncReplication",
 		Method:             "POST",
 		PathPattern:        "/v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeResourceId}/replications/{replicationResourceId}/sync",
@@ -410,12 +350,7 @@ func (a *Client) V1betaSyncReplication(params *V1betaSyncReplicationParams, opts
 		Reader:             &V1betaSyncReplicationReader{formats: a.formats},
 		Context:            params.Context,
 		Client:             params.HTTPClient,
-	}
-	for _, opt := range opts {
-		opt(op)
-	}
-
-	result, err := a.transport.Submit(op)
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -429,16 +364,17 @@ func (a *Client) V1betaSyncReplication(params *V1betaSyncReplicationParams, opts
 }
 
 /*
-V1betaUpdateReplication updates replication
+V1betaUpdateReplication updates a replication
 
-Update the replication
+Update a replication
 */
-func (a *Client) V1betaUpdateReplication(params *V1betaUpdateReplicationParams, opts ...ClientOption) (*V1betaUpdateReplicationAccepted, *V1betaUpdateReplicationNoContent, error) {
+func (a *Client) V1betaUpdateReplication(params *V1betaUpdateReplicationParams) (*V1betaUpdateReplicationAccepted, *V1betaUpdateReplicationNoContent, error) {
 	// TODO: Validate the params before sending
 	if params == nil {
 		params = NewV1betaUpdateReplicationParams()
 	}
-	op := &runtime.ClientOperation{
+
+	result, err := a.transport.Submit(&runtime.ClientOperation{
 		ID:                 "v1beta_updateReplication",
 		Method:             "PUT",
 		PathPattern:        "/v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeResourceId}/replications/{replicationResourceId}",
@@ -449,12 +385,7 @@ func (a *Client) V1betaUpdateReplication(params *V1betaUpdateReplicationParams, 
 		Reader:             &V1betaUpdateReplicationReader{formats: a.formats},
 		Context:            params.Context,
 		Client:             params.HTTPClient,
-	}
-	for _, opt := range opts {
-		opt(op)
-	}
-
-	result, err := a.transport.Submit(op)
+	})
 	if err != nil {
 		return nil, nil, err
 	}

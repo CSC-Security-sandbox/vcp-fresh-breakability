@@ -6,7 +6,6 @@ package models
 // Editing this file might prove futile when you re-run the swagger generate command
 
 import (
-	"context"
 	"encoding/json"
 
 	"github.com/go-openapi/errors"
@@ -23,17 +22,15 @@ type PoolConnectivityCheckV1beta struct {
 	// action
 	//
 	// Type of action to be performed
-	// Example: connectivityCheck
 	// Required: true
-	// Enum: ["connectivityCheck"]
+	// Enum: [connectivityCheck]
 	Action *string `json:"action"`
 
 	// resourceType
 	//
 	// Check the pool directory-services configuration
-	// Example: AD
 	// Required: true
-	// Enum: ["AD","LDAP"]
+	// Enum: [AD LDAP]
 	ResourceType *string `json:"resourceType"`
 }
 
@@ -135,11 +132,6 @@ func (m *PoolConnectivityCheckV1beta) validateResourceType(formats strfmt.Regist
 		return err
 	}
 
-	return nil
-}
-
-// ContextValidate validates this pool connectivity check v1beta based on context it is used
-func (m *PoolConnectivityCheckV1beta) ContextValidate(ctx context.Context, formats strfmt.Registry) error {
 	return nil
 }
 

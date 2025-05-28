@@ -16,37 +16,40 @@ import (
 	"github.com/go-openapi/strfmt"
 )
 
-// NewV1betaReverseAndResumeReplicationParams creates a new V1betaReverseAndResumeReplicationParams object,
-// with the default timeout for this client.
-//
-// Default values are not hydrated, since defaults are normally applied by the API server side.
-//
-// To enforce default values in parameter, use SetDefaults or WithDefaults.
+// NewV1betaReverseAndResumeReplicationParams creates a new V1betaReverseAndResumeReplicationParams object
+// with the default values initialized.
 func NewV1betaReverseAndResumeReplicationParams() *V1betaReverseAndResumeReplicationParams {
+	var ()
 	return &V1betaReverseAndResumeReplicationParams{
+
 		timeout: cr.DefaultTimeout,
 	}
 }
 
 // NewV1betaReverseAndResumeReplicationParamsWithTimeout creates a new V1betaReverseAndResumeReplicationParams object
-// with the ability to set a timeout on a request.
+// with the default values initialized, and the ability to set a timeout on a request
 func NewV1betaReverseAndResumeReplicationParamsWithTimeout(timeout time.Duration) *V1betaReverseAndResumeReplicationParams {
+	var ()
 	return &V1betaReverseAndResumeReplicationParams{
+
 		timeout: timeout,
 	}
 }
 
 // NewV1betaReverseAndResumeReplicationParamsWithContext creates a new V1betaReverseAndResumeReplicationParams object
-// with the ability to set a context for a request.
+// with the default values initialized, and the ability to set a context for a request
 func NewV1betaReverseAndResumeReplicationParamsWithContext(ctx context.Context) *V1betaReverseAndResumeReplicationParams {
+	var ()
 	return &V1betaReverseAndResumeReplicationParams{
+
 		Context: ctx,
 	}
 }
 
 // NewV1betaReverseAndResumeReplicationParamsWithHTTPClient creates a new V1betaReverseAndResumeReplicationParams object
-// with the ability to set a custom HTTPClient for a request.
+// with the default values initialized, and the ability to set a custom HTTPClient for a request
 func NewV1betaReverseAndResumeReplicationParamsWithHTTPClient(client *http.Client) *V1betaReverseAndResumeReplicationParams {
+	var ()
 	return &V1betaReverseAndResumeReplicationParams{
 		HTTPClient: client,
 	}
@@ -54,61 +57,39 @@ func NewV1betaReverseAndResumeReplicationParamsWithHTTPClient(client *http.Clien
 
 /*
 V1betaReverseAndResumeReplicationParams contains all the parameters to send to the API endpoint
-
-	for the v1beta reverse and resume replication operation.
-
-	Typically these are written to a http.Request.
+for the v1beta reverse and resume replication operation typically these are written to a http.Request
 */
 type V1betaReverseAndResumeReplicationParams struct {
 
-	/* LocationID.
+	/*LocationID
+	  The location/region to perform the operation in.
 
-	   The location/region to perform the operation in.
 	*/
 	LocationID string
+	/*ProjectNumber
+	  The project number of the GCP project owning the resource being acted upon
 
-	/* ProjectNumber.
-
-	   The project number of the GCP project owning the resource being acted upon
 	*/
 	ProjectNumber string
+	/*ReplicationResourceID
+	  Resource ID used to identify the replication
 
-	/* ReplicationResourceID.
-
-	   Resource ID used to identify the replication
 	*/
 	ReplicationResourceID string
+	/*VolumeResourceID
+	  Resource ID used to identify the volume
 
-	/* VolumeResourceID.
-
-	   Resource ID used to identify the volume
 	*/
 	VolumeResourceID string
+	/*XCorrelationID
+	  Correlation identifier
 
-	/* XCorrelationID.
-
-	   Correlation identifier
 	*/
 	XCorrelationID *string
 
 	timeout    time.Duration
 	Context    context.Context
 	HTTPClient *http.Client
-}
-
-// WithDefaults hydrates default values in the v1beta reverse and resume replication params (not the query body).
-//
-// All values with no default are reset to their zero value.
-func (o *V1betaReverseAndResumeReplicationParams) WithDefaults() *V1betaReverseAndResumeReplicationParams {
-	o.SetDefaults()
-	return o
-}
-
-// SetDefaults hydrates default values in the v1beta reverse and resume replication params (not the query body).
-//
-// All values with no default are reset to their zero value.
-func (o *V1betaReverseAndResumeReplicationParams) SetDefaults() {
-	// no default values defined for this parameter
 }
 
 // WithTimeout adds the timeout to the v1beta reverse and resume replication params
@@ -233,6 +214,7 @@ func (o *V1betaReverseAndResumeReplicationParams) WriteToRequest(r runtime.Clien
 		if err := r.SetHeaderParam("x-correlation-id", *o.XCorrelationID); err != nil {
 			return err
 		}
+
 	}
 
 	if len(res) > 0 {

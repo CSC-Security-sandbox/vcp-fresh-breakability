@@ -6,7 +6,6 @@ package models
 // Editing this file might prove futile when you re-run the swagger generate command
 
 import (
-	"context"
 	"encoding/json"
 
 	"github.com/go-openapi/errors"
@@ -23,18 +22,16 @@ type VolumeReplicationCVPUpdateV1beta struct {
 	// description
 	//
 	// Description of the replication
-	// Example: My replication description
 	// Max Length: 2048
 	Description *string `json:"description,omitempty"`
 
 	// labels
 	//
 	// JSON dictionary of resource labels to allow linking of billing labels to a replication, Can contain only lowercase letters, numeric characters, underscores, and dashes. All characters must use UTF-8 encoding, and international characters are allowed. Must start with a lowercase letter or international character.
-	// Example: {"some-key":"some-value","some-key2":"some-value2"}
 	Labels map[string]string `json:"labels,omitempty"`
 
 	// replicationSchedule
-	// Enum: ["10minutely","hourly","daily","weekly","monthly"]
+	// Enum: [10minutely hourly daily weekly monthly]
 	ReplicationSchedule *string `json:"replicationSchedule,omitempty"`
 }
 
@@ -57,11 +54,12 @@ func (m *VolumeReplicationCVPUpdateV1beta) Validate(formats strfmt.Registry) err
 }
 
 func (m *VolumeReplicationCVPUpdateV1beta) validateDescription(formats strfmt.Registry) error {
+
 	if swag.IsZero(m.Description) { // not required
 		return nil
 	}
 
-	if err := validate.MaxLength("description", "body", *m.Description, 2048); err != nil {
+	if err := validate.MaxLength("description", "body", string(*m.Description), 2048); err != nil {
 		return err
 	}
 
@@ -107,6 +105,7 @@ func (m *VolumeReplicationCVPUpdateV1beta) validateReplicationScheduleEnum(path,
 }
 
 func (m *VolumeReplicationCVPUpdateV1beta) validateReplicationSchedule(formats strfmt.Registry) error {
+
 	if swag.IsZero(m.ReplicationSchedule) { // not required
 		return nil
 	}
@@ -116,11 +115,6 @@ func (m *VolumeReplicationCVPUpdateV1beta) validateReplicationSchedule(formats s
 		return err
 	}
 
-	return nil
-}
-
-// ContextValidate validates this volume replication c v p update v1beta based on context it is used
-func (m *VolumeReplicationCVPUpdateV1beta) ContextValidate(ctx context.Context, formats strfmt.Registry) error {
 	return nil
 }
 

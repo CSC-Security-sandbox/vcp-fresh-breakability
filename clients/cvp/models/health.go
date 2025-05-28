@@ -6,12 +6,8 @@ package models
 // Editing this file might prove futile when you re-run the swagger generate command
 
 import (
-	"context"
-
-	"github.com/go-openapi/errors"
 	"github.com/go-openapi/strfmt"
 	"github.com/go-openapi/swag"
-	"github.com/go-openapi/validate"
 )
 
 // Health Health
@@ -22,36 +18,12 @@ type Health struct {
 	// healthStatus
 	//
 	// Server health status
-	// Example: healthy
 	// Read Only: true
 	Status string `json:"status,omitempty"`
 }
 
 // Validate validates this health
 func (m *Health) Validate(formats strfmt.Registry) error {
-	return nil
-}
-
-// ContextValidate validate this health based on the context it is used
-func (m *Health) ContextValidate(ctx context.Context, formats strfmt.Registry) error {
-	var res []error
-
-	if err := m.contextValidateStatus(ctx, formats); err != nil {
-		res = append(res, err)
-	}
-
-	if len(res) > 0 {
-		return errors.CompositeValidationError(res...)
-	}
-	return nil
-}
-
-func (m *Health) contextValidateStatus(ctx context.Context, formats strfmt.Registry) error {
-
-	if err := validate.ReadOnly(ctx, "status", "body", string(m.Status)); err != nil {
-		return err
-	}
-
 	return nil
 }
 

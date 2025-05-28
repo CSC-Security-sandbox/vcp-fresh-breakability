@@ -6,7 +6,6 @@ package resource_events
 // Editing this file might prove futile when you re-run the swagger generate command
 
 import (
-	"encoding/json"
 	"fmt"
 	"io"
 
@@ -122,7 +121,7 @@ func NewV1betaResourceStateUpdateCreated() *V1betaResourceStateUpdateCreated {
 }
 
 /*
-V1betaResourceStateUpdateCreated describes a response with status code 201, with default header values.
+V1betaResourceStateUpdateCreated handles this case with default header values.
 
 Updated resource state
 */
@@ -130,44 +129,8 @@ type V1betaResourceStateUpdateCreated struct {
 	Payload *models.OperationV1beta
 }
 
-// IsSuccess returns true when this v1beta resource state update created response has a 2xx status code
-func (o *V1betaResourceStateUpdateCreated) IsSuccess() bool {
-	return true
-}
-
-// IsRedirect returns true when this v1beta resource state update created response has a 3xx status code
-func (o *V1betaResourceStateUpdateCreated) IsRedirect() bool {
-	return false
-}
-
-// IsClientError returns true when this v1beta resource state update created response has a 4xx status code
-func (o *V1betaResourceStateUpdateCreated) IsClientError() bool {
-	return false
-}
-
-// IsServerError returns true when this v1beta resource state update created response has a 5xx status code
-func (o *V1betaResourceStateUpdateCreated) IsServerError() bool {
-	return false
-}
-
-// IsCode returns true when this v1beta resource state update created response a status code equal to that given
-func (o *V1betaResourceStateUpdateCreated) IsCode(code int) bool {
-	return code == 201
-}
-
-// Code gets the status code for the v1beta resource state update created response
-func (o *V1betaResourceStateUpdateCreated) Code() int {
-	return 201
-}
-
 func (o *V1betaResourceStateUpdateCreated) Error() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[PUT /v1beta/projects/{projectNumber}/locations/{locationId}/handleResourceEvent][%d] v1betaResourceStateUpdateCreated %s", 201, payload)
-}
-
-func (o *V1betaResourceStateUpdateCreated) String() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[PUT /v1beta/projects/{projectNumber}/locations/{locationId}/handleResourceEvent][%d] v1betaResourceStateUpdateCreated %s", 201, payload)
+	return fmt.Sprintf("[PUT /v1beta/projects/{projectNumber}/locations/{locationId}/handleResourceEvent][%d] v1betaResourceStateUpdateCreated  %+v", 201, o.Payload)
 }
 
 func (o *V1betaResourceStateUpdateCreated) GetPayload() *models.OperationV1beta {
@@ -192,7 +155,7 @@ func NewV1betaResourceStateUpdateAccepted() *V1betaResourceStateUpdateAccepted {
 }
 
 /*
-V1betaResourceStateUpdateAccepted describes a response with status code 202, with default header values.
+V1betaResourceStateUpdateAccepted handles this case with default header values.
 
 Updating resource state
 */
@@ -200,44 +163,8 @@ type V1betaResourceStateUpdateAccepted struct {
 	Payload *models.OperationV1beta
 }
 
-// IsSuccess returns true when this v1beta resource state update accepted response has a 2xx status code
-func (o *V1betaResourceStateUpdateAccepted) IsSuccess() bool {
-	return true
-}
-
-// IsRedirect returns true when this v1beta resource state update accepted response has a 3xx status code
-func (o *V1betaResourceStateUpdateAccepted) IsRedirect() bool {
-	return false
-}
-
-// IsClientError returns true when this v1beta resource state update accepted response has a 4xx status code
-func (o *V1betaResourceStateUpdateAccepted) IsClientError() bool {
-	return false
-}
-
-// IsServerError returns true when this v1beta resource state update accepted response has a 5xx status code
-func (o *V1betaResourceStateUpdateAccepted) IsServerError() bool {
-	return false
-}
-
-// IsCode returns true when this v1beta resource state update accepted response a status code equal to that given
-func (o *V1betaResourceStateUpdateAccepted) IsCode(code int) bool {
-	return code == 202
-}
-
-// Code gets the status code for the v1beta resource state update accepted response
-func (o *V1betaResourceStateUpdateAccepted) Code() int {
-	return 202
-}
-
 func (o *V1betaResourceStateUpdateAccepted) Error() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[PUT /v1beta/projects/{projectNumber}/locations/{locationId}/handleResourceEvent][%d] v1betaResourceStateUpdateAccepted %s", 202, payload)
-}
-
-func (o *V1betaResourceStateUpdateAccepted) String() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[PUT /v1beta/projects/{projectNumber}/locations/{locationId}/handleResourceEvent][%d] v1betaResourceStateUpdateAccepted %s", 202, payload)
+	return fmt.Sprintf("[PUT /v1beta/projects/{projectNumber}/locations/{locationId}/handleResourceEvent][%d] v1betaResourceStateUpdateAccepted  %+v", 202, o.Payload)
 }
 
 func (o *V1betaResourceStateUpdateAccepted) GetPayload() *models.OperationV1beta {
@@ -262,49 +189,15 @@ func NewV1betaResourceStateUpdateNoContent() *V1betaResourceStateUpdateNoContent
 }
 
 /*
-V1betaResourceStateUpdateNoContent describes a response with status code 204, with default header values.
+V1betaResourceStateUpdateNoContent handles this case with default header values.
 
 No content
 */
 type V1betaResourceStateUpdateNoContent struct {
 }
 
-// IsSuccess returns true when this v1beta resource state update no content response has a 2xx status code
-func (o *V1betaResourceStateUpdateNoContent) IsSuccess() bool {
-	return true
-}
-
-// IsRedirect returns true when this v1beta resource state update no content response has a 3xx status code
-func (o *V1betaResourceStateUpdateNoContent) IsRedirect() bool {
-	return false
-}
-
-// IsClientError returns true when this v1beta resource state update no content response has a 4xx status code
-func (o *V1betaResourceStateUpdateNoContent) IsClientError() bool {
-	return false
-}
-
-// IsServerError returns true when this v1beta resource state update no content response has a 5xx status code
-func (o *V1betaResourceStateUpdateNoContent) IsServerError() bool {
-	return false
-}
-
-// IsCode returns true when this v1beta resource state update no content response a status code equal to that given
-func (o *V1betaResourceStateUpdateNoContent) IsCode(code int) bool {
-	return code == 204
-}
-
-// Code gets the status code for the v1beta resource state update no content response
-func (o *V1betaResourceStateUpdateNoContent) Code() int {
-	return 204
-}
-
 func (o *V1betaResourceStateUpdateNoContent) Error() string {
-	return fmt.Sprintf("[PUT /v1beta/projects/{projectNumber}/locations/{locationId}/handleResourceEvent][%d] v1betaResourceStateUpdateNoContent", 204)
-}
-
-func (o *V1betaResourceStateUpdateNoContent) String() string {
-	return fmt.Sprintf("[PUT /v1beta/projects/{projectNumber}/locations/{locationId}/handleResourceEvent][%d] v1betaResourceStateUpdateNoContent", 204)
+	return fmt.Sprintf("[PUT /v1beta/projects/{projectNumber}/locations/{locationId}/handleResourceEvent][%d] v1betaResourceStateUpdateNoContent ", 204)
 }
 
 func (o *V1betaResourceStateUpdateNoContent) readResponse(response runtime.ClientResponse, consumer runtime.Consumer, formats strfmt.Registry) error {
@@ -318,7 +211,7 @@ func NewV1betaResourceStateUpdateBadRequest() *V1betaResourceStateUpdateBadReque
 }
 
 /*
-V1betaResourceStateUpdateBadRequest describes a response with status code 400, with default header values.
+V1betaResourceStateUpdateBadRequest handles this case with default header values.
 
 Bad request
 */
@@ -326,44 +219,8 @@ type V1betaResourceStateUpdateBadRequest struct {
 	Payload *models.Error
 }
 
-// IsSuccess returns true when this v1beta resource state update bad request response has a 2xx status code
-func (o *V1betaResourceStateUpdateBadRequest) IsSuccess() bool {
-	return false
-}
-
-// IsRedirect returns true when this v1beta resource state update bad request response has a 3xx status code
-func (o *V1betaResourceStateUpdateBadRequest) IsRedirect() bool {
-	return false
-}
-
-// IsClientError returns true when this v1beta resource state update bad request response has a 4xx status code
-func (o *V1betaResourceStateUpdateBadRequest) IsClientError() bool {
-	return true
-}
-
-// IsServerError returns true when this v1beta resource state update bad request response has a 5xx status code
-func (o *V1betaResourceStateUpdateBadRequest) IsServerError() bool {
-	return false
-}
-
-// IsCode returns true when this v1beta resource state update bad request response a status code equal to that given
-func (o *V1betaResourceStateUpdateBadRequest) IsCode(code int) bool {
-	return code == 400
-}
-
-// Code gets the status code for the v1beta resource state update bad request response
-func (o *V1betaResourceStateUpdateBadRequest) Code() int {
-	return 400
-}
-
 func (o *V1betaResourceStateUpdateBadRequest) Error() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[PUT /v1beta/projects/{projectNumber}/locations/{locationId}/handleResourceEvent][%d] v1betaResourceStateUpdateBadRequest %s", 400, payload)
-}
-
-func (o *V1betaResourceStateUpdateBadRequest) String() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[PUT /v1beta/projects/{projectNumber}/locations/{locationId}/handleResourceEvent][%d] v1betaResourceStateUpdateBadRequest %s", 400, payload)
+	return fmt.Sprintf("[PUT /v1beta/projects/{projectNumber}/locations/{locationId}/handleResourceEvent][%d] v1betaResourceStateUpdateBadRequest  %+v", 400, o.Payload)
 }
 
 func (o *V1betaResourceStateUpdateBadRequest) GetPayload() *models.Error {
@@ -388,7 +245,7 @@ func NewV1betaResourceStateUpdateUnauthorized() *V1betaResourceStateUpdateUnauth
 }
 
 /*
-V1betaResourceStateUpdateUnauthorized describes a response with status code 401, with default header values.
+V1betaResourceStateUpdateUnauthorized handles this case with default header values.
 
 Unauthorized
 */
@@ -396,44 +253,8 @@ type V1betaResourceStateUpdateUnauthorized struct {
 	Payload *models.Error
 }
 
-// IsSuccess returns true when this v1beta resource state update unauthorized response has a 2xx status code
-func (o *V1betaResourceStateUpdateUnauthorized) IsSuccess() bool {
-	return false
-}
-
-// IsRedirect returns true when this v1beta resource state update unauthorized response has a 3xx status code
-func (o *V1betaResourceStateUpdateUnauthorized) IsRedirect() bool {
-	return false
-}
-
-// IsClientError returns true when this v1beta resource state update unauthorized response has a 4xx status code
-func (o *V1betaResourceStateUpdateUnauthorized) IsClientError() bool {
-	return true
-}
-
-// IsServerError returns true when this v1beta resource state update unauthorized response has a 5xx status code
-func (o *V1betaResourceStateUpdateUnauthorized) IsServerError() bool {
-	return false
-}
-
-// IsCode returns true when this v1beta resource state update unauthorized response a status code equal to that given
-func (o *V1betaResourceStateUpdateUnauthorized) IsCode(code int) bool {
-	return code == 401
-}
-
-// Code gets the status code for the v1beta resource state update unauthorized response
-func (o *V1betaResourceStateUpdateUnauthorized) Code() int {
-	return 401
-}
-
 func (o *V1betaResourceStateUpdateUnauthorized) Error() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[PUT /v1beta/projects/{projectNumber}/locations/{locationId}/handleResourceEvent][%d] v1betaResourceStateUpdateUnauthorized %s", 401, payload)
-}
-
-func (o *V1betaResourceStateUpdateUnauthorized) String() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[PUT /v1beta/projects/{projectNumber}/locations/{locationId}/handleResourceEvent][%d] v1betaResourceStateUpdateUnauthorized %s", 401, payload)
+	return fmt.Sprintf("[PUT /v1beta/projects/{projectNumber}/locations/{locationId}/handleResourceEvent][%d] v1betaResourceStateUpdateUnauthorized  %+v", 401, o.Payload)
 }
 
 func (o *V1betaResourceStateUpdateUnauthorized) GetPayload() *models.Error {
@@ -458,7 +279,7 @@ func NewV1betaResourceStateUpdateForbidden() *V1betaResourceStateUpdateForbidden
 }
 
 /*
-V1betaResourceStateUpdateForbidden describes a response with status code 403, with default header values.
+V1betaResourceStateUpdateForbidden handles this case with default header values.
 
 Forbidden
 */
@@ -466,44 +287,8 @@ type V1betaResourceStateUpdateForbidden struct {
 	Payload *models.Error
 }
 
-// IsSuccess returns true when this v1beta resource state update forbidden response has a 2xx status code
-func (o *V1betaResourceStateUpdateForbidden) IsSuccess() bool {
-	return false
-}
-
-// IsRedirect returns true when this v1beta resource state update forbidden response has a 3xx status code
-func (o *V1betaResourceStateUpdateForbidden) IsRedirect() bool {
-	return false
-}
-
-// IsClientError returns true when this v1beta resource state update forbidden response has a 4xx status code
-func (o *V1betaResourceStateUpdateForbidden) IsClientError() bool {
-	return true
-}
-
-// IsServerError returns true when this v1beta resource state update forbidden response has a 5xx status code
-func (o *V1betaResourceStateUpdateForbidden) IsServerError() bool {
-	return false
-}
-
-// IsCode returns true when this v1beta resource state update forbidden response a status code equal to that given
-func (o *V1betaResourceStateUpdateForbidden) IsCode(code int) bool {
-	return code == 403
-}
-
-// Code gets the status code for the v1beta resource state update forbidden response
-func (o *V1betaResourceStateUpdateForbidden) Code() int {
-	return 403
-}
-
 func (o *V1betaResourceStateUpdateForbidden) Error() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[PUT /v1beta/projects/{projectNumber}/locations/{locationId}/handleResourceEvent][%d] v1betaResourceStateUpdateForbidden %s", 403, payload)
-}
-
-func (o *V1betaResourceStateUpdateForbidden) String() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[PUT /v1beta/projects/{projectNumber}/locations/{locationId}/handleResourceEvent][%d] v1betaResourceStateUpdateForbidden %s", 403, payload)
+	return fmt.Sprintf("[PUT /v1beta/projects/{projectNumber}/locations/{locationId}/handleResourceEvent][%d] v1betaResourceStateUpdateForbidden  %+v", 403, o.Payload)
 }
 
 func (o *V1betaResourceStateUpdateForbidden) GetPayload() *models.Error {
@@ -528,7 +313,7 @@ func NewV1betaResourceStateUpdateNotFound() *V1betaResourceStateUpdateNotFound {
 }
 
 /*
-V1betaResourceStateUpdateNotFound describes a response with status code 404, with default header values.
+V1betaResourceStateUpdateNotFound handles this case with default header values.
 
 Not found
 */
@@ -536,44 +321,8 @@ type V1betaResourceStateUpdateNotFound struct {
 	Payload *models.Error
 }
 
-// IsSuccess returns true when this v1beta resource state update not found response has a 2xx status code
-func (o *V1betaResourceStateUpdateNotFound) IsSuccess() bool {
-	return false
-}
-
-// IsRedirect returns true when this v1beta resource state update not found response has a 3xx status code
-func (o *V1betaResourceStateUpdateNotFound) IsRedirect() bool {
-	return false
-}
-
-// IsClientError returns true when this v1beta resource state update not found response has a 4xx status code
-func (o *V1betaResourceStateUpdateNotFound) IsClientError() bool {
-	return true
-}
-
-// IsServerError returns true when this v1beta resource state update not found response has a 5xx status code
-func (o *V1betaResourceStateUpdateNotFound) IsServerError() bool {
-	return false
-}
-
-// IsCode returns true when this v1beta resource state update not found response a status code equal to that given
-func (o *V1betaResourceStateUpdateNotFound) IsCode(code int) bool {
-	return code == 404
-}
-
-// Code gets the status code for the v1beta resource state update not found response
-func (o *V1betaResourceStateUpdateNotFound) Code() int {
-	return 404
-}
-
 func (o *V1betaResourceStateUpdateNotFound) Error() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[PUT /v1beta/projects/{projectNumber}/locations/{locationId}/handleResourceEvent][%d] v1betaResourceStateUpdateNotFound %s", 404, payload)
-}
-
-func (o *V1betaResourceStateUpdateNotFound) String() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[PUT /v1beta/projects/{projectNumber}/locations/{locationId}/handleResourceEvent][%d] v1betaResourceStateUpdateNotFound %s", 404, payload)
+	return fmt.Sprintf("[PUT /v1beta/projects/{projectNumber}/locations/{locationId}/handleResourceEvent][%d] v1betaResourceStateUpdateNotFound  %+v", 404, o.Payload)
 }
 
 func (o *V1betaResourceStateUpdateNotFound) GetPayload() *models.Error {
@@ -598,7 +347,7 @@ func NewV1betaResourceStateUpdateConflict() *V1betaResourceStateUpdateConflict {
 }
 
 /*
-V1betaResourceStateUpdateConflict describes a response with status code 409, with default header values.
+V1betaResourceStateUpdateConflict handles this case with default header values.
 
 Conflict
 */
@@ -606,44 +355,8 @@ type V1betaResourceStateUpdateConflict struct {
 	Payload *models.Error
 }
 
-// IsSuccess returns true when this v1beta resource state update conflict response has a 2xx status code
-func (o *V1betaResourceStateUpdateConflict) IsSuccess() bool {
-	return false
-}
-
-// IsRedirect returns true when this v1beta resource state update conflict response has a 3xx status code
-func (o *V1betaResourceStateUpdateConflict) IsRedirect() bool {
-	return false
-}
-
-// IsClientError returns true when this v1beta resource state update conflict response has a 4xx status code
-func (o *V1betaResourceStateUpdateConflict) IsClientError() bool {
-	return true
-}
-
-// IsServerError returns true when this v1beta resource state update conflict response has a 5xx status code
-func (o *V1betaResourceStateUpdateConflict) IsServerError() bool {
-	return false
-}
-
-// IsCode returns true when this v1beta resource state update conflict response a status code equal to that given
-func (o *V1betaResourceStateUpdateConflict) IsCode(code int) bool {
-	return code == 409
-}
-
-// Code gets the status code for the v1beta resource state update conflict response
-func (o *V1betaResourceStateUpdateConflict) Code() int {
-	return 409
-}
-
 func (o *V1betaResourceStateUpdateConflict) Error() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[PUT /v1beta/projects/{projectNumber}/locations/{locationId}/handleResourceEvent][%d] v1betaResourceStateUpdateConflict %s", 409, payload)
-}
-
-func (o *V1betaResourceStateUpdateConflict) String() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[PUT /v1beta/projects/{projectNumber}/locations/{locationId}/handleResourceEvent][%d] v1betaResourceStateUpdateConflict %s", 409, payload)
+	return fmt.Sprintf("[PUT /v1beta/projects/{projectNumber}/locations/{locationId}/handleResourceEvent][%d] v1betaResourceStateUpdateConflict  %+v", 409, o.Payload)
 }
 
 func (o *V1betaResourceStateUpdateConflict) GetPayload() *models.Error {
@@ -668,7 +381,7 @@ func NewV1betaResourceStateUpdateUnprocessableEntity() *V1betaResourceStateUpdat
 }
 
 /*
-V1betaResourceStateUpdateUnprocessableEntity describes a response with status code 422, with default header values.
+V1betaResourceStateUpdateUnprocessableEntity handles this case with default header values.
 
 Unprocessable entity
 */
@@ -676,44 +389,8 @@ type V1betaResourceStateUpdateUnprocessableEntity struct {
 	Payload *models.Error
 }
 
-// IsSuccess returns true when this v1beta resource state update unprocessable entity response has a 2xx status code
-func (o *V1betaResourceStateUpdateUnprocessableEntity) IsSuccess() bool {
-	return false
-}
-
-// IsRedirect returns true when this v1beta resource state update unprocessable entity response has a 3xx status code
-func (o *V1betaResourceStateUpdateUnprocessableEntity) IsRedirect() bool {
-	return false
-}
-
-// IsClientError returns true when this v1beta resource state update unprocessable entity response has a 4xx status code
-func (o *V1betaResourceStateUpdateUnprocessableEntity) IsClientError() bool {
-	return true
-}
-
-// IsServerError returns true when this v1beta resource state update unprocessable entity response has a 5xx status code
-func (o *V1betaResourceStateUpdateUnprocessableEntity) IsServerError() bool {
-	return false
-}
-
-// IsCode returns true when this v1beta resource state update unprocessable entity response a status code equal to that given
-func (o *V1betaResourceStateUpdateUnprocessableEntity) IsCode(code int) bool {
-	return code == 422
-}
-
-// Code gets the status code for the v1beta resource state update unprocessable entity response
-func (o *V1betaResourceStateUpdateUnprocessableEntity) Code() int {
-	return 422
-}
-
 func (o *V1betaResourceStateUpdateUnprocessableEntity) Error() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[PUT /v1beta/projects/{projectNumber}/locations/{locationId}/handleResourceEvent][%d] v1betaResourceStateUpdateUnprocessableEntity %s", 422, payload)
-}
-
-func (o *V1betaResourceStateUpdateUnprocessableEntity) String() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[PUT /v1beta/projects/{projectNumber}/locations/{locationId}/handleResourceEvent][%d] v1betaResourceStateUpdateUnprocessableEntity %s", 422, payload)
+	return fmt.Sprintf("[PUT /v1beta/projects/{projectNumber}/locations/{locationId}/handleResourceEvent][%d] v1betaResourceStateUpdateUnprocessableEntity  %+v", 422, o.Payload)
 }
 
 func (o *V1betaResourceStateUpdateUnprocessableEntity) GetPayload() *models.Error {
@@ -738,7 +415,7 @@ func NewV1betaResourceStateUpdateTooManyRequests() *V1betaResourceStateUpdateToo
 }
 
 /*
-V1betaResourceStateUpdateTooManyRequests describes a response with status code 429, with default header values.
+V1betaResourceStateUpdateTooManyRequests handles this case with default header values.
 
 Too many requests
 */
@@ -746,44 +423,8 @@ type V1betaResourceStateUpdateTooManyRequests struct {
 	Payload *models.Error
 }
 
-// IsSuccess returns true when this v1beta resource state update too many requests response has a 2xx status code
-func (o *V1betaResourceStateUpdateTooManyRequests) IsSuccess() bool {
-	return false
-}
-
-// IsRedirect returns true when this v1beta resource state update too many requests response has a 3xx status code
-func (o *V1betaResourceStateUpdateTooManyRequests) IsRedirect() bool {
-	return false
-}
-
-// IsClientError returns true when this v1beta resource state update too many requests response has a 4xx status code
-func (o *V1betaResourceStateUpdateTooManyRequests) IsClientError() bool {
-	return true
-}
-
-// IsServerError returns true when this v1beta resource state update too many requests response has a 5xx status code
-func (o *V1betaResourceStateUpdateTooManyRequests) IsServerError() bool {
-	return false
-}
-
-// IsCode returns true when this v1beta resource state update too many requests response a status code equal to that given
-func (o *V1betaResourceStateUpdateTooManyRequests) IsCode(code int) bool {
-	return code == 429
-}
-
-// Code gets the status code for the v1beta resource state update too many requests response
-func (o *V1betaResourceStateUpdateTooManyRequests) Code() int {
-	return 429
-}
-
 func (o *V1betaResourceStateUpdateTooManyRequests) Error() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[PUT /v1beta/projects/{projectNumber}/locations/{locationId}/handleResourceEvent][%d] v1betaResourceStateUpdateTooManyRequests %s", 429, payload)
-}
-
-func (o *V1betaResourceStateUpdateTooManyRequests) String() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[PUT /v1beta/projects/{projectNumber}/locations/{locationId}/handleResourceEvent][%d] v1betaResourceStateUpdateTooManyRequests %s", 429, payload)
+	return fmt.Sprintf("[PUT /v1beta/projects/{projectNumber}/locations/{locationId}/handleResourceEvent][%d] v1betaResourceStateUpdateTooManyRequests  %+v", 429, o.Payload)
 }
 
 func (o *V1betaResourceStateUpdateTooManyRequests) GetPayload() *models.Error {
@@ -808,7 +449,7 @@ func NewV1betaResourceStateUpdateInternalServerError() *V1betaResourceStateUpdat
 }
 
 /*
-V1betaResourceStateUpdateInternalServerError describes a response with status code 500, with default header values.
+V1betaResourceStateUpdateInternalServerError handles this case with default header values.
 
 Internal server error
 */
@@ -816,44 +457,8 @@ type V1betaResourceStateUpdateInternalServerError struct {
 	Payload *models.Error
 }
 
-// IsSuccess returns true when this v1beta resource state update internal server error response has a 2xx status code
-func (o *V1betaResourceStateUpdateInternalServerError) IsSuccess() bool {
-	return false
-}
-
-// IsRedirect returns true when this v1beta resource state update internal server error response has a 3xx status code
-func (o *V1betaResourceStateUpdateInternalServerError) IsRedirect() bool {
-	return false
-}
-
-// IsClientError returns true when this v1beta resource state update internal server error response has a 4xx status code
-func (o *V1betaResourceStateUpdateInternalServerError) IsClientError() bool {
-	return false
-}
-
-// IsServerError returns true when this v1beta resource state update internal server error response has a 5xx status code
-func (o *V1betaResourceStateUpdateInternalServerError) IsServerError() bool {
-	return true
-}
-
-// IsCode returns true when this v1beta resource state update internal server error response a status code equal to that given
-func (o *V1betaResourceStateUpdateInternalServerError) IsCode(code int) bool {
-	return code == 500
-}
-
-// Code gets the status code for the v1beta resource state update internal server error response
-func (o *V1betaResourceStateUpdateInternalServerError) Code() int {
-	return 500
-}
-
 func (o *V1betaResourceStateUpdateInternalServerError) Error() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[PUT /v1beta/projects/{projectNumber}/locations/{locationId}/handleResourceEvent][%d] v1betaResourceStateUpdateInternalServerError %s", 500, payload)
-}
-
-func (o *V1betaResourceStateUpdateInternalServerError) String() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[PUT /v1beta/projects/{projectNumber}/locations/{locationId}/handleResourceEvent][%d] v1betaResourceStateUpdateInternalServerError %s", 500, payload)
+	return fmt.Sprintf("[PUT /v1beta/projects/{projectNumber}/locations/{locationId}/handleResourceEvent][%d] v1betaResourceStateUpdateInternalServerError  %+v", 500, o.Payload)
 }
 
 func (o *V1betaResourceStateUpdateInternalServerError) GetPayload() *models.Error {
@@ -878,7 +483,7 @@ func NewV1betaResourceStateUpdateNotImplemented() *V1betaResourceStateUpdateNotI
 }
 
 /*
-V1betaResourceStateUpdateNotImplemented describes a response with status code 501, with default header values.
+V1betaResourceStateUpdateNotImplemented handles this case with default header values.
 
 Not implemented
 */
@@ -886,44 +491,8 @@ type V1betaResourceStateUpdateNotImplemented struct {
 	Payload *models.Error
 }
 
-// IsSuccess returns true when this v1beta resource state update not implemented response has a 2xx status code
-func (o *V1betaResourceStateUpdateNotImplemented) IsSuccess() bool {
-	return false
-}
-
-// IsRedirect returns true when this v1beta resource state update not implemented response has a 3xx status code
-func (o *V1betaResourceStateUpdateNotImplemented) IsRedirect() bool {
-	return false
-}
-
-// IsClientError returns true when this v1beta resource state update not implemented response has a 4xx status code
-func (o *V1betaResourceStateUpdateNotImplemented) IsClientError() bool {
-	return false
-}
-
-// IsServerError returns true when this v1beta resource state update not implemented response has a 5xx status code
-func (o *V1betaResourceStateUpdateNotImplemented) IsServerError() bool {
-	return true
-}
-
-// IsCode returns true when this v1beta resource state update not implemented response a status code equal to that given
-func (o *V1betaResourceStateUpdateNotImplemented) IsCode(code int) bool {
-	return code == 501
-}
-
-// Code gets the status code for the v1beta resource state update not implemented response
-func (o *V1betaResourceStateUpdateNotImplemented) Code() int {
-	return 501
-}
-
 func (o *V1betaResourceStateUpdateNotImplemented) Error() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[PUT /v1beta/projects/{projectNumber}/locations/{locationId}/handleResourceEvent][%d] v1betaResourceStateUpdateNotImplemented %s", 501, payload)
-}
-
-func (o *V1betaResourceStateUpdateNotImplemented) String() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[PUT /v1beta/projects/{projectNumber}/locations/{locationId}/handleResourceEvent][%d] v1betaResourceStateUpdateNotImplemented %s", 501, payload)
+	return fmt.Sprintf("[PUT /v1beta/projects/{projectNumber}/locations/{locationId}/handleResourceEvent][%d] v1betaResourceStateUpdateNotImplemented  %+v", 501, o.Payload)
 }
 
 func (o *V1betaResourceStateUpdateNotImplemented) GetPayload() *models.Error {
@@ -948,57 +517,20 @@ func NewV1betaResourceStateUpdateServiceUnavailable() *V1betaResourceStateUpdate
 }
 
 /*
-V1betaResourceStateUpdateServiceUnavailable describes a response with status code 503, with default header values.
+V1betaResourceStateUpdateServiceUnavailable handles this case with default header values.
 
 Service unavailable
 */
 type V1betaResourceStateUpdateServiceUnavailable struct {
-
-	/* A non-negative integer indicating the seconds to delay after the response is received
+	/*A non-negative integer indicating the seconds to delay after the response is received
 	 */
 	RetryAfter int64
 
 	Payload *models.Error
 }
 
-// IsSuccess returns true when this v1beta resource state update service unavailable response has a 2xx status code
-func (o *V1betaResourceStateUpdateServiceUnavailable) IsSuccess() bool {
-	return false
-}
-
-// IsRedirect returns true when this v1beta resource state update service unavailable response has a 3xx status code
-func (o *V1betaResourceStateUpdateServiceUnavailable) IsRedirect() bool {
-	return false
-}
-
-// IsClientError returns true when this v1beta resource state update service unavailable response has a 4xx status code
-func (o *V1betaResourceStateUpdateServiceUnavailable) IsClientError() bool {
-	return false
-}
-
-// IsServerError returns true when this v1beta resource state update service unavailable response has a 5xx status code
-func (o *V1betaResourceStateUpdateServiceUnavailable) IsServerError() bool {
-	return true
-}
-
-// IsCode returns true when this v1beta resource state update service unavailable response a status code equal to that given
-func (o *V1betaResourceStateUpdateServiceUnavailable) IsCode(code int) bool {
-	return code == 503
-}
-
-// Code gets the status code for the v1beta resource state update service unavailable response
-func (o *V1betaResourceStateUpdateServiceUnavailable) Code() int {
-	return 503
-}
-
 func (o *V1betaResourceStateUpdateServiceUnavailable) Error() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[PUT /v1beta/projects/{projectNumber}/locations/{locationId}/handleResourceEvent][%d] v1betaResourceStateUpdateServiceUnavailable %s", 503, payload)
-}
-
-func (o *V1betaResourceStateUpdateServiceUnavailable) String() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[PUT /v1beta/projects/{projectNumber}/locations/{locationId}/handleResourceEvent][%d] v1betaResourceStateUpdateServiceUnavailable %s", 503, payload)
+	return fmt.Sprintf("[PUT /v1beta/projects/{projectNumber}/locations/{locationId}/handleResourceEvent][%d] v1betaResourceStateUpdateServiceUnavailable  %+v", 503, o.Payload)
 }
 
 func (o *V1betaResourceStateUpdateServiceUnavailable) GetPayload() *models.Error {
@@ -1007,16 +539,12 @@ func (o *V1betaResourceStateUpdateServiceUnavailable) GetPayload() *models.Error
 
 func (o *V1betaResourceStateUpdateServiceUnavailable) readResponse(response runtime.ClientResponse, consumer runtime.Consumer, formats strfmt.Registry) error {
 
-	// hydrates response header Retry-After
-	hdrRetryAfter := response.GetHeader("Retry-After")
-
-	if hdrRetryAfter != "" {
-		valretryAfter, err := swag.ConvertInt64(hdrRetryAfter)
-		if err != nil {
-			return errors.InvalidType("Retry-After", "header", "int64", hdrRetryAfter)
-		}
-		o.RetryAfter = valretryAfter
+	// response header Retry-After
+	retryAfter, err := swag.ConvertInt64(response.GetHeader("Retry-After"))
+	if err != nil {
+		return errors.InvalidType("Retry-After", "header", "int64", response.GetHeader("Retry-After"))
 	}
+	o.RetryAfter = retryAfter
 
 	o.Payload = new(models.Error)
 
@@ -1036,7 +564,7 @@ func NewV1betaResourceStateUpdateDefault(code int) *V1betaResourceStateUpdateDef
 }
 
 /*
-V1betaResourceStateUpdateDefault describes a response with status code -1, with default header values.
+V1betaResourceStateUpdateDefault handles this case with default header values.
 
 Unexpected error
 */
@@ -1046,44 +574,13 @@ type V1betaResourceStateUpdateDefault struct {
 	Payload *models.Error
 }
 
-// IsSuccess returns true when this v1beta resource state update default response has a 2xx status code
-func (o *V1betaResourceStateUpdateDefault) IsSuccess() bool {
-	return o._statusCode/100 == 2
-}
-
-// IsRedirect returns true when this v1beta resource state update default response has a 3xx status code
-func (o *V1betaResourceStateUpdateDefault) IsRedirect() bool {
-	return o._statusCode/100 == 3
-}
-
-// IsClientError returns true when this v1beta resource state update default response has a 4xx status code
-func (o *V1betaResourceStateUpdateDefault) IsClientError() bool {
-	return o._statusCode/100 == 4
-}
-
-// IsServerError returns true when this v1beta resource state update default response has a 5xx status code
-func (o *V1betaResourceStateUpdateDefault) IsServerError() bool {
-	return o._statusCode/100 == 5
-}
-
-// IsCode returns true when this v1beta resource state update default response a status code equal to that given
-func (o *V1betaResourceStateUpdateDefault) IsCode(code int) bool {
-	return o._statusCode == code
-}
-
 // Code gets the status code for the v1beta resource state update default response
 func (o *V1betaResourceStateUpdateDefault) Code() int {
 	return o._statusCode
 }
 
 func (o *V1betaResourceStateUpdateDefault) Error() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[PUT /v1beta/projects/{projectNumber}/locations/{locationId}/handleResourceEvent][%d] v1beta_resourceStateUpdate default %s", o._statusCode, payload)
-}
-
-func (o *V1betaResourceStateUpdateDefault) String() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[PUT /v1beta/projects/{projectNumber}/locations/{locationId}/handleResourceEvent][%d] v1beta_resourceStateUpdate default %s", o._statusCode, payload)
+	return fmt.Sprintf("[PUT /v1beta/projects/{projectNumber}/locations/{locationId}/handleResourceEvent][%d] v1beta_resourceStateUpdate default  %+v", o._statusCode, o.Payload)
 }
 
 func (o *V1betaResourceStateUpdateDefault) GetPayload() *models.Error {

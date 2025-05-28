@@ -6,7 +6,6 @@ package models
 // Editing this file might prove futile when you re-run the swagger generate command
 
 import (
-	"context"
 	"encoding/json"
 
 	"github.com/go-openapi/errors"
@@ -24,13 +23,12 @@ type CvsdsJobV1beta struct {
 	//
 	// The action of this job
 	// Read Only: true
-	// Enum: ["create","update","delete","upgrade"]
+	// Enum: [create update delete upgrade]
 	Action string `json:"action,omitempty"`
 
 	// created
 	//
 	// Creation date of the resource
-	// Example: 2016-11-30T20:32:50.459Z
 	// Read Only: true
 	// Format: date-time
 	Created strfmt.DateTime `json:"created,omitempty"`
@@ -38,7 +36,6 @@ type CvsdsJobV1beta struct {
 	// jobId
 	//
 	// UUID v4 used to identify the job
-	// Example: 9760acf5-4638-11e7-9bdb-020073ca3333
 	// Read Only: true
 	// Max Length: 36
 	// Min Length: 36
@@ -49,20 +46,19 @@ type CvsdsJobV1beta struct {
 	//
 	// The object type of this job
 	// Read Only: true
-	// Enum: ["host"]
+	// Enum: [host]
 	ObjectType string `json:"objectType,omitempty"`
 
 	// state
 	//
 	// The current state of the job
 	// Read Only: true
-	// Enum: ["ongoing","done","error"]
+	// Enum: [ongoing done error]
 	State string `json:"state,omitempty"`
 
 	// stateDetails
 	//
 	// Details about the current job state
-	// Example: Error creating host - operation timed out
 	// Read Only: true
 	StateDetails string `json:"stateDetails,omitempty"`
 }
@@ -133,6 +129,7 @@ func (m *CvsdsJobV1beta) validateActionEnum(path, location string, value string)
 }
 
 func (m *CvsdsJobV1beta) validateAction(formats strfmt.Registry) error {
+
 	if swag.IsZero(m.Action) { // not required
 		return nil
 	}
@@ -146,6 +143,7 @@ func (m *CvsdsJobV1beta) validateAction(formats strfmt.Registry) error {
 }
 
 func (m *CvsdsJobV1beta) validateCreated(formats strfmt.Registry) error {
+
 	if swag.IsZero(m.Created) { // not required
 		return nil
 	}
@@ -158,19 +156,20 @@ func (m *CvsdsJobV1beta) validateCreated(formats strfmt.Registry) error {
 }
 
 func (m *CvsdsJobV1beta) validateJobID(formats strfmt.Registry) error {
+
 	if swag.IsZero(m.JobID) { // not required
 		return nil
 	}
 
-	if err := validate.MinLength("jobId", "body", m.JobID, 36); err != nil {
+	if err := validate.MinLength("jobId", "body", string(m.JobID), 36); err != nil {
 		return err
 	}
 
-	if err := validate.MaxLength("jobId", "body", m.JobID, 36); err != nil {
+	if err := validate.MaxLength("jobId", "body", string(m.JobID), 36); err != nil {
 		return err
 	}
 
-	if err := validate.Pattern("jobId", "body", m.JobID, `^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$`); err != nil {
+	if err := validate.Pattern("jobId", "body", string(m.JobID), `^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$`); err != nil {
 		return err
 	}
 
@@ -204,6 +203,7 @@ func (m *CvsdsJobV1beta) validateObjectTypeEnum(path, location string, value str
 }
 
 func (m *CvsdsJobV1beta) validateObjectType(formats strfmt.Registry) error {
+
 	if swag.IsZero(m.ObjectType) { // not required
 		return nil
 	}
@@ -249,100 +249,13 @@ func (m *CvsdsJobV1beta) validateStateEnum(path, location string, value string) 
 }
 
 func (m *CvsdsJobV1beta) validateState(formats strfmt.Registry) error {
+
 	if swag.IsZero(m.State) { // not required
 		return nil
 	}
 
 	// value enum
 	if err := m.validateStateEnum("state", "body", m.State); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-// ContextValidate validate this cvsds job v1beta based on the context it is used
-func (m *CvsdsJobV1beta) ContextValidate(ctx context.Context, formats strfmt.Registry) error {
-	var res []error
-
-	if err := m.contextValidateAction(ctx, formats); err != nil {
-		res = append(res, err)
-	}
-
-	if err := m.contextValidateCreated(ctx, formats); err != nil {
-		res = append(res, err)
-	}
-
-	if err := m.contextValidateJobID(ctx, formats); err != nil {
-		res = append(res, err)
-	}
-
-	if err := m.contextValidateObjectType(ctx, formats); err != nil {
-		res = append(res, err)
-	}
-
-	if err := m.contextValidateState(ctx, formats); err != nil {
-		res = append(res, err)
-	}
-
-	if err := m.contextValidateStateDetails(ctx, formats); err != nil {
-		res = append(res, err)
-	}
-
-	if len(res) > 0 {
-		return errors.CompositeValidationError(res...)
-	}
-	return nil
-}
-
-func (m *CvsdsJobV1beta) contextValidateAction(ctx context.Context, formats strfmt.Registry) error {
-
-	if err := validate.ReadOnly(ctx, "action", "body", string(m.Action)); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (m *CvsdsJobV1beta) contextValidateCreated(ctx context.Context, formats strfmt.Registry) error {
-
-	if err := validate.ReadOnly(ctx, "created", "body", strfmt.DateTime(m.Created)); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (m *CvsdsJobV1beta) contextValidateJobID(ctx context.Context, formats strfmt.Registry) error {
-
-	if err := validate.ReadOnly(ctx, "jobId", "body", string(m.JobID)); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (m *CvsdsJobV1beta) contextValidateObjectType(ctx context.Context, formats strfmt.Registry) error {
-
-	if err := validate.ReadOnly(ctx, "objectType", "body", string(m.ObjectType)); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (m *CvsdsJobV1beta) contextValidateState(ctx context.Context, formats strfmt.Registry) error {
-
-	if err := validate.ReadOnly(ctx, "state", "body", string(m.State)); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (m *CvsdsJobV1beta) contextValidateStateDetails(ctx context.Context, formats strfmt.Registry) error {
-
-	if err := validate.ReadOnly(ctx, "stateDetails", "body", string(m.StateDetails)); err != nil {
 		return err
 	}
 

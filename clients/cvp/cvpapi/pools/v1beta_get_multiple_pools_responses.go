@@ -6,8 +6,6 @@ package pools
 // Editing this file might prove futile when you re-run the swagger generate command
 
 import (
-	"context"
-	"encoding/json"
 	"fmt"
 	"io"
 	"strconv"
@@ -94,7 +92,7 @@ func NewV1betaGetMultiplePoolsOK() *V1betaGetMultiplePoolsOK {
 }
 
 /*
-V1betaGetMultiplePoolsOK describes a response with status code 200, with default header values.
+V1betaGetMultiplePoolsOK handles this case with default header values.
 
 OK
 */
@@ -102,44 +100,8 @@ type V1betaGetMultiplePoolsOK struct {
 	Payload *V1betaGetMultiplePoolsOKBody
 }
 
-// IsSuccess returns true when this v1beta get multiple pools o k response has a 2xx status code
-func (o *V1betaGetMultiplePoolsOK) IsSuccess() bool {
-	return true
-}
-
-// IsRedirect returns true when this v1beta get multiple pools o k response has a 3xx status code
-func (o *V1betaGetMultiplePoolsOK) IsRedirect() bool {
-	return false
-}
-
-// IsClientError returns true when this v1beta get multiple pools o k response has a 4xx status code
-func (o *V1betaGetMultiplePoolsOK) IsClientError() bool {
-	return false
-}
-
-// IsServerError returns true when this v1beta get multiple pools o k response has a 5xx status code
-func (o *V1betaGetMultiplePoolsOK) IsServerError() bool {
-	return false
-}
-
-// IsCode returns true when this v1beta get multiple pools o k response a status code equal to that given
-func (o *V1betaGetMultiplePoolsOK) IsCode(code int) bool {
-	return code == 200
-}
-
-// Code gets the status code for the v1beta get multiple pools o k response
-func (o *V1betaGetMultiplePoolsOK) Code() int {
-	return 200
-}
-
 func (o *V1betaGetMultiplePoolsOK) Error() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/getMultiplePools][%d] v1betaGetMultiplePoolsOK %s", 200, payload)
-}
-
-func (o *V1betaGetMultiplePoolsOK) String() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/getMultiplePools][%d] v1betaGetMultiplePoolsOK %s", 200, payload)
+	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/getMultiplePools][%d] v1betaGetMultiplePoolsOK  %+v", 200, o.Payload)
 }
 
 func (o *V1betaGetMultiplePoolsOK) GetPayload() *V1betaGetMultiplePoolsOKBody {
@@ -164,7 +126,7 @@ func NewV1betaGetMultiplePoolsBadRequest() *V1betaGetMultiplePoolsBadRequest {
 }
 
 /*
-V1betaGetMultiplePoolsBadRequest describes a response with status code 400, with default header values.
+V1betaGetMultiplePoolsBadRequest handles this case with default header values.
 
 Bad request
 */
@@ -172,44 +134,8 @@ type V1betaGetMultiplePoolsBadRequest struct {
 	Payload *models.Error
 }
 
-// IsSuccess returns true when this v1beta get multiple pools bad request response has a 2xx status code
-func (o *V1betaGetMultiplePoolsBadRequest) IsSuccess() bool {
-	return false
-}
-
-// IsRedirect returns true when this v1beta get multiple pools bad request response has a 3xx status code
-func (o *V1betaGetMultiplePoolsBadRequest) IsRedirect() bool {
-	return false
-}
-
-// IsClientError returns true when this v1beta get multiple pools bad request response has a 4xx status code
-func (o *V1betaGetMultiplePoolsBadRequest) IsClientError() bool {
-	return true
-}
-
-// IsServerError returns true when this v1beta get multiple pools bad request response has a 5xx status code
-func (o *V1betaGetMultiplePoolsBadRequest) IsServerError() bool {
-	return false
-}
-
-// IsCode returns true when this v1beta get multiple pools bad request response a status code equal to that given
-func (o *V1betaGetMultiplePoolsBadRequest) IsCode(code int) bool {
-	return code == 400
-}
-
-// Code gets the status code for the v1beta get multiple pools bad request response
-func (o *V1betaGetMultiplePoolsBadRequest) Code() int {
-	return 400
-}
-
 func (o *V1betaGetMultiplePoolsBadRequest) Error() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/getMultiplePools][%d] v1betaGetMultiplePoolsBadRequest %s", 400, payload)
-}
-
-func (o *V1betaGetMultiplePoolsBadRequest) String() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/getMultiplePools][%d] v1betaGetMultiplePoolsBadRequest %s", 400, payload)
+	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/getMultiplePools][%d] v1betaGetMultiplePoolsBadRequest  %+v", 400, o.Payload)
 }
 
 func (o *V1betaGetMultiplePoolsBadRequest) GetPayload() *models.Error {
@@ -234,7 +160,7 @@ func NewV1betaGetMultiplePoolsUnauthorized() *V1betaGetMultiplePoolsUnauthorized
 }
 
 /*
-V1betaGetMultiplePoolsUnauthorized describes a response with status code 401, with default header values.
+V1betaGetMultiplePoolsUnauthorized handles this case with default header values.
 
 Unauthorized
 */
@@ -242,44 +168,8 @@ type V1betaGetMultiplePoolsUnauthorized struct {
 	Payload *models.Error
 }
 
-// IsSuccess returns true when this v1beta get multiple pools unauthorized response has a 2xx status code
-func (o *V1betaGetMultiplePoolsUnauthorized) IsSuccess() bool {
-	return false
-}
-
-// IsRedirect returns true when this v1beta get multiple pools unauthorized response has a 3xx status code
-func (o *V1betaGetMultiplePoolsUnauthorized) IsRedirect() bool {
-	return false
-}
-
-// IsClientError returns true when this v1beta get multiple pools unauthorized response has a 4xx status code
-func (o *V1betaGetMultiplePoolsUnauthorized) IsClientError() bool {
-	return true
-}
-
-// IsServerError returns true when this v1beta get multiple pools unauthorized response has a 5xx status code
-func (o *V1betaGetMultiplePoolsUnauthorized) IsServerError() bool {
-	return false
-}
-
-// IsCode returns true when this v1beta get multiple pools unauthorized response a status code equal to that given
-func (o *V1betaGetMultiplePoolsUnauthorized) IsCode(code int) bool {
-	return code == 401
-}
-
-// Code gets the status code for the v1beta get multiple pools unauthorized response
-func (o *V1betaGetMultiplePoolsUnauthorized) Code() int {
-	return 401
-}
-
 func (o *V1betaGetMultiplePoolsUnauthorized) Error() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/getMultiplePools][%d] v1betaGetMultiplePoolsUnauthorized %s", 401, payload)
-}
-
-func (o *V1betaGetMultiplePoolsUnauthorized) String() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/getMultiplePools][%d] v1betaGetMultiplePoolsUnauthorized %s", 401, payload)
+	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/getMultiplePools][%d] v1betaGetMultiplePoolsUnauthorized  %+v", 401, o.Payload)
 }
 
 func (o *V1betaGetMultiplePoolsUnauthorized) GetPayload() *models.Error {
@@ -304,7 +194,7 @@ func NewV1betaGetMultiplePoolsForbidden() *V1betaGetMultiplePoolsForbidden {
 }
 
 /*
-V1betaGetMultiplePoolsForbidden describes a response with status code 403, with default header values.
+V1betaGetMultiplePoolsForbidden handles this case with default header values.
 
 Forbidden
 */
@@ -312,44 +202,8 @@ type V1betaGetMultiplePoolsForbidden struct {
 	Payload *models.Error
 }
 
-// IsSuccess returns true when this v1beta get multiple pools forbidden response has a 2xx status code
-func (o *V1betaGetMultiplePoolsForbidden) IsSuccess() bool {
-	return false
-}
-
-// IsRedirect returns true when this v1beta get multiple pools forbidden response has a 3xx status code
-func (o *V1betaGetMultiplePoolsForbidden) IsRedirect() bool {
-	return false
-}
-
-// IsClientError returns true when this v1beta get multiple pools forbidden response has a 4xx status code
-func (o *V1betaGetMultiplePoolsForbidden) IsClientError() bool {
-	return true
-}
-
-// IsServerError returns true when this v1beta get multiple pools forbidden response has a 5xx status code
-func (o *V1betaGetMultiplePoolsForbidden) IsServerError() bool {
-	return false
-}
-
-// IsCode returns true when this v1beta get multiple pools forbidden response a status code equal to that given
-func (o *V1betaGetMultiplePoolsForbidden) IsCode(code int) bool {
-	return code == 403
-}
-
-// Code gets the status code for the v1beta get multiple pools forbidden response
-func (o *V1betaGetMultiplePoolsForbidden) Code() int {
-	return 403
-}
-
 func (o *V1betaGetMultiplePoolsForbidden) Error() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/getMultiplePools][%d] v1betaGetMultiplePoolsForbidden %s", 403, payload)
-}
-
-func (o *V1betaGetMultiplePoolsForbidden) String() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/getMultiplePools][%d] v1betaGetMultiplePoolsForbidden %s", 403, payload)
+	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/getMultiplePools][%d] v1betaGetMultiplePoolsForbidden  %+v", 403, o.Payload)
 }
 
 func (o *V1betaGetMultiplePoolsForbidden) GetPayload() *models.Error {
@@ -374,7 +228,7 @@ func NewV1betaGetMultiplePoolsNotFound() *V1betaGetMultiplePoolsNotFound {
 }
 
 /*
-V1betaGetMultiplePoolsNotFound describes a response with status code 404, with default header values.
+V1betaGetMultiplePoolsNotFound handles this case with default header values.
 
 Not found
 */
@@ -382,44 +236,8 @@ type V1betaGetMultiplePoolsNotFound struct {
 	Payload *models.Error
 }
 
-// IsSuccess returns true when this v1beta get multiple pools not found response has a 2xx status code
-func (o *V1betaGetMultiplePoolsNotFound) IsSuccess() bool {
-	return false
-}
-
-// IsRedirect returns true when this v1beta get multiple pools not found response has a 3xx status code
-func (o *V1betaGetMultiplePoolsNotFound) IsRedirect() bool {
-	return false
-}
-
-// IsClientError returns true when this v1beta get multiple pools not found response has a 4xx status code
-func (o *V1betaGetMultiplePoolsNotFound) IsClientError() bool {
-	return true
-}
-
-// IsServerError returns true when this v1beta get multiple pools not found response has a 5xx status code
-func (o *V1betaGetMultiplePoolsNotFound) IsServerError() bool {
-	return false
-}
-
-// IsCode returns true when this v1beta get multiple pools not found response a status code equal to that given
-func (o *V1betaGetMultiplePoolsNotFound) IsCode(code int) bool {
-	return code == 404
-}
-
-// Code gets the status code for the v1beta get multiple pools not found response
-func (o *V1betaGetMultiplePoolsNotFound) Code() int {
-	return 404
-}
-
 func (o *V1betaGetMultiplePoolsNotFound) Error() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/getMultiplePools][%d] v1betaGetMultiplePoolsNotFound %s", 404, payload)
-}
-
-func (o *V1betaGetMultiplePoolsNotFound) String() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/getMultiplePools][%d] v1betaGetMultiplePoolsNotFound %s", 404, payload)
+	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/getMultiplePools][%d] v1betaGetMultiplePoolsNotFound  %+v", 404, o.Payload)
 }
 
 func (o *V1betaGetMultiplePoolsNotFound) GetPayload() *models.Error {
@@ -444,7 +262,7 @@ func NewV1betaGetMultiplePoolsUnprocessableEntity() *V1betaGetMultiplePoolsUnpro
 }
 
 /*
-V1betaGetMultiplePoolsUnprocessableEntity describes a response with status code 422, with default header values.
+V1betaGetMultiplePoolsUnprocessableEntity handles this case with default header values.
 
 Unprocessable entity
 */
@@ -452,44 +270,8 @@ type V1betaGetMultiplePoolsUnprocessableEntity struct {
 	Payload *models.Error
 }
 
-// IsSuccess returns true when this v1beta get multiple pools unprocessable entity response has a 2xx status code
-func (o *V1betaGetMultiplePoolsUnprocessableEntity) IsSuccess() bool {
-	return false
-}
-
-// IsRedirect returns true when this v1beta get multiple pools unprocessable entity response has a 3xx status code
-func (o *V1betaGetMultiplePoolsUnprocessableEntity) IsRedirect() bool {
-	return false
-}
-
-// IsClientError returns true when this v1beta get multiple pools unprocessable entity response has a 4xx status code
-func (o *V1betaGetMultiplePoolsUnprocessableEntity) IsClientError() bool {
-	return true
-}
-
-// IsServerError returns true when this v1beta get multiple pools unprocessable entity response has a 5xx status code
-func (o *V1betaGetMultiplePoolsUnprocessableEntity) IsServerError() bool {
-	return false
-}
-
-// IsCode returns true when this v1beta get multiple pools unprocessable entity response a status code equal to that given
-func (o *V1betaGetMultiplePoolsUnprocessableEntity) IsCode(code int) bool {
-	return code == 422
-}
-
-// Code gets the status code for the v1beta get multiple pools unprocessable entity response
-func (o *V1betaGetMultiplePoolsUnprocessableEntity) Code() int {
-	return 422
-}
-
 func (o *V1betaGetMultiplePoolsUnprocessableEntity) Error() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/getMultiplePools][%d] v1betaGetMultiplePoolsUnprocessableEntity %s", 422, payload)
-}
-
-func (o *V1betaGetMultiplePoolsUnprocessableEntity) String() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/getMultiplePools][%d] v1betaGetMultiplePoolsUnprocessableEntity %s", 422, payload)
+	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/getMultiplePools][%d] v1betaGetMultiplePoolsUnprocessableEntity  %+v", 422, o.Payload)
 }
 
 func (o *V1betaGetMultiplePoolsUnprocessableEntity) GetPayload() *models.Error {
@@ -514,7 +296,7 @@ func NewV1betaGetMultiplePoolsTooManyRequests() *V1betaGetMultiplePoolsTooManyRe
 }
 
 /*
-V1betaGetMultiplePoolsTooManyRequests describes a response with status code 429, with default header values.
+V1betaGetMultiplePoolsTooManyRequests handles this case with default header values.
 
 Too many requests
 */
@@ -522,44 +304,8 @@ type V1betaGetMultiplePoolsTooManyRequests struct {
 	Payload *models.Error
 }
 
-// IsSuccess returns true when this v1beta get multiple pools too many requests response has a 2xx status code
-func (o *V1betaGetMultiplePoolsTooManyRequests) IsSuccess() bool {
-	return false
-}
-
-// IsRedirect returns true when this v1beta get multiple pools too many requests response has a 3xx status code
-func (o *V1betaGetMultiplePoolsTooManyRequests) IsRedirect() bool {
-	return false
-}
-
-// IsClientError returns true when this v1beta get multiple pools too many requests response has a 4xx status code
-func (o *V1betaGetMultiplePoolsTooManyRequests) IsClientError() bool {
-	return true
-}
-
-// IsServerError returns true when this v1beta get multiple pools too many requests response has a 5xx status code
-func (o *V1betaGetMultiplePoolsTooManyRequests) IsServerError() bool {
-	return false
-}
-
-// IsCode returns true when this v1beta get multiple pools too many requests response a status code equal to that given
-func (o *V1betaGetMultiplePoolsTooManyRequests) IsCode(code int) bool {
-	return code == 429
-}
-
-// Code gets the status code for the v1beta get multiple pools too many requests response
-func (o *V1betaGetMultiplePoolsTooManyRequests) Code() int {
-	return 429
-}
-
 func (o *V1betaGetMultiplePoolsTooManyRequests) Error() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/getMultiplePools][%d] v1betaGetMultiplePoolsTooManyRequests %s", 429, payload)
-}
-
-func (o *V1betaGetMultiplePoolsTooManyRequests) String() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/getMultiplePools][%d] v1betaGetMultiplePoolsTooManyRequests %s", 429, payload)
+	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/getMultiplePools][%d] v1betaGetMultiplePoolsTooManyRequests  %+v", 429, o.Payload)
 }
 
 func (o *V1betaGetMultiplePoolsTooManyRequests) GetPayload() *models.Error {
@@ -584,7 +330,7 @@ func NewV1betaGetMultiplePoolsInternalServerError() *V1betaGetMultiplePoolsInter
 }
 
 /*
-V1betaGetMultiplePoolsInternalServerError describes a response with status code 500, with default header values.
+V1betaGetMultiplePoolsInternalServerError handles this case with default header values.
 
 Internal server error
 */
@@ -592,44 +338,8 @@ type V1betaGetMultiplePoolsInternalServerError struct {
 	Payload *models.Error
 }
 
-// IsSuccess returns true when this v1beta get multiple pools internal server error response has a 2xx status code
-func (o *V1betaGetMultiplePoolsInternalServerError) IsSuccess() bool {
-	return false
-}
-
-// IsRedirect returns true when this v1beta get multiple pools internal server error response has a 3xx status code
-func (o *V1betaGetMultiplePoolsInternalServerError) IsRedirect() bool {
-	return false
-}
-
-// IsClientError returns true when this v1beta get multiple pools internal server error response has a 4xx status code
-func (o *V1betaGetMultiplePoolsInternalServerError) IsClientError() bool {
-	return false
-}
-
-// IsServerError returns true when this v1beta get multiple pools internal server error response has a 5xx status code
-func (o *V1betaGetMultiplePoolsInternalServerError) IsServerError() bool {
-	return true
-}
-
-// IsCode returns true when this v1beta get multiple pools internal server error response a status code equal to that given
-func (o *V1betaGetMultiplePoolsInternalServerError) IsCode(code int) bool {
-	return code == 500
-}
-
-// Code gets the status code for the v1beta get multiple pools internal server error response
-func (o *V1betaGetMultiplePoolsInternalServerError) Code() int {
-	return 500
-}
-
 func (o *V1betaGetMultiplePoolsInternalServerError) Error() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/getMultiplePools][%d] v1betaGetMultiplePoolsInternalServerError %s", 500, payload)
-}
-
-func (o *V1betaGetMultiplePoolsInternalServerError) String() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/getMultiplePools][%d] v1betaGetMultiplePoolsInternalServerError %s", 500, payload)
+	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/getMultiplePools][%d] v1betaGetMultiplePoolsInternalServerError  %+v", 500, o.Payload)
 }
 
 func (o *V1betaGetMultiplePoolsInternalServerError) GetPayload() *models.Error {
@@ -656,7 +366,7 @@ func NewV1betaGetMultiplePoolsDefault(code int) *V1betaGetMultiplePoolsDefault {
 }
 
 /*
-V1betaGetMultiplePoolsDefault describes a response with status code -1, with default header values.
+V1betaGetMultiplePoolsDefault handles this case with default header values.
 
 Unexpected error
 */
@@ -666,44 +376,13 @@ type V1betaGetMultiplePoolsDefault struct {
 	Payload *models.Error
 }
 
-// IsSuccess returns true when this v1beta get multiple pools default response has a 2xx status code
-func (o *V1betaGetMultiplePoolsDefault) IsSuccess() bool {
-	return o._statusCode/100 == 2
-}
-
-// IsRedirect returns true when this v1beta get multiple pools default response has a 3xx status code
-func (o *V1betaGetMultiplePoolsDefault) IsRedirect() bool {
-	return o._statusCode/100 == 3
-}
-
-// IsClientError returns true when this v1beta get multiple pools default response has a 4xx status code
-func (o *V1betaGetMultiplePoolsDefault) IsClientError() bool {
-	return o._statusCode/100 == 4
-}
-
-// IsServerError returns true when this v1beta get multiple pools default response has a 5xx status code
-func (o *V1betaGetMultiplePoolsDefault) IsServerError() bool {
-	return o._statusCode/100 == 5
-}
-
-// IsCode returns true when this v1beta get multiple pools default response a status code equal to that given
-func (o *V1betaGetMultiplePoolsDefault) IsCode(code int) bool {
-	return o._statusCode == code
-}
-
 // Code gets the status code for the v1beta get multiple pools default response
 func (o *V1betaGetMultiplePoolsDefault) Code() int {
 	return o._statusCode
 }
 
 func (o *V1betaGetMultiplePoolsDefault) Error() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/getMultiplePools][%d] v1beta_getMultiplePools default %s", o._statusCode, payload)
-}
-
-func (o *V1betaGetMultiplePoolsDefault) String() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/getMultiplePools][%d] v1beta_getMultiplePools default %s", o._statusCode, payload)
+	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/getMultiplePools][%d] v1beta_getMultiplePools default  %+v", o._statusCode, o.Payload)
 }
 
 func (o *V1betaGetMultiplePoolsDefault) GetPayload() *models.Error {
@@ -794,47 +473,6 @@ func (o *V1betaGetMultiplePoolsOKBody) validatePools(formats strfmt.Registry) er
 			if err := o.Pools[i].Validate(formats); err != nil {
 				if ve, ok := err.(*errors.Validation); ok {
 					return ve.ValidateName("v1betaGetMultiplePoolsOK" + "." + "pools" + "." + strconv.Itoa(i))
-				} else if ce, ok := err.(*errors.CompositeError); ok {
-					return ce.ValidateName("v1betaGetMultiplePoolsOK" + "." + "pools" + "." + strconv.Itoa(i))
-				}
-				return err
-			}
-		}
-
-	}
-
-	return nil
-}
-
-// ContextValidate validate this v1beta get multiple pools o k body based on the context it is used
-func (o *V1betaGetMultiplePoolsOKBody) ContextValidate(ctx context.Context, formats strfmt.Registry) error {
-	var res []error
-
-	if err := o.contextValidatePools(ctx, formats); err != nil {
-		res = append(res, err)
-	}
-
-	if len(res) > 0 {
-		return errors.CompositeValidationError(res...)
-	}
-	return nil
-}
-
-func (o *V1betaGetMultiplePoolsOKBody) contextValidatePools(ctx context.Context, formats strfmt.Registry) error {
-
-	for i := 0; i < len(o.Pools); i++ {
-
-		if o.Pools[i] != nil {
-
-			if swag.IsZero(o.Pools[i]) { // not required
-				return nil
-			}
-
-			if err := o.Pools[i].ContextValidate(ctx, formats); err != nil {
-				if ve, ok := err.(*errors.Validation); ok {
-					return ve.ValidateName("v1betaGetMultiplePoolsOK" + "." + "pools" + "." + strconv.Itoa(i))
-				} else if ce, ok := err.(*errors.CompositeError); ok {
-					return ce.ValidateName("v1betaGetMultiplePoolsOK" + "." + "pools" + "." + strconv.Itoa(i))
 				}
 				return err
 			}

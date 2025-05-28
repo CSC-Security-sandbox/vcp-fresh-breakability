@@ -6,8 +6,6 @@ package models
 // Editing this file might prove futile when you re-run the swagger generate command
 
 import (
-	"context"
-
 	"github.com/go-openapi/errors"
 	"github.com/go-openapi/strfmt"
 	"github.com/go-openapi/swag"
@@ -22,7 +20,6 @@ type BackupRetentionPolicyV1beta struct {
 	// backupMinimumEnforcedRetentionDays
 	//
 	// Backup minimum enforced retention period in days
-	// Example: 7
 	// Maximum: 5475
 	// Minimum: 0
 	BackupMinimumEnforcedRetentionDays *int64 `json:"backupMinimumEnforcedRetentionDays,omitempty"`
@@ -30,25 +27,21 @@ type BackupRetentionPolicyV1beta struct {
 	// dailyBackupImmutable
 	//
 	// Whether the scheduled daily backups would follow the immutable period
-	// Example: true
 	DailyBackupImmutable bool `json:"dailyBackupImmutable,omitempty"`
 
 	// manualBackupImmutable
 	//
 	// Whether the manual backups would follow the immutable period
-	// Example: true
 	ManualBackupImmutable bool `json:"manualBackupImmutable,omitempty"`
 
 	// monthlyBackupImmutable
 	//
 	// Whether the scheduled monthly backups would follow the immutable period
-	// Example: true
 	MonthlyBackupImmutable bool `json:"monthlyBackupImmutable,omitempty"`
 
 	// weeklyBackupImmutable
 	//
 	// Whether the scheduled weekly backups would follow the immutable period
-	// Example: true
 	WeeklyBackupImmutable bool `json:"weeklyBackupImmutable,omitempty"`
 }
 
@@ -67,23 +60,19 @@ func (m *BackupRetentionPolicyV1beta) Validate(formats strfmt.Registry) error {
 }
 
 func (m *BackupRetentionPolicyV1beta) validateBackupMinimumEnforcedRetentionDays(formats strfmt.Registry) error {
+
 	if swag.IsZero(m.BackupMinimumEnforcedRetentionDays) { // not required
 		return nil
 	}
 
-	if err := validate.MinimumInt("backupMinimumEnforcedRetentionDays", "body", *m.BackupMinimumEnforcedRetentionDays, 0, false); err != nil {
+	if err := validate.MinimumInt("backupMinimumEnforcedRetentionDays", "body", int64(*m.BackupMinimumEnforcedRetentionDays), 0, false); err != nil {
 		return err
 	}
 
-	if err := validate.MaximumInt("backupMinimumEnforcedRetentionDays", "body", *m.BackupMinimumEnforcedRetentionDays, 5475, false); err != nil {
+	if err := validate.MaximumInt("backupMinimumEnforcedRetentionDays", "body", int64(*m.BackupMinimumEnforcedRetentionDays), 5475, false); err != nil {
 		return err
 	}
 
-	return nil
-}
-
-// ContextValidate validates this backup retention policy v1beta based on context it is used
-func (m *BackupRetentionPolicyV1beta) ContextValidate(ctx context.Context, formats strfmt.Registry) error {
 	return nil
 }
 

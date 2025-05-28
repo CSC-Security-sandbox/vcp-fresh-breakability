@@ -7,38 +7,12 @@ package backups
 
 import (
 	"github.com/go-openapi/runtime"
-	httptransport "github.com/go-openapi/runtime/client"
 	"github.com/go-openapi/strfmt"
 )
 
 // New creates a new backups API client.
 func New(transport runtime.ClientTransport, formats strfmt.Registry) ClientService {
 	return &Client{transport: transport, formats: formats}
-}
-
-// New creates a new backups API client with basic auth credentials.
-// It takes the following parameters:
-// - host: http host (github.com).
-// - basePath: any base path for the API client ("/v1", "/v3").
-// - scheme: http scheme ("http", "https").
-// - user: user for basic authentication header.
-// - password: password for basic authentication header.
-func NewClientWithBasicAuth(host, basePath, scheme, user, password string) ClientService {
-	transport := httptransport.New(host, basePath, []string{scheme})
-	transport.DefaultAuthentication = httptransport.BasicAuth(user, password)
-	return &Client{transport: transport, formats: strfmt.Default}
-}
-
-// New creates a new backups API client with a bearer token for authentication.
-// It takes the following parameters:
-// - host: http host (github.com).
-// - basePath: any base path for the API client ("/v1", "/v3").
-// - scheme: http scheme ("http", "https").
-// - bearerToken: bearer token for Bearer authentication header.
-func NewClientWithBearerToken(host, basePath, scheme, bearerToken string) ClientService {
-	transport := httptransport.New(host, basePath, []string{scheme})
-	transport.DefaultAuthentication = httptransport.BearerToken(bearerToken)
-	return &Client{transport: transport, formats: strfmt.Default}
 }
 
 /*
@@ -49,24 +23,21 @@ type Client struct {
 	formats   strfmt.Registry
 }
 
-// ClientOption may be used to customize the behavior of Client methods.
-type ClientOption func(*runtime.ClientOperation)
-
 // ClientService is the interface for Client methods
 type ClientService interface {
-	V1betaCreateBackup(params *V1betaCreateBackupParams, opts ...ClientOption) (*V1betaCreateBackupCreated, *V1betaCreateBackupAccepted, error)
+	V1betaCreateBackup(params *V1betaCreateBackupParams) (*V1betaCreateBackupCreated, *V1betaCreateBackupAccepted, error)
 
-	V1betaDeleteBackupUnderBackupVault(params *V1betaDeleteBackupUnderBackupVaultParams, opts ...ClientOption) (*V1betaDeleteBackupUnderBackupVaultOK, *V1betaDeleteBackupUnderBackupVaultAccepted, error)
+	V1betaDeleteBackupUnderBackupVault(params *V1betaDeleteBackupUnderBackupVaultParams) (*V1betaDeleteBackupUnderBackupVaultOK, *V1betaDeleteBackupUnderBackupVaultAccepted, error)
 
-	V1betaDescribeBackup(params *V1betaDescribeBackupParams, opts ...ClientOption) (*V1betaDescribeBackupOK, error)
+	V1betaDescribeBackup(params *V1betaDescribeBackupParams) (*V1betaDescribeBackupOK, error)
 
-	V1betaGetMultipleBackups(params *V1betaGetMultipleBackupsParams, opts ...ClientOption) (*V1betaGetMultipleBackupsOK, error)
+	V1betaGetMultipleBackups(params *V1betaGetMultipleBackupsParams) (*V1betaGetMultipleBackupsOK, error)
 
-	V1betaListBackups(params *V1betaListBackupsParams, opts ...ClientOption) (*V1betaListBackupsOK, error)
+	V1betaListBackups(params *V1betaListBackupsParams) (*V1betaListBackupsOK, error)
 
-	V1betaRestoreBackupFiles(params *V1betaRestoreBackupFilesParams, opts ...ClientOption) (*V1betaRestoreBackupFilesOK, *V1betaRestoreBackupFilesAccepted, *V1betaRestoreBackupFilesNoContent, error)
+	V1betaRestoreBackupFiles(params *V1betaRestoreBackupFilesParams) (*V1betaRestoreBackupFilesOK, *V1betaRestoreBackupFilesAccepted, *V1betaRestoreBackupFilesNoContent, error)
 
-	V1betaUpdateBackup(params *V1betaUpdateBackupParams, opts ...ClientOption) (*V1betaUpdateBackupOK, *V1betaUpdateBackupAccepted, *V1betaUpdateBackupNoContent, error)
+	V1betaUpdateBackup(params *V1betaUpdateBackupParams) (*V1betaUpdateBackupOK, *V1betaUpdateBackupAccepted, *V1betaUpdateBackupNoContent, error)
 
 	SetTransport(transport runtime.ClientTransport)
 }
@@ -76,12 +47,13 @@ V1betaCreateBackup creates a new backup
 
 Creates an ad-hoc backup.
 */
-func (a *Client) V1betaCreateBackup(params *V1betaCreateBackupParams, opts ...ClientOption) (*V1betaCreateBackupCreated, *V1betaCreateBackupAccepted, error) {
+func (a *Client) V1betaCreateBackup(params *V1betaCreateBackupParams) (*V1betaCreateBackupCreated, *V1betaCreateBackupAccepted, error) {
 	// TODO: Validate the params before sending
 	if params == nil {
 		params = NewV1betaCreateBackupParams()
 	}
-	op := &runtime.ClientOperation{
+
+	result, err := a.transport.Submit(&runtime.ClientOperation{
 		ID:                 "v1beta_createBackup",
 		Method:             "POST",
 		PathPattern:        "/v1beta/projects/{projectNumber}/locations/{locationId}/backupVaults/{backupVaultId}/backups",
@@ -92,12 +64,7 @@ func (a *Client) V1betaCreateBackup(params *V1betaCreateBackupParams, opts ...Cl
 		Reader:             &V1betaCreateBackupReader{formats: a.formats},
 		Context:            params.Context,
 		Client:             params.HTTPClient,
-	}
-	for _, opt := range opts {
-		opt(op)
-	}
-
-	result, err := a.transport.Submit(op)
+	})
 	if err != nil {
 		return nil, nil, err
 	}
@@ -117,12 +84,13 @@ V1betaDeleteBackupUnderBackupVault deletes a backup under backup vault
 
 Delete a backup under backup vault
 */
-func (a *Client) V1betaDeleteBackupUnderBackupVault(params *V1betaDeleteBackupUnderBackupVaultParams, opts ...ClientOption) (*V1betaDeleteBackupUnderBackupVaultOK, *V1betaDeleteBackupUnderBackupVaultAccepted, error) {
+func (a *Client) V1betaDeleteBackupUnderBackupVault(params *V1betaDeleteBackupUnderBackupVaultParams) (*V1betaDeleteBackupUnderBackupVaultOK, *V1betaDeleteBackupUnderBackupVaultAccepted, error) {
 	// TODO: Validate the params before sending
 	if params == nil {
 		params = NewV1betaDeleteBackupUnderBackupVaultParams()
 	}
-	op := &runtime.ClientOperation{
+
+	result, err := a.transport.Submit(&runtime.ClientOperation{
 		ID:                 "v1beta_deleteBackupUnderBackupVault",
 		Method:             "DELETE",
 		PathPattern:        "/v1beta/projects/{projectNumber}/locations/{locationId}/backupVaults/{backupVaultId}/backups/{backupId}",
@@ -133,12 +101,7 @@ func (a *Client) V1betaDeleteBackupUnderBackupVault(params *V1betaDeleteBackupUn
 		Reader:             &V1betaDeleteBackupUnderBackupVaultReader{formats: a.formats},
 		Context:            params.Context,
 		Client:             params.HTTPClient,
-	}
-	for _, opt := range opts {
-		opt(op)
-	}
-
-	result, err := a.transport.Submit(op)
+	})
 	if err != nil {
 		return nil, nil, err
 	}
@@ -158,12 +121,13 @@ V1betaDescribeBackup describes a backup under backup vault
 
 Describe a backup present under a backup vault
 */
-func (a *Client) V1betaDescribeBackup(params *V1betaDescribeBackupParams, opts ...ClientOption) (*V1betaDescribeBackupOK, error) {
+func (a *Client) V1betaDescribeBackup(params *V1betaDescribeBackupParams) (*V1betaDescribeBackupOK, error) {
 	// TODO: Validate the params before sending
 	if params == nil {
 		params = NewV1betaDescribeBackupParams()
 	}
-	op := &runtime.ClientOperation{
+
+	result, err := a.transport.Submit(&runtime.ClientOperation{
 		ID:                 "v1beta_describeBackup",
 		Method:             "GET",
 		PathPattern:        "/v1beta/projects/{projectNumber}/locations/{locationId}/backupVaults/{backupVaultId}/backups/{backupId}",
@@ -174,12 +138,7 @@ func (a *Client) V1betaDescribeBackup(params *V1betaDescribeBackupParams, opts .
 		Reader:             &V1betaDescribeBackupReader{formats: a.formats},
 		Context:            params.Context,
 		Client:             params.HTTPClient,
-	}
-	for _, opt := range opts {
-		opt(op)
-	}
-
-	result, err := a.transport.Submit(op)
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -197,12 +156,13 @@ V1betaGetMultipleBackups lists specified backups under the backup vault
 
 Returns descriptions of backups that is listed in request body.
 */
-func (a *Client) V1betaGetMultipleBackups(params *V1betaGetMultipleBackupsParams, opts ...ClientOption) (*V1betaGetMultipleBackupsOK, error) {
+func (a *Client) V1betaGetMultipleBackups(params *V1betaGetMultipleBackupsParams) (*V1betaGetMultipleBackupsOK, error) {
 	// TODO: Validate the params before sending
 	if params == nil {
 		params = NewV1betaGetMultipleBackupsParams()
 	}
-	op := &runtime.ClientOperation{
+
+	result, err := a.transport.Submit(&runtime.ClientOperation{
 		ID:                 "v1beta_getMultipleBackups",
 		Method:             "POST",
 		PathPattern:        "/v1beta/projects/{projectNumber}/locations/{locationId}/backupVaults/{backupVaultId}/getMultipleBackups",
@@ -213,12 +173,7 @@ func (a *Client) V1betaGetMultipleBackups(params *V1betaGetMultipleBackupsParams
 		Reader:             &V1betaGetMultipleBackupsReader{formats: a.formats},
 		Context:            params.Context,
 		Client:             params.HTTPClient,
-	}
-	for _, opt := range opts {
-		opt(op)
-	}
-
-	result, err := a.transport.Submit(op)
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -236,12 +191,13 @@ V1betaListBackups describes all backups for a backup vault
 
 Returns descriptions of all backups for a backup vault.
 */
-func (a *Client) V1betaListBackups(params *V1betaListBackupsParams, opts ...ClientOption) (*V1betaListBackupsOK, error) {
+func (a *Client) V1betaListBackups(params *V1betaListBackupsParams) (*V1betaListBackupsOK, error) {
 	// TODO: Validate the params before sending
 	if params == nil {
 		params = NewV1betaListBackupsParams()
 	}
-	op := &runtime.ClientOperation{
+
+	result, err := a.transport.Submit(&runtime.ClientOperation{
 		ID:                 "v1beta_listBackups",
 		Method:             "GET",
 		PathPattern:        "/v1beta/projects/{projectNumber}/locations/{locationId}/backupVaults/{backupVaultId}/backups",
@@ -252,12 +208,7 @@ func (a *Client) V1betaListBackups(params *V1betaListBackupsParams, opts ...Clie
 		Reader:             &V1betaListBackupsReader{formats: a.formats},
 		Context:            params.Context,
 		Client:             params.HTTPClient,
-	}
-	for _, opt := range opts {
-		opt(op)
-	}
-
-	result, err := a.transport.Submit(op)
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -275,12 +226,13 @@ V1betaRestoreBackupFiles restores files from backup
 
 Restore files from backup
 */
-func (a *Client) V1betaRestoreBackupFiles(params *V1betaRestoreBackupFilesParams, opts ...ClientOption) (*V1betaRestoreBackupFilesOK, *V1betaRestoreBackupFilesAccepted, *V1betaRestoreBackupFilesNoContent, error) {
+func (a *Client) V1betaRestoreBackupFiles(params *V1betaRestoreBackupFilesParams) (*V1betaRestoreBackupFilesOK, *V1betaRestoreBackupFilesAccepted, *V1betaRestoreBackupFilesNoContent, error) {
 	// TODO: Validate the params before sending
 	if params == nil {
 		params = NewV1betaRestoreBackupFilesParams()
 	}
-	op := &runtime.ClientOperation{
+
+	result, err := a.transport.Submit(&runtime.ClientOperation{
 		ID:                 "v1beta_restoreBackupFiles",
 		Method:             "POST",
 		PathPattern:        "/v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/restoreFilesFromBackup",
@@ -291,12 +243,7 @@ func (a *Client) V1betaRestoreBackupFiles(params *V1betaRestoreBackupFilesParams
 		Reader:             &V1betaRestoreBackupFilesReader{formats: a.formats},
 		Context:            params.Context,
 		Client:             params.HTTPClient,
-	}
-	for _, opt := range opts {
-		opt(op)
-	}
-
-	result, err := a.transport.Submit(op)
+	})
 	if err != nil {
 		return nil, nil, nil, err
 	}
@@ -318,12 +265,13 @@ V1betaUpdateBackup updates a backup
 
 Update the backup. Only the backup description can be updated.
 */
-func (a *Client) V1betaUpdateBackup(params *V1betaUpdateBackupParams, opts ...ClientOption) (*V1betaUpdateBackupOK, *V1betaUpdateBackupAccepted, *V1betaUpdateBackupNoContent, error) {
+func (a *Client) V1betaUpdateBackup(params *V1betaUpdateBackupParams) (*V1betaUpdateBackupOK, *V1betaUpdateBackupAccepted, *V1betaUpdateBackupNoContent, error) {
 	// TODO: Validate the params before sending
 	if params == nil {
 		params = NewV1betaUpdateBackupParams()
 	}
-	op := &runtime.ClientOperation{
+
+	result, err := a.transport.Submit(&runtime.ClientOperation{
 		ID:                 "v1beta_updateBackup",
 		Method:             "PUT",
 		PathPattern:        "/v1beta/projects/{projectNumber}/locations/{locationId}/backupVaults/{backupVaultId}/backups/{backupId}",
@@ -334,12 +282,7 @@ func (a *Client) V1betaUpdateBackup(params *V1betaUpdateBackupParams, opts ...Cl
 		Reader:             &V1betaUpdateBackupReader{formats: a.formats},
 		Context:            params.Context,
 		Client:             params.HTTPClient,
-	}
-	for _, opt := range opts {
-		opt(op)
-	}
-
-	result, err := a.transport.Submit(op)
+	})
 	if err != nil {
 		return nil, nil, nil, err
 	}

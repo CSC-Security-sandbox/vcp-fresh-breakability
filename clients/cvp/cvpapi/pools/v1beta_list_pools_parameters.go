@@ -17,110 +17,92 @@ import (
 	"github.com/go-openapi/swag"
 )
 
-// NewV1betaListPoolsParams creates a new V1betaListPoolsParams object,
-// with the default timeout for this client.
-//
-// Default values are not hydrated, since defaults are normally applied by the API server side.
-//
-// To enforce default values in parameter, use SetDefaults or WithDefaults.
+// NewV1betaListPoolsParams creates a new V1betaListPoolsParams object
+// with the default values initialized.
 func NewV1betaListPoolsParams() *V1betaListPoolsParams {
+	var (
+		includeDeletedDefault = bool(false)
+	)
 	return &V1betaListPoolsParams{
+		IncludeDeleted: includeDeletedDefault,
+
 		timeout: cr.DefaultTimeout,
 	}
 }
 
 // NewV1betaListPoolsParamsWithTimeout creates a new V1betaListPoolsParams object
-// with the ability to set a timeout on a request.
+// with the default values initialized, and the ability to set a timeout on a request
 func NewV1betaListPoolsParamsWithTimeout(timeout time.Duration) *V1betaListPoolsParams {
+	var (
+		includeDeletedDefault = bool(false)
+	)
 	return &V1betaListPoolsParams{
+		IncludeDeleted: includeDeletedDefault,
+
 		timeout: timeout,
 	}
 }
 
 // NewV1betaListPoolsParamsWithContext creates a new V1betaListPoolsParams object
-// with the ability to set a context for a request.
+// with the default values initialized, and the ability to set a context for a request
 func NewV1betaListPoolsParamsWithContext(ctx context.Context) *V1betaListPoolsParams {
+	var (
+		includeDeletedDefault = bool(false)
+	)
 	return &V1betaListPoolsParams{
+		IncludeDeleted: includeDeletedDefault,
+
 		Context: ctx,
 	}
 }
 
 // NewV1betaListPoolsParamsWithHTTPClient creates a new V1betaListPoolsParams object
-// with the ability to set a custom HTTPClient for a request.
+// with the default values initialized, and the ability to set a custom HTTPClient for a request
 func NewV1betaListPoolsParamsWithHTTPClient(client *http.Client) *V1betaListPoolsParams {
+	var (
+		includeDeletedDefault = bool(false)
+	)
 	return &V1betaListPoolsParams{
-		HTTPClient: client,
+		IncludeDeleted: includeDeletedDefault,
+		HTTPClient:     client,
 	}
 }
 
 /*
 V1betaListPoolsParams contains all the parameters to send to the API endpoint
-
-	for the v1beta list pools operation.
-
-	Typically these are written to a http.Request.
+for the v1beta list pools operation typically these are written to a http.Request
 */
 type V1betaListPoolsParams struct {
 
-	/* IncludeDeleted.
+	/*IncludeDeleted
+	  If true, response will include deleted storage pools
 
-	   If true, response will include deleted storage pools
 	*/
 	IncludeDeleted bool
+	/*LocationID
+	  The location/region to perform the operation in.
 
-	/* LocationID.
-
-	   The location/region to perform the operation in.
 	*/
 	LocationID string
+	/*NameQueryParameter
+	  Name to which a query should be limited.
 
-	/* NameQueryParameter.
-
-	   Name to which a query should be limited.
 	*/
 	NameQueryParameter *string
+	/*ProjectNumber
+	  The project number of the GCP project owning the resource being acted upon
 
-	/* ProjectNumber.
-
-	   The project number of the GCP project owning the resource being acted upon
 	*/
 	ProjectNumber string
+	/*XCorrelationID
+	  Correlation identifier
 
-	/* XCorrelationID.
-
-	   Correlation identifier
 	*/
 	XCorrelationID *string
 
 	timeout    time.Duration
 	Context    context.Context
 	HTTPClient *http.Client
-}
-
-// WithDefaults hydrates default values in the v1beta list pools params (not the query body).
-//
-// All values with no default are reset to their zero value.
-func (o *V1betaListPoolsParams) WithDefaults() *V1betaListPoolsParams {
-	o.SetDefaults()
-	return o
-}
-
-// SetDefaults hydrates default values in the v1beta list pools params (not the query body).
-//
-// All values with no default are reset to their zero value.
-func (o *V1betaListPoolsParams) SetDefaults() {
-	var (
-		includeDeletedDefault = bool(false)
-	)
-
-	val := V1betaListPoolsParams{
-		IncludeDeleted: includeDeletedDefault,
-	}
-
-	val.timeout = o.timeout
-	val.Context = o.Context
-	val.HTTPClient = o.HTTPClient
-	*o = val
 }
 
 // WithTimeout adds the timeout to the v1beta list pools params
@@ -222,7 +204,6 @@ func (o *V1betaListPoolsParams) WriteToRequest(r runtime.ClientRequest, reg strf
 	// query param includeDeleted
 	qrIncludeDeleted := o.IncludeDeleted
 	qIncludeDeleted := swag.FormatBool(qrIncludeDeleted)
-
 	if err := r.SetQueryParam("includeDeleted", qIncludeDeleted); err != nil {
 		return err
 	}
@@ -236,17 +217,16 @@ func (o *V1betaListPoolsParams) WriteToRequest(r runtime.ClientRequest, reg strf
 
 		// query param nameQueryParameter
 		var qrNameQueryParameter string
-
 		if o.NameQueryParameter != nil {
 			qrNameQueryParameter = *o.NameQueryParameter
 		}
 		qNameQueryParameter := qrNameQueryParameter
 		if qNameQueryParameter != "" {
-
 			if err := r.SetQueryParam("nameQueryParameter", qNameQueryParameter); err != nil {
 				return err
 			}
 		}
+
 	}
 
 	// path param projectNumber
@@ -260,6 +240,7 @@ func (o *V1betaListPoolsParams) WriteToRequest(r runtime.ClientRequest, reg strf
 		if err := r.SetHeaderParam("x-correlation-id", *o.XCorrelationID); err != nil {
 			return err
 		}
+
 	}
 
 	if len(res) > 0 {

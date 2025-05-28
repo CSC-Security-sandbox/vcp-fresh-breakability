@@ -5050,9 +5050,9 @@ func (s *FlexCacheConfigV1beta) encodeFields(e *jx.Encoder) {
 		}
 	}
 	{
-		if s.AtimeScrubPeriod.Set {
-			e.FieldStart("atimeScrubPeriod")
-			s.AtimeScrubPeriod.Encode(e)
+		if s.AtimeScrubMinutes.Set {
+			e.FieldStart("atimeScrubMinutes")
+			s.AtimeScrubMinutes.Encode(e)
 		}
 	}
 	{
@@ -5067,7 +5067,7 @@ var jsonFieldsNameOfFlexCacheConfigV1beta = [5]string{
 	0: "prePopulate",
 	1: "writebackEnabled",
 	2: "atimeScrubEnabled",
-	3: "atimeScrubPeriod",
+	3: "atimeScrubMinutes",
 	4: "cifsChangeNotifyEnabled",
 }
 
@@ -5109,15 +5109,15 @@ func (s *FlexCacheConfigV1beta) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"atimeScrubEnabled\"")
 			}
-		case "atimeScrubPeriod":
+		case "atimeScrubMinutes":
 			if err := func() error {
-				s.AtimeScrubPeriod.Reset()
-				if err := s.AtimeScrubPeriod.Decode(d); err != nil {
+				s.AtimeScrubMinutes.Reset()
+				if err := s.AtimeScrubMinutes.Decode(d); err != nil {
 					return err
 				}
 				return nil
 			}(); err != nil {
-				return errors.Wrap(err, "decode field \"atimeScrubPeriod\"")
+				return errors.Wrap(err, "decode field \"atimeScrubMinutes\"")
 			}
 		case "cifsChangeNotifyEnabled":
 			if err := func() error {
@@ -5175,9 +5175,9 @@ func (s *FlexCachePrePopulateV1beta) encodeFields(e *jx.Encoder) {
 		}
 	}
 	{
-		if s.IsRecursion.Set {
-			e.FieldStart("isRecursion")
-			s.IsRecursion.Encode(e)
+		if s.Recursion.Set {
+			e.FieldStart("recursion")
+			s.Recursion.Encode(e)
 		}
 	}
 }
@@ -5185,7 +5185,7 @@ func (s *FlexCachePrePopulateV1beta) encodeFields(e *jx.Encoder) {
 var jsonFieldsNameOfFlexCachePrePopulateV1beta = [3]string{
 	0: "pathList",
 	1: "excludePathList",
-	2: "isRecursion",
+	2: "recursion",
 }
 
 // Decode decodes FlexCachePrePopulateV1beta from json.
@@ -5216,15 +5216,15 @@ func (s *FlexCachePrePopulateV1beta) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"excludePathList\"")
 			}
-		case "isRecursion":
+		case "recursion":
 			if err := func() error {
-				s.IsRecursion.Reset()
-				if err := s.IsRecursion.Decode(d); err != nil {
+				s.Recursion.Reset()
+				if err := s.Recursion.Decode(d); err != nil {
 					return err
 				}
 				return nil
 			}(); err != nil {
-				return errors.Wrap(err, "decode field \"isRecursion\"")
+				return errors.Wrap(err, "decode field \"recursion\"")
 			}
 		default:
 			return d.Skip()
@@ -5306,15 +5306,21 @@ func (s *FlexCacheV1beta) encodeFields(e *jx.Encoder) {
 		}
 	}
 	{
-		if s.PeeringCommand.Set {
-			e.FieldStart("peeringCommand")
-			s.PeeringCommand.Encode(e)
+		if s.PreviousCacheState.Set {
+			e.FieldStart("previousCacheState")
+			s.PreviousCacheState.Encode(e)
 		}
 	}
 	{
-		if s.PeeringCommandExpiryTime.Set {
-			e.FieldStart("peeringCommandExpiryTime")
-			s.PeeringCommandExpiryTime.Encode(e, json.EncodeDateTime)
+		if s.Command.Set {
+			e.FieldStart("command")
+			s.Command.Encode(e)
+		}
+	}
+	{
+		if s.CommandExpiryTime.Set {
+			e.FieldStart("commandExpiryTime")
+			s.CommandExpiryTime.Encode(e, json.EncodeDateTime)
 		}
 	}
 	{
@@ -5325,17 +5331,18 @@ func (s *FlexCacheV1beta) encodeFields(e *jx.Encoder) {
 	}
 }
 
-var jsonFieldsNameOfFlexCacheV1beta = [10]string{
-	0: "peerVolumeName",
-	1: "peerClusterName",
-	2: "peerSvmName",
-	3: "peerIpAddresses",
-	4: "enableGlobalFileLock",
-	5: "cacheConfig",
-	6: "cacheState",
-	7: "peeringCommand",
-	8: "peeringCommandExpiryTime",
-	9: "passphrase",
+var jsonFieldsNameOfFlexCacheV1beta = [11]string{
+	0:  "peerVolumeName",
+	1:  "peerClusterName",
+	2:  "peerSvmName",
+	3:  "peerIpAddresses",
+	4:  "enableGlobalFileLock",
+	5:  "cacheConfig",
+	6:  "cacheState",
+	7:  "previousCacheState",
+	8:  "command",
+	9:  "commandExpiryTime",
+	10: "passphrase",
 }
 
 // Decode decodes FlexCacheV1beta from json.
@@ -5426,25 +5433,35 @@ func (s *FlexCacheV1beta) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"cacheState\"")
 			}
-		case "peeringCommand":
+		case "previousCacheState":
 			if err := func() error {
-				s.PeeringCommand.Reset()
-				if err := s.PeeringCommand.Decode(d); err != nil {
+				s.PreviousCacheState.Reset()
+				if err := s.PreviousCacheState.Decode(d); err != nil {
 					return err
 				}
 				return nil
 			}(); err != nil {
-				return errors.Wrap(err, "decode field \"peeringCommand\"")
+				return errors.Wrap(err, "decode field \"previousCacheState\"")
 			}
-		case "peeringCommandExpiryTime":
+		case "command":
 			if err := func() error {
-				s.PeeringCommandExpiryTime.Reset()
-				if err := s.PeeringCommandExpiryTime.Decode(d, json.DecodeDateTime); err != nil {
+				s.Command.Reset()
+				if err := s.Command.Decode(d); err != nil {
 					return err
 				}
 				return nil
 			}(); err != nil {
-				return errors.Wrap(err, "decode field \"peeringCommandExpiryTime\"")
+				return errors.Wrap(err, "decode field \"command\"")
+			}
+		case "commandExpiryTime":
+			if err := func() error {
+				s.CommandExpiryTime.Reset()
+				if err := s.CommandExpiryTime.Decode(d, json.DecodeDateTime); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"commandExpiryTime\"")
 			}
 		case "passphrase":
 			if err := func() error {
@@ -5522,6 +5539,52 @@ func (s FlexCacheV1betaCacheState) MarshalJSON() ([]byte, error) {
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
 func (s *FlexCacheV1betaCacheState) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes FlexCacheV1betaPreviousCacheState as json.
+func (s FlexCacheV1betaPreviousCacheState) Encode(e *jx.Encoder) {
+	e.Str(string(s))
+}
+
+// Decode decodes FlexCacheV1betaPreviousCacheState from json.
+func (s *FlexCacheV1betaPreviousCacheState) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode FlexCacheV1betaPreviousCacheState to nil")
+	}
+	v, err := d.StrBytes()
+	if err != nil {
+		return err
+	}
+	// Try to use constant string.
+	switch FlexCacheV1betaPreviousCacheState(v) {
+	case FlexCacheV1betaPreviousCacheStateCACHESTATEUNSPECIFIED:
+		*s = FlexCacheV1betaPreviousCacheStateCACHESTATEUNSPECIFIED
+	case FlexCacheV1betaPreviousCacheStatePENDINGCLUSTERPEERING:
+		*s = FlexCacheV1betaPreviousCacheStatePENDINGCLUSTERPEERING
+	case FlexCacheV1betaPreviousCacheStatePENDINGSVMPEERING:
+		*s = FlexCacheV1betaPreviousCacheStatePENDINGSVMPEERING
+	case FlexCacheV1betaPreviousCacheStatePEERED:
+		*s = FlexCacheV1betaPreviousCacheStatePEERED
+	case FlexCacheV1betaPreviousCacheStateERROR:
+		*s = FlexCacheV1betaPreviousCacheStateERROR
+	default:
+		*s = FlexCacheV1betaPreviousCacheState(v)
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s FlexCacheV1betaPreviousCacheState) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *FlexCacheV1betaPreviousCacheState) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }
@@ -9362,6 +9425,39 @@ func (s OptFlexCacheV1betaCacheState) MarshalJSON() ([]byte, error) {
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
 func (s *OptFlexCacheV1betaCacheState) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes FlexCacheV1betaPreviousCacheState as json.
+func (o OptFlexCacheV1betaPreviousCacheState) Encode(e *jx.Encoder) {
+	if !o.Set {
+		return
+	}
+	e.Str(string(o.Value))
+}
+
+// Decode decodes FlexCacheV1betaPreviousCacheState from json.
+func (o *OptFlexCacheV1betaPreviousCacheState) Decode(d *jx.Decoder) error {
+	if o == nil {
+		return errors.New("invalid: unable to decode OptFlexCacheV1betaPreviousCacheState to nil")
+	}
+	o.Set = true
+	if err := o.Value.Decode(d); err != nil {
+		return err
+	}
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s OptFlexCacheV1betaPreviousCacheState) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *OptFlexCacheV1betaPreviousCacheState) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }

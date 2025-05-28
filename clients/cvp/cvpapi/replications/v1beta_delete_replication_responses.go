@@ -6,7 +6,6 @@ package replications
 // Editing this file might prove futile when you re-run the swagger generate command
 
 import (
-	"encoding/json"
 	"fmt"
 	"io"
 
@@ -90,7 +89,7 @@ func NewV1betaDeleteReplicationAccepted() *V1betaDeleteReplicationAccepted {
 }
 
 /*
-V1betaDeleteReplicationAccepted describes a response with status code 202, with default header values.
+V1betaDeleteReplicationAccepted handles this case with default header values.
 
 Deleting replication
 */
@@ -98,44 +97,8 @@ type V1betaDeleteReplicationAccepted struct {
 	Payload *models.OperationV1beta
 }
 
-// IsSuccess returns true when this v1beta delete replication accepted response has a 2xx status code
-func (o *V1betaDeleteReplicationAccepted) IsSuccess() bool {
-	return true
-}
-
-// IsRedirect returns true when this v1beta delete replication accepted response has a 3xx status code
-func (o *V1betaDeleteReplicationAccepted) IsRedirect() bool {
-	return false
-}
-
-// IsClientError returns true when this v1beta delete replication accepted response has a 4xx status code
-func (o *V1betaDeleteReplicationAccepted) IsClientError() bool {
-	return false
-}
-
-// IsServerError returns true when this v1beta delete replication accepted response has a 5xx status code
-func (o *V1betaDeleteReplicationAccepted) IsServerError() bool {
-	return false
-}
-
-// IsCode returns true when this v1beta delete replication accepted response a status code equal to that given
-func (o *V1betaDeleteReplicationAccepted) IsCode(code int) bool {
-	return code == 202
-}
-
-// Code gets the status code for the v1beta delete replication accepted response
-func (o *V1betaDeleteReplicationAccepted) Code() int {
-	return 202
-}
-
 func (o *V1betaDeleteReplicationAccepted) Error() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[DELETE /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeResourceId}/replications/{replicationResourceId}][%d] v1betaDeleteReplicationAccepted %s", 202, payload)
-}
-
-func (o *V1betaDeleteReplicationAccepted) String() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[DELETE /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeResourceId}/replications/{replicationResourceId}][%d] v1betaDeleteReplicationAccepted %s", 202, payload)
+	return fmt.Sprintf("[DELETE /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeResourceId}/replications/{replicationResourceId}][%d] v1betaDeleteReplicationAccepted  %+v", 202, o.Payload)
 }
 
 func (o *V1betaDeleteReplicationAccepted) GetPayload() *models.OperationV1beta {
@@ -160,7 +123,7 @@ func NewV1betaDeleteReplicationBadRequest() *V1betaDeleteReplicationBadRequest {
 }
 
 /*
-V1betaDeleteReplicationBadRequest describes a response with status code 400, with default header values.
+V1betaDeleteReplicationBadRequest handles this case with default header values.
 
 Bad request
 */
@@ -168,44 +131,8 @@ type V1betaDeleteReplicationBadRequest struct {
 	Payload *models.Error
 }
 
-// IsSuccess returns true when this v1beta delete replication bad request response has a 2xx status code
-func (o *V1betaDeleteReplicationBadRequest) IsSuccess() bool {
-	return false
-}
-
-// IsRedirect returns true when this v1beta delete replication bad request response has a 3xx status code
-func (o *V1betaDeleteReplicationBadRequest) IsRedirect() bool {
-	return false
-}
-
-// IsClientError returns true when this v1beta delete replication bad request response has a 4xx status code
-func (o *V1betaDeleteReplicationBadRequest) IsClientError() bool {
-	return true
-}
-
-// IsServerError returns true when this v1beta delete replication bad request response has a 5xx status code
-func (o *V1betaDeleteReplicationBadRequest) IsServerError() bool {
-	return false
-}
-
-// IsCode returns true when this v1beta delete replication bad request response a status code equal to that given
-func (o *V1betaDeleteReplicationBadRequest) IsCode(code int) bool {
-	return code == 400
-}
-
-// Code gets the status code for the v1beta delete replication bad request response
-func (o *V1betaDeleteReplicationBadRequest) Code() int {
-	return 400
-}
-
 func (o *V1betaDeleteReplicationBadRequest) Error() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[DELETE /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeResourceId}/replications/{replicationResourceId}][%d] v1betaDeleteReplicationBadRequest %s", 400, payload)
-}
-
-func (o *V1betaDeleteReplicationBadRequest) String() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[DELETE /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeResourceId}/replications/{replicationResourceId}][%d] v1betaDeleteReplicationBadRequest %s", 400, payload)
+	return fmt.Sprintf("[DELETE /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeResourceId}/replications/{replicationResourceId}][%d] v1betaDeleteReplicationBadRequest  %+v", 400, o.Payload)
 }
 
 func (o *V1betaDeleteReplicationBadRequest) GetPayload() *models.Error {
@@ -230,7 +157,7 @@ func NewV1betaDeleteReplicationUnauthorized() *V1betaDeleteReplicationUnauthoriz
 }
 
 /*
-V1betaDeleteReplicationUnauthorized describes a response with status code 401, with default header values.
+V1betaDeleteReplicationUnauthorized handles this case with default header values.
 
 Unauthorized
 */
@@ -238,44 +165,8 @@ type V1betaDeleteReplicationUnauthorized struct {
 	Payload *models.Error
 }
 
-// IsSuccess returns true when this v1beta delete replication unauthorized response has a 2xx status code
-func (o *V1betaDeleteReplicationUnauthorized) IsSuccess() bool {
-	return false
-}
-
-// IsRedirect returns true when this v1beta delete replication unauthorized response has a 3xx status code
-func (o *V1betaDeleteReplicationUnauthorized) IsRedirect() bool {
-	return false
-}
-
-// IsClientError returns true when this v1beta delete replication unauthorized response has a 4xx status code
-func (o *V1betaDeleteReplicationUnauthorized) IsClientError() bool {
-	return true
-}
-
-// IsServerError returns true when this v1beta delete replication unauthorized response has a 5xx status code
-func (o *V1betaDeleteReplicationUnauthorized) IsServerError() bool {
-	return false
-}
-
-// IsCode returns true when this v1beta delete replication unauthorized response a status code equal to that given
-func (o *V1betaDeleteReplicationUnauthorized) IsCode(code int) bool {
-	return code == 401
-}
-
-// Code gets the status code for the v1beta delete replication unauthorized response
-func (o *V1betaDeleteReplicationUnauthorized) Code() int {
-	return 401
-}
-
 func (o *V1betaDeleteReplicationUnauthorized) Error() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[DELETE /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeResourceId}/replications/{replicationResourceId}][%d] v1betaDeleteReplicationUnauthorized %s", 401, payload)
-}
-
-func (o *V1betaDeleteReplicationUnauthorized) String() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[DELETE /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeResourceId}/replications/{replicationResourceId}][%d] v1betaDeleteReplicationUnauthorized %s", 401, payload)
+	return fmt.Sprintf("[DELETE /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeResourceId}/replications/{replicationResourceId}][%d] v1betaDeleteReplicationUnauthorized  %+v", 401, o.Payload)
 }
 
 func (o *V1betaDeleteReplicationUnauthorized) GetPayload() *models.Error {
@@ -300,7 +191,7 @@ func NewV1betaDeleteReplicationForbidden() *V1betaDeleteReplicationForbidden {
 }
 
 /*
-V1betaDeleteReplicationForbidden describes a response with status code 403, with default header values.
+V1betaDeleteReplicationForbidden handles this case with default header values.
 
 Forbidden
 */
@@ -308,44 +199,8 @@ type V1betaDeleteReplicationForbidden struct {
 	Payload *models.Error
 }
 
-// IsSuccess returns true when this v1beta delete replication forbidden response has a 2xx status code
-func (o *V1betaDeleteReplicationForbidden) IsSuccess() bool {
-	return false
-}
-
-// IsRedirect returns true when this v1beta delete replication forbidden response has a 3xx status code
-func (o *V1betaDeleteReplicationForbidden) IsRedirect() bool {
-	return false
-}
-
-// IsClientError returns true when this v1beta delete replication forbidden response has a 4xx status code
-func (o *V1betaDeleteReplicationForbidden) IsClientError() bool {
-	return true
-}
-
-// IsServerError returns true when this v1beta delete replication forbidden response has a 5xx status code
-func (o *V1betaDeleteReplicationForbidden) IsServerError() bool {
-	return false
-}
-
-// IsCode returns true when this v1beta delete replication forbidden response a status code equal to that given
-func (o *V1betaDeleteReplicationForbidden) IsCode(code int) bool {
-	return code == 403
-}
-
-// Code gets the status code for the v1beta delete replication forbidden response
-func (o *V1betaDeleteReplicationForbidden) Code() int {
-	return 403
-}
-
 func (o *V1betaDeleteReplicationForbidden) Error() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[DELETE /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeResourceId}/replications/{replicationResourceId}][%d] v1betaDeleteReplicationForbidden %s", 403, payload)
-}
-
-func (o *V1betaDeleteReplicationForbidden) String() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[DELETE /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeResourceId}/replications/{replicationResourceId}][%d] v1betaDeleteReplicationForbidden %s", 403, payload)
+	return fmt.Sprintf("[DELETE /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeResourceId}/replications/{replicationResourceId}][%d] v1betaDeleteReplicationForbidden  %+v", 403, o.Payload)
 }
 
 func (o *V1betaDeleteReplicationForbidden) GetPayload() *models.Error {
@@ -370,7 +225,7 @@ func NewV1betaDeleteReplicationConflict() *V1betaDeleteReplicationConflict {
 }
 
 /*
-V1betaDeleteReplicationConflict describes a response with status code 409, with default header values.
+V1betaDeleteReplicationConflict handles this case with default header values.
 
 Conflict
 */
@@ -378,44 +233,8 @@ type V1betaDeleteReplicationConflict struct {
 	Payload *models.Error
 }
 
-// IsSuccess returns true when this v1beta delete replication conflict response has a 2xx status code
-func (o *V1betaDeleteReplicationConflict) IsSuccess() bool {
-	return false
-}
-
-// IsRedirect returns true when this v1beta delete replication conflict response has a 3xx status code
-func (o *V1betaDeleteReplicationConflict) IsRedirect() bool {
-	return false
-}
-
-// IsClientError returns true when this v1beta delete replication conflict response has a 4xx status code
-func (o *V1betaDeleteReplicationConflict) IsClientError() bool {
-	return true
-}
-
-// IsServerError returns true when this v1beta delete replication conflict response has a 5xx status code
-func (o *V1betaDeleteReplicationConflict) IsServerError() bool {
-	return false
-}
-
-// IsCode returns true when this v1beta delete replication conflict response a status code equal to that given
-func (o *V1betaDeleteReplicationConflict) IsCode(code int) bool {
-	return code == 409
-}
-
-// Code gets the status code for the v1beta delete replication conflict response
-func (o *V1betaDeleteReplicationConflict) Code() int {
-	return 409
-}
-
 func (o *V1betaDeleteReplicationConflict) Error() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[DELETE /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeResourceId}/replications/{replicationResourceId}][%d] v1betaDeleteReplicationConflict %s", 409, payload)
-}
-
-func (o *V1betaDeleteReplicationConflict) String() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[DELETE /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeResourceId}/replications/{replicationResourceId}][%d] v1betaDeleteReplicationConflict %s", 409, payload)
+	return fmt.Sprintf("[DELETE /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeResourceId}/replications/{replicationResourceId}][%d] v1betaDeleteReplicationConflict  %+v", 409, o.Payload)
 }
 
 func (o *V1betaDeleteReplicationConflict) GetPayload() *models.Error {
@@ -440,7 +259,7 @@ func NewV1betaDeleteReplicationUnprocessableEntity() *V1betaDeleteReplicationUnp
 }
 
 /*
-V1betaDeleteReplicationUnprocessableEntity describes a response with status code 422, with default header values.
+V1betaDeleteReplicationUnprocessableEntity handles this case with default header values.
 
 Unprocessable entity
 */
@@ -448,44 +267,8 @@ type V1betaDeleteReplicationUnprocessableEntity struct {
 	Payload *models.Error
 }
 
-// IsSuccess returns true when this v1beta delete replication unprocessable entity response has a 2xx status code
-func (o *V1betaDeleteReplicationUnprocessableEntity) IsSuccess() bool {
-	return false
-}
-
-// IsRedirect returns true when this v1beta delete replication unprocessable entity response has a 3xx status code
-func (o *V1betaDeleteReplicationUnprocessableEntity) IsRedirect() bool {
-	return false
-}
-
-// IsClientError returns true when this v1beta delete replication unprocessable entity response has a 4xx status code
-func (o *V1betaDeleteReplicationUnprocessableEntity) IsClientError() bool {
-	return true
-}
-
-// IsServerError returns true when this v1beta delete replication unprocessable entity response has a 5xx status code
-func (o *V1betaDeleteReplicationUnprocessableEntity) IsServerError() bool {
-	return false
-}
-
-// IsCode returns true when this v1beta delete replication unprocessable entity response a status code equal to that given
-func (o *V1betaDeleteReplicationUnprocessableEntity) IsCode(code int) bool {
-	return code == 422
-}
-
-// Code gets the status code for the v1beta delete replication unprocessable entity response
-func (o *V1betaDeleteReplicationUnprocessableEntity) Code() int {
-	return 422
-}
-
 func (o *V1betaDeleteReplicationUnprocessableEntity) Error() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[DELETE /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeResourceId}/replications/{replicationResourceId}][%d] v1betaDeleteReplicationUnprocessableEntity %s", 422, payload)
-}
-
-func (o *V1betaDeleteReplicationUnprocessableEntity) String() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[DELETE /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeResourceId}/replications/{replicationResourceId}][%d] v1betaDeleteReplicationUnprocessableEntity %s", 422, payload)
+	return fmt.Sprintf("[DELETE /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeResourceId}/replications/{replicationResourceId}][%d] v1betaDeleteReplicationUnprocessableEntity  %+v", 422, o.Payload)
 }
 
 func (o *V1betaDeleteReplicationUnprocessableEntity) GetPayload() *models.Error {
@@ -510,7 +293,7 @@ func NewV1betaDeleteReplicationTooManyRequests() *V1betaDeleteReplicationTooMany
 }
 
 /*
-V1betaDeleteReplicationTooManyRequests describes a response with status code 429, with default header values.
+V1betaDeleteReplicationTooManyRequests handles this case with default header values.
 
 Too many requests
 */
@@ -518,44 +301,8 @@ type V1betaDeleteReplicationTooManyRequests struct {
 	Payload *models.Error
 }
 
-// IsSuccess returns true when this v1beta delete replication too many requests response has a 2xx status code
-func (o *V1betaDeleteReplicationTooManyRequests) IsSuccess() bool {
-	return false
-}
-
-// IsRedirect returns true when this v1beta delete replication too many requests response has a 3xx status code
-func (o *V1betaDeleteReplicationTooManyRequests) IsRedirect() bool {
-	return false
-}
-
-// IsClientError returns true when this v1beta delete replication too many requests response has a 4xx status code
-func (o *V1betaDeleteReplicationTooManyRequests) IsClientError() bool {
-	return true
-}
-
-// IsServerError returns true when this v1beta delete replication too many requests response has a 5xx status code
-func (o *V1betaDeleteReplicationTooManyRequests) IsServerError() bool {
-	return false
-}
-
-// IsCode returns true when this v1beta delete replication too many requests response a status code equal to that given
-func (o *V1betaDeleteReplicationTooManyRequests) IsCode(code int) bool {
-	return code == 429
-}
-
-// Code gets the status code for the v1beta delete replication too many requests response
-func (o *V1betaDeleteReplicationTooManyRequests) Code() int {
-	return 429
-}
-
 func (o *V1betaDeleteReplicationTooManyRequests) Error() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[DELETE /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeResourceId}/replications/{replicationResourceId}][%d] v1betaDeleteReplicationTooManyRequests %s", 429, payload)
-}
-
-func (o *V1betaDeleteReplicationTooManyRequests) String() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[DELETE /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeResourceId}/replications/{replicationResourceId}][%d] v1betaDeleteReplicationTooManyRequests %s", 429, payload)
+	return fmt.Sprintf("[DELETE /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeResourceId}/replications/{replicationResourceId}][%d] v1betaDeleteReplicationTooManyRequests  %+v", 429, o.Payload)
 }
 
 func (o *V1betaDeleteReplicationTooManyRequests) GetPayload() *models.Error {
@@ -580,7 +327,7 @@ func NewV1betaDeleteReplicationInternalServerError() *V1betaDeleteReplicationInt
 }
 
 /*
-V1betaDeleteReplicationInternalServerError describes a response with status code 500, with default header values.
+V1betaDeleteReplicationInternalServerError handles this case with default header values.
 
 Internal server error
 */
@@ -588,44 +335,8 @@ type V1betaDeleteReplicationInternalServerError struct {
 	Payload *models.Error
 }
 
-// IsSuccess returns true when this v1beta delete replication internal server error response has a 2xx status code
-func (o *V1betaDeleteReplicationInternalServerError) IsSuccess() bool {
-	return false
-}
-
-// IsRedirect returns true when this v1beta delete replication internal server error response has a 3xx status code
-func (o *V1betaDeleteReplicationInternalServerError) IsRedirect() bool {
-	return false
-}
-
-// IsClientError returns true when this v1beta delete replication internal server error response has a 4xx status code
-func (o *V1betaDeleteReplicationInternalServerError) IsClientError() bool {
-	return false
-}
-
-// IsServerError returns true when this v1beta delete replication internal server error response has a 5xx status code
-func (o *V1betaDeleteReplicationInternalServerError) IsServerError() bool {
-	return true
-}
-
-// IsCode returns true when this v1beta delete replication internal server error response a status code equal to that given
-func (o *V1betaDeleteReplicationInternalServerError) IsCode(code int) bool {
-	return code == 500
-}
-
-// Code gets the status code for the v1beta delete replication internal server error response
-func (o *V1betaDeleteReplicationInternalServerError) Code() int {
-	return 500
-}
-
 func (o *V1betaDeleteReplicationInternalServerError) Error() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[DELETE /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeResourceId}/replications/{replicationResourceId}][%d] v1betaDeleteReplicationInternalServerError %s", 500, payload)
-}
-
-func (o *V1betaDeleteReplicationInternalServerError) String() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[DELETE /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeResourceId}/replications/{replicationResourceId}][%d] v1betaDeleteReplicationInternalServerError %s", 500, payload)
+	return fmt.Sprintf("[DELETE /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeResourceId}/replications/{replicationResourceId}][%d] v1betaDeleteReplicationInternalServerError  %+v", 500, o.Payload)
 }
 
 func (o *V1betaDeleteReplicationInternalServerError) GetPayload() *models.Error {
@@ -652,7 +363,7 @@ func NewV1betaDeleteReplicationDefault(code int) *V1betaDeleteReplicationDefault
 }
 
 /*
-V1betaDeleteReplicationDefault describes a response with status code -1, with default header values.
+V1betaDeleteReplicationDefault handles this case with default header values.
 
 Unexpected error
 */
@@ -662,44 +373,13 @@ type V1betaDeleteReplicationDefault struct {
 	Payload *models.Error
 }
 
-// IsSuccess returns true when this v1beta delete replication default response has a 2xx status code
-func (o *V1betaDeleteReplicationDefault) IsSuccess() bool {
-	return o._statusCode/100 == 2
-}
-
-// IsRedirect returns true when this v1beta delete replication default response has a 3xx status code
-func (o *V1betaDeleteReplicationDefault) IsRedirect() bool {
-	return o._statusCode/100 == 3
-}
-
-// IsClientError returns true when this v1beta delete replication default response has a 4xx status code
-func (o *V1betaDeleteReplicationDefault) IsClientError() bool {
-	return o._statusCode/100 == 4
-}
-
-// IsServerError returns true when this v1beta delete replication default response has a 5xx status code
-func (o *V1betaDeleteReplicationDefault) IsServerError() bool {
-	return o._statusCode/100 == 5
-}
-
-// IsCode returns true when this v1beta delete replication default response a status code equal to that given
-func (o *V1betaDeleteReplicationDefault) IsCode(code int) bool {
-	return o._statusCode == code
-}
-
 // Code gets the status code for the v1beta delete replication default response
 func (o *V1betaDeleteReplicationDefault) Code() int {
 	return o._statusCode
 }
 
 func (o *V1betaDeleteReplicationDefault) Error() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[DELETE /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeResourceId}/replications/{replicationResourceId}][%d] v1beta_deleteReplication default %s", o._statusCode, payload)
-}
-
-func (o *V1betaDeleteReplicationDefault) String() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[DELETE /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeResourceId}/replications/{replicationResourceId}][%d] v1beta_deleteReplication default %s", o._statusCode, payload)
+	return fmt.Sprintf("[DELETE /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeResourceId}/replications/{replicationResourceId}][%d] v1beta_deleteReplication default  %+v", o._statusCode, o.Payload)
 }
 
 func (o *V1betaDeleteReplicationDefault) GetPayload() *models.Error {

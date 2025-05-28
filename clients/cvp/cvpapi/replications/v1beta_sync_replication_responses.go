@@ -6,7 +6,6 @@ package replications
 // Editing this file might prove futile when you re-run the swagger generate command
 
 import (
-	"encoding/json"
 	"fmt"
 	"io"
 
@@ -102,7 +101,7 @@ func NewV1betaSyncReplicationAccepted() *V1betaSyncReplicationAccepted {
 }
 
 /*
-V1betaSyncReplicationAccepted describes a response with status code 202, with default header values.
+V1betaSyncReplicationAccepted handles this case with default header values.
 
 Sync replication
 */
@@ -110,44 +109,8 @@ type V1betaSyncReplicationAccepted struct {
 	Payload *models.OperationV1beta
 }
 
-// IsSuccess returns true when this v1beta sync replication accepted response has a 2xx status code
-func (o *V1betaSyncReplicationAccepted) IsSuccess() bool {
-	return true
-}
-
-// IsRedirect returns true when this v1beta sync replication accepted response has a 3xx status code
-func (o *V1betaSyncReplicationAccepted) IsRedirect() bool {
-	return false
-}
-
-// IsClientError returns true when this v1beta sync replication accepted response has a 4xx status code
-func (o *V1betaSyncReplicationAccepted) IsClientError() bool {
-	return false
-}
-
-// IsServerError returns true when this v1beta sync replication accepted response has a 5xx status code
-func (o *V1betaSyncReplicationAccepted) IsServerError() bool {
-	return false
-}
-
-// IsCode returns true when this v1beta sync replication accepted response a status code equal to that given
-func (o *V1betaSyncReplicationAccepted) IsCode(code int) bool {
-	return code == 202
-}
-
-// Code gets the status code for the v1beta sync replication accepted response
-func (o *V1betaSyncReplicationAccepted) Code() int {
-	return 202
-}
-
 func (o *V1betaSyncReplicationAccepted) Error() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeResourceId}/replications/{replicationResourceId}/sync][%d] v1betaSyncReplicationAccepted %s", 202, payload)
-}
-
-func (o *V1betaSyncReplicationAccepted) String() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeResourceId}/replications/{replicationResourceId}/sync][%d] v1betaSyncReplicationAccepted %s", 202, payload)
+	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeResourceId}/replications/{replicationResourceId}/sync][%d] v1betaSyncReplicationAccepted  %+v", 202, o.Payload)
 }
 
 func (o *V1betaSyncReplicationAccepted) GetPayload() *models.OperationV1beta {
@@ -172,7 +135,7 @@ func NewV1betaSyncReplicationBadRequest() *V1betaSyncReplicationBadRequest {
 }
 
 /*
-V1betaSyncReplicationBadRequest describes a response with status code 400, with default header values.
+V1betaSyncReplicationBadRequest handles this case with default header values.
 
 Bad request
 */
@@ -180,44 +143,8 @@ type V1betaSyncReplicationBadRequest struct {
 	Payload *models.Error
 }
 
-// IsSuccess returns true when this v1beta sync replication bad request response has a 2xx status code
-func (o *V1betaSyncReplicationBadRequest) IsSuccess() bool {
-	return false
-}
-
-// IsRedirect returns true when this v1beta sync replication bad request response has a 3xx status code
-func (o *V1betaSyncReplicationBadRequest) IsRedirect() bool {
-	return false
-}
-
-// IsClientError returns true when this v1beta sync replication bad request response has a 4xx status code
-func (o *V1betaSyncReplicationBadRequest) IsClientError() bool {
-	return true
-}
-
-// IsServerError returns true when this v1beta sync replication bad request response has a 5xx status code
-func (o *V1betaSyncReplicationBadRequest) IsServerError() bool {
-	return false
-}
-
-// IsCode returns true when this v1beta sync replication bad request response a status code equal to that given
-func (o *V1betaSyncReplicationBadRequest) IsCode(code int) bool {
-	return code == 400
-}
-
-// Code gets the status code for the v1beta sync replication bad request response
-func (o *V1betaSyncReplicationBadRequest) Code() int {
-	return 400
-}
-
 func (o *V1betaSyncReplicationBadRequest) Error() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeResourceId}/replications/{replicationResourceId}/sync][%d] v1betaSyncReplicationBadRequest %s", 400, payload)
-}
-
-func (o *V1betaSyncReplicationBadRequest) String() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeResourceId}/replications/{replicationResourceId}/sync][%d] v1betaSyncReplicationBadRequest %s", 400, payload)
+	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeResourceId}/replications/{replicationResourceId}/sync][%d] v1betaSyncReplicationBadRequest  %+v", 400, o.Payload)
 }
 
 func (o *V1betaSyncReplicationBadRequest) GetPayload() *models.Error {
@@ -242,7 +169,7 @@ func NewV1betaSyncReplicationUnauthorized() *V1betaSyncReplicationUnauthorized {
 }
 
 /*
-V1betaSyncReplicationUnauthorized describes a response with status code 401, with default header values.
+V1betaSyncReplicationUnauthorized handles this case with default header values.
 
 Unauthorized
 */
@@ -250,44 +177,8 @@ type V1betaSyncReplicationUnauthorized struct {
 	Payload *models.Error
 }
 
-// IsSuccess returns true when this v1beta sync replication unauthorized response has a 2xx status code
-func (o *V1betaSyncReplicationUnauthorized) IsSuccess() bool {
-	return false
-}
-
-// IsRedirect returns true when this v1beta sync replication unauthorized response has a 3xx status code
-func (o *V1betaSyncReplicationUnauthorized) IsRedirect() bool {
-	return false
-}
-
-// IsClientError returns true when this v1beta sync replication unauthorized response has a 4xx status code
-func (o *V1betaSyncReplicationUnauthorized) IsClientError() bool {
-	return true
-}
-
-// IsServerError returns true when this v1beta sync replication unauthorized response has a 5xx status code
-func (o *V1betaSyncReplicationUnauthorized) IsServerError() bool {
-	return false
-}
-
-// IsCode returns true when this v1beta sync replication unauthorized response a status code equal to that given
-func (o *V1betaSyncReplicationUnauthorized) IsCode(code int) bool {
-	return code == 401
-}
-
-// Code gets the status code for the v1beta sync replication unauthorized response
-func (o *V1betaSyncReplicationUnauthorized) Code() int {
-	return 401
-}
-
 func (o *V1betaSyncReplicationUnauthorized) Error() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeResourceId}/replications/{replicationResourceId}/sync][%d] v1betaSyncReplicationUnauthorized %s", 401, payload)
-}
-
-func (o *V1betaSyncReplicationUnauthorized) String() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeResourceId}/replications/{replicationResourceId}/sync][%d] v1betaSyncReplicationUnauthorized %s", 401, payload)
+	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeResourceId}/replications/{replicationResourceId}/sync][%d] v1betaSyncReplicationUnauthorized  %+v", 401, o.Payload)
 }
 
 func (o *V1betaSyncReplicationUnauthorized) GetPayload() *models.Error {
@@ -312,7 +203,7 @@ func NewV1betaSyncReplicationForbidden() *V1betaSyncReplicationForbidden {
 }
 
 /*
-V1betaSyncReplicationForbidden describes a response with status code 403, with default header values.
+V1betaSyncReplicationForbidden handles this case with default header values.
 
 Forbidden
 */
@@ -320,44 +211,8 @@ type V1betaSyncReplicationForbidden struct {
 	Payload *models.Error
 }
 
-// IsSuccess returns true when this v1beta sync replication forbidden response has a 2xx status code
-func (o *V1betaSyncReplicationForbidden) IsSuccess() bool {
-	return false
-}
-
-// IsRedirect returns true when this v1beta sync replication forbidden response has a 3xx status code
-func (o *V1betaSyncReplicationForbidden) IsRedirect() bool {
-	return false
-}
-
-// IsClientError returns true when this v1beta sync replication forbidden response has a 4xx status code
-func (o *V1betaSyncReplicationForbidden) IsClientError() bool {
-	return true
-}
-
-// IsServerError returns true when this v1beta sync replication forbidden response has a 5xx status code
-func (o *V1betaSyncReplicationForbidden) IsServerError() bool {
-	return false
-}
-
-// IsCode returns true when this v1beta sync replication forbidden response a status code equal to that given
-func (o *V1betaSyncReplicationForbidden) IsCode(code int) bool {
-	return code == 403
-}
-
-// Code gets the status code for the v1beta sync replication forbidden response
-func (o *V1betaSyncReplicationForbidden) Code() int {
-	return 403
-}
-
 func (o *V1betaSyncReplicationForbidden) Error() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeResourceId}/replications/{replicationResourceId}/sync][%d] v1betaSyncReplicationForbidden %s", 403, payload)
-}
-
-func (o *V1betaSyncReplicationForbidden) String() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeResourceId}/replications/{replicationResourceId}/sync][%d] v1betaSyncReplicationForbidden %s", 403, payload)
+	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeResourceId}/replications/{replicationResourceId}/sync][%d] v1betaSyncReplicationForbidden  %+v", 403, o.Payload)
 }
 
 func (o *V1betaSyncReplicationForbidden) GetPayload() *models.Error {
@@ -382,7 +237,7 @@ func NewV1betaSyncReplicationNotFound() *V1betaSyncReplicationNotFound {
 }
 
 /*
-V1betaSyncReplicationNotFound describes a response with status code 404, with default header values.
+V1betaSyncReplicationNotFound handles this case with default header values.
 
 Not found
 */
@@ -390,44 +245,8 @@ type V1betaSyncReplicationNotFound struct {
 	Payload *models.Error
 }
 
-// IsSuccess returns true when this v1beta sync replication not found response has a 2xx status code
-func (o *V1betaSyncReplicationNotFound) IsSuccess() bool {
-	return false
-}
-
-// IsRedirect returns true when this v1beta sync replication not found response has a 3xx status code
-func (o *V1betaSyncReplicationNotFound) IsRedirect() bool {
-	return false
-}
-
-// IsClientError returns true when this v1beta sync replication not found response has a 4xx status code
-func (o *V1betaSyncReplicationNotFound) IsClientError() bool {
-	return true
-}
-
-// IsServerError returns true when this v1beta sync replication not found response has a 5xx status code
-func (o *V1betaSyncReplicationNotFound) IsServerError() bool {
-	return false
-}
-
-// IsCode returns true when this v1beta sync replication not found response a status code equal to that given
-func (o *V1betaSyncReplicationNotFound) IsCode(code int) bool {
-	return code == 404
-}
-
-// Code gets the status code for the v1beta sync replication not found response
-func (o *V1betaSyncReplicationNotFound) Code() int {
-	return 404
-}
-
 func (o *V1betaSyncReplicationNotFound) Error() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeResourceId}/replications/{replicationResourceId}/sync][%d] v1betaSyncReplicationNotFound %s", 404, payload)
-}
-
-func (o *V1betaSyncReplicationNotFound) String() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeResourceId}/replications/{replicationResourceId}/sync][%d] v1betaSyncReplicationNotFound %s", 404, payload)
+	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeResourceId}/replications/{replicationResourceId}/sync][%d] v1betaSyncReplicationNotFound  %+v", 404, o.Payload)
 }
 
 func (o *V1betaSyncReplicationNotFound) GetPayload() *models.Error {
@@ -452,7 +271,7 @@ func NewV1betaSyncReplicationConflict() *V1betaSyncReplicationConflict {
 }
 
 /*
-V1betaSyncReplicationConflict describes a response with status code 409, with default header values.
+V1betaSyncReplicationConflict handles this case with default header values.
 
 Conflict
 */
@@ -460,44 +279,8 @@ type V1betaSyncReplicationConflict struct {
 	Payload *models.Error
 }
 
-// IsSuccess returns true when this v1beta sync replication conflict response has a 2xx status code
-func (o *V1betaSyncReplicationConflict) IsSuccess() bool {
-	return false
-}
-
-// IsRedirect returns true when this v1beta sync replication conflict response has a 3xx status code
-func (o *V1betaSyncReplicationConflict) IsRedirect() bool {
-	return false
-}
-
-// IsClientError returns true when this v1beta sync replication conflict response has a 4xx status code
-func (o *V1betaSyncReplicationConflict) IsClientError() bool {
-	return true
-}
-
-// IsServerError returns true when this v1beta sync replication conflict response has a 5xx status code
-func (o *V1betaSyncReplicationConflict) IsServerError() bool {
-	return false
-}
-
-// IsCode returns true when this v1beta sync replication conflict response a status code equal to that given
-func (o *V1betaSyncReplicationConflict) IsCode(code int) bool {
-	return code == 409
-}
-
-// Code gets the status code for the v1beta sync replication conflict response
-func (o *V1betaSyncReplicationConflict) Code() int {
-	return 409
-}
-
 func (o *V1betaSyncReplicationConflict) Error() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeResourceId}/replications/{replicationResourceId}/sync][%d] v1betaSyncReplicationConflict %s", 409, payload)
-}
-
-func (o *V1betaSyncReplicationConflict) String() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeResourceId}/replications/{replicationResourceId}/sync][%d] v1betaSyncReplicationConflict %s", 409, payload)
+	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeResourceId}/replications/{replicationResourceId}/sync][%d] v1betaSyncReplicationConflict  %+v", 409, o.Payload)
 }
 
 func (o *V1betaSyncReplicationConflict) GetPayload() *models.Error {
@@ -522,7 +305,7 @@ func NewV1betaSyncReplicationUnprocessableEntity() *V1betaSyncReplicationUnproce
 }
 
 /*
-V1betaSyncReplicationUnprocessableEntity describes a response with status code 422, with default header values.
+V1betaSyncReplicationUnprocessableEntity handles this case with default header values.
 
 Unprocessable entity
 */
@@ -530,44 +313,8 @@ type V1betaSyncReplicationUnprocessableEntity struct {
 	Payload *models.Error
 }
 
-// IsSuccess returns true when this v1beta sync replication unprocessable entity response has a 2xx status code
-func (o *V1betaSyncReplicationUnprocessableEntity) IsSuccess() bool {
-	return false
-}
-
-// IsRedirect returns true when this v1beta sync replication unprocessable entity response has a 3xx status code
-func (o *V1betaSyncReplicationUnprocessableEntity) IsRedirect() bool {
-	return false
-}
-
-// IsClientError returns true when this v1beta sync replication unprocessable entity response has a 4xx status code
-func (o *V1betaSyncReplicationUnprocessableEntity) IsClientError() bool {
-	return true
-}
-
-// IsServerError returns true when this v1beta sync replication unprocessable entity response has a 5xx status code
-func (o *V1betaSyncReplicationUnprocessableEntity) IsServerError() bool {
-	return false
-}
-
-// IsCode returns true when this v1beta sync replication unprocessable entity response a status code equal to that given
-func (o *V1betaSyncReplicationUnprocessableEntity) IsCode(code int) bool {
-	return code == 422
-}
-
-// Code gets the status code for the v1beta sync replication unprocessable entity response
-func (o *V1betaSyncReplicationUnprocessableEntity) Code() int {
-	return 422
-}
-
 func (o *V1betaSyncReplicationUnprocessableEntity) Error() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeResourceId}/replications/{replicationResourceId}/sync][%d] v1betaSyncReplicationUnprocessableEntity %s", 422, payload)
-}
-
-func (o *V1betaSyncReplicationUnprocessableEntity) String() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeResourceId}/replications/{replicationResourceId}/sync][%d] v1betaSyncReplicationUnprocessableEntity %s", 422, payload)
+	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeResourceId}/replications/{replicationResourceId}/sync][%d] v1betaSyncReplicationUnprocessableEntity  %+v", 422, o.Payload)
 }
 
 func (o *V1betaSyncReplicationUnprocessableEntity) GetPayload() *models.Error {
@@ -592,7 +339,7 @@ func NewV1betaSyncReplicationTooManyRequests() *V1betaSyncReplicationTooManyRequ
 }
 
 /*
-V1betaSyncReplicationTooManyRequests describes a response with status code 429, with default header values.
+V1betaSyncReplicationTooManyRequests handles this case with default header values.
 
 Too many requests
 */
@@ -600,44 +347,8 @@ type V1betaSyncReplicationTooManyRequests struct {
 	Payload *models.Error
 }
 
-// IsSuccess returns true when this v1beta sync replication too many requests response has a 2xx status code
-func (o *V1betaSyncReplicationTooManyRequests) IsSuccess() bool {
-	return false
-}
-
-// IsRedirect returns true when this v1beta sync replication too many requests response has a 3xx status code
-func (o *V1betaSyncReplicationTooManyRequests) IsRedirect() bool {
-	return false
-}
-
-// IsClientError returns true when this v1beta sync replication too many requests response has a 4xx status code
-func (o *V1betaSyncReplicationTooManyRequests) IsClientError() bool {
-	return true
-}
-
-// IsServerError returns true when this v1beta sync replication too many requests response has a 5xx status code
-func (o *V1betaSyncReplicationTooManyRequests) IsServerError() bool {
-	return false
-}
-
-// IsCode returns true when this v1beta sync replication too many requests response a status code equal to that given
-func (o *V1betaSyncReplicationTooManyRequests) IsCode(code int) bool {
-	return code == 429
-}
-
-// Code gets the status code for the v1beta sync replication too many requests response
-func (o *V1betaSyncReplicationTooManyRequests) Code() int {
-	return 429
-}
-
 func (o *V1betaSyncReplicationTooManyRequests) Error() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeResourceId}/replications/{replicationResourceId}/sync][%d] v1betaSyncReplicationTooManyRequests %s", 429, payload)
-}
-
-func (o *V1betaSyncReplicationTooManyRequests) String() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeResourceId}/replications/{replicationResourceId}/sync][%d] v1betaSyncReplicationTooManyRequests %s", 429, payload)
+	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeResourceId}/replications/{replicationResourceId}/sync][%d] v1betaSyncReplicationTooManyRequests  %+v", 429, o.Payload)
 }
 
 func (o *V1betaSyncReplicationTooManyRequests) GetPayload() *models.Error {
@@ -662,7 +373,7 @@ func NewV1betaSyncReplicationInternalServerError() *V1betaSyncReplicationInterna
 }
 
 /*
-V1betaSyncReplicationInternalServerError describes a response with status code 500, with default header values.
+V1betaSyncReplicationInternalServerError handles this case with default header values.
 
 Internal server error
 */
@@ -670,44 +381,8 @@ type V1betaSyncReplicationInternalServerError struct {
 	Payload *models.Error
 }
 
-// IsSuccess returns true when this v1beta sync replication internal server error response has a 2xx status code
-func (o *V1betaSyncReplicationInternalServerError) IsSuccess() bool {
-	return false
-}
-
-// IsRedirect returns true when this v1beta sync replication internal server error response has a 3xx status code
-func (o *V1betaSyncReplicationInternalServerError) IsRedirect() bool {
-	return false
-}
-
-// IsClientError returns true when this v1beta sync replication internal server error response has a 4xx status code
-func (o *V1betaSyncReplicationInternalServerError) IsClientError() bool {
-	return false
-}
-
-// IsServerError returns true when this v1beta sync replication internal server error response has a 5xx status code
-func (o *V1betaSyncReplicationInternalServerError) IsServerError() bool {
-	return true
-}
-
-// IsCode returns true when this v1beta sync replication internal server error response a status code equal to that given
-func (o *V1betaSyncReplicationInternalServerError) IsCode(code int) bool {
-	return code == 500
-}
-
-// Code gets the status code for the v1beta sync replication internal server error response
-func (o *V1betaSyncReplicationInternalServerError) Code() int {
-	return 500
-}
-
 func (o *V1betaSyncReplicationInternalServerError) Error() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeResourceId}/replications/{replicationResourceId}/sync][%d] v1betaSyncReplicationInternalServerError %s", 500, payload)
-}
-
-func (o *V1betaSyncReplicationInternalServerError) String() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeResourceId}/replications/{replicationResourceId}/sync][%d] v1betaSyncReplicationInternalServerError %s", 500, payload)
+	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeResourceId}/replications/{replicationResourceId}/sync][%d] v1betaSyncReplicationInternalServerError  %+v", 500, o.Payload)
 }
 
 func (o *V1betaSyncReplicationInternalServerError) GetPayload() *models.Error {
@@ -732,7 +407,7 @@ func NewV1betaSyncReplicationNotImplemented() *V1betaSyncReplicationNotImplement
 }
 
 /*
-V1betaSyncReplicationNotImplemented describes a response with status code 501, with default header values.
+V1betaSyncReplicationNotImplemented handles this case with default header values.
 
 Not implemented
 */
@@ -740,44 +415,8 @@ type V1betaSyncReplicationNotImplemented struct {
 	Payload *models.Error
 }
 
-// IsSuccess returns true when this v1beta sync replication not implemented response has a 2xx status code
-func (o *V1betaSyncReplicationNotImplemented) IsSuccess() bool {
-	return false
-}
-
-// IsRedirect returns true when this v1beta sync replication not implemented response has a 3xx status code
-func (o *V1betaSyncReplicationNotImplemented) IsRedirect() bool {
-	return false
-}
-
-// IsClientError returns true when this v1beta sync replication not implemented response has a 4xx status code
-func (o *V1betaSyncReplicationNotImplemented) IsClientError() bool {
-	return false
-}
-
-// IsServerError returns true when this v1beta sync replication not implemented response has a 5xx status code
-func (o *V1betaSyncReplicationNotImplemented) IsServerError() bool {
-	return true
-}
-
-// IsCode returns true when this v1beta sync replication not implemented response a status code equal to that given
-func (o *V1betaSyncReplicationNotImplemented) IsCode(code int) bool {
-	return code == 501
-}
-
-// Code gets the status code for the v1beta sync replication not implemented response
-func (o *V1betaSyncReplicationNotImplemented) Code() int {
-	return 501
-}
-
 func (o *V1betaSyncReplicationNotImplemented) Error() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeResourceId}/replications/{replicationResourceId}/sync][%d] v1betaSyncReplicationNotImplemented %s", 501, payload)
-}
-
-func (o *V1betaSyncReplicationNotImplemented) String() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeResourceId}/replications/{replicationResourceId}/sync][%d] v1betaSyncReplicationNotImplemented %s", 501, payload)
+	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeResourceId}/replications/{replicationResourceId}/sync][%d] v1betaSyncReplicationNotImplemented  %+v", 501, o.Payload)
 }
 
 func (o *V1betaSyncReplicationNotImplemented) GetPayload() *models.Error {
@@ -804,7 +443,7 @@ func NewV1betaSyncReplicationDefault(code int) *V1betaSyncReplicationDefault {
 }
 
 /*
-V1betaSyncReplicationDefault describes a response with status code -1, with default header values.
+V1betaSyncReplicationDefault handles this case with default header values.
 
 Unexpected error
 */
@@ -814,44 +453,13 @@ type V1betaSyncReplicationDefault struct {
 	Payload *models.Error
 }
 
-// IsSuccess returns true when this v1beta sync replication default response has a 2xx status code
-func (o *V1betaSyncReplicationDefault) IsSuccess() bool {
-	return o._statusCode/100 == 2
-}
-
-// IsRedirect returns true when this v1beta sync replication default response has a 3xx status code
-func (o *V1betaSyncReplicationDefault) IsRedirect() bool {
-	return o._statusCode/100 == 3
-}
-
-// IsClientError returns true when this v1beta sync replication default response has a 4xx status code
-func (o *V1betaSyncReplicationDefault) IsClientError() bool {
-	return o._statusCode/100 == 4
-}
-
-// IsServerError returns true when this v1beta sync replication default response has a 5xx status code
-func (o *V1betaSyncReplicationDefault) IsServerError() bool {
-	return o._statusCode/100 == 5
-}
-
-// IsCode returns true when this v1beta sync replication default response a status code equal to that given
-func (o *V1betaSyncReplicationDefault) IsCode(code int) bool {
-	return o._statusCode == code
-}
-
 // Code gets the status code for the v1beta sync replication default response
 func (o *V1betaSyncReplicationDefault) Code() int {
 	return o._statusCode
 }
 
 func (o *V1betaSyncReplicationDefault) Error() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeResourceId}/replications/{replicationResourceId}/sync][%d] v1beta_syncReplication default %s", o._statusCode, payload)
-}
-
-func (o *V1betaSyncReplicationDefault) String() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeResourceId}/replications/{replicationResourceId}/sync][%d] v1beta_syncReplication default %s", o._statusCode, payload)
+	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeResourceId}/replications/{replicationResourceId}/sync][%d] v1beta_syncReplication default  %+v", o._statusCode, o.Payload)
 }
 
 func (o *V1betaSyncReplicationDefault) GetPayload() *models.Error {

@@ -19,37 +19,40 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/models"
 )
 
-// NewV1betaBatchListPoolsParams creates a new V1betaBatchListPoolsParams object,
-// with the default timeout for this client.
-//
-// Default values are not hydrated, since defaults are normally applied by the API server side.
-//
-// To enforce default values in parameter, use SetDefaults or WithDefaults.
+// NewV1betaBatchListPoolsParams creates a new V1betaBatchListPoolsParams object
+// with the default values initialized.
 func NewV1betaBatchListPoolsParams() *V1betaBatchListPoolsParams {
+	var ()
 	return &V1betaBatchListPoolsParams{
+
 		timeout: cr.DefaultTimeout,
 	}
 }
 
 // NewV1betaBatchListPoolsParamsWithTimeout creates a new V1betaBatchListPoolsParams object
-// with the ability to set a timeout on a request.
+// with the default values initialized, and the ability to set a timeout on a request
 func NewV1betaBatchListPoolsParamsWithTimeout(timeout time.Duration) *V1betaBatchListPoolsParams {
+	var ()
 	return &V1betaBatchListPoolsParams{
+
 		timeout: timeout,
 	}
 }
 
 // NewV1betaBatchListPoolsParamsWithContext creates a new V1betaBatchListPoolsParams object
-// with the ability to set a context for a request.
+// with the default values initialized, and the ability to set a context for a request
 func NewV1betaBatchListPoolsParamsWithContext(ctx context.Context) *V1betaBatchListPoolsParams {
+	var ()
 	return &V1betaBatchListPoolsParams{
+
 		Context: ctx,
 	}
 }
 
 // NewV1betaBatchListPoolsParamsWithHTTPClient creates a new V1betaBatchListPoolsParams object
-// with the ability to set a custom HTTPClient for a request.
+// with the default values initialized, and the ability to set a custom HTTPClient for a request
 func NewV1betaBatchListPoolsParamsWithHTTPClient(client *http.Client) *V1betaBatchListPoolsParams {
+	var ()
 	return &V1betaBatchListPoolsParams{
 		HTTPClient: client,
 	}
@@ -57,55 +60,34 @@ func NewV1betaBatchListPoolsParamsWithHTTPClient(client *http.Client) *V1betaBat
 
 /*
 V1betaBatchListPoolsParams contains all the parameters to send to the API endpoint
-
-	for the v1beta batch list pools operation.
-
-	Typically these are written to a http.Request.
+for the v1beta batch list pools operation typically these are written to a http.Request
 */
 type V1betaBatchListPoolsParams struct {
 
-	/* Body.
+	/*Body
+	  A list of pool UUIDs to return.
 
-	   A list of pool UUIDs to return.
 	*/
 	Body *models.PoolIDListV1beta
+	/*Fields
+	  Specify the fields to return.
 
-	/* Fields.
-
-	   Specify the fields to return.
 	*/
 	Fields []string
+	/*LocationID
+	  The location/region to perform the operation in.
 
-	/* LocationID.
-
-	   The location/region to perform the operation in.
 	*/
 	LocationID string
+	/*XCorrelationID
+	  Correlation identifier
 
-	/* XCorrelationID.
-
-	   Correlation identifier
 	*/
 	XCorrelationID *string
 
 	timeout    time.Duration
 	Context    context.Context
 	HTTPClient *http.Client
-}
-
-// WithDefaults hydrates default values in the v1beta batch list pools params (not the query body).
-//
-// All values with no default are reset to their zero value.
-func (o *V1betaBatchListPoolsParams) WithDefaults() *V1betaBatchListPoolsParams {
-	o.SetDefaults()
-	return o
-}
-
-// SetDefaults hydrates default values in the v1beta batch list pools params (not the query body).
-//
-// All values with no default are reset to their zero value.
-func (o *V1betaBatchListPoolsParams) SetDefaults() {
-	// no default values defined for this parameter
 }
 
 // WithTimeout adds the timeout to the v1beta batch list pools params
@@ -192,21 +174,19 @@ func (o *V1betaBatchListPoolsParams) WriteToRequest(r runtime.ClientRequest, reg
 		return err
 	}
 	var res []error
+
 	if o.Body != nil {
 		if err := r.SetBodyParam(o.Body); err != nil {
 			return err
 		}
 	}
 
-	if o.Fields != nil {
+	valuesFields := o.Fields
 
-		// binding items for fields
-		joinedFields := o.bindParamFields(reg)
-
-		// query array param fields
-		if err := r.SetQueryParam("fields", joinedFields...); err != nil {
-			return err
-		}
+	joinedFields := swag.JoinByFormat(valuesFields, "csv")
+	// query array param fields
+	if err := r.SetQueryParam("fields", joinedFields...); err != nil {
+		return err
 	}
 
 	// path param locationId
@@ -220,27 +200,11 @@ func (o *V1betaBatchListPoolsParams) WriteToRequest(r runtime.ClientRequest, reg
 		if err := r.SetHeaderParam("x-correlation-id", *o.XCorrelationID); err != nil {
 			return err
 		}
+
 	}
 
 	if len(res) > 0 {
 		return errors.CompositeValidationError(res...)
 	}
 	return nil
-}
-
-// bindParamV1betaBatchListPools binds the parameter fields
-func (o *V1betaBatchListPoolsParams) bindParamFields(formats strfmt.Registry) []string {
-	fieldsIR := o.Fields
-
-	var fieldsIC []string
-	for _, fieldsIIR := range fieldsIR { // explode []string
-
-		fieldsIIV := fieldsIIR // string as string
-		fieldsIC = append(fieldsIC, fieldsIIV)
-	}
-
-	// items.CollectionFormat: "csv"
-	fieldsIS := swag.JoinByFormat(fieldsIC, "csv")
-
-	return fieldsIS
 }

@@ -6339,6 +6339,8 @@ components:
     FlexCache_v1beta:
       title: FlexCache
       type: object
+      description: FlexCache type volumes include an object containing details of
+        the FlexCache
       properties:
         peerVolumeName:
           type: string
@@ -6379,14 +6381,24 @@ components:
             - PENDING_SVM_PEERING
             - PEERED
             - ERROR
-        peeringCommand:
+        previousCacheState:
+          type: string
+          description: Previous state of the FlexCache
+          readOnly: true
+          example: PEERED
+          enum:
+            - CACHE_STATE_UNSPECIFIED
+            - PENDING_CLUSTER_PEERING
+            - PENDING_SVM_PEERING
+            - PEERED
+            - ERROR
+        command:
           type: string
           description: Command used to establish peering for the FlexCache
           readOnly: true
           example: cluster peer create -peer-addrs 10.196.0.1 -initial-allowed-vserver-peers
             svm_87654321463811e79bdb123456789012_a1b2c3d4
-        peeringCommandExpiryTime:
-          title: peeringCommandExpiryTime
+        commandExpiryTime:
           type: string
           description: DateTime value for when cluster peering command should expire.
           format: date-time
@@ -6399,11 +6411,10 @@ components:
           nullable: true
           readOnly: true
           example: loremIpsum
-      description: FlexCache type volumes include an object containing details of
-        the FlexCache
     FlexCacheConfig_v1beta:
       title: FlexCacheConfig
       type: object
+      description: FlexCache volume configuration options.
       properties:
         prePopulate:
           $ref: '#/components/schemas/FlexCachePrePopulate_v1beta'
@@ -6417,7 +6428,7 @@ components:
           description: Flag indicating whether the atime based scrub is enabled for
             the FlexCache volume.
           nullable: true
-        atimeScrubPeriod:
+        atimeScrubMinutes:
           maximum: 1000
           minimum: 1
           type: integer
@@ -6428,10 +6439,10 @@ components:
           type: boolean
           description: Flag indicating whether a CIFS change notification is enabled for the FlexCache volume.
           nullable: true
-      description: FlexCache volume configuration options.
     FlexCachePrePopulate_v1beta:
       title: FlexCache PrePopulate request
       type: object
+      description: FlexCache PrePopulate request
       properties:
         pathList:
           type: array
@@ -6449,12 +6460,11 @@ components:
           items:
             type: string
             example: /dir2
-        isRecursion:
+        recursion:
           type: boolean
           description: Flag indicating whether the directories listed with the pathList
             need to be recursively pre-populated.
           nullable: true
-      description: FlexCache PrePopulate request
     SMBSettings_v1beta:
       title: SMBSettings
       type: array

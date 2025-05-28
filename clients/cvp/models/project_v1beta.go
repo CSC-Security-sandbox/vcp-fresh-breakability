@@ -6,8 +6,6 @@ package models
 // Editing this file might prove futile when you re-run the swagger generate command
 
 import (
-	"context"
-
 	"github.com/go-openapi/strfmt"
 	"github.com/go-openapi/swag"
 )
@@ -22,25 +20,17 @@ type ProjectV1beta struct {
 	// AccountType
 	//
 	// The type of the account - 1P or 3P
-	// Example: 1P
 	AccountType string `json:"AccountType,omitempty"`
 
 	// Name of the shared VPC project
-	// Example: 816774237218
 	ProjectID string `json:"projectID,omitempty"`
 
 	// Shared VPC project's status
-	// Example: enabled
 	Status string `json:"status,omitempty"`
 }
 
 // Validate validates this project v1beta
 func (m *ProjectV1beta) Validate(formats strfmt.Registry) error {
-	return nil
-}
-
-// ContextValidate validates this project v1beta based on context it is used
-func (m *ProjectV1beta) ContextValidate(ctx context.Context, formats strfmt.Registry) error {
 	return nil
 }
 

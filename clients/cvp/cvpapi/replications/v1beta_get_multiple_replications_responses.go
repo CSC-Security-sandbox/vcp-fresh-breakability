@@ -6,8 +6,6 @@ package replications
 // Editing this file might prove futile when you re-run the swagger generate command
 
 import (
-	"context"
-	"encoding/json"
 	"fmt"
 	"io"
 	"strconv"
@@ -100,7 +98,7 @@ func NewV1betaGetMultipleReplicationsOK() *V1betaGetMultipleReplicationsOK {
 }
 
 /*
-V1betaGetMultipleReplicationsOK describes a response with status code 200, with default header values.
+V1betaGetMultipleReplicationsOK handles this case with default header values.
 
 OK
 */
@@ -108,44 +106,8 @@ type V1betaGetMultipleReplicationsOK struct {
 	Payload *V1betaGetMultipleReplicationsOKBody
 }
 
-// IsSuccess returns true when this v1beta get multiple replications o k response has a 2xx status code
-func (o *V1betaGetMultipleReplicationsOK) IsSuccess() bool {
-	return true
-}
-
-// IsRedirect returns true when this v1beta get multiple replications o k response has a 3xx status code
-func (o *V1betaGetMultipleReplicationsOK) IsRedirect() bool {
-	return false
-}
-
-// IsClientError returns true when this v1beta get multiple replications o k response has a 4xx status code
-func (o *V1betaGetMultipleReplicationsOK) IsClientError() bool {
-	return false
-}
-
-// IsServerError returns true when this v1beta get multiple replications o k response has a 5xx status code
-func (o *V1betaGetMultipleReplicationsOK) IsServerError() bool {
-	return false
-}
-
-// IsCode returns true when this v1beta get multiple replications o k response a status code equal to that given
-func (o *V1betaGetMultipleReplicationsOK) IsCode(code int) bool {
-	return code == 200
-}
-
-// Code gets the status code for the v1beta get multiple replications o k response
-func (o *V1betaGetMultipleReplicationsOK) Code() int {
-	return 200
-}
-
 func (o *V1betaGetMultipleReplicationsOK) Error() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeResourceId}/getMultipleReplications][%d] v1betaGetMultipleReplicationsOK %s", 200, payload)
-}
-
-func (o *V1betaGetMultipleReplicationsOK) String() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeResourceId}/getMultipleReplications][%d] v1betaGetMultipleReplicationsOK %s", 200, payload)
+	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeResourceId}/getMultipleReplications][%d] v1betaGetMultipleReplicationsOK  %+v", 200, o.Payload)
 }
 
 func (o *V1betaGetMultipleReplicationsOK) GetPayload() *V1betaGetMultipleReplicationsOKBody {
@@ -170,7 +132,7 @@ func NewV1betaGetMultipleReplicationsBadRequest() *V1betaGetMultipleReplications
 }
 
 /*
-V1betaGetMultipleReplicationsBadRequest describes a response with status code 400, with default header values.
+V1betaGetMultipleReplicationsBadRequest handles this case with default header values.
 
 Bad request
 */
@@ -178,44 +140,8 @@ type V1betaGetMultipleReplicationsBadRequest struct {
 	Payload *models.Error
 }
 
-// IsSuccess returns true when this v1beta get multiple replications bad request response has a 2xx status code
-func (o *V1betaGetMultipleReplicationsBadRequest) IsSuccess() bool {
-	return false
-}
-
-// IsRedirect returns true when this v1beta get multiple replications bad request response has a 3xx status code
-func (o *V1betaGetMultipleReplicationsBadRequest) IsRedirect() bool {
-	return false
-}
-
-// IsClientError returns true when this v1beta get multiple replications bad request response has a 4xx status code
-func (o *V1betaGetMultipleReplicationsBadRequest) IsClientError() bool {
-	return true
-}
-
-// IsServerError returns true when this v1beta get multiple replications bad request response has a 5xx status code
-func (o *V1betaGetMultipleReplicationsBadRequest) IsServerError() bool {
-	return false
-}
-
-// IsCode returns true when this v1beta get multiple replications bad request response a status code equal to that given
-func (o *V1betaGetMultipleReplicationsBadRequest) IsCode(code int) bool {
-	return code == 400
-}
-
-// Code gets the status code for the v1beta get multiple replications bad request response
-func (o *V1betaGetMultipleReplicationsBadRequest) Code() int {
-	return 400
-}
-
 func (o *V1betaGetMultipleReplicationsBadRequest) Error() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeResourceId}/getMultipleReplications][%d] v1betaGetMultipleReplicationsBadRequest %s", 400, payload)
-}
-
-func (o *V1betaGetMultipleReplicationsBadRequest) String() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeResourceId}/getMultipleReplications][%d] v1betaGetMultipleReplicationsBadRequest %s", 400, payload)
+	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeResourceId}/getMultipleReplications][%d] v1betaGetMultipleReplicationsBadRequest  %+v", 400, o.Payload)
 }
 
 func (o *V1betaGetMultipleReplicationsBadRequest) GetPayload() *models.Error {
@@ -240,7 +166,7 @@ func NewV1betaGetMultipleReplicationsUnauthorized() *V1betaGetMultipleReplicatio
 }
 
 /*
-V1betaGetMultipleReplicationsUnauthorized describes a response with status code 401, with default header values.
+V1betaGetMultipleReplicationsUnauthorized handles this case with default header values.
 
 Unauthorized
 */
@@ -248,44 +174,8 @@ type V1betaGetMultipleReplicationsUnauthorized struct {
 	Payload *models.Error
 }
 
-// IsSuccess returns true when this v1beta get multiple replications unauthorized response has a 2xx status code
-func (o *V1betaGetMultipleReplicationsUnauthorized) IsSuccess() bool {
-	return false
-}
-
-// IsRedirect returns true when this v1beta get multiple replications unauthorized response has a 3xx status code
-func (o *V1betaGetMultipleReplicationsUnauthorized) IsRedirect() bool {
-	return false
-}
-
-// IsClientError returns true when this v1beta get multiple replications unauthorized response has a 4xx status code
-func (o *V1betaGetMultipleReplicationsUnauthorized) IsClientError() bool {
-	return true
-}
-
-// IsServerError returns true when this v1beta get multiple replications unauthorized response has a 5xx status code
-func (o *V1betaGetMultipleReplicationsUnauthorized) IsServerError() bool {
-	return false
-}
-
-// IsCode returns true when this v1beta get multiple replications unauthorized response a status code equal to that given
-func (o *V1betaGetMultipleReplicationsUnauthorized) IsCode(code int) bool {
-	return code == 401
-}
-
-// Code gets the status code for the v1beta get multiple replications unauthorized response
-func (o *V1betaGetMultipleReplicationsUnauthorized) Code() int {
-	return 401
-}
-
 func (o *V1betaGetMultipleReplicationsUnauthorized) Error() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeResourceId}/getMultipleReplications][%d] v1betaGetMultipleReplicationsUnauthorized %s", 401, payload)
-}
-
-func (o *V1betaGetMultipleReplicationsUnauthorized) String() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeResourceId}/getMultipleReplications][%d] v1betaGetMultipleReplicationsUnauthorized %s", 401, payload)
+	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeResourceId}/getMultipleReplications][%d] v1betaGetMultipleReplicationsUnauthorized  %+v", 401, o.Payload)
 }
 
 func (o *V1betaGetMultipleReplicationsUnauthorized) GetPayload() *models.Error {
@@ -310,7 +200,7 @@ func NewV1betaGetMultipleReplicationsForbidden() *V1betaGetMultipleReplicationsF
 }
 
 /*
-V1betaGetMultipleReplicationsForbidden describes a response with status code 403, with default header values.
+V1betaGetMultipleReplicationsForbidden handles this case with default header values.
 
 Forbidden
 */
@@ -318,44 +208,8 @@ type V1betaGetMultipleReplicationsForbidden struct {
 	Payload *models.Error
 }
 
-// IsSuccess returns true when this v1beta get multiple replications forbidden response has a 2xx status code
-func (o *V1betaGetMultipleReplicationsForbidden) IsSuccess() bool {
-	return false
-}
-
-// IsRedirect returns true when this v1beta get multiple replications forbidden response has a 3xx status code
-func (o *V1betaGetMultipleReplicationsForbidden) IsRedirect() bool {
-	return false
-}
-
-// IsClientError returns true when this v1beta get multiple replications forbidden response has a 4xx status code
-func (o *V1betaGetMultipleReplicationsForbidden) IsClientError() bool {
-	return true
-}
-
-// IsServerError returns true when this v1beta get multiple replications forbidden response has a 5xx status code
-func (o *V1betaGetMultipleReplicationsForbidden) IsServerError() bool {
-	return false
-}
-
-// IsCode returns true when this v1beta get multiple replications forbidden response a status code equal to that given
-func (o *V1betaGetMultipleReplicationsForbidden) IsCode(code int) bool {
-	return code == 403
-}
-
-// Code gets the status code for the v1beta get multiple replications forbidden response
-func (o *V1betaGetMultipleReplicationsForbidden) Code() int {
-	return 403
-}
-
 func (o *V1betaGetMultipleReplicationsForbidden) Error() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeResourceId}/getMultipleReplications][%d] v1betaGetMultipleReplicationsForbidden %s", 403, payload)
-}
-
-func (o *V1betaGetMultipleReplicationsForbidden) String() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeResourceId}/getMultipleReplications][%d] v1betaGetMultipleReplicationsForbidden %s", 403, payload)
+	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeResourceId}/getMultipleReplications][%d] v1betaGetMultipleReplicationsForbidden  %+v", 403, o.Payload)
 }
 
 func (o *V1betaGetMultipleReplicationsForbidden) GetPayload() *models.Error {
@@ -380,7 +234,7 @@ func NewV1betaGetMultipleReplicationsNotFound() *V1betaGetMultipleReplicationsNo
 }
 
 /*
-V1betaGetMultipleReplicationsNotFound describes a response with status code 404, with default header values.
+V1betaGetMultipleReplicationsNotFound handles this case with default header values.
 
 Not found
 */
@@ -388,44 +242,8 @@ type V1betaGetMultipleReplicationsNotFound struct {
 	Payload *models.Error
 }
 
-// IsSuccess returns true when this v1beta get multiple replications not found response has a 2xx status code
-func (o *V1betaGetMultipleReplicationsNotFound) IsSuccess() bool {
-	return false
-}
-
-// IsRedirect returns true when this v1beta get multiple replications not found response has a 3xx status code
-func (o *V1betaGetMultipleReplicationsNotFound) IsRedirect() bool {
-	return false
-}
-
-// IsClientError returns true when this v1beta get multiple replications not found response has a 4xx status code
-func (o *V1betaGetMultipleReplicationsNotFound) IsClientError() bool {
-	return true
-}
-
-// IsServerError returns true when this v1beta get multiple replications not found response has a 5xx status code
-func (o *V1betaGetMultipleReplicationsNotFound) IsServerError() bool {
-	return false
-}
-
-// IsCode returns true when this v1beta get multiple replications not found response a status code equal to that given
-func (o *V1betaGetMultipleReplicationsNotFound) IsCode(code int) bool {
-	return code == 404
-}
-
-// Code gets the status code for the v1beta get multiple replications not found response
-func (o *V1betaGetMultipleReplicationsNotFound) Code() int {
-	return 404
-}
-
 func (o *V1betaGetMultipleReplicationsNotFound) Error() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeResourceId}/getMultipleReplications][%d] v1betaGetMultipleReplicationsNotFound %s", 404, payload)
-}
-
-func (o *V1betaGetMultipleReplicationsNotFound) String() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeResourceId}/getMultipleReplications][%d] v1betaGetMultipleReplicationsNotFound %s", 404, payload)
+	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeResourceId}/getMultipleReplications][%d] v1betaGetMultipleReplicationsNotFound  %+v", 404, o.Payload)
 }
 
 func (o *V1betaGetMultipleReplicationsNotFound) GetPayload() *models.Error {
@@ -450,7 +268,7 @@ func NewV1betaGetMultipleReplicationsUnprocessableEntity() *V1betaGetMultipleRep
 }
 
 /*
-V1betaGetMultipleReplicationsUnprocessableEntity describes a response with status code 422, with default header values.
+V1betaGetMultipleReplicationsUnprocessableEntity handles this case with default header values.
 
 Unprocessable entity
 */
@@ -458,44 +276,8 @@ type V1betaGetMultipleReplicationsUnprocessableEntity struct {
 	Payload *models.Error
 }
 
-// IsSuccess returns true when this v1beta get multiple replications unprocessable entity response has a 2xx status code
-func (o *V1betaGetMultipleReplicationsUnprocessableEntity) IsSuccess() bool {
-	return false
-}
-
-// IsRedirect returns true when this v1beta get multiple replications unprocessable entity response has a 3xx status code
-func (o *V1betaGetMultipleReplicationsUnprocessableEntity) IsRedirect() bool {
-	return false
-}
-
-// IsClientError returns true when this v1beta get multiple replications unprocessable entity response has a 4xx status code
-func (o *V1betaGetMultipleReplicationsUnprocessableEntity) IsClientError() bool {
-	return true
-}
-
-// IsServerError returns true when this v1beta get multiple replications unprocessable entity response has a 5xx status code
-func (o *V1betaGetMultipleReplicationsUnprocessableEntity) IsServerError() bool {
-	return false
-}
-
-// IsCode returns true when this v1beta get multiple replications unprocessable entity response a status code equal to that given
-func (o *V1betaGetMultipleReplicationsUnprocessableEntity) IsCode(code int) bool {
-	return code == 422
-}
-
-// Code gets the status code for the v1beta get multiple replications unprocessable entity response
-func (o *V1betaGetMultipleReplicationsUnprocessableEntity) Code() int {
-	return 422
-}
-
 func (o *V1betaGetMultipleReplicationsUnprocessableEntity) Error() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeResourceId}/getMultipleReplications][%d] v1betaGetMultipleReplicationsUnprocessableEntity %s", 422, payload)
-}
-
-func (o *V1betaGetMultipleReplicationsUnprocessableEntity) String() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeResourceId}/getMultipleReplications][%d] v1betaGetMultipleReplicationsUnprocessableEntity %s", 422, payload)
+	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeResourceId}/getMultipleReplications][%d] v1betaGetMultipleReplicationsUnprocessableEntity  %+v", 422, o.Payload)
 }
 
 func (o *V1betaGetMultipleReplicationsUnprocessableEntity) GetPayload() *models.Error {
@@ -520,7 +302,7 @@ func NewV1betaGetMultipleReplicationsTooManyRequests() *V1betaGetMultipleReplica
 }
 
 /*
-V1betaGetMultipleReplicationsTooManyRequests describes a response with status code 429, with default header values.
+V1betaGetMultipleReplicationsTooManyRequests handles this case with default header values.
 
 Too many requests
 */
@@ -528,44 +310,8 @@ type V1betaGetMultipleReplicationsTooManyRequests struct {
 	Payload *models.Error
 }
 
-// IsSuccess returns true when this v1beta get multiple replications too many requests response has a 2xx status code
-func (o *V1betaGetMultipleReplicationsTooManyRequests) IsSuccess() bool {
-	return false
-}
-
-// IsRedirect returns true when this v1beta get multiple replications too many requests response has a 3xx status code
-func (o *V1betaGetMultipleReplicationsTooManyRequests) IsRedirect() bool {
-	return false
-}
-
-// IsClientError returns true when this v1beta get multiple replications too many requests response has a 4xx status code
-func (o *V1betaGetMultipleReplicationsTooManyRequests) IsClientError() bool {
-	return true
-}
-
-// IsServerError returns true when this v1beta get multiple replications too many requests response has a 5xx status code
-func (o *V1betaGetMultipleReplicationsTooManyRequests) IsServerError() bool {
-	return false
-}
-
-// IsCode returns true when this v1beta get multiple replications too many requests response a status code equal to that given
-func (o *V1betaGetMultipleReplicationsTooManyRequests) IsCode(code int) bool {
-	return code == 429
-}
-
-// Code gets the status code for the v1beta get multiple replications too many requests response
-func (o *V1betaGetMultipleReplicationsTooManyRequests) Code() int {
-	return 429
-}
-
 func (o *V1betaGetMultipleReplicationsTooManyRequests) Error() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeResourceId}/getMultipleReplications][%d] v1betaGetMultipleReplicationsTooManyRequests %s", 429, payload)
-}
-
-func (o *V1betaGetMultipleReplicationsTooManyRequests) String() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeResourceId}/getMultipleReplications][%d] v1betaGetMultipleReplicationsTooManyRequests %s", 429, payload)
+	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeResourceId}/getMultipleReplications][%d] v1betaGetMultipleReplicationsTooManyRequests  %+v", 429, o.Payload)
 }
 
 func (o *V1betaGetMultipleReplicationsTooManyRequests) GetPayload() *models.Error {
@@ -590,7 +336,7 @@ func NewV1betaGetMultipleReplicationsInternalServerError() *V1betaGetMultipleRep
 }
 
 /*
-V1betaGetMultipleReplicationsInternalServerError describes a response with status code 500, with default header values.
+V1betaGetMultipleReplicationsInternalServerError handles this case with default header values.
 
 Internal server error
 */
@@ -598,44 +344,8 @@ type V1betaGetMultipleReplicationsInternalServerError struct {
 	Payload *models.Error
 }
 
-// IsSuccess returns true when this v1beta get multiple replications internal server error response has a 2xx status code
-func (o *V1betaGetMultipleReplicationsInternalServerError) IsSuccess() bool {
-	return false
-}
-
-// IsRedirect returns true when this v1beta get multiple replications internal server error response has a 3xx status code
-func (o *V1betaGetMultipleReplicationsInternalServerError) IsRedirect() bool {
-	return false
-}
-
-// IsClientError returns true when this v1beta get multiple replications internal server error response has a 4xx status code
-func (o *V1betaGetMultipleReplicationsInternalServerError) IsClientError() bool {
-	return false
-}
-
-// IsServerError returns true when this v1beta get multiple replications internal server error response has a 5xx status code
-func (o *V1betaGetMultipleReplicationsInternalServerError) IsServerError() bool {
-	return true
-}
-
-// IsCode returns true when this v1beta get multiple replications internal server error response a status code equal to that given
-func (o *V1betaGetMultipleReplicationsInternalServerError) IsCode(code int) bool {
-	return code == 500
-}
-
-// Code gets the status code for the v1beta get multiple replications internal server error response
-func (o *V1betaGetMultipleReplicationsInternalServerError) Code() int {
-	return 500
-}
-
 func (o *V1betaGetMultipleReplicationsInternalServerError) Error() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeResourceId}/getMultipleReplications][%d] v1betaGetMultipleReplicationsInternalServerError %s", 500, payload)
-}
-
-func (o *V1betaGetMultipleReplicationsInternalServerError) String() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeResourceId}/getMultipleReplications][%d] v1betaGetMultipleReplicationsInternalServerError %s", 500, payload)
+	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeResourceId}/getMultipleReplications][%d] v1betaGetMultipleReplicationsInternalServerError  %+v", 500, o.Payload)
 }
 
 func (o *V1betaGetMultipleReplicationsInternalServerError) GetPayload() *models.Error {
@@ -660,7 +370,7 @@ func NewV1betaGetMultipleReplicationsNotImplemented() *V1betaGetMultipleReplicat
 }
 
 /*
-V1betaGetMultipleReplicationsNotImplemented describes a response with status code 501, with default header values.
+V1betaGetMultipleReplicationsNotImplemented handles this case with default header values.
 
 Not implemented
 */
@@ -668,44 +378,8 @@ type V1betaGetMultipleReplicationsNotImplemented struct {
 	Payload *models.Error
 }
 
-// IsSuccess returns true when this v1beta get multiple replications not implemented response has a 2xx status code
-func (o *V1betaGetMultipleReplicationsNotImplemented) IsSuccess() bool {
-	return false
-}
-
-// IsRedirect returns true when this v1beta get multiple replications not implemented response has a 3xx status code
-func (o *V1betaGetMultipleReplicationsNotImplemented) IsRedirect() bool {
-	return false
-}
-
-// IsClientError returns true when this v1beta get multiple replications not implemented response has a 4xx status code
-func (o *V1betaGetMultipleReplicationsNotImplemented) IsClientError() bool {
-	return false
-}
-
-// IsServerError returns true when this v1beta get multiple replications not implemented response has a 5xx status code
-func (o *V1betaGetMultipleReplicationsNotImplemented) IsServerError() bool {
-	return true
-}
-
-// IsCode returns true when this v1beta get multiple replications not implemented response a status code equal to that given
-func (o *V1betaGetMultipleReplicationsNotImplemented) IsCode(code int) bool {
-	return code == 501
-}
-
-// Code gets the status code for the v1beta get multiple replications not implemented response
-func (o *V1betaGetMultipleReplicationsNotImplemented) Code() int {
-	return 501
-}
-
 func (o *V1betaGetMultipleReplicationsNotImplemented) Error() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeResourceId}/getMultipleReplications][%d] v1betaGetMultipleReplicationsNotImplemented %s", 501, payload)
-}
-
-func (o *V1betaGetMultipleReplicationsNotImplemented) String() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeResourceId}/getMultipleReplications][%d] v1betaGetMultipleReplicationsNotImplemented %s", 501, payload)
+	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeResourceId}/getMultipleReplications][%d] v1betaGetMultipleReplicationsNotImplemented  %+v", 501, o.Payload)
 }
 
 func (o *V1betaGetMultipleReplicationsNotImplemented) GetPayload() *models.Error {
@@ -732,7 +406,7 @@ func NewV1betaGetMultipleReplicationsDefault(code int) *V1betaGetMultipleReplica
 }
 
 /*
-V1betaGetMultipleReplicationsDefault describes a response with status code -1, with default header values.
+V1betaGetMultipleReplicationsDefault handles this case with default header values.
 
 Unexpected error
 */
@@ -742,44 +416,13 @@ type V1betaGetMultipleReplicationsDefault struct {
 	Payload *models.Error
 }
 
-// IsSuccess returns true when this v1beta get multiple replications default response has a 2xx status code
-func (o *V1betaGetMultipleReplicationsDefault) IsSuccess() bool {
-	return o._statusCode/100 == 2
-}
-
-// IsRedirect returns true when this v1beta get multiple replications default response has a 3xx status code
-func (o *V1betaGetMultipleReplicationsDefault) IsRedirect() bool {
-	return o._statusCode/100 == 3
-}
-
-// IsClientError returns true when this v1beta get multiple replications default response has a 4xx status code
-func (o *V1betaGetMultipleReplicationsDefault) IsClientError() bool {
-	return o._statusCode/100 == 4
-}
-
-// IsServerError returns true when this v1beta get multiple replications default response has a 5xx status code
-func (o *V1betaGetMultipleReplicationsDefault) IsServerError() bool {
-	return o._statusCode/100 == 5
-}
-
-// IsCode returns true when this v1beta get multiple replications default response a status code equal to that given
-func (o *V1betaGetMultipleReplicationsDefault) IsCode(code int) bool {
-	return o._statusCode == code
-}
-
 // Code gets the status code for the v1beta get multiple replications default response
 func (o *V1betaGetMultipleReplicationsDefault) Code() int {
 	return o._statusCode
 }
 
 func (o *V1betaGetMultipleReplicationsDefault) Error() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeResourceId}/getMultipleReplications][%d] v1beta_getMultipleReplications default %s", o._statusCode, payload)
-}
-
-func (o *V1betaGetMultipleReplicationsDefault) String() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeResourceId}/getMultipleReplications][%d] v1beta_getMultipleReplications default %s", o._statusCode, payload)
+	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeResourceId}/getMultipleReplications][%d] v1beta_getMultipleReplications default  %+v", o._statusCode, o.Payload)
 }
 
 func (o *V1betaGetMultipleReplicationsDefault) GetPayload() *models.Error {
@@ -870,47 +513,6 @@ func (o *V1betaGetMultipleReplicationsOKBody) validateReplications(formats strfm
 			if err := o.Replications[i].Validate(formats); err != nil {
 				if ve, ok := err.(*errors.Validation); ok {
 					return ve.ValidateName("v1betaGetMultipleReplicationsOK" + "." + "replications" + "." + strconv.Itoa(i))
-				} else if ce, ok := err.(*errors.CompositeError); ok {
-					return ce.ValidateName("v1betaGetMultipleReplicationsOK" + "." + "replications" + "." + strconv.Itoa(i))
-				}
-				return err
-			}
-		}
-
-	}
-
-	return nil
-}
-
-// ContextValidate validate this v1beta get multiple replications o k body based on the context it is used
-func (o *V1betaGetMultipleReplicationsOKBody) ContextValidate(ctx context.Context, formats strfmt.Registry) error {
-	var res []error
-
-	if err := o.contextValidateReplications(ctx, formats); err != nil {
-		res = append(res, err)
-	}
-
-	if len(res) > 0 {
-		return errors.CompositeValidationError(res...)
-	}
-	return nil
-}
-
-func (o *V1betaGetMultipleReplicationsOKBody) contextValidateReplications(ctx context.Context, formats strfmt.Registry) error {
-
-	for i := 0; i < len(o.Replications); i++ {
-
-		if o.Replications[i] != nil {
-
-			if swag.IsZero(o.Replications[i]) { // not required
-				return nil
-			}
-
-			if err := o.Replications[i].ContextValidate(ctx, formats); err != nil {
-				if ve, ok := err.(*errors.Validation); ok {
-					return ve.ValidateName("v1betaGetMultipleReplicationsOK" + "." + "replications" + "." + strconv.Itoa(i))
-				} else if ce, ok := err.(*errors.CompositeError); ok {
-					return ce.ValidateName("v1betaGetMultipleReplicationsOK" + "." + "replications" + "." + strconv.Itoa(i))
 				}
 				return err
 			}

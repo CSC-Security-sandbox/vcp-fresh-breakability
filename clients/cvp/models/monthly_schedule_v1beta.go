@@ -6,8 +6,6 @@ package models
 // Editing this file might prove futile when you re-run the swagger generate command
 
 import (
-	"context"
-
 	"github.com/go-openapi/errors"
 	"github.com/go-openapi/strfmt"
 	"github.com/go-openapi/swag"
@@ -29,7 +27,6 @@ type MonthlyScheduleV1beta struct {
 	// hour
 	//
 	// Set the hour to start the snapshot (0-23), defaults to midnight (0).
-	// Example: 23
 	// Maximum: 23
 	// Minimum: 0
 	Hour *float64 `json:"hour,omitempty"`
@@ -37,13 +34,11 @@ type MonthlyScheduleV1beta struct {
 	// minute
 	//
 	// Set the minute of the hour to start the snapshot (0-59), defaults to the top of the hour (0).
-	// Example: 10
 	// Maximum: 59
 	// Minimum: 0
 	Minute *float64 `json:"minute,omitempty"`
 
 	// The maximum number of snapshots to keep for the monthly schedule
-	// Example: 12
 	// Maximum: 255
 	// Minimum: 0
 	SnapshotsToKeep *float64 `json:"snapshotsToKeep,omitempty"`
@@ -76,15 +71,16 @@ func (m *MonthlyScheduleV1beta) Validate(formats strfmt.Registry) error {
 }
 
 func (m *MonthlyScheduleV1beta) validateDaysOfMonth(formats strfmt.Registry) error {
+
 	if swag.IsZero(m.DaysOfMonth) { // not required
 		return nil
 	}
 
-	if err := validate.MinLength("daysOfMonth", "body", m.DaysOfMonth, 1); err != nil {
+	if err := validate.MinLength("daysOfMonth", "body", string(m.DaysOfMonth), 1); err != nil {
 		return err
 	}
 
-	if err := validate.MaxLength("daysOfMonth", "body", m.DaysOfMonth, 113); err != nil {
+	if err := validate.MaxLength("daysOfMonth", "body", string(m.DaysOfMonth), 113); err != nil {
 		return err
 	}
 
@@ -92,15 +88,16 @@ func (m *MonthlyScheduleV1beta) validateDaysOfMonth(formats strfmt.Registry) err
 }
 
 func (m *MonthlyScheduleV1beta) validateHour(formats strfmt.Registry) error {
+
 	if swag.IsZero(m.Hour) { // not required
 		return nil
 	}
 
-	if err := validate.Minimum("hour", "body", *m.Hour, 0, false); err != nil {
+	if err := validate.Minimum("hour", "body", float64(*m.Hour), 0, false); err != nil {
 		return err
 	}
 
-	if err := validate.Maximum("hour", "body", *m.Hour, 23, false); err != nil {
+	if err := validate.Maximum("hour", "body", float64(*m.Hour), 23, false); err != nil {
 		return err
 	}
 
@@ -108,15 +105,16 @@ func (m *MonthlyScheduleV1beta) validateHour(formats strfmt.Registry) error {
 }
 
 func (m *MonthlyScheduleV1beta) validateMinute(formats strfmt.Registry) error {
+
 	if swag.IsZero(m.Minute) { // not required
 		return nil
 	}
 
-	if err := validate.Minimum("minute", "body", *m.Minute, 0, false); err != nil {
+	if err := validate.Minimum("minute", "body", float64(*m.Minute), 0, false); err != nil {
 		return err
 	}
 
-	if err := validate.Maximum("minute", "body", *m.Minute, 59, false); err != nil {
+	if err := validate.Maximum("minute", "body", float64(*m.Minute), 59, false); err != nil {
 		return err
 	}
 
@@ -124,23 +122,19 @@ func (m *MonthlyScheduleV1beta) validateMinute(formats strfmt.Registry) error {
 }
 
 func (m *MonthlyScheduleV1beta) validateSnapshotsToKeep(formats strfmt.Registry) error {
+
 	if swag.IsZero(m.SnapshotsToKeep) { // not required
 		return nil
 	}
 
-	if err := validate.Minimum("snapshotsToKeep", "body", *m.SnapshotsToKeep, 0, false); err != nil {
+	if err := validate.Minimum("snapshotsToKeep", "body", float64(*m.SnapshotsToKeep), 0, false); err != nil {
 		return err
 	}
 
-	if err := validate.Maximum("snapshotsToKeep", "body", *m.SnapshotsToKeep, 255, false); err != nil {
+	if err := validate.Maximum("snapshotsToKeep", "body", float64(*m.SnapshotsToKeep), 255, false); err != nil {
 		return err
 	}
 
-	return nil
-}
-
-// ContextValidate validates this monthly schedule v1beta based on context it is used
-func (m *MonthlyScheduleV1beta) ContextValidate(ctx context.Context, formats strfmt.Registry) error {
 	return nil
 }
 

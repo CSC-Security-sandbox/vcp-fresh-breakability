@@ -6,7 +6,6 @@ package models
 // Editing this file might prove futile when you re-run the swagger generate command
 
 import (
-	"context"
 	"strconv"
 
 	"github.com/go-openapi/errors"
@@ -59,17 +58,12 @@ func (m *QuotaRuleIDListV1beta) validateQuotaRuleUUIDs(formats strfmt.Registry) 
 
 	for i := 0; i < len(m.QuotaRuleUUIDs); i++ {
 
-		if err := validate.Pattern("quotaRuleUUIDs"+"."+strconv.Itoa(i), "body", m.QuotaRuleUUIDs[i], `^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$`); err != nil {
+		if err := validate.Pattern("quotaRuleUUIDs"+"."+strconv.Itoa(i), "body", string(m.QuotaRuleUUIDs[i]), `^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$`); err != nil {
 			return err
 		}
 
 	}
 
-	return nil
-}
-
-// ContextValidate validates this quota rule ID list v1beta based on context it is used
-func (m *QuotaRuleIDListV1beta) ContextValidate(ctx context.Context, formats strfmt.Registry) error {
 	return nil
 }
 

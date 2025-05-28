@@ -6,7 +6,6 @@ package batch
 // Editing this file might prove futile when you re-run the swagger generate command
 
 import (
-	"encoding/json"
 	"fmt"
 	"io"
 
@@ -72,7 +71,7 @@ func NewV1betaBatchListReplicationsOK() *V1betaBatchListReplicationsOK {
 }
 
 /*
-V1betaBatchListReplicationsOK describes a response with status code 200, with default header values.
+V1betaBatchListReplicationsOK handles this case with default header values.
 
 OK
 */
@@ -80,44 +79,8 @@ type V1betaBatchListReplicationsOK struct {
 	Payload []*models.BatchReplicationV1beta
 }
 
-// IsSuccess returns true when this v1beta batch list replications o k response has a 2xx status code
-func (o *V1betaBatchListReplicationsOK) IsSuccess() bool {
-	return true
-}
-
-// IsRedirect returns true when this v1beta batch list replications o k response has a 3xx status code
-func (o *V1betaBatchListReplicationsOK) IsRedirect() bool {
-	return false
-}
-
-// IsClientError returns true when this v1beta batch list replications o k response has a 4xx status code
-func (o *V1betaBatchListReplicationsOK) IsClientError() bool {
-	return false
-}
-
-// IsServerError returns true when this v1beta batch list replications o k response has a 5xx status code
-func (o *V1betaBatchListReplicationsOK) IsServerError() bool {
-	return false
-}
-
-// IsCode returns true when this v1beta batch list replications o k response a status code equal to that given
-func (o *V1betaBatchListReplicationsOK) IsCode(code int) bool {
-	return code == 200
-}
-
-// Code gets the status code for the v1beta batch list replications o k response
-func (o *V1betaBatchListReplicationsOK) Code() int {
-	return 200
-}
-
 func (o *V1betaBatchListReplicationsOK) Error() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[POST /v1beta/locations/{locationId}/batch/replications][%d] v1betaBatchListReplicationsOK %s", 200, payload)
-}
-
-func (o *V1betaBatchListReplicationsOK) String() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[POST /v1beta/locations/{locationId}/batch/replications][%d] v1betaBatchListReplicationsOK %s", 200, payload)
+	return fmt.Sprintf("[POST /v1beta/locations/{locationId}/batch/replications][%d] v1betaBatchListReplicationsOK  %+v", 200, o.Payload)
 }
 
 func (o *V1betaBatchListReplicationsOK) GetPayload() []*models.BatchReplicationV1beta {
@@ -140,7 +103,7 @@ func NewV1betaBatchListReplicationsBadRequest() *V1betaBatchListReplicationsBadR
 }
 
 /*
-V1betaBatchListReplicationsBadRequest describes a response with status code 400, with default header values.
+V1betaBatchListReplicationsBadRequest handles this case with default header values.
 
 Bad request
 */
@@ -148,44 +111,8 @@ type V1betaBatchListReplicationsBadRequest struct {
 	Payload *models.Error
 }
 
-// IsSuccess returns true when this v1beta batch list replications bad request response has a 2xx status code
-func (o *V1betaBatchListReplicationsBadRequest) IsSuccess() bool {
-	return false
-}
-
-// IsRedirect returns true when this v1beta batch list replications bad request response has a 3xx status code
-func (o *V1betaBatchListReplicationsBadRequest) IsRedirect() bool {
-	return false
-}
-
-// IsClientError returns true when this v1beta batch list replications bad request response has a 4xx status code
-func (o *V1betaBatchListReplicationsBadRequest) IsClientError() bool {
-	return true
-}
-
-// IsServerError returns true when this v1beta batch list replications bad request response has a 5xx status code
-func (o *V1betaBatchListReplicationsBadRequest) IsServerError() bool {
-	return false
-}
-
-// IsCode returns true when this v1beta batch list replications bad request response a status code equal to that given
-func (o *V1betaBatchListReplicationsBadRequest) IsCode(code int) bool {
-	return code == 400
-}
-
-// Code gets the status code for the v1beta batch list replications bad request response
-func (o *V1betaBatchListReplicationsBadRequest) Code() int {
-	return 400
-}
-
 func (o *V1betaBatchListReplicationsBadRequest) Error() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[POST /v1beta/locations/{locationId}/batch/replications][%d] v1betaBatchListReplicationsBadRequest %s", 400, payload)
-}
-
-func (o *V1betaBatchListReplicationsBadRequest) String() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[POST /v1beta/locations/{locationId}/batch/replications][%d] v1betaBatchListReplicationsBadRequest %s", 400, payload)
+	return fmt.Sprintf("[POST /v1beta/locations/{locationId}/batch/replications][%d] v1betaBatchListReplicationsBadRequest  %+v", 400, o.Payload)
 }
 
 func (o *V1betaBatchListReplicationsBadRequest) GetPayload() *models.Error {
@@ -210,7 +137,7 @@ func NewV1betaBatchListReplicationsUnauthorized() *V1betaBatchListReplicationsUn
 }
 
 /*
-V1betaBatchListReplicationsUnauthorized describes a response with status code 401, with default header values.
+V1betaBatchListReplicationsUnauthorized handles this case with default header values.
 
 Unauthorized
 */
@@ -218,44 +145,8 @@ type V1betaBatchListReplicationsUnauthorized struct {
 	Payload *models.Error
 }
 
-// IsSuccess returns true when this v1beta batch list replications unauthorized response has a 2xx status code
-func (o *V1betaBatchListReplicationsUnauthorized) IsSuccess() bool {
-	return false
-}
-
-// IsRedirect returns true when this v1beta batch list replications unauthorized response has a 3xx status code
-func (o *V1betaBatchListReplicationsUnauthorized) IsRedirect() bool {
-	return false
-}
-
-// IsClientError returns true when this v1beta batch list replications unauthorized response has a 4xx status code
-func (o *V1betaBatchListReplicationsUnauthorized) IsClientError() bool {
-	return true
-}
-
-// IsServerError returns true when this v1beta batch list replications unauthorized response has a 5xx status code
-func (o *V1betaBatchListReplicationsUnauthorized) IsServerError() bool {
-	return false
-}
-
-// IsCode returns true when this v1beta batch list replications unauthorized response a status code equal to that given
-func (o *V1betaBatchListReplicationsUnauthorized) IsCode(code int) bool {
-	return code == 401
-}
-
-// Code gets the status code for the v1beta batch list replications unauthorized response
-func (o *V1betaBatchListReplicationsUnauthorized) Code() int {
-	return 401
-}
-
 func (o *V1betaBatchListReplicationsUnauthorized) Error() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[POST /v1beta/locations/{locationId}/batch/replications][%d] v1betaBatchListReplicationsUnauthorized %s", 401, payload)
-}
-
-func (o *V1betaBatchListReplicationsUnauthorized) String() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[POST /v1beta/locations/{locationId}/batch/replications][%d] v1betaBatchListReplicationsUnauthorized %s", 401, payload)
+	return fmt.Sprintf("[POST /v1beta/locations/{locationId}/batch/replications][%d] v1betaBatchListReplicationsUnauthorized  %+v", 401, o.Payload)
 }
 
 func (o *V1betaBatchListReplicationsUnauthorized) GetPayload() *models.Error {
@@ -280,7 +171,7 @@ func NewV1betaBatchListReplicationsForbidden() *V1betaBatchListReplicationsForbi
 }
 
 /*
-V1betaBatchListReplicationsForbidden describes a response with status code 403, with default header values.
+V1betaBatchListReplicationsForbidden handles this case with default header values.
 
 Forbidden
 */
@@ -288,44 +179,8 @@ type V1betaBatchListReplicationsForbidden struct {
 	Payload *models.Error
 }
 
-// IsSuccess returns true when this v1beta batch list replications forbidden response has a 2xx status code
-func (o *V1betaBatchListReplicationsForbidden) IsSuccess() bool {
-	return false
-}
-
-// IsRedirect returns true when this v1beta batch list replications forbidden response has a 3xx status code
-func (o *V1betaBatchListReplicationsForbidden) IsRedirect() bool {
-	return false
-}
-
-// IsClientError returns true when this v1beta batch list replications forbidden response has a 4xx status code
-func (o *V1betaBatchListReplicationsForbidden) IsClientError() bool {
-	return true
-}
-
-// IsServerError returns true when this v1beta batch list replications forbidden response has a 5xx status code
-func (o *V1betaBatchListReplicationsForbidden) IsServerError() bool {
-	return false
-}
-
-// IsCode returns true when this v1beta batch list replications forbidden response a status code equal to that given
-func (o *V1betaBatchListReplicationsForbidden) IsCode(code int) bool {
-	return code == 403
-}
-
-// Code gets the status code for the v1beta batch list replications forbidden response
-func (o *V1betaBatchListReplicationsForbidden) Code() int {
-	return 403
-}
-
 func (o *V1betaBatchListReplicationsForbidden) Error() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[POST /v1beta/locations/{locationId}/batch/replications][%d] v1betaBatchListReplicationsForbidden %s", 403, payload)
-}
-
-func (o *V1betaBatchListReplicationsForbidden) String() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[POST /v1beta/locations/{locationId}/batch/replications][%d] v1betaBatchListReplicationsForbidden %s", 403, payload)
+	return fmt.Sprintf("[POST /v1beta/locations/{locationId}/batch/replications][%d] v1betaBatchListReplicationsForbidden  %+v", 403, o.Payload)
 }
 
 func (o *V1betaBatchListReplicationsForbidden) GetPayload() *models.Error {
@@ -350,7 +205,7 @@ func NewV1betaBatchListReplicationsInternalServerError() *V1betaBatchListReplica
 }
 
 /*
-V1betaBatchListReplicationsInternalServerError describes a response with status code 500, with default header values.
+V1betaBatchListReplicationsInternalServerError handles this case with default header values.
 
 Internal server error
 */
@@ -358,44 +213,8 @@ type V1betaBatchListReplicationsInternalServerError struct {
 	Payload *models.Error
 }
 
-// IsSuccess returns true when this v1beta batch list replications internal server error response has a 2xx status code
-func (o *V1betaBatchListReplicationsInternalServerError) IsSuccess() bool {
-	return false
-}
-
-// IsRedirect returns true when this v1beta batch list replications internal server error response has a 3xx status code
-func (o *V1betaBatchListReplicationsInternalServerError) IsRedirect() bool {
-	return false
-}
-
-// IsClientError returns true when this v1beta batch list replications internal server error response has a 4xx status code
-func (o *V1betaBatchListReplicationsInternalServerError) IsClientError() bool {
-	return false
-}
-
-// IsServerError returns true when this v1beta batch list replications internal server error response has a 5xx status code
-func (o *V1betaBatchListReplicationsInternalServerError) IsServerError() bool {
-	return true
-}
-
-// IsCode returns true when this v1beta batch list replications internal server error response a status code equal to that given
-func (o *V1betaBatchListReplicationsInternalServerError) IsCode(code int) bool {
-	return code == 500
-}
-
-// Code gets the status code for the v1beta batch list replications internal server error response
-func (o *V1betaBatchListReplicationsInternalServerError) Code() int {
-	return 500
-}
-
 func (o *V1betaBatchListReplicationsInternalServerError) Error() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[POST /v1beta/locations/{locationId}/batch/replications][%d] v1betaBatchListReplicationsInternalServerError %s", 500, payload)
-}
-
-func (o *V1betaBatchListReplicationsInternalServerError) String() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[POST /v1beta/locations/{locationId}/batch/replications][%d] v1betaBatchListReplicationsInternalServerError %s", 500, payload)
+	return fmt.Sprintf("[POST /v1beta/locations/{locationId}/batch/replications][%d] v1betaBatchListReplicationsInternalServerError  %+v", 500, o.Payload)
 }
 
 func (o *V1betaBatchListReplicationsInternalServerError) GetPayload() *models.Error {
@@ -422,7 +241,7 @@ func NewV1betaBatchListReplicationsDefault(code int) *V1betaBatchListReplication
 }
 
 /*
-V1betaBatchListReplicationsDefault describes a response with status code -1, with default header values.
+V1betaBatchListReplicationsDefault handles this case with default header values.
 
 Unexpected error
 */
@@ -432,44 +251,13 @@ type V1betaBatchListReplicationsDefault struct {
 	Payload *models.Error
 }
 
-// IsSuccess returns true when this v1beta batch list replications default response has a 2xx status code
-func (o *V1betaBatchListReplicationsDefault) IsSuccess() bool {
-	return o._statusCode/100 == 2
-}
-
-// IsRedirect returns true when this v1beta batch list replications default response has a 3xx status code
-func (o *V1betaBatchListReplicationsDefault) IsRedirect() bool {
-	return o._statusCode/100 == 3
-}
-
-// IsClientError returns true when this v1beta batch list replications default response has a 4xx status code
-func (o *V1betaBatchListReplicationsDefault) IsClientError() bool {
-	return o._statusCode/100 == 4
-}
-
-// IsServerError returns true when this v1beta batch list replications default response has a 5xx status code
-func (o *V1betaBatchListReplicationsDefault) IsServerError() bool {
-	return o._statusCode/100 == 5
-}
-
-// IsCode returns true when this v1beta batch list replications default response a status code equal to that given
-func (o *V1betaBatchListReplicationsDefault) IsCode(code int) bool {
-	return o._statusCode == code
-}
-
 // Code gets the status code for the v1beta batch list replications default response
 func (o *V1betaBatchListReplicationsDefault) Code() int {
 	return o._statusCode
 }
 
 func (o *V1betaBatchListReplicationsDefault) Error() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[POST /v1beta/locations/{locationId}/batch/replications][%d] v1beta_batchListReplications default %s", o._statusCode, payload)
-}
-
-func (o *V1betaBatchListReplicationsDefault) String() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[POST /v1beta/locations/{locationId}/batch/replications][%d] v1beta_batchListReplications default %s", o._statusCode, payload)
+	return fmt.Sprintf("[POST /v1beta/locations/{locationId}/batch/replications][%d] v1beta_batchListReplications default  %+v", o._statusCode, o.Payload)
 }
 
 func (o *V1betaBatchListReplicationsDefault) GetPayload() *models.Error {

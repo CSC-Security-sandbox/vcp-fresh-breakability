@@ -16,37 +16,40 @@ import (
 	"github.com/go-openapi/strfmt"
 )
 
-// NewV1betaDescribePoolParams creates a new V1betaDescribePoolParams object,
-// with the default timeout for this client.
-//
-// Default values are not hydrated, since defaults are normally applied by the API server side.
-//
-// To enforce default values in parameter, use SetDefaults or WithDefaults.
+// NewV1betaDescribePoolParams creates a new V1betaDescribePoolParams object
+// with the default values initialized.
 func NewV1betaDescribePoolParams() *V1betaDescribePoolParams {
+	var ()
 	return &V1betaDescribePoolParams{
+
 		timeout: cr.DefaultTimeout,
 	}
 }
 
 // NewV1betaDescribePoolParamsWithTimeout creates a new V1betaDescribePoolParams object
-// with the ability to set a timeout on a request.
+// with the default values initialized, and the ability to set a timeout on a request
 func NewV1betaDescribePoolParamsWithTimeout(timeout time.Duration) *V1betaDescribePoolParams {
+	var ()
 	return &V1betaDescribePoolParams{
+
 		timeout: timeout,
 	}
 }
 
 // NewV1betaDescribePoolParamsWithContext creates a new V1betaDescribePoolParams object
-// with the ability to set a context for a request.
+// with the default values initialized, and the ability to set a context for a request
 func NewV1betaDescribePoolParamsWithContext(ctx context.Context) *V1betaDescribePoolParams {
+	var ()
 	return &V1betaDescribePoolParams{
+
 		Context: ctx,
 	}
 }
 
 // NewV1betaDescribePoolParamsWithHTTPClient creates a new V1betaDescribePoolParams object
-// with the ability to set a custom HTTPClient for a request.
+// with the default values initialized, and the ability to set a custom HTTPClient for a request
 func NewV1betaDescribePoolParamsWithHTTPClient(client *http.Client) *V1betaDescribePoolParams {
+	var ()
 	return &V1betaDescribePoolParams{
 		HTTPClient: client,
 	}
@@ -54,55 +57,34 @@ func NewV1betaDescribePoolParamsWithHTTPClient(client *http.Client) *V1betaDescr
 
 /*
 V1betaDescribePoolParams contains all the parameters to send to the API endpoint
-
-	for the v1beta describe pool operation.
-
-	Typically these are written to a http.Request.
+for the v1beta describe pool operation typically these are written to a http.Request
 */
 type V1betaDescribePoolParams struct {
 
-	/* LocationID.
+	/*LocationID
+	  The location/region to perform the operation in.
 
-	   The location/region to perform the operation in.
 	*/
 	LocationID string
+	/*PoolID
+	  UUID v4 used to identify the pool
 
-	/* PoolID.
-
-	   UUID v4 used to identify the pool
 	*/
 	PoolID string
+	/*ProjectNumber
+	  The project number of the GCP project owning the resource being acted upon
 
-	/* ProjectNumber.
-
-	   The project number of the GCP project owning the resource being acted upon
 	*/
 	ProjectNumber string
+	/*XCorrelationID
+	  Correlation identifier
 
-	/* XCorrelationID.
-
-	   Correlation identifier
 	*/
 	XCorrelationID *string
 
 	timeout    time.Duration
 	Context    context.Context
 	HTTPClient *http.Client
-}
-
-// WithDefaults hydrates default values in the v1beta describe pool params (not the query body).
-//
-// All values with no default are reset to their zero value.
-func (o *V1betaDescribePoolParams) WithDefaults() *V1betaDescribePoolParams {
-	o.SetDefaults()
-	return o
-}
-
-// SetDefaults hydrates default values in the v1beta describe pool params (not the query body).
-//
-// All values with no default are reset to their zero value.
-func (o *V1betaDescribePoolParams) SetDefaults() {
-	// no default values defined for this parameter
 }
 
 // WithTimeout adds the timeout to the v1beta describe pool params
@@ -211,6 +193,7 @@ func (o *V1betaDescribePoolParams) WriteToRequest(r runtime.ClientRequest, reg s
 		if err := r.SetHeaderParam("x-correlation-id", *o.XCorrelationID); err != nil {
 			return err
 		}
+
 	}
 
 	if len(res) > 0 {

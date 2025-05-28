@@ -6,8 +6,6 @@ package models
 // Editing this file might prove futile when you re-run the swagger generate command
 
 import (
-	"context"
-
 	"github.com/go-openapi/errors"
 	"github.com/go-openapi/strfmt"
 	"github.com/go-openapi/swag"
@@ -22,7 +20,6 @@ type EstablishPeeringRequestV1beta struct {
 	// peerClusterName
 	//
 	// Name of source cluster to be peered with destination
-	// Example: my-cluster-name
 	// Required: true
 	// Max Length: 44
 	PeerClusterName *string `json:"peerClusterName"`
@@ -30,27 +27,23 @@ type EstablishPeeringRequestV1beta struct {
 	// peerIpAddresses
 	//
 	// List of source node intercluster lif IP addresses to be peered with
-	// Example: ["10.9.8.7","124.124.124.124"]
 	PeerIPAddresses []string `json:"peerIpAddresses"`
 
 	// peerSvmName
 	//
 	// Name of source vserver SVM to be peered with destination vserver SVM
-	// Example: svm_560a3f3cb4d345f18297decc3a5988bc
 	// Required: true
 	PeerSvmName *string `json:"peerSvmName"`
 
 	// peerVolumeName
 	//
 	// Name of source volume to be replicated to destination.
-	// Example: volume_myvolname
 	// Required: true
 	PeerVolumeName *string `json:"peerVolumeName"`
 
 	// peeringCommandExpiryTime
 	//
 	// DateTime value for when cluster peering command should expire.
-	// Example: 2024-04-20T16:21:01+01:00
 	// Format: date-time
 	PeeringCommandExpiryTime *strfmt.DateTime `json:"peeringCommandExpiryTime,omitempty"`
 }
@@ -87,7 +80,7 @@ func (m *EstablishPeeringRequestV1beta) validatePeerClusterName(formats strfmt.R
 		return err
 	}
 
-	if err := validate.MaxLength("peerClusterName", "body", *m.PeerClusterName, 44); err != nil {
+	if err := validate.MaxLength("peerClusterName", "body", string(*m.PeerClusterName), 44); err != nil {
 		return err
 	}
 
@@ -113,6 +106,7 @@ func (m *EstablishPeeringRequestV1beta) validatePeerVolumeName(formats strfmt.Re
 }
 
 func (m *EstablishPeeringRequestV1beta) validatePeeringCommandExpiryTime(formats strfmt.Registry) error {
+
 	if swag.IsZero(m.PeeringCommandExpiryTime) { // not required
 		return nil
 	}
@@ -121,11 +115,6 @@ func (m *EstablishPeeringRequestV1beta) validatePeeringCommandExpiryTime(formats
 		return err
 	}
 
-	return nil
-}
-
-// ContextValidate validates this establish peering request v1beta based on context it is used
-func (m *EstablishPeeringRequestV1beta) ContextValidate(ctx context.Context, formats strfmt.Registry) error {
 	return nil
 }
 

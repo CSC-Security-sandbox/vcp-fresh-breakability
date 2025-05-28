@@ -6,7 +6,6 @@ package models
 // Editing this file might prove futile when you re-run the swagger generate command
 
 import (
-	"context"
 	"encoding/json"
 
 	"github.com/go-openapi/errors"
@@ -23,7 +22,6 @@ type VolumeCreateV1beta struct {
 	// backupId
 	//
 	// UUID v4 used to identify the backup
-	// Example: 463811e7-9760-acf5-9bdb-020073ca3333
 	// Max Length: 36
 	// Min Length: 36
 	// Pattern: ^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$
@@ -32,7 +30,6 @@ type VolumeCreateV1beta struct {
 	// backupPath
 	//
 	// Complete resource path of the backup
-	// Example: projects/123456789/locations/us-e4/backupVaults/bv1/backups/backupName
 	BackupPath string `json:"backupPath,omitempty"`
 
 	// hybrid replication parameters
@@ -41,7 +38,6 @@ type VolumeCreateV1beta struct {
 	// snapshotId
 	//
 	// UUID v4 used to identify the Snapshot
-	// Example: 9760acf5-4638-11e7-9bdb-020073ca3333
 	// Max Length: 36
 	// Min Length: 36
 	// Pattern: ^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$
@@ -54,7 +50,7 @@ type VolumeCreateV1beta struct {
 	// volumeType
 	//
 	// The type of the volume
-	// Enum: ["PRIMARY","SECONDARY"]
+	// Enum: [PRIMARY SECONDARY]
 	VolumeType string `json:"volumeType,omitempty"`
 }
 
@@ -89,19 +85,20 @@ func (m *VolumeCreateV1beta) Validate(formats strfmt.Registry) error {
 }
 
 func (m *VolumeCreateV1beta) validateBackupID(formats strfmt.Registry) error {
+
 	if swag.IsZero(m.BackupID) { // not required
 		return nil
 	}
 
-	if err := validate.MinLength("backupId", "body", m.BackupID, 36); err != nil {
+	if err := validate.MinLength("backupId", "body", string(m.BackupID), 36); err != nil {
 		return err
 	}
 
-	if err := validate.MaxLength("backupId", "body", m.BackupID, 36); err != nil {
+	if err := validate.MaxLength("backupId", "body", string(m.BackupID), 36); err != nil {
 		return err
 	}
 
-	if err := validate.Pattern("backupId", "body", m.BackupID, `^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$`); err != nil {
+	if err := validate.Pattern("backupId", "body", string(m.BackupID), `^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$`); err != nil {
 		return err
 	}
 
@@ -109,6 +106,7 @@ func (m *VolumeCreateV1beta) validateBackupID(formats strfmt.Registry) error {
 }
 
 func (m *VolumeCreateV1beta) validateHybridReplicationParameters(formats strfmt.Registry) error {
+
 	if swag.IsZero(m.HybridReplicationParameters) { // not required
 		return nil
 	}
@@ -117,8 +115,6 @@ func (m *VolumeCreateV1beta) validateHybridReplicationParameters(formats strfmt.
 		if err := m.HybridReplicationParameters.Validate(formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("hybridReplicationParameters")
-			} else if ce, ok := err.(*errors.CompositeError); ok {
-				return ce.ValidateName("hybridReplicationParameters")
 			}
 			return err
 		}
@@ -128,19 +124,20 @@ func (m *VolumeCreateV1beta) validateHybridReplicationParameters(formats strfmt.
 }
 
 func (m *VolumeCreateV1beta) validateSnapshotID(formats strfmt.Registry) error {
+
 	if swag.IsZero(m.SnapshotID) { // not required
 		return nil
 	}
 
-	if err := validate.MinLength("snapshotId", "body", m.SnapshotID, 36); err != nil {
+	if err := validate.MinLength("snapshotId", "body", string(m.SnapshotID), 36); err != nil {
 		return err
 	}
 
-	if err := validate.MaxLength("snapshotId", "body", m.SnapshotID, 36); err != nil {
+	if err := validate.MaxLength("snapshotId", "body", string(m.SnapshotID), 36); err != nil {
 		return err
 	}
 
-	if err := validate.Pattern("snapshotId", "body", m.SnapshotID, `^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$`); err != nil {
+	if err := validate.Pattern("snapshotId", "body", string(m.SnapshotID), `^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$`); err != nil {
 		return err
 	}
 
@@ -157,8 +154,6 @@ func (m *VolumeCreateV1beta) validateVolume(formats strfmt.Registry) error {
 		if err := m.Volume.Validate(formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("volume")
-			} else if ce, ok := err.(*errors.CompositeError); ok {
-				return ce.ValidateName("volume")
 			}
 			return err
 		}
@@ -197,6 +192,7 @@ func (m *VolumeCreateV1beta) validateVolumeTypeEnum(path, location string, value
 }
 
 func (m *VolumeCreateV1beta) validateVolumeType(formats strfmt.Registry) error {
+
 	if swag.IsZero(m.VolumeType) { // not required
 		return nil
 	}
@@ -204,62 +200,6 @@ func (m *VolumeCreateV1beta) validateVolumeType(formats strfmt.Registry) error {
 	// value enum
 	if err := m.validateVolumeTypeEnum("volumeType", "body", m.VolumeType); err != nil {
 		return err
-	}
-
-	return nil
-}
-
-// ContextValidate validate this volume create v1beta based on the context it is used
-func (m *VolumeCreateV1beta) ContextValidate(ctx context.Context, formats strfmt.Registry) error {
-	var res []error
-
-	if err := m.contextValidateHybridReplicationParameters(ctx, formats); err != nil {
-		res = append(res, err)
-	}
-
-	if err := m.contextValidateVolume(ctx, formats); err != nil {
-		res = append(res, err)
-	}
-
-	if len(res) > 0 {
-		return errors.CompositeValidationError(res...)
-	}
-	return nil
-}
-
-func (m *VolumeCreateV1beta) contextValidateHybridReplicationParameters(ctx context.Context, formats strfmt.Registry) error {
-
-	if m.HybridReplicationParameters != nil {
-
-		if swag.IsZero(m.HybridReplicationParameters) { // not required
-			return nil
-		}
-
-		if err := m.HybridReplicationParameters.ContextValidate(ctx, formats); err != nil {
-			if ve, ok := err.(*errors.Validation); ok {
-				return ve.ValidateName("hybridReplicationParameters")
-			} else if ce, ok := err.(*errors.CompositeError); ok {
-				return ce.ValidateName("hybridReplicationParameters")
-			}
-			return err
-		}
-	}
-
-	return nil
-}
-
-func (m *VolumeCreateV1beta) contextValidateVolume(ctx context.Context, formats strfmt.Registry) error {
-
-	if m.Volume != nil {
-
-		if err := m.Volume.ContextValidate(ctx, formats); err != nil {
-			if ve, ok := err.(*errors.Validation); ok {
-				return ve.ValidateName("volume")
-			} else if ce, ok := err.(*errors.CompositeError); ok {
-				return ce.ValidateName("volume")
-			}
-			return err
-		}
 	}
 
 	return nil

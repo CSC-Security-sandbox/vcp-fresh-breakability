@@ -6,7 +6,6 @@ package models
 // Editing this file might prove futile when you re-run the swagger generate command
 
 import (
-	"context"
 	"encoding/json"
 
 	"github.com/go-openapi/errors"
@@ -23,13 +22,11 @@ type AnthosServiceMeshUpdateV1beta struct {
 	// forceDisable
 	//
 	// If true, will force teardown the ASM
-	// Example: true
 	ForceDisable bool `json:"forceDisable,omitempty"`
 
 	// hostUUID
 	//
 	// UUID v4 used to identify for the unique ID
-	// Example: 9760acf5-4638-11e7-9bdb-020073ca3333
 	// Required: true
 	// Read Only: true
 	// Max Length: 36
@@ -41,7 +38,7 @@ type AnthosServiceMeshUpdateV1beta struct {
 	//
 	// This decides whether manual or automatic mesh management is required
 	// Required: true
-	// Enum: ["enable","disable"]
+	// Enum: [enable disable]
 	MeshState *string `json:"meshState"`
 }
 
@@ -114,19 +111,19 @@ func (m *AnthosServiceMeshUpdateV1beta) Validate(formats strfmt.Registry) error 
 
 func (m *AnthosServiceMeshUpdateV1beta) validateHostUUID(formats strfmt.Registry) error {
 
-	if err := validate.RequiredString("hostUUID", "body", m.HostUUID); err != nil {
+	if err := validate.RequiredString("hostUUID", "body", string(m.HostUUID)); err != nil {
 		return err
 	}
 
-	if err := validate.MinLength("hostUUID", "body", m.HostUUID, 36); err != nil {
+	if err := validate.MinLength("hostUUID", "body", string(m.HostUUID), 36); err != nil {
 		return err
 	}
 
-	if err := validate.MaxLength("hostUUID", "body", m.HostUUID, 36); err != nil {
+	if err := validate.MaxLength("hostUUID", "body", string(m.HostUUID), 36); err != nil {
 		return err
 	}
 
-	if err := validate.Pattern("hostUUID", "body", m.HostUUID, `^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$`); err != nil {
+	if err := validate.Pattern("hostUUID", "body", string(m.HostUUID), `^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$`); err != nil {
 		return err
 	}
 
@@ -161,29 +158,6 @@ func (m *AnthosServiceMeshUpdateV1beta) validateMeshState(formats strfmt.Registr
 
 	// value enum
 	if err := m.validateMeshStateEnum("meshState", "body", *m.MeshState); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-// ContextValidate validate this anthos service mesh update v1beta based on the context it is used
-func (m *AnthosServiceMeshUpdateV1beta) ContextValidate(ctx context.Context, formats strfmt.Registry) error {
-	var res []error
-
-	if err := m.contextValidateHostUUID(ctx, formats); err != nil {
-		res = append(res, err)
-	}
-
-	if len(res) > 0 {
-		return errors.CompositeValidationError(res...)
-	}
-	return nil
-}
-
-func (m *AnthosServiceMeshUpdateV1beta) contextValidateHostUUID(ctx context.Context, formats strfmt.Registry) error {
-
-	if err := validate.ReadOnly(ctx, "hostUUID", "body", string(m.HostUUID)); err != nil {
 		return err
 	}
 

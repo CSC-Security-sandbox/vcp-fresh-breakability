@@ -6,7 +6,6 @@ package models
 // Editing this file might prove futile when you re-run the swagger generate command
 
 import (
-	"context"
 	"encoding/json"
 
 	"github.com/go-openapi/errors"
@@ -24,7 +23,6 @@ type BackupPolicyV1beta struct {
 	// backupPolicyId
 	//
 	// UUID v4 used to identify the backup policy
-	// Example: 9760acf5-4638-11e7-9bdb-020073ca3333
 	// Read Only: true
 	// Max Length: 36
 	// Min Length: 36
@@ -34,22 +32,18 @@ type BackupPolicyV1beta struct {
 	// createdAt
 	//
 	// The timestamp of resource creation (UTC)
-	// Example: 2016-11-30T23:59:59.999Z
 	// Read Only: true
 	// Format: date-time
 	CreatedAt *strfmt.DateTime `json:"createdAt,omitempty"`
 
 	// Description of the backup policy
-	// Example: Backup policy description
 	Description *string `json:"description,omitempty"`
 
 	// If enabled, backup policy will be available for any volume to use.
-	// Example: true
 	// Required: true
 	Enabled *bool `json:"enabled"`
 
 	// A human readable label for the resource which is restricted to letters, numbers, and hyphen, with the first character a letter, the last a letter or a number, and a 63 character maximum
-	// Example: Some-backup-policy-name
 	// Required: true
 	// Max Length: 63
 	// Pattern: ^[a-z]([a-z0-9-]{0,61}[a-z0-9])?$
@@ -58,13 +52,11 @@ type BackupPolicyV1beta struct {
 	// state
 	//
 	// The current state of the backup policy
-	// Example: READY
 	// Read Only: true
-	// Enum: ["STATE_UNSPECIFIED","CREATING","UPDATING","DELETING","READY","DELETED","ERROR"]
+	// Enum: [STATE_UNSPECIFIED CREATING UPDATING DELETING READY DELETED ERROR]
 	State string `json:"state,omitempty"`
 
 	// Total volumes assigned to the backup policy
-	// Example: 6
 	// Read Only: true
 	VolumeCount *int64 `json:"volumeCount,omitempty"`
 }
@@ -198,19 +190,20 @@ func (m *BackupPolicyV1beta) Validate(formats strfmt.Registry) error {
 }
 
 func (m *BackupPolicyV1beta) validateBackupPolicyID(formats strfmt.Registry) error {
+
 	if swag.IsZero(m.BackupPolicyID) { // not required
 		return nil
 	}
 
-	if err := validate.MinLength("backupPolicyId", "body", m.BackupPolicyID, 36); err != nil {
+	if err := validate.MinLength("backupPolicyId", "body", string(m.BackupPolicyID), 36); err != nil {
 		return err
 	}
 
-	if err := validate.MaxLength("backupPolicyId", "body", m.BackupPolicyID, 36); err != nil {
+	if err := validate.MaxLength("backupPolicyId", "body", string(m.BackupPolicyID), 36); err != nil {
 		return err
 	}
 
-	if err := validate.Pattern("backupPolicyId", "body", m.BackupPolicyID, `^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$`); err != nil {
+	if err := validate.Pattern("backupPolicyId", "body", string(m.BackupPolicyID), `^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$`); err != nil {
 		return err
 	}
 
@@ -218,6 +211,7 @@ func (m *BackupPolicyV1beta) validateBackupPolicyID(formats strfmt.Registry) err
 }
 
 func (m *BackupPolicyV1beta) validateCreatedAt(formats strfmt.Registry) error {
+
 	if swag.IsZero(m.CreatedAt) { // not required
 		return nil
 	}
@@ -244,11 +238,11 @@ func (m *BackupPolicyV1beta) validateResourceID(formats strfmt.Registry) error {
 		return err
 	}
 
-	if err := validate.MaxLength("resourceId", "body", *m.ResourceID, 63); err != nil {
+	if err := validate.MaxLength("resourceId", "body", string(*m.ResourceID), 63); err != nil {
 		return err
 	}
 
-	if err := validate.Pattern("resourceId", "body", *m.ResourceID, `^[a-z]([a-z0-9-]{0,61}[a-z0-9])?$`); err != nil {
+	if err := validate.Pattern("resourceId", "body", string(*m.ResourceID), `^[a-z]([a-z0-9-]{0,61}[a-z0-9])?$`); err != nil {
 		return err
 	}
 
@@ -300,79 +294,13 @@ func (m *BackupPolicyV1beta) validateStateEnum(path, location string, value stri
 }
 
 func (m *BackupPolicyV1beta) validateState(formats strfmt.Registry) error {
+
 	if swag.IsZero(m.State) { // not required
 		return nil
 	}
 
 	// value enum
 	if err := m.validateStateEnum("state", "body", m.State); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-// ContextValidate validate this backup policy v1beta based on the context it is used
-func (m *BackupPolicyV1beta) ContextValidate(ctx context.Context, formats strfmt.Registry) error {
-	var res []error
-
-	// validation for a type composition with BackupPolicyScheduleV1beta
-	if err := m.BackupPolicyScheduleV1beta.ContextValidate(ctx, formats); err != nil {
-		res = append(res, err)
-	}
-
-	if err := m.contextValidateBackupPolicyID(ctx, formats); err != nil {
-		res = append(res, err)
-	}
-
-	if err := m.contextValidateCreatedAt(ctx, formats); err != nil {
-		res = append(res, err)
-	}
-
-	if err := m.contextValidateState(ctx, formats); err != nil {
-		res = append(res, err)
-	}
-
-	if err := m.contextValidateVolumeCount(ctx, formats); err != nil {
-		res = append(res, err)
-	}
-
-	if len(res) > 0 {
-		return errors.CompositeValidationError(res...)
-	}
-	return nil
-}
-
-func (m *BackupPolicyV1beta) contextValidateBackupPolicyID(ctx context.Context, formats strfmt.Registry) error {
-
-	if err := validate.ReadOnly(ctx, "backupPolicyId", "body", string(m.BackupPolicyID)); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (m *BackupPolicyV1beta) contextValidateCreatedAt(ctx context.Context, formats strfmt.Registry) error {
-
-	if err := validate.ReadOnly(ctx, "createdAt", "body", m.CreatedAt); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (m *BackupPolicyV1beta) contextValidateState(ctx context.Context, formats strfmt.Registry) error {
-
-	if err := validate.ReadOnly(ctx, "state", "body", string(m.State)); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (m *BackupPolicyV1beta) contextValidateVolumeCount(ctx context.Context, formats strfmt.Registry) error {
-
-	if err := validate.ReadOnly(ctx, "volumeCount", "body", m.VolumeCount); err != nil {
 		return err
 	}
 

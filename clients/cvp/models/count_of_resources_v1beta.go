@@ -6,8 +6,6 @@ package models
 // Editing this file might prove futile when you re-run the swagger generate command
 
 import (
-	"context"
-
 	"github.com/go-openapi/strfmt"
 	"github.com/go-openapi/swag"
 )
@@ -20,21 +18,14 @@ import (
 type CountOfResourcesV1beta struct {
 
 	// Number of resources
-	// Example: 20
 	NumberOfResources int64 `json:"NumberOfResources,omitempty"`
 
 	// Type of the resource
-	// Example: volume
 	ResourceType string `json:"resourceType,omitempty"`
 }
 
 // Validate validates this count of resources v1beta
 func (m *CountOfResourcesV1beta) Validate(formats strfmt.Registry) error {
-	return nil
-}
-
-// ContextValidate validates this count of resources v1beta based on context it is used
-func (m *CountOfResourcesV1beta) ContextValidate(ctx context.Context, formats strfmt.Registry) error {
 	return nil
 }
 

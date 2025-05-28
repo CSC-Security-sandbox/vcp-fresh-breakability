@@ -6,7 +6,6 @@ package models
 // Editing this file might prove futile when you re-run the swagger generate command
 
 import (
-	"context"
 	"encoding/json"
 
 	"github.com/go-openapi/errors"
@@ -21,7 +20,6 @@ import (
 type BatchPoolV1beta struct {
 
 	// UUID of Active Directory configuration
-	// Example: 9760acf5-4638-11e7-9bdb-020073ca7773
 	// Max Length: 36
 	// Min Length: 36
 	// Pattern: ^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$
@@ -30,21 +28,18 @@ type BatchPoolV1beta struct {
 	// activeDirectoryResourceId
 	//
 	// The resource ID for the connected Active Directory
-	// Example: mydirectory
 	// Read Only: true
 	ActiveDirectoryResourceID *string `json:"activeDirectoryResourceId,omitempty"`
 
 	// allocatedBytes
 	//
 	// Total size of allocated volumes in bytes.
-	// Example: 100000000000000
 	// Read Only: true
 	AllocatedBytes *float64 `json:"allocatedBytes,omitempty"`
 
 	// created
 	//
 	// Creation date of the resource
-	// Example: 2016-11-30T20:32:50.459Z
 	// Read Only: true
 	// Format: date-time
 	Created *strfmt.DateTime `json:"created,omitempty"`
@@ -52,20 +47,17 @@ type BatchPoolV1beta struct {
 	// description
 	//
 	// Description of the volume.
-	// Example: My Pool description
 	// Max Length: 2048
 	Description string `json:"description,omitempty"`
 
 	// encryptionType
 	//
 	// Type of encryption used for volumes; Can either be service managed key (service_managed) or cloud_kms
-	// Example: SERVICE_MANAGED
 	// Read Only: true
-	// Enum: ["ENCRYPTION_TYPE_UNSPECIFIED","SERVICE_MANAGED","CLOUD_KMS"]
+	// Enum: [ENCRYPTION_TYPE_UNSPECIFIED SERVICE_MANAGED CLOUD_KMS]
 	EncryptionType string `json:"encryptionType,omitempty"`
 
 	// UUID of the key to be used for encryption.
-	// Example: 9760acf5-4638-11e7-9bdb-020073ca7772
 	// Read Only: true
 	// Max Length: 36
 	// Min Length: 36
@@ -75,21 +67,18 @@ type BatchPoolV1beta struct {
 	// kmsConfigResourceId
 	//
 	// The resource ID for the connected KMS configuration
-	// Example: myconfig
 	// Read Only: true
 	KmsConfigResourceID *string `json:"kmsConfigResourceId,omitempty"`
 
 	// numberOfVolumes
 	//
 	// Number of volumes in a pool
-	// Example: 20
 	// Read Only: true
 	NumberOfVolumes *int64 `json:"numberOfVolumes,omitempty"`
 
 	// poolId
 	//
 	// UUID v4 used to identify a resource - PoolID, netapp_uuid
-	// Example: 87654321-4638-11e7-9bdb-123456789012
 	// Read Only: true
 	// Max Length: 36
 	// Min Length: 36
@@ -97,35 +86,30 @@ type BatchPoolV1beta struct {
 	PoolID string `json:"poolId,omitempty"`
 
 	// The current lifecycle state of the pool
-	// Example: READY
 	// Read Only: true
 	PoolState string `json:"poolState,omitempty"`
 
 	// poolStateDetails
 	//
 	// Details about the current lifecycle state
-	// Example: Available for use
 	// Read Only: true
 	PoolStateDetails *string `json:"poolStateDetails,omitempty"`
 
 	// resourceId
 	//
 	// The resource ID of the pool.
-	// Example: some-weird-name
 	// Read Only: true
 	ResourceID *string `json:"resourceId,omitempty"`
 
 	// serviceLevel
 	//
 	// The service level of the pool
-	// Example: EXTREME
 	// Read Only: true
 	ServiceLevel string `json:"serviceLevel,omitempty"`
 
 	// size
 	//
 	// Size of the pool in bytes
-	// Example: 2199023255552
 	SizeInBytes *float64 `json:"sizeInBytes,omitempty"`
 }
 
@@ -164,19 +148,20 @@ func (m *BatchPoolV1beta) Validate(formats strfmt.Registry) error {
 }
 
 func (m *BatchPoolV1beta) validateActiveDirectoryConfigID(formats strfmt.Registry) error {
+
 	if swag.IsZero(m.ActiveDirectoryConfigID) { // not required
 		return nil
 	}
 
-	if err := validate.MinLength("activeDirectoryConfigId", "body", *m.ActiveDirectoryConfigID, 36); err != nil {
+	if err := validate.MinLength("activeDirectoryConfigId", "body", string(*m.ActiveDirectoryConfigID), 36); err != nil {
 		return err
 	}
 
-	if err := validate.MaxLength("activeDirectoryConfigId", "body", *m.ActiveDirectoryConfigID, 36); err != nil {
+	if err := validate.MaxLength("activeDirectoryConfigId", "body", string(*m.ActiveDirectoryConfigID), 36); err != nil {
 		return err
 	}
 
-	if err := validate.Pattern("activeDirectoryConfigId", "body", *m.ActiveDirectoryConfigID, `^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$`); err != nil {
+	if err := validate.Pattern("activeDirectoryConfigId", "body", string(*m.ActiveDirectoryConfigID), `^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$`); err != nil {
 		return err
 	}
 
@@ -184,6 +169,7 @@ func (m *BatchPoolV1beta) validateActiveDirectoryConfigID(formats strfmt.Registr
 }
 
 func (m *BatchPoolV1beta) validateCreated(formats strfmt.Registry) error {
+
 	if swag.IsZero(m.Created) { // not required
 		return nil
 	}
@@ -196,11 +182,12 @@ func (m *BatchPoolV1beta) validateCreated(formats strfmt.Registry) error {
 }
 
 func (m *BatchPoolV1beta) validateDescription(formats strfmt.Registry) error {
+
 	if swag.IsZero(m.Description) { // not required
 		return nil
 	}
 
-	if err := validate.MaxLength("description", "body", m.Description, 2048); err != nil {
+	if err := validate.MaxLength("description", "body", string(m.Description), 2048); err != nil {
 		return err
 	}
 
@@ -240,6 +227,7 @@ func (m *BatchPoolV1beta) validateEncryptionTypeEnum(path, location string, valu
 }
 
 func (m *BatchPoolV1beta) validateEncryptionType(formats strfmt.Registry) error {
+
 	if swag.IsZero(m.EncryptionType) { // not required
 		return nil
 	}
@@ -253,19 +241,20 @@ func (m *BatchPoolV1beta) validateEncryptionType(formats strfmt.Registry) error 
 }
 
 func (m *BatchPoolV1beta) validateKmsConfigID(formats strfmt.Registry) error {
+
 	if swag.IsZero(m.KmsConfigID) { // not required
 		return nil
 	}
 
-	if err := validate.MinLength("kmsConfigId", "body", *m.KmsConfigID, 36); err != nil {
+	if err := validate.MinLength("kmsConfigId", "body", string(*m.KmsConfigID), 36); err != nil {
 		return err
 	}
 
-	if err := validate.MaxLength("kmsConfigId", "body", *m.KmsConfigID, 36); err != nil {
+	if err := validate.MaxLength("kmsConfigId", "body", string(*m.KmsConfigID), 36); err != nil {
 		return err
 	}
 
-	if err := validate.Pattern("kmsConfigId", "body", *m.KmsConfigID, `^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$`); err != nil {
+	if err := validate.Pattern("kmsConfigId", "body", string(*m.KmsConfigID), `^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$`); err != nil {
 		return err
 	}
 
@@ -273,185 +262,20 @@ func (m *BatchPoolV1beta) validateKmsConfigID(formats strfmt.Registry) error {
 }
 
 func (m *BatchPoolV1beta) validatePoolID(formats strfmt.Registry) error {
+
 	if swag.IsZero(m.PoolID) { // not required
 		return nil
 	}
 
-	if err := validate.MinLength("poolId", "body", m.PoolID, 36); err != nil {
+	if err := validate.MinLength("poolId", "body", string(m.PoolID), 36); err != nil {
 		return err
 	}
 
-	if err := validate.MaxLength("poolId", "body", m.PoolID, 36); err != nil {
+	if err := validate.MaxLength("poolId", "body", string(m.PoolID), 36); err != nil {
 		return err
 	}
 
-	if err := validate.Pattern("poolId", "body", m.PoolID, `^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$`); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-// ContextValidate validate this batch pool v1beta based on the context it is used
-func (m *BatchPoolV1beta) ContextValidate(ctx context.Context, formats strfmt.Registry) error {
-	var res []error
-
-	if err := m.contextValidateActiveDirectoryResourceID(ctx, formats); err != nil {
-		res = append(res, err)
-	}
-
-	if err := m.contextValidateAllocatedBytes(ctx, formats); err != nil {
-		res = append(res, err)
-	}
-
-	if err := m.contextValidateCreated(ctx, formats); err != nil {
-		res = append(res, err)
-	}
-
-	if err := m.contextValidateEncryptionType(ctx, formats); err != nil {
-		res = append(res, err)
-	}
-
-	if err := m.contextValidateKmsConfigID(ctx, formats); err != nil {
-		res = append(res, err)
-	}
-
-	if err := m.contextValidateKmsConfigResourceID(ctx, formats); err != nil {
-		res = append(res, err)
-	}
-
-	if err := m.contextValidateNumberOfVolumes(ctx, formats); err != nil {
-		res = append(res, err)
-	}
-
-	if err := m.contextValidatePoolID(ctx, formats); err != nil {
-		res = append(res, err)
-	}
-
-	if err := m.contextValidatePoolState(ctx, formats); err != nil {
-		res = append(res, err)
-	}
-
-	if err := m.contextValidatePoolStateDetails(ctx, formats); err != nil {
-		res = append(res, err)
-	}
-
-	if err := m.contextValidateResourceID(ctx, formats); err != nil {
-		res = append(res, err)
-	}
-
-	if err := m.contextValidateServiceLevel(ctx, formats); err != nil {
-		res = append(res, err)
-	}
-
-	if len(res) > 0 {
-		return errors.CompositeValidationError(res...)
-	}
-	return nil
-}
-
-func (m *BatchPoolV1beta) contextValidateActiveDirectoryResourceID(ctx context.Context, formats strfmt.Registry) error {
-
-	if err := validate.ReadOnly(ctx, "activeDirectoryResourceId", "body", m.ActiveDirectoryResourceID); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (m *BatchPoolV1beta) contextValidateAllocatedBytes(ctx context.Context, formats strfmt.Registry) error {
-
-	if err := validate.ReadOnly(ctx, "allocatedBytes", "body", m.AllocatedBytes); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (m *BatchPoolV1beta) contextValidateCreated(ctx context.Context, formats strfmt.Registry) error {
-
-	if err := validate.ReadOnly(ctx, "created", "body", m.Created); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (m *BatchPoolV1beta) contextValidateEncryptionType(ctx context.Context, formats strfmt.Registry) error {
-
-	if err := validate.ReadOnly(ctx, "encryptionType", "body", string(m.EncryptionType)); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (m *BatchPoolV1beta) contextValidateKmsConfigID(ctx context.Context, formats strfmt.Registry) error {
-
-	if err := validate.ReadOnly(ctx, "kmsConfigId", "body", m.KmsConfigID); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (m *BatchPoolV1beta) contextValidateKmsConfigResourceID(ctx context.Context, formats strfmt.Registry) error {
-
-	if err := validate.ReadOnly(ctx, "kmsConfigResourceId", "body", m.KmsConfigResourceID); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (m *BatchPoolV1beta) contextValidateNumberOfVolumes(ctx context.Context, formats strfmt.Registry) error {
-
-	if err := validate.ReadOnly(ctx, "numberOfVolumes", "body", m.NumberOfVolumes); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (m *BatchPoolV1beta) contextValidatePoolID(ctx context.Context, formats strfmt.Registry) error {
-
-	if err := validate.ReadOnly(ctx, "poolId", "body", string(m.PoolID)); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (m *BatchPoolV1beta) contextValidatePoolState(ctx context.Context, formats strfmt.Registry) error {
-
-	if err := validate.ReadOnly(ctx, "poolState", "body", string(m.PoolState)); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (m *BatchPoolV1beta) contextValidatePoolStateDetails(ctx context.Context, formats strfmt.Registry) error {
-
-	if err := validate.ReadOnly(ctx, "poolStateDetails", "body", m.PoolStateDetails); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (m *BatchPoolV1beta) contextValidateResourceID(ctx context.Context, formats strfmt.Registry) error {
-
-	if err := validate.ReadOnly(ctx, "resourceId", "body", m.ResourceID); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (m *BatchPoolV1beta) contextValidateServiceLevel(ctx context.Context, formats strfmt.Registry) error {
-
-	if err := validate.ReadOnly(ctx, "serviceLevel", "body", string(m.ServiceLevel)); err != nil {
+	if err := validate.Pattern("poolId", "body", string(m.PoolID), `^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$`); err != nil {
 		return err
 	}
 

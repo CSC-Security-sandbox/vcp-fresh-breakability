@@ -6,9 +6,6 @@ package models
 // Editing this file might prove futile when you re-run the swagger generate command
 
 import (
-	"context"
-
-	"github.com/go-openapi/errors"
 	"github.com/go-openapi/strfmt"
 	"github.com/go-openapi/swag"
 )
@@ -23,28 +20,16 @@ type ChildAssetV2 struct {
 	// asset_names
 	//
 	// List of names of the assets
-	// Example: ["storage.googleapis.com/Bucket/bucket1"]
 	AssetNames []string `json:"asset_names"`
 
 	// asset_type
 	//
 	// The type of the asset
-	// Example: storage.googleapis.com/Bucket
 	AssetType string `json:"asset_type,omitempty"`
 }
 
 // Validate validates this child asset v2
 func (m *ChildAssetV2) Validate(formats strfmt.Registry) error {
-	return nil
-}
-
-// ContextValidate validate this child asset v2 based on the context it is used
-func (m *ChildAssetV2) ContextValidate(ctx context.Context, formats strfmt.Registry) error {
-	var res []error
-
-	if len(res) > 0 {
-		return errors.CompositeValidationError(res...)
-	}
 	return nil
 }
 

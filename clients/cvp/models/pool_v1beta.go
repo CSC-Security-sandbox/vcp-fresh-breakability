@@ -6,7 +6,6 @@ package models
 // Editing this file might prove futile when you re-run the swagger generate command
 
 import (
-	"context"
 	"encoding/json"
 	"strconv"
 
@@ -22,7 +21,6 @@ import (
 type PoolV1beta struct {
 
 	// UUID of Active Directory configuration
-	// Example: 9760acf5-4638-11e7-9bdb-020073ca7773
 	// Max Length: 36
 	// Min Length: 36
 	// Pattern: ^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$
@@ -31,14 +29,12 @@ type PoolV1beta struct {
 	// activeDirectoryResourceId
 	//
 	// The resource ID for the connected Active Directory
-	// Example: projects/my-project-1/locations/eu-west-1/activeDirectories/mydirectory
 	// Read Only: true
 	ActiveDirectoryResourceID string `json:"activeDirectoryResourceId,omitempty"`
 
 	// allocatedBytes
 	//
 	// Total size of allocated volumes in bytes.
-	// Example: 100000000000000
 	// Read Only: true
 	AllocatedBytes *float64 `json:"allocatedBytes,omitempty"`
 
@@ -53,14 +49,12 @@ type PoolV1beta struct {
 	// availableThroughputMibps
 	//
 	// Throughput available for the volumes in MiBps
-	// Example: 10
 	// Read Only: true
 	AvailableThroughputMibps *float64 `json:"availableThroughputMibps,omitempty"`
 
 	// createdAt
 	//
 	// Creation date of the resource
-	// Example: 2016-11-28T19:30:23.123Z
 	// Read Only: true
 	// Format: date-time
 	CreatedAt strfmt.DateTime `json:"createdAt,omitempty"`
@@ -73,7 +67,6 @@ type PoolV1beta struct {
 	// deletedAt
 	//
 	// Date the resource was deleted
-	// Example: 2016-11-30T23:59:59.999Z
 	// Read Only: true
 	// Format: date-time
 	DeletedAt *strfmt.DateTime `json:"deletedAt,omitempty"`
@@ -81,7 +74,6 @@ type PoolV1beta struct {
 	// description
 	//
 	// Description of the pool
-	// Example: My Pool description
 	// Max Length: 2048
 	Description *string `json:"description,omitempty"`
 
@@ -94,19 +86,17 @@ type PoolV1beta struct {
 	//
 	// Type of encryption used for pool, Can either service managed key (service_managed) or cloud_kms
 	// Read Only: true
-	// Enum: ["SERVICE_MANAGED","CLOUD_KMS"]
+	// Enum: [SERVICE_MANAGED CLOUD_KMS]
 	EncryptionType string `json:"encryptionType,omitempty"`
 
 	// globalAccessAllowed
 	//
 	// Flag indicating the enablement of global access on the load balancers
-	// Example: true
 	GlobalAccessAllowed *bool `json:"globalAccessAllowed,omitempty"`
 
 	// hostUUID
 	//
 	// UUID v4 used to identify the host
-	// Example: 9760acf5-4638-11e7-9bdb-020073ca7773
 	// Read Only: true
 	// Max Length: 36
 	// Min Length: 36
@@ -116,7 +106,6 @@ type PoolV1beta struct {
 	// hotTierSizeInBytes
 	//
 	// Hot-tier size of the pool (in bytes) if auto-tiering is enabled (valid only for FLEX)
-	// Example: 1099511627776
 	HotTierSizeInBytes *float64 `json:"hotTierSizeInBytes,omitempty"`
 
 	// isHyperdiskAvailable
@@ -125,7 +114,6 @@ type PoolV1beta struct {
 	IsHyperdiskAvailable *bool `json:"isHyperdiskAvailable,omitempty"`
 
 	// UUID of the key to be used for encryption.
-	// Example: 6aae31f1-f685-4fda-b875-db0ea99235fc
 	// Max Length: 36
 	// Min Length: 36
 	// Pattern: ^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$
@@ -134,14 +122,12 @@ type PoolV1beta struct {
 	// kmsConfigResourceId
 	//
 	// The resource ID for the connected KMS configuration
-	// Example: projects/my-project-1/locations/eu-west-1/kmsConfigs/myconfig
 	// Read Only: true
 	KmsConfigResourceID string `json:"kmsConfigResourceId,omitempty"`
 
 	// labels
 	//
 	// JSON dictionary of resource labels to allow linking of billing labels to a pool
-	// Example: {"someKey":"SomeValue","someKey2":"SomeValue2"}
 	Labels map[string]string `json:"labels,omitempty"`
 
 	// ldapEnabled
@@ -152,7 +138,6 @@ type PoolV1beta struct {
 	// network
 	//
 	// Servicenetworking.connections.network value that is returned after creating a successful VPC peering connection via the GCP service-networking API
-	// Example: projects/123456789/global/networks/network-to-netapp2
 	// Required: true
 	// Pattern: ^projects\/\d+\/global\/networks\/(![0-9]+$)?(!.*-$)?(!-)?[a-zA-Z0-9-]{1,63}$
 	Network *string `json:"network"`
@@ -160,14 +145,12 @@ type PoolV1beta struct {
 	// numberOfVolumes
 	//
 	// Number of volumes in a pool
-	// Example: 20
 	// Read Only: true
 	NumberOfVolumes *int64 `json:"numberOfVolumes,omitempty"`
 
 	// PoolId
 	//
 	// UUID v4 used to identify the pool
-	// Example: 9760acf5-4638-11e7-9bdb-020073ca7773
 	// Read Only: true
 	// Max Length: 36
 	// Min Length: 36
@@ -177,14 +160,12 @@ type PoolV1beta struct {
 	// qosType
 	//
 	// The type of QoS for the pool
-	// Example: auto
-	// Enum: ["auto","manual"]
+	// Enum: [auto manual]
 	QosType *string `json:"qosType,omitempty"`
 
 	// resourceId
 	//
 	// A human readable label for the resource which is restricted to letters, numbers, and hyphen, with the first character a letter, the last a letter or a number, and a 63 character maximum
-	// Example: some-pool-name
 	// Required: true
 	// Max Length: 63
 	// Pattern: ^[a-z]([a-z0-9-]{0,61}[a-z0-9])?$
@@ -205,63 +186,54 @@ type PoolV1beta struct {
 	// secondaryZone
 	//
 	// The desired zone for the failover.
-	// Example: us-east1-c
 	SecondaryZone string `json:"secondaryZone,omitempty"`
 
 	// serviceLevel
 	//
 	// The service level of the storage pool can either be premium, standard, flex or extreme.
-	// Example: PREMIUM
 	// Required: true
-	// Enum: ["SERVICE_LEVEL_UNSPECIFIED","FLEX","STANDARD","PREMIUM","EXTREME"]
+	// Enum: [SERVICE_LEVEL_UNSPECIFIED FLEX STANDARD PREMIUM EXTREME]
 	ServiceLevel *string `json:"serviceLevel"`
 
 	// size
 	//
 	// Size of the pool in bytes
-	// Example: 2199023255552
 	// Required: true
 	SizeInBytes *float64 `json:"sizeInBytes"`
 
 	// StateDetails
 	//
 	// Details about the current state
-	// Example: Error connecting to remote service
 	// Read Only: true
 	StateDetails string `json:"stateDetails,omitempty"`
 
 	// storage class
-	StorageClass *StorageClassV1beta `json:"storageClass,omitempty"`
+	StorageClass StorageClassV1beta `json:"storageClass,omitempty"`
 
 	// The current lifecycle state of the resource
-	// Example: READY
 	// Read Only: true
-	// Enum: ["STATE_UNSPECIFIED","CREATING","READY","UPDATING","RESTORING","DISABLED","DELETING","ERROR"]
+	// Enum: [STATE_UNSPECIFIED CREATING READY UPDATING RESTORING DISABLED DELETING ERROR]
 	StoragePoolState string `json:"storagePoolState,omitempty"`
 
 	// storagePoolStateDetails
 	//
 	// Details about the current lifecycle state
-	// Example: Error connecting to remote service
 	// Read Only: true
 	StoragePoolStateDetails string `json:"storagePoolStateDetails,omitempty"`
 
 	// totalIops
 	//
 	// The total iops set for a pool.
-	// Example: 1600
 	TotalIops *float64 `json:"totalIops,omitempty"`
 
 	// totalThroughputMibps
 	//
 	// Total throughput of the pool in MiBps
-	// Example: 10
 	TotalThroughputMibps *float64 `json:"totalThroughputMibps,omitempty"`
 
 	// updatedAt
 	//
 	// Date of last update of the resource
-	// Example: 2016-11-29T20:32:50.459Z
 	// Read Only: true
 	// Format: date-time
 	UpdatedAt strfmt.DateTime `json:"updatedAt,omitempty"`
@@ -269,7 +241,6 @@ type PoolV1beta struct {
 	// zone
 	//
 	// The desired zone for the storage pool.
-	// Example: us-east1-b
 	Zone string `json:"zone,omitempty"`
 }
 
@@ -352,19 +323,20 @@ func (m *PoolV1beta) Validate(formats strfmt.Registry) error {
 }
 
 func (m *PoolV1beta) validateActiveDirectoryConfigID(formats strfmt.Registry) error {
+
 	if swag.IsZero(m.ActiveDirectoryConfigID) { // not required
 		return nil
 	}
 
-	if err := validate.MinLength("activeDirectoryConfigId", "body", *m.ActiveDirectoryConfigID, 36); err != nil {
+	if err := validate.MinLength("activeDirectoryConfigId", "body", string(*m.ActiveDirectoryConfigID), 36); err != nil {
 		return err
 	}
 
-	if err := validate.MaxLength("activeDirectoryConfigId", "body", *m.ActiveDirectoryConfigID, 36); err != nil {
+	if err := validate.MaxLength("activeDirectoryConfigId", "body", string(*m.ActiveDirectoryConfigID), 36); err != nil {
 		return err
 	}
 
-	if err := validate.Pattern("activeDirectoryConfigId", "body", *m.ActiveDirectoryConfigID, `^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$`); err != nil {
+	if err := validate.Pattern("activeDirectoryConfigId", "body", string(*m.ActiveDirectoryConfigID), `^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$`); err != nil {
 		return err
 	}
 
@@ -372,6 +344,7 @@ func (m *PoolV1beta) validateActiveDirectoryConfigID(formats strfmt.Registry) er
 }
 
 func (m *PoolV1beta) validateAssetLocationMetadata(formats strfmt.Registry) error {
+
 	if swag.IsZero(m.AssetLocationMetadata) { // not required
 		return nil
 	}
@@ -380,8 +353,6 @@ func (m *PoolV1beta) validateAssetLocationMetadata(formats strfmt.Registry) erro
 		if err := m.AssetLocationMetadata.Validate(formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("assetLocationMetadata")
-			} else if ce, ok := err.(*errors.CompositeError); ok {
-				return ce.ValidateName("assetLocationMetadata")
 			}
 			return err
 		}
@@ -391,6 +362,7 @@ func (m *PoolV1beta) validateAssetLocationMetadata(formats strfmt.Registry) erro
 }
 
 func (m *PoolV1beta) validateCreatedAt(formats strfmt.Registry) error {
+
 	if swag.IsZero(m.CreatedAt) { // not required
 		return nil
 	}
@@ -403,6 +375,7 @@ func (m *PoolV1beta) validateCreatedAt(formats strfmt.Registry) error {
 }
 
 func (m *PoolV1beta) validateDeletedAt(formats strfmt.Registry) error {
+
 	if swag.IsZero(m.DeletedAt) { // not required
 		return nil
 	}
@@ -415,11 +388,12 @@ func (m *PoolV1beta) validateDeletedAt(formats strfmt.Registry) error {
 }
 
 func (m *PoolV1beta) validateDescription(formats strfmt.Registry) error {
+
 	if swag.IsZero(m.Description) { // not required
 		return nil
 	}
 
-	if err := validate.MaxLength("description", "body", *m.Description, 2048); err != nil {
+	if err := validate.MaxLength("description", "body", string(*m.Description), 2048); err != nil {
 		return err
 	}
 
@@ -456,6 +430,7 @@ func (m *PoolV1beta) validateEncryptionTypeEnum(path, location string, value str
 }
 
 func (m *PoolV1beta) validateEncryptionType(formats strfmt.Registry) error {
+
 	if swag.IsZero(m.EncryptionType) { // not required
 		return nil
 	}
@@ -469,19 +444,20 @@ func (m *PoolV1beta) validateEncryptionType(formats strfmt.Registry) error {
 }
 
 func (m *PoolV1beta) validateHostUUID(formats strfmt.Registry) error {
+
 	if swag.IsZero(m.HostUUID) { // not required
 		return nil
 	}
 
-	if err := validate.MinLength("hostUUID", "body", m.HostUUID, 36); err != nil {
+	if err := validate.MinLength("hostUUID", "body", string(m.HostUUID), 36); err != nil {
 		return err
 	}
 
-	if err := validate.MaxLength("hostUUID", "body", m.HostUUID, 36); err != nil {
+	if err := validate.MaxLength("hostUUID", "body", string(m.HostUUID), 36); err != nil {
 		return err
 	}
 
-	if err := validate.Pattern("hostUUID", "body", m.HostUUID, `^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$`); err != nil {
+	if err := validate.Pattern("hostUUID", "body", string(m.HostUUID), `^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$`); err != nil {
 		return err
 	}
 
@@ -489,19 +465,20 @@ func (m *PoolV1beta) validateHostUUID(formats strfmt.Registry) error {
 }
 
 func (m *PoolV1beta) validateKmsConfigID(formats strfmt.Registry) error {
+
 	if swag.IsZero(m.KmsConfigID) { // not required
 		return nil
 	}
 
-	if err := validate.MinLength("kmsConfigId", "body", *m.KmsConfigID, 36); err != nil {
+	if err := validate.MinLength("kmsConfigId", "body", string(*m.KmsConfigID), 36); err != nil {
 		return err
 	}
 
-	if err := validate.MaxLength("kmsConfigId", "body", *m.KmsConfigID, 36); err != nil {
+	if err := validate.MaxLength("kmsConfigId", "body", string(*m.KmsConfigID), 36); err != nil {
 		return err
 	}
 
-	if err := validate.Pattern("kmsConfigId", "body", *m.KmsConfigID, `^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$`); err != nil {
+	if err := validate.Pattern("kmsConfigId", "body", string(*m.KmsConfigID), `^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$`); err != nil {
 		return err
 	}
 
@@ -514,7 +491,7 @@ func (m *PoolV1beta) validateNetwork(formats strfmt.Registry) error {
 		return err
 	}
 
-	if err := validate.Pattern("network", "body", *m.Network, `^projects\/\d+\/global\/networks\/(![0-9]+$)?(!.*-$)?(!-)?[a-zA-Z0-9-]{1,63}$`); err != nil {
+	if err := validate.Pattern("network", "body", string(*m.Network), `^projects\/\d+\/global\/networks\/(![0-9]+$)?(!.*-$)?(!-)?[a-zA-Z0-9-]{1,63}$`); err != nil {
 		return err
 	}
 
@@ -522,19 +499,20 @@ func (m *PoolV1beta) validateNetwork(formats strfmt.Registry) error {
 }
 
 func (m *PoolV1beta) validatePoolID(formats strfmt.Registry) error {
+
 	if swag.IsZero(m.PoolID) { // not required
 		return nil
 	}
 
-	if err := validate.MinLength("poolId", "body", m.PoolID, 36); err != nil {
+	if err := validate.MinLength("poolId", "body", string(m.PoolID), 36); err != nil {
 		return err
 	}
 
-	if err := validate.MaxLength("poolId", "body", m.PoolID, 36); err != nil {
+	if err := validate.MaxLength("poolId", "body", string(m.PoolID), 36); err != nil {
 		return err
 	}
 
-	if err := validate.Pattern("poolId", "body", m.PoolID, `^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$`); err != nil {
+	if err := validate.Pattern("poolId", "body", string(m.PoolID), `^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$`); err != nil {
 		return err
 	}
 
@@ -571,6 +549,7 @@ func (m *PoolV1beta) validateQosTypeEnum(path, location string, value string) er
 }
 
 func (m *PoolV1beta) validateQosType(formats strfmt.Registry) error {
+
 	if swag.IsZero(m.QosType) { // not required
 		return nil
 	}
@@ -589,11 +568,11 @@ func (m *PoolV1beta) validateResourceID(formats strfmt.Registry) error {
 		return err
 	}
 
-	if err := validate.MaxLength("resourceId", "body", *m.ResourceID, 63); err != nil {
+	if err := validate.MaxLength("resourceId", "body", string(*m.ResourceID), 63); err != nil {
 		return err
 	}
 
-	if err := validate.Pattern("resourceId", "body", *m.ResourceID, `^[a-z]([a-z0-9-]{0,61}[a-z0-9])?$`); err != nil {
+	if err := validate.Pattern("resourceId", "body", string(*m.ResourceID), `^[a-z]([a-z0-9-]{0,61}[a-z0-9])?$`); err != nil {
 		return err
 	}
 
@@ -662,19 +641,16 @@ func (m *PoolV1beta) validateSizeInBytes(formats strfmt.Registry) error {
 }
 
 func (m *PoolV1beta) validateStorageClass(formats strfmt.Registry) error {
+
 	if swag.IsZero(m.StorageClass) { // not required
 		return nil
 	}
 
-	if m.StorageClass != nil {
-		if err := m.StorageClass.Validate(formats); err != nil {
-			if ve, ok := err.(*errors.Validation); ok {
-				return ve.ValidateName("storageClass")
-			} else if ce, ok := err.(*errors.CompositeError); ok {
-				return ce.ValidateName("storageClass")
-			}
-			return err
+	if err := m.StorageClass.Validate(formats); err != nil {
+		if ve, ok := err.(*errors.Validation); ok {
+			return ve.ValidateName("storageClass")
 		}
+		return err
 	}
 
 	return nil
@@ -728,6 +704,7 @@ func (m *PoolV1beta) validateStoragePoolStateEnum(path, location string, value s
 }
 
 func (m *PoolV1beta) validateStoragePoolState(formats strfmt.Registry) error {
+
 	if swag.IsZero(m.StoragePoolState) { // not required
 		return nil
 	}
@@ -741,279 +718,12 @@ func (m *PoolV1beta) validateStoragePoolState(formats strfmt.Registry) error {
 }
 
 func (m *PoolV1beta) validateUpdatedAt(formats strfmt.Registry) error {
+
 	if swag.IsZero(m.UpdatedAt) { // not required
 		return nil
 	}
 
 	if err := validate.FormatOf("updatedAt", "body", "date-time", m.UpdatedAt.String(), formats); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-// ContextValidate validate this pool v1beta based on the context it is used
-func (m *PoolV1beta) ContextValidate(ctx context.Context, formats strfmt.Registry) error {
-	var res []error
-
-	if err := m.contextValidateActiveDirectoryResourceID(ctx, formats); err != nil {
-		res = append(res, err)
-	}
-
-	if err := m.contextValidateAllocatedBytes(ctx, formats); err != nil {
-		res = append(res, err)
-	}
-
-	if err := m.contextValidateAssetLocationMetadata(ctx, formats); err != nil {
-		res = append(res, err)
-	}
-
-	if err := m.contextValidateAvailableThroughputMibps(ctx, formats); err != nil {
-		res = append(res, err)
-	}
-
-	if err := m.contextValidateCreatedAt(ctx, formats); err != nil {
-		res = append(res, err)
-	}
-
-	if err := m.contextValidateDeletedAt(ctx, formats); err != nil {
-		res = append(res, err)
-	}
-
-	if err := m.contextValidateEncryptionType(ctx, formats); err != nil {
-		res = append(res, err)
-	}
-
-	if err := m.contextValidateHostUUID(ctx, formats); err != nil {
-		res = append(res, err)
-	}
-
-	if err := m.contextValidateKmsConfigResourceID(ctx, formats); err != nil {
-		res = append(res, err)
-	}
-
-	if err := m.contextValidateNumberOfVolumes(ctx, formats); err != nil {
-		res = append(res, err)
-	}
-
-	if err := m.contextValidatePoolID(ctx, formats); err != nil {
-		res = append(res, err)
-	}
-
-	if err := m.contextValidateSatisfiesPzi(ctx, formats); err != nil {
-		res = append(res, err)
-	}
-
-	if err := m.contextValidateSatisfiesPzs(ctx, formats); err != nil {
-		res = append(res, err)
-	}
-
-	if err := m.contextValidateStateDetails(ctx, formats); err != nil {
-		res = append(res, err)
-	}
-
-	if err := m.contextValidateStorageClass(ctx, formats); err != nil {
-		res = append(res, err)
-	}
-
-	if err := m.contextValidateStoragePoolState(ctx, formats); err != nil {
-		res = append(res, err)
-	}
-
-	if err := m.contextValidateStoragePoolStateDetails(ctx, formats); err != nil {
-		res = append(res, err)
-	}
-
-	if err := m.contextValidateUpdatedAt(ctx, formats); err != nil {
-		res = append(res, err)
-	}
-
-	if len(res) > 0 {
-		return errors.CompositeValidationError(res...)
-	}
-	return nil
-}
-
-func (m *PoolV1beta) contextValidateActiveDirectoryResourceID(ctx context.Context, formats strfmt.Registry) error {
-
-	if err := validate.ReadOnly(ctx, "activeDirectoryResourceId", "body", string(m.ActiveDirectoryResourceID)); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (m *PoolV1beta) contextValidateAllocatedBytes(ctx context.Context, formats strfmt.Registry) error {
-
-	if err := validate.ReadOnly(ctx, "allocatedBytes", "body", m.AllocatedBytes); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (m *PoolV1beta) contextValidateAssetLocationMetadata(ctx context.Context, formats strfmt.Registry) error {
-
-	if m.AssetLocationMetadata != nil {
-
-		if swag.IsZero(m.AssetLocationMetadata) { // not required
-			return nil
-		}
-
-		if err := m.AssetLocationMetadata.ContextValidate(ctx, formats); err != nil {
-			if ve, ok := err.(*errors.Validation); ok {
-				return ve.ValidateName("assetLocationMetadata")
-			} else if ce, ok := err.(*errors.CompositeError); ok {
-				return ce.ValidateName("assetLocationMetadata")
-			}
-			return err
-		}
-	}
-
-	return nil
-}
-
-func (m *PoolV1beta) contextValidateAvailableThroughputMibps(ctx context.Context, formats strfmt.Registry) error {
-
-	if err := validate.ReadOnly(ctx, "availableThroughputMibps", "body", m.AvailableThroughputMibps); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (m *PoolV1beta) contextValidateCreatedAt(ctx context.Context, formats strfmt.Registry) error {
-
-	if err := validate.ReadOnly(ctx, "createdAt", "body", strfmt.DateTime(m.CreatedAt)); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (m *PoolV1beta) contextValidateDeletedAt(ctx context.Context, formats strfmt.Registry) error {
-
-	if err := validate.ReadOnly(ctx, "deletedAt", "body", m.DeletedAt); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (m *PoolV1beta) contextValidateEncryptionType(ctx context.Context, formats strfmt.Registry) error {
-
-	if err := validate.ReadOnly(ctx, "encryptionType", "body", string(m.EncryptionType)); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (m *PoolV1beta) contextValidateHostUUID(ctx context.Context, formats strfmt.Registry) error {
-
-	if err := validate.ReadOnly(ctx, "hostUUID", "body", string(m.HostUUID)); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (m *PoolV1beta) contextValidateKmsConfigResourceID(ctx context.Context, formats strfmt.Registry) error {
-
-	if err := validate.ReadOnly(ctx, "kmsConfigResourceId", "body", string(m.KmsConfigResourceID)); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (m *PoolV1beta) contextValidateNumberOfVolumes(ctx context.Context, formats strfmt.Registry) error {
-
-	if err := validate.ReadOnly(ctx, "numberOfVolumes", "body", m.NumberOfVolumes); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (m *PoolV1beta) contextValidatePoolID(ctx context.Context, formats strfmt.Registry) error {
-
-	if err := validate.ReadOnly(ctx, "poolId", "body", string(m.PoolID)); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (m *PoolV1beta) contextValidateSatisfiesPzi(ctx context.Context, formats strfmt.Registry) error {
-
-	if err := validate.ReadOnly(ctx, "satisfies_pzi", "body", m.SatisfiesPzi); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (m *PoolV1beta) contextValidateSatisfiesPzs(ctx context.Context, formats strfmt.Registry) error {
-
-	if err := validate.ReadOnly(ctx, "satisfies_pzs", "body", m.SatisfiesPzs); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (m *PoolV1beta) contextValidateStateDetails(ctx context.Context, formats strfmt.Registry) error {
-
-	if err := validate.ReadOnly(ctx, "stateDetails", "body", string(m.StateDetails)); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (m *PoolV1beta) contextValidateStorageClass(ctx context.Context, formats strfmt.Registry) error {
-
-	if m.StorageClass != nil {
-
-		if swag.IsZero(m.StorageClass) { // not required
-			return nil
-		}
-
-		if err := m.StorageClass.ContextValidate(ctx, formats); err != nil {
-			if ve, ok := err.(*errors.Validation); ok {
-				return ve.ValidateName("storageClass")
-			} else if ce, ok := err.(*errors.CompositeError); ok {
-				return ce.ValidateName("storageClass")
-			}
-			return err
-		}
-	}
-
-	return nil
-}
-
-func (m *PoolV1beta) contextValidateStoragePoolState(ctx context.Context, formats strfmt.Registry) error {
-
-	if err := validate.ReadOnly(ctx, "storagePoolState", "body", string(m.StoragePoolState)); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (m *PoolV1beta) contextValidateStoragePoolStateDetails(ctx context.Context, formats strfmt.Registry) error {
-
-	if err := validate.ReadOnly(ctx, "storagePoolStateDetails", "body", string(m.StoragePoolStateDetails)); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (m *PoolV1beta) contextValidateUpdatedAt(ctx context.Context, formats strfmt.Registry) error {
-
-	if err := validate.ReadOnly(ctx, "updatedAt", "body", strfmt.DateTime(m.UpdatedAt)); err != nil {
 		return err
 	}
 
@@ -1063,6 +773,7 @@ func (m *PoolV1betaAssetLocationMetadata) Validate(formats strfmt.Registry) erro
 }
 
 func (m *PoolV1betaAssetLocationMetadata) validateChildAssets(formats strfmt.Registry) error {
+
 	if swag.IsZero(m.ChildAssets) { // not required
 		return nil
 	}
@@ -1076,51 +787,6 @@ func (m *PoolV1betaAssetLocationMetadata) validateChildAssets(formats strfmt.Reg
 			if err := m.ChildAssets[i].Validate(formats); err != nil {
 				if ve, ok := err.(*errors.Validation); ok {
 					return ve.ValidateName("assetLocationMetadata" + "." + "child_assets" + "." + strconv.Itoa(i))
-				} else if ce, ok := err.(*errors.CompositeError); ok {
-					return ce.ValidateName("assetLocationMetadata" + "." + "child_assets" + "." + strconv.Itoa(i))
-				}
-				return err
-			}
-		}
-
-	}
-
-	return nil
-}
-
-// ContextValidate validate this pool v1beta asset location metadata based on the context it is used
-func (m *PoolV1betaAssetLocationMetadata) ContextValidate(ctx context.Context, formats strfmt.Registry) error {
-	var res []error
-
-	if err := m.contextValidateChildAssets(ctx, formats); err != nil {
-		res = append(res, err)
-	}
-
-	if len(res) > 0 {
-		return errors.CompositeValidationError(res...)
-	}
-	return nil
-}
-
-func (m *PoolV1betaAssetLocationMetadata) contextValidateChildAssets(ctx context.Context, formats strfmt.Registry) error {
-
-	if err := validate.ReadOnly(ctx, "assetLocationMetadata"+"."+"child_assets", "body", []*ChildAsset(m.ChildAssets)); err != nil {
-		return err
-	}
-
-	for i := 0; i < len(m.ChildAssets); i++ {
-
-		if m.ChildAssets[i] != nil {
-
-			if swag.IsZero(m.ChildAssets[i]) { // not required
-				return nil
-			}
-
-			if err := m.ChildAssets[i].ContextValidate(ctx, formats); err != nil {
-				if ve, ok := err.(*errors.Validation); ok {
-					return ve.ValidateName("assetLocationMetadata" + "." + "child_assets" + "." + strconv.Itoa(i))
-				} else if ce, ok := err.(*errors.CompositeError); ok {
-					return ce.ValidateName("assetLocationMetadata" + "." + "child_assets" + "." + strconv.Itoa(i))
 				}
 				return err
 			}

@@ -6,7 +6,6 @@ package volumes
 // Editing this file might prove futile when you re-run the swagger generate command
 
 import (
-	"encoding/json"
 	"fmt"
 	"io"
 
@@ -90,7 +89,7 @@ func NewV1betaGetLatestRestoreStatusOnVolumeOK() *V1betaGetLatestRestoreStatusOn
 }
 
 /*
-V1betaGetLatestRestoreStatusOnVolumeOK describes a response with status code 200, with default header values.
+V1betaGetLatestRestoreStatusOnVolumeOK handles this case with default header values.
 
 OK
 */
@@ -98,44 +97,8 @@ type V1betaGetLatestRestoreStatusOnVolumeOK struct {
 	Payload *models.BackupRestoreStatusV1beta
 }
 
-// IsSuccess returns true when this v1beta get latest restore status on volume o k response has a 2xx status code
-func (o *V1betaGetLatestRestoreStatusOnVolumeOK) IsSuccess() bool {
-	return true
-}
-
-// IsRedirect returns true when this v1beta get latest restore status on volume o k response has a 3xx status code
-func (o *V1betaGetLatestRestoreStatusOnVolumeOK) IsRedirect() bool {
-	return false
-}
-
-// IsClientError returns true when this v1beta get latest restore status on volume o k response has a 4xx status code
-func (o *V1betaGetLatestRestoreStatusOnVolumeOK) IsClientError() bool {
-	return false
-}
-
-// IsServerError returns true when this v1beta get latest restore status on volume o k response has a 5xx status code
-func (o *V1betaGetLatestRestoreStatusOnVolumeOK) IsServerError() bool {
-	return false
-}
-
-// IsCode returns true when this v1beta get latest restore status on volume o k response a status code equal to that given
-func (o *V1betaGetLatestRestoreStatusOnVolumeOK) IsCode(code int) bool {
-	return code == 200
-}
-
-// Code gets the status code for the v1beta get latest restore status on volume o k response
-func (o *V1betaGetLatestRestoreStatusOnVolumeOK) Code() int {
-	return 200
-}
-
 func (o *V1betaGetLatestRestoreStatusOnVolumeOK) Error() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[GET /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/latestRestoreStatus][%d] v1betaGetLatestRestoreStatusOnVolumeOK %s", 200, payload)
-}
-
-func (o *V1betaGetLatestRestoreStatusOnVolumeOK) String() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[GET /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/latestRestoreStatus][%d] v1betaGetLatestRestoreStatusOnVolumeOK %s", 200, payload)
+	return fmt.Sprintf("[GET /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/latestRestoreStatus][%d] v1betaGetLatestRestoreStatusOnVolumeOK  %+v", 200, o.Payload)
 }
 
 func (o *V1betaGetLatestRestoreStatusOnVolumeOK) GetPayload() *models.BackupRestoreStatusV1beta {
@@ -160,7 +123,7 @@ func NewV1betaGetLatestRestoreStatusOnVolumeBadRequest() *V1betaGetLatestRestore
 }
 
 /*
-V1betaGetLatestRestoreStatusOnVolumeBadRequest describes a response with status code 400, with default header values.
+V1betaGetLatestRestoreStatusOnVolumeBadRequest handles this case with default header values.
 
 Bad request
 */
@@ -168,44 +131,8 @@ type V1betaGetLatestRestoreStatusOnVolumeBadRequest struct {
 	Payload *models.Error
 }
 
-// IsSuccess returns true when this v1beta get latest restore status on volume bad request response has a 2xx status code
-func (o *V1betaGetLatestRestoreStatusOnVolumeBadRequest) IsSuccess() bool {
-	return false
-}
-
-// IsRedirect returns true when this v1beta get latest restore status on volume bad request response has a 3xx status code
-func (o *V1betaGetLatestRestoreStatusOnVolumeBadRequest) IsRedirect() bool {
-	return false
-}
-
-// IsClientError returns true when this v1beta get latest restore status on volume bad request response has a 4xx status code
-func (o *V1betaGetLatestRestoreStatusOnVolumeBadRequest) IsClientError() bool {
-	return true
-}
-
-// IsServerError returns true when this v1beta get latest restore status on volume bad request response has a 5xx status code
-func (o *V1betaGetLatestRestoreStatusOnVolumeBadRequest) IsServerError() bool {
-	return false
-}
-
-// IsCode returns true when this v1beta get latest restore status on volume bad request response a status code equal to that given
-func (o *V1betaGetLatestRestoreStatusOnVolumeBadRequest) IsCode(code int) bool {
-	return code == 400
-}
-
-// Code gets the status code for the v1beta get latest restore status on volume bad request response
-func (o *V1betaGetLatestRestoreStatusOnVolumeBadRequest) Code() int {
-	return 400
-}
-
 func (o *V1betaGetLatestRestoreStatusOnVolumeBadRequest) Error() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[GET /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/latestRestoreStatus][%d] v1betaGetLatestRestoreStatusOnVolumeBadRequest %s", 400, payload)
-}
-
-func (o *V1betaGetLatestRestoreStatusOnVolumeBadRequest) String() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[GET /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/latestRestoreStatus][%d] v1betaGetLatestRestoreStatusOnVolumeBadRequest %s", 400, payload)
+	return fmt.Sprintf("[GET /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/latestRestoreStatus][%d] v1betaGetLatestRestoreStatusOnVolumeBadRequest  %+v", 400, o.Payload)
 }
 
 func (o *V1betaGetLatestRestoreStatusOnVolumeBadRequest) GetPayload() *models.Error {
@@ -230,7 +157,7 @@ func NewV1betaGetLatestRestoreStatusOnVolumeUnauthorized() *V1betaGetLatestResto
 }
 
 /*
-V1betaGetLatestRestoreStatusOnVolumeUnauthorized describes a response with status code 401, with default header values.
+V1betaGetLatestRestoreStatusOnVolumeUnauthorized handles this case with default header values.
 
 Unauthorized
 */
@@ -238,44 +165,8 @@ type V1betaGetLatestRestoreStatusOnVolumeUnauthorized struct {
 	Payload *models.Error
 }
 
-// IsSuccess returns true when this v1beta get latest restore status on volume unauthorized response has a 2xx status code
-func (o *V1betaGetLatestRestoreStatusOnVolumeUnauthorized) IsSuccess() bool {
-	return false
-}
-
-// IsRedirect returns true when this v1beta get latest restore status on volume unauthorized response has a 3xx status code
-func (o *V1betaGetLatestRestoreStatusOnVolumeUnauthorized) IsRedirect() bool {
-	return false
-}
-
-// IsClientError returns true when this v1beta get latest restore status on volume unauthorized response has a 4xx status code
-func (o *V1betaGetLatestRestoreStatusOnVolumeUnauthorized) IsClientError() bool {
-	return true
-}
-
-// IsServerError returns true when this v1beta get latest restore status on volume unauthorized response has a 5xx status code
-func (o *V1betaGetLatestRestoreStatusOnVolumeUnauthorized) IsServerError() bool {
-	return false
-}
-
-// IsCode returns true when this v1beta get latest restore status on volume unauthorized response a status code equal to that given
-func (o *V1betaGetLatestRestoreStatusOnVolumeUnauthorized) IsCode(code int) bool {
-	return code == 401
-}
-
-// Code gets the status code for the v1beta get latest restore status on volume unauthorized response
-func (o *V1betaGetLatestRestoreStatusOnVolumeUnauthorized) Code() int {
-	return 401
-}
-
 func (o *V1betaGetLatestRestoreStatusOnVolumeUnauthorized) Error() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[GET /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/latestRestoreStatus][%d] v1betaGetLatestRestoreStatusOnVolumeUnauthorized %s", 401, payload)
-}
-
-func (o *V1betaGetLatestRestoreStatusOnVolumeUnauthorized) String() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[GET /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/latestRestoreStatus][%d] v1betaGetLatestRestoreStatusOnVolumeUnauthorized %s", 401, payload)
+	return fmt.Sprintf("[GET /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/latestRestoreStatus][%d] v1betaGetLatestRestoreStatusOnVolumeUnauthorized  %+v", 401, o.Payload)
 }
 
 func (o *V1betaGetLatestRestoreStatusOnVolumeUnauthorized) GetPayload() *models.Error {
@@ -300,7 +191,7 @@ func NewV1betaGetLatestRestoreStatusOnVolumeForbidden() *V1betaGetLatestRestoreS
 }
 
 /*
-V1betaGetLatestRestoreStatusOnVolumeForbidden describes a response with status code 403, with default header values.
+V1betaGetLatestRestoreStatusOnVolumeForbidden handles this case with default header values.
 
 Forbidden
 */
@@ -308,44 +199,8 @@ type V1betaGetLatestRestoreStatusOnVolumeForbidden struct {
 	Payload *models.Error
 }
 
-// IsSuccess returns true when this v1beta get latest restore status on volume forbidden response has a 2xx status code
-func (o *V1betaGetLatestRestoreStatusOnVolumeForbidden) IsSuccess() bool {
-	return false
-}
-
-// IsRedirect returns true when this v1beta get latest restore status on volume forbidden response has a 3xx status code
-func (o *V1betaGetLatestRestoreStatusOnVolumeForbidden) IsRedirect() bool {
-	return false
-}
-
-// IsClientError returns true when this v1beta get latest restore status on volume forbidden response has a 4xx status code
-func (o *V1betaGetLatestRestoreStatusOnVolumeForbidden) IsClientError() bool {
-	return true
-}
-
-// IsServerError returns true when this v1beta get latest restore status on volume forbidden response has a 5xx status code
-func (o *V1betaGetLatestRestoreStatusOnVolumeForbidden) IsServerError() bool {
-	return false
-}
-
-// IsCode returns true when this v1beta get latest restore status on volume forbidden response a status code equal to that given
-func (o *V1betaGetLatestRestoreStatusOnVolumeForbidden) IsCode(code int) bool {
-	return code == 403
-}
-
-// Code gets the status code for the v1beta get latest restore status on volume forbidden response
-func (o *V1betaGetLatestRestoreStatusOnVolumeForbidden) Code() int {
-	return 403
-}
-
 func (o *V1betaGetLatestRestoreStatusOnVolumeForbidden) Error() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[GET /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/latestRestoreStatus][%d] v1betaGetLatestRestoreStatusOnVolumeForbidden %s", 403, payload)
-}
-
-func (o *V1betaGetLatestRestoreStatusOnVolumeForbidden) String() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[GET /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/latestRestoreStatus][%d] v1betaGetLatestRestoreStatusOnVolumeForbidden %s", 403, payload)
+	return fmt.Sprintf("[GET /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/latestRestoreStatus][%d] v1betaGetLatestRestoreStatusOnVolumeForbidden  %+v", 403, o.Payload)
 }
 
 func (o *V1betaGetLatestRestoreStatusOnVolumeForbidden) GetPayload() *models.Error {
@@ -370,7 +225,7 @@ func NewV1betaGetLatestRestoreStatusOnVolumeNotFound() *V1betaGetLatestRestoreSt
 }
 
 /*
-V1betaGetLatestRestoreStatusOnVolumeNotFound describes a response with status code 404, with default header values.
+V1betaGetLatestRestoreStatusOnVolumeNotFound handles this case with default header values.
 
 Not found
 */
@@ -378,44 +233,8 @@ type V1betaGetLatestRestoreStatusOnVolumeNotFound struct {
 	Payload *models.Error
 }
 
-// IsSuccess returns true when this v1beta get latest restore status on volume not found response has a 2xx status code
-func (o *V1betaGetLatestRestoreStatusOnVolumeNotFound) IsSuccess() bool {
-	return false
-}
-
-// IsRedirect returns true when this v1beta get latest restore status on volume not found response has a 3xx status code
-func (o *V1betaGetLatestRestoreStatusOnVolumeNotFound) IsRedirect() bool {
-	return false
-}
-
-// IsClientError returns true when this v1beta get latest restore status on volume not found response has a 4xx status code
-func (o *V1betaGetLatestRestoreStatusOnVolumeNotFound) IsClientError() bool {
-	return true
-}
-
-// IsServerError returns true when this v1beta get latest restore status on volume not found response has a 5xx status code
-func (o *V1betaGetLatestRestoreStatusOnVolumeNotFound) IsServerError() bool {
-	return false
-}
-
-// IsCode returns true when this v1beta get latest restore status on volume not found response a status code equal to that given
-func (o *V1betaGetLatestRestoreStatusOnVolumeNotFound) IsCode(code int) bool {
-	return code == 404
-}
-
-// Code gets the status code for the v1beta get latest restore status on volume not found response
-func (o *V1betaGetLatestRestoreStatusOnVolumeNotFound) Code() int {
-	return 404
-}
-
 func (o *V1betaGetLatestRestoreStatusOnVolumeNotFound) Error() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[GET /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/latestRestoreStatus][%d] v1betaGetLatestRestoreStatusOnVolumeNotFound %s", 404, payload)
-}
-
-func (o *V1betaGetLatestRestoreStatusOnVolumeNotFound) String() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[GET /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/latestRestoreStatus][%d] v1betaGetLatestRestoreStatusOnVolumeNotFound %s", 404, payload)
+	return fmt.Sprintf("[GET /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/latestRestoreStatus][%d] v1betaGetLatestRestoreStatusOnVolumeNotFound  %+v", 404, o.Payload)
 }
 
 func (o *V1betaGetLatestRestoreStatusOnVolumeNotFound) GetPayload() *models.Error {
@@ -440,7 +259,7 @@ func NewV1betaGetLatestRestoreStatusOnVolumeUnprocessableEntity() *V1betaGetLate
 }
 
 /*
-V1betaGetLatestRestoreStatusOnVolumeUnprocessableEntity describes a response with status code 422, with default header values.
+V1betaGetLatestRestoreStatusOnVolumeUnprocessableEntity handles this case with default header values.
 
 Unprocessable entity
 */
@@ -448,44 +267,8 @@ type V1betaGetLatestRestoreStatusOnVolumeUnprocessableEntity struct {
 	Payload *models.Error
 }
 
-// IsSuccess returns true when this v1beta get latest restore status on volume unprocessable entity response has a 2xx status code
-func (o *V1betaGetLatestRestoreStatusOnVolumeUnprocessableEntity) IsSuccess() bool {
-	return false
-}
-
-// IsRedirect returns true when this v1beta get latest restore status on volume unprocessable entity response has a 3xx status code
-func (o *V1betaGetLatestRestoreStatusOnVolumeUnprocessableEntity) IsRedirect() bool {
-	return false
-}
-
-// IsClientError returns true when this v1beta get latest restore status on volume unprocessable entity response has a 4xx status code
-func (o *V1betaGetLatestRestoreStatusOnVolumeUnprocessableEntity) IsClientError() bool {
-	return true
-}
-
-// IsServerError returns true when this v1beta get latest restore status on volume unprocessable entity response has a 5xx status code
-func (o *V1betaGetLatestRestoreStatusOnVolumeUnprocessableEntity) IsServerError() bool {
-	return false
-}
-
-// IsCode returns true when this v1beta get latest restore status on volume unprocessable entity response a status code equal to that given
-func (o *V1betaGetLatestRestoreStatusOnVolumeUnprocessableEntity) IsCode(code int) bool {
-	return code == 422
-}
-
-// Code gets the status code for the v1beta get latest restore status on volume unprocessable entity response
-func (o *V1betaGetLatestRestoreStatusOnVolumeUnprocessableEntity) Code() int {
-	return 422
-}
-
 func (o *V1betaGetLatestRestoreStatusOnVolumeUnprocessableEntity) Error() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[GET /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/latestRestoreStatus][%d] v1betaGetLatestRestoreStatusOnVolumeUnprocessableEntity %s", 422, payload)
-}
-
-func (o *V1betaGetLatestRestoreStatusOnVolumeUnprocessableEntity) String() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[GET /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/latestRestoreStatus][%d] v1betaGetLatestRestoreStatusOnVolumeUnprocessableEntity %s", 422, payload)
+	return fmt.Sprintf("[GET /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/latestRestoreStatus][%d] v1betaGetLatestRestoreStatusOnVolumeUnprocessableEntity  %+v", 422, o.Payload)
 }
 
 func (o *V1betaGetLatestRestoreStatusOnVolumeUnprocessableEntity) GetPayload() *models.Error {
@@ -510,7 +293,7 @@ func NewV1betaGetLatestRestoreStatusOnVolumeTooManyRequests() *V1betaGetLatestRe
 }
 
 /*
-V1betaGetLatestRestoreStatusOnVolumeTooManyRequests describes a response with status code 429, with default header values.
+V1betaGetLatestRestoreStatusOnVolumeTooManyRequests handles this case with default header values.
 
 Too many requests
 */
@@ -518,44 +301,8 @@ type V1betaGetLatestRestoreStatusOnVolumeTooManyRequests struct {
 	Payload *models.Error
 }
 
-// IsSuccess returns true when this v1beta get latest restore status on volume too many requests response has a 2xx status code
-func (o *V1betaGetLatestRestoreStatusOnVolumeTooManyRequests) IsSuccess() bool {
-	return false
-}
-
-// IsRedirect returns true when this v1beta get latest restore status on volume too many requests response has a 3xx status code
-func (o *V1betaGetLatestRestoreStatusOnVolumeTooManyRequests) IsRedirect() bool {
-	return false
-}
-
-// IsClientError returns true when this v1beta get latest restore status on volume too many requests response has a 4xx status code
-func (o *V1betaGetLatestRestoreStatusOnVolumeTooManyRequests) IsClientError() bool {
-	return true
-}
-
-// IsServerError returns true when this v1beta get latest restore status on volume too many requests response has a 5xx status code
-func (o *V1betaGetLatestRestoreStatusOnVolumeTooManyRequests) IsServerError() bool {
-	return false
-}
-
-// IsCode returns true when this v1beta get latest restore status on volume too many requests response a status code equal to that given
-func (o *V1betaGetLatestRestoreStatusOnVolumeTooManyRequests) IsCode(code int) bool {
-	return code == 429
-}
-
-// Code gets the status code for the v1beta get latest restore status on volume too many requests response
-func (o *V1betaGetLatestRestoreStatusOnVolumeTooManyRequests) Code() int {
-	return 429
-}
-
 func (o *V1betaGetLatestRestoreStatusOnVolumeTooManyRequests) Error() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[GET /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/latestRestoreStatus][%d] v1betaGetLatestRestoreStatusOnVolumeTooManyRequests %s", 429, payload)
-}
-
-func (o *V1betaGetLatestRestoreStatusOnVolumeTooManyRequests) String() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[GET /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/latestRestoreStatus][%d] v1betaGetLatestRestoreStatusOnVolumeTooManyRequests %s", 429, payload)
+	return fmt.Sprintf("[GET /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/latestRestoreStatus][%d] v1betaGetLatestRestoreStatusOnVolumeTooManyRequests  %+v", 429, o.Payload)
 }
 
 func (o *V1betaGetLatestRestoreStatusOnVolumeTooManyRequests) GetPayload() *models.Error {
@@ -580,7 +327,7 @@ func NewV1betaGetLatestRestoreStatusOnVolumeInternalServerError() *V1betaGetLate
 }
 
 /*
-V1betaGetLatestRestoreStatusOnVolumeInternalServerError describes a response with status code 500, with default header values.
+V1betaGetLatestRestoreStatusOnVolumeInternalServerError handles this case with default header values.
 
 Internal server error
 */
@@ -588,44 +335,8 @@ type V1betaGetLatestRestoreStatusOnVolumeInternalServerError struct {
 	Payload *models.Error
 }
 
-// IsSuccess returns true when this v1beta get latest restore status on volume internal server error response has a 2xx status code
-func (o *V1betaGetLatestRestoreStatusOnVolumeInternalServerError) IsSuccess() bool {
-	return false
-}
-
-// IsRedirect returns true when this v1beta get latest restore status on volume internal server error response has a 3xx status code
-func (o *V1betaGetLatestRestoreStatusOnVolumeInternalServerError) IsRedirect() bool {
-	return false
-}
-
-// IsClientError returns true when this v1beta get latest restore status on volume internal server error response has a 4xx status code
-func (o *V1betaGetLatestRestoreStatusOnVolumeInternalServerError) IsClientError() bool {
-	return false
-}
-
-// IsServerError returns true when this v1beta get latest restore status on volume internal server error response has a 5xx status code
-func (o *V1betaGetLatestRestoreStatusOnVolumeInternalServerError) IsServerError() bool {
-	return true
-}
-
-// IsCode returns true when this v1beta get latest restore status on volume internal server error response a status code equal to that given
-func (o *V1betaGetLatestRestoreStatusOnVolumeInternalServerError) IsCode(code int) bool {
-	return code == 500
-}
-
-// Code gets the status code for the v1beta get latest restore status on volume internal server error response
-func (o *V1betaGetLatestRestoreStatusOnVolumeInternalServerError) Code() int {
-	return 500
-}
-
 func (o *V1betaGetLatestRestoreStatusOnVolumeInternalServerError) Error() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[GET /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/latestRestoreStatus][%d] v1betaGetLatestRestoreStatusOnVolumeInternalServerError %s", 500, payload)
-}
-
-func (o *V1betaGetLatestRestoreStatusOnVolumeInternalServerError) String() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[GET /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/latestRestoreStatus][%d] v1betaGetLatestRestoreStatusOnVolumeInternalServerError %s", 500, payload)
+	return fmt.Sprintf("[GET /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/latestRestoreStatus][%d] v1betaGetLatestRestoreStatusOnVolumeInternalServerError  %+v", 500, o.Payload)
 }
 
 func (o *V1betaGetLatestRestoreStatusOnVolumeInternalServerError) GetPayload() *models.Error {
@@ -652,7 +363,7 @@ func NewV1betaGetLatestRestoreStatusOnVolumeDefault(code int) *V1betaGetLatestRe
 }
 
 /*
-V1betaGetLatestRestoreStatusOnVolumeDefault describes a response with status code -1, with default header values.
+V1betaGetLatestRestoreStatusOnVolumeDefault handles this case with default header values.
 
 Unexpected error
 */
@@ -662,44 +373,13 @@ type V1betaGetLatestRestoreStatusOnVolumeDefault struct {
 	Payload *models.Error
 }
 
-// IsSuccess returns true when this v1beta get latest restore status on volume default response has a 2xx status code
-func (o *V1betaGetLatestRestoreStatusOnVolumeDefault) IsSuccess() bool {
-	return o._statusCode/100 == 2
-}
-
-// IsRedirect returns true when this v1beta get latest restore status on volume default response has a 3xx status code
-func (o *V1betaGetLatestRestoreStatusOnVolumeDefault) IsRedirect() bool {
-	return o._statusCode/100 == 3
-}
-
-// IsClientError returns true when this v1beta get latest restore status on volume default response has a 4xx status code
-func (o *V1betaGetLatestRestoreStatusOnVolumeDefault) IsClientError() bool {
-	return o._statusCode/100 == 4
-}
-
-// IsServerError returns true when this v1beta get latest restore status on volume default response has a 5xx status code
-func (o *V1betaGetLatestRestoreStatusOnVolumeDefault) IsServerError() bool {
-	return o._statusCode/100 == 5
-}
-
-// IsCode returns true when this v1beta get latest restore status on volume default response a status code equal to that given
-func (o *V1betaGetLatestRestoreStatusOnVolumeDefault) IsCode(code int) bool {
-	return o._statusCode == code
-}
-
 // Code gets the status code for the v1beta get latest restore status on volume default response
 func (o *V1betaGetLatestRestoreStatusOnVolumeDefault) Code() int {
 	return o._statusCode
 }
 
 func (o *V1betaGetLatestRestoreStatusOnVolumeDefault) Error() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[GET /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/latestRestoreStatus][%d] v1beta_getLatestRestoreStatusOnVolume default %s", o._statusCode, payload)
-}
-
-func (o *V1betaGetLatestRestoreStatusOnVolumeDefault) String() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[GET /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/latestRestoreStatus][%d] v1beta_getLatestRestoreStatusOnVolume default %s", o._statusCode, payload)
+	return fmt.Sprintf("[GET /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/latestRestoreStatus][%d] v1beta_getLatestRestoreStatusOnVolume default  %+v", o._statusCode, o.Payload)
 }
 
 func (o *V1betaGetLatestRestoreStatusOnVolumeDefault) GetPayload() *models.Error {

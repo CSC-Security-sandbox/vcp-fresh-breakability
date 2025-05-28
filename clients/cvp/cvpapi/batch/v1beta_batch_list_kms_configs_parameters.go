@@ -19,37 +19,40 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/models"
 )
 
-// NewV1betaBatchListKmsConfigsParams creates a new V1betaBatchListKmsConfigsParams object,
-// with the default timeout for this client.
-//
-// Default values are not hydrated, since defaults are normally applied by the API server side.
-//
-// To enforce default values in parameter, use SetDefaults or WithDefaults.
+// NewV1betaBatchListKmsConfigsParams creates a new V1betaBatchListKmsConfigsParams object
+// with the default values initialized.
 func NewV1betaBatchListKmsConfigsParams() *V1betaBatchListKmsConfigsParams {
+	var ()
 	return &V1betaBatchListKmsConfigsParams{
+
 		timeout: cr.DefaultTimeout,
 	}
 }
 
 // NewV1betaBatchListKmsConfigsParamsWithTimeout creates a new V1betaBatchListKmsConfigsParams object
-// with the ability to set a timeout on a request.
+// with the default values initialized, and the ability to set a timeout on a request
 func NewV1betaBatchListKmsConfigsParamsWithTimeout(timeout time.Duration) *V1betaBatchListKmsConfigsParams {
+	var ()
 	return &V1betaBatchListKmsConfigsParams{
+
 		timeout: timeout,
 	}
 }
 
 // NewV1betaBatchListKmsConfigsParamsWithContext creates a new V1betaBatchListKmsConfigsParams object
-// with the ability to set a context for a request.
+// with the default values initialized, and the ability to set a context for a request
 func NewV1betaBatchListKmsConfigsParamsWithContext(ctx context.Context) *V1betaBatchListKmsConfigsParams {
+	var ()
 	return &V1betaBatchListKmsConfigsParams{
+
 		Context: ctx,
 	}
 }
 
 // NewV1betaBatchListKmsConfigsParamsWithHTTPClient creates a new V1betaBatchListKmsConfigsParams object
-// with the ability to set a custom HTTPClient for a request.
+// with the default values initialized, and the ability to set a custom HTTPClient for a request
 func NewV1betaBatchListKmsConfigsParamsWithHTTPClient(client *http.Client) *V1betaBatchListKmsConfigsParams {
+	var ()
 	return &V1betaBatchListKmsConfigsParams{
 		HTTPClient: client,
 	}
@@ -57,55 +60,34 @@ func NewV1betaBatchListKmsConfigsParamsWithHTTPClient(client *http.Client) *V1be
 
 /*
 V1betaBatchListKmsConfigsParams contains all the parameters to send to the API endpoint
-
-	for the v1beta batch list kms configs operation.
-
-	Typically these are written to a http.Request.
+for the v1beta batch list kms configs operation typically these are written to a http.Request
 */
 type V1betaBatchListKmsConfigsParams struct {
 
-	/* Body.
+	/*Body
+	  A list of KMS configuration UUIDs to return.
 
-	   A list of KMS configuration UUIDs to return.
 	*/
 	Body *models.KmsConfigIDListV1beta
+	/*Fields
+	  Specify the fields to return.
 
-	/* Fields.
-
-	   Specify the fields to return.
 	*/
 	Fields []string
+	/*LocationID
+	  The location/region to perform the operation in.
 
-	/* LocationID.
-
-	   The location/region to perform the operation in.
 	*/
 	LocationID string
+	/*XCorrelationID
+	  Correlation identifier
 
-	/* XCorrelationID.
-
-	   Correlation identifier
 	*/
 	XCorrelationID *string
 
 	timeout    time.Duration
 	Context    context.Context
 	HTTPClient *http.Client
-}
-
-// WithDefaults hydrates default values in the v1beta batch list kms configs params (not the query body).
-//
-// All values with no default are reset to their zero value.
-func (o *V1betaBatchListKmsConfigsParams) WithDefaults() *V1betaBatchListKmsConfigsParams {
-	o.SetDefaults()
-	return o
-}
-
-// SetDefaults hydrates default values in the v1beta batch list kms configs params (not the query body).
-//
-// All values with no default are reset to their zero value.
-func (o *V1betaBatchListKmsConfigsParams) SetDefaults() {
-	// no default values defined for this parameter
 }
 
 // WithTimeout adds the timeout to the v1beta batch list kms configs params
@@ -192,21 +174,19 @@ func (o *V1betaBatchListKmsConfigsParams) WriteToRequest(r runtime.ClientRequest
 		return err
 	}
 	var res []error
+
 	if o.Body != nil {
 		if err := r.SetBodyParam(o.Body); err != nil {
 			return err
 		}
 	}
 
-	if o.Fields != nil {
+	valuesFields := o.Fields
 
-		// binding items for fields
-		joinedFields := o.bindParamFields(reg)
-
-		// query array param fields
-		if err := r.SetQueryParam("fields", joinedFields...); err != nil {
-			return err
-		}
+	joinedFields := swag.JoinByFormat(valuesFields, "csv")
+	// query array param fields
+	if err := r.SetQueryParam("fields", joinedFields...); err != nil {
+		return err
 	}
 
 	// path param locationId
@@ -220,27 +200,11 @@ func (o *V1betaBatchListKmsConfigsParams) WriteToRequest(r runtime.ClientRequest
 		if err := r.SetHeaderParam("x-correlation-id", *o.XCorrelationID); err != nil {
 			return err
 		}
+
 	}
 
 	if len(res) > 0 {
 		return errors.CompositeValidationError(res...)
 	}
 	return nil
-}
-
-// bindParamV1betaBatchListKmsConfigs binds the parameter fields
-func (o *V1betaBatchListKmsConfigsParams) bindParamFields(formats strfmt.Registry) []string {
-	fieldsIR := o.Fields
-
-	var fieldsIC []string
-	for _, fieldsIIR := range fieldsIR { // explode []string
-
-		fieldsIIV := fieldsIIR // string as string
-		fieldsIC = append(fieldsIC, fieldsIIV)
-	}
-
-	// items.CollectionFormat: "csv"
-	fieldsIS := swag.JoinByFormat(fieldsIC, "csv")
-
-	return fieldsIS
 }

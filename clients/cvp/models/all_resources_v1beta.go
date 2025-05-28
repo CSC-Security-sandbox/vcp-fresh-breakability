@@ -6,8 +6,6 @@ package models
 // Editing this file might prove futile when you re-run the swagger generate command
 
 import (
-	"context"
-
 	"github.com/go-openapi/errors"
 	"github.com/go-openapi/strfmt"
 	"github.com/go-openapi/swag"
@@ -22,25 +20,21 @@ import (
 type AllResourcesV1beta struct {
 
 	// A human readable label for the resource
-	// Example: Backups
 	// Max Length: 255
 	ResourceName string `json:"resourceName,omitempty"`
 
 	// Type of the resource
-	// Example: volume
 	ResourceType string `json:"resourceType,omitempty"`
 
 	// transitionDetails
 	//
 	// Details about the storage resource
-	// Example: LdapEnabled: true, activeDirectory = dummy, capacity = 2048Gib, volumeCount = 1
 	// Read Only: true
 	TransitionDetails string `json:"transitionDetails,omitempty"`
 
 	// UUID
 	//
 	// UUID v4 used to identify the GCP KMS configuration
-	// Example: 9760acf5-4638-11e7-9bdb-020073ca7773
 	// Read Only: true
 	// Max Length: 36
 	// Min Length: 36
@@ -67,11 +61,12 @@ func (m *AllResourcesV1beta) Validate(formats strfmt.Registry) error {
 }
 
 func (m *AllResourcesV1beta) validateResourceName(formats strfmt.Registry) error {
+
 	if swag.IsZero(m.ResourceName) { // not required
 		return nil
 	}
 
-	if err := validate.MaxLength("resourceName", "body", m.ResourceName, 255); err != nil {
+	if err := validate.MaxLength("resourceName", "body", string(m.ResourceName), 255); err != nil {
 		return err
 	}
 
@@ -79,55 +74,20 @@ func (m *AllResourcesV1beta) validateResourceName(formats strfmt.Registry) error
 }
 
 func (m *AllResourcesV1beta) validateUUID(formats strfmt.Registry) error {
+
 	if swag.IsZero(m.UUID) { // not required
 		return nil
 	}
 
-	if err := validate.MinLength("uuid", "body", m.UUID, 36); err != nil {
+	if err := validate.MinLength("uuid", "body", string(m.UUID), 36); err != nil {
 		return err
 	}
 
-	if err := validate.MaxLength("uuid", "body", m.UUID, 36); err != nil {
+	if err := validate.MaxLength("uuid", "body", string(m.UUID), 36); err != nil {
 		return err
 	}
 
-	if err := validate.Pattern("uuid", "body", m.UUID, `^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$`); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-// ContextValidate validate this all resources v1beta based on the context it is used
-func (m *AllResourcesV1beta) ContextValidate(ctx context.Context, formats strfmt.Registry) error {
-	var res []error
-
-	if err := m.contextValidateTransitionDetails(ctx, formats); err != nil {
-		res = append(res, err)
-	}
-
-	if err := m.contextValidateUUID(ctx, formats); err != nil {
-		res = append(res, err)
-	}
-
-	if len(res) > 0 {
-		return errors.CompositeValidationError(res...)
-	}
-	return nil
-}
-
-func (m *AllResourcesV1beta) contextValidateTransitionDetails(ctx context.Context, formats strfmt.Registry) error {
-
-	if err := validate.ReadOnly(ctx, "transitionDetails", "body", string(m.TransitionDetails)); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (m *AllResourcesV1beta) contextValidateUUID(ctx context.Context, formats strfmt.Registry) error {
-
-	if err := validate.ReadOnly(ctx, "uuid", "body", string(m.UUID)); err != nil {
+	if err := validate.Pattern("uuid", "body", string(m.UUID), `^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$`); err != nil {
 		return err
 	}
 

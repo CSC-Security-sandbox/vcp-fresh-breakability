@@ -6,8 +6,6 @@ package models
 // Editing this file might prove futile when you re-run the swagger generate command
 
 import (
-	"context"
-
 	"github.com/go-openapi/errors"
 	"github.com/go-openapi/strfmt"
 	"github.com/go-openapi/swag"
@@ -24,19 +22,16 @@ type TransferStatsV1beta struct {
 	// lagTime
 	//
 	// The amount of time in seconds by which the data on the mirror lags behind the source.
-	// Example: 1849
 	// Read Only: true
 	LagTime float64 `json:"lagTime,omitempty"`
 
 	// lastTransferDuration
 	//
 	// The amount of time in seconds it took for the last transfer to complete.
-	// Example: 200
 	// Read Only: true
 	LastTransferDuration float64 `json:"lastTransferDuration,omitempty"`
 
 	// The time of the end of the last transfer.
-	// Example: 2016-11-29T20:32:50.459Z
 	// Read Only: true
 	// Format: date-time
 	LastTransferEndTime *strfmt.DateTime `json:"lastTransferEndTime,omitempty"`
@@ -44,21 +39,18 @@ type TransferStatsV1beta struct {
 	// lastTransferError
 	//
 	// A message describing the cause of the last transfer failure.
-	// Example: Something went wrong
 	// Read Only: true
 	LastTransferError string `json:"lastTransferError,omitempty"`
 
 	// lastTransferSize
 	//
 	// The total number of bytes transferred as part of the last transfer.
-	// Example: 14758
 	// Read Only: true
 	LastTransferSize float64 `json:"lastTransferSize,omitempty"`
 
 	// progressLastUpdated
 	//
 	// Time indicating when the progress of the transfer was last updated.
-	// Example: 2016-11-29T20:32:50.459Z
 	// Read Only: true
 	// Format: date-time
 	ProgressLastUpdated *strfmt.DateTime `json:"progressLastUpdated,omitempty"`
@@ -66,21 +58,18 @@ type TransferStatsV1beta struct {
 	// totalProgress
 	//
 	// Total amount of data transferred for the current transfer operation.
-	// Example: 75
 	// Read Only: true
 	TotalProgress float64 `json:"totalProgress,omitempty"`
 
 	// totalTransferBytes
 	//
 	// Cumulative bytes transferred for the relationship.
-	// Example: 75
 	// Read Only: true
 	TotalTransferBytes float64 `json:"totalTransferBytes,omitempty"`
 
 	// totalTransferTimeSec
 	//
 	// Cumulative total transfer time in seconds for the relationship.
-	// Example: 200
 	// Read Only: true
 	TotalTransferTimeSecs float64 `json:"totalTransferTimeSecs,omitempty"`
 }
@@ -104,6 +93,7 @@ func (m *TransferStatsV1beta) Validate(formats strfmt.Registry) error {
 }
 
 func (m *TransferStatsV1beta) validateLastTransferEndTime(formats strfmt.Registry) error {
+
 	if swag.IsZero(m.LastTransferEndTime) { // not required
 		return nil
 	}
@@ -116,138 +106,12 @@ func (m *TransferStatsV1beta) validateLastTransferEndTime(formats strfmt.Registr
 }
 
 func (m *TransferStatsV1beta) validateProgressLastUpdated(formats strfmt.Registry) error {
+
 	if swag.IsZero(m.ProgressLastUpdated) { // not required
 		return nil
 	}
 
 	if err := validate.FormatOf("progressLastUpdated", "body", "date-time", m.ProgressLastUpdated.String(), formats); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-// ContextValidate validate this transfer stats v1beta based on the context it is used
-func (m *TransferStatsV1beta) ContextValidate(ctx context.Context, formats strfmt.Registry) error {
-	var res []error
-
-	if err := m.contextValidateLagTime(ctx, formats); err != nil {
-		res = append(res, err)
-	}
-
-	if err := m.contextValidateLastTransferDuration(ctx, formats); err != nil {
-		res = append(res, err)
-	}
-
-	if err := m.contextValidateLastTransferEndTime(ctx, formats); err != nil {
-		res = append(res, err)
-	}
-
-	if err := m.contextValidateLastTransferError(ctx, formats); err != nil {
-		res = append(res, err)
-	}
-
-	if err := m.contextValidateLastTransferSize(ctx, formats); err != nil {
-		res = append(res, err)
-	}
-
-	if err := m.contextValidateProgressLastUpdated(ctx, formats); err != nil {
-		res = append(res, err)
-	}
-
-	if err := m.contextValidateTotalProgress(ctx, formats); err != nil {
-		res = append(res, err)
-	}
-
-	if err := m.contextValidateTotalTransferBytes(ctx, formats); err != nil {
-		res = append(res, err)
-	}
-
-	if err := m.contextValidateTotalTransferTimeSecs(ctx, formats); err != nil {
-		res = append(res, err)
-	}
-
-	if len(res) > 0 {
-		return errors.CompositeValidationError(res...)
-	}
-	return nil
-}
-
-func (m *TransferStatsV1beta) contextValidateLagTime(ctx context.Context, formats strfmt.Registry) error {
-
-	if err := validate.ReadOnly(ctx, "lagTime", "body", float64(m.LagTime)); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (m *TransferStatsV1beta) contextValidateLastTransferDuration(ctx context.Context, formats strfmt.Registry) error {
-
-	if err := validate.ReadOnly(ctx, "lastTransferDuration", "body", float64(m.LastTransferDuration)); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (m *TransferStatsV1beta) contextValidateLastTransferEndTime(ctx context.Context, formats strfmt.Registry) error {
-
-	if err := validate.ReadOnly(ctx, "lastTransferEndTime", "body", m.LastTransferEndTime); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (m *TransferStatsV1beta) contextValidateLastTransferError(ctx context.Context, formats strfmt.Registry) error {
-
-	if err := validate.ReadOnly(ctx, "lastTransferError", "body", string(m.LastTransferError)); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (m *TransferStatsV1beta) contextValidateLastTransferSize(ctx context.Context, formats strfmt.Registry) error {
-
-	if err := validate.ReadOnly(ctx, "lastTransferSize", "body", float64(m.LastTransferSize)); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (m *TransferStatsV1beta) contextValidateProgressLastUpdated(ctx context.Context, formats strfmt.Registry) error {
-
-	if err := validate.ReadOnly(ctx, "progressLastUpdated", "body", m.ProgressLastUpdated); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (m *TransferStatsV1beta) contextValidateTotalProgress(ctx context.Context, formats strfmt.Registry) error {
-
-	if err := validate.ReadOnly(ctx, "totalProgress", "body", float64(m.TotalProgress)); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (m *TransferStatsV1beta) contextValidateTotalTransferBytes(ctx context.Context, formats strfmt.Registry) error {
-
-	if err := validate.ReadOnly(ctx, "totalTransferBytes", "body", float64(m.TotalTransferBytes)); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (m *TransferStatsV1beta) contextValidateTotalTransferTimeSecs(ctx context.Context, formats strfmt.Registry) error {
-
-	if err := validate.ReadOnly(ctx, "totalTransferTimeSecs", "body", float64(m.TotalTransferTimeSecs)); err != nil {
 		return err
 	}
 

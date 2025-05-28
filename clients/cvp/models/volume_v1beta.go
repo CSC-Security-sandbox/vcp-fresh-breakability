@@ -6,7 +6,6 @@ package models
 // Editing this file might prove futile when you re-run the swagger generate command
 
 import (
-	"context"
 	"encoding/json"
 	"strconv"
 
@@ -22,7 +21,6 @@ import (
 type VolumeV1beta struct {
 
 	// UUID of Active Directory configuration
-	// Example: 9760acf5-4638-11e7-9bdb-020073ca7773
 	// Read Only: true
 	// Max Length: 36
 	// Min Length: 36
@@ -32,24 +30,24 @@ type VolumeV1beta struct {
 	// activeDirectoryResourceId
 	//
 	// The resource ID for the connected Active Directory
-	// Example: projects/my-project-1/locations/eu-west-1/activeDirectories/mydirectory
 	// Read Only: true
 	ActiveDirectoryResourceID *string `json:"activeDirectoryResourceId,omitempty"`
 
 	// backup config
 	BackupConfig *BackupConfigV1beta `json:"backupConfig,omitempty"`
 
+	// cache parameters
+	CacheParameters *FlexCacheV1beta `json:"cacheParameters,omitempty"`
+
 	// coldTierSizeGib
 	//
 	// Volume footprint in cold storage
-	// Example: 4000000000000
 	// Read Only: true
 	ColdTierSizeGib *float64 `json:"coldTierSizeGib"`
 
 	// created
 	//
 	// Creation date of the resource
-	// Example: 2016-11-30T20:32:50.459Z
 	// Read Only: true
 	// Format: date-time
 	Created strfmt.DateTime `json:"created,omitempty"`
@@ -57,7 +55,6 @@ type VolumeV1beta struct {
 	// creationToken
 	//
 	// A creation token must be supplied by the caller and is used by the API to ensure idempotent creation of a volume. Subsequent calls to the create-volume operation using the same creation token will have no effect. The creation token can be any user supplied string e.g. a randomly generated v4 UUID.
-	// Example: hopefully-sufficient-newton
 	// Required: true
 	// Max Length: 80
 	// Min Length: 1
@@ -72,7 +69,6 @@ type VolumeV1beta struct {
 	// deleted
 	//
 	// Deletion date of the resource
-	// Example: 2016-11-30T20:32:50.459Z
 	// Read Only: true
 	// Format: date-time
 	Deleted *strfmt.DateTime `json:"deleted,omitempty"`
@@ -80,15 +76,13 @@ type VolumeV1beta struct {
 	// description
 	//
 	// Description of the volume
-	// Example: My Volume description
 	// Max Length: 2048
 	Description *string `json:"description,omitempty"`
 
 	// encryptionType
 	//
 	// Type of encryption used for volumes - can be either service managed key (service_managed) or cloud_kms
-	// Example: SERVICE_MANAGED
-	// Enum: ["ENCRYPTION_TYPE_UNSPECIFIED","SERVICE_MANAGED","CLOUD_KMS"]
+	// Enum: [ENCRYPTION_TYPE_UNSPECIFIED SERVICE_MANAGED CLOUD_KMS]
 	EncryptionType string `json:"encryptionType,omitempty"`
 
 	// export policy
@@ -118,7 +112,6 @@ type VolumeV1beta struct {
 	KerberosEnabled *bool `json:"kerberosEnabled,omitempty"`
 
 	// UUID of the key to be used for encryption.
-	// Example: 6aae31f1-f685-4fda-b875-db0ea99235fc
 	// Read Only: true
 	// Max Length: 36
 	// Min Length: 36
@@ -128,14 +121,12 @@ type VolumeV1beta struct {
 	// kmsConfigResourceId
 	//
 	// The resource ID for the connected KMS configuration
-	// Example: projects/my-project-1/locations/eu-west-1/kmsConfigs/myconfig
 	// Read Only: true
 	KmsConfigResourceID *string `json:"kmsConfigResourceId,omitempty"`
 
 	// labels
 	//
 	// JSON dictionary of resource labels to allow linking of billing labels to a volume
-	// Example: {"someKey":"SomeValue","someKey2":"SomeValue2"}
 	Labels map[string]string `json:"labels,omitempty"`
 
 	// largeCapacity
@@ -146,7 +137,6 @@ type VolumeV1beta struct {
 	// largeVolumeConstituentCount
 	//
 	// The count of number of constituent volumes for the large volume.
-	// Example: 24
 	// Minimum: 2
 	LargeVolumeConstituentCount *int32 `json:"largeVolumeConstituentCount,omitempty"`
 
@@ -170,7 +160,6 @@ type VolumeV1beta struct {
 	// network
 	//
 	// Servicenetworking.connections.network value that is returned after creating a successful VPC peering connection via the GCP service networking API
-	// Example: projects/1079058383248/global/networks/network-to-netapp2
 	// Read Only: true
 	// Pattern: ^projects\/\d+\/global\/networks\/(![0-9]+$)?(!.*-$)?(!-)?[a-zA-Z0-9-]{1,63}$
 	Network string `json:"network,omitempty"`
@@ -178,7 +167,6 @@ type VolumeV1beta struct {
 	// poolId
 	//
 	// UUID of the pool ID under which volumes get created.
-	// Example: 9760acf5-4638-11e7-9bdb-020073ca7773
 	// Required: true
 	// Max Length: 36
 	// Min Length: 36
@@ -188,7 +176,6 @@ type VolumeV1beta struct {
 	// poolResourceId
 	//
 	// A human readable label for the pool
-	// Example: projects/451164690828/locations/eu-west1/pools/mypool
 	// Read Only: true
 	PoolResourceID *string `json:"poolResourceId,omitempty"`
 
@@ -201,11 +188,9 @@ type VolumeV1beta struct {
 	// quotaInBytes
 	//
 	// Maximum storage quota allowed for a volume in bytes. This is a soft quota used for alerting only.
-	// Example: 4000000000000
 	QuotaInBytes *float64 `json:"quotaInBytes,omitempty"`
 
 	// A human readable label for the resource which is restricted to letters, numbers, and hyphen, with the first character a letter, the last a letter or a number, and a 63 character maximum
-	// Example: some-volume-name
 	// Required: true
 	// Max Length: 63
 	// Pattern: ^[a-z]([a-z0-9-]{0,61}[a-z0-9])?$
@@ -217,23 +202,20 @@ type VolumeV1beta struct {
 	// SecondaryZone
 	//
 	// The desired zone for the fail over.
-	// Example: us-east1-b
 	// Read Only: true
 	SecondaryZone *string `json:"secondaryZone,omitempty"`
 
 	// securityStyle
 	//
 	// The security style of the volume
-	// Example: NTFS
-	// Enum: ["SECURITY_STYLE_UNSPECIFIED","NTFS","UNIX"]
+	// Enum: [SECURITY_STYLE_UNSPECIFIED NTFS UNIX]
 	SecurityStyle string `json:"securityStyle,omitempty"`
 
 	// serviceLevel
 	//
 	// The service level of the volume. Will be specified as premium or extreme, which will be equivalent to having specified performance medium or high, respectively.  However, if any service level's name is one of premium or extreme, the performance will be that of the service level, not the performance equivalent.
-	// Example: PREMIUM
 	// Read Only: true
-	// Enum: ["SERVICE_LEVEL_UNSPECIFIED","FLEX","STANDARD","PREMIUM","EXTREME"]
+	// Enum: [SERVICE_LEVEL_UNSPECIFIED FLEX STANDARD PREMIUM EXTREME]
 	ServiceLevel string `json:"serviceLevel,omitempty"`
 
 	// The values show_snapshot, oplocks, change_notify, and show_previous_versions will always be set and cannot be changed.
@@ -242,7 +224,6 @@ type VolumeV1beta struct {
 	// snapReserve
 	//
 	// Percentage of volume storage reserved for snapshot storage. Default is 0 percent.
-	// Example: 20
 	// Minimum: 0
 	SnapReserve *float64 `json:"snapReserve,omitempty"`
 
@@ -255,7 +236,12 @@ type VolumeV1beta struct {
 	SnapshotPolicy *SnapshotPolicyV1beta `json:"snapshotPolicy,omitempty"`
 
 	// storage class
-	StorageClass *StorageClassV1beta `json:"storageClass,omitempty"`
+	StorageClass StorageClassV1beta `json:"storageClass,omitempty"`
+
+	// throughputMibps
+	//
+	// Throughput of the volume in Mibps.
+	ThroughputMibps *float64 `json:"throughputMibps,omitempty"`
 
 	// tiering policy
 	TieringPolicy *TieringPolicyV1beta `json:"tieringPolicy,omitempty"`
@@ -263,7 +249,6 @@ type VolumeV1beta struct {
 	// unixPermissions
 	//
 	// UNIX permissions for NFS volume accepted in octal 4 digit format. First digit selects the set user ID(4), set group ID (2) and sticky (1) attributes. Second digit selects permission for the owner of the file: read (4), write (2) and execute (1). Third selects permissions for other users in the same group. the fourth for other users not in the group. "0755" - gives read/write/execute permissions to owner and read/execute to group and other users.
-	// Example: 0755
 	// Max Length: 4
 	// Min Length: 4
 	UnixPermissions *string `json:"unixPermissions,omitempty"`
@@ -271,7 +256,6 @@ type VolumeV1beta struct {
 	// usedBytes
 	//
 	// Current storage usage for the volume in bytes
-	// Example: 101010
 	// Read Only: true
 	// Minimum: 0
 	UsedBytes *float64 `json:"usedBytes,omitempty"`
@@ -279,7 +263,6 @@ type VolumeV1beta struct {
 	// volumeId
 	//
 	// UUID v4 of the volume
-	// Example: 9760acf5-4638-11e7-9bdb-020073ca0001
 	// Read Only: true
 	// Max Length: 36
 	// Min Length: 36
@@ -287,22 +270,19 @@ type VolumeV1beta struct {
 	VolumeID string `json:"volumeId,omitempty"`
 
 	// The current lifecycle state of the resource
-	// Example: READY
 	// Read Only: true
-	// Enum: ["STATE_UNSPECIFIED","CREATING","READY","UPDATING","RESTORING","DELETED","DISABLED","DELETING","ERROR","READ_ONLY","PREPARING"]
+	// Enum: [STATE_UNSPECIFIED CREATING READY UPDATING RESTORING DELETED DISABLED DELETING ERROR READ_ONLY PREPARING]
 	VolumeState string `json:"volumeState,omitempty"`
 
 	// volumeStateDetails
 	//
 	// Details about the current lifecycle state
-	// Example: Error connecting to remote service
 	// Read Only: true
 	VolumeStateDetails string `json:"volumeStateDetails,omitempty"`
 
 	// zone
 	//
 	// The target zone to which the storage pool has to be migrated.
-	// Example: us-east1-b
 	Zone string `json:"zone,omitempty"`
 }
 
@@ -315,6 +295,10 @@ func (m *VolumeV1beta) Validate(formats strfmt.Registry) error {
 	}
 
 	if err := m.validateBackupConfig(formats); err != nil {
+		res = append(res, err)
+	}
+
+	if err := m.validateCacheParameters(formats); err != nil {
 		res = append(res, err)
 	}
 
@@ -425,19 +409,20 @@ func (m *VolumeV1beta) Validate(formats strfmt.Registry) error {
 }
 
 func (m *VolumeV1beta) validateActiveDirectoryConfigID(formats strfmt.Registry) error {
+
 	if swag.IsZero(m.ActiveDirectoryConfigID) { // not required
 		return nil
 	}
 
-	if err := validate.MinLength("activeDirectoryConfigId", "body", *m.ActiveDirectoryConfigID, 36); err != nil {
+	if err := validate.MinLength("activeDirectoryConfigId", "body", string(*m.ActiveDirectoryConfigID), 36); err != nil {
 		return err
 	}
 
-	if err := validate.MaxLength("activeDirectoryConfigId", "body", *m.ActiveDirectoryConfigID, 36); err != nil {
+	if err := validate.MaxLength("activeDirectoryConfigId", "body", string(*m.ActiveDirectoryConfigID), 36); err != nil {
 		return err
 	}
 
-	if err := validate.Pattern("activeDirectoryConfigId", "body", *m.ActiveDirectoryConfigID, `^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$`); err != nil {
+	if err := validate.Pattern("activeDirectoryConfigId", "body", string(*m.ActiveDirectoryConfigID), `^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$`); err != nil {
 		return err
 	}
 
@@ -445,6 +430,7 @@ func (m *VolumeV1beta) validateActiveDirectoryConfigID(formats strfmt.Registry) 
 }
 
 func (m *VolumeV1beta) validateBackupConfig(formats strfmt.Registry) error {
+
 	if swag.IsZero(m.BackupConfig) { // not required
 		return nil
 	}
@@ -453,8 +439,24 @@ func (m *VolumeV1beta) validateBackupConfig(formats strfmt.Registry) error {
 		if err := m.BackupConfig.Validate(formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("backupConfig")
-			} else if ce, ok := err.(*errors.CompositeError); ok {
-				return ce.ValidateName("backupConfig")
+			}
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (m *VolumeV1beta) validateCacheParameters(formats strfmt.Registry) error {
+
+	if swag.IsZero(m.CacheParameters) { // not required
+		return nil
+	}
+
+	if m.CacheParameters != nil {
+		if err := m.CacheParameters.Validate(formats); err != nil {
+			if ve, ok := err.(*errors.Validation); ok {
+				return ve.ValidateName("cacheParameters")
 			}
 			return err
 		}
@@ -464,6 +466,7 @@ func (m *VolumeV1beta) validateBackupConfig(formats strfmt.Registry) error {
 }
 
 func (m *VolumeV1beta) validateCreated(formats strfmt.Registry) error {
+
 	if swag.IsZero(m.Created) { // not required
 		return nil
 	}
@@ -481,15 +484,15 @@ func (m *VolumeV1beta) validateCreationToken(formats strfmt.Registry) error {
 		return err
 	}
 
-	if err := validate.MinLength("creationToken", "body", *m.CreationToken, 1); err != nil {
+	if err := validate.MinLength("creationToken", "body", string(*m.CreationToken), 1); err != nil {
 		return err
 	}
 
-	if err := validate.MaxLength("creationToken", "body", *m.CreationToken, 80); err != nil {
+	if err := validate.MaxLength("creationToken", "body", string(*m.CreationToken), 80); err != nil {
 		return err
 	}
 
-	if err := validate.Pattern("creationToken", "body", *m.CreationToken, `^[a-zA-Z][a-zA-Z0-9\-_]{0,79}$`); err != nil {
+	if err := validate.Pattern("creationToken", "body", string(*m.CreationToken), `^[a-zA-Z][a-zA-Z0-9\-_]{0,79}$`); err != nil {
 		return err
 	}
 
@@ -497,6 +500,7 @@ func (m *VolumeV1beta) validateCreationToken(formats strfmt.Registry) error {
 }
 
 func (m *VolumeV1beta) validateDeleted(formats strfmt.Registry) error {
+
 	if swag.IsZero(m.Deleted) { // not required
 		return nil
 	}
@@ -509,11 +513,12 @@ func (m *VolumeV1beta) validateDeleted(formats strfmt.Registry) error {
 }
 
 func (m *VolumeV1beta) validateDescription(formats strfmt.Registry) error {
+
 	if swag.IsZero(m.Description) { // not required
 		return nil
 	}
 
-	if err := validate.MaxLength("description", "body", *m.Description, 2048); err != nil {
+	if err := validate.MaxLength("description", "body", string(*m.Description), 2048); err != nil {
 		return err
 	}
 
@@ -553,6 +558,7 @@ func (m *VolumeV1beta) validateEncryptionTypeEnum(path, location string, value s
 }
 
 func (m *VolumeV1beta) validateEncryptionType(formats strfmt.Registry) error {
+
 	if swag.IsZero(m.EncryptionType) { // not required
 		return nil
 	}
@@ -566,6 +572,7 @@ func (m *VolumeV1beta) validateEncryptionType(formats strfmt.Registry) error {
 }
 
 func (m *VolumeV1beta) validateExportPolicy(formats strfmt.Registry) error {
+
 	if swag.IsZero(m.ExportPolicy) { // not required
 		return nil
 	}
@@ -574,8 +581,6 @@ func (m *VolumeV1beta) validateExportPolicy(formats strfmt.Registry) error {
 		if err := m.ExportPolicy.Validate(formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("exportPolicy")
-			} else if ce, ok := err.(*errors.CompositeError); ok {
-				return ce.ValidateName("exportPolicy")
 			}
 			return err
 		}
@@ -585,19 +590,20 @@ func (m *VolumeV1beta) validateExportPolicy(formats strfmt.Registry) error {
 }
 
 func (m *VolumeV1beta) validateKmsConfigID(formats strfmt.Registry) error {
+
 	if swag.IsZero(m.KmsConfigID) { // not required
 		return nil
 	}
 
-	if err := validate.MinLength("kmsConfigId", "body", *m.KmsConfigID, 36); err != nil {
+	if err := validate.MinLength("kmsConfigId", "body", string(*m.KmsConfigID), 36); err != nil {
 		return err
 	}
 
-	if err := validate.MaxLength("kmsConfigId", "body", *m.KmsConfigID, 36); err != nil {
+	if err := validate.MaxLength("kmsConfigId", "body", string(*m.KmsConfigID), 36); err != nil {
 		return err
 	}
 
-	if err := validate.Pattern("kmsConfigId", "body", *m.KmsConfigID, `^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$`); err != nil {
+	if err := validate.Pattern("kmsConfigId", "body", string(*m.KmsConfigID), `^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$`); err != nil {
 		return err
 	}
 
@@ -605,6 +611,7 @@ func (m *VolumeV1beta) validateKmsConfigID(formats strfmt.Registry) error {
 }
 
 func (m *VolumeV1beta) validateLargeVolumeConstituentCount(formats strfmt.Registry) error {
+
 	if swag.IsZero(m.LargeVolumeConstituentCount) { // not required
 		return nil
 	}
@@ -617,6 +624,7 @@ func (m *VolumeV1beta) validateLargeVolumeConstituentCount(formats strfmt.Regist
 }
 
 func (m *VolumeV1beta) validateMountPoints(formats strfmt.Registry) error {
+
 	if swag.IsZero(m.MountPoints) { // not required
 		return nil
 	}
@@ -630,8 +638,6 @@ func (m *VolumeV1beta) validateMountPoints(formats strfmt.Registry) error {
 			if err := m.MountPoints[i].Validate(formats); err != nil {
 				if ve, ok := err.(*errors.Validation); ok {
 					return ve.ValidateName("mountPoints" + "." + strconv.Itoa(i))
-				} else if ce, ok := err.(*errors.CompositeError); ok {
-					return ce.ValidateName("mountPoints" + "." + strconv.Itoa(i))
 				}
 				return err
 			}
@@ -643,11 +649,12 @@ func (m *VolumeV1beta) validateMountPoints(formats strfmt.Registry) error {
 }
 
 func (m *VolumeV1beta) validateNetwork(formats strfmt.Registry) error {
+
 	if swag.IsZero(m.Network) { // not required
 		return nil
 	}
 
-	if err := validate.Pattern("network", "body", m.Network, `^projects\/\d+\/global\/networks\/(![0-9]+$)?(!.*-$)?(!-)?[a-zA-Z0-9-]{1,63}$`); err != nil {
+	if err := validate.Pattern("network", "body", string(m.Network), `^projects\/\d+\/global\/networks\/(![0-9]+$)?(!.*-$)?(!-)?[a-zA-Z0-9-]{1,63}$`); err != nil {
 		return err
 	}
 
@@ -660,15 +667,15 @@ func (m *VolumeV1beta) validatePoolID(formats strfmt.Registry) error {
 		return err
 	}
 
-	if err := validate.MinLength("poolId", "body", *m.PoolID, 36); err != nil {
+	if err := validate.MinLength("poolId", "body", string(*m.PoolID), 36); err != nil {
 		return err
 	}
 
-	if err := validate.MaxLength("poolId", "body", *m.PoolID, 36); err != nil {
+	if err := validate.MaxLength("poolId", "body", string(*m.PoolID), 36); err != nil {
 		return err
 	}
 
-	if err := validate.Pattern("poolId", "body", *m.PoolID, `^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$`); err != nil {
+	if err := validate.Pattern("poolId", "body", string(*m.PoolID), `^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$`); err != nil {
 		return err
 	}
 
@@ -686,8 +693,6 @@ func (m *VolumeV1beta) validateProtocols(formats strfmt.Registry) error {
 		if err := m.Protocols[i].Validate(formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("protocols" + "." + strconv.Itoa(i))
-			} else if ce, ok := err.(*errors.CompositeError); ok {
-				return ce.ValidateName("protocols" + "." + strconv.Itoa(i))
 			}
 			return err
 		}
@@ -703,11 +708,11 @@ func (m *VolumeV1beta) validateResourceID(formats strfmt.Registry) error {
 		return err
 	}
 
-	if err := validate.MaxLength("resourceId", "body", *m.ResourceID, 63); err != nil {
+	if err := validate.MaxLength("resourceId", "body", string(*m.ResourceID), 63); err != nil {
 		return err
 	}
 
-	if err := validate.Pattern("resourceId", "body", *m.ResourceID, `^[a-z]([a-z0-9-]{0,61}[a-z0-9])?$`); err != nil {
+	if err := validate.Pattern("resourceId", "body", string(*m.ResourceID), `^[a-z]([a-z0-9-]{0,61}[a-z0-9])?$`); err != nil {
 		return err
 	}
 
@@ -715,6 +720,7 @@ func (m *VolumeV1beta) validateResourceID(formats strfmt.Registry) error {
 }
 
 func (m *VolumeV1beta) validateRestrictedActions(formats strfmt.Registry) error {
+
 	if swag.IsZero(m.RestrictedActions) { // not required
 		return nil
 	}
@@ -722,8 +728,6 @@ func (m *VolumeV1beta) validateRestrictedActions(formats strfmt.Registry) error 
 	if err := m.RestrictedActions.Validate(formats); err != nil {
 		if ve, ok := err.(*errors.Validation); ok {
 			return ve.ValidateName("restrictedActions")
-		} else if ce, ok := err.(*errors.CompositeError); ok {
-			return ce.ValidateName("restrictedActions")
 		}
 		return err
 	}
@@ -764,6 +768,7 @@ func (m *VolumeV1beta) validateSecurityStyleEnum(path, location string, value st
 }
 
 func (m *VolumeV1beta) validateSecurityStyle(formats strfmt.Registry) error {
+
 	if swag.IsZero(m.SecurityStyle) { // not required
 		return nil
 	}
@@ -815,6 +820,7 @@ func (m *VolumeV1beta) validateServiceLevelEnum(path, location string, value str
 }
 
 func (m *VolumeV1beta) validateServiceLevel(formats strfmt.Registry) error {
+
 	if swag.IsZero(m.ServiceLevel) { // not required
 		return nil
 	}
@@ -828,6 +834,7 @@ func (m *VolumeV1beta) validateServiceLevel(formats strfmt.Registry) error {
 }
 
 func (m *VolumeV1beta) validateSmbSettings(formats strfmt.Registry) error {
+
 	if swag.IsZero(m.SmbSettings) { // not required
 		return nil
 	}
@@ -835,8 +842,6 @@ func (m *VolumeV1beta) validateSmbSettings(formats strfmt.Registry) error {
 	if err := m.SmbSettings.Validate(formats); err != nil {
 		if ve, ok := err.(*errors.Validation); ok {
 			return ve.ValidateName("smbSettings")
-		} else if ce, ok := err.(*errors.CompositeError); ok {
-			return ce.ValidateName("smbSettings")
 		}
 		return err
 	}
@@ -845,11 +850,12 @@ func (m *VolumeV1beta) validateSmbSettings(formats strfmt.Registry) error {
 }
 
 func (m *VolumeV1beta) validateSnapReserve(formats strfmt.Registry) error {
+
 	if swag.IsZero(m.SnapReserve) { // not required
 		return nil
 	}
 
-	if err := validate.Minimum("snapReserve", "body", *m.SnapReserve, 0, false); err != nil {
+	if err := validate.Minimum("snapReserve", "body", float64(*m.SnapReserve), 0, false); err != nil {
 		return err
 	}
 
@@ -857,6 +863,7 @@ func (m *VolumeV1beta) validateSnapReserve(formats strfmt.Registry) error {
 }
 
 func (m *VolumeV1beta) validateSnapshotPolicy(formats strfmt.Registry) error {
+
 	if swag.IsZero(m.SnapshotPolicy) { // not required
 		return nil
 	}
@@ -865,8 +872,6 @@ func (m *VolumeV1beta) validateSnapshotPolicy(formats strfmt.Registry) error {
 		if err := m.SnapshotPolicy.Validate(formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("snapshotPolicy")
-			} else if ce, ok := err.(*errors.CompositeError); ok {
-				return ce.ValidateName("snapshotPolicy")
 			}
 			return err
 		}
@@ -876,25 +881,23 @@ func (m *VolumeV1beta) validateSnapshotPolicy(formats strfmt.Registry) error {
 }
 
 func (m *VolumeV1beta) validateStorageClass(formats strfmt.Registry) error {
+
 	if swag.IsZero(m.StorageClass) { // not required
 		return nil
 	}
 
-	if m.StorageClass != nil {
-		if err := m.StorageClass.Validate(formats); err != nil {
-			if ve, ok := err.(*errors.Validation); ok {
-				return ve.ValidateName("storageClass")
-			} else if ce, ok := err.(*errors.CompositeError); ok {
-				return ce.ValidateName("storageClass")
-			}
-			return err
+	if err := m.StorageClass.Validate(formats); err != nil {
+		if ve, ok := err.(*errors.Validation); ok {
+			return ve.ValidateName("storageClass")
 		}
+		return err
 	}
 
 	return nil
 }
 
 func (m *VolumeV1beta) validateTieringPolicy(formats strfmt.Registry) error {
+
 	if swag.IsZero(m.TieringPolicy) { // not required
 		return nil
 	}
@@ -903,8 +906,6 @@ func (m *VolumeV1beta) validateTieringPolicy(formats strfmt.Registry) error {
 		if err := m.TieringPolicy.Validate(formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("tieringPolicy")
-			} else if ce, ok := err.(*errors.CompositeError); ok {
-				return ce.ValidateName("tieringPolicy")
 			}
 			return err
 		}
@@ -914,15 +915,16 @@ func (m *VolumeV1beta) validateTieringPolicy(formats strfmt.Registry) error {
 }
 
 func (m *VolumeV1beta) validateUnixPermissions(formats strfmt.Registry) error {
+
 	if swag.IsZero(m.UnixPermissions) { // not required
 		return nil
 	}
 
-	if err := validate.MinLength("unixPermissions", "body", *m.UnixPermissions, 4); err != nil {
+	if err := validate.MinLength("unixPermissions", "body", string(*m.UnixPermissions), 4); err != nil {
 		return err
 	}
 
-	if err := validate.MaxLength("unixPermissions", "body", *m.UnixPermissions, 4); err != nil {
+	if err := validate.MaxLength("unixPermissions", "body", string(*m.UnixPermissions), 4); err != nil {
 		return err
 	}
 
@@ -930,11 +932,12 @@ func (m *VolumeV1beta) validateUnixPermissions(formats strfmt.Registry) error {
 }
 
 func (m *VolumeV1beta) validateUsedBytes(formats strfmt.Registry) error {
+
 	if swag.IsZero(m.UsedBytes) { // not required
 		return nil
 	}
 
-	if err := validate.Minimum("usedBytes", "body", *m.UsedBytes, 0, false); err != nil {
+	if err := validate.Minimum("usedBytes", "body", float64(*m.UsedBytes), 0, false); err != nil {
 		return err
 	}
 
@@ -942,19 +945,20 @@ func (m *VolumeV1beta) validateUsedBytes(formats strfmt.Registry) error {
 }
 
 func (m *VolumeV1beta) validateVolumeID(formats strfmt.Registry) error {
+
 	if swag.IsZero(m.VolumeID) { // not required
 		return nil
 	}
 
-	if err := validate.MinLength("volumeId", "body", m.VolumeID, 36); err != nil {
+	if err := validate.MinLength("volumeId", "body", string(m.VolumeID), 36); err != nil {
 		return err
 	}
 
-	if err := validate.MaxLength("volumeId", "body", m.VolumeID, 36); err != nil {
+	if err := validate.MaxLength("volumeId", "body", string(m.VolumeID), 36); err != nil {
 		return err
 	}
 
-	if err := validate.Pattern("volumeId", "body", m.VolumeID, `^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$`); err != nil {
+	if err := validate.Pattern("volumeId", "body", string(m.VolumeID), `^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$`); err != nil {
 		return err
 	}
 
@@ -1018,489 +1022,13 @@ func (m *VolumeV1beta) validateVolumeStateEnum(path, location string, value stri
 }
 
 func (m *VolumeV1beta) validateVolumeState(formats strfmt.Registry) error {
+
 	if swag.IsZero(m.VolumeState) { // not required
 		return nil
 	}
 
 	// value enum
 	if err := m.validateVolumeStateEnum("volumeState", "body", m.VolumeState); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-// ContextValidate validate this volume v1beta based on the context it is used
-func (m *VolumeV1beta) ContextValidate(ctx context.Context, formats strfmt.Registry) error {
-	var res []error
-
-	if err := m.contextValidateActiveDirectoryConfigID(ctx, formats); err != nil {
-		res = append(res, err)
-	}
-
-	if err := m.contextValidateActiveDirectoryResourceID(ctx, formats); err != nil {
-		res = append(res, err)
-	}
-
-	if err := m.contextValidateBackupConfig(ctx, formats); err != nil {
-		res = append(res, err)
-	}
-
-	if err := m.contextValidateColdTierSizeGib(ctx, formats); err != nil {
-		res = append(res, err)
-	}
-
-	if err := m.contextValidateCreated(ctx, formats); err != nil {
-		res = append(res, err)
-	}
-
-	if err := m.contextValidateDeleted(ctx, formats); err != nil {
-		res = append(res, err)
-	}
-
-	if err := m.contextValidateExportPolicy(ctx, formats); err != nil {
-		res = append(res, err)
-	}
-
-	if err := m.contextValidateInReplication(ctx, formats); err != nil {
-		res = append(res, err)
-	}
-
-	if err := m.contextValidateIsDataProtection(ctx, formats); err != nil {
-		res = append(res, err)
-	}
-
-	if err := m.contextValidateIsOnPremMigration(ctx, formats); err != nil {
-		res = append(res, err)
-	}
-
-	if err := m.contextValidateKmsConfigID(ctx, formats); err != nil {
-		res = append(res, err)
-	}
-
-	if err := m.contextValidateKmsConfigResourceID(ctx, formats); err != nil {
-		res = append(res, err)
-	}
-
-	if err := m.contextValidateLdapEnabled(ctx, formats); err != nil {
-		res = append(res, err)
-	}
-
-	if err := m.contextValidateMountPoints(ctx, formats); err != nil {
-		res = append(res, err)
-	}
-
-	if err := m.contextValidateNetwork(ctx, formats); err != nil {
-		res = append(res, err)
-	}
-
-	if err := m.contextValidatePoolResourceID(ctx, formats); err != nil {
-		res = append(res, err)
-	}
-
-	if err := m.contextValidateProtocols(ctx, formats); err != nil {
-		res = append(res, err)
-	}
-
-	if err := m.contextValidateRestrictedActions(ctx, formats); err != nil {
-		res = append(res, err)
-	}
-
-	if err := m.contextValidateSecondaryZone(ctx, formats); err != nil {
-		res = append(res, err)
-	}
-
-	if err := m.contextValidateServiceLevel(ctx, formats); err != nil {
-		res = append(res, err)
-	}
-
-	if err := m.contextValidateSmbSettings(ctx, formats); err != nil {
-		res = append(res, err)
-	}
-
-	if err := m.contextValidateSnapshotPolicy(ctx, formats); err != nil {
-		res = append(res, err)
-	}
-
-	if err := m.contextValidateStorageClass(ctx, formats); err != nil {
-		res = append(res, err)
-	}
-
-	if err := m.contextValidateTieringPolicy(ctx, formats); err != nil {
-		res = append(res, err)
-	}
-
-	if err := m.contextValidateUsedBytes(ctx, formats); err != nil {
-		res = append(res, err)
-	}
-
-	if err := m.contextValidateVolumeID(ctx, formats); err != nil {
-		res = append(res, err)
-	}
-
-	if err := m.contextValidateVolumeState(ctx, formats); err != nil {
-		res = append(res, err)
-	}
-
-	if err := m.contextValidateVolumeStateDetails(ctx, formats); err != nil {
-		res = append(res, err)
-	}
-
-	if len(res) > 0 {
-		return errors.CompositeValidationError(res...)
-	}
-	return nil
-}
-
-func (m *VolumeV1beta) contextValidateActiveDirectoryConfigID(ctx context.Context, formats strfmt.Registry) error {
-
-	if err := validate.ReadOnly(ctx, "activeDirectoryConfigId", "body", m.ActiveDirectoryConfigID); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (m *VolumeV1beta) contextValidateActiveDirectoryResourceID(ctx context.Context, formats strfmt.Registry) error {
-
-	if err := validate.ReadOnly(ctx, "activeDirectoryResourceId", "body", m.ActiveDirectoryResourceID); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (m *VolumeV1beta) contextValidateBackupConfig(ctx context.Context, formats strfmt.Registry) error {
-
-	if m.BackupConfig != nil {
-
-		if swag.IsZero(m.BackupConfig) { // not required
-			return nil
-		}
-
-		if err := m.BackupConfig.ContextValidate(ctx, formats); err != nil {
-			if ve, ok := err.(*errors.Validation); ok {
-				return ve.ValidateName("backupConfig")
-			} else if ce, ok := err.(*errors.CompositeError); ok {
-				return ce.ValidateName("backupConfig")
-			}
-			return err
-		}
-	}
-
-	return nil
-}
-
-func (m *VolumeV1beta) contextValidateColdTierSizeGib(ctx context.Context, formats strfmt.Registry) error {
-
-	if err := validate.ReadOnly(ctx, "coldTierSizeGib", "body", m.ColdTierSizeGib); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (m *VolumeV1beta) contextValidateCreated(ctx context.Context, formats strfmt.Registry) error {
-
-	if err := validate.ReadOnly(ctx, "created", "body", strfmt.DateTime(m.Created)); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (m *VolumeV1beta) contextValidateDeleted(ctx context.Context, formats strfmt.Registry) error {
-
-	if err := validate.ReadOnly(ctx, "deleted", "body", m.Deleted); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (m *VolumeV1beta) contextValidateExportPolicy(ctx context.Context, formats strfmt.Registry) error {
-
-	if m.ExportPolicy != nil {
-
-		if swag.IsZero(m.ExportPolicy) { // not required
-			return nil
-		}
-
-		if err := m.ExportPolicy.ContextValidate(ctx, formats); err != nil {
-			if ve, ok := err.(*errors.Validation); ok {
-				return ve.ValidateName("exportPolicy")
-			} else if ce, ok := err.(*errors.CompositeError); ok {
-				return ce.ValidateName("exportPolicy")
-			}
-			return err
-		}
-	}
-
-	return nil
-}
-
-func (m *VolumeV1beta) contextValidateInReplication(ctx context.Context, formats strfmt.Registry) error {
-
-	if err := validate.ReadOnly(ctx, "inReplication", "body", m.InReplication); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (m *VolumeV1beta) contextValidateIsDataProtection(ctx context.Context, formats strfmt.Registry) error {
-
-	if err := validate.ReadOnly(ctx, "isDataProtection", "body", m.IsDataProtection); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (m *VolumeV1beta) contextValidateIsOnPremMigration(ctx context.Context, formats strfmt.Registry) error {
-
-	if err := validate.ReadOnly(ctx, "isOnPremMigration", "body", m.IsOnPremMigration); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (m *VolumeV1beta) contextValidateKmsConfigID(ctx context.Context, formats strfmt.Registry) error {
-
-	if err := validate.ReadOnly(ctx, "kmsConfigId", "body", m.KmsConfigID); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (m *VolumeV1beta) contextValidateKmsConfigResourceID(ctx context.Context, formats strfmt.Registry) error {
-
-	if err := validate.ReadOnly(ctx, "kmsConfigResourceId", "body", m.KmsConfigResourceID); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (m *VolumeV1beta) contextValidateLdapEnabled(ctx context.Context, formats strfmt.Registry) error {
-
-	if err := validate.ReadOnly(ctx, "ldapEnabled", "body", m.LdapEnabled); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (m *VolumeV1beta) contextValidateMountPoints(ctx context.Context, formats strfmt.Registry) error {
-
-	if err := validate.ReadOnly(ctx, "mountPoints", "body", []*MountPointV1beta(m.MountPoints)); err != nil {
-		return err
-	}
-
-	for i := 0; i < len(m.MountPoints); i++ {
-
-		if m.MountPoints[i] != nil {
-
-			if swag.IsZero(m.MountPoints[i]) { // not required
-				return nil
-			}
-
-			if err := m.MountPoints[i].ContextValidate(ctx, formats); err != nil {
-				if ve, ok := err.(*errors.Validation); ok {
-					return ve.ValidateName("mountPoints" + "." + strconv.Itoa(i))
-				} else if ce, ok := err.(*errors.CompositeError); ok {
-					return ce.ValidateName("mountPoints" + "." + strconv.Itoa(i))
-				}
-				return err
-			}
-		}
-
-	}
-
-	return nil
-}
-
-func (m *VolumeV1beta) contextValidateNetwork(ctx context.Context, formats strfmt.Registry) error {
-
-	if err := validate.ReadOnly(ctx, "network", "body", string(m.Network)); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (m *VolumeV1beta) contextValidatePoolResourceID(ctx context.Context, formats strfmt.Registry) error {
-
-	if err := validate.ReadOnly(ctx, "poolResourceId", "body", m.PoolResourceID); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (m *VolumeV1beta) contextValidateProtocols(ctx context.Context, formats strfmt.Registry) error {
-
-	for i := 0; i < len(m.Protocols); i++ {
-
-		if swag.IsZero(m.Protocols[i]) { // not required
-			return nil
-		}
-
-		if err := m.Protocols[i].ContextValidate(ctx, formats); err != nil {
-			if ve, ok := err.(*errors.Validation); ok {
-				return ve.ValidateName("protocols" + "." + strconv.Itoa(i))
-			} else if ce, ok := err.(*errors.CompositeError); ok {
-				return ce.ValidateName("protocols" + "." + strconv.Itoa(i))
-			}
-			return err
-		}
-
-	}
-
-	return nil
-}
-
-func (m *VolumeV1beta) contextValidateRestrictedActions(ctx context.Context, formats strfmt.Registry) error {
-
-	if err := m.RestrictedActions.ContextValidate(ctx, formats); err != nil {
-		if ve, ok := err.(*errors.Validation); ok {
-			return ve.ValidateName("restrictedActions")
-		} else if ce, ok := err.(*errors.CompositeError); ok {
-			return ce.ValidateName("restrictedActions")
-		}
-		return err
-	}
-
-	return nil
-}
-
-func (m *VolumeV1beta) contextValidateSecondaryZone(ctx context.Context, formats strfmt.Registry) error {
-
-	if err := validate.ReadOnly(ctx, "secondaryZone", "body", m.SecondaryZone); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (m *VolumeV1beta) contextValidateServiceLevel(ctx context.Context, formats strfmt.Registry) error {
-
-	if err := validate.ReadOnly(ctx, "serviceLevel", "body", string(m.ServiceLevel)); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (m *VolumeV1beta) contextValidateSmbSettings(ctx context.Context, formats strfmt.Registry) error {
-
-	if err := m.SmbSettings.ContextValidate(ctx, formats); err != nil {
-		if ve, ok := err.(*errors.Validation); ok {
-			return ve.ValidateName("smbSettings")
-		} else if ce, ok := err.(*errors.CompositeError); ok {
-			return ce.ValidateName("smbSettings")
-		}
-		return err
-	}
-
-	return nil
-}
-
-func (m *VolumeV1beta) contextValidateSnapshotPolicy(ctx context.Context, formats strfmt.Registry) error {
-
-	if m.SnapshotPolicy != nil {
-
-		if swag.IsZero(m.SnapshotPolicy) { // not required
-			return nil
-		}
-
-		if err := m.SnapshotPolicy.ContextValidate(ctx, formats); err != nil {
-			if ve, ok := err.(*errors.Validation); ok {
-				return ve.ValidateName("snapshotPolicy")
-			} else if ce, ok := err.(*errors.CompositeError); ok {
-				return ce.ValidateName("snapshotPolicy")
-			}
-			return err
-		}
-	}
-
-	return nil
-}
-
-func (m *VolumeV1beta) contextValidateStorageClass(ctx context.Context, formats strfmt.Registry) error {
-
-	if m.StorageClass != nil {
-
-		if swag.IsZero(m.StorageClass) { // not required
-			return nil
-		}
-
-		if err := m.StorageClass.ContextValidate(ctx, formats); err != nil {
-			if ve, ok := err.(*errors.Validation); ok {
-				return ve.ValidateName("storageClass")
-			} else if ce, ok := err.(*errors.CompositeError); ok {
-				return ce.ValidateName("storageClass")
-			}
-			return err
-		}
-	}
-
-	return nil
-}
-
-func (m *VolumeV1beta) contextValidateTieringPolicy(ctx context.Context, formats strfmt.Registry) error {
-
-	if m.TieringPolicy != nil {
-
-		if swag.IsZero(m.TieringPolicy) { // not required
-			return nil
-		}
-
-		if err := m.TieringPolicy.ContextValidate(ctx, formats); err != nil {
-			if ve, ok := err.(*errors.Validation); ok {
-				return ve.ValidateName("tieringPolicy")
-			} else if ce, ok := err.(*errors.CompositeError); ok {
-				return ce.ValidateName("tieringPolicy")
-			}
-			return err
-		}
-	}
-
-	return nil
-}
-
-func (m *VolumeV1beta) contextValidateUsedBytes(ctx context.Context, formats strfmt.Registry) error {
-
-	if err := validate.ReadOnly(ctx, "usedBytes", "body", m.UsedBytes); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (m *VolumeV1beta) contextValidateVolumeID(ctx context.Context, formats strfmt.Registry) error {
-
-	if err := validate.ReadOnly(ctx, "volumeId", "body", string(m.VolumeID)); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (m *VolumeV1beta) contextValidateVolumeState(ctx context.Context, formats strfmt.Registry) error {
-
-	if err := validate.ReadOnly(ctx, "volumeState", "body", string(m.VolumeState)); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (m *VolumeV1beta) contextValidateVolumeStateDetails(ctx context.Context, formats strfmt.Registry) error {
-
-	if err := validate.ReadOnly(ctx, "volumeStateDetails", "body", string(m.VolumeStateDetails)); err != nil {
 		return err
 	}
 

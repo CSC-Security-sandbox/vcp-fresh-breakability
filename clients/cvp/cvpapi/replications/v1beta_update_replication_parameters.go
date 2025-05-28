@@ -18,37 +18,40 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/models"
 )
 
-// NewV1betaUpdateReplicationParams creates a new V1betaUpdateReplicationParams object,
-// with the default timeout for this client.
-//
-// Default values are not hydrated, since defaults are normally applied by the API server side.
-//
-// To enforce default values in parameter, use SetDefaults or WithDefaults.
+// NewV1betaUpdateReplicationParams creates a new V1betaUpdateReplicationParams object
+// with the default values initialized.
 func NewV1betaUpdateReplicationParams() *V1betaUpdateReplicationParams {
+	var ()
 	return &V1betaUpdateReplicationParams{
+
 		timeout: cr.DefaultTimeout,
 	}
 }
 
 // NewV1betaUpdateReplicationParamsWithTimeout creates a new V1betaUpdateReplicationParams object
-// with the ability to set a timeout on a request.
+// with the default values initialized, and the ability to set a timeout on a request
 func NewV1betaUpdateReplicationParamsWithTimeout(timeout time.Duration) *V1betaUpdateReplicationParams {
+	var ()
 	return &V1betaUpdateReplicationParams{
+
 		timeout: timeout,
 	}
 }
 
 // NewV1betaUpdateReplicationParamsWithContext creates a new V1betaUpdateReplicationParams object
-// with the ability to set a context for a request.
+// with the default values initialized, and the ability to set a context for a request
 func NewV1betaUpdateReplicationParamsWithContext(ctx context.Context) *V1betaUpdateReplicationParams {
+	var ()
 	return &V1betaUpdateReplicationParams{
+
 		Context: ctx,
 	}
 }
 
 // NewV1betaUpdateReplicationParamsWithHTTPClient creates a new V1betaUpdateReplicationParams object
-// with the ability to set a custom HTTPClient for a request.
+// with the default values initialized, and the ability to set a custom HTTPClient for a request
 func NewV1betaUpdateReplicationParamsWithHTTPClient(client *http.Client) *V1betaUpdateReplicationParams {
+	var ()
 	return &V1betaUpdateReplicationParams{
 		HTTPClient: client,
 	}
@@ -56,67 +59,44 @@ func NewV1betaUpdateReplicationParamsWithHTTPClient(client *http.Client) *V1beta
 
 /*
 V1betaUpdateReplicationParams contains all the parameters to send to the API endpoint
-
-	for the v1beta update replication operation.
-
-	Typically these are written to a http.Request.
+for the v1beta update replication operation typically these are written to a http.Request
 */
 type V1betaUpdateReplicationParams struct {
 
-	/* Body.
+	/*Body
+	  The parameters that can be updated
 
-	   The parameters that can be updated
 	*/
 	Body *models.ReplicationUpdateV1beta
+	/*LocationID
+	  The location/region to perform the operation in.
 
-	/* LocationID.
-
-	   The location/region to perform the operation in.
 	*/
 	LocationID string
+	/*ProjectNumber
+	  The project number of the GCP project owning the resource being acted upon
 
-	/* ProjectNumber.
-
-	   The project number of the GCP project owning the resource being acted upon
 	*/
 	ProjectNumber string
+	/*ReplicationResourceID
+	  Resource ID used to identify the replication
 
-	/* ReplicationResourceID.
-
-	   Resource ID used to identify the replication
 	*/
 	ReplicationResourceID string
+	/*VolumeResourceID
+	  Resource ID used to identify the volume
 
-	/* VolumeResourceID.
-
-	   Resource ID used to identify the volume
 	*/
 	VolumeResourceID string
+	/*XCorrelationID
+	  Correlation identifier
 
-	/* XCorrelationID.
-
-	   Correlation identifier
 	*/
 	XCorrelationID *string
 
 	timeout    time.Duration
 	Context    context.Context
 	HTTPClient *http.Client
-}
-
-// WithDefaults hydrates default values in the v1beta update replication params (not the query body).
-//
-// All values with no default are reset to their zero value.
-func (o *V1betaUpdateReplicationParams) WithDefaults() *V1betaUpdateReplicationParams {
-	o.SetDefaults()
-	return o
-}
-
-// SetDefaults hydrates default values in the v1beta update replication params (not the query body).
-//
-// All values with no default are reset to their zero value.
-func (o *V1betaUpdateReplicationParams) SetDefaults() {
-	// no default values defined for this parameter
 }
 
 // WithTimeout adds the timeout to the v1beta update replication params
@@ -225,6 +205,7 @@ func (o *V1betaUpdateReplicationParams) WriteToRequest(r runtime.ClientRequest, 
 		return err
 	}
 	var res []error
+
 	if o.Body != nil {
 		if err := r.SetBodyParam(o.Body); err != nil {
 			return err
@@ -257,6 +238,7 @@ func (o *V1betaUpdateReplicationParams) WriteToRequest(r runtime.ClientRequest, 
 		if err := r.SetHeaderParam("x-correlation-id", *o.XCorrelationID); err != nil {
 			return err
 		}
+
 	}
 
 	if len(res) > 0 {

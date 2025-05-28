@@ -6,8 +6,6 @@ package backup_policy
 // Editing this file might prove futile when you re-run the swagger generate command
 
 import (
-	"context"
-	"encoding/json"
 	"fmt"
 	"io"
 	"strconv"
@@ -88,7 +86,7 @@ func NewV1betaGetMultipleBackupPoliciesOK() *V1betaGetMultipleBackupPoliciesOK {
 }
 
 /*
-V1betaGetMultipleBackupPoliciesOK describes a response with status code 200, with default header values.
+V1betaGetMultipleBackupPoliciesOK handles this case with default header values.
 
 OK
 */
@@ -96,44 +94,8 @@ type V1betaGetMultipleBackupPoliciesOK struct {
 	Payload *V1betaGetMultipleBackupPoliciesOKBody
 }
 
-// IsSuccess returns true when this v1beta get multiple backup policies o k response has a 2xx status code
-func (o *V1betaGetMultipleBackupPoliciesOK) IsSuccess() bool {
-	return true
-}
-
-// IsRedirect returns true when this v1beta get multiple backup policies o k response has a 3xx status code
-func (o *V1betaGetMultipleBackupPoliciesOK) IsRedirect() bool {
-	return false
-}
-
-// IsClientError returns true when this v1beta get multiple backup policies o k response has a 4xx status code
-func (o *V1betaGetMultipleBackupPoliciesOK) IsClientError() bool {
-	return false
-}
-
-// IsServerError returns true when this v1beta get multiple backup policies o k response has a 5xx status code
-func (o *V1betaGetMultipleBackupPoliciesOK) IsServerError() bool {
-	return false
-}
-
-// IsCode returns true when this v1beta get multiple backup policies o k response a status code equal to that given
-func (o *V1betaGetMultipleBackupPoliciesOK) IsCode(code int) bool {
-	return code == 200
-}
-
-// Code gets the status code for the v1beta get multiple backup policies o k response
-func (o *V1betaGetMultipleBackupPoliciesOK) Code() int {
-	return 200
-}
-
 func (o *V1betaGetMultipleBackupPoliciesOK) Error() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/getMultipleBackupPolicies][%d] v1betaGetMultipleBackupPoliciesOK %s", 200, payload)
-}
-
-func (o *V1betaGetMultipleBackupPoliciesOK) String() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/getMultipleBackupPolicies][%d] v1betaGetMultipleBackupPoliciesOK %s", 200, payload)
+	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/getMultipleBackupPolicies][%d] v1betaGetMultipleBackupPoliciesOK  %+v", 200, o.Payload)
 }
 
 func (o *V1betaGetMultipleBackupPoliciesOK) GetPayload() *V1betaGetMultipleBackupPoliciesOKBody {
@@ -158,7 +120,7 @@ func NewV1betaGetMultipleBackupPoliciesBadRequest() *V1betaGetMultipleBackupPoli
 }
 
 /*
-V1betaGetMultipleBackupPoliciesBadRequest describes a response with status code 400, with default header values.
+V1betaGetMultipleBackupPoliciesBadRequest handles this case with default header values.
 
 Bad request
 */
@@ -166,44 +128,8 @@ type V1betaGetMultipleBackupPoliciesBadRequest struct {
 	Payload *models.Error
 }
 
-// IsSuccess returns true when this v1beta get multiple backup policies bad request response has a 2xx status code
-func (o *V1betaGetMultipleBackupPoliciesBadRequest) IsSuccess() bool {
-	return false
-}
-
-// IsRedirect returns true when this v1beta get multiple backup policies bad request response has a 3xx status code
-func (o *V1betaGetMultipleBackupPoliciesBadRequest) IsRedirect() bool {
-	return false
-}
-
-// IsClientError returns true when this v1beta get multiple backup policies bad request response has a 4xx status code
-func (o *V1betaGetMultipleBackupPoliciesBadRequest) IsClientError() bool {
-	return true
-}
-
-// IsServerError returns true when this v1beta get multiple backup policies bad request response has a 5xx status code
-func (o *V1betaGetMultipleBackupPoliciesBadRequest) IsServerError() bool {
-	return false
-}
-
-// IsCode returns true when this v1beta get multiple backup policies bad request response a status code equal to that given
-func (o *V1betaGetMultipleBackupPoliciesBadRequest) IsCode(code int) bool {
-	return code == 400
-}
-
-// Code gets the status code for the v1beta get multiple backup policies bad request response
-func (o *V1betaGetMultipleBackupPoliciesBadRequest) Code() int {
-	return 400
-}
-
 func (o *V1betaGetMultipleBackupPoliciesBadRequest) Error() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/getMultipleBackupPolicies][%d] v1betaGetMultipleBackupPoliciesBadRequest %s", 400, payload)
-}
-
-func (o *V1betaGetMultipleBackupPoliciesBadRequest) String() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/getMultipleBackupPolicies][%d] v1betaGetMultipleBackupPoliciesBadRequest %s", 400, payload)
+	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/getMultipleBackupPolicies][%d] v1betaGetMultipleBackupPoliciesBadRequest  %+v", 400, o.Payload)
 }
 
 func (o *V1betaGetMultipleBackupPoliciesBadRequest) GetPayload() *models.Error {
@@ -228,7 +154,7 @@ func NewV1betaGetMultipleBackupPoliciesUnauthorized() *V1betaGetMultipleBackupPo
 }
 
 /*
-V1betaGetMultipleBackupPoliciesUnauthorized describes a response with status code 401, with default header values.
+V1betaGetMultipleBackupPoliciesUnauthorized handles this case with default header values.
 
 Unauthorized
 */
@@ -236,44 +162,8 @@ type V1betaGetMultipleBackupPoliciesUnauthorized struct {
 	Payload *models.Error
 }
 
-// IsSuccess returns true when this v1beta get multiple backup policies unauthorized response has a 2xx status code
-func (o *V1betaGetMultipleBackupPoliciesUnauthorized) IsSuccess() bool {
-	return false
-}
-
-// IsRedirect returns true when this v1beta get multiple backup policies unauthorized response has a 3xx status code
-func (o *V1betaGetMultipleBackupPoliciesUnauthorized) IsRedirect() bool {
-	return false
-}
-
-// IsClientError returns true when this v1beta get multiple backup policies unauthorized response has a 4xx status code
-func (o *V1betaGetMultipleBackupPoliciesUnauthorized) IsClientError() bool {
-	return true
-}
-
-// IsServerError returns true when this v1beta get multiple backup policies unauthorized response has a 5xx status code
-func (o *V1betaGetMultipleBackupPoliciesUnauthorized) IsServerError() bool {
-	return false
-}
-
-// IsCode returns true when this v1beta get multiple backup policies unauthorized response a status code equal to that given
-func (o *V1betaGetMultipleBackupPoliciesUnauthorized) IsCode(code int) bool {
-	return code == 401
-}
-
-// Code gets the status code for the v1beta get multiple backup policies unauthorized response
-func (o *V1betaGetMultipleBackupPoliciesUnauthorized) Code() int {
-	return 401
-}
-
 func (o *V1betaGetMultipleBackupPoliciesUnauthorized) Error() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/getMultipleBackupPolicies][%d] v1betaGetMultipleBackupPoliciesUnauthorized %s", 401, payload)
-}
-
-func (o *V1betaGetMultipleBackupPoliciesUnauthorized) String() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/getMultipleBackupPolicies][%d] v1betaGetMultipleBackupPoliciesUnauthorized %s", 401, payload)
+	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/getMultipleBackupPolicies][%d] v1betaGetMultipleBackupPoliciesUnauthorized  %+v", 401, o.Payload)
 }
 
 func (o *V1betaGetMultipleBackupPoliciesUnauthorized) GetPayload() *models.Error {
@@ -298,7 +188,7 @@ func NewV1betaGetMultipleBackupPoliciesForbidden() *V1betaGetMultipleBackupPolic
 }
 
 /*
-V1betaGetMultipleBackupPoliciesForbidden describes a response with status code 403, with default header values.
+V1betaGetMultipleBackupPoliciesForbidden handles this case with default header values.
 
 Forbidden
 */
@@ -306,44 +196,8 @@ type V1betaGetMultipleBackupPoliciesForbidden struct {
 	Payload *models.Error
 }
 
-// IsSuccess returns true when this v1beta get multiple backup policies forbidden response has a 2xx status code
-func (o *V1betaGetMultipleBackupPoliciesForbidden) IsSuccess() bool {
-	return false
-}
-
-// IsRedirect returns true when this v1beta get multiple backup policies forbidden response has a 3xx status code
-func (o *V1betaGetMultipleBackupPoliciesForbidden) IsRedirect() bool {
-	return false
-}
-
-// IsClientError returns true when this v1beta get multiple backup policies forbidden response has a 4xx status code
-func (o *V1betaGetMultipleBackupPoliciesForbidden) IsClientError() bool {
-	return true
-}
-
-// IsServerError returns true when this v1beta get multiple backup policies forbidden response has a 5xx status code
-func (o *V1betaGetMultipleBackupPoliciesForbidden) IsServerError() bool {
-	return false
-}
-
-// IsCode returns true when this v1beta get multiple backup policies forbidden response a status code equal to that given
-func (o *V1betaGetMultipleBackupPoliciesForbidden) IsCode(code int) bool {
-	return code == 403
-}
-
-// Code gets the status code for the v1beta get multiple backup policies forbidden response
-func (o *V1betaGetMultipleBackupPoliciesForbidden) Code() int {
-	return 403
-}
-
 func (o *V1betaGetMultipleBackupPoliciesForbidden) Error() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/getMultipleBackupPolicies][%d] v1betaGetMultipleBackupPoliciesForbidden %s", 403, payload)
-}
-
-func (o *V1betaGetMultipleBackupPoliciesForbidden) String() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/getMultipleBackupPolicies][%d] v1betaGetMultipleBackupPoliciesForbidden %s", 403, payload)
+	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/getMultipleBackupPolicies][%d] v1betaGetMultipleBackupPoliciesForbidden  %+v", 403, o.Payload)
 }
 
 func (o *V1betaGetMultipleBackupPoliciesForbidden) GetPayload() *models.Error {
@@ -368,7 +222,7 @@ func NewV1betaGetMultipleBackupPoliciesNotFound() *V1betaGetMultipleBackupPolici
 }
 
 /*
-V1betaGetMultipleBackupPoliciesNotFound describes a response with status code 404, with default header values.
+V1betaGetMultipleBackupPoliciesNotFound handles this case with default header values.
 
 Not found
 */
@@ -376,44 +230,8 @@ type V1betaGetMultipleBackupPoliciesNotFound struct {
 	Payload *models.Error
 }
 
-// IsSuccess returns true when this v1beta get multiple backup policies not found response has a 2xx status code
-func (o *V1betaGetMultipleBackupPoliciesNotFound) IsSuccess() bool {
-	return false
-}
-
-// IsRedirect returns true when this v1beta get multiple backup policies not found response has a 3xx status code
-func (o *V1betaGetMultipleBackupPoliciesNotFound) IsRedirect() bool {
-	return false
-}
-
-// IsClientError returns true when this v1beta get multiple backup policies not found response has a 4xx status code
-func (o *V1betaGetMultipleBackupPoliciesNotFound) IsClientError() bool {
-	return true
-}
-
-// IsServerError returns true when this v1beta get multiple backup policies not found response has a 5xx status code
-func (o *V1betaGetMultipleBackupPoliciesNotFound) IsServerError() bool {
-	return false
-}
-
-// IsCode returns true when this v1beta get multiple backup policies not found response a status code equal to that given
-func (o *V1betaGetMultipleBackupPoliciesNotFound) IsCode(code int) bool {
-	return code == 404
-}
-
-// Code gets the status code for the v1beta get multiple backup policies not found response
-func (o *V1betaGetMultipleBackupPoliciesNotFound) Code() int {
-	return 404
-}
-
 func (o *V1betaGetMultipleBackupPoliciesNotFound) Error() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/getMultipleBackupPolicies][%d] v1betaGetMultipleBackupPoliciesNotFound %s", 404, payload)
-}
-
-func (o *V1betaGetMultipleBackupPoliciesNotFound) String() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/getMultipleBackupPolicies][%d] v1betaGetMultipleBackupPoliciesNotFound %s", 404, payload)
+	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/getMultipleBackupPolicies][%d] v1betaGetMultipleBackupPoliciesNotFound  %+v", 404, o.Payload)
 }
 
 func (o *V1betaGetMultipleBackupPoliciesNotFound) GetPayload() *models.Error {
@@ -438,7 +256,7 @@ func NewV1betaGetMultipleBackupPoliciesInternalServerError() *V1betaGetMultipleB
 }
 
 /*
-V1betaGetMultipleBackupPoliciesInternalServerError describes a response with status code 500, with default header values.
+V1betaGetMultipleBackupPoliciesInternalServerError handles this case with default header values.
 
 Internal server error
 */
@@ -446,44 +264,8 @@ type V1betaGetMultipleBackupPoliciesInternalServerError struct {
 	Payload *models.Error
 }
 
-// IsSuccess returns true when this v1beta get multiple backup policies internal server error response has a 2xx status code
-func (o *V1betaGetMultipleBackupPoliciesInternalServerError) IsSuccess() bool {
-	return false
-}
-
-// IsRedirect returns true when this v1beta get multiple backup policies internal server error response has a 3xx status code
-func (o *V1betaGetMultipleBackupPoliciesInternalServerError) IsRedirect() bool {
-	return false
-}
-
-// IsClientError returns true when this v1beta get multiple backup policies internal server error response has a 4xx status code
-func (o *V1betaGetMultipleBackupPoliciesInternalServerError) IsClientError() bool {
-	return false
-}
-
-// IsServerError returns true when this v1beta get multiple backup policies internal server error response has a 5xx status code
-func (o *V1betaGetMultipleBackupPoliciesInternalServerError) IsServerError() bool {
-	return true
-}
-
-// IsCode returns true when this v1beta get multiple backup policies internal server error response a status code equal to that given
-func (o *V1betaGetMultipleBackupPoliciesInternalServerError) IsCode(code int) bool {
-	return code == 500
-}
-
-// Code gets the status code for the v1beta get multiple backup policies internal server error response
-func (o *V1betaGetMultipleBackupPoliciesInternalServerError) Code() int {
-	return 500
-}
-
 func (o *V1betaGetMultipleBackupPoliciesInternalServerError) Error() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/getMultipleBackupPolicies][%d] v1betaGetMultipleBackupPoliciesInternalServerError %s", 500, payload)
-}
-
-func (o *V1betaGetMultipleBackupPoliciesInternalServerError) String() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/getMultipleBackupPolicies][%d] v1betaGetMultipleBackupPoliciesInternalServerError %s", 500, payload)
+	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/getMultipleBackupPolicies][%d] v1betaGetMultipleBackupPoliciesInternalServerError  %+v", 500, o.Payload)
 }
 
 func (o *V1betaGetMultipleBackupPoliciesInternalServerError) GetPayload() *models.Error {
@@ -508,7 +290,7 @@ func NewV1betaGetMultipleBackupPoliciesNotImplemented() *V1betaGetMultipleBackup
 }
 
 /*
-V1betaGetMultipleBackupPoliciesNotImplemented describes a response with status code 501, with default header values.
+V1betaGetMultipleBackupPoliciesNotImplemented handles this case with default header values.
 
 Not implemented
 */
@@ -516,44 +298,8 @@ type V1betaGetMultipleBackupPoliciesNotImplemented struct {
 	Payload *models.Error
 }
 
-// IsSuccess returns true when this v1beta get multiple backup policies not implemented response has a 2xx status code
-func (o *V1betaGetMultipleBackupPoliciesNotImplemented) IsSuccess() bool {
-	return false
-}
-
-// IsRedirect returns true when this v1beta get multiple backup policies not implemented response has a 3xx status code
-func (o *V1betaGetMultipleBackupPoliciesNotImplemented) IsRedirect() bool {
-	return false
-}
-
-// IsClientError returns true when this v1beta get multiple backup policies not implemented response has a 4xx status code
-func (o *V1betaGetMultipleBackupPoliciesNotImplemented) IsClientError() bool {
-	return false
-}
-
-// IsServerError returns true when this v1beta get multiple backup policies not implemented response has a 5xx status code
-func (o *V1betaGetMultipleBackupPoliciesNotImplemented) IsServerError() bool {
-	return true
-}
-
-// IsCode returns true when this v1beta get multiple backup policies not implemented response a status code equal to that given
-func (o *V1betaGetMultipleBackupPoliciesNotImplemented) IsCode(code int) bool {
-	return code == 501
-}
-
-// Code gets the status code for the v1beta get multiple backup policies not implemented response
-func (o *V1betaGetMultipleBackupPoliciesNotImplemented) Code() int {
-	return 501
-}
-
 func (o *V1betaGetMultipleBackupPoliciesNotImplemented) Error() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/getMultipleBackupPolicies][%d] v1betaGetMultipleBackupPoliciesNotImplemented %s", 501, payload)
-}
-
-func (o *V1betaGetMultipleBackupPoliciesNotImplemented) String() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/getMultipleBackupPolicies][%d] v1betaGetMultipleBackupPoliciesNotImplemented %s", 501, payload)
+	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/getMultipleBackupPolicies][%d] v1betaGetMultipleBackupPoliciesNotImplemented  %+v", 501, o.Payload)
 }
 
 func (o *V1betaGetMultipleBackupPoliciesNotImplemented) GetPayload() *models.Error {
@@ -580,7 +326,7 @@ func NewV1betaGetMultipleBackupPoliciesDefault(code int) *V1betaGetMultipleBacku
 }
 
 /*
-V1betaGetMultipleBackupPoliciesDefault describes a response with status code -1, with default header values.
+V1betaGetMultipleBackupPoliciesDefault handles this case with default header values.
 
 Unexpected error
 */
@@ -590,44 +336,13 @@ type V1betaGetMultipleBackupPoliciesDefault struct {
 	Payload *models.Error
 }
 
-// IsSuccess returns true when this v1beta get multiple backup policies default response has a 2xx status code
-func (o *V1betaGetMultipleBackupPoliciesDefault) IsSuccess() bool {
-	return o._statusCode/100 == 2
-}
-
-// IsRedirect returns true when this v1beta get multiple backup policies default response has a 3xx status code
-func (o *V1betaGetMultipleBackupPoliciesDefault) IsRedirect() bool {
-	return o._statusCode/100 == 3
-}
-
-// IsClientError returns true when this v1beta get multiple backup policies default response has a 4xx status code
-func (o *V1betaGetMultipleBackupPoliciesDefault) IsClientError() bool {
-	return o._statusCode/100 == 4
-}
-
-// IsServerError returns true when this v1beta get multiple backup policies default response has a 5xx status code
-func (o *V1betaGetMultipleBackupPoliciesDefault) IsServerError() bool {
-	return o._statusCode/100 == 5
-}
-
-// IsCode returns true when this v1beta get multiple backup policies default response a status code equal to that given
-func (o *V1betaGetMultipleBackupPoliciesDefault) IsCode(code int) bool {
-	return o._statusCode == code
-}
-
 // Code gets the status code for the v1beta get multiple backup policies default response
 func (o *V1betaGetMultipleBackupPoliciesDefault) Code() int {
 	return o._statusCode
 }
 
 func (o *V1betaGetMultipleBackupPoliciesDefault) Error() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/getMultipleBackupPolicies][%d] v1beta_getMultipleBackupPolicies default %s", o._statusCode, payload)
-}
-
-func (o *V1betaGetMultipleBackupPoliciesDefault) String() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/getMultipleBackupPolicies][%d] v1beta_getMultipleBackupPolicies default %s", o._statusCode, payload)
+	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/getMultipleBackupPolicies][%d] v1beta_getMultipleBackupPolicies default  %+v", o._statusCode, o.Payload)
 }
 
 func (o *V1betaGetMultipleBackupPoliciesDefault) GetPayload() *models.Error {
@@ -718,47 +433,6 @@ func (o *V1betaGetMultipleBackupPoliciesOKBody) validateBackupPolicies(formats s
 			if err := o.BackupPolicies[i].Validate(formats); err != nil {
 				if ve, ok := err.(*errors.Validation); ok {
 					return ve.ValidateName("v1betaGetMultipleBackupPoliciesOK" + "." + "backupPolicies" + "." + strconv.Itoa(i))
-				} else if ce, ok := err.(*errors.CompositeError); ok {
-					return ce.ValidateName("v1betaGetMultipleBackupPoliciesOK" + "." + "backupPolicies" + "." + strconv.Itoa(i))
-				}
-				return err
-			}
-		}
-
-	}
-
-	return nil
-}
-
-// ContextValidate validate this v1beta get multiple backup policies o k body based on the context it is used
-func (o *V1betaGetMultipleBackupPoliciesOKBody) ContextValidate(ctx context.Context, formats strfmt.Registry) error {
-	var res []error
-
-	if err := o.contextValidateBackupPolicies(ctx, formats); err != nil {
-		res = append(res, err)
-	}
-
-	if len(res) > 0 {
-		return errors.CompositeValidationError(res...)
-	}
-	return nil
-}
-
-func (o *V1betaGetMultipleBackupPoliciesOKBody) contextValidateBackupPolicies(ctx context.Context, formats strfmt.Registry) error {
-
-	for i := 0; i < len(o.BackupPolicies); i++ {
-
-		if o.BackupPolicies[i] != nil {
-
-			if swag.IsZero(o.BackupPolicies[i]) { // not required
-				return nil
-			}
-
-			if err := o.BackupPolicies[i].ContextValidate(ctx, formats); err != nil {
-				if ve, ok := err.(*errors.Validation); ok {
-					return ve.ValidateName("v1betaGetMultipleBackupPoliciesOK" + "." + "backupPolicies" + "." + strconv.Itoa(i))
-				} else if ce, ok := err.(*errors.CompositeError); ok {
-					return ce.ValidateName("v1betaGetMultipleBackupPoliciesOK" + "." + "backupPolicies" + "." + strconv.Itoa(i))
 				}
 				return err
 			}

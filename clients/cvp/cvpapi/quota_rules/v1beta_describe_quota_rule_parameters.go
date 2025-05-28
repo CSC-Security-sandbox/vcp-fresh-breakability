@@ -16,37 +16,40 @@ import (
 	"github.com/go-openapi/strfmt"
 )
 
-// NewV1betaDescribeQuotaRuleParams creates a new V1betaDescribeQuotaRuleParams object,
-// with the default timeout for this client.
-//
-// Default values are not hydrated, since defaults are normally applied by the API server side.
-//
-// To enforce default values in parameter, use SetDefaults or WithDefaults.
+// NewV1betaDescribeQuotaRuleParams creates a new V1betaDescribeQuotaRuleParams object
+// with the default values initialized.
 func NewV1betaDescribeQuotaRuleParams() *V1betaDescribeQuotaRuleParams {
+	var ()
 	return &V1betaDescribeQuotaRuleParams{
+
 		timeout: cr.DefaultTimeout,
 	}
 }
 
 // NewV1betaDescribeQuotaRuleParamsWithTimeout creates a new V1betaDescribeQuotaRuleParams object
-// with the ability to set a timeout on a request.
+// with the default values initialized, and the ability to set a timeout on a request
 func NewV1betaDescribeQuotaRuleParamsWithTimeout(timeout time.Duration) *V1betaDescribeQuotaRuleParams {
+	var ()
 	return &V1betaDescribeQuotaRuleParams{
+
 		timeout: timeout,
 	}
 }
 
 // NewV1betaDescribeQuotaRuleParamsWithContext creates a new V1betaDescribeQuotaRuleParams object
-// with the ability to set a context for a request.
+// with the default values initialized, and the ability to set a context for a request
 func NewV1betaDescribeQuotaRuleParamsWithContext(ctx context.Context) *V1betaDescribeQuotaRuleParams {
+	var ()
 	return &V1betaDescribeQuotaRuleParams{
+
 		Context: ctx,
 	}
 }
 
 // NewV1betaDescribeQuotaRuleParamsWithHTTPClient creates a new V1betaDescribeQuotaRuleParams object
-// with the ability to set a custom HTTPClient for a request.
+// with the default values initialized, and the ability to set a custom HTTPClient for a request
 func NewV1betaDescribeQuotaRuleParamsWithHTTPClient(client *http.Client) *V1betaDescribeQuotaRuleParams {
+	var ()
 	return &V1betaDescribeQuotaRuleParams{
 		HTTPClient: client,
 	}
@@ -54,61 +57,39 @@ func NewV1betaDescribeQuotaRuleParamsWithHTTPClient(client *http.Client) *V1beta
 
 /*
 V1betaDescribeQuotaRuleParams contains all the parameters to send to the API endpoint
-
-	for the v1beta describe quota rule operation.
-
-	Typically these are written to a http.Request.
+for the v1beta describe quota rule operation typically these are written to a http.Request
 */
 type V1betaDescribeQuotaRuleParams struct {
 
-	/* LocationID.
+	/*LocationID
+	  The location/region to perform the operation in.
 
-	   The location/region to perform the operation in.
 	*/
 	LocationID string
+	/*ProjectNumber
+	  The project number of the GCP project owning the resource being acted upon
 
-	/* ProjectNumber.
-
-	   The project number of the GCP project owning the resource being acted upon
 	*/
 	ProjectNumber string
+	/*QuotaRuleID
+	  UUID v4 used to identify the quota rules
 
-	/* QuotaRuleID.
-
-	   UUID v4 used to identify the quota rules
 	*/
 	QuotaRuleID string
+	/*VolumeID
+	  UUID v4 used to identify the volume
 
-	/* VolumeID.
-
-	   UUID v4 used to identify the volume
 	*/
 	VolumeID string
+	/*XCorrelationID
+	  Correlation identifier
 
-	/* XCorrelationID.
-
-	   Correlation identifier
 	*/
 	XCorrelationID *string
 
 	timeout    time.Duration
 	Context    context.Context
 	HTTPClient *http.Client
-}
-
-// WithDefaults hydrates default values in the v1beta describe quota rule params (not the query body).
-//
-// All values with no default are reset to their zero value.
-func (o *V1betaDescribeQuotaRuleParams) WithDefaults() *V1betaDescribeQuotaRuleParams {
-	o.SetDefaults()
-	return o
-}
-
-// SetDefaults hydrates default values in the v1beta describe quota rule params (not the query body).
-//
-// All values with no default are reset to their zero value.
-func (o *V1betaDescribeQuotaRuleParams) SetDefaults() {
-	// no default values defined for this parameter
 }
 
 // WithTimeout adds the timeout to the v1beta describe quota rule params
@@ -233,6 +214,7 @@ func (o *V1betaDescribeQuotaRuleParams) WriteToRequest(r runtime.ClientRequest, 
 		if err := r.SetHeaderParam("x-correlation-id", *o.XCorrelationID); err != nil {
 			return err
 		}
+
 	}
 
 	if len(res) > 0 {

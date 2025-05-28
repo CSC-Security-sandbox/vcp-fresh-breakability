@@ -6,8 +6,6 @@ package models
 // Editing this file might prove futile when you re-run the swagger generate command
 
 import (
-	"context"
-
 	"github.com/go-openapi/errors"
 	"github.com/go-openapi/strfmt"
 	"github.com/go-openapi/swag"
@@ -32,7 +30,6 @@ type OperationV1beta struct {
 	// name
 	//
 	// The full resource name of the operation
-	// Example: projects/123456789/locations/us-east4/operations/00000000-0000-0000-0000-000000000000
 	Name string `json:"name,omitempty"`
 
 	// response
@@ -58,6 +55,7 @@ func (m *OperationV1beta) Validate(formats strfmt.Registry) error {
 }
 
 func (m *OperationV1beta) validateError(formats strfmt.Registry) error {
+
 	if swag.IsZero(m.Error) { // not required
 		return nil
 	}
@@ -66,8 +64,6 @@ func (m *OperationV1beta) validateError(formats strfmt.Registry) error {
 		if err := m.Error.Validate(formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("error")
-			} else if ce, ok := err.(*errors.CompositeError); ok {
-				return ce.ValidateName("error")
 			}
 			return err
 		}
@@ -77,6 +73,7 @@ func (m *OperationV1beta) validateError(formats strfmt.Registry) error {
 }
 
 func (m *OperationV1beta) validateMetadata(formats strfmt.Registry) error {
+
 	if swag.IsZero(m.Metadata) { // not required
 		return nil
 	}
@@ -85,68 +82,6 @@ func (m *OperationV1beta) validateMetadata(formats strfmt.Registry) error {
 		if err := m.Metadata.Validate(formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("metadata")
-			} else if ce, ok := err.(*errors.CompositeError); ok {
-				return ce.ValidateName("metadata")
-			}
-			return err
-		}
-	}
-
-	return nil
-}
-
-// ContextValidate validate this operation v1beta based on the context it is used
-func (m *OperationV1beta) ContextValidate(ctx context.Context, formats strfmt.Registry) error {
-	var res []error
-
-	if err := m.contextValidateError(ctx, formats); err != nil {
-		res = append(res, err)
-	}
-
-	if err := m.contextValidateMetadata(ctx, formats); err != nil {
-		res = append(res, err)
-	}
-
-	if len(res) > 0 {
-		return errors.CompositeValidationError(res...)
-	}
-	return nil
-}
-
-func (m *OperationV1beta) contextValidateError(ctx context.Context, formats strfmt.Registry) error {
-
-	if m.Error != nil {
-
-		if swag.IsZero(m.Error) { // not required
-			return nil
-		}
-
-		if err := m.Error.ContextValidate(ctx, formats); err != nil {
-			if ve, ok := err.(*errors.Validation); ok {
-				return ve.ValidateName("error")
-			} else if ce, ok := err.(*errors.CompositeError); ok {
-				return ce.ValidateName("error")
-			}
-			return err
-		}
-	}
-
-	return nil
-}
-
-func (m *OperationV1beta) contextValidateMetadata(ctx context.Context, formats strfmt.Registry) error {
-
-	if m.Metadata != nil {
-
-		if swag.IsZero(m.Metadata) { // not required
-			return nil
-		}
-
-		if err := m.Metadata.ContextValidate(ctx, formats); err != nil {
-			if ve, ok := err.(*errors.Validation); ok {
-				return ve.ValidateName("metadata")
-			} else if ce, ok := err.(*errors.CompositeError); ok {
-				return ce.ValidateName("metadata")
 			}
 			return err
 		}

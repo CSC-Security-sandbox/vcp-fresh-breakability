@@ -6,8 +6,6 @@ package models
 // Editing this file might prove futile when you re-run the swagger generate command
 
 import (
-	"context"
-
 	"github.com/go-openapi/errors"
 	"github.com/go-openapi/strfmt"
 	"github.com/go-openapi/swag"
@@ -22,12 +20,10 @@ type QuotaRulesUpdateV1beta struct {
 	// description
 	//
 	// Description of the quota rule
-	// Example: My quota Rules description
 	// Max Length: 2048
 	Description *string `json:"description,omitempty"`
 
 	// Total size limit in mebibytes for the user or group.
-	// Example: 1024
 	DiskLimitInMib *int64 `json:"diskLimitInMib,omitempty"`
 }
 
@@ -46,19 +42,15 @@ func (m *QuotaRulesUpdateV1beta) Validate(formats strfmt.Registry) error {
 }
 
 func (m *QuotaRulesUpdateV1beta) validateDescription(formats strfmt.Registry) error {
+
 	if swag.IsZero(m.Description) { // not required
 		return nil
 	}
 
-	if err := validate.MaxLength("description", "body", *m.Description, 2048); err != nil {
+	if err := validate.MaxLength("description", "body", string(*m.Description), 2048); err != nil {
 		return err
 	}
 
-	return nil
-}
-
-// ContextValidate validates this quota rules update v1beta based on context it is used
-func (m *QuotaRulesUpdateV1beta) ContextValidate(ctx context.Context, formats strfmt.Registry) error {
 	return nil
 }
 

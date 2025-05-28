@@ -6,8 +6,6 @@ package models
 // Editing this file might prove futile when you re-run the swagger generate command
 
 import (
-	"context"
-
 	"github.com/go-openapi/errors"
 	"github.com/go-openapi/strfmt"
 	"github.com/go-openapi/swag"
@@ -22,7 +20,6 @@ type EncryptVolumeStatusV1beta struct {
 	// UUID
 	//
 	// UUID v4 used to identify the GCP KMS configuration
-	// Example: 9760acf5-4638-11e7-9bdb-020073ca7773
 	// Read Only: true
 	// Max Length: 36
 	// Min Length: 36
@@ -32,7 +29,6 @@ type EncryptVolumeStatusV1beta struct {
 	// status
 	//
 	// The current status of the GCP KMS encryption
-	// Example: created
 	Status string `json:"status,omitempty"`
 }
 
@@ -51,42 +47,20 @@ func (m *EncryptVolumeStatusV1beta) Validate(formats strfmt.Registry) error {
 }
 
 func (m *EncryptVolumeStatusV1beta) validateUUID(formats strfmt.Registry) error {
+
 	if swag.IsZero(m.UUID) { // not required
 		return nil
 	}
 
-	if err := validate.MinLength("UUID", "body", m.UUID, 36); err != nil {
+	if err := validate.MinLength("UUID", "body", string(m.UUID), 36); err != nil {
 		return err
 	}
 
-	if err := validate.MaxLength("UUID", "body", m.UUID, 36); err != nil {
+	if err := validate.MaxLength("UUID", "body", string(m.UUID), 36); err != nil {
 		return err
 	}
 
-	if err := validate.Pattern("UUID", "body", m.UUID, `^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$`); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-// ContextValidate validate this encrypt volume status v1beta based on the context it is used
-func (m *EncryptVolumeStatusV1beta) ContextValidate(ctx context.Context, formats strfmt.Registry) error {
-	var res []error
-
-	if err := m.contextValidateUUID(ctx, formats); err != nil {
-		res = append(res, err)
-	}
-
-	if len(res) > 0 {
-		return errors.CompositeValidationError(res...)
-	}
-	return nil
-}
-
-func (m *EncryptVolumeStatusV1beta) contextValidateUUID(ctx context.Context, formats strfmt.Registry) error {
-
-	if err := validate.ReadOnly(ctx, "UUID", "body", string(m.UUID)); err != nil {
+	if err := validate.Pattern("UUID", "body", string(m.UUID), `^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$`); err != nil {
 		return err
 	}
 

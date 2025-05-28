@@ -7,38 +7,12 @@ package pools
 
 import (
 	"github.com/go-openapi/runtime"
-	httptransport "github.com/go-openapi/runtime/client"
 	"github.com/go-openapi/strfmt"
 )
 
 // New creates a new pools API client.
 func New(transport runtime.ClientTransport, formats strfmt.Registry) ClientService {
 	return &Client{transport: transport, formats: formats}
-}
-
-// New creates a new pools API client with basic auth credentials.
-// It takes the following parameters:
-// - host: http host (github.com).
-// - basePath: any base path for the API client ("/v1", "/v3").
-// - scheme: http scheme ("http", "https").
-// - user: user for basic authentication header.
-// - password: password for basic authentication header.
-func NewClientWithBasicAuth(host, basePath, scheme, user, password string) ClientService {
-	transport := httptransport.New(host, basePath, []string{scheme})
-	transport.DefaultAuthentication = httptransport.BasicAuth(user, password)
-	return &Client{transport: transport, formats: strfmt.Default}
-}
-
-// New creates a new pools API client with a bearer token for authentication.
-// It takes the following parameters:
-// - host: http host (github.com).
-// - basePath: any base path for the API client ("/v1", "/v3").
-// - scheme: http scheme ("http", "https").
-// - bearerToken: bearer token for Bearer authentication header.
-func NewClientWithBearerToken(host, basePath, scheme, bearerToken string) ClientService {
-	transport := httptransport.New(host, basePath, []string{scheme})
-	transport.DefaultAuthentication = httptransport.BearerToken(bearerToken)
-	return &Client{transport: transport, formats: strfmt.Default}
 }
 
 /*
@@ -49,24 +23,21 @@ type Client struct {
 	formats   strfmt.Registry
 }
 
-// ClientOption may be used to customize the behavior of Client methods.
-type ClientOption func(*runtime.ClientOperation)
-
 // ClientService is the interface for Client methods
 type ClientService interface {
-	V1betaCreatePool(params *V1betaCreatePoolParams, opts ...ClientOption) (*V1betaCreatePoolAccepted, error)
+	V1betaCreatePool(params *V1betaCreatePoolParams) (*V1betaCreatePoolAccepted, error)
 
-	V1betaDeletePool(params *V1betaDeletePoolParams, opts ...ClientOption) (*V1betaDeletePoolAccepted, *V1betaDeletePoolNoContent, error)
+	V1betaDeletePool(params *V1betaDeletePoolParams) (*V1betaDeletePoolAccepted, *V1betaDeletePoolNoContent, error)
 
-	V1betaDescribePool(params *V1betaDescribePoolParams, opts ...ClientOption) (*V1betaDescribePoolOK, error)
+	V1betaDescribePool(params *V1betaDescribePoolParams) (*V1betaDescribePoolOK, error)
 
-	V1betaDirectoryServiceDiagnosis(params *V1betaDirectoryServiceDiagnosisParams, opts ...ClientOption) (*V1betaDirectoryServiceDiagnosisAccepted, error)
+	V1betaDirectoryServiceDiagnosis(params *V1betaDirectoryServiceDiagnosisParams) (*V1betaDirectoryServiceDiagnosisAccepted, error)
 
-	V1betaGetMultiplePools(params *V1betaGetMultiplePoolsParams, opts ...ClientOption) (*V1betaGetMultiplePoolsOK, error)
+	V1betaGetMultiplePools(params *V1betaGetMultiplePoolsParams) (*V1betaGetMultiplePoolsOK, error)
 
-	V1betaListPools(params *V1betaListPoolsParams, opts ...ClientOption) (*V1betaListPoolsOK, error)
+	V1betaListPools(params *V1betaListPoolsParams) (*V1betaListPoolsOK, error)
 
-	V1betaUpdatePool(params *V1betaUpdatePoolParams, opts ...ClientOption) (*V1betaUpdatePoolAccepted, *V1betaUpdatePoolNoContent, error)
+	V1betaUpdatePool(params *V1betaUpdatePoolParams) (*V1betaUpdatePoolAccepted, *V1betaUpdatePoolNoContent, error)
 
 	SetTransport(transport runtime.ClientTransport)
 }
@@ -76,12 +47,13 @@ V1betaCreatePool creates a new pool
 
 Create a new pool.
 */
-func (a *Client) V1betaCreatePool(params *V1betaCreatePoolParams, opts ...ClientOption) (*V1betaCreatePoolAccepted, error) {
+func (a *Client) V1betaCreatePool(params *V1betaCreatePoolParams) (*V1betaCreatePoolAccepted, error) {
 	// TODO: Validate the params before sending
 	if params == nil {
 		params = NewV1betaCreatePoolParams()
 	}
-	op := &runtime.ClientOperation{
+
+	result, err := a.transport.Submit(&runtime.ClientOperation{
 		ID:                 "v1beta_createPool",
 		Method:             "POST",
 		PathPattern:        "/v1beta/projects/{projectNumber}/locations/{locationId}/pools",
@@ -92,12 +64,7 @@ func (a *Client) V1betaCreatePool(params *V1betaCreatePoolParams, opts ...Client
 		Reader:             &V1betaCreatePoolReader{formats: a.formats},
 		Context:            params.Context,
 		Client:             params.HTTPClient,
-	}
-	for _, opt := range opts {
-		opt(op)
-	}
-
-	result, err := a.transport.Submit(op)
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -115,12 +82,13 @@ V1betaDeletePool deletes a storage pool
 
 Warning! This operation will permanently delete the pool. This operation will never return resource not found, since that could be interpreted as resource already deleted, and therefore will return operation done instead.
 */
-func (a *Client) V1betaDeletePool(params *V1betaDeletePoolParams, opts ...ClientOption) (*V1betaDeletePoolAccepted, *V1betaDeletePoolNoContent, error) {
+func (a *Client) V1betaDeletePool(params *V1betaDeletePoolParams) (*V1betaDeletePoolAccepted, *V1betaDeletePoolNoContent, error) {
 	// TODO: Validate the params before sending
 	if params == nil {
 		params = NewV1betaDeletePoolParams()
 	}
-	op := &runtime.ClientOperation{
+
+	result, err := a.transport.Submit(&runtime.ClientOperation{
 		ID:                 "v1beta_deletePool",
 		Method:             "DELETE",
 		PathPattern:        "/v1beta/projects/{projectNumber}/locations/{locationId}/pools/{poolId}",
@@ -131,12 +99,7 @@ func (a *Client) V1betaDeletePool(params *V1betaDeletePoolParams, opts ...Client
 		Reader:             &V1betaDeletePoolReader{formats: a.formats},
 		Context:            params.Context,
 		Client:             params.HTTPClient,
-	}
-	for _, opt := range opts {
-		opt(op)
-	}
-
-	result, err := a.transport.Submit(op)
+	})
 	if err != nil {
 		return nil, nil, err
 	}
@@ -156,12 +119,13 @@ V1betaDescribePool describes a pool
 
 Returns the description of the specified pool by pool ID.
 */
-func (a *Client) V1betaDescribePool(params *V1betaDescribePoolParams, opts ...ClientOption) (*V1betaDescribePoolOK, error) {
+func (a *Client) V1betaDescribePool(params *V1betaDescribePoolParams) (*V1betaDescribePoolOK, error) {
 	// TODO: Validate the params before sending
 	if params == nil {
 		params = NewV1betaDescribePoolParams()
 	}
-	op := &runtime.ClientOperation{
+
+	result, err := a.transport.Submit(&runtime.ClientOperation{
 		ID:                 "v1beta_describePool",
 		Method:             "GET",
 		PathPattern:        "/v1beta/projects/{projectNumber}/locations/{locationId}/pools/{poolId}",
@@ -172,12 +136,7 @@ func (a *Client) V1betaDescribePool(params *V1betaDescribePoolParams, opts ...Cl
 		Reader:             &V1betaDescribePoolReader{formats: a.formats},
 		Context:            params.Context,
 		Client:             params.HTTPClient,
-	}
-	for _, opt := range opts {
-		opt(op)
-	}
-
-	result, err := a.transport.Submit(op)
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -195,12 +154,13 @@ V1betaDirectoryServiceDiagnosis checks configuration of directory service
 
 Check the directory service configuration
 */
-func (a *Client) V1betaDirectoryServiceDiagnosis(params *V1betaDirectoryServiceDiagnosisParams, opts ...ClientOption) (*V1betaDirectoryServiceDiagnosisAccepted, error) {
+func (a *Client) V1betaDirectoryServiceDiagnosis(params *V1betaDirectoryServiceDiagnosisParams) (*V1betaDirectoryServiceDiagnosisAccepted, error) {
 	// TODO: Validate the params before sending
 	if params == nil {
 		params = NewV1betaDirectoryServiceDiagnosisParams()
 	}
-	op := &runtime.ClientOperation{
+
+	result, err := a.transport.Submit(&runtime.ClientOperation{
 		ID:                 "v1beta_directoryServiceDiagnosis",
 		Method:             "POST",
 		PathPattern:        "/v1beta/projects/{projectNumber}/locations/{locationId}/pools/{poolId}/directoryService",
@@ -211,12 +171,7 @@ func (a *Client) V1betaDirectoryServiceDiagnosis(params *V1betaDirectoryServiceD
 		Reader:             &V1betaDirectoryServiceDiagnosisReader{formats: a.formats},
 		Context:            params.Context,
 		Client:             params.HTTPClient,
-	}
-	for _, opt := range opts {
-		opt(op)
-	}
-
-	result, err := a.transport.Submit(op)
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -234,12 +189,13 @@ V1betaGetMultiplePools lists specified pools
 
 Returns descriptions of pools that is listed in request body.
 */
-func (a *Client) V1betaGetMultiplePools(params *V1betaGetMultiplePoolsParams, opts ...ClientOption) (*V1betaGetMultiplePoolsOK, error) {
+func (a *Client) V1betaGetMultiplePools(params *V1betaGetMultiplePoolsParams) (*V1betaGetMultiplePoolsOK, error) {
 	// TODO: Validate the params before sending
 	if params == nil {
 		params = NewV1betaGetMultiplePoolsParams()
 	}
-	op := &runtime.ClientOperation{
+
+	result, err := a.transport.Submit(&runtime.ClientOperation{
 		ID:                 "v1beta_getMultiplePools",
 		Method:             "POST",
 		PathPattern:        "/v1beta/projects/{projectNumber}/locations/{locationId}/getMultiplePools",
@@ -250,12 +206,7 @@ func (a *Client) V1betaGetMultiplePools(params *V1betaGetMultiplePoolsParams, op
 		Reader:             &V1betaGetMultiplePoolsReader{formats: a.formats},
 		Context:            params.Context,
 		Client:             params.HTTPClient,
-	}
-	for _, opt := range opts {
-		opt(op)
-	}
-
-	result, err := a.transport.Submit(op)
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -273,12 +224,13 @@ V1betaListPools lists all pools
 
 Returns descriptions of all pools owned by the caller.
 */
-func (a *Client) V1betaListPools(params *V1betaListPoolsParams, opts ...ClientOption) (*V1betaListPoolsOK, error) {
+func (a *Client) V1betaListPools(params *V1betaListPoolsParams) (*V1betaListPoolsOK, error) {
 	// TODO: Validate the params before sending
 	if params == nil {
 		params = NewV1betaListPoolsParams()
 	}
-	op := &runtime.ClientOperation{
+
+	result, err := a.transport.Submit(&runtime.ClientOperation{
 		ID:                 "v1beta_listPools",
 		Method:             "GET",
 		PathPattern:        "/v1beta/projects/{projectNumber}/locations/{locationId}/pools",
@@ -289,12 +241,7 @@ func (a *Client) V1betaListPools(params *V1betaListPoolsParams, opts ...ClientOp
 		Reader:             &V1betaListPoolsReader{formats: a.formats},
 		Context:            params.Context,
 		Client:             params.HTTPClient,
-	}
-	for _, opt := range opts {
-		opt(op)
-	}
-
-	result, err := a.transport.Submit(op)
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -312,12 +259,13 @@ V1betaUpdatePool updates a pool
 
 Update the pool
 */
-func (a *Client) V1betaUpdatePool(params *V1betaUpdatePoolParams, opts ...ClientOption) (*V1betaUpdatePoolAccepted, *V1betaUpdatePoolNoContent, error) {
+func (a *Client) V1betaUpdatePool(params *V1betaUpdatePoolParams) (*V1betaUpdatePoolAccepted, *V1betaUpdatePoolNoContent, error) {
 	// TODO: Validate the params before sending
 	if params == nil {
 		params = NewV1betaUpdatePoolParams()
 	}
-	op := &runtime.ClientOperation{
+
+	result, err := a.transport.Submit(&runtime.ClientOperation{
 		ID:                 "v1beta_updatePool",
 		Method:             "PUT",
 		PathPattern:        "/v1beta/projects/{projectNumber}/locations/{locationId}/pools/{poolId}",
@@ -328,12 +276,7 @@ func (a *Client) V1betaUpdatePool(params *V1betaUpdatePoolParams, opts ...Client
 		Reader:             &V1betaUpdatePoolReader{formats: a.formats},
 		Context:            params.Context,
 		Client:             params.HTTPClient,
-	}
-	for _, opt := range opts {
-		opt(op)
-	}
-
-	result, err := a.transport.Submit(op)
+	})
 	if err != nil {
 		return nil, nil, err
 	}

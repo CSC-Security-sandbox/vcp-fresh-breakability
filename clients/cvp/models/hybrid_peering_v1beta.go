@@ -6,8 +6,6 @@ package models
 // Editing this file might prove futile when you re-run the swagger generate command
 
 import (
-	"context"
-
 	"github.com/go-openapi/errors"
 	"github.com/go-openapi/strfmt"
 	"github.com/go-openapi/swag"
@@ -22,49 +20,42 @@ type HybridPeeringV1beta struct {
 	// command
 	//
 	// Copy-paste-able command to be used on source Ontap to accept peering request.
-	// Example: cluster peer create -peer-addrs 192.140.112.101,192.140.112.102 -initial-allowed-vserver-peers svm_560a3f3cb4d345f18297decc3a5988bc
 	// Read Only: true
 	Command string `json:"command,omitempty"`
 
 	// commandExpiryTime
 	//
 	// DateTime value for when cluster peering command should expire.
-	// Example: 2024-04-20 16:21:01+01:00
 	// Format: date-time
 	CommandExpiryTime *strfmt.DateTime `json:"commandExpiryTime,omitempty"`
 
 	// passphrase
 	//
 	// Temporary passphrase generated to accept cluster peering command.
-	// Example: loremIpsum
 	// Read Only: true
 	Passphrase *string `json:"passphrase,omitempty"`
 
 	// peerClusterName
 	//
 	// This is name of the external peered cluster for this hybrid replication.
-	// Example: somePeerClusterName
 	// Read Only: true
 	PeerClusterName *string `json:"peerClusterName,omitempty"`
 
 	// peerSvmName
 	//
 	// This is the name of the external peered SVM for this hybrid replication.
-	// Example: somePeerSvmName
 	// Read Only: true
 	PeerSvmName *string `json:"peerSvmName,omitempty"`
 
 	// peerVolumeName
 	//
 	// This is name of the peered external volume for this hybrid replication.
-	// Example: somePeerVolumeName
 	// Read Only: true
 	PeerVolumeName *string `json:"peerVolumeName,omitempty"`
 
 	// subnetIp
 	//
 	// IP address of subnet in use for this hybrid peering
-	// Example: 101.102.103.104
 	// Read Only: true
 	SubnetIP string `json:"subnetIp,omitempty"`
 }
@@ -84,99 +75,12 @@ func (m *HybridPeeringV1beta) Validate(formats strfmt.Registry) error {
 }
 
 func (m *HybridPeeringV1beta) validateCommandExpiryTime(formats strfmt.Registry) error {
+
 	if swag.IsZero(m.CommandExpiryTime) { // not required
 		return nil
 	}
 
 	if err := validate.FormatOf("commandExpiryTime", "body", "date-time", m.CommandExpiryTime.String(), formats); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-// ContextValidate validate this hybrid peering v1beta based on the context it is used
-func (m *HybridPeeringV1beta) ContextValidate(ctx context.Context, formats strfmt.Registry) error {
-	var res []error
-
-	if err := m.contextValidateCommand(ctx, formats); err != nil {
-		res = append(res, err)
-	}
-
-	if err := m.contextValidatePassphrase(ctx, formats); err != nil {
-		res = append(res, err)
-	}
-
-	if err := m.contextValidatePeerClusterName(ctx, formats); err != nil {
-		res = append(res, err)
-	}
-
-	if err := m.contextValidatePeerSvmName(ctx, formats); err != nil {
-		res = append(res, err)
-	}
-
-	if err := m.contextValidatePeerVolumeName(ctx, formats); err != nil {
-		res = append(res, err)
-	}
-
-	if err := m.contextValidateSubnetIP(ctx, formats); err != nil {
-		res = append(res, err)
-	}
-
-	if len(res) > 0 {
-		return errors.CompositeValidationError(res...)
-	}
-	return nil
-}
-
-func (m *HybridPeeringV1beta) contextValidateCommand(ctx context.Context, formats strfmt.Registry) error {
-
-	if err := validate.ReadOnly(ctx, "command", "body", string(m.Command)); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (m *HybridPeeringV1beta) contextValidatePassphrase(ctx context.Context, formats strfmt.Registry) error {
-
-	if err := validate.ReadOnly(ctx, "passphrase", "body", m.Passphrase); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (m *HybridPeeringV1beta) contextValidatePeerClusterName(ctx context.Context, formats strfmt.Registry) error {
-
-	if err := validate.ReadOnly(ctx, "peerClusterName", "body", m.PeerClusterName); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (m *HybridPeeringV1beta) contextValidatePeerSvmName(ctx context.Context, formats strfmt.Registry) error {
-
-	if err := validate.ReadOnly(ctx, "peerSvmName", "body", m.PeerSvmName); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (m *HybridPeeringV1beta) contextValidatePeerVolumeName(ctx context.Context, formats strfmt.Registry) error {
-
-	if err := validate.ReadOnly(ctx, "peerVolumeName", "body", m.PeerVolumeName); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (m *HybridPeeringV1beta) contextValidateSubnetIP(ctx context.Context, formats strfmt.Registry) error {
-
-	if err := validate.ReadOnly(ctx, "subnetIp", "body", string(m.SubnetIP)); err != nil {
 		return err
 	}
 

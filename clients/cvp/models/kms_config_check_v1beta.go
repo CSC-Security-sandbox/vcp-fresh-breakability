@@ -6,8 +6,6 @@ package models
 // Editing this file might prove futile when you re-run the swagger generate command
 
 import (
-	"context"
-
 	"github.com/go-openapi/errors"
 	"github.com/go-openapi/strfmt"
 	"github.com/go-openapi/swag"
@@ -26,7 +24,6 @@ type KmsConfigCheckV1beta struct {
 	// service account email.
 	//
 	// Service-account email which will have access to key through Google IAM policy.
-	// Example: service-account@example.com
 	ServiceAccount string `json:"serviceAccount,omitempty"`
 }
 
@@ -45,6 +42,7 @@ func (m *KmsConfigCheckV1beta) Validate(formats strfmt.Registry) error {
 }
 
 func (m *KmsConfigCheckV1beta) validateKmsConfigHealthCheck(formats strfmt.Registry) error {
+
 	if swag.IsZero(m.KmsConfigHealthCheck) { // not required
 		return nil
 	}
@@ -53,43 +51,6 @@ func (m *KmsConfigCheckV1beta) validateKmsConfigHealthCheck(formats strfmt.Regis
 		if err := m.KmsConfigHealthCheck.Validate(formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("kmsConfigHealthCheck")
-			} else if ce, ok := err.(*errors.CompositeError); ok {
-				return ce.ValidateName("kmsConfigHealthCheck")
-			}
-			return err
-		}
-	}
-
-	return nil
-}
-
-// ContextValidate validate this kms config check v1beta based on the context it is used
-func (m *KmsConfigCheckV1beta) ContextValidate(ctx context.Context, formats strfmt.Registry) error {
-	var res []error
-
-	if err := m.contextValidateKmsConfigHealthCheck(ctx, formats); err != nil {
-		res = append(res, err)
-	}
-
-	if len(res) > 0 {
-		return errors.CompositeValidationError(res...)
-	}
-	return nil
-}
-
-func (m *KmsConfigCheckV1beta) contextValidateKmsConfigHealthCheck(ctx context.Context, formats strfmt.Registry) error {
-
-	if m.KmsConfigHealthCheck != nil {
-
-		if swag.IsZero(m.KmsConfigHealthCheck) { // not required
-			return nil
-		}
-
-		if err := m.KmsConfigHealthCheck.ContextValidate(ctx, formats); err != nil {
-			if ve, ok := err.(*errors.Validation); ok {
-				return ve.ValidateName("kmsConfigHealthCheck")
-			} else if ce, ok := err.(*errors.CompositeError); ok {
-				return ce.ValidateName("kmsConfigHealthCheck")
 			}
 			return err
 		}

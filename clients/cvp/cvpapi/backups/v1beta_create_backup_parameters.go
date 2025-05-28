@@ -18,37 +18,40 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/models"
 )
 
-// NewV1betaCreateBackupParams creates a new V1betaCreateBackupParams object,
-// with the default timeout for this client.
-//
-// Default values are not hydrated, since defaults are normally applied by the API server side.
-//
-// To enforce default values in parameter, use SetDefaults or WithDefaults.
+// NewV1betaCreateBackupParams creates a new V1betaCreateBackupParams object
+// with the default values initialized.
 func NewV1betaCreateBackupParams() *V1betaCreateBackupParams {
+	var ()
 	return &V1betaCreateBackupParams{
+
 		timeout: cr.DefaultTimeout,
 	}
 }
 
 // NewV1betaCreateBackupParamsWithTimeout creates a new V1betaCreateBackupParams object
-// with the ability to set a timeout on a request.
+// with the default values initialized, and the ability to set a timeout on a request
 func NewV1betaCreateBackupParamsWithTimeout(timeout time.Duration) *V1betaCreateBackupParams {
+	var ()
 	return &V1betaCreateBackupParams{
+
 		timeout: timeout,
 	}
 }
 
 // NewV1betaCreateBackupParamsWithContext creates a new V1betaCreateBackupParams object
-// with the ability to set a context for a request.
+// with the default values initialized, and the ability to set a context for a request
 func NewV1betaCreateBackupParamsWithContext(ctx context.Context) *V1betaCreateBackupParams {
+	var ()
 	return &V1betaCreateBackupParams{
+
 		Context: ctx,
 	}
 }
 
 // NewV1betaCreateBackupParamsWithHTTPClient creates a new V1betaCreateBackupParams object
-// with the ability to set a custom HTTPClient for a request.
+// with the default values initialized, and the ability to set a custom HTTPClient for a request
 func NewV1betaCreateBackupParamsWithHTTPClient(client *http.Client) *V1betaCreateBackupParams {
+	var ()
 	return &V1betaCreateBackupParams{
 		HTTPClient: client,
 	}
@@ -56,61 +59,39 @@ func NewV1betaCreateBackupParamsWithHTTPClient(client *http.Client) *V1betaCreat
 
 /*
 V1betaCreateBackupParams contains all the parameters to send to the API endpoint
-
-	for the v1beta create backup operation.
-
-	Typically these are written to a http.Request.
+for the v1beta create backup operation typically these are written to a http.Request
 */
 type V1betaCreateBackupParams struct {
 
-	/* BackupVaultID.
+	/*BackupVaultID
+	  UUID v4 used to identify the backup vault
 
-	   UUID v4 used to identify the backup vault
 	*/
 	BackupVaultID string
+	/*Body
+	  The required parameters to create a new backup.
 
-	/* Body.
-
-	   The required parameters to create a new backup.
 	*/
 	Body *models.BackupCreateV1beta
+	/*LocationID
+	  The location/region to perform the operation in.
 
-	/* LocationID.
-
-	   The location/region to perform the operation in.
 	*/
 	LocationID string
+	/*ProjectNumber
+	  The project number of the GCP project owning the resource being acted upon
 
-	/* ProjectNumber.
-
-	   The project number of the GCP project owning the resource being acted upon
 	*/
 	ProjectNumber string
+	/*XCorrelationID
+	  Correlation identifier
 
-	/* XCorrelationID.
-
-	   Correlation identifier
 	*/
 	XCorrelationID *string
 
 	timeout    time.Duration
 	Context    context.Context
 	HTTPClient *http.Client
-}
-
-// WithDefaults hydrates default values in the v1beta create backup params (not the query body).
-//
-// All values with no default are reset to their zero value.
-func (o *V1betaCreateBackupParams) WithDefaults() *V1betaCreateBackupParams {
-	o.SetDefaults()
-	return o
-}
-
-// SetDefaults hydrates default values in the v1beta create backup params (not the query body).
-//
-// All values with no default are reset to their zero value.
-func (o *V1betaCreateBackupParams) SetDefaults() {
-	// no default values defined for this parameter
 }
 
 // WithTimeout adds the timeout to the v1beta create backup params
@@ -213,6 +194,7 @@ func (o *V1betaCreateBackupParams) WriteToRequest(r runtime.ClientRequest, reg s
 	if err := r.SetPathParam("backupVaultId", o.BackupVaultID); err != nil {
 		return err
 	}
+
 	if o.Body != nil {
 		if err := r.SetBodyParam(o.Body); err != nil {
 			return err
@@ -235,6 +217,7 @@ func (o *V1betaCreateBackupParams) WriteToRequest(r runtime.ClientRequest, reg s
 		if err := r.SetHeaderParam("x-correlation-id", *o.XCorrelationID); err != nil {
 			return err
 		}
+
 	}
 
 	if len(res) > 0 {

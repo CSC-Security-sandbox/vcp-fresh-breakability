@@ -6,7 +6,6 @@ package models
 // Editing this file might prove futile when you re-run the swagger generate command
 
 import (
-	"context"
 	"strconv"
 
 	"github.com/go-openapi/errors"
@@ -24,7 +23,6 @@ type BackupPolicyDetailsV1beta struct {
 	VolumeBackups []*VolumeBackupDetailsV1beta `json:"volumeBackups"`
 
 	// Total volumes assigned to the backup policy
-	// Example: 6
 	VolumeCount *int64 `json:"volumeCount,omitempty"`
 }
 
@@ -115,52 +113,6 @@ func (m *BackupPolicyDetailsV1beta) validateVolumeBackups(formats strfmt.Registr
 			if err := m.VolumeBackups[i].Validate(formats); err != nil {
 				if ve, ok := err.(*errors.Validation); ok {
 					return ve.ValidateName("volumeBackups" + "." + strconv.Itoa(i))
-				} else if ce, ok := err.(*errors.CompositeError); ok {
-					return ce.ValidateName("volumeBackups" + "." + strconv.Itoa(i))
-				}
-				return err
-			}
-		}
-
-	}
-
-	return nil
-}
-
-// ContextValidate validate this backup policy details v1beta based on the context it is used
-func (m *BackupPolicyDetailsV1beta) ContextValidate(ctx context.Context, formats strfmt.Registry) error {
-	var res []error
-
-	// validation for a type composition with BackupPolicyV1beta
-	if err := m.BackupPolicyV1beta.ContextValidate(ctx, formats); err != nil {
-		res = append(res, err)
-	}
-
-	if err := m.contextValidateVolumeBackups(ctx, formats); err != nil {
-		res = append(res, err)
-	}
-
-	if len(res) > 0 {
-		return errors.CompositeValidationError(res...)
-	}
-	return nil
-}
-
-func (m *BackupPolicyDetailsV1beta) contextValidateVolumeBackups(ctx context.Context, formats strfmt.Registry) error {
-
-	for i := 0; i < len(m.VolumeBackups); i++ {
-
-		if m.VolumeBackups[i] != nil {
-
-			if swag.IsZero(m.VolumeBackups[i]) { // not required
-				return nil
-			}
-
-			if err := m.VolumeBackups[i].ContextValidate(ctx, formats); err != nil {
-				if ve, ok := err.(*errors.Validation); ok {
-					return ve.ValidateName("volumeBackups" + "." + strconv.Itoa(i))
-				} else if ce, ok := err.(*errors.CompositeError); ok {
-					return ce.ValidateName("volumeBackups" + "." + strconv.Itoa(i))
 				}
 				return err
 			}

@@ -6,7 +6,6 @@ package models
 // Editing this file might prove futile when you re-run the swagger generate command
 
 import (
-	"context"
 	"encoding/json"
 	"strconv"
 
@@ -26,7 +25,6 @@ type KmsConfigPreMigrateV1beta struct {
 	// createdTime
 	//
 	// Creation date of the resource
-	// Example: 2016-11-28T19:30:23.123Z
 	// Read Only: true
 	// Format: date-time
 	CreatedTime strfmt.DateTime `json:"createdTime,omitempty"`
@@ -34,7 +32,6 @@ type KmsConfigPreMigrateV1beta struct {
 	// deletedTime
 	//
 	// Date the resource was deleted
-	// Example: 2016-11-30T23:59:59.999Z
 	// Read Only: true
 	// Format: date-time
 	DeletedTime *strfmt.DateTime `json:"deletedTime,omitempty"`
@@ -42,14 +39,12 @@ type KmsConfigPreMigrateV1beta struct {
 	// description
 	//
 	// Description of the KMS configuration
-	// Example: My kms description
 	// Max Length: 2048
 	Description *string `json:"description,omitempty"`
 
 	// instructions
 	//
 	// Instructions to provide the access to encryption key.
-	// Example: gcloud kms keys add-iam-policy-binding key_Name --keyring keyring_Name\\ --location key_Ring_Location\\ --member serviceAccount:service_Account_Name\\ --role roles/cloudkms.cryptoKeyEncrypterDecrypter
 	// Read Only: true
 	Instructions string `json:"instructions,omitempty"`
 
@@ -61,34 +56,29 @@ type KmsConfigPreMigrateV1beta struct {
 	// keyFullPath
 	//
 	// Includes key ring, key-ring location, key name and key project ID
-	// Example: projects/projectID/locations/us/keyRings/keyRing/cryptoKeys/keyName
 	// Required: true
 	KeyFullPath *string `json:"keyFullPath"`
 
 	// state
 	//
 	// The current lifecycle state of the configuration
-	// Example: READY
 	// Read Only: true
-	// Enum: ["STATE_UNSPECIFIED","CREATING","READY","UPDATING","IN_USE","DELETING","ERROR","KEY_STATE_UNSPECIFIED","KEY_CHECK_PENDING","KEY_NOT_REACHABLE","DISABLING","DISABLED","DELETED","MIGRATING"]
+	// Enum: [STATE_UNSPECIFIED CREATING READY UPDATING IN_USE DELETING ERROR KEY_STATE_UNSPECIFIED KEY_CHECK_PENDING KEY_NOT_REACHABLE DISABLING DISABLED DELETED MIGRATING]
 	KmsState string `json:"kmsState,omitempty"`
 
 	// stateDetails
 	//
 	// Details about the current KMS configuration state
-	// Example: Credentials saved and available for use
 	// Read Only: true
 	KmsStateDetails string `json:"kmsStateDetails,omitempty"`
 
 	// network
-	// Example: projects/123456789/global/networks/network-to-netapp2
 	// Pattern: ^projects\/\d+\/global\/networks\/(![0-9]+$)?(!.*-$)?(!-)?[a-zA-Z0-9-]{1,63}$
 	Network string `json:"network,omitempty"`
 
 	// resourceId
 	//
 	// Resource ID for KMS configuration
-	// Example: myResourceId
 	// Max Length: 63
 	// Min Length: 1
 	// Pattern: ^[a-z]([a-z0-9-]{0,61}[a-z0-9])?$
@@ -97,14 +87,12 @@ type KmsConfigPreMigrateV1beta struct {
 	// service account email.
 	//
 	// Service account email which will have access to key through Google IAM policy.
-	// Example: service-account@example.com
 	// Read Only: true
 	ServiceAccountEmail string `json:"serviceAccountEmail,omitempty"`
 
 	// updatedTime
 	//
 	// Date of last update of the resource
-	// Example: 2016-11-29T20:32:50.459Z
 	// Read Only: true
 	// Format: date-time
 	UpdatedTime strfmt.DateTime `json:"updatedTime,omitempty"`
@@ -112,7 +100,6 @@ type KmsConfigPreMigrateV1beta struct {
 	// UUID
 	//
 	// UUID v4 used to identify the KMS configuration
-	// Example: 9760acf5-4638-11e7-9bdb-020073ca7773
 	// Read Only: true
 	// Max Length: 36
 	// Min Length: 36
@@ -171,6 +158,7 @@ func (m *KmsConfigPreMigrateV1beta) Validate(formats strfmt.Registry) error {
 }
 
 func (m *KmsConfigPreMigrateV1beta) validateCreatedTime(formats strfmt.Registry) error {
+
 	if swag.IsZero(m.CreatedTime) { // not required
 		return nil
 	}
@@ -183,6 +171,7 @@ func (m *KmsConfigPreMigrateV1beta) validateCreatedTime(formats strfmt.Registry)
 }
 
 func (m *KmsConfigPreMigrateV1beta) validateDeletedTime(formats strfmt.Registry) error {
+
 	if swag.IsZero(m.DeletedTime) { // not required
 		return nil
 	}
@@ -195,11 +184,12 @@ func (m *KmsConfigPreMigrateV1beta) validateDeletedTime(formats strfmt.Registry)
 }
 
 func (m *KmsConfigPreMigrateV1beta) validateDescription(formats strfmt.Registry) error {
+
 	if swag.IsZero(m.Description) { // not required
 		return nil
 	}
 
-	if err := validate.MaxLength("description", "body", *m.Description, 2048); err != nil {
+	if err := validate.MaxLength("description", "body", string(*m.Description), 2048); err != nil {
 		return err
 	}
 
@@ -207,6 +197,7 @@ func (m *KmsConfigPreMigrateV1beta) validateDescription(formats strfmt.Registry)
 }
 
 func (m *KmsConfigPreMigrateV1beta) validateJobs(formats strfmt.Registry) error {
+
 	if swag.IsZero(m.Jobs) { // not required
 		return nil
 	}
@@ -220,8 +211,6 @@ func (m *KmsConfigPreMigrateV1beta) validateJobs(formats strfmt.Registry) error 
 			if err := m.Jobs[i].Validate(formats); err != nil {
 				if ve, ok := err.(*errors.Validation); ok {
 					return ve.ValidateName("jobs" + "." + strconv.Itoa(i))
-				} else if ce, ok := err.(*errors.CompositeError); ok {
-					return ce.ValidateName("jobs" + "." + strconv.Itoa(i))
 				}
 				return err
 			}
@@ -307,6 +296,7 @@ func (m *KmsConfigPreMigrateV1beta) validateKmsStateEnum(path, location string, 
 }
 
 func (m *KmsConfigPreMigrateV1beta) validateKmsState(formats strfmt.Registry) error {
+
 	if swag.IsZero(m.KmsState) { // not required
 		return nil
 	}
@@ -320,11 +310,12 @@ func (m *KmsConfigPreMigrateV1beta) validateKmsState(formats strfmt.Registry) er
 }
 
 func (m *KmsConfigPreMigrateV1beta) validateNetwork(formats strfmt.Registry) error {
+
 	if swag.IsZero(m.Network) { // not required
 		return nil
 	}
 
-	if err := validate.Pattern("network", "body", m.Network, `^projects\/\d+\/global\/networks\/(![0-9]+$)?(!.*-$)?(!-)?[a-zA-Z0-9-]{1,63}$`); err != nil {
+	if err := validate.Pattern("network", "body", string(m.Network), `^projects\/\d+\/global\/networks\/(![0-9]+$)?(!.*-$)?(!-)?[a-zA-Z0-9-]{1,63}$`); err != nil {
 		return err
 	}
 
@@ -332,19 +323,20 @@ func (m *KmsConfigPreMigrateV1beta) validateNetwork(formats strfmt.Registry) err
 }
 
 func (m *KmsConfigPreMigrateV1beta) validateResourceID(formats strfmt.Registry) error {
+
 	if swag.IsZero(m.ResourceID) { // not required
 		return nil
 	}
 
-	if err := validate.MinLength("resourceId", "body", *m.ResourceID, 1); err != nil {
+	if err := validate.MinLength("resourceId", "body", string(*m.ResourceID), 1); err != nil {
 		return err
 	}
 
-	if err := validate.MaxLength("resourceId", "body", *m.ResourceID, 63); err != nil {
+	if err := validate.MaxLength("resourceId", "body", string(*m.ResourceID), 63); err != nil {
 		return err
 	}
 
-	if err := validate.Pattern("resourceId", "body", *m.ResourceID, `^[a-z]([a-z0-9-]{0,61}[a-z0-9])?$`); err != nil {
+	if err := validate.Pattern("resourceId", "body", string(*m.ResourceID), `^[a-z]([a-z0-9-]{0,61}[a-z0-9])?$`); err != nil {
 		return err
 	}
 
@@ -352,6 +344,7 @@ func (m *KmsConfigPreMigrateV1beta) validateResourceID(formats strfmt.Registry) 
 }
 
 func (m *KmsConfigPreMigrateV1beta) validateUpdatedTime(formats strfmt.Registry) error {
+
 	if swag.IsZero(m.UpdatedTime) { // not required
 		return nil
 	}
@@ -364,162 +357,20 @@ func (m *KmsConfigPreMigrateV1beta) validateUpdatedTime(formats strfmt.Registry)
 }
 
 func (m *KmsConfigPreMigrateV1beta) validateUUID(formats strfmt.Registry) error {
+
 	if swag.IsZero(m.UUID) { // not required
 		return nil
 	}
 
-	if err := validate.MinLength("uuid", "body", m.UUID, 36); err != nil {
+	if err := validate.MinLength("uuid", "body", string(m.UUID), 36); err != nil {
 		return err
 	}
 
-	if err := validate.MaxLength("uuid", "body", m.UUID, 36); err != nil {
+	if err := validate.MaxLength("uuid", "body", string(m.UUID), 36); err != nil {
 		return err
 	}
 
-	if err := validate.Pattern("uuid", "body", m.UUID, `^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$`); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-// ContextValidate validate this kms config pre migrate v1beta based on the context it is used
-func (m *KmsConfigPreMigrateV1beta) ContextValidate(ctx context.Context, formats strfmt.Registry) error {
-	var res []error
-
-	if err := m.contextValidateCreatedTime(ctx, formats); err != nil {
-		res = append(res, err)
-	}
-
-	if err := m.contextValidateDeletedTime(ctx, formats); err != nil {
-		res = append(res, err)
-	}
-
-	if err := m.contextValidateInstructions(ctx, formats); err != nil {
-		res = append(res, err)
-	}
-
-	if err := m.contextValidateJobs(ctx, formats); err != nil {
-		res = append(res, err)
-	}
-
-	if err := m.contextValidateKmsState(ctx, formats); err != nil {
-		res = append(res, err)
-	}
-
-	if err := m.contextValidateKmsStateDetails(ctx, formats); err != nil {
-		res = append(res, err)
-	}
-
-	if err := m.contextValidateServiceAccountEmail(ctx, formats); err != nil {
-		res = append(res, err)
-	}
-
-	if err := m.contextValidateUpdatedTime(ctx, formats); err != nil {
-		res = append(res, err)
-	}
-
-	if err := m.contextValidateUUID(ctx, formats); err != nil {
-		res = append(res, err)
-	}
-
-	if len(res) > 0 {
-		return errors.CompositeValidationError(res...)
-	}
-	return nil
-}
-
-func (m *KmsConfigPreMigrateV1beta) contextValidateCreatedTime(ctx context.Context, formats strfmt.Registry) error {
-
-	if err := validate.ReadOnly(ctx, "createdTime", "body", strfmt.DateTime(m.CreatedTime)); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (m *KmsConfigPreMigrateV1beta) contextValidateDeletedTime(ctx context.Context, formats strfmt.Registry) error {
-
-	if err := validate.ReadOnly(ctx, "deletedTime", "body", m.DeletedTime); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (m *KmsConfigPreMigrateV1beta) contextValidateInstructions(ctx context.Context, formats strfmt.Registry) error {
-
-	if err := validate.ReadOnly(ctx, "instructions", "body", string(m.Instructions)); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (m *KmsConfigPreMigrateV1beta) contextValidateJobs(ctx context.Context, formats strfmt.Registry) error {
-
-	for i := 0; i < len(m.Jobs); i++ {
-
-		if m.Jobs[i] != nil {
-
-			if swag.IsZero(m.Jobs[i]) { // not required
-				return nil
-			}
-
-			if err := m.Jobs[i].ContextValidate(ctx, formats); err != nil {
-				if ve, ok := err.(*errors.Validation); ok {
-					return ve.ValidateName("jobs" + "." + strconv.Itoa(i))
-				} else if ce, ok := err.(*errors.CompositeError); ok {
-					return ce.ValidateName("jobs" + "." + strconv.Itoa(i))
-				}
-				return err
-			}
-		}
-
-	}
-
-	return nil
-}
-
-func (m *KmsConfigPreMigrateV1beta) contextValidateKmsState(ctx context.Context, formats strfmt.Registry) error {
-
-	if err := validate.ReadOnly(ctx, "kmsState", "body", string(m.KmsState)); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (m *KmsConfigPreMigrateV1beta) contextValidateKmsStateDetails(ctx context.Context, formats strfmt.Registry) error {
-
-	if err := validate.ReadOnly(ctx, "kmsStateDetails", "body", string(m.KmsStateDetails)); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (m *KmsConfigPreMigrateV1beta) contextValidateServiceAccountEmail(ctx context.Context, formats strfmt.Registry) error {
-
-	if err := validate.ReadOnly(ctx, "serviceAccountEmail", "body", string(m.ServiceAccountEmail)); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (m *KmsConfigPreMigrateV1beta) contextValidateUpdatedTime(ctx context.Context, formats strfmt.Registry) error {
-
-	if err := validate.ReadOnly(ctx, "updatedTime", "body", strfmt.DateTime(m.UpdatedTime)); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (m *KmsConfigPreMigrateV1beta) contextValidateUUID(ctx context.Context, formats strfmt.Registry) error {
-
-	if err := validate.ReadOnly(ctx, "uuid", "body", string(m.UUID)); err != nil {
+	if err := validate.Pattern("uuid", "body", string(m.UUID), `^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$`); err != nil {
 		return err
 	}
 

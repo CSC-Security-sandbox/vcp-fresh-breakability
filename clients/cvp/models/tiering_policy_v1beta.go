@@ -6,7 +6,6 @@ package models
 // Editing this file might prove futile when you re-run the swagger generate command
 
 import (
-	"context"
 	"encoding/json"
 
 	"github.com/go-openapi/errors"
@@ -25,19 +24,17 @@ type TieringPolicyV1beta struct {
 	// coolingThresholdDays
 	//
 	// Time in days to mark the volume's data block as cold and make it eligible for tiering. Minimum is 7 and maximum is 183 days
-	// Example: 24
 	CoolingThresholdDays *int32 `json:"coolingThresholdDays,omitempty"`
 
 	// hotTierBypassModeEnabled
 	//
 	// Flag indicating if the volume has hot tier bypass mode enabled or not
-	// Example: false
 	HotTierBypassModeEnabled *bool `json:"hotTierBypassModeEnabled,omitempty"`
 
 	// tierAction
 	//
 	// Flag indicating if the volume has tiering policy 'enabled' or 'paused'
-	// Enum: ["ENABLED","PAUSED"]
+	// Enum: [ENABLED PAUSED]
 	TierAction *string `json:"tierAction,omitempty"`
 }
 
@@ -85,6 +82,7 @@ func (m *TieringPolicyV1beta) validateTierActionEnum(path, location string, valu
 }
 
 func (m *TieringPolicyV1beta) validateTierAction(formats strfmt.Registry) error {
+
 	if swag.IsZero(m.TierAction) { // not required
 		return nil
 	}
@@ -94,11 +92,6 @@ func (m *TieringPolicyV1beta) validateTierAction(formats strfmt.Registry) error 
 		return err
 	}
 
-	return nil
-}
-
-// ContextValidate validates this tiering policy v1beta based on context it is used
-func (m *TieringPolicyV1beta) ContextValidate(ctx context.Context, formats strfmt.Registry) error {
 	return nil
 }
 

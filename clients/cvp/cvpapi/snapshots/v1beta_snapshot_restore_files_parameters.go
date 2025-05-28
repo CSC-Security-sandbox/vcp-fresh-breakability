@@ -18,37 +18,40 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/models"
 )
 
-// NewV1betaSnapshotRestoreFilesParams creates a new V1betaSnapshotRestoreFilesParams object,
-// with the default timeout for this client.
-//
-// Default values are not hydrated, since defaults are normally applied by the API server side.
-//
-// To enforce default values in parameter, use SetDefaults or WithDefaults.
+// NewV1betaSnapshotRestoreFilesParams creates a new V1betaSnapshotRestoreFilesParams object
+// with the default values initialized.
 func NewV1betaSnapshotRestoreFilesParams() *V1betaSnapshotRestoreFilesParams {
+	var ()
 	return &V1betaSnapshotRestoreFilesParams{
+
 		timeout: cr.DefaultTimeout,
 	}
 }
 
 // NewV1betaSnapshotRestoreFilesParamsWithTimeout creates a new V1betaSnapshotRestoreFilesParams object
-// with the ability to set a timeout on a request.
+// with the default values initialized, and the ability to set a timeout on a request
 func NewV1betaSnapshotRestoreFilesParamsWithTimeout(timeout time.Duration) *V1betaSnapshotRestoreFilesParams {
+	var ()
 	return &V1betaSnapshotRestoreFilesParams{
+
 		timeout: timeout,
 	}
 }
 
 // NewV1betaSnapshotRestoreFilesParamsWithContext creates a new V1betaSnapshotRestoreFilesParams object
-// with the ability to set a context for a request.
+// with the default values initialized, and the ability to set a context for a request
 func NewV1betaSnapshotRestoreFilesParamsWithContext(ctx context.Context) *V1betaSnapshotRestoreFilesParams {
+	var ()
 	return &V1betaSnapshotRestoreFilesParams{
+
 		Context: ctx,
 	}
 }
 
 // NewV1betaSnapshotRestoreFilesParamsWithHTTPClient creates a new V1betaSnapshotRestoreFilesParams object
-// with the ability to set a custom HTTPClient for a request.
+// with the default values initialized, and the ability to set a custom HTTPClient for a request
 func NewV1betaSnapshotRestoreFilesParamsWithHTTPClient(client *http.Client) *V1betaSnapshotRestoreFilesParams {
+	var ()
 	return &V1betaSnapshotRestoreFilesParams{
 		HTTPClient: client,
 	}
@@ -56,67 +59,44 @@ func NewV1betaSnapshotRestoreFilesParamsWithHTTPClient(client *http.Client) *V1b
 
 /*
 V1betaSnapshotRestoreFilesParams contains all the parameters to send to the API endpoint
-
-	for the v1beta snapshot restore files operation.
-
-	Typically these are written to a http.Request.
+for the v1beta snapshot restore files operation typically these are written to a http.Request
 */
 type V1betaSnapshotRestoreFilesParams struct {
 
-	/* Body.
+	/*Body
+	  The required parameters to restore files back to source volume
 
-	   The required parameters to restore files back to source volume
 	*/
 	Body *models.SnapshotRestoreFilesCreateV1beta
+	/*LocationID
+	  The location/region to perform the operation in.
 
-	/* LocationID.
-
-	   The location/region to perform the operation in.
 	*/
 	LocationID string
+	/*ProjectNumber
+	  The project number of the GCP project owning the resource being acted upon
 
-	/* ProjectNumber.
-
-	   The project number of the GCP project owning the resource being acted upon
 	*/
 	ProjectNumber string
+	/*SnapshotID
+	  UUID v4 used to identify the snapshot
 
-	/* SnapshotID.
-
-	   UUID v4 used to identify the snapshot
 	*/
 	SnapshotID string
+	/*VolumeID
+	  UUID v4 used to identify the volume
 
-	/* VolumeID.
-
-	   UUID v4 used to identify the volume
 	*/
 	VolumeID string
+	/*XCorrelationID
+	  Correlation identifier
 
-	/* XCorrelationID.
-
-	   Correlation identifier
 	*/
 	XCorrelationID *string
 
 	timeout    time.Duration
 	Context    context.Context
 	HTTPClient *http.Client
-}
-
-// WithDefaults hydrates default values in the v1beta snapshot restore files params (not the query body).
-//
-// All values with no default are reset to their zero value.
-func (o *V1betaSnapshotRestoreFilesParams) WithDefaults() *V1betaSnapshotRestoreFilesParams {
-	o.SetDefaults()
-	return o
-}
-
-// SetDefaults hydrates default values in the v1beta snapshot restore files params (not the query body).
-//
-// All values with no default are reset to their zero value.
-func (o *V1betaSnapshotRestoreFilesParams) SetDefaults() {
-	// no default values defined for this parameter
 }
 
 // WithTimeout adds the timeout to the v1beta snapshot restore files params
@@ -225,6 +205,7 @@ func (o *V1betaSnapshotRestoreFilesParams) WriteToRequest(r runtime.ClientReques
 		return err
 	}
 	var res []error
+
 	if o.Body != nil {
 		if err := r.SetBodyParam(o.Body); err != nil {
 			return err
@@ -257,6 +238,7 @@ func (o *V1betaSnapshotRestoreFilesParams) WriteToRequest(r runtime.ClientReques
 		if err := r.SetHeaderParam("x-correlation-id", *o.XCorrelationID); err != nil {
 			return err
 		}
+
 	}
 
 	if len(res) > 0 {

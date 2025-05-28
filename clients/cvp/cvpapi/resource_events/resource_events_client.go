@@ -7,38 +7,12 @@ package resource_events
 
 import (
 	"github.com/go-openapi/runtime"
-	httptransport "github.com/go-openapi/runtime/client"
 	"github.com/go-openapi/strfmt"
 )
 
 // New creates a new resource events API client.
 func New(transport runtime.ClientTransport, formats strfmt.Registry) ClientService {
 	return &Client{transport: transport, formats: formats}
-}
-
-// New creates a new resource events API client with basic auth credentials.
-// It takes the following parameters:
-// - host: http host (github.com).
-// - basePath: any base path for the API client ("/v1", "/v3").
-// - scheme: http scheme ("http", "https").
-// - user: user for basic authentication header.
-// - password: password for basic authentication header.
-func NewClientWithBasicAuth(host, basePath, scheme, user, password string) ClientService {
-	transport := httptransport.New(host, basePath, []string{scheme})
-	transport.DefaultAuthentication = httptransport.BasicAuth(user, password)
-	return &Client{transport: transport, formats: strfmt.Default}
-}
-
-// New creates a new resource events API client with a bearer token for authentication.
-// It takes the following parameters:
-// - host: http host (github.com).
-// - basePath: any base path for the API client ("/v1", "/v3").
-// - scheme: http scheme ("http", "https").
-// - bearerToken: bearer token for Bearer authentication header.
-func NewClientWithBearerToken(host, basePath, scheme, bearerToken string) ClientService {
-	transport := httptransport.New(host, basePath, []string{scheme})
-	transport.DefaultAuthentication = httptransport.BearerToken(bearerToken)
-	return &Client{transport: transport, formats: strfmt.Default}
 }
 
 /*
@@ -49,16 +23,13 @@ type Client struct {
 	formats   strfmt.Registry
 }
 
-// ClientOption may be used to customize the behavior of Client methods.
-type ClientOption func(*runtime.ClientOperation)
-
 // ClientService is the interface for Client methods
 type ClientService interface {
-	V1betaFinishProjectEvent(params *V1betaFinishProjectEventParams, opts ...ClientOption) (*V1betaFinishProjectEventCreated, *V1betaFinishProjectEventAccepted, *V1betaFinishProjectEventNoContent, error)
+	V1betaFinishProjectEvent(params *V1betaFinishProjectEventParams) (*V1betaFinishProjectEventCreated, *V1betaFinishProjectEventAccepted, *V1betaFinishProjectEventNoContent, error)
 
-	V1betaResourceStateUpdate(params *V1betaResourceStateUpdateParams, opts ...ClientOption) (*V1betaResourceStateUpdateCreated, *V1betaResourceStateUpdateAccepted, *V1betaResourceStateUpdateNoContent, error)
+	V1betaResourceStateUpdate(params *V1betaResourceStateUpdateParams) (*V1betaResourceStateUpdateCreated, *V1betaResourceStateUpdateAccepted, *V1betaResourceStateUpdateNoContent, error)
 
-	V1betaStartProjectEvent(params *V1betaStartProjectEventParams, opts ...ClientOption) (*V1betaStartProjectEventCreated, *V1betaStartProjectEventAccepted, *V1betaStartProjectEventNoContent, error)
+	V1betaStartProjectEvent(params *V1betaStartProjectEventParams) (*V1betaStartProjectEventCreated, *V1betaStartProjectEventAccepted, *V1betaStartProjectEventNoContent, error)
 
 	SetTransport(transport runtime.ClientTransport)
 }
@@ -68,12 +39,13 @@ V1betaFinishProjectEvent finishes the project state update of a 1 p account
 
 Finishes the project state for a 1P account based on the path parameter and project state value.
 */
-func (a *Client) V1betaFinishProjectEvent(params *V1betaFinishProjectEventParams, opts ...ClientOption) (*V1betaFinishProjectEventCreated, *V1betaFinishProjectEventAccepted, *V1betaFinishProjectEventNoContent, error) {
+func (a *Client) V1betaFinishProjectEvent(params *V1betaFinishProjectEventParams) (*V1betaFinishProjectEventCreated, *V1betaFinishProjectEventAccepted, *V1betaFinishProjectEventNoContent, error) {
 	// TODO: Validate the params before sending
 	if params == nil {
 		params = NewV1betaFinishProjectEventParams()
 	}
-	op := &runtime.ClientOperation{
+
+	result, err := a.transport.Submit(&runtime.ClientOperation{
 		ID:                 "v1beta_finishProjectEvent",
 		Method:             "POST",
 		PathPattern:        "/v1beta/projects/{projectNumber}/locations/{locationId}/finishProjectEvent",
@@ -84,12 +56,7 @@ func (a *Client) V1betaFinishProjectEvent(params *V1betaFinishProjectEventParams
 		Reader:             &V1betaFinishProjectEventReader{formats: a.formats},
 		Context:            params.Context,
 		Client:             params.HTTPClient,
-	}
-	for _, opt := range opts {
-		opt(op)
-	}
-
-	result, err := a.transport.Submit(op)
+	})
 	if err != nil {
 		return nil, nil, nil, err
 	}
@@ -111,12 +78,13 @@ V1betaResourceStateUpdate updates the resource state of g c p 1 p resources
 
 Updates the resource state of GCP 1P resources based on the path and body parameters.
 */
-func (a *Client) V1betaResourceStateUpdate(params *V1betaResourceStateUpdateParams, opts ...ClientOption) (*V1betaResourceStateUpdateCreated, *V1betaResourceStateUpdateAccepted, *V1betaResourceStateUpdateNoContent, error) {
+func (a *Client) V1betaResourceStateUpdate(params *V1betaResourceStateUpdateParams) (*V1betaResourceStateUpdateCreated, *V1betaResourceStateUpdateAccepted, *V1betaResourceStateUpdateNoContent, error) {
 	// TODO: Validate the params before sending
 	if params == nil {
 		params = NewV1betaResourceStateUpdateParams()
 	}
-	op := &runtime.ClientOperation{
+
+	result, err := a.transport.Submit(&runtime.ClientOperation{
 		ID:                 "v1beta_resourceStateUpdate",
 		Method:             "PUT",
 		PathPattern:        "/v1beta/projects/{projectNumber}/locations/{locationId}/handleResourceEvent",
@@ -127,12 +95,7 @@ func (a *Client) V1betaResourceStateUpdate(params *V1betaResourceStateUpdatePara
 		Reader:             &V1betaResourceStateUpdateReader{formats: a.formats},
 		Context:            params.Context,
 		Client:             params.HTTPClient,
-	}
-	for _, opt := range opts {
-		opt(op)
-	}
-
-	result, err := a.transport.Submit(op)
+	})
 	if err != nil {
 		return nil, nil, nil, err
 	}
@@ -154,12 +117,13 @@ V1betaStartProjectEvent starts the project state update of a 1 p account
 
 Updates the project state for a 1P account based on the path parameter and project state value.
 */
-func (a *Client) V1betaStartProjectEvent(params *V1betaStartProjectEventParams, opts ...ClientOption) (*V1betaStartProjectEventCreated, *V1betaStartProjectEventAccepted, *V1betaStartProjectEventNoContent, error) {
+func (a *Client) V1betaStartProjectEvent(params *V1betaStartProjectEventParams) (*V1betaStartProjectEventCreated, *V1betaStartProjectEventAccepted, *V1betaStartProjectEventNoContent, error) {
 	// TODO: Validate the params before sending
 	if params == nil {
 		params = NewV1betaStartProjectEventParams()
 	}
-	op := &runtime.ClientOperation{
+
+	result, err := a.transport.Submit(&runtime.ClientOperation{
 		ID:                 "v1beta_startProjectEvent",
 		Method:             "POST",
 		PathPattern:        "/v1beta/projects/{projectNumber}/locations/{locationId}/startProjectEvent",
@@ -170,12 +134,7 @@ func (a *Client) V1betaStartProjectEvent(params *V1betaStartProjectEventParams, 
 		Reader:             &V1betaStartProjectEventReader{formats: a.formats},
 		Context:            params.Context,
 		Client:             params.HTTPClient,
-	}
-	for _, opt := range opts {
-		opt(op)
-	}
-
-	result, err := a.transport.Submit(op)
+	})
 	if err != nil {
 		return nil, nil, nil, err
 	}

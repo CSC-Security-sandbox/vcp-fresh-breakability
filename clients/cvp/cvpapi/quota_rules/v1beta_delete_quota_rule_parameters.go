@@ -16,37 +16,40 @@ import (
 	"github.com/go-openapi/strfmt"
 )
 
-// NewV1betaDeleteQuotaRuleParams creates a new V1betaDeleteQuotaRuleParams object,
-// with the default timeout for this client.
-//
-// Default values are not hydrated, since defaults are normally applied by the API server side.
-//
-// To enforce default values in parameter, use SetDefaults or WithDefaults.
+// NewV1betaDeleteQuotaRuleParams creates a new V1betaDeleteQuotaRuleParams object
+// with the default values initialized.
 func NewV1betaDeleteQuotaRuleParams() *V1betaDeleteQuotaRuleParams {
+	var ()
 	return &V1betaDeleteQuotaRuleParams{
+
 		timeout: cr.DefaultTimeout,
 	}
 }
 
 // NewV1betaDeleteQuotaRuleParamsWithTimeout creates a new V1betaDeleteQuotaRuleParams object
-// with the ability to set a timeout on a request.
+// with the default values initialized, and the ability to set a timeout on a request
 func NewV1betaDeleteQuotaRuleParamsWithTimeout(timeout time.Duration) *V1betaDeleteQuotaRuleParams {
+	var ()
 	return &V1betaDeleteQuotaRuleParams{
+
 		timeout: timeout,
 	}
 }
 
 // NewV1betaDeleteQuotaRuleParamsWithContext creates a new V1betaDeleteQuotaRuleParams object
-// with the ability to set a context for a request.
+// with the default values initialized, and the ability to set a context for a request
 func NewV1betaDeleteQuotaRuleParamsWithContext(ctx context.Context) *V1betaDeleteQuotaRuleParams {
+	var ()
 	return &V1betaDeleteQuotaRuleParams{
+
 		Context: ctx,
 	}
 }
 
 // NewV1betaDeleteQuotaRuleParamsWithHTTPClient creates a new V1betaDeleteQuotaRuleParams object
-// with the ability to set a custom HTTPClient for a request.
+// with the default values initialized, and the ability to set a custom HTTPClient for a request
 func NewV1betaDeleteQuotaRuleParamsWithHTTPClient(client *http.Client) *V1betaDeleteQuotaRuleParams {
+	var ()
 	return &V1betaDeleteQuotaRuleParams{
 		HTTPClient: client,
 	}
@@ -54,61 +57,39 @@ func NewV1betaDeleteQuotaRuleParamsWithHTTPClient(client *http.Client) *V1betaDe
 
 /*
 V1betaDeleteQuotaRuleParams contains all the parameters to send to the API endpoint
-
-	for the v1beta delete quota rule operation.
-
-	Typically these are written to a http.Request.
+for the v1beta delete quota rule operation typically these are written to a http.Request
 */
 type V1betaDeleteQuotaRuleParams struct {
 
-	/* LocationID.
+	/*LocationID
+	  The location/region to perform the operation in.
 
-	   The location/region to perform the operation in.
 	*/
 	LocationID string
+	/*ProjectNumber
+	  The project number of the GCP project owning the resource being acted upon
 
-	/* ProjectNumber.
-
-	   The project number of the GCP project owning the resource being acted upon
 	*/
 	ProjectNumber string
+	/*QuotaRuleID
+	  UUID v4 used to identify the quota rules
 
-	/* QuotaRuleID.
-
-	   UUID v4 used to identify the quota rules
 	*/
 	QuotaRuleID string
+	/*VolumeID
+	  UUID v4 used to identify the volume
 
-	/* VolumeID.
-
-	   UUID v4 used to identify the volume
 	*/
 	VolumeID string
+	/*XCorrelationID
+	  Correlation identifier
 
-	/* XCorrelationID.
-
-	   Correlation identifier
 	*/
 	XCorrelationID *string
 
 	timeout    time.Duration
 	Context    context.Context
 	HTTPClient *http.Client
-}
-
-// WithDefaults hydrates default values in the v1beta delete quota rule params (not the query body).
-//
-// All values with no default are reset to their zero value.
-func (o *V1betaDeleteQuotaRuleParams) WithDefaults() *V1betaDeleteQuotaRuleParams {
-	o.SetDefaults()
-	return o
-}
-
-// SetDefaults hydrates default values in the v1beta delete quota rule params (not the query body).
-//
-// All values with no default are reset to their zero value.
-func (o *V1betaDeleteQuotaRuleParams) SetDefaults() {
-	// no default values defined for this parameter
 }
 
 // WithTimeout adds the timeout to the v1beta delete quota rule params
@@ -233,6 +214,7 @@ func (o *V1betaDeleteQuotaRuleParams) WriteToRequest(r runtime.ClientRequest, re
 		if err := r.SetHeaderParam("x-correlation-id", *o.XCorrelationID); err != nil {
 			return err
 		}
+
 	}
 
 	if len(res) > 0 {

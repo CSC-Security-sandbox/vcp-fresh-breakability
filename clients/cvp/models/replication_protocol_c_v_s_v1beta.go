@@ -6,7 +6,6 @@ package models
 // Editing this file might prove futile when you re-run the swagger generate command
 
 import (
-	"context"
 	"encoding/json"
 
 	"github.com/go-openapi/errors"
@@ -20,15 +19,6 @@ import (
 //
 // swagger:model ReplicationProtocolCVS_v1beta
 type ReplicationProtocolCVSV1beta string
-
-func NewReplicationProtocolCVSV1beta(value ReplicationProtocolCVSV1beta) *ReplicationProtocolCVSV1beta {
-	return &value
-}
-
-// Pointer returns a pointer to a freshly-allocated ReplicationProtocolCVSV1beta.
-func (m ReplicationProtocolCVSV1beta) Pointer() *ReplicationProtocolCVSV1beta {
-	return &m
-}
 
 const (
 
@@ -74,10 +64,5 @@ func (m ReplicationProtocolCVSV1beta) Validate(formats strfmt.Registry) error {
 	if len(res) > 0 {
 		return errors.CompositeValidationError(res...)
 	}
-	return nil
-}
-
-// ContextValidate validates this replication protocol c v s v1beta based on context it is used
-func (m ReplicationProtocolCVSV1beta) ContextValidate(ctx context.Context, formats strfmt.Registry) error {
 	return nil
 }

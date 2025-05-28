@@ -6,7 +6,6 @@ package snapshots
 // Editing this file might prove futile when you re-run the swagger generate command
 
 import (
-	"encoding/json"
 	"fmt"
 	"io"
 
@@ -90,7 +89,7 @@ func NewV1betaDescribeSnapshotOK() *V1betaDescribeSnapshotOK {
 }
 
 /*
-V1betaDescribeSnapshotOK describes a response with status code 200, with default header values.
+V1betaDescribeSnapshotOK handles this case with default header values.
 
 OK
 */
@@ -98,44 +97,8 @@ type V1betaDescribeSnapshotOK struct {
 	Payload *models.SnapshotV1beta
 }
 
-// IsSuccess returns true when this v1beta describe snapshot o k response has a 2xx status code
-func (o *V1betaDescribeSnapshotOK) IsSuccess() bool {
-	return true
-}
-
-// IsRedirect returns true when this v1beta describe snapshot o k response has a 3xx status code
-func (o *V1betaDescribeSnapshotOK) IsRedirect() bool {
-	return false
-}
-
-// IsClientError returns true when this v1beta describe snapshot o k response has a 4xx status code
-func (o *V1betaDescribeSnapshotOK) IsClientError() bool {
-	return false
-}
-
-// IsServerError returns true when this v1beta describe snapshot o k response has a 5xx status code
-func (o *V1betaDescribeSnapshotOK) IsServerError() bool {
-	return false
-}
-
-// IsCode returns true when this v1beta describe snapshot o k response a status code equal to that given
-func (o *V1betaDescribeSnapshotOK) IsCode(code int) bool {
-	return code == 200
-}
-
-// Code gets the status code for the v1beta describe snapshot o k response
-func (o *V1betaDescribeSnapshotOK) Code() int {
-	return 200
-}
-
 func (o *V1betaDescribeSnapshotOK) Error() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[GET /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/snapshots/{snapshotId}][%d] v1betaDescribeSnapshotOK %s", 200, payload)
-}
-
-func (o *V1betaDescribeSnapshotOK) String() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[GET /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/snapshots/{snapshotId}][%d] v1betaDescribeSnapshotOK %s", 200, payload)
+	return fmt.Sprintf("[GET /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/snapshots/{snapshotId}][%d] v1betaDescribeSnapshotOK  %+v", 200, o.Payload)
 }
 
 func (o *V1betaDescribeSnapshotOK) GetPayload() *models.SnapshotV1beta {
@@ -160,7 +123,7 @@ func NewV1betaDescribeSnapshotBadRequest() *V1betaDescribeSnapshotBadRequest {
 }
 
 /*
-V1betaDescribeSnapshotBadRequest describes a response with status code 400, with default header values.
+V1betaDescribeSnapshotBadRequest handles this case with default header values.
 
 Bad request
 */
@@ -168,44 +131,8 @@ type V1betaDescribeSnapshotBadRequest struct {
 	Payload *models.Error
 }
 
-// IsSuccess returns true when this v1beta describe snapshot bad request response has a 2xx status code
-func (o *V1betaDescribeSnapshotBadRequest) IsSuccess() bool {
-	return false
-}
-
-// IsRedirect returns true when this v1beta describe snapshot bad request response has a 3xx status code
-func (o *V1betaDescribeSnapshotBadRequest) IsRedirect() bool {
-	return false
-}
-
-// IsClientError returns true when this v1beta describe snapshot bad request response has a 4xx status code
-func (o *V1betaDescribeSnapshotBadRequest) IsClientError() bool {
-	return true
-}
-
-// IsServerError returns true when this v1beta describe snapshot bad request response has a 5xx status code
-func (o *V1betaDescribeSnapshotBadRequest) IsServerError() bool {
-	return false
-}
-
-// IsCode returns true when this v1beta describe snapshot bad request response a status code equal to that given
-func (o *V1betaDescribeSnapshotBadRequest) IsCode(code int) bool {
-	return code == 400
-}
-
-// Code gets the status code for the v1beta describe snapshot bad request response
-func (o *V1betaDescribeSnapshotBadRequest) Code() int {
-	return 400
-}
-
 func (o *V1betaDescribeSnapshotBadRequest) Error() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[GET /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/snapshots/{snapshotId}][%d] v1betaDescribeSnapshotBadRequest %s", 400, payload)
-}
-
-func (o *V1betaDescribeSnapshotBadRequest) String() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[GET /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/snapshots/{snapshotId}][%d] v1betaDescribeSnapshotBadRequest %s", 400, payload)
+	return fmt.Sprintf("[GET /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/snapshots/{snapshotId}][%d] v1betaDescribeSnapshotBadRequest  %+v", 400, o.Payload)
 }
 
 func (o *V1betaDescribeSnapshotBadRequest) GetPayload() *models.Error {
@@ -230,7 +157,7 @@ func NewV1betaDescribeSnapshotUnauthorized() *V1betaDescribeSnapshotUnauthorized
 }
 
 /*
-V1betaDescribeSnapshotUnauthorized describes a response with status code 401, with default header values.
+V1betaDescribeSnapshotUnauthorized handles this case with default header values.
 
 Unauthorized
 */
@@ -238,44 +165,8 @@ type V1betaDescribeSnapshotUnauthorized struct {
 	Payload *models.Error
 }
 
-// IsSuccess returns true when this v1beta describe snapshot unauthorized response has a 2xx status code
-func (o *V1betaDescribeSnapshotUnauthorized) IsSuccess() bool {
-	return false
-}
-
-// IsRedirect returns true when this v1beta describe snapshot unauthorized response has a 3xx status code
-func (o *V1betaDescribeSnapshotUnauthorized) IsRedirect() bool {
-	return false
-}
-
-// IsClientError returns true when this v1beta describe snapshot unauthorized response has a 4xx status code
-func (o *V1betaDescribeSnapshotUnauthorized) IsClientError() bool {
-	return true
-}
-
-// IsServerError returns true when this v1beta describe snapshot unauthorized response has a 5xx status code
-func (o *V1betaDescribeSnapshotUnauthorized) IsServerError() bool {
-	return false
-}
-
-// IsCode returns true when this v1beta describe snapshot unauthorized response a status code equal to that given
-func (o *V1betaDescribeSnapshotUnauthorized) IsCode(code int) bool {
-	return code == 401
-}
-
-// Code gets the status code for the v1beta describe snapshot unauthorized response
-func (o *V1betaDescribeSnapshotUnauthorized) Code() int {
-	return 401
-}
-
 func (o *V1betaDescribeSnapshotUnauthorized) Error() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[GET /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/snapshots/{snapshotId}][%d] v1betaDescribeSnapshotUnauthorized %s", 401, payload)
-}
-
-func (o *V1betaDescribeSnapshotUnauthorized) String() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[GET /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/snapshots/{snapshotId}][%d] v1betaDescribeSnapshotUnauthorized %s", 401, payload)
+	return fmt.Sprintf("[GET /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/snapshots/{snapshotId}][%d] v1betaDescribeSnapshotUnauthorized  %+v", 401, o.Payload)
 }
 
 func (o *V1betaDescribeSnapshotUnauthorized) GetPayload() *models.Error {
@@ -300,7 +191,7 @@ func NewV1betaDescribeSnapshotForbidden() *V1betaDescribeSnapshotForbidden {
 }
 
 /*
-V1betaDescribeSnapshotForbidden describes a response with status code 403, with default header values.
+V1betaDescribeSnapshotForbidden handles this case with default header values.
 
 Forbidden
 */
@@ -308,44 +199,8 @@ type V1betaDescribeSnapshotForbidden struct {
 	Payload *models.Error
 }
 
-// IsSuccess returns true when this v1beta describe snapshot forbidden response has a 2xx status code
-func (o *V1betaDescribeSnapshotForbidden) IsSuccess() bool {
-	return false
-}
-
-// IsRedirect returns true when this v1beta describe snapshot forbidden response has a 3xx status code
-func (o *V1betaDescribeSnapshotForbidden) IsRedirect() bool {
-	return false
-}
-
-// IsClientError returns true when this v1beta describe snapshot forbidden response has a 4xx status code
-func (o *V1betaDescribeSnapshotForbidden) IsClientError() bool {
-	return true
-}
-
-// IsServerError returns true when this v1beta describe snapshot forbidden response has a 5xx status code
-func (o *V1betaDescribeSnapshotForbidden) IsServerError() bool {
-	return false
-}
-
-// IsCode returns true when this v1beta describe snapshot forbidden response a status code equal to that given
-func (o *V1betaDescribeSnapshotForbidden) IsCode(code int) bool {
-	return code == 403
-}
-
-// Code gets the status code for the v1beta describe snapshot forbidden response
-func (o *V1betaDescribeSnapshotForbidden) Code() int {
-	return 403
-}
-
 func (o *V1betaDescribeSnapshotForbidden) Error() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[GET /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/snapshots/{snapshotId}][%d] v1betaDescribeSnapshotForbidden %s", 403, payload)
-}
-
-func (o *V1betaDescribeSnapshotForbidden) String() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[GET /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/snapshots/{snapshotId}][%d] v1betaDescribeSnapshotForbidden %s", 403, payload)
+	return fmt.Sprintf("[GET /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/snapshots/{snapshotId}][%d] v1betaDescribeSnapshotForbidden  %+v", 403, o.Payload)
 }
 
 func (o *V1betaDescribeSnapshotForbidden) GetPayload() *models.Error {
@@ -370,7 +225,7 @@ func NewV1betaDescribeSnapshotNotFound() *V1betaDescribeSnapshotNotFound {
 }
 
 /*
-V1betaDescribeSnapshotNotFound describes a response with status code 404, with default header values.
+V1betaDescribeSnapshotNotFound handles this case with default header values.
 
 Not found
 */
@@ -378,44 +233,8 @@ type V1betaDescribeSnapshotNotFound struct {
 	Payload *models.Error
 }
 
-// IsSuccess returns true when this v1beta describe snapshot not found response has a 2xx status code
-func (o *V1betaDescribeSnapshotNotFound) IsSuccess() bool {
-	return false
-}
-
-// IsRedirect returns true when this v1beta describe snapshot not found response has a 3xx status code
-func (o *V1betaDescribeSnapshotNotFound) IsRedirect() bool {
-	return false
-}
-
-// IsClientError returns true when this v1beta describe snapshot not found response has a 4xx status code
-func (o *V1betaDescribeSnapshotNotFound) IsClientError() bool {
-	return true
-}
-
-// IsServerError returns true when this v1beta describe snapshot not found response has a 5xx status code
-func (o *V1betaDescribeSnapshotNotFound) IsServerError() bool {
-	return false
-}
-
-// IsCode returns true when this v1beta describe snapshot not found response a status code equal to that given
-func (o *V1betaDescribeSnapshotNotFound) IsCode(code int) bool {
-	return code == 404
-}
-
-// Code gets the status code for the v1beta describe snapshot not found response
-func (o *V1betaDescribeSnapshotNotFound) Code() int {
-	return 404
-}
-
 func (o *V1betaDescribeSnapshotNotFound) Error() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[GET /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/snapshots/{snapshotId}][%d] v1betaDescribeSnapshotNotFound %s", 404, payload)
-}
-
-func (o *V1betaDescribeSnapshotNotFound) String() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[GET /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/snapshots/{snapshotId}][%d] v1betaDescribeSnapshotNotFound %s", 404, payload)
+	return fmt.Sprintf("[GET /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/snapshots/{snapshotId}][%d] v1betaDescribeSnapshotNotFound  %+v", 404, o.Payload)
 }
 
 func (o *V1betaDescribeSnapshotNotFound) GetPayload() *models.Error {
@@ -440,7 +259,7 @@ func NewV1betaDescribeSnapshotUnprocessableEntity() *V1betaDescribeSnapshotUnpro
 }
 
 /*
-V1betaDescribeSnapshotUnprocessableEntity describes a response with status code 422, with default header values.
+V1betaDescribeSnapshotUnprocessableEntity handles this case with default header values.
 
 Unprocessable entity
 */
@@ -448,44 +267,8 @@ type V1betaDescribeSnapshotUnprocessableEntity struct {
 	Payload *models.Error
 }
 
-// IsSuccess returns true when this v1beta describe snapshot unprocessable entity response has a 2xx status code
-func (o *V1betaDescribeSnapshotUnprocessableEntity) IsSuccess() bool {
-	return false
-}
-
-// IsRedirect returns true when this v1beta describe snapshot unprocessable entity response has a 3xx status code
-func (o *V1betaDescribeSnapshotUnprocessableEntity) IsRedirect() bool {
-	return false
-}
-
-// IsClientError returns true when this v1beta describe snapshot unprocessable entity response has a 4xx status code
-func (o *V1betaDescribeSnapshotUnprocessableEntity) IsClientError() bool {
-	return true
-}
-
-// IsServerError returns true when this v1beta describe snapshot unprocessable entity response has a 5xx status code
-func (o *V1betaDescribeSnapshotUnprocessableEntity) IsServerError() bool {
-	return false
-}
-
-// IsCode returns true when this v1beta describe snapshot unprocessable entity response a status code equal to that given
-func (o *V1betaDescribeSnapshotUnprocessableEntity) IsCode(code int) bool {
-	return code == 422
-}
-
-// Code gets the status code for the v1beta describe snapshot unprocessable entity response
-func (o *V1betaDescribeSnapshotUnprocessableEntity) Code() int {
-	return 422
-}
-
 func (o *V1betaDescribeSnapshotUnprocessableEntity) Error() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[GET /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/snapshots/{snapshotId}][%d] v1betaDescribeSnapshotUnprocessableEntity %s", 422, payload)
-}
-
-func (o *V1betaDescribeSnapshotUnprocessableEntity) String() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[GET /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/snapshots/{snapshotId}][%d] v1betaDescribeSnapshotUnprocessableEntity %s", 422, payload)
+	return fmt.Sprintf("[GET /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/snapshots/{snapshotId}][%d] v1betaDescribeSnapshotUnprocessableEntity  %+v", 422, o.Payload)
 }
 
 func (o *V1betaDescribeSnapshotUnprocessableEntity) GetPayload() *models.Error {
@@ -510,7 +293,7 @@ func NewV1betaDescribeSnapshotTooManyRequests() *V1betaDescribeSnapshotTooManyRe
 }
 
 /*
-V1betaDescribeSnapshotTooManyRequests describes a response with status code 429, with default header values.
+V1betaDescribeSnapshotTooManyRequests handles this case with default header values.
 
 Too many requests
 */
@@ -518,44 +301,8 @@ type V1betaDescribeSnapshotTooManyRequests struct {
 	Payload *models.Error
 }
 
-// IsSuccess returns true when this v1beta describe snapshot too many requests response has a 2xx status code
-func (o *V1betaDescribeSnapshotTooManyRequests) IsSuccess() bool {
-	return false
-}
-
-// IsRedirect returns true when this v1beta describe snapshot too many requests response has a 3xx status code
-func (o *V1betaDescribeSnapshotTooManyRequests) IsRedirect() bool {
-	return false
-}
-
-// IsClientError returns true when this v1beta describe snapshot too many requests response has a 4xx status code
-func (o *V1betaDescribeSnapshotTooManyRequests) IsClientError() bool {
-	return true
-}
-
-// IsServerError returns true when this v1beta describe snapshot too many requests response has a 5xx status code
-func (o *V1betaDescribeSnapshotTooManyRequests) IsServerError() bool {
-	return false
-}
-
-// IsCode returns true when this v1beta describe snapshot too many requests response a status code equal to that given
-func (o *V1betaDescribeSnapshotTooManyRequests) IsCode(code int) bool {
-	return code == 429
-}
-
-// Code gets the status code for the v1beta describe snapshot too many requests response
-func (o *V1betaDescribeSnapshotTooManyRequests) Code() int {
-	return 429
-}
-
 func (o *V1betaDescribeSnapshotTooManyRequests) Error() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[GET /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/snapshots/{snapshotId}][%d] v1betaDescribeSnapshotTooManyRequests %s", 429, payload)
-}
-
-func (o *V1betaDescribeSnapshotTooManyRequests) String() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[GET /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/snapshots/{snapshotId}][%d] v1betaDescribeSnapshotTooManyRequests %s", 429, payload)
+	return fmt.Sprintf("[GET /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/snapshots/{snapshotId}][%d] v1betaDescribeSnapshotTooManyRequests  %+v", 429, o.Payload)
 }
 
 func (o *V1betaDescribeSnapshotTooManyRequests) GetPayload() *models.Error {
@@ -580,7 +327,7 @@ func NewV1betaDescribeSnapshotInternalServerError() *V1betaDescribeSnapshotInter
 }
 
 /*
-V1betaDescribeSnapshotInternalServerError describes a response with status code 500, with default header values.
+V1betaDescribeSnapshotInternalServerError handles this case with default header values.
 
 Internal server error
 */
@@ -588,44 +335,8 @@ type V1betaDescribeSnapshotInternalServerError struct {
 	Payload *models.Error
 }
 
-// IsSuccess returns true when this v1beta describe snapshot internal server error response has a 2xx status code
-func (o *V1betaDescribeSnapshotInternalServerError) IsSuccess() bool {
-	return false
-}
-
-// IsRedirect returns true when this v1beta describe snapshot internal server error response has a 3xx status code
-func (o *V1betaDescribeSnapshotInternalServerError) IsRedirect() bool {
-	return false
-}
-
-// IsClientError returns true when this v1beta describe snapshot internal server error response has a 4xx status code
-func (o *V1betaDescribeSnapshotInternalServerError) IsClientError() bool {
-	return false
-}
-
-// IsServerError returns true when this v1beta describe snapshot internal server error response has a 5xx status code
-func (o *V1betaDescribeSnapshotInternalServerError) IsServerError() bool {
-	return true
-}
-
-// IsCode returns true when this v1beta describe snapshot internal server error response a status code equal to that given
-func (o *V1betaDescribeSnapshotInternalServerError) IsCode(code int) bool {
-	return code == 500
-}
-
-// Code gets the status code for the v1beta describe snapshot internal server error response
-func (o *V1betaDescribeSnapshotInternalServerError) Code() int {
-	return 500
-}
-
 func (o *V1betaDescribeSnapshotInternalServerError) Error() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[GET /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/snapshots/{snapshotId}][%d] v1betaDescribeSnapshotInternalServerError %s", 500, payload)
-}
-
-func (o *V1betaDescribeSnapshotInternalServerError) String() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[GET /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/snapshots/{snapshotId}][%d] v1betaDescribeSnapshotInternalServerError %s", 500, payload)
+	return fmt.Sprintf("[GET /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/snapshots/{snapshotId}][%d] v1betaDescribeSnapshotInternalServerError  %+v", 500, o.Payload)
 }
 
 func (o *V1betaDescribeSnapshotInternalServerError) GetPayload() *models.Error {
@@ -652,7 +363,7 @@ func NewV1betaDescribeSnapshotDefault(code int) *V1betaDescribeSnapshotDefault {
 }
 
 /*
-V1betaDescribeSnapshotDefault describes a response with status code -1, with default header values.
+V1betaDescribeSnapshotDefault handles this case with default header values.
 
 Unexpected error
 */
@@ -662,44 +373,13 @@ type V1betaDescribeSnapshotDefault struct {
 	Payload *models.Error
 }
 
-// IsSuccess returns true when this v1beta describe snapshot default response has a 2xx status code
-func (o *V1betaDescribeSnapshotDefault) IsSuccess() bool {
-	return o._statusCode/100 == 2
-}
-
-// IsRedirect returns true when this v1beta describe snapshot default response has a 3xx status code
-func (o *V1betaDescribeSnapshotDefault) IsRedirect() bool {
-	return o._statusCode/100 == 3
-}
-
-// IsClientError returns true when this v1beta describe snapshot default response has a 4xx status code
-func (o *V1betaDescribeSnapshotDefault) IsClientError() bool {
-	return o._statusCode/100 == 4
-}
-
-// IsServerError returns true when this v1beta describe snapshot default response has a 5xx status code
-func (o *V1betaDescribeSnapshotDefault) IsServerError() bool {
-	return o._statusCode/100 == 5
-}
-
-// IsCode returns true when this v1beta describe snapshot default response a status code equal to that given
-func (o *V1betaDescribeSnapshotDefault) IsCode(code int) bool {
-	return o._statusCode == code
-}
-
 // Code gets the status code for the v1beta describe snapshot default response
 func (o *V1betaDescribeSnapshotDefault) Code() int {
 	return o._statusCode
 }
 
 func (o *V1betaDescribeSnapshotDefault) Error() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[GET /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/snapshots/{snapshotId}][%d] v1beta_describeSnapshot default %s", o._statusCode, payload)
-}
-
-func (o *V1betaDescribeSnapshotDefault) String() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[GET /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/snapshots/{snapshotId}][%d] v1beta_describeSnapshot default %s", o._statusCode, payload)
+	return fmt.Sprintf("[GET /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/snapshots/{snapshotId}][%d] v1beta_describeSnapshot default  %+v", o._statusCode, o.Payload)
 }
 
 func (o *V1betaDescribeSnapshotDefault) GetPayload() *models.Error {

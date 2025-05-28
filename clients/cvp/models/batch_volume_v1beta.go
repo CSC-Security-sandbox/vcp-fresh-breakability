@@ -6,7 +6,6 @@ package models
 // Editing this file might prove futile when you re-run the swagger generate command
 
 import (
-	"context"
 	"encoding/json"
 	"strconv"
 
@@ -27,14 +26,12 @@ type BatchVolumeV1beta struct {
 	// created
 	//
 	// Creation date of the resource
-	// Example: 2016-11-30T20:32:50.459Z
 	// Format: date-time
 	Created *strfmt.DateTime `json:"created,omitempty"`
 
 	// creationToken
 	//
 	// A creation token must be supplied by the caller and is used by the API to ensure idempotent creation of a volume. Subsequent calls to the create-volume operation using the same creation token will have no effect. The creation token can be any user supplied string e.g. a randomly generated v4 UUID. The following creation tokens are reserved: "default" and "none".
-	// Example: hopefully-sufficient-newton
 	// Max Length: 80
 	// Min Length: 1
 	// Pattern: ^[a-zA-Z][a-zA-Z0-9\-_]{0,79}$
@@ -43,15 +40,13 @@ type BatchVolumeV1beta struct {
 	// description
 	//
 	// Description of the volume.
-	// Example: My Volume description
 	// Max Length: 2048
 	Description string `json:"description,omitempty"`
 
 	// encryptionType
 	//
 	// Type of encryption used for volumes; Can either be service-managed key (service_managed) or cloud_kms
-	// Example: SERVICE_MANAGED
-	// Enum: ["ENCRYPTION_TYPE_UNSPECIFIED","SERVICE_MANAGED","CLOUD_KMS"]
+	// Enum: [ENCRYPTION_TYPE_UNSPECIFIED SERVICE_MANAGED CLOUD_KMS]
 	EncryptionType string `json:"encryptionType,omitempty"`
 
 	// inReplication
@@ -71,7 +66,6 @@ type BatchVolumeV1beta struct {
 	KerberosEnabled *bool `json:"kerberosEnabled,omitempty"`
 
 	// UUID of the key to be used for encryption.
-	// Example: 87654321-4638-11e7-9bdb-123456789011
 	// Max Length: 36
 	// Min Length: 36
 	// Pattern: ^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$
@@ -80,7 +74,6 @@ type BatchVolumeV1beta struct {
 	// labels
 	//
 	// JSON dictionary of resource labels to allow linking of billing labels to a volume
-	// Example: {"someKey":"SomeValue","someKey2":"SomeValue2"}
 	Labels map[string]string `json:"labels,omitempty"`
 
 	// ldapEnabled
@@ -91,7 +84,6 @@ type BatchVolumeV1beta struct {
 	// poolId
 	//
 	// The UUID of the pool to which the volume belongs.
-	// Example: f943038a-c2a1-4d96-8115-170d9f1ac11c
 	PoolID *string `json:"poolId,omitempty"`
 
 	// protocol
@@ -102,38 +94,32 @@ type BatchVolumeV1beta struct {
 	// quotaInBytes
 	//
 	// Maximum storage quota allowed for the volume in bytes.
-	// Example: 4000000000000
 	QuotaInBytes *uint64 `json:"quotaInBytes,omitempty"`
 
 	// region
 	//
 	// The region name of the volume
-	// Example: some-location1
 	// Read Only: true
 	Region *string `json:"region,omitempty"`
 
 	// resourceId
 	//
 	// The resource ID of the volume.
-	// Example: some-weird-name
 	ResourceID *string `json:"resourceId,omitempty"`
 
 	// securityStyle
 	//
 	// The security style of the volume
-	// Example: unix
 	SecurityStyle string `json:"securityStyle,omitempty"`
 
 	// serviceLevel
 	//
 	// The service level of the volume
-	// Example: EXTREME
 	ServiceLevel string `json:"serviceLevel,omitempty"`
 
 	// snapReserve
 	//
 	// Percentage of volume storage reserved for snapshot storage. Default is 0 percent.
-	// Example: 20
 	// Maximum: 90
 	// Minimum: 0
 	SnapReserve *float64 `json:"snapReserve,omitempty"`
@@ -149,26 +135,22 @@ type BatchVolumeV1beta struct {
 	// storageClass
 	//
 	// Storage class of the volume, either software or hardware.
-	// Example: HARDWARE
 	StorageClass string `json:"storageClass,omitempty"`
 
 	// unixPermissions
 	//
 	// UNIX permissions for NFS volume accepted in octal 4 digit format. First digit selects the set user ID(4), set group ID (2) and sticky (1) attributes. Second digit selects permission for the owner of the file: read (4), write (2) and execute (1). Third selects permissions for other users in the same group. the fourth for other users not in the group. "0755" - gives read/write/execute permissions to owner and read/execute to group and other users.
-	// Example: 493
 	// Pattern: ^[0-7]{4}$
 	UnixPermissions *string `json:"unixPermissions,omitempty"`
 
 	// usedBytes
 	//
 	// Size of the volume in bytes.
-	// Example: 4000000000000
 	UsedBytes *uint64 `json:"usedBytes,omitempty"`
 
 	// volumeId
 	//
 	// UUID v4 used to identify a resource - volumeID, netapp_uuid
-	// Example: 87654321-4638-11e7-9bdb-123456789012
 	// Read Only: true
 	// Max Length: 36
 	// Min Length: 36
@@ -178,14 +160,12 @@ type BatchVolumeV1beta struct {
 	// volumeState
 	//
 	// The current lifecycle state of the volume
-	// Example: READY
-	// Enum: ["STATE_UNSPECIFIED","CREATING","READY","UPDATING","RESTORING","DELETED","DISABLED","DELETING","ERROR"]
+	// Enum: [STATE_UNSPECIFIED CREATING READY UPDATING RESTORING DELETED DISABLED DELETING ERROR]
 	VolumeState string `json:"volumeState,omitempty"`
 
 	// volumeStateDetails
 	//
 	// Details about the current lifecycle state
-	// Example: Available for use
 	VolumeStateDetails *string `json:"volumeStateDetails,omitempty"`
 }
 
@@ -248,6 +228,7 @@ func (m *BatchVolumeV1beta) Validate(formats strfmt.Registry) error {
 }
 
 func (m *BatchVolumeV1beta) validateBackupConfig(formats strfmt.Registry) error {
+
 	if swag.IsZero(m.BackupConfig) { // not required
 		return nil
 	}
@@ -256,8 +237,6 @@ func (m *BatchVolumeV1beta) validateBackupConfig(formats strfmt.Registry) error 
 		if err := m.BackupConfig.Validate(formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("backupConfig")
-			} else if ce, ok := err.(*errors.CompositeError); ok {
-				return ce.ValidateName("backupConfig")
 			}
 			return err
 		}
@@ -267,6 +246,7 @@ func (m *BatchVolumeV1beta) validateBackupConfig(formats strfmt.Registry) error 
 }
 
 func (m *BatchVolumeV1beta) validateCreated(formats strfmt.Registry) error {
+
 	if swag.IsZero(m.Created) { // not required
 		return nil
 	}
@@ -279,19 +259,20 @@ func (m *BatchVolumeV1beta) validateCreated(formats strfmt.Registry) error {
 }
 
 func (m *BatchVolumeV1beta) validateCreationToken(formats strfmt.Registry) error {
+
 	if swag.IsZero(m.CreationToken) { // not required
 		return nil
 	}
 
-	if err := validate.MinLength("creationToken", "body", *m.CreationToken, 1); err != nil {
+	if err := validate.MinLength("creationToken", "body", string(*m.CreationToken), 1); err != nil {
 		return err
 	}
 
-	if err := validate.MaxLength("creationToken", "body", *m.CreationToken, 80); err != nil {
+	if err := validate.MaxLength("creationToken", "body", string(*m.CreationToken), 80); err != nil {
 		return err
 	}
 
-	if err := validate.Pattern("creationToken", "body", *m.CreationToken, `^[a-zA-Z][a-zA-Z0-9\-_]{0,79}$`); err != nil {
+	if err := validate.Pattern("creationToken", "body", string(*m.CreationToken), `^[a-zA-Z][a-zA-Z0-9\-_]{0,79}$`); err != nil {
 		return err
 	}
 
@@ -299,11 +280,12 @@ func (m *BatchVolumeV1beta) validateCreationToken(formats strfmt.Registry) error
 }
 
 func (m *BatchVolumeV1beta) validateDescription(formats strfmt.Registry) error {
+
 	if swag.IsZero(m.Description) { // not required
 		return nil
 	}
 
-	if err := validate.MaxLength("description", "body", m.Description, 2048); err != nil {
+	if err := validate.MaxLength("description", "body", string(m.Description), 2048); err != nil {
 		return err
 	}
 
@@ -343,6 +325,7 @@ func (m *BatchVolumeV1beta) validateEncryptionTypeEnum(path, location string, va
 }
 
 func (m *BatchVolumeV1beta) validateEncryptionType(formats strfmt.Registry) error {
+
 	if swag.IsZero(m.EncryptionType) { // not required
 		return nil
 	}
@@ -356,19 +339,20 @@ func (m *BatchVolumeV1beta) validateEncryptionType(formats strfmt.Registry) erro
 }
 
 func (m *BatchVolumeV1beta) validateKmsConfigID(formats strfmt.Registry) error {
+
 	if swag.IsZero(m.KmsConfigID) { // not required
 		return nil
 	}
 
-	if err := validate.MinLength("kmsConfigId", "body", *m.KmsConfigID, 36); err != nil {
+	if err := validate.MinLength("kmsConfigId", "body", string(*m.KmsConfigID), 36); err != nil {
 		return err
 	}
 
-	if err := validate.MaxLength("kmsConfigId", "body", *m.KmsConfigID, 36); err != nil {
+	if err := validate.MaxLength("kmsConfigId", "body", string(*m.KmsConfigID), 36); err != nil {
 		return err
 	}
 
-	if err := validate.Pattern("kmsConfigId", "body", *m.KmsConfigID, `^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$`); err != nil {
+	if err := validate.Pattern("kmsConfigId", "body", string(*m.KmsConfigID), `^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$`); err != nil {
 		return err
 	}
 
@@ -376,6 +360,7 @@ func (m *BatchVolumeV1beta) validateKmsConfigID(formats strfmt.Registry) error {
 }
 
 func (m *BatchVolumeV1beta) validateProtocols(formats strfmt.Registry) error {
+
 	if swag.IsZero(m.Protocols) { // not required
 		return nil
 	}
@@ -385,8 +370,6 @@ func (m *BatchVolumeV1beta) validateProtocols(formats strfmt.Registry) error {
 		if err := m.Protocols[i].Validate(formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("protocols" + "." + strconv.Itoa(i))
-			} else if ce, ok := err.(*errors.CompositeError); ok {
-				return ce.ValidateName("protocols" + "." + strconv.Itoa(i))
 			}
 			return err
 		}
@@ -397,15 +380,16 @@ func (m *BatchVolumeV1beta) validateProtocols(formats strfmt.Registry) error {
 }
 
 func (m *BatchVolumeV1beta) validateSnapReserve(formats strfmt.Registry) error {
+
 	if swag.IsZero(m.SnapReserve) { // not required
 		return nil
 	}
 
-	if err := validate.Minimum("snapReserve", "body", *m.SnapReserve, 0, false); err != nil {
+	if err := validate.Minimum("snapReserve", "body", float64(*m.SnapReserve), 0, false); err != nil {
 		return err
 	}
 
-	if err := validate.Maximum("snapReserve", "body", *m.SnapReserve, 90, false); err != nil {
+	if err := validate.Maximum("snapReserve", "body", float64(*m.SnapReserve), 90, false); err != nil {
 		return err
 	}
 
@@ -413,6 +397,7 @@ func (m *BatchVolumeV1beta) validateSnapReserve(formats strfmt.Registry) error {
 }
 
 func (m *BatchVolumeV1beta) validateSnapshotPolicy(formats strfmt.Registry) error {
+
 	if swag.IsZero(m.SnapshotPolicy) { // not required
 		return nil
 	}
@@ -421,8 +406,6 @@ func (m *BatchVolumeV1beta) validateSnapshotPolicy(formats strfmt.Registry) erro
 		if err := m.SnapshotPolicy.Validate(formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("snapshotPolicy")
-			} else if ce, ok := err.(*errors.CompositeError); ok {
-				return ce.ValidateName("snapshotPolicy")
 			}
 			return err
 		}
@@ -432,11 +415,12 @@ func (m *BatchVolumeV1beta) validateSnapshotPolicy(formats strfmt.Registry) erro
 }
 
 func (m *BatchVolumeV1beta) validateUnixPermissions(formats strfmt.Registry) error {
+
 	if swag.IsZero(m.UnixPermissions) { // not required
 		return nil
 	}
 
-	if err := validate.Pattern("unixPermissions", "body", *m.UnixPermissions, `^[0-7]{4}$`); err != nil {
+	if err := validate.Pattern("unixPermissions", "body", string(*m.UnixPermissions), `^[0-7]{4}$`); err != nil {
 		return err
 	}
 
@@ -444,19 +428,20 @@ func (m *BatchVolumeV1beta) validateUnixPermissions(formats strfmt.Registry) err
 }
 
 func (m *BatchVolumeV1beta) validateVolumeID(formats strfmt.Registry) error {
+
 	if swag.IsZero(m.VolumeID) { // not required
 		return nil
 	}
 
-	if err := validate.MinLength("volumeId", "body", m.VolumeID, 36); err != nil {
+	if err := validate.MinLength("volumeId", "body", string(m.VolumeID), 36); err != nil {
 		return err
 	}
 
-	if err := validate.MaxLength("volumeId", "body", m.VolumeID, 36); err != nil {
+	if err := validate.MaxLength("volumeId", "body", string(m.VolumeID), 36); err != nil {
 		return err
 	}
 
-	if err := validate.Pattern("volumeId", "body", m.VolumeID, `^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$`); err != nil {
+	if err := validate.Pattern("volumeId", "body", string(m.VolumeID), `^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$`); err != nil {
 		return err
 	}
 
@@ -514,137 +499,13 @@ func (m *BatchVolumeV1beta) validateVolumeStateEnum(path, location string, value
 }
 
 func (m *BatchVolumeV1beta) validateVolumeState(formats strfmt.Registry) error {
+
 	if swag.IsZero(m.VolumeState) { // not required
 		return nil
 	}
 
 	// value enum
 	if err := m.validateVolumeStateEnum("volumeState", "body", m.VolumeState); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-// ContextValidate validate this batch volume v1beta based on the context it is used
-func (m *BatchVolumeV1beta) ContextValidate(ctx context.Context, formats strfmt.Registry) error {
-	var res []error
-
-	if err := m.contextValidateBackupConfig(ctx, formats); err != nil {
-		res = append(res, err)
-	}
-
-	if err := m.contextValidateInReplication(ctx, formats); err != nil {
-		res = append(res, err)
-	}
-
-	if err := m.contextValidateProtocols(ctx, formats); err != nil {
-		res = append(res, err)
-	}
-
-	if err := m.contextValidateRegion(ctx, formats); err != nil {
-		res = append(res, err)
-	}
-
-	if err := m.contextValidateSnapshotPolicy(ctx, formats); err != nil {
-		res = append(res, err)
-	}
-
-	if err := m.contextValidateVolumeID(ctx, formats); err != nil {
-		res = append(res, err)
-	}
-
-	if len(res) > 0 {
-		return errors.CompositeValidationError(res...)
-	}
-	return nil
-}
-
-func (m *BatchVolumeV1beta) contextValidateBackupConfig(ctx context.Context, formats strfmt.Registry) error {
-
-	if m.BackupConfig != nil {
-
-		if swag.IsZero(m.BackupConfig) { // not required
-			return nil
-		}
-
-		if err := m.BackupConfig.ContextValidate(ctx, formats); err != nil {
-			if ve, ok := err.(*errors.Validation); ok {
-				return ve.ValidateName("backupConfig")
-			} else if ce, ok := err.(*errors.CompositeError); ok {
-				return ce.ValidateName("backupConfig")
-			}
-			return err
-		}
-	}
-
-	return nil
-}
-
-func (m *BatchVolumeV1beta) contextValidateInReplication(ctx context.Context, formats strfmt.Registry) error {
-
-	if err := validate.ReadOnly(ctx, "inReplication", "body", m.InReplication); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (m *BatchVolumeV1beta) contextValidateProtocols(ctx context.Context, formats strfmt.Registry) error {
-
-	for i := 0; i < len(m.Protocols); i++ {
-
-		if swag.IsZero(m.Protocols[i]) { // not required
-			return nil
-		}
-
-		if err := m.Protocols[i].ContextValidate(ctx, formats); err != nil {
-			if ve, ok := err.(*errors.Validation); ok {
-				return ve.ValidateName("protocols" + "." + strconv.Itoa(i))
-			} else if ce, ok := err.(*errors.CompositeError); ok {
-				return ce.ValidateName("protocols" + "." + strconv.Itoa(i))
-			}
-			return err
-		}
-
-	}
-
-	return nil
-}
-
-func (m *BatchVolumeV1beta) contextValidateRegion(ctx context.Context, formats strfmt.Registry) error {
-
-	if err := validate.ReadOnly(ctx, "region", "body", m.Region); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (m *BatchVolumeV1beta) contextValidateSnapshotPolicy(ctx context.Context, formats strfmt.Registry) error {
-
-	if m.SnapshotPolicy != nil {
-
-		if swag.IsZero(m.SnapshotPolicy) { // not required
-			return nil
-		}
-
-		if err := m.SnapshotPolicy.ContextValidate(ctx, formats); err != nil {
-			if ve, ok := err.(*errors.Validation); ok {
-				return ve.ValidateName("snapshotPolicy")
-			} else if ce, ok := err.(*errors.CompositeError); ok {
-				return ce.ValidateName("snapshotPolicy")
-			}
-			return err
-		}
-	}
-
-	return nil
-}
-
-func (m *BatchVolumeV1beta) contextValidateVolumeID(ctx context.Context, formats strfmt.Registry) error {
-
-	if err := validate.ReadOnly(ctx, "volumeId", "body", string(m.VolumeID)); err != nil {
 		return err
 	}
 

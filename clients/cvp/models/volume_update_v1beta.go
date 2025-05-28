@@ -6,7 +6,6 @@ package models
 // Editing this file might prove futile when you re-run the swagger generate command
 
 import (
-	"context"
 	"strconv"
 
 	"github.com/go-openapi/errors"
@@ -23,10 +22,12 @@ type VolumeUpdateV1beta struct {
 	// backup config
 	BackupConfig *BackupConfigV1beta `json:"backupConfig,omitempty"`
 
+	// cache parameters
+	CacheParameters *FlexCacheV1beta `json:"cacheParameters,omitempty"`
+
 	// description
 	//
 	// Description of the volume
-	// Example: My Volume description
 	// Max Length: 2048
 	Description *string `json:"description,omitempty"`
 
@@ -36,13 +37,11 @@ type VolumeUpdateV1beta struct {
 	// labels
 	//
 	// JSON dictionary of resource labels to allow linking of billing labels to a volume
-	// Example: {"someKey":"SomeValue","someKey2":"SomeValue2"}
 	Labels map[string]string `json:"labels"`
 
 	// poolId
 	//
 	// UUID v4 used to identify the pool
-	// Example: 9760acf5-4638-11e7-9bdb-020073ca7773
 	// Max Length: 36
 	// Min Length: 36
 	// Pattern: ^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$
@@ -56,7 +55,6 @@ type VolumeUpdateV1beta struct {
 	// quotaInBytes
 	//
 	// Maximum storage quota allowed for a volume in bytes. This is a soft quota used for alerting only. Upper limit is 100TB.
-	// Example: 4000000000000
 	QuotaInBytes *float64 `json:"quotaInBytes,omitempty"`
 
 	// restricted actions
@@ -68,7 +66,6 @@ type VolumeUpdateV1beta struct {
 	// snapReserve
 	//
 	// Percentage of volume storage reserved for snapshot storage. Default is 0 percent.
-	// Example: 20
 	// Minimum: 0
 	SnapReserve *float64 `json:"snapReserve,omitempty"`
 
@@ -80,13 +77,17 @@ type VolumeUpdateV1beta struct {
 	// snapshot policy
 	SnapshotPolicy *SnapshotPolicyV1beta `json:"snapshotPolicy,omitempty"`
 
+	// throughputMibps
+	//
+	// Throughput of the volume in Mibps.
+	ThroughputMibps *float64 `json:"throughputMibps,omitempty"`
+
 	// tiering policy
 	TieringPolicy *TieringPolicyV1beta `json:"tieringPolicy,omitempty"`
 
 	// unixPermissions
 	//
 	// UNIX permissions for NFS volume accepted in octal 4 digit format. First digit selects the set user ID(4), set group ID (2) and sticky (1) attributes. Second digit selects permission for the owner of the file: read (4), write (2) and execute (1). Third selects permissions for other users in the same group. the fourth for other users not in the group. "0755" - gives read/write/execute permissions to owner and read/execute to group and other users.
-	// Example: 0755
 	// Max Length: 4
 	// Min Length: 4
 	UnixPermissions *string `json:"unixPermissions,omitempty"`
@@ -97,6 +98,10 @@ func (m *VolumeUpdateV1beta) Validate(formats strfmt.Registry) error {
 	var res []error
 
 	if err := m.validateBackupConfig(formats); err != nil {
+		res = append(res, err)
+	}
+
+	if err := m.validateCacheParameters(formats); err != nil {
 		res = append(res, err)
 	}
 
@@ -147,6 +152,7 @@ func (m *VolumeUpdateV1beta) Validate(formats strfmt.Registry) error {
 }
 
 func (m *VolumeUpdateV1beta) validateBackupConfig(formats strfmt.Registry) error {
+
 	if swag.IsZero(m.BackupConfig) { // not required
 		return nil
 	}
@@ -155,8 +161,24 @@ func (m *VolumeUpdateV1beta) validateBackupConfig(formats strfmt.Registry) error
 		if err := m.BackupConfig.Validate(formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("backupConfig")
-			} else if ce, ok := err.(*errors.CompositeError); ok {
-				return ce.ValidateName("backupConfig")
+			}
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (m *VolumeUpdateV1beta) validateCacheParameters(formats strfmt.Registry) error {
+
+	if swag.IsZero(m.CacheParameters) { // not required
+		return nil
+	}
+
+	if m.CacheParameters != nil {
+		if err := m.CacheParameters.Validate(formats); err != nil {
+			if ve, ok := err.(*errors.Validation); ok {
+				return ve.ValidateName("cacheParameters")
 			}
 			return err
 		}
@@ -166,11 +188,12 @@ func (m *VolumeUpdateV1beta) validateBackupConfig(formats strfmt.Registry) error
 }
 
 func (m *VolumeUpdateV1beta) validateDescription(formats strfmt.Registry) error {
+
 	if swag.IsZero(m.Description) { // not required
 		return nil
 	}
 
-	if err := validate.MaxLength("description", "body", *m.Description, 2048); err != nil {
+	if err := validate.MaxLength("description", "body", string(*m.Description), 2048); err != nil {
 		return err
 	}
 
@@ -178,6 +201,7 @@ func (m *VolumeUpdateV1beta) validateDescription(formats strfmt.Registry) error 
 }
 
 func (m *VolumeUpdateV1beta) validateExportPolicy(formats strfmt.Registry) error {
+
 	if swag.IsZero(m.ExportPolicy) { // not required
 		return nil
 	}
@@ -186,8 +210,6 @@ func (m *VolumeUpdateV1beta) validateExportPolicy(formats strfmt.Registry) error
 		if err := m.ExportPolicy.Validate(formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("exportPolicy")
-			} else if ce, ok := err.(*errors.CompositeError); ok {
-				return ce.ValidateName("exportPolicy")
 			}
 			return err
 		}
@@ -197,19 +219,20 @@ func (m *VolumeUpdateV1beta) validateExportPolicy(formats strfmt.Registry) error
 }
 
 func (m *VolumeUpdateV1beta) validatePoolID(formats strfmt.Registry) error {
+
 	if swag.IsZero(m.PoolID) { // not required
 		return nil
 	}
 
-	if err := validate.MinLength("poolId", "body", *m.PoolID, 36); err != nil {
+	if err := validate.MinLength("poolId", "body", string(*m.PoolID), 36); err != nil {
 		return err
 	}
 
-	if err := validate.MaxLength("poolId", "body", *m.PoolID, 36); err != nil {
+	if err := validate.MaxLength("poolId", "body", string(*m.PoolID), 36); err != nil {
 		return err
 	}
 
-	if err := validate.Pattern("poolId", "body", *m.PoolID, `^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$`); err != nil {
+	if err := validate.Pattern("poolId", "body", string(*m.PoolID), `^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$`); err != nil {
 		return err
 	}
 
@@ -217,6 +240,7 @@ func (m *VolumeUpdateV1beta) validatePoolID(formats strfmt.Registry) error {
 }
 
 func (m *VolumeUpdateV1beta) validateProtocols(formats strfmt.Registry) error {
+
 	if swag.IsZero(m.Protocols) { // not required
 		return nil
 	}
@@ -226,8 +250,6 @@ func (m *VolumeUpdateV1beta) validateProtocols(formats strfmt.Registry) error {
 		if err := m.Protocols[i].Validate(formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("protocols" + "." + strconv.Itoa(i))
-			} else if ce, ok := err.(*errors.CompositeError); ok {
-				return ce.ValidateName("protocols" + "." + strconv.Itoa(i))
 			}
 			return err
 		}
@@ -238,6 +260,7 @@ func (m *VolumeUpdateV1beta) validateProtocols(formats strfmt.Registry) error {
 }
 
 func (m *VolumeUpdateV1beta) validateRestrictedActions(formats strfmt.Registry) error {
+
 	if swag.IsZero(m.RestrictedActions) { // not required
 		return nil
 	}
@@ -245,8 +268,6 @@ func (m *VolumeUpdateV1beta) validateRestrictedActions(formats strfmt.Registry) 
 	if err := m.RestrictedActions.Validate(formats); err != nil {
 		if ve, ok := err.(*errors.Validation); ok {
 			return ve.ValidateName("restrictedActions")
-		} else if ce, ok := err.(*errors.CompositeError); ok {
-			return ce.ValidateName("restrictedActions")
 		}
 		return err
 	}
@@ -255,6 +276,7 @@ func (m *VolumeUpdateV1beta) validateRestrictedActions(formats strfmt.Registry) 
 }
 
 func (m *VolumeUpdateV1beta) validateSmbSettings(formats strfmt.Registry) error {
+
 	if swag.IsZero(m.SmbSettings) { // not required
 		return nil
 	}
@@ -262,8 +284,6 @@ func (m *VolumeUpdateV1beta) validateSmbSettings(formats strfmt.Registry) error 
 	if err := m.SmbSettings.Validate(formats); err != nil {
 		if ve, ok := err.(*errors.Validation); ok {
 			return ve.ValidateName("smbSettings")
-		} else if ce, ok := err.(*errors.CompositeError); ok {
-			return ce.ValidateName("smbSettings")
 		}
 		return err
 	}
@@ -272,11 +292,12 @@ func (m *VolumeUpdateV1beta) validateSmbSettings(formats strfmt.Registry) error 
 }
 
 func (m *VolumeUpdateV1beta) validateSnapReserve(formats strfmt.Registry) error {
+
 	if swag.IsZero(m.SnapReserve) { // not required
 		return nil
 	}
 
-	if err := validate.Minimum("snapReserve", "body", *m.SnapReserve, 0, false); err != nil {
+	if err := validate.Minimum("snapReserve", "body", float64(*m.SnapReserve), 0, false); err != nil {
 		return err
 	}
 
@@ -284,6 +305,7 @@ func (m *VolumeUpdateV1beta) validateSnapReserve(formats strfmt.Registry) error 
 }
 
 func (m *VolumeUpdateV1beta) validateSnapshotPolicy(formats strfmt.Registry) error {
+
 	if swag.IsZero(m.SnapshotPolicy) { // not required
 		return nil
 	}
@@ -292,8 +314,6 @@ func (m *VolumeUpdateV1beta) validateSnapshotPolicy(formats strfmt.Registry) err
 		if err := m.SnapshotPolicy.Validate(formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("snapshotPolicy")
-			} else if ce, ok := err.(*errors.CompositeError); ok {
-				return ce.ValidateName("snapshotPolicy")
 			}
 			return err
 		}
@@ -303,6 +323,7 @@ func (m *VolumeUpdateV1beta) validateSnapshotPolicy(formats strfmt.Registry) err
 }
 
 func (m *VolumeUpdateV1beta) validateTieringPolicy(formats strfmt.Registry) error {
+
 	if swag.IsZero(m.TieringPolicy) { // not required
 		return nil
 	}
@@ -311,8 +332,6 @@ func (m *VolumeUpdateV1beta) validateTieringPolicy(formats strfmt.Registry) erro
 		if err := m.TieringPolicy.Validate(formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("tieringPolicy")
-			} else if ce, ok := err.(*errors.CompositeError); ok {
-				return ce.ValidateName("tieringPolicy")
 			}
 			return err
 		}
@@ -322,188 +341,17 @@ func (m *VolumeUpdateV1beta) validateTieringPolicy(formats strfmt.Registry) erro
 }
 
 func (m *VolumeUpdateV1beta) validateUnixPermissions(formats strfmt.Registry) error {
+
 	if swag.IsZero(m.UnixPermissions) { // not required
 		return nil
 	}
 
-	if err := validate.MinLength("unixPermissions", "body", *m.UnixPermissions, 4); err != nil {
+	if err := validate.MinLength("unixPermissions", "body", string(*m.UnixPermissions), 4); err != nil {
 		return err
 	}
 
-	if err := validate.MaxLength("unixPermissions", "body", *m.UnixPermissions, 4); err != nil {
+	if err := validate.MaxLength("unixPermissions", "body", string(*m.UnixPermissions), 4); err != nil {
 		return err
-	}
-
-	return nil
-}
-
-// ContextValidate validate this volume update v1beta based on the context it is used
-func (m *VolumeUpdateV1beta) ContextValidate(ctx context.Context, formats strfmt.Registry) error {
-	var res []error
-
-	if err := m.contextValidateBackupConfig(ctx, formats); err != nil {
-		res = append(res, err)
-	}
-
-	if err := m.contextValidateExportPolicy(ctx, formats); err != nil {
-		res = append(res, err)
-	}
-
-	if err := m.contextValidateProtocols(ctx, formats); err != nil {
-		res = append(res, err)
-	}
-
-	if err := m.contextValidateRestrictedActions(ctx, formats); err != nil {
-		res = append(res, err)
-	}
-
-	if err := m.contextValidateSmbSettings(ctx, formats); err != nil {
-		res = append(res, err)
-	}
-
-	if err := m.contextValidateSnapshotPolicy(ctx, formats); err != nil {
-		res = append(res, err)
-	}
-
-	if err := m.contextValidateTieringPolicy(ctx, formats); err != nil {
-		res = append(res, err)
-	}
-
-	if len(res) > 0 {
-		return errors.CompositeValidationError(res...)
-	}
-	return nil
-}
-
-func (m *VolumeUpdateV1beta) contextValidateBackupConfig(ctx context.Context, formats strfmt.Registry) error {
-
-	if m.BackupConfig != nil {
-
-		if swag.IsZero(m.BackupConfig) { // not required
-			return nil
-		}
-
-		if err := m.BackupConfig.ContextValidate(ctx, formats); err != nil {
-			if ve, ok := err.(*errors.Validation); ok {
-				return ve.ValidateName("backupConfig")
-			} else if ce, ok := err.(*errors.CompositeError); ok {
-				return ce.ValidateName("backupConfig")
-			}
-			return err
-		}
-	}
-
-	return nil
-}
-
-func (m *VolumeUpdateV1beta) contextValidateExportPolicy(ctx context.Context, formats strfmt.Registry) error {
-
-	if m.ExportPolicy != nil {
-
-		if swag.IsZero(m.ExportPolicy) { // not required
-			return nil
-		}
-
-		if err := m.ExportPolicy.ContextValidate(ctx, formats); err != nil {
-			if ve, ok := err.(*errors.Validation); ok {
-				return ve.ValidateName("exportPolicy")
-			} else if ce, ok := err.(*errors.CompositeError); ok {
-				return ce.ValidateName("exportPolicy")
-			}
-			return err
-		}
-	}
-
-	return nil
-}
-
-func (m *VolumeUpdateV1beta) contextValidateProtocols(ctx context.Context, formats strfmt.Registry) error {
-
-	for i := 0; i < len(m.Protocols); i++ {
-
-		if swag.IsZero(m.Protocols[i]) { // not required
-			return nil
-		}
-
-		if err := m.Protocols[i].ContextValidate(ctx, formats); err != nil {
-			if ve, ok := err.(*errors.Validation); ok {
-				return ve.ValidateName("protocols" + "." + strconv.Itoa(i))
-			} else if ce, ok := err.(*errors.CompositeError); ok {
-				return ce.ValidateName("protocols" + "." + strconv.Itoa(i))
-			}
-			return err
-		}
-
-	}
-
-	return nil
-}
-
-func (m *VolumeUpdateV1beta) contextValidateRestrictedActions(ctx context.Context, formats strfmt.Registry) error {
-
-	if err := m.RestrictedActions.ContextValidate(ctx, formats); err != nil {
-		if ve, ok := err.(*errors.Validation); ok {
-			return ve.ValidateName("restrictedActions")
-		} else if ce, ok := err.(*errors.CompositeError); ok {
-			return ce.ValidateName("restrictedActions")
-		}
-		return err
-	}
-
-	return nil
-}
-
-func (m *VolumeUpdateV1beta) contextValidateSmbSettings(ctx context.Context, formats strfmt.Registry) error {
-
-	if err := m.SmbSettings.ContextValidate(ctx, formats); err != nil {
-		if ve, ok := err.(*errors.Validation); ok {
-			return ve.ValidateName("smbSettings")
-		} else if ce, ok := err.(*errors.CompositeError); ok {
-			return ce.ValidateName("smbSettings")
-		}
-		return err
-	}
-
-	return nil
-}
-
-func (m *VolumeUpdateV1beta) contextValidateSnapshotPolicy(ctx context.Context, formats strfmt.Registry) error {
-
-	if m.SnapshotPolicy != nil {
-
-		if swag.IsZero(m.SnapshotPolicy) { // not required
-			return nil
-		}
-
-		if err := m.SnapshotPolicy.ContextValidate(ctx, formats); err != nil {
-			if ve, ok := err.(*errors.Validation); ok {
-				return ve.ValidateName("snapshotPolicy")
-			} else if ce, ok := err.(*errors.CompositeError); ok {
-				return ce.ValidateName("snapshotPolicy")
-			}
-			return err
-		}
-	}
-
-	return nil
-}
-
-func (m *VolumeUpdateV1beta) contextValidateTieringPolicy(ctx context.Context, formats strfmt.Registry) error {
-
-	if m.TieringPolicy != nil {
-
-		if swag.IsZero(m.TieringPolicy) { // not required
-			return nil
-		}
-
-		if err := m.TieringPolicy.ContextValidate(ctx, formats); err != nil {
-			if ve, ok := err.(*errors.Validation); ok {
-				return ve.ValidateName("tieringPolicy")
-			} else if ce, ok := err.(*errors.CompositeError); ok {
-				return ce.ValidateName("tieringPolicy")
-			}
-			return err
-		}
 	}
 
 	return nil

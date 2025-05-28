@@ -18,37 +18,40 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/models"
 )
 
-// NewV1betaRevertVolumeParams creates a new V1betaRevertVolumeParams object,
-// with the default timeout for this client.
-//
-// Default values are not hydrated, since defaults are normally applied by the API server side.
-//
-// To enforce default values in parameter, use SetDefaults or WithDefaults.
+// NewV1betaRevertVolumeParams creates a new V1betaRevertVolumeParams object
+// with the default values initialized.
 func NewV1betaRevertVolumeParams() *V1betaRevertVolumeParams {
+	var ()
 	return &V1betaRevertVolumeParams{
+
 		timeout: cr.DefaultTimeout,
 	}
 }
 
 // NewV1betaRevertVolumeParamsWithTimeout creates a new V1betaRevertVolumeParams object
-// with the ability to set a timeout on a request.
+// with the default values initialized, and the ability to set a timeout on a request
 func NewV1betaRevertVolumeParamsWithTimeout(timeout time.Duration) *V1betaRevertVolumeParams {
+	var ()
 	return &V1betaRevertVolumeParams{
+
 		timeout: timeout,
 	}
 }
 
 // NewV1betaRevertVolumeParamsWithContext creates a new V1betaRevertVolumeParams object
-// with the ability to set a context for a request.
+// with the default values initialized, and the ability to set a context for a request
 func NewV1betaRevertVolumeParamsWithContext(ctx context.Context) *V1betaRevertVolumeParams {
+	var ()
 	return &V1betaRevertVolumeParams{
+
 		Context: ctx,
 	}
 }
 
 // NewV1betaRevertVolumeParamsWithHTTPClient creates a new V1betaRevertVolumeParams object
-// with the ability to set a custom HTTPClient for a request.
+// with the default values initialized, and the ability to set a custom HTTPClient for a request
 func NewV1betaRevertVolumeParamsWithHTTPClient(client *http.Client) *V1betaRevertVolumeParams {
+	var ()
 	return &V1betaRevertVolumeParams{
 		HTTPClient: client,
 	}
@@ -56,61 +59,39 @@ func NewV1betaRevertVolumeParamsWithHTTPClient(client *http.Client) *V1betaRever
 
 /*
 V1betaRevertVolumeParams contains all the parameters to send to the API endpoint
-
-	for the v1beta revert volume operation.
-
-	Typically these are written to a http.Request.
+for the v1beta revert volume operation typically these are written to a http.Request
 */
 type V1betaRevertVolumeParams struct {
 
-	/* Body.
+	/*Body
+	  Revert to snapshot parameters.
 
-	   Revert to snapshot parameters.
 	*/
 	Body *models.VolumeRevertV1beta
+	/*LocationID
+	  The location/region to perform the operation in.
 
-	/* LocationID.
-
-	   The location/region to perform the operation in.
 	*/
 	LocationID string
+	/*ProjectNumber
+	  The project number of the GCP project owning the resource being acted upon
 
-	/* ProjectNumber.
-
-	   The project number of the GCP project owning the resource being acted upon
 	*/
 	ProjectNumber string
+	/*VolumeID
+	  UUID v4 used to identify the volume
 
-	/* VolumeID.
-
-	   UUID v4 used to identify the volume
 	*/
 	VolumeID string
+	/*XCorrelationID
+	  Correlation identifier
 
-	/* XCorrelationID.
-
-	   Correlation identifier
 	*/
 	XCorrelationID *string
 
 	timeout    time.Duration
 	Context    context.Context
 	HTTPClient *http.Client
-}
-
-// WithDefaults hydrates default values in the v1beta revert volume params (not the query body).
-//
-// All values with no default are reset to their zero value.
-func (o *V1betaRevertVolumeParams) WithDefaults() *V1betaRevertVolumeParams {
-	o.SetDefaults()
-	return o
-}
-
-// SetDefaults hydrates default values in the v1beta revert volume params (not the query body).
-//
-// All values with no default are reset to their zero value.
-func (o *V1betaRevertVolumeParams) SetDefaults() {
-	// no default values defined for this parameter
 }
 
 // WithTimeout adds the timeout to the v1beta revert volume params
@@ -208,6 +189,7 @@ func (o *V1betaRevertVolumeParams) WriteToRequest(r runtime.ClientRequest, reg s
 		return err
 	}
 	var res []error
+
 	if o.Body != nil {
 		if err := r.SetBodyParam(o.Body); err != nil {
 			return err
@@ -235,6 +217,7 @@ func (o *V1betaRevertVolumeParams) WriteToRequest(r runtime.ClientRequest, reg s
 		if err := r.SetHeaderParam("x-correlation-id", *o.XCorrelationID); err != nil {
 			return err
 		}
+
 	}
 
 	if len(res) > 0 {

@@ -6,8 +6,6 @@ package models
 // Editing this file might prove futile when you re-run the swagger generate command
 
 import (
-	"context"
-
 	"github.com/go-openapi/errors"
 	"github.com/go-openapi/strfmt"
 	"github.com/go-openapi/swag"
@@ -24,14 +22,12 @@ type DestinationVolumeParametersV1beta struct {
 	// description
 	//
 	// Description of the destination volume
-	// Example: My destination volume description
 	// Max Length: 2048
 	Description *string `json:"description,omitempty"`
 
 	// shareName
 	//
 	// Volume share name for the secondary volume
-	// Example: share-name
 	// Max Length: 80
 	// Min Length: 1
 	// Pattern: ^[a-zA-Z][a-zA-Z0-9\-_]{0,79}$
@@ -40,7 +36,6 @@ type DestinationVolumeParametersV1beta struct {
 	// storagePool
 	//
 	// Destination storage pool URI for replication
-	// Example: projects/my-project-1/locations/eu-west-1/pools/pool-1
 	// Required: true
 	// Max Length: 255
 	// Pattern: ^projects\/([^\/]+)\/locations\/([^\/]+)\/storagePools|pools\/([^\/]+)$
@@ -52,7 +47,6 @@ type DestinationVolumeParametersV1beta struct {
 	// volumeId
 	//
 	// A human readable name for the secondary volume which is restricted to letters, numbers, and hyphen, with the first character a letter, the last a letter or a number, and a 63 character maximum
-	// Example: my-volume-name
 	// Max Length: 63
 	// Pattern: ^[a-z]([a-z0-9-]{0,61}[a-z0-9])?$
 	VolumeID string `json:"volumeId,omitempty"`
@@ -89,11 +83,12 @@ func (m *DestinationVolumeParametersV1beta) Validate(formats strfmt.Registry) er
 }
 
 func (m *DestinationVolumeParametersV1beta) validateDescription(formats strfmt.Registry) error {
+
 	if swag.IsZero(m.Description) { // not required
 		return nil
 	}
 
-	if err := validate.MaxLength("description", "body", *m.Description, 2048); err != nil {
+	if err := validate.MaxLength("description", "body", string(*m.Description), 2048); err != nil {
 		return err
 	}
 
@@ -101,19 +96,20 @@ func (m *DestinationVolumeParametersV1beta) validateDescription(formats strfmt.R
 }
 
 func (m *DestinationVolumeParametersV1beta) validateShareName(formats strfmt.Registry) error {
+
 	if swag.IsZero(m.ShareName) { // not required
 		return nil
 	}
 
-	if err := validate.MinLength("shareName", "body", m.ShareName, 1); err != nil {
+	if err := validate.MinLength("shareName", "body", string(m.ShareName), 1); err != nil {
 		return err
 	}
 
-	if err := validate.MaxLength("shareName", "body", m.ShareName, 80); err != nil {
+	if err := validate.MaxLength("shareName", "body", string(m.ShareName), 80); err != nil {
 		return err
 	}
 
-	if err := validate.Pattern("shareName", "body", m.ShareName, `^[a-zA-Z][a-zA-Z0-9\-_]{0,79}$`); err != nil {
+	if err := validate.Pattern("shareName", "body", string(m.ShareName), `^[a-zA-Z][a-zA-Z0-9\-_]{0,79}$`); err != nil {
 		return err
 	}
 
@@ -126,11 +122,11 @@ func (m *DestinationVolumeParametersV1beta) validateStoragePool(formats strfmt.R
 		return err
 	}
 
-	if err := validate.MaxLength("storagePool", "body", *m.StoragePool, 255); err != nil {
+	if err := validate.MaxLength("storagePool", "body", string(*m.StoragePool), 255); err != nil {
 		return err
 	}
 
-	if err := validate.Pattern("storagePool", "body", *m.StoragePool, `^projects\/([^\/]+)\/locations\/([^\/]+)\/storagePools|pools\/([^\/]+)$`); err != nil {
+	if err := validate.Pattern("storagePool", "body", string(*m.StoragePool), `^projects\/([^\/]+)\/locations\/([^\/]+)\/storagePools|pools\/([^\/]+)$`); err != nil {
 		return err
 	}
 
@@ -138,6 +134,7 @@ func (m *DestinationVolumeParametersV1beta) validateStoragePool(formats strfmt.R
 }
 
 func (m *DestinationVolumeParametersV1beta) validateTieringPolicy(formats strfmt.Registry) error {
+
 	if swag.IsZero(m.TieringPolicy) { // not required
 		return nil
 	}
@@ -146,8 +143,6 @@ func (m *DestinationVolumeParametersV1beta) validateTieringPolicy(formats strfmt
 		if err := m.TieringPolicy.Validate(formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("tieringPolicy")
-			} else if ce, ok := err.(*errors.CompositeError); ok {
-				return ce.ValidateName("tieringPolicy")
 			}
 			return err
 		}
@@ -157,51 +152,17 @@ func (m *DestinationVolumeParametersV1beta) validateTieringPolicy(formats strfmt
 }
 
 func (m *DestinationVolumeParametersV1beta) validateVolumeID(formats strfmt.Registry) error {
+
 	if swag.IsZero(m.VolumeID) { // not required
 		return nil
 	}
 
-	if err := validate.MaxLength("volumeId", "body", m.VolumeID, 63); err != nil {
+	if err := validate.MaxLength("volumeId", "body", string(m.VolumeID), 63); err != nil {
 		return err
 	}
 
-	if err := validate.Pattern("volumeId", "body", m.VolumeID, `^[a-z]([a-z0-9-]{0,61}[a-z0-9])?$`); err != nil {
+	if err := validate.Pattern("volumeId", "body", string(m.VolumeID), `^[a-z]([a-z0-9-]{0,61}[a-z0-9])?$`); err != nil {
 		return err
-	}
-
-	return nil
-}
-
-// ContextValidate validate this destination volume parameters v1beta based on the context it is used
-func (m *DestinationVolumeParametersV1beta) ContextValidate(ctx context.Context, formats strfmt.Registry) error {
-	var res []error
-
-	if err := m.contextValidateTieringPolicy(ctx, formats); err != nil {
-		res = append(res, err)
-	}
-
-	if len(res) > 0 {
-		return errors.CompositeValidationError(res...)
-	}
-	return nil
-}
-
-func (m *DestinationVolumeParametersV1beta) contextValidateTieringPolicy(ctx context.Context, formats strfmt.Registry) error {
-
-	if m.TieringPolicy != nil {
-
-		if swag.IsZero(m.TieringPolicy) { // not required
-			return nil
-		}
-
-		if err := m.TieringPolicy.ContextValidate(ctx, formats); err != nil {
-			if ve, ok := err.(*errors.Validation); ok {
-				return ve.ValidateName("tieringPolicy")
-			} else if ce, ok := err.(*errors.CompositeError); ok {
-				return ce.ValidateName("tieringPolicy")
-			}
-			return err
-		}
 	}
 
 	return nil

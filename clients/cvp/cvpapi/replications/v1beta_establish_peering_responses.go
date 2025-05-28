@@ -6,7 +6,6 @@ package replications
 // Editing this file might prove futile when you re-run the swagger generate command
 
 import (
-	"encoding/json"
 	"fmt"
 	"io"
 
@@ -102,7 +101,7 @@ func NewV1betaEstablishPeeringAccepted() *V1betaEstablishPeeringAccepted {
 }
 
 /*
-V1betaEstablishPeeringAccepted describes a response with status code 202, with default header values.
+V1betaEstablishPeeringAccepted handles this case with default header values.
 
 Initializing peering
 */
@@ -110,44 +109,8 @@ type V1betaEstablishPeeringAccepted struct {
 	Payload *models.OperationV1beta
 }
 
-// IsSuccess returns true when this v1beta establish peering accepted response has a 2xx status code
-func (o *V1betaEstablishPeeringAccepted) IsSuccess() bool {
-	return true
-}
-
-// IsRedirect returns true when this v1beta establish peering accepted response has a 3xx status code
-func (o *V1betaEstablishPeeringAccepted) IsRedirect() bool {
-	return false
-}
-
-// IsClientError returns true when this v1beta establish peering accepted response has a 4xx status code
-func (o *V1betaEstablishPeeringAccepted) IsClientError() bool {
-	return false
-}
-
-// IsServerError returns true when this v1beta establish peering accepted response has a 5xx status code
-func (o *V1betaEstablishPeeringAccepted) IsServerError() bool {
-	return false
-}
-
-// IsCode returns true when this v1beta establish peering accepted response a status code equal to that given
-func (o *V1betaEstablishPeeringAccepted) IsCode(code int) bool {
-	return code == 202
-}
-
-// Code gets the status code for the v1beta establish peering accepted response
-func (o *V1betaEstablishPeeringAccepted) Code() int {
-	return 202
-}
-
 func (o *V1betaEstablishPeeringAccepted) Error() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeResourceId}/replications/{replicationResourceId}/establishPeering][%d] v1betaEstablishPeeringAccepted %s", 202, payload)
-}
-
-func (o *V1betaEstablishPeeringAccepted) String() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeResourceId}/replications/{replicationResourceId}/establishPeering][%d] v1betaEstablishPeeringAccepted %s", 202, payload)
+	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeResourceId}/replications/{replicationResourceId}/establishPeering][%d] v1betaEstablishPeeringAccepted  %+v", 202, o.Payload)
 }
 
 func (o *V1betaEstablishPeeringAccepted) GetPayload() *models.OperationV1beta {
@@ -172,7 +135,7 @@ func NewV1betaEstablishPeeringBadRequest() *V1betaEstablishPeeringBadRequest {
 }
 
 /*
-V1betaEstablishPeeringBadRequest describes a response with status code 400, with default header values.
+V1betaEstablishPeeringBadRequest handles this case with default header values.
 
 Bad request
 */
@@ -180,44 +143,8 @@ type V1betaEstablishPeeringBadRequest struct {
 	Payload *models.Error
 }
 
-// IsSuccess returns true when this v1beta establish peering bad request response has a 2xx status code
-func (o *V1betaEstablishPeeringBadRequest) IsSuccess() bool {
-	return false
-}
-
-// IsRedirect returns true when this v1beta establish peering bad request response has a 3xx status code
-func (o *V1betaEstablishPeeringBadRequest) IsRedirect() bool {
-	return false
-}
-
-// IsClientError returns true when this v1beta establish peering bad request response has a 4xx status code
-func (o *V1betaEstablishPeeringBadRequest) IsClientError() bool {
-	return true
-}
-
-// IsServerError returns true when this v1beta establish peering bad request response has a 5xx status code
-func (o *V1betaEstablishPeeringBadRequest) IsServerError() bool {
-	return false
-}
-
-// IsCode returns true when this v1beta establish peering bad request response a status code equal to that given
-func (o *V1betaEstablishPeeringBadRequest) IsCode(code int) bool {
-	return code == 400
-}
-
-// Code gets the status code for the v1beta establish peering bad request response
-func (o *V1betaEstablishPeeringBadRequest) Code() int {
-	return 400
-}
-
 func (o *V1betaEstablishPeeringBadRequest) Error() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeResourceId}/replications/{replicationResourceId}/establishPeering][%d] v1betaEstablishPeeringBadRequest %s", 400, payload)
-}
-
-func (o *V1betaEstablishPeeringBadRequest) String() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeResourceId}/replications/{replicationResourceId}/establishPeering][%d] v1betaEstablishPeeringBadRequest %s", 400, payload)
+	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeResourceId}/replications/{replicationResourceId}/establishPeering][%d] v1betaEstablishPeeringBadRequest  %+v", 400, o.Payload)
 }
 
 func (o *V1betaEstablishPeeringBadRequest) GetPayload() *models.Error {
@@ -242,7 +169,7 @@ func NewV1betaEstablishPeeringUnauthorized() *V1betaEstablishPeeringUnauthorized
 }
 
 /*
-V1betaEstablishPeeringUnauthorized describes a response with status code 401, with default header values.
+V1betaEstablishPeeringUnauthorized handles this case with default header values.
 
 Unauthorized
 */
@@ -250,44 +177,8 @@ type V1betaEstablishPeeringUnauthorized struct {
 	Payload *models.Error
 }
 
-// IsSuccess returns true when this v1beta establish peering unauthorized response has a 2xx status code
-func (o *V1betaEstablishPeeringUnauthorized) IsSuccess() bool {
-	return false
-}
-
-// IsRedirect returns true when this v1beta establish peering unauthorized response has a 3xx status code
-func (o *V1betaEstablishPeeringUnauthorized) IsRedirect() bool {
-	return false
-}
-
-// IsClientError returns true when this v1beta establish peering unauthorized response has a 4xx status code
-func (o *V1betaEstablishPeeringUnauthorized) IsClientError() bool {
-	return true
-}
-
-// IsServerError returns true when this v1beta establish peering unauthorized response has a 5xx status code
-func (o *V1betaEstablishPeeringUnauthorized) IsServerError() bool {
-	return false
-}
-
-// IsCode returns true when this v1beta establish peering unauthorized response a status code equal to that given
-func (o *V1betaEstablishPeeringUnauthorized) IsCode(code int) bool {
-	return code == 401
-}
-
-// Code gets the status code for the v1beta establish peering unauthorized response
-func (o *V1betaEstablishPeeringUnauthorized) Code() int {
-	return 401
-}
-
 func (o *V1betaEstablishPeeringUnauthorized) Error() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeResourceId}/replications/{replicationResourceId}/establishPeering][%d] v1betaEstablishPeeringUnauthorized %s", 401, payload)
-}
-
-func (o *V1betaEstablishPeeringUnauthorized) String() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeResourceId}/replications/{replicationResourceId}/establishPeering][%d] v1betaEstablishPeeringUnauthorized %s", 401, payload)
+	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeResourceId}/replications/{replicationResourceId}/establishPeering][%d] v1betaEstablishPeeringUnauthorized  %+v", 401, o.Payload)
 }
 
 func (o *V1betaEstablishPeeringUnauthorized) GetPayload() *models.Error {
@@ -312,7 +203,7 @@ func NewV1betaEstablishPeeringForbidden() *V1betaEstablishPeeringForbidden {
 }
 
 /*
-V1betaEstablishPeeringForbidden describes a response with status code 403, with default header values.
+V1betaEstablishPeeringForbidden handles this case with default header values.
 
 Forbidden
 */
@@ -320,44 +211,8 @@ type V1betaEstablishPeeringForbidden struct {
 	Payload *models.Error
 }
 
-// IsSuccess returns true when this v1beta establish peering forbidden response has a 2xx status code
-func (o *V1betaEstablishPeeringForbidden) IsSuccess() bool {
-	return false
-}
-
-// IsRedirect returns true when this v1beta establish peering forbidden response has a 3xx status code
-func (o *V1betaEstablishPeeringForbidden) IsRedirect() bool {
-	return false
-}
-
-// IsClientError returns true when this v1beta establish peering forbidden response has a 4xx status code
-func (o *V1betaEstablishPeeringForbidden) IsClientError() bool {
-	return true
-}
-
-// IsServerError returns true when this v1beta establish peering forbidden response has a 5xx status code
-func (o *V1betaEstablishPeeringForbidden) IsServerError() bool {
-	return false
-}
-
-// IsCode returns true when this v1beta establish peering forbidden response a status code equal to that given
-func (o *V1betaEstablishPeeringForbidden) IsCode(code int) bool {
-	return code == 403
-}
-
-// Code gets the status code for the v1beta establish peering forbidden response
-func (o *V1betaEstablishPeeringForbidden) Code() int {
-	return 403
-}
-
 func (o *V1betaEstablishPeeringForbidden) Error() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeResourceId}/replications/{replicationResourceId}/establishPeering][%d] v1betaEstablishPeeringForbidden %s", 403, payload)
-}
-
-func (o *V1betaEstablishPeeringForbidden) String() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeResourceId}/replications/{replicationResourceId}/establishPeering][%d] v1betaEstablishPeeringForbidden %s", 403, payload)
+	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeResourceId}/replications/{replicationResourceId}/establishPeering][%d] v1betaEstablishPeeringForbidden  %+v", 403, o.Payload)
 }
 
 func (o *V1betaEstablishPeeringForbidden) GetPayload() *models.Error {
@@ -382,7 +237,7 @@ func NewV1betaEstablishPeeringNotFound() *V1betaEstablishPeeringNotFound {
 }
 
 /*
-V1betaEstablishPeeringNotFound describes a response with status code 404, with default header values.
+V1betaEstablishPeeringNotFound handles this case with default header values.
 
 Not found
 */
@@ -390,44 +245,8 @@ type V1betaEstablishPeeringNotFound struct {
 	Payload *models.Error
 }
 
-// IsSuccess returns true when this v1beta establish peering not found response has a 2xx status code
-func (o *V1betaEstablishPeeringNotFound) IsSuccess() bool {
-	return false
-}
-
-// IsRedirect returns true when this v1beta establish peering not found response has a 3xx status code
-func (o *V1betaEstablishPeeringNotFound) IsRedirect() bool {
-	return false
-}
-
-// IsClientError returns true when this v1beta establish peering not found response has a 4xx status code
-func (o *V1betaEstablishPeeringNotFound) IsClientError() bool {
-	return true
-}
-
-// IsServerError returns true when this v1beta establish peering not found response has a 5xx status code
-func (o *V1betaEstablishPeeringNotFound) IsServerError() bool {
-	return false
-}
-
-// IsCode returns true when this v1beta establish peering not found response a status code equal to that given
-func (o *V1betaEstablishPeeringNotFound) IsCode(code int) bool {
-	return code == 404
-}
-
-// Code gets the status code for the v1beta establish peering not found response
-func (o *V1betaEstablishPeeringNotFound) Code() int {
-	return 404
-}
-
 func (o *V1betaEstablishPeeringNotFound) Error() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeResourceId}/replications/{replicationResourceId}/establishPeering][%d] v1betaEstablishPeeringNotFound %s", 404, payload)
-}
-
-func (o *V1betaEstablishPeeringNotFound) String() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeResourceId}/replications/{replicationResourceId}/establishPeering][%d] v1betaEstablishPeeringNotFound %s", 404, payload)
+	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeResourceId}/replications/{replicationResourceId}/establishPeering][%d] v1betaEstablishPeeringNotFound  %+v", 404, o.Payload)
 }
 
 func (o *V1betaEstablishPeeringNotFound) GetPayload() *models.Error {
@@ -452,7 +271,7 @@ func NewV1betaEstablishPeeringConflict() *V1betaEstablishPeeringConflict {
 }
 
 /*
-V1betaEstablishPeeringConflict describes a response with status code 409, with default header values.
+V1betaEstablishPeeringConflict handles this case with default header values.
 
 Conflict
 */
@@ -460,44 +279,8 @@ type V1betaEstablishPeeringConflict struct {
 	Payload *models.Error
 }
 
-// IsSuccess returns true when this v1beta establish peering conflict response has a 2xx status code
-func (o *V1betaEstablishPeeringConflict) IsSuccess() bool {
-	return false
-}
-
-// IsRedirect returns true when this v1beta establish peering conflict response has a 3xx status code
-func (o *V1betaEstablishPeeringConflict) IsRedirect() bool {
-	return false
-}
-
-// IsClientError returns true when this v1beta establish peering conflict response has a 4xx status code
-func (o *V1betaEstablishPeeringConflict) IsClientError() bool {
-	return true
-}
-
-// IsServerError returns true when this v1beta establish peering conflict response has a 5xx status code
-func (o *V1betaEstablishPeeringConflict) IsServerError() bool {
-	return false
-}
-
-// IsCode returns true when this v1beta establish peering conflict response a status code equal to that given
-func (o *V1betaEstablishPeeringConflict) IsCode(code int) bool {
-	return code == 409
-}
-
-// Code gets the status code for the v1beta establish peering conflict response
-func (o *V1betaEstablishPeeringConflict) Code() int {
-	return 409
-}
-
 func (o *V1betaEstablishPeeringConflict) Error() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeResourceId}/replications/{replicationResourceId}/establishPeering][%d] v1betaEstablishPeeringConflict %s", 409, payload)
-}
-
-func (o *V1betaEstablishPeeringConflict) String() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeResourceId}/replications/{replicationResourceId}/establishPeering][%d] v1betaEstablishPeeringConflict %s", 409, payload)
+	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeResourceId}/replications/{replicationResourceId}/establishPeering][%d] v1betaEstablishPeeringConflict  %+v", 409, o.Payload)
 }
 
 func (o *V1betaEstablishPeeringConflict) GetPayload() *models.Error {
@@ -522,7 +305,7 @@ func NewV1betaEstablishPeeringUnprocessableEntity() *V1betaEstablishPeeringUnpro
 }
 
 /*
-V1betaEstablishPeeringUnprocessableEntity describes a response with status code 422, with default header values.
+V1betaEstablishPeeringUnprocessableEntity handles this case with default header values.
 
 Unprocessable entity
 */
@@ -530,44 +313,8 @@ type V1betaEstablishPeeringUnprocessableEntity struct {
 	Payload *models.Error
 }
 
-// IsSuccess returns true when this v1beta establish peering unprocessable entity response has a 2xx status code
-func (o *V1betaEstablishPeeringUnprocessableEntity) IsSuccess() bool {
-	return false
-}
-
-// IsRedirect returns true when this v1beta establish peering unprocessable entity response has a 3xx status code
-func (o *V1betaEstablishPeeringUnprocessableEntity) IsRedirect() bool {
-	return false
-}
-
-// IsClientError returns true when this v1beta establish peering unprocessable entity response has a 4xx status code
-func (o *V1betaEstablishPeeringUnprocessableEntity) IsClientError() bool {
-	return true
-}
-
-// IsServerError returns true when this v1beta establish peering unprocessable entity response has a 5xx status code
-func (o *V1betaEstablishPeeringUnprocessableEntity) IsServerError() bool {
-	return false
-}
-
-// IsCode returns true when this v1beta establish peering unprocessable entity response a status code equal to that given
-func (o *V1betaEstablishPeeringUnprocessableEntity) IsCode(code int) bool {
-	return code == 422
-}
-
-// Code gets the status code for the v1beta establish peering unprocessable entity response
-func (o *V1betaEstablishPeeringUnprocessableEntity) Code() int {
-	return 422
-}
-
 func (o *V1betaEstablishPeeringUnprocessableEntity) Error() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeResourceId}/replications/{replicationResourceId}/establishPeering][%d] v1betaEstablishPeeringUnprocessableEntity %s", 422, payload)
-}
-
-func (o *V1betaEstablishPeeringUnprocessableEntity) String() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeResourceId}/replications/{replicationResourceId}/establishPeering][%d] v1betaEstablishPeeringUnprocessableEntity %s", 422, payload)
+	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeResourceId}/replications/{replicationResourceId}/establishPeering][%d] v1betaEstablishPeeringUnprocessableEntity  %+v", 422, o.Payload)
 }
 
 func (o *V1betaEstablishPeeringUnprocessableEntity) GetPayload() *models.Error {
@@ -592,7 +339,7 @@ func NewV1betaEstablishPeeringTooManyRequests() *V1betaEstablishPeeringTooManyRe
 }
 
 /*
-V1betaEstablishPeeringTooManyRequests describes a response with status code 429, with default header values.
+V1betaEstablishPeeringTooManyRequests handles this case with default header values.
 
 Too many requests
 */
@@ -600,44 +347,8 @@ type V1betaEstablishPeeringTooManyRequests struct {
 	Payload *models.Error
 }
 
-// IsSuccess returns true when this v1beta establish peering too many requests response has a 2xx status code
-func (o *V1betaEstablishPeeringTooManyRequests) IsSuccess() bool {
-	return false
-}
-
-// IsRedirect returns true when this v1beta establish peering too many requests response has a 3xx status code
-func (o *V1betaEstablishPeeringTooManyRequests) IsRedirect() bool {
-	return false
-}
-
-// IsClientError returns true when this v1beta establish peering too many requests response has a 4xx status code
-func (o *V1betaEstablishPeeringTooManyRequests) IsClientError() bool {
-	return true
-}
-
-// IsServerError returns true when this v1beta establish peering too many requests response has a 5xx status code
-func (o *V1betaEstablishPeeringTooManyRequests) IsServerError() bool {
-	return false
-}
-
-// IsCode returns true when this v1beta establish peering too many requests response a status code equal to that given
-func (o *V1betaEstablishPeeringTooManyRequests) IsCode(code int) bool {
-	return code == 429
-}
-
-// Code gets the status code for the v1beta establish peering too many requests response
-func (o *V1betaEstablishPeeringTooManyRequests) Code() int {
-	return 429
-}
-
 func (o *V1betaEstablishPeeringTooManyRequests) Error() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeResourceId}/replications/{replicationResourceId}/establishPeering][%d] v1betaEstablishPeeringTooManyRequests %s", 429, payload)
-}
-
-func (o *V1betaEstablishPeeringTooManyRequests) String() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeResourceId}/replications/{replicationResourceId}/establishPeering][%d] v1betaEstablishPeeringTooManyRequests %s", 429, payload)
+	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeResourceId}/replications/{replicationResourceId}/establishPeering][%d] v1betaEstablishPeeringTooManyRequests  %+v", 429, o.Payload)
 }
 
 func (o *V1betaEstablishPeeringTooManyRequests) GetPayload() *models.Error {
@@ -662,7 +373,7 @@ func NewV1betaEstablishPeeringInternalServerError() *V1betaEstablishPeeringInter
 }
 
 /*
-V1betaEstablishPeeringInternalServerError describes a response with status code 500, with default header values.
+V1betaEstablishPeeringInternalServerError handles this case with default header values.
 
 Internal server error
 */
@@ -670,44 +381,8 @@ type V1betaEstablishPeeringInternalServerError struct {
 	Payload *models.Error
 }
 
-// IsSuccess returns true when this v1beta establish peering internal server error response has a 2xx status code
-func (o *V1betaEstablishPeeringInternalServerError) IsSuccess() bool {
-	return false
-}
-
-// IsRedirect returns true when this v1beta establish peering internal server error response has a 3xx status code
-func (o *V1betaEstablishPeeringInternalServerError) IsRedirect() bool {
-	return false
-}
-
-// IsClientError returns true when this v1beta establish peering internal server error response has a 4xx status code
-func (o *V1betaEstablishPeeringInternalServerError) IsClientError() bool {
-	return false
-}
-
-// IsServerError returns true when this v1beta establish peering internal server error response has a 5xx status code
-func (o *V1betaEstablishPeeringInternalServerError) IsServerError() bool {
-	return true
-}
-
-// IsCode returns true when this v1beta establish peering internal server error response a status code equal to that given
-func (o *V1betaEstablishPeeringInternalServerError) IsCode(code int) bool {
-	return code == 500
-}
-
-// Code gets the status code for the v1beta establish peering internal server error response
-func (o *V1betaEstablishPeeringInternalServerError) Code() int {
-	return 500
-}
-
 func (o *V1betaEstablishPeeringInternalServerError) Error() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeResourceId}/replications/{replicationResourceId}/establishPeering][%d] v1betaEstablishPeeringInternalServerError %s", 500, payload)
-}
-
-func (o *V1betaEstablishPeeringInternalServerError) String() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeResourceId}/replications/{replicationResourceId}/establishPeering][%d] v1betaEstablishPeeringInternalServerError %s", 500, payload)
+	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeResourceId}/replications/{replicationResourceId}/establishPeering][%d] v1betaEstablishPeeringInternalServerError  %+v", 500, o.Payload)
 }
 
 func (o *V1betaEstablishPeeringInternalServerError) GetPayload() *models.Error {
@@ -732,7 +407,7 @@ func NewV1betaEstablishPeeringNotImplemented() *V1betaEstablishPeeringNotImpleme
 }
 
 /*
-V1betaEstablishPeeringNotImplemented describes a response with status code 501, with default header values.
+V1betaEstablishPeeringNotImplemented handles this case with default header values.
 
 Not implemented
 */
@@ -740,44 +415,8 @@ type V1betaEstablishPeeringNotImplemented struct {
 	Payload *models.Error
 }
 
-// IsSuccess returns true when this v1beta establish peering not implemented response has a 2xx status code
-func (o *V1betaEstablishPeeringNotImplemented) IsSuccess() bool {
-	return false
-}
-
-// IsRedirect returns true when this v1beta establish peering not implemented response has a 3xx status code
-func (o *V1betaEstablishPeeringNotImplemented) IsRedirect() bool {
-	return false
-}
-
-// IsClientError returns true when this v1beta establish peering not implemented response has a 4xx status code
-func (o *V1betaEstablishPeeringNotImplemented) IsClientError() bool {
-	return false
-}
-
-// IsServerError returns true when this v1beta establish peering not implemented response has a 5xx status code
-func (o *V1betaEstablishPeeringNotImplemented) IsServerError() bool {
-	return true
-}
-
-// IsCode returns true when this v1beta establish peering not implemented response a status code equal to that given
-func (o *V1betaEstablishPeeringNotImplemented) IsCode(code int) bool {
-	return code == 501
-}
-
-// Code gets the status code for the v1beta establish peering not implemented response
-func (o *V1betaEstablishPeeringNotImplemented) Code() int {
-	return 501
-}
-
 func (o *V1betaEstablishPeeringNotImplemented) Error() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeResourceId}/replications/{replicationResourceId}/establishPeering][%d] v1betaEstablishPeeringNotImplemented %s", 501, payload)
-}
-
-func (o *V1betaEstablishPeeringNotImplemented) String() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeResourceId}/replications/{replicationResourceId}/establishPeering][%d] v1betaEstablishPeeringNotImplemented %s", 501, payload)
+	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeResourceId}/replications/{replicationResourceId}/establishPeering][%d] v1betaEstablishPeeringNotImplemented  %+v", 501, o.Payload)
 }
 
 func (o *V1betaEstablishPeeringNotImplemented) GetPayload() *models.Error {
@@ -804,7 +443,7 @@ func NewV1betaEstablishPeeringDefault(code int) *V1betaEstablishPeeringDefault {
 }
 
 /*
-V1betaEstablishPeeringDefault describes a response with status code -1, with default header values.
+V1betaEstablishPeeringDefault handles this case with default header values.
 
 Unexpected error
 */
@@ -814,44 +453,13 @@ type V1betaEstablishPeeringDefault struct {
 	Payload *models.Error
 }
 
-// IsSuccess returns true when this v1beta establish peering default response has a 2xx status code
-func (o *V1betaEstablishPeeringDefault) IsSuccess() bool {
-	return o._statusCode/100 == 2
-}
-
-// IsRedirect returns true when this v1beta establish peering default response has a 3xx status code
-func (o *V1betaEstablishPeeringDefault) IsRedirect() bool {
-	return o._statusCode/100 == 3
-}
-
-// IsClientError returns true when this v1beta establish peering default response has a 4xx status code
-func (o *V1betaEstablishPeeringDefault) IsClientError() bool {
-	return o._statusCode/100 == 4
-}
-
-// IsServerError returns true when this v1beta establish peering default response has a 5xx status code
-func (o *V1betaEstablishPeeringDefault) IsServerError() bool {
-	return o._statusCode/100 == 5
-}
-
-// IsCode returns true when this v1beta establish peering default response a status code equal to that given
-func (o *V1betaEstablishPeeringDefault) IsCode(code int) bool {
-	return o._statusCode == code
-}
-
 // Code gets the status code for the v1beta establish peering default response
 func (o *V1betaEstablishPeeringDefault) Code() int {
 	return o._statusCode
 }
 
 func (o *V1betaEstablishPeeringDefault) Error() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeResourceId}/replications/{replicationResourceId}/establishPeering][%d] v1beta_establishPeering default %s", o._statusCode, payload)
-}
-
-func (o *V1betaEstablishPeeringDefault) String() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeResourceId}/replications/{replicationResourceId}/establishPeering][%d] v1beta_establishPeering default %s", o._statusCode, payload)
+	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeResourceId}/replications/{replicationResourceId}/establishPeering][%d] v1beta_establishPeering default  %+v", o._statusCode, o.Payload)
 }
 
 func (o *V1betaEstablishPeeringDefault) GetPayload() *models.Error {

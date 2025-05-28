@@ -6,7 +6,6 @@ package volumes
 // Editing this file might prove futile when you re-run the swagger generate command
 
 import (
-	"encoding/json"
 	"fmt"
 	"io"
 
@@ -102,7 +101,7 @@ func NewV1betaUpdateVolumeAccepted() *V1betaUpdateVolumeAccepted {
 }
 
 /*
-V1betaUpdateVolumeAccepted describes a response with status code 202, with default header values.
+V1betaUpdateVolumeAccepted handles this case with default header values.
 
 Updating volume
 */
@@ -110,44 +109,8 @@ type V1betaUpdateVolumeAccepted struct {
 	Payload *models.OperationV1beta
 }
 
-// IsSuccess returns true when this v1beta update volume accepted response has a 2xx status code
-func (o *V1betaUpdateVolumeAccepted) IsSuccess() bool {
-	return true
-}
-
-// IsRedirect returns true when this v1beta update volume accepted response has a 3xx status code
-func (o *V1betaUpdateVolumeAccepted) IsRedirect() bool {
-	return false
-}
-
-// IsClientError returns true when this v1beta update volume accepted response has a 4xx status code
-func (o *V1betaUpdateVolumeAccepted) IsClientError() bool {
-	return false
-}
-
-// IsServerError returns true when this v1beta update volume accepted response has a 5xx status code
-func (o *V1betaUpdateVolumeAccepted) IsServerError() bool {
-	return false
-}
-
-// IsCode returns true when this v1beta update volume accepted response a status code equal to that given
-func (o *V1betaUpdateVolumeAccepted) IsCode(code int) bool {
-	return code == 202
-}
-
-// Code gets the status code for the v1beta update volume accepted response
-func (o *V1betaUpdateVolumeAccepted) Code() int {
-	return 202
-}
-
 func (o *V1betaUpdateVolumeAccepted) Error() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[PUT /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}][%d] v1betaUpdateVolumeAccepted %s", 202, payload)
-}
-
-func (o *V1betaUpdateVolumeAccepted) String() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[PUT /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}][%d] v1betaUpdateVolumeAccepted %s", 202, payload)
+	return fmt.Sprintf("[PUT /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}][%d] v1betaUpdateVolumeAccepted  %+v", 202, o.Payload)
 }
 
 func (o *V1betaUpdateVolumeAccepted) GetPayload() *models.OperationV1beta {
@@ -172,49 +135,15 @@ func NewV1betaUpdateVolumeNoContent() *V1betaUpdateVolumeNoContent {
 }
 
 /*
-V1betaUpdateVolumeNoContent describes a response with status code 204, with default header values.
+V1betaUpdateVolumeNoContent handles this case with default header values.
 
 No content
 */
 type V1betaUpdateVolumeNoContent struct {
 }
 
-// IsSuccess returns true when this v1beta update volume no content response has a 2xx status code
-func (o *V1betaUpdateVolumeNoContent) IsSuccess() bool {
-	return true
-}
-
-// IsRedirect returns true when this v1beta update volume no content response has a 3xx status code
-func (o *V1betaUpdateVolumeNoContent) IsRedirect() bool {
-	return false
-}
-
-// IsClientError returns true when this v1beta update volume no content response has a 4xx status code
-func (o *V1betaUpdateVolumeNoContent) IsClientError() bool {
-	return false
-}
-
-// IsServerError returns true when this v1beta update volume no content response has a 5xx status code
-func (o *V1betaUpdateVolumeNoContent) IsServerError() bool {
-	return false
-}
-
-// IsCode returns true when this v1beta update volume no content response a status code equal to that given
-func (o *V1betaUpdateVolumeNoContent) IsCode(code int) bool {
-	return code == 204
-}
-
-// Code gets the status code for the v1beta update volume no content response
-func (o *V1betaUpdateVolumeNoContent) Code() int {
-	return 204
-}
-
 func (o *V1betaUpdateVolumeNoContent) Error() string {
-	return fmt.Sprintf("[PUT /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}][%d] v1betaUpdateVolumeNoContent", 204)
-}
-
-func (o *V1betaUpdateVolumeNoContent) String() string {
-	return fmt.Sprintf("[PUT /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}][%d] v1betaUpdateVolumeNoContent", 204)
+	return fmt.Sprintf("[PUT /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}][%d] v1betaUpdateVolumeNoContent ", 204)
 }
 
 func (o *V1betaUpdateVolumeNoContent) readResponse(response runtime.ClientResponse, consumer runtime.Consumer, formats strfmt.Registry) error {
@@ -228,7 +157,7 @@ func NewV1betaUpdateVolumeBadRequest() *V1betaUpdateVolumeBadRequest {
 }
 
 /*
-V1betaUpdateVolumeBadRequest describes a response with status code 400, with default header values.
+V1betaUpdateVolumeBadRequest handles this case with default header values.
 
 Bad request
 */
@@ -236,44 +165,8 @@ type V1betaUpdateVolumeBadRequest struct {
 	Payload *models.Error
 }
 
-// IsSuccess returns true when this v1beta update volume bad request response has a 2xx status code
-func (o *V1betaUpdateVolumeBadRequest) IsSuccess() bool {
-	return false
-}
-
-// IsRedirect returns true when this v1beta update volume bad request response has a 3xx status code
-func (o *V1betaUpdateVolumeBadRequest) IsRedirect() bool {
-	return false
-}
-
-// IsClientError returns true when this v1beta update volume bad request response has a 4xx status code
-func (o *V1betaUpdateVolumeBadRequest) IsClientError() bool {
-	return true
-}
-
-// IsServerError returns true when this v1beta update volume bad request response has a 5xx status code
-func (o *V1betaUpdateVolumeBadRequest) IsServerError() bool {
-	return false
-}
-
-// IsCode returns true when this v1beta update volume bad request response a status code equal to that given
-func (o *V1betaUpdateVolumeBadRequest) IsCode(code int) bool {
-	return code == 400
-}
-
-// Code gets the status code for the v1beta update volume bad request response
-func (o *V1betaUpdateVolumeBadRequest) Code() int {
-	return 400
-}
-
 func (o *V1betaUpdateVolumeBadRequest) Error() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[PUT /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}][%d] v1betaUpdateVolumeBadRequest %s", 400, payload)
-}
-
-func (o *V1betaUpdateVolumeBadRequest) String() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[PUT /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}][%d] v1betaUpdateVolumeBadRequest %s", 400, payload)
+	return fmt.Sprintf("[PUT /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}][%d] v1betaUpdateVolumeBadRequest  %+v", 400, o.Payload)
 }
 
 func (o *V1betaUpdateVolumeBadRequest) GetPayload() *models.Error {
@@ -298,7 +191,7 @@ func NewV1betaUpdateVolumeUnauthorized() *V1betaUpdateVolumeUnauthorized {
 }
 
 /*
-V1betaUpdateVolumeUnauthorized describes a response with status code 401, with default header values.
+V1betaUpdateVolumeUnauthorized handles this case with default header values.
 
 Unauthorized
 */
@@ -306,44 +199,8 @@ type V1betaUpdateVolumeUnauthorized struct {
 	Payload *models.Error
 }
 
-// IsSuccess returns true when this v1beta update volume unauthorized response has a 2xx status code
-func (o *V1betaUpdateVolumeUnauthorized) IsSuccess() bool {
-	return false
-}
-
-// IsRedirect returns true when this v1beta update volume unauthorized response has a 3xx status code
-func (o *V1betaUpdateVolumeUnauthorized) IsRedirect() bool {
-	return false
-}
-
-// IsClientError returns true when this v1beta update volume unauthorized response has a 4xx status code
-func (o *V1betaUpdateVolumeUnauthorized) IsClientError() bool {
-	return true
-}
-
-// IsServerError returns true when this v1beta update volume unauthorized response has a 5xx status code
-func (o *V1betaUpdateVolumeUnauthorized) IsServerError() bool {
-	return false
-}
-
-// IsCode returns true when this v1beta update volume unauthorized response a status code equal to that given
-func (o *V1betaUpdateVolumeUnauthorized) IsCode(code int) bool {
-	return code == 401
-}
-
-// Code gets the status code for the v1beta update volume unauthorized response
-func (o *V1betaUpdateVolumeUnauthorized) Code() int {
-	return 401
-}
-
 func (o *V1betaUpdateVolumeUnauthorized) Error() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[PUT /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}][%d] v1betaUpdateVolumeUnauthorized %s", 401, payload)
-}
-
-func (o *V1betaUpdateVolumeUnauthorized) String() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[PUT /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}][%d] v1betaUpdateVolumeUnauthorized %s", 401, payload)
+	return fmt.Sprintf("[PUT /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}][%d] v1betaUpdateVolumeUnauthorized  %+v", 401, o.Payload)
 }
 
 func (o *V1betaUpdateVolumeUnauthorized) GetPayload() *models.Error {
@@ -368,7 +225,7 @@ func NewV1betaUpdateVolumeForbidden() *V1betaUpdateVolumeForbidden {
 }
 
 /*
-V1betaUpdateVolumeForbidden describes a response with status code 403, with default header values.
+V1betaUpdateVolumeForbidden handles this case with default header values.
 
 Forbidden
 */
@@ -376,44 +233,8 @@ type V1betaUpdateVolumeForbidden struct {
 	Payload *models.Error
 }
 
-// IsSuccess returns true when this v1beta update volume forbidden response has a 2xx status code
-func (o *V1betaUpdateVolumeForbidden) IsSuccess() bool {
-	return false
-}
-
-// IsRedirect returns true when this v1beta update volume forbidden response has a 3xx status code
-func (o *V1betaUpdateVolumeForbidden) IsRedirect() bool {
-	return false
-}
-
-// IsClientError returns true when this v1beta update volume forbidden response has a 4xx status code
-func (o *V1betaUpdateVolumeForbidden) IsClientError() bool {
-	return true
-}
-
-// IsServerError returns true when this v1beta update volume forbidden response has a 5xx status code
-func (o *V1betaUpdateVolumeForbidden) IsServerError() bool {
-	return false
-}
-
-// IsCode returns true when this v1beta update volume forbidden response a status code equal to that given
-func (o *V1betaUpdateVolumeForbidden) IsCode(code int) bool {
-	return code == 403
-}
-
-// Code gets the status code for the v1beta update volume forbidden response
-func (o *V1betaUpdateVolumeForbidden) Code() int {
-	return 403
-}
-
 func (o *V1betaUpdateVolumeForbidden) Error() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[PUT /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}][%d] v1betaUpdateVolumeForbidden %s", 403, payload)
-}
-
-func (o *V1betaUpdateVolumeForbidden) String() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[PUT /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}][%d] v1betaUpdateVolumeForbidden %s", 403, payload)
+	return fmt.Sprintf("[PUT /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}][%d] v1betaUpdateVolumeForbidden  %+v", 403, o.Payload)
 }
 
 func (o *V1betaUpdateVolumeForbidden) GetPayload() *models.Error {
@@ -438,7 +259,7 @@ func NewV1betaUpdateVolumeNotFound() *V1betaUpdateVolumeNotFound {
 }
 
 /*
-V1betaUpdateVolumeNotFound describes a response with status code 404, with default header values.
+V1betaUpdateVolumeNotFound handles this case with default header values.
 
 Not found
 */
@@ -446,44 +267,8 @@ type V1betaUpdateVolumeNotFound struct {
 	Payload *models.Error
 }
 
-// IsSuccess returns true when this v1beta update volume not found response has a 2xx status code
-func (o *V1betaUpdateVolumeNotFound) IsSuccess() bool {
-	return false
-}
-
-// IsRedirect returns true when this v1beta update volume not found response has a 3xx status code
-func (o *V1betaUpdateVolumeNotFound) IsRedirect() bool {
-	return false
-}
-
-// IsClientError returns true when this v1beta update volume not found response has a 4xx status code
-func (o *V1betaUpdateVolumeNotFound) IsClientError() bool {
-	return true
-}
-
-// IsServerError returns true when this v1beta update volume not found response has a 5xx status code
-func (o *V1betaUpdateVolumeNotFound) IsServerError() bool {
-	return false
-}
-
-// IsCode returns true when this v1beta update volume not found response a status code equal to that given
-func (o *V1betaUpdateVolumeNotFound) IsCode(code int) bool {
-	return code == 404
-}
-
-// Code gets the status code for the v1beta update volume not found response
-func (o *V1betaUpdateVolumeNotFound) Code() int {
-	return 404
-}
-
 func (o *V1betaUpdateVolumeNotFound) Error() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[PUT /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}][%d] v1betaUpdateVolumeNotFound %s", 404, payload)
-}
-
-func (o *V1betaUpdateVolumeNotFound) String() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[PUT /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}][%d] v1betaUpdateVolumeNotFound %s", 404, payload)
+	return fmt.Sprintf("[PUT /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}][%d] v1betaUpdateVolumeNotFound  %+v", 404, o.Payload)
 }
 
 func (o *V1betaUpdateVolumeNotFound) GetPayload() *models.Error {
@@ -508,7 +293,7 @@ func NewV1betaUpdateVolumeConflict() *V1betaUpdateVolumeConflict {
 }
 
 /*
-V1betaUpdateVolumeConflict describes a response with status code 409, with default header values.
+V1betaUpdateVolumeConflict handles this case with default header values.
 
 Conflict
 */
@@ -516,44 +301,8 @@ type V1betaUpdateVolumeConflict struct {
 	Payload *models.Error
 }
 
-// IsSuccess returns true when this v1beta update volume conflict response has a 2xx status code
-func (o *V1betaUpdateVolumeConflict) IsSuccess() bool {
-	return false
-}
-
-// IsRedirect returns true when this v1beta update volume conflict response has a 3xx status code
-func (o *V1betaUpdateVolumeConflict) IsRedirect() bool {
-	return false
-}
-
-// IsClientError returns true when this v1beta update volume conflict response has a 4xx status code
-func (o *V1betaUpdateVolumeConflict) IsClientError() bool {
-	return true
-}
-
-// IsServerError returns true when this v1beta update volume conflict response has a 5xx status code
-func (o *V1betaUpdateVolumeConflict) IsServerError() bool {
-	return false
-}
-
-// IsCode returns true when this v1beta update volume conflict response a status code equal to that given
-func (o *V1betaUpdateVolumeConflict) IsCode(code int) bool {
-	return code == 409
-}
-
-// Code gets the status code for the v1beta update volume conflict response
-func (o *V1betaUpdateVolumeConflict) Code() int {
-	return 409
-}
-
 func (o *V1betaUpdateVolumeConflict) Error() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[PUT /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}][%d] v1betaUpdateVolumeConflict %s", 409, payload)
-}
-
-func (o *V1betaUpdateVolumeConflict) String() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[PUT /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}][%d] v1betaUpdateVolumeConflict %s", 409, payload)
+	return fmt.Sprintf("[PUT /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}][%d] v1betaUpdateVolumeConflict  %+v", 409, o.Payload)
 }
 
 func (o *V1betaUpdateVolumeConflict) GetPayload() *models.Error {
@@ -578,7 +327,7 @@ func NewV1betaUpdateVolumeUnprocessableEntity() *V1betaUpdateVolumeUnprocessable
 }
 
 /*
-V1betaUpdateVolumeUnprocessableEntity describes a response with status code 422, with default header values.
+V1betaUpdateVolumeUnprocessableEntity handles this case with default header values.
 
 Unprocessable entity
 */
@@ -586,44 +335,8 @@ type V1betaUpdateVolumeUnprocessableEntity struct {
 	Payload *models.Error
 }
 
-// IsSuccess returns true when this v1beta update volume unprocessable entity response has a 2xx status code
-func (o *V1betaUpdateVolumeUnprocessableEntity) IsSuccess() bool {
-	return false
-}
-
-// IsRedirect returns true when this v1beta update volume unprocessable entity response has a 3xx status code
-func (o *V1betaUpdateVolumeUnprocessableEntity) IsRedirect() bool {
-	return false
-}
-
-// IsClientError returns true when this v1beta update volume unprocessable entity response has a 4xx status code
-func (o *V1betaUpdateVolumeUnprocessableEntity) IsClientError() bool {
-	return true
-}
-
-// IsServerError returns true when this v1beta update volume unprocessable entity response has a 5xx status code
-func (o *V1betaUpdateVolumeUnprocessableEntity) IsServerError() bool {
-	return false
-}
-
-// IsCode returns true when this v1beta update volume unprocessable entity response a status code equal to that given
-func (o *V1betaUpdateVolumeUnprocessableEntity) IsCode(code int) bool {
-	return code == 422
-}
-
-// Code gets the status code for the v1beta update volume unprocessable entity response
-func (o *V1betaUpdateVolumeUnprocessableEntity) Code() int {
-	return 422
-}
-
 func (o *V1betaUpdateVolumeUnprocessableEntity) Error() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[PUT /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}][%d] v1betaUpdateVolumeUnprocessableEntity %s", 422, payload)
-}
-
-func (o *V1betaUpdateVolumeUnprocessableEntity) String() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[PUT /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}][%d] v1betaUpdateVolumeUnprocessableEntity %s", 422, payload)
+	return fmt.Sprintf("[PUT /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}][%d] v1betaUpdateVolumeUnprocessableEntity  %+v", 422, o.Payload)
 }
 
 func (o *V1betaUpdateVolumeUnprocessableEntity) GetPayload() *models.Error {
@@ -648,7 +361,7 @@ func NewV1betaUpdateVolumeTooManyRequests() *V1betaUpdateVolumeTooManyRequests {
 }
 
 /*
-V1betaUpdateVolumeTooManyRequests describes a response with status code 429, with default header values.
+V1betaUpdateVolumeTooManyRequests handles this case with default header values.
 
 Too many requests
 */
@@ -656,44 +369,8 @@ type V1betaUpdateVolumeTooManyRequests struct {
 	Payload *models.Error
 }
 
-// IsSuccess returns true when this v1beta update volume too many requests response has a 2xx status code
-func (o *V1betaUpdateVolumeTooManyRequests) IsSuccess() bool {
-	return false
-}
-
-// IsRedirect returns true when this v1beta update volume too many requests response has a 3xx status code
-func (o *V1betaUpdateVolumeTooManyRequests) IsRedirect() bool {
-	return false
-}
-
-// IsClientError returns true when this v1beta update volume too many requests response has a 4xx status code
-func (o *V1betaUpdateVolumeTooManyRequests) IsClientError() bool {
-	return true
-}
-
-// IsServerError returns true when this v1beta update volume too many requests response has a 5xx status code
-func (o *V1betaUpdateVolumeTooManyRequests) IsServerError() bool {
-	return false
-}
-
-// IsCode returns true when this v1beta update volume too many requests response a status code equal to that given
-func (o *V1betaUpdateVolumeTooManyRequests) IsCode(code int) bool {
-	return code == 429
-}
-
-// Code gets the status code for the v1beta update volume too many requests response
-func (o *V1betaUpdateVolumeTooManyRequests) Code() int {
-	return 429
-}
-
 func (o *V1betaUpdateVolumeTooManyRequests) Error() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[PUT /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}][%d] v1betaUpdateVolumeTooManyRequests %s", 429, payload)
-}
-
-func (o *V1betaUpdateVolumeTooManyRequests) String() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[PUT /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}][%d] v1betaUpdateVolumeTooManyRequests %s", 429, payload)
+	return fmt.Sprintf("[PUT /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}][%d] v1betaUpdateVolumeTooManyRequests  %+v", 429, o.Payload)
 }
 
 func (o *V1betaUpdateVolumeTooManyRequests) GetPayload() *models.Error {
@@ -718,7 +395,7 @@ func NewV1betaUpdateVolumeInternalServerError() *V1betaUpdateVolumeInternalServe
 }
 
 /*
-V1betaUpdateVolumeInternalServerError describes a response with status code 500, with default header values.
+V1betaUpdateVolumeInternalServerError handles this case with default header values.
 
 Internal server error
 */
@@ -726,44 +403,8 @@ type V1betaUpdateVolumeInternalServerError struct {
 	Payload *models.Error
 }
 
-// IsSuccess returns true when this v1beta update volume internal server error response has a 2xx status code
-func (o *V1betaUpdateVolumeInternalServerError) IsSuccess() bool {
-	return false
-}
-
-// IsRedirect returns true when this v1beta update volume internal server error response has a 3xx status code
-func (o *V1betaUpdateVolumeInternalServerError) IsRedirect() bool {
-	return false
-}
-
-// IsClientError returns true when this v1beta update volume internal server error response has a 4xx status code
-func (o *V1betaUpdateVolumeInternalServerError) IsClientError() bool {
-	return false
-}
-
-// IsServerError returns true when this v1beta update volume internal server error response has a 5xx status code
-func (o *V1betaUpdateVolumeInternalServerError) IsServerError() bool {
-	return true
-}
-
-// IsCode returns true when this v1beta update volume internal server error response a status code equal to that given
-func (o *V1betaUpdateVolumeInternalServerError) IsCode(code int) bool {
-	return code == 500
-}
-
-// Code gets the status code for the v1beta update volume internal server error response
-func (o *V1betaUpdateVolumeInternalServerError) Code() int {
-	return 500
-}
-
 func (o *V1betaUpdateVolumeInternalServerError) Error() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[PUT /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}][%d] v1betaUpdateVolumeInternalServerError %s", 500, payload)
-}
-
-func (o *V1betaUpdateVolumeInternalServerError) String() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[PUT /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}][%d] v1betaUpdateVolumeInternalServerError %s", 500, payload)
+	return fmt.Sprintf("[PUT /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}][%d] v1betaUpdateVolumeInternalServerError  %+v", 500, o.Payload)
 }
 
 func (o *V1betaUpdateVolumeInternalServerError) GetPayload() *models.Error {
@@ -790,7 +431,7 @@ func NewV1betaUpdateVolumeDefault(code int) *V1betaUpdateVolumeDefault {
 }
 
 /*
-V1betaUpdateVolumeDefault describes a response with status code -1, with default header values.
+V1betaUpdateVolumeDefault handles this case with default header values.
 
 Unexpected error
 */
@@ -800,44 +441,13 @@ type V1betaUpdateVolumeDefault struct {
 	Payload *models.Error
 }
 
-// IsSuccess returns true when this v1beta update volume default response has a 2xx status code
-func (o *V1betaUpdateVolumeDefault) IsSuccess() bool {
-	return o._statusCode/100 == 2
-}
-
-// IsRedirect returns true when this v1beta update volume default response has a 3xx status code
-func (o *V1betaUpdateVolumeDefault) IsRedirect() bool {
-	return o._statusCode/100 == 3
-}
-
-// IsClientError returns true when this v1beta update volume default response has a 4xx status code
-func (o *V1betaUpdateVolumeDefault) IsClientError() bool {
-	return o._statusCode/100 == 4
-}
-
-// IsServerError returns true when this v1beta update volume default response has a 5xx status code
-func (o *V1betaUpdateVolumeDefault) IsServerError() bool {
-	return o._statusCode/100 == 5
-}
-
-// IsCode returns true when this v1beta update volume default response a status code equal to that given
-func (o *V1betaUpdateVolumeDefault) IsCode(code int) bool {
-	return o._statusCode == code
-}
-
 // Code gets the status code for the v1beta update volume default response
 func (o *V1betaUpdateVolumeDefault) Code() int {
 	return o._statusCode
 }
 
 func (o *V1betaUpdateVolumeDefault) Error() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[PUT /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}][%d] v1beta_updateVolume default %s", o._statusCode, payload)
-}
-
-func (o *V1betaUpdateVolumeDefault) String() string {
-	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[PUT /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}][%d] v1beta_updateVolume default %s", o._statusCode, payload)
+	return fmt.Sprintf("[PUT /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}][%d] v1beta_updateVolume default  %+v", o._statusCode, o.Payload)
 }
 
 func (o *V1betaUpdateVolumeDefault) GetPayload() *models.Error {

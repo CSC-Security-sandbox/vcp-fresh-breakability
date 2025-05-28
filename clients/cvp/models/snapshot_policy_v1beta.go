@@ -6,8 +6,6 @@ package models
 // Editing this file might prove futile when you re-run the swagger generate command
 
 import (
-	"context"
-
 	"github.com/go-openapi/errors"
 	"github.com/go-openapi/strfmt"
 	"github.com/go-openapi/swag"
@@ -24,7 +22,6 @@ type SnapshotPolicyV1beta struct {
 	DailySchedule *DailyScheduleV1beta `json:"dailySchedule,omitempty"`
 
 	// If enabled, make snapshots automatically according to the schedules. Default is false.
-	// Example: true
 	Enabled *bool `json:"enabled,omitempty"`
 
 	// hourly schedule
@@ -64,6 +61,7 @@ func (m *SnapshotPolicyV1beta) Validate(formats strfmt.Registry) error {
 }
 
 func (m *SnapshotPolicyV1beta) validateDailySchedule(formats strfmt.Registry) error {
+
 	if swag.IsZero(m.DailySchedule) { // not required
 		return nil
 	}
@@ -72,8 +70,6 @@ func (m *SnapshotPolicyV1beta) validateDailySchedule(formats strfmt.Registry) er
 		if err := m.DailySchedule.Validate(formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("dailySchedule")
-			} else if ce, ok := err.(*errors.CompositeError); ok {
-				return ce.ValidateName("dailySchedule")
 			}
 			return err
 		}
@@ -83,6 +79,7 @@ func (m *SnapshotPolicyV1beta) validateDailySchedule(formats strfmt.Registry) er
 }
 
 func (m *SnapshotPolicyV1beta) validateHourlySchedule(formats strfmt.Registry) error {
+
 	if swag.IsZero(m.HourlySchedule) { // not required
 		return nil
 	}
@@ -91,8 +88,6 @@ func (m *SnapshotPolicyV1beta) validateHourlySchedule(formats strfmt.Registry) e
 		if err := m.HourlySchedule.Validate(formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("hourlySchedule")
-			} else if ce, ok := err.(*errors.CompositeError); ok {
-				return ce.ValidateName("hourlySchedule")
 			}
 			return err
 		}
@@ -102,6 +97,7 @@ func (m *SnapshotPolicyV1beta) validateHourlySchedule(formats strfmt.Registry) e
 }
 
 func (m *SnapshotPolicyV1beta) validateMonthlySchedule(formats strfmt.Registry) error {
+
 	if swag.IsZero(m.MonthlySchedule) { // not required
 		return nil
 	}
@@ -110,8 +106,6 @@ func (m *SnapshotPolicyV1beta) validateMonthlySchedule(formats strfmt.Registry) 
 		if err := m.MonthlySchedule.Validate(formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("monthlySchedule")
-			} else if ce, ok := err.(*errors.CompositeError); ok {
-				return ce.ValidateName("monthlySchedule")
 			}
 			return err
 		}
@@ -121,6 +115,7 @@ func (m *SnapshotPolicyV1beta) validateMonthlySchedule(formats strfmt.Registry) 
 }
 
 func (m *SnapshotPolicyV1beta) validateWeeklySchedule(formats strfmt.Registry) error {
+
 	if swag.IsZero(m.WeeklySchedule) { // not required
 		return nil
 	}
@@ -129,118 +124,6 @@ func (m *SnapshotPolicyV1beta) validateWeeklySchedule(formats strfmt.Registry) e
 		if err := m.WeeklySchedule.Validate(formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("weeklySchedule")
-			} else if ce, ok := err.(*errors.CompositeError); ok {
-				return ce.ValidateName("weeklySchedule")
-			}
-			return err
-		}
-	}
-
-	return nil
-}
-
-// ContextValidate validate this snapshot policy v1beta based on the context it is used
-func (m *SnapshotPolicyV1beta) ContextValidate(ctx context.Context, formats strfmt.Registry) error {
-	var res []error
-
-	if err := m.contextValidateDailySchedule(ctx, formats); err != nil {
-		res = append(res, err)
-	}
-
-	if err := m.contextValidateHourlySchedule(ctx, formats); err != nil {
-		res = append(res, err)
-	}
-
-	if err := m.contextValidateMonthlySchedule(ctx, formats); err != nil {
-		res = append(res, err)
-	}
-
-	if err := m.contextValidateWeeklySchedule(ctx, formats); err != nil {
-		res = append(res, err)
-	}
-
-	if len(res) > 0 {
-		return errors.CompositeValidationError(res...)
-	}
-	return nil
-}
-
-func (m *SnapshotPolicyV1beta) contextValidateDailySchedule(ctx context.Context, formats strfmt.Registry) error {
-
-	if m.DailySchedule != nil {
-
-		if swag.IsZero(m.DailySchedule) { // not required
-			return nil
-		}
-
-		if err := m.DailySchedule.ContextValidate(ctx, formats); err != nil {
-			if ve, ok := err.(*errors.Validation); ok {
-				return ve.ValidateName("dailySchedule")
-			} else if ce, ok := err.(*errors.CompositeError); ok {
-				return ce.ValidateName("dailySchedule")
-			}
-			return err
-		}
-	}
-
-	return nil
-}
-
-func (m *SnapshotPolicyV1beta) contextValidateHourlySchedule(ctx context.Context, formats strfmt.Registry) error {
-
-	if m.HourlySchedule != nil {
-
-		if swag.IsZero(m.HourlySchedule) { // not required
-			return nil
-		}
-
-		if err := m.HourlySchedule.ContextValidate(ctx, formats); err != nil {
-			if ve, ok := err.(*errors.Validation); ok {
-				return ve.ValidateName("hourlySchedule")
-			} else if ce, ok := err.(*errors.CompositeError); ok {
-				return ce.ValidateName("hourlySchedule")
-			}
-			return err
-		}
-	}
-
-	return nil
-}
-
-func (m *SnapshotPolicyV1beta) contextValidateMonthlySchedule(ctx context.Context, formats strfmt.Registry) error {
-
-	if m.MonthlySchedule != nil {
-
-		if swag.IsZero(m.MonthlySchedule) { // not required
-			return nil
-		}
-
-		if err := m.MonthlySchedule.ContextValidate(ctx, formats); err != nil {
-			if ve, ok := err.(*errors.Validation); ok {
-				return ve.ValidateName("monthlySchedule")
-			} else if ce, ok := err.(*errors.CompositeError); ok {
-				return ce.ValidateName("monthlySchedule")
-			}
-			return err
-		}
-	}
-
-	return nil
-}
-
-func (m *SnapshotPolicyV1beta) contextValidateWeeklySchedule(ctx context.Context, formats strfmt.Registry) error {
-
-	if m.WeeklySchedule != nil {
-
-		if swag.IsZero(m.WeeklySchedule) { // not required
-			return nil
-		}
-
-		if err := m.WeeklySchedule.ContextValidate(ctx, formats); err != nil {
-			if ve, ok := err.(*errors.Validation); ok {
-				return ve.ValidateName("weeklySchedule")
-			} else if ce, ok := err.(*errors.CompositeError); ok {
-				return ce.ValidateName("weeklySchedule")
 			}
 			return err
 		}

@@ -18,37 +18,40 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/models"
 )
 
-// NewV1betaEstablishPeeringParams creates a new V1betaEstablishPeeringParams object,
-// with the default timeout for this client.
-//
-// Default values are not hydrated, since defaults are normally applied by the API server side.
-//
-// To enforce default values in parameter, use SetDefaults or WithDefaults.
+// NewV1betaEstablishPeeringParams creates a new V1betaEstablishPeeringParams object
+// with the default values initialized.
 func NewV1betaEstablishPeeringParams() *V1betaEstablishPeeringParams {
+	var ()
 	return &V1betaEstablishPeeringParams{
+
 		timeout: cr.DefaultTimeout,
 	}
 }
 
 // NewV1betaEstablishPeeringParamsWithTimeout creates a new V1betaEstablishPeeringParams object
-// with the ability to set a timeout on a request.
+// with the default values initialized, and the ability to set a timeout on a request
 func NewV1betaEstablishPeeringParamsWithTimeout(timeout time.Duration) *V1betaEstablishPeeringParams {
+	var ()
 	return &V1betaEstablishPeeringParams{
+
 		timeout: timeout,
 	}
 }
 
 // NewV1betaEstablishPeeringParamsWithContext creates a new V1betaEstablishPeeringParams object
-// with the ability to set a context for a request.
+// with the default values initialized, and the ability to set a context for a request
 func NewV1betaEstablishPeeringParamsWithContext(ctx context.Context) *V1betaEstablishPeeringParams {
+	var ()
 	return &V1betaEstablishPeeringParams{
+
 		Context: ctx,
 	}
 }
 
 // NewV1betaEstablishPeeringParamsWithHTTPClient creates a new V1betaEstablishPeeringParams object
-// with the ability to set a custom HTTPClient for a request.
+// with the default values initialized, and the ability to set a custom HTTPClient for a request
 func NewV1betaEstablishPeeringParamsWithHTTPClient(client *http.Client) *V1betaEstablishPeeringParams {
+	var ()
 	return &V1betaEstablishPeeringParams{
 		HTTPClient: client,
 	}
@@ -56,67 +59,44 @@ func NewV1betaEstablishPeeringParamsWithHTTPClient(client *http.Client) *V1betaE
 
 /*
 V1betaEstablishPeeringParams contains all the parameters to send to the API endpoint
-
-	for the v1beta establish peering operation.
-
-	Typically these are written to a http.Request.
+for the v1beta establish peering operation typically these are written to a http.Request
 */
 type V1betaEstablishPeeringParams struct {
 
-	/* Body.
+	/*Body
+	  The required parameters to create a cluster peering.
 
-	   The required parameters to create a cluster peering.
 	*/
 	Body *models.EstablishPeeringRequestV1beta
+	/*LocationID
+	  The location/region to perform the operation in.
 
-	/* LocationID.
-
-	   The location/region to perform the operation in.
 	*/
 	LocationID string
+	/*ProjectNumber
+	  The project number of the GCP project owning the resource being acted upon
 
-	/* ProjectNumber.
-
-	   The project number of the GCP project owning the resource being acted upon
 	*/
 	ProjectNumber string
+	/*ReplicationResourceID
+	  Resource ID used to identify the replication
 
-	/* ReplicationResourceID.
-
-	   Resource ID used to identify the replication
 	*/
 	ReplicationResourceID string
+	/*VolumeResourceID
+	  Resource ID used to identify the volume
 
-	/* VolumeResourceID.
-
-	   Resource ID used to identify the volume
 	*/
 	VolumeResourceID string
+	/*XCorrelationID
+	  Correlation identifier
 
-	/* XCorrelationID.
-
-	   Correlation identifier
 	*/
 	XCorrelationID *string
 
 	timeout    time.Duration
 	Context    context.Context
 	HTTPClient *http.Client
-}
-
-// WithDefaults hydrates default values in the v1beta establish peering params (not the query body).
-//
-// All values with no default are reset to their zero value.
-func (o *V1betaEstablishPeeringParams) WithDefaults() *V1betaEstablishPeeringParams {
-	o.SetDefaults()
-	return o
-}
-
-// SetDefaults hydrates default values in the v1beta establish peering params (not the query body).
-//
-// All values with no default are reset to their zero value.
-func (o *V1betaEstablishPeeringParams) SetDefaults() {
-	// no default values defined for this parameter
 }
 
 // WithTimeout adds the timeout to the v1beta establish peering params
@@ -225,6 +205,7 @@ func (o *V1betaEstablishPeeringParams) WriteToRequest(r runtime.ClientRequest, r
 		return err
 	}
 	var res []error
+
 	if o.Body != nil {
 		if err := r.SetBodyParam(o.Body); err != nil {
 			return err
@@ -257,6 +238,7 @@ func (o *V1betaEstablishPeeringParams) WriteToRequest(r runtime.ClientRequest, r
 		if err := r.SetHeaderParam("x-correlation-id", *o.XCorrelationID); err != nil {
 			return err
 		}
+
 	}
 
 	if len(res) > 0 {

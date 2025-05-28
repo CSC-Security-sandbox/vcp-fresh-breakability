@@ -6,7 +6,6 @@ package models
 // Editing this file might prove futile when you re-run the swagger generate command
 
 import (
-	"context"
 	"encoding/json"
 
 	"github.com/go-openapi/errors"
@@ -24,29 +23,25 @@ type ResourceStateUpdateV1beta struct {
 	// parentResourceID
 	//
 	// The UUID of the parent resource
-	// Example: 281ea02b-d22d-8115-4d96-f943038ac2a1
 	ParentResourceID *string `json:"parentResourceID,omitempty"`
 
 	// parentResourceType
 	//
 	// Parent resource Type
-	// Example: Volume
-	// Enum: ["Volume"]
+	// Enum: [Volume]
 	ParentResourceType *string `json:"parentResourceType,omitempty"`
 
 	// resourceID
 	//
 	// The UUID of the resource
-	// Example: 281ea02b-d22d-8115-4d96-f943038ac2a1
 	// Required: true
 	ResourceID string `json:"resourceID"`
 
 	// resourceType
 	//
 	// Resource type be updated
-	// Example: Volume
 	// Required: true
-	// Enum: ["ActiveDirectory","Volume","Snapshot","StoragePool","KmsConfig","BackupPolicy"]
+	// Enum: [ActiveDirectory Volume Snapshot StoragePool KmsConfig BackupPolicy]
 	ResourceType string `json:"resourceType"`
 }
 
@@ -182,7 +177,7 @@ func (m *ResourceStateUpdateV1beta) validateParentResourceType(formats strfmt.Re
 
 func (m *ResourceStateUpdateV1beta) validateResourceID(formats strfmt.Registry) error {
 
-	if err := validate.RequiredString("resourceID", "body", m.ResourceID); err != nil {
+	if err := validate.RequiredString("resourceID", "body", string(m.ResourceID)); err != nil {
 		return err
 	}
 
@@ -211,7 +206,7 @@ func (m *ResourceStateUpdateV1beta) validateResourceTypeEnum(path, location stri
 
 func (m *ResourceStateUpdateV1beta) validateResourceType(formats strfmt.Registry) error {
 
-	if err := validate.RequiredString("resourceType", "body", m.ResourceType); err != nil {
+	if err := validate.RequiredString("resourceType", "body", string(m.ResourceType)); err != nil {
 		return err
 	}
 
@@ -220,21 +215,6 @@ func (m *ResourceStateUpdateV1beta) validateResourceType(formats strfmt.Registry
 		return err
 	}
 
-	return nil
-}
-
-// ContextValidate validate this resource state update v1beta based on the context it is used
-func (m *ResourceStateUpdateV1beta) ContextValidate(ctx context.Context, formats strfmt.Registry) error {
-	var res []error
-
-	// validation for a type composition with StateUpdateV1beta
-	if err := m.StateUpdateV1beta.ContextValidate(ctx, formats); err != nil {
-		res = append(res, err)
-	}
-
-	if len(res) > 0 {
-		return errors.CompositeValidationError(res...)
-	}
 	return nil
 }
 

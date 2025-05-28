@@ -6,7 +6,6 @@ package models
 // Editing this file might prove futile when you re-run the swagger generate command
 
 import (
-	"context"
 	"encoding/json"
 	"strconv"
 
@@ -26,7 +25,6 @@ type VolumeReplicationCVPV1beta struct {
 	// createdAt
 	//
 	// Creation date of the resource
-	// Example: 2016-11-28T19:30:23.123Z
 	// Read Only: true
 	// Format: date-time
 	CreatedAt strfmt.DateTime `json:"createdAt,omitempty"`
@@ -34,7 +32,6 @@ type VolumeReplicationCVPV1beta struct {
 	// deletedAt
 	//
 	// Date the resource was deleted
-	// Example: 2016-11-30T23:59:59.999Z
 	// Read Only: true
 	// Format: date-time
 	DeletedAt *strfmt.DateTime `json:"deletedAt,omitempty"`
@@ -42,14 +39,12 @@ type VolumeReplicationCVPV1beta struct {
 	// description
 	//
 	// Description of the volume replication
-	// Example: fortress of solitude
 	// Max Length: 2048
 	Description *string `json:"description,omitempty"`
 
 	// destinationHostName
 	//
 	// The destination endpoint host for the volume replication
-	// Example: awesome_host
 	// Required: true
 	// Min Length: 1
 	DestinationHostName *string `json:"destinationHostName"`
@@ -57,7 +52,6 @@ type VolumeReplicationCVPV1beta struct {
 	// destinationServerName
 	//
 	// The destination endpoint server for the volume replication
-	// Example: some_server
 	// Required: true
 	// Min Length: 1
 	DestinationServerName *string `json:"destinationServerName"`
@@ -65,13 +59,11 @@ type VolumeReplicationCVPV1beta struct {
 	// destinationVolumeName
 	//
 	// The destination endpoint volume for the volume replication
-	// Example: awesome_volume_name
 	// Required: true
 	// Min Length: 1
 	DestinationVolumeName *string `json:"destinationVolumeName"`
 
 	// UUID v4 of the destination volume
-	// Example: 9760acf5-4638-11e7-9bdb-020073ca0001
 	// Read Only: true
 	// Max Length: 36
 	// Min Length: 36
@@ -81,9 +73,8 @@ type VolumeReplicationCVPV1beta struct {
 	// endpointType
 	//
 	// Indicates whether the local volume is the source or destination for the volume replication or a restore endpoint
-	// Example: src
 	// Required: true
-	// Enum: ["src","dst","rst"]
+	// Enum: [src dst rst]
 	EndpointType *string `json:"endpointType"`
 
 	// healthy
@@ -102,8 +93,7 @@ type VolumeReplicationCVPV1beta struct {
 	// hybridReplicationType
 	//
 	// Type of hybrid replication
-	// Example: MIGRATION
-	// Enum: ["HYBRID_REPLICATION_TYPE_UNSPECIFIED","MIGRATION","CONTINUOUS_REPLICATION","ONPREM_REPLICATION","REVERSE_ONPREM_REPLICATION"]
+	// Enum: [HYBRID_REPLICATION_TYPE_UNSPECIFIED MIGRATION CONTINUOUS_REPLICATION ONPREM_REPLICATION REVERSE_ONPREM_REPLICATION]
 	HybridReplicationType *string `json:"hybridReplicationType,omitempty"`
 
 	// jobs
@@ -115,25 +105,21 @@ type VolumeReplicationCVPV1beta struct {
 	// labels
 	//
 	// JSON dictionary of resource labels to allow linking of billing labels to a replication, Can contain only lowercase letters, numeric characters, underscores, and dashes. All characters must use UTF-8 encoding, and international characters are allowed. Must start with a lowercase letter or international character.
-	// Example: {"some-key":"some-value","some-key2":"some-value2"}
 	Labels map[string]string `json:"labels,omitempty"`
 
 	// lagTime
 	//
 	// The amount of time in seconds by which the data on the mirror lags behind the source.
-	// Example: 1849
 	// Read Only: true
 	LagTime int64 `json:"lagTime,omitempty"`
 
 	// lastTransferDuration
 	//
 	// The amount of time in seconds it took for the last transfer to complete.
-	// Example: 200
 	// Read Only: true
 	LastTransferDuration int64 `json:"lastTransferDuration,omitempty"`
 
 	// The time of the end of the last transfer.
-	// Example: 2016-11-29T20:32:50.459Z
 	// Read Only: true
 	// Format: date-time
 	LastTransferEndTime *strfmt.DateTime `json:"lastTransferEndTime,omitempty"`
@@ -141,29 +127,25 @@ type VolumeReplicationCVPV1beta struct {
 	// lastTransferError
 	//
 	// A message describing the cause of the last transfer failure.
-	// Example: Something went wrong
 	// Read Only: true
 	LastTransferError string `json:"lastTransferError,omitempty"`
 
 	// lastTransferSize
 	//
 	// The total number of bytes transferred as part of the last transfer.
-	// Example: 14758
 	// Read Only: true
 	LastTransferSize int64 `json:"lastTransferSize,omitempty"`
 
 	// lifeCycleState
 	//
 	// The current lifecycle state of the resource
-	// Example: available
 	// Read Only: true
-	// Enum: ["creating","available","updating","disabled","deleting","deleted","error"]
+	// Enum: [creating available updating disabled deleting deleted error]
 	LifeCycleState string `json:"lifeCycleState,omitempty"`
 
 	// lifeCycleStateDetails
 	//
 	// Details about the current lifecycle state
-	// Example: Error connecting to remote service
 	// Read Only: true
 	LifeCycleStateDetails string `json:"lifeCycleStateDetails,omitempty"`
 
@@ -171,7 +153,7 @@ type VolumeReplicationCVPV1beta struct {
 	//
 	// The mirror state of the volume replication
 	// Read Only: true
-	// Enum: ["uninitialized","mirrored","broken"]
+	// Enum: [uninitialized mirrored broken]
 	MirrorState string `json:"mirrorState,omitempty"`
 
 	// mounted
@@ -181,14 +163,12 @@ type VolumeReplicationCVPV1beta struct {
 	Mounted *bool `json:"mounted,omitempty"`
 
 	// A human readable label for the volume replication
-	// Example: ImportantData
 	// Max Length: 255
 	Name *string `json:"name,omitempty"`
 
 	// progressLastUpdated
 	//
 	// Time indicating when the progress of the transfer was last updated.
-	// Example: 2016-11-29T20:32:50.459Z
 	// Read Only: true
 	// Format: date-time
 	ProgressLastUpdated *strfmt.DateTime `json:"progressLastUpdated,omitempty"`
@@ -197,35 +177,32 @@ type VolumeReplicationCVPV1beta struct {
 	//
 	// The status of the volume replication
 	// Read Only: true
-	// Enum: ["idle","transferring"]
+	// Enum: [idle transferring]
 	RelationshipStatus string `json:"relationshipStatus,omitempty"`
 
 	// remoteRegion
 	//
 	// The remote region for the other end of the volume replication
-	// Example: West US
 	// Required: true
 	RemoteRegion *string `json:"remoteRegion"`
 
 	// remoteResourceId
 	//
 	// The resource ID of the remote volume
-	// Example: /subscriptions/f775a998-5475-4ff8-944c-a62e90cdd9bd/resourceGroups/skossi.test2/providers/Microsoft.NetApp/netAppAccounts/skossi-test-please-delete/capacityPools/poolboi/volumes/nov4
 	// Required: true
 	RemoteResourceID *string `json:"remoteResourceId"`
 
 	// replicationPolicy
-	// Enum: ["MirrorAllSnapshots"]
+	// Enum: [MirrorAllSnapshots]
 	ReplicationPolicy string `json:"replicationPolicy,omitempty"`
 
 	// replicationSchedule
-	// Enum: ["10minutely","hourly","daily","weekly","monthly"]
+	// Enum: [10minutely hourly daily weekly monthly]
 	ReplicationSchedule string `json:"replicationSchedule,omitempty"`
 
 	// sourceHostName
 	//
 	// The source endpoint host for the volume replication
-	// Example: awesome_host
 	// Required: true
 	// Min Length: 1
 	SourceHostName *string `json:"sourceHostName"`
@@ -233,7 +210,6 @@ type VolumeReplicationCVPV1beta struct {
 	// sourceServerName
 	//
 	// The source endpoint server for the volume replication
-	// Example: some_server
 	// Required: true
 	// Min Length: 1
 	SourceServerName *string `json:"sourceServerName"`
@@ -241,7 +217,6 @@ type VolumeReplicationCVPV1beta struct {
 	// sourceVolumeName
 	//
 	// The source endpoint volume for the volume replication
-	// Example: awesome_volume_name
 	// Required: true
 	// Min Length: 1
 	SourceVolumeName *string `json:"sourceVolumeName"`
@@ -254,21 +229,18 @@ type VolumeReplicationCVPV1beta struct {
 	// totalTransferBytes
 	//
 	// Cumulative bytes transferred for the relationship.
-	// Example: 75
 	// Read Only: true
 	TotalTransferBytes int64 `json:"totalTransferBytes,omitempty"`
 
 	// totalTransferTimeSec
 	//
 	// Cumulative total transfer time in seconds for the relationship.
-	// Example: 200
 	// Read Only: true
 	TotalTransferTimeSecs int64 `json:"totalTransferTimeSecs,omitempty"`
 
 	// updatedAt
 	//
 	// Date of last update of the resource
-	// Example: 2016-11-29T20:32:50.459Z
 	// Read Only: true
 	// Format: date-time
 	UpdatedAt strfmt.DateTime `json:"updatedAt,omitempty"`
@@ -276,7 +248,6 @@ type VolumeReplicationCVPV1beta struct {
 	// volumeReplicationUUID
 	//
 	// UUID v4 of volume replication
-	// Example: 9760acf5-4638-11e7-9bdb-020073ca0001
 	// Read Only: true
 	// Max Length: 36
 	// Min Length: 36
@@ -395,6 +366,7 @@ func (m *VolumeReplicationCVPV1beta) Validate(formats strfmt.Registry) error {
 }
 
 func (m *VolumeReplicationCVPV1beta) validateCreatedAt(formats strfmt.Registry) error {
+
 	if swag.IsZero(m.CreatedAt) { // not required
 		return nil
 	}
@@ -407,6 +379,7 @@ func (m *VolumeReplicationCVPV1beta) validateCreatedAt(formats strfmt.Registry) 
 }
 
 func (m *VolumeReplicationCVPV1beta) validateDeletedAt(formats strfmt.Registry) error {
+
 	if swag.IsZero(m.DeletedAt) { // not required
 		return nil
 	}
@@ -419,11 +392,12 @@ func (m *VolumeReplicationCVPV1beta) validateDeletedAt(formats strfmt.Registry) 
 }
 
 func (m *VolumeReplicationCVPV1beta) validateDescription(formats strfmt.Registry) error {
+
 	if swag.IsZero(m.Description) { // not required
 		return nil
 	}
 
-	if err := validate.MaxLength("description", "body", *m.Description, 2048); err != nil {
+	if err := validate.MaxLength("description", "body", string(*m.Description), 2048); err != nil {
 		return err
 	}
 
@@ -436,7 +410,7 @@ func (m *VolumeReplicationCVPV1beta) validateDestinationHostName(formats strfmt.
 		return err
 	}
 
-	if err := validate.MinLength("destinationHostName", "body", *m.DestinationHostName, 1); err != nil {
+	if err := validate.MinLength("destinationHostName", "body", string(*m.DestinationHostName), 1); err != nil {
 		return err
 	}
 
@@ -449,7 +423,7 @@ func (m *VolumeReplicationCVPV1beta) validateDestinationServerName(formats strfm
 		return err
 	}
 
-	if err := validate.MinLength("destinationServerName", "body", *m.DestinationServerName, 1); err != nil {
+	if err := validate.MinLength("destinationServerName", "body", string(*m.DestinationServerName), 1); err != nil {
 		return err
 	}
 
@@ -462,7 +436,7 @@ func (m *VolumeReplicationCVPV1beta) validateDestinationVolumeName(formats strfm
 		return err
 	}
 
-	if err := validate.MinLength("destinationVolumeName", "body", *m.DestinationVolumeName, 1); err != nil {
+	if err := validate.MinLength("destinationVolumeName", "body", string(*m.DestinationVolumeName), 1); err != nil {
 		return err
 	}
 
@@ -470,19 +444,20 @@ func (m *VolumeReplicationCVPV1beta) validateDestinationVolumeName(formats strfm
 }
 
 func (m *VolumeReplicationCVPV1beta) validateDestinationVolumeUUID(formats strfmt.Registry) error {
+
 	if swag.IsZero(m.DestinationVolumeUUID) { // not required
 		return nil
 	}
 
-	if err := validate.MinLength("destinationVolumeUUID", "body", m.DestinationVolumeUUID, 36); err != nil {
+	if err := validate.MinLength("destinationVolumeUUID", "body", string(m.DestinationVolumeUUID), 36); err != nil {
 		return err
 	}
 
-	if err := validate.MaxLength("destinationVolumeUUID", "body", m.DestinationVolumeUUID, 36); err != nil {
+	if err := validate.MaxLength("destinationVolumeUUID", "body", string(m.DestinationVolumeUUID), 36); err != nil {
 		return err
 	}
 
-	if err := validate.Pattern("destinationVolumeUUID", "body", m.DestinationVolumeUUID, `^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$`); err != nil {
+	if err := validate.Pattern("destinationVolumeUUID", "body", string(m.DestinationVolumeUUID), `^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$`); err != nil {
 		return err
 	}
 
@@ -574,6 +549,7 @@ func (m *VolumeReplicationCVPV1beta) validateHybridReplicationTypeEnum(path, loc
 }
 
 func (m *VolumeReplicationCVPV1beta) validateHybridReplicationType(formats strfmt.Registry) error {
+
 	if swag.IsZero(m.HybridReplicationType) { // not required
 		return nil
 	}
@@ -587,6 +563,7 @@ func (m *VolumeReplicationCVPV1beta) validateHybridReplicationType(formats strfm
 }
 
 func (m *VolumeReplicationCVPV1beta) validateJobs(formats strfmt.Registry) error {
+
 	if swag.IsZero(m.Jobs) { // not required
 		return nil
 	}
@@ -600,8 +577,6 @@ func (m *VolumeReplicationCVPV1beta) validateJobs(formats strfmt.Registry) error
 			if err := m.Jobs[i].Validate(formats); err != nil {
 				if ve, ok := err.(*errors.Validation); ok {
 					return ve.ValidateName("jobs" + "." + strconv.Itoa(i))
-				} else if ce, ok := err.(*errors.CompositeError); ok {
-					return ce.ValidateName("jobs" + "." + strconv.Itoa(i))
 				}
 				return err
 			}
@@ -613,6 +588,7 @@ func (m *VolumeReplicationCVPV1beta) validateJobs(formats strfmt.Registry) error
 }
 
 func (m *VolumeReplicationCVPV1beta) validateLastTransferEndTime(formats strfmt.Registry) error {
+
 	if swag.IsZero(m.LastTransferEndTime) { // not required
 		return nil
 	}
@@ -669,6 +645,7 @@ func (m *VolumeReplicationCVPV1beta) validateLifeCycleStateEnum(path, location s
 }
 
 func (m *VolumeReplicationCVPV1beta) validateLifeCycleState(formats strfmt.Registry) error {
+
 	if swag.IsZero(m.LifeCycleState) { // not required
 		return nil
 	}
@@ -714,6 +691,7 @@ func (m *VolumeReplicationCVPV1beta) validateMirrorStateEnum(path, location stri
 }
 
 func (m *VolumeReplicationCVPV1beta) validateMirrorState(formats strfmt.Registry) error {
+
 	if swag.IsZero(m.MirrorState) { // not required
 		return nil
 	}
@@ -727,11 +705,12 @@ func (m *VolumeReplicationCVPV1beta) validateMirrorState(formats strfmt.Registry
 }
 
 func (m *VolumeReplicationCVPV1beta) validateName(formats strfmt.Registry) error {
+
 	if swag.IsZero(m.Name) { // not required
 		return nil
 	}
 
-	if err := validate.MaxLength("name", "body", *m.Name, 255); err != nil {
+	if err := validate.MaxLength("name", "body", string(*m.Name), 255); err != nil {
 		return err
 	}
 
@@ -739,6 +718,7 @@ func (m *VolumeReplicationCVPV1beta) validateName(formats strfmt.Registry) error
 }
 
 func (m *VolumeReplicationCVPV1beta) validateProgressLastUpdated(formats strfmt.Registry) error {
+
 	if swag.IsZero(m.ProgressLastUpdated) { // not required
 		return nil
 	}
@@ -780,6 +760,7 @@ func (m *VolumeReplicationCVPV1beta) validateRelationshipStatusEnum(path, locati
 }
 
 func (m *VolumeReplicationCVPV1beta) validateRelationshipStatus(formats strfmt.Registry) error {
+
 	if swag.IsZero(m.RelationshipStatus) { // not required
 		return nil
 	}
@@ -837,6 +818,7 @@ func (m *VolumeReplicationCVPV1beta) validateReplicationPolicyEnum(path, locatio
 }
 
 func (m *VolumeReplicationCVPV1beta) validateReplicationPolicy(formats strfmt.Registry) error {
+
 	if swag.IsZero(m.ReplicationPolicy) { // not required
 		return nil
 	}
@@ -888,6 +870,7 @@ func (m *VolumeReplicationCVPV1beta) validateReplicationScheduleEnum(path, locat
 }
 
 func (m *VolumeReplicationCVPV1beta) validateReplicationSchedule(formats strfmt.Registry) error {
+
 	if swag.IsZero(m.ReplicationSchedule) { // not required
 		return nil
 	}
@@ -906,7 +889,7 @@ func (m *VolumeReplicationCVPV1beta) validateSourceHostName(formats strfmt.Regis
 		return err
 	}
 
-	if err := validate.MinLength("sourceHostName", "body", *m.SourceHostName, 1); err != nil {
+	if err := validate.MinLength("sourceHostName", "body", string(*m.SourceHostName), 1); err != nil {
 		return err
 	}
 
@@ -919,7 +902,7 @@ func (m *VolumeReplicationCVPV1beta) validateSourceServerName(formats strfmt.Reg
 		return err
 	}
 
-	if err := validate.MinLength("sourceServerName", "body", *m.SourceServerName, 1); err != nil {
+	if err := validate.MinLength("sourceServerName", "body", string(*m.SourceServerName), 1); err != nil {
 		return err
 	}
 
@@ -932,7 +915,7 @@ func (m *VolumeReplicationCVPV1beta) validateSourceVolumeName(formats strfmt.Reg
 		return err
 	}
 
-	if err := validate.MinLength("sourceVolumeName", "body", *m.SourceVolumeName, 1); err != nil {
+	if err := validate.MinLength("sourceVolumeName", "body", string(*m.SourceVolumeName), 1); err != nil {
 		return err
 	}
 
@@ -940,6 +923,7 @@ func (m *VolumeReplicationCVPV1beta) validateSourceVolumeName(formats strfmt.Reg
 }
 
 func (m *VolumeReplicationCVPV1beta) validateUpdatedAt(formats strfmt.Registry) error {
+
 	if swag.IsZero(m.UpdatedAt) { // not required
 		return nil
 	}
@@ -952,309 +936,20 @@ func (m *VolumeReplicationCVPV1beta) validateUpdatedAt(formats strfmt.Registry) 
 }
 
 func (m *VolumeReplicationCVPV1beta) validateVolumeReplicationUUID(formats strfmt.Registry) error {
+
 	if swag.IsZero(m.VolumeReplicationUUID) { // not required
 		return nil
 	}
 
-	if err := validate.MinLength("volumeReplicationUUID", "body", m.VolumeReplicationUUID, 36); err != nil {
+	if err := validate.MinLength("volumeReplicationUUID", "body", string(m.VolumeReplicationUUID), 36); err != nil {
 		return err
 	}
 
-	if err := validate.MaxLength("volumeReplicationUUID", "body", m.VolumeReplicationUUID, 36); err != nil {
+	if err := validate.MaxLength("volumeReplicationUUID", "body", string(m.VolumeReplicationUUID), 36); err != nil {
 		return err
 	}
 
-	if err := validate.Pattern("volumeReplicationUUID", "body", m.VolumeReplicationUUID, `^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$`); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-// ContextValidate validate this volume replication c v p v1beta based on the context it is used
-func (m *VolumeReplicationCVPV1beta) ContextValidate(ctx context.Context, formats strfmt.Registry) error {
-	var res []error
-
-	if err := m.contextValidateCreatedAt(ctx, formats); err != nil {
-		res = append(res, err)
-	}
-
-	if err := m.contextValidateDeletedAt(ctx, formats); err != nil {
-		res = append(res, err)
-	}
-
-	if err := m.contextValidateDestinationVolumeUUID(ctx, formats); err != nil {
-		res = append(res, err)
-	}
-
-	if err := m.contextValidateHealthy(ctx, formats); err != nil {
-		res = append(res, err)
-	}
-
-	if err := m.contextValidateJobs(ctx, formats); err != nil {
-		res = append(res, err)
-	}
-
-	if err := m.contextValidateLagTime(ctx, formats); err != nil {
-		res = append(res, err)
-	}
-
-	if err := m.contextValidateLastTransferDuration(ctx, formats); err != nil {
-		res = append(res, err)
-	}
-
-	if err := m.contextValidateLastTransferEndTime(ctx, formats); err != nil {
-		res = append(res, err)
-	}
-
-	if err := m.contextValidateLastTransferError(ctx, formats); err != nil {
-		res = append(res, err)
-	}
-
-	if err := m.contextValidateLastTransferSize(ctx, formats); err != nil {
-		res = append(res, err)
-	}
-
-	if err := m.contextValidateLifeCycleState(ctx, formats); err != nil {
-		res = append(res, err)
-	}
-
-	if err := m.contextValidateLifeCycleStateDetails(ctx, formats); err != nil {
-		res = append(res, err)
-	}
-
-	if err := m.contextValidateMirrorState(ctx, formats); err != nil {
-		res = append(res, err)
-	}
-
-	if err := m.contextValidateMounted(ctx, formats); err != nil {
-		res = append(res, err)
-	}
-
-	if err := m.contextValidateProgressLastUpdated(ctx, formats); err != nil {
-		res = append(res, err)
-	}
-
-	if err := m.contextValidateRelationshipStatus(ctx, formats); err != nil {
-		res = append(res, err)
-	}
-
-	if err := m.contextValidateTotalTransferBytes(ctx, formats); err != nil {
-		res = append(res, err)
-	}
-
-	if err := m.contextValidateTotalTransferTimeSecs(ctx, formats); err != nil {
-		res = append(res, err)
-	}
-
-	if err := m.contextValidateUpdatedAt(ctx, formats); err != nil {
-		res = append(res, err)
-	}
-
-	if err := m.contextValidateVolumeReplicationUUID(ctx, formats); err != nil {
-		res = append(res, err)
-	}
-
-	if len(res) > 0 {
-		return errors.CompositeValidationError(res...)
-	}
-	return nil
-}
-
-func (m *VolumeReplicationCVPV1beta) contextValidateCreatedAt(ctx context.Context, formats strfmt.Registry) error {
-
-	if err := validate.ReadOnly(ctx, "createdAt", "body", strfmt.DateTime(m.CreatedAt)); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (m *VolumeReplicationCVPV1beta) contextValidateDeletedAt(ctx context.Context, formats strfmt.Registry) error {
-
-	if err := validate.ReadOnly(ctx, "deletedAt", "body", m.DeletedAt); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (m *VolumeReplicationCVPV1beta) contextValidateDestinationVolumeUUID(ctx context.Context, formats strfmt.Registry) error {
-
-	if err := validate.ReadOnly(ctx, "destinationVolumeUUID", "body", string(m.DestinationVolumeUUID)); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (m *VolumeReplicationCVPV1beta) contextValidateHealthy(ctx context.Context, formats strfmt.Registry) error {
-
-	if err := validate.ReadOnly(ctx, "healthy", "body", m.Healthy); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (m *VolumeReplicationCVPV1beta) contextValidateJobs(ctx context.Context, formats strfmt.Registry) error {
-
-	if err := validate.ReadOnly(ctx, "jobs", "body", []*JobV1beta(m.Jobs)); err != nil {
-		return err
-	}
-
-	for i := 0; i < len(m.Jobs); i++ {
-
-		if m.Jobs[i] != nil {
-
-			if swag.IsZero(m.Jobs[i]) { // not required
-				return nil
-			}
-
-			if err := m.Jobs[i].ContextValidate(ctx, formats); err != nil {
-				if ve, ok := err.(*errors.Validation); ok {
-					return ve.ValidateName("jobs" + "." + strconv.Itoa(i))
-				} else if ce, ok := err.(*errors.CompositeError); ok {
-					return ce.ValidateName("jobs" + "." + strconv.Itoa(i))
-				}
-				return err
-			}
-		}
-
-	}
-
-	return nil
-}
-
-func (m *VolumeReplicationCVPV1beta) contextValidateLagTime(ctx context.Context, formats strfmt.Registry) error {
-
-	if err := validate.ReadOnly(ctx, "lagTime", "body", int64(m.LagTime)); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (m *VolumeReplicationCVPV1beta) contextValidateLastTransferDuration(ctx context.Context, formats strfmt.Registry) error {
-
-	if err := validate.ReadOnly(ctx, "lastTransferDuration", "body", int64(m.LastTransferDuration)); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (m *VolumeReplicationCVPV1beta) contextValidateLastTransferEndTime(ctx context.Context, formats strfmt.Registry) error {
-
-	if err := validate.ReadOnly(ctx, "lastTransferEndTime", "body", m.LastTransferEndTime); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (m *VolumeReplicationCVPV1beta) contextValidateLastTransferError(ctx context.Context, formats strfmt.Registry) error {
-
-	if err := validate.ReadOnly(ctx, "lastTransferError", "body", string(m.LastTransferError)); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (m *VolumeReplicationCVPV1beta) contextValidateLastTransferSize(ctx context.Context, formats strfmt.Registry) error {
-
-	if err := validate.ReadOnly(ctx, "lastTransferSize", "body", int64(m.LastTransferSize)); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (m *VolumeReplicationCVPV1beta) contextValidateLifeCycleState(ctx context.Context, formats strfmt.Registry) error {
-
-	if err := validate.ReadOnly(ctx, "lifeCycleState", "body", string(m.LifeCycleState)); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (m *VolumeReplicationCVPV1beta) contextValidateLifeCycleStateDetails(ctx context.Context, formats strfmt.Registry) error {
-
-	if err := validate.ReadOnly(ctx, "lifeCycleStateDetails", "body", string(m.LifeCycleStateDetails)); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (m *VolumeReplicationCVPV1beta) contextValidateMirrorState(ctx context.Context, formats strfmt.Registry) error {
-
-	if err := validate.ReadOnly(ctx, "mirrorState", "body", string(m.MirrorState)); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (m *VolumeReplicationCVPV1beta) contextValidateMounted(ctx context.Context, formats strfmt.Registry) error {
-
-	if err := validate.ReadOnly(ctx, "mounted", "body", m.Mounted); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (m *VolumeReplicationCVPV1beta) contextValidateProgressLastUpdated(ctx context.Context, formats strfmt.Registry) error {
-
-	if err := validate.ReadOnly(ctx, "progressLastUpdated", "body", m.ProgressLastUpdated); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (m *VolumeReplicationCVPV1beta) contextValidateRelationshipStatus(ctx context.Context, formats strfmt.Registry) error {
-
-	if err := validate.ReadOnly(ctx, "relationshipStatus", "body", string(m.RelationshipStatus)); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (m *VolumeReplicationCVPV1beta) contextValidateTotalTransferBytes(ctx context.Context, formats strfmt.Registry) error {
-
-	if err := validate.ReadOnly(ctx, "totalTransferBytes", "body", int64(m.TotalTransferBytes)); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (m *VolumeReplicationCVPV1beta) contextValidateTotalTransferTimeSecs(ctx context.Context, formats strfmt.Registry) error {
-
-	if err := validate.ReadOnly(ctx, "totalTransferTimeSecs", "body", int64(m.TotalTransferTimeSecs)); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (m *VolumeReplicationCVPV1beta) contextValidateUpdatedAt(ctx context.Context, formats strfmt.Registry) error {
-
-	if err := validate.ReadOnly(ctx, "updatedAt", "body", strfmt.DateTime(m.UpdatedAt)); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (m *VolumeReplicationCVPV1beta) contextValidateVolumeReplicationUUID(ctx context.Context, formats strfmt.Registry) error {
-
-	if err := validate.ReadOnly(ctx, "volumeReplicationUUID", "body", string(m.VolumeReplicationUUID)); err != nil {
+	if err := validate.Pattern("volumeReplicationUUID", "body", string(m.VolumeReplicationUUID), `^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$`); err != nil {
 		return err
 	}
 

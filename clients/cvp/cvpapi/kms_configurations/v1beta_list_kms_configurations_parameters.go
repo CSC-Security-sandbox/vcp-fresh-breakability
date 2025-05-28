@@ -16,37 +16,40 @@ import (
 	"github.com/go-openapi/strfmt"
 )
 
-// NewV1betaListKmsConfigurationsParams creates a new V1betaListKmsConfigurationsParams object,
-// with the default timeout for this client.
-//
-// Default values are not hydrated, since defaults are normally applied by the API server side.
-//
-// To enforce default values in parameter, use SetDefaults or WithDefaults.
+// NewV1betaListKmsConfigurationsParams creates a new V1betaListKmsConfigurationsParams object
+// with the default values initialized.
 func NewV1betaListKmsConfigurationsParams() *V1betaListKmsConfigurationsParams {
+	var ()
 	return &V1betaListKmsConfigurationsParams{
+
 		timeout: cr.DefaultTimeout,
 	}
 }
 
 // NewV1betaListKmsConfigurationsParamsWithTimeout creates a new V1betaListKmsConfigurationsParams object
-// with the ability to set a timeout on a request.
+// with the default values initialized, and the ability to set a timeout on a request
 func NewV1betaListKmsConfigurationsParamsWithTimeout(timeout time.Duration) *V1betaListKmsConfigurationsParams {
+	var ()
 	return &V1betaListKmsConfigurationsParams{
+
 		timeout: timeout,
 	}
 }
 
 // NewV1betaListKmsConfigurationsParamsWithContext creates a new V1betaListKmsConfigurationsParams object
-// with the ability to set a context for a request.
+// with the default values initialized, and the ability to set a context for a request
 func NewV1betaListKmsConfigurationsParamsWithContext(ctx context.Context) *V1betaListKmsConfigurationsParams {
+	var ()
 	return &V1betaListKmsConfigurationsParams{
+
 		Context: ctx,
 	}
 }
 
 // NewV1betaListKmsConfigurationsParamsWithHTTPClient creates a new V1betaListKmsConfigurationsParams object
-// with the ability to set a custom HTTPClient for a request.
+// with the default values initialized, and the ability to set a custom HTTPClient for a request
 func NewV1betaListKmsConfigurationsParamsWithHTTPClient(client *http.Client) *V1betaListKmsConfigurationsParams {
+	var ()
 	return &V1betaListKmsConfigurationsParams{
 		HTTPClient: client,
 	}
@@ -54,49 +57,29 @@ func NewV1betaListKmsConfigurationsParamsWithHTTPClient(client *http.Client) *V1
 
 /*
 V1betaListKmsConfigurationsParams contains all the parameters to send to the API endpoint
-
-	for the v1beta list kms configurations operation.
-
-	Typically these are written to a http.Request.
+for the v1beta list kms configurations operation typically these are written to a http.Request
 */
 type V1betaListKmsConfigurationsParams struct {
 
-	/* LocationID.
+	/*LocationID
+	  The location/region to perform the operation in.
 
-	   The location/region to perform the operation in.
 	*/
 	LocationID string
+	/*ProjectNumber
+	  The project number of the GCP project owning the resource being acted upon
 
-	/* ProjectNumber.
-
-	   The project number of the GCP project owning the resource being acted upon
 	*/
 	ProjectNumber string
+	/*XCorrelationID
+	  Correlation identifier
 
-	/* XCorrelationID.
-
-	   Correlation identifier
 	*/
 	XCorrelationID *string
 
 	timeout    time.Duration
 	Context    context.Context
 	HTTPClient *http.Client
-}
-
-// WithDefaults hydrates default values in the v1beta list kms configurations params (not the query body).
-//
-// All values with no default are reset to their zero value.
-func (o *V1betaListKmsConfigurationsParams) WithDefaults() *V1betaListKmsConfigurationsParams {
-	o.SetDefaults()
-	return o
-}
-
-// SetDefaults hydrates default values in the v1beta list kms configurations params (not the query body).
-//
-// All values with no default are reset to their zero value.
-func (o *V1betaListKmsConfigurationsParams) SetDefaults() {
-	// no default values defined for this parameter
 }
 
 // WithTimeout adds the timeout to the v1beta list kms configurations params
@@ -189,6 +172,7 @@ func (o *V1betaListKmsConfigurationsParams) WriteToRequest(r runtime.ClientReque
 		if err := r.SetHeaderParam("x-correlation-id", *o.XCorrelationID); err != nil {
 			return err
 		}
+
 	}
 
 	if len(res) > 0 {

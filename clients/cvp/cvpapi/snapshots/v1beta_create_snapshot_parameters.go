@@ -18,37 +18,40 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/models"
 )
 
-// NewV1betaCreateSnapshotParams creates a new V1betaCreateSnapshotParams object,
-// with the default timeout for this client.
-//
-// Default values are not hydrated, since defaults are normally applied by the API server side.
-//
-// To enforce default values in parameter, use SetDefaults or WithDefaults.
+// NewV1betaCreateSnapshotParams creates a new V1betaCreateSnapshotParams object
+// with the default values initialized.
 func NewV1betaCreateSnapshotParams() *V1betaCreateSnapshotParams {
+	var ()
 	return &V1betaCreateSnapshotParams{
+
 		timeout: cr.DefaultTimeout,
 	}
 }
 
 // NewV1betaCreateSnapshotParamsWithTimeout creates a new V1betaCreateSnapshotParams object
-// with the ability to set a timeout on a request.
+// with the default values initialized, and the ability to set a timeout on a request
 func NewV1betaCreateSnapshotParamsWithTimeout(timeout time.Duration) *V1betaCreateSnapshotParams {
+	var ()
 	return &V1betaCreateSnapshotParams{
+
 		timeout: timeout,
 	}
 }
 
 // NewV1betaCreateSnapshotParamsWithContext creates a new V1betaCreateSnapshotParams object
-// with the ability to set a context for a request.
+// with the default values initialized, and the ability to set a context for a request
 func NewV1betaCreateSnapshotParamsWithContext(ctx context.Context) *V1betaCreateSnapshotParams {
+	var ()
 	return &V1betaCreateSnapshotParams{
+
 		Context: ctx,
 	}
 }
 
 // NewV1betaCreateSnapshotParamsWithHTTPClient creates a new V1betaCreateSnapshotParams object
-// with the ability to set a custom HTTPClient for a request.
+// with the default values initialized, and the ability to set a custom HTTPClient for a request
 func NewV1betaCreateSnapshotParamsWithHTTPClient(client *http.Client) *V1betaCreateSnapshotParams {
+	var ()
 	return &V1betaCreateSnapshotParams{
 		HTTPClient: client,
 	}
@@ -56,61 +59,39 @@ func NewV1betaCreateSnapshotParamsWithHTTPClient(client *http.Client) *V1betaCre
 
 /*
 V1betaCreateSnapshotParams contains all the parameters to send to the API endpoint
-
-	for the v1beta create snapshot operation.
-
-	Typically these are written to a http.Request.
+for the v1beta create snapshot operation typically these are written to a http.Request
 */
 type V1betaCreateSnapshotParams struct {
 
-	/* Body.
+	/*Body
+	  The required parameters to create a new snapshot.
 
-	   The required parameters to create a new snapshot.
 	*/
 	Body *models.VolumeSnapshotCreateV1beta
+	/*LocationID
+	  The location/region to perform the operation in.
 
-	/* LocationID.
-
-	   The location/region to perform the operation in.
 	*/
 	LocationID string
+	/*ProjectNumber
+	  The project number of the GCP project owning the resource being acted upon
 
-	/* ProjectNumber.
-
-	   The project number of the GCP project owning the resource being acted upon
 	*/
 	ProjectNumber string
+	/*VolumeID
+	  UUID v4 used to identify the volume
 
-	/* VolumeID.
-
-	   UUID v4 used to identify the volume
 	*/
 	VolumeID string
+	/*XCorrelationID
+	  Correlation identifier
 
-	/* XCorrelationID.
-
-	   Correlation identifier
 	*/
 	XCorrelationID *string
 
 	timeout    time.Duration
 	Context    context.Context
 	HTTPClient *http.Client
-}
-
-// WithDefaults hydrates default values in the v1beta create snapshot params (not the query body).
-//
-// All values with no default are reset to their zero value.
-func (o *V1betaCreateSnapshotParams) WithDefaults() *V1betaCreateSnapshotParams {
-	o.SetDefaults()
-	return o
-}
-
-// SetDefaults hydrates default values in the v1beta create snapshot params (not the query body).
-//
-// All values with no default are reset to their zero value.
-func (o *V1betaCreateSnapshotParams) SetDefaults() {
-	// no default values defined for this parameter
 }
 
 // WithTimeout adds the timeout to the v1beta create snapshot params
@@ -208,6 +189,7 @@ func (o *V1betaCreateSnapshotParams) WriteToRequest(r runtime.ClientRequest, reg
 		return err
 	}
 	var res []error
+
 	if o.Body != nil {
 		if err := r.SetBodyParam(o.Body); err != nil {
 			return err
@@ -235,6 +217,7 @@ func (o *V1betaCreateSnapshotParams) WriteToRequest(r runtime.ClientRequest, reg
 		if err := r.SetHeaderParam("x-correlation-id", *o.XCorrelationID); err != nil {
 			return err
 		}
+
 	}
 
 	if len(res) > 0 {

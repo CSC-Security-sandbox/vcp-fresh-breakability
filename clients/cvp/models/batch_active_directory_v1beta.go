@@ -6,7 +6,6 @@ package models
 // Editing this file might prove futile when you re-run the swagger generate command
 
 import (
-	"context"
 	"encoding/json"
 	"strconv"
 
@@ -24,84 +23,71 @@ type BatchActiveDirectoryV1beta struct {
 	// DNS
 	//
 	// Comma separated list of DNS server IP addresses for the Active Directory domain. Can only include a maximum of 3 items
-	// Example: 101.102.103.104
 	DNS *string `json:"DNS,omitempty"`
 
 	// activeDirectoryId
 	//
 	// UUID v4 used to identify the Active Directory credentials
-	// Example: 9760acf5-4638-11e7-9bdb-020073ca7773
 	// Pattern: ^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$
 	ActiveDirectoryID string `json:"activeDirectoryId,omitempty"`
 
 	// activeDirectoryState
 	//
 	// The current lifecycle state of the Active Directory
-	// Example: READY
 	// Read Only: true
-	// Enum: ["STATE_UNSPECIFIED","CREATING","READY","UPDATING","IN_USE","DELETING","ERROR"]
+	// Enum: [STATE_UNSPECIFIED CREATING READY UPDATING IN_USE DELETING ERROR]
 	ActiveDirectoryState string `json:"activeDirectoryState,omitempty"`
 
 	// activeDirectoryStateDetails
 	//
 	// Details about the current Active Directory credentials state
-	// Example: Credentials saved and available for use
 	// Read Only: true
 	ActiveDirectoryStateDetails *string `json:"activeDirectoryStateDetails,omitempty"`
 
 	// administrators
 	//
 	// Users to be added to the built-in administrators Active-directory group. The usernames must be unique, and entries cannot include @ or \. The entire list will be validated and rejected as whole if one or more entries are invalid.
-	// Example: ["batman","clarkkent"]
 	Administrators []string `json:"administrators,omitempty"`
 
 	// aesEncryption
 	//
 	// If enabled, AES encryption will be enabled for SMB communication.
-	// Example: false
 	AesEncryption *bool `json:"aesEncryption,omitempty"`
 
 	// allowLocalNFSUsersWithLdap
 	//
 	// If enabled, allowLocalNFSUsersWithLdap will allow access to local users as well as LDAP users. If access is needed for only LDAP users, it has to be disabled.
-	// Example: false
 	AllowLocalNFSUsersWithLdap *bool `json:"allowLocalNFSUsersWithLdap,omitempty"`
 
 	// backupOperators
 	//
 	// Users to be added to the built-in backup operators Active-directory group
-	// Example: ["batman","clarkkent"]
 	BackupOperators []string `json:"backupOperators,omitempty"`
 
 	// createdAt
 	//
 	// Creation date of the resource
-	// Example: 2016-11-28T19:30:23.123Z
 	// Format: date-time
 	CreatedAt *strfmt.DateTime `json:"createdAt,omitempty"`
 
 	// description
 	//
 	// Description of the Active Directory
-	// Example: fortress of solitude
 	Description *string `json:"description,omitempty"`
 
 	// domain
 	//
 	// Name of the Active Directory domain
-	// Example: krypton.com
 	Domain *string `json:"domain,omitempty"`
 
 	// encryptDCConnections
 	//
 	// If enabled, traffic between the SMB server to domain controller (DC) will be encrypted.
-	// Example: false
 	EncryptDCConnections *bool `json:"encryptDCConnections,omitempty"`
 
 	// kdcHostname
 	//
 	// Name of the Active Directory machine. This optional parameter is used only while creating kerberos volume
-	// Example: 2BOVAEKB44B
 	// Max Length: 64
 	// Min Length: 1
 	KdcHostname string `json:"kdcHostname,omitempty"`
@@ -109,7 +95,6 @@ type BatchActiveDirectoryV1beta struct {
 	// kdcIP
 	//
 	// KDC server IP address for the Active Directory machine. This optional parameter is used only while creating kerberos volume.
-	// Example: 101.102.103.104
 	// Max Length: 15
 	// Min Length: 7
 	KdcIP string `json:"kdcIP,omitempty"`
@@ -117,47 +102,39 @@ type BatchActiveDirectoryV1beta struct {
 	// ldapSigning
 	//
 	// Specifies whether or not the LDAP traffic needs to be signed.
-	// Example: false
 	LdapSigning *bool `json:"ldapSigning,omitempty"`
 
 	// netBIOS
 	//
 	// NetBIOS name prefix of the server
-	// Example: cvserver
 	NetBIOS *string `json:"netBIOS,omitempty"`
 
 	// organizationalUnit
 	//
 	// The Organizational Unit (OU) within the Windows Active Directory the user belongs to.
-	// Example: CN=Computers
 	OrganizationalUnit *string `json:"organizationalUnit,omitempty"`
 
 	// password
 	//
 	// Password of the Active Directory domain administrator
-	// Example: ******************
 	Password *string `json:"password,omitempty"`
 
 	// A human readable label for the resource
-	// Example: my-active-directory
 	ResourceID *string `json:"resourceId,omitempty"`
 
 	// securityOperators
 	//
 	// Domain users to be given the SeSecurityPrivilege
-	// Example: ["batman"]
 	SecurityOperators []string `json:"securityOperators,omitempty"`
 
 	// site
 	//
 	// The Active Directory site the service will limit domain controller discovery to.
-	// Example: Default-First-Site-Name
 	Site *string `json:"site,omitempty"`
 
 	// username
 	//
 	// Username of the Active Directory domain administrator
-	// Example: superman
 	Username *string `json:"username,omitempty"`
 }
 
@@ -196,11 +173,12 @@ func (m *BatchActiveDirectoryV1beta) Validate(formats strfmt.Registry) error {
 }
 
 func (m *BatchActiveDirectoryV1beta) validateActiveDirectoryID(formats strfmt.Registry) error {
+
 	if swag.IsZero(m.ActiveDirectoryID) { // not required
 		return nil
 	}
 
-	if err := validate.Pattern("activeDirectoryId", "body", m.ActiveDirectoryID, `^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$`); err != nil {
+	if err := validate.Pattern("activeDirectoryId", "body", string(m.ActiveDirectoryID), `^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$`); err != nil {
 		return err
 	}
 
@@ -252,6 +230,7 @@ func (m *BatchActiveDirectoryV1beta) validateActiveDirectoryStateEnum(path, loca
 }
 
 func (m *BatchActiveDirectoryV1beta) validateActiveDirectoryState(formats strfmt.Registry) error {
+
 	if swag.IsZero(m.ActiveDirectoryState) { // not required
 		return nil
 	}
@@ -265,17 +244,18 @@ func (m *BatchActiveDirectoryV1beta) validateActiveDirectoryState(formats strfmt
 }
 
 func (m *BatchActiveDirectoryV1beta) validateAdministrators(formats strfmt.Registry) error {
+
 	if swag.IsZero(m.Administrators) { // not required
 		return nil
 	}
 
 	for i := 0; i < len(m.Administrators); i++ {
 
-		if err := validate.MinLength("administrators"+"."+strconv.Itoa(i), "body", m.Administrators[i], 1); err != nil {
+		if err := validate.MinLength("administrators"+"."+strconv.Itoa(i), "body", string(m.Administrators[i]), 1); err != nil {
 			return err
 		}
 
-		if err := validate.MaxLength("administrators"+"."+strconv.Itoa(i), "body", m.Administrators[i], 255); err != nil {
+		if err := validate.MaxLength("administrators"+"."+strconv.Itoa(i), "body", string(m.Administrators[i]), 255); err != nil {
 			return err
 		}
 
@@ -285,6 +265,7 @@ func (m *BatchActiveDirectoryV1beta) validateAdministrators(formats strfmt.Regis
 }
 
 func (m *BatchActiveDirectoryV1beta) validateCreatedAt(formats strfmt.Registry) error {
+
 	if swag.IsZero(m.CreatedAt) { // not required
 		return nil
 	}
@@ -297,15 +278,16 @@ func (m *BatchActiveDirectoryV1beta) validateCreatedAt(formats strfmt.Registry) 
 }
 
 func (m *BatchActiveDirectoryV1beta) validateKdcHostname(formats strfmt.Registry) error {
+
 	if swag.IsZero(m.KdcHostname) { // not required
 		return nil
 	}
 
-	if err := validate.MinLength("kdcHostname", "body", m.KdcHostname, 1); err != nil {
+	if err := validate.MinLength("kdcHostname", "body", string(m.KdcHostname), 1); err != nil {
 		return err
 	}
 
-	if err := validate.MaxLength("kdcHostname", "body", m.KdcHostname, 64); err != nil {
+	if err := validate.MaxLength("kdcHostname", "body", string(m.KdcHostname), 64); err != nil {
 		return err
 	}
 
@@ -313,51 +295,16 @@ func (m *BatchActiveDirectoryV1beta) validateKdcHostname(formats strfmt.Registry
 }
 
 func (m *BatchActiveDirectoryV1beta) validateKdcIP(formats strfmt.Registry) error {
+
 	if swag.IsZero(m.KdcIP) { // not required
 		return nil
 	}
 
-	if err := validate.MinLength("kdcIP", "body", m.KdcIP, 7); err != nil {
+	if err := validate.MinLength("kdcIP", "body", string(m.KdcIP), 7); err != nil {
 		return err
 	}
 
-	if err := validate.MaxLength("kdcIP", "body", m.KdcIP, 15); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-// ContextValidate validate this batch active directory v1beta based on the context it is used
-func (m *BatchActiveDirectoryV1beta) ContextValidate(ctx context.Context, formats strfmt.Registry) error {
-	var res []error
-
-	if err := m.contextValidateActiveDirectoryState(ctx, formats); err != nil {
-		res = append(res, err)
-	}
-
-	if err := m.contextValidateActiveDirectoryStateDetails(ctx, formats); err != nil {
-		res = append(res, err)
-	}
-
-	if len(res) > 0 {
-		return errors.CompositeValidationError(res...)
-	}
-	return nil
-}
-
-func (m *BatchActiveDirectoryV1beta) contextValidateActiveDirectoryState(ctx context.Context, formats strfmt.Registry) error {
-
-	if err := validate.ReadOnly(ctx, "activeDirectoryState", "body", string(m.ActiveDirectoryState)); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (m *BatchActiveDirectoryV1beta) contextValidateActiveDirectoryStateDetails(ctx context.Context, formats strfmt.Registry) error {
-
-	if err := validate.ReadOnly(ctx, "activeDirectoryStateDetails", "body", m.ActiveDirectoryStateDetails); err != nil {
+	if err := validate.MaxLength("kdcIP", "body", string(m.KdcIP), 15); err != nil {
 		return err
 	}
 
