@@ -17,6 +17,8 @@ type Pool struct {
 	UtilizedThroughputMibps float64
 	Tags                    string
 	AllowAutoTiering        bool
+	HotTierSizeInBytes      uint64
+	EnableHotTierAutoResize bool
 	VendorSubNetID          string
 	AllocatedBytes          float64
 	NumberOfVolumes         int64

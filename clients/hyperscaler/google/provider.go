@@ -1,8 +1,11 @@
 package google
 
 import (
+	"cloud.google.com/go/storage"
 	"context"
+	"errors"
 	"fmt"
+	"google.golang.org/api/googleapi"
 	"net/http"
 
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
@@ -32,6 +35,7 @@ var (
 	initializeManagementService = _initializeManagementService
 	initializeNetworkingService = _initializeNetworkingService
 	initializeComputeService    = _initializeComputeService
+	initializeStorageService    = _initializeStorageService
 )
 
 type GcpServices struct {
@@ -49,6 +53,7 @@ type AdminGCPService struct {
 	managementService *serviceconsumermanagement.APIService
 	networkingService *servicenetworking.APIService
 	computeService    *compute.Service
+	storageService    StorageClient
 }
 
 // _newClient redirects to third party library HTTP NewClient for networking, while it helps to mock the function for init_test
@@ -110,10 +115,17 @@ func _newGoogleClient(ctx context.Context) (*AdminGCPService, error) {
 		return nil, err
 	}
 
+	storageService, err := initializeStorageService(ctx)
+	if err != nil {
+		logger.Error("Error initializeStorageService", err)
+		return nil, err
+	}
+
 	gServices := AdminGCPService{
 		networkingService: networkingService,
 		managementService: managementService,
 		computeService:    computeService,
+		storageService:    &storageClient{client: storageService},
 	}
 	return &gServices, nil
 }
@@ -200,8 +212,43 @@ func _initializeComputeService(ctx context.Context) (*compute.Service, error) {
 	if endpoint != "" {
 		svc.BasePath = endpoint
 	}
-
 	return svc, nil
+}
+
+func _initializeStorageService(ctx context.Context) (*storage.Client, error) {
+	scopesOption := option.WithScopes(storage.ScopeFullControl)
+	opts := []option.ClientOption{scopesOption}
+
+	if MockMetaDataHost != "" {
+		opts = append(opts, option.WithTokenSource(
+			google.ComputeTokenSource("", storage.ScopeFullControl),
+		))
+	}
+
+	client, _, err := newClient(ctx, opts...)
+	if err != nil {
+		return nil, err
+	}
+
+	return storage.NewClient(ctx, option.WithHTTPClient(client))
+}
+
+func (gcpService *GcpServices) CreateBucketIfNotExists(ctx context.Context, projectID, bucketName, region string) error {
+	logger := util.GetLogger(ctx)
+	err := gcpService.AdminGCPService.storageService.Bucket(bucketName).Create(ctx, projectID, &storage.BucketAttrs{
+		Location: region,
+	})
+	if err != nil {
+		// Ignore error if bucket already exists
+		var gErr *googleapi.Error
+		if errors.As(err, &gErr) && gErr.Code == 409 {
+			logger.Infof("bucket %s already exists", bucketName)
+			return nil
+		}
+		return err
+	}
+	logger.Infof("created bucket %s in region %s", bucketName, region)
+	return nil
 }
 
 // GetServiceNetworkingEndpoint returns the service consumer management endpoint

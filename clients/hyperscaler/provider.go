@@ -1,6 +1,7 @@
 package hyperscaler
 
 import (
+	"context"
 	models "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/hyperscaler/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 )
@@ -20,6 +21,7 @@ type Services interface {
 	InsertFirewall(firewallRule *models.Firewall) error
 	GetFirewall(projectName string, firewallName string) (*models.Firewall, error)
 	ReleaseSubnetwork(region, tenantProjectNumber, subnetwork string) error
+	CreateBucketIfNotExists(ctx context.Context, projectID, bucketName, region string) error
 }
 
 type GoogleServices interface {

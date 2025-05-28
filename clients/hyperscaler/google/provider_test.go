@@ -1,8 +1,10 @@
 package google
 
 import (
+	"cloud.google.com/go/storage"
 	"context"
 	"errors"
+	"google.golang.org/api/googleapi"
 	"net/http"
 	"testing"
 	"time"
@@ -158,6 +160,11 @@ func TestNewGoogleClient(t *testing.T) {
 				BasePath: "",
 			}, nil
 		}
+
+		initializeStorageService = func(ctx context.Context) (*storage.Client, error) {
+			return &storage.Client{}, nil
+		}
+
 		_, err := _newGoogleClient(context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{}))
 		if err != nil {
 			t.Error("Unexpected error")
@@ -165,6 +172,7 @@ func TestNewGoogleClient(t *testing.T) {
 		initializeManagementService = _initializeManagementService
 		initializeNetworkingService = _initializeNetworkingService
 		initializeComputeService = _initializeComputeService
+		initializeStorageService = _initializeStorageService
 	})
 }
 
@@ -336,4 +344,122 @@ func TestGetServiceConsumerManagementEndpoint(t *testing.T) {
 			t.Error("Must be = " + serviceConsumerManagementEndpoint)
 		}
 	})
+}
+
+type mockBucketHandle struct {
+	attrsErr  error
+	createErr error
+}
+
+func (m *mockBucketHandle) Attrs(ctx context.Context) (*storage.BucketAttrs, error) {
+	return nil, m.attrsErr
+}
+func (m *mockBucketHandle) Create(ctx context.Context, projectID string, attrs *storage.BucketAttrs) error {
+	return m.createErr
+}
+
+type mockStorageClient struct {
+	bucket *mockBucketHandle
+}
+
+func (m *mockStorageClient) Bucket(name string) BucketHandle {
+	return m.bucket
+}
+
+func TestCreateBucketIfNotExists(t *testing.T) {
+	ctx := context.Background()
+
+	t.Run("bucket create returns 409 conflict (already exists)", func(t *testing.T) {
+		gcp := &GcpServices{
+			AdminGCPService: &AdminGCPService{
+				storageService: &mockStorageClient{
+					bucket: &mockBucketHandle{createErr: &googleapi.Error{Code: 409}},
+				},
+			},
+		}
+		err := gcp.CreateBucketIfNotExists(ctx, "pid", "bkt", "region")
+		assert.NoError(t, err)
+	})
+
+	t.Run("bucket create succeeds", func(t *testing.T) {
+		gcp := &GcpServices{
+			AdminGCPService: &AdminGCPService{
+				storageService: &mockStorageClient{
+					bucket: &mockBucketHandle{createErr: nil},
+				},
+			},
+		}
+		err := gcp.CreateBucketIfNotExists(ctx, "pid", "bkt", "region")
+		assert.NoError(t, err)
+	})
+
+	t.Run("bucket create fails with non-409 error", func(t *testing.T) {
+		gcp := &GcpServices{
+			AdminGCPService: &AdminGCPService{
+				storageService: &mockStorageClient{
+					bucket: &mockBucketHandle{createErr: errors.New("fail")},
+				},
+			},
+		}
+		err := gcp.CreateBucketIfNotExists(ctx, "pid", "bkt", "region")
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "fail")
+	})
+}
+
+func TestInitializeStorageService(t *testing.T) {
+	origNewClient := newClient
+	defer func() { newClient = origNewClient }()
+
+	t.Run("success", func(t *testing.T) {
+		newClient = func(ctx context.Context, opts ...option.ClientOption) (*http.Client, string, error) {
+			return &http.Client{}, "", nil
+		}
+		client, err := _initializeStorageService(context.Background())
+		if err != nil {
+			t.Fatalf("expected no error, got %v", err)
+		}
+		if client == nil {
+			t.Fatal("expected client, got nil")
+		}
+	})
+
+	t.Run("failure", func(t *testing.T) {
+		newClient = func(ctx context.Context, opts ...option.ClientOption) (*http.Client, string, error) {
+			return nil, "", errors.New("fail")
+		}
+		client, err := _initializeStorageService(context.Background())
+		if err == nil {
+			t.Fatal("expected error, got nil")
+		}
+		if client != nil {
+			t.Fatal("expected nil client, got non-nil")
+		}
+	})
+}
+
+func TestInitializeStorageServiceWithMockMetaDataHost(t *testing.T) {
+	origNewClient := newClient
+	origMockMetaDataHost := MockMetaDataHost
+	defer func() {
+		newClient = origNewClient
+		MockMetaDataHost = origMockMetaDataHost
+	}()
+
+	MockMetaDataHost = "mock-host" // Set to non-empty to cover the branch
+
+	newClient = func(ctx context.Context, opts ...option.ClientOption) (*http.Client, string, error) {
+		if len(opts) == 0 {
+			t.Error("Expected at least one option when MockMetaDataHost is set")
+		}
+		return &http.Client{}, "", nil
+	}
+
+	client, err := _initializeStorageService(context.Background())
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+	if client == nil {
+		t.Fatal("expected client, got nil")
+	}
 }

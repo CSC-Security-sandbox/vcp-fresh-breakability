@@ -102,15 +102,18 @@ func (h Handler) V1betaCreatePool(ctx context.Context, req *gcpgenserver.PoolV1b
 	}
 
 	param := &common.CreatePoolParams{
-		AccountName:    params.ProjectNumber,
-		Region:         region,
-		CurrentZone:    zone,
-		Name:           req.ResourceId,
-		VendorID:       vendorId,
-		VendorSubNetID: req.Network,
-		ServiceLevel:   string(req.ServiceLevel),
-		SizeInBytes:    uint64(req.SizeInBytes),
-		QosType:        string(req.QosType.Value),
+		AccountName:             params.ProjectNumber,
+		Region:                  region,
+		CurrentZone:             zone,
+		Name:                    req.ResourceId,
+		VendorID:                vendorId,
+		VendorSubNetID:          req.Network,
+		ServiceLevel:            string(req.ServiceLevel),
+		SizeInBytes:             uint64(req.SizeInBytes),
+		QosType:                 string(req.QosType.Value),
+		AllowAutoTiering:        req.AllowAutoTiering.Value,
+		HotTierSizeInBytes:      uint64(req.HotTierSizeInBytes.Value),
+		EnableHotTierAutoResize: req.EnableHotTierAutoResize.Value,
 	}
 	created, operationID, err := h.Orchestrator.CreatePool(ctx, param)
 	if err != nil {
@@ -366,7 +369,10 @@ func convertToPoolV1Beta(pool *models.Pool) *gcpgenserver.PoolV1beta {
 		QosType:                  gcpgenserver.NewOptNilString(pool.QosType),
 		CustomPerformanceEnabled: gcpgenserver.NewOptBool(customPerformanceEnabled),
 		// Unified Pool is set true for VSA pools
-		UnifiedPool: gcpgenserver.NewOptBool(true),
+		UnifiedPool:             gcpgenserver.NewOptBool(true),
+		AllowAutoTiering:        gcpgenserver.NewOptNilBool(pool.AllowAutoTiering),
+		HotTierSizeInBytes:      gcpgenserver.NewOptNilFloat64(float64(pool.HotTierSizeInBytes)),
+		EnableHotTierAutoResize: gcpgenserver.NewOptNilBool(pool.EnableHotTierAutoResize),
 	}
 }
 

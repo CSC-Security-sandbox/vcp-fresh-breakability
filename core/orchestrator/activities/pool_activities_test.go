@@ -2062,3 +2062,54 @@ func TestPoolActivity_SetupNetwork(t *testing.T) {
 		assert.Contains(t, err.Error(), "failed to setup iscsi firewall")
 	})
 }
+
+func Test_CreateGCPBucket_Success(t *testing.T) {
+	mockGcp := hyperscaler.NewMockGoogleServices(t)
+	ctx := context.Background()
+	projectId := "test-project"
+	region := "us-central1"
+	poolId := "f2d9e18b-6716-9170-de70-827f5f769907"
+
+	mockGcp.EXPECT().InitializeClients().Return(nil)
+
+	bucketName := fmt.Sprintf("%s-%s", region, poolId)
+
+	// Create a bucket in the project if it doesn't exist
+	mockGcp.EXPECT().CreateBucketIfNotExists(ctx, projectId, bucketName, region).Return(nil)
+	err := activities.CreateGCPBucket(ctx, projectId, poolId, region, mockGcp)
+	assert.NoError(t, err)
+}
+
+func Test_CreateGCPBucket_Failure(t *testing.T) {
+	mockGcp := hyperscaler.NewMockGoogleServices(t)
+	ctx := context.Background()
+	projectId := "test-project"
+	region := "us-central1"
+	poolId := "f2d9e18b-6716-9170-de70-827f5f769907"
+
+	mockGcp.EXPECT().InitializeClients().Return(nil)
+	bucketName := fmt.Sprintf("%s-%s", region, poolId)
+
+	mockGcp.EXPECT().CreateBucketIfNotExists(ctx, projectId, bucketName, region).Return(errors.New("failed to create bucket"))
+	err := activities.CreateGCPBucket(ctx, projectId, poolId, region, mockGcp)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "failed to create bucket")
+}
+
+func Test_EnableAutoTiering_Failure(t *testing.T) {
+	activity := activities.PoolActivity{}
+	ctx := context.Background()
+	params := commonparams.CreatePoolParams{Name: "test-pool"}
+	projectId := "test-project"
+
+	// Save original and mock _createGCPBucket
+	origCreateGCPBucket := activities.CreateGCPBucket
+	defer func() { activities.CreateGCPBucket = origCreateGCPBucket }()
+	activities.CreateGCPBucket = func(ctx context.Context, projectId, poolName, region string, gcpService hyperscaler.GoogleServices) error {
+		return errors.New("Error 403: The billing account for the owning project is disabled in state absent, accountDisabled")
+	}
+
+	err := activity.EnableAutoTiering(ctx, params, "f2d9e18b-6716-9170-de70-827f5f769907", projectId)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "Error 403: The billing account for the owning project is disabled in state absent, accountDisabled")
+}

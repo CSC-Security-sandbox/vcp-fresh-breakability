@@ -48,6 +48,7 @@ var (
 	NewGcpServices                = _newGcpServices
 	SetupNetworkWithFirewall      = setupNetworkWithFirewall
 	SetupNetworkFirewallsForIscsi = setupNetworkFirewallsForIscsi
+	CreateGCPBucket               = _createGCPBucket
 )
 
 const defaultServiceAccountPattern = "-compute@developer.gserviceaccount.com"
@@ -574,6 +575,47 @@ func (j *PoolActivity) DeletePoolResources(ctx context.Context, pool *datamodel.
 		return nil, err
 	}
 	return pool, nil
+}
+
+// EnableAutoTiering creates a GCP bucket for auto-tiering in the specified project and region.
+// Parameters:
+// - ctx: The context for managing request-scoped values, deadlines, and cancellation signals.
+// - params: Contains the pool parameters, including the name and region of the pool.
+// - projectId: The ID of the GCP project where the bucket will be created.
+// Returns:
+// - An error if the bucket creation fails or if there is an issue initializing GCP services.
+func (j *PoolActivity) EnableAutoTiering(ctx context.Context, params commonparams.CreatePoolParams, poolId string, projectId string) error {
+	gcpService := &google.GcpServices{
+		Ctx:    ctx,
+		Logger: util.GetLogger(ctx),
+	}
+
+	err := CreateGCPBucket(ctx, projectId, poolId, params.Region, gcpService)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func _createGCPBucket(ctx context.Context, projectId, poolId, region string, gcpService hyperscaler.GoogleServices) error {
+	logger := util.GetLogger(ctx)
+
+	err := gcpService.InitializeClients()
+	if err != nil {
+		logger.Errorf("Error initializing GCP services: %v", err)
+		return err
+	}
+
+	bucketName := fmt.Sprintf("%s-%s", region, poolId)
+	err = gcpService.CreateBucketIfNotExists(ctx, projectId, bucketName, region)
+	if err != nil {
+		logger.Errorf("error creating bucket: %v", err)
+		return err
+	}
+	logger.Infof("Bucket created successfully %s", bucketName)
+
+	return nil
 }
 
 // deletingSVMs updates svm status to deleting.

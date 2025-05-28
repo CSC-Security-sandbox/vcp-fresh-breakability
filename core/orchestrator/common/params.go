@@ -14,6 +14,8 @@ type CreatePoolParams struct {
 	Tags                    string
 	SizeInBytes             uint64
 	AllowAutoTiering        bool
+	HotTierSizeInBytes      uint64
+	EnableHotTierAutoResize bool
 	CurrentZone             string
 	VendorSubNetID          string
 	Zones                   []string

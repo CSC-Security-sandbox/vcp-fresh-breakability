@@ -108,6 +108,11 @@ func (wf *createPoolWorkflow) Run(ctx workflow.Context, args ...interface{}) (in
 		return nil, err
 	}
 
+	err = workflow.ExecuteActivity(ctx, poolActivity.EnableAutoTiering, params, pool.UUID, tenancyDetails.RegionalTenantProject).Get(ctx, nil)
+	if err != nil {
+		return nil, err
+	}
+
 	node := &models.Node{}
 	err = workflow.ExecuteActivity(ctx, poolActivity.SaveVSANodeDetails, dbPool, cfg).Get(ctx, node)
 	if err != nil {

@@ -8,6 +8,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 	commonpb "go.temporal.io/api/common/v1"
@@ -32,11 +33,12 @@ func TestCreatePoolWorkflow(t *testing.T) {
 
 	// Set up test data
 	params := &common.CreatePoolParams{
-		Name:        "test-pool",
-		AccountName: "test-account",
-		SizeInBytes: 1024 * 1024 * 1024, // 1 GB
-		Region:      "test-region",
-		CurrentZone: "test-zone",
+		Name:             "test-pool",
+		AccountName:      "test-account",
+		SizeInBytes:      1024 * 1024 * 1024, // 1 GB
+		Region:           "test-region",
+		CurrentZone:      "test-zone",
+		AllowAutoTiering: true,
 	}
 	pool := &datamodel.Pool{
 		Username: "test-user",
@@ -59,6 +61,7 @@ func TestCreatePoolWorkflow(t *testing.T) {
 	env.OnActivity("SavePoolWithClusterDetails", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	env.OnActivity("CreateVSASVM", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	env.OnActivity("GetOntapVersion", mock.Anything, mock.Anything).Return(nil, nil)
+	env.OnActivity("EnableAutoTiering", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
 	// Execute workflow
 	env.ExecuteWorkflow(CreatePoolWorkflow, params, pool)
@@ -118,4 +121,54 @@ func TestDeletePoolWorkflow(t *testing.T) {
 	assert.True(t, env.IsWorkflowCompleted())
 	assert.NoError(t, env.GetWorkflowError())
 	env.AssertExpectations(t)
+}
+
+func Test_EnableAutoTier_Error_In_CreatePoolWorkflow(t *testing.T) {
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestWorkflowEnvironment()
+	env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+	encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{})
+	mockHeader := &commonpb.Header{
+		Fields: map[string]*commonpb.Payload{
+			"logParam": encodedValue,
+		},
+	}
+	env.SetHeader(mockHeader)
+	env.RegisterActivity(&activities.CommonActivities{})
+	env.RegisterActivity(&activities.PoolActivity{})
+
+	// Set up test data
+	params := &common.CreatePoolParams{
+		Name:             "test-pool",
+		AccountName:      "test-account",
+		SizeInBytes:      1024 * 1024 * 1024, // 1 GB
+		Region:           "test-region",
+		CurrentZone:      "test-zone",
+		AllowAutoTiering: true,
+	}
+	pool := &datamodel.Pool{
+		Username: "test-user",
+		Password: "test-password",
+	}
+
+	// Mock activity responses
+	env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
+	env.OnActivity("CreateTenancy", mock.Anything, mock.Anything).Return(&common.TenancyInfo{
+		Network:               "test-network",
+		SubnetworkName:        "test-subnet",
+		RegionalTenantProject: "test-project",
+		SnHostProject:         "test-host-project",
+		Gateway:               "192.168.1.254",
+	}, nil)
+	env.OnActivity("SetupNetwork", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	env.OnActivity("CreateVSACluster", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+	env.OnActivity("SaveVSANodeDetails", mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+	env.OnActivity("GetOntapVersion", mock.Anything, mock.Anything).Return(nil, nil)
+	env.OnActivity("SavePoolWithClusterDetails", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	env.OnActivity("CreateVSASVM", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	env.OnActivity("CreatedPool", mock.Anything, mock.Anything).Return(nil)
+	env.OnActivity("EnableAutoTiering", mock.Anything, mock.Anything, mock.Anything).Return(errors.New("Bucket Creation Failed"))
+
+	// Execute workflow
+	env.ExecuteWorkflow(CreatePoolWorkflow, params, pool)
 }
