@@ -7,14 +7,18 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+	ontapModels "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/ontap-rest/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
+	ontap_rest "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/ontap-rest"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database"
+	utilErrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/nillable"
 )
 
 func TestCreateVolume_Success(t *testing.T) {
@@ -76,6 +80,37 @@ func TestCreateVolumeInONTAP_Success(t *testing.T) {
 
 	// Mock the CreateVolume method
 	mockProvider.On("CreateVolume", mock.Anything).Return(expectedResponse, nil)
+
+	// Act
+	result, err := activity.CreateVolumeInONTAP(ctx, volume, node)
+
+	// Assert
+	assert.NoError(t, err)
+	assert.Equal(t, expectedResponse, result)
+	mockProvider.AssertExpectations(t)
+}
+
+func TestCreateVolumeInONTAP_Success_AlreadyCreated(t *testing.T) {
+	// Arrange
+	mockProvider := new(vsa.MockProvider) // Use the mock provider
+	originalGetProviderByNode := activities.GetProviderByNode
+	defer func() { activities.GetProviderByNode = originalGetProviderByNode }() // Restore original function after test
+
+	// Mock GetProviderByNode to return the mock provider
+	activities.GetProviderByNode = func(node *models.Node) vsa.Provider {
+		return mockProvider
+	}
+
+	activity := activities.VolumeCreateActivity{
+		SE: database.NewMockStorage(t),
+	}
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	volume := &datamodel.Volume{Name: "test-volume", Svm: &datamodel.Svm{Name: "test-svm"}}
+	node := &models.Node{}
+	expectedResponse := &vsa.VolumeResponse{ProviderResponse: vsa.ProviderResponse{ExternalUUID: "uuid-123"}, AvailableSpace: 1024, State: "online"}
+
+	mockProvider.On("CreateVolume", mock.Anything).Return(nil, utilErrors.NewConflictErr("volume already exists"))
+	mockProvider.On("GetVolume", vsa.GetVolumeParams{UUID: "", VolumeName: "test-volume", SvmName: "test-svm"}).Return(expectedResponse, nil)
 
 	// Act
 	result, err := activity.CreateVolumeInONTAP(ctx, volume, node)
@@ -298,6 +333,78 @@ func TestCreateLun_Success(t *testing.T) {
 	mockProvider.AssertExpectations(t)
 }
 
+func TestCreateLun_Success_AlreadyExists(t *testing.T) {
+	// Arrange
+	mockProvider := new(vsa.MockProvider) // Use the mock provider
+	originalGetProviderByNode := activities.GetProviderByNode
+	defer func() { activities.GetProviderByNode = originalGetProviderByNode }() // Restore original function after test
+
+	// Mock GetProviderByNode to return the mock provider
+	activities.GetProviderByNode = func(node *models.Node) vsa.Provider {
+		return mockProvider
+	}
+
+	activity := activities.VolumeCreateActivity{}
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	volume := &datamodel.Volume{
+		Name: "test-volume",
+		Svm:  &datamodel.Svm{Name: "test-svm"},
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			BlockProperties: &datamodel.BlockProperties{OSType: "linux"},
+		},
+		SizeInBytes: 107374182400, // minimum value 100 GiB
+	}
+	node := &models.Node{}
+
+	mockProvider.On("LunGet", "lun_test-volume", "test-svm").Return([]*ontap_rest.Lun{
+		{Lun: ontapModels.Lun{Name: nillable.GetStringPtr("lun_test-volume")}},
+	}, nil)
+
+	// Act
+	availableSpace := int64(1) // Mimicking a scenario where the available space is already occupied by a lun
+	lunName, err := activity.CreateLun(ctx, volume, node, availableSpace)
+
+	// Assert
+	assert.NoError(t, err)
+	assert.Equal(t, "lun_test-volume", lunName)
+	mockProvider.AssertExpectations(t)
+}
+
+func TestCreateLun_NegativeSize_Error(t *testing.T) {
+	// Arrange
+	mockProvider := new(vsa.MockProvider) // Use the mock provider
+	originalGetProviderByNode := activities.GetProviderByNode
+	defer func() { activities.GetProviderByNode = originalGetProviderByNode }() // Restore original function after test
+
+	// Mock GetProviderByNode to return the mock provider
+	activities.GetProviderByNode = func(node *models.Node) vsa.Provider {
+		return mockProvider
+	}
+
+	activity := activities.VolumeCreateActivity{}
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	volume := &datamodel.Volume{
+		Name: "test-volume",
+		Svm:  &datamodel.Svm{Name: "test-svm"},
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			BlockProperties: &datamodel.BlockProperties{OSType: "linux"},
+		},
+		SizeInBytes: 107374182400, // minimum value 100 GiB
+	}
+	node := &models.Node{}
+
+	mockProvider.On("LunGet", "lun_test-volume", "test-svm").Return([]*ontap_rest.Lun{}, nil)
+
+	// Act
+	availableSpace := int64(1) // Mimicking a scenario where the available space is very less
+	lunName, err := activity.CreateLun(ctx, volume, node, availableSpace)
+
+	// Assert
+	assert.Error(t, err)
+	assert.Empty(t, lunName)
+	mockProvider.AssertExpectations(t)
+}
+
 func TestCreateLun_Failure(t *testing.T) {
 	// Arrange
 	mockProvider := new(vsa.MockProvider) // Use the mock provider
@@ -367,6 +474,41 @@ func TestCreateLunMap_Success(t *testing.T) {
 		SvmName:    "test-svm",
 		IGroupName: []string{"host1"},
 	}).Return(nil)
+
+	// Act
+	err := activity.CreateLunMap(ctx, params, node)
+
+	// Assert
+	assert.NoError(t, err)
+	mockProvider.AssertExpectations(t)
+}
+
+func TestCreateLunMap_Success_AlreadyExists(t *testing.T) {
+	// Arrange
+	mockProvider := new(vsa.MockProvider) // Use the mock provider
+	originalGetProviderByNode := activities.GetProviderByNode
+	defer func() { activities.GetProviderByNode = originalGetProviderByNode }() // Restore original function after test
+
+	// Mock GetProviderByNode to return the mock provider
+	activities.GetProviderByNode = func(node *models.Node) vsa.Provider {
+		return mockProvider
+	}
+
+	activity := activities.VolumeCreateActivity{}
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	params := &common.CreateLunMapParams{
+		LunName:   "lun_test-volume",
+		SvmName:   "test-svm",
+		HostNames: []string{"host1"},
+	}
+	node := &models.Node{}
+
+	// Mock LunMapCreate method
+	mockProvider.On("LunMapCreate", vsa.LunMapCreateParams{
+		LunName:    "lun_test-volume",
+		SvmName:    "test-svm",
+		IGroupName: []string{"host1"},
+	}).Return(utilErrors.NewConflictErr("lun map already exists"))
 
 	// Act
 	err := activity.CreateLunMap(ctx, params, node)
@@ -555,4 +697,158 @@ func TestGetHosts_Failure_GetMultipleHostGroupsError(t *testing.T) {
 	assert.Nil(t, hostGroups)
 	assert.EqualError(t, err, expectedError.Error())
 	mockStorage.AssertExpectations(t)
+}
+
+func TestCreateVolumeInONTAP_CheckVolumeExistsError(t *testing.T) {
+	// Arrange
+	mockProvider := new(vsa.MockProvider) // Use the mock provider
+	originalGetProviderByNode := activities.GetProviderByNode
+	defer func() { activities.GetProviderByNode = originalGetProviderByNode }() // Restore original function after test
+
+	// Mock GetProviderByNode to return the mock provider
+	activities.GetProviderByNode = func(node *models.Node) vsa.Provider {
+		return mockProvider
+	}
+
+	activity := activities.VolumeCreateActivity{
+		SE: database.NewMockStorage(t),
+	}
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	volume := &datamodel.Volume{Name: "test-volume", Svm: &datamodel.Svm{Name: "test-svm"}}
+	node := &models.Node{}
+
+	mockProvider.On("CreateVolume", mock.Anything).Return(nil, utilErrors.NewConflictErr("volume already exists"))
+	mockProvider.On("GetVolume", vsa.GetVolumeParams{UUID: "", VolumeName: "test-volume", SvmName: "test-svm"}).Return(nil, errors.New("volume not found"))
+
+	// Act
+	result, err := activity.CreateVolumeInONTAP(ctx, volume, node)
+
+	// Assert
+	assert.Error(t, err)
+	assert.Nil(t, result)
+	mockProvider.AssertExpectations(t)
+}
+
+func TestCreateLun_LunGetError(t *testing.T) {
+	// Arrange
+	mockProvider := new(vsa.MockProvider) // Use the mock provider
+	originalGetProviderByNode := activities.GetProviderByNode
+	defer func() { activities.GetProviderByNode = originalGetProviderByNode }() // Restore original function after test
+
+	// Mock GetProviderByNode to return the mock provider
+	activities.GetProviderByNode = func(node *models.Node) vsa.Provider {
+		return mockProvider
+	}
+
+	activity := activities.VolumeCreateActivity{}
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	volume := &datamodel.Volume{
+		Name: "test-volume",
+		Svm:  &datamodel.Svm{Name: "test-svm"},
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			BlockProperties: &datamodel.BlockProperties{OSType: "linux"},
+		},
+		SizeInBytes: 107374182400, // minimum value 100 GiB
+	}
+	node := &models.Node{}
+
+	mockProvider.On("LunGet", "lun_test-volume", "test-svm").Return(nil, errors.New("lun get error"))
+
+	// Act
+	availableSpace := int64(1) // Mimicking a scenario where the available space is already occupied by a lun
+	lunName, err := activity.CreateLun(ctx, volume, node, availableSpace)
+
+	// Assert
+	assert.Error(t, err)
+	assert.Empty(t, lunName)
+	mockProvider.AssertExpectations(t)
+	mockProvider.AssertExpectations(t)
+}
+
+func TestHandleVolumeCreateConflict_SuccessOnline(t *testing.T) {
+	mockProvider := new(vsa.MockProvider)
+	volume := &datamodel.Volume{
+		Name: "test-volume",
+		Svm:  &datamodel.Svm{Name: "test-svm"},
+	}
+	expectedRes := &vsa.VolumeResponse{
+		State: ontapModels.VolumeStateOnline,
+	}
+	mockProvider.On("GetVolume", vsa.GetVolumeParams{
+		VolumeName: volume.Name,
+		SvmName:    volume.Svm.Name,
+	}).Return(expectedRes, nil)
+
+	res, err := activities.HandleVolumeCreateConflict(volume, mockProvider)
+	assert.NoError(t, err)
+	assert.Equal(t, expectedRes, res)
+	mockProvider.AssertExpectations(t)
+}
+
+func TestHandleVolumeCreateConflict_NotOnline_DeleteSuccess(t *testing.T) {
+	mockProvider := new(vsa.MockProvider)
+	volume := &datamodel.Volume{
+		Name: "test-volume",
+		Svm:  &datamodel.Svm{Name: "test-svm"},
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			ExternalUUID: "uuid-123",
+		},
+	}
+	volRes := &vsa.VolumeResponse{
+		State: ontapModels.VolumeStateOffline,
+	}
+	mockProvider.On("GetVolume", vsa.GetVolumeParams{
+		VolumeName: volume.Name,
+		SvmName:    volume.Svm.Name,
+	}).Return(volRes, nil)
+	mockProvider.On("DeleteVolume", "uuid-123", "test-volume").Return(nil)
+
+	res, err := activities.HandleVolumeCreateConflict(volume, mockProvider)
+	assert.Error(t, err)
+	assert.Nil(t, res)
+	assert.Contains(t, err.Error(), "is not in online state")
+	mockProvider.AssertExpectations(t)
+}
+
+func TestHandleVolumeCreateConflict_GetVolumeError(t *testing.T) {
+	mockProvider := new(vsa.MockProvider)
+	volume := &datamodel.Volume{
+		Name: "test-volume",
+		Svm:  &datamodel.Svm{Name: "test-svm"},
+	}
+	mockProvider.On("GetVolume", vsa.GetVolumeParams{
+		VolumeName: volume.Name,
+		SvmName:    volume.Svm.Name,
+	}).Return(nil, errors.New("get volume error"))
+
+	res, err := activities.HandleVolumeCreateConflict(volume, mockProvider)
+	assert.Error(t, err)
+	assert.Nil(t, res)
+	assert.Equal(t, "get volume error", err.Error())
+	mockProvider.AssertExpectations(t)
+}
+
+func TestHandleVolumeCreateConflict_DeleteVolumeError(t *testing.T) {
+	mockProvider := new(vsa.MockProvider)
+	volume := &datamodel.Volume{
+		Name: "test-volume",
+		Svm:  &datamodel.Svm{Name: "test-svm"},
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			ExternalUUID: "uuid-123",
+		},
+	}
+	volRes := &vsa.VolumeResponse{
+		State: ontapModels.VolumeStateOffline,
+	}
+	mockProvider.On("GetVolume", vsa.GetVolumeParams{
+		VolumeName: volume.Name,
+		SvmName:    volume.Svm.Name,
+	}).Return(volRes, nil)
+	mockProvider.On("DeleteVolume", "uuid-123", "test-volume").Return(errors.New("delete error"))
+
+	res, err := activities.HandleVolumeCreateConflict(volume, mockProvider)
+	assert.Error(t, err)
+	assert.Nil(t, res)
+	assert.Equal(t, "delete error", err.Error())
+	mockProvider.AssertExpectations(t)
 }

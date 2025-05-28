@@ -581,12 +581,78 @@ func TestVolumeGet(t *testing.T) {
 				},
 			},
 		}}
+		originalFetchVolumeDetails := FetchVolumeDetails
+		defer func() { FetchVolumeDetails = originalFetchVolumeDetails }()
+		// Mock implementation
+		FetchVolumeDetails = func(sc *storageClient, volume *Volume) (*Volume, error) {
+			return &Volume{Volume: models.Volume{Name: nillable.ToPointer("test-volume")}}, nil
+		}
+
 		storageAPI := storage.New(transport, nil)
 		client := &storageClient{api: storageAPI}
 		volume, err := client.VolumeGet(&VolumeGetParams{Name: "test-volume"})
 		assert.NoError(tt, err)
 		assert.NotNil(tt, volume)
 		assert.Equal(tt, volumeName, *volume.Name)
+	})
+
+	t.Run("WhenVolumeFound_ThenReturnVolume_GetVolume_Error", func(tt *testing.T) {
+		volumeName := "test-volume"
+		transport := &mockTransport{response: &storage.VolumeCollectionGetOK{
+			Payload: &models.VolumeResponse{
+				VolumeResponseInlineRecords: []*models.Volume{
+					{Name: &volumeName},
+				},
+			},
+		}}
+		originalFetchVolumeDetails := FetchVolumeDetails
+		defer func() { FetchVolumeDetails = originalFetchVolumeDetails }()
+		// Mock implementation
+		FetchVolumeDetails = func(sc *storageClient, volume *Volume) (*Volume, error) {
+			return nil, errors.New("connection error")
+		}
+
+		storageAPI := storage.New(transport, nil)
+		client := &storageClient{api: storageAPI}
+		volume, err := client.VolumeGet(&VolumeGetParams{Name: "test-volume"})
+		assert.Error(tt, err)
+		assert.Nil(tt, volume)
+	})
+}
+
+func TestFetchVolumeDetails(t *testing.T) {
+	t.Run("WhenVolumeDetailsFetchFails_ThenReturnError", func(tt *testing.T) {
+		client := &storageClient{api: storage.New(&mockTransport{err: errors.New("fetch error")}, nil)}
+		volume := &Volume{
+			Volume: models.Volume{Name: nillable.ToPointer("test-volume"), UUID: nillable.GetStringPtr("test-uuid")},
+		}
+		_, err := FetchVolumeDetails(client, volume)
+		assert.EqualError(tt, err, "fetch error")
+	})
+
+	t.Run("WhenVolumeDetailsFetchSucceeds_ThenReturnVolume", func(tt *testing.T) {
+		client := &storageClient{api: storage.New(&mockTransport{
+			response: &storage.VolumeGetOK{
+				Payload: &models.Volume{Name: nillable.ToPointer("test-volume"), UUID: nillable.GetStringPtr("test-uuid")},
+			},
+		}, nil)}
+		volume := &Volume{Volume: models.Volume{Name: nillable.ToPointer("test-volume"), UUID: nillable.GetStringPtr("test-uuid")}}
+		result, err := FetchVolumeDetails(client, volume)
+		assert.NoError(tt, err)
+		assert.NotNil(tt, result)
+		assert.Equal(tt, "test-volume", *result.Name)
+	})
+
+	t.Run("WhenVolumeDetailsFetchReturnsNil_ThenReturnError", func(tt *testing.T) {
+		client := &storageClient{api: storage.New(&mockTransport{
+			response: &storage.VolumeGetOK{
+				Payload: nil, // Simulating no payload
+			},
+		}, nil)}
+		volume := &Volume{Volume: models.Volume{Name: nillable.ToPointer("test-volume"), UUID: nillable.GetStringPtr("test-uuid")}}
+		result, err := FetchVolumeDetails(client, volume)
+		assert.Nil(tt, result)
+		assert.EqualError(tt, err, "unexpected response from VolumeGet")
 	})
 }
 

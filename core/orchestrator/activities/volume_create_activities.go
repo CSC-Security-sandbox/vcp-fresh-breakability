@@ -3,6 +3,7 @@ package activities
 import (
 	"context"
 
+	ontapModels "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/ontap-rest/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
@@ -38,11 +39,32 @@ func (a *VolumeCreateActivity) CreateVolumeInONTAP(ctx context.Context, volume *
 		VolumeType:    VolumeTypeRW,
 	})
 	if err != nil {
+		if errors.IsConflictErr(err) {
+			return HandleVolumeCreateConflict(volume, provider)
+		}
 		return nil, err
 	}
 	logger.Debug("volume created successfully")
 
 	return res, nil
+}
+
+func HandleVolumeCreateConflict(volume *datamodel.Volume, provider vsa.Provider) (*vsa.VolumeResponse, error) {
+	volumeRes, err := provider.GetVolume(vsa.GetVolumeParams{
+		VolumeName: volume.Name,
+		SvmName:    volume.Svm.Name,
+	})
+	if err != nil {
+		return nil, err
+	}
+	if volumeRes.State != ontapModels.VolumeStateOnline {
+		err = provider.DeleteVolume(volume.VolumeAttributes.ExternalUUID, volume.Name)
+		if err != nil {
+			return nil, err
+		}
+		return nil, errors.New("volume " + volume.Name + " is not in online state, deleting & retrying creation")
+	}
+	return volumeRes, nil
 }
 
 func (a *VolumeCreateActivity) CreateIgroup(ctx context.Context, volume *datamodel.Volume, hostParams []*common.HostParams, node *models.Node) error {
@@ -77,8 +99,20 @@ func (a *VolumeCreateActivity) CreateLun(ctx context.Context, volume *datamodel.
 	logger := util.GetLogger(ctx)
 	provider := GetProviderByNode(node)
 	halfGiB, _ := utils.ConvertToBytes(0.5, utils.GiB)
-	size := availableSpace - halfGiB
 	lunName := "lun_" + volume.Name
+	size := availableSpace - halfGiB
+	if size <= 0 {
+		lunsList, err := provider.LunGet(lunName, volume.Svm.Name)
+		if err != nil {
+			return "", err
+		}
+		if len(lunsList) > 0 {
+			return *lunsList[0].Name, nil
+		}
+
+		return "", errors.New("available space is not sufficient to create a LUN")
+	}
+
 	lun, err := provider.LunCreate(vsa.LunCreateParams{
 		LunName:    lunName,
 		VolumeName: volume.Name,
@@ -103,6 +137,9 @@ func (a *VolumeCreateActivity) CreateLunMap(ctx context.Context, params *common.
 		IGroupName: params.HostNames,
 	})
 	if err != nil {
+		if errors.IsConflictErr(err) {
+			return nil
+		}
 		return err
 	}
 	logger.Debug("lun map created successfully")

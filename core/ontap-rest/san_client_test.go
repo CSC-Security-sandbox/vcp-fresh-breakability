@@ -254,3 +254,65 @@ func TestIGroupGet(t *testing.T) {
 		assert.Equal(tt, igroupName, *igroup.Name)
 	})
 }
+
+func TestLunGet(t *testing.T) {
+	t.Run("WhenRESTCallFails_ThenReturnError", func(tt *testing.T) {
+		transport := &mockTransport{err: errors.New("something went wrong")}
+		sanAPI := san.New(transport, nil)
+		client := &sanClient{api: sanAPI}
+		_, err := client.LunGet(&LunGetParams{})
+		assert.EqualError(tt, err, transport.err.Error())
+	})
+
+	t.Run("WhenNoRecordsReturned_ThenReturnEmptySlice", func(tt *testing.T) {
+		transport := &mockTransport{response: &san.LunCollectionGetOK{
+			Payload: &models.LunResponse{
+				LunResponseInlineRecords: []*models.Lun{},
+			},
+		}}
+		sanAPI := san.New(transport, nil)
+		client := &sanClient{api: sanAPI}
+		luns, err := client.LunGet(&LunGetParams{})
+		assert.NoError(tt, err)
+		assert.Len(tt, luns, 0)
+	})
+
+	t.Run("WhenSinglePageRecordsReturned_ThenReturnLuns", func(tt *testing.T) {
+		lunName := "test_lun"
+		transport := &mockTransport{response: &san.LunCollectionGetOK{
+			Payload: &models.LunResponse{
+				LunResponseInlineRecords: []*models.Lun{
+					{Name: &lunName},
+				},
+			},
+		}}
+		sanAPI := san.New(transport, nil)
+		client := &sanClient{api: sanAPI}
+		luns, err := client.LunGet(&LunGetParams{
+			Name:    nillable.ToPointer(lunName),
+			SvmName: nillable.ToPointer("svm1"),
+		})
+		assert.NoError(tt, err)
+		assert.Len(tt, luns, 1)
+		assert.Equal(tt, lunName, *luns[0].Name)
+	})
+
+	t.Run("WhenSinglePageRecordsReturned_ThenReturnLuns_LunNameAlreadyProper", func(tt *testing.T) {
+		lunName := "/vol1/test_lun"
+		transport := &mockTransport{response: &san.LunCollectionGetOK{
+			Payload: &models.LunResponse{
+				LunResponseInlineRecords: []*models.Lun{
+					{Name: &lunName},
+				},
+			},
+		}}
+		sanAPI := san.New(transport, nil)
+		client := &sanClient{api: sanAPI}
+		luns, err := client.LunGet(&LunGetParams{
+			Name: nillable.ToPointer(lunName),
+		})
+		assert.NoError(tt, err)
+		assert.Len(tt, luns, 1)
+		assert.Equal(tt, lunName, *luns[0].Name)
+	})
+}

@@ -190,6 +190,32 @@ func TestLunMapCreate_Error(t *testing.T) {
 	mockClient.AssertExpectations(t)
 }
 
+func TestLunMapCreate_ConflictError(t *testing.T) {
+	mockSAN := new(ontaprest.MockSANClient)
+	mockClient := new(ontaprest.MockRESTClient)
+	mockClient.On("SAN").Return(mockSAN)
+
+	getOntapClientFunc = func(params ontaprest.RESTClientParams) ontaprest.RESTClient {
+		return mockClient
+	}
+	rc := &OntapRestProvider{}
+
+	params := LunMapCreateParams{
+		LunName:    "testLun",
+		SvmName:    "testSVM",
+		IGroupName: []string{"iGroupName1", "iGroupName2"},
+	}
+
+	mockSAN.On("LunMapCreate", mock.Anything).Return(errors.New("LUN already mapped to this group"))
+
+	err := rc.LunMapCreate(params)
+
+	assert.Error(t, err)
+
+	mockSAN.AssertExpectations(t)
+	mockClient.AssertExpectations(t)
+}
+
 func TestIsAggregateOnline_Success(t *testing.T) {
 	mockStorage := new(ontaprest.MockStorageClient)
 	mockClient := new(ontaprest.MockRESTClient)
@@ -566,5 +592,87 @@ func TestGetOntapClient(t *testing.T) {
 
 		assert.NotNil(tt, client)
 		assert.Equal(tt, clientParams.Host, client.Host())
+	})
+}
+
+func TestLunGet(t *testing.T) {
+	t.Run("WhenLunExists_ThenReturnLunList", func(tt *testing.T) {
+		mockSAN := new(ontaprest.MockSANClient)
+		mockClient := new(ontaprest.MockRESTClient)
+		mockClient.On("SAN").Return(mockSAN)
+
+		getOntapClientFunc = func(params ontaprest.RESTClientParams) ontaprest.RESTClient {
+			return mockClient
+		}
+		rc := &OntapRestProvider{}
+
+		lunName := "testLun"
+		svmName := "testSVM"
+		mockLun := &ontaprest.Lun{
+			Lun: models.Lun{
+				Name: nillable.ToPointer(lunName),
+				UUID: nillable.ToPointer("testUUID"),
+			},
+		}
+		mockSAN.On("LunGet", mock.Anything).Return([]*ontaprest.Lun{mockLun}, nil)
+
+		luns, err := rc.LunGet(lunName, svmName)
+
+		assert.NoError(tt, err)
+		assert.NotNil(tt, luns)
+		assert.Len(tt, luns, 1)
+		assert.Equal(tt, lunName, *luns[0].Name)
+		assert.Equal(tt, "testUUID", *luns[0].UUID)
+
+		mockSAN.AssertExpectations(tt)
+		mockClient.AssertExpectations(tt)
+	})
+
+	t.Run("WhenLunDoesNotExist_ThenReturnEmptyList", func(tt *testing.T) {
+		mockSAN := new(ontaprest.MockSANClient)
+		mockClient := new(ontaprest.MockRESTClient)
+		mockClient.On("SAN").Return(mockSAN)
+
+		getOntapClientFunc = func(params ontaprest.RESTClientParams) ontaprest.RESTClient {
+			return mockClient
+		}
+		rc := &OntapRestProvider{}
+
+		lunName := "testLun"
+		svmName := "testSVM"
+		mockSAN.On("LunGet", mock.Anything).Return([]*ontaprest.Lun{}, nil)
+
+		luns, err := rc.LunGet(lunName, svmName)
+
+		assert.NoError(tt, err)
+		assert.NotNil(tt, luns)
+		assert.Len(tt, luns, 0)
+
+		mockSAN.AssertExpectations(tt)
+		mockClient.AssertExpectations(tt)
+	})
+
+	t.Run("WhenLunGetFails_ThenReturnError", func(tt *testing.T) {
+		mockSAN := new(ontaprest.MockSANClient)
+		mockClient := new(ontaprest.MockRESTClient)
+		mockClient.On("SAN").Return(mockSAN)
+
+		getOntapClientFunc = func(params ontaprest.RESTClientParams) ontaprest.RESTClient {
+			return mockClient
+		}
+		rc := &OntapRestProvider{}
+
+		lunName := "testLun"
+		svmName := "testSVM"
+		mockSAN.On("LunGet", mock.Anything).Return(nil, errors.New("fetch error"))
+
+		luns, err := rc.LunGet(lunName, svmName)
+
+		assert.Error(tt, err)
+		assert.Nil(tt, luns)
+		assert.Equal(tt, "fetch error", err.Error())
+
+		mockSAN.AssertExpectations(tt)
+		mockClient.AssertExpectations(tt)
 	})
 }

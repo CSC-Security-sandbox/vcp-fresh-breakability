@@ -351,6 +351,64 @@ func (_c *MockSANClient_LunCreate_Call) RunAndReturn(run func(*LunCreateParams) 
 	return _c
 }
 
+// LunGet provides a mock function with given fields: params
+func (_m *MockSANClient) LunGet(params *LunGetParams) ([]*Lun, error) {
+	ret := _m.Called(params)
+
+	if len(ret) == 0 {
+		panic("no return value specified for LunGet")
+	}
+
+	var r0 []*Lun
+	var r1 error
+	if rf, ok := ret.Get(0).(func(*LunGetParams) ([]*Lun, error)); ok {
+		return rf(params)
+	}
+	if rf, ok := ret.Get(0).(func(*LunGetParams) []*Lun); ok {
+		r0 = rf(params)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]*Lun)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(*LunGetParams) error); ok {
+		r1 = rf(params)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockSANClient_LunGet_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'LunGet'
+type MockSANClient_LunGet_Call struct {
+	*mock.Call
+}
+
+// LunGet is a helper method to define mock.On call
+//   - params *LunGetParams
+func (_e *MockSANClient_Expecter) LunGet(params interface{}) *MockSANClient_LunGet_Call {
+	return &MockSANClient_LunGet_Call{Call: _e.mock.On("LunGet", params)}
+}
+
+func (_c *MockSANClient_LunGet_Call) Run(run func(params *LunGetParams)) *MockSANClient_LunGet_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(*LunGetParams))
+	})
+	return _c
+}
+
+func (_c *MockSANClient_LunGet_Call) Return(_a0 []*Lun, _a1 error) *MockSANClient_LunGet_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockSANClient_LunGet_Call) RunAndReturn(run func(*LunGetParams) ([]*Lun, error)) *MockSANClient_LunGet_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // LunMapCreate provides a mock function with given fields: params
 func (_m *MockSANClient) LunMapCreate(params *LunMapCreateParams) error {
 	ret := _m.Called(params)

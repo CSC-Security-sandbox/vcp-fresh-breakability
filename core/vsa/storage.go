@@ -2,6 +2,7 @@ package vsa
 
 import (
 	"fmt"
+	"strings"
 
 	ontapRest "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/ontap-rest"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
@@ -71,6 +72,19 @@ func (rc *OntapRestProvider) LunCreate(params LunCreateParams) (*ProviderRespons
 	}, nil
 }
 
+// LunGet retrieves a LUN by name using the ONTAP REST Client
+func (rc *OntapRestProvider) LunGet(lunName, svmName string) ([]*ontapRest.Lun, error) {
+	client := getOntapClientFunc(rc.ClientParams)
+	lun, err := client.SAN().LunGet(&ontapRest.LunGetParams{
+		Name:    &lunName,
+		SvmName: &svmName,
+	})
+	if err != nil {
+		return nil, err
+	}
+	return lun, nil
+}
+
 // IgroupCreate creates an initiator group by calling the ONTAP REST Client
 func (rc *OntapRestProvider) IgroupCreate(params IgroupCreateParams) (string, error) {
 	client := getOntapClientFunc(rc.ClientParams)
@@ -95,6 +109,9 @@ func (rc *OntapRestProvider) LunMapCreate(params LunMapCreateParams) error {
 			SvmName:    params.SvmName,
 			IGroupName: params.IGroupName[i],
 		}); err != nil {
+			if strings.Contains(err.Error(), "LUN already mapped to this group") {
+				return errors.NewConflictErr(fmt.Sprintf("LUN %s is already mapped to initiator group %s", params.LunName, params.IGroupName[i]))
+			}
 			return err
 		}
 	}

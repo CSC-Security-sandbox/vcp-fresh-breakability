@@ -11,6 +11,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database"
+	utilErrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 )
@@ -26,6 +27,26 @@ func TestDeleteVolume_Success(t *testing.T) {
 	expectedVolume := &datamodel.Volume{BaseModel: datamodel.BaseModel{UUID: volumeID}}
 
 	mockStorage.On("DeleteVolume", ctx, volumeID).Return(expectedVolume, nil)
+
+	// Act
+	err := activity.DeleteVolume(ctx, expectedVolume)
+
+	// Assert
+	assert.NoError(t, err)
+	mockStorage.AssertExpectations(t)
+}
+
+func TestDeleteVolume_Success_VolumeAlreadyDeleted(t *testing.T) {
+	// Arrange
+	mockStorage := database.NewMockStorage(t)
+	activity := activities.VolumeDeleteActivity{
+		SE: mockStorage,
+	}
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	volumeID := "test-volume-id"
+	expectedVolume := &datamodel.Volume{BaseModel: datamodel.BaseModel{UUID: volumeID}}
+
+	mockStorage.On("DeleteVolume", ctx, volumeID).Return(nil, utilErrors.NewNotFoundErr("volume", nil))
 
 	// Act
 	err := activity.DeleteVolume(ctx, expectedVolume)
@@ -72,6 +93,9 @@ func TestDeleteVolumeInONTAP_Success(t *testing.T) {
 		VolumeAttributes: &datamodel.VolumeAttributes{
 			ExternalUUID: "uuid-123",
 		},
+		Svm: &datamodel.Svm{
+			Name: "test-svm",
+		},
 	}
 	node := &models.Node{}
 
@@ -103,6 +127,9 @@ func TestDeleteVolumeInONTAP_Failure(t *testing.T) {
 		Name: "test-volume",
 		VolumeAttributes: &datamodel.VolumeAttributes{
 			ExternalUUID: "uuid-123",
+		},
+		Svm: &datamodel.Svm{
+			Name: "test-svm",
 		},
 	}
 	node := &models.Node{}

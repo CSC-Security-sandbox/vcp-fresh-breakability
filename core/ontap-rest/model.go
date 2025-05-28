@@ -2088,6 +2088,10 @@ func lunCreateParamsToONTAP(params *LunCreateParams) *san.LunCreateParams {
 	return otParams
 }
 
+type LunMap struct {
+	models.LunMap
+}
+
 // LunMapCreateParams is the input parameter for creating a LunMap
 type LunMapCreateParams struct {
 	IGroupName string
@@ -2113,6 +2117,47 @@ func lunMapCreateParamsToONTAP(params *LunMapCreateParams) *san.LunMapCreatePara
 			Name: &params.SvmName,
 		},
 	})
+	return otParams
+}
+
+// LunMapGetParams is the input parameter for getting a LunMap
+type LunMapGetParams struct {
+	BaseParams
+	LunUUID string
+}
+
+type LunGetParams struct {
+	BaseParams
+	UUID    string
+	Name    *string
+	SvmName *string
+}
+
+// lunGetParamsToONTAP converts LunGetParams to ONTAP API parameters.
+func lunGetParamsToONTAP(params *LunGetParams) *san.LunCollectionGetParams {
+	otParams := san.NewLunCollectionGetParams()
+	if params == nil {
+		return otParams
+	}
+	var lunName *string
+
+	if params.Name != nil {
+		// If the name is not in the format of "lunNamePrefix/vol_name/lun_name", we convert it to that format.
+		if len(strings.Split(*params.Name, "/")) == 1 {
+			volumeName := strings.Split(*params.Name, "_")[1]
+			lunName = nillable.ToPointer(lunNamePrefix + volumeName + "/" + *params.Name)
+		} else {
+			lunName = params.Name
+		}
+
+		otParams.SetName(lunName)
+	}
+
+	if params.SvmName != nil {
+		otParams.SetSvmName(params.SvmName)
+	}
+	otParams.SetMaxRecords(getConstrainedMaxRecords(params.MaxRecords))
+
 	return otParams
 }
 

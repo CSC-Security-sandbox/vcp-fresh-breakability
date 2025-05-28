@@ -36,6 +36,10 @@ type StorageClient interface {
 	SnapshotGet(params *SnapshotGetParams) (*Snapshot, error)
 }
 
+var (
+	FetchVolumeDetails = _fetchVolumeDetails
+)
+
 type storageClient struct {
 	api storage.ClientService
 }
@@ -283,11 +287,13 @@ func (sc *storageClient) VolumeGet(params *VolumeGetParams) (*Volume, error) {
 
 		return resp, "", nil
 	}, func(volumes []*Volume) error {
-		if vol == nil {
-			for _, volume := range volumes {
-				vol = volume
-				break
+		if vol == nil && len(volumes) > 0 {
+			// Volume collection resp only provides volume UUID and href link, so we need to fetch the full volume details (e.g., available space)
+			volResp, err := FetchVolumeDetails(sc, volumes[0])
+			if err != nil {
+				return err
 			}
+			vol = volResp
 		}
 
 		return nil
@@ -300,6 +306,21 @@ func (sc *storageClient) VolumeGet(params *VolumeGetParams) (*Volume, error) {
 	}
 
 	return vol, nil
+}
+
+func _fetchVolumeDetails(sc *storageClient, volume *Volume) (*Volume, error) {
+	response, err := sc.api.VolumeGet(volumeGetParamsToONTAP(&VolumeGetParams{
+		UUID: *volume.UUID,
+	}), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	if response == nil || response.Payload == nil {
+		return nil, errors.New("unexpected response from VolumeGet")
+	}
+
+	return &Volume{Volume: *response.Payload}, nil
 }
 
 // CloudStoreCreate invokes pkg/ontap-rest/client/storage/Client.CloudStoreCreate

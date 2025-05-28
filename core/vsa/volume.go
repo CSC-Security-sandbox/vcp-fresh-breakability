@@ -3,6 +3,7 @@ package vsa
 import (
 	ontapRest "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/ontap-rest"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
+	"strings"
 )
 
 // CreateVolume creates a volume by calling the ONTAP REST Client
@@ -17,6 +18,9 @@ func (rc *OntapRestProvider) CreateVolume(params CreateVolumeParams) (*VolumeRes
 		SnapshotReservePercent: 0, // Setting it to 0, yields more available space
 	})
 	if err != nil {
+		if strings.Contains(err.Error(), "Duplicate volume name") {
+			return nil, errors.NewConflictErr(params.VolumeName + " already exists")
+		}
 		return nil, err
 	}
 
@@ -39,6 +43,7 @@ func (rc *OntapRestProvider) CreateVolume(params CreateVolumeParams) (*VolumeRes
 			ExternalUUID: *vol.UUID,
 		},
 		AvailableSpace: *vol.Space.Available,
+		State:          *vol.State,
 	}, nil
 }
 
@@ -55,4 +60,28 @@ func (rc *OntapRestProvider) DeleteVolume(volumeUUID, volumeName string) error {
 	}
 
 	return nil
+}
+
+// GetVolume returns a volume by calling the ONTAP REST Client
+func (rc *OntapRestProvider) GetVolume(params GetVolumeParams) (*VolumeResponse, error) {
+	client := getOntapClientFunc(rc.ClientParams)
+	vol, err := client.Storage().VolumeGet(&ontapRest.VolumeGetParams{
+		UUID:    params.UUID,
+		Name:    params.VolumeName,
+		SvmName: &params.SvmName,
+	})
+	if err != nil {
+		return nil, err
+	}
+	if vol == nil || vol.Name == nil || vol.UUID == nil {
+		return nil, errors.NewNotFoundErr("volume", nil)
+	}
+	return &VolumeResponse{
+		ProviderResponse: ProviderResponse{
+			Name:         *vol.Name,
+			ExternalUUID: *vol.UUID,
+		},
+		AvailableSpace: *vol.Space.Available,
+		State:          *vol.State,
+	}, nil
 }

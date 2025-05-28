@@ -36,6 +36,7 @@ type ProviderResponse struct {
 type VolumeResponse struct {
 	ProviderResponse
 	AvailableSpace int64
+	State          string
 }
 
 type CreateLifParams struct {
@@ -87,6 +88,12 @@ type CreateVolumeParams struct {
 	AggregateName string
 	Size          int64
 	VolumeType    string
+}
+
+type GetVolumeParams struct {
+	UUID       string
+	VolumeName string
+	SvmName    string
 }
 
 type IgroupCreateParams struct {

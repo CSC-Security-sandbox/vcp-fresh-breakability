@@ -24,10 +24,12 @@ type Provider interface {
 	CreateNetworkIpRoute(params CreateNetworkIPRouteParams) error
 	CreateVolume(params CreateVolumeParams) (*VolumeResponse, error)
 	DeleteVolume(volumeUUID, volumeName string) error
+	GetVolume(params GetVolumeParams) (*VolumeResponse, error)
 	IgroupCreate(params IgroupCreateParams) (string, error)
 	IgroupGet(name, svm string) (*ontapRest.Igroup, error)
 	IgroupExists(name, svm string) (bool, error)
 	LunCreate(params LunCreateParams) (*ProviderResponse, error)
+	LunGet(lunName, svmName string) ([]*ontapRest.Lun, error)
 	LunMapCreate(params LunMapCreateParams) error
 	IscsiServiceCreate(svmUUID string) error
 	CreateClusterPeer(params CreateClusterPeerParams) (*ClusterPeer, error)
