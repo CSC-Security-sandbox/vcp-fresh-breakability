@@ -68,7 +68,7 @@ jobs:
         shell: bash -e {0}
         run: |
           ALL_DIGESTS_EXIST=1
-          IMAGES=("core" "google-proxy" "vcp-db-migrate")
+          IMAGES=("core" "google-proxy" "vcp-db-migrate" "vcp-worker")
           for IMAGE in "${IMAGES[@]}"; do
               gcpDigest=$(docker inspect "$IMAGE:${{ inputs.tag }}" | jq -r '.[] | .RepoDigests[] | select(contains("-docker.pkg.dev"))')
               echo "gcp digest is $gcpDigest"
@@ -146,7 +146,7 @@ jobs:
           
           token_value=$(echo "$token" | jq -r '.token')
           
-          IMAGES=("core" "google-proxy" "vcp-db-migrate")
+          IMAGES=("core" "google-proxy" "vcp-db-migrate" "vcp-worker")
           for IMAGE in "${IMAGES[@]}"; do
             digest=$(curl -s -H "Authorization: Bearer $token_value" \
             -H "Accept: application/vnd.oci.image.manifest.v1+json" \
@@ -159,7 +159,7 @@ jobs:
         run: |
           gcloud secrets versions access latest --secret="${{vars.GH_COSIGN_PUB_KEY}}" > /tmp/cosign.pub
           gcloud secrets versions access latest --secret="${{vars.GH_COSIGN_PVT_KEY}}" > /tmp/cosign.key
-          IMAGES=("core" "google-proxy" "vcp-db-migrate")
+          IMAGES=("core" "google-proxy" "vcp-db-migrate" "vcp-worker")
           for IMAGE in "${IMAGES[@]}"; do
             digest=$(printenv "${IMAGE}-digest")
             COSIGN_PASSWORD="" cosign sign --key /tmp/cosign.key  ghcr.io/vcp-vsa-control-plane/${IMAGE}@$digest --tlog-upload=false
@@ -183,7 +183,7 @@ jobs:
         id: generate_artifact_urls
         shell: bash -e {0}
         run: |
-          IMAGES=("core" "google-proxy" "vcp-db-migrate")
+          IMAGES=("core" "google-proxy" "vcp-db-migrate" "vcp-worker")
           for IMAGE in "${IMAGES[@]}"; do
             ARTIFACT_URL=$(gcloud artifacts docker images list ${{secrets.AR_GCP_REGION}}-docker.pkg.dev/${{secrets.AR_GCP_PROJ}}/${{secrets.AR_GCP_REPO}}/${IMAGE} \
             --include-tags \
@@ -196,7 +196,7 @@ jobs:
         if: ${{ env.ALL_DIGESTS_EXIST == '0' }}
         shell: bash -e {0}
         run: |
-          IMAGES=("core" "google-proxy" "vcp-db-migrate")
+          IMAGES=("core" "google-proxy" "vcp-db-migrate" "vcp-worker")
           for IMAGE in "${IMAGES[@]}"; do
             ARTIFACT_URL=$(printenv "${IMAGE}_ARTIFACT_URL")
             gcloud container binauthz create-signature-payload \
@@ -208,7 +208,7 @@ jobs:
         if: ${{ env.ALL_DIGESTS_EXIST == '0' }}
         shell: bash -e {0}
         run: |
-          IMAGES=("core" "google-proxy" "vcp-db-migrate")
+          IMAGES=("core" "google-proxy" "vcp-db-migrate" "vcp-worker")
           for IMAGE in "${IMAGES[@]}"; do
             if [[ "$(printenv "${IMAGE}_DIGEST_EXISTS")" == "0" ]]; then
               ARTIFACT_URL=$(printenv "${IMAGE}_ARTIFACT_URL")
@@ -237,6 +237,7 @@ jobs:
       - name: Package Helm Charts
         run: |
           helm package kubernetes/vsa-control-plane --destination ./helm-packages
+          helm package kubernetes/vcp-worker --destination ./helm-packages
 
       - name: Push Helm Charts to GHCR
         run: |
@@ -256,3 +257,31 @@ jobs:
           GH_TOKEN: ${{ secrets.GHVSA_PAT }}
           GITHUB_REPOSITORY: ${{ github.event.repository.name }}
           newTag: ${{ inputs.tag }}
+
+      - name: Generate output urls
+        shell: bash -e {0}
+        id: generate_output_urls
+        run: |
+          IMAGES=("core" "google-proxy" "vcp-db-migrate" "vcp-worker")
+          for IMAGE in "${IMAGES[@]}"; do
+            echo "GHCR_${IMAGE}_URL=ghcr.io/vcp-vsa-control-plane/${IMAGE}:${{ inputs.tag }}" >> $GITHUB_ENV
+            echo "GCP_${IMAGE}_URL=${{secrets.AR_GCP_REGION}}-docker.pkg.dev/${{secrets.AR_GCP_PROJ}}/${{secrets.AR_GCP_REPO}}/${IMAGE}:${{ inputs.tag }}" >> $GITHUB_ENV
+          done
+          CHARTS=("vsa-control-plane" "vcp-worker")
+          for CHART in "${CHARTS[@]}"; do
+            echo "GHCR_${CHART}_HELM_URL=oci://ghcr.io/vcp-vsa-control-plane/${CHART}:${{ inputs.tag }}" >> $GITHUB_ENV
+            echo "GCP_${CHART}_HELM_URL=oci://${{secrets.AR_GCP_REGION}}-docker.pkg.dev/${{secrets.AR_GCP_PROJ}}/${{secrets.AR_HELM_REPO}}/${CHART}:${{ inputs.tag }}" >> $GITHUB_ENV
+          done
+    outputs:
+      GHCR_core_URL: ${{ steps.generate_output_urls.outputs.GHCR_core_URL }}
+      GCP_core_URL: ${{ steps.generate_output_urls.outputs.GCP_core_URL }}
+      GHCR_google-proxy_URL: ${{ steps.generate_output_urls.outputs.GHCR_google-proxy_URL }}
+      GCP_google-proxy_URL: ${{ steps.generate_output_urls.outputs.GCP_google-proxy_URL }}
+      GHCR_vcp-db-migrate_URL: ${{ steps.generate_output_urls.outputs.GHCR_vcp-db-migrate_URL }}
+      GCP_vcp-db-migrate_URL: ${{ steps.generate_output_urls.outputs.GCP_vcp-db-migrate_URL }}
+      GHCR_vcp-worker_URL: ${{ steps.generate_output_urls.outputs.GHCR_vcp-worker_URL }}
+      GCP_vcp-worker_URL: ${{ steps.generate_output_urls.outputs.GCP_vcp-worker_URL }}
+      GHCR_vsa-control-plane_HELM_URL: ${{ steps.generate_output_urls.outputs.GHCR_vsa-control-plane_HELM_URL }}
+      GCP_vsa-control-plane_HELM_URL: ${{ steps.generate_output_urls.outputs.GCP_vsa-control-plane_HELM_URL }}
+      GHCR_vcp-worker_HELM_URL: ${{ steps.generate_output_urls.outputs.GHCR_vcp-worker_HELM_URL }}
+      GCP_vcp-worker_HELM_URL: ${{ steps.generate_output_urls.outputs.GCP_vcp-worker_HELM_URL }}
