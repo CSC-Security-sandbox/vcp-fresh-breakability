@@ -128,7 +128,8 @@ jobs:
       - name: Check out the repo
         uses: actions/checkout@v2
         with:
-          path: /repo-dir
+          path: repo-dir
+
 
       - name: Set up Go
         uses: actions/setup-go@v3
