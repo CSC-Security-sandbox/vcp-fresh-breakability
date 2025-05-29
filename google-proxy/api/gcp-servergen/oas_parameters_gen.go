@@ -9131,8 +9131,8 @@ func decodeV1betaGetMultipleVolumesParams(args [2]string, argsEscaped bool, r *h
 	return params, nil
 }
 
-// V1betaInternalAuthorizeVolumeReplicationParams is parameters of v1beta_internalAuthorizeVolumeReplication operation.
-type V1betaInternalAuthorizeVolumeReplicationParams struct {
+// V1betaInternalAcceptClusterPeerParams is parameters of v1beta_internalAcceptClusterPeer operation.
+type V1betaInternalAcceptClusterPeerParams struct {
 	// The project number of the GCP project owning the resource being acted upon.
 	ProjectNumber string
 	// The location/region to perform the operation in.
@@ -9141,7 +9141,7 @@ type V1betaInternalAuthorizeVolumeReplicationParams struct {
 	XCorrelationID OptString
 }
 
-func unpackV1betaInternalAuthorizeVolumeReplicationParams(packed middleware.Parameters) (params V1betaInternalAuthorizeVolumeReplicationParams) {
+func unpackV1betaInternalAcceptClusterPeerParams(packed middleware.Parameters) (params V1betaInternalAcceptClusterPeerParams) {
 	{
 		key := middleware.ParameterKey{
 			Name: "projectNumber",
@@ -9168,7 +9168,7 @@ func unpackV1betaInternalAuthorizeVolumeReplicationParams(packed middleware.Para
 	return params
 }
 
-func decodeV1betaInternalAuthorizeVolumeReplicationParams(args [2]string, argsEscaped bool, r *http.Request) (params V1betaInternalAuthorizeVolumeReplicationParams, _ error) {
+func decodeV1betaInternalAcceptClusterPeerParams(args [2]string, argsEscaped bool, r *http.Request) (params V1betaInternalAcceptClusterPeerParams, _ error) {
 	h := uri.NewHeaderDecoder(r.Header)
 	// Decode path: projectNumber.
 	if err := func() error {
@@ -9334,8 +9334,8 @@ func decodeV1betaInternalAuthorizeVolumeReplicationParams(args [2]string, argsEs
 	return params, nil
 }
 
-// V1betaInternalCreateClusterPeerParams is parameters of v1beta_internalCreateClusterPeer operation.
-type V1betaInternalCreateClusterPeerParams struct {
+// V1betaInternalAuthorizeVolumeReplicationParams is parameters of v1beta_internalAuthorizeVolumeReplication operation.
+type V1betaInternalAuthorizeVolumeReplicationParams struct {
 	// The project number of the GCP project owning the resource being acted upon.
 	ProjectNumber string
 	// The location/region to perform the operation in.
@@ -9344,7 +9344,7 @@ type V1betaInternalCreateClusterPeerParams struct {
 	XCorrelationID OptString
 }
 
-func unpackV1betaInternalCreateClusterPeerParams(packed middleware.Parameters) (params V1betaInternalCreateClusterPeerParams) {
+func unpackV1betaInternalAuthorizeVolumeReplicationParams(packed middleware.Parameters) (params V1betaInternalAuthorizeVolumeReplicationParams) {
 	{
 		key := middleware.ParameterKey{
 			Name: "projectNumber",
@@ -9371,7 +9371,7 @@ func unpackV1betaInternalCreateClusterPeerParams(packed middleware.Parameters) (
 	return params
 }
 
-func decodeV1betaInternalCreateClusterPeerParams(args [2]string, argsEscaped bool, r *http.Request) (params V1betaInternalCreateClusterPeerParams, _ error) {
+func decodeV1betaInternalAuthorizeVolumeReplicationParams(args [2]string, argsEscaped bool, r *http.Request) (params V1betaInternalAuthorizeVolumeReplicationParams, _ error) {
 	h := uri.NewHeaderDecoder(r.Header)
 	// Decode path: projectNumber.
 	if err := func() error {

@@ -1,0 +1,64 @@
+package orchestrator
+
+import (
+	"context"
+	"database/sql"
+
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
+	commonparams "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/workflows"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database"
+	workflowengine "github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/temporal"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
+	"go.temporal.io/api/enums/v1"
+	"go.temporal.io/sdk/client"
+)
+
+var (
+	acceptClusterPeer = _acceptClusterPeer
+)
+
+func (o *Orchestrator) AcceptClusterPeer(ctx context.Context, params *commonparams.ClusterPeerParams, poolID string) (*commonparams.ClusterPeerParams, *datamodel.Job, error) {
+	return _acceptClusterPeer(ctx, o.storage, o.temporal, params, poolID)
+}
+
+func _acceptClusterPeer(ctx context.Context, se database.Storage, temporal client.Client, params *commonparams.ClusterPeerParams, poolID string) (*commonparams.ClusterPeerParams, *datamodel.Job, error) {
+	logger := util.GetLogger(ctx)
+	account, err := getAccountWithName(ctx, se, params.AccountName)
+	if err != nil {
+		return nil, nil, err
+	}
+	dbPool, err := se.GetPool(ctx, poolID, account.ID)
+	if err != nil {
+		return nil, nil, err
+	}
+	job := &datamodel.Job{
+		Type:         string(models.JobTypeAcceptClusterPeer),
+		State:        string(models.JobsStateNEW),
+		ResourceName: string(models.JobTypeAcceptClusterPeer),
+		AccountID:    sql.NullInt64{Int64: account.ID, Valid: true},
+	}
+
+	createdJob, err := se.CreateJob(ctx, job)
+	if err != nil {
+		logger.Error("Failed to create job in database", "error", err)
+		return nil, nil, err
+	}
+
+	_, err = temporal.ExecuteWorkflow(ctx,
+		client.StartWorkflowOptions{
+			TaskQueue:             workflowengine.CustomerTaskQueue,
+			ID:                    createdJob.WorkflowID,
+			WorkflowIDReusePolicy: enums.WORKFLOW_ID_REUSE_POLICY_REJECT_DUPLICATE,
+		},
+		workflows.AcceptClusterPeerWorkflow,
+		params,
+		dbPool,
+	)
+	if err != nil {
+		logger.Error("Failed to start  AcceptClusterPeer Workflow: ", "error", err)
+		return nil, nil, err
+	}
+	return params, job, nil
+}

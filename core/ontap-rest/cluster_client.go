@@ -19,6 +19,7 @@ type ClusterClient interface { // generate:mock
 	GetONTAPVersion() (*string, error)
 	ClusterPeersList() ([]*ClusterPeerResponse, error)
 	ClusterPeerCreate(params ClusterPeerCreateParams) (*ClusterPeerCreateResponse, error)
+	ClusterPeerAccept(params ClusterPeerCreateParams) (*ClusterPeerCreateResponse, error)
 	ClusterPeerDelete(clusterPeerID string) error
 	ClusterPeerGet(clusterPeerID string) (*ClusterPeerResponse, error)
 	ScheduleCreate(params *ScheduleCreateParams) error
@@ -27,7 +28,7 @@ type ClusterClient interface { // generate:mock
 
 type clusterClient struct {
 	api     cluster.ClientService
-	apiPriv securitypriv.ClientService
+	apiPriv *securitypriv.ClientService
 }
 
 var paginateNodesGet = _paginate[[]*Node]
@@ -76,7 +77,15 @@ func (cc *clusterClient) ClusterPeersList() ([]*ClusterPeerResponse, error) {
 
 // ClusterPeerCreate creates a cluster peer for the specific host
 func (cc *clusterClient) ClusterPeerCreate(params ClusterPeerCreateParams) (*ClusterPeerCreateResponse, error) {
-	resp, err := cc.apiPriv.ClusterPeerCreate(clusterPeerToONTAPCreate(params))
+	resp, err := (*cc.apiPriv).ClusterPeerCreate(clusterPeerToONTAPCreate(params))
+	if err != nil {
+		return nil, err
+	}
+	return convertClusterPeerCreateFromREST(resp), nil
+}
+
+func (cc *clusterClient) ClusterPeerAccept(params ClusterPeerCreateParams) (*ClusterPeerCreateResponse, error) {
+	resp, err := (*cc.apiPriv).ClusterPeerCreate(clusterPeerToONTAPAccept(params))
 	if err != nil {
 		return nil, err
 	}

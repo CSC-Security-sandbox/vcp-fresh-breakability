@@ -44,7 +44,7 @@ func (d *DataStoreRepository) GetJob(ctx context.Context, id string) (*datamodel
 	return getJobWithDetails(d.db.GORM().WithContext(ctx), &datamodel.Job{BaseModel: datamodel.BaseModel{UUID: id}})
 }
 
-func (d *DataStoreRepository) UpdateJob(ctx context.Context, id string, status string) error {
+func (d *DataStoreRepository) UpdateJob(ctx context.Context, id string, status string, errorDetails []byte) error {
 	db := d.db.GORM().WithContext(ctx)
 	tx, err := startTransaction(db)
 	if err != nil {
@@ -60,6 +60,7 @@ func (d *DataStoreRepository) UpdateJob(ctx context.Context, id string, status s
 
 	job.UpdatedAt = time.Now()
 	job.State = status
+	job.ErrorDetails = errorDetails
 	if err = tx.Updates(job).Error; err != nil {
 		return err
 	}

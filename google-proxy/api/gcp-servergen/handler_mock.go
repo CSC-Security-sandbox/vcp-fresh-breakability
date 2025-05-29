@@ -2272,6 +2272,66 @@ func (_c *MockHandler_V1betaGetMultipleVolumes_Call) RunAndReturn(run func(conte
 	return _c
 }
 
+// V1betaInternalAcceptClusterPeer provides a mock function with given fields: ctx, req, params
+func (_m *MockHandler) V1betaInternalAcceptClusterPeer(ctx context.Context, req *ClusterPeerV1, params V1betaInternalAcceptClusterPeerParams) (V1betaInternalAcceptClusterPeerRes, error) {
+	ret := _m.Called(ctx, req, params)
+
+	if len(ret) == 0 {
+		panic("no return value specified for V1betaInternalAcceptClusterPeer")
+	}
+
+	var r0 V1betaInternalAcceptClusterPeerRes
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, *ClusterPeerV1, V1betaInternalAcceptClusterPeerParams) (V1betaInternalAcceptClusterPeerRes, error)); ok {
+		return rf(ctx, req, params)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, *ClusterPeerV1, V1betaInternalAcceptClusterPeerParams) V1betaInternalAcceptClusterPeerRes); ok {
+		r0 = rf(ctx, req, params)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(V1betaInternalAcceptClusterPeerRes)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, *ClusterPeerV1, V1betaInternalAcceptClusterPeerParams) error); ok {
+		r1 = rf(ctx, req, params)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockHandler_V1betaInternalAcceptClusterPeer_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'V1betaInternalAcceptClusterPeer'
+type MockHandler_V1betaInternalAcceptClusterPeer_Call struct {
+	*mock.Call
+}
+
+// V1betaInternalAcceptClusterPeer is a helper method to define mock.On call
+//   - ctx context.Context
+//   - req *ClusterPeerV1
+//   - params V1betaInternalAcceptClusterPeerParams
+func (_e *MockHandler_Expecter) V1betaInternalAcceptClusterPeer(ctx interface{}, req interface{}, params interface{}) *MockHandler_V1betaInternalAcceptClusterPeer_Call {
+	return &MockHandler_V1betaInternalAcceptClusterPeer_Call{Call: _e.mock.On("V1betaInternalAcceptClusterPeer", ctx, req, params)}
+}
+
+func (_c *MockHandler_V1betaInternalAcceptClusterPeer_Call) Run(run func(ctx context.Context, req *ClusterPeerV1, params V1betaInternalAcceptClusterPeerParams)) *MockHandler_V1betaInternalAcceptClusterPeer_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(*ClusterPeerV1), args[2].(V1betaInternalAcceptClusterPeerParams))
+	})
+	return _c
+}
+
+func (_c *MockHandler_V1betaInternalAcceptClusterPeer_Call) Return(_a0 V1betaInternalAcceptClusterPeerRes, _a1 error) *MockHandler_V1betaInternalAcceptClusterPeer_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockHandler_V1betaInternalAcceptClusterPeer_Call) RunAndReturn(run func(context.Context, *ClusterPeerV1, V1betaInternalAcceptClusterPeerParams) (V1betaInternalAcceptClusterPeerRes, error)) *MockHandler_V1betaInternalAcceptClusterPeer_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // V1betaInternalAuthorizeVolumeReplication provides a mock function with given fields: ctx, req, params
 func (_m *MockHandler) V1betaInternalAuthorizeVolumeReplication(ctx context.Context, req *VolumeReplicationCreateInternalV1beta, params V1betaInternalAuthorizeVolumeReplicationParams) (V1betaInternalAuthorizeVolumeReplicationRes, error) {
 	ret := _m.Called(ctx, req, params)
@@ -2328,66 +2388,6 @@ func (_c *MockHandler_V1betaInternalAuthorizeVolumeReplication_Call) Return(_a0 
 }
 
 func (_c *MockHandler_V1betaInternalAuthorizeVolumeReplication_Call) RunAndReturn(run func(context.Context, *VolumeReplicationCreateInternalV1beta, V1betaInternalAuthorizeVolumeReplicationParams) (V1betaInternalAuthorizeVolumeReplicationRes, error)) *MockHandler_V1betaInternalAuthorizeVolumeReplication_Call {
-	_c.Call.Return(run)
-	return _c
-}
-
-// V1betaInternalCreateClusterPeer provides a mock function with given fields: ctx, req, params
-func (_m *MockHandler) V1betaInternalCreateClusterPeer(ctx context.Context, req *ClusterPeerV1, params V1betaInternalCreateClusterPeerParams) (V1betaInternalCreateClusterPeerRes, error) {
-	ret := _m.Called(ctx, req, params)
-
-	if len(ret) == 0 {
-		panic("no return value specified for V1betaInternalCreateClusterPeer")
-	}
-
-	var r0 V1betaInternalCreateClusterPeerRes
-	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, *ClusterPeerV1, V1betaInternalCreateClusterPeerParams) (V1betaInternalCreateClusterPeerRes, error)); ok {
-		return rf(ctx, req, params)
-	}
-	if rf, ok := ret.Get(0).(func(context.Context, *ClusterPeerV1, V1betaInternalCreateClusterPeerParams) V1betaInternalCreateClusterPeerRes); ok {
-		r0 = rf(ctx, req, params)
-	} else {
-		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(V1betaInternalCreateClusterPeerRes)
-		}
-	}
-
-	if rf, ok := ret.Get(1).(func(context.Context, *ClusterPeerV1, V1betaInternalCreateClusterPeerParams) error); ok {
-		r1 = rf(ctx, req, params)
-	} else {
-		r1 = ret.Error(1)
-	}
-
-	return r0, r1
-}
-
-// MockHandler_V1betaInternalCreateClusterPeer_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'V1betaInternalCreateClusterPeer'
-type MockHandler_V1betaInternalCreateClusterPeer_Call struct {
-	*mock.Call
-}
-
-// V1betaInternalCreateClusterPeer is a helper method to define mock.On call
-//   - ctx context.Context
-//   - req *ClusterPeerV1
-//   - params V1betaInternalCreateClusterPeerParams
-func (_e *MockHandler_Expecter) V1betaInternalCreateClusterPeer(ctx interface{}, req interface{}, params interface{}) *MockHandler_V1betaInternalCreateClusterPeer_Call {
-	return &MockHandler_V1betaInternalCreateClusterPeer_Call{Call: _e.mock.On("V1betaInternalCreateClusterPeer", ctx, req, params)}
-}
-
-func (_c *MockHandler_V1betaInternalCreateClusterPeer_Call) Run(run func(ctx context.Context, req *ClusterPeerV1, params V1betaInternalCreateClusterPeerParams)) *MockHandler_V1betaInternalCreateClusterPeer_Call {
-	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context), args[1].(*ClusterPeerV1), args[2].(V1betaInternalCreateClusterPeerParams))
-	})
-	return _c
-}
-
-func (_c *MockHandler_V1betaInternalCreateClusterPeer_Call) Return(_a0 V1betaInternalCreateClusterPeerRes, _a1 error) *MockHandler_V1betaInternalCreateClusterPeer_Call {
-	_c.Call.Return(_a0, _a1)
-	return _c
-}
-
-func (_c *MockHandler_V1betaInternalCreateClusterPeer_Call) RunAndReturn(run func(context.Context, *ClusterPeerV1, V1betaInternalCreateClusterPeerParams) (V1betaInternalCreateClusterPeerRes, error)) *MockHandler_V1betaInternalCreateClusterPeer_Call {
 	_c.Call.Return(run)
 	return _c
 }

@@ -82,7 +82,6 @@ func TestAcceptClusterPeer(t *testing.T) {
 		PeerAddresses:      []string{"1.2.3.4"},
 		PeerName:           "theName",
 		ExpiryTime:         nil,
-		IPSpace:            "ipspace",
 		GeneratePassphrase: false,
 	}
 	t.Run("WhenProviderFails", func(tt *testing.T) {
@@ -101,11 +100,10 @@ func TestAcceptClusterPeer(t *testing.T) {
 			Name:               acceptClusterPeerParams.PeerName,
 			GeneratePassphrase: false,
 			ExpiryTime:         nil,
-			IPSpace:            "ipspace",
 		}
 
 		mockClient.On("Cluster").Return(mockClusterClient)
-		mockClusterClient.On("ClusterPeerCreate", expectedParams).Return(nil, returnedError)
+		mockClusterClient.On("ClusterPeerAccept", expectedParams).Return(nil, returnedError)
 
 		_, err := ontapProvider.AcceptClusterPeer(acceptClusterPeerParams)
 		assert.Equal(tt, returnedError, err)
@@ -124,7 +122,6 @@ func TestAcceptClusterPeer(t *testing.T) {
 			Name:               acceptClusterPeerParams.PeerName,
 			GeneratePassphrase: false,
 			ExpiryTime:         nil,
-			IPSpace:            "ipspace",
 		}
 		b := "true"
 		expectedClusterPeer := &ontaprest.ClusterPeerCreateResponse{
@@ -134,7 +131,7 @@ func TestAcceptClusterPeer(t *testing.T) {
 		}
 
 		mockClient.On("Cluster").Return(mockClusterClient)
-		mockClusterClient.On("ClusterPeerCreate", expectedParams).Return(expectedClusterPeer, nil)
+		mockClusterClient.On("ClusterPeerAccept", expectedParams).Return(expectedClusterPeer, nil)
 
 		result, err := ontapProvider.AcceptClusterPeer(acceptClusterPeerParams)
 		assert.NoError(tt, err)

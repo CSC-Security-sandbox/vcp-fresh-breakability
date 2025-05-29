@@ -17,11 +17,12 @@ const (
 type JobType string
 
 const (
-	JobTypeCreatePool     JobType = "CREATE_POOL"
-	JobTypeDeletePool     JobType = "DELETE_POOL"
-	JobTypeCreateVolume   JobType = "CREATE_VOLUME"
-	JobTypeDeleteVolume   JobType = "DELETE_VOLUME"
-	JobTypeCreateSnapshot JobType = "CREATE_SNAPSHOT"
+	JobTypeCreatePool        JobType = "CREATE_POOL"
+	JobTypeDeletePool        JobType = "DELETE_POOL"
+	JobTypeCreateVolume      JobType = "CREATE_VOLUME"
+	JobTypeDeleteVolume      JobType = "DELETE_VOLUME"
+	JobTypeCreateSnapshot    JobType = "CREATE_SNAPSHOT"
+	JobTypeAcceptClusterPeer JobType = "ACCEPT_CLUSTER_PEER"
 )
 
 // Job describes a job DB model

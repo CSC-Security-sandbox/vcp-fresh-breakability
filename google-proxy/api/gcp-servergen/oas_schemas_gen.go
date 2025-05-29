@@ -2323,9 +2323,9 @@ type ClusterPeerV1 struct {
 	// List of peer IPv4 addresses.
 	PeerAddresses []string `json:"peerAddresses"`
 	// The name of the peered cluster.
-	PeerClusterName OptString `json:"peerClusterName"`
+	PeerClusterName string `json:"peerClusterName"`
 	// The generated passphrase used to accept peering on the peer cluster.
-	Passphrase OptNilString `json:"passphrase"`
+	Passphrase string `json:"passphrase"`
 	// The expiration date of the passphrase used to accept peering on the peer cluster.
 	ExpiryTime OptNilDateTime `json:"expiryTime"`
 	// The availability of the peered cluster.
@@ -2333,6 +2333,8 @@ type ClusterPeerV1 struct {
 	AuthenticationState OptClusterPeerV1AuthenticationState `json:"authenticationState"`
 	// Jobs currently ongoing for the cluster peer.
 	Jobs []JobV1beta `json:"jobs"`
+	// Uuid v4 used to identify a resource.
+	PoolUUID string `json:"poolUUID"`
 }
 
 // GetUUID returns the value of UUID.
@@ -2346,12 +2348,12 @@ func (s *ClusterPeerV1) GetPeerAddresses() []string {
 }
 
 // GetPeerClusterName returns the value of PeerClusterName.
-func (s *ClusterPeerV1) GetPeerClusterName() OptString {
+func (s *ClusterPeerV1) GetPeerClusterName() string {
 	return s.PeerClusterName
 }
 
 // GetPassphrase returns the value of Passphrase.
-func (s *ClusterPeerV1) GetPassphrase() OptNilString {
+func (s *ClusterPeerV1) GetPassphrase() string {
 	return s.Passphrase
 }
 
@@ -2375,6 +2377,11 @@ func (s *ClusterPeerV1) GetJobs() []JobV1beta {
 	return s.Jobs
 }
 
+// GetPoolUUID returns the value of PoolUUID.
+func (s *ClusterPeerV1) GetPoolUUID() string {
+	return s.PoolUUID
+}
+
 // SetUUID sets the value of UUID.
 func (s *ClusterPeerV1) SetUUID(val OptString) {
 	s.UUID = val
@@ -2386,12 +2393,12 @@ func (s *ClusterPeerV1) SetPeerAddresses(val []string) {
 }
 
 // SetPeerClusterName sets the value of PeerClusterName.
-func (s *ClusterPeerV1) SetPeerClusterName(val OptString) {
+func (s *ClusterPeerV1) SetPeerClusterName(val string) {
 	s.PeerClusterName = val
 }
 
 // SetPassphrase sets the value of Passphrase.
-func (s *ClusterPeerV1) SetPassphrase(val OptNilString) {
+func (s *ClusterPeerV1) SetPassphrase(val string) {
 	s.Passphrase = val
 }
 
@@ -2415,7 +2422,12 @@ func (s *ClusterPeerV1) SetJobs(val []JobV1beta) {
 	s.Jobs = val
 }
 
-func (*ClusterPeerV1) v1betaInternalCreateClusterPeerRes() {}
+// SetPoolUUID sets the value of PoolUUID.
+func (s *ClusterPeerV1) SetPoolUUID(val string) {
+	s.PoolUUID = val
+}
+
+func (*ClusterPeerV1) v1betaInternalAcceptClusterPeerRes() {}
 
 type ClusterPeerV1AuthenticationState string
 
@@ -14683,6 +14695,38 @@ type V1betaGetMultipleVolumesUnprocessableEntity Error
 
 func (*V1betaGetMultipleVolumesUnprocessableEntity) v1betaGetMultipleVolumesRes() {}
 
+type V1betaInternalAcceptClusterPeerBadRequest Error
+
+func (*V1betaInternalAcceptClusterPeerBadRequest) v1betaInternalAcceptClusterPeerRes() {}
+
+type V1betaInternalAcceptClusterPeerConflict Error
+
+func (*V1betaInternalAcceptClusterPeerConflict) v1betaInternalAcceptClusterPeerRes() {}
+
+type V1betaInternalAcceptClusterPeerForbidden Error
+
+func (*V1betaInternalAcceptClusterPeerForbidden) v1betaInternalAcceptClusterPeerRes() {}
+
+type V1betaInternalAcceptClusterPeerInternalServerError Error
+
+func (*V1betaInternalAcceptClusterPeerInternalServerError) v1betaInternalAcceptClusterPeerRes() {}
+
+type V1betaInternalAcceptClusterPeerMethodNotAllowed Error
+
+func (*V1betaInternalAcceptClusterPeerMethodNotAllowed) v1betaInternalAcceptClusterPeerRes() {}
+
+type V1betaInternalAcceptClusterPeerNotFound Error
+
+func (*V1betaInternalAcceptClusterPeerNotFound) v1betaInternalAcceptClusterPeerRes() {}
+
+type V1betaInternalAcceptClusterPeerUnauthorized Error
+
+func (*V1betaInternalAcceptClusterPeerUnauthorized) v1betaInternalAcceptClusterPeerRes() {}
+
+type V1betaInternalAcceptClusterPeerUnprocessableEntity Error
+
+func (*V1betaInternalAcceptClusterPeerUnprocessableEntity) v1betaInternalAcceptClusterPeerRes() {}
+
 type V1betaInternalAuthorizeVolumeReplicationBadRequest Error
 
 func (*V1betaInternalAuthorizeVolumeReplicationBadRequest) v1betaInternalAuthorizeVolumeReplicationRes() {
@@ -14722,38 +14766,6 @@ type V1betaInternalAuthorizeVolumeReplicationUnprocessableEntity Error
 
 func (*V1betaInternalAuthorizeVolumeReplicationUnprocessableEntity) v1betaInternalAuthorizeVolumeReplicationRes() {
 }
-
-type V1betaInternalCreateClusterPeerBadRequest Error
-
-func (*V1betaInternalCreateClusterPeerBadRequest) v1betaInternalCreateClusterPeerRes() {}
-
-type V1betaInternalCreateClusterPeerConflict Error
-
-func (*V1betaInternalCreateClusterPeerConflict) v1betaInternalCreateClusterPeerRes() {}
-
-type V1betaInternalCreateClusterPeerForbidden Error
-
-func (*V1betaInternalCreateClusterPeerForbidden) v1betaInternalCreateClusterPeerRes() {}
-
-type V1betaInternalCreateClusterPeerInternalServerError Error
-
-func (*V1betaInternalCreateClusterPeerInternalServerError) v1betaInternalCreateClusterPeerRes() {}
-
-type V1betaInternalCreateClusterPeerMethodNotAllowed Error
-
-func (*V1betaInternalCreateClusterPeerMethodNotAllowed) v1betaInternalCreateClusterPeerRes() {}
-
-type V1betaInternalCreateClusterPeerNotFound Error
-
-func (*V1betaInternalCreateClusterPeerNotFound) v1betaInternalCreateClusterPeerRes() {}
-
-type V1betaInternalCreateClusterPeerUnauthorized Error
-
-func (*V1betaInternalCreateClusterPeerUnauthorized) v1betaInternalCreateClusterPeerRes() {}
-
-type V1betaInternalCreateClusterPeerUnprocessableEntity Error
-
-func (*V1betaInternalCreateClusterPeerUnprocessableEntity) v1betaInternalCreateClusterPeerRes() {}
 
 type V1betaInternalCreateVolumeReplicationBadRequest Error
 

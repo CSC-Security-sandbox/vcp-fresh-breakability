@@ -457,8 +457,8 @@ func (s *PersistenceStore) CreateJob(ctx context.Context, job *datamodel.Job) (*
 	return s.dataStore.CreateJob(ctx, job)
 }
 
-func (s *PersistenceStore) UpdateJob(ctx context.Context, id string, status string) error {
-	return s.dataStore.UpdateJob(ctx, id, status)
+func (s *PersistenceStore) UpdateJob(ctx context.Context, jobID string, status string, errorDetails []byte) error {
+	return s.dataStore.UpdateJob(ctx, jobID, status, errorDetails)
 }
 
 func (s *PersistenceStore) GetJob(ctx context.Context, id string) (*datamodel.Job, error) {

@@ -149,12 +149,12 @@ type V1betaGetMultipleVolumesRes interface {
 	v1betaGetMultipleVolumesRes()
 }
 
-type V1betaInternalAuthorizeVolumeReplicationRes interface {
-	v1betaInternalAuthorizeVolumeReplicationRes()
+type V1betaInternalAcceptClusterPeerRes interface {
+	v1betaInternalAcceptClusterPeerRes()
 }
 
-type V1betaInternalCreateClusterPeerRes interface {
-	v1betaInternalCreateClusterPeerRes()
+type V1betaInternalAuthorizeVolumeReplicationRes interface {
+	v1betaInternalAuthorizeVolumeReplicationRes()
 }
 
 type V1betaInternalCreateVolumeReplicationRes interface {

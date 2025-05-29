@@ -479,14 +479,13 @@ func TestClusterPeerToONTAPCreate(t *testing.T) {
 
 	t.Run("WithExpiryTime", func(tt *testing.T) {
 		params := ClusterPeerCreateParams{
-			Name:        "test",
-			IPAddresses: []string{"1.2.3.4"},
-			IPSpace:     "ipSpace",
-			ExpiryTime:  expTimePtr,
+			Name:               "test",
+			IPAddresses:        []string{"1.2.3.4"},
+			ExpiryTime:         expTimePtr,
+			GeneratePassphrase: false,
 		}
 		otParams := clusterPeerToONTAPCreate(params)
 		assert.Equal(tt, params.Name, *otParams.Info.Name)
-		assert.Equal(tt, params.IPSpace, *otParams.Info.Ipspace.Name)
 		assert.Equal(tt, *expTimePtr, *otParams.Info.Authentication.ExpiryTime)
 
 		var ipAddresses []string
@@ -499,14 +498,64 @@ func TestClusterPeerToONTAPCreate(t *testing.T) {
 	})
 	t.Run("WithoutExpiryTime", func(tt *testing.T) {
 		params := ClusterPeerCreateParams{
-			Name:        "test",
-			IPAddresses: []string{"1.2.3.4"},
-			IPSpace:     "ipSpace",
+			Name:               "test",
+			IPAddresses:        []string{"1.2.3.4"},
+			IPSpace:            "ipSpace",
+			GeneratePassphrase: false,
 		}
 
 		otParams := clusterPeerToONTAPCreate(params)
 		assert.Equal(tt, params.Name, *otParams.Info.Name)
-		assert.Equal(tt, params.IPSpace, *otParams.Info.Ipspace.Name)
+		assert.Nil(tt, otParams.Info.Authentication.ExpiryTime)
+
+		var ipAddresses []string
+		for _, ip := range otParams.Info.Remote.IPAddresses {
+			if ip != nil {
+				ipAddresses = append(ipAddresses, string(*ip))
+			}
+		}
+		assert.Equal(tt, params.IPAddresses, ipAddresses)
+	})
+}
+
+func TestClusterPeerToONTAPAccept(t *testing.T) {
+	location := time.FixedZone("UTC+3", 3*60*60)
+	expTime := strfmt.DateTime(time.Now().In(location))
+
+	date := (*time.Time)(&expTime)
+
+	expTimeStr := date.Format(time.RFC3339)
+	expTimePtr := nillable.ToPointer(expTimeStr)
+
+	t.Run("WithExpiryTime", func(tt *testing.T) {
+		params := ClusterPeerCreateParams{
+			Name:               "test",
+			IPAddresses:        []string{"1.2.3.4"},
+			ExpiryTime:         expTimePtr,
+			GeneratePassphrase: false,
+		}
+		otParams := clusterPeerToONTAPAccept(params)
+		assert.Equal(tt, params.Name, *otParams.Info.Name)
+		assert.Equal(tt, *expTimePtr, *otParams.Info.Authentication.ExpiryTime)
+
+		var ipAddresses []string
+		for _, ip := range otParams.Info.Remote.IPAddresses {
+			if ip != nil {
+				ipAddresses = append(ipAddresses, string(*ip))
+			}
+		}
+		assert.Equal(tt, params.IPAddresses, ipAddresses)
+	})
+	t.Run("WithoutExpiryTime", func(tt *testing.T) {
+		params := ClusterPeerCreateParams{
+			Name:               "test",
+			IPAddresses:        []string{"1.2.3.4"},
+			IPSpace:            "ipSpace",
+			GeneratePassphrase: false,
+		}
+
+		otParams := clusterPeerToONTAPAccept(params)
+		assert.Equal(tt, params.Name, *otParams.Info.Name)
 		assert.Nil(tt, otParams.Info.Authentication.ExpiryTime)
 
 		var ipAddresses []string

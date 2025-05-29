@@ -353,21 +353,21 @@ func (UnimplementedHandler) V1betaGetMultipleVolumes(ctx context.Context, req *V
 	return r, ht.ErrNotImplemented
 }
 
+// V1betaInternalAcceptClusterPeer implements v1beta_internalAcceptClusterPeer operation.
+//
+// Accept a new cluster peer.
+//
+// POST /v1beta/internal/projects/{projectNumber}/locations/{locationId}/clusterPeer
+func (UnimplementedHandler) V1betaInternalAcceptClusterPeer(ctx context.Context, req *ClusterPeerV1, params V1betaInternalAcceptClusterPeerParams) (r V1betaInternalAcceptClusterPeerRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
 // V1betaInternalAuthorizeVolumeReplication implements v1beta_internalAuthorizeVolumeReplication operation.
 //
 // Authorize a volume replication on the source.
 //
 // POST /v1beta/internal/projects/{projectNumber}/locations/{locationId}/volumeReplication/authorize
 func (UnimplementedHandler) V1betaInternalAuthorizeVolumeReplication(ctx context.Context, req *VolumeReplicationCreateInternalV1beta, params V1betaInternalAuthorizeVolumeReplicationParams) (r V1betaInternalAuthorizeVolumeReplicationRes, _ error) {
-	return r, ht.ErrNotImplemented
-}
-
-// V1betaInternalCreateClusterPeer implements v1beta_internalCreateClusterPeer operation.
-//
-// Create a new cluster peer.
-//
-// POST /v1beta/internal/projects/{projectNumber}/locations/{locationId}/clusterPeer
-func (UnimplementedHandler) V1betaInternalCreateClusterPeer(ctx context.Context, req *ClusterPeerV1, params V1betaInternalCreateClusterPeerParams) (r V1betaInternalCreateClusterPeerRes, _ error) {
 	return r, ht.ErrNotImplemented
 }
 

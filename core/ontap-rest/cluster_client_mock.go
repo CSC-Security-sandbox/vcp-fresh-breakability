@@ -17,6 +17,64 @@ func (_m *MockClusterClient) EXPECT() *MockClusterClient_Expecter {
 	return &MockClusterClient_Expecter{mock: &_m.Mock}
 }
 
+// ClusterPeerAccept provides a mock function with given fields: params
+func (_m *MockClusterClient) ClusterPeerAccept(params ClusterPeerCreateParams) (*ClusterPeerCreateResponse, error) {
+	ret := _m.Called(params)
+
+	if len(ret) == 0 {
+		panic("no return value specified for ClusterPeerAccept")
+	}
+
+	var r0 *ClusterPeerCreateResponse
+	var r1 error
+	if rf, ok := ret.Get(0).(func(ClusterPeerCreateParams) (*ClusterPeerCreateResponse, error)); ok {
+		return rf(params)
+	}
+	if rf, ok := ret.Get(0).(func(ClusterPeerCreateParams) *ClusterPeerCreateResponse); ok {
+		r0 = rf(params)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*ClusterPeerCreateResponse)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(ClusterPeerCreateParams) error); ok {
+		r1 = rf(params)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockClusterClient_ClusterPeerAccept_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'ClusterPeerAccept'
+type MockClusterClient_ClusterPeerAccept_Call struct {
+	*mock.Call
+}
+
+// ClusterPeerAccept is a helper method to define mock.On call
+//   - params ClusterPeerCreateParams
+func (_e *MockClusterClient_Expecter) ClusterPeerAccept(params interface{}) *MockClusterClient_ClusterPeerAccept_Call {
+	return &MockClusterClient_ClusterPeerAccept_Call{Call: _e.mock.On("ClusterPeerAccept", params)}
+}
+
+func (_c *MockClusterClient_ClusterPeerAccept_Call) Run(run func(params ClusterPeerCreateParams)) *MockClusterClient_ClusterPeerAccept_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(ClusterPeerCreateParams))
+	})
+	return _c
+}
+
+func (_c *MockClusterClient_ClusterPeerAccept_Call) Return(_a0 *ClusterPeerCreateResponse, _a1 error) *MockClusterClient_ClusterPeerAccept_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockClusterClient_ClusterPeerAccept_Call) RunAndReturn(run func(ClusterPeerCreateParams) (*ClusterPeerCreateResponse, error)) *MockClusterClient_ClusterPeerAccept_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // ClusterPeerCreate provides a mock function with given fields: params
 func (_m *MockClusterClient) ClusterPeerCreate(params ClusterPeerCreateParams) (*ClusterPeerCreateResponse, error) {
 	ret := _m.Called(params)

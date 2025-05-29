@@ -946,12 +946,12 @@ func (s *ClusterPeerV1) SetFake() {
 	}
 	{
 		{
-			s.PeerClusterName.SetFake()
+			s.PeerClusterName = "string"
 		}
 	}
 	{
 		{
-			s.Passphrase.SetFake()
+			s.Passphrase = "string"
 		}
 	}
 	{
@@ -979,6 +979,11 @@ func (s *ClusterPeerV1) SetFake() {
 				}
 				s.Jobs = append(s.Jobs, elem)
 			}
+		}
+	}
+	{
+		{
+			s.PoolUUID = "string"
 		}
 	}
 }
@@ -6350,6 +6355,78 @@ func (s *V1betaGetMultipleVolumesUnprocessableEntity) SetFake() {
 }
 
 // SetFake set fake values.
+func (s *V1betaInternalAcceptClusterPeerBadRequest) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaInternalAcceptClusterPeerBadRequest(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaInternalAcceptClusterPeerConflict) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaInternalAcceptClusterPeerConflict(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaInternalAcceptClusterPeerForbidden) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaInternalAcceptClusterPeerForbidden(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaInternalAcceptClusterPeerInternalServerError) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaInternalAcceptClusterPeerInternalServerError(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaInternalAcceptClusterPeerMethodNotAllowed) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaInternalAcceptClusterPeerMethodNotAllowed(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaInternalAcceptClusterPeerNotFound) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaInternalAcceptClusterPeerNotFound(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaInternalAcceptClusterPeerUnauthorized) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaInternalAcceptClusterPeerUnauthorized(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaInternalAcceptClusterPeerUnprocessableEntity) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaInternalAcceptClusterPeerUnprocessableEntity(unwrapped)
+}
+
+// SetFake set fake values.
 func (s *V1betaInternalAuthorizeVolumeReplicationBadRequest) SetFake() {
 	var unwrapped Error
 	{
@@ -6419,78 +6496,6 @@ func (s *V1betaInternalAuthorizeVolumeReplicationUnprocessableEntity) SetFake() 
 		unwrapped.SetFake()
 	}
 	*s = V1betaInternalAuthorizeVolumeReplicationUnprocessableEntity(unwrapped)
-}
-
-// SetFake set fake values.
-func (s *V1betaInternalCreateClusterPeerBadRequest) SetFake() {
-	var unwrapped Error
-	{
-		unwrapped.SetFake()
-	}
-	*s = V1betaInternalCreateClusterPeerBadRequest(unwrapped)
-}
-
-// SetFake set fake values.
-func (s *V1betaInternalCreateClusterPeerConflict) SetFake() {
-	var unwrapped Error
-	{
-		unwrapped.SetFake()
-	}
-	*s = V1betaInternalCreateClusterPeerConflict(unwrapped)
-}
-
-// SetFake set fake values.
-func (s *V1betaInternalCreateClusterPeerForbidden) SetFake() {
-	var unwrapped Error
-	{
-		unwrapped.SetFake()
-	}
-	*s = V1betaInternalCreateClusterPeerForbidden(unwrapped)
-}
-
-// SetFake set fake values.
-func (s *V1betaInternalCreateClusterPeerInternalServerError) SetFake() {
-	var unwrapped Error
-	{
-		unwrapped.SetFake()
-	}
-	*s = V1betaInternalCreateClusterPeerInternalServerError(unwrapped)
-}
-
-// SetFake set fake values.
-func (s *V1betaInternalCreateClusterPeerMethodNotAllowed) SetFake() {
-	var unwrapped Error
-	{
-		unwrapped.SetFake()
-	}
-	*s = V1betaInternalCreateClusterPeerMethodNotAllowed(unwrapped)
-}
-
-// SetFake set fake values.
-func (s *V1betaInternalCreateClusterPeerNotFound) SetFake() {
-	var unwrapped Error
-	{
-		unwrapped.SetFake()
-	}
-	*s = V1betaInternalCreateClusterPeerNotFound(unwrapped)
-}
-
-// SetFake set fake values.
-func (s *V1betaInternalCreateClusterPeerUnauthorized) SetFake() {
-	var unwrapped Error
-	{
-		unwrapped.SetFake()
-	}
-	*s = V1betaInternalCreateClusterPeerUnauthorized(unwrapped)
-}
-
-// SetFake set fake values.
-func (s *V1betaInternalCreateClusterPeerUnprocessableEntity) SetFake() {
-	var unwrapped Error
-	{
-		unwrapped.SetFake()
-	}
-	*s = V1betaInternalCreateClusterPeerUnprocessableEntity(unwrapped)
 }
 
 // SetFake set fake values.

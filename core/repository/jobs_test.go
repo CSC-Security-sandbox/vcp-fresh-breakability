@@ -123,7 +123,7 @@ func TestUpdateJob(t *testing.T) {
 
 		_, err = store.CreateJob(context.Background(), job)
 		assert.NoError(tt, err, "Failed to create job: %v", err)
-		err = store.UpdateJob(context.Background(), job.UUID, models.LifeCycleStateREADY)
+		err = store.UpdateJob(context.Background(), job.UUID, models.LifeCycleStateREADY, nil)
 		assert.NoError(tt, err, "Failed to update job: %v", err)
 		updatedJob, err := store.GetJob(context.Background(), job.UUID)
 		assert.NoError(tt, err, "Expected no error, got %v", err)

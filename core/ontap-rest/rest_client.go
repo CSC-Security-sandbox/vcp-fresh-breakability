@@ -92,7 +92,7 @@ func NewClient(params RESTClientParams) RESTClient {
 	rc = &restClient{
 		httpRoundTripperTransport: httpRoundTripperTransport,
 		params:                    params,
-		cluster:                   &clusterClient{api: api.Cluster},
+		cluster:                   &clusterClient{api: api.Cluster, apiPriv: &apiPriv.Operations},
 		svm:                       &svmClient{api: api.Svm, apiPriv: &apiPriv.Operations},
 		networking:                &networkingClient{api: api.Networking, apiPriv: &apiPriv.Operations},
 		storage:                   &storageClient{api: api.Storage},

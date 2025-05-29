@@ -1,6 +1,12 @@
 package common
 
-import "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
+import (
+	"time"
+
+	"github.com/go-openapi/strfmt"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
+)
 
 // CreatePoolParams describes parameters supplied to CreatingPool
 type CreatePoolParams struct {
@@ -89,4 +95,30 @@ type CreateSnapshotParams struct {
 type GetSnapshotParams struct {
 	SnapshotBaseParams
 	SnapshotUUID string
+}
+
+type ClusterPeerParams struct {
+	PeerAddresses       []string
+	PeerName            string
+	AccountName         string
+	InterclusterLifList []string
+	ExpiryTime          *time.Time
+	GeneratePassphrase  bool
+	Passphrase          *string
+	UUID                string
+}
+
+type ClusterPeer struct {
+	UUID                string
+	PeerAddresses       []string
+	PeerClusterName     string
+	Availability        string
+	AuthenticationState string
+	Passphrase          *log.Secret
+	IPSpace             string
+	ExternalUUID        string
+	HostUUID            string
+	AccountUUID         string
+	AccountName         string
+	ExpiryTime          *strfmt.DateTime
 }

@@ -7,6 +7,8 @@ import (
 
 	common "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 
+	datamodel "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
+
 	mock "github.com/stretchr/testify/mock"
 
 	models "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
@@ -23,6 +25,75 @@ type MockOrchestratorFactory_Expecter struct {
 
 func (_m *MockOrchestratorFactory) EXPECT() *MockOrchestratorFactory_Expecter {
 	return &MockOrchestratorFactory_Expecter{mock: &_m.Mock}
+}
+
+// AcceptClusterPeer provides a mock function with given fields: ctx, params, poolID
+func (_m *MockOrchestratorFactory) AcceptClusterPeer(ctx context.Context, params *common.ClusterPeerParams, poolID string) (*common.ClusterPeerParams, *datamodel.Job, error) {
+	ret := _m.Called(ctx, params, poolID)
+
+	if len(ret) == 0 {
+		panic("no return value specified for AcceptClusterPeer")
+	}
+
+	var r0 *common.ClusterPeerParams
+	var r1 *datamodel.Job
+	var r2 error
+	if rf, ok := ret.Get(0).(func(context.Context, *common.ClusterPeerParams, string) (*common.ClusterPeerParams, *datamodel.Job, error)); ok {
+		return rf(ctx, params, poolID)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, *common.ClusterPeerParams, string) *common.ClusterPeerParams); ok {
+		r0 = rf(ctx, params, poolID)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*common.ClusterPeerParams)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, *common.ClusterPeerParams, string) *datamodel.Job); ok {
+		r1 = rf(ctx, params, poolID)
+	} else {
+		if ret.Get(1) != nil {
+			r1 = ret.Get(1).(*datamodel.Job)
+		}
+	}
+
+	if rf, ok := ret.Get(2).(func(context.Context, *common.ClusterPeerParams, string) error); ok {
+		r2 = rf(ctx, params, poolID)
+	} else {
+		r2 = ret.Error(2)
+	}
+
+	return r0, r1, r2
+}
+
+// MockOrchestratorFactory_AcceptClusterPeer_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'AcceptClusterPeer'
+type MockOrchestratorFactory_AcceptClusterPeer_Call struct {
+	*mock.Call
+}
+
+// AcceptClusterPeer is a helper method to define mock.On call
+//   - ctx context.Context
+//   - params *common.ClusterPeerParams
+//   - poolID string
+func (_e *MockOrchestratorFactory_Expecter) AcceptClusterPeer(ctx interface{}, params interface{}, poolID interface{}) *MockOrchestratorFactory_AcceptClusterPeer_Call {
+	return &MockOrchestratorFactory_AcceptClusterPeer_Call{Call: _e.mock.On("AcceptClusterPeer", ctx, params, poolID)}
+}
+
+func (_c *MockOrchestratorFactory_AcceptClusterPeer_Call) Run(run func(ctx context.Context, params *common.ClusterPeerParams, poolID string)) *MockOrchestratorFactory_AcceptClusterPeer_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(*common.ClusterPeerParams), args[2].(string))
+	})
+	return _c
+}
+
+func (_c *MockOrchestratorFactory_AcceptClusterPeer_Call) Return(_a0 *common.ClusterPeerParams, _a1 *datamodel.Job, _a2 error) *MockOrchestratorFactory_AcceptClusterPeer_Call {
+	_c.Call.Return(_a0, _a1, _a2)
+	return _c
+}
+
+func (_c *MockOrchestratorFactory_AcceptClusterPeer_Call) RunAndReturn(run func(context.Context, *common.ClusterPeerParams, string) (*common.ClusterPeerParams, *datamodel.Job, error)) *MockOrchestratorFactory_AcceptClusterPeer_Call {
+	_c.Call.Return(run)
+	return _c
 }
 
 // CreateHostGroup provides a mock function with given fields: ctx, params

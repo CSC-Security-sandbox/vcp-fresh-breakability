@@ -70,7 +70,7 @@ func TestClusterPeerCreate(t *testing.T) {
 	t.Run("WhenRESTCallFails", func(tt *testing.T) {
 		transport := &mockTransport{err: errors.New("something went wrong")}
 		clust := securitypriv.New(transport, nil)
-		client := &clusterClient{apiPriv: clust}
+		client := &clusterClient{apiPriv: &clust}
 		response, err := client.ClusterPeerCreate(ClusterPeerCreateParams{})
 		assert.EqualError(tt, err, transport.err.Error())
 		assert.Nil(tt, response)
@@ -98,11 +98,54 @@ func TestClusterPeerCreate(t *testing.T) {
 			},
 		}}
 		clust := securitypriv.New(transport, nil)
-		client := &clusterClient{apiPriv: clust}
+		client := &clusterClient{apiPriv: &clust}
 		response, err := client.ClusterPeerCreate(ClusterPeerCreateParams{
 			Name:               "cluster",
 			IPAddresses:        ipAddresses,
 			GeneratePassphrase: true,
+		})
+		assert.NoError(tt, err)
+		assert.NotNil(tt, response)
+	})
+}
+
+func TestClusterPeerAccept(t *testing.T) {
+	t.Run("WhenRESTCallFails", func(tt *testing.T) {
+		transport := &mockTransport{err: errors.New("something went wrong")}
+		clust := securitypriv.New(transport, nil)
+		client := &clusterClient{apiPriv: &clust}
+		response, err := client.ClusterPeerAccept(ClusterPeerCreateParams{})
+		assert.EqualError(tt, err, transport.err.Error())
+		assert.Nil(tt, response)
+	})
+	t.Run("WhenSuccessful", func(tt *testing.T) {
+		links := privmodels.ClusterPeerSetupResponseInlineLinks{
+			Self: nil,
+		}
+		passphrase := "test"
+		ipAddresses := []string{"1.2.3.4"}
+		transport := &mockTransport{response: &securitypriv.ClusterPeerCreateCreated{
+			Payload: &privmodels.ClusterPeerSetupResponse{
+				NumRecords: nillable.ToPointer(int64(1)),
+				ClusterPeerResponseInlineRecords: []*privmodels.ClusterPeerSetupRecord{
+					{
+						Links: &links,
+						Authentication: &privmodels.ClusterPeerSetupResponseInlineAuthentication{
+							ExpiryTime: nil,
+							Passphrase: &passphrase,
+						},
+						IPAddress: nil,
+						Name:      nil,
+					},
+				},
+			},
+		}}
+		clust := securitypriv.New(transport, nil)
+		client := &clusterClient{apiPriv: &clust}
+		response, err := client.ClusterPeerAccept(ClusterPeerCreateParams{
+			Name:               "cluster",
+			IPAddresses:        ipAddresses,
+			GeneratePassphrase: false,
 		})
 		assert.NoError(tt, err)
 		assert.NotNil(tt, response)

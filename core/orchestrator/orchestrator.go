@@ -2,11 +2,12 @@ package orchestrator
 
 import (
 	"context"
+	"go.temporal.io/sdk/client"
 
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	commonparams "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database"
-	"go.temporal.io/sdk/client"
 )
 
 type OrchestratorFactory interface {
@@ -27,6 +28,8 @@ type OrchestratorFactory interface {
 	GetVolume(ctx context.Context, volumeId string) (*models.Volume, error)
 	DeleteVolume(ctx context.Context, volumeId string) (*models.Volume, string, error)
 	GetMultipleVolumes(ctx context.Context, volumeIds []string, accountName string) ([]*models.Volume, error)
+
+	AcceptClusterPeer(ctx context.Context, params *commonparams.ClusterPeerParams, poolID string) (*commonparams.ClusterPeerParams, *datamodel.Job, error)
 
 	GetJob(ctx context.Context, operationId string) (*models.Job, error)
 

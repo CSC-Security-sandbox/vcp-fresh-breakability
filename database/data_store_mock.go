@@ -2518,17 +2518,17 @@ func (_c *MockDataStore_UpdateHostGroupsState_Call) RunAndReturn(run func(contex
 	return _c
 }
 
-// UpdateJob provides a mock function with given fields: ctx, jobID, status
-func (_m *MockDataStore) UpdateJob(ctx context.Context, jobID string, status string) error {
-	ret := _m.Called(ctx, jobID, status)
+// UpdateJob provides a mock function with given fields: ctx, jobID, status, errorDetails
+func (_m *MockDataStore) UpdateJob(ctx context.Context, jobID string, status string, errorDetails []byte) error {
+	ret := _m.Called(ctx, jobID, status, errorDetails)
 
 	if len(ret) == 0 {
 		panic("no return value specified for UpdateJob")
 	}
 
 	var r0 error
-	if rf, ok := ret.Get(0).(func(context.Context, string, string) error); ok {
-		r0 = rf(ctx, jobID, status)
+	if rf, ok := ret.Get(0).(func(context.Context, string, string, []byte) error); ok {
+		r0 = rf(ctx, jobID, status, errorDetails)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -2545,13 +2545,14 @@ type MockDataStore_UpdateJob_Call struct {
 //   - ctx context.Context
 //   - jobID string
 //   - status string
-func (_e *MockDataStore_Expecter) UpdateJob(ctx interface{}, jobID interface{}, status interface{}) *MockDataStore_UpdateJob_Call {
-	return &MockDataStore_UpdateJob_Call{Call: _e.mock.On("UpdateJob", ctx, jobID, status)}
+//   - errorDetails []byte
+func (_e *MockDataStore_Expecter) UpdateJob(ctx interface{}, jobID interface{}, status interface{}, errorDetails interface{}) *MockDataStore_UpdateJob_Call {
+	return &MockDataStore_UpdateJob_Call{Call: _e.mock.On("UpdateJob", ctx, jobID, status, errorDetails)}
 }
 
-func (_c *MockDataStore_UpdateJob_Call) Run(run func(ctx context.Context, jobID string, status string)) *MockDataStore_UpdateJob_Call {
+func (_c *MockDataStore_UpdateJob_Call) Run(run func(ctx context.Context, jobID string, status string, errorDetails []byte)) *MockDataStore_UpdateJob_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context), args[1].(string), args[2].(string))
+		run(args[0].(context.Context), args[1].(string), args[2].(string), args[3].([]byte))
 	})
 	return _c
 }
@@ -2561,7 +2562,7 @@ func (_c *MockDataStore_UpdateJob_Call) Return(_a0 error) *MockDataStore_UpdateJ
 	return _c
 }
 
-func (_c *MockDataStore_UpdateJob_Call) RunAndReturn(run func(context.Context, string, string) error) *MockDataStore_UpdateJob_Call {
+func (_c *MockDataStore_UpdateJob_Call) RunAndReturn(run func(context.Context, string, string, []byte) error) *MockDataStore_UpdateJob_Call {
 	_c.Call.Return(run)
 	return _c
 }

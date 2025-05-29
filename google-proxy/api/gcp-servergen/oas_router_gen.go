@@ -159,7 +159,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 									// Leaf node.
 									switch r.Method {
 									case "POST":
-										s.handleV1betaInternalCreateClusterPeerRequest([2]string{
+										s.handleV1betaInternalAcceptClusterPeerRequest([2]string{
 											args[0],
 											args[1],
 										}, elemIsEscaped, w, r)
@@ -1821,9 +1821,9 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 									// Leaf node.
 									switch method {
 									case "POST":
-										r.name = V1betaInternalCreateClusterPeerOperation
-										r.summary = "Create a new cluster peer"
-										r.operationID = "v1beta_internalCreateClusterPeer"
+										r.name = V1betaInternalAcceptClusterPeerOperation
+										r.summary = "Accept a new cluster peer"
+										r.operationID = "v1beta_internalAcceptClusterPeer"
 										r.pathPattern = "/v1beta/internal/projects/{projectNumber}/locations/{locationId}/clusterPeer"
 										r.args = args
 										r.count = 2

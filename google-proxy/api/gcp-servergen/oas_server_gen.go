@@ -237,18 +237,18 @@ type Handler interface {
 	//
 	// POST /v1beta/projects/{projectNumber}/locations/{locationId}/getMultipleVolumes
 	V1betaGetMultipleVolumes(ctx context.Context, req *VolumeIdListV1beta, params V1betaGetMultipleVolumesParams) (V1betaGetMultipleVolumesRes, error)
+	// V1betaInternalAcceptClusterPeer implements v1beta_internalAcceptClusterPeer operation.
+	//
+	// Accept a new cluster peer.
+	//
+	// POST /v1beta/internal/projects/{projectNumber}/locations/{locationId}/clusterPeer
+	V1betaInternalAcceptClusterPeer(ctx context.Context, req *ClusterPeerV1, params V1betaInternalAcceptClusterPeerParams) (V1betaInternalAcceptClusterPeerRes, error)
 	// V1betaInternalAuthorizeVolumeReplication implements v1beta_internalAuthorizeVolumeReplication operation.
 	//
 	// Authorize a volume replication on the source.
 	//
 	// POST /v1beta/internal/projects/{projectNumber}/locations/{locationId}/volumeReplication/authorize
 	V1betaInternalAuthorizeVolumeReplication(ctx context.Context, req *VolumeReplicationCreateInternalV1beta, params V1betaInternalAuthorizeVolumeReplicationParams) (V1betaInternalAuthorizeVolumeReplicationRes, error)
-	// V1betaInternalCreateClusterPeer implements v1beta_internalCreateClusterPeer operation.
-	//
-	// Create a new cluster peer.
-	//
-	// POST /v1beta/internal/projects/{projectNumber}/locations/{locationId}/clusterPeer
-	V1betaInternalCreateClusterPeer(ctx context.Context, req *ClusterPeerV1, params V1betaInternalCreateClusterPeerParams) (V1betaInternalCreateClusterPeerRes, error)
 	// V1betaInternalCreateVolumeReplication implements v1beta_internalCreateVolumeReplication operation.
 	//
 	// Create a new volume replication.

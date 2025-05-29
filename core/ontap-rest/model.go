@@ -1976,11 +1976,17 @@ func convertClusterPeerCreateFromREST(created *priv.ClusterPeerCreateCreated) *C
 
 		uuid = parts[len(parts)-1]
 	}
-	return &ClusterPeerCreateResponse{
-		GeneratedPassphrase: created.Payload.ClusterPeerResponseInlineRecords[0].Authentication.Passphrase,
-		ClusterPeerUUID:     uuid,
-		ExpiryTime:          created.Payload.ClusterPeerResponseInlineRecords[0].Authentication.ExpiryTime,
+
+	clusterPeerResponse := &ClusterPeerCreateResponse{
+		ClusterPeerUUID: uuid,
 	}
+	if created.Payload.ClusterPeerResponseInlineRecords[0].Authentication != nil && created.Payload.ClusterPeerResponseInlineRecords[0].Authentication.Passphrase != nil {
+		clusterPeerResponse.GeneratedPassphrase = created.Payload.ClusterPeerResponseInlineRecords[0].Authentication.Passphrase
+	}
+	if created.Payload.ClusterPeerResponseInlineRecords[0].Authentication != nil && created.Payload.ClusterPeerResponseInlineRecords[0].Authentication.ExpiryTime != nil {
+		clusterPeerResponse.ExpiryTime = created.Payload.ClusterPeerResponseInlineRecords[0].Authentication.ExpiryTime
+	}
+	return clusterPeerResponse
 }
 
 func clusterPeerIDToONTAPDelete(clusterPeerID string, timeout time.Duration) *cluster.ClusterPeerDeleteParams {
@@ -2024,7 +2030,6 @@ func clusterPeerToONTAPCreate(params ClusterPeerCreateParams) *priv.ClusterPeerC
 	for _, address := range params.IPAddresses {
 		ipAddresses = append(ipAddresses, nillable.ToPointer(privmodels.IPAddress(address)))
 	}
-	generatePassphrase := true
 
 	clusterPeer := &privmodels.ClusterPeer{
 		Name: &params.Name,
@@ -2032,10 +2037,36 @@ func clusterPeerToONTAPCreate(params ClusterPeerCreateParams) *priv.ClusterPeerC
 			IPAddresses: ipAddresses,
 		},
 		Authentication: &privmodels.ClusterPeerInlineAuthentication{
-			GeneratePassphrase: &generatePassphrase,
+			GeneratePassphrase: &params.GeneratePassphrase,
 			ExpiryTime:         params.ExpiryTime,
+			Passphrase:         params.Passphrase,
 		},
-		LocalRole: nillable.ToPointer("external-peer"),
+		Ipspace: &privmodels.ClusterPeerInlineIpspace{
+			Name: &params.IPSpace,
+		},
+	}
+
+	otParams.SetReturnRecords(nillable.ToPointer(true))
+	otParams.SetInfo(clusterPeer)
+	return otParams
+}
+
+func clusterPeerToONTAPAccept(params ClusterPeerCreateParams) *priv.ClusterPeerCreateParams {
+	otParams := priv.NewClusterPeerCreateParams()
+	var ipAddresses []*privmodels.IPAddress
+	for _, address := range params.IPAddresses {
+		ipAddresses = append(ipAddresses, nillable.ToPointer(privmodels.IPAddress(address)))
+	}
+
+	clusterPeer := &privmodels.ClusterPeer{
+		Name: &params.Name,
+		Remote: &privmodels.ClusterPeerInlineRemote{
+			IPAddresses: ipAddresses,
+		},
+		Authentication: &privmodels.ClusterPeerInlineAuthentication{
+			ExpiryTime: params.ExpiryTime,
+			Passphrase: params.Passphrase,
+		},
 		Ipspace: &privmodels.ClusterPeerInlineIpspace{
 			Name: &params.IPSpace,
 		},

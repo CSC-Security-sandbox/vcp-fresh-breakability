@@ -45,11 +45,12 @@ func (rc *OntapRestProvider) AcceptClusterPeer(params CreateClusterPeerParams) (
 		IPAddresses:        params.PeerAddresses,
 		Name:               params.PeerName,
 		GeneratePassphrase: false,
-		IPSpace:            params.IPSpace,
 		Passphrase:         params.Passphrase,
+		ExpiryTime:         convertToOntapTime(params.ExpiryTime),
+		IPSpace:            params.IPSpace,
 	}
 	client := getOntapClientFunc(rc.ClientParams)
-	createdClusterPeer, err := client.Cluster().ClusterPeerCreate(createParams)
+	createdClusterPeer, err := client.Cluster().ClusterPeerAccept(createParams)
 	if err != nil {
 		return nil, err
 	}

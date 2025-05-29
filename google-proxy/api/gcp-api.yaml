@@ -4155,9 +4155,9 @@ paths:
       x-codegen-request-body-name: body
   /v1beta/internal/projects/{projectNumber}/locations/{locationId}/clusterPeer:
     post:
-      operationId: v1beta_internalCreateClusterPeer
-      summary: Create a new cluster peer
-      description: Create a new cluster peer.
+      operationId: v1beta_internalAcceptClusterPeer
+      summary: Accept a new cluster peer
+      description: Accept a new cluster peer.
       tags:
         - v1Beta_internal
       parameters:
@@ -4165,7 +4165,7 @@ paths:
         - $ref: '#/components/parameters/locationIdPathParameter'
         - $ref: '#/components/parameters/xCorrelationIdHeader'
       requestBody:
-        description: The parameters to create a new cluster peer.
+        description: The parameters to create a accept cluster peer.
         content:
           application/json:
             schema:
@@ -4173,7 +4173,7 @@ paths:
         required: true
       responses:
         '201':
-          description: Created cluster peer
+          description: Accepted cluster peer
           content:
             application/json:
               schema:
@@ -4812,6 +4812,11 @@ components:
     ClusterPeer_v1:
       title: ClusterPeer
       type: object
+      required:
+        - peerAddresses
+        - peerClusterName
+        - passphrase
+        - poolUUID
       properties:
         uuid:
           title: uuid
@@ -4839,7 +4844,7 @@ components:
         passphrase:
           title: passphrase
           type: string
-          nullable: true
+          nullable: false
           description: The generated passphrase used to accept peering on the peer cluster
           example: "abcd1234"
         expiryTime:
@@ -4877,6 +4882,15 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/Job_v1beta'
+        poolUUID:
+          title: poolUUID
+          type: string
+          readOnly: true
+          description: Uuid v4 used to identify a resource
+          pattern: "^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$"
+          maxLength: 36
+          minLength: 36
+          example: "87654321-4638-11e7-9bdb-123456789012"
     PoolInternal_v1beta:
       title: PoolInternal
       allOf:
@@ -5538,9 +5552,9 @@ components:
           x-omitempty: true
         creationToken:
           title: creationToken
-#          maxLength: 80
-#          minLength: 0
-#          pattern: "^[a-zA-Z][a-zA-Z0-9\\-_]{0,79}$"
+          #          maxLength: 80
+          #          minLength: 0
+          #          pattern: "^[a-zA-Z][a-zA-Z0-9\\-_]{0,79}$"
           type: string
           description: A creation token must be supplied by the caller and is used
             by the API to ensure idempotent creation of a volume. Subsequent calls

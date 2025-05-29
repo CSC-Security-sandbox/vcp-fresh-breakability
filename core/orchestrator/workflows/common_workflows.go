@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
@@ -111,4 +112,13 @@ func (bw *BaseWorkflow) UpdateJobStatus(ctx workflow.Context, status string, err
 		ScheduleToCloseTimeout: 10 * time.Second,
 	})
 	return workflow.ExecuteActivity(ctx, commonActivity.UpdateJobStatus, updatedJob).Get(ctx, nil)
+}
+
+func createNodeForProviderWithPool(dbNode *datamodel.Node, pool *datamodel.Pool) *models.Node {
+	node := &models.Node{
+		EndpointAddress: dbNode.EndpointAddress,
+		Username:        pool.Username,
+		Password:        pool.Password,
+	}
+	return node
 }

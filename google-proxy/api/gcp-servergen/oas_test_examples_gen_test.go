@@ -6136,6 +6136,102 @@ func TestV1betaGetMultipleVolumesUnprocessableEntity_EncodeDecode(t *testing.T) 
 	var typ2 V1betaGetMultipleVolumesUnprocessableEntity
 	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
 }
+func TestV1betaInternalAcceptClusterPeerBadRequest_EncodeDecode(t *testing.T) {
+	var typ V1betaInternalAcceptClusterPeerBadRequest
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaInternalAcceptClusterPeerBadRequest
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1betaInternalAcceptClusterPeerConflict_EncodeDecode(t *testing.T) {
+	var typ V1betaInternalAcceptClusterPeerConflict
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaInternalAcceptClusterPeerConflict
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1betaInternalAcceptClusterPeerForbidden_EncodeDecode(t *testing.T) {
+	var typ V1betaInternalAcceptClusterPeerForbidden
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaInternalAcceptClusterPeerForbidden
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1betaInternalAcceptClusterPeerInternalServerError_EncodeDecode(t *testing.T) {
+	var typ V1betaInternalAcceptClusterPeerInternalServerError
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaInternalAcceptClusterPeerInternalServerError
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1betaInternalAcceptClusterPeerMethodNotAllowed_EncodeDecode(t *testing.T) {
+	var typ V1betaInternalAcceptClusterPeerMethodNotAllowed
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaInternalAcceptClusterPeerMethodNotAllowed
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1betaInternalAcceptClusterPeerNotFound_EncodeDecode(t *testing.T) {
+	var typ V1betaInternalAcceptClusterPeerNotFound
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaInternalAcceptClusterPeerNotFound
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1betaInternalAcceptClusterPeerUnauthorized_EncodeDecode(t *testing.T) {
+	var typ V1betaInternalAcceptClusterPeerUnauthorized
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaInternalAcceptClusterPeerUnauthorized
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1betaInternalAcceptClusterPeerUnprocessableEntity_EncodeDecode(t *testing.T) {
+	var typ V1betaInternalAcceptClusterPeerUnprocessableEntity
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaInternalAcceptClusterPeerUnprocessableEntity
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
 func TestV1betaInternalAuthorizeVolumeReplicationBadRequest_EncodeDecode(t *testing.T) {
 	var typ V1betaInternalAuthorizeVolumeReplicationBadRequest
 	typ.SetFake()
@@ -6230,102 +6326,6 @@ func TestV1betaInternalAuthorizeVolumeReplicationUnprocessableEntity_EncodeDecod
 	require.True(t, std.Valid(data), "Encoded: %s", data)
 
 	var typ2 V1betaInternalAuthorizeVolumeReplicationUnprocessableEntity
-	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
-}
-func TestV1betaInternalCreateClusterPeerBadRequest_EncodeDecode(t *testing.T) {
-	var typ V1betaInternalCreateClusterPeerBadRequest
-	typ.SetFake()
-
-	e := jx.Encoder{}
-	typ.Encode(&e)
-	data := e.Bytes()
-	require.True(t, std.Valid(data), "Encoded: %s", data)
-
-	var typ2 V1betaInternalCreateClusterPeerBadRequest
-	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
-}
-func TestV1betaInternalCreateClusterPeerConflict_EncodeDecode(t *testing.T) {
-	var typ V1betaInternalCreateClusterPeerConflict
-	typ.SetFake()
-
-	e := jx.Encoder{}
-	typ.Encode(&e)
-	data := e.Bytes()
-	require.True(t, std.Valid(data), "Encoded: %s", data)
-
-	var typ2 V1betaInternalCreateClusterPeerConflict
-	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
-}
-func TestV1betaInternalCreateClusterPeerForbidden_EncodeDecode(t *testing.T) {
-	var typ V1betaInternalCreateClusterPeerForbidden
-	typ.SetFake()
-
-	e := jx.Encoder{}
-	typ.Encode(&e)
-	data := e.Bytes()
-	require.True(t, std.Valid(data), "Encoded: %s", data)
-
-	var typ2 V1betaInternalCreateClusterPeerForbidden
-	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
-}
-func TestV1betaInternalCreateClusterPeerInternalServerError_EncodeDecode(t *testing.T) {
-	var typ V1betaInternalCreateClusterPeerInternalServerError
-	typ.SetFake()
-
-	e := jx.Encoder{}
-	typ.Encode(&e)
-	data := e.Bytes()
-	require.True(t, std.Valid(data), "Encoded: %s", data)
-
-	var typ2 V1betaInternalCreateClusterPeerInternalServerError
-	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
-}
-func TestV1betaInternalCreateClusterPeerMethodNotAllowed_EncodeDecode(t *testing.T) {
-	var typ V1betaInternalCreateClusterPeerMethodNotAllowed
-	typ.SetFake()
-
-	e := jx.Encoder{}
-	typ.Encode(&e)
-	data := e.Bytes()
-	require.True(t, std.Valid(data), "Encoded: %s", data)
-
-	var typ2 V1betaInternalCreateClusterPeerMethodNotAllowed
-	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
-}
-func TestV1betaInternalCreateClusterPeerNotFound_EncodeDecode(t *testing.T) {
-	var typ V1betaInternalCreateClusterPeerNotFound
-	typ.SetFake()
-
-	e := jx.Encoder{}
-	typ.Encode(&e)
-	data := e.Bytes()
-	require.True(t, std.Valid(data), "Encoded: %s", data)
-
-	var typ2 V1betaInternalCreateClusterPeerNotFound
-	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
-}
-func TestV1betaInternalCreateClusterPeerUnauthorized_EncodeDecode(t *testing.T) {
-	var typ V1betaInternalCreateClusterPeerUnauthorized
-	typ.SetFake()
-
-	e := jx.Encoder{}
-	typ.Encode(&e)
-	data := e.Bytes()
-	require.True(t, std.Valid(data), "Encoded: %s", data)
-
-	var typ2 V1betaInternalCreateClusterPeerUnauthorized
-	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
-}
-func TestV1betaInternalCreateClusterPeerUnprocessableEntity_EncodeDecode(t *testing.T) {
-	var typ V1betaInternalCreateClusterPeerUnprocessableEntity
-	typ.SetFake()
-
-	e := jx.Encoder{}
-	typ.Encode(&e)
-	data := e.Bytes()
-	require.True(t, std.Valid(data), "Encoded: %s", data)
-
-	var typ2 V1betaInternalCreateClusterPeerUnprocessableEntity
 	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
 }
 func TestV1betaInternalCreateVolumeReplicationBadRequest_EncodeDecode(t *testing.T) {
