@@ -44,7 +44,7 @@ func allowMerge() error {
 		os.Exit(1)
 	}
 
-	err = CheckIssueStatus(issue, "In Development", "Expected in state In Development.")
+	err = CheckIssueStatus(issue, []string{"In Development", "In Progress"}, "Expected in state In Development or In Progress.")
 	if err != nil {
 		log.Println(err)
 		os.Exit(1)

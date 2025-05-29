@@ -86,7 +86,7 @@ func checkLinkedIssuesStatus(issue *jira.Issue) error {
 			os.Exit(1)
 		}
 
-		err = CheckIssueStatus(linkedIssue, "Done", "Expected in state Done.")
+		err = CheckIssueStatus(linkedIssue, []string{"Done"}, "Expected in state Done.")
 		if err != nil {
 			log.Println(err)
 			os.Exit(1)

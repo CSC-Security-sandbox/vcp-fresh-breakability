@@ -84,14 +84,15 @@ func GetJiraIssue(jiraID string, client *jira.Client) (*jira.Issue, error) {
 	return issue, nil
 }
 
-func CheckIssueStatus(issue *jira.Issue, expectedStatus string, errorMessage string) error {
-	if issue.Fields.Status.Name == expectedStatus {
-		log.Printf("Issue %s is in the expected status: %s.\n", issue.Key, expectedStatus)
-	} else {
-		log.Printf("Issue %s is not in the expected status (Status: %s). %s\n", issue.Key, issue.Fields.Status.Name, errorMessage)
-		return fmt.Errorf("issue %s is not in the expected status: %s", issue.Key, expectedStatus)
+func CheckIssueStatus(issue *jira.Issue, expectedStatuses []string, errorMessage string) error {
+	for _, expectedStatus := range expectedStatuses {
+		if issue.Fields.Status.Name == expectedStatus {
+			log.Printf("Issue %s is in the expected status: %s.\n", issue.Key, expectedStatus)
+			return nil
+		}
 	}
-	return nil
+	log.Printf("Issue %s is not in the expected statuses (Status: %s). %s\n", issue.Key, issue.Fields.Status.Name, errorMessage)
+	return fmt.Errorf("Issue %s is not in the expected statuses: %v", issue.Key, expectedStatuses)
 }
 
 func UpdateJiraWithPayload(updatedPayload map[string]interface{}, issueID string, credentials ClientCredentials, baseURL string) error {
