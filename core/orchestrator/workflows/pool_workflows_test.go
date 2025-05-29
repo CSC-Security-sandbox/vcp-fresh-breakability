@@ -167,7 +167,7 @@ func Test_EnableAutoTier_Error_In_CreatePoolWorkflow(t *testing.T) {
 	env.OnActivity("SavePoolWithClusterDetails", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	env.OnActivity("CreateVSASVM", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	env.OnActivity("CreatedPool", mock.Anything, mock.Anything).Return(nil)
-	env.OnActivity("EnableAutoTiering", mock.Anything, mock.Anything, mock.Anything).Return(errors.New("Bucket Creation Failed"))
+	env.OnActivity("EnableAutoTiering", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(errors.New("Bucket Creation Failed"))
 
 	// Execute workflow
 	env.ExecuteWorkflow(CreatePoolWorkflow, params, pool)

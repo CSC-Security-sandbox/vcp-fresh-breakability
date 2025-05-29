@@ -304,6 +304,46 @@ func Test_CreateVSASVM_Success(t *testing.T) {
 	mockVlmClient.AssertExpectations(t)
 }
 
+func Test_CreateVSASVM_DBCreationError(t *testing.T) {
+	mockStorage := database.NewMockStorage(t)
+	mockVlmClient := new(vlm.MockClientFactory)
+	activity := activities.PoolActivity{SE: mockStorage}
+	getVLMClient := activities.GetVLMClient
+	defer func() {
+		activities.GetVLMClient = getVLMClient
+	}()
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	pool := &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: 1}, AccountID: 1}
+	vlmConfig := &vlmconfig.VLMConfig{
+		Deployment: vlmconfig.DeploymentConfig{DeploymentID: "test-deployment"},
+		Svm: map[string]vlmconfig.SvmConfig{
+			"test-deployment-datasvm-gcnv-default-svm": {
+				Svmname: "test-svm",
+				Svmuuid: "test-uuid",
+				SVMLIFs: map[vlmconfig.VSALIFType][]vlmconfig.LIFConfig{
+					vlmconfig.LIFTypeIscsi: {
+						{IP: "192.168.1.1/24", Name: "lif1"},
+					},
+				},
+			},
+		},
+	}
+
+	mockStorage.On("CreateSVM", ctx, mock.Anything).Return(&datamodel.Svm{}, errors.New("connection error"))
+	mockVlmClient.On("VSASVMCreate", ctx, mock.Anything).Return(nil)
+
+	activities.GetVLMClient = func(ctx context.Context, logger log.Logger, vlmConfig *vlmconfig.VLMConfig) vlm.ClientFactory {
+		return mockVlmClient
+	}
+
+	err := activity.CreateVSASVM(ctx, pool, vlmConfig)
+
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "connection error")
+	mockStorage.AssertExpectations(t)
+	mockVlmClient.AssertExpectations(t)
+}
+
 func Test_CreateVSASVM_FailsToCreateSVM(t *testing.T) {
 	mockStorage := database.NewMockStorage(t)
 	mockVlmClient := new(vlm.MockClientFactory)
@@ -446,6 +486,8 @@ func Test_CreateVSACluster_Success(t *testing.T) {
 }
 
 func Test_CreateVSACluster_FailsToPrepareConfig(t *testing.T) {
+	mockVlmClient := new(vlm.MockClientFactory)
+	cfg := &vlmconfig.VLMConfig{}
 	activity := activities.PoolActivity{}
 	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
 	prepareVLMConfig := activities.PrepareVlmConfig
@@ -456,6 +498,8 @@ func Test_CreateVSACluster_FailsToPrepareConfig(t *testing.T) {
 	activities.PrepareVlmConfig = func(cfg *vlmconfig.VLMConfig, deploymentName, region, zone, network, subnet, projectId, snHostProject string) error {
 		return errors.New("failed to prepare VLM config")
 	}
+
+	mockVlmClient.On("VSAClusterDeployGet", ctx, cfg).Return(prepareVLMConfig, nil)
 
 	result, err := activity.CreateVSACluster(ctx, "test-deployment", "test-region", "test-zone", "test-network", "test-subnet", "test-project", "test-sn-host-project", 1024)
 
@@ -1205,6 +1249,21 @@ func Test_DeleteNodesSkipsEmptyNodeList(t *testing.T) {
 	mockStorage.AssertExpectations(t)
 }
 
+func Test_DeleteNodesSkipsAlreadyDeletedNode(t *testing.T) {
+	mockStorage := database.NewMockStorage(t)
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	pool := &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: 1}}
+
+	mockStorage.On("GetNodesByPoolID", ctx, pool.ID).Return([]*datamodel.Node{
+		{BaseModel: datamodel.BaseModel{ID: 1, DeletedAt: &gorm.DeletedAt{Valid: true}}, Name: "node1"},
+	}, nil)
+
+	err := activities.DeleteNodes(ctx, mockStorage, pool)
+
+	assert.NoError(t, err)
+	mockStorage.AssertExpectations(t)
+}
+
 func Test_ReturnsErrorWhenNoSVMsFound(t *testing.T) {
 	mockStorage := database.NewMockStorage(t)
 	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
@@ -1242,12 +1301,11 @@ func Test_UpdatesAllSVMsToDeletingSuccessfully(t *testing.T) {
 	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
 	pool := &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: 1}}
 	svms := []*datamodel.Svm{
-		{Name: "svm1"},
+		{Name: "svm1", State: coremodel.LifeCycleStateDeleting},
 		{Name: "svm2"},
 	}
 
 	mockStorage.On("GetSvmsByPoolID", ctx, pool.ID).Return(svms, nil)
-	mockStorage.On("DeletingSVM", ctx, svms[0]).Return(nil)
 	mockStorage.On("DeletingSVM", ctx, svms[1]).Return(nil)
 
 	err := activities.DeletingSVMs(ctx, mockStorage, pool)
@@ -1261,12 +1319,11 @@ func Test_DeletingAllNodesSuccessfully(t *testing.T) {
 	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
 	pool := &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: 1}}
 	nodes := []*datamodel.Node{
-		{BaseModel: datamodel.BaseModel{ID: 1}, Name: "node1"},
+		{BaseModel: datamodel.BaseModel{ID: 1}, Name: "node1", State: coremodel.LifeCycleStateDeleting},
 		{BaseModel: datamodel.BaseModel{ID: 2}, Name: "node2"},
 	}
 
 	mockStorage.On("GetNodesByPoolID", ctx, pool.ID).Return(nodes, nil)
-	mockStorage.On("DeletingNode", ctx, nodes[0]).Return(nil)
 	mockStorage.On("DeletingNode", ctx, nodes[1]).Return(nil)
 
 	err := activities.DeletingNodes(ctx, mockStorage, pool)

@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"gorm.io/gorm"
 	"os"
 	"strings"
 	"time"
@@ -21,10 +22,10 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
+	utilErrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 	"google.golang.org/api/servicenetworking/v1"
-	"gorm.io/gorm"
 	"netapp.com/vsa/lifecycle-manager/pkg/vlmconfig"
 )
 
@@ -256,8 +257,10 @@ func (j *PoolActivity) CreateVSASVM(ctx context.Context, pool *datamodel.Pool, v
 		Name:      defaultSvmName,
 		VlmConfig: vlmConfig,
 	}
+
 	err := vlmClient.VSASVMCreate(ctx, svmParam)
-	if err != nil {
+	// If the SVM already exists, we can ignore the error and move forward
+	if err != nil && !strings.Contains(err.Error(), "already exists and is in use by a different VM") {
 		return err
 	}
 	name := vlmConfig.Deployment.DeploymentID + "-datasvm-" + defaultSvmName
@@ -272,7 +275,7 @@ func (j *PoolActivity) CreateVSASVM(ctx context.Context, pool *datamodel.Pool, v
 			IPSpace:      "Default",
 		},
 	}
-	if _, err = se.CreateSVM(ctx, svmRec); err != nil {
+	if _, err = se.CreateSVM(ctx, svmRec); err != nil && !utilErrors.IsConflictErr(err) {
 		return err
 	}
 
@@ -296,7 +299,8 @@ func (j *PoolActivity) CreateVSASVM(ctx context.Context, pool *datamodel.Pool, v
 			IPAddress:  ip,
 			SubnetMask: vsa.DefaultNetmask,
 		}
-		if _, err = se.CreateLif(ctx, lifRec); err != nil {
+
+		if _, err = se.CreateLif(ctx, lifRec); err != nil && !utilErrors.IsConflictErr(err) {
 			return err
 		}
 	}
@@ -396,6 +400,7 @@ func (j *PoolActivity) DeleteVSADeployment(ctx context.Context, pool *datamodel.
 		return nil, err
 	}
 	vlmClient := GetVLMClient(ctx, logger, cfg)
+
 	err = vlmClient.VSAClusterDeploymentDelete(ctx, cfg)
 	if err != nil {
 		return nil, err
@@ -444,7 +449,8 @@ func _saveNodeDetails(ctx context.Context, se database.Storage, vmConfig vlmconf
 		NodeAttributes:  &datamodel.NodeDetails{ExternalUUID: vsaNode.ExternalUUID, InstanceType: node.InstanceType},
 		ZoneName:        node.Zone,
 	}
-	if _, err = se.CreateNode(ctx, rec); err != nil {
+
+	if _, err = se.CreateNode(ctx, rec); err != nil && !utilErrors.IsConflictErr(err) {
 		return nil, err
 	}
 	return rec, nil
@@ -629,6 +635,10 @@ func _deletingSVMs(ctx context.Context, se database.Storage, pool *datamodel.Poo
 		return err
 	}
 	for _, svm := range svms {
+		// Check if the SVM is already marked for deletion
+		if svm.State == models.LifeCycleStateDeleting {
+			continue
+		}
 		if err = se.DeletingSVM(ctx, svm); err != nil {
 			return fmt.Errorf("failed to update SVM record to deleting %s: %w", svm.Name, err)
 		}
@@ -647,6 +657,10 @@ func _deletingNodes(ctx context.Context, se database.Storage, pool *datamodel.Po
 
 	// Delete each node
 	for _, node := range nodes {
+		// Check if the node is already marked for deletion
+		if node.State == models.LifeCycleStateDeleting {
+			continue
+		}
 		// Delete the node record from the database
 		if err := se.DeletingNode(ctx, node); err != nil {
 			return fmt.Errorf("failed to delete node record %s: %w", node.Name, err)
@@ -717,6 +731,10 @@ func _deleteNodes(ctx context.Context, se database.Storage, pool *datamodel.Pool
 
 	// Delete each node
 	for _, node := range nodes {
+		// Check if the node is already deleted
+		if node.DeletedAt != nil && node.DeletedAt.Valid {
+			continue
+		}
 		// Delete the node record from the database
 		if err := se.DeleteNode(ctx, node); err != nil {
 			return fmt.Errorf("failed to update node record to deleting %s: %w", node.Name, err)
