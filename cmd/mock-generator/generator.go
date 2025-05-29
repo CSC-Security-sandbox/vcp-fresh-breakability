@@ -10,6 +10,14 @@ import (
 	"text/template"
 )
 
+var (
+	generateFile        = _generateFile
+	writeTemplateToFile = _writeTemplateToFile
+	formatFile          = _formatFile
+)
+
+var execCommand = exec.Command
+
 func generateMock(srcFileName, interfaceName string) {
 	data := parseSource(srcFileName, interfaceName)
 	generateFile(fmt.Sprintf("%s_mock.go", toSnakeCase(interfaceName)), mockTemplate, data)
@@ -17,20 +25,20 @@ func generateMock(srcFileName, interfaceName string) {
 	log.Println("Code generation complete!")
 }
 
-func generateFile(fileName string, template *template.Template, data *templateData) {
+func _generateFile(fileName string, template *template.Template, data *templateData) {
 	log.Printf("Generating: %s\n", fileName)
 	writeTemplateToFile(fileName, template, data)
 	formatFile(fileName)
 }
 
-func writeTemplateToFile(fileName string, template *template.Template, data *templateData) {
+func _writeTemplateToFile(fileName string, template *template.Template, data *templateData) {
 	file, err := os.Create(fileName)
 	panicOnError(err)
 	defer func() { _ = file.Close() }()
 	panicOnError(template.Execute(file, *data))
 }
 
-func formatFile(fileName string) {
+func _formatFile(fileName string) {
 	log.Printf("Formatting: %s\n", fileName)
-	panicOnError(exec.Command("goimports", "-w", fileName).Run())
+	panicOnError(execCommand("goimports", "-w", fileName).Run())
 }

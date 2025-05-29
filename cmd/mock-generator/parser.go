@@ -13,6 +13,10 @@ import (
 	"strings"
 )
 
+var (
+	parseSource = _parseSource
+)
+
 type param struct {
 	Name       string
 	Type       string
@@ -138,7 +142,7 @@ func (v *funcVisitor) parseParam(field *ast.Field) *param {
 	return &param{Name: paramName, Type: paramType, AssertType: strings.Replace(paramType, "...", "[]", 1), Variant: strings.HasPrefix(paramType, "...")}
 }
 
-func parseSource(sourceFileName, interfaceName string) *templateData {
+func _parseSource(sourceFileName, interfaceName string) *templateData {
 	src := readSource(sourceFileName)
 	file, err := parser.ParseFile(token.NewFileSet(), sourceFileName, src, parser.AllErrors)
 	panicOnError(err)
