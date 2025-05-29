@@ -14,13 +14,12 @@ type SANClient interface { // generate:mock
 	IGroupsGet(params *IgroupGetParams) ([]*Igroup, error)
 	IGroupGet(params *IgroupGetParams) (*Igroup, error)
 	LunCreate(params *LunCreateParams) (*Lun, error)
-	LunGet(params *LunGetParams) ([]*Lun, error)
+	LunGet(params *LunGetParams) (*Lun, error)
 	LunMapCreate(params *LunMapCreateParams) error
 }
 
 var (
 	paginateIgroupCollectionGet = _paginate[[]*Igroup]
-	paginateLunCollectionGet    = _paginate[[]*Lun]
 )
 
 type sanClient struct {
@@ -79,36 +78,22 @@ func (t *sanClient) LunCreate(params *LunCreateParams) (*Lun, error) {
 	return &Lun{Lun: *created.Payload.LunResponseInlineRecords[0]}, nil
 }
 
-// LunGet invokes clients/ontap-rest/client/s_a_n/Client.LunCollectionGet to get a list of LUNs
-func (t *sanClient) LunGet(params *LunGetParams) ([]*Lun, error) {
-	otParams := lunGetParamsToONTAP(params)
-	var luns []*Lun
-	if err := paginateLunCollectionGet(func(next string) ([]*Lun, string, error) {
-		otParams.SetContext(setNext(otParams.Context, next))
-
-		rsp, err := t.api.LunCollectionGet(otParams, nil)
-		if err != nil {
-			return nil, "", err
-		}
-
-		resp := make([]*Lun, len(rsp.Payload.LunResponseInlineRecords))
-		for i, lun := range rsp.Payload.LunResponseInlineRecords {
-			resp[i] = &Lun{Lun: *lun}
-		}
-
-		if rsp.Payload.Links != nil && rsp.Payload.Links.Next != nil {
-			return resp, nillable.FromPointer(rsp.Payload.Links.Next.Href), nil
-		}
-
-		return resp, "", nil
-	}, func(l []*Lun) error {
-		luns = append(luns, l...)
-		return nil
-	}); err != nil {
+// LunGet invokes clients/ontap-rest/client/s_a_n/Client.LunCollectionGet to get a LUN
+func (t *sanClient) LunGet(params *LunGetParams) (*Lun, error) {
+	response, err := t.api.LunCollectionGet(lunGetParamsToONTAP(params), nil)
+	if err != nil {
 		return nil, err
 	}
 
-	return luns, nil
+	if len(response.Payload.LunResponseInlineRecords) == 0 {
+		return nil, errors.NewNotFoundErr("lun", nil)
+	}
+
+	if len(response.Payload.LunResponseInlineRecords) > 1 {
+		return nil, errors.New("unexpected response when querying lun")
+	}
+
+	return &Lun{Lun: *response.Payload.LunResponseInlineRecords[0]}, nil
 }
 
 // LunMapCreate invokes clients/ontap-rest/client/s_a_n/Client.LunMapCreate to create a LUN mapping

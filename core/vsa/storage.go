@@ -6,6 +6,7 @@ import (
 
 	ontapRest "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/ontap-rest"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/nillable"
 )
 
 var (
@@ -54,35 +55,56 @@ func (rc *OntapRestProvider) GetAggregateByName(name string) (*Aggregate, error)
 }
 
 // LunCreate creates a LUN by calling the ONTAP REST Client
-func (rc *OntapRestProvider) LunCreate(params LunCreateParams) (*ProviderResponse, error) {
+func (rc *OntapRestProvider) LunCreate(params LunCreateParams) (*LunResponse, error) {
 	client := getOntapClientFunc(rc.ClientParams)
 	lun, err := client.SAN().LunCreate(&ontapRest.LunCreateParams{
-		Name:       params.LunName,
-		SvmName:    params.SvmName,
-		OsType:     params.OsType,
-		VolumeName: params.VolumeName,
-		Size:       params.Size,
+		Name:                           params.LunName,
+		SvmName:                        params.SvmName,
+		OsType:                         params.OsType,
+		VolumeName:                     params.VolumeName,
+		Size:                           params.Size,
+		ThinProvisioningSupportEnabled: nillable.ToPointer(true),
 	})
 	if err != nil {
+		if strings.Contains(err.Error(), "A LUN or NVMe namespace already exists") {
+			return nil, errors.NewConflictErr(fmt.Sprintf("LUN %s already exists in SVM %s", params.LunName, params.SvmName))
+		}
 		return nil, err
 	}
-	return &ProviderResponse{
-		Name:         *lun.Name,
-		ExternalUUID: *lun.UUID,
+	return &LunResponse{
+		ProviderResponse: ProviderResponse{
+			Name:         *lun.Name,
+			ExternalUUID: *lun.UUID,
+		},
+		SerialNumber: *lun.SerialNumber,
 	}, nil
 }
 
-// LunGet retrieves a LUN by name using the ONTAP REST Client
-func (rc *OntapRestProvider) LunGet(lunName, svmName string) ([]*ontapRest.Lun, error) {
+// LunGet retrieves a LUN by calling the ONTAP REST Client
+func (rc *OntapRestProvider) LunGet(params LunGetParams) (*LunResponse, error) {
 	client := getOntapClientFunc(rc.ClientParams)
 	lun, err := client.SAN().LunGet(&ontapRest.LunGetParams{
-		Name:    &lunName,
-		SvmName: &svmName,
+		BaseParams: ontapRest.BaseParams{
+			Fields: []string{"status.*", "serial_number", "class", "space.size", "location.*"},
+		},
+		SvmName:    &params.SvmName,
+		VolumeName: &params.VolumeName,
+		LunName:    &params.LunName,
 	})
+
 	if err != nil {
 		return nil, err
 	}
-	return lun, nil
+	if lun == nil {
+		return nil, fmt.Errorf("lun not found: svm=%s, volume=%s, lun=%s", params.SvmName, params.VolumeName, params.LunName)
+	}
+	return &LunResponse{
+		ProviderResponse: ProviderResponse{
+			Name:         *lun.Name,
+			ExternalUUID: *lun.UUID,
+		},
+		SerialNumber: *lun.SerialNumber,
+	}, nil
 }
 
 // IgroupCreate creates an initiator group by calling the ONTAP REST Client

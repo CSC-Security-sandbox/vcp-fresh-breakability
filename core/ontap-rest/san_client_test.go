@@ -260,11 +260,12 @@ func TestLunGet(t *testing.T) {
 		transport := &mockTransport{err: errors.New("something went wrong")}
 		sanAPI := san.New(transport, nil)
 		client := &sanClient{api: sanAPI}
-		_, err := client.LunGet(&LunGetParams{})
+		lun, err := client.LunGet(&LunGetParams{})
 		assert.EqualError(tt, err, transport.err.Error())
+		assert.Nil(tt, lun)
 	})
 
-	t.Run("WhenNoRecordsReturned_ThenReturnEmptySlice", func(tt *testing.T) {
+	t.Run("WhenNoRecordsReturned_ThenReturnNotFoundError", func(tt *testing.T) {
 		transport := &mockTransport{response: &san.LunCollectionGetOK{
 			Payload: &models.LunResponse{
 				LunResponseInlineRecords: []*models.Lun{},
@@ -272,13 +273,30 @@ func TestLunGet(t *testing.T) {
 		}}
 		sanAPI := san.New(transport, nil)
 		client := &sanClient{api: sanAPI}
-		luns, err := client.LunGet(&LunGetParams{})
-		assert.NoError(tt, err)
-		assert.Len(tt, luns, 0)
+		lun, err := client.LunGet(&LunGetParams{})
+		assert.EqualError(tt, err, "lun not found")
+		assert.Nil(tt, lun)
 	})
 
-	t.Run("WhenSinglePageRecordsReturned_ThenReturnLuns", func(tt *testing.T) {
-		lunName := "test_lun"
+	t.Run("WhenMultipleRecordsReturned_ThenReturnError", func(tt *testing.T) {
+		lunName := "lun1"
+		transport := &mockTransport{response: &san.LunCollectionGetOK{
+			Payload: &models.LunResponse{
+				LunResponseInlineRecords: []*models.Lun{
+					{Name: &lunName},
+					{Name: &lunName},
+				},
+			},
+		}}
+		sanAPI := san.New(transport, nil)
+		client := &sanClient{api: sanAPI}
+		lun, err := client.LunGet(&LunGetParams{})
+		assert.EqualError(tt, err, "unexpected response when querying lun")
+		assert.Nil(tt, lun)
+	})
+
+	t.Run("WhenSingleRecordReturned_ThenReturnLun", func(tt *testing.T) {
+		lunName := "lun1"
 		transport := &mockTransport{response: &san.LunCollectionGetOK{
 			Payload: &models.LunResponse{
 				LunResponseInlineRecords: []*models.Lun{
@@ -288,31 +306,9 @@ func TestLunGet(t *testing.T) {
 		}}
 		sanAPI := san.New(transport, nil)
 		client := &sanClient{api: sanAPI}
-		luns, err := client.LunGet(&LunGetParams{
-			Name:    nillable.ToPointer(lunName),
-			SvmName: nillable.ToPointer("svm1"),
-		})
+		lun, err := client.LunGet(&LunGetParams{})
 		assert.NoError(tt, err)
-		assert.Len(tt, luns, 1)
-		assert.Equal(tt, lunName, *luns[0].Name)
-	})
-
-	t.Run("WhenSinglePageRecordsReturned_ThenReturnLuns_LunNameAlreadyProper", func(tt *testing.T) {
-		lunName := "/vol1/test_lun"
-		transport := &mockTransport{response: &san.LunCollectionGetOK{
-			Payload: &models.LunResponse{
-				LunResponseInlineRecords: []*models.Lun{
-					{Name: &lunName},
-				},
-			},
-		}}
-		sanAPI := san.New(transport, nil)
-		client := &sanClient{api: sanAPI}
-		luns, err := client.LunGet(&LunGetParams{
-			Name: nillable.ToPointer(lunName),
-		})
-		assert.NoError(tt, err)
-		assert.Len(tt, luns, 1)
-		assert.Equal(tt, lunName, *luns[0].Name)
+		assert.NotNil(tt, lun)
+		assert.Equal(tt, lunName, *lun.Name)
 	})
 }

@@ -9,7 +9,6 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 )
@@ -95,37 +94,43 @@ func (a *VolumeCreateActivity) CreateIgroup(ctx context.Context, volume *datamod
 	return nil
 }
 
-func (a *VolumeCreateActivity) CreateLun(ctx context.Context, volume *datamodel.Volume, node *models.Node, availableSpace int64) (string, error) {
+func (a *VolumeCreateActivity) CreateLun(ctx context.Context, volume *datamodel.Volume, node *models.Node, availableSpace int64) (*vsa.LunResponse, error) {
 	logger := util.GetLogger(ctx)
 	provider := GetProviderByNode(node)
-	halfGiB, _ := utils.ConvertToBytes(0.5, utils.GiB)
 	lunName := "lun_" + volume.Name
-	size := availableSpace - halfGiB
-	if size <= 0 {
-		lunsList, err := provider.LunGet(lunName, volume.Svm.Name)
-		if err != nil {
-			return "", err
-		}
-		if len(lunsList) > 0 {
-			return *lunsList[0].Name, nil
-		}
-
-		return "", errors.New("available space is not sufficient to create a LUN")
-	}
 
 	lun, err := provider.LunCreate(vsa.LunCreateParams{
 		LunName:    lunName,
 		VolumeName: volume.Name,
 		SvmName:    volume.Svm.Name,
 		OsType:     volume.VolumeAttributes.BlockProperties.OSType,
-		Size:       size,
+		Size:       availableSpace,
 	})
 	if err != nil {
-		return "", err
+		if errors.IsConflictErr(err) {
+			return LunGet(ctx, lunName, volume.Name, volume.Svm.Name, provider)
+		}
+		return nil, err
 	}
 	logger.Debug("lun created successfully")
 
-	return lun.Name, nil
+	return lun, nil
+}
+
+func LunGet(ctx context.Context, lunName, volumeName, svmName string, provider vsa.Provider) (*vsa.LunResponse, error) {
+	logger := util.GetLogger(ctx)
+
+	lun, err := provider.LunGet(vsa.LunGetParams{
+		SvmName:    svmName,
+		VolumeName: volumeName,
+		LunName:    lunName,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	logger.Debug("lun retrieved successfully", "lunName", lunName, "volumeName", volumeName, "svmName", svmName)
+	return lun, nil
 }
 
 func (a *VolumeCreateActivity) CreateLunMap(ctx context.Context, params *common.CreateLunMapParams, node *models.Node) error {

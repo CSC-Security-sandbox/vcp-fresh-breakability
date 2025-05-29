@@ -10,7 +10,6 @@ import (
 	ontapModels "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/ontap-rest/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
-	ontap_rest "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/ontap-rest"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
@@ -18,7 +17,6 @@ import (
 	utilErrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/nillable"
 )
 
 func TestCreateVolume_Success(t *testing.T) {
@@ -312,7 +310,13 @@ func TestCreateLun_Success(t *testing.T) {
 		SizeInBytes: 107374182400, // minimum value 100 GiB
 	}
 	node := &models.Node{}
-	expectedLun := &vsa.ProviderResponse{Name: "lun_test-volume"}
+	expectedLun := &vsa.LunResponse{
+		ProviderResponse: vsa.ProviderResponse{
+			Name:         "lun_test-volume",
+			ExternalUUID: "lun-uuid-123",
+		},
+		SerialNumber: "lW8B5]YNNUq8",
+	}
 
 	// Mock LunCreate method
 	mockProvider.On("LunCreate", vsa.LunCreateParams{
@@ -320,16 +324,16 @@ func TestCreateLun_Success(t *testing.T) {
 		VolumeName: "test-volume",
 		SvmName:    "test-svm",
 		OsType:     "linux",
-		Size:       106836996096, // 99.4997 GiB, we subtract 0.5 GiB from the available space for LUN creation
+		Size:       107373867008,
 	}).Return(expectedLun, nil)
 
 	// Act
 	availableSpace := int64(107373867008) // 99.9997 GiB, this is the available space after creating the volume
-	lunName, err := activity.CreateLun(ctx, volume, node, availableSpace)
+	lunResponse, err := activity.CreateLun(ctx, volume, node, availableSpace)
 
 	// Assert
 	assert.NoError(t, err)
-	assert.Equal(t, "lun_test-volume", lunName)
+	assert.Equal(t, expectedLun, lunResponse)
 	mockProvider.AssertExpectations(t)
 }
 
@@ -356,52 +360,24 @@ func TestCreateLun_Success_AlreadyExists(t *testing.T) {
 	}
 	node := &models.Node{}
 
-	mockProvider.On("LunGet", "lun_test-volume", "test-svm").Return([]*ontap_rest.Lun{
-		{Lun: ontapModels.Lun{Name: nillable.GetStringPtr("lun_test-volume")}},
-	}, nil)
+	mockProvider.On("LunCreate", mock.Anything).Return(nil, utilErrors.NewConflictErr("LUN already exists in SVM"))
+
+	lunResponse := &vsa.LunResponse{
+		ProviderResponse: vsa.ProviderResponse{
+			Name:         "lun_test-volume",
+			ExternalUUID: "lun-uuid-123",
+		},
+		SerialNumber: "lW8B5]YNNUq8",
+	}
+	mockProvider.On("LunGet", mock.Anything, mock.Anything, mock.Anything).Return(lunResponse, nil)
 
 	// Act
-	availableSpace := int64(1) // Mimicking a scenario where the available space is already occupied by a lun
-	lunName, err := activity.CreateLun(ctx, volume, node, availableSpace)
+	availableSpace := int64(107373867008) // 99.9997 GiB, this is the available space after creating the volume
+	lun, err := activity.CreateLun(ctx, volume, node, availableSpace)
 
 	// Assert
 	assert.NoError(t, err)
-	assert.Equal(t, "lun_test-volume", lunName)
-	mockProvider.AssertExpectations(t)
-}
-
-func TestCreateLun_NegativeSize_Error(t *testing.T) {
-	// Arrange
-	mockProvider := new(vsa.MockProvider) // Use the mock provider
-	originalGetProviderByNode := activities.GetProviderByNode
-	defer func() { activities.GetProviderByNode = originalGetProviderByNode }() // Restore original function after test
-
-	// Mock GetProviderByNode to return the mock provider
-	activities.GetProviderByNode = func(node *models.Node) vsa.Provider {
-		return mockProvider
-	}
-
-	activity := activities.VolumeCreateActivity{}
-	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
-	volume := &datamodel.Volume{
-		Name: "test-volume",
-		Svm:  &datamodel.Svm{Name: "test-svm"},
-		VolumeAttributes: &datamodel.VolumeAttributes{
-			BlockProperties: &datamodel.BlockProperties{OSType: "linux"},
-		},
-		SizeInBytes: 107374182400, // minimum value 100 GiB
-	}
-	node := &models.Node{}
-
-	mockProvider.On("LunGet", "lun_test-volume", "test-svm").Return([]*ontap_rest.Lun{}, nil)
-
-	// Act
-	availableSpace := int64(1) // Mimicking a scenario where the available space is very less
-	lunName, err := activity.CreateLun(ctx, volume, node, availableSpace)
-
-	// Assert
-	assert.Error(t, err)
-	assert.Empty(t, lunName)
+	assert.Equal(t, lunResponse, lun)
 	mockProvider.AssertExpectations(t)
 }
 
@@ -435,16 +411,51 @@ func TestCreateLun_Failure(t *testing.T) {
 		VolumeName: "test-volume",
 		SvmName:    "test-svm",
 		OsType:     "linux",
-		Size:       106836996096,
+		Size:       107373867008,
 	}).Return(nil, expectedError)
 
 	// Act
-	lunName, err := activity.CreateLun(ctx, volume, node, 107373867008)
+	lunResponse, err := activity.CreateLun(ctx, volume, node, 107373867008)
+
+	// Assert
+	assert.Error(t, err)
+	assert.Empty(t, lunResponse)
+	assert.EqualError(t, err, expectedError.Error())
+	mockProvider.AssertExpectations(t)
+}
+
+func TestCreateLun_LunGetError(t *testing.T) {
+	// Arrange
+	mockProvider := new(vsa.MockProvider) // Use the mock provider
+	originalGetProviderByNode := activities.GetProviderByNode
+	defer func() { activities.GetProviderByNode = originalGetProviderByNode }() // Restore original function after test
+
+	// Mock GetProviderByNode to return the mock provider
+	activities.GetProviderByNode = func(node *models.Node) vsa.Provider {
+		return mockProvider
+	}
+
+	activity := activities.VolumeCreateActivity{}
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	volume := &datamodel.Volume{
+		Name: "test-volume",
+		Svm:  &datamodel.Svm{Name: "test-svm"},
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			BlockProperties: &datamodel.BlockProperties{OSType: "linux"},
+		},
+		SizeInBytes: 107374182400, // minimum value 100 GiB
+	}
+	node := &models.Node{}
+	mockProvider.On("LunCreate", mock.Anything).Return(nil, utilErrors.NewConflictErr("LUN already exists in SVM"))
+	mockProvider.On("LunGet", mock.Anything).Return(nil, errors.New("lun get error"))
+
+	// Act
+	lunName, err := activity.CreateLun(ctx, volume, node, 107374182400)
 
 	// Assert
 	assert.Error(t, err)
 	assert.Empty(t, lunName)
-	assert.EqualError(t, err, expectedError.Error())
+	mockProvider.AssertExpectations(t)
 	mockProvider.AssertExpectations(t)
 }
 
@@ -726,42 +737,6 @@ func TestCreateVolumeInONTAP_CheckVolumeExistsError(t *testing.T) {
 	// Assert
 	assert.Error(t, err)
 	assert.Nil(t, result)
-	mockProvider.AssertExpectations(t)
-}
-
-func TestCreateLun_LunGetError(t *testing.T) {
-	// Arrange
-	mockProvider := new(vsa.MockProvider) // Use the mock provider
-	originalGetProviderByNode := activities.GetProviderByNode
-	defer func() { activities.GetProviderByNode = originalGetProviderByNode }() // Restore original function after test
-
-	// Mock GetProviderByNode to return the mock provider
-	activities.GetProviderByNode = func(node *models.Node) vsa.Provider {
-		return mockProvider
-	}
-
-	activity := activities.VolumeCreateActivity{}
-	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
-	volume := &datamodel.Volume{
-		Name: "test-volume",
-		Svm:  &datamodel.Svm{Name: "test-svm"},
-		VolumeAttributes: &datamodel.VolumeAttributes{
-			BlockProperties: &datamodel.BlockProperties{OSType: "linux"},
-		},
-		SizeInBytes: 107374182400, // minimum value 100 GiB
-	}
-	node := &models.Node{}
-
-	mockProvider.On("LunGet", "lun_test-volume", "test-svm").Return(nil, errors.New("lun get error"))
-
-	// Act
-	availableSpace := int64(1) // Mimicking a scenario where the available space is already occupied by a lun
-	lunName, err := activity.CreateLun(ctx, volume, node, availableSpace)
-
-	// Assert
-	assert.Error(t, err)
-	assert.Empty(t, lunName)
-	mockProvider.AssertExpectations(t)
 	mockProvider.AssertExpectations(t)
 }
 

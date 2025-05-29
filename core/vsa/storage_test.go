@@ -33,8 +33,9 @@ func TestLunCreate_Success(t *testing.T) {
 
 	mockLun := &ontaprest.Lun{
 		Lun: models.Lun{
-			Name: nillable.ToPointer(lunName),
-			UUID: nillable.ToPointer("testUUID"),
+			Name:         nillable.ToPointer(lunName),
+			UUID:         nillable.ToPointer("testUUID"),
+			SerialNumber: nillable.ToPointer("lW8B5]YNNUq8"),
 		},
 	}
 
@@ -596,7 +597,7 @@ func TestGetOntapClient(t *testing.T) {
 }
 
 func TestLunGet(t *testing.T) {
-	t.Run("WhenLunExists_ThenReturnLunList", func(tt *testing.T) {
+	t.Run("WhenLunIsFound_ThenReturnLunResponse", func(tt *testing.T) {
 		mockSAN := new(ontaprest.MockSANClient)
 		mockClient := new(ontaprest.MockRESTClient)
 		mockClient.On("SAN").Return(mockSAN)
@@ -606,29 +607,34 @@ func TestLunGet(t *testing.T) {
 		}
 		rc := &OntapRestProvider{}
 
-		lunName := "testLun"
-		svmName := "testSVM"
 		mockLun := &ontaprest.Lun{
 			Lun: models.Lun{
-				Name: nillable.ToPointer(lunName),
-				UUID: nillable.ToPointer("testUUID"),
+				Name:         nillable.ToPointer("testLun"),
+				UUID:         nillable.ToPointer("uuid-123"),
+				SerialNumber: nillable.ToPointer("serial-456"),
 			},
 		}
-		mockSAN.On("LunGet", mock.Anything).Return([]*ontaprest.Lun{mockLun}, nil)
 
-		luns, err := rc.LunGet(lunName, svmName)
+		mockSAN.On("LunGet", mock.Anything).Return(mockLun, nil)
+
+		params := LunGetParams{
+			SvmName:    "testSVM",
+			VolumeName: "testVol",
+			LunName:    "testLun",
+		}
+		resp, err := rc.LunGet(params)
 
 		assert.NoError(tt, err)
-		assert.NotNil(tt, luns)
-		assert.Len(tt, luns, 1)
-		assert.Equal(tt, lunName, *luns[0].Name)
-		assert.Equal(tt, "testUUID", *luns[0].UUID)
+		assert.NotNil(tt, resp)
+		assert.Equal(tt, "testLun", resp.Name)
+		assert.Equal(tt, "uuid-123", resp.ExternalUUID)
+		assert.Equal(tt, "serial-456", resp.SerialNumber)
 
 		mockSAN.AssertExpectations(tt)
 		mockClient.AssertExpectations(tt)
 	})
 
-	t.Run("WhenLunDoesNotExist_ThenReturnEmptyList", func(tt *testing.T) {
+	t.Run("WhenLunIsNotFound_ThenReturnError", func(tt *testing.T) {
 		mockSAN := new(ontaprest.MockSANClient)
 		mockClient := new(ontaprest.MockRESTClient)
 		mockClient.On("SAN").Return(mockSAN)
@@ -638,38 +644,44 @@ func TestLunGet(t *testing.T) {
 		}
 		rc := &OntapRestProvider{}
 
-		lunName := "testLun"
-		svmName := "testSVM"
-		mockSAN.On("LunGet", mock.Anything).Return([]*ontaprest.Lun{}, nil)
+		mockSAN.On("LunGet", mock.Anything).Return(nil, nil)
 
-		luns, err := rc.LunGet(lunName, svmName)
-
-		assert.NoError(tt, err)
-		assert.NotNil(tt, luns)
-		assert.Len(tt, luns, 0)
-
-		mockSAN.AssertExpectations(tt)
-		mockClient.AssertExpectations(tt)
-	})
-
-	t.Run("WhenLunGetFails_ThenReturnError", func(tt *testing.T) {
-		mockSAN := new(ontaprest.MockSANClient)
-		mockClient := new(ontaprest.MockRESTClient)
-		mockClient.On("SAN").Return(mockSAN)
-
-		getOntapClientFunc = func(params ontaprest.RESTClientParams) ontaprest.RESTClient {
-			return mockClient
+		params := LunGetParams{
+			SvmName:    "testSVM",
+			VolumeName: "testVol",
+			LunName:    "testLun",
 		}
-		rc := &OntapRestProvider{}
-
-		lunName := "testLun"
-		svmName := "testSVM"
-		mockSAN.On("LunGet", mock.Anything).Return(nil, errors.New("fetch error"))
-
-		luns, err := rc.LunGet(lunName, svmName)
+		resp, err := rc.LunGet(params)
 
 		assert.Error(tt, err)
-		assert.Nil(tt, luns)
+		assert.Nil(tt, resp)
+		assert.Contains(tt, err.Error(), "lun not found")
+
+		mockSAN.AssertExpectations(tt)
+		mockClient.AssertExpectations(tt)
+	})
+
+	t.Run("WhenLunGetReturnsError_ThenReturnError", func(tt *testing.T) {
+		mockSAN := new(ontaprest.MockSANClient)
+		mockClient := new(ontaprest.MockRESTClient)
+		mockClient.On("SAN").Return(mockSAN)
+
+		getOntapClientFunc = func(params ontaprest.RESTClientParams) ontaprest.RESTClient {
+			return mockClient
+		}
+		rc := &OntapRestProvider{}
+
+		mockSAN.On("LunGet", mock.Anything).Return(nil, errors.New("fetch error"))
+
+		params := LunGetParams{
+			SvmName:    "testSVM",
+			VolumeName: "testVol",
+			LunName:    "testLun",
+		}
+		resp, err := rc.LunGet(params)
+
+		assert.Error(tt, err)
+		assert.Nil(tt, resp)
 		assert.Equal(tt, "fetch error", err.Error())
 
 		mockSAN.AssertExpectations(tt)

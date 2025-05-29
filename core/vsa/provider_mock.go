@@ -1617,23 +1617,23 @@ func (_c *MockProvider_ListClusterPeers_Call) RunAndReturn(run func() ([]*Cluste
 }
 
 // LunCreate provides a mock function with given fields: params
-func (_m *MockProvider) LunCreate(params LunCreateParams) (*ProviderResponse, error) {
+func (_m *MockProvider) LunCreate(params LunCreateParams) (*LunResponse, error) {
 	ret := _m.Called(params)
 
 	if len(ret) == 0 {
 		panic("no return value specified for LunCreate")
 	}
 
-	var r0 *ProviderResponse
+	var r0 *LunResponse
 	var r1 error
-	if rf, ok := ret.Get(0).(func(LunCreateParams) (*ProviderResponse, error)); ok {
+	if rf, ok := ret.Get(0).(func(LunCreateParams) (*LunResponse, error)); ok {
 		return rf(params)
 	}
-	if rf, ok := ret.Get(0).(func(LunCreateParams) *ProviderResponse); ok {
+	if rf, ok := ret.Get(0).(func(LunCreateParams) *LunResponse); ok {
 		r0 = rf(params)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(*ProviderResponse)
+			r0 = ret.Get(0).(*LunResponse)
 		}
 	}
 
@@ -1664,39 +1664,39 @@ func (_c *MockProvider_LunCreate_Call) Run(run func(params LunCreateParams)) *Mo
 	return _c
 }
 
-func (_c *MockProvider_LunCreate_Call) Return(_a0 *ProviderResponse, _a1 error) *MockProvider_LunCreate_Call {
+func (_c *MockProvider_LunCreate_Call) Return(_a0 *LunResponse, _a1 error) *MockProvider_LunCreate_Call {
 	_c.Call.Return(_a0, _a1)
 	return _c
 }
 
-func (_c *MockProvider_LunCreate_Call) RunAndReturn(run func(LunCreateParams) (*ProviderResponse, error)) *MockProvider_LunCreate_Call {
+func (_c *MockProvider_LunCreate_Call) RunAndReturn(run func(LunCreateParams) (*LunResponse, error)) *MockProvider_LunCreate_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
-// LunGet provides a mock function with given fields: lunName, svmName
-func (_m *MockProvider) LunGet(lunName string, svmName string) ([]*ontap_rest.Lun, error) {
-	ret := _m.Called(lunName, svmName)
+// LunGet provides a mock function with given fields: params
+func (_m *MockProvider) LunGet(params LunGetParams) (*LunResponse, error) {
+	ret := _m.Called(params)
 
 	if len(ret) == 0 {
 		panic("no return value specified for LunGet")
 	}
 
-	var r0 []*ontap_rest.Lun
+	var r0 *LunResponse
 	var r1 error
-	if rf, ok := ret.Get(0).(func(string, string) ([]*ontap_rest.Lun, error)); ok {
-		return rf(lunName, svmName)
+	if rf, ok := ret.Get(0).(func(LunGetParams) (*LunResponse, error)); ok {
+		return rf(params)
 	}
-	if rf, ok := ret.Get(0).(func(string, string) []*ontap_rest.Lun); ok {
-		r0 = rf(lunName, svmName)
+	if rf, ok := ret.Get(0).(func(LunGetParams) *LunResponse); ok {
+		r0 = rf(params)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).([]*ontap_rest.Lun)
+			r0 = ret.Get(0).(*LunResponse)
 		}
 	}
 
-	if rf, ok := ret.Get(1).(func(string, string) error); ok {
-		r1 = rf(lunName, svmName)
+	if rf, ok := ret.Get(1).(func(LunGetParams) error); ok {
+		r1 = rf(params)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -1710,25 +1710,24 @@ type MockProvider_LunGet_Call struct {
 }
 
 // LunGet is a helper method to define mock.On call
-//   - lunName string
-//   - svmName string
-func (_e *MockProvider_Expecter) LunGet(lunName interface{}, svmName interface{}) *MockProvider_LunGet_Call {
-	return &MockProvider_LunGet_Call{Call: _e.mock.On("LunGet", lunName, svmName)}
+//   - params LunGetParams
+func (_e *MockProvider_Expecter) LunGet(params interface{}) *MockProvider_LunGet_Call {
+	return &MockProvider_LunGet_Call{Call: _e.mock.On("LunGet", params)}
 }
 
-func (_c *MockProvider_LunGet_Call) Run(run func(lunName string, svmName string)) *MockProvider_LunGet_Call {
+func (_c *MockProvider_LunGet_Call) Run(run func(params LunGetParams)) *MockProvider_LunGet_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(string), args[1].(string))
+		run(args[0].(LunGetParams))
 	})
 	return _c
 }
 
-func (_c *MockProvider_LunGet_Call) Return(_a0 []*ontap_rest.Lun, _a1 error) *MockProvider_LunGet_Call {
+func (_c *MockProvider_LunGet_Call) Return(_a0 *LunResponse, _a1 error) *MockProvider_LunGet_Call {
 	_c.Call.Return(_a0, _a1)
 	return _c
 }
 
-func (_c *MockProvider_LunGet_Call) RunAndReturn(run func(string, string) ([]*ontap_rest.Lun, error)) *MockProvider_LunGet_Call {
+func (_c *MockProvider_LunGet_Call) RunAndReturn(run func(LunGetParams) (*LunResponse, error)) *MockProvider_LunGet_Call {
 	_c.Call.Return(run)
 	return _c
 }

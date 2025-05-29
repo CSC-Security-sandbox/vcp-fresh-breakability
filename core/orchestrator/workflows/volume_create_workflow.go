@@ -34,10 +34,11 @@ func CreateVolumeWorkflow(ctx workflow.Context, params *common.CreateVolumeParam
 	_, err = volumeWf.Run(ctx, volume)
 	if err != nil {
 		volumeWf.Status = WorkflowStatusFailed
-		err = volumeWf.UpdateJobStatus(ctx, string(models.JobsStateDONE), err)
-		if err != nil {
-			return nil, err
+		err2 := volumeWf.UpdateJobStatus(ctx, string(models.JobsStateDONE), err)
+		if err2 != nil {
+			return nil, err2
 		}
+		return nil, err
 	}
 	volumeWf.Status = WorkflowStatusCompleted
 	err = volumeWf.UpdateJobStatus(ctx, string(models.JobsStateDONE), nil)
@@ -108,18 +109,19 @@ func (wf *volumeCreateWorkflow) Run(ctx workflow.Context, args ...interface{}) (
 		return nil, err
 	}
 
-	var lunName string
-	err = workflow.ExecuteActivity(ctx, volumeActivity.CreateLun, &dbVolume, &node, volCreateResponse.AvailableSpace).Get(ctx, &lunName)
+	var lun *vsa.LunResponse
+	err = workflow.ExecuteActivity(ctx, volumeActivity.CreateLun, &dbVolume, &node, volCreateResponse.AvailableSpace).Get(ctx, &lun)
 	if err != nil {
 		return nil, err
 	}
 
-	lunMapParams := createLunMapParams(lunName, dbVolume.Svm.Name, hostParams)
+	lunMapParams := createLunMapParams(lun.Name, dbVolume.Svm.Name, hostParams)
 	err = workflow.ExecuteActivity(ctx, volumeActivity.CreateLunMap, &lunMapParams, &node).Get(ctx, nil)
 	if err != nil {
 		return nil, err
 	}
 
+	dbVolume.VolumeAttributes.BlockProperties.LunSerialNumber = lun.SerialNumber
 	err = workflow.ExecuteActivity(ctx, volumeActivity.UpdateVolumeDetails, &dbVolume, &volCreateResponse).Get(ctx, nil)
 	if err != nil {
 		return nil, err

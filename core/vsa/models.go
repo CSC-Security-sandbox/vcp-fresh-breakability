@@ -111,6 +111,12 @@ type LunCreateParams struct {
 	Size       int64
 }
 
+type LunGetParams struct {
+	SvmName    string
+	VolumeName string
+	LunName    string
+}
+
 type LunMapCreateParams struct {
 	LunName    string
 	SvmName    string
@@ -254,4 +260,9 @@ type SnapshotProviderResponse struct {
 	ProviderResponse
 	SizeInBytes        int64
 	LogicalSizeInBytes int64
+}
+
+type LunResponse struct {
+	ProviderResponse
+	SerialNumber string
 }

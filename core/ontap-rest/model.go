@@ -2053,11 +2053,12 @@ type Lun struct {
 
 // LunCreateParams is the input parameter for creating a Lun
 type LunCreateParams struct {
-	SvmName    string
-	Name       string
-	OsType     string
-	VolumeName string
-	Size       int64
+	SvmName                        string
+	Name                           string
+	OsType                         string
+	VolumeName                     string
+	Size                           int64
+	ThinProvisioningSupportEnabled *bool
 }
 
 const lunNamePrefix = "/vol/"
@@ -2071,16 +2072,14 @@ func lunCreateParamsToONTAP(params *LunCreateParams) *san.LunCreateParams {
 
 	otParams.SetInfo(&models.Lun{
 		Svm:    &models.LunInlineSvm{Name: &params.SvmName},
-		Name:   nillable.ToPointer(lunNamePrefix + params.VolumeName + "/" + params.Name),
+		Name:   constructLunName(&params.VolumeName, &params.Name),
 		OsType: &params.OsType,
 		Location: &models.LunInlineLocation{
 			Volume: &models.LunInlineLocationInlineVolume{Name: &params.VolumeName},
 		},
 		Space: &models.LunInlineSpace{
-			Size: &params.Size,
-			Guarantee: &models.LunInlineSpaceInlineGuarantee{
-				Requested: nillable.ToPointer(true),
-			},
+			Size:                               &params.Size,
+			ScsiThinProvisioningSupportEnabled: params.ThinProvisioningSupportEnabled,
 		},
 	})
 	otParams.SetReturnTimeout(&returnTimeout)
@@ -2128,9 +2127,9 @@ type LunMapGetParams struct {
 
 type LunGetParams struct {
 	BaseParams
-	UUID    string
-	Name    *string
-	SvmName *string
+	SvmName    *string
+	VolumeName *string
+	LunName    *string
 }
 
 // lunGetParamsToONTAP converts LunGetParams to ONTAP API parameters.
@@ -2139,26 +2138,20 @@ func lunGetParamsToONTAP(params *LunGetParams) *san.LunCollectionGetParams {
 	if params == nil {
 		return otParams
 	}
-	var lunName *string
 
-	if params.Name != nil {
-		// If the name is not in the format of "lunNamePrefix/vol_name/lun_name", we convert it to that format.
-		if len(strings.Split(*params.Name, "/")) == 1 {
-			volumeName := strings.Split(*params.Name, "_")[1]
-			lunName = nillable.ToPointer(lunNamePrefix + volumeName + "/" + *params.Name)
-		} else {
-			lunName = params.Name
-		}
-
-		otParams.SetName(lunName)
-	}
-
-	if params.SvmName != nil {
-		otParams.SetSvmName(params.SvmName)
-	}
+	otParams.SetSvmName(params.SvmName)
+	otParams.SetLocationVolumeName(params.VolumeName)
+	otParams.SetName(constructLunName(params.VolumeName, params.LunName))
+	otParams.SetFields(params.Fields)
 	otParams.SetMaxRecords(getConstrainedMaxRecords(params.MaxRecords))
-
 	return otParams
+}
+
+func constructLunName(volumeName, lunName *string) *string {
+	if volumeName == nil || lunName == nil {
+		return nil
+	}
+	return nillable.ToPointer(lunNamePrefix + *volumeName + "/" + *lunName)
 }
 
 // Igroup is the igroup
