@@ -15,7 +15,7 @@ jobs:
     name: Generate Tag
     runs-on: [self-hosted,linux]
     container:
-      image: ghcr.io/vcp-vsa-control-plane/vsacictl:v15
+      image: ghcr.io/vcp-vsa-control-plane/vsacictl:v16
       options: --user root
     permissions:
       contents: read
@@ -52,7 +52,7 @@ jobs:
     needs: create_pre_release_vsa_control_plane
     runs-on: [ ubuntu-22.04 ]
     container:
-      image: ghcr.io/vcp-vsa-control-plane/vsacictl:v14
+      image: ghcr.io/vcp-vsa-control-plane/vsacictl:v16
       options: -v /var/run/docker.sock:/var/run/docker.sock --user root
 
     steps:
@@ -121,12 +121,14 @@ jobs:
     needs: create_pre_release_vsa_control_plane
     runs-on: [ cvs-u24-sunilt-01 ]
     container:
-      image: ghcr.io/vcp-vsa-control-plane/vsacictl:vs
+      image: ghcr.io/vcp-vsa-control-plane/vsacictl:v16
       options: -v /var/run/docker.sock:/var/run/docker.sock --mount type=bind,source=/bds-inspect,target=/bds-inspect,ro --user root
 
     steps:
       - name: Check out the repo
         uses: actions/checkout@v2
+        with:
+          path: /repo-dir
 
       - name: Set up Go
         uses: actions/setup-go@v3
