@@ -44,7 +44,7 @@ func (a *SnapshotDeleteActivity) DeleteSnapshot(ctx context.Context, snapshot *d
 
 func (a *SnapshotDeleteActivity) UpdateDeleteSnapshotDetails(ctx context.Context, snapshot *datamodel.Snapshot) error {
 	se := a.SE
-	err := se.UpdateSnapshot(ctx, snapshot)
+	_, err := se.UpdateSnapshot(ctx, snapshot)
 	if err != nil {
 		return err
 	}

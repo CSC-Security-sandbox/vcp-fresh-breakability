@@ -69,6 +69,16 @@ func (d *DataStoreRepository) UpdateJob(ctx context.Context, id, status string, 
 	return nil
 }
 
+func (d *DataStoreRepository) GetJobsWithCondition(ctx context.Context, filter utils.Filter) ([]*datamodel.Job, error) {
+	db := d.db.ApplyFilter(filter.Apply()).GORM().WithContext(ctx)
+	jobs := make([]*datamodel.Job, 0)
+	err := db.Find(&jobs).Error
+	if err != nil {
+		return nil, err
+	}
+	return jobs, nil
+}
+
 func _getJobWithDetails(db *gorm.DB, query *datamodel.Job) (*datamodel.Job, error) {
 	job := &datamodel.Job{}
 	err := db.First(&job, query).Error

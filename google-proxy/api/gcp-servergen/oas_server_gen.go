@@ -435,6 +435,12 @@ type Handler interface {
 	//
 	// PUT /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeResourceId}/replications/{replicationResourceId}
 	V1betaUpdateReplication(ctx context.Context, req *ReplicationUpdateV1beta, params V1betaUpdateReplicationParams) (V1betaUpdateReplicationRes, error)
+	// V1betaUpdateSnapshot implements v1beta_updateSnapshot operation.
+	//
+	// Updates name and description of the requested snapshot.
+	//
+	// PUT /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/snapshot/{snapshotId}
+	V1betaUpdateSnapshot(ctx context.Context, req *VolumeSnapshotUpdateV1beta, params V1betaUpdateSnapshotParams) (V1betaUpdateSnapshotRes, error)
 	// V1betaUpdateVolume implements v1beta_updateVolume operation.
 	//
 	// Update the volume.

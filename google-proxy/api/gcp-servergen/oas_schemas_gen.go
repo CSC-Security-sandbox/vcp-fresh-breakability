@@ -4801,6 +4801,7 @@ func (*OperationV1beta) v1betaUpdateBackupVaultRes()           {}
 func (*OperationV1beta) v1betaUpdateHostGroupRes()             {}
 func (*OperationV1beta) v1betaUpdatePoolRes()                  {}
 func (*OperationV1beta) v1betaUpdateReplicationRes()           {}
+func (*OperationV1beta) v1betaUpdateSnapshotRes()              {}
 func (*OperationV1beta) v1betaUpdateVolumeRes()                {}
 
 // NewOptActiveDirectoryV1betaActiveDirectoryState returns new OptActiveDirectoryV1betaActiveDirectoryState with value set to v.
@@ -15900,6 +15901,34 @@ type V1betaUpdateReplicationUnprocessableEntity Error
 
 func (*V1betaUpdateReplicationUnprocessableEntity) v1betaUpdateReplicationRes() {}
 
+type V1betaUpdateSnapshotBadRequest Error
+
+func (*V1betaUpdateSnapshotBadRequest) v1betaUpdateSnapshotRes() {}
+
+type V1betaUpdateSnapshotConflict Error
+
+func (*V1betaUpdateSnapshotConflict) v1betaUpdateSnapshotRes() {}
+
+type V1betaUpdateSnapshotForbidden Error
+
+func (*V1betaUpdateSnapshotForbidden) v1betaUpdateSnapshotRes() {}
+
+type V1betaUpdateSnapshotInternalServerError Error
+
+func (*V1betaUpdateSnapshotInternalServerError) v1betaUpdateSnapshotRes() {}
+
+type V1betaUpdateSnapshotNotFound Error
+
+func (*V1betaUpdateSnapshotNotFound) v1betaUpdateSnapshotRes() {}
+
+type V1betaUpdateSnapshotTooManyRequests Error
+
+func (*V1betaUpdateSnapshotTooManyRequests) v1betaUpdateSnapshotRes() {}
+
+type V1betaUpdateSnapshotUnauthorized Error
+
+func (*V1betaUpdateSnapshotUnauthorized) v1betaUpdateSnapshotRes() {}
+
 type V1betaUpdateVolumeBadRequest Error
 
 func (*V1betaUpdateVolumeBadRequest) v1betaUpdateVolumeRes() {}
@@ -17965,6 +17994,35 @@ func (s *VolumeSnapshotCreateV1beta) SetDescription(val OptString) {
 // SetIsAppConsistent sets the value of IsAppConsistent.
 func (s *VolumeSnapshotCreateV1beta) SetIsAppConsistent(val OptBool) {
 	s.IsAppConsistent = val
+}
+
+// Merged schema.
+// Ref: #/components/schemas/VolumeSnapshotUpdate_v1beta
+type VolumeSnapshotUpdateV1beta struct {
+	// A human readable label for the resource which is restricted to letters, numbers, and hyphen, with
+	// the first character a letter, the last a letter or a number, and a 63 character maximum.
+	ResourceId  string    `json:"resourceId"`
+	Description OptString `json:"description"`
+}
+
+// GetResourceId returns the value of ResourceId.
+func (s *VolumeSnapshotUpdateV1beta) GetResourceId() string {
+	return s.ResourceId
+}
+
+// GetDescription returns the value of Description.
+func (s *VolumeSnapshotUpdateV1beta) GetDescription() OptString {
+	return s.Description
+}
+
+// SetResourceId sets the value of ResourceId.
+func (s *VolumeSnapshotUpdateV1beta) SetResourceId(val string) {
+	s.ResourceId = val
+}
+
+// SetDescription sets the value of Description.
+func (s *VolumeSnapshotUpdateV1beta) SetDescription(val OptString) {
+	s.Description = val
 }
 
 // Ref: #/components/schemas/VolumeUpdate_v1beta

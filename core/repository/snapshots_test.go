@@ -9,6 +9,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	gormwrapper "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/gorm"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	customerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
@@ -111,13 +112,14 @@ func TestUpdateSnapshot(t *testing.T) {
 			State:     models.LifeCycleStateAvailable,
 		}
 
-		err = store.UpdateSnapshot(context.Background(), updatedSnapshot)
+		dbSnapshot, err := store.UpdateSnapshot(context.Background(), updatedSnapshot)
 		assert.Equal(t, err, nil)
 
 		result := &datamodel.Snapshot{}
 		err = store.db.GORM().First(result, "uuid = ?", updatedSnapshot.UUID).Error
 		assert.Equal(t, err, nil)
 		assert.Equal(t, updatedSnapshot.State, result.State, "Expected state %v, got %v", updatedSnapshot.State, result.State)
+		assert.Equal(t, updatedSnapshot.State, dbSnapshot.State, "Expected state %v, got %v", updatedSnapshot.State, dbSnapshot.State)
 	})
 
 	t.Run("WhenSnapshotDoesNotExist", func(tt *testing.T) {
@@ -131,8 +133,9 @@ func TestUpdateSnapshot(t *testing.T) {
 			State:     models.LifeCycleStateAvailable,
 		}
 
-		err = store.UpdateSnapshot(context.Background(), updatedSnapshot)
+		dbSnapshot, err := store.UpdateSnapshot(context.Background(), updatedSnapshot)
 		assert.ErrorContains(t, err, "not found", "Expected error 'not found', got %v", err)
+		assert.Nil(tt, dbSnapshot)
 	})
 }
 
@@ -521,5 +524,82 @@ func TestGetSnapshotsByVolumeID(t *testing.T) {
 		assert.NoError(tt, err, "Expected no error, got %v", err)
 		assert.NotNil(tt, snapshots, "Expected non-nil snapshots slice")
 		assert.Equal(tt, 0, len(snapshots), "Expected 0 snapshots")
+	})
+}
+
+func TestGetSnapshotsWithConditions(t *testing.T) {
+	logger := log.NewLogger()
+	ctx := context.WithValue(context.Background(), middleware.ContextSLoggerKey, logger)
+
+	t.Run("WhenSnapshotExists", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err, "Failed to set up test database")
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err, "Failed to clean up test database")
+
+		// Create an account
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{ID: 1, UUID: "test-account-uuid"},
+			Name:      "test_account",
+		}
+		err = store.db.Create(account).Error()
+		assert.NoError(tt, err, "Failed to create account")
+
+		// Create a volume
+		volume := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{UUID: "test-volume-uuid"},
+			Name:      "test_volume",
+			AccountID: 1,
+		}
+		err = store.db.Create(volume).Error()
+		assert.NoError(tt, err, "Failed to create volume")
+
+		// Create a snapshot
+		snapshot := &datamodel.Snapshot{
+			BaseModel: datamodel.BaseModel{UUID: "test-snapshot-uuid"},
+			Name:      "test_snapshot",
+			VolumeID:  volume.ID,
+			State:     models.LifeCycleStateAvailable,
+			AccountID: 1,
+		}
+		err = store.db.Create(snapshot).Error()
+		assert.NoError(tt, err, "Failed to create snapshot")
+
+		// Query for the snapshot using conditions
+		filter := utils.CreateFilterWithConditions([]*utils.FilterCondition{
+			utils.NewFilterCondition().WithConditions("account_id", "=", 1),
+			utils.NewFilterCondition().WithConditions("volume_id", "=", volume.ID),
+			utils.NewFilterCondition().WithConditions("name", "=", "test_snapshot"),
+		})
+		snapshots, err := store.GetSnapshotsWithCondition(ctx, *filter)
+		assert.NoError(tt, err, "Expected no error, got %v", err)
+		assert.Len(tt, snapshots, 1, "Expected 1 snapshot, got %d", len(snapshots))
+		assert.Equal(tt, snapshot.UUID, snapshots[0].UUID, "Expected UUID %v, got %v", snapshot.UUID, snapshots[0].UUID)
+		assert.Equal(tt, snapshot.Name, snapshots[0].Name, "Expected name %v, got %v", snapshot.Name, snapshots[0].Name)
+		assert.Equal(tt, snapshot.State, snapshots[0].State, "Expected state %v, got %v", snapshot.State, snapshots[0].State)
+		assert.Equal(tt, volume.Name, snapshots[0].Volume.Name, "Expected VolumeName %v, got %v", volume.Name, snapshots[0].Volume.Name)
+	})
+
+	t.Run("WhenSnapshotDoesNotExist", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err, "Failed to set up test database")
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err, "Failed to clean up test database")
+
+		// Query for a snapshot that does not exist
+		filter := utils.CreateFilterWithConditions([]*utils.FilterCondition{
+			utils.NewFilterCondition().WithConditions("account_id", "=", 999),
+			utils.NewFilterCondition().WithConditions("volume_id", "=", 999),
+			utils.NewFilterCondition().WithConditions("name", "=", "non-existent-snapshot"),
+		})
+		snapshots, err := store.GetSnapshotsWithCondition(ctx, *filter)
+		assert.NoError(tt, err, "Expected no error, got %v", err)
+		assert.Len(tt, snapshots, 0, "Expected 0 snapshots, got %d", len(snapshots))
 	})
 }

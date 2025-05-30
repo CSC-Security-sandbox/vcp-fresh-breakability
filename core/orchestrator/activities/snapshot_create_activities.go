@@ -42,7 +42,7 @@ func (a *SnapshotCreateActivity) UpdateSnapshotDetails(ctx context.Context, dbSn
 		dbSnapshot.SnapshotAttributes.ExternalUUID = snapshotCreateResponse.ExternalUUID
 		dbSnapshot.SnapshotAttributes.LogicalSizeUsedInBytes = snapshotCreateResponse.LogicalSizeInBytes
 	}
-	err := se.UpdateSnapshot(ctx, dbSnapshot)
+	_, err := se.UpdateSnapshot(ctx, dbSnapshot)
 	if err != nil {
 		return err
 	}

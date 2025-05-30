@@ -22,6 +22,7 @@ const (
 	JobTypeCreateVolume      JobType = "CREATE_VOLUME"
 	JobTypeDeleteVolume      JobType = "DELETE_VOLUME"
 	JobTypeCreateSnapshot    JobType = "CREATE_SNAPSHOT"
+	JobTypeUpdateSnapshot    JobType = "UPDATE_SNAPSHOT"
 	JobTypeDeleteSnapshot    JobType = "DELETE_SNAPSHOT"
 	JobTypeAcceptClusterPeer JobType = "ACCEPT_CLUSTER_PEER"
 )

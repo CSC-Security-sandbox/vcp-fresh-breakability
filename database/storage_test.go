@@ -7,6 +7,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 )
@@ -351,6 +352,18 @@ func TestGetJob(t *testing.T) {
 	assert.NotNil(t, found)
 }
 
+func TestGetJobsWithCondition(t *testing.T) {
+	logger := &log.MockLogger{}
+	store, _ := NewTestStorage(logger)
+	ctx := context.Background()
+	ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, logger)
+	filter := utils.CreateFilterWithConditions([]*utils.FilterCondition{
+		utils.NewFilterCondition().WithConditions("state", "=", "new")})
+	jobs, err := store.GetJobsWithCondition(ctx, *filter)
+	assert.NoError(t, err)
+	assert.NotNil(t, jobs)
+}
+
 func TestUpdateJob(t *testing.T) {
 	logger := &log.MockLogger{}
 	store, _ := NewTestStorage(logger)
@@ -469,8 +482,11 @@ func TestUpdateSnapshot(t *testing.T) {
 	created, err := store.CreatingSnapshot(ctx, snap)
 	assert.NoError(t, err)
 	created.Name = "snap2-updated"
-	err = store.UpdateSnapshot(ctx, created)
+	dbSnap, err := store.UpdateSnapshot(ctx, created)
 	assert.NoError(t, err)
+	assert.NotNil(t, dbSnap)
+	assert.Equal(t, "snap2-updated", dbSnap.Name)
+	assert.Equal(t, created.UUID, dbSnap.UUID)
 }
 
 func TestGetSnapshot(t *testing.T) {
@@ -485,6 +501,19 @@ func TestGetSnapshot(t *testing.T) {
 	assert.NoError(t, err)
 	assert.NotNil(t, found)
 	assert.Equal(t, "snap3", found.Name)
+}
+
+func TestGetSnapshotsWithCondition(t *testing.T) {
+	logger := &log.MockLogger{}
+	store, _ := NewTestStorage(logger)
+	ctx := context.Background()
+	ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, logger)
+	filter := utils.CreateFilterWithConditions([]*utils.FilterCondition{
+		utils.NewFilterCondition().WithConditions("name", "=", "snap"),
+	})
+	snaps, err := store.GetSnapshotsWithCondition(ctx, *filter)
+	assert.NoError(t, err)
+	assert.NotNil(t, snaps)
 }
 
 func TestGetAppConsistentSnapshotsForVolume(t *testing.T) {

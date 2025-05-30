@@ -626,6 +626,197 @@ func TestHandler_V1betaListSnapshot(t *testing.T) {
 	})
 }
 
+func TestHandler_V1betaUpdateSnapshot(t *testing.T) {
+	t.Run("WhenSnapshotUpdateSucceeds", func(tt *testing.T) {
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		params := gcpserver.V1betaUpdateSnapshotParams{
+			SnapshotId:    "snapshot-id",
+			ProjectNumber: "project-number",
+			LocationId:    "location-id",
+		}
+		req := &gcpserver.VolumeSnapshotUpdateV1beta{
+			Description: gcpserver.NewOptString("snapshot-description"),
+		}
+		snapshot := &coremodels.Snapshot{
+			BaseModel: coremodels.BaseModel{
+				UUID:      "snapshot-id",
+				CreatedAt: time.Now(),
+			},
+			Name:                  "snapshot-name",
+			Description:           "snapshot-description",
+			VolumeUUID:            "volume-id",
+			VolumeName:            "volume-name",
+			LifeCycleState:        coremodels.LifeCycleStateREADY,
+			LifeCycleStateDetails: coremodels.LifeCycleStateAvailableDetails,
+		}
+		mockOrchestrator.EXPECT().UpdateSnapshot(mock.Anything, mock.Anything).Return(snapshot, "job-uuid", nil)
+
+		handler := Handler{
+			Orchestrator: mockOrchestrator,
+		}
+		result, err := handler.V1betaUpdateSnapshot(context.Background(), req, params)
+
+		assert.NoError(tt, err)
+		assert.NotNil(tt, result)
+		op, ok := result.(*gcpserver.OperationV1beta)
+		assert.True(tt, ok)
+		assert.Contains(tt, op.Name.Value, "job-uuid")
+		assert.True(tt, op.Done.Value)
+	})
+
+	t.Run("WhenSnapshotUpdateReturnsUpdating", func(tt *testing.T) {
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		params := gcpserver.V1betaUpdateSnapshotParams{
+			SnapshotId:    "snapshot-id",
+			ProjectNumber: "project-number",
+			LocationId:    "location-id",
+		}
+		req := &gcpserver.VolumeSnapshotUpdateV1beta{}
+		snapshot := &coremodels.Snapshot{
+			BaseModel: coremodels.BaseModel{
+				UUID:      "snapshot-id",
+				CreatedAt: time.Now(),
+			},
+			Name:                  "snapshot-name",
+			Description:           "snapshot-description",
+			VolumeUUID:            "volume-id",
+			VolumeName:            "volume-name",
+			LifeCycleState:        coremodels.LifeCycleStateUpdating,
+			LifeCycleStateDetails: coremodels.LifeCycleStateUpdatingDetails,
+		}
+		mockOrchestrator.EXPECT().UpdateSnapshot(mock.Anything, mock.Anything).Return(snapshot, "job-uuid", nil)
+
+		handler := Handler{
+			Orchestrator: mockOrchestrator,
+		}
+		result, err := handler.V1betaUpdateSnapshot(context.Background(), req, params)
+
+		assert.NoError(tt, err)
+		assert.NotNil(tt, result)
+		op, ok := result.(*gcpserver.OperationV1beta)
+		assert.True(tt, ok)
+		assert.Contains(tt, op.Name.Value, "job-uuid")
+		assert.False(tt, op.Done.Value)
+	})
+
+	t.Run("WhenSnapshotReturnsBadRequestOnEmptySnapshotID", func(tt *testing.T) {
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		params := gcpserver.V1betaUpdateSnapshotParams{
+			SnapshotId:    "",
+			ProjectNumber: "project-number",
+			LocationId:    "location-id",
+		}
+		req := &gcpserver.VolumeSnapshotUpdateV1beta{
+			ResourceId:  "snapshot-id",
+			Description: gcpserver.NewOptString("snapshot-description"),
+		}
+
+		handler := Handler{
+			Orchestrator: mockOrchestrator,
+		}
+		result, err := handler.V1betaUpdateSnapshot(context.Background(), req, params)
+
+		assert.NoError(tt, err)
+		assert.NotNil(tt, result)
+		badReq, ok := result.(*gcpserver.V1betaUpdateSnapshotBadRequest)
+		assert.True(tt, ok)
+		assert.Equal(tt, float64(400), badReq.Code)
+		assert.Equal(tt, "Snapshot ID is required", badReq.Message)
+	})
+
+	t.Run("WhenSnapshotUpdateReturnsNotFound", func(tt *testing.T) {
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		params := gcpserver.V1betaUpdateSnapshotParams{
+			SnapshotId:    "snapshot-id",
+			ProjectNumber: "project-number",
+			LocationId:    "location-id",
+		}
+		req := &gcpserver.VolumeSnapshotUpdateV1beta{}
+		mockOrchestrator.EXPECT().UpdateSnapshot(mock.Anything, mock.Anything).Return(nil, "", errors.NewNotFoundErr("Snapshot not found", nil))
+
+		handler := Handler{
+			Orchestrator: mockOrchestrator,
+		}
+		result, err := handler.V1betaUpdateSnapshot(context.Background(), req, params)
+
+		assert.NoError(tt, err)
+		assert.NotNil(tt, result)
+		notFound, ok := result.(*gcpserver.V1betaUpdateSnapshotNotFound)
+		assert.True(tt, ok)
+		assert.Equal(tt, float64(404), notFound.Code)
+		assert.Equal(tt, "Snapshot not found", notFound.Message)
+	})
+
+	t.Run("WhenSnapshotUpdateReturnsBadRequest", func(tt *testing.T) {
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		params := gcpserver.V1betaUpdateSnapshotParams{
+			SnapshotId:    "snapshot-id",
+			ProjectNumber: "project-number",
+			LocationId:    "location-id",
+		}
+		req := &gcpserver.VolumeSnapshotUpdateV1beta{}
+		mockOrchestrator.EXPECT().UpdateSnapshot(mock.Anything, mock.Anything).Return(nil, "", errors.NewUserInputValidationErr("bad request"))
+
+		handler := Handler{
+			Orchestrator: mockOrchestrator,
+		}
+		result, err := handler.V1betaUpdateSnapshot(context.Background(), req, params)
+
+		assert.NoError(tt, err)
+		assert.NotNil(tt, result)
+		badReq, ok := result.(*gcpserver.V1betaUpdateSnapshotBadRequest)
+		assert.True(tt, ok)
+		assert.Equal(tt, float64(400), badReq.Code)
+		assert.Equal(tt, "bad request", badReq.Message)
+	})
+
+	t.Run("WhenSnapshotUpdateReturnsConflict", func(tt *testing.T) {
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		params := gcpserver.V1betaUpdateSnapshotParams{
+			SnapshotId:    "snapshot-id",
+			ProjectNumber: "project-number",
+			LocationId:    "location-id",
+		}
+		req := &gcpserver.VolumeSnapshotUpdateV1beta{}
+		mockOrchestrator.EXPECT().UpdateSnapshot(mock.Anything, mock.Anything).Return(nil, "", errors.NewConflictErr("conflict"))
+
+		handler := Handler{
+			Orchestrator: mockOrchestrator,
+		}
+		result, err := handler.V1betaUpdateSnapshot(context.Background(), req, params)
+
+		assert.NoError(tt, err)
+		assert.NotNil(tt, result)
+		conflict, ok := result.(*gcpserver.V1betaUpdateSnapshotConflict)
+		assert.True(tt, ok)
+		assert.Equal(tt, float64(409), conflict.Code)
+		assert.Equal(tt, "conflict", conflict.Message)
+	})
+
+	t.Run("WhenSnapshotUpdateReturnsInternalServerError", func(tt *testing.T) {
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		params := gcpserver.V1betaUpdateSnapshotParams{
+			SnapshotId:    "snapshot-id",
+			ProjectNumber: "project-number",
+			LocationId:    "location-id",
+		}
+		req := &gcpserver.VolumeSnapshotUpdateV1beta{}
+		mockOrchestrator.EXPECT().UpdateSnapshot(mock.Anything, mock.Anything).Return(nil, "", errors.New("internal error"))
+
+		handler := Handler{
+			Orchestrator: mockOrchestrator,
+		}
+		result, err := handler.V1betaUpdateSnapshot(context.Background(), req, params)
+
+		assert.Error(tt, err)
+		assert.NotNil(tt, result)
+		internal, ok := result.(*gcpserver.V1betaUpdateSnapshotInternalServerError)
+		assert.True(tt, ok)
+		assert.Equal(tt, float64(500), internal.Code)
+		assert.Equal(tt, "internal error", internal.Message)
+	})
+}
+
 func TestV1betaDeleteSnapshot(t *testing.T) {
 	t.Run("WhenLocationValidationFailsInDeleteSnapshot", func(tt *testing.T) {
 		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)

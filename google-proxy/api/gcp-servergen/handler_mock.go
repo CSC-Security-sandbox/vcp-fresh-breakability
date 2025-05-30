@@ -4174,6 +4174,66 @@ func (_c *MockHandler_V1betaUpdateReplication_Call) RunAndReturn(run func(contex
 	return _c
 }
 
+// V1betaUpdateSnapshot provides a mock function with given fields: ctx, req, params
+func (_m *MockHandler) V1betaUpdateSnapshot(ctx context.Context, req *VolumeSnapshotUpdateV1beta, params V1betaUpdateSnapshotParams) (V1betaUpdateSnapshotRes, error) {
+	ret := _m.Called(ctx, req, params)
+
+	if len(ret) == 0 {
+		panic("no return value specified for V1betaUpdateSnapshot")
+	}
+
+	var r0 V1betaUpdateSnapshotRes
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, *VolumeSnapshotUpdateV1beta, V1betaUpdateSnapshotParams) (V1betaUpdateSnapshotRes, error)); ok {
+		return rf(ctx, req, params)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, *VolumeSnapshotUpdateV1beta, V1betaUpdateSnapshotParams) V1betaUpdateSnapshotRes); ok {
+		r0 = rf(ctx, req, params)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(V1betaUpdateSnapshotRes)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, *VolumeSnapshotUpdateV1beta, V1betaUpdateSnapshotParams) error); ok {
+		r1 = rf(ctx, req, params)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockHandler_V1betaUpdateSnapshot_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'V1betaUpdateSnapshot'
+type MockHandler_V1betaUpdateSnapshot_Call struct {
+	*mock.Call
+}
+
+// V1betaUpdateSnapshot is a helper method to define mock.On call
+//   - ctx context.Context
+//   - req *VolumeSnapshotUpdateV1beta
+//   - params V1betaUpdateSnapshotParams
+func (_e *MockHandler_Expecter) V1betaUpdateSnapshot(ctx interface{}, req interface{}, params interface{}) *MockHandler_V1betaUpdateSnapshot_Call {
+	return &MockHandler_V1betaUpdateSnapshot_Call{Call: _e.mock.On("V1betaUpdateSnapshot", ctx, req, params)}
+}
+
+func (_c *MockHandler_V1betaUpdateSnapshot_Call) Run(run func(ctx context.Context, req *VolumeSnapshotUpdateV1beta, params V1betaUpdateSnapshotParams)) *MockHandler_V1betaUpdateSnapshot_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(*VolumeSnapshotUpdateV1beta), args[2].(V1betaUpdateSnapshotParams))
+	})
+	return _c
+}
+
+func (_c *MockHandler_V1betaUpdateSnapshot_Call) Return(_a0 V1betaUpdateSnapshotRes, _a1 error) *MockHandler_V1betaUpdateSnapshot_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockHandler_V1betaUpdateSnapshot_Call) RunAndReturn(run func(context.Context, *VolumeSnapshotUpdateV1beta, V1betaUpdateSnapshotParams) (V1betaUpdateSnapshotRes, error)) *MockHandler_V1betaUpdateSnapshot_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // V1betaUpdateVolume provides a mock function with given fields: ctx, req, params
 func (_m *MockHandler) V1betaUpdateVolume(ctx context.Context, req *VolumeUpdateV1beta, params V1betaUpdateVolumeParams) (V1betaUpdateVolumeRes, error) {
 	ret := _m.Called(ctx, req, params)

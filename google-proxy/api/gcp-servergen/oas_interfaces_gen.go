@@ -277,6 +277,10 @@ type V1betaUpdateReplicationRes interface {
 	v1betaUpdateReplicationRes()
 }
 
+type V1betaUpdateSnapshotRes interface {
+	v1betaUpdateSnapshotRes()
+}
+
 type V1betaUpdateVolumeRes interface {
 	v1betaUpdateVolumeRes()
 }

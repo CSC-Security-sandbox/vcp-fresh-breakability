@@ -155,7 +155,7 @@ func TestUpdateSnapshotDetails(t *testing.T) {
 			},
 		}
 
-		mockStorage.On("UpdateSnapshot", ctx, snapshot).Return(nil)
+		mockStorage.On("UpdateSnapshot", ctx, snapshot).Return(nil, nil)
 
 		err := activity.UpdateSnapshotDetails(ctx, snapshot, &vsa.SnapshotProviderResponse{
 			ProviderResponse: vsa.ProviderResponse{
@@ -183,7 +183,7 @@ func TestUpdateSnapshotDetails(t *testing.T) {
 		}
 		expectedError := errors.New("failed to update snapshot")
 
-		mockStorage.On("UpdateSnapshot", ctx, snapshot).Return(expectedError)
+		mockStorage.On("UpdateSnapshot", ctx, snapshot).Return(nil, expectedError)
 
 		err := activity.UpdateSnapshotDetails(ctx, snapshot, &vsa.SnapshotProviderResponse{
 			ProviderResponse: vsa.ProviderResponse{
@@ -215,7 +215,7 @@ func TestUpdateSnapshotDetails(t *testing.T) {
 			},
 		}
 
-		mockStorage.On("UpdateSnapshot", ctx, snapshot).Return(nil)
+		mockStorage.On("UpdateSnapshot", ctx, snapshot).Return(nil, nil)
 
 		err := activity.UpdateSnapshotDetails(ctx, snapshot, nil)
 

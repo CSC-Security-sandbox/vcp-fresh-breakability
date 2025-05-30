@@ -65,28 +65,30 @@ func getSnapshotWithDetails(db *gorm.DB, query *datamodel.Snapshot) (*datamodel.
 	return snapshot, nil
 }
 
-func (d *DataStoreRepository) UpdateSnapshot(ctx context.Context, snapshot *datamodel.Snapshot) error {
+func (d *DataStoreRepository) UpdateSnapshot(ctx context.Context, snapshot *datamodel.Snapshot) (*datamodel.Snapshot, error) {
 	logger := util.GetLogger(ctx)
 	db := d.db.GORM().WithContext(ctx)
 	tx, err := startTransaction(db)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	defer commitOrRollbackOnError(logger, tx, &err)
 	dbSnapshot, err := getSnapshotWithDetails(tx, &datamodel.Snapshot{BaseModel: datamodel.BaseModel{UUID: snapshot.UUID}})
 	if err != nil {
-		return err
+		return nil, err
 	}
 	err = tx.Model(&dbSnapshot).Updates(datamodel.Snapshot{
+		Name:               snapshot.Name,
+		Description:        snapshot.Description,
 		SnapshotAttributes: snapshot.SnapshotAttributes,
 		State:              snapshot.State,
 		StateDetails:       snapshot.StateDetails,
 	}).Error
 
 	if err != nil {
-		return err
+		return nil, err
 	}
-	return nil
+	return dbSnapshot, nil
 }
 
 func (d *DataStoreRepository) GetAppConsistentSnapshotsForVolume(ctx context.Context, accountID, volumeID int64) ([]*datamodel.Snapshot, error) {
@@ -94,14 +96,15 @@ func (d *DataStoreRepository) GetAppConsistentSnapshotsForVolume(ctx context.Con
 		utils.NewFilterCondition().WithConditions("account_id", "=", accountID),
 		utils.NewFilterCondition().WithConditions("volume_id", "=", volumeID),
 		utils.NewFilterCondition().WithConditions("is_app_consistent", "=", true)})
-	return getSnapshotsWithCondition(d.db.ApplyFilter(filter.Apply()).GORM().WithContext(ctx))
+	return d.GetSnapshotsWithCondition(ctx, *filter)
 }
 
 func (d *DataStoreRepository) GetSnapshotByUUID(ctx context.Context, uuid string) (*datamodel.Snapshot, error) {
 	return getSnapshotWithDetails(d.db.GORM().WithContext(ctx), &datamodel.Snapshot{BaseModel: datamodel.BaseModel{UUID: uuid}})
 }
 
-func getSnapshotsWithCondition(db *gorm.DB) ([]*datamodel.Snapshot, error) {
+func (d *DataStoreRepository) GetSnapshotsWithCondition(ctx context.Context, filter utils.Filter) ([]*datamodel.Snapshot, error) {
+	db := d.db.ApplyFilter(filter.Apply()).GORM().WithContext(ctx)
 	var snapshots []*datamodel.Snapshot
 	err := db.Preload("Volume").Find(&snapshots).Error
 	if err != nil {
@@ -159,5 +162,5 @@ func (d *DataStoreRepository) GetSnapshotsByVolumeID(ctx context.Context, volume
 	filter := utils.CreateFilterWithConditions([]*utils.FilterCondition{
 		utils.NewFilterCondition().WithConditions("volume_id", "=", volumeID),
 	})
-	return getSnapshotsWithCondition(d.db.ApplyFilter(filter.Apply()).GORM().WithContext(ctx))
+	return d.GetSnapshotsWithCondition(ctx, *filter)
 }

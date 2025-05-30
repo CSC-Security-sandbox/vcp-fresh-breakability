@@ -75,5 +75,6 @@ const (
 	V1betaUpdateKmsConfigurationOperation             OperationName = "V1betaUpdateKmsConfiguration"
 	V1betaUpdatePoolOperation                         OperationName = "V1betaUpdatePool"
 	V1betaUpdateReplicationOperation                  OperationName = "V1betaUpdateReplication"
+	V1betaUpdateSnapshotOperation                     OperationName = "V1betaUpdateSnapshot"
 	V1betaUpdateVolumeOperation                       OperationName = "V1betaUpdateVolume"
 )

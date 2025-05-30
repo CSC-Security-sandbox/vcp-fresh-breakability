@@ -1,6 +1,9 @@
 package utils
 
-import "fmt"
+import (
+	"fmt"
+	"reflect"
+)
 
 type FilterCondition struct {
 	Field string
@@ -41,6 +44,9 @@ func (f *Filter) ToGORMQuery() [][]interface{} {
 	var query [][]interface{}
 	for _, condition := range f.Conditions {
 		val := fmt.Sprintf("%s %s %v", condition.Field, condition.Op, condition.Value)
+		if reflect.TypeOf(condition.Value).Kind() == reflect.String {
+			val = fmt.Sprintf("%s %s '%s'", condition.Field, condition.Op, condition.Value)
+		}
 		query = append(query, []interface{}{val})
 	}
 	return query

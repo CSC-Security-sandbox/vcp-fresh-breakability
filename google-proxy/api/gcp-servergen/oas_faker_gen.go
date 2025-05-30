@@ -8673,6 +8673,69 @@ func (s *V1betaUpdateReplicationUnprocessableEntity) SetFake() {
 }
 
 // SetFake set fake values.
+func (s *V1betaUpdateSnapshotBadRequest) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaUpdateSnapshotBadRequest(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaUpdateSnapshotConflict) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaUpdateSnapshotConflict(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaUpdateSnapshotForbidden) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaUpdateSnapshotForbidden(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaUpdateSnapshotInternalServerError) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaUpdateSnapshotInternalServerError(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaUpdateSnapshotNotFound) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaUpdateSnapshotNotFound(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaUpdateSnapshotTooManyRequests) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaUpdateSnapshotTooManyRequests(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaUpdateSnapshotUnauthorized) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaUpdateSnapshotUnauthorized(unwrapped)
+}
+
+// SetFake set fake values.
 func (s *V1betaUpdateVolumeBadRequest) SetFake() {
 	var unwrapped Error
 	{
@@ -9347,6 +9410,20 @@ func (s *VolumeSnapshotCreateV1beta) SetFake() {
 	{
 		{
 			s.IsAppConsistent.SetFake()
+		}
+	}
+}
+
+// SetFake set fake values.
+func (s *VolumeSnapshotUpdateV1beta) SetFake() {
+	{
+		{
+			s.ResourceId = "string"
+		}
+	}
+	{
+		{
+			s.Description.SetFake()
 		}
 	}
 }

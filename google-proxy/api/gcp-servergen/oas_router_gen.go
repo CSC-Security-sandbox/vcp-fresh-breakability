@@ -1644,8 +1644,15 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 															args[2],
 															args[3],
 														}, elemIsEscaped, w, r)
+													case "PUT":
+														s.handleV1betaUpdateSnapshotRequest([4]string{
+															args[0],
+															args[1],
+															args[2],
+															args[3],
+														}, elemIsEscaped, w, r)
 													default:
-														s.notAllowed(w, r, "DELETE,GET")
+														s.notAllowed(w, r, "DELETE,GET,PUT")
 													}
 
 													return
@@ -3415,6 +3422,14 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 														r.name = V1betaDescribeSnapshotOperation
 														r.summary = "Get a snapshot"
 														r.operationID = "v1beta_describeSnapshot"
+														r.pathPattern = "/v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/snapshot/{snapshotId}"
+														r.args = args
+														r.count = 4
+														return r, true
+													case "PUT":
+														r.name = V1betaUpdateSnapshotOperation
+														r.summary = "Update a snapshot"
+														r.operationID = "v1beta_updateSnapshot"
 														r.pathPattern = "/v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/snapshot/{snapshotId}"
 														r.args = args
 														r.count = 4

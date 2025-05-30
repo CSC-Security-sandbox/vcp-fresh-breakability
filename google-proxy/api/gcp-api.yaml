@@ -4563,6 +4563,66 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
+    put:
+      tags:
+        - snapshots
+      summary: Update a snapshot
+      description: Updates name and description of the requested snapshot.
+      operationId: v1beta_updateSnapshot
+      parameters:
+        - $ref: '#/components/parameters/projectNumberPathParameter'
+        - $ref: '#/components/parameters/locationIdPathParameter'
+        - $ref: '#/components/parameters/volumeIdPathParameter'
+        - $ref: '#/components/parameters/snapshotIdPathParameter'
+        - $ref: '#/components/parameters/xCorrelationIdHeader'
+      requestBody:
+        description: Updating snapshot
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/VolumeSnapshotUpdate_v1beta'
+      responses:
+        '202':
+          description: Updating Snapshot
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Operation_v1beta'
+              example:
+                application/json:
+                  done: false
+                  name: /v1beta/projects/123456789/locations/some-location1/operations/6bed33e1-cc9c-e0b5-ac63-24e9410e64c1
+                  response:
+                    created: '0001-01-01T00:00:00.000Z'
+                    resourceId: my-resource
+                    description: My Resource Description
+                    snapshotId: 1829d6e1-fbe0-87cb-150d-a32290162f0c
+                    snapshotState: UPDATING
+                    snapshotStateDetails: Update in progress
+                    storageClass: HARDWARE
+                    usedBytes: 0
+                    volumeId: b78e8675-7e6f-64ec-3ec2-163753add2d5
+        '400':
+          $ref: '#/components/responses/StandardError-400'
+        '401':
+          $ref: '#/components/responses/StandardError-401'
+        '403':
+          $ref: '#/components/responses/StandardError-403'
+        '404':
+          $ref: '#/components/responses/StandardError-404'
+        '409':
+          $ref: '#/components/responses/StandardError-409'
+        '429':
+          $ref: '#/components/responses/StandardError-429'
+        '500':
+          $ref: '#/components/responses/StandardError-500'
+        default:
+          description: Unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
     delete:
       operationId: v1beta_deleteSnapshot
       summary: Delete a snapshot for a volume
@@ -8873,6 +8933,12 @@ components:
               type: boolean
               example: false
               default: false
+    VolumeSnapshotUpdate_v1beta:
+      type: object
+      description: Request object for updating snapshots from a volume
+      allOf:
+        - $ref: '#/components/schemas/ResourceName_v1beta'
+        - $ref: '#/components/schemas/Description_v1beta'
   responses:
     StandardError-400:
       description: Bad request

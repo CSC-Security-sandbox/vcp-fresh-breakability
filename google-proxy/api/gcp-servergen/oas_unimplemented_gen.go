@@ -647,6 +647,15 @@ func (UnimplementedHandler) V1betaUpdateReplication(ctx context.Context, req *Re
 	return r, ht.ErrNotImplemented
 }
 
+// V1betaUpdateSnapshot implements v1beta_updateSnapshot operation.
+//
+// Updates name and description of the requested snapshot.
+//
+// PUT /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/snapshot/{snapshotId}
+func (UnimplementedHandler) V1betaUpdateSnapshot(ctx context.Context, req *VolumeSnapshotUpdateV1beta, params V1betaUpdateSnapshotParams) (r V1betaUpdateSnapshotRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
 // V1betaUpdateVolume implements v1beta_updateVolume operation.
 //
 // Update the volume.

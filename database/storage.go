@@ -469,6 +469,10 @@ func (s *PersistenceStore) GetJob(ctx context.Context, id string) (*datamodel.Jo
 	return s.dataStore.GetJob(ctx, id)
 }
 
+func (s *PersistenceStore) GetJobsWithCondition(ctx context.Context, filter utils.Filter) ([]*datamodel.Job, error) {
+	return s.dataStore.GetJobsWithCondition(ctx, filter)
+}
+
 func (s *PersistenceStore) GetPoolByVendorID(ctx context.Context, vendorID string) (*datamodel.Pool, error) {
 	return s.dataStore.GetPoolByVendorID(ctx, vendorID)
 }
@@ -549,12 +553,16 @@ func (s *PersistenceStore) CreatingSnapshot(ctx context.Context, snapshot *datam
 	return s.dataStore.CreatingSnapshot(ctx, snapshot)
 }
 
-func (s *PersistenceStore) UpdateSnapshot(ctx context.Context, snapshot *datamodel.Snapshot) error {
+func (s *PersistenceStore) UpdateSnapshot(ctx context.Context, snapshot *datamodel.Snapshot) (*datamodel.Snapshot, error) {
 	return s.dataStore.UpdateSnapshot(ctx, snapshot)
 }
 
 func (s *PersistenceStore) GetSnapshot(ctx context.Context, uuid string) (*datamodel.Snapshot, error) {
 	return s.dataStore.GetSnapshotByUUID(ctx, uuid)
+}
+
+func (s *PersistenceStore) GetSnapshotsWithCondition(ctx context.Context, filter utils.Filter) ([]*datamodel.Snapshot, error) {
+	return s.dataStore.GetSnapshotsWithCondition(ctx, filter)
 }
 
 func (s *PersistenceStore) DeletingSnapshot(ctx context.Context, snapshot *datamodel.Snapshot) error {

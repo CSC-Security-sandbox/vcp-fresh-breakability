@@ -108,6 +108,13 @@ type ListSnapshotsParams struct {
 	SnapshotBaseParams
 }
 
+type UpdateSnapshotParams struct {
+	SnapshotBaseParams
+	SnapshotUUID string
+	Name         string
+	Description  string
+}
+
 type ClusterPeerParams struct {
 	PeerAddresses       []string
 	PeerName            string

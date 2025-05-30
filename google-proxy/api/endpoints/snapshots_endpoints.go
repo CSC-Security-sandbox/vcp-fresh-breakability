@@ -178,6 +178,72 @@ func (h Handler) V1betaCreateSnapshot(ctx context.Context, req *gcpgenserver.Vol
 	}, nil
 }
 
+func (h Handler) V1betaUpdateSnapshot(ctx context.Context, req *gcpgenserver.VolumeSnapshotUpdateV1beta, params gcpgenserver.V1betaUpdateSnapshotParams) (gcpgenserver.V1betaUpdateSnapshotRes, error) {
+	logger := util.GetLogger(ctx)
+	if params.SnapshotId == "" {
+		logger.Error("Snapshot ID is required for UpdateSnapshot")
+		return &gcpgenserver.V1betaUpdateSnapshotBadRequest{
+			Code:    400,
+			Message: "Snapshot ID is required",
+		}, nil
+	}
+
+	updateParams := &common.UpdateSnapshotParams{
+		SnapshotBaseParams: common.SnapshotBaseParams{
+			AccountName: params.ProjectNumber,
+			VolumeID:    params.VolumeId,
+		},
+		SnapshotUUID: params.SnapshotId,
+		Name:         req.GetResourceId(),
+	}
+	if req.Description.IsSet() {
+		updateParams.Description = req.GetDescription().Value
+	}
+
+	snapshot, jobUUID, err := h.Orchestrator.UpdateSnapshot(ctx, updateParams)
+	if err != nil {
+		if errors.IsNotFoundErr(err) {
+			return &gcpgenserver.V1betaUpdateSnapshotNotFound{
+				Code:    404,
+				Message: "Snapshot not found",
+			}, nil
+		} else if errors.IsUserInputValidationErr(err) {
+			return &gcpgenserver.V1betaUpdateSnapshotBadRequest{
+				Code:    400,
+				Message: err.Error(),
+			}, nil
+		} else if errors.IsConflictErr(err) {
+			return &gcpgenserver.V1betaUpdateSnapshotConflict{
+				Code:    409,
+				Message: err.Error(),
+			}, nil
+		}
+		logger.Errorf("Failed to update snapshot %s with error: %v", params.SnapshotId, err.Error())
+		return &gcpgenserver.V1betaUpdateSnapshotInternalServerError{Code: 500, Message: err.Error()}, err
+	}
+
+	vcpSnapshot := convertModelToVCPSnapshot(snapshot)
+	resp, err := encodeSnapshotV1(vcpSnapshot)
+	if err != nil {
+		logger.Errorf("Failed to encode snapshot response: %v", err)
+		return &gcpgenserver.V1betaUpdateSnapshotInternalServerError{Code: 500, Message: err.Error()}, err
+	}
+
+	operationID := "/v1beta/projects/" + params.ProjectNumber + "/locations/" + params.LocationId + "/operations/" + jobUUID
+	if snapshot.LifeCycleState == coremodels.LifeCycleStateUpdating {
+		return &gcpgenserver.OperationV1beta{
+			Name:     gcpgenserver.NewOptString(operationID),
+			Response: resp,
+			Done:     gcpgenserver.NewOptBool(false),
+		}, nil
+	}
+	return &gcpgenserver.OperationV1beta{
+		Name:     gcpgenserver.NewOptString(operationID),
+		Response: resp,
+		Done:     gcpgenserver.NewOptBool(true),
+	}, nil
+}
+
 func (h Handler) V1betaDescribeSnapshot(ctx context.Context, params gcpgenserver.V1betaDescribeSnapshotParams) (gcpgenserver.V1betaDescribeSnapshotRes, error) {
 	logger := util.GetLogger(ctx)
 	describeParams := &common.GetSnapshotParams{

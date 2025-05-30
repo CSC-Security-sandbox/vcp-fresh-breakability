@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	"gorm.io/gorm"
 )
 
@@ -83,6 +84,7 @@ type DataStore interface {
 	CreateJob(ctx context.Context, job *datamodel.Job) (*datamodel.Job, error)
 	UpdateJob(ctx context.Context, jobID string, status string, trackingID int, errorDetails []byte) error
 	GetJob(ctx context.Context, jobID string) (*datamodel.Job, error)
+	GetJobsWithCondition(ctx context.Context, filter utils.Filter) ([]*datamodel.Job, error)
 
 	GetSvmForPoolID(ctx context.Context, poolID int64) (*datamodel.Svm, error)
 
@@ -109,9 +111,10 @@ type DataStore interface {
 	DeletingSVM(ctx context.Context, svm *datamodel.Svm) error
 
 	CreatingSnapshot(ctx context.Context, snapshot *datamodel.Snapshot) (*datamodel.Snapshot, error)
-	UpdateSnapshot(ctx context.Context, snapshot *datamodel.Snapshot) error
+	UpdateSnapshot(ctx context.Context, snapshot *datamodel.Snapshot) (*datamodel.Snapshot, error)
 	GetSnapshot(ctx context.Context, uuid string) (*datamodel.Snapshot, error)
 	GetSnapshotsByVolumeID(ctx context.Context, volumeID int64) ([]*datamodel.Snapshot, error)
+	GetSnapshotsWithCondition(ctx context.Context, filter utils.Filter) ([]*datamodel.Snapshot, error)
 	GetAppConsistentSnapshotsForVolume(ctx context.Context, accountID, volumeID int64) ([]*datamodel.Snapshot, error)
 	DeleteSnapshot(ctx context.Context, id string) (*datamodel.Snapshot, error)
 	DeletingSnapshot(ctx context.Context, snapshot *datamodel.Snapshot) error

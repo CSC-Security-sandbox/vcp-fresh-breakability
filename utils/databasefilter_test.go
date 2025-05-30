@@ -50,7 +50,7 @@ func TestFilter_ToGORMQuery(t *testing.T) {
 	filter := &Filter{Conditions: conds}
 	query := filter.ToGORMQuery()
 	assert.Len(t, query, 2)
-	assert.Equal(t, []interface{}{"name = alice"}, query[0])
+	assert.Equal(t, []interface{}{"name = 'alice'"}, query[0])
 	assert.Equal(t, []interface{}{"age > 30"}, query[1])
 }
 
