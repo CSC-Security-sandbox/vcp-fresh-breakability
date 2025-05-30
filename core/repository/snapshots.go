@@ -13,6 +13,10 @@ import (
 	"gorm.io/gorm"
 )
 
+var (
+	deleteSnapshot = _deleteSnapshot
+)
+
 func (d *DataStoreRepository) CreatingSnapshot(ctx context.Context, snapshot *datamodel.Snapshot) (*datamodel.Snapshot, error) {
 	db := d.db.GORM().WithContext(ctx)
 	logger := util.GetLogger(ctx)
@@ -104,6 +108,51 @@ func getSnapshotsWithCondition(db *gorm.DB) ([]*datamodel.Snapshot, error) {
 		return nil, err
 	}
 	return snapshots, nil
+}
+
+func (d *DataStoreRepository) DeleteSnapshot(ctx context.Context, snapshotUUID string) (*datamodel.Snapshot, error) {
+	db := d.db.GORM().WithContext(ctx)
+	tx, err := startTransaction(db)
+	if err != nil {
+		return nil, err
+	}
+	logger := util.GetLogger(ctx)
+	defer commitOrRollbackOnError(logger, tx, &err)
+	return deleteSnapshot(tx, snapshotUUID)
+}
+
+func _deleteSnapshot(db *gorm.DB, snapshotUUID string) (*datamodel.Snapshot, error) {
+	snapshot, err := getSnapshotWithDetails(db, &datamodel.Snapshot{BaseModel: datamodel.BaseModel{UUID: snapshotUUID}})
+	if err != nil {
+		return nil, err
+	}
+	snapshot.DeletedAt = &gorm.DeletedAt{Time: time.Now(), Valid: true}
+	snapshot.State = models.LifeCycleStateDeleted
+	snapshot.StateDetails = models.LifeCycleStateDeletedDetails
+	err = db.Save(snapshot).Error
+	if err != nil {
+		return nil, err
+	}
+
+	return snapshot, nil
+}
+
+// DeletingSnapshot updates the snapshot entry to deleting state
+func (d *DataStoreRepository) DeletingSnapshot(ctx context.Context, snapshot *datamodel.Snapshot) error {
+	db := d.db.GORM().WithContext(ctx)
+	tx, err := startTransaction(db)
+	if err != nil {
+		return err
+	}
+	logger := util.GetLogger(ctx)
+	defer commitOrRollbackOnError(logger, tx, &err)
+	snapshot.State = models.LifeCycleStateDeleting
+	snapshot.StateDetails = models.LifeCycleStateDeletingDetails
+	err = tx.Updates(snapshot).Error
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 func (d *DataStoreRepository) GetSnapshotsByVolumeID(ctx context.Context, volumeID int64) ([]*datamodel.Snapshot, error) {

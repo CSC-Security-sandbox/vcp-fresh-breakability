@@ -37,6 +37,7 @@ const (
 	LifeCycleStateRetainedDetails      = "Retained"
 	LifeCycleStateOngoingDetails       = "Ongoing"
 	LifeCycleStateCreationErrorDetails = "Error in creating"
+	LifeCycleStateDeletionErrorDetails = "Error in deleting"
 
 	AccountStateDisabled = "DISABLED"
 	AccountStateEnabled  = "ENABLED"

@@ -73,6 +73,10 @@ type V1betaDeleteReplicationRes interface {
 	v1betaDeleteReplicationRes()
 }
 
+type V1betaDeleteSnapshotRes interface {
+	v1betaDeleteSnapshotRes()
+}
+
 type V1betaDeleteVolumeRes interface {
 	v1betaDeleteVolumeRes()
 }

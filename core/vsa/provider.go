@@ -49,6 +49,7 @@ type Provider interface {
 	ReleaseVolumeReplication(params *CreateVolumeReplicationParams) (*VolumeReplication, error)
 	ResyncVolumeReplication(volRep *VolumeReplication) (*VolumeReplication, error)
 	CreateSnapshot(params CreateSnapshotParams) (*SnapshotProviderResponse, error)
+	DeleteSnapshot(snapshotUUID string, volumeUUID string) error
 }
 
 type OntapRestProvider struct {

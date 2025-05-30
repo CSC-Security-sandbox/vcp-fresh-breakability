@@ -557,6 +557,14 @@ func (s *PersistenceStore) GetSnapshot(ctx context.Context, uuid string) (*datam
 	return s.dataStore.GetSnapshotByUUID(ctx, uuid)
 }
 
+func (s *PersistenceStore) DeletingSnapshot(ctx context.Context, snapshot *datamodel.Snapshot) error {
+	return s.dataStore.DeletingSnapshot(ctx, snapshot)
+}
+
+func (s *PersistenceStore) DeleteSnapshot(ctx context.Context, id string) (*datamodel.Snapshot, error) {
+	return s.dataStore.DeleteSnapshot(ctx, id)
+}
+
 func (s *PersistenceStore) GetAppConsistentSnapshotsForVolume(ctx context.Context, accountID, volumeID int64) ([]*datamodel.Snapshot, error) {
 	return s.dataStore.GetAppConsistentSnapshotsForVolume(ctx, accountID, volumeID)
 }

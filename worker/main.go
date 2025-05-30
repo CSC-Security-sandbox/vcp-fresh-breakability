@@ -106,6 +106,7 @@ func RegisterWorkflowsAndActivities(worker tManagerPkg.Worker, dbcon database.St
 	worker.RegisterWorkflow(workflows.CreateVolumeWorkflow)
 	worker.RegisterWorkflow(workflows.DeleteVolumeWorkflow)
 	worker.RegisterWorkflow(workflows.CreateSnapshotWorkflow)
+	worker.RegisterWorkflow(workflows.DeleteSnapshotWorkflow)
 	worker.RegisterWorkflow(workflows.AcceptClusterPeerWorkflow)
 
 	worker.RegisterActivity(&activities.CommonActivities{SE: dbcon})
@@ -113,5 +114,6 @@ func RegisterWorkflowsAndActivities(worker tManagerPkg.Worker, dbcon database.St
 	worker.RegisterActivity(&activities.VolumeCreateActivity{SE: dbcon})
 	worker.RegisterActivity(&activities.VolumeDeleteActivity{SE: dbcon})
 	worker.RegisterActivity(&activities.SnapshotCreateActivity{SE: dbcon})
+	worker.RegisterActivity(&activities.SnapshotDeleteActivity{SE: dbcon})
 	worker.RegisterActivity(&activities.ClusterPeerActivity{SE: dbcon})
 }

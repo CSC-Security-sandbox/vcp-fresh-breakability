@@ -148,3 +148,51 @@ func TestCreateSnapshot(t *testing.T) {
 		assert.ErrorContains(t, err, "invalid Snapshot create response from API")
 	})
 }
+
+func TestDeleteSnapshot(t *testing.T) {
+	t.Run("DeleteSnapshotSuccess", func(t *testing.T) {
+		mockStorage := new(ontaprest.MockStorageClient)
+		mockClient := new(ontaprest.MockRESTClient)
+		mockClient.On("Storage").Return(mockStorage)
+
+		getOntapClientFunc = func(params ontaprest.RESTClientParams) ontaprest.RESTClient {
+			return mockClient
+		}
+		rc := &OntapRestProvider{}
+
+		snapshotUUID := "testUUID"
+		snapshotName := "testSnapshot"
+
+		mockStorage.On("SnapshotDelete", mock.Anything).Return(nil)
+
+		err := rc.DeleteSnapshot(snapshotUUID, snapshotName)
+
+		assert.NoError(t, err)
+
+		mockStorage.AssertExpectations(t)
+		mockClient.AssertExpectations(t)
+	})
+
+	t.Run("DeleteSnapshotError", func(t *testing.T) {
+		mockStorage := new(ontaprest.MockStorageClient)
+		mockClient := new(ontaprest.MockRESTClient)
+		mockClient.On("Storage").Return(mockStorage)
+
+		getOntapClientFunc = func(params ontaprest.RESTClientParams) ontaprest.RESTClient {
+			return mockClient
+		}
+		rc := &OntapRestProvider{}
+
+		snapshotUUID := "testUUID"
+		snapshotName := "testSnapshot"
+
+		mockStorage.On("SnapshotDelete", mock.Anything).Return(errors.New("deletion error"))
+
+		err := rc.DeleteSnapshot(snapshotUUID, snapshotName)
+
+		assert.Error(t, err)
+
+		mockStorage.AssertExpectations(t)
+		mockClient.AssertExpectations(t)
+	})
+}

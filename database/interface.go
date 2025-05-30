@@ -113,6 +113,8 @@ type DataStore interface {
 	GetSnapshot(ctx context.Context, uuid string) (*datamodel.Snapshot, error)
 	GetSnapshotsByVolumeID(ctx context.Context, volumeID int64) ([]*datamodel.Snapshot, error)
 	GetAppConsistentSnapshotsForVolume(ctx context.Context, accountID, volumeID int64) ([]*datamodel.Snapshot, error)
+	DeleteSnapshot(ctx context.Context, id string) (*datamodel.Snapshot, error)
+	DeletingSnapshot(ctx context.Context, snapshot *datamodel.Snapshot) error
 
 	GetMultipleKmsConfigs(ctx context.Context, conditions [][]interface{}) ([]*datamodel.KmsConfig, error)
 }

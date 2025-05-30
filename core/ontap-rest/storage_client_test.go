@@ -893,3 +893,45 @@ func TestSnapshotGetParamsToONTAP(t *testing.T) {
 		assert.Equal(tt, volumeUUID, result.VolumeUUID)
 	})
 }
+
+func TestSnapshotDelete(t *testing.T) {
+	t.Run("WhenRESTCallFails_ThenReturnError", func(tt *testing.T) {
+		transport := &mockTransport{err: errors.New("something went wrong")}
+		storageAPI := storage.New(transport, nil)
+		client := &storageClient{api: storageAPI}
+		err := client.SnapshotDelete(&SnapshotDeleteParams{UUID: "someUUID"})
+		assert.EqualError(tt, err, transport.err.Error())
+	})
+
+	t.Run("WhenUuidIsEmpty_ThenThrowError", func(tt *testing.T) {
+		transport := &mockTransport{}
+		storageAPI := storage.New(transport, nil)
+		client := &storageClient{api: storageAPI}
+		err := client.SnapshotDelete(&SnapshotDeleteParams{})
+		assert.Error(tt, err)
+		assert.EqualError(tt, err, "no UUID provided for SnapshotDelete")
+	})
+
+	t.Run("WhenSnapshotUUIDIsPassed_ThenSuccessfullyDeleteSnapshot", func(tt *testing.T) {
+		transport := &mockTransport{response: &storage.SnapshotDeleteOK{}}
+		storageAPI := storage.New(transport, nil)
+		client := &storageClient{api: storageAPI}
+		err := client.SnapshotDelete(&SnapshotDeleteParams{UUID: "someUUID"})
+		assert.NoError(tt, err)
+	})
+}
+
+func TestDeleteParamsToONTAP(t *testing.T) {
+	t.Run("WhenParamsIsNotNil_ThenFieldsAreMapped", func(tt *testing.T) {
+		uuid := "snap-uuid"
+		volumeUUID := "vol-uuid"
+		params := &SnapshotDeleteParams{
+			UUID:       uuid,
+			VolumeUUID: volumeUUID,
+		}
+		result := snapshotDeleteParamsToONTAP(params)
+		assert.NotNil(tt, result)
+		assert.Equal(tt, uuid, result.UUID)
+		assert.Equal(tt, volumeUUID, result.VolumeUUID)
+	})
+}

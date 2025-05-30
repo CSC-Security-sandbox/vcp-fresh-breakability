@@ -3,13 +3,15 @@ package orchestrator
 import (
 	"context"
 	"database/sql"
+	"errors"
+	"gorm.io/gorm"
 
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/workflows"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
+	customerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	workflowengine "github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/temporal"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 	"go.temporal.io/api/enums/v1"
@@ -24,6 +26,7 @@ var (
 	createSnapshot       = _createSnapshot
 	getSnapshot          = _getSnapshot
 	VolumeOwnershipCheck = _volumeOwnershipCheck
+	deleteSnapshot       = _deleteSnapshot
 	listSnapshots        = _listSnapshots
 )
 
@@ -38,13 +41,13 @@ func _createSnapshot(ctx context.Context, se database.Storage, temporal client.C
 	account, err := se.GetAccount(ctx, params.AccountName)
 	if err != nil {
 		logger.Errorf("Failed to get account: %s. Error: %v", params.AccountName, err)
-		return nil, "", errors.NewNotFoundErr("account", &params.AccountName)
+		return nil, "", customerrors.NewNotFoundErr("account", &params.AccountName)
 	}
 
 	volume, err := VolumeOwnershipCheck(ctx, se, params.VolumeID, params.AccountName)
 	if err != nil {
 		logger.Errorf("Failed to validate volume ownership")
-		return nil, "", errors.NewUserInputValidationErr("failed to validate volume ownership")
+		return nil, "", customerrors.NewUserInputValidationErr("failed to validate volume ownership")
 	}
 
 	if params.IsAppConsistent {
@@ -52,7 +55,7 @@ func _createSnapshot(ctx context.Context, se database.Storage, temporal client.C
 		if err != nil {
 			return nil, "", err
 		} else if len(appConsistentSnaps) == 1 {
-			return nil, "", errors.NewConflictErr("Volume already has an app consistent snapshot")
+			return nil, "", customerrors.NewConflictErr("Volume already has an app consistent snapshot")
 		}
 	}
 
@@ -123,7 +126,7 @@ func _getSnapshot(ctx context.Context, se database.Storage, params *common.GetSn
 	_, err := VolumeOwnershipCheck(ctx, se, params.VolumeID, params.AccountName)
 	if err != nil {
 		logger.Errorf("Failed to validate volume ownership")
-		return nil, errors.NewUserInputValidationErr("failed to validate volume ownership")
+		return nil, customerrors.NewUserInputValidationErr("failed to validate volume ownership")
 	}
 
 	snapshot, err := se.GetSnapshot(ctx, params.SnapshotUUID)
@@ -146,7 +149,7 @@ func _listSnapshots(ctx context.Context, se database.Storage, params *common.Lis
 	volume, err := VolumeOwnershipCheck(ctx, se, params.VolumeID, params.AccountName)
 	if err != nil {
 		logger.Errorf("Failed to validate volume ownership")
-		return nil, errors.NewUserInputValidationErr("failed to validate volume ownership")
+		return nil, customerrors.NewUserInputValidationErr("failed to validate volume ownership")
 	}
 
 	snapshots, err := se.GetSnapshotsByVolumeID(ctx, volume.ID)
@@ -186,19 +189,83 @@ func convertDatastoreSnapshotToModel(snapshot *datamodel.Snapshot) *models.Snaps
 
 func validateCreatSnapshotOperation(volume *datamodel.Volume, params *common.CreateSnapshotParams, account *datamodel.Account) error {
 	if params.Name == "" {
-		return errors.NewUserInputValidationErr("Snapshot name is empty. Please provide a valid name.")
+		return customerrors.NewUserInputValidationErr("Snapshot name is empty. Please provide a valid name.")
 	}
 
 	if volume.State == models.LifeCycleStateCreating {
-		return errors.NewNotReadyErr("Can not create a snapshot when volume is in creating stage.")
+		return customerrors.NewNotReadyErr("Can not create a snapshot when volume is in creating stage.")
 	}
 	if volume.State == models.LifeCycleStateDeleting {
-		return errors.NewConflictErr("Can not create a snapshot when volume is in deleting stage.")
+		return customerrors.NewConflictErr("Can not create a snapshot when volume is in deleting stage.")
 	}
 
 	// @TODO: Include DataProtection check when implemented
 
 	return nil
+}
+
+// DeleteSnapshot deletes the specified snapshot
+func (o *Orchestrator) DeleteSnapshot(ctx context.Context, params *common.DeleteSnapshotParams) (*models.Snapshot, string, error) {
+	return deleteSnapshot(ctx, o.storage, o.temporal, params)
+}
+
+// DeleteSnapshot deletes the specified snapshot from the specified volume belonging to the specified owner
+func _deleteSnapshot(ctx context.Context, se database.Storage, temporal client.Client, params *common.DeleteSnapshotParams) (*models.Snapshot, string, error) {
+	logger := util.GetLogger(ctx)
+
+	volume, err := VolumeOwnershipCheck(ctx, se, params.VolumeID, params.AccountName)
+	if err != nil {
+		logger.Errorf("Failed to validate volume ownership")
+		return nil, "", customerrors.NewUserInputValidationErr("failed to validate volume ownership")
+	}
+
+	snapshot, err := se.GetSnapshot(ctx, params.SnapshotID)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, "", customerrors.NewNotFoundErr("snapshot", &params.SnapshotID)
+		}
+		return nil, "", err
+	}
+
+	snapshot.Volume = volume
+	if snapshot.State == models.LifeCycleStateDeleting ||
+		snapshot.State == models.LifeCycleStateCreating ||
+		snapshot.State == models.LifeCycleStateUpdating {
+		return nil, "", customerrors.NewConflictErr("snapshot is already in transition state")
+	}
+
+	job := &datamodel.Job{
+		Type:         string(models.JobTypeDeleteSnapshot),
+		State:        string(models.JobsStateNEW),
+		ResourceName: snapshot.Name,
+		AccountID:    sql.NullInt64{Int64: snapshot.Account.ID, Valid: true},
+	}
+	createdJob, err := se.CreateJob(ctx, job)
+	if err != nil {
+		logger.Errorf("Failed to create snapshot delete job in database %v", err)
+		return nil, "", err
+	}
+
+	if err = se.DeletingSnapshot(ctx, snapshot); err != nil {
+		return nil, "", err
+	}
+
+	_, err = temporal.ExecuteWorkflow(ctx,
+		client.StartWorkflowOptions{
+			TaskQueue:             workflowengine.CustomerTaskQueue,
+			ID:                    createdJob.WorkflowID,
+			WorkflowIDReusePolicy: enums.WORKFLOW_ID_REUSE_POLICY_REJECT_DUPLICATE,
+		},
+		workflows.DeleteSnapshotWorkflow,
+		params,
+		snapshot,
+	)
+	if err != nil {
+		logger.Error("Failed to start delete snapshot workflow: ", "error", err)
+		return nil, "", err
+	}
+
+	return convertDatastoreSnapshotToModel(snapshot), createdJob.UUID, nil
 }
 
 func _volumeOwnershipCheck(ctx context.Context, se database.Storage, volumeUUID string, accountName string) (*datamodel.Volume, error) {

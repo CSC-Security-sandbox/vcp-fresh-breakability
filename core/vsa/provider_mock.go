@@ -775,6 +775,53 @@ func (_c *MockProvider_DeleteSVMPeer_Call) RunAndReturn(run func(string, bool) e
 	return _c
 }
 
+// DeleteSnapshot provides a mock function with given fields: snapshotUUID, volumeUUID
+func (_m *MockProvider) DeleteSnapshot(snapshotUUID string, volumeUUID string) error {
+	ret := _m.Called(snapshotUUID, volumeUUID)
+
+	if len(ret) == 0 {
+		panic("no return value specified for DeleteSnapshot")
+	}
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(string, string) error); ok {
+		r0 = rf(snapshotUUID, volumeUUID)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// MockProvider_DeleteSnapshot_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'DeleteSnapshot'
+type MockProvider_DeleteSnapshot_Call struct {
+	*mock.Call
+}
+
+// DeleteSnapshot is a helper method to define mock.On call
+//   - snapshotUUID string
+//   - volumeUUID string
+func (_e *MockProvider_Expecter) DeleteSnapshot(snapshotUUID interface{}, volumeUUID interface{}) *MockProvider_DeleteSnapshot_Call {
+	return &MockProvider_DeleteSnapshot_Call{Call: _e.mock.On("DeleteSnapshot", snapshotUUID, volumeUUID)}
+}
+
+func (_c *MockProvider_DeleteSnapshot_Call) Run(run func(snapshotUUID string, volumeUUID string)) *MockProvider_DeleteSnapshot_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(string), args[1].(string))
+	})
+	return _c
+}
+
+func (_c *MockProvider_DeleteSnapshot_Call) Return(_a0 error) *MockProvider_DeleteSnapshot_Call {
+	_c.Call.Return(_a0)
+	return _c
+}
+
+func (_c *MockProvider_DeleteSnapshot_Call) RunAndReturn(run func(string, string) error) *MockProvider_DeleteSnapshot_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // DeleteVolume provides a mock function with given fields: volumeUUID, volumeName
 func (_m *MockProvider) DeleteVolume(volumeUUID string, volumeName string) error {
 	ret := _m.Called(volumeUUID, volumeName)

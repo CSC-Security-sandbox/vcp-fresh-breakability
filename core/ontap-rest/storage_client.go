@@ -34,6 +34,7 @@ type StorageClient interface {
 
 	SnapshotCreate(params *SnapshotCreateParams) (*Snapshot, *JobAccepted, error)
 	SnapshotGet(params *SnapshotGetParams) (*Snapshot, error)
+	SnapshotDelete(params *SnapshotDeleteParams) error
 }
 
 var (
@@ -418,6 +419,15 @@ func (sc *storageClient) SnapshotGet(params *SnapshotGetParams) (*Snapshot, erro
 	return &Snapshot{Snapshot: *snapshot.Payload}, nil
 }
 
+// SnapshotDelete invokes pkg/ontap-rest/client/storage/Client.SnapshotDelete to delete Snapshot in a volume
+func (sc *storageClient) SnapshotDelete(params *SnapshotDeleteParams) error {
+	if params != nil && params.UUID != "" {
+		_, _, err := sc.api.SnapshotDelete(snapshotDeleteParamsToONTAP(params), nil)
+		return err
+	}
+	return errors.New("no UUID provided for SnapshotDelete")
+}
+
 func snapshotCreateParamsToONTAP(params *SnapshotCreateParams) *storage.SnapshotCreateParams {
 	if params == nil {
 		return nil
@@ -441,4 +451,12 @@ func snapshotGetParamsToONTAP(params *SnapshotGetParams) *storage.SnapshotGetPar
 		WithUUID(params.UUID).
 		WithVolumeUUID(params.VolumeUUID).
 		WithFields(params.Fields)
+}
+
+func snapshotDeleteParamsToONTAP(params *SnapshotDeleteParams) *storage.SnapshotDeleteParams {
+	otParams := storage.NewSnapshotDeleteParams()
+	otParams.SetUUID(params.UUID)
+	otParams.SetVolumeUUID(params.VolumeUUID)
+	otParams.SetReturnTimeout(&returnTimeout)
+	return otParams
 }

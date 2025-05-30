@@ -1059,6 +1059,65 @@ func (_c *MockStorage_DeleteSVM_Call) RunAndReturn(run func(context.Context, *da
 	return _c
 }
 
+// DeleteSnapshot provides a mock function with given fields: ctx, id
+func (_m *MockStorage) DeleteSnapshot(ctx context.Context, id string) (*datamodel.Snapshot, error) {
+	ret := _m.Called(ctx, id)
+
+	if len(ret) == 0 {
+		panic("no return value specified for DeleteSnapshot")
+	}
+
+	var r0 *datamodel.Snapshot
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, string) (*datamodel.Snapshot, error)); ok {
+		return rf(ctx, id)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, string) *datamodel.Snapshot); ok {
+		r0 = rf(ctx, id)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*datamodel.Snapshot)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, string) error); ok {
+		r1 = rf(ctx, id)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockStorage_DeleteSnapshot_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'DeleteSnapshot'
+type MockStorage_DeleteSnapshot_Call struct {
+	*mock.Call
+}
+
+// DeleteSnapshot is a helper method to define mock.On call
+//   - ctx context.Context
+//   - id string
+func (_e *MockStorage_Expecter) DeleteSnapshot(ctx interface{}, id interface{}) *MockStorage_DeleteSnapshot_Call {
+	return &MockStorage_DeleteSnapshot_Call{Call: _e.mock.On("DeleteSnapshot", ctx, id)}
+}
+
+func (_c *MockStorage_DeleteSnapshot_Call) Run(run func(ctx context.Context, id string)) *MockStorage_DeleteSnapshot_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(string))
+	})
+	return _c
+}
+
+func (_c *MockStorage_DeleteSnapshot_Call) Return(_a0 *datamodel.Snapshot, _a1 error) *MockStorage_DeleteSnapshot_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockStorage_DeleteSnapshot_Call) RunAndReturn(run func(context.Context, string) (*datamodel.Snapshot, error)) *MockStorage_DeleteSnapshot_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // DeleteVolume provides a mock function with given fields: ctx, id
 func (_m *MockStorage) DeleteVolume(ctx context.Context, id string) (*datamodel.Volume, error) {
 	ret := _m.Called(ctx, id)
@@ -1314,6 +1373,53 @@ func (_c *MockStorage_DeletingSVM_Call) Return(_a0 error) *MockStorage_DeletingS
 }
 
 func (_c *MockStorage_DeletingSVM_Call) RunAndReturn(run func(context.Context, *datamodel.Svm) error) *MockStorage_DeletingSVM_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// DeletingSnapshot provides a mock function with given fields: ctx, snapshot
+func (_m *MockStorage) DeletingSnapshot(ctx context.Context, snapshot *datamodel.Snapshot) error {
+	ret := _m.Called(ctx, snapshot)
+
+	if len(ret) == 0 {
+		panic("no return value specified for DeletingSnapshot")
+	}
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(context.Context, *datamodel.Snapshot) error); ok {
+		r0 = rf(ctx, snapshot)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// MockStorage_DeletingSnapshot_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'DeletingSnapshot'
+type MockStorage_DeletingSnapshot_Call struct {
+	*mock.Call
+}
+
+// DeletingSnapshot is a helper method to define mock.On call
+//   - ctx context.Context
+//   - snapshot *datamodel.Snapshot
+func (_e *MockStorage_Expecter) DeletingSnapshot(ctx interface{}, snapshot interface{}) *MockStorage_DeletingSnapshot_Call {
+	return &MockStorage_DeletingSnapshot_Call{Call: _e.mock.On("DeletingSnapshot", ctx, snapshot)}
+}
+
+func (_c *MockStorage_DeletingSnapshot_Call) Run(run func(ctx context.Context, snapshot *datamodel.Snapshot)) *MockStorage_DeletingSnapshot_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(*datamodel.Snapshot))
+	})
+	return _c
+}
+
+func (_c *MockStorage_DeletingSnapshot_Call) Return(_a0 error) *MockStorage_DeletingSnapshot_Call {
+	_c.Call.Return(_a0)
+	return _c
+}
+
+func (_c *MockStorage_DeletingSnapshot_Call) RunAndReturn(run func(context.Context, *datamodel.Snapshot) error) *MockStorage_DeletingSnapshot_Call {
 	_c.Call.Return(run)
 	return _c
 }

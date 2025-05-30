@@ -3,6 +3,7 @@ package api
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"time"
 
 	"github.com/go-faster/jx"
@@ -203,6 +204,72 @@ func (h Handler) V1betaDescribeSnapshot(ctx context.Context, params gcpgenserver
 		return &gcpgenserver.V1betaDescribeSnapshotInternalServerError{Code: 500, Message: "Internal server error"}, err
 	}
 	return convertModelToVCPSnapshot(snapshot), nil
+}
+
+// V1betaDeleteSnapshot handles the request to delete a snapshot.
+func (h Handler) V1betaDeleteSnapshot(ctx context.Context, params gcpgenserver.V1betaDeleteSnapshotParams) (gcpgenserver.V1betaDeleteSnapshotRes, error) {
+	logger := util.GetLogger(ctx)
+	volumeId := params.VolumeId
+	_, _, parsingErr := parseAndValidateRegionAndZone(params.LocationId)
+	if parsingErr != nil {
+		return &gcpgenserver.V1betaDeleteSnapshotBadRequest{
+			Code:    400,
+			Message: parsingErr.GetMessage(),
+		}, nil
+	}
+
+	deleteSnapshotParams := &common.DeleteSnapshotParams{
+		SnapshotBaseParams: common.SnapshotBaseParams{
+			VolumeID:    volumeId,
+			AccountName: params.ProjectNumber,
+		},
+		SnapshotID: params.SnapshotId,
+	}
+
+	// Delete the snapshot
+	deleted, operationID, err := h.Orchestrator.DeleteSnapshot(ctx, deleteSnapshotParams)
+	if err != nil {
+		if errors.IsNotFoundErr(err) {
+			logger.Info("Snapshot not found", "uuid", params.SnapshotId)
+			return &gcpgenserver.V1betaDeleteSnapshotBadRequest{
+				Code:    404,
+				Message: "Snapshot not found",
+			}, nil
+		} else if errors.IsUserInputValidationErr(err) {
+			return &gcpgenserver.V1betaDeleteSnapshotBadRequest{
+				Code:    400,
+				Message: err.Error(),
+			}, nil
+		} else if errors.IsConflictErr(err) {
+			return &gcpgenserver.V1betaDeleteSnapshotConflict{
+				Code:    409,
+				Message: err.Error(),
+			}, nil
+		}
+		logger.Error("Failed to delete snapshot", "error", err.Error())
+		return &gcpgenserver.V1betaDeleteSnapshotInternalServerError{
+			Code:    500,
+			Message: "Internal server error",
+		}, err
+	}
+	resp, err := encodeSnapshotV1(convertModelToVCPSnapshot(deleted))
+	if err != nil {
+		return nil, err
+	}
+	if deleted.LifeCycleState == coremodels.LifeCycleStateDeleting {
+		return &gcpgenserver.OperationV1beta{
+			Name:     gcpgenserver.NewOptString(fmt.Sprintf("/v1beta/projects/%s/locations/%s/operations/%s", params.ProjectNumber, params.LocationId, operationID)),
+			Response: resp,
+			Done:     gcpgenserver.NewOptBool(false),
+		}, nil
+	}
+
+	logger.Infof("Snapshot deleted successfully - SnapshotID: %s", params.SnapshotId)
+	return &gcpgenserver.OperationV1beta{
+		Name:     gcpgenserver.NewOptString(fmt.Sprintf("/v1beta/projects/%s/locations/%s/operations/%s", params.ProjectNumber, params.LocationId, operationID)),
+		Response: resp,
+		Done:     gcpgenserver.NewOptBool(true),
+	}, nil
 }
 
 func (h Handler) V1betaListSnapshot(ctx context.Context, params gcpgenserver.V1betaListSnapshotParams) (gcpgenserver.V1betaListSnapshotRes, error) {

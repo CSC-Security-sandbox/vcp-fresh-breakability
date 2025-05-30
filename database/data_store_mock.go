@@ -919,6 +919,65 @@ func (_c *MockDataStore_DeleteSVM_Call) RunAndReturn(run func(context.Context, *
 	return _c
 }
 
+// DeleteSnapshot provides a mock function with given fields: ctx, id
+func (_m *MockDataStore) DeleteSnapshot(ctx context.Context, id string) (*datamodel.Snapshot, error) {
+	ret := _m.Called(ctx, id)
+
+	if len(ret) == 0 {
+		panic("no return value specified for DeleteSnapshot")
+	}
+
+	var r0 *datamodel.Snapshot
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, string) (*datamodel.Snapshot, error)); ok {
+		return rf(ctx, id)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, string) *datamodel.Snapshot); ok {
+		r0 = rf(ctx, id)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*datamodel.Snapshot)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, string) error); ok {
+		r1 = rf(ctx, id)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockDataStore_DeleteSnapshot_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'DeleteSnapshot'
+type MockDataStore_DeleteSnapshot_Call struct {
+	*mock.Call
+}
+
+// DeleteSnapshot is a helper method to define mock.On call
+//   - ctx context.Context
+//   - id string
+func (_e *MockDataStore_Expecter) DeleteSnapshot(ctx interface{}, id interface{}) *MockDataStore_DeleteSnapshot_Call {
+	return &MockDataStore_DeleteSnapshot_Call{Call: _e.mock.On("DeleteSnapshot", ctx, id)}
+}
+
+func (_c *MockDataStore_DeleteSnapshot_Call) Run(run func(ctx context.Context, id string)) *MockDataStore_DeleteSnapshot_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(string))
+	})
+	return _c
+}
+
+func (_c *MockDataStore_DeleteSnapshot_Call) Return(_a0 *datamodel.Snapshot, _a1 error) *MockDataStore_DeleteSnapshot_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockDataStore_DeleteSnapshot_Call) RunAndReturn(run func(context.Context, string) (*datamodel.Snapshot, error)) *MockDataStore_DeleteSnapshot_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // DeleteVolume provides a mock function with given fields: ctx, id
 func (_m *MockDataStore) DeleteVolume(ctx context.Context, id string) (*datamodel.Volume, error) {
 	ret := _m.Called(ctx, id)
@@ -1174,6 +1233,53 @@ func (_c *MockDataStore_DeletingSVM_Call) Return(_a0 error) *MockDataStore_Delet
 }
 
 func (_c *MockDataStore_DeletingSVM_Call) RunAndReturn(run func(context.Context, *datamodel.Svm) error) *MockDataStore_DeletingSVM_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// DeletingSnapshot provides a mock function with given fields: ctx, snapshot
+func (_m *MockDataStore) DeletingSnapshot(ctx context.Context, snapshot *datamodel.Snapshot) error {
+	ret := _m.Called(ctx, snapshot)
+
+	if len(ret) == 0 {
+		panic("no return value specified for DeletingSnapshot")
+	}
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(context.Context, *datamodel.Snapshot) error); ok {
+		r0 = rf(ctx, snapshot)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// MockDataStore_DeletingSnapshot_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'DeletingSnapshot'
+type MockDataStore_DeletingSnapshot_Call struct {
+	*mock.Call
+}
+
+// DeletingSnapshot is a helper method to define mock.On call
+//   - ctx context.Context
+//   - snapshot *datamodel.Snapshot
+func (_e *MockDataStore_Expecter) DeletingSnapshot(ctx interface{}, snapshot interface{}) *MockDataStore_DeletingSnapshot_Call {
+	return &MockDataStore_DeletingSnapshot_Call{Call: _e.mock.On("DeletingSnapshot", ctx, snapshot)}
+}
+
+func (_c *MockDataStore_DeletingSnapshot_Call) Run(run func(ctx context.Context, snapshot *datamodel.Snapshot)) *MockDataStore_DeletingSnapshot_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(*datamodel.Snapshot))
+	})
+	return _c
+}
+
+func (_c *MockDataStore_DeletingSnapshot_Call) Return(_a0 error) *MockDataStore_DeletingSnapshot_Call {
+	_c.Call.Return(_a0)
+	return _c
+}
+
+func (_c *MockDataStore_DeletingSnapshot_Call) RunAndReturn(run func(context.Context, *datamodel.Snapshot) error) *MockDataStore_DeletingSnapshot_Call {
 	_c.Call.Return(run)
 	return _c
 }

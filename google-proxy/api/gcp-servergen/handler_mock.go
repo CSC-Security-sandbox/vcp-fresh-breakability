@@ -1141,6 +1141,65 @@ func (_c *MockHandler_V1betaDeleteReplication_Call) RunAndReturn(run func(contex
 	return _c
 }
 
+// V1betaDeleteSnapshot provides a mock function with given fields: ctx, params
+func (_m *MockHandler) V1betaDeleteSnapshot(ctx context.Context, params V1betaDeleteSnapshotParams) (V1betaDeleteSnapshotRes, error) {
+	ret := _m.Called(ctx, params)
+
+	if len(ret) == 0 {
+		panic("no return value specified for V1betaDeleteSnapshot")
+	}
+
+	var r0 V1betaDeleteSnapshotRes
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, V1betaDeleteSnapshotParams) (V1betaDeleteSnapshotRes, error)); ok {
+		return rf(ctx, params)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, V1betaDeleteSnapshotParams) V1betaDeleteSnapshotRes); ok {
+		r0 = rf(ctx, params)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(V1betaDeleteSnapshotRes)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, V1betaDeleteSnapshotParams) error); ok {
+		r1 = rf(ctx, params)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockHandler_V1betaDeleteSnapshot_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'V1betaDeleteSnapshot'
+type MockHandler_V1betaDeleteSnapshot_Call struct {
+	*mock.Call
+}
+
+// V1betaDeleteSnapshot is a helper method to define mock.On call
+//   - ctx context.Context
+//   - params V1betaDeleteSnapshotParams
+func (_e *MockHandler_Expecter) V1betaDeleteSnapshot(ctx interface{}, params interface{}) *MockHandler_V1betaDeleteSnapshot_Call {
+	return &MockHandler_V1betaDeleteSnapshot_Call{Call: _e.mock.On("V1betaDeleteSnapshot", ctx, params)}
+}
+
+func (_c *MockHandler_V1betaDeleteSnapshot_Call) Run(run func(ctx context.Context, params V1betaDeleteSnapshotParams)) *MockHandler_V1betaDeleteSnapshot_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(V1betaDeleteSnapshotParams))
+	})
+	return _c
+}
+
+func (_c *MockHandler_V1betaDeleteSnapshot_Call) Return(_a0 V1betaDeleteSnapshotRes, _a1 error) *MockHandler_V1betaDeleteSnapshot_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockHandler_V1betaDeleteSnapshot_Call) RunAndReturn(run func(context.Context, V1betaDeleteSnapshotParams) (V1betaDeleteSnapshotRes, error)) *MockHandler_V1betaDeleteSnapshot_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // V1betaDeleteVolume provides a mock function with given fields: ctx, req, params
 func (_m *MockHandler) V1betaDeleteVolume(ctx context.Context, req OptV1betaDeleteVolumeReq, params V1betaDeleteVolumeParams) (V1betaDeleteVolumeRes, error) {
 	ret := _m.Called(ctx, req, params)

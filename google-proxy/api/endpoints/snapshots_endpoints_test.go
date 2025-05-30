@@ -625,3 +625,132 @@ func TestHandler_V1betaListSnapshot(t *testing.T) {
 		assert.Equal(tt, float64(500), internal.Code)
 	})
 }
+
+func TestV1betaDeleteSnapshot(t *testing.T) {
+	t.Run("WhenLocationValidationFailsInDeleteSnapshot", func(tt *testing.T) {
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		params := gcpserver.V1betaDeleteSnapshotParams{
+			ProjectNumber: "project-number",
+			LocationId:    "invalid-location-id",
+			VolumeId:      "volume-id",
+			SnapshotId:    "snapshot-id",
+		}
+		parseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpserver.Error) {
+			return "", "", &gcpserver.Error{
+				Code:    400,
+				Message: "Invalid location ID",
+			}
+		}
+		handler := Handler{
+			Orchestrator: mockOrchestrator,
+		}
+		defer func() {
+			parseAndValidateRegionAndZone = utils.ParseAndValidateRegionAndZone
+		}()
+		result, _ := handler.V1betaDeleteSnapshot(context.Background(), params)
+		assert.NotNil(tt, result)
+		assert.Equal(tt, float64(400), result.(*gcpserver.V1betaDeleteSnapshotBadRequest).Code)
+		assert.Equal(tt, "Invalid location ID", result.(*gcpserver.V1betaDeleteSnapshotBadRequest).Message)
+	})
+	t.Run("WhenDeleteSnapshotReturnsError", func(tt *testing.T) {
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		params := gcpserver.V1betaDeleteSnapshotParams{
+			ProjectNumber: "project-number",
+			LocationId:    "location-id",
+			VolumeId:      "volume-id",
+			SnapshotId:    "snapshot-id",
+		}
+		parseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpserver.Error) {
+			return "us-east4", "us-east4", nil
+		}
+		defer func() {
+			parseAndValidateRegionAndZone = utils.ParseAndValidateRegionAndZone
+		}()
+		handler := Handler{
+			Orchestrator: mockOrchestrator,
+		}
+		mockOrchestrator.EXPECT().DeleteSnapshot(mock.Anything, mock.Anything).Return(nil, "operation-id", errors.New("error"))
+		result, _ := handler.V1betaDeleteSnapshot(context.Background(), params)
+		assert.NotNil(tt, result)
+		assert.Equal(tt, float64(500), result.(*gcpserver.V1betaDeleteSnapshotInternalServerError).Code)
+	})
+
+	t.Run("WhenDeleteSnapshotReturnsNotFoundError", func(tt *testing.T) {
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		params := gcpserver.V1betaDeleteSnapshotParams{
+			ProjectNumber: "project-number",
+			LocationId:    "location-id",
+			VolumeId:      "volume-id",
+			SnapshotId:    "snapshot-id",
+		}
+		parseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpserver.Error) {
+			return "us-east4", "us-east4", nil
+		}
+		defer func() {
+			parseAndValidateRegionAndZone = utils.ParseAndValidateRegionAndZone
+		}()
+		handler := Handler{
+			Orchestrator: mockOrchestrator,
+		}
+		mockOrchestrator.EXPECT().DeleteSnapshot(mock.Anything, mock.Anything).Return(nil, "operation-id", errors.NewNotFoundErr("snapshot", nil))
+		result, err := handler.V1betaDeleteSnapshot(context.Background(), params)
+		assert.NoError(tt, err)
+		assert.NotNil(tt, result)
+		assert.Equal(tt, "Snapshot not found", result.(*gcpserver.V1betaDeleteSnapshotBadRequest).Message)
+	})
+
+	t.Run("WhenDeleteSnapshotReturnsConflictError", func(tt *testing.T) {
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		params := gcpserver.V1betaDeleteSnapshotParams{
+			ProjectNumber: "project-number",
+			LocationId:    "location-id",
+			VolumeId:      "volume-id",
+			SnapshotId:    "snapshot-id",
+		}
+		parseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpserver.Error) {
+			return "us-east4", "us-east4", nil
+		}
+		defer func() {
+			parseAndValidateRegionAndZone = utils.ParseAndValidateRegionAndZone
+		}()
+		handler := Handler{
+			Orchestrator: mockOrchestrator,
+		}
+		mockOrchestrator.EXPECT().DeleteSnapshot(mock.Anything, mock.Anything).Return(nil, "operation-id", errors.NewConflictErr("conflict"))
+		result, err := handler.V1betaDeleteSnapshot(context.Background(), params)
+		assert.NoError(tt, err)
+		assert.NotNil(tt, result)
+		assert.Equal(tt, float64(409), result.(*gcpserver.V1betaDeleteSnapshotConflict).Code)
+	})
+
+	t.Run("WhenDeleteSnapshotSucceeds", func(tt *testing.T) {
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		params := gcpserver.V1betaDeleteSnapshotParams{
+			ProjectNumber: "project-number",
+			LocationId:    "location-id",
+			VolumeId:      "volume-id",
+			SnapshotId:    "snapshot-id",
+		}
+
+		parseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpserver.Error) {
+			return "us-east4", "us-east4", nil
+		}
+
+		defer func() {
+			parseAndValidateRegionAndZone = utils.ParseAndValidateRegionAndZone
+		}()
+
+		handler := Handler{
+			Orchestrator: mockOrchestrator,
+		}
+
+		operationID := "/v1beta/projects/" + params.ProjectNumber + "/locations/" + params.LocationId + "/operations/" + "operation-id"
+		mockOrchestrator.EXPECT().DeleteSnapshot(mock.Anything, mock.Anything).Return(&coremodels.Snapshot{BaseModel: coremodels.BaseModel{UUID: "deleted-snapshot-uuid"}}, "operation-id", nil)
+
+		result, err := handler.V1betaDeleteSnapshot(context.Background(), params)
+
+		assert.NoError(tt, err)
+		assert.NotNil(tt, result)
+		assert.Equal(tt, operationID, result.(*gcpserver.OperationV1beta).Name.Value)
+	})
+}

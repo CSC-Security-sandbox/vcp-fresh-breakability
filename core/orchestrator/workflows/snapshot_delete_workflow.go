@@ -5,28 +5,26 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database"
 	gcpgenserver "github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/api/gcp-servergen"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 	"go.temporal.io/sdk/temporal"
 	"go.temporal.io/sdk/workflow"
 )
 
-type snapshotCreateWorkflow struct {
+type snapshotDeleteWorkflow struct {
 	BaseWorkflow
-	SE database.Storage
 }
 
-var _ WorkflowInterface = &snapshotCreateWorkflow{}
+// Enforcing the WorkflowInterface on snapshotDeleteWorkflow
+var _ WorkflowInterface = &snapshotDeleteWorkflow{}
 
-// CreateSnapshotWorkflow Snapshot Workflow process snapshot related requests from a customer.
-func CreateSnapshotWorkflow(ctx workflow.Context, params *common.CreateSnapshotParams, snapshot *datamodel.Snapshot) (gcpgenserver.V1betaCreateSnapshotRes, error) {
+// DeleteSnapshotWorkflow Delete Snapshot Workflow process snapshot related requests from a customer.
+func DeleteSnapshotWorkflow(ctx workflow.Context, params *common.DeleteSnapshotParams, snapshot *datamodel.Snapshot) (gcpgenserver.V1betaDescribeSnapshotRes, error) {
 	logger := util.GetLogger(ctx)
-	snapshotWf := new(snapshotCreateWorkflow)
+	snapshotWf := new(snapshotDeleteWorkflow)
 	err := snapshotWf.Setup(ctx, params)
 	if err != nil {
-		logger.Infof("Snapshot workflow setup executed with error: %v", err)
+		logger.Infof("Snapshot Delete workflow setup executed with error: %v", err)
 		return nil, err
 	}
 	snapshotWf.Status = WorkflowStatusRunning
@@ -46,20 +44,19 @@ func CreateSnapshotWorkflow(ctx workflow.Context, params *common.CreateSnapshotP
 	}()
 	_, err = snapshotWf.Run(ctx, snapshot)
 	if err != nil {
-		logger.Infof("Snapshot workflow run executed with error: %v", err)
+		logger.Infof("Snapshot delete workflow run executed with error: %v", err)
 		return nil, err
 	}
-	logger.Debug("Snapshot workflow completed successfully")
+	logger.Info("Snapshot workflow completed successfully")
 	return nil, err
 }
 
-// Setup initializes the workflow with the necessary parameters and sets up a query handler for status updates.
-func (wf *snapshotCreateWorkflow) Setup(ctx workflow.Context, input interface{}) error {
-	createSnapshotParams := input.(*common.CreateSnapshotParams)
+func (wf *snapshotDeleteWorkflow) Setup(ctx workflow.Context, input interface{}) error {
+	deleteSnapshotParams := input.(*common.DeleteSnapshotParams)
 	info := workflow.GetInfo(ctx)
 	wf.ID = info.WorkflowExecution.ID
-	wf.CustomerID = createSnapshotParams.AccountName
-	wf.Status = WorkflowStatusCreated
+	wf.CustomerID = deleteSnapshotParams.AccountName
+	wf.Status = "created"
 	ctx = util.AddExtraLoggerFields(ctx, map[string]interface{}{"workflowID": wf.ID, "customerID": wf.CustomerID})
 	logger := util.GetLogger(ctx)
 	wf.Logger = logger
@@ -73,46 +70,51 @@ func (wf *snapshotCreateWorkflow) Setup(ctx workflow.Context, input interface{})
 	})
 }
 
-// Run executes the snapshot creation workflow, including creating the snapshot and updating its details.
-func (wf *snapshotCreateWorkflow) Run(ctx workflow.Context, args ...interface{}) (interface{}, error) {
-	snapshot := args[0].(*datamodel.Snapshot)
+func (wf *snapshotDeleteWorkflow) Run(ctx workflow.Context, args ...interface{}) (interface{}, error) {
 	logger := util.GetLogger(ctx)
-	snapshotActivity := &activities.SnapshotCreateActivity{}
+	snapshot := args[0].(*datamodel.Snapshot)
+	deleteActivity := &activities.SnapshotDeleteActivity{}
 	retryPolicy, err := PopulateRetryPolicyParams()
 	if err != nil {
 		return nil, err
 	}
-	ao := workflow.ActivityOptions{
+	options := workflow.ActivityOptions{
 		StartToCloseTimeout: retryPolicy.StartToCloseTimeout,
 		RetryPolicy: &temporal.RetryPolicy{
-			MaximumAttempts: 1,
+			InitialInterval:    retryPolicy.InitialInterval,
+			BackoffCoefficient: retryPolicy.BackoffCoefficient,
+			MaximumInterval:    retryPolicy.MaximumInterval,
+			MaximumAttempts:    int32(retryPolicy.MaximumAttempts),
 		},
 	}
-	ctx = workflow.WithActivityOptions(ctx, ao)
+	ctx = workflow.WithActivityOptions(ctx, options)
 
 	dbSnapshot := snapshot
+	logger.Infof("Starting the snapshot deletion workflow for snapshot: %s", dbSnapshot.Name)
 
-	dbSnapshot.Description = wf.ID // Storing the job UUID in the comments param while requesting ONTAP
-
-	logger.Infof("Starting the snapshot creation workflow for snapshot: %s", dbSnapshot.Name)
 	var dbNode *datamodel.Node
+	defer func() {
+		if err != nil {
+			dbSnapshot.State = models.LifeCycleStateError
+			dbSnapshot.StateDetails = models.LifeCycleStateDeletionErrorDetails
+			workflow.ExecuteActivity(ctx, deleteActivity.UpdateDeleteSnapshotDetails, &dbSnapshot)
+		}
+	}()
 	err = workflow.ExecuteActivity(ctx, activities.CommonActivities.GetNode, &dbSnapshot.Volume.PoolID).Get(ctx, &dbNode)
 	if err != nil {
 		return nil, err
 	}
+
 	node := createNodeForProvider(dbNode, dbSnapshot.Volume)
-	var snapshotCreateResponse *vsa.SnapshotProviderResponse
-	defer func() {
-		updateErr := workflow.ExecuteActivity(ctx, snapshotActivity.UpdateSnapshotDetails, &dbSnapshot, snapshotCreateResponse).Get(ctx, nil)
-		if updateErr != nil {
-			// Since activity has failed, activity will reflect the error in the temporal workflow.
-			logger.Errorf("Error updating snapshot details: %v", updateErr)
-		}
-	}()
-	err = workflow.ExecuteActivity(ctx, snapshotActivity.CreateSnapshotInONTAP, &dbSnapshot, &node).Get(ctx, &snapshotCreateResponse)
+	err = workflow.ExecuteActivity(ctx, deleteActivity.DeleteSnapshotInONTAP, &dbSnapshot, &node).Get(ctx, nil)
 	if err != nil {
-		logger.Errorf("Failed to update snapshot details: %v", err)
 		return nil, err
 	}
+
+	err = workflow.ExecuteActivity(ctx, deleteActivity.DeleteSnapshot, &dbSnapshot).Get(ctx, nil)
+	if err != nil {
+		return nil, err
+	}
+
 	return nil, err
 }

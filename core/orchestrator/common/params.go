@@ -98,6 +98,12 @@ type GetSnapshotParams struct {
 	SnapshotUUID string
 }
 
+// DeleteSnapshotParams describes parameters supplied to DeleteSnapshot
+type DeleteSnapshotParams struct {
+	SnapshotBaseParams
+	SnapshotID string
+}
+
 type ListSnapshotsParams struct {
 	SnapshotBaseParams
 }

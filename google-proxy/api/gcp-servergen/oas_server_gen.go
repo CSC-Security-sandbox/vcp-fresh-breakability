@@ -121,6 +121,14 @@ type Handler interface {
 	//
 	// DELETE /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeResourceId}/replications/{replicationResourceId}
 	V1betaDeleteReplication(ctx context.Context, req *ReplicationDeleteV1beta, params V1betaDeleteReplicationParams) (V1betaDeleteReplicationRes, error)
+	// V1betaDeleteSnapshot implements v1beta_deleteSnapshot operation.
+	//
+	// Warning! This operation will permanently delete the snapshot. This operation will never return
+	// resource not found, since that could be interpreted as resource already deleted, and therefore
+	// will return operation done instead.
+	//
+	// DELETE /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/snapshot/{snapshotId}
+	V1betaDeleteSnapshot(ctx context.Context, params V1betaDeleteSnapshotParams) (V1betaDeleteSnapshotRes, error)
 	// V1betaDeleteVolume implements v1beta_deleteVolume operation.
 	//
 	// Warning! This operation will permanently delete the volume. This operation will never return

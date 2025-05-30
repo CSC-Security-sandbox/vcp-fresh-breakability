@@ -2,12 +2,14 @@ package repository
 
 import (
 	"context"
+	"gorm.io/gorm"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	gormwrapper "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/gorm"
+	customerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 )
@@ -277,6 +279,173 @@ func TestGetSnapshot(t *testing.T) {
 		_, err = store.GetSnapshotByUUID(ctx, nonExistentUUID)
 		assert.Error(tt, err, "Expected error when snapshot does not exist")
 		assert.ErrorContains(tt, err, "not found", "Expected error 'not found', got %v", err)
+	})
+}
+
+func TestDeleteSnapshot(t *testing.T) {
+	t.Run("WhenSnapshotIsDeletedSuccessfully", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err, "Failed to set up test database")
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err, "Failed to clean up test database")
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{
+				ID:   1,
+				UUID: "test-account-uuid",
+			},
+			Name: "test_account",
+		}
+		err = store.db.Create(account).Error()
+		if err != nil {
+			tt.Fatalf("Failed to create account: %v", err)
+		}
+
+		pool := &datamodel.Pool{
+			Name:    "test_pool",
+			Account: account,
+		}
+
+		err = store.db.Create(pool).Error()
+		if err != nil {
+			tt.Fatalf("Failed to create pool: %v", err)
+		}
+
+		volume := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{UUID: "test-volume-uuid"},
+			Name:      "test_volume",
+			AccountID: account.ID,
+			Account:   account,
+			Pool:      pool,
+			PoolID:    pool.ID,
+		}
+		err = store.db.Create(volume).Error()
+		if err != nil {
+			tt.Fatalf("Failed to create volume: %v", err)
+		}
+
+		snapshot := &datamodel.Snapshot{
+			BaseModel: datamodel.BaseModel{UUID: "test-snapshot-uuid"},
+			Name:      "test_snapshot",
+			VolumeID:  volume.ID,
+			AccountID: account.ID,
+			Account:   account,
+		}
+		err = store.db.Create(snapshot).Error()
+		if err != nil {
+			tt.Fatalf("Failed to create snapshot: %v", err)
+		}
+
+		deletedSnapshot, err := store.DeleteSnapshot(context.Background(), snapshot.UUID)
+		assert.NoError(tt, err, "Expected no error, got %v", err)
+		assert.Equal(tt, snapshot.Name, deletedSnapshot.Name, "Expected snapshot name %v, got %v", snapshot.Name, deletedSnapshot.Name)
+		assert.NotNil(tt, deletedSnapshot.DeletedAt, "Expected snapshot to be deleted, got %v", deletedSnapshot.DeletedAt)
+		assert.Equal(tt, models.LifeCycleStateDeleted, deletedSnapshot.State, "Expected snapshot state %v, got %v", models.LifeCycleStateDeleted, deletedSnapshot.State)
+		assert.Equal(tt, models.LifeCycleStateDeletedDetails, deletedSnapshot.StateDetails, "Expected snapshot state details %v, got %v", "", deletedSnapshot.StateDetails)
+
+		_, err = store.GetSnapshotByUUID(context.Background(), snapshot.UUID)
+		if !customerrors.IsNotFoundErr(err) {
+			tt.Errorf("Expected error %v, got %v", gorm.ErrRecordNotFound, err)
+		}
+	})
+	t.Run("WhenSnapshotIsNotFound", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err, "Failed to set up test database")
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err, "Failed to clean up test database")
+
+		deletedSnapshot, err := store.DeleteSnapshot(context.Background(), "dummy")
+		assert.Nil(tt, deletedSnapshot, "Expected nil snapshot, got %v", deletedSnapshot)
+		if !customerrors.IsNotFoundErr(err) {
+			tt.Errorf("Expected error %v, got %v", gorm.ErrRecordNotFound, err)
+		}
+	})
+}
+
+func TestDeletingSnapshot(t *testing.T) {
+	t.Run("ReturnsErrorWhenSnapshotDoesNotExist", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		if err != nil {
+			tt.Fatalf("Failed to set up test database: %v", err)
+		}
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		if err != nil {
+			tt.Fatalf("Failed to clean up test database: %v", err)
+		}
+
+		snapshot := &datamodel.Snapshot{BaseModel: datamodel.BaseModel{UUID: "non-existent-uuid"}}
+
+		err = store.DeletingSnapshot(context.Background(), snapshot)
+		if err == nil {
+			tt.Errorf("Expected error, got nil")
+		}
+		assert.Error(tt, err)
+	})
+
+	t.Run("UpdatesSnapshotStateToDeletingSuccessfully", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		if err != nil {
+			tt.Fatalf("Failed to set up test database: %v", err)
+		}
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		if err != nil {
+			tt.Fatalf("Failed to clean up test database: %v", err)
+		}
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{
+				ID:   1,
+				UUID: "test-account-uuid",
+			},
+			Name: "test_account",
+		}
+		err = store.db.Create(account).Error()
+		if err != nil {
+			tt.Fatalf("Failed to create account: %v", err)
+		}
+
+		snapshot := &datamodel.Snapshot{
+			BaseModel:    datamodel.BaseModel{UUID: "test-snapshot-uuid"},
+			Name:         "test_snapshot",
+			VolumeID:     1,
+			AccountID:    account.ID,
+			Account:      account,
+			State:        models.LifeCycleStateREADY,
+			StateDetails: models.LifeCycleStateAvailable,
+		}
+		err = store.db.Create(snapshot).Error()
+		if err != nil {
+			tt.Fatalf("Failed to create snapshot: %v", err)
+		}
+
+		err = store.DeletingSnapshot(context.Background(), snapshot)
+		if err != nil {
+			tt.Errorf("Expected no error, got %v", err)
+		}
+
+		updatedSnapshot := &datamodel.Snapshot{}
+		err = store.db.GORM().First(updatedSnapshot, "uuid = ?", snapshot.UUID).Error
+		if err != nil {
+			tt.Fatalf("Failed to fetch updated pool: %v", err)
+		}
+		if updatedSnapshot.State != models.LifeCycleStateDeleting {
+			tt.Errorf("Expected state %v, got %v", models.LifeCycleStateDeleting, updatedSnapshot.State)
+		}
+		if updatedSnapshot.StateDetails != models.LifeCycleStateDeletingDetails {
+			tt.Errorf("Expected state details %v, got %v", models.LifeCycleStateDeletingDetails, updatedSnapshot.StateDetails)
+		}
 	})
 }
 

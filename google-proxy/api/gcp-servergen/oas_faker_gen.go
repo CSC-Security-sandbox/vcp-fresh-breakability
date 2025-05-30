@@ -5039,6 +5039,78 @@ func (s *V1betaDeleteReplicationUnprocessableEntity) SetFake() {
 }
 
 // SetFake set fake values.
+func (s *V1betaDeleteSnapshotBadRequest) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaDeleteSnapshotBadRequest(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaDeleteSnapshotConflict) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaDeleteSnapshotConflict(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaDeleteSnapshotForbidden) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaDeleteSnapshotForbidden(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaDeleteSnapshotInternalServerError) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaDeleteSnapshotInternalServerError(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaDeleteSnapshotServiceUnavailable) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaDeleteSnapshotServiceUnavailable(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaDeleteSnapshotTooManyRequests) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaDeleteSnapshotTooManyRequests(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaDeleteSnapshotUnauthorized) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaDeleteSnapshotUnauthorized(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaDeleteSnapshotUnprocessableEntity) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaDeleteSnapshotUnprocessableEntity(unwrapped)
+}
+
+// SetFake set fake values.
 func (s *V1betaDeleteVolumeBadRequest) SetFake() {
 	var unwrapped Error
 	{

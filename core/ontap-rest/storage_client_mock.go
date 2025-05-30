@@ -536,6 +536,52 @@ func (_c *MockStorageClient_SnapshotCreate_Call) RunAndReturn(run func(*Snapshot
 	return _c
 }
 
+// SnapshotDelete provides a mock function with given fields: params
+func (_m *MockStorageClient) SnapshotDelete(params *SnapshotDeleteParams) error {
+	ret := _m.Called(params)
+
+	if len(ret) == 0 {
+		panic("no return value specified for SnapshotDelete")
+	}
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(*SnapshotDeleteParams) error); ok {
+		r0 = rf(params)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// MockStorageClient_SnapshotDelete_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'SnapshotDelete'
+type MockStorageClient_SnapshotDelete_Call struct {
+	*mock.Call
+}
+
+// SnapshotDelete is a helper method to define mock.On call
+//   - params *SnapshotDeleteParams
+func (_e *MockStorageClient_Expecter) SnapshotDelete(params interface{}) *MockStorageClient_SnapshotDelete_Call {
+	return &MockStorageClient_SnapshotDelete_Call{Call: _e.mock.On("SnapshotDelete", params)}
+}
+
+func (_c *MockStorageClient_SnapshotDelete_Call) Run(run func(params *SnapshotDeleteParams)) *MockStorageClient_SnapshotDelete_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(*SnapshotDeleteParams))
+	})
+	return _c
+}
+
+func (_c *MockStorageClient_SnapshotDelete_Call) Return(_a0 error) *MockStorageClient_SnapshotDelete_Call {
+	_c.Call.Return(_a0)
+	return _c
+}
+
+func (_c *MockStorageClient_SnapshotDelete_Call) RunAndReturn(run func(*SnapshotDeleteParams) error) *MockStorageClient_SnapshotDelete_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // SnapshotGet provides a mock function with given fields: params
 func (_m *MockStorageClient) SnapshotGet(params *SnapshotGetParams) (*Snapshot, error) {
 	ret := _m.Called(params)

@@ -4788,6 +4788,7 @@ func (*OperationV1beta) v1betaDeleteHostGroupRes()             {}
 func (*OperationV1beta) v1betaDeleteKmsConfigurationRes()      {}
 func (*OperationV1beta) v1betaDeletePoolRes()                  {}
 func (*OperationV1beta) v1betaDeleteReplicationRes()           {}
+func (*OperationV1beta) v1betaDeleteSnapshotRes()              {}
 func (*OperationV1beta) v1betaDeleteVolumeRes()                {}
 func (*OperationV1beta) v1betaDescribeOperationRes()           {}
 func (*OperationV1beta) v1betaResumeReplicationRes()           {}
@@ -14020,6 +14021,43 @@ func (*V1betaDeleteReplicationUnauthorized) v1betaDeleteReplicationRes() {}
 type V1betaDeleteReplicationUnprocessableEntity Error
 
 func (*V1betaDeleteReplicationUnprocessableEntity) v1betaDeleteReplicationRes() {}
+
+type V1betaDeleteSnapshotBadRequest Error
+
+func (*V1betaDeleteSnapshotBadRequest) v1betaDeleteSnapshotRes() {}
+
+type V1betaDeleteSnapshotConflict Error
+
+func (*V1betaDeleteSnapshotConflict) v1betaDeleteSnapshotRes() {}
+
+type V1betaDeleteSnapshotForbidden Error
+
+func (*V1betaDeleteSnapshotForbidden) v1betaDeleteSnapshotRes() {}
+
+type V1betaDeleteSnapshotInternalServerError Error
+
+func (*V1betaDeleteSnapshotInternalServerError) v1betaDeleteSnapshotRes() {}
+
+// V1betaDeleteSnapshotNoContent is response for V1betaDeleteSnapshot operation.
+type V1betaDeleteSnapshotNoContent struct{}
+
+func (*V1betaDeleteSnapshotNoContent) v1betaDeleteSnapshotRes() {}
+
+type V1betaDeleteSnapshotServiceUnavailable Error
+
+func (*V1betaDeleteSnapshotServiceUnavailable) v1betaDeleteSnapshotRes() {}
+
+type V1betaDeleteSnapshotTooManyRequests Error
+
+func (*V1betaDeleteSnapshotTooManyRequests) v1betaDeleteSnapshotRes() {}
+
+type V1betaDeleteSnapshotUnauthorized Error
+
+func (*V1betaDeleteSnapshotUnauthorized) v1betaDeleteSnapshotRes() {}
+
+type V1betaDeleteSnapshotUnprocessableEntity Error
+
+func (*V1betaDeleteSnapshotUnprocessableEntity) v1betaDeleteSnapshotRes() {}
 
 type V1betaDeleteVolumeBadRequest Error
 

@@ -64,3 +64,18 @@ func (rc *OntapRestProvider) CreateSnapshot(params CreateSnapshotParams) (*Snaps
 		LogicalSizeInBytes: *snapshot.LogicalSize,
 	}, nil
 }
+
+// DeleteSnapshot deletes a snapshot by calling the ONTAP REST Client
+func (rc *OntapRestProvider) DeleteSnapshot(snapshotUUID string, volumeUUID string) error {
+	client := getOntapClientFunc(rc.ClientParams)
+	err := client.Storage().SnapshotDelete(&ontapRest.SnapshotDeleteParams{
+		UUID:       snapshotUUID,
+		VolumeUUID: volumeUUID,
+	})
+
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
