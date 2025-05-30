@@ -7,7 +7,43 @@ on:
         description: "Tag to use for building and publishing images and charts and release"
         required: true
         type: string
-
+    outputs:
+      GHCR_core_URL:
+        description: "URL of the core image in GHCR"
+        value: ${{ jobs.build_and_publish.outputs.GHCR_core_URL }}
+      GCP_core_URL:
+        description: "URL of the core image in GCP"
+        value: ${{ jobs.build_and_publish.outputs.GCP_core_URL }}
+      GHCR_google_proxy_URL:
+        description: "URL of the google-proxy image in GHCR"
+        value: ${{ jobs.build_and_publish.outputs.GHCR_google_proxy_URL }}
+      GCP_google_proxy_URL:
+        description: "URL of the google-proxy image in GCP"
+        value: ${{ jobs.build_and_publish.outputs.GCP_google_proxy_URL }}
+      GHCR_vcp_db_migrate_URL:
+        description: "URL of the vcp-db-migrate image in GHCR"
+        value: ${{ jobs.build_and_publish.outputs.GHCR_vcp_db_migrate_URL }}
+      GCP_vcp_db_migrate_URL:
+        description: "URL of the vcp-db-migrate image in GCP"
+        value: ${{ jobs.build_and_publish.outputs.GCP_vcp_db_migrate_URL }}
+      GHCR_vcp_worker_URL:
+        description: "URL of the vcp-worker image in GHCR"
+        value: ${{ jobs.build_and_publish.outputs.GHCR_vcp_worker_URL }}
+      GCP_vcp_worker_URL:
+        description: "URL of the vcp-worker image in GCP"
+        value: ${{ jobs.build_and_publish.outputs.GCP_vcp_worker_URL }}
+      GHCR_vsa_control_plane_HELM_URL:
+        description: "URL of the vsa-control-plane chart in GHCR"
+        value: ${{ jobs.build_and_publish.outputs.GHCR_vsa_control_plane_HELM_URL }}
+      GCP_vsa_control_plane_HELM_URL:
+        description: "URL of the vsa-control-plane chart in GCP"
+        value: ${{ jobs.build_and_publish.outputs.GCP_vsa_control_plane_HELM_URL }}
+      GHCR_vcp_worker_HELM_URL:
+        description: "URL of the vcp-worker chart in GHCR"
+        value: ${{ jobs.build_and_publish.outputs.GHCR_vcp_worker_HELM_URL }}
+      GCP_vcp_worker_HELM_URL:
+        description: "URL of the vcp-worker chart in GCP"
+        value: ${{ jobs.build_and_publish.outputs.GCP_vcp_worker_HELM_URL }}
     secrets:
       GHVSA_PAT:
         required: true
@@ -45,6 +81,19 @@ jobs:
       contents: read
       packages: write
       id-token: write
+    outputs:
+      GHCR_core_URL: ${{ steps.generate_output_urls.outputs.GHCR_core_URL }}
+      GCP_core_URL: ${{ steps.generate_output_urls.outputs.GCP_core_URL }}
+      GHCR_google_proxy_URL: ${{ steps.generate_output_urls.outputs.GHCR_google-proxy_URL }}
+      GCP_google_proxy_URL: ${{ steps.generate_output_urls.outputs.GCP_google-proxy_URL }}
+      GHCR_vcp_db_migrate_URL: ${{ steps.generate_output_urls.outputs.GHCR_vcp-db-migrate_URL }}
+      GCP_vcp_db_migrate_URL: ${{ steps.generate_output_urls.outputs.GCP_vcp-db-migrate_URL }}
+      GHCR_vcp_worker_URL: ${{ steps.generate_output_urls.outputs.GHCR_vcp-worker_URL }}
+      GCP_vcp_worker_URL: ${{ steps.generate_output_urls.outputs.GCP_vcp-worker_URL }}
+      GHCR_vsa_control_plane_HELM_URL: ${{ steps.generate_output_urls.outputs.GHCR_vsa-control-plane_HELM_URL }}
+      GCP_vsa_control_plane_HELM_URL: ${{ steps.generate_output_urls.outputs.GCP_vsa-control-plane_HELM_URL }}
+      GHCR_vcp_worker_HELM_URL: ${{ steps.generate_output_urls.outputs.GHCR_vcp-worker_HELM_URL }}
+      GCP_vcp_worker_HELM_URL: ${{ steps.generate_output_urls.outputs.GCP_vcp-worker_HELM_URL }}
 
     steps:
       - name: Check out the repo
@@ -117,24 +166,24 @@ jobs:
         run: |
           echo "${{ steps.tokenid.outputs.idToken }}" > /tmp/github-token.txt
           gcloud iam workload-identity-pools create-cred-config "projects/${{secrets.AR_GCP_PROJ_NUM}}/locations/global/workloadIdentityPools/${{secrets.AR_WLI_POOL}}/providers/${{secrets.AR_WLI_PROV}}" \
-            --service-account="${{secrets.AR_GCP_SA}}@${{ secrets.AR_GCP_PROJ }}.iam.gserviceaccount.com" \
+            --service-account="${{secrets.AR_GCP_SA}}@${{ vars.AR_GCP_PROJ }}.iam.gserviceaccount.com" \
             --output-file="/tmp/gcloud-creds.json" \
             --credential-source-file="/tmp/github-token.txt"
           gcloud auth login --cred-file="/tmp/gcloud-creds.json" --quiet
 
       - name: Configure Docker
         run: |
-          gcloud config set project ${{ secrets.AR_GCP_PROJ }} --quiet
-          gcloud auth configure-docker ${{secrets.AR_GCP_REGION}}-docker.pkg.dev --quiet
+          gcloud config set project ${{ vars.AR_GCP_PROJ }} --quiet
+          gcloud auth configure-docker ${{vars.AR_GCP_REGION}}-docker.pkg.dev --quiet
           gcloud secrets versions access latest --secret="${{secrets.AR_PRIVATE_KEY}}" > /tmp/ec_private.pem
 
       - name: Push images
         env:
-          GCP_PROJECT: ${{ secrets.AR_GCP_PROJ }}
-          GHCR_REPO: ${{ secrets.GHCR_REPO }}
-          GCP_REPO: ${{ secrets.AR_GCP_REPO }}
+          GCP_PROJECT: ${{ vars.AR_GCP_PROJ }}
+          GHCR_REPO: vcp-vsa-control-plane
+          GCP_REPO: ${{ vars.AR_GCP_REPO }}
           IMAGES_TAG: ${{ inputs.tag }}
-          GCP_REGION: ${{ secrets.AR_GCP_REGION }}
+          GCP_REGION: ${{ vars.AR_GCP_REGION }}
         run: vsacictl images push
 
       - name: Get image digest via GitHub API
@@ -185,10 +234,10 @@ jobs:
         run: |
           IMAGES=("core" "google-proxy" "vcp-db-migrate" "vcp-worker")
           for IMAGE in "${IMAGES[@]}"; do
-            ARTIFACT_URL=$(gcloud artifacts docker images list ${{secrets.AR_GCP_REGION}}-docker.pkg.dev/${{secrets.AR_GCP_PROJ}}/${{secrets.AR_GCP_REPO}}/${IMAGE} \
+            ARTIFACT_URL=$(gcloud artifacts docker images list ${{vars.AR_GCP_REGION}}-docker.pkg.dev/${{vars.AR_GCP_PROJ}}/${{vars.AR_GCP_REPO}}/${IMAGE} \
             --include-tags \
             --format="value(DIGEST)" \
-            --filter="TAGS:${{ inputs.tag }}" | awk '{print "${{secrets.AR_GCP_REGION}}-docker.pkg.dev/${{secrets.AR_GCP_PROJ}}/${{secrets.AR_GCP_REPO}}/'${IMAGE}'@" $1}')
+            --filter="TAGS:${{ inputs.tag }}" | awk '{print "${{vars.AR_GCP_REGION}}-docker.pkg.dev/${{vars.AR_GCP_PROJ}}/${{vars.AR_GCP_REPO}}/'${IMAGE}'@" $1}')
             echo "${IMAGE}_ARTIFACT_URL=${ARTIFACT_URL}" >> $GITHUB_ENV
           done
 
@@ -213,9 +262,9 @@ jobs:
             if [[ "$(printenv "${IMAGE}_DIGEST_EXISTS")" == "0" ]]; then
               ARTIFACT_URL=$(printenv "${IMAGE}_ARTIFACT_URL")
               gcloud container binauthz attestations create \
-              --project="${{secrets.AR_GCP_PROJ}}" \
+              --project="${{vars.AR_GCP_PROJ}}" \
               --artifact-url="${ARTIFACT_URL}" \
-              --attestor="projects/${{secrets.AR_GCP_PROJ}}/attestors/${{secrets.AR_ATTESTOR_NAME}}" \
+              --attestor="projects/${{vars.AR_GCP_PROJ}}/attestors/${{secrets.AR_ATTESTOR_NAME}}" \
               --signature-file=/tmp/${IMAGE}_signature \
               --public-key-id="${{ env.PUBLIC_KEY_ID }}" \
               --validate
@@ -227,7 +276,7 @@ jobs:
 
       - name: Helm Login to Artifact Registry
         run: |
-          gcloud auth print-access-token | helm registry login -u oauth2accesstoken --password-stdin https://${{secrets.AR_GCP_REGION}}-docker.pkg.dev
+          gcloud auth print-access-token | helm registry login -u oauth2accesstoken --password-stdin https://${{vars.AR_GCP_REGION}}-docker.pkg.dev
           helm registry login ghcr.io -u ${{github.actor}} --password ${{ secrets.GHVSA_PAT }}
 
       - name: Update Versions of helm charts
@@ -248,7 +297,7 @@ jobs:
       - name: Push Helm Charts to Artifact Registry
         run: |
           for CHART in ./helm-packages/*.tgz; do
-            helm push $CHART oci://${{ secrets.AR_GCP_REGION }}-docker.pkg.dev/${{ secrets.AR_GCP_PROJ }}/${{secrets.AR_HELM_REPO}}
+            helm push $CHART oci://${{ vars.AR_GCP_REGION }}-docker.pkg.dev/${{ vars.AR_GCP_PROJ }}/${{vars.AR_HELM_REPO}}
           done
 
       - name: Create a release
@@ -258,30 +307,17 @@ jobs:
           GITHUB_REPOSITORY: ${{ github.event.repository.name }}
           newTag: ${{ inputs.tag }}
 
-      - name: Generate output urls
-        shell: bash -e {0}
+      - name: Generate output URLs
         id: generate_output_urls
+        shell: bash -e {0}
         run: |
           IMAGES=("core" "google-proxy" "vcp-db-migrate" "vcp-worker")
           for IMAGE in "${IMAGES[@]}"; do
-            echo "GHCR_${IMAGE}_URL=ghcr.io/vcp-vsa-control-plane/${IMAGE}:${{ inputs.tag }}" >> $GITHUB_ENV
-            echo "GCP_${IMAGE}_URL=${{secrets.AR_GCP_REGION}}-docker.pkg.dev/${{secrets.AR_GCP_PROJ}}/${{secrets.AR_GCP_REPO}}/${IMAGE}:${{ inputs.tag }}" >> $GITHUB_ENV
+            echo "GHCR_${IMAGE}_URL=ghcr.io/vcp-vsa-control-plane/${IMAGE}:${{ inputs.tag }}" >> $GITHUB_OUTPUT
+            echo "GCP_${IMAGE}_URL=${{ vars.AR_GCP_REGION }}-docker.pkg.dev/${{ vars.AR_GCP_PROJ }}/${{ vars.AR_GCP_REPO }}/${IMAGE}:${{ inputs.tag }}" >> $GITHUB_OUTPUT
           done
           CHARTS=("vsa-control-plane" "vcp-worker")
           for CHART in "${CHARTS[@]}"; do
-            echo "GHCR_${CHART}_HELM_URL=oci://ghcr.io/vcp-vsa-control-plane/${CHART}:${{ inputs.tag }}" >> $GITHUB_ENV
-            echo "GCP_${CHART}_HELM_URL=oci://${{secrets.AR_GCP_REGION}}-docker.pkg.dev/${{secrets.AR_GCP_PROJ}}/${{secrets.AR_HELM_REPO}}/${CHART}:${{ inputs.tag }}" >> $GITHUB_ENV
+            echo "GHCR_${CHART}_HELM_URL=oci://ghcr.io/vcp-vsa-control-plane/${CHART}:${{ inputs.tag }}" >> $GITHUB_OUTPUT
+            echo "GCP_${CHART}_HELM_URL=oci://${{ vars.AR_GCP_REGION }}-docker.pkg.dev/${{ vars.AR_GCP_PROJ }}/${{ vars.AR_HELM_REPO }}/${CHART}:${{ inputs.tag }}" >> $GITHUB_OUTPUT
           done
-    outputs:
-      GHCR_core_URL: ${{ steps.generate_output_urls.outputs.GHCR_core_URL }}
-      GCP_core_URL: ${{ steps.generate_output_urls.outputs.GCP_core_URL }}
-      GHCR_google-proxy_URL: ${{ steps.generate_output_urls.outputs.GHCR_google-proxy_URL }}
-      GCP_google-proxy_URL: ${{ steps.generate_output_urls.outputs.GCP_google-proxy_URL }}
-      GHCR_vcp-db-migrate_URL: ${{ steps.generate_output_urls.outputs.GHCR_vcp-db-migrate_URL }}
-      GCP_vcp-db-migrate_URL: ${{ steps.generate_output_urls.outputs.GCP_vcp-db-migrate_URL }}
-      GHCR_vcp-worker_URL: ${{ steps.generate_output_urls.outputs.GHCR_vcp-worker_URL }}
-      GCP_vcp-worker_URL: ${{ steps.generate_output_urls.outputs.GCP_vcp-worker_URL }}
-      GHCR_vsa-control-plane_HELM_URL: ${{ steps.generate_output_urls.outputs.GHCR_vsa-control-plane_HELM_URL }}
-      GCP_vsa-control-plane_HELM_URL: ${{ steps.generate_output_urls.outputs.GCP_vsa-control-plane_HELM_URL }}
-      GHCR_vcp-worker_HELM_URL: ${{ steps.generate_output_urls.outputs.GHCR_vcp-worker_HELM_URL }}
-      GCP_vcp-worker_HELM_URL: ${{ steps.generate_output_urls.outputs.GCP_vcp-worker_HELM_URL }}
