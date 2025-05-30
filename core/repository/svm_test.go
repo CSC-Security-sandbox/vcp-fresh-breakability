@@ -324,3 +324,89 @@ func TestGetSvmForPoolID(t *testing.T) {
 		assert.Equal(tt, svm.PoolID, result.PoolID, "Expected svm pool id %v, got %v", svm.PoolID, result.PoolID)
 	})
 }
+
+func TestGetSvmByKmsId(t *testing.T) {
+	t.Run("WhenExists", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		if err != nil {
+			tt.Fatalf("Failed to set up test database: %v", err)
+		}
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		if err != nil {
+			tt.Fatalf("Failed to clean up test database: %v", err)
+		}
+
+		kms := &datamodel.KmsConfig{
+			BaseModel: datamodel.BaseModel{
+				ID:   1,
+				UUID: "test-kms-uuid",
+			},
+			Name: "test_kms",
+		}
+
+		svm := &datamodel.Svm{
+			BaseModel:    datamodel.BaseModel{UUID: "test-svm-uuid"},
+			Name:         "test_svm",
+			CmekConfigID: kms.ID,
+		}
+		err = store.db.Create(kms).Error()
+		if err != nil {
+			tt.Fatalf("Failed to create kms config: %v", err)
+		}
+		err = store.db.Create(svm).Error()
+		if err != nil {
+			tt.Fatalf("Failed to create svm: %v", err)
+		}
+
+		result, err := store.GetSvmsByKmsConfigID(context.Background(), 1)
+		if err != nil {
+			tt.Errorf("Expected no error, got %v", err)
+		}
+		if result[0].Name != svm.Name {
+			tt.Errorf("Expected svm name %v, got %v", svm.Name, result[0].Name)
+		}
+	})
+
+	t.Run("WhenDoesNotExist", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		if err != nil {
+			tt.Fatalf("Failed to set up test database: %v", err)
+		}
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+		err = ClearInMemoryDB(store.db.GORM())
+		if err != nil {
+			tt.Fatalf("Failed to clean up test database: %v", err)
+		}
+
+		kms := &datamodel.KmsConfig{
+			BaseModel: datamodel.BaseModel{
+				ID:   1,
+				UUID: "test-kms-uuid",
+			},
+			Name: "test_kms",
+		}
+
+		svm := &datamodel.Svm{
+			BaseModel: datamodel.BaseModel{UUID: "test-svm-uuid"},
+			Name:      "test_svm",
+		}
+		err = store.db.Create(kms).Error()
+		if err != nil {
+			tt.Fatalf("Failed to create kms config: %v", err)
+		}
+		err = store.db.Create(svm).Error()
+		if err != nil {
+			tt.Fatalf("Failed to create svm: %v", err)
+		}
+
+		svms, err := store.GetSvmsByKmsConfigID(context.Background(), 1)
+		if err != nil {
+			tt.Errorf("Expected nil, got error")
+		}
+		assert.Equal(tt, 0, len(svms), "Expected no SVMs to be returned when KMS ID does not match")
+	})
+}

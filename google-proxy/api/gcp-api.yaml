@@ -3219,6 +3219,16 @@ paths:
                   createdTime: '2017-01-29T09:10:32.212Z'
                   updatedTime: '2017-01-29T09:10:32.212Z'
                   resourceId: my-resource
+        '202':
+          description: Updating KMS configurations
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Operation_v1beta'
+              example:
+                application/json:
+                  done: false
+                  name: /v1beta/projects/123456789/locations/some-location1/operations/ba2c8826-2627-057c-42ba-343ee7ab1ebe
         '400':
           $ref: '#/components/responses/StandardError-400'
         '401':

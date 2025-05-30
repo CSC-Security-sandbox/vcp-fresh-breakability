@@ -10,8 +10,12 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database"
+	errors2 "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine"
 )
 
 func TestGetMultipleKmsConfigs(t *testing.T) {
@@ -134,7 +138,7 @@ func TestConvertDataStoreKmsConfigToModel(t *testing.T) {
 		assert.Equal(t, kmsConfig.ServiceAccountID, result.ServiceAccountID)
 		assert.Equal(t, kmsConfig.ResourceID, result.ResourceID)
 		assert.NotNil(t, result.KmsAttributes)
-		assert.Equal(t, kmsConfig.KmsAttributes.SdeKmsConfigUUID, result.KmsAttributes.SdeExternalUUID)
+		assert.Equal(t, kmsConfig.KmsAttributes.SdeKmsConfigUUID, result.KmsAttributes.SdeKmsConfigUUID)
 		assert.Equal(t, kmsConfig.KmsAttributes.SdeServiceAccountEmail, result.KmsAttributes.SdeServiceAccountEmail)
 	})
 	t.Run("HandlesNilKmsAttributesGracefully", func(t *testing.T) {
@@ -165,5 +169,301 @@ func TestConvertDataStoreKmsConfigToModel(t *testing.T) {
 		assert.NotNil(t, result)
 		assert.Nil(t, result.KmsAttributes)
 		assert.Nil(t, result.DeletedAt)
+	})
+}
+
+func TestUpdateKmsConfig(t *testing.T) {
+	ctx := context.Background()
+
+	t.Run("SuccessfulUpdate", func(tt *testing.T) {
+		mockStorage := new(database.MockStorage)
+		mockTemporal := new(workflow_engine.MockTemporalTestClient)
+
+		params := &common.UpdateKmsConfigParams{
+			KmsConfigID: "test-kms-config-id",
+			AccountName: "test-account",
+			Name:        "updated-kms-config",
+		}
+
+		orchestrator := Orchestrator{
+			storage:  mockStorage,
+			temporal: mockTemporal,
+		}
+
+		account := &datamodel.Account{Name: "test-account"}
+		dbKmsConfig := &datamodel.KmsConfig{
+			BaseModel:      datamodel.BaseModel{UUID: "test-kms-config-id"},
+			State:          models.LifeCycleStateAvailable,
+			ServiceAccount: &datamodel.ServiceAccount{BaseModel: datamodel.BaseModel{UUID: "test-sa-id"}},
+		}
+		// Mock storage behavior
+		mockStorage.On("GetAccount", ctx, "test-account").Return(account, nil)
+		mockStorage.On("GetKmsConfig", ctx, "test-kms-config-id").Return(dbKmsConfig, nil)
+		mockStorage.On("GetSvmsByKmsConfigID", ctx, dbKmsConfig.ID).Return(nil, nil)
+		mockStorage.On("UpdateKmsConfigState", ctx, dbKmsConfig.UUID, models.LifeCycleStateUpdating, models.LifeCycleStateUpdatingDetails).Return(dbKmsConfig, nil)
+		mockStorage.On("CreateJob", ctx, mock.Anything).Return(&datamodel.Job{
+			BaseModel: datamodel.BaseModel{UUID: "test-job-uuid"},
+		}, nil)
+
+		// Mock Temporal client behavior
+		mockTemporal.On("ExecuteWorkflow", ctx, mock.Anything, mock.Anything, dbKmsConfig, params).Return(nil, nil)
+
+		kmsConfig, jobUUID, err := orchestrator.UpdateKmsConfig(ctx, params)
+
+		assert.NoError(tt, err)
+		assert.Equal(tt, "test-job-uuid", jobUUID)
+		assert.NotNil(tt, kmsConfig)
+		assert.Equal(tt, "test-kms-config-id", kmsConfig.UUID)
+	})
+
+	t.Run("SuccessfulUpdateWhenVcpKmsConfigNotFound", func(tt *testing.T) {
+		mockStorage := new(database.MockStorage)
+		mockTemporal := new(workflow_engine.MockTemporalTestClient)
+
+		params := &common.UpdateKmsConfigParams{
+			KmsConfigID: "test-kms-config-id",
+			AccountName: "test-account",
+			Name:        "updated-kms-config",
+		}
+
+		orchestrator := Orchestrator{
+			storage:  mockStorage,
+			temporal: mockTemporal,
+		}
+
+		account := &datamodel.Account{Name: "test-account"}
+		dbKmsConfig := &datamodel.KmsConfig{
+			BaseModel:      datamodel.BaseModel{UUID: "test-kms-config-id"},
+			State:          models.LifeCycleStateAvailable,
+			ServiceAccount: &datamodel.ServiceAccount{BaseModel: datamodel.BaseModel{UUID: "test-sa-id"}},
+		}
+		// Mock storage behavior
+		mockStorage.On("GetAccount", ctx, "test-account").Return(account, nil)
+		mockStorage.On("GetKmsConfig", ctx, "test-kms-config-id").Return(nil, errors2.NewNotFoundErr("kms config", nil))
+		mockStorage.On("CreateJob", ctx, mock.Anything).Return(&datamodel.Job{
+			BaseModel: datamodel.BaseModel{UUID: "test-job-uuid"},
+		}, nil)
+
+		// Mock Temporal client behavior
+		mockTemporal.On("ExecuteWorkflow", ctx, mock.Anything, mock.Anything, &datamodel.KmsConfig{KmsAttributes: &datamodel.KmsAttributes{SdeKmsConfigUUID: dbKmsConfig.UUID}}, params).Return(nil, nil)
+
+		kmsConfig, jobUUID, err := orchestrator.UpdateKmsConfig(ctx, params)
+
+		assert.NoError(tt, err)
+		assert.Equal(tt, "test-job-uuid", jobUUID)
+		assert.Nil(tt, kmsConfig)
+	})
+
+	t.Run("ValidationError", func(tt *testing.T) {
+		mockStorage := new(database.MockStorage)
+		mockTemporal := new(workflow_engine.MockTemporalTestClient)
+
+		params := &common.UpdateKmsConfigParams{
+			KmsConfigID: "test-kms-config-id",
+			AccountName: "test-account",
+			Name:        "updated-kms-config",
+			KeyName:     "key1",
+		}
+
+		orchestrator := Orchestrator{
+			storage:  mockStorage,
+			temporal: mockTemporal,
+		}
+
+		dbKmsConfig := &datamodel.KmsConfig{
+			BaseModel:      datamodel.BaseModel{UUID: "test-kms-config-id"},
+			State:          models.LifeCycleStateAvailable,
+			ServiceAccount: &datamodel.ServiceAccount{BaseModel: datamodel.BaseModel{UUID: "test-sa-id"}},
+		}
+		account := &datamodel.Account{Name: "test-account"}
+
+		// Mock storage behavior
+		mockStorage.On("GetAccount", ctx, "test-account").Return(account, nil)
+		mockStorage.On("GetKmsConfig", ctx, "test-kms-config-id").Return(dbKmsConfig, nil)
+		mockStorage.On("GetSvmsByKmsConfigID", ctx, dbKmsConfig.ID).Return([]*datamodel.Svm{&datamodel.Svm{Name: "svm"}}, nil)
+
+		// Mock Temporal client behavior
+		mockTemporal.On("ExecuteWorkflow", ctx, mock.Anything, mock.Anything, dbKmsConfig, params).Return(nil, nil)
+
+		kmsConfig, jobUUID, err := orchestrator.UpdateKmsConfig(ctx, params)
+
+		assert.Error(tt, err)
+		assert.Contains(tt, err.Error(), "can not update key details while kms config is in use")
+		assert.Nil(tt, kmsConfig)
+		assert.Empty(tt, jobUUID)
+	})
+
+	t.Run("WhenSvmNotFound", func(tt *testing.T) {
+		mockStorage := new(database.MockStorage)
+		mockTemporal := new(workflow_engine.MockTemporalTestClient)
+
+		params := &common.UpdateKmsConfigParams{
+			KmsConfigID: "test-kms-config-id",
+			AccountName: "test-account",
+			Name:        "updated-kms-config",
+			KeyName:     "key1",
+		}
+
+		orchestrator := Orchestrator{
+			storage:  mockStorage,
+			temporal: mockTemporal,
+		}
+
+		dbKmsConfig := &datamodel.KmsConfig{
+			BaseModel:      datamodel.BaseModel{UUID: "test-kms-config-id"},
+			State:          models.LifeCycleStateAvailable,
+			ServiceAccount: &datamodel.ServiceAccount{BaseModel: datamodel.BaseModel{UUID: "test-sa-id"}},
+		}
+		account := &datamodel.Account{Name: "test-account"}
+
+		// Mock storage behavior
+		mockStorage.On("GetAccount", ctx, "test-account").Return(account, nil)
+		mockStorage.On("GetKmsConfig", ctx, "test-kms-config-id").Return(dbKmsConfig, nil)
+		mockStorage.On("GetSvmsByKmsConfigID", ctx, dbKmsConfig.ID).Return(nil, errors2.New("error"))
+
+		// Mock Temporal client behavior
+		mockTemporal.On("ExecuteWorkflow", ctx, mock.Anything, mock.Anything, dbKmsConfig, params).Return(nil, nil)
+
+		kmsConfig, jobUUID, err := orchestrator.UpdateKmsConfig(ctx, params)
+
+		assert.Error(tt, err)
+		assert.Contains(tt, err.Error(), "error")
+		assert.Nil(tt, kmsConfig)
+		assert.Empty(tt, jobUUID)
+	})
+
+	t.Run("WhenKmsConfigInCreatingState", func(tt *testing.T) {
+		mockStorage := new(database.MockStorage)
+		mockTemporal := new(workflow_engine.MockTemporalTestClient)
+
+		params := &common.UpdateKmsConfigParams{
+			KmsConfigID: "test-kms-config-id",
+			AccountName: "test-account",
+			Name:        "updated-kms-config",
+			KeyName:     "key1",
+		}
+
+		orchestrator := Orchestrator{
+			storage:  mockStorage,
+			temporal: mockTemporal,
+		}
+
+		dbKmsConfig := &datamodel.KmsConfig{
+			BaseModel:      datamodel.BaseModel{UUID: "test-kms-config-id"},
+			State:          models.LifeCycleStateCreating,
+			ServiceAccount: &datamodel.ServiceAccount{BaseModel: datamodel.BaseModel{UUID: "test-sa-id"}},
+		}
+		account := &datamodel.Account{Name: "test-account"}
+
+		// Mock storage behavior
+		mockStorage.On("GetAccount", ctx, "test-account").Return(account, nil)
+		mockStorage.On("GetKmsConfig", ctx, "test-kms-config-id").Return(dbKmsConfig, nil)
+
+		// Mock Temporal client behavior
+		mockTemporal.On("ExecuteWorkflow", ctx, mock.Anything, mock.Anything, dbKmsConfig, params).Return(nil, nil)
+
+		kmsConfig, jobUUID, err := orchestrator.UpdateKmsConfig(ctx, params)
+
+		assert.Error(tt, err)
+		assert.Contains(tt, err.Error(), "can not update a gcpKmsConfig which is in creating or error state.")
+		assert.Nil(tt, kmsConfig)
+		assert.Empty(tt, jobUUID)
+	})
+
+	t.Run("WorkflowExecutionFailure", func(tt *testing.T) {
+		mockStorage := new(database.MockStorage)
+		mockTemporal := new(workflow_engine.MockTemporalTestClient)
+
+		params := &common.UpdateKmsConfigParams{
+			KmsConfigID: "test-kms-config-id",
+			AccountName: "test-account",
+			Name:        "updated-kms-config",
+		}
+
+		orchestrator := Orchestrator{
+			storage:  mockStorage,
+			temporal: mockTemporal,
+		}
+
+		account := &datamodel.Account{Name: "test-account"}
+		dbKmsConfig := &datamodel.KmsConfig{
+			BaseModel:      datamodel.BaseModel{UUID: "test-kms-config-id"},
+			State:          models.LifeCycleStateAvailable,
+			ServiceAccount: &datamodel.ServiceAccount{BaseModel: datamodel.BaseModel{UUID: "test-sa-id"}},
+		}
+		// Mock storage behavior
+		mockStorage.On("GetAccount", ctx, "test-account").Return(account, nil)
+		mockStorage.On("GetKmsConfig", ctx, "test-kms-config-id").Return(dbKmsConfig, nil)
+		mockStorage.On("GetSvmsByKmsConfigID", ctx, dbKmsConfig.ID).Return(nil, nil)
+		mockStorage.On("UpdateKmsConfigState", ctx, dbKmsConfig.UUID, models.LifeCycleStateUpdating, models.LifeCycleStateUpdatingDetails).Return(dbKmsConfig, nil)
+		mockStorage.On("CreateJob", ctx, mock.Anything).Return(&datamodel.Job{
+			BaseModel: datamodel.BaseModel{UUID: "test-job-uuid"},
+		}, nil)
+
+		// Mock Temporal client behavior
+		mockTemporal.On("ExecuteWorkflow", ctx, mock.Anything, mock.Anything, dbKmsConfig, params).Return(nil, errors2.New("workflow execution failed"))
+
+		kmsConfig, jobUUID, err := orchestrator.UpdateKmsConfig(ctx, params)
+
+		assert.Error(tt, err)
+		assert.Contains(tt, err.Error(), "workflow execution failed")
+		assert.Nil(tt, kmsConfig)
+		assert.Empty(tt, jobUUID)
+	})
+}
+
+func TestIsKmsConfigInUse(t *testing.T) {
+	ctx := context.Background()
+	t.Run("WhenSvmFound", func(tt *testing.T) {
+		mockStorage := new(database.MockStorage)
+		dbKmsConfig := &datamodel.KmsConfig{
+			BaseModel:      datamodel.BaseModel{UUID: "test-kms-config-id"},
+			State:          models.LifeCycleStateAvailable,
+			ServiceAccount: &datamodel.ServiceAccount{BaseModel: datamodel.BaseModel{UUID: "test-sa-id"}},
+		}
+		mockStorage.On("GetSvmsByKmsConfigID", ctx, dbKmsConfig.ID).Return([]*datamodel.Svm{&datamodel.Svm{Name: "svm"}}, nil)
+
+		inuse, err := isKmsConfigInUse(ctx, mockStorage, dbKmsConfig)
+		assert.NoError(tt, err)
+		assert.Equal(tt, inuse, true)
+	})
+	t.Run("WhenSvmNotFoundError", func(tt *testing.T) {
+		mockStorage := new(database.MockStorage)
+		dbKmsConfig := &datamodel.KmsConfig{
+			BaseModel:      datamodel.BaseModel{UUID: "test-kms-config-id"},
+			State:          models.LifeCycleStateAvailable,
+			ServiceAccount: &datamodel.ServiceAccount{BaseModel: datamodel.BaseModel{UUID: "test-sa-id"}},
+		}
+		mockStorage.On("GetSvmsByKmsConfigID", ctx, dbKmsConfig.ID).Return(nil, errors2.NewNotFoundErr("svm", nil))
+
+		inuse, err := isKmsConfigInUse(ctx, mockStorage, dbKmsConfig)
+		assert.NoError(tt, err)
+		assert.Equal(tt, inuse, false)
+	})
+	t.Run("WhenSvmOtherError", func(tt *testing.T) {
+		mockStorage := new(database.MockStorage)
+		dbKmsConfig := &datamodel.KmsConfig{
+			BaseModel:      datamodel.BaseModel{UUID: "test-kms-config-id"},
+			State:          models.LifeCycleStateAvailable,
+			ServiceAccount: &datamodel.ServiceAccount{BaseModel: datamodel.BaseModel{UUID: "test-sa-id"}},
+		}
+		mockStorage.On("GetSvmsByKmsConfigID", ctx, dbKmsConfig.ID).Return(nil, errors2.New("some error"))
+
+		inuse, err := isKmsConfigInUse(ctx, mockStorage, dbKmsConfig)
+		assert.Error(tt, err)
+		assert.Contains(tt, err.Error(), "some error")
+		assert.Equal(tt, inuse, false)
+	})
+	t.Run("WhenKmsStateInUse", func(tt *testing.T) {
+		mockStorage := new(database.MockStorage)
+		dbKmsConfig := &datamodel.KmsConfig{
+			BaseModel:      datamodel.BaseModel{UUID: "test-kms-config-id"},
+			State:          models.LifeCycleStateInUse,
+			ServiceAccount: &datamodel.ServiceAccount{BaseModel: datamodel.BaseModel{UUID: "test-sa-id"}},
+		}
+
+		inuse, err := isKmsConfigInUse(ctx, mockStorage, dbKmsConfig)
+		assert.NoError(tt, err)
+		assert.Equal(tt, inuse, true)
 	})
 }

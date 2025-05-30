@@ -40,6 +40,7 @@ type OrchestratorFactory interface {
 	UpdateSnapshot(ctx context.Context, params *commonparams.UpdateSnapshotParams) (*models.Snapshot, string, error)
 
 	GetMultipleKMSConfigs(ctx context.Context, kmsConfigIDList []string) ([]*models.KmsConfig, error)
+	UpdateKmsConfig(ctx context.Context, params *commonparams.UpdateKmsConfigParams) (*models.KmsConfig, string, error)
 }
 
 type Orchestrator struct {

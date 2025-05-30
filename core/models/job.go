@@ -25,6 +25,7 @@ const (
 	JobTypeUpdateSnapshot    JobType = "UPDATE_SNAPSHOT"
 	JobTypeDeleteSnapshot    JobType = "DELETE_SNAPSHOT"
 	JobTypeAcceptClusterPeer JobType = "ACCEPT_CLUSTER_PEER"
+	JobTypeUpdateKmsConfig JobType = "UPDATE_KMS_CONFIG"
 )
 
 // Job describes a job DB model

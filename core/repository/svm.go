@@ -24,6 +24,16 @@ func (d *DataStoreRepository) GetSvmsByPoolID(ctx context.Context, poolID int64)
 	return svms, nil
 }
 
+// GetSvmsByKmsConfigID retrieves SVMs by kms config id
+func (d *DataStoreRepository) GetSvmsByKmsConfigID(ctx context.Context, kmsConfigID int64) ([]*datamodel.Svm, error) {
+	var svms []*datamodel.Svm
+	err := d.db.GORM().WithContext(ctx).Where("cmek_config_id = ?", kmsConfigID).Find(&svms).Error
+	if err != nil {
+		return nil, err
+	}
+	return svms, nil
+}
+
 // CreateSVM creates a new SVM in the database
 func (d *DataStoreRepository) CreateSVM(ctx context.Context, svm *datamodel.Svm) (*datamodel.Svm, error) {
 	var dbSvm datamodel.Svm

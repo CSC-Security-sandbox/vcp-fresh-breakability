@@ -584,3 +584,19 @@ func (s *PersistenceStore) GetSnapshotsByVolumeID(ctx context.Context, volumeID 
 func (s *PersistenceStore) GetMultipleKmsConfigs(ctx context.Context, conditions [][]interface{}) ([]*datamodel.KmsConfig, error) {
 	return s.dataStore.GetMultipleKmsConfigs(ctx, conditions)
 }
+
+func (s *PersistenceStore) GetKmsConfig(ctx context.Context, kmsConfigUUID string) (*datamodel.KmsConfig, error) {
+	return s.dataStore.GetKmsConfig(ctx, kmsConfigUUID)
+}
+
+func (s *PersistenceStore) UpdateKmsConfigState(ctx context.Context, kmsConfigUUID string, state string, stateDetails string) (*datamodel.KmsConfig, error) {
+	return s.dataStore.UpdateKmsConfigState(ctx, kmsConfigUUID, state, stateDetails)
+}
+
+func (s *PersistenceStore) UpdateKmsConfig(ctx context.Context, kmsConfig *datamodel.KmsConfig) (*datamodel.KmsConfig, error) {
+	return s.dataStore.UpdateKmsConfig(ctx, kmsConfig)
+}
+
+func (s *PersistenceStore) GetSvmsByKmsConfigID(ctx context.Context, kmsConfigID int64) ([]*datamodel.Svm, error) {
+	return s.dataStore.GetSvmsByKmsConfigID(ctx, kmsConfigID)
+}

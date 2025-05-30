@@ -7,6 +7,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
@@ -577,4 +578,45 @@ func TestGetSnapshotsByVolumeID(t *testing.T) {
 	}
 	assert.True(t, foundSnap5)
 	assert.True(t, foundSnap6)
+}
+
+func TestGetKms(t *testing.T) {
+	logger := &log.MockLogger{}
+	store, _ := NewTestStorage(logger)
+	ctx := context.Background()
+	ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, logger)
+	kms := datamodel.KmsConfig{
+		BaseModel: datamodel.BaseModel{UUID: "kms-uuid"},
+	}
+	store.db.Create(&kms)
+	found, err := store.GetKmsConfig(ctx, kms.UUID)
+	assert.NoError(t, err)
+	assert.NotNil(t, found)
+}
+
+func TestUpdateKmsConfig(t *testing.T) {
+	logger := &log.MockLogger{}
+	store, _ := NewTestStorage(logger)
+	ctx := context.Background()
+	ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, logger)
+	kms := datamodel.KmsConfig{
+		BaseModel: datamodel.BaseModel{UUID: "kms-uuid"},
+	}
+	store.db.Create(&kms)
+	kms.Name = "updatedpool"
+	_, err := store.UpdateKmsConfig(ctx, &kms)
+	assert.NoError(t, err)
+}
+
+func TestUpdateKmsConfigState(t *testing.T) {
+	logger := &log.MockLogger{}
+	store, _ := NewTestStorage(logger)
+	ctx := context.Background()
+	ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, logger)
+	kms := datamodel.KmsConfig{
+		BaseModel: datamodel.BaseModel{UUID: "kms-uuid"},
+	}
+	store.db.Create(&kms)
+	_, err := store.UpdateKmsConfigState(ctx, "kms-uuid", models.LifeCycleStateUpdating, models.LifeCycleStateUpdatingDetails)
+	assert.NoError(t, err)
 }

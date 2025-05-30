@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/tls"
 	"fmt"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities/kms_activities"
 	"os"
 	"time"
 
@@ -93,6 +94,7 @@ func registerWorkflowsAndActivities(worker worker.Worker, dbcon database.Storage
 	worker.RegisterWorkflow(workflows.CreateSnapshotWorkflow)
 	worker.RegisterWorkflow(workflows.DeleteSnapshotWorkflow)
 	worker.RegisterWorkflow(workflows.AcceptClusterPeerWorkflow)
+	worker.RegisterWorkflow(workflows.UpdateKmsConfigWorkflow)
 
 	worker.RegisterActivity(&activities.CommonActivities{SE: dbcon})
 	worker.RegisterActivity(&activities.PoolActivity{SE: dbcon})
@@ -101,6 +103,7 @@ func registerWorkflowsAndActivities(worker worker.Worker, dbcon database.Storage
 	worker.RegisterActivity(&activities.SnapshotCreateActivity{SE: dbcon})
 	worker.RegisterActivity(&activities.SnapshotDeleteActivity{SE: dbcon})
 	worker.RegisterActivity(&activities.ClusterPeerActivity{SE: dbcon})
+	worker.RegisterActivity(&kms_activities.KmsConfigUpdateActivity{SE: dbcon})
 }
 
 // CreateClientOptionsFromEnv creates a client.Options instance, configures

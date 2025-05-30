@@ -14,6 +14,7 @@ const (
 	LifeCycleStateSplitting  = "SPLITTING"
 	LifeCycleStateAvailable  = "AVAILABLE"
 	LifeCycleStateREADY      = "READY"
+	LifeCycleStateInUse      = "IN_USE"
 	LifeCycleStateDisabled   = "DISABLED"
 	LifeCycleStateDisabling  = "DISABLING"
 	LifeCycleStateEnabling   = "ENABLING"

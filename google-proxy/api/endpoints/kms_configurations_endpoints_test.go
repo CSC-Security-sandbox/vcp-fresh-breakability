@@ -3,6 +3,9 @@ package api
 import (
 	"context"
 	"fmt"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
+	"go.temporal.io/sdk/client"
 	"testing"
 	"time"
 
@@ -1136,10 +1139,6 @@ func TestV1betaDescribeKmsConfiguration(t *testing.T) {
 // V1betaUpdateKmsConfiguration unittests
 func TestV1betaUpdateKmsConfiguration(t *testing.T) {
 	t.Run("WhenUpdateKmsConfigurationSuccess", func(t *testing.T) {
-		// Define request
-		// Create a mock client
-		mockClient := kms_configurations.NewMockClientService(t)
-
 		// Define input parameters
 		params := gcpgenserver.V1betaUpdateKmsConfigurationParams{
 			KmsConfigId:    "kms-config-id-1",
@@ -1148,41 +1147,27 @@ func TestV1betaUpdateKmsConfiguration(t *testing.T) {
 			XCorrelationID: gcpgenserver.NewOptString("test-correlation-id"),
 		}
 		req := &gcpgenserver.KmsConfigUpdateV1beta{
-			KeyFullPath: gcpgenserver.NewOptString("test-key"),
+			KeyFullPath: gcpgenserver.NewOptString("projects/projectID/locations/us/keyRings/keyRing/cryptoKeys/keyName"),
 			Description: gcpgenserver.NewOptString("test-description"),
 			ResourceId:  gcpgenserver.NewOptString("test-resource-id"),
 		}
 
-		// Define mock response
-		updatedTime := strfmt.DateTime(time.Now())
-		description := "test-description"
-		keyFullPath := "test-key-full-path"
-		mockResponse := &kms_configurations.V1betaUpdateKmsConfigurationOK{
-			Payload: &models.KmsConfigV1beta{
-				UUID:                "test-id",
-				ServiceAccountEmail: "test-email",
-				KeyFullPath:         &keyFullPath,
-				KmsState:            "test-state",
-				KmsStateDetails:     "test-details",
-				Description:         &description,
-				CreatedTime:         strfmt.DateTime(time.Now()),
-				UpdatedTime:         &updatedTime,
-				DeletedTime:         &updatedTime,
-				Instructions:        "test-instructions",
-			},
+		resourceId := "kms1"
+		kms := &coremodel.KmsConfig{
+			Name:    resourceId,
+			KeyName: "key1",
+			State:   coremodel.LifeCycleStateCreating,
 		}
 
-		// Set up the mock client behavior
-		mockClient.EXPECT().
-			V1betaUpdateKmsConfiguration(mock.Anything).
-			Return(mockResponse, nil)
-		cvpClient := &cvpapi.Cvp{KmsConfigurations: mockClient}
-		originalCreateClient := createClient
-		defer func() { createClient = originalCreateClient }()
-		createClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
-			return *cvpClient
+		orchestrator.UpdateKmsConfig = func(ctx context.Context, se database.Storage, temporal client.Client, params *common.UpdateKmsConfigParams) (*coremodel.KmsConfig, string, error) {
+			return kms, "test-uuid", nil
 		}
-		handler := Handler{}
+		parseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
+			return "region", "zone", nil
+		}
+		handler := Handler{
+			Orchestrator: orchestrator.NewOrchestrator(nil, nil),
+		}
 		// Call the method under test
 		result, err := handler.V1betaUpdateKmsConfiguration(context.Background(), req, params)
 
@@ -1190,361 +1175,37 @@ func TestV1betaUpdateKmsConfiguration(t *testing.T) {
 		assert.NoError(t, err)
 		assert.NotNil(t, result)
 		// Check if the uuid value is as expected
-		assert.Equal(t, "test-id", result.(*gcpgenserver.KmsConfigV1beta).UUID.Value)
-		// Check if the ServiceAccountEmail value is as expected
-		assert.Equal(t, "test-email", result.(*gcpgenserver.KmsConfigV1beta).ServiceAccountEmail.Value)
+		assert.Equal(t, "/v1beta/projects/12345/locations/test-location/operations/test-uuid", result.(*gcpgenserver.OperationV1beta).Name.Value)
 	})
-
-	t.Run("WhenUpdateKmsConfigurationFailsWithBadRequest", func(t *testing.T) {
-		// Create a mock client
-		mockClient := kms_configurations.NewMockClientService(t)
-
+	t.Run("WhenFailure", func(t *testing.T) {
 		// Define input parameters
 		params := gcpgenserver.V1betaUpdateKmsConfigurationParams{
+			KmsConfigId:    "kms-config-id-1",
 			LocationId:     "test-location",
 			ProjectNumber:  "12345",
 			XCorrelationID: gcpgenserver.NewOptString("test-correlation-id"),
-			KmsConfigId:    "kms-config-id-1",
 		}
-		// Define request
-		req := &gcpgenserver.KmsConfigUpdateV1beta{}
+		req := &gcpgenserver.KmsConfigUpdateV1beta{
+			KeyFullPath: gcpgenserver.NewOptString("projects/projectID/locations/us/keyRings/keyRing/cryptoKeys/keyName"),
+			Description: gcpgenserver.NewOptString("test-description"),
+			ResourceId:  gcpgenserver.NewOptString("test-resource-id"),
+		}
 
-		// Define mock error
-		errorCode := float64(400)
-		errorMessage := "Bad Request"
-		mockError := &kms_configurations.V1betaUpdateKmsConfigurationBadRequest{
-			Payload: &models.Error{
-				Code:    errorCode,
-				Message: errorMessage,
-			},
+		orchestrator.UpdateKmsConfig = func(ctx context.Context, se database.Storage, temporal client.Client, params *common.UpdateKmsConfigParams) (*coremodel.KmsConfig, string, error) {
+			return nil, "", errors.NewNotFoundErr("kms", nil)
 		}
-		// Set up the mock client behavior
-		mockClient.EXPECT().
-			V1betaUpdateKmsConfiguration(mock.Anything).
-			Return(nil, mockError)
-		cvpClient := &cvpapi.Cvp{KmsConfigurations: mockClient}
-		originalCreateClient := createClient
-		defer func() { createClient = originalCreateClient }()
-		createClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
-			return *cvpClient
+		parseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
+			return "region", "zone", nil
 		}
-		handler := Handler{}
+		handler := Handler{
+			Orchestrator: orchestrator.NewOrchestrator(nil, nil),
+		}
 		// Call the method under test
 		result, err := handler.V1betaUpdateKmsConfiguration(context.Background(), req, params)
+
 		// Assertions
 		assert.NoError(t, err)
-		assert.NotNil(t, result)
-		// Check if the code is as expected
-		assert.Equal(t, errorCode, result.(*gcpgenserver.V1betaUpdateKmsConfigurationBadRequest).Code)
-		assert.Equal(t, errorMessage, result.(*gcpgenserver.V1betaUpdateKmsConfigurationBadRequest).Message)
-	})
-
-	t.Run("WhenUpdateKmsConfigurationFailsWithUnprocessableEntity", func(t *testing.T) {
-		// Create a mock client
-		mockClient := kms_configurations.NewMockClientService(t)
-
-		// Define input parameters
-		params := gcpgenserver.V1betaUpdateKmsConfigurationParams{
-			LocationId:     "test-location",
-			ProjectNumber:  "12345",
-			XCorrelationID: gcpgenserver.NewOptString("test-correlation-id"),
-			KmsConfigId:    "kms-config-id-1",
-		}
-		// Define request
-		req := &gcpgenserver.KmsConfigUpdateV1beta{}
-
-		// Define mock error
-		errorCode := float64(422)
-		errorMessage := "Unprocessable error"
-		mockError := &kms_configurations.V1betaUpdateKmsConfigurationUnprocessableEntity{
-			Payload: &models.Error{
-				Code:    errorCode,
-				Message: errorMessage,
-			},
-		}
-		// Set up the mock client behavior
-		mockClient.EXPECT().
-			V1betaUpdateKmsConfiguration(mock.Anything).
-			Return(nil, mockError)
-		cvpClient := &cvpapi.Cvp{KmsConfigurations: mockClient}
-		originalCreateClient := createClient
-		defer func() { createClient = originalCreateClient }()
-		createClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
-			return *cvpClient
-		}
-		handler := Handler{}
-		// Call the method under test
-		result, err := handler.V1betaUpdateKmsConfiguration(context.Background(), req, params)
-		// Assertions
-		assert.NoError(t, err)
-		assert.NotNil(t, result)
-		// Check if the code is as expected
-		assert.Equal(t, errorCode, result.(*gcpgenserver.V1betaUpdateKmsConfigurationUnprocessableEntity).Code)
-		assert.Equal(t, errorMessage, result.(*gcpgenserver.V1betaUpdateKmsConfigurationUnprocessableEntity).Message)
-	})
-
-	t.Run("WhenUpdateKmsConfigurationFailsWithConflict", func(t *testing.T) {
-		// Create a mock client
-		mockClient := kms_configurations.NewMockClientService(t)
-
-		// Define input parameters
-		params := gcpgenserver.V1betaUpdateKmsConfigurationParams{
-			LocationId:     "test-location",
-			ProjectNumber:  "12345",
-			XCorrelationID: gcpgenserver.NewOptString("test-correlation-id"),
-			KmsConfigId:    "kms-config-id-1",
-		}
-		// Define request
-		req := &gcpgenserver.KmsConfigUpdateV1beta{}
-
-		// Define mock error
-		errorCode := float64(409)
-		errorMessage := "Conflict error"
-		mockError := &kms_configurations.V1betaUpdateKmsConfigurationConflict{
-			Payload: &models.Error{
-				Code:    errorCode,
-				Message: errorMessage,
-			},
-		}
-		// Set up the mock client behavior
-		mockClient.EXPECT().
-			V1betaUpdateKmsConfiguration(mock.Anything).
-			Return(nil, mockError)
-		cvpClient := &cvpapi.Cvp{KmsConfigurations: mockClient}
-		originalCreateClient := createClient
-		defer func() { createClient = originalCreateClient }()
-		createClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
-			return *cvpClient
-		}
-		handler := Handler{}
-		// Call the method under test
-		result, err := handler.V1betaUpdateKmsConfiguration(context.Background(), req, params)
-		// Assertions
-		assert.NoError(t, err)
-		assert.NotNil(t, result)
-		// Check if the code is as expected
-		assert.Equal(t, errorCode, result.(*gcpgenserver.V1betaUpdateKmsConfigurationConflict).Code)
-		assert.Equal(t, errorMessage, result.(*gcpgenserver.V1betaUpdateKmsConfigurationConflict).Message)
-	})
-
-	t.Run("WhenUpdateKmsConfigurationFailsWithUnauthorized", func(t *testing.T) {
-		// Create a mock client
-		mockClient := kms_configurations.NewMockClientService(t)
-
-		// Define input parameters
-		params := gcpgenserver.V1betaUpdateKmsConfigurationParams{
-			LocationId:     "test-location",
-			ProjectNumber:  "12345",
-			XCorrelationID: gcpgenserver.NewOptString("test-correlation-id"),
-			KmsConfigId:    "kms-config-id-1",
-		}
-		// Define request
-		req := &gcpgenserver.KmsConfigUpdateV1beta{}
-
-		// Define mock error
-		errorCode := float64(401)
-		errorMessage := "Unauthorized error"
-		mockError := &kms_configurations.V1betaUpdateKmsConfigurationUnauthorized{
-			Payload: &models.Error{
-				Code:    errorCode,
-				Message: errorMessage,
-			},
-		}
-		// Set up the mock client behavior
-		mockClient.EXPECT().
-			V1betaUpdateKmsConfiguration(mock.Anything).
-			Return(nil, mockError)
-		cvpClient := &cvpapi.Cvp{KmsConfigurations: mockClient}
-		originalCreateClient := createClient
-		defer func() { createClient = originalCreateClient }()
-		createClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
-			return *cvpClient
-		}
-		handler := Handler{}
-		// Call the method under test
-		result, err := handler.V1betaUpdateKmsConfiguration(context.Background(), req, params)
-		// Assertions
-		assert.NoError(t, err)
-		assert.NotNil(t, result)
-		// Check if the code is as expected
-		assert.Equal(t, errorCode, result.(*gcpgenserver.V1betaUpdateKmsConfigurationUnauthorized).Code)
-		assert.Equal(t, errorMessage, result.(*gcpgenserver.V1betaUpdateKmsConfigurationUnauthorized).Message)
-	})
-
-	t.Run("WhenUpdateKmsConfigurationFailsWithForbidden", func(t *testing.T) {
-		// Create a mock client
-		mockClient := kms_configurations.NewMockClientService(t)
-
-		// Define input parameters
-		params := gcpgenserver.V1betaUpdateKmsConfigurationParams{
-			LocationId:     "test-location",
-			ProjectNumber:  "12345",
-			XCorrelationID: gcpgenserver.NewOptString("test-correlation-id"),
-			KmsConfigId:    "kms-config-id-1",
-		}
-		// Define request
-		req := &gcpgenserver.KmsConfigUpdateV1beta{}
-
-		// Define mock error
-		errorCode := float64(403)
-		errorMessage := "Forbidden error"
-		mockError := &kms_configurations.V1betaUpdateKmsConfigurationForbidden{
-			Payload: &models.Error{
-				Code:    errorCode,
-				Message: errorMessage,
-			},
-		}
-		// Set up the mock client behavior
-		mockClient.EXPECT().
-			V1betaUpdateKmsConfiguration(mock.Anything).
-			Return(nil, mockError)
-		cvpClient := &cvpapi.Cvp{KmsConfigurations: mockClient}
-		originalCreateClient := createClient
-		defer func() { createClient = originalCreateClient }()
-		createClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
-			return *cvpClient
-		}
-		handler := Handler{}
-		// Call the method under test
-		result, err := handler.V1betaUpdateKmsConfiguration(context.Background(), req, params)
-		// Assertions
-		assert.NoError(t, err)
-		assert.NotNil(t, result)
-		// Check if the code is as expected
-		assert.Equal(t, errorCode, result.(*gcpgenserver.V1betaUpdateKmsConfigurationForbidden).Code)
-		assert.Equal(t, errorMessage, result.(*gcpgenserver.V1betaUpdateKmsConfigurationForbidden).Message)
-	})
-
-	t.Run("WhenUpdateKmsConfigurationFailsWithTooManyRequests", func(t *testing.T) {
-		// Create a mock client
-		mockClient := kms_configurations.NewMockClientService(t)
-
-		// Define input parameters
-		params := gcpgenserver.V1betaUpdateKmsConfigurationParams{
-			LocationId:     "test-location",
-			ProjectNumber:  "12345",
-			XCorrelationID: gcpgenserver.NewOptString("test-correlation-id"),
-			KmsConfigId:    "kms-config-id-1",
-		}
-		// Define request
-		req := &gcpgenserver.KmsConfigUpdateV1beta{}
-
-		// Define mock error
-		errorCode := float64(429)
-		errorMessage := "Too Many Requests error"
-		mockError := &kms_configurations.V1betaUpdateKmsConfigurationTooManyRequests{
-			Payload: &models.Error{
-				Code:    errorCode,
-				Message: errorMessage,
-			},
-		}
-		// Set up the mock client behavior
-		mockClient.EXPECT().
-			V1betaUpdateKmsConfiguration(mock.Anything).
-			Return(nil, mockError)
-		cvpClient := &cvpapi.Cvp{KmsConfigurations: mockClient}
-		originalCreateClient := createClient
-		defer func() { createClient = originalCreateClient }()
-		createClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
-			return *cvpClient
-		}
-		handler := Handler{}
-		// Call the method under test
-		result, err := handler.V1betaUpdateKmsConfiguration(context.Background(), req, params)
-		// Assertions
-		assert.NoError(t, err)
-		assert.NotNil(t, result)
-		// Check if the code is as expected
-		assert.Equal(t, errorCode, result.(*gcpgenserver.V1betaUpdateKmsConfigurationTooManyRequests).Code)
-		assert.Equal(t, errorMessage, result.(*gcpgenserver.V1betaUpdateKmsConfigurationTooManyRequests).Message)
-	})
-
-	t.Run("WhenUpdateKmsConfigurationFailsWithDefault", func(t *testing.T) {
-		// Create a mock client
-		mockClient := kms_configurations.NewMockClientService(t)
-
-		// Define input parameters
-		params := gcpgenserver.V1betaUpdateKmsConfigurationParams{
-			LocationId:     "test-location",
-			ProjectNumber:  "12345",
-			XCorrelationID: gcpgenserver.NewOptString("test-correlation-id"),
-			KmsConfigId:    "kms-config-id-1",
-		}
-		// Define request
-		req := &gcpgenserver.KmsConfigUpdateV1beta{}
-
-		// Define mock error
-		errorCode := float64(500)
-		errorMessage := "default error"
-		mockError := &kms_configurations.V1betaUpdateKmsConfigurationDefault{
-			Payload: &models.Error{
-				Code:    errorCode,
-				Message: errorMessage,
-			},
-		}
-		// Set up the mock client behavior
-		mockClient.EXPECT().
-			V1betaUpdateKmsConfiguration(mock.Anything).
-			Return(nil, mockError)
-		cvpClient := &cvpapi.Cvp{KmsConfigurations: mockClient}
-		originalCreateClient := createClient
-		defer func() { createClient = originalCreateClient }()
-		createClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
-			return *cvpClient
-		}
-		handler := Handler{}
-		// Call the method under test
-		result, err := handler.V1betaUpdateKmsConfiguration(context.Background(), req, params)
-		// Assertions
-		assert.NoError(t, err)
-		assert.NotNil(t, result)
-		// Check if the code is as expected
-		assert.Equal(t, errorCode, result.(*gcpgenserver.V1betaUpdateKmsConfigurationInternalServerError).Code)
-		assert.Equal(t, errorMessage, result.(*gcpgenserver.V1betaUpdateKmsConfigurationInternalServerError).Message)
-	})
-
-	t.Run("WhenUpdateKmsConfigurationFailsWithUnknownError", func(t *testing.T) {
-		// Create a mock client
-		mockClient := kms_configurations.NewMockClientService(t)
-
-		// Define input parameters
-		params := gcpgenserver.V1betaUpdateKmsConfigurationParams{
-			LocationId:     "test-location",
-			ProjectNumber:  "12345",
-			XCorrelationID: gcpgenserver.NewOptString("test-correlation-id"),
-			KmsConfigId:    "kms-config-id-1",
-		}
-		// Define request
-		req := &gcpgenserver.KmsConfigUpdateV1beta{}
-
-		// Define mock error
-		errorCode := float64(500)
-		errorMessage := "unknown error during the update kms configurations"
-		mockError := &kms_configurations.V1betaUpdateKmsConfigurationInternalServerError{
-			Payload: &models.Error{
-				Code:    errorCode,
-				Message: errorMessage,
-			},
-		}
-		// Set up the mock client behavior
-		mockClient.EXPECT().
-			V1betaUpdateKmsConfiguration(mock.Anything).
-			Return(nil, mockError)
-		cvpClient := &cvpapi.Cvp{KmsConfigurations: mockClient}
-		originalCreateClient := createClient
-		defer func() { createClient = originalCreateClient }()
-		createClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
-			return *cvpClient
-		}
-		handler := Handler{}
-		// Call the method under test
-		result, err := handler.V1betaUpdateKmsConfiguration(context.Background(), req, params)
-		// Assertions
-		assert.NoError(t, err)
-		assert.NotNil(t, result)
-		// Check if the code is as expected
-		assert.Equal(t, errorCode, result.(*gcpgenserver.V1betaUpdateKmsConfigurationInternalServerError).Code)
-		assert.Equal(t, errorMessage, result.(*gcpgenserver.V1betaUpdateKmsConfigurationInternalServerError).Message)
+		assert.Equal(t, result, &gcpgenserver.V1betaUpdateKmsConfigurationBadRequest{Code: 400, Message: "kms not found"})
 	})
 }
 

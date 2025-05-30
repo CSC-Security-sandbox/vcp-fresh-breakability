@@ -4799,6 +4799,7 @@ func (*OperationV1beta) v1betaUpdateActiveDirectoryRes()       {}
 func (*OperationV1beta) v1betaUpdateBackupPolicyRes()          {}
 func (*OperationV1beta) v1betaUpdateBackupVaultRes()           {}
 func (*OperationV1beta) v1betaUpdateHostGroupRes()             {}
+func (*OperationV1beta) v1betaUpdateKmsConfigurationRes()      {}
 func (*OperationV1beta) v1betaUpdatePoolRes()                  {}
 func (*OperationV1beta) v1betaUpdateReplicationRes()           {}
 func (*OperationV1beta) v1betaUpdateSnapshotRes()              {}

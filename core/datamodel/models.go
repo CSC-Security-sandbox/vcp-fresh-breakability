@@ -330,6 +330,7 @@ type KmsConfig struct {
 	KeyRingLocation   string          `gorm:"column:key_ring_location"`
 	KeyName           string          `gorm:"column:key_name"`
 	AccountID         int64           `gorm:"column:account_id"`
+	Account           *Account        `gorm:"ForeignKey:AccountID;AssociationForeignKey:ID;constraint:OnDelete:CASCADE,OnUpdate:RESTRICT;"`
 	CustomerProjectID string          `gorm:"column:customer_project_id"`
 	KeyProjectID      string          `gorm:"column:key_project_id"`
 	ResourceID        string          `gorm:"column:resource_id"`
