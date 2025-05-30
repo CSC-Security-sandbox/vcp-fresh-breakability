@@ -39,6 +39,7 @@ const (
 	V1betaGetMultipleBackupVaultsOperation            OperationName = "V1betaGetMultipleBackupVaults"
 	V1betaGetMultipleBackupsOperation                 OperationName = "V1betaGetMultipleBackups"
 	V1betaGetMultipleHostGroupsOperation              OperationName = "V1betaGetMultipleHostGroups"
+	V1betaGetMultipleKmsConfigsOperation              OperationName = "V1betaGetMultipleKmsConfigs"
 	V1betaGetMultiplePoolsOperation                   OperationName = "V1betaGetMultiplePools"
 	V1betaGetMultipleReplicationsOperation            OperationName = "V1betaGetMultipleReplications"
 	V1betaGetMultipleSnapshotsOperation               OperationName = "V1betaGetMultipleSnapshots"

@@ -213,6 +213,12 @@ type Handler interface {
 	//
 	// POST /v1beta/projects/{projectNumber}/locations/{locationId}/hostGroups/getMultipleHostGroups
 	V1betaGetMultipleHostGroups(ctx context.Context, req *HostGroupIdListV1beta, params V1betaGetMultipleHostGroupsParams) (V1betaGetMultipleHostGroupsRes, error)
+	// V1betaGetMultipleKmsConfigs implements v1beta_getMultipleKmsConfigs operation.
+	//
+	// Returns descriptions of KMS configurations that are listed in the request body.
+	//
+	// POST /v1beta/projects/{projectNumber}/locations/{locationId}/storage/kmsConfig/getMultipleKmsConfigs
+	V1betaGetMultipleKmsConfigs(ctx context.Context, req *KmsConfigIdListV1beta, params V1betaGetMultipleKmsConfigsParams) (V1betaGetMultipleKmsConfigsRes, error)
 	// V1betaGetMultiplePools implements v1beta_getMultiplePools operation.
 	//
 	// Returns descriptions of pools that is listed in request body.

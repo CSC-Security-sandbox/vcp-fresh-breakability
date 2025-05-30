@@ -47,6 +47,8 @@ func getModels() []interface{} {
 		datamodel.Job{},
 		datamodel.Snapshot{},
 		datamodel.HostGroup{},
+		datamodel.ServiceAccount{},
+		datamodel.KmsConfig{},
 	}
 }
 

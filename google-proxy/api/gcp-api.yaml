@@ -3328,6 +3328,77 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
+  /v1beta/projects/{projectNumber}/locations/{locationId}/storage/kmsConfig/getMultipleKmsConfigs:
+    post:
+      summary: List specified KMS configurations
+      description: Returns descriptions of KMS configurations that are listed in the request body.
+      operationId: v1beta_getMultipleKmsConfigs
+      tags:
+        - kms-configurations
+      parameters:
+        - $ref: '#/components/parameters/projectNumberPathParameter'
+        - $ref: '#/components/parameters/locationIdPathParameter'
+        - $ref: '#/components/parameters/xCorrelationIdHeader'
+      requestBody:
+        description: A list of KMS configuration IDs to return.
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/kmsConfigIdList_v1beta'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - type: object
+                    properties:
+                      kmsConfigurations:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/KmsConfig_v1beta'
+              example:
+                  kmsConfigurations:
+                    - kmsConfigId: 9760acf5-4638-11e7-9bdb-020073ca3333
+                      resourceId: kms-config-1
+                      description: This is KMS configuration policy 1
+                      createdTime: '2017-01-29T09:10:32.212Z'
+                      updatedTime: '2017-01-29T09:10:32.212Z'
+                      keyFullPath: projects/vsa-project-01/locations/global/keyRings/keyRingName/cryptoKeys/keyName
+                      kmsState: READY
+                      kmsStateDetails: KMS config is ready for use
+                      serviceAccountEmail: user1@user1.iam.gserviceaccount.com
+                      instructions: Please copy and paste the commands listed below into Google Cloud Shell...
+                    - kmsConfigId: 9760acf5-4638-11e7-9bdb-020073ca4444
+                      resourceId: kms-config-2
+                      description: This is KMS configuration policy 2
+                      createdTime: '2017-01-28T09:10:32.212Z'
+                      updatedTime: '2017-01-28T09:10:32.212Z'
+                      keyFullPath: projects/vsa-project-02/locations/us-central1/keyRings/keyRingName/cryptoKeys/keyName
+                      kmsState: IN_USE
+                      kmsStateDetails: KMS config is in use
+                      serviceAccountEmail: user2@user2.iam.gserviceaccount.com
+                      instructions: Please copy and paste the commands listed below into Google Cloud Shell...
+        '400':
+          $ref: '#/components/responses/StandardError-400'
+        '401':
+          $ref: '#/components/responses/StandardError-401'
+        '403':
+          $ref: '#/components/responses/StandardError-403'
+        '404':
+          $ref: '#/components/responses/StandardError-404'
+        '429':
+          $ref: '#/components/responses/StandardError-429'
+        '500':
+          $ref: '#/components/responses/StandardError-500'
+        default:
+          description: Unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
   /v1beta/projects/{projectNumber}/locations/{locationId}/backupPolicies:
     get:
       operationId: v1beta_listBackupPolicies
@@ -7595,6 +7666,7 @@ components:
           example: my-resource
           x-nullable: true
     kmsConfigIdList_v1beta:
+      type: object
       title: kmsConfigIdList
       required:
         - kmsConfigIds

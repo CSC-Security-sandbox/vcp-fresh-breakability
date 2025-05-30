@@ -2,6 +2,7 @@ package api
 
 import (
 	"context"
+	"fmt"
 	"testing"
 	"time"
 
@@ -11,6 +12,10 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/cvpapi"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/cvpapi/kms_configurations"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/models"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
+	coremodel "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database"
 	gcpgenserver "github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/api/gcp-servergen"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/nillable"
@@ -2231,5 +2236,610 @@ func TestV1betaListKmsConfigurations(t *testing.T) {
 		// Check if the code is as expected
 		assert.Equal(t, errorCode, result.(*gcpgenserver.V1betaListKmsConfigurationsInternalServerError).Code)
 		assert.Equal(t, errorMessage, result.(*gcpgenserver.V1betaListKmsConfigurationsInternalServerError).Message)
+	})
+}
+
+func TestV1betaGetMultipleKmsConfigs(t *testing.T) {
+	// Mock of VCP Orchestrator and Datastore
+	mockLogger := log.NewLogger()
+	store, err := database.NewTestStorage(mockLogger)
+	if err != nil {
+		t.Fatalf("Failed to create test storage: %v", err)
+	}
+
+	err = database.ClearInMemoryDB(store.DB())
+	if err != nil {
+		t.Fatalf("Failed to clean up test storage: %v", err)
+	}
+
+	orchInstance := orchestrator.NewOrchestrator(store, nil)
+
+	serviceAccounts := []*datamodel.ServiceAccount{
+		{BaseModel: datamodel.BaseModel{ID: int64(111), UUID: "uuid10"}, Name: "ServiceAccount1"},
+		{BaseModel: datamodel.BaseModel{ID: int64(222), UUID: "uuid20"}, Name: "ServiceAccount2"},
+	}
+	err = store.DB().Create(serviceAccounts).Error
+	if err != nil {
+		t.Fatalf("Failed to create Service-Accounts table: %v", err)
+	}
+
+	kmsConfigs := []*datamodel.KmsConfig{
+		{BaseModel: datamodel.BaseModel{UUID: "uuid1", DeletedAt: nil}, Name: "kmsConfig1", ResourceID: "Resource-Id1-VCP", ServiceAccountID: serviceAccounts[0].ID,
+			KmsAttributes: &datamodel.KmsAttributes{SdeServiceAccountEmail: "sdeServiceAccount1@account.com"}},
+		{BaseModel: datamodel.BaseModel{UUID: "uuid2", DeletedAt: nil}, Name: "kmsConfig2", ResourceID: "Resource-Id2-VCP", ServiceAccountID: serviceAccounts[1].ID,
+			KmsAttributes: &datamodel.KmsAttributes{SdeServiceAccountEmail: "sdeServiceAccount2@account.com"}},
+	}
+	err = store.DB().Create(kmsConfigs).Error
+	if err != nil {
+		t.Fatalf("Failed to create KMS Configs table: %v", err)
+	}
+
+	// Mock of CVP Client
+	mockClient := kms_configurations.NewMockClientService(t)
+
+	params := gcpgenserver.V1betaGetMultipleKmsConfigsParams{
+		LocationId:     "test-location",
+		ProjectNumber:  "12345",
+		XCorrelationID: gcpgenserver.NewOptString("test-correlation-id"),
+	}
+	req := &gcpgenserver.KmsConfigIdListV1beta{
+		KmsConfigIds: []string{"uuid3", "uuid4"},
+	}
+
+	kmsConfigsCVP := make([]*models.KmsConfigV1beta, 0)
+	resourceId3 := "Resource-Id3-SDE"
+	resourceId4 := "Resource-Id4-SDE"
+
+	nowTime := strfmt.DateTime(time.Now())
+	description := "Test-description"
+	keyFullPath := "Test-key-SDE-full-path"
+	kmsConfigsCVP = append(kmsConfigsCVP, &models.KmsConfigV1beta{
+		UUID:                "uuid3",
+		ServiceAccountEmail: "service-account3@sde.com",
+		CreatedTime:         nowTime,
+		UpdatedTime:         &nowTime,
+		Description:         &description,
+		ResourceID:          &resourceId3,
+		KmsState:            "Test-state-3",
+		KmsStateDetails:     "Test-state-details-3",
+		Instructions:        "Test-instructions-3",
+		KeyFullPath:         &keyFullPath,
+	})
+	kmsConfigsCVP = append(kmsConfigsCVP, &models.KmsConfigV1beta{
+		UUID:                "uuid4",
+		ServiceAccountEmail: "service-account4@sde.com",
+		CreatedTime:         nowTime,
+		UpdatedTime:         &nowTime,
+		Description:         &description,
+		ResourceID:          &resourceId4,
+		KmsState:            "Test-state-4",
+		KmsStateDetails:     "Test-state-details-4",
+		Instructions:        "Test-instructions-4",
+		KeyFullPath:         &keyFullPath,
+	})
+
+	handler := Handler{}
+	handler.Orchestrator = orchInstance
+
+	mockResponse := &kms_configurations.V1betaGetMultipleKmsConfigsOK{
+		Payload: &kms_configurations.V1betaGetMultipleKmsConfigsOKBody{
+			KmsConfigurations: kmsConfigsCVP,
+		},
+	}
+
+	mockClient.EXPECT().
+		V1betaGetMultipleKmsConfigs(mock.Anything).
+		Return(mockResponse, nil)
+	cvpClient := &cvpapi.Cvp{KmsConfigurations: mockClient}
+	originalCreateClient := createClient
+	defer func() { createClient = originalCreateClient }()
+	createClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
+		return *cvpClient
+	}
+
+	t.Run("WhenGetMultipleKmsConfigsOnlyHasEntriesInSDE", func(t *testing.T) {
+		result, err := handler.V1betaGetMultipleKmsConfigs(context.Background(), req, params)
+
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+		assert.Equal(t, 2, len(result.(*gcpgenserver.V1betaGetMultipleKmsConfigsOK).KmsConfigurations))
+		assert.Equal(t, "Resource-Id3-SDE", result.(*gcpgenserver.V1betaGetMultipleKmsConfigsOK).KmsConfigurations[0].ResourceId.Value)
+		assert.Equal(t, "Resource-Id4-SDE", result.(*gcpgenserver.V1betaGetMultipleKmsConfigsOK).KmsConfigurations[1].ResourceId.Value)
+	})
+	t.Run("WhenGetMultipleKmsConfigsOnlyHasEntriesInVCP", func(t *testing.T) {
+		req := &gcpgenserver.KmsConfigIdListV1beta{
+			KmsConfigIds: []string{"uuid1", "uuid2"},
+		}
+		result, err := handler.V1betaGetMultipleKmsConfigs(context.Background(), req, params)
+
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+		assert.Equal(t, 2, len(result.(*gcpgenserver.V1betaGetMultipleKmsConfigsOK).KmsConfigurations))
+		assert.Equal(t, "Resource-Id1-VCP", result.(*gcpgenserver.V1betaGetMultipleKmsConfigsOK).KmsConfigurations[0].ResourceId.Value)
+		assert.Equal(t, "Resource-Id2-VCP", result.(*gcpgenserver.V1betaGetMultipleKmsConfigsOK).KmsConfigurations[1].ResourceId.Value)
+	})
+	t.Run("WhenGetMultipleKmsConfigsHasSomeEntriesInVcpAndInSde", func(t *testing.T) {
+		req := &gcpgenserver.KmsConfigIdListV1beta{
+			KmsConfigIds: []string{"uuid2", "uuid3", "uuid4"},
+		}
+		result, err := handler.V1betaGetMultipleKmsConfigs(context.Background(), req, params)
+
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+		assert.Equal(t, 3, len(result.(*gcpgenserver.V1betaGetMultipleKmsConfigsOK).KmsConfigurations))
+		assert.Equal(t, "Resource-Id2-VCP", result.(*gcpgenserver.V1betaGetMultipleKmsConfigsOK).KmsConfigurations[0].ResourceId.Value)
+		assert.Equal(t, "Resource-Id3-SDE", result.(*gcpgenserver.V1betaGetMultipleKmsConfigsOK).KmsConfigurations[1].ResourceId.Value)
+		assert.Equal(t, "Resource-Id4-SDE", result.(*gcpgenserver.V1betaGetMultipleKmsConfigsOK).KmsConfigurations[2].ResourceId.Value)
+	})
+	t.Run("WhenGetMultipleKmsConfigsHasEntriesInVcpAndSde", func(t *testing.T) {
+		req := &gcpgenserver.KmsConfigIdListV1beta{
+			KmsConfigIds: []string{"uuid1", "uuid2", "uuid3", "uuid4"},
+		}
+		result, err := handler.V1betaGetMultipleKmsConfigs(context.Background(), req, params)
+
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+		assert.Equal(t, 4, len(result.(*gcpgenserver.V1betaGetMultipleKmsConfigsOK).KmsConfigurations))
+		assert.Equal(t, "Resource-Id1-VCP", result.(*gcpgenserver.V1betaGetMultipleKmsConfigsOK).KmsConfigurations[0].ResourceId.Value)
+		assert.Equal(t, "Resource-Id2-VCP", result.(*gcpgenserver.V1betaGetMultipleKmsConfigsOK).KmsConfigurations[1].ResourceId.Value)
+		assert.Equal(t, "Resource-Id3-SDE", result.(*gcpgenserver.V1betaGetMultipleKmsConfigsOK).KmsConfigurations[2].ResourceId.Value)
+		assert.Equal(t, "Resource-Id4-SDE", result.(*gcpgenserver.V1betaGetMultipleKmsConfigsOK).KmsConfigurations[3].ResourceId.Value)
+	})
+}
+
+func TestV1betaGetMultipleKmsConfigsErrorConditions(t *testing.T) {
+	// Mock of VCP Orchestrator and Datastore
+	mockLogger := log.NewLogger()
+	store, err := database.NewTestStorage(mockLogger)
+	if err != nil {
+		t.Fatalf("Failed to create test storage: %v", err)
+	}
+
+	err = database.ClearInMemoryDB(store.DB())
+	if err != nil {
+		t.Fatalf("Failed to clean up test storage: %v", err)
+	}
+
+	orchInstance := orchestrator.NewOrchestrator(store, nil)
+
+	serviceAccounts := []*datamodel.ServiceAccount{
+		{BaseModel: datamodel.BaseModel{ID: int64(111), UUID: "uuid10"}, Name: "ServiceAccount1"},
+		{BaseModel: datamodel.BaseModel{ID: int64(222), UUID: "uuid20"}, Name: "ServiceAccount2"},
+	}
+	err = store.DB().Create(serviceAccounts).Error
+	if err != nil {
+		t.Fatalf("Failed to create Service-Accounts table: %v", err)
+	}
+
+	kmsConfigs := []*datamodel.KmsConfig{
+		{BaseModel: datamodel.BaseModel{UUID: "uuid1", DeletedAt: nil}, Name: "kmsConfig1", ResourceID: "Resource-Id1-SDE", ServiceAccountID: serviceAccounts[0].ID,
+			KmsAttributes: &datamodel.KmsAttributes{SdeServiceAccountEmail: "sdeServiceAccount1@account.com"}},
+		{BaseModel: datamodel.BaseModel{UUID: "uuid2", DeletedAt: nil}, Name: "kmsConfig2", ResourceID: "Resource-Id2-SDE", ServiceAccountID: serviceAccounts[1].ID,
+			KmsAttributes: &datamodel.KmsAttributes{SdeServiceAccountEmail: "sdeServiceAccount2@account.com"}},
+	}
+	err = store.DB().Create(kmsConfigs).Error
+	if err != nil {
+		t.Fatalf("Failed to create KMS Configs table: %v", err)
+	}
+
+	params := gcpgenserver.V1betaGetMultipleKmsConfigsParams{
+		LocationId:     "test-location",
+		ProjectNumber:  "12345",
+		XCorrelationID: gcpgenserver.NewOptString("test-correlation-id"),
+	}
+	req := &gcpgenserver.KmsConfigIdListV1beta{
+		KmsConfigIds: []string{""},
+	}
+
+	handler := Handler{}
+	handler.Orchestrator = orchInstance
+
+	t.Run("WhenGetMultipleKmsConfigsReturnsBadRequest", func(tt *testing.T) {
+		errorCode := float64(400)
+		errorMessage := "Bad Request"
+		mockError := &kms_configurations.V1betaGetMultipleKmsConfigsBadRequest{
+			Payload: &models.Error{
+				Code:    errorCode,
+				Message: errorMessage,
+			},
+		}
+
+		mockClient := kms_configurations.NewMockClientService(t)
+		mockClient.EXPECT().
+			V1betaGetMultipleKmsConfigs(mock.Anything).
+			Return(nil, mockError)
+		cvpClient := &cvpapi.Cvp{KmsConfigurations: mockClient}
+		originalCreateClient := createClient
+		defer func() { createClient = originalCreateClient }()
+		createClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
+			return *cvpClient
+		}
+
+		result, err := handler.V1betaGetMultipleKmsConfigs(context.Background(), req, params)
+
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+		assert.Equal(t, errorCode, result.(*gcpgenserver.V1betaGetMultipleKmsConfigsBadRequest).Code)
+		assert.Equal(t, errorMessage, result.(*gcpgenserver.V1betaGetMultipleKmsConfigsBadRequest).Message)
+	})
+	t.Run("WhenGetMultipleKmsConfigsFailsWithUnauthorized", func(tt *testing.T) {
+		errorCode := float64(401)
+		errorMessage := "Unauthorized error"
+		mockError := &kms_configurations.V1betaGetMultipleKmsConfigsUnauthorized{
+			Payload: &models.Error{
+				Code:    errorCode,
+				Message: errorMessage,
+			},
+		}
+
+		mockClient := kms_configurations.NewMockClientService(t)
+		mockClient.EXPECT().
+			V1betaGetMultipleKmsConfigs(mock.Anything).
+			Return(nil, mockError)
+
+		cvpClient := &cvpapi.Cvp{KmsConfigurations: mockClient}
+		originalCreateClient := createClient
+		defer func() { createClient = originalCreateClient }()
+		createClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
+			return *cvpClient
+		}
+
+		result, err := handler.V1betaGetMultipleKmsConfigs(context.Background(), req, params)
+
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+		assert.Equal(t, errorCode, result.(*gcpgenserver.V1betaGetMultipleKmsConfigsUnauthorized).Code)
+		assert.Equal(t, errorMessage, result.(*gcpgenserver.V1betaGetMultipleKmsConfigsUnauthorized).Message)
+	})
+	t.Run("WhenGetMultipleKmsConfigsFailsWithForbidden", func(tt *testing.T) {
+		errorCode := float64(403)
+		errorMessage := "Forbidden error"
+		mockError := &kms_configurations.V1betaGetMultipleKmsConfigsForbidden{
+			Payload: &models.Error{
+				Code:    errorCode,
+				Message: errorMessage,
+			},
+		}
+
+		mockClient := kms_configurations.NewMockClientService(t)
+		mockClient.EXPECT().
+			V1betaGetMultipleKmsConfigs(mock.Anything).
+			Return(nil, mockError)
+
+		cvpClient := &cvpapi.Cvp{KmsConfigurations: mockClient}
+		originalCreateClient := createClient
+		defer func() { createClient = originalCreateClient }()
+		createClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
+			return *cvpClient
+		}
+
+		result, err := handler.V1betaGetMultipleKmsConfigs(context.Background(), req, params)
+
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+		assert.Equal(t, errorCode, result.(*gcpgenserver.V1betaGetMultipleKmsConfigsForbidden).Code)
+		assert.Equal(t, errorMessage, result.(*gcpgenserver.V1betaGetMultipleKmsConfigsForbidden).Message)
+	})
+	t.Run("WhenGetMultipleKmsConfigsFailsWithNotFound", func(tt *testing.T) {
+		errorCode := float64(404)
+		errorMessage := "Not found"
+		mockError := &kms_configurations.V1betaGetMultipleKmsConfigsNotFound{
+			Payload: &models.Error{
+				Code:    errorCode,
+				Message: errorMessage,
+			},
+		}
+
+		mockClient := kms_configurations.NewMockClientService(t)
+		mockClient.EXPECT().
+			V1betaGetMultipleKmsConfigs(mock.Anything).
+			Return(nil, mockError)
+
+		cvpClient := &cvpapi.Cvp{KmsConfigurations: mockClient}
+		originalCreateClient := createClient
+		defer func() { createClient = originalCreateClient }()
+		createClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
+			return *cvpClient
+		}
+
+		result, err := handler.V1betaGetMultipleKmsConfigs(context.Background(), req, params)
+
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+		assert.Equal(t, errorCode, result.(*gcpgenserver.V1betaGetMultipleKmsConfigsNotFound).Code)
+		assert.Equal(t, errorMessage, result.(*gcpgenserver.V1betaGetMultipleKmsConfigsNotFound).Message)
+	})
+	t.Run("WhenGetMultipleKmsConfigsFailsWithErrorTooManyRequests", func(tt *testing.T) {
+		errorCode := float64(429)
+		errorMessage := "Too many requests"
+		mockError := &kms_configurations.V1betaGetMultipleKmsConfigsTooManyRequests{
+			Payload: &models.Error{
+				Code:    errorCode,
+				Message: errorMessage,
+			},
+		}
+
+		mockClient := kms_configurations.NewMockClientService(t)
+		mockClient.EXPECT().
+			V1betaGetMultipleKmsConfigs(mock.Anything).
+			Return(nil, mockError)
+
+		cvpClient := &cvpapi.Cvp{KmsConfigurations: mockClient}
+		originalCreateClient := createClient
+		defer func() { createClient = originalCreateClient }()
+		createClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
+			return *cvpClient
+		}
+
+		result, err := handler.V1betaGetMultipleKmsConfigs(context.Background(), req, params)
+
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+		assert.Equal(t, errorCode, result.(*gcpgenserver.V1betaGetMultipleKmsConfigsTooManyRequests).Code)
+		assert.Equal(t, errorMessage, result.(*gcpgenserver.V1betaGetMultipleKmsConfigsTooManyRequests).Message)
+	})
+	t.Run("WhenGetMultipleKmsConfigsFailsWithDefault", func(tt *testing.T) {
+		errorCode := float64(500)
+		errorMessage := "Default error"
+		mockError := &kms_configurations.V1betaGetMultipleKmsConfigsDefault{
+			Payload: &models.Error{
+				Code:    errorCode,
+				Message: errorMessage,
+			},
+		}
+
+		mockClient := kms_configurations.NewMockClientService(t)
+		mockClient.EXPECT().
+			V1betaGetMultipleKmsConfigs(mock.Anything).
+			Return(nil, mockError)
+
+		cvpClient := &cvpapi.Cvp{KmsConfigurations: mockClient}
+		originalCreateClient := createClient
+		defer func() { createClient = originalCreateClient }()
+		createClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
+			return *cvpClient
+		}
+
+		result, err := handler.V1betaGetMultipleKmsConfigs(context.Background(), req, params)
+
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+		assert.Equal(t, errorCode, result.(*gcpgenserver.V1betaGetMultipleKmsConfigsInternalServerError).Code)
+		assert.Equal(t, errorMessage, result.(*gcpgenserver.V1betaGetMultipleKmsConfigsInternalServerError).Message)
+	})
+	t.Run("WhenGetMultipleKmsConfigsFailsWithUnknownError", func(tt *testing.T) {
+		errorCode := float64(500)
+		errorMessage := "Unknown error encountered during Get Multiple KMS configurations operation"
+		mockError := &kms_configurations.V1betaGetMultipleKmsConfigsInternalServerError{
+			Payload: &models.Error{
+				Code:    errorCode,
+				Message: errorMessage,
+			},
+		}
+
+		mockClient := kms_configurations.NewMockClientService(t)
+		mockClient.EXPECT().
+			V1betaGetMultipleKmsConfigs(mock.Anything).
+			Return(nil, mockError)
+
+		cvpClient := &cvpapi.Cvp{KmsConfigurations: mockClient}
+		originalCreateClient := createClient
+		defer func() { createClient = originalCreateClient }()
+		createClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
+			return *cvpClient
+		}
+
+		result, err := handler.V1betaGetMultipleKmsConfigs(context.Background(), req, params)
+
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+		assert.Equal(t, errorCode, result.(*gcpgenserver.V1betaGetMultipleKmsConfigsInternalServerError).Code)
+		assert.Equal(t, errorMessage, result.(*gcpgenserver.V1betaGetMultipleKmsConfigsInternalServerError).Message)
+	})
+	t.Run("WhenGetMultipleKmsConfigsFailsWithCvpResponseNil", func(tt *testing.T) {
+		expectedErrorMsg := "Unknown error encountered during Get Multiple KMS configurations operation"
+		expectedErrorCode := float64(500)
+
+		mockClient := kms_configurations.NewMockClientService(t)
+		mockClient.EXPECT().
+			V1betaGetMultipleKmsConfigs(mock.Anything).
+			Return(nil, nil)
+
+		cvpClient := &cvpapi.Cvp{KmsConfigurations: mockClient}
+		originalCreateClient := createClient
+		defer func() { createClient = originalCreateClient }()
+		createClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
+			return *cvpClient
+		}
+
+		result, err := handler.V1betaGetMultipleKmsConfigs(context.Background(), req, params)
+
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+		assert.Equal(t, expectedErrorCode, result.(*gcpgenserver.V1betaGetMultipleKmsConfigsInternalServerError).Code)
+		assert.Equal(t, expectedErrorMsg, result.(*gcpgenserver.V1betaGetMultipleKmsConfigsInternalServerError).Message)
+	})
+	t.Run("WhenGetMultipleKmsConfigsFailsWithCvpPayloadNil", func(tt *testing.T) {
+		req := &gcpgenserver.KmsConfigIdListV1beta{
+			KmsConfigIds: []string{"uuid5"},
+		}
+		mockResponse := &kms_configurations.V1betaGetMultipleKmsConfigsOK{
+			Payload: nil,
+		}
+		mockClient := kms_configurations.NewMockClientService(t)
+		mockClient.EXPECT().
+			V1betaGetMultipleKmsConfigs(mock.Anything).
+			Return(mockResponse, nil)
+
+		cvpClient := &cvpapi.Cvp{KmsConfigurations: mockClient}
+		originalCreateClient := createClient
+		defer func() { createClient = originalCreateClient }()
+		createClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
+			return *cvpClient
+		}
+
+		result, err := handler.V1betaGetMultipleKmsConfigs(context.Background(), req, params)
+
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+		assert.Equal(t, 0, len(result.(*gcpgenserver.V1betaGetMultipleKmsConfigsOK).KmsConfigurations))
+	})
+	t.Run("WhenGetMultipleKmsConfigsFailsWithUnknownErrorFromVCP", func(tt *testing.T) {
+		expectedErrorMsg := "Unknown error encountered during Get Multiple KMS configurations operation"
+		expectedErrorCode := float64(500)
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator.EXPECT().GetMultipleKMSConfigs(mock.Anything, mock.Anything).Return(nil, fmt.Errorf("internal error"))
+		handler := Handler{
+			Orchestrator: mockOrchestrator,
+		}
+
+		result, err := handler.V1betaGetMultipleKmsConfigs(context.Background(), req, params)
+		assert.NoError(tt, err)
+		assert.NotNil(tt, result)
+		assert.Equal(tt, expectedErrorMsg, result.(*gcpgenserver.V1betaGetMultipleKmsConfigsInternalServerError).Message)
+		assert.Equal(tt, expectedErrorCode, result.(*gcpgenserver.V1betaGetMultipleKmsConfigsInternalServerError).Code)
+	})
+}
+
+func TestGetKmsInstructions(t *testing.T) {
+	t.Run("ReturnsEmptyStringWhenKmsAttributesIsNil", func(t *testing.T) {
+		kmsConfig := &coremodel.KmsConfig{}
+		instructions := getKmsInstructions(kmsConfig)
+		assert.Equal(t, "", instructions)
+	})
+	t.Run("ReturnsEmptyStringWhenServiceAccountEmailIsEmpty", func(t *testing.T) {
+		kmsConfig := &coremodel.KmsConfig{}
+		kmsConfig.KmsAttributes = &coremodel.KmsAttributes{
+			SdeServiceAccountEmail: "",
+		}
+		instructions := getKmsInstructions(kmsConfig)
+		assert.Equal(t, "", instructions)
+	})
+	t.Run("UsesCustomerProjectIDWhenKeyProjectIDIsEmpty", func(t *testing.T) {
+		kmsConfig := &coremodel.KmsConfig{
+			KeyProjectID:      "",
+			CustomerProjectID: "customer-project-id",
+			KeyName:           "key-name",
+			KeyRing:           "key-ring",
+			KeyRingLocation:   "key-ring-location",
+		}
+		kmsConfig.KmsAttributes = &coremodel.KmsAttributes{
+			SdeServiceAccountEmail: "service-account@test.com",
+		}
+		instructions := getKmsInstructions(kmsConfig)
+		assert.Contains(t, instructions, "customer-project-id")
+		assert.Contains(t, instructions, "serviceAccount:service-account@test.com")
+	})
+	t.Run("GeneratesInstructionsWithKeyProjectID", func(t *testing.T) {
+		kmsConfig := &coremodel.KmsConfig{
+			KeyProjectID:    "key-project-id",
+			KeyName:         "key-name",
+			KeyRing:         "key-ring",
+			KeyRingLocation: "key-ring-location",
+		}
+		kmsConfig.KmsAttributes = &coremodel.KmsAttributes{
+			SdeServiceAccountEmail: "service-account@test.com",
+		}
+		expectedOutput := `Please copy and paste the commands listed below into Google Cloud Shell in the project that contains the key ring. The commands create a KMS role and assign it to the CVS service account so that it can access the key.
+## CREATE KMS role ## gcloud iam roles create cmekNetAppVolumesRole --project=key-project-id --title='cmekNetAppVolumesRole' --description='custom cmek cvs role' --permissions=cloudkms.cryptoKeyVersions.get,cloudkms.cryptoKeyVersions.list,cloudkms.cryptoKeyVersions.useToDecrypt,cloudkms.cryptoKeyVersions.useToEncrypt,cloudkms.cryptoKeys.get,cloudkms.keyRings.get,cloudkms.locations.get,cloudkms.locations.list,resourcemanager.projects.get --stage=GA
+ ## ASSIGN role and give KEY ACCESS to CVS service account ## gcloud kms keys add-iam-policy-binding key-name --project=key-project-id --keyring key-ring --location key-ring-location --member serviceAccount:service-account@test.com --role projects/key-project-id/roles/cmekNetAppVolumesRole`
+
+		instructions := getKmsInstructions(kmsConfig)
+		assert.Contains(t, instructions, "key-project-id")
+		assert.Contains(t, instructions, "key-name")
+		assert.Contains(t, instructions, "key-ring")
+		assert.Contains(t, instructions, "key-ring-location")
+		assert.Contains(t, instructions, "serviceAccount:service-account@test.com")
+		assert.Equal(t, expectedOutput, instructions)
+	})
+}
+
+func TestConvertOrchestratorModelToKmsConfigV1beta(t *testing.T) {
+	t.Run("ReturnsValidKmsConfigV1betaWhenAllFieldsArePopulated", func(t *testing.T) {
+		expectedDate := time.Date(2022, time.February, 2, 2, 2, 2, 2, time.UTC)
+		kmsConfig := &coremodel.KmsConfig{
+			State:           "ACTIVE",
+			KeyProjectID:    "test-project-id",
+			KeyRingLocation: "test-location",
+			KeyRing:         "test-key-ring",
+			KeyName:         "test-key-name",
+			StateDetails:    "test-state-details",
+			Description:     "test-description",
+			ResourceID:      "test-resource-id",
+		}
+		kmsConfig.BaseModel = coremodel.BaseModel{
+			UUID:      "test-uuid",
+			CreatedAt: expectedDate,
+			UpdatedAt: expectedDate,
+			DeletedAt: &expectedDate,
+		}
+		kmsConfig.KmsAttributes = &coremodel.KmsAttributes{
+			SdeServiceAccountEmail: "test-service-account@test.com",
+		}
+
+		result := convertOrchestratorModelToKmsConfigV1beta(kmsConfig)
+
+		assert.NotNil(t, result)
+		assert.Equal(t, kmsConfig.UUID, result.UUID.Value)
+		assert.Equal(t, kmsConfig.KmsAttributes.SdeServiceAccountEmail, result.ServiceAccountEmail.Value)
+		assert.Contains(t, result.KeyFullPath, kmsConfig.KeyProjectID)
+		assert.Contains(t, result.KeyFullPath, kmsConfig.KeyRingLocation)
+		assert.Contains(t, result.KeyFullPath, kmsConfig.KeyRing)
+		assert.Contains(t, result.KeyFullPath, kmsConfig.KeyName)
+		assert.Equal(t, kmsConfig.State, string(result.KmsState.Value))
+		assert.Equal(t, kmsConfig.StateDetails, result.KmsStateDetails.Value)
+		assert.Equal(t, kmsConfig.Description, result.Description.Value)
+		assert.Equal(t, kmsConfig.ResourceID, result.ResourceId.Value)
+		assert.Equal(t, expectedDate, result.CreatedTime.Value)
+		assert.Equal(t, expectedDate, result.UpdatedTime.Value)
+		assert.Equal(t, expectedDate, result.DeletedTime.Value)
+	})
+	t.Run("HandlesNilDeletedTimeGracefully", func(t *testing.T) {
+		kmsConfig := &coremodel.KmsConfig{
+			State:           "ACTIVE",
+			KeyProjectID:    "test-project-id",
+			KeyRingLocation: "test-location",
+			KeyRing:         "test-key-ring",
+			KeyName:         "test-key-name",
+			StateDetails:    "test-state-details",
+			Description:     "test-description",
+			ResourceID:      "test-resource-id",
+		}
+		kmsConfig.BaseModel = coremodel.BaseModel{
+			UUID:      "test-uuid",
+			CreatedAt: time.Now(),
+			UpdatedAt: time.Now(),
+			DeletedAt: nil,
+		}
+		kmsConfig.KmsAttributes = &coremodel.KmsAttributes{
+			SdeServiceAccountEmail: "test-service-account@test.com",
+		}
+		zeroTime := gcpgenserver.OptDateTime{Value: time.Time{}}
+
+		result := convertOrchestratorModelToKmsConfigV1beta(kmsConfig)
+		assert.NotNil(t, result)
+		assert.Equal(t, zeroTime, result.DeletedTime)
+	})
+	t.Run("HandlesNilKmsAttributesGracefully", func(t *testing.T) {
+		kmsConfig := &coremodel.KmsConfig{
+			State:           "ACTIVE",
+			KeyProjectID:    "test-project-id",
+			KeyRingLocation: "test-location",
+			KeyRing:         "test-key-ring",
+			KeyName:         "test-key-name",
+			StateDetails:    "test-state-details",
+			Description:     "test-description",
+			ResourceID:      "test-resource-id",
+		}
+		kmsConfig.BaseModel = coremodel.BaseModel{
+			UUID:      "test-uuid",
+			CreatedAt: time.Now(),
+			UpdatedAt: time.Now(),
+			DeletedAt: &time.Time{},
+		}
+
+		result := convertOrchestratorModelToKmsConfigV1beta(kmsConfig)
+		assert.NotNil(t, result)
+		assert.Equal(t, gcpgenserver.OptString{Value: ""}, result.ServiceAccountEmail)
 	})
 }

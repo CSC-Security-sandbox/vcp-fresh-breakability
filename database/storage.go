@@ -92,6 +92,8 @@ func SetupInMemoryDB() (*gorm.DB, error) {
 		&datamodel.Job{},
 		&datamodel.Snapshot{},
 		&datamodel.VolumeReplication{},
+		&datamodel.ServiceAccount{},
+		&datamodel.KmsConfig{},
 	)
 	if err != nil {
 		return nil, err
@@ -112,6 +114,8 @@ func ClearInMemoryDB(db *gorm.DB) error {
 		&datamodel.HostGroup{},
 		&datamodel.Job{},
 		&datamodel.Snapshot{},
+		&datamodel.KmsConfig{},
+		&datamodel.ServiceAccount{},
 	}
 
 	for _, table := range tables {
@@ -559,4 +563,8 @@ func (s *PersistenceStore) GetAppConsistentSnapshotsForVolume(ctx context.Contex
 
 func (s *PersistenceStore) GetSnapshotsByVolumeID(ctx context.Context, volumeID int64) ([]*datamodel.Snapshot, error) {
 	return s.dataStore.GetSnapshotsByVolumeID(ctx, volumeID)
+}
+
+func (s *PersistenceStore) GetMultipleKmsConfigs(ctx context.Context, conditions [][]interface{}) ([]*datamodel.KmsConfig, error) {
+	return s.dataStore.GetMultipleKmsConfigs(ctx, conditions)
 }

@@ -1596,6 +1596,65 @@ func (_c *MockDataStore_GetMultipleHostGroups_Call) RunAndReturn(run func(contex
 	return _c
 }
 
+// GetMultipleKmsConfigs provides a mock function with given fields: ctx, conditions
+func (_m *MockDataStore) GetMultipleKmsConfigs(ctx context.Context, conditions [][]interface{}) ([]*datamodel.KmsConfig, error) {
+	ret := _m.Called(ctx, conditions)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetMultipleKmsConfigs")
+	}
+
+	var r0 []*datamodel.KmsConfig
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, [][]interface{}) ([]*datamodel.KmsConfig, error)); ok {
+		return rf(ctx, conditions)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, [][]interface{}) []*datamodel.KmsConfig); ok {
+		r0 = rf(ctx, conditions)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]*datamodel.KmsConfig)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, [][]interface{}) error); ok {
+		r1 = rf(ctx, conditions)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockDataStore_GetMultipleKmsConfigs_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetMultipleKmsConfigs'
+type MockDataStore_GetMultipleKmsConfigs_Call struct {
+	*mock.Call
+}
+
+// GetMultipleKmsConfigs is a helper method to define mock.On call
+//   - ctx context.Context
+//   - conditions [][]interface{}
+func (_e *MockDataStore_Expecter) GetMultipleKmsConfigs(ctx interface{}, conditions interface{}) *MockDataStore_GetMultipleKmsConfigs_Call {
+	return &MockDataStore_GetMultipleKmsConfigs_Call{Call: _e.mock.On("GetMultipleKmsConfigs", ctx, conditions)}
+}
+
+func (_c *MockDataStore_GetMultipleKmsConfigs_Call) Run(run func(ctx context.Context, conditions [][]interface{})) *MockDataStore_GetMultipleKmsConfigs_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].([][]interface{}))
+	})
+	return _c
+}
+
+func (_c *MockDataStore_GetMultipleKmsConfigs_Call) Return(_a0 []*datamodel.KmsConfig, _a1 error) *MockDataStore_GetMultipleKmsConfigs_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockDataStore_GetMultipleKmsConfigs_Call) RunAndReturn(run func(context.Context, [][]interface{}) ([]*datamodel.KmsConfig, error)) *MockDataStore_GetMultipleKmsConfigs_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // GetMultipleVolumes provides a mock function with given fields: ctx, conditions
 func (_m *MockDataStore) GetMultipleVolumes(ctx context.Context, conditions [][]interface{}) ([]*datamodel.Volume, error) {
 	ret := _m.Called(ctx, conditions)

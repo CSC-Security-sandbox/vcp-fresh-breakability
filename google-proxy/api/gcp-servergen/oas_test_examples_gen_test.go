@@ -1457,6 +1457,18 @@ func TestKmsConfigHealthCheckV1beta_EncodeDecode(t *testing.T) {
 	var typ2 KmsConfigHealthCheckV1beta
 	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
 }
+func TestKmsConfigIdListV1beta_EncodeDecode(t *testing.T) {
+	var typ KmsConfigIdListV1beta
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 KmsConfigIdListV1beta
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
 func TestKmsConfigUpdateV1beta_EncodeDecode(t *testing.T) {
 	var typ KmsConfigUpdateV1beta
 	typ.SetFake()
@@ -5738,6 +5750,90 @@ func TestV1betaGetMultipleHostGroupsUnprocessableEntity_EncodeDecode(t *testing.
 	require.True(t, std.Valid(data), "Encoded: %s", data)
 
 	var typ2 V1betaGetMultipleHostGroupsUnprocessableEntity
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1betaGetMultipleKmsConfigsBadRequest_EncodeDecode(t *testing.T) {
+	var typ V1betaGetMultipleKmsConfigsBadRequest
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaGetMultipleKmsConfigsBadRequest
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1betaGetMultipleKmsConfigsForbidden_EncodeDecode(t *testing.T) {
+	var typ V1betaGetMultipleKmsConfigsForbidden
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaGetMultipleKmsConfigsForbidden
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1betaGetMultipleKmsConfigsInternalServerError_EncodeDecode(t *testing.T) {
+	var typ V1betaGetMultipleKmsConfigsInternalServerError
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaGetMultipleKmsConfigsInternalServerError
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1betaGetMultipleKmsConfigsNotFound_EncodeDecode(t *testing.T) {
+	var typ V1betaGetMultipleKmsConfigsNotFound
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaGetMultipleKmsConfigsNotFound
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1betaGetMultipleKmsConfigsOK_EncodeDecode(t *testing.T) {
+	var typ V1betaGetMultipleKmsConfigsOK
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaGetMultipleKmsConfigsOK
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1betaGetMultipleKmsConfigsTooManyRequests_EncodeDecode(t *testing.T) {
+	var typ V1betaGetMultipleKmsConfigsTooManyRequests
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaGetMultipleKmsConfigsTooManyRequests
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1betaGetMultipleKmsConfigsUnauthorized_EncodeDecode(t *testing.T) {
+	var typ V1betaGetMultipleKmsConfigsUnauthorized
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaGetMultipleKmsConfigsUnauthorized
 	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
 }
 func TestV1betaGetMultiplePoolsBadRequest_EncodeDecode(t *testing.T) {

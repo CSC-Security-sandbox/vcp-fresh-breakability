@@ -2,16 +2,23 @@ package api
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	"github.com/go-openapi/strfmt"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/cvpapi/kms_configurations"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/models"
+	coremodel "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	gcpgenserver "github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/api/gcp-servergen"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/helper"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/nillable"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
+)
+
+var (
+	roleName = "cmekNetAppVolumesRole"
 )
 
 func (h Handler) V1betaCheckKmsConfig(ctx context.Context, params gcpgenserver.V1betaCheckKmsConfigParams) (gcpgenserver.V1betaCheckKmsConfigRes, error) {
@@ -499,6 +506,65 @@ func (h Handler) V1betaUpdateKmsConfiguration(ctx context.Context, req *gcpgense
 	return convertToKmsConfigV1beta(res.Payload), nil
 }
 
+func (h Handler) V1betaGetMultipleKmsConfigs(ctx context.Context, req *gcpgenserver.KmsConfigIdListV1beta, params gcpgenserver.V1betaGetMultipleKmsConfigsParams) (gcpgenserver.V1betaGetMultipleKmsConfigsRes, error) {
+	logger := util.GetLogger(ctx)
+
+	kmsConfigUUIDList := req.KmsConfigIds
+	kmsConfigVSAList, vsaErr := h.Orchestrator.GetMultipleKMSConfigs(ctx, kmsConfigUUIDList)
+
+	if vsaErr != nil {
+		logger.Error("Get Multiple KMS Configurations API call failed with error", "Error", vsaErr.Error())
+		return &gcpgenserver.V1betaGetMultipleKmsConfigsInternalServerError{
+			Code:    500,
+			Message: "Unknown error encountered during Get Multiple KMS configurations operation",
+		}, nil
+	}
+	operationResponse := gcpgenserver.V1betaGetMultipleKmsConfigsOK{
+		KmsConfigurations: []gcpgenserver.KmsConfigV1beta{},
+	}
+	for _, kmsConfigVSA := range kmsConfigVSAList {
+		operationResponse.KmsConfigurations = append(operationResponse.KmsConfigurations, *convertOrchestratorModelToKmsConfigV1beta(kmsConfigVSA))
+	}
+
+	if len(kmsConfigVSAList) != len(kmsConfigUUIDList) {
+		kmsConfigUUIDMissingList := missingKmsConfigIdsInVcp(kmsConfigUUIDList, kmsConfigVSAList)
+
+		// Proceed to call CVP client for those UUIDs which are missing
+		jwtToken := utils.GetJWTTokenFromContext(ctx)
+
+		body := &models.KmsConfigIDListV1beta{
+			KmsConfigIDs: kmsConfigUUIDMissingList,
+		}
+		getMultipleKmsConfigsParams := &kms_configurations.V1betaGetMultipleKmsConfigsParams{
+			LocationID:     params.LocationId,
+			ProjectNumber:  params.ProjectNumber,
+			XCorrelationID: &params.XCorrelationID.Value,
+			Body:           body,
+		}
+
+		cvpClient := createClient(logger, jwtToken)
+		cvpResponse, cvpErr := cvpClient.KmsConfigurations.V1betaGetMultipleKmsConfigs(getMultipleKmsConfigsParams)
+		if cvpErr != nil {
+			gcpgenserverResponse := categorizeCvpClientErrorsForGetMultipleKmsConfigs(cvpErr, logger)
+			return gcpgenserverResponse, nil
+		}
+		if cvpResponse == nil {
+			return &gcpgenserver.V1betaGetMultipleKmsConfigsInternalServerError{
+				Code:    500,
+				Message: "Unknown error encountered during Get Multiple KMS configurations operation",
+			}, nil
+		}
+		if cvpResponse.Payload != nil {
+			// Missing UUID KMSConfigs fetched from SDE are not being stored in VCP for now
+			for _, kmsConfig := range cvpResponse.Payload.KmsConfigurations {
+				operationResponse.KmsConfigurations = append(operationResponse.KmsConfigurations, *convertToKmsConfigV1beta(kmsConfig))
+			}
+		}
+	}
+	// Returning empty list for zero matches is acceptable for GetMultiple API
+	return &operationResponse, nil
+}
+
 func convertToKmsConfigCheckV1beta(res *kms_configurations.V1betaCheckKmsConfigOK) *gcpgenserver.KmsConfigCheckV1beta {
 	kmsConfigHealthCheckV1beta := gcpgenserver.KmsConfigHealthCheckV1beta{
 		IsHealthy:    *res.Payload.KmsConfigHealthCheck.IsHealthy,
@@ -546,4 +612,112 @@ func convertToKmsConfigV1beta(res *models.KmsConfigV1beta) *gcpgenserver.KmsConf
 		kmsConfigV1beta.ResourceId = gcpgenserver.NewOptString(*res.ResourceID)
 	}
 	return kmsConfigV1beta
+}
+
+func convertOrchestratorModelToKmsConfigV1beta(kmsConfig *coremodel.KmsConfig) *gcpgenserver.KmsConfigV1beta {
+	state := gcpgenserver.KmsConfigV1betaKmsState(kmsConfig.State)
+	keyFullPath := fmt.Sprintf("projects/%s/locations/%s/keyRings/%s/cryptoKeys/%s",
+		kmsConfig.KeyProjectID, kmsConfig.KeyRingLocation, kmsConfig.KeyRing, kmsConfig.KeyName)
+	instructions := getKmsInstructions(kmsConfig)
+
+	res := &gcpgenserver.KmsConfigV1beta{
+		UUID:            gcpgenserver.NewOptString(kmsConfig.UUID),
+		KeyFullPath:     keyFullPath,
+		KmsState:        gcpgenserver.NewOptKmsConfigV1betaKmsState(state),
+		KmsStateDetails: gcpgenserver.NewOptString(kmsConfig.StateDetails),
+		Description:     gcpgenserver.NewOptString(kmsConfig.Description),
+		CreatedTime:     gcpgenserver.NewOptDateTime(kmsConfig.CreatedAt),
+		UpdatedTime:     gcpgenserver.NewOptDateTime(kmsConfig.UpdatedAt),
+		Instructions:    gcpgenserver.NewOptString(instructions),
+		ResourceId:      gcpgenserver.NewOptString(kmsConfig.ResourceID),
+	}
+	if kmsConfig.DeletedAt != nil {
+		res.DeletedTime = gcpgenserver.OptDateTime{Value: *kmsConfig.DeletedAt}
+	}
+	if kmsConfig.KmsAttributes != nil {
+		res.ServiceAccountEmail = gcpgenserver.NewOptString(kmsConfig.KmsAttributes.SdeServiceAccountEmail)
+	}
+	return res
+}
+
+func getKmsInstructions(kmsConfig *coremodel.KmsConfig) (instructions string) {
+	if kmsConfig.KmsAttributes == nil || kmsConfig.KmsAttributes.SdeServiceAccountEmail == "" {
+		return ""
+	}
+
+	keyProjectID := kmsConfig.KeyProjectID
+	if keyProjectID == "" {
+		keyProjectID = kmsConfig.CustomerProjectID
+	}
+
+	return fmt.Sprintf(`Please copy and paste the commands listed below into Google Cloud Shell in the project that contains the key ring. The commands create a KMS role and assign it to the CVS service account so that it can access the key.
+## CREATE KMS role ## gcloud iam roles create %[1]s --project=%[2]s --title='%[1]s' --description='custom cmek cvs role' --permissions=cloudkms.cryptoKeyVersions.get,cloudkms.cryptoKeyVersions.list,cloudkms.cryptoKeyVersions.useToDecrypt,cloudkms.cryptoKeyVersions.useToEncrypt,cloudkms.cryptoKeys.get,cloudkms.keyRings.get,cloudkms.locations.get,cloudkms.locations.list,resourcemanager.projects.get --stage=GA
+ ## ASSIGN role and give KEY ACCESS to CVS service account ## gcloud kms keys add-iam-policy-binding %[3]s --project=%[2]s --keyring %[4]s --location %[5]s --member serviceAccount:%[6]s --role projects/%[2]s/roles/%[1]s`, roleName, keyProjectID, kmsConfig.KeyName, kmsConfig.KeyRing, kmsConfig.KeyRingLocation, kmsConfig.KmsAttributes.SdeServiceAccountEmail)
+}
+
+func missingKmsConfigIdsInVcp(kmsConfigUUIDList []string, kmsConfigVSAList []*coremodel.KmsConfig) []string {
+	var kmsConfigUUIDMissingList []string
+
+	if kmsConfigVSAList != nil {
+		// Create map from id of kmsConfigStruct Array
+		kmsConfigUUIDMap := make(map[string]string)
+		for _, kmsConfig := range kmsConfigVSAList {
+			kmsConfigUUIDMap[kmsConfig.UUID] = ""
+		}
+		// Iterate through UUID List, find missing ones, and append to Missing list
+		for _, uuid := range kmsConfigUUIDList {
+			if _, exists := kmsConfigUUIDMap[uuid]; !exists {
+				kmsConfigUUIDMissingList = append(kmsConfigUUIDMissingList, uuid)
+			}
+		}
+	} else {
+		kmsConfigUUIDMissingList = kmsConfigUUIDList
+	}
+	return kmsConfigUUIDMissingList
+}
+
+func categorizeCvpClientErrorsForGetMultipleKmsConfigs(cvpErr error, logger log.Logger) gcpgenserver.V1betaGetMultipleKmsConfigsRes {
+	getMsg := func(msg *string) string {
+		return nillable.GetString(msg, "")
+	}
+	getCode := func(floatVal *float64) float64 {
+		return nillable.GetFloat64(floatVal, 0)
+	}
+	switch e := cvpErr.(type) {
+	case *kms_configurations.V1betaGetMultipleKmsConfigsBadRequest:
+		return &gcpgenserver.V1betaGetMultipleKmsConfigsBadRequest{
+			Code:    getCode(&e.Payload.Code),
+			Message: getMsg(&e.Payload.Message),
+		}
+	case *kms_configurations.V1betaGetMultipleKmsConfigsUnauthorized:
+		return &gcpgenserver.V1betaGetMultipleKmsConfigsUnauthorized{
+			Code:    getCode(&e.Payload.Code),
+			Message: getMsg(&e.Payload.Message),
+		}
+	case *kms_configurations.V1betaGetMultipleKmsConfigsForbidden:
+		return &gcpgenserver.V1betaGetMultipleKmsConfigsForbidden{
+			Code:    getCode(&e.Payload.Code),
+			Message: getMsg(&e.Payload.Message),
+		}
+	case *kms_configurations.V1betaGetMultipleKmsConfigsNotFound:
+		return &gcpgenserver.V1betaGetMultipleKmsConfigsNotFound{
+			Code:    getCode(&e.Payload.Code),
+			Message: getMsg(&e.Payload.Message),
+		}
+	case *kms_configurations.V1betaGetMultipleKmsConfigsTooManyRequests:
+		return &gcpgenserver.V1betaGetMultipleKmsConfigsTooManyRequests{
+			Code:    getCode(&e.Payload.Code),
+			Message: getMsg(&e.Payload.Message),
+		}
+	case *kms_configurations.V1betaGetMultipleKmsConfigsDefault:
+		return &gcpgenserver.V1betaGetMultipleKmsConfigsInternalServerError{
+			Code:    getCode(&e.Payload.Code),
+			Message: getMsg(&e.Payload.Message),
+		}
+	default:
+		return &gcpgenserver.V1betaGetMultipleKmsConfigsInternalServerError{
+			Code:    500,
+			Message: "Unknown error encountered during Get Multiple KMS configurations operation",
+		}
+	}
 }

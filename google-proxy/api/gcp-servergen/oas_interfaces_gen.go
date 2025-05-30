@@ -133,6 +133,10 @@ type V1betaGetMultipleHostGroupsRes interface {
 	v1betaGetMultipleHostGroupsRes()
 }
 
+type V1betaGetMultipleKmsConfigsRes interface {
+	v1betaGetMultipleKmsConfigsRes()
+}
+
 type V1betaGetMultiplePoolsRes interface {
 	v1betaGetMultiplePoolsRes()
 }

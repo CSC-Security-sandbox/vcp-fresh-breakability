@@ -317,6 +317,15 @@ func (UnimplementedHandler) V1betaGetMultipleHostGroups(ctx context.Context, req
 	return r, ht.ErrNotImplemented
 }
 
+// V1betaGetMultipleKmsConfigs implements v1beta_getMultipleKmsConfigs operation.
+//
+// Returns descriptions of KMS configurations that are listed in the request body.
+//
+// POST /v1beta/projects/{projectNumber}/locations/{locationId}/storage/kmsConfig/getMultipleKmsConfigs
+func (UnimplementedHandler) V1betaGetMultipleKmsConfigs(ctx context.Context, req *KmsConfigIdListV1beta, params V1betaGetMultipleKmsConfigsParams) (r V1betaGetMultipleKmsConfigsRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
 // V1betaGetMultiplePools implements v1beta_getMultiplePools operation.
 //
 // Returns descriptions of pools that is listed in request body.

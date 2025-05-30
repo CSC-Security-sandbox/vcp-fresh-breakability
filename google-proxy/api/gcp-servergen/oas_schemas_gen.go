@@ -4227,6 +4227,21 @@ func (s *KmsConfigHealthCheckV1beta) SetInstructions(val OptString) {
 	s.Instructions = val
 }
 
+// Ref: #/components/schemas/kmsConfigIdList_v1beta
+type KmsConfigIdListV1beta struct {
+	KmsConfigIds []string `json:"kmsConfigIds"`
+}
+
+// GetKmsConfigIds returns the value of KmsConfigIds.
+func (s *KmsConfigIdListV1beta) GetKmsConfigIds() []string {
+	return s.KmsConfigIds
+}
+
+// SetKmsConfigIds sets the value of KmsConfigIds.
+func (s *KmsConfigIdListV1beta) SetKmsConfigIds(val []string) {
+	s.KmsConfigIds = val
+}
+
 // Customer managed encryption key configuration.
 // Ref: #/components/schemas/KmsConfigUpdate_v1beta
 type KmsConfigUpdateV1beta struct {
@@ -14514,6 +14529,46 @@ func (*V1betaGetMultipleHostGroupsUnauthorized) v1betaGetMultipleHostGroupsRes()
 type V1betaGetMultipleHostGroupsUnprocessableEntity Error
 
 func (*V1betaGetMultipleHostGroupsUnprocessableEntity) v1betaGetMultipleHostGroupsRes() {}
+
+type V1betaGetMultipleKmsConfigsBadRequest Error
+
+func (*V1betaGetMultipleKmsConfigsBadRequest) v1betaGetMultipleKmsConfigsRes() {}
+
+type V1betaGetMultipleKmsConfigsForbidden Error
+
+func (*V1betaGetMultipleKmsConfigsForbidden) v1betaGetMultipleKmsConfigsRes() {}
+
+type V1betaGetMultipleKmsConfigsInternalServerError Error
+
+func (*V1betaGetMultipleKmsConfigsInternalServerError) v1betaGetMultipleKmsConfigsRes() {}
+
+type V1betaGetMultipleKmsConfigsNotFound Error
+
+func (*V1betaGetMultipleKmsConfigsNotFound) v1betaGetMultipleKmsConfigsRes() {}
+
+type V1betaGetMultipleKmsConfigsOK struct {
+	KmsConfigurations []KmsConfigV1beta `json:"kmsConfigurations"`
+}
+
+// GetKmsConfigurations returns the value of KmsConfigurations.
+func (s *V1betaGetMultipleKmsConfigsOK) GetKmsConfigurations() []KmsConfigV1beta {
+	return s.KmsConfigurations
+}
+
+// SetKmsConfigurations sets the value of KmsConfigurations.
+func (s *V1betaGetMultipleKmsConfigsOK) SetKmsConfigurations(val []KmsConfigV1beta) {
+	s.KmsConfigurations = val
+}
+
+func (*V1betaGetMultipleKmsConfigsOK) v1betaGetMultipleKmsConfigsRes() {}
+
+type V1betaGetMultipleKmsConfigsTooManyRequests Error
+
+func (*V1betaGetMultipleKmsConfigsTooManyRequests) v1betaGetMultipleKmsConfigsRes() {}
+
+type V1betaGetMultipleKmsConfigsUnauthorized Error
+
+func (*V1betaGetMultipleKmsConfigsUnauthorized) v1betaGetMultipleKmsConfigsRes() {}
 
 type V1betaGetMultiplePoolsBadRequest Error
 

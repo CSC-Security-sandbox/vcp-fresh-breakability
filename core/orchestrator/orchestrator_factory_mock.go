@@ -724,6 +724,65 @@ func (_c *MockOrchestratorFactory_GetMultipleHostGroups_Call) RunAndReturn(run f
 	return _c
 }
 
+// GetMultipleKMSConfigs provides a mock function with given fields: ctx, kmsConfigIDList
+func (_m *MockOrchestratorFactory) GetMultipleKMSConfigs(ctx context.Context, kmsConfigIDList []string) ([]*models.KmsConfig, error) {
+	ret := _m.Called(ctx, kmsConfigIDList)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetMultipleKMSConfigs")
+	}
+
+	var r0 []*models.KmsConfig
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, []string) ([]*models.KmsConfig, error)); ok {
+		return rf(ctx, kmsConfigIDList)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, []string) []*models.KmsConfig); ok {
+		r0 = rf(ctx, kmsConfigIDList)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]*models.KmsConfig)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, []string) error); ok {
+		r1 = rf(ctx, kmsConfigIDList)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockOrchestratorFactory_GetMultipleKMSConfigs_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetMultipleKMSConfigs'
+type MockOrchestratorFactory_GetMultipleKMSConfigs_Call struct {
+	*mock.Call
+}
+
+// GetMultipleKMSConfigs is a helper method to define mock.On call
+//   - ctx context.Context
+//   - kmsConfigIDList []string
+func (_e *MockOrchestratorFactory_Expecter) GetMultipleKMSConfigs(ctx interface{}, kmsConfigIDList interface{}) *MockOrchestratorFactory_GetMultipleKMSConfigs_Call {
+	return &MockOrchestratorFactory_GetMultipleKMSConfigs_Call{Call: _e.mock.On("GetMultipleKMSConfigs", ctx, kmsConfigIDList)}
+}
+
+func (_c *MockOrchestratorFactory_GetMultipleKMSConfigs_Call) Run(run func(ctx context.Context, kmsConfigIDList []string)) *MockOrchestratorFactory_GetMultipleKMSConfigs_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].([]string))
+	})
+	return _c
+}
+
+func (_c *MockOrchestratorFactory_GetMultipleKMSConfigs_Call) Return(_a0 []*models.KmsConfig, _a1 error) *MockOrchestratorFactory_GetMultipleKMSConfigs_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockOrchestratorFactory_GetMultipleKMSConfigs_Call) RunAndReturn(run func(context.Context, []string) ([]*models.KmsConfig, error)) *MockOrchestratorFactory_GetMultipleKMSConfigs_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // GetMultiplePools provides a mock function with given fields: ctx, accountName, poolUUIDs
 func (_m *MockOrchestratorFactory) GetMultiplePools(ctx context.Context, accountName string, poolUUIDs []string) ([]*models.Pool, error) {
 	ret := _m.Called(ctx, accountName, poolUUIDs)

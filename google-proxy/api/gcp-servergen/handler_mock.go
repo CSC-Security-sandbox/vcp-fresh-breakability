@@ -2032,6 +2032,66 @@ func (_c *MockHandler_V1betaGetMultipleHostGroups_Call) RunAndReturn(run func(co
 	return _c
 }
 
+// V1betaGetMultipleKmsConfigs provides a mock function with given fields: ctx, req, params
+func (_m *MockHandler) V1betaGetMultipleKmsConfigs(ctx context.Context, req *KmsConfigIdListV1beta, params V1betaGetMultipleKmsConfigsParams) (V1betaGetMultipleKmsConfigsRes, error) {
+	ret := _m.Called(ctx, req, params)
+
+	if len(ret) == 0 {
+		panic("no return value specified for V1betaGetMultipleKmsConfigs")
+	}
+
+	var r0 V1betaGetMultipleKmsConfigsRes
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, *KmsConfigIdListV1beta, V1betaGetMultipleKmsConfigsParams) (V1betaGetMultipleKmsConfigsRes, error)); ok {
+		return rf(ctx, req, params)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, *KmsConfigIdListV1beta, V1betaGetMultipleKmsConfigsParams) V1betaGetMultipleKmsConfigsRes); ok {
+		r0 = rf(ctx, req, params)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(V1betaGetMultipleKmsConfigsRes)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, *KmsConfigIdListV1beta, V1betaGetMultipleKmsConfigsParams) error); ok {
+		r1 = rf(ctx, req, params)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockHandler_V1betaGetMultipleKmsConfigs_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'V1betaGetMultipleKmsConfigs'
+type MockHandler_V1betaGetMultipleKmsConfigs_Call struct {
+	*mock.Call
+}
+
+// V1betaGetMultipleKmsConfigs is a helper method to define mock.On call
+//   - ctx context.Context
+//   - req *KmsConfigIdListV1beta
+//   - params V1betaGetMultipleKmsConfigsParams
+func (_e *MockHandler_Expecter) V1betaGetMultipleKmsConfigs(ctx interface{}, req interface{}, params interface{}) *MockHandler_V1betaGetMultipleKmsConfigs_Call {
+	return &MockHandler_V1betaGetMultipleKmsConfigs_Call{Call: _e.mock.On("V1betaGetMultipleKmsConfigs", ctx, req, params)}
+}
+
+func (_c *MockHandler_V1betaGetMultipleKmsConfigs_Call) Run(run func(ctx context.Context, req *KmsConfigIdListV1beta, params V1betaGetMultipleKmsConfigsParams)) *MockHandler_V1betaGetMultipleKmsConfigs_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(*KmsConfigIdListV1beta), args[2].(V1betaGetMultipleKmsConfigsParams))
+	})
+	return _c
+}
+
+func (_c *MockHandler_V1betaGetMultipleKmsConfigs_Call) Return(_a0 V1betaGetMultipleKmsConfigsRes, _a1 error) *MockHandler_V1betaGetMultipleKmsConfigs_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockHandler_V1betaGetMultipleKmsConfigs_Call) RunAndReturn(run func(context.Context, *KmsConfigIdListV1beta, V1betaGetMultipleKmsConfigsParams) (V1betaGetMultipleKmsConfigsRes, error)) *MockHandler_V1betaGetMultipleKmsConfigs_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // V1betaGetMultiplePools provides a mock function with given fields: ctx, req, params
 func (_m *MockHandler) V1betaGetMultiplePools(ctx context.Context, req *PoolIdListV1beta, params V1betaGetMultiplePoolsParams) (V1betaGetMultiplePoolsRes, error) {
 	ret := _m.Called(ctx, req, params)

@@ -1134,6 +1134,35 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 										break
 									}
 
+									if len(elem) == 0 {
+										break
+									}
+									switch elem[0] {
+									case 'g': // Prefix: "getMultipleKmsConfigs"
+										origElem := elem
+										if l := len("getMultipleKmsConfigs"); len(elem) >= l && elem[0:l] == "getMultipleKmsConfigs" {
+											elem = elem[l:]
+										} else {
+											break
+										}
+
+										if len(elem) == 0 {
+											// Leaf node.
+											switch r.Method {
+											case "POST":
+												s.handleV1betaGetMultipleKmsConfigsRequest([2]string{
+													args[0],
+													args[1],
+												}, elemIsEscaped, w, r)
+											default:
+												s.notAllowed(w, r, "POST")
+											}
+
+											return
+										}
+
+										elem = origElem
+									}
 									// Param: "kmsConfigId"
 									// Match until "/"
 									idx := strings.IndexByte(elem, '/')
@@ -2860,6 +2889,36 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 										break
 									}
 
+									if len(elem) == 0 {
+										break
+									}
+									switch elem[0] {
+									case 'g': // Prefix: "getMultipleKmsConfigs"
+										origElem := elem
+										if l := len("getMultipleKmsConfigs"); len(elem) >= l && elem[0:l] == "getMultipleKmsConfigs" {
+											elem = elem[l:]
+										} else {
+											break
+										}
+
+										if len(elem) == 0 {
+											// Leaf node.
+											switch method {
+											case "POST":
+												r.name = V1betaGetMultipleKmsConfigsOperation
+												r.summary = "List specified KMS configurations"
+												r.operationID = "v1beta_getMultipleKmsConfigs"
+												r.pathPattern = "/v1beta/projects/{projectNumber}/locations/{locationId}/storage/kmsConfig/getMultipleKmsConfigs"
+												r.args = args
+												r.count = 2
+												return r, true
+											default:
+												return
+											}
+										}
+
+										elem = origElem
+									}
 									// Param: "kmsConfigId"
 									// Match until "/"
 									idx := strings.IndexByte(elem, '/')

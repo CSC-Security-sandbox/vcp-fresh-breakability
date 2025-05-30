@@ -1630,6 +1630,22 @@ func (s *KmsConfigHealthCheckV1beta) SetFake() {
 }
 
 // SetFake set fake values.
+func (s *KmsConfigIdListV1beta) SetFake() {
+	{
+		{
+			s.KmsConfigIds = nil
+			for i := 0; i < 1; i++ {
+				var elem string
+				{
+					elem = "string"
+				}
+				s.KmsConfigIds = append(s.KmsConfigIds, elem)
+			}
+		}
+	}
+}
+
+// SetFake set fake values.
 func (s *KmsConfigUpdateV1beta) SetFake() {
 	{
 		{
@@ -6027,6 +6043,76 @@ func (s *V1betaGetMultipleHostGroupsUnprocessableEntity) SetFake() {
 		unwrapped.SetFake()
 	}
 	*s = V1betaGetMultipleHostGroupsUnprocessableEntity(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaGetMultipleKmsConfigsBadRequest) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaGetMultipleKmsConfigsBadRequest(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaGetMultipleKmsConfigsForbidden) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaGetMultipleKmsConfigsForbidden(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaGetMultipleKmsConfigsInternalServerError) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaGetMultipleKmsConfigsInternalServerError(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaGetMultipleKmsConfigsNotFound) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaGetMultipleKmsConfigsNotFound(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaGetMultipleKmsConfigsOK) SetFake() {
+	{
+		{
+			s.KmsConfigurations = nil
+			for i := 0; i < 0; i++ {
+				var elem KmsConfigV1beta
+				{
+					elem.SetFake()
+				}
+				s.KmsConfigurations = append(s.KmsConfigurations, elem)
+			}
+		}
+	}
+}
+
+// SetFake set fake values.
+func (s *V1betaGetMultipleKmsConfigsTooManyRequests) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaGetMultipleKmsConfigsTooManyRequests(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaGetMultipleKmsConfigsUnauthorized) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaGetMultipleKmsConfigsUnauthorized(unwrapped)
 }
 
 // SetFake set fake values.
