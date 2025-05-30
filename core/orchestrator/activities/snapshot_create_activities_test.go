@@ -157,7 +157,14 @@ func TestUpdateSnapshotDetails(t *testing.T) {
 
 		mockStorage.On("UpdateSnapshot", ctx, snapshot).Return(nil)
 
-		err := activity.UpdateSnapshotDetails(ctx, snapshot)
+		err := activity.UpdateSnapshotDetails(ctx, snapshot, &vsa.SnapshotProviderResponse{
+			ProviderResponse: vsa.ProviderResponse{
+				ExternalUUID: "abcdef-123456",
+				Name:         "test-snapshot",
+			},
+			SizeInBytes:        1024,
+			LogicalSizeInBytes: 1024,
+		})
 
 		assert.NoError(t, err)
 		assert.Equal(t, "abcdef-123456", snapshot.SnapshotAttributes.ExternalUUID)
@@ -178,10 +185,45 @@ func TestUpdateSnapshotDetails(t *testing.T) {
 
 		mockStorage.On("UpdateSnapshot", ctx, snapshot).Return(expectedError)
 
-		err := activity.UpdateSnapshotDetails(ctx, snapshot)
+		err := activity.UpdateSnapshotDetails(ctx, snapshot, &vsa.SnapshotProviderResponse{
+			ProviderResponse: vsa.ProviderResponse{
+				ExternalUUID: "abcdef-123456",
+				Name:         "test-snapshot",
+			},
+			SizeInBytes:        1024,
+			LogicalSizeInBytes: 1024,
+		})
 
 		assert.Error(t, err)
 		assert.EqualError(t, err, expectedError.Error())
+		mockStorage.AssertExpectations(t)
+	})
+
+	t.Run("WhenUpdateIsSuccessfulWithError", func(t *testing.T) {
+		mockStorage := database.NewMockStorage(t)
+		activity := activities.SnapshotCreateActivity{SE: mockStorage}
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+		snapshot := &datamodel.Snapshot{
+			Name:         "test-snapshot",
+			Description:  "test-description",
+			State:        models.LifeCycleStateREADY,
+			StateDetails: models.LifeCycleStateAvailableDetails,
+			SnapshotAttributes: &datamodel.SnapshotAttributes{
+				ExternalUUID:           "abcdef-123456",
+				SizeInBytes:            1024,
+				LogicalSizeUsedInBytes: 1024,
+			},
+		}
+
+		mockStorage.On("UpdateSnapshot", ctx, snapshot).Return(nil)
+
+		err := activity.UpdateSnapshotDetails(ctx, snapshot, nil)
+
+		assert.NoError(t, err)
+		assert.Equal(t, "abcdef-123456", snapshot.SnapshotAttributes.ExternalUUID)
+		assert.Equal(t, int64(1024), snapshot.SnapshotAttributes.SizeInBytes)
+		assert.Equal(t, models.LifeCycleStateError, snapshot.State)
+		assert.Equal(t, models.LifeCycleStateCreationErrorDetails, snapshot.StateDetails)
 		mockStorage.AssertExpectations(t)
 	})
 }

@@ -1,6 +1,7 @@
 package workflows
 
 import (
+	"context"
 	"strconv"
 	"time"
 
@@ -9,10 +10,12 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
+	"go.temporal.io/sdk/client"
 	"go.temporal.io/sdk/workflow"
 )
 
 const (
+	WorkflowStatusCreated   = "CREATED"
 	WorkflowStatusRunning   = "RUNNING"
 	WorkflowStatusCompleted = "COMPLETED"
 	WorkflowStatusFailed    = "FAILED"
@@ -112,6 +115,21 @@ func (bw *BaseWorkflow) UpdateJobStatus(ctx workflow.Context, status string, err
 		ScheduleToCloseTimeout: 10 * time.Second,
 	})
 	return workflow.ExecuteActivity(ctx, commonActivity.UpdateJobStatus, updatedJob).Get(ctx, nil)
+}
+
+// QueryWorkflowStatus queries the status of a workflow using its ID and run ID.
+func QueryWorkflowStatus(ctx context.Context, tempClient client.Client, workflowID, runID string) (*WorkflowStatus, error) {
+	var status WorkflowStatus
+	encVal, err := tempClient.QueryWorkflow(ctx, workflowID, runID, StatusQueryName)
+	if err != nil {
+		return nil, err
+	}
+	err = encVal.Get(&status)
+	if err != nil {
+		return nil, err
+	}
+
+	return &status, nil
 }
 
 func createNodeForProviderWithPool(dbNode *datamodel.Node, pool *datamodel.Pool) *models.Node {

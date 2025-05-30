@@ -30,9 +30,19 @@ func (a *SnapshotCreateActivity) CreateSnapshotInONTAP(ctx context.Context, snap
 	return res, nil
 }
 
-func (a *SnapshotCreateActivity) UpdateSnapshotDetails(ctx context.Context, snapshot *datamodel.Snapshot) error {
+func (a *SnapshotCreateActivity) UpdateSnapshotDetails(ctx context.Context, dbSnapshot *datamodel.Snapshot, snapshotCreateResponse *vsa.SnapshotProviderResponse) error {
 	se := a.SE
-	err := se.UpdateSnapshot(ctx, snapshot)
+	if snapshotCreateResponse == nil {
+		dbSnapshot.State = models.LifeCycleStateError
+		dbSnapshot.StateDetails = models.LifeCycleStateCreationErrorDetails
+	} else {
+		dbSnapshot.State = models.LifeCycleStateREADY
+		dbSnapshot.StateDetails = models.LifeCycleStateAvailableDetails
+		dbSnapshot.SnapshotAttributes.SizeInBytes = snapshotCreateResponse.SizeInBytes
+		dbSnapshot.SnapshotAttributes.ExternalUUID = snapshotCreateResponse.ExternalUUID
+		dbSnapshot.SnapshotAttributes.LogicalSizeUsedInBytes = snapshotCreateResponse.LogicalSizeInBytes
+	}
+	err := se.UpdateSnapshot(ctx, dbSnapshot)
 	if err != nil {
 		return err
 	}

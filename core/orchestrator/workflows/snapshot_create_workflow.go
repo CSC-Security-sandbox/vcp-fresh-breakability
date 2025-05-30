@@ -59,7 +59,7 @@ func (wf *snapshotCreateWorkflow) Setup(ctx workflow.Context, input interface{})
 	info := workflow.GetInfo(ctx)
 	wf.ID = info.WorkflowExecution.ID
 	wf.CustomerID = createSnapshotParams.AccountName
-	wf.Status = "created"
+	wf.Status = WorkflowStatusCreated
 	ctx = util.AddExtraLoggerFields(ctx, map[string]interface{}{"workflowID": wf.ID, "customerID": wf.CustomerID})
 	logger := util.GetLogger(ctx)
 	wf.Logger = logger
@@ -101,17 +101,11 @@ func (wf *snapshotCreateWorkflow) Run(ctx workflow.Context, args ...interface{})
 	node := createNodeForProvider(dbNode, dbSnapshot.Volume)
 	var snapshotCreateResponse *vsa.SnapshotProviderResponse
 	defer func() {
-		if err != nil {
-			dbSnapshot.State = models.LifeCycleStateError
-			dbSnapshot.StateDetails = models.LifeCycleStateCreationErrorDetails
-		} else {
-			dbSnapshot.State = models.LifeCycleStateREADY
-			dbSnapshot.StateDetails = models.LifeCycleStateAvailableDetails
-			dbSnapshot.SnapshotAttributes.SizeInBytes = snapshotCreateResponse.SizeInBytes
-			dbSnapshot.SnapshotAttributes.ExternalUUID = snapshotCreateResponse.ExternalUUID
-			dbSnapshot.SnapshotAttributes.LogicalSizeUsedInBytes = snapshotCreateResponse.LogicalSizeInBytes
+		updateErr := workflow.ExecuteActivity(ctx, snapshotActivity.UpdateSnapshotDetails, &dbSnapshot, snapshotCreateResponse).Get(ctx, nil)
+		if updateErr != nil {
+			// Since activity has failed, activity will reflect the error in the temporal workflow.
+			logger.Errorf("Error updating snapshot details: %v", updateErr)
 		}
-		workflow.ExecuteActivity(ctx, snapshotActivity.UpdateSnapshotDetails, &dbSnapshot)
 	}()
 	err = workflow.ExecuteActivity(ctx, snapshotActivity.CreateSnapshotInONTAP, &dbSnapshot, &node).Get(ctx, &snapshotCreateResponse)
 	if err != nil {

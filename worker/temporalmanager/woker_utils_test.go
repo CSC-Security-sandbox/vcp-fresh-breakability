@@ -42,7 +42,7 @@ func TestNewWorker(t *testing.T) {
 	t.Run("NewWorker", func(t *testing.T) {
 		// Mock client and task queue
 		clientOptions := client.Options{
-			HostPort: "localhost:7233",
+			HostPort: "localhost:0000", // Using a non-existent port for testing
 		}
 		mockClient, _ := client.NewLazyClient(clientOptions)
 		taskQueue := "test-task-queue"

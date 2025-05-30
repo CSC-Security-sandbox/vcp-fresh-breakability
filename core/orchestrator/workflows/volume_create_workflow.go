@@ -50,7 +50,7 @@ func (wf *volumeCreateWorkflow) Setup(ctx workflow.Context, input interface{}) e
 	info := workflow.GetInfo(ctx)
 	wf.ID = info.WorkflowExecution.ID
 	wf.CustomerID = createPoolParams.AccountName
-	wf.Status = "created"
+	wf.Status = WorkflowStatusCreated
 	ctx = util.AddExtraLoggerFields(ctx, map[string]interface{}{"workflowID": wf.ID, "customerID": wf.CustomerID})
 	logger := util.GetLogger(ctx)
 	wf.Logger = logger
