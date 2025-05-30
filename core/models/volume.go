@@ -17,6 +17,7 @@ type Volume struct {
 	LifeCycleStateDetails string
 	LifeCycleTrackingID   int32
 	QuotaInBytes          uint64
+	IsDataProtection      bool
 	BlockProperties       *BlockProperties
 	IPAddress             string
 }

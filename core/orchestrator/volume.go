@@ -77,9 +77,10 @@ func _createVolume(ctx context.Context, se database.Storage, temporal client.Cli
 		SvmID:       svm.ID,
 		Pool:        pool,
 		VolumeAttributes: &datamodel.VolumeAttributes{
-			CreationToken:  params.CreationToken,
-			Protocols:      params.Protocols,
-			VendorSubnetID: params.Network,
+			CreationToken:    params.CreationToken,
+			Protocols:        params.Protocols,
+			VendorSubnetID:   params.Network,
+			IsDataProtection: params.IsDataProtection,
 		},
 	}
 
@@ -230,6 +231,7 @@ func convertDatastoreVolumeToModel(volume *datamodel.Volume, ipAddress *string) 
 		QuotaInBytes:          uint64(volume.SizeInBytes),
 		LifeCycleState:        volume.State,
 		LifeCycleStateDetails: volume.StateDetails,
+		IsDataProtection:      volume.VolumeAttributes.IsDataProtection,
 	}
 	attributes := volume.VolumeAttributes
 	res.VendorSubnetID = attributes.VendorSubnetID

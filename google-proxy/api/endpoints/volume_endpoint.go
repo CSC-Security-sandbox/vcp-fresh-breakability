@@ -27,6 +27,10 @@ var (
 	getMultipleVolumesFromCVP     = _getMultipleVolumesFromCVP
 )
 
+const (
+	volumeTypeSecondary = "SECONDARY"
+)
+
 func (h Handler) V1betaDescribeVolume(ctx context.Context, params gcpgenserver.V1betaDescribeVolumeParams) (gcpgenserver.V1betaDescribeVolumeRes, error) {
 	logger := util.GetLogger(ctx)
 	helper.AddLabelerAttributes(ctx, params.ProjectNumber, params.LocationId)
@@ -114,9 +118,17 @@ func prepareCreateVolumeParams(req *gcpgenserver.VolumeCreateV1beta, params gcpg
 		QuotaInBytes:  uint64(req.Volume.QuotaInBytes.Value),
 		Protocols:     make([]string, 0),
 	}
+
+	if req.VolumeType.IsSet() {
+		if req.VolumeType.Value == volumeTypeSecondary {
+			param.IsDataProtection = true
+		}
+	}
+
 	if req.Volume.Description.IsSet() {
 		param.Description, _ = req.Volume.Description.Get()
 	}
+
 	if req.Volume.Network.IsSet() {
 		param.Network, _ = req.Volume.Network.Get()
 	}
@@ -235,6 +247,7 @@ func convertModelToVCPVolume(volume *models.Volume) *gcpgenserver.VolumeV1beta {
 		QuotaInBytes:       gcpgenserver.NewOptFloat64(float64(volume.QuotaInBytes)),
 		PoolResourceId:     gcpgenserver.NewOptNilString(volume.PoolName),
 		StorageClass:       gcpgenserver.NewOptStorageClassV1beta(gcpgenserver.StorageClassV1betaSOFTWARE),
+		IsDataProtection:   gcpgenserver.NewOptBool(volume.IsDataProtection),
 	}
 	if volume.DeletedAt != nil {
 		res.Deleted = gcpgenserver.OptNilDateTime{Value: *volume.DeletedAt}

@@ -54,18 +54,19 @@ type HostParams struct {
 
 // CreateVolumeParams describes parameters supplied to CreatePool
 type CreateVolumeParams struct {
-	AccountName     string
-	Region          string
-	Name            string
-	Description     string
-	Network         string
-	PoolID          string
-	VendorID        string
-	CreationToken   string
-	DisplayName     string
-	QuotaInBytes    uint64
-	Protocols       []string
-	BlockProperties *models.BlockProperties
+	AccountName      string
+	Region           string
+	Name             string
+	Description      string
+	Network          string
+	PoolID           string
+	VendorID         string
+	CreationToken    string
+	DisplayName      string
+	QuotaInBytes     uint64
+	IsDataProtection bool
+	Protocols        []string
+	BlockProperties  *models.BlockProperties
 }
 
 type CreateLunMapParams struct {

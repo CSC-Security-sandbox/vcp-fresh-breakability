@@ -110,11 +110,12 @@ type Volume struct {
 }
 
 type VolumeAttributes struct {
-	CreationToken   string           `json:"creation_token"`
-	Protocols       []string         `json:"protocols"`
-	VendorSubnetID  string           `json:"vendor_subnet_id"`
-	ExternalUUID    string           `json:"external_uuid"`
-	BlockProperties *BlockProperties `json:"block_properties"`
+	CreationToken    string           `json:"creation_token"`
+	Protocols        []string         `json:"protocols"`
+	VendorSubnetID   string           `json:"vendor_subnet_id"`
+	ExternalUUID     string           `json:"external_uuid"`
+	BlockProperties  *BlockProperties `json:"block_properties"`
+	IsDataProtection bool             `json:"is_data_protection"`
 }
 
 type BlockProperties struct {

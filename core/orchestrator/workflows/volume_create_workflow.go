@@ -116,7 +116,7 @@ func (wf *volumeCreateWorkflow) Run(ctx workflow.Context, args ...interface{}) (
 	}
 
 	lunMapParams := createLunMapParams(lun.Name, dbVolume.Svm.Name, hostParams)
-	err = workflow.ExecuteActivity(ctx, volumeActivity.CreateLunMap, &lunMapParams, &node).Get(ctx, nil)
+	err = workflow.ExecuteActivity(ctx, volumeActivity.CreateLunMap,&dbVolume, &lunMapParams, &node).Get(ctx, nil)
 	if err != nil {
 		return nil, err
 	}

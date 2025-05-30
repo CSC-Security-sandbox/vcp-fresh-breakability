@@ -15,6 +15,7 @@ import (
 
 const (
 	VolumeTypeRW = "rw"
+	VolumeTypeDP = "dp"
 )
 
 type VolumeCreateActivity struct {
@@ -30,12 +31,16 @@ func (a *VolumeCreateActivity) CreateVolume(ctx context.Context, volume *datamod
 func (a *VolumeCreateActivity) CreateVolumeInONTAP(ctx context.Context, volume *datamodel.Volume, node *models.Node) (*vsa.VolumeResponse, error) {
 	logger := util.GetLogger(ctx)
 	provider := GetProviderByNode(node)
+	volumeType := VolumeTypeRW
+	if volume.VolumeAttributes.IsDataProtection {
+		volumeType = VolumeTypeDP
+	}
 	res, err := provider.CreateVolume(vsa.CreateVolumeParams{
 		VolumeName:    volume.Name,
 		SvmName:       volume.Svm.Name,
 		AggregateName: aggregateName,
 		Size:          volume.SizeInBytes,
-		VolumeType:    VolumeTypeRW,
+		VolumeType:    volumeType,
 	})
 	if err != nil {
 		if errors.IsConflictErr(err) {
@@ -96,6 +101,10 @@ func (a *VolumeCreateActivity) CreateIgroup(ctx context.Context, volume *datamod
 
 func (a *VolumeCreateActivity) CreateLun(ctx context.Context, volume *datamodel.Volume, node *models.Node, availableSpace int64) (*vsa.LunResponse, error) {
 	logger := util.GetLogger(ctx)
+	if volume.VolumeAttributes.IsDataProtection {
+		logger.Info("Skipping lun creation for data protection volume")
+		return &vsa.LunResponse{}, nil
+	}
 	provider := GetProviderByNode(node)
 	lunName := "lun_" + volume.Name
 
@@ -133,9 +142,13 @@ func LunGet(ctx context.Context, lunName, volumeName, svmName string, provider v
 	return lun, nil
 }
 
-func (a *VolumeCreateActivity) CreateLunMap(ctx context.Context, params *common.CreateLunMapParams, node *models.Node) error {
+func (a *VolumeCreateActivity) CreateLunMap(ctx context.Context, volume *datamodel.Volume, params *common.CreateLunMapParams, node *models.Node) error {
 	logger := util.GetLogger(ctx)
-	provider := GetProviderByNode(node)
+	if volume.VolumeAttributes.IsDataProtection {
+		logger.Info("Skipping CreateLunMap for data protection volume")
+		return nil
+	}
+	var provider = GetProviderByNode(node)
 	err := provider.LunMapCreate(vsa.LunMapCreateParams{
 		LunName:    params.LunName,
 		SvmName:    params.SvmName,

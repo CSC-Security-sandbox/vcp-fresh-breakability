@@ -36,6 +36,7 @@ func TestPrepareCreateVolumeParams(t *testing.T) {
 					},
 				),
 			},
+			VolumeType: gcpgenserver.NewOptVolumeCreateV1betaVolumeType("SECONDARY"),
 		}
 		params := gcpgenserver.V1betaCreateVolumeParams{
 			ProjectNumber: "test-project",
@@ -44,13 +45,14 @@ func TestPrepareCreateVolumeParams(t *testing.T) {
 		region := "test-region"
 
 		expected := &common.CreateVolumeParams{
-			AccountName:   "test-project",
-			Region:        "test-region",
-			Name:          "test-volume",
-			VendorID:      "/projects/test-project/locations/test-location/volumes/test-volume",
-			CreationToken: "test-token",
-			PoolID:        "test-pool",
-			QuotaInBytes:  1024,
+			AccountName:      "test-project",
+			Region:           "test-region",
+			Name:             "test-volume",
+			VendorID:         "/projects/test-project/locations/test-location/volumes/test-volume",
+			CreationToken:    "test-token",
+			PoolID:           "test-pool",
+			QuotaInBytes:     1024,
+			IsDataProtection: true,
 			BlockProperties: &models.BlockProperties{
 				OSType: "LINUX",
 			},
