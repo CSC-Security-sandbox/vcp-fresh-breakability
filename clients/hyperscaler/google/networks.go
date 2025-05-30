@@ -6,6 +6,7 @@ import (
 	"time"
 
 	models "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/hyperscaler/models"
+	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
@@ -33,7 +34,7 @@ func (gcpService *GcpServices) GetTenantProject(consumerNetwork, customerProject
 	tenantProjectsResp, err := gcpService.AdminGCPService.managementService.Services.TenancyUnits.List(parent).Context(gcpService.Ctx).Do()
 	if err != nil {
 		gcpService.Logger.Debug(fmt.Sprintf("List TenancyUnits call failed : %s ", err.Error()))
-		return "", err
+		return "", vsaerrors.NewVCPError(vsaerrors.ErrGCPResourceFetchError, err)
 	}
 
 	for _, tenancy := range tenantProjectsResp.TenancyUnits {
@@ -46,7 +47,7 @@ func (gcpService *GcpServices) GetTenantProject(consumerNetwork, customerProject
 		}
 	}
 	gcpService.Logger.Debug(fmt.Sprintf("Tenancy not found : consumerNetwork: %s, customerProjectNumber: %s, tenantProjectRegion: %s , parent : %s ", consumerNetwork, customerProjectNumber, tenantProjectRegion, parent))
-	return "", errors.New(fmt.Sprintf("VPC peering network for TenancyUnit '%s' not found. Use the correct vpc name and ensure VPC network peering with tenant project has already been established.", consumerNetwork))
+	return "", vsaerrors.NewVCPError(vsaerrors.ErrPSAPeeringNotFoundError, errors.New(fmt.Sprintf("VPC peering network for TenancyUnit '%s' not found. Use the correct vpc name and ensure VPC network peering with tenant project has already been established.", consumerNetwork)))
 }
 
 // CreateSubnetworkForTenantProject creates GCP subnetwork
@@ -77,12 +78,12 @@ func (gcpService *GcpServices) CreateSubnetworkForTenantProject(tenantProjectNum
 			snProducerOperation, err = waitForServiceNetworkOperationStatus(gcpService, snProducerOperationName)
 			if err != nil {
 				gcpService.Logger.Errorf(fmt.Sprintf("Failed to get service networking operation status for tenant project : %s consumer peering network : %s with error : %v", tenantProjectNumber, consumerPeeringNetwork, err.Error()))
-				return nil, err
+				return nil, vsaerrors.NewVCPError(vsaerrors.ErrGCPResourceProvisionError, err)
 			}
 			return snProducerOperation.Response, nil
 		}
 		gcpService.Logger.Errorf(fmt.Sprintf("Failed to get service networking operation status for tenant project : %s consumer peering network : %s with error : %v", tenantProjectNumber, consumerPeeringNetwork, err.Error()))
-		return nil, err
+		return nil, vsaerrors.NewVCPError(vsaerrors.ErrGCPResourceProvisionError, err)
 	}
 	return snProducerOperation.Response, nil
 }
@@ -92,16 +93,17 @@ func (gcpService *GcpServices) ReleaseSubnetwork(region, tenantProjectNumber, su
 	op, err := gcpService.AdminGCPService.computeService.Subnetworks.Delete(tenantProjectNumber, region, subnetwork).Do()
 	if err != nil {
 		if strings.Contains(err.Error(), "notFound") {
-			return errors.NewNotFoundErr("compute.Subnetwork", &subnetwork)
+			return vsaerrors.NewVCPError(vsaerrors.ErrResourceNotFound, errors.NewNotFoundErr("compute.Subnetwork", &subnetwork))
 		}
 		gcpService.Logger.Debug("Failed to delete subnetwork...")
-		return err
+		return vsaerrors.NewVCPError(vsaerrors.ErrGCPResourceDeprovisionError, err)
 	}
 
 	err = waitForComputeOperation(*gcpService, tenantProjectNumber, region, op.Name)
 	if err != nil {
+		// TODO: Add VCP Error for this
 		gcpService.Logger.Error(fmt.Sprintf("Failed to delete subnetwork %s in project %s with error: %v", subnetwork, tenantProjectNumber, err))
-		return err
+		return vsaerrors.NewVCPError(vsaerrors.ErrGCPResourceDeprovisionError, err)
 	}
 
 	return nil
@@ -118,10 +120,10 @@ func _createSubnetworkForTenantProject(gcpService *GcpServices, request *service
 		if err != nil {
 			if strings.Contains(err.Error(), "are not successfully connected yet") {
 				gcpService.Logger.Error(fmt.Sprintf("AddSubnetwork failed : with error : %v", err.Error()))
-				return nil, errors.New(err.Error())
+				return nil, vsaerrors.NewVCPError(vsaerrors.ErrPSAPeeringNotFoundError, err)
 			}
 			gcpService.Logger.Error(fmt.Sprintf("createSubnetworkForTenantProject failed with error: %s", err.Error()))
-			return nil, err
+			return nil, vsaerrors.NewVCPError(vsaerrors.ErrGCPResourceProvisionError, err)
 		}
 	}
 	gcpService.Logger.Debug(fmt.Sprintf("AddSubnetwork for tenant project : %s successful", tenantProjectNumber))
@@ -175,13 +177,13 @@ func (gcpService *GcpServices) CreateVPC(vpcNetwork *models.VPCNetwork) error {
 	operation, err := createVPC(gcpService, vpcNetwork)
 	if err != nil {
 		gcpService.Logger.Error(fmt.Sprintf("Failed to create VPC %s: with error : %v", vpcNetwork.Name, err.Error()))
-		return err
+		return vsaerrors.NewVCPError(vsaerrors.ErrGCPResourceProvisionError, err)
 	}
 	// Wait for the network creation operation to complete
 	_, err = waitForComputeNetGlobalOpStatus(gcpService, projectName, operation.Name)
 	if err != nil {
 		gcpService.Logger.Error(fmt.Sprintf("Failed to create project name : %s VPC name: %s with error : %v", projectName, vpcNetworkName, err.Error()))
-		return err
+		return vsaerrors.NewVCPError(vsaerrors.ErrGCPResourceProvisionError, err)
 	}
 	gcpService.Logger.Info(fmt.Sprintf("Successfully created VPC for project name : %s VPC name : %s", projectName, vpcNetworkName))
 	return nil
@@ -216,7 +218,7 @@ func (gcpService *GcpServices) CreateSubnetwork(request *models.Subnet) error {
 	// Create the Google subnetwork request
 	operation, err := createSubnetwork(gcpService, request)
 	if err != nil {
-		return err
+		return vsaerrors.NewVCPError(vsaerrors.ErrGCPResourceProvisionError, err)
 	}
 	gcpService.Logger.Debug(fmt.Sprintf("Waiting for compute network operation status during subnet creation Subnet: %s for Project name: %s and VPC : %s ", request.Name, projectName, request.Network))
 
@@ -226,11 +228,11 @@ func (gcpService *GcpServices) CreateSubnetwork(request *models.Subnet) error {
 			_, err = waitForComputeRegionalOperation(gcpService, projectName, *request.Region, operation.Name)
 			if err != nil {
 				gcpService.Logger.Error(fmt.Sprintf("Failed to create subnet Project name : %s, subnet name : %s with error : %v", projectName, request.Name, err.Error()))
-				return err
+				return vsaerrors.NewVCPError(vsaerrors.ErrGCPResourceProvisionError, err)
 			}
 		}
 		gcpService.Logger.Error(fmt.Sprintf("Failed to create subnet Project name : %s, subnet name : %s with error : %v", projectName, request.Name, err.Error()))
-		return err
+		return vsaerrors.NewVCPError(vsaerrors.ErrGCPResourceProvisionError, err)
 	}
 	gcpService.Logger.Debug(fmt.Sprintf("Subnet created successfully for Subnet: %s for Project name: %s and VPC : %s ", request.Name, projectName, request.Network))
 	return nil
@@ -285,13 +287,13 @@ func (gcpService *GcpServices) InsertFirewall(firewallRule *models.Firewall) err
 
 	operation, err := insertFirewall(gcpService, firewallRule)
 	if err != nil {
-		return err
+		return vsaerrors.NewVCPError(vsaerrors.ErrGCPResourceProvisionError, err)
 	}
 	gcpService.Logger.Debug(fmt.Sprintf("Waiting for compute network operation status during firewall rule creation project name: %s firewall rule: %s", projectName, firewallName))
 	_, err = waitForComputeNetGlobalOpStatus(gcpService, projectName, operation.Name)
 	if err != nil {
 		gcpService.Logger.Error(fmt.Sprintf("Failed to create firewall rule %s for project %s. Error : %v", firewallName, projectName, err))
-		return err
+		return vsaerrors.NewVCPError(vsaerrors.ErrGCPResourceProvisionError, err)
 	}
 	gcpService.Logger.Debug(fmt.Sprintf("Successfully created firewall for project name : %s, firewall name : %s", projectName, firewallName))
 	return nil

@@ -3,13 +3,14 @@ package repository
 import (
 	"context"
 	"errors"
-	"github.com/stretchr/testify/assert"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
-	"gorm.io/gorm"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
+	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	gormwrapper "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/gorm"
+	"gorm.io/gorm"
 )
 
 func TestGetNodesByPoolID(t *testing.T) {
@@ -109,7 +110,12 @@ func TestCreateNode(t *testing.T) {
 		}
 
 		_, err1 := store.CreateNode(context.Background(), node)
-		assert.EqualError(tt, err1, "node already exists")
+		var customErr *vsaerrors.CustomError
+		if errors.As(err1, &customErr) {
+			assert.EqualError(tt, customErr.Unwrap(), "node already exists")
+		} else {
+			tt.Fatalf("Expected a CustomError, got %v", err)
+		}
 	})
 }
 

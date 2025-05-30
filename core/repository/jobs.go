@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
+	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 	"gorm.io/gorm"
@@ -44,7 +45,7 @@ func (d *DataStoreRepository) GetJob(ctx context.Context, id string) (*datamodel
 	return getJobWithDetails(d.db.GORM().WithContext(ctx), &datamodel.Job{BaseModel: datamodel.BaseModel{UUID: id}})
 }
 
-func (d *DataStoreRepository) UpdateJob(ctx context.Context, id string, status string, errorDetails []byte) error {
+func (d *DataStoreRepository) UpdateJob(ctx context.Context, id, status string, trackingID int, errorDetails []byte) error {
 	db := d.db.GORM().WithContext(ctx)
 	tx, err := startTransaction(db)
 	if err != nil {
@@ -60,9 +61,10 @@ func (d *DataStoreRepository) UpdateJob(ctx context.Context, id string, status s
 
 	job.UpdatedAt = time.Now()
 	job.State = status
+	job.TrackingID = trackingID
 	job.ErrorDetails = errorDetails
 	if err = tx.Updates(job).Error; err != nil {
-		return err
+		return vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataUpdateError, err)
 	}
 	return nil
 }
@@ -71,7 +73,7 @@ func _getJobWithDetails(db *gorm.DB, query *datamodel.Job) (*datamodel.Job, erro
 	job := &datamodel.Job{}
 	err := db.First(&job, query).Error
 	if err != nil {
-		return nil, err
+		return nil, vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataReadError, err)
 	}
 	return job, nil
 }

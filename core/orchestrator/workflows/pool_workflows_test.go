@@ -57,7 +57,7 @@ func TestCreatePoolWorkflow(t *testing.T) {
 	env.OnActivity("SetupNetwork", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	env.OnActivity("CreateVSACluster", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 	env.OnActivity("SaveVSANodeDetails", mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
-	env.OnActivity("CreatedPool", mock.Anything, mock.Anything).Return(nil)
+	env.OnActivity("CreatedPool", mock.Anything, mock.Anything).Return(nil, nil)
 	env.OnActivity("SavePoolWithClusterDetails", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	env.OnActivity("CreateVSASVM", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	env.OnActivity("GetOntapVersion", mock.Anything, mock.Anything).Return(nil, nil)

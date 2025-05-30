@@ -185,6 +185,7 @@ type Job struct {
 	RequestID     string        `json:"requestID"`
 	Type          string        `json:"type"`
 	State         string        `json:"state" gorm:"index"`
+	TrackingID    int           `json:"trackingID"`
 	ErrorDetails  []byte        `json:"errorDetails" gorm:"type:bytea"`
 	AccountID     sql.NullInt64 `json:"-" gorm:"index"`
 	IsAdminJob    bool          `json:"-" gorm:"default:false"`

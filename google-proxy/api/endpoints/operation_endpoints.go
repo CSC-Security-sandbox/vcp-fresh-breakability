@@ -8,6 +8,7 @@ import (
 	"github.com/go-faster/jx"
 	"github.com/google/uuid"
 	cvpmodels "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/models"
+	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	gcpgenserver "github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/api/gcp-servergen"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/helper"
@@ -53,9 +54,10 @@ func (h Handler) V1betaDescribeOperation(ctx context.Context, params gcpgenserve
 	if job != nil {
 		switch job.State {
 		case models.JobsStateERROR:
+			errMsg := vsaerrors.GetErrorMessageByTrackingID(job.TrackingID)
 			return &gcpgenserver.V1betaDescribeOperationBadRequest{
-				Code:    400,
-				Message: "Job failed",
+				Code:    float64(*errMsg.HttpCode),
+				Message: errMsg.Message,
 			}, nil
 		case models.JobsStateNEW:
 			return &gcpgenserver.OperationV1beta{

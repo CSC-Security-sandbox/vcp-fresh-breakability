@@ -1,18 +1,19 @@
 package google
 
 import (
-	"cloud.google.com/go/storage"
 	"context"
 	"errors"
 	"fmt"
-	"google.golang.org/api/googleapi"
 	"net/http"
 
+	"cloud.google.com/go/storage"
+	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
 	logger "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 	"golang.org/x/oauth2/google"
 	"google.golang.org/api/compute/v1"
+	"google.golang.org/api/googleapi"
 	"google.golang.org/api/option"
 	"google.golang.org/api/serviceconsumermanagement/v1"
 	"google.golang.org/api/servicenetworking/v1"
@@ -143,13 +144,13 @@ func _initializeManagementService(ctx context.Context) (*serviceconsumermanageme
 	client, endpoint, err := newClient(ctx, opts...)
 	if err != nil {
 		logger.Error("error while creating new client for _initializeManagementService", err)
-		return nil, err
+		return nil, vsaerrors.NewVCPError(vsaerrors.ErrGCPClientInitializationError, err)
 	}
 	client.Timeout = waitTimeoutMinutes
 	svc, err := serviceconsumermanagement.NewService(ctx, option.WithHTTPClient(client))
 	if err != nil {
 		logger.Error("serviceconsumermanagement.NewService error", err)
-		return nil, err
+		return nil, vsaerrors.NewVCPError(vsaerrors.ErrGCPClientInitializationError, err)
 	}
 	if endpoint != "" {
 		svc.BasePath = endpoint
@@ -170,13 +171,13 @@ func _initializeNetworkingService(ctx context.Context) (*servicenetworking.APISe
 	client, endpoint, err := newClient(ctx, opts...)
 	if err != nil {
 		logger.Error("error while creating new client for _initializeNetworkingService", err)
-		return nil, err
+		return nil, vsaerrors.NewVCPError(vsaerrors.ErrGCPClientInitializationError, err)
 	}
 	client.Timeout = defaultSleepTime
 	svc, err := servicenetworking.NewService(ctx, option.WithHTTPClient(client))
 	if err != nil {
 		logger.Error("servicenetworking.NewService error", err)
-		return nil, err
+		return nil, vsaerrors.NewVCPError(vsaerrors.ErrGCPClientInitializationError, err)
 	}
 	if endpoint != "" {
 		svc.BasePath = endpoint
@@ -198,14 +199,14 @@ func _initializeComputeService(ctx context.Context) (*compute.Service, error) {
 	client, endpoint, err := newClient(ctx, opts...)
 	if err != nil {
 		logger.Error("error while creating new client for _initializeComputeService", err)
-		return nil, err
+		return nil, vsaerrors.NewVCPError(vsaerrors.ErrGCPClientInitializationError, err)
 	}
 	client.Timeout = defaultSleepTime
 
 	svc, err := compute.NewService(ctx, option.WithHTTPClient(client))
 	if err != nil {
 		logger.Error("compute.NewService error", err)
-		return nil, err
+		return nil, vsaerrors.NewVCPError(vsaerrors.ErrGCPClientInitializationError, err)
 	}
 
 	if endpoint != "" {
@@ -226,7 +227,7 @@ func _initializeStorageService(ctx context.Context) (*storage.Client, error) {
 
 	client, _, err := newClient(ctx, opts...)
 	if err != nil {
-		return nil, err
+		return nil, vsaerrors.NewVCPError(vsaerrors.ErrGCPClientInitializationError, err)
 	}
 
 	return storage.NewClient(ctx, option.WithHTTPClient(client))

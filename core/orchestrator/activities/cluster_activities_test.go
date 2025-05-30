@@ -3,6 +3,7 @@ package activities_test
 import (
 	"context"
 	"errors"
+	"testing"
 	"time"
 
 	"github.com/stretchr/testify/assert"
@@ -14,7 +15,6 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
-	"testing"
 )
 
 func TestAcceptClusterPeer(t *testing.T) {

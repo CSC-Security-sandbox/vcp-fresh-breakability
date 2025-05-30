@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/go-openapi/strfmt"
+	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	gcpgenserver "github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/api/gcp-servergen"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
@@ -152,7 +153,7 @@ func GetJWTTokenFromContext(ctx context.Context) string {
 func ParseProjectId(network string) (string, string, error) {
 	tmp := strings.Split(network, "/")
 	if len(tmp) != 5 {
-		return "", "", errors.New(fmt.Sprintf("parseProjectId failed for network : %s", network))
+		return "", "", vsaerrors.NewVCPError(vsaerrors.ErrBadRequest, errors.New(fmt.Sprintf("parseProjectId failed for network : %s", network)))
 	}
 	return tmp[1], tmp[4], nil
 }

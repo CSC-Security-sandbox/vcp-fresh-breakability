@@ -1,16 +1,17 @@
 package orchestrator
 
 import (
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
+	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 	workflowEngineMock "github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine"
 	"golang.org/x/net/context"
@@ -174,8 +175,14 @@ func TestGetVolume(t *testing.T) {
 		assert.NoError(tt, err, "Failed to create volume")
 
 		result, err := orch.GetVolume(ctx, "test-volume-uuid")
-		assert.EqualError(tt, err, "lif not found")
-		assert.Nil(tt, result, "Expected nil volume")
+
+		var customErr *vsaerrors.CustomError
+		if vsaerrors.As(err, &customErr) {
+			assert.EqualError(tt, customErr.Unwrap(), "lif not found")
+			assert.Nil(tt, result, "Expected nil volume")
+		} else {
+			t.Fatalf("Expected CustomError, got %v", err)
+		}
 	})
 }
 
@@ -297,8 +304,13 @@ func TestCreateVolume(t *testing.T) {
 		temporal := workflowEngineMock.NewMockTemporalTestClient(t)
 
 		volume, _, err := createVolume(ctx, store, temporal, params)
-		assert.Nil(tt, volume, "Expected nil volume")
-		assert.EqualError(tt, err, "pool not found")
+		var customErr *vsaerrors.CustomError
+		if vsaerrors.As(err, &customErr) {
+			assert.Nil(tt, volume, "Expected nil volume")
+			assert.EqualError(tt, customErr.Unwrap(), "pool not found")
+		} else {
+			tt.Fatalf("Expected CustomError, got %v", err)
+		}
 	})
 	t.Run("WhenGetSvmForCreateVolumeFails", func(tt *testing.T) {
 		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
@@ -1108,7 +1120,13 @@ func TestValidateCreateVolumeParams(t *testing.T) {
 		}
 
 		err = validateCreateVolumeParams(ctx, store, params, account.ID)
-		assert.EqualError(tt, err, "pool not found")
+
+		var customErr *vsaerrors.CustomError
+		if vsaerrors.As(err, &customErr) {
+			assert.EqualError(tt, customErr.Unwrap(), "pool not found")
+		} else {
+			tt.Fatalf("Expected a CustomError, got: %v", err)
+		}
 	})
 	t.Run("WhenPoolStateNotReady", func(tt *testing.T) {
 		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
@@ -1577,7 +1595,12 @@ func TestValidateCreateVolumeParams(t *testing.T) {
 		}
 
 		err = validateCreateVolumeParams(ctx, store, params, account.ID)
-		assert.EqualError(tt, err, "lif not found")
+		var customErr *vsaerrors.CustomError
+		if vsaerrors.As(err, &customErr) {
+			assert.EqualError(tt, customErr.Unwrap(), "lif not found")
+		} else {
+			tt.Fatalf("Expected a CustomError, got: %v", err)
+		}
 	})
 	t.Run("WhenGetLifNameNotAvailable", func(tt *testing.T) {
 		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})

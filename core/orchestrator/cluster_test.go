@@ -8,6 +8,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
+	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware"
@@ -74,7 +75,12 @@ func TestAcceptClusterPeer(t *testing.T) {
 		}
 
 		_, _, err = acceptClusterPeer(ctx, store, temporal, params, "poolID")
-		assert.EqualError(tt, err, "pool not found")
+		var customErr *vsaerrors.CustomError
+		if errors.As(err, &customErr) {
+			assert.EqualError(tt, customErr.Unwrap(), "pool not found")
+		} else {
+			tt.Fatalf("Expected a CustomError, got %v", err)
+		}
 	})
 	t.Run("WhenSucceed", func(tt *testing.T) {
 		ctx := context.Background()

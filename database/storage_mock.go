@@ -2959,17 +2959,17 @@ func (_c *MockStorage_UpdateHostGroupsState_Call) RunAndReturn(run func(context.
 	return _c
 }
 
-// UpdateJob provides a mock function with given fields: ctx, jobID, status, errorDetails
-func (_m *MockStorage) UpdateJob(ctx context.Context, jobID string, status string, errorDetails []byte) error {
-	ret := _m.Called(ctx, jobID, status, errorDetails)
+// UpdateJob provides a mock function with given fields: ctx, jobID, status, trackingID, errorDetails
+func (_m *MockStorage) UpdateJob(ctx context.Context, jobID string, status string, trackingID int, errorDetails []byte) error {
+	ret := _m.Called(ctx, jobID, status, trackingID, errorDetails)
 
 	if len(ret) == 0 {
 		panic("no return value specified for UpdateJob")
 	}
 
 	var r0 error
-	if rf, ok := ret.Get(0).(func(context.Context, string, string, []byte) error); ok {
-		r0 = rf(ctx, jobID, status, errorDetails)
+	if rf, ok := ret.Get(0).(func(context.Context, string, string, int, []byte) error); ok {
+		r0 = rf(ctx, jobID, status, trackingID, errorDetails)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -2986,14 +2986,15 @@ type MockStorage_UpdateJob_Call struct {
 //   - ctx context.Context
 //   - jobID string
 //   - status string
+//   - trackingID int
 //   - errorDetails []byte
-func (_e *MockStorage_Expecter) UpdateJob(ctx interface{}, jobID interface{}, status interface{}, errorDetails interface{}) *MockStorage_UpdateJob_Call {
-	return &MockStorage_UpdateJob_Call{Call: _e.mock.On("UpdateJob", ctx, jobID, status, errorDetails)}
+func (_e *MockStorage_Expecter) UpdateJob(ctx interface{}, jobID interface{}, status interface{}, trackingID interface{}, errorDetails interface{}) *MockStorage_UpdateJob_Call {
+	return &MockStorage_UpdateJob_Call{Call: _e.mock.On("UpdateJob", ctx, jobID, status, trackingID, errorDetails)}
 }
 
-func (_c *MockStorage_UpdateJob_Call) Run(run func(ctx context.Context, jobID string, status string, errorDetails []byte)) *MockStorage_UpdateJob_Call {
+func (_c *MockStorage_UpdateJob_Call) Run(run func(ctx context.Context, jobID string, status string, trackingID int, errorDetails []byte)) *MockStorage_UpdateJob_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context), args[1].(string), args[2].(string), args[3].([]byte))
+		run(args[0].(context.Context), args[1].(string), args[2].(string), args[3].(int), args[4].([]byte))
 	})
 	return _c
 }
@@ -3003,7 +3004,7 @@ func (_c *MockStorage_UpdateJob_Call) Return(_a0 error) *MockStorage_UpdateJob_C
 	return _c
 }
 
-func (_c *MockStorage_UpdateJob_Call) RunAndReturn(run func(context.Context, string, string, []byte) error) *MockStorage_UpdateJob_Call {
+func (_c *MockStorage_UpdateJob_Call) RunAndReturn(run func(context.Context, string, string, int, []byte) error) *MockStorage_UpdateJob_Call {
 	_c.Call.Return(run)
 	return _c
 }

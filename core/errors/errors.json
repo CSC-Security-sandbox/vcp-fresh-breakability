@@ -1,20 +1,170 @@
 {
-  "InvalidInput": {
-    "tracking_id": 1001,
-    "message": "Input is invalid.",
+  "1001": {
+    "description": "Temporal Configuration Error",
+    "message": "An internal error occurred.",
+    "retriable": false,
+    "http_code": 500
+  },
+  "1002": {
+    "description": "One or more input parameters are invalid",
+    "message": "Bad Request",
     "retriable": false,
     "http_code": 400
   },
-  "NotFound": {
-    "tracking_id": 1002,
-    "message": "The requested resource was not found.",
+  "1003": {
+    "description": "Requested Resource is not found",
+    "message": "Resource not found",
     "retriable": false,
     "http_code": 404
   },
-  "InternalError": {
-    "tracking_id": 1003,
+  "1004": {
+    "description": "Could not read from the file",
+    "message": "An internal error occurred.",
+    "retriable": false,
+    "http_code": 500
+  },
+  "1005": {
+    "description": "Could not write to the file",
+    "message": "An internal error occurred.",
+    "retriable": false,
+    "http_code": 500
+  },
+  "1006": {
+    "description": "JSON Parsing Error",
+    "message": "An internal error occurred.",
+    "retriable": false,
+    "http_code": 500
+  },
+  "1007": {
+    "description": "Maximum retries exceeded",
+    "message": "An internal error occurred.",
+    "retriable": false,
+    "http_code": 500
+  },
+  "1008": {
+    "description": "Time Limit Exceeded",
+    "message": "An internal error occurred.",
+    "retriable": false,
+    "http_code": 500
+  },
+  "2001": {
+    "description": "Database Connection Closed",
+    "message": "An internal error occurred.",
+    "retriable": false,
+    "http_code": 500
+  },
+  "2002": {
+    "description": "Could not begin/commit/rollback the database transaction",
     "message": "An internal error occurred.",
     "retriable": true,
+    "http_code": 500
+  },
+  "2003": {
+    "description": "Error when inserting data into the database",
+    "message": "An internal error occurred.",
+    "retriable": false,
+    "http_code": 500
+  },
+  "2004": {
+    "description": "Error when updating data in the database",
+    "message": "An internal error occurred.",
+    "retriable": false,
+    "http_code": 500
+  },
+  "2005": {
+    "description": "Error when deleting record(s) in the database",
+    "message": "An internal error occurred.",
+    "retriable": false,
+    "http_code": 500
+  },
+  "2006": {
+    "description": "Error when fetching data from the database",
+    "message": "An internal error occurred.",
+    "retriable": false,
+    "http_code": 500
+  },
+  "3001": {
+    "description": "GCP Client Initialization Error",
+    "message": "An internal error occurred.",
+    "retriable": false,
+    "http_code": 500
+  },
+  "3002": {
+    "description": "Private Service Access (PSA) is not configured",
+    "message": "Setup/Configure Private Service Access (PSA) Peering",
+    "retriable": false,
+    "http_code": 400
+  },
+  "3003": {
+    "description": "GCP Resource Provisioning Error",
+    "message": "An internal error occurred.",
+    "retriable": true,
+    "http_code": 500
+  },
+  "3004": {
+    "description": "Could not fetch the required GCP resource(s)",
+    "message": "An internal error occurred.",
+    "retriable": true,
+    "http_code": 500
+  },
+  "3005": {
+    "description": "GCP Resource De-provisioning Error",
+    "message": "An internal error occurred.",
+    "retriable": true,
+    "http_code": 500
+  },
+  "4001": {
+    "description": "VSA Cluster Provisioning Error",
+    "message": "An internal error occurred.",
+    "retriable": true,
+    "http_code": 500
+  },
+  "4002": {
+    "description": "Error fetching VSA Cluster Details",
+    "message": "An internal error occurred.",
+    "retriable": true,
+    "http_code": 500
+  },
+  "4003": {
+    "description": "VSA Cluster De-provisioning Error",
+    "message": "An internal error occurred.",
+    "retriable": true,
+    "http_code": 500
+  },
+  "4004": {
+    "description": "Invalid VSA Cluster State",
+    "message": "An internal error occurred.",
+    "retriable": false,
+    "http_code": 500
+  },
+  "4005": {
+    "description": "VSA Cluster - Node Not Found",
+    "message": "An internal error occurred.",
+    "retriable": false,
+    "http_code": 500
+  },
+  "5001": {
+    "description": "Error fetching ONTAP version",
+    "message": "An internal error occurred.",
+    "retriable": true,
+    "http_code": 500
+  },
+  "5002": {
+    "description": "Error when creating VSA SVM",
+    "message": "An internal error occurred.",
+    "retriable": true,
+    "http_code": 500
+  },
+  "5003": {
+    "description": "Error when deleting VSA SVM",
+    "message": "An internal error occurred.",
+    "retriable": true,
+    "http_code": 500
+  },
+  "5004": {
+    "description": "VSA Cluster - SVM Not Found",
+    "message": "An internal error occurred.",
+    "retriable": false,
     "http_code": 500
   }
 }

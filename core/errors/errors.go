@@ -5,13 +5,8 @@ import (
 	"fmt"
 	"log/slog"
 
+	"go.temporal.io/sdk/temporal"
 	"go.uber.org/multierr"
-)
-
-const (
-	ErrInvalidInput  = "InvalidInput"
-	ErrNotFound      = "NotFound"
-	ErrInternalError = "InternalError"
 )
 
 var (
@@ -20,24 +15,59 @@ var (
 	Newf    = fmt.Errorf
 )
 
+const (
+	ErrWorkflowConfigurationError = 1001
+	ErrBadRequest                 = 1002
+	ErrResourceNotFound           = 1003
+	ErrFileReadError              = 1004
+	ErrFileWriteError             = 1005
+	ErrJSONParsingError           = 1006
+	ErrMaxRetriesExceeded         = 1007
+	ErrTimeLimitExceeded          = 1008
+
+	ErrDatabaseConnectionClosed = 2001
+	ErrDatabaseTransactionError = 2002
+	ErrDatabaseDataInsertError  = 2003
+	ErrDatabaseDataReadError    = 2004
+	ErrDatabaseDataUpdateError  = 2005
+	ErrDatabaseDataDeleteError  = 2006
+
+	ErrGCPClientInitializationError  = 3001
+	ErrPSAPeeringNotFoundError       = 3002
+	ErrGCPResourceProvisionError     = 3003
+	ErrGCPResourceFetchError         = 3004
+	ErrGCPResourceDeprovisionError   = 3005
+	ErrGCPResourceAlreadyExistsError = 3006
+
+	ErrVSAClusterCreateError          = 4001
+	ErrCouldNotFetchVSAClusterDetails = 4002
+	ErrVSAClusterDeleteError          = 4003
+	ErrIncorrectVSAClusterState       = 4004
+	ErrVSAClusterNodeNotFound         = 4005
+
+	ErrONTAPVersionFetchError = 5001
+	ErrCreatingSVM            = 5002
+	ErrDeletingSVM            = 5003
+	ErrSVMNotFound            = 5004
+)
+
 type Error interface {
 	error
 }
 
 // ErrorMessage struct represents the structure of each error message in the JSON file.
 type ErrorMessage struct {
-	TrackingID int    `json:"tracking_id"`
-	Message    string `json:"message"`
-	Retriable  *bool  `json:"retriable,omitempty"`
-	HttpCode   *int   `json:"http_code,omitempty"`
+	Description string `json:"description"`
+	Message     string `json:"message"`
+	Retriable   *bool  `json:"retriable,omitempty"`
+	HttpCode    *int   `json:"http_code,omitempty"`
 }
 
 // errorMap is a map of error names to their corresponding ErrorMessage.
-var errorMap map[string]ErrorMessage
+var errorMap map[int]ErrorMessage
 
 // CustomError is our custom error type that includes an error code and retriable flag.
 type CustomError struct {
-	ErrorName   string
 	TrackingID  int
 	Message     string
 	Retriable   bool
@@ -60,9 +90,9 @@ func (e *CustomError) IsRetriable() bool {
 	return e.Retriable
 }
 
-// IsError returns true if the error name or TrackingID is same as queried name or TrackingID.
-func (e *CustomError) IsError(errorNameOrTrackingID string) bool {
-	return e.ErrorName == errorNameOrTrackingID || fmt.Sprintf("%d", e.TrackingID) == errorNameOrTrackingID
+// IsError returns true if the TrackingID is same as queried TrackingID.
+func (e *CustomError) IsError(trackingID int) bool {
+	return e.TrackingID == trackingID
 }
 
 // LogError logs the error message along with its TrackingID.
@@ -86,8 +116,8 @@ func (e *CustomError) LogOriginalError() {
 }
 
 // NewVCPError creates a new CustomError based on the given error name.
-func NewVCPError(errorName string, originalErr error) Error {
-	if errMsg, ok := errorMap[errorName]; ok {
+func NewVCPError(trackingID int, originalErr error) Error {
+	if errMsg, ok := errorMap[trackingID]; ok {
 		if errMsg.Retriable == nil {
 			// Default to false if retriable is not specified in the JSON file.
 			errMsg.Retriable = new(bool)
@@ -95,8 +125,7 @@ func NewVCPError(errorName string, originalErr error) Error {
 		}
 
 		return &CustomError{
-			ErrorName:   errorName,
-			TrackingID:  errMsg.TrackingID,
+			TrackingID:  trackingID,
 			Message:     errMsg.Message,
 			Retriable:   *errMsg.Retriable,
 			HttpCode:    errMsg.HttpCode,
@@ -105,7 +134,6 @@ func NewVCPError(errorName string, originalErr error) Error {
 	}
 	// If the error name is not defined, create a generic non-retriable error with the original error.
 	return &CustomError{
-		ErrorName:   "NotDefined",
 		TrackingID:  0,
 		Message:     fmt.Sprintf("undefined error: %s", originalErr.Error()),
 		Retriable:   false,
@@ -122,4 +150,26 @@ func Is(err error, target error) bool {
 // target to that error value and returns true. Otherwise, it returns false.
 func As(err error, target any) bool {
 	return errors.As(err, target)
+}
+
+// GetErrorMessageByTrackingID returns the error details pertaining to the given TrackingID.
+func GetErrorMessageByTrackingID(trackingID int) *ErrorMessage {
+	if errMsg, ok := errorMap[trackingID]; ok {
+		return &errMsg
+	}
+
+	httpCode := new(int)
+	*httpCode = 500
+	return &ErrorMessage{HttpCode: httpCode, Message: "undefined error"}
+}
+
+// WrapAsTemporalApplicationError wraps a given error as a Temporal application error if it is a CustomError.
+// Otherwise, it returns the original error unchanged.
+func WrapAsTemporalApplicationError(err error) error {
+	var customError *CustomError
+	if As(err, &customError) {
+		return temporal.NewApplicationError(err.Error(), "CustomError", customError.TrackingID, customError.OriginalErr.Error())
+	}
+
+	return err
 }

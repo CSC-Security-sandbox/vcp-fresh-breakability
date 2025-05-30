@@ -33,6 +33,7 @@ type Job struct {
 	Type          JobType
 	State         JobState
 	StateDetails  string
+	TrackingID    int
 	ErrorDetails  []byte
 	AccountID     sql.NullInt64
 	IsAdminJob    bool

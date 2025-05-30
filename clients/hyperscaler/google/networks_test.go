@@ -1367,4 +1367,77 @@ func TestReleaseSubnetwork(t *testing.T) {
 			tt.Errorf("Expected internal error, got: %v", err)
 		}
 	})
+	t.Run("WhenDeleteReturnsNotFoundError", func(tt *testing.T) {
+		server := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
+			rw.WriteHeader(http.StatusNotFound)
+			_, _ = rw.Write([]byte(`{"error": {"message": "notFound"}}`))
+		}))
+		defer server.Close()
+
+		computeSvc, err := compute.NewService(ctx, option.WithHTTPClient(&http.Client{Timeout: time.Second}), option.WithEndpoint(server.URL))
+		if err != nil {
+			tt.Fatalf("Failed to create compute service: %v", err)
+		}
+
+		origDelete := waitForComputeOperation
+		waitForComputeOperation = func(gService GcpServices, project, region, operation string) error {
+			return nil
+		}
+		defer func() {
+			waitForComputeOperation = origDelete
+		}()
+
+		gService := &GcpServices{
+			AdminGCPService: &AdminGCPService{
+				computeService: computeSvc,
+			},
+			Ctx:    ctx,
+			Logger: util.GetLogger(ctx),
+		}
+		err = gService.ReleaseSubnetwork(region, tenantProjectNumber, subnetwork)
+		if err == nil || (!strings.Contains(err.Error(), "notFound") && !strings.Contains(err.Error(), "not found")) {
+			tt.Errorf("Expected notFound error, got: %v", err)
+		}
+	})
+	t.Run("WhenWaitForComputeOperationFails", func(tt *testing.T) {
+		server := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
+			if req.Method == http.MethodDelete && req.URL.Path == deleteUrl {
+				response, _ := json.Marshal(&compute.Operation{Name: operationName})
+				rw.WriteHeader(http.StatusOK)
+				_, _ = rw.Write(response)
+			}
+		}))
+		defer server.Close()
+		computeSvc, err := compute.NewService(ctx, option.WithHTTPClient(&http.Client{Timeout: time.Second}), option.WithEndpoint(server.URL))
+		if err != nil {
+			tt.Fatalf("Failed to create compute service: %v", err)
+		}
+		origDelete := waitForComputeOperation
+		waitForComputeOperation = func(gService GcpServices, project, region, operation string) error {
+			return fmt.Errorf("wait operation failed")
+		}
+		defer func() { waitForComputeOperation = origDelete }()
+		gService := &GcpServices{AdminGCPService: &AdminGCPService{computeService: computeSvc}, Ctx: ctx, Logger: util.GetLogger(ctx)}
+		err = gService.ReleaseSubnetwork(region, tenantProjectNumber, subnetwork)
+		if err == nil || !strings.Contains(err.Error(), "wait operation failed") {
+			tt.Errorf("Expected wait operation failed error, got: %v", err)
+		}
+	})
+	t.Run("WhenAreNotSuccessfullyConnectedYetError", func(tt *testing.T) {
+		ctx := context.Background()
+		server := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
+			rw.WriteHeader(http.StatusBadRequest)
+			_, _ = rw.Write([]byte(`{"error": {"message": "are not successfully connected yet"}}`))
+		}))
+		defer server.Close()
+		svc, err := servicenetworking.NewService(ctx, option.WithHTTPClient(&http.Client{Timeout: time.Second}), option.WithEndpoint(server.URL))
+		if err != nil {
+			tt.Fatalf("Error getting service up: '%s'", err.Error())
+		}
+		gService := &GcpServices{AdminGCPService: &AdminGCPService{networkingService: svc}, Ctx: ctx, Logger: util.GetLogger(ctx)}
+		_, err = _createSubnetworkForTenantProject(gService, &servicenetworking.AddSubnetworkRequest{}, "test-project")
+		if err == nil || !strings.Contains(err.Error(), "are not successfully connected yet") {
+			tt.Errorf("Expected are not successfully connected yet error, got: %v", err)
+		}
+	})
 }

@@ -26,6 +26,7 @@ func convertDatastoreOperationToModel(job *datamodel.Job) *models.Job {
 			DeletedAt: DeletedAtOrNil(job.DeletedAt),
 		},
 		CorrelationID: job.CorrelationID,
+		TrackingID:    job.TrackingID,
 		Type:          models.JobType(job.Type),
 		State:         models.JobState(job.State),
 	}

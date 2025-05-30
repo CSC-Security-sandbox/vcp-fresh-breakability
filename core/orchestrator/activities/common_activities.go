@@ -18,7 +18,7 @@ func (j CommonActivities) UpdateJobStatus(ctx context.Context, job *datamodel.Jo
 	logger := util.GetLogger(ctx)
 	se := j.SE
 	logger.Infof("updating job: %s with status: %s", job.UUID, job.State)
-	return se.UpdateJob(ctx, job.UUID, job.State, job.ErrorDetails)
+	return se.UpdateJob(ctx, job.UUID, job.State, job.TrackingID, job.ErrorDetails)
 }
 
 // GetNode retrieves the node associated with the given pool ID.

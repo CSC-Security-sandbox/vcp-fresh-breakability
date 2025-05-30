@@ -5,6 +5,7 @@ import (
 	"os"
 
 	"github.com/google/uuid"
+	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/workflows"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database"
@@ -47,6 +48,20 @@ func main() {
 		DBConn: dbConn,
 	}
 	defer workflowClient.CloseClient(workflowClient.GetTemporalClient())
+
+	// Initialise the error handler
+	errorFilePath := "/errors.json"
+	// Check if the file exists
+	if _, err := os.Stat(errorFilePath); err == nil {
+		// TODO: add a flag to enable/disable the error handler
+		// TODO: add middleware to handle error codes
+		// Keeping errors.json in core for now, if needed we can merge two jsons together one in core and one in proxy layer later.
+		_, err = vsaerrors.NewErrorHandler(errorFilePath)
+		if err != nil {
+			logger.Error("Failed to create error handler", "error", err.Error())
+			os.Exit(1)
+		}
+	}
 
 	// Create a new worker
 	worker := tManagerPkg.NewWorker(temporalManager.GetClient(), workflowEngine.CustomerTaskQueue)

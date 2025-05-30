@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
+	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	gormWrapper "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/gorm"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
@@ -40,14 +41,14 @@ func (d *DataStoreRepository) CreatedPool(ctx context.Context, pool *datamodel.P
 	dbPool := &datamodel.Pool{}
 	err = tx.Where("name = ?", pool.Name).Where("account_id = ?", pool.AccountID).First(&dbPool).Error
 	if err != nil {
-		return nil, err
+		return nil, vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataReadError, err)
 	}
 	dbPool.State = models.LifeCycleStateREADY
 	dbPool.StateDetails = models.LifeCycleStateAvailableDetails
 	dbPool.UpdatedAt = time.Now()
 	err = tx.Updates(dbPool).Error
 	if err != nil {
-		return nil, err
+		return nil, vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataUpdateError, err)
 	}
 
 	return dbPool, nil
@@ -112,7 +113,7 @@ func (d *DataStoreRepository) UpdatePool(ctx context.Context, pool *datamodel.Po
 	dbPool.StateDetails = pool.StateDetails
 
 	if err = tx.Updates(dbPool).Error; err != nil {
-		return err
+		return vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataUpdateError, err)
 	}
 	return nil
 }
@@ -131,7 +132,7 @@ func (d *DataStoreRepository) DeletePool(ctx context.Context, pool *datamodel.Po
 	pool.StateDetails = models.LifeCycleStateDeletedDetails
 	err = tx.Updates(pool).Error
 	if err != nil {
-		return err
+		return vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataUpdateError, err)
 	}
 	return nil
 }
@@ -167,9 +168,9 @@ func _getPoolWithDetails(db *gorm.DB, query *datamodel.Pool) (*datamodel.Pool, e
 	err := db.Preload("Account").First(&pool, query).Error
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, customerrors.NewNotFoundErr("pool", nil)
+			return nil, vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataReadError, customerrors.NewNotFoundErr("pool", nil))
 		}
-		return nil, err
+		return nil, vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataReadError, err)
 	}
 	return pool, nil
 }
@@ -194,7 +195,7 @@ func _listPoolWithDetails(db *gorm.DB) ([]*datamodel.Pool, error) {
 	var pools []*datamodel.Pool
 	err := db.Preload("Account").Find(&pools).Error
 	if err != nil {
-		return nil, err
+		return nil, vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataReadError, err)
 	}
 	return pools, nil
 }
@@ -212,7 +213,7 @@ func (d *DataStoreRepository) SavePoolWithVsaClusterDetails(ctx context.Context,
 		"cluster_details": pool.ClusterDetails,
 	}).Error
 	if err != nil {
-		return err
+		return vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataUpdateError, err)
 	}
 	return nil
 }

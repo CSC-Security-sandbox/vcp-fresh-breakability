@@ -10,6 +10,7 @@ import (
 	"github.com/stretchr/testify/mock"
 	ontaprestmodel "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/ontap-rest/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
+	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database"
@@ -310,7 +311,12 @@ func TestGetPool(t *testing.T) {
 		}
 
 		_, err = orch.GetPool(ctx, "non-existent-uuid", "")
-		assert.EqualError(tt, err, "pool not found")
+		var customErr *vsaerrors.CustomError
+		if vsaerrors.As(err, &customErr) {
+			assert.EqualError(tt, customErr.Unwrap(), "pool not found")
+		} else {
+			tt.Errorf("Expected custom error, got %v", err)
+		}
 	})
 
 	t.Run("WhenPoolExists", func(tt *testing.T) {
@@ -367,7 +373,12 @@ func TestGetPoolByVendorID(t *testing.T) {
 		}
 
 		_, err = orch.GetPoolByVendorID(ctx, "non-existent-vendor-id")
-		assert.EqualError(tt, err, "pool not found")
+		var customErr *vsaerrors.CustomError
+		if vsaerrors.As(err, &customErr) {
+			assert.EqualError(tt, customErr.Unwrap(), "pool not found")
+		} else {
+			tt.Errorf("Expected custom error, got %v", err)
+		}
 	})
 
 	t.Run("WhenPoolExists", func(tt *testing.T) {
@@ -501,7 +512,12 @@ func TestDeletePool(t *testing.T) {
 		}
 
 		_, _, err = deletePool(ctx, temporal, store, params)
-		assert.EqualError(tt, err, "pool not found")
+		var customErr *vsaerrors.CustomError
+		if vsaerrors.As(err, &customErr) {
+			assert.EqualError(tt, customErr.Unwrap(), "pool not found")
+		} else {
+			tt.Errorf("Expected custom error, got %v", err)
+		}
 	})
 	t.Run("WhenDeletePoolSucceeds1", func(tt *testing.T) {
 		ctx := context.Background()

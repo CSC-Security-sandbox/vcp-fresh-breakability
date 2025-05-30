@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
@@ -93,7 +94,7 @@ func SetupNetwork(ctx context.Context, projectId, snHostProject, network, tpregi
 	slog := util.GetLogger(ctx)
 	err := setupNetwork(slog, projectId, snHostProject, network, tpregion)
 	if err != nil {
-		return err
+		return vsaerrors.WrapAsTemporalApplicationError(err)
 	}
 	return nil
 }
@@ -332,7 +333,7 @@ func setupNetwork(slog log.Logger, project, snHostProject, network, tpregion str
 	computeService, err := compute.NewService(ctx)
 	if err != nil {
 		slog.Errorf("Failed to create compute service: %v", err)
-		return err
+		return vsaerrors.NewVCPError(vsaerrors.ErrGCPClientInitializationError, err)
 	}
 
 	vpcSubnetMap := map[string]string{
@@ -358,7 +359,7 @@ func setupNetwork(slog log.Logger, project, snHostProject, network, tpregion str
 				}).Context(ctx).Do()
 				if err1 != nil {
 					slog.Errorf("Failed to create VPC %s: %v", vpcName, err)
-					return err
+					return vsaerrors.NewVCPError(vsaerrors.ErrGCPResourceProvisionError, err)
 				}
 				// Wait for the network creation operation to complete
 				err = waitForOperation(ctx, computeService, projectID, op)
@@ -367,7 +368,7 @@ func setupNetwork(slog log.Logger, project, snHostProject, network, tpregion str
 				}
 			} else {
 				slog.Errorf("Failed to check VPC %s: %v", vpcName, err)
-				return err
+				return vsaerrors.NewVCPError(vsaerrors.ErrGCPResourceFetchError, err)
 			}
 		} else {
 			slog.Errorf("VPC %s already exists.\n", vpcName)
@@ -386,7 +387,7 @@ func setupNetwork(slog log.Logger, project, snHostProject, network, tpregion str
 				}).Context(ctx).Do()
 				if err != nil {
 					slog.Errorf("Failed to create subnet %s: %v", subnetName, err)
-					return err
+					return vsaerrors.NewVCPError(vsaerrors.ErrGCPResourceProvisionError, err)
 				}
 				// Wait for the subnet creation operation to complete
 				err = waitForRegionalOperation(ctx, computeService, projectID, region, op.Name)
@@ -395,7 +396,7 @@ func setupNetwork(slog log.Logger, project, snHostProject, network, tpregion str
 				}
 			} else {
 				slog.Errorf("Failed to check subnet %s: %v", subnetName, err)
-				return err
+				return vsaerrors.NewVCPError(vsaerrors.ErrGCPResourceFetchError, err)
 			}
 		} else {
 			slog.Infof("Subnet %s already exists.\n", subnetName)
@@ -426,11 +427,11 @@ func setupNetwork(slog log.Logger, project, snHostProject, network, tpregion str
 				}).Context(ctx).Do()
 				if err != nil {
 					slog.Errorf("Failed to create firewall rule %s: %v", firewallName, err)
-					return err
+					return vsaerrors.NewVCPError(vsaerrors.ErrGCPResourceProvisionError, err)
 				}
 			} else {
 				slog.Errorf("Failed to check firewall rule %s: %v", firewallName, err)
-				return err
+				return vsaerrors.NewVCPError(vsaerrors.ErrGCPResourceFetchError, err)
 			}
 		} else {
 			slog.Infof("Firewall rule %s already exists.\n", firewallName)
@@ -460,11 +461,11 @@ func setupNetwork(slog log.Logger, project, snHostProject, network, tpregion str
 			}).Context(ctx).Do()
 			if err != nil {
 				slog.Errorf("Failed to create firewall rule iscsi-ingress: %v", err)
-				return err
+				return vsaerrors.NewVCPError(vsaerrors.ErrGCPResourceProvisionError, err)
 			}
 		} else {
 			slog.Errorf("Failed to check firewall rule iscsi-ingress: %v", err)
-			return err
+			return vsaerrors.NewVCPError(vsaerrors.ErrGCPResourceFetchError, err)
 		}
 	} else {
 		slog.Infof("Firewall rule iscsi-ingress already exists.\n")

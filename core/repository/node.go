@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
+	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	customerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
@@ -22,7 +23,7 @@ func getNodesByPoolID(db *gorm.DB, poolID int64) ([]*datamodel.Node, error) {
 	var nodes []*datamodel.Node
 	err := db.Where("pool_id = ?", poolID).Find(&nodes).Error
 	if err != nil {
-		return nil, customerrors.ConvertToNotFoundErrIfContainsMessage(err, "record not found", "node", nil)
+		return nil, vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataReadError, customerrors.ConvertToNotFoundErrIfContainsMessage(err, "record not found", "node", nil))
 	}
 	return nodes, nil
 }
@@ -46,19 +47,19 @@ func (d *DataStoreRepository) CreateNode(ctx context.Context, node *datamodel.No
 		node.UpdatedAt = node.CreatedAt
 		err = tx.Create(node).Error
 		if err != nil {
-			return nil, err
+			return nil, vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataInsertError, err)
 		}
 		err = tx.Where("name = ? and account_id = ?", node.Name, node.AccountID).First(&dbNode).Error
 		if err != nil {
-			return nil, err
+			return nil, vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataReadError, err)
 		}
 		return &dbNode, nil
 	} else if err1 != nil {
 		logger.Errorf("Error while checking if node exists: %v", err1)
-		return nil, err1
+		return nil, vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataReadError, err1)
 	}
 
-	return nil, customerrors.NewConflictErr("node already exists")
+	return nil, vsaerrors.NewVCPError(vsaerrors.ErrIncorrectVSAClusterState, customerrors.NewConflictErr("node already exists"))
 }
 
 // DeleteNode deletes a Node from the database
@@ -75,7 +76,7 @@ func (d *DataStoreRepository) DeleteNode(ctx context.Context, node *datamodel.No
 	node.StateDetails = models.LifeCycleStateDeletedDetails
 	err = tx.Updates(node).Error
 	if err != nil {
-		return err
+		return vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataUpdateError, err)
 	}
 	return nil
 }
@@ -93,7 +94,7 @@ func (d *DataStoreRepository) DeletingNode(ctx context.Context, node *datamodel.
 	node.StateDetails = models.LifeCycleStateDeletingDetails
 	err = tx.Updates(node).Error
 	if err != nil {
-		return err
+		return vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataUpdateError, err)
 	}
 	return nil
 }

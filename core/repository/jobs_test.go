@@ -2,11 +2,13 @@ package repository
 
 import (
 	"context"
+	"testing"
+
 	"github.com/stretchr/testify/assert"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
+	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	gormwrapper "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/gorm"
-	"testing"
 )
 
 func TestGetJob(t *testing.T) {
@@ -44,7 +46,12 @@ func TestGetJob(t *testing.T) {
 		assert.NoError(tt, err, "Failed to clean up test database")
 
 		_, err1 := store.GetJob(context.Background(), "test-job-uuid")
-		assert.EqualError(tt, err1, "record not found")
+		var customErr *vsaerrors.CustomError
+		if vsaerrors.As(err1, &customErr) {
+			assert.EqualError(tt, customErr.Unwrap(), "record not found")
+		} else {
+			tt.Fatalf("Expected a CustomError, got %v", err)
+		}
 	})
 }
 
@@ -123,7 +130,7 @@ func TestUpdateJob(t *testing.T) {
 
 		_, err = store.CreateJob(context.Background(), job)
 		assert.NoError(tt, err, "Failed to create job: %v", err)
-		err = store.UpdateJob(context.Background(), job.UUID, models.LifeCycleStateREADY, nil)
+		err = store.UpdateJob(context.Background(), job.UUID, models.LifeCycleStateREADY, 0, nil)
 		assert.NoError(tt, err, "Failed to update job: %v", err)
 		updatedJob, err := store.GetJob(context.Background(), job.UUID)
 		assert.NoError(tt, err, "Expected no error, got %v", err)

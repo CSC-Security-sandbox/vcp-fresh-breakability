@@ -78,7 +78,7 @@ func main() {
 	}
 	errorFilePath := "/errors.json"
 	// Check if the file exists
-	if _, err := os.Stat(errorFilePath); os.IsExist(err) {
+	if _, err := os.Stat(errorFilePath); err == nil {
 		// TODO: add a flag to enable/disable the error handler
 		// TODO: add middleware to handle error codes
 		// Keeping errors.json in core for now, if needed we can merge two jsons together one in core and one in proxy layer later.

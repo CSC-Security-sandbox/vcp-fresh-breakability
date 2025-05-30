@@ -49,7 +49,7 @@ func (s *VolumeDeleteTestSuite) Test_DeleteVolumeWorkflow_Success() {
 	commonActivity := activities.CommonActivities{SE: mockStorage}
 	deleteActivity := activities.VolumeDeleteActivity{SE: mockStorage}
 
-	mockStorage.On("UpdateJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	mockStorage.On("UpdateJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
 	// Register activities
 	s.env.RegisterActivity(commonActivity.UpdateJobStatus)
@@ -81,8 +81,8 @@ func (s *VolumeDeleteTestSuite) Test_DeleteVolumeWorkflow_Failure() {
 	commonActivity := activities.CommonActivities{SE: mockStorage}
 	deleteActivity := activities.VolumeDeleteActivity{SE: mockStorage}
 
-	mockStorage.On("UpdateJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil).Times(2)
-	mockStorage.On("UpdateJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(errors.New("failed updating job"))
+	mockStorage.On("UpdateJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil).Times(2)
+	mockStorage.On("UpdateJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(errors.New("failed updating job"))
 
 	// Register activities
 	s.env.RegisterActivity(commonActivity.UpdateJobStatus)

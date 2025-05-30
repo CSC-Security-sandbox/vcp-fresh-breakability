@@ -7,6 +7,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/ontap-rest/models"
+	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	ontaprest "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/ontap-rest"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
@@ -216,7 +217,13 @@ func TestGetNodeByName(t *testing.T) {
 
 		assert.Error(tt, err)
 		assert.Nil(tt, node)
-		assert.Equal(tt, "node with name node1 not found", err.Error())
+
+		var customErr *vsaerrors.CustomError
+		if vsaerrors.As(err, &customErr) {
+			assert.Equal(tt, "node with name node1 not found", customErr.OriginalErr.Error())
+		} else {
+			t.Errorf("Expected CustomError, got %T", err)
+		}
 
 		mockCluster.AssertExpectations(tt)
 		mockClient.AssertExpectations(tt)
@@ -238,7 +245,13 @@ func TestGetNodeByName(t *testing.T) {
 
 		assert.Error(tt, err)
 		assert.Nil(tt, node)
-		assert.Equal(tt, "fetch error", err.Error())
+
+		var customErr *vsaerrors.CustomError
+		if vsaerrors.As(err, &customErr) {
+			assert.Equal(tt, "fetch error", customErr.OriginalErr.Error())
+		} else {
+			t.Errorf("Expected CustomError, got %T", err)
+		}
 
 		mockCluster.AssertExpectations(tt)
 		mockClient.AssertExpectations(tt)
@@ -285,7 +298,13 @@ func TestGetONTAPVersion(t *testing.T) {
 
 		assert.Error(tt, err)
 		assert.Nil(tt, result)
-		assert.Equal(tt, "version fetch error", err.Error())
+
+		var customErr *vsaerrors.CustomError
+		if vsaerrors.As(err, &customErr) {
+			assert.Equal(tt, "version fetch error", customErr.OriginalErr.Error())
+		} else {
+			t.Errorf("Expected CustomError, got %T", err)
+		}
 
 		mockCluster.AssertExpectations(tt)
 		mockClient.AssertExpectations(tt)

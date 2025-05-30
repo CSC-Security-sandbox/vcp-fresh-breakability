@@ -12,6 +12,7 @@ import (
 	models "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/hyperscaler/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/vlm"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
+	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	coremodel "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
 	commonparams "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
@@ -61,6 +62,24 @@ func TestGetPool_Success(t *testing.T) {
 	mockStorage.AssertExpectations(t)
 }
 
+func TestGetPool_Fails(t *testing.T) {
+	// Arrange
+	mockStorage := database.NewMockStorage(t)
+	activity := activities.PoolActivity{SE: mockStorage}
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	pool := &datamodel.Pool{Name: "test-pool"}
+
+	mockStorage.On("GetPool", ctx, pool.UUID, int64(0)).Return(nil, gorm.ErrRecordNotFound)
+
+	// Act
+	result, err := activity.GetPool(ctx, pool)
+
+	// Assert
+	assert.Error(t, err)
+	assert.Nil(t, result)
+	mockStorage.AssertExpectations(t)
+}
+
 func TestSavePoolWithClusterDetails_Success(t *testing.T) {
 	// Arrange
 	mockStorage := database.NewMockStorage(t)
@@ -76,6 +95,24 @@ func TestSavePoolWithClusterDetails_Success(t *testing.T) {
 
 	// Assert
 	assert.NoError(t, err)
+	mockStorage.AssertExpectations(t)
+}
+
+func TestSavePoolWithClusterDetails_Failure(t *testing.T) {
+	// Arrange
+	mockStorage := database.NewMockStorage(t)
+	activity := activities.PoolActivity{SE: mockStorage}
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	pool := &datamodel.Pool{Name: "test-pool"}
+	cluster := &datamodel.ClusterDetails{}
+
+	mockStorage.On("SavePoolWithVsaClusterDetails", ctx, pool, cluster).Return(gorm.ErrInvalidData)
+
+	// Act
+	err := activity.SavePoolWithClusterDetails(ctx, pool, cluster)
+
+	// Assert
+	assert.Error(t, err)
 	mockStorage.AssertExpectations(t)
 }
 
@@ -97,17 +134,43 @@ func TestCreatedPool_Success(t *testing.T) {
 	mockStorage.AssertExpectations(t)
 }
 
+func TestCreatedPool_Failure(t *testing.T) {
+	// Arrange
+	mockStorage := database.NewMockStorage(t)
+	activity := activities.PoolActivity{SE: mockStorage}
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	pool := &datamodel.Pool{Name: "test-pool"}
+
+	mockStorage.On("CreatedPool", ctx, pool).Return(nil, gorm.ErrInvalidData)
+
+	// Act
+	result, err := activity.CreatedPool(ctx, pool)
+
+	// Assert
+	assert.Error(t, err)
+	assert.Nil(t, result)
+	mockStorage.AssertExpectations(t)
+}
+
 func TestCreateTenancy_Success(t *testing.T) {
 	// Arrange
 	mockStorage := database.NewMockStorage(t)
 	activity := activities.PoolActivity{SE: mockStorage}
 	createTenancy := activities.FindTenancyAndGetSubnetwork
-	defer func() { activities.FindTenancyAndGetSubnetwork = createTenancy }()
+	GetGCPService := activities.GetGCPService
+	defer func() {
+		activities.FindTenancyAndGetSubnetwork = createTenancy
+		activities.GetGCPService = GetGCPService
+	}()
+
 	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
 	pool := commonparams.CreatePoolParams{Name: "test-pool"}
 
 	tenancyInfo := &commonparams.TenancyInfo{}
-	activities.FindTenancyAndGetSubnetwork = func(ctx context.Context, consumerVPC string, customerProjectNumber string, tenantProjectRegion *string) (*commonparams.TenancyInfo, error) {
+	activities.GetGCPService = func(ctx context.Context) (*google.GcpServices, error) {
+		return &google.GcpServices{Logger: log.NewLogger()}, nil
+	}
+	activities.FindTenancyAndGetSubnetwork = func(ctx context.Context, gcpService hyperscaler.GoogleServices, consumerVPC string, customerProjectNumber string, tenantProjectRegion *string) (*commonparams.TenancyInfo, error) {
 		return tenancyInfo, nil
 	}
 
@@ -118,6 +181,152 @@ func TestCreateTenancy_Success(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, tenancyInfo, result)
 	mockStorage.AssertExpectations(t)
+}
+
+func TestCreateTenancy_Failure(t *testing.T) {
+	// Arrange
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	pool := commonparams.CreatePoolParams{Name: "test-pool"}
+	mockStorage := database.NewMockStorage(t)
+	createTenancy := activities.FindTenancyAndGetSubnetwork
+	GetGCPService := activities.GetGCPService
+
+	t.Run("WhenGetGCPServiceFails", func(tt *testing.T) {
+		activity := activities.PoolActivity{SE: mockStorage}
+
+		defer func() {
+			activities.GetGCPService = GetGCPService
+		}()
+		activities.GetGCPService = func(ctx context.Context) (*google.GcpServices, error) {
+			return nil, errors.New("initialisation of Google GCP service failed")
+		}
+
+		// Act
+		result, err := activity.CreateTenancy(ctx, pool)
+
+		// Assert
+		assert.Error(t, err)
+		assert.Nil(t, result)
+		mockStorage.AssertExpectations(t)
+	})
+	t.Run("WhenFindTenancyAndGetSubnetworkFails", func(tt *testing.T) {
+		activity := activities.PoolActivity{SE: mockStorage}
+
+		defer func() {
+			activities.FindTenancyAndGetSubnetwork = createTenancy
+			activities.GetGCPService = GetGCPService
+		}()
+		activities.GetGCPService = func(ctx context.Context) (*google.GcpServices, error) {
+			return &google.GcpServices{Logger: log.NewLogger()}, nil
+		}
+		activities.FindTenancyAndGetSubnetwork = func(ctx context.Context, gcpService hyperscaler.GoogleServices, consumerVPC string, customerProjectNumber string, tenantProjectRegion *string) (*commonparams.TenancyInfo, error) {
+			return nil, errors.New("Error finding tenancy unit")
+		}
+
+		// Act
+		result, err := activity.CreateTenancy(ctx, pool)
+
+		// Assert
+		assert.Error(t, err)
+		assert.Nil(t, result)
+		mockStorage.AssertExpectations(t)
+	})
+}
+
+func Test_FindTenancyAndGetSubnetwork(t *testing.T) {
+	ctx := context.TODO()
+	consumerVPC := "test-vpc"
+	customerProjectNumber := "123456"
+	tenantProjectNumber := "654321"
+	snHostProject := "1234321"
+	tenantProjectRegion := "us-central1"
+	logger := util.GetLogger(ctx)
+
+	t.Run("WhenGetTenantProjectFails", func(tt *testing.T) {
+		mgs := hyperscaler.NewMockGoogleServices(tt)
+		mgs.On("GetLogger").Return(logger)
+		mgs.On("GetTenantProject", consumerVPC, customerProjectNumber, tenantProjectRegion).Return("", errors.New("Error finding tenancy unit"))
+
+		tenancyInfo, err := activities.FindTenancyAndGetSubnetwork(ctx, mgs, consumerVPC, customerProjectNumber, &tenantProjectRegion)
+		assert.Error(tt, err)
+		assert.Nil(tt, tenancyInfo)
+	})
+	t.Run("WhenGetSubnetworkFails", func(tt *testing.T) {
+		mgs := hyperscaler.NewMockGoogleServices(t)
+		mgs.On("GetTenantProject", consumerVPC, customerProjectNumber, tenantProjectRegion).Return(tenantProjectNumber, nil)
+		mgs.On("GetSubnetwork", tenantProjectNumber, tenantProjectRegion, "vsa-us-central1").Return(nil, errors.New("Error getting subnetwork"))
+
+		tenancyInfo, err := activities.FindTenancyAndGetSubnetwork(ctx, mgs, consumerVPC, customerProjectNumber, &tenantProjectRegion)
+		assert.Error(tt, err)
+		assert.Nil(tt, tenancyInfo)
+	})
+	t.Run("WhenSubnetworkAlreadyExists", func(tt *testing.T) {
+		mgs := hyperscaler.NewMockGoogleServices(t)
+		mgs.On("GetTenantProject", consumerVPC, customerProjectNumber, tenantProjectRegion).Return(tenantProjectNumber, nil)
+		mgs.On("GetLogger").Return(logger)
+		mgs.On("GetSubnetwork", tenantProjectNumber, tenantProjectRegion, "vsa-us-central1").Return(&models.Subnet{Name: "vsa-us-central1"}, nil)
+
+		tenancyInfo, err := activities.FindTenancyAndGetSubnetwork(ctx, mgs, consumerVPC, customerProjectNumber, &tenantProjectRegion)
+		assert.NoError(tt, err)
+		assert.Nil(tt, tenancyInfo)
+	})
+	t.Run("WhenCreateSubnetworkForTenantProjectFails", func(tt *testing.T) {
+		mgs := hyperscaler.NewMockGoogleServices(t)
+		mgs.On("GetTenantProject", consumerVPC, customerProjectNumber, tenantProjectRegion).Return(tenantProjectNumber, nil)
+		mgs.On("GetLogger").Return(logger)
+		mgs.On("GetSubnetwork", tenantProjectNumber, tenantProjectRegion, "vsa-us-central1").Return(nil, errors.New("Subnetwork not found"))
+		mgs.On("CreateSubnetworkForTenantProject", tenantProjectNumber, consumerVPC, tenantProjectRegion).Return(nil, errors.New("Error creating subnetwork"))
+
+		tenancyInfo, err := activities.FindTenancyAndGetSubnetwork(ctx, mgs, consumerVPC, customerProjectNumber, &tenantProjectRegion)
+		assert.Error(tt, err)
+		assert.Nil(tt, tenancyInfo)
+	})
+	t.Run("WhenSubnetResponseConversionFails", func(tt *testing.T) {
+		mgs := hyperscaler.NewMockGoogleServices(t)
+		mgs.On("GetTenantProject", consumerVPC, customerProjectNumber, tenantProjectRegion).Return(tenantProjectNumber, nil)
+		mgs.On("GetLogger").Return(logger)
+		mgs.On("GetSubnetwork", tenantProjectNumber, tenantProjectRegion, "vsa-us-central1").Return(nil, errors.New("Subnetwork not found"))
+		mgs.On("CreateSubnetworkForTenantProject", tenantProjectNumber, consumerVPC, tenantProjectRegion).Return([]byte("Invalid Response"), nil)
+
+		tenancyInfo, err := activities.FindTenancyAndGetSubnetwork(ctx, mgs, consumerVPC, customerProjectNumber, &tenantProjectRegion)
+		assert.Error(tt, err)
+		assert.Nil(tt, tenancyInfo)
+	})
+	t.Run("WhenParseProjectIdFails", func(tt *testing.T) {
+		mgs := hyperscaler.NewMockGoogleServices(t)
+		mgs.On("GetTenantProject", consumerVPC, customerProjectNumber, tenantProjectRegion).Return(tenantProjectNumber, nil)
+		mgs.On("GetLogger").Return(logger)
+		mgs.On("GetSubnetwork", tenantProjectNumber, tenantProjectRegion, "vsa-us-central1").Return(nil, errors.New("Subnetwork not found"))
+		mgs.On("CreateSubnetworkForTenantProject", tenantProjectNumber, consumerVPC, tenantProjectRegion).Return([]byte("{\"Network\": \"host-network\"}"), nil)
+
+		tenancyInfo, err := activities.FindTenancyAndGetSubnetwork(ctx, mgs, consumerVPC, customerProjectNumber, &tenantProjectRegion)
+		assert.Error(tt, err)
+		assert.Nil(tt, tenancyInfo)
+	})
+	t.Run("WhenGetSubnetworkFailsAfterCreatingTheSubnetwork", func(tt *testing.T) {
+		mgs := hyperscaler.NewMockGoogleServices(t)
+		mgs.On("GetTenantProject", consumerVPC, customerProjectNumber, tenantProjectRegion).Return(tenantProjectNumber, nil)
+		mgs.On("GetLogger").Return(logger)
+		mgs.On("GetSubnetwork", tenantProjectNumber, tenantProjectRegion, "vsa-us-central1").Return(nil, errors.New("Subnetwork not found")).Once()
+		mgs.On("CreateSubnetworkForTenantProject", tenantProjectNumber, consumerVPC, tenantProjectRegion).Return([]byte("{\"Name\": \"test-subnet\", \"Network\": \"projects/1234321/global/networks/host-network\"}"), nil)
+		mgs.On("GetSubnetwork", snHostProject, tenantProjectRegion, "test-subnet").Return(nil, errors.New("Error getting subnetwork")).Once()
+
+		tenancyInfo, err := activities.FindTenancyAndGetSubnetwork(ctx, mgs, consumerVPC, customerProjectNumber, &tenantProjectRegion)
+		assert.Error(tt, err)
+		assert.Nil(tt, tenancyInfo)
+	})
+	t.Run("WhenFindTenancyAndGetSubnetworkSucceeds", func(tt *testing.T) {
+		mgs := hyperscaler.NewMockGoogleServices(t)
+		mgs.On("GetTenantProject", consumerVPC, customerProjectNumber, tenantProjectRegion).Return(tenantProjectNumber, nil)
+		mgs.On("GetLogger").Return(logger)
+		mgs.On("GetSubnetwork", tenantProjectNumber, tenantProjectRegion, "vsa-us-central1").Return(nil, errors.New("Subnetwork not found")).Once()
+		mgs.On("CreateSubnetworkForTenantProject", tenantProjectNumber, consumerVPC, tenantProjectRegion).Return([]byte("{\"Name\": \"test-subnet\", \"Network\": \"projects/1234321/global/networks/host-network\"}"), nil)
+		mgs.On("GetSubnetwork", snHostProject, tenantProjectRegion, "test-subnet").Return(&models.Subnet{Name: "test-subnet", Network: "projects/1234321/global/networks/host-network", GatewayAddress: "10.0.0.3"}, nil).Once()
+
+		tenancyInfo, err := activities.FindTenancyAndGetSubnetwork(ctx, mgs, consumerVPC, customerProjectNumber, &tenantProjectRegion)
+		assert.NoError(tt, err)
+		assert.NotNil(tt, tenancyInfo)
+	})
 }
 
 func TestDeployDeploymentManager_Success(t *testing.T) {
@@ -198,6 +407,30 @@ func TestGetONTAPProvider_Success(t *testing.T) {
 	assert.NoError(t, err)
 	assert.NotNil(t, res)
 	assert.Equal(t, *res, ontapVersion)
+}
+
+func TestGetONTAPProvider_Failure(t *testing.T) {
+	// Arrange
+	mockProvider := new(vsa.MockProvider) // Use the mock provider
+	originalGetProviderByNode := activities.GetProviderByNode
+	defer func() { activities.GetProviderByNode = originalGetProviderByNode }() // Restore original function after test
+
+	// Mock GetProviderByNode to return the mock provider
+	activities.GetProviderByNode = func(node *coremodel.Node) vsa.Provider {
+		return mockProvider
+	}
+
+	activity := activities.PoolActivity{
+		SE: database.NewMockStorage(t),
+	}
+
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	node := &coremodel.Node{}
+	mockProvider.On("GetONTAPVersion", mock.Anything).Return(nil, errors.New("failed to get ONTAP version"))
+
+	res, err := activity.GetOntapVersion(ctx, node)
+	assert.Error(t, err)
+	assert.Nil(t, res)
 }
 
 func Test_prepareVlmConfig_Success(t *testing.T) {
@@ -375,6 +608,40 @@ func Test_CreateVSASVM_FailsToCreateSVM(t *testing.T) {
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "failed to create SVM")
 	mockVlmClient.AssertExpectations(t)
+}
+
+func Test_CreateVSASVM_CouldNotFetchNodes(t *testing.T) {
+	mockStorage := database.NewMockStorage(t)
+	mockVlmClient := new(vlm.MockClientFactory)
+	activity := activities.PoolActivity{SE: mockStorage}
+	getVLMClient := activities.GetVLMClient
+	defer func() {
+		activities.GetVLMClient = getVLMClient
+	}()
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	pool := &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: 1}, AccountID: 1}
+	vlmConfig := &vlmconfig.VLMConfig{
+		Deployment: vlmconfig.DeploymentConfig{DeploymentID: "test-deployment"},
+		Svm: map[string]vlmconfig.SvmConfig{
+			"test-deployment-datasvm-gcnv-default-svm": {
+				Svmname: "test-svm",
+				Svmuuid: "test-uuid",
+			},
+		},
+	}
+
+	mockVlmClient.On("VSASVMCreate", ctx, mock.Anything).Return(nil)
+	mockStorage.On("CreateSVM", ctx, mock.Anything).Return(&datamodel.Svm{}, nil)
+	mockStorage.On("GetNodesByPoolID", ctx, pool.ID).Return(nil, gorm.ErrRecordNotFound)
+
+	activities.GetVLMClient = func(ctx context.Context, logger log.Logger, vlmConfig *vlmconfig.VLMConfig) vlm.ClientFactory {
+		return mockVlmClient
+	}
+
+	err := activity.CreateVSASVM(ctx, pool, vlmConfig)
+
+	assert.Error(t, err)
+	mockStorage.AssertExpectations(t)
 }
 
 func Test_CreateVSASVM_NotEnoughNodes(t *testing.T) {
@@ -611,6 +878,41 @@ func Test_SaveNodeDetails_FailsToCreateNode(t *testing.T) {
 	assert.Error(t, err)
 	assert.Nil(t, node)
 	assert.Contains(t, err.Error(), "failed to create node")
+	mockStorage.AssertExpectations(t)
+}
+
+func Test_SaveNodeDetails_FailsToFetchNodeByName(t *testing.T) {
+	mockStorage := database.NewMockStorage(t)
+	mockProvider := new(vsa.MockProvider) // Use the mock provider
+	originalGetProviderByNode := activities.GetProviderByNode
+	defer func() { activities.GetProviderByNode = originalGetProviderByNode }() // Restore original function after test
+
+	// Mock GetProviderByNode to return the mock provider
+	activities.GetProviderByNode = func(node *coremodel.Node) vsa.Provider {
+		return mockProvider
+	}
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	pool := &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: 1}, AccountID: 1}
+	vmConfig := vlmconfig.VMConfig{
+		HostName: "test-node",
+		SystemLIFs: map[vlmconfig.VSALIFType]vlmconfig.LIFConfig{
+			vlmconfig.LIFTypeNodeMgmt: {IP: "192.168.1.1"},
+		},
+		Zone: "test-zone",
+	}
+	deploymentConfig := vlmconfig.DeploymentConfig{
+		OntapCredentials: vlmconfig.OntapCredentials{
+			Username: "admin",
+			Password: "password",
+		},
+		VSAInstanceType: "n1-standard-4",
+	}
+
+	mockProvider.On("GetNodeByName", mock.Anything).Return(nil, errors.New("failed to fetch node"))
+	node, err := activities.SaveNodeDetails(ctx, mockStorage, vmConfig, deploymentConfig, pool)
+
+	assert.Error(t, err)
+	assert.Nil(t, node)
 	mockStorage.AssertExpectations(t)
 }
 
@@ -1753,7 +2055,13 @@ func Test_InsertFirewall(t *testing.T) {
 		mgs.On("GetFirewall", projectName, firewallName).Return(nil, errors.New(errString))
 
 		err := activities.InsertFirewall(mgs, projectName, firewallName, vpcName, priority, direction, firewallSourceRanges, firewallAllowedPortRules)
-		assert.EqualError(tt, err, fmt.Sprintf("Error getting subnet for project: %s, vpc name: %s, firewall name: %s. Error : %s", projectName, vpcName, firewallName, errString))
+
+		var customErr *vsaerrors.CustomError
+		if vsaerrors.As(err, &customErr) {
+			assert.EqualError(tt, customErr.Unwrap(), fmt.Sprintf("Error getting subnet for project: %s, vpc name: %s, firewall name: %s. Error : %s", projectName, vpcName, firewallName, errString))
+		} else {
+			tt.Fatalf("Expected a CustomError, got: %T", err)
+		}
 		mgs.AssertExpectations(tt)
 	})
 
@@ -1832,7 +2140,13 @@ func Test_CreateVPC(t *testing.T) {
 		mgs.On("GetVPCNetwork", projectName, vpcName).Return(nil, errors.New(errString))
 
 		err := activities.CreateVPC(mgs, projectName, vpcName)
-		assert.EqualError(tt, err, fmt.Sprintf("Error getting vpc for project: %s and vpc name: %s. Error : %s", projectName, vpcName, errString))
+
+		var customErr *vsaerrors.CustomError
+		if vsaerrors.As(err, &customErr) {
+			assert.EqualError(tt, customErr.Unwrap(), fmt.Sprintf("Error getting vpc for project: %s and vpc name: %s. Error : %s", projectName, vpcName, errString))
+		} else {
+			tt.Fatalf("Expected a CustomError, got: %T", err)
+		}
 		mgs.AssertExpectations(tt)
 	})
 
@@ -1865,7 +2179,13 @@ func Test_CreateVPC(t *testing.T) {
 		mgs.On("CreateVPC", &models.VPCNetwork{Name: vpcName, ProjectName: projectName}).Return(errors.New(errString))
 
 		err := activities.CreateVPC(mgs, projectName, vpcName)
-		assert.EqualError(tt, err, fmt.Sprintf("Error creating vpc for project: %s and vpc name: %s. Error : %s", projectName, vpcName, errString))
+
+		var customErr *vsaerrors.CustomError
+		if vsaerrors.As(err, &customErr) {
+			assert.EqualError(tt, customErr.Unwrap(), fmt.Sprintf("Error creating vpc for project: %s and vpc name: %s. Error : %s", projectName, vpcName, errString))
+		} else {
+			tt.Fatalf("Expected a CustomError, got: %T", err)
+		}
 		mgs.AssertExpectations(tt)
 	})
 
@@ -1882,7 +2202,13 @@ func Test_CreateVPC(t *testing.T) {
 		mgs.On("CreateVPC", &models.VPCNetwork{Name: vpcName, ProjectName: projectName}).Return(errors.New(errString))
 
 		err := activities.CreateVPC(mgs, projectName, vpcName)
-		assert.EqualError(tt, err, fmt.Sprintf("Error creating vpc for project: %s and vpc name: %s. Error : %s", projectName, vpcName, errString))
+
+		var customErr *vsaerrors.CustomError
+		if vsaerrors.As(err, &customErr) {
+			assert.EqualError(tt, customErr.Unwrap(), fmt.Sprintf("Error creating vpc for project: %s and vpc name: %s. Error : %s", projectName, vpcName, errString))
+		} else {
+			tt.Fatalf("Expected a CustomError, got: %T", err)
+		}
 		mgs.AssertExpectations(tt)
 	})
 
@@ -1939,7 +2265,13 @@ func Test_InsertSubnet(t *testing.T) {
 		mgs.On("GetSubnetwork", projectName, region, subnetName).Return(nil, errors.New(errString))
 
 		err := activities.InsertSubnet(mgs, projectName, &region, subnetName, vpcName, ipCidrRange)
-		assert.EqualError(tt, err, "Error getting subnet for project: test-project, vpc name: test-vpc, subnet name: test-subnet. Error : "+errString)
+
+		var customErr *vsaerrors.CustomError
+		if vsaerrors.As(err, &customErr) {
+			assert.EqualError(tt, customErr.Unwrap(), "Error getting subnet for project: test-project, vpc name: test-vpc, subnet name: test-subnet. Error : "+errString)
+		} else {
+			tt.Fatalf("Expected a CustomError, got: %T", err)
+		}
 		mgs.AssertExpectations(tt)
 	})
 

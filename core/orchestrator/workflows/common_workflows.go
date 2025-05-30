@@ -6,11 +6,13 @@ import (
 	"time"
 
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
+	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 	"go.temporal.io/sdk/client"
+	"go.temporal.io/sdk/temporal"
 	"go.temporal.io/sdk/workflow"
 )
 
@@ -36,6 +38,8 @@ var (
 	RetryMaxAttempts    = env.GetInt("RETRY_MAX_ATTEMPTS", 3)
 	RetryMaxInterval    = env.GetString("RETRY_MAX_INTERVAL", "5m")
 	RetryBackoff        = env.GetString("RETRY_BACKOFF_COEFFICIENT", "2.0")
+
+	executeActivity = workflow.ExecuteActivity
 )
 
 type WorkflowRetryPolicy struct {
@@ -77,20 +81,20 @@ func (bw *BaseWorkflow) GetDefaultActivityOptions(ctx workflow.Context) workflow
 func PopulateRetryPolicyParams() (*WorkflowRetryPolicy, error) {
 	activityStartToCloseTimeout, err := time.ParseDuration(StartToCloseTimeout)
 	if err != nil {
-		return nil, err
+		return nil, vsaerrors.NewVCPError(vsaerrors.ErrWorkflowConfigurationError, err)
 	}
 	activityRetryInterval, err := time.ParseDuration(RetryInterval)
 	if err != nil {
-		return nil, err
+		return nil, vsaerrors.NewVCPError(vsaerrors.ErrWorkflowConfigurationError, err)
 	}
 	activityRetryMaxAttempts := RetryMaxAttempts
 	activityRetryMaxInterval, err := time.ParseDuration(RetryMaxInterval)
 	if err != nil {
-		return nil, err
+		return nil, vsaerrors.NewVCPError(vsaerrors.ErrWorkflowConfigurationError, err)
 	}
 	activityRetryBackoff, err := strconv.ParseFloat(RetryBackoff, 64)
 	if err != nil {
-		return nil, err
+		return nil, vsaerrors.NewVCPError(vsaerrors.ErrWorkflowConfigurationError, err)
 	}
 	return &WorkflowRetryPolicy{
 		InitialInterval:     activityRetryInterval,
@@ -107,14 +111,35 @@ func (bw *BaseWorkflow) UpdateJobStatus(ctx workflow.Context, status string, err
 		State:     status,
 	}
 	if err != nil {
-		updatedJob.ErrorDetails = []byte(err.Error())
+		var applicationError *temporal.ApplicationError
+		if vsaerrors.As(err, &applicationError) {
+			if applicationError.Type() == "CustomError" {
+				var (
+					trackingID   int
+					errorDetails string
+				)
+
+				err = applicationError.Details(&trackingID, &errorDetails)
+				if err != nil {
+					bw.Logger.Warn("Couldn't find tracking ID/original error details in the application error", err)
+					updatedJob.TrackingID = -1
+					updatedJob.ErrorDetails = []byte(err.Error())
+				}
+
+				updatedJob.TrackingID = trackingID
+				updatedJob.ErrorDetails = []byte(errorDetails)
+			} else {
+				updatedJob.TrackingID = 0
+				updatedJob.ErrorDetails = []byte(err.Error())
+			}
+		}
 	}
 
 	commonActivity := activities.CommonActivities{}
 	ctx = workflow.WithActivityOptions(ctx, workflow.ActivityOptions{
 		ScheduleToCloseTimeout: 10 * time.Second,
 	})
-	return workflow.ExecuteActivity(ctx, commonActivity.UpdateJobStatus, updatedJob).Get(ctx, nil)
+	return executeActivity(ctx, commonActivity.UpdateJobStatus, updatedJob).Get(ctx, nil)
 }
 
 // QueryWorkflowStatus queries the status of a workflow using its ID and run ID.

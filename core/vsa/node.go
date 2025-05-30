@@ -3,6 +3,7 @@ package vsa
 import (
 	"fmt"
 
+	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	ontapRest "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/ontap-rest"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/nillable"
 )
@@ -84,12 +85,12 @@ func (rc *OntapRestProvider) GetNodeByName(name string) (*Node, error) {
 
 	// Handle errors from the NodesGet call
 	if err != nil {
-		return nil, err
+		return nil, vsaerrors.NewVCPError(vsaerrors.ErrCouldNotFetchVSAClusterDetails, err)
 	}
 
 	if resultNode == nil {
 		// If no node was found, return an error
-		return nil, fmt.Errorf("node with name %s not found", name)
+		return nil, vsaerrors.NewVCPError(vsaerrors.ErrVSAClusterNodeNotFound, fmt.Errorf("node with name %s not found", name))
 	}
 
 	return resultNode, nil
@@ -99,7 +100,7 @@ func (rc *OntapRestProvider) GetONTAPVersion() (*string, error) {
 	client := getOntapClientFunc(rc.ClientParams)
 	version, err := client.Cluster().GetONTAPVersion()
 	if err != nil {
-		return nil, err
+		return nil, vsaerrors.NewVCPError(vsaerrors.ErrONTAPVersionFetchError, err)
 	}
 	return version, nil
 }

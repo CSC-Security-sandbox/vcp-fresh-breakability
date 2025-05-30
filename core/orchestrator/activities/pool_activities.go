@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"gorm.io/gorm"
 	"os"
 	"strings"
 	"time"
@@ -16,6 +15,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/vlm"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
+	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	commonparams "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
@@ -26,6 +26,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 	"google.golang.org/api/servicenetworking/v1"
+	"gorm.io/gorm"
 	"netapp.com/vsa/lifecycle-manager/pkg/vlmconfig"
 )
 
@@ -89,42 +90,38 @@ func (j *PoolActivity) FailedPool(ctx context.Context, pool *datamodel.Pool, err
 
 func (j *PoolActivity) CreatedPool(ctx context.Context, pool *datamodel.Pool) (*datamodel.Pool, error) {
 	se := j.SE
-	return se.CreatedPool(ctx, pool)
+	pool, err := se.CreatedPool(ctx, pool)
+	if err != nil {
+		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
+	}
+
+	return pool, nil
 }
 
 func (j *PoolActivity) CreateTenancy(ctx context.Context, params commonparams.CreatePoolParams) (*commonparams.TenancyInfo, error) {
-	tenancy, err := FindTenancyAndGetSubnetwork(ctx, params.VendorSubNetID, params.AccountName, &params.Region)
+	gcpService, err := GetGCPService(ctx)
 	if err != nil {
-		return nil, err
+		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
+	}
+	gcpService.Logger.Debug("gcpService initialized")
+
+	tenancy, err := FindTenancyAndGetSubnetwork(ctx, gcpService, params.VendorSubNetID, params.AccountName, &params.Region)
+	if err != nil {
+		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
 	}
 	return tenancy, nil
 }
 
 // _findTenancyAndGetSubnetwork finds the tenancy unit and creates a subnetwork for the tenant project
-func _findTenancyAndGetSubnetwork(ctx context.Context, consumerVPC string, customerProjectNumber string, tenantProjectRegion *string) (*commonparams.TenancyInfo, error) {
-	logger := util.GetLogger(ctx)
+func _findTenancyAndGetSubnetwork(ctx context.Context, gcpService hyperscaler.GoogleServices, consumerVPC string, customerProjectNumber string, tenantProjectRegion *string) (*commonparams.TenancyInfo, error) {
 	// need to pass tenantProjectRegion only in case of CBR where region != the regional region as set from env variable
-	gcpService := &google.GcpServices{
-		Ctx:    ctx,
-		Logger: logger,
-		Retry:  google.NewExponentialRetryStrategy(time.Second, uint(maxRetries)),
-	}
-
-	gcpService.Logger.Debug("gcpService initialized")
-
 	if tenantProjectRegion == nil {
 		tenantProjectRegion = &localRegion
-	}
-	gcpService.Logger.Debug("Calling InitializeClients")
-	err := gcpService.InitializeClients()
-	if err != nil || !gcpService.IsAdminClientInitialized() {
-		gcpService.Logger.Debug("Initialisation of service failed")
-		return nil, errors.New("initialisation of service failed")
 	}
 
 	tenantProjectNumber, err := gcpService.GetTenantProject(consumerVPC, customerProjectNumber, *tenantProjectRegion)
 	if err != nil {
-		gcpService.Logger.Errorf("Error finding tenancy unit: %v", err)
+		gcpService.GetLogger().Errorf("Error finding tenancy unit: %v", err)
 		return nil, err
 	}
 
@@ -138,20 +135,20 @@ func _findTenancyAndGetSubnetwork(ctx context.Context, consumerVPC string, custo
 		}
 	}
 	if subnetReceived != nil && subnetReceived.Name == subnetName {
-		gcpService.Logger.Debug(fmt.Sprintf("Subnetwork %s already exists in tenant project %s and region %s. Won't create another subnet for this region", subnetName, tenantProjectNumber, *tenantProjectRegion))
+		gcpService.GetLogger().Debug(fmt.Sprintf("Subnetwork %s already exists in tenant project %s and region %s. Won't create another subnet for this region", subnetName, tenantProjectNumber, *tenantProjectRegion))
 		return nil, nil
 	}
 	subnetInBytes, err := gcpService.CreateSubnetworkForTenantProject(tenantProjectNumber, consumerVPC, *tenantProjectRegion)
 	if err != nil {
-		gcpService.Logger.Errorf("Error adding subnetwork: %v", err)
+		gcpService.GetLogger().Errorf("Error adding subnetwork: %v", err)
 		return nil, err
 	}
 	subnet := &servicenetworking.Subnetwork{}
-	gcpService.Logger.Debug(fmt.Sprintf("subnetInBytes %s", string(subnetInBytes)))
+	gcpService.GetLogger().Debug(fmt.Sprintf("subnetInBytes %s", string(subnetInBytes)))
 
 	if err := json.Unmarshal(subnetInBytes, subnet); err != nil {
-		gcpService.Logger.Debug(fmt.Sprintf("subnetInBytes json unmarshal error %s", err.Error()))
-		return nil, err
+		gcpService.GetLogger().Debug(fmt.Sprintf("subnetInBytes json unmarshal error %s", err.Error()))
+		return nil, vsaerrors.NewVCPError(vsaerrors.ErrJSONParsingError, err)
 	}
 	snHostProject, network, err := utils.ParseProjectId(subnet.Network)
 	if err != nil {
@@ -159,11 +156,10 @@ func _findTenancyAndGetSubnetwork(ctx context.Context, consumerVPC string, custo
 	}
 	subnetwork, err := gcpService.GetSubnetwork(snHostProject, *tenantProjectRegion, subnet.Name)
 	if err != nil {
-		return nil, err
+		return nil, vsaerrors.NewVCPError(vsaerrors.ErrGCPResourceFetchError, err)
 	}
-
-	gcpService.Logger.Debug(fmt.Sprintf("Subnet IpCidrRange %s, consumerPeeringNetwork %s, subnet %s", subnet.IpCidrRange, consumerVPC, subnet.Name))
-	gcpService.Logger.Debug(fmt.Sprintf("FindTenancyAndGetSubnetwork: tenantProjectNumber :  %s subnet  :  %s IpCidrRange : %s, consumerPeeringNetwork : %s", tenantProjectNumber, subnet.Name, subnet.IpCidrRange, consumerVPC))
+	gcpService.GetLogger().Debug(fmt.Sprintf("Subnet IpCidrRange %s, consumerPeeringNetwork %s, subnet %s", subnet.IpCidrRange, consumerVPC, subnet.Name))
+	gcpService.GetLogger().Debug(fmt.Sprintf("FindTenancyAndGetSubnetwork: tenantProjectNumber :  %s subnet  :  %s IpCidrRange : %s, consumerPeeringNetwork : %s", tenantProjectNumber, subnet.Name, subnet.IpCidrRange, consumerVPC))
 
 	return &commonparams.TenancyInfo{
 		RegionalTenantProject: tenantProjectNumber,
@@ -187,7 +183,7 @@ func (j *PoolActivity) SetupNetwork(ctx context.Context, region, project, snHost
 
 	serviceStruct, err := GetGCPService(ctx)
 	if err != nil {
-		return err
+		return vsaerrors.WrapAsTemporalApplicationError(err)
 	}
 	service := hyperscaler.GoogleServices(serviceStruct)
 	i := 1
@@ -198,14 +194,14 @@ func (j *PoolActivity) SetupNetwork(ctx context.Context, region, project, snHost
 		}
 		err = SetupNetworkWithFirewall(ctx, project, vpcName, &region, subnetName, fmt.Sprintf("198.18.%d.0/27", i*3), firewallPriority, ingressTrafficDirection, strings.Split(firewallSourceRange, ","), firewallPortRules)
 		if err != nil {
-			return err
+			return vsaerrors.WrapAsTemporalApplicationError(err)
 		}
 		i++
 	}
 
 	err = SetupNetworkFirewallsForIscsi(service, snHostProject, network)
 	if err != nil {
-		return err
+		return vsaerrors.WrapAsTemporalApplicationError(err)
 	}
 	return nil
 }
@@ -226,7 +222,12 @@ func (j *PoolActivity) DeployDeploymentManager(ctx context.Context, deploymentNa
 
 func (j *PoolActivity) SavePoolWithClusterDetails(ctx context.Context, dbPool *datamodel.Pool, cluster *datamodel.ClusterDetails) error {
 	se := j.SE
-	return se.SavePoolWithVsaClusterDetails(ctx, dbPool, cluster)
+	err := se.SavePoolWithVsaClusterDetails(ctx, dbPool, cluster)
+	if err != nil {
+		return vsaerrors.WrapAsTemporalApplicationError(err)
+	}
+
+	return nil
 }
 
 func _getProviderByNode(node *models.Node) vsa.Provider {
@@ -246,7 +247,12 @@ func _getVLMClient(ctx context.Context, logger log.Logger, vlmConfig *vlmconfig.
 
 func (j *PoolActivity) GetOntapVersion(ctx context.Context, node *models.Node) (*string, error) {
 	provider := GetProviderByNode(node)
-	return provider.GetONTAPVersion()
+	version, err := provider.GetONTAPVersion()
+	if err != nil {
+		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
+	}
+
+	return version, nil
 }
 
 func (j *PoolActivity) CreateVSASVM(ctx context.Context, pool *datamodel.Pool, vlmConfig *vlmconfig.VLMConfig) error {
@@ -261,7 +267,7 @@ func (j *PoolActivity) CreateVSASVM(ctx context.Context, pool *datamodel.Pool, v
 	err := vlmClient.VSASVMCreate(ctx, svmParam)
 	// If the SVM already exists, we can ignore the error and move forward
 	if err != nil && !strings.Contains(err.Error(), "already exists and is in use by a different VM") {
-		return err
+		return vsaerrors.WrapAsTemporalApplicationError(err)
 	}
 	name := vlmConfig.Deployment.DeploymentID + "-datasvm-" + defaultSvmName
 	svm := vlmConfig.Svm[name]
@@ -276,15 +282,15 @@ func (j *PoolActivity) CreateVSASVM(ctx context.Context, pool *datamodel.Pool, v
 		},
 	}
 	if _, err = se.CreateSVM(ctx, svmRec); err != nil && !utilErrors.IsConflictErr(err) {
-		return err
+		return vsaerrors.WrapAsTemporalApplicationError(err)
 	}
 
 	nodes, err := se.GetNodesByPoolID(ctx, pool.ID)
 	if err != nil {
-		return err
+		return vsaerrors.WrapAsTemporalApplicationError(err)
 	}
 	if len(nodes) < 2 {
-		return errors.New("not enough nodes in the cluster to create LIFs for SVM " + svm.Svmname)
+		return vsaerrors.NewVCPError(vsaerrors.ErrIncorrectVSAClusterState, errors.New("not enough nodes in the cluster to create LIFs for SVM "+svm.Svmname))
 	}
 	lifs := svm.SVMLIFs[vlmconfig.LIFTypeIscsi]
 
@@ -299,9 +305,8 @@ func (j *PoolActivity) CreateVSASVM(ctx context.Context, pool *datamodel.Pool, v
 			IPAddress:  ip,
 			SubnetMask: vsa.DefaultNetmask,
 		}
-
 		if _, err = se.CreateLif(ctx, lifRec); err != nil && !utilErrors.IsConflictErr(err) {
-			return err
+			return vsaerrors.WrapAsTemporalApplicationError(err)
 		}
 	}
 
@@ -313,14 +318,14 @@ func (j *PoolActivity) CreateVSACluster(ctx context.Context, deploymentName, reg
 	cfg := &vlmconfig.VLMConfig{}
 	err := PrepareVlmConfig(cfg, deploymentName, region, zone, network, subnet, projectId, snHostProject)
 	if err != nil {
-		return nil, err
+		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
 	}
 	vlmClient := GetVLMClient(ctx, logger, cfg)
 
 	err = vlmClient.VSAClusterDeployCreate(ctx, cfg)
 	if err != nil {
 		logger.Error("Failed to create VSA cluster", "error", err)
-		return nil, err
+		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
 	}
 	return cfg, nil
 }
@@ -336,11 +341,11 @@ func assignNetworkConfig(cfg *vlmconfig.VLMConfig, lifType vlmconfig.VSALIFType,
 func _prepareVlmConfig(cfg *vlmconfig.VLMConfig, deploymentName, region, zone, network, subnet, projectId, snHostProject string) error {
 	vlmContent, err := ReadFile("common/vsa_config/vlm-config.json")
 	if err != nil {
-		return err
+		return vsaerrors.NewVCPError(vsaerrors.ErrFileReadError, err)
 	}
 	err = json.Unmarshal(vlmContent, cfg)
 	if err != nil {
-		return err
+		return vsaerrors.NewVCPError(vsaerrors.ErrJSONParsingError, err)
 	}
 	cfg.Deployment.DeploymentID = deploymentName
 	cfg.Deployment.DeploymentName = deploymentName
@@ -384,42 +389,43 @@ func _prepareVlmConfig(cfg *vlmconfig.VLMConfig, deploymentName, region, zone, n
 
 func (j *PoolActivity) DeleteVSADeployment(ctx context.Context, pool *datamodel.Pool) (*datamodel.Pool, error) {
 	if pool.ClusterDetails.ExternalName == "" {
-		return nil, errors.New("pool cannot be deleted with active clusters")
+		return nil, vsaerrors.WrapAsTemporalApplicationError(vsaerrors.NewVCPError(vsaerrors.ErrIncorrectVSAClusterState, errors.New("pool cannot be deleted with active clusters")))
 	}
 	deploymentName := pool.ClusterDetails.ExternalName
 	se := j.SE
 	node, err := se.GetNodesByPoolID(ctx, pool.ID)
 	if err != nil {
-		return nil, err
+		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
 	}
 
 	logger := util.GetLogger(ctx)
 	cfg := &vlmconfig.VLMConfig{}
 	err = PrepareVlmConfig(cfg, deploymentName, localRegion, node[0].ZoneName, pool.ClusterDetails.Network, "vsa-"+localRegion, pool.ClusterDetails.RegionalTenantProject, pool.ClusterDetails.SnHostProject)
 	if err != nil {
-		return nil, err
+		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
 	}
 	vlmClient := GetVLMClient(ctx, logger, cfg)
 
 	err = vlmClient.VSAClusterDeploymentDelete(ctx, cfg)
 	if err != nil {
-		return nil, err
+		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
 	}
 	return pool, nil
 }
 
 func (j *PoolActivity) SaveVSANodeDetails(ctx context.Context, pool *datamodel.Pool, vlmConfig *vlmconfig.VLMConfig) (node1 *datamodel.Node, err error) {
 	if len(vlmConfig.Cloud.HAPairs) == 0 {
-		return nil, errors.New("no cluster details provided")
+		return nil, vsaerrors.WrapAsTemporalApplicationError(
+			vsaerrors.NewVCPError(vsaerrors.ErrIncorrectVSAClusterState, errors.New("no cluster details provided")))
 	}
 	for _, details := range vlmConfig.Cloud.HAPairs {
 		node1, err = SaveNodeDetails(ctx, j.SE, details.VM1, vlmConfig.Deployment, pool)
 		if err != nil {
-			return nil, err
+			return nil, vsaerrors.WrapAsTemporalApplicationError(err)
 		}
 		_, err = SaveNodeDetails(ctx, j.SE, details.VM2, vlmConfig.Deployment, pool)
 		if err != nil {
-			return nil, err
+			return nil, vsaerrors.WrapAsTemporalApplicationError(err)
 		}
 	}
 	return node1, nil
@@ -438,7 +444,7 @@ func _saveNodeDetails(ctx context.Context, se database.Storage, vmConfig vlmconf
 
 	vsaNode, err := provider.GetNodeByName(node.Name)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get node %s: %w", node.Name, err)
+		return nil, err
 	}
 	rec := &datamodel.Node{
 		Name:            node.Name,
@@ -495,18 +501,23 @@ func (j *PoolActivity) CreateLifForSvm(ctx context.Context, node *models.Node, c
 
 func (j *PoolActivity) GetPool(ctx context.Context, pool *datamodel.Pool) (*datamodel.Pool, error) {
 	se := j.SE
-	return se.GetPool(ctx, pool.UUID, 0)
+	pool, err := se.GetPool(ctx, pool.UUID, 0)
+	if err != nil {
+		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
+	}
+
+	return pool, nil
 }
 
 func (j *PoolActivity) DeletingPoolResources(ctx context.Context, pool *datamodel.Pool) (*datamodel.Pool, error) {
 	se := j.SE
 	// Update SVM, and Pool States to Deleting
 	if err := DeletingSVMs(ctx, se, pool); err != nil {
-		return nil, err
+		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
 	}
 
 	if err := DeletingNodes(ctx, se, pool); err != nil {
-		return nil, err
+		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
 	}
 	return pool, nil
 }
@@ -518,27 +529,14 @@ func (j *PoolActivity) ReleaseSubnet(ctx context.Context, pool *datamodel.Pool) 
 	conditions = append(conditions, []interface{}{"network = ?", pool.Network})
 	pools, err := se.ListPools(ctx, conditions)
 	if err != nil {
-		return err
+		return vsaerrors.WrapAsTemporalApplicationError(err)
 	}
 	if len(pools) > 1 {
 		logger.Info("Skipping release subnetwork as there are other pools in the same region for the account")
 		return nil
 	}
 	var gService hyperscaler.GoogleServices
-	gcpService := &google.GcpServices{
-		Ctx:    ctx,
-		Logger: logger,
-	}
-	gService = gcpService
-
-	gcpService.Logger.Debug("gcpService initialized")
-
-	gcpService.Logger.Debug("Calling InitializeClients")
-	err = gService.InitializeClients()
-	if err != nil || !gService.IsAdminClientInitialized() {
-		gcpService.Logger.Debug("Initialisation of service failed")
-		return errors.New("initialisation of service failed")
-	}
+	gcpService := NewGcpServices(ctx)
 
 	consumerVpc := pool.Network
 	accountName := pool.Account.Name
@@ -563,22 +561,22 @@ func (j *PoolActivity) DeletePoolResources(ctx context.Context, pool *datamodel.
 
 	// Delete LIFs
 	if err := DeleteLIFs(ctx, se, pool); err != nil {
-		return nil, err
+		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
 	}
 
 	// Delete SVMs
 	if err := DeleteSVMs(ctx, se, pool); err != nil {
-		return nil, err
+		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
 	}
 
 	// Delete nodes
 	if err := DeleteNodes(ctx, se, pool); err != nil {
-		return nil, err
+		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
 	}
 
 	// Delete the pool itself from a database
 	if err := se.DeletePool(ctx, pool); err != nil {
-		return nil, err
+		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
 	}
 	return pool, nil
 }
@@ -598,7 +596,7 @@ func (j *PoolActivity) EnableAutoTiering(ctx context.Context, params commonparam
 
 	err := CreateGCPBucket(ctx, projectId, poolId, params.Region, gcpService)
 	if err != nil {
-		return err
+		return vsaerrors.WrapAsTemporalApplicationError(err)
 	}
 
 	return nil
@@ -617,7 +615,7 @@ func _createGCPBucket(ctx context.Context, projectId, poolId, region string, gcp
 	err = gcpService.CreateBucketIfNotExists(ctx, projectId, bucketName, region)
 	if err != nil {
 		logger.Errorf("error creating bucket: %v", err)
-		return err
+		return vsaerrors.NewVCPError(vsaerrors.ErrGCPResourceAlreadyExistsError, err)
 	}
 	logger.Infof("Bucket created successfully %s", bucketName)
 
@@ -630,7 +628,7 @@ func _deletingSVMs(ctx context.Context, se database.Storage, pool *datamodel.Poo
 	svms, err := se.GetSvmsByPoolID(ctx, pool.ID)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return errors.New("SVM not found")
+			return vsaerrors.NewVCPError(vsaerrors.ErrSVMNotFound, errors.New("SVM not found"))
 		}
 		return err
 	}
@@ -640,7 +638,7 @@ func _deletingSVMs(ctx context.Context, se database.Storage, pool *datamodel.Poo
 			continue
 		}
 		if err = se.DeletingSVM(ctx, svm); err != nil {
-			return fmt.Errorf("failed to update SVM record to deleting %s: %w", svm.Name, err)
+			return vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataUpdateError, fmt.Errorf("failed to update SVM record to deleting %s: %w", svm.Name, err))
 		}
 	}
 
@@ -652,7 +650,7 @@ func _deletingNodes(ctx context.Context, se database.Storage, pool *datamodel.Po
 	// Retrieve the nodes associated with the pool
 	nodes, err := se.GetNodesByPoolID(ctx, pool.ID)
 	if err != nil {
-		return fmt.Errorf("failed to retrieve nodes for pool %d: %w", pool.ID, err)
+		return vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataReadError, fmt.Errorf("failed to retrieve nodes for pool %d: %w", pool.ID, err))
 	}
 
 	// Delete each node
@@ -663,7 +661,7 @@ func _deletingNodes(ctx context.Context, se database.Storage, pool *datamodel.Po
 		}
 		// Delete the node record from the database
 		if err := se.DeletingNode(ctx, node); err != nil {
-			return fmt.Errorf("failed to delete node record %s: %w", node.Name, err)
+			return vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataUpdateError, fmt.Errorf("failed to delete node record %s: %w", node.Name, err))
 		}
 	}
 	return nil
@@ -675,7 +673,7 @@ func _deleteSVMs(ctx context.Context, se database.Storage, pool *datamodel.Pool)
 	svms, err := se.GetSvmsByPoolID(ctx, pool.ID)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return errors.New("SVM not found")
+			return vsaerrors.NewVCPError(vsaerrors.ErrSVMNotFound, errors.New("SVM not found"))
 		}
 		return err
 	}
@@ -686,7 +684,7 @@ func _deleteSVMs(ctx context.Context, se database.Storage, pool *datamodel.Pool)
 			continue
 		}
 		if err := se.DeleteSVM(ctx, svm); err != nil {
-			return fmt.Errorf("failed to delete SVM record %s: %w", pool.Name, err)
+			return vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataUpdateError, fmt.Errorf("failed to delete SVM record %s: %w", pool.Name, err))
 		}
 	}
 	return nil
@@ -697,7 +695,7 @@ func _deleteLIFs(ctx context.Context, se database.Storage, pool *datamodel.Pool)
 	// Retrieve the nodes associated with the pool
 	nodes, err := se.GetNodesByPoolID(ctx, pool.ID)
 	if err != nil {
-		return fmt.Errorf("failed to retrieve nodes for pool %d: %w", pool.ID, err)
+		return vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataReadError, fmt.Errorf("failed to retrieve nodes for pool %d: %w", pool.ID, err))
 	}
 
 	// Delete each LIF
@@ -705,7 +703,7 @@ func _deleteLIFs(ctx context.Context, se database.Storage, pool *datamodel.Pool)
 		// Retrieve the LIFs associated with the Node
 		lif, err := se.GetLifByNodeID(ctx, node.ID, node.AccountID)
 		if err != nil {
-			return fmt.Errorf("failed to retrieve LIFs for Node %s: %w", node.Name, err)
+			return vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataReadError, fmt.Errorf("failed to retrieve LIFs for Node %s: %w", node.Name, err))
 		}
 
 		if lif.DeletedAt != nil && lif.DeletedAt.Valid {
@@ -714,7 +712,7 @@ func _deleteLIFs(ctx context.Context, se database.Storage, pool *datamodel.Pool)
 
 		// Delete the LIF record from the database
 		if err := se.DeleteLif(ctx, lif); err != nil {
-			return fmt.Errorf("failed to delete LIF record %s: %w", lif.Name, err)
+			return vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataUpdateError, fmt.Errorf("failed to delete LIF record %s: %w", lif.Name, err))
 		}
 	}
 
@@ -726,7 +724,7 @@ func _deleteNodes(ctx context.Context, se database.Storage, pool *datamodel.Pool
 	// Retrieve the nodes associated with the pool
 	nodes, err := se.GetNodesByPoolID(ctx, pool.ID)
 	if err != nil {
-		return fmt.Errorf("failed to retrieve nodes for pool %d: %w", pool.ID, err)
+		return vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataReadError, fmt.Errorf("failed to retrieve nodes for pool %d: %w", pool.ID, err))
 	}
 
 	// Delete each node
@@ -737,7 +735,7 @@ func _deleteNodes(ctx context.Context, se database.Storage, pool *datamodel.Pool
 		}
 		// Delete the node record from the database
 		if err := se.DeleteNode(ctx, node); err != nil {
-			return fmt.Errorf("failed to update node record to deleting %s: %w", node.Name, err)
+			return vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataUpdateError, fmt.Errorf("failed to update node record to deleting %s: %w", node.Name, err))
 		}
 	}
 
@@ -761,7 +759,7 @@ func _getGCPService(ctx context.Context) (*google.GcpServices, error) {
 	err := gcpService.InitializeClients()
 	if err != nil || !gcpService.IsAdminClientInitialized() {
 		gcpService.Logger.Debug("Initialisation of service failed")
-		return nil, errors.New("initialisation of Google GCP service failed")
+		return nil, vsaerrors.NewVCPError(vsaerrors.ErrGCPClientInitializationError, errors.New("initialisation of Google GCP service failed"))
 	}
 	return gcpService, nil
 }
@@ -799,7 +797,7 @@ func resourceNotFoundCheck(errorString string, projectName, vpcName, subnetName,
 		if firewall != "" {
 			errorMessage = fmt.Sprintf("Error getting subnet for project: %s, vpc name: %s, firewall name: %s. Error : %s", projectName, vpcName, firewall, errorString)
 		}
-		return false, errors.New(errorMessage)
+		return false, vsaerrors.NewVCPError(vsaerrors.ErrGCPResourceFetchError, errors.New(errorMessage))
 	}
 	return true, nil
 }
@@ -824,7 +822,7 @@ func _createVPC(gService hyperscaler.GoogleServices, projectName, vpcName string
 	if err != nil {
 		errorString := fmt.Sprintf("Error creating vpc for project: %s and vpc name: %s. Error : %v", projectName, vpcName, err)
 		logger.Errorf(errorString)
-		return errors.New(errorString)
+		return vsaerrors.NewVCPError(vsaerrors.ErrGCPResourceProvisionError, errors.New(errorString))
 	}
 	logger.Info(fmt.Sprintf("vpc creation successful for project name : %s , vpc name : %s", projectName, vpcName))
 	return nil

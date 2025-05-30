@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strings"
 
+	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/nillable"
 )
 
@@ -61,7 +62,8 @@ func ConvertToNotFoundErrIfContainsMessage(err error, message, objectType string
 
 // IsNotFoundErr checks whether the specified error is a NotFoundErr
 func IsNotFoundErr(err error) bool {
-	_, is := err.(*NotFoundErr)
+	var notFoundErr *NotFoundErr
+	is := vsaerrors.As(err, &notFoundErr)
 	return is
 }
 

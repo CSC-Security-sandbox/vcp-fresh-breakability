@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
+	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	customerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
@@ -18,7 +19,7 @@ func (d *DataStoreRepository) GetSvmsByPoolID(ctx context.Context, poolID int64)
 	var svms []*datamodel.Svm
 	err := d.db.GORM().Unscoped().WithContext(ctx).Where("pool_id = ?", poolID).Find(&svms).Error
 	if err != nil {
-		return nil, err
+		return nil, vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataReadError, err)
 	}
 	return svms, nil
 }
@@ -43,18 +44,18 @@ func (d *DataStoreRepository) CreateSVM(ctx context.Context, svm *datamodel.Svm)
 
 		err = tx.Create(svm).Error
 		if err != nil {
-			return nil, err
+			return nil, vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataInsertError, err)
 		}
 		err = tx.Where("account_id = ?", svm.AccountID).Where("name = ?", svm.Name).Where("pool_id = ?", svm.PoolID).First(&dbSvm).Error
 		if err != nil {
-			return nil, err
+			return nil, vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataReadError, err)
 		}
 		return &dbSvm, nil
 	} else if err1 != nil {
 		logger.Errorf("Error while checking if svm exists: %v", err1)
-		return nil, err1
+		return nil, vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataReadError, err)
 	}
-	return nil, customerrors.NewConflictErr("svm already exists")
+	return nil, vsaerrors.NewVCPError(vsaerrors.ErrIncorrectVSAClusterState, customerrors.NewConflictErr("svm already exists"))
 }
 
 func (d *DataStoreRepository) GetSvmForPoolID(ctx context.Context, poolID int64) (*datamodel.Svm, error) {
@@ -84,7 +85,7 @@ func (d *DataStoreRepository) DeleteSVM(ctx context.Context, svm *datamodel.Svm)
 	svm.StateDetails = models.LifeCycleStateDeletedDetails
 	err = tx.Updates(svm).Error
 	if err != nil {
-		return err
+		return vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataUpdateError, err)
 	}
 	return nil
 }
@@ -102,7 +103,7 @@ func (d *DataStoreRepository) DeletingSVM(ctx context.Context, svm *datamodel.Sv
 	svm.StateDetails = models.LifeCycleStateDeletingDetails
 	err = tx.Updates(svm).Error
 	if err != nil {
-		return err
+		return vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataUpdateError, err)
 	}
 	return nil
 }

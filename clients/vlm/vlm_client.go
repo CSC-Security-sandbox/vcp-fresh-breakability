@@ -3,6 +3,7 @@ package vlm
 import (
 	"context"
 
+	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 	vlmClient "netapp.com/vsa/lifecycle-manager/pkg/vlmclient"
 	"netapp.com/vsa/lifecycle-manager/pkg/vlmconfig"
@@ -39,7 +40,7 @@ func (c *Client) VSAClusterDeployCreate(ctx context.Context, vlmConfig *vlmconfi
 	err := c.vlmClient.CreateVSAClusterDeployment(ctx, vlmConfig)
 	if err != nil {
 		c.traceLog.Errorf("Error creating VSA cluster deployment: %v", err)
-		return err
+		return vsaerrors.NewVCPError(vsaerrors.ErrVSAClusterCreateError, err)
 	}
 	return nil
 }
@@ -64,7 +65,7 @@ func (c *Client) VSAClusterDeploymentDelete(ctx context.Context, vlmConfig *vlmc
 	err := c.vlmClient.DeleteVSAClusterDeployment(ctx, vlmConfig)
 	if err != nil {
 		c.traceLog.Errorf("Error deleting VSA cluster deployment: %v", err)
-		return err
+		return vsaerrors.NewVCPError(vsaerrors.ErrVSAClusterDeleteError, err)
 	}
 	return nil
 }
@@ -77,7 +78,7 @@ func (c *Client) VSASVMCreate(ctx context.Context, svmConfig *vlmconfig.SVMConfi
 	err := c.vlmClient.CreateVSASVM(ctx, *svmConfig)
 	if err != nil {
 		c.traceLog.Errorf("Error creating VSA SVM: %v", err)
-		return err
+		return vsaerrors.NewVCPError(vsaerrors.ErrCreatingSVM, err)
 	}
 	return nil
 }

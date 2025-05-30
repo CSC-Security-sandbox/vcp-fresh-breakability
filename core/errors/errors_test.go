@@ -3,9 +3,11 @@ package errors
 import (
 	"os"
 	"testing"
+
+	"go.temporal.io/sdk/temporal"
 )
 
-var validJSON = `{"InvalidInput":{"tracking_id":1001,"message":"Input is invalid.","retriable":false,"http_code":400},"NotFound":{"tracking_id":1002,"message":"The requested resource was not found.","retriable":false,"http_code":404},"InternalError":{"tracking_id":1003,"message":"An internal error occurred.","retriable":true,"http_code":500}}`
+var validJSON = `{"1001":{"message":"Input is invalid.","retriable":false,"http_code":400},"1002":{"message":"The requested resource was not found.","retriable":false,"http_code":404},"1003":{"message":"An internal error occurred.","retriable":true,"http_code":500}}`
 
 func TestLoadErrorMessages(t *testing.T) {
 	// Create a temporary valid JSON file
@@ -103,7 +105,6 @@ func TestCustomErrorMethods(t *testing.T) {
 	originalErr := New("original error")
 	httpCode := 500
 	customErr := &CustomError{
-		ErrorName:   "InternalError",
 		TrackingID:  1003,
 		Message:     "An internal error occurred.",
 		Retriable:   true,
@@ -124,11 +125,8 @@ func TestCustomErrorMethods(t *testing.T) {
 		t.Errorf("Expected retriable to be true, got false")
 	}
 	// Test IsError method
-	if !customErr.IsError("InternalError") {
+	if !customErr.IsError(1003) {
 		t.Errorf("Expected IsError to return true for InternalError")
-	}
-	if !customErr.IsError("1003") {
-		t.Errorf("Expected IsError to return true for TrackingID 1003")
 	}
 	// Test GetHttpCode method
 	hasCode, code := customErr.GetHttpCode()
@@ -139,41 +137,36 @@ func TestCustomErrorMethods(t *testing.T) {
 
 func TestNewVSAError(t *testing.T) {
 	originalErr := New("original error")
-	errorMap = map[string]ErrorMessage{
-		"InternalError": {
-			TrackingID: 1003,
-			Message:    "An internal error occurred.",
-			Retriable:  new(bool),
-			HttpCode:   new(int),
+	errorMap = map[int]ErrorMessage{
+		1003: {
+			Message:   "An internal error occurred.",
+			Retriable: new(bool),
+			HttpCode:  new(int),
 		},
 	}
-	*errorMap["InternalError"].Retriable = true
-	*errorMap["InternalError"].HttpCode = 500
+	*errorMap[1003].Retriable = true
+	*errorMap[1003].HttpCode = 500
 
 	// Test with defined error
-	err := NewVCPError("InternalError", originalErr)
+	err := NewVCPError(1003, originalErr)
+	_, ok := err.(*CustomError)
+	if !ok {
+		t.Fatalf("Expected CustomError, got %T", err)
+	}
+	// Test with undefined error
+	err = NewVCPError(1005, originalErr)
 	customErr, ok := err.(*CustomError)
 	if !ok {
 		t.Fatalf("Expected CustomError, got %T", err)
 	}
-	if customErr.ErrorName != "InternalError" {
-		t.Errorf("Expected ErrorName InternalError, got %s", customErr.ErrorName)
-	}
-	// Test with undefined error
-	err = NewVCPError("UndefinedError", originalErr)
-	customErr, ok = err.(*CustomError)
-	if !ok {
-		t.Fatalf("Expected CustomError, got %T", err)
-	}
-	if customErr.ErrorName != "NotDefined" {
-		t.Errorf("Expected ErrorName NotDefined, got %s", customErr.ErrorName)
+	if customErr.TrackingID != 0 {
+		t.Errorf("Expected ErrorName NotDefined, got %d", customErr.TrackingID)
 	}
 }
 
 func TestIsAndAs(t *testing.T) {
 	originalErr := New("original error")
 	customErr := &CustomError{
-		ErrorName:   "InternalError",
 		TrackingID:  1003,
 		Message:     "An internal error occurred.",
 		Retriable:   true,
@@ -190,5 +183,68 @@ func TestIsAndAs(t *testing.T) {
 	}
 	if target != customErr {
 		t.Errorf("Expected target to be %v, got %v", customErr, target)
+	}
+}
+
+func TestGetErrorMessageByTrackingID(t *testing.T) {
+	errorMap = map[int]ErrorMessage{
+		1001: {
+			Message:   "Input is invalid.",
+			Retriable: new(bool),
+			HttpCode:  new(int),
+		},
+	}
+	*errorMap[1001].Retriable = false
+	*errorMap[1001].HttpCode = 400
+
+	// Test with existing TrackingID
+	msg := GetErrorMessageByTrackingID(1001)
+	if msg == nil {
+		t.Fatalf("Expected non-nil ErrorMessage")
+	}
+	if msg.Message != "Input is invalid." {
+		t.Errorf("Expected message 'Input is invalid.', got %s", msg.Message)
+	}
+	if msg.HttpCode == nil || *msg.HttpCode != 400 {
+		t.Errorf("Expected HTTP code 400, got %v", msg.HttpCode)
+	}
+
+	// Test with non-existent TrackingID
+	msg = GetErrorMessageByTrackingID(9999)
+	if msg == nil {
+		t.Fatalf("Expected non-nil ErrorMessage for undefined error")
+	}
+	if msg.Message != "undefined error" {
+		t.Errorf("Expected message 'undefined error', got %s", msg.Message)
+	}
+	if msg.HttpCode == nil || *msg.HttpCode != 500 {
+		t.Errorf("Expected HTTP code 500, got %v", msg.HttpCode)
+	}
+}
+
+func TestWrapAsTemporalApplicationError(t *testing.T) {
+	originalErr := New("original error")
+	customErr := &CustomError{
+		TrackingID:  1003,
+		Message:     "An internal error occurred.",
+		Retriable:   true,
+		OriginalErr: originalErr,
+	}
+
+	// Test wrapping a CustomError
+	wrapped := WrapAsTemporalApplicationError(customErr)
+	appErr, ok := wrapped.(*temporal.ApplicationError)
+	if !ok {
+		t.Errorf("Expected temporal.ApplicationError, got %T", wrapped)
+	}
+	if appErr != nil && appErr.Message() != customErr.Error() {
+		t.Errorf("Expected error message %q, got %q", customErr.Error(), appErr.Error())
+	}
+
+	// Test passing a non-CustomError
+	plainErr := New("plain error")
+	result := WrapAsTemporalApplicationError(plainErr)
+	if result != plainErr {
+		t.Errorf("Expected original error to be returned unchanged")
 	}
 }

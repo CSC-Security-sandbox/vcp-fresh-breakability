@@ -359,7 +359,7 @@ func TestUpdateJob(t *testing.T) {
 	job := &datamodel.Job{ResourceName: "job3"}
 	created, err := store.CreateJob(ctx, job)
 	assert.NoError(t, err)
-	err = store.UpdateJob(ctx, created.UUID, "done", nil)
+	err = store.UpdateJob(ctx, created.UUID, "done", 0, nil)
 	assert.NoError(t, err)
 }
 

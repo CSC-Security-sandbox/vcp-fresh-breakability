@@ -3,12 +3,13 @@ package repository
 import (
 	"context"
 	"errors"
-	"github.com/stretchr/testify/assert"
-	"gorm.io/gorm"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
+	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	gormwrapper "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/gorm"
+	"gorm.io/gorm"
 )
 
 func TestGetLifByNodeID(t *testing.T) {
@@ -65,7 +66,12 @@ func TestGetLifByNodeID(t *testing.T) {
 		assert.NoError(tt, err, "Failed to clean up test database")
 
 		_, err1 := store.GetLifByNodeID(context.Background(), 1, 1234)
-		assert.EqualError(tt, err1, "lif not found")
+		var customErr *vsaerrors.CustomError
+		if vsaerrors.As(err1, &customErr) {
+			assert.EqualError(tt, customErr.Unwrap(), "lif not found")
+		} else {
+			tt.Fatalf("Expected a CustomError, got %v", err1)
+		}
 	})
 }
 
@@ -152,7 +158,12 @@ func TestCreateLif(t *testing.T) {
 		}
 
 		_, err = store.CreateLif(context.Background(), lif)
-		assert.EqualError(tt, err, "lif already exists")
+		var customErr *vsaerrors.CustomError
+		if vsaerrors.As(err, &customErr) {
+			assert.EqualError(tt, customErr.Unwrap(), "lif already exists")
+		} else {
+			tt.Fatalf("Expected a CustomError, got %v", err)
+		}
 	})
 }
 

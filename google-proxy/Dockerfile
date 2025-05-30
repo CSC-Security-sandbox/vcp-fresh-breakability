@@ -36,6 +36,7 @@ FROM $BASE
 
 
 COPY --from=builder /app /app
+COPY --from=builder /code/core/errors/errors.json /errors.json
 COPY common/vsa_config common/vsa_config
 
 # Set ownership and permissions

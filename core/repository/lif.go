@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
+	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	customerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
@@ -42,18 +43,18 @@ func (d *DataStoreRepository) CreateLif(ctx context.Context, lif *datamodel.Lif)
 		lif.UpdatedAt = lif.CreatedAt
 		err = tx.Create(lif).Error
 		if err != nil {
-			return nil, err
+			return nil, vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataInsertError, err)
 		}
 		err = tx.Where("name = ? and account_id = ?", lif.Name, lif.AccountID).First(&dbLif).Error
 		if err != nil {
-			return nil, err
+			return nil, vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataReadError, err)
 		}
 		return &dbLif, nil
 	} else if err1 != nil {
 		logger.Errorf("Error while checking if lif exists: %v", err1)
-		return nil, err1
+		return nil, vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataReadError, err)
 	}
-	return nil, customerrors.NewConflictErr("lif already exists")
+	return nil, vsaerrors.NewVCPError(vsaerrors.ErrIncorrectVSAClusterState, customerrors.NewConflictErr("lif already exists"))
 }
 
 // DeleteLif deletes a LIF from the database
@@ -68,7 +69,7 @@ func (d *DataStoreRepository) DeleteLif(ctx context.Context, lif *datamodel.Lif)
 	lif.DeletedAt = &gorm.DeletedAt{Time: time.Now(), Valid: true}
 	err = tx.Updates(lif).Error
 	if err != nil {
-		return err
+		return vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataUpdateError, err)
 	}
 	return nil
 }
@@ -85,7 +86,7 @@ func _getLifWithDetails(db *gorm.DB, query *datamodel.Lif) (*datamodel.Lif, erro
 	lif := &datamodel.Lif{}
 	err := db.First(&lif, query).Error
 	if err != nil {
-		return nil, customerrors.ConvertToNotFoundErrIfContainsMessage(err, "record not found", "lif", nil)
+		return nil, vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataReadError, customerrors.ConvertToNotFoundErrIfContainsMessage(err, "record not found", "lif", nil))
 	}
 	return lif, nil
 }

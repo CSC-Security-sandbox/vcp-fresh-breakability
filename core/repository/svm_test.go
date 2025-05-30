@@ -3,13 +3,14 @@ package repository
 import (
 	"context"
 	"errors"
-	"github.com/stretchr/testify/assert"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
-	"gorm.io/gorm"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
+	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	gormwrapper "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/gorm"
+	"gorm.io/gorm"
 )
 
 func TestGetSvmsByPoolID(t *testing.T) {
@@ -153,7 +154,12 @@ func TestCreateSVM(t *testing.T) {
 		}
 
 		_, err = store.CreateSVM(context.Background(), svm)
-		assert.EqualError(tt, err, "svm already exists")
+		var customErr *vsaerrors.CustomError
+		if errors.As(err, &customErr) {
+			assert.EqualError(tt, customErr.Unwrap(), "svm already exists")
+		} else {
+			tt.Fatalf("Expected a CustomError, got %v", err)
+		}
 	})
 }
 
