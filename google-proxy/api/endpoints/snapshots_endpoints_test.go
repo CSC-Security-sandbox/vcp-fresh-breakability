@@ -509,7 +509,7 @@ func TestHandler_V1betaDescribeSnapshot(t *testing.T) {
 		assert.Equal(tt, "Internal server error", errorResult.Message)
 	})
 
-	t.Run("WhenSnapshotFound", func(tt *testing.T) {
+	t.Run("WhenSuccess", func(tt *testing.T) {
 		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
 		params := gcpserver.V1betaDescribeSnapshotParams{
 			SnapshotId: "snapshot-id",
@@ -548,5 +548,80 @@ func TestHandler_V1betaDescribeSnapshot(t *testing.T) {
 		assert.Equal(tt, createdAt, snapshotResult.Created.Value)
 		assert.Equal(tt, gcpserver.SnapshotV1betaSnapshotStateREADY, snapshotResult.SnapshotState.Value)
 		assert.Equal(tt, coremodels.LifeCycleStateAvailableDetails, snapshotResult.SnapshotStateDetails.Value)
+	})
+}
+
+func TestHandler_V1betaListSnapshot(t *testing.T) {
+	t.Run("WhenListSnapshotsSucceeds", func(tt *testing.T) {
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		params := gcpserver.V1betaListSnapshotParams{
+			ProjectNumber: "project-number",
+			VolumeId:      "volume-id",
+		}
+		testSnapshots := []*coremodels.Snapshot{
+			{
+				BaseModel:             coremodels.BaseModel{UUID: "snap-uuid-1", CreatedAt: time.Now()},
+				Name:                  "snap1",
+				VolumeUUID:            "vol-uuid-1",
+				VolumeName:            "vol-name-1",
+				LifeCycleState:        coremodels.LifeCycleStateREADY,
+				LifeCycleStateDetails: "details1",
+				Description:           "desc1",
+			},
+			{
+				BaseModel:             coremodels.BaseModel{UUID: "snap-uuid-2", CreatedAt: time.Now()},
+				Name:                  "snap2",
+				VolumeUUID:            "vol-uuid-2",
+				VolumeName:            "vol-name-2",
+				LifeCycleState:        coremodels.LifeCycleStateREADY,
+				LifeCycleStateDetails: "details2",
+				Description:           "desc2",
+			},
+		}
+		mockOrchestrator.EXPECT().ListSnapshots(mock.Anything, mock.Anything).Return(testSnapshots, nil)
+
+		handler := Handler{Orchestrator: mockOrchestrator}
+		result, err := handler.V1betaListSnapshot(context.Background(), params)
+
+		assert.NoError(tt, err)
+		okResult, ok := result.(*gcpserver.V1betaListSnapshotOK)
+		assert.True(tt, ok)
+		assert.Len(tt, okResult.Snapshots, 2)
+		assert.Equal(tt, "snap1", okResult.Snapshots[0].ResourceId)
+		assert.Equal(tt, "snap2", okResult.Snapshots[1].ResourceId)
+	})
+
+	t.Run("WhenListSnapshotsNotFound", func(tt *testing.T) {
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		params := gcpserver.V1betaListSnapshotParams{
+			ProjectNumber: "project-number",
+			VolumeId:      "volume-id",
+		}
+		mockOrchestrator.EXPECT().ListSnapshots(mock.Anything, mock.Anything).Return(nil, errors.NewNotFoundErr("Snapshot", nil))
+
+		handler := Handler{Orchestrator: mockOrchestrator}
+		result, err := handler.V1betaListSnapshot(context.Background(), params)
+
+		assert.NoError(tt, err)
+		notFound, ok := result.(*gcpserver.V1betaListSnapshotNotFound)
+		assert.True(tt, ok)
+		assert.Equal(tt, float64(404), notFound.Code)
+	})
+
+	t.Run("WhenListSnapshotsInternalServerError", func(tt *testing.T) {
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		params := gcpserver.V1betaListSnapshotParams{
+			ProjectNumber: "project-number",
+			VolumeId:      "volume-id",
+		}
+		mockOrchestrator.EXPECT().ListSnapshots(mock.Anything, mock.Anything).Return(nil, errors.New("internal error"))
+
+		handler := Handler{Orchestrator: mockOrchestrator}
+		result, err := handler.V1betaListSnapshot(context.Background(), params)
+
+		assert.Error(tt, err)
+		internal, ok := result.(*gcpserver.V1betaListSnapshotInternalServerError)
+		assert.True(tt, ok)
+		assert.Equal(tt, float64(500), internal.Code)
 	})
 }

@@ -179,13 +179,6 @@ func (h Handler) V1betaCreateSnapshot(ctx context.Context, req *gcpgenserver.Vol
 
 func (h Handler) V1betaDescribeSnapshot(ctx context.Context, params gcpgenserver.V1betaDescribeSnapshotParams) (gcpgenserver.V1betaDescribeSnapshotRes, error) {
 	logger := util.GetLogger(ctx)
-	if params.SnapshotId == "" {
-		logger.Error("Snapshot ID is required for DescribeSnapshot")
-		return &gcpgenserver.V1betaDescribeSnapshotBadRequest{
-			Code:    400,
-			Message: "Snapshot ID is required",
-		}, nil
-	}
 	describeParams := &common.GetSnapshotParams{
 		SnapshotBaseParams: common.SnapshotBaseParams{
 			AccountName: params.ProjectNumber,
@@ -210,6 +203,38 @@ func (h Handler) V1betaDescribeSnapshot(ctx context.Context, params gcpgenserver
 		return &gcpgenserver.V1betaDescribeSnapshotInternalServerError{Code: 500, Message: "Internal server error"}, err
 	}
 	return convertModelToVCPSnapshot(snapshot), nil
+}
+
+func (h Handler) V1betaListSnapshot(ctx context.Context, params gcpgenserver.V1betaListSnapshotParams) (gcpgenserver.V1betaListSnapshotRes, error) {
+	logger := util.GetLogger(ctx)
+	listParams := &common.ListSnapshotsParams{
+		SnapshotBaseParams: common.SnapshotBaseParams{
+			AccountName: params.ProjectNumber,
+			VolumeID:    params.VolumeId,
+		},
+	}
+	snapshotList, err := h.Orchestrator.ListSnapshots(ctx, listParams)
+	if err != nil {
+		if errors.IsNotFoundErr(err) {
+			return &gcpgenserver.V1betaListSnapshotNotFound{
+				Code:    404,
+				Message: err.Error(),
+			}, nil
+		}
+		logger.Errorf("Failed to list snapshots for volume %s with error: %v", params.VolumeId, err.Error())
+		return &gcpgenserver.V1betaListSnapshotInternalServerError{Code: 500, Message: "Internal server error"}, err
+	}
+	return &gcpgenserver.V1betaListSnapshotOK{
+		Snapshots: convertToVCPSnapshotsV1Beta(snapshotList),
+	}, nil
+}
+
+func convertToVCPSnapshotsV1Beta(snapshots []*coremodels.Snapshot) []gcpgenserver.SnapshotV1beta {
+	snapshotsV1Beta := make([]gcpgenserver.SnapshotV1beta, len(snapshots))
+	for i, snapshot := range snapshots {
+		snapshotsV1Beta[i] = *convertModelToVCPSnapshot(snapshot)
+	}
+	return snapshotsV1Beta
 }
 
 func convertToSnapshotsV1Beta(snap *cvpmodels.SnapshotV1beta) gcpgenserver.SnapshotV1beta {

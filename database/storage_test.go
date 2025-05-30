@@ -509,3 +509,43 @@ func TestGetAppConsistentSnapshotsForVolume(t *testing.T) {
 	assert.NotNil(t, snaps)
 	assert.GreaterOrEqual(t, len(snaps), 1)
 }
+
+func TestGetSnapshotsByVolumeID(t *testing.T) {
+	logger := &log.MockLogger{}
+	store, _ := NewTestStorage(logger)
+	ctx := context.Background()
+	ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, logger)
+
+	// Create account and volume for association
+	acc := &datamodel.Account{Name: "acc_snap2"}
+	createdAcc, err := store.CreateAccount(ctx, acc)
+	assert.NoError(t, err)
+	vol := &datamodel.Volume{Name: "vol_snap2", AccountID: createdAcc.ID}
+	createdVol, err := store.CreateVolume(ctx, vol)
+	assert.NoError(t, err)
+
+	// Create two snapshots for the volume
+	snap1 := &datamodel.Snapshot{Name: "snap5", AccountID: createdAcc.ID, VolumeID: createdVol.ID}
+	snap2 := &datamodel.Snapshot{Name: "snap6", AccountID: createdAcc.ID, VolumeID: createdVol.ID}
+	_, err = store.CreatingSnapshot(ctx, snap1)
+	assert.NoError(t, err)
+	_, err = store.CreatingSnapshot(ctx, snap2)
+	assert.NoError(t, err)
+
+	// Query for snapshots by volume ID
+	snaps, err := store.GetSnapshotsByVolumeID(ctx, createdVol.ID)
+	assert.NoError(t, err)
+	assert.NotNil(t, snaps)
+	assert.GreaterOrEqual(t, len(snaps), 2)
+	var foundSnap5, foundSnap6 bool
+	for _, s := range snaps {
+		if s.Name == "snap5" {
+			foundSnap5 = true
+		}
+		if s.Name == "snap6" {
+			foundSnap6 = true
+		}
+	}
+	assert.True(t, foundSnap5)
+	assert.True(t, foundSnap6)
+}

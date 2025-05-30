@@ -60,6 +60,7 @@ const (
 	V1betaListKmsConfigurationsOperation              OperationName = "V1betaListKmsConfigurations"
 	V1betaListPoolsOperation                          OperationName = "V1betaListPools"
 	V1betaListReplicationsOperation                   OperationName = "V1betaListReplications"
+	V1betaListSnapshotOperation                       OperationName = "V1betaListSnapshot"
 	V1betaListVolumesOperation                        OperationName = "V1betaListVolumes"
 	V1betaResumeReplicationOperation                  OperationName = "V1betaResumeReplication"
 	V1betaReverseAndResumeReplicationOperation        OperationName = "V1betaReverseAndResumeReplication"

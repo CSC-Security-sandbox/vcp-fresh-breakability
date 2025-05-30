@@ -1562,6 +1562,12 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 											if len(elem) == 0 {
 												switch r.Method {
+												case "GET":
+													s.handleV1betaListSnapshotRequest([3]string{
+														args[0],
+														args[1],
+														args[2],
+													}, elemIsEscaped, w, r)
 												case "POST":
 													s.handleV1betaCreateSnapshotRequest([3]string{
 														args[0],
@@ -1569,7 +1575,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 														args[2],
 													}, elemIsEscaped, w, r)
 												default:
-													s.notAllowed(w, r, "POST")
+													s.notAllowed(w, r, "GET,POST")
 												}
 
 												return
@@ -3290,6 +3296,14 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 
 											if len(elem) == 0 {
 												switch method {
+												case "GET":
+													r.name = V1betaListSnapshotOperation
+													r.summary = "Lists snapshots in a volume"
+													r.operationID = "v1beta_listSnapshot"
+													r.pathPattern = "/v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/snapshot"
+													r.args = args
+													r.count = 3
+													return r, true
 												case "POST":
 													r.name = V1betaCreateSnapshotOperation
 													r.summary = "Create a snapshot"

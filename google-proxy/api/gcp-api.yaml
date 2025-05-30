@@ -4315,6 +4315,71 @@ paths:
                 $ref: '#/components/schemas/Error'
       x-codegen-request-body-name: body
   /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/snapshot:
+    get:
+      operationId: v1beta_listSnapshot
+      summary: Lists snapshots in a volume
+      description: Lists all snapshots in a volume
+      tags:
+        - snapshots
+      parameters:
+        - $ref: '#/components/parameters/projectNumberPathParameter'
+        - $ref: '#/components/parameters/locationIdPathParameter'
+        - $ref: '#/components/parameters/volumeIdPathParameter'
+        - $ref: '#/components/parameters/xCorrelationIdHeader'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - type: object
+                    properties:
+                      snapshots:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/Snapshot_v1beta'
+              example:
+                snapshots:
+                  - snapshotId: 9760acf5-4638-11e7-9bdb-020073ca3333
+                    resourceId: manual-snapshot
+                    volumeId: 9760acf5-4638-11e7-9bdb-020073ca0001
+                    created: '2017-02-02T00:00:00.000Z'
+                    snapshotState: available
+                    snapshotStateDetails: Available for use
+                    usedBytes: 387860627927
+                    description: My snapshot description
+                  - snapshotId: 9760acf5-4638-11e7-9bdb-020073ca3333
+                    resourceId: daily-tuesday
+                    volumeId: 9760acf5-4638-11e7-9bdb-020073ca0001
+                    created: '2017-02-03T00:00:00.000Z'
+                    snapshotState: available
+                    snapshotStateDetails: Available for use
+                    usedBytes: 387860629999
+                    description: My snapshot description
+        '400':
+          $ref: '#/components/responses/StandardError-400'
+        '401':
+          $ref: '#/components/responses/StandardError-401'
+        '403':
+          $ref: '#/components/responses/StandardError-403'
+        '404':
+          $ref: '#/components/responses/StandardError-404'
+        '422':
+          $ref: '#/components/responses/StandardError-422'
+        '429':
+          $ref: '#/components/responses/StandardError-429'
+        '409':
+          $ref: '#/components/responses/StandardError-409'
+        '500':
+          $ref: '#/components/responses/StandardError-500'
+        default:
+          description: Unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      x-codegen-request-body-name: body
     post:
       operationId: v1beta_createSnapshot
       summary: Create a snapshot

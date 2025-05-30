@@ -92,6 +92,8 @@ func (wf *snapshotCreateWorkflow) Run(ctx workflow.Context, args ...interface{})
 
 	dbSnapshot := snapshot
 
+	dbSnapshot.Description = wf.ID // Storing the job UUID in the comments param while requesting ONTAP
+
 	logger.Infof("Starting the snapshot creation workflow for snapshot: %s", dbSnapshot.Name)
 	var dbNode *datamodel.Node
 	err = workflow.ExecuteActivity(ctx, activities.CommonActivities.GetNode, &dbSnapshot.Volume.PoolID).Get(ctx, &dbNode)

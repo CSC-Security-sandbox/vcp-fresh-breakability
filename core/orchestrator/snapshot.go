@@ -24,6 +24,7 @@ var (
 	createSnapshot       = _createSnapshot
 	getSnapshot          = _getSnapshot
 	VolumeOwnershipCheck = _volumeOwnershipCheck
+	listSnapshots        = _listSnapshots
 )
 
 // CreateSnapshot creates the snapshot and adds to the specified volume belonging to the specified owner
@@ -40,13 +41,8 @@ func _createSnapshot(ctx context.Context, se database.Storage, temporal client.C
 		return nil, "", errors.NewNotFoundErr("account", &params.AccountName)
 	}
 
-	volume, err := se.GetVolume(ctx, params.VolumeID)
+	volume, err := VolumeOwnershipCheck(ctx, se, params.VolumeID, params.AccountName)
 	if err != nil {
-		logger.Errorf("Failed to get volume: %s. Error: %v", params.VolumeID, err)
-		return nil, "", errors.NewNotFoundErr("volume", &params.VolumeID)
-	}
-
-	if !VolumeOwnershipCheck(ctx, se, params.VolumeID, params.AccountName) {
 		logger.Errorf("Failed to validate volume ownership")
 		return nil, "", errors.NewUserInputValidationErr("failed to validate volume ownership")
 	}
@@ -97,8 +93,6 @@ func _createSnapshot(ctx context.Context, se database.Storage, temporal client.C
 		return nil, "", err
 	}
 
-	dbSnapshot.Description = job.UUID // Storing the job UUID in the comments param while requesting ONTAP
-
 	_, err = temporal.ExecuteWorkflow(ctx,
 		client.StartWorkflowOptions{
 			TaskQueue:             workflowengine.CustomerTaskQueue,
@@ -126,7 +120,8 @@ func (o *Orchestrator) GetSnapshot(ctx context.Context, params *common.GetSnapsh
 func _getSnapshot(ctx context.Context, se database.Storage, params *common.GetSnapshotParams) (*models.Snapshot, error) {
 	logger := util.GetLogger(ctx)
 
-	if !VolumeOwnershipCheck(ctx, se, params.VolumeID, params.AccountName) {
+	_, err := VolumeOwnershipCheck(ctx, se, params.VolumeID, params.AccountName)
+	if err != nil {
 		logger.Errorf("Failed to validate volume ownership")
 		return nil, errors.NewUserInputValidationErr("failed to validate volume ownership")
 	}
@@ -141,6 +136,32 @@ func _getSnapshot(ctx context.Context, se database.Storage, params *common.GetSn
 	return dataStoreSnap, nil
 }
 
+func (o *Orchestrator) ListSnapshots(ctx context.Context, params *common.ListSnapshotsParams) ([]*models.Snapshot, error) {
+	return listSnapshots(ctx, o.storage, params)
+}
+
+func _listSnapshots(ctx context.Context, se database.Storage, params *common.ListSnapshotsParams) ([]*models.Snapshot, error) {
+	logger := util.GetLogger(ctx)
+
+	volume, err := VolumeOwnershipCheck(ctx, se, params.VolumeID, params.AccountName)
+	if err != nil {
+		logger.Errorf("Failed to validate volume ownership")
+		return nil, errors.NewUserInputValidationErr("failed to validate volume ownership")
+	}
+
+	snapshots, err := se.GetSnapshotsByVolumeID(ctx, volume.ID)
+	if err != nil {
+		logger.Errorf("Failed to get snapshots for volume: %s. Error: %v", params.VolumeID, err)
+		return nil, err
+	}
+
+	var snapshotsToReturn []*models.Snapshot
+	for _, snapshot := range snapshots {
+		snapshotsToReturn = append(snapshotsToReturn, convertDatastoreSnapshotToModel(snapshot))
+	}
+	return snapshotsToReturn, nil
+}
+
 func convertDatastoreSnapshotToModel(snapshot *datamodel.Snapshot) *models.Snapshot {
 	if snapshot == nil {
 		return nil
@@ -153,7 +174,6 @@ func convertDatastoreSnapshotToModel(snapshot *datamodel.Snapshot) *models.Snaps
 			UpdatedAt: snapshot.UpdatedAt,
 			DeletedAt: DeletedAtOrNil(snapshot.DeletedAt),
 		},
-		AccountName:           snapshot.Account.Name,
 		Name:                  snapshot.Name,
 		Description:           snapshot.Description,
 		LifeCycleState:        snapshot.State,
@@ -181,14 +201,14 @@ func validateCreatSnapshotOperation(volume *datamodel.Volume, params *common.Cre
 	return nil
 }
 
-func _volumeOwnershipCheck(ctx context.Context, se database.Storage, volumeUUID string, accountName string) bool {
+func _volumeOwnershipCheck(ctx context.Context, se database.Storage, volumeUUID string, accountName string) (*datamodel.Volume, error) {
 	logger := util.GetLogger(ctx)
 
 	volume, err := se.VerifyVolumeOwnership(ctx, volumeUUID, accountName)
 	if err != nil {
 		logger.Errorf("Failed to verify volume ownership: %v", err)
-		return false
+		return nil, err
 	}
 
-	return volume != nil // If volume is nil, it means ownership verification failed
+	return volume, nil // If volume is nil, it means ownership verification failed
 }

@@ -217,6 +217,10 @@ type V1betaListReplicationsRes interface {
 	v1betaListReplicationsRes()
 }
 
+type V1betaListSnapshotRes interface {
+	v1betaListSnapshotRes()
+}
+
 type V1betaListVolumesRes interface {
 	v1betaListVolumesRes()
 }

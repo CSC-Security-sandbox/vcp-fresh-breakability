@@ -126,9 +126,7 @@ func TestOrchestrator_CreateSnapshot(t *testing.T) {
 
 		snapshot, _, err := orch.CreateSnapshot(ctx, params)
 		assert.Nil(tt, snapshot, "Expected nil snapshot")
-		if !errors.IsNotFoundErr(err) {
-			t.Errorf("Expected not found error, got %v", err)
-		}
+		assert.ErrorContains(tt, err, "failed to validate volume ownership")
 	})
 
 	t.Run("WhenSnapshotCreationFailsDueToAccountNotFound", func(tt *testing.T) {
@@ -306,8 +304,8 @@ func TestVolumeOwnershipCheck(t *testing.T) {
 			Name:      "test_account",
 		}
 
-		isOwner := VolumeOwnershipCheck(ctx, store, volume.UUID, account.Name)
-		assert.False(tt, isOwner, "Expected ownership check to fail for incorrect account ID")
+		_, err = VolumeOwnershipCheck(ctx, store, volume.UUID, account.Name)
+		assert.ErrorContains(tt, err, "not found")
 	})
 
 	t.Run("WhenVolumeIsIncorrect", func(tt *testing.T) {
@@ -327,8 +325,8 @@ func TestVolumeOwnershipCheck(t *testing.T) {
 			Name:      "test_account",
 		}
 
-		isOwner := VolumeOwnershipCheck(ctx, store, volume.UUID, account.Name)
-		assert.False(tt, isOwner, "Expected ownership check to fail for incorrect account ID")
+		_, err = VolumeOwnershipCheck(ctx, store, volume.UUID, account.Name)
+		assert.ErrorContains(tt, err, "not found")
 	})
 }
 
@@ -485,7 +483,6 @@ func TestGetSnapshot(t *testing.T) {
 		result, err := orch.GetSnapshot(ctx, params)
 		assert.NoError(tt, err, "Failed to get snapshot")
 		assert.Equal(tt, snapshot.Name, result.Name)
-		assert.Equal(tt, account.Name, result.AccountName)
 		assert.Equal(tt, volume.UUID, result.VolumeUUID)
 		assert.Equal(tt, volume.Name, result.VolumeName)
 	})
@@ -554,5 +551,121 @@ func TestGetSnapshot(t *testing.T) {
 		result, err := orch.GetSnapshot(ctx, params)
 		assert.EqualError(tt, err, "snapshot 'test-snapshot-uuid' not found")
 		assert.Nil(tt, result, "Expected nil snapshot")
+	})
+}
+
+func TestListSnapshots(t *testing.T) {
+	t.Run("WhenOwnershipCheckFails", func(tt *testing.T) {
+		ctx := context.Background()
+		mockLogger := log.NewLogger()
+		store, err := database.NewTestStorage(mockLogger)
+		assert.NoError(tt, err)
+		orch := Orchestrator{storage: store}
+
+		params := &common.ListSnapshotsParams{
+			SnapshotBaseParams: common.SnapshotBaseParams{
+				VolumeID:    "vol-uuid",
+				AccountName: "acc",
+			},
+		}
+
+		// Patch VolumeOwnershipCheck to return false
+		orig := VolumeOwnershipCheck
+		VolumeOwnershipCheck = func(ctx context.Context, se database.Storage, volumeUUID, accountName string) (*datamodel.Volume, error) {
+			return nil, errors.New("failed to validate volume ownership")
+		}
+		defer func() { VolumeOwnershipCheck = orig }()
+
+		snaps, err := orch.ListSnapshots(ctx, params)
+		assert.Nil(tt, snaps)
+		assert.Error(tt, err)
+		assert.Contains(tt, err.Error(), "failed to validate volume ownership")
+	})
+
+	t.Run("WhenVolumeNotFound", func(tt *testing.T) {
+		ctx := context.Background()
+		mockLogger := log.NewLogger()
+		store, err := database.NewTestStorage(mockLogger)
+		assert.NoError(tt, err)
+		orch := Orchestrator{storage: store}
+
+		params := &common.ListSnapshotsParams{
+			SnapshotBaseParams: common.SnapshotBaseParams{
+				VolumeID:    "non-existent-vol",
+				AccountName: "acc",
+			},
+		}
+
+		// Patch VolumeOwnershipCheck to return true
+		orig := VolumeOwnershipCheck
+		VolumeOwnershipCheck = func(ctx context.Context, se database.Storage, volumeUUID, accountName string) (*datamodel.Volume, error) {
+			return nil, errors.NewNotFoundErr("volume", nil)
+		}
+		defer func() { VolumeOwnershipCheck = orig }()
+
+		snaps, err := orch.ListSnapshots(ctx, params)
+		assert.Nil(tt, snaps)
+		assert.Error(tt, err)
+		assert.Contains(tt, err.Error(), "volume")
+	})
+
+	t.Run("WhenSnapshotsExist", func(tt *testing.T) {
+		ctx := context.Background()
+		mockLogger := log.NewLogger()
+		store, err := database.NewTestStorage(mockLogger)
+		assert.NoError(tt, err)
+		orch := Orchestrator{storage: store}
+
+		// Setup account, volume, and snapshots
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{UUID: "acc-uuid"},
+			Name:      "acc",
+		}
+		assert.NoError(tt, store.DB().Create(account).Error)
+		volume := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{UUID: "vol-uuid"},
+			Name:      "vol",
+			AccountID: account.ID,
+		}
+		assert.NoError(tt, store.DB().Create(volume).Error)
+		snap1 := &datamodel.Snapshot{
+			BaseModel: datamodel.BaseModel{UUID: "snap-uuid-1"},
+			Name:      "snap1",
+			AccountID: account.ID,
+			VolumeID:  volume.ID,
+			Account:   account,
+			Volume:    volume,
+		}
+		snap2 := &datamodel.Snapshot{
+			BaseModel: datamodel.BaseModel{UUID: "snap-uuid-2"},
+			Name:      "snap2",
+			AccountID: account.ID,
+			VolumeID:  volume.ID,
+			Account:   account,
+			Volume:    volume,
+		}
+		assert.NoError(tt, store.DB().Create(snap1).Error)
+		assert.NoError(tt, store.DB().Create(snap2).Error)
+
+		params := &common.ListSnapshotsParams{
+			SnapshotBaseParams: common.SnapshotBaseParams{
+				VolumeID:    volume.UUID,
+				AccountName: account.Name,
+			},
+		}
+
+		// Patch VolumeOwnershipCheck to return true
+		orig := VolumeOwnershipCheck
+		VolumeOwnershipCheck = func(ctx context.Context, se database.Storage, volumeUUID, accountName string) (*datamodel.Volume, error) {
+			return volume, nil
+		}
+		defer func() { VolumeOwnershipCheck = orig }()
+
+		snaps, err := orch.ListSnapshots(ctx, params)
+		assert.NoError(tt, err)
+		assert.Len(tt, snaps, 2)
+		names := []string{snaps[0].Name, snaps[1].Name}
+		assert.Contains(tt, names, "snap1")
+		assert.Contains(tt, names, "snap2")
 	})
 }

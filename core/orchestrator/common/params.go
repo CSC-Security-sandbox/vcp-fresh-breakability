@@ -97,6 +97,10 @@ type GetSnapshotParams struct {
 	SnapshotUUID string
 }
 
+type ListSnapshotsParams struct {
+	SnapshotBaseParams
+}
+
 type ClusterPeerParams struct {
 	PeerAddresses       []string
 	PeerName            string

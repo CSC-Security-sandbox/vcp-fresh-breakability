@@ -1951,6 +1951,65 @@ func (_c *MockDataStore_GetSnapshot_Call) RunAndReturn(run func(context.Context,
 	return _c
 }
 
+// GetSnapshotsByVolumeID provides a mock function with given fields: ctx, volumeID
+func (_m *MockDataStore) GetSnapshotsByVolumeID(ctx context.Context, volumeID int64) ([]*datamodel.Snapshot, error) {
+	ret := _m.Called(ctx, volumeID)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetSnapshotsByVolumeID")
+	}
+
+	var r0 []*datamodel.Snapshot
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, int64) ([]*datamodel.Snapshot, error)); ok {
+		return rf(ctx, volumeID)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, int64) []*datamodel.Snapshot); ok {
+		r0 = rf(ctx, volumeID)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]*datamodel.Snapshot)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, int64) error); ok {
+		r1 = rf(ctx, volumeID)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockDataStore_GetSnapshotsByVolumeID_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetSnapshotsByVolumeID'
+type MockDataStore_GetSnapshotsByVolumeID_Call struct {
+	*mock.Call
+}
+
+// GetSnapshotsByVolumeID is a helper method to define mock.On call
+//   - ctx context.Context
+//   - volumeID int64
+func (_e *MockDataStore_Expecter) GetSnapshotsByVolumeID(ctx interface{}, volumeID interface{}) *MockDataStore_GetSnapshotsByVolumeID_Call {
+	return &MockDataStore_GetSnapshotsByVolumeID_Call{Call: _e.mock.On("GetSnapshotsByVolumeID", ctx, volumeID)}
+}
+
+func (_c *MockDataStore_GetSnapshotsByVolumeID_Call) Run(run func(ctx context.Context, volumeID int64)) *MockDataStore_GetSnapshotsByVolumeID_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(int64))
+	})
+	return _c
+}
+
+func (_c *MockDataStore_GetSnapshotsByVolumeID_Call) Return(_a0 []*datamodel.Snapshot, _a1 error) *MockDataStore_GetSnapshotsByVolumeID_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockDataStore_GetSnapshotsByVolumeID_Call) RunAndReturn(run func(context.Context, int64) ([]*datamodel.Snapshot, error)) *MockDataStore_GetSnapshotsByVolumeID_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // GetSvmForPoolID provides a mock function with given fields: ctx, poolID
 func (_m *MockDataStore) GetSvmForPoolID(ctx context.Context, poolID int64) (*datamodel.Svm, error) {
 	ret := _m.Called(ctx, poolID)

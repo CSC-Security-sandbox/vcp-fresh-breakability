@@ -550,9 +550,13 @@ func (s *PersistenceStore) UpdateSnapshot(ctx context.Context, snapshot *datamod
 }
 
 func (s *PersistenceStore) GetSnapshot(ctx context.Context, uuid string) (*datamodel.Snapshot, error) {
-	return s.dataStore.GetSnapshot(ctx, uuid)
+	return s.dataStore.GetSnapshotByUUID(ctx, uuid)
 }
 
 func (s *PersistenceStore) GetAppConsistentSnapshotsForVolume(ctx context.Context, accountID, volumeID int64) ([]*datamodel.Snapshot, error) {
 	return s.dataStore.GetAppConsistentSnapshotsForVolume(ctx, accountID, volumeID)
+}
+
+func (s *PersistenceStore) GetSnapshotsByVolumeID(ctx context.Context, volumeID int64) ([]*datamodel.Snapshot, error) {
+	return s.dataStore.GetSnapshotsByVolumeID(ctx, volumeID)
 }

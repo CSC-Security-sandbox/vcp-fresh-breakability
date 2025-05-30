@@ -7601,6 +7601,94 @@ func (s *V1betaListReplicationsUnprocessableEntity) SetFake() {
 }
 
 // SetFake set fake values.
+func (s *V1betaListSnapshotBadRequest) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaListSnapshotBadRequest(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaListSnapshotConflict) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaListSnapshotConflict(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaListSnapshotForbidden) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaListSnapshotForbidden(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaListSnapshotInternalServerError) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaListSnapshotInternalServerError(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaListSnapshotNotFound) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaListSnapshotNotFound(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaListSnapshotOK) SetFake() {
+	{
+		{
+			s.Snapshots = nil
+			for i := 0; i < 0; i++ {
+				var elem SnapshotV1beta
+				{
+					elem.SetFake()
+				}
+				s.Snapshots = append(s.Snapshots, elem)
+			}
+		}
+	}
+}
+
+// SetFake set fake values.
+func (s *V1betaListSnapshotTooManyRequests) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaListSnapshotTooManyRequests(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaListSnapshotUnauthorized) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaListSnapshotUnauthorized(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaListSnapshotUnprocessableEntity) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaListSnapshotUnprocessableEntity(unwrapped)
+}
+
+// SetFake set fake values.
 func (s *V1betaListVolumesBadRequest) SetFake() {
 	var unwrapped Error
 	{

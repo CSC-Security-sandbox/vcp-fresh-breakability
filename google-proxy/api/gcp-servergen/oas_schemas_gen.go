@@ -15373,6 +15373,54 @@ type V1betaListReplicationsUnprocessableEntity Error
 
 func (*V1betaListReplicationsUnprocessableEntity) v1betaListReplicationsRes() {}
 
+type V1betaListSnapshotBadRequest Error
+
+func (*V1betaListSnapshotBadRequest) v1betaListSnapshotRes() {}
+
+type V1betaListSnapshotConflict Error
+
+func (*V1betaListSnapshotConflict) v1betaListSnapshotRes() {}
+
+type V1betaListSnapshotForbidden Error
+
+func (*V1betaListSnapshotForbidden) v1betaListSnapshotRes() {}
+
+type V1betaListSnapshotInternalServerError Error
+
+func (*V1betaListSnapshotInternalServerError) v1betaListSnapshotRes() {}
+
+type V1betaListSnapshotNotFound Error
+
+func (*V1betaListSnapshotNotFound) v1betaListSnapshotRes() {}
+
+type V1betaListSnapshotOK struct {
+	Snapshots []SnapshotV1beta `json:"snapshots"`
+}
+
+// GetSnapshots returns the value of Snapshots.
+func (s *V1betaListSnapshotOK) GetSnapshots() []SnapshotV1beta {
+	return s.Snapshots
+}
+
+// SetSnapshots sets the value of Snapshots.
+func (s *V1betaListSnapshotOK) SetSnapshots(val []SnapshotV1beta) {
+	s.Snapshots = val
+}
+
+func (*V1betaListSnapshotOK) v1betaListSnapshotRes() {}
+
+type V1betaListSnapshotTooManyRequests Error
+
+func (*V1betaListSnapshotTooManyRequests) v1betaListSnapshotRes() {}
+
+type V1betaListSnapshotUnauthorized Error
+
+func (*V1betaListSnapshotUnauthorized) v1betaListSnapshotRes() {}
+
+type V1betaListSnapshotUnprocessableEntity Error
+
+func (*V1betaListSnapshotUnprocessableEntity) v1betaListSnapshotRes() {}
+
 type V1betaListVolumesBadRequest Error
 
 func (*V1betaListVolumesBadRequest) v1betaListVolumesRes() {}

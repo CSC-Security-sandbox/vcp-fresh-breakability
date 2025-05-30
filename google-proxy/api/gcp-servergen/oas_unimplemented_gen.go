@@ -510,6 +510,15 @@ func (UnimplementedHandler) V1betaListReplications(ctx context.Context, params V
 	return r, ht.ErrNotImplemented
 }
 
+// V1betaListSnapshot implements v1beta_listSnapshot operation.
+//
+// Lists all snapshots in a volume.
+//
+// GET /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/snapshot
+func (UnimplementedHandler) V1betaListSnapshot(ctx context.Context, params V1betaListSnapshotParams) (r V1betaListSnapshotRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
 // V1betaListVolumes implements v1beta_listVolumes operation.
 //
 // Returns descriptions of all volumes owned by the caller.

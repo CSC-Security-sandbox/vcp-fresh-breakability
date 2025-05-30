@@ -343,6 +343,12 @@ type Handler interface {
 	//
 	// GET /v1beta/projects/{projectNumber}/locations/{locationId}/replications
 	V1betaListReplications(ctx context.Context, params V1betaListReplicationsParams) (V1betaListReplicationsRes, error)
+	// V1betaListSnapshot implements v1beta_listSnapshot operation.
+	//
+	// Lists all snapshots in a volume.
+	//
+	// GET /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/snapshot
+	V1betaListSnapshot(ctx context.Context, params V1betaListSnapshotParams) (V1betaListSnapshotRes, error)
 	// V1betaListVolumes implements v1beta_listVolumes operation.
 	//
 	// Returns descriptions of all volumes owned by the caller.
