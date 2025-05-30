@@ -45,6 +45,7 @@ jobs:
     uses: ./.github/workflows/release_resources.yaml
     secrets: inherit
     with:
+      pre_release: true
       tag: ${{ needs.generate_tag.outputs.newTag }}
 
   update_jira_component_version:

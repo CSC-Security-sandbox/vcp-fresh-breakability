@@ -20,7 +20,6 @@ var promotionCmd = &cobra.Command{
 func PromotionalFunc() {
 	if strings.Contains(SetupConfigobject.BaseRelease, "-RC.") {
 		PromotionalCreation()
-		ReleaseGithub(false, SetupConfigobject.FinalRelease)
 	}
 }
 

@@ -69,7 +69,6 @@ func ReleaseFunc() {
 		if errWrite := os.WriteFile(os.Getenv("GITHUB_OUTPUT"), []byte(fmt.Sprintf("RC_TAG=%s\n", rcTag)), 0644); errWrite != nil {
 			log.Fatalf("Error writing to stdout: %v", errWrite)
 		}
-		ReleaseGithub(true, rcTag)
 	} else {
 		log.Printf("Branch exists")
 	}
@@ -90,5 +89,4 @@ func DevTagCreation(currTag string) {
 	if errWrite := os.WriteFile(os.Getenv("GITHUB_OUTPUT"), []byte(fmt.Sprintf("DEV_TAG=%s\n", devTag)), 0644); errWrite != nil {
 		log.Fatalf("Error writing to stdout: %v", errWrite)
 	}
-	ReleaseGithub(true, devTag)
 }

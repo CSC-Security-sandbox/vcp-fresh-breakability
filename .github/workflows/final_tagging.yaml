@@ -53,4 +53,5 @@ jobs:
     uses: ./.github/workflows/release_resources.yaml
     secrets: inherit
     with:
+      pre_release: false
       tag: ${{ needs.final_tagging.outputs.finalTag }}

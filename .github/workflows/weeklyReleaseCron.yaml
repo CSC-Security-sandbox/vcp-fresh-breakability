@@ -58,6 +58,7 @@ jobs:
     uses: ./.github/workflows/release_resources.yaml
     secrets: inherit
     with:
+      pre_release: true
       tag: ${{ needs.release_branch.outputs.rcTAG }}
 
   create_release_vsa_dev:
@@ -65,4 +66,5 @@ jobs:
     uses: ./.github/workflows/release_resources.yaml
     secrets: inherit
     with:
+      pre_release: true
       tag: ${{ needs.release_branch.outputs.devTAG }}

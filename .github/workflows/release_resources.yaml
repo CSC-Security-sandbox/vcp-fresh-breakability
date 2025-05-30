@@ -7,6 +7,10 @@ on:
         description: "Tag to use for building and publishing images and charts and release"
         required: true
         type: string
+      pre_release:
+        description: "A flag to indicate if this is a pre-release"
+        default: false
+        type: boolean
     outputs:
       GHCR_core_URL:
         description: "URL of the core image in GHCR"
@@ -301,7 +305,7 @@ jobs:
           done
 
       - name: Create a release
-        run: gh release create -R https://github.com/${{ github.repository }} --generate-notes --prerelease ${{ inputs.tag }}
+        run: gh release create -R https://github.com/${{ github.repository }} --generate-notes ${{ inputs.pre_release && '--prerelease' || '' }} ${{ inputs.tag }}
         env:
           GH_TOKEN: ${{ secrets.GHVSA_PAT }}
           GITHUB_REPOSITORY: ${{ github.event.repository.name }}
