@@ -154,9 +154,10 @@ jobs:
           --detect.accuracy.required=NONE  -d
         shell: bash -e {0}
 
+
   black_duck_scan_image:
     name: Run black duck scan on the container images
-    needs: create_pre_release_vsa_control_plane
+    needs: [create_pre_release_vsa_control_plane, generate_tag]
     runs-on: [ cvs-u24-sunilt-01 ]
 
     steps:
@@ -165,6 +166,7 @@ jobs:
         run: |
           IMAGES=("core" "google-proxy" "vcp-db-migrate" "vcp-worker")
           for IMAGE in "${IMAGES[@]}"; do
+            echo "Image used for scan is ${IMAGE} - ${{needs.generate_tag.outputs.newTag}}"
             docker run --rm  --network host -v /home/cvs/opt-dir:/home/cvs/opt-dir -v /var/run/docker.sock:/var/run/docker.sock \
             --mount type=bind,source=/bds-inspect,target=/bds-inspect,ro --user root \
             ghcr.io/vcp-vsa-control-plane/vsacictl:v16 \

@@ -290,7 +290,7 @@ jobs:
       - name: Package Helm Charts
         run: |
           helm package kubernetes/vsa-control-plane --destination ./helm-packages
-          helm package kubernetes/vcp-worker --destination ./helm-packages
+          helm package kubernetes/vcp-worker-chart --destination ./helm-packages
 
       - name: Push Helm Charts to GHCR
         run: |
