@@ -18,6 +18,12 @@ var releaseCmd = &cobra.Command{
 }
 
 func ReleaseFunc() {
+	file, err := os.OpenFile(os.Getenv("GITHUB_OUTPUT"), os.O_APPEND|os.O_WRONLY|os.O_CREATE, 0644)
+	if err != nil {
+		log.Fatalf("Error opening file for appending: %v", err)
+	}
+	defer file.Close()
+
 	errFetch := FetchTagsPrune()
 	if errFetch != nil {
 		log.Printf("Failed to fetch tags: %v", errFetch)

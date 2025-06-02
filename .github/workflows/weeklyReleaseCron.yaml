@@ -15,7 +15,7 @@ jobs:
 
     runs-on: [ self-hosted,linux ]
     container:
-      image: ghcr.io/vcp-vsa-control-plane/vsacictl:v16
+      image: ghcr.io/vcp-vsa-control-plane/vsacictl:v18
       options: --user root
 
     steps:
@@ -54,7 +54,7 @@ jobs:
       devTAG: ${{ steps.release_logic_binary.outputs.DEV_TAG }}
 
   create_release_vsa_rc:
-    needs: release_branch
+    needs: [release_branch]
     uses: ./.github/workflows/release_resources.yaml
     secrets: inherit
     with:
@@ -62,7 +62,7 @@ jobs:
       tag: ${{ needs.release_branch.outputs.rcTAG }}
 
   create_release_vsa_dev:
-    needs: release_branch
+    needs: [release_branch]
     uses: ./.github/workflows/release_resources.yaml
     secrets: inherit
     with:

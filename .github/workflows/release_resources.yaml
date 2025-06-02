@@ -11,6 +11,7 @@ on:
         description: "A flag to indicate if this is a pre-release"
         default: false
         type: boolean
+
     outputs:
       GHCR_core_URL:
         description: "URL of the core image in GHCR"
