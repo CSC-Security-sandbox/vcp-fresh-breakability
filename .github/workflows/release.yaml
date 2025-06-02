@@ -50,7 +50,7 @@ jobs:
 
   update_jira_component_version:
     name: Update JIRA component version
-    needs: create_pre_release_vsa_control_plane
+    needs: generate_tag
     runs-on: [ ubuntu-22.04 ]
     container:
       image: ghcr.io/vcp-vsa-control-plane/vsacictl:v16
@@ -183,4 +183,3 @@ jobs:
             --detect.docker.passthrough.shared.dir.path.local=/home/cvs/opt-dir
             echo "BlackDuck scan completed for image: ${IMAGE}"
           done
-        
