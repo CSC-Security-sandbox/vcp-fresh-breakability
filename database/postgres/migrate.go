@@ -80,9 +80,9 @@ func (m *Migrator) runAutoMigrations(db *gormwrapper.Wrapper, ctx context.Contex
 		return fmt.Errorf("calculate checksum failed: %w", err)
 	}
 
-	if needs, err := m.needsMigration(db, checksum); err != nil {
+	if _, err := m.needsMigration(db, checksum); err != nil {
 		return err
-	} else if !needs {
+	} else if false {
 		m.Logger.InfoContext(ctx, "Models unchanged, skipping AutoMigrate")
 		return nil
 	}

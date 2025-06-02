@@ -2,13 +2,14 @@ package main
 
 import (
 	"context"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities/kms_activities"
 	"os"
 
 	"github.com/google/uuid"
 	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities/kms_activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/workflows"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/workflows/kms_workflows"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database"
 	utilsmiddleware "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
@@ -109,7 +110,8 @@ func RegisterWorkflowsAndActivities(worker tManagerPkg.Worker, dbcon database.St
 	worker.RegisterWorkflow(workflows.CreateSnapshotWorkflow)
 	worker.RegisterWorkflow(workflows.DeleteSnapshotWorkflow)
 	worker.RegisterWorkflow(workflows.AcceptClusterPeerWorkflow)
-	worker.RegisterWorkflow(workflows.UpdateKmsConfigWorkflow)
+	worker.RegisterWorkflow(kms_workflows.UpdateKmsConfigWorkflow)
+	worker.RegisterWorkflow(kms_workflows.CreateKmsConfigWorkflow)
 
 	worker.RegisterActivity(&activities.CommonActivities{SE: dbcon})
 	worker.RegisterActivity(&activities.PoolActivity{SE: dbcon})
@@ -118,5 +120,5 @@ func RegisterWorkflowsAndActivities(worker tManagerPkg.Worker, dbcon database.St
 	worker.RegisterActivity(&activities.SnapshotCreateActivity{SE: dbcon})
 	worker.RegisterActivity(&activities.SnapshotDeleteActivity{SE: dbcon})
 	worker.RegisterActivity(&activities.ClusterPeerActivity{SE: dbcon})
-	worker.RegisterActivity(&kms_activities.KmsConfigUpdateActivity{SE: dbcon})
+	worker.RegisterActivity(&kms_activities.KmsConfigActivity{SE: dbcon})
 }

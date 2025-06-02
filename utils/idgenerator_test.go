@@ -94,3 +94,32 @@ func TestIsValidUUID(t *testing.T) {
 		}
 	})
 }
+
+func TestGetOperationUUID(t *testing.T) {
+	t.Run("TestGetOperationUUIDReturnsInputWhenNoSlashesPresent", func(tt *testing.T) {
+		operationID := "no-slash-uuid"
+		if got := GetOperationUUID(operationID); got != operationID {
+			t.Errorf("expected %s, got %s", operationID, got)
+		}
+	})
+	t.Run("TestGetOperationUUIDReturnsEmptyStringForEmptyInput", func(tt *testing.T) {
+		if got := GetOperationUUID(""); got != "" {
+			t.Errorf("expected empty string, got %s", got)
+		}
+	})
+	t.Run("TestGetOperationUUIDReturnsLastSegmentForNonStandardOperationID", func(tt *testing.T) {
+		operationID := "foo/bar/baz/last-segment"
+		expected := "last-segment"
+		if got := GetOperationUUID(operationID); got != expected {
+			t.Errorf("expected %s, got %s", expected, got)
+		}
+	})
+
+	t.Run("TestGetOperationUUIDReturnsUUIDFromValidOperationID", func(tt *testing.T) {
+		operationID := "projects/123456789/locations/us-central1/operations/12345678-1234-5678-9012-123456789012"
+		expectedUUID := "12345678-1234-5678-9012-123456789012"
+		if got := GetOperationUUID(operationID); got != expectedUUID {
+			t.Errorf("expected %s, got %s", expectedUUID, got)
+		}
+	})
+}

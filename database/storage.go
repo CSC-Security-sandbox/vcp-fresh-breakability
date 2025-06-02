@@ -600,3 +600,30 @@ func (s *PersistenceStore) UpdateKmsConfig(ctx context.Context, kmsConfig *datam
 func (s *PersistenceStore) GetSvmsByKmsConfigID(ctx context.Context, kmsConfigID int64) ([]*datamodel.Svm, error) {
 	return s.dataStore.GetSvmsByKmsConfigID(ctx, kmsConfigID)
 }
+
+func (s *PersistenceStore) CreateKmsConfig(ctx context.Context, kmsConfigParams *datamodel.KmsConfig) (*datamodel.KmsConfig, error) {
+	return s.dataStore.CreateKmsConfig(ctx, kmsConfigParams)
+}
+
+func (s *PersistenceStore) GetKmsConfigByUUID(ctx context.Context, uuid string) (*datamodel.KmsConfig, error) {
+	return s.dataStore.GetKmsConfigByUUID(ctx, uuid)
+}
+
+func (s *PersistenceStore) UpdateKmsConfigAttributes(ctx context.Context, uuid string, attributes *datamodel.KmsAttributes) (*datamodel.KmsConfig, error) {
+	return s.dataStore.UpdateKmsConfigAttributes(ctx, uuid, attributes)
+}
+func (s *PersistenceStore) GetJobByKmsConfigID(ctx context.Context, kmsConfigUUID string) (*datamodel.Job, error) {
+	return s.dataStore.GetJobByKmsConfigID(ctx, kmsConfigUUID)
+}
+
+func (s *PersistenceStore) UpdateKmsConfigDetails(ctx context.Context, uuid string, keyFullPath string, resourceID string) (*datamodel.KmsConfig, error) {
+	return s.dataStore.UpdateKmsConfigDetails(ctx, uuid, keyFullPath, resourceID)
+}
+
+func (s *PersistenceStore) UpdateServiceAccountEmailAndKey(ctx context.Context, uuid string, email string, key string) (*datamodel.ServiceAccount, error) {
+	return s.dataStore.UpdateServiceAccountEmailAndKey(ctx, uuid, email, key)
+}
+
+func (s *PersistenceStore) UpdateServiceAccountState(ctx context.Context, uuid string, state string, stateDetails string) (*datamodel.ServiceAccount, error) {
+	return s.dataStore.UpdateServiceAccountState(ctx, uuid, state, stateDetails)
+}

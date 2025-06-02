@@ -2,6 +2,7 @@ package util
 
 import (
 	"context"
+
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 	commonpb "go.temporal.io/api/common/v1"
@@ -17,6 +18,7 @@ var ContextPropagateKeys = []string{
 	// Any param which is context propagated in temporal
 	// should be json serializable
 	"logParam",
+	"authorization",
 }
 
 // contextMapPropagator propagates the keySet across a workflow,

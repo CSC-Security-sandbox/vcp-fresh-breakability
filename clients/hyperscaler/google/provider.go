@@ -14,6 +14,7 @@ import (
 	"golang.org/x/oauth2/google"
 	"google.golang.org/api/compute/v1"
 	"google.golang.org/api/googleapi"
+	"google.golang.org/api/iam/v1"
 	"google.golang.org/api/option"
 	"google.golang.org/api/serviceconsumermanagement/v1"
 	"google.golang.org/api/servicenetworking/v1"
@@ -36,6 +37,7 @@ var (
 	initializeNetworkingService = _initializeNetworkingService
 	initializeComputeService    = _initializeComputeService
 	initializeStorageService    = _initializeStorageService
+	initializeIamService        = _initializeIamService
 )
 
 type GcpServices struct {
@@ -54,6 +56,7 @@ type AdminGCPService struct {
 	networkingService *servicenetworking.APIService
 	computeService    *compute.Service
 	storageService    StorageClient
+	iamService        *iam.Service
 }
 
 // _newClient redirects to third party library HTTP NewClient for networking, while it helps to mock the function for init_test
@@ -121,11 +124,17 @@ func _newGoogleClient(ctx context.Context) (*AdminGCPService, error) {
 		return nil, err
 	}
 
+	iamService, err := initializeIamService(ctx)
+	if err != nil {
+		log.Error("Error initializeIamService", err)
+		return nil, err
+	}
 	gServices := AdminGCPService{
 		networkingService: networkingService,
 		managementService: managementService,
 		computeService:    computeService,
 		storageService:    &storageClient{client: storageService},
+		iamService:        iamService,
 	}
 	return &gServices, nil
 }
@@ -182,6 +191,37 @@ func _initializeNetworkingService(ctx context.Context) (*servicenetworking.APISe
 	if endpoint != "" {
 		svc.BasePath = endpoint
 	}
+	return svc, nil
+}
+
+// _initializeIamService initializes the IAM API service
+func _initializeIamService(ctx context.Context) (*iam.Service, error) {
+	slogger := util.GetLogger(ctx)
+	scopesOption := option.WithScopes(iam.CloudPlatformScope)
+	opts := []option.ClientOption{scopesOption}
+	slogger.Debug(fmt.Sprintf("opts: %#v", opts))
+
+	if MockMetaDataHost != "" {
+		opts = append(opts, option.WithTokenSource(google.ComputeTokenSource("", iam.CloudPlatformScope)))
+	}
+	slogger.Debug("creating newClient")
+	client, endpoint, err := newClient(ctx, opts...)
+	if err != nil {
+		slogger.Error("error while creating new client for _initializeIamService", err)
+		return nil, vsaerrors.NewVCPError(vsaerrors.ErrGCPClientInitializationError, err)
+	}
+	client.Timeout = defaultSleepTime
+
+	svc, err := iam.NewService(ctx, option.WithHTTPClient(client))
+	if err != nil {
+		slogger.Error("compute.NewService error", err)
+		return nil, vsaerrors.NewVCPError(vsaerrors.ErrGCPClientInitializationError, err)
+	}
+
+	if endpoint != "" {
+		svc.BasePath = endpoint
+	}
+
 	return svc, nil
 }
 

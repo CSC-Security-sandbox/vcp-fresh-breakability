@@ -137,6 +137,6 @@ func TestUpdateUpdateKmsConfigState(t *testing.T) {
 			State:     models.LifeCycleStateUpdating,
 		}
 		_, err = store.UpdateKmsConfigState(context.Background(), kms.UUID, models.LifeCycleStateUpdating, models.LifeCycleStateUpdatingDetails)
-		assert.EqualError(tt, err, "kms config not found", "Expected no error, got %v", err)
+		assert.EqualError(tt, err, "KMS Configuration not found", "Expected no error, got %v", err)
 	})
 }

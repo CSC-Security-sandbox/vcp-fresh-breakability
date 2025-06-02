@@ -87,7 +87,6 @@ type DataStore interface {
 	GetJobsWithCondition(ctx context.Context, filter utils.Filter) ([]*datamodel.Job, error)
 
 	GetSvmForPoolID(ctx context.Context, poolID int64) (*datamodel.Svm, error)
-
 	GetNodesByPoolID(ctx context.Context, poolId int64) ([]*datamodel.Node, error)
 	CreateNode(ctx context.Context, node *datamodel.Node) (*datamodel.Node, error)
 
@@ -124,4 +123,13 @@ type DataStore interface {
 	UpdateKmsConfigState(ctx context.Context, kmsConfigUUID string, state string, stateDetails string) (*datamodel.KmsConfig, error)
 	UpdateKmsConfig(ctx context.Context, kmsConfig *datamodel.KmsConfig) (*datamodel.KmsConfig, error)
 	GetSvmsByKmsConfigID(ctx context.Context, kmsConfigID int64) ([]*datamodel.Svm, error)
+
+	CreateKmsConfig(ctx context.Context, kmsConfig *datamodel.KmsConfig) (*datamodel.KmsConfig, error)
+	GetKmsConfigByUUID(ctx context.Context, uuid string) (*datamodel.KmsConfig, error)
+	UpdateKmsConfigAttributes(ctx context.Context, uuid string, attributes *datamodel.KmsAttributes) (*datamodel.KmsConfig, error)
+	GetJobByKmsConfigID(ctx context.Context, kmsConfigUUID string) (*datamodel.Job, error)
+	UpdateKmsConfigDetails(ctx context.Context, uuid string, fullKeyPath string, resourceID string) (*datamodel.KmsConfig, error)
+
+	UpdateServiceAccountEmailAndKey(ctx context.Context, uuid string, email string, key string) (*datamodel.ServiceAccount, error)
+	UpdateServiceAccountState(ctx context.Context, uuid string, state string, stateDetails string) (*datamodel.ServiceAccount, error)
 }

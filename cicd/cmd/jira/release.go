@@ -2,9 +2,10 @@ package jira
 
 import (
 	"fmt"
-	"github.com/andygrunwald/go-jira"
 	"log"
 	"os"
+
+	"github.com/andygrunwald/go-jira"
 )
 
 func allowRelease(issue *jira.Issue) error {

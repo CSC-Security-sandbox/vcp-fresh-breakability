@@ -2,12 +2,13 @@ package unitTest
 
 import (
 	"fmt"
-	"github.com/spf13/cobra"
 	"log"
 	"os"
 	"os/exec"
 	"strconv"
 	"strings"
+
+	"github.com/spf13/cobra"
 )
 
 var CoverageCmd = &cobra.Command{

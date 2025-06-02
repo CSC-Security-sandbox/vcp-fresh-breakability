@@ -2,18 +2,20 @@ package orchestrator
 
 import (
 	"context"
+	"go.temporal.io/sdk/client"
 	"gorm.io/gorm"
 	"testing"
 	"time"
 
-	"github.com/go-openapi/errors"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database"
-	errors2 "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine"
 )
@@ -80,7 +82,7 @@ func TestGetMultipleKmsConfigs(t *testing.T) {
 	t.Run("WhenStorageLayerReturnsError", func(tt *testing.T) {
 		kmsConfigUUIDList := []string{"some-uuid"}
 		mockStorage := database.NewMockStorage(tt)
-		mockStorage.EXPECT().GetMultipleKmsConfigs(mock.Anything, mock.Anything).Return(nil, errors.New(500, "internal error"))
+		mockStorage.EXPECT().GetMultipleKmsConfigs(mock.Anything, mock.Anything).Return(nil, errors.New("internal error"))
 		orchInstanceNew := Orchestrator{storage: mockStorage}
 
 		result, err := orchInstanceNew.GetMultipleKMSConfigs(context.Background(), kmsConfigUUIDList)
@@ -239,7 +241,7 @@ func TestUpdateKmsConfig(t *testing.T) {
 		}
 		// Mock storage behavior
 		mockStorage.On("GetAccount", ctx, "test-account").Return(account, nil)
-		mockStorage.On("GetKmsConfig", ctx, "test-kms-config-id").Return(nil, errors2.NewNotFoundErr("kms config", nil))
+		mockStorage.On("GetKmsConfig", ctx, "test-kms-config-id").Return(nil, errors.NewNotFoundErr("kms config", nil))
 		mockStorage.On("CreateJob", ctx, mock.Anything).Return(&datamodel.Job{
 			BaseModel: datamodel.BaseModel{UUID: "test-job-uuid"},
 		}, nil)
@@ -319,7 +321,7 @@ func TestUpdateKmsConfig(t *testing.T) {
 		// Mock storage behavior
 		mockStorage.On("GetAccount", ctx, "test-account").Return(account, nil)
 		mockStorage.On("GetKmsConfig", ctx, "test-kms-config-id").Return(dbKmsConfig, nil)
-		mockStorage.On("GetSvmsByKmsConfigID", ctx, dbKmsConfig.ID).Return(nil, errors2.New("error"))
+		mockStorage.On("GetSvmsByKmsConfigID", ctx, dbKmsConfig.ID).Return(nil, errors.New("error"))
 
 		// Mock Temporal client behavior
 		mockTemporal.On("ExecuteWorkflow", ctx, mock.Anything, mock.Anything, dbKmsConfig, params).Return(nil, nil)
@@ -401,7 +403,7 @@ func TestUpdateKmsConfig(t *testing.T) {
 		}, nil)
 
 		// Mock Temporal client behavior
-		mockTemporal.On("ExecuteWorkflow", ctx, mock.Anything, mock.Anything, dbKmsConfig, params).Return(nil, errors2.New("workflow execution failed"))
+		mockTemporal.On("ExecuteWorkflow", ctx, mock.Anything, mock.Anything, dbKmsConfig, params).Return(nil, errors.New("workflow execution failed"))
 
 		kmsConfig, jobUUID, err := orchestrator.UpdateKmsConfig(ctx, params)
 
@@ -434,7 +436,7 @@ func TestIsKmsConfigInUse(t *testing.T) {
 			State:          models.LifeCycleStateAvailable,
 			ServiceAccount: &datamodel.ServiceAccount{BaseModel: datamodel.BaseModel{UUID: "test-sa-id"}},
 		}
-		mockStorage.On("GetSvmsByKmsConfigID", ctx, dbKmsConfig.ID).Return(nil, errors2.NewNotFoundErr("svm", nil))
+		mockStorage.On("GetSvmsByKmsConfigID", ctx, dbKmsConfig.ID).Return(nil, errors.NewNotFoundErr("svm", nil))
 
 		inuse, err := isKmsConfigInUse(ctx, mockStorage, dbKmsConfig)
 		assert.NoError(tt, err)
@@ -447,7 +449,7 @@ func TestIsKmsConfigInUse(t *testing.T) {
 			State:          models.LifeCycleStateAvailable,
 			ServiceAccount: &datamodel.ServiceAccount{BaseModel: datamodel.BaseModel{UUID: "test-sa-id"}},
 		}
-		mockStorage.On("GetSvmsByKmsConfigID", ctx, dbKmsConfig.ID).Return(nil, errors2.New("some error"))
+		mockStorage.On("GetSvmsByKmsConfigID", ctx, dbKmsConfig.ID).Return(nil, errors.New("some error"))
 
 		inuse, err := isKmsConfigInUse(ctx, mockStorage, dbKmsConfig)
 		assert.Error(tt, err)
@@ -466,4 +468,190 @@ func TestIsKmsConfigInUse(t *testing.T) {
 		assert.NoError(tt, err)
 		assert.Equal(tt, inuse, true)
 	})
+}
+
+func TestCreateKmsConfig(t *testing.T) {
+	temporal := workflow_engine.NewMockTemporalTestClient(t)
+	t.Run("CreateKmsConfigReturnsErrorWhenAccountCreationFails", func(tt *testing.T) {
+		ctx := context.Background()
+		mockLogger := log.NewLogger()
+		ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, mockLogger)
+		params := &common.CreateKmsConfigParams{AccountName: "fail_account"}
+		se := database.Storage(nil)
+		getOrCreateAccount = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return nil, errors.New("account error")
+		}
+		defer func() {
+			getOrCreateAccount = _getOrCreateAccount
+		}()
+		_, _, err := _createKmsConfig(ctx, se, temporal, params)
+		if err == nil || err.Error() != "account error" {
+			t.Errorf("Expected account error, got %v", err)
+		}
+	})
+
+	t.Run("CreateKmsConfigParseKeyFullPathResourceFails", func(tt *testing.T) {
+		ctx := context.Background()
+		mockLogger := log.NewLogger()
+		ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, mockLogger)
+		params := &common.CreateKmsConfigParams{AccountName: "test_account", KeyFullPath: "projects/p/locations/l/keyRings/r/cryptoKeys/k"}
+		mockStorage := new(database.MockStorage)
+		getOrCreateAccount = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return &datamodel.Account{}, nil
+		}
+		parseKeyFullPathResource = func(s string) (*utils.ParsedKeyFullPathResource, error) {
+			return nil, errors.New("resource error")
+		}
+		defer func() {
+			getOrCreateAccount = _getOrCreateAccount
+			parseKeyFullPathResource = utils.ParseKeyFullPathResource
+		}()
+		_, _, err := _createKmsConfig(ctx, mockStorage, temporal, params)
+		assert.Error(tt, err)
+	})
+
+	t.Run("CreateKmsConfigReturnsErrorWhenJobCreationFails", func(tt *testing.T) {
+		ctx := context.Background()
+		mockLogger := log.NewLogger()
+		ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, mockLogger)
+		params := &common.CreateKmsConfigParams{AccountName: "test_account", KeyFullPath: "projects/p/locations/l/keyRings/r/cryptoKeys/k"}
+		mockStorage := new(database.MockStorage)
+		getOrCreateAccount = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return &datamodel.Account{}, nil
+		}
+		parseKeyFullPathResource = func(s string) (*utils.ParsedKeyFullPathResource, error) {
+			return &utils.ParsedKeyFullPathResource{CryptoKey: "k", ProjectID: "p", Location: "l", KeyRing: "r"}, nil
+		}
+		mockStorage.On("CreateKmsConfig", ctx, mock.Anything).Return(&datamodel.KmsConfig{AccountID: 1}, nil)
+		mockStorage.On("CreateJob", ctx, mock.Anything).Return(nil, errors.New("job error"))
+
+		defer func() {
+			getOrCreateAccount = _getOrCreateAccount
+			parseKeyFullPathResource = utils.ParseKeyFullPathResource
+		}()
+		_, _, err := _createKmsConfig(ctx, mockStorage, temporal, params)
+		if err == nil || err.Error() != "job error" {
+			t.Errorf("Expected job error, got %v", err)
+		}
+	})
+
+	t.Run("CreateKmsConfigReturnsErrorWhenStorageFails", func(tt *testing.T) {
+		ctx := context.Background()
+		mockLogger := log.NewLogger()
+		ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, mockLogger)
+		params := &common.CreateKmsConfigParams{AccountName: "test_account", KeyFullPath: "projects/p/locations/l/keyRings/r/cryptoKeys/k"}
+		mockStorage := new(database.MockStorage)
+		defer func() {
+			getOrCreateAccount = _getOrCreateAccount
+			parseKeyFullPathResource = utils.ParseKeyFullPathResource
+		}()
+		getOrCreateAccount = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return &datamodel.Account{}, nil
+		}
+		parseKeyFullPathResource = func(s string) (*utils.ParsedKeyFullPathResource, error) {
+			return &utils.ParsedKeyFullPathResource{CryptoKey: "k", ProjectID: "p", Location: "l", KeyRing: "r"}, nil
+		}
+		mockStorage.On("CreateKmsConfig", ctx, mock.Anything).Return(nil, errors.New("db error"))
+
+		_, _, err := _createKmsConfig(ctx, mockStorage, temporal, params)
+		if err == nil || err.Error() != "db error" {
+			t.Errorf("Expected db error, got %v", err)
+		}
+	})
+	t.Run("CreateKmsConfigReturnsErrorWhenWorkflowFails", func(tt *testing.T) {
+		ctx := context.Background()
+		mockLogger := log.NewLogger()
+		ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, mockLogger)
+		params := &common.CreateKmsConfigParams{AccountName: "test_account", KeyFullPath: "projects/p/locations/l/keyRings/r/cryptoKeys/k"}
+		mockStorage := new(database.MockStorage)
+		defer func() {
+			getOrCreateAccount = _getOrCreateAccount
+			parseKeyFullPathResource = utils.ParseKeyFullPathResource
+		}()
+		getOrCreateAccount = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return &datamodel.Account{}, nil
+		}
+		parseKeyFullPathResource = func(s string) (*utils.ParsedKeyFullPathResource, error) {
+			return &utils.ParsedKeyFullPathResource{CryptoKey: "k", ProjectID: "p", Location: "l", KeyRing: "r"}, nil
+		}
+		mockStorage.On("CreateKmsConfig", ctx, mock.Anything).Return(&datamodel.KmsConfig{BaseModel: datamodel.BaseModel{
+			UUID: "uuid"}, AccountID: 1}, nil)
+		mockStorage.On("CreateJob", ctx, mock.Anything).Return(&datamodel.Job{BaseModel: datamodel.BaseModel{
+			UUID: "job-uuid"}, WorkflowID: "wf-id"}, nil)
+		temporal.On("ExecuteWorkflow", ctx, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, errors.New("workflow error"))
+
+		_, _, err := _createKmsConfig(ctx, mockStorage, temporal, params)
+		if err == nil || err.Error() != "workflow error" {
+			t.Errorf("Expected workflow error, got %v", err)
+		}
+	})
+	t.Run("CreateKmsConfigReturnsKmsConfigAndJobUUIDOnSuccess", func(tt *testing.T) {
+		ctx := context.Background()
+		mockLogger := log.NewLogger()
+		ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, mockLogger)
+		params := &common.CreateKmsConfigParams{AccountName: "test_account", KeyFullPath: "projects/p/locations/l/keyRings/r/cryptoKeys/k", ResourceID: "res-id", Name: "kms-name"}
+		mockStorage := new(database.MockStorage)
+		defer func() {
+			getOrCreateAccount = _getOrCreateAccount
+			parseKeyFullPathResource = utils.ParseKeyFullPathResource
+		}()
+		getOrCreateAccount = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return &datamodel.Account{}, nil
+		}
+		parseKeyFullPathResource = func(s string) (*utils.ParsedKeyFullPathResource, error) {
+			return &utils.ParsedKeyFullPathResource{CryptoKey: "k", ProjectID: "p", Location: "l", KeyRing: "r"}, nil
+		}
+		mockStorage.On("CreateKmsConfig", ctx, mock.Anything).Return(&datamodel.KmsConfig{BaseModel: datamodel.BaseModel{
+			UUID: "uuid"}, AccountID: 1, KeyName: "k", CustomerProjectID: "p", KeyRingLocation: "l", KeyRing: "r", ResourceID: "res-id",
+			KmsAttributes: &datamodel.KmsAttributes{}}, nil)
+		mockStorage.On("CreateJob", ctx, mock.Anything).Return(&datamodel.Job{BaseModel: datamodel.BaseModel{
+			UUID: "job-uuid"}, WorkflowID: "wf-id"}, nil)
+		temporal.On("ExecuteWorkflow", ctx, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+
+		kmsConfig, jobUUID, err := _createKmsConfig(ctx, mockStorage, temporal, params)
+		if err != nil {
+			t.Errorf("Expected no error, got %v", err)
+		}
+		if kmsConfig == nil || jobUUID != "job-uuid" {
+			t.Errorf("Expected valid kmsConfig and jobUUID, got %v, %v", kmsConfig, jobUUID)
+		}
+	})
+}
+
+func TestCreateKmsConfigFails(t *testing.T) {
+	ctx := context.Background()
+	mockLogger := log.NewLogger()
+	ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, mockLogger)
+	params := &common.CreateKmsConfigParams{AccountName: "fail_account"}
+	mockStorage := new(database.MockStorage)
+	temporal := workflow_engine.NewMockTemporalTestClient(t)
+	createKmsConfig = func(ctx context.Context, se database.Storage, temporal client.Client, params *common.CreateKmsConfigParams) (*models.KmsConfig, string, error) {
+		return nil, "", errors.New("some error")
+	}
+	defer func() {
+		createKmsConfig = _createKmsConfig
+	}()
+	orch := Orchestrator{storage: mockStorage, temporal: temporal}
+	_, _, err := orch.CreateKmsConfig(ctx, params)
+	assert.Error(t, err)
+	assert.Equal(t, "some error", err.Error())
+}
+
+func TestGetKmsConfigFails(t *testing.T) {
+	ctx := context.Background()
+	mockLogger := log.NewLogger()
+	ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, mockLogger)
+	params := &common.GetKmsConfigParams{AccountName: "fail_account"}
+	mockStorage := new(database.MockStorage)
+	temporal := workflow_engine.NewMockTemporalTestClient(t)
+	getKmsConfig = func(ctx context.Context, se database.Storage, temporal client.Client, params *common.GetKmsConfigParams) (*models.KmsConfig, error) {
+		return nil, errors.New("some error")
+	}
+	defer func() {
+		getKmsConfig = _getKmsConfig
+	}()
+	orch := Orchestrator{storage: mockStorage, temporal: temporal}
+	_, err := orch.GetKmsConfig(ctx, params)
+	assert.Error(t, err)
+	assert.Equal(t, "some error", err.Error())
 }

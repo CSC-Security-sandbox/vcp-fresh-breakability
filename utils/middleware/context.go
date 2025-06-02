@@ -10,4 +10,5 @@ const (
 	ContextSLoggerKey     ContextString = "ctxSLogger"
 	HeaderContextKey      ContextString = "headerContextKey"
 	TemporalSLoggerKey    ContextString = "fields"
+	RequestCorrelationID  ContextString = "requestCorrelationID"
 )

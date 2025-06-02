@@ -2,13 +2,14 @@ package tag
 
 import (
 	"fmt"
-	"gopkg.in/yaml.v3"
 	"io"
 	"log"
 	"os"
 	"os/exec"
 	"strings"
 	"time"
+
+	"gopkg.in/yaml.v3"
 )
 
 type SetupConfig struct {

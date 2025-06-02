@@ -23,6 +23,7 @@ const (
 	LifeCycleStateDeleted    = "DELETED"
 	LifeCycleStateError      = "ERROR"
 	LifeCycleStateRetained   = "RETAINED"
+	LifeCycleStateCreated    = "CREATED"
 
 	LifeCycleStateCreatingDetails      = "Creation in progress"
 	LifeCycleStateRevertingDetails     = "Revert in progress"
@@ -39,6 +40,8 @@ const (
 	LifeCycleStateOngoingDetails       = "Ongoing"
 	LifeCycleStateCreationErrorDetails = "Error in creating"
 	LifeCycleStateDeletionErrorDetails = "Error in deleting"
+	LifeCycleStateReadyDetails         = "Ready for use"
+	LifeCycleStateCreatedDetails       = "Created successfully"
 
 	AccountStateDisabled = "DISABLED"
 	AccountStateEnabled  = "ENABLED"

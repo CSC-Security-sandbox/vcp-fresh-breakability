@@ -3,13 +3,13 @@ package util
 import (
 	"context"
 	"errors"
+	"testing"
+
+	"github.com/stretchr/testify/suite"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 	commonpb "go.temporal.io/api/common/v1"
 	"go.temporal.io/sdk/converter"
-	"testing"
-
-	"github.com/stretchr/testify/suite"
 	"go.temporal.io/sdk/testsuite"
 	"go.temporal.io/sdk/workflow"
 )

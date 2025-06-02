@@ -2,10 +2,11 @@ package db
 
 import (
 	"context"
+	"time"
+
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
-	"time"
 )
 
 // GetDBConfig retrieves the database configuration from the common config.

@@ -3,9 +3,10 @@ package ghutils
 import (
 	"context"
 	"fmt"
+	"os"
+
 	gh "github.com/google/go-github/v50/github"
 	"golang.org/x/oauth2"
-	"os"
 )
 
 var (

@@ -1,6 +1,7 @@
 package google
 
 import (
+	"context"
 	"fmt"
 	"strings"
 	"time"
@@ -11,6 +12,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"google.golang.org/api/googleapi"
+	"google.golang.org/api/iam/v1"
 	"google.golang.org/api/servicenetworking/v1"
 )
 
@@ -24,6 +26,7 @@ var (
 	createSubnetwork                 = _createSubnetwork
 	createVPC                        = _createVPC
 	insertFirewall                   = _insertFirewall
+	createServiceAccountKey          = _createServiceAccountKey
 )
 
 // GetTenantProject lists registered tenancy units for the customer project
@@ -318,4 +321,18 @@ func _insertFirewall(gcpService *GcpServices, request *models.Firewall) (*models
 	}
 	gcpService.Logger.Debug(fmt.Sprintf("Operation to insert firewall created successfully for project name : %s, firewall name : %s", projectName, firewallName))
 	return convertComputeOpToComputeOp(op), nil
+}
+
+func (gcpService *GcpServices) CreateServiceAccountKey(ctx context.Context, email string) (*iam.ServiceAccountKey, error) {
+	return createServiceAccountKey(gcpService, ctx, email)
+}
+
+func _createServiceAccountKey(gcpService *GcpServices, ctx context.Context, serviceAccountEmail string) (*iam.ServiceAccountKey, error) {
+	request := &iam.CreateServiceAccountKeyRequest{}
+	resp, err := gcpService.AdminGCPService.iamService.Projects.ServiceAccounts.Keys.Create(fmt.Sprintf("projects/-/serviceAccounts/%s", serviceAccountEmail), request).Context(ctx).Do()
+	if err != nil {
+		return nil, fmt.Errorf("Projects.ServiceAccounts.Keys.Create: %w", err)
+	}
+
+	return resp, nil
 }

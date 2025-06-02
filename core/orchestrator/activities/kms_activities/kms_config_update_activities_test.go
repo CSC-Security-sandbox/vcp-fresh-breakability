@@ -2,16 +2,16 @@ package kms_activities
 
 import (
 	"context"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/sde"
-	gcpgenserver "github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/api/gcp-servergen"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/sde"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database"
+	gcpgenserver "github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/api/gcp-servergen"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 )
@@ -19,7 +19,7 @@ import (
 func TestUpdateSDEKmsConfig_Success(t *testing.T) {
 	// Arrange
 	mockStorage := database.NewMockStorage(t)
-	activity := KmsConfigUpdateActivity{SE: mockStorage}
+	activity := KmsConfigActivity{SE: mockStorage}
 	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
 	kms := &datamodel.KmsConfig{Name: "test-pool"}
 
@@ -40,7 +40,7 @@ func TestUpdateSDEKmsConfig_Success(t *testing.T) {
 func TestUpdateSDEKmsConfig_Error(t *testing.T) {
 	// Arrange
 	mockStorage := database.NewMockStorage(t)
-	activity := KmsConfigUpdateActivity{SE: mockStorage}
+	activity := KmsConfigActivity{SE: mockStorage}
 	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
 	kms := &datamodel.KmsConfig{Name: "test-pool"}
 
@@ -61,7 +61,7 @@ func TestUpdateSDEKmsConfig_Error(t *testing.T) {
 func TestUpdateKmsConfig_Success(t *testing.T) {
 	// Arrange
 	mockStorage := database.NewMockStorage(t)
-	activity := KmsConfigUpdateActivity{SE: mockStorage}
+	activity := KmsConfigActivity{SE: mockStorage}
 	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
 	kms := &datamodel.KmsConfig{BaseModel: datamodel.BaseModel{UUID: "uuid"}, Name: "test-kms", KeyName: "key1"}
 
@@ -87,7 +87,7 @@ func TestUpdateKmsConfig_Success(t *testing.T) {
 func TestUpdateKmsConfig_Error(t *testing.T) {
 	// Arrange
 	mockStorage := database.NewMockStorage(t)
-	activity := KmsConfigUpdateActivity{SE: mockStorage}
+	activity := KmsConfigActivity{SE: mockStorage}
 	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
 	kms := &datamodel.KmsConfig{BaseModel: datamodel.BaseModel{UUID: "uuid"}, Name: "test-kms", KeyName: "key1"}
 
@@ -113,7 +113,7 @@ func TestUpdateKmsConfig_Error(t *testing.T) {
 func TestUpdateKmsConfigState_Success(t *testing.T) {
 	// Arrange
 	mockStorage := database.NewMockStorage(t)
-	activity := KmsConfigUpdateActivity{SE: mockStorage}
+	activity := KmsConfigActivity{SE: mockStorage}
 	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
 	kms := &datamodel.KmsConfig{BaseModel: datamodel.BaseModel{UUID: "uuid"}, Name: "test-kms", KeyName: "key1"}
 
@@ -130,7 +130,7 @@ func TestUpdateKmsConfigState_Success(t *testing.T) {
 func TestUpdateKmsConfigState_Error(t *testing.T) {
 	// Arrange
 	mockStorage := database.NewMockStorage(t)
-	activity := KmsConfigUpdateActivity{SE: mockStorage}
+	activity := KmsConfigActivity{SE: mockStorage}
 	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
 	kms := &datamodel.KmsConfig{BaseModel: datamodel.BaseModel{UUID: "uuid"}, Name: "test-kms", KeyName: "key1"}
 

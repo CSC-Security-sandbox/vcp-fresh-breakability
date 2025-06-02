@@ -1,10 +1,11 @@
-package workflows
+package kms_workflows
 
 import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities/kms_activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/workflows"
 	gcpgenserver "github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/api/gcp-servergen"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
@@ -12,42 +13,39 @@ import (
 	"go.temporal.io/sdk/workflow"
 )
 
-type KmsConfigUpdateWorkflow struct {
-	BaseWorkflow
+type updateKmsConfigWorkflow struct {
+	workflows.BaseWorkflow
 }
 
-type KmsConfigUpdateWorkflowStatus struct {
-	ID         string
-	customerID string
-	status     string
-}
+// Enforcing the WorkflowInterface on kmsUpdateWorkflow
+var _ workflows.WorkflowInterface = &updateKmsConfigWorkflow{}
 
 // UpdateKmsConfigWorkflow process kms config update related requests from a customer.
 func UpdateKmsConfigWorkflow(ctx workflow.Context, kmsConfig *datamodel.KmsConfig, params *common.UpdateKmsConfigParams) (gcpgenserver.V1betaUpdateKmsConfigurationRes, error) {
-	kmsConfigWf := new(KmsConfigUpdateWorkflow)
+	kmsConfigWf := new(updateKmsConfigWorkflow)
 	err := kmsConfigWf.Setup(ctx, params)
 	if err != nil {
 		return nil, err
 	}
-	kmsConfigWf.Status = WorkflowStatusRunning
+	kmsConfigWf.Status = workflows.WorkflowStatusRunning
 	err = kmsConfigWf.UpdateJobStatus(ctx, string(models.JobsStatePROCESSING), nil)
 	if err != nil {
 		return nil, err
 	}
 	_, err = kmsConfigWf.Run(ctx, kmsConfig, params)
 	if err != nil {
-		kmsConfigWf.Status = WorkflowStatusFailed
+		kmsConfigWf.Status = workflows.WorkflowStatusFailed
 		err = kmsConfigWf.UpdateJobStatus(ctx, string(models.JobsStateERROR), err)
 		if err != nil {
 			return nil, err
 		}
 	}
-	kmsConfigWf.Status = WorkflowStatusCompleted
+	kmsConfigWf.Status = workflows.WorkflowStatusCompleted
 	err = kmsConfigWf.UpdateJobStatus(ctx, string(models.JobsStateDONE), nil)
 	return nil, err
 }
 
-func (wf *KmsConfigUpdateWorkflow) Setup(ctx workflow.Context, input interface{}) error {
+func (wf *updateKmsConfigWorkflow) Setup(ctx workflow.Context, input interface{}) error {
 	updateParams := input.(*common.UpdateKmsConfigParams)
 	info := workflow.GetInfo(ctx)
 	wf.ID = info.WorkflowExecution.ID
@@ -59,18 +57,20 @@ func (wf *KmsConfigUpdateWorkflow) Setup(ctx workflow.Context, input interface{}
 		"customerID": wf.CustomerID,
 	})
 
-	return workflow.SetQueryHandler(ctx, "status", func() (*KmsConfigUpdateWorkflowStatus, error) {
-		return &KmsConfigUpdateWorkflowStatus{
+	return workflow.SetQueryHandler(ctx, "status", func() (*workflows.WorkflowStatus, error) {
+		return &workflows.WorkflowStatus{
 			ID:         wf.ID,
-			status:     wf.Status,
-			customerID: wf.CustomerID,
+			Status:     wf.Status,
+			CustomerID: wf.CustomerID,
 		}, nil
 	})
 }
 
-func (wf *KmsConfigUpdateWorkflow) Run(ctx workflow.Context, kmsConfig *datamodel.KmsConfig, params *common.UpdateKmsConfigParams) (interface{}, error) {
-	updateActivity := &kms_activities.KmsConfigUpdateActivity{}
-	retryPolicy, err := PopulateRetryPolicyParams()
+func (wf *updateKmsConfigWorkflow) Run(ctx workflow.Context, args ...interface{}) (interface{}, error) {
+	kmsConfig := args[0].(*datamodel.KmsConfig)
+	params := args[1].(*common.UpdateKmsConfigParams)
+	updateActivity := &kms_activities.KmsConfigActivity{}
+	retryPolicy, err := workflows.PopulateRetryPolicyParams()
 	if err != nil {
 		return nil, err
 	}

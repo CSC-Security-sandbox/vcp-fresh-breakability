@@ -1,7 +1,6 @@
-package workflows
+package kms_workflows
 
 import (
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities/kms_activities"
 	"testing"
 
 	"github.com/go-openapi/errors"
@@ -9,6 +8,7 @@ import (
 	"github.com/stretchr/testify/mock"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities/kms_activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
@@ -32,7 +32,7 @@ func TestUpdateKmsConfigWorkflow(t *testing.T) {
 		env.SetHeader(mockHeader)
 		env.RegisterWorkflow(UpdateKmsConfigWorkflow)
 		env.RegisterActivity(&activities.CommonActivities{})
-		env.RegisterActivity(&kms_activities.KmsConfigUpdateActivity{})
+		env.RegisterActivity(&kms_activities.KmsConfigActivity{})
 
 		// Set up test data
 		params := &common.UpdateKmsConfigParams{
@@ -75,7 +75,7 @@ func TestUpdateKmsConfigWorkflow(t *testing.T) {
 		env.SetHeader(mockHeader)
 		env.RegisterWorkflow(UpdateKmsConfigWorkflow)
 		env.RegisterActivity(&activities.CommonActivities{})
-		env.RegisterActivity(&kms_activities.KmsConfigUpdateActivity{})
+		env.RegisterActivity(&kms_activities.KmsConfigActivity{})
 
 		// Set up test data
 		params := &common.UpdateKmsConfigParams{
@@ -111,7 +111,7 @@ func TestUpdateKmsConfigWorkflow(t *testing.T) {
 		}
 		env.SetHeader(mockHeader)
 		env.RegisterActivity(&activities.CommonActivities{})
-		env.RegisterActivity(&kms_activities.KmsConfigUpdateActivity{})
+		env.RegisterActivity(&kms_activities.KmsConfigActivity{})
 
 		// Set up test data
 		params := &common.UpdateKmsConfigParams{
@@ -132,13 +132,13 @@ func TestUpdateKmsConfigWorkflow(t *testing.T) {
 
 		// Register the workflow
 		env.RegisterWorkflow(func(ctx workflow.Context, params *common.UpdateKmsConfigParams, kmsConfig *datamodel.KmsConfig) (interface{}, error) {
-			wf := &KmsConfigUpdateWorkflow{}
+			wf := &updateKmsConfigWorkflow{}
 			return wf.Run(ctx, kmsConfig, params)
 		})
 
 		// Execute workflow
 		env.ExecuteWorkflow(func(ctx workflow.Context, params *common.UpdateKmsConfigParams, kmsConfig *datamodel.KmsConfig) (interface{}, error) {
-			wf := &KmsConfigUpdateWorkflow{}
+			wf := &updateKmsConfigWorkflow{}
 			return wf.Run(ctx, kmsConfig, params)
 		}, params, kmsConfig)
 

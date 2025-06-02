@@ -26,6 +26,7 @@ const (
 	JobTypeDeleteSnapshot    JobType = "DELETE_SNAPSHOT"
 	JobTypeAcceptClusterPeer JobType = "ACCEPT_CLUSTER_PEER"
 	JobTypeUpdateKmsConfig JobType = "UPDATE_KMS_CONFIG"
+	JobTypeCreateKmsConfig JobType = "CREATE_KMS_CONFIG"
 )
 
 // Job describes a job DB model
@@ -40,7 +41,10 @@ type Job struct {
 	ErrorDetails  []byte
 	AccountID     sql.NullInt64
 	IsAdminJob    bool
-	JobAttributes []byte
+	JobAttributes *JobAttributes
 	WorkflowID    string
 	ScheduledAt   time.Time
+}
+type JobAttributes struct {
+	ResourceUUID string
 }

@@ -3,11 +3,11 @@ package log
 import (
 	"context"
 	"fmt"
-	"github.com/google/uuid"
 	"net/http"
 	"os"
 	"strings"
 
+	"github.com/google/uuid"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware"
 )

@@ -1,9 +1,10 @@
 package jira
 
 import (
-	"github.com/andygrunwald/go-jira"
 	"log"
 	"os"
+
+	"github.com/andygrunwald/go-jira"
 )
 
 func allowMain(issue *jira.Issue) error {

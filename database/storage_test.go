@@ -620,3 +620,86 @@ func TestUpdateKmsConfigState(t *testing.T) {
 	_, err := store.UpdateKmsConfigState(ctx, "kms-uuid", models.LifeCycleStateUpdating, models.LifeCycleStateUpdatingDetails)
 	assert.NoError(t, err)
 }
+
+func TestUpdateKmsConfigAttributesUpdatesAttributesOnSuccess(t *testing.T) {
+	logger := &log.MockLogger{}
+	store, err := NewTestStorage(logger)
+	assert.NoError(t, err)
+	ctx := context.Background()
+	kmsConfig := &datamodel.KmsConfig{BaseModel: datamodel.BaseModel{UUID: "kms-uuid"}}
+	_, err = store.CreateKmsConfig(ctx, kmsConfig)
+	assert.NoError(t, err)
+
+	attrs := &datamodel.KmsAttributes{SdeKmsConfigUUID: "external-uuid"}
+	updated, err := store.UpdateKmsConfigAttributes(ctx, "kms-uuid", attrs)
+	assert.NoError(t, err)
+	assert.NotNil(t, updated)
+	assert.Equal(t, "external-uuid", updated.KmsAttributes.SdeKmsConfigUUID)
+}
+
+func TestUpdateKmsConfigAttributesReturnsErrorIfConfigNotFound(t *testing.T) {
+	logger := &log.MockLogger{}
+	store, err := NewTestStorage(logger)
+	assert.NoError(t, err)
+	ctx := context.Background()
+	attrs := &datamodel.KmsAttributes{SdeKmsConfigUUID: "external-uuid"}
+	_, err = store.UpdateKmsConfigAttributes(ctx, "nonexistent-uuid", attrs)
+	assert.Error(t, err)
+}
+
+func TestUpdateKmsConfigAttributesReturnsErrorIfAttributesNil(t *testing.T) {
+	logger := &log.MockLogger{}
+	store, err := NewTestStorage(logger)
+	assert.NoError(t, err)
+	ctx := context.Background()
+	kmsConfig := &datamodel.KmsConfig{BaseModel: datamodel.BaseModel{UUID: "kms-uuid2"}}
+	_, err = store.CreateKmsConfig(ctx, kmsConfig)
+	assert.NoError(t, err)
+
+	_, err = store.UpdateKmsConfigAttributes(ctx, "kms-uuid2", &datamodel.KmsAttributes{SdeKmsConfigUUID: "external-uuid"})
+	assert.NoError(t, err)
+}
+
+func TestGetJobByKmsConfigIDReturnsErrorIfNotFound(t *testing.T) {
+	logger := &log.MockLogger{}
+	store, err := NewTestStorage(logger)
+	assert.NoError(t, err)
+	ctx := context.Background()
+
+	found, err := store.GetJobByKmsConfigID(ctx, "nonexistent-uuid")
+	assert.Error(t, err)
+	assert.Nil(t, found)
+}
+
+func TestUpdateKmsConfigDetailsReturnsErrorIfConfigNotFound(t *testing.T) {
+	logger := &log.MockLogger{}
+	store, err := NewTestStorage(logger)
+	assert.NoError(t, err)
+	ctx := context.Background()
+
+	updated, err := store.UpdateKmsConfigDetails(ctx, "nonexistent-uuid", "some-path", "some-resource")
+	assert.Error(t, err)
+	assert.Nil(t, updated)
+}
+
+func TestUpdateServiceAccountEmailAndKeyReturnsErrorIfAccountNotFound(t *testing.T) {
+	logger := &log.MockLogger{}
+	store, err := NewTestStorage(logger)
+	assert.NoError(t, err)
+	ctx := context.Background()
+
+	updated, err := store.UpdateServiceAccountEmailAndKey(ctx, "nonexistent-uuid", "email@email.com", "key")
+	assert.Error(t, err)
+	assert.Nil(t, updated)
+}
+
+func TestGetKmsConfigByUUIDReturnsErrorIfNotFound(t *testing.T) {
+	logger := &log.MockLogger{}
+	store, err := NewTestStorage(logger)
+	assert.NoError(t, err)
+	ctx := context.Background()
+
+	found, err := store.GetKmsConfigByUUID(ctx, "nonexistent-uuid")
+	assert.Error(t, err)
+	assert.Nil(t, found)
+}

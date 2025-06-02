@@ -2,30 +2,12 @@ package repository
 
 import (
 	"context"
+
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
-	customerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	slogger "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
-	"gorm.io/gorm"
 )
-
-var (
-	getKmsConfig = _getKmsConfig
-)
-
-func _getKmsConfig(db *gorm.DB, query *datamodel.KmsConfig) (*datamodel.KmsConfig, error) {
-	kmsConfig := &datamodel.KmsConfig{}
-	err := db.Preload("Account").Preload("ServiceAccount").First(&kmsConfig, query).Error
-	if err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, customerrors.NewNotFoundErr("kms config", nil)
-		}
-		return nil, err
-	}
-	return kmsConfig, nil
-}
 
 func (d *DataStoreRepository) GetKmsConfig(ctx context.Context, kmsConfigUUID string) (*datamodel.KmsConfig, error) {
 	db := d.db.GORM().WithContext(ctx)

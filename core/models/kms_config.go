@@ -23,4 +23,5 @@ type KmsConfig struct {
 type KmsAttributes struct {
 	SdeKmsConfigUUID       string
 	SdeServiceAccountEmail string
+	Instructions           string
 }

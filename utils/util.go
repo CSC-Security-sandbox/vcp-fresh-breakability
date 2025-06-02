@@ -17,6 +17,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 )
 
 var (
@@ -286,4 +287,31 @@ func _convertStringToMap(s string) (map[string]string, error) {
 		return nil, errors.New("error when unmarshalling response")
 	}
 	return mapSlice, nil
+}
+
+func RemovePrefix(str string, prefix string) string {
+	if strings.HasPrefix(str, prefix) {
+		return strings.TrimPrefix(str, prefix)
+	}
+	return str
+}
+
+func GetTimeNow() time.Time {
+	return time.Now()
+}
+
+func GetCoRelationIDFromContext(ctx context.Context) string {
+	if header, ok := ctx.Value(middleware.CorrelationContextKey).(http.Header); ok {
+		return header.Get(string(middleware.CorrelationIDName))
+	} else if fields, ok := ctx.Value(middleware.TemporalSLoggerKey).(log.Fields); ok {
+		if _, ok := fields[string(middleware.RequestCorrelationID)]; !ok {
+			// If the correlation ID is not present in the fields, generate a new one
+			correlationID := RandomUUID()
+			fields[string(middleware.RequestCorrelationID)] = correlationID
+			return correlationID
+		}
+
+		return fields[string(middleware.RequestCorrelationID)].(string)
+	}
+	return ""
 }

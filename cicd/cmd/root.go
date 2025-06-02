@@ -5,7 +5,6 @@ import (
 	"main/cmd/jira"
 	"main/cmd/lint"
 	"main/cmd/release-cmd/tag"
-	"main/cmd/unit-test"
 	"os"
 
 	"github.com/joho/godotenv"

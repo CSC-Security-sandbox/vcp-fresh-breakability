@@ -1,6 +1,8 @@
 package utils
 
 import (
+	"context"
+	"net/http"
 	"strings"
 	"testing"
 
@@ -8,6 +10,8 @@ import (
 	"github.com/stretchr/testify/require"
 	gcpgenserver "github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/api/gcp-servergen"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 )
 
 func TestValidateIPv4Address(t *testing.T) {
@@ -464,5 +468,37 @@ func TestGetPairedRegionURI(t *testing.T) {
 		region, err := GetPairedRegionURI("an-awesome-place")
 		require.EqualError(tt, err, "paired regions not defined for this region")
 		assert.Equal(tt, "", region)
+	})
+}
+
+func TestGetCoRelationIDFromContext(t *testing.T) {
+	// Create a context with http.Header
+	header := http.Header{}
+	header.Set(string(middleware.CorrelationIDName), "test-correlation-id")
+	ctxWithHeader := context.WithValue(context.Background(), middleware.CorrelationContextKey, header)
+
+	// Create a context with log.Fields
+	fields := log.Fields{
+		string(middleware.RequestCorrelationID): "test-correlation-id-from-logger",
+	}
+	ctxWithFields := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, fields)
+
+	// Test case 1: Context with http.Header
+	t.Run("Context with http.Header", func(t *testing.T) {
+		result := GetCoRelationIDFromContext(ctxWithHeader)
+		assert.Equal(t, "test-correlation-id", result)
+	})
+
+	// Test case 2: Context with log.Fields
+	t.Run("Context with log.Fields", func(t *testing.T) {
+		result := GetCoRelationIDFromContext(ctxWithFields)
+		assert.Equal(t, "test-correlation-id-from-logger", result)
+	})
+
+	// Test case 3: Context with no correlation ID
+	t.Run("Context with no correlation ID", func(t *testing.T) {
+		ctx := context.Background()
+		result := GetCoRelationIDFromContext(ctx)
+		assert.Equal(t, "", result)
 	})
 }

@@ -15,6 +15,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 	"google.golang.org/api/compute/v1"
 	"google.golang.org/api/googleapi"
+	"google.golang.org/api/iam/v1"
 	"google.golang.org/api/option"
 	"google.golang.org/api/serviceconsumermanagement/v1"
 	"google.golang.org/api/servicenetworking/v1"
@@ -194,6 +195,12 @@ func TestNewGoogleClient(t *testing.T) {
 			}, nil
 		}
 
+		initializeIamService = func(ctx context.Context) (*iam.Service, error) {
+			return &iam.Service{
+				BasePath: "",
+			}, nil
+		}
+
 		initializeStorageService = func(ctx context.Context) (*storage.Client, error) {
 			return &storage.Client{}, nil
 		}
@@ -206,6 +213,7 @@ func TestNewGoogleClient(t *testing.T) {
 		initializeNetworkingService = _initializeNetworkingService
 		initializeComputeService = _initializeComputeService
 		initializeStorageService = _initializeStorageService
+		initializeIamService = _initializeIamService
 	})
 }
 
@@ -518,4 +526,40 @@ func TestInitializeStorageServiceWithMockMetaDataHost(t *testing.T) {
 	if client == nil {
 		t.Fatal("expected client, got nil")
 	}
+}
+
+func TestInitializeIamService(t *testing.T) {
+	t.Run("whenOk", func(t *testing.T) {
+		defer func() {
+			newClient = scopesHttp.NewClient
+			MockMetaDataHost = env.GetString("GCP_MOCK_METADATA_HOST", "")
+		}()
+		MockMetaDataHost = "sample-server.com"
+		newClient = func(ctx context.Context, opts ...option.ClientOption) (*http.Client, string, error) {
+			return &http.Client{Timeout: time.Second}, MockMetaDataHost, nil
+		}
+		wi, err := initializeIamService(context.Background())
+		if err != nil {
+			return
+		}
+		assert.Nil(t, err, "Unexpected error received")
+		assert.NotNil(t, wi)
+	})
+	t.Run("whenNewClientFails", func(t *testing.T) {
+		defer func() {
+			newClient = scopesHttp.NewClient
+			MockMetaDataHost = env.GetString("GCP_MOCK_METADATA_HOST", "")
+		}()
+		MockMetaDataHost = "sample-server.com"
+		newClient = func(ctx context.Context, opts ...option.ClientOption) (*http.Client, string, error) {
+			return &http.Client{Timeout: time.Second}, MockMetaDataHost, errors.New("client creation failed")
+		}
+		wi, err := initializeIamService(context.Background())
+		if err != nil {
+			return
+		}
+		assert.NotNil(t, err)
+		assert.Equal(t, "client creation failed", err.Error())
+		assert.NotNil(t, wi)
+	})
 }

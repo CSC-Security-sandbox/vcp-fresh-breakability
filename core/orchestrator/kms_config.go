@@ -3,19 +3,142 @@ package orchestrator
 import (
 	"context"
 	"database/sql"
+	"time"
+
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/workflows"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/workflows/kms_workflows"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/nillable"
 	workflowengine "github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/temporal"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 	"go.temporal.io/api/enums/v1"
 	"go.temporal.io/sdk/client"
-
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 )
+
+var (
+	createKmsConfig          = _createKmsConfig
+	getKmsConfig             = _getKmsConfig
+	parseKeyFullPathResource = utils.ParseKeyFullPathResource
+)
+
+type KmsConfigInterface interface {
+	CreateKmsConfig(ctx context.Context, params *common.CreateKmsConfigParams) (*models.KmsConfig, string, error)
+	GetKmsConfig(ctx context.Context, params *common.GetKmsConfigParams) (*models.KmsConfig, error)
+	GetMultipleKMSConfigs(ctx context.Context, kmsConfigIDList []string) ([]*models.KmsConfig, error)
+	UpdateKmsConfig(ctx context.Context, params *common.UpdateKmsConfigParams) (*models.KmsConfig, string, error)
+}
+
+// CreateKmsConfig creates a new KMS configuration.
+func (o *Orchestrator) CreateKmsConfig(ctx context.Context, params *common.CreateKmsConfigParams) (*models.KmsConfig, string, error) {
+	return createKmsConfig(ctx, o.storage, o.temporal, params)
+}
+
+func _createKmsConfig(ctx context.Context, se database.Storage, temporal client.Client, params *common.CreateKmsConfigParams) (*models.KmsConfig, string, error) {
+	logger := util.GetLogger(ctx)
+	account, err := getOrCreateAccount(ctx, se, params.AccountName)
+	if err != nil {
+		return nil, "", err
+	}
+	parsedKeyFullPath, err := parseKeyFullPathResource(params.KeyFullPath)
+	if err != nil {
+		return nil, "", err
+	}
+	dbKmsConfig := &datamodel.KmsConfig{}
+	dbKmsConfig.CreatedAt = time.Now()
+	dbKmsConfig.UUID = utils.RandomUUID()
+	dbKmsConfig.State = models.LifeCycleStateCreating
+	dbKmsConfig.StateDetails = models.LifeCycleStateCreatingDetails
+	dbKmsConfig.AccountID = account.ID
+	dbKmsConfig.UpdatedAt = time.Now()
+	dbKmsConfig.KeyName = parsedKeyFullPath.CryptoKey
+	dbKmsConfig.CustomerProjectID = parsedKeyFullPath.ProjectID
+	dbKmsConfig.KeyRingLocation = parsedKeyFullPath.Location
+	dbKmsConfig.KeyRing = parsedKeyFullPath.KeyRing
+	dbKmsConfig.ResourceID = params.ResourceID
+	dbKmsConfig.KmsAttributes = &datamodel.KmsAttributes{}
+	dbKmsConfig, err = se.CreateKmsConfig(ctx, dbKmsConfig)
+	if err != nil {
+		return nil, "", err
+	}
+
+	job := &datamodel.Job{
+		Type:          string(models.JobTypeCreateKmsConfig),
+		State:         string(models.JobsStateNEW),
+		ResourceName:  params.Name,
+		AccountID:     sql.NullInt64{Int64: account.ID, Valid: true},
+		JobAttributes: &datamodel.JobAttributes{ResourceUUID: dbKmsConfig.UUID},
+	}
+
+	createdJob, err := se.CreateJob(ctx, job)
+	if err != nil {
+		logger.Error("Failed to create job in database", "error", err.Error())
+		return nil, "", err
+	}
+
+	_, err = temporal.ExecuteWorkflow(ctx,
+		client.StartWorkflowOptions{
+			TaskQueue:             workflowengine.CustomerTaskQueue,
+			ID:                    createdJob.WorkflowID,
+			WorkflowIDReusePolicy: enums.WORKFLOW_ID_REUSE_POLICY_REJECT_DUPLICATE,
+		},
+		kms_workflows.CreateKmsConfigWorkflow,
+		params,
+		dbKmsConfig,
+	)
+	if err != nil {
+		logger.Error("Failed to start create kms workflow: ", "error", err)
+		return nil, "", err
+	}
+	return convertDatastoreKmsConfigToModel(dbKmsConfig), createdJob.UUID, nil
+}
+
+func convertDatastoreKmsConfigToModel(kmsConfig *datamodel.KmsConfig) *models.KmsConfig {
+	return &models.KmsConfig{
+		BaseModel: models.BaseModel{
+			UUID:      kmsConfig.UUID,
+			CreatedAt: kmsConfig.CreatedAt,
+			UpdatedAt: kmsConfig.UpdatedAt,
+		},
+		CustomerProjectID: kmsConfig.CustomerProjectID,
+		KeyProjectID:      kmsConfig.KeyProjectID,
+		State:             kmsConfig.State,
+		StateDetails:      kmsConfig.StateDetails,
+		Description:       kmsConfig.Description,
+		ResourceID:        kmsConfig.ResourceID,
+		AccountID:         kmsConfig.AccountID,
+		ServiceAccountID:  kmsConfig.ServiceAccountID,
+		KmsAttributes: &models.KmsAttributes{
+			SdeKmsConfigUUID:       kmsConfig.KmsAttributes.SdeKmsConfigUUID,
+			SdeServiceAccountEmail: kmsConfig.KmsAttributes.SdeServiceAccountEmail,
+			Instructions:           kmsConfig.KmsAttributes.Instructions,
+		},
+		Name:            kmsConfig.Name,
+		KeyRing:         kmsConfig.KeyRing,
+		KeyRingLocation: kmsConfig.KeyRingLocation,
+		KeyName:         kmsConfig.KeyName,
+	}
+}
+
+// GetKmsConfig retrieves a KMS configuration by its UUID.
+func (o *Orchestrator) GetKmsConfig(ctx context.Context, params *common.GetKmsConfigParams) (*models.KmsConfig, error) {
+	return getKmsConfig(ctx, o.storage, o.temporal, params)
+}
+
+func _getKmsConfig(ctx context.Context, se database.Storage, temporal client.Client, params *common.GetKmsConfigParams) (*models.KmsConfig, error) {
+	_, err := getOrCreateAccount(ctx, se, params.AccountName)
+	if err != nil {
+		return nil, err
+	}
+	dbKmsConfig, err := se.GetKmsConfigByUUID(ctx, params.UUID)
+	if err != nil {
+		return nil, err
+	}
+	return convertDatastoreKmsConfigToModel(dbKmsConfig), nil
+}
 
 var (
 	UpdateKmsConfig               = _updateKmsConfig
@@ -95,7 +218,7 @@ func _updateKmsConfig(ctx context.Context, se database.Storage, temporal client.
 			ID:                    createdJob.WorkflowID,
 			WorkflowIDReusePolicy: enums.WORKFLOW_ID_REUSE_POLICY_REJECT_DUPLICATE,
 		},
-		workflows.UpdateKmsConfigWorkflow,
+		kms_workflows.UpdateKmsConfigWorkflow,
 		kmsConfig,
 		params,
 	)

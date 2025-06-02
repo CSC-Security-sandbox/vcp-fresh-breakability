@@ -2,10 +2,11 @@ package tag
 
 import (
 	"fmt"
-	"github.com/spf13/cobra"
 	"log"
 	"os"
 	"strings"
+
+	"github.com/spf13/cobra"
 )
 
 var releaseCmd = &cobra.Command{

@@ -1,11 +1,11 @@
 package temporalmanager_test
 
 import (
-	"go.temporal.io/sdk/client"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/worker/temporalmanager"
+	"go.temporal.io/sdk/client"
 )
 
 // Test cases

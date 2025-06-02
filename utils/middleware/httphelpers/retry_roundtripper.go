@@ -3,12 +3,13 @@ package httphelpers
 import (
 	"bytes"
 	goerrors "errors"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 	"io"
 	"net"
 	"net/http"
 	"syscall"
 	"time"
+
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 )
 
 var (

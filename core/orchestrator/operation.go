@@ -29,5 +29,8 @@ func convertDatastoreOperationToModel(job *datamodel.Job) *models.Job {
 		TrackingID:    job.TrackingID,
 		Type:          models.JobType(job.Type),
 		State:         models.JobState(job.State),
+		JobAttributes: &models.JobAttributes{
+			ResourceUUID: job.JobAttributes.ResourceUUID,
+		},
 	}
 }

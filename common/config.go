@@ -81,6 +81,7 @@ func LoadConfig() *Config {
 	dbAdminUser := env.GetString("DB_ADMIN_USER", "")
 	dbAdminPassword := env.GetString("DB_ADMIN_PASSWORD", "")
 	dbMSIUser := env.GetString("DB_MSI_USER", "")
+
 	location, err := time.LoadLocation(dbTimeZone)
 	if err != nil {
 		slog.Error("Invalid timezone: %v", err)

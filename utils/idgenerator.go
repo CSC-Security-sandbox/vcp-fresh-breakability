@@ -66,3 +66,13 @@ func ValidUUID(u string) bool {
 	_, err := uuid.Parse(u)
 	return err == nil
 }
+
+// GetOperationUUID extracts the operation UUID from the operation ID.
+// example: "projects/123456789/locations/us-central1/operations/123456789-1234-5678-9012-123456789012"
+func GetOperationUUID(operationID string) string {
+	parts := regexp.MustCompile("/").Split(operationID, -1)
+	if len(parts) > 0 {
+		return parts[len(parts)-1]
+	}
+	return ""
+}

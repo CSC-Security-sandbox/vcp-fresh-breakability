@@ -77,7 +77,7 @@ func (s *SnapshotUnitTestSuite) TestCreateSnapshotWorkflowWorkflowExecutesSucces
 	s.env.OnActivity(commonActivity.UpdateJobStatus, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(commonActivity.GetNode, mock.Anything, mock.Anything).Return(&datamodel.Node{EndpointAddress: "127.0.0.1"}, nil)
 	s.env.OnActivity(snapshotCreateActivity.CreateSnapshotInONTAP, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.SnapshotProviderResponse{ProviderResponse: vsa.ProviderResponse{ExternalUUID: "snapshot-uuid"}, SizeInBytes: 1024, LogicalSizeInBytes: 1024}, nil)
-	s.env.OnActivity(snapshotCreateActivity.UpdateSnapshotDetails, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(snapshotCreateActivity.UpdateSnapshotDetails, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
 	s.env.ExecuteWorkflow(CreateSnapshotWorkflow, params, snapshot)
 
@@ -111,7 +111,6 @@ func (s *SnapshotUnitTestSuite) TestCreateSnapshotWorkflowFailsOnActivityError()
 	s.env.RegisterActivity(&snapshotCreateActivity)
 
 	s.env.OnActivity(commonActivity.UpdateJobStatus, mock.Anything, mock.Anything).Return(nil)
-
 	s.env.OnActivity(commonActivity.GetNode, mock.Anything, mock.Anything).Return(&datamodel.Node{EndpointAddress: "127.0.0.1"}, nil)
 	s.env.OnActivity(snapshotCreateActivity.CreateSnapshotInONTAP, mock.Anything, mock.Anything, mock.Anything).Return(nil, errors.New("snapshot creation failed"))
 	s.env.OnActivity(snapshotCreateActivity.UpdateSnapshotDetails, mock.Anything, mock.Anything, mock.Anything).Return(nil)
