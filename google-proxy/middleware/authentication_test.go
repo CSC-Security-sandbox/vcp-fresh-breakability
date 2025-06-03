@@ -550,6 +550,54 @@ func TestValidateProjectNumber(t *testing.T) {
 	})
 }
 
+func TestAuthMiddleware_BypassForHealthAndMetrics(t *testing.T) {
+	called := false
+	next := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		called = true
+		w.WriteHeader(http.StatusOK)
+	})
+
+	tests := []struct {
+		path string
+	}{
+		{path: "/health"},
+		{path: "/metrics"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.path, func(t *testing.T) {
+			called = false
+			req := httptest.NewRequest("GET", tt.path, nil)
+			rr := httptest.NewRecorder()
+			handler := AuthMiddleware(next)
+			handler.ServeHTTP(rr, req)
+			assert.True(t, called, "Handler should be called for %s", tt.path)
+			assert.Equal(t, http.StatusOK, rr.Code)
+		})
+	}
+}
+
+func TestAuthMiddleware_DoesNotBypassForOtherRoutes(t *testing.T) {
+	paths := []string{"/api", "/v1/resource", "/random"}
+	for _, path := range paths {
+		t.Run(path, func(tt *testing.T) {
+			defer func() {
+				if r := recover(); r == nil {
+					tt.Errorf("Expected panic for %s but none occurred", path)
+				}
+			}()
+			next := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				w.WriteHeader(http.StatusOK)
+			})
+			req := httptest.NewRequest("GET", path, nil)
+			rr := httptest.NewRecorder()
+			handler := AuthMiddleware(next)
+			handler.ServeHTTP(rr, req)
+			tt.Errorf("Handler should not return normally for %s", path)
+		})
+	}
+}
+
 type bodyReadCloser struct {
 	body      io.Reader
 	closed    bool
