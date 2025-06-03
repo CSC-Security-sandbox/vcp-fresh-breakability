@@ -321,7 +321,7 @@ jobs:
             echo "GHCR_${IMAGE}_URL=ghcr.io/vcp-vsa-control-plane/${IMAGE}:${{ inputs.tag }}" >> $GITHUB_OUTPUT
             echo "GCP_${IMAGE}_URL=${{ vars.AR_GCP_REGION }}-docker.pkg.dev/${{ vars.AR_GCP_PROJ }}/${{ vars.AR_GCP_REPO }}/${IMAGE}:${{ inputs.tag }}" >> $GITHUB_OUTPUT
           done
-          CHARTS=("vsa-control-plane" "vcp-worker")
+          CHARTS=("vsa-control-plane" "vcp-worker-chart")
           for CHART in "${CHARTS[@]}"; do
             echo "GHCR_${CHART}_HELM_URL=oci://ghcr.io/vcp-vsa-control-plane/${CHART}:${{ inputs.tag }}" >> $GITHUB_OUTPUT
             echo "GCP_${CHART}_HELM_URL=oci://${{ vars.AR_GCP_REGION }}-docker.pkg.dev/${{ vars.AR_GCP_PROJ }}/${{ vars.AR_HELM_REPO }}/${CHART}:${{ inputs.tag }}" >> $GITHUB_OUTPUT
