@@ -3,17 +3,20 @@ package utils
 import (
 	"context"
 	"encoding/json"
+	goerrors "errors"
 	"fmt"
 	"net"
 	"net/http"
 	"regexp"
 	"strconv"
 	"strings"
+	"syscall"
 	"time"
 
 	"github.com/go-openapi/strfmt"
-	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
+	errs "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	gcpgenserver "github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/api/gcp-servergen"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/auth"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware"
@@ -27,6 +30,13 @@ var (
 	ParseAndValidateRegionAndZone = _parseAndValidateRegionAndZone
 	GetPairedRegionURI            = _getPairedRegionURI
 	ConvertStringToMap            = _convertStringToMap
+	GetSignedCallbackToken        = _getSignedCallbackToken
+	ConvertBytesToGib             = _convertBytesToGib
+	authGetSignedAccessToken      = auth.GetSignedAccessToken
+	sleep                         = _sleep
+	exponentialBackOffErrors      = []int{429}
+	maxExpBackOffDelay            = time.Duration(80) * time.Second
+	jitterBase                    = time.Millisecond
 )
 
 func ValidateIPv4Address(ipAddr string) bool {
@@ -154,7 +164,7 @@ func GetJWTTokenFromContext(ctx context.Context) string {
 func ParseProjectId(network string) (string, string, error) {
 	tmp := strings.Split(network, "/")
 	if len(tmp) != 5 {
-		return "", "", vsaerrors.NewVCPError(vsaerrors.ErrBadRequest, errors.New(fmt.Sprintf("parseProjectId failed for network : %s", network)))
+		return "", "", errors.New(fmt.Sprintf("parseProjectId failed for network : %s", network))
 	}
 	return tmp[1], tmp[4], nil
 }
@@ -287,6 +297,66 @@ func _convertStringToMap(s string) (map[string]string, error) {
 		return nil, errors.New("error when unmarshalling response")
 	}
 	return mapSlice, nil
+}
+
+func generateJitter() time.Duration {
+	return jitterBase * time.Duration(GenerateRandomInRange(100)+100) // [100, 200] ms jitter
+}
+
+func _getSignedCallbackToken() (string, error) {
+	return authGetSignedAccessToken()
+}
+
+// _sleep is a helper function to sleep for a given duration according to the error type
+func _sleep(retryDelay time.Duration, err error, attempt int) {
+	// Retry in Exponential backoff way for error codes defined in exponentialBackOffErrors
+	_, httpcode := err.(*errs.CustomError).GetHttpCode()
+	if ContainsInt(exponentialBackOffErrors, httpcode) {
+		var nextRetry int64 = 1 << attempt
+		retryDelay = min(maxExpBackOffDelay, time.Duration(nextRetry)*retryDelay+generateJitter())
+	}
+	time.Sleep(retryDelay)
+}
+
+// RetrierOnCodes retries the function fn on specific HTTP error codes.
+func RetrierOnCodes(logger log.Logger, fn func() (bool, error), retryCodes []int, maxRetries int, retryDelay time.Duration) {
+	shouldSleep := false
+	var err error
+	for i := 0; i < maxRetries; i++ {
+		if shouldSleep {
+			sleep(retryDelay, err, i)
+			logger.Debug("Retrying function", "attempt", i+1)
+		}
+		shouldSleep = true
+		var stopRetry bool
+		stopRetry, err = fn()
+		if err != nil && !stopRetry {
+			_, httpcode := err.(*errs.CustomError).GetHttpCode()
+			if ContainsInt(retryCodes, httpcode) {
+				logger.Errorf("Got an retryable error code while calling server %v: attemp %d", err, i+1)
+				continue
+			}
+			innerErr := err.(*errs.CustomError).Unwrap()
+			if innerErr != nil {
+				if goerrors.Is(innerErr, syscall.ECONNREFUSED) || goerrors.Is(innerErr, syscall.ETIMEDOUT) {
+					logger.Warnf("Got an error while calling server %v: attemp %d", err, i+1)
+					continue
+				}
+				if neterror, ok := innerErr.(net.Error); ok && neterror.Timeout() {
+					logger.Warnf("Got an timeout while calling server %v: attemp %d", err, i+1)
+					continue
+				}
+			}
+			break
+		}
+		return
+	}
+}
+
+func _convertBytesToGib(bytes float64) int64 {
+	gib := bytes / 1024 / 1024 / 1024
+
+	return int64(gib)
 }
 
 func RemovePrefix(str string, prefix string) string {

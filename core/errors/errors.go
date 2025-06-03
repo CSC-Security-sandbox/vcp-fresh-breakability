@@ -49,6 +49,18 @@ const (
 	ErrCreatingSVM            = 5002
 	ErrDeletingSVM            = 5003
 	ErrSVMNotFound            = 5004
+
+	ErrIamClientNotFoundError      = 6020
+	ErrFailedToParseProjectNumber  = 6021
+	ErrFailedToMarshalPayload      = 6022
+	ErrFailedToMarshalJson         = 6023
+	ErrFailedToCreateHTTP          = 6024
+	ErrFailedToExecuteHTTP         = 6025
+	ErrFailedToReadResponse        = 6026
+	ErrFailedToUnmarshalCCFE       = 6027
+	ErrFailedToReadQuota           = 6028
+	ErrFailedToCreateNewIamCred    = 6029
+	ErrFailedToGenerateAccessToken = 6030
 )
 
 type Error interface {
@@ -106,6 +118,10 @@ func (e *CustomError) GetHttpCode() (bool, int) {
 		return true, *e.HttpCode
 	}
 	return false, 400 // Default HTTP code if not specified
+}
+
+func (e *CustomError) GetMessage() string {
+	return e.Message
 }
 
 // LogOriginalError logs the Original error message along with its code.

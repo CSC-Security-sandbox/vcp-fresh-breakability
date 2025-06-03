@@ -1,0 +1,465 @@
+package replicationActivities
+
+import (
+	"context"
+	"errors"
+	"testing"
+
+	"github.com/stretchr/testify/assert"
+	errs "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
+)
+
+func TestCrrCreateActivity_generatetoken(t *testing.T) {
+	t.Run("WhenError", func(tt *testing.T) {
+		ctx := context.Background()
+		expectedError := errors.New("some error")
+		originalGetSignedCallbackToken := utilsGetSignedCallbackToken
+		utilsGetSignedCallbackToken = func() (string, error) {
+			return "", errors.New("some error")
+		}
+		defer func() { utilsGetSignedCallbackToken = originalGetSignedCallbackToken }()
+		_, err := generateCallbackToken(ctx)
+		assert.Error(tt, err)
+		assert.Equal(tt, expectedError, err)
+	})
+	t.Run("WhenSuccessful", func(tt *testing.T) {
+		ctx := context.Background()
+		originalGetSignedCallbackToken := utilsGetSignedCallbackToken
+		utilsGetSignedCallbackToken = func() (string, error) {
+			return "mocked-token", nil
+		}
+		defer func() { utilsGetSignedCallbackToken = originalGetSignedCallbackToken }()
+		token, err := generateCallbackToken(ctx)
+		if err != nil {
+			t.Errorf("expected no error, got %v", err)
+		}
+		if token != "mocked-token" {
+			t.Errorf("expected token 'mocked-token', got %v", token)
+		}
+	})
+}
+
+func TestVolumeReplicationHydration(t *testing.T) {
+	createReplicationResponse := &models.VolumeReplication{
+		Name:  "replication-name",
+		State: "creating",
+		ReplicationAttributes: &models.ReplicationDetails{
+			DestinationReplicationUUID: "mocked-replication-id",
+			DestinationRegion:          "mocked-region",
+		},
+	}
+	t.Run("WhenTokenError", func(tt *testing.T) {
+		ctx := context.Background()
+		expectedError := errors.New("some error")
+		originalGetSignedCallbackToken := utilsGetSignedCallbackToken
+		utilsGetSignedCallbackToken = func() (string, error) {
+			return "", errors.New("some error")
+		}
+		defer func() { utilsGetSignedCallbackToken = originalGetSignedCallbackToken }()
+		err := VolumeReplicationHydration(ctx, *createReplicationResponse, "121")
+		assert.Error(tt, err)
+		assert.Equal(tt, expectedError, err)
+	})
+	t.Run("WhenHydrationReplicationCreateFail", func(tt *testing.T) {
+		ctx := context.Background()
+		expectedError := errors.New("some error")
+		originalGetSignedCallbackToken := utilsGetSignedCallbackToken
+		utilsGetSignedCallbackToken = func() (string, error) {
+			return "mocked-token", nil
+		}
+		originalHydrateReplicationCreate := hydrateReplicationCreate
+		hydrateReplicationCreate = func(ctx context.Context, logger log.Logger, replication models.ReplicationHydrateObject, region, projectId, volumeResourceID, token string) error {
+			return &errs.CustomError{
+				OriginalErr: errors.New("some error"),
+			}
+		}
+		defer func() {
+			utilsGetSignedCallbackToken = originalGetSignedCallbackToken
+			hydrateReplicationCreate = originalHydrateReplicationCreate
+		}()
+		err := VolumeReplicationHydration(ctx, *createReplicationResponse, "121")
+		assert.Error(tt, err)
+		assert.Equal(tt, expectedError, err.(*errs.CustomError).Unwrap())
+	})
+	t.Run("WhenSuccessFul", func(tt *testing.T) {
+		ctx := context.Background()
+		originalGetSignedCallbackToken := utilsGetSignedCallbackToken
+		utilsGetSignedCallbackToken = func() (string, error) {
+			return "mocked-token", nil
+		}
+		originalHydrateReplicationCreate := hydrateReplicationCreate
+		hydrateReplicationCreate = func(ctx context.Context, logger log.Logger, replication models.ReplicationHydrateObject, region, projectId, volumeResourceID, token string) error {
+			return nil
+		}
+		defer func() {
+			utilsGetSignedCallbackToken = originalGetSignedCallbackToken
+			hydrateReplicationCreate = originalHydrateReplicationCreate
+		}()
+		err := VolumeReplicationHydration(ctx, *createReplicationResponse, "121")
+		assert.NoError(tt, err, nil)
+	})
+}
+
+func TestVolumeReplicationDeHydration(t *testing.T) {
+	createReplicationResponse := &models.VolumeReplication{
+		Name:  "replication-name",
+		State: "creating",
+		ReplicationAttributes: &models.ReplicationDetails{
+			DestinationReplicationUUID: "mocked-replication-id",
+			DestinationRegion:          "mocked-region",
+		},
+		Volume: &models.Volume{BaseModel: models.BaseModel{UUID: "123"}},
+	}
+	t.Run("WhenTokenError", func(tt *testing.T) {
+		ctx := context.Background()
+		expectedError := errors.New("some error")
+		originalGetSignedCallbackToken := utilsGetSignedCallbackToken
+		utilsGetSignedCallbackToken = func() (string, error) {
+			return "", errors.New("some error")
+		}
+		defer func() { utilsGetSignedCallbackToken = originalGetSignedCallbackToken }()
+		err := VolumeReplicationDeHydration(ctx, *createReplicationResponse, "121")
+		assert.Error(tt, err)
+		assert.Equal(tt, expectedError, err)
+	})
+	t.Run("WhenHydrateReplicationDeleteFail", func(tt *testing.T) {
+		ctx := context.Background()
+		expectedError := errors.New("some error")
+		originalGetSignedCallbackToken := utilsGetSignedCallbackToken
+		utilsGetSignedCallbackToken = func() (string, error) {
+			return "mocked-token", nil
+		}
+		originalHydrateReplicationDelete := hydrateReplicationDelete
+		hydrateReplicationDelete = func(ctx context.Context, logger log.Logger, replicationResourceId string, volumeResourceID string, region string, projectId string, token string) error {
+			return &errs.CustomError{
+				OriginalErr: errors.New("some error"),
+			}
+		}
+		defer func() {
+			utilsGetSignedCallbackToken = originalGetSignedCallbackToken
+			hydrateReplicationDelete = originalHydrateReplicationDelete
+		}()
+		err := VolumeReplicationDeHydration(ctx, *createReplicationResponse, "121")
+		assert.Error(tt, err)
+		assert.Equal(tt, expectedError, err.(*errs.CustomError).Unwrap())
+	})
+	t.Run("WhenSuccessFul", func(tt *testing.T) {
+		ctx := context.Background()
+		originalGetSignedCallbackToken := utilsGetSignedCallbackToken
+		utilsGetSignedCallbackToken = func() (string, error) {
+			return "mocked-token", nil
+		}
+		originalHydrateReplicationDelete := hydrateReplicationDelete
+		hydrateReplicationDelete = func(ctx context.Context, logger log.Logger, replicationResourceId string, volumeResourceID string, region string, projectId string, token string) error {
+			return nil
+		}
+		defer func() {
+			utilsGetSignedCallbackToken = originalGetSignedCallbackToken
+			hydrateReplicationDelete = originalHydrateReplicationDelete
+		}()
+		err := VolumeReplicationDeHydration(ctx, *createReplicationResponse, "121")
+		assert.NoError(tt, err)
+	})
+}
+
+func TestVolumeHydration(t *testing.T) {
+	destVolume := &models.Volume{
+		DisplayName:  "vol",
+		QuotaInBytes: 1,
+		BaseModel:    models.BaseModel{UUID: "123"},
+		Region:       "asia-south1",
+	}
+	t.Run("WhenTokenError", func(tt *testing.T) {
+		ctx := context.Background()
+		expectedError := errors.New("some error")
+		originalGetSignedCallbackToken := utilsGetSignedCallbackToken
+		utilsGetSignedCallbackToken = func() (string, error) {
+			return "", errors.New("some error")
+		}
+		defer func() { utilsGetSignedCallbackToken = originalGetSignedCallbackToken }()
+		err := VolumeHydration(ctx, *destVolume, "121")
+		assert.Error(tt, err)
+		assert.Equal(tt, expectedError, err)
+	})
+	t.Run("WhenHydrateReplicationDeleteFail", func(tt *testing.T) {
+		ctx := context.Background()
+		expectedError := errors.New("some error")
+		originalGetSignedCallbackToken := utilsGetSignedCallbackToken
+		utilsGetSignedCallbackToken = func() (string, error) {
+			return "mocked-token", nil
+		}
+		originalhydrateVolumeCreate := hydrateVolumeCreate
+		hydrateVolumeCreate = func(ctx context.Context, logger log.Logger, volume models.VolumeHydrateObject, location string, projectId string, token string) error {
+			return &errs.CustomError{
+				OriginalErr: errors.New("some error"),
+			}
+		}
+		defer func() {
+			utilsGetSignedCallbackToken = originalGetSignedCallbackToken
+			hydrateVolumeCreate = originalhydrateVolumeCreate
+		}()
+		err := VolumeHydration(ctx, *destVolume, "121")
+		assert.Error(tt, err)
+		assert.Equal(tt, expectedError, err.(*errs.CustomError).Unwrap())
+	})
+	t.Run("WhenSuccessFul", func(tt *testing.T) {
+		ctx := context.Background()
+		originalGetSignedCallbackToken := utilsGetSignedCallbackToken
+		utilsGetSignedCallbackToken = func() (string, error) {
+			return "mocked-token", nil
+		}
+		originalHydrateVolumeCreate := hydrateVolumeCreate
+		hydrateVolumeCreate = func(ctx context.Context, logger log.Logger, volume models.VolumeHydrateObject, location string, projectId string, token string) error {
+			return nil
+		}
+		defer func() {
+			utilsGetSignedCallbackToken = originalGetSignedCallbackToken
+			hydrateVolumeCreate = originalHydrateVolumeCreate
+		}()
+		err := VolumeHydration(ctx, *destVolume, "121")
+		assert.NoError(tt, err)
+	})
+}
+
+func TestVolumeDeHydration(t *testing.T) {
+	destVolume := &models.Volume{
+		DisplayName:  "vol",
+		QuotaInBytes: 1,
+		BaseModel:    models.BaseModel{UUID: "123"},
+		Region:       "asia-south1",
+	}
+	t.Run("WhenTokenError", func(tt *testing.T) {
+		ctx := context.Background()
+		expectedError := errors.New("some error")
+		originalGetSignedCallbackToken := utilsGetSignedCallbackToken
+		utilsGetSignedCallbackToken = func() (string, error) {
+			return "", errors.New("some error")
+		}
+		defer func() { utilsGetSignedCallbackToken = originalGetSignedCallbackToken }()
+		err := VolumeDeHydration(ctx, *destVolume, "121")
+		assert.Error(tt, err)
+		assert.Equal(tt, expectedError, err)
+	})
+	t.Run("WhenHydrateReplicationDeleteFail", func(tt *testing.T) {
+		ctx := context.Background()
+		expectedError := errors.New("some error")
+		originalGetSignedCallbackToken := utilsGetSignedCallbackToken
+		utilsGetSignedCallbackToken = func() (string, error) {
+			return "mocked-token", nil
+		}
+		originalhydrateVolumeDelete := hydrateVolumeDelete
+		hydrateVolumeDelete = func(ctx context.Context, logger log.Logger, volumeResourceID string, region string, projectId string, token string) error {
+			return &errs.CustomError{
+				OriginalErr: errors.New("some error"),
+			}
+		}
+		defer func() {
+			utilsGetSignedCallbackToken = originalGetSignedCallbackToken
+			hydrateVolumeDelete = originalhydrateVolumeDelete
+		}()
+		err := VolumeDeHydration(ctx, *destVolume, "121")
+		assert.Error(tt, err)
+		assert.Equal(tt, expectedError, err.(*errs.CustomError).Unwrap())
+	})
+	t.Run("WhenSuccessFul", func(tt *testing.T) {
+		ctx := context.Background()
+		originalGetSignedCallbackToken := utilsGetSignedCallbackToken
+		utilsGetSignedCallbackToken = func() (string, error) {
+			return "mocked-token", nil
+		}
+		originalhydrateVolumeDelete := hydrateVolumeDelete
+		hydrateVolumeDelete = func(ctx context.Context, logger log.Logger, volumeResourceID string, region string, projectId string, token string) error {
+			return nil
+		}
+		defer func() {
+			utilsGetSignedCallbackToken = originalGetSignedCallbackToken
+			hydrateVolumeDelete = originalhydrateVolumeDelete
+		}()
+		err := VolumeDeHydration(ctx, *destVolume, "121")
+		assert.NoError(tt, err)
+	})
+}
+
+func TestGetQuotaLimit(t *testing.T) {
+	t.Run("WhenTokenError", func(tt *testing.T) {
+		ctx := context.Background()
+		expectedError := errors.New("some error")
+		originalGetSignedCallbackToken := utilsGetSignedCallbackToken
+		utilsGetSignedCallbackToken = func() (string, error) {
+			return "", errors.New("some error")
+		}
+		defer func() { utilsGetSignedCallbackToken = originalGetSignedCallbackToken }()
+		_, err := GetQuotaLimit(ctx, "us-east1", "121")
+		assert.Error(tt, err)
+		assert.Equal(tt, expectedError, err)
+	})
+	t.Run("WhenHydrationReplicationCreateFail", func(tt *testing.T) {
+		ctx := context.Background()
+		expectedError := errors.New("some error")
+		originalGetSignedCallbackToken := utilsGetSignedCallbackToken
+		utilsGetSignedCallbackToken = func() (string, error) {
+			return "mocked-token", nil
+		}
+		originalHydrateReplicationCreate := getQuotaLimit
+		getQuotaLimit = func(ctx context.Context, logger log.Logger, region string, projectId string, token string, resourceType common.ResourceType) (int, error) {
+			return 0, errors.New("some error")
+		}
+		defer func() {
+			utilsGetSignedCallbackToken = originalGetSignedCallbackToken
+			getQuotaLimit = originalHydrateReplicationCreate
+		}()
+		_, err := GetQuotaLimit(ctx, "us-east1", "121")
+		assert.Error(tt, err)
+		assert.Equal(tt, expectedError, err)
+	})
+	t.Run("WhenSuccessFul", func(tt *testing.T) {
+		ctx := context.Background()
+		originalGetSignedCallbackToken := utilsGetSignedCallbackToken
+		utilsGetSignedCallbackToken = func() (string, error) {
+			return "mocked-token", nil
+		}
+		originalHydrateReplicationCreate := getQuotaLimit
+		getQuotaLimit = func(ctx context.Context, logger log.Logger, region string, projectId string, token string, resourceType common.ResourceType) (int, error) {
+			return 1, nil
+		}
+		defer func() {
+			utilsGetSignedCallbackToken = originalGetSignedCallbackToken
+			getQuotaLimit = originalHydrateReplicationCreate
+		}()
+		dst, err := GetQuotaLimit(ctx, "us-east1", "121")
+		assert.NoError(tt, err)
+		assert.Equal(tt, dst, 1)
+	})
+}
+
+func TestHydrateReplicationState(t *testing.T) {
+	createReplicationResponse := &models.VolumeReplication{
+		Name:  "replication-name",
+		State: "creating",
+		ReplicationAttributes: &models.ReplicationDetails{
+			DestinationReplicationUUID: "mocked-replication-id",
+			DestinationRegion:          "mocked-region",
+		},
+		Volume: &models.Volume{BaseModel: models.BaseModel{UUID: "123"}},
+	}
+	replicationState := models.VolumeReplicationHydrateState("CREATING")
+	t.Run("WhenTokenError", func(tt *testing.T) {
+		ctx := context.Background()
+		expectedError := errors.New("some error")
+		originalGetSignedCallbackToken := utilsGetSignedCallbackToken
+		utilsGetSignedCallbackToken = func() (string, error) {
+			return "", errors.New("some error")
+		}
+		defer func() { utilsGetSignedCallbackToken = originalGetSignedCallbackToken }()
+		err := HydrateReplicationState(ctx, *createReplicationResponse, replicationState, "121")
+		assert.Error(tt, err)
+		assert.Equal(tt, expectedError, err)
+	})
+	t.Run("WhenHydrateReplicationDeleteFail", func(tt *testing.T) {
+		ctx := context.Background()
+		expectedError := errors.New("some error")
+		originalGetSignedCallbackToken := utilsGetSignedCallbackToken
+		utilsGetSignedCallbackToken = func() (string, error) {
+			return "mocked-token", nil
+		}
+		originalHydrateReplicationState := hydrateReplicationState
+		hydrateReplicationState = func(ctx context.Context, logger log.Logger, region string, projectId string, volumeResourceID string, replicationId string, state models.VolumeReplicationHydrateState, token string) error {
+			return &errs.CustomError{
+				OriginalErr: errors.New("some error"),
+			}
+		}
+		defer func() {
+			utilsGetSignedCallbackToken = originalGetSignedCallbackToken
+			hydrateReplicationState = originalHydrateReplicationState
+		}()
+		err := HydrateReplicationState(ctx, *createReplicationResponse, replicationState, "121")
+		assert.Error(tt, err)
+		assert.Equal(tt, expectedError, err.(*errs.CustomError).Unwrap())
+	})
+	t.Run("WhenSuccessFul", func(tt *testing.T) {
+		ctx := context.Background()
+		originalGetSignedCallbackToken := utilsGetSignedCallbackToken
+		utilsGetSignedCallbackToken = func() (string, error) {
+			return "mocked-token", nil
+		}
+		originalHydrateReplicationState := hydrateReplicationState
+		hydrateReplicationState = func(ctx context.Context, logger log.Logger, region string, projectId string, volumeResourceID string, replicationId string, state models.VolumeReplicationHydrateState, token string) error {
+			return nil
+		}
+		defer func() {
+			utilsGetSignedCallbackToken = originalGetSignedCallbackToken
+			hydrateReplicationState = originalHydrateReplicationState
+		}()
+		err := HydrateReplicationState(ctx, *createReplicationResponse, replicationState, "121")
+		assert.NoError(tt, err)
+	})
+}
+
+func TestHydrateReplicationStateAndType(t *testing.T) {
+	createReplicationResponse := &models.VolumeReplication{
+		Name:  "replication-name",
+		State: "creating",
+		ReplicationAttributes: &models.ReplicationDetails{
+			DestinationReplicationUUID: "mocked-replication-id",
+			DestinationRegion:          "mocked-region",
+		},
+		Volume: &models.Volume{BaseModel: models.BaseModel{UUID: "123"}},
+	}
+	var replicationState models.VolumeReplicationHydrateState
+	var hybridReplicationType models.HybridReplicationHydrateType
+	replicationState = "creating"
+	hybridReplicationType = "cres"
+	t.Run("WhenTokenError", func(tt *testing.T) {
+		ctx := context.Background()
+		expectedError := errors.New("some error")
+		originalGetSignedCallbackToken := utilsGetSignedCallbackToken
+		utilsGetSignedCallbackToken = func() (string, error) {
+			return "", errors.New("some error")
+		}
+		defer func() { utilsGetSignedCallbackToken = originalGetSignedCallbackToken }()
+		err := HydrateReplicationStateAndType(ctx, *createReplicationResponse, replicationState, hybridReplicationType, "121")
+		assert.Error(tt, err)
+		assert.Equal(tt, expectedError, err)
+	})
+	t.Run("WhenHydrateReplicationDeleteFail", func(tt *testing.T) {
+		ctx := context.Background()
+		expectedError := errors.New("some error")
+		originalGetSignedCallbackToken := utilsGetSignedCallbackToken
+		utilsGetSignedCallbackToken = func() (string, error) {
+			return "mocked-token", nil
+		}
+		originalHydrateReplicationStateAndType := hydrateReplicationStateAndType
+		hydrateReplicationStateAndType = func(ctx context.Context, logger log.Logger, region string, projectId string, volumeResourceID string, replicationId string, state models.VolumeReplicationHydrateState, hybridReplicationType models.HybridReplicationHydrateType, token string) error {
+			return &errs.CustomError{
+				OriginalErr: errors.New("some error"),
+			}
+		}
+		defer func() {
+			utilsGetSignedCallbackToken = originalGetSignedCallbackToken
+			hydrateReplicationStateAndType = originalHydrateReplicationStateAndType
+		}()
+		err := HydrateReplicationStateAndType(ctx, *createReplicationResponse, replicationState, hybridReplicationType, "121")
+		assert.Error(tt, err)
+		assert.Equal(tt, expectedError, err.(*errs.CustomError).Unwrap())
+	})
+	t.Run("WhenSuccessFul", func(tt *testing.T) {
+		ctx := context.Background()
+		originalGetSignedCallbackToken := utilsGetSignedCallbackToken
+		utilsGetSignedCallbackToken = func() (string, error) {
+			return "mocked-token", nil
+		}
+		originalHydrateReplicationStateAndType := hydrateReplicationStateAndType
+		hydrateReplicationStateAndType = func(ctx context.Context, logger log.Logger, region string, projectId string, volumeResourceID string, replicationId string, state models.VolumeReplicationHydrateState, hybridReplicationType models.HybridReplicationHydrateType, token string) error {
+			return nil
+		}
+		defer func() {
+			utilsGetSignedCallbackToken = originalGetSignedCallbackToken
+			hydrateReplicationStateAndType = originalHydrateReplicationStateAndType
+		}()
+		err := HydrateReplicationStateAndType(ctx, *createReplicationResponse, replicationState, hybridReplicationType, "121")
+		assert.NoError(tt, err)
+	})
+}

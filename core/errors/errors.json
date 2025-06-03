@@ -166,5 +166,71 @@
     "message": "An internal error occurred.",
     "retriable": false,
     "http_code": 500
+  },
+  "6020": {
+    "description": "IAM client Not Found",
+    "message": "IAM client Not Found",
+    "retriable": false,
+    "http_code": 500
+  },
+  "6021": {
+    "description": "Failed to parse projectNumber",
+    "message":"Failed to parse projectNumber",
+    "retriable": false,
+    "http_code": 500
+  },
+  "6022": {
+    "description": "Failed to marshal jwt payload",
+    "message": "Failed to marshal jwt payload",
+    "retriable": false,
+    "http_code": 500
+  },
+  "6023": {
+    "description": "Failed to marshal JSON",
+    "message": "Failed to marshal JSON",
+    "retriable": false,
+    "http_code": 500
+  },
+  "6024": {
+    "description": "Failed to create HTTP request",
+    "message": "Failed to create HTTP request",
+    "retriable": false,
+    "http_code": 500
+  },
+  "6025": {
+    "description": "Failed to execute HTTP request",
+    "message": "Failed to execute HTTP request",
+    "retriable": false,
+    "http_code": 500
+  },
+  "6026": {
+    "description": "Failed to read response body",
+    "message": "Failed to read response body",
+    "retriable": false,
+    "http_code": 500
+  },
+  "6027": {
+    "description": "Failed to unmarshal CCFE response",
+    "message": "Failed to unmarshal CCFE response",
+    "retriable": false,
+    "http_code": 500
+  },
+  "6028": {
+    "description": "Failed to read quota value from CCFE response",
+    "message":  "Failed to read quota value from CCFE response",
+    "retriable": false,
+    "http_code": 500
+  },
+  "6029": {
+    "description": "Failed to create NewIamCred",
+    "message":  "Failed to create NewIamCred",
+    "retriable": false,
+    "http_code": 500
+  },
+  "6030": {
+    "description": "Failed To Generate Access Token",
+    "message":  "Failed To Generate Access Token",
+    "retriable": false,
+    "http_code": 500
   }
 }

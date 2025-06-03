@@ -5,9 +5,11 @@ import (
 	"net/http"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	errs "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	gcpgenserver "github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/api/gcp-servergen"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware"
@@ -501,4 +503,89 @@ func TestGetCoRelationIDFromContext(t *testing.T) {
 		result := GetCoRelationIDFromContext(ctx)
 		assert.Equal(t, "", result)
 	})
+}
+
+func TestRetrierOnCodes(t *testing.T) {
+	mockLogger := log.NewLogger()
+	httpCode := 429
+	t.Run("RetriesOnRetryCode", func(t *testing.T) {
+		attempts := 0
+		fn := func() (bool, error) {
+			attempts++
+			return false, &errs.CustomError{
+				OriginalErr: errors.New("some error"),
+				HttpCode:    &httpCode,
+			}
+		}
+		RetrierOnCodes(mockLogger, fn, []int{429}, 2, time.Millisecond)
+		if attempts != 2 {
+			t.Errorf("expected 2 attempts, got %d", attempts)
+		}
+	})
+
+	t.Run("StopsOnNonRetryableError", func(t *testing.T) {
+		attempts := 0
+		httpCode := 500
+		fn := func() (bool, error) {
+			attempts++
+			return false, &errs.CustomError{
+				OriginalErr: errors.New("some error"),
+				HttpCode:    &httpCode,
+			}
+		}
+		RetrierOnCodes(mockLogger, fn, []int{429}, 3, time.Millisecond)
+		if attempts != 1 {
+			t.Errorf("expected 1 attempt, got %d", attempts)
+		}
+	})
+
+	t.Run("ReturnsOnNoError", func(t *testing.T) {
+		attempts := 0
+		fn := func() (bool, error) {
+			attempts++
+			return false, nil
+		}
+		RetrierOnCodes(mockLogger, fn, []int{429}, 3, time.Millisecond)
+		if attempts != 1 {
+			t.Errorf("expected 1 attempt, got %d", attempts)
+		}
+	})
+
+	t.Run("StopsOnStopRetry", func(t *testing.T) {
+		attempts := 0
+		httpCode := 429
+		fn := func() (bool, error) {
+			attempts++
+			return true, &errs.CustomError{
+				OriginalErr: errors.New("some error"),
+				HttpCode:    &httpCode,
+			}
+		}
+		RetrierOnCodes(mockLogger, fn, []int{429}, 3, time.Millisecond)
+		if attempts != 1 {
+			t.Errorf("expected 1 attempt, got %d", attempts)
+		}
+	})
+}
+
+func Test_convertBytesToGib(t *testing.T) {
+	tests := []struct {
+		name  string
+		input float64
+		want  int64
+	}{
+		{"ZeroBytes", 0, 0},
+		{"OneGiB", 1024 * 1024 * 1024, 1},
+		{"HalfGiB", 0.5 * 1024 * 1024 * 1024, 0},
+		{"NegativeBytes", -1024 * 1024 * 1024, -1},
+		{"NonIntegerGiB", 1.7 * 1024 * 1024 * 1024, 1},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := _convertBytesToGib(tt.input)
+			if got != tt.want {
+				t.Errorf("_convertBytesToGib(%v) = %v, want %v", tt.input, got, tt.want)
+			}
+		})
+	}
 }

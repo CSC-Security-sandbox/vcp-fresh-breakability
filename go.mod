@@ -3,6 +3,7 @@ module github.com/vcp-vsa-control-Plane/vsa-control-plane
 go 1.24.1
 
 require (
+	cloud.google.com/go/iam v1.5.0
 	cloud.google.com/go/storage v1.50.0
 	github.com/GoogleCloudPlatform/opentelemetry-operations-go/exporter/trace v1.27.0
 	github.com/go-chi/chi/v5 v5.2.1
@@ -16,6 +17,7 @@ require (
 	github.com/golang-jwt/jwt/v4 v4.5.2
 	github.com/golang-migrate/migrate/v4 v4.18.2
 	github.com/google/uuid v1.6.0
+	github.com/googleapis/gax-go/v2 v2.14.1
 	github.com/jackc/pgx/v5 v5.7.4
 	github.com/lib/pq v1.10.9
 	github.com/mattn/go-sqlite3 v1.14.22
@@ -53,7 +55,6 @@ require (
 	cloud.google.com/go/auth/oauth2adapt v0.2.8 // indirect
 	cloud.google.com/go/compute v1.36.0 // indirect
 	cloud.google.com/go/compute/metadata v0.6.0 // indirect
-	cloud.google.com/go/iam v1.5.0 // indirect
 	cloud.google.com/go/monitoring v1.24.1 // indirect
 	cloud.google.com/go/trace v1.11.5 // indirect
 	github.com/GoogleCloudPlatform/opentelemetry-operations-go/detectors/gcp v1.25.0 // indirect
@@ -87,7 +88,6 @@ require (
 	github.com/golang/mock v1.7.0-rc.1 // indirect
 	github.com/google/s2a-go v0.1.9 // indirect
 	github.com/googleapis/enterprise-certificate-proxy v0.3.6 // indirect
-	github.com/googleapis/gax-go/v2 v2.14.1 // indirect
 	github.com/grpc-ecosystem/go-grpc-middleware v1.4.0 // indirect
 	github.com/grpc-ecosystem/grpc-gateway/v2 v2.26.3 // indirect
 	github.com/hashicorp/errwrap v1.1.0 // indirect
