@@ -159,7 +159,7 @@ func TestCreateVolumeReplication(t *testing.T) {
 			},
 		},
 	}
-	volume1 := &volume{
+	volume1 := &Volume{
 		ExternalUUID: dstVolumeUUID,
 	}
 	volumeGetParams := &ontaprest.VolumeGetParams{UUID: *dstVolume.UUID}
@@ -1017,7 +1017,7 @@ func TestReleaseVolumeReplication(t *testing.T) {
 		},
 	}
 	online := "online"
-	volume1 := &volume{
+	volume1 := &Volume{
 		Volume:            models.Volume{State: &online},
 		ExternalUUID:      dstVolumeUUID,
 		IsOnPremMigration: true,
@@ -1199,7 +1199,7 @@ func TestReleaseVolumeReplication(t *testing.T) {
 			doCleanupSvmPeering = cleanupSvmPeering
 		}()
 		offline := "offline"
-		offlineVol := &volume{
+		offlineVol := &Volume{
 			ExternalUUID: dstVolumeUUID,
 			Volume:       models.Volume{State: &offline},
 		}
@@ -1315,7 +1315,7 @@ func TestResyncVolumeReplicationWithGSDisabled(t *testing.T) {
 	params := &VolumeReplication{
 		MirrorState:    SnapmirrorStateBroken,
 		RelationshipID: relationshipID,
-		Volume: &volume{
+		Volume: &Volume{
 			// VolumeID:      dstVolumeUUID,
 			// CreationToken: dstVolumeName,
 			ExternalUUID: srcVolumeUUID,
@@ -2040,7 +2040,7 @@ func TestCleanupSvmPeering(t *testing.T) {
 	t.Run("WhenFailedToContactPeerCluster", func(tt *testing.T) {
 		defer func() { params.VolumeReplication.Volume = nil }()
 
-		params.VolumeReplication.Volume = &volume{
+		params.VolumeReplication.Volume = &Volume{
 			IsOnPremMigration: true,
 		}
 		mockClient := new(ontaprest.MockRESTClient)

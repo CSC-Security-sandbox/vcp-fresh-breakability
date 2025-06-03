@@ -2530,15 +2530,6 @@ func (s *OptVolumeCreateV1betaVolumeType) SetFake() {
 }
 
 // SetFake set fake values.
-func (s *OptVolumeReplicationCreateInternalV1betaHybridReplicationType) SetFake() {
-	var elem VolumeReplicationCreateInternalV1betaHybridReplicationType
-	{
-		elem.SetFake()
-	}
-	s.SetTo(elem)
-}
-
-// SetFake set fake values.
 func (s *OptVolumeReplicationCreateInternalV1betaLabels) SetFake() {
 	var elem VolumeReplicationCreateInternalV1betaLabels
 	{
@@ -2593,8 +2584,8 @@ func (s *OptVolumeReplicationCreateInternalV1betaReplicationSchedule) SetFake() 
 }
 
 // SetFake set fake values.
-func (s *OptVolumeReplicationInternalV1betaHybridReplicationType) SetFake() {
-	var elem VolumeReplicationInternalV1betaHybridReplicationType
+func (s *OptVolumeReplicationCreateInternalV1betaReplicationType) SetFake() {
+	var elem VolumeReplicationCreateInternalV1betaReplicationType
 	{
 		elem.SetFake()
 	}
@@ -2649,6 +2640,15 @@ func (s *OptVolumeReplicationInternalV1betaReplicationPolicy) SetFake() {
 // SetFake set fake values.
 func (s *OptVolumeReplicationInternalV1betaReplicationSchedule) SetFake() {
 	var elem VolumeReplicationInternalV1betaReplicationSchedule
+	{
+		elem.SetFake()
+	}
+	s.SetTo(elem)
+}
+
+// SetFake set fake values.
+func (s *OptVolumeReplicationInternalV1betaReplicationType) SetFake() {
+	var elem VolumeReplicationInternalV1betaReplicationType
 	{
 		elem.SetFake()
 	}
@@ -8920,11 +8920,6 @@ func (s *VolumeReplicationCreateInternalV1beta) SetFake() {
 	}
 	{
 		{
-			s.RemoteResourceId = "string"
-		}
-	}
-	{
-		{
 			s.SourceHostName = "string"
 		}
 	}
@@ -8936,6 +8931,16 @@ func (s *VolumeReplicationCreateInternalV1beta) SetFake() {
 	{
 		{
 			s.SourceVolumeName = "string"
+		}
+	}
+	{
+		{
+			s.SourceVolumeUuid.SetFake()
+		}
+	}
+	{
+		{
+			s.SourcePoolUuid.SetFake()
 		}
 	}
 	{
@@ -8960,6 +8965,11 @@ func (s *VolumeReplicationCreateInternalV1beta) SetFake() {
 	}
 	{
 		{
+			s.DestinationPoolUuid.SetFake()
+		}
+	}
+	{
+		{
 			s.Name.SetFake()
 		}
 	}
@@ -8970,7 +8980,7 @@ func (s *VolumeReplicationCreateInternalV1beta) SetFake() {
 	}
 	{
 		{
-			s.HybridReplicationType.SetFake()
+			s.ReplicationType.SetFake()
 		}
 	}
 	{
@@ -9088,11 +9098,6 @@ func (s *VolumeReplicationCreateInternalV1betaEndpointType) SetFake() {
 }
 
 // SetFake set fake values.
-func (s *VolumeReplicationCreateInternalV1betaHybridReplicationType) SetFake() {
-	*s = VolumeReplicationCreateInternalV1betaHybridReplicationTypeHYBRIdREPLICATIONTYPEUNSPECIFIED
-}
-
-// SetFake set fake values.
 func (s *VolumeReplicationCreateInternalV1betaLabels) SetFake() {
 	var (
 		elem string
@@ -9126,6 +9131,11 @@ func (s *VolumeReplicationCreateInternalV1betaReplicationPolicy) SetFake() {
 // SetFake set fake values.
 func (s *VolumeReplicationCreateInternalV1betaReplicationSchedule) SetFake() {
 	*s = VolumeReplicationCreateInternalV1betaReplicationSchedule10minutely
+}
+
+// SetFake set fake values.
+func (s *VolumeReplicationCreateInternalV1betaReplicationType) SetFake() {
+	*s = VolumeReplicationCreateInternalV1betaReplicationTypeHYBRIDREPLICATIONTYPEUNSPECIFIED
 }
 
 // SetFake set fake values.
@@ -9167,11 +9177,6 @@ func (s *VolumeReplicationInternalV1beta) SetFake() {
 	}
 	{
 		{
-			s.RemoteResourceId = "string"
-		}
-	}
-	{
-		{
 			s.SourceHostName = "string"
 		}
 	}
@@ -9183,6 +9188,16 @@ func (s *VolumeReplicationInternalV1beta) SetFake() {
 	{
 		{
 			s.SourceVolumeName = "string"
+		}
+	}
+	{
+		{
+			s.SourceVolumeUuid.SetFake()
+		}
+	}
+	{
+		{
+			s.SourcePoolUuid.SetFake()
 		}
 	}
 	{
@@ -9207,6 +9222,11 @@ func (s *VolumeReplicationInternalV1beta) SetFake() {
 	}
 	{
 		{
+			s.DestinationPoolUuid.SetFake()
+		}
+	}
+	{
+		{
 			s.Name.SetFake()
 		}
 	}
@@ -9217,7 +9237,7 @@ func (s *VolumeReplicationInternalV1beta) SetFake() {
 	}
 	{
 		{
-			s.HybridReplicationType.SetFake()
+			s.ReplicationType.SetFake()
 		}
 	}
 	{
@@ -9320,11 +9340,6 @@ func (s *VolumeReplicationInternalV1betaEndpointType) SetFake() {
 }
 
 // SetFake set fake values.
-func (s *VolumeReplicationInternalV1betaHybridReplicationType) SetFake() {
-	*s = VolumeReplicationInternalV1betaHybridReplicationTypeHYBRIdREPLICATIONTYPEUNSPECIFIED
-}
-
-// SetFake set fake values.
 func (s *VolumeReplicationInternalV1betaLabels) SetFake() {
 	var (
 		elem string
@@ -9358,6 +9373,11 @@ func (s *VolumeReplicationInternalV1betaReplicationPolicy) SetFake() {
 // SetFake set fake values.
 func (s *VolumeReplicationInternalV1betaReplicationSchedule) SetFake() {
 	*s = VolumeReplicationInternalV1betaReplicationSchedule10minutely
+}
+
+// SetFake set fake values.
+func (s *VolumeReplicationInternalV1betaReplicationType) SetFake() {
+	*s = VolumeReplicationInternalV1betaReplicationTypeHYBRIDREPLICATIONTYPEUNSPECIFIED
 }
 
 // SetFake set fake values.

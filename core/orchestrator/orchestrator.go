@@ -2,12 +2,12 @@ package orchestrator
 
 import (
 	"context"
-	"go.temporal.io/sdk/client"
 
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	commonparams "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database"
+	"go.temporal.io/sdk/client"
 )
 
 type OrchestratorFactory interface {
@@ -38,6 +38,8 @@ type OrchestratorFactory interface {
 	DeleteSnapshot(ctx context.Context, params *commonparams.DeleteSnapshotParams) (*models.Snapshot, string, error)
 	ListSnapshots(ctx context.Context, params *commonparams.ListSnapshotsParams) ([]*models.Snapshot, error)
 	UpdateSnapshot(ctx context.Context, params *commonparams.UpdateSnapshotParams) (*models.Snapshot, string, error)
+
+	CreateVolumeReplication(ctx context.Context, params *commonparams.CreateVolumeReplicationParams) (*models.VolumeReplication, *datamodel.Job, error)
 
 	// KMS Config related methods
 	KmsConfigInterface

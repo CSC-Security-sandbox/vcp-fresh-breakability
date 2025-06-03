@@ -8907,52 +8907,6 @@ func (o OptVolumeCreateV1betaVolumeType) Or(d VolumeCreateV1betaVolumeType) Volu
 	return d
 }
 
-// NewOptVolumeReplicationCreateInternalV1betaHybridReplicationType returns new OptVolumeReplicationCreateInternalV1betaHybridReplicationType with value set to v.
-func NewOptVolumeReplicationCreateInternalV1betaHybridReplicationType(v VolumeReplicationCreateInternalV1betaHybridReplicationType) OptVolumeReplicationCreateInternalV1betaHybridReplicationType {
-	return OptVolumeReplicationCreateInternalV1betaHybridReplicationType{
-		Value: v,
-		Set:   true,
-	}
-}
-
-// OptVolumeReplicationCreateInternalV1betaHybridReplicationType is optional VolumeReplicationCreateInternalV1betaHybridReplicationType.
-type OptVolumeReplicationCreateInternalV1betaHybridReplicationType struct {
-	Value VolumeReplicationCreateInternalV1betaHybridReplicationType
-	Set   bool
-}
-
-// IsSet returns true if OptVolumeReplicationCreateInternalV1betaHybridReplicationType was set.
-func (o OptVolumeReplicationCreateInternalV1betaHybridReplicationType) IsSet() bool { return o.Set }
-
-// Reset unsets value.
-func (o *OptVolumeReplicationCreateInternalV1betaHybridReplicationType) Reset() {
-	var v VolumeReplicationCreateInternalV1betaHybridReplicationType
-	o.Value = v
-	o.Set = false
-}
-
-// SetTo sets value to v.
-func (o *OptVolumeReplicationCreateInternalV1betaHybridReplicationType) SetTo(v VolumeReplicationCreateInternalV1betaHybridReplicationType) {
-	o.Set = true
-	o.Value = v
-}
-
-// Get returns value and boolean that denotes whether value was set.
-func (o OptVolumeReplicationCreateInternalV1betaHybridReplicationType) Get() (v VolumeReplicationCreateInternalV1betaHybridReplicationType, ok bool) {
-	if !o.Set {
-		return v, false
-	}
-	return o.Value, true
-}
-
-// Or returns value if set, or given parameter if does not.
-func (o OptVolumeReplicationCreateInternalV1betaHybridReplicationType) Or(d VolumeReplicationCreateInternalV1betaHybridReplicationType) VolumeReplicationCreateInternalV1betaHybridReplicationType {
-	if v, ok := o.Get(); ok {
-		return v
-	}
-	return d
-}
-
 // NewOptVolumeReplicationCreateInternalV1betaLabels returns new OptVolumeReplicationCreateInternalV1betaLabels with value set to v.
 func NewOptVolumeReplicationCreateInternalV1betaLabels(v VolumeReplicationCreateInternalV1betaLabels) OptVolumeReplicationCreateInternalV1betaLabels {
 	return OptVolumeReplicationCreateInternalV1betaLabels{
@@ -9229,38 +9183,38 @@ func (o OptVolumeReplicationCreateInternalV1betaReplicationSchedule) Or(d Volume
 	return d
 }
 
-// NewOptVolumeReplicationInternalV1betaHybridReplicationType returns new OptVolumeReplicationInternalV1betaHybridReplicationType with value set to v.
-func NewOptVolumeReplicationInternalV1betaHybridReplicationType(v VolumeReplicationInternalV1betaHybridReplicationType) OptVolumeReplicationInternalV1betaHybridReplicationType {
-	return OptVolumeReplicationInternalV1betaHybridReplicationType{
+// NewOptVolumeReplicationCreateInternalV1betaReplicationType returns new OptVolumeReplicationCreateInternalV1betaReplicationType with value set to v.
+func NewOptVolumeReplicationCreateInternalV1betaReplicationType(v VolumeReplicationCreateInternalV1betaReplicationType) OptVolumeReplicationCreateInternalV1betaReplicationType {
+	return OptVolumeReplicationCreateInternalV1betaReplicationType{
 		Value: v,
 		Set:   true,
 	}
 }
 
-// OptVolumeReplicationInternalV1betaHybridReplicationType is optional VolumeReplicationInternalV1betaHybridReplicationType.
-type OptVolumeReplicationInternalV1betaHybridReplicationType struct {
-	Value VolumeReplicationInternalV1betaHybridReplicationType
+// OptVolumeReplicationCreateInternalV1betaReplicationType is optional VolumeReplicationCreateInternalV1betaReplicationType.
+type OptVolumeReplicationCreateInternalV1betaReplicationType struct {
+	Value VolumeReplicationCreateInternalV1betaReplicationType
 	Set   bool
 }
 
-// IsSet returns true if OptVolumeReplicationInternalV1betaHybridReplicationType was set.
-func (o OptVolumeReplicationInternalV1betaHybridReplicationType) IsSet() bool { return o.Set }
+// IsSet returns true if OptVolumeReplicationCreateInternalV1betaReplicationType was set.
+func (o OptVolumeReplicationCreateInternalV1betaReplicationType) IsSet() bool { return o.Set }
 
 // Reset unsets value.
-func (o *OptVolumeReplicationInternalV1betaHybridReplicationType) Reset() {
-	var v VolumeReplicationInternalV1betaHybridReplicationType
+func (o *OptVolumeReplicationCreateInternalV1betaReplicationType) Reset() {
+	var v VolumeReplicationCreateInternalV1betaReplicationType
 	o.Value = v
 	o.Set = false
 }
 
 // SetTo sets value to v.
-func (o *OptVolumeReplicationInternalV1betaHybridReplicationType) SetTo(v VolumeReplicationInternalV1betaHybridReplicationType) {
+func (o *OptVolumeReplicationCreateInternalV1betaReplicationType) SetTo(v VolumeReplicationCreateInternalV1betaReplicationType) {
 	o.Set = true
 	o.Value = v
 }
 
 // Get returns value and boolean that denotes whether value was set.
-func (o OptVolumeReplicationInternalV1betaHybridReplicationType) Get() (v VolumeReplicationInternalV1betaHybridReplicationType, ok bool) {
+func (o OptVolumeReplicationCreateInternalV1betaReplicationType) Get() (v VolumeReplicationCreateInternalV1betaReplicationType, ok bool) {
 	if !o.Set {
 		return v, false
 	}
@@ -9268,7 +9222,7 @@ func (o OptVolumeReplicationInternalV1betaHybridReplicationType) Get() (v Volume
 }
 
 // Or returns value if set, or given parameter if does not.
-func (o OptVolumeReplicationInternalV1betaHybridReplicationType) Or(d VolumeReplicationInternalV1betaHybridReplicationType) VolumeReplicationInternalV1betaHybridReplicationType {
+func (o OptVolumeReplicationCreateInternalV1betaReplicationType) Or(d VolumeReplicationCreateInternalV1betaReplicationType) VolumeReplicationCreateInternalV1betaReplicationType {
 	if v, ok := o.Get(); ok {
 		return v
 	}
@@ -9545,6 +9499,52 @@ func (o OptVolumeReplicationInternalV1betaReplicationSchedule) Get() (v VolumeRe
 
 // Or returns value if set, or given parameter if does not.
 func (o OptVolumeReplicationInternalV1betaReplicationSchedule) Or(d VolumeReplicationInternalV1betaReplicationSchedule) VolumeReplicationInternalV1betaReplicationSchedule {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptVolumeReplicationInternalV1betaReplicationType returns new OptVolumeReplicationInternalV1betaReplicationType with value set to v.
+func NewOptVolumeReplicationInternalV1betaReplicationType(v VolumeReplicationInternalV1betaReplicationType) OptVolumeReplicationInternalV1betaReplicationType {
+	return OptVolumeReplicationInternalV1betaReplicationType{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptVolumeReplicationInternalV1betaReplicationType is optional VolumeReplicationInternalV1betaReplicationType.
+type OptVolumeReplicationInternalV1betaReplicationType struct {
+	Value VolumeReplicationInternalV1betaReplicationType
+	Set   bool
+}
+
+// IsSet returns true if OptVolumeReplicationInternalV1betaReplicationType was set.
+func (o OptVolumeReplicationInternalV1betaReplicationType) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptVolumeReplicationInternalV1betaReplicationType) Reset() {
+	var v VolumeReplicationInternalV1betaReplicationType
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptVolumeReplicationInternalV1betaReplicationType) SetTo(v VolumeReplicationInternalV1betaReplicationType) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptVolumeReplicationInternalV1betaReplicationType) Get() (v VolumeReplicationInternalV1betaReplicationType, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptVolumeReplicationInternalV1betaReplicationType) Or(d VolumeReplicationInternalV1betaReplicationType) VolumeReplicationInternalV1betaReplicationType {
 	if v, ok := o.Get(); ok {
 		return v
 	}
@@ -16155,14 +16155,16 @@ type VolumeReplicationCreateInternalV1beta struct {
 	ReplicationSchedule OptVolumeReplicationCreateInternalV1betaReplicationSchedule `json:"replicationSchedule"`
 	// The remote region for the other end of the volume replication.
 	RemoteRegion string `json:"remoteRegion"`
-	// The resource Id of the remote volume.
-	RemoteResourceId string `json:"remoteResourceId"`
 	// The source endpoint host for the volume replication.
 	SourceHostName string `json:"sourceHostName"`
 	// The source endpoint server for the volume replication.
 	SourceServerName string `json:"sourceServerName"`
 	// The source endpoint volume for the volume replication.
 	SourceVolumeName string `json:"sourceVolumeName"`
+	// Uuid v4 of the source volume.
+	SourceVolumeUuid OptString `json:"sourceVolumeUuid"`
+	// Uuid v4 of the source pool.
+	SourcePoolUuid OptString `json:"sourcePoolUuid"`
 	// The destination endpoint host for the volume replication.
 	DestinationHostName string `json:"destinationHostName"`
 	// The destination endpoint server for the volume replication.
@@ -16171,12 +16173,14 @@ type VolumeReplicationCreateInternalV1beta struct {
 	DestinationVolumeName string `json:"destinationVolumeName"`
 	// Uuid v4 of the destination volume.
 	DestinationVolumeUuid OptString `json:"destinationVolumeUuid"`
+	// Uuid v4 of the destination pool.
+	DestinationPoolUuid OptString `json:"destinationPoolUuid"`
 	// A human readable label for the volume replication.
 	Name OptString `json:"name"`
 	// The mirror state of the volume replication.
 	MirrorState OptVolumeReplicationCreateInternalV1betaMirrorState `json:"mirrorState"`
-	// Type of hybrid replication.
-	HybridReplicationType OptVolumeReplicationCreateInternalV1betaHybridReplicationType `json:"hybridReplicationType"`
+	// Type of replication.
+	ReplicationType OptVolumeReplicationCreateInternalV1betaReplicationType `json:"replicationType"`
 	// The status of the volume replication.
 	RelationshipStatus OptVolumeReplicationCreateInternalV1betaRelationshipStatus `json:"relationshipStatus"`
 	// Total amount of data transferred for the current transfer operation.
@@ -16262,11 +16266,6 @@ func (s *VolumeReplicationCreateInternalV1beta) GetRemoteRegion() string {
 	return s.RemoteRegion
 }
 
-// GetRemoteResourceId returns the value of RemoteResourceId.
-func (s *VolumeReplicationCreateInternalV1beta) GetRemoteResourceId() string {
-	return s.RemoteResourceId
-}
-
 // GetSourceHostName returns the value of SourceHostName.
 func (s *VolumeReplicationCreateInternalV1beta) GetSourceHostName() string {
 	return s.SourceHostName
@@ -16280,6 +16279,16 @@ func (s *VolumeReplicationCreateInternalV1beta) GetSourceServerName() string {
 // GetSourceVolumeName returns the value of SourceVolumeName.
 func (s *VolumeReplicationCreateInternalV1beta) GetSourceVolumeName() string {
 	return s.SourceVolumeName
+}
+
+// GetSourceVolumeUuid returns the value of SourceVolumeUuid.
+func (s *VolumeReplicationCreateInternalV1beta) GetSourceVolumeUuid() OptString {
+	return s.SourceVolumeUuid
+}
+
+// GetSourcePoolUuid returns the value of SourcePoolUuid.
+func (s *VolumeReplicationCreateInternalV1beta) GetSourcePoolUuid() OptString {
+	return s.SourcePoolUuid
 }
 
 // GetDestinationHostName returns the value of DestinationHostName.
@@ -16302,6 +16311,11 @@ func (s *VolumeReplicationCreateInternalV1beta) GetDestinationVolumeUuid() OptSt
 	return s.DestinationVolumeUuid
 }
 
+// GetDestinationPoolUuid returns the value of DestinationPoolUuid.
+func (s *VolumeReplicationCreateInternalV1beta) GetDestinationPoolUuid() OptString {
+	return s.DestinationPoolUuid
+}
+
 // GetName returns the value of Name.
 func (s *VolumeReplicationCreateInternalV1beta) GetName() OptString {
 	return s.Name
@@ -16312,9 +16326,9 @@ func (s *VolumeReplicationCreateInternalV1beta) GetMirrorState() OptVolumeReplic
 	return s.MirrorState
 }
 
-// GetHybridReplicationType returns the value of HybridReplicationType.
-func (s *VolumeReplicationCreateInternalV1beta) GetHybridReplicationType() OptVolumeReplicationCreateInternalV1betaHybridReplicationType {
-	return s.HybridReplicationType
+// GetReplicationType returns the value of ReplicationType.
+func (s *VolumeReplicationCreateInternalV1beta) GetReplicationType() OptVolumeReplicationCreateInternalV1betaReplicationType {
+	return s.ReplicationType
 }
 
 // GetRelationshipStatus returns the value of RelationshipStatus.
@@ -16452,11 +16466,6 @@ func (s *VolumeReplicationCreateInternalV1beta) SetRemoteRegion(val string) {
 	s.RemoteRegion = val
 }
 
-// SetRemoteResourceId sets the value of RemoteResourceId.
-func (s *VolumeReplicationCreateInternalV1beta) SetRemoteResourceId(val string) {
-	s.RemoteResourceId = val
-}
-
 // SetSourceHostName sets the value of SourceHostName.
 func (s *VolumeReplicationCreateInternalV1beta) SetSourceHostName(val string) {
 	s.SourceHostName = val
@@ -16470,6 +16479,16 @@ func (s *VolumeReplicationCreateInternalV1beta) SetSourceServerName(val string) 
 // SetSourceVolumeName sets the value of SourceVolumeName.
 func (s *VolumeReplicationCreateInternalV1beta) SetSourceVolumeName(val string) {
 	s.SourceVolumeName = val
+}
+
+// SetSourceVolumeUuid sets the value of SourceVolumeUuid.
+func (s *VolumeReplicationCreateInternalV1beta) SetSourceVolumeUuid(val OptString) {
+	s.SourceVolumeUuid = val
+}
+
+// SetSourcePoolUuid sets the value of SourcePoolUuid.
+func (s *VolumeReplicationCreateInternalV1beta) SetSourcePoolUuid(val OptString) {
+	s.SourcePoolUuid = val
 }
 
 // SetDestinationHostName sets the value of DestinationHostName.
@@ -16492,6 +16511,11 @@ func (s *VolumeReplicationCreateInternalV1beta) SetDestinationVolumeUuid(val Opt
 	s.DestinationVolumeUuid = val
 }
 
+// SetDestinationPoolUuid sets the value of DestinationPoolUuid.
+func (s *VolumeReplicationCreateInternalV1beta) SetDestinationPoolUuid(val OptString) {
+	s.DestinationPoolUuid = val
+}
+
 // SetName sets the value of Name.
 func (s *VolumeReplicationCreateInternalV1beta) SetName(val OptString) {
 	s.Name = val
@@ -16502,9 +16526,9 @@ func (s *VolumeReplicationCreateInternalV1beta) SetMirrorState(val OptVolumeRepl
 	s.MirrorState = val
 }
 
-// SetHybridReplicationType sets the value of HybridReplicationType.
-func (s *VolumeReplicationCreateInternalV1beta) SetHybridReplicationType(val OptVolumeReplicationCreateInternalV1betaHybridReplicationType) {
-	s.HybridReplicationType = val
+// SetReplicationType sets the value of ReplicationType.
+func (s *VolumeReplicationCreateInternalV1beta) SetReplicationType(val OptVolumeReplicationCreateInternalV1betaReplicationType) {
+	s.ReplicationType = val
 }
 
 // SetRelationshipStatus sets the value of RelationshipStatus.
@@ -16651,69 +16675,6 @@ func (s *VolumeReplicationCreateInternalV1betaEndpointType) UnmarshalText(data [
 		return nil
 	case VolumeReplicationCreateInternalV1betaEndpointTypeRst:
 		*s = VolumeReplicationCreateInternalV1betaEndpointTypeRst
-		return nil
-	default:
-		return errors.Errorf("invalid value: %q", data)
-	}
-}
-
-// Type of hybrid replication.
-type VolumeReplicationCreateInternalV1betaHybridReplicationType string
-
-const (
-	VolumeReplicationCreateInternalV1betaHybridReplicationTypeHYBRIdREPLICATIONTYPEUNSPECIFIED VolumeReplicationCreateInternalV1betaHybridReplicationType = "HYBRId_REPLICATION_TYPE_UNSPECIFIED"
-	VolumeReplicationCreateInternalV1betaHybridReplicationTypeMIGRATION                        VolumeReplicationCreateInternalV1betaHybridReplicationType = "MIGRATION"
-	VolumeReplicationCreateInternalV1betaHybridReplicationTypeCONTINUOUSREPLICATION            VolumeReplicationCreateInternalV1betaHybridReplicationType = "CONTINUOUS_REPLICATION"
-	VolumeReplicationCreateInternalV1betaHybridReplicationTypeONPREMREPLICATION                VolumeReplicationCreateInternalV1betaHybridReplicationType = "ONPREM_REPLICATION"
-	VolumeReplicationCreateInternalV1betaHybridReplicationTypeREVERSEONPREMREPLICATION         VolumeReplicationCreateInternalV1betaHybridReplicationType = "REVERSE_ONPREM_REPLICATION"
-)
-
-// AllValues returns all VolumeReplicationCreateInternalV1betaHybridReplicationType values.
-func (VolumeReplicationCreateInternalV1betaHybridReplicationType) AllValues() []VolumeReplicationCreateInternalV1betaHybridReplicationType {
-	return []VolumeReplicationCreateInternalV1betaHybridReplicationType{
-		VolumeReplicationCreateInternalV1betaHybridReplicationTypeHYBRIdREPLICATIONTYPEUNSPECIFIED,
-		VolumeReplicationCreateInternalV1betaHybridReplicationTypeMIGRATION,
-		VolumeReplicationCreateInternalV1betaHybridReplicationTypeCONTINUOUSREPLICATION,
-		VolumeReplicationCreateInternalV1betaHybridReplicationTypeONPREMREPLICATION,
-		VolumeReplicationCreateInternalV1betaHybridReplicationTypeREVERSEONPREMREPLICATION,
-	}
-}
-
-// MarshalText implements encoding.TextMarshaler.
-func (s VolumeReplicationCreateInternalV1betaHybridReplicationType) MarshalText() ([]byte, error) {
-	switch s {
-	case VolumeReplicationCreateInternalV1betaHybridReplicationTypeHYBRIdREPLICATIONTYPEUNSPECIFIED:
-		return []byte(s), nil
-	case VolumeReplicationCreateInternalV1betaHybridReplicationTypeMIGRATION:
-		return []byte(s), nil
-	case VolumeReplicationCreateInternalV1betaHybridReplicationTypeCONTINUOUSREPLICATION:
-		return []byte(s), nil
-	case VolumeReplicationCreateInternalV1betaHybridReplicationTypeONPREMREPLICATION:
-		return []byte(s), nil
-	case VolumeReplicationCreateInternalV1betaHybridReplicationTypeREVERSEONPREMREPLICATION:
-		return []byte(s), nil
-	default:
-		return nil, errors.Errorf("invalid value: %q", s)
-	}
-}
-
-// UnmarshalText implements encoding.TextUnmarshaler.
-func (s *VolumeReplicationCreateInternalV1betaHybridReplicationType) UnmarshalText(data []byte) error {
-	switch VolumeReplicationCreateInternalV1betaHybridReplicationType(data) {
-	case VolumeReplicationCreateInternalV1betaHybridReplicationTypeHYBRIdREPLICATIONTYPEUNSPECIFIED:
-		*s = VolumeReplicationCreateInternalV1betaHybridReplicationTypeHYBRIdREPLICATIONTYPEUNSPECIFIED
-		return nil
-	case VolumeReplicationCreateInternalV1betaHybridReplicationTypeMIGRATION:
-		*s = VolumeReplicationCreateInternalV1betaHybridReplicationTypeMIGRATION
-		return nil
-	case VolumeReplicationCreateInternalV1betaHybridReplicationTypeCONTINUOUSREPLICATION:
-		*s = VolumeReplicationCreateInternalV1betaHybridReplicationTypeCONTINUOUSREPLICATION
-		return nil
-	case VolumeReplicationCreateInternalV1betaHybridReplicationTypeONPREMREPLICATION:
-		*s = VolumeReplicationCreateInternalV1betaHybridReplicationTypeONPREMREPLICATION
-		return nil
-	case VolumeReplicationCreateInternalV1betaHybridReplicationTypeREVERSEONPREMREPLICATION:
-		*s = VolumeReplicationCreateInternalV1betaHybridReplicationTypeREVERSEONPREMREPLICATION
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
@@ -16999,6 +16960,90 @@ func (s *VolumeReplicationCreateInternalV1betaReplicationSchedule) UnmarshalText
 	}
 }
 
+// Type of replication.
+type VolumeReplicationCreateInternalV1betaReplicationType string
+
+const (
+	VolumeReplicationCreateInternalV1betaReplicationTypeHYBRIDREPLICATIONTYPEUNSPECIFIED VolumeReplicationCreateInternalV1betaReplicationType = "HYBRID_REPLICATION_TYPE_UNSPECIFIED"
+	VolumeReplicationCreateInternalV1betaReplicationTypeMIGRATION                        VolumeReplicationCreateInternalV1betaReplicationType = "MIGRATION"
+	VolumeReplicationCreateInternalV1betaReplicationTypeCONTINUOUSREPLICATION            VolumeReplicationCreateInternalV1betaReplicationType = "CONTINUOUS_REPLICATION"
+	VolumeReplicationCreateInternalV1betaReplicationTypeONPREMREPLICATION                VolumeReplicationCreateInternalV1betaReplicationType = "ONPREM_REPLICATION"
+	VolumeReplicationCreateInternalV1betaReplicationTypeREVERSEONPREMREPLICATION         VolumeReplicationCreateInternalV1betaReplicationType = "REVERSE_ONPREM_REPLICATION"
+	VolumeReplicationCreateInternalV1betaReplicationTypeCROSSREGIONREPLICATION           VolumeReplicationCreateInternalV1betaReplicationType = "CROSS_REGION_REPLICATION"
+	VolumeReplicationCreateInternalV1betaReplicationTypeCROSSZONEREPLICATION             VolumeReplicationCreateInternalV1betaReplicationType = "CROSS_ZONE_REPLICATION"
+	VolumeReplicationCreateInternalV1betaReplicationTypeCROSSPROJECTREPLICATION          VolumeReplicationCreateInternalV1betaReplicationType = "CROSS_PROJECT_REPLICATION"
+)
+
+// AllValues returns all VolumeReplicationCreateInternalV1betaReplicationType values.
+func (VolumeReplicationCreateInternalV1betaReplicationType) AllValues() []VolumeReplicationCreateInternalV1betaReplicationType {
+	return []VolumeReplicationCreateInternalV1betaReplicationType{
+		VolumeReplicationCreateInternalV1betaReplicationTypeHYBRIDREPLICATIONTYPEUNSPECIFIED,
+		VolumeReplicationCreateInternalV1betaReplicationTypeMIGRATION,
+		VolumeReplicationCreateInternalV1betaReplicationTypeCONTINUOUSREPLICATION,
+		VolumeReplicationCreateInternalV1betaReplicationTypeONPREMREPLICATION,
+		VolumeReplicationCreateInternalV1betaReplicationTypeREVERSEONPREMREPLICATION,
+		VolumeReplicationCreateInternalV1betaReplicationTypeCROSSREGIONREPLICATION,
+		VolumeReplicationCreateInternalV1betaReplicationTypeCROSSZONEREPLICATION,
+		VolumeReplicationCreateInternalV1betaReplicationTypeCROSSPROJECTREPLICATION,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s VolumeReplicationCreateInternalV1betaReplicationType) MarshalText() ([]byte, error) {
+	switch s {
+	case VolumeReplicationCreateInternalV1betaReplicationTypeHYBRIDREPLICATIONTYPEUNSPECIFIED:
+		return []byte(s), nil
+	case VolumeReplicationCreateInternalV1betaReplicationTypeMIGRATION:
+		return []byte(s), nil
+	case VolumeReplicationCreateInternalV1betaReplicationTypeCONTINUOUSREPLICATION:
+		return []byte(s), nil
+	case VolumeReplicationCreateInternalV1betaReplicationTypeONPREMREPLICATION:
+		return []byte(s), nil
+	case VolumeReplicationCreateInternalV1betaReplicationTypeREVERSEONPREMREPLICATION:
+		return []byte(s), nil
+	case VolumeReplicationCreateInternalV1betaReplicationTypeCROSSREGIONREPLICATION:
+		return []byte(s), nil
+	case VolumeReplicationCreateInternalV1betaReplicationTypeCROSSZONEREPLICATION:
+		return []byte(s), nil
+	case VolumeReplicationCreateInternalV1betaReplicationTypeCROSSPROJECTREPLICATION:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *VolumeReplicationCreateInternalV1betaReplicationType) UnmarshalText(data []byte) error {
+	switch VolumeReplicationCreateInternalV1betaReplicationType(data) {
+	case VolumeReplicationCreateInternalV1betaReplicationTypeHYBRIDREPLICATIONTYPEUNSPECIFIED:
+		*s = VolumeReplicationCreateInternalV1betaReplicationTypeHYBRIDREPLICATIONTYPEUNSPECIFIED
+		return nil
+	case VolumeReplicationCreateInternalV1betaReplicationTypeMIGRATION:
+		*s = VolumeReplicationCreateInternalV1betaReplicationTypeMIGRATION
+		return nil
+	case VolumeReplicationCreateInternalV1betaReplicationTypeCONTINUOUSREPLICATION:
+		*s = VolumeReplicationCreateInternalV1betaReplicationTypeCONTINUOUSREPLICATION
+		return nil
+	case VolumeReplicationCreateInternalV1betaReplicationTypeONPREMREPLICATION:
+		*s = VolumeReplicationCreateInternalV1betaReplicationTypeONPREMREPLICATION
+		return nil
+	case VolumeReplicationCreateInternalV1betaReplicationTypeREVERSEONPREMREPLICATION:
+		*s = VolumeReplicationCreateInternalV1betaReplicationTypeREVERSEONPREMREPLICATION
+		return nil
+	case VolumeReplicationCreateInternalV1betaReplicationTypeCROSSREGIONREPLICATION:
+		*s = VolumeReplicationCreateInternalV1betaReplicationTypeCROSSREGIONREPLICATION
+		return nil
+	case VolumeReplicationCreateInternalV1betaReplicationTypeCROSSZONEREPLICATION:
+		*s = VolumeReplicationCreateInternalV1betaReplicationTypeCROSSZONEREPLICATION
+		return nil
+	case VolumeReplicationCreateInternalV1betaReplicationTypeCROSSPROJECTREPLICATION:
+		*s = VolumeReplicationCreateInternalV1betaReplicationTypeCROSSPROJECTREPLICATION
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
 // The replication properties between two volumes (local and remote) that are the source and
 // destination in a replication relationship.
 // Ref: #/components/schemas/VolumeReplicationInternal_v1beta
@@ -17016,14 +17061,16 @@ type VolumeReplicationInternalV1beta struct {
 	ReplicationSchedule OptVolumeReplicationInternalV1betaReplicationSchedule `json:"replicationSchedule"`
 	// The remote region for the other end of the volume replication.
 	RemoteRegion string `json:"remoteRegion"`
-	// The resource Id of the remote volume.
-	RemoteResourceId string `json:"remoteResourceId"`
 	// The source endpoint host for the volume replication.
 	SourceHostName string `json:"sourceHostName"`
 	// The source endpoint server for the volume replication.
 	SourceServerName string `json:"sourceServerName"`
 	// The source endpoint volume for the volume replication.
 	SourceVolumeName string `json:"sourceVolumeName"`
+	// Uuid v4 of the source volume.
+	SourceVolumeUuid OptString `json:"sourceVolumeUuid"`
+	// Uuid v4 of the source pool.
+	SourcePoolUuid OptString `json:"sourcePoolUuid"`
 	// The destination endpoint host for the volume replication.
 	DestinationHostName string `json:"destinationHostName"`
 	// The destination endpoint server for the volume replication.
@@ -17032,12 +17079,14 @@ type VolumeReplicationInternalV1beta struct {
 	DestinationVolumeName string `json:"destinationVolumeName"`
 	// Uuid v4 of the destination volume.
 	DestinationVolumeUuid OptString `json:"destinationVolumeUuid"`
+	// Uuid v4 of the destination pool.
+	DestinationPoolUuid OptString `json:"destinationPoolUuid"`
 	// A human readable label for the volume replication.
 	Name OptString `json:"name"`
 	// The mirror state of the volume replication.
 	MirrorState OptVolumeReplicationInternalV1betaMirrorState `json:"mirrorState"`
-	// Type of hybrid replication.
-	HybridReplicationType OptVolumeReplicationInternalV1betaHybridReplicationType `json:"hybridReplicationType"`
+	// Type of replication.
+	ReplicationType OptVolumeReplicationInternalV1betaReplicationType `json:"replicationType"`
 	// The status of the volume replication.
 	RelationshipStatus OptVolumeReplicationInternalV1betaRelationshipStatus `json:"relationshipStatus"`
 	// Total amount of data transferred for the current transfer operation.
@@ -17119,11 +17168,6 @@ func (s *VolumeReplicationInternalV1beta) GetRemoteRegion() string {
 	return s.RemoteRegion
 }
 
-// GetRemoteResourceId returns the value of RemoteResourceId.
-func (s *VolumeReplicationInternalV1beta) GetRemoteResourceId() string {
-	return s.RemoteResourceId
-}
-
 // GetSourceHostName returns the value of SourceHostName.
 func (s *VolumeReplicationInternalV1beta) GetSourceHostName() string {
 	return s.SourceHostName
@@ -17137,6 +17181,16 @@ func (s *VolumeReplicationInternalV1beta) GetSourceServerName() string {
 // GetSourceVolumeName returns the value of SourceVolumeName.
 func (s *VolumeReplicationInternalV1beta) GetSourceVolumeName() string {
 	return s.SourceVolumeName
+}
+
+// GetSourceVolumeUuid returns the value of SourceVolumeUuid.
+func (s *VolumeReplicationInternalV1beta) GetSourceVolumeUuid() OptString {
+	return s.SourceVolumeUuid
+}
+
+// GetSourcePoolUuid returns the value of SourcePoolUuid.
+func (s *VolumeReplicationInternalV1beta) GetSourcePoolUuid() OptString {
+	return s.SourcePoolUuid
 }
 
 // GetDestinationHostName returns the value of DestinationHostName.
@@ -17159,6 +17213,11 @@ func (s *VolumeReplicationInternalV1beta) GetDestinationVolumeUuid() OptString {
 	return s.DestinationVolumeUuid
 }
 
+// GetDestinationPoolUuid returns the value of DestinationPoolUuid.
+func (s *VolumeReplicationInternalV1beta) GetDestinationPoolUuid() OptString {
+	return s.DestinationPoolUuid
+}
+
 // GetName returns the value of Name.
 func (s *VolumeReplicationInternalV1beta) GetName() OptString {
 	return s.Name
@@ -17169,9 +17228,9 @@ func (s *VolumeReplicationInternalV1beta) GetMirrorState() OptVolumeReplicationI
 	return s.MirrorState
 }
 
-// GetHybridReplicationType returns the value of HybridReplicationType.
-func (s *VolumeReplicationInternalV1beta) GetHybridReplicationType() OptVolumeReplicationInternalV1betaHybridReplicationType {
-	return s.HybridReplicationType
+// GetReplicationType returns the value of ReplicationType.
+func (s *VolumeReplicationInternalV1beta) GetReplicationType() OptVolumeReplicationInternalV1betaReplicationType {
+	return s.ReplicationType
 }
 
 // GetRelationshipStatus returns the value of RelationshipStatus.
@@ -17294,11 +17353,6 @@ func (s *VolumeReplicationInternalV1beta) SetRemoteRegion(val string) {
 	s.RemoteRegion = val
 }
 
-// SetRemoteResourceId sets the value of RemoteResourceId.
-func (s *VolumeReplicationInternalV1beta) SetRemoteResourceId(val string) {
-	s.RemoteResourceId = val
-}
-
 // SetSourceHostName sets the value of SourceHostName.
 func (s *VolumeReplicationInternalV1beta) SetSourceHostName(val string) {
 	s.SourceHostName = val
@@ -17312,6 +17366,16 @@ func (s *VolumeReplicationInternalV1beta) SetSourceServerName(val string) {
 // SetSourceVolumeName sets the value of SourceVolumeName.
 func (s *VolumeReplicationInternalV1beta) SetSourceVolumeName(val string) {
 	s.SourceVolumeName = val
+}
+
+// SetSourceVolumeUuid sets the value of SourceVolumeUuid.
+func (s *VolumeReplicationInternalV1beta) SetSourceVolumeUuid(val OptString) {
+	s.SourceVolumeUuid = val
+}
+
+// SetSourcePoolUuid sets the value of SourcePoolUuid.
+func (s *VolumeReplicationInternalV1beta) SetSourcePoolUuid(val OptString) {
+	s.SourcePoolUuid = val
 }
 
 // SetDestinationHostName sets the value of DestinationHostName.
@@ -17334,6 +17398,11 @@ func (s *VolumeReplicationInternalV1beta) SetDestinationVolumeUuid(val OptString
 	s.DestinationVolumeUuid = val
 }
 
+// SetDestinationPoolUuid sets the value of DestinationPoolUuid.
+func (s *VolumeReplicationInternalV1beta) SetDestinationPoolUuid(val OptString) {
+	s.DestinationPoolUuid = val
+}
+
 // SetName sets the value of Name.
 func (s *VolumeReplicationInternalV1beta) SetName(val OptString) {
 	s.Name = val
@@ -17344,9 +17413,9 @@ func (s *VolumeReplicationInternalV1beta) SetMirrorState(val OptVolumeReplicatio
 	s.MirrorState = val
 }
 
-// SetHybridReplicationType sets the value of HybridReplicationType.
-func (s *VolumeReplicationInternalV1beta) SetHybridReplicationType(val OptVolumeReplicationInternalV1betaHybridReplicationType) {
-	s.HybridReplicationType = val
+// SetReplicationType sets the value of ReplicationType.
+func (s *VolumeReplicationInternalV1beta) SetReplicationType(val OptVolumeReplicationInternalV1betaReplicationType) {
+	s.ReplicationType = val
 }
 
 // SetRelationshipStatus sets the value of RelationshipStatus.
@@ -17487,69 +17556,6 @@ func (s *VolumeReplicationInternalV1betaEndpointType) UnmarshalText(data []byte)
 		return nil
 	case VolumeReplicationInternalV1betaEndpointTypeRst:
 		*s = VolumeReplicationInternalV1betaEndpointTypeRst
-		return nil
-	default:
-		return errors.Errorf("invalid value: %q", data)
-	}
-}
-
-// Type of hybrid replication.
-type VolumeReplicationInternalV1betaHybridReplicationType string
-
-const (
-	VolumeReplicationInternalV1betaHybridReplicationTypeHYBRIdREPLICATIONTYPEUNSPECIFIED VolumeReplicationInternalV1betaHybridReplicationType = "HYBRId_REPLICATION_TYPE_UNSPECIFIED"
-	VolumeReplicationInternalV1betaHybridReplicationTypeMIGRATION                        VolumeReplicationInternalV1betaHybridReplicationType = "MIGRATION"
-	VolumeReplicationInternalV1betaHybridReplicationTypeCONTINUOUSREPLICATION            VolumeReplicationInternalV1betaHybridReplicationType = "CONTINUOUS_REPLICATION"
-	VolumeReplicationInternalV1betaHybridReplicationTypeONPREMREPLICATION                VolumeReplicationInternalV1betaHybridReplicationType = "ONPREM_REPLICATION"
-	VolumeReplicationInternalV1betaHybridReplicationTypeREVERSEONPREMREPLICATION         VolumeReplicationInternalV1betaHybridReplicationType = "REVERSE_ONPREM_REPLICATION"
-)
-
-// AllValues returns all VolumeReplicationInternalV1betaHybridReplicationType values.
-func (VolumeReplicationInternalV1betaHybridReplicationType) AllValues() []VolumeReplicationInternalV1betaHybridReplicationType {
-	return []VolumeReplicationInternalV1betaHybridReplicationType{
-		VolumeReplicationInternalV1betaHybridReplicationTypeHYBRIdREPLICATIONTYPEUNSPECIFIED,
-		VolumeReplicationInternalV1betaHybridReplicationTypeMIGRATION,
-		VolumeReplicationInternalV1betaHybridReplicationTypeCONTINUOUSREPLICATION,
-		VolumeReplicationInternalV1betaHybridReplicationTypeONPREMREPLICATION,
-		VolumeReplicationInternalV1betaHybridReplicationTypeREVERSEONPREMREPLICATION,
-	}
-}
-
-// MarshalText implements encoding.TextMarshaler.
-func (s VolumeReplicationInternalV1betaHybridReplicationType) MarshalText() ([]byte, error) {
-	switch s {
-	case VolumeReplicationInternalV1betaHybridReplicationTypeHYBRIdREPLICATIONTYPEUNSPECIFIED:
-		return []byte(s), nil
-	case VolumeReplicationInternalV1betaHybridReplicationTypeMIGRATION:
-		return []byte(s), nil
-	case VolumeReplicationInternalV1betaHybridReplicationTypeCONTINUOUSREPLICATION:
-		return []byte(s), nil
-	case VolumeReplicationInternalV1betaHybridReplicationTypeONPREMREPLICATION:
-		return []byte(s), nil
-	case VolumeReplicationInternalV1betaHybridReplicationTypeREVERSEONPREMREPLICATION:
-		return []byte(s), nil
-	default:
-		return nil, errors.Errorf("invalid value: %q", s)
-	}
-}
-
-// UnmarshalText implements encoding.TextUnmarshaler.
-func (s *VolumeReplicationInternalV1betaHybridReplicationType) UnmarshalText(data []byte) error {
-	switch VolumeReplicationInternalV1betaHybridReplicationType(data) {
-	case VolumeReplicationInternalV1betaHybridReplicationTypeHYBRIdREPLICATIONTYPEUNSPECIFIED:
-		*s = VolumeReplicationInternalV1betaHybridReplicationTypeHYBRIdREPLICATIONTYPEUNSPECIFIED
-		return nil
-	case VolumeReplicationInternalV1betaHybridReplicationTypeMIGRATION:
-		*s = VolumeReplicationInternalV1betaHybridReplicationTypeMIGRATION
-		return nil
-	case VolumeReplicationInternalV1betaHybridReplicationTypeCONTINUOUSREPLICATION:
-		*s = VolumeReplicationInternalV1betaHybridReplicationTypeCONTINUOUSREPLICATION
-		return nil
-	case VolumeReplicationInternalV1betaHybridReplicationTypeONPREMREPLICATION:
-		*s = VolumeReplicationInternalV1betaHybridReplicationTypeONPREMREPLICATION
-		return nil
-	case VolumeReplicationInternalV1betaHybridReplicationTypeREVERSEONPREMREPLICATION:
-		*s = VolumeReplicationInternalV1betaHybridReplicationTypeREVERSEONPREMREPLICATION
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
@@ -17829,6 +17835,90 @@ func (s *VolumeReplicationInternalV1betaReplicationSchedule) UnmarshalText(data 
 		return nil
 	case VolumeReplicationInternalV1betaReplicationScheduleMonthly:
 		*s = VolumeReplicationInternalV1betaReplicationScheduleMonthly
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// Type of replication.
+type VolumeReplicationInternalV1betaReplicationType string
+
+const (
+	VolumeReplicationInternalV1betaReplicationTypeHYBRIDREPLICATIONTYPEUNSPECIFIED VolumeReplicationInternalV1betaReplicationType = "HYBRID_REPLICATION_TYPE_UNSPECIFIED"
+	VolumeReplicationInternalV1betaReplicationTypeMIGRATION                        VolumeReplicationInternalV1betaReplicationType = "MIGRATION"
+	VolumeReplicationInternalV1betaReplicationTypeCONTINUOUSREPLICATION            VolumeReplicationInternalV1betaReplicationType = "CONTINUOUS_REPLICATION"
+	VolumeReplicationInternalV1betaReplicationTypeONPREMREPLICATION                VolumeReplicationInternalV1betaReplicationType = "ONPREM_REPLICATION"
+	VolumeReplicationInternalV1betaReplicationTypeREVERSEONPREMREPLICATION         VolumeReplicationInternalV1betaReplicationType = "REVERSE_ONPREM_REPLICATION"
+	VolumeReplicationInternalV1betaReplicationTypeCROSSREGIONREPLICATION           VolumeReplicationInternalV1betaReplicationType = "CROSS_REGION_REPLICATION"
+	VolumeReplicationInternalV1betaReplicationTypeCROSSZONEREPLICATION             VolumeReplicationInternalV1betaReplicationType = "CROSS_ZONE_REPLICATION"
+	VolumeReplicationInternalV1betaReplicationTypeCROSSPROJECTREPLICATION          VolumeReplicationInternalV1betaReplicationType = "CROSS_PROJECT_REPLICATION"
+)
+
+// AllValues returns all VolumeReplicationInternalV1betaReplicationType values.
+func (VolumeReplicationInternalV1betaReplicationType) AllValues() []VolumeReplicationInternalV1betaReplicationType {
+	return []VolumeReplicationInternalV1betaReplicationType{
+		VolumeReplicationInternalV1betaReplicationTypeHYBRIDREPLICATIONTYPEUNSPECIFIED,
+		VolumeReplicationInternalV1betaReplicationTypeMIGRATION,
+		VolumeReplicationInternalV1betaReplicationTypeCONTINUOUSREPLICATION,
+		VolumeReplicationInternalV1betaReplicationTypeONPREMREPLICATION,
+		VolumeReplicationInternalV1betaReplicationTypeREVERSEONPREMREPLICATION,
+		VolumeReplicationInternalV1betaReplicationTypeCROSSREGIONREPLICATION,
+		VolumeReplicationInternalV1betaReplicationTypeCROSSZONEREPLICATION,
+		VolumeReplicationInternalV1betaReplicationTypeCROSSPROJECTREPLICATION,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s VolumeReplicationInternalV1betaReplicationType) MarshalText() ([]byte, error) {
+	switch s {
+	case VolumeReplicationInternalV1betaReplicationTypeHYBRIDREPLICATIONTYPEUNSPECIFIED:
+		return []byte(s), nil
+	case VolumeReplicationInternalV1betaReplicationTypeMIGRATION:
+		return []byte(s), nil
+	case VolumeReplicationInternalV1betaReplicationTypeCONTINUOUSREPLICATION:
+		return []byte(s), nil
+	case VolumeReplicationInternalV1betaReplicationTypeONPREMREPLICATION:
+		return []byte(s), nil
+	case VolumeReplicationInternalV1betaReplicationTypeREVERSEONPREMREPLICATION:
+		return []byte(s), nil
+	case VolumeReplicationInternalV1betaReplicationTypeCROSSREGIONREPLICATION:
+		return []byte(s), nil
+	case VolumeReplicationInternalV1betaReplicationTypeCROSSZONEREPLICATION:
+		return []byte(s), nil
+	case VolumeReplicationInternalV1betaReplicationTypeCROSSPROJECTREPLICATION:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *VolumeReplicationInternalV1betaReplicationType) UnmarshalText(data []byte) error {
+	switch VolumeReplicationInternalV1betaReplicationType(data) {
+	case VolumeReplicationInternalV1betaReplicationTypeHYBRIDREPLICATIONTYPEUNSPECIFIED:
+		*s = VolumeReplicationInternalV1betaReplicationTypeHYBRIDREPLICATIONTYPEUNSPECIFIED
+		return nil
+	case VolumeReplicationInternalV1betaReplicationTypeMIGRATION:
+		*s = VolumeReplicationInternalV1betaReplicationTypeMIGRATION
+		return nil
+	case VolumeReplicationInternalV1betaReplicationTypeCONTINUOUSREPLICATION:
+		*s = VolumeReplicationInternalV1betaReplicationTypeCONTINUOUSREPLICATION
+		return nil
+	case VolumeReplicationInternalV1betaReplicationTypeONPREMREPLICATION:
+		*s = VolumeReplicationInternalV1betaReplicationTypeONPREMREPLICATION
+		return nil
+	case VolumeReplicationInternalV1betaReplicationTypeREVERSEONPREMREPLICATION:
+		*s = VolumeReplicationInternalV1betaReplicationTypeREVERSEONPREMREPLICATION
+		return nil
+	case VolumeReplicationInternalV1betaReplicationTypeCROSSREGIONREPLICATION:
+		*s = VolumeReplicationInternalV1betaReplicationTypeCROSSREGIONREPLICATION
+		return nil
+	case VolumeReplicationInternalV1betaReplicationTypeCROSSZONEREPLICATION:
+		*s = VolumeReplicationInternalV1betaReplicationTypeCROSSZONEREPLICATION
+		return nil
+	case VolumeReplicationInternalV1betaReplicationTypeCROSSPROJECTREPLICATION:
+		*s = VolumeReplicationInternalV1betaReplicationTypeCROSSPROJECTREPLICATION
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)

@@ -3,9 +3,11 @@ package api
 import (
 	"context"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator"
 	gcpgenserver "github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/api/gcp-servergen"
@@ -112,5 +114,122 @@ func TestInternalDescribePool(t *testing.T) {
 		resp, err := handler.V1betaInternalDescribePool(context.Background(), params)
 		assert.NoError(tt, err)
 		assert.Equal(tt, expectedResponse, resp)
+	})
+}
+
+func TestInternalCreateVolumeReplication(t *testing.T) {
+	t.Run("WhenEndpointNotDst", func(tt *testing.T) {
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+
+		handler := Handler{
+			Orchestrator: mockOrchestrator,
+		}
+		reqParams := &gcpgenserver.VolumeReplicationCreateInternalV1beta{
+			EndpointType: "src",
+		}
+		params := gcpgenserver.V1betaInternalCreateVolumeReplicationParams{
+			ProjectNumber: "test-project",
+			LocationId:    "test-location",
+		}
+		expectedResponse := &gcpgenserver.V1betaInternalCreateVolumeReplicationBadRequest{
+			Code:    400,
+			Message: "Incorrect endpoint type",
+		}
+		resp, err := handler.V1betaInternalCreateVolumeReplication(context.Background(), reqParams, params)
+		assert.NoError(tt, err)
+		assert.Equal(tt, expectedResponse, resp)
+	})
+	t.Run("WhenCreateVolumeReplicationError", func(tt *testing.T) {
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+
+		handler := Handler{
+			Orchestrator: mockOrchestrator,
+		}
+		reqParams := &gcpgenserver.VolumeReplicationCreateInternalV1beta{
+			EndpointType: "dst",
+		}
+		params := gcpgenserver.V1betaInternalCreateVolumeReplicationParams{
+			ProjectNumber: "test-project",
+			LocationId:    "test-location",
+		}
+		mockOrchestrator.EXPECT().CreateVolumeReplication(mock.Anything, mock.Anything).Return(nil, nil, errors.New("some error"))
+		_, err := handler.V1betaInternalCreateVolumeReplication(context.Background(), reqParams, params)
+		assert.Error(tt, err)
+		assert.Equal(tt, "some error", err.Error())
+	})
+	t.Run("WhenSuccess", func(tt *testing.T) {
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+
+		handler := Handler{
+			Orchestrator: mockOrchestrator,
+		}
+		reqParams := &gcpgenserver.VolumeReplicationCreateInternalV1beta{
+			EndpointType: "dst",
+		}
+		params := gcpgenserver.V1betaInternalCreateVolumeReplicationParams{
+			ProjectNumber: "test-project",
+			LocationId:    "test-location",
+		}
+		volumeReplication := &models.VolumeReplication{
+			Name:        "test-replication",
+			Description: "Test replication",
+			Uri:         "test-uri",
+			RemoteUri:   "test-remote-uri",
+			ReplicationAttributes: &models.ReplicationDetails{
+				EndpointType:               "dst",
+				ReplicationType:            "test-replication-type",
+				ReplicationSchedule:        "test-schedule",
+				SourceVolumeUUID:           "test-source-volume-uuid",
+				SourceRegion:               "test-source-region",
+				SourceHostName:             "test-source-host",
+				SourceReplicationUUID:      "test-source-replication-uuid",
+				SourceSvmName:              "test-source-svm",
+				SourceVolumeName:           "test-source-volume",
+				DestinationVolumeUUID:      "test-destination-volume-uuid",
+				DestinationRegion:          "test-destination-region",
+				DestinationHostName:        "test-destination-host",
+				DestinationReplicationUUID: "test-destination-replication-uuid",
+				DestinationSvmName:         "test-destination-svm",
+				DestinationVolumeName:      "test-destination-volume",
+			},
+		}
+		job := &datamodel.Job{
+			BaseModel: datamodel.BaseModel{
+				UUID:      "test-job-uuid",
+				CreatedAt: time.Now(),
+			},
+			WorkflowID: "test-workflow-id",
+			Type:       "job-type-create-volume-replication",
+			State:      "job-state-processing",
+		}
+		expectedResponse := &gcpgenserver.VolumeReplicationInternalV1beta{
+			EndpointType:          gcpgenserver.VolumeReplicationInternalV1betaEndpointType(volumeReplication.ReplicationAttributes.EndpointType),
+			RemoteRegion:          volumeReplication.ReplicationAttributes.SourceRegion,
+			SourceHostName:        volumeReplication.ReplicationAttributes.SourceHostName,
+			SourceServerName:      volumeReplication.ReplicationAttributes.SourceSvmName,
+			SourceVolumeName:      volumeReplication.ReplicationAttributes.SourceVolumeName,
+			SourceVolumeUuid:      gcpgenserver.NewOptString(volumeReplication.ReplicationAttributes.SourceVolumeUUID),
+			SourcePoolUuid:        gcpgenserver.NewOptString(volumeReplication.ReplicationAttributes.SourcePoolUUID),
+			DestinationHostName:   volumeReplication.ReplicationAttributes.DestinationHostName,
+			DestinationServerName: volumeReplication.ReplicationAttributes.DestinationSvmName,
+			DestinationVolumeName: volumeReplication.ReplicationAttributes.DestinationVolumeName,
+			DestinationVolumeUuid: gcpgenserver.NewOptString(volumeReplication.ReplicationAttributes.DestinationVolumeUUID),
+			DestinationPoolUuid:   gcpgenserver.NewOptString(volumeReplication.ReplicationAttributes.DestinationPoolUUID),
+			ReplicationType: gcpgenserver.OptVolumeReplicationInternalV1betaReplicationType{
+				Value: gcpgenserver.VolumeReplicationInternalV1betaReplicationType(volumeReplication.ReplicationAttributes.ReplicationType),
+				Set:   true,
+			},
+			Jobs: []gcpgenserver.JobV1beta{
+				{
+					JobId:    gcpgenserver.NewOptString(job.UUID),
+					Created:  gcpgenserver.NewOptDateTime(job.CreatedAt),
+					WorkerId: gcpgenserver.NewOptString(job.WorkflowID),
+				},
+			},
+		}
+		mockOrchestrator.EXPECT().CreateVolumeReplication(mock.Anything, mock.Anything).Return(volumeReplication, job, nil)
+		actualResp, err := handler.V1betaInternalCreateVolumeReplication(context.Background(), reqParams, params)
+		assert.NoError(tt, err)
+		assert.Equal(tt, expectedResponse, actualResp)
 	})
 }

@@ -43,12 +43,14 @@ type ReplicationDetails struct {
 	EndpointType               string
 	ReplicationType            string
 	ReplicationSchedule        string
+	SourcePoolUUID             string
 	SourceVolumeUUID           string
 	SourceRegion               string
 	SourceHostName             string
 	SourceReplicationUUID      string
 	SourceSvmName              string
 	SourceVolumeName           string
+	DestinationPoolUUID        string
 	DestinationVolumeUUID      string
 	DestinationRegion          string
 	DestinationHostName        string

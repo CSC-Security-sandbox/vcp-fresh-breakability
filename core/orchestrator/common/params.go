@@ -155,3 +155,8 @@ type UpdateKmsConfigParams struct {
 	XCorrelationID  string
 	KeyUri          string
 }
+
+type CreateVolumeReplicationParams struct {
+	ReverseResync     bool
+	VolumeReplication *models.VolumeReplication
+}

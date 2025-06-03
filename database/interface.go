@@ -74,6 +74,7 @@ type DataStore interface {
 
 	CreateVolumeReplication(ctx context.Context, volumeRep *datamodel.VolumeReplication) (*datamodel.VolumeReplication, error)
 	GetVolumeReplication(ctx context.Context, id string) (*datamodel.VolumeReplication, error)
+	UpdateVolumeReplication(ctx context.Context, volumeRep *datamodel.VolumeReplication) error
 	UpdateVolumeReplicationStates(ctx context.Context, volumeRep *datamodel.VolumeReplication) error
 	UpdateVolumeReplicationTransferStats(ctx context.Context, volumeRep *datamodel.VolumeReplication) error
 	DeleteVolumeReplication(ctx context.Context, volumeReplicationID string) (*datamodel.VolumeReplication, error)

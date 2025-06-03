@@ -97,6 +97,7 @@ func NewClient(params RESTClientParams) RESTClient {
 		networking:                &networkingClient{api: api.Networking, apiPriv: &apiPriv.Operations},
 		storage:                   &storageClient{api: api.Storage},
 		san:                       &sanClient{api: api.San},
+		snapmirror:                &snapmirrorClient{api: api.Snapmirror},
 		poller:                    p,
 	}
 	return rc

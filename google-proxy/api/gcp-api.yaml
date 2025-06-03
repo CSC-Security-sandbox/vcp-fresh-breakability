@@ -4721,7 +4721,6 @@ components:
       required:
         - endpointType
         - remoteRegion
-        - remoteResourceId
         - sourceHostName
         - sourceServerName
         - sourceVolumeName
@@ -4789,11 +4788,6 @@ components:
           type: string
           description: The remote region for the other end of the volume replication
           example: West US
-        remoteResourceId:
-          title: remoteResourceId
-          type: string
-          description: The resource Id of the remote volume
-          example: destination-volume
         sourceHostName:
           title: sourceHostName
           type: string
@@ -4812,6 +4806,24 @@ components:
           description: The source endpoint volume for the volume replication
           example: awesome_volume_name
           minLength: 1
+        sourceVolumeUuid:
+          type: string
+          description: Uuid v4 of the source volume
+          pattern: >-
+            ^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$
+          maxLength: 36
+          minLength: 36
+          example: 9760acf5-4638-11e7-9bdb-020073ca0001
+          readOnly: true
+        sourcePoolUuid:
+          type: string
+          description: Uuid v4 of the source pool
+          pattern: >-
+            ^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$
+          maxLength: 36
+          minLength: 36
+          example: 9760acf5-4638-11e7-9bdb-020073ca0001
+          readOnly: true
         destinationHostName:
           title: destinationHostName
           type: string
@@ -4839,6 +4851,15 @@ components:
           minLength: 36
           example: 9760acf5-4638-11e7-9bdb-020073ca0001
           readOnly: true
+        destinationPoolUuid:
+          type: string
+          description: Uuid v4 of the destination pool
+          pattern: >-
+            ^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$
+          maxLength: 36
+          minLength: 36
+          example: 9760acf5-4638-11e7-9bdb-020073ca0001
+          readOnly: true
         name:
           type: string
           description: A human readable label for the volume replication
@@ -4854,19 +4875,22 @@ components:
             - mirrored
             - broken
           readOnly: true
-        hybridReplicationType:
-          title: hybridReplicationType
+        replicationType:
+          title: replicationType
           type: string
-          description: Type of hybrid replication
+          description: Type of replication
           x-nullable: true
           x-omitempty: true
           enum:
-            - HYBRId_REPLICATION_TYPE_UNSPECIFIED
+            - HYBRID_REPLICATION_TYPE_UNSPECIFIED
             - MIGRATION
             - CONTINUOUS_REPLICATION
             - ONPREM_REPLICATION
             - REVERSE_ONPREM_REPLICATION
-          example: MIGRATION
+            - CROSS_REGION_REPLICATION
+            - CROSS_ZONE_REPLICATION
+            - CROSS_PROJECT_REPLICATION
+          example: CROSS_REGION_REPLICATION
         relationshipStatus:
           title: relationshipStatus
           type: string

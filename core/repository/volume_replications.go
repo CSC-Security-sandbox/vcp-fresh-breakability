@@ -42,6 +42,7 @@ func (d *DataStoreRepository) CreateVolumeReplication(ctx context.Context, repli
 	replication.StateDetails = models.LifeCycleStateCreatingDetails
 	replication.CreatedAt = time.Now()
 	replication.UpdatedAt = replication.CreatedAt
+	replication.ReplicationAttributes.DestinationReplicationUUID = replication.UUID
 
 	err = tx.Create(replication).Error
 	if err != nil {
@@ -63,7 +64,7 @@ func (d *DataStoreRepository) GetVolumeReplication(ctx context.Context, volumeRe
 
 func _getVolumeReplicationDetails(db *gorm.DB, query *datamodel.VolumeReplication) (*datamodel.VolumeReplication, error) {
 	vr := &datamodel.VolumeReplication{}
-	err := db.Preload("Volume").First(&vr, query).Error
+	err := db.Preload("Volume").Preload("Volume.Pool").First(&vr, query).Error
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, customerrors.NewNotFoundErr("volume replication", nil)
@@ -71,6 +72,45 @@ func _getVolumeReplicationDetails(db *gorm.DB, query *datamodel.VolumeReplicatio
 		return nil, err
 	}
 	return vr, nil
+}
+
+func (d *DataStoreRepository) UpdateVolumeReplication(ctx context.Context, volumeRep *datamodel.VolumeReplication) error {
+	db := d.db.GORM().WithContext(ctx)
+	tx, err := startTransaction(db)
+	if err != nil {
+		return err
+	}
+	defer commitOrRollbackOnError(util.GetLogger(ctx), tx, &err)
+
+	dbReplication, err := getVolumeReplicationDetails(tx, &datamodel.VolumeReplication{BaseModel: datamodel.BaseModel{UUID: volumeRep.UUID}})
+	if err != nil {
+		return err
+	}
+
+	dbReplication.UpdatedAt = time.Now()
+	dbReplication.State = volumeRep.State
+	dbReplication.StateDetails = volumeRep.StateDetails
+	if dbReplication.ReplicationAttributes.ExternalUUID != volumeRep.ReplicationAttributes.ExternalUUID {
+		dbReplication.ReplicationAttributes.ExternalUUID = volumeRep.ReplicationAttributes.ExternalUUID
+	}
+	dbReplication.MirrorState = volumeRep.MirrorState
+	dbReplication.RelationshipStatus = volumeRep.RelationshipStatus
+	dbReplication.TotalTransferBytes = volumeRep.TotalTransferBytes
+	dbReplication.TotalProgress = volumeRep.TotalProgress
+	dbReplication.TotalTransferTimeSecs = volumeRep.TotalTransferTimeSecs
+	dbReplication.LastTransferSize = volumeRep.LastTransferSize
+	dbReplication.LastTransferError = volumeRep.LastTransferError
+	dbReplication.LastTransferDuration = volumeRep.LastTransferDuration
+	dbReplication.LastTransferEndTime = volumeRep.LastTransferEndTime
+	dbReplication.ProgressLastUpdated = volumeRep.ProgressLastUpdated
+	dbReplication.LagTime = volumeRep.LagTime
+	dbReplication.LastUpdatedFromOntap = volumeRep.LastUpdatedFromOntap
+	err = tx.Updates(dbReplication).Error
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 // UpdateVolumeReplicationStates updates state & state_details for the replication in database

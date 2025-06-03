@@ -3,7 +3,9 @@ package api
 import (
 	"context"
 
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
+	commonparams "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	gcpgenserver "github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/api/gcp-servergen"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/helper"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
@@ -68,4 +70,91 @@ func convertToPoolInternalV1Beta(pool *models.Pool) *gcpgenserver.PoolInternalV1
 		poolResp.ClusterName = gcpgenserver.NewOptString(pool.ClusterAttributes.ExternalName)
 	}
 	return poolResp
+}
+
+func (h Handler) V1betaInternalCreateVolumeReplication(ctx context.Context, req *gcpgenserver.VolumeReplicationCreateInternalV1beta, params gcpgenserver.V1betaInternalCreateVolumeReplicationParams) (gcpgenserver.V1betaInternalCreateVolumeReplicationRes, error) {
+	logger := util.GetLogger(ctx)
+	if req.EndpointType != "dst" {
+		code := float64(400)
+		msg := "Incorrect endpoint type"
+		return &gcpgenserver.V1betaInternalCreateVolumeReplicationBadRequest{
+			Code:    code,
+			Message: msg,
+		}, nil
+	}
+
+	param := prepareCreateVolumeReplicationParams(req, params)
+	volumeReplication, job, err := h.Orchestrator.CreateVolumeReplication(ctx, param)
+	if err != nil {
+		logger.Error("Failed to create volume replication", "error", err.Error())
+		return nil, err
+	}
+	ans := convertToInternalV1betaVolumeReplication(volumeReplication, job)
+	return ans, nil
+}
+
+func convertToInternalV1betaVolumeReplication(volumeReplication *models.VolumeReplication, job *datamodel.Job) *gcpgenserver.VolumeReplicationInternalV1beta {
+	return &gcpgenserver.VolumeReplicationInternalV1beta{
+		EndpointType:          gcpgenserver.VolumeReplicationInternalV1betaEndpointType(volumeReplication.ReplicationAttributes.EndpointType),
+		RemoteRegion:          volumeReplication.ReplicationAttributes.SourceRegion,
+		SourceHostName:        volumeReplication.ReplicationAttributes.SourceHostName,
+		SourceServerName:      volumeReplication.ReplicationAttributes.SourceSvmName,
+		SourceVolumeName:      volumeReplication.ReplicationAttributes.SourceVolumeName,
+		SourceVolumeUuid:      gcpgenserver.NewOptString(volumeReplication.ReplicationAttributes.SourceVolumeUUID),
+		SourcePoolUuid:        gcpgenserver.NewOptString(volumeReplication.ReplicationAttributes.SourcePoolUUID),
+		DestinationHostName:   volumeReplication.ReplicationAttributes.DestinationHostName,
+		DestinationServerName: volumeReplication.ReplicationAttributes.DestinationSvmName,
+		DestinationVolumeName: volumeReplication.ReplicationAttributes.DestinationVolumeName,
+		DestinationVolumeUuid: gcpgenserver.NewOptString(volumeReplication.ReplicationAttributes.DestinationVolumeUUID),
+		DestinationPoolUuid:   gcpgenserver.NewOptString(volumeReplication.ReplicationAttributes.DestinationPoolUUID),
+		ReplicationType: gcpgenserver.OptVolumeReplicationInternalV1betaReplicationType{
+			Value: gcpgenserver.VolumeReplicationInternalV1betaReplicationType(volumeReplication.ReplicationAttributes.ReplicationType),
+			Set:   true,
+		},
+		Jobs: []gcpgenserver.JobV1beta{
+			{
+				JobId:    gcpgenserver.NewOptString(job.UUID),
+				Created:  gcpgenserver.NewOptDateTime(job.CreatedAt),
+				WorkerId: gcpgenserver.NewOptString(job.WorkflowID),
+			},
+		},
+	}
+}
+
+func prepareCreateVolumeReplicationParams(req *gcpgenserver.VolumeReplicationCreateInternalV1beta, params gcpgenserver.V1betaInternalCreateVolumeReplicationParams) *commonparams.CreateVolumeReplicationParams {
+	volRepParams := &models.VolumeReplication{
+		Name:        req.Name.Value,
+		Description: req.Description.Value,
+		Uri:         req.CcfeURI.Value,
+		RemoteUri:   req.CcfeRemoteURI.Value,
+		Account: &models.Account{
+			Name: params.ProjectNumber,
+		},
+		ReplicationAttributes: &models.ReplicationDetails{
+			EndpointType:          string(req.EndpointType),
+			ReplicationSchedule:   string(req.ReplicationSchedule.Value),
+			ReplicationType:       string(req.ReplicationType.Value),
+			SourceRegion:          req.RemoteRegion,
+			SourceHostName:        req.SourceHostName,
+			SourceReplicationUUID: req.VolumeReplicationUuid.Value,
+			SourceSvmName:         req.SourceServerName,
+			SourceVolumeName:      req.SourceVolumeName,
+			SourceVolumeUUID:      req.SourceVolumeUuid.Value,
+			SourcePoolUUID:        req.SourcePoolUuid.Value,
+			DestinationVolumeUUID: req.DestinationVolumeUuid.Value,
+			DestinationRegion:     params.LocationId,
+			DestinationHostName:   req.DestinationHostName,
+			DestinationSvmName:    req.DestinationServerName,
+			DestinationVolumeName: req.DestinationVolumeName,
+			DestinationPoolUUID:   req.DestinationPoolUuid.Value,
+			ReplicationPolicy:     string(req.ReplicationPolicy.Value),
+		},
+	}
+
+	param := &commonparams.CreateVolumeReplicationParams{
+		ReverseResync:     req.ReverseResume.Value,
+		VolumeReplication: volRepParams,
+	}
+
+	return param
 }

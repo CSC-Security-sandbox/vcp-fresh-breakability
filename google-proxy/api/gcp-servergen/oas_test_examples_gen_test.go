@@ -9406,47 +9406,6 @@ func TestVolumeReplicationCreateInternalV1betaEndpointType_Examples(t *testing.T
 		})
 	}
 }
-func TestVolumeReplicationCreateInternalV1betaHybridReplicationType_EncodeDecode(t *testing.T) {
-	var typ VolumeReplicationCreateInternalV1betaHybridReplicationType
-	typ.SetFake()
-
-	e := jx.Encoder{}
-	typ.Encode(&e)
-	data := e.Bytes()
-	require.True(t, std.Valid(data), "Encoded: %s", data)
-
-	var typ2 VolumeReplicationCreateInternalV1betaHybridReplicationType
-	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
-}
-
-func TestVolumeReplicationCreateInternalV1betaHybridReplicationType_Examples(t *testing.T) {
-
-	for i, tc := range []struct {
-		Input string
-	}{
-		{Input: "\"MIGRATION\""},
-	} {
-		tc := tc
-		t.Run(fmt.Sprintf("Test%d", i+1), func(t *testing.T) {
-			var typ VolumeReplicationCreateInternalV1betaHybridReplicationType
-
-			if err := typ.Decode(jx.DecodeStr(tc.Input)); err != nil {
-				if validateErr, ok := errors.Into[*validate.Error](err); ok {
-					t.Skipf("Validation error: %v", validateErr)
-					return
-				}
-				require.NoErrorf(t, err, "Input: %s", tc.Input)
-			}
-
-			e := jx.Encoder{}
-			typ.Encode(&e)
-			require.True(t, std.Valid(e.Bytes()), "Encoded: %s", e.Bytes())
-
-			var typ2 VolumeReplicationCreateInternalV1betaHybridReplicationType
-			require.NoError(t, typ2.Decode(jx.DecodeBytes(e.Bytes())))
-		})
-	}
-}
 func TestVolumeReplicationCreateInternalV1betaLabels_EncodeDecode(t *testing.T) {
 	var typ VolumeReplicationCreateInternalV1betaLabels
 	typ = make(VolumeReplicationCreateInternalV1betaLabels)
@@ -9581,6 +9540,47 @@ func TestVolumeReplicationCreateInternalV1betaReplicationSchedule_EncodeDecode(t
 	var typ2 VolumeReplicationCreateInternalV1betaReplicationSchedule
 	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
 }
+func TestVolumeReplicationCreateInternalV1betaReplicationType_EncodeDecode(t *testing.T) {
+	var typ VolumeReplicationCreateInternalV1betaReplicationType
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 VolumeReplicationCreateInternalV1betaReplicationType
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+
+func TestVolumeReplicationCreateInternalV1betaReplicationType_Examples(t *testing.T) {
+
+	for i, tc := range []struct {
+		Input string
+	}{
+		{Input: "\"CROSS_REGION_REPLICATION\""},
+	} {
+		tc := tc
+		t.Run(fmt.Sprintf("Test%d", i+1), func(t *testing.T) {
+			var typ VolumeReplicationCreateInternalV1betaReplicationType
+
+			if err := typ.Decode(jx.DecodeStr(tc.Input)); err != nil {
+				if validateErr, ok := errors.Into[*validate.Error](err); ok {
+					t.Skipf("Validation error: %v", validateErr)
+					return
+				}
+				require.NoErrorf(t, err, "Input: %s", tc.Input)
+			}
+
+			e := jx.Encoder{}
+			typ.Encode(&e)
+			require.True(t, std.Valid(e.Bytes()), "Encoded: %s", e.Bytes())
+
+			var typ2 VolumeReplicationCreateInternalV1betaReplicationType
+			require.NoError(t, typ2.Decode(jx.DecodeBytes(e.Bytes())))
+		})
+	}
+}
 func TestVolumeReplicationInternalV1beta_EncodeDecode(t *testing.T) {
 	var typ VolumeReplicationInternalV1beta
 	typ.SetFake()
@@ -9630,47 +9630,6 @@ func TestVolumeReplicationInternalV1betaEndpointType_Examples(t *testing.T) {
 			require.True(t, std.Valid(e.Bytes()), "Encoded: %s", e.Bytes())
 
 			var typ2 VolumeReplicationInternalV1betaEndpointType
-			require.NoError(t, typ2.Decode(jx.DecodeBytes(e.Bytes())))
-		})
-	}
-}
-func TestVolumeReplicationInternalV1betaHybridReplicationType_EncodeDecode(t *testing.T) {
-	var typ VolumeReplicationInternalV1betaHybridReplicationType
-	typ.SetFake()
-
-	e := jx.Encoder{}
-	typ.Encode(&e)
-	data := e.Bytes()
-	require.True(t, std.Valid(data), "Encoded: %s", data)
-
-	var typ2 VolumeReplicationInternalV1betaHybridReplicationType
-	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
-}
-
-func TestVolumeReplicationInternalV1betaHybridReplicationType_Examples(t *testing.T) {
-
-	for i, tc := range []struct {
-		Input string
-	}{
-		{Input: "\"MIGRATION\""},
-	} {
-		tc := tc
-		t.Run(fmt.Sprintf("Test%d", i+1), func(t *testing.T) {
-			var typ VolumeReplicationInternalV1betaHybridReplicationType
-
-			if err := typ.Decode(jx.DecodeStr(tc.Input)); err != nil {
-				if validateErr, ok := errors.Into[*validate.Error](err); ok {
-					t.Skipf("Validation error: %v", validateErr)
-					return
-				}
-				require.NoErrorf(t, err, "Input: %s", tc.Input)
-			}
-
-			e := jx.Encoder{}
-			typ.Encode(&e)
-			require.True(t, std.Valid(e.Bytes()), "Encoded: %s", e.Bytes())
-
-			var typ2 VolumeReplicationInternalV1betaHybridReplicationType
 			require.NoError(t, typ2.Decode(jx.DecodeBytes(e.Bytes())))
 		})
 	}
@@ -9808,6 +9767,47 @@ func TestVolumeReplicationInternalV1betaReplicationSchedule_EncodeDecode(t *test
 
 	var typ2 VolumeReplicationInternalV1betaReplicationSchedule
 	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestVolumeReplicationInternalV1betaReplicationType_EncodeDecode(t *testing.T) {
+	var typ VolumeReplicationInternalV1betaReplicationType
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 VolumeReplicationInternalV1betaReplicationType
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+
+func TestVolumeReplicationInternalV1betaReplicationType_Examples(t *testing.T) {
+
+	for i, tc := range []struct {
+		Input string
+	}{
+		{Input: "\"CROSS_REGION_REPLICATION\""},
+	} {
+		tc := tc
+		t.Run(fmt.Sprintf("Test%d", i+1), func(t *testing.T) {
+			var typ VolumeReplicationInternalV1betaReplicationType
+
+			if err := typ.Decode(jx.DecodeStr(tc.Input)); err != nil {
+				if validateErr, ok := errors.Into[*validate.Error](err); ok {
+					t.Skipf("Validation error: %v", validateErr)
+					return
+				}
+				require.NoErrorf(t, err, "Input: %s", tc.Input)
+			}
+
+			e := jx.Encoder{}
+			typ.Encode(&e)
+			require.True(t, std.Valid(e.Bytes()), "Encoded: %s", e.Bytes())
+
+			var typ2 VolumeReplicationInternalV1betaReplicationType
+			require.NoError(t, typ2.Decode(jx.DecodeBytes(e.Bytes())))
+		})
+	}
 }
 func TestVolumeReplicationUpdateInternalV1beta_EncodeDecode(t *testing.T) {
 	var typ VolumeReplicationUpdateInternalV1beta

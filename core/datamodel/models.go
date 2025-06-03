@@ -277,6 +277,7 @@ type VolumeReplication struct {
 	State                 string              `gorm:"column:state"`
 	StateDetails          string              `gorm:"column:state_details"`
 	Uri                   string              `gorm:"column:uri"`
+	RemoteUri             string              `gorm:"column:remote_uri"`
 	ReplicationAttributes *ReplicationDetails `gorm:"column:replication_attributes;type:jsonb"`
 	MirrorState           *string             `gorm:"column:mirror_state"`
 	RelationshipStatus    *string             `gorm:"column:relationship_status"`
@@ -284,7 +285,7 @@ type VolumeReplication struct {
 	TotalTransferBytes    int64               `gorm:"column:total_transfer_bytes"`
 	TotalTransferTimeSecs int64               `gorm:"column:total_transfer_time_secs"`
 	LastTransferSize      int64               `gorm:"column:last_transfer_size"`
-	LastTransferError     int64               `gorm:"column:last_transfer_error"`
+	LastTransferError     string              `gorm:"column:last_transfer_error"`
 	LastTransferDuration  int64               `gorm:"column:last_transfer_duration"`
 	LastTransferEndTime   *time.Time          `gorm:"column:last_transfer_end_time"`
 	ProgressLastUpdated   *time.Time          `gorm:"column:progress_last_updated"`
@@ -300,18 +301,33 @@ type ReplicationDetails struct {
 	EndpointType               string `json:"endpoint_type"`
 	ReplicationType            string `json:"replication_type"`
 	ReplicationSchedule        string `json:"replication_schedule"`
+	SourcePoolUUID             string `json:"source_pool_uuid"`
 	SourceVolumeUUID           string `json:"source_volume_uuid"`
-	SourceRegion               string `json:"source_region"`
+	SourceLocation             string `json:"source_location"`
 	SourceHostName             string `json:"source_host_name"`
 	SourceReplicationUUID      string `json:"source_replication_uuid"`
 	SourceSvmName              string `json:"source_svm_name"`
 	SourceVolumeName           string `json:"source_volume_name"`
+	DestinationPoolUUID        string `json:"destination_pool_uuid"`
 	DestinationVolumeUUID      string `json:"destination_volume_uuid"`
-	DestinationRegion          string `json:"destination_region"`
+	DestinationLocation        string `json:"destination_location"`
 	DestinationHostName        string `json:"destination_host_name"`
 	DestinationReplicationUUID string `json:"destination_replication_uuid"`
 	DestinationSvmName         string `json:"destination_svm_name"`
 	DestinationVolumeName      string `json:"destination_volume_name"`
+	ExternalUUID               string `json:"external_uuid"`
+}
+
+func (rd *ReplicationDetails) Scan(value interface{}) error {
+	bytes, ok := value.([]byte)
+	if !ok {
+		return errors.New("type assertion to []byte failed")
+	}
+	return json.Unmarshal(bytes, rd)
+}
+
+func (rd ReplicationDetails) Value() (driver.Value, error) {
+	return json.Marshal(rd)
 }
 
 func (nd NodeDetails) Scan(value interface{}) error {

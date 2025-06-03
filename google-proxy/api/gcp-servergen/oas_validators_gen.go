@@ -2872,6 +2872,9 @@ func (s *FlexCacheV1beta) Validate() error {
 
 	var failures []validate.FieldError
 	if err := func() error {
+		if s.PeerIpAddresses == nil {
+			return nil // optional
+		}
 		if err := (validate.Array{
 			MinLength:    1,
 			MinLengthSet: true,
@@ -11712,6 +11715,58 @@ func (s *VolumeReplicationCreateInternalV1beta) Validate() error {
 		})
 	}
 	if err := func() error {
+		if value, ok := s.SourceVolumeUuid.Get(); ok {
+			if err := func() error {
+				if err := (validate.String{
+					MinLength:    36,
+					MinLengthSet: true,
+					MaxLength:    36,
+					MaxLengthSet: true,
+					Email:        false,
+					Hostname:     false,
+					Regex:        regexMap["^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$"],
+				}).Validate(string(value)); err != nil {
+					return errors.Wrap(err, "string")
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "sourceVolumeUuid",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if value, ok := s.SourcePoolUuid.Get(); ok {
+			if err := func() error {
+				if err := (validate.String{
+					MinLength:    36,
+					MinLengthSet: true,
+					MaxLength:    36,
+					MaxLengthSet: true,
+					Email:        false,
+					Hostname:     false,
+					Regex:        regexMap["^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$"],
+				}).Validate(string(value)); err != nil {
+					return errors.Wrap(err, "string")
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "sourcePoolUuid",
+			Error: err,
+		})
+	}
+	if err := func() error {
 		if err := (validate.String{
 			MinLength:    1,
 			MinLengthSet: true,
@@ -11795,6 +11850,32 @@ func (s *VolumeReplicationCreateInternalV1beta) Validate() error {
 		})
 	}
 	if err := func() error {
+		if value, ok := s.DestinationPoolUuid.Get(); ok {
+			if err := func() error {
+				if err := (validate.String{
+					MinLength:    36,
+					MinLengthSet: true,
+					MaxLength:    36,
+					MaxLengthSet: true,
+					Email:        false,
+					Hostname:     false,
+					Regex:        regexMap["^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$"],
+				}).Validate(string(value)); err != nil {
+					return errors.Wrap(err, "string")
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "destinationPoolUuid",
+			Error: err,
+		})
+	}
+	if err := func() error {
 		if value, ok := s.Name.Get(); ok {
 			if err := func() error {
 				if err := (validate.String{
@@ -11839,7 +11920,7 @@ func (s *VolumeReplicationCreateInternalV1beta) Validate() error {
 		})
 	}
 	if err := func() error {
-		if value, ok := s.HybridReplicationType.Get(); ok {
+		if value, ok := s.ReplicationType.Get(); ok {
 			if err := func() error {
 				if err := value.Validate(); err != nil {
 					return err
@@ -11852,7 +11933,7 @@ func (s *VolumeReplicationCreateInternalV1beta) Validate() error {
 		return nil
 	}(); err != nil {
 		failures = append(failures, validate.FieldError{
-			Name:  "hybridReplicationType",
+			Name:  "replicationType",
 			Error: err,
 		})
 	}
@@ -11944,23 +12025,6 @@ func (s VolumeReplicationCreateInternalV1betaEndpointType) Validate() error {
 	}
 }
 
-func (s VolumeReplicationCreateInternalV1betaHybridReplicationType) Validate() error {
-	switch s {
-	case "HYBRId_REPLICATION_TYPE_UNSPECIFIED":
-		return nil
-	case "MIGRATION":
-		return nil
-	case "CONTINUOUS_REPLICATION":
-		return nil
-	case "ONPREM_REPLICATION":
-		return nil
-	case "REVERSE_ONPREM_REPLICATION":
-		return nil
-	default:
-		return errors.Errorf("invalid value: %v", s)
-	}
-}
-
 func (s VolumeReplicationCreateInternalV1betaLifeCycleState) Validate() error {
 	switch s {
 	case "creating":
@@ -12026,6 +12090,29 @@ func (s VolumeReplicationCreateInternalV1betaReplicationSchedule) Validate() err
 	case "weekly":
 		return nil
 	case "monthly":
+		return nil
+	default:
+		return errors.Errorf("invalid value: %v", s)
+	}
+}
+
+func (s VolumeReplicationCreateInternalV1betaReplicationType) Validate() error {
+	switch s {
+	case "HYBRID_REPLICATION_TYPE_UNSPECIFIED":
+		return nil
+	case "MIGRATION":
+		return nil
+	case "CONTINUOUS_REPLICATION":
+		return nil
+	case "ONPREM_REPLICATION":
+		return nil
+	case "REVERSE_ONPREM_REPLICATION":
+		return nil
+	case "CROSS_REGION_REPLICATION":
+		return nil
+	case "CROSS_ZONE_REPLICATION":
+		return nil
+	case "CROSS_PROJECT_REPLICATION":
 		return nil
 	default:
 		return errors.Errorf("invalid value: %v", s)
@@ -12187,6 +12274,58 @@ func (s *VolumeReplicationInternalV1beta) Validate() error {
 		})
 	}
 	if err := func() error {
+		if value, ok := s.SourceVolumeUuid.Get(); ok {
+			if err := func() error {
+				if err := (validate.String{
+					MinLength:    36,
+					MinLengthSet: true,
+					MaxLength:    36,
+					MaxLengthSet: true,
+					Email:        false,
+					Hostname:     false,
+					Regex:        regexMap["^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$"],
+				}).Validate(string(value)); err != nil {
+					return errors.Wrap(err, "string")
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "sourceVolumeUuid",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if value, ok := s.SourcePoolUuid.Get(); ok {
+			if err := func() error {
+				if err := (validate.String{
+					MinLength:    36,
+					MinLengthSet: true,
+					MaxLength:    36,
+					MaxLengthSet: true,
+					Email:        false,
+					Hostname:     false,
+					Regex:        regexMap["^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$"],
+				}).Validate(string(value)); err != nil {
+					return errors.Wrap(err, "string")
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "sourcePoolUuid",
+			Error: err,
+		})
+	}
+	if err := func() error {
 		if err := (validate.String{
 			MinLength:    1,
 			MinLengthSet: true,
@@ -12270,6 +12409,32 @@ func (s *VolumeReplicationInternalV1beta) Validate() error {
 		})
 	}
 	if err := func() error {
+		if value, ok := s.DestinationPoolUuid.Get(); ok {
+			if err := func() error {
+				if err := (validate.String{
+					MinLength:    36,
+					MinLengthSet: true,
+					MaxLength:    36,
+					MaxLengthSet: true,
+					Email:        false,
+					Hostname:     false,
+					Regex:        regexMap["^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$"],
+				}).Validate(string(value)); err != nil {
+					return errors.Wrap(err, "string")
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "destinationPoolUuid",
+			Error: err,
+		})
+	}
+	if err := func() error {
 		if value, ok := s.Name.Get(); ok {
 			if err := func() error {
 				if err := (validate.String{
@@ -12314,7 +12479,7 @@ func (s *VolumeReplicationInternalV1beta) Validate() error {
 		})
 	}
 	if err := func() error {
-		if value, ok := s.HybridReplicationType.Get(); ok {
+		if value, ok := s.ReplicationType.Get(); ok {
 			if err := func() error {
 				if err := value.Validate(); err != nil {
 					return err
@@ -12327,7 +12492,7 @@ func (s *VolumeReplicationInternalV1beta) Validate() error {
 		return nil
 	}(); err != nil {
 		failures = append(failures, validate.FieldError{
-			Name:  "hybridReplicationType",
+			Name:  "replicationType",
 			Error: err,
 		})
 	}
@@ -12419,23 +12584,6 @@ func (s VolumeReplicationInternalV1betaEndpointType) Validate() error {
 	}
 }
 
-func (s VolumeReplicationInternalV1betaHybridReplicationType) Validate() error {
-	switch s {
-	case "HYBRId_REPLICATION_TYPE_UNSPECIFIED":
-		return nil
-	case "MIGRATION":
-		return nil
-	case "CONTINUOUS_REPLICATION":
-		return nil
-	case "ONPREM_REPLICATION":
-		return nil
-	case "REVERSE_ONPREM_REPLICATION":
-		return nil
-	default:
-		return errors.Errorf("invalid value: %v", s)
-	}
-}
-
 func (s VolumeReplicationInternalV1betaLifeCycleState) Validate() error {
 	switch s {
 	case "creating":
@@ -12501,6 +12649,29 @@ func (s VolumeReplicationInternalV1betaReplicationSchedule) Validate() error {
 	case "weekly":
 		return nil
 	case "monthly":
+		return nil
+	default:
+		return errors.Errorf("invalid value: %v", s)
+	}
+}
+
+func (s VolumeReplicationInternalV1betaReplicationType) Validate() error {
+	switch s {
+	case "HYBRID_REPLICATION_TYPE_UNSPECIFIED":
+		return nil
+	case "MIGRATION":
+		return nil
+	case "CONTINUOUS_REPLICATION":
+		return nil
+	case "ONPREM_REPLICATION":
+		return nil
+	case "REVERSE_ONPREM_REPLICATION":
+		return nil
+	case "CROSS_REGION_REPLICATION":
+		return nil
+	case "CROSS_ZONE_REPLICATION":
+		return nil
+	case "CROSS_PROJECT_REPLICATION":
 		return nil
 	default:
 		return errors.Errorf("invalid value: %v", s)

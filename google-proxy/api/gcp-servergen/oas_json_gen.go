@@ -11848,39 +11848,6 @@ func (s *OptVolumeCreateV1betaVolumeType) UnmarshalJSON(data []byte) error {
 	return s.Decode(d)
 }
 
-// Encode encodes VolumeReplicationCreateInternalV1betaHybridReplicationType as json.
-func (o OptVolumeReplicationCreateInternalV1betaHybridReplicationType) Encode(e *jx.Encoder) {
-	if !o.Set {
-		return
-	}
-	e.Str(string(o.Value))
-}
-
-// Decode decodes VolumeReplicationCreateInternalV1betaHybridReplicationType from json.
-func (o *OptVolumeReplicationCreateInternalV1betaHybridReplicationType) Decode(d *jx.Decoder) error {
-	if o == nil {
-		return errors.New("invalid: unable to decode OptVolumeReplicationCreateInternalV1betaHybridReplicationType to nil")
-	}
-	o.Set = true
-	if err := o.Value.Decode(d); err != nil {
-		return err
-	}
-	return nil
-}
-
-// MarshalJSON implements stdjson.Marshaler.
-func (s OptVolumeReplicationCreateInternalV1betaHybridReplicationType) MarshalJSON() ([]byte, error) {
-	e := jx.Encoder{}
-	s.Encode(&e)
-	return e.Bytes(), nil
-}
-
-// UnmarshalJSON implements stdjson.Unmarshaler.
-func (s *OptVolumeReplicationCreateInternalV1betaHybridReplicationType) UnmarshalJSON(data []byte) error {
-	d := jx.DecodeBytes(data)
-	return s.Decode(d)
-}
-
 // Encode encodes VolumeReplicationCreateInternalV1betaLabels as json.
 func (o OptVolumeReplicationCreateInternalV1betaLabels) Encode(e *jx.Encoder) {
 	if !o.Set {
@@ -12080,18 +12047,18 @@ func (s *OptVolumeReplicationCreateInternalV1betaReplicationSchedule) UnmarshalJ
 	return s.Decode(d)
 }
 
-// Encode encodes VolumeReplicationInternalV1betaHybridReplicationType as json.
-func (o OptVolumeReplicationInternalV1betaHybridReplicationType) Encode(e *jx.Encoder) {
+// Encode encodes VolumeReplicationCreateInternalV1betaReplicationType as json.
+func (o OptVolumeReplicationCreateInternalV1betaReplicationType) Encode(e *jx.Encoder) {
 	if !o.Set {
 		return
 	}
 	e.Str(string(o.Value))
 }
 
-// Decode decodes VolumeReplicationInternalV1betaHybridReplicationType from json.
-func (o *OptVolumeReplicationInternalV1betaHybridReplicationType) Decode(d *jx.Decoder) error {
+// Decode decodes VolumeReplicationCreateInternalV1betaReplicationType from json.
+func (o *OptVolumeReplicationCreateInternalV1betaReplicationType) Decode(d *jx.Decoder) error {
 	if o == nil {
-		return errors.New("invalid: unable to decode OptVolumeReplicationInternalV1betaHybridReplicationType to nil")
+		return errors.New("invalid: unable to decode OptVolumeReplicationCreateInternalV1betaReplicationType to nil")
 	}
 	o.Set = true
 	if err := o.Value.Decode(d); err != nil {
@@ -12101,14 +12068,14 @@ func (o *OptVolumeReplicationInternalV1betaHybridReplicationType) Decode(d *jx.D
 }
 
 // MarshalJSON implements stdjson.Marshaler.
-func (s OptVolumeReplicationInternalV1betaHybridReplicationType) MarshalJSON() ([]byte, error) {
+func (s OptVolumeReplicationCreateInternalV1betaReplicationType) MarshalJSON() ([]byte, error) {
 	e := jx.Encoder{}
 	s.Encode(&e)
 	return e.Bytes(), nil
 }
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
-func (s *OptVolumeReplicationInternalV1betaHybridReplicationType) UnmarshalJSON(data []byte) error {
+func (s *OptVolumeReplicationCreateInternalV1betaReplicationType) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }
@@ -12308,6 +12275,39 @@ func (s OptVolumeReplicationInternalV1betaReplicationSchedule) MarshalJSON() ([]
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
 func (s *OptVolumeReplicationInternalV1betaReplicationSchedule) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes VolumeReplicationInternalV1betaReplicationType as json.
+func (o OptVolumeReplicationInternalV1betaReplicationType) Encode(e *jx.Encoder) {
+	if !o.Set {
+		return
+	}
+	e.Str(string(o.Value))
+}
+
+// Decode decodes VolumeReplicationInternalV1betaReplicationType from json.
+func (o *OptVolumeReplicationInternalV1betaReplicationType) Decode(d *jx.Decoder) error {
+	if o == nil {
+		return errors.New("invalid: unable to decode OptVolumeReplicationInternalV1betaReplicationType to nil")
+	}
+	o.Set = true
+	if err := o.Value.Decode(d); err != nil {
+		return err
+	}
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s OptVolumeReplicationInternalV1betaReplicationType) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *OptVolumeReplicationInternalV1betaReplicationType) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }
@@ -39521,10 +39521,6 @@ func (s *VolumeReplicationCreateInternalV1beta) encodeFields(e *jx.Encoder) {
 		e.Str(s.RemoteRegion)
 	}
 	{
-		e.FieldStart("remoteResourceId")
-		e.Str(s.RemoteResourceId)
-	}
-	{
 		e.FieldStart("sourceHostName")
 		e.Str(s.SourceHostName)
 	}
@@ -39535,6 +39531,18 @@ func (s *VolumeReplicationCreateInternalV1beta) encodeFields(e *jx.Encoder) {
 	{
 		e.FieldStart("sourceVolumeName")
 		e.Str(s.SourceVolumeName)
+	}
+	{
+		if s.SourceVolumeUuid.Set {
+			e.FieldStart("sourceVolumeUuid")
+			s.SourceVolumeUuid.Encode(e)
+		}
+	}
+	{
+		if s.SourcePoolUuid.Set {
+			e.FieldStart("sourcePoolUuid")
+			s.SourcePoolUuid.Encode(e)
+		}
 	}
 	{
 		e.FieldStart("destinationHostName")
@@ -39555,6 +39563,12 @@ func (s *VolumeReplicationCreateInternalV1beta) encodeFields(e *jx.Encoder) {
 		}
 	}
 	{
+		if s.DestinationPoolUuid.Set {
+			e.FieldStart("destinationPoolUuid")
+			s.DestinationPoolUuid.Encode(e)
+		}
+	}
+	{
 		if s.Name.Set {
 			e.FieldStart("name")
 			s.Name.Encode(e)
@@ -39567,9 +39581,9 @@ func (s *VolumeReplicationCreateInternalV1beta) encodeFields(e *jx.Encoder) {
 		}
 	}
 	{
-		if s.HybridReplicationType.Set {
-			e.FieldStart("hybridReplicationType")
-			s.HybridReplicationType.Encode(e)
+		if s.ReplicationType.Set {
+			e.FieldStart("replicationType")
+			s.ReplicationType.Encode(e)
 		}
 	}
 	{
@@ -39698,7 +39712,7 @@ func (s *VolumeReplicationCreateInternalV1beta) encodeFields(e *jx.Encoder) {
 	}
 }
 
-var jsonFieldsNameOfVolumeReplicationCreateInternalV1beta = [38]string{
+var jsonFieldsNameOfVolumeReplicationCreateInternalV1beta = [40]string{
 	0:  "volumeReplicationUuid",
 	1:  "lifeCycleState",
 	2:  "lifeCycleStateDetails",
@@ -39706,37 +39720,39 @@ var jsonFieldsNameOfVolumeReplicationCreateInternalV1beta = [38]string{
 	4:  "replicationPolicy",
 	5:  "replicationSchedule",
 	6:  "remoteRegion",
-	7:  "remoteResourceId",
-	8:  "sourceHostName",
-	9:  "sourceServerName",
-	10: "sourceVolumeName",
-	11: "destinationHostName",
-	12: "destinationServerName",
-	13: "destinationVolumeName",
-	14: "destinationVolumeUuid",
-	15: "name",
-	16: "mirrorState",
-	17: "hybridReplicationType",
-	18: "relationshipStatus",
-	19: "totalProgress",
-	20: "healthy",
-	21: "totalTransferBytes",
-	22: "totalTransferTimeSecs",
-	23: "lastTransferSize",
-	24: "lastTransferError",
-	25: "lastTransferDuration",
-	26: "lastTransferEndTime",
-	27: "progressLastUpdated",
-	28: "lagTime",
-	29: "createdAt",
-	30: "updatedAt",
-	31: "deletedAt",
-	32: "jobs",
-	33: "description",
-	34: "labels",
-	35: "reverseResume",
-	36: "ccfeURI",
-	37: "ccfeRemoteURI",
+	7:  "sourceHostName",
+	8:  "sourceServerName",
+	9:  "sourceVolumeName",
+	10: "sourceVolumeUuid",
+	11: "sourcePoolUuid",
+	12: "destinationHostName",
+	13: "destinationServerName",
+	14: "destinationVolumeName",
+	15: "destinationVolumeUuid",
+	16: "destinationPoolUuid",
+	17: "name",
+	18: "mirrorState",
+	19: "replicationType",
+	20: "relationshipStatus",
+	21: "totalProgress",
+	22: "healthy",
+	23: "totalTransferBytes",
+	24: "totalTransferTimeSecs",
+	25: "lastTransferSize",
+	26: "lastTransferError",
+	27: "lastTransferDuration",
+	28: "lastTransferEndTime",
+	29: "progressLastUpdated",
+	30: "lagTime",
+	31: "createdAt",
+	32: "updatedAt",
+	33: "deletedAt",
+	34: "jobs",
+	35: "description",
+	36: "labels",
+	37: "reverseResume",
+	38: "ccfeURI",
+	39: "ccfeRemoteURI",
 }
 
 // Decode decodes VolumeReplicationCreateInternalV1beta from json.
@@ -39820,20 +39836,8 @@ func (s *VolumeReplicationCreateInternalV1beta) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"remoteRegion\"")
 			}
-		case "remoteResourceId":
-			requiredBitSet[0] |= 1 << 7
-			if err := func() error {
-				v, err := d.Str()
-				s.RemoteResourceId = string(v)
-				if err != nil {
-					return err
-				}
-				return nil
-			}(); err != nil {
-				return errors.Wrap(err, "decode field \"remoteResourceId\"")
-			}
 		case "sourceHostName":
-			requiredBitSet[1] |= 1 << 0
+			requiredBitSet[0] |= 1 << 7
 			if err := func() error {
 				v, err := d.Str()
 				s.SourceHostName = string(v)
@@ -39845,7 +39849,7 @@ func (s *VolumeReplicationCreateInternalV1beta) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"sourceHostName\"")
 			}
 		case "sourceServerName":
-			requiredBitSet[1] |= 1 << 1
+			requiredBitSet[1] |= 1 << 0
 			if err := func() error {
 				v, err := d.Str()
 				s.SourceServerName = string(v)
@@ -39857,7 +39861,7 @@ func (s *VolumeReplicationCreateInternalV1beta) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"sourceServerName\"")
 			}
 		case "sourceVolumeName":
-			requiredBitSet[1] |= 1 << 2
+			requiredBitSet[1] |= 1 << 1
 			if err := func() error {
 				v, err := d.Str()
 				s.SourceVolumeName = string(v)
@@ -39868,8 +39872,28 @@ func (s *VolumeReplicationCreateInternalV1beta) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"sourceVolumeName\"")
 			}
+		case "sourceVolumeUuid":
+			if err := func() error {
+				s.SourceVolumeUuid.Reset()
+				if err := s.SourceVolumeUuid.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"sourceVolumeUuid\"")
+			}
+		case "sourcePoolUuid":
+			if err := func() error {
+				s.SourcePoolUuid.Reset()
+				if err := s.SourcePoolUuid.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"sourcePoolUuid\"")
+			}
 		case "destinationHostName":
-			requiredBitSet[1] |= 1 << 3
+			requiredBitSet[1] |= 1 << 4
 			if err := func() error {
 				v, err := d.Str()
 				s.DestinationHostName = string(v)
@@ -39881,7 +39905,7 @@ func (s *VolumeReplicationCreateInternalV1beta) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"destinationHostName\"")
 			}
 		case "destinationServerName":
-			requiredBitSet[1] |= 1 << 4
+			requiredBitSet[1] |= 1 << 5
 			if err := func() error {
 				v, err := d.Str()
 				s.DestinationServerName = string(v)
@@ -39893,7 +39917,7 @@ func (s *VolumeReplicationCreateInternalV1beta) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"destinationServerName\"")
 			}
 		case "destinationVolumeName":
-			requiredBitSet[1] |= 1 << 5
+			requiredBitSet[1] |= 1 << 6
 			if err := func() error {
 				v, err := d.Str()
 				s.DestinationVolumeName = string(v)
@@ -39913,6 +39937,16 @@ func (s *VolumeReplicationCreateInternalV1beta) Decode(d *jx.Decoder) error {
 				return nil
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"destinationVolumeUuid\"")
+			}
+		case "destinationPoolUuid":
+			if err := func() error {
+				s.DestinationPoolUuid.Reset()
+				if err := s.DestinationPoolUuid.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"destinationPoolUuid\"")
 			}
 		case "name":
 			if err := func() error {
@@ -39934,15 +39968,15 @@ func (s *VolumeReplicationCreateInternalV1beta) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"mirrorState\"")
 			}
-		case "hybridReplicationType":
+		case "replicationType":
 			if err := func() error {
-				s.HybridReplicationType.Reset()
-				if err := s.HybridReplicationType.Decode(d); err != nil {
+				s.ReplicationType.Reset()
+				if err := s.ReplicationType.Decode(d); err != nil {
 					return err
 				}
 				return nil
 			}(); err != nil {
-				return errors.Wrap(err, "decode field \"hybridReplicationType\"")
+				return errors.Wrap(err, "decode field \"replicationType\"")
 			}
 		case "relationshipStatus":
 			if err := func() error {
@@ -40162,7 +40196,7 @@ func (s *VolumeReplicationCreateInternalV1beta) Decode(d *jx.Decoder) error {
 	var failures []validate.FieldError
 	for i, mask := range [5]uint8{
 		0b11001000,
-		0b00111111,
+		0b01110011,
 		0b00000000,
 		0b00000000,
 		0b00000000,
@@ -40249,52 +40283,6 @@ func (s VolumeReplicationCreateInternalV1betaEndpointType) MarshalJSON() ([]byte
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
 func (s *VolumeReplicationCreateInternalV1betaEndpointType) UnmarshalJSON(data []byte) error {
-	d := jx.DecodeBytes(data)
-	return s.Decode(d)
-}
-
-// Encode encodes VolumeReplicationCreateInternalV1betaHybridReplicationType as json.
-func (s VolumeReplicationCreateInternalV1betaHybridReplicationType) Encode(e *jx.Encoder) {
-	e.Str(string(s))
-}
-
-// Decode decodes VolumeReplicationCreateInternalV1betaHybridReplicationType from json.
-func (s *VolumeReplicationCreateInternalV1betaHybridReplicationType) Decode(d *jx.Decoder) error {
-	if s == nil {
-		return errors.New("invalid: unable to decode VolumeReplicationCreateInternalV1betaHybridReplicationType to nil")
-	}
-	v, err := d.StrBytes()
-	if err != nil {
-		return err
-	}
-	// Try to use constant string.
-	switch VolumeReplicationCreateInternalV1betaHybridReplicationType(v) {
-	case VolumeReplicationCreateInternalV1betaHybridReplicationTypeHYBRIdREPLICATIONTYPEUNSPECIFIED:
-		*s = VolumeReplicationCreateInternalV1betaHybridReplicationTypeHYBRIdREPLICATIONTYPEUNSPECIFIED
-	case VolumeReplicationCreateInternalV1betaHybridReplicationTypeMIGRATION:
-		*s = VolumeReplicationCreateInternalV1betaHybridReplicationTypeMIGRATION
-	case VolumeReplicationCreateInternalV1betaHybridReplicationTypeCONTINUOUSREPLICATION:
-		*s = VolumeReplicationCreateInternalV1betaHybridReplicationTypeCONTINUOUSREPLICATION
-	case VolumeReplicationCreateInternalV1betaHybridReplicationTypeONPREMREPLICATION:
-		*s = VolumeReplicationCreateInternalV1betaHybridReplicationTypeONPREMREPLICATION
-	case VolumeReplicationCreateInternalV1betaHybridReplicationTypeREVERSEONPREMREPLICATION:
-		*s = VolumeReplicationCreateInternalV1betaHybridReplicationTypeREVERSEONPREMREPLICATION
-	default:
-		*s = VolumeReplicationCreateInternalV1betaHybridReplicationType(v)
-	}
-
-	return nil
-}
-
-// MarshalJSON implements stdjson.Marshaler.
-func (s VolumeReplicationCreateInternalV1betaHybridReplicationType) MarshalJSON() ([]byte, error) {
-	e := jx.Encoder{}
-	s.Encode(&e)
-	return e.Bytes(), nil
-}
-
-// UnmarshalJSON implements stdjson.Unmarshaler.
-func (s *VolumeReplicationCreateInternalV1betaHybridReplicationType) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }
@@ -40571,6 +40559,58 @@ func (s *VolumeReplicationCreateInternalV1betaReplicationSchedule) UnmarshalJSON
 	return s.Decode(d)
 }
 
+// Encode encodes VolumeReplicationCreateInternalV1betaReplicationType as json.
+func (s VolumeReplicationCreateInternalV1betaReplicationType) Encode(e *jx.Encoder) {
+	e.Str(string(s))
+}
+
+// Decode decodes VolumeReplicationCreateInternalV1betaReplicationType from json.
+func (s *VolumeReplicationCreateInternalV1betaReplicationType) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode VolumeReplicationCreateInternalV1betaReplicationType to nil")
+	}
+	v, err := d.StrBytes()
+	if err != nil {
+		return err
+	}
+	// Try to use constant string.
+	switch VolumeReplicationCreateInternalV1betaReplicationType(v) {
+	case VolumeReplicationCreateInternalV1betaReplicationTypeHYBRIDREPLICATIONTYPEUNSPECIFIED:
+		*s = VolumeReplicationCreateInternalV1betaReplicationTypeHYBRIDREPLICATIONTYPEUNSPECIFIED
+	case VolumeReplicationCreateInternalV1betaReplicationTypeMIGRATION:
+		*s = VolumeReplicationCreateInternalV1betaReplicationTypeMIGRATION
+	case VolumeReplicationCreateInternalV1betaReplicationTypeCONTINUOUSREPLICATION:
+		*s = VolumeReplicationCreateInternalV1betaReplicationTypeCONTINUOUSREPLICATION
+	case VolumeReplicationCreateInternalV1betaReplicationTypeONPREMREPLICATION:
+		*s = VolumeReplicationCreateInternalV1betaReplicationTypeONPREMREPLICATION
+	case VolumeReplicationCreateInternalV1betaReplicationTypeREVERSEONPREMREPLICATION:
+		*s = VolumeReplicationCreateInternalV1betaReplicationTypeREVERSEONPREMREPLICATION
+	case VolumeReplicationCreateInternalV1betaReplicationTypeCROSSREGIONREPLICATION:
+		*s = VolumeReplicationCreateInternalV1betaReplicationTypeCROSSREGIONREPLICATION
+	case VolumeReplicationCreateInternalV1betaReplicationTypeCROSSZONEREPLICATION:
+		*s = VolumeReplicationCreateInternalV1betaReplicationTypeCROSSZONEREPLICATION
+	case VolumeReplicationCreateInternalV1betaReplicationTypeCROSSPROJECTREPLICATION:
+		*s = VolumeReplicationCreateInternalV1betaReplicationTypeCROSSPROJECTREPLICATION
+	default:
+		*s = VolumeReplicationCreateInternalV1betaReplicationType(v)
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s VolumeReplicationCreateInternalV1betaReplicationType) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *VolumeReplicationCreateInternalV1betaReplicationType) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
 // Encode implements json.Marshaler.
 func (s *VolumeReplicationInternalV1beta) Encode(e *jx.Encoder) {
 	e.ObjStart()
@@ -40619,10 +40659,6 @@ func (s *VolumeReplicationInternalV1beta) encodeFields(e *jx.Encoder) {
 		e.Str(s.RemoteRegion)
 	}
 	{
-		e.FieldStart("remoteResourceId")
-		e.Str(s.RemoteResourceId)
-	}
-	{
 		e.FieldStart("sourceHostName")
 		e.Str(s.SourceHostName)
 	}
@@ -40633,6 +40669,18 @@ func (s *VolumeReplicationInternalV1beta) encodeFields(e *jx.Encoder) {
 	{
 		e.FieldStart("sourceVolumeName")
 		e.Str(s.SourceVolumeName)
+	}
+	{
+		if s.SourceVolumeUuid.Set {
+			e.FieldStart("sourceVolumeUuid")
+			s.SourceVolumeUuid.Encode(e)
+		}
+	}
+	{
+		if s.SourcePoolUuid.Set {
+			e.FieldStart("sourcePoolUuid")
+			s.SourcePoolUuid.Encode(e)
+		}
 	}
 	{
 		e.FieldStart("destinationHostName")
@@ -40653,6 +40701,12 @@ func (s *VolumeReplicationInternalV1beta) encodeFields(e *jx.Encoder) {
 		}
 	}
 	{
+		if s.DestinationPoolUuid.Set {
+			e.FieldStart("destinationPoolUuid")
+			s.DestinationPoolUuid.Encode(e)
+		}
+	}
+	{
 		if s.Name.Set {
 			e.FieldStart("name")
 			s.Name.Encode(e)
@@ -40665,9 +40719,9 @@ func (s *VolumeReplicationInternalV1beta) encodeFields(e *jx.Encoder) {
 		}
 	}
 	{
-		if s.HybridReplicationType.Set {
-			e.FieldStart("hybridReplicationType")
-			s.HybridReplicationType.Encode(e)
+		if s.ReplicationType.Set {
+			e.FieldStart("replicationType")
+			s.ReplicationType.Encode(e)
 		}
 	}
 	{
@@ -40778,7 +40832,7 @@ func (s *VolumeReplicationInternalV1beta) encodeFields(e *jx.Encoder) {
 	}
 }
 
-var jsonFieldsNameOfVolumeReplicationInternalV1beta = [35]string{
+var jsonFieldsNameOfVolumeReplicationInternalV1beta = [37]string{
 	0:  "volumeReplicationUuid",
 	1:  "lifeCycleState",
 	2:  "lifeCycleStateDetails",
@@ -40786,34 +40840,36 @@ var jsonFieldsNameOfVolumeReplicationInternalV1beta = [35]string{
 	4:  "replicationPolicy",
 	5:  "replicationSchedule",
 	6:  "remoteRegion",
-	7:  "remoteResourceId",
-	8:  "sourceHostName",
-	9:  "sourceServerName",
-	10: "sourceVolumeName",
-	11: "destinationHostName",
-	12: "destinationServerName",
-	13: "destinationVolumeName",
-	14: "destinationVolumeUuid",
-	15: "name",
-	16: "mirrorState",
-	17: "hybridReplicationType",
-	18: "relationshipStatus",
-	19: "totalProgress",
-	20: "healthy",
-	21: "totalTransferBytes",
-	22: "totalTransferTimeSecs",
-	23: "lastTransferSize",
-	24: "lastTransferError",
-	25: "lastTransferDuration",
-	26: "lastTransferEndTime",
-	27: "progressLastUpdated",
-	28: "lagTime",
-	29: "createdAt",
-	30: "updatedAt",
-	31: "deletedAt",
-	32: "jobs",
-	33: "description",
-	34: "labels",
+	7:  "sourceHostName",
+	8:  "sourceServerName",
+	9:  "sourceVolumeName",
+	10: "sourceVolumeUuid",
+	11: "sourcePoolUuid",
+	12: "destinationHostName",
+	13: "destinationServerName",
+	14: "destinationVolumeName",
+	15: "destinationVolumeUuid",
+	16: "destinationPoolUuid",
+	17: "name",
+	18: "mirrorState",
+	19: "replicationType",
+	20: "relationshipStatus",
+	21: "totalProgress",
+	22: "healthy",
+	23: "totalTransferBytes",
+	24: "totalTransferTimeSecs",
+	25: "lastTransferSize",
+	26: "lastTransferError",
+	27: "lastTransferDuration",
+	28: "lastTransferEndTime",
+	29: "progressLastUpdated",
+	30: "lagTime",
+	31: "createdAt",
+	32: "updatedAt",
+	33: "deletedAt",
+	34: "jobs",
+	35: "description",
+	36: "labels",
 }
 
 // Decode decodes VolumeReplicationInternalV1beta from json.
@@ -40897,20 +40953,8 @@ func (s *VolumeReplicationInternalV1beta) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"remoteRegion\"")
 			}
-		case "remoteResourceId":
-			requiredBitSet[0] |= 1 << 7
-			if err := func() error {
-				v, err := d.Str()
-				s.RemoteResourceId = string(v)
-				if err != nil {
-					return err
-				}
-				return nil
-			}(); err != nil {
-				return errors.Wrap(err, "decode field \"remoteResourceId\"")
-			}
 		case "sourceHostName":
-			requiredBitSet[1] |= 1 << 0
+			requiredBitSet[0] |= 1 << 7
 			if err := func() error {
 				v, err := d.Str()
 				s.SourceHostName = string(v)
@@ -40922,7 +40966,7 @@ func (s *VolumeReplicationInternalV1beta) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"sourceHostName\"")
 			}
 		case "sourceServerName":
-			requiredBitSet[1] |= 1 << 1
+			requiredBitSet[1] |= 1 << 0
 			if err := func() error {
 				v, err := d.Str()
 				s.SourceServerName = string(v)
@@ -40934,7 +40978,7 @@ func (s *VolumeReplicationInternalV1beta) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"sourceServerName\"")
 			}
 		case "sourceVolumeName":
-			requiredBitSet[1] |= 1 << 2
+			requiredBitSet[1] |= 1 << 1
 			if err := func() error {
 				v, err := d.Str()
 				s.SourceVolumeName = string(v)
@@ -40945,8 +40989,28 @@ func (s *VolumeReplicationInternalV1beta) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"sourceVolumeName\"")
 			}
+		case "sourceVolumeUuid":
+			if err := func() error {
+				s.SourceVolumeUuid.Reset()
+				if err := s.SourceVolumeUuid.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"sourceVolumeUuid\"")
+			}
+		case "sourcePoolUuid":
+			if err := func() error {
+				s.SourcePoolUuid.Reset()
+				if err := s.SourcePoolUuid.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"sourcePoolUuid\"")
+			}
 		case "destinationHostName":
-			requiredBitSet[1] |= 1 << 3
+			requiredBitSet[1] |= 1 << 4
 			if err := func() error {
 				v, err := d.Str()
 				s.DestinationHostName = string(v)
@@ -40958,7 +41022,7 @@ func (s *VolumeReplicationInternalV1beta) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"destinationHostName\"")
 			}
 		case "destinationServerName":
-			requiredBitSet[1] |= 1 << 4
+			requiredBitSet[1] |= 1 << 5
 			if err := func() error {
 				v, err := d.Str()
 				s.DestinationServerName = string(v)
@@ -40970,7 +41034,7 @@ func (s *VolumeReplicationInternalV1beta) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"destinationServerName\"")
 			}
 		case "destinationVolumeName":
-			requiredBitSet[1] |= 1 << 5
+			requiredBitSet[1] |= 1 << 6
 			if err := func() error {
 				v, err := d.Str()
 				s.DestinationVolumeName = string(v)
@@ -40990,6 +41054,16 @@ func (s *VolumeReplicationInternalV1beta) Decode(d *jx.Decoder) error {
 				return nil
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"destinationVolumeUuid\"")
+			}
+		case "destinationPoolUuid":
+			if err := func() error {
+				s.DestinationPoolUuid.Reset()
+				if err := s.DestinationPoolUuid.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"destinationPoolUuid\"")
 			}
 		case "name":
 			if err := func() error {
@@ -41011,15 +41085,15 @@ func (s *VolumeReplicationInternalV1beta) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"mirrorState\"")
 			}
-		case "hybridReplicationType":
+		case "replicationType":
 			if err := func() error {
-				s.HybridReplicationType.Reset()
-				if err := s.HybridReplicationType.Decode(d); err != nil {
+				s.ReplicationType.Reset()
+				if err := s.ReplicationType.Decode(d); err != nil {
 					return err
 				}
 				return nil
 			}(); err != nil {
-				return errors.Wrap(err, "decode field \"hybridReplicationType\"")
+				return errors.Wrap(err, "decode field \"replicationType\"")
 			}
 		case "relationshipStatus":
 			if err := func() error {
@@ -41209,7 +41283,7 @@ func (s *VolumeReplicationInternalV1beta) Decode(d *jx.Decoder) error {
 	var failures []validate.FieldError
 	for i, mask := range [5]uint8{
 		0b11001000,
-		0b00111111,
+		0b01110011,
 		0b00000000,
 		0b00000000,
 		0b00000000,
@@ -41296,52 +41370,6 @@ func (s VolumeReplicationInternalV1betaEndpointType) MarshalJSON() ([]byte, erro
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
 func (s *VolumeReplicationInternalV1betaEndpointType) UnmarshalJSON(data []byte) error {
-	d := jx.DecodeBytes(data)
-	return s.Decode(d)
-}
-
-// Encode encodes VolumeReplicationInternalV1betaHybridReplicationType as json.
-func (s VolumeReplicationInternalV1betaHybridReplicationType) Encode(e *jx.Encoder) {
-	e.Str(string(s))
-}
-
-// Decode decodes VolumeReplicationInternalV1betaHybridReplicationType from json.
-func (s *VolumeReplicationInternalV1betaHybridReplicationType) Decode(d *jx.Decoder) error {
-	if s == nil {
-		return errors.New("invalid: unable to decode VolumeReplicationInternalV1betaHybridReplicationType to nil")
-	}
-	v, err := d.StrBytes()
-	if err != nil {
-		return err
-	}
-	// Try to use constant string.
-	switch VolumeReplicationInternalV1betaHybridReplicationType(v) {
-	case VolumeReplicationInternalV1betaHybridReplicationTypeHYBRIdREPLICATIONTYPEUNSPECIFIED:
-		*s = VolumeReplicationInternalV1betaHybridReplicationTypeHYBRIdREPLICATIONTYPEUNSPECIFIED
-	case VolumeReplicationInternalV1betaHybridReplicationTypeMIGRATION:
-		*s = VolumeReplicationInternalV1betaHybridReplicationTypeMIGRATION
-	case VolumeReplicationInternalV1betaHybridReplicationTypeCONTINUOUSREPLICATION:
-		*s = VolumeReplicationInternalV1betaHybridReplicationTypeCONTINUOUSREPLICATION
-	case VolumeReplicationInternalV1betaHybridReplicationTypeONPREMREPLICATION:
-		*s = VolumeReplicationInternalV1betaHybridReplicationTypeONPREMREPLICATION
-	case VolumeReplicationInternalV1betaHybridReplicationTypeREVERSEONPREMREPLICATION:
-		*s = VolumeReplicationInternalV1betaHybridReplicationTypeREVERSEONPREMREPLICATION
-	default:
-		*s = VolumeReplicationInternalV1betaHybridReplicationType(v)
-	}
-
-	return nil
-}
-
-// MarshalJSON implements stdjson.Marshaler.
-func (s VolumeReplicationInternalV1betaHybridReplicationType) MarshalJSON() ([]byte, error) {
-	e := jx.Encoder{}
-	s.Encode(&e)
-	return e.Bytes(), nil
-}
-
-// UnmarshalJSON implements stdjson.Unmarshaler.
-func (s *VolumeReplicationInternalV1betaHybridReplicationType) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }
@@ -41614,6 +41642,58 @@ func (s VolumeReplicationInternalV1betaReplicationSchedule) MarshalJSON() ([]byt
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
 func (s *VolumeReplicationInternalV1betaReplicationSchedule) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes VolumeReplicationInternalV1betaReplicationType as json.
+func (s VolumeReplicationInternalV1betaReplicationType) Encode(e *jx.Encoder) {
+	e.Str(string(s))
+}
+
+// Decode decodes VolumeReplicationInternalV1betaReplicationType from json.
+func (s *VolumeReplicationInternalV1betaReplicationType) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode VolumeReplicationInternalV1betaReplicationType to nil")
+	}
+	v, err := d.StrBytes()
+	if err != nil {
+		return err
+	}
+	// Try to use constant string.
+	switch VolumeReplicationInternalV1betaReplicationType(v) {
+	case VolumeReplicationInternalV1betaReplicationTypeHYBRIDREPLICATIONTYPEUNSPECIFIED:
+		*s = VolumeReplicationInternalV1betaReplicationTypeHYBRIDREPLICATIONTYPEUNSPECIFIED
+	case VolumeReplicationInternalV1betaReplicationTypeMIGRATION:
+		*s = VolumeReplicationInternalV1betaReplicationTypeMIGRATION
+	case VolumeReplicationInternalV1betaReplicationTypeCONTINUOUSREPLICATION:
+		*s = VolumeReplicationInternalV1betaReplicationTypeCONTINUOUSREPLICATION
+	case VolumeReplicationInternalV1betaReplicationTypeONPREMREPLICATION:
+		*s = VolumeReplicationInternalV1betaReplicationTypeONPREMREPLICATION
+	case VolumeReplicationInternalV1betaReplicationTypeREVERSEONPREMREPLICATION:
+		*s = VolumeReplicationInternalV1betaReplicationTypeREVERSEONPREMREPLICATION
+	case VolumeReplicationInternalV1betaReplicationTypeCROSSREGIONREPLICATION:
+		*s = VolumeReplicationInternalV1betaReplicationTypeCROSSREGIONREPLICATION
+	case VolumeReplicationInternalV1betaReplicationTypeCROSSZONEREPLICATION:
+		*s = VolumeReplicationInternalV1betaReplicationTypeCROSSZONEREPLICATION
+	case VolumeReplicationInternalV1betaReplicationTypeCROSSPROJECTREPLICATION:
+		*s = VolumeReplicationInternalV1betaReplicationTypeCROSSPROJECTREPLICATION
+	default:
+		*s = VolumeReplicationInternalV1betaReplicationType(v)
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s VolumeReplicationInternalV1betaReplicationType) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *VolumeReplicationInternalV1betaReplicationType) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }

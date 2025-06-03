@@ -162,7 +162,7 @@ type VolumeReplication struct {
 	RelationshipStatus            string
 	Healthy                       bool
 	UnhealthyReason               string
-	Volume                        *volume
+	Volume                        *Volume
 	Jobs                          []*ontaprestmodel.Job
 	TotalTransferBytes            int64
 	TotalTransferTimeSecs         int64
@@ -197,7 +197,7 @@ type SnapmirrorDestination struct {
 	RelationshipUUID   string
 }
 
-type volume struct {
+type Volume struct {
 	ontaprestmodel.Volume
 	ExternalUUID      string
 	IsOnPremMigration bool

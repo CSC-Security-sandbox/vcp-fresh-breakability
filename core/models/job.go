@@ -17,16 +17,17 @@ const (
 type JobType string
 
 const (
-	JobTypeCreatePool        JobType = "CREATE_POOL"
-	JobTypeDeletePool        JobType = "DELETE_POOL"
-	JobTypeCreateVolume      JobType = "CREATE_VOLUME"
-	JobTypeDeleteVolume      JobType = "DELETE_VOLUME"
-	JobTypeCreateSnapshot    JobType = "CREATE_SNAPSHOT"
-	JobTypeUpdateSnapshot    JobType = "UPDATE_SNAPSHOT"
-	JobTypeDeleteSnapshot    JobType = "DELETE_SNAPSHOT"
-	JobTypeAcceptClusterPeer JobType = "ACCEPT_CLUSTER_PEER"
-	JobTypeUpdateKmsConfig JobType = "UPDATE_KMS_CONFIG"
-	JobTypeCreateKmsConfig JobType = "CREATE_KMS_CONFIG"
+	JobTypeCreatePool                      JobType = "CREATE_POOL"
+	JobTypeDeletePool                      JobType = "DELETE_POOL"
+	JobTypeCreateVolume                    JobType = "CREATE_VOLUME"
+	JobTypeDeleteVolume                    JobType = "DELETE_VOLUME"
+	JobTypeCreateSnapshot                  JobType = "CREATE_SNAPSHOT"
+	JobTypeUpdateSnapshot                  JobType = "UPDATE_SNAPSHOT"
+	JobTypeDeleteSnapshot                  JobType = "DELETE_SNAPSHOT"
+	JobTypeAcceptClusterPeer               JobType = "ACCEPT_CLUSTER_PEER"
+	JobTypeUpdateKmsConfig                 JobType = "UPDATE_KMS_CONFIG"
+	JobTypeCreateKmsConfig                 JobType = "CREATE_KMS_CONFIG"
+	JobTypeCreateVolumeReplicationInternal JobType = "CREATE_VOLUME_REPLICATION_INTERNAL"
 )
 
 // Job describes a job DB model
