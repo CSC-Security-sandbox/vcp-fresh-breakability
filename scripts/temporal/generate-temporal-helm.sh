@@ -138,6 +138,8 @@ echo "Registry URL: $REGISTRY_URL"
 yq e ".server.image.repository = \"$REGISTRY_URL/temporalio-server\"" -i "$CHART_DIR/values.yaml"
 yq e ".admintools.image.repository = \"$REGISTRY_URL/temporalio-admin-tools\"" -i "$CHART_DIR/values.yaml"
 yq e ".web.image.repository = \"$REGISTRY_URL/temporalio-ui\"" -i "$CHART_DIR/values.yaml"
+yq e ".server.config.namespaces.create = true" -i "$CHART_DIR/values.yaml"
+yq e ".server.config.namespaces.namespace[0].retention = \"60d\"" -i "$CHART_DIR/values.yaml"
 
 # Clean up
 echo "Cleaning up temporary files..."

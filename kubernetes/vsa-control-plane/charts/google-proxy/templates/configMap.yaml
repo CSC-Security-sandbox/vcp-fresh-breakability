@@ -14,10 +14,18 @@ data:
   # TODO: Remove these fields after application code fix
   DB_HOST: "{{ index .Values "database" "host" }}"
   DB_USER: "{{ index .Values "database" "user" }}"
-  DB_PASSWORD: "{{ index .Values "database" "password" }}"
   DB_NAME: "{{ index .Values "database" "name" }}"
   DB_ADMIN_USER: "{{ index .Values "database" "adminUser" }}"
-  DB_ADMIN_PASSWORD: "{{ index .Values "database" "adminPassword" }}"
+  ENV: "{{ index .Values "google-proxy" "adminPassword" }}"
+  GCP_AUTH_ACCEPTED_SERVICE_ACCOUNTS: "{{ index .Values "google-proxy" "acceptedSAs" }}"
+  GCP_CONSUMER_MGMT_ENDPOINT_URL: "{{ index .Values "google-proxy" "gcpConsumerMgmtEndpointUrl" }}"
+  GCP_SERVICE_NETWORKING_ENDPOINT_URL: "{{ index .Values "google-proxy" "gcpServiceNetworkingEndpointUrl" }}"
+  GCP_SERVICE_URL: "{{ index .Values "google-proxy" "gcpServiceUrl" }}"
+  LOCAL_REGION: "{{ index .Values "google-proxy" "localRegion" }}"
+  OTEL_GOOGLE_PROJECT_ID: "{{ index .Values "google-proxy" "otelGoogleProjectId" }}"
+  RUN_MIGRATION_ON_START: "{{ index .Values "google-proxy" "runMigrationOnStart" }}"
+  TEMPORAL_ADDRESS: "{{ index .Values "google-proxy" "temporalAddress" }}"
+  VSA_NODE_USERNAME: "{{ index .Values "google-proxy" "vsaNodeUsername" }}"
   config.yaml: |
     DB_HOST: {{ index .Values "database" "host" }}
     DB_USER: {{ index .Values "database" "user"  }}

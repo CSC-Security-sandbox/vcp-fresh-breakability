@@ -5,7 +5,7 @@ replicaCount: 1
 images:
   googleProxy:
     name: google-proxy
-    tag: v0.0.0
+    tag: 0.0.0
     secondary: true
     pullPolicy: IfNotPresent
 
@@ -21,6 +21,18 @@ database:
   adminUser: postgres
   adminPassword: testpass
 
+google-proxy:
+  env: ""  # To be kept empty for GKE
+  acceptedSAs: "" # Comma-separated list of service account emails that are allowed to access the Google Proxy APIs.
+  gcpConsumerMgmtEndpointUrl: ""
+  gcpServiceNetworkingEndpointUrl: ""
+  gcpServiceUrl: ""
+  localRegion: ""
+  otelGoogleProjectId: ""
+  runMigrationOnStart: true
+  temporalAddress: "temporal-frontend.temporal.svc.cluster.local:7233"
+  vsaNodeUsername: ""
+  vsaNodePassword: ""
 
 # Annotations
 serviceAccountAnnotations:

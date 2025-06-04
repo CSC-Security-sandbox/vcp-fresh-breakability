@@ -19,18 +19,12 @@ app:
 
 serviceAccount:
   name: "vcp-worker-ksa"
-#  annotations:
-#    "helm.sh/deprecated": false
-
-#imagePullSecrets:
-#    - name: "temporal-worker-image-pull-secret"
 
 # Image configuration
-
 images:
   vcpWorker:
     name: vcp-worker
-    tag: v0.0.0
+    tag: 0.0.0
     secondary: true
     pullPolicy: IfNotPresent
 
@@ -53,7 +47,7 @@ workerConfig:
     timezone: "UTC"
     runMigrationOnStart: "true"
     migrationPath: "migrations/core"
-    host: postgres.default.svc.cluster.local
+    host: cloud-sql-proxy.sde.svc.cluster.local
     port: 5432
     user: postgres
     password: testpass

@@ -37,6 +37,8 @@ spec:
           envFrom:
             - configMapRef:
                 name: google-proxy-service-env-config
+            - secretRef:
+                name: google-proxy-service-env-secret
           volumeMounts:
             - name: env-config-volume
               mountPath: /etc/config
