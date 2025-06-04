@@ -60,19 +60,11 @@ on:
         required: true
       AR_GCP_SA:
         required: true
-      AR_GCP_PROJ:
-        required: true
-      AR_GCP_REGION:
-        required: true
       AR_PRIVATE_KEY:
         required: true
       GHCR_REPO:
         required: true
-      AR_GCP_REPO:
-        required: true
       AR_ATTESTOR_NAME:
-        required: true
-      AR_HELM_REPO:
         required: true
 
 jobs:
