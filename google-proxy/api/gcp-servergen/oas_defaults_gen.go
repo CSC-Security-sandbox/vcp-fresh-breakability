@@ -233,7 +233,7 @@ func (s *PoolInternalV1beta) setDefaults() {
 		s.SizeInBytes = val
 	}
 	{
-		val := StorageClassV1beta("HARDWARE")
+		val := StorageClassV1beta("SOFTWARE")
 		s.StorageClass.SetTo(val)
 	}
 	{
@@ -261,7 +261,7 @@ func (s *PoolV1beta) setDefaults() {
 		s.SizeInBytes = val
 	}
 	{
-		val := StorageClassV1beta("HARDWARE")
+		val := StorageClassV1beta("SOFTWARE")
 		s.StorageClass.SetTo(val)
 	}
 	{
@@ -345,7 +345,7 @@ func (s *SnapshotV1beta) setDefaults() {
 		s.UsedBytes.SetTo(val)
 	}
 	{
-		val := StorageClassV1beta("HARDWARE")
+		val := StorageClassV1beta("SOFTWARE")
 		s.StorageClass.SetTo(val)
 	}
 }
@@ -413,7 +413,7 @@ func (s *VolumeV1beta) setDefaults() {
 		s.InReplication.SetTo(val)
 	}
 	{
-		val := StorageClassV1beta("HARDWARE")
+		val := StorageClassV1beta("SOFTWARE")
 		s.StorageClass.SetTo(val)
 	}
 	{

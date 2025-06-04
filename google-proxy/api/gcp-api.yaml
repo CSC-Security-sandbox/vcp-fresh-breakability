@@ -188,7 +188,7 @@ paths:
                   resourceId: some-pool-name
                   serviceLevel: PREMIUM
                   sizeInBytes: 2199023255552
-                  storageClass: HARDWARE
+                  storageClass: SOFTWARE
                   storagePoolState: READY
                   storagePoolStateDetails: Available for use
                   updatedAt: 2024-01-24T13:54:14.374Z
@@ -398,7 +398,7 @@ paths:
                   resourceId: my-pool
                   serviceLevel: PREMIUM
                   sizeInBytes: 12094627905536
-                  storageClass: HARDWARE
+                  storageClass: SOFTWARE
                   storagePoolState: READY
                   storagePoolStateDetails: Available for use
                   updatedAt: 2024-01-24T13:54:14.374Z
@@ -661,7 +661,7 @@ paths:
                   smbSettings: []
                   snapReserve: 0
                   snapshotDirectory: true
-                  storageClass: HARDWARE
+                  storageClass: SOFTWARE
                   tieringPolicy:
                     tierAction: ENABLED
                     coolingThresholdDays: 24
@@ -1005,7 +1005,7 @@ paths:
                   smbSettings: []
                   snapReserve: 0
                   snapshotDirectory: true
-                  storageClass: HARDWARE
+                  storageClass: SOFTWARE
                   tieringPolicy:
                     tierAction: ENABLED
                     coolingThresholdDays: 24
@@ -4497,7 +4497,7 @@ paths:
                     snapshotId: 1829d6e1-fbe0-87cb-150d-a32290162f0c
                     snapshotState: CREATING
                     snapshotStateDetails: Creation in progress
-                    storageClass: HARDWARE
+                    storageClass: SOFTWARE
                     usedBytes: 0
                     volumeId: b78e8675-7e6f-64ec-3ec2-163753add2d5
         '400':
@@ -4551,7 +4551,7 @@ paths:
                   created: '0001-01-01T00:00:00.000Z'
                   snapshotId: 1829d6e1-fbe0-87cb-150d-a32290162f0c
                   usedBytes: 0
-                  storageClass: HARDWARE
+                  storageClass: SOFTWARE
                   snapshotState: READY
                   snapshotStateDetails: Available for use
                   description: My Resource Description
@@ -4610,7 +4610,7 @@ paths:
                     snapshotId: 1829d6e1-fbe0-87cb-150d-a32290162f0c
                     snapshotState: UPDATING
                     snapshotStateDetails: Update in progress
-                    storageClass: HARDWARE
+                    storageClass: SOFTWARE
                     usedBytes: 0
                     volumeId: b78e8675-7e6f-64ec-3ec2-163753add2d5
         '400':
@@ -6445,9 +6445,9 @@ components:
     StorageClass_v1beta:
       title: StorageClass
       type: string
-      description: Storage class to be provisioned. Currently hardware is the only
+      description: Storage class to be provisioned. Currently software is the only
         option.
-      default: HARDWARE
+      default: SOFTWARE
       enum:
         - STORAGE_CLASS_UNSPECIFIED
         - SOFTWARE

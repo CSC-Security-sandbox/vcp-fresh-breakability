@@ -13244,7 +13244,7 @@ func (s *StatusV1Beta) SetDetails(val []AnyV1Beta) {
 	s.Details = val
 }
 
-// Storage class to be provisioned. Currently hardware is the only option.
+// Storage class to be provisioned. Currently software is the only option.
 // Ref: #/components/schemas/StorageClass_v1beta
 type StorageClassV1beta string
 
