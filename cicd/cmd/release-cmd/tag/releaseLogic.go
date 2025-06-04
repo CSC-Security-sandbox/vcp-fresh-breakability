@@ -53,7 +53,7 @@ func ReleaseFunc() {
 			log.Fatalf("Error cleaning working directory: %v", err)
 		}
 
-		DevTagCreation(CurrentTag)
+		DevTagCreation(CurrentTag, file)
 
 		latestSprintBranch := "release/" + sprint
 		log.Printf("Creating the main - %s\n", sprint)
@@ -73,15 +73,15 @@ func ReleaseFunc() {
 		if errGitPush != nil {
 			log.Fatalf("Error pushing new tag: %v", errGitPush)
 		}
-		if errWrite := os.WriteFile(os.Getenv("GITHUB_OUTPUT"), []byte(fmt.Sprintf("RC_TAG=%s\n", rcTag)), 0644); errWrite != nil {
-			log.Fatalf("Error writing to stdout: %v", errWrite)
+		if _, errWrite := file.WriteString(fmt.Sprintf("RC_TAG=%s\n", rcTag)); errWrite != nil {
+			log.Fatalf("Error writing RC_TAG: %v", errWrite)
 		}
 	} else {
 		log.Printf("Branch exists")
 	}
 }
 
-func DevTagCreation(currTag string) {
+func DevTagCreation(currTag string, file *os.File) {
 	NewSprint := NewSprintName()
 	devTag := NewSprint + ".0.0-DEV.1"
 
@@ -93,7 +93,7 @@ func DevTagCreation(currTag string) {
 	if errGitDevPush != nil {
 		log.Fatalf("Error pushing git tag: %v", errGitDevPush)
 	}
-	if errWrite := os.WriteFile(os.Getenv("GITHUB_OUTPUT"), []byte(fmt.Sprintf("DEV_TAG=%s\n", devTag)), 0644); errWrite != nil {
-		log.Fatalf("Error writing to stdout: %v", errWrite)
+	if _, errWrite := file.WriteString(fmt.Sprintf("DEV_TAG=%s\n", devTag)); errWrite != nil {
+		log.Fatalf("Error writing DEV_TAG: %v", errWrite)
 	}
 }
