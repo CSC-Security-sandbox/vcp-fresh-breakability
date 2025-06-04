@@ -9,6 +9,8 @@ import (
 
 	datamodel "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 
+	gcpserver "github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/api/gcp-servergen"
+
 	mock "github.com/stretchr/testify/mock"
 
 	models "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
@@ -92,6 +94,73 @@ func (_c *MockOrchestratorFactory_AcceptClusterPeer_Call) Return(_a0 *common.Clu
 }
 
 func (_c *MockOrchestratorFactory_AcceptClusterPeer_Call) RunAndReturn(run func(context.Context, *common.ClusterPeerParams, string) (*common.ClusterPeerParams, *datamodel.Job, error)) *MockOrchestratorFactory_AcceptClusterPeer_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// CreateBackupVault provides a mock function with given fields: ctx, params, paramz
+func (_m *MockOrchestratorFactory) CreateBackupVault(ctx context.Context, params *common.BackupVaultParams, paramz gcpserver.V1betaCreateBackupVaultParams) (*models.BackupVaultV1beta, string, error) {
+	ret := _m.Called(ctx, params, paramz)
+
+	if len(ret) == 0 {
+		panic("no return value specified for CreateBackupVault")
+	}
+
+	var r0 *models.BackupVaultV1beta
+	var r1 string
+	var r2 error
+	if rf, ok := ret.Get(0).(func(context.Context, *common.BackupVaultParams, gcpserver.V1betaCreateBackupVaultParams) (*models.BackupVaultV1beta, string, error)); ok {
+		return rf(ctx, params, paramz)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, *common.BackupVaultParams, gcpserver.V1betaCreateBackupVaultParams) *models.BackupVaultV1beta); ok {
+		r0 = rf(ctx, params, paramz)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*models.BackupVaultV1beta)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, *common.BackupVaultParams, gcpserver.V1betaCreateBackupVaultParams) string); ok {
+		r1 = rf(ctx, params, paramz)
+	} else {
+		r1 = ret.Get(1).(string)
+	}
+
+	if rf, ok := ret.Get(2).(func(context.Context, *common.BackupVaultParams, gcpserver.V1betaCreateBackupVaultParams) error); ok {
+		r2 = rf(ctx, params, paramz)
+	} else {
+		r2 = ret.Error(2)
+	}
+
+	return r0, r1, r2
+}
+
+// MockOrchestratorFactory_CreateBackupVault_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'CreateBackupVault'
+type MockOrchestratorFactory_CreateBackupVault_Call struct {
+	*mock.Call
+}
+
+// CreateBackupVault is a helper method to define mock.On call
+//   - ctx context.Context
+//   - params *common.BackupVaultParams
+//   - paramz gcpserver.V1betaCreateBackupVaultParams
+func (_e *MockOrchestratorFactory_Expecter) CreateBackupVault(ctx interface{}, params interface{}, paramz interface{}) *MockOrchestratorFactory_CreateBackupVault_Call {
+	return &MockOrchestratorFactory_CreateBackupVault_Call{Call: _e.mock.On("CreateBackupVault", ctx, params, paramz)}
+}
+
+func (_c *MockOrchestratorFactory_CreateBackupVault_Call) Run(run func(ctx context.Context, params *common.BackupVaultParams, paramz gcpserver.V1betaCreateBackupVaultParams)) *MockOrchestratorFactory_CreateBackupVault_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(*common.BackupVaultParams), args[2].(gcpserver.V1betaCreateBackupVaultParams))
+	})
+	return _c
+}
+
+func (_c *MockOrchestratorFactory_CreateBackupVault_Call) Return(_a0 *models.BackupVaultV1beta, _a1 string, _a2 error) *MockOrchestratorFactory_CreateBackupVault_Call {
+	_c.Call.Return(_a0, _a1, _a2)
+	return _c
+}
+
+func (_c *MockOrchestratorFactory_CreateBackupVault_Call) RunAndReturn(run func(context.Context, *common.BackupVaultParams, gcpserver.V1betaCreateBackupVaultParams) (*models.BackupVaultV1beta, string, error)) *MockOrchestratorFactory_CreateBackupVault_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -741,6 +810,66 @@ func (_c *MockOrchestratorFactory_DeleteVolume_Call) Return(_a0 *models.Volume, 
 }
 
 func (_c *MockOrchestratorFactory_DeleteVolume_Call) RunAndReturn(run func(context.Context, string) (*models.Volume, string, error)) *MockOrchestratorFactory_DeleteVolume_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// GetBackupVaultByNameAndOwnerID provides a mock function with given fields: ctx, bvName, ownerID
+func (_m *MockOrchestratorFactory) GetBackupVaultByNameAndOwnerID(ctx context.Context, bvName string, ownerID string) (*models.BackupVaultV1beta, error) {
+	ret := _m.Called(ctx, bvName, ownerID)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetBackupVaultByNameAndOwnerID")
+	}
+
+	var r0 *models.BackupVaultV1beta
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, string, string) (*models.BackupVaultV1beta, error)); ok {
+		return rf(ctx, bvName, ownerID)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, string, string) *models.BackupVaultV1beta); ok {
+		r0 = rf(ctx, bvName, ownerID)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*models.BackupVaultV1beta)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, string, string) error); ok {
+		r1 = rf(ctx, bvName, ownerID)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockOrchestratorFactory_GetBackupVaultByNameAndOwnerID_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetBackupVaultByNameAndOwnerID'
+type MockOrchestratorFactory_GetBackupVaultByNameAndOwnerID_Call struct {
+	*mock.Call
+}
+
+// GetBackupVaultByNameAndOwnerID is a helper method to define mock.On call
+//   - ctx context.Context
+//   - bvName string
+//   - ownerID string
+func (_e *MockOrchestratorFactory_Expecter) GetBackupVaultByNameAndOwnerID(ctx interface{}, bvName interface{}, ownerID interface{}) *MockOrchestratorFactory_GetBackupVaultByNameAndOwnerID_Call {
+	return &MockOrchestratorFactory_GetBackupVaultByNameAndOwnerID_Call{Call: _e.mock.On("GetBackupVaultByNameAndOwnerID", ctx, bvName, ownerID)}
+}
+
+func (_c *MockOrchestratorFactory_GetBackupVaultByNameAndOwnerID_Call) Run(run func(ctx context.Context, bvName string, ownerID string)) *MockOrchestratorFactory_GetBackupVaultByNameAndOwnerID_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(string), args[2].(string))
+	})
+	return _c
+}
+
+func (_c *MockOrchestratorFactory_GetBackupVaultByNameAndOwnerID_Call) Return(_a0 *models.BackupVaultV1beta, _a1 error) *MockOrchestratorFactory_GetBackupVaultByNameAndOwnerID_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockOrchestratorFactory_GetBackupVaultByNameAndOwnerID_Call) RunAndReturn(run func(context.Context, string, string) (*models.BackupVaultV1beta, error)) *MockOrchestratorFactory_GetBackupVaultByNameAndOwnerID_Call {
 	_c.Call.Return(run)
 	return _c
 }

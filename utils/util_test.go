@@ -589,3 +589,63 @@ func Test_convertBytesToGib(t *testing.T) {
 		})
 	}
 }
+
+func TestConvertsValidJsonToModel(t *testing.T) {
+	t.Run("ValidJson", func(tt *testing.T) {
+		jsonData := []byte(`{"name": "test", "age": 30}`)
+		var model struct {
+			Name string `json:"name"`
+			Age  int    `json:"age"`
+		}
+
+		err := ConvertJsonToModel(jsonData, &model)
+		require.NoError(t, err)
+		assert.Equal(t, "test", model.Name)
+		assert.Equal(t, 30, model.Age)
+	})
+	t.Run("InvalidJson", func(tt *testing.T) {
+		jsonData := []byte(`{"name": "test", "age": }`)
+		var model struct {
+			Name string `json:"name"`
+			Age  int    `json:"age"`
+		}
+
+		err := ConvertJsonToModel(jsonData, &model)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "Failed to unmarshal json")
+	})
+	t.Run("EmptyJson", func(tt *testing.T) {
+		jsonData := []byte(``)
+		var model struct {
+			Name string `json:"name"`
+			Age  int    `json:"age"`
+		}
+
+		err := ConvertJsonToModel(jsonData, &model)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "Failed to unmarshal json")
+	})
+	t.Run("ConvertsJsonWithExtraFieldsToModel", func(tt *testing.T) {
+		jsonData := []byte(`{"name": "test", "age": 30, "extra": "ignored"}`)
+		var model struct {
+			Name string `json:"name"`
+			Age  int    `json:"age"`
+		}
+
+		err := ConvertJsonToModel(jsonData, &model)
+		require.NoError(t, err)
+		assert.Equal(t, "test", model.Name)
+		assert.Equal(t, 30, model.Age)
+	})
+	t.Run("FailsToConvertNonJsonInput", func(tt *testing.T) {
+		jsonData := []byte(`not a json`)
+		var model struct {
+			Name string `json:"name"`
+			Age  int    `json:"age"`
+		}
+
+		err := ConvertJsonToModel(jsonData, &model)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "Failed to unmarshal json")
+	})
+}

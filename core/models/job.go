@@ -28,6 +28,7 @@ const (
 	JobTypeUpdateKmsConfig                 JobType = "UPDATE_KMS_CONFIG"
 	JobTypeCreateKmsConfig                 JobType = "CREATE_KMS_CONFIG"
 	JobTypeCreateVolumeReplicationInternal JobType = "CREATE_VOLUME_REPLICATION_INTERNAL"
+	JobTypeCreateBackupVault               JobType = "CREATE_BACKUP_VAULT"
 )
 
 // Job describes a job DB model

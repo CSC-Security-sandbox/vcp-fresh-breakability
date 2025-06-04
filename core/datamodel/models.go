@@ -403,3 +403,65 @@ func (v *SnapshotAttributes) Scan(value interface{}) error {
 func (v *SnapshotAttributes) Value() (driver.Value, error) {
 	return json.Marshal(v)
 }
+
+// BackupVault represents the backup vault entity with associated attributes and relationships.
+type BackupVault struct {
+	BaseModel
+	Name                       string               `json:"name" gorm:"index"`
+	Account                    *Account             `json:"-" gorm:"ForeignKey:AccountID;AssociationForeignKey:ID;constraint:OnDelete:RESTRICT,OnUpdate:RESTRICT;"`
+	AccountID                  int64                `gorm:"column:account_id"`
+	RegionName                 string               `json:"regionName" gorm:"-"`
+	BackupRegionName           *string              `json:"backupRegionName" gorm:"type:text"`
+	SourceRegionName           *string              `json:"sourceRegionName" gorm:"type:text"`
+	LifeCycleState             string               `json:"lifeCycleState"`
+	LifeCycleStateDetails      string               `json:"lifeCycleStateDetails" gorm:"type:text"`
+	BackupVaultType            string               `json:"backupVaultType" gorm:"type:varchar(255)"`
+	AccountVendorID            string               `json:"accountVendorID"`
+	Description                *string              `json:"description" gorm:"type:text"`
+	ImmutableAttributes        *ImmutableAttributes `gorm:"column:immutable_attributes;type:jsonb"`
+	CrossRegionBackupVaultName *string              `json:"crossRegionBackupVaultName" gorm:"type:text"`
+	BucketDetails              BucketDetailsArray   `gorm:"column:bucket_details;type:jsonb"`
+}
+
+type BucketDetails struct {
+	BucketName          string `json:"bucket_name"`
+	ServiceAccountName  string `json:"service_account_name"`
+	VendorSubnetID      string `json:"vendor_subnet_id"`
+	TenantProjectNumber string `json:"tenant_project_number"`
+}
+
+type BucketDetailsArray []*BucketDetails
+
+func (b *BucketDetailsArray) Scan(value interface{}) error {
+	bytes, ok := value.([]byte)
+	if !ok {
+		return errors.New("type assertion to []byte failed")
+	}
+	return json.Unmarshal(bytes, b)
+}
+
+func (b BucketDetailsArray) Value() (driver.Value, error) {
+	return json.Marshal(b)
+}
+
+type ImmutableAttributes struct {
+	BackupMinimumEnforcedRetentionDuration *int64 `json:"backupMinimumEnforcedRetentionDuration" gorm:"default:0"`
+	IsDailyBackupImmutable                 bool   `json:"isDailyBackupImmutable" gorm:"default:false"`
+	IsWeeklyBackupImmutable                bool   `json:"isWeeklyBackupImmutable" gorm:"default:false"`
+	IsMonthlyBackupImmutable               bool   `json:"isMonthlyBackupImmutable" gorm:"default:false"`
+	IsAdhocBackupImmutable                 bool   `json:"isAdhocBackupImmutable" gorm:"default:false"`
+}
+
+// Scan implements the sql.Scanner interface for ImmutableAttributes
+func (immutableAttributes *ImmutableAttributes) Scan(value interface{}) error {
+	bytes, ok := value.([]byte)
+	if !ok {
+		return errors.New("type assertion to []byte failed")
+	}
+	return json.Unmarshal(bytes, immutableAttributes)
+}
+
+// Value implements the driver.Valuer interface for ImmutableAttributes
+func (immutableAttributes ImmutableAttributes) Value() (driver.Value, error) {
+	return json.Marshal(immutableAttributes)
+}

@@ -385,3 +385,12 @@ func GetCoRelationIDFromContext(ctx context.Context) string {
 	}
 	return ""
 }
+
+func ConvertJsonToModel(jsonb []byte, model any) error {
+	err := json.Unmarshal(jsonb, &model)
+	if err != nil {
+		return errors.New(fmt.Sprintf("Failed to unmarshal json: %v", err))
+	}
+
+	return nil
+}

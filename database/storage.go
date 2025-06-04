@@ -94,6 +94,7 @@ func SetupInMemoryDB() (*gorm.DB, error) {
 		&datamodel.VolumeReplication{},
 		&datamodel.ServiceAccount{},
 		&datamodel.KmsConfig{},
+		&datamodel.BackupVault{},
 	)
 	if err != nil {
 		return nil, err
@@ -116,6 +117,7 @@ func ClearInMemoryDB(db *gorm.DB) error {
 		&datamodel.Snapshot{},
 		&datamodel.KmsConfig{},
 		&datamodel.ServiceAccount{},
+		&datamodel.BackupVault{},
 	}
 
 	for _, table := range tables {
@@ -630,4 +632,16 @@ func (s *PersistenceStore) UpdateServiceAccountEmailAndKey(ctx context.Context, 
 
 func (s *PersistenceStore) UpdateServiceAccountState(ctx context.Context, uuid string, state string, stateDetails string) (*datamodel.ServiceAccount, error) {
 	return s.dataStore.UpdateServiceAccountState(ctx, uuid, state, stateDetails)
+}
+
+func (s *PersistenceStore) GetBackupVaultByNameAndOwnerID(ctx context.Context, backupVaultId string, account_id string) (*datamodel.BackupVault, error) {
+	return s.dataStore.GetBackupVaultByNameAndOwnerID(ctx, backupVaultId, account_id)
+}
+
+func (s *PersistenceStore) CreatingBackupVault(ctx context.Context, bv *datamodel.BackupVault) (*datamodel.BackupVault, error) {
+	return s.dataStore.CreatingBackupVault(ctx, bv)
+}
+
+func (s *PersistenceStore) CreateBackupVault(ctx context.Context, backupVault *datamodel.BackupVault, vcpVault *datamodel.BackupVault) (*datamodel.BackupVault, error) {
+	return s.dataStore.CreateBackupVault(ctx, backupVault, vcpVault)
 }

@@ -703,3 +703,14 @@ func TestGetKmsConfigByUUIDReturnsErrorIfNotFound(t *testing.T) {
 	assert.Error(t, err)
 	assert.Nil(t, found)
 }
+
+func TestCreatingBackupVault(t *testing.T) {
+	logger := &log.MockLogger{}
+	store, _ := NewTestStorage(logger)
+	ctx := context.Background()
+	ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, logger)
+	bv := &datamodel.BackupVault{Name: "backupVault", Account: &datamodel.Account{}}
+	created, err := store.CreatingBackupVault(ctx, bv)
+	assert.NoError(t, err)
+	assert.NotNil(t, created)
+}

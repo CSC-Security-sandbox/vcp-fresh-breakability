@@ -34,7 +34,7 @@ func TestAcceptClusterPeer(t *testing.T) {
 			GeneratePassphrase: false,
 			Passphrase:         &pass,
 		}
-		getOrCreateAccount = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+		getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
 			return nil, errors.New("account not found")
 		}
 		_, _, err = acceptClusterPeer(ctx, store, temporal, params, "poolID")

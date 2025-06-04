@@ -7,6 +7,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	commonparams "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database"
+	gcpserver "github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/api/gcp-servergen"
 	"go.temporal.io/sdk/client"
 )
 
@@ -43,6 +44,9 @@ type OrchestratorFactory interface {
 
 	// KMS Config related methods
 	KmsConfigInterface
+
+	GetBackupVaultByNameAndOwnerID(ctx context.Context, bvName, ownerID string) (*models.BackupVaultV1beta, error)
+	CreateBackupVault(ctx context.Context, params *commonparams.BackupVaultParams, paramz gcpserver.V1betaCreateBackupVaultParams) (*models.BackupVaultV1beta, string, error)
 }
 
 type Orchestrator struct {
