@@ -170,37 +170,98 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 									return
 								}
 
-							case 'p': // Prefix: "pool/"
+							case 'p': // Prefix: "pool"
 
-								if l := len("pool/"); len(elem) >= l && elem[0:l] == "pool/" {
+								if l := len("pool"); len(elem) >= l && elem[0:l] == "pool" {
 									elem = elem[l:]
 								} else {
 									break
 								}
 
-								// Param: "poolName"
-								// Leaf parameter, slashes are prohibited
-								idx := strings.IndexByte(elem, '/')
-								if idx >= 0 {
+								if len(elem) == 0 {
 									break
 								}
-								args[2] = elem
-								elem = ""
+								switch elem[0] {
+								case '/': // Prefix: "/"
 
-								if len(elem) == 0 {
-									// Leaf node.
-									switch r.Method {
-									case "GET":
-										s.handleV1betaInternalDescribePoolRequest([3]string{
-											args[0],
-											args[1],
-											args[2],
-										}, elemIsEscaped, w, r)
-									default:
-										s.notAllowed(w, r, "GET")
+									if l := len("/"); len(elem) >= l && elem[0:l] == "/" {
+										elem = elem[l:]
+									} else {
+										break
 									}
 
-									return
+									// Param: "poolName"
+									// Leaf parameter, slashes are prohibited
+									idx := strings.IndexByte(elem, '/')
+									if idx >= 0 {
+										break
+									}
+									args[2] = elem
+									elem = ""
+
+									if len(elem) == 0 {
+										// Leaf node.
+										switch r.Method {
+										case "GET":
+											s.handleV1betaInternalDescribePoolRequest([3]string{
+												args[0],
+												args[1],
+												args[2],
+											}, elemIsEscaped, w, r)
+										default:
+											s.notAllowed(w, r, "GET")
+										}
+
+										return
+									}
+
+								case 's': // Prefix: "s/"
+
+									if l := len("s/"); len(elem) >= l && elem[0:l] == "s/" {
+										elem = elem[l:]
+									} else {
+										break
+									}
+
+									// Param: "poolId"
+									// Match until "/"
+									idx := strings.IndexByte(elem, '/')
+									if idx < 0 {
+										idx = len(elem)
+									}
+									args[2] = elem[:idx]
+									elem = elem[idx:]
+
+									if len(elem) == 0 {
+										break
+									}
+									switch elem[0] {
+									case '/': // Prefix: "/ReplicationJobs"
+
+										if l := len("/ReplicationJobs"); len(elem) >= l && elem[0:l] == "/ReplicationJobs" {
+											elem = elem[l:]
+										} else {
+											break
+										}
+
+										if len(elem) == 0 {
+											// Leaf node.
+											switch r.Method {
+											case "GET":
+												s.handleV1betaInternalGetReplicationJobsRequest([3]string{
+													args[0],
+													args[1],
+													args[2],
+												}, elemIsEscaped, w, r)
+											default:
+												s.notAllowed(w, r, "GET")
+											}
+
+											return
+										}
+
+									}
+
 								}
 
 							case 'v': // Prefix: "volumeReplication"
@@ -1882,37 +1943,98 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 									}
 								}
 
-							case 'p': // Prefix: "pool/"
+							case 'p': // Prefix: "pool"
 
-								if l := len("pool/"); len(elem) >= l && elem[0:l] == "pool/" {
+								if l := len("pool"); len(elem) >= l && elem[0:l] == "pool" {
 									elem = elem[l:]
 								} else {
 									break
 								}
 
-								// Param: "poolName"
-								// Leaf parameter, slashes are prohibited
-								idx := strings.IndexByte(elem, '/')
-								if idx >= 0 {
+								if len(elem) == 0 {
 									break
 								}
-								args[2] = elem
-								elem = ""
+								switch elem[0] {
+								case '/': // Prefix: "/"
 
-								if len(elem) == 0 {
-									// Leaf node.
-									switch method {
-									case "GET":
-										r.name = V1betaInternalDescribePoolOperation
-										r.summary = "Describe a pool"
-										r.operationID = "v1beta_internalDescribePool"
-										r.pathPattern = "/v1beta/internal/projects/{projectNumber}/locations/{locationId}/pool/{poolName}"
-										r.args = args
-										r.count = 3
-										return r, true
-									default:
-										return
+									if l := len("/"); len(elem) >= l && elem[0:l] == "/" {
+										elem = elem[l:]
+									} else {
+										break
 									}
+
+									// Param: "poolName"
+									// Leaf parameter, slashes are prohibited
+									idx := strings.IndexByte(elem, '/')
+									if idx >= 0 {
+										break
+									}
+									args[2] = elem
+									elem = ""
+
+									if len(elem) == 0 {
+										// Leaf node.
+										switch method {
+										case "GET":
+											r.name = V1betaInternalDescribePoolOperation
+											r.summary = "Describe a pool"
+											r.operationID = "v1beta_internalDescribePool"
+											r.pathPattern = "/v1beta/internal/projects/{projectNumber}/locations/{locationId}/pool/{poolName}"
+											r.args = args
+											r.count = 3
+											return r, true
+										default:
+											return
+										}
+									}
+
+								case 's': // Prefix: "s/"
+
+									if l := len("s/"); len(elem) >= l && elem[0:l] == "s/" {
+										elem = elem[l:]
+									} else {
+										break
+									}
+
+									// Param: "poolId"
+									// Match until "/"
+									idx := strings.IndexByte(elem, '/')
+									if idx < 0 {
+										idx = len(elem)
+									}
+									args[2] = elem[:idx]
+									elem = elem[idx:]
+
+									if len(elem) == 0 {
+										break
+									}
+									switch elem[0] {
+									case '/': // Prefix: "/ReplicationJobs"
+
+										if l := len("/ReplicationJobs"); len(elem) >= l && elem[0:l] == "/ReplicationJobs" {
+											elem = elem[l:]
+										} else {
+											break
+										}
+
+										if len(elem) == 0 {
+											// Leaf node.
+											switch method {
+											case "GET":
+												r.name = V1betaInternalGetReplicationJobsOperation
+												r.summary = "Get all the Replication Jobs for the Pool"
+												r.operationID = "v1beta_internalGetReplicationJobs"
+												r.pathPattern = "/v1beta/internal/projects/{projectNumber}/locations/{locationId}/pools/{poolId}/ReplicationJobs"
+												r.args = args
+												r.count = 3
+												return r, true
+											default:
+												return
+											}
+										}
+
+									}
+
 								}
 
 							case 'v': // Prefix: "volumeReplication"

@@ -3867,6 +3867,123 @@ func (s *HybridReplicationUserCommandsV1beta) SetCommands(val []string) {
 	s.Commands = val
 }
 
+// Ref: #/components/schemas/InternalJob_v1beta
+type InternalJobV1beta struct {
+	JobId         OptInt    `json:"JobId"`
+	JobUuid       OptString `json:"JobUuid"`
+	CorrelationId OptString `json:"CorrelationId"`
+	State         OptString `json:"State"`
+	StateDetails  OptString `json:"StateDetails"`
+	// Date of last update of the resource.
+	CreatedAt OptDateTime `json:"CreatedAt"`
+	// Date of last update of the resource.
+	UpdatedAt     OptDateTime `json:"UpdatedAt"`
+	JobType       OptString   `json:"JobType"`
+	ProjectNumber OptString   `json:"ProjectNumber"`
+	// Scheduled run date of the resource.
+	ScheduledAt OptDateTime `json:"ScheduledAt"`
+}
+
+// GetJobId returns the value of JobId.
+func (s *InternalJobV1beta) GetJobId() OptInt {
+	return s.JobId
+}
+
+// GetJobUuid returns the value of JobUuid.
+func (s *InternalJobV1beta) GetJobUuid() OptString {
+	return s.JobUuid
+}
+
+// GetCorrelationId returns the value of CorrelationId.
+func (s *InternalJobV1beta) GetCorrelationId() OptString {
+	return s.CorrelationId
+}
+
+// GetState returns the value of State.
+func (s *InternalJobV1beta) GetState() OptString {
+	return s.State
+}
+
+// GetStateDetails returns the value of StateDetails.
+func (s *InternalJobV1beta) GetStateDetails() OptString {
+	return s.StateDetails
+}
+
+// GetCreatedAt returns the value of CreatedAt.
+func (s *InternalJobV1beta) GetCreatedAt() OptDateTime {
+	return s.CreatedAt
+}
+
+// GetUpdatedAt returns the value of UpdatedAt.
+func (s *InternalJobV1beta) GetUpdatedAt() OptDateTime {
+	return s.UpdatedAt
+}
+
+// GetJobType returns the value of JobType.
+func (s *InternalJobV1beta) GetJobType() OptString {
+	return s.JobType
+}
+
+// GetProjectNumber returns the value of ProjectNumber.
+func (s *InternalJobV1beta) GetProjectNumber() OptString {
+	return s.ProjectNumber
+}
+
+// GetScheduledAt returns the value of ScheduledAt.
+func (s *InternalJobV1beta) GetScheduledAt() OptDateTime {
+	return s.ScheduledAt
+}
+
+// SetJobId sets the value of JobId.
+func (s *InternalJobV1beta) SetJobId(val OptInt) {
+	s.JobId = val
+}
+
+// SetJobUuid sets the value of JobUuid.
+func (s *InternalJobV1beta) SetJobUuid(val OptString) {
+	s.JobUuid = val
+}
+
+// SetCorrelationId sets the value of CorrelationId.
+func (s *InternalJobV1beta) SetCorrelationId(val OptString) {
+	s.CorrelationId = val
+}
+
+// SetState sets the value of State.
+func (s *InternalJobV1beta) SetState(val OptString) {
+	s.State = val
+}
+
+// SetStateDetails sets the value of StateDetails.
+func (s *InternalJobV1beta) SetStateDetails(val OptString) {
+	s.StateDetails = val
+}
+
+// SetCreatedAt sets the value of CreatedAt.
+func (s *InternalJobV1beta) SetCreatedAt(val OptDateTime) {
+	s.CreatedAt = val
+}
+
+// SetUpdatedAt sets the value of UpdatedAt.
+func (s *InternalJobV1beta) SetUpdatedAt(val OptDateTime) {
+	s.UpdatedAt = val
+}
+
+// SetJobType sets the value of JobType.
+func (s *InternalJobV1beta) SetJobType(val OptString) {
+	s.JobType = val
+}
+
+// SetProjectNumber sets the value of ProjectNumber.
+func (s *InternalJobV1beta) SetProjectNumber(val OptString) {
+	s.ProjectNumber = val
+}
+
+// SetScheduledAt sets the value of ScheduledAt.
+func (s *InternalJobV1beta) SetScheduledAt(val OptDateTime) {
+	s.ScheduledAt = val
+}
+
 // Ref: #/components/schemas/Job_v1beta
 type JobV1beta struct {
 	// Uuid v4 used to identify the job.
@@ -15010,6 +15127,54 @@ type V1betaInternalDescribeVolumeReplicationUnprocessableEntity Error
 
 func (*V1betaInternalDescribeVolumeReplicationUnprocessableEntity) v1betaInternalDescribeVolumeReplicationRes() {
 }
+
+type V1betaInternalGetReplicationJobsBadRequest Error
+
+func (*V1betaInternalGetReplicationJobsBadRequest) v1betaInternalGetReplicationJobsRes() {}
+
+type V1betaInternalGetReplicationJobsConflict Error
+
+func (*V1betaInternalGetReplicationJobsConflict) v1betaInternalGetReplicationJobsRes() {}
+
+type V1betaInternalGetReplicationJobsForbidden Error
+
+func (*V1betaInternalGetReplicationJobsForbidden) v1betaInternalGetReplicationJobsRes() {}
+
+type V1betaInternalGetReplicationJobsInternalServerError Error
+
+func (*V1betaInternalGetReplicationJobsInternalServerError) v1betaInternalGetReplicationJobsRes() {}
+
+type V1betaInternalGetReplicationJobsMethodNotAllowed Error
+
+func (*V1betaInternalGetReplicationJobsMethodNotAllowed) v1betaInternalGetReplicationJobsRes() {}
+
+type V1betaInternalGetReplicationJobsNotFound Error
+
+func (*V1betaInternalGetReplicationJobsNotFound) v1betaInternalGetReplicationJobsRes() {}
+
+type V1betaInternalGetReplicationJobsOK struct {
+	Jobs []InternalJobV1beta `json:"jobs"`
+}
+
+// GetJobs returns the value of Jobs.
+func (s *V1betaInternalGetReplicationJobsOK) GetJobs() []InternalJobV1beta {
+	return s.Jobs
+}
+
+// SetJobs sets the value of Jobs.
+func (s *V1betaInternalGetReplicationJobsOK) SetJobs(val []InternalJobV1beta) {
+	s.Jobs = val
+}
+
+func (*V1betaInternalGetReplicationJobsOK) v1betaInternalGetReplicationJobsRes() {}
+
+type V1betaInternalGetReplicationJobsUnauthorized Error
+
+func (*V1betaInternalGetReplicationJobsUnauthorized) v1betaInternalGetReplicationJobsRes() {}
+
+type V1betaInternalGetReplicationJobsUnprocessableEntity Error
+
+func (*V1betaInternalGetReplicationJobsUnprocessableEntity) v1betaInternalGetReplicationJobsRes() {}
 
 type V1betaInternalReleaseVolumeReplicationBadRequest Error
 

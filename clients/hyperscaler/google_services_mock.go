@@ -4,7 +4,6 @@ package hyperscaler
 
 import (
 	context "context"
-
 	mock "github.com/stretchr/testify/mock"
 	log "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 	models "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/hyperscaler/models"

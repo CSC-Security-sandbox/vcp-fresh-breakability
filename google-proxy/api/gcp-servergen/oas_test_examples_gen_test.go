@@ -1298,6 +1298,18 @@ func TestHybridReplicationUserCommandsV1beta_EncodeDecode(t *testing.T) {
 	var typ2 HybridReplicationUserCommandsV1beta
 	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
 }
+func TestInternalJobV1beta_EncodeDecode(t *testing.T) {
+	var typ InternalJobV1beta
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 InternalJobV1beta
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
 func TestJobV1beta_EncodeDecode(t *testing.T) {
 	var typ JobV1beta
 	typ.SetFake()
@@ -6903,6 +6915,114 @@ func TestV1betaInternalDescribeVolumeReplicationUnprocessableEntity_EncodeDecode
 	require.True(t, std.Valid(data), "Encoded: %s", data)
 
 	var typ2 V1betaInternalDescribeVolumeReplicationUnprocessableEntity
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1betaInternalGetReplicationJobsBadRequest_EncodeDecode(t *testing.T) {
+	var typ V1betaInternalGetReplicationJobsBadRequest
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaInternalGetReplicationJobsBadRequest
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1betaInternalGetReplicationJobsConflict_EncodeDecode(t *testing.T) {
+	var typ V1betaInternalGetReplicationJobsConflict
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaInternalGetReplicationJobsConflict
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1betaInternalGetReplicationJobsForbidden_EncodeDecode(t *testing.T) {
+	var typ V1betaInternalGetReplicationJobsForbidden
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaInternalGetReplicationJobsForbidden
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1betaInternalGetReplicationJobsInternalServerError_EncodeDecode(t *testing.T) {
+	var typ V1betaInternalGetReplicationJobsInternalServerError
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaInternalGetReplicationJobsInternalServerError
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1betaInternalGetReplicationJobsMethodNotAllowed_EncodeDecode(t *testing.T) {
+	var typ V1betaInternalGetReplicationJobsMethodNotAllowed
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaInternalGetReplicationJobsMethodNotAllowed
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1betaInternalGetReplicationJobsNotFound_EncodeDecode(t *testing.T) {
+	var typ V1betaInternalGetReplicationJobsNotFound
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaInternalGetReplicationJobsNotFound
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1betaInternalGetReplicationJobsOK_EncodeDecode(t *testing.T) {
+	var typ V1betaInternalGetReplicationJobsOK
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaInternalGetReplicationJobsOK
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1betaInternalGetReplicationJobsUnauthorized_EncodeDecode(t *testing.T) {
+	var typ V1betaInternalGetReplicationJobsUnauthorized
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaInternalGetReplicationJobsUnauthorized
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1betaInternalGetReplicationJobsUnprocessableEntity_EncodeDecode(t *testing.T) {
+	var typ V1betaInternalGetReplicationJobsUnprocessableEntity
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaInternalGetReplicationJobsUnprocessableEntity
 	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
 }
 func TestV1betaInternalReleaseVolumeReplicationBadRequest_EncodeDecode(t *testing.T) {

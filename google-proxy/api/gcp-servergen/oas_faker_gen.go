@@ -1538,6 +1538,60 @@ func (s *HybridReplicationUserCommandsV1beta) SetFake() {
 }
 
 // SetFake set fake values.
+func (s *InternalJobV1beta) SetFake() {
+	{
+		{
+			s.JobId.SetFake()
+		}
+	}
+	{
+		{
+			s.JobUuid.SetFake()
+		}
+	}
+	{
+		{
+			s.CorrelationId.SetFake()
+		}
+	}
+	{
+		{
+			s.State.SetFake()
+		}
+	}
+	{
+		{
+			s.StateDetails.SetFake()
+		}
+	}
+	{
+		{
+			s.CreatedAt.SetFake()
+		}
+	}
+	{
+		{
+			s.UpdatedAt.SetFake()
+		}
+	}
+	{
+		{
+			s.JobType.SetFake()
+		}
+	}
+	{
+		{
+			s.ProjectNumber.SetFake()
+		}
+	}
+	{
+		{
+			s.ScheduledAt.SetFake()
+		}
+	}
+}
+
+// SetFake set fake values.
 func (s *JobV1beta) SetFake() {
 	{
 		{
@@ -6942,6 +6996,94 @@ func (s *V1betaInternalDescribeVolumeReplicationUnprocessableEntity) SetFake() {
 		unwrapped.SetFake()
 	}
 	*s = V1betaInternalDescribeVolumeReplicationUnprocessableEntity(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaInternalGetReplicationJobsBadRequest) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaInternalGetReplicationJobsBadRequest(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaInternalGetReplicationJobsConflict) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaInternalGetReplicationJobsConflict(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaInternalGetReplicationJobsForbidden) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaInternalGetReplicationJobsForbidden(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaInternalGetReplicationJobsInternalServerError) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaInternalGetReplicationJobsInternalServerError(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaInternalGetReplicationJobsMethodNotAllowed) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaInternalGetReplicationJobsMethodNotAllowed(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaInternalGetReplicationJobsNotFound) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaInternalGetReplicationJobsNotFound(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaInternalGetReplicationJobsOK) SetFake() {
+	{
+		{
+			s.Jobs = nil
+			for i := 0; i < 0; i++ {
+				var elem InternalJobV1beta
+				{
+					elem.SetFake()
+				}
+				s.Jobs = append(s.Jobs, elem)
+			}
+		}
+	}
+}
+
+// SetFake set fake values.
+func (s *V1betaInternalGetReplicationJobsUnauthorized) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaInternalGetReplicationJobsUnauthorized(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaInternalGetReplicationJobsUnprocessableEntity) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaInternalGetReplicationJobsUnprocessableEntity(unwrapped)
 }
 
 // SetFake set fake values.

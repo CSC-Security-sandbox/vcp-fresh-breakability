@@ -233,3 +233,84 @@ func TestInternalCreateVolumeReplication(t *testing.T) {
 		assert.Equal(tt, expectedResponse, actualResp)
 	})
 }
+
+func TestV1betaInternalGetReplicationJobs(t *testing.T) {
+	t.Run("ReturnsInternalServerErrorWhenGetReplicationJobsFails", func(tt *testing.T) {
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+
+		mockOrchestrator.EXPECT().GetReplicationJobs(mock.Anything, "test-project", "test-pool").Return(nil, errors.New("some error"))
+		handler := Handler{
+			Orchestrator: mockOrchestrator,
+		}
+		params := gcpgenserver.V1betaInternalGetReplicationJobsParams{
+			ProjectNumber: "test-project",
+			PoolId:        "test-pool",
+			LocationId:    "test-location",
+		}
+		resp, err := handler.V1betaInternalGetReplicationJobs(context.Background(), params)
+		assert.Error(tt, err)
+		assert.Equal(tt, "some error", err.Error())
+		assert.IsType(tt, &gcpgenserver.V1betaInternalGetReplicationJobsInternalServerError{}, resp)
+	})
+	t.Run("ReturnsEmptyListWhenNoReplicationJobsExist", func(tt *testing.T) {
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+
+		mockOrchestrator.EXPECT().GetReplicationJobs(mock.Anything, "test-project", "test-pool").Return([]*models.Job{}, nil)
+		handler := Handler{
+			Orchestrator: mockOrchestrator,
+		}
+		params := gcpgenserver.V1betaInternalGetReplicationJobsParams{
+			ProjectNumber: "test-project",
+			PoolId:        "test-pool",
+			LocationId:    "test-location",
+		}
+		resp, err := handler.V1betaInternalGetReplicationJobs(context.Background(), params)
+		assert.NoError(tt, err)
+		assert.IsType(tt, &gcpgenserver.V1betaInternalGetReplicationJobsOK{}, resp)
+		assert.Empty(tt, resp.(*gcpgenserver.V1betaInternalGetReplicationJobsOK).Jobs)
+	})
+	t.Run("ReturnsReplicationJobsWhenTheyExist", func(tt *testing.T) {
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		jobs := []*models.Job{
+			{
+				BaseModel: models.BaseModel{
+					UUID:      "job-uuid-1",
+					CreatedAt: time.Now(),
+					UpdatedAt: time.Now(),
+				},
+				CorrelationID: "correlation-id-1",
+				State:         "COMPLETED",
+				Type:          "REPLICATION",
+				ScheduledAt:   time.Now(),
+			},
+			{
+				BaseModel: models.BaseModel{
+					UUID:      "job-uuid-2",
+					CreatedAt: time.Now(),
+					UpdatedAt: time.Now(),
+				},
+				CorrelationID: "correlation-id-2",
+				State:         "FAILED",
+				Type:          "REPLICATION",
+
+				ScheduledAt: time.Now(),
+			},
+		}
+
+		mockOrchestrator.EXPECT().GetReplicationJobs(mock.Anything, "test-project", "test-pool").Return(jobs, nil)
+		handler := Handler{
+			Orchestrator: mockOrchestrator,
+		}
+		params := gcpgenserver.V1betaInternalGetReplicationJobsParams{
+			ProjectNumber: "test-project",
+			PoolId:        "test-pool",
+			LocationId:    "test-location",
+		}
+		resp, err := handler.V1betaInternalGetReplicationJobs(context.Background(), params)
+		assert.NoError(tt, err)
+		assert.IsType(tt, &gcpgenserver.V1betaInternalGetReplicationJobsOK{}, resp)
+		assert.Len(tt, resp.(*gcpgenserver.V1betaInternalGetReplicationJobsOK).Jobs, 2)
+		assert.Equal(tt, "job-uuid-1", resp.(*gcpgenserver.V1betaInternalGetReplicationJobsOK).Jobs[0].JobUuid.Value)
+		assert.Equal(tt, "job-uuid-2", resp.(*gcpgenserver.V1betaInternalGetReplicationJobsOK).Jobs[1].JobUuid.Value)
+	})
+}

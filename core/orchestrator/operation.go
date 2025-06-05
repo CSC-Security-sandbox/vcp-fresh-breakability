@@ -5,6 +5,23 @@ import (
 
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
+)
+
+var (
+	replicationJobTypes = []string{
+		string(models.JobTypeCreateVolumeReplication),
+		string(models.JobTypeDeleteVolumeReplication),
+		string(models.JobTypeUpdateVolumeReplication),
+		string(models.JobTypeResumeVolumeReplication),
+		string(models.JobTypeReverseResumeVolumeReplication),
+		string(models.JobTypeStopVolumeReplication),
+	}
+	scheduledJobTypes = []string{
+		string(models.JobsStateNEW),
+		string(models.JobsStatePROCESSING),
+	}
 )
 
 // GetJob gets the specified long-running job status
@@ -17,9 +34,37 @@ func (o *Orchestrator) GetJob(ctx context.Context, operationId string) (*models.
 	return convertDatastoreOperationToModel(job), nil
 }
 
+func (o *Orchestrator) GetReplicationJobs(ctx context.Context, projectName, poolUUID string) ([]*models.Job, error) {
+	logger := util.GetLogger(ctx)
+	se := o.storage
+	account, err := se.GetAccount(ctx, projectName)
+	if err != nil {
+		return nil, err
+	}
+	filter := utils.CreateFilterWithConditions([]*utils.FilterCondition{
+		utils.NewFilterCondition().WithConditions("account_id", "=", account.ID),
+		utils.NewFilterCondition().WithConditions("type", "in", replicationJobTypes),
+		utils.NewFilterCondition().WithConditions("state", "in", scheduledJobTypes),
+	})
+
+	dbJobs, err := se.GetJobsWithCondition(ctx, *filter)
+	if err != nil {
+		logger.Errorf("Failed to get jobs with conditions: %v. Error: %v", filter, err)
+		return nil, err
+	}
+	var jobs []*models.Job
+	for _, job := range dbJobs {
+		if job.JobAttributes != nil && job.JobAttributes.PoolUUID == poolUUID {
+			jobs = append(jobs, convertDatastoreOperationToModel(job))
+		}
+	}
+	return jobs, nil
+}
+
 func convertDatastoreOperationToModel(job *datamodel.Job) *models.Job {
-	return &models.Job{
+	modelJob := &models.Job{
 		BaseModel: models.BaseModel{
+			ID:        job.ID,
 			UUID:      job.UUID,
 			CreatedAt: job.CreatedAt,
 			UpdatedAt: job.UpdatedAt,
@@ -29,8 +74,12 @@ func convertDatastoreOperationToModel(job *datamodel.Job) *models.Job {
 		TrackingID:    job.TrackingID,
 		Type:          models.JobType(job.Type),
 		State:         models.JobState(job.State),
-		JobAttributes: &models.JobAttributes{
-			ResourceUUID: job.JobAttributes.ResourceUUID,
-		},
+		JobAttributes: &models.JobAttributes{},
 	}
+
+	if job.JobAttributes != nil {
+		modelJob.JobAttributes.ResourceUUID = job.JobAttributes.ResourceUUID
+		modelJob.JobAttributes.PoolUUID = job.JobAttributes.PoolUUID
+	}
+	return modelJob
 }

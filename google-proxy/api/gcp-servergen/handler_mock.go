@@ -2748,6 +2748,65 @@ func (_c *MockHandler_V1betaInternalDescribeVolumeReplication_Call) RunAndReturn
 	return _c
 }
 
+// V1betaInternalGetReplicationJobs provides a mock function with given fields: ctx, params
+func (_m *MockHandler) V1betaInternalGetReplicationJobs(ctx context.Context, params V1betaInternalGetReplicationJobsParams) (V1betaInternalGetReplicationJobsRes, error) {
+	ret := _m.Called(ctx, params)
+
+	if len(ret) == 0 {
+		panic("no return value specified for V1betaInternalGetReplicationJobs")
+	}
+
+	var r0 V1betaInternalGetReplicationJobsRes
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, V1betaInternalGetReplicationJobsParams) (V1betaInternalGetReplicationJobsRes, error)); ok {
+		return rf(ctx, params)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, V1betaInternalGetReplicationJobsParams) V1betaInternalGetReplicationJobsRes); ok {
+		r0 = rf(ctx, params)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(V1betaInternalGetReplicationJobsRes)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, V1betaInternalGetReplicationJobsParams) error); ok {
+		r1 = rf(ctx, params)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockHandler_V1betaInternalGetReplicationJobs_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'V1betaInternalGetReplicationJobs'
+type MockHandler_V1betaInternalGetReplicationJobs_Call struct {
+	*mock.Call
+}
+
+// V1betaInternalGetReplicationJobs is a helper method to define mock.On call
+//   - ctx context.Context
+//   - params V1betaInternalGetReplicationJobsParams
+func (_e *MockHandler_Expecter) V1betaInternalGetReplicationJobs(ctx interface{}, params interface{}) *MockHandler_V1betaInternalGetReplicationJobs_Call {
+	return &MockHandler_V1betaInternalGetReplicationJobs_Call{Call: _e.mock.On("V1betaInternalGetReplicationJobs", ctx, params)}
+}
+
+func (_c *MockHandler_V1betaInternalGetReplicationJobs_Call) Run(run func(ctx context.Context, params V1betaInternalGetReplicationJobsParams)) *MockHandler_V1betaInternalGetReplicationJobs_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(V1betaInternalGetReplicationJobsParams))
+	})
+	return _c
+}
+
+func (_c *MockHandler_V1betaInternalGetReplicationJobs_Call) Return(_a0 V1betaInternalGetReplicationJobsRes, _a1 error) *MockHandler_V1betaInternalGetReplicationJobs_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockHandler_V1betaInternalGetReplicationJobs_Call) RunAndReturn(run func(context.Context, V1betaInternalGetReplicationJobsParams) (V1betaInternalGetReplicationJobsRes, error)) *MockHandler_V1betaInternalGetReplicationJobs_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // V1betaInternalReleaseVolumeReplication provides a mock function with given fields: ctx, params
 func (_m *MockHandler) V1betaInternalReleaseVolumeReplication(ctx context.Context, params V1betaInternalReleaseVolumeReplicationParams) (V1betaInternalReleaseVolumeReplicationRes, error) {
 	ret := _m.Called(ctx, params)

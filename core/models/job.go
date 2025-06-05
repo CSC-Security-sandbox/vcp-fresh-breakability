@@ -29,6 +29,12 @@ const (
 	JobTypeCreateKmsConfig                 JobType = "CREATE_KMS_CONFIG"
 	JobTypeCreateVolumeReplicationInternal JobType = "CREATE_VOLUME_REPLICATION_INTERNAL"
 	JobTypeCreateBackupVault               JobType = "CREATE_BACKUP_VAULT"
+	JobTypeCreateVolumeReplication         JobType = "CREATE_VOLUME_REPLICATION"
+	JobTypeDeleteVolumeReplication         JobType = "DELETE_VOLUME_REPLICATION"
+	JobTypeUpdateVolumeReplication         JobType = "UPDATE_VOLUME_REPLICATION"
+	JobTypeResumeVolumeReplication         JobType = "RESUME_VOLUME_REPLICATION"
+	JobTypeReverseResumeVolumeReplication  JobType = "REVERSE_RESUME_VOLUME_REPLICATION"
+	JobTypeStopVolumeReplication           JobType = "STOP_VOLUME_REPLICATION"
 )
 
 // Job describes a job DB model
@@ -49,4 +55,5 @@ type Job struct {
 }
 type JobAttributes struct {
 	ResourceUUID string
+	PoolUUID     string
 }

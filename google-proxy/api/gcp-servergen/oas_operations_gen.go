@@ -51,6 +51,7 @@ const (
 	V1betaInternalDeleteVolumeReplicationOperation    OperationName = "V1betaInternalDeleteVolumeReplication"
 	V1betaInternalDescribePoolOperation               OperationName = "V1betaInternalDescribePool"
 	V1betaInternalDescribeVolumeReplicationOperation  OperationName = "V1betaInternalDescribeVolumeReplication"
+	V1betaInternalGetReplicationJobsOperation         OperationName = "V1betaInternalGetReplicationJobs"
 	V1betaInternalReleaseVolumeReplicationOperation   OperationName = "V1betaInternalReleaseVolumeReplication"
 	V1betaInternalResumeVolumeReplicationOperation    OperationName = "V1betaInternalResumeVolumeReplication"
 	V1betaInternalStopVolumeReplicationOperation      OperationName = "V1betaInternalStopVolumeReplication"

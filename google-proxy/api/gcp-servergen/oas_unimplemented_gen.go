@@ -427,6 +427,15 @@ func (UnimplementedHandler) V1betaInternalDescribeVolumeReplication(ctx context.
 	return r, ht.ErrNotImplemented
 }
 
+// V1betaInternalGetReplicationJobs implements v1beta_internalGetReplicationJobs operation.
+//
+// Returns the list of Replication Jobs for the given pool.
+//
+// GET /v1beta/internal/projects/{projectNumber}/locations/{locationId}/pools/{poolId}/ReplicationJobs
+func (UnimplementedHandler) V1betaInternalGetReplicationJobs(ctx context.Context, params V1betaInternalGetReplicationJobsParams) (r V1betaInternalGetReplicationJobsRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
 // V1betaInternalReleaseVolumeReplication implements v1beta_internalReleaseVolumeReplication operation.
 //
 // Release a volume replication on the source.

@@ -1691,7 +1691,7 @@ paths:
         content:
           application/json:
             schema:
-             $ref: '#/components/schemas/ReplicationCreate_v1beta'
+              $ref: '#/components/schemas/ReplicationCreate_v1beta'
         required: true
       responses:
         '202':
@@ -3370,27 +3370,27 @@ paths:
                         items:
                           $ref: '#/components/schemas/KmsConfig_v1beta'
               example:
-                  kmsConfigurations:
-                    - kmsConfigId: 9760acf5-4638-11e7-9bdb-020073ca3333
-                      resourceId: kms-config-1
-                      description: This is KMS configuration policy 1
-                      createdTime: '2017-01-29T09:10:32.212Z'
-                      updatedTime: '2017-01-29T09:10:32.212Z'
-                      keyFullPath: projects/vsa-project-01/locations/global/keyRings/keyRingName/cryptoKeys/keyName
-                      kmsState: READY
-                      kmsStateDetails: KMS config is ready for use
-                      serviceAccountEmail: user1@user1.iam.gserviceaccount.com
-                      instructions: Please copy and paste the commands listed below into Google Cloud Shell...
-                    - kmsConfigId: 9760acf5-4638-11e7-9bdb-020073ca4444
-                      resourceId: kms-config-2
-                      description: This is KMS configuration policy 2
-                      createdTime: '2017-01-28T09:10:32.212Z'
-                      updatedTime: '2017-01-28T09:10:32.212Z'
-                      keyFullPath: projects/vsa-project-02/locations/us-central1/keyRings/keyRingName/cryptoKeys/keyName
-                      kmsState: IN_USE
-                      kmsStateDetails: KMS config is in use
-                      serviceAccountEmail: user2@user2.iam.gserviceaccount.com
-                      instructions: Please copy and paste the commands listed below into Google Cloud Shell...
+                kmsConfigurations:
+                  - kmsConfigId: 9760acf5-4638-11e7-9bdb-020073ca3333
+                    resourceId: kms-config-1
+                    description: This is KMS configuration policy 1
+                    createdTime: '2017-01-29T09:10:32.212Z'
+                    updatedTime: '2017-01-29T09:10:32.212Z'
+                    keyFullPath: projects/vsa-project-01/locations/global/keyRings/keyRingName/cryptoKeys/keyName
+                    kmsState: READY
+                    kmsStateDetails: KMS config is ready for use
+                    serviceAccountEmail: user1@user1.iam.gserviceaccount.com
+                    instructions: Please copy and paste the commands listed below into Google Cloud Shell...
+                  - kmsConfigId: 9760acf5-4638-11e7-9bdb-020073ca4444
+                    resourceId: kms-config-2
+                    description: This is KMS configuration policy 2
+                    createdTime: '2017-01-28T09:10:32.212Z'
+                    updatedTime: '2017-01-28T09:10:32.212Z'
+                    keyFullPath: projects/vsa-project-02/locations/us-central1/keyRings/keyRingName/cryptoKeys/keyName
+                    kmsState: IN_USE
+                    kmsStateDetails: KMS config is in use
+                    serviceAccountEmail: user2@user2.iam.gserviceaccount.com
+                    instructions: Please copy and paste the commands listed below into Google Cloud Shell...
         '400':
           $ref: '#/components/responses/StandardError-400'
         '401':
@@ -4301,6 +4301,54 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/PoolInternal_v1beta'
+        '400':
+          $ref: '#/components/responses/StandardError-400'
+        '401':
+          $ref: '#/components/responses/StandardError-401'
+        '403':
+          $ref: '#/components/responses/StandardError-403'
+        '404':
+          $ref: '#/components/responses/StandardError-404'
+        '405':
+          $ref: '#/components/responses/StandardError-405'
+        '409':
+          $ref: '#/components/responses/StandardError-409'
+        '422':
+          $ref: '#/components/responses/StandardError-422'
+        '500':
+          $ref: '#/components/responses/StandardError-500'
+        default:
+          description: Unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      x-codegen-request-body-name: body
+  /v1beta/internal/projects/{projectNumber}/locations/{locationId}/pools/{poolId}/ReplicationJobs:
+    get:
+      operationId: v1beta_internalGetReplicationJobs
+      summary: Get all the Replication Jobs for the Pool
+      description: Returns the list of Replication Jobs for the given pool.
+      tags:
+        - v1Beta_internal
+      parameters:
+        - $ref: '#/components/parameters/projectNumberPathParameter'
+        - $ref: '#/components/parameters/locationIdPathParameter'
+        - $ref: '#/components/parameters/poolIdPathParameter'
+        - $ref: '#/components/parameters/xCorrelationIdHeader'
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - type: object
+                    properties:
+                      jobs:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/InternalJob_v1beta'
         '400':
           $ref: '#/components/responses/StandardError-400'
         '401':
@@ -7525,6 +7573,56 @@ components:
           description: Details about the current job state
           readOnly: true
           example: Error creating snapshot - operation timed out
+    InternalJob_v1beta:
+      title: ReplicationJob
+      type: object
+      properties:
+        JobUuid:
+          title: JobUuid
+          type: string
+          x-nullable: false
+          pattern: >-
+            ^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$
+          maxLength: 36
+          minLength: 36
+        CorrelationId:
+          title: CorrelationId
+          type: string
+          x-nullable: false
+        State:
+          title: State
+          type: string
+        StateDetails:
+          title: StateDetails
+          type: string
+          x-nullable: false
+        CreatedAt:
+          title: CreatedAt
+          type: string
+          format: date-time
+          readOnly: true
+          description: Date of last update of the resource
+          example: '2016-11-29T20:32:50.459Z'
+        UpdatedAt:
+          title: UpdatedAt
+          type: string
+          format: date-time
+          readOnly: true
+          description: Date of last update of the resource
+          example: '2016-11-29T20:32:50.459Z'
+        JobType:
+          title: JobType
+          type: string
+        ProjectNumber:
+          title: ProjectNumber
+          type: string
+        ScheduledAt:
+          title: ScheduledAt
+          type: string
+          format: date-time
+          readOnly: true
+          description: Scheduled run date of the resource
+          example: '2016-11-30T20:32:50.459Z'
     KmsConfigCheck_v1beta:
       type: object
       title: KmsConfigCheck

@@ -158,3 +158,36 @@ func prepareCreateVolumeReplicationParams(req *gcpgenserver.VolumeReplicationCre
 
 	return param
 }
+
+func (h Handler) V1betaInternalGetReplicationJobs(ctx context.Context, params gcpgenserver.V1betaInternalGetReplicationJobsParams) (gcpgenserver.V1betaInternalGetReplicationJobsRes, error) {
+	logger := util.GetLogger(ctx)
+	helper.AddLabelerAttributes(ctx, params.ProjectNumber, params.LocationId)
+	jobs, err := h.Orchestrator.GetReplicationJobs(ctx, params.ProjectNumber, params.PoolId)
+	if err != nil {
+		logger.Error("Failed to get replication jobs", "error", err.Error())
+		return &gcpgenserver.V1betaInternalGetReplicationJobsInternalServerError{
+			Code:    500,
+			Message: "Internal server error while getting replication jobs",
+		}, err
+	}
+	jobsList := make([]gcpgenserver.InternalJobV1beta, 0, len(jobs))
+	for _, job := range jobs {
+		jobsList = append(jobsList, convertJobToInternalJobV1Beta(job))
+	}
+	return &gcpgenserver.V1betaInternalGetReplicationJobsOK{
+		Jobs: jobsList,
+	}, nil
+}
+
+func convertJobToInternalJobV1Beta(job *models.Job) gcpgenserver.InternalJobV1beta {
+	return gcpgenserver.InternalJobV1beta{
+		JobUuid:       gcpgenserver.NewOptString(job.UUID),
+		CorrelationId: gcpgenserver.NewOptString(job.CorrelationID),
+		State:         gcpgenserver.NewOptString(string(job.State)),
+		StateDetails:  gcpgenserver.NewOptString(job.StateDetails),
+		JobType:       gcpgenserver.NewOptString(string(job.Type)),
+		CreatedAt:     gcpgenserver.NewOptDateTime(job.CreatedAt),
+		UpdatedAt:     gcpgenserver.NewOptDateTime(job.UpdatedAt),
+		ScheduledAt:   gcpgenserver.NewOptDateTime(job.ScheduledAt),
+	}
+}

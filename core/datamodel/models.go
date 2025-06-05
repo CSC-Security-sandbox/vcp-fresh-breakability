@@ -196,6 +196,7 @@ type Job struct {
 
 type JobAttributes struct {
 	ResourceUUID string `json:"resource_uuid"`
+	PoolUUID     string `json:"pool_uuid"`
 }
 
 // Scan method for JobAttributes to handle JSONB data
