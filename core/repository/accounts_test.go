@@ -2,6 +2,7 @@ package repository
 
 import (
 	"context"
+	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -45,7 +46,10 @@ func TestGetAccount(t *testing.T) {
 		assert.NoError(tt, err, "Failed to clean up test database")
 
 		_, err = store.GetAccount(context.Background(), "non-existent-account")
-		assert.EqualError(tt, err, "account not found")
+		var customErr *vsaerrors.CustomError
+		if vsaerrors.As(err, &customErr) {
+			assert.EqualError(tt, err, "[0] undefined error: account not found")
+		}
 	})
 }
 

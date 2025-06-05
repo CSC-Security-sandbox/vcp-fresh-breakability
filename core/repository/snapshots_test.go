@@ -2,6 +2,7 @@ package repository
 
 import (
 	"context"
+	"errors"
 	"gorm.io/gorm"
 	"testing"
 
@@ -369,6 +370,27 @@ func TestDeleteSnapshot(t *testing.T) {
 			tt.Errorf("Expected error %v, got %v", gorm.ErrRecordNotFound, err)
 		}
 	})
+	t.Run("ReturnsErrorWhenSnapshotIsNotFound", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err, "Failed to set up test database")
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err, "Failed to clean up test database")
+
+		// Mock startTransaction to return an error
+		origStartTransaction := startTransaction
+		startTransaction = func(db *gorm.DB) (*gorm.DB, error) {
+			return nil, errors.New("failed to start transaction")
+		}
+		defer func() { startTransaction = origStartTransaction }()
+
+		deletedSnapshot, err := store.DeleteSnapshot(context.Background(), "non-existent-uuid")
+		assert.Nil(tt, deletedSnapshot, "Expected nil snapshot, got %v", deletedSnapshot)
+		assert.Error(tt, err, "Expected error when snapshot does not exist")
+		assert.ErrorContains(tt, err, "failed to start transaction")
+	})
 }
 
 func TestDeletingSnapshot(t *testing.T) {
@@ -601,5 +623,20 @@ func TestGetSnapshotsWithConditions(t *testing.T) {
 		snapshots, err := store.GetSnapshotsWithCondition(ctx, *filter)
 		assert.NoError(tt, err, "Expected no error, got %v", err)
 		assert.Len(tt, snapshots, 0, "Expected 0 snapshots, got %d", len(snapshots))
+	})
+	t.Run("WhenFilterConditionsAreInvalid", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(t, err, "Failed to set up test database")
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(t, err, "Failed to clean up test database")
+
+		filter := utils.CreateFilterWithConditions([]*utils.FilterCondition{
+			utils.NewFilterCondition().WithConditions("account", "=", 999),
+		})
+
+		_, err = store.GetSnapshotsWithCondition(context.Background(), *filter)
+		assert.Error(t, err)
 	})
 }

@@ -5,6 +5,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
+	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database"
 	customerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
@@ -109,7 +110,11 @@ func TestGetMultipleHostGroups(t *testing.T) {
 		}
 
 		hgResp, err := orch.GetMultipleHostGroups(ctx, "account", []string{})
-		assert.EqualError(tt, err, "account not found")
+		var customErr *vsaerrors.CustomError
+		if vsaerrors.As(err, &customErr) {
+			assert.EqualError(tt, err, "[0] undefined error: account not found")
+		}
+
 		assert.Len(tt, hgResp, 0)
 	})
 	t.Run("WhenGetMultipleHostGroupsSuccess", func(tt *testing.T) {

@@ -122,3 +122,19 @@ func TestDeleteSnapshotInONTAP_Failure(t *testing.T) {
 	assert.EqualError(t, err, expectedError.Error())
 	mockProvider.AssertExpectations(t)
 }
+
+func TestUpdateDeleteSnapshotDetails_Failure(t *testing.T) {
+	mockStorage := database.NewMockStorage(t)
+	activity := activities.SnapshotDeleteActivity{SE: mockStorage}
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	snapshot := &datamodel.Snapshot{BaseModel: datamodel.BaseModel{UUID: "test-snapshot-id"}}
+	expectedError := errors.New("update failed")
+
+	mockStorage.On("UpdateSnapshot", ctx, snapshot).Return(nil, expectedError)
+
+	err := activity.UpdateDeleteSnapshotDetails(ctx, snapshot)
+
+	assert.Error(t, err)
+	assert.EqualError(t, err, expectedError.Error())
+	mockStorage.AssertExpectations(t)
+}

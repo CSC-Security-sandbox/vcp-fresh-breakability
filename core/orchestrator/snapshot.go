@@ -3,10 +3,8 @@ package orchestrator
 import (
 	"context"
 	"database/sql"
-	"errors"
-	"gorm.io/gorm"
-
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
+	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/workflows"
@@ -43,13 +41,13 @@ func _createSnapshot(ctx context.Context, se database.Storage, temporal client.C
 	account, err := se.GetAccount(ctx, params.AccountName)
 	if err != nil {
 		logger.Errorf("Failed to get account: %s. Error: %v", params.AccountName, err)
-		return nil, "", customerrors.NewNotFoundErr("account", &params.AccountName)
+		return nil, "", err
 	}
 
 	volume, err := VolumeOwnershipCheck(ctx, se, params.VolumeID, params.AccountName)
 	if err != nil {
 		logger.Errorf("Failed to validate volume ownership")
-		return nil, "", customerrors.NewUserInputValidationErr("failed to validate volume ownership")
+		return nil, "", err
 	}
 
 	if params.IsAppConsistent {
@@ -57,7 +55,7 @@ func _createSnapshot(ctx context.Context, se database.Storage, temporal client.C
 		if err != nil {
 			return nil, "", err
 		} else if len(appConsistentSnaps) == 1 {
-			return nil, "", customerrors.NewConflictErr("Volume already has an app consistent snapshot")
+			return nil, "", vsaerrors.NewVCPError(vsaerrors.ErrSnapshotAppConsistencyError, customerrors.NewConflictErr("Volume already has an app consistent snapshot"))
 		}
 	}
 
@@ -158,7 +156,7 @@ func _getSnapshot(ctx context.Context, se database.Storage, params *common.GetSn
 	_, err := VolumeOwnershipCheck(ctx, se, params.VolumeID, params.AccountName)
 	if err != nil {
 		logger.Errorf("Failed to validate volume ownership")
-		return nil, customerrors.NewUserInputValidationErr("failed to validate volume ownership")
+		return nil, err
 	}
 
 	snapshot, err := se.GetSnapshot(ctx, params.SnapshotUUID)
@@ -181,7 +179,7 @@ func _listSnapshots(ctx context.Context, se database.Storage, params *common.Lis
 	volume, err := VolumeOwnershipCheck(ctx, se, params.VolumeID, params.AccountName)
 	if err != nil {
 		logger.Errorf("Failed to validate volume ownership")
-		return nil, customerrors.NewUserInputValidationErr("failed to validate volume ownership")
+		return nil, err
 	}
 
 	snapshots, err := se.GetSnapshotsByVolumeID(ctx, volume.ID)
@@ -207,24 +205,24 @@ func _updateSnapshot(ctx context.Context, se database.Storage, params *common.Up
 	account, err := se.GetAccount(ctx, params.AccountName)
 	if err != nil {
 		logger.Errorf("Failed to get account: %s. Error: %v", params.AccountName, err)
-		return nil, "", customerrors.NewNotFoundErr("account", &params.AccountName)
+		return nil, "", err
 	}
 
 	_, err = VolumeOwnershipCheck(ctx, se, params.VolumeID, params.AccountName)
 	if err != nil {
 		logger.Errorf("Failed to validate volume ownership")
-		return nil, "", customerrors.NewUserInputValidationErr("failed to validate volume ownership")
+		return nil, "", err
 	}
 
 	snapshot, err := se.GetSnapshot(ctx, params.SnapshotUUID)
 	if err != nil {
 		logger.Errorf("Failed to get snapshot: %s. Error: %v", params.SnapshotUUID, err)
-		return nil, "", customerrors.NewNotFoundErr("snapshot", &params.SnapshotUUID)
+		return nil, "", err
 	}
 
 	if snapshot.State == models.LifeCycleStateCreating || snapshot.State == models.LifeCycleStateUpdating || snapshot.State == models.LifeCycleStateDeleting {
 		logger.Errorf("Snapshot %s cannot be update, while in transitioning state: %s", params.SnapshotUUID, snapshot.State)
-		return nil, "", customerrors.NewConflictErr("Snapshot cannot be updated while in transitioning state: " + snapshot.State)
+		return nil, "", vsaerrors.NewVCPError(vsaerrors.ErrResourceStateConflictError, customerrors.NewConflictErr("Snapshot is in transition state and cannot be updated, state: "+snapshot.State))
 	}
 
 	job := &datamodel.Job{
@@ -286,14 +284,14 @@ func convertDatastoreSnapshotToModel(snapshot *datamodel.Snapshot) *models.Snaps
 
 func validateCreatSnapshotOperation(volume *datamodel.Volume, params *common.CreateSnapshotParams, account *datamodel.Account) error {
 	if params.Name == "" {
-		return customerrors.NewUserInputValidationErr("Snapshot name is empty. Please provide a valid name.")
+		return vsaerrors.NewVCPError(vsaerrors.ErrInputValidationError, customerrors.NewUserInputValidationErr("Snapshot name is empty. Please provide a valid name."))
 	}
 
 	if volume.State == models.LifeCycleStateCreating {
-		return customerrors.NewNotReadyErr("Can not create a snapshot when volume is in creating stage.")
+		return vsaerrors.NewVCPError(vsaerrors.ErrResourceStateConflictError, customerrors.NewConflictErr("Can not create a snapshot when volume is in creating stage."))
 	}
 	if volume.State == models.LifeCycleStateDeleting {
-		return customerrors.NewConflictErr("Can not create a snapshot when volume is in deleting stage.")
+		return vsaerrors.NewVCPError(vsaerrors.ErrResourceStateConflictError, customerrors.NewConflictErr("Can not create a snapshot when volume is in deleting stage."))
 	}
 
 	// @TODO: Include DataProtection check when implemented
@@ -313,14 +311,11 @@ func _deleteSnapshot(ctx context.Context, se database.Storage, temporal client.C
 	volume, err := VolumeOwnershipCheck(ctx, se, params.VolumeID, params.AccountName)
 	if err != nil {
 		logger.Errorf("Failed to validate volume ownership")
-		return nil, "", customerrors.NewUserInputValidationErr("failed to validate volume ownership")
+		return nil, "", err
 	}
 
 	snapshot, err := se.GetSnapshot(ctx, params.SnapshotID)
 	if err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, "", customerrors.NewNotFoundErr("snapshot", &params.SnapshotID)
-		}
 		return nil, "", err
 	}
 
@@ -328,7 +323,7 @@ func _deleteSnapshot(ctx context.Context, se database.Storage, temporal client.C
 	if snapshot.State == models.LifeCycleStateDeleting ||
 		snapshot.State == models.LifeCycleStateCreating ||
 		snapshot.State == models.LifeCycleStateUpdating {
-		return nil, "", customerrors.NewConflictErr("snapshot is already in transition state")
+		return nil, "", vsaerrors.NewVCPError(vsaerrors.ErrResourceStateConflictError, customerrors.NewConflictErr("Snapshot is in transition state and cannot be deleted, state: "+snapshot.State))
 	}
 
 	job := &datamodel.Job{
@@ -371,7 +366,7 @@ func _volumeOwnershipCheck(ctx context.Context, se database.Storage, volumeUUID 
 	volume, err := se.VerifyVolumeOwnership(ctx, volumeUUID, accountName)
 	if err != nil {
 		logger.Errorf("Failed to verify volume ownership: %v", err)
-		return nil, err
+		return nil, vsaerrors.NewVCPError(vsaerrors.ErrInputValidationError, customerrors.NewUserInputValidationErr("failed to validate volume ownership"))
 	}
 
 	return volume, nil

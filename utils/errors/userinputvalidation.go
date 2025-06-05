@@ -1,5 +1,7 @@
 package errors
 
+import vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
+
 // UserInputValidationErr defines an error for when the user input is invalid
 type UserInputValidationErr struct {
 	error
@@ -18,7 +20,8 @@ func NewUserInputValidationErrWithTrackingID(reason string, tID int) error {
 
 // IsUserInputValidationErr checks whether the specified error is a UserInputValidationErr
 func IsUserInputValidationErr(err error) bool {
-	_, is := err.(*UserInputValidationErr)
+	var userInputValidationErr *UserInputValidationErr
+	is := vsaerrors.As(err, &userInputValidationErr)
 	return is
 }
 

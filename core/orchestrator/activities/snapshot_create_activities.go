@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
+	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database"
@@ -23,7 +24,7 @@ func (a *SnapshotCreateActivity) CreateSnapshotInONTAP(ctx context.Context, snap
 		Comment:    snapshot.Description,
 	})
 	if err != nil {
-		return nil, err
+		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
 	}
 	logger.Debug("CreateSnapshotInONTAP: snapshot created successfully")
 
@@ -44,7 +45,7 @@ func (a *SnapshotCreateActivity) UpdateSnapshotDetails(ctx context.Context, dbSn
 	}
 	_, err := se.UpdateSnapshot(ctx, dbSnapshot)
 	if err != nil {
-		return err
+		return vsaerrors.WrapAsTemporalApplicationError(err)
 	}
 	return nil
 }

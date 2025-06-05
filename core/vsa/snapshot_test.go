@@ -147,6 +147,107 @@ func TestCreateSnapshot(t *testing.T) {
 		assert.Nil(t, resp)
 		assert.ErrorContains(t, err, "invalid Snapshot create response from API")
 	})
+
+	t.Run("CreateSnapshotVolumeNotFound", func(t *testing.T) {
+		mockClient := new(ontaprest.MockRESTClient)
+		mockStorage := new(ontaprest.MockStorageClient)
+		mockClient.On("Storage").Return(mockStorage)
+
+		getOntapClientFunc = func(params ontaprest.RESTClientParams) ontaprest.RESTClient {
+			return mockClient
+		}
+		rc := &OntapRestProvider{}
+
+		params := CreateSnapshotParams{
+			VolumeUUID: "nonExistentVolumeUUID",
+			Name:       "testSnapshot",
+			Comment:    "testComment",
+		}
+
+		mockStorage.On("SnapshotCreate", mock.Anything).Return(nil, nil, errors.NewNotFoundErr("Volume", nil))
+
+		resp, err := rc.CreateSnapshot(params)
+
+		assert.Error(t, err)
+		assert.Nil(t, resp)
+		assert.ErrorContains(t, err, "Volume not found")
+		mockStorage.AssertExpectations(t)
+		mockClient.AssertExpectations(t)
+	})
+
+	t.Run("CreateSnapshot_GetError", func(t *testing.T) {
+		mockClient := new(ontaprest.MockRESTClient)
+		mockStorage := new(ontaprest.MockStorageClient)
+		mockClient.On("Storage").Return(mockStorage)
+
+		getOntapClientFunc = func(params ontaprest.RESTClientParams) ontaprest.RESTClient {
+			return mockClient
+		}
+		rc := &OntapRestProvider{}
+
+		params := CreateSnapshotParams{
+			VolumeUUID: "testVolumeUUID",
+			Name:       "testSnapshot",
+			Comment:    "testComment",
+		}
+
+		mockSnapshot := &ontaprest.Snapshot{
+			Snapshot: models.Snapshot{
+				Comment:     nillable.ToPointer("testComment"),
+				Name:        nillable.ToPointer("testSnapshot"),
+				Size:        nillable.ToPointer(int64(1024)),
+				UUID:        nillable.ToPointer("testUUID"),
+				LogicalSize: nillable.ToPointer(int64(1024)),
+			},
+		}
+		mockJob := &ontaprest.JobAccepted{
+			JobUUID: "testJobUUID",
+		}
+
+		mockStorage.On("SnapshotGet", mock.Anything).Return(mockSnapshot, errors.New("get error"))
+		mockStorage.On("SnapshotCreate", mock.Anything).Return(mockSnapshot, mockJob, nil)
+		mockClient.On("Poll", mockJob.JobUUID).Return(mockJob)
+
+		resp, err := rc.CreateSnapshot(params)
+
+		assert.Error(t, err)
+		assert.Nil(t, resp)
+	})
+
+	t.Run("CreateSnapshot_NilResponseError", func(t *testing.T) {
+		mockClient := new(ontaprest.MockRESTClient)
+		mockStorage := new(ontaprest.MockStorageClient)
+		mockClient.On("Storage").Return(mockStorage)
+
+		getOntapClientFunc = func(params ontaprest.RESTClientParams) ontaprest.RESTClient {
+			return mockClient
+		}
+		rc := &OntapRestProvider{}
+
+		params := CreateSnapshotParams{
+			VolumeUUID: "testVolumeUUID",
+			Name:       "testSnapshot",
+			Comment:    "testComment",
+		}
+
+		mockSnapshot := &ontaprest.Snapshot{
+			Snapshot: models.Snapshot{
+				UUID: nillable.ToPointer("testUUID"),
+			},
+		}
+		mockJob := &ontaprest.JobAccepted{
+			JobUUID: "testJobUUID",
+		}
+
+		mockStorage.On("SnapshotGet", mock.Anything).Return(mockSnapshot, nil)
+		mockStorage.On("SnapshotCreate", mock.Anything).Return(mockSnapshot, mockJob, nil)
+		mockClient.On("Poll", mockJob.JobUUID).Return(mockJob)
+
+		resp, err := rc.CreateSnapshot(params)
+
+		assert.Error(t, err)
+		assert.Nil(t, resp)
+	})
 }
 
 func TestDeleteSnapshot(t *testing.T) {

@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
+	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	customerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
@@ -32,11 +33,11 @@ func (d *DataStoreRepository) CreatingSnapshot(ctx context.Context, snapshot *da
 
 	if snapshotEntry.ID != 0 {
 		logger.Warnf("Snapshot with name %s already exists", snapshot.Name)
-		return nil, customerrors.NewConflictErr("snapshot already exists")
+		return nil, vsaerrors.NewVCPError(vsaerrors.ErrIncorrectVSAClusterState, customerrors.NewConflictErr("snapshot already exists"))
 	}
 	if dbError != nil && !errors.Is(dbError, gorm.ErrRecordNotFound) {
 		logger.Errorf("Snapshot create operation failed with error: %v", dbError)
-		return nil, customerrors.New("snapshot create operation failed")
+		return nil, vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataInsertError, dbError)
 	}
 	snapshot.UUID = utils.RandomUUID()
 	snapshot.State = models.LifeCycleStateCreating
@@ -48,7 +49,7 @@ func (d *DataStoreRepository) CreatingSnapshot(ctx context.Context, snapshot *da
 	err = tx.Create(snapshot).Error
 	if err != nil {
 		logger.Errorf("Snapshot create operation failed with error: %v", err)
-		return nil, customerrors.New("snapshot create operation failed")
+		return nil, vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataInsertError, err)
 	}
 	return snapshot, nil
 }
@@ -58,9 +59,9 @@ func getSnapshotWithDetails(db *gorm.DB, query *datamodel.Snapshot) (*datamodel.
 	err := db.Preload("Account").Preload("Volume").First(&snapshot, query).Error
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, customerrors.NewNotFoundErr("snapshot", &query.UUID)
+			return nil, vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataReadError, customerrors.NewNotFoundErr("snapshot", &query.UUID))
 		}
-		return nil, customerrors.Errorf("failed to retrieve snapshot details: %v", err)
+		return nil, vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataReadError, err)
 	}
 	return snapshot, nil
 }
@@ -86,7 +87,7 @@ func (d *DataStoreRepository) UpdateSnapshot(ctx context.Context, snapshot *data
 	}).Error
 
 	if err != nil {
-		return nil, err
+		return nil, vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataUpdateError, err)
 	}
 	return dbSnapshot, nil
 }
@@ -108,7 +109,7 @@ func (d *DataStoreRepository) GetSnapshotsWithCondition(ctx context.Context, fil
 	var snapshots []*datamodel.Snapshot
 	err := db.Preload("Volume").Find(&snapshots).Error
 	if err != nil {
-		return nil, err
+		return nil, vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataReadError, err)
 	}
 	return snapshots, nil
 }
@@ -134,7 +135,7 @@ func _deleteSnapshot(db *gorm.DB, snapshotUUID string) (*datamodel.Snapshot, err
 	snapshot.StateDetails = models.LifeCycleStateDeletedDetails
 	err = db.Save(snapshot).Error
 	if err != nil {
-		return nil, err
+		return nil, vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataDeleteError, err)
 	}
 
 	return snapshot, nil
@@ -153,7 +154,7 @@ func (d *DataStoreRepository) DeletingSnapshot(ctx context.Context, snapshot *da
 	snapshot.StateDetails = models.LifeCycleStateDeletingDetails
 	err = tx.Updates(snapshot).Error
 	if err != nil {
-		return err
+		return vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataUpdateError, err)
 	}
 	return nil
 }

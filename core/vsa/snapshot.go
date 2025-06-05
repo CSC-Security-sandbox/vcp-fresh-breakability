@@ -1,6 +1,7 @@
 package vsa
 
 import (
+	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	ontapRest "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/ontap-rest"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/nillable"
@@ -16,9 +17,9 @@ func (rc *OntapRestProvider) CreateSnapshot(params CreateSnapshotParams) (*Snaps
 	})
 	if err != nil {
 		if !errors.IsNotFoundErr(err) {
-			return nil, err
+			return nil, vsaerrors.NewVCPError(vsaerrors.ErrOntapRestAPIError, err)
 		}
-		return nil, errors.NewNotFoundErr("Volume", nil)
+		return nil, vsaerrors.NewVCPError(vsaerrors.ErrResourceNotFound, errors.NewNotFoundErr("Volume", nil))
 	}
 
 	var uuid string
@@ -28,7 +29,7 @@ func (rc *OntapRestProvider) CreateSnapshot(params CreateSnapshotParams) (*Snaps
 		// Poll the job if it exists
 		if job != nil {
 			if err = client.Poll(job.JobUUID); err != nil {
-				return nil, err
+				return nil, vsaerrors.NewVCPError(vsaerrors.ErrOntapRestAPIError, err)
 			}
 			uuid = job.ResourceUUID
 		}
@@ -44,14 +45,14 @@ func (rc *OntapRestProvider) CreateSnapshot(params CreateSnapshotParams) (*Snaps
 		VolumeUUID: params.VolumeUUID,
 	})
 	if err != nil {
-		return nil, err
+		return nil, vsaerrors.NewVCPError(vsaerrors.ErrOntapRestAPIError, err)
 	}
 	// Validate the Snapshot response to avoid nil pointer dereferences
 	if snapshot == nil {
-		return nil, errors.NewBadRequestErr("invalid Snapshot create response from API: snapshot is nil")
+		return nil, vsaerrors.NewVCPError(vsaerrors.ErrOntapInconsistentResourceError, errors.NewBadRequestErr("invalid Snapshot create response from API: snapshot is nil"))
 	}
 	if snapshot.Name == nil || snapshot.UUID == nil {
-		return nil, errors.NewBadRequestErr("invalid Snapshot create response from API: missing required fields")
+		return nil, vsaerrors.NewVCPError(vsaerrors.ErrOntapInconsistentResourceError, errors.NewBadRequestErr("invalid Snapshot create response from API: missing required fields"))
 	}
 
 	// Return the created SVM
@@ -74,7 +75,7 @@ func (rc *OntapRestProvider) DeleteSnapshot(snapshotUUID string, volumeUUID stri
 	})
 
 	if err != nil {
-		return err
+		return vsaerrors.NewVCPError(vsaerrors.ErrOntapRestAPIError, err)
 	}
 
 	return nil

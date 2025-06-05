@@ -50,7 +50,7 @@ func (wf *updateKmsConfigWorkflow) Setup(ctx workflow.Context, input interface{}
 	info := workflow.GetInfo(ctx)
 	wf.ID = info.WorkflowExecution.ID
 	wf.CustomerID = updateParams.AccountName
-	wf.Status = "created"
+	wf.Status = workflows.WorkflowStatusCreated
 	logger := util.GetLogger(ctx)
 	wf.Logger = logger.With(log.Fields{
 		"workflowID": wf.ID,

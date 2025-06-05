@@ -24,6 +24,8 @@ const (
 	ErrJSONParsingError           = 1006
 	ErrMaxRetriesExceeded         = 1007
 	ErrTimeLimitExceeded          = 1008
+	ErrInputValidationError       = 1009
+	ErrResourceStateConflictError = 1010
 
 	ErrDatabaseConnectionClosed = 2001
 	ErrDatabaseTransactionError = 2002
@@ -45,10 +47,13 @@ const (
 	ErrIncorrectVSAClusterState       = 4004
 	ErrVSAClusterNodeNotFound         = 4005
 
-	ErrONTAPVersionFetchError = 5001
-	ErrCreatingSVM            = 5002
-	ErrDeletingSVM            = 5003
-	ErrSVMNotFound            = 5004
+	ErrONTAPVersionFetchError         = 5001
+	ErrCreatingSVM                    = 5002
+	ErrDeletingSVM                    = 5003
+	ErrSVMNotFound                    = 5004
+	ErrSnapshotAppConsistencyError    = 5005
+	ErrOntapRestAPIError              = 5006
+	ErrOntapInconsistentResourceError = 5007
 
 	ErrIamClientNotFoundError      = 6020
 	ErrFailedToParseProjectNumber  = 6021
