@@ -4,6 +4,9 @@ on:
     branches:
       - main
   pull_request:
+    branches:
+      - main
+      - release/2*
     types: [opened, edited, synchronize]
 
 permissions:
@@ -45,7 +48,7 @@ jobs:
   common:
     runs-on: [ ubuntu-22.04 ]
     container:
-      image: ghcr.io/vcp-vsa-control-plane/vsacictl:v17
+      image: ghcr.io/vcp-vsa-control-plane/vsacictl:common_build
       options: -v /var/run/docker.sock:/var/run/docker.sock --user root
     steps:
       - name: Checkout codes
@@ -188,6 +191,35 @@ jobs:
           # Verify ontap rest client code
           cd ./scripts
           ./verify-ontap.sh
+
+  verify_build:
+    name: Verify build
+    runs-on: [ self-hosted, linux ]
+    container:
+      image: ghcr.io/vcp-vsa-control-plane/vsacictl:v15
+      options: --user root
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      - name: Set up Go
+        uses: actions/setup-go@v3
+        with:
+          go-version-file: go.mod
+
+      - name: Build images
+        env:
+          IMAGES_TAG: "test-build" # Use a temporary tag for verification
+          GHVSA_PAT: ${{ secrets.GHVSA_PAT }}
+        run: |
+          skaffold config set default-repo ""
+          skaffold build || exit 1
+          make vcp-db-migrate-image imageVersion=test-build || exit 1
+    
 
   lint:
     runs-on: [self-hosted,linux]

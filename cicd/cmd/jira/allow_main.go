@@ -13,6 +13,5 @@ func allowMain(issue *jira.Issue) error {
 		log.Println("Error: Issue type can be only 'Story' or 'Bug' or 'Documentation'.")
 		os.Exit(1)
 	}
-	log.Printf("Issue %s is in the expected type: %s.\n", issue.Key, issueType)
 	return nil
 }

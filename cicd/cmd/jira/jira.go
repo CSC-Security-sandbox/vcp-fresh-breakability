@@ -19,6 +19,13 @@ var (
 	jiraServerUrl string
 )
 
+var ExpectedStatusMap = map[string]string{
+	"Bug":            "In Development",
+	"Story":          "In Development",
+	"Documentation":  "In Progress",
+	"RC/HF Approval": "In Development",
+}
+
 const defaultUrl = "https://jira.ngage.netapp.com"
 const jiraApiUser = "JIRA_API_USER"
 const jiraApiToken = "JIRA_API_TOKEN"
@@ -84,15 +91,22 @@ func GetJiraIssue(jiraID string, client *jira.Client) (*jira.Issue, error) {
 	return issue, nil
 }
 
-func CheckIssueStatus(issue *jira.Issue, expectedStatuses []string, errorMessage string) error {
-	for _, expectedStatus := range expectedStatuses {
-		if issue.Fields.Status.Name == expectedStatus {
-			log.Printf("Issue %s is in the expected status: %s.\n", issue.Key, expectedStatus)
-			return nil
-		}
+func CheckIssueStatus(issue *jira.Issue) error {
+	// Check if the issue type has a valid expected status
+	expectedStatus, exists := ExpectedStatusMap[issue.Fields.Type.Name]
+	if !exists {
+		return fmt.Errorf("issue type '%s' is not recognized", issue.Fields.Type.Name)
 	}
-	log.Printf("Issue %s is not in the expected statuses (Status: %s). %s\n", issue.Key, issue.Fields.Status.Name, errorMessage)
-	return fmt.Errorf("Issue %s is not in the expected statuses: %v", issue.Key, expectedStatuses)
+
+	// Validate the issue status against the expected status
+	if issue.Fields.Status.Name != expectedStatus {
+		return fmt.Errorf("issue %s of type '%s' is in status '%s', but expected status is '%s'",
+			issue.Key, issue.Fields.Type.Name, issue.Fields.Status.Name, expectedStatus)
+	}
+
+	log.Printf("Issue %s of type '%s' is in the expected status: '%s'.\n",
+		issue.Key, issue.Fields.Type.Name, issue.Fields.Status.Name)
+	return nil
 }
 
 func UpdateJiraWithPayload(updatedPayload map[string]interface{}, issueID string, credentials ClientCredentials, baseURL string) error {
@@ -152,7 +166,6 @@ func ValidateIssueType(issue *jira.Issue, expectedType string, errorMessage stri
 		log.Printf("Error: %s (Expected: %s, Found: %s)\n", errorMessage, expectedType, issueType)
 		return fmt.Errorf("issue type mismatch: expected %s, found %s", expectedType, issueType)
 	}
-	log.Printf("Issue %s is in the expected type: %s.\n", issue.Key, issueType)
 	return nil
 }
 

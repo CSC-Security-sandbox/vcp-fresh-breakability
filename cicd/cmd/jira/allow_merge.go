@@ -1,12 +1,11 @@
 package jira
 
 import (
+	"github.com/spf13/cobra"
 	"log"
 	ghutils "main/cmd/github"
 	"os"
 	"strings"
-
-	"github.com/spf13/cobra"
 )
 
 var githubBaseRef string
@@ -45,9 +44,10 @@ func allowMerge() error {
 		os.Exit(1)
 	}
 
-	err = CheckIssueStatus(issue, []string{"In Development", "In Progress"}, "Expected in state In Development or In Progress.")
+	// Check if the issue type has a valid expected status
+	err = CheckIssueStatus(issue)
 	if err != nil {
-		log.Println(err)
+		log.Println("Error:", err)
 		os.Exit(1)
 	}
 
