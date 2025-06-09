@@ -196,10 +196,10 @@ func _listSnapshots(ctx context.Context, se database.Storage, params *common.Lis
 }
 
 func (o *Orchestrator) UpdateSnapshot(ctx context.Context, params *common.UpdateSnapshotParams) (*models.Snapshot, string, error) {
-	return updateSnapshot(ctx, o.storage, params)
+	return updateSnapshot(ctx, o.storage, o.temporal, params)
 }
 
-func _updateSnapshot(ctx context.Context, se database.Storage, params *common.UpdateSnapshotParams) (*models.Snapshot, string, error) {
+func _updateSnapshot(ctx context.Context, se database.Storage, temporal client.Client, params *common.UpdateSnapshotParams) (*models.Snapshot, string, error) {
 	logger := util.GetLogger(ctx)
 
 	account, err := se.GetAccount(ctx, params.AccountName)
@@ -231,32 +231,31 @@ func _updateSnapshot(ctx context.Context, se database.Storage, params *common.Up
 		ResourceName: params.Name,
 		AccountID:    sql.NullInt64{Int64: account.ID, Valid: true},
 	}
-	defer func() {
-		if err != nil {
-			job.State = string(models.JobsStateERROR)
-			job.ErrorDetails = []byte(err.Error())
-			if updateErr := se.UpdateJob(ctx, job.UUID, job.State, 0, job.ErrorDetails); updateErr != nil {
-				logger.Errorf("Failed to update job state to failed. Error: %v", updateErr)
-			}
-		} else {
-			job.State = string(models.JobsStateDONE)
-			if updateErr := se.UpdateJob(ctx, job.UUID, job.State, 0, nil); updateErr != nil {
-				logger.Errorf("Failed to update job state to completed. Error: %v", updateErr)
-			}
-		}
-	}()
 
 	job, err = se.CreateJob(ctx, job)
-
-	snapshot.Name = params.Name
-	snapshot.Description = params.Description
-	dbSnapshot, err := se.UpdateSnapshot(ctx, snapshot)
 	if err != nil {
-		logger.Errorf("Failed to update snapshot in database. Error: %v", err)
+		logger.Errorf("Failed to create job in database. Error: %v", err)
 		return nil, "", err
 	}
 
-	dataStoreSnap := convertDatastoreSnapshotToModel(dbSnapshot)
+	snapshot.Name = params.Name
+	snapshot.Description = params.Description
+
+	_, err = temporal.ExecuteWorkflow(ctx,
+		client.StartWorkflowOptions{
+			TaskQueue:             workflowengine.CustomerTaskQueue,
+			ID:                    job.WorkflowID,
+			WorkflowIDReusePolicy: enums.WORKFLOW_ID_REUSE_POLICY_REJECT_DUPLICATE,
+		},
+		workflows.UpdateSnapshotWorkflow,
+		snapshot,
+	)
+	if err != nil {
+		logger.Errorf("Failed to start update snapshot workflow. Error: %v ", err)
+		return nil, "", err
+	}
+
+	dataStoreSnap := convertDatastoreSnapshotToModel(snapshot)
 	return dataStoreSnap, job.UUID, nil
 }
 

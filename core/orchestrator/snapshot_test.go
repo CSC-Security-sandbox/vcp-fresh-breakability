@@ -1151,6 +1151,7 @@ func TestUpdateSnapshot(t *testing.T) {
 		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
 		mockLogger := log.NewLogger()
 		store, err := database.NewTestStorage(mockLogger)
+		mockTemporalClient := workflowEngineMock.NewMockTemporalTestClient(t)
 		assert.NoError(tt, err, "Failed to create test storage")
 		err = database.ClearInMemoryDB(store.DB())
 		assert.NoError(tt, err, "Failed to ClearInMemoryDB")
@@ -1187,7 +1188,8 @@ func TestUpdateSnapshot(t *testing.T) {
 		err = store.DB().Create(snapshot).Error
 		assert.NoError(tt, err)
 
-		orch := Orchestrator{storage: store}
+		mockTemporalClient.EXPECT().ExecuteWorkflow(ctx, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil).Once()
+		orch := Orchestrator{storage: store, temporal: mockTemporalClient}
 		params := &common.UpdateSnapshotParams{
 			SnapshotBaseParams: common.SnapshotBaseParams{
 				VolumeID:    "test-volume-uuid",
@@ -1240,6 +1242,64 @@ func TestUpdateSnapshot(t *testing.T) {
 		assert.Nil(tt, result)
 		assert.Empty(tt, jobID)
 		assert.Error(tt, err)
+	})
+
+	t.Run("WhenUpdateSnapshotWorkflowThrowsError", func(tt *testing.T) {
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+		mockLogger := log.NewLogger()
+		mockTemporalClient := workflowEngineMock.NewMockTemporalTestClient(t)
+		store, err := database.NewTestStorage(mockLogger)
+		assert.NoError(tt, err, "Failed to create test storage")
+		err = database.ClearInMemoryDB(store.DB())
+		assert.NoError(tt, err, "Failed to ClearInMemoryDB")
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{ID: 1, UUID: "test-account-uuid"},
+			Name:      "test_account",
+		}
+		err = store.DB().Create(account).Error
+		if err != nil {
+			tt.Fatalf("Failed to create account: %v", err)
+		}
+
+		volume := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{UUID: "test-volume-uuid"},
+			Name:      "test_volume",
+			AccountID: 1,
+		}
+		err = store.DB().Create(volume).Error
+		if err != nil {
+			tt.Fatalf("Failed to create volume: %v", err)
+		}
+
+		snapshot := &datamodel.Snapshot{
+			BaseModel:   datamodel.BaseModel{UUID: "test-snapshot-uuid"},
+			Name:        "test_snapshot",
+			Description: "desc",
+			AccountID:   account.ID,
+			VolumeID:    volume.ID,
+			Account:     account,
+			Volume:      volume,
+			State:       models.LifeCycleStateREADY,
+		}
+		err = store.DB().Create(snapshot).Error
+		assert.NoError(tt, err)
+
+		mockTemporalClient.EXPECT().ExecuteWorkflow(ctx, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, errors.New("test error")).Once()
+		orch := Orchestrator{storage: store, temporal: mockTemporalClient}
+		params := &common.UpdateSnapshotParams{
+			SnapshotBaseParams: common.SnapshotBaseParams{
+				VolumeID:    "test-volume-uuid",
+				AccountName: "test_account",
+			},
+			SnapshotUUID: "test-snapshot-uuid",
+			Name:         "updated_name",
+			Description:  "updated_desc",
+		}
+		result, jobID, err := orch.UpdateSnapshot(ctx, params)
+		assert.Error(tt, err)
+		assert.Nil(tt, result)
+		assert.Equal(tt, "", jobID, "Expected empty job ID when workflow execution fails")
 	})
 }
 
