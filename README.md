@@ -2,16 +2,7 @@
 
 This repo hosts all the code for the VSA Control Plane. The VSA Control Plane is a set of microservices that are responsible for managing the lifecycle of a VSA.
 
-### Getting Started
-This project uses Skaffold to manage the development and deployment of the VSA Control Plane. To get started, you will need to install Skaffold and Docker.
-
-#### Install Skaffold
-To install Skaffold, follow the instructions in the [Skaffold documentation](https://skaffold.dev/docs/install/).
-
-#### Install Docker
-To install Docker, follow the instructions in the [Docker documentation](https://docs.docker.com/get-docker/).
-
-#### Code Layout
+### Code Layout
 The code is organized into the following directories:
 ```aiignore
 .
@@ -39,21 +30,56 @@ The code is organized into the following directories:
 │   └── worker 
 └── workflow-engine - This directory contains the code for the workflow client integration.
 ```
-#### Running the code
 
-From this directory, run
+### How to Run VSA Using Skaffold Locally (Minikube Cluster)
 
-```bash
+#### Prerequisites.
+* [Install minikube](https://minikube.sigs.k8s.io/docs/start).
+* [Install helm](https://helm.sh/docs/intro/install/).
+* [Install Docker](https://docs.docker.com/get-docker/).
+* [Install Skaffold](https://skaffold.dev/docs/install/).
+* [Install Github CLI](https://cli.github.com)
+
+#### Steps
+
+##### 1. Update Environment Variables in Google Proxy Deployment File
+
+Modify the `worker/kubernetes/deployment.yaml` file to include the following environment variables:
+
+```yaml
+- name: VSA_NODE_PASSWORD
+  value: <vsa_node_password_here>
+- name: VSA_NODE_USERNAME
+  value: <vsa_node_username_here>
+```
+
+##### 2. Run Mock Metadata Server
+After starting Skaffold, ensure the mock metadata server is running.
+
+```
+go run tools/mock-metadata-server/app.go
+```
+
+##### 3. Start a minikube cluster.
+
+```
+minikube start
+```
+
+##### 4. Run Skaffold
+Run the following command to start Skaffold:
+
+```
+export GHVSA_PAT=$(gh auth token)
 skaffold dev
 ```
-All the services will be built and deployed to your local Kubernetes cluster. You can access the services using the following URLs:
 
-Port forwarding deployment/core-api in namespace , remote port http -> 
-Port forwarding deployment/google-proxy in namespace , remote port 8080 -> http://127.0.0.1:9000
+This will build and deploy all the services to your local Kubernetes cluster. Once deployed, you can access the services using the following URLs:
 
-- Core API: http://127.0.0.1:9001
-- Google Proxy: http://127.0.0.1:9000
-- Spanner Emulator: http://localhost:9002
+- Google Proxy: http://localhost:9000
+- Core Service: http://localhost:9001
+- Postgres: http://localhost:5432
+- Local Temporal Web: http://localhost:8080
 - Workflow Server: http://localhost:9003
 
 #### Debugging the code
@@ -76,48 +102,6 @@ Skaffold will automatically watch for changes in the code and rebuild and redepl
     # or
     skaffold dev --watch=false
 ```
-
-### How to Run VSA Using Skaffold Locally (Minikube Cluster)
-
-#### Prerequisites
-1. Install **Helm**.
-2. Ensure that you have **Skaffold** installed on your machine. Follow the [Skaffold installation guide](https://skaffold.dev/docs/install/).
-3. Make sure **Minikube** is installed and running. Follow the [Minikube installation guide](https://minikube.sigs.k8s.io/docs/start/).
-
-#### Steps
-
-##### 1. Update Environment Variables in Google Proxy Deployment File
-
-Modify the `worker/kubernetes/deployment.yaml` file to include the following environment variables:
-
-```yaml
-- name: VSA_NODE_PASSWORD
-  value: <vsa_node_password_here>
-- name: VSA_NODE_USERNAME
-  value: <vsa_node_username_here>
-```
-
-##### 2. Run Mock Metadata Server
-After starting Skaffold, ensure the mock metadata server is running.
-
-```
-go run tools/mock-metadata-server/app.go
-```
-
-##### 3. Run Skaffold
-Run the following command to start Skaffold:
-
-```
-skaffold dev
-```
-
-This will build and deploy all the services to your local Kubernetes cluster. Once deployed, you can access the services using the following URLs:
-
-- Google Proxy: http://localhost:9000
-- Core Service: http://localhost:9001
-- Postgres: http://localhost:5432
-- Local Temporal Web: http://localhost:8080
-- Workflow Server: http://localhost:9003
 
 #### Handling Errors
 
