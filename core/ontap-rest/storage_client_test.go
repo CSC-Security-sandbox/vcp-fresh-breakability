@@ -846,6 +846,16 @@ func TestSnapshotCreate(t *testing.T) {
 		assert.Nil(tt, response)
 		assert.Nil(tt, job)
 	})
+
+	t.Run("WhenConflictErrorReturned_ThenReturnConflictError", func(tt *testing.T) {
+		transport := &mockTransport{err: errors.New("snapshot with that name already exists")}
+		storageAPI := storage.New(transport, nil)
+		client := &storageClient{api: storageAPI}
+		response, job, err := client.SnapshotCreate(&SnapshotCreateParams{})
+		assert.EqualError(tt, err, "snapshot with that name already exists")
+		assert.Nil(tt, response)
+		assert.Nil(tt, job)
+	})
 }
 
 func TestSnapshotGet(t *testing.T) {

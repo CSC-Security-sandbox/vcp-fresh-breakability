@@ -2,6 +2,7 @@ package ontap_rest
 
 import (
 	"strconv"
+	"strings"
 
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/ontap-rest/client/storage"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/ontap-rest/models"
@@ -390,6 +391,9 @@ func (sc *storageClient) VolumeDelete(params *VolumeDeleteParams) error {
 func (sc *storageClient) SnapshotCreate(params *SnapshotCreateParams) (*Snapshot, *JobAccepted, error) {
 	created, accepted, err := sc.api.SnapshotCreate(snapshotCreateParamsToONTAP(params), nil)
 	if err != nil {
+		if strings.Contains(err.Error(), "snapshot with that name already exists") {
+			return nil, nil, errors.NewConflictErr("snapshot with that name already exists")
+		}
 		return nil, nil, err
 	}
 

@@ -8,6 +8,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 )
 
@@ -23,7 +24,7 @@ func (a *SnapshotCreateActivity) CreateSnapshotInONTAP(ctx context.Context, snap
 		Name:       snapshot.Name,
 		Comment:    snapshot.Description,
 	})
-	if err != nil {
+	if err != nil && !errors.IsConflictErr(err) {
 		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
 	}
 	logger.Debug("CreateSnapshotInONTAP: snapshot created successfully")
