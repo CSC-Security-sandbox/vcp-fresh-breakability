@@ -180,6 +180,7 @@ func (h Handler) V1betaCreateSnapshot(ctx context.Context, req *gcpgenserver.Vol
 
 func (h Handler) V1betaUpdateSnapshot(ctx context.Context, req *gcpgenserver.VolumeSnapshotUpdateV1beta, params gcpgenserver.V1betaUpdateSnapshotParams) (gcpgenserver.V1betaUpdateSnapshotRes, error) {
 	logger := util.GetLogger(ctx)
+	helper.AddLabelerAttributes(ctx, params.ProjectNumber, params.LocationId)
 	if params.SnapshotId == "" {
 		logger.Error("Snapshot ID is required for UpdateSnapshot")
 		return &gcpgenserver.V1betaUpdateSnapshotBadRequest{
@@ -246,6 +247,7 @@ func (h Handler) V1betaUpdateSnapshot(ctx context.Context, req *gcpgenserver.Vol
 
 func (h Handler) V1betaDescribeSnapshot(ctx context.Context, params gcpgenserver.V1betaDescribeSnapshotParams) (gcpgenserver.V1betaDescribeSnapshotRes, error) {
 	logger := util.GetLogger(ctx)
+	helper.AddLabelerAttributes(ctx, params.ProjectNumber, params.LocationId)
 	describeParams := &common.GetSnapshotParams{
 		SnapshotBaseParams: common.SnapshotBaseParams{
 			AccountName: params.ProjectNumber,
@@ -275,6 +277,7 @@ func (h Handler) V1betaDescribeSnapshot(ctx context.Context, params gcpgenserver
 // V1betaDeleteSnapshot handles the request to delete a snapshot.
 func (h Handler) V1betaDeleteSnapshot(ctx context.Context, params gcpgenserver.V1betaDeleteSnapshotParams) (gcpgenserver.V1betaDeleteSnapshotRes, error) {
 	logger := util.GetLogger(ctx)
+	helper.AddLabelerAttributes(ctx, params.ProjectNumber, params.LocationId)
 	volumeId := params.VolumeId
 	_, _, parsingErr := parseAndValidateRegionAndZone(params.LocationId)
 	if parsingErr != nil {
@@ -340,6 +343,7 @@ func (h Handler) V1betaDeleteSnapshot(ctx context.Context, params gcpgenserver.V
 
 func (h Handler) V1betaListSnapshot(ctx context.Context, params gcpgenserver.V1betaListSnapshotParams) (gcpgenserver.V1betaListSnapshotRes, error) {
 	logger := util.GetLogger(ctx)
+	helper.AddLabelerAttributes(ctx, params.ProjectNumber, params.LocationId)
 	listParams := &common.ListSnapshotsParams{
 		SnapshotBaseParams: common.SnapshotBaseParams{
 			AccountName: params.ProjectNumber,
