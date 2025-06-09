@@ -15,7 +15,7 @@ jobs:
 
     runs-on: [ self-hosted,linux ]
     container:
-      image: ghcr.io/vcp-vsa-control-plane/vsacictl:v19
+      image: ghcr.io/vcp-vsa-control-plane/vsacictl:v20
       options: --user root
 
     steps:
