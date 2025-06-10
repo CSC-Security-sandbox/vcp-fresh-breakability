@@ -37,3 +37,7 @@ database:
 serviceAccountAnnotations:
   "iam.gke.io/gcp-service-account": vcp-ci@gcnv-artifact-registry-nonprod.iam.gserviceaccount.com
 
+temporal:
+  timeouts:
+    heartbeat:
+      setupNwSecond: 300

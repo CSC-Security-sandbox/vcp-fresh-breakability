@@ -25,6 +25,7 @@ import (
 	utilErrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
+	"go.temporal.io/sdk/activity"
 	"google.golang.org/api/servicenetworking/v1"
 	"gorm.io/gorm"
 	"netapp.com/vsa/lifecycle-manager/pkg/vlmconfig"
@@ -186,6 +187,10 @@ func (j *PoolActivity) SetupNetwork(ctx context.Context, region, project, snHost
 		return vsaerrors.WrapAsTemporalApplicationError(err)
 	}
 	service := hyperscaler.GoogleServices(serviceStruct)
+
+	// Record heartbeat to indicate progress to temporal server
+	activity.RecordHeartbeat(ctx, "Setting up network for VSA pool")
+
 	i := 1
 	for vpcName, subnetName := range vpcSubnetMap {
 		firewallPortRules := []string{"tcp", "udp"}
@@ -198,6 +203,9 @@ func (j *PoolActivity) SetupNetwork(ctx context.Context, region, project, snHost
 		}
 		i++
 	}
+
+	// Record heartbeat to indicate progress to temporal server
+	activity.RecordHeartbeat(ctx, "Setting up network firewalls for iSCSI")
 
 	err = SetupNetworkFirewallsForIscsi(service, snHostProject, network)
 	if err != nil {
@@ -269,6 +277,7 @@ func (j *PoolActivity) CreateVSASVM(ctx context.Context, pool *datamodel.Pool, v
 	if err != nil && !strings.Contains(err.Error(), "already exists and is in use by a different VM") {
 		return vsaerrors.WrapAsTemporalApplicationError(err)
 	}
+
 	name := vlmConfig.Deployment.DeploymentID + "-datasvm-" + defaultSvmName
 	svm := vlmConfig.Svm[name]
 
@@ -776,15 +785,24 @@ func setupNetworkWithFirewall(ctx context.Context, projectName string, vpcName s
 		return err
 	}
 
+	// Record heartbeat to indicate progress to temporal server
+	activity.RecordHeartbeat(ctx, "VPC created, name: "+vpcName)
+
 	err = InsertSubnet(service, projectName, region, subnetName, vpcName, subnetIpCidrRange)
 	if err != nil {
 		return err
 	}
 
+	// Record heartbeat to indicate progress to temporal server
+	activity.RecordHeartbeat(ctx, "Subnet inserted, name: "+subnetName)
+
 	err = InsertFirewall(service, projectName, fmt.Sprintf("ingress-%s", vpcName), vpcName, firewallPriority, trafficDirection, firewallSourceRanges, firewallAllowedPortRules)
 	if err != nil {
 		return err
 	}
+
+	// Record heartbeat to indicate progress to temporal server
+	activity.RecordHeartbeat(ctx, "Firewall inserted, name: "+fmt.Sprintf("ingress-%s", vpcName))
 	return nil
 }
 

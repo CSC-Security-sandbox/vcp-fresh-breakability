@@ -66,3 +66,5 @@ spec:
               value: "local"
             - name: LOCAL_REGION
               value: "australia-southeast1"
+            - name: SETUP_NW_HEARTBEAT_TIMEOUT_SEC
+              value: "300"

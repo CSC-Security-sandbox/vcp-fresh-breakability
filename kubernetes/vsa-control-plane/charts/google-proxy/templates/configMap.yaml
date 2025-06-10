@@ -33,3 +33,4 @@ data:
     DB_NAME: {{ index .Values "database" "name"  }}
     DB_ADMIN_USER: {{ index .Values "database" "adminUser"  }}
     DB_ADMIN_PASSWORD: {{ index .Values "database" "adminPassword" }}
+    SETUP_NW_HEARTBEAT_TIMEOUT_SEC: {{ index .Values "temporal" "timeouts" "heartbeat" "setupNwSecond"}}
