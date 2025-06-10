@@ -15,7 +15,7 @@ jobs:
 
     runs-on: [ cvs-u24-sunilt-01 ,linux ]
     container:
-      image: ghcr.io/vcp-vsa-control-plane/vsacictl:v20
+      image: ghcr.io/vcp-vsa-control-plane/vsacictl:v22
       options: --user root
 
     steps:

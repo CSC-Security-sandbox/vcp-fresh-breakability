@@ -72,7 +72,7 @@ jobs:
     name: Build and Publish Docker Images
     runs-on: [self-hosted, linux]
     container:
-      image: ghcr.io/vcp-vsa-control-plane/vsacictl:v15
+      image: ghcr.io/vcp-vsa-control-plane/vsacictl:v22
       options: --user root
     permissions:
       contents: read

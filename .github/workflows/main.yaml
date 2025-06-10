@@ -48,7 +48,7 @@ jobs:
   common:
     runs-on: [ ubuntu-22.04 ]
     container:
-      image: ghcr.io/vcp-vsa-control-plane/vsacictl:common_build
+      image: ghcr.io/vcp-vsa-control-plane/vsacictl:v22
       options: -v /var/run/docker.sock:/var/run/docker.sock --user root
     steps:
       - name: Checkout codes
@@ -79,9 +79,9 @@ jobs:
         run: vsacictl jira allow_merge
 
   unit_tests:
-    runs-on: [ cvs-u24-sunilt-01 ]
+    runs-on: [ self-hosted, linux ]
     container:
-      image: ghcr.io/vcp-vsa-control-plane/vsacictl:v17
+      image: ghcr.io/vcp-vsa-control-plane/vsacictl:v22
       options: --user root
 
     steps:
@@ -92,6 +92,11 @@ jobs:
         uses: actions/setup-go@v3
         with:
           go-version-file: go.mod
+
+      - name: Configure Git for private modules
+        run: |
+          git config --global url."https://${{ secrets.GHVSA_PAT }}@github.com/".insteadOf "https://github.com/"
+          
 
       - name: Run golang unit tests with coverage
         run: vsacictl unit-test --filtered
@@ -105,9 +110,9 @@ jobs:
 
   coverage:
     needs: unit_tests
-    runs-on: [ cvs-u24-sunilt-01 ]
+    runs-on: [ self-hosted, linux ]
     container:
-      image: ghcr.io/vcp-vsa-control-plane/vsacictl:v17
+      image: ghcr.io/vcp-vsa-control-plane/vsacictl:v22
       options: --user root
 
     steps:
@@ -132,9 +137,9 @@ jobs:
 
   pr-coverage:
     needs: unit_tests
-    runs-on: [ cvs-u24-sunilt-01 ]
+    runs-on: [ self-hosted, linux ]
     container:
-      image: ghcr.io/vcp-vsa-control-plane/vsacictl:v17
+      image: ghcr.io/vcp-vsa-control-plane/vsacictl:v22
       options: --user root
 
     steps:
@@ -194,9 +199,9 @@ jobs:
 
   verify_build:
     name: Verify build
-    runs-on: [ cvs-u24-sunilt-01 ]
+    runs-on: [ self-hosted, linux ]
     container:
-      image: ghcr.io/vcp-vsa-control-plane/vsacictl:v15
+      image: ghcr.io/vcp-vsa-control-plane/vsacictl:v22
       options: --user root
     permissions:
       contents: read
@@ -211,6 +216,11 @@ jobs:
         with:
           go-version-file: go.mod
 
+      - name: Configure Git for private modules
+        run: |
+          git config --global url."https://${{ secrets.GHVSA_PAT }}@github.com/".insteadOf "https://github.com/"
+          
+
       - name: Build images
         env:
           IMAGES_TAG: "test-build" # Use a temporary tag for verification
@@ -222,9 +232,9 @@ jobs:
     
 
   lint:
-    runs-on: [cvs-u24-sunilt-01]
+    runs-on: [self-hosted, linux]
     container:
-      image: ghcr.io/vcp-vsa-control-plane/vsacictl:v17
+      image: ghcr.io/vcp-vsa-control-plane/vsacictl:v22
       options: --user root
 
     steps:
@@ -235,6 +245,11 @@ jobs:
         uses: actions/setup-go@v3
         with:
           go-version-file: go.mod
+
+      - name: Configure Git for private modules
+        run: |
+          git config --global url."https://${{ secrets.GHVSA_PAT }}@github.com/".insteadOf "https://github.com/"
+          
 
       - name: Run golangci-lint script
         run: vsacictl lint

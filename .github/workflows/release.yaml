@@ -16,7 +16,7 @@ jobs:
     name: Generate Tag
     runs-on: [self-hosted,linux]
     container:
-      image: ghcr.io/vcp-vsa-control-plane/vsacictl:v16
+      image: ghcr.io/vcp-vsa-control-plane/vsacictl:v22
       options: --user root
     permissions:
       contents: read
@@ -54,7 +54,7 @@ jobs:
     needs: [create_pre_release_vsa_control_plane, generate_tag]
     runs-on: [ ubuntu-22.04 ]
     container:
-      image: ghcr.io/vcp-vsa-control-plane/vsacictl:v16
+      image: ghcr.io/vcp-vsa-control-plane/vsacictl:v22
       options: -v /var/run/docker.sock:/var/run/docker.sock --user root
 
     steps:
@@ -126,7 +126,7 @@ jobs:
     needs: create_pre_release_vsa_control_plane
     runs-on: [ cvs-u24-sunilt-01 ]
     container:
-      image: ghcr.io/vcp-vsa-control-plane/vsacictl:v16
+      image: ghcr.io/vcp-vsa-control-plane/vsacictl:v22
       options: -v /var/run/docker.sock:/var/run/docker.sock --mount type=bind,source=/bds-inspect,target=/bds-inspect,ro --user root
 
     steps:
@@ -173,7 +173,7 @@ jobs:
             echo "Image used for scan is ${IMAGE} - ${{needs.generate_tag.outputs.newTag}}"
             docker run --rm  --network host -v /home/cvs/opt-dir:/home/cvs/opt-dir -v /var/run/docker.sock:/var/run/docker.sock \
             --mount type=bind,source=/bds-inspect,target=/bds-inspect,ro --user root \
-            ghcr.io/vcp-vsa-control-plane/vsacictl:v16 \
+            ghcr.io/vcp-vsa-control-plane/vsacictl:v22 \
             keytool -import -alias example -keystore "/usr/lib/jvm/java-11-openjdk-amd64/lib/security/cacerts" \
             -file /bds-inspect/blackduck.eng.netapp.com.der --storepass changeit --noprompt && \
             echo "${{ secrets.GHVSA_PAT }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin && \

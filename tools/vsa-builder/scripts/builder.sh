@@ -84,6 +84,10 @@ echo "deb [signed-by=/usr/share/keyrings/cloud.google.gpg] https://packages.clou
 apt-get -qy update && apt-get -qy install google-cloud-cli
 gcloud version
 
+## install golangci-lint
+curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/HEAD/install.sh | sh -s -- -b $(go env GOPATH)/bin v2.1.2
+golangci-lint version
+
 # Install required packages
 apt-get -qy update
 apt-get -qy install gnupg lsb-release

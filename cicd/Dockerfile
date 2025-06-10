@@ -1,4 +1,4 @@
-FROM ghcr.io/vcp-vsa-control-plane/vsa-builder:v6
+FROM ghcr.io/vcp-vsa-control-plane/vsa-builder:v7
 
 #ARG RUNNER=github
 #ARG GO_VERSION
