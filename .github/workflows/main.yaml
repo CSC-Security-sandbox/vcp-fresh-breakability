@@ -79,7 +79,7 @@ jobs:
         run: vsacictl jira allow_merge
 
   unit_tests:
-    runs-on: [ self-hosted,linux ]
+    runs-on: [ cvs-u24-sunilt-01 ]
     container:
       image: ghcr.io/vcp-vsa-control-plane/vsacictl:v17
       options: --user root
@@ -105,7 +105,7 @@ jobs:
 
   coverage:
     needs: unit_tests
-    runs-on: [ self-hosted,linux ]
+    runs-on: [ cvs-u24-sunilt-01 ]
     container:
       image: ghcr.io/vcp-vsa-control-plane/vsacictl:v17
       options: --user root
@@ -132,7 +132,7 @@ jobs:
 
   pr-coverage:
     needs: unit_tests
-    runs-on: [ self-hosted,linux ]
+    runs-on: [ cvs-u24-sunilt-01 ]
     container:
       image: ghcr.io/vcp-vsa-control-plane/vsacictl:v17
       options: --user root
@@ -194,7 +194,7 @@ jobs:
 
   verify_build:
     name: Verify build
-    runs-on: [ self-hosted, linux ]
+    runs-on: [ cvs-u24-sunilt-01 ]
     container:
       image: ghcr.io/vcp-vsa-control-plane/vsacictl:v15
       options: --user root
@@ -222,7 +222,7 @@ jobs:
     
 
   lint:
-    runs-on: [self-hosted,linux]
+    runs-on: [cvs-u24-sunilt-01]
     container:
       image: ghcr.io/vcp-vsa-control-plane/vsacictl:v17
       options: --user root
