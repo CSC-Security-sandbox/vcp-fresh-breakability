@@ -80,6 +80,27 @@ func (d *DataStoreRepository) UpdateVolume(ctx context.Context, volume *datamode
 	return nil
 }
 
+func (d *DataStoreRepository) UpdateVolumeFields(ctx context.Context, volumeUUID string, updates map[string]interface{}) error {
+	db := d.db.GORM().WithContext(ctx)
+	tx, err := startTransaction(db)
+	if err != nil {
+		return err
+	}
+	logger := util.GetLogger(ctx)
+	defer commitOrRollbackOnError(logger, tx, &err)
+	dbVolume, err := getVolumeWithDetails(tx, &datamodel.Volume{BaseModel: datamodel.BaseModel{UUID: volumeUUID}})
+	if err != nil {
+		return err
+	}
+
+	err = tx.Model(&dbVolume).Updates(updates).Error
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
 func (d *DataStoreRepository) DeleteVolume(ctx context.Context, volumeUUID string) (*datamodel.Volume, error) {
 	db := d.db.GORM().WithContext(ctx)
 	tx, err := startTransaction(db)

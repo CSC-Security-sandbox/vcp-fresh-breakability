@@ -30,3 +30,5 @@ run:
     - workflow_engine/temporal_test_client_mock.go
     - database/storage_mock.go
     - core/orchestrator/orchestrator_factory_mock.go
+    - clients/hyperscaler/google_services_mock.go
+    - database/data_store_mock.go

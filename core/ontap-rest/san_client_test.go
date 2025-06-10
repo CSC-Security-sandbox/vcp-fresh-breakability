@@ -312,3 +312,45 @@ func TestLunGet(t *testing.T) {
 		assert.Equal(tt, lunName, *lun.Name)
 	})
 }
+
+func TestLunUpdate(t *testing.T) {
+	t.Run("WhenRESTCallFails_ThenReturnError", func(tt *testing.T) {
+		transport := &mockTransport{err: errors.New("something went wrong")}
+		sanAPI := san.New(transport, nil)
+		client := &sanClient{api: sanAPI}
+		ok, job, err := client.LunUpdate(&LunUpdateParams{})
+		assert.EqualError(tt, err, transport.err.Error())
+		assert.False(tt, ok)
+		assert.Nil(tt, job)
+	})
+
+	t.Run("WhenOKResponse_ThenReturnTrue", func(tt *testing.T) {
+		transport := &mockTransport{
+			response: &san.LunModifyOK{},
+		}
+		sanAPI := san.New(transport, nil)
+		client := &sanClient{api: sanAPI}
+		ok, job, err := client.LunUpdate(&LunUpdateParams{})
+		assert.NoError(tt, err)
+		assert.True(tt, ok)
+		assert.Nil(tt, job)
+	})
+
+	t.Run("WhenAcceptedResponse_ThenReturnJobAccepted", func(tt *testing.T) {
+		jobUUID := "job-uuid"
+		transport := &mockTransport{
+			response: &san.LunModifyAccepted{
+				Payload: &models.LunJobLinkResponse{
+					Job: &models.JobLink{UUID: nillable.ToPointer(strfmt.UUID(jobUUID))},
+				},
+			},
+		}
+		sanAPI := san.New(transport, nil)
+		client := &sanClient{api: sanAPI}
+		ok, job, err := client.LunUpdate(&LunUpdateParams{})
+		assert.NoError(tt, err)
+		assert.False(tt, ok)
+		assert.NotNil(tt, job)
+		assert.Equal(tt, jobUUID, job.JobUUID)
+	})
+}

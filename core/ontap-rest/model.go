@@ -1013,21 +1013,6 @@ func volumeModifyParamsToONTAP(params *VolumeModifyParams) *storage.VolumeModify
 	if params.Comment != nil {
 		info.Comment = params.Comment
 	}
-	if params.Path != nil || params.SecurityStyle != nil || params.ExportPolicy != nil || params.UnixPermissions != nil {
-		info.Nas = &models.VolumeInlineNas{
-			Path:          params.Path,
-			SecurityStyle: params.SecurityStyle,
-		}
-		if params.ExportPolicy != nil {
-			info.Nas.ExportPolicy = &models.VolumeInlineNasInlineExportPolicy{
-				Name: params.ExportPolicy,
-			}
-		}
-		if params.UnixPermissions != nil {
-			up, _ := strconv.Atoi(*params.UnixPermissions)
-			info.Nas.UnixPermissions = nillable.ToPointer(int64(up))
-		}
-	}
 
 	if params.Size != nil || params.LogicalSpaceEnforcement != nil || params.SnapReserve != nil || params.MaxAutoSize != nil {
 		info.Space = &models.VolumeInlineSpace{}
@@ -1042,12 +1027,6 @@ func volumeModifyParamsToONTAP(params *VolumeModifyParams) *storage.VolumeModify
 		}
 		if params.SnapReserve != nil {
 			info.Space.Snapshot = &models.VolumeInlineSpaceInlineSnapshot{ReservePercent: nillable.ToPointer(int64(*params.SnapReserve))}
-		}
-	}
-
-	if params.MaxFiles != nil {
-		info.Files = &models.VolumeInlineFiles{
-			Maximum: nillable.ToPointer(utils.ConstrainedCastUint64(*params.MaxFiles)),
 		}
 	}
 
@@ -1804,6 +1783,9 @@ func volumeCreateParamsToONTAP(params *VolumeCreateParams) *storage.VolumeCreate
 				Reporting:   nillable.ToPointer(true),
 			},
 		},
+		Autosize: &models.VolumeInlineAutosize{
+			Mode: nillable.ToPointer("off"),
+		},
 	})
 
 	for _, aggregate := range params.Aggregates {
@@ -2115,6 +2097,32 @@ func lunCreateParamsToONTAP(params *LunCreateParams) *san.LunCreateParams {
 	})
 	otParams.SetReturnTimeout(&returnTimeout)
 	otParams.SetReturnRecords(nillable.ToPointer("true"))
+	return otParams
+}
+
+// LunUpdateParams is the input parameter for updating a Lun
+type LunUpdateParams struct {
+	UUID       string
+	SvmName    string
+	Name       string
+	VolumeName string
+	Size       int64
+}
+
+// lunModifyParamsToONTAP converts LunModifyParams to ONTAP API parameters.
+func lunModifyParamsToONTAP(params *LunUpdateParams) *san.LunModifyParams {
+	otParams := san.NewLunModifyParams()
+	if params == nil {
+		return otParams
+	}
+	otParams.SetInfo(&models.Lun{
+		Name: constructLunName(&params.VolumeName, &params.Name),
+		Space: &models.LunInlineSpace{
+			Size: &params.Size,
+		},
+	})
+	otParams.UUID = params.UUID
+	otParams.SetReturnTimeout(&returnTimeout)
 	return otParams
 }
 

@@ -1825,6 +1825,52 @@ func (_c *MockProvider_LunMapCreate_Call) RunAndReturn(run func(LunMapCreatePara
 	return _c
 }
 
+// LunUpdate provides a mock function with given fields: params
+func (_m *MockProvider) LunUpdate(params LunUpdateParams) error {
+	ret := _m.Called(params)
+
+	if len(ret) == 0 {
+		panic("no return value specified for LunUpdate")
+	}
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(LunUpdateParams) error); ok {
+		r0 = rf(params)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// MockProvider_LunUpdate_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'LunUpdate'
+type MockProvider_LunUpdate_Call struct {
+	*mock.Call
+}
+
+// LunUpdate is a helper method to define mock.On call
+//   - params LunUpdateParams
+func (_e *MockProvider_Expecter) LunUpdate(params interface{}) *MockProvider_LunUpdate_Call {
+	return &MockProvider_LunUpdate_Call{Call: _e.mock.On("LunUpdate", params)}
+}
+
+func (_c *MockProvider_LunUpdate_Call) Run(run func(params LunUpdateParams)) *MockProvider_LunUpdate_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(LunUpdateParams))
+	})
+	return _c
+}
+
+func (_c *MockProvider_LunUpdate_Call) Return(_a0 error) *MockProvider_LunUpdate_Call {
+	_c.Call.Return(_a0)
+	return _c
+}
+
+func (_c *MockProvider_LunUpdate_Call) RunAndReturn(run func(LunUpdateParams) error) *MockProvider_LunUpdate_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // ReleaseVolumeReplication provides a mock function with given fields: params
 func (_m *MockProvider) ReleaseVolumeReplication(params *CreateVolumeReplicationParams) (*VolumeReplication, error) {
 	ret := _m.Called(params)
@@ -1937,6 +1983,52 @@ func (_c *MockProvider_ResyncVolumeReplication_Call) Return(_a0 *VolumeReplicati
 }
 
 func (_c *MockProvider_ResyncVolumeReplication_Call) RunAndReturn(run func(*VolumeReplication) (*VolumeReplication, error)) *MockProvider_ResyncVolumeReplication_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// UpdateVolume provides a mock function with given fields: params
+func (_m *MockProvider) UpdateVolume(params UpdateVolumeParams) error {
+	ret := _m.Called(params)
+
+	if len(ret) == 0 {
+		panic("no return value specified for UpdateVolume")
+	}
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(UpdateVolumeParams) error); ok {
+		r0 = rf(params)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// MockProvider_UpdateVolume_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'UpdateVolume'
+type MockProvider_UpdateVolume_Call struct {
+	*mock.Call
+}
+
+// UpdateVolume is a helper method to define mock.On call
+//   - params UpdateVolumeParams
+func (_e *MockProvider_Expecter) UpdateVolume(params interface{}) *MockProvider_UpdateVolume_Call {
+	return &MockProvider_UpdateVolume_Call{Call: _e.mock.On("UpdateVolume", params)}
+}
+
+func (_c *MockProvider_UpdateVolume_Call) Run(run func(params UpdateVolumeParams)) *MockProvider_UpdateVolume_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(UpdateVolumeParams))
+	})
+	return _c
+}
+
+func (_c *MockProvider_UpdateVolume_Call) Return(_a0 error) *MockProvider_UpdateVolume_Call {
+	_c.Call.Return(_a0)
+	return _c
+}
+
+func (_c *MockProvider_UpdateVolume_Call) RunAndReturn(run func(UpdateVolumeParams) error) *MockProvider_UpdateVolume_Call {
 	_c.Call.Return(run)
 	return _c
 }

@@ -666,7 +666,7 @@ func TestGetJobByKmsConfigIDReturnsErrorIfNotFound(t *testing.T) {
 	assert.NoError(t, err)
 	ctx := context.Background()
 
-	found, err := store.GetJobByKmsConfigID(ctx, "nonexistent-uuid")
+	found, err := store.GetJobByResourceUUID(ctx, "nonexistent-uuid")
 	assert.Error(t, err)
 	assert.Nil(t, found)
 }
@@ -727,4 +727,37 @@ func TestCreateBackupVaultEntryInVCP(t *testing.T) {
 	assert.NoError(t, err)
 	assert.NotNil(t, created)
 	assert.Equal(t, "vcpVault", created.Name)
+}
+
+func TestUpdateVolumeFields(t *testing.T) {
+	logger := &log.MockLogger{}
+	store, _ := NewTestStorage(logger)
+	ctx := context.Background()
+	ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, logger)
+
+	// Create a volume to update
+	vol := &datamodel.Volume{Name: "vol-update-fields"}
+	created, err := store.CreateVolume(ctx, vol)
+	assert.NoError(t, err)
+
+	// Case 1: Successful update
+	updates := map[string]interface{}{"Name": "vol-updated"}
+	err = store.UpdateVolumeFields(ctx, created.UUID, updates)
+	assert.NoError(t, err)
+	updatedVol, err := store.GetVolume(ctx, created.UUID)
+	assert.NoError(t, err)
+	assert.Equal(t, "vol-updated", updatedVol.Name)
+
+	// Case 2: Empty updates map (should not error)
+	err = store.UpdateVolumeFields(ctx, created.UUID, map[string]interface{}{})
+	assert.NoError(t, err)
+
+	// Case 3: Non-existent volume UUID
+	err = store.UpdateVolumeFields(ctx, "non-existent-uuid", map[string]interface{}{"Name": "should-fail"})
+	assert.Error(t, err)
+
+	// Case 4: Underlying repository returns error (simulate by closing DB)
+	_ = store.Close()
+	err = store.UpdateVolumeFields(ctx, created.UUID, map[string]interface{}{"Name": "fail"})
+	assert.Error(t, err)
 }

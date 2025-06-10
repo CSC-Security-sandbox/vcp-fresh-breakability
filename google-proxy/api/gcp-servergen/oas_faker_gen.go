@@ -876,6 +876,11 @@ func (s *BlockPropertiesV1beta) SetFake() {
 			}
 		}
 	}
+	{
+		{
+			s.LunSerialNumber.SetFake()
+		}
+	}
 }
 
 // SetFake set fake values.
@@ -1539,11 +1544,6 @@ func (s *HybridReplicationUserCommandsV1beta) SetFake() {
 
 // SetFake set fake values.
 func (s *InternalJobV1beta) SetFake() {
-	{
-		{
-			s.JobId.SetFake()
-		}
-	}
 	{
 		{
 			s.JobUuid.SetFake()
@@ -9629,7 +9629,7 @@ func (s *VolumeUpdateV1beta) SetFake() {
 	}
 	{
 		{
-			s.BlockPropertiesV1beta.SetFake()
+			s.BlockProperties.SetFake()
 		}
 	}
 	{

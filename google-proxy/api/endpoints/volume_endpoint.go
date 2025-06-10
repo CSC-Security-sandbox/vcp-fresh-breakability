@@ -25,6 +25,7 @@ var (
 	createCVPClient               = cvp.CreateClient
 	convertVolumeV1betaToCVPModel = _convertVolumeV1betaCVPToModel
 	getMultipleVolumesFromCVP     = _getMultipleVolumesFromCVP
+	prepareUpdateVolumeParams     = _prepareUpdateVolumeParams
 )
 
 const (
@@ -174,7 +175,106 @@ func prepareCreateVolumeParams(req *gcpgenserver.VolumeCreateV1beta, params gcpg
 }
 
 func (h Handler) V1betaUpdateVolume(ctx context.Context, req *gcpgenserver.VolumeUpdateV1beta, params gcpgenserver.V1betaUpdateVolumeParams) (gcpgenserver.V1betaUpdateVolumeRes, error) {
-	panic("implement me")
+	logger := util.GetLogger(ctx)
+	region, _, parsingErr := utils.ParseAndValidateRegionAndZone(params.LocationId)
+	if parsingErr != nil {
+		return &gcpgenserver.V1betaUpdateVolumeBadRequest{
+			Code:    parsingErr.Code,
+			Message: parsingErr.Message,
+		}, nil
+	}
+
+	param, err := prepareUpdateVolumeParams(req, params, region)
+	if err != nil {
+		if errors.IsUserInputValidationErr(err) || errors.IsNotFoundErr(err) {
+			return &gcpgenserver.V1betaUpdateVolumeBadRequest{
+				Code:    400,
+				Message: err.Error(),
+			}, nil
+		}
+
+		logger.Error("Failed to update volume", "error", err.Error())
+		return &gcpgenserver.V1betaUpdateVolumeInternalServerError{Code: 500, Message: err.Error()}, err
+	}
+
+	volume, jobUUID, err := h.Orchestrator.UpdateVolume(ctx, param)
+	if err != nil {
+		if errors.IsUserInputValidationErr(err) || errors.IsNotFoundErr(err) {
+			return &gcpgenserver.V1betaUpdateVolumeBadRequest{
+				Code:    400,
+				Message: err.Error(),
+			}, nil
+		}
+
+		logger.Error("Failed to update volume", "error", err.Error())
+		return &gcpgenserver.V1betaUpdateVolumeInternalServerError{Code: 500, Message: err.Error()}, err
+	}
+
+	resp, err := encodeVolumeV1(convertModelToVCPVolume(volume))
+	if err != nil {
+		return nil, err
+	}
+
+	operationID := "/v1beta/projects/" + params.ProjectNumber + "/locations/" + params.LocationId + "/operations/" + jobUUID
+	if volume.LifeCycleState == models.LifeCycleStateUpdating {
+		return &gcpgenserver.OperationV1beta{
+			Name:     gcpgenserver.NewOptString(operationID),
+			Response: resp,
+			Done:     gcpgenserver.NewOptBool(false),
+		}, nil
+	}
+	return &gcpgenserver.OperationV1beta{
+		Name:     gcpgenserver.NewOptString(operationID),
+		Response: resp,
+		Done:     gcpgenserver.NewOptBool(true),
+	}, nil
+}
+
+func _prepareUpdateVolumeParams(req *gcpgenserver.VolumeUpdateV1beta, params gcpgenserver.V1betaUpdateVolumeParams, region string) (*common.UpdateVolumeParams, error) {
+	param := &common.UpdateVolumeParams{
+		AccountName:  params.ProjectNumber,
+		Region:       region,
+		PoolID:       req.PoolId.Value,
+		VolumeId:     params.VolumeId,
+		QuotaInBytes: int64(req.QuotaInBytes.Value),
+	}
+	if req.Description.IsSet() {
+		param.Description, _ = req.Description.Get()
+	}
+
+	for _, protocol := range req.GetProtocols() {
+		protocolStr, err := protocol.MarshalText()
+		if err != nil {
+			return nil, err
+		}
+		if protocol != gcpgenserver.ProtocolsV1betaISCSI {
+			return nil, errors.NewUserInputValidationErr("only ISCSI protocol is supported")
+		}
+		param.Protocols = append(param.Protocols, string(protocolStr))
+	}
+
+	if req.BlockProperties.IsSet() {
+		reqBlockProperties, _ := req.BlockProperties.Get()
+		if reqBlockProperties.OsType.IsSet() {
+			osType := reqBlockProperties.GetOsType()
+			param.BlockProperties = &models.BlockProperties{
+				OSType:         string(osType.Value),
+				HostGroupUUIDs: reqBlockProperties.GetHostGroupIds(),
+			}
+		}
+	}
+
+	if req.Labels.IsSet() {
+		labels := make(map[string]string)
+		for key, value := range req.Labels.Value {
+			if key == "" {
+				return nil, errors.NewUserInputValidationErr("Labels cannot have empty keys")
+			}
+			labels[key] = value
+		}
+		param.Labels = labels
+	}
+	return param, nil
 }
 
 func (h Handler) V1betaDeleteVolume(ctx context.Context, req gcpgenserver.OptV1betaDeleteVolumeReq, params gcpgenserver.V1betaDeleteVolumeParams) (gcpgenserver.V1betaDeleteVolumeRes, error) {
@@ -282,8 +382,9 @@ func convertModelToVCPVolume(volume *models.Volume) *gcpgenserver.VolumeV1beta {
 	if volume.BlockProperties != nil {
 		res.BlockProperties = gcpgenserver.NewOptBlockPropertiesV1beta(
 			gcpgenserver.BlockPropertiesV1beta{
-				OsType:       gcpgenserver.NewOptBlockPropertiesV1betaOsType(gcpgenserver.BlockPropertiesV1betaOsType(volume.BlockProperties.OSType)),
-				HostGroupIds: volume.BlockProperties.HostGroupUUIDs,
+				OsType:          gcpgenserver.NewOptBlockPropertiesV1betaOsType(gcpgenserver.BlockPropertiesV1betaOsType(volume.BlockProperties.OSType)),
+				HostGroupIds:    volume.BlockProperties.HostGroupUUIDs,
+				LunSerialNumber: gcpgenserver.NewOptString(volume.BlockProperties.LunSerialNumber),
 			})
 
 		if volume.LifeCycleState == string(gcpgenserver.VolumeV1betaVolumeStateREADY) {

@@ -64,6 +64,7 @@ type DataStore interface {
 	CreateVolume(ctx context.Context, volume *datamodel.Volume) (*datamodel.Volume, error)
 	GetVolume(ctx context.Context, id string) (*datamodel.Volume, error)
 	UpdateVolume(ctx context.Context, volume *datamodel.Volume) error
+	UpdateVolumeFields(ctx context.Context, volumeUUID string, updates map[string]interface{}) error
 	DeleteVolume(ctx context.Context, id string) (*datamodel.Volume, error)
 	UpdateVolumeState(ctx context.Context, id string, state string, stateDetails string) (*datamodel.Volume, error)
 	ListVolumes(ctx context.Context) ([]*datamodel.Volume, error)
@@ -128,7 +129,7 @@ type DataStore interface {
 	CreateKmsConfig(ctx context.Context, kmsConfig *datamodel.KmsConfig) (*datamodel.KmsConfig, error)
 	GetKmsConfigByUUID(ctx context.Context, uuid string) (*datamodel.KmsConfig, error)
 	UpdateKmsConfigAttributes(ctx context.Context, uuid string, attributes *datamodel.KmsAttributes) (*datamodel.KmsConfig, error)
-	GetJobByKmsConfigID(ctx context.Context, kmsConfigUUID string) (*datamodel.Job, error)
+	GetJobByResourceUUID(ctx context.Context, kmsConfigUUID string) (*datamodel.Job, error)
 	UpdateKmsConfigDetails(ctx context.Context, uuid string, fullKeyPath string, resourceID string) (*datamodel.KmsConfig, error)
 
 	UpdateServiceAccountEmailAndKey(ctx context.Context, uuid string, email string, key string) (*datamodel.ServiceAccount, error)

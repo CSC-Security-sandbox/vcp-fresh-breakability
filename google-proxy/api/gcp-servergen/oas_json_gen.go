@@ -3964,11 +3964,18 @@ func (s *BlockPropertiesV1beta) encodeFields(e *jx.Encoder) {
 			e.ArrEnd()
 		}
 	}
+	{
+		if s.LunSerialNumber.Set {
+			e.FieldStart("lunSerialNumber")
+			s.LunSerialNumber.Encode(e)
+		}
+	}
 }
 
-var jsonFieldsNameOfBlockPropertiesV1beta = [2]string{
+var jsonFieldsNameOfBlockPropertiesV1beta = [3]string{
 	0: "osType",
 	1: "hostGroupIds",
+	2: "lunSerialNumber",
 }
 
 // Decode decodes BlockPropertiesV1beta from json.
@@ -4007,6 +4014,16 @@ func (s *BlockPropertiesV1beta) Decode(d *jx.Decoder) error {
 				return nil
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"hostGroupIds\"")
+			}
+		case "lunSerialNumber":
+			if err := func() error {
+				s.LunSerialNumber.Reset()
+				if err := s.LunSerialNumber.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"lunSerialNumber\"")
 			}
 		default:
 			return d.Skip()
@@ -7310,12 +7327,6 @@ func (s *InternalJobV1beta) Encode(e *jx.Encoder) {
 // encodeFields encodes fields.
 func (s *InternalJobV1beta) encodeFields(e *jx.Encoder) {
 	{
-		if s.JobId.Set {
-			e.FieldStart("JobId")
-			s.JobId.Encode(e)
-		}
-	}
-	{
 		if s.JobUuid.Set {
 			e.FieldStart("JobUuid")
 			s.JobUuid.Encode(e)
@@ -7371,17 +7382,16 @@ func (s *InternalJobV1beta) encodeFields(e *jx.Encoder) {
 	}
 }
 
-var jsonFieldsNameOfInternalJobV1beta = [10]string{
-	0: "JobId",
-	1: "JobUuid",
-	2: "CorrelationId",
-	3: "State",
-	4: "StateDetails",
-	5: "CreatedAt",
-	6: "UpdatedAt",
-	7: "JobType",
-	8: "ProjectNumber",
-	9: "ScheduledAt",
+var jsonFieldsNameOfInternalJobV1beta = [9]string{
+	0: "JobUuid",
+	1: "CorrelationId",
+	2: "State",
+	3: "StateDetails",
+	4: "CreatedAt",
+	5: "UpdatedAt",
+	6: "JobType",
+	7: "ProjectNumber",
+	8: "ScheduledAt",
 }
 
 // Decode decodes InternalJobV1beta from json.
@@ -7392,16 +7402,6 @@ func (s *InternalJobV1beta) Decode(d *jx.Decoder) error {
 
 	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
 		switch string(k) {
-		case "JobId":
-			if err := func() error {
-				s.JobId.Reset()
-				if err := s.JobId.Decode(d); err != nil {
-					return err
-				}
-				return nil
-			}(); err != nil {
-				return errors.Wrap(err, "decode field \"JobId\"")
-			}
 		case "JobUuid":
 			if err := func() error {
 				s.JobUuid.Reset()
@@ -42787,9 +42787,9 @@ func (s *VolumeUpdateV1beta) encodeFields(e *jx.Encoder) {
 		}
 	}
 	{
-		if s.BlockPropertiesV1beta.Set {
-			e.FieldStart("BlockProperties_v1beta")
-			s.BlockPropertiesV1beta.Encode(e)
+		if s.BlockProperties.Set {
+			e.FieldStart("blockProperties")
+			s.BlockProperties.Encode(e)
 		}
 	}
 	{
@@ -42848,7 +42848,7 @@ var jsonFieldsNameOfVolumeUpdateV1beta = [15]string{
 	4:  "exportPolicy",
 	5:  "backupConfig",
 	6:  "tieringPolicy",
-	7:  "BlockProperties_v1beta",
+	7:  "blockProperties",
 	8:  "protocols",
 	9:  "restrictedActions",
 	10: "smbSettings",
@@ -42936,15 +42936,15 @@ func (s *VolumeUpdateV1beta) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"tieringPolicy\"")
 			}
-		case "BlockProperties_v1beta":
+		case "blockProperties":
 			if err := func() error {
-				s.BlockPropertiesV1beta.Reset()
-				if err := s.BlockPropertiesV1beta.Decode(d); err != nil {
+				s.BlockProperties.Reset()
+				if err := s.BlockProperties.Decode(d); err != nil {
 					return err
 				}
 				return nil
 			}(); err != nil {
-				return errors.Wrap(err, "decode field \"BlockProperties_v1beta\"")
+				return errors.Wrap(err, "decode field \"blockProperties\"")
 			}
 		case "protocols":
 			if err := func() error {

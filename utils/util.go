@@ -17,6 +17,7 @@ import (
 
 	"github.com/go-openapi/strfmt"
 	errs "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	gcpgenserver "github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/api/gcp-servergen"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/auth"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
@@ -450,4 +451,18 @@ func _generateRandomString(length int) (string, error) {
 		result[i] = charset[n.Int64()]
 	}
 	return string(result), nil
+}
+
+func GetLunName(volumeName string) string {
+	return "lun_" + volumeName
+}
+
+func IsTransitionalState(state string) bool {
+	transitionalStates := map[string]struct{}{
+		models.LifeCycleStateCreating: {},
+		models.LifeCycleStateUpdating: {},
+		models.LifeCycleStateDeleting: {},
+	}
+	_, exists := transitionalStates[state]
+	return exists
 }

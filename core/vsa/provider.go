@@ -25,11 +25,13 @@ type Provider interface {
 	CreateVolume(params CreateVolumeParams) (*VolumeResponse, error)
 	DeleteVolume(volumeUUID, volumeName string) error
 	GetVolume(params GetVolumeParams) (*VolumeResponse, error)
+	UpdateVolume(params UpdateVolumeParams) error
 	IgroupCreate(params IgroupCreateParams) (string, error)
 	IgroupGet(name, svm string) (*ontapRest.Igroup, error)
 	IgroupExists(name, svm string) (bool, error)
 	LunCreate(params LunCreateParams) (*LunResponse, error)
 	LunGet(params LunGetParams) (*LunResponse, error)
+	LunUpdate(params LunUpdateParams) error
 	LunMapCreate(params LunMapCreateParams) error
 	IscsiServiceCreate(svmUUID string) error
 	CreateClusterPeer(params CreateClusterPeerParams) (*ClusterPeer, error)

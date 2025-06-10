@@ -2,13 +2,13 @@ package repository
 
 import (
 	"context"
-	"gorm.io/gorm"
 	"time"
 
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
+	"gorm.io/gorm"
 )
 
 const (
@@ -157,9 +157,9 @@ func _updateKmsConfigAttributes(db *gorm.DB, uuid string, attributes *datamodel.
 	return dbKmsConfig, nil
 }
 
-func (d *DataStoreRepository) GetJobByKmsConfigID(ctx context.Context, kmsConfigUUID string) (*datamodel.Job, error) {
+func (d *DataStoreRepository) GetJobByResourceUUID(ctx context.Context, resourceUUID string) (*datamodel.Job, error) {
 	job := &datamodel.Job{}
-	err := d.db.GORM().WithContext(ctx).Where("job_attributes ->> 'resource_uuid' = ?", kmsConfigUUID).First(job).Error
+	err := d.db.GORM().WithContext(ctx).Where("job_attributes ->> 'resource_uuid' = ?", resourceUUID).First(job).Error
 	if err != nil {
 		return nil, err
 	}

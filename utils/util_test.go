@@ -10,6 +10,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	errs "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	gcpgenserver "github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/api/gcp-servergen"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware"
@@ -731,4 +732,48 @@ func TestHandlesErrorOnRandomStringGeneration(t *testing.T) {
 	assert.Equal(t, "", email)
 	assert.Equal(t, "", bucketName)
 	assert.Equal(t, "", serviceAccountId)
+}
+
+func TestGetLunName(t *testing.T) {
+	tests := []struct {
+		testName   string
+		volumeName string
+		want       string
+	}{
+		{"WhenVolumeNameIsPassed_ThenReturnLunName_1", "my_volume", "lun_my_volume"},
+		{"WhenVolumeNameIsPassed_ThenReturnLunName_2", "volume", "lun_volume"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.testName, func(t *testing.T) {
+			got := GetLunName(tt.volumeName)
+			if got != tt.want {
+				t.Errorf("GetLunName(%s) = %s, want %s", tt.volumeName, got, tt.want)
+			}
+		})
+	}
+}
+
+func TestIsTransitionalState(t *testing.T) {
+	tests := []struct {
+		name  string
+		state string
+		want  bool
+	}{
+		{"CreatingState", "CREATING", true},
+		{"UpdatingState", models.LifeCycleStateCreating, true},
+		{"UpdatingState", models.LifeCycleStateUpdating, true},
+		{"DeletingState", models.LifeCycleStateDeleting, true},
+		{"ReadyState", models.LifeCycleStateREADY, false},
+		{"AvailableState", models.LifeCycleStateAvailable, false},
+		{"EmptyString", "", false},
+		{"RandomString", "SOME_UNKNOWN_STATE", false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := IsTransitionalState(tt.state)
+			assert.Equal(t, tt.want, got)
+		})
+	}
 }

@@ -2,6 +2,7 @@ package repository
 
 import (
 	"context"
+	"errors"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -382,5 +383,125 @@ func TestVerifyVolumeOwnership(t *testing.T) {
 		result, err := store.VerifyVolumeOwnership(context.Background(), "nonexistent-volume-uuid", "test_account")
 		assert.Nil(tt, result, "Expected nil volume, got %v", result)
 		assert.Error(tt, err, "Expected error for missing volume")
+	})
+}
+
+func TestUpdateVolumeFields(t *testing.T) {
+	t.Run("WhenFieldsAreUpdatedSuccessfully", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err, "Failed to set up test database")
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err, "Failed to clean up test database")
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{ID: 1, UUID: "test-account-uuid"},
+			Name:      "test_account",
+		}
+		assert.NoError(tt, store.db.Create(account).Error())
+
+		pool := &datamodel.Pool{
+			Name:    "test_pool",
+			Account: account,
+		}
+		assert.NoError(tt, store.db.Create(pool).Error())
+
+		volume := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{UUID: "test-volume-uuid"},
+			Name:      "test_volume",
+			AccountID: account.ID,
+			Account:   account,
+			Pool:      pool,
+			PoolID:    pool.ID,
+			State:     "old_state",
+		}
+		assert.NoError(tt, store.db.Create(volume).Error())
+
+		updates := map[string]interface{}{
+			"State":        "new_state",
+			"StateDetails": "updated details",
+		}
+		err = store.UpdateVolumeFields(context.Background(), volume.UUID, updates)
+		assert.NoError(tt, err, "Expected no error, got %v", err)
+
+		updated, err := store.GetVolume(context.Background(), volume.UUID)
+		assert.NoError(tt, err)
+		assert.Equal(tt, "new_state", updated.State)
+		assert.Equal(tt, "updated details", updated.StateDetails)
+	})
+
+	t.Run("WhenVolumeIsNotFound", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err, "Failed to set up test database")
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err, "Failed to clean up test database")
+
+		updates := map[string]interface{}{
+			"State": "new_state",
+		}
+		err = store.UpdateVolumeFields(context.Background(), "nonexistent-uuid", updates)
+		assert.Error(tt, err)
+		assert.Contains(tt, err.Error(), "not found")
+	})
+
+	t.Run("WhenTransactionStartFails", func(tt *testing.T) {
+		origStartTransaction := startTransaction
+		startTransaction = func(db *gorm.DB) (*gorm.DB, error) {
+			return nil, errors.New("transaction start failed")
+		}
+		defer func() { startTransaction = origStartTransaction }()
+
+		db, err := SetupTestDB()
+		assert.NoError(tt, err, "Failed to set up test database")
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		updates := map[string]interface{}{
+			"State": "new_state",
+		}
+		err = store.UpdateVolumeFields(context.Background(), "any-uuid", updates)
+		assert.Error(tt, err)
+		assert.Contains(tt, err.Error(), "transaction start failed")
+	})
+
+	t.Run("WhenUpdateFails", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err, "Failed to set up test database")
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err, "Failed to clean up test database")
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{ID: 1, UUID: "test-account-uuid"},
+			Name:      "test_account",
+		}
+		assert.NoError(tt, store.db.Create(account).Error())
+
+		pool := &datamodel.Pool{
+			Name:    "test_pool",
+			Account: account,
+		}
+		assert.NoError(tt, store.db.Create(pool).Error())
+
+		volume := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{UUID: "test-volume-uuid"},
+			Name:      "test_volume",
+			AccountID: account.ID,
+			Account:   account,
+			Pool:      pool,
+			PoolID:    pool.ID,
+		}
+		assert.NoError(tt, store.db.Create(volume).Error())
+
+		// Pass an invalid field to cause update error
+		updates := map[string]interface{}{
+			"NonExistentField": "value",
+		}
+		err = store.UpdateVolumeFields(context.Background(), volume.UUID, updates)
+		assert.Error(tt, err)
 	})
 }

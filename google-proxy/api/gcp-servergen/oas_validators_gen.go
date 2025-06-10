@@ -13110,7 +13110,7 @@ func (s *VolumeUpdateV1beta) Validate() error {
 		})
 	}
 	if err := func() error {
-		if value, ok := s.BlockPropertiesV1beta.Get(); ok {
+		if value, ok := s.BlockProperties.Get(); ok {
 			if err := func() error {
 				if err := value.Validate(); err != nil {
 					return err
@@ -13123,7 +13123,7 @@ func (s *VolumeUpdateV1beta) Validate() error {
 		return nil
 	}(); err != nil {
 		failures = append(failures, validate.FieldError{
-			Name:  "BlockProperties_v1beta",
+			Name:  "blockProperties",
 			Error: err,
 		})
 	}

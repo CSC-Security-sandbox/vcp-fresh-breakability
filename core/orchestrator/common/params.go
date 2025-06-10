@@ -70,6 +70,22 @@ type CreateVolumeParams struct {
 	DataProtection   *models.DataProtection
 }
 
+// UpdateVolumeParams describes parameters supplied to UpdateVolume
+type UpdateVolumeParams struct {
+	AccountName     string
+	Region          string
+	Name            string
+	Description     string
+	Network         string
+	PoolID          string
+	VolumeId        string
+	VendorID        string
+	QuotaInBytes    int64
+	Protocols       []string
+	Labels          map[string]string
+	BlockProperties *models.BlockProperties
+}
+
 type CreateLunMapParams struct {
 	LunName   string
 	SvmName   string

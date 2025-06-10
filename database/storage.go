@@ -427,6 +427,10 @@ func (s *PersistenceStore) UpdateVolume(ctx context.Context, volume *datamodel.V
 	return s.dataStore.UpdateVolume(ctx, volume)
 }
 
+func (s *PersistenceStore) UpdateVolumeFields(ctx context.Context, volumeUUID string, updates map[string]interface{}) error {
+	return s.dataStore.UpdateVolumeFields(ctx, volumeUUID, updates)
+}
+
 func (s *PersistenceStore) DeleteVolume(ctx context.Context, id string) (*datamodel.Volume, error) {
 	return s.dataStore.DeleteVolume(ctx, id)
 }
@@ -618,8 +622,8 @@ func (s *PersistenceStore) GetKmsConfigByUUID(ctx context.Context, uuid string) 
 func (s *PersistenceStore) UpdateKmsConfigAttributes(ctx context.Context, uuid string, attributes *datamodel.KmsAttributes) (*datamodel.KmsConfig, error) {
 	return s.dataStore.UpdateKmsConfigAttributes(ctx, uuid, attributes)
 }
-func (s *PersistenceStore) GetJobByKmsConfigID(ctx context.Context, kmsConfigUUID string) (*datamodel.Job, error) {
-	return s.dataStore.GetJobByKmsConfigID(ctx, kmsConfigUUID)
+func (s *PersistenceStore) GetJobByResourceUUID(ctx context.Context, resourceUUID string) (*datamodel.Job, error) {
+	return s.dataStore.GetJobByResourceUUID(ctx, resourceUUID)
 }
 
 func (s *PersistenceStore) UpdateKmsConfigDetails(ctx context.Context, uuid string, keyFullPath string, resourceID string) (*datamodel.KmsConfig, error) {

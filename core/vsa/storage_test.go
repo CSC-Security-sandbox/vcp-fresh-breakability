@@ -688,3 +688,64 @@ func TestLunGet(t *testing.T) {
 		mockClient.AssertExpectations(tt)
 	})
 }
+
+func TestLunUpdate(t *testing.T) {
+	mockSAN := new(ontaprest.MockSANClient)
+	mockClient := new(ontaprest.MockRESTClient)
+	mockClient.On("SAN").Return(mockSAN)
+	getOntapClientFunc = func(params ontaprest.RESTClientParams) ontaprest.RESTClient {
+		return mockClient
+	}
+	rc := &OntapRestProvider{}
+
+	params := LunUpdateParams{
+		UUID:       "uuid-1",
+		LunName:    "lun-1",
+		SvmName:    "svm-1",
+		VolumeName: "vol-1",
+		Size:       int64(1024),
+	}
+
+	t.Run("WhenLunUpdateReturnsError", func(tt *testing.T) {
+		mockSAN.On("LunUpdate", mock.Anything).Return(false, nil, errors.New("update error")).Once()
+		err := rc.LunUpdate(params)
+		assert.Error(tt, err)
+		assert.Equal(tt, "update error", err.Error())
+		mockSAN.AssertExpectations(tt)
+	})
+
+	t.Run("WhenLunUpdateSuccessTrue", func(tt *testing.T) {
+		mockSAN.On("LunUpdate", mock.Anything).Return(true, nil, nil).Once()
+		err := rc.LunUpdate(params)
+		assert.NoError(tt, err)
+		mockSAN.AssertExpectations(tt)
+	})
+
+	t.Run("WhenLunUpdateSuccessFalseAndPollSucceeds", func(tt *testing.T) {
+		mockSAN.On("LunUpdate", mock.Anything).Return(false, &ontaprest.JobAccepted{JobUUID: "job-1"}, nil).Once()
+		mockClient.On("Poll", "job-1").Return(nil).Once()
+		err := rc.LunUpdate(params)
+		assert.NoError(tt, err)
+		mockSAN.AssertExpectations(tt)
+		mockClient.AssertExpectations(tt)
+	})
+
+	t.Run("WhenLunUpdateSuccessFalseAndPollFails", func(tt *testing.T) {
+		mockSAN.On("LunUpdate", mock.Anything).Return(false, &ontaprest.JobAccepted{JobUUID: "job-2"}, nil).Once()
+		mockClient.On("Poll", "job-2").Return(errors.New("poll error")).Once()
+		err := rc.LunUpdate(params)
+		assert.Error(tt, err)
+		assert.Equal(tt, "poll error", err.Error())
+		mockSAN.AssertExpectations(tt)
+		mockClient.AssertExpectations(tt)
+	})
+
+	t.Run("WhenLunUpdateReturnsConflictError", func(tt *testing.T) {
+		mockSAN.On("LunUpdate", mock.Anything).Return(false, nil, errors.New("New LUN size is the same as the old LUN size")).Once()
+		err := rc.LunUpdate(params)
+		assert.Error(tt, err)
+		assert.True(tt, errors.IsConflictErr(err))
+		assert.Contains(tt, err.Error(), "already has the specified size")
+		mockSAN.AssertExpectations(tt)
+	})
+}

@@ -2184,6 +2184,8 @@ type BlockPropertiesV1beta struct {
 	// List of Uuid v4 used to identify the HostGroups. A volume can be mapped to multiple HostGroups as
 	// long as each HostGroup has a distinct set of hosts.
 	HostGroupIds []string `json:"hostGroupIds"`
+	// LUN Serial Number of the Block Volume.
+	LunSerialNumber OptString `json:"lunSerialNumber"`
 }
 
 // GetOsType returns the value of OsType.
@@ -2196,6 +2198,11 @@ func (s *BlockPropertiesV1beta) GetHostGroupIds() []string {
 	return s.HostGroupIds
 }
 
+// GetLunSerialNumber returns the value of LunSerialNumber.
+func (s *BlockPropertiesV1beta) GetLunSerialNumber() OptString {
+	return s.LunSerialNumber
+}
+
 // SetOsType sets the value of OsType.
 func (s *BlockPropertiesV1beta) SetOsType(val OptBlockPropertiesV1betaOsType) {
 	s.OsType = val
@@ -2204,6 +2211,11 @@ func (s *BlockPropertiesV1beta) SetOsType(val OptBlockPropertiesV1betaOsType) {
 // SetHostGroupIds sets the value of HostGroupIds.
 func (s *BlockPropertiesV1beta) SetHostGroupIds(val []string) {
 	s.HostGroupIds = val
+}
+
+// SetLunSerialNumber sets the value of LunSerialNumber.
+func (s *BlockPropertiesV1beta) SetLunSerialNumber(val OptString) {
+	s.LunSerialNumber = val
 }
 
 type BlockPropertiesV1betaOsType string
@@ -3869,7 +3881,6 @@ func (s *HybridReplicationUserCommandsV1beta) SetCommands(val []string) {
 
 // Ref: #/components/schemas/InternalJob_v1beta
 type InternalJobV1beta struct {
-	JobId         OptInt    `json:"JobId"`
 	JobUuid       OptString `json:"JobUuid"`
 	CorrelationId OptString `json:"CorrelationId"`
 	State         OptString `json:"State"`
@@ -3882,11 +3893,6 @@ type InternalJobV1beta struct {
 	ProjectNumber OptString   `json:"ProjectNumber"`
 	// Scheduled run date of the resource.
 	ScheduledAt OptDateTime `json:"ScheduledAt"`
-}
-
-// GetJobId returns the value of JobId.
-func (s *InternalJobV1beta) GetJobId() OptInt {
-	return s.JobId
 }
 
 // GetJobUuid returns the value of JobUuid.
@@ -3932,11 +3938,6 @@ func (s *InternalJobV1beta) GetProjectNumber() OptString {
 // GetScheduledAt returns the value of ScheduledAt.
 func (s *InternalJobV1beta) GetScheduledAt() OptDateTime {
 	return s.ScheduledAt
-}
-
-// SetJobId sets the value of JobId.
-func (s *InternalJobV1beta) SetJobId(val OptInt) {
-	s.JobId = val
 }
 
 // SetJobUuid sets the value of JobUuid.
@@ -18290,12 +18291,12 @@ type VolumeUpdateV1beta struct {
 	SnapReserve OptNilFloat64 `json:"snapReserve"`
 	// If enabled (true) the volume will contain a read-only '.snapshot' directory which provides access
 	// to each of the volume's snapshots.
-	SnapshotDirectory     OptNilBool               `json:"snapshotDirectory"`
-	SnapshotPolicy        OptSnapshotPolicyV1beta  `json:"snapshotPolicy"`
-	ExportPolicy          OptExportPolicyV1beta    `json:"exportPolicy"`
-	BackupConfig          OptBackupConfigV1beta    `json:"backupConfig"`
-	TieringPolicy         OptTieringPolicyV1beta   `json:"tieringPolicy"`
-	BlockPropertiesV1beta OptBlockPropertiesV1beta `json:"BlockProperties_v1beta"`
+	SnapshotDirectory OptNilBool               `json:"snapshotDirectory"`
+	SnapshotPolicy    OptSnapshotPolicyV1beta  `json:"snapshotPolicy"`
+	ExportPolicy      OptExportPolicyV1beta    `json:"exportPolicy"`
+	BackupConfig      OptBackupConfigV1beta    `json:"backupConfig"`
+	TieringPolicy     OptTieringPolicyV1beta   `json:"tieringPolicy"`
+	BlockProperties   OptBlockPropertiesV1beta `json:"blockProperties"`
 	// Protocol type through which volume can be accessed.
 	Protocols         []ProtocolsV1beta       `json:"protocols"`
 	RestrictedActions RestrictedActionsV1beta `json:"restrictedActions"`
@@ -18349,9 +18350,9 @@ func (s *VolumeUpdateV1beta) GetTieringPolicy() OptTieringPolicyV1beta {
 	return s.TieringPolicy
 }
 
-// GetBlockPropertiesV1beta returns the value of BlockPropertiesV1beta.
-func (s *VolumeUpdateV1beta) GetBlockPropertiesV1beta() OptBlockPropertiesV1beta {
-	return s.BlockPropertiesV1beta
+// GetBlockProperties returns the value of BlockProperties.
+func (s *VolumeUpdateV1beta) GetBlockProperties() OptBlockPropertiesV1beta {
+	return s.BlockProperties
 }
 
 // GetProtocols returns the value of Protocols.
@@ -18424,9 +18425,9 @@ func (s *VolumeUpdateV1beta) SetTieringPolicy(val OptTieringPolicyV1beta) {
 	s.TieringPolicy = val
 }
 
-// SetBlockPropertiesV1beta sets the value of BlockPropertiesV1beta.
-func (s *VolumeUpdateV1beta) SetBlockPropertiesV1beta(val OptBlockPropertiesV1beta) {
-	s.BlockPropertiesV1beta = val
+// SetBlockProperties sets the value of BlockProperties.
+func (s *VolumeUpdateV1beta) SetBlockProperties(val OptBlockPropertiesV1beta) {
+	s.BlockProperties = val
 }
 
 // SetProtocols sets the value of Protocols.

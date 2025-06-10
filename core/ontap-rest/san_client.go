@@ -15,6 +15,7 @@ type SANClient interface { // generate:mock
 	IGroupGet(params *IgroupGetParams) (*Igroup, error)
 	LunCreate(params *LunCreateParams) (*Lun, error)
 	LunGet(params *LunGetParams) (*Lun, error)
+	LunUpdate(params *LunUpdateParams) (bool, *JobAccepted, error)
 	LunMapCreate(params *LunMapCreateParams) error
 }
 
@@ -94,6 +95,25 @@ func (t *sanClient) LunGet(params *LunGetParams) (*Lun, error) {
 	}
 
 	return &Lun{Lun: *response.Payload.LunResponseInlineRecords[0]}, nil
+}
+
+// LunUpdate invokes clients/ontap-rest/client/s_a_n/Client.LunModify to update a LUN
+// It returns a boolean indicating whether the operation was successful immediately
+// or if it was accepted for processing, in which case a JobAccepted object is returned.
+func (t *sanClient) LunUpdate(params *LunUpdateParams) (bool, *JobAccepted, error) {
+	// Success code response ignored, since it does not contain any useful data
+	okResponse, acceptedResponse, err := t.api.LunModify(lunModifyParamsToONTAP(params), nil)
+	if err != nil {
+		return false, nil, err
+	}
+	if okResponse != nil {
+		return true, nil, nil
+	}
+
+	job := &JobAccepted{
+		JobUUID: acceptedResponse.Payload.Job.UUID.String(),
+	}
+	return false, job, nil
 }
 
 // LunMapCreate invokes clients/ontap-rest/client/s_a_n/Client.LunMapCreate to create a LUN mapping

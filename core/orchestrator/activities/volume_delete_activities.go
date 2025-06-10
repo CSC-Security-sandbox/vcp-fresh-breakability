@@ -21,7 +21,7 @@ func (a *VolumeDeleteActivity) DeleteVolumeInONTAP(ctx context.Context, volume *
 	if err != nil {
 		return err
 	}
-	logger.Debug("Volume %s deleted successfully from the vsa cluster", volume.Name)
+	logger.Debugf("Volume %s deleted successfully from the vsa cluster", volume.Name)
 
 	return nil
 }
@@ -37,7 +37,7 @@ func (a *VolumeDeleteActivity) DeleteVolume(ctx context.Context, volume *datamod
 		}
 		return err
 	}
-	logger.Debug("Volume:%s marked deleted successfully in the db", volume.Name)
+	logger.Debugf("Volume:%s marked deleted successfully in the db", volume.Name)
 
 	return nil
 }

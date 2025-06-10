@@ -164,6 +164,7 @@ func (wf *volumeCreateWorkflow) Run(ctx workflow.Context, args ...interface{}) (
 	}
 
 	dbVolume.VolumeAttributes.BlockProperties.LunSerialNumber = lun.SerialNumber
+	dbVolume.VolumeAttributes.BlockProperties.LunUUID = lun.ExternalUUID
 	err = workflow.ExecuteActivity(ctx, volumeActivity.UpdateVolumeDetails, &dbVolume, &volCreateResponse).Get(ctx, nil)
 	if err != nil {
 		return nil, err

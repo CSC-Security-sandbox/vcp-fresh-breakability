@@ -117,12 +117,14 @@ type VolumeAttributes struct {
 	ExternalUUID     string           `json:"external_uuid"`
 	BlockProperties  *BlockProperties `json:"block_properties"`
 	IsDataProtection bool             `json:"is_data_protection"`
+	Labels           *JSONB           `json:"labels"`
 }
 
 type BlockProperties struct {
-	OSType          string   `json:"osType"`
-	HostGroupUUIDs  []string `json:"hostGroupUUIDs"`
+	OSType          string   `json:"os_type"`
+	HostGroupUUIDs  []string `json:"host_group_uuids"`
 	LunSerialNumber string   `json:"serial_number"`
+	LunUUID         string   `json:"lun_uuid"`
 }
 
 func (v *VolumeAttributes) Scan(value interface{}) error {

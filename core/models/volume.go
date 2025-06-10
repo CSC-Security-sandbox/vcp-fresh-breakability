@@ -24,8 +24,9 @@ type Volume struct {
 }
 
 type BlockProperties struct {
-	OSType         string
-	HostGroupUUIDs []string
+	OSType          string
+	HostGroupUUIDs  []string
+	LunSerialNumber string
 }
 
 type DataProtection struct {

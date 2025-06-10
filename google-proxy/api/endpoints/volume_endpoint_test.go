@@ -2,6 +2,7 @@ package api
 
 import (
 	"context"
+	"fmt"
 	"testing"
 	"time"
 
@@ -15,6 +16,8 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	gcpgenserver "github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/api/gcp-servergen"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	slogger "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/nillable"
 )
@@ -616,5 +619,267 @@ func TestConvertVolumeV1betaCVPToModel(t *testing.T) {
 		assert.Equal(tt, int64(10199181), res.BackupConfig.Value.BackupChainBytes.Value)
 		assert.Equal(tt, "backup-policy-id", res.BackupConfig.Value.BackupPolicyId.Value)
 		assert.Equal(tt, "backup-vault-id", res.BackupConfig.Value.BackupVaultId.Value)
+	})
+}
+
+func TestV1betaUpdateVolume(t *testing.T) {
+	originalParseAndValidateRegionAndZone := utils.ParseAndValidateRegionAndZone
+	mockParseAndValidateRegionAndZone := func(region string) (string, string, *gcpgenserver.Error) {
+		return "test-region", "test-location", nil
+	}
+	utils.ParseAndValidateRegionAndZone = mockParseAndValidateRegionAndZone
+	defer func() { utils.ParseAndValidateRegionAndZone = originalParseAndValidateRegionAndZone }()
+
+	t.Run("ValidUpdateVolume", func(tt *testing.T) {
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		handler := Handler{Orchestrator: mockOrchestrator}
+
+		params := gcpgenserver.V1betaUpdateVolumeParams{
+			LocationId:    "location-id",
+			ProjectNumber: "project-number",
+			VolumeId:      "vol-1",
+		}
+		req := &gcpgenserver.VolumeUpdateV1beta{
+			PoolId:       gcpgenserver.NewOptNilString("test-pool"),
+			QuotaInBytes: gcpgenserver.NewOptNilFloat64(2048),
+		}
+		volume := &models.Volume{
+			BaseModel:      models.BaseModel{UUID: "vol-1"},
+			LifeCycleState: "READY",
+		}
+		jobUUID := "job-uuid"
+		mockOrchestrator.EXPECT().UpdateVolume(mock.Anything, mock.Anything).Return(volume, jobUUID, nil)
+
+		result, err := handler.V1betaUpdateVolume(context.Background(), req, params)
+		assert.NoError(tt, err)
+		op, ok := result.(*gcpgenserver.OperationV1beta)
+		assert.True(tt, ok)
+		assert.Equal(tt, "/v1beta/projects/project-number/locations/location-id/operations/job-uuid", op.Name.Value)
+	})
+
+	t.Run("UserInputValidationError", func(tt *testing.T) {
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		handler := Handler{Orchestrator: mockOrchestrator}
+		params := gcpgenserver.V1betaUpdateVolumeParams{
+			ProjectNumber: "test-project",
+			LocationId:    "test-location",
+			VolumeId:      "vol-1",
+		}
+		req := &gcpgenserver.VolumeUpdateV1beta{}
+		prepareUpdateVolumeParams = func(req *gcpgenserver.VolumeUpdateV1beta, params gcpgenserver.V1betaUpdateVolumeParams, region string) (*common.UpdateVolumeParams, error) {
+			return nil, errors.NewUserInputValidationErr("invalid input")
+		}
+		defer func() { prepareUpdateVolumeParams = _prepareUpdateVolumeParams }()
+
+		result, err := handler.V1betaUpdateVolume(context.Background(), req, params)
+		assert.NoError(tt, err)
+		badReq, ok := result.(*gcpgenserver.V1betaUpdateVolumeBadRequest)
+		assert.True(tt, ok)
+		assert.Equal(tt, float64(400), badReq.Code)
+		assert.Contains(tt, badReq.Message, "invalid input")
+	})
+
+	t.Run("InternalServerError", func(tt *testing.T) {
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		handler := Handler{Orchestrator: mockOrchestrator}
+		params := gcpgenserver.V1betaUpdateVolumeParams{
+			ProjectNumber: "test-project",
+			LocationId:    "test-location",
+			VolumeId:      "vol-1",
+		}
+		req := &gcpgenserver.VolumeUpdateV1beta{}
+		prepareUpdateVolumeParams = func(req *gcpgenserver.VolumeUpdateV1beta, params gcpgenserver.V1betaUpdateVolumeParams, region string) (*common.UpdateVolumeParams, error) {
+			return nil, fmt.Errorf("unexpected error")
+		}
+		defer func() { prepareUpdateVolumeParams = _prepareUpdateVolumeParams }()
+
+		result, err := handler.V1betaUpdateVolume(context.Background(), req, params)
+		assert.Error(tt, err)
+		internalErr, ok := result.(*gcpgenserver.V1betaUpdateVolumeInternalServerError)
+		assert.True(tt, ok)
+		assert.Equal(tt, float64(500), internalErr.Code)
+		assert.Contains(tt, internalErr.Message, "unexpected error")
+	})
+
+	t.Run("BadRequest", func(tt *testing.T) {
+		utils.ParseAndValidateRegionAndZone = originalParseAndValidateRegionAndZone
+		defer func() { utils.ParseAndValidateRegionAndZone = mockParseAndValidateRegionAndZone }()
+
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		handler := Handler{Orchestrator: mockOrchestrator}
+		params := gcpgenserver.V1betaUpdateVolumeParams{
+			ProjectNumber: "test-project",
+			LocationId:    "test-location",
+			VolumeId:      "vol-1",
+		}
+		req := &gcpgenserver.VolumeUpdateV1beta{}
+		prepareUpdateVolumeParams = func(req *gcpgenserver.VolumeUpdateV1beta, params gcpgenserver.V1betaUpdateVolumeParams, region string) (*common.UpdateVolumeParams, error) {
+			return nil, fmt.Errorf("unexpected error")
+		}
+		defer func() { prepareUpdateVolumeParams = _prepareUpdateVolumeParams }()
+
+		result, err := handler.V1betaUpdateVolume(context.Background(), req, params)
+		assert.NoError(tt, err)
+		internalErr, ok := result.(*gcpgenserver.V1betaUpdateVolumeBadRequest)
+		assert.True(tt, ok)
+		assert.Equal(tt, float64(400), internalErr.Code)
+		assert.Contains(tt, internalErr.Message, "LocationID represents neither a region nor a zone")
+	})
+
+	t.Run("WhenOrchestratorValidationThrowsAnError_Return400BadRequest", func(tt *testing.T) {
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		handler := Handler{Orchestrator: mockOrchestrator}
+
+		params := gcpgenserver.V1betaUpdateVolumeParams{
+			LocationId:    "location-id",
+			ProjectNumber: "project-number",
+			VolumeId:      "vol-1",
+		}
+		req := &gcpgenserver.VolumeUpdateV1beta{
+			PoolId:       gcpgenserver.NewOptNilString("test-pool"),
+			QuotaInBytes: gcpgenserver.NewOptNilFloat64(2048),
+		}
+
+		mockOrchestrator.EXPECT().UpdateVolume(mock.Anything, mock.Anything).Return(nil, "", errors.NewUserInputValidationErr("An error occurred"))
+
+		result, err := handler.V1betaUpdateVolume(context.Background(), req, params)
+		assert.NoError(tt, err)
+		internalErr, ok := result.(*gcpgenserver.V1betaUpdateVolumeBadRequest)
+		assert.True(tt, ok)
+		assert.Equal(tt, float64(400), internalErr.Code)
+		assert.Contains(tt, internalErr.Message, "An error occurred")
+	})
+
+	t.Run("WhenOrchestratorThrowsAnError_ReturnError", func(tt *testing.T) {
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		handler := Handler{Orchestrator: mockOrchestrator}
+
+		params := gcpgenserver.V1betaUpdateVolumeParams{
+			LocationId:    "location-id",
+			ProjectNumber: "project-number",
+			VolumeId:      "vol-1",
+		}
+		req := &gcpgenserver.VolumeUpdateV1beta{
+			PoolId:       gcpgenserver.NewOptNilString("test-pool"),
+			QuotaInBytes: gcpgenserver.NewOptNilFloat64(2048),
+		}
+
+		mockOrchestrator.EXPECT().UpdateVolume(mock.Anything, mock.Anything).Return(nil, "", errors.New("An error occurred"))
+
+		result, err := handler.V1betaUpdateVolume(context.Background(), req, params)
+		assert.Error(tt, err)
+		internalErr, ok := result.(*gcpgenserver.V1betaUpdateVolumeInternalServerError)
+		assert.True(tt, ok)
+		assert.Equal(tt, float64(500), internalErr.Code)
+		assert.Contains(tt, internalErr.Message, "An error occurred")
+	})
+
+	t.Run("WhenLifeCycleStateUpdating_ThenReturnDoneAsFalse", func(tt *testing.T) {
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		handler := Handler{Orchestrator: mockOrchestrator}
+
+		params := gcpgenserver.V1betaUpdateVolumeParams{
+			LocationId:    "location-id",
+			ProjectNumber: "project-number",
+			VolumeId:      "vol-1",
+		}
+		req := &gcpgenserver.VolumeUpdateV1beta{
+			PoolId:       gcpgenserver.NewOptNilString("test-pool"),
+			QuotaInBytes: gcpgenserver.NewOptNilFloat64(2048),
+		}
+		volume := &models.Volume{
+			BaseModel:      models.BaseModel{UUID: "vol-1"},
+			LifeCycleState: "UPDATING",
+		}
+		jobUUID := "job-uuid"
+		mockOrchestrator.EXPECT().UpdateVolume(mock.Anything, mock.Anything).Return(volume, jobUUID, nil)
+
+		result, err := handler.V1betaUpdateVolume(context.Background(), req, params)
+		assert.NoError(tt, err)
+		op, ok := result.(*gcpgenserver.OperationV1beta)
+		assert.True(tt, ok)
+		assert.Equal(tt, "/v1beta/projects/project-number/locations/location-id/operations/job-uuid", op.Name.Value)
+		assert.False(tt, op.Done.Value)
+	})
+}
+
+func TestPrepareUpdateVolumeParams(t *testing.T) {
+	params := gcpgenserver.V1betaUpdateVolumeParams{
+		ProjectNumber: "proj",
+		LocationId:    "loc",
+		VolumeId:      "vol",
+	}
+	region := "region"
+
+	t.Run("WhenAllFieldsSet_ThenFieldsAreMapped", func(t *testing.T) {
+		req := &gcpgenserver.VolumeUpdateV1beta{
+			PoolId:       gcpgenserver.NewOptNilString("pool"),
+			QuotaInBytes: gcpgenserver.NewOptNilFloat64(1234),
+			Description:  gcpgenserver.NewOptNilString("desc"),
+			Protocols:    []gcpgenserver.ProtocolsV1beta{gcpgenserver.ProtocolsV1betaISCSI},
+			BlockProperties: gcpgenserver.NewOptBlockPropertiesV1beta(
+				gcpgenserver.BlockPropertiesV1beta{
+					OsType: gcpgenserver.NewOptBlockPropertiesV1betaOsType("LINUX"),
+				},
+			),
+			Labels: gcpgenserver.NewOptVolumeUpdateV1betaLabels(map[string]string{"k": "v"}),
+		}
+		out, err := _prepareUpdateVolumeParams(req, params, region)
+		assert.NoError(t, err)
+		assert.Equal(t, "pool", out.PoolID)
+		assert.Equal(t, int64(1234), out.QuotaInBytes)
+		assert.Equal(t, "desc", out.Description)
+		assert.Equal(t, []string{"ISCSI"}, out.Protocols)
+		assert.NotNil(t, out.BlockProperties)
+		assert.Equal(t, "LINUX", out.BlockProperties.OSType)
+		assert.Equal(t, map[string]string{"k": "v"}, out.Labels)
+	})
+
+	t.Run("WhenOptionalFieldsNotSet_ThenDefaultsAreUsed", func(t *testing.T) {
+		req := &gcpgenserver.VolumeUpdateV1beta{}
+		out, err := _prepareUpdateVolumeParams(req, params, region)
+		assert.NoError(t, err)
+		assert.Equal(t, "", out.PoolID)
+		assert.Equal(t, int64(0), out.QuotaInBytes)
+		assert.Equal(t, "", out.Description)
+		assert.Empty(t, out.Protocols)
+		assert.Nil(t, out.BlockProperties)
+		assert.Nil(t, out.Labels)
+	})
+
+	t.Run("WhenProtocolsIsOtherThanISCSII_ThenThrowError", func(t *testing.T) {
+		req := &gcpgenserver.VolumeUpdateV1beta{
+			Protocols: []gcpgenserver.ProtocolsV1beta{gcpgenserver.ProtocolsV1betaNFSV3},
+		}
+		out, err := _prepareUpdateVolumeParams(req, params, region)
+		assert.Error(t, err, "only ISCSI protocol is supported")
+		assert.Nil(t, out)
+	})
+
+	t.Run("WhenBlockPropertiesSetWithoutOsType_ThenBlockPropertiesIsNil", func(t *testing.T) {
+		req := &gcpgenserver.VolumeUpdateV1beta{
+			BlockProperties: gcpgenserver.NewOptBlockPropertiesV1beta(gcpgenserver.BlockPropertiesV1beta{}),
+		}
+		out, err := _prepareUpdateVolumeParams(req, params, region)
+		assert.NoError(t, err)
+		assert.Nil(t, out.BlockProperties)
+	})
+
+	t.Run("WhenLabelsContainEmptyKey_ThenLabelIsSkipped", func(t *testing.T) {
+		req := &gcpgenserver.VolumeUpdateV1beta{
+			Labels: gcpgenserver.NewOptVolumeUpdateV1betaLabels(map[string]string{"": "v", "k": "v2"}),
+		}
+		out, err := _prepareUpdateVolumeParams(req, params, region)
+		assert.EqualError(t, err, "Labels cannot have empty keys")
+		assert.Nil(t, out)
+	})
+
+	t.Run("WhenProtocolMarshalTextFails_ThenErrorIsReturned", func(t *testing.T) {
+		badProtocol := gcpgenserver.ProtocolsV1beta(rune(255)) // assuming this is invalid
+		req := &gcpgenserver.VolumeUpdateV1beta{
+			Protocols: []gcpgenserver.ProtocolsV1beta{badProtocol},
+		}
+		_, err := _prepareUpdateVolumeParams(req, params, region)
+		assert.Error(t, err)
 	})
 }

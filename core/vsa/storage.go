@@ -107,6 +107,28 @@ func (rc *OntapRestProvider) LunGet(params LunGetParams) (*LunResponse, error) {
 	}, nil
 }
 
+// LunUpdate updates the LUN by calling the ONTAP REST Client
+func (rc *OntapRestProvider) LunUpdate(params LunUpdateParams) error {
+	client := getOntapClientFunc(rc.ClientParams)
+	success, job, err := client.SAN().LunUpdate(&ontapRest.LunUpdateParams{
+		UUID:       params.UUID,
+		Name:       params.LunName,
+		SvmName:    params.SvmName,
+		VolumeName: params.VolumeName,
+		Size:       params.Size,
+	})
+	if err != nil {
+		if strings.Contains(err.Error(), "New LUN size is the same as the old LUN size") {
+			return errors.NewConflictErr(fmt.Sprintf("LUN %s already has the specified size", params.LunName))
+		}
+		return err
+	}
+	if success {
+		return nil
+	}
+	return client.Poll(job.JobUUID)
+}
+
 // IgroupCreate creates an initiator group by calling the ONTAP REST Client
 func (rc *OntapRestProvider) IgroupCreate(params IgroupCreateParams) (string, error) {
 	client := getOntapClientFunc(rc.ClientParams)

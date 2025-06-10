@@ -5336,6 +5336,11 @@ components:
             pattern: "^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$"
             description: Uuid v4 used to identify the HostGroup
             example: 9760acf5-4638-11e7-9bdb-020073ca3333
+        lunSerialNumber:
+          readOnly: true
+          type: string
+          description: LUN Serial Number of the Block Volume.
+          example: lW8B5]YNNUq8
     OSType_v1beta:
       title: OSType
       type: string
@@ -6278,7 +6283,7 @@ components:
           $ref: '#/components/schemas/BackupConfig_v1beta'
         tieringPolicy:
           $ref: '#/components/schemas/TieringPolicy_v1beta'
-        BlockProperties_v1beta:
+        blockProperties:
           $ref: '#/components/schemas/BlockProperties_v1beta'
         protocols:
           title: protocol

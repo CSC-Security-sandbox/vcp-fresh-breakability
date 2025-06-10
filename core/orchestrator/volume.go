@@ -11,6 +11,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/workflows"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
 	customerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/nillable"
@@ -26,6 +27,7 @@ var (
 	createVolume               = _createVolume
 	validateCreateVolumeParams = _validateCreateVolumeParams
 	getIPAddressForVolume      = _getIPAddressForVolume
+	updateVolume               = _updateVolume
 	deleteVolume               = _deleteVolume
 )
 
@@ -264,8 +266,9 @@ func convertDatastoreVolumeToModel(volume *datamodel.Volume, ipAddress *string) 
 
 	if attributes.BlockProperties != nil {
 		res.BlockProperties = &models.BlockProperties{
-			OSType:         attributes.BlockProperties.OSType,
-			HostGroupUUIDs: attributes.BlockProperties.HostGroupUUIDs,
+			OSType:          attributes.BlockProperties.OSType,
+			HostGroupUUIDs:  attributes.BlockProperties.HostGroupUUIDs,
+			LunSerialNumber: attributes.BlockProperties.LunSerialNumber,
 		}
 	}
 
@@ -347,4 +350,91 @@ func (o *Orchestrator) GetMultipleVolumes(ctx context.Context, volumeIds []strin
 		result = append(result, convertDatastoreVolumeToModel(volume, &ipAddress))
 	}
 	return result, nil
+}
+
+// UpdateVolume updates the specified volume with the new parameters
+func (o *Orchestrator) UpdateVolume(ctx context.Context, param *common.UpdateVolumeParams) (*models.Volume, string, error) {
+	return updateVolume(ctx, o.storage, o.temporal, param)
+}
+
+func _updateVolume(ctx context.Context, se database.Storage, temporal client.Client, params *common.UpdateVolumeParams) (*models.Volume, string, error) {
+	logger := util.GetLogger(ctx)
+
+	dbVolume, err := se.GetVolume(ctx, params.VolumeId)
+	if err != nil {
+		return nil, "", err
+	}
+
+	if dbVolume.State == models.LifeCycleStateUpdating {
+		job, err := se.GetJobByResourceUUID(ctx, dbVolume.UUID)
+		if err != nil {
+			return nil, "", err
+		}
+		return convertDatastoreVolumeToModel(dbVolume, nil), job.UUID, nil
+	}
+
+	err = validateUpdateVolumeRequest(dbVolume, params)
+	if err != nil {
+		return nil, "", err
+	}
+
+	job := &datamodel.Job{
+		Type:          string(models.JobTypeUpdateVolume),
+		State:         string(models.JobsStateNEW),
+		ResourceName:  params.Name,
+		AccountID:     sql.NullInt64{Int64: dbVolume.AccountID, Valid: true},
+		JobAttributes: &datamodel.JobAttributes{ResourceUUID: dbVolume.UUID},
+	}
+	createdJob, err := se.CreateJob(ctx, job)
+	if err != nil {
+		logger.Error("Failed to create volume update job in database", "error", err)
+		return nil, "", err
+	}
+
+	dbVolume, err = updateVolumeStatus(ctx, se, dbVolume)
+	if err != nil {
+		logger.Error("Failed to update volume state in database", "error", err)
+		return nil, "", err
+	}
+
+	_, err = temporal.ExecuteWorkflow(ctx,
+		client.StartWorkflowOptions{
+			TaskQueue:             workflowengine.CustomerTaskQueue,
+			ID:                    createdJob.WorkflowID,
+			WorkflowIDReusePolicy: enums.WORKFLOW_ID_REUSE_POLICY_REJECT_DUPLICATE,
+		},
+		workflows.UpdateVolumeWorkflow,
+		params,
+		dbVolume,
+	)
+
+	if err != nil {
+		logger.Error("Failed to start update volume workflow: ", "error", err)
+		return nil, "", err
+	}
+	return convertDatastoreVolumeToModel(dbVolume, nil), createdJob.UUID, nil
+}
+
+func updateVolumeStatus(ctx context.Context, se database.Storage, dbVolume *datamodel.Volume) (*datamodel.Volume, error) {
+	err := se.UpdateVolumeFields(ctx, dbVolume.UUID, map[string]interface{}{
+		"state":         models.LifeCycleStateUpdating,
+		"state_details": models.LifeCycleStateUpdatingDetails,
+	})
+	if err != nil {
+		return nil, err
+	}
+	dbVolume.State = models.LifeCycleStateUpdating
+	dbVolume.StateDetails = models.LifeCycleStateUpdatingDetails
+	return dbVolume, err
+}
+
+func validateUpdateVolumeRequest(volume *datamodel.Volume, params *common.UpdateVolumeParams) error {
+	if utils.IsTransitionalState(volume.State) {
+		return customerrors.NewUserInputValidationErr("volume is not in a valid state for update")
+	}
+
+	if params.QuotaInBytes < volume.SizeInBytes {
+		return customerrors.NewUserInputValidationErr("volume size cannot be reduced")
+	}
+	return nil
 }

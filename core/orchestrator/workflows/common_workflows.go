@@ -137,7 +137,7 @@ func (bw *BaseWorkflow) UpdateJobStatus(ctx workflow.Context, status string, err
 
 	commonActivity := activities.CommonActivities{}
 	ctx = workflow.WithActivityOptions(ctx, workflow.ActivityOptions{
-		ScheduleToCloseTimeout: 10 * time.Second,
+		StartToCloseTimeout: 10 * time.Second,
 	})
 	return executeActivity(ctx, commonActivity.UpdateJobStatus, updatedJob).Get(ctx, nil)
 }

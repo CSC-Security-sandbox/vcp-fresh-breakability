@@ -14,6 +14,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 	workflowEngineMock "github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine"
+	"go.temporal.io/sdk/client"
 	"golang.org/x/net/context"
 )
 
@@ -570,6 +571,32 @@ func TestCreateVolume(t *testing.T) {
 		assert.Nil(tt, volume, "Expected nil volume")
 		assert.EqualError(tt, err, "workflow error")
 	})
+}
+
+func TestOrchestrator_CreateVolume(t *testing.T) {
+	// Arrange
+	mockStorage := &database.MockStorage{}
+	mockTemporal := workflowEngineMock.NewMockTemporalTestClient(t)
+	orch := &Orchestrator{
+		storage:  mockStorage,
+		temporal: mockTemporal,
+	}
+
+	// Override createVolume for isolation
+	createVolume = func(ctx context.Context, se database.Storage, te client.Client, params *common.CreateVolumeParams) (*models.Volume, string, error) {
+		return &models.Volume{DisplayName: "vol"}, "job-id", nil
+	}
+	defer func() { createVolume = _createVolume }()
+
+	params := &common.CreateVolumeParams{Name: "vol"}
+
+	// Act
+	vol, jobID, err := orch.CreateVolume(context.Background(), params)
+
+	// Assert
+	assert.NoError(t, err)
+	assert.Equal(t, "vol", vol.DisplayName)
+	assert.Equal(t, "job-id", jobID)
 }
 
 func TestDeleteVolume(t *testing.T) {
@@ -2149,4 +2176,135 @@ func TestValidateCreateVolumeParams(t *testing.T) {
 		err = validateCreateVolumeParams(ctx, store, params, account.ID)
 		assert.Nil(tt, err)
 	})
+}
+
+func TestUpdateVolume(t *testing.T) {
+	t.Run("WhenGetVolumeFails", func(tt *testing.T) {
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+		se := &database.MockStorage{}
+		param := &common.UpdateVolumeParams{AccountName: "acc", VolumeId: "vid"}
+
+		se.On("GetVolume", ctx, "vid").Return(nil, errors.New("volume not found"))
+		temporal := workflowEngineMock.NewMockTemporalTestClient(t)
+		volume, _, err := updateVolume(ctx, se, temporal, param)
+		assert.EqualError(tt, err, "volume not found")
+		assert.Nil(tt, volume)
+	})
+
+	t.Run("WhenValidateUpdateVolumeParamsFails", func(tt *testing.T) {
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+		se := &database.MockStorage{}
+		param := &common.UpdateVolumeParams{AccountName: "acc", VolumeId: "vid", QuotaInBytes: 10}
+		dbVolume := &datamodel.Volume{SizeInBytes: 100, State: "READY"}
+
+		se.On("GetVolume", ctx, "vid").Return(dbVolume, nil)
+		temporal := workflowEngineMock.NewMockTemporalTestClient(t)
+		volume, _, err := updateVolume(ctx, se, temporal, param)
+		assert.EqualError(tt, err, "volume size cannot be reduced")
+		assert.Nil(tt, volume)
+	})
+
+	t.Run("WhenCreateJobFails", func(tt *testing.T) {
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+		se := &database.MockStorage{}
+		param := &common.UpdateVolumeParams{AccountName: "acc", VolumeId: "vid", QuotaInBytes: 200}
+		dbVolume := &datamodel.Volume{BaseModel: datamodel.BaseModel{UUID: "vid"}, SizeInBytes: 100, Name: "vol", State: "READY"}
+
+		se.On("GetVolume", ctx, "vid").Return(dbVolume, nil)
+		se.On("CreateJob", ctx, mock.Anything).Return(nil, errors.New("job error"))
+		temporal := workflowEngineMock.NewMockTemporalTestClient(t)
+		volume, _, err := updateVolume(ctx, se, temporal, param)
+		assert.EqualError(tt, err, "job error")
+		assert.Nil(tt, volume)
+	})
+
+	t.Run("WhenUpdateVolumeFieldsFails", func(tt *testing.T) {
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+		se := &database.MockStorage{}
+		param := &common.UpdateVolumeParams{AccountName: "acc", VolumeId: "vid", QuotaInBytes: 200}
+		dbVolume := &datamodel.Volume{BaseModel: datamodel.BaseModel{UUID: "vid"}, SizeInBytes: 100, Name: "vol", State: "READY"}
+		job := &datamodel.Job{WorkflowID: "wid"}
+
+		se.On("GetVolume", ctx, "vid").Return(dbVolume, nil)
+		se.On("CreateJob", ctx, mock.Anything).Return(job, nil)
+		se.On("UpdateVolumeFields", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(errors.New("update state error"))
+		temporal := workflowEngineMock.NewMockTemporalTestClient(t)
+		volume, _, err := updateVolume(ctx, se, temporal, param)
+		assert.EqualError(tt, err, "update state error")
+		assert.Nil(tt, volume)
+	})
+
+	t.Run("WhenExecuteWorkflowFails", func(tt *testing.T) {
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+		se := &database.MockStorage{}
+		param := &common.UpdateVolumeParams{AccountName: "acc", VolumeId: "vid", QuotaInBytes: 200}
+		dbVolume := &datamodel.Volume{BaseModel: datamodel.BaseModel{UUID: "vid"}, SizeInBytes: 100, Name: "vol", State: "READY"}
+		job := &datamodel.Job{WorkflowID: "wid"}
+
+		se.On("GetVolume", ctx, "vid").Return(dbVolume, nil)
+		se.On("CreateJob", ctx, mock.Anything).Return(job, nil)
+		se.On("UpdateVolumeFields", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+		temporal := workflowEngineMock.NewMockTemporalTestClient(t)
+		temporal.EXPECT().ExecuteWorkflow(mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, errors.New("workflow error")).Once()
+		volume, _, err := updateVolume(ctx, se, temporal, param)
+		assert.EqualError(tt, err, "workflow error")
+		assert.Nil(tt, volume)
+	})
+
+	t.Run("WhenUpdateVolumeSuccess", func(tt *testing.T) {
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+		se := &database.MockStorage{}
+		param := &common.UpdateVolumeParams{AccountName: "acc", VolumeId: "vid", QuotaInBytes: 200, Name: "vol"}
+		dbVolume := &datamodel.Volume{
+			BaseModel:   datamodel.BaseModel{UUID: "vid"},
+			SizeInBytes: 100,
+			Name:        "vol",
+			Pool:        &datamodel.Pool{BaseModel: datamodel.BaseModel{UUID: "1"}, Name: "pool"},
+			Account: &datamodel.Account{
+				Name: "acc",
+			},
+			VolumeAttributes: &datamodel.VolumeAttributes{
+				IsDataProtection: false,
+			},
+			State: "READY",
+		}
+
+		job := &datamodel.Job{WorkflowID: "wid"}
+
+		se.On("GetVolume", ctx, "vid").Return(dbVolume, nil)
+		se.On("CreateJob", ctx, mock.Anything).Return(job, nil)
+		se.On("UpdateVolumeFields", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+		temporal := workflowEngineMock.NewMockTemporalTestClient(t)
+		temporal.EXPECT().ExecuteWorkflow(mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil).Once()
+		volume, _, err := updateVolume(ctx, se, temporal, param)
+		assert.NoError(tt, err)
+		assert.NotNil(tt, volume)
+		assert.Equal(tt, "vol", volume.DisplayName)
+	})
+}
+
+func TestOrchestrator_UpdateVolume(t *testing.T) {
+	// Arrange
+	mockStorage := &database.MockStorage{}
+	mockTemporal := workflowEngineMock.NewMockTemporalTestClient(t)
+	orch := &Orchestrator{
+		storage:  mockStorage,
+		temporal: mockTemporal,
+	}
+
+	// override updateVolume for isolation
+	updateVolume = func(ctx context.Context, se database.Storage, te client.Client, param *common.UpdateVolumeParams) (*models.Volume, string, error) {
+		return &models.Volume{DisplayName: "vol"}, "job-id", nil
+	}
+	defer func() { updateVolume = _updateVolume }()
+
+	param := &common.UpdateVolumeParams{AccountName: "acc", VolumeId: "vid"}
+
+	// Act
+	vol, jobID, err := orch.UpdateVolume(context.Background(), param)
+
+	// Assert
+	assert.NoError(t, err)
+	assert.Equal(t, "vol", vol.DisplayName)
+	assert.Equal(t, "job-id", jobID)
 }

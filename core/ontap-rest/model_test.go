@@ -1,7 +1,6 @@
 package ontap_rest
 
 import (
-	"fmt"
 	"testing"
 	"time"
 
@@ -64,225 +63,6 @@ func TestAggregateModifyParamsToONTAP(t *testing.T) {
 		otParams := aggregateModifyParamsToONTAP(params)
 		assert.Equal(tt, "uuid", otParams.UUID)
 		assert.Equal(tt, int64(616), *otParams.Info.CloudStorage.TieringFullnessThreshold)
-	})
-}
-
-func TestVolumeModifyParamsToONTAP(t *testing.T) {
-	t.Run("WhenParamsNil", func(tt *testing.T) {
-		otParams := volumeModifyParamsToONTAP(nil)
-		assert.NotNil(tt, otParams)
-	})
-	t.Run("WhenQuotaEnabledSet", func(tt *testing.T) {
-		params := &VolumeModifyParams{
-			UUID:         "uuid",
-			QuotaEnabled: nillable.ToPointer(false),
-		}
-		otParams := volumeModifyParamsToONTAP(params)
-		assert.Equal(tt, "uuid", otParams.UUID)
-		assert.False(tt, *otParams.Info.Quota.Enabled)
-		assert.Nil(tt, otParams.Info.Encryption)
-		assert.Nil(tt, otParams.Info.Clone)
-	})
-	t.Run("WhenReKeySet", func(tt *testing.T) {
-		params := &VolumeModifyParams{
-			UUID:  "uuid",
-			ReKey: nillable.ToPointer(false),
-		}
-		otParams := volumeModifyParamsToONTAP(params)
-		assert.Equal(tt, "uuid", otParams.UUID)
-		assert.False(tt, *otParams.Info.Encryption.Rekey)
-		assert.Nil(tt, otParams.Info.Quota)
-		assert.Nil(tt, otParams.Info.Clone)
-	})
-	t.Run("WhenSplitInitiatedSet", func(tt *testing.T) {
-		params := &VolumeModifyParams{
-			UUID:           "uuid",
-			SplitInitiated: nillable.ToPointer(false),
-		}
-		otParams := volumeModifyParamsToONTAP(params)
-		assert.Equal(tt, "uuid", otParams.UUID)
-		assert.False(tt, *otParams.Info.Clone.SplitInitiated)
-		assert.Nil(tt, otParams.Info.Encryption)
-		assert.Nil(tt, otParams.Info.Quota)
-		assert.Nil(tt, otParams.ReturnTimeout)
-	})
-	t.Run("WhenSnapshotPolicyNameSet", func(tt *testing.T) {
-		params := &VolumeModifyParams{
-			UUID:               "uuid",
-			SnapshotPolicyName: nillable.GetStringPtr("my-snapshot"),
-		}
-		otParams := volumeModifyParamsToONTAP(params)
-		assert.Equal(tt, "uuid", otParams.UUID)
-		assert.Equal(tt, params.SnapshotPolicyName, otParams.Info.SnapshotPolicy.Name)
-		assert.Nil(tt, otParams.Info.Encryption)
-		assert.Nil(tt, otParams.Info.Quota)
-	})
-	t.Run("WhenRestoreToSnapshotUUIDSet", func(tt *testing.T) {
-		params := &VolumeModifyParams{
-			UUID:                  "uuid",
-			RestoreToSnapshotUUID: nillable.ToPointer("snapshotUUID"),
-		}
-		otParams := volumeModifyParamsToONTAP(params)
-		assert.Equal(tt, "uuid", otParams.UUID)
-		assert.Equal(tt, "snapshotUUID", *otParams.RestoreToSnapshotUUID)
-		assert.Nil(tt, otParams.Info.Encryption)
-		assert.Nil(tt, otParams.Info.Quota)
-		assert.Nil(tt, otParams.Info.Clone)
-	})
-	t.Run("WhenMovementIsSet", func(tt *testing.T) {
-		params := &VolumeModifyParams{
-			UUID: "uuid",
-			Movement: &VolumeMovementParams{
-				VolumeMovementDestinationAggregate: &VolumeMovementDestinationAggregate{
-					DestinationAggregateUUID: nillable.ToPointer("someAggregateUUID"),
-					DestinationAggregateName: nillable.ToPointer("someAggregateName"),
-				},
-				TieringPolicy: nillable.ToPointer("none"),
-			},
-		}
-		otParams := volumeModifyParamsToONTAP(params)
-		assert.Equal(tt, "uuid", otParams.UUID)
-		assert.NotNil(tt, otParams.Info.Movement)
-		assert.Equal(tt, "someAggregateUUID", *otParams.Info.Movement.DestinationAggregate.UUID)
-		assert.Equal(tt, "someAggregateName", *otParams.Info.Movement.DestinationAggregate.Name)
-		assert.Equal(tt, "none", *otParams.Info.Movement.TieringPolicy)
-		assert.Nil(tt, otParams.Info.Encryption)
-		assert.Nil(tt, otParams.Info.Quota)
-		assert.Nil(tt, otParams.Info.Clone)
-	})
-	t.Run("WhenMovementStateIsSet", func(tt *testing.T) {
-		state := string(models.VolumeInlineMovementStateAborted)
-		params := &VolumeModifyParams{
-			UUID: "uuid",
-			Movement: &VolumeMovementParams{
-				State: &state,
-			},
-		}
-		otParams := volumeModifyParamsToONTAP(params)
-		assert.Equal(tt, "uuid", otParams.UUID)
-		assert.NotNil(tt, otParams.Info.Movement)
-		assert.Nil(tt, otParams.Info.Movement.DestinationAggregate)
-		assert.Nil(tt, otParams.Info.Movement.TieringPolicy)
-		assert.Equal(tt, "aborted", *otParams.Info.Movement.State)
-		assert.Nil(tt, otParams.Info.Encryption)
-		assert.Nil(tt, otParams.Info.Quota)
-		assert.Nil(tt, otParams.Info.Clone)
-	})
-	t.Run("WhenVolumeUpdaterParams", func(tt *testing.T) {
-		params := &VolumeModifyParams{
-			UUID:                           "uuid",
-			Comment:                        nillable.ToPointer("a comment"),
-			SecurityStyle:                  nillable.ToPointer("security style"),
-			UnixPermissions:                nillable.ToPointer("0777"),
-			Size:                           nillable.ToPointer(uint64(1111)),
-			LogicalSpaceEnforcement:        nillable.ToPointer(false),
-			SnapReserve:                    nillable.ToPointer(2222),
-			MaxFiles:                       nillable.ToPointer(uint64(3333)),
-			SnapshotDirectoryAccessEnabled: nillable.ToPointer(true),
-			SetAtTimeEnabled:               nillable.ToPointer(false),
-			TieringPolicy:                  nillable.ToPointer("tiering policy"),
-			TieringMinimumCoolingDays:      nillable.ToPointer(int32(4444)),
-			CloudRetrievalPolicy:           nillable.ToPointer("cloud retrieval policy"),
-			SplitInitiated:                 nillable.ToPointer(true),
-			MatchParentStorageTier:         true,
-			RestoreToSnapshotUUID:          nillable.ToPointer("321"),
-			State:                          nillable.ToPointer("stateful"),
-			Path:                           nillable.ToPointer("/"),
-			SnapshotPolicyName:             nillable.ToPointer("ssp1"),
-			ExportPolicy:                   nillable.ToPointer("ep1"),
-			QosPolicy:                      nillable.ToPointer("qos"),
-		}
-
-		otParams := volumeModifyParamsToONTAP(params)
-		assert.Equal(tt, "uuid", otParams.UUID)
-		assert.Equal(tt, *params.Comment, *otParams.Info.Comment)
-		assert.Equal(tt, int64(*params.Size), *otParams.Info.Space.Size)
-		assert.False(tt, *otParams.Info.Space.LogicalSpace.Enforcement)
-		assert.Equal(tt, int64(*params.SnapReserve), *otParams.Info.Space.Snapshot.ReservePercent)
-		assert.Equal(tt, int64(*params.MaxFiles), *otParams.Info.Files.Maximum)
-		assert.Equal(tt, *params.SnapshotDirectoryAccessEnabled, *otParams.Info.SnapshotDirectoryAccessEnabled)
-		assert.Equal(tt, *params.TieringPolicy, *otParams.Info.Tiering.Policy)
-		assert.Equal(tt, int64(*params.TieringMinimumCoolingDays), *otParams.Info.Tiering.MinCoolingDays)
-		assert.Equal(tt, *params.CloudRetrievalPolicy, *otParams.Info.CloudRetrievalPolicy)
-		assert.Equal(tt, *params.SplitInitiated, *otParams.Info.Clone.SplitInitiated)
-		assert.Equal(tt, fmt.Sprintf("%t", params.MatchParentStorageTier), *otParams.CloneMatchParentStorageTier)
-		assert.Equal(tt, *params.RestoreToSnapshotUUID, *otParams.RestoreToSnapshotUUID)
-		assert.Equal(tt, *params.State, *otParams.Info.State)
-		assert.Equal(tt, *params.SnapshotPolicyName, *otParams.Info.SnapshotPolicy.Name)
-		assert.Equal(tt, *params.QosPolicy, *otParams.Info.Qos.Policy.Name)
-		assert.Nil(tt, otParams.ReturnTimeout)
-	})
-	t.Run("WhenVolumeUpdaterParamsWithAutoSize", func(tt *testing.T) {
-		params := &VolumeModifyParams{
-			UUID:                           "uuid",
-			Comment:                        nillable.ToPointer("a comment"),
-			SecurityStyle:                  nillable.ToPointer("security style"),
-			UnixPermissions:                nillable.ToPointer("0777"),
-			Size:                           nillable.ToPointer(uint64(1111)),
-			MaxAutoSize:                    nillable.ToPointer(uint64(1111)),
-			LogicalSpaceEnforcement:        nillable.ToPointer(false),
-			SnapReserve:                    nillable.ToPointer(2222),
-			MaxFiles:                       nillable.ToPointer(uint64(3333)),
-			SnapshotDirectoryAccessEnabled: nillable.ToPointer(true),
-			SetAtTimeEnabled:               nillable.ToPointer(false),
-			TieringPolicy:                  nillable.ToPointer("tiering policy"),
-			TieringMinimumCoolingDays:      nillable.ToPointer(int32(4444)),
-			CloudRetrievalPolicy:           nillable.ToPointer("cloud retrieval policy"),
-			SplitInitiated:                 nillable.ToPointer(true),
-			MatchParentStorageTier:         true,
-			RestoreToSnapshotUUID:          nillable.ToPointer("321"),
-			State:                          nillable.ToPointer("stateful"),
-			Path:                           nillable.ToPointer("/"),
-			SnapshotPolicyName:             nillable.ToPointer("ssp1"),
-			ExportPolicy:                   nillable.ToPointer("ep1"),
-			QosPolicy:                      nillable.ToPointer("qos"),
-		}
-
-		otParams := volumeModifyParamsToONTAP(params)
-		assert.Equal(tt, "uuid", otParams.UUID)
-		assert.Equal(tt, *params.Comment, *otParams.Info.Comment)
-		assert.Equal(tt, int64(*params.Size), *otParams.Info.Space.Size)
-		assert.Equal(tt, int64(*params.MaxAutoSize), *otParams.Info.Autosize.Maximum)
-		assert.False(tt, *otParams.Info.Space.LogicalSpace.Enforcement)
-		assert.Equal(tt, int64(*params.SnapReserve), *otParams.Info.Space.Snapshot.ReservePercent)
-		assert.Equal(tt, int64(*params.MaxFiles), *otParams.Info.Files.Maximum)
-		assert.Equal(tt, *params.SnapshotDirectoryAccessEnabled, *otParams.Info.SnapshotDirectoryAccessEnabled)
-		assert.Equal(tt, *params.TieringPolicy, *otParams.Info.Tiering.Policy)
-		assert.Equal(tt, int64(*params.TieringMinimumCoolingDays), *otParams.Info.Tiering.MinCoolingDays)
-		assert.Equal(tt, *params.CloudRetrievalPolicy, *otParams.Info.CloudRetrievalPolicy)
-		assert.Equal(tt, *params.SplitInitiated, *otParams.Info.Clone.SplitInitiated)
-		assert.Equal(tt, fmt.Sprintf("%t", params.MatchParentStorageTier), *otParams.CloneMatchParentStorageTier)
-		assert.Equal(tt, *params.RestoreToSnapshotUUID, *otParams.RestoreToSnapshotUUID)
-		assert.Equal(tt, *params.State, *otParams.Info.State)
-		assert.Equal(tt, *params.SnapshotPolicyName, *otParams.Info.SnapshotPolicy.Name)
-		assert.Equal(tt, *params.QosPolicy, *otParams.Info.Qos.Policy.Name)
-	})
-	t.Run("WhenVolumeUpdaterParamsWhenTieringPolicyNone", func(tt *testing.T) {
-		params := &VolumeModifyParams{
-			UUID:                      "uuid",
-			SetAtTimeEnabled:          nillable.ToPointer(false),
-			TieringPolicy:             nillable.ToPointer("none"),
-			TieringMinimumCoolingDays: nillable.ToPointer(int32(4444)),
-			CloudRetrievalPolicy:      nillable.ToPointer("cloud retrieval policy"),
-		}
-
-		otParams := volumeModifyParamsToONTAP(params)
-		assert.Equal(tt, *params.TieringPolicy, *otParams.Info.Tiering.Policy)
-		assert.Nil(tt, otParams.Info.Tiering.MinCoolingDays)
-		assert.Equal(tt, "15", *otParams.ReturnTimeout)
-	})
-	t.Run("WhenVolumeUpdaterParamsWhenTieringPolicyIsNotPassedWithCoolnessThresholdDays", func(tt *testing.T) {
-		params := &VolumeModifyParams{
-			UUID:                      "uuid",
-			SetAtTimeEnabled:          nillable.ToPointer(false),
-			TieringPolicy:             nil,
-			TieringMinimumCoolingDays: nillable.ToPointer(int32(4444)),
-			CloudRetrievalPolicy:      nillable.ToPointer("cloud retrieval policy"),
-		}
-
-		otParams := volumeModifyParamsToONTAP(params)
-		assert.Nil(tt, otParams.Info.Tiering.Policy)
-		assert.Equal(tt, int64(*params.TieringMinimumCoolingDays), *otParams.Info.Tiering.MinCoolingDays)
 	})
 }
 
@@ -736,4 +516,321 @@ func TestSnapmirrorRelationshipDeleteGetParamsToONTAP(t *testing.T) {
 
 func strPtr(s string) *string {
 	return &s
+}
+
+func TestVolumeModifyParamsToONTAP(t *testing.T) {
+	t.Run("WhenParamsNil_ThenReturnsDefault", func(tt *testing.T) {
+		result := volumeModifyParamsToONTAP(nil)
+		assert.NotNil(tt, result)
+	})
+
+	t.Run("WhenQuotaEnabledSet_ThenQuotaIsSet", func(tt *testing.T) {
+		val := true
+		params := &VolumeModifyParams{UUID: "uuid", QuotaEnabled: &val}
+		result := volumeModifyParamsToONTAP(params)
+		assert.NotNil(tt, result.Info.Quota)
+		assert.Equal(tt, &val, result.Info.Quota.Enabled)
+	})
+
+	t.Run("WhenReKeySet_ThenEncryptionIsSet", func(tt *testing.T) {
+		val := true
+		params := &VolumeModifyParams{UUID: "uuid", ReKey: &val}
+		result := volumeModifyParamsToONTAP(params)
+		assert.NotNil(tt, result.Info.Encryption)
+		assert.Equal(tt, &val, result.Info.Encryption.Rekey)
+	})
+
+	t.Run("WhenSplitInitiatedSet_ThenCloneAndNoReturnTimeout", func(tt *testing.T) {
+		val := true
+		params := &VolumeModifyParams{UUID: "uuid", SplitInitiated: &val, MatchParentStorageTier: true}
+		result := volumeModifyParamsToONTAP(params)
+		assert.NotNil(tt, result.Info.Clone)
+		assert.Equal(tt, &val, result.Info.Clone.SplitInitiated)
+		assert.NotNil(tt, result.CloneMatchParentStorageTier)
+	})
+
+	t.Run("WhenStateSet_ThenStateIsSet", func(tt *testing.T) {
+		state := "online"
+		params := &VolumeModifyParams{UUID: "uuid", State: &state}
+		result := volumeModifyParamsToONTAP(params)
+		assert.Equal(tt, &state, result.Info.State)
+	})
+
+	t.Run("WhenSnapshotPolicyNameSet_ThenSnapshotPolicyIsSet", func(tt *testing.T) {
+		name := "policy"
+		params := &VolumeModifyParams{UUID: "uuid", SnapshotPolicyName: &name}
+		result := volumeModifyParamsToONTAP(params)
+		assert.NotNil(tt, result.Info.SnapshotPolicy)
+		assert.Equal(tt, &name, result.Info.SnapshotPolicy.Name)
+	})
+
+	t.Run("WhenMovementSet_ThenMovementIsSet", func(tt *testing.T) {
+		tiering := "auto"
+		state := "moving"
+		aggUUID := "agg-uuid"
+		aggName := "agg-name"
+		params := &VolumeModifyParams{
+			UUID: "uuid",
+			Movement: &VolumeMovementParams{
+				TieringPolicy: &tiering,
+				State:         &state,
+				VolumeMovementDestinationAggregate: &VolumeMovementDestinationAggregate{
+					DestinationAggregateUUID: &aggUUID,
+					DestinationAggregateName: &aggName,
+				},
+			},
+		}
+		result := volumeModifyParamsToONTAP(params)
+		assert.NotNil(tt, result.Info.Movement)
+		assert.NotNil(tt, result.Info.Movement.DestinationAggregate)
+	})
+
+	t.Run("WhenCommentSet_ThenCommentIsSet", func(tt *testing.T) {
+		comment := "test"
+		params := &VolumeModifyParams{UUID: "uuid", Comment: &comment}
+		result := volumeModifyParamsToONTAP(params)
+		assert.Equal(tt, &comment, result.Info.Comment)
+	})
+
+	t.Run("WhenSizeAndLogicalSpaceAndSnapReserveAndMaxAutoSizeSet_ThenSpaceIsSet", func(tt *testing.T) {
+		size := uint64(100)
+		logical := true
+		snap := 5
+		maxAuto := uint64(200)
+		params := &VolumeModifyParams{
+			UUID:                    "uuid",
+			Size:                    &size,
+			LogicalSpaceEnforcement: &logical,
+			SnapReserve:             &snap,
+			MaxAutoSize:             &maxAuto,
+		}
+		result := volumeModifyParamsToONTAP(params)
+		assert.NotNil(tt, result.Info.Space)
+		assert.NotNil(tt, result.Info.Space.Size)
+		assert.NotNil(tt, result.Info.Space.LogicalSpace)
+		assert.NotNil(tt, result.Info.Space.Snapshot)
+	})
+
+	t.Run("WhenSnapshotDirectoryAccessEnabledSet_ThenFieldIsSet", func(tt *testing.T) {
+		val := true
+		params := &VolumeModifyParams{UUID: "uuid", SnapshotDirectoryAccessEnabled: &val}
+		result := volumeModifyParamsToONTAP(params)
+		assert.Equal(tt, &val, result.Info.SnapshotDirectoryAccessEnabled)
+	})
+
+	t.Run("WhenSetAtTimeEnabledSet_ThenFieldIsSet", func(tt *testing.T) {
+		val := true
+		params := &VolumeModifyParams{UUID: "uuid", SetAtTimeEnabled: &val}
+		result := volumeModifyParamsToONTAP(params)
+		assert.Equal(tt, &val, result.Info.AccessTimeEnabled)
+	})
+
+	t.Run("WhenTieringPolicyAndCoolingDaysSet_ThenTieringIsSet", func(tt *testing.T) {
+		policy := "auto"
+		days := int32(7)
+		params := &VolumeModifyParams{UUID: "uuid", TieringPolicy: &policy, TieringMinimumCoolingDays: &days}
+		result := volumeModifyParamsToONTAP(params)
+		assert.NotNil(tt, result.Info.Tiering)
+	})
+
+	t.Run("WhenTieringPolicyIsNone_ThenCoolingDaysIsNil", func(tt *testing.T) {
+		policy := "none"
+		days := int32(7)
+		params := &VolumeModifyParams{UUID: "uuid", TieringPolicy: &policy, TieringMinimumCoolingDays: &days}
+		result := volumeModifyParamsToONTAP(params)
+		assert.NotNil(tt, result.Info.Tiering)
+		assert.Nil(tt, result.Info.Tiering.MinCoolingDays)
+	})
+
+	t.Run("WhenCloudRetrievalPolicySet_ThenFieldIsSet", func(tt *testing.T) {
+		val := "policy"
+		params := &VolumeModifyParams{UUID: "uuid", CloudRetrievalPolicy: &val}
+		result := volumeModifyParamsToONTAP(params)
+		assert.Equal(tt, &val, result.Info.CloudRetrievalPolicy)
+	})
+
+	t.Run("WhenQosPolicySet_ThenQosIsSet", func(tt *testing.T) {
+		val := "qos"
+		params := &VolumeModifyParams{UUID: "uuid", QosPolicy: &val}
+		result := volumeModifyParamsToONTAP(params)
+		assert.NotNil(tt, result.Info.Qos)
+		assert.NotNil(tt, result.Info.Qos.Policy)
+	})
+
+	t.Run("WhenRestoreToSnapshotUUIDSet_ThenFieldIsSet", func(tt *testing.T) {
+		val := "snap-uuid"
+		params := &VolumeModifyParams{UUID: "uuid", RestoreToSnapshotUUID: &val}
+		result := volumeModifyParamsToONTAP(params)
+		assert.Equal(tt, val, *result.RestoreToSnapshotUUID)
+	})
+
+	t.Run("WhenAntiRansomwareStateSet_ThenFieldIsSet", func(tt *testing.T) {
+		val := "enabled"
+		params := &VolumeModifyParams{UUID: "uuid", AntiRansomwareState: &val}
+		result := volumeModifyParamsToONTAP(params)
+		assert.NotNil(tt, result.Info.AntiRansomware)
+		assert.Equal(tt, &val, result.Info.AntiRansomware.State)
+	})
+}
+
+func TestLunModifyParamsToONTAP(t *testing.T) {
+	t.Run("WhenParamsNil_ThenReturnsDefault", func(tt *testing.T) {
+		result := lunModifyParamsToONTAP(nil)
+		assert.NotNil(tt, result)
+	})
+
+	t.Run("WhenParamsSet_ThenFieldsAreSet", func(tt *testing.T) {
+		params := &LunUpdateParams{
+			UUID:       "uuid",
+			SvmName:    "svm",
+			Name:       "lun",
+			VolumeName: "vol",
+			Size:       1234,
+		}
+		result := lunModifyParamsToONTAP(params)
+		assert.Equal(tt, "uuid", result.UUID)
+		assert.NotNil(tt, result.Info)
+		assert.NotNil(tt, result.Info.Name)
+		assert.NotNil(tt, result.Info.Space)
+		assert.Equal(tt, &params.Size, result.Info.Space.Size)
+		assert.NotNil(tt, result.ReturnTimeout)
+	})
+}
+
+func TestNodesGetParamsToONTAP(t *testing.T) {
+	t.Run("WhenParamsNil_ThenReturnsDefault", func(tt *testing.T) {
+		result := nodesGetParamsToONTAP(nil)
+		assert.NotNil(tt, result)
+	})
+
+	t.Run("WhenParamsSet_ThenFieldsAreSet", func(tt *testing.T) {
+		maxRecords := int64(10)
+		returnRecords := true
+		params := &NodesGetParams{
+			BaseParams: BaseParams{
+				Fields:        []string{"field1", "field2"},
+				ReturnRecords: &returnRecords,
+				MaxRecords:    &maxRecords,
+			},
+		}
+		result := nodesGetParamsToONTAP(params)
+		assert.Equal(tt, []string{"field1", "field2"}, result.Fields)
+	})
+}
+
+func TestNetworkIPInterfacesGetParamsToONTAP(t *testing.T) {
+	t.Run("WhenParamsNil_ThenReturnsDefault", func(tt *testing.T) {
+		result := networkIPInterfacesGetParamsToONTAP(nil)
+		assert.NotNil(tt, result)
+	})
+
+	t.Run("WhenAllFieldsSet_ThenFieldsAreSet", func(tt *testing.T) {
+		maxRecords := int64(5)
+		fields := []string{"ip.address", "name"}
+		svmName := "svm1"
+		name := "lif1"
+		svmUUID := "uuid1"
+		ipAddress := "10.0.0.1"
+		servicePolicyName := "default-intercluster"
+		params := &NetworkIPInterfacesGetParams{
+			BaseParams: BaseParams{
+				Fields:     fields,
+				MaxRecords: &maxRecords,
+			},
+			SvmName:           &svmName,
+			Name:              &name,
+			SvmUUID:           &svmUUID,
+			IPAddress:         &ipAddress,
+			ServicePolicyName: &servicePolicyName,
+		}
+		result := networkIPInterfacesGetParamsToONTAP(params)
+		assert.Equal(tt, fields, result.Fields)
+		assert.Equal(tt, &svmName, result.SvmName)
+		assert.Equal(tt, &name, result.Name)
+		assert.Equal(tt, &svmUUID, result.SvmUUID)
+		assert.Equal(tt, &ipAddress, result.IPAddress)
+		assert.Equal(tt, &servicePolicyName, result.ServicePolicyName)
+	})
+}
+
+func TestVolumeDeleteParamsToONTAPCollectionDelete(t *testing.T) {
+	t.Run("WhenParamsNil_ThenReturnsDefault", func(tt *testing.T) {
+		result := volumeDeleteParamsToONTAPCollectionDelete(nil)
+		assert.NotNil(tt, result)
+	})
+
+	t.Run("WhenParamsSet_ThenFieldsAreSet", func(tt *testing.T) {
+		params := &VolumeDeleteParams{
+			Name: "vol1",
+		}
+		result := volumeDeleteParamsToONTAPCollectionDelete(params)
+		assert.NotNil(tt, result)
+		assert.NotNil(tt, result.Name)
+		assert.Equal(tt, "vol1", *result.Name)
+		assert.NotNil(tt, result.Force)
+		assert.Equal(tt, "true", *result.Force)
+		assert.NotNil(tt, result.ReturnTimeout)
+	})
+}
+
+func TestVolumeCreateParamsToONTAP(t *testing.T) {
+	t.Run("WhenParamsSet_ThenFieldsAreSet", func(tt *testing.T) {
+		params := &VolumeCreateParams{
+			Aggregates:                     []string{"aggr1"},
+			Name:                           "vol1",
+			Type:                           "rw",
+			Size:                           1024,
+			Svm:                            "svm1",
+			SnapshotReservePercent:         5,
+			SnapshotDirectoryAccessEnabled: true,
+		}
+		result := volumeCreateParamsToONTAP(params)
+		assert.NotNil(tt, result)
+		assert.NotNil(tt, result.Info)
+		assert.Equal(tt, "vol1", *result.Info.Name)
+		assert.Equal(tt, "rw", *result.Info.Type)
+		assert.Equal(tt, int64(1024), *result.Info.Size)
+		assert.Equal(tt, "svm1", *result.Info.Svm.Name)
+		assert.NotNil(tt, result.Info.Space)
+		assert.NotNil(tt, result.Info.VolumeInlineAggregates)
+		assert.Equal(tt, "true", *result.ReturnRecords)
+	})
+}
+
+func TestIscsiServiceGetParamsToONTAP(t *testing.T) {
+	t.Run("WhenParamsNil_ThenReturnsDefault", func(tt *testing.T) {
+		result := iscsiServiceGetParamsToONTAP(nil)
+		assert.NotNil(tt, result)
+	})
+
+	t.Run("WhenParamsSet_ThenFieldsAreSet", func(tt *testing.T) {
+		params := &IscsiGetParams{
+			SvmUUID: "uuid1",
+			BaseParams: BaseParams{
+				Fields: []string{"field1"},
+			},
+		}
+		result := iscsiServiceGetParamsToONTAP(params)
+		assert.NotNil(tt, result)
+		assert.Equal(tt, "uuid1", *result.SvmUUID)
+		assert.Equal(tt, []string{"field1"}, result.Fields)
+		assert.NotNil(tt, result.ReturnTimeout)
+	})
+}
+
+func TestIscsiServiceCreateParamsToONTAP(t *testing.T) {
+	t.Run("WhenParamsNil_ThenReturnsDefault", func(tt *testing.T) {
+		result := iscsiServiceCreateParamsToONTAP(nil)
+		assert.NotNil(tt, result)
+	})
+
+	t.Run("WhenParamsSet_ThenFieldsAreSet", func(tt *testing.T) {
+		params := &IscsiCreateParams{
+			SvmUUID: "uuid1",
+		}
+		result := iscsiServiceCreateParamsToONTAP(params)
+		assert.NotNil(tt, result)
+		assert.NotNil(tt, result.Info)
+		assert.Equal(tt, "uuid1", *result.Info.Svm.UUID)
+	})
 }

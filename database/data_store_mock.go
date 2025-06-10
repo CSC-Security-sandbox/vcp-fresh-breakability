@@ -4,8 +4,10 @@ package database
 
 import (
 	context "context"
+
 	mock "github.com/stretchr/testify/mock"
 	datamodel "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
+
 	utils "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 )
 
@@ -1878,12 +1880,12 @@ func (_c *MockDataStore_GetJob_Call) RunAndReturn(run func(context.Context, stri
 	return _c
 }
 
-// GetJobByKmsConfigID provides a mock function with given fields: ctx, kmsConfigUUID
-func (_m *MockDataStore) GetJobByKmsConfigID(ctx context.Context, kmsConfigUUID string) (*datamodel.Job, error) {
+// GetJobByResourceUUID provides a mock function with given fields: ctx, kmsConfigUUID
+func (_m *MockDataStore) GetJobByResourceUUID(ctx context.Context, kmsConfigUUID string) (*datamodel.Job, error) {
 	ret := _m.Called(ctx, kmsConfigUUID)
 
 	if len(ret) == 0 {
-		panic("no return value specified for GetJobByKmsConfigID")
+		panic("no return value specified for GetJobByResourceUUID")
 	}
 
 	var r0 *datamodel.Job
@@ -1908,31 +1910,31 @@ func (_m *MockDataStore) GetJobByKmsConfigID(ctx context.Context, kmsConfigUUID 
 	return r0, r1
 }
 
-// MockDataStore_GetJobByKmsConfigID_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetJobByKmsConfigID'
-type MockDataStore_GetJobByKmsConfigID_Call struct {
+// MockDataStore_GetJobByResourceUUID_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetJobByResourceUUID'
+type MockDataStore_GetJobByResourceUUID_Call struct {
 	*mock.Call
 }
 
-// GetJobByKmsConfigID is a helper method to define mock.On call
+// GetJobByResourceUUID is a helper method to define mock.On call
 //   - ctx context.Context
 //   - kmsConfigUUID string
-func (_e *MockDataStore_Expecter) GetJobByKmsConfigID(ctx interface{}, kmsConfigUUID interface{}) *MockDataStore_GetJobByKmsConfigID_Call {
-	return &MockDataStore_GetJobByKmsConfigID_Call{Call: _e.mock.On("GetJobByKmsConfigID", ctx, kmsConfigUUID)}
+func (_e *MockDataStore_Expecter) GetJobByResourceUUID(ctx interface{}, kmsConfigUUID interface{}) *MockDataStore_GetJobByResourceUUID_Call {
+	return &MockDataStore_GetJobByResourceUUID_Call{Call: _e.mock.On("GetJobByResourceUUID", ctx, kmsConfigUUID)}
 }
 
-func (_c *MockDataStore_GetJobByKmsConfigID_Call) Run(run func(ctx context.Context, kmsConfigUUID string)) *MockDataStore_GetJobByKmsConfigID_Call {
+func (_c *MockDataStore_GetJobByResourceUUID_Call) Run(run func(ctx context.Context, kmsConfigUUID string)) *MockDataStore_GetJobByResourceUUID_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		run(args[0].(context.Context), args[1].(string))
 	})
 	return _c
 }
 
-func (_c *MockDataStore_GetJobByKmsConfigID_Call) Return(_a0 *datamodel.Job, _a1 error) *MockDataStore_GetJobByKmsConfigID_Call {
+func (_c *MockDataStore_GetJobByResourceUUID_Call) Return(_a0 *datamodel.Job, _a1 error) *MockDataStore_GetJobByResourceUUID_Call {
 	_c.Call.Return(_a0, _a1)
 	return _c
 }
 
-func (_c *MockDataStore_GetJobByKmsConfigID_Call) RunAndReturn(run func(context.Context, string) (*datamodel.Job, error)) *MockDataStore_GetJobByKmsConfigID_Call {
+func (_c *MockDataStore_GetJobByResourceUUID_Call) RunAndReturn(run func(context.Context, string) (*datamodel.Job, error)) *MockDataStore_GetJobByResourceUUID_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -4061,6 +4063,54 @@ func (_c *MockDataStore_UpdateVolume_Call) Return(_a0 error) *MockDataStore_Upda
 }
 
 func (_c *MockDataStore_UpdateVolume_Call) RunAndReturn(run func(context.Context, *datamodel.Volume) error) *MockDataStore_UpdateVolume_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// UpdateVolumeFields provides a mock function with given fields: ctx, volumeUUID, updates
+func (_m *MockDataStore) UpdateVolumeFields(ctx context.Context, volumeUUID string, updates map[string]interface{}) error {
+	ret := _m.Called(ctx, volumeUUID, updates)
+
+	if len(ret) == 0 {
+		panic("no return value specified for UpdateVolumeFields")
+	}
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(context.Context, string, map[string]interface{}) error); ok {
+		r0 = rf(ctx, volumeUUID, updates)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// MockDataStore_UpdateVolumeFields_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'UpdateVolumeFields'
+type MockDataStore_UpdateVolumeFields_Call struct {
+	*mock.Call
+}
+
+// UpdateVolumeFields is a helper method to define mock.On call
+//   - ctx context.Context
+//   - volumeUUID string
+//   - updates map[string]interface{}
+func (_e *MockDataStore_Expecter) UpdateVolumeFields(ctx interface{}, volumeUUID interface{}, updates interface{}) *MockDataStore_UpdateVolumeFields_Call {
+	return &MockDataStore_UpdateVolumeFields_Call{Call: _e.mock.On("UpdateVolumeFields", ctx, volumeUUID, updates)}
+}
+
+func (_c *MockDataStore_UpdateVolumeFields_Call) Run(run func(ctx context.Context, volumeUUID string, updates map[string]interface{})) *MockDataStore_UpdateVolumeFields_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(string), args[2].(map[string]interface{}))
+	})
+	return _c
+}
+
+func (_c *MockDataStore_UpdateVolumeFields_Call) Return(_a0 error) *MockDataStore_UpdateVolumeFields_Call {
+	_c.Call.Return(_a0)
+	return _c
+}
+
+func (_c *MockDataStore_UpdateVolumeFields_Call) RunAndReturn(run func(context.Context, string, map[string]interface{}) error) *MockDataStore_UpdateVolumeFields_Call {
 	_c.Call.Return(run)
 	return _c
 }

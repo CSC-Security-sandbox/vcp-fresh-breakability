@@ -90,6 +90,14 @@ type CreateVolumeParams struct {
 	VolumeType    string
 }
 
+type UpdateVolumeParams struct {
+	UUID          string
+	VolumeName    string
+	SvmName       string
+	AggregateName string
+	Size          int64
+}
+
 type GetVolumeParams struct {
 	UUID       string
 	VolumeName string
@@ -115,6 +123,14 @@ type LunGetParams struct {
 	SvmName    string
 	VolumeName string
 	LunName    string
+}
+
+type LunUpdateParams struct {
+	UUID       string
+	LunName    string
+	VolumeName string
+	SvmName    string
+	Size       int64
 }
 
 type LunMapCreateParams struct {

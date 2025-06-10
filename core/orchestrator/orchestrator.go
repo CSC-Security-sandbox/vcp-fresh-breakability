@@ -27,6 +27,7 @@ type OrchestratorFactory interface {
 
 	CreateVolume(ctx context.Context, params *commonparams.CreateVolumeParams) (*models.Volume, string, error)
 	GetVolume(ctx context.Context, volumeId string) (*models.Volume, error)
+	UpdateVolume(ctx context.Context, param *commonparams.UpdateVolumeParams) (*models.Volume, string, error)
 	DeleteVolume(ctx context.Context, volumeId string) (*models.Volume, string, error)
 	GetMultipleVolumes(ctx context.Context, volumeIds []string, accountName string) ([]*models.Volume, error)
 

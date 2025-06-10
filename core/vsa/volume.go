@@ -1,9 +1,11 @@
 package vsa
 
 import (
+	"strings"
+
 	ontapRest "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/ontap-rest"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
-	"strings"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/nillable"
 )
 
 // CreateVolume creates a volume by calling the ONTAP REST Client
@@ -84,4 +86,19 @@ func (rc *OntapRestProvider) GetVolume(params GetVolumeParams) (*VolumeResponse,
 		AvailableSpace: *vol.Space.Available,
 		State:          *vol.State,
 	}, nil
+}
+
+func (rc *OntapRestProvider) UpdateVolume(params UpdateVolumeParams) error {
+	client := getOntapClientFunc(rc.ClientParams)
+	success, job, err := client.Storage().VolumeModify(&ontapRest.VolumeModifyParams{
+		UUID: params.UUID,
+		Size: nillable.ToPointer(uint64(params.Size)),
+	})
+	if err != nil {
+		return err
+	}
+	if success {
+		return nil
+	}
+	return client.Poll(job.JobUUID)
 }

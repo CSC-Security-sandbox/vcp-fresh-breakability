@@ -119,7 +119,7 @@ func (a *VolumeCreateActivity) CreateLun(ctx context.Context, volume *datamodel.
 		return &vsa.LunResponse{}, nil
 	}
 	provider := GetProviderByNode(node)
-	lunName := "lun_" + volume.Name
+	lunName := utils.GetLunName(volume.Name)
 
 	lun, err := provider.LunCreate(vsa.LunCreateParams{
 		LunName:    lunName,

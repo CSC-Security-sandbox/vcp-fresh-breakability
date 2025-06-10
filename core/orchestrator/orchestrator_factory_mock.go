@@ -1899,6 +1899,72 @@ func (_c *MockOrchestratorFactory_UpdateSnapshot_Call) RunAndReturn(run func(con
 	return _c
 }
 
+// UpdateVolume provides a mock function with given fields: ctx, param
+func (_m *MockOrchestratorFactory) UpdateVolume(ctx context.Context, param *common.UpdateVolumeParams) (*models.Volume, string, error) {
+	ret := _m.Called(ctx, param)
+
+	if len(ret) == 0 {
+		panic("no return value specified for UpdateVolume")
+	}
+
+	var r0 *models.Volume
+	var r1 string
+	var r2 error
+	if rf, ok := ret.Get(0).(func(context.Context, *common.UpdateVolumeParams) (*models.Volume, string, error)); ok {
+		return rf(ctx, param)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, *common.UpdateVolumeParams) *models.Volume); ok {
+		r0 = rf(ctx, param)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*models.Volume)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, *common.UpdateVolumeParams) string); ok {
+		r1 = rf(ctx, param)
+	} else {
+		r1 = ret.Get(1).(string)
+	}
+
+	if rf, ok := ret.Get(2).(func(context.Context, *common.UpdateVolumeParams) error); ok {
+		r2 = rf(ctx, param)
+	} else {
+		r2 = ret.Error(2)
+	}
+
+	return r0, r1, r2
+}
+
+// MockOrchestratorFactory_UpdateVolume_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'UpdateVolume'
+type MockOrchestratorFactory_UpdateVolume_Call struct {
+	*mock.Call
+}
+
+// UpdateVolume is a helper method to define mock.On call
+//   - ctx context.Context
+//   - param *common.UpdateVolumeParams
+func (_e *MockOrchestratorFactory_Expecter) UpdateVolume(ctx interface{}, param interface{}) *MockOrchestratorFactory_UpdateVolume_Call {
+	return &MockOrchestratorFactory_UpdateVolume_Call{Call: _e.mock.On("UpdateVolume", ctx, param)}
+}
+
+func (_c *MockOrchestratorFactory_UpdateVolume_Call) Run(run func(ctx context.Context, param *common.UpdateVolumeParams)) *MockOrchestratorFactory_UpdateVolume_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(*common.UpdateVolumeParams))
+	})
+	return _c
+}
+
+func (_c *MockOrchestratorFactory_UpdateVolume_Call) Return(_a0 *models.Volume, _a1 string, _a2 error) *MockOrchestratorFactory_UpdateVolume_Call {
+	_c.Call.Return(_a0, _a1, _a2)
+	return _c
+}
+
+func (_c *MockOrchestratorFactory_UpdateVolume_Call) RunAndReturn(run func(context.Context, *common.UpdateVolumeParams) (*models.Volume, string, error)) *MockOrchestratorFactory_UpdateVolume_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // NewMockOrchestratorFactory creates a new instance of MockOrchestratorFactory. It also registers a testing interface on the mock and a cleanup function to assert the mocks expectations.
 // The first argument is typically a *testing.T value.
 func NewMockOrchestratorFactory(t interface {

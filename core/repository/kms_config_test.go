@@ -181,14 +181,14 @@ func TestCreateGetUpdateListKmsConfigAndGetJob(t *testing.T) {
 
 	t.Run("GetJobByKmsConfigIDRetrievesJobSuccessfully", func(tt *testing.T) {
 		kmsConfigUUID := "uuid1"
-		result, err := store.GetJobByKmsConfigID(context.Background(), kmsConfigUUID)
+		result, err := store.GetJobByResourceUUID(context.Background(), kmsConfigUUID)
 
 		assert.NoError(tt, err)
 		assert.Equal(tt, "job-uuid1", result.UUID)
 	})
 	t.Run("GetJobByKmsConfigIDReturnsErrorWhenRecordIsNotFound", func(tt *testing.T) {
 		kmsConfigUUID := "nonexistent-uuid"
-		result, err := store.GetJobByKmsConfigID(context.Background(), kmsConfigUUID)
+		result, err := store.GetJobByResourceUUID(context.Background(), kmsConfigUUID)
 
 		assert.ErrorContains(tt, err, "record not found")
 		assert.Nil(tt, result)

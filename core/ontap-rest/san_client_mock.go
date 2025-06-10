@@ -455,6 +455,71 @@ func (_c *MockSANClient_LunMapCreate_Call) RunAndReturn(run func(*LunMapCreatePa
 	return _c
 }
 
+// LunUpdate provides a mock function with given fields: params
+func (_m *MockSANClient) LunUpdate(params *LunUpdateParams) (bool, *JobAccepted, error) {
+	ret := _m.Called(params)
+
+	if len(ret) == 0 {
+		panic("no return value specified for LunUpdate")
+	}
+
+	var r0 bool
+	var r1 *JobAccepted
+	var r2 error
+	if rf, ok := ret.Get(0).(func(*LunUpdateParams) (bool, *JobAccepted, error)); ok {
+		return rf(params)
+	}
+	if rf, ok := ret.Get(0).(func(*LunUpdateParams) bool); ok {
+		r0 = rf(params)
+	} else {
+		r0 = ret.Get(0).(bool)
+	}
+
+	if rf, ok := ret.Get(1).(func(*LunUpdateParams) *JobAccepted); ok {
+		r1 = rf(params)
+	} else {
+		if ret.Get(1) != nil {
+			r1 = ret.Get(1).(*JobAccepted)
+		}
+	}
+
+	if rf, ok := ret.Get(2).(func(*LunUpdateParams) error); ok {
+		r2 = rf(params)
+	} else {
+		r2 = ret.Error(2)
+	}
+
+	return r0, r1, r2
+}
+
+// MockSANClient_LunUpdate_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'LunUpdate'
+type MockSANClient_LunUpdate_Call struct {
+	*mock.Call
+}
+
+// LunUpdate is a helper method to define mock.On call
+//   - params *LunUpdateParams
+func (_e *MockSANClient_Expecter) LunUpdate(params interface{}) *MockSANClient_LunUpdate_Call {
+	return &MockSANClient_LunUpdate_Call{Call: _e.mock.On("LunUpdate", params)}
+}
+
+func (_c *MockSANClient_LunUpdate_Call) Run(run func(params *LunUpdateParams)) *MockSANClient_LunUpdate_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(*LunUpdateParams))
+	})
+	return _c
+}
+
+func (_c *MockSANClient_LunUpdate_Call) Return(_a0 bool, _a1 *JobAccepted, _a2 error) *MockSANClient_LunUpdate_Call {
+	_c.Call.Return(_a0, _a1, _a2)
+	return _c
+}
+
+func (_c *MockSANClient_LunUpdate_Call) RunAndReturn(run func(*LunUpdateParams) (bool, *JobAccepted, error)) *MockSANClient_LunUpdate_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // NewMockSANClient creates a new instance of MockSANClient. It also registers a testing interface on the mock and a cleanup function to assert the mocks expectations.
 // The first argument is typically a *testing.T value.
 func NewMockSANClient(t interface {
