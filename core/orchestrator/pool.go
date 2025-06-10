@@ -10,6 +10,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	commonparams "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/workflows"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/repository"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
@@ -100,7 +101,8 @@ func _createPool(ctx context.Context, se database.Storage, temporal client.Clien
 		logger.Error("Failed to start pool create workflow: ", "error", err)
 		return nil, "", err
 	}
-	return convertDatastorePoolToModel(dbPool, account.Name), createdJob.UUID, nil
+	poolView := repository.ConvertPoolToPoolView(dbPool)
+	return convertDatastorePoolToModel(poolView, account.Name), createdJob.UUID, nil
 }
 
 // GetPool gets the specified pool
@@ -178,7 +180,8 @@ func _deletePool(ctx context.Context, temporal client.Client, se database.Storag
 		logger.Error("Failed to create job in database", "error", err)
 		return nil, "", err
 	}
-	if err = se.DeletingPool(ctx, pool); err != nil {
+	dbpool := repository.ConvertPoolViewToPool(pool)
+	if err = se.DeletingPool(ctx, dbpool); err != nil {
 		return nil, "", err
 	}
 
@@ -292,7 +295,7 @@ func _getPoolByName(ctx context.Context, se database.Storage, poolName string, a
 }
 
 // getInterClusterLifFromONTAP retrieves inter-cluster LIFs from ONTAP.
-func _getInterClusterLifsFromONTAP(ctx context.Context, nodes []*datamodel.Node, pools *datamodel.Pool) ([]*vsa.InterclusterLif, error) {
+func _getInterClusterLifsFromONTAP(ctx context.Context, nodes []*datamodel.Node, pools *datamodel.PoolView) ([]*vsa.InterclusterLif, error) {
 	logger := util.GetLogger(ctx)
 	node := prepareNodeForProvider(nodes[0], pools)
 	provider := GetProviderByNode(ctx, node)
@@ -305,7 +308,7 @@ func _getInterClusterLifsFromONTAP(ctx context.Context, nodes []*datamodel.Node,
 	return interClusterLifs, nil
 }
 
-func prepareNodeForProvider(nodes *datamodel.Node, pools *datamodel.Pool) *models.Node {
+func prepareNodeForProvider(nodes *datamodel.Node, pools *datamodel.PoolView) *models.Node {
 	return &models.Node{
 		Name:            nodes.Name,
 		EndpointAddress: nodes.EndpointAddress,
@@ -316,7 +319,7 @@ func prepareNodeForProvider(nodes *datamodel.Node, pools *datamodel.Pool) *model
 	}
 }
 
-func convertDatastorePoolToModelWithIClifdetails(pools *datamodel.Pool, interClusterLifs []*vsa.InterclusterLif, accountName string) *models.Pool {
+func convertDatastorePoolToModelWithIClifdetails(pools *datamodel.PoolView, interClusterLifs []*vsa.InterclusterLif, accountName string) *models.Pool {
 	pool := convertDatastorePoolToModel(pools, accountName)
 
 	var icLifs []string
@@ -339,7 +342,7 @@ type CustomPerformanceParams struct {
 	Iops       int64
 }
 
-func convertDatastorePoolsToModel(pools []*datamodel.Pool, accountName string) []*models.Pool {
+func convertDatastorePoolsToModel(pools []*datamodel.PoolView, accountName string) []*models.Pool {
 	var poolsList []*models.Pool
 	for _, pool := range pools {
 		p := convertDatastorePoolToModel(pool, accountName)
@@ -348,7 +351,7 @@ func convertDatastorePoolsToModel(pools []*datamodel.Pool, accountName string) [
 	return poolsList
 }
 
-func convertDatastorePoolToModel(pool *datamodel.Pool, accountName string) *models.Pool {
+func convertDatastorePoolToModel(pool *datamodel.PoolView, accountName string) *models.Pool {
 	return &models.Pool{
 		BaseModel: models.BaseModel{
 			UUID:      pool.UUID,
@@ -368,6 +371,10 @@ func convertDatastorePoolToModel(pool *datamodel.Pool, accountName string) *mode
 		QosType:                 pool.QosType,
 		HotTierSizeInBytes:      uint64(pool.HotTierSizeInBytes),
 		EnableHotTierAutoResize: pool.EnableHotTierAutoResize,
+		PoolAttributes: &models.PoolAttributes{
+			AllocatedBytes:  float64(pool.QuotaInBytes),
+			NumberOfVolumes: pool.VolumeCount,
+		},
 	}
 }
 

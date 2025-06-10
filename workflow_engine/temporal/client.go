@@ -110,7 +110,6 @@ func registerWorkflowsAndActivities(worker worker.Worker, dbcon database.Storage
 	worker.RegisterActivity(&activities.SnapshotDeleteActivity{SE: dbcon})
 	worker.RegisterActivity(&activities.ClusterPeerActivity{SE: dbcon})
 	worker.RegisterActivity(&kms_activities.KmsConfigActivity{SE: dbcon})
-	worker.RegisterActivity(&kms_activities.KmsConfigActivity{SE: dbcon})
 	worker.RegisterActivity(&replicationActivities.InternalVolumeReplicationActivity{SE: dbcon})
 	worker.RegisterActivity(&replicationActivities.VolumeReplicationCreateActivity{SE: dbcon})
 }

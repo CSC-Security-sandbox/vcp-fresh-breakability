@@ -46,6 +46,7 @@ func TestPersistenceStore_Migrate_Success(t *testing.T) {
 	defer func() { NewMigrator = origNewMigrator }()
 
 	mockMigrator.On("Migrate", store.db, mock.Anything).Return(nil)
+	mockMigrator.On("CreateOrUpdateViews", store.db).Return(nil)
 	err := store.Migrate(context.Background())
 	assert.NoError(t, err)
 	mockMigrator.AssertExpectations(t)

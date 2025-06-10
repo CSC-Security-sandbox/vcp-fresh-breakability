@@ -20,8 +20,6 @@ type Pool struct {
 	HotTierSizeInBytes      uint64
 	EnableHotTierAutoResize bool
 	VendorSubNetID          string
-	AllocatedBytes          float64
-	NumberOfVolumes         int64
 	QosType                 string
 	PoolAttributes          *PoolAttributes
 	ClusterAttributes       *ClusterAttributes
@@ -30,10 +28,12 @@ type Pool struct {
 
 // PoolAttributes describes the attributes of a pool model
 type PoolAttributes struct {
-	Events        string
-	Features      string
-	PrimaryZone   string
-	SecondaryZone string
+	Events          string
+	Features        string
+	PrimaryZone     string
+	SecondaryZone   string
+	AllocatedBytes  float64
+	NumberOfVolumes int64
 }
 
 // ClusterAttributes describes the attributes of a cluster model

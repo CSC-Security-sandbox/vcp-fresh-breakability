@@ -18,6 +18,7 @@ import (
 	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	commonparams "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/repository"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
@@ -510,12 +511,12 @@ func (j *PoolActivity) CreateLifForSvm(ctx context.Context, node *models.Node, c
 
 func (j *PoolActivity) GetPool(ctx context.Context, pool *datamodel.Pool) (*datamodel.Pool, error) {
 	se := j.SE
-	pool, err := se.GetPool(ctx, pool.UUID, 0)
+	poolView, err := se.GetPool(ctx, pool.UUID, pool.AccountID)
 	if err != nil {
 		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
 	}
-
-	return pool, nil
+	dbPool := repository.ConvertPoolViewToPool(poolView)
+	return dbPool, nil
 }
 
 func (j *PoolActivity) DeletingPoolResources(ctx context.Context, pool *datamodel.Pool) (*datamodel.Pool, error) {

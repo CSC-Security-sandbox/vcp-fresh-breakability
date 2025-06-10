@@ -52,13 +52,13 @@ type (
 type DataStore interface {
 	CreatedPool(ctx context.Context, pool *datamodel.Pool) (*datamodel.Pool, error)
 	CreatingPool(ctx context.Context, pool *datamodel.Pool) (*datamodel.Pool, error)
-	GetPool(ctx context.Context, poolUUID string, accountID int64) (*datamodel.Pool, error)
 	UpdatePool(ctx context.Context, pool *datamodel.Pool) error
 	DeletePool(ctx context.Context, pool *datamodel.Pool) error
 	DeletingPool(ctx context.Context, pool *datamodel.Pool) error
-	ListPools(ctx context.Context, conditions [][]interface{}) ([]*datamodel.Pool, error)
-	GetPoolByVendorID(ctx context.Context, vendorID string) (*datamodel.Pool, error)
-	GetPoolByName(ctx context.Context, conditions [][]interface{}) (*datamodel.Pool, error)
+	GetPool(ctx context.Context, poolUUID string, accountID int64) (*datamodel.PoolView, error)
+	ListPools(ctx context.Context, conditions [][]interface{}) ([]*datamodel.PoolView, error)
+	GetPoolByVendorID(ctx context.Context, vendorID string) (*datamodel.PoolView, error)
+	GetPoolByName(ctx context.Context, conditions [][]interface{}) (*datamodel.PoolView, error)
 	SavePoolWithVsaClusterDetails(ctx context.Context, pool *datamodel.Pool, cluster *datamodel.ClusterDetails) error
 
 	CreateVolume(ctx context.Context, volume *datamodel.Volume) (*datamodel.Volume, error)

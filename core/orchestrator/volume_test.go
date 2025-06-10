@@ -23,7 +23,7 @@ func TestGetVolume(t *testing.T) {
 		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
 
 		mockLogger := log.NewLogger()
-		store, err := database.NewTestStorage(mockLogger)
+		store, err := database.SetupStorageForTest(mockLogger)
 		if err != nil {
 			tt.Fatalf("Failed to create test storage: %v", err)
 		}
@@ -46,7 +46,7 @@ func TestGetVolume(t *testing.T) {
 		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
 
 		mockLogger := log.NewLogger()
-		store, err := database.NewTestStorage(mockLogger)
+		store, err := database.SetupStorageForTest(mockLogger)
 		if err != nil {
 			tt.Fatalf("Failed to create test storage: %v", err)
 		}
@@ -120,7 +120,7 @@ func TestGetVolume(t *testing.T) {
 		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
 
 		mockLogger := log.NewLogger()
-		store, err := database.NewTestStorage(mockLogger)
+		store, err := database.SetupStorageForTest(mockLogger)
 		if err != nil {
 			tt.Fatalf("Failed to create test storage: %v", err)
 		}
@@ -254,7 +254,7 @@ func TestCreateVolume(t *testing.T) {
 
 		mockLogger := log.NewLogger()
 		// Create a PersistenceStore instance with the in-memory database
-		store, err := database.NewTestStorage(mockLogger)
+		store, err := database.SetupStorageForTest(mockLogger)
 		if err != nil {
 			t.Fatalf("Failed to create test storage: %v", err)
 		}
@@ -318,7 +318,7 @@ func TestCreateVolume(t *testing.T) {
 
 		mockLogger := log.NewLogger()
 		// Create a PersistenceStore instance with the in-memory database
-		store, err := database.NewTestStorage(mockLogger)
+		store, err := database.SetupStorageForTest(mockLogger)
 		if err != nil {
 			t.Fatalf("Failed to create test storage: %v", err)
 		}
@@ -387,7 +387,7 @@ func TestCreateVolume(t *testing.T) {
 
 		mockLogger := log.NewLogger()
 		// Create a PersistenceStore instance with the in-memory database
-		store, err := database.NewTestStorage(mockLogger)
+		store, err := database.SetupStorageForTest(mockLogger)
 		if err != nil {
 			t.Fatalf("Failed to create test storage: %v", err)
 		}
@@ -490,7 +490,7 @@ func TestCreateVolume(t *testing.T) {
 
 		mockLogger := log.NewLogger()
 		// Create a PersistenceStore instance with the in-memory database
-		store, err := database.NewTestStorage(mockLogger)
+		store, err := database.SetupStorageForTest(mockLogger)
 		if err != nil {
 			t.Fatalf("Failed to create test storage: %v", err)
 		}
@@ -604,7 +604,7 @@ func TestDeleteVolume(t *testing.T) {
 		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
 
 		mockLogger := log.NewLogger()
-		store, err := database.NewTestStorage(mockLogger)
+		store, err := database.SetupStorageForTest(mockLogger)
 		if err != nil {
 			tt.Fatalf("Failed to create test storage: %v", err)
 		}
@@ -626,7 +626,7 @@ func TestDeleteVolume(t *testing.T) {
 		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
 
 		mockLogger := log.NewLogger()
-		store, err := database.NewTestStorage(mockLogger)
+		store, err := database.SetupStorageForTest(mockLogger)
 		if err != nil {
 			tt.Fatalf("Failed to create test storage: %v", err)
 		}
@@ -681,7 +681,7 @@ func TestDeleteVolume(t *testing.T) {
 		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
 
 		mockLogger := log.NewLogger()
-		store, err := database.NewTestStorage(mockLogger)
+		store, err := database.SetupStorageForTest(mockLogger)
 		if err != nil {
 			tt.Fatalf("Failed to create test storage: %v", err)
 		}
@@ -734,7 +734,7 @@ func TestDeleteVolume(t *testing.T) {
 		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
 
 		mockLogger := log.NewLogger()
-		store, err := database.NewTestStorage(mockLogger)
+		store, err := database.SetupStorageForTest(mockLogger)
 		if err != nil {
 			tt.Fatalf("Failed to create test storage: %v", err)
 		}
@@ -791,7 +791,7 @@ func TestGetMultipleVolumes(t *testing.T) {
 		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
 
 		mockLogger := log.NewLogger()
-		store, err := database.NewTestStorage(mockLogger)
+		store, err := database.SetupStorageForTest(mockLogger)
 		if err != nil {
 			tt.Fatalf("Failed to create test storage: %v", err)
 		}
@@ -899,7 +899,7 @@ func TestGetMultipleVolumes(t *testing.T) {
 		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
 
 		mockLogger := log.NewLogger()
-		store, err := database.NewTestStorage(mockLogger)
+		store, err := database.SetupStorageForTest(mockLogger)
 		if err != nil {
 			tt.Fatalf("Failed to create test storage: %v", err)
 		}
@@ -1000,7 +1000,7 @@ func TestValidateCreateVolumeParams(t *testing.T) {
 		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
 
 		mockLogger := log.NewLogger()
-		store, err := database.NewTestStorage(mockLogger)
+		store, err := database.SetupStorageForTest(mockLogger)
 		if err != nil {
 			tt.Fatalf("Failed to create test storage: %v", err)
 		}
@@ -1134,7 +1134,7 @@ func TestValidateCreateVolumeParams(t *testing.T) {
 		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
 
 		mockLogger := log.NewLogger()
-		store, err := database.NewTestStorage(mockLogger)
+		store, err := database.SetupStorageForTest(mockLogger)
 		if err != nil {
 			tt.Fatalf("Failed to create test storage: %v", err)
 		}
@@ -1173,7 +1173,7 @@ func TestValidateCreateVolumeParams(t *testing.T) {
 		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
 
 		mockLogger := log.NewLogger()
-		store, err := database.NewTestStorage(mockLogger)
+		store, err := database.SetupStorageForTest(mockLogger)
 		if err != nil {
 			tt.Fatalf("Failed to create test storage: %v", err)
 		}
@@ -1218,7 +1218,7 @@ func TestValidateCreateVolumeParams(t *testing.T) {
 		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
 
 		mockLogger := log.NewLogger()
-		store, err := database.NewTestStorage(mockLogger)
+		store, err := database.SetupStorageForTest(mockLogger)
 		if err != nil {
 			tt.Fatalf("Failed to create test storage: %v", err)
 		}
@@ -1263,7 +1263,7 @@ func TestValidateCreateVolumeParams(t *testing.T) {
 		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
 
 		mockLogger := log.NewLogger()
-		store, err := database.NewTestStorage(mockLogger)
+		store, err := database.SetupStorageForTest(mockLogger)
 		if err != nil {
 			tt.Fatalf("Failed to create test storage: %v", err)
 		}
@@ -1309,7 +1309,7 @@ func TestValidateCreateVolumeParams(t *testing.T) {
 		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
 
 		mockLogger := log.NewLogger()
-		store, err := database.NewTestStorage(mockLogger)
+		store, err := database.SetupStorageForTest(mockLogger)
 		if err != nil {
 			tt.Fatalf("Failed to create test storage: %v", err)
 		}
@@ -1354,7 +1354,7 @@ func TestValidateCreateVolumeParams(t *testing.T) {
 		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
 
 		mockLogger := log.NewLogger()
-		store, err := database.NewTestStorage(mockLogger)
+		store, err := database.SetupStorageForTest(mockLogger)
 		if err != nil {
 			tt.Fatalf("Failed to create test storage: %v", err)
 		}
@@ -1412,7 +1412,7 @@ func TestValidateCreateVolumeParams(t *testing.T) {
 		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
 
 		mockLogger := log.NewLogger()
-		store, err := database.NewTestStorage(mockLogger)
+		store, err := database.SetupStorageForTest(mockLogger)
 		if err != nil {
 			tt.Fatalf("Failed to create test storage: %v", err)
 		}
@@ -1482,7 +1482,7 @@ func TestValidateCreateVolumeParams(t *testing.T) {
 		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
 
 		mockLogger := log.NewLogger()
-		store, err := database.NewTestStorage(mockLogger)
+		store, err := database.SetupStorageForTest(mockLogger)
 		if err != nil {
 			tt.Fatalf("Failed to create test storage: %v", err)
 		}
@@ -1562,7 +1562,7 @@ func TestValidateCreateVolumeParams(t *testing.T) {
 		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
 
 		mockLogger := log.NewLogger()
-		store, err := database.NewTestStorage(mockLogger)
+		store, err := database.SetupStorageForTest(mockLogger)
 		if err != nil {
 			tt.Fatalf("Failed to create test storage: %v", err)
 		}
@@ -1647,7 +1647,7 @@ func TestValidateCreateVolumeParams(t *testing.T) {
 		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
 
 		mockLogger := log.NewLogger()
-		store, err := database.NewTestStorage(mockLogger)
+		store, err := database.SetupStorageForTest(mockLogger)
 		if err != nil {
 			tt.Fatalf("Failed to create test storage: %v", err)
 		}
@@ -1747,7 +1747,7 @@ func TestValidateCreateVolumeParams(t *testing.T) {
 		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
 
 		mockLogger := log.NewLogger()
-		store, err := database.NewTestStorage(mockLogger)
+		store, err := database.SetupStorageForTest(mockLogger)
 		if err != nil {
 			tt.Fatalf("Failed to create test storage: %v", err)
 		}
@@ -1850,7 +1850,7 @@ func TestValidateCreateVolumeParams(t *testing.T) {
 		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
 
 		mockLogger := log.NewLogger()
-		store, err := database.NewTestStorage(mockLogger)
+		store, err := database.SetupStorageForTest(mockLogger)
 		if err != nil {
 			tt.Fatalf("Failed to create test storage: %v", err)
 		}
@@ -1954,7 +1954,7 @@ func TestValidateCreateVolumeParams(t *testing.T) {
 		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
 
 		mockLogger := log.NewLogger()
-		store, err := database.NewTestStorage(mockLogger)
+		store, err := database.SetupStorageForTest(mockLogger)
 		if err != nil {
 			tt.Fatalf("Failed to create test storage: %v", err)
 		}
@@ -2067,7 +2067,7 @@ func TestValidateCreateVolumeParams(t *testing.T) {
 		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
 
 		mockLogger := log.NewLogger()
-		store, err := database.NewTestStorage(mockLogger)
+		store, err := database.SetupStorageForTest(mockLogger)
 		if err != nil {
 			tt.Fatalf("Failed to create test storage: %v", err)
 		}

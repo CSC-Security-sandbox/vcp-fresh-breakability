@@ -16,6 +16,7 @@ var NewMigrator = newMigrator
 type MigratorInterface interface {
 	Migrate(db *gormwrapper.Wrapper, ctx context.Context) error
 	Rollback(db *gormwrapper.Wrapper, ctx context.Context) error
+	CreateOrUpdateViews(db *gormwrapper.Wrapper) error
 }
 
 func (s *PersistenceStore) Migrate(ctx context.Context) error {
@@ -23,7 +24,15 @@ func (s *PersistenceStore) Migrate(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	return migrator.Migrate(s.db, ctx)
+	err = migrator.Migrate(s.db, ctx)
+	if err != nil {
+		return err
+	}
+	// Ensure view is always in sync after migrations
+	if err := migrator.CreateOrUpdateViews(s.db); err != nil {
+		s.logger.Errorf("Failed to create or update views: %v", err)
+	}
+	return nil
 }
 
 func (s *PersistenceStore) Rollback(ctx context.Context) error {

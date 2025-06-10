@@ -16,6 +16,7 @@ import (
 	coremodel "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
 	commonparams "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/repository"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
@@ -50,9 +51,10 @@ func TestGetPool_Success(t *testing.T) {
 	mockStorage := database.NewMockStorage(t)
 	activity := activities.PoolActivity{SE: mockStorage}
 	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
-	pool := &datamodel.Pool{Name: "test-pool"}
+	poolView := &datamodel.PoolView{Pool: datamodel.Pool{Name: "test-pool"}}
+	pool := repository.ConvertPoolViewToPool(poolView)
 
-	mockStorage.On("GetPool", ctx, pool.UUID, int64(0)).Return(pool, nil)
+	mockStorage.On("GetPool", ctx, poolView.UUID, int64(0)).Return(poolView, nil)
 
 	// Act
 	result, err := activity.GetPool(ctx, pool)
@@ -1906,7 +1908,7 @@ func Test_SkipsSubnetReleaseWhenMultiplePoolsExist(t *testing.T) {
 	activity := activities.PoolActivity{SE: mockStorage}
 	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
 	pool := &datamodel.Pool{AccountID: 1, Network: "test-network"}
-	pools := []*datamodel.Pool{{}, {}}
+	pools := []*datamodel.PoolView{{}, {}}
 
 	mockStorage.On("ListPools", ctx, mock.Anything).Return(pools, nil)
 

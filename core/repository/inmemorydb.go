@@ -1,9 +1,12 @@
 package repository
 
 import (
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
+
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
+	gormwrapper "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/gorm"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/sqllite"
 )
 
 func SetupTestDB() (*gorm.DB, error) {
@@ -17,7 +20,10 @@ func SetupTestDB() (*gorm.DB, error) {
 	if err != nil {
 		return nil, err
 	}
-
+	err = sqllite.CreateOrUpdateViews(gormwrapper.New(db))
+	if err != nil {
+		return nil, err
+	}
 	return db, nil
 }
 

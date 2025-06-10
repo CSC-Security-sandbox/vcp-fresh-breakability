@@ -263,6 +263,7 @@ func TestV1betaCreatePool(t *testing.T) {
 			BaseModel: models.BaseModel{
 				UUID: "existing-pool-uuid",
 			},
+			PoolAttributes: &models.PoolAttributes{},
 		}
 		parseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
 			return "us-east4", "us-east4", nil
@@ -293,7 +294,7 @@ func TestV1betaCreatePool(t *testing.T) {
 			return "us-east4", "us-east4", nil
 		}
 		mockOrchestrator.EXPECT().GetPoolByVendorID(mock.Anything, mock.Anything).Return(nil, errors.NewNotFoundErr("not found", nil))
-		mockOrchestrator.EXPECT().CreatePool(mock.Anything, mock.Anything).Return(&models.Pool{BaseModel: models.BaseModel{UUID: "new-pool-uuid"}}, "operation-id", nil)
+		mockOrchestrator.EXPECT().CreatePool(mock.Anything, mock.Anything).Return(&models.Pool{BaseModel: models.BaseModel{UUID: "new-pool-uuid"}, PoolAttributes: &models.PoolAttributes{}}, "operation-id", nil)
 
 		handler := Handler{
 			Orchestrator: mockOrchestrator,
@@ -397,12 +398,14 @@ func TestV1betaDeletePool(t *testing.T) {
 			BaseModel: models.BaseModel{
 				UUID: "deletable-pool-id",
 			},
+			PoolAttributes: &models.PoolAttributes{},
 		}
 		deletedPool := &models.Pool{
 			BaseModel: models.BaseModel{
 				UUID: "deletable-pool-id",
 			},
-			State: models.LifeCycleStateDeleting,
+			PoolAttributes: &models.PoolAttributes{},
+			State:          models.LifeCycleStateDeleting,
 		}
 		parseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
 			return "us-east4", "us-east4", nil
@@ -503,7 +506,8 @@ func TestV1betaDescribePool(t *testing.T) {
 			BaseModel: models.BaseModel{
 				UUID: "existing-pool-id",
 			},
-			Name: "test-pool",
+			PoolAttributes: &models.PoolAttributes{},
+			Name:           "test-pool",
 		}
 		parseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
 			return "us-east4", "us-east4", nil
@@ -576,12 +580,16 @@ func TestV1betaListPools(t *testing.T) {
 		}
 
 		pool1 := &models.Pool{
-			BaseModel: models.BaseModel{UUID: "pool-uuid-1"},
-			Name:      "pool-1",
+			BaseModel:      models.BaseModel{UUID: "pool-uuid-1"},
+			Name:           "pool-1",
+			PoolAttributes: &models.PoolAttributes{},
 		}
 		pool2 := &models.Pool{
 			BaseModel: models.BaseModel{UUID: "pool-uuid-2"},
 			Name:      "pool-2",
+			PoolAttributes: &models.PoolAttributes{
+				NumberOfVolumes: 1,
+			},
 		}
 		parseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
 			return "us-east4", "us-east4", nil
@@ -601,4 +609,22 @@ func TestV1betaListPools(t *testing.T) {
 		assert.Equal(tt, "pool-uuid-1", successResult.Pools[0].PoolId.Value)
 		assert.Equal(tt, "pool-uuid-2", successResult.Pools[1].PoolId.Value)
 	})
+}
+
+func TestGetEncryptionTypeForPool(t *testing.T) {
+	cloudKms := "kms-id"
+	servManaged := (*string)(nil)
+
+	// Test with non-nil, non-empty kmsConfigId
+	encType := getEncryptionTypeForPool(&cloudKms)
+	assert.Equal(t, gcpgenserver.PoolV1betaEncryptionTypeCLOUDKMS, encType.Value)
+
+	// Test with nil kmsConfigId
+	encType = getEncryptionTypeForPool(servManaged)
+	assert.Equal(t, gcpgenserver.PoolV1betaEncryptionTypeSERVICEMANAGED, encType.Value)
+
+	// Test with empty string pointer
+	empty := ""
+	encType = getEncryptionTypeForPool(&empty)
+	assert.Equal(t, gcpgenserver.PoolV1betaEncryptionTypeSERVICEMANAGED, encType.Value)
 }

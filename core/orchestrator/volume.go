@@ -10,6 +10,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/workflows"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/repository"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
@@ -71,6 +72,7 @@ func _createVolume(ctx context.Context, se database.Storage, temporal client.Cli
 		return nil, "", err
 	}
 
+	dbPool := repository.ConvertPoolViewToPool(pool)
 	volumeObj := &datamodel.Volume{
 		Name:        params.Name,
 		Account:     account,
@@ -79,7 +81,7 @@ func _createVolume(ctx context.Context, se database.Storage, temporal client.Cli
 		Description: params.Description,
 		PoolID:      pool.ID,
 		SvmID:       svm.ID,
-		Pool:        pool,
+		Pool:        dbPool,
 		VolumeAttributes: &datamodel.VolumeAttributes{
 			CreationToken:    params.CreationToken,
 			Protocols:        params.Protocols,

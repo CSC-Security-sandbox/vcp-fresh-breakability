@@ -12,6 +12,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/repository"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
@@ -42,7 +43,8 @@ func TestConvertDatastorePoolToModel_ValidPool_ReturnsCorrectModel(t *testing.T)
 	}
 	accountName := "test-account"
 
-	result := convertDatastorePoolToModel(datastorePool, accountName)
+	dbPoolView := repository.ConvertPoolToPoolView(datastorePool)
+	result := convertDatastorePoolToModel(dbPoolView, accountName)
 
 	assert.Equal(t, datastorePool.UUID, result.UUID)
 	assert.Equal(t, datastorePool.CreatedAt, result.CreatedAt)
@@ -77,8 +79,8 @@ func TestConvertDatastorePoolToModel_NilDeletedAt_ReturnsNilDeletedAt(t *testing
 		ServiceLevel:     "premium",
 	}
 	accountName := "test-account"
-
-	result := convertDatastorePoolToModel(datastorePool, accountName)
+	dbPoolView := repository.ConvertPoolToPoolView(datastorePool)
+	result := convertDatastorePoolToModel(dbPoolView, accountName)
 
 	assert.Nil(t, result.DeletedAt)
 }
@@ -102,8 +104,8 @@ func TestConvertDatastorePoolToModel_InvalidDeletedAt_ReturnsNilDeletedAt(t *tes
 		ServiceLevel:     "premium",
 	}
 	accountName := "test-account"
-
-	result := convertDatastorePoolToModel(datastorePool, accountName)
+	dbPoolView := repository.ConvertPoolToPoolView(datastorePool)
+	result := convertDatastorePoolToModel(dbPoolView, accountName)
 
 	assert.Nil(t, result.DeletedAt)
 }
@@ -185,7 +187,7 @@ func TestCreatePool(t *testing.T) {
 		mockLogger := log.NewLogger()
 		ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, mockLogger)
 		// Create a PersistenceStore instance with the in-memory database
-		store, err := database.NewTestStorage(mockLogger)
+		store, err := database.SetupStorageForTest(mockLogger)
 		assert.NoError(tt, err, "Failed to create test storage")
 		// Clear the in-memory database
 		err = database.ClearInMemoryDB(store.DB())
@@ -235,7 +237,7 @@ func TestCreatePool(t *testing.T) {
 		mockLogger := log.NewLogger()
 		ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, mockLogger)
 		// Create a PersistenceStore instance with the in-memory database
-		store, err := database.NewTestStorage(mockLogger)
+		store, err := database.SetupStorageForTest(mockLogger)
 		if err != nil {
 			t.Fatalf("Failed to create test storage: %v", err)
 		}
@@ -295,7 +297,7 @@ func TestGetPool(t *testing.T) {
 		ctx := context.Background()
 
 		mockLogger := log.NewLogger()
-		store, err := database.NewTestStorage(mockLogger)
+		store, err := database.SetupStorageForTest(mockLogger)
 		assert.NoError(tt, err, "Failed to create test storage")
 
 		// Clear the in-memory database
@@ -323,7 +325,7 @@ func TestGetPool(t *testing.T) {
 		ctx := context.Background()
 
 		mockLogger := log.NewLogger()
-		store, err := database.NewTestStorage(mockLogger)
+		store, err := database.SetupStorageForTest(mockLogger)
 		assert.NoError(tt, err, "Failed to create test storage")
 
 		// Clear the in-memory database
@@ -361,7 +363,7 @@ func TestGetPoolByVendorID(t *testing.T) {
 		ctx := context.Background()
 
 		mockLogger := log.NewLogger()
-		store, err := database.NewTestStorage(mockLogger)
+		store, err := database.SetupStorageForTest(mockLogger)
 		assert.NoError(tt, err, "Failed to create test storage")
 
 		// Clear the in-memory database
@@ -385,7 +387,7 @@ func TestGetPoolByVendorID(t *testing.T) {
 		ctx := context.Background()
 
 		mockLogger := log.NewLogger()
-		store, err := database.NewTestStorage(mockLogger)
+		store, err := database.SetupStorageForTest(mockLogger)
 		assert.NoError(tt, err, "Failed to create test storage")
 
 		// Clear the in-memory database
@@ -493,7 +495,7 @@ func TestDeletePool(t *testing.T) {
 		mockLogger := log.NewLogger()
 		ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, mockLogger)
 		// Create a PersistenceStore instance with the in-memory database
-		store, err := database.NewTestStorage(mockLogger)
+		store, err := database.SetupStorageForTest(mockLogger)
 		assert.NoError(tt, err, "Failed to create test storage")
 		temporal := client.Client(nil)
 		assert.NoError(tt, err, "Failed to create temporal client")
@@ -523,7 +525,7 @@ func TestDeletePool(t *testing.T) {
 		ctx := context.Background()
 		mockLogger := log.NewLogger()
 		ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, mockLogger)
-		store, err := database.NewTestStorage(mockLogger)
+		store, err := database.SetupStorageForTest(mockLogger)
 		if err != nil {
 			tt.Fatalf("Failed to create test storage: %v", err)
 		}
@@ -582,7 +584,7 @@ func TestMultiplePools(t *testing.T) {
 		ctx := context.Background()
 		mockLogger := log.NewLogger()
 		ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, mockLogger)
-		store, err := database.NewTestStorage(mockLogger)
+		store, err := database.SetupStorageForTest(mockLogger)
 		if err != nil {
 			tt.Fatalf("Failed to create test storage: %v", err)
 		}
@@ -609,7 +611,7 @@ func TestMultiplePools(t *testing.T) {
 		ctx := context.Background()
 		mockLogger := log.NewLogger()
 		ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, mockLogger)
-		store, err := database.NewTestStorage(mockLogger)
+		store, err := database.SetupStorageForTest(mockLogger)
 		if err != nil {
 			tt.Fatalf("Failed to create test storage: %v", err)
 		}
@@ -644,7 +646,7 @@ func TestMultiplePools(t *testing.T) {
 		ctx := context.Background()
 		mockLogger := log.NewLogger()
 		ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, mockLogger)
-		store, err := database.NewTestStorage(mockLogger)
+		store, err := database.SetupStorageForTest(mockLogger)
 		if err != nil {
 			tt.Fatalf("Failed to create test storage: %v", err)
 		}
@@ -706,7 +708,7 @@ func TestListPools(t *testing.T) {
 		ctx := context.Background()
 		mockLogger := log.NewLogger()
 		ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, mockLogger)
-		store, err := database.NewTestStorage(mockLogger)
+		store, err := database.SetupStorageForTest(mockLogger)
 		if err != nil {
 			tt.Fatalf("Failed to create test storage: %v", err)
 		}
@@ -735,7 +737,7 @@ func TestListPools(t *testing.T) {
 		ctx := context.Background()
 		mockLogger := log.NewLogger()
 		ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, mockLogger)
-		store, err := database.NewTestStorage(mockLogger)
+		store, err := database.SetupStorageForTest(mockLogger)
 		if err != nil {
 			tt.Fatalf("Failed to create test storage: %v", err)
 		}
@@ -773,7 +775,7 @@ func TestListPools(t *testing.T) {
 		ctx := context.Background()
 		mockLogger := log.NewLogger()
 		ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, mockLogger)
-		store, err := database.NewTestStorage(mockLogger)
+		store, err := database.SetupStorageForTest(mockLogger)
 		if err != nil {
 			tt.Fatalf("Failed to create test storage: %v", err)
 		}
@@ -872,7 +874,8 @@ func TestGetPoolByName(t *testing.T) {
 			BaseModel: datamodel.BaseModel{UUID: "test-pool-uuid", ID: 1},
 			Name:      "test-pool",
 		}
-		mockStorage.On("GetPoolByName", ctx, mock.Anything).Return(poolResp, nil)
+		poolView := repository.ConvertPoolToPoolView(poolResp)
+		mockStorage.On("GetPoolByName", ctx, mock.Anything).Return(poolView, nil)
 		mockStorage.On("GetNodesByPoolID", ctx, mock.Anything).Return(nil, errors.New("node not found"))
 		_, err := GetPoolByName(ctx, mockStorage, "test-pool", "test-account", queryDepthOne)
 		assert.EqualError(tt, err, "node not found")
@@ -890,8 +893,8 @@ func TestGetPoolByName(t *testing.T) {
 			BaseModel: datamodel.BaseModel{UUID: "test-pool-uuid", ID: 1},
 			Name:      "test-pool",
 		}
-
-		mockStorage.On("GetPoolByName", ctx, mock.Anything).Return(poolResp, nil)
+		poolView := repository.ConvertPoolToPoolView(poolResp)
+		mockStorage.On("GetPoolByName", ctx, mock.Anything).Return(poolView, nil)
 		mockStorage.On("GetNodesByPoolID", ctx, mock.Anything).Return(nil, nil)
 		_, err := GetPoolByName(ctx, mockStorage, "test-pool", "test-account", queryDepthZero)
 		assert.EqualError(tt, err, "node not found")
@@ -914,11 +917,11 @@ func TestGetPoolByName(t *testing.T) {
 			Name:      "test-node",
 		},
 		}
-
-		mockStorage.On("GetPoolByName", ctx, mock.Anything).Return(poolResp, nil)
+		poolView := repository.ConvertPoolToPoolView(poolResp)
+		mockStorage.On("GetPoolByName", ctx, mock.Anything).Return(poolView, nil)
 		mockStorage.On("GetNodesByPoolID", ctx, mock.Anything).Return(nodeResp, nil)
 
-		getInterClusterLifsFromONTAP = func(ctx context.Context, node []*datamodel.Node, pools *datamodel.Pool) ([]*vsa.InterclusterLif, error) {
+		getInterClusterLifsFromONTAP = func(ctx context.Context, node []*datamodel.Node, pools *datamodel.PoolView) ([]*vsa.InterclusterLif, error) {
 			return nil, errors.New("lif not found")
 		}
 
@@ -943,7 +946,8 @@ func TestGetPoolByName(t *testing.T) {
 			Name:      "test-node",
 		},
 		}
-		mockStorage.On("GetPoolByName", ctx, mock.Anything).Return(poolResp, nil)
+		poolView := repository.ConvertPoolToPoolView(poolResp)
+		mockStorage.On("GetPoolByName", ctx, mock.Anything).Return(poolView, nil)
 		mockStorage.On("GetNodesByPoolID", ctx, mock.Anything).Return(nodeResp, nil)
 		interClusterLifResp := []*vsa.InterclusterLif{
 			{
@@ -956,7 +960,7 @@ func TestGetPoolByName(t *testing.T) {
 			},
 		}
 
-		getInterClusterLifsFromONTAP = func(ctx context.Context, node []*datamodel.Node, pools *datamodel.Pool) ([]*vsa.InterclusterLif, error) {
+		getInterClusterLifsFromONTAP = func(ctx context.Context, node []*datamodel.Node, pools *datamodel.PoolView) ([]*vsa.InterclusterLif, error) {
 			return interClusterLifResp, nil
 		}
 
@@ -982,7 +986,8 @@ func TestGetPoolByName(t *testing.T) {
 				Name:      "test-node",
 			},
 		}
-		mockStorage.On("GetPoolByName", ctx, mock.Anything).Return(poolResp, nil)
+		poolView := repository.ConvertPoolToPoolView(poolResp)
+		mockStorage.On("GetPoolByName", ctx, mock.Anything).Return(poolView, nil)
 		mockStorage.On("GetNodesByPoolID", ctx, mock.Anything).Return(nodeResp, nil)
 
 		_, err := GetPoolByName(ctx, mockStorage, "test-pool", "test-account", queryDepthZero)

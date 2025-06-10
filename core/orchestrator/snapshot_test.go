@@ -25,7 +25,7 @@ func TestOrchestrator_CreateSnapshot(t *testing.T) {
 		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
 
 		mockLogger := log.NewLogger()
-		store, err := database.NewTestStorage(mockLogger)
+		store, err := database.SetupStorageForTest(mockLogger)
 		if err != nil {
 			tt.Fatalf("Failed to create test storage: %v", err)
 		}
@@ -82,7 +82,7 @@ func TestOrchestrator_CreateSnapshot(t *testing.T) {
 		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
 
 		mockLogger := log.NewLogger()
-		store, err := database.NewTestStorage(mockLogger)
+		store, err := database.SetupStorageForTest(mockLogger)
 		if err != nil {
 			tt.Fatalf("Failed to create test storage: %v", err)
 		}
@@ -161,7 +161,7 @@ func TestOrchestrator_CreateSnapshot(t *testing.T) {
 		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
 
 		mockLogger := log.NewLogger()
-		store, err := database.NewTestStorage(mockLogger)
+		store, err := database.SetupStorageForTest(mockLogger)
 		if err != nil {
 			tt.Fatalf("Failed to create test storage: %v", err)
 		}
@@ -228,7 +228,7 @@ func TestOrchestrator_CreateSnapshot(t *testing.T) {
 		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
 
 		mockLogger := log.NewLogger()
-		store, err := database.NewTestStorage(mockLogger)
+		store, err := database.SetupStorageForTest(mockLogger)
 		if err != nil {
 			tt.Fatalf("Failed to create test storage: %v", err)
 		}
@@ -281,7 +281,7 @@ func TestOrchestrator_CreateSnapshot(t *testing.T) {
 		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
 
 		mockLogger := log.NewLogger()
-		store, err := database.NewTestStorage(mockLogger)
+		store, err := database.SetupStorageForTest(mockLogger)
 		if err != nil {
 			tt.Fatalf("Failed to create test storage: %v", err)
 		}
@@ -334,7 +334,7 @@ func TestOrchestrator_CreateSnapshot(t *testing.T) {
 		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
 
 		mockLogger := log.NewLogger()
-		store, err := database.NewTestStorage(mockLogger)
+		store, err := database.SetupStorageForTest(mockLogger)
 		if err != nil {
 			tt.Fatalf("Failed to create test storage: %v", err)
 		}
@@ -388,7 +388,7 @@ func TestOrchestrator_CreateSnapshot(t *testing.T) {
 		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
 
 		mockLogger := log.NewLogger()
-		store, err := database.NewTestStorage(mockLogger)
+		store, err := database.SetupStorageForTest(mockLogger)
 		if err != nil {
 			tt.Fatalf("Failed to create test storage: %v", err)
 		}
@@ -491,7 +491,7 @@ func TestVolumeOwnershipCheck(t *testing.T) {
 	t.Run("WhenAccountIDIsIncorrect", func(tt *testing.T) {
 		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
 		mockLogger := log.NewLogger()
-		store, err := database.NewTestStorage(mockLogger)
+		store, err := database.SetupStorageForTest(mockLogger)
 		if err != nil {
 			assert.FailNow(tt, "Failed to create test storage: "+err.Error())
 		}
@@ -512,7 +512,7 @@ func TestVolumeOwnershipCheck(t *testing.T) {
 	t.Run("WhenVolumeIsIncorrect", func(tt *testing.T) {
 		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
 		mockLogger := log.NewLogger()
-		store, err := database.NewTestStorage(mockLogger)
+		store, err := database.SetupStorageForTest(mockLogger)
 		if err != nil {
 			assert.FailNow(tt, "Failed to create test storage: "+err.Error())
 		}
@@ -583,7 +583,7 @@ func TestGetSnapshot(t *testing.T) {
 		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
 
 		mockLogger := log.NewLogger()
-		store, err := database.NewTestStorage(mockLogger)
+		store, err := database.SetupStorageForTest(mockLogger)
 		assert.NoError(tt, err, "Failed to create test storage")
 
 		err = database.ClearInMemoryDB(store.DB())
@@ -634,7 +634,7 @@ func TestGetSnapshot(t *testing.T) {
 		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
 
 		mockLogger := log.NewLogger()
-		store, err := database.NewTestStorage(mockLogger)
+		store, err := database.SetupStorageForTest(mockLogger)
 		assert.NoError(tt, err, "Failed to create test storage")
 
 		// Clear the in-memory database
@@ -695,7 +695,7 @@ func TestGetSnapshot(t *testing.T) {
 		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
 
 		mockLogger := log.NewLogger()
-		store, err := database.NewTestStorage(mockLogger)
+		store, err := database.SetupStorageForTest(mockLogger)
 		if err != nil {
 			tt.Fatalf("Failed to create test storage: %v", err)
 		}
@@ -810,7 +810,7 @@ func TestListSnapshots(t *testing.T) {
 	t.Run("WhenOwnershipCheckFails", func(tt *testing.T) {
 		ctx := context.Background()
 		mockLogger := log.NewLogger()
-		store, err := database.NewTestStorage(mockLogger)
+		store, err := database.SetupStorageForTest(mockLogger)
 		assert.NoError(tt, err)
 		orch := Orchestrator{storage: store}
 
@@ -837,7 +837,7 @@ func TestListSnapshots(t *testing.T) {
 	t.Run("WhenVolumeNotFound", func(tt *testing.T) {
 		ctx := context.Background()
 		mockLogger := log.NewLogger()
-		store, err := database.NewTestStorage(mockLogger)
+		store, err := database.SetupStorageForTest(mockLogger)
 		assert.NoError(tt, err)
 		orch := Orchestrator{storage: store}
 
@@ -864,7 +864,7 @@ func TestListSnapshots(t *testing.T) {
 	t.Run("WhenSnapshotsExist", func(tt *testing.T) {
 		ctx := context.Background()
 		mockLogger := log.NewLogger()
-		store, err := database.NewTestStorage(mockLogger)
+		store, err := database.SetupStorageForTest(mockLogger)
 		assert.NoError(tt, err)
 		orch := Orchestrator{storage: store}
 
@@ -926,7 +926,7 @@ func TestUpdateSnapshot(t *testing.T) {
 	t.Run("WhenSnapshotDoesNotExist", func(tt *testing.T) {
 		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
 		mockLogger := log.NewLogger()
-		store, err := database.NewTestStorage(mockLogger)
+		store, err := database.SetupStorageForTest(mockLogger)
 		assert.NoError(tt, err, "Failed to create test storage")
 		err = database.ClearInMemoryDB(store.DB())
 		assert.NoError(tt, err, "Failed to ClearInMemoryDB")
@@ -972,7 +972,7 @@ func TestUpdateSnapshot(t *testing.T) {
 	t.Run("WhenSnapshotIsInTransitioningState", func(tt *testing.T) {
 		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
 		mockLogger := log.NewLogger()
-		store, err := database.NewTestStorage(mockLogger)
+		store, err := database.SetupStorageForTest(mockLogger)
 		assert.NoError(tt, err, "Failed to create test storage")
 		err = database.ClearInMemoryDB(store.DB())
 		assert.NoError(tt, err, "Failed to ClearInMemoryDB")
@@ -1031,7 +1031,7 @@ func TestUpdateSnapshot(t *testing.T) {
 	t.Run("WhenSnapshotIsDeleted", func(tt *testing.T) {
 		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
 		mockLogger := log.NewLogger()
-		store, err := database.NewTestStorage(mockLogger)
+		store, err := database.SetupStorageForTest(mockLogger)
 		assert.NoError(tt, err, "Failed to create test storage")
 		err = database.ClearInMemoryDB(store.DB())
 		assert.NoError(tt, err, "Failed to ClearInMemoryDB")
@@ -1091,7 +1091,7 @@ func TestUpdateSnapshot(t *testing.T) {
 	t.Run("WhenSnapshotIsUpdateFailsDueToOwnershipCheck", func(tt *testing.T) {
 		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
 		mockLogger := log.NewLogger()
-		store, err := database.NewTestStorage(mockLogger)
+		store, err := database.SetupStorageForTest(mockLogger)
 		assert.NoError(tt, err, "Failed to create test storage")
 		err = database.ClearInMemoryDB(store.DB())
 		assert.NoError(tt, err, "Failed to ClearInMemoryDB")
@@ -1150,7 +1150,7 @@ func TestUpdateSnapshot(t *testing.T) {
 	t.Run("WhenSnapshotIsUpdatedSuccessfully", func(tt *testing.T) {
 		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
 		mockLogger := log.NewLogger()
-		store, err := database.NewTestStorage(mockLogger)
+		store, err := database.SetupStorageForTest(mockLogger)
 		mockTemporalClient := workflowEngineMock.NewMockTemporalTestClient(t)
 		assert.NoError(tt, err, "Failed to create test storage")
 		err = database.ClearInMemoryDB(store.DB())
@@ -1307,7 +1307,7 @@ func TestDeleteSnapshot(t *testing.T) {
 	t.Run("WhenSnapshotDeletionSuccess", func(tt *testing.T) {
 		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
 		mockLogger := log.NewLogger()
-		store, err := database.NewTestStorage(mockLogger)
+		store, err := database.SetupStorageForTest(mockLogger)
 		if err != nil {
 			tt.Fatalf("Failed to create test storage: %v", err)
 		}
@@ -1364,7 +1364,7 @@ func TestDeleteSnapshot(t *testing.T) {
 	t.Run("WhenSnapshotDeletionFailsDueToVolumeNotFound", func(tt *testing.T) {
 		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
 		mockLogger := log.NewLogger()
-		store, err := database.NewTestStorage(mockLogger)
+		store, err := database.SetupStorageForTest(mockLogger)
 		if err != nil {
 			tt.Fatalf("Failed to create test storage: %v", err)
 		}
@@ -1408,7 +1408,7 @@ func TestDeleteSnapshot(t *testing.T) {
 	t.Run("WhenSnapshotDeletionFailsDueToAccountNotFound", func(tt *testing.T) {
 		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
 		mockLogger := log.NewLogger()
-		store, err := database.NewTestStorage(mockLogger)
+		store, err := database.SetupStorageForTest(mockLogger)
 		if err != nil {
 			tt.Fatalf("Failed to create test storage: %v", err)
 		}
@@ -1453,7 +1453,7 @@ func TestDeleteSnapshot(t *testing.T) {
 		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
 
 		mockLogger := log.NewLogger()
-		store, err := database.NewTestStorage(mockLogger)
+		store, err := database.SetupStorageForTest(mockLogger)
 		if err != nil {
 			tt.Fatalf("Failed to create test storage: %v", err)
 		}

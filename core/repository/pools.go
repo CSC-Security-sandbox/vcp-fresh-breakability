@@ -78,11 +78,11 @@ func (d *DataStoreRepository) CreatingPool(ctx context.Context, pool *datamodel.
 			return nil, err
 		}
 
-		dbPool, err = getPoolWithDetails(tx, &datamodel.Pool{BaseModel: datamodel.BaseModel{UUID: pool.UUID}})
+		dbPoolView, err := getPoolWithDetails(tx, &datamodel.Pool{BaseModel: datamodel.BaseModel{UUID: pool.UUID}})
 		if err != nil {
 			return nil, err
 		}
-		return dbPool, nil
+		return ConvertPoolViewToPool(dbPoolView), nil
 	} else if err1 != nil {
 		logger.Errorf("Error while checking if pool exists: %v", err1)
 		return nil, err1
@@ -91,7 +91,7 @@ func (d *DataStoreRepository) CreatingPool(ctx context.Context, pool *datamodel.
 }
 
 // GetPool retrieves a pool by its UUID
-func (d *DataStoreRepository) GetPool(ctx context.Context, poolUUID string, accountID int64) (*datamodel.Pool, error) {
+func (d *DataStoreRepository) GetPool(ctx context.Context, poolUUID string, accountID int64) (*datamodel.PoolView, error) {
 	return getPoolWithDetails(d.db.GORM().WithContext(ctx), &datamodel.Pool{BaseModel: datamodel.BaseModel{UUID: poolUUID}, AccountID: accountID})
 }
 
@@ -104,10 +104,11 @@ func (d *DataStoreRepository) UpdatePool(ctx context.Context, pool *datamodel.Po
 	logger := util.GetLogger(ctx)
 	defer commitOrRollbackOnError(logger, tx, &err)
 
-	dbPool, err := getPoolWithDetails(tx, &datamodel.Pool{BaseModel: datamodel.BaseModel{UUID: pool.UUID}})
+	dbPoolView, err := getPoolWithDetails(tx, &datamodel.Pool{BaseModel: datamodel.BaseModel{UUID: pool.UUID}})
 	if err != nil {
 		return err
 	}
+	dbPool := ConvertPoolViewToPool(dbPoolView)
 	dbPool.UpdatedAt = time.Now()
 	dbPool.State = pool.State
 	dbPool.StateDetails = pool.StateDetails
@@ -155,16 +156,16 @@ func (d *DataStoreRepository) DeletingPool(ctx context.Context, pool *datamodel.
 	return nil
 }
 
-func (d *DataStoreRepository) ListPools(ctx context.Context, conditions [][]interface{}) ([]*datamodel.Pool, error) {
+func (d *DataStoreRepository) ListPools(ctx context.Context, conditions [][]interface{}) ([]*datamodel.PoolView, error) {
 	return listPoolWithDetails(d.db.ApplyFilter(conditions).GORM().WithContext(ctx))
 }
 
-func (d *DataStoreRepository) GetPoolByVendorID(ctx context.Context, vendorID string) (*datamodel.Pool, error) {
+func (d *DataStoreRepository) GetPoolByVendorID(ctx context.Context, vendorID string) (*datamodel.PoolView, error) {
 	return getPoolWithDetails(d.db.GORM().WithContext(ctx), &datamodel.Pool{VendorID: vendorID})
 }
 
-func _getPoolWithDetails(db *gorm.DB, query *datamodel.Pool) (*datamodel.Pool, error) {
-	pool := &datamodel.Pool{}
+func _getPoolWithDetails(db *gorm.DB, query *datamodel.Pool) (*datamodel.PoolView, error) {
+	pool := &datamodel.PoolView{}
 	err := db.Preload("Account").First(&pool, query).Error
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -175,12 +176,12 @@ func _getPoolWithDetails(db *gorm.DB, query *datamodel.Pool) (*datamodel.Pool, e
 	return pool, nil
 }
 
-func (d *DataStoreRepository) GetPoolByName(ctx context.Context, conditions [][]interface{}) (*datamodel.Pool, error) {
+func (d *DataStoreRepository) GetPoolByName(ctx context.Context, conditions [][]interface{}) (*datamodel.PoolView, error) {
 	return getPoolByName(d.db.ApplyFilter(conditions).GORM().WithContext(ctx))
 }
 
-func _getPoolByName(db *gorm.DB) (*datamodel.Pool, error) {
-	pool := &datamodel.Pool{}
+func _getPoolByName(db *gorm.DB) (*datamodel.PoolView, error) {
+	pool := &datamodel.PoolView{}
 	err := db.Preload("Account").First(&pool).Error
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -191,8 +192,8 @@ func _getPoolByName(db *gorm.DB) (*datamodel.Pool, error) {
 	return pool, nil
 }
 
-func _listPoolWithDetails(db *gorm.DB) ([]*datamodel.Pool, error) {
-	var pools []*datamodel.Pool
+func _listPoolWithDetails(db *gorm.DB) ([]*datamodel.PoolView, error) {
+	var pools []*datamodel.PoolView
 	err := db.Preload("Account").Find(&pools).Error
 	if err != nil {
 		return nil, vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataReadError, err)
@@ -216,4 +217,46 @@ func (d *DataStoreRepository) SavePoolWithVsaClusterDetails(ctx context.Context,
 		return vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataUpdateError, err)
 	}
 	return nil
+}
+
+// ConvertPoolViewToPool converts a PoolView to a Pool for use in CRUD operations.
+func ConvertPoolViewToPool(view *datamodel.PoolView) *datamodel.Pool {
+	if view == nil {
+		return nil
+	}
+	return &datamodel.Pool{
+		BaseModel:               view.BaseModel,
+		Name:                    view.Name,
+		Description:             view.Description,
+		State:                   view.State,
+		StateDetails:            view.StateDetails,
+		VendorID:                view.VendorID,
+		ServiceLevel:            view.ServiceLevel,
+		SizeInBytes:             view.SizeInBytes,
+		UsedBytes:               view.UsedBytes,
+		Network:                 view.Network,
+		AllowAutoTiering:        view.AllowAutoTiering,
+		HotTierSizeInBytes:      view.HotTierSizeInBytes,
+		EnableHotTierAutoResize: view.EnableHotTierAutoResize,
+		AccountID:               view.AccountID,
+		Account:                 view.Account,
+		PoolAttributes:          view.PoolAttributes,
+		ClusterDetails:          view.ClusterDetails,
+		QosType:                 view.QosType,
+		Username:                view.Username,
+		Password:                view.Password,
+	}
+}
+
+// ConvertPoolToPoolView converts a datamodel.Pool to a datamodel.PoolView for use in read operations or when you want to expose enriched fields.
+func ConvertPoolToPoolView(pool *datamodel.Pool) *datamodel.PoolView {
+	if pool == nil {
+		return nil
+	}
+	return &datamodel.PoolView{
+		Pool:         *pool,
+		Throughput:   0, // Set to 0 or fill in with actual value if available
+		QuotaInBytes: 0, // Set to 0 or fill in with actual value if available
+		VolumeCount:  0, // Set to 0 or fill in with actual value if available
+	}
 }

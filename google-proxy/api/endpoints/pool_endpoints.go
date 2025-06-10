@@ -114,7 +114,10 @@ func (h Handler) V1betaCreatePool(ctx context.Context, req *gcpgenserver.PoolV1b
 	created, operationID, err := h.Orchestrator.CreatePool(ctx, param)
 	if err != nil {
 		logger.Error("Failed to create pool", "error", err.Error())
-		return &gcpgenserver.V1betaCreatePoolInternalServerError{}, err
+		return &gcpgenserver.V1betaCreatePoolInternalServerError{
+			Code:    500,
+			Message: "Internal server error",
+		}, nil
 	}
 	resp, err := encodePoolV1(convertToPoolV1Beta(created))
 	if err != nil {
@@ -364,11 +367,15 @@ func convertToPoolV1Beta(pool *models.Pool) *gcpgenserver.PoolV1beta {
 		TotalIops:                gcpgenserver.NewOptNilFloat64(float64(iops)),
 		QosType:                  gcpgenserver.NewOptNilString(pool.QosType),
 		CustomPerformanceEnabled: gcpgenserver.NewOptBool(customPerformanceEnabled),
-		// Unified Pool is set true for VSA pools
+		// Unified Pool is set true & StorageClass is to software for VSA pools
 		UnifiedPool:             gcpgenserver.NewOptBool(true),
+		StorageClass:            gcpgenserver.NewOptStorageClassV1beta("SOFTWARE"),
 		AllowAutoTiering:        gcpgenserver.NewOptNilBool(pool.AllowAutoTiering),
 		HotTierSizeInBytes:      gcpgenserver.NewOptNilFloat64(float64(pool.HotTierSizeInBytes)),
 		EnableHotTierAutoResize: gcpgenserver.NewOptNilBool(pool.EnableHotTierAutoResize),
+		AllocatedBytes:          gcpgenserver.NewOptNilFloat64(pool.PoolAttributes.AllocatedBytes),
+		NumberOfVolumes:         gcpgenserver.NewOptNilInt32(int32(pool.PoolAttributes.NumberOfVolumes)),
+		EncryptionType:          getEncryptionTypeForPool(nil), // pass pool.KmsConfigID
 	}
 }
 
@@ -379,6 +386,16 @@ func encodePoolV1(pool *gcpgenserver.PoolV1beta) (jx.Raw, error) {
 		return nil, err
 	}
 	return data, nil
+}
+
+func getEncryptionTypeForPool(kmsConfigId *string) gcpgenserver.OptPoolV1betaEncryptionType {
+	var encryptionType gcpgenserver.PoolV1betaEncryptionType
+	if !nillable.IsNilOrEmpty(kmsConfigId) {
+		encryptionType = gcpgenserver.PoolV1betaEncryptionTypeCLOUDKMS
+	} else {
+		encryptionType = gcpgenserver.PoolV1betaEncryptionTypeSERVICEMANAGED
+	}
+	return gcpgenserver.NewOptPoolV1betaEncryptionType(encryptionType)
 }
 
 func convertToPoolsV1beta(pools []*cvpmodels.PoolV1beta) []gcpgenserver.PoolV1beta {

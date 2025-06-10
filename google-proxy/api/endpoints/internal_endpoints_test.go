@@ -91,10 +91,10 @@ func TestInternalDescribePool(t *testing.T) {
 			ServiceLevel:             gcpgenserver.PoolInternalV1betaServiceLevel(pool.ServiceLevel),
 			QosType:                  gcpgenserver.NewOptNilString(pool.QosType),
 			SizeInBytes:              float64(pool.SizeInBytes),
-			AllocatedBytes:           gcpgenserver.NewOptNilFloat64(pool.AllocatedBytes),
+			AllocatedBytes:           gcpgenserver.NewOptNilFloat64(pool.PoolAttributes.AllocatedBytes),
 			TotalThroughputMibps:     gcpgenserver.NewOptNilFloat64(pool.TotalThroughputMibps),
 			AvailableThroughputMibps: gcpgenserver.NewOptNilFloat64(pool.TotalThroughputMibps - pool.UtilizedThroughputMibps),
-			NumberOfVolumes:          gcpgenserver.NewOptNilInt32(int32(pool.NumberOfVolumes)),
+			NumberOfVolumes:          gcpgenserver.NewOptNilInt32(int32(pool.PoolAttributes.NumberOfVolumes)),
 			StoragePoolState: gcpgenserver.OptPoolInternalV1betaStoragePoolState{
 				Value: gcpgenserver.PoolInternalV1betaStoragePoolState(pool.State),
 			},

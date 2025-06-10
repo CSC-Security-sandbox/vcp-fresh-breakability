@@ -59,7 +59,7 @@ func NewStorage(config DbConfig, logger log.Logger) (Storage, error) {
 }
 
 // NewTestStorage creates a new instance of PersistenceStore for testing with an in-memory SQLite database.
-func NewTestStorage(logger log.Logger) (*PersistenceStore, error) {
+func NewTestStorage(logger log.Logger) (Storage, error) {
 	db, err := SetupInMemoryDB()
 	if err != nil {
 		return nil, err
@@ -70,6 +70,9 @@ func NewTestStorage(logger log.Logger) (*PersistenceStore, error) {
 		db:        wrapper,
 		logger:    logger,
 		dataStore: repository.NewDataStoreRepository(wrapper),
+		config: DbConfig{
+			Type: DatabaseTypeSQLite,
+		},
 	}, nil
 }
 
@@ -345,6 +348,19 @@ func (s *PersistenceStore) WithTransaction(ctx context.Context, fn func(Transact
 	return err
 }
 
+func SetupStorageForTest(logger log.Logger) (Storage, error) {
+	ctx := context.Background()
+	store, err := NewTestStorage(logger)
+	if err != nil {
+		return nil, err
+	}
+	err = store.Migrate(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return store, nil
+}
+
 func (s *PersistenceStore) DB() *gorm.DB {
 	return s.db.GORM()
 }
@@ -363,7 +379,7 @@ func (s *PersistenceStore) CreatedPool(ctx context.Context, pool *datamodel.Pool
 func (s *PersistenceStore) CreatingPool(ctx context.Context, pool *datamodel.Pool) (*datamodel.Pool, error) {
 	return s.dataStore.CreatingPool(ctx, pool)
 }
-func (s *PersistenceStore) GetPool(ctx context.Context, poolUUID string, accountID int64) (*datamodel.Pool, error) {
+func (s *PersistenceStore) GetPool(ctx context.Context, poolUUID string, accountID int64) (*datamodel.PoolView, error) {
 	return s.dataStore.GetPool(ctx, poolUUID, accountID)
 }
 
@@ -379,11 +395,11 @@ func (s *PersistenceStore) DeletingPool(ctx context.Context, pool *datamodel.Poo
 	return s.dataStore.DeletingPool(ctx, pool)
 }
 
-func (s *PersistenceStore) ListPools(ctx context.Context, conditions [][]interface{}) ([]*datamodel.Pool, error) {
+func (s *PersistenceStore) ListPools(ctx context.Context, conditions [][]interface{}) ([]*datamodel.PoolView, error) {
 	return s.dataStore.ListPools(ctx, conditions)
 }
 
-func (s *PersistenceStore) GetPoolByName(ctx context.Context, conditions [][]interface{}) (*datamodel.Pool, error) {
+func (s *PersistenceStore) GetPoolByName(ctx context.Context, conditions [][]interface{}) (*datamodel.PoolView, error) {
 	return s.dataStore.GetPoolByName(ctx, conditions)
 }
 
@@ -499,7 +515,7 @@ func (s *PersistenceStore) GetJobsWithCondition(ctx context.Context, filter util
 	return s.dataStore.GetJobsWithCondition(ctx, filter)
 }
 
-func (s *PersistenceStore) GetPoolByVendorID(ctx context.Context, vendorID string) (*datamodel.Pool, error) {
+func (s *PersistenceStore) GetPoolByVendorID(ctx context.Context, vendorID string) (*datamodel.PoolView, error) {
 	return s.dataStore.GetPoolByVendorID(ctx, vendorID)
 }
 

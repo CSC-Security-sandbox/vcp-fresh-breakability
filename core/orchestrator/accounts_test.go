@@ -117,7 +117,7 @@ func TestCreateAccount(t *testing.T) {
 	t.Run("WhenAccountIsCreatedSuccessfully", func(tt *testing.T) {
 		ctx := context.Background()
 		mockLogger := log.NewLogger()
-		store, err := database.NewTestStorage(mockLogger)
+		store, err := database.SetupStorageForTest(mockLogger)
 		if err != nil {
 			tt.Fatalf("Failed to create test storage: %v", err)
 		}
@@ -140,7 +140,7 @@ func TestCreateAccount(t *testing.T) {
 	t.Run("WhenCreateAccountFails", func(tt *testing.T) {
 		ctx := context.Background()
 		mockLogger := log.NewLogger()
-		store, err := database.NewTestStorage(mockLogger)
+		store, err := database.SetupStorageForTest(mockLogger)
 		if err != nil {
 			tt.Fatalf("Failed to create test storage: %v", err)
 		}
@@ -174,7 +174,7 @@ func TestGetAccountWithName(t *testing.T) {
 	t.Run("WhenAccountDoesNotExist", func(tt *testing.T) {
 		ctx := context.Background()
 		mockLogger := log.NewLogger()
-		store, err := database.NewTestStorage(mockLogger)
+		store, err := database.SetupStorageForTest(mockLogger)
 		if err != nil {
 			tt.Fatalf("Failed to create test storage: %v", err)
 		}
@@ -199,7 +199,7 @@ func TestGetAccountWithName(t *testing.T) {
 	t.Run("WhenAccountExists", func(tt *testing.T) {
 		ctx := context.Background()
 		mockLogger := log.NewLogger()
-		store, err := database.NewTestStorage(mockLogger)
+		store, err := database.SetupStorageForTest(mockLogger)
 		if err != nil {
 			tt.Fatalf("Failed to create test storage: %v", err)
 		}

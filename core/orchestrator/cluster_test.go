@@ -22,7 +22,7 @@ func TestAcceptClusterPeer(t *testing.T) {
 		ctx := context.Background()
 		mockLogger := log.NewLogger()
 		ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, mockLogger)
-		store, err := database.NewTestStorage(mockLogger)
+		store, err := database.SetupStorageForTest(mockLogger)
 		assert.NoError(tt, err, "Failed to create test storage")
 		err = database.ClearInMemoryDB(store.DB())
 		assert.NoError(tt, err, "Failed to ClearInMemoryDB")
@@ -44,7 +44,7 @@ func TestAcceptClusterPeer(t *testing.T) {
 		ctx := context.Background()
 		mockLogger := log.NewLogger()
 		ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, mockLogger)
-		store, err := database.NewTestStorage(mockLogger)
+		store, err := database.SetupStorageForTest(mockLogger)
 		assert.NoError(tt, err, "Failed to create test storage")
 		// Clear the in-memory database
 		err = database.ClearInMemoryDB(store.DB())
@@ -86,7 +86,7 @@ func TestAcceptClusterPeer(t *testing.T) {
 		ctx := context.Background()
 		mockLogger := log.NewLogger()
 		ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, mockLogger)
-		store, err := database.NewTestStorage(mockLogger)
+		store, err := database.SetupStorageForTest(mockLogger)
 		assert.NoError(tt, err, "Failed to create test storage")
 		// Clear the in-memory database
 		err = database.ClearInMemoryDB(store.DB())
@@ -127,7 +127,7 @@ func TestAcceptClusterPeer(t *testing.T) {
 		ctx := context.Background()
 		mockLogger := log.NewLogger()
 		ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, mockLogger)
-		store, err := database.NewTestStorage(mockLogger)
+		store, err := database.SetupStorageForTest(mockLogger)
 		assert.NoError(tt, err, "Failed to create test storage")
 		// Clear the in-memory database
 		err = database.ClearInMemoryDB(store.DB())

@@ -673,3 +673,85 @@ func TestGetPoolByName(t *testing.T) {
 		}
 	})
 }
+
+// Unit test for ConvertPoolViewToPool
+func TestConvertPoolViewToPool(t *testing.T) {
+	view := &datamodel.PoolView{
+		Pool: datamodel.Pool{
+			BaseModel:               datamodel.BaseModel{UUID: "uuid-1"},
+			Name:                    "test-pool",
+			Description:             "desc",
+			State:                   "READY",
+			StateDetails:            "Available",
+			VendorID:                "vendor-1",
+			ServiceLevel:            "premium",
+			SizeInBytes:             1000,
+			UsedBytes:               500,
+			Network:                 "net-1",
+			AllowAutoTiering:        true,
+			HotTierSizeInBytes:      200,
+			EnableHotTierAutoResize: true,
+			AccountID:               1,
+			Account:                 &datamodel.Account{Name: "acc"},
+			ClusterDetails:          datamodel.ClusterDetails{ExternalName: "cluster"},
+			QosType:                 "qos",
+			Username:                "user",
+			Password:                "pass",
+		},
+	}
+
+	pool := ConvertPoolViewToPool(view)
+	if pool == nil {
+		t.Fatal("expected non-nil pool")
+	}
+	if pool.Name != "test-pool" {
+		t.Errorf("expected Name 'test-pool', got %v", pool.Name)
+	}
+	if pool.Account.Name != "acc" {
+		t.Errorf("expected Account.Name 'acc', got %v", pool.Account.Name)
+	}
+	if pool.ClusterDetails.ExternalName != "cluster" {
+		t.Errorf("expected ClusterDetails.ExternalName 'cluster', got %v", pool.ClusterDetails.ExternalName)
+	}
+
+	// Test nil input
+	if ConvertPoolViewToPool(nil) != nil {
+		t.Error("expected nil for nil input")
+	}
+}
+
+// Unit test for ConvertPoolToPoolView
+func TestConvertPoolToPoolView(t *testing.T) {
+	pool := &datamodel.Pool{
+		BaseModel:    datamodel.BaseModel{UUID: "uuid-1"},
+		Name:         "test-pool",
+		AccountID:    1,
+		Account:      &datamodel.Account{Name: "acc"},
+		State:        "READY",
+		StateDetails: "Available",
+	}
+	view := ConvertPoolToPoolView(pool)
+	if view == nil {
+		t.Fatal("expected non-nil PoolView")
+	}
+	if view.Name != "test-pool" {
+		t.Errorf("expected Pool.Name 'test-pool', got %v", view.Name)
+	}
+	if view.Account.Name != "acc" {
+		t.Errorf("expected Account.Name 'acc', got %v", view.Account.Name)
+	}
+	if view.Throughput != 0 {
+		t.Errorf("expected Throughput 0, got %v", view.Throughput)
+	}
+	if view.QuotaInBytes != 0 {
+		t.Errorf("expected QuotaInBytes 0, got %v", view.QuotaInBytes)
+	}
+	if view.VolumeCount != 0 {
+		t.Errorf("expected VolumeCount 0, got %v", view.VolumeCount)
+	}
+
+	// Test nil input
+	if ConvertPoolToPoolView(nil) != nil {
+		t.Error("expected nil for nil input")
+	}
+}

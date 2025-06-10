@@ -33,6 +33,13 @@ type Pool struct {
 	Password                string         `gorm:"column:password"`
 }
 
+type PoolView struct {
+	Pool
+	Throughput   float64 `json:"throughput"`
+	QuotaInBytes uint64  `json:"quotaInBytes"`
+	VolumeCount  int64   `json:"volumeCount"`
+}
+
 type ClusterDetails struct {
 	ExternalName          string `json:"external_name"`
 	OntapVersion          string `json:"ontap_version"`

@@ -13,27 +13,26 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 )
 
-func TestNewTestStorage(t *testing.T) {
-	logger := &log.MockLogger{}
-	store, err := NewTestStorage(logger)
+func TestSetupStorageForTest(t *testing.T) {
+	logger := log.NewLogger()
+	store, err := SetupStorageForTest(logger)
 	assert.NoError(t, err)
 	assert.NotNil(t, store)
-	assert.NotNil(t, store.db)
-	assert.NotNil(t, store.dataStore)
+	assert.NotNil(t, store.DB())
 }
 
 func TestClearInMemoryDB(t *testing.T) {
-	logger := &log.MockLogger{}
-	store, err := NewTestStorage(logger)
+	logger := log.NewLogger()
+	store, err := SetupStorageForTest(logger)
 	assert.NoError(t, err)
 
-	err = ClearInMemoryDB(store.db.GORM())
+	err = ClearInMemoryDB(store.DB())
 	assert.NoError(t, err)
 }
 
 func TestHealthCheckAndClose(t *testing.T) {
-	logger := &log.MockLogger{}
-	store, _ := NewTestStorage(logger)
+	logger := log.NewLogger()
+	store, _ := SetupStorageForTest(logger)
 	assert.NoError(t, store.HealthCheck())
 	assert.NoError(t, store.Close())
 	// After close, HealthCheck should fail
@@ -42,8 +41,8 @@ func TestHealthCheckAndClose(t *testing.T) {
 }
 
 func TestWithTransaction_Success(t *testing.T) {
-	logger := &log.MockLogger{}
-	store, _ := NewTestStorage(logger)
+	logger := log.NewLogger()
+	store, _ := SetupStorageForTest(logger)
 	ctx := context.Background()
 	err := store.WithTransaction(ctx, func(tx Transaction) error {
 		return nil
@@ -52,8 +51,8 @@ func TestWithTransaction_Success(t *testing.T) {
 }
 
 func TestWithTransaction_Error(t *testing.T) {
-	logger := &log.MockLogger{}
-	store, _ := NewTestStorage(logger)
+	logger := log.NewLogger()
+	store, _ := SetupStorageForTest(logger)
 	ctx := context.Background()
 	err := store.WithTransaction(ctx, func(tx Transaction) error {
 		return errors.New("fail")
@@ -62,8 +61,8 @@ func TestWithTransaction_Error(t *testing.T) {
 }
 
 func TestWithTransaction_Panic(t *testing.T) {
-	logger := &log.MockLogger{}
-	store, _ := NewTestStorage(logger)
+	logger := log.NewLogger()
+	store, _ := SetupStorageForTest(logger)
 	ctx := context.Background()
 	defer func() {
 		if r := recover(); r == nil {
@@ -82,8 +81,8 @@ func TestWithTransaction_NilDB(t *testing.T) {
 }
 
 func TestDBMethod(t *testing.T) {
-	logger := &log.MockLogger{}
-	store, _ := NewTestStorage(logger)
+	logger := log.NewLogger()
+	store, _ := SetupStorageForTest(logger)
 	db := store.DB()
 	assert.NotNil(t, db)
 }
@@ -94,8 +93,8 @@ func TestIsDatabaseExistsError(t *testing.T) {
 }
 
 func TestCreatingPool(t *testing.T) {
-	logger := &log.MockLogger{}
-	store, _ := NewTestStorage(logger)
+	logger := log.NewLogger()
+	store, _ := SetupStorageForTest(logger)
 	ctx := context.Background()
 	// add logger to context
 	ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, logger)
@@ -106,8 +105,8 @@ func TestCreatingPool(t *testing.T) {
 }
 
 func TestGetPool(t *testing.T) {
-	logger := &log.MockLogger{}
-	store, _ := NewTestStorage(logger)
+	logger := log.NewLogger()
+	store, _ := SetupStorageForTest(logger)
 	ctx := context.Background()
 	ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, logger)
 	pool := &datamodel.Pool{Name: "getpool", Account: &datamodel.Account{}}
@@ -119,8 +118,8 @@ func TestGetPool(t *testing.T) {
 }
 
 func TestUpdatePool(t *testing.T) {
-	logger := &log.MockLogger{}
-	store, _ := NewTestStorage(logger)
+	logger := log.NewLogger()
+	store, _ := SetupStorageForTest(logger)
 	ctx := context.Background()
 	ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, logger)
 	pool := &datamodel.Pool{Name: "updatepool", Account: &datamodel.Account{}}
@@ -132,8 +131,8 @@ func TestUpdatePool(t *testing.T) {
 }
 
 func TestDeletePool(t *testing.T) {
-	logger := &log.MockLogger{}
-	store, _ := NewTestStorage(logger)
+	logger := log.NewLogger()
+	store, _ := SetupStorageForTest(logger)
 	ctx := context.Background()
 	ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, logger)
 	pool := &datamodel.Pool{Name: "deletepool", Account: &datamodel.Account{}}
@@ -144,8 +143,8 @@ func TestDeletePool(t *testing.T) {
 }
 
 func TestDeletingPool(t *testing.T) {
-	logger := &log.MockLogger{}
-	store, _ := NewTestStorage(logger)
+	logger := log.NewLogger()
+	store, _ := SetupStorageForTest(logger)
 	ctx := context.Background()
 	ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, logger)
 	pool := &datamodel.Pool{Name: "deletingpool", Account: &datamodel.Account{}}
@@ -156,8 +155,8 @@ func TestDeletingPool(t *testing.T) {
 }
 
 func TestListPools(t *testing.T) {
-	logger := &log.MockLogger{}
-	store, _ := NewTestStorage(logger)
+	logger := log.NewLogger()
+	store, _ := SetupStorageForTest(logger)
 	ctx := context.Background()
 	ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, logger)
 	_, err := store.ListPools(ctx, [][]interface{}{})
@@ -165,8 +164,8 @@ func TestListPools(t *testing.T) {
 }
 
 func TestGetPoolByName(t *testing.T) {
-	logger := &log.MockLogger{}
-	store, _ := NewTestStorage(logger)
+	logger := log.NewLogger()
+	store, _ := SetupStorageForTest(logger)
 	ctx := context.Background()
 	ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, logger)
 	pool := &datamodel.Pool{Name: "getpoolbyname", Account: &datamodel.Account{}}
@@ -178,8 +177,8 @@ func TestGetPoolByName(t *testing.T) {
 }
 
 func TestConnectAndSetupDatabase(t *testing.T) {
-	logger := &log.MockLogger{}
-	store, _ := NewTestStorage(logger)
+	logger := log.NewLogger()
+	store, _ := SetupStorageForTest(logger)
 	// Should not error if already connected
 	assert.NoError(t, store.Connect(false))
 	// SetupDatabase should fail gracefully (no Postgres in-memory)
@@ -194,7 +193,7 @@ func TestConnect_NilConfig(t *testing.T) {
 }
 
 func TestCreateConnection_UnsupportedType(t *testing.T) {
-	logger := &log.MockLogger{}
+	logger := log.NewLogger()
 	store := &PersistenceStore{config: DbConfig{Type: "unknown"}, logger: logger}
 	_, err := store.createConnection(false)
 	assert.Error(t, err)
@@ -228,8 +227,8 @@ func TestGetPostgresDSN(t *testing.T) {
 
 // VOLUME
 func TestCreateVolume(t *testing.T) {
-	logger := &log.MockLogger{}
-	store, _ := NewTestStorage(logger)
+	logger := log.NewLogger()
+	store, _ := SetupStorageForTest(logger)
 	ctx := context.Background()
 	ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, logger)
 	vol := &datamodel.Volume{Name: "vol1"}
@@ -239,8 +238,8 @@ func TestCreateVolume(t *testing.T) {
 }
 
 func TestGetVolume(t *testing.T) {
-	logger := &log.MockLogger{}
-	store, _ := NewTestStorage(logger)
+	logger := log.NewLogger()
+	store, _ := SetupStorageForTest(logger)
 	ctx := context.Background()
 	ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, logger)
 	vol := &datamodel.Volume{Name: "vol2"}
@@ -252,8 +251,8 @@ func TestGetVolume(t *testing.T) {
 }
 
 func TestUpdateVolume(t *testing.T) {
-	logger := &log.MockLogger{}
-	store, _ := NewTestStorage(logger)
+	logger := log.NewLogger()
+	store, _ := SetupStorageForTest(logger)
 	ctx := context.Background()
 	ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, logger)
 	vol := &datamodel.Volume{Name: "vol3"}
@@ -265,8 +264,8 @@ func TestUpdateVolume(t *testing.T) {
 }
 
 func TestDeleteVolume(t *testing.T) {
-	logger := &log.MockLogger{}
-	store, _ := NewTestStorage(logger)
+	logger := log.NewLogger()
+	store, _ := SetupStorageForTest(logger)
 	ctx := context.Background()
 	ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, logger)
 	vol := &datamodel.Volume{Name: "vol4"}
@@ -277,8 +276,8 @@ func TestDeleteVolume(t *testing.T) {
 }
 
 func TestGetVolumesByPoolID(t *testing.T) {
-	logger := &log.MockLogger{}
-	store, _ := NewTestStorage(logger)
+	logger := log.NewLogger()
+	store, _ := SetupStorageForTest(logger)
 	ctx := context.Background()
 	ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, logger)
 	_, err := store.GetVolumesByPoolID(ctx, 0)
@@ -286,8 +285,8 @@ func TestGetVolumesByPoolID(t *testing.T) {
 }
 
 func TestGetVolumeCountByPoolID(t *testing.T) {
-	logger := &log.MockLogger{}
-	store, _ := NewTestStorage(logger)
+	logger := log.NewLogger()
+	store, _ := SetupStorageForTest(logger)
 	ctx := context.Background()
 	ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, logger)
 	_, err := store.GetVolumeCountByPoolID(ctx, 0)
@@ -295,8 +294,8 @@ func TestGetVolumeCountByPoolID(t *testing.T) {
 }
 
 func TestGetMultipleVolumes(t *testing.T) {
-	logger := &log.MockLogger{}
-	store, _ := NewTestStorage(logger)
+	logger := log.NewLogger()
+	store, _ := SetupStorageForTest(logger)
 	ctx := context.Background()
 	ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, logger)
 	_, err := store.GetMultipleVolumes(ctx, [][]interface{}{})
@@ -305,8 +304,8 @@ func TestGetMultipleVolumes(t *testing.T) {
 
 // ACCOUNT
 func TestCreateAccount(t *testing.T) {
-	logger := &log.MockLogger{}
-	store, _ := NewTestStorage(logger)
+	logger := log.NewLogger()
+	store, _ := SetupStorageForTest(logger)
 	ctx := context.Background()
 	ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, logger)
 	acc := &datamodel.Account{Name: "acc1"}
@@ -316,8 +315,8 @@ func TestCreateAccount(t *testing.T) {
 }
 
 func TestGetAccount(t *testing.T) {
-	logger := &log.MockLogger{}
-	store, _ := NewTestStorage(logger)
+	logger := log.NewLogger()
+	store, _ := SetupStorageForTest(logger)
 	ctx := context.Background()
 	ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, logger)
 	acc := &datamodel.Account{Name: "acc2"}
@@ -330,8 +329,8 @@ func TestGetAccount(t *testing.T) {
 
 // JOB
 func TestCreateJob(t *testing.T) {
-	logger := &log.MockLogger{}
-	store, _ := NewTestStorage(logger)
+	logger := log.NewLogger()
+	store, _ := SetupStorageForTest(logger)
 	ctx := context.Background()
 	ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, logger)
 	job := &datamodel.Job{ResourceName: "job1"}
@@ -341,8 +340,8 @@ func TestCreateJob(t *testing.T) {
 }
 
 func TestGetJob(t *testing.T) {
-	logger := &log.MockLogger{}
-	store, _ := NewTestStorage(logger)
+	logger := log.NewLogger()
+	store, _ := SetupStorageForTest(logger)
 	ctx := context.Background()
 	ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, logger)
 	job := &datamodel.Job{RequestID: "job2"}
@@ -354,8 +353,8 @@ func TestGetJob(t *testing.T) {
 }
 
 func TestGetJobsWithCondition(t *testing.T) {
-	logger := &log.MockLogger{}
-	store, _ := NewTestStorage(logger)
+	logger := log.NewLogger()
+	store, _ := SetupStorageForTest(logger)
 	ctx := context.Background()
 	ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, logger)
 	filter := utils.CreateFilterWithConditions([]*utils.FilterCondition{
@@ -366,8 +365,8 @@ func TestGetJobsWithCondition(t *testing.T) {
 }
 
 func TestUpdateJob(t *testing.T) {
-	logger := &log.MockLogger{}
-	store, _ := NewTestStorage(logger)
+	logger := log.NewLogger()
+	store, _ := SetupStorageForTest(logger)
 	ctx := context.Background()
 	ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, logger)
 	job := &datamodel.Job{ResourceName: "job3"}
@@ -379,8 +378,8 @@ func TestUpdateJob(t *testing.T) {
 
 // SVM
 func TestCreateSVM(t *testing.T) {
-	logger := &log.MockLogger{}
-	store, _ := NewTestStorage(logger)
+	logger := log.NewLogger()
+	store, _ := SetupStorageForTest(logger)
 	ctx := context.Background()
 	ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, logger)
 	svm := &datamodel.Svm{Name: "svm1"}
@@ -390,8 +389,8 @@ func TestCreateSVM(t *testing.T) {
 }
 
 func TestGetSvmsByPoolID(t *testing.T) {
-	logger := &log.MockLogger{}
-	store, _ := NewTestStorage(logger)
+	logger := log.NewLogger()
+	store, _ := SetupStorageForTest(logger)
 	ctx := context.Background()
 	ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, logger)
 	_, err := store.GetSvmsByPoolID(ctx, 0)
@@ -400,8 +399,8 @@ func TestGetSvmsByPoolID(t *testing.T) {
 
 // NODE
 func TestCreateNode(t *testing.T) {
-	logger := &log.MockLogger{}
-	store, _ := NewTestStorage(logger)
+	logger := log.NewLogger()
+	store, _ := SetupStorageForTest(logger)
 	ctx := context.Background()
 	ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, logger)
 	node := &datamodel.Node{Name: "node1"}
@@ -411,8 +410,8 @@ func TestCreateNode(t *testing.T) {
 }
 
 func TestGetNodesByPoolID(t *testing.T) {
-	logger := &log.MockLogger{}
-	store, _ := NewTestStorage(logger)
+	logger := log.NewLogger()
+	store, _ := SetupStorageForTest(logger)
 	ctx := context.Background()
 	ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, logger)
 	_, err := store.GetNodesByPoolID(ctx, 0)
@@ -421,8 +420,8 @@ func TestGetNodesByPoolID(t *testing.T) {
 
 // LIF
 func TestCreateLif(t *testing.T) {
-	logger := &log.MockLogger{}
-	store, _ := NewTestStorage(logger)
+	logger := log.NewLogger()
+	store, _ := SetupStorageForTest(logger)
 	ctx := context.Background()
 	ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, logger)
 	lif := &datamodel.Lif{Name: "lif1"}
@@ -433,8 +432,8 @@ func TestCreateLif(t *testing.T) {
 
 // HOSTGROUP
 func TestCreateHostGroup(t *testing.T) {
-	logger := &log.MockLogger{}
-	store, _ := NewTestStorage(logger)
+	logger := log.NewLogger()
+	store, _ := SetupStorageForTest(logger)
 	ctx := context.Background()
 	ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, logger)
 	hg := &datamodel.HostGroup{Name: "hg1"}
@@ -444,8 +443,8 @@ func TestCreateHostGroup(t *testing.T) {
 }
 
 func TestGetMultipleHostGroups(t *testing.T) {
-	logger := &log.MockLogger{}
-	store, _ := NewTestStorage(logger)
+	logger := log.NewLogger()
+	store, _ := SetupStorageForTest(logger)
 	ctx := context.Background()
 	ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, logger)
 	_, err := store.GetMultipleHostGroups(ctx, []string{"hg-uuid1", "hg-uuid2"}, 0)
@@ -453,8 +452,8 @@ func TestGetMultipleHostGroups(t *testing.T) {
 }
 
 func TestUpdateHostGroupsState(t *testing.T) {
-	logger := &log.MockLogger{}
-	store, _ := NewTestStorage(logger)
+	logger := log.NewLogger()
+	store, _ := SetupStorageForTest(logger)
 	ctx := context.Background()
 	ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, logger)
 	err := store.UpdateHostGroupsState(ctx, []string{"hg-uuid"}, 0, "active", "ok")
@@ -463,8 +462,8 @@ func TestUpdateHostGroupsState(t *testing.T) {
 
 // SNAPSHOT
 func TestCreatingSnapshot(t *testing.T) {
-	logger := &log.MockLogger{}
-	store, _ := NewTestStorage(logger)
+	logger := log.NewLogger()
+	store, _ := SetupStorageForTest(logger)
 	ctx := context.Background()
 	ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, logger)
 	snap := &datamodel.Snapshot{Name: "snap1"}
@@ -475,8 +474,8 @@ func TestCreatingSnapshot(t *testing.T) {
 }
 
 func TestUpdateSnapshot(t *testing.T) {
-	logger := &log.MockLogger{}
-	store, _ := NewTestStorage(logger)
+	logger := log.NewLogger()
+	store, _ := SetupStorageForTest(logger)
 	ctx := context.Background()
 	ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, logger)
 	snap := &datamodel.Snapshot{Name: "snap2"}
@@ -491,8 +490,8 @@ func TestUpdateSnapshot(t *testing.T) {
 }
 
 func TestGetSnapshot(t *testing.T) {
-	logger := &log.MockLogger{}
-	store, _ := NewTestStorage(logger)
+	logger := log.NewLogger()
+	store, _ := SetupStorageForTest(logger)
 	ctx := context.Background()
 	ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, logger)
 	snap := &datamodel.Snapshot{Name: "snap3"}
@@ -505,8 +504,8 @@ func TestGetSnapshot(t *testing.T) {
 }
 
 func TestGetSnapshotsWithCondition(t *testing.T) {
-	logger := &log.MockLogger{}
-	store, _ := NewTestStorage(logger)
+	logger := log.NewLogger()
+	store, _ := SetupStorageForTest(logger)
 	ctx := context.Background()
 	ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, logger)
 	filter := utils.CreateFilterWithConditions([]*utils.FilterCondition{
@@ -518,8 +517,8 @@ func TestGetSnapshotsWithCondition(t *testing.T) {
 }
 
 func TestGetAppConsistentSnapshotsForVolume(t *testing.T) {
-	logger := &log.MockLogger{}
-	store, _ := NewTestStorage(logger)
+	logger := log.NewLogger()
+	store, _ := SetupStorageForTest(logger)
 	ctx := context.Background()
 	ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, logger)
 	// Create account and volume for association
@@ -541,8 +540,8 @@ func TestGetAppConsistentSnapshotsForVolume(t *testing.T) {
 }
 
 func TestGetSnapshotsByVolumeID(t *testing.T) {
-	logger := &log.MockLogger{}
-	store, _ := NewTestStorage(logger)
+	logger := log.NewLogger()
+	store, _ := SetupStorageForTest(logger)
 	ctx := context.Background()
 	ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, logger)
 
@@ -581,49 +580,49 @@ func TestGetSnapshotsByVolumeID(t *testing.T) {
 }
 
 func TestGetKms(t *testing.T) {
-	logger := &log.MockLogger{}
-	store, _ := NewTestStorage(logger)
+	logger := log.NewLogger()
+	store, _ := SetupStorageForTest(logger)
 	ctx := context.Background()
 	ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, logger)
 	kms := datamodel.KmsConfig{
 		BaseModel: datamodel.BaseModel{UUID: "kms-uuid"},
 	}
-	store.db.Create(&kms)
+	store.DB().Create(&kms)
 	found, err := store.GetKmsConfig(ctx, kms.UUID)
 	assert.NoError(t, err)
 	assert.NotNil(t, found)
 }
 
 func TestUpdateKmsConfig(t *testing.T) {
-	logger := &log.MockLogger{}
-	store, _ := NewTestStorage(logger)
+	logger := log.NewLogger()
+	store, _ := SetupStorageForTest(logger)
 	ctx := context.Background()
 	ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, logger)
 	kms := datamodel.KmsConfig{
 		BaseModel: datamodel.BaseModel{UUID: "kms-uuid"},
 	}
-	store.db.Create(&kms)
+	store.DB().Create(&kms)
 	kms.Name = "updatedpool"
 	_, err := store.UpdateKmsConfig(ctx, &kms)
 	assert.NoError(t, err)
 }
 
 func TestUpdateKmsConfigState(t *testing.T) {
-	logger := &log.MockLogger{}
-	store, _ := NewTestStorage(logger)
+	logger := log.NewLogger()
+	store, _ := SetupStorageForTest(logger)
 	ctx := context.Background()
 	ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, logger)
 	kms := datamodel.KmsConfig{
 		BaseModel: datamodel.BaseModel{UUID: "kms-uuid"},
 	}
-	store.db.Create(&kms)
+	store.DB().Create(&kms)
 	_, err := store.UpdateKmsConfigState(ctx, "kms-uuid", models.LifeCycleStateUpdating, models.LifeCycleStateUpdatingDetails)
 	assert.NoError(t, err)
 }
 
 func TestUpdateKmsConfigAttributesUpdatesAttributesOnSuccess(t *testing.T) {
-	logger := &log.MockLogger{}
-	store, err := NewTestStorage(logger)
+	logger := log.NewLogger()
+	store, err := SetupStorageForTest(logger)
 	assert.NoError(t, err)
 	ctx := context.Background()
 	kmsConfig := &datamodel.KmsConfig{BaseModel: datamodel.BaseModel{UUID: "kms-uuid"}}
@@ -638,8 +637,8 @@ func TestUpdateKmsConfigAttributesUpdatesAttributesOnSuccess(t *testing.T) {
 }
 
 func TestUpdateKmsConfigAttributesReturnsErrorIfConfigNotFound(t *testing.T) {
-	logger := &log.MockLogger{}
-	store, err := NewTestStorage(logger)
+	logger := log.NewLogger()
+	store, err := SetupStorageForTest(logger)
 	assert.NoError(t, err)
 	ctx := context.Background()
 	attrs := &datamodel.KmsAttributes{SdeKmsConfigUUID: "external-uuid"}
@@ -648,8 +647,8 @@ func TestUpdateKmsConfigAttributesReturnsErrorIfConfigNotFound(t *testing.T) {
 }
 
 func TestUpdateKmsConfigAttributesReturnsErrorIfAttributesNil(t *testing.T) {
-	logger := &log.MockLogger{}
-	store, err := NewTestStorage(logger)
+	logger := log.NewLogger()
+	store, err := SetupStorageForTest(logger)
 	assert.NoError(t, err)
 	ctx := context.Background()
 	kmsConfig := &datamodel.KmsConfig{BaseModel: datamodel.BaseModel{UUID: "kms-uuid2"}}
@@ -661,8 +660,8 @@ func TestUpdateKmsConfigAttributesReturnsErrorIfAttributesNil(t *testing.T) {
 }
 
 func TestGetJobByKmsConfigIDReturnsErrorIfNotFound(t *testing.T) {
-	logger := &log.MockLogger{}
-	store, err := NewTestStorage(logger)
+	logger := log.NewLogger()
+	store, err := SetupStorageForTest(logger)
 	assert.NoError(t, err)
 	ctx := context.Background()
 
@@ -672,8 +671,8 @@ func TestGetJobByKmsConfigIDReturnsErrorIfNotFound(t *testing.T) {
 }
 
 func TestUpdateKmsConfigDetailsReturnsErrorIfConfigNotFound(t *testing.T) {
-	logger := &log.MockLogger{}
-	store, err := NewTestStorage(logger)
+	logger := log.NewLogger()
+	store, err := SetupStorageForTest(logger)
 	assert.NoError(t, err)
 	ctx := context.Background()
 
@@ -683,8 +682,8 @@ func TestUpdateKmsConfigDetailsReturnsErrorIfConfigNotFound(t *testing.T) {
 }
 
 func TestUpdateServiceAccountEmailAndKeyReturnsErrorIfAccountNotFound(t *testing.T) {
-	logger := &log.MockLogger{}
-	store, err := NewTestStorage(logger)
+	logger := log.NewLogger()
+	store, err := SetupStorageForTest(logger)
 	assert.NoError(t, err)
 	ctx := context.Background()
 
@@ -694,8 +693,8 @@ func TestUpdateServiceAccountEmailAndKeyReturnsErrorIfAccountNotFound(t *testing
 }
 
 func TestGetKmsConfigByUUIDReturnsErrorIfNotFound(t *testing.T) {
-	logger := &log.MockLogger{}
-	store, err := NewTestStorage(logger)
+	logger := log.NewLogger()
+	store, err := SetupStorageForTest(logger)
 	assert.NoError(t, err)
 	ctx := context.Background()
 

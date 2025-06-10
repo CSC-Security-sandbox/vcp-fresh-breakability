@@ -2474,23 +2474,23 @@ func (_c *MockDataStore_GetNodesByPoolID_Call) RunAndReturn(run func(context.Con
 }
 
 // GetPool provides a mock function with given fields: ctx, poolUUID, accountID
-func (_m *MockDataStore) GetPool(ctx context.Context, poolUUID string, accountID int64) (*datamodel.Pool, error) {
+func (_m *MockDataStore) GetPool(ctx context.Context, poolUUID string, accountID int64) (*datamodel.PoolView, error) {
 	ret := _m.Called(ctx, poolUUID, accountID)
 
 	if len(ret) == 0 {
 		panic("no return value specified for GetPool")
 	}
 
-	var r0 *datamodel.Pool
+	var r0 *datamodel.PoolView
 	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, string, int64) (*datamodel.Pool, error)); ok {
+	if rf, ok := ret.Get(0).(func(context.Context, string, int64) (*datamodel.PoolView, error)); ok {
 		return rf(ctx, poolUUID, accountID)
 	}
-	if rf, ok := ret.Get(0).(func(context.Context, string, int64) *datamodel.Pool); ok {
+	if rf, ok := ret.Get(0).(func(context.Context, string, int64) *datamodel.PoolView); ok {
 		r0 = rf(ctx, poolUUID, accountID)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(*datamodel.Pool)
+			r0 = ret.Get(0).(*datamodel.PoolView)
 		}
 	}
 
@@ -2523,34 +2523,34 @@ func (_c *MockDataStore_GetPool_Call) Run(run func(ctx context.Context, poolUUID
 	return _c
 }
 
-func (_c *MockDataStore_GetPool_Call) Return(_a0 *datamodel.Pool, _a1 error) *MockDataStore_GetPool_Call {
+func (_c *MockDataStore_GetPool_Call) Return(_a0 *datamodel.PoolView, _a1 error) *MockDataStore_GetPool_Call {
 	_c.Call.Return(_a0, _a1)
 	return _c
 }
 
-func (_c *MockDataStore_GetPool_Call) RunAndReturn(run func(context.Context, string, int64) (*datamodel.Pool, error)) *MockDataStore_GetPool_Call {
+func (_c *MockDataStore_GetPool_Call) RunAndReturn(run func(context.Context, string, int64) (*datamodel.PoolView, error)) *MockDataStore_GetPool_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // GetPoolByName provides a mock function with given fields: ctx, conditions
-func (_m *MockDataStore) GetPoolByName(ctx context.Context, conditions [][]interface{}) (*datamodel.Pool, error) {
+func (_m *MockDataStore) GetPoolByName(ctx context.Context, conditions [][]interface{}) (*datamodel.PoolView, error) {
 	ret := _m.Called(ctx, conditions)
 
 	if len(ret) == 0 {
 		panic("no return value specified for GetPoolByName")
 	}
 
-	var r0 *datamodel.Pool
+	var r0 *datamodel.PoolView
 	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, [][]interface{}) (*datamodel.Pool, error)); ok {
+	if rf, ok := ret.Get(0).(func(context.Context, [][]interface{}) (*datamodel.PoolView, error)); ok {
 		return rf(ctx, conditions)
 	}
-	if rf, ok := ret.Get(0).(func(context.Context, [][]interface{}) *datamodel.Pool); ok {
+	if rf, ok := ret.Get(0).(func(context.Context, [][]interface{}) *datamodel.PoolView); ok {
 		r0 = rf(ctx, conditions)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(*datamodel.Pool)
+			r0 = ret.Get(0).(*datamodel.PoolView)
 		}
 	}
 
@@ -2582,34 +2582,34 @@ func (_c *MockDataStore_GetPoolByName_Call) Run(run func(ctx context.Context, co
 	return _c
 }
 
-func (_c *MockDataStore_GetPoolByName_Call) Return(_a0 *datamodel.Pool, _a1 error) *MockDataStore_GetPoolByName_Call {
+func (_c *MockDataStore_GetPoolByName_Call) Return(_a0 *datamodel.PoolView, _a1 error) *MockDataStore_GetPoolByName_Call {
 	_c.Call.Return(_a0, _a1)
 	return _c
 }
 
-func (_c *MockDataStore_GetPoolByName_Call) RunAndReturn(run func(context.Context, [][]interface{}) (*datamodel.Pool, error)) *MockDataStore_GetPoolByName_Call {
+func (_c *MockDataStore_GetPoolByName_Call) RunAndReturn(run func(context.Context, [][]interface{}) (*datamodel.PoolView, error)) *MockDataStore_GetPoolByName_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // GetPoolByVendorID provides a mock function with given fields: ctx, vendorID
-func (_m *MockDataStore) GetPoolByVendorID(ctx context.Context, vendorID string) (*datamodel.Pool, error) {
+func (_m *MockDataStore) GetPoolByVendorID(ctx context.Context, vendorID string) (*datamodel.PoolView, error) {
 	ret := _m.Called(ctx, vendorID)
 
 	if len(ret) == 0 {
 		panic("no return value specified for GetPoolByVendorID")
 	}
 
-	var r0 *datamodel.Pool
+	var r0 *datamodel.PoolView
 	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, string) (*datamodel.Pool, error)); ok {
+	if rf, ok := ret.Get(0).(func(context.Context, string) (*datamodel.PoolView, error)); ok {
 		return rf(ctx, vendorID)
 	}
-	if rf, ok := ret.Get(0).(func(context.Context, string) *datamodel.Pool); ok {
+	if rf, ok := ret.Get(0).(func(context.Context, string) *datamodel.PoolView); ok {
 		r0 = rf(ctx, vendorID)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(*datamodel.Pool)
+			r0 = ret.Get(0).(*datamodel.PoolView)
 		}
 	}
 
@@ -2641,12 +2641,12 @@ func (_c *MockDataStore_GetPoolByVendorID_Call) Run(run func(ctx context.Context
 	return _c
 }
 
-func (_c *MockDataStore_GetPoolByVendorID_Call) Return(_a0 *datamodel.Pool, _a1 error) *MockDataStore_GetPoolByVendorID_Call {
+func (_c *MockDataStore_GetPoolByVendorID_Call) Return(_a0 *datamodel.PoolView, _a1 error) *MockDataStore_GetPoolByVendorID_Call {
 	_c.Call.Return(_a0, _a1)
 	return _c
 }
 
-func (_c *MockDataStore_GetPoolByVendorID_Call) RunAndReturn(run func(context.Context, string) (*datamodel.Pool, error)) *MockDataStore_GetPoolByVendorID_Call {
+func (_c *MockDataStore_GetPoolByVendorID_Call) RunAndReturn(run func(context.Context, string) (*datamodel.PoolView, error)) *MockDataStore_GetPoolByVendorID_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -3472,23 +3472,23 @@ func (_c *MockDataStore_GetVolumesByPoolID_Call) RunAndReturn(run func(context.C
 }
 
 // ListPools provides a mock function with given fields: ctx, conditions
-func (_m *MockDataStore) ListPools(ctx context.Context, conditions [][]interface{}) ([]*datamodel.Pool, error) {
+func (_m *MockDataStore) ListPools(ctx context.Context, conditions [][]interface{}) ([]*datamodel.PoolView, error) {
 	ret := _m.Called(ctx, conditions)
 
 	if len(ret) == 0 {
 		panic("no return value specified for ListPools")
 	}
 
-	var r0 []*datamodel.Pool
+	var r0 []*datamodel.PoolView
 	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, [][]interface{}) ([]*datamodel.Pool, error)); ok {
+	if rf, ok := ret.Get(0).(func(context.Context, [][]interface{}) ([]*datamodel.PoolView, error)); ok {
 		return rf(ctx, conditions)
 	}
-	if rf, ok := ret.Get(0).(func(context.Context, [][]interface{}) []*datamodel.Pool); ok {
+	if rf, ok := ret.Get(0).(func(context.Context, [][]interface{}) []*datamodel.PoolView); ok {
 		r0 = rf(ctx, conditions)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).([]*datamodel.Pool)
+			r0 = ret.Get(0).([]*datamodel.PoolView)
 		}
 	}
 
@@ -3520,12 +3520,12 @@ func (_c *MockDataStore_ListPools_Call) Run(run func(ctx context.Context, condit
 	return _c
 }
 
-func (_c *MockDataStore_ListPools_Call) Return(_a0 []*datamodel.Pool, _a1 error) *MockDataStore_ListPools_Call {
+func (_c *MockDataStore_ListPools_Call) Return(_a0 []*datamodel.PoolView, _a1 error) *MockDataStore_ListPools_Call {
 	_c.Call.Return(_a0, _a1)
 	return _c
 }
 
-func (_c *MockDataStore_ListPools_Call) RunAndReturn(run func(context.Context, [][]interface{}) ([]*datamodel.Pool, error)) *MockDataStore_ListPools_Call {
+func (_c *MockDataStore_ListPools_Call) RunAndReturn(run func(context.Context, [][]interface{}) ([]*datamodel.PoolView, error)) *MockDataStore_ListPools_Call {
 	_c.Call.Return(run)
 	return _c
 }

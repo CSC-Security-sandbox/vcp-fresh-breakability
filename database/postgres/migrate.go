@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"reflect"
+	"strings"
 
 	"github.com/golang-migrate/migrate/v4"
 	"github.com/golang-migrate/migrate/v4/database/postgres"
@@ -177,4 +178,47 @@ func (m *Migrator) recordMigration(db *gormwrapper.Wrapper, checksum string) err
 		INSERT INTO schema_checksums (checksum) 
 		VALUES (?)
 	`, checksum).Error()
+}
+
+// CreateOrUpdateViews ensures all required views are created or updated after migrations.
+func (m *Migrator) CreateOrUpdateViews(db *gormwrapper.Wrapper) error {
+	if err := CreateOrUpdatePoolView(db); err != nil {
+		return err
+	}
+	// Add more view creation functions here as needed, e.g.:
+	// if err := CreateOrUpdateVolumeView(db); err != nil {
+	//     return err
+	// }
+	return nil
+}
+
+// CreateOrUpdatePoolView ensures the pool_view is always in sync with the pool table schema.
+func CreateOrUpdatePoolView(db *gormwrapper.Wrapper) error {
+	const viewSQL = `CREATE OR REPLACE VIEW pool_views AS
+	SELECT
+		p.*,
+		coalesce(sum(v.throughput), 0.0) as throughput,
+		coalesce(sum(v.size_in_bytes), 0) as quota_in_bytes,
+		count(v.id) as volume_count
+	FROM pools p
+		LEFT JOIN volumes v on v.pool_id = p.id
+		and v.account_id = p.account_id
+		and v.deleted_at is null
+	GROUP BY
+		p.id,
+		p.name;`
+
+	err := db.Exec(viewSQL).Error()
+	if err == nil {
+		return nil
+	}
+	// SQLSTATE 42P16: column order/type mismatch, drop and recreate
+	if strings.Contains(err.Error(), "42P16") {
+		dropErr := db.Exec("DROP VIEW IF EXISTS pool_views;").Error()
+		if dropErr != nil {
+			return dropErr
+		}
+		return db.Exec(viewSQL).Error()
+	}
+	return err
 }

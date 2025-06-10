@@ -22,7 +22,7 @@ import (
 
 func TestGetMultipleKmsConfigs(t *testing.T) {
 	mockLogger := log.NewLogger()
-	store, err := database.NewTestStorage(mockLogger)
+	store, err := database.SetupStorageForTest(mockLogger)
 	if err != nil {
 		t.Fatalf("Failed to create test storage: %v", err)
 	}
