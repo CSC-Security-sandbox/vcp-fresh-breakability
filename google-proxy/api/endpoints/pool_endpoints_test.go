@@ -154,9 +154,17 @@ func TestV1betaCreatePool(t *testing.T) {
 	t.Run("WhenUnifiedPoolIsNotSetToTrue", func(tt *testing.T) {
 		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
 		params := gcpgenserver.V1betaCreatePoolParams{
-			LocationId:    "location-id",
+			LocationId:    "us-east4",
 			ProjectNumber: "project-number",
 		}
+
+		originalParseAndValidateRegionAndZone := parseAndValidateRegionAndZone
+		defer func() { parseAndValidateRegionAndZone = originalParseAndValidateRegionAndZone }()
+
+		parseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
+			return "us-east4", "", nil
+		}
+
 		req := &gcpgenserver.PoolV1beta{
 			UnifiedPool: gcpgenserver.NewOptBool(false),
 		}
@@ -181,6 +189,8 @@ func TestV1betaCreatePool(t *testing.T) {
 			UnifiedPool: gcpgenserver.NewOptBool(true),
 		}
 
+		originalParseAndValidateRegionAndZone := parseAndValidateRegionAndZone
+		defer func() { parseAndValidateRegionAndZone = originalParseAndValidateRegionAndZone }()
 		parseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
 			return "", "", &gcpgenserver.Error{
 				Code:    400,
@@ -209,6 +219,9 @@ func TestV1betaCreatePool(t *testing.T) {
 			ActiveDirectoryResourceId: gcpgenserver.NewOptString("some-resource-id"),
 		}
 
+		originalParseAndValidateRegionAndZone := parseAndValidateRegionAndZone
+		defer func() { parseAndValidateRegionAndZone = originalParseAndValidateRegionAndZone }()
+
 		parseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
 			return "us-east4", "us-east4", nil
 		}
@@ -221,7 +234,7 @@ func TestV1betaCreatePool(t *testing.T) {
 		assert.NoError(tt, err)
 		assert.NotNil(tt, result)
 		assert.Equal(tt, float64(400), result.(*gcpgenserver.V1betaCreatePoolBadRequest).Code)
-		assert.Equal(tt, "Active directory cannot be assigned to a Storage Pool of type unified", result.(*gcpgenserver.V1betaCreatePoolBadRequest).Message)
+		assert.Equal(tt, "Active directory cannot be assigned to a Unified Flex Storage Pool", result.(*gcpgenserver.V1betaCreatePoolBadRequest).Message)
 	})
 	t.Run("WhenLdapEnabledIsSet", func(tt *testing.T) {
 		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
@@ -234,6 +247,9 @@ func TestV1betaCreatePool(t *testing.T) {
 			LdapEnabled: gcpgenserver.NewOptNilBool(true),
 		}
 
+		originalParseAndValidateRegionAndZone := parseAndValidateRegionAndZone
+		defer func() { parseAndValidateRegionAndZone = originalParseAndValidateRegionAndZone }()
+
 		parseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
 			return "us-east4", "us-east4", nil
 		}
@@ -246,7 +262,100 @@ func TestV1betaCreatePool(t *testing.T) {
 		assert.NoError(tt, err)
 		assert.NotNil(tt, result)
 		assert.Equal(tt, float64(400), result.(*gcpgenserver.V1betaCreatePoolBadRequest).Code)
-		assert.Equal(tt, "Ldap can not enabled to a Storage Pool of type unified", result.(*gcpgenserver.V1betaCreatePoolBadRequest).Message)
+		assert.Equal(tt, "Ldap can not enabled on a Unified Flex Storage Pool", result.(*gcpgenserver.V1betaCreatePoolBadRequest).Message)
+	})
+	t.Run("WhenZoneIsEmpty", func(tt *testing.T) {
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		params := gcpgenserver.V1betaCreatePoolParams{
+			LocationId:    "us-east4",
+			ProjectNumber: "project-number",
+		}
+		req := &gcpgenserver.PoolV1beta{
+			UnifiedPool:  gcpgenserver.NewOptBool(true),
+			ServiceLevel: gcpgenserver.PoolV1betaServiceLevelFLEX,
+			SizeInBytes:  1099511627776,
+			QosType:      gcpgenserver.NewOptNilString("auto"),
+		}
+
+		originalParseAndValidateRegionAndZone := parseAndValidateRegionAndZone
+		defer func() { parseAndValidateRegionAndZone = originalParseAndValidateRegionAndZone }()
+
+		parseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
+			return "us-east4", "", nil
+		}
+
+		handler := Handler{
+			Orchestrator: mockOrchestrator,
+		}
+		result, err := handler.V1betaCreatePool(context.Background(), req, params)
+
+		assert.NoError(tt, err)
+		assert.NotNil(tt, result)
+		assert.Equal(tt, float64(400), result.(*gcpgenserver.V1betaCreatePoolBadRequest).Code)
+		assert.Equal(tt, "Zone cannot be empty for regional pool.", result.(*gcpgenserver.V1betaCreatePoolBadRequest).Message)
+	})
+	t.Run("WhenSecondaryZoneIsEmpty", func(tt *testing.T) {
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		params := gcpgenserver.V1betaCreatePoolParams{
+			LocationId:    "us-east4",
+			ProjectNumber: "project-number",
+		}
+		req := &gcpgenserver.PoolV1beta{
+			UnifiedPool:  gcpgenserver.NewOptBool(true),
+			ServiceLevel: gcpgenserver.PoolV1betaServiceLevelFLEX,
+			SizeInBytes:  1099511627776,
+			QosType:      gcpgenserver.NewOptNilString("auto"),
+			Zone:         gcpgenserver.NewOptString("us-east4-a"),
+		}
+
+		originalParseAndValidateRegionAndZone := parseAndValidateRegionAndZone
+		defer func() { parseAndValidateRegionAndZone = originalParseAndValidateRegionAndZone }()
+
+		parseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
+			return "us-east4", "", nil
+		}
+
+		handler := Handler{
+			Orchestrator: mockOrchestrator,
+		}
+		result, err := handler.V1betaCreatePool(context.Background(), req, params)
+
+		assert.NoError(tt, err)
+		assert.NotNil(tt, result)
+		assert.Equal(tt, float64(400), result.(*gcpgenserver.V1betaCreatePoolBadRequest).Code)
+		assert.Equal(tt, "Secondary Zone cannot be empty for regional pool.", result.(*gcpgenserver.V1betaCreatePoolBadRequest).Message)
+	})
+	t.Run("WhenZonesDontMatch", func(tt *testing.T) {
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		params := gcpgenserver.V1betaCreatePoolParams{
+			LocationId:    "us-east4-a",
+			ProjectNumber: "project-number",
+		}
+		req := &gcpgenserver.PoolV1beta{
+			UnifiedPool:   gcpgenserver.NewOptBool(true),
+			ServiceLevel:  gcpgenserver.PoolV1betaServiceLevelFLEX,
+			SizeInBytes:   1099511627776,
+			QosType:       gcpgenserver.NewOptNilString("auto"),
+			Zone:          gcpgenserver.NewOptString("us-east4-b"),
+			SecondaryZone: gcpgenserver.NewOptString("us-east4-b"),
+		}
+
+		originalParseAndValidateRegionAndZone := parseAndValidateRegionAndZone
+		defer func() { parseAndValidateRegionAndZone = originalParseAndValidateRegionAndZone }()
+
+		parseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
+			return "us-east4", "us-east4-a", nil
+		}
+
+		handler := Handler{
+			Orchestrator: mockOrchestrator,
+		}
+		result, err := handler.V1betaCreatePool(context.Background(), req, params)
+
+		assert.NoError(tt, err)
+		assert.NotNil(tt, result)
+		assert.Equal(tt, float64(400), result.(*gcpgenserver.V1betaCreatePoolBadRequest).Code)
+		assert.Equal(tt, "Multiple Zone values cannot be passed for Pool Creation", result.(*gcpgenserver.V1betaCreatePoolBadRequest).Message)
 	})
 	t.Run("WhenPoolAlreadyExists", func(tt *testing.T) {
 		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
@@ -254,9 +363,23 @@ func TestV1betaCreatePool(t *testing.T) {
 			LocationId:    "us-east4",
 			ProjectNumber: "project-number",
 		}
+
 		req := &gcpgenserver.PoolV1beta{
-			UnifiedPool: gcpgenserver.NewOptBool(true),
-			ResourceId:  "existing-pool-id",
+			UnifiedPool:              gcpgenserver.NewOptBool(true),
+			ServiceLevel:             gcpgenserver.PoolV1betaServiceLevelFLEX,
+			SizeInBytes:              1099511627776,
+			QosType:                  gcpgenserver.NewOptNilString("auto"),
+			Zone:                     gcpgenserver.NewOptString("us-east4-a"),
+			SecondaryZone:            gcpgenserver.NewOptString("us-east4-b"),
+			CustomPerformanceEnabled: gcpgenserver.NewOptBool(true),
+			TotalThroughputMibps:     gcpgenserver.NewOptNilFloat64(64), // 128 MiBps
+		}
+
+		originalParseAndValidateRegionAndZone := parseAndValidateRegionAndZone
+		defer func() { parseAndValidateRegionAndZone = originalParseAndValidateRegionAndZone }()
+
+		parseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
+			return "us-east4", "", nil
 		}
 
 		existingPool := &models.Pool{
@@ -265,9 +388,7 @@ func TestV1betaCreatePool(t *testing.T) {
 			},
 			PoolAttributes: &models.PoolAttributes{},
 		}
-		parseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
-			return "us-east4", "us-east4", nil
-		}
+
 		mockOrchestrator.EXPECT().GetPoolByVendorID(mock.Anything, mock.Anything).Return(existingPool, nil)
 
 		handler := Handler{
@@ -279,20 +400,69 @@ func TestV1betaCreatePool(t *testing.T) {
 		assert.NotNil(tt, result)
 		assert.Equal(tt, "operation-id", result.(*gcpgenserver.OperationV1beta).Name.Value)
 	})
+	t.Run("WhenPoolCreationFailsWithUserInputValidationError", func(tt *testing.T) {
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		params := gcpgenserver.V1betaCreatePoolParams{
+			LocationId:    "us-east4",
+			ProjectNumber: "project-number",
+		}
+
+		req := &gcpgenserver.PoolV1beta{
+			UnifiedPool:              gcpgenserver.NewOptBool(true),
+			ServiceLevel:             gcpgenserver.PoolV1betaServiceLevelFLEX,
+			SizeInBytes:              1099511627776,
+			QosType:                  gcpgenserver.NewOptNilString("auto"),
+			Zone:                     gcpgenserver.NewOptString("us-east4-a"),
+			SecondaryZone:            gcpgenserver.NewOptString("us-east4-b"),
+			CustomPerformanceEnabled: gcpgenserver.NewOptBool(true),
+			TotalThroughputMibps:     gcpgenserver.NewOptNilFloat64(64), // 128 MiBps
+		}
+
+		originalParseAndValidateRegionAndZone := parseAndValidateRegionAndZone
+		defer func() { parseAndValidateRegionAndZone = originalParseAndValidateRegionAndZone }()
+
+		parseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
+			return "us-east4", "", nil
+		}
+
+		mockOrchestrator.EXPECT().GetPoolByVendorID(mock.Anything, mock.Anything).Return(nil, errors.NewNotFoundErr("not found", nil))
+		mockOrchestrator.EXPECT().CreatePool(mock.Anything, mock.Anything).Return(nil, "", errors.NewUserInputValidationErr("Given pool size must be a multiple of 1GiB"))
+
+		handler := Handler{
+			Orchestrator: mockOrchestrator,
+		}
+		result, err := handler.V1betaCreatePool(context.Background(), req, params)
+
+		assert.NoError(tt, err)
+		assert.NotNil(tt, result)
+		assert.Equal(tt, float64(400), result.(*gcpgenserver.V1betaCreatePoolBadRequest).Code)
+		assert.Equal(tt, "Given pool size must be a multiple of 1GiB", result.(*gcpgenserver.V1betaCreatePoolBadRequest).Message)
+	})
 	t.Run("WhenPoolCreationSucceeds", func(tt *testing.T) {
 		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
 		params := gcpgenserver.V1betaCreatePoolParams{
 			LocationId:    "us-east4",
 			ProjectNumber: "project-number",
 		}
+
 		req := &gcpgenserver.PoolV1beta{
-			UnifiedPool: gcpgenserver.NewOptBool(true),
-			ResourceId:  "new-pool-id",
+			UnifiedPool:              gcpgenserver.NewOptBool(true),
+			ServiceLevel:             gcpgenserver.PoolV1betaServiceLevelFLEX,
+			SizeInBytes:              1099511627776,
+			QosType:                  gcpgenserver.NewOptNilString("auto"),
+			Zone:                     gcpgenserver.NewOptString("us-east4-a"),
+			SecondaryZone:            gcpgenserver.NewOptString("us-east4-b"),
+			CustomPerformanceEnabled: gcpgenserver.NewOptBool(true),
+			TotalThroughputMibps:     gcpgenserver.NewOptNilFloat64(64), // 128 MiBps
 		}
 
+		originalParseAndValidateRegionAndZone := parseAndValidateRegionAndZone
+		defer func() { parseAndValidateRegionAndZone = originalParseAndValidateRegionAndZone }()
+
 		parseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
-			return "us-east4", "us-east4", nil
+			return "us-east4", "", nil
 		}
+
 		mockOrchestrator.EXPECT().GetPoolByVendorID(mock.Anything, mock.Anything).Return(nil, errors.NewNotFoundErr("not found", nil))
 		mockOrchestrator.EXPECT().CreatePool(mock.Anything, mock.Anything).Return(&models.Pool{BaseModel: models.BaseModel{UUID: "new-pool-uuid"}, PoolAttributes: &models.PoolAttributes{}}, "operation-id", nil)
 

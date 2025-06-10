@@ -19,6 +19,10 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 )
 
+const (
+	HTTP_BAD_REQUEST_CODE = 400
+)
+
 // V1betaDescribePool handles the request to describe a pool.
 func (h Handler) V1betaDescribePool(ctx context.Context, params gcpgenserver.V1betaDescribePoolParams) (gcpgenserver.V1betaDescribePoolRes, error) {
 	logger := util.GetLogger(ctx)
@@ -50,13 +54,6 @@ func (h Handler) V1betaDescribePool(ctx context.Context, params gcpgenserver.V1b
 func (h Handler) V1betaCreatePool(ctx context.Context, req *gcpgenserver.PoolV1beta, params gcpgenserver.V1betaCreatePoolParams) (gcpgenserver.V1betaCreatePoolRes, error) {
 	logger := util.GetLogger(ctx)
 	helper.AddLabelerAttributes(ctx, params.ProjectNumber, params.LocationId)
-	if !req.UnifiedPool.Value {
-		logger.Error("UnifiedPool is not set to true")
-		return &gcpgenserver.V1betaCreatePoolBadRequest{
-			Code:    400,
-			Message: "UnifiedPool must be set to true",
-		}, nil
-	}
 	region, zone, parsingErr := parseAndValidateRegionAndZone(params.LocationId)
 	if parsingErr != nil {
 		return &gcpgenserver.V1betaCreatePoolBadRequest{
@@ -65,18 +62,19 @@ func (h Handler) V1betaCreatePool(ctx context.Context, req *gcpgenserver.PoolV1b
 		}, nil
 	}
 
-	if req.ActiveDirectoryResourceId.Value != "" {
-		return &gcpgenserver.V1betaCreatePoolBadRequest{
-			Code:    400,
-			Message: "Active directory cannot be assigned to a Storage Pool of type unified",
-		}, nil
-	}
-
-	if req.LdapEnabled.Value {
-		return &gcpgenserver.V1betaCreatePoolBadRequest{
-			Code:    400,
-			Message: "Ldap can not enabled to a Storage Pool of type unified",
-		}, nil
+	validateErr := validateCreatePoolParams(req, zone)
+	if validateErr != nil {
+		if validateErr.Code == HTTP_BAD_REQUEST_CODE {
+			return &gcpgenserver.V1betaCreatePoolBadRequest{
+				Code:    validateErr.Code,
+				Message: validateErr.Message,
+			}, nil
+		} else {
+			return &gcpgenserver.V1betaCreatePoolInternalServerError{
+				Code:    validateErr.Code,
+				Message: validateErr.Message,
+			}, nil
+		}
 	}
 
 	vendorId := fmt.Sprintf("/projects/%v/locations/%v/pools/%s", params.ProjectNumber, params.LocationId, req.ResourceId)
@@ -97,28 +95,43 @@ func (h Handler) V1betaCreatePool(ctx context.Context, req *gcpgenserver.PoolV1b
 		return &gcpgenserver.V1betaCreatePoolInternalServerError{}, err
 	}
 
+	totalIops := 0
+	if !req.TotalIops.IsSet() {
+		totalIops = 1024 // Default to 1024 IOPS if not provided
+	} else {
+		totalIops = int(req.TotalIops.Value)
+	}
+
 	param := &common.CreatePoolParams{
 		AccountName:             params.ProjectNumber,
 		Region:                  region,
 		CurrentZone:             zone,
+		Zones:                   []string{req.SecondaryZone.Value},
 		Name:                    req.ResourceId,
 		VendorID:                vendorId,
 		VendorSubNetID:          req.Network,
 		ServiceLevel:            string(req.ServiceLevel),
 		SizeInBytes:             uint64(req.SizeInBytes),
-		QosType:                 string(req.QosType.Value),
+		QosType:                 req.QosType.Value,
 		AllowAutoTiering:        req.AllowAutoTiering.Value,
 		HotTierSizeInBytes:      uint64(req.HotTierSizeInBytes.Value),
 		EnableHotTierAutoResize: req.EnableHotTierAutoResize.Value,
+		CustomPerformanceParams: &common.CustomPerformanceParams{ThroughputMibps: int64(req.TotalThroughputMibps.Value), Enabled: req.CustomPerformanceEnabled.Value, Iops: int64(totalIops)},
 	}
 	created, operationID, err := h.Orchestrator.CreatePool(ctx, param)
 	if err != nil {
-		logger.Error("Failed to create pool", "error", err.Error())
+		if errors.IsUserInputValidationErr(err) {
+			return &gcpgenserver.V1betaCreatePoolBadRequest{
+				Code:    HTTP_BAD_REQUEST_CODE,
+				Message: err.Error(),
+			}, nil
+		}
 		return &gcpgenserver.V1betaCreatePoolInternalServerError{
 			Code:    500,
 			Message: "Internal server error",
 		}, nil
 	}
+
 	resp, err := encodePoolV1(convertToPoolV1Beta(created))
 	if err != nil {
 		return nil, err
@@ -465,4 +478,53 @@ func convertToPoolV1beta(pool *cvpmodels.PoolV1beta) *gcpgenserver.PoolV1beta {
 		// Unified Pool is set false for SDE pools
 		UnifiedPool: gcpgenserver.NewOptBool(false),
 	}
+}
+
+// validateCreatePoolParams validates the parameters for creating a pool.
+// It ensures that the provided parameters meet the requirements for a Unified Flex Storage Pool.
+func validateCreatePoolParams(req *gcpgenserver.PoolV1beta, zone string) *gcpgenserver.Error {
+	if !req.UnifiedPool.Value {
+		return &gcpgenserver.Error{
+			Code:    HTTP_BAD_REQUEST_CODE,
+			Message: "UnifiedPool must be set to true",
+		}
+	}
+
+	if req.ActiveDirectoryResourceId.Value != "" {
+		return &gcpgenserver.Error{
+			Code:    HTTP_BAD_REQUEST_CODE,
+			Message: "Active directory cannot be assigned to a Unified Flex Storage Pool",
+		}
+	}
+
+	if req.LdapEnabled.Value {
+		return &gcpgenserver.Error{
+			Code:    HTTP_BAD_REQUEST_CODE,
+			Message: "Ldap can not enabled on a Unified Flex Storage Pool",
+		}
+	}
+
+	if nillable.IsNilOrEmpty(&zone) {
+		if nillable.IsNilOrEmpty(&req.Zone.Value) {
+			return &gcpgenserver.Error{
+				Code:    HTTP_BAD_REQUEST_CODE,
+				Message: "Zone cannot be empty for regional pool.",
+			}
+		}
+
+		if nillable.IsNilOrEmpty(&req.SecondaryZone.Value) {
+			return &gcpgenserver.Error{
+				Code:    HTTP_BAD_REQUEST_CODE,
+				Message: "Secondary Zone cannot be empty for regional pool.",
+			}
+		}
+	} else {
+		if !nillable.IsNilOrEmpty(&req.Zone.Value) && req.Zone.Value != zone {
+			return &gcpgenserver.Error{
+				Code:    HTTP_BAD_REQUEST_CODE,
+				Message: "Multiple Zone values cannot be passed for Pool Creation",
+			}
+		}
+	}
+	return nil
 }

@@ -130,9 +130,9 @@ func TestCreatePool(t *testing.T) {
 			AllowAutoTiering: true,
 			VendorSubNetID:   "test_network",
 			CustomPerformanceParams: &common.CustomPerformanceParams{
-				Enabled:    true,
-				Throughput: 64,
-				Iops:       1024,
+				Enabled:         true,
+				ThroughputMibps: 64,
+				Iops:            1024,
 			},
 		}
 
@@ -159,9 +159,9 @@ func TestCreatePool(t *testing.T) {
 			AllowAutoTiering: true,
 			VendorSubNetID:   "test_network",
 			CustomPerformanceParams: &common.CustomPerformanceParams{
-				Enabled:    true,
-				Throughput: 64,
-				Iops:       1024,
+				Enabled:         true,
+				ThroughputMibps: 64,
+				Iops:            1024,
 			},
 		}
 
@@ -202,9 +202,9 @@ func TestCreatePool(t *testing.T) {
 			AllowAutoTiering: true,
 			VendorSubNetID:   "test_network",
 			CustomPerformanceParams: &common.CustomPerformanceParams{
-				Enabled:    true,
-				Throughput: 64,
-				Iops:       1024,
+				Enabled:         true,
+				ThroughputMibps: 64,
+				Iops:            1024,
 			},
 		}
 
@@ -263,9 +263,9 @@ func TestCreatePool(t *testing.T) {
 			AllowAutoTiering: true,
 			VendorSubNetID:   "test_network",
 			CustomPerformanceParams: &common.CustomPerformanceParams{
-				Enabled:    true,
-				Throughput: 64,
-				Iops:       1024,
+				Enabled:         true,
+				ThroughputMibps: 64,
+				Iops:            1024,
 			},
 		}
 
@@ -430,43 +430,71 @@ func TestGetPoolByVendorID(t *testing.T) {
 }
 
 func TestValidateCreatePoolParams(t *testing.T) {
-	t.Run("ValidateCreatePoolParams_WithValidSize_ReturnsNil", func(tt *testing.T) {
-		params := &common.CreatePoolParams{
-			SizeInBytes:  2199023255552, // Exactly the minimum quota
-			ServiceLevel: ServiceLevelNameFLEX,
-			QosType:      QosTypeAuto,
-		}
-
-		err := _validateCreatePoolParams(params)
-		assert.NoError(t, err, "Expected no error, got %v", err)
-	})
-	t.Run("ValidateCreatePoolParams_WithSizeBelowMinimum_ReturnsError", func(tt *testing.T) {
-		params := &common.CreatePoolParams{
-			SizeInBytes: 1024, // Below the minimum quota
-		}
-
-		err := _validateCreatePoolParams(params)
-		assert.EqualError(t, err, "Given pool size not supported. Pool size can't be less than 2TiB")
-	})
 	t.Run("ValidateCreatePoolParams_WithWrongServiceLevel", func(tt *testing.T) {
 		params := &common.CreatePoolParams{
-			SizeInBytes:  2199023255552, // Exactly the minimum quota
+			SizeInBytes:  2199023255552,
 			ServiceLevel: "Premium",
 			QosType:      QosTypeAuto,
 		}
-
 		err := _validateCreatePoolParams(params)
 		assert.EqualError(t, err, "Given service level not supported. Supported service level is "+ServiceLevelNameFLEX)
 	})
+	t.Run("ValidateCreatePoolParams_WithInvalidSize_ReturnsError", func(tt *testing.T) {
+		params := &common.CreatePoolParams{
+			SizeInBytes:  1024 * 1024 * 1024, // 1 GiB, which is below the minimum quota
+			ServiceLevel: ServiceLevelNameFLEX,
+			QosType:      QosTypeAuto,
+		}
+		err := _validateCreatePoolParams(params)
+		assert.EqualError(t, err, "Given pool size not supported. Pool size must be greater than 1TiB and a multiple of 1GiB")
+	})
+	t.Run("ValidateCreatePoolParams_WithInvalidGiBSize_ReturnsError", func(tt *testing.T) {
+		params := &common.CreatePoolParams{
+			SizeInBytes:  1099511627777, // Exactly the minimum quota+1
+			ServiceLevel: ServiceLevelNameFLEX,
+			QosType:      QosTypeAuto,
+		}
+		err := _validateCreatePoolParams(params)
+		assert.EqualError(t, err, "Given pool size must be a multiple of 1GiB")
+	})
 	t.Run("ValidateCreatePoolParams_WithValidSize_WrongQosType", func(tt *testing.T) {
 		params := &common.CreatePoolParams{
-			SizeInBytes:  2199023255552, // Exactly the minimum quota
+			SizeInBytes:  2199023255552,
 			ServiceLevel: ServiceLevelNameFLEX,
 			QosType:      "Manual",
 		}
-
 		err := _validateCreatePoolParams(params)
-		assert.EqualError(t, err, "Given QoS type not supported. Supported QoS type is "+QosTypeAuto)
+		assert.EqualError(t, err, "Given QoS type not supported for Unified Flex Storage Pool. Supported QoS type is "+QosTypeAuto)
+	})
+	t.Run("ValidateCreatePoolParams_WithNoCustomPerformanceSet", func(tt *testing.T) {
+		params := &common.CreatePoolParams{
+			SizeInBytes:             1099511627776,
+			ServiceLevel:            ServiceLevelNameFLEX,
+			QosType:                 QosTypeAuto,
+			CustomPerformanceParams: &common.CustomPerformanceParams{Enabled: false, ThroughputMibps: 0, Iops: 0},
+		}
+		err := _validateCreatePoolParams(params)
+		assert.EqualError(t, err, "CustomPerformanceEnabled must be true for Unified Flex Storage Pool")
+	})
+	t.Run("ValidateCreatePoolParams_WithInvalidThroughputSetWithCustomPerformance", func(tt *testing.T) {
+		params := &common.CreatePoolParams{
+			SizeInBytes:             1099511627776,
+			ServiceLevel:            ServiceLevelNameFLEX,
+			QosType:                 QosTypeAuto,
+			CustomPerformanceParams: &common.CustomPerformanceParams{Enabled: true, ThroughputMibps: 0, Iops: 1000},
+		}
+		err := _validateCreatePoolParams(params)
+		assert.EqualError(t, err, "TotalThroughputMibps must be set and must be greater than 64 MiBps for Unified Flex Storage Pool")
+	})
+	t.Run("ValidateCreatePoolParams_WithInvalidIOPSSetWithCustomPerformance", func(tt *testing.T) {
+		params := &common.CreatePoolParams{
+			SizeInBytes:             1099511627776,
+			ServiceLevel:            ServiceLevelNameFLEX,
+			QosType:                 QosTypeAuto,
+			CustomPerformanceParams: &common.CustomPerformanceParams{Enabled: true, ThroughputMibps: 128, Iops: 100},
+		}
+		err := _validateCreatePoolParams(params)
+		assert.EqualError(t, err, "TotalIops must be greater than 1024 for Unified Flex Storage Pool")
 	})
 }
 

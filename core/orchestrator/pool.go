@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"fmt"
 	"time"
 
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
@@ -24,10 +25,13 @@ import (
 )
 
 var (
-	minQuotaInBytesPool          = env.GetUint64("MIN_QUOTA_IN_BYTES_POOL", 2199023255552) // 2TiB
+	minQuotaInBytesPool          = env.GetUint64("MIN_QUOTA_IN_BYTES_POOL", 1099511627776) // 1TiB
+	minCustomThroughput          = env.GetUint64("MIN_CUSTOM_THROUGHPUT", 64)              // 64 MiBps
+	minCustomIops                = env.GetUint64("MIN_CUSTOM_IOPS", 1024)
+	minSizeGranularity           = env.GetUint64("MIN_SIZE_GRANULARITY", 1073741824) // 1 GiB
 	createPool                   = _createPool
-	ValidateCreatePoolParams     = _validateCreatePoolParams
 	deletePool                   = _deletePool
+	ValidateCreatePoolParams     = _validateCreatePoolParams
 	nodeUsername                 = env.GetString("VSA_NODE_USERNAME", "")
 	nodePassword                 = env.GetString("VSA_NODE_PASSWORD", "")
 	getInterClusterLifsFromONTAP = _getInterClusterLifsFromONTAP
@@ -55,6 +59,7 @@ func _createPool(ctx context.Context, se database.Storage, temporal client.Clien
 	if err != nil {
 		return nil, "", err
 	}
+
 	job := &datamodel.Job{
 		Type:         string(models.JobTypeCreatePool),
 		State:        string(models.JobsStateNEW),
@@ -123,18 +128,33 @@ func (o *Orchestrator) GetPool(ctx context.Context, poolId string, accountName s
 }
 
 func _validateCreatePoolParams(params *commonparams.CreatePoolParams) error {
-	if params.SizeInBytes < minQuotaInBytesPool {
-		return customerrors.NewUserInputValidationErr("Given pool size not supported. Pool size can't be less than " + utils.FmtUint64Bytes(minQuotaInBytesPool))
-	}
-
 	if params.ServiceLevel != ServiceLevelNameFLEX {
 		return customerrors.NewUserInputValidationErr("Given service level not supported. Supported service level is " + ServiceLevelNameFLEX)
 	}
 
-	if params.QosType != QosTypeAuto {
-		return customerrors.NewUserInputValidationErr("Given QoS type not supported. Supported QoS type is " + QosTypeAuto)
+	if minQuotaInBytesPool > params.SizeInBytes {
+		return customerrors.NewUserInputValidationErr(fmt.Sprintf("Given pool size not supported. Pool size must be greater than %s and a multiple of 1GiB", utils.FmtUint64Bytes(minQuotaInBytesPool)))
 	}
 
+	if params.SizeInBytes%minSizeGranularity != 0 {
+		return customerrors.NewUserInputValidationErr(fmt.Sprintf("Given pool size must be a multiple of %s", utils.FmtUint64Bytes(minSizeGranularity)))
+	}
+
+	if params.QosType != QosTypeAuto {
+		return customerrors.NewUserInputValidationErr("Given QoS type not supported for Unified Flex Storage Pool. Supported QoS type is " + QosTypeAuto)
+	}
+
+	if !params.CustomPerformanceParams.Enabled {
+		return customerrors.NewUserInputValidationErr("CustomPerformanceEnabled must be true for Unified Flex Storage Pool")
+	} else {
+		if minCustomThroughput > uint64(params.CustomPerformanceParams.ThroughputMibps) {
+			return customerrors.NewUserInputValidationErr(fmt.Sprintf("TotalThroughputMibps must be set and must be greater than %d MiBps for Unified Flex Storage Pool", minCustomThroughput))
+		}
+
+		if minCustomIops > uint64(params.CustomPerformanceParams.Iops) {
+			return customerrors.NewUserInputValidationErr(fmt.Sprintf("TotalIops must be greater than %d for Unified Flex Storage Pool", minCustomIops))
+		}
+	}
 	return nil
 }
 
