@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - main
+      - release/2*
 
 permissions:
   packages: write
@@ -73,32 +74,32 @@ jobs:
             "https://api.github.com/repos/VCP-VSA-control-Plane/vsa-control-plane/commits/${{ github.sha }}/pulls")
           
           echo "PR_DETAILS FETCHED"
-            
+          
             # Check if the curl command succeeded
             if [[ $? -ne 0 || -z "$PR_DETAILS" ]]; then
           echo "Error: Failed to fetch PR details or response is empty."
             exit 1
             fi
-            
+          
             # Parse the first PR object
             PR_DETAILS=$(echo "$PR_DETAILS" | tr -d '\000-\037' | jq '.[0]')
-            
+          
             # Validate the parsed JSON
             if [[ "$PR_DETAILS" == "null" || -z "$PR_DETAILS" ]]; then
           echo "Error: No pull request found for the given commit."
             exit 1
             fi
-            
+          
             # Extract PR user and title
             PR_USER=$(echo "$PR_DETAILS" | jq -r '.user.login // empty')
             PR_TITLE=$(echo "$PR_DETAILS" | jq -r '.title // empty')
-            
+          
             # Validate extracted values
             if [[ -z "$PR_USER" || -z "$PR_TITLE" ]]; then
           echo "Error: PR user or title is empty."
             exit 1
             fi
-            
+          
             # Write to GITHUB_ENV
             echo "PR_USER=$PR_USER" >> $GITHUB_ENV
             echo "PR_TITLE=$PR_TITLE" >> $GITHUB_ENV
@@ -116,6 +117,9 @@ jobs:
           GITHUB_SHA: ${{ github.sha }}
           NEW_TAG: ${{ needs.generate_tag.outputs.newTag }}
         run: vsacictl jira tag_component_version
+    outputs:
+        pr_title: ${{ env.PR_TITLE }}
+        pr_user: ${{ env.PR_USER }}
 
   black_duck_scan_repo:
     name: Run black duck scan on the repo
@@ -183,3 +187,31 @@ jobs:
             --detect.docker.passthrough.shared.dir.path.local=/home/cvs/opt-dir
             echo "BlackDuck scan completed for image: ${IMAGE}"
           done
+
+  send-slack-notification:
+    needs: [generate_tag,create_pre_release_vsa_control_plane, update_jira_component_version]
+    runs-on: [ ubuntu-22.04 ]
+    container:
+      image: ghcr.io/vcp-vsa-control-plane/vsacictl:v21
+      options: -v /var/run/docker.sock:/var/run/docker.sock --user root
+
+    steps:
+      - name: Check out the repo
+        uses: actions/checkout@v2
+
+      - name: Set up Go
+        uses: actions/setup-go@v3
+        with:
+          go-version-file: go.mod
+      - name: Send slack message
+        env:
+          PR_TITLE: ${{ needs.update_jira_component_version.outputs.pr_title }}
+          PR_USER: ${{ needs.update_jira_component_version.outputs.pr_user }}
+          VSABUILDREPORTWEBHOOK: ${{ secrets.VSABUILDREPORTWEBHOOK }}
+          NEW_TAG: ${{ needs.generate_tag.outputs.newTag }}
+          GHCR_vsa_control_plane_HELM_URL: ${{ needs.create_pre_release_vsa_control_plane.outputs.GHCR_vsa_control_plane_HELM_URL }}
+          GCP_vsa_control_plane_HELM_URL: ${{ needs.create_pre_release_vsa_control_plane.outputs.GCP_vsa_control_plane_HELM_URL }}
+          GHCR_vcp_worker_HELM_URL: ${{ needs.create_pre_release_vsa_control_plane.outputs.GHCR_vcp_worker_HELM_URL }}
+          GCP_vcp_worker_HELM_URL: ${{ needs.create_pre_release_vsa_control_plane.outputs.GCP_vcp_worker_HELM_URL }}
+        run: |
+          vsacictl slack notify_build_report

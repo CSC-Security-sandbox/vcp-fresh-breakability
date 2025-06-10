@@ -3,14 +3,14 @@ package jira
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/andygrunwald/go-jira"
+	"github.com/spf13/cobra"
 	"log"
 	ghutils "main/cmd/github"
+	"net/url"
 	"os"
 	"regexp"
 	"strings"
-
-	"github.com/andygrunwald/go-jira"
-	"github.com/spf13/cobra"
 )
 
 var (
@@ -31,7 +31,7 @@ const jiraApiUser = "JIRA_API_USER"
 const jiraApiToken = "JIRA_API_TOKEN"
 const jiraServer = "JIRA_SERVER"
 
-var url string
+var Url string
 
 var JiraCmd = &cobra.Command{
 	Use:   "jira",
@@ -47,12 +47,12 @@ type ClientCredentials struct {
 
 func GetJiraUrlCredentials() (BaseURL, ClientCredentials) {
 	if jiraServerUrl != "" {
-		url = jiraServerUrl
+		Url = jiraServerUrl
 	} else {
-		url = defaultUrl
+		Url = defaultUrl
 	}
 
-	jiraUrl := BaseURL(url)
+	jiraUrl := BaseURL(Url)
 	credentials := ClientCredentials{
 		Username: username,
 		Password: password,
@@ -68,6 +68,15 @@ func ExtractJiraID(prTitle string) (string, error) {
 		return "", fmt.Errorf("PR title is not in the correct format. Required format: VSCP-<IssueNumber>: <title>\nCurrent PR title: %s", prTitle)
 	}
 	return matches[1], nil
+}
+
+func GetJiraInfo(query string) (string, error) {
+	baseURL, _ := GetJiraUrlCredentials()
+
+	encodedQuery := url.QueryEscape(query)
+	jiraQueryURL := fmt.Sprintf("%s/issues/?jql=%s", baseURL, encodedQuery)
+
+	return jiraQueryURL, nil
 }
 
 func GetJiraClient(credentials ClientCredentials, baseURL string) (*jira.Client, error) {

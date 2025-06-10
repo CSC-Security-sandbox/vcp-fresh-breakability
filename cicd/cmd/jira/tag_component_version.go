@@ -9,7 +9,7 @@ import (
 )
 
 var (
-	newTag string
+	NewTag string
 )
 
 var tagJiraComponentVersionCmd = &cobra.Command{
@@ -26,7 +26,7 @@ var tagJiraComponentVersionCmd = &cobra.Command{
 }
 
 func updateComponentVersionTag() error {
-	log.Println("Updating jira component tag to:", newTag)
+	log.Println("Updating jira component tag to:", NewTag)
 
 	_, credentials := GetJiraUrlCredentials()
 	jiraID, err := ExtractJiraID(ghutils.PrTitle)
@@ -37,7 +37,7 @@ func updateComponentVersionTag() error {
 
 	updatedPayload := map[string]interface{}{
 		"fields": map[string]interface{}{
-			"customfield_15918": []string{newTag},
+			"customfield_15918": []string{NewTag},
 		},
 	}
 
@@ -49,5 +49,5 @@ func updateComponentVersionTag() error {
 }
 
 func init() {
-	newTag = os.Getenv("NEW_TAG")
+	NewTag = os.Getenv("NEW_TAG")
 }

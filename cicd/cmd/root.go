@@ -5,7 +5,8 @@ import (
 	"main/cmd/jira"
 	"main/cmd/lint"
 	"main/cmd/release-cmd/tag"
-	unitTest "main/cmd/unit-test"
+	"main/cmd/slack"
+	"main/cmd/unit-test"
 	"os"
 
 	"github.com/joho/godotenv"
@@ -33,4 +34,5 @@ func init() {
 	rootCmd.AddCommand(lint.LintCmd)
 	rootCmd.AddCommand(images.ImagesCmd)
 	rootCmd.AddCommand(tag.TagCmd)
+	rootCmd.AddCommand(slack.SlackCmd)
 }
