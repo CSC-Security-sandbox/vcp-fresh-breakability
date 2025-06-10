@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"strings"
 
 	"cloud.google.com/go/storage"
 	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
@@ -12,6 +13,7 @@ import (
 	logger "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 	"golang.org/x/oauth2/google"
+	projectsManagement "google.golang.org/api/cloudresourcemanager/v1"
 	"google.golang.org/api/compute/v1"
 	"google.golang.org/api/googleapi"
 	"google.golang.org/api/iam/v1"
@@ -32,12 +34,13 @@ var (
 
 	newClient = _newClient
 
-	newGoogleClient             = _newGoogleClient
-	initializeManagementService = _initializeManagementService
-	initializeNetworkingService = _initializeNetworkingService
-	initializeComputeService    = _initializeComputeService
-	initializeStorageService    = _initializeStorageService
-	initializeIamService        = _initializeIamService
+	newGoogleClient                = _newGoogleClient
+	initializeManagementService    = _initializeManagementService
+	initializeNetworkingService    = _initializeNetworkingService
+	initializeComputeService       = _initializeComputeService
+	initializeStorageService       = _initializeStorageService
+	initializeIamService           = _initializeIamService
+	initializeCloudProjectsService = _initializeCloudProjectsService
 )
 
 type GcpServices struct {
@@ -52,11 +55,12 @@ type GcpServices struct {
 }
 
 type AdminGCPService struct {
-	managementService *serviceconsumermanagement.APIService
-	networkingService *servicenetworking.APIService
-	computeService    *compute.Service
-	storageService    StorageClient
-	iamService        *iam.Service
+	managementService    *serviceconsumermanagement.APIService
+	networkingService    *servicenetworking.APIService
+	computeService       *compute.Service
+	storageService       StorageClient
+	cloudProjectsService *projectsManagement.Service
+	iamService           *iam.Service
 }
 
 // _newClient redirects to third party library HTTP NewClient for networking, while it helps to mock the function for init_test
@@ -124,17 +128,24 @@ func _newGoogleClient(ctx context.Context) (*AdminGCPService, error) {
 		return nil, err
 	}
 
+	cloudProjectservice, err := initializeCloudProjectsService(ctx)
+	if err != nil {
+		log.Error("Error initializeCloudProjectsService", err)
+		return nil, err
+	}
+
 	iamService, err := initializeIamService(ctx)
 	if err != nil {
 		log.Error("Error initializeIamService", err)
 		return nil, err
 	}
 	gServices := AdminGCPService{
-		networkingService: networkingService,
-		managementService: managementService,
-		computeService:    computeService,
-		storageService:    &storageClient{client: storageService},
-		iamService:        iamService,
+		networkingService:    networkingService,
+		managementService:    managementService,
+		computeService:       computeService,
+		storageService:       &storageClient{client: storageService},
+		iamService:           iamService,
+		cloudProjectsService: cloudProjectservice,
 	}
 	return &gServices, nil
 }
@@ -225,6 +236,33 @@ func _initializeIamService(ctx context.Context) (*iam.Service, error) {
 	return svc, nil
 }
 
+func _initializeCloudProjectsService(ctx context.Context) (*projectsManagement.Service, error) {
+	scopesOption := option.WithScopes(projectsManagement.CloudPlatformScope)
+	opts := []option.ClientOption{scopesOption}
+	slogger := util.GetLogger(ctx)
+
+	slogger.Debug(fmt.Sprintf("opts: %#v", opts))
+	if MockMetaDataHost != "" {
+		opts = append(opts, option.WithTokenSource(google.ComputeTokenSource("", projectsManagement.CloudPlatformScope)))
+	}
+	slogger.Debug("creating newClient")
+	client, endpoint, err := newClient(ctx, opts...)
+	if err != nil {
+		slogger.Error("error while creating new client for _initializeCloudProjectsService", err)
+		return nil, err
+	}
+	client.Timeout = waitTimeoutMinutes
+	svc, err := projectsManagement.NewService(ctx, option.WithHTTPClient(client))
+	if err != nil {
+		slogger.Error("projectsManagement.NewService error", err)
+		return nil, err
+	}
+	if endpoint != "" {
+		svc.BasePath = endpoint
+	}
+	return svc, nil
+}
+
 // _initializeComputeService initializes the compute API service in GCP
 func _initializeComputeService(ctx context.Context) (*compute.Service, error) {
 	logger := util.GetLogger(ctx)
@@ -307,4 +345,167 @@ func (gcpService *GcpServices) GetServiceConsumerManagementEndpoint() string {
 	}
 	gcpService.Logger.Debug("GetServiceConsumerManagementEndpoint : gcpService.serviceConsumerManagementEndpoint = ", gcpService.serviceConsumerManagementEndpoint)
 	return gcpService.serviceConsumerManagementEndpoint
+}
+
+func (gcpService *GcpServices) GetServiceAccount(projectID, email string) (*iam.ServiceAccount, error) {
+	defer gcpService.Retry.Reset()
+	response, err := gcpService.AdminGCPService.iamService.Projects.ServiceAccounts.List("projects/" + projectID).Do()
+	if err != nil {
+		err = gcpService.Retry.Sleep(err)
+		if err != nil {
+			return nil, err
+		}
+		return gcpService.GetServiceAccount(projectID, email)
+	}
+	for _, account := range response.Accounts {
+		if account.Email == email {
+			return account, nil
+		}
+	}
+	return nil, fmt.Errorf("service account not found")
+}
+
+func (gcpService *GcpServices) AttachOrUpdateRolesForServiceAccounts(roles []string, serviceAccountEmail, projectID string) error {
+	policy, err := gcpService.getProjectIamPolicy(projectID)
+	if err != nil {
+		return err
+	}
+
+	currentSvcAccountMember := "serviceAccount:" + serviceAccountEmail
+	requiredRolesMap := gcpService.initializeRequiredRolesMap(roles)
+
+	projectIAMPolicyBindings := gcpService.updatePolicyBindings(policy.Bindings, requiredRolesMap, currentSvcAccountMember)
+
+	gcpService.addMissingRoles(projectIAMPolicyBindings, requiredRolesMap, currentSvcAccountMember)
+
+	return gcpService.setProjectIamPolicy(projectID, policy.Etag, projectIAMPolicyBindings)
+}
+
+func (gcpService *GcpServices) getProjectIamPolicy(projectID string) (*projectsManagement.Policy, error) {
+	defer gcpService.Retry.Reset()
+	getPolicyRequest := &projectsManagement.GetIamPolicyRequest{}
+	iamPolicy, err := gcpService.AdminGCPService.cloudProjectsService.Projects.GetIamPolicy(projectID, getPolicyRequest).Do()
+	if err != nil {
+		err = gcpService.Retry.Sleep(err)
+		if err != nil {
+			return nil, err
+		}
+		return gcpService.getProjectIamPolicy(projectID)
+	}
+	return iamPolicy, nil
+}
+
+func (gcpService *GcpServices) initializeRequiredRolesMap(roles []string) map[string]bool {
+	requiredRolesMap := make(map[string]bool)
+	for _, role := range roles {
+		requiredRolesMap[role] = false
+	}
+	return requiredRolesMap
+}
+
+func (gcpService *GcpServices) updatePolicyBindings(policyBindings []*projectsManagement.Binding, requiredRolesMap map[string]bool, currentSvcAccountMember string) []*projectsManagement.Binding {
+	var updatedBindings []*projectsManagement.Binding
+	for _, policyBinding := range policyBindings {
+		svcAccountPreExists := false
+		if roleProcessed, ok := requiredRolesMap[policyBinding.Role]; ok && !roleProcessed {
+			for _, member := range policyBinding.Members {
+				if strings.EqualFold(strings.ToLower(member), strings.ToLower(currentSvcAccountMember)) {
+					svcAccountPreExists = true
+					break
+				}
+			}
+			if !svcAccountPreExists {
+				policyBinding.Members = append(policyBinding.Members, currentSvcAccountMember)
+			}
+			requiredRolesMap[policyBinding.Role] = true
+		}
+		updatedBindings = append(updatedBindings, &projectsManagement.Binding{
+			Role:    policyBinding.Role,
+			Members: policyBinding.Members,
+		})
+	}
+	return updatedBindings
+}
+
+func (gcpService *GcpServices) addMissingRoles(projectIAMPolicyBindings []*projectsManagement.Binding, requiredRolesMap map[string]bool, currentSvcAccountMember string) {
+	for role, isProcessed := range requiredRolesMap {
+		if !isProcessed {
+			projectIAMPolicyBindings = append(projectIAMPolicyBindings, &projectsManagement.Binding{
+				Role: role,
+				Members: []string{
+					currentSvcAccountMember,
+				},
+			})
+		}
+	}
+}
+
+func (gcpService *GcpServices) setProjectIamPolicy(projectID string, etag string, projectIAMPolicyBindings []*projectsManagement.Binding) error {
+	policyRequest := &projectsManagement.SetIamPolicyRequest{
+		Policy: &projectsManagement.Policy{
+			Bindings: projectIAMPolicyBindings,
+			Etag:     etag,
+		},
+	}
+	_, err := gcpService.AdminGCPService.cloudProjectsService.Projects.SetIamPolicy(projectID, policyRequest).Do()
+	if err != nil {
+		err = gcpService.Retry.Sleep(err)
+		if err != nil {
+			return fmt.Errorf("Projects.SetIamPolicy: %v", err)
+		}
+		gcpService.Logger.Error("Error setting IAM policy for project", projectID, ":", err)
+		return gcpService.setProjectIamPolicy(projectID, etag, projectIAMPolicyBindings)
+	}
+	return err
+}
+
+func (gcpService *GcpServices) CreateServiceAccount(createRequest *iam.CreateServiceAccountRequest, projectNumber, email string) (account *iam.ServiceAccount, err error) {
+	defer gcpService.Retry.Reset()
+	account, err = gcpService.AdminGCPService.iamService.Projects.ServiceAccounts.Create("projects/"+projectNumber, createRequest).Do()
+	if gerr, ok := err.(*googleapi.Error); ok {
+		switch gerr.Code {
+		case http.StatusConflict:
+			serviceAccount, isSACreated, err := gcpService.IsServiceAccountCreated(email)
+			if err != nil || !isSACreated {
+				return nil, err
+			}
+			account = serviceAccount
+			return account, err
+		}
+		err = gcpService.Retry.Sleep(err)
+		if err != nil {
+			return nil, fmt.Errorf("Projects.ServiceAccounts.Create: %v", err)
+		}
+		return gcpService.CreateServiceAccount(createRequest, projectNumber, email)
+	}
+
+	if err != nil {
+		return nil, err
+	}
+	return account, nil
+}
+
+func (gcpService *GcpServices) IsServiceAccountCreated(email string) (account *iam.ServiceAccount, isSACreated bool, err error) {
+	defer gcpService.Retry.Reset()
+	acc, err := gcpService.GetServiceAccountByEmail(email)
+	if err != nil {
+		err = gcpService.Retry.Sleep(err)
+		if err != nil {
+			return nil, false, fmt.Errorf("Projects.ServiceAccounts.Get: %v", err)
+		}
+		return gcpService.IsServiceAccountCreated(email)
+	}
+	return acc, true, nil
+}
+
+func (gcpService *GcpServices) GetServiceAccountByEmail(email string) (*iam.ServiceAccount, error) {
+	account, err := gcpService.AdminGCPService.iamService.Projects.ServiceAccounts.Get("projects/-/serviceAccounts/" + email).Do()
+	if err != nil {
+		err = gcpService.Retry.Sleep(err)
+		if err != nil {
+			return nil, err
+		}
+		return gcpService.GetServiceAccountByEmail(email)
+	}
+	return account, nil
 }

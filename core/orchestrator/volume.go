@@ -13,6 +13,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
 	customerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/nillable"
 	workflowengine "github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/temporal"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 	"go.temporal.io/api/enums/v1"
@@ -89,6 +90,16 @@ func _createVolume(ctx context.Context, se database.Storage, temporal client.Cli
 		volumeObj.VolumeAttributes.BlockProperties = &datamodel.BlockProperties{
 			OSType:         params.BlockProperties.OSType,
 			HostGroupUUIDs: params.BlockProperties.HostGroupUUIDs,
+		}
+	}
+
+	if params.DataProtection != nil {
+		volumeObj.DataProtection = &datamodel.DataProtection{
+			BackupVaultID:          params.DataProtection.BackupVaultID,
+			BackupPolicyID:         params.DataProtection.BackupPolicyId,
+			BackupChainBytes:       params.DataProtection.BackupChainBytes,
+			PolicyEnforced:         params.DataProtection.PolicyEnforced,
+			ScheduledBackupEnabled: params.DataProtection.ScheduledBackupEnabled,
 		}
 	}
 
@@ -213,6 +224,18 @@ func _validateCreateVolumeParams(ctx context.Context, se database.Storage, param
 			}
 		}
 	}
+	if params.DataProtection != nil {
+		var scheduledBackupEnabledStr *string
+		if params.DataProtection.ScheduledBackupEnabled != nil && *params.DataProtection.ScheduledBackupEnabled {
+			value := fmt.Sprintf("%v", params.DataProtection.ScheduledBackupEnabled)
+			scheduledBackupEnabledStr = &value
+		}
+
+		if nillable.IsNilOrEmpty(&params.DataProtection.BackupPolicyId) && !nillable.IsNilOrEmpty(scheduledBackupEnabledStr) {
+			return customerrors.NewUserInputValidationErr("BackupPolicyID to be provided to assign/unassign a backup policy to a volume")
+		}
+	}
+
 	return nil
 }
 

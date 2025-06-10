@@ -20,9 +20,18 @@ type Volume struct {
 	IsDataProtection      bool
 	BlockProperties       *BlockProperties
 	IPAddress             string
+	DataProtection        *DataProtection
 }
 
 type BlockProperties struct {
 	OSType         string
 	HostGroupUUIDs []string
+}
+
+type DataProtection struct {
+	ScheduledBackupEnabled *bool
+	BackupVaultID          string
+	BackupPolicyId         string
+	BackupChainBytes       *int64
+	PolicyEnforced         *bool
 }

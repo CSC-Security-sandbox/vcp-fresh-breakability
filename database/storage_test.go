@@ -714,3 +714,17 @@ func TestCreatingBackupVault(t *testing.T) {
 	assert.NoError(t, err)
 	assert.NotNil(t, created)
 }
+
+func TestCreateBackupVaultEntryInVCP(t *testing.T) {
+	logger := &log.MockLogger{}
+	store, _ := NewTestStorage(logger)
+	ctx := context.Background()
+	ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, logger)
+
+	// Create a backup vault entry in VCP
+	bv := &datamodel.BackupVault{Name: "vcpVault"}
+	created, err := store.CreateBackupVaultEntryInVCP(ctx, bv)
+	assert.NoError(t, err)
+	assert.NotNil(t, created)
+	assert.Equal(t, "vcpVault", created.Name)
+}

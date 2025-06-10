@@ -7,6 +7,8 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/hyperscaler"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/hyperscaler/google"
 	ontapModels "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/ontap-rest/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
@@ -17,6 +19,8 @@ import (
 	utilErrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
+	"google.golang.org/api/iam/v1"
 )
 
 func TestCreateVolume_Success(t *testing.T) {
@@ -943,4 +947,422 @@ func TestCreateVolumeInONTAP_DataProtectionVolume(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, expectedResponse, result)
 	mockProvider.AssertExpectations(t)
+}
+
+func TestCheckForBucketResourceName_ReturnsBucketDetails(t *testing.T) {
+	t.Run("CheckForBucketResourceName_ReturnsBucketDetails", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(tt)
+		activity := activities.VolumeCreateActivity{SE: mockStorage}
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+		volume := &datamodel.Volume{
+			DataProtection: &datamodel.DataProtection{BackupVaultID: "vault-id"},
+			VolumeAttributes: &datamodel.VolumeAttributes{
+				VendorSubnetID: "subnet-id",
+			},
+		}
+		bucketDetails := &datamodel.BucketDetails{
+			BucketName:          "bucket-vault-id",
+			ServiceAccountName:  "service-account",
+			VendorSubnetID:      "subnet-id",
+			TenantProjectNumber: "project-number",
+		}
+		backupVault := &datamodel.BackupVault{
+			BucketDetails: datamodel.BucketDetailsArray{bucketDetails},
+		}
+
+		mockStorage.On("GetBackupVaultByUUID", ctx, "vault-id").Return(backupVault, nil)
+
+		result, err := activity.CheckForBucketResourceName(ctx, volume)
+
+		assert.NoError(tt, err)
+		assert.NotNil(tt, result)
+		assert.Equal(tt, bucketDetails.BucketName, result.BucketName)
+		assert.Equal(tt, bucketDetails.ServiceAccountName, result.ServiceAccountName)
+		assert.Equal(tt, bucketDetails.VendorSubnetID, result.VendorSubnetID)
+		assert.Equal(tt, bucketDetails.TenantProjectNumber, result.TenantProjectNumber)
+		mockStorage.AssertExpectations(tt)
+	})
+	t.Run("CheckForBucketResourceName_ReturnsNilWhenNoMatchingBucket", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(tt)
+		activity := activities.VolumeCreateActivity{SE: mockStorage}
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+		volume := &datamodel.Volume{
+			DataProtection: &datamodel.DataProtection{BackupVaultID: "vault-id"},
+			VolumeAttributes: &datamodel.VolumeAttributes{
+				VendorSubnetID: "subnet-id",
+			},
+		}
+		bucketDetails := &datamodel.BucketDetails{
+			BucketName:          "bucket-other-id",
+			ServiceAccountName:  "service-account",
+			VendorSubnetID:      "other-subnet-id",
+			TenantProjectNumber: "project-number",
+		}
+		backupVault := &datamodel.BackupVault{
+			BucketDetails: datamodel.BucketDetailsArray{bucketDetails},
+		}
+
+		mockStorage.On("GetBackupVaultByUUID", ctx, "vault-id").Return(backupVault, nil)
+
+		result, err := activity.CheckForBucketResourceName(ctx, volume)
+
+		assert.NoError(tt, err)
+		assert.Nil(tt, result)
+		mockStorage.AssertExpectations(tt)
+	})
+	t.Run("CheckForBucketResourceName_ReturnsErrorWhenBackupVaultFetchFails", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(tt)
+		activity := activities.VolumeCreateActivity{SE: mockStorage}
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+		volume := &datamodel.Volume{
+			DataProtection: &datamodel.DataProtection{BackupVaultID: "vault-id"},
+		}
+
+		expectedError := errors.New("failed to fetch backup vault")
+		mockStorage.On("GetBackupVaultByUUID", ctx, "vault-id").Return(nil, expectedError)
+
+		result, err := activity.CheckForBucketResourceName(ctx, volume)
+
+		assert.Error(tt, err)
+		assert.Nil(tt, result)
+		assert.EqualError(tt, err, expectedError.Error())
+		mockStorage.AssertExpectations(tt)
+	})
+	t.Run("CheckForBucketResourceName_ReturnsNilWhenBackupVaultNotFound", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(tt)
+		activity := activities.VolumeCreateActivity{SE: mockStorage}
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+		volume := &datamodel.Volume{
+			DataProtection: &datamodel.DataProtection{BackupVaultID: "vault-id"},
+		}
+
+		mockStorage.On("GetBackupVaultByUUID", ctx, "vault-id").Return(nil, errors.New("backup vault not found"))
+
+		result, err := activity.CheckForBucketResourceName(ctx, volume)
+
+		assert.NoError(tt, err)
+		assert.Nil(tt, result)
+		mockStorage.AssertExpectations(tt)
+	})
+}
+
+func TestUpdateBackupVaultWithBucketDetails_Success(t *testing.T) {
+	mockStorage := database.NewMockStorage(t)
+	activity := activities.VolumeCreateActivity{SE: mockStorage}
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	volume := &datamodel.Volume{
+		DataProtection: &datamodel.DataProtection{BackupVaultID: "vault-id"},
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			VendorSubnetID: "subnet-id",
+		},
+	}
+	bucketDetails := &common.BucketDetails{
+		BucketName:          "bucket-name",
+		ServiceAccountName:  "service-account",
+		TenantProjectNumber: "project-number",
+		VendorSubnetID:      "subnet-id",
+	}
+	backupVault := &datamodel.BackupVault{
+		BaseModel: datamodel.BaseModel{UUID: "vault-id"},
+		BucketDetails: datamodel.BucketDetailsArray{
+			{
+				BucketName:          "bucket-name",
+				ServiceAccountName:  "service-account",
+				TenantProjectNumber: "project-number",
+				VendorSubnetID:      "subnet-id",
+			},
+		},
+	}
+
+	mockStorage.On("UpdateBackupVault", ctx, backupVault).Return(nil)
+
+	err := activity.UpdateBackupVaultWithBucketDetails(ctx, volume, bucketDetails)
+
+	assert.NoError(t, err)
+	mockStorage.AssertExpectations(t)
+}
+
+func TestUpdateBackupVaultWithBucketDetails_Failure_UpdateError(t *testing.T) {
+	mockStorage := database.NewMockStorage(t)
+	activity := activities.VolumeCreateActivity{SE: mockStorage}
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	volume := &datamodel.Volume{
+		DataProtection: &datamodel.DataProtection{BackupVaultID: "vault-id"},
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			VendorSubnetID: "subnet-id",
+		},
+	}
+	bucketDetails := &common.BucketDetails{
+		BucketName:          "bucket-name",
+		ServiceAccountName:  "service-account",
+		TenantProjectNumber: "project-number",
+		VendorSubnetID:      "subnet-id",
+	}
+	backupVault := &datamodel.BackupVault{
+		BaseModel: datamodel.BaseModel{UUID: "vault-id"},
+		BucketDetails: datamodel.BucketDetailsArray{
+			{
+				BucketName:          "bucket-name",
+				ServiceAccountName:  "service-account",
+				TenantProjectNumber: "project-number",
+				VendorSubnetID:      "subnet-id",
+			},
+		},
+	}
+
+	expectedError := errors.New("failed to update backup vault")
+	mockStorage.On("UpdateBackupVault", ctx, backupVault).Return(expectedError)
+
+	err := activity.UpdateBackupVaultWithBucketDetails(ctx, volume, bucketDetails)
+
+	assert.Error(t, err)
+	assert.EqualError(t, err, expectedError.Error())
+	mockStorage.AssertExpectations(t)
+}
+
+func TestBackupVaultExists_ReturnsNil(t *testing.T) {
+	mockStorage := database.NewMockStorage(t)
+	activity := activities.VolumeCreateActivity{SE: mockStorage}
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	volume := &datamodel.Volume{
+		DataProtection: &datamodel.DataProtection{BackupVaultID: "vault-id"},
+		Account:        &datamodel.Account{Name: "project-number"},
+	}
+	backupVault := &datamodel.BackupVault{}
+
+	mockStorage.On("GetBackupVaultByUUID", ctx, "vault-id").Return(backupVault, nil)
+
+	err := activity.CheckBackupVaultExistsInVCP(ctx, volume, "region")
+
+	assert.NoError(t, err)
+	mockStorage.AssertExpectations(t)
+}
+
+func TestBackupVaultExists_ReturnsNotFound(t *testing.T) {
+	mockStorage := database.NewMockStorage(t)
+	activity := activities.VolumeCreateActivity{SE: mockStorage}
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	volume := &datamodel.Volume{
+		DataProtection: &datamodel.DataProtection{BackupVaultID: "vault-id"},
+		Account:        &datamodel.Account{Name: "project-number"},
+	}
+
+	mockStorage.On("GetBackupVaultByUUID", ctx, "vault-id").Return(nil, errors.New("backup vault not found"))
+
+	err := activity.CheckBackupVaultExistsInVCP(ctx, volume, "region")
+
+	assert.Error(t, err)
+	mockStorage.AssertExpectations(t)
+}
+
+func TestBackupVaultVCPError(t *testing.T) {
+	mockStorage := database.NewMockStorage(t)
+	activity := activities.VolumeCreateActivity{SE: mockStorage}
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	volume := &datamodel.Volume{
+		DataProtection: &datamodel.DataProtection{BackupVaultID: "vault-id"},
+		Account:        &datamodel.Account{Name: "project-number"},
+	}
+
+	mockStorage.On("GetBackupVaultByUUID", ctx, "vault-id").Return(nil, errors.New("some error"))
+
+	err := activity.CheckBackupVaultExistsInVCP(ctx, volume, "region")
+
+	assert.Error(t, err)
+	mockStorage.AssertExpectations(t)
+}
+
+func Test_FindTenancy(t *testing.T) {
+	ctx := context.TODO()
+	consumerVPC := "test-vpc"
+	customerProjectNumber := "123456"
+	tenantProjectRegion := "us-central1"
+	logger := util.GetLogger(ctx)
+	t.Run("WhenGetTenantProjectFails", func(tt *testing.T) {
+		mgs := hyperscaler.NewMockGoogleServices(tt)
+		mgs.On("GetLogger").Return(logger)
+		mgs.On("GetTenantProject", consumerVPC, customerProjectNumber, tenantProjectRegion).Return("", errors.New("Error finding tenancy unit"))
+
+		tenancyInfo, err := activities.FindTenancy(ctx, mgs, consumerVPC, customerProjectNumber, &tenantProjectRegion)
+		assert.Error(tt, err)
+		assert.Nil(tt, tenancyInfo)
+	})
+	t.Run("WhenGetTenantProjectSucceeds", func(tt *testing.T) {
+		mgs := hyperscaler.NewMockGoogleServices(tt)
+		mgs.On("GetTenantProject", consumerVPC, customerProjectNumber, tenantProjectRegion).Return("tp-projct", nil)
+
+		tenancyInfo, err := activities.FindTenancy(ctx, mgs, consumerVPC, customerProjectNumber, &tenantProjectRegion)
+		assert.NoError(tt, err)
+		assert.NotNil(tt, tenancyInfo)
+	})
+	t.Run("WhenGetTenantProjectSucceedsWithEmptyTPRegion", func(tt *testing.T) {
+		mgs := hyperscaler.NewMockGoogleServices(tt)
+		mgs.On("GetTenantProject", consumerVPC, customerProjectNumber, "").Return("tp-projct", nil)
+
+		tenancyInfo, err := activities.FindTenancy(ctx, mgs, consumerVPC, customerProjectNumber, nil)
+		assert.NoError(tt, err)
+		assert.NotNil(tt, tenancyInfo)
+	})
+	t.Run("WhenGetGCPServiceFails", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(t)
+		activity := activities.VolumeCreateActivity{SE: mockStorage}
+		GetGCPService := activities.GetGCPService
+		defer func() {
+			activities.GetGCPService = GetGCPService
+		}()
+		activities.GetGCPService = func(ctx context.Context) (*google.GcpServices, error) {
+			return nil, errors.New("initialisation of Google GCP service failed")
+		}
+
+		tpName := "tp-projct"
+		// Act
+		result, err := activity.FindTenancy(ctx, "test-vpc", "123456", &tpName)
+
+		// Assert
+		assert.Error(t, err)
+		assert.Nil(t, result)
+		mockStorage.AssertExpectations(t)
+	})
+}
+
+func TestGenerateResourceNames_Success(t *testing.T) {
+	mockStorage := database.NewMockStorage(t)
+	activity := activities.VolumeCreateActivity{SE: mockStorage}
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	volume := &datamodel.Volume{
+		DataProtection: &datamodel.DataProtection{BackupVaultID: "vault-id"},
+	}
+	tenancyDetails := &common.TenancyInfo{RegionalTenantProject: "test-project"}
+	gcpRegion := "us-central1"
+	originalGetResourceNamesForBackup := activities.GetResourceNamesForBackup
+	defer func() { activities.GetResourceNamesForBackup = originalGetResourceNamesForBackup }()
+
+	activities.GetResourceNamesForBackup = func(region, location, project, vaultID string) (string, string, string, error) {
+		return "test-email", "test-bucket", "test-service-account", nil
+	}
+
+	resourceNames, err := activity.GenerateResourceNames(ctx, volume, tenancyDetails, gcpRegion)
+
+	assert.NoError(t, err)
+	assert.NotNil(t, resourceNames)
+	assert.Equal(t, "test-email", resourceNames.Email)
+	assert.Equal(t, "test-bucket", resourceNames.BucketName)
+	assert.Equal(t, "test-service-account", resourceNames.ServiceAccountId)
+}
+
+func TestGenerateResourceNames_ErrorFetchingResourceNames(t *testing.T) {
+	mockStorage := database.NewMockStorage(t)
+	activity := activities.VolumeCreateActivity{SE: mockStorage}
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	volume := &datamodel.Volume{
+		DataProtection: &datamodel.DataProtection{BackupVaultID: "vault-id"},
+	}
+	tenancyDetails := &common.TenancyInfo{RegionalTenantProject: "test-project"}
+	gcpRegion := "us-central1"
+
+	expectedError := errors.New("failed to fetch resource names")
+	originalGetResourceNamesForBackup := activities.GetResourceNamesForBackup
+	defer func() { activities.GetResourceNamesForBackup = originalGetResourceNamesForBackup }()
+	activities.GetResourceNamesForBackup = func(region, location, project, vaultID string) (string, string, string, error) {
+		return "", "", "", expectedError
+	}
+
+	resourceNames, err := activity.GenerateResourceNames(ctx, volume, tenancyDetails, gcpRegion)
+
+	assert.Error(t, err)
+	assert.Nil(t, resourceNames)
+	assert.EqualError(t, err, expectedError.Error())
+}
+
+func TestServiceAccountAlreadyExists(t *testing.T) {
+	mockGcpService := hyperscaler.NewMockGoogleServices(t)
+	serviceAccountId := "test-service-account"
+	projectNumber := "test-project"
+	email := "test-email"
+	bucketName := "test-bucket"
+	tenantProjectRegion := "region"
+	locationType := "region"
+
+	mockGcpService.On("GetServiceAccount", projectNumber, email).Return(&iam.ServiceAccount{}, nil)
+	mockGcpService.On("AttachOrUpdateRolesForServiceAccounts", mock.Anything, email, projectNumber).Return(nil)
+	mockGcpService.On("CreateBucketIfNotExists", mock.Anything, projectNumber, bucketName, tenantProjectRegion).Return(nil)
+
+	account, bucketDetails, err := activities.GetOrCreateAndGCSResources(mockGcpService, serviceAccountId, projectNumber, email, bucketName, tenantProjectRegion, locationType)
+
+	assert.NoError(t, err)
+	assert.NotNil(t, account)
+	assert.NotNil(t, bucketDetails)
+	assert.Equal(t, bucketName, bucketDetails[0].BucketName)
+}
+
+func TestServiceAccountCreationFails(t *testing.T) {
+	mockGcpService := hyperscaler.NewMockGoogleServices(t)
+	serviceAccountId := "test-service-account"
+	projectNumber := "test-project"
+	email := "test-email"
+	bucketName := "test-bucket"
+	tenantProjectRegion := "region"
+	locationType := "region"
+
+	mockGcpService.On("GetServiceAccount", projectNumber, email).Return(nil, errors.New("service account not found"))
+	mockGcpService.On("CreateServiceAccount", &iam.CreateServiceAccountRequest{
+		AccountId: serviceAccountId,
+		ServiceAccount: &iam.ServiceAccount{
+			DisplayName: bucketName,
+		},
+	}, projectNumber, email).Return(nil, errors.New("failed to create service account"))
+
+	account, bucketDetails, err := activities.GetOrCreateAndGCSResources(mockGcpService, serviceAccountId, projectNumber, email, bucketName, tenantProjectRegion, locationType)
+
+	assert.Error(t, err)
+	assert.Nil(t, account)
+	assert.Nil(t, bucketDetails)
+	assert.EqualError(t, err, "failed to create service account")
+}
+
+func TestBucketCreationFails(t *testing.T) {
+	mockGcpService := hyperscaler.NewMockGoogleServices(t)
+	serviceAccountId := "test-service-account"
+	projectNumber := "test-project"
+	email := "test-email"
+	bucketName := "test-bucket"
+	tenantProjectRegion := "region"
+	locationType := "region"
+
+	mockGcpService.On("GetServiceAccount", projectNumber, email).Return(&iam.ServiceAccount{}, nil)
+	mockGcpService.On("AttachOrUpdateRolesForServiceAccounts", mock.Anything, email, projectNumber).Return(nil)
+	mockGcpService.On("CreateBucketIfNotExists", mock.Anything, projectNumber, bucketName, tenantProjectRegion).Return(errors.New("failed to create bucket"))
+
+	account, bucketDetails, err := activities.GetOrCreateAndGCSResources(mockGcpService, serviceAccountId, projectNumber, email, bucketName, tenantProjectRegion, locationType)
+
+	assert.Error(t, err)
+	assert.Nil(t, account)
+	assert.Nil(t, bucketDetails)
+	assert.EqualError(t, err, "failed to create bucket")
+}
+
+func TestCreateBucketFails(t *testing.T) {
+	mockGcpService := hyperscaler.NewMockGoogleServices(t)
+	resourceName := &common.ResourceNames{
+		ServiceAccountId: "test-service-account",
+		Email:            "test-email",
+		BucketName:       "test-bucket",
+	}
+	tenancyDetails := &common.TenancyInfo{RegionalTenantProject: "test-project"}
+	region := "us-central1"
+
+	originalGetOrCreateAndGCSResources := activities.GetOrCreateAndGCSResources
+	defer func() {
+		activities.GetOrCreateAndGCSResources = originalGetOrCreateAndGCSResources
+	}()
+
+	activities.GetOrCreateAndGCSResources = func(gcpServices hyperscaler.GoogleServices, serviceAccountId, projectNumber, email, bucketName, tenantProjectRegion, locationType string) (*iam.ServiceAccount, []*common.BucketDetails, error) {
+		return nil, nil, errors.New("failed to create bucket")
+	}
+	activity := activities.VolumeCreateActivity{}
+	bucketDetails, err := activity.CreateBucket(context.Background(), resourceName, tenancyDetails, region)
+
+	assert.Error(t, err)
+	assert.Nil(t, bucketDetails)
+	mockGcpService.AssertExpectations(t)
 }

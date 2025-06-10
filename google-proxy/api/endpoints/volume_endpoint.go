@@ -154,6 +154,22 @@ func prepareCreateVolumeParams(req *gcpgenserver.VolumeCreateV1beta, params gcpg
 			}
 		}
 	}
+	if req.Volume.BackupConfig.IsSet() {
+		param.DataProtection = &models.DataProtection{}
+		reqBackupConfig, _ := req.Volume.BackupConfig.Get()
+		if reqBackupConfig.BackupVaultId.IsSet() {
+			param.DataProtection.BackupVaultID = reqBackupConfig.BackupVaultId.Value
+		}
+		if reqBackupConfig.BackupPolicyId.IsSet() {
+			param.DataProtection.BackupPolicyId = reqBackupConfig.BackupPolicyId.Value
+		}
+		if reqBackupConfig.BackupChainBytes.IsSet() {
+			param.DataProtection.BackupChainBytes = &reqBackupConfig.BackupChainBytes.Value
+		}
+		if reqBackupConfig.ScheduledBackupEnabled.IsSet() {
+			param.DataProtection.ScheduledBackupEnabled = &reqBackupConfig.ScheduledBackupEnabled.Value
+		}
+	}
 	return param, nil
 }
 
@@ -279,7 +295,31 @@ func convertModelToVCPVolume(volume *models.Volume) *gcpgenserver.VolumeV1beta {
 			})
 		}
 	}
-
+	var backupConfigId, backupVaultId string
+	var backupChainBytes int64
+	var scheduledBackupEnabled bool
+	if volume.DataProtection != nil {
+		if volume.DataProtection.BackupPolicyId != "" {
+			backupConfigId = volume.DataProtection.BackupPolicyId
+		}
+		if volume.DataProtection.BackupVaultID != "" {
+			backupVaultId = volume.DataProtection.BackupVaultID
+		}
+		if volume.DataProtection.BackupChainBytes != nil {
+			backupChainBytes = *volume.DataProtection.BackupChainBytes
+		}
+		if volume.DataProtection.ScheduledBackupEnabled != nil {
+			scheduledBackupEnabled = *volume.DataProtection.ScheduledBackupEnabled
+		}
+	}
+	res.BackupConfig = gcpgenserver.NewOptBackupConfigV1beta(
+		gcpgenserver.BackupConfigV1beta{
+			BackupVaultId:          gcpgenserver.NewOptNilString(backupVaultId),
+			BackupPolicyId:         gcpgenserver.NewOptNilString(backupConfigId),
+			BackupChainBytes:       gcpgenserver.NewOptNilInt64(backupChainBytes),
+			ScheduledBackupEnabled: gcpgenserver.NewOptNilBool(scheduledBackupEnabled),
+		},
+	)
 	return res
 }
 

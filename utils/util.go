@@ -2,9 +2,11 @@ package utils
 
 import (
 	"context"
+	"crypto/rand"
 	"encoding/json"
 	goerrors "errors"
 	"fmt"
+	"math/big"
 	"net"
 	"net/http"
 	"regexp"
@@ -37,6 +39,7 @@ var (
 	exponentialBackOffErrors      = []int{429}
 	maxExpBackOffDelay            = time.Duration(80) * time.Second
 	jitterBase                    = time.Millisecond
+	generateRandomString          = _generateRandomString
 )
 
 func ValidateIPv4Address(ipAddr string) bool {
@@ -393,4 +396,58 @@ func ConvertJsonToModel(jsonb []byte, model any) error {
 	}
 
 	return nil
+}
+
+// GenerateResourceNames generates unique service account name, email, and bucket name
+func GetResourcesNameForBackup(gcpRegion, tenantProjectRegion, tenantProjectNumber, backupVaultUUID string) (email, bucketName, serviceAccountId string, err error) {
+	const maxServiceAccountLength = 30
+	const maxBucketNameLength = 60
+
+	// Generate a random string for uniqueness
+	randCode, err := generateRandomString(6)
+	if err != nil {
+		return "", "", "", err
+	}
+
+	// Generate service account ID
+	baseServiceAccountId := "vsa-backup-" + sliceRegionForServiceAccount(gcpRegion)
+	if len(baseServiceAccountId)+len(randCode) > maxServiceAccountLength {
+		baseServiceAccountId = baseServiceAccountId[:maxServiceAccountLength-len(randCode)]
+	}
+	serviceAccountId = baseServiceAccountId + randCode
+
+	// Generate email
+	email = fmt.Sprintf("%s@%s.iam.gserviceaccount.com", serviceAccountId, tenantProjectNumber)
+
+	// Generate bucket name
+	baseBucketName := fmt.Sprintf("vsa-backup-%s", backupVaultUUID)
+	if len(baseBucketName)+len(randCode) > maxBucketNameLength {
+		baseBucketName = baseBucketName[:maxBucketNameLength-len(randCode)]
+	}
+	bucketName = baseBucketName + "-" + randCode
+
+	return email, bucketName, serviceAccountId, nil
+}
+
+// sliceRegionForServiceAccount ensures the region part of the service account name is within limits
+func sliceRegionForServiceAccount(region string) string {
+	const maxRegionLength = 25
+	if len(region) > maxRegionLength {
+		return region[:maxRegionLength]
+	}
+	return region
+}
+
+// generateRandomString generates a random alphanumeric string of the given length
+func _generateRandomString(length int) (string, error) {
+	const charset = "abcdefghijklmnopqrstuvwxyz0123456789"
+	result := make([]byte, length)
+	for i := 0; i < length; i++ {
+		n, err := rand.Int(rand.Reader, big.NewInt(int64(len(charset))))
+		if err != nil {
+			return "", err
+		}
+		result[i] = charset[n.Int64()]
+	}
+	return string(result), nil
 }

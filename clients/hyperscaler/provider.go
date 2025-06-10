@@ -4,6 +4,7 @@ import (
 	"context"
 	models "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/hyperscaler/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
+	"google.golang.org/api/iam/v1"
 )
 
 // Services describes a gcp interface which contains the required methods to create or reuse a data path in a tenant project
@@ -22,6 +23,11 @@ type Services interface {
 	GetFirewall(projectName string, firewallName string) (*models.Firewall, error)
 	ReleaseSubnetwork(region, tenantProjectNumber, subnetwork string) error
 	CreateBucketIfNotExists(ctx context.Context, projectID, bucketName, region string) error
+
+	GetServiceAccount(projectID, email string) (*iam.ServiceAccount, error)
+	CreateServiceAccount(createRequest *iam.CreateServiceAccountRequest, projectNumber, email string) (account *iam.ServiceAccount, err error)
+	IsServiceAccountCreated(email string) (account *iam.ServiceAccount, isSACreated bool, err error)
+	AttachOrUpdateRolesForServiceAccounts(roles []string, serviceAccountEmail, projectID string) error
 }
 
 type GoogleServices interface {

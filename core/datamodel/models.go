@@ -107,6 +107,7 @@ type Volume struct {
 	Pool             *Pool             `gorm:"ForeignKey:PoolID;AssociationForeignKey:ID;constraint:OnDelete:CASCADE,OnUpdate:RESTRICT;"`
 	Svm              *Svm              `gorm:"ForeignKey:SvmID;AssociationForeignKey:ID;constraint:OnDelete:CASCADE,OnUpdate:RESTRICT;"`
 	VolumeAttributes *VolumeAttributes `gorm:"column:volume_attributes;type:jsonb"`
+	DataProtection   *DataProtection   `gorm:"column:data_protection;type:jsonb"`
 }
 
 type VolumeAttributes struct {
@@ -465,4 +466,24 @@ func (immutableAttributes *ImmutableAttributes) Scan(value interface{}) error {
 // Value implements the driver.Valuer interface for ImmutableAttributes
 func (immutableAttributes ImmutableAttributes) Value() (driver.Value, error) {
 	return json.Marshal(immutableAttributes)
+}
+
+type DataProtection struct {
+	ScheduledBackupEnabled *bool  `json:"scheduled_backup_enabled"`
+	BackupVaultID          string `json:"backup_vault_id"`
+	BackupPolicyID         string `json:"backup_policy_id"`
+	BackupChainBytes       *int64 `json:"backup_chain_bytes"`
+	PolicyEnforced         *bool  `json:"policy_enforced"`
+}
+
+func (dp *DataProtection) Scan(value interface{}) error {
+	bytes, ok := value.([]byte)
+	if !ok {
+		return errors.New("type assertion to []byte failed")
+	}
+	return json.Unmarshal(bytes, dp)
+}
+
+func (dp *DataProtection) Value() (driver.Value, error) {
+	return json.Marshal(dp)
 }

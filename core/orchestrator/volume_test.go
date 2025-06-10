@@ -441,6 +441,13 @@ func TestCreateVolume(t *testing.T) {
 			DisplayName:   "Some display name",
 			PoolID:        "test-pool-uuid",
 			CreationToken: "test-creation-token",
+			DataProtection: &models.DataProtection{
+				ScheduledBackupEnabled: &[]bool{true}[0],
+				BackupVaultID:          "test-backup-vault-id",
+				BackupPolicyId:         "test-backup-policy-id",
+				BackupChainBytes:       &[]int64{1000}[0],
+				PolicyEnforced:         &[]bool{true}[0],
+			},
 		}
 
 		dbAccount := &datamodel.Account{
@@ -1084,6 +1091,13 @@ func TestValidateCreateVolumeParams(t *testing.T) {
 			Name:         "dummy-name",
 			PoolID:       pool.UUID,
 			QuotaInBytes: minQuotaInBytesPool + 1,
+			DataProtection: &models.DataProtection{
+				ScheduledBackupEnabled: &[]bool{true}[0],
+				BackupVaultID:          "test-backup-vault-id",
+				BackupPolicyId:         "test-backup-policy-id",
+				BackupChainBytes:       &[]int64{1000}[0],
+				PolicyEnforced:         &[]bool{true}[0],
+			},
 		}
 
 		err = validateCreateVolumeParams(ctx, store, params, account.ID)

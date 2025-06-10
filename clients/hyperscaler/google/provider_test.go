@@ -2,8 +2,10 @@ package google
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"net/http"
+	"net/http/httptest"
 	"testing"
 	"time"
 
@@ -13,6 +15,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
+	"google.golang.org/api/cloudresourcemanager/v1"
 	"google.golang.org/api/compute/v1"
 	"google.golang.org/api/googleapi"
 	"google.golang.org/api/iam/v1"
@@ -163,6 +166,10 @@ func TestNewGoogleClient(t *testing.T) {
 			return nil, errors.New("initializeStorageService failed")
 		}
 
+		initializeCloudProjectsService = func(ctx context.Context) (*cloudresourcemanager.Service, error) {
+			return nil, errors.New("initializeCloudProjectsService failed")
+		}
+
 		res, err := _newGoogleClient(context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{}))
 		if res != nil {
 			t.Error("unexpected result returned")
@@ -177,6 +184,45 @@ func TestNewGoogleClient(t *testing.T) {
 		initializeNetworkingService = _initializeNetworkingService
 		initializeComputeService = _initializeComputeService
 		initializeStorageService = _initializeStorageService
+		initializeCloudProjectsService = _initializeCloudProjectsService
+	})
+	t.Run("WhenInitializeCloudProjectsServiceFails", func(t *testing.T) {
+		initializeManagementService = func(ctx context.Context) (*serviceconsumermanagement.APIService, error) {
+			return &serviceconsumermanagement.APIService{
+				BasePath: "",
+			}, nil
+		}
+		initializeNetworkingService = func(ctx context.Context) (*servicenetworking.APIService, error) {
+			return nil, nil
+		}
+		initializeComputeService = func(ctx context.Context) (*compute.Service, error) {
+			return &compute.Service{
+				BasePath: "",
+			}, nil
+		}
+		initializeStorageService = func(ctx context.Context) (*storage.Client, error) {
+			return &storage.Client{}, nil
+		}
+
+		initializeCloudProjectsService = func(ctx context.Context) (*cloudresourcemanager.Service, error) {
+			return nil, errors.New("initializeCloudProjectsService failed")
+		}
+
+		res, err := _newGoogleClient(context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{}))
+		if res != nil {
+			t.Error("unexpected result returned")
+		}
+		if err == nil {
+			t.Error("error was expected")
+		}
+		if err.Error() != "initializeCloudProjectsService failed" {
+			t.Error("Incorrect error response")
+		}
+		initializeManagementService = _initializeManagementService
+		initializeNetworkingService = _initializeNetworkingService
+		initializeComputeService = _initializeComputeService
+		initializeStorageService = _initializeStorageService
+		initializeCloudProjectsService = _initializeCloudProjectsService
 	})
 	t.Run("WhenOK", func(t *testing.T) {
 		initializeManagementService = func(ctx context.Context) (*serviceconsumermanagement.APIService, error) {
@@ -201,6 +247,12 @@ func TestNewGoogleClient(t *testing.T) {
 			}, nil
 		}
 
+		initializeCloudProjectsService = func(ctx context.Context) (*cloudresourcemanager.Service, error) {
+			return &cloudresourcemanager.Service{
+				BasePath: "",
+			}, nil
+		}
+
 		initializeStorageService = func(ctx context.Context) (*storage.Client, error) {
 			return &storage.Client{}, nil
 		}
@@ -214,6 +266,7 @@ func TestNewGoogleClient(t *testing.T) {
 		initializeComputeService = _initializeComputeService
 		initializeStorageService = _initializeStorageService
 		initializeIamService = _initializeIamService
+		initializeCloudProjectsService = _initializeCloudProjectsService
 	})
 }
 
@@ -561,5 +614,503 @@ func TestInitializeIamService(t *testing.T) {
 		assert.NotNil(t, err)
 		assert.Equal(t, "client creation failed", err.Error())
 		assert.NotNil(t, wi)
+	})
+}
+
+func TestInitializeCloudProjectsService(t *testing.T) {
+	t.Run("whenOk", func(t *testing.T) {
+		defer func() {
+			newClient = scopesHttp.NewClient
+			MockMetaDataHost = env.GetString("GCP_MOCK_METADATA_HOST", "")
+		}()
+		MockMetaDataHost = "sample-server.com"
+		newClient = func(ctx context.Context, opts ...option.ClientOption) (*http.Client, string, error) {
+			return &http.Client{Timeout: time.Second}, MockMetaDataHost, nil
+		}
+		wi, err := initializeCloudProjectsService(context.Background())
+		if err != nil {
+			return
+		}
+		assert.Nil(t, err, "Unexpected error received")
+		assert.NotNil(t, wi)
+	})
+	t.Run("whenNewClientFails", func(t *testing.T) {
+		defer func() {
+			newClient = scopesHttp.NewClient
+			MockMetaDataHost = env.GetString("GCP_MOCK_METADATA_HOST", "")
+		}()
+		MockMetaDataHost = "sample-server.com"
+		newClient = func(ctx context.Context, opts ...option.ClientOption) (*http.Client, string, error) {
+			return &http.Client{Timeout: time.Second}, MockMetaDataHost, errors.New("client creation failed")
+		}
+		wi, err := initializeCloudProjectsService(context.Background())
+		if err != nil {
+			return
+		}
+		assert.NotNil(t, err)
+		assert.Equal(t, "client creation failed", err.Error())
+		assert.NotNil(t, wi)
+	})
+}
+
+func Test_GetServiceAccount(t *testing.T) {
+	projectName := "1079058383248"
+	url := "/v1/projects/" + projectName + "/serviceAccounts"
+	t.Run("WhenGetServiceAccountNotFound", func(tt *testing.T) {
+		defer testReset(tt)
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+		counter := 0
+		resp := &iam.ServiceAccount{Email: "abc"}
+		server := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
+			if counter == 0 {
+				counter = 1
+				rw.WriteHeader(http.StatusInternalServerError) // Simulate HTTP 500 error
+				return
+			}
+			if req.URL.Path == url {
+				response, err := json.Marshal(resp)
+				if err != nil {
+					rw.WriteHeader(http.StatusBadRequest)
+					return
+				}
+				_, _ = rw.Write(response)
+				return
+			}
+			rw.WriteHeader(http.StatusBadRequest)
+		}))
+
+		iamSvc, err := iam.NewService(
+			ctx, option.WithHTTPClient(&http.Client{Timeout: time.Second}), option.WithEndpoint(server.URL))
+		if err != nil {
+			tt.Errorf("Error getting service up: '%s'", err.Error())
+		}
+
+		gService := &GcpServices{
+			AdminGCPService: &AdminGCPService{
+				iamService: iamSvc,
+			},
+			Ctx:    ctx,
+			Logger: util.GetLogger(ctx),
+			Retry:  NewExponentialRetryStrategy(time.Millisecond, 3),
+		}
+		out, err := gService.GetServiceAccount(projectName, "abc")
+		assert.Nil(tt, out)
+		assert.NotNil(tt, err, "Expected error but got nil")
+	})
+	t.Run("WhenGetServiceAccountFound", func(tt *testing.T) {
+		defer testReset(tt)
+		ctx := context.Background()
+		counter := 0
+		r := &iam.ListServiceAccountsResponse{
+			Accounts: []*iam.ServiceAccount{
+				{
+					Email: "abc@google.com",
+				},
+			},
+		}
+		server := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
+			if counter == 0 {
+				counter = 1
+				rw.WriteHeader(http.StatusInternalServerError)
+				return
+			}
+			if req.URL.Path == url {
+				response, err := json.Marshal(r)
+				if err != nil {
+					rw.WriteHeader(http.StatusBadRequest)
+					return
+				}
+				_, _ = rw.Write(response)
+				return
+			}
+			rw.WriteHeader(http.StatusBadRequest)
+		}))
+		iamSvc, err := iam.NewService(
+			ctx, option.WithHTTPClient(&http.Client{Timeout: time.Second}), option.WithEndpoint(server.URL))
+		if err != nil {
+			tt.Errorf("Error getting service up: '%s'", err.Error())
+		}
+
+		gService := &GcpServices{
+			AdminGCPService: &AdminGCPService{
+				iamService: iamSvc,
+			},
+			Ctx:    ctx,
+			Logger: util.GetLogger(ctx),
+			Retry:  NewExponentialRetryStrategy(time.Millisecond, 3),
+		}
+		out, err := gService.GetServiceAccount(projectName, "abc@google.com")
+		assert.NotNil(tt, out)
+		assert.Nil(tt, err, "Expected no error but got one")
+	})
+}
+
+func Test_IsServiceAccountCreated(t *testing.T) {
+	projectName := "1079058383248"
+	url := "/v1/projects/" + projectName + "/serviceAccounts"
+	t.Run("WhenIsServiceAccountCreatedSuccess", func(tt *testing.T) {
+		defer testReset(tt)
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+		counter := 0
+		resp := &iam.ServiceAccount{Email: "abc@google.com"}
+		server := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
+			if counter == 0 {
+				counter = 1
+				rw.WriteHeader(http.StatusInternalServerError) // Simulate HTTP 500 error
+				return
+			}
+			if req.URL.Path == url {
+				response, err := json.Marshal(resp)
+				if err != nil {
+					rw.WriteHeader(http.StatusBadRequest)
+					return
+				}
+				_, _ = rw.Write(response)
+				return
+			}
+			rw.WriteHeader(http.StatusBadRequest)
+		}))
+
+		iamSvc, err := iam.NewService(
+			ctx, option.WithHTTPClient(&http.Client{Timeout: time.Second}), option.WithEndpoint(server.URL))
+		if err != nil {
+			tt.Errorf("Error getting service up: '%s'", err.Error())
+		}
+
+		gService := &GcpServices{
+			AdminGCPService: &AdminGCPService{
+				iamService: iamSvc,
+			},
+			Ctx:    ctx,
+			Logger: util.GetLogger(ctx),
+			Retry:  NewExponentialRetryStrategy(time.Millisecond, 3),
+		}
+		out, isCreated, err := gService.IsServiceAccountCreated("abc.google.com")
+		assert.Nil(tt, out)
+		assert.NotNil(tt, err, "Expected error but got nil")
+		assert.False(tt, isCreated, "Expected isCreated to be false")
+	})
+}
+
+func TestCreateServiceAccount(t *testing.T) {
+	t.Run("WhenCreateServiceAccountSuccess", func(tt *testing.T) {
+		defer testReset(tt)
+		url := "/v1/projects/test-proj/serviceAccounts"
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+		counter := 0
+		resp := &iam.ServiceAccount{Email: "abc@google.com"}
+		createRequest := &iam.CreateServiceAccountRequest{
+			AccountId:      "abc",
+			ServiceAccount: resp,
+		}
+		server := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
+			if counter == 0 {
+				counter = 1
+				rw.WriteHeader(http.StatusInternalServerError) // Simulate HTTP 500 error
+				return
+			}
+			if req.URL.Path == url {
+				response, err := json.Marshal(resp)
+				if err != nil {
+					rw.WriteHeader(http.StatusBadRequest)
+					return
+				}
+				_, _ = rw.Write(response)
+				return
+			}
+			rw.WriteHeader(http.StatusBadRequest)
+		}))
+
+		iamSvc, err := iam.NewService(
+			ctx, option.WithHTTPClient(&http.Client{Timeout: time.Second}), option.WithEndpoint(server.URL))
+		if err != nil {
+			tt.Errorf("Error getting service up: '%s'", err.Error())
+		}
+
+		gService := &GcpServices{
+			AdminGCPService: &AdminGCPService{
+				iamService: iamSvc,
+			},
+			Ctx:    ctx,
+			Logger: util.GetLogger(ctx),
+			Retry:  NewExponentialRetryStrategy(time.Millisecond, 3),
+		}
+		out, err := gService.CreateServiceAccount(createRequest, "test-proj", "abc@google.com")
+		assert.NotNil(tt, out)
+		assert.Nil(tt, err)
+	})
+	t.Run("WhenCreateServiceAccountConflict", func(tt *testing.T) {
+		defer testReset(tt)
+		url := "/v1/projects/test-proj/serviceAccounts"
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+		counter := 0
+		resp := &iam.ServiceAccount{Email: "abc@google.com"}
+		createRequest := &iam.CreateServiceAccountRequest{
+			AccountId:      "abc",
+			ServiceAccount: resp,
+		}
+		server := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
+			if counter == 0 {
+				counter = 1
+				rw.WriteHeader(http.StatusConflict) // Simulate HTTP 500 error
+				return
+			}
+			if req.URL.Path == url {
+				response, err := json.Marshal(resp)
+				if err != nil {
+					rw.WriteHeader(http.StatusBadRequest)
+					return
+				}
+				_, _ = rw.Write(response)
+				return
+			}
+			rw.WriteHeader(http.StatusBadRequest)
+		}))
+
+		iamSvc, err := iam.NewService(
+			ctx, option.WithHTTPClient(&http.Client{Timeout: time.Second}), option.WithEndpoint(server.URL))
+		if err != nil {
+			tt.Errorf("Error getting service up: '%s'", err.Error())
+		}
+
+		gService := &GcpServices{
+			AdminGCPService: &AdminGCPService{
+				iamService: iamSvc,
+			},
+			Ctx:    ctx,
+			Logger: util.GetLogger(ctx),
+			Retry:  NewExponentialRetryStrategy(time.Millisecond, 3),
+		}
+		out, err := gService.CreateServiceAccount(createRequest, "test-proj", "abc@google.com")
+		assert.Nil(tt, out)
+		assert.NotNil(tt, err)
+	})
+}
+
+func TestAddMissingRoles(t *testing.T) {
+	t.Run("DoesNotAddExistingRoles", func(t *testing.T) {
+		projectIAMPolicyBindings := []*cloudresourcemanager.Binding{
+			{
+				Role:    "roles/viewer",
+				Members: []string{"serviceAccount:existing@example.com"},
+			},
+		}
+		requiredRolesMap := map[string]bool{
+			"roles/viewer": true,
+		}
+		currentSvcAccountMember := "serviceAccount:existing@example.com"
+
+		gcpService := &GcpServices{}
+		gcpService.addMissingRoles(projectIAMPolicyBindings, requiredRolesMap, currentSvcAccountMember)
+
+		assert.Equal(t, 1, len(projectIAMPolicyBindings))
+		assert.Equal(t, "roles/viewer", projectIAMPolicyBindings[0].Role)
+		assert.Contains(t, projectIAMPolicyBindings[0].Members, currentSvcAccountMember)
+	})
+	t.Run("HandlesEmptyRolesMap", func(t *testing.T) {
+		projectIAMPolicyBindings := []*cloudresourcemanager.Binding{}
+		requiredRolesMap := map[string]bool{}
+		currentSvcAccountMember := "serviceAccount:new@example.com"
+
+		gcpService := &GcpServices{}
+		gcpService.addMissingRoles(projectIAMPolicyBindings, requiredRolesMap, currentSvcAccountMember)
+
+		assert.Equal(t, 0, len(projectIAMPolicyBindings))
+	})
+}
+
+func TestPolicyBindings(t *testing.T) {
+	t.Run("WhenPolicyBindingsUpdatedWithExistingRole", func(tt *testing.T) {
+		policyBindings := []*cloudresourcemanager.Binding{
+			{
+				Role:    "roles/editor",
+				Members: []string{"serviceAccount:existing@example.com"},
+			},
+		}
+		requiredRolesMap := map[string]bool{
+			"roles/editor": false,
+		}
+		currentSvcAccountMember := "serviceAccount:existing@example.com"
+
+		gcpService := &GcpServices{}
+		updatedBindings := gcpService.updatePolicyBindings(policyBindings, requiredRolesMap, currentSvcAccountMember)
+
+		assert.Equal(tt, 1, len(updatedBindings))
+		assert.Equal(tt, "roles/editor", updatedBindings[0].Role)
+		assert.Contains(tt, updatedBindings[0].Members, "serviceAccount:existing@example.com")
+	})
+	t.Run("WhenPolicyBindingsUpdatedWithCaseInsensitiveMemberCheck", func(tt *testing.T) {
+		policyBindings := []*cloudresourcemanager.Binding{
+			{
+				Role:    "roles/editor",
+				Members: []string{"serviceAccount:EXISTING@example.com"},
+			},
+		}
+		requiredRolesMap := map[string]bool{
+			"roles/editor": false,
+		}
+		currentSvcAccountMember := "serviceAccount:existing@example.com"
+
+		gcpService := &GcpServices{}
+		updatedBindings := gcpService.updatePolicyBindings(policyBindings, requiredRolesMap, currentSvcAccountMember)
+
+		assert.Equal(tt, 1, len(updatedBindings))
+		assert.Equal(tt, "roles/editor", updatedBindings[0].Role)
+		assert.Contains(tt, updatedBindings[0].Members, "serviceAccount:EXISTING@example.com")
+	})
+	t.Run("WhenPolicyBindingsUpdatedWithEmptyRolesMap", func(t *testing.T) {
+		policyBindings := []*cloudresourcemanager.Binding{
+			{
+				Role:    "roles/viewer",
+				Members: []string{"serviceAccount:existing@example.com"},
+			},
+		}
+		requiredRolesMap := map[string]bool{}
+		currentSvcAccountMember := "serviceAccount:new@example.com"
+
+		gcpService := &GcpServices{}
+		updatedBindings := gcpService.updatePolicyBindings(policyBindings, requiredRolesMap, currentSvcAccountMember)
+
+		assert.Equal(t, 1, len(updatedBindings))
+		assert.Equal(t, "roles/viewer", updatedBindings[0].Role)
+		assert.Contains(t, updatedBindings[0].Members, "serviceAccount:existing@example.com")
+	})
+}
+
+func TestInitializeRequiredRolesMap(t *testing.T) {
+	t.Run("WhenRequiredRolesMapInitializedWithValidRoles", func(t *testing.T) {
+		roles := []string{"roles/viewer", "roles/editor"}
+		gcpService := &GcpServices{}
+		requiredRolesMap := gcpService.initializeRequiredRolesMap(roles)
+
+		assert.Equal(t, 2, len(requiredRolesMap))
+		assert.False(t, requiredRolesMap["roles/viewer"])
+		assert.False(t, requiredRolesMap["roles/editor"])
+	})
+	t.Run("WhenRequiredRolesMapInitializedWithEmptyRoles", func(t *testing.T) {
+		roles := []string{}
+		gcpService := &GcpServices{}
+		requiredRolesMap := gcpService.initializeRequiredRolesMap(roles)
+
+		assert.Equal(t, 0, len(requiredRolesMap))
+	})
+	t.Run("WhenRequiredRolesMapHandlesDuplicateRoles", func(t *testing.T) {
+		roles := []string{"roles/viewer", "roles/viewer", "roles/editor"}
+		gcpService := &GcpServices{}
+		requiredRolesMap := gcpService.initializeRequiredRolesMap(roles)
+
+		assert.Equal(t, 2, len(requiredRolesMap))
+		assert.False(t, requiredRolesMap["roles/viewer"])
+		assert.False(t, requiredRolesMap["roles/editor"])
+	})
+}
+
+func Test_GetProjectIamPolicyd(t *testing.T) {
+	projectName := "1079058383248"
+	url := "/v1/projects/" + projectName + ":getIamPolicy"
+	t.Run("WhenGetProjectIamPolicySuccess", func(tt *testing.T) {
+		defer testReset(tt)
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+		counter := 0
+		resp := &cloudresourcemanager.Policy{
+			Bindings: []*cloudresourcemanager.Binding{
+				{
+					Role:    "roles/viewer",
+					Members: []string{"serviceAccount:existing@example.com"},
+				},
+			},
+		}
+		server := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
+			if counter == 0 {
+				counter = 1
+				rw.WriteHeader(http.StatusInternalServerError) // Simulate HTTP 500 error
+				return
+			}
+			if req.URL.Path == url {
+				response, err := json.Marshal(resp)
+				if err != nil {
+					rw.WriteHeader(http.StatusBadRequest)
+					return
+				}
+				_, _ = rw.Write(response)
+				return
+			}
+			rw.WriteHeader(http.StatusBadRequest)
+		}))
+
+		pjSvc, err := cloudresourcemanager.NewService(ctx, option.WithHTTPClient(&http.Client{Timeout: time.Second}), option.WithEndpoint(server.URL))
+		if err != nil {
+			tt.Errorf("Error getting service up: '%s'", err.Error())
+		}
+
+		gService := &GcpServices{
+			AdminGCPService: &AdminGCPService{
+				cloudProjectsService: pjSvc,
+			},
+			Ctx:    ctx,
+			Logger: util.GetLogger(ctx),
+			Retry:  NewExponentialRetryStrategy(time.Millisecond, 3),
+		}
+		out, err := gService.getProjectIamPolicy(projectName)
+		assert.NotNil(tt, out)
+		assert.Nil(tt, err)
+	})
+}
+
+func Test_SetProjectIamPolicyd(t *testing.T) {
+	projectName := "1079058383248"
+	url := "/v1/projects/" + projectName + ":setIamPolicy"
+	t.Run("WhenSetProjectIamPolicySuccess", func(tt *testing.T) {
+		defer testReset(tt)
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+		counter := 0
+		resp := &cloudresourcemanager.Policy{
+			Bindings: []*cloudresourcemanager.Binding{
+				{
+					Role:    "roles/viewer",
+					Members: []string{"serviceAccount:existing@example.com"},
+				},
+			},
+		}
+		server := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
+			if counter == 0 {
+				counter = 1
+				rw.WriteHeader(http.StatusInternalServerError) // Simulate HTTP 500 error
+				return
+			}
+			if req.URL.Path == url {
+				response, err := json.Marshal(resp)
+				if err != nil {
+					rw.WriteHeader(http.StatusBadRequest)
+					return
+				}
+				_, _ = rw.Write(response)
+				return
+			}
+			rw.WriteHeader(http.StatusBadRequest)
+		}))
+
+		pjSvc, err := cloudresourcemanager.NewService(ctx, option.WithHTTPClient(&http.Client{Timeout: time.Second}), option.WithEndpoint(server.URL))
+		if err != nil {
+			tt.Errorf("Error getting service up: '%s'", err.Error())
+		}
+		projectIAMPolicyBindings := []*cloudresourcemanager.Binding{
+			{
+				Role:    "roles/viewer",
+				Members: []string{"serviceAccount:existing@example.com"},
+			},
+		}
+		etag := "etag"
+
+		gService := &GcpServices{
+			AdminGCPService: &AdminGCPService{
+				cloudProjectsService: pjSvc,
+			},
+			Ctx:    ctx,
+			Logger: util.GetLogger(ctx),
+			Retry:  NewExponentialRetryStrategy(time.Millisecond, 3),
+		}
+		err = gService.setProjectIamPolicy(projectName, etag, projectIAMPolicyBindings)
+		assert.Nil(tt, err)
 	})
 }

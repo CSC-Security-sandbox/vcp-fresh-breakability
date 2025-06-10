@@ -6,6 +6,7 @@ import (
 	context "context"
 	mock "github.com/stretchr/testify/mock"
 	log "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
+	iam "google.golang.org/api/iam/v1"
 	models "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/hyperscaler/models"
 )
 
@@ -20,6 +21,54 @@ type MockGoogleServices_Expecter struct {
 
 func (_m *MockGoogleServices) EXPECT() *MockGoogleServices_Expecter {
 	return &MockGoogleServices_Expecter{mock: &_m.Mock}
+}
+
+// AttachOrUpdateRolesForServiceAccounts provides a mock function with given fields: roles, serviceAccountEmail, projectID
+func (_m *MockGoogleServices) AttachOrUpdateRolesForServiceAccounts(roles []string, serviceAccountEmail string, projectID string) error {
+	ret := _m.Called(roles, serviceAccountEmail, projectID)
+
+	if len(ret) == 0 {
+		panic("no return value specified for AttachOrUpdateRolesForServiceAccounts")
+	}
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func([]string, string, string) error); ok {
+		r0 = rf(roles, serviceAccountEmail, projectID)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// MockGoogleServices_AttachOrUpdateRolesForServiceAccounts_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'AttachOrUpdateRolesForServiceAccounts'
+type MockGoogleServices_AttachOrUpdateRolesForServiceAccounts_Call struct {
+	*mock.Call
+}
+
+// AttachOrUpdateRolesForServiceAccounts is a helper method to define mock.On call
+//   - roles []string
+//   - serviceAccountEmail string
+//   - projectID string
+func (_e *MockGoogleServices_Expecter) AttachOrUpdateRolesForServiceAccounts(roles interface{}, serviceAccountEmail interface{}, projectID interface{}) *MockGoogleServices_AttachOrUpdateRolesForServiceAccounts_Call {
+	return &MockGoogleServices_AttachOrUpdateRolesForServiceAccounts_Call{Call: _e.mock.On("AttachOrUpdateRolesForServiceAccounts", roles, serviceAccountEmail, projectID)}
+}
+
+func (_c *MockGoogleServices_AttachOrUpdateRolesForServiceAccounts_Call) Run(run func(roles []string, serviceAccountEmail string, projectID string)) *MockGoogleServices_AttachOrUpdateRolesForServiceAccounts_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].([]string), args[1].(string), args[2].(string))
+	})
+	return _c
+}
+
+func (_c *MockGoogleServices_AttachOrUpdateRolesForServiceAccounts_Call) Return(_a0 error) *MockGoogleServices_AttachOrUpdateRolesForServiceAccounts_Call {
+	_c.Call.Return(_a0)
+	return _c
+}
+
+func (_c *MockGoogleServices_AttachOrUpdateRolesForServiceAccounts_Call) RunAndReturn(run func([]string, string, string) error) *MockGoogleServices_AttachOrUpdateRolesForServiceAccounts_Call {
+	_c.Call.Return(run)
+	return _c
 }
 
 // CreateBucketIfNotExists provides a mock function with given fields: ctx, projectID, bucketName, region
@@ -67,6 +116,66 @@ func (_c *MockGoogleServices_CreateBucketIfNotExists_Call) Return(_a0 error) *Mo
 }
 
 func (_c *MockGoogleServices_CreateBucketIfNotExists_Call) RunAndReturn(run func(context.Context, string, string, string) error) *MockGoogleServices_CreateBucketIfNotExists_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// CreateServiceAccount provides a mock function with given fields: createRequest, projectNumber, email
+func (_m *MockGoogleServices) CreateServiceAccount(createRequest *iam.CreateServiceAccountRequest, projectNumber string, email string) (*iam.ServiceAccount, error) {
+	ret := _m.Called(createRequest, projectNumber, email)
+
+	if len(ret) == 0 {
+		panic("no return value specified for CreateServiceAccount")
+	}
+
+	var r0 *iam.ServiceAccount
+	var r1 error
+	if rf, ok := ret.Get(0).(func(*iam.CreateServiceAccountRequest, string, string) (*iam.ServiceAccount, error)); ok {
+		return rf(createRequest, projectNumber, email)
+	}
+	if rf, ok := ret.Get(0).(func(*iam.CreateServiceAccountRequest, string, string) *iam.ServiceAccount); ok {
+		r0 = rf(createRequest, projectNumber, email)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*iam.ServiceAccount)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(*iam.CreateServiceAccountRequest, string, string) error); ok {
+		r1 = rf(createRequest, projectNumber, email)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockGoogleServices_CreateServiceAccount_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'CreateServiceAccount'
+type MockGoogleServices_CreateServiceAccount_Call struct {
+	*mock.Call
+}
+
+// CreateServiceAccount is a helper method to define mock.On call
+//   - createRequest *iam.CreateServiceAccountRequest
+//   - projectNumber string
+//   - email string
+func (_e *MockGoogleServices_Expecter) CreateServiceAccount(createRequest interface{}, projectNumber interface{}, email interface{}) *MockGoogleServices_CreateServiceAccount_Call {
+	return &MockGoogleServices_CreateServiceAccount_Call{Call: _e.mock.On("CreateServiceAccount", createRequest, projectNumber, email)}
+}
+
+func (_c *MockGoogleServices_CreateServiceAccount_Call) Run(run func(createRequest *iam.CreateServiceAccountRequest, projectNumber string, email string)) *MockGoogleServices_CreateServiceAccount_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(*iam.CreateServiceAccountRequest), args[1].(string), args[2].(string))
+	})
+	return _c
+}
+
+func (_c *MockGoogleServices_CreateServiceAccount_Call) Return(account *iam.ServiceAccount, err error) *MockGoogleServices_CreateServiceAccount_Call {
+	_c.Call.Return(account, err)
+	return _c
+}
+
+func (_c *MockGoogleServices_CreateServiceAccount_Call) RunAndReturn(run func(*iam.CreateServiceAccountRequest, string, string) (*iam.ServiceAccount, error)) *MockGoogleServices_CreateServiceAccount_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -325,6 +434,65 @@ func (_c *MockGoogleServices_GetLogger_Call) Return(_a0 log.Logger) *MockGoogleS
 }
 
 func (_c *MockGoogleServices_GetLogger_Call) RunAndReturn(run func() log.Logger) *MockGoogleServices_GetLogger_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// GetServiceAccount provides a mock function with given fields: projectID, email
+func (_m *MockGoogleServices) GetServiceAccount(projectID string, email string) (*iam.ServiceAccount, error) {
+	ret := _m.Called(projectID, email)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetServiceAccount")
+	}
+
+	var r0 *iam.ServiceAccount
+	var r1 error
+	if rf, ok := ret.Get(0).(func(string, string) (*iam.ServiceAccount, error)); ok {
+		return rf(projectID, email)
+	}
+	if rf, ok := ret.Get(0).(func(string, string) *iam.ServiceAccount); ok {
+		r0 = rf(projectID, email)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*iam.ServiceAccount)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(string, string) error); ok {
+		r1 = rf(projectID, email)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockGoogleServices_GetServiceAccount_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetServiceAccount'
+type MockGoogleServices_GetServiceAccount_Call struct {
+	*mock.Call
+}
+
+// GetServiceAccount is a helper method to define mock.On call
+//   - projectID string
+//   - email string
+func (_e *MockGoogleServices_Expecter) GetServiceAccount(projectID interface{}, email interface{}) *MockGoogleServices_GetServiceAccount_Call {
+	return &MockGoogleServices_GetServiceAccount_Call{Call: _e.mock.On("GetServiceAccount", projectID, email)}
+}
+
+func (_c *MockGoogleServices_GetServiceAccount_Call) Run(run func(projectID string, email string)) *MockGoogleServices_GetServiceAccount_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(string), args[1].(string))
+	})
+	return _c
+}
+
+func (_c *MockGoogleServices_GetServiceAccount_Call) Return(_a0 *iam.ServiceAccount, _a1 error) *MockGoogleServices_GetServiceAccount_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockGoogleServices_GetServiceAccount_Call) RunAndReturn(run func(string, string) (*iam.ServiceAccount, error)) *MockGoogleServices_GetServiceAccount_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -638,6 +806,71 @@ func (_c *MockGoogleServices_IsAdminClientInitialized_Call) Return(_a0 bool) *Mo
 }
 
 func (_c *MockGoogleServices_IsAdminClientInitialized_Call) RunAndReturn(run func() bool) *MockGoogleServices_IsAdminClientInitialized_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// IsServiceAccountCreated provides a mock function with given fields: email
+func (_m *MockGoogleServices) IsServiceAccountCreated(email string) (*iam.ServiceAccount, bool, error) {
+	ret := _m.Called(email)
+
+	if len(ret) == 0 {
+		panic("no return value specified for IsServiceAccountCreated")
+	}
+
+	var r0 *iam.ServiceAccount
+	var r1 bool
+	var r2 error
+	if rf, ok := ret.Get(0).(func(string) (*iam.ServiceAccount, bool, error)); ok {
+		return rf(email)
+	}
+	if rf, ok := ret.Get(0).(func(string) *iam.ServiceAccount); ok {
+		r0 = rf(email)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*iam.ServiceAccount)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(string) bool); ok {
+		r1 = rf(email)
+	} else {
+		r1 = ret.Get(1).(bool)
+	}
+
+	if rf, ok := ret.Get(2).(func(string) error); ok {
+		r2 = rf(email)
+	} else {
+		r2 = ret.Error(2)
+	}
+
+	return r0, r1, r2
+}
+
+// MockGoogleServices_IsServiceAccountCreated_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'IsServiceAccountCreated'
+type MockGoogleServices_IsServiceAccountCreated_Call struct {
+	*mock.Call
+}
+
+// IsServiceAccountCreated is a helper method to define mock.On call
+//   - email string
+func (_e *MockGoogleServices_Expecter) IsServiceAccountCreated(email interface{}) *MockGoogleServices_IsServiceAccountCreated_Call {
+	return &MockGoogleServices_IsServiceAccountCreated_Call{Call: _e.mock.On("IsServiceAccountCreated", email)}
+}
+
+func (_c *MockGoogleServices_IsServiceAccountCreated_Call) Run(run func(email string)) *MockGoogleServices_IsServiceAccountCreated_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(string))
+	})
+	return _c
+}
+
+func (_c *MockGoogleServices_IsServiceAccountCreated_Call) Return(account *iam.ServiceAccount, isSACreated bool, err error) *MockGoogleServices_IsServiceAccountCreated_Call {
+	_c.Call.Return(account, isSACreated, err)
+	return _c
+}
+
+func (_c *MockGoogleServices_IsServiceAccountCreated_Call) RunAndReturn(run func(string) (*iam.ServiceAccount, bool, error)) *MockGoogleServices_IsServiceAccountCreated_Call {
 	_c.Call.Return(run)
 	return _c
 }

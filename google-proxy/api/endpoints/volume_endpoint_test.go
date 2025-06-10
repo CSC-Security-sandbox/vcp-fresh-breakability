@@ -35,6 +35,14 @@ func TestPrepareCreateVolumeParams(t *testing.T) {
 						OsType: gcpgenserver.NewOptBlockPropertiesV1betaOsType("LINUX"),
 					},
 				),
+				BackupConfig: gcpgenserver.NewOptBackupConfigV1beta(
+					gcpgenserver.BackupConfigV1beta{
+						BackupChainBytes:       gcpgenserver.NewOptNilInt64(10199181),
+						BackupPolicyId:         gcpgenserver.NewOptNilString("backup-policy-id"),
+						BackupVaultId:          gcpgenserver.NewOptNilString("backup-vault-id"),
+						ScheduledBackupEnabled: gcpgenserver.NewOptNilBool(true),
+					},
+				),
 			},
 			VolumeType: gcpgenserver.NewOptVolumeCreateV1betaVolumeType("SECONDARY"),
 		}
@@ -58,6 +66,12 @@ func TestPrepareCreateVolumeParams(t *testing.T) {
 			},
 			Protocols: []string{
 				"ISCSI",
+			},
+			DataProtection: &models.DataProtection{
+				ScheduledBackupEnabled: nillable.GetBoolPtr(true),
+				BackupVaultID:          "backup-vault-id",
+				BackupPolicyId:         "backup-policy-id",
+				BackupChainBytes:       nillable.GetInt64Ptr(10199181),
 			},
 		}
 		result, err := prepareCreateVolumeParams(req, params, region)
@@ -478,6 +492,13 @@ func TestV1betaGetMultipleVolumes(t *testing.T) {
 			CreationToken: "test-token",
 			PoolID:        "test-pool",
 			QuotaInBytes:  1024,
+			DataProtection: &models.DataProtection{
+				ScheduledBackupEnabled: nillable.GetBoolPtr(true),
+				BackupVaultID:          "backup-vault-id",
+				BackupPolicyId:         "backup-policy-id",
+				BackupChainBytes:       nillable.GetInt64Ptr(10199181),
+				PolicyEnforced:         nillable.GetBoolPtr(true),
+			},
 		})
 
 		mockOrchestrator.EXPECT().GetMultipleVolumes(mock.Anything, mock.Anything, mock.Anything).Return(vcpVolumes, nil)

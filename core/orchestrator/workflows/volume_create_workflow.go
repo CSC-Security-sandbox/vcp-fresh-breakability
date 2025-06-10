@@ -31,7 +31,7 @@ func CreateVolumeWorkflow(ctx workflow.Context, params *common.CreateVolumeParam
 	if err != nil {
 		return nil, err
 	}
-	_, err = volumeWf.Run(ctx, volume)
+	_, err = volumeWf.Run(ctx, volume, params.Region)
 	if err != nil {
 		volumeWf.Status = WorkflowStatusFailed
 		err2 := volumeWf.UpdateJobStatus(ctx, string(models.JobsStateDONE), err)
@@ -66,6 +66,7 @@ func (wf *volumeCreateWorkflow) Setup(ctx workflow.Context, input interface{}) e
 
 func (wf *volumeCreateWorkflow) Run(ctx workflow.Context, args ...interface{}) (interface{}, error) {
 	volume := args[0].(*datamodel.Volume)
+	region := args[1].(string)
 	volumeActivity := &activities.VolumeCreateActivity{}
 	retryPolicy, err := PopulateRetryPolicyParams()
 	if err != nil {
@@ -119,6 +120,47 @@ func (wf *volumeCreateWorkflow) Run(ctx workflow.Context, args ...interface{}) (
 	err = workflow.ExecuteActivity(ctx, volumeActivity.CreateLunMap, &dbVolume, &lunMapParams, &node).Get(ctx, nil)
 	if err != nil {
 		return nil, err
+	}
+
+	if dbVolume.DataProtection != nil && dbVolume.DataProtection.BackupVaultID != "" {
+		tenancyDetails := &common.TenancyInfo{}
+		err = workflow.ExecuteActivity(ctx, volumeActivity.FindTenancy, volume.VolumeAttributes.VendorSubnetID, volume.Account.Name, &region).Get(ctx, &tenancyDetails)
+		if err != nil {
+			return nil, err
+		}
+
+		err = workflow.ExecuteActivity(ctx, volumeActivity.CheckBackupVaultExistsInVCP, &dbVolume, &region).Get(ctx, nil)
+		if err != nil {
+			return nil, err
+		}
+
+		bucketDetails := &common.BucketDetails{}
+		err = workflow.ExecuteActivity(ctx, volumeActivity.CheckForBucketResourceName, &dbVolume).Get(ctx, &bucketDetails)
+		if err != nil {
+			return nil, err
+		}
+		if bucketDetails.BucketName == "" && bucketDetails.ServiceAccountName == "" && bucketDetails.TenantProjectNumber == "" {
+			resourceName := &common.ResourceNames{}
+			err = workflow.ExecuteActivity(ctx, volumeActivity.GenerateResourceNames, &dbVolume, &tenancyDetails, region).Get(ctx, &resourceName)
+			if err != nil {
+				return nil, err
+			}
+
+			BucketDetails := &common.BucketDetails{}
+			err = workflow.ExecuteActivity(ctx, volumeActivity.CreateBucket, &resourceName, &tenancyDetails, region).Get(ctx, &BucketDetails)
+			if err != nil {
+				return nil, err
+			}
+			bucketDetails.BucketName = BucketDetails.BucketName
+			bucketDetails.ServiceAccountName = BucketDetails.ServiceAccountName
+			bucketDetails.TenantProjectNumber = BucketDetails.TenantProjectNumber
+			bucketDetails.VendorSubnetID = BucketDetails.VendorSubnetID
+		}
+
+		err = workflow.ExecuteActivity(ctx, volumeActivity.UpdateBackupVaultWithBucketDetails, &dbVolume, &bucketDetails).Get(ctx, nil)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	dbVolume.VolumeAttributes.BlockProperties.LunSerialNumber = lun.SerialNumber

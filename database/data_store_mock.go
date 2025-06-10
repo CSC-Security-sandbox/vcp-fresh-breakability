@@ -141,6 +141,65 @@ func (_c *MockDataStore_CreateBackupVault_Call) RunAndReturn(run func(context.Co
 	return _c
 }
 
+// CreateBackupVaultEntryInVCP provides a mock function with given fields: ctx, bv
+func (_m *MockDataStore) CreateBackupVaultEntryInVCP(ctx context.Context, bv *datamodel.BackupVault) (*datamodel.BackupVault, error) {
+	ret := _m.Called(ctx, bv)
+
+	if len(ret) == 0 {
+		panic("no return value specified for CreateBackupVaultEntryInVCP")
+	}
+
+	var r0 *datamodel.BackupVault
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, *datamodel.BackupVault) (*datamodel.BackupVault, error)); ok {
+		return rf(ctx, bv)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, *datamodel.BackupVault) *datamodel.BackupVault); ok {
+		r0 = rf(ctx, bv)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*datamodel.BackupVault)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, *datamodel.BackupVault) error); ok {
+		r1 = rf(ctx, bv)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockDataStore_CreateBackupVaultEntryInVCP_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'CreateBackupVaultEntryInVCP'
+type MockDataStore_CreateBackupVaultEntryInVCP_Call struct {
+	*mock.Call
+}
+
+// CreateBackupVaultEntryInVCP is a helper method to define mock.On call
+//   - ctx context.Context
+//   - bv *datamodel.BackupVault
+func (_e *MockDataStore_Expecter) CreateBackupVaultEntryInVCP(ctx interface{}, bv interface{}) *MockDataStore_CreateBackupVaultEntryInVCP_Call {
+	return &MockDataStore_CreateBackupVaultEntryInVCP_Call{Call: _e.mock.On("CreateBackupVaultEntryInVCP", ctx, bv)}
+}
+
+func (_c *MockDataStore_CreateBackupVaultEntryInVCP_Call) Run(run func(ctx context.Context, bv *datamodel.BackupVault)) *MockDataStore_CreateBackupVaultEntryInVCP_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(*datamodel.BackupVault))
+	})
+	return _c
+}
+
+func (_c *MockDataStore_CreateBackupVaultEntryInVCP_Call) Return(_a0 *datamodel.BackupVault, _a1 error) *MockDataStore_CreateBackupVaultEntryInVCP_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockDataStore_CreateBackupVaultEntryInVCP_Call) RunAndReturn(run func(context.Context, *datamodel.BackupVault) (*datamodel.BackupVault, error)) *MockDataStore_CreateBackupVaultEntryInVCP_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // CreateHostGroup provides a mock function with given fields: ctx, hostGroup
 func (_m *MockDataStore) CreateHostGroup(ctx context.Context, hostGroup *datamodel.HostGroup) (*datamodel.HostGroup, error) {
 	ret := _m.Called(ctx, hostGroup)
@@ -1637,6 +1696,65 @@ func (_c *MockDataStore_GetBackupVaultByNameAndOwnerID_Call) Return(_a0 *datamod
 }
 
 func (_c *MockDataStore_GetBackupVaultByNameAndOwnerID_Call) RunAndReturn(run func(context.Context, string, string) (*datamodel.BackupVault, error)) *MockDataStore_GetBackupVaultByNameAndOwnerID_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// GetBackupVaultByUUID provides a mock function with given fields: ctx, backupVaultUUID
+func (_m *MockDataStore) GetBackupVaultByUUID(ctx context.Context, backupVaultUUID string) (*datamodel.BackupVault, error) {
+	ret := _m.Called(ctx, backupVaultUUID)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetBackupVaultByUUID")
+	}
+
+	var r0 *datamodel.BackupVault
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, string) (*datamodel.BackupVault, error)); ok {
+		return rf(ctx, backupVaultUUID)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, string) *datamodel.BackupVault); ok {
+		r0 = rf(ctx, backupVaultUUID)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*datamodel.BackupVault)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, string) error); ok {
+		r1 = rf(ctx, backupVaultUUID)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockDataStore_GetBackupVaultByUUID_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetBackupVaultByUUID'
+type MockDataStore_GetBackupVaultByUUID_Call struct {
+	*mock.Call
+}
+
+// GetBackupVaultByUUID is a helper method to define mock.On call
+//   - ctx context.Context
+//   - backupVaultUUID string
+func (_e *MockDataStore_Expecter) GetBackupVaultByUUID(ctx interface{}, backupVaultUUID interface{}) *MockDataStore_GetBackupVaultByUUID_Call {
+	return &MockDataStore_GetBackupVaultByUUID_Call{Call: _e.mock.On("GetBackupVaultByUUID", ctx, backupVaultUUID)}
+}
+
+func (_c *MockDataStore_GetBackupVaultByUUID_Call) Run(run func(ctx context.Context, backupVaultUUID string)) *MockDataStore_GetBackupVaultByUUID_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(string))
+	})
+	return _c
+}
+
+func (_c *MockDataStore_GetBackupVaultByUUID_Call) Return(_a0 *datamodel.BackupVault, _a1 error) *MockDataStore_GetBackupVaultByUUID_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockDataStore_GetBackupVaultByUUID_Call) RunAndReturn(run func(context.Context, string) (*datamodel.BackupVault, error)) *MockDataStore_GetBackupVaultByUUID_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -3280,6 +3398,53 @@ func (_c *MockDataStore_SavePoolWithVsaClusterDetails_Call) Return(_a0 error) *M
 }
 
 func (_c *MockDataStore_SavePoolWithVsaClusterDetails_Call) RunAndReturn(run func(context.Context, *datamodel.Pool, *datamodel.ClusterDetails) error) *MockDataStore_SavePoolWithVsaClusterDetails_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// UpdateBackupVault provides a mock function with given fields: ctx, backupVault
+func (_m *MockDataStore) UpdateBackupVault(ctx context.Context, backupVault *datamodel.BackupVault) error {
+	ret := _m.Called(ctx, backupVault)
+
+	if len(ret) == 0 {
+		panic("no return value specified for UpdateBackupVault")
+	}
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(context.Context, *datamodel.BackupVault) error); ok {
+		r0 = rf(ctx, backupVault)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// MockDataStore_UpdateBackupVault_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'UpdateBackupVault'
+type MockDataStore_UpdateBackupVault_Call struct {
+	*mock.Call
+}
+
+// UpdateBackupVault is a helper method to define mock.On call
+//   - ctx context.Context
+//   - backupVault *datamodel.BackupVault
+func (_e *MockDataStore_Expecter) UpdateBackupVault(ctx interface{}, backupVault interface{}) *MockDataStore_UpdateBackupVault_Call {
+	return &MockDataStore_UpdateBackupVault_Call{Call: _e.mock.On("UpdateBackupVault", ctx, backupVault)}
+}
+
+func (_c *MockDataStore_UpdateBackupVault_Call) Run(run func(ctx context.Context, backupVault *datamodel.BackupVault)) *MockDataStore_UpdateBackupVault_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(*datamodel.BackupVault))
+	})
+	return _c
+}
+
+func (_c *MockDataStore_UpdateBackupVault_Call) Return(_a0 error) *MockDataStore_UpdateBackupVault_Call {
+	_c.Call.Return(_a0)
+	return _c
+}
+
+func (_c *MockDataStore_UpdateBackupVault_Call) RunAndReturn(run func(context.Context, *datamodel.BackupVault) error) *MockDataStore_UpdateBackupVault_Call {
 	_c.Call.Return(run)
 	return _c
 }

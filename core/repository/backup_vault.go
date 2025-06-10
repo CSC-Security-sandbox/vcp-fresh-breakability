@@ -98,9 +98,65 @@ func (d *DataStoreRepository) GetBackupVaultByUUID(ctx context.Context, backupVa
 	db := d.db.GORM().WithContext(ctx)
 	dbBackupVault, err := getBackupVaultWithDetails(db, &datamodel.BackupVault{BaseModel: datamodel.BaseModel{UUID: backupVaultID}})
 	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, customerrors.NewNotFoundErr("backup vault", &backupVaultID)
+		}
 		return nil, err
 	}
 	return dbBackupVault, nil
+}
+
+func (d *DataStoreRepository) CreateBackupVaultEntryInVCP(ctx context.Context, bv *datamodel.BackupVault) (*datamodel.BackupVault, error) {
+	db := d.db.GORM().WithContext(ctx)
+	tx, err := startTransaction(db)
+	if err != nil {
+		return nil, err
+	}
+
+	defer func() {
+		if r := recover(); r != nil {
+			tx.Rollback()
+			panic(r)
+		} else if err != nil {
+			tx.Rollback()
+		} else {
+			tx.Commit()
+		}
+	}()
+
+	err = tx.Create(bv).Error
+	if err != nil {
+		return nil, err
+	}
+
+	dbBackupVault, err := getBackupVaultWithDetails(tx, bv)
+	if err != nil {
+		return nil, err
+	}
+	return dbBackupVault, nil
+}
+
+func (d *DataStoreRepository) UpdateBackupVault(ctx context.Context, bv *datamodel.BackupVault) error {
+	db := d.db.GORM().WithContext(ctx)
+	tx, err := startTransaction(db)
+	if err != nil {
+		return err
+	}
+	logger := util.GetLogger(ctx)
+	defer commitOrRollbackOnError(logger, tx, &err)
+
+	dbBv, err := getBackupVaultWithDetails(tx, &datamodel.BackupVault{BaseModel: datamodel.BaseModel{UUID: bv.UUID}})
+	if err != nil {
+		return err
+	}
+
+	dbBv.UpdatedAt = time.Now()
+	dbBv.BucketDetails = bv.BucketDetails
+
+	if err = tx.Updates(dbBv).Error; err != nil {
+		return err
+	}
+	return nil
 }
 
 // CreatingBackupVault creates a new backup vault in the database

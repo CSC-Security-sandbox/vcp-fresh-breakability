@@ -117,7 +117,8 @@ func TestGetBackupVaultByUUID(t *testing.T) {
 		if err != nil {
 			tt.Fatalf("Failed to create backup vault: %v", err)
 		}
-
+		originalGetBackupVaultWithDetails := getBackupVaultWithDetails
+		defer func() { getBackupVaultWithDetails = originalGetBackupVaultWithDetails }()
 		getBackupVaultWithDetails = func(db *gorm.DB, bv *datamodel.BackupVault) (*datamodel.BackupVault, error) {
 			return backupVault, nil
 		}
@@ -142,6 +143,8 @@ func TestGetBackupVaultByUUID(t *testing.T) {
 		if err != nil {
 			tt.Fatalf("Failed to clean up test database: %v", err)
 		}
+		originalGetBackupVaultWithDetails := getBackupVaultWithDetails
+		defer func() { getBackupVaultWithDetails = originalGetBackupVaultWithDetails }()
 		getBackupVaultWithDetails = func(db *gorm.DB, bv *datamodel.BackupVault) (*datamodel.BackupVault, error) {
 			return nil, gorm.ErrRecordNotFound
 		}
@@ -150,8 +153,8 @@ func TestGetBackupVaultByUUID(t *testing.T) {
 		if err == nil {
 			tt.Errorf("Expected error, got nil")
 		}
-		if !errors.Is(err, gorm.ErrRecordNotFound) {
-			tt.Errorf("Expected error %v, got %v", gorm.ErrRecordNotFound, err)
+		if err.Error() != "backup vault 'non-existent-uuid' not found" {
+			tt.Errorf("Expected error 'backup vault 'non-existent-uuid' not found', got %v", err)
 		}
 	})
 }
@@ -186,6 +189,9 @@ func TestCreatingBackupVault(t *testing.T) {
 				BaseModel: datamodel.BaseModel{ID: account.ID, UUID: account.UUID},
 			},
 		}
+		originalGetBackupVaultWithDetails := getBackupVaultWithDetails
+		defer func() { getBackupVaultWithDetails = originalGetBackupVaultWithDetails }()
+
 		getBackupVaultWithDetails = func(db *gorm.DB, bv *datamodel.BackupVault) (*datamodel.BackupVault, error) {
 			return backupVault, nil
 		}
@@ -432,6 +438,8 @@ func TestCreateBackupVaultCreatesAndUpdatesBackupVaultSuccessfully(t *testing.T)
 		vcpBvParams := &datamodel.BackupVault{
 			BaseModel: datamodel.BaseModel{UUID: "non-existent-uuid"},
 		}
+		originalGetBackupVaultWithDetails := getBackupVaultWithDetails
+		defer func() { getBackupVaultWithDetails = originalGetBackupVaultWithDetails }()
 
 		getBackupVaultWithDetails = func(db *gorm.DB, bv *datamodel.BackupVault) (*datamodel.BackupVault, error) {
 			return vcpBvParams, nil
@@ -469,6 +477,10 @@ func TestCreateBackupVaultCreatesAndUpdatesBackupVaultSuccessfully(t *testing.T)
 		vcpBvParams := &datamodel.BackupVault{
 			BaseModel: datamodel.BaseModel{UUID: "non-existent-uuid"},
 		}
+
+		originalGetBackupVaultWithDetails := getBackupVaultWithDetails
+		defer func() { getBackupVaultWithDetails = originalGetBackupVaultWithDetails }()
+
 		getBackupVaultWithDetails = func(db *gorm.DB, bv *datamodel.BackupVault) (*datamodel.BackupVault, error) {
 			return nil, gorm.ErrRecordNotFound
 		}
@@ -509,6 +521,8 @@ func TestCreateBackupVaultCreatesAndUpdatesBackupVaultSuccessfully(t *testing.T)
 			Name:      "existing_backup_vault",
 			AccountID: account.ID,
 		}
+		originalGetBackupVaultWithDetails := getBackupVaultWithDetails
+		defer func() { getBackupVaultWithDetails = originalGetBackupVaultWithDetails }()
 
 		getBackupVaultWithDetails = func(db *gorm.DB, bv *datamodel.BackupVault) (*datamodel.BackupVault, error) {
 			if bv.UUID == existingBackupVault.UUID {
@@ -536,6 +550,203 @@ func TestCreateBackupVaultCreatesAndUpdatesBackupVaultSuccessfully(t *testing.T)
 		}
 		if result.LifeCycleState != models.LifeCycleStateAvailable {
 			tt.Errorf("Expected life cycle state %v, got %v", models.LifeCycleStateAvailable, result.LifeCycleState)
+		}
+	})
+}
+
+func TestCreateBackupVaultEntryInVCP(tt *testing.T) {
+	tt.Run("TestCreateBackupVaultEntryInVCPCreatesBackupVaultSuccessfully", func(t *testing.T) {
+		db, err := SetupTestDB()
+		if err != nil {
+			t.Fatalf("Failed to set up test database: %v", err)
+		}
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		if err != nil {
+			t.Fatalf("Failed to clean up test database: %v", err)
+		}
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{UUID: "test-account-uuid"},
+			Name:      "test_account",
+		}
+		err = store.db.Create(account).Error()
+		if err != nil {
+			t.Fatalf("Failed to create account: %v", err)
+		}
+
+		backupVault := &datamodel.BackupVault{
+			Name:      "test_backup_vault",
+			AccountID: account.ID,
+			Account:   account,
+		}
+
+		originalGetBackupVaultWithDetails := getBackupVaultWithDetails
+		defer func() { getBackupVaultWithDetails = originalGetBackupVaultWithDetails }()
+
+		getBackupVaultWithDetails = func(db *gorm.DB, bv *datamodel.BackupVault) (*datamodel.BackupVault, error) {
+			return backupVault, nil
+		}
+
+		result, err := store.CreateBackupVaultEntryInVCP(context.Background(), backupVault)
+		if err != nil {
+			t.Errorf("Expected no error, got %v", err)
+		}
+		if result.Name != backupVault.Name {
+			t.Errorf("Expected backup vault name %v, got %v", backupVault.Name, result.Name)
+		}
+		if result.Account.ID != account.ID {
+			t.Errorf("Expected account ID %v, got %v", account.ID, result.Account.ID)
+		}
+	})
+	tt.Run("TestCreateBackupVaultEntryInVCPReturnsErrorWhenDatabaseFails", func(t *testing.T) {
+		db, err := SetupTestDB()
+		if err != nil {
+			tt.Fatalf("Failed to set up test database: %v", err)
+		}
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		if err != nil {
+			tt.Fatalf("Failed to clean up test database: %v", err)
+		}
+
+		backupVault := &datamodel.BackupVault{
+			Name:      "test_backup_vault",
+			AccountID: 999, // Invalid account ID to simulate database failure
+		}
+		originalGetBackupVaultWithDetails := getBackupVaultWithDetails
+		defer func() { getBackupVaultWithDetails = originalGetBackupVaultWithDetails }()
+
+		getBackupVaultWithDetails = func(db *gorm.DB, bv *datamodel.BackupVault) (*datamodel.BackupVault, error) {
+			return nil, gorm.ErrRecordNotFound
+		}
+
+		_, err = store.CreateBackupVaultEntryInVCP(context.Background(), backupVault)
+		if err == nil {
+			t.Errorf("Expected error, got nil")
+		}
+	})
+}
+
+func TestUpdateBackupVaultUpdatesBucketDetailsSuccessfully(tt *testing.T) {
+	tt.Run("TestUpdateBackupVaultUpdatesBucketDetailsSuccessfully", func(t *testing.T) {
+		db, err := SetupTestDB()
+		if err != nil {
+			t.Fatalf("Failed to set up test database: %v", err)
+		}
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		if err != nil {
+			t.Fatalf("Failed to clean up test database: %v", err)
+		}
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{UUID: "test-account-uuid"},
+			Name:      "test_account",
+		}
+		err = store.db.Create(account).Error()
+		if err != nil {
+			t.Fatalf("Failed to create account: %v", err)
+		}
+
+		backupVault := &datamodel.BackupVault{
+			BaseModel: datamodel.BaseModel{UUID: "test-backup-vault-uuid"},
+			Name:      "test_backup_vault",
+			AccountID: account.ID,
+			Account:   account,
+			BucketDetails: datamodel.BucketDetailsArray{
+				{
+					BucketName: "old_bucket",
+				},
+			},
+		}
+		err = store.db.Create(backupVault).Error()
+		if err != nil {
+			t.Fatalf("Failed to create backup vault: %v", err)
+		}
+
+		updatedBackupVault := &datamodel.BackupVault{
+			BaseModel:     datamodel.BaseModel{UUID: backupVault.UUID},
+			BucketDetails: datamodel.BucketDetailsArray{}, // Clear bucket details
+		}
+		originalGetBackupVaultWithDetails := getBackupVaultWithDetails
+		defer func() { getBackupVaultWithDetails = originalGetBackupVaultWithDetails }()
+
+		getBackupVaultWithDetails = func(db *gorm.DB, bv *datamodel.BackupVault) (*datamodel.BackupVault, error) {
+			return backupVault, nil
+		}
+
+		err = store.UpdateBackupVault(context.Background(), updatedBackupVault)
+		if err != nil {
+			t.Errorf("Expected no error, got %v", err)
+		}
+
+		result, err := store.GetBackupVault(context.Background(), backupVault.UUID)
+		if err != nil {
+			t.Fatalf("Failed to retrieve updated backup vault: %v", err)
+		}
+		if len(result.BucketDetails) != 0 {
+			t.Errorf("Expected empty bucket details, got %v", result.BucketDetails)
+		}
+	})
+	tt.Run("TestUpdateBackupVaultUpdatesBucketDetailsFails", func(t *testing.T) {
+		db, err := SetupTestDB()
+		if err != nil {
+			tt.Fatalf("Failed to set up test database: %v", err)
+		}
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		if err != nil {
+			tt.Fatalf("Failed to clean up test database: %v", err)
+		}
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{UUID: "test-account-uuid"},
+			Name:      "test_account",
+		}
+		err = store.db.Create(account).Error()
+		if err != nil {
+			tt.Fatalf("Failed to create account: %v", err)
+		}
+
+		backupVault := &datamodel.BackupVault{
+			BaseModel: datamodel.BaseModel{UUID: "test-backup-vault-uuid"},
+			Name:      "test_backup_vault",
+			AccountID: account.ID,
+			Account:   account,
+			BucketDetails: datamodel.BucketDetailsArray{
+				{
+					BucketName: "old_bucket",
+				},
+			},
+		}
+		err = store.db.Create(backupVault).Error()
+		if err != nil {
+			tt.Fatalf("Failed to create backup vault: %v", err)
+		}
+
+		updatedBackupVault := &datamodel.BackupVault{
+			BaseModel:     datamodel.BaseModel{UUID: backupVault.UUID},
+			BucketDetails: datamodel.BucketDetailsArray{},
+		}
+		originalGetBackupVaultWithDetails := getBackupVaultWithDetails
+		defer func() { getBackupVaultWithDetails = originalGetBackupVaultWithDetails }()
+
+		getBackupVaultWithDetails = func(db *gorm.DB, bv *datamodel.BackupVault) (*datamodel.BackupVault, error) {
+			return nil, gorm.ErrRecordNotFound
+		}
+
+		err = store.UpdateBackupVault(context.Background(), updatedBackupVault)
+		if err == nil {
+			t.Errorf("Expected no error, got %v", err)
 		}
 	})
 }

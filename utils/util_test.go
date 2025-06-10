@@ -649,3 +649,86 @@ func TestConvertsValidJsonToModel(t *testing.T) {
 		assert.Contains(t, err.Error(), "Failed to unmarshal json")
 	})
 }
+
+func TestGenerateRandomString(t *testing.T) {
+	t.Run("GeneratesRandomStringOfCorrectLength", func(t *testing.T) {
+		result, err := generateRandomString(10)
+		assert.NoError(t, err)
+		assert.Equal(t, 10, len(result))
+	})
+	t.Run("FailsToGenerateRandomStringWhenLengthIsZero", func(t *testing.T) {
+		result, err := generateRandomString(0)
+		assert.NoError(t, err)
+		assert.Equal(t, "", result)
+	})
+	t.Run("GeneratesRandomStringWithValidCharacters", func(t *testing.T) {
+		result, err := generateRandomString(15)
+		assert.NoError(t, err)
+		for _, char := range result {
+			assert.Contains(t, "abcdefghijklmnopqrstuvwxyz0123456789", string(char))
+		}
+	})
+}
+
+func TestSliceRegionForServiceAccount(t *testing.T) {
+	t.Run("RegionUnchangedWhenWithinMaxLength", func(t *testing.T) {
+		region := "short-region-name"
+		expected := "short-region-name"
+		result := sliceRegionForServiceAccount(region)
+		assert.Equal(t, expected, result)
+	})
+	t.Run("RegionEmptyStringReturnsEmptyString", func(t *testing.T) {
+		region := ""
+		expected := ""
+		result := sliceRegionForServiceAccount(region)
+		assert.Equal(t, expected, result)
+	})
+	t.Run("RegionExactlyMaxLengthReturnsSameRegion", func(t *testing.T) {
+		region := "this-is-exactly-25-characters"
+		expected := "this-is-exactly-25-charac"
+		result := sliceRegionForServiceAccount(region)
+		assert.Equal(t, expected, result)
+	})
+}
+
+func TestGeneratesValidResourceNames(t *testing.T) {
+	gcpRegion := "us-central1"
+	tenantProjectRegion := "us-central1"
+	tenantProjectNumber := "123456789"
+	backupVaultUUID := "vault-uuid"
+	email, bucketName, serviceAccountId, err := GetResourcesNameForBackup(gcpRegion, tenantProjectRegion, tenantProjectNumber, backupVaultUUID)
+	require.NoError(t, err)
+	assert.Equal(t, "vsa-backup-us-cent", serviceAccountId[:18])
+	assert.Contains(t, email, "@123456789.iam.gserviceaccount.com")
+	assert.Contains(t, bucketName, "vsa-backup-vault-uuid")
+}
+
+func TestHandlesEmptyRegion(t *testing.T) {
+	gcpRegion := ""
+	tenantProjectRegion := "us-central1"
+	tenantProjectNumber := "123456789"
+	backupVaultUUID := "vault-uuid"
+	email, bucketName, serviceAccountId, err := GetResourcesNameForBackup(gcpRegion, tenantProjectRegion, tenantProjectNumber, backupVaultUUID)
+	require.NoError(t, err)
+	assert.Equal(t, "vsa-backup", serviceAccountId[:10])
+	assert.Contains(t, email, "@123456789.iam.gserviceaccount.com")
+	assert.Contains(t, bucketName, "vsa-backup-vault-uuid")
+}
+
+func TestHandlesErrorOnRandomStringGeneration(t *testing.T) {
+	gcpRegion := "us-central1"
+	tenantProjectRegion := "us-central1"
+	tenantProjectNumber := "123456789"
+	backupVaultUUID := "vault-uuid"
+	defer func() {
+		generateRandomString = _generateRandomString
+	}()
+	generateRandomString = func(length int) (string, error) {
+		return "", errors.New("random string generation failed")
+	}
+	email, bucketName, serviceAccountId, err := GetResourcesNameForBackup(gcpRegion, tenantProjectRegion, tenantProjectNumber, backupVaultUUID)
+	require.Error(t, err)
+	assert.Equal(t, "", email)
+	assert.Equal(t, "", bucketName)
+	assert.Equal(t, "", serviceAccountId)
+}

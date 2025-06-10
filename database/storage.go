@@ -645,3 +645,15 @@ func (s *PersistenceStore) CreatingBackupVault(ctx context.Context, bv *datamode
 func (s *PersistenceStore) CreateBackupVault(ctx context.Context, backupVault *datamodel.BackupVault, vcpVault *datamodel.BackupVault) (*datamodel.BackupVault, error) {
 	return s.dataStore.CreateBackupVault(ctx, backupVault, vcpVault)
 }
+
+func (s *PersistenceStore) GetBackupVaultByUUID(ctx context.Context, backupVaultUUID string) (*datamodel.BackupVault, error) {
+	return s.dataStore.GetBackupVaultByUUID(ctx, backupVaultUUID)
+}
+
+func (s *PersistenceStore) CreateBackupVaultEntryInVCP(ctx context.Context, backupVault *datamodel.BackupVault) (*datamodel.BackupVault, error) {
+	return s.dataStore.CreateBackupVaultEntryInVCP(ctx, backupVault)
+}
+
+func (s *PersistenceStore) UpdateBackupVault(ctx context.Context, backupVault *datamodel.BackupVault) error {
+	return s.dataStore.UpdateBackupVault(ctx, backupVault)
+}

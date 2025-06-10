@@ -67,6 +67,7 @@ type CreateVolumeParams struct {
 	IsDataProtection bool
 	Protocols        []string
 	BlockProperties  *models.BlockProperties
+	DataProtection   *models.DataProtection
 }
 
 type CreateLunMapParams struct {
@@ -194,4 +195,19 @@ type BackupRetentionPolicyParams struct {
 	IsMonthlyBackupImmutable               *bool
 	IsWeeklyBackupImmutable                *bool
 	IsAdhocBackupImmutable                 *bool
+}
+
+type BucketDetails struct {
+	BucketName          string
+	ServiceAccountName  string
+	VendorSubnetID      string
+	TenantProjectNumber string
+	Location            string
+	AccountId           string
+}
+
+type ResourceNames struct {
+	Email            string
+	BucketName       string
+	ServiceAccountId string
 }
