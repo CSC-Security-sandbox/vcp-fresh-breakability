@@ -16,9 +16,15 @@ func main() {
 		log.Printf("Error fetching tags:", err)
 		os.Exit(1)
 	}
-
+	githubBase := os.Getenv("GITHUB_BASE")
 	// Define the tag pattern to match
-	tagPattern := "2*-DEV.*"
+	// Currently only 2 checks, as release.yaml flow will run only on push to main or release. Therefore, skipping if not DEV or RC case.
+	var tagPattern string
+	if strings.TrimSpace(githubBase) == "main" {
+		tagPattern = "2*-DEV.*"
+	} else {
+		tagPattern = "2*-RC.*"
+	}
 
 	// Execute the git command to list tags sorted by version (descending)
 	cmd := exec.Command("git", "tag", "-l", "--sort=-v:refname", tagPattern)

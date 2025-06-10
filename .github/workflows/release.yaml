@@ -32,47 +32,12 @@ jobs:
         with:
           go-version-file: go.mod
 
-      - name: Fetch new tag
-        id: fetch_new_tag
-        run: |
-          echo "newTag=$(go run .github/scripts/fetchLatestBuild.go 2>&1)" >> $GITHUB_OUTPUT
-
-    outputs:
-      newTag: ${{ steps.fetch_new_tag.outputs.newTag }}
-
-
-  create_pre_release_vsa_control_plane:
-    needs: generate_tag
-    uses: ./.github/workflows/release_resources.yaml
-    secrets: inherit
-    with:
-      pre_release: true
-      tag: ${{ needs.generate_tag.outputs.newTag }}
-
-  update_jira_component_version:
-    name: Update JIRA component version
-    needs: [create_pre_release_vsa_control_plane, generate_tag]
-    runs-on: [ ubuntu-22.04 ]
-    container:
-      image: ghcr.io/vcp-vsa-control-plane/vsacictl:v22
-      options: -v /var/run/docker.sock:/var/run/docker.sock --user root
-
-    steps:
-      - name: Check out the repo
-        uses: actions/checkout@v2
-
-      - name: Set up Go
-        uses: actions/setup-go@v3
-        with:
-          go-version-file: go.mod
-
       - name: Fetch PR user and details
         id: fetch_pr_user_and_details
         run: |
           PR_DETAILS=$(curl -sf -H "Authorization: Bearer ${{ secrets.GHVSA_PAT }}" \
           -H "Accept: application/vnd.github+json" \
             "https://api.github.com/repos/VCP-VSA-control-Plane/vsa-control-plane/commits/${{ github.sha }}/pulls")
-          
           echo "PR_DETAILS FETCHED"
           
             # Check if the curl command succeeded
@@ -93,33 +58,71 @@ jobs:
             # Extract PR user and title
             PR_USER=$(echo "$PR_DETAILS" | jq -r '.user.login // empty')
             PR_TITLE=$(echo "$PR_DETAILS" | jq -r '.title // empty')
+            PR_BRANCH=$(echo "$PR_DETAILS" | jq -r '.base.ref // empty')
           
             # Validate extracted values
-            if [[ -z "$PR_USER" || -z "$PR_TITLE" ]]; then
-          echo "Error: PR user or title is empty."
-            exit 1
+            if [[ -z "$PR_USER" || -z "$PR_TITLE" || -z "$PR_BRANCH" ]]; then
+              echo "Error: PR user, title, or branch is empty."
+              exit 1
             fi
           
             # Write to GITHUB_ENV
             echo "PR_USER=$PR_USER" >> $GITHUB_ENV
             echo "PR_TITLE=$PR_TITLE" >> $GITHUB_ENV
+            echo "PR_BRANCH=$PR_BRANCH" >> $GITHUB_ENV
         shell: bash
         env:
           GITHUB_TOKEN: ${{ secrets.GHVSA_PAT }}
 
+      - name: Fetch new tag
+        id: fetch_new_tag
+        run: |
+          echo "PR_BASE_BRANCH:" ${{ env.PR_BRANCH}}
+          echo "newTag=$(go run .github/scripts/fetchLatestBuild.go 2>&1)" >> $GITHUB_OUTPUT
+        env:
+          GITHUB_BASE: ${{ env.PR_BRANCH}}
+
+    outputs:
+      newTag: ${{ steps.fetch_new_tag.outputs.newTag }}
+      pr_user: ${{ env.PR_USER }}
+      pr_title: ${{ env.PR_TITLE }}
+
+
+  create_pre_release_vsa_control_plane:
+    needs: generate_tag
+    uses: ./.github/workflows/release_resources.yaml
+    secrets: inherit
+    with:
+      pre_release: true
+      tag: ${{ needs.generate_tag.outputs.newTag }}
+
+  update_jira_component_version:
+    name: Update JIRA component version
+    needs: [generate_tag,create_pre_release_vsa_control_plane]
+    runs-on: [ ubuntu-22.04 ]
+    container:
+      image: ghcr.io/vcp-vsa-control-plane/vsacictl:v22
+      options: -v /var/run/docker.sock:/var/run/docker.sock --user root
+
+    steps:
+      - name: Check out the repo
+        uses: actions/checkout@v2
+
+      - name: Set up Go
+        uses: actions/setup-go@v3
+        with:
+          go-version-file: go.mod
+
       - name: Run jira tag_component_version
         env:
-          PR_TITLE: ${{ env.PR_TITLE }}
+          PR_TITLE: ${{ needs.generate_tag.outputs.pr_title }}
           JIRA_API_TOKEN: ${{ secrets.VCP_CI_JIRA_BOT_PAT }}
           GITHUB_TOKEN: ${{ steps.token.outputs.token }}
-          PR_USER: ${{ env.PR_USER }}
+          PR_USER: ${{ needs.generate_tag.outputs.pr_user }}
           REPOSITORY: VCP-VSA-control-Plane/vsa-control-plane
           GITHUB_SHA: ${{ github.sha }}
           NEW_TAG: ${{ needs.generate_tag.outputs.newTag }}
         run: vsacictl jira tag_component_version
-    outputs:
-        pr_title: ${{ env.PR_TITLE }}
-        pr_user: ${{ env.PR_USER }}
 
   black_duck_scan_repo:
     name: Run black duck scan on the repo
