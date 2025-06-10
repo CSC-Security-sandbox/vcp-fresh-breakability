@@ -23,7 +23,7 @@ vcp-db-migrate-image: vcp-db-migrate-linux
 .PHONY: vcp-db-migrate-linux
 vcp-db-migrate-linux:
 	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o core/build/linux/bin/vcp-db-migrate ./tools/migrate
-	
+
 .PHONY: generate-google-proxy
 generate-google-proxy:
 	go run github.com/ogen-go/ogen/cmd/ogen@v1.10.1 --clean --package gcpserver --config google-proxy/api/.ogenserver.yml --target google-proxy/api/gcp-servergen google-proxy/api/gcp-api.yaml
@@ -35,3 +35,11 @@ generate-core-api:
 .PHONY: generate-google-proxy-client
 generate-google-proxy-client:
 	go run github.com/ogen-go/ogen/cmd/ogen@v1.10.1 --clean --package googleproxyclient --config clients/google-proxy-client/.ogenserver.yml --target clients/google-proxy-client google-proxy/api/gcp-api.yaml
+
+.PHONY: test
+PACKAGES="./..."
+test:
+	go test $(PACKAGES)
+
+%:
+	@:

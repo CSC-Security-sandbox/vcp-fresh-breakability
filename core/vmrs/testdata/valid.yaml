@@ -1,0 +1,24 @@
+vmrs:
+  disk_limits:
+    - disk_type: hyperdisk_balanced
+      qualified_vms:
+      - vm_type: c4-standard-4
+        ontap_perf:
+          iops: 1
+          throughput_in_mibs: 2
+          capacity_in_gib: 3
+        disk_perf:
+          iops: 4
+          throughput_in_mibs: 5
+          capacity_in_gib: 6
+          max_num_disks: 7
+      - vm_type: c4-standard-8
+        ontap_perf:
+          iops: 8
+          throughput_in_mibs: 9
+          capacity_in_gib: 10
+        disk_perf:
+          iops: 11
+          throughput_in_mibs: 12
+          capacity_in_gib: 13
+          max_num_disks: 14

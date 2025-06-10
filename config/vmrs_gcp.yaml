@@ -1,0 +1,114 @@
+# This file describes VMRS (VM Right Sizing) module related configuration.
+# It merges facts provided by our perf team and hyperscaler documented limits into a single source of truth.
+#
+# We nest all these details under a parent `vmrs` tag to avoid namespace clashes.
+#
+# The structure of this config is as follows:
+#
+# vmrs: # top level namespace disambiguator
+#   - disk_type: hyperdisk_balanced # for this specific disk type, this element will contain a list of VMs that were qualified by the perf team.
+#     qualified_vms:  # we consolidate by vm_type to prevent operator errors.
+#     - vm_type: c4-standard-4 # data for a specific vm/instance type.
+#       ontap_perf: # facts provided by the ontap perf team.
+#         # For each VM/instance type, define the max. IOPS, capacity and throughput that ONTAP can support per HA-pair (i.e., per two nodes).
+#         # This data is provided by the perf team.
+#         iops: I
+#         throughput_in_mibs: T
+#         capacity_in_gib: C
+#       disk_perf: # facts provided by the hyperscaler (GCP in this case).
+#         # For each VM/instance type, define the max. capacity, IOPS and throughput that the hyperscaler allows.
+#         iops: I
+#         throughput_in_mibs: T
+#         capacity_in_gib: C
+#         max_num_disks: M
+vmrs:
+  # GCP specific configuration.
+  # GCP organizes hyperdisk limits as follows (https://cloud.google.com/compute/docs/disks/hyperdisk-perf-limits#per-vm-limits-summary):
+  #   1. Overall throughput limits irrespective of hyperdisk type: https://cloud.google.com/compute/docs/disks/hyperdisk-perf-limits#machine-type-limits
+  #      These limits are applicable to all hyperdisk types (balanced, extreme, etc.) and persistent disks.
+  #      These limits are (or, should always be) higher than what are defined for specific hyperdisk types (see section 2 below). This was verified to be true as of June 3rd, 2025.
+  #      If multiple hyperdisk types are used, the total IOPS and throughput across all hyperdisk types must not exceed these limits.
+  #   2. Hyperdisk type specific throughput limits: https://cloud.google.com/compute/docs/disks/hyperdisk-perf-limits#hdb-perf
+  #      These limits are applicable to each hyperdisk type and define the max. IOPS and throughput for that specific hyperdisk type.
+  #   3. Hyperdisk size limits: https://cloud.google.com/compute/docs/disks/hyperdisk-perf-limits#limits-instance
+  #      These limits define the max. capacity that can be attached to a VM/instance.
+  #   4. Max. number of hyperdisks per vm: https://cloud.google.com/compute/docs/disks/hyperdisk-perf-limits#max-total-disks-per-vm
+  #      These limits define the max. number of hyperdisks that can be attached to a VM/instance.
+  #
+  # Each ontap_perf entry is structured as follows. Ideally, the numbers from this section are the same as those in disk_perf, which means ONTAP has 0 overhead overall,
+  # and is able to fully utilize the underlying hardware.
+  # ontap_perf:
+  #   iops: 6559 # Max. IOPS supported by ONTAP for this VM/instance type, per HA-pair.
+  #   throughput_in_mibs: 168 # Max. throughput in Mibs supported by ONTAP for this VM/instance type, per HA-pair.
+  #   capacity_in_gib: 213000 # Max. capacity in GiB supported by ONTAP for this VM/instance type, per HA-pair.
+  #
+  # Each disk_perf entry's data is pulled from the hyperscaler documentation, as shown below.
+  # disk_perf:
+  #   iops: 50000 # Max. IOPS allowed for this VM/instance type, with an I/O size of 4 KiB. From section 2 above.
+  #   throughput_in_mibs: 400 # Max. throughput allowed for this VM/instance type, with an I/O size of at-least 256 KiB. From section 2 above.
+  #   capacity_in_gib: 257000 # Max. capacity allowed for this VM/instance type. From section 3 above.
+  #   max_num_disks: 24 # Max. number of disks that can be attached to this VM/instance type. From section 3 above.
+  disk_limits:
+    - disk_type: hyperdisk_balanced
+      qualified_vms:
+      - vm_type: c4-standard-4
+        ontap_perf:
+          iops: 6559
+          throughput_in_mibs: 168
+          capacity_in_gib: 213000
+        disk_perf:
+          iops: 50000
+          throughput_in_mibs: 400
+          capacity_in_gib: 257000
+          max_num_disks: 24
+      - vm_type: c4-standard-8
+        ontap_perf:
+          iops: 15260
+          throughput_in_mibs: 335
+          capacity_in_gib: 213000
+        disk_perf:
+          iops: 50000
+          throughput_in_mibs: 800
+          capacity_in_gib: 257000
+          max_num_disks: 32
+      - vm_type: c4-standard-16
+        ontap_perf:
+          iops: 35422
+          throughput_in_mibs: 630
+          capacity_in_gib: 213000
+        disk_perf:
+          iops: 100000
+          throughput_in_mibs: 1600
+          capacity_in_gib: 257000
+          max_num_disks: 48
+      - vm_type: c4-standard-32
+        ontap_perf:
+          iops: 54760
+          throughput_in_mibs: 1119
+          capacity_in_gib: 426000
+        disk_perf:
+          iops: 100000
+          throughput_in_mibs: 1600
+          capacity_in_gib: 512000
+          max_num_disks: 64
+      - vm_type: c4-standard-48
+        ontap_perf:
+          iops: 86958
+          throughput_in_mibs: 1678
+          capacity_in_gib: 426000
+        disk_perf:
+          iops: 160000
+          throughput_in_mibs: 2400
+          capacity_in_gib: 512000
+          max_num_disks: 64
+      - vm_type: c4a-standard-64
+        ontap_perf:
+          iops: 160000
+          throughput_in_mibs: 5120
+          capacity_in_gib: 426000
+        disk_perf:
+          iops: 240000
+          throughput_in_mibs: 4400
+          capacity_in_gib: 512000
+          max_num_disks: 128
+
