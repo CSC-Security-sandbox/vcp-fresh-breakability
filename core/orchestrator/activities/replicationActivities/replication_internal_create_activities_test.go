@@ -33,7 +33,7 @@ func TestCreateVolumeReplicationInternal(t *testing.T) {
 		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
 		node := &models.Node{}
 
-		params := &commonparams.CreateVolumeReplicationParams{
+		params := &commonparams.CreateVolumeReplicationInternalParams{
 			VolumeReplication: &models.VolumeReplication{
 				ReplicationAttributes: &models.ReplicationDetails{
 					EndpointType:          "dst",
@@ -70,7 +70,7 @@ func TestCreateVolumeReplicationInternal(t *testing.T) {
 		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
 		node := &models.Node{}
 
-		params := &commonparams.CreateVolumeReplicationParams{
+		params := &commonparams.CreateVolumeReplicationInternalParams{
 			VolumeReplication: &models.VolumeReplication{
 				ReplicationAttributes: &models.ReplicationDetails{
 					EndpointType:          "dst",

@@ -552,3 +552,51 @@ func TestUpdateVolumeReplicationTransferStats(t *testing.T) {
 		assert.EqualError(tt, err, "volume replication not found", "Expected no error, got %v", err)
 	})
 }
+
+func TestGetVolumeReplicationCount(t *testing.T) {
+	t.Run("WhenAccountExists", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err, "Failed to set up test database")
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err, "Failed to clean up test database")
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{
+				ID:   1,
+				UUID: "test-account-uuid",
+			},
+			Name: "test_account",
+		}
+		err = store.db.Create(account).Error()
+		assert.NoError(tt, err, "Failed to create account")
+
+		volumeRep := &datamodel.VolumeReplication{
+			BaseModel: datamodel.BaseModel{UUID: "test-volume-rep-uuid"},
+			Name:      "test_volume_rep",
+			AccountID: account.ID,
+		}
+		err = store.db.Create(volumeRep).Error()
+		assert.NoError(tt, err, "Failed to create volume replication")
+
+		count, err := store.GetVolumeReplicationCount(context.Background(), account.Name)
+		assert.NoError(tt, err, "Expected no error, got %v", err)
+		assert.Equal(tt, int64(1), count, "Expected count %v, got %v", 1, count)
+	})
+
+	t.Run("WhenAccountDoesNotExist", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err, "Failed to set up test database")
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err, "Failed to clean up test database")
+
+		count, err := store.GetVolumeReplicationCount(context.Background(), "nonexistent_account")
+		assert.EqualError(tt, err, "[0] undefined error: account not found")
+		assert.Equal(tt, int64(0), count, "Expected count %v, got %v", 0, count)
+	})
+}

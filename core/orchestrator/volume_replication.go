@@ -3,10 +3,14 @@ package orchestrator
 import (
 	"context"
 	"database/sql"
+	"strings"
+	"time"
 
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	commonparams "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/replication"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/workflows/replicationWorkflows"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database"
 	workflowengine "github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/temporal"
@@ -16,14 +20,17 @@ import (
 )
 
 var (
-	createVolumeReplication = _createVolumeReplication
+	createVolumeReplicationInternal            = _createVolumeReplicationInternal
+	createVolumeReplication                    = _createVolumeReplication
+	convertCreateReplicationParamsToEventParam = _convertCreateReplicationParamsToEventParam
+	validateCreateReplicationParams            = replication.ValidateCreateReplicationParams
 )
 
-func (o *Orchestrator) CreateVolumeReplication(ctx context.Context, params *commonparams.CreateVolumeReplicationParams) (*models.VolumeReplication, *datamodel.Job, error) {
-	return createVolumeReplication(ctx, o.storage, o.temporal, params)
+func (o *Orchestrator) CreateVolumeReplicationInternal(ctx context.Context, params *commonparams.CreateVolumeReplicationInternalParams) (*models.VolumeReplication, *datamodel.Job, error) {
+	return createVolumeReplicationInternal(ctx, o.storage, o.temporal, params)
 }
 
-func _createVolumeReplication(ctx context.Context, se database.Storage, temporal client.Client, params *commonparams.CreateVolumeReplicationParams) (*models.VolumeReplication, *datamodel.Job, error) {
+func _createVolumeReplicationInternal(ctx context.Context, se database.Storage, temporal client.Client, params *commonparams.CreateVolumeReplicationInternalParams) (*models.VolumeReplication, *datamodel.Job, error) {
 	logger := util.GetLogger(ctx)
 	account, err := getAccountWithName(ctx, se, params.VolumeReplication.Account.Name)
 	if err != nil {
@@ -124,12 +131,12 @@ func convertDataStoreReplicationToModel(replication *datamodel.VolumeReplication
 	}
 }
 
-func prepareReplicationDataModel(params *commonparams.CreateVolumeReplicationParams, account *datamodel.Account, volume *datamodel.Volume) *datamodel.VolumeReplication {
+func prepareReplicationDataModel(params *commonparams.CreateVolumeReplicationInternalParams, account *datamodel.Account, volume *datamodel.Volume) *datamodel.VolumeReplication {
 	return &datamodel.VolumeReplication{
 		Name:        params.VolumeReplication.Name,
 		Description: params.VolumeReplication.Description,
-		Uri:         params.VolumeReplication.Uri,
-		RemoteUri:   params.VolumeReplication.RemoteUri,
+		Uri:         params.VolumeReplication.RemoteUri,
+		RemoteUri:   params.VolumeReplication.Uri,
 		ReplicationAttributes: &datamodel.ReplicationDetails{
 			EndpointType:               params.VolumeReplication.ReplicationAttributes.EndpointType,
 			ReplicationType:            params.VolumeReplication.ReplicationAttributes.ReplicationType,
@@ -165,4 +172,117 @@ func prepareReplicationDataModel(params *commonparams.CreateVolumeReplicationPar
 		VolumeID:              params.VolumeReplication.VolumeID,
 		Volume:                volume,
 	}
+}
+
+func (o *Orchestrator) GetReplicationCount(ctx context.Context, projectNumber string) (int64, error) {
+	// Get the count of volume replications for the specified account
+	count, err := o.storage.GetVolumeReplicationCount(ctx, projectNumber)
+	if err != nil {
+		return 0, err
+	}
+	return count, nil
+}
+
+// CreateVolume creates the specified volume and adds it to the list of volume belonging to the specified owner
+func (o *Orchestrator) CreateVolumeReplication(ctx context.Context, params *commonparams.CreateVolumeReplicationParams) (*models.VolumeReplication, string, error) {
+	return createVolumeReplication(ctx, o.storage, o.temporal, params)
+}
+
+func _createVolumeReplication(ctx context.Context, se database.Storage, temporal client.Client, params *commonparams.CreateVolumeReplicationParams) (*models.VolumeReplication, string, error) {
+	logger := util.GetLogger(ctx)
+
+	account, err := getOrCreateAccount(ctx, se, params.AccountName)
+	if err != nil {
+		return nil, "", err
+	}
+
+	srcVolume, err := se.GetVolumeByName(ctx, params.SourceVolumeName)
+	if err != nil {
+		return nil, "", err
+	}
+
+	baseEvent := replication.ReplicationEventBase{}
+	baseEvent.AddEvent(commonparams.NewEvent(commonparams.EventCreated, time.Now(), commonparams.String("created_by", "CreateReplication")))
+
+	event := replication.CreateReplicationEvent{
+		ReplicationEventBase: baseEvent,
+		SourceVolume:         *srcVolume,
+		SourcePool:           *srcVolume.Pool,
+	}
+
+	err = convertCreateReplicationParamsToEventParam(params, &event)
+	if err != nil {
+		return nil, "", err
+	}
+
+	dbRepl, err := validateCreateReplicationParams(ctx, &event, se)
+	if err != nil {
+		return nil, "", err
+	}
+
+	job := &datamodel.Job{
+		Type:         string(models.JobTypeCreateVolumeReplication),
+		State:        string(models.JobsStateNEW),
+		ResourceName: dbRepl.Uri,
+		AccountID:    sql.NullInt64{Int64: account.ID, Valid: true},
+	}
+	createdJob, err := se.CreateJob(ctx, job)
+	if err != nil {
+		logger.Error("Failed to create job in database", "error", err)
+		return nil, "", err
+	}
+
+	dbRepl.AccountID = account.ID
+	dbRepl.VolumeID = srcVolume.ID
+	volumeRep, err := se.CreateVolumeReplication(ctx, dbRepl)
+	if err != nil {
+		return nil, "", err
+	}
+	_, err = temporal.ExecuteWorkflow(ctx,
+		client.StartWorkflowOptions{
+			TaskQueue:             workflowengine.CustomerTaskQueue,
+			ID:                    createdJob.WorkflowID,
+			WorkflowIDReusePolicy: enums.WORKFLOW_ID_REUSE_POLICY_REJECT_DUPLICATE,
+		},
+		replicationWorkflows.CreateVolumeReplicationWorkflow,
+		params,
+		volumeRep,
+		&event,
+	)
+
+	if err != nil {
+		logger.Error("Failed to start create volume replication workflow: ", "error", err)
+		return nil, "", err
+	}
+
+	return convertDataStoreReplicationToModel(volumeRep), createdJob.UUID, nil
+}
+
+func _convertCreateReplicationParamsToEventParam(in *commonparams.CreateVolumeReplicationParams, out *replication.CreateReplicationEvent) error {
+	bytes, err := replication.JsonMarshal(in)
+	if err != nil {
+		return errors.NewVCPError(errors.ErrorFailedToMarshalModel, err)
+	}
+
+	err = replication.JsonUnMarshal(bytes, out)
+	if err != nil {
+		return errors.NewVCPError(errors.ErrorFailedToUnmarshal, err)
+	}
+
+	uri := strings.Split(*out.CreateReplicationParams.DestinationVolumeParameters.StoragePool, "/")
+
+	if len(uri) >= 4 {
+		// Grab the pool name from the uri of the destination pool
+		out.DestinationPoolName = uri[len(uri)-1]
+		// Grab the location from the uri of the destination pool
+		out.DestinationLocationID = uri[3]
+		// Grab the project number from the uri of the destination pool to check for cross project replication
+		out.DestinationProjectNumber = uri[1]
+	}
+	out.SourceProjectNumber = in.AccountName
+	out.LocationID = in.Region
+	out.VolumeResourceID = in.SourceVolumeName
+	out.XCorrelationID = &in.CorrelationId
+
+	return nil
 }

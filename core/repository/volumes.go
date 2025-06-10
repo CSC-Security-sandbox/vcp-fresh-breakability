@@ -14,9 +14,10 @@ import (
 )
 
 var (
-	updateVolumeState  = _updateVolumeState
-	deleteVolume       = _deleteVolume
-	getMultipleVolumes = _getMultipleVolumes
+	updateVolumeState      = _updateVolumeState
+	deleteVolume           = _deleteVolume
+	getMultipleVolumes     = _getMultipleVolumes
+	listVolumesWithDetails = _listVolumesWithDetails
 )
 
 func (d *DataStoreRepository) CreateVolume(ctx context.Context, volume *datamodel.Volume) (*datamodel.Volume, error) {
@@ -53,6 +54,10 @@ func (d *DataStoreRepository) CreateVolume(ctx context.Context, volume *datamode
 
 func (d *DataStoreRepository) GetVolume(ctx context.Context, volUUID string) (*datamodel.Volume, error) {
 	return getVolumeWithDetails(d.db.GORM().WithContext(ctx), &datamodel.Volume{BaseModel: datamodel.BaseModel{UUID: volUUID}})
+}
+
+func (d *DataStoreRepository) GetVolumeByName(ctx context.Context, volName string) (*datamodel.Volume, error) {
+	return getVolumeWithDetails(d.db.GORM().WithContext(ctx), &datamodel.Volume{Name: volName})
 }
 
 func (d *DataStoreRepository) UpdateVolume(ctx context.Context, volume *datamodel.Volume) error {
@@ -155,9 +160,17 @@ func _updateVolumeState(db *gorm.DB, volumeUUID string, state string, stateDetai
 	return volume, nil
 }
 
-func (d *DataStoreRepository) ListVolumes(ctx context.Context) ([]*datamodel.Volume, error) {
-	// TODO implement me
-	panic("implement me")
+func (d *DataStoreRepository) ListVolumes(ctx context.Context, conditions [][]interface{}) ([]*datamodel.Volume, error) {
+	return listVolumesWithDetails(d.db.ApplyFilter(conditions).GORM().WithContext(ctx))
+}
+
+func _listVolumesWithDetails(db *gorm.DB) ([]*datamodel.Volume, error) {
+	var volumes []*datamodel.Volume
+	err := db.Preload("Account").Preload("Pool").Find(&volumes).Error
+	if err != nil {
+		return nil, errors.NewVCPError(errors.ErrDatabaseDataReadError, err)
+	}
+	return volumes, nil
 }
 
 func getVolumeWithDetails(db *gorm.DB, query *datamodel.Volume) (*datamodel.Volume, error) {
@@ -211,4 +224,17 @@ func (d *DataStoreRepository) VerifyVolumeOwnership(ctx context.Context, volumeU
 		return nil, err
 	}
 	return volume, nil
+}
+
+func (d *DataStoreRepository) GetVolumeCount(ctx context.Context, accountName string) (int64, error) {
+	var count int64
+	account, err := d.GetAccount(ctx, accountName)
+	if err != nil {
+		return 0, err
+	}
+	err = d.db.GORM().WithContext(ctx).Model(&datamodel.Volume{}).Where("account_id = ?", account.ID).Count(&count).Error
+	if err != nil {
+		return 0, err
+	}
+	return count, nil
 }

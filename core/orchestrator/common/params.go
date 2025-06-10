@@ -5,6 +5,7 @@ import (
 
 	"github.com/go-openapi/strfmt"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
+	gcpserver "github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/api/gcp-servergen"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 )
 
@@ -133,14 +134,13 @@ type UpdateSnapshotParams struct {
 }
 
 type ClusterPeerParams struct {
-	PeerAddresses       []string
-	PeerName            string
-	AccountName         string
-	InterclusterLifList []string
-	ExpiryTime          *time.Time
-	GeneratePassphrase  bool
-	Passphrase          *string
-	UUID                string
+	PeerAddresses      []string
+	PeerName           string
+	AccountName        string
+	ExpiryTime         *time.Time
+	GeneratePassphrase bool
+	Passphrase         *string
+	UUID               string
 }
 
 type ClusterPeer struct {
@@ -173,9 +173,21 @@ type UpdateKmsConfigParams struct {
 	KeyUri          string
 }
 
-type CreateVolumeReplicationParams struct {
+type CreateVolumeReplicationInternalParams struct {
 	ReverseResync     bool
 	VolumeReplication *models.VolumeReplication
+}
+
+// CreateVolumeReplicationParams describes parameters supplied to CreatingVolumeReplication
+type CreateVolumeReplicationParams struct {
+	AccountName      string
+	Region           string
+	Name             string
+	Description      string
+	SourceVolumeName string
+	Body             *gcpserver.ReplicationCreateV1beta
+	ReverseResync    bool
+	CorrelationId    string
 }
 
 // BackupVaultParams describes parameters supplied to BackupVault

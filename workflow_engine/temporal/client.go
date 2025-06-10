@@ -100,6 +100,7 @@ func registerWorkflowsAndActivities(worker worker.Worker, dbcon database.Storage
 	worker.RegisterWorkflow(kms_workflows.UpdateKmsConfigWorkflow)
 	worker.RegisterWorkflow(kms_workflows.CreateKmsConfigWorkflow)
 	worker.RegisterWorkflow(replicationWorkflows.CreateInternalVolumeReplicationWorkflow)
+	worker.RegisterWorkflow(replicationWorkflows.CreateVolumeReplicationWorkflow)
 
 	worker.RegisterActivity(&activities.CommonActivities{SE: dbcon})
 	worker.RegisterActivity(&activities.PoolActivity{SE: dbcon})
@@ -111,6 +112,7 @@ func registerWorkflowsAndActivities(worker worker.Worker, dbcon database.Storage
 	worker.RegisterActivity(&kms_activities.KmsConfigActivity{SE: dbcon})
 	worker.RegisterActivity(&kms_activities.KmsConfigActivity{SE: dbcon})
 	worker.RegisterActivity(&replicationActivities.InternalVolumeReplicationActivity{SE: dbcon})
+	worker.RegisterActivity(&replicationActivities.VolumeReplicationCreateActivity{SE: dbcon})
 }
 
 // CreateClientOptionsFromEnv creates a client.Options instance, configures

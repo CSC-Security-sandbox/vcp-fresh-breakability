@@ -373,6 +373,24 @@ func (UnimplementedHandler) V1betaGetMultipleVolumes(ctx context.Context, req *V
 	return r, ht.ErrNotImplemented
 }
 
+// V1betaGetReplicationCount implements v1beta_getReplicationCount operation.
+//
+// Returns the count of all the replications owned by the caller.
+//
+// GET /v1beta/internal/projects/{projectNumber}/locations/{locationId}/volumeReplication/count
+func (UnimplementedHandler) V1betaGetReplicationCount(ctx context.Context, params V1betaGetReplicationCountParams) (r V1betaGetReplicationCountRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// V1betaGetVolumeCount implements v1beta_getVolumeCount operation.
+//
+// Returns the count of all the volumes owned by the caller.
+//
+// GET /v1beta/internal/projects/{projectNumber}/locations/{locationId}/volumes/count
+func (UnimplementedHandler) V1betaGetVolumeCount(ctx context.Context, params V1betaGetVolumeCountParams) (r V1betaGetVolumeCountRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
 // V1betaInternalAcceptClusterPeer implements v1beta_internalAcceptClusterPeer operation.
 //
 // Accept a new cluster peer.

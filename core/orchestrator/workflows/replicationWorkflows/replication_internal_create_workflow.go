@@ -21,7 +21,7 @@ type internalVolumeReplicationCreateWorkflow struct {
 
 var _ workflows.WorkflowInterface = &internalVolumeReplicationCreateWorkflow{}
 
-func CreateInternalVolumeReplicationWorkflow(ctx workflow.Context, params *common.CreateVolumeReplicationParams, replication *datamodel.VolumeReplication) (*vsa.VolumeReplication, error) {
+func CreateInternalVolumeReplicationWorkflow(ctx workflow.Context, params *common.CreateVolumeReplicationInternalParams, replication *datamodel.VolumeReplication) (*vsa.VolumeReplication, error) {
 	logger := util.GetLogger(ctx)
 	repWf := new(internalVolumeReplicationCreateWorkflow)
 	err := repWf.Setup(ctx, params)
@@ -50,7 +50,7 @@ func CreateInternalVolumeReplicationWorkflow(ctx workflow.Context, params *commo
 }
 
 func (wf *internalVolumeReplicationCreateWorkflow) Setup(ctx workflow.Context, input interface{}) error {
-	createReplicationParams := input.(*common.CreateVolumeReplicationParams)
+	createReplicationParams := input.(*common.CreateVolumeReplicationInternalParams)
 	info := workflow.GetInfo(ctx)
 	wf.ID = info.WorkflowExecution.ID
 	wf.CustomerID = createReplicationParams.VolumeReplication.Account.Name
@@ -69,7 +69,7 @@ func (wf *internalVolumeReplicationCreateWorkflow) Setup(ctx workflow.Context, i
 }
 
 func (wf *internalVolumeReplicationCreateWorkflow) Run(ctx workflow.Context, args ...interface{}) (interface{}, error) {
-	params := args[0].(*common.CreateVolumeReplicationParams)
+	params := args[0].(*common.CreateVolumeReplicationInternalParams)
 	replication := args[1].(*datamodel.VolumeReplication)
 	replicationActivity := &replicationActivities.InternalVolumeReplicationActivity{}
 	retryPolicy, err := workflows.PopulateRetryPolicyParams()

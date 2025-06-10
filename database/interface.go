@@ -63,11 +63,13 @@ type DataStore interface {
 
 	CreateVolume(ctx context.Context, volume *datamodel.Volume) (*datamodel.Volume, error)
 	GetVolume(ctx context.Context, id string) (*datamodel.Volume, error)
+	GetVolumeCount(ctx context.Context, accountName string) (int64, error)
+	GetVolumeByName(ctx context.Context, name string) (*datamodel.Volume, error)
 	UpdateVolume(ctx context.Context, volume *datamodel.Volume) error
 	UpdateVolumeFields(ctx context.Context, volumeUUID string, updates map[string]interface{}) error
 	DeleteVolume(ctx context.Context, id string) (*datamodel.Volume, error)
 	UpdateVolumeState(ctx context.Context, id string, state string, stateDetails string) (*datamodel.Volume, error)
-	ListVolumes(ctx context.Context) ([]*datamodel.Volume, error)
+	ListVolumes(ctx context.Context, conditions [][]interface{}) ([]*datamodel.Volume, error)
 	GetVolumesByPoolID(ctx context.Context, poolID int64) ([]*datamodel.Volume, error)
 	GetVolumeCountByPoolID(ctx context.Context, poolID int64) (int64, error)
 	GetMultipleVolumes(ctx context.Context, conditions [][]interface{}) ([]*datamodel.Volume, error)
@@ -79,6 +81,8 @@ type DataStore interface {
 	UpdateVolumeReplicationStates(ctx context.Context, volumeRep *datamodel.VolumeReplication) error
 	UpdateVolumeReplicationTransferStats(ctx context.Context, volumeRep *datamodel.VolumeReplication) error
 	DeleteVolumeReplication(ctx context.Context, volumeReplicationID string) (*datamodel.VolumeReplication, error)
+	GetVolumeReplicationByProjectId(ctx context.Context, accountId int64) ([]*datamodel.VolumeReplication, error)
+	GetVolumeReplicationCount(ctx context.Context, accountName string) (int64, error)
 
 	GetAccount(ctx context.Context, name string) (*datamodel.Account, error)
 	CreateAccount(ctx context.Context, account *datamodel.Account) (*datamodel.Account, error)

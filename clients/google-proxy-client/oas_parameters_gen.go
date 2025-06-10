@@ -86,6 +86,18 @@ type V1betaCreateReplicationParams struct {
 	XCorrelationID OptString
 }
 
+// V1betaCreateSnapshotParams is parameters of v1beta_createSnapshot operation.
+type V1betaCreateSnapshotParams struct {
+	// The project number of the GCP project owning the resource being acted upon.
+	ProjectNumber string
+	// The location/region to perform the operation in.
+	LocationId string
+	// UUID v4 used to identify the volume.
+	VolumeId string
+	// Correlation identifier.
+	XCorrelationID OptString
+}
+
 // V1betaCreateVolumeParams is parameters of v1beta_createVolume operation.
 type V1betaCreateVolumeParams struct {
 	// The project number of the GCP project owning the resource being acted upon.
@@ -178,6 +190,20 @@ type V1betaDeleteReplicationParams struct {
 	VolumeResourceId string
 	// Resource Id used to identify the replication.
 	ReplicationResourceId string
+	// Correlation identifier.
+	XCorrelationID OptString
+}
+
+// V1betaDeleteSnapshotParams is parameters of v1beta_deleteSnapshot operation.
+type V1betaDeleteSnapshotParams struct {
+	// The project number of the GCP project owning the resource being acted upon.
+	ProjectNumber string
+	// The location/region to perform the operation in.
+	LocationId string
+	// UUID v4 used to identify the volume.
+	VolumeId string
+	// UUID v4 used to identify the snapshot.
+	SnapshotId string
 	// Correlation identifier.
 	XCorrelationID OptString
 }
@@ -280,6 +306,20 @@ type V1betaDescribePoolParams struct {
 	XCorrelationID OptString
 }
 
+// V1betaDescribeSnapshotParams is parameters of v1beta_describeSnapshot operation.
+type V1betaDescribeSnapshotParams struct {
+	// The project number of the GCP project owning the resource being acted upon.
+	ProjectNumber string
+	// The location/region to perform the operation in.
+	LocationId string
+	// UUID v4 used to identify the volume.
+	VolumeId string
+	// UUID v4 used to identify the snapshot.
+	SnapshotId string
+	// Correlation identifier.
+	XCorrelationID OptString
+}
+
 // V1betaDescribeVolumeParams is parameters of v1beta_describeVolume operation.
 type V1betaDescribeVolumeParams struct {
 	// The project number of the GCP project owning the resource being acted upon.
@@ -344,6 +384,16 @@ type V1betaGetMultipleHostGroupsParams struct {
 	XCorrelationID OptString
 }
 
+// V1betaGetMultipleKmsConfigsParams is parameters of v1beta_getMultipleKmsConfigs operation.
+type V1betaGetMultipleKmsConfigsParams struct {
+	// The project number of the GCP project owning the resource being acted upon.
+	ProjectNumber string
+	// The location/region to perform the operation in.
+	LocationId string
+	// Correlation identifier.
+	XCorrelationID OptString
+}
+
 // V1betaGetMultiplePoolsParams is parameters of v1beta_getMultiplePools operation.
 type V1betaGetMultiplePoolsParams struct {
 	// The project number of the GCP project owning the resource being acted upon.
@@ -372,8 +422,8 @@ type V1betaGetMultipleSnapshotsParams struct {
 	ProjectNumber string
 	// The location/region to perform the operation in.
 	LocationId string
-	// Resource Id used to identify the volume.
-	VolumeResourceId string
+	// UUID v4 used to identify the volume.
+	VolumeId string
 	// Correlation identifier.
 	XCorrelationID OptString
 }
@@ -388,8 +438,40 @@ type V1betaGetMultipleVolumesParams struct {
 	XCorrelationID OptString
 }
 
-// V1betaInternalAuthorizeVolumeReplicationParams is parameters of v1beta_internalAuthorizeVolumeReplication operation.
-type V1betaInternalAuthorizeVolumeReplicationParams struct {
+// V1betaGetReplicationCountParams is parameters of v1beta_getReplicationCount operation.
+type V1betaGetReplicationCountParams struct {
+	// Pool ID to which a query should be limited.
+	PoolID OptString
+	// The project number of the GCP project owning the resource being acted upon.
+	ProjectNumber string
+	// The location/region to perform the operation in.
+	LocationId string
+	// Correlation identifier.
+	XCorrelationID OptString
+	// Performance service levels.
+	ServiceLevel []ServiceLevelQueryParameterItem
+	// Hardware or software storage class.
+	StorageClass OptStorageClassQueryParameter
+}
+
+// V1betaGetVolumeCountParams is parameters of v1beta_getVolumeCount operation.
+type V1betaGetVolumeCountParams struct {
+	// The project number of the GCP project owning the resource being acted upon.
+	ProjectNumber string
+	// The location/region to perform the operation in.
+	LocationId string
+	// Correlation identifier.
+	XCorrelationID OptString
+	// Performance service levels.
+	ServiceLevel []ServiceLevelQueryParameterItem
+	// Hardware or software storage class.
+	StorageClass OptStorageClassQueryParameter
+	// Pool ID to which a query should be limited.
+	PoolID OptString
+}
+
+// V1betaInternalAcceptClusterPeerParams is parameters of v1beta_internalAcceptClusterPeer operation.
+type V1betaInternalAcceptClusterPeerParams struct {
 	// The project number of the GCP project owning the resource being acted upon.
 	ProjectNumber string
 	// The location/region to perform the operation in.
@@ -398,8 +480,8 @@ type V1betaInternalAuthorizeVolumeReplicationParams struct {
 	XCorrelationID OptString
 }
 
-// V1betaInternalCreateClusterPeerParams is parameters of v1beta_internalCreateClusterPeer operation.
-type V1betaInternalCreateClusterPeerParams struct {
+// V1betaInternalAuthorizeVolumeReplicationParams is parameters of v1beta_internalAuthorizeVolumeReplication operation.
+type V1betaInternalAuthorizeVolumeReplicationParams struct {
 	// The project number of the GCP project owning the resource being acted upon.
 	ProjectNumber string
 	// The location/region to perform the operation in.
@@ -453,6 +535,18 @@ type V1betaInternalDescribeVolumeReplicationParams struct {
 	// The location/region to perform the operation in.
 	LocationId          string
 	VolumeReplicationId string
+	// Correlation identifier.
+	XCorrelationID OptString
+}
+
+// V1betaInternalGetReplicationJobsParams is parameters of v1beta_internalGetReplicationJobs operation.
+type V1betaInternalGetReplicationJobsParams struct {
+	// The project number of the GCP project owning the resource being acted upon.
+	ProjectNumber string
+	// The location/region to perform the operation in.
+	LocationId string
+	// Uuid v4 used to identify the pool.
+	PoolId string
 	// Correlation identifier.
 	XCorrelationID OptString
 }
@@ -572,6 +666,18 @@ type V1betaListReplicationsParams struct {
 	ProjectNumber string
 	// The location/region to perform the operation in.
 	LocationId string
+	// Correlation identifier.
+	XCorrelationID OptString
+}
+
+// V1betaListSnapshotParams is parameters of v1beta_listSnapshot operation.
+type V1betaListSnapshotParams struct {
+	// The project number of the GCP project owning the resource being acted upon.
+	ProjectNumber string
+	// The location/region to perform the operation in.
+	LocationId string
+	// UUID v4 used to identify the volume.
+	VolumeId string
 	// Correlation identifier.
 	XCorrelationID OptString
 }
@@ -732,6 +838,20 @@ type V1betaUpdateReplicationParams struct {
 	VolumeResourceId string
 	// Resource Id used to identify the replication.
 	ReplicationResourceId string
+	// Correlation identifier.
+	XCorrelationID OptString
+}
+
+// V1betaUpdateSnapshotParams is parameters of v1beta_updateSnapshot operation.
+type V1betaUpdateSnapshotParams struct {
+	// The project number of the GCP project owning the resource being acted upon.
+	ProjectNumber string
+	// The location/region to perform the operation in.
+	LocationId string
+	// UUID v4 used to identify the volume.
+	VolumeId string
+	// UUID v4 used to identify the snapshot.
+	SnapshotId string
 	// Correlation identifier.
 	XCorrelationID OptString
 }

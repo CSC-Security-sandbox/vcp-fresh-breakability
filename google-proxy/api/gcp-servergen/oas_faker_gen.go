@@ -6567,6 +6567,132 @@ func (s *V1betaGetMultipleVolumesUnprocessableEntity) SetFake() {
 }
 
 // SetFake set fake values.
+func (s *V1betaGetReplicationCountBadRequest) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaGetReplicationCountBadRequest(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaGetReplicationCountForbidden) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaGetReplicationCountForbidden(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaGetReplicationCountInternalServerError) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaGetReplicationCountInternalServerError(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaGetReplicationCountNotFound) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaGetReplicationCountNotFound(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaGetReplicationCountOK) SetFake() {
+	{
+		{
+			s.ReplicationCount = int(0)
+		}
+	}
+}
+
+// SetFake set fake values.
+func (s *V1betaGetReplicationCountTooManyRequests) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaGetReplicationCountTooManyRequests(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaGetReplicationCountUnauthorized) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaGetReplicationCountUnauthorized(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaGetVolumeCountBadRequest) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaGetVolumeCountBadRequest(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaGetVolumeCountForbidden) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaGetVolumeCountForbidden(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaGetVolumeCountInternalServerError) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaGetVolumeCountInternalServerError(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaGetVolumeCountNotFound) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaGetVolumeCountNotFound(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaGetVolumeCountOK) SetFake() {
+	{
+		{
+			s.VolumeCount = int(0)
+		}
+	}
+}
+
+// SetFake set fake values.
+func (s *V1betaGetVolumeCountTooManyRequests) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaGetVolumeCountTooManyRequests(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaGetVolumeCountUnauthorized) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaGetVolumeCountUnauthorized(unwrapped)
+}
+
+// SetFake set fake values.
 func (s *V1betaInternalAcceptClusterPeerBadRequest) SetFake() {
 	var unwrapped Error
 	{

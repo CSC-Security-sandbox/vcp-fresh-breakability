@@ -100,7 +100,7 @@ func (wf *snapshotCreateWorkflow) Run(ctx workflow.Context, args ...interface{})
 	if err != nil {
 		return nil, err
 	}
-	node := createNodeForProvider(dbNode, dbSnapshot.Volume)
+	node := CreateNodeForProvider(dbNode, dbSnapshot.Volume)
 	var snapshotCreateResponse *vsa.SnapshotProviderResponse
 	defer func() {
 		updateErr := workflow.ExecuteActivity(ctx, snapshotActivity.UpdateSnapshotDetails, &dbSnapshot, snapshotCreateResponse).Get(ctx, nil)

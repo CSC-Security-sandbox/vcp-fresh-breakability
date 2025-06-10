@@ -97,7 +97,7 @@ func (wf *volumeUpdateWorkflow) Run(ctx workflow.Context, args ...interface{}) (
 		return nil, err
 	}
 
-	node := createNodeForProvider(dbNode, volume)
+	node := CreateNodeForProvider(dbNode, volume)
 
 	err = workflow.ExecuteActivity(ctx, updateActivity.UpdateVolumeInONTAP, &volume, &params, &node).Get(ctx, nil)
 	if err != nil {

@@ -505,3 +505,151 @@ func TestUpdateVolumeFields(t *testing.T) {
 		assert.Error(tt, err)
 	})
 }
+
+func TestGetVolumeCount(t *testing.T) {
+	t.Run("WhenAccountExistsWithVolumes", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err, "Failed to set up test database")
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err, "Failed to clean up test database")
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{
+				ID:   1,
+				UUID: "test-account-uuid",
+			},
+			Name: "test_account",
+		}
+		err = store.db.Create(account).Error()
+		assert.NoError(tt, err, "Failed to create account")
+
+		volume1 := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{UUID: "test-volume-uuid-1"},
+			Name:      "test_volume_1",
+			AccountID: account.ID,
+			Account:   account,
+		}
+		volume2 := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{UUID: "test-volume-uuid-2"},
+			Name:      "test_volume_2",
+			AccountID: account.ID,
+			Account:   account,
+		}
+		err = store.db.Create(volume1).Error()
+		assert.NoError(tt, err, "Failed to create volume 1")
+		err = store.db.Create(volume2).Error()
+		assert.NoError(tt, err, "Failed to create volume 2")
+
+		count, err := store.GetVolumeCount(context.Background(), "test_account")
+		assert.NoError(tt, err, "Expected no error, got %v", err)
+		assert.Equal(tt, int64(2), count, "Expected volume count %v, got %v", 2, count)
+	})
+
+	t.Run("WhenAccountDoesNotExist", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err, "Failed to set up test database")
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err, "Failed to clean up test database")
+
+		count, err := store.GetVolumeCount(context.Background(), "nonexistent_account")
+		assert.Equal(tt, int64(0), count, "Expected volume count %v, got %v", 0, count)
+		assert.Error(tt, err, "Expected error for missing account")
+	})
+}
+
+func TestListVolumesWithDetails(t *testing.T) {
+	t.Run("WhenVolumesExist", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err, "Failed to set up test database")
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err, "Failed to clean up test database")
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{
+				ID:   1,
+				UUID: "test-account-uuid",
+			},
+			Name: "test_account",
+		}
+		err = store.db.Create(account).Error()
+		assert.NoError(tt, err, "Failed to create account")
+
+		pool := &datamodel.Pool{
+			BaseModel: datamodel.BaseModel{UUID: "test-pool-uuid"},
+			Name:      "test_pool",
+			AccountID: account.ID,
+			Account:   account,
+		}
+		err = store.db.Create(pool).Error()
+		assert.NoError(tt, err, "Failed to create pool")
+
+		volume1 := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{UUID: "test-volume-uuid-1"},
+			Name:      "test_volume_1",
+			AccountID: account.ID,
+			Account:   account,
+			Pool:      pool,
+			PoolID:    pool.ID,
+		}
+		volume2 := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{UUID: "test-volume-uuid-2"},
+			Name:      "test_volume_2",
+			AccountID: account.ID,
+			Account:   account,
+			Pool:      pool,
+			PoolID:    pool.ID,
+		}
+		err = store.db.Create(volume1).Error()
+		assert.NoError(tt, err, "Failed to create volume 1")
+		err = store.db.Create(volume2).Error()
+		assert.NoError(tt, err, "Failed to create volume 2")
+
+		volumes, err := _listVolumesWithDetails(store.db.GORM())
+		assert.NoError(tt, err, "Expected no error, got %v", err)
+		assert.Equal(tt, 2, len(volumes), "Expected %v volumes, got %v", 2, len(volumes))
+		assert.Equal(tt, volume1.UUID, volumes[0].UUID, "Expected volume UUID %v, got %v", volume1.UUID, volumes[0].UUID)
+		assert.Equal(tt, volume2.UUID, volumes[1].UUID, "Expected volume UUID %v, got %v", volume2.UUID, volumes[1].UUID)
+	})
+
+	t.Run("WhenNoVolumesExist", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err, "Failed to set up test database")
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err, "Failed to clean up test database")
+
+		volumes, err := _listVolumesWithDetails(store.db.GORM())
+		assert.NoError(tt, err, "Expected no error, got %v", err)
+		assert.Equal(tt, 0, len(volumes), "Expected %v volumes, got %v", 0, len(volumes))
+	})
+}
+
+func TestListVolumes(t *testing.T) {
+	t.Run("WhenNoVolumesExist", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err, "Failed to set up test database")
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err, "Failed to clean up test database")
+
+		conditions := [][]interface{}{
+			{"account_id", "=", 999}, // Non-existent account ID
+		}
+		volumes, err := store.ListVolumes(context.Background(), conditions)
+		assert.NoError(tt, err, "Expected no error, got %v", err)
+		assert.Equal(tt, 0, len(volumes), "Expected %v volumes, got %v", 0, len(volumes))
+	})
+}

@@ -29,7 +29,7 @@ import (
 var (
 	localRegion                   = env.GetString("LOCAL_REGION", "local")
 	PairedRegions                 = env.GetString("VCP_PAIRED_REGIONS", "")
-	parseRegionAndZone            = _parseRegionAndZone
+	ParseRegionAndZone            = _parseRegionAndZone
 	ParseAndValidateRegionAndZone = _parseAndValidateRegionAndZone
 	GetPairedRegionURI            = _getPairedRegionURI
 	ConvertStringToMap            = _convertStringToMap
@@ -121,7 +121,7 @@ func CheckForRetriableError(errorMessage string, retriableErrors []string) bool 
 }
 
 func _parseAndValidateRegionAndZone(locationID string) (string, string, *gcpgenserver.Error) {
-	region, zone, err := parseRegionAndZone(locationID)
+	region, zone, err := ParseRegionAndZone(locationID)
 	if err != nil {
 		code := float64(400)
 		return "", "", &gcpgenserver.Error{Code: code, Message: err.Error()}

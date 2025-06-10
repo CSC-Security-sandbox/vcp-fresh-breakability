@@ -86,7 +86,7 @@ func (wf *volumeDeleteWorkflow) Run(ctx workflow.Context, args ...interface{}) (
 		return nil, err
 	}
 
-	node := createNodeForProvider(dbNode, volume)
+	node := CreateNodeForProvider(dbNode, volume)
 
 	err = workflow.ExecuteActivity(ctx, deleteActivity.DeleteVolumeInONTAP, &volume, &node).Get(ctx, nil)
 	if err != nil {

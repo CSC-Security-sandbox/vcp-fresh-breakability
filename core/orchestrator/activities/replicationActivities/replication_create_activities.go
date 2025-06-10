@@ -1,0 +1,420 @@
+package replicationActivities
+
+import (
+	"context"
+	"strings"
+	"time"
+
+	googleproxyclient "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/google-proxy-client"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
+	commonparams "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/replication"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database"
+	gcpserver "github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/api/gcp-servergen"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/nillable"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
+)
+
+var (
+	convertReplicationScheduleToInternalReplicationSchedule = _convertReplicationScheduleToInternalReplicationSchedule
+	convertVolumeReplicationCreateParams                    = _convertVolumeReplicationCreateParams
+	volumeHydration                                         = VolumeHydration
+)
+
+type VolumeReplicationCreateActivity struct {
+	SE database.Storage
+}
+
+func (a *VolumeReplicationCreateActivity) GetSourceInterclusterLifs(ctx context.Context, result *replication.CreateReplicationResult) (*replication.CreateReplicationResult, error) {
+	logger := util.GetLogger(ctx)
+	logger.Debugf("GetSourcePoolDetails for pool: %s", result.Event.SourcePool.Name)
+	provider := activities.GetProviderByNode(result.SrcNode)
+
+	interClusterLifs, err := provider.GetInterclusterLIFs("default-intercluster")
+	if err != nil {
+		logger.Error("Failed to get interCluster lifs", "error", err)
+		return nil, err
+	}
+	var icLifs []string
+	for _, icLif := range interClusterLifs {
+		icLifs = append(icLifs, string(icLif.Address))
+	}
+	result.SrcIps = icLifs
+	return result, nil
+}
+
+func (a *VolumeReplicationCreateActivity) GetDestinationPoolDetails(ctx context.Context, result *replication.CreateReplicationResult) (*replication.CreateReplicationResult, error) {
+	logger := util.GetLogger(ctx)
+	googleProxyClient := googleproxyclient.GetGProxyClient(*result.DstBasePath, *result.DstJwtToken, logger)
+
+	describePoolParams := &googleproxyclient.V1betaInternalDescribePoolParams{
+		PoolName:      result.Event.DestinationPoolName,
+		ProjectNumber: *result.DstProjectNumber,
+		LocationId:    result.Event.DestinationLocationID,
+	}
+
+	res, err := googleProxyClient.Invoker.V1betaInternalDescribePool(ctx, *describePoolParams)
+	if err != nil {
+		return nil, errors.NewVCPError(errors.ErrInternalDescribePool, err)
+	}
+	pool, ok := res.(*googleproxyclient.PoolInternalV1beta)
+	if ok {
+		result.DstPool = pool
+		result.DstIps = pool.InterclusterLifs
+		return result, nil
+	}
+	return nil, errors.NewVCPError(errors.ErrInternalDescribePool, errors.New("Pool not found"))
+}
+
+func (j *VolumeReplicationCreateActivity) CreateClusterPeering(ctx context.Context, result *replication.CreateReplicationResult) (*replication.CreateReplicationResult, error) {
+	logger := util.GetLogger(ctx)
+	logger.Debugf("CreateClusterPeer called")
+
+	node := result.SrcNode
+	expiryTime := time.Now().Add(time.Minute * 10) // Default expiry time of 10 mins
+	clustePeerParams := &commonparams.ClusterPeerParams{
+		PeerName:      result.DstPool.ClusterName.Value,
+		PeerAddresses: result.DstIps,
+		ExpiryTime:    &expiryTime,
+	}
+	resp, err := activities.CreateClusterPeer(ctx, clustePeerParams, node)
+	if err != nil {
+		return nil, err
+	}
+	result.ClusterPeerUUID = &resp.UUID
+	result.Passphrase = (*string)(resp.Passphrase)
+	return result, nil
+}
+
+func (a *VolumeReplicationCreateActivity) AcceptClusterPeering(ctx context.Context, result *replication.CreateReplicationResult) (*replication.CreateReplicationResult, error) {
+	if result.Passphrase == nil {
+		return result, nil
+	}
+	logger := util.GetLogger(ctx)
+	googleProxyClient := googleproxyclient.GetGProxyClient(*result.DstBasePath, *result.DstJwtToken, logger)
+
+	accpetClusterPeerParams := &googleproxyclient.V1betaInternalAcceptClusterPeerParams{
+		ProjectNumber: *result.DstProjectNumber,
+		LocationId:    result.Event.DestinationLocationID,
+	}
+
+	expiryTime := time.Now().Add(time.Minute * 10)
+	body := &googleproxyclient.ClusterPeerV1{
+		PeerAddresses:   result.SrcIps,
+		PeerClusterName: result.Event.SourcePool.ClusterDetails.ExternalName,
+		Passphrase:      *result.Passphrase,
+		PoolUUID:        result.DstPool.PoolId.Value,
+		ExpiryTime:      googleproxyclient.NewOptNilDateTime(expiryTime),
+	}
+	res, err := googleProxyClient.Invoker.V1betaInternalAcceptClusterPeer(ctx, body, *accpetClusterPeerParams)
+	if err != nil {
+		return nil, errors.NewVCPError(errors.ErrInternalAcceptClusterPeer, err)
+	}
+	clusterPeer, ok := res.(*googleproxyclient.ClusterPeerV1)
+	if ok {
+		result.JobId = &clusterPeer.Jobs[0].JobId.Value
+		return result, nil
+	}
+	return nil, errors.NewVCPError(errors.ErrInternalAcceptClusterPeer, errors.New("Cluster peer not found"))
+}
+
+func (a *VolumeReplicationCreateActivity) CreateDestinationVolume(ctx context.Context, result *replication.CreateReplicationResult) (*replication.CreateReplicationResult, error) {
+	logger := util.GetLogger(ctx)
+	googleProxyClient := googleproxyclient.GetGProxyClient(*result.DstBasePath, *result.DstJwtToken, logger)
+
+	createVolumeParams := &googleproxyclient.V1betaCreateVolumeParams{
+		ProjectNumber: *result.DstProjectNumber,
+		LocationId:    result.Event.DestinationLocationID,
+	}
+
+	body := &googleproxyclient.VolumeCreateV1beta{
+		Volume:     convertSourceVolumeToDestinationVolume(result),
+		VolumeType: googleproxyclient.OptVolumeCreateV1betaVolumeType{Value: googleproxyclient.VolumeCreateV1betaVolumeTypeSECONDARY, Set: true},
+	}
+
+	res, err := googleProxyClient.Invoker.V1betaCreateVolume(ctx, body, *createVolumeParams)
+	if err != nil {
+		return nil, errors.NewVCPError(errors.ErrCreatingDestinationVolume, err)
+	}
+	operation, ok := res.(*googleproxyclient.OperationV1beta)
+	if ok {
+		volume := gcpserver.VolumeV1beta{}
+		err := replication.JsonUnMarshal(operation.Response, &volume)
+		if err != nil {
+			return nil, errors.NewVCPError(errors.ErrorFailedToUnmarshal, err)
+		}
+		result.JobId = &strings.Split(operation.Name.Value, "/")[7]
+		result.DstVolume = &volume
+		return result, nil
+	}
+	return nil, nil
+}
+
+func (a *VolumeReplicationCreateActivity) HydrateDestinationVolume(ctx context.Context, result *replication.CreateReplicationResult) (*replication.CreateReplicationResult, error) {
+	err := volumeHydration(ctx, convertVolumeV1BetaToVolumeModel(*result.DstVolume, result.Event.DestinationLocationID), *result.DstProjectNumber)
+	if err != nil {
+		return nil, errors.NewVCPError(errors.ErrHydrateVolumeCreate, err)
+	}
+	return result, nil
+}
+
+func convertVolumeV1BetaToVolumeModel(vol gcpserver.VolumeV1beta, dstLocation string) models.Volume {
+	protocols := make([]string, 0)
+	for _, protocol := range vol.Protocols {
+		protocolStr, err := protocol.MarshalText()
+		if err != nil {
+			return models.Volume{}
+		}
+		protocols = append(protocols, string(protocolStr))
+	}
+	return models.Volume{
+		BaseModel: models.BaseModel{
+			UUID: vol.VolumeId.Value,
+		},
+		DisplayName:    vol.ResourceId,
+		QuotaInBytes:   uint64(vol.QuotaInBytes.Value),
+		LifeCycleState: string(vol.VolumeState.Value),
+		ProtocolTypes:  protocols,
+		Region:         dstLocation,
+	}
+}
+
+func (a *VolumeReplicationCreateActivity) CreateReplicationOnDestination(ctx context.Context, result *replication.CreateReplicationResult) (*replication.CreateReplicationResult, error) {
+	logger := util.GetLogger(ctx)
+	googleProxyClient := googleproxyclient.GetGProxyClient(*result.DstBasePath, *result.DstJwtToken, logger)
+
+	createVolumeParams := &googleproxyclient.V1betaInternalCreateVolumeReplicationParams{
+		ProjectNumber: *result.DstProjectNumber,
+		LocationId:    result.Event.DestinationLocationID,
+	}
+
+	body := convertVolumeReplicationCreateParams(*result)
+
+	res, err := googleProxyClient.Invoker.V1betaInternalCreateVolumeReplication(ctx, &body, *createVolumeParams)
+	if err != nil {
+		return nil, errors.NewVCPError(errors.ErrCreatingDestinationVolume, err)
+	}
+	response, ok := res.(*googleproxyclient.VolumeReplicationInternalV1beta)
+	if ok {
+		result.DstReplication = response
+		result.JobId = &response.Jobs[0].JobId.Value
+		return result, nil
+	}
+	return nil, nil
+}
+
+func (a *VolumeReplicationCreateActivity) UpdateReplicationState(ctx context.Context, volumeRep datamodel.VolumeReplication) error {
+	logger := util.GetLogger(ctx)
+	se := a.SE
+
+	err := se.UpdateVolumeReplicationStates(ctx, &volumeRep)
+	if err != nil {
+		return err
+	}
+	logger.Debug("Volume Replication state:%s update successfully in the db", volumeRep.Name)
+
+	return nil
+}
+
+func (a *VolumeReplicationCreateActivity) UpdateReplicationDetails(ctx context.Context, result *replication.CreateReplicationResult) error {
+	logger := util.GetLogger(ctx)
+	se := a.SE
+
+	volumeRep := result.DbVolReplication
+	volumeRep.State = models.LifeCycleStateCreated
+	volumeRep.StateDetails = models.LifeCycleStateCreatedDetails
+	volumeRep.ReplicationAttributes.DestinationPoolUUID = result.DstPool.PoolId.Value
+	volumeRep.ReplicationAttributes.DestinationVolumeUUID = result.DstVolume.VolumeId.Value
+	volumeRep.ReplicationAttributes.DestinationVolumeName = result.DstVolume.ResourceId
+	volumeRep.ReplicationAttributes.SourceSvmName = *result.SrcSvm
+	volumeRep.ReplicationAttributes.DestinationSvmName = *result.DstSvm
+	volumeRep.ReplicationAttributes.SourceHostName = result.Event.SourcePool.ClusterDetails.ExternalName
+	volumeRep.ReplicationAttributes.DestinationHostName = result.DstPool.ClusterName.Value
+	volumeRep.ReplicationAttributes.DestinationReplicationUUID = result.DstReplication.VolumeReplicationUuid.Value
+	volumeRep.ReplicationAttributes.SourceReplicationUUID = volumeRep.UUID
+	volumeRep.ReplicationAttributes.ReplicationType = string(result.DstReplication.ReplicationType.Value)
+
+	err := se.UpdateVolumeReplication(ctx, volumeRep)
+	if err != nil {
+		return err
+	}
+	logger.Debug("Volume Replication state:%s update successfully in the db", volumeRep.Name)
+
+	return nil
+}
+
+func (a *VolumeReplicationCreateActivity) AcceptSvmPeer(ctx context.Context, result *replication.CreateReplicationResult) (*replication.CreateReplicationResult, error) {
+	logger := util.GetLogger(ctx)
+	provider := activities.GetProviderByNode(result.SrcNode)
+
+	svmPeer, err := provider.GetSVMPeer(result.SrcSvm, result.DstSvm)
+	if err != nil {
+		return nil, errors.NewVCPError(errors.ErrGettingSvmPeer, err)
+	}
+	if svmPeer.State == "peered" && svmPeer.PeerSvmName == *result.DstSvm {
+		// SVMs are already peered
+		logger.Infof("SVMs already peered")
+		return result, nil
+	}
+	err = provider.AcceptSvmPeering(*result.SrcSvm, *result.DstSvm)
+	if err != nil {
+		return nil, errors.NewVCPError(errors.ErrAcceptSvmPeer, err)
+	}
+
+	return result, nil
+}
+
+func (a *VolumeReplicationCreateActivity) GetVolumeSVMNames(ctx context.Context, result *replication.CreateReplicationResult) (*replication.CreateReplicationResult, error) {
+	srcClusterName := result.Event.SourcePool.ClusterDetails.ExternalName
+	srcSvm := srcClusterName[:strings.LastIndex(srcClusterName, "-")] + "-datasvm-gcnv-default-svm"
+	dstClusterName := result.DstPool.ClusterName.Value
+	dstSvm := dstClusterName[:strings.LastIndex(dstClusterName, "-")] + "-datasvm-gcnv-default-svm"
+
+	result.SrcSvm = &srcSvm
+	result.DstSvm = &dstSvm
+	return result, nil
+}
+
+func (a *VolumeReplicationCreateActivity) GetSrcBasePath(ctx context.Context, result *replication.CreateReplicationResult) (*replication.CreateReplicationResult, error) {
+	logger := util.GetLogger(ctx)
+	logger.Debugf("getSrcBasePath")
+	var srcBasePath string
+	srcBasePath, err := replication.InternalUtilGetPairedRegionURI(result.Event.LocationID)
+	if err != nil {
+		return nil, errors.NewVCPError(errors.ErrGetSrcBasePath, err)
+	}
+	result.SrcBasePath = &srcBasePath
+	return result, nil
+}
+
+func (a *VolumeReplicationCreateActivity) GetDstBasePath(ctx context.Context, result *replication.CreateReplicationResult) (*replication.CreateReplicationResult, error) {
+	logger := util.GetLogger(ctx)
+	logger.Debugf("getDstBasePath")
+	var dstBasePath string
+	dstBasePath, err := replication.InternalUtilGetPairedRegionURI(result.Event.DestinationLocationID)
+	if err != nil {
+		return nil, errors.NewVCPError(errors.ErrGetDstBasePath, err)
+	}
+	result.DstBasePath = &dstBasePath
+	return result, nil
+}
+
+func (a *VolumeReplicationCreateActivity) GetSignedSrcToken(ctx context.Context, result *replication.CreateReplicationResult) (*replication.CreateReplicationResult, error) {
+	logger := util.GetLogger(ctx)
+	logger.Debugf("getSignedSrcToken")
+
+	jwt, err := replication.InternalUtilGetSignedToken(*result.SrcProjectNumber)
+	if err != nil {
+		return nil, errors.NewVCPError(errors.ErrGetSignedToken, err)
+	}
+	result.SrcJwtToken = &jwt
+	return result, nil
+}
+
+func (a *VolumeReplicationCreateActivity) GetSignedDstToken(ctx context.Context, result *replication.CreateReplicationResult) (*replication.CreateReplicationResult, error) {
+	logger := util.GetLogger(ctx)
+	logger.Debugf("getSignedDstToken")
+
+	jwt, err := replication.InternalUtilGetSignedToken(*result.DstProjectNumber)
+	if err != nil {
+		return nil, errors.NewVCPError(errors.ErrGetSignedToken, err)
+	}
+	result.DstJwtToken = &jwt
+	return result, nil
+}
+
+func (a *VolumeReplicationCreateActivity) MountReplication(ctx context.Context, result *replication.CreateReplicationResult) (*replication.CreateReplicationResult, error) {
+	// TODO: // Implement the logic to mount the replication
+	return result, nil
+}
+
+// DescribeRemoteJob gives the status of a remote job
+func (a *VolumeReplicationCreateActivity) DescribeRemoteJob(ctx context.Context, result *replication.CreateReplicationResult) error {
+	err := activities.DescribeJob(ctx, result.JobId, result.DstBasePath, result.DstJwtToken, result.DstProjectNumber, &result.Event.DestinationLocationID)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func convertSourceVolumeToDestinationVolume(result *replication.CreateReplicationResult) googleproxyclient.VolumeV1beta {
+	srcVol := result.Event.SourceVolume
+	protocols := make([]googleproxyclient.ProtocolsV1beta, 0)
+	for _, value := range srcVol.VolumeAttributes.Protocols {
+		var protocolsV1beta googleproxyclient.ProtocolsV1beta
+		_ = protocolsV1beta.UnmarshalText([]byte(value))
+		protocols = append(protocols, protocolsV1beta)
+	}
+	osType := srcVol.VolumeAttributes.BlockProperties.OSType
+	blockProperties := googleproxyclient.BlockPropertiesV1beta{
+		OsType: googleproxyclient.NewOptBlockPropertiesV1betaOsType(convertBlockPropertiesOsType(osType)),
+	}
+
+	volume := googleproxyclient.VolumeV1beta{
+		ResourceId:      result.Event.CreateReplicationParams.DestinationVolumeParameters.VolumeID,
+		CreationToken:   googleproxyclient.NewOptString(result.Event.CreateReplicationParams.DestinationVolumeParameters.ShareName),
+		PoolId:          googleproxyclient.NewNilString(result.DstPool.PoolId.Value),
+		QuotaInBytes:    googleproxyclient.NewOptFloat64(float64(srcVol.SizeInBytes)),
+		Network:         googleproxyclient.NewOptString(result.DstPool.Network),
+		Description:     googleproxyclient.NewOptNilString(nillable.GetString(result.Event.CreateReplicationParams.DestinationVolumeParameters.Description, "")),
+		Protocols:       protocols,
+		BlockProperties: googleproxyclient.NewOptBlockPropertiesV1beta(blockProperties),
+	}
+	return volume
+}
+
+func _convertVolumeReplicationCreateParams(result replication.CreateReplicationResult) googleproxyclient.VolumeReplicationCreateInternalV1beta {
+	createReplicationParams := googleproxyclient.VolumeReplicationCreateInternalV1beta{
+		RemoteRegion:          result.Event.LocationID,
+		EndpointType:          "dst",
+		ReplicationSchedule:   googleproxyclient.NewOptVolumeReplicationCreateInternalV1betaReplicationSchedule(convertReplicationScheduleToInternalReplicationSchedule(*result.Event.CreateReplicationParams.ReplicationSchedule)),
+		SourceVolumeUuid:      googleproxyclient.NewOptString(result.Event.SourceVolume.UUID),
+		SourcePoolUuid:        googleproxyclient.NewOptString(result.Event.SourcePool.UUID),
+		SourceHostName:        result.Event.SourcePool.ClusterDetails.ExternalName,
+		SourceServerName:      *result.SrcSvm,
+		SourceVolumeName:      result.Event.SourceVolume.Name,
+		DestinationHostName:   result.DstPool.ClusterName.Value,
+		DestinationServerName: *result.DstSvm,
+		DestinationVolumeName: result.DstVolume.ResourceId,
+		DestinationVolumeUuid: googleproxyclient.NewOptString(result.DstVolume.VolumeId.Value),
+		DestinationPoolUuid:   googleproxyclient.NewOptString(result.DstPool.PoolId.Value),
+		Name:                  googleproxyclient.NewOptString(*result.Event.CreateReplicationParams.ResourceID),
+		Description:           googleproxyclient.NewOptString(nillable.GetString(result.Event.CreateReplicationParams.Description, "")),
+		ReplicationPolicy:     googleproxyclient.NewOptVolumeReplicationCreateInternalV1betaReplicationPolicy(googleproxyclient.VolumeReplicationCreateInternalV1betaReplicationPolicyMirrorAllSnapshots),
+		ReplicationType:       googleproxyclient.NewOptVolumeReplicationCreateInternalV1betaReplicationType(googleproxyclient.VolumeReplicationCreateInternalV1betaReplicationTypeCROSSREGIONREPLICATION),
+		ReverseResume:         googleproxyclient.NewOptBool(false),
+		CcfeURI:               googleproxyclient.NewOptString(result.DbVolReplication.Uri),
+		CcfeRemoteURI:         googleproxyclient.NewOptString(result.DbVolReplication.RemoteUri),
+	}
+
+	return createReplicationParams
+}
+
+func _convertReplicationScheduleToInternalReplicationSchedule(in string) googleproxyclient.VolumeReplicationCreateInternalV1betaReplicationSchedule {
+	switch in {
+	case "EVERY_10_MINUTES":
+		return googleproxyclient.VolumeReplicationCreateInternalV1betaReplicationSchedule10minutely
+	case "HOURLY":
+		return googleproxyclient.VolumeReplicationCreateInternalV1betaReplicationScheduleHourly
+	case "DAILY":
+		return googleproxyclient.VolumeReplicationCreateInternalV1betaReplicationScheduleDaily
+	default:
+		return ""
+	}
+}
+
+func convertBlockPropertiesOsType(in string) googleproxyclient.BlockPropertiesV1betaOsType {
+	switch in {
+	case "LINUX":
+		return googleproxyclient.BlockPropertiesV1betaOsTypeLINUX
+	case "WINDOWS":
+		return googleproxyclient.BlockPropertiesV1betaOsTypeWINDOWS
+	case "ESXI":
+		return googleproxyclient.BlockPropertiesV1betaOsTypeESXI
+	default:
+		return googleproxyclient.BlockPropertiesV1betaOsTypeOSTYPEUNSPECIFIED
+	}
+}

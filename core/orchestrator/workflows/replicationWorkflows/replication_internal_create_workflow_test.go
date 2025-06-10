@@ -51,7 +51,7 @@ func TestCreateInternalVolumeReplicationWorkflow(t *testing.T) {
 			Svm:              &datamodel.Svm{Name: "svm_test"},
 			VolumeAttributes: &datamodel.VolumeAttributes{BlockProperties: &datamodel.BlockProperties{OSType: "LINUX"}},
 		}
-		params := &commonparams.CreateVolumeReplicationParams{
+		params := &commonparams.CreateVolumeReplicationInternalParams{
 			VolumeReplication: &models.VolumeReplication{
 				Account: &models.Account{
 					BaseModel: models.BaseModel{

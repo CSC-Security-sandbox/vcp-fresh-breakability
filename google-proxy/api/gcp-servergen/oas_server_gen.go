@@ -251,6 +251,18 @@ type Handler interface {
 	//
 	// POST /v1beta/projects/{projectNumber}/locations/{locationId}/getMultipleVolumes
 	V1betaGetMultipleVolumes(ctx context.Context, req *VolumeIdListV1beta, params V1betaGetMultipleVolumesParams) (V1betaGetMultipleVolumesRes, error)
+	// V1betaGetReplicationCount implements v1beta_getReplicationCount operation.
+	//
+	// Returns the count of all the replications owned by the caller.
+	//
+	// GET /v1beta/internal/projects/{projectNumber}/locations/{locationId}/volumeReplication/count
+	V1betaGetReplicationCount(ctx context.Context, params V1betaGetReplicationCountParams) (V1betaGetReplicationCountRes, error)
+	// V1betaGetVolumeCount implements v1beta_getVolumeCount operation.
+	//
+	// Returns the count of all the volumes owned by the caller.
+	//
+	// GET /v1beta/internal/projects/{projectNumber}/locations/{locationId}/volumes/count
+	V1betaGetVolumeCount(ctx context.Context, params V1betaGetVolumeCountParams) (V1betaGetVolumeCountRes, error)
 	// V1betaInternalAcceptClusterPeer implements v1beta_internalAcceptClusterPeer operation.
 	//
 	// Accept a new cluster peer.

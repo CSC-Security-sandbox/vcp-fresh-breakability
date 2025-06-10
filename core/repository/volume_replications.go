@@ -62,6 +62,17 @@ func (d *DataStoreRepository) GetVolumeReplication(ctx context.Context, volumeRe
 	return getVolumeReplicationDetails(db, &datamodel.VolumeReplication{BaseModel: datamodel.BaseModel{UUID: volumeReplicationID}})
 }
 
+// GetVolumeReplicationByProjectId retrieves a replication by projectId
+func (d *DataStoreRepository) GetVolumeReplicationByProjectId(ctx context.Context, accountId int64) ([]*datamodel.VolumeReplication, error) {
+	db := d.db.GORM().WithContext(ctx)
+	var replications []*datamodel.VolumeReplication
+	err := db.Preload("Volume").Find(&replications, &datamodel.VolumeReplication{AccountID: accountId}).Error
+	if err != nil {
+		return nil, err
+	}
+	return replications, nil
+}
+
 func _getVolumeReplicationDetails(db *gorm.DB, query *datamodel.VolumeReplication) (*datamodel.VolumeReplication, error) {
 	vr := &datamodel.VolumeReplication{}
 	err := db.Preload("Volume").Preload("Volume.Pool").First(&vr, query).Error
@@ -93,6 +104,7 @@ func (d *DataStoreRepository) UpdateVolumeReplication(ctx context.Context, volum
 	if dbReplication.ReplicationAttributes.ExternalUUID != volumeRep.ReplicationAttributes.ExternalUUID {
 		dbReplication.ReplicationAttributes.ExternalUUID = volumeRep.ReplicationAttributes.ExternalUUID
 	}
+	dbReplication.ReplicationAttributes = volumeRep.ReplicationAttributes
 	dbReplication.MirrorState = volumeRep.MirrorState
 	dbReplication.RelationshipStatus = volumeRep.RelationshipStatus
 	dbReplication.TotalTransferBytes = volumeRep.TotalTransferBytes
@@ -188,4 +200,17 @@ func (d *DataStoreRepository) DeleteVolumeReplication(ctx context.Context, volum
 	}
 
 	return volumeRep, nil
+}
+
+func (d *DataStoreRepository) GetVolumeReplicationCount(ctx context.Context, accountName string) (int64, error) {
+	var count int64
+	account, err := d.GetAccount(ctx, accountName)
+	if err != nil {
+		return 0, err
+	}
+	err = d.db.GORM().WithContext(ctx).Model(&datamodel.VolumeReplication{}).Where("account_id = ?", account.ID).Count(&count).Error
+	if err != nil {
+		return 0, err
+	}
+	return count, nil
 }

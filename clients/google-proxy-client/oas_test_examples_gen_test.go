@@ -3,13 +3,13 @@
 package googleproxyclient
 
 import (
-	std "encoding/json"
 	"fmt"
-	"testing"
 
 	"github.com/go-faster/errors"
 	"github.com/go-faster/jx"
 	"github.com/ogen-go/ogen/validate"
+	std "encoding/json"
+	"testing"
 	"github.com/stretchr/testify/require"
 )
 
@@ -51,7 +51,7 @@ func TestActiveDirectoryV1beta_EncodeDecode(t *testing.T) {
 }
 
 func TestActiveDirectoryV1beta_Examples(t *testing.T) {
-	for i, tc := range []struct {
+    for i, tc := range []struct {
 		Input string
 	}{
 		{Input: "{\"application/json\":{\"DNS\":\"100.101.102.103\",\"activeDirectoryId\":\"9760acf5-4638-11e7-9bdb-020073ca7773\",\"activeDirectoryState\":\"READY\",\"activeDirectoryStateDetails\":\"Credentials saved and available for use\",\"aesEncryption\":true,\"backupOperators\":[\"Superman\",\"Batman\"],\"createdAt\":\"2017-01-29T09:10:32.212Z\",\"description\":\"My Active Directory description\",\"domain\":\"krypton.galaxy\",\"encryptDCConnections\":false,\"kdcHostName\":\"My Active Directory Machine\",\"ldapSigning\":true,\"netBIOS\":\"cvserver\",\"organizationalUnit\":\"CN=Computers\",\"password\":\"****************\",\"resourceId\":\"my-active-directory\",\"updatedAt\":\"2017-01-29T09:10:32.212Z\",\"username\":\"superman\"}}"},
@@ -91,7 +91,7 @@ func TestActiveDirectoryV1betaActiveDirectoryState_EncodeDecode(t *testing.T) {
 }
 
 func TestActiveDirectoryV1betaActiveDirectoryState_Examples(t *testing.T) {
-	for i, tc := range []struct {
+    for i, tc := range []struct {
 		Input string
 	}{
 		{Input: "\"READY\""},
@@ -191,7 +191,7 @@ func TestBackupPolicyDetailsV1betaState_EncodeDecode(t *testing.T) {
 }
 
 func TestBackupPolicyDetailsV1betaState_Examples(t *testing.T) {
-	for i, tc := range []struct {
+    for i, tc := range []struct {
 		Input string
 	}{
 		{Input: "\"READY\""},
@@ -267,7 +267,7 @@ func TestBackupPolicyV1betaState_EncodeDecode(t *testing.T) {
 }
 
 func TestBackupPolicyV1betaState_Examples(t *testing.T) {
-	for i, tc := range []struct {
+    for i, tc := range []struct {
 		Input string
 	}{
 		{Input: "\"READY\""},
@@ -367,7 +367,7 @@ func TestBackupV1betaState_EncodeDecode(t *testing.T) {
 }
 
 func TestBackupV1betaState_Examples(t *testing.T) {
-	for i, tc := range []struct {
+    for i, tc := range []struct {
 		Input string
 	}{
 		{Input: "\"READY\""},
@@ -443,7 +443,7 @@ func TestBackupVaultV1beta_EncodeDecode(t *testing.T) {
 }
 
 func TestBackupVaultV1beta_Examples(t *testing.T) {
-	for i, tc := range []struct {
+    for i, tc := range []struct {
 		Input string
 	}{
 		{Input: "{\"application/json\":{\"backupVaultId\":\"9760acf5-4638-11e7-9bdb-020073ca3333\",\"created\":\"2017-02-02T00:00:00.000Z\",\"description\":\"Dummy description\",\"resourceId\":\"backupVault1\",\"state\":\"READY\",\"stateDetails\":\"Available for use\"}}"},
@@ -495,7 +495,7 @@ func TestBackupVaultV1betaState_EncodeDecode(t *testing.T) {
 }
 
 func TestBackupVaultV1betaState_Examples(t *testing.T) {
-	for i, tc := range []struct {
+    for i, tc := range []struct {
 		Input string
 	}{
 		{Input: "\"available\""},
@@ -547,7 +547,7 @@ func TestBlockPropertiesV1betaOsType_EncodeDecode(t *testing.T) {
 }
 
 func TestBlockPropertiesV1betaOsType_Examples(t *testing.T) {
-	for i, tc := range []struct {
+    for i, tc := range []struct {
 		Input string
 	}{
 		{Input: "\"LINUX\""},
@@ -623,7 +623,7 @@ func TestClusterPeerV1AuthenticationState_EncodeDecode(t *testing.T) {
 }
 
 func TestClusterPeerV1AuthenticationState_Examples(t *testing.T) {
-	for i, tc := range []struct {
+    for i, tc := range []struct {
 		Input string
 	}{
 		{Input: "\"pending\""},
@@ -663,7 +663,7 @@ func TestClusterPeerV1Availability_EncodeDecode(t *testing.T) {
 }
 
 func TestClusterPeerV1Availability_Examples(t *testing.T) {
-	for i, tc := range []struct {
+    for i, tc := range []struct {
 		Input string
 	}{
 		{Input: "\"available\""},
@@ -727,7 +727,7 @@ func TestError_EncodeDecode(t *testing.T) {
 }
 
 func TestError_Examples(t *testing.T) {
-	for i, tc := range []struct {
+    for i, tc := range []struct {
 		Input string
 	}{
 		{Input: "{\"code\":1994,\"message\":\"Out of cheese error! Please reboot the Universe\"}"},
@@ -827,7 +827,7 @@ func TestFlexCacheV1betaCacheState_EncodeDecode(t *testing.T) {
 }
 
 func TestFlexCacheV1betaCacheState_Examples(t *testing.T) {
-	for i, tc := range []struct {
+    for i, tc := range []struct {
 		Input string
 	}{
 		{Input: "\"PEERED\""},
@@ -849,6 +849,46 @@ func TestFlexCacheV1betaCacheState_Examples(t *testing.T) {
 			require.True(t, std.Valid(e.Bytes()), "Encoded: %s", e.Bytes())
 
 			var typ2 FlexCacheV1betaCacheState
+			require.NoError(t, typ2.Decode(jx.DecodeBytes(e.Bytes())))
+		})
+	}
+}
+func TestFlexCacheV1betaPreviousCacheState_EncodeDecode(t *testing.T) {
+	var typ FlexCacheV1betaPreviousCacheState
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 FlexCacheV1betaPreviousCacheState
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+
+func TestFlexCacheV1betaPreviousCacheState_Examples(t *testing.T) {
+    for i, tc := range []struct {
+		Input string
+	}{
+		{Input: "\"PEERED\""},
+	} {
+		tc := tc
+		t.Run(fmt.Sprintf("Test%d", i+1), func(t *testing.T) {
+			var typ FlexCacheV1betaPreviousCacheState
+
+			if err := typ.Decode(jx.DecodeStr(tc.Input)); err != nil {
+				if validateErr, ok := errors.Into[*validate.Error](err); ok {
+					t.Skipf("Validation error: %v", validateErr)
+					return
+				}
+				require.NoErrorf(t, err, "Input: %s", tc.Input)
+			}
+
+			e := jx.Encoder{}
+			typ.Encode(&e)
+			require.True(t, std.Valid(e.Bytes()), "Encoded: %s", e.Bytes())
+
+			var typ2 FlexCacheV1betaPreviousCacheState
 			require.NoError(t, typ2.Decode(jx.DecodeBytes(e.Bytes())))
 		})
 	}
@@ -975,7 +1015,7 @@ func TestHostGroupV1beta_EncodeDecode(t *testing.T) {
 }
 
 func TestHostGroupV1beta_Examples(t *testing.T) {
-	for i, tc := range []struct {
+    for i, tc := range []struct {
 		Input string
 	}{
 		{Input: "{\"created\":\"2024-01-24T13:54:14.374Z\",\"description\":\"HostGroup for storage access\",\"hostGroupId\":\"123e4567-e89b-12d3-a456-426614174000\",\"hosts\":[\"iqn.1998-01.com.vmware:example1\"],\"osType\":\"LINUX\",\"resourceId\":\"my-host-group\",\"state\":\"READY\",\"stateDetails\":\"avilable for use\",\"type\":\"ISCSI_INITIATOR\",\"updated\":\"2024-01-25T10:00:00.000Z\"}"},
@@ -1015,7 +1055,7 @@ func TestHostGroupV1betaOsType_EncodeDecode(t *testing.T) {
 }
 
 func TestHostGroupV1betaOsType_Examples(t *testing.T) {
-	for i, tc := range []struct {
+    for i, tc := range []struct {
 		Input string
 	}{
 		{Input: "\"LINUX\""},
@@ -1055,7 +1095,7 @@ func TestHostGroupV1betaState_EncodeDecode(t *testing.T) {
 }
 
 func TestHostGroupV1betaState_Examples(t *testing.T) {
-	for i, tc := range []struct {
+    for i, tc := range []struct {
 		Input string
 	}{
 		{Input: "\"READY\""},
@@ -1081,7 +1121,6 @@ func TestHostGroupV1betaState_Examples(t *testing.T) {
 		})
 	}
 }
-
 func TestHostGroupV1betaType_EncodeDecode(t *testing.T) {
 	var typ HostGroupV1betaType
 	typ.SetFake()
@@ -1096,7 +1135,7 @@ func TestHostGroupV1betaType_EncodeDecode(t *testing.T) {
 }
 
 func TestHostGroupV1betaType_Examples(t *testing.T) {
-	for i, tc := range []struct {
+    for i, tc := range []struct {
 		Input string
 	}{
 		{Input: "\"ISCSI_INITIATOR\""},
@@ -1186,7 +1225,7 @@ func TestHybridReplicationParametersV1betaLabels_EncodeDecode(t *testing.T) {
 }
 
 func TestHybridReplicationParametersV1betaLabels_Examples(t *testing.T) {
-	for i, tc := range []struct {
+    for i, tc := range []struct {
 		Input string
 	}{
 		{Input: "{\"someKey\":\"SomeValue\",\"someKey2\":\"SomeValue2\"}"},
@@ -1238,6 +1277,18 @@ func TestHybridReplicationUserCommandsV1beta_EncodeDecode(t *testing.T) {
 	var typ2 HybridReplicationUserCommandsV1beta
 	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
 }
+func TestInternalJobV1beta_EncodeDecode(t *testing.T) {
+	var typ InternalJobV1beta
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 InternalJobV1beta
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
 func TestJobV1beta_EncodeDecode(t *testing.T) {
 	var typ JobV1beta
 	typ.SetFake()
@@ -1264,7 +1315,7 @@ func TestJobV1betaAction_EncodeDecode(t *testing.T) {
 }
 
 func TestJobV1betaAction_Examples(t *testing.T) {
-	for i, tc := range []struct {
+    for i, tc := range []struct {
 		Input string
 	}{
 		{Input: "\"delete\""},
@@ -1304,7 +1355,7 @@ func TestJobV1betaObjectType_EncodeDecode(t *testing.T) {
 }
 
 func TestJobV1betaObjectType_Examples(t *testing.T) {
-	for i, tc := range []struct {
+    for i, tc := range []struct {
 		Input string
 	}{
 		{Input: "\"Volume\""},
@@ -1344,7 +1395,7 @@ func TestJobV1betaState_EncodeDecode(t *testing.T) {
 }
 
 func TestJobV1betaState_Examples(t *testing.T) {
-	for i, tc := range []struct {
+    for i, tc := range []struct {
 		Input string
 	}{
 		{Input: "\"ongoing\""},
@@ -1394,6 +1445,18 @@ func TestKmsConfigHealthCheckV1beta_EncodeDecode(t *testing.T) {
 	var typ2 KmsConfigHealthCheckV1beta
 	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
 }
+func TestKmsConfigIdListV1beta_EncodeDecode(t *testing.T) {
+	var typ KmsConfigIdListV1beta
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 KmsConfigIdListV1beta
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
 func TestKmsConfigUpdateV1beta_EncodeDecode(t *testing.T) {
 	var typ KmsConfigUpdateV1beta
 	typ.SetFake()
@@ -1420,7 +1483,7 @@ func TestKmsConfigV1beta_EncodeDecode(t *testing.T) {
 }
 
 func TestKmsConfigV1beta_Examples(t *testing.T) {
-	for i, tc := range []struct {
+    for i, tc := range []struct {
 		Input string
 	}{
 		{Input: "{\"application/json\":{\"createdTime\":\"2017-01-29T09:10:32.212Z\",\"description\":\"Description of the KMS configuration\",\"keyFullPath\":\"projects/projectId/locations/keyRingLocation/keyRings/keyRing/cryptoKeys/keyName\",\"kmsState\":\"READY\",\"kmsStateDetails\":\"Kms config is ready for use\",\"resourceId\":\"my-resource\",\"updatedTime\":\"2017-01-29T09:10:32.212Z\",\"uuid\":\"9760acf5-4638-11e7-9bdb-020073ca7773\"}}"},
@@ -1461,7 +1524,7 @@ func TestKmsConfigV1betaKmsState_EncodeDecode(t *testing.T) {
 }
 
 func TestKmsConfigV1betaKmsState_Examples(t *testing.T) {
-	for i, tc := range []struct {
+    for i, tc := range []struct {
 		Input string
 	}{
 		{Input: "\"READY\""},
@@ -1525,7 +1588,7 @@ func TestOperationV1beta_EncodeDecode(t *testing.T) {
 }
 
 func TestOperationV1beta_Examples(t *testing.T) {
-	for i, tc := range []struct {
+    for i, tc := range []struct {
 		Input string
 	}{
 		{Input: "{\"application/json\":{\"done\":\"false,\",\"name\":\"/v1beta/projects/123456789/locations/some-location1/operations/ba2c8826-2627-057c-42ba-343ee7ab1ebe\",\"response\":{\"created\":\"2024-01-24T11:13:24.245Z\",\"description\":\"My replication\",\"destination\":{\"volumeId\":\"20074ffe-4f2e-89d8-0ecf-7071ddce6030\",\"volumeName\":\"projects/123456789/locations/some-location2/volumes/my-destination-volume\"},\"healthy\":true,\"mirrorState\":\"MIRRORED\",\"replicationId\":\"3cc26ebf-b59a-ee3a-6854-47ca35f45691\",\"replicationSchedule\":\"EVERY_10_MINUTES\",\"resourceId\":\"my-replication\",\"role\":\"SOURCE\",\"source\":{\"volumeId\":\"b78e8675-7e6f-64ec-3ec2-163753add2d5\",\"volumeName\":\"projects/123456789/locations/some-location1/volumes/my-source-volume\"},\"state\":\"UPDATING\",\"stateDetails\":\"Sync in progress\",\"stateDetailsCode\":0,\"transferStats\":{\"lagTime\":421,\"lastTransferDuration\":2,\"lastTransferEndTime\":\"2024-01-25T12:14:25.000Z\",\"lastTransferSize\":3560,\"totalTransferBytes\":556432,\"totalTransferTimeSecs\":314}}}}"},
@@ -1533,6 +1596,8 @@ func TestOperationV1beta_Examples(t *testing.T) {
 		{Input: "{\"application/json\":{\"done\":\"true,\",\"name\":\"/v1beta/projects/1088371202435/locations/us-central1/operations/00000000-0000-0000-0000-000000000000\",\"response\":{\"backupPolicyId\":\"f060c640-74c3-4d10-89e5-c3bc5036ee3e\",\"createdAt\":\"2024-11-22T04:46:34.653Z\",\"dailyBackupLimit\":24,\"description\":\"My Resource Description\",\"enabled\":false,\"monthlyBackupLimit\":24,\"resourceId\":\"delete-case\",\"state\":\"READY\",\"volumeBackups\":[],\"volumeCount\":0,\"weeklyBackupLimit\":24}}}"},
 		{Input: "{\"application/json\":{\"done\":\"true,\",\"name\":\"/v1beta/projects/1088371202435/locations/us-central1/operations/00000000-0000-0000-0000-000000000000\",\"response\":{\"backupPolicyId\":\"f060c640-74c3-4d10-89e5-c3bc5036ee3e\",\"createdAt\":\"2024-11-22T04:46:34.653Z\",\"dailyBackupLimit\":24,\"description\":\"My Resource Description\",\"enabled\":false,\"monthlyBackupLimit\":24,\"resourceId\":\"delete-case\",\"state\":\"READY\",\"volumeCount\":0,\"weeklyBackupLimit\":24}}}"},
 		{Input: "{\"application/json\":{\"done\":\"true,\",\"name\":\"/v1beta/projects/1088371202435/locations/us-central1/operations/00000000-0000-0000-0000-000000000000\"}}"},
+		{Input: "{\"application/json\":{\"done\":false,\"name\":\"/v1beta/projects/123456789/locations/some-location1/operations/6bed33e1-cc9c-e0b5-ac63-24e9410e64c1\",\"response\":{\"created\":\"0001-01-01T00:00:00.000Z\",\"description\":\"My Resource Description\",\"resourceId\":\"my-resource\",\"snapshotId\":\"1829d6e1-fbe0-87cb-150d-a32290162f0c\",\"snapshotState\":\"CREATING\",\"snapshotStateDetails\":\"Creation in progress\",\"storageClass\":\"SOFTWARE\",\"usedBytes\":0,\"volumeId\":\"b78e8675-7e6f-64ec-3ec2-163753add2d5\"}}}"},
+		{Input: "{\"application/json\":{\"done\":false,\"name\":\"/v1beta/projects/123456789/locations/some-location1/operations/6bed33e1-cc9c-e0b5-ac63-24e9410e64c1\",\"response\":{\"created\":\"0001-01-01T00:00:00.000Z\",\"description\":\"My Resource Description\",\"resourceId\":\"my-resource\",\"snapshotId\":\"1829d6e1-fbe0-87cb-150d-a32290162f0c\",\"snapshotState\":\"UPDATING\",\"snapshotStateDetails\":\"Update in progress\",\"storageClass\":\"SOFTWARE\",\"usedBytes\":0,\"volumeId\":\"b78e8675-7e6f-64ec-3ec2-163753add2d5\"}}}"},
 		{Input: "{\"application/json\":{\"done\":false,\"name\":\"/v1beta/projects/123456789/locations/some-location1/operations/ba2c8826-2627-057c-42ba-343ee7ab1ebe\",\"response\":{\"created\":\"2024-01-24T11:13:24.245Z\",\"description\":\"My replication\",\"destination\":{\"volumeId\":\"20074ffe-4f2e-89d8-0ecf-7071ddce6030\",\"volumeName\":\"projects/123456789/locations/some-location2/volumes/my-destination-volume\"},\"healthy\":true,\"mirrorState\":\"MIRRORED\",\"replicationId\":\"3cc26ebf-b59a-ee3a-6854-47ca35f45691\",\"replicationSchedule\":\"HOURLY\",\"resourceId\":\"my-replication\",\"role\":\"SOURCE\",\"source\":{\"volumeId\":\"b78e8675-7e6f-64ec-3ec2-163753add2d5\",\"volumeName\":\"projects/123456789/locations/some-location1/volumes/my-source-volume\"},\"state\":\"UPDATING\",\"stateDetails\":\"Stop in progress\",\"stateDetailsCode\":0,\"transferStats\":{\"lagTime\":169,\"lastTransferDuration\":2,\"lastTransferEndTime\":\"2024-01-26T15:52:43.000Z\",\"lastTransferSize\":3560,\"totalTransferBytes\":1147392,\"totalTransferTimeSecs\":660}}}}"},
 		{Input: "{\"application/json\":{\"done\":false,\"name\":\"/v1beta/projects/123456789/locations/some-location1/operations/ba2c8826-2627-057c-42ba-343ee7ab1ebe\",\"response\":{\"created\":\"2024-01-29T10:59:26.168Z\",\"description\":\"My replication\",\"destination\":{\"volumeId\":\"1a65c06a-94a1-f850-0a1a-d0d07b6f7560\",\"volumeName\":\"projects/123456789/locations/some-location1/volumes/my-source-volume\"},\"healthy\":true,\"mirrorState\":\"PREPARING\",\"replicationSchedule\":\"HOURLY\",\"resourceId\":\"my-replication\",\"role\":\"DESTINATION\",\"source\":{\"volumeId\":\"a02acf13-00ae-8d17-3f9a-e6daa1473d5b\",\"volumeName\":\"projects/123456789/locations/some-location2/volumes/my-destination-volume\"},\"state\":\"UPDATING\",\"stateDetailsCode\":0}}}"},
 		{Input: "{\"application/json\":{\"done\":false,\"name\":\"/v1beta/projects/123456789/locations/some-location1/operations/ba2c8826-2627-057c-42ba-343ee7ab1ebe\",\"response\":{\"createdTime\":\"2024-02-07T14:55:52.441Z\",\"description\":\"My kms description\",\"keyFullPath\":\"projects/projectId/locations/us/keyRings/keyRing/cryptoKeys/keyName\",\"kmsState\":\"CREATING\",\"kmsStateDetails\":\"Creating Kms config settings\",\"resourceId\":\"my-resource\",\"updatedTime\":\"2024-02-07T14:55:52.441Z\",\"uuid\":\"06048ff8-98e8-7090-5559-f671bc440d67\"}}}"},
@@ -1540,16 +1605,16 @@ func TestOperationV1beta_Examples(t *testing.T) {
 		{Input: "{\"application/json\":{\"done\":true,\"name\":\"/v1beta/projects/123456789/locations/some-location1/operations/00000000-0000-0000-0000-000000000000\",\"response\":{\"DNS\":\"101.102.103.104\",\"activeDirectoryId\":\"9fbf76ef-9964-07d1-5f57-0e8f867e0367\",\"activeDirectoryState\":\"READY\",\"activeDirectoryStateDetails\":\"Credentials saved and available for use\",\"administrators\":[\"batman\",\"clarkkent\"],\"aesEncryption\":false,\"allowLocalNFSUsersWithLdap\":false,\"backupOperators\":[\"batman\",\"clarkkent\"],\"createdAt\":\"2024-01-26T16:08:38.841Z\",\"description\":\"My active directory description\",\"domain\":\"krypton.com\",\"encryptDCConnections\":false,\"kdcHostname\":\"2BOVAEKB44B\",\"kdcIP\":\"101.102.103.104\",\"ldapSigning\":false,\"netBIOS\":\"cvserver\",\"organizationalUnit\":\"CN=Computers\",\"password\":\"******************\",\"resourceId\":\"my-active-directory\",\"securityOperators\":[\"batman\"],\"site\":\"Default-First-Site-Name\",\"updatedAt\":\"2024-01-26T16:08:38.841Z\",\"username\":\"superman\"}}}"},
 		{Input: "{\"application/json\":{\"done\":true,\"name\":\"/v1beta/projects/123456789/locations/some-location1/operations/00000000-0000-0000-0000-000000000000\"}}"},
 		{Input: "{\"created\":\"2024-01-24T13:54:14.374Z\",\"description\":\"HostGroup for storage access\",\"done\":true,\"hostGroupId\":\"123e4567-e89b-12d3-a456-426614174000\",\"hosts\":[\"iqn.1998-01.com.vmware:example1\"],\"name\":\"/v1beta/projects/123456789/locations/us-east1/operations/123e4567-e89b-12d3-a456-426614174000\",\"osType\":\"LINUX\",\"resourceId\":\"my-host-group\",\"response\":null,\"state\":\"READY\",\"stateDetails\":\"available for use\",\"type\":\"ISCSI_INITIATOR\"}"},
-		{Input: "{\"done\":false,\"name\":\"/v1beta/projects/123456789/locations/some-location1/operations/ba2c8826-2627-057c-42ba-343ee7ab1ebe\",\"response\":{\"backupConfig\":{\"backupPolicyId\":\"9760acf5-4638-11e7-9bdb-020073ca7773\",\"backupVaultId\":\"9760acf5-4638-11e7-9bdb-020073ca7773\",\"scheduledBackupEnabled\":true},\"created\":\"2024-01-24T11:03:07.254Z\",\"creationToken\":\"some-volume\",\"encryptionType\":\"SERVICE_MANAGED\",\"exportPolicy\":{\"rules\":[]},\"inReplication\":false,\"isDataProtection\":false,\"kerberosEnabled\":false,\"largeCapacity\":false,\"ldapEnabled\":false,\"mountPoints\":[],\"multipleEndpoints\":false,\"network\":\"projects/123456789/global/networks/systemic-qa-vpc\",\"poolId\":\"a20730de-511f-273c-4071-ac1a30478609\",\"poolResourceId\":\"projects/123456789/locations/some-location1/pools/some-pool\",\"protocols\":[\"NFSV3\"],\"quotaInBytes\":4000000000000,\"resourceId\":\"some-volume\",\"securityStyle\":\"UNIX\",\"serviceLevel\":\"PREMIUM\",\"smbSettings\":[],\"snapReserve\":0,\"snapshotDirectory\":true,\"storageClass\":\"HARDWARE\",\"tieringPolicy\":{\"coolingThresholdDays\":24,\"tierAction\":\"ENABLED\"},\"unixPermissions\":\"0770\",\"usedBytes\":1409024,\"volumeId\":\"b78e8675-7e6f-64ec-3ec2-163753add2d5\",\"volumeState\":\"CREATING\",\"volumeStateDetails\":\"Creation in progress\"}}"},
-		{Input: "{\"done\":false,\"name\":\"/v1beta/projects/123456789/locations/some-location1/operations/ba2c8826-2627-057c-42ba-343ee7ab1ebe\",\"response\":{\"backupConfig\":{\"backupPolicyId\":\"9760acf5-4638-11e7-9bdb-020073ca7773\",\"backupVaultId\":\"9760acf5-4638-11e7-9bdb-020073ca7773\",\"scheduledBackupEnabled\":true},\"created\":\"2024-01-24T11:03:07.254Z\",\"creationToken\":\"some-volume\",\"encryptionType\":\"SERVICE_MANAGED\",\"exportPolicy\":{\"rules\":[]},\"inReplication\":false,\"isDataProtection\":false,\"kerberosEnabled\":false,\"largeCapacity\":false,\"ldapEnabled\":false,\"mountPoints\":[{\"export\":\"/some-volume\",\"exportFull\":\"1.2.3.4:/some-volume\",\"instructions\":\"Setting up your instance\\nOpen an SSH client and connect to your instance.\\nInstall the nfs client on your instance.\\nOn Red Hat Enterprise Linux or SuSE Linux instance:\\nsudo yum install -y nfs-utils\\nOn an Ubuntu or Debian instance:\\nsudo apt-get install nfs-common\\n\\nMounting your volume\\nCreate a new directory on your instance, such as \\\"/some-volume\\\":\\nsudo mkdir /some-volume\\nMount your volume using the example command below:\\nsudo mount -t nfs -o rw,hard,rsize=65536,wsize=65536,vers=3,tcp 1.2.3.4:/some-volume /some-volume\\nNote. Please use mount options appropriate for your specific workloads when known.\",\"protocol\":\"NFSV3\"}],\"multipleEndpoints\":false,\"network\":\"projects/123456789/global/networks/systemic-qa-vpc\",\"poolId\":\"a20730de-511f-273c-4071-ac1a30478609\",\"poolResourceId\":\"projects/123456789/locations/some-location1/pools/some-pool\",\"protocols\":[\"NFSV3\"],\"quotaInBytes\":4000000000000,\"resourceId\":\"some-volume\",\"securityStyle\":\"UNIX\",\"serviceLevel\":\"PREMIUM\",\"smbSettings\":[],\"snapReserve\":0,\"snapshotDirectory\":true,\"storageClass\":\"HARDWARE\",\"tieringPolicy\":{\"coolingThresholdDays\":24,\"tierAction\":\"ENABLED\"},\"unixPermissions\":\"0770\",\"usedBytes\":1409024,\"volumeId\":\"b78e8675-7e6f-64ec-3ec2-163753add2d5\",\"volumeState\":\"READY\",\"volumeStateDetails\":\"Available for use\"}}"},
+		{Input: "{\"done\":false,\"name\":\"/v1beta/projects/123456789/locations/some-location1/operations/ba2c8826-2627-057c-42ba-343ee7ab1ebe\",\"response\":{\"backupConfig\":{\"backupPolicyId\":\"9760acf5-4638-11e7-9bdb-020073ca7773\",\"backupVaultId\":\"9760acf5-4638-11e7-9bdb-020073ca7773\",\"scheduledBackupEnabled\":true},\"created\":\"2024-01-24T11:03:07.254Z\",\"creationToken\":\"some-volume\",\"encryptionType\":\"SERVICE_MANAGED\",\"exportPolicy\":{\"rules\":[]},\"inReplication\":false,\"isDataProtection\":false,\"kerberosEnabled\":false,\"largeCapacity\":false,\"ldapEnabled\":false,\"mountPoints\":[],\"multipleEndpoints\":false,\"network\":\"projects/123456789/global/networks/systemic-qa-vpc\",\"poolId\":\"a20730de-511f-273c-4071-ac1a30478609\",\"poolResourceId\":\"projects/123456789/locations/some-location1/pools/some-pool\",\"protocols\":[\"NFSV3\"],\"quotaInBytes\":4000000000000,\"resourceId\":\"some-volume\",\"securityStyle\":\"UNIX\",\"serviceLevel\":\"PREMIUM\",\"smbSettings\":[],\"snapReserve\":0,\"snapshotDirectory\":true,\"storageClass\":\"SOFTWARE\",\"tieringPolicy\":{\"coolingThresholdDays\":24,\"tierAction\":\"ENABLED\"},\"unixPermissions\":\"0770\",\"usedBytes\":1409024,\"volumeId\":\"b78e8675-7e6f-64ec-3ec2-163753add2d5\",\"volumeState\":\"CREATING\",\"volumeStateDetails\":\"Creation in progress\"}}"},
+		{Input: "{\"done\":false,\"name\":\"/v1beta/projects/123456789/locations/some-location1/operations/ba2c8826-2627-057c-42ba-343ee7ab1ebe\",\"response\":{\"backupConfig\":{\"backupPolicyId\":\"9760acf5-4638-11e7-9bdb-020073ca7773\",\"backupVaultId\":\"9760acf5-4638-11e7-9bdb-020073ca7773\",\"scheduledBackupEnabled\":true},\"created\":\"2024-01-24T11:03:07.254Z\",\"creationToken\":\"some-volume\",\"encryptionType\":\"SERVICE_MANAGED\",\"exportPolicy\":{\"rules\":[]},\"inReplication\":false,\"isDataProtection\":false,\"kerberosEnabled\":false,\"largeCapacity\":false,\"ldapEnabled\":false,\"mountPoints\":[{\"export\":\"/some-volume\",\"exportFull\":\"1.2.3.4:/some-volume\",\"instructions\":\"Setting up your instance\\nOpen an SSH client and connect to your instance.\\nInstall the nfs client on your instance.\\nOn Red Hat Enterprise Linux or SuSE Linux instance:\\nsudo yum install -y nfs-utils\\nOn an Ubuntu or Debian instance:\\nsudo apt-get install nfs-common\\n\\nMounting your volume\\nCreate a new directory on your instance, such as \\\"/some-volume\\\":\\nsudo mkdir /some-volume\\nMount your volume using the example command below:\\nsudo mount -t nfs -o rw,hard,rsize=65536,wsize=65536,vers=3,tcp 1.2.3.4:/some-volume /some-volume\\nNote. Please use mount options appropriate for your specific workloads when known.\",\"protocol\":\"NFSV3\"}],\"multipleEndpoints\":false,\"network\":\"projects/123456789/global/networks/systemic-qa-vpc\",\"poolId\":\"a20730de-511f-273c-4071-ac1a30478609\",\"poolResourceId\":\"projects/123456789/locations/some-location1/pools/some-pool\",\"protocols\":[\"NFSV3\"],\"quotaInBytes\":4000000000000,\"resourceId\":\"some-volume\",\"securityStyle\":\"UNIX\",\"serviceLevel\":\"PREMIUM\",\"smbSettings\":[],\"snapReserve\":0,\"snapshotDirectory\":true,\"storageClass\":\"SOFTWARE\",\"tieringPolicy\":{\"coolingThresholdDays\":24,\"tierAction\":\"ENABLED\"},\"unixPermissions\":\"0770\",\"usedBytes\":1409024,\"volumeId\":\"b78e8675-7e6f-64ec-3ec2-163753add2d5\",\"volumeState\":\"READY\",\"volumeStateDetails\":\"Available for use\"}}"},
 		{Input: "{\"done\":false,\"name\":\"/v1beta/projects/123456789/locations/some-location1/operations/ba2c8826-2627-057c-42ba-343ee7ab1ebe\",\"response\":{\"clusterLocation\":\"Orlando\",\"created\":\"2024-01-29T10:33:49.536Z\",\"description\":\"My replication\",\"destination\":{\"volumeId\":\"a02acf13-00ae-8d17-3f9a-e6daa1473d5b\",\"volumeName\":\"projects/123456789/locations/some-location2/volumes/my-destination-volume\"},\"healthy\":true,\"mirrorState\":\"MIRRORED\",\"replicationId\":\"3796c3d1-6524-9757-aedf-017e41a430ab\",\"replicationSchedule\":\"HOURLY\",\"resourceId\":\"my-replication\",\"role\":\"SOURCE\",\"source\":{\"volumeId\":\"1a65c06a-94a1-f850-0a1a-d0d07b6f7560\",\"volumeName\":\"projects/123456789/locations/some-location1/volumes/my-source-volume\"},\"state\":\"UPDATING\",\"stateDetails\":\"Update in progress\",\"transferStats\":{\"lagTime\":18,\"lastTransferEndTime\":\"2024-01-29T10:34:11.000Z\",\"totalTransferBytes\":18872,\"totalTransferTimeSecs\":2}}}"},
 		{Input: "{\"done\":false,\"name\":\"/v1beta/projects/123456789/locations/some-location1/operations/ba2c8826-2627-057c-42ba-343ee7ab1ebe\",\"response\":{\"created\":\"2024-01-24T11:13:03.512Z\",\"description\":\"My replication\",\"destination\":{\"tieringPolicy\":{\"coolingThresholdDays\":24,\"tierAction\":\"ENABLED\"},\"volumeId\":\"00000000-0000-0000-0000-000000000000\",\"volumeName\":\"projects/123456789/locations/some-location2/volumes/my-destination-volume\"},\"healthy\":true,\"mirrorState\":\"PREPARING\",\"replicationSchedule\":\"EVERY_10_MINUTES\",\"resourceId\":\"my-replication\",\"role\":\"SOURCE\",\"source\":{\"volumeId\":\"b78e8675-7e6f-64ec-3ec2-163753add2d5\",\"volumeName\":\"projects/123456789/locations/some-location1/volumes/my-source-volume\"},\"state\":\"CREATING\",\"stateDetails\":\"Create in progress\",\"stateDetailsCode\":0,\"transferStats\":{}}}"},
 		{Input: "{\"done\":false,\"name\":\"/v1beta/projects/123456789/locations/some-location1/operations/ba2c8826-2627-057c-42ba-343ee7ab1ebe\"}"},
 		{Input: "{\"done\":false,\"name\":\"/v1beta/projects/123456789/locations/us-east1/operations/123e4567-e89b-12d3-a456-426614174000\",\"response\":{\"created\":\"2024-01-24T13:54:14.374Z\",\"description\":\"HostGroup for storage access\",\"hostGroupId\":\"123e4567-e89b-12d3-a456-426614174000\",\"hosts\":[\"iqn.1998-01.com.vmware:example1\"],\"osType\":\"LINUX\",\"resourceId\":\"my-host-group\",\"state\":\"CREATING\",\"stateDetails\":\"creation in progress\",\"type\":\"ISCSI_INITIATOR\"}}"},
 		{Input: "{\"done\":false,\"name\":\"/v1beta/projects/123456789/locations/us-east1/operations/123e4567-e89b-12d3-a456-426614174000\",\"response\":{\"description\":\"Updated host group description\",\"hostGroupId\":\"123e4567-e89b-12d3-a456-426614174000\",\"hosts\":[\"iqn.1998-01.com.vmware:example1\",\"iqn.1998-01.com.vmware:example3\"],\"osType\":\"WINDOWS\",\"resourceId\":\"my-host-group\",\"state\":\"UPDATING\",\"stateDetails\":\"update in progress\",\"type\":\"ISCSI_INITIATOR\",\"updated\":\"2024-01-26T10:00:00.000Z\"}}"},
 		{Input: "{\"done\":true,\"error\":{\"code\":400,\"message\":\"Error when creating destination volume - Could not query DNS server. Verify that the network configuration is correct and that DNS servers are available.\",\"name\":\"/v1beta/projects/123456789/locations/some-location1/operations/ba2c8826-2627-057c-42ba-343ee7ab1ebe\"}}"},
-		{Input: "{\"done\":true,\"name\":\"/v1beta/projects/123456789/locations/some-location1/operations/ba2c8826-2627-057c-42ba-343ee7ab1ebe\",\"response\":{\"activeDirectoryConfigId\":\"9760acf5-4638-11e7-9bdb-020073ca7773\",\"activeDirectoryResourceId\":\"projects/123456789/locations/some-location1/activeDirectories/active-directory\",\"allocatedBytes\":10995116277760,\"allowAutoTiering\":false,\"createdAt\":\"2024-01-24T13:54:14.374Z\",\"description\":\"My Pool description\",\"encryptionType\":\"SERVICE_MANAGED\",\"globalAccessAllowed\":true,\"labels\":{\"someKey\":\"SomeValue\",\"someKey2\":\"SomeValue2\"},\"ldapEnabled\":false,\"network\":\"projects/123456789/global/networks/systemic-qa-vpc\",\"numberOfVolumes\":2,\"poolId\":\"bfa46013-1a1e-587b-ef9a-619bae6ba25d\",\"resourceId\":\"my-pool\",\"serviceLevel\":\"PREMIUM\",\"sizeInBytes\":12094627905536,\"storageClass\":\"HARDWARE\",\"storagePoolState\":\"READY\",\"storagePoolStateDetails\":\"Available for use\",\"updatedAt\":\"2024-01-24T13:54:14.374Z\",\"zone\":\"us-east1-b\"}}"},
-		{Input: "{\"done\":true,\"name\":\"/v1beta/projects/123456789/locations/some-location1/operations/ba2c8826-2627-057c-42ba-343ee7ab1ebe\",\"response\":{\"activeDirectoryConfigId\":\"9760acf5-4638-11e7-9bdb-020073ca7773\",\"activeDirectoryResourceId\":\"projects/123456789/locations/some-location1/activeDirectories/my-active-directory\",\"allocatedBytes\":0,\"allowAutoTiering\":false,\"createdAt\":\"2024-01-24T13:54:14.374Z\",\"description\":\"My Pool description\",\"encryptionType\":\"SERVICE_MANAGED\",\"globalAccessAllowed\":true,\"kmsConfigId\":\"6aae31f1-f685-4fda-b875-db0ea99235fc\",\"kmsConfigResourceId\":\"projects/123456789/locations/some-location1/kmsConfigs/my-resource\",\"labels\":{\"someKey\":\"SomeValue\",\"someKey2\":\"SomeValue2\"},\"ldapEnabled\":false,\"network\":\"projects/123456789/global/networks/network-to-netapp2\",\"numberOfVolumes\":0,\"poolId\":\"bfa46013-1a1e-587b-ef9a-619bae6ba25d\",\"resourceId\":\"some-pool-name\",\"secondaryZone\":\"us-east1-c\",\"serviceLevel\":\"PREMIUM\",\"sizeInBytes\":2199023255552,\"storageClass\":\"HARDWARE\",\"storagePoolState\":\"READY\",\"storagePoolStateDetails\":\"Available for use\",\"updatedAt\":\"2024-01-24T13:54:14.374Z\",\"zone\":\"us-east1-b\"}}"},
+		{Input: "{\"done\":true,\"name\":\"/v1beta/projects/123456789/locations/some-location1/operations/ba2c8826-2627-057c-42ba-343ee7ab1ebe\",\"response\":{\"activeDirectoryConfigId\":\"9760acf5-4638-11e7-9bdb-020073ca7773\",\"activeDirectoryResourceId\":\"projects/123456789/locations/some-location1/activeDirectories/active-directory\",\"allocatedBytes\":10995116277760,\"allowAutoTiering\":false,\"createdAt\":\"2024-01-24T13:54:14.374Z\",\"description\":\"My Pool description\",\"encryptionType\":\"SERVICE_MANAGED\",\"globalAccessAllowed\":true,\"labels\":{\"someKey\":\"SomeValue\",\"someKey2\":\"SomeValue2\"},\"ldapEnabled\":false,\"network\":\"projects/123456789/global/networks/systemic-qa-vpc\",\"numberOfVolumes\":2,\"poolId\":\"bfa46013-1a1e-587b-ef9a-619bae6ba25d\",\"resourceId\":\"my-pool\",\"serviceLevel\":\"PREMIUM\",\"sizeInBytes\":12094627905536,\"storageClass\":\"SOFTWARE\",\"storagePoolState\":\"READY\",\"storagePoolStateDetails\":\"Available for use\",\"updatedAt\":\"2024-01-24T13:54:14.374Z\",\"zone\":\"us-east1-b\"}}"},
+		{Input: "{\"done\":true,\"name\":\"/v1beta/projects/123456789/locations/some-location1/operations/ba2c8826-2627-057c-42ba-343ee7ab1ebe\",\"response\":{\"activeDirectoryConfigId\":\"9760acf5-4638-11e7-9bdb-020073ca7773\",\"activeDirectoryResourceId\":\"projects/123456789/locations/some-location1/activeDirectories/my-active-directory\",\"allocatedBytes\":0,\"allowAutoTiering\":false,\"createdAt\":\"2024-01-24T13:54:14.374Z\",\"description\":\"My Pool description\",\"encryptionType\":\"SERVICE_MANAGED\",\"globalAccessAllowed\":true,\"kmsConfigId\":\"6aae31f1-f685-4fda-b875-db0ea99235fc\",\"kmsConfigResourceId\":\"projects/123456789/locations/some-location1/kmsConfigs/my-resource\",\"labels\":{\"someKey\":\"SomeValue\",\"someKey2\":\"SomeValue2\"},\"ldapEnabled\":false,\"network\":\"projects/123456789/global/networks/network-to-netapp2\",\"numberOfVolumes\":0,\"poolId\":\"bfa46013-1a1e-587b-ef9a-619bae6ba25d\",\"resourceId\":\"some-pool-name\",\"secondaryZone\":\"us-east1-c\",\"serviceLevel\":\"PREMIUM\",\"sizeInBytes\":2199023255552,\"storageClass\":\"SOFTWARE\",\"storagePoolState\":\"READY\",\"storagePoolStateDetails\":\"Available for use\",\"updatedAt\":\"2024-01-24T13:54:14.374Z\",\"zone\":\"us-east1-b\"}}"},
 		{Input: "{\"done\":true,\"name\":\"/v1beta/projects/123456789/locations/some-location1/operations/ba2c8826-2627-057c-42ba-343ee7ab1ebe\"}"},
 		{Input: "{\"done\":true,\"name\":\"/v1beta/projects/123456789/locations/us-east1/operations/123e4567-e89b-12d3-a456-426614174000\"}"},
 	} {
@@ -1598,34 +1663,6 @@ func TestPoolInternalV1beta_EncodeDecode(t *testing.T) {
 	var typ2 PoolInternalV1beta
 	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
 }
-
-func TestPoolInternalV1beta_Examples(t *testing.T) {
-	for i, tc := range []struct {
-		Input string
-	}{
-		{Input: "{\"PoolId\":\"9760acf5-4638-11e7-9bdb-020073ca7773\",\"activeDirectoryConfigId\":\"9232dgf5-4638-11e7-9bdb-020073ca7773\",\"allowAutoTiering\":true,\"createdAt\":\"2016-11-28T19:30:23.123Z\",\"description\":\"My pool description\",\"kmsConfigId\":\"2653acf5-4638-11e7-9bdb-020073ca7773\",\"labels\":{\"someKey\":\"SomeValue\",\"someKey2\":\"SomeValue2\"},\"ldapEnabled\":false,\"network\":\"projects/1079058383248/global/networks/network-to-netapp2\",\"resourceId\":\"my-pool\",\"serviceLevel\":\"PREMIUM\",\"sizeInBytes\":2199023255552,\"storagePoolState\":\"READY\",\"updatedAt\":\"2016-11-28T19:30:23.123Z\"}"},
-	} {
-		tc := tc
-		t.Run(fmt.Sprintf("Test%d", i+1), func(t *testing.T) {
-			var typ PoolInternalV1beta
-
-			if err := typ.Decode(jx.DecodeStr(tc.Input)); err != nil {
-				if validateErr, ok := errors.Into[*validate.Error](err); ok {
-					t.Skipf("Validation error: %v", validateErr)
-					return
-				}
-				require.NoErrorf(t, err, "Input: %s", tc.Input)
-			}
-
-			e := jx.Encoder{}
-			typ.Encode(&e)
-			require.True(t, std.Valid(e.Bytes()), "Encoded: %s", e.Bytes())
-
-			var typ2 PoolInternalV1beta
-			require.NoError(t, typ2.Decode(jx.DecodeBytes(e.Bytes())))
-		})
-	}
-}
 func TestPoolInternalV1betaAssetLocationMetadata_EncodeDecode(t *testing.T) {
 	var typ PoolInternalV1betaAssetLocationMetadata
 	typ.SetFake()
@@ -1666,7 +1703,7 @@ func TestPoolInternalV1betaLabels_EncodeDecode(t *testing.T) {
 }
 
 func TestPoolInternalV1betaLabels_Examples(t *testing.T) {
-	for i, tc := range []struct {
+    for i, tc := range []struct {
 		Input string
 	}{
 		{Input: "{\"someKey\":\"SomeValue\",\"someKey2\":\"SomeValue2\"}"},
@@ -1708,7 +1745,7 @@ func TestPoolInternalV1betaServiceLevel_EncodeDecode(t *testing.T) {
 }
 
 func TestPoolInternalV1betaServiceLevel_Examples(t *testing.T) {
-	for i, tc := range []struct {
+    for i, tc := range []struct {
 		Input string
 	}{
 		{Input: "\"PREMIUM\""},
@@ -1748,7 +1785,7 @@ func TestPoolInternalV1betaStoragePoolState_EncodeDecode(t *testing.T) {
 }
 
 func TestPoolInternalV1betaStoragePoolState_Examples(t *testing.T) {
-	for i, tc := range []struct {
+    for i, tc := range []struct {
 		Input string
 	}{
 		{Input: "\"READY\""},
@@ -1802,7 +1839,7 @@ func TestPoolUpdateV1betaLabels_EncodeDecode(t *testing.T) {
 }
 
 func TestPoolUpdateV1betaLabels_Examples(t *testing.T) {
-	for i, tc := range []struct {
+    for i, tc := range []struct {
 		Input string
 	}{
 		{Input: "{\"someKey\":\"SomeValue\",\"someKey2\":\"SomeValue2\"}"},
@@ -1844,7 +1881,7 @@ func TestPoolV1beta_EncodeDecode(t *testing.T) {
 }
 
 func TestPoolV1beta_Examples(t *testing.T) {
-	for i, tc := range []struct {
+    for i, tc := range []struct {
 		Input string
 	}{
 		{Input: "{\"PoolId\":\"9760acf5-4638-11e7-9bdb-020073ca7773\",\"activeDirectoryConfigId\":\"9232dgf5-4638-11e7-9bdb-020073ca7773\",\"allowAutoTiering\":true,\"createdAt\":\"2016-11-28T19:30:23.123Z\",\"description\":\"My pool description\",\"kmsConfigId\":\"2653acf5-4638-11e7-9bdb-020073ca7773\",\"labels\":{\"someKey\":\"SomeValue\",\"someKey2\":\"SomeValue2\"},\"ldapEnabled\":false,\"network\":\"projects/1079058383248/global/networks/network-to-netapp2\",\"resourceId\":\"my-pool\",\"serviceLevel\":\"PREMIUM\",\"sizeInBytes\":2199023255552,\"storagePoolState\":\"READY\",\"updatedAt\":\"2016-11-28T19:30:23.123Z\"}"},
@@ -1910,7 +1947,7 @@ func TestPoolV1betaLabels_EncodeDecode(t *testing.T) {
 }
 
 func TestPoolV1betaLabels_Examples(t *testing.T) {
-	for i, tc := range []struct {
+    for i, tc := range []struct {
 		Input string
 	}{
 		{Input: "{\"someKey\":\"SomeValue\",\"someKey2\":\"SomeValue2\"}"},
@@ -1952,7 +1989,7 @@ func TestPoolV1betaServiceLevel_EncodeDecode(t *testing.T) {
 }
 
 func TestPoolV1betaServiceLevel_Examples(t *testing.T) {
-	for i, tc := range []struct {
+    for i, tc := range []struct {
 		Input string
 	}{
 		{Input: "\"PREMIUM\""},
@@ -1992,7 +2029,7 @@ func TestPoolV1betaStoragePoolState_EncodeDecode(t *testing.T) {
 }
 
 func TestPoolV1betaStoragePoolState_Examples(t *testing.T) {
-	for i, tc := range []struct {
+    for i, tc := range []struct {
 		Input string
 	}{
 		{Input: "\"READY\""},
@@ -2032,7 +2069,7 @@ func TestProtocolsV1beta_EncodeDecode(t *testing.T) {
 }
 
 func TestProtocolsV1beta_Examples(t *testing.T) {
-	for i, tc := range []struct {
+    for i, tc := range []struct {
 		Input string
 	}{
 		{Input: "\"NFSV3\""},
@@ -2086,7 +2123,7 @@ func TestReplicationCreateV1betaLabels_EncodeDecode(t *testing.T) {
 }
 
 func TestReplicationCreateV1betaLabels_Examples(t *testing.T) {
-	for i, tc := range []struct {
+    for i, tc := range []struct {
 		Input string
 	}{
 		{Input: "{\"some-key\":\"some-value\",\"some-key2\":\"some-value2\"}"},
@@ -2190,7 +2227,7 @@ func TestReplicationUpdateV1betaLabels_EncodeDecode(t *testing.T) {
 }
 
 func TestReplicationUpdateV1betaLabels_Examples(t *testing.T) {
-	for i, tc := range []struct {
+    for i, tc := range []struct {
 		Input string
 	}{
 		{Input: "{\"some-key\":\"some-value\",\"some-key2\":\"some-value2\"}"},
@@ -2256,7 +2293,7 @@ func TestReplicationV1betaHybridReplicationType_EncodeDecode(t *testing.T) {
 }
 
 func TestReplicationV1betaHybridReplicationType_Examples(t *testing.T) {
-	for i, tc := range []struct {
+    for i, tc := range []struct {
 		Input string
 	}{
 		{Input: "\"MIGRATION\""},
@@ -2298,7 +2335,7 @@ func TestReplicationV1betaLabels_EncodeDecode(t *testing.T) {
 }
 
 func TestReplicationV1betaLabels_Examples(t *testing.T) {
-	for i, tc := range []struct {
+    for i, tc := range []struct {
 		Input string
 	}{
 		{Input: "{\"some-key\":\"some-value\",\"some-key2\":\"some-value2\"}"},
@@ -2340,7 +2377,7 @@ func TestReplicationV1betaMirrorState_EncodeDecode(t *testing.T) {
 }
 
 func TestReplicationV1betaMirrorState_Examples(t *testing.T) {
-	for i, tc := range []struct {
+    for i, tc := range []struct {
 		Input string
 	}{
 		{Input: "\"MIRRORED\""},
@@ -2380,7 +2417,7 @@ func TestReplicationV1betaReplicationSchedule_EncodeDecode(t *testing.T) {
 }
 
 func TestReplicationV1betaReplicationSchedule_Examples(t *testing.T) {
-	for i, tc := range []struct {
+    for i, tc := range []struct {
 		Input string
 	}{
 		{Input: "\"HOURLY\""},
@@ -2420,7 +2457,7 @@ func TestReplicationV1betaRole_EncodeDecode(t *testing.T) {
 }
 
 func TestReplicationV1betaRole_Examples(t *testing.T) {
-	for i, tc := range []struct {
+    for i, tc := range []struct {
 		Input string
 	}{
 		{Input: "\"DESTINATION\""},
@@ -2460,7 +2497,7 @@ func TestReplicationV1betaState_EncodeDecode(t *testing.T) {
 }
 
 func TestReplicationV1betaState_Examples(t *testing.T) {
-	for i, tc := range []struct {
+    for i, tc := range []struct {
 		Input string
 	}{
 		{Input: "\"READY\""},
@@ -2524,7 +2561,7 @@ func TestRestrictedActionsV1betaItem_EncodeDecode(t *testing.T) {
 }
 
 func TestRestrictedActionsV1betaItem_Examples(t *testing.T) {
-	for i, tc := range []struct {
+    for i, tc := range []struct {
 		Input string
 	}{
 		{Input: "\"DELETE\""},
@@ -2576,7 +2613,7 @@ func TestSMBSettingsV1betaItem_EncodeDecode(t *testing.T) {
 }
 
 func TestSMBSettingsV1betaItem_Examples(t *testing.T) {
-	for i, tc := range []struct {
+    for i, tc := range []struct {
 		Input string
 	}{
 		{Input: "\"ENCRYPT_DATA\""},
@@ -2628,7 +2665,7 @@ func TestSimpleExportPolicyRuleV1betaAccessType_EncodeDecode(t *testing.T) {
 }
 
 func TestSimpleExportPolicyRuleV1betaAccessType_Examples(t *testing.T) {
-	for i, tc := range []struct {
+    for i, tc := range []struct {
 		Input string
 	}{
 		{Input: "\"READ_ONLY\""},
@@ -2668,7 +2705,7 @@ func TestSimpleExportPolicyRuleV1betaHasRootAccess_EncodeDecode(t *testing.T) {
 }
 
 func TestSimpleExportPolicyRuleV1betaHasRootAccess_Examples(t *testing.T) {
-	for i, tc := range []struct {
+    for i, tc := range []struct {
 		Input string
 	}{
 		{Input: "\"true\""},
@@ -2730,6 +2767,34 @@ func TestSnapshotV1beta_EncodeDecode(t *testing.T) {
 	var typ2 SnapshotV1beta
 	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
 }
+
+func TestSnapshotV1beta_Examples(t *testing.T) {
+    for i, tc := range []struct {
+		Input string
+	}{
+		{Input: "{\"application/json\":{\"created\":\"0001-01-01T00:00:00.000Z\",\"description\":\"My Resource Description\",\"resourceId\":\"my-snapshot-resource\",\"snapshotId\":\"1829d6e1-fbe0-87cb-150d-a32290162f0c\",\"snapshotState\":\"READY\",\"snapshotStateDetails\":\"Available for use\",\"storageClass\":\"SOFTWARE\",\"usedBytes\":0,\"volumeId\":\"b78e8675-7e6f-64ec-3ec2-163753add2d5\",\"volumeResourceId\":\"my-volume-resource\"}}"},
+	} {
+		tc := tc
+		t.Run(fmt.Sprintf("Test%d", i+1), func(t *testing.T) {
+			var typ SnapshotV1beta
+
+			if err := typ.Decode(jx.DecodeStr(tc.Input)); err != nil {
+				if validateErr, ok := errors.Into[*validate.Error](err); ok {
+					t.Skipf("Validation error: %v", validateErr)
+					return
+				}
+				require.NoErrorf(t, err, "Input: %s", tc.Input)
+			}
+
+			e := jx.Encoder{}
+			typ.Encode(&e)
+			require.True(t, std.Valid(e.Bytes()), "Encoded: %s", e.Bytes())
+
+			var typ2 SnapshotV1beta
+			require.NoError(t, typ2.Decode(jx.DecodeBytes(e.Bytes())))
+		})
+	}
+}
 func TestSnapshotV1betaSnapshotState_EncodeDecode(t *testing.T) {
 	var typ SnapshotV1betaSnapshotState
 	typ.SetFake()
@@ -2744,7 +2809,7 @@ func TestSnapshotV1betaSnapshotState_EncodeDecode(t *testing.T) {
 }
 
 func TestSnapshotV1betaSnapshotState_Examples(t *testing.T) {
-	for i, tc := range []struct {
+    for i, tc := range []struct {
 		Input string
 	}{
 		{Input: "\"READY\""},
@@ -3550,6 +3615,102 @@ func TestV1betaCreateReplicationUnprocessableEntity_EncodeDecode(t *testing.T) {
 	var typ2 V1betaCreateReplicationUnprocessableEntity
 	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
 }
+func TestV1betaCreateSnapshotBadRequest_EncodeDecode(t *testing.T) {
+	var typ V1betaCreateSnapshotBadRequest
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaCreateSnapshotBadRequest
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1betaCreateSnapshotConflict_EncodeDecode(t *testing.T) {
+	var typ V1betaCreateSnapshotConflict
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaCreateSnapshotConflict
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1betaCreateSnapshotForbidden_EncodeDecode(t *testing.T) {
+	var typ V1betaCreateSnapshotForbidden
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaCreateSnapshotForbidden
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1betaCreateSnapshotInternalServerError_EncodeDecode(t *testing.T) {
+	var typ V1betaCreateSnapshotInternalServerError
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaCreateSnapshotInternalServerError
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1betaCreateSnapshotNotFound_EncodeDecode(t *testing.T) {
+	var typ V1betaCreateSnapshotNotFound
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaCreateSnapshotNotFound
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1betaCreateSnapshotTooManyRequests_EncodeDecode(t *testing.T) {
+	var typ V1betaCreateSnapshotTooManyRequests
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaCreateSnapshotTooManyRequests
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1betaCreateSnapshotUnauthorized_EncodeDecode(t *testing.T) {
+	var typ V1betaCreateSnapshotUnauthorized
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaCreateSnapshotUnauthorized
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1betaCreateSnapshotUnprocessableEntity_EncodeDecode(t *testing.T) {
+	var typ V1betaCreateSnapshotUnprocessableEntity
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaCreateSnapshotUnprocessableEntity
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
 func TestV1betaCreateVolumeBadRequest_EncodeDecode(t *testing.T) {
 	var typ V1betaCreateVolumeBadRequest
 	typ.SetFake()
@@ -4256,6 +4417,102 @@ func TestV1betaDeleteReplicationUnprocessableEntity_EncodeDecode(t *testing.T) {
 	require.True(t, std.Valid(data), "Encoded: %s", data)
 
 	var typ2 V1betaDeleteReplicationUnprocessableEntity
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1betaDeleteSnapshotBadRequest_EncodeDecode(t *testing.T) {
+	var typ V1betaDeleteSnapshotBadRequest
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaDeleteSnapshotBadRequest
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1betaDeleteSnapshotConflict_EncodeDecode(t *testing.T) {
+	var typ V1betaDeleteSnapshotConflict
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaDeleteSnapshotConflict
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1betaDeleteSnapshotForbidden_EncodeDecode(t *testing.T) {
+	var typ V1betaDeleteSnapshotForbidden
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaDeleteSnapshotForbidden
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1betaDeleteSnapshotInternalServerError_EncodeDecode(t *testing.T) {
+	var typ V1betaDeleteSnapshotInternalServerError
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaDeleteSnapshotInternalServerError
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1betaDeleteSnapshotServiceUnavailable_EncodeDecode(t *testing.T) {
+	var typ V1betaDeleteSnapshotServiceUnavailable
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaDeleteSnapshotServiceUnavailable
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1betaDeleteSnapshotTooManyRequests_EncodeDecode(t *testing.T) {
+	var typ V1betaDeleteSnapshotTooManyRequests
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaDeleteSnapshotTooManyRequests
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1betaDeleteSnapshotUnauthorized_EncodeDecode(t *testing.T) {
+	var typ V1betaDeleteSnapshotUnauthorized
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaDeleteSnapshotUnauthorized
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1betaDeleteSnapshotUnprocessableEntity_EncodeDecode(t *testing.T) {
+	var typ V1betaDeleteSnapshotUnprocessableEntity
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaDeleteSnapshotUnprocessableEntity
 	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
 }
 func TestV1betaDeleteVolumeBadRequest_EncodeDecode(t *testing.T) {
@@ -4978,6 +5235,78 @@ func TestV1betaDescribePoolUnprocessableEntity_EncodeDecode(t *testing.T) {
 	var typ2 V1betaDescribePoolUnprocessableEntity
 	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
 }
+func TestV1betaDescribeSnapshotBadRequest_EncodeDecode(t *testing.T) {
+	var typ V1betaDescribeSnapshotBadRequest
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaDescribeSnapshotBadRequest
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1betaDescribeSnapshotForbidden_EncodeDecode(t *testing.T) {
+	var typ V1betaDescribeSnapshotForbidden
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaDescribeSnapshotForbidden
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1betaDescribeSnapshotInternalServerError_EncodeDecode(t *testing.T) {
+	var typ V1betaDescribeSnapshotInternalServerError
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaDescribeSnapshotInternalServerError
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1betaDescribeSnapshotNotFound_EncodeDecode(t *testing.T) {
+	var typ V1betaDescribeSnapshotNotFound
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaDescribeSnapshotNotFound
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1betaDescribeSnapshotTooManyRequests_EncodeDecode(t *testing.T) {
+	var typ V1betaDescribeSnapshotTooManyRequests
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaDescribeSnapshotTooManyRequests
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1betaDescribeSnapshotUnauthorized_EncodeDecode(t *testing.T) {
+	var typ V1betaDescribeSnapshotUnauthorized
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaDescribeSnapshotUnauthorized
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
 func TestV1betaDescribeVolumeBadRequest_EncodeDecode(t *testing.T) {
 	var typ V1betaDescribeVolumeBadRequest
 	typ.SetFake()
@@ -5482,6 +5811,90 @@ func TestV1betaGetMultipleHostGroupsUnprocessableEntity_EncodeDecode(t *testing.
 	var typ2 V1betaGetMultipleHostGroupsUnprocessableEntity
 	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
 }
+func TestV1betaGetMultipleKmsConfigsBadRequest_EncodeDecode(t *testing.T) {
+	var typ V1betaGetMultipleKmsConfigsBadRequest
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaGetMultipleKmsConfigsBadRequest
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1betaGetMultipleKmsConfigsForbidden_EncodeDecode(t *testing.T) {
+	var typ V1betaGetMultipleKmsConfigsForbidden
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaGetMultipleKmsConfigsForbidden
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1betaGetMultipleKmsConfigsInternalServerError_EncodeDecode(t *testing.T) {
+	var typ V1betaGetMultipleKmsConfigsInternalServerError
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaGetMultipleKmsConfigsInternalServerError
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1betaGetMultipleKmsConfigsNotFound_EncodeDecode(t *testing.T) {
+	var typ V1betaGetMultipleKmsConfigsNotFound
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaGetMultipleKmsConfigsNotFound
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1betaGetMultipleKmsConfigsOK_EncodeDecode(t *testing.T) {
+	var typ V1betaGetMultipleKmsConfigsOK
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaGetMultipleKmsConfigsOK
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1betaGetMultipleKmsConfigsTooManyRequests_EncodeDecode(t *testing.T) {
+	var typ V1betaGetMultipleKmsConfigsTooManyRequests
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaGetMultipleKmsConfigsTooManyRequests
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1betaGetMultipleKmsConfigsUnauthorized_EncodeDecode(t *testing.T) {
+	var typ V1betaGetMultipleKmsConfigsUnauthorized
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaGetMultipleKmsConfigsUnauthorized
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
 func TestV1betaGetMultiplePoolsBadRequest_EncodeDecode(t *testing.T) {
 	var typ V1betaGetMultiplePoolsBadRequest
 	typ.SetFake()
@@ -5878,6 +6291,270 @@ func TestV1betaGetMultipleVolumesUnprocessableEntity_EncodeDecode(t *testing.T) 
 	var typ2 V1betaGetMultipleVolumesUnprocessableEntity
 	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
 }
+func TestV1betaGetReplicationCountBadRequest_EncodeDecode(t *testing.T) {
+	var typ V1betaGetReplicationCountBadRequest
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaGetReplicationCountBadRequest
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1betaGetReplicationCountForbidden_EncodeDecode(t *testing.T) {
+	var typ V1betaGetReplicationCountForbidden
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaGetReplicationCountForbidden
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1betaGetReplicationCountInternalServerError_EncodeDecode(t *testing.T) {
+	var typ V1betaGetReplicationCountInternalServerError
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaGetReplicationCountInternalServerError
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1betaGetReplicationCountNotFound_EncodeDecode(t *testing.T) {
+	var typ V1betaGetReplicationCountNotFound
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaGetReplicationCountNotFound
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1betaGetReplicationCountOK_EncodeDecode(t *testing.T) {
+	var typ V1betaGetReplicationCountOK
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaGetReplicationCountOK
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1betaGetReplicationCountTooManyRequests_EncodeDecode(t *testing.T) {
+	var typ V1betaGetReplicationCountTooManyRequests
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaGetReplicationCountTooManyRequests
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1betaGetReplicationCountUnauthorized_EncodeDecode(t *testing.T) {
+	var typ V1betaGetReplicationCountUnauthorized
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaGetReplicationCountUnauthorized
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1betaGetVolumeCountBadRequest_EncodeDecode(t *testing.T) {
+	var typ V1betaGetVolumeCountBadRequest
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaGetVolumeCountBadRequest
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1betaGetVolumeCountForbidden_EncodeDecode(t *testing.T) {
+	var typ V1betaGetVolumeCountForbidden
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaGetVolumeCountForbidden
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1betaGetVolumeCountInternalServerError_EncodeDecode(t *testing.T) {
+	var typ V1betaGetVolumeCountInternalServerError
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaGetVolumeCountInternalServerError
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1betaGetVolumeCountNotFound_EncodeDecode(t *testing.T) {
+	var typ V1betaGetVolumeCountNotFound
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaGetVolumeCountNotFound
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1betaGetVolumeCountOK_EncodeDecode(t *testing.T) {
+	var typ V1betaGetVolumeCountOK
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaGetVolumeCountOK
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1betaGetVolumeCountTooManyRequests_EncodeDecode(t *testing.T) {
+	var typ V1betaGetVolumeCountTooManyRequests
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaGetVolumeCountTooManyRequests
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1betaGetVolumeCountUnauthorized_EncodeDecode(t *testing.T) {
+	var typ V1betaGetVolumeCountUnauthorized
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaGetVolumeCountUnauthorized
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1betaInternalAcceptClusterPeerBadRequest_EncodeDecode(t *testing.T) {
+	var typ V1betaInternalAcceptClusterPeerBadRequest
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaInternalAcceptClusterPeerBadRequest
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1betaInternalAcceptClusterPeerConflict_EncodeDecode(t *testing.T) {
+	var typ V1betaInternalAcceptClusterPeerConflict
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaInternalAcceptClusterPeerConflict
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1betaInternalAcceptClusterPeerForbidden_EncodeDecode(t *testing.T) {
+	var typ V1betaInternalAcceptClusterPeerForbidden
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaInternalAcceptClusterPeerForbidden
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1betaInternalAcceptClusterPeerInternalServerError_EncodeDecode(t *testing.T) {
+	var typ V1betaInternalAcceptClusterPeerInternalServerError
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaInternalAcceptClusterPeerInternalServerError
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1betaInternalAcceptClusterPeerMethodNotAllowed_EncodeDecode(t *testing.T) {
+	var typ V1betaInternalAcceptClusterPeerMethodNotAllowed
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaInternalAcceptClusterPeerMethodNotAllowed
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1betaInternalAcceptClusterPeerNotFound_EncodeDecode(t *testing.T) {
+	var typ V1betaInternalAcceptClusterPeerNotFound
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaInternalAcceptClusterPeerNotFound
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1betaInternalAcceptClusterPeerUnauthorized_EncodeDecode(t *testing.T) {
+	var typ V1betaInternalAcceptClusterPeerUnauthorized
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaInternalAcceptClusterPeerUnauthorized
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1betaInternalAcceptClusterPeerUnprocessableEntity_EncodeDecode(t *testing.T) {
+	var typ V1betaInternalAcceptClusterPeerUnprocessableEntity
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaInternalAcceptClusterPeerUnprocessableEntity
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
 func TestV1betaInternalAuthorizeVolumeReplicationBadRequest_EncodeDecode(t *testing.T) {
 	var typ V1betaInternalAuthorizeVolumeReplicationBadRequest
 	typ.SetFake()
@@ -5972,102 +6649,6 @@ func TestV1betaInternalAuthorizeVolumeReplicationUnprocessableEntity_EncodeDecod
 	require.True(t, std.Valid(data), "Encoded: %s", data)
 
 	var typ2 V1betaInternalAuthorizeVolumeReplicationUnprocessableEntity
-	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
-}
-func TestV1betaInternalCreateClusterPeerBadRequest_EncodeDecode(t *testing.T) {
-	var typ V1betaInternalCreateClusterPeerBadRequest
-	typ.SetFake()
-
-	e := jx.Encoder{}
-	typ.Encode(&e)
-	data := e.Bytes()
-	require.True(t, std.Valid(data), "Encoded: %s", data)
-
-	var typ2 V1betaInternalCreateClusterPeerBadRequest
-	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
-}
-func TestV1betaInternalCreateClusterPeerConflict_EncodeDecode(t *testing.T) {
-	var typ V1betaInternalCreateClusterPeerConflict
-	typ.SetFake()
-
-	e := jx.Encoder{}
-	typ.Encode(&e)
-	data := e.Bytes()
-	require.True(t, std.Valid(data), "Encoded: %s", data)
-
-	var typ2 V1betaInternalCreateClusterPeerConflict
-	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
-}
-func TestV1betaInternalCreateClusterPeerForbidden_EncodeDecode(t *testing.T) {
-	var typ V1betaInternalCreateClusterPeerForbidden
-	typ.SetFake()
-
-	e := jx.Encoder{}
-	typ.Encode(&e)
-	data := e.Bytes()
-	require.True(t, std.Valid(data), "Encoded: %s", data)
-
-	var typ2 V1betaInternalCreateClusterPeerForbidden
-	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
-}
-func TestV1betaInternalCreateClusterPeerInternalServerError_EncodeDecode(t *testing.T) {
-	var typ V1betaInternalCreateClusterPeerInternalServerError
-	typ.SetFake()
-
-	e := jx.Encoder{}
-	typ.Encode(&e)
-	data := e.Bytes()
-	require.True(t, std.Valid(data), "Encoded: %s", data)
-
-	var typ2 V1betaInternalCreateClusterPeerInternalServerError
-	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
-}
-func TestV1betaInternalCreateClusterPeerMethodNotAllowed_EncodeDecode(t *testing.T) {
-	var typ V1betaInternalCreateClusterPeerMethodNotAllowed
-	typ.SetFake()
-
-	e := jx.Encoder{}
-	typ.Encode(&e)
-	data := e.Bytes()
-	require.True(t, std.Valid(data), "Encoded: %s", data)
-
-	var typ2 V1betaInternalCreateClusterPeerMethodNotAllowed
-	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
-}
-func TestV1betaInternalCreateClusterPeerNotFound_EncodeDecode(t *testing.T) {
-	var typ V1betaInternalCreateClusterPeerNotFound
-	typ.SetFake()
-
-	e := jx.Encoder{}
-	typ.Encode(&e)
-	data := e.Bytes()
-	require.True(t, std.Valid(data), "Encoded: %s", data)
-
-	var typ2 V1betaInternalCreateClusterPeerNotFound
-	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
-}
-func TestV1betaInternalCreateClusterPeerUnauthorized_EncodeDecode(t *testing.T) {
-	var typ V1betaInternalCreateClusterPeerUnauthorized
-	typ.SetFake()
-
-	e := jx.Encoder{}
-	typ.Encode(&e)
-	data := e.Bytes()
-	require.True(t, std.Valid(data), "Encoded: %s", data)
-
-	var typ2 V1betaInternalCreateClusterPeerUnauthorized
-	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
-}
-func TestV1betaInternalCreateClusterPeerUnprocessableEntity_EncodeDecode(t *testing.T) {
-	var typ V1betaInternalCreateClusterPeerUnprocessableEntity
-	typ.SetFake()
-
-	e := jx.Encoder{}
-	typ.Encode(&e)
-	data := e.Bytes()
-	require.True(t, std.Valid(data), "Encoded: %s", data)
-
-	var typ2 V1betaInternalCreateClusterPeerUnprocessableEntity
 	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
 }
 func TestV1betaInternalCreateVolumeReplicationBadRequest_EncodeDecode(t *testing.T) {
@@ -6452,6 +7033,114 @@ func TestV1betaInternalDescribeVolumeReplicationUnprocessableEntity_EncodeDecode
 	require.True(t, std.Valid(data), "Encoded: %s", data)
 
 	var typ2 V1betaInternalDescribeVolumeReplicationUnprocessableEntity
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1betaInternalGetReplicationJobsBadRequest_EncodeDecode(t *testing.T) {
+	var typ V1betaInternalGetReplicationJobsBadRequest
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaInternalGetReplicationJobsBadRequest
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1betaInternalGetReplicationJobsConflict_EncodeDecode(t *testing.T) {
+	var typ V1betaInternalGetReplicationJobsConflict
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaInternalGetReplicationJobsConflict
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1betaInternalGetReplicationJobsForbidden_EncodeDecode(t *testing.T) {
+	var typ V1betaInternalGetReplicationJobsForbidden
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaInternalGetReplicationJobsForbidden
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1betaInternalGetReplicationJobsInternalServerError_EncodeDecode(t *testing.T) {
+	var typ V1betaInternalGetReplicationJobsInternalServerError
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaInternalGetReplicationJobsInternalServerError
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1betaInternalGetReplicationJobsMethodNotAllowed_EncodeDecode(t *testing.T) {
+	var typ V1betaInternalGetReplicationJobsMethodNotAllowed
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaInternalGetReplicationJobsMethodNotAllowed
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1betaInternalGetReplicationJobsNotFound_EncodeDecode(t *testing.T) {
+	var typ V1betaInternalGetReplicationJobsNotFound
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaInternalGetReplicationJobsNotFound
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1betaInternalGetReplicationJobsOK_EncodeDecode(t *testing.T) {
+	var typ V1betaInternalGetReplicationJobsOK
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaInternalGetReplicationJobsOK
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1betaInternalGetReplicationJobsUnauthorized_EncodeDecode(t *testing.T) {
+	var typ V1betaInternalGetReplicationJobsUnauthorized
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaInternalGetReplicationJobsUnauthorized
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1betaInternalGetReplicationJobsUnprocessableEntity_EncodeDecode(t *testing.T) {
+	var typ V1betaInternalGetReplicationJobsUnprocessableEntity
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaInternalGetReplicationJobsUnprocessableEntity
 	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
 }
 func TestV1betaInternalReleaseVolumeReplicationBadRequest_EncodeDecode(t *testing.T) {
@@ -7472,6 +8161,114 @@ func TestV1betaListReplicationsUnprocessableEntity_EncodeDecode(t *testing.T) {
 	require.True(t, std.Valid(data), "Encoded: %s", data)
 
 	var typ2 V1betaListReplicationsUnprocessableEntity
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1betaListSnapshotBadRequest_EncodeDecode(t *testing.T) {
+	var typ V1betaListSnapshotBadRequest
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaListSnapshotBadRequest
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1betaListSnapshotConflict_EncodeDecode(t *testing.T) {
+	var typ V1betaListSnapshotConflict
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaListSnapshotConflict
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1betaListSnapshotForbidden_EncodeDecode(t *testing.T) {
+	var typ V1betaListSnapshotForbidden
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaListSnapshotForbidden
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1betaListSnapshotInternalServerError_EncodeDecode(t *testing.T) {
+	var typ V1betaListSnapshotInternalServerError
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaListSnapshotInternalServerError
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1betaListSnapshotNotFound_EncodeDecode(t *testing.T) {
+	var typ V1betaListSnapshotNotFound
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaListSnapshotNotFound
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1betaListSnapshotOK_EncodeDecode(t *testing.T) {
+	var typ V1betaListSnapshotOK
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaListSnapshotOK
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1betaListSnapshotTooManyRequests_EncodeDecode(t *testing.T) {
+	var typ V1betaListSnapshotTooManyRequests
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaListSnapshotTooManyRequests
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1betaListSnapshotUnauthorized_EncodeDecode(t *testing.T) {
+	var typ V1betaListSnapshotUnauthorized
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaListSnapshotUnauthorized
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1betaListSnapshotUnprocessableEntity_EncodeDecode(t *testing.T) {
+	var typ V1betaListSnapshotUnprocessableEntity
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaListSnapshotUnprocessableEntity
 	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
 }
 func TestV1betaListVolumesBadRequest_EncodeDecode(t *testing.T) {
@@ -8566,6 +9363,90 @@ func TestV1betaUpdateReplicationUnprocessableEntity_EncodeDecode(t *testing.T) {
 	var typ2 V1betaUpdateReplicationUnprocessableEntity
 	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
 }
+func TestV1betaUpdateSnapshotBadRequest_EncodeDecode(t *testing.T) {
+	var typ V1betaUpdateSnapshotBadRequest
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaUpdateSnapshotBadRequest
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1betaUpdateSnapshotConflict_EncodeDecode(t *testing.T) {
+	var typ V1betaUpdateSnapshotConflict
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaUpdateSnapshotConflict
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1betaUpdateSnapshotForbidden_EncodeDecode(t *testing.T) {
+	var typ V1betaUpdateSnapshotForbidden
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaUpdateSnapshotForbidden
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1betaUpdateSnapshotInternalServerError_EncodeDecode(t *testing.T) {
+	var typ V1betaUpdateSnapshotInternalServerError
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaUpdateSnapshotInternalServerError
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1betaUpdateSnapshotNotFound_EncodeDecode(t *testing.T) {
+	var typ V1betaUpdateSnapshotNotFound
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaUpdateSnapshotNotFound
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1betaUpdateSnapshotTooManyRequests_EncodeDecode(t *testing.T) {
+	var typ V1betaUpdateSnapshotTooManyRequests
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaUpdateSnapshotTooManyRequests
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1betaUpdateSnapshotUnauthorized_EncodeDecode(t *testing.T) {
+	var typ V1betaUpdateSnapshotUnauthorized
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaUpdateSnapshotUnauthorized
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
 func TestV1betaUpdateVolumeBadRequest_EncodeDecode(t *testing.T) {
 	var typ V1betaUpdateVolumeBadRequest
 	typ.SetFake()
@@ -8736,7 +9617,7 @@ func TestVolumeReplicationCreateInternalV1betaEndpointType_EncodeDecode(t *testi
 }
 
 func TestVolumeReplicationCreateInternalV1betaEndpointType_Examples(t *testing.T) {
-	for i, tc := range []struct {
+    for i, tc := range []struct {
 		Input string
 	}{
 		{Input: "\"src\""},
@@ -8762,46 +9643,6 @@ func TestVolumeReplicationCreateInternalV1betaEndpointType_Examples(t *testing.T
 		})
 	}
 }
-func TestVolumeReplicationCreateInternalV1betaHybridReplicationType_EncodeDecode(t *testing.T) {
-	var typ VolumeReplicationCreateInternalV1betaHybridReplicationType
-	typ.SetFake()
-
-	e := jx.Encoder{}
-	typ.Encode(&e)
-	data := e.Bytes()
-	require.True(t, std.Valid(data), "Encoded: %s", data)
-
-	var typ2 VolumeReplicationCreateInternalV1betaHybridReplicationType
-	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
-}
-
-func TestVolumeReplicationCreateInternalV1betaHybridReplicationType_Examples(t *testing.T) {
-	for i, tc := range []struct {
-		Input string
-	}{
-		{Input: "\"MIGRATION\""},
-	} {
-		tc := tc
-		t.Run(fmt.Sprintf("Test%d", i+1), func(t *testing.T) {
-			var typ VolumeReplicationCreateInternalV1betaHybridReplicationType
-
-			if err := typ.Decode(jx.DecodeStr(tc.Input)); err != nil {
-				if validateErr, ok := errors.Into[*validate.Error](err); ok {
-					t.Skipf("Validation error: %v", validateErr)
-					return
-				}
-				require.NoErrorf(t, err, "Input: %s", tc.Input)
-			}
-
-			e := jx.Encoder{}
-			typ.Encode(&e)
-			require.True(t, std.Valid(e.Bytes()), "Encoded: %s", e.Bytes())
-
-			var typ2 VolumeReplicationCreateInternalV1betaHybridReplicationType
-			require.NoError(t, typ2.Decode(jx.DecodeBytes(e.Bytes())))
-		})
-	}
-}
 func TestVolumeReplicationCreateInternalV1betaLabels_EncodeDecode(t *testing.T) {
 	var typ VolumeReplicationCreateInternalV1betaLabels
 	typ = make(VolumeReplicationCreateInternalV1betaLabels)
@@ -8818,7 +9659,7 @@ func TestVolumeReplicationCreateInternalV1betaLabels_EncodeDecode(t *testing.T) 
 }
 
 func TestVolumeReplicationCreateInternalV1betaLabels_Examples(t *testing.T) {
-	for i, tc := range []struct {
+    for i, tc := range []struct {
 		Input string
 	}{
 		{Input: "{\"some-key\":\"some-value\",\"some-key2\":\"some-value2\"}"},
@@ -8860,7 +9701,7 @@ func TestVolumeReplicationCreateInternalV1betaLifeCycleState_EncodeDecode(t *tes
 }
 
 func TestVolumeReplicationCreateInternalV1betaLifeCycleState_Examples(t *testing.T) {
-	for i, tc := range []struct {
+    for i, tc := range []struct {
 		Input string
 	}{
 		{Input: "\"available\""},
@@ -8934,6 +9775,46 @@ func TestVolumeReplicationCreateInternalV1betaReplicationSchedule_EncodeDecode(t
 	var typ2 VolumeReplicationCreateInternalV1betaReplicationSchedule
 	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
 }
+func TestVolumeReplicationCreateInternalV1betaReplicationType_EncodeDecode(t *testing.T) {
+	var typ VolumeReplicationCreateInternalV1betaReplicationType
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 VolumeReplicationCreateInternalV1betaReplicationType
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+
+func TestVolumeReplicationCreateInternalV1betaReplicationType_Examples(t *testing.T) {
+    for i, tc := range []struct {
+		Input string
+	}{
+		{Input: "\"CROSS_REGION_REPLICATION\""},
+	} {
+		tc := tc
+		t.Run(fmt.Sprintf("Test%d", i+1), func(t *testing.T) {
+			var typ VolumeReplicationCreateInternalV1betaReplicationType
+
+			if err := typ.Decode(jx.DecodeStr(tc.Input)); err != nil {
+				if validateErr, ok := errors.Into[*validate.Error](err); ok {
+					t.Skipf("Validation error: %v", validateErr)
+					return
+				}
+				require.NoErrorf(t, err, "Input: %s", tc.Input)
+			}
+
+			e := jx.Encoder{}
+			typ.Encode(&e)
+			require.True(t, std.Valid(e.Bytes()), "Encoded: %s", e.Bytes())
+
+			var typ2 VolumeReplicationCreateInternalV1betaReplicationType
+			require.NoError(t, typ2.Decode(jx.DecodeBytes(e.Bytes())))
+		})
+	}
+}
 func TestVolumeReplicationInternalV1beta_EncodeDecode(t *testing.T) {
 	var typ VolumeReplicationInternalV1beta
 	typ.SetFake()
@@ -8960,7 +9841,7 @@ func TestVolumeReplicationInternalV1betaEndpointType_EncodeDecode(t *testing.T) 
 }
 
 func TestVolumeReplicationInternalV1betaEndpointType_Examples(t *testing.T) {
-	for i, tc := range []struct {
+    for i, tc := range []struct {
 		Input string
 	}{
 		{Input: "\"src\""},
@@ -8986,46 +9867,6 @@ func TestVolumeReplicationInternalV1betaEndpointType_Examples(t *testing.T) {
 		})
 	}
 }
-func TestVolumeReplicationInternalV1betaHybridReplicationType_EncodeDecode(t *testing.T) {
-	var typ VolumeReplicationInternalV1betaHybridReplicationType
-	typ.SetFake()
-
-	e := jx.Encoder{}
-	typ.Encode(&e)
-	data := e.Bytes()
-	require.True(t, std.Valid(data), "Encoded: %s", data)
-
-	var typ2 VolumeReplicationInternalV1betaHybridReplicationType
-	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
-}
-
-func TestVolumeReplicationInternalV1betaHybridReplicationType_Examples(t *testing.T) {
-	for i, tc := range []struct {
-		Input string
-	}{
-		{Input: "\"MIGRATION\""},
-	} {
-		tc := tc
-		t.Run(fmt.Sprintf("Test%d", i+1), func(t *testing.T) {
-			var typ VolumeReplicationInternalV1betaHybridReplicationType
-
-			if err := typ.Decode(jx.DecodeStr(tc.Input)); err != nil {
-				if validateErr, ok := errors.Into[*validate.Error](err); ok {
-					t.Skipf("Validation error: %v", validateErr)
-					return
-				}
-				require.NoErrorf(t, err, "Input: %s", tc.Input)
-			}
-
-			e := jx.Encoder{}
-			typ.Encode(&e)
-			require.True(t, std.Valid(e.Bytes()), "Encoded: %s", e.Bytes())
-
-			var typ2 VolumeReplicationInternalV1betaHybridReplicationType
-			require.NoError(t, typ2.Decode(jx.DecodeBytes(e.Bytes())))
-		})
-	}
-}
 func TestVolumeReplicationInternalV1betaLabels_EncodeDecode(t *testing.T) {
 	var typ VolumeReplicationInternalV1betaLabels
 	typ = make(VolumeReplicationInternalV1betaLabels)
@@ -9042,7 +9883,7 @@ func TestVolumeReplicationInternalV1betaLabels_EncodeDecode(t *testing.T) {
 }
 
 func TestVolumeReplicationInternalV1betaLabels_Examples(t *testing.T) {
-	for i, tc := range []struct {
+    for i, tc := range []struct {
 		Input string
 	}{
 		{Input: "{\"some-key\":\"some-value\",\"some-key2\":\"some-value2\"}"},
@@ -9084,7 +9925,7 @@ func TestVolumeReplicationInternalV1betaLifeCycleState_EncodeDecode(t *testing.T
 }
 
 func TestVolumeReplicationInternalV1betaLifeCycleState_Examples(t *testing.T) {
-	for i, tc := range []struct {
+    for i, tc := range []struct {
 		Input string
 	}{
 		{Input: "\"available\""},
@@ -9158,6 +9999,46 @@ func TestVolumeReplicationInternalV1betaReplicationSchedule_EncodeDecode(t *test
 	var typ2 VolumeReplicationInternalV1betaReplicationSchedule
 	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
 }
+func TestVolumeReplicationInternalV1betaReplicationType_EncodeDecode(t *testing.T) {
+	var typ VolumeReplicationInternalV1betaReplicationType
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 VolumeReplicationInternalV1betaReplicationType
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+
+func TestVolumeReplicationInternalV1betaReplicationType_Examples(t *testing.T) {
+    for i, tc := range []struct {
+		Input string
+	}{
+		{Input: "\"CROSS_REGION_REPLICATION\""},
+	} {
+		tc := tc
+		t.Run(fmt.Sprintf("Test%d", i+1), func(t *testing.T) {
+			var typ VolumeReplicationInternalV1betaReplicationType
+
+			if err := typ.Decode(jx.DecodeStr(tc.Input)); err != nil {
+				if validateErr, ok := errors.Into[*validate.Error](err); ok {
+					t.Skipf("Validation error: %v", validateErr)
+					return
+				}
+				require.NoErrorf(t, err, "Input: %s", tc.Input)
+			}
+
+			e := jx.Encoder{}
+			typ.Encode(&e)
+			require.True(t, std.Valid(e.Bytes()), "Encoded: %s", e.Bytes())
+
+			var typ2 VolumeReplicationInternalV1betaReplicationType
+			require.NoError(t, typ2.Decode(jx.DecodeBytes(e.Bytes())))
+		})
+	}
+}
 func TestVolumeReplicationUpdateInternalV1beta_EncodeDecode(t *testing.T) {
 	var typ VolumeReplicationUpdateInternalV1beta
 	typ.SetFake()
@@ -9186,7 +10067,7 @@ func TestVolumeReplicationUpdateInternalV1betaLabels_EncodeDecode(t *testing.T) 
 }
 
 func TestVolumeReplicationUpdateInternalV1betaLabels_Examples(t *testing.T) {
-	for i, tc := range []struct {
+    for i, tc := range []struct {
 		Input string
 	}{
 		{Input: "{\"some-key\":\"some-value\",\"some-key2\":\"some-value2\"}"},
@@ -9226,6 +10107,30 @@ func TestVolumeReplicationUpdateInternalV1betaReplicationSchedule_EncodeDecode(t
 	var typ2 VolumeReplicationUpdateInternalV1betaReplicationSchedule
 	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
 }
+func TestVolumeSnapshotCreateV1beta_EncodeDecode(t *testing.T) {
+	var typ VolumeSnapshotCreateV1beta
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 VolumeSnapshotCreateV1beta
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestVolumeSnapshotUpdateV1beta_EncodeDecode(t *testing.T) {
+	var typ VolumeSnapshotUpdateV1beta
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 VolumeSnapshotUpdateV1beta
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
 func TestVolumeUpdateV1beta_EncodeDecode(t *testing.T) {
 	var typ VolumeUpdateV1beta
 	typ.SetFake()
@@ -9254,7 +10159,7 @@ func TestVolumeUpdateV1betaLabels_EncodeDecode(t *testing.T) {
 }
 
 func TestVolumeUpdateV1betaLabels_Examples(t *testing.T) {
-	for i, tc := range []struct {
+    for i, tc := range []struct {
 		Input string
 	}{
 		{Input: "{\"someKey\":\"SomeValue\",\"someKey2\":\"SomeValue2\"}"},
@@ -9296,7 +10201,7 @@ func TestVolumeV1beta_EncodeDecode(t *testing.T) {
 }
 
 func TestVolumeV1beta_Examples(t *testing.T) {
-	for i, tc := range []struct {
+    for i, tc := range []struct {
 		Input string
 	}{
 		{Input: "{\"activeDirectoryConfigUuid\":\"8064bdf5-4638-11e7-9bdb-020073ca7773\",\"backupConfig\":{\"backupPolicyId\":\"a990e99b-e2ec-c361-f463-67a54815b26d\",\"backupVaultId\":\"a990e99b-e2ec-c361-f463-67a54815b26d\",\"scheduledBackupEnabled\":true},\"created\":\"2016-11-29T20:14:50.459Z\",\"creationToken\":\"happily-successful-einstein\",\"description\":\"My volume description\",\"encryptionType\":\"SERVICE_MANAGED\",\"exportPolicy\":{\"rules\":[{\"accessType\":\"READ_WRITE\",\"allowedClients\":\"0.0.0.0/0\",\"nfsv3\":true,\"nfsv4\":false,\"ruleIndex\":1}]},\"kmsConfigId\":\"2653acf5-4638-11e7-9bdb-020073ca7773\",\"labels\":{\"someKey\":\"SomeValue\",\"someKey2\":\"SomeValue2\"},\"protocols\":[\"NFSV3\"],\"quotaInBytes\":100000000000000,\"resourceId\":\"my-volume\",\"securityStyle\":\"UNIX\",\"serviceLevel\":\"EXTREME\",\"snapReserve\":20,\"snapshotPolicy\":{\"dailySchedule\":{\"hour\":23,\"minute\":10,\"snapshotsToKeep\":24},\"enabled\":true,\"hourlySchedule\":{\"minute\":0,\"snapshotsToKeep\":6},\"monthlySchedule\":{\"daysOfMonth\":\"15,31\",\"hour\":23,\"minute\":59,\"snapshotsToKeep\":12},\"weeklySchedule\":{\"day\":\"Monday, Wednesday, Friday\",\"hour\":23,\"minute\":59,\"snapshotsToKeep\":7}},\"tieringPolicy\":{\"coolingThresholdDays\":40,\"tierAction\":\"ENABLE\"},\"unixPermissions\":\"0755\",\"usedBytes\":38786062792785,\"volumeId\":\"49b96a2F-4a38-6fa4-2CC6-F598Ef2f8a0E\",\"volumeState\":\"READY\",\"volumeStateDetails\":\"Available for use\"}"},
@@ -9336,7 +10241,7 @@ func TestVolumeV1betaEncryptionType_EncodeDecode(t *testing.T) {
 }
 
 func TestVolumeV1betaEncryptionType_Examples(t *testing.T) {
-	for i, tc := range []struct {
+    for i, tc := range []struct {
 		Input string
 	}{
 		{Input: "\"SERVICE_MANAGED\""},
@@ -9378,7 +10283,7 @@ func TestVolumeV1betaLabels_EncodeDecode(t *testing.T) {
 }
 
 func TestVolumeV1betaLabels_Examples(t *testing.T) {
-	for i, tc := range []struct {
+    for i, tc := range []struct {
 		Input string
 	}{
 		{Input: "{\"someKey\":\"SomeValue\",\"someKey2\":\"SomeValue2\"}"},
@@ -9420,7 +10325,7 @@ func TestVolumeV1betaSecurityStyle_EncodeDecode(t *testing.T) {
 }
 
 func TestVolumeV1betaSecurityStyle_Examples(t *testing.T) {
-	for i, tc := range []struct {
+    for i, tc := range []struct {
 		Input string
 	}{
 		{Input: "\"NTFS\""},
@@ -9460,7 +10365,7 @@ func TestVolumeV1betaServiceLevel_EncodeDecode(t *testing.T) {
 }
 
 func TestVolumeV1betaServiceLevel_Examples(t *testing.T) {
-	for i, tc := range []struct {
+    for i, tc := range []struct {
 		Input string
 	}{
 		{Input: "\"PREMIUM\""},
@@ -9500,7 +10405,7 @@ func TestVolumeV1betaVolumeState_EncodeDecode(t *testing.T) {
 }
 
 func TestVolumeV1betaVolumeState_Examples(t *testing.T) {
-	for i, tc := range []struct {
+    for i, tc := range []struct {
 		Input string
 	}{
 		{Input: "\"READY\""},

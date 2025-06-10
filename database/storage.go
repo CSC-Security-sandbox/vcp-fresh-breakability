@@ -419,8 +419,20 @@ func (s *PersistenceStore) DeleteVolumeReplication(ctx context.Context, volumeRe
 	return s.dataStore.DeleteVolumeReplication(ctx, volumeReplicationID)
 }
 
+func (s *PersistenceStore) GetVolumeReplicationByProjectId(ctx context.Context, accountId int64) ([]*datamodel.VolumeReplication, error) {
+	return s.dataStore.GetVolumeReplicationByProjectId(ctx, accountId)
+}
+
+func (s *PersistenceStore) GetVolumeReplicationCount(ctx context.Context, accountName string) (int64, error) {
+	return s.dataStore.GetVolumeReplicationCount(ctx, accountName)
+}
+
 func (s *PersistenceStore) GetVolume(ctx context.Context, id string) (*datamodel.Volume, error) {
 	return s.dataStore.GetVolume(ctx, id)
+}
+
+func (s *PersistenceStore) GetVolumeByName(ctx context.Context, name string) (*datamodel.Volume, error) {
+	return s.dataStore.GetVolumeByName(ctx, name)
 }
 
 func (s *PersistenceStore) UpdateVolume(ctx context.Context, volume *datamodel.Volume) error {
@@ -439,8 +451,12 @@ func (s *PersistenceStore) UpdateVolumeState(ctx context.Context, id string, sta
 	return s.dataStore.UpdateVolumeState(ctx, id, state, stateDetails)
 }
 
-func (s *PersistenceStore) ListVolumes(ctx context.Context) ([]*datamodel.Volume, error) {
-	return s.dataStore.ListVolumes(ctx)
+func (s *PersistenceStore) ListVolumes(ctx context.Context, conditions [][]interface{}) ([]*datamodel.Volume, error) {
+	return s.dataStore.ListVolumes(ctx, conditions)
+}
+
+func (s *PersistenceStore) GetVolumeCount(ctx context.Context, accountName string) (int64, error) {
+	return s.dataStore.GetVolumeCount(ctx, accountName)
 }
 
 func (s *PersistenceStore) GetVolumesByPoolID(ctx context.Context, poolID int64) ([]*datamodel.Volume, error) {

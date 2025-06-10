@@ -83,8 +83,8 @@ func (h Handler) V1betaInternalCreateVolumeReplication(ctx context.Context, req 
 		}, nil
 	}
 
-	param := prepareCreateVolumeReplicationParams(req, params)
-	volumeReplication, job, err := h.Orchestrator.CreateVolumeReplication(ctx, param)
+	param := prepareCreateVolumeReplicationInternalParams(req, params)
+	volumeReplication, job, err := h.Orchestrator.CreateVolumeReplicationInternal(ctx, param)
 	if err != nil {
 		logger.Error("Failed to create volume replication", "error", err.Error())
 		return nil, err
@@ -95,6 +95,7 @@ func (h Handler) V1betaInternalCreateVolumeReplication(ctx context.Context, req 
 
 func convertToInternalV1betaVolumeReplication(volumeReplication *models.VolumeReplication, job *datamodel.Job) *gcpgenserver.VolumeReplicationInternalV1beta {
 	return &gcpgenserver.VolumeReplicationInternalV1beta{
+		VolumeReplicationUuid: gcpgenserver.NewOptString(volumeReplication.UUID),
 		EndpointType:          gcpgenserver.VolumeReplicationInternalV1betaEndpointType(volumeReplication.ReplicationAttributes.EndpointType),
 		RemoteRegion:          volumeReplication.ReplicationAttributes.SourceRegion,
 		SourceHostName:        volumeReplication.ReplicationAttributes.SourceHostName,
@@ -121,7 +122,7 @@ func convertToInternalV1betaVolumeReplication(volumeReplication *models.VolumeRe
 	}
 }
 
-func prepareCreateVolumeReplicationParams(req *gcpgenserver.VolumeReplicationCreateInternalV1beta, params gcpgenserver.V1betaInternalCreateVolumeReplicationParams) *commonparams.CreateVolumeReplicationParams {
+func prepareCreateVolumeReplicationInternalParams(req *gcpgenserver.VolumeReplicationCreateInternalV1beta, params gcpgenserver.V1betaInternalCreateVolumeReplicationParams) *commonparams.CreateVolumeReplicationInternalParams {
 	volRepParams := &models.VolumeReplication{
 		Name:        req.Name.Value,
 		Description: req.Description.Value,
@@ -151,7 +152,7 @@ func prepareCreateVolumeReplicationParams(req *gcpgenserver.VolumeReplicationCre
 		},
 	}
 
-	param := &commonparams.CreateVolumeReplicationParams{
+	param := &commonparams.CreateVolumeReplicationInternalParams{
 		ReverseResync:     req.ReverseResume.Value,
 		VolumeReplication: volRepParams,
 	}

@@ -49,6 +49,40 @@ func (h Handler) V1betaDescribeVolume(ctx context.Context, params gcpgenserver.V
 	return convertModelToVCPVolume(volume), nil
 }
 
+func (h Handler) V1betaGetVolumeCount(ctx context.Context, params gcpgenserver.V1betaGetVolumeCountParams) (gcpgenserver.V1betaGetVolumeCountRes, error) {
+	logger := util.GetLogger(ctx)
+	helper.AddLabelerAttributes(ctx, params.ProjectNumber, params.LocationId)
+	count, err := h.Orchestrator.GetVolumeCount(ctx, params.ProjectNumber)
+	if err != nil {
+		logger.Error("Error while getting volume count", "error", err.Error())
+		return &gcpgenserver.V1betaGetVolumeCountInternalServerError{Code: 500, Message: "Internal server error"}, err
+	}
+	return &gcpgenserver.V1betaGetVolumeCountOK{VolumeCount: int(count)}, nil
+}
+
+func (h Handler) V1betaListVolumes(ctx context.Context, params gcpgenserver.V1betaListVolumesParams) (gcpgenserver.V1betaListVolumesRes, error) {
+	logger := util.GetLogger(ctx)
+	helper.AddLabelerAttributes(ctx, params.ProjectNumber, params.LocationId)
+	volumes, err := h.Orchestrator.ListVolumes(ctx, params.ProjectNumber)
+	if err != nil {
+		logger.Error("Failed to list volumes", "error", err.Error())
+		return &gcpgenserver.V1betaListVolumesInternalServerError{Code: 500, Message: "Internal server error"}, err
+	}
+	resp := &gcpgenserver.V1betaListVolumesOK{
+		Volumes: convertModelsToVCPVolumes(volumes),
+	}
+	return resp, nil
+}
+
+func convertModelsToVCPVolumes(volumes []*models.Volume) []gcpgenserver.VolumeV1beta {
+	var volumesList []gcpgenserver.VolumeV1beta
+	for _, volume := range volumes {
+		p := convertModelToVCPVolume(volume)
+		volumesList = append(volumesList, *p)
+	}
+	return volumesList
+}
+
 func (h Handler) V1betaCreateVolume(ctx context.Context, req *gcpgenserver.VolumeCreateV1beta, params gcpgenserver.V1betaCreateVolumeParams) (gcpgenserver.V1betaCreateVolumeRes, error) {
 	logger := util.GetLogger(ctx)
 	helper.AddLabelerAttributes(ctx, params.ProjectNumber, params.LocationId)
@@ -363,6 +397,7 @@ func convertModelToVCPVolume(volume *models.Volume) *gcpgenserver.VolumeV1beta {
 		QuotaInBytes:       gcpgenserver.NewOptFloat64(float64(volume.QuotaInBytes)),
 		PoolResourceId:     gcpgenserver.NewOptNilString(volume.PoolName),
 		StorageClass:       gcpgenserver.NewOptStorageClassV1beta(gcpgenserver.StorageClassV1betaSOFTWARE),
+		ServiceLevel:       gcpgenserver.NewOptVolumeV1betaServiceLevel(gcpgenserver.VolumeV1betaServiceLevelFLEX),
 		IsDataProtection:   gcpgenserver.NewOptBool(volume.IsDataProtection),
 	}
 	if volume.DeletedAt != nil {

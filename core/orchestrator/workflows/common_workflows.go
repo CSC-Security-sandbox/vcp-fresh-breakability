@@ -157,7 +157,7 @@ func QueryWorkflowStatus(ctx context.Context, tempClient client.Client, workflow
 	return &status, nil
 }
 
-func createNodeForProviderWithPool(dbNode *datamodel.Node, pool *datamodel.Pool) *models.Node {
+func CreateNodeForProviderWithPool(dbNode *datamodel.Node, pool *datamodel.Pool) *models.Node {
 	node := &models.Node{
 		EndpointAddress: dbNode.EndpointAddress,
 		Username:        pool.Username,

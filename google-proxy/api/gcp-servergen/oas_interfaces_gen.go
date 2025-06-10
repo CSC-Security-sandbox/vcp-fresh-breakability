@@ -157,6 +157,14 @@ type V1betaGetMultipleVolumesRes interface {
 	v1betaGetMultipleVolumesRes()
 }
 
+type V1betaGetReplicationCountRes interface {
+	v1betaGetReplicationCountRes()
+}
+
+type V1betaGetVolumeCountRes interface {
+	v1betaGetVolumeCountRes()
+}
+
 type V1betaInternalAcceptClusterPeerRes interface {
 	v1betaInternalAcceptClusterPeerRes()
 }

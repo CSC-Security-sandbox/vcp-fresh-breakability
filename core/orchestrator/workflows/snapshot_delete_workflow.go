@@ -105,7 +105,7 @@ func (wf *snapshotDeleteWorkflow) Run(ctx workflow.Context, args ...interface{})
 		return nil, err
 	}
 
-	node := createNodeForProvider(dbNode, dbSnapshot.Volume)
+	node := CreateNodeForProvider(dbNode, dbSnapshot.Volume)
 	err = workflow.ExecuteActivity(ctx, deleteActivity.DeleteSnapshotInONTAP, &dbSnapshot, &node).Get(ctx, nil)
 	if err != nil {
 		return nil, err

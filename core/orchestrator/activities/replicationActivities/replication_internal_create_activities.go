@@ -17,7 +17,7 @@ type InternalVolumeReplicationActivity struct {
 	SE database.Storage
 }
 
-func (a *InternalVolumeReplicationActivity) CreateVolumeReplicationInternal(ctx context.Context, params *common.CreateVolumeReplicationParams, node *models.Node, volumeExternalUUID string) (*vsa.VolumeReplication, error) {
+func (a *InternalVolumeReplicationActivity) CreateVolumeReplicationInternal(ctx context.Context, params *common.CreateVolumeReplicationInternalParams, node *models.Node, volumeExternalUUID string) (*vsa.VolumeReplication, error) {
 	logger := util.GetLogger(ctx)
 	provider := activities.GetProviderByNode(node)
 	vsaCreateVolumeReplicationParams := prepareCreateVolumeReplicationParamsVSA(params, volumeExternalUUID)
@@ -54,7 +54,7 @@ func (a *InternalVolumeReplicationActivity) UpdateVolumeReplicationDetails(ctx c
 	return nil
 }
 
-func prepareCreateVolumeReplicationParamsVSA(params *common.CreateVolumeReplicationParams, volumeExternalUUID string) *vsa.CreateVolumeReplicationParams {
+func prepareCreateVolumeReplicationParamsVSA(params *common.CreateVolumeReplicationInternalParams, volumeExternalUUID string) *vsa.CreateVolumeReplicationParams {
 	volumeReplication := params.VolumeReplication
 	vrf := &vsa.VolumeReplication{
 		EndpointType:          volumeReplication.ReplicationAttributes.EndpointType,

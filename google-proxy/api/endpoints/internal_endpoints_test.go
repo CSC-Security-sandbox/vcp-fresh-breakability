@@ -152,7 +152,7 @@ func TestInternalCreateVolumeReplication(t *testing.T) {
 			ProjectNumber: "test-project",
 			LocationId:    "test-location",
 		}
-		mockOrchestrator.EXPECT().CreateVolumeReplication(mock.Anything, mock.Anything).Return(nil, nil, errors.New("some error"))
+		mockOrchestrator.EXPECT().CreateVolumeReplicationInternal(mock.Anything, mock.Anything).Return(nil, nil, errors.New("some error"))
 		_, err := handler.V1betaInternalCreateVolumeReplication(context.Background(), reqParams, params)
 		assert.Error(tt, err)
 		assert.Equal(tt, "some error", err.Error())
@@ -171,6 +171,9 @@ func TestInternalCreateVolumeReplication(t *testing.T) {
 			LocationId:    "test-location",
 		}
 		volumeReplication := &models.VolumeReplication{
+			BaseModel: models.BaseModel{
+				UUID: "uuid-1",
+			},
 			Name:        "test-replication",
 			Description: "Test replication",
 			Uri:         "test-uri",
@@ -203,6 +206,7 @@ func TestInternalCreateVolumeReplication(t *testing.T) {
 			State:      "job-state-processing",
 		}
 		expectedResponse := &gcpgenserver.VolumeReplicationInternalV1beta{
+			VolumeReplicationUuid: gcpgenserver.NewOptString(volumeReplication.UUID),
 			EndpointType:          gcpgenserver.VolumeReplicationInternalV1betaEndpointType(volumeReplication.ReplicationAttributes.EndpointType),
 			RemoteRegion:          volumeReplication.ReplicationAttributes.SourceRegion,
 			SourceHostName:        volumeReplication.ReplicationAttributes.SourceHostName,
@@ -227,7 +231,7 @@ func TestInternalCreateVolumeReplication(t *testing.T) {
 				},
 			},
 		}
-		mockOrchestrator.EXPECT().CreateVolumeReplication(mock.Anything, mock.Anything).Return(volumeReplication, job, nil)
+		mockOrchestrator.EXPECT().CreateVolumeReplicationInternal(mock.Anything, mock.Anything).Return(volumeReplication, job, nil)
 		actualResp, err := handler.V1betaInternalCreateVolumeReplication(context.Background(), reqParams, params)
 		assert.NoError(tt, err)
 		assert.Equal(tt, expectedResponse, actualResp)

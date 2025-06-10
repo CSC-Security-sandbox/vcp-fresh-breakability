@@ -489,7 +489,7 @@ func (_c *MockOrchestratorFactory_CreateVolume_Call) RunAndReturn(run func(conte
 }
 
 // CreateVolumeReplication provides a mock function with given fields: ctx, params
-func (_m *MockOrchestratorFactory) CreateVolumeReplication(ctx context.Context, params *common.CreateVolumeReplicationParams) (*models.VolumeReplication, *datamodel.Job, error) {
+func (_m *MockOrchestratorFactory) CreateVolumeReplication(ctx context.Context, params *common.CreateVolumeReplicationParams) (*models.VolumeReplication, string, error) {
 	ret := _m.Called(ctx, params)
 
 	if len(ret) == 0 {
@@ -497,9 +497,9 @@ func (_m *MockOrchestratorFactory) CreateVolumeReplication(ctx context.Context, 
 	}
 
 	var r0 *models.VolumeReplication
-	var r1 *datamodel.Job
+	var r1 string
 	var r2 error
-	if rf, ok := ret.Get(0).(func(context.Context, *common.CreateVolumeReplicationParams) (*models.VolumeReplication, *datamodel.Job, error)); ok {
+	if rf, ok := ret.Get(0).(func(context.Context, *common.CreateVolumeReplicationParams) (*models.VolumeReplication, string, error)); ok {
 		return rf(ctx, params)
 	}
 	if rf, ok := ret.Get(0).(func(context.Context, *common.CreateVolumeReplicationParams) *models.VolumeReplication); ok {
@@ -510,12 +510,10 @@ func (_m *MockOrchestratorFactory) CreateVolumeReplication(ctx context.Context, 
 		}
 	}
 
-	if rf, ok := ret.Get(1).(func(context.Context, *common.CreateVolumeReplicationParams) *datamodel.Job); ok {
+	if rf, ok := ret.Get(1).(func(context.Context, *common.CreateVolumeReplicationParams) string); ok {
 		r1 = rf(ctx, params)
 	} else {
-		if ret.Get(1) != nil {
-			r1 = ret.Get(1).(*datamodel.Job)
-		}
+		r1 = ret.Get(1).(string)
 	}
 
 	if rf, ok := ret.Get(2).(func(context.Context, *common.CreateVolumeReplicationParams) error); ok {
@@ -546,12 +544,80 @@ func (_c *MockOrchestratorFactory_CreateVolumeReplication_Call) Run(run func(ctx
 	return _c
 }
 
-func (_c *MockOrchestratorFactory_CreateVolumeReplication_Call) Return(_a0 *models.VolumeReplication, _a1 *datamodel.Job, _a2 error) *MockOrchestratorFactory_CreateVolumeReplication_Call {
+func (_c *MockOrchestratorFactory_CreateVolumeReplication_Call) Return(_a0 *models.VolumeReplication, _a1 string, _a2 error) *MockOrchestratorFactory_CreateVolumeReplication_Call {
 	_c.Call.Return(_a0, _a1, _a2)
 	return _c
 }
 
-func (_c *MockOrchestratorFactory_CreateVolumeReplication_Call) RunAndReturn(run func(context.Context, *common.CreateVolumeReplicationParams) (*models.VolumeReplication, *datamodel.Job, error)) *MockOrchestratorFactory_CreateVolumeReplication_Call {
+func (_c *MockOrchestratorFactory_CreateVolumeReplication_Call) RunAndReturn(run func(context.Context, *common.CreateVolumeReplicationParams) (*models.VolumeReplication, string, error)) *MockOrchestratorFactory_CreateVolumeReplication_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// CreateVolumeReplicationInternal provides a mock function with given fields: ctx, params
+func (_m *MockOrchestratorFactory) CreateVolumeReplicationInternal(ctx context.Context, params *common.CreateVolumeReplicationInternalParams) (*models.VolumeReplication, *datamodel.Job, error) {
+	ret := _m.Called(ctx, params)
+
+	if len(ret) == 0 {
+		panic("no return value specified for CreateVolumeReplicationInternal")
+	}
+
+	var r0 *models.VolumeReplication
+	var r1 *datamodel.Job
+	var r2 error
+	if rf, ok := ret.Get(0).(func(context.Context, *common.CreateVolumeReplicationInternalParams) (*models.VolumeReplication, *datamodel.Job, error)); ok {
+		return rf(ctx, params)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, *common.CreateVolumeReplicationInternalParams) *models.VolumeReplication); ok {
+		r0 = rf(ctx, params)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*models.VolumeReplication)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, *common.CreateVolumeReplicationInternalParams) *datamodel.Job); ok {
+		r1 = rf(ctx, params)
+	} else {
+		if ret.Get(1) != nil {
+			r1 = ret.Get(1).(*datamodel.Job)
+		}
+	}
+
+	if rf, ok := ret.Get(2).(func(context.Context, *common.CreateVolumeReplicationInternalParams) error); ok {
+		r2 = rf(ctx, params)
+	} else {
+		r2 = ret.Error(2)
+	}
+
+	return r0, r1, r2
+}
+
+// MockOrchestratorFactory_CreateVolumeReplicationInternal_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'CreateVolumeReplicationInternal'
+type MockOrchestratorFactory_CreateVolumeReplicationInternal_Call struct {
+	*mock.Call
+}
+
+// CreateVolumeReplicationInternal is a helper method to define mock.On call
+//   - ctx context.Context
+//   - params *common.CreateVolumeReplicationInternalParams
+func (_e *MockOrchestratorFactory_Expecter) CreateVolumeReplicationInternal(ctx interface{}, params interface{}) *MockOrchestratorFactory_CreateVolumeReplicationInternal_Call {
+	return &MockOrchestratorFactory_CreateVolumeReplicationInternal_Call{Call: _e.mock.On("CreateVolumeReplicationInternal", ctx, params)}
+}
+
+func (_c *MockOrchestratorFactory_CreateVolumeReplicationInternal_Call) Run(run func(ctx context.Context, params *common.CreateVolumeReplicationInternalParams)) *MockOrchestratorFactory_CreateVolumeReplicationInternal_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(*common.CreateVolumeReplicationInternalParams))
+	})
+	return _c
+}
+
+func (_c *MockOrchestratorFactory_CreateVolumeReplicationInternal_Call) Return(_a0 *models.VolumeReplication, _a1 *datamodel.Job, _a2 error) *MockOrchestratorFactory_CreateVolumeReplicationInternal_Call {
+	_c.Call.Return(_a0, _a1, _a2)
+	return _c
+}
+
+func (_c *MockOrchestratorFactory_CreateVolumeReplicationInternal_Call) RunAndReturn(run func(context.Context, *common.CreateVolumeReplicationInternalParams) (*models.VolumeReplication, *datamodel.Job, error)) *MockOrchestratorFactory_CreateVolumeReplicationInternal_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -1471,6 +1537,63 @@ func (_c *MockOrchestratorFactory_GetPoolByVendorID_Call) RunAndReturn(run func(
 	return _c
 }
 
+// GetReplicationCount provides a mock function with given fields: ctx, projectNumber
+func (_m *MockOrchestratorFactory) GetReplicationCount(ctx context.Context, projectNumber string) (int64, error) {
+	ret := _m.Called(ctx, projectNumber)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetReplicationCount")
+	}
+
+	var r0 int64
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, string) (int64, error)); ok {
+		return rf(ctx, projectNumber)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, string) int64); ok {
+		r0 = rf(ctx, projectNumber)
+	} else {
+		r0 = ret.Get(0).(int64)
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, string) error); ok {
+		r1 = rf(ctx, projectNumber)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockOrchestratorFactory_GetReplicationCount_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetReplicationCount'
+type MockOrchestratorFactory_GetReplicationCount_Call struct {
+	*mock.Call
+}
+
+// GetReplicationCount is a helper method to define mock.On call
+//   - ctx context.Context
+//   - projectNumber string
+func (_e *MockOrchestratorFactory_Expecter) GetReplicationCount(ctx interface{}, projectNumber interface{}) *MockOrchestratorFactory_GetReplicationCount_Call {
+	return &MockOrchestratorFactory_GetReplicationCount_Call{Call: _e.mock.On("GetReplicationCount", ctx, projectNumber)}
+}
+
+func (_c *MockOrchestratorFactory_GetReplicationCount_Call) Run(run func(ctx context.Context, projectNumber string)) *MockOrchestratorFactory_GetReplicationCount_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(string))
+	})
+	return _c
+}
+
+func (_c *MockOrchestratorFactory_GetReplicationCount_Call) Return(_a0 int64, _a1 error) *MockOrchestratorFactory_GetReplicationCount_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockOrchestratorFactory_GetReplicationCount_Call) RunAndReturn(run func(context.Context, string) (int64, error)) *MockOrchestratorFactory_GetReplicationCount_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // GetReplicationJobs provides a mock function with given fields: ctx, projectName, poolUUID
 func (_m *MockOrchestratorFactory) GetReplicationJobs(ctx context.Context, projectName string, poolUUID string) ([]*models.Job, error) {
 	ret := _m.Called(ctx, projectName, poolUUID)
@@ -1649,6 +1772,63 @@ func (_c *MockOrchestratorFactory_GetVolume_Call) RunAndReturn(run func(context.
 	return _c
 }
 
+// GetVolumeCount provides a mock function with given fields: ctx, projectNumber
+func (_m *MockOrchestratorFactory) GetVolumeCount(ctx context.Context, projectNumber string) (int64, error) {
+	ret := _m.Called(ctx, projectNumber)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetVolumeCount")
+	}
+
+	var r0 int64
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, string) (int64, error)); ok {
+		return rf(ctx, projectNumber)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, string) int64); ok {
+		r0 = rf(ctx, projectNumber)
+	} else {
+		r0 = ret.Get(0).(int64)
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, string) error); ok {
+		r1 = rf(ctx, projectNumber)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockOrchestratorFactory_GetVolumeCount_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetVolumeCount'
+type MockOrchestratorFactory_GetVolumeCount_Call struct {
+	*mock.Call
+}
+
+// GetVolumeCount is a helper method to define mock.On call
+//   - ctx context.Context
+//   - projectNumber string
+func (_e *MockOrchestratorFactory_Expecter) GetVolumeCount(ctx interface{}, projectNumber interface{}) *MockOrchestratorFactory_GetVolumeCount_Call {
+	return &MockOrchestratorFactory_GetVolumeCount_Call{Call: _e.mock.On("GetVolumeCount", ctx, projectNumber)}
+}
+
+func (_c *MockOrchestratorFactory_GetVolumeCount_Call) Run(run func(ctx context.Context, projectNumber string)) *MockOrchestratorFactory_GetVolumeCount_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(string))
+	})
+	return _c
+}
+
+func (_c *MockOrchestratorFactory_GetVolumeCount_Call) Return(_a0 int64, _a1 error) *MockOrchestratorFactory_GetVolumeCount_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockOrchestratorFactory_GetVolumeCount_Call) RunAndReturn(run func(context.Context, string) (int64, error)) *MockOrchestratorFactory_GetVolumeCount_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // ListPools provides a mock function with given fields: ctx, accountName
 func (_m *MockOrchestratorFactory) ListPools(ctx context.Context, accountName string) ([]*models.Pool, error) {
 	ret := _m.Called(ctx, accountName)
@@ -1763,6 +1943,65 @@ func (_c *MockOrchestratorFactory_ListSnapshots_Call) Return(_a0 []*models.Snaps
 }
 
 func (_c *MockOrchestratorFactory_ListSnapshots_Call) RunAndReturn(run func(context.Context, *common.ListSnapshotsParams) ([]*models.Snapshot, error)) *MockOrchestratorFactory_ListSnapshots_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// ListVolumes provides a mock function with given fields: ctx, accountName
+func (_m *MockOrchestratorFactory) ListVolumes(ctx context.Context, accountName string) ([]*models.Volume, error) {
+	ret := _m.Called(ctx, accountName)
+
+	if len(ret) == 0 {
+		panic("no return value specified for ListVolumes")
+	}
+
+	var r0 []*models.Volume
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, string) ([]*models.Volume, error)); ok {
+		return rf(ctx, accountName)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, string) []*models.Volume); ok {
+		r0 = rf(ctx, accountName)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]*models.Volume)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, string) error); ok {
+		r1 = rf(ctx, accountName)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockOrchestratorFactory_ListVolumes_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'ListVolumes'
+type MockOrchestratorFactory_ListVolumes_Call struct {
+	*mock.Call
+}
+
+// ListVolumes is a helper method to define mock.On call
+//   - ctx context.Context
+//   - accountName string
+func (_e *MockOrchestratorFactory_Expecter) ListVolumes(ctx interface{}, accountName interface{}) *MockOrchestratorFactory_ListVolumes_Call {
+	return &MockOrchestratorFactory_ListVolumes_Call{Call: _e.mock.On("ListVolumes", ctx, accountName)}
+}
+
+func (_c *MockOrchestratorFactory_ListVolumes_Call) Run(run func(ctx context.Context, accountName string)) *MockOrchestratorFactory_ListVolumes_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(string))
+	})
+	return _c
+}
+
+func (_c *MockOrchestratorFactory_ListVolumes_Call) Return(_a0 []*models.Volume, _a1 error) *MockOrchestratorFactory_ListVolumes_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockOrchestratorFactory_ListVolumes_Call) RunAndReturn(run func(context.Context, string) ([]*models.Volume, error)) *MockOrchestratorFactory_ListVolumes_Call {
 	_c.Call.Return(run)
 	return _c
 }

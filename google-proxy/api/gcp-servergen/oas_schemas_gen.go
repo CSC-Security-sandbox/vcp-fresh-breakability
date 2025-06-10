@@ -8749,6 +8749,52 @@ func (o OptStatusV1Beta) Or(d StatusV1Beta) StatusV1Beta {
 	return d
 }
 
+// NewOptStorageClassQueryParameter returns new OptStorageClassQueryParameter with value set to v.
+func NewOptStorageClassQueryParameter(v StorageClassQueryParameter) OptStorageClassQueryParameter {
+	return OptStorageClassQueryParameter{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptStorageClassQueryParameter is optional StorageClassQueryParameter.
+type OptStorageClassQueryParameter struct {
+	Value StorageClassQueryParameter
+	Set   bool
+}
+
+// IsSet returns true if OptStorageClassQueryParameter was set.
+func (o OptStorageClassQueryParameter) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptStorageClassQueryParameter) Reset() {
+	var v StorageClassQueryParameter
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptStorageClassQueryParameter) SetTo(v StorageClassQueryParameter) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptStorageClassQueryParameter) Get() (v StorageClassQueryParameter, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptStorageClassQueryParameter) Or(d StorageClassQueryParameter) StorageClassQueryParameter {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
 // NewOptStorageClassV1beta returns new OptStorageClassV1beta with value set to v.
 func NewOptStorageClassV1beta(v StorageClassV1beta) OptStorageClassV1beta {
 	return OptStorageClassV1beta{
@@ -12764,6 +12810,40 @@ func (s *SMBSettingsV1betaItem) UnmarshalText(data []byte) error {
 	}
 }
 
+type ServiceLevelQueryParameterItem string
+
+const (
+	ServiceLevelQueryParameterItemFlex ServiceLevelQueryParameterItem = "flex"
+)
+
+// AllValues returns all ServiceLevelQueryParameterItem values.
+func (ServiceLevelQueryParameterItem) AllValues() []ServiceLevelQueryParameterItem {
+	return []ServiceLevelQueryParameterItem{
+		ServiceLevelQueryParameterItemFlex,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ServiceLevelQueryParameterItem) MarshalText() ([]byte, error) {
+	switch s {
+	case ServiceLevelQueryParameterItemFlex:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ServiceLevelQueryParameterItem) UnmarshalText(data []byte) error {
+	switch ServiceLevelQueryParameterItem(data) {
+	case ServiceLevelQueryParameterItemFlex:
+		*s = ServiceLevelQueryParameterItemFlex
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
 // A simple export-policy rule that defines who can access the volume and how. Only 5 rules are
 // allowed but each rule can serve many clients and subnets.
 // Ref: #/components/schemas/SimpleExportPolicyRule_v1beta
@@ -13360,6 +13440,47 @@ func (s *StatusV1Beta) SetMessage(val OptString) {
 // SetDetails sets the value of Details.
 func (s *StatusV1Beta) SetDetails(val []AnyV1Beta) {
 	s.Details = val
+}
+
+type StorageClassQueryParameter string
+
+const (
+	StorageClassQueryParameterHardware StorageClassQueryParameter = "hardware"
+	StorageClassQueryParameterSoftware StorageClassQueryParameter = "software"
+)
+
+// AllValues returns all StorageClassQueryParameter values.
+func (StorageClassQueryParameter) AllValues() []StorageClassQueryParameter {
+	return []StorageClassQueryParameter{
+		StorageClassQueryParameterHardware,
+		StorageClassQueryParameterSoftware,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s StorageClassQueryParameter) MarshalText() ([]byte, error) {
+	switch s {
+	case StorageClassQueryParameterHardware:
+		return []byte(s), nil
+	case StorageClassQueryParameterSoftware:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *StorageClassQueryParameter) UnmarshalText(data []byte) error {
+	switch StorageClassQueryParameter(data) {
+	case StorageClassQueryParameterHardware:
+		*s = StorageClassQueryParameterHardware
+		return nil
+	case StorageClassQueryParameterSoftware:
+		*s = StorageClassQueryParameterSoftware
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
 }
 
 // Storage class to be provisioned. Currently software is the only option.
@@ -14907,6 +15028,90 @@ func (*V1betaGetMultipleVolumesUnauthorized) v1betaGetMultipleVolumesRes() {}
 type V1betaGetMultipleVolumesUnprocessableEntity Error
 
 func (*V1betaGetMultipleVolumesUnprocessableEntity) v1betaGetMultipleVolumesRes() {}
+
+type V1betaGetReplicationCountBadRequest Error
+
+func (*V1betaGetReplicationCountBadRequest) v1betaGetReplicationCountRes() {}
+
+type V1betaGetReplicationCountForbidden Error
+
+func (*V1betaGetReplicationCountForbidden) v1betaGetReplicationCountRes() {}
+
+type V1betaGetReplicationCountInternalServerError Error
+
+func (*V1betaGetReplicationCountInternalServerError) v1betaGetReplicationCountRes() {}
+
+type V1betaGetReplicationCountNotFound Error
+
+func (*V1betaGetReplicationCountNotFound) v1betaGetReplicationCountRes() {}
+
+// Count of replications.
+type V1betaGetReplicationCountOK struct {
+	// Total number of replications.
+	ReplicationCount int `json:"replicationCount"`
+}
+
+// GetReplicationCount returns the value of ReplicationCount.
+func (s *V1betaGetReplicationCountOK) GetReplicationCount() int {
+	return s.ReplicationCount
+}
+
+// SetReplicationCount sets the value of ReplicationCount.
+func (s *V1betaGetReplicationCountOK) SetReplicationCount(val int) {
+	s.ReplicationCount = val
+}
+
+func (*V1betaGetReplicationCountOK) v1betaGetReplicationCountRes() {}
+
+type V1betaGetReplicationCountTooManyRequests Error
+
+func (*V1betaGetReplicationCountTooManyRequests) v1betaGetReplicationCountRes() {}
+
+type V1betaGetReplicationCountUnauthorized Error
+
+func (*V1betaGetReplicationCountUnauthorized) v1betaGetReplicationCountRes() {}
+
+type V1betaGetVolumeCountBadRequest Error
+
+func (*V1betaGetVolumeCountBadRequest) v1betaGetVolumeCountRes() {}
+
+type V1betaGetVolumeCountForbidden Error
+
+func (*V1betaGetVolumeCountForbidden) v1betaGetVolumeCountRes() {}
+
+type V1betaGetVolumeCountInternalServerError Error
+
+func (*V1betaGetVolumeCountInternalServerError) v1betaGetVolumeCountRes() {}
+
+type V1betaGetVolumeCountNotFound Error
+
+func (*V1betaGetVolumeCountNotFound) v1betaGetVolumeCountRes() {}
+
+// Count of volumes.
+type V1betaGetVolumeCountOK struct {
+	// Total number of volumes.
+	VolumeCount int `json:"volumeCount"`
+}
+
+// GetVolumeCount returns the value of VolumeCount.
+func (s *V1betaGetVolumeCountOK) GetVolumeCount() int {
+	return s.VolumeCount
+}
+
+// SetVolumeCount sets the value of VolumeCount.
+func (s *V1betaGetVolumeCountOK) SetVolumeCount(val int) {
+	s.VolumeCount = val
+}
+
+func (*V1betaGetVolumeCountOK) v1betaGetVolumeCountRes() {}
+
+type V1betaGetVolumeCountTooManyRequests Error
+
+func (*V1betaGetVolumeCountTooManyRequests) v1betaGetVolumeCountRes() {}
+
+type V1betaGetVolumeCountUnauthorized Error
+
+func (*V1betaGetVolumeCountUnauthorized) v1betaGetVolumeCountRes() {}
 
 type V1betaInternalAcceptClusterPeerBadRequest Error
 

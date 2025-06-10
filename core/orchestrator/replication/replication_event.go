@@ -1,0 +1,75 @@
+package replication
+
+import (
+	"context"
+
+	googleproxyclient "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/google-proxy-client"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
+	gcpgenserver "github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/api/gcp-servergen"
+)
+
+type ReplicationEventBase struct {
+	common.EventBase
+	CCFEUri       string
+	CCFERemoteUri string
+}
+
+type CreateReplicationEvent struct {
+	ReplicationEventBase
+	SourceVolume        datamodel.Volume `json:"sourceVolume,omitempty"`
+	SourcePool          datamodel.Pool   `json:"sourcePool,omitempty"`
+	DestinationPoolName string           `json:"destinationPoolName,omitempty"`
+
+	CreateReplicationParams  *CreateReplicationParamsBody `json:"Body,omitempty"`
+	LocationID               string                       `json:"LocationID,omitempty"`
+	DestinationLocationID    string                       `json:"DestinationLocationID,omitempty"`
+	SourceProjectNumber      string                       `json:"SourceProjectNumber,omitempty"`
+	DestinationProjectNumber string                       `json:"DestinationProjectNumber,omitempty"`
+	VolumeResourceID         string                       `json:"VolumeResourceID,omitempty"`
+	XCorrelationID           *string                      `json:"XCorrelationID,omitempty"`
+	RequestUri               string                       `json:"RequestUri,omitempty"`
+}
+
+type CreateReplicationParamsBody struct {
+	Description                 *string                  `json:"description,omitempty"`
+	DestinationVolumeParameters *DestinationVolumeParams `json:"destinationVolumeParameters"`
+	ReplicationSchedule         *string                  `json:"replicationSchedule"`
+	ResourceID                  *string                  `json:"resourceId"`
+	Labels                      map[string]string        `json:"labels,omitempty"`
+	HybridReplicationType       *string                  `json:"hybridReplicationType,omitempty"`
+}
+
+type DestinationVolumeParams struct {
+	Description *string `json:"description,omitempty"`
+	VolumeID    string  `json:"volumeID,omitempty"`
+	ShareName   string  `json:"shareName,omitempty"`
+	StoragePool *string `json:"storagePool"`
+}
+
+type CreateReplicationResult struct {
+	Ctx              context.Context
+	EventBytes       []byte
+	Event            *CreateReplicationEvent
+	DstBasePath      *string
+	SrcBasePath      *string
+	DstProjectNumber *string
+	SrcProjectNumber *string
+	DstJwtToken      *string
+	SrcJwtToken      *string
+	DstReplication   *googleproxyclient.VolumeReplicationInternalV1beta
+	DstVolume        *gcpgenserver.VolumeV1beta
+	SrcVolume        *gcpgenserver.VolumeV1beta
+	DstPool          *googleproxyclient.PoolInternalV1beta
+	SrcIps           []string
+	DstIps           []string
+	Error            error
+	Passphrase       *string
+	ClusterPeerUUID  *string
+	JobId            *string
+	SrcNode          *models.Node
+	SrcSvm           *string
+	DstSvm           *string
+	DbVolReplication *datamodel.VolumeReplication
+}

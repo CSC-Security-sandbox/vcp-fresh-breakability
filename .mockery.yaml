@@ -52,6 +52,12 @@ packages:
       inpackage: True
       recursive: True
       include-regex: "ClientService"
+  github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/google-proxy-client:
+    config:
+      inpackage: True
+      dir: "{{.InterfaceDir}}"
+    interfaces:
+      Invoker:
   github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/vlm:
     config:
       dir: "{{.InterfaceDir}}"

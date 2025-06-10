@@ -2,20 +2,90 @@ package api
 
 import (
 	"context"
+	"encoding/json"
 	"time"
 
+	"github.com/go-faster/jx"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/cvpapi/replications"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/models"
+	models2 "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	gcpgenserver "github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/api/gcp-servergen"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/helper"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/nillable"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 )
 
+var (
+	convertModelToVCPVolumeReplication = _convertModelToVCPVolumeReplication
+)
+
 func (h Handler) V1betaCreateReplication(ctx context.Context, req *gcpgenserver.ReplicationCreateV1beta, params gcpgenserver.V1betaCreateReplicationParams) (gcpgenserver.V1betaCreateReplicationRes, error) {
-	// TODO implement me
-	return &gcpgenserver.OperationV1beta{}, nil
+	logger := util.GetLogger(ctx)
+	helper.AddLabelerAttributes(ctx, params.ProjectNumber, params.LocationId)
+	region, _, parsingErr := parseAndValidateRegionAndZone(params.LocationId)
+	if parsingErr != nil {
+		return &gcpgenserver.V1betaCreateReplicationBadRequest{
+			Code:    parsingErr.Code,
+			Message: parsingErr.Message,
+		}, nil
+	}
+
+	replicationParams := prepareCreateVolumeReplicationParams(req, params, region)
+
+	volumeRep, jobUUID, err := h.Orchestrator.CreateVolumeReplication(ctx, replicationParams)
+	if err != nil {
+		if errors.IsUserInputValidationErr(err) || errors.IsNotFoundErr(err) {
+			return &gcpgenserver.V1betaCreateReplicationBadRequest{
+				Code:    400,
+				Message: err.Error(),
+			}, nil
+		}
+
+		logger.Error("Failed to create volume", "error", err.Error())
+		return &gcpgenserver.V1betaCreateReplicationInternalServerError{Code: 500, Message: err.Error()}, err
+	}
+
+	resp, err := encodeVolumeReplicationV1(convertModelToVCPVolumeReplication(volumeRep))
+	if err != nil {
+		return nil, err
+	}
+
+	operationID := "/v1beta/projects/" + params.ProjectNumber + "/locations/" + params.LocationId + "/operations/" + jobUUID
+	if volumeRep.State == models2.LifeCycleStateCreating {
+		return &gcpgenserver.OperationV1beta{
+			Name:     gcpgenserver.NewOptString(operationID),
+			Response: resp,
+			Done:     gcpgenserver.NewOptBool(false),
+		}, nil
+	}
+	return &gcpgenserver.OperationV1beta{
+		Name:     gcpgenserver.NewOptString(operationID),
+		Response: resp,
+		Done:     gcpgenserver.NewOptBool(true),
+	}, nil
+}
+
+// encodeVolumeReplicationV1 encodes a Replication struct to JSON.
+func encodeVolumeReplicationV1(replicationV1beta *gcpgenserver.ReplicationV1beta) (jx.Raw, error) {
+	data, err := json.Marshal(replicationV1beta)
+	if err != nil {
+		return nil, err
+	}
+	return data, nil
+}
+
+func (h Handler) V1betaGetReplicationCount(ctx context.Context, params gcpgenserver.V1betaGetReplicationCountParams) (gcpgenserver.V1betaGetReplicationCountRes, error) {
+	logger := util.GetLogger(ctx)
+	helper.AddLabelerAttributes(ctx, params.ProjectNumber, params.LocationId)
+	count, err := h.Orchestrator.GetReplicationCount(ctx, params.ProjectNumber)
+	if err != nil {
+		logger.Error("Error while getting replication count", "error", err.Error())
+		return nil, err
+	}
+	return &gcpgenserver.V1betaGetReplicationCountOK{ReplicationCount: int(count)}, nil
 }
 
 func (h Handler) V1betaGetMultipleReplications(ctx context.Context, req *gcpgenserver.ReplicationURIListV1beta, params gcpgenserver.V1betaGetMultipleReplicationsParams) (gcpgenserver.V1betaGetMultipleReplicationsRes, error) {
@@ -164,4 +234,45 @@ func convertToReplicationV1Beta(replication *models.ReplicationV1beta) gcpgenser
 	}
 
 	return replicationResp
+}
+
+func prepareCreateVolumeReplicationParams(req *gcpgenserver.ReplicationCreateV1beta, params gcpgenserver.V1betaCreateReplicationParams, region string) *common.CreateVolumeReplicationParams {
+	replication := common.CreateVolumeReplicationParams{
+		AccountName:      params.ProjectNumber,
+		Region:           region,
+		Name:             req.ResourceId,
+		SourceVolumeName: params.VolumeResourceId,
+		CorrelationId:    params.XCorrelationID.Value,
+	}
+
+	replication.Body = req
+	if req.Description.IsSet() {
+		replication.Description, _ = req.Description.Get()
+	}
+
+	return &replication
+}
+
+func _convertModelToVCPVolumeReplication(volumeReplication *models2.VolumeReplication) *gcpgenserver.ReplicationV1beta {
+	return &gcpgenserver.ReplicationV1beta{
+		ReplicationId:       gcpgenserver.NewOptString(volumeReplication.UUID),
+		ResourceId:          gcpgenserver.NewOptString(volumeReplication.Name),
+		Description:         gcpgenserver.NewOptString(volumeReplication.Description),
+		State:               gcpgenserver.NewOptReplicationV1betaState(gcpgenserver.ReplicationV1betaState(volumeReplication.State)),
+		StateDetails:        gcpgenserver.NewOptString(volumeReplication.StateDetails),
+		Role:                gcpgenserver.NewOptReplicationV1betaRole(convertToRole(volumeReplication.ReplicationAttributes.EndpointType)),
+		ReplicationSchedule: gcpgenserver.NewOptReplicationV1betaReplicationSchedule(gcpgenserver.ReplicationV1betaReplicationSchedule(volumeReplication.ReplicationAttributes.ReplicationSchedule)),
+		Created:             gcpgenserver.NewOptDateTime(time.Time(volumeReplication.CreatedAt)),
+	}
+}
+
+func convertToRole(endpointType string) gcpgenserver.ReplicationV1betaRole {
+	switch endpointType {
+	case "src":
+		return gcpgenserver.ReplicationV1betaRoleSOURCE
+	case "dst":
+		return gcpgenserver.ReplicationV1betaRoleDESTINATION
+	default:
+		return gcpgenserver.ReplicationV1betaRoleREPLICATIONROLEUNSPECIFIED
+	}
 }

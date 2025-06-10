@@ -2308,3 +2308,116 @@ func TestOrchestrator_UpdateVolume(t *testing.T) {
 	assert.Equal(t, "vol", vol.DisplayName)
 	assert.Equal(t, "job-id", jobID)
 }
+
+func TestGetVolumeCount(t *testing.T) {
+	t.Run("WhenStorageReturnsCount", func(tt *testing.T) {
+		ctx := context.Background()
+		mockStorage := new(database.MockStorage)
+		mockOrchestrator := &Orchestrator{storage: mockStorage}
+
+		projectNumber := "test-project"
+		expectedCount := int64(5)
+
+		mockStorage.On("GetVolumeCount", ctx, projectNumber).Return(expectedCount, nil)
+
+		actualCount, err := mockOrchestrator.GetVolumeCount(ctx, projectNumber)
+		assert.Nil(tt, err)
+		assert.Equal(tt, expectedCount, actualCount)
+	})
+
+	t.Run("WhenStorageReturnsError", func(tt *testing.T) {
+		ctx := context.Background()
+		mockStorage := new(database.MockStorage)
+		mockOrchestrator := &Orchestrator{storage: mockStorage}
+
+		projectNumber := "test-project"
+		expectedError := errors.New("database error")
+
+		mockStorage.On("GetVolumeCount", ctx, projectNumber).Return(int64(0), expectedError)
+
+		actualCount, err := mockOrchestrator.GetVolumeCount(ctx, projectNumber)
+		assert.NotNil(tt, err)
+		assert.Equal(tt, expectedError, err)
+		assert.Equal(tt, int64(0), actualCount)
+	})
+}
+
+func TestListVolumes(t *testing.T) {
+	t.Run("WhenAccountExistsAndHasVolumes", func(tt *testing.T) {
+		ctx := context.Background()
+		mockStorage := new(database.MockStorage)
+		mockOrchestrator := &Orchestrator{storage: mockStorage}
+
+		projectNumber := "test-project"
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{UUID: "test-account-uuid", ID: 1},
+		}
+		getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return account, nil
+		}
+		conditions := [][]interface{}{{"account_id = ?", int64(1)}}
+
+		volumeObj := &datamodel.Volume{
+			Name:        "vol1",
+			Account:     account,
+			AccountID:   account.ID,
+			SizeInBytes: int64(1024),
+			Description: "test",
+			PoolID:      1,
+			SvmID:       1,
+			Pool:        &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: 1, UUID: "test-pool-uuid"}},
+			VolumeAttributes: &datamodel.VolumeAttributes{
+				CreationToken:    "token1",
+				Protocols:        []string{"iscsi"},
+				VendorSubnetID:   "network",
+				IsDataProtection: false,
+			},
+		}
+
+		mockStorage.On("ListVolumes", ctx, conditions).Return([]*datamodel.Volume{volumeObj}, nil)
+
+		volumes, err := mockOrchestrator.ListVolumes(ctx, projectNumber)
+		assert.NoError(tt, err)
+		assert.Len(tt, volumes, 1)
+		assert.Equal(tt, "vol1", volumes[0].DisplayName)
+		getAccountWithName = _getAccountWithName
+	})
+
+	t.Run("WhenAccountDoesNotExist", func(tt *testing.T) {
+		ctx := context.Background()
+		mockStorage := new(database.MockStorage)
+		mockOrchestrator := &Orchestrator{storage: mockStorage}
+		getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return nil, errors.New("account not found")
+		}
+		volumes, err := mockOrchestrator.ListVolumes(ctx, "non-existent-account")
+		assert.Error(tt, err, "Expected error for non-existent account")
+		assert.Nil(tt, volumes, "Expected nil volumes")
+		getAccountWithName = _getAccountWithName
+	})
+
+	t.Run("WhenAccountExistsButNoVolumes", func(tt *testing.T) {
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+
+		mockLogger := log.NewLogger()
+		store, err := database.NewTestStorage(mockLogger)
+		assert.NoError(tt, err, "Failed to create test storage")
+
+		// Clear the in-memory database
+		err = database.ClearInMemoryDB(store.DB())
+		assert.NoError(tt, err, "Failed to clear in-memory database")
+
+		account := &datamodel.Account{
+			Name: "test-account",
+		}
+		err = store.DB().Create(account).Error
+		assert.NoError(tt, err, "Failed to create account")
+
+		orch := Orchestrator{storage: store}
+
+		volumes, err := orch.ListVolumes(ctx, account.Name)
+		assert.NoError(tt, err, "Failed to list volumes")
+		assert.Len(tt, volumes, 0)
+	})
+}

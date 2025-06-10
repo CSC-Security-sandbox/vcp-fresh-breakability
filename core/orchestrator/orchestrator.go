@@ -28,8 +28,10 @@ type OrchestratorFactory interface {
 	CreateVolume(ctx context.Context, params *commonparams.CreateVolumeParams) (*models.Volume, string, error)
 	GetVolume(ctx context.Context, volumeId string) (*models.Volume, error)
 	UpdateVolume(ctx context.Context, param *commonparams.UpdateVolumeParams) (*models.Volume, string, error)
+	GetVolumeCount(ctx context.Context, projectNumber string) (int64, error)
 	DeleteVolume(ctx context.Context, volumeId string) (*models.Volume, string, error)
 	GetMultipleVolumes(ctx context.Context, volumeIds []string, accountName string) ([]*models.Volume, error)
+	ListVolumes(ctx context.Context, accountName string) ([]*models.Volume, error)
 
 	AcceptClusterPeer(ctx context.Context, params *commonparams.ClusterPeerParams, poolID string) (*commonparams.ClusterPeerParams, *datamodel.Job, error)
 
@@ -42,10 +44,14 @@ type OrchestratorFactory interface {
 	ListSnapshots(ctx context.Context, params *commonparams.ListSnapshotsParams) ([]*models.Snapshot, error)
 	UpdateSnapshot(ctx context.Context, params *commonparams.UpdateSnapshotParams) (*models.Snapshot, string, error)
 
-	CreateVolumeReplication(ctx context.Context, params *commonparams.CreateVolumeReplicationParams) (*models.VolumeReplication, *datamodel.Job, error)
+	CreateVolumeReplicationInternal(ctx context.Context, params *commonparams.CreateVolumeReplicationInternalParams) (*models.VolumeReplication, *datamodel.Job, error)
+	GetReplicationCount(ctx context.Context, projectNumber string) (int64, error)
+	CreateVolumeReplication(ctx context.Context, params *commonparams.CreateVolumeReplicationParams) (*models.VolumeReplication, string, error)
 
 	// KMS Config related methods
 	KmsConfigInterface
+	GetMultipleKMSConfigs(ctx context.Context, kmsConfigIDList []string) ([]*models.KmsConfig, error)
+	UpdateKmsConfig(ctx context.Context, params *commonparams.UpdateKmsConfigParams) (*models.KmsConfig, string, error)
 
 	GetBackupVaultByNameAndOwnerID(ctx context.Context, bvName, ownerID string) (*models.BackupVaultV1beta, error)
 	CreateBackupVault(ctx context.Context, params *commonparams.BackupVaultParams, paramz gcpserver.V1betaCreateBackupVaultParams) (*models.BackupVaultV1beta, string, error)

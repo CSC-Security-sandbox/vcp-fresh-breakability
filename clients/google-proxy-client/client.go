@@ -60,7 +60,7 @@ func (c *vcpRoundTripper) RoundTrip(r *http.Request) (*http.Response, error) {
 }
 
 // getGProxyClient creates a new Google Proxy client with the specified base path and JWT token
-func getGProxyClient(basePath string, jwt string, logger slogger.Logger) *Client {
+func getGProxyClient(basePath string, jwt string, logger slogger.Logger) *ProxyClient {
 	transport := httptransport.New(basePath, "", []string{transportSchema})
 
 	loggingRoundTripper := httphelpersGetLoggingRoundTripper("Google-Proxy", logger, httpTransport)
@@ -78,12 +78,19 @@ func getGProxyClient(basePath string, jwt string, logger slogger.Logger) *Client
 
 	serverURL := fmt.Sprintf("%s://%s", transportSchema, basePath)
 
-	gproxyClient, err := NewClient(serverURL, WithClient(httpClient))
+	client := new(ProxyClient)
+	var err error
+	client.Invoker, err = NewClient(serverURL, WithClient(httpClient))
 	if err != nil {
 		return nil
 	}
 
-	return gproxyClient
+	return client
+}
+
+type ProxyClient struct {
+	Invoker Invoker
+	Client  Client
 }
 
 // _addConsumersToTransport adds custom consumers to the transport

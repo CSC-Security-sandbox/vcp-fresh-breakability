@@ -123,6 +123,14 @@ func TestCreateClusterPeer(t *testing.T) {
 			ExternalUUID: "12345",
 		}
 
+		mockProvider.On("ListClusterPeers").Return([]*vsa.ClusterPeer{
+			{
+				PeerClusterName: "peer1",
+				PeerAddresses:   []string{"192.168.1.2"},
+				Availability:    "Available",
+			},
+		}, nil)
+
 		mockProvider.On("CreateClusterPeer", mock.Anything).Return(expectedResponse, nil)
 		_, err := activity.CreateClusterPeer(ctx, &commonparams.ClusterPeerParams{}, node)
 
@@ -143,6 +151,14 @@ func TestCreateClusterPeer(t *testing.T) {
 		}
 		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
 		node := &models.Node{}
+
+		mockProvider.On("ListClusterPeers").Return([]*vsa.ClusterPeer{
+			{
+				PeerClusterName: "peer1",
+				PeerAddresses:   []string{"192.168.1.2"},
+				Availability:    "Available",
+			},
+		}, nil)
 
 		mockProvider.On("CreateClusterPeer", mock.Anything).Return(nil, errors.New("provider error"))
 		_, err := activity.CreateClusterPeer(ctx, &commonparams.ClusterPeerParams{}, node)

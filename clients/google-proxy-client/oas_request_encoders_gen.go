@@ -108,6 +108,20 @@ func encodeV1betaCreateReplicationRequest(
 	return nil
 }
 
+func encodeV1betaCreateSnapshotRequest(
+	req *VolumeSnapshotCreateV1beta,
+	r *http.Request,
+) error {
+	const contentType = "application/json"
+	e := new(jx.Encoder)
+	{
+		req.Encode(e)
+	}
+	encoded := e.Bytes()
+	ht.SetBody(r, bytes.NewReader(encoded), contentType)
+	return nil
+}
+
 func encodeV1betaCreateVolumeRequest(
 	req *VolumeCreateV1beta,
 	r *http.Request,
@@ -226,6 +240,20 @@ func encodeV1betaGetMultipleHostGroupsRequest(
 	return nil
 }
 
+func encodeV1betaGetMultipleKmsConfigsRequest(
+	req *KmsConfigIdListV1beta,
+	r *http.Request,
+) error {
+	const contentType = "application/json"
+	e := new(jx.Encoder)
+	{
+		req.Encode(e)
+	}
+	encoded := e.Bytes()
+	ht.SetBody(r, bytes.NewReader(encoded), contentType)
+	return nil
+}
+
 func encodeV1betaGetMultiplePoolsRequest(
 	req *PoolIdListV1beta,
 	r *http.Request,
@@ -282,8 +310,8 @@ func encodeV1betaGetMultipleVolumesRequest(
 	return nil
 }
 
-func encodeV1betaInternalAuthorizeVolumeReplicationRequest(
-	req *VolumeReplicationCreateInternalV1beta,
+func encodeV1betaInternalAcceptClusterPeerRequest(
+	req *ClusterPeerV1,
 	r *http.Request,
 ) error {
 	const contentType = "application/json"
@@ -296,8 +324,8 @@ func encodeV1betaInternalAuthorizeVolumeReplicationRequest(
 	return nil
 }
 
-func encodeV1betaInternalCreateClusterPeerRequest(
-	req *ClusterPeerV1,
+func encodeV1betaInternalAuthorizeVolumeReplicationRequest(
+	req *VolumeReplicationCreateInternalV1beta,
 	r *http.Request,
 ) error {
 	const contentType = "application/json"
@@ -452,6 +480,20 @@ func encodeV1betaUpdatePoolRequest(
 
 func encodeV1betaUpdateReplicationRequest(
 	req *ReplicationUpdateV1beta,
+	r *http.Request,
+) error {
+	const contentType = "application/json"
+	e := new(jx.Encoder)
+	{
+		req.Encode(e)
+	}
+	encoded := e.Bytes()
+	ht.SetBody(r, bytes.NewReader(encoded), contentType)
+	return nil
+}
+
+func encodeV1betaUpdateSnapshotRequest(
+	req *VolumeSnapshotUpdateV1beta,
 	r *http.Request,
 ) error {
 	const contentType = "application/json"

@@ -2,7 +2,6 @@ package activities
 
 import (
 	"context"
-
 	"github.com/go-openapi/strfmt"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	commonparams "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
@@ -67,7 +66,21 @@ func areIPsMatching(existingIPs, newIPs []string) bool {
 }
 
 func (j *ClusterPeerActivity) CreateClusterPeer(ctx context.Context, params *commonparams.ClusterPeerParams, node *models.Node) (*commonparams.ClusterPeerParams, error) {
+	return CreateClusterPeer(ctx, params, node)
+}
+
+func CreateClusterPeer(ctx context.Context, params *commonparams.ClusterPeerParams, node *models.Node) (*commonparams.ClusterPeerParams, error) {
 	provider := GetProviderByNode(node)
+	clusterPeers, err := provider.ListClusterPeers()
+	if err != nil {
+		return nil, err
+	}
+	for _, peer := range clusterPeers {
+		if peer.PeerClusterName == params.PeerName && areIPsMatching(peer.PeerAddresses, params.PeerAddresses) && peer.Availability == clusterPeerAvailable {
+			params.UUID = peer.ExternalUUID
+			return params, nil
+		}
+	}
 	var expiryTime *strfmt.DateTime
 	if params.ExpiryTime != nil {
 		convertedTime := strfmt.DateTime(*params.ExpiryTime)

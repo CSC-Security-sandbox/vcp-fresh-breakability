@@ -96,7 +96,7 @@ func (wf *volumeCreateWorkflow) Run(ctx workflow.Context, args ...interface{}) (
 	if err != nil {
 		return nil, err
 	}
-	node := createNodeForProvider(dbNode, dbVolume)
+	node := CreateNodeForProvider(dbNode, dbVolume)
 
 	var volCreateResponse *vsa.VolumeResponse
 	err = workflow.ExecuteActivity(ctx, volumeActivity.CreateVolumeInONTAP, &dbVolume, &node).Get(ctx, &volCreateResponse)
@@ -173,7 +173,7 @@ func (wf *volumeCreateWorkflow) Run(ctx workflow.Context, args ...interface{}) (
 	return nil, err
 }
 
-func createNodeForProvider(dbNode *datamodel.Node, volume *datamodel.Volume) *models.Node {
+func CreateNodeForProvider(dbNode *datamodel.Node, volume *datamodel.Volume) *models.Node {
 	node := &models.Node{
 		EndpointAddress: dbNode.EndpointAddress,
 		Username:        volume.Pool.Username,

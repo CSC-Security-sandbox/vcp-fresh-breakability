@@ -4277,26 +4277,20 @@ func (s *ClusterPeerV1) encodeFields(e *jx.Encoder) {
 		}
 	}
 	{
-		if s.PeerAddresses != nil {
-			e.FieldStart("peerAddresses")
-			e.ArrStart()
-			for _, elem := range s.PeerAddresses {
-				e.Str(elem)
-			}
-			e.ArrEnd()
+		e.FieldStart("peerAddresses")
+		e.ArrStart()
+		for _, elem := range s.PeerAddresses {
+			e.Str(elem)
 		}
+		e.ArrEnd()
 	}
 	{
-		if s.PeerClusterName.Set {
-			e.FieldStart("peerClusterName")
-			s.PeerClusterName.Encode(e)
-		}
+		e.FieldStart("peerClusterName")
+		e.Str(s.PeerClusterName)
 	}
 	{
-		if s.Passphrase.Set {
-			e.FieldStart("passphrase")
-			s.Passphrase.Encode(e)
-		}
+		e.FieldStart("passphrase")
+		e.Str(s.Passphrase)
 	}
 	{
 		if s.ExpiryTime.Set {
@@ -4326,9 +4320,13 @@ func (s *ClusterPeerV1) encodeFields(e *jx.Encoder) {
 			e.ArrEnd()
 		}
 	}
+	{
+		e.FieldStart("poolUUID")
+		e.Str(s.PoolUUID)
+	}
 }
 
-var jsonFieldsNameOfClusterPeerV1 = [8]string{
+var jsonFieldsNameOfClusterPeerV1 = [9]string{
 	0: "uuid",
 	1: "peerAddresses",
 	2: "peerClusterName",
@@ -4337,6 +4335,7 @@ var jsonFieldsNameOfClusterPeerV1 = [8]string{
 	5: "availability",
 	6: "authenticationState",
 	7: "jobs",
+	8: "poolUUID",
 }
 
 // Decode decodes ClusterPeerV1 from json.
@@ -4344,6 +4343,7 @@ func (s *ClusterPeerV1) Decode(d *jx.Decoder) error {
 	if s == nil {
 		return errors.New("invalid: unable to decode ClusterPeerV1 to nil")
 	}
+	var requiredBitSet [2]uint8
 
 	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
 		switch string(k) {
@@ -4358,6 +4358,7 @@ func (s *ClusterPeerV1) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"uuid\"")
 			}
 		case "peerAddresses":
+			requiredBitSet[0] |= 1 << 1
 			if err := func() error {
 				s.PeerAddresses = make([]string, 0)
 				if err := d.Arr(func(d *jx.Decoder) error {
@@ -4377,9 +4378,11 @@ func (s *ClusterPeerV1) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"peerAddresses\"")
 			}
 		case "peerClusterName":
+			requiredBitSet[0] |= 1 << 2
 			if err := func() error {
-				s.PeerClusterName.Reset()
-				if err := s.PeerClusterName.Decode(d); err != nil {
+				v, err := d.Str()
+				s.PeerClusterName = string(v)
+				if err != nil {
 					return err
 				}
 				return nil
@@ -4387,9 +4390,11 @@ func (s *ClusterPeerV1) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"peerClusterName\"")
 			}
 		case "passphrase":
+			requiredBitSet[0] |= 1 << 3
 			if err := func() error {
-				s.Passphrase.Reset()
-				if err := s.Passphrase.Decode(d); err != nil {
+				v, err := d.Str()
+				s.Passphrase = string(v)
+				if err != nil {
 					return err
 				}
 				return nil
@@ -4443,12 +4448,57 @@ func (s *ClusterPeerV1) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"jobs\"")
 			}
+		case "poolUUID":
+			requiredBitSet[1] |= 1 << 0
+			if err := func() error {
+				v, err := d.Str()
+				s.PoolUUID = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"poolUUID\"")
+			}
 		default:
 			return d.Skip()
 		}
 		return nil
 	}); err != nil {
 		return errors.Wrap(err, "decode ClusterPeerV1")
+	}
+	// Validate required fields.
+	var failures []validate.FieldError
+	for i, mask := range [2]uint8{
+		0b00001110,
+		0b00000001,
+	} {
+		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
+			// Mask only required fields and check equality to mask using XOR.
+			//
+			// If XOR result is not zero, result is not equal to expected, so some fields are missed.
+			// Bits of fields which would be set are actually bits of missed fields.
+			missed := bits.OnesCount8(result)
+			for bitN := 0; bitN < missed; bitN++ {
+				bitIdx := bits.TrailingZeros8(result)
+				fieldIdx := i*8 + bitIdx
+				var name string
+				if fieldIdx < len(jsonFieldsNameOfClusterPeerV1) {
+					name = jsonFieldsNameOfClusterPeerV1[fieldIdx]
+				} else {
+					name = strconv.Itoa(fieldIdx)
+				}
+				failures = append(failures, validate.FieldError{
+					Name:  name,
+					Error: validate.ErrFieldRequired,
+				})
+				// Reset bit.
+				result &^= 1 << bitIdx
+			}
+		}
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
 	}
 
 	return nil
@@ -5049,9 +5099,9 @@ func (s *FlexCacheConfigV1beta) encodeFields(e *jx.Encoder) {
 		}
 	}
 	{
-		if s.AtimeScrubPeriod.Set {
-			e.FieldStart("atimeScrubPeriod")
-			s.AtimeScrubPeriod.Encode(e)
+		if s.AtimeScrubMinutes.Set {
+			e.FieldStart("atimeScrubMinutes")
+			s.AtimeScrubMinutes.Encode(e)
 		}
 	}
 	{
@@ -5066,7 +5116,7 @@ var jsonFieldsNameOfFlexCacheConfigV1beta = [5]string{
 	0: "prePopulate",
 	1: "writebackEnabled",
 	2: "atimeScrubEnabled",
-	3: "atimeScrubPeriod",
+	3: "atimeScrubMinutes",
 	4: "cifsChangeNotifyEnabled",
 }
 
@@ -5108,15 +5158,15 @@ func (s *FlexCacheConfigV1beta) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"atimeScrubEnabled\"")
 			}
-		case "atimeScrubPeriod":
+		case "atimeScrubMinutes":
 			if err := func() error {
-				s.AtimeScrubPeriod.Reset()
-				if err := s.AtimeScrubPeriod.Decode(d); err != nil {
+				s.AtimeScrubMinutes.Reset()
+				if err := s.AtimeScrubMinutes.Decode(d); err != nil {
 					return err
 				}
 				return nil
 			}(); err != nil {
-				return errors.Wrap(err, "decode field \"atimeScrubPeriod\"")
+				return errors.Wrap(err, "decode field \"atimeScrubMinutes\"")
 			}
 		case "cifsChangeNotifyEnabled":
 			if err := func() error {
@@ -5174,9 +5224,9 @@ func (s *FlexCachePrePopulateV1beta) encodeFields(e *jx.Encoder) {
 		}
 	}
 	{
-		if s.IsRecursion.Set {
-			e.FieldStart("isRecursion")
-			s.IsRecursion.Encode(e)
+		if s.Recursion.Set {
+			e.FieldStart("recursion")
+			s.Recursion.Encode(e)
 		}
 	}
 }
@@ -5184,7 +5234,7 @@ func (s *FlexCachePrePopulateV1beta) encodeFields(e *jx.Encoder) {
 var jsonFieldsNameOfFlexCachePrePopulateV1beta = [3]string{
 	0: "pathList",
 	1: "excludePathList",
-	2: "isRecursion",
+	2: "recursion",
 }
 
 // Decode decodes FlexCachePrePopulateV1beta from json.
@@ -5215,15 +5265,15 @@ func (s *FlexCachePrePopulateV1beta) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"excludePathList\"")
 			}
-		case "isRecursion":
+		case "recursion":
 			if err := func() error {
-				s.IsRecursion.Reset()
-				if err := s.IsRecursion.Decode(d); err != nil {
+				s.Recursion.Reset()
+				if err := s.Recursion.Decode(d); err != nil {
 					return err
 				}
 				return nil
 			}(); err != nil {
-				return errors.Wrap(err, "decode field \"isRecursion\"")
+				return errors.Wrap(err, "decode field \"recursion\"")
 			}
 		default:
 			return d.Skip()
@@ -5305,15 +5355,21 @@ func (s *FlexCacheV1beta) encodeFields(e *jx.Encoder) {
 		}
 	}
 	{
-		if s.PeeringCommand.Set {
-			e.FieldStart("peeringCommand")
-			s.PeeringCommand.Encode(e)
+		if s.PreviousCacheState.Set {
+			e.FieldStart("previousCacheState")
+			s.PreviousCacheState.Encode(e)
 		}
 	}
 	{
-		if s.PeeringCommandExpiryTime.Set {
-			e.FieldStart("peeringCommandExpiryTime")
-			s.PeeringCommandExpiryTime.Encode(e, json.EncodeDateTime)
+		if s.Command.Set {
+			e.FieldStart("command")
+			s.Command.Encode(e)
+		}
+	}
+	{
+		if s.CommandExpiryTime.Set {
+			e.FieldStart("commandExpiryTime")
+			s.CommandExpiryTime.Encode(e, json.EncodeDateTime)
 		}
 	}
 	{
@@ -5324,17 +5380,18 @@ func (s *FlexCacheV1beta) encodeFields(e *jx.Encoder) {
 	}
 }
 
-var jsonFieldsNameOfFlexCacheV1beta = [10]string{
-	0: "peerVolumeName",
-	1: "peerClusterName",
-	2: "peerSvmName",
-	3: "peerIpAddresses",
-	4: "enableGlobalFileLock",
-	5: "cacheConfig",
-	6: "cacheState",
-	7: "peeringCommand",
-	8: "peeringCommandExpiryTime",
-	9: "passphrase",
+var jsonFieldsNameOfFlexCacheV1beta = [11]string{
+	0:  "peerVolumeName",
+	1:  "peerClusterName",
+	2:  "peerSvmName",
+	3:  "peerIpAddresses",
+	4:  "enableGlobalFileLock",
+	5:  "cacheConfig",
+	6:  "cacheState",
+	7:  "previousCacheState",
+	8:  "command",
+	9:  "commandExpiryTime",
+	10: "passphrase",
 }
 
 // Decode decodes FlexCacheV1beta from json.
@@ -5425,25 +5482,35 @@ func (s *FlexCacheV1beta) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"cacheState\"")
 			}
-		case "peeringCommand":
+		case "previousCacheState":
 			if err := func() error {
-				s.PeeringCommand.Reset()
-				if err := s.PeeringCommand.Decode(d); err != nil {
+				s.PreviousCacheState.Reset()
+				if err := s.PreviousCacheState.Decode(d); err != nil {
 					return err
 				}
 				return nil
 			}(); err != nil {
-				return errors.Wrap(err, "decode field \"peeringCommand\"")
+				return errors.Wrap(err, "decode field \"previousCacheState\"")
 			}
-		case "peeringCommandExpiryTime":
+		case "command":
 			if err := func() error {
-				s.PeeringCommandExpiryTime.Reset()
-				if err := s.PeeringCommandExpiryTime.Decode(d, json.DecodeDateTime); err != nil {
+				s.Command.Reset()
+				if err := s.Command.Decode(d); err != nil {
 					return err
 				}
 				return nil
 			}(); err != nil {
-				return errors.Wrap(err, "decode field \"peeringCommandExpiryTime\"")
+				return errors.Wrap(err, "decode field \"command\"")
+			}
+		case "commandExpiryTime":
+			if err := func() error {
+				s.CommandExpiryTime.Reset()
+				if err := s.CommandExpiryTime.Decode(d, json.DecodeDateTime); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"commandExpiryTime\"")
 			}
 		case "passphrase":
 			if err := func() error {
@@ -5521,6 +5588,52 @@ func (s FlexCacheV1betaCacheState) MarshalJSON() ([]byte, error) {
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
 func (s *FlexCacheV1betaCacheState) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes FlexCacheV1betaPreviousCacheState as json.
+func (s FlexCacheV1betaPreviousCacheState) Encode(e *jx.Encoder) {
+	e.Str(string(s))
+}
+
+// Decode decodes FlexCacheV1betaPreviousCacheState from json.
+func (s *FlexCacheV1betaPreviousCacheState) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode FlexCacheV1betaPreviousCacheState to nil")
+	}
+	v, err := d.StrBytes()
+	if err != nil {
+		return err
+	}
+	// Try to use constant string.
+	switch FlexCacheV1betaPreviousCacheState(v) {
+	case FlexCacheV1betaPreviousCacheStateCACHESTATEUNSPECIFIED:
+		*s = FlexCacheV1betaPreviousCacheStateCACHESTATEUNSPECIFIED
+	case FlexCacheV1betaPreviousCacheStatePENDINGCLUSTERPEERING:
+		*s = FlexCacheV1betaPreviousCacheStatePENDINGCLUSTERPEERING
+	case FlexCacheV1betaPreviousCacheStatePENDINGSVMPEERING:
+		*s = FlexCacheV1betaPreviousCacheStatePENDINGSVMPEERING
+	case FlexCacheV1betaPreviousCacheStatePEERED:
+		*s = FlexCacheV1betaPreviousCacheStatePEERED
+	case FlexCacheV1betaPreviousCacheStateERROR:
+		*s = FlexCacheV1betaPreviousCacheStateERROR
+	default:
+		*s = FlexCacheV1betaPreviousCacheState(v)
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s FlexCacheV1betaPreviousCacheState) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *FlexCacheV1betaPreviousCacheState) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }
@@ -7187,6 +7300,205 @@ func (s *HybridReplicationUserCommandsV1beta) UnmarshalJSON(data []byte) error {
 }
 
 // Encode implements json.Marshaler.
+func (s *InternalJobV1beta) Encode(e *jx.Encoder) {
+	e.ObjStart()
+	s.encodeFields(e)
+	e.ObjEnd()
+}
+
+// encodeFields encodes fields.
+func (s *InternalJobV1beta) encodeFields(e *jx.Encoder) {
+	{
+		if s.JobUuid.Set {
+			e.FieldStart("JobUuid")
+			s.JobUuid.Encode(e)
+		}
+	}
+	{
+		if s.CorrelationId.Set {
+			e.FieldStart("CorrelationId")
+			s.CorrelationId.Encode(e)
+		}
+	}
+	{
+		if s.State.Set {
+			e.FieldStart("State")
+			s.State.Encode(e)
+		}
+	}
+	{
+		if s.StateDetails.Set {
+			e.FieldStart("StateDetails")
+			s.StateDetails.Encode(e)
+		}
+	}
+	{
+		if s.CreatedAt.Set {
+			e.FieldStart("CreatedAt")
+			s.CreatedAt.Encode(e, json.EncodeDateTime)
+		}
+	}
+	{
+		if s.UpdatedAt.Set {
+			e.FieldStart("UpdatedAt")
+			s.UpdatedAt.Encode(e, json.EncodeDateTime)
+		}
+	}
+	{
+		if s.JobType.Set {
+			e.FieldStart("JobType")
+			s.JobType.Encode(e)
+		}
+	}
+	{
+		if s.ProjectNumber.Set {
+			e.FieldStart("ProjectNumber")
+			s.ProjectNumber.Encode(e)
+		}
+	}
+	{
+		if s.ScheduledAt.Set {
+			e.FieldStart("ScheduledAt")
+			s.ScheduledAt.Encode(e, json.EncodeDateTime)
+		}
+	}
+}
+
+var jsonFieldsNameOfInternalJobV1beta = [9]string{
+	0: "JobUuid",
+	1: "CorrelationId",
+	2: "State",
+	3: "StateDetails",
+	4: "CreatedAt",
+	5: "UpdatedAt",
+	6: "JobType",
+	7: "ProjectNumber",
+	8: "ScheduledAt",
+}
+
+// Decode decodes InternalJobV1beta from json.
+func (s *InternalJobV1beta) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode InternalJobV1beta to nil")
+	}
+
+	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
+		switch string(k) {
+		case "JobUuid":
+			if err := func() error {
+				s.JobUuid.Reset()
+				if err := s.JobUuid.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"JobUuid\"")
+			}
+		case "CorrelationId":
+			if err := func() error {
+				s.CorrelationId.Reset()
+				if err := s.CorrelationId.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"CorrelationId\"")
+			}
+		case "State":
+			if err := func() error {
+				s.State.Reset()
+				if err := s.State.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"State\"")
+			}
+		case "StateDetails":
+			if err := func() error {
+				s.StateDetails.Reset()
+				if err := s.StateDetails.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"StateDetails\"")
+			}
+		case "CreatedAt":
+			if err := func() error {
+				s.CreatedAt.Reset()
+				if err := s.CreatedAt.Decode(d, json.DecodeDateTime); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"CreatedAt\"")
+			}
+		case "UpdatedAt":
+			if err := func() error {
+				s.UpdatedAt.Reset()
+				if err := s.UpdatedAt.Decode(d, json.DecodeDateTime); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"UpdatedAt\"")
+			}
+		case "JobType":
+			if err := func() error {
+				s.JobType.Reset()
+				if err := s.JobType.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"JobType\"")
+			}
+		case "ProjectNumber":
+			if err := func() error {
+				s.ProjectNumber.Reset()
+				if err := s.ProjectNumber.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"ProjectNumber\"")
+			}
+		case "ScheduledAt":
+			if err := func() error {
+				s.ScheduledAt.Reset()
+				if err := s.ScheduledAt.Decode(d, json.DecodeDateTime); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"ScheduledAt\"")
+			}
+		default:
+			return d.Skip()
+		}
+		return nil
+	}); err != nil {
+		return errors.Wrap(err, "decode InternalJobV1beta")
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *InternalJobV1beta) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *InternalJobV1beta) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode implements json.Marshaler.
 func (s *JobV1beta) Encode(e *jx.Encoder) {
 	e.ObjStart()
 	s.encodeFields(e)
@@ -7712,6 +8024,114 @@ func (s *KmsConfigHealthCheckV1beta) MarshalJSON() ([]byte, error) {
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
 func (s *KmsConfigHealthCheckV1beta) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode implements json.Marshaler.
+func (s *KmsConfigIdListV1beta) Encode(e *jx.Encoder) {
+	e.ObjStart()
+	s.encodeFields(e)
+	e.ObjEnd()
+}
+
+// encodeFields encodes fields.
+func (s *KmsConfigIdListV1beta) encodeFields(e *jx.Encoder) {
+	{
+		e.FieldStart("kmsConfigIds")
+		e.ArrStart()
+		for _, elem := range s.KmsConfigIds {
+			e.Str(elem)
+		}
+		e.ArrEnd()
+	}
+}
+
+var jsonFieldsNameOfKmsConfigIdListV1beta = [1]string{
+	0: "kmsConfigIds",
+}
+
+// Decode decodes KmsConfigIdListV1beta from json.
+func (s *KmsConfigIdListV1beta) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode KmsConfigIdListV1beta to nil")
+	}
+	var requiredBitSet [1]uint8
+
+	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
+		switch string(k) {
+		case "kmsConfigIds":
+			requiredBitSet[0] |= 1 << 0
+			if err := func() error {
+				s.KmsConfigIds = make([]string, 0)
+				if err := d.Arr(func(d *jx.Decoder) error {
+					var elem string
+					v, err := d.Str()
+					elem = string(v)
+					if err != nil {
+						return err
+					}
+					s.KmsConfigIds = append(s.KmsConfigIds, elem)
+					return nil
+				}); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"kmsConfigIds\"")
+			}
+		default:
+			return d.Skip()
+		}
+		return nil
+	}); err != nil {
+		return errors.Wrap(err, "decode KmsConfigIdListV1beta")
+	}
+	// Validate required fields.
+	var failures []validate.FieldError
+	for i, mask := range [1]uint8{
+		0b00000001,
+	} {
+		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
+			// Mask only required fields and check equality to mask using XOR.
+			//
+			// If XOR result is not zero, result is not equal to expected, so some fields are missed.
+			// Bits of fields which would be set are actually bits of missed fields.
+			missed := bits.OnesCount8(result)
+			for bitN := 0; bitN < missed; bitN++ {
+				bitIdx := bits.TrailingZeros8(result)
+				fieldIdx := i*8 + bitIdx
+				var name string
+				if fieldIdx < len(jsonFieldsNameOfKmsConfigIdListV1beta) {
+					name = jsonFieldsNameOfKmsConfigIdListV1beta[fieldIdx]
+				} else {
+					name = strconv.Itoa(fieldIdx)
+				}
+				failures = append(failures, validate.FieldError{
+					Name:  name,
+					Error: validate.ErrFieldRequired,
+				})
+				// Reset bit.
+				result &^= 1 << bitIdx
+			}
+		}
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *KmsConfigIdListV1beta) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *KmsConfigIdListV1beta) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }
@@ -9361,6 +9781,39 @@ func (s OptFlexCacheV1betaCacheState) MarshalJSON() ([]byte, error) {
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
 func (s *OptFlexCacheV1betaCacheState) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes FlexCacheV1betaPreviousCacheState as json.
+func (o OptFlexCacheV1betaPreviousCacheState) Encode(e *jx.Encoder) {
+	if !o.Set {
+		return
+	}
+	e.Str(string(o.Value))
+}
+
+// Decode decodes FlexCacheV1betaPreviousCacheState from json.
+func (o *OptFlexCacheV1betaPreviousCacheState) Decode(d *jx.Decoder) error {
+	if o == nil {
+		return errors.New("invalid: unable to decode OptFlexCacheV1betaPreviousCacheState to nil")
+	}
+	o.Set = true
+	if err := o.Value.Decode(d); err != nil {
+		return err
+	}
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s OptFlexCacheV1betaPreviousCacheState) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *OptFlexCacheV1betaPreviousCacheState) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }
@@ -11593,39 +12046,6 @@ func (s *OptVolumeCreateV1betaVolumeType) UnmarshalJSON(data []byte) error {
 	return s.Decode(d)
 }
 
-// Encode encodes VolumeReplicationCreateInternalV1betaHybridReplicationType as json.
-func (o OptVolumeReplicationCreateInternalV1betaHybridReplicationType) Encode(e *jx.Encoder) {
-	if !o.Set {
-		return
-	}
-	e.Str(string(o.Value))
-}
-
-// Decode decodes VolumeReplicationCreateInternalV1betaHybridReplicationType from json.
-func (o *OptVolumeReplicationCreateInternalV1betaHybridReplicationType) Decode(d *jx.Decoder) error {
-	if o == nil {
-		return errors.New("invalid: unable to decode OptVolumeReplicationCreateInternalV1betaHybridReplicationType to nil")
-	}
-	o.Set = true
-	if err := o.Value.Decode(d); err != nil {
-		return err
-	}
-	return nil
-}
-
-// MarshalJSON implements stdjson.Marshaler.
-func (s OptVolumeReplicationCreateInternalV1betaHybridReplicationType) MarshalJSON() ([]byte, error) {
-	e := jx.Encoder{}
-	s.Encode(&e)
-	return e.Bytes(), nil
-}
-
-// UnmarshalJSON implements stdjson.Unmarshaler.
-func (s *OptVolumeReplicationCreateInternalV1betaHybridReplicationType) UnmarshalJSON(data []byte) error {
-	d := jx.DecodeBytes(data)
-	return s.Decode(d)
-}
-
 // Encode encodes VolumeReplicationCreateInternalV1betaLabels as json.
 func (o OptVolumeReplicationCreateInternalV1betaLabels) Encode(e *jx.Encoder) {
 	if !o.Set {
@@ -11825,18 +12245,18 @@ func (s *OptVolumeReplicationCreateInternalV1betaReplicationSchedule) UnmarshalJ
 	return s.Decode(d)
 }
 
-// Encode encodes VolumeReplicationInternalV1betaHybridReplicationType as json.
-func (o OptVolumeReplicationInternalV1betaHybridReplicationType) Encode(e *jx.Encoder) {
+// Encode encodes VolumeReplicationCreateInternalV1betaReplicationType as json.
+func (o OptVolumeReplicationCreateInternalV1betaReplicationType) Encode(e *jx.Encoder) {
 	if !o.Set {
 		return
 	}
 	e.Str(string(o.Value))
 }
 
-// Decode decodes VolumeReplicationInternalV1betaHybridReplicationType from json.
-func (o *OptVolumeReplicationInternalV1betaHybridReplicationType) Decode(d *jx.Decoder) error {
+// Decode decodes VolumeReplicationCreateInternalV1betaReplicationType from json.
+func (o *OptVolumeReplicationCreateInternalV1betaReplicationType) Decode(d *jx.Decoder) error {
 	if o == nil {
-		return errors.New("invalid: unable to decode OptVolumeReplicationInternalV1betaHybridReplicationType to nil")
+		return errors.New("invalid: unable to decode OptVolumeReplicationCreateInternalV1betaReplicationType to nil")
 	}
 	o.Set = true
 	if err := o.Value.Decode(d); err != nil {
@@ -11846,14 +12266,14 @@ func (o *OptVolumeReplicationInternalV1betaHybridReplicationType) Decode(d *jx.D
 }
 
 // MarshalJSON implements stdjson.Marshaler.
-func (s OptVolumeReplicationInternalV1betaHybridReplicationType) MarshalJSON() ([]byte, error) {
+func (s OptVolumeReplicationCreateInternalV1betaReplicationType) MarshalJSON() ([]byte, error) {
 	e := jx.Encoder{}
 	s.Encode(&e)
 	return e.Bytes(), nil
 }
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
-func (s *OptVolumeReplicationInternalV1betaHybridReplicationType) UnmarshalJSON(data []byte) error {
+func (s *OptVolumeReplicationCreateInternalV1betaReplicationType) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }
@@ -12053,6 +12473,39 @@ func (s OptVolumeReplicationInternalV1betaReplicationSchedule) MarshalJSON() ([]
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
 func (s *OptVolumeReplicationInternalV1betaReplicationSchedule) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes VolumeReplicationInternalV1betaReplicationType as json.
+func (o OptVolumeReplicationInternalV1betaReplicationType) Encode(e *jx.Encoder) {
+	if !o.Set {
+		return
+	}
+	e.Str(string(o.Value))
+}
+
+// Decode decodes VolumeReplicationInternalV1betaReplicationType from json.
+func (o *OptVolumeReplicationInternalV1betaReplicationType) Decode(d *jx.Decoder) error {
+	if o == nil {
+		return errors.New("invalid: unable to decode OptVolumeReplicationInternalV1betaReplicationType to nil")
+	}
+	o.Set = true
+	if err := o.Value.Decode(d); err != nil {
+		return err
+	}
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s OptVolumeReplicationInternalV1betaReplicationType) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *OptVolumeReplicationInternalV1betaReplicationType) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }
@@ -12661,9 +13114,25 @@ func (s *PoolInternalV1beta) encodeFields(e *jx.Encoder) {
 			s.UnifiedPool.Encode(e)
 		}
 	}
+	{
+		if s.ClusterName.Set {
+			e.FieldStart("clusterName")
+			s.ClusterName.Encode(e)
+		}
+	}
+	{
+		if s.InterclusterLifs != nil {
+			e.FieldStart("interclusterLifs")
+			e.ArrStart()
+			for _, elem := range s.InterclusterLifs {
+				e.Str(elem)
+			}
+			e.ArrEnd()
+		}
+	}
 }
 
-var jsonFieldsNameOfPoolInternalV1beta = [38]string{
+var jsonFieldsNameOfPoolInternalV1beta = [40]string{
 	0:  "activeDirectoryConfigId",
 	1:  "activeDirectoryResourceId",
 	2:  "kmsConfigId",
@@ -12702,6 +13171,8 @@ var jsonFieldsNameOfPoolInternalV1beta = [38]string{
 	35: "customPerformanceEnabled",
 	36: "totalIops",
 	37: "unifiedPool",
+	38: "clusterName",
+	39: "interclusterLifs",
 }
 
 // Decode decodes PoolInternalV1beta from json.
@@ -13099,6 +13570,35 @@ func (s *PoolInternalV1beta) Decode(d *jx.Decoder) error {
 				return nil
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"unifiedPool\"")
+			}
+		case "clusterName":
+			if err := func() error {
+				s.ClusterName.Reset()
+				if err := s.ClusterName.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"clusterName\"")
+			}
+		case "interclusterLifs":
+			if err := func() error {
+				s.InterclusterLifs = make([]string, 0)
+				if err := d.Arr(func(d *jx.Decoder) error {
+					var elem string
+					v, err := d.Str()
+					elem = string(v)
+					if err != nil {
+						return err
+					}
+					s.InterclusterLifs = append(s.InterclusterLifs, elem)
+					return nil
+				}); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"interclusterLifs\"")
 			}
 		default:
 			return d.Skip()
@@ -20114,6 +20614,310 @@ func (s *V1betaCreateReplicationUnprocessableEntity) UnmarshalJSON(data []byte) 
 	return s.Decode(d)
 }
 
+// Encode encodes V1betaCreateSnapshotBadRequest as json.
+func (s *V1betaCreateSnapshotBadRequest) Encode(e *jx.Encoder) {
+	unwrapped := (*Error)(s)
+
+	unwrapped.Encode(e)
+}
+
+// Decode decodes V1betaCreateSnapshotBadRequest from json.
+func (s *V1betaCreateSnapshotBadRequest) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode V1betaCreateSnapshotBadRequest to nil")
+	}
+	var unwrapped Error
+	if err := func() error {
+		if err := unwrapped.Decode(d); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		return errors.Wrap(err, "alias")
+	}
+	*s = V1betaCreateSnapshotBadRequest(unwrapped)
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *V1betaCreateSnapshotBadRequest) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *V1betaCreateSnapshotBadRequest) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes V1betaCreateSnapshotConflict as json.
+func (s *V1betaCreateSnapshotConflict) Encode(e *jx.Encoder) {
+	unwrapped := (*Error)(s)
+
+	unwrapped.Encode(e)
+}
+
+// Decode decodes V1betaCreateSnapshotConflict from json.
+func (s *V1betaCreateSnapshotConflict) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode V1betaCreateSnapshotConflict to nil")
+	}
+	var unwrapped Error
+	if err := func() error {
+		if err := unwrapped.Decode(d); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		return errors.Wrap(err, "alias")
+	}
+	*s = V1betaCreateSnapshotConflict(unwrapped)
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *V1betaCreateSnapshotConflict) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *V1betaCreateSnapshotConflict) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes V1betaCreateSnapshotForbidden as json.
+func (s *V1betaCreateSnapshotForbidden) Encode(e *jx.Encoder) {
+	unwrapped := (*Error)(s)
+
+	unwrapped.Encode(e)
+}
+
+// Decode decodes V1betaCreateSnapshotForbidden from json.
+func (s *V1betaCreateSnapshotForbidden) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode V1betaCreateSnapshotForbidden to nil")
+	}
+	var unwrapped Error
+	if err := func() error {
+		if err := unwrapped.Decode(d); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		return errors.Wrap(err, "alias")
+	}
+	*s = V1betaCreateSnapshotForbidden(unwrapped)
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *V1betaCreateSnapshotForbidden) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *V1betaCreateSnapshotForbidden) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes V1betaCreateSnapshotInternalServerError as json.
+func (s *V1betaCreateSnapshotInternalServerError) Encode(e *jx.Encoder) {
+	unwrapped := (*Error)(s)
+
+	unwrapped.Encode(e)
+}
+
+// Decode decodes V1betaCreateSnapshotInternalServerError from json.
+func (s *V1betaCreateSnapshotInternalServerError) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode V1betaCreateSnapshotInternalServerError to nil")
+	}
+	var unwrapped Error
+	if err := func() error {
+		if err := unwrapped.Decode(d); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		return errors.Wrap(err, "alias")
+	}
+	*s = V1betaCreateSnapshotInternalServerError(unwrapped)
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *V1betaCreateSnapshotInternalServerError) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *V1betaCreateSnapshotInternalServerError) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes V1betaCreateSnapshotNotFound as json.
+func (s *V1betaCreateSnapshotNotFound) Encode(e *jx.Encoder) {
+	unwrapped := (*Error)(s)
+
+	unwrapped.Encode(e)
+}
+
+// Decode decodes V1betaCreateSnapshotNotFound from json.
+func (s *V1betaCreateSnapshotNotFound) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode V1betaCreateSnapshotNotFound to nil")
+	}
+	var unwrapped Error
+	if err := func() error {
+		if err := unwrapped.Decode(d); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		return errors.Wrap(err, "alias")
+	}
+	*s = V1betaCreateSnapshotNotFound(unwrapped)
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *V1betaCreateSnapshotNotFound) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *V1betaCreateSnapshotNotFound) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes V1betaCreateSnapshotTooManyRequests as json.
+func (s *V1betaCreateSnapshotTooManyRequests) Encode(e *jx.Encoder) {
+	unwrapped := (*Error)(s)
+
+	unwrapped.Encode(e)
+}
+
+// Decode decodes V1betaCreateSnapshotTooManyRequests from json.
+func (s *V1betaCreateSnapshotTooManyRequests) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode V1betaCreateSnapshotTooManyRequests to nil")
+	}
+	var unwrapped Error
+	if err := func() error {
+		if err := unwrapped.Decode(d); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		return errors.Wrap(err, "alias")
+	}
+	*s = V1betaCreateSnapshotTooManyRequests(unwrapped)
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *V1betaCreateSnapshotTooManyRequests) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *V1betaCreateSnapshotTooManyRequests) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes V1betaCreateSnapshotUnauthorized as json.
+func (s *V1betaCreateSnapshotUnauthorized) Encode(e *jx.Encoder) {
+	unwrapped := (*Error)(s)
+
+	unwrapped.Encode(e)
+}
+
+// Decode decodes V1betaCreateSnapshotUnauthorized from json.
+func (s *V1betaCreateSnapshotUnauthorized) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode V1betaCreateSnapshotUnauthorized to nil")
+	}
+	var unwrapped Error
+	if err := func() error {
+		if err := unwrapped.Decode(d); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		return errors.Wrap(err, "alias")
+	}
+	*s = V1betaCreateSnapshotUnauthorized(unwrapped)
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *V1betaCreateSnapshotUnauthorized) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *V1betaCreateSnapshotUnauthorized) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes V1betaCreateSnapshotUnprocessableEntity as json.
+func (s *V1betaCreateSnapshotUnprocessableEntity) Encode(e *jx.Encoder) {
+	unwrapped := (*Error)(s)
+
+	unwrapped.Encode(e)
+}
+
+// Decode decodes V1betaCreateSnapshotUnprocessableEntity from json.
+func (s *V1betaCreateSnapshotUnprocessableEntity) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode V1betaCreateSnapshotUnprocessableEntity to nil")
+	}
+	var unwrapped Error
+	if err := func() error {
+		if err := unwrapped.Decode(d); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		return errors.Wrap(err, "alias")
+	}
+	*s = V1betaCreateSnapshotUnprocessableEntity(unwrapped)
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *V1betaCreateSnapshotUnprocessableEntity) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *V1betaCreateSnapshotUnprocessableEntity) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
 // Encode encodes V1betaCreateVolumeBadRequest as json.
 func (s *V1betaCreateVolumeBadRequest) Encode(e *jx.Encoder) {
 	unwrapped := (*Error)(s)
@@ -22352,6 +23156,310 @@ func (s *V1betaDeleteReplicationUnprocessableEntity) MarshalJSON() ([]byte, erro
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
 func (s *V1betaDeleteReplicationUnprocessableEntity) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes V1betaDeleteSnapshotBadRequest as json.
+func (s *V1betaDeleteSnapshotBadRequest) Encode(e *jx.Encoder) {
+	unwrapped := (*Error)(s)
+
+	unwrapped.Encode(e)
+}
+
+// Decode decodes V1betaDeleteSnapshotBadRequest from json.
+func (s *V1betaDeleteSnapshotBadRequest) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode V1betaDeleteSnapshotBadRequest to nil")
+	}
+	var unwrapped Error
+	if err := func() error {
+		if err := unwrapped.Decode(d); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		return errors.Wrap(err, "alias")
+	}
+	*s = V1betaDeleteSnapshotBadRequest(unwrapped)
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *V1betaDeleteSnapshotBadRequest) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *V1betaDeleteSnapshotBadRequest) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes V1betaDeleteSnapshotConflict as json.
+func (s *V1betaDeleteSnapshotConflict) Encode(e *jx.Encoder) {
+	unwrapped := (*Error)(s)
+
+	unwrapped.Encode(e)
+}
+
+// Decode decodes V1betaDeleteSnapshotConflict from json.
+func (s *V1betaDeleteSnapshotConflict) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode V1betaDeleteSnapshotConflict to nil")
+	}
+	var unwrapped Error
+	if err := func() error {
+		if err := unwrapped.Decode(d); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		return errors.Wrap(err, "alias")
+	}
+	*s = V1betaDeleteSnapshotConflict(unwrapped)
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *V1betaDeleteSnapshotConflict) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *V1betaDeleteSnapshotConflict) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes V1betaDeleteSnapshotForbidden as json.
+func (s *V1betaDeleteSnapshotForbidden) Encode(e *jx.Encoder) {
+	unwrapped := (*Error)(s)
+
+	unwrapped.Encode(e)
+}
+
+// Decode decodes V1betaDeleteSnapshotForbidden from json.
+func (s *V1betaDeleteSnapshotForbidden) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode V1betaDeleteSnapshotForbidden to nil")
+	}
+	var unwrapped Error
+	if err := func() error {
+		if err := unwrapped.Decode(d); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		return errors.Wrap(err, "alias")
+	}
+	*s = V1betaDeleteSnapshotForbidden(unwrapped)
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *V1betaDeleteSnapshotForbidden) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *V1betaDeleteSnapshotForbidden) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes V1betaDeleteSnapshotInternalServerError as json.
+func (s *V1betaDeleteSnapshotInternalServerError) Encode(e *jx.Encoder) {
+	unwrapped := (*Error)(s)
+
+	unwrapped.Encode(e)
+}
+
+// Decode decodes V1betaDeleteSnapshotInternalServerError from json.
+func (s *V1betaDeleteSnapshotInternalServerError) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode V1betaDeleteSnapshotInternalServerError to nil")
+	}
+	var unwrapped Error
+	if err := func() error {
+		if err := unwrapped.Decode(d); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		return errors.Wrap(err, "alias")
+	}
+	*s = V1betaDeleteSnapshotInternalServerError(unwrapped)
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *V1betaDeleteSnapshotInternalServerError) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *V1betaDeleteSnapshotInternalServerError) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes V1betaDeleteSnapshotServiceUnavailable as json.
+func (s *V1betaDeleteSnapshotServiceUnavailable) Encode(e *jx.Encoder) {
+	unwrapped := (*Error)(s)
+
+	unwrapped.Encode(e)
+}
+
+// Decode decodes V1betaDeleteSnapshotServiceUnavailable from json.
+func (s *V1betaDeleteSnapshotServiceUnavailable) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode V1betaDeleteSnapshotServiceUnavailable to nil")
+	}
+	var unwrapped Error
+	if err := func() error {
+		if err := unwrapped.Decode(d); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		return errors.Wrap(err, "alias")
+	}
+	*s = V1betaDeleteSnapshotServiceUnavailable(unwrapped)
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *V1betaDeleteSnapshotServiceUnavailable) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *V1betaDeleteSnapshotServiceUnavailable) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes V1betaDeleteSnapshotTooManyRequests as json.
+func (s *V1betaDeleteSnapshotTooManyRequests) Encode(e *jx.Encoder) {
+	unwrapped := (*Error)(s)
+
+	unwrapped.Encode(e)
+}
+
+// Decode decodes V1betaDeleteSnapshotTooManyRequests from json.
+func (s *V1betaDeleteSnapshotTooManyRequests) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode V1betaDeleteSnapshotTooManyRequests to nil")
+	}
+	var unwrapped Error
+	if err := func() error {
+		if err := unwrapped.Decode(d); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		return errors.Wrap(err, "alias")
+	}
+	*s = V1betaDeleteSnapshotTooManyRequests(unwrapped)
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *V1betaDeleteSnapshotTooManyRequests) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *V1betaDeleteSnapshotTooManyRequests) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes V1betaDeleteSnapshotUnauthorized as json.
+func (s *V1betaDeleteSnapshotUnauthorized) Encode(e *jx.Encoder) {
+	unwrapped := (*Error)(s)
+
+	unwrapped.Encode(e)
+}
+
+// Decode decodes V1betaDeleteSnapshotUnauthorized from json.
+func (s *V1betaDeleteSnapshotUnauthorized) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode V1betaDeleteSnapshotUnauthorized to nil")
+	}
+	var unwrapped Error
+	if err := func() error {
+		if err := unwrapped.Decode(d); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		return errors.Wrap(err, "alias")
+	}
+	*s = V1betaDeleteSnapshotUnauthorized(unwrapped)
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *V1betaDeleteSnapshotUnauthorized) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *V1betaDeleteSnapshotUnauthorized) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes V1betaDeleteSnapshotUnprocessableEntity as json.
+func (s *V1betaDeleteSnapshotUnprocessableEntity) Encode(e *jx.Encoder) {
+	unwrapped := (*Error)(s)
+
+	unwrapped.Encode(e)
+}
+
+// Decode decodes V1betaDeleteSnapshotUnprocessableEntity from json.
+func (s *V1betaDeleteSnapshotUnprocessableEntity) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode V1betaDeleteSnapshotUnprocessableEntity to nil")
+	}
+	var unwrapped Error
+	if err := func() error {
+		if err := unwrapped.Decode(d); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		return errors.Wrap(err, "alias")
+	}
+	*s = V1betaDeleteSnapshotUnprocessableEntity(unwrapped)
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *V1betaDeleteSnapshotUnprocessableEntity) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *V1betaDeleteSnapshotUnprocessableEntity) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }
@@ -24661,6 +25769,234 @@ func (s *V1betaDescribePoolUnprocessableEntity) UnmarshalJSON(data []byte) error
 	return s.Decode(d)
 }
 
+// Encode encodes V1betaDescribeSnapshotBadRequest as json.
+func (s *V1betaDescribeSnapshotBadRequest) Encode(e *jx.Encoder) {
+	unwrapped := (*Error)(s)
+
+	unwrapped.Encode(e)
+}
+
+// Decode decodes V1betaDescribeSnapshotBadRequest from json.
+func (s *V1betaDescribeSnapshotBadRequest) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode V1betaDescribeSnapshotBadRequest to nil")
+	}
+	var unwrapped Error
+	if err := func() error {
+		if err := unwrapped.Decode(d); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		return errors.Wrap(err, "alias")
+	}
+	*s = V1betaDescribeSnapshotBadRequest(unwrapped)
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *V1betaDescribeSnapshotBadRequest) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *V1betaDescribeSnapshotBadRequest) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes V1betaDescribeSnapshotForbidden as json.
+func (s *V1betaDescribeSnapshotForbidden) Encode(e *jx.Encoder) {
+	unwrapped := (*Error)(s)
+
+	unwrapped.Encode(e)
+}
+
+// Decode decodes V1betaDescribeSnapshotForbidden from json.
+func (s *V1betaDescribeSnapshotForbidden) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode V1betaDescribeSnapshotForbidden to nil")
+	}
+	var unwrapped Error
+	if err := func() error {
+		if err := unwrapped.Decode(d); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		return errors.Wrap(err, "alias")
+	}
+	*s = V1betaDescribeSnapshotForbidden(unwrapped)
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *V1betaDescribeSnapshotForbidden) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *V1betaDescribeSnapshotForbidden) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes V1betaDescribeSnapshotInternalServerError as json.
+func (s *V1betaDescribeSnapshotInternalServerError) Encode(e *jx.Encoder) {
+	unwrapped := (*Error)(s)
+
+	unwrapped.Encode(e)
+}
+
+// Decode decodes V1betaDescribeSnapshotInternalServerError from json.
+func (s *V1betaDescribeSnapshotInternalServerError) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode V1betaDescribeSnapshotInternalServerError to nil")
+	}
+	var unwrapped Error
+	if err := func() error {
+		if err := unwrapped.Decode(d); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		return errors.Wrap(err, "alias")
+	}
+	*s = V1betaDescribeSnapshotInternalServerError(unwrapped)
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *V1betaDescribeSnapshotInternalServerError) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *V1betaDescribeSnapshotInternalServerError) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes V1betaDescribeSnapshotNotFound as json.
+func (s *V1betaDescribeSnapshotNotFound) Encode(e *jx.Encoder) {
+	unwrapped := (*Error)(s)
+
+	unwrapped.Encode(e)
+}
+
+// Decode decodes V1betaDescribeSnapshotNotFound from json.
+func (s *V1betaDescribeSnapshotNotFound) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode V1betaDescribeSnapshotNotFound to nil")
+	}
+	var unwrapped Error
+	if err := func() error {
+		if err := unwrapped.Decode(d); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		return errors.Wrap(err, "alias")
+	}
+	*s = V1betaDescribeSnapshotNotFound(unwrapped)
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *V1betaDescribeSnapshotNotFound) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *V1betaDescribeSnapshotNotFound) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes V1betaDescribeSnapshotTooManyRequests as json.
+func (s *V1betaDescribeSnapshotTooManyRequests) Encode(e *jx.Encoder) {
+	unwrapped := (*Error)(s)
+
+	unwrapped.Encode(e)
+}
+
+// Decode decodes V1betaDescribeSnapshotTooManyRequests from json.
+func (s *V1betaDescribeSnapshotTooManyRequests) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode V1betaDescribeSnapshotTooManyRequests to nil")
+	}
+	var unwrapped Error
+	if err := func() error {
+		if err := unwrapped.Decode(d); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		return errors.Wrap(err, "alias")
+	}
+	*s = V1betaDescribeSnapshotTooManyRequests(unwrapped)
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *V1betaDescribeSnapshotTooManyRequests) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *V1betaDescribeSnapshotTooManyRequests) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes V1betaDescribeSnapshotUnauthorized as json.
+func (s *V1betaDescribeSnapshotUnauthorized) Encode(e *jx.Encoder) {
+	unwrapped := (*Error)(s)
+
+	unwrapped.Encode(e)
+}
+
+// Decode decodes V1betaDescribeSnapshotUnauthorized from json.
+func (s *V1betaDescribeSnapshotUnauthorized) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode V1betaDescribeSnapshotUnauthorized to nil")
+	}
+	var unwrapped Error
+	if err := func() error {
+		if err := unwrapped.Decode(d); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		return errors.Wrap(err, "alias")
+	}
+	*s = V1betaDescribeSnapshotUnauthorized(unwrapped)
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *V1betaDescribeSnapshotUnauthorized) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *V1betaDescribeSnapshotUnauthorized) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
 // Encode encodes V1betaDescribeVolumeBadRequest as json.
 func (s *V1betaDescribeVolumeBadRequest) Encode(e *jx.Encoder) {
 	unwrapped := (*Error)(s)
@@ -26437,6 +27773,308 @@ func (s *V1betaGetMultipleHostGroupsUnprocessableEntity) UnmarshalJSON(data []by
 	return s.Decode(d)
 }
 
+// Encode encodes V1betaGetMultipleKmsConfigsBadRequest as json.
+func (s *V1betaGetMultipleKmsConfigsBadRequest) Encode(e *jx.Encoder) {
+	unwrapped := (*Error)(s)
+
+	unwrapped.Encode(e)
+}
+
+// Decode decodes V1betaGetMultipleKmsConfigsBadRequest from json.
+func (s *V1betaGetMultipleKmsConfigsBadRequest) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode V1betaGetMultipleKmsConfigsBadRequest to nil")
+	}
+	var unwrapped Error
+	if err := func() error {
+		if err := unwrapped.Decode(d); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		return errors.Wrap(err, "alias")
+	}
+	*s = V1betaGetMultipleKmsConfigsBadRequest(unwrapped)
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *V1betaGetMultipleKmsConfigsBadRequest) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *V1betaGetMultipleKmsConfigsBadRequest) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes V1betaGetMultipleKmsConfigsForbidden as json.
+func (s *V1betaGetMultipleKmsConfigsForbidden) Encode(e *jx.Encoder) {
+	unwrapped := (*Error)(s)
+
+	unwrapped.Encode(e)
+}
+
+// Decode decodes V1betaGetMultipleKmsConfigsForbidden from json.
+func (s *V1betaGetMultipleKmsConfigsForbidden) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode V1betaGetMultipleKmsConfigsForbidden to nil")
+	}
+	var unwrapped Error
+	if err := func() error {
+		if err := unwrapped.Decode(d); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		return errors.Wrap(err, "alias")
+	}
+	*s = V1betaGetMultipleKmsConfigsForbidden(unwrapped)
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *V1betaGetMultipleKmsConfigsForbidden) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *V1betaGetMultipleKmsConfigsForbidden) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes V1betaGetMultipleKmsConfigsInternalServerError as json.
+func (s *V1betaGetMultipleKmsConfigsInternalServerError) Encode(e *jx.Encoder) {
+	unwrapped := (*Error)(s)
+
+	unwrapped.Encode(e)
+}
+
+// Decode decodes V1betaGetMultipleKmsConfigsInternalServerError from json.
+func (s *V1betaGetMultipleKmsConfigsInternalServerError) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode V1betaGetMultipleKmsConfigsInternalServerError to nil")
+	}
+	var unwrapped Error
+	if err := func() error {
+		if err := unwrapped.Decode(d); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		return errors.Wrap(err, "alias")
+	}
+	*s = V1betaGetMultipleKmsConfigsInternalServerError(unwrapped)
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *V1betaGetMultipleKmsConfigsInternalServerError) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *V1betaGetMultipleKmsConfigsInternalServerError) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes V1betaGetMultipleKmsConfigsNotFound as json.
+func (s *V1betaGetMultipleKmsConfigsNotFound) Encode(e *jx.Encoder) {
+	unwrapped := (*Error)(s)
+
+	unwrapped.Encode(e)
+}
+
+// Decode decodes V1betaGetMultipleKmsConfigsNotFound from json.
+func (s *V1betaGetMultipleKmsConfigsNotFound) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode V1betaGetMultipleKmsConfigsNotFound to nil")
+	}
+	var unwrapped Error
+	if err := func() error {
+		if err := unwrapped.Decode(d); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		return errors.Wrap(err, "alias")
+	}
+	*s = V1betaGetMultipleKmsConfigsNotFound(unwrapped)
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *V1betaGetMultipleKmsConfigsNotFound) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *V1betaGetMultipleKmsConfigsNotFound) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode implements json.Marshaler.
+func (s *V1betaGetMultipleKmsConfigsOK) Encode(e *jx.Encoder) {
+	e.ObjStart()
+	s.encodeFields(e)
+	e.ObjEnd()
+}
+
+// encodeFields encodes fields.
+func (s *V1betaGetMultipleKmsConfigsOK) encodeFields(e *jx.Encoder) {
+	{
+		if s.KmsConfigurations != nil {
+			e.FieldStart("kmsConfigurations")
+			e.ArrStart()
+			for _, elem := range s.KmsConfigurations {
+				elem.Encode(e)
+			}
+			e.ArrEnd()
+		}
+	}
+}
+
+var jsonFieldsNameOfV1betaGetMultipleKmsConfigsOK = [1]string{
+	0: "kmsConfigurations",
+}
+
+// Decode decodes V1betaGetMultipleKmsConfigsOK from json.
+func (s *V1betaGetMultipleKmsConfigsOK) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode V1betaGetMultipleKmsConfigsOK to nil")
+	}
+
+	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
+		switch string(k) {
+		case "kmsConfigurations":
+			if err := func() error {
+				s.KmsConfigurations = make([]KmsConfigV1beta, 0)
+				if err := d.Arr(func(d *jx.Decoder) error {
+					var elem KmsConfigV1beta
+					if err := elem.Decode(d); err != nil {
+						return err
+					}
+					s.KmsConfigurations = append(s.KmsConfigurations, elem)
+					return nil
+				}); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"kmsConfigurations\"")
+			}
+		default:
+			return d.Skip()
+		}
+		return nil
+	}); err != nil {
+		return errors.Wrap(err, "decode V1betaGetMultipleKmsConfigsOK")
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *V1betaGetMultipleKmsConfigsOK) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *V1betaGetMultipleKmsConfigsOK) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes V1betaGetMultipleKmsConfigsTooManyRequests as json.
+func (s *V1betaGetMultipleKmsConfigsTooManyRequests) Encode(e *jx.Encoder) {
+	unwrapped := (*Error)(s)
+
+	unwrapped.Encode(e)
+}
+
+// Decode decodes V1betaGetMultipleKmsConfigsTooManyRequests from json.
+func (s *V1betaGetMultipleKmsConfigsTooManyRequests) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode V1betaGetMultipleKmsConfigsTooManyRequests to nil")
+	}
+	var unwrapped Error
+	if err := func() error {
+		if err := unwrapped.Decode(d); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		return errors.Wrap(err, "alias")
+	}
+	*s = V1betaGetMultipleKmsConfigsTooManyRequests(unwrapped)
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *V1betaGetMultipleKmsConfigsTooManyRequests) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *V1betaGetMultipleKmsConfigsTooManyRequests) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes V1betaGetMultipleKmsConfigsUnauthorized as json.
+func (s *V1betaGetMultipleKmsConfigsUnauthorized) Encode(e *jx.Encoder) {
+	unwrapped := (*Error)(s)
+
+	unwrapped.Encode(e)
+}
+
+// Decode decodes V1betaGetMultipleKmsConfigsUnauthorized from json.
+func (s *V1betaGetMultipleKmsConfigsUnauthorized) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode V1betaGetMultipleKmsConfigsUnauthorized to nil")
+	}
+	var unwrapped Error
+	if err := func() error {
+		if err := unwrapped.Decode(d); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		return errors.Wrap(err, "alias")
+	}
+	*s = V1betaGetMultipleKmsConfigsUnauthorized(unwrapped)
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *V1betaGetMultipleKmsConfigsUnauthorized) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *V1betaGetMultipleKmsConfigsUnauthorized) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
 // Encode encodes V1betaGetMultiplePoolsBadRequest as json.
 func (s *V1betaGetMultiplePoolsBadRequest) Encode(e *jx.Encoder) {
 	unwrapped := (*Error)(s)
@@ -27835,6 +29473,958 @@ func (s *V1betaGetMultipleVolumesUnprocessableEntity) UnmarshalJSON(data []byte)
 	return s.Decode(d)
 }
 
+// Encode encodes V1betaGetReplicationCountBadRequest as json.
+func (s *V1betaGetReplicationCountBadRequest) Encode(e *jx.Encoder) {
+	unwrapped := (*Error)(s)
+
+	unwrapped.Encode(e)
+}
+
+// Decode decodes V1betaGetReplicationCountBadRequest from json.
+func (s *V1betaGetReplicationCountBadRequest) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode V1betaGetReplicationCountBadRequest to nil")
+	}
+	var unwrapped Error
+	if err := func() error {
+		if err := unwrapped.Decode(d); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		return errors.Wrap(err, "alias")
+	}
+	*s = V1betaGetReplicationCountBadRequest(unwrapped)
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *V1betaGetReplicationCountBadRequest) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *V1betaGetReplicationCountBadRequest) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes V1betaGetReplicationCountForbidden as json.
+func (s *V1betaGetReplicationCountForbidden) Encode(e *jx.Encoder) {
+	unwrapped := (*Error)(s)
+
+	unwrapped.Encode(e)
+}
+
+// Decode decodes V1betaGetReplicationCountForbidden from json.
+func (s *V1betaGetReplicationCountForbidden) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode V1betaGetReplicationCountForbidden to nil")
+	}
+	var unwrapped Error
+	if err := func() error {
+		if err := unwrapped.Decode(d); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		return errors.Wrap(err, "alias")
+	}
+	*s = V1betaGetReplicationCountForbidden(unwrapped)
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *V1betaGetReplicationCountForbidden) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *V1betaGetReplicationCountForbidden) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes V1betaGetReplicationCountInternalServerError as json.
+func (s *V1betaGetReplicationCountInternalServerError) Encode(e *jx.Encoder) {
+	unwrapped := (*Error)(s)
+
+	unwrapped.Encode(e)
+}
+
+// Decode decodes V1betaGetReplicationCountInternalServerError from json.
+func (s *V1betaGetReplicationCountInternalServerError) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode V1betaGetReplicationCountInternalServerError to nil")
+	}
+	var unwrapped Error
+	if err := func() error {
+		if err := unwrapped.Decode(d); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		return errors.Wrap(err, "alias")
+	}
+	*s = V1betaGetReplicationCountInternalServerError(unwrapped)
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *V1betaGetReplicationCountInternalServerError) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *V1betaGetReplicationCountInternalServerError) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes V1betaGetReplicationCountNotFound as json.
+func (s *V1betaGetReplicationCountNotFound) Encode(e *jx.Encoder) {
+	unwrapped := (*Error)(s)
+
+	unwrapped.Encode(e)
+}
+
+// Decode decodes V1betaGetReplicationCountNotFound from json.
+func (s *V1betaGetReplicationCountNotFound) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode V1betaGetReplicationCountNotFound to nil")
+	}
+	var unwrapped Error
+	if err := func() error {
+		if err := unwrapped.Decode(d); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		return errors.Wrap(err, "alias")
+	}
+	*s = V1betaGetReplicationCountNotFound(unwrapped)
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *V1betaGetReplicationCountNotFound) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *V1betaGetReplicationCountNotFound) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode implements json.Marshaler.
+func (s *V1betaGetReplicationCountOK) Encode(e *jx.Encoder) {
+	e.ObjStart()
+	s.encodeFields(e)
+	e.ObjEnd()
+}
+
+// encodeFields encodes fields.
+func (s *V1betaGetReplicationCountOK) encodeFields(e *jx.Encoder) {
+	{
+		e.FieldStart("replicationCount")
+		e.Int(s.ReplicationCount)
+	}
+}
+
+var jsonFieldsNameOfV1betaGetReplicationCountOK = [1]string{
+	0: "replicationCount",
+}
+
+// Decode decodes V1betaGetReplicationCountOK from json.
+func (s *V1betaGetReplicationCountOK) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode V1betaGetReplicationCountOK to nil")
+	}
+	var requiredBitSet [1]uint8
+
+	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
+		switch string(k) {
+		case "replicationCount":
+			requiredBitSet[0] |= 1 << 0
+			if err := func() error {
+				v, err := d.Int()
+				s.ReplicationCount = int(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"replicationCount\"")
+			}
+		default:
+			return d.Skip()
+		}
+		return nil
+	}); err != nil {
+		return errors.Wrap(err, "decode V1betaGetReplicationCountOK")
+	}
+	// Validate required fields.
+	var failures []validate.FieldError
+	for i, mask := range [1]uint8{
+		0b00000001,
+	} {
+		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
+			// Mask only required fields and check equality to mask using XOR.
+			//
+			// If XOR result is not zero, result is not equal to expected, so some fields are missed.
+			// Bits of fields which would be set are actually bits of missed fields.
+			missed := bits.OnesCount8(result)
+			for bitN := 0; bitN < missed; bitN++ {
+				bitIdx := bits.TrailingZeros8(result)
+				fieldIdx := i*8 + bitIdx
+				var name string
+				if fieldIdx < len(jsonFieldsNameOfV1betaGetReplicationCountOK) {
+					name = jsonFieldsNameOfV1betaGetReplicationCountOK[fieldIdx]
+				} else {
+					name = strconv.Itoa(fieldIdx)
+				}
+				failures = append(failures, validate.FieldError{
+					Name:  name,
+					Error: validate.ErrFieldRequired,
+				})
+				// Reset bit.
+				result &^= 1 << bitIdx
+			}
+		}
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *V1betaGetReplicationCountOK) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *V1betaGetReplicationCountOK) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes V1betaGetReplicationCountTooManyRequests as json.
+func (s *V1betaGetReplicationCountTooManyRequests) Encode(e *jx.Encoder) {
+	unwrapped := (*Error)(s)
+
+	unwrapped.Encode(e)
+}
+
+// Decode decodes V1betaGetReplicationCountTooManyRequests from json.
+func (s *V1betaGetReplicationCountTooManyRequests) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode V1betaGetReplicationCountTooManyRequests to nil")
+	}
+	var unwrapped Error
+	if err := func() error {
+		if err := unwrapped.Decode(d); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		return errors.Wrap(err, "alias")
+	}
+	*s = V1betaGetReplicationCountTooManyRequests(unwrapped)
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *V1betaGetReplicationCountTooManyRequests) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *V1betaGetReplicationCountTooManyRequests) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes V1betaGetReplicationCountUnauthorized as json.
+func (s *V1betaGetReplicationCountUnauthorized) Encode(e *jx.Encoder) {
+	unwrapped := (*Error)(s)
+
+	unwrapped.Encode(e)
+}
+
+// Decode decodes V1betaGetReplicationCountUnauthorized from json.
+func (s *V1betaGetReplicationCountUnauthorized) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode V1betaGetReplicationCountUnauthorized to nil")
+	}
+	var unwrapped Error
+	if err := func() error {
+		if err := unwrapped.Decode(d); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		return errors.Wrap(err, "alias")
+	}
+	*s = V1betaGetReplicationCountUnauthorized(unwrapped)
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *V1betaGetReplicationCountUnauthorized) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *V1betaGetReplicationCountUnauthorized) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes V1betaGetVolumeCountBadRequest as json.
+func (s *V1betaGetVolumeCountBadRequest) Encode(e *jx.Encoder) {
+	unwrapped := (*Error)(s)
+
+	unwrapped.Encode(e)
+}
+
+// Decode decodes V1betaGetVolumeCountBadRequest from json.
+func (s *V1betaGetVolumeCountBadRequest) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode V1betaGetVolumeCountBadRequest to nil")
+	}
+	var unwrapped Error
+	if err := func() error {
+		if err := unwrapped.Decode(d); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		return errors.Wrap(err, "alias")
+	}
+	*s = V1betaGetVolumeCountBadRequest(unwrapped)
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *V1betaGetVolumeCountBadRequest) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *V1betaGetVolumeCountBadRequest) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes V1betaGetVolumeCountForbidden as json.
+func (s *V1betaGetVolumeCountForbidden) Encode(e *jx.Encoder) {
+	unwrapped := (*Error)(s)
+
+	unwrapped.Encode(e)
+}
+
+// Decode decodes V1betaGetVolumeCountForbidden from json.
+func (s *V1betaGetVolumeCountForbidden) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode V1betaGetVolumeCountForbidden to nil")
+	}
+	var unwrapped Error
+	if err := func() error {
+		if err := unwrapped.Decode(d); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		return errors.Wrap(err, "alias")
+	}
+	*s = V1betaGetVolumeCountForbidden(unwrapped)
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *V1betaGetVolumeCountForbidden) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *V1betaGetVolumeCountForbidden) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes V1betaGetVolumeCountInternalServerError as json.
+func (s *V1betaGetVolumeCountInternalServerError) Encode(e *jx.Encoder) {
+	unwrapped := (*Error)(s)
+
+	unwrapped.Encode(e)
+}
+
+// Decode decodes V1betaGetVolumeCountInternalServerError from json.
+func (s *V1betaGetVolumeCountInternalServerError) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode V1betaGetVolumeCountInternalServerError to nil")
+	}
+	var unwrapped Error
+	if err := func() error {
+		if err := unwrapped.Decode(d); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		return errors.Wrap(err, "alias")
+	}
+	*s = V1betaGetVolumeCountInternalServerError(unwrapped)
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *V1betaGetVolumeCountInternalServerError) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *V1betaGetVolumeCountInternalServerError) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes V1betaGetVolumeCountNotFound as json.
+func (s *V1betaGetVolumeCountNotFound) Encode(e *jx.Encoder) {
+	unwrapped := (*Error)(s)
+
+	unwrapped.Encode(e)
+}
+
+// Decode decodes V1betaGetVolumeCountNotFound from json.
+func (s *V1betaGetVolumeCountNotFound) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode V1betaGetVolumeCountNotFound to nil")
+	}
+	var unwrapped Error
+	if err := func() error {
+		if err := unwrapped.Decode(d); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		return errors.Wrap(err, "alias")
+	}
+	*s = V1betaGetVolumeCountNotFound(unwrapped)
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *V1betaGetVolumeCountNotFound) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *V1betaGetVolumeCountNotFound) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode implements json.Marshaler.
+func (s *V1betaGetVolumeCountOK) Encode(e *jx.Encoder) {
+	e.ObjStart()
+	s.encodeFields(e)
+	e.ObjEnd()
+}
+
+// encodeFields encodes fields.
+func (s *V1betaGetVolumeCountOK) encodeFields(e *jx.Encoder) {
+	{
+		e.FieldStart("volumeCount")
+		e.Int(s.VolumeCount)
+	}
+}
+
+var jsonFieldsNameOfV1betaGetVolumeCountOK = [1]string{
+	0: "volumeCount",
+}
+
+// Decode decodes V1betaGetVolumeCountOK from json.
+func (s *V1betaGetVolumeCountOK) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode V1betaGetVolumeCountOK to nil")
+	}
+	var requiredBitSet [1]uint8
+
+	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
+		switch string(k) {
+		case "volumeCount":
+			requiredBitSet[0] |= 1 << 0
+			if err := func() error {
+				v, err := d.Int()
+				s.VolumeCount = int(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"volumeCount\"")
+			}
+		default:
+			return d.Skip()
+		}
+		return nil
+	}); err != nil {
+		return errors.Wrap(err, "decode V1betaGetVolumeCountOK")
+	}
+	// Validate required fields.
+	var failures []validate.FieldError
+	for i, mask := range [1]uint8{
+		0b00000001,
+	} {
+		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
+			// Mask only required fields and check equality to mask using XOR.
+			//
+			// If XOR result is not zero, result is not equal to expected, so some fields are missed.
+			// Bits of fields which would be set are actually bits of missed fields.
+			missed := bits.OnesCount8(result)
+			for bitN := 0; bitN < missed; bitN++ {
+				bitIdx := bits.TrailingZeros8(result)
+				fieldIdx := i*8 + bitIdx
+				var name string
+				if fieldIdx < len(jsonFieldsNameOfV1betaGetVolumeCountOK) {
+					name = jsonFieldsNameOfV1betaGetVolumeCountOK[fieldIdx]
+				} else {
+					name = strconv.Itoa(fieldIdx)
+				}
+				failures = append(failures, validate.FieldError{
+					Name:  name,
+					Error: validate.ErrFieldRequired,
+				})
+				// Reset bit.
+				result &^= 1 << bitIdx
+			}
+		}
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *V1betaGetVolumeCountOK) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *V1betaGetVolumeCountOK) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes V1betaGetVolumeCountTooManyRequests as json.
+func (s *V1betaGetVolumeCountTooManyRequests) Encode(e *jx.Encoder) {
+	unwrapped := (*Error)(s)
+
+	unwrapped.Encode(e)
+}
+
+// Decode decodes V1betaGetVolumeCountTooManyRequests from json.
+func (s *V1betaGetVolumeCountTooManyRequests) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode V1betaGetVolumeCountTooManyRequests to nil")
+	}
+	var unwrapped Error
+	if err := func() error {
+		if err := unwrapped.Decode(d); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		return errors.Wrap(err, "alias")
+	}
+	*s = V1betaGetVolumeCountTooManyRequests(unwrapped)
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *V1betaGetVolumeCountTooManyRequests) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *V1betaGetVolumeCountTooManyRequests) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes V1betaGetVolumeCountUnauthorized as json.
+func (s *V1betaGetVolumeCountUnauthorized) Encode(e *jx.Encoder) {
+	unwrapped := (*Error)(s)
+
+	unwrapped.Encode(e)
+}
+
+// Decode decodes V1betaGetVolumeCountUnauthorized from json.
+func (s *V1betaGetVolumeCountUnauthorized) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode V1betaGetVolumeCountUnauthorized to nil")
+	}
+	var unwrapped Error
+	if err := func() error {
+		if err := unwrapped.Decode(d); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		return errors.Wrap(err, "alias")
+	}
+	*s = V1betaGetVolumeCountUnauthorized(unwrapped)
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *V1betaGetVolumeCountUnauthorized) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *V1betaGetVolumeCountUnauthorized) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes V1betaInternalAcceptClusterPeerBadRequest as json.
+func (s *V1betaInternalAcceptClusterPeerBadRequest) Encode(e *jx.Encoder) {
+	unwrapped := (*Error)(s)
+
+	unwrapped.Encode(e)
+}
+
+// Decode decodes V1betaInternalAcceptClusterPeerBadRequest from json.
+func (s *V1betaInternalAcceptClusterPeerBadRequest) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode V1betaInternalAcceptClusterPeerBadRequest to nil")
+	}
+	var unwrapped Error
+	if err := func() error {
+		if err := unwrapped.Decode(d); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		return errors.Wrap(err, "alias")
+	}
+	*s = V1betaInternalAcceptClusterPeerBadRequest(unwrapped)
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *V1betaInternalAcceptClusterPeerBadRequest) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *V1betaInternalAcceptClusterPeerBadRequest) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes V1betaInternalAcceptClusterPeerConflict as json.
+func (s *V1betaInternalAcceptClusterPeerConflict) Encode(e *jx.Encoder) {
+	unwrapped := (*Error)(s)
+
+	unwrapped.Encode(e)
+}
+
+// Decode decodes V1betaInternalAcceptClusterPeerConflict from json.
+func (s *V1betaInternalAcceptClusterPeerConflict) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode V1betaInternalAcceptClusterPeerConflict to nil")
+	}
+	var unwrapped Error
+	if err := func() error {
+		if err := unwrapped.Decode(d); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		return errors.Wrap(err, "alias")
+	}
+	*s = V1betaInternalAcceptClusterPeerConflict(unwrapped)
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *V1betaInternalAcceptClusterPeerConflict) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *V1betaInternalAcceptClusterPeerConflict) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes V1betaInternalAcceptClusterPeerForbidden as json.
+func (s *V1betaInternalAcceptClusterPeerForbidden) Encode(e *jx.Encoder) {
+	unwrapped := (*Error)(s)
+
+	unwrapped.Encode(e)
+}
+
+// Decode decodes V1betaInternalAcceptClusterPeerForbidden from json.
+func (s *V1betaInternalAcceptClusterPeerForbidden) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode V1betaInternalAcceptClusterPeerForbidden to nil")
+	}
+	var unwrapped Error
+	if err := func() error {
+		if err := unwrapped.Decode(d); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		return errors.Wrap(err, "alias")
+	}
+	*s = V1betaInternalAcceptClusterPeerForbidden(unwrapped)
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *V1betaInternalAcceptClusterPeerForbidden) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *V1betaInternalAcceptClusterPeerForbidden) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes V1betaInternalAcceptClusterPeerInternalServerError as json.
+func (s *V1betaInternalAcceptClusterPeerInternalServerError) Encode(e *jx.Encoder) {
+	unwrapped := (*Error)(s)
+
+	unwrapped.Encode(e)
+}
+
+// Decode decodes V1betaInternalAcceptClusterPeerInternalServerError from json.
+func (s *V1betaInternalAcceptClusterPeerInternalServerError) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode V1betaInternalAcceptClusterPeerInternalServerError to nil")
+	}
+	var unwrapped Error
+	if err := func() error {
+		if err := unwrapped.Decode(d); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		return errors.Wrap(err, "alias")
+	}
+	*s = V1betaInternalAcceptClusterPeerInternalServerError(unwrapped)
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *V1betaInternalAcceptClusterPeerInternalServerError) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *V1betaInternalAcceptClusterPeerInternalServerError) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes V1betaInternalAcceptClusterPeerMethodNotAllowed as json.
+func (s *V1betaInternalAcceptClusterPeerMethodNotAllowed) Encode(e *jx.Encoder) {
+	unwrapped := (*Error)(s)
+
+	unwrapped.Encode(e)
+}
+
+// Decode decodes V1betaInternalAcceptClusterPeerMethodNotAllowed from json.
+func (s *V1betaInternalAcceptClusterPeerMethodNotAllowed) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode V1betaInternalAcceptClusterPeerMethodNotAllowed to nil")
+	}
+	var unwrapped Error
+	if err := func() error {
+		if err := unwrapped.Decode(d); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		return errors.Wrap(err, "alias")
+	}
+	*s = V1betaInternalAcceptClusterPeerMethodNotAllowed(unwrapped)
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *V1betaInternalAcceptClusterPeerMethodNotAllowed) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *V1betaInternalAcceptClusterPeerMethodNotAllowed) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes V1betaInternalAcceptClusterPeerNotFound as json.
+func (s *V1betaInternalAcceptClusterPeerNotFound) Encode(e *jx.Encoder) {
+	unwrapped := (*Error)(s)
+
+	unwrapped.Encode(e)
+}
+
+// Decode decodes V1betaInternalAcceptClusterPeerNotFound from json.
+func (s *V1betaInternalAcceptClusterPeerNotFound) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode V1betaInternalAcceptClusterPeerNotFound to nil")
+	}
+	var unwrapped Error
+	if err := func() error {
+		if err := unwrapped.Decode(d); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		return errors.Wrap(err, "alias")
+	}
+	*s = V1betaInternalAcceptClusterPeerNotFound(unwrapped)
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *V1betaInternalAcceptClusterPeerNotFound) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *V1betaInternalAcceptClusterPeerNotFound) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes V1betaInternalAcceptClusterPeerUnauthorized as json.
+func (s *V1betaInternalAcceptClusterPeerUnauthorized) Encode(e *jx.Encoder) {
+	unwrapped := (*Error)(s)
+
+	unwrapped.Encode(e)
+}
+
+// Decode decodes V1betaInternalAcceptClusterPeerUnauthorized from json.
+func (s *V1betaInternalAcceptClusterPeerUnauthorized) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode V1betaInternalAcceptClusterPeerUnauthorized to nil")
+	}
+	var unwrapped Error
+	if err := func() error {
+		if err := unwrapped.Decode(d); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		return errors.Wrap(err, "alias")
+	}
+	*s = V1betaInternalAcceptClusterPeerUnauthorized(unwrapped)
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *V1betaInternalAcceptClusterPeerUnauthorized) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *V1betaInternalAcceptClusterPeerUnauthorized) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes V1betaInternalAcceptClusterPeerUnprocessableEntity as json.
+func (s *V1betaInternalAcceptClusterPeerUnprocessableEntity) Encode(e *jx.Encoder) {
+	unwrapped := (*Error)(s)
+
+	unwrapped.Encode(e)
+}
+
+// Decode decodes V1betaInternalAcceptClusterPeerUnprocessableEntity from json.
+func (s *V1betaInternalAcceptClusterPeerUnprocessableEntity) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode V1betaInternalAcceptClusterPeerUnprocessableEntity to nil")
+	}
+	var unwrapped Error
+	if err := func() error {
+		if err := unwrapped.Decode(d); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		return errors.Wrap(err, "alias")
+	}
+	*s = V1betaInternalAcceptClusterPeerUnprocessableEntity(unwrapped)
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *V1betaInternalAcceptClusterPeerUnprocessableEntity) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *V1betaInternalAcceptClusterPeerUnprocessableEntity) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
 // Encode encodes V1betaInternalAuthorizeVolumeReplicationBadRequest as json.
 func (s *V1betaInternalAuthorizeVolumeReplicationBadRequest) Encode(e *jx.Encoder) {
 	unwrapped := (*Error)(s)
@@ -28135,310 +30725,6 @@ func (s *V1betaInternalAuthorizeVolumeReplicationUnprocessableEntity) MarshalJSO
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
 func (s *V1betaInternalAuthorizeVolumeReplicationUnprocessableEntity) UnmarshalJSON(data []byte) error {
-	d := jx.DecodeBytes(data)
-	return s.Decode(d)
-}
-
-// Encode encodes V1betaInternalCreateClusterPeerBadRequest as json.
-func (s *V1betaInternalCreateClusterPeerBadRequest) Encode(e *jx.Encoder) {
-	unwrapped := (*Error)(s)
-
-	unwrapped.Encode(e)
-}
-
-// Decode decodes V1betaInternalCreateClusterPeerBadRequest from json.
-func (s *V1betaInternalCreateClusterPeerBadRequest) Decode(d *jx.Decoder) error {
-	if s == nil {
-		return errors.New("invalid: unable to decode V1betaInternalCreateClusterPeerBadRequest to nil")
-	}
-	var unwrapped Error
-	if err := func() error {
-		if err := unwrapped.Decode(d); err != nil {
-			return err
-		}
-		return nil
-	}(); err != nil {
-		return errors.Wrap(err, "alias")
-	}
-	*s = V1betaInternalCreateClusterPeerBadRequest(unwrapped)
-	return nil
-}
-
-// MarshalJSON implements stdjson.Marshaler.
-func (s *V1betaInternalCreateClusterPeerBadRequest) MarshalJSON() ([]byte, error) {
-	e := jx.Encoder{}
-	s.Encode(&e)
-	return e.Bytes(), nil
-}
-
-// UnmarshalJSON implements stdjson.Unmarshaler.
-func (s *V1betaInternalCreateClusterPeerBadRequest) UnmarshalJSON(data []byte) error {
-	d := jx.DecodeBytes(data)
-	return s.Decode(d)
-}
-
-// Encode encodes V1betaInternalCreateClusterPeerConflict as json.
-func (s *V1betaInternalCreateClusterPeerConflict) Encode(e *jx.Encoder) {
-	unwrapped := (*Error)(s)
-
-	unwrapped.Encode(e)
-}
-
-// Decode decodes V1betaInternalCreateClusterPeerConflict from json.
-func (s *V1betaInternalCreateClusterPeerConflict) Decode(d *jx.Decoder) error {
-	if s == nil {
-		return errors.New("invalid: unable to decode V1betaInternalCreateClusterPeerConflict to nil")
-	}
-	var unwrapped Error
-	if err := func() error {
-		if err := unwrapped.Decode(d); err != nil {
-			return err
-		}
-		return nil
-	}(); err != nil {
-		return errors.Wrap(err, "alias")
-	}
-	*s = V1betaInternalCreateClusterPeerConflict(unwrapped)
-	return nil
-}
-
-// MarshalJSON implements stdjson.Marshaler.
-func (s *V1betaInternalCreateClusterPeerConflict) MarshalJSON() ([]byte, error) {
-	e := jx.Encoder{}
-	s.Encode(&e)
-	return e.Bytes(), nil
-}
-
-// UnmarshalJSON implements stdjson.Unmarshaler.
-func (s *V1betaInternalCreateClusterPeerConflict) UnmarshalJSON(data []byte) error {
-	d := jx.DecodeBytes(data)
-	return s.Decode(d)
-}
-
-// Encode encodes V1betaInternalCreateClusterPeerForbidden as json.
-func (s *V1betaInternalCreateClusterPeerForbidden) Encode(e *jx.Encoder) {
-	unwrapped := (*Error)(s)
-
-	unwrapped.Encode(e)
-}
-
-// Decode decodes V1betaInternalCreateClusterPeerForbidden from json.
-func (s *V1betaInternalCreateClusterPeerForbidden) Decode(d *jx.Decoder) error {
-	if s == nil {
-		return errors.New("invalid: unable to decode V1betaInternalCreateClusterPeerForbidden to nil")
-	}
-	var unwrapped Error
-	if err := func() error {
-		if err := unwrapped.Decode(d); err != nil {
-			return err
-		}
-		return nil
-	}(); err != nil {
-		return errors.Wrap(err, "alias")
-	}
-	*s = V1betaInternalCreateClusterPeerForbidden(unwrapped)
-	return nil
-}
-
-// MarshalJSON implements stdjson.Marshaler.
-func (s *V1betaInternalCreateClusterPeerForbidden) MarshalJSON() ([]byte, error) {
-	e := jx.Encoder{}
-	s.Encode(&e)
-	return e.Bytes(), nil
-}
-
-// UnmarshalJSON implements stdjson.Unmarshaler.
-func (s *V1betaInternalCreateClusterPeerForbidden) UnmarshalJSON(data []byte) error {
-	d := jx.DecodeBytes(data)
-	return s.Decode(d)
-}
-
-// Encode encodes V1betaInternalCreateClusterPeerInternalServerError as json.
-func (s *V1betaInternalCreateClusterPeerInternalServerError) Encode(e *jx.Encoder) {
-	unwrapped := (*Error)(s)
-
-	unwrapped.Encode(e)
-}
-
-// Decode decodes V1betaInternalCreateClusterPeerInternalServerError from json.
-func (s *V1betaInternalCreateClusterPeerInternalServerError) Decode(d *jx.Decoder) error {
-	if s == nil {
-		return errors.New("invalid: unable to decode V1betaInternalCreateClusterPeerInternalServerError to nil")
-	}
-	var unwrapped Error
-	if err := func() error {
-		if err := unwrapped.Decode(d); err != nil {
-			return err
-		}
-		return nil
-	}(); err != nil {
-		return errors.Wrap(err, "alias")
-	}
-	*s = V1betaInternalCreateClusterPeerInternalServerError(unwrapped)
-	return nil
-}
-
-// MarshalJSON implements stdjson.Marshaler.
-func (s *V1betaInternalCreateClusterPeerInternalServerError) MarshalJSON() ([]byte, error) {
-	e := jx.Encoder{}
-	s.Encode(&e)
-	return e.Bytes(), nil
-}
-
-// UnmarshalJSON implements stdjson.Unmarshaler.
-func (s *V1betaInternalCreateClusterPeerInternalServerError) UnmarshalJSON(data []byte) error {
-	d := jx.DecodeBytes(data)
-	return s.Decode(d)
-}
-
-// Encode encodes V1betaInternalCreateClusterPeerMethodNotAllowed as json.
-func (s *V1betaInternalCreateClusterPeerMethodNotAllowed) Encode(e *jx.Encoder) {
-	unwrapped := (*Error)(s)
-
-	unwrapped.Encode(e)
-}
-
-// Decode decodes V1betaInternalCreateClusterPeerMethodNotAllowed from json.
-func (s *V1betaInternalCreateClusterPeerMethodNotAllowed) Decode(d *jx.Decoder) error {
-	if s == nil {
-		return errors.New("invalid: unable to decode V1betaInternalCreateClusterPeerMethodNotAllowed to nil")
-	}
-	var unwrapped Error
-	if err := func() error {
-		if err := unwrapped.Decode(d); err != nil {
-			return err
-		}
-		return nil
-	}(); err != nil {
-		return errors.Wrap(err, "alias")
-	}
-	*s = V1betaInternalCreateClusterPeerMethodNotAllowed(unwrapped)
-	return nil
-}
-
-// MarshalJSON implements stdjson.Marshaler.
-func (s *V1betaInternalCreateClusterPeerMethodNotAllowed) MarshalJSON() ([]byte, error) {
-	e := jx.Encoder{}
-	s.Encode(&e)
-	return e.Bytes(), nil
-}
-
-// UnmarshalJSON implements stdjson.Unmarshaler.
-func (s *V1betaInternalCreateClusterPeerMethodNotAllowed) UnmarshalJSON(data []byte) error {
-	d := jx.DecodeBytes(data)
-	return s.Decode(d)
-}
-
-// Encode encodes V1betaInternalCreateClusterPeerNotFound as json.
-func (s *V1betaInternalCreateClusterPeerNotFound) Encode(e *jx.Encoder) {
-	unwrapped := (*Error)(s)
-
-	unwrapped.Encode(e)
-}
-
-// Decode decodes V1betaInternalCreateClusterPeerNotFound from json.
-func (s *V1betaInternalCreateClusterPeerNotFound) Decode(d *jx.Decoder) error {
-	if s == nil {
-		return errors.New("invalid: unable to decode V1betaInternalCreateClusterPeerNotFound to nil")
-	}
-	var unwrapped Error
-	if err := func() error {
-		if err := unwrapped.Decode(d); err != nil {
-			return err
-		}
-		return nil
-	}(); err != nil {
-		return errors.Wrap(err, "alias")
-	}
-	*s = V1betaInternalCreateClusterPeerNotFound(unwrapped)
-	return nil
-}
-
-// MarshalJSON implements stdjson.Marshaler.
-func (s *V1betaInternalCreateClusterPeerNotFound) MarshalJSON() ([]byte, error) {
-	e := jx.Encoder{}
-	s.Encode(&e)
-	return e.Bytes(), nil
-}
-
-// UnmarshalJSON implements stdjson.Unmarshaler.
-func (s *V1betaInternalCreateClusterPeerNotFound) UnmarshalJSON(data []byte) error {
-	d := jx.DecodeBytes(data)
-	return s.Decode(d)
-}
-
-// Encode encodes V1betaInternalCreateClusterPeerUnauthorized as json.
-func (s *V1betaInternalCreateClusterPeerUnauthorized) Encode(e *jx.Encoder) {
-	unwrapped := (*Error)(s)
-
-	unwrapped.Encode(e)
-}
-
-// Decode decodes V1betaInternalCreateClusterPeerUnauthorized from json.
-func (s *V1betaInternalCreateClusterPeerUnauthorized) Decode(d *jx.Decoder) error {
-	if s == nil {
-		return errors.New("invalid: unable to decode V1betaInternalCreateClusterPeerUnauthorized to nil")
-	}
-	var unwrapped Error
-	if err := func() error {
-		if err := unwrapped.Decode(d); err != nil {
-			return err
-		}
-		return nil
-	}(); err != nil {
-		return errors.Wrap(err, "alias")
-	}
-	*s = V1betaInternalCreateClusterPeerUnauthorized(unwrapped)
-	return nil
-}
-
-// MarshalJSON implements stdjson.Marshaler.
-func (s *V1betaInternalCreateClusterPeerUnauthorized) MarshalJSON() ([]byte, error) {
-	e := jx.Encoder{}
-	s.Encode(&e)
-	return e.Bytes(), nil
-}
-
-// UnmarshalJSON implements stdjson.Unmarshaler.
-func (s *V1betaInternalCreateClusterPeerUnauthorized) UnmarshalJSON(data []byte) error {
-	d := jx.DecodeBytes(data)
-	return s.Decode(d)
-}
-
-// Encode encodes V1betaInternalCreateClusterPeerUnprocessableEntity as json.
-func (s *V1betaInternalCreateClusterPeerUnprocessableEntity) Encode(e *jx.Encoder) {
-	unwrapped := (*Error)(s)
-
-	unwrapped.Encode(e)
-}
-
-// Decode decodes V1betaInternalCreateClusterPeerUnprocessableEntity from json.
-func (s *V1betaInternalCreateClusterPeerUnprocessableEntity) Decode(d *jx.Decoder) error {
-	if s == nil {
-		return errors.New("invalid: unable to decode V1betaInternalCreateClusterPeerUnprocessableEntity to nil")
-	}
-	var unwrapped Error
-	if err := func() error {
-		if err := unwrapped.Decode(d); err != nil {
-			return err
-		}
-		return nil
-	}(); err != nil {
-		return errors.Wrap(err, "alias")
-	}
-	*s = V1betaInternalCreateClusterPeerUnprocessableEntity(unwrapped)
-	return nil
-}
-
-// MarshalJSON implements stdjson.Marshaler.
-func (s *V1betaInternalCreateClusterPeerUnprocessableEntity) MarshalJSON() ([]byte, error) {
-	e := jx.Encoder{}
-	s.Encode(&e)
-	return e.Bytes(), nil
-}
-
-// UnmarshalJSON implements stdjson.Unmarshaler.
-func (s *V1betaInternalCreateClusterPeerUnprocessableEntity) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }
@@ -29655,6 +31941,384 @@ func (s *V1betaInternalDescribeVolumeReplicationUnprocessableEntity) MarshalJSON
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
 func (s *V1betaInternalDescribeVolumeReplicationUnprocessableEntity) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes V1betaInternalGetReplicationJobsBadRequest as json.
+func (s *V1betaInternalGetReplicationJobsBadRequest) Encode(e *jx.Encoder) {
+	unwrapped := (*Error)(s)
+
+	unwrapped.Encode(e)
+}
+
+// Decode decodes V1betaInternalGetReplicationJobsBadRequest from json.
+func (s *V1betaInternalGetReplicationJobsBadRequest) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode V1betaInternalGetReplicationJobsBadRequest to nil")
+	}
+	var unwrapped Error
+	if err := func() error {
+		if err := unwrapped.Decode(d); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		return errors.Wrap(err, "alias")
+	}
+	*s = V1betaInternalGetReplicationJobsBadRequest(unwrapped)
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *V1betaInternalGetReplicationJobsBadRequest) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *V1betaInternalGetReplicationJobsBadRequest) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes V1betaInternalGetReplicationJobsConflict as json.
+func (s *V1betaInternalGetReplicationJobsConflict) Encode(e *jx.Encoder) {
+	unwrapped := (*Error)(s)
+
+	unwrapped.Encode(e)
+}
+
+// Decode decodes V1betaInternalGetReplicationJobsConflict from json.
+func (s *V1betaInternalGetReplicationJobsConflict) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode V1betaInternalGetReplicationJobsConflict to nil")
+	}
+	var unwrapped Error
+	if err := func() error {
+		if err := unwrapped.Decode(d); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		return errors.Wrap(err, "alias")
+	}
+	*s = V1betaInternalGetReplicationJobsConflict(unwrapped)
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *V1betaInternalGetReplicationJobsConflict) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *V1betaInternalGetReplicationJobsConflict) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes V1betaInternalGetReplicationJobsForbidden as json.
+func (s *V1betaInternalGetReplicationJobsForbidden) Encode(e *jx.Encoder) {
+	unwrapped := (*Error)(s)
+
+	unwrapped.Encode(e)
+}
+
+// Decode decodes V1betaInternalGetReplicationJobsForbidden from json.
+func (s *V1betaInternalGetReplicationJobsForbidden) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode V1betaInternalGetReplicationJobsForbidden to nil")
+	}
+	var unwrapped Error
+	if err := func() error {
+		if err := unwrapped.Decode(d); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		return errors.Wrap(err, "alias")
+	}
+	*s = V1betaInternalGetReplicationJobsForbidden(unwrapped)
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *V1betaInternalGetReplicationJobsForbidden) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *V1betaInternalGetReplicationJobsForbidden) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes V1betaInternalGetReplicationJobsInternalServerError as json.
+func (s *V1betaInternalGetReplicationJobsInternalServerError) Encode(e *jx.Encoder) {
+	unwrapped := (*Error)(s)
+
+	unwrapped.Encode(e)
+}
+
+// Decode decodes V1betaInternalGetReplicationJobsInternalServerError from json.
+func (s *V1betaInternalGetReplicationJobsInternalServerError) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode V1betaInternalGetReplicationJobsInternalServerError to nil")
+	}
+	var unwrapped Error
+	if err := func() error {
+		if err := unwrapped.Decode(d); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		return errors.Wrap(err, "alias")
+	}
+	*s = V1betaInternalGetReplicationJobsInternalServerError(unwrapped)
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *V1betaInternalGetReplicationJobsInternalServerError) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *V1betaInternalGetReplicationJobsInternalServerError) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes V1betaInternalGetReplicationJobsMethodNotAllowed as json.
+func (s *V1betaInternalGetReplicationJobsMethodNotAllowed) Encode(e *jx.Encoder) {
+	unwrapped := (*Error)(s)
+
+	unwrapped.Encode(e)
+}
+
+// Decode decodes V1betaInternalGetReplicationJobsMethodNotAllowed from json.
+func (s *V1betaInternalGetReplicationJobsMethodNotAllowed) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode V1betaInternalGetReplicationJobsMethodNotAllowed to nil")
+	}
+	var unwrapped Error
+	if err := func() error {
+		if err := unwrapped.Decode(d); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		return errors.Wrap(err, "alias")
+	}
+	*s = V1betaInternalGetReplicationJobsMethodNotAllowed(unwrapped)
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *V1betaInternalGetReplicationJobsMethodNotAllowed) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *V1betaInternalGetReplicationJobsMethodNotAllowed) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes V1betaInternalGetReplicationJobsNotFound as json.
+func (s *V1betaInternalGetReplicationJobsNotFound) Encode(e *jx.Encoder) {
+	unwrapped := (*Error)(s)
+
+	unwrapped.Encode(e)
+}
+
+// Decode decodes V1betaInternalGetReplicationJobsNotFound from json.
+func (s *V1betaInternalGetReplicationJobsNotFound) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode V1betaInternalGetReplicationJobsNotFound to nil")
+	}
+	var unwrapped Error
+	if err := func() error {
+		if err := unwrapped.Decode(d); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		return errors.Wrap(err, "alias")
+	}
+	*s = V1betaInternalGetReplicationJobsNotFound(unwrapped)
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *V1betaInternalGetReplicationJobsNotFound) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *V1betaInternalGetReplicationJobsNotFound) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode implements json.Marshaler.
+func (s *V1betaInternalGetReplicationJobsOK) Encode(e *jx.Encoder) {
+	e.ObjStart()
+	s.encodeFields(e)
+	e.ObjEnd()
+}
+
+// encodeFields encodes fields.
+func (s *V1betaInternalGetReplicationJobsOK) encodeFields(e *jx.Encoder) {
+	{
+		if s.Jobs != nil {
+			e.FieldStart("jobs")
+			e.ArrStart()
+			for _, elem := range s.Jobs {
+				elem.Encode(e)
+			}
+			e.ArrEnd()
+		}
+	}
+}
+
+var jsonFieldsNameOfV1betaInternalGetReplicationJobsOK = [1]string{
+	0: "jobs",
+}
+
+// Decode decodes V1betaInternalGetReplicationJobsOK from json.
+func (s *V1betaInternalGetReplicationJobsOK) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode V1betaInternalGetReplicationJobsOK to nil")
+	}
+
+	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
+		switch string(k) {
+		case "jobs":
+			if err := func() error {
+				s.Jobs = make([]InternalJobV1beta, 0)
+				if err := d.Arr(func(d *jx.Decoder) error {
+					var elem InternalJobV1beta
+					if err := elem.Decode(d); err != nil {
+						return err
+					}
+					s.Jobs = append(s.Jobs, elem)
+					return nil
+				}); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"jobs\"")
+			}
+		default:
+			return d.Skip()
+		}
+		return nil
+	}); err != nil {
+		return errors.Wrap(err, "decode V1betaInternalGetReplicationJobsOK")
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *V1betaInternalGetReplicationJobsOK) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *V1betaInternalGetReplicationJobsOK) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes V1betaInternalGetReplicationJobsUnauthorized as json.
+func (s *V1betaInternalGetReplicationJobsUnauthorized) Encode(e *jx.Encoder) {
+	unwrapped := (*Error)(s)
+
+	unwrapped.Encode(e)
+}
+
+// Decode decodes V1betaInternalGetReplicationJobsUnauthorized from json.
+func (s *V1betaInternalGetReplicationJobsUnauthorized) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode V1betaInternalGetReplicationJobsUnauthorized to nil")
+	}
+	var unwrapped Error
+	if err := func() error {
+		if err := unwrapped.Decode(d); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		return errors.Wrap(err, "alias")
+	}
+	*s = V1betaInternalGetReplicationJobsUnauthorized(unwrapped)
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *V1betaInternalGetReplicationJobsUnauthorized) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *V1betaInternalGetReplicationJobsUnauthorized) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes V1betaInternalGetReplicationJobsUnprocessableEntity as json.
+func (s *V1betaInternalGetReplicationJobsUnprocessableEntity) Encode(e *jx.Encoder) {
+	unwrapped := (*Error)(s)
+
+	unwrapped.Encode(e)
+}
+
+// Decode decodes V1betaInternalGetReplicationJobsUnprocessableEntity from json.
+func (s *V1betaInternalGetReplicationJobsUnprocessableEntity) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode V1betaInternalGetReplicationJobsUnprocessableEntity to nil")
+	}
+	var unwrapped Error
+	if err := func() error {
+		if err := unwrapped.Decode(d); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		return errors.Wrap(err, "alias")
+	}
+	*s = V1betaInternalGetReplicationJobsUnprocessableEntity(unwrapped)
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *V1betaInternalGetReplicationJobsUnprocessableEntity) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *V1betaInternalGetReplicationJobsUnprocessableEntity) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }
@@ -33166,6 +35830,384 @@ func (s *V1betaListReplicationsUnprocessableEntity) UnmarshalJSON(data []byte) e
 	return s.Decode(d)
 }
 
+// Encode encodes V1betaListSnapshotBadRequest as json.
+func (s *V1betaListSnapshotBadRequest) Encode(e *jx.Encoder) {
+	unwrapped := (*Error)(s)
+
+	unwrapped.Encode(e)
+}
+
+// Decode decodes V1betaListSnapshotBadRequest from json.
+func (s *V1betaListSnapshotBadRequest) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode V1betaListSnapshotBadRequest to nil")
+	}
+	var unwrapped Error
+	if err := func() error {
+		if err := unwrapped.Decode(d); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		return errors.Wrap(err, "alias")
+	}
+	*s = V1betaListSnapshotBadRequest(unwrapped)
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *V1betaListSnapshotBadRequest) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *V1betaListSnapshotBadRequest) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes V1betaListSnapshotConflict as json.
+func (s *V1betaListSnapshotConflict) Encode(e *jx.Encoder) {
+	unwrapped := (*Error)(s)
+
+	unwrapped.Encode(e)
+}
+
+// Decode decodes V1betaListSnapshotConflict from json.
+func (s *V1betaListSnapshotConflict) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode V1betaListSnapshotConflict to nil")
+	}
+	var unwrapped Error
+	if err := func() error {
+		if err := unwrapped.Decode(d); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		return errors.Wrap(err, "alias")
+	}
+	*s = V1betaListSnapshotConflict(unwrapped)
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *V1betaListSnapshotConflict) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *V1betaListSnapshotConflict) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes V1betaListSnapshotForbidden as json.
+func (s *V1betaListSnapshotForbidden) Encode(e *jx.Encoder) {
+	unwrapped := (*Error)(s)
+
+	unwrapped.Encode(e)
+}
+
+// Decode decodes V1betaListSnapshotForbidden from json.
+func (s *V1betaListSnapshotForbidden) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode V1betaListSnapshotForbidden to nil")
+	}
+	var unwrapped Error
+	if err := func() error {
+		if err := unwrapped.Decode(d); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		return errors.Wrap(err, "alias")
+	}
+	*s = V1betaListSnapshotForbidden(unwrapped)
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *V1betaListSnapshotForbidden) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *V1betaListSnapshotForbidden) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes V1betaListSnapshotInternalServerError as json.
+func (s *V1betaListSnapshotInternalServerError) Encode(e *jx.Encoder) {
+	unwrapped := (*Error)(s)
+
+	unwrapped.Encode(e)
+}
+
+// Decode decodes V1betaListSnapshotInternalServerError from json.
+func (s *V1betaListSnapshotInternalServerError) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode V1betaListSnapshotInternalServerError to nil")
+	}
+	var unwrapped Error
+	if err := func() error {
+		if err := unwrapped.Decode(d); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		return errors.Wrap(err, "alias")
+	}
+	*s = V1betaListSnapshotInternalServerError(unwrapped)
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *V1betaListSnapshotInternalServerError) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *V1betaListSnapshotInternalServerError) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes V1betaListSnapshotNotFound as json.
+func (s *V1betaListSnapshotNotFound) Encode(e *jx.Encoder) {
+	unwrapped := (*Error)(s)
+
+	unwrapped.Encode(e)
+}
+
+// Decode decodes V1betaListSnapshotNotFound from json.
+func (s *V1betaListSnapshotNotFound) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode V1betaListSnapshotNotFound to nil")
+	}
+	var unwrapped Error
+	if err := func() error {
+		if err := unwrapped.Decode(d); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		return errors.Wrap(err, "alias")
+	}
+	*s = V1betaListSnapshotNotFound(unwrapped)
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *V1betaListSnapshotNotFound) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *V1betaListSnapshotNotFound) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode implements json.Marshaler.
+func (s *V1betaListSnapshotOK) Encode(e *jx.Encoder) {
+	e.ObjStart()
+	s.encodeFields(e)
+	e.ObjEnd()
+}
+
+// encodeFields encodes fields.
+func (s *V1betaListSnapshotOK) encodeFields(e *jx.Encoder) {
+	{
+		if s.Snapshots != nil {
+			e.FieldStart("snapshots")
+			e.ArrStart()
+			for _, elem := range s.Snapshots {
+				elem.Encode(e)
+			}
+			e.ArrEnd()
+		}
+	}
+}
+
+var jsonFieldsNameOfV1betaListSnapshotOK = [1]string{
+	0: "snapshots",
+}
+
+// Decode decodes V1betaListSnapshotOK from json.
+func (s *V1betaListSnapshotOK) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode V1betaListSnapshotOK to nil")
+	}
+
+	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
+		switch string(k) {
+		case "snapshots":
+			if err := func() error {
+				s.Snapshots = make([]SnapshotV1beta, 0)
+				if err := d.Arr(func(d *jx.Decoder) error {
+					var elem SnapshotV1beta
+					if err := elem.Decode(d); err != nil {
+						return err
+					}
+					s.Snapshots = append(s.Snapshots, elem)
+					return nil
+				}); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"snapshots\"")
+			}
+		default:
+			return d.Skip()
+		}
+		return nil
+	}); err != nil {
+		return errors.Wrap(err, "decode V1betaListSnapshotOK")
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *V1betaListSnapshotOK) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *V1betaListSnapshotOK) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes V1betaListSnapshotTooManyRequests as json.
+func (s *V1betaListSnapshotTooManyRequests) Encode(e *jx.Encoder) {
+	unwrapped := (*Error)(s)
+
+	unwrapped.Encode(e)
+}
+
+// Decode decodes V1betaListSnapshotTooManyRequests from json.
+func (s *V1betaListSnapshotTooManyRequests) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode V1betaListSnapshotTooManyRequests to nil")
+	}
+	var unwrapped Error
+	if err := func() error {
+		if err := unwrapped.Decode(d); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		return errors.Wrap(err, "alias")
+	}
+	*s = V1betaListSnapshotTooManyRequests(unwrapped)
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *V1betaListSnapshotTooManyRequests) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *V1betaListSnapshotTooManyRequests) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes V1betaListSnapshotUnauthorized as json.
+func (s *V1betaListSnapshotUnauthorized) Encode(e *jx.Encoder) {
+	unwrapped := (*Error)(s)
+
+	unwrapped.Encode(e)
+}
+
+// Decode decodes V1betaListSnapshotUnauthorized from json.
+func (s *V1betaListSnapshotUnauthorized) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode V1betaListSnapshotUnauthorized to nil")
+	}
+	var unwrapped Error
+	if err := func() error {
+		if err := unwrapped.Decode(d); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		return errors.Wrap(err, "alias")
+	}
+	*s = V1betaListSnapshotUnauthorized(unwrapped)
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *V1betaListSnapshotUnauthorized) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *V1betaListSnapshotUnauthorized) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes V1betaListSnapshotUnprocessableEntity as json.
+func (s *V1betaListSnapshotUnprocessableEntity) Encode(e *jx.Encoder) {
+	unwrapped := (*Error)(s)
+
+	unwrapped.Encode(e)
+}
+
+// Decode decodes V1betaListSnapshotUnprocessableEntity from json.
+func (s *V1betaListSnapshotUnprocessableEntity) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode V1betaListSnapshotUnprocessableEntity to nil")
+	}
+	var unwrapped Error
+	if err := func() error {
+		if err := unwrapped.Decode(d); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		return errors.Wrap(err, "alias")
+	}
+	*s = V1betaListSnapshotUnprocessableEntity(unwrapped)
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *V1betaListSnapshotUnprocessableEntity) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *V1betaListSnapshotUnprocessableEntity) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
 // Encode encodes V1betaListVolumesBadRequest as json.
 func (s *V1betaListVolumesBadRequest) Encode(e *jx.Encoder) {
 	unwrapped := (*Error)(s)
@@ -36660,6 +39702,272 @@ func (s *V1betaUpdateReplicationUnprocessableEntity) UnmarshalJSON(data []byte) 
 	return s.Decode(d)
 }
 
+// Encode encodes V1betaUpdateSnapshotBadRequest as json.
+func (s *V1betaUpdateSnapshotBadRequest) Encode(e *jx.Encoder) {
+	unwrapped := (*Error)(s)
+
+	unwrapped.Encode(e)
+}
+
+// Decode decodes V1betaUpdateSnapshotBadRequest from json.
+func (s *V1betaUpdateSnapshotBadRequest) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode V1betaUpdateSnapshotBadRequest to nil")
+	}
+	var unwrapped Error
+	if err := func() error {
+		if err := unwrapped.Decode(d); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		return errors.Wrap(err, "alias")
+	}
+	*s = V1betaUpdateSnapshotBadRequest(unwrapped)
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *V1betaUpdateSnapshotBadRequest) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *V1betaUpdateSnapshotBadRequest) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes V1betaUpdateSnapshotConflict as json.
+func (s *V1betaUpdateSnapshotConflict) Encode(e *jx.Encoder) {
+	unwrapped := (*Error)(s)
+
+	unwrapped.Encode(e)
+}
+
+// Decode decodes V1betaUpdateSnapshotConflict from json.
+func (s *V1betaUpdateSnapshotConflict) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode V1betaUpdateSnapshotConflict to nil")
+	}
+	var unwrapped Error
+	if err := func() error {
+		if err := unwrapped.Decode(d); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		return errors.Wrap(err, "alias")
+	}
+	*s = V1betaUpdateSnapshotConflict(unwrapped)
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *V1betaUpdateSnapshotConflict) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *V1betaUpdateSnapshotConflict) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes V1betaUpdateSnapshotForbidden as json.
+func (s *V1betaUpdateSnapshotForbidden) Encode(e *jx.Encoder) {
+	unwrapped := (*Error)(s)
+
+	unwrapped.Encode(e)
+}
+
+// Decode decodes V1betaUpdateSnapshotForbidden from json.
+func (s *V1betaUpdateSnapshotForbidden) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode V1betaUpdateSnapshotForbidden to nil")
+	}
+	var unwrapped Error
+	if err := func() error {
+		if err := unwrapped.Decode(d); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		return errors.Wrap(err, "alias")
+	}
+	*s = V1betaUpdateSnapshotForbidden(unwrapped)
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *V1betaUpdateSnapshotForbidden) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *V1betaUpdateSnapshotForbidden) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes V1betaUpdateSnapshotInternalServerError as json.
+func (s *V1betaUpdateSnapshotInternalServerError) Encode(e *jx.Encoder) {
+	unwrapped := (*Error)(s)
+
+	unwrapped.Encode(e)
+}
+
+// Decode decodes V1betaUpdateSnapshotInternalServerError from json.
+func (s *V1betaUpdateSnapshotInternalServerError) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode V1betaUpdateSnapshotInternalServerError to nil")
+	}
+	var unwrapped Error
+	if err := func() error {
+		if err := unwrapped.Decode(d); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		return errors.Wrap(err, "alias")
+	}
+	*s = V1betaUpdateSnapshotInternalServerError(unwrapped)
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *V1betaUpdateSnapshotInternalServerError) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *V1betaUpdateSnapshotInternalServerError) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes V1betaUpdateSnapshotNotFound as json.
+func (s *V1betaUpdateSnapshotNotFound) Encode(e *jx.Encoder) {
+	unwrapped := (*Error)(s)
+
+	unwrapped.Encode(e)
+}
+
+// Decode decodes V1betaUpdateSnapshotNotFound from json.
+func (s *V1betaUpdateSnapshotNotFound) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode V1betaUpdateSnapshotNotFound to nil")
+	}
+	var unwrapped Error
+	if err := func() error {
+		if err := unwrapped.Decode(d); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		return errors.Wrap(err, "alias")
+	}
+	*s = V1betaUpdateSnapshotNotFound(unwrapped)
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *V1betaUpdateSnapshotNotFound) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *V1betaUpdateSnapshotNotFound) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes V1betaUpdateSnapshotTooManyRequests as json.
+func (s *V1betaUpdateSnapshotTooManyRequests) Encode(e *jx.Encoder) {
+	unwrapped := (*Error)(s)
+
+	unwrapped.Encode(e)
+}
+
+// Decode decodes V1betaUpdateSnapshotTooManyRequests from json.
+func (s *V1betaUpdateSnapshotTooManyRequests) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode V1betaUpdateSnapshotTooManyRequests to nil")
+	}
+	var unwrapped Error
+	if err := func() error {
+		if err := unwrapped.Decode(d); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		return errors.Wrap(err, "alias")
+	}
+	*s = V1betaUpdateSnapshotTooManyRequests(unwrapped)
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *V1betaUpdateSnapshotTooManyRequests) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *V1betaUpdateSnapshotTooManyRequests) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes V1betaUpdateSnapshotUnauthorized as json.
+func (s *V1betaUpdateSnapshotUnauthorized) Encode(e *jx.Encoder) {
+	unwrapped := (*Error)(s)
+
+	unwrapped.Encode(e)
+}
+
+// Decode decodes V1betaUpdateSnapshotUnauthorized from json.
+func (s *V1betaUpdateSnapshotUnauthorized) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode V1betaUpdateSnapshotUnauthorized to nil")
+	}
+	var unwrapped Error
+	if err := func() error {
+		if err := unwrapped.Decode(d); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		return errors.Wrap(err, "alias")
+	}
+	*s = V1betaUpdateSnapshotUnauthorized(unwrapped)
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *V1betaUpdateSnapshotUnauthorized) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *V1betaUpdateSnapshotUnauthorized) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
 // Encode encodes V1betaUpdateVolumeBadRequest as json.
 func (s *V1betaUpdateVolumeBadRequest) Encode(e *jx.Encoder) {
 	unwrapped := (*Error)(s)
@@ -37437,10 +40745,6 @@ func (s *VolumeReplicationCreateInternalV1beta) encodeFields(e *jx.Encoder) {
 		e.Str(s.RemoteRegion)
 	}
 	{
-		e.FieldStart("remoteResourceId")
-		e.Str(s.RemoteResourceId)
-	}
-	{
 		e.FieldStart("sourceHostName")
 		e.Str(s.SourceHostName)
 	}
@@ -37451,6 +40755,18 @@ func (s *VolumeReplicationCreateInternalV1beta) encodeFields(e *jx.Encoder) {
 	{
 		e.FieldStart("sourceVolumeName")
 		e.Str(s.SourceVolumeName)
+	}
+	{
+		if s.SourceVolumeUuid.Set {
+			e.FieldStart("sourceVolumeUuid")
+			s.SourceVolumeUuid.Encode(e)
+		}
+	}
+	{
+		if s.SourcePoolUuid.Set {
+			e.FieldStart("sourcePoolUuid")
+			s.SourcePoolUuid.Encode(e)
+		}
 	}
 	{
 		e.FieldStart("destinationHostName")
@@ -37471,6 +40787,12 @@ func (s *VolumeReplicationCreateInternalV1beta) encodeFields(e *jx.Encoder) {
 		}
 	}
 	{
+		if s.DestinationPoolUuid.Set {
+			e.FieldStart("destinationPoolUuid")
+			s.DestinationPoolUuid.Encode(e)
+		}
+	}
+	{
 		if s.Name.Set {
 			e.FieldStart("name")
 			s.Name.Encode(e)
@@ -37483,9 +40805,9 @@ func (s *VolumeReplicationCreateInternalV1beta) encodeFields(e *jx.Encoder) {
 		}
 	}
 	{
-		if s.HybridReplicationType.Set {
-			e.FieldStart("hybridReplicationType")
-			s.HybridReplicationType.Encode(e)
+		if s.ReplicationType.Set {
+			e.FieldStart("replicationType")
+			s.ReplicationType.Encode(e)
 		}
 	}
 	{
@@ -37614,7 +40936,7 @@ func (s *VolumeReplicationCreateInternalV1beta) encodeFields(e *jx.Encoder) {
 	}
 }
 
-var jsonFieldsNameOfVolumeReplicationCreateInternalV1beta = [38]string{
+var jsonFieldsNameOfVolumeReplicationCreateInternalV1beta = [40]string{
 	0:  "volumeReplicationUuid",
 	1:  "lifeCycleState",
 	2:  "lifeCycleStateDetails",
@@ -37622,37 +40944,39 @@ var jsonFieldsNameOfVolumeReplicationCreateInternalV1beta = [38]string{
 	4:  "replicationPolicy",
 	5:  "replicationSchedule",
 	6:  "remoteRegion",
-	7:  "remoteResourceId",
-	8:  "sourceHostName",
-	9:  "sourceServerName",
-	10: "sourceVolumeName",
-	11: "destinationHostName",
-	12: "destinationServerName",
-	13: "destinationVolumeName",
-	14: "destinationVolumeUuid",
-	15: "name",
-	16: "mirrorState",
-	17: "hybridReplicationType",
-	18: "relationshipStatus",
-	19: "totalProgress",
-	20: "healthy",
-	21: "totalTransferBytes",
-	22: "totalTransferTimeSecs",
-	23: "lastTransferSize",
-	24: "lastTransferError",
-	25: "lastTransferDuration",
-	26: "lastTransferEndTime",
-	27: "progressLastUpdated",
-	28: "lagTime",
-	29: "createdAt",
-	30: "updatedAt",
-	31: "deletedAt",
-	32: "jobs",
-	33: "description",
-	34: "labels",
-	35: "reverseResume",
-	36: "ccfeURI",
-	37: "ccfeRemoteURI",
+	7:  "sourceHostName",
+	8:  "sourceServerName",
+	9:  "sourceVolumeName",
+	10: "sourceVolumeUuid",
+	11: "sourcePoolUuid",
+	12: "destinationHostName",
+	13: "destinationServerName",
+	14: "destinationVolumeName",
+	15: "destinationVolumeUuid",
+	16: "destinationPoolUuid",
+	17: "name",
+	18: "mirrorState",
+	19: "replicationType",
+	20: "relationshipStatus",
+	21: "totalProgress",
+	22: "healthy",
+	23: "totalTransferBytes",
+	24: "totalTransferTimeSecs",
+	25: "lastTransferSize",
+	26: "lastTransferError",
+	27: "lastTransferDuration",
+	28: "lastTransferEndTime",
+	29: "progressLastUpdated",
+	30: "lagTime",
+	31: "createdAt",
+	32: "updatedAt",
+	33: "deletedAt",
+	34: "jobs",
+	35: "description",
+	36: "labels",
+	37: "reverseResume",
+	38: "ccfeURI",
+	39: "ccfeRemoteURI",
 }
 
 // Decode decodes VolumeReplicationCreateInternalV1beta from json.
@@ -37736,20 +41060,8 @@ func (s *VolumeReplicationCreateInternalV1beta) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"remoteRegion\"")
 			}
-		case "remoteResourceId":
-			requiredBitSet[0] |= 1 << 7
-			if err := func() error {
-				v, err := d.Str()
-				s.RemoteResourceId = string(v)
-				if err != nil {
-					return err
-				}
-				return nil
-			}(); err != nil {
-				return errors.Wrap(err, "decode field \"remoteResourceId\"")
-			}
 		case "sourceHostName":
-			requiredBitSet[1] |= 1 << 0
+			requiredBitSet[0] |= 1 << 7
 			if err := func() error {
 				v, err := d.Str()
 				s.SourceHostName = string(v)
@@ -37761,7 +41073,7 @@ func (s *VolumeReplicationCreateInternalV1beta) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"sourceHostName\"")
 			}
 		case "sourceServerName":
-			requiredBitSet[1] |= 1 << 1
+			requiredBitSet[1] |= 1 << 0
 			if err := func() error {
 				v, err := d.Str()
 				s.SourceServerName = string(v)
@@ -37773,7 +41085,7 @@ func (s *VolumeReplicationCreateInternalV1beta) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"sourceServerName\"")
 			}
 		case "sourceVolumeName":
-			requiredBitSet[1] |= 1 << 2
+			requiredBitSet[1] |= 1 << 1
 			if err := func() error {
 				v, err := d.Str()
 				s.SourceVolumeName = string(v)
@@ -37784,8 +41096,28 @@ func (s *VolumeReplicationCreateInternalV1beta) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"sourceVolumeName\"")
 			}
+		case "sourceVolumeUuid":
+			if err := func() error {
+				s.SourceVolumeUuid.Reset()
+				if err := s.SourceVolumeUuid.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"sourceVolumeUuid\"")
+			}
+		case "sourcePoolUuid":
+			if err := func() error {
+				s.SourcePoolUuid.Reset()
+				if err := s.SourcePoolUuid.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"sourcePoolUuid\"")
+			}
 		case "destinationHostName":
-			requiredBitSet[1] |= 1 << 3
+			requiredBitSet[1] |= 1 << 4
 			if err := func() error {
 				v, err := d.Str()
 				s.DestinationHostName = string(v)
@@ -37797,7 +41129,7 @@ func (s *VolumeReplicationCreateInternalV1beta) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"destinationHostName\"")
 			}
 		case "destinationServerName":
-			requiredBitSet[1] |= 1 << 4
+			requiredBitSet[1] |= 1 << 5
 			if err := func() error {
 				v, err := d.Str()
 				s.DestinationServerName = string(v)
@@ -37809,7 +41141,7 @@ func (s *VolumeReplicationCreateInternalV1beta) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"destinationServerName\"")
 			}
 		case "destinationVolumeName":
-			requiredBitSet[1] |= 1 << 5
+			requiredBitSet[1] |= 1 << 6
 			if err := func() error {
 				v, err := d.Str()
 				s.DestinationVolumeName = string(v)
@@ -37829,6 +41161,16 @@ func (s *VolumeReplicationCreateInternalV1beta) Decode(d *jx.Decoder) error {
 				return nil
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"destinationVolumeUuid\"")
+			}
+		case "destinationPoolUuid":
+			if err := func() error {
+				s.DestinationPoolUuid.Reset()
+				if err := s.DestinationPoolUuid.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"destinationPoolUuid\"")
 			}
 		case "name":
 			if err := func() error {
@@ -37850,15 +41192,15 @@ func (s *VolumeReplicationCreateInternalV1beta) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"mirrorState\"")
 			}
-		case "hybridReplicationType":
+		case "replicationType":
 			if err := func() error {
-				s.HybridReplicationType.Reset()
-				if err := s.HybridReplicationType.Decode(d); err != nil {
+				s.ReplicationType.Reset()
+				if err := s.ReplicationType.Decode(d); err != nil {
 					return err
 				}
 				return nil
 			}(); err != nil {
-				return errors.Wrap(err, "decode field \"hybridReplicationType\"")
+				return errors.Wrap(err, "decode field \"replicationType\"")
 			}
 		case "relationshipStatus":
 			if err := func() error {
@@ -38078,7 +41420,7 @@ func (s *VolumeReplicationCreateInternalV1beta) Decode(d *jx.Decoder) error {
 	var failures []validate.FieldError
 	for i, mask := range [5]uint8{
 		0b11001000,
-		0b00111111,
+		0b01110011,
 		0b00000000,
 		0b00000000,
 		0b00000000,
@@ -38165,52 +41507,6 @@ func (s VolumeReplicationCreateInternalV1betaEndpointType) MarshalJSON() ([]byte
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
 func (s *VolumeReplicationCreateInternalV1betaEndpointType) UnmarshalJSON(data []byte) error {
-	d := jx.DecodeBytes(data)
-	return s.Decode(d)
-}
-
-// Encode encodes VolumeReplicationCreateInternalV1betaHybridReplicationType as json.
-func (s VolumeReplicationCreateInternalV1betaHybridReplicationType) Encode(e *jx.Encoder) {
-	e.Str(string(s))
-}
-
-// Decode decodes VolumeReplicationCreateInternalV1betaHybridReplicationType from json.
-func (s *VolumeReplicationCreateInternalV1betaHybridReplicationType) Decode(d *jx.Decoder) error {
-	if s == nil {
-		return errors.New("invalid: unable to decode VolumeReplicationCreateInternalV1betaHybridReplicationType to nil")
-	}
-	v, err := d.StrBytes()
-	if err != nil {
-		return err
-	}
-	// Try to use constant string.
-	switch VolumeReplicationCreateInternalV1betaHybridReplicationType(v) {
-	case VolumeReplicationCreateInternalV1betaHybridReplicationTypeHYBRIdREPLICATIONTYPEUNSPECIFIED:
-		*s = VolumeReplicationCreateInternalV1betaHybridReplicationTypeHYBRIdREPLICATIONTYPEUNSPECIFIED
-	case VolumeReplicationCreateInternalV1betaHybridReplicationTypeMIGRATION:
-		*s = VolumeReplicationCreateInternalV1betaHybridReplicationTypeMIGRATION
-	case VolumeReplicationCreateInternalV1betaHybridReplicationTypeCONTINUOUSREPLICATION:
-		*s = VolumeReplicationCreateInternalV1betaHybridReplicationTypeCONTINUOUSREPLICATION
-	case VolumeReplicationCreateInternalV1betaHybridReplicationTypeONPREMREPLICATION:
-		*s = VolumeReplicationCreateInternalV1betaHybridReplicationTypeONPREMREPLICATION
-	case VolumeReplicationCreateInternalV1betaHybridReplicationTypeREVERSEONPREMREPLICATION:
-		*s = VolumeReplicationCreateInternalV1betaHybridReplicationTypeREVERSEONPREMREPLICATION
-	default:
-		*s = VolumeReplicationCreateInternalV1betaHybridReplicationType(v)
-	}
-
-	return nil
-}
-
-// MarshalJSON implements stdjson.Marshaler.
-func (s VolumeReplicationCreateInternalV1betaHybridReplicationType) MarshalJSON() ([]byte, error) {
-	e := jx.Encoder{}
-	s.Encode(&e)
-	return e.Bytes(), nil
-}
-
-// UnmarshalJSON implements stdjson.Unmarshaler.
-func (s *VolumeReplicationCreateInternalV1betaHybridReplicationType) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }
@@ -38487,6 +41783,58 @@ func (s *VolumeReplicationCreateInternalV1betaReplicationSchedule) UnmarshalJSON
 	return s.Decode(d)
 }
 
+// Encode encodes VolumeReplicationCreateInternalV1betaReplicationType as json.
+func (s VolumeReplicationCreateInternalV1betaReplicationType) Encode(e *jx.Encoder) {
+	e.Str(string(s))
+}
+
+// Decode decodes VolumeReplicationCreateInternalV1betaReplicationType from json.
+func (s *VolumeReplicationCreateInternalV1betaReplicationType) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode VolumeReplicationCreateInternalV1betaReplicationType to nil")
+	}
+	v, err := d.StrBytes()
+	if err != nil {
+		return err
+	}
+	// Try to use constant string.
+	switch VolumeReplicationCreateInternalV1betaReplicationType(v) {
+	case VolumeReplicationCreateInternalV1betaReplicationTypeHYBRIDREPLICATIONTYPEUNSPECIFIED:
+		*s = VolumeReplicationCreateInternalV1betaReplicationTypeHYBRIDREPLICATIONTYPEUNSPECIFIED
+	case VolumeReplicationCreateInternalV1betaReplicationTypeMIGRATION:
+		*s = VolumeReplicationCreateInternalV1betaReplicationTypeMIGRATION
+	case VolumeReplicationCreateInternalV1betaReplicationTypeCONTINUOUSREPLICATION:
+		*s = VolumeReplicationCreateInternalV1betaReplicationTypeCONTINUOUSREPLICATION
+	case VolumeReplicationCreateInternalV1betaReplicationTypeONPREMREPLICATION:
+		*s = VolumeReplicationCreateInternalV1betaReplicationTypeONPREMREPLICATION
+	case VolumeReplicationCreateInternalV1betaReplicationTypeREVERSEONPREMREPLICATION:
+		*s = VolumeReplicationCreateInternalV1betaReplicationTypeREVERSEONPREMREPLICATION
+	case VolumeReplicationCreateInternalV1betaReplicationTypeCROSSREGIONREPLICATION:
+		*s = VolumeReplicationCreateInternalV1betaReplicationTypeCROSSREGIONREPLICATION
+	case VolumeReplicationCreateInternalV1betaReplicationTypeCROSSZONEREPLICATION:
+		*s = VolumeReplicationCreateInternalV1betaReplicationTypeCROSSZONEREPLICATION
+	case VolumeReplicationCreateInternalV1betaReplicationTypeCROSSPROJECTREPLICATION:
+		*s = VolumeReplicationCreateInternalV1betaReplicationTypeCROSSPROJECTREPLICATION
+	default:
+		*s = VolumeReplicationCreateInternalV1betaReplicationType(v)
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s VolumeReplicationCreateInternalV1betaReplicationType) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *VolumeReplicationCreateInternalV1betaReplicationType) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
 // Encode implements json.Marshaler.
 func (s *VolumeReplicationInternalV1beta) Encode(e *jx.Encoder) {
 	e.ObjStart()
@@ -38535,10 +41883,6 @@ func (s *VolumeReplicationInternalV1beta) encodeFields(e *jx.Encoder) {
 		e.Str(s.RemoteRegion)
 	}
 	{
-		e.FieldStart("remoteResourceId")
-		e.Str(s.RemoteResourceId)
-	}
-	{
 		e.FieldStart("sourceHostName")
 		e.Str(s.SourceHostName)
 	}
@@ -38549,6 +41893,18 @@ func (s *VolumeReplicationInternalV1beta) encodeFields(e *jx.Encoder) {
 	{
 		e.FieldStart("sourceVolumeName")
 		e.Str(s.SourceVolumeName)
+	}
+	{
+		if s.SourceVolumeUuid.Set {
+			e.FieldStart("sourceVolumeUuid")
+			s.SourceVolumeUuid.Encode(e)
+		}
+	}
+	{
+		if s.SourcePoolUuid.Set {
+			e.FieldStart("sourcePoolUuid")
+			s.SourcePoolUuid.Encode(e)
+		}
 	}
 	{
 		e.FieldStart("destinationHostName")
@@ -38569,6 +41925,12 @@ func (s *VolumeReplicationInternalV1beta) encodeFields(e *jx.Encoder) {
 		}
 	}
 	{
+		if s.DestinationPoolUuid.Set {
+			e.FieldStart("destinationPoolUuid")
+			s.DestinationPoolUuid.Encode(e)
+		}
+	}
+	{
 		if s.Name.Set {
 			e.FieldStart("name")
 			s.Name.Encode(e)
@@ -38581,9 +41943,9 @@ func (s *VolumeReplicationInternalV1beta) encodeFields(e *jx.Encoder) {
 		}
 	}
 	{
-		if s.HybridReplicationType.Set {
-			e.FieldStart("hybridReplicationType")
-			s.HybridReplicationType.Encode(e)
+		if s.ReplicationType.Set {
+			e.FieldStart("replicationType")
+			s.ReplicationType.Encode(e)
 		}
 	}
 	{
@@ -38694,7 +42056,7 @@ func (s *VolumeReplicationInternalV1beta) encodeFields(e *jx.Encoder) {
 	}
 }
 
-var jsonFieldsNameOfVolumeReplicationInternalV1beta = [35]string{
+var jsonFieldsNameOfVolumeReplicationInternalV1beta = [37]string{
 	0:  "volumeReplicationUuid",
 	1:  "lifeCycleState",
 	2:  "lifeCycleStateDetails",
@@ -38702,34 +42064,36 @@ var jsonFieldsNameOfVolumeReplicationInternalV1beta = [35]string{
 	4:  "replicationPolicy",
 	5:  "replicationSchedule",
 	6:  "remoteRegion",
-	7:  "remoteResourceId",
-	8:  "sourceHostName",
-	9:  "sourceServerName",
-	10: "sourceVolumeName",
-	11: "destinationHostName",
-	12: "destinationServerName",
-	13: "destinationVolumeName",
-	14: "destinationVolumeUuid",
-	15: "name",
-	16: "mirrorState",
-	17: "hybridReplicationType",
-	18: "relationshipStatus",
-	19: "totalProgress",
-	20: "healthy",
-	21: "totalTransferBytes",
-	22: "totalTransferTimeSecs",
-	23: "lastTransferSize",
-	24: "lastTransferError",
-	25: "lastTransferDuration",
-	26: "lastTransferEndTime",
-	27: "progressLastUpdated",
-	28: "lagTime",
-	29: "createdAt",
-	30: "updatedAt",
-	31: "deletedAt",
-	32: "jobs",
-	33: "description",
-	34: "labels",
+	7:  "sourceHostName",
+	8:  "sourceServerName",
+	9:  "sourceVolumeName",
+	10: "sourceVolumeUuid",
+	11: "sourcePoolUuid",
+	12: "destinationHostName",
+	13: "destinationServerName",
+	14: "destinationVolumeName",
+	15: "destinationVolumeUuid",
+	16: "destinationPoolUuid",
+	17: "name",
+	18: "mirrorState",
+	19: "replicationType",
+	20: "relationshipStatus",
+	21: "totalProgress",
+	22: "healthy",
+	23: "totalTransferBytes",
+	24: "totalTransferTimeSecs",
+	25: "lastTransferSize",
+	26: "lastTransferError",
+	27: "lastTransferDuration",
+	28: "lastTransferEndTime",
+	29: "progressLastUpdated",
+	30: "lagTime",
+	31: "createdAt",
+	32: "updatedAt",
+	33: "deletedAt",
+	34: "jobs",
+	35: "description",
+	36: "labels",
 }
 
 // Decode decodes VolumeReplicationInternalV1beta from json.
@@ -38813,20 +42177,8 @@ func (s *VolumeReplicationInternalV1beta) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"remoteRegion\"")
 			}
-		case "remoteResourceId":
-			requiredBitSet[0] |= 1 << 7
-			if err := func() error {
-				v, err := d.Str()
-				s.RemoteResourceId = string(v)
-				if err != nil {
-					return err
-				}
-				return nil
-			}(); err != nil {
-				return errors.Wrap(err, "decode field \"remoteResourceId\"")
-			}
 		case "sourceHostName":
-			requiredBitSet[1] |= 1 << 0
+			requiredBitSet[0] |= 1 << 7
 			if err := func() error {
 				v, err := d.Str()
 				s.SourceHostName = string(v)
@@ -38838,7 +42190,7 @@ func (s *VolumeReplicationInternalV1beta) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"sourceHostName\"")
 			}
 		case "sourceServerName":
-			requiredBitSet[1] |= 1 << 1
+			requiredBitSet[1] |= 1 << 0
 			if err := func() error {
 				v, err := d.Str()
 				s.SourceServerName = string(v)
@@ -38850,7 +42202,7 @@ func (s *VolumeReplicationInternalV1beta) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"sourceServerName\"")
 			}
 		case "sourceVolumeName":
-			requiredBitSet[1] |= 1 << 2
+			requiredBitSet[1] |= 1 << 1
 			if err := func() error {
 				v, err := d.Str()
 				s.SourceVolumeName = string(v)
@@ -38861,8 +42213,28 @@ func (s *VolumeReplicationInternalV1beta) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"sourceVolumeName\"")
 			}
+		case "sourceVolumeUuid":
+			if err := func() error {
+				s.SourceVolumeUuid.Reset()
+				if err := s.SourceVolumeUuid.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"sourceVolumeUuid\"")
+			}
+		case "sourcePoolUuid":
+			if err := func() error {
+				s.SourcePoolUuid.Reset()
+				if err := s.SourcePoolUuid.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"sourcePoolUuid\"")
+			}
 		case "destinationHostName":
-			requiredBitSet[1] |= 1 << 3
+			requiredBitSet[1] |= 1 << 4
 			if err := func() error {
 				v, err := d.Str()
 				s.DestinationHostName = string(v)
@@ -38874,7 +42246,7 @@ func (s *VolumeReplicationInternalV1beta) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"destinationHostName\"")
 			}
 		case "destinationServerName":
-			requiredBitSet[1] |= 1 << 4
+			requiredBitSet[1] |= 1 << 5
 			if err := func() error {
 				v, err := d.Str()
 				s.DestinationServerName = string(v)
@@ -38886,7 +42258,7 @@ func (s *VolumeReplicationInternalV1beta) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"destinationServerName\"")
 			}
 		case "destinationVolumeName":
-			requiredBitSet[1] |= 1 << 5
+			requiredBitSet[1] |= 1 << 6
 			if err := func() error {
 				v, err := d.Str()
 				s.DestinationVolumeName = string(v)
@@ -38906,6 +42278,16 @@ func (s *VolumeReplicationInternalV1beta) Decode(d *jx.Decoder) error {
 				return nil
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"destinationVolumeUuid\"")
+			}
+		case "destinationPoolUuid":
+			if err := func() error {
+				s.DestinationPoolUuid.Reset()
+				if err := s.DestinationPoolUuid.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"destinationPoolUuid\"")
 			}
 		case "name":
 			if err := func() error {
@@ -38927,15 +42309,15 @@ func (s *VolumeReplicationInternalV1beta) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"mirrorState\"")
 			}
-		case "hybridReplicationType":
+		case "replicationType":
 			if err := func() error {
-				s.HybridReplicationType.Reset()
-				if err := s.HybridReplicationType.Decode(d); err != nil {
+				s.ReplicationType.Reset()
+				if err := s.ReplicationType.Decode(d); err != nil {
 					return err
 				}
 				return nil
 			}(); err != nil {
-				return errors.Wrap(err, "decode field \"hybridReplicationType\"")
+				return errors.Wrap(err, "decode field \"replicationType\"")
 			}
 		case "relationshipStatus":
 			if err := func() error {
@@ -39125,7 +42507,7 @@ func (s *VolumeReplicationInternalV1beta) Decode(d *jx.Decoder) error {
 	var failures []validate.FieldError
 	for i, mask := range [5]uint8{
 		0b11001000,
-		0b00111111,
+		0b01110011,
 		0b00000000,
 		0b00000000,
 		0b00000000,
@@ -39212,52 +42594,6 @@ func (s VolumeReplicationInternalV1betaEndpointType) MarshalJSON() ([]byte, erro
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
 func (s *VolumeReplicationInternalV1betaEndpointType) UnmarshalJSON(data []byte) error {
-	d := jx.DecodeBytes(data)
-	return s.Decode(d)
-}
-
-// Encode encodes VolumeReplicationInternalV1betaHybridReplicationType as json.
-func (s VolumeReplicationInternalV1betaHybridReplicationType) Encode(e *jx.Encoder) {
-	e.Str(string(s))
-}
-
-// Decode decodes VolumeReplicationInternalV1betaHybridReplicationType from json.
-func (s *VolumeReplicationInternalV1betaHybridReplicationType) Decode(d *jx.Decoder) error {
-	if s == nil {
-		return errors.New("invalid: unable to decode VolumeReplicationInternalV1betaHybridReplicationType to nil")
-	}
-	v, err := d.StrBytes()
-	if err != nil {
-		return err
-	}
-	// Try to use constant string.
-	switch VolumeReplicationInternalV1betaHybridReplicationType(v) {
-	case VolumeReplicationInternalV1betaHybridReplicationTypeHYBRIdREPLICATIONTYPEUNSPECIFIED:
-		*s = VolumeReplicationInternalV1betaHybridReplicationTypeHYBRIdREPLICATIONTYPEUNSPECIFIED
-	case VolumeReplicationInternalV1betaHybridReplicationTypeMIGRATION:
-		*s = VolumeReplicationInternalV1betaHybridReplicationTypeMIGRATION
-	case VolumeReplicationInternalV1betaHybridReplicationTypeCONTINUOUSREPLICATION:
-		*s = VolumeReplicationInternalV1betaHybridReplicationTypeCONTINUOUSREPLICATION
-	case VolumeReplicationInternalV1betaHybridReplicationTypeONPREMREPLICATION:
-		*s = VolumeReplicationInternalV1betaHybridReplicationTypeONPREMREPLICATION
-	case VolumeReplicationInternalV1betaHybridReplicationTypeREVERSEONPREMREPLICATION:
-		*s = VolumeReplicationInternalV1betaHybridReplicationTypeREVERSEONPREMREPLICATION
-	default:
-		*s = VolumeReplicationInternalV1betaHybridReplicationType(v)
-	}
-
-	return nil
-}
-
-// MarshalJSON implements stdjson.Marshaler.
-func (s VolumeReplicationInternalV1betaHybridReplicationType) MarshalJSON() ([]byte, error) {
-	e := jx.Encoder{}
-	s.Encode(&e)
-	return e.Bytes(), nil
-}
-
-// UnmarshalJSON implements stdjson.Unmarshaler.
-func (s *VolumeReplicationInternalV1betaHybridReplicationType) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }
@@ -39534,6 +42870,58 @@ func (s *VolumeReplicationInternalV1betaReplicationSchedule) UnmarshalJSON(data 
 	return s.Decode(d)
 }
 
+// Encode encodes VolumeReplicationInternalV1betaReplicationType as json.
+func (s VolumeReplicationInternalV1betaReplicationType) Encode(e *jx.Encoder) {
+	e.Str(string(s))
+}
+
+// Decode decodes VolumeReplicationInternalV1betaReplicationType from json.
+func (s *VolumeReplicationInternalV1betaReplicationType) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode VolumeReplicationInternalV1betaReplicationType to nil")
+	}
+	v, err := d.StrBytes()
+	if err != nil {
+		return err
+	}
+	// Try to use constant string.
+	switch VolumeReplicationInternalV1betaReplicationType(v) {
+	case VolumeReplicationInternalV1betaReplicationTypeHYBRIDREPLICATIONTYPEUNSPECIFIED:
+		*s = VolumeReplicationInternalV1betaReplicationTypeHYBRIDREPLICATIONTYPEUNSPECIFIED
+	case VolumeReplicationInternalV1betaReplicationTypeMIGRATION:
+		*s = VolumeReplicationInternalV1betaReplicationTypeMIGRATION
+	case VolumeReplicationInternalV1betaReplicationTypeCONTINUOUSREPLICATION:
+		*s = VolumeReplicationInternalV1betaReplicationTypeCONTINUOUSREPLICATION
+	case VolumeReplicationInternalV1betaReplicationTypeONPREMREPLICATION:
+		*s = VolumeReplicationInternalV1betaReplicationTypeONPREMREPLICATION
+	case VolumeReplicationInternalV1betaReplicationTypeREVERSEONPREMREPLICATION:
+		*s = VolumeReplicationInternalV1betaReplicationTypeREVERSEONPREMREPLICATION
+	case VolumeReplicationInternalV1betaReplicationTypeCROSSREGIONREPLICATION:
+		*s = VolumeReplicationInternalV1betaReplicationTypeCROSSREGIONREPLICATION
+	case VolumeReplicationInternalV1betaReplicationTypeCROSSZONEREPLICATION:
+		*s = VolumeReplicationInternalV1betaReplicationTypeCROSSZONEREPLICATION
+	case VolumeReplicationInternalV1betaReplicationTypeCROSSPROJECTREPLICATION:
+		*s = VolumeReplicationInternalV1betaReplicationTypeCROSSPROJECTREPLICATION
+	default:
+		*s = VolumeReplicationInternalV1betaReplicationType(v)
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s VolumeReplicationInternalV1betaReplicationType) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *VolumeReplicationInternalV1betaReplicationType) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
 // Encode implements json.Marshaler.
 func (s *VolumeReplicationUpdateInternalV1beta) Encode(e *jx.Encoder) {
 	e.ObjStart()
@@ -39729,6 +43117,250 @@ func (s VolumeReplicationUpdateInternalV1betaReplicationSchedule) MarshalJSON() 
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
 func (s *VolumeReplicationUpdateInternalV1betaReplicationSchedule) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode implements json.Marshaler.
+func (s *VolumeSnapshotCreateV1beta) Encode(e *jx.Encoder) {
+	e.ObjStart()
+	s.encodeFields(e)
+	e.ObjEnd()
+}
+
+// encodeFields encodes fields.
+func (s *VolumeSnapshotCreateV1beta) encodeFields(e *jx.Encoder) {
+	{
+		e.FieldStart("resourceId")
+		e.Str(s.ResourceId)
+	}
+	{
+		if s.Description.Set {
+			e.FieldStart("description")
+			s.Description.Encode(e)
+		}
+	}
+	{
+		if s.IsAppConsistent.Set {
+			e.FieldStart("isAppConsistent")
+			s.IsAppConsistent.Encode(e)
+		}
+	}
+}
+
+var jsonFieldsNameOfVolumeSnapshotCreateV1beta = [3]string{
+	0: "resourceId",
+	1: "description",
+	2: "isAppConsistent",
+}
+
+// Decode decodes VolumeSnapshotCreateV1beta from json.
+func (s *VolumeSnapshotCreateV1beta) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode VolumeSnapshotCreateV1beta to nil")
+	}
+	var requiredBitSet [1]uint8
+	s.setDefaults()
+
+	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
+		switch string(k) {
+		case "resourceId":
+			requiredBitSet[0] |= 1 << 0
+			if err := func() error {
+				v, err := d.Str()
+				s.ResourceId = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"resourceId\"")
+			}
+		case "description":
+			if err := func() error {
+				s.Description.Reset()
+				if err := s.Description.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"description\"")
+			}
+		case "isAppConsistent":
+			if err := func() error {
+				s.IsAppConsistent.Reset()
+				if err := s.IsAppConsistent.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"isAppConsistent\"")
+			}
+		default:
+			return d.Skip()
+		}
+		return nil
+	}); err != nil {
+		return errors.Wrap(err, "decode VolumeSnapshotCreateV1beta")
+	}
+	// Validate required fields.
+	var failures []validate.FieldError
+	for i, mask := range [1]uint8{
+		0b00000001,
+	} {
+		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
+			// Mask only required fields and check equality to mask using XOR.
+			//
+			// If XOR result is not zero, result is not equal to expected, so some fields are missed.
+			// Bits of fields which would be set are actually bits of missed fields.
+			missed := bits.OnesCount8(result)
+			for bitN := 0; bitN < missed; bitN++ {
+				bitIdx := bits.TrailingZeros8(result)
+				fieldIdx := i*8 + bitIdx
+				var name string
+				if fieldIdx < len(jsonFieldsNameOfVolumeSnapshotCreateV1beta) {
+					name = jsonFieldsNameOfVolumeSnapshotCreateV1beta[fieldIdx]
+				} else {
+					name = strconv.Itoa(fieldIdx)
+				}
+				failures = append(failures, validate.FieldError{
+					Name:  name,
+					Error: validate.ErrFieldRequired,
+				})
+				// Reset bit.
+				result &^= 1 << bitIdx
+			}
+		}
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *VolumeSnapshotCreateV1beta) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *VolumeSnapshotCreateV1beta) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode implements json.Marshaler.
+func (s *VolumeSnapshotUpdateV1beta) Encode(e *jx.Encoder) {
+	e.ObjStart()
+	s.encodeFields(e)
+	e.ObjEnd()
+}
+
+// encodeFields encodes fields.
+func (s *VolumeSnapshotUpdateV1beta) encodeFields(e *jx.Encoder) {
+	{
+		e.FieldStart("resourceId")
+		e.Str(s.ResourceId)
+	}
+	{
+		if s.Description.Set {
+			e.FieldStart("description")
+			s.Description.Encode(e)
+		}
+	}
+}
+
+var jsonFieldsNameOfVolumeSnapshotUpdateV1beta = [2]string{
+	0: "resourceId",
+	1: "description",
+}
+
+// Decode decodes VolumeSnapshotUpdateV1beta from json.
+func (s *VolumeSnapshotUpdateV1beta) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode VolumeSnapshotUpdateV1beta to nil")
+	}
+	var requiredBitSet [1]uint8
+
+	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
+		switch string(k) {
+		case "resourceId":
+			requiredBitSet[0] |= 1 << 0
+			if err := func() error {
+				v, err := d.Str()
+				s.ResourceId = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"resourceId\"")
+			}
+		case "description":
+			if err := func() error {
+				s.Description.Reset()
+				if err := s.Description.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"description\"")
+			}
+		default:
+			return d.Skip()
+		}
+		return nil
+	}); err != nil {
+		return errors.Wrap(err, "decode VolumeSnapshotUpdateV1beta")
+	}
+	// Validate required fields.
+	var failures []validate.FieldError
+	for i, mask := range [1]uint8{
+		0b00000001,
+	} {
+		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
+			// Mask only required fields and check equality to mask using XOR.
+			//
+			// If XOR result is not zero, result is not equal to expected, so some fields are missed.
+			// Bits of fields which would be set are actually bits of missed fields.
+			missed := bits.OnesCount8(result)
+			for bitN := 0; bitN < missed; bitN++ {
+				bitIdx := bits.TrailingZeros8(result)
+				fieldIdx := i*8 + bitIdx
+				var name string
+				if fieldIdx < len(jsonFieldsNameOfVolumeSnapshotUpdateV1beta) {
+					name = jsonFieldsNameOfVolumeSnapshotUpdateV1beta[fieldIdx]
+				} else {
+					name = strconv.Itoa(fieldIdx)
+				}
+				failures = append(failures, validate.FieldError{
+					Name:  name,
+					Error: validate.ErrFieldRequired,
+				})
+				// Reset bit.
+				result &^= 1 << bitIdx
+			}
+		}
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *VolumeSnapshotUpdateV1beta) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *VolumeSnapshotUpdateV1beta) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }

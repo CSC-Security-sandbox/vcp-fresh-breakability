@@ -883,3 +883,97 @@ func TestPrepareUpdateVolumeParams(t *testing.T) {
 		assert.Error(t, err)
 	})
 }
+
+func TestV1betaGetVolumeCount(t *testing.T) {
+	t.Run("ValidVolumeCount", func(tt *testing.T) {
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		params := gcpgenserver.V1betaGetVolumeCountParams{
+			ProjectNumber: "test-project",
+		}
+
+		expectedCount := 5
+		mockOrchestrator.EXPECT().GetVolumeCount(mock.Anything, params.ProjectNumber).Return(int64(expectedCount), nil)
+
+		handler := Handler{
+			Orchestrator: mockOrchestrator,
+		}
+
+		result, err := handler.V1betaGetVolumeCount(context.Background(), params)
+
+		assert.NoError(tt, err)
+		assert.NotNil(tt, result)
+		assert.Equal(tt, expectedCount, result.(*gcpgenserver.V1betaGetVolumeCountOK).VolumeCount)
+	})
+
+	t.Run("ErrorGettingVolumeCount", func(tt *testing.T) {
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		params := gcpgenserver.V1betaGetVolumeCountParams{
+			ProjectNumber: "test-project",
+		}
+
+		mockError := errors.New("failed to get volume count")
+		mockOrchestrator.EXPECT().GetVolumeCount(mock.Anything, params.ProjectNumber).Return(0, mockError)
+
+		handler := Handler{
+			Orchestrator: mockOrchestrator,
+		}
+
+		result, err := handler.V1betaGetVolumeCount(context.Background(), params)
+
+		assert.Error(tt, err)
+		assert.NotNil(tt, result)
+	})
+}
+
+func TestV1betaListVolumes(t *testing.T) {
+	t.Run("SuccessfulListVolumes", func(tt *testing.T) {
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		params := gcpgenserver.V1betaListVolumesParams{
+			ProjectNumber: "test-project",
+		}
+
+		expectedVolumes := []*models.Volume{
+			{
+				CreationToken: "test-token-1",
+				PoolID:        "test-pool-1",
+				QuotaInBytes:  1024,
+			},
+			{
+				CreationToken: "test-token-2",
+				PoolID:        "test-pool-2",
+				QuotaInBytes:  2048,
+			},
+		}
+
+		mockOrchestrator.EXPECT().ListVolumes(mock.Anything, params.ProjectNumber).Return(expectedVolumes, nil)
+
+		handler := Handler{
+			Orchestrator: mockOrchestrator,
+		}
+
+		result, err := handler.V1betaListVolumes(context.Background(), params)
+
+		assert.NoError(tt, err)
+		assert.NotNil(tt, result)
+		assert.Len(tt, result.(*gcpgenserver.V1betaListVolumesOK).Volumes, len(expectedVolumes))
+	})
+
+	t.Run("ErrorListingVolumes", func(tt *testing.T) {
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		params := gcpgenserver.V1betaListVolumesParams{
+			ProjectNumber: "test-project",
+		}
+
+		mockError := errors.New("failed to list volumes")
+		mockOrchestrator.EXPECT().ListVolumes(mock.Anything, params.ProjectNumber).Return(nil, mockError)
+
+		handler := Handler{
+			Orchestrator: mockOrchestrator,
+		}
+
+		result, err := handler.V1betaListVolumes(context.Background(), params)
+
+		assert.Error(tt, err)
+		assert.NotNil(tt, result)
+	})
+}

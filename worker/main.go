@@ -117,6 +117,7 @@ func RegisterWorkflowsAndActivities(worker tManagerPkg.Worker, dbcon database.St
 	worker.RegisterWorkflow(kms_workflows.UpdateKmsConfigWorkflow)
 	worker.RegisterWorkflow(kms_workflows.CreateKmsConfigWorkflow)
 	worker.RegisterWorkflow(replicationWorkflows.CreateInternalVolumeReplicationWorkflow)
+	worker.RegisterWorkflow(replicationWorkflows.CreateVolumeReplicationWorkflow)
 
 	worker.RegisterActivity(&activities.CommonActivities{SE: dbcon})
 	worker.RegisterActivity(&activities.PoolActivity{SE: dbcon})
@@ -129,4 +130,5 @@ func RegisterWorkflowsAndActivities(worker tManagerPkg.Worker, dbcon database.St
 	worker.RegisterActivity(&activities.ClusterPeerActivity{SE: dbcon})
 	worker.RegisterActivity(&kms_activities.KmsConfigActivity{SE: dbcon})
 	worker.RegisterActivity(&replicationActivities.InternalVolumeReplicationActivity{SE: dbcon})
+	worker.RegisterActivity(&replicationActivities.VolumeReplicationCreateActivity{SE: dbcon})
 }

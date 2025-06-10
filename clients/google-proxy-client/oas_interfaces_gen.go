@@ -37,6 +37,10 @@ type V1betaCreateReplicationRes interface {
 	v1betaCreateReplicationRes()
 }
 
+type V1betaCreateSnapshotRes interface {
+	v1betaCreateSnapshotRes()
+}
+
 type V1betaCreateVolumeRes interface {
 	v1betaCreateVolumeRes()
 }
@@ -67,6 +71,10 @@ type V1betaDeletePoolRes interface {
 
 type V1betaDeleteReplicationRes interface {
 	v1betaDeleteReplicationRes()
+}
+
+type V1betaDeleteSnapshotRes interface {
+	v1betaDeleteSnapshotRes()
 }
 
 type V1betaDeleteVolumeRes interface {
@@ -101,6 +109,10 @@ type V1betaDescribePoolRes interface {
 	v1betaDescribePoolRes()
 }
 
+type V1betaDescribeSnapshotRes interface {
+	v1betaDescribeSnapshotRes()
+}
+
 type V1betaDescribeVolumeRes interface {
 	v1betaDescribeVolumeRes()
 }
@@ -125,6 +137,10 @@ type V1betaGetMultipleHostGroupsRes interface {
 	v1betaGetMultipleHostGroupsRes()
 }
 
+type V1betaGetMultipleKmsConfigsRes interface {
+	v1betaGetMultipleKmsConfigsRes()
+}
+
 type V1betaGetMultiplePoolsRes interface {
 	v1betaGetMultiplePoolsRes()
 }
@@ -141,12 +157,20 @@ type V1betaGetMultipleVolumesRes interface {
 	v1betaGetMultipleVolumesRes()
 }
 
-type V1betaInternalAuthorizeVolumeReplicationRes interface {
-	v1betaInternalAuthorizeVolumeReplicationRes()
+type V1betaGetReplicationCountRes interface {
+	v1betaGetReplicationCountRes()
 }
 
-type V1betaInternalCreateClusterPeerRes interface {
-	v1betaInternalCreateClusterPeerRes()
+type V1betaGetVolumeCountRes interface {
+	v1betaGetVolumeCountRes()
+}
+
+type V1betaInternalAcceptClusterPeerRes interface {
+	v1betaInternalAcceptClusterPeerRes()
+}
+
+type V1betaInternalAuthorizeVolumeReplicationRes interface {
+	v1betaInternalAuthorizeVolumeReplicationRes()
 }
 
 type V1betaInternalCreateVolumeReplicationRes interface {
@@ -163,6 +187,10 @@ type V1betaInternalDescribePoolRes interface {
 
 type V1betaInternalDescribeVolumeReplicationRes interface {
 	v1betaInternalDescribeVolumeReplicationRes()
+}
+
+type V1betaInternalGetReplicationJobsRes interface {
+	v1betaInternalGetReplicationJobsRes()
 }
 
 type V1betaInternalReleaseVolumeReplicationRes interface {
@@ -207,6 +235,10 @@ type V1betaListPoolsRes interface {
 
 type V1betaListReplicationsRes interface {
 	v1betaListReplicationsRes()
+}
+
+type V1betaListSnapshotRes interface {
+	v1betaListSnapshotRes()
 }
 
 type V1betaListVolumesRes interface {
@@ -255,6 +287,10 @@ type V1betaUpdatePoolRes interface {
 
 type V1betaUpdateReplicationRes interface {
 	v1betaUpdateReplicationRes()
+}
+
+type V1betaUpdateSnapshotRes interface {
+	v1betaUpdateSnapshotRes()
 }
 
 type V1betaUpdateVolumeRes interface {

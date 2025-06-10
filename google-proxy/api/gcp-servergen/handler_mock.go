@@ -2391,6 +2391,124 @@ func (_c *MockHandler_V1betaGetMultipleVolumes_Call) RunAndReturn(run func(conte
 	return _c
 }
 
+// V1betaGetReplicationCount provides a mock function with given fields: ctx, params
+func (_m *MockHandler) V1betaGetReplicationCount(ctx context.Context, params V1betaGetReplicationCountParams) (V1betaGetReplicationCountRes, error) {
+	ret := _m.Called(ctx, params)
+
+	if len(ret) == 0 {
+		panic("no return value specified for V1betaGetReplicationCount")
+	}
+
+	var r0 V1betaGetReplicationCountRes
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, V1betaGetReplicationCountParams) (V1betaGetReplicationCountRes, error)); ok {
+		return rf(ctx, params)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, V1betaGetReplicationCountParams) V1betaGetReplicationCountRes); ok {
+		r0 = rf(ctx, params)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(V1betaGetReplicationCountRes)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, V1betaGetReplicationCountParams) error); ok {
+		r1 = rf(ctx, params)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockHandler_V1betaGetReplicationCount_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'V1betaGetReplicationCount'
+type MockHandler_V1betaGetReplicationCount_Call struct {
+	*mock.Call
+}
+
+// V1betaGetReplicationCount is a helper method to define mock.On call
+//   - ctx context.Context
+//   - params V1betaGetReplicationCountParams
+func (_e *MockHandler_Expecter) V1betaGetReplicationCount(ctx interface{}, params interface{}) *MockHandler_V1betaGetReplicationCount_Call {
+	return &MockHandler_V1betaGetReplicationCount_Call{Call: _e.mock.On("V1betaGetReplicationCount", ctx, params)}
+}
+
+func (_c *MockHandler_V1betaGetReplicationCount_Call) Run(run func(ctx context.Context, params V1betaGetReplicationCountParams)) *MockHandler_V1betaGetReplicationCount_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(V1betaGetReplicationCountParams))
+	})
+	return _c
+}
+
+func (_c *MockHandler_V1betaGetReplicationCount_Call) Return(_a0 V1betaGetReplicationCountRes, _a1 error) *MockHandler_V1betaGetReplicationCount_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockHandler_V1betaGetReplicationCount_Call) RunAndReturn(run func(context.Context, V1betaGetReplicationCountParams) (V1betaGetReplicationCountRes, error)) *MockHandler_V1betaGetReplicationCount_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// V1betaGetVolumeCount provides a mock function with given fields: ctx, params
+func (_m *MockHandler) V1betaGetVolumeCount(ctx context.Context, params V1betaGetVolumeCountParams) (V1betaGetVolumeCountRes, error) {
+	ret := _m.Called(ctx, params)
+
+	if len(ret) == 0 {
+		panic("no return value specified for V1betaGetVolumeCount")
+	}
+
+	var r0 V1betaGetVolumeCountRes
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, V1betaGetVolumeCountParams) (V1betaGetVolumeCountRes, error)); ok {
+		return rf(ctx, params)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, V1betaGetVolumeCountParams) V1betaGetVolumeCountRes); ok {
+		r0 = rf(ctx, params)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(V1betaGetVolumeCountRes)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, V1betaGetVolumeCountParams) error); ok {
+		r1 = rf(ctx, params)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockHandler_V1betaGetVolumeCount_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'V1betaGetVolumeCount'
+type MockHandler_V1betaGetVolumeCount_Call struct {
+	*mock.Call
+}
+
+// V1betaGetVolumeCount is a helper method to define mock.On call
+//   - ctx context.Context
+//   - params V1betaGetVolumeCountParams
+func (_e *MockHandler_Expecter) V1betaGetVolumeCount(ctx interface{}, params interface{}) *MockHandler_V1betaGetVolumeCount_Call {
+	return &MockHandler_V1betaGetVolumeCount_Call{Call: _e.mock.On("V1betaGetVolumeCount", ctx, params)}
+}
+
+func (_c *MockHandler_V1betaGetVolumeCount_Call) Run(run func(ctx context.Context, params V1betaGetVolumeCountParams)) *MockHandler_V1betaGetVolumeCount_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(V1betaGetVolumeCountParams))
+	})
+	return _c
+}
+
+func (_c *MockHandler_V1betaGetVolumeCount_Call) Return(_a0 V1betaGetVolumeCountRes, _a1 error) *MockHandler_V1betaGetVolumeCount_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockHandler_V1betaGetVolumeCount_Call) RunAndReturn(run func(context.Context, V1betaGetVolumeCountParams) (V1betaGetVolumeCountRes, error)) *MockHandler_V1betaGetVolumeCount_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // V1betaInternalAcceptClusterPeer provides a mock function with given fields: ctx, req, params
 func (_m *MockHandler) V1betaInternalAcceptClusterPeer(ctx context.Context, req *ClusterPeerV1, params V1betaInternalAcceptClusterPeerParams) (V1betaInternalAcceptClusterPeerRes, error) {
 	ret := _m.Called(ctx, req, params)

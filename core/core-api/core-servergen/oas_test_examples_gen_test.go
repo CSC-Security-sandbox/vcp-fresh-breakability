@@ -66,8 +66,7 @@ func TestError_EncodeDecode(t *testing.T) {
 }
 
 func TestError_Examples(t *testing.T) {
-
-	for i, tc := range []struct {
+    for i, tc := range []struct {
 		Input string
 	}{
 		{Input: "{\"code\":1994,\"message\":\"Out of cheese error! Please reboot the Universe\"}"},
@@ -119,8 +118,7 @@ func TestOperationV1_EncodeDecode(t *testing.T) {
 }
 
 func TestOperationV1_Examples(t *testing.T) {
-
-	for i, tc := range []struct {
+    for i, tc := range []struct {
 		Input string
 	}{
 		{Input: "{\"done\":true,\"name\":\"/v1/projects/123456789/locations/some-location1/operations/ba2c8826-2627-057c-42ba-343ee7ab1ebe\",\"response\":{\"activeDirectoryConfigId\":\"9760acf5-4638-11e7-9bdb-020073ca7773\",\"activeDirectoryResourceId\":\"projects/123456789/locations/some-location1/activeDirectories/active-directory\",\"allocatedBytes\":10995116277760,\"allowAutoTiering\":false,\"createdAt\":\"2024-01-24T13:54:14.374Z\",\"description\":\"My Pool description\",\"encryptionType\":\"SERVICE_MANAGED\",\"globalAccessAllowed\":true,\"labels\":{\"someKey\":\"SomeValue\",\"someKey2\":\"SomeValue2\"},\"ldapEnabled\":false,\"network\":\"projects/123456789/global/networks/systemic-qa-vpc\",\"numberOfVolumes\":2,\"poolId\":\"bfa46013-1a1e-587b-ef9a-619bae6ba25d\",\"resourceId\":\"my-pool\",\"serviceLevel\":\"PREMIUM\",\"sizeInBytes\":12094627905536,\"storageClass\":\"HARDWARE\",\"storagePoolState\":\"READY\",\"storagePoolStateDetails\":\"Available for use\",\"updatedAt\":\"2024-01-24T13:54:14.374Z\",\"zone\":\"us-east1-b\"}}"},
@@ -188,8 +186,7 @@ func TestPoolUpdateV1Labels_EncodeDecode(t *testing.T) {
 }
 
 func TestPoolUpdateV1Labels_Examples(t *testing.T) {
-
-	for i, tc := range []struct {
+    for i, tc := range []struct {
 		Input string
 	}{
 		{Input: "{\"someKey\":\"SomeValue\",\"someKey2\":\"SomeValue2\"}"},
@@ -231,8 +228,7 @@ func TestPoolUpdateV1QosType_EncodeDecode(t *testing.T) {
 }
 
 func TestPoolUpdateV1QosType_Examples(t *testing.T) {
-
-	for i, tc := range []struct {
+    for i, tc := range []struct {
 		Input string
 	}{
 		{Input: "\"auto\""},
@@ -272,8 +268,7 @@ func TestPoolV1_EncodeDecode(t *testing.T) {
 }
 
 func TestPoolV1_Examples(t *testing.T) {
-
-	for i, tc := range []struct {
+    for i, tc := range []struct {
 		Input string
 	}{
 		{Input: "{\"PoolId\":\"9760acf5-4638-11e7-9bdb-020073ca7773\",\"activeDirectoryConfigId\":\"9232dgf5-4638-11e7-9bdb-020073ca7773\",\"allowAutoTiering\":true,\"createdAt\":\"2016-11-28T19:30:23.123Z\",\"description\":\"My pool description\",\"kmsConfigId\":\"2653acf5-4638-11e7-9bdb-020073ca7773\",\"labels\":{\"someKey\":\"SomeValue\",\"someKey2\":\"SomeValue2\"},\"ldapEnabled\":false,\"network\":\"projects/1079058383248/global/networks/network-to-netapp2\",\"resourceId\":\"my-pool\",\"serviceLevel\":\"PREMIUM\",\"sizeInBytes\":2199023255552,\"storagePoolState\":\"READY\",\"updatedAt\":\"2016-11-28T19:30:23.123Z\"}"},
@@ -339,8 +334,7 @@ func TestPoolV1Labels_EncodeDecode(t *testing.T) {
 }
 
 func TestPoolV1Labels_Examples(t *testing.T) {
-
-	for i, tc := range []struct {
+    for i, tc := range []struct {
 		Input string
 	}{
 		{Input: "{\"someKey\":\"SomeValue\",\"someKey2\":\"SomeValue2\"}"},
@@ -382,8 +376,7 @@ func TestPoolV1QosType_EncodeDecode(t *testing.T) {
 }
 
 func TestPoolV1QosType_Examples(t *testing.T) {
-
-	for i, tc := range []struct {
+    for i, tc := range []struct {
 		Input string
 	}{
 		{Input: "\"auto\""},
@@ -423,8 +416,7 @@ func TestPoolV1ServiceLevel_EncodeDecode(t *testing.T) {
 }
 
 func TestPoolV1ServiceLevel_Examples(t *testing.T) {
-
-	for i, tc := range []struct {
+    for i, tc := range []struct {
 		Input string
 	}{
 		{Input: "\"PREMIUM\""},
@@ -464,8 +456,7 @@ func TestPoolV1StoragePoolState_EncodeDecode(t *testing.T) {
 }
 
 func TestPoolV1StoragePoolState_Examples(t *testing.T) {
-
-	for i, tc := range []struct {
+    for i, tc := range []struct {
 		Input string
 	}{
 		{Input: "\"READY\""},

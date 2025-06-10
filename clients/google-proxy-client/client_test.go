@@ -81,7 +81,7 @@ func TestGetGProxyClient(t *testing.T) {
 		client := getGProxyClient("example.com", "test-jwt", logger)
 
 		assert.NotNil(t, client)
-		assert.Equal(t, "example.com", client.serverURL.Host)
+		assert.Equal(t, "example.com", client.Invoker.(*Client).serverURL.Host)
 	})
 	t.Run("WhenUsesRetryRoundTripperWithCorrectConfiguration", func(t *testing.T) {
 		logger := slogger.NewLogger()

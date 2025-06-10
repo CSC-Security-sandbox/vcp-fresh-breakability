@@ -2266,6 +2266,112 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
+  /v1beta/internal/projects/{projectNumber}/locations/{locationId}/volumeReplication/count:
+    get:
+      operationId: v1beta_getReplicationCount
+      summary: Get the replication count
+      description: Returns the count of all the replications owned by the caller.
+      tags:
+        - v1Beta_internal
+      parameters:
+        - in: query
+          name: poolID
+          required: false
+          description: Pool ID to which a query should be limited
+          schema:
+            type: string
+        - $ref: '#/components/parameters/projectNumberPathParameter'
+        - $ref: '#/components/parameters/locationIdPathParameter'
+        - $ref: '#/components/parameters/xCorrelationIdHeader'
+        - $ref: '#/components/parameters/serviceLevelQueryParameter'
+        - $ref: '#/components/parameters/storageClassQueryParameter'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                description: Count of replications
+                type: object
+                required:
+                  - replicationCount
+                properties:
+                  replicationCount:
+                    type: integer
+                    description: Total number of replications
+                    example: 8
+                    x-nullable: false
+        '400':
+          $ref: '#/components/responses/StandardError-400'
+        '401':
+          $ref: '#/components/responses/StandardError-401'
+        '403':
+          $ref: '#/components/responses/StandardError-403'
+        '404':
+          $ref: '#/components/responses/StandardError-404'
+        '429':
+          $ref: '#/components/responses/StandardError-429'
+        '500':
+          $ref: '#/components/responses/StandardError-500'
+        default:
+          description: Unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /v1beta/internal/projects/{projectNumber}/locations/{locationId}/volumes/count:
+    get:
+      operationId: v1beta_getVolumeCount
+      summary: Get the volume count
+      description: Returns the count of all the volumes owned by the caller.
+      tags:
+        - v1Beta_internal
+      parameters:
+        - $ref: '#/components/parameters/projectNumberPathParameter'
+        - $ref: '#/components/parameters/locationIdPathParameter'
+        - $ref: '#/components/parameters/xCorrelationIdHeader'
+        - $ref: '#/components/parameters/serviceLevelQueryParameter'
+        - $ref: '#/components/parameters/storageClassQueryParameter'
+        - in: query
+          name: poolID
+          required: false
+          description: Pool ID to which a query should be limited
+          schema:
+            type: string
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                description: Count of volumes
+                type: object
+                required:
+                  - volumeCount
+                properties:
+                  volumeCount:
+                    type: integer
+                    description: Total number of volumes
+                    example: 8
+                    x-nullable: false
+        '400':
+          $ref: '#/components/responses/StandardError-400'
+        '401':
+          $ref: '#/components/responses/StandardError-401'
+        '403':
+          $ref: '#/components/responses/StandardError-403'
+        '404':
+          $ref: '#/components/responses/StandardError-404'
+        '429':
+          $ref: '#/components/responses/StandardError-429'
+        '500':
+          $ref: '#/components/responses/StandardError-500'
+        default:
+          description: Unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
   /v1beta/projects/{projectNumber}/locations/{locationId}/activeDirectories:
     get:
       operationId: v1beta_listActiveDirectories
@@ -9347,3 +9453,26 @@ components:
         minLength: 36
         pattern: ^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$
         type: string
+    serviceLevelQueryParameter:
+      name: serviceLevel
+      in: query
+      required: false
+      description: performance service levels
+      schema:
+        type: array
+        items:
+          type: string
+          enum:
+            - flex
+    storageClassQueryParameter:
+      name: storageClass
+      in: query
+      required: false
+      description: >-
+        Hardware or software storage class
+      schema:
+        maxLength: 255
+        type: string
+        enum:
+          - hardware
+          - software

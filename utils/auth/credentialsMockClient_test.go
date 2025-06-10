@@ -91,6 +91,7 @@ func generateKey(createDirPath string) error {
 		log.Fatalf("Failed to create private key file: %v", err)
 		return err
 	}
+
 	defer func() {
 		err := privateKeyFile.Close()
 		if err != nil {

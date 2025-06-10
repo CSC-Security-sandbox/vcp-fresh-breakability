@@ -144,6 +144,42 @@ func (o *Orchestrator) GetVolume(ctx context.Context, volumeId string) (*models.
 	return convertDatastoreVolumeToModel(volume, &ipAddress), nil
 }
 
+func (o *Orchestrator) GetVolumeCount(ctx context.Context, projectNumber string) (int64, error) {
+	// Get the count of volume replications for the specified account
+	count, err := o.storage.GetVolumeCount(ctx, projectNumber)
+	if err != nil {
+		return 0, err
+	}
+	return count, nil
+}
+
+// ListVolumes returns list of volumes belonging to the specified owner
+func (o *Orchestrator) ListVolumes(ctx context.Context, accountName string) ([]*models.Volume, error) {
+	se := o.storage
+
+	account, err := getAccountWithName(ctx, se, accountName)
+	if err != nil {
+		return nil, err
+	}
+
+	conditions := [][]interface{}{{"account_id = ?", account.ID}}
+	volumes, err := se.ListVolumes(ctx, conditions)
+	if err != nil {
+		return nil, err
+	}
+
+	return convertDatastoreVolumesToModel(volumes), nil
+}
+
+func convertDatastoreVolumesToModel(volumes []*datamodel.Volume) []*models.Volume {
+	var volumesList []*models.Volume
+	for _, volume := range volumes {
+		p := convertDatastoreVolumeToModel(volume, nil)
+		volumesList = append(volumesList, p)
+	}
+	return volumesList
+}
+
 func _getIPAddressForVolume(ctx context.Context, se database.Storage, volume *datamodel.Volume) (string, error) {
 	nodes, err := se.GetNodesByPoolID(ctx, volume.PoolID)
 	if err != nil {
