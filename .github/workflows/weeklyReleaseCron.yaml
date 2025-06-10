@@ -2,7 +2,7 @@ name: Release Workflow
 
 on:
   schedule:
-    - cron: '30 12 * * 1'
+    - cron: '30 9 * * 2'
 
   workflow_dispatch:
 
@@ -13,7 +13,7 @@ jobs:
       actions: read
       packages: write
 
-    runs-on: [ self-hosted,linux ]
+    runs-on: [ cvs-u24-sunilt-01 ,linux ]
     container:
       image: ghcr.io/vcp-vsa-control-plane/vsacictl:v20
       options: --user root

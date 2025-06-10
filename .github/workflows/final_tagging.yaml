@@ -9,7 +9,7 @@ jobs:
       actions: read
       packages: write
 
-    runs-on: [ self-hosted,linux ]
+    runs-on: [ cvs-u24-sunilt-01 ,linux ]
     container:
       image: ghcr.io/vcp-vsa-control-plane/vsacictl:v20
       options: --user root
