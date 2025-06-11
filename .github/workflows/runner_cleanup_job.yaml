@@ -1,0 +1,32 @@
+name: Runners Cleanup job
+
+on:
+  schedule:
+    - cron: "0 */3 * * *" # Runs every 3 hours
+
+jobs:
+  prune-docker:
+    strategy:
+      matrix:
+        runner_label: [cvs-u20-mvinayku-01, cvs-u24-sunilt-01]
+    runs-on: ${{ matrix.runner_label }}
+    steps:
+      - name: Check Disk Usage
+        id: check_disk
+        run: |
+          DISK_USAGE=$(df / | tail -1 | awk '{print $5}' | sed 's/%//')
+          echo "Disk usage: $DISK_USAGE%"
+          if [ "$DISK_USAGE" -gt 75 ]; then
+            echo "Disk usage exceeds 75%"
+            echo "prune_needed=true" >> $GITHUB_ENV
+          else
+            echo "Disk usage is below 75%"
+            echo "prune_needed=false" >> $GITHUB_ENV
+          fi
+
+      - name: Docker System Prune
+        if: env.prune_needed == 'true'
+        run: |
+          echo "Running docker system prune..."
+          docker system prune -a -f --volumes
+          echo "Docker system prune completed."
