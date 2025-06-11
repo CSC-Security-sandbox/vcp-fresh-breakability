@@ -8,7 +8,7 @@ jobs:
   prune-docker:
     strategy:
       matrix:
-        runner_label: [cvs-u20-mvinayku-01, cvs-u24-sunilt-01]
+        runner_label: [cvs-u20-mvinayku-01, cvs-u24-sunilt-01, cvs-u24-sunilt-02, cvs-u24-sunilt-03, cvs-u24-sunilt-04, cvs-u24-sunilt-05]
     runs-on: ${{ matrix.runner_label }}
     steps:
       - name: Check Disk Usage
