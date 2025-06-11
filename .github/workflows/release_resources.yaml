@@ -278,7 +278,7 @@ jobs:
 
       - name: Update Versions of helm charts
         run: |
-          go run ./.github/scripts/updateHelmVersion.go ${{ inputs.tag }} ./.github/scripts/fileToFieldsMapping.json
+          env vcp-worker-digest=$vcp-worker-digest core-digest=$core-digest google-proxy-digest=$google-proxy-digest vcp-db-migrate-digest=$vcp-db-migrate-digest go run ./.github/scripts/updateHelmVersion.go ${{ inputs.tag }} ./.github/scripts/fileToFieldsMapping.json
 
       - name: Package Helm Charts
         run: |
