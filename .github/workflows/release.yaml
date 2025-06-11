@@ -10,6 +10,7 @@ permissions:
   packages: write
   contents: read
   id-token: write
+  security-events: write
 
 jobs:
   generate_tag:
@@ -219,11 +220,11 @@ jobs:
 
       - name: Ensure output directory exists
         run: mkdir -p repo-dir2
-        
+
       - name: Run Trivy vulnerability scanner
         uses: aquasecurity/trivy-action@7b7aa264d83dc58691451798b4d117d53d21edfe
         with:
-          image-ref: ghcr.io/vcp-vsa-control-plane/${{ matrix.image }}:$([[ "${{ matrix.image }}" == "cloud-backup-adc" ]] && echo "2.7" || echo "${{ needs.generate_tag.outputs.newTag }}")
+          image-ref: ${{ matrix.image == 'cloud-backup-adc' && format('ghcr.io/vcp-vsa-control-plane/{0}:2.7', matrix.image) || format('ghcr.io/vcp-vsa-control-plane/{0}:{1}', matrix.image, needs.generate_tag.outputs.newTag) }}
           format: 'sarif'
           output: 'repo-dir2/trivy-${{ matrix.image }}.sarif'
 
