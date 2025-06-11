@@ -278,7 +278,7 @@ jobs:
 
       - name: Update Versions of helm charts
         run: |
-          ./.github/scripts/updateHelmVersion.sh ${{ inputs.tag }}
+          go run ./.github/scripts/updateHelmVersion.go ${{ inputs.tag }} ./.github/scripts/fileToFieldsMapping.json
 
       - name: Package Helm Charts
         run: |

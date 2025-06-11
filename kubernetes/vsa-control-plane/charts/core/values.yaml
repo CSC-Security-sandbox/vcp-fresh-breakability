@@ -13,11 +13,13 @@ images:
   core:
     name: core
     tag: 0.0.0
+    digest: ""
     secondary: true
     pullPolicy: IfNotPresent
   vcpDbMigrate:
     name: vcp-db-migrate
     tag: 0.0.0
+    digest: ""
     secondary: true
     pullPolicy: IfNotPresent
     

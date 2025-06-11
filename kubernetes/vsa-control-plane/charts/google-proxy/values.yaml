@@ -18,6 +18,7 @@ images:
   googleProxy:
     name: google-proxy
     tag: 0.0.0
+    digest: ""
     secondary: true
     pullPolicy: IfNotPresent
 

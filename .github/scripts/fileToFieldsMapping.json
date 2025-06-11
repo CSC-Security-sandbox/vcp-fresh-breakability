@@ -1,0 +1,34 @@
+[
+  {
+    "filePath": "kubernetes/vsa-control-plane/Chart.yaml",
+    "yamlPath": ["version", "appVersion", "dependencies[].version"]
+  },
+  {
+    "filePath": "kubernetes/vsa-control-plane/charts/google-proxy/Chart.yaml",
+    "yamlPath": ["version", "appVersion"]
+  },
+  {
+    "filePath": "kubernetes/vsa-control-plane/charts/core/Chart.yaml",
+    "yamlPath": ["version", "appVersion"]
+  },
+  {
+    "filePath": "kubernetes/vsa-control-plane/charts/adc/Chart.yaml",
+    "yamlPath": ["version", "appVersion"]
+  },
+  {
+    "filePath": "kubernetes/vcp-worker-chart/Chart.yaml",
+    "yamlPath": ["version", "appVersion"]
+  },
+  {
+    "filePath": "kubernetes/vcp-worker-chart/values.yaml",
+    "yamlPath": ["images.vcpWorker.tag", "images.vcpWorker.digest"]
+  },
+  {
+    "filePath": "kubernetes/vsa-control-plane/charts/google-proxy/values.yaml",
+    "yamlPath": ["images.googleProxy.tag", "images.googleProxy.digest"]
+  },
+  {
+    "filePath": "kubernetes/vsa-control-plane/charts/core/values.yaml",
+    "yamlPath": ["images.core.tag", "images.core.digest","images.vcpDbMigrate.tag", "images.vcpDbMigrate.digest"]
+  }
+]

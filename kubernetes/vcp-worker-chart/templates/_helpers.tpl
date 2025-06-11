@@ -25,10 +25,15 @@ Helper function to get the final URL of the image to be used in the deployment.
 {{- $imageConfig := index $context.Values.images $imageValueName -}}
 {{- $imageName := $imageConfig.name -}}
 {{- $imageTag := $imageConfig.tag -}}
+{{- $imageDigest := $imageConfig.digest -}}
 {{- $isSecondary := index $args "secondary" -}}
 {{- $registry := ternary (include "secondImageRegistryFullPath" $context) (include "imageRegistryFullPath" $context) $isSecondary -}}
+{{- if $context.Values.global.useTags -}}
 {{- $finaltag := toString $imageTag | default (toString $context.Chart.Version) -}}
 {{- printf "%s/%s:%s" $registry $imageName $finaltag -}}
+{{- else -}}
+{{- printf "%s/%s@%s" $registry $imageName $imageDigest -}}
+{{- end -}}
 {{- end -}}
 
 
