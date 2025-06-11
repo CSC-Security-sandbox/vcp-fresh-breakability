@@ -115,6 +115,7 @@ generate_ontap_priv_mocks() {
 
   go run ../../../cmd/mock-generator client/object_store/object_store_client.go ClientService && mv client_service_mock.go client_service_mock_test.go client/object_store/
   go run ../../../cmd/mock-generator client/operations/operations_client.go ClientService && mv client_service_mock.go client_service_mock_test.go client/operations/
+  go run ../../../cmd/mock-generator client/snapmirror/snapmirror_client.go ClientService && mv client_service_mock.go client_service_mock_test.go client/snapmirror/
 
   echo "Generated mocks for private CLI passthrough ONTAP REST API."
 }

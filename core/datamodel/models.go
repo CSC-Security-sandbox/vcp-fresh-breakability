@@ -301,6 +301,8 @@ type VolumeReplication struct {
 	LastTransferEndTime   *time.Time          `gorm:"column:last_transfer_end_time"`
 	ProgressLastUpdated   *time.Time          `gorm:"column:progress_last_updated"`
 	LastUpdatedFromOntap  time.Time           `gorm:"column:last_updated_from_ontap"`
+	Healthy               bool                `gorm:"column:healthy;default:true"`
+	UnhealthyReason       string              `gorm:"column:unhealthy_reason"`
 	LagTime               int64               `gorm:"column:lag_time"`
 	AccountID             int64               `gorm:"column:account_id"`
 	Account               *Account            `gorm:"ForeignKey:AccountID;AssociationForeignKey:ID;constraint:OnDelete:CASCADE,OnUpdate:RESTRICT;"`

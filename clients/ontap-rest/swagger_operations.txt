@@ -172,6 +172,7 @@ security_key_manager_collection_get
 security_key_manager_migrate
 security_keystore_delete
 security_keystore_modify
+snapmirror_get
 snapmirror_policy_delete_collection
 snapmirror_relationship_create
 snapmirror_relationship_delete

@@ -1297,6 +1297,66 @@ func (_c *MockOrchestratorFactory_GetMultiplePools_Call) RunAndReturn(run func(c
 	return _c
 }
 
+// GetMultipleReplicationsInternal provides a mock function with given fields: ctx, accountName, replicationUUIDs
+func (_m *MockOrchestratorFactory) GetMultipleReplicationsInternal(ctx context.Context, accountName string, replicationUUIDs []string) ([]*datamodel.VolumeReplication, error) {
+	ret := _m.Called(ctx, accountName, replicationUUIDs)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetMultipleReplicationsInternal")
+	}
+
+	var r0 []*datamodel.VolumeReplication
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, string, []string) ([]*datamodel.VolumeReplication, error)); ok {
+		return rf(ctx, accountName, replicationUUIDs)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, string, []string) []*datamodel.VolumeReplication); ok {
+		r0 = rf(ctx, accountName, replicationUUIDs)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]*datamodel.VolumeReplication)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, string, []string) error); ok {
+		r1 = rf(ctx, accountName, replicationUUIDs)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockOrchestratorFactory_GetMultipleReplicationsInternal_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetMultipleReplicationsInternal'
+type MockOrchestratorFactory_GetMultipleReplicationsInternal_Call struct {
+	*mock.Call
+}
+
+// GetMultipleReplicationsInternal is a helper method to define mock.On call
+//   - ctx context.Context
+//   - accountName string
+//   - replicationUUIDs []string
+func (_e *MockOrchestratorFactory_Expecter) GetMultipleReplicationsInternal(ctx interface{}, accountName interface{}, replicationUUIDs interface{}) *MockOrchestratorFactory_GetMultipleReplicationsInternal_Call {
+	return &MockOrchestratorFactory_GetMultipleReplicationsInternal_Call{Call: _e.mock.On("GetMultipleReplicationsInternal", ctx, accountName, replicationUUIDs)}
+}
+
+func (_c *MockOrchestratorFactory_GetMultipleReplicationsInternal_Call) Run(run func(ctx context.Context, accountName string, replicationUUIDs []string)) *MockOrchestratorFactory_GetMultipleReplicationsInternal_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(string), args[2].([]string))
+	})
+	return _c
+}
+
+func (_c *MockOrchestratorFactory_GetMultipleReplicationsInternal_Call) Return(_a0 []*datamodel.VolumeReplication, _a1 error) *MockOrchestratorFactory_GetMultipleReplicationsInternal_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockOrchestratorFactory_GetMultipleReplicationsInternal_Call) RunAndReturn(run func(context.Context, string, []string) ([]*datamodel.VolumeReplication, error)) *MockOrchestratorFactory_GetMultipleReplicationsInternal_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // GetMultipleVolumes provides a mock function with given fields: ctx, volumeIds, accountName
 func (_m *MockOrchestratorFactory) GetMultipleVolumes(ctx context.Context, volumeIds []string, accountName string) ([]*models.Volume, error) {
 	ret := _m.Called(ctx, volumeIds, accountName)

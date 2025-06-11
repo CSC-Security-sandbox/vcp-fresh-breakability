@@ -50,6 +50,7 @@ type Provider interface {
 	UpdateVolumeReplication(volRep *VolumeReplication) (*VolumeReplication, error)
 	ReleaseVolumeReplication(params *CreateVolumeReplicationParams) (*VolumeReplication, error)
 	ResyncVolumeReplication(volRep *VolumeReplication) (*VolumeReplication, error)
+	GetReplicationDetails(volRep *VolumeReplication) (*VolumeReplication, error)
 	CreateSnapshot(params CreateSnapshotParams) (*SnapshotProviderResponse, error)
 	DeleteSnapshot(snapshotUUID string, volumeUUID string) error
 }

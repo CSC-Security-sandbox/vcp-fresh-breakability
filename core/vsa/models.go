@@ -182,7 +182,7 @@ type VolumeReplication struct {
 	Jobs                          []*ontaprestmodel.Job
 	TotalTransferBytes            int64
 	TotalTransferTimeSecs         int64
-	LastTransferSize              uint64
+	LastTransferSize              int64
 	LastTransferError             string
 	LastTransferDuration          int64
 	LastTransferEndTime           *time.Time
@@ -202,6 +202,10 @@ type VolumeReplication struct {
 	DestinationVolumeStorageClass string
 	SkipPeeringCleanup            *bool
 	ReplicationType               string
+	TotalProgress                 int64
+	CurrentTransferType           string
+	CurrentTransferError          string
+	ProgressLastUpdated           *time.Time
 }
 
 // SnapmirrorDestination describes SnapmirrorDestination information retrieved from ONTAP

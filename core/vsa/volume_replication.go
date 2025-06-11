@@ -1,6 +1,7 @@
 package vsa
 
 import (
+	"context"
 	"strings"
 	"time"
 
@@ -10,6 +11,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/nillable"
+	"netapp.com/vsa/lifecycle-manager/pkg/log"
 )
 
 var (
@@ -58,6 +60,11 @@ const (
 	VolumeReplicationSchedule10Minutely = "10minutely"
 	VolumeReplicationScheduleHourly     = "hourly"
 	VolumeReplicationScheduleDaily      = "daily"
+)
+
+var (
+	nillableParseStringTimeTotimeTime = nillable.ParseStringTimeTotimeTime
+	nillableParseDurationInSeconds    = nillable.ParseDurationInSeconds
 )
 
 func createVolumeReplicationSchedule(provider *OntapRestProvider, schedule string) (err error) {
@@ -263,7 +270,7 @@ func convertSnapMirrorToVolumeReplication(snapmirror ontaprest.SnapmirrorRelatio
 		Mounted:               in.Mounted,
 		TotalTransferBytes:    nillable.FromPointer(snapmirror.TotalTransferBytes),
 		TotalTransferTimeSecs: int64(totalTransferTimeSecs),
-		LastTransferSize:      uint64(bytesTransferred),
+		LastTransferSize:      bytesTransferred,
 		LastTransferDuration:  int64(lastTransferTimeSecs),
 		LastTransferEndTime:   endTime,
 		LagTime:               int64(lagTime),
@@ -782,4 +789,48 @@ func isNonExistentVserverEntryError(err error) bool {
 	return strings.Contains(err.Error(), "entry doesn't exist") ||
 		strings.Contains(err.Error(), "entry not found") ||
 		strings.Contains(err.Error(), "Vserver peer relationship does not exist on the local cluster")
+}
+
+// GetReplicationDetails retrieves the details of a specific Volume Replication
+func (provider *OntapRestProvider) GetReplicationDetails(volRep *VolumeReplication) (*VolumeReplication, error) {
+	client := getOntapClientFunc(provider.ClientParams)
+
+	snapmirrorOkResp, err := client.Snapmirror().SnapmirrorGetPriv(context.TODO(), volRep.DestinationPath(), volRep.ExternalUUID, nil)
+	if err != nil {
+		return nil, err
+	}
+	if snapmirrorOkResp == nil || snapmirrorOkResp.Payload == nil || len(snapmirrorOkResp.Payload.Records) < 1 {
+		return nil, errors.NewNotFoundErr("snapmirror", &volRep.ExternalUUID)
+	}
+
+	// set snapmirror stats to model
+	volRep.MirrorState = snapmirrorOkResp.Payload.Records[0].State
+	volRep.RelationshipStatus = snapmirrorOkResp.Payload.Records[0].Status
+	volRep.TotalProgress = snapmirrorOkResp.Payload.Records[0].TotalProgress
+	volRep.Healthy = snapmirrorOkResp.Payload.Records[0].Healthy
+	volRep.UnhealthyReason = snapmirrorOkResp.Payload.Records[0].UnhealthyReason
+	volRep.CurrentTransferType = snapmirrorOkResp.Payload.Records[0].CurrentTransferType
+	volRep.CurrentTransferError = snapmirrorOkResp.Payload.Records[0].CurrentTransferError
+	volRep.TotalTransferBytes = snapmirrorOkResp.Payload.Records[0].TotalTransferBytes
+	volRep.TotalTransferTimeSecs = snapmirrorOkResp.Payload.Records[0].TotalTransferTimeSecs
+	volRep.LastTransferSize = snapmirrorOkResp.Payload.Records[0].LastTransferSize
+	volRep.LastTransferError = snapmirrorOkResp.Payload.Records[0].LastTransferError
+	volRep.LastTransferEndTime, err = nillableParseStringTimeTotimeTime(snapmirrorOkResp.Payload.Records[0].LastTransferEndTimestamp)
+	if err != nil {
+		log.Errorf("Error in ontap.GetSnapMirror(VolumeReplicationID=%s), err=%s ", volRep.UUID, err)
+		return nil, err
+	}
+	volRep.ProgressLastUpdated, err = nillableParseStringTimeTotimeTime(snapmirrorOkResp.Payload.Records[0].ProgressLastUpdated)
+	if err != nil {
+		log.Errorf("Error in ontap.GetSnapMirror(VolumeReplicationID=%s), err=%s ", volRep.UUID, err)
+		return nil, err
+	}
+	if snapmirrorOkResp.Payload.Records[0].LastTransferDuration != "" {
+		volRep.LastTransferDuration = nillableParseDurationInSeconds(snapmirrorOkResp.Payload.Records[0].LastTransferDuration)
+	}
+	if snapmirrorOkResp.Payload.Records[0].LagTime != "" {
+		volRep.LagTime = nillableParseDurationInSeconds(snapmirrorOkResp.Payload.Records[0].LagTime)
+	}
+
+	return volRep, nil
 }

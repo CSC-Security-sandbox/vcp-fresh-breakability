@@ -47,6 +47,7 @@ type OrchestratorFactory interface {
 	CreateVolumeReplicationInternal(ctx context.Context, params *commonparams.CreateVolumeReplicationInternalParams) (*models.VolumeReplication, *datamodel.Job, error)
 	GetReplicationCount(ctx context.Context, projectNumber string) (int64, error)
 	CreateVolumeReplication(ctx context.Context, params *commonparams.CreateVolumeReplicationParams) (*models.VolumeReplication, string, error)
+	GetMultipleReplicationsInternal(ctx context.Context, accountName string, replicationUUIDs []string) ([]*datamodel.VolumeReplication, error)
 
 	// KMS Config related methods
 	KmsConfigInterface

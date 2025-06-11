@@ -2178,6 +2178,18 @@ func TestReplicationDeleteV1beta_EncodeDecode(t *testing.T) {
 	var typ2 ReplicationDeleteV1beta
 	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
 }
+func TestReplicationIDListV1beta_EncodeDecode(t *testing.T) {
+	var typ ReplicationIDListV1beta
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 ReplicationIDListV1beta
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
 func TestReplicationStopV1beta_EncodeDecode(t *testing.T) {
 	var typ ReplicationStopV1beta
 	typ.SetFake()
@@ -6018,6 +6030,78 @@ func TestV1betaGetMultipleReplicationsForbidden_EncodeDecode(t *testing.T) {
 	var typ2 V1betaGetMultipleReplicationsForbidden
 	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
 }
+func TestV1betaGetMultipleReplicationsInternalBadRequest_EncodeDecode(t *testing.T) {
+	var typ V1betaGetMultipleReplicationsInternalBadRequest
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaGetMultipleReplicationsInternalBadRequest
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1betaGetMultipleReplicationsInternalForbidden_EncodeDecode(t *testing.T) {
+	var typ V1betaGetMultipleReplicationsInternalForbidden
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaGetMultipleReplicationsInternalForbidden
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1betaGetMultipleReplicationsInternalInternalServerError_EncodeDecode(t *testing.T) {
+	var typ V1betaGetMultipleReplicationsInternalInternalServerError
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaGetMultipleReplicationsInternalInternalServerError
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1betaGetMultipleReplicationsInternalNotFound_EncodeDecode(t *testing.T) {
+	var typ V1betaGetMultipleReplicationsInternalNotFound
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaGetMultipleReplicationsInternalNotFound
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1betaGetMultipleReplicationsInternalNotImplemented_EncodeDecode(t *testing.T) {
+	var typ V1betaGetMultipleReplicationsInternalNotImplemented
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaGetMultipleReplicationsInternalNotImplemented
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1betaGetMultipleReplicationsInternalOK_EncodeDecode(t *testing.T) {
+	var typ V1betaGetMultipleReplicationsInternalOK
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaGetMultipleReplicationsInternalOK
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
 func TestV1betaGetMultipleReplicationsInternalServerError_EncodeDecode(t *testing.T) {
 	var typ V1betaGetMultipleReplicationsInternalServerError
 	typ.SetFake()
@@ -6028,6 +6112,42 @@ func TestV1betaGetMultipleReplicationsInternalServerError_EncodeDecode(t *testin
 	require.True(t, std.Valid(data), "Encoded: %s", data)
 
 	var typ2 V1betaGetMultipleReplicationsInternalServerError
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1betaGetMultipleReplicationsInternalTooManyRequests_EncodeDecode(t *testing.T) {
+	var typ V1betaGetMultipleReplicationsInternalTooManyRequests
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaGetMultipleReplicationsInternalTooManyRequests
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1betaGetMultipleReplicationsInternalUnauthorized_EncodeDecode(t *testing.T) {
+	var typ V1betaGetMultipleReplicationsInternalUnauthorized
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaGetMultipleReplicationsInternalUnauthorized
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1betaGetMultipleReplicationsInternalUnprocessableEntity_EncodeDecode(t *testing.T) {
+	var typ V1betaGetMultipleReplicationsInternalUnprocessableEntity
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaGetMultipleReplicationsInternalUnprocessableEntity
 	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
 }
 func TestV1betaGetMultipleReplicationsNotFound_EncodeDecode(t *testing.T) {

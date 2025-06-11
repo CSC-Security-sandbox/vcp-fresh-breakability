@@ -3715,6 +3715,65 @@ func (_c *MockStorage_ListPools_Call) RunAndReturn(run func(context.Context, [][
 	return _c
 }
 
+// ListVolumeReplications provides a mock function with given fields: ctx, filter
+func (_m *MockStorage) ListVolumeReplications(ctx context.Context, filter utils.Filter) ([]*datamodel.VolumeReplication, error) {
+	ret := _m.Called(ctx, filter)
+
+	if len(ret) == 0 {
+		panic("no return value specified for ListVolumeReplications")
+	}
+
+	var r0 []*datamodel.VolumeReplication
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, utils.Filter) ([]*datamodel.VolumeReplication, error)); ok {
+		return rf(ctx, filter)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, utils.Filter) []*datamodel.VolumeReplication); ok {
+		r0 = rf(ctx, filter)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]*datamodel.VolumeReplication)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, utils.Filter) error); ok {
+		r1 = rf(ctx, filter)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockStorage_ListVolumeReplications_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'ListVolumeReplications'
+type MockStorage_ListVolumeReplications_Call struct {
+	*mock.Call
+}
+
+// ListVolumeReplications is a helper method to define mock.On call
+//   - ctx context.Context
+//   - filter utils.Filter
+func (_e *MockStorage_Expecter) ListVolumeReplications(ctx interface{}, filter interface{}) *MockStorage_ListVolumeReplications_Call {
+	return &MockStorage_ListVolumeReplications_Call{Call: _e.mock.On("ListVolumeReplications", ctx, filter)}
+}
+
+func (_c *MockStorage_ListVolumeReplications_Call) Run(run func(ctx context.Context, filter utils.Filter)) *MockStorage_ListVolumeReplications_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(utils.Filter))
+	})
+	return _c
+}
+
+func (_c *MockStorage_ListVolumeReplications_Call) Return(_a0 []*datamodel.VolumeReplication, _a1 error) *MockStorage_ListVolumeReplications_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockStorage_ListVolumeReplications_Call) RunAndReturn(run func(context.Context, utils.Filter) ([]*datamodel.VolumeReplication, error)) *MockStorage_ListVolumeReplications_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // ListVolumes provides a mock function with given fields: ctx, conditions
 func (_m *MockStorage) ListVolumes(ctx context.Context, conditions [][]interface{}) ([]*datamodel.Volume, error) {
 	ret := _m.Called(ctx, conditions)

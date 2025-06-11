@@ -1215,6 +1215,64 @@ func (_c *MockProvider_GetONTAPVersion_Call) RunAndReturn(run func() (*string, e
 	return _c
 }
 
+// GetReplicationDetails provides a mock function with given fields: volRep
+func (_m *MockProvider) GetReplicationDetails(volRep *VolumeReplication) (*VolumeReplication, error) {
+	ret := _m.Called(volRep)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetReplicationDetails")
+	}
+
+	var r0 *VolumeReplication
+	var r1 error
+	if rf, ok := ret.Get(0).(func(*VolumeReplication) (*VolumeReplication, error)); ok {
+		return rf(volRep)
+	}
+	if rf, ok := ret.Get(0).(func(*VolumeReplication) *VolumeReplication); ok {
+		r0 = rf(volRep)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*VolumeReplication)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(*VolumeReplication) error); ok {
+		r1 = rf(volRep)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockProvider_GetReplicationDetails_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetReplicationDetails'
+type MockProvider_GetReplicationDetails_Call struct {
+	*mock.Call
+}
+
+// GetReplicationDetails is a helper method to define mock.On call
+//   - volRep *VolumeReplication
+func (_e *MockProvider_Expecter) GetReplicationDetails(volRep interface{}) *MockProvider_GetReplicationDetails_Call {
+	return &MockProvider_GetReplicationDetails_Call{Call: _e.mock.On("GetReplicationDetails", volRep)}
+}
+
+func (_c *MockProvider_GetReplicationDetails_Call) Run(run func(volRep *VolumeReplication)) *MockProvider_GetReplicationDetails_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(*VolumeReplication))
+	})
+	return _c
+}
+
+func (_c *MockProvider_GetReplicationDetails_Call) Return(_a0 *VolumeReplication, _a1 error) *MockProvider_GetReplicationDetails_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockProvider_GetReplicationDetails_Call) RunAndReturn(run func(*VolumeReplication) (*VolumeReplication, error)) *MockProvider_GetReplicationDetails_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // GetSVMPeer provides a mock function with given fields: localSVMName, remoteSVMName
 func (_m *MockProvider) GetSVMPeer(localSVMName *string, remoteSVMName *string) (*SvmPeer, error) {
 	ret := _m.Called(localSVMName, remoteSVMName)

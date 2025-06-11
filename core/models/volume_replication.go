@@ -10,6 +10,17 @@ type VolumeReplicationUpdateMaskRequest struct {
 	HybridReplicationType HybridReplicationHydrateType  `json:"hybridReplicationType,omitempty"`
 }
 
+const (
+	OntapSnapmirrored                  = "snapmirrored"
+	OntapUninitialized                 = "uninitialized"
+	OntapBrokenOff                     = "broken-off"
+	SnapmirrorRelationshipIdle         = "idle"
+	SnapmirrorRelationshipTransferring = "transferring"
+
+	DstEndpoint = "dst"
+	SrcEndpoint = "src"
+)
+
 type VolumeReplication struct {
 	BaseModel
 	Name                  string

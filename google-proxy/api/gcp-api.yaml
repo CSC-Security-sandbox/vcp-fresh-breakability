@@ -3933,6 +3933,59 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
+  /v1beta/internal/projects/{projectNumber}/locations/{locationId}/getMultipleReplications:
+    post:
+      operationId: v1beta_getMultipleReplicationsInternal
+      summary: List specific replications
+      description: Returns selected replication objects
+      tags:
+        - v1Beta_internal
+      parameters:
+        - $ref: '#/components/parameters/projectNumberPathParameter'
+        - $ref: '#/components/parameters/locationIdPathParameter'
+        - $ref: '#/components/parameters/xCorrelationIdHeader'
+      requestBody:
+        description: A list of replication UUIDs to return.
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReplicationIDList_v1beta'
+        required: true
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - type: object
+                    properties:
+                      replications:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/VolumeReplicationInternal_v1beta'
+        '400':
+          $ref: '#/components/responses/StandardError-400'
+        '401':
+          $ref: '#/components/responses/StandardError-401'
+        '403':
+          $ref: '#/components/responses/StandardError-403'
+        '404':
+          $ref: '#/components/responses/StandardError-404'
+        '422':
+          $ref: '#/components/responses/StandardError-422'
+        '429':
+          $ref: '#/components/responses/StandardError-429'
+        '500':
+          $ref: '#/components/responses/StandardError-500'
+        '501':
+          $ref: '#/components/responses/StandardError-501'
+        default:
+          description: Unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
   /v1beta/internal/projects/{projectNumber}/locations/{locationId}/volumeReplication:
     post:
       operationId: v1beta_internalCreateVolumeReplication
@@ -7085,6 +7138,21 @@ components:
           example: 24
       description: Object containing necessary parameters to start a hybrid replication
         process
+    ReplicationIDList_v1beta:
+      type: object
+      title: ReplicationIDList
+      required:
+        - replicationUUIDs
+      properties:
+        replicationUUIDs:
+          title: replicationUUIDs
+          type: array
+          minItems: 1
+          items:
+            type: string
+            description: UUID v4 used to identify the replication
+            pattern: ^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$
+            example: 9760acf5-4638-11e7-9bdb-020073ca3333
     ReplicationURIList_v1beta:
       type: object
       title: ReplicationURIList_v1beta

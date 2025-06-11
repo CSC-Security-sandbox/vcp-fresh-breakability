@@ -1,8 +1,13 @@
 package ontap_rest
 
 import (
+	"context"
+	"errors"
+	"time"
+
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/ontap-rest/client/snapmirror"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/ontap-rest/models"
+	snapmirrorpriv "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/ontap-rest/priv/client/snapmirror"
 )
 
 // SnapmirrorClient describes a snapmirror client
@@ -15,10 +20,18 @@ type SnapmirrorClient interface { // generate:mock
 	SnapmirrorRelationshipList(params *SnapmirrorRelationshipListParams) ([]*SnapmirrorRelationship, error)
 	SnapmirrorRelationshipListDestinations(params *SnapmirrorRelationshipListDestinationsParams) ([]*SnapmirrorRelationship, error)
 	SnapmirrorRelationshipModify(params *SnapmirrorRelationshipModifyParams) (*SnapmirrorRelationship, *JobAccepted, error)
+
+	// Priv Client
+	SnapmirrorGetPriv(ctx context.Context, destinationPath, relationshipID string, relationshipGroupType *string) (*snapmirrorpriv.SnapmirrorGetOK, error)
 }
 
+var (
+	snapmirrorGetReturnTimeout = int64(120)
+)
+
 type snapmirrorClient struct {
-	api snapmirror.ClientService
+	api     snapmirror.ClientService
+	apiPriv snapmirrorpriv.ClientService
 }
 
 func (s *snapmirrorClient) SnapmirrorRelationshipCreate(params *SnapmirrorRelationshipCreateParams) (*SnapmirrorRelationship, *JobAccepted, error) {
@@ -122,4 +135,71 @@ func (s *snapmirrorClient) SnapmirrorRelationshipModify(params *SnapmirrorRelati
 		return nil, job, nil
 	}
 	return &SnapmirrorRelationship{SnapmirrorRelationship: *syncResponse.Payload.Records[0]}, nil, nil
+}
+
+// SnapmirrorGetPriv retrieves the snapmirror relationship details for a given destination path and relationship ID.
+func (s *snapmirrorClient) SnapmirrorGetPriv(ctx context.Context, destinationPath, relationshipID string, relationshipGroupType *string) (*snapmirrorpriv.SnapmirrorGetOK, error) {
+	if relationshipID == "" && destinationPath == "" {
+		return nil, errors.New("either relationshipID or destinationPath must be provided")
+	}
+
+	newCtx, cancel := context.WithTimeout(ctx, time.Duration(snapmirrorGetReturnTimeout)*time.Second)
+	defer cancel()
+
+	params := snapmirrorpriv.
+		NewSnapmirrorGetParamsWithContext(newCtx).
+		WithRelationshipID(&relationshipID).
+		WithDestinationPath(&destinationPath).
+		WithFields([]string{
+			"current-transfer-error",
+			"current_operation_id",
+			"current_transfer_type",
+			"destination_path",
+			"destination_endpoint_uuid",
+			"healthy",
+			"lag_time",
+			"last_transfer_end_timestamp",
+			"last_transfer_error",
+			"last_transfer_size",
+			"last_transfer_type",
+			"last_transfer_duration",
+			"newest_snapshot",
+			"throttle",
+			"policy",
+			"policy_type",
+			"progress_last_updated",
+			"relationship_id",
+			"relationship_type",
+			"schedule",
+			"source_path",
+			"source_volume",
+			"state",
+			"status",
+			"total_progress",
+			"total_transfer_bytes",
+			"total_transfer_time_secs",
+			"type",
+			"unhealthy_reason",
+			"transfer_snapshot",
+			"exported_snapshot",
+		}).
+		WithReturnTimeout(&snapmirrorGetReturnTimeout)
+
+	expand := true
+	if relationshipGroupType != nil {
+		params.WithRelationshipGroupType(relationshipGroupType)
+		// Todo: Temporarily using string, use const when flexgroup support is added
+		if *relationshipGroupType == "flexgroup" {
+			// Todo: Check if diag mode is needed for flexgroup
+			params.WithExpand(&expand)
+			params.WithFields([]string{"total_transfer_bytes", "total_progress", "last_transfer_error"})
+		}
+	}
+
+	res, err := s.apiPriv.SnapmirrorGet(params)
+	if err != nil {
+		return nil, err
+	}
+
+	return res, nil
 }

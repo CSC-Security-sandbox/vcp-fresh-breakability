@@ -4,6 +4,7 @@ import (
 	"time"
 
 	"github.com/go-openapi/strfmt"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	gcpserver "github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/api/gcp-servergen"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
@@ -237,4 +238,14 @@ type ResourceNames struct {
 	Email            string
 	BucketName       string
 	ServiceAccountId string
+}
+
+type ReplicationInternalGetMultipleParams struct {
+	ReplicationUUIDs    []string
+	AccountName         string
+	ReplicationsFromDB  []*datamodel.VolumeReplication
+	PoolUUIDs           []string
+	PoolNodeMap         map[int64]*datamodel.Node                // [poolUUID]Node
+	PoolReplicationsMap map[int64][]*datamodel.VolumeReplication // [poolUUID][]VolumeReplication
+	UpdatedReplications []*datamodel.VolumeReplication           // Replications updated from Ontap
 }

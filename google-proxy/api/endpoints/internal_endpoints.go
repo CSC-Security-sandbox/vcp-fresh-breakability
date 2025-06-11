@@ -35,41 +35,28 @@ func (h Handler) V1betaInternalDescribePool(ctx context.Context, params gcpgense
 	return convertToPoolInternalV1Beta(pool), nil
 }
 
-func convertToPoolInternalV1Beta(pool *models.Pool) *gcpgenserver.PoolInternalV1beta {
-	poolResp := &gcpgenserver.PoolInternalV1beta{
-		Network:                  pool.VendorSubNetID,
-		PoolId:                   gcpgenserver.NewOptString(pool.UUID),
-		ResourceId:               pool.Name,
-		ServiceLevel:             gcpgenserver.PoolInternalV1betaServiceLevel(pool.ServiceLevel),
-		QosType:                  gcpgenserver.NewOptNilString(pool.QosType),
-		SizeInBytes:              float64(pool.SizeInBytes),
-		AllocatedBytes:           gcpgenserver.NewOptNilFloat64(pool.PoolAttributes.AllocatedBytes),
-		TotalThroughputMibps:     gcpgenserver.NewOptNilFloat64(pool.TotalThroughputMibps),
-		AvailableThroughputMibps: gcpgenserver.NewOptNilFloat64(pool.TotalThroughputMibps - pool.UtilizedThroughputMibps),
-		NumberOfVolumes:          gcpgenserver.NewOptNilInt32(int32(pool.PoolAttributes.NumberOfVolumes)),
-		StoragePoolState: gcpgenserver.OptPoolInternalV1betaStoragePoolState{
-			Value: gcpgenserver.PoolInternalV1betaStoragePoolState(pool.State),
-		},
-		StoragePoolStateDetails: gcpgenserver.NewOptString(pool.StateDetails),
-		CreatedAt:               gcpgenserver.NewOptDateTime(pool.CreatedAt),
-		UpdatedAt:               gcpgenserver.NewOptDateTime(pool.UpdatedAt),
-		StateDetails:            gcpgenserver.NewOptString(pool.StateDetails),
-		Description:             gcpgenserver.NewOptNilString(pool.Description),
-		Zone:                    gcpgenserver.NewOptString(pool.Zone),
-		AllowAutoTiering:        gcpgenserver.NewOptNilBool(pool.AllowAutoTiering),
+func (h Handler) V1betaGetMultipleReplicationsInternal(ctx context.Context, req *gcpgenserver.ReplicationIDListV1beta, params gcpgenserver.V1betaGetMultipleReplicationsInternalParams) (gcpgenserver.V1betaGetMultipleReplicationsInternalRes, error) {
+	logger := util.GetLogger(ctx)
+	helper.AddLabelerAttributes(ctx, params.ProjectNumber, params.LocationId)
+	replications, err := h.Orchestrator.GetMultipleReplicationsInternal(ctx, params.ProjectNumber, req.GetReplicationUUIDs())
+	if err != nil {
+		if errors.IsNotFoundErr(err) {
+			logger.Info("No replications found for the provided UUIDs", "replicationUUIDs", req.GetReplicationUUIDs())
+			return &gcpgenserver.V1betaGetMultipleReplicationsInternalNotFound{
+				Code:    404,
+				Message: "No replications found for the provided UUIDs",
+			}, nil
+		}
+		logger.Error("Failed to get multiple replications", "error", err.Error())
+		return &gcpgenserver.V1betaGetMultipleReplicationsInternalInternalServerError{
+			Code:    500,
+			Message: "Internal server error while getting multiple replications",
+		}, err
 	}
-	if pool.PoolAttributes != nil {
-		poolResp.SecondaryZone = gcpgenserver.NewOptString(pool.PoolAttributes.SecondaryZone)
-	}
-	if pool.CustomPerformanceParams != nil {
-		poolResp.CustomPerformanceEnabled = gcpgenserver.NewOptBool(pool.CustomPerformanceParams.Enabled)
-		poolResp.TotalIops = gcpgenserver.NewOptNilFloat64(float64(pool.CustomPerformanceParams.Iops))
-	}
-	if pool.ClusterAttributes != nil {
-		poolResp.InterclusterLifs = pool.ClusterAttributes.InterClusterLifs
-		poolResp.ClusterName = gcpgenserver.NewOptString(pool.ClusterAttributes.ExternalName)
-	}
-	return poolResp
+
+	return &gcpgenserver.V1betaGetMultipleReplicationsInternalOK{
+		Replications: convertToVolumeReplicationsInternalV1Beta(replications),
+	}, nil
 }
 
 func (h Handler) V1betaInternalCreateVolumeReplication(ctx context.Context, req *gcpgenserver.VolumeReplicationCreateInternalV1beta, params gcpgenserver.V1betaInternalCreateVolumeReplicationParams) (gcpgenserver.V1betaInternalCreateVolumeReplicationRes, error) {

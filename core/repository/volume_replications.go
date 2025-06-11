@@ -172,6 +172,9 @@ func (d *DataStoreRepository) UpdateVolumeReplicationTransferStats(ctx context.C
 	dbReplication.LastTransferDuration = volumeRep.LastTransferDuration
 	dbReplication.LastTransferEndTime = volumeRep.LastTransferEndTime
 	dbReplication.ProgressLastUpdated = volumeRep.ProgressLastUpdated
+	dbReplication.LagTime = volumeRep.LagTime
+	dbReplication.MirrorState = volumeRep.MirrorState
+	dbReplication.RelationshipStatus = volumeRep.RelationshipStatus
 	if err := tx.Updates(dbReplication).Error; err != nil {
 		return err
 	}
@@ -213,4 +216,18 @@ func (d *DataStoreRepository) GetVolumeReplicationCount(ctx context.Context, acc
 		return 0, err
 	}
 	return count, nil
+}
+
+func (d *DataStoreRepository) ListVolumeReplications(ctx context.Context, filter utils.Filter) ([]*datamodel.VolumeReplication, error) {
+	if len(filter.Conditions) == 0 {
+		return nil, customerrors.NewUserInputValidationErr("no filter conditions provided for listing volume replications")
+	}
+
+	db := d.db.ApplyFilter(filter.Apply()).GORM().WithContext(ctx)
+	var volumeReplications []*datamodel.VolumeReplication
+	err := db.Preload("Volume").Preload("Volume.Pool").Find(&volumeReplications).Error
+	if err != nil {
+		return nil, err
+	}
+	return volumeReplications, nil
 }

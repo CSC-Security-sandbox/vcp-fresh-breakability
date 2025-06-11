@@ -111,6 +111,12 @@ func TestRESTClient_SAN(t *testing.T) {
 	assert.Equal(t, sanc, client.SAN())
 }
 
+func TestRESTClient_Snapmirror(t *testing.T) {
+	snap := &snapmirrorClient{}
+	client := &restClient{snapmirror: snap}
+	assert.Equal(t, snap, client.Snapmirror())
+}
+
 func TestRESTClient_Poll(t *testing.T) {
 	mockPoller := new(MockPoller)
 	client := &restClient{poller: mockPoller}

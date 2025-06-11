@@ -145,6 +145,10 @@ type V1betaGetMultiplePoolsRes interface {
 	v1betaGetMultiplePoolsRes()
 }
 
+type V1betaGetMultipleReplicationsInternalRes interface {
+	v1betaGetMultipleReplicationsInternalRes()
+}
+
 type V1betaGetMultipleReplicationsRes interface {
 	v1betaGetMultipleReplicationsRes()
 }

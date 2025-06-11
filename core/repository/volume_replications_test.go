@@ -8,6 +8,8 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	gormwrapper "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/gorm"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
+	customerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"gorm.io/gorm"
 )
 
@@ -513,11 +515,17 @@ func TestUpdateVolumeReplicationTransferStats(t *testing.T) {
 			tt.Fatalf("Failed to create volume: %v", err)
 		}
 
+		mirrorState := models.OntapUninitialized
+		mirrorStateSnapmirrored := models.OntapSnapmirrored
+		relationshipStatus := models.SnapmirrorRelationshipIdle
 		volumeRep := &datamodel.VolumeReplication{
-			BaseModel: datamodel.BaseModel{UUID: "test-volume-rep-uuid"},
-			Name:      "test_volume_rep",
-			Account:   account,
-			Volume:    volume,
+			BaseModel:          datamodel.BaseModel{UUID: "test-volume-rep-uuid"},
+			Name:               "test_volume_rep",
+			Account:            account,
+			Volume:             volume,
+			MirrorState:        &mirrorState,
+			RelationshipStatus: &relationshipStatus,
+			Healthy:            false,
 		}
 		err = store.db.Create(volumeRep).Error()
 		assert.NoError(tt, err, "Failed to create volume replication")
@@ -526,13 +534,18 @@ func TestUpdateVolumeReplicationTransferStats(t *testing.T) {
 			BaseModel:        datamodel.BaseModel{UUID: "test-volume-rep-uuid"},
 			Name:             "test_volume_rep",
 			LastTransferSize: 100,
+			MirrorState:      &mirrorStateSnapmirrored,
+			Healthy:          true,
 		}
 		err = store.UpdateVolumeReplicationTransferStats(context.Background(), updateVolumeRep)
 		assert.NoError(tt, err, "Expected no error, got %v", err)
 
 		updatedVolumeRep, err1 := store.GetVolumeReplication(context.Background(), volumeRep.UUID)
 		assert.NoError(tt, err1, "Expected no error, got %v", err1)
-		assert.Equal(tt, int64(100), updatedVolumeRep.LastTransferSize, "Expected volume state %v, got %v", models.LifeCycleStateUpdating, updatedVolumeRep.State)
+		assert.Equal(tt, int64(100), updatedVolumeRep.LastTransferSize, "Expected volume last transfer size %v, got %v", 100, updatedVolumeRep.LastTransferSize)
+		assert.Equal(tt, models.OntapSnapmirrored, *updatedVolumeRep.MirrorState, "Expected volume mirror state %v, got %v", models.OntapSnapmirrored, *updatedVolumeRep.MirrorState)
+		assert.True(tt, updatedVolumeRep.Healthy, "Expected volume healthy status %v, got %v", true, updatedVolumeRep.Healthy)
+		assert.Equal(tt, models.SnapmirrorRelationshipIdle, *updatedVolumeRep.RelationshipStatus, "Expected volume relationship status %v, got %v", models.SnapmirrorRelationshipIdle, *updatedVolumeRep.RelationshipStatus)
 	})
 	t.Run("WhenVolumeReplicationIsNotFound", func(tt *testing.T) {
 		db, err := SetupTestDB()
@@ -598,5 +611,140 @@ func TestGetVolumeReplicationCount(t *testing.T) {
 		count, err := store.GetVolumeReplicationCount(context.Background(), "nonexistent_account")
 		assert.EqualError(tt, err, "[0] undefined error: account not found")
 		assert.Equal(tt, int64(0), count, "Expected count %v, got %v", 0, count)
+	})
+}
+
+func CreateTestData(store *DataStoreRepository) (*datamodel.Account, *datamodel.Pool, *datamodel.Volume, error) {
+	account := &datamodel.Account{
+		BaseModel: datamodel.BaseModel{
+			ID:   1,
+			UUID: "test-account-uuid",
+		},
+		Name: "test_account",
+	}
+	err := store.db.Create(account).Error()
+	if err != nil {
+		return nil, nil, nil, err
+	}
+
+	pool := &datamodel.Pool{
+		Name:    "test_pool",
+		Account: account,
+		ClusterDetails: datamodel.ClusterDetails{
+			ExternalName: "external-cluster",
+		},
+	}
+	err = store.db.Create(pool).Error()
+	if err != nil {
+		return nil, nil, nil, err
+	}
+
+	volume := &datamodel.Volume{
+		BaseModel: datamodel.BaseModel{UUID: "test-volume-uuid"},
+		Name:      "test_volume",
+		AccountID: account.ID,
+		Account:   account,
+		Pool:      pool,
+		PoolID:    pool.ID,
+	}
+	err = store.db.Create(volume).Error()
+	if err != nil {
+		return nil, nil, nil, err
+	}
+
+	return account, pool, volume, nil
+}
+
+func TestListVolumeReplications(t *testing.T) {
+	t.Run("HappyPath", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(t, err, "Failed to set up test database")
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(t, err, "Failed to clean up test database")
+
+		account, _, volume, err := CreateTestData(store)
+		if err != nil {
+			t.Fatalf("Failed to create test data: %v", err)
+		}
+
+		replication1 := &datamodel.VolumeReplication{
+			BaseModel: datamodel.BaseModel{UUID: "replication-1"},
+			Name:      "replication_1",
+			AccountID: account.ID,
+			Account:   account,
+			VolumeID:  volume.ID,
+		}
+		err = store.db.Create(replication1).Error()
+		if err != nil {
+			t.Fatalf("Failed to create replication 1: %v", err)
+		}
+
+		replication2 := &datamodel.VolumeReplication{
+			BaseModel: datamodel.BaseModel{UUID: "replication-2"},
+			Name:      "replication_2",
+			AccountID: account.ID,
+			Account:   account,
+			VolumeID:  volume.ID,
+		}
+		err = store.db.Create(replication2).Error()
+		if err != nil {
+			t.Fatalf("Failed to create replication 2: %v", err)
+		}
+
+		replicationUUIDs := []string{replication1.UUID, replication2.UUID}
+		filter := utils.CreateFilterWithConditions([]*utils.FilterCondition{
+			utils.NewFilterCondition().WithConditions("account_id", "=", account.ID),
+			utils.NewFilterCondition().WithConditions("uuid", "in", replicationUUIDs)})
+
+		replications, err := store.ListVolumeReplications(context.Background(), *filter)
+		assert.NoError(t, err, "Expected no error, got %v", err)
+		assert.Len(t, replications, 2, "Expected 2 volume replications, got %d", len(replications))
+		assert.Equal(t, replication1.UUID, replications[0].UUID, "Expected replication 1 UUID %v, got %v", replication1.UUID, replications[0].UUID)
+		assert.Equal(t, replication2.UUID, replications[1].UUID, "Expected replication 2 UUID %v, got %v", replication2.UUID, replications[1].UUID)
+		assert.Equal(t, "external-cluster", replications[0].Volume.Pool.ClusterDetails.ExternalName, "Expected cluster name %v, got %v", "external-cluster", replications[0].Volume.Pool.ClusterDetails.ExternalName)
+	})
+	t.Run("WhenNoReplicationsExist", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(t, err, "Failed to set up test database")
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(t, err, "Failed to clean up test database")
+
+		account, _, _, err := CreateTestData(store)
+		if err != nil {
+			t.Fatalf("Failed to create test data: %v", err)
+		}
+
+		filter := utils.CreateFilterWithConditions([]*utils.FilterCondition{
+			utils.NewFilterCondition().WithConditions("account_id", "=", account.ID)})
+
+		replications, err := store.ListVolumeReplications(context.Background(), *filter)
+		assert.NoError(t, err, "Expected no error, got %v", err)
+		assert.Empty(t, replications, "Expected no volume replications, got %d", len(replications))
+	})
+	t.Run("WhenFilterIsNil", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(t, err, "Failed to set up test database")
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(t, err, "Failed to clean up test database")
+
+		_, _, _, err = CreateTestData(store)
+		if err != nil {
+			t.Fatalf("Failed to create test data: %v", err)
+		}
+
+		expectedError := customerrors.NewUserInputValidationErr("no filter conditions provided for listing volume replications")
+
+		replications, err := store.ListVolumeReplications(context.Background(), utils.Filter{})
+		assert.EqualError(t, expectedError, "no filter conditions provided for listing volume replications", "Expected error %v, got %v", expectedError, err)
+		assert.Empty(t, replications, "Expected no volume replications, got %d", len(replications))
 	})
 }

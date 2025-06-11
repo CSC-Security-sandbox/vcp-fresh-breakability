@@ -2,6 +2,7 @@ package nillable
 
 import (
 	"reflect"
+	"regexp"
 	"strconv"
 	"time"
 
@@ -235,4 +236,48 @@ func ConvertInt32PtrToIntPtr(i32 *int32) *int {
 
 	temp := int(*i32)
 	return &temp
+}
+
+// ParseStringTimeTotimeTime parses a string in RFC3339 format to a time.Time pointer.
+func ParseStringTimeTotimeTime(now string) (*time.Time, error) {
+	if now == "" {
+		return nil, nil
+	}
+
+	// layout := "2006-01-02 15:04:05"
+	t, err := time.Parse(time.RFC3339, now)
+	if err != nil {
+		return nil, err
+	}
+
+	return &t, nil
+}
+
+// Input: Duration string, format such as"PT1D23H45M59S"
+// Output: seconds
+func ParseDurationInSeconds(duration string) int64 {
+	if duration == "" {
+		return 0
+	}
+	days := getNumberFromStringFormatTime(duration, `[0-9]+D`)
+	hours := getNumberFromStringFormatTime(duration, `[0-9]+H`)
+	minutes := getNumberFromStringFormatTime(duration, `[0-9]+M`)
+	seconds := getNumberFromStringFormatTime(duration, `[0-9]+S`)
+
+	return int64(3600*24*days + 3600*hours + 60*minutes + seconds)
+}
+
+func getNumberFromStringFormatTime(duration string, pattern string) int {
+	match := regexp.MustCompile(pattern).FindAllString(duration, -1)
+	if match == nil {
+		return 0
+	}
+
+	n := match[0][0 : len(match[0])-1]
+	val, err := strconv.Atoi(n)
+	if err != nil {
+		return 0
+	}
+
+	return val
 }

@@ -83,6 +83,7 @@ type DataStore interface {
 	DeleteVolumeReplication(ctx context.Context, volumeReplicationID string) (*datamodel.VolumeReplication, error)
 	GetVolumeReplicationByProjectId(ctx context.Context, accountId int64) ([]*datamodel.VolumeReplication, error)
 	GetVolumeReplicationCount(ctx context.Context, accountName string) (int64, error)
+	ListVolumeReplications(ctx context.Context, filter utils.Filter) ([]*datamodel.VolumeReplication, error)
 
 	GetAccount(ctx context.Context, name string) (*datamodel.Account, error)
 	CreateAccount(ctx context.Context, account *datamodel.Account) (*datamodel.Account, error)

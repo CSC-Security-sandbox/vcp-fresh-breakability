@@ -355,6 +355,15 @@ func (UnimplementedHandler) V1betaGetMultipleReplications(ctx context.Context, r
 	return r, ht.ErrNotImplemented
 }
 
+// V1betaGetMultipleReplicationsInternal implements v1beta_getMultipleReplicationsInternal operation.
+//
+// Returns selected replication objects.
+//
+// POST /v1beta/internal/projects/{projectNumber}/locations/{locationId}/getMultipleReplications
+func (UnimplementedHandler) V1betaGetMultipleReplicationsInternal(ctx context.Context, req *ReplicationIDListV1beta, params V1betaGetMultipleReplicationsInternalParams) (r V1betaGetMultipleReplicationsInternalRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
 // V1betaGetMultipleSnapshots implements v1beta_getMultipleSnapshots operation.
 //
 // Returns descriptions of snapshots that is listed in request body and belong to specified volume.

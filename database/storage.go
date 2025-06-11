@@ -443,6 +443,10 @@ func (s *PersistenceStore) GetVolumeReplicationCount(ctx context.Context, accoun
 	return s.dataStore.GetVolumeReplicationCount(ctx, accountName)
 }
 
+func (s *PersistenceStore) ListVolumeReplications(ctx context.Context, filter utils.Filter) ([]*datamodel.VolumeReplication, error) {
+	return s.dataStore.ListVolumeReplications(ctx, filter)
+}
+
 func (s *PersistenceStore) GetVolume(ctx context.Context, id string) (*datamodel.Volume, error) {
 	return s.dataStore.GetVolume(ctx, id)
 }

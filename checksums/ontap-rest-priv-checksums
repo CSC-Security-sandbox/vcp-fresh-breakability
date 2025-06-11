@@ -1,4 +1,4 @@
-3399234408 3630 ./client/o_n_t_a_p_p_r_i_v_a_t_e_r_e_s_t_client.go
+34097494 3855 ./client/o_n_t_a_p_p_r_i_v_a_t_e_r_e_s_t_client.go
 1406111094 5779 ./client/object_store/client_service_mock.go
 2604356952 9139 ./client/object_store/client_service_mock_test.go
 4281951868 5952 ./client/object_store/object_store_client.go
@@ -31,6 +31,11 @@
 4080077337 27218 ./client/operations/operations_client.go
 2711626885 4110 ./client/operations/srv_lookup_parameters.go
 3921520851 5193 ./client/operations/srv_lookup_responses.go
+2590053505 5650 ./client/snapmirror/client_service_mock.go
+2537853736 9083 ./client/snapmirror/client_service_mock_test.go
+3480578976 5782 ./client/snapmirror/snapmirror_client.go
+2831955388 14688 ./client/snapmirror/snapmirror_get_parameters.go
+2262906747 5360 ./client/snapmirror/snapmirror_get_responses.go
 3542340258 8670 ./models/anti_ransomware_suspect.go
 593162445 4259 ./models/anti_ransomware_suspect_job_link_response.go
 610305860 1830 ./models/anti_ransomware_suspect_links_self.go
@@ -42,6 +47,7 @@
 1143255489 7991 ./models/cluster_peer_response.go
 3231229164 9757 ./models/cluster_peer_setup_record.go
 3102967272 3361 ./models/cluster_peer_setup_response.go
+3098171988 6491 ./models/data.go
 2146547975 1999 ./models/error_arguments.go
 2780113769 2399 ./models/error_response.go
 4204879210 33308 ./models/gcp_kms.go
@@ -62,9 +68,10 @@
 3427926461 4063 ./models/s3_service_job_link_response.go
 2339889359 15731 ./models/s3_user.go
 2504293875 2308 ./models/self_link.go
+2400099201 2851 ./models/snapmirror_response.go
 3844050262 2815 ./models/srv_lookup.go
 4175078105 1243 ./models/srv_lookup_response.go
 1075420061 2765 ./models/status.go
 1728845828 2345 ./models/svm_peer_permission_applications.go
 84460494 5012 ./models/svm_reference.go
-3490197722 88591 swagger.yaml
+2089639706 95862 swagger.yaml

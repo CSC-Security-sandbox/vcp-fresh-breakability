@@ -27,12 +27,13 @@ const (
 	ErrInputValidationError       = 1009
 	ErrResourceStateConflictError = 1010
 
-	ErrDatabaseConnectionClosed = 2001
-	ErrDatabaseTransactionError = 2002
-	ErrDatabaseDataInsertError  = 2003
-	ErrDatabaseDataReadError    = 2004
-	ErrDatabaseDataUpdateError  = 2005
-	ErrDatabaseDataDeleteError  = 2006
+	ErrDatabaseConnectionClosed  = 2001
+	ErrDatabaseTransactionError  = 2002
+	ErrDatabaseDataInsertError   = 2003
+	ErrDatabaseDataReadError     = 2004
+	ErrDatabaseDataUpdateError   = 2005
+	ErrDatabaseDataDeleteError   = 2006
+	ErrDatabaseDataNotFoundError = 2007
 
 	ErrGCPClientInitializationError  = 3001
 	ErrPSAPeeringNotFoundError       = 3002
@@ -108,6 +109,7 @@ const (
 	ErrDescribeSourcePool                                      = 6040
 	ErrHydrateVolumeCreate                                     = 6041
 	ErrGettingSvmPeer                                          = 6042
+	ErrFailedToGetSnapmirrorDetailsFromOntap                   = 6043
 )
 
 type Error interface {

@@ -1,6 +1,7 @@
 package ontap_rest
 
 import (
+	"context"
 	"errors"
 	"testing"
 
@@ -8,6 +9,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/ontap-rest/client/snapmirror"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/ontap-rest/models"
+	snapPriv "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/ontap-rest/priv/client/snapmirror"
+	privModels "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/ontap-rest/priv/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/nillable"
 )
 
@@ -254,5 +257,53 @@ func TestSnapmirrorRelationshipRelease(t *testing.T) {
 		assert.NoError(tt, err)
 		assert.Equal(tt, success, asyncResponse == nil)
 		assert.Equal(tt, ontapResponse.Payload.Job.UUID.String(), asyncResponse.JobUUID)
+	})
+}
+
+func TestSnapmirrorGetPriv(t *testing.T) {
+	t.Run("WhenRESTCallFails", func(tt *testing.T) {
+		transport := &mockTransport{err: errors.New("something went wrong")}
+		n := snapPriv.New(transport, nil)
+		client := &snapmirrorClient{apiPriv: n}
+		response, err := client.SnapmirrorGetPriv(context.TODO(), "destination-path", "relationshiID", nil)
+		assert.EqualError(tt, err, transport.err.Error())
+		assert.Nil(tt, response)
+	})
+	t.Run("WhenSuccessful", func(tt *testing.T) {
+		data := &privModels.Data{
+			RelationshipID: "relationship-id",
+		}
+		transport := &mockTransport{response: &snapPriv.SnapmirrorGetOK{
+			Payload: &privModels.SnapmirrorResponse{
+				NumRecords: 1,
+				Records:    []*privModels.Data{data},
+			},
+		}}
+		n := snapPriv.New(transport, nil)
+		client := &snapmirrorClient{apiPriv: n}
+		response, err := client.SnapmirrorGetPriv(context.TODO(), "destination-path", "relationshiID", nil)
+		assert.NoError(tt, err)
+		assert.Equal(tt, "relationship-id", response.GetPayload().Records[0].RelationshipID)
+	})
+	t.Run("WhenNoRelationshipIDOrDestinationPathProvided", func(tt *testing.T) {
+		transport := &mockTransport{}
+		n := snapPriv.New(transport, nil)
+		client := &snapmirrorClient{apiPriv: n}
+		response, err := client.SnapmirrorGetPriv(context.TODO(), "", "", nil)
+		assert.EqualError(tt, err, "either relationshipID or destinationPath must be provided")
+		assert.Nil(tt, response)
+	})
+	t.Run("WhenNoRecordsFound", func(tt *testing.T) {
+		transport := &mockTransport{response: &snapPriv.SnapmirrorGetOK{
+			Payload: &privModels.SnapmirrorResponse{
+				NumRecords: 0,
+				Records:    []*privModels.Data{},
+			},
+		}}
+		n := snapPriv.New(transport, nil)
+		client := &snapmirrorClient{apiPriv: n}
+		response, err := client.SnapmirrorGetPriv(context.TODO(), "destination-path", "relationshiID", nil)
+		assert.NoError(tt, err)
+		assert.Equal(tt, int64(0), response.GetPayload().NumRecords)
 	})
 }

@@ -170,6 +170,29 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 									return
 								}
 
+							case 'g': // Prefix: "getMultipleReplications"
+
+								if l := len("getMultipleReplications"); len(elem) >= l && elem[0:l] == "getMultipleReplications" {
+									elem = elem[l:]
+								} else {
+									break
+								}
+
+								if len(elem) == 0 {
+									// Leaf node.
+									switch r.Method {
+									case "POST":
+										s.handleV1betaGetMultipleReplicationsInternalRequest([2]string{
+											args[0],
+											args[1],
+										}, elemIsEscaped, w, r)
+									default:
+										s.notAllowed(w, r, "POST")
+									}
+
+									return
+								}
+
 							case 'p': // Prefix: "pool"
 
 								if l := len("pool"); len(elem) >= l && elem[0:l] == "pool" {
@@ -1996,6 +2019,30 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 										r.summary = "Accept a new cluster peer"
 										r.operationID = "v1beta_internalAcceptClusterPeer"
 										r.pathPattern = "/v1beta/internal/projects/{projectNumber}/locations/{locationId}/clusterPeer"
+										r.args = args
+										r.count = 2
+										return r, true
+									default:
+										return
+									}
+								}
+
+							case 'g': // Prefix: "getMultipleReplications"
+
+								if l := len("getMultipleReplications"); len(elem) >= l && elem[0:l] == "getMultipleReplications" {
+									elem = elem[l:]
+								} else {
+									break
+								}
+
+								if len(elem) == 0 {
+									// Leaf node.
+									switch method {
+									case "POST":
+										r.name = V1betaGetMultipleReplicationsInternalOperation
+										r.summary = "List specific replications"
+										r.operationID = "v1beta_getMultipleReplicationsInternal"
+										r.pathPattern = "/v1beta/internal/projects/{projectNumber}/locations/{locationId}/getMultipleReplications"
 										r.args = args
 										r.count = 2
 										return r, true

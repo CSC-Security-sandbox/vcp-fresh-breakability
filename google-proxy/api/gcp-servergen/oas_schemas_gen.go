@@ -11869,6 +11869,21 @@ func (s *ReplicationDeleteV1beta) SetCleanupResourcesJobId(val OptString) {
 	s.CleanupResourcesJobId = val
 }
 
+// Ref: #/components/schemas/ReplicationIDList_v1beta
+type ReplicationIDListV1beta struct {
+	ReplicationUUIDs []string `json:"replicationUUIDs"`
+}
+
+// GetReplicationUUIDs returns the value of ReplicationUUIDs.
+func (s *ReplicationIDListV1beta) GetReplicationUUIDs() []string {
+	return s.ReplicationUUIDs
+}
+
+// SetReplicationUUIDs sets the value of ReplicationUUIDs.
+func (s *ReplicationIDListV1beta) SetReplicationUUIDs(val []string) {
+	s.ReplicationUUIDs = val
+}
+
 // Ref: #/components/schemas/ReplicationStop_v1beta
 type ReplicationStopV1beta struct {
 	// Force replication stop.
@@ -14901,9 +14916,62 @@ type V1betaGetMultipleReplicationsForbidden Error
 
 func (*V1betaGetMultipleReplicationsForbidden) v1betaGetMultipleReplicationsRes() {}
 
+type V1betaGetMultipleReplicationsInternalBadRequest Error
+
+func (*V1betaGetMultipleReplicationsInternalBadRequest) v1betaGetMultipleReplicationsInternalRes() {}
+
+type V1betaGetMultipleReplicationsInternalForbidden Error
+
+func (*V1betaGetMultipleReplicationsInternalForbidden) v1betaGetMultipleReplicationsInternalRes() {}
+
+type V1betaGetMultipleReplicationsInternalInternalServerError Error
+
+func (*V1betaGetMultipleReplicationsInternalInternalServerError) v1betaGetMultipleReplicationsInternalRes() {
+}
+
+type V1betaGetMultipleReplicationsInternalNotFound Error
+
+func (*V1betaGetMultipleReplicationsInternalNotFound) v1betaGetMultipleReplicationsInternalRes() {}
+
+type V1betaGetMultipleReplicationsInternalNotImplemented Error
+
+func (*V1betaGetMultipleReplicationsInternalNotImplemented) v1betaGetMultipleReplicationsInternalRes() {
+}
+
+type V1betaGetMultipleReplicationsInternalOK struct {
+	Replications []VolumeReplicationInternalV1beta `json:"replications"`
+}
+
+// GetReplications returns the value of Replications.
+func (s *V1betaGetMultipleReplicationsInternalOK) GetReplications() []VolumeReplicationInternalV1beta {
+	return s.Replications
+}
+
+// SetReplications sets the value of Replications.
+func (s *V1betaGetMultipleReplicationsInternalOK) SetReplications(val []VolumeReplicationInternalV1beta) {
+	s.Replications = val
+}
+
+func (*V1betaGetMultipleReplicationsInternalOK) v1betaGetMultipleReplicationsInternalRes() {}
+
 type V1betaGetMultipleReplicationsInternalServerError Error
 
 func (*V1betaGetMultipleReplicationsInternalServerError) v1betaGetMultipleReplicationsRes() {}
+
+type V1betaGetMultipleReplicationsInternalTooManyRequests Error
+
+func (*V1betaGetMultipleReplicationsInternalTooManyRequests) v1betaGetMultipleReplicationsInternalRes() {
+}
+
+type V1betaGetMultipleReplicationsInternalUnauthorized Error
+
+func (*V1betaGetMultipleReplicationsInternalUnauthorized) v1betaGetMultipleReplicationsInternalRes() {
+}
+
+type V1betaGetMultipleReplicationsInternalUnprocessableEntity Error
+
+func (*V1betaGetMultipleReplicationsInternalUnprocessableEntity) v1betaGetMultipleReplicationsInternalRes() {
+}
 
 type V1betaGetMultipleReplicationsNotFound Error
 

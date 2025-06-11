@@ -476,3 +476,63 @@ func TestConvertInt32PtrToIntPtr(t *testing.T) {
 		assert.Equal(tt, int(input), *result)
 	})
 }
+
+func TestParseStringTimeTotimeTime(t *testing.T) {
+	t.Run("WhenValidStringTime", func(tt *testing.T) {
+		timeInString := "2025-06-04T19:09:00+00:00"
+		_, err := ParseStringTimeTotimeTime(timeInString)
+		assert.EqualValues(tt, err, nil)
+	})
+	t.Run("WhenInValidStringTime", func(tt *testing.T) {
+		timeInString := "2025-06-04D19:09:00+00:00"
+		_, err := ParseStringTimeTotimeTime(timeInString)
+		assert.NotNil(tt, err, nil)
+	})
+	t.Run("WhenStringTimeIsEmpty", func(tt *testing.T) {
+		timeInString := ""
+		_, err := ParseStringTimeTotimeTime(timeInString)
+		assert.EqualValues(tt, err, nil)
+	})
+}
+
+func TestParseDuration(t *testing.T) {
+	t.Run("ParseDurationInSeconds", func(tt *testing.T) {
+		duration := "PT1D23H45M59S"
+		expected := int64(171959)
+		if ParseDurationInSeconds(duration) != expected {
+			tt.Fail()
+		}
+	})
+	t.Run("ParseDurationInSecondsEmptyString", func(tt *testing.T) {
+		if ParseDurationInSeconds("") != 0 {
+			tt.Fail()
+		}
+	})
+}
+
+func TestGetNumberFromStringFormatTime(t *testing.T) {
+	t.Run("WhenMatchFound", func(tt *testing.T) {
+		duration := "PT1D23H45M59S"
+		pattern := `[0-9]+D`
+		m := getNumberFromStringFormatTime(duration, pattern)
+		assert.EqualValues(tt, m, 1)
+	})
+	t.Run("WhenMatchNotFound", func(tt *testing.T) {
+		// duration has no 'D' character, hence no match will be found
+		duration := "PT1T23H45M59S"
+		pattern := `[0-9]+D`
+		m := getNumberFromStringFormatTime(duration, pattern)
+		if m != 0 {
+			tt.Fail()
+		}
+	})
+	t.Run("WhenErrorInParsingInt", func(tt *testing.T) {
+		duration := "PT1D23H45M59S"
+		// pattern to get non-numeric in above "duration" string, to get the ParseInt error
+		pattern := `[A-Z]+T`
+		m := getNumberFromStringFormatTime(duration, pattern)
+		if m != 0 {
+			tt.Fail()
+		}
+	})
+}

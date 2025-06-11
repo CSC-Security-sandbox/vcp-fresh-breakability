@@ -318,3 +318,104 @@ func TestV1betaInternalGetReplicationJobs(t *testing.T) {
 		assert.Equal(tt, "job-uuid-2", resp.(*gcpgenserver.V1betaInternalGetReplicationJobsOK).Jobs[1].JobUuid.Value)
 	})
 }
+
+func TestV1betaGetMultipleReplicationsInternal(t *testing.T) {
+	t.Run("WhenGetReplicationsError", func(tt *testing.T) {
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+
+		handler := Handler{
+			Orchestrator: mockOrchestrator,
+		}
+		params := gcpgenserver.V1betaGetMultipleReplicationsInternalParams{
+			ProjectNumber: "test-project",
+			LocationId:    "test-location",
+		}
+		req := &gcpgenserver.ReplicationIDListV1beta{
+			ReplicationUUIDs: []string{"replication-1", "replication-2"},
+		}
+		mockOrchestrator.EXPECT().GetMultipleReplicationsInternal(context.Background(), mock.Anything, mock.Anything).Return(nil, errors.New("some error"))
+		resp, err := handler.V1betaGetMultipleReplicationsInternal(context.Background(), req, params)
+		if intErr, ok := resp.(*gcpgenserver.V1betaGetMultipleReplicationsInternalInternalServerError); ok {
+			assert.Equal(tt, 500, int(intErr.Code))
+		}
+
+		assert.Error(tt, err)
+		assert.Equal(tt, "some error", err.Error())
+	})
+	t.Run("WhenGetReplicationReturnsNotFound", func(tt *testing.T) {
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+
+		handler := Handler{
+			Orchestrator: mockOrchestrator,
+		}
+		params := gcpgenserver.V1betaGetMultipleReplicationsInternalParams{
+			ProjectNumber: "test-project",
+			LocationId:    "test-location",
+		}
+		req := &gcpgenserver.ReplicationIDListV1beta{
+			ReplicationUUIDs: []string{"replication-1", "replication-2"},
+		}
+		mockOrchestrator.EXPECT().GetMultipleReplicationsInternal(context.Background(), mock.Anything, mock.Anything).Return(nil, errors.NewNotFoundErr("replication", nil))
+		resp, err := handler.V1betaGetMultipleReplicationsInternal(context.Background(), req, params)
+		if notFoundResp, ok := resp.(*gcpgenserver.V1betaGetMultipleReplicationsInternalNotFound); ok {
+			assert.Equal(tt, 404, int(notFoundResp.Code))
+		}
+		assert.NoError(tt, err)
+		assert.NotNil(tt, resp)
+	})
+	t.Run("WhenGetMultipleReplicationsSuccess", func(tt *testing.T) {
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		defer func() {
+			convertToVolumeReplicationsInternalV1Beta = _convertToVolumeReplicationsInternalV1Beta
+		}()
+
+		handler := Handler{
+			Orchestrator: mockOrchestrator,
+		}
+		params := gcpgenserver.V1betaGetMultipleReplicationsInternalParams{
+			ProjectNumber: "test-project",
+			LocationId:    "test-location",
+		}
+		req := &gcpgenserver.ReplicationIDListV1beta{
+			ReplicationUUIDs: []string{"replication-1", "replication-2"},
+		}
+		replications := []*datamodel.VolumeReplication{
+			{
+				Name: "replication-1",
+			},
+			{
+				Name: "replication-2",
+			},
+		}
+		expectedResponse := &gcpgenserver.V1betaGetMultipleReplicationsInternalOK{
+			Replications: []gcpgenserver.VolumeReplicationInternalV1beta{
+				gcpgenserver.VolumeReplicationInternalV1beta{
+					Name:         gcpgenserver.NewOptString("replication-1"),
+					EndpointType: gcpgenserver.VolumeReplicationInternalV1betaEndpointTypeDst,
+				},
+				gcpgenserver.VolumeReplicationInternalV1beta{
+					Name:         gcpgenserver.NewOptString("replication-2"),
+					EndpointType: gcpgenserver.VolumeReplicationInternalV1betaEndpointTypeDst,
+				},
+			},
+		}
+
+		convertToVolumeReplicationsInternalV1Beta = func(reps []*datamodel.VolumeReplication) []gcpgenserver.VolumeReplicationInternalV1beta {
+			var internalReps []gcpgenserver.VolumeReplicationInternalV1beta
+			for _, rep := range reps {
+				internalReps = append(internalReps, gcpgenserver.VolumeReplicationInternalV1beta{
+					Name:         gcpgenserver.NewOptString(rep.Name),
+					EndpointType: gcpgenserver.VolumeReplicationInternalV1betaEndpointTypeDst,
+				})
+			}
+			return internalReps
+		}
+
+		mockOrchestrator.EXPECT().GetMultipleReplicationsInternal(mock.Anything, mock.Anything, mock.Anything).Return(replications, nil)
+
+		resp, err := handler.V1betaGetMultipleReplicationsInternal(context.Background(), req, params)
+
+		assert.NoError(tt, err)
+		assert.Equal(tt, expectedResponse, resp)
+	})
+}

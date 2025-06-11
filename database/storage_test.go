@@ -760,3 +760,37 @@ func TestUpdateVolumeFields(t *testing.T) {
 	err = store.UpdateVolumeFields(ctx, created.UUID, map[string]interface{}{"Name": "fail"})
 	assert.Error(t, err)
 }
+
+func TestListVolumeReplications(t *testing.T) {
+	logger := &log.MockLogger{}
+	store, _ := NewTestStorage(logger)
+	ctx := context.Background()
+
+	// Create account and volume for association
+	acc := &datamodel.Account{Name: "acc_snap2"}
+	createdAcc, err := store.CreateAccount(ctx, acc)
+	assert.NoError(t, err)
+	vol := &datamodel.Volume{Name: "vol_snap2", AccountID: createdAcc.ID}
+	createdVol, err := store.CreateVolume(ctx, vol)
+	assert.NoError(t, err)
+
+	// Create a volume replication
+	replication := &datamodel.VolumeReplication{
+		Name:                  "replication1",
+		AccountID:             createdAcc.ID,
+		VolumeID:              createdVol.ID,
+		ReplicationAttributes: &datamodel.ReplicationDetails{},
+	}
+	created, err := store.CreateVolumeReplication(ctx, replication)
+	assert.NoError(t, err)
+	assert.NotNil(t, created)
+
+	filter := utils.CreateFilterWithConditions([]*utils.FilterCondition{
+		utils.NewFilterCondition().WithConditions("account_id", "=", replication.AccountID)})
+
+	// List volume replications
+	reps, err := store.ListVolumeReplications(ctx, *filter)
+	assert.NoError(t, err)
+	assert.NotEmpty(t, reps)
+	assert.Equal(t, created.Name, reps[0].Name)
+}

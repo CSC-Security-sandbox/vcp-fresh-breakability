@@ -12,6 +12,7 @@ import (
 
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/ontap-rest/priv/client/object_store"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/ontap-rest/priv/client/operations"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/ontap-rest/priv/client/snapmirror"
 )
 
 // Default o n t a p p r i v a t e r e s t HTTP client.
@@ -58,6 +59,7 @@ func New(transport runtime.ClientTransport, formats strfmt.Registry) *ONTAPPRIVA
 	cli.Transport = transport
 	cli.ObjectStore = object_store.New(transport, formats)
 	cli.Operations = operations.New(transport, formats)
+	cli.Snapmirror = snapmirror.New(transport, formats)
 	return cli
 }
 
@@ -106,6 +108,8 @@ type ONTAPPRIVATEREST struct {
 
 	Operations operations.ClientService
 
+	Snapmirror snapmirror.ClientService
+
 	Transport runtime.ClientTransport
 }
 
@@ -114,4 +118,5 @@ func (c *ONTAPPRIVATEREST) SetTransport(transport runtime.ClientTransport) {
 	c.Transport = transport
 	c.ObjectStore.SetTransport(transport)
 	c.Operations.SetTransport(transport)
+	c.Snapmirror.SetTransport(transport)
 }

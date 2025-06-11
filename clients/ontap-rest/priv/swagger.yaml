@@ -1035,7 +1035,247 @@ paths:
     x-ntap-long-description:
       description: The suspects DELETE API clears all the suspect files for a volume
         from the list of potential suspects. <br/>
+  /private/cli/snapmirror:
+    get:
+      description: |
+        Retrieves a list of snapmirrors status
+        ### Important notes
+        * The snapmirror object includes a large set of fields and can be expensive to retrieve. Use this API to list the collection of all job status for the whole ONTAP cluster.
+        ### Expensive properties
+        There is an added cost to retrieving values for these properties. They are not included by default in GET results and must be explicitly requested using the `fields` query parameter.
+        ### Related ONTAP commands
+        * `snapmirror show`
+        Action: GET "/api/private/cli/snapmirror"
+      tags:
+        - snapmirror
+      operationId: snapmirror_get
+      parameters:
+        - type: string
+          description: Filter by destination-volume-node
+          name: destination-volume-node
+          in: query
+        - type: string
+          description: Filter by status
+          name: status
+          in: query
+        - type: string
+          description: Filter by destination-path
+          name: destination-path
+          in: query
+        - type: string
+          description: Filter by relationship-id
+          name: relationship-id
+          in: query
+        - type: boolean
+          description: Expand the fields
+          name: expand
+          in: query
+        - type: string
+          description: Set privilege level
+          name: privilege_level
+          in: query
+        - type: string
+          description: Filter by relationship-group-type
+          name: relationship-group-type
+          in: query
+        - type: array
+          items:
+            type: string
+          collectionFormat: csv
+          description: Specify the fields to return.
+          name: fields
+          in: query
+        - type: integer
+          description: Limit the number of records returned.
+          name: max_records
+          in: query
+        - type: boolean
+          default: true
+          description: The default is true for GET calls.  When set to false, only the
+            number of records is returned.
+          name: return_records
+          in: query
+        - maximum: 120
+          minimum: 0
+          type: integer
+          default: 15
+          description: The number of seconds to allow the call to execute before returning.  When
+            iterating over a collection, the default is 15 seconds.  ONTAP returns earlier
+            if either max records or the end of the collection is reached.
+          name: return_timeout
+          in: query
+        - type: array
+          items:
+            type: string
+          collectionFormat: csv
+          description: Order results by specified fields and optional [asc|desc] direction.
+            Default direction is 'asc' for ascending.
+          name: order_by
+          in: query
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/snapmirrorResponse'
+        default:
+          description: Error
+          schema:
+            $ref: '../swagger.yaml#/definitions/error_response'
 definitions:
+  snapmirrorResponse:
+    type: object
+    properties:
+      num_records:
+        description: Number of records
+        type: integer
+      records:
+        type: array
+        items:
+          $ref: '#/definitions/data'
+  data:
+    description: Complete data information
+    properties:
+      current_operation_id:
+        type: string
+        example: tbd
+      current_throttle:
+        type: integer
+        example: 100
+      current_transfer_error:
+        type: string
+        example: ""
+      current_transfer_priority:
+        type: string
+        example: normal
+      current_transfer_type:
+        type: string
+        example: normal
+      destination_endpoint_uuid:
+        type: string
+        example: 7e1c185f-2248-11ea-a686-00a0b8d21f77
+      destination_path:
+        type: string
+        example: cbs_svm:volPK10_src150_dp247
+      destination_volume_node:
+        type: string
+        example: CBS-OntapSelect-02-1
+      exported_snapshot:
+        type: string
+        example: scheduled-backup-cOQJgUCL-2019-10-09_213511
+      exported_snapshot_timestamp:
+        type: string
+        example: "2020-01-31T00:56:04+00:00"
+      file_restore_file_count:
+        type: integer
+        example: 10
+      file_restore_file_list:
+        type: string
+        example: file1 file2
+      healthy:
+        type: boolean
+        example: true
+      is_auto_expand_enabled:
+        type: boolean
+        example: false
+      lag_time:
+        type: string
+        example: P129DT12H40M59S
+      last_transfer_duration:
+        type: string
+        example: PT9M35S
+      last_transfer_end_timestamp:
+        type: string
+        example: "2020-01-31T00:56:09+00:00"
+      last_transfer_error:
+        type: string
+        example: Failed to establish connection with remote endpoint "10.193.57.203"
+      last_transfer_from:
+        type: string
+        example: svm_5b66b63cb13748e1bd3fbbaab9522372_b809d870:volPK1_src150_dp247
+      last_transfer_network_compression_ratio:
+        type: string
+        example: "1:1"
+      last_transfer_size:
+        type: integer
+        example: 16097400
+      last_transfer_type:
+        type: string
+        example: resync
+      network_compression_ratio:
+        type: string
+        example: "2:1"
+      newest_snapshot:
+        type: string
+        example: snapmirror.ca70aaea-a019-11e8-b2fb-00a0b8d21f77_2153532139.2020-01-31_005604
+      newest_snapshot_timestamp:
+        type: string
+        example: snapmirror.ca70aaea-a019-11e8-b2fb-00a0b8d21f77_2153532139.2020-01-31_005604
+      policy:
+        type: string
+        example: MirrorAllSnapshots
+      policy_type:
+        type: string
+        example: async_mirror
+      progress_last_updated:
+        type: string
+        example: tbd
+      relationship_capability:
+        type: string
+        example: 8.2 and above
+      relationship_group_type:
+        type: string
+        example: none
+      relationship_id:
+        type: string
+        example: 7e1c185f-2248-11ea-a686-00a0b8d21f77
+      relationship_type:
+        type: string
+        example: restore
+      schedule:
+        type: string
+        example: hourly
+      snapshot_checkpoint:
+        type: integer
+        example: 99999
+      snapshot_progress:
+        type: integer
+        example: 100
+      source_path:
+        type: string
+        example: svm_5b66b63cb13748e1bd3fbbaab9522372_b809d870:volPK10_src150_dp247
+      source_volume:
+        type: string
+        example: vol_cbs_lthiruva_test_vol_1_b1a3b5
+      state:
+        type: string
+        example: broken-off
+      status:
+        type: string
+        example: idle
+      throttle:
+        type: integer
+        example: 1000
+      total_progress:
+        type: integer
+        example: 8888
+      total_transfer_bytes:
+        type: integer
+        example: 16097400
+      total_transfer_time_secs:
+        type: integer
+        example: 94501011
+      transfer_snapshot:
+        type: string
+        example: snapshot name
+      tries:
+        type: integer
+        example: 8
+      type:
+        type: string
+        example: resync
+      unhealthy_reason:
+        type: string
+        example: no network connection
   audit_log_redirect:
     type: object
     properties:
