@@ -1,0 +1,120 @@
+{{- if .Values.enabled }}
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: adc
+  namespace: {{ .Release.Namespace }}
+  annotations:
+    {{- include "adc.kubernetes.annotations" . | nindent 4 }}
+    {{- include "adc.helmchart.annotations" . | nindent 4 }}
+    {{- include "adc.netapp.annotations" . | nindent 4 }}
+    {{- include "adc.dynamic.annotations" . | nindent 4 }}
+    {{- include "adc.statefulSetAnnotations" . | nindent 4 }}
+    {{- include "adc.commonAnnotations" . | nindent 4 }}
+  labels:
+    {{- include "adc.kubernetes.labels" . | nindent 4 }}
+    {{- include "adc.helmchart.labels" . | nindent 4 }}
+    {{- include "adc.statefulSetLabels" . | nindent 4 }}
+    {{- include "adc.commonLabels" . | nindent 4 }}
+spec:
+  serviceName: "adc"
+  replicas: {{ .Values.replicas }}
+  updateStrategy:
+    type: RollingUpdate
+  selector:
+    matchLabels:
+      {{- include "adc.podSelectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "adc.kubernetes.labels" . | nindent 8 }}
+        {{- include "adc.helmchart.labels" . | nindent 8 }}
+        {{- include "adc.podLabels" . | nindent 8 }}
+        {{- include "adc.podSelectorLabels" . | nindent 8 }}
+        {{- include "adc.commonLabels" . | nindent 8 }}
+      annotations:
+        {{- include "adc.kubernetes.annotations" . | nindent 8 }}
+        {{- include "adc.helmchart.annotations" . | nindent 8 }}
+        {{- include "adc.netapp.annotations" . | nindent 8 }}
+        {{- include "adc.podAnnotations" . | nindent 8 }}
+        {{- include "adc.commonAnnotations" . | nindent 8 }}
+    spec:
+      serviceAccountName: {{ .Values.serviceAccount }}
+      containers:
+      - name: adc
+        {{- if .Values.images.cloudBackupAdcGCP.secondary }}
+        image: "{{- include "containerImage" (list . (dict "name" "cloudBackupAdcGCP" "secondary" true)) | trim -}}"
+        {{- else }}
+        image: "{{- include "containerImage" (list . (dict "name" "cloudBackupAdcGCP" "secondary" false)) | trim -}}"
+        {{- end }}
+        volumeMounts:
+        - name: adc-vol
+          mountPath: "/home/ADC/cert"
+          readOnly: true
+        securityContext:
+          runAsUser: 65534
+          runAsGroup: 65534
+          capabilities:
+           add:
+           - SYS_ADMIN
+        livenessProbe:
+          failureThreshold: 9
+          initialDelaySeconds: 10
+          periodSeconds: 10
+          successThreshold: 1
+          tcpSocket:
+            port: {{ .Values.adcport }}
+          timeoutSeconds: 1
+        readinessProbe:
+          failureThreshold: 3
+          initialDelaySeconds: 10
+          periodSeconds: 10
+          successThreshold: 1
+          tcpSocket:
+            port: {{ .Values.adcport }}
+          timeoutSeconds: 1
+        startupProbe:
+          failureThreshold: 68
+          initialDelaySeconds: 15
+          periodSeconds: 5
+          successThreshold: 1
+          tcpSocket:
+            port: {{ .Values.adcport }}
+          timeoutSeconds: 1
+        env:
+        - name: RUN_REST
+          value: "1"
+        - name: REST_PORT
+          value: "{{ .Values.adcport }}"
+        - name: CERTDIR
+          value: "/home/ADC/cert"
+        - name: CA_FILE
+          value: "google-com-chain.pem"
+        - name: LOG_TO_CONSOLE
+          value: "1"
+        - name: DISABLE_VERIFY_SSL
+          value: "0"
+        ports:
+        - containerPort: {{ .Values.adcport }}
+          name: adc
+        resources:
+          limits:
+            cpu: 1
+            memory: 4G
+      {{- if .Values.nodes.nodeSelector }}
+      nodeSelector:
+        component: vsacp-nodes
+      {{- end }}
+      {{- if .Values.nodes.tolerations }}
+      tolerations:
+        - effect: NoSchedule
+          key: component
+          operator: Equal
+          value: vsa
+      {{- end }}
+      volumes:
+      - name: adc-vol
+        secret:
+          secretName: adc-secret
+{{- end }}
+

@@ -171,9 +171,9 @@ jobs:
       - name: Run BlackDuck Scan for container images
         shell: bash -e {0}
         run: |
-          IMAGES=("core" "google-proxy" "vcp-db-migrate" "vcp-worker")
+          IMAGES=("core" "google-proxy" "vcp-db-migrate" "vcp-worker" "cloud-backup-adc")
           for IMAGE in "${IMAGES[@]}"; do
-            echo "Image used for scan is ${IMAGE} - ${{needs.generate_tag.outputs.newTag}}"
+            echo "Image used for scan is ${IMAGE} - $([[ "$IMAGE" == "cloud-backup-adc" ]] && echo "2.7" || echo "${{ needs.generate_tag.outputs.newTag }}")"
             docker run --rm  --network host -v /home/cvs/opt-dir:/home/cvs/opt-dir -v /var/run/docker.sock:/var/run/docker.sock \
             --mount type=bind,source=/bds-inspect,target=/bds-inspect,ro --user root \
             ghcr.io/vcp-vsa-control-plane/vsacictl:v22 \
@@ -182,8 +182,8 @@ jobs:
             echo \"${{ secrets.GHVSA_PAT }}\" | docker login ghcr.io -u \"${{ github.actor }}\" --password-stdin && \
             java -jar /bds-inspect/synopsys-detect-9.10.1.jar -d --detect.project.name=\"GCNV VSA Control Plane\" \
             --detect.project.version.name=current --blackduck.url=https://blackduck.eng.netapp.com --blackduck.trust.cert=true \
-            --blackduck.api.token=\"${{ secrets.BLACKDUCKSCANSATOKEN }}\" --detect.cleanup=false --detect.tools=DOCKER \
-            --detect.docker.image=ghcr.io/vcp-vsa-control-plane/${IMAGE}:${{ needs.generate_tag.outputs.newTag }}  \
+            --blackduck.api.token="${{ secrets.BLACKDUCKSCANSATOKEN }}" --detect.cleanup=false --detect.tools=DOCKER \
+            --detect.docker.image=ghcr.io/vcp-vsa-control-plane/${IMAGE}:$([[ "$IMAGE" == "cloud-backup-adc" ]] && echo "2.7" || echo "${{ needs.generate_tag.outputs.newTag }}")  \
             --detect.code.location.name=GCNV_VSA_Control_Plane_docker_${IMAGE}_code \
             --detect.docker.path=/__w/_tool/go/1.24.1/x64/bin/docker --detect.tools.excluded=DETECTOR \
             --detect.docker.inspector.air.gap.path=/bds-inspect/packaged-inspectors/docker/ \

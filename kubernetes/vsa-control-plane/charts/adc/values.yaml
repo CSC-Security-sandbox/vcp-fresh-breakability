@@ -1,0 +1,82 @@
+externalSecretManager: false
+hyperscaler: "gcp"
+
+images:
+  cloudBackupAdcGCP:
+    name: cloud-backup-adc
+    tag: "2.7" #NOTE: Please also update the tag for "cloud-backup-adc" in the blackduck scan CI job in release.yaml in case of a tag update here
+    secondary: false
+    pullPolicy: IfNotPresent
+
+# Enabled
+enabled: true
+
+# Naming
+serviceAccount: adc
+nameOverride: adc
+
+# Configuration
+replicas: 2
+adcport: 8085
+threshold: 50
+
+# Secret configuration
+secret:
+  googlecomchain: ""
+
+adc_info:
+  adcMountBackupSleepInterval: "6"
+  adcProvider: ""
+  adcMountDir: ""
+  adcEndPoint: ""
+  adcCertName: ""
+  adcCertDir: ""
+  adcLogDir: "/home/vsa/adcLogPath"
+  adcNumOfCpus: "1"
+  adcNumOfFuseDevices: "1"
+  adcConfigMemory: "256M"
+  adcBrowseMemory: "4G"
+  adcNodeSelector: "vsacp-nodes"
+  adcCertSecretName: "adc-secret"
+  adcPodPollMaxRetryCount: "15"
+  adcPodPollSleepInterval: "1"
+  adcPodPollDeleteRetryCount: "12"
+  adcPodPollDeleteSleepInterval: "5"
+
+# Add support to turn off separate nodes for VSA (tolerations + labels)
+nodes: 
+  tolerations: true
+  nodeSelector: false
+
+# Secret Manager config (used with external-secrets chart)
+secretManager:
+  apiVersion: external-secrets.io/v1beta1
+  clusterSecretStoreName: "main-cluster-secret-store"
+  refreshInterval: 24h
+  # Name of secret(s) in external Secret Manager
+  googleComChain: "vsa-google-chain"
+
+workloadIdentity:
+  azureClientId: ""
+  gcpServiceAccount: ""
+
+# Annotations
+statefulSetAnnotations: {}
+podAnnotations:
+  container.apparmor.security.beta.kubernetes.io/adc: unconfined
+serviceAnnotations: {}
+configmapAnnotations: {}
+secretAnnotations: {}
+serviceAccountAnnotations:
+  "iam.gke.io/gcp-service-account": ""
+commonAnnotations: {}
+
+# Labels
+statefulSetLabels: {}
+podLabels: {}
+serviceLabels: {}
+configmapLabels: {}
+secretLabels: {}
+serviceAccountLabels: {}
+commonLabels: {}
+

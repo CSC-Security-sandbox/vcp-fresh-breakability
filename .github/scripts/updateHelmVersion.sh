@@ -18,6 +18,7 @@ FILES=("kubernetes/vsa-control-plane/Chart.yaml"
        "kubernetes/vsa-control-plane/charts/google-proxy/values.yaml"
        "kubernetes/vsa-control-plane/charts/core/values.yaml"
        "kubernetes/vcp-worker-chart/Chart.yaml"
+       "kubernetes/vsa-control-plane/charts/adc/Chart.yaml"
        "kubernetes/vcp-worker-chart/values.yaml")
 
 # Replace "0.0.0" with the provided version in the specified files

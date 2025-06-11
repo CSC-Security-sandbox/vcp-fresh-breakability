@@ -1,0 +1,66 @@
+{{- if .Values.enabled }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: adc-info
+  namespace: {{ .Release.Namespace }}
+  annotations:
+    {{- include "adc.kubernetes.annotations" . | nindent 4 }}
+    {{- include "adc.helmchart.annotations" . | nindent 4 }}
+    {{- include "adc.netapp.annotations" . | nindent 4 }}
+    {{- include "adc.configmapAnnotations" . | nindent 4 }}
+    {{- include "adc.commonAnnotations" . | nindent 4 }}
+  labels:
+    {{- include "adc.kubernetes.labels" . | nindent 4 }}
+    {{- include "adc.helmchart.labels" . | nindent 4 }}
+    {{- include "adc.configmapLabels" . | nindent 4 }}
+    {{- include "adc.commonLabels" . | nindent 4 }}
+data:
+  # provider value for adc pod parameter
+  adc-provider: "{{ .Values.adc_info.adcProvider}}"
+  # mount directory value for adc pod parameter
+  adc-mount-dir: "{{ .Values.adc_info.adcMountDir}}"
+  # end point value for adc pod parameter
+  adc-end-point: "{{ .Values.adc_info.adcEndPoint}}"
+  # certificate name value for adc pod parameter
+  adc-cert-name: "{{ .Values.adc_info.adcCertName}}"
+  # certificate directory value for adc pod parameter
+  adc-cert-dir: "{{ .Values.adc_info.adcCertDir}}"
+  # log directory value for adc pod parameter
+  adc-log-dir: "{{ .Values.adc_info.adcLogDir}}"
+  # adc docker image url
+  {{- if .Values.images.cloudBackupAdcGCP.secondary }}
+  adc-image: "{{- include "containerImage" (list . (dict "name" "cloudBackupAdcGCP" "secondary" true)) | trim -}}"
+  {{- else }}
+  adc-image: "{{- include "containerImage" (list . (dict "name" "cloudBackupAdcGCP" "secondary" false)) | trim -}}"
+  {{- end }}
+  # adc pod config - num of cpus
+  adc-num-of-cpus: "{{ .Values.adc_info.adcNumOfCpus}}"
+  # adc browse pod config - num of fuse devices
+  adc-num-of-fuse-devices: "{{ .Values.adc_info.adcNumOfFuseDevices}}"
+  # adc config pod configuration - memory
+  adc-config-memory: "{{ .Values.adc_info.adcConfigMemory}}"
+  # adc browse pod configuration - memory
+  adc-browse-memory: "{{ .Values.adc_info.adcBrowseMemory}}"
+  # adc pod config - service account in k8 cluster
+  adc-service-acc-name: "{{ .Values.serviceAccount}}"
+  # adc pod node selector component value
+  adc-node-selector: "vsacp-nodes"
+  # name of secret hosting certificate in 'vsa' namespace
+  adc-cert-secret-name: "{{ .Values.adc_info.adcCertSecretName}}"
+  # max retry count for polling adc pod status
+  adc-pod-poll-max-retry-count: "{{ .Values.adc_info.adcPodPollMaxRetryCount}}"
+  # sleep interval for polling adc pod status
+  adc-pod-poll-sleep-interval: "{{ .Values.adc_info.adcPodPollSleepInterval}}"
+  # max retry count for polling adc pod deleted status
+  adc-pod-poll-delete-retry-count: "{{ .Values.adc_info.adcPodPollDeleteRetryCount}}"
+  # sleep interval for polling adc pod deleted status
+  adc-pod-poll-delete-sleep-interval: "{{ .Values.adc_info.adcPodPollDeleteSleepInterval}}"
+  # retry interval for Mounting object store
+  adc-mount-backup-sleep-interval: "{{ .Values.adc_info.adcMountBackupSleepInterval}}"
+  # number of adc-pods to be deployed
+  total-adc-pods: "{{ .Values.replicas }}"
+  # adc pod threshold
+  adc-pod-threshold: "{{ .Values.threshold }}"
+{{- end }}
+

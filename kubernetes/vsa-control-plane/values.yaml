@@ -11,3 +11,5 @@ global:
   chartPrimaryImageRegistry: ""
   chartSecondaryImageRegistry: ""
   environment: gcp
+  hyperscaler: gcp
+  workloadIdentityEnabled: false

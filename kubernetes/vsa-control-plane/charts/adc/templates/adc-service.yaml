@@ -1,0 +1,24 @@
+{{- if .Values.enabled }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: adc
+  namespace: {{ .Release.Namespace }}
+  labels:
+    annotations:
+      {{- include "adc.kubernetes.annotations" . | nindent 4 }}
+      {{- include "adc.helmchart.annotations" . | nindent 4 }}
+    labels:
+      {{- include "adc.kubernetes.labels" . | nindent 4 }}
+      {{- include "adc.helmchart.labels" . | nindent 4 }}
+spec:
+  selector:
+    {{- include "adc.serviceSelectorLabels" . | nindent 4 }}
+  clusterIP: None
+  type:
+    ClusterIP
+  ports:
+  - port: {{ .Values.adcport }}
+    name: adcrest
+{{- end }}
+

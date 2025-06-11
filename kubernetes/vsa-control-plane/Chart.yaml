@@ -17,3 +17,7 @@ dependencies:
     version: 0.0.0
     condition:
       google-proxy.enabled
+  - name: adc
+    version: 0.0.0
+    condition:
+      adc.enabled
