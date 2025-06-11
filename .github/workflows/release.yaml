@@ -217,6 +217,9 @@ jobs:
         run: |
           echo "${{ secrets.GHVSA_PAT }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
 
+      - name: Ensure output directory exists
+        run: mkdir -p repo-dir2
+        
       - name: Run Trivy vulnerability scanner
         uses: aquasecurity/trivy-action@7b7aa264d83dc58691451798b4d117d53d21edfe
         with:
