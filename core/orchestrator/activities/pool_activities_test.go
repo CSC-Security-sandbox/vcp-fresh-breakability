@@ -1192,6 +1192,39 @@ func Test_CreateLifForSvm_FailsToCreateLif(t *testing.T) {
 	mockProvider.AssertExpectations(t)
 }
 
+func Test_ErroredPool_Success(t *testing.T) {
+	mockStorage := database.NewMockStorage(t)
+	activity := activities.PoolActivity{SE: mockStorage}
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	pool := &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: 1}}
+
+	mockStorage.On("UpdatePool", ctx, pool).Return(nil)
+	deleteSVMS := activities.DeleteSVMs
+	deleteNodes := activities.DeleteNodes
+	deleteLIFs := activities.DeleteLIFs
+	defer func() {
+		activities.DeleteSVMs = deleteSVMS
+		activities.DeleteNodes = deleteNodes
+		activities.DeleteLIFs = deleteLIFs
+	}()
+
+	activities.DeleteLIFs = func(ctx context.Context, se database.Storage, pool *datamodel.Pool) error {
+		return nil
+	}
+	activities.DeleteSVMs = func(ctx context.Context, se database.Storage, pool *datamodel.Pool) error {
+		return nil
+	}
+	activities.DeleteNodes = func(ctx context.Context, se database.Storage, pool *datamodel.Pool) error {
+		return nil
+	}
+
+	result, err := activity.ErroredPool(ctx, pool, "")
+
+	assert.NoError(t, err)
+	assert.Equal(t, pool, result)
+	mockStorage.AssertExpectations(t)
+}
+
 func Test_DeletePoolResources_Success(t *testing.T) {
 	mockStorage := database.NewMockStorage(t)
 	activity := activities.PoolActivity{SE: mockStorage}

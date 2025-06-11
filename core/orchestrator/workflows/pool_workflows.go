@@ -95,12 +95,23 @@ func (wf *createPoolWorkflow) Run(ctx workflow.Context, args ...interface{}) (in
 	ctx = workflow.WithActivityOptions(ctx, ao)
 	dbPool := pool
 
+	rollbackManager := common.NewRollbackManager()
+
+	defer func() {
+		if err != nil {
+			disconnectedCtx, _ := workflow.NewDisconnectedContext(ctx)
+			rollbackManager.ExecuteRollback(disconnectedCtx, err)
+		}
+	}()
+
+	rollbackManager.Add(poolActivity.ErroredPool, dbPool)
 	tenancyDetails := &common.TenancyInfo{}
 	err = workflow.ExecuteActivity(ctx, poolActivity.CreateTenancy, params).Get(ctx, &tenancyDetails)
 	if err != nil {
 		return nil, err
 	}
 
+	rollbackManager.Add(poolActivity.ReleaseSubnet, dbPool)
 	setupNwCtx := workflow.WithHeartbeatTimeout(ctx, time.Duration(setupNwHeartbeatTimeout)*time.Second)
 	err = workflow.ExecuteActivity(setupNwCtx, poolActivity.SetupNetwork, params.Region, tenancyDetails.RegionalTenantProject, tenancyDetails.SnHostProject, tenancyDetails.Network).Get(setupNwCtx, nil)
 	if err != nil {
@@ -141,6 +152,10 @@ func (wf *createPoolWorkflow) Run(ctx workflow.Context, args ...interface{}) (in
 		SnHostProject:         tenancyDetails.SnHostProject,
 		Network:               tenancyDetails.Network,
 	}
+
+	poolWithClusterDetails := dbPool
+	poolWithClusterDetails.ClusterDetails = *clusterDetails
+	rollbackManager.Add(poolActivity.DeleteVSADeployment, poolWithClusterDetails)
 
 	err = workflow.ExecuteActivity(ctx, poolActivity.SavePoolWithClusterDetails, dbPool, clusterDetails).Get(ctx, nil)
 	if err != nil {

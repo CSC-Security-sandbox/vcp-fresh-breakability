@@ -100,6 +100,30 @@ func (j *PoolActivity) CreatedPool(ctx context.Context, pool *datamodel.Pool) (*
 	return pool, nil
 }
 
+func (j *PoolActivity) ErroredPool(ctx context.Context, pool *datamodel.Pool, errMessage string) (*datamodel.Pool, error) {
+	se := j.SE
+
+	// Delete LIFs
+	if err := DeleteLIFs(ctx, se, pool); err != nil {
+		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
+	}
+
+	// Delete SVMs
+	if err := DeleteSVMs(ctx, se, pool); err != nil {
+		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
+	}
+
+	// Delete nodes
+	if err := DeleteNodes(ctx, se, pool); err != nil {
+		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
+	}
+
+	pool.State = models.LifeCycleStateError
+	pool.StateDetails = errMessage
+	err := se.UpdatePool(ctx, pool)
+	return pool, err
+}
+
 func (j *PoolActivity) CreateTenancy(ctx context.Context, params commonparams.CreatePoolParams) (*commonparams.TenancyInfo, error) {
 	gcpService, err := GetGCPService(ctx)
 	if err != nil {
