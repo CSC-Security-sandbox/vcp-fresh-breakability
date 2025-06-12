@@ -40,6 +40,12 @@ packages:
       inpackage: True
     interfaces:
       Provider:
+  github.com/vcp-vsa-control-Plane/vsa-control-plane/core/scheduler:
+    config:
+      dir: "{{.InterfaceDir}}"
+      inpackage: True
+    interfaces:
+      Scheduler:
   github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/hyperscaler:
     config:
       dir: "{{.InterfaceDir}}"
