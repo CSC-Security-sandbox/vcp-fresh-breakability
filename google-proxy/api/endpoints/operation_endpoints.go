@@ -4,8 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"go.opentelemetry.io/otel/attribute"
-
 	"github.com/go-faster/jx"
 	"github.com/google/uuid"
 	cvpmodels "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/models"
@@ -31,12 +29,6 @@ func (h Handler) V1betaDescribeOperation(ctx context.Context, params gcpgenserve
 	logger := util.GetLogger(ctx)
 	helper.AddLabelerAttributes(ctx, params.ProjectNumber, params.LocationId)
 	_, _, parsingErr := utils.ParseAndValidateRegionAndZone(params.LocationId)
-	labeler, ok := gcpgenserver.LabelerFromContext(ctx)
-	if !ok {
-		logger.Error("Labeler not found in context; proceeding with empty labeler")
-	}
-	// Add default attributes to the labeler for identifying the job state for metrics and logging for failed operations
-	labeler.Add(attribute.String("Job_Type", "Unknown"), attribute.String("Job_State", "nil"), attribute.Int("Job_TrackingID", 0))
 	if parsingErr != nil {
 		return &gcpgenserver.V1betaDescribeOperationBadRequest{
 			Code:    400,
@@ -59,8 +51,6 @@ func (h Handler) V1betaDescribeOperation(ctx context.Context, params gcpgenserve
 		}, nil
 	}
 	if job != nil {
-		// Add job attributes to the labeler for metrics and logging for successful operations
-		labeler.Add(attribute.String("Job_Type", string(job.Type)), attribute.String("Job_State", string(job.State)), attribute.Int("Job_TrackingID", job.TrackingID))
 		switch job.State {
 		case models.JobsStateERROR:
 			errMsg := vsaerrors.GetErrorMessageByTrackingID(job.TrackingID)
