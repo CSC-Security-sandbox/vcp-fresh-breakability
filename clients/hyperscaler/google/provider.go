@@ -348,14 +348,9 @@ func (gcpService *GcpServices) GetServiceConsumerManagementEndpoint() string {
 }
 
 func (gcpService *GcpServices) GetServiceAccount(projectID, email string) (*iam.ServiceAccount, error) {
-	defer gcpService.Retry.Reset()
 	response, err := gcpService.AdminGCPService.iamService.Projects.ServiceAccounts.List("projects/" + projectID).Do()
 	if err != nil {
-		err = gcpService.Retry.Sleep(err)
-		if err != nil {
-			return nil, err
-		}
-		return gcpService.GetServiceAccount(projectID, email)
+		return nil, fmt.Errorf("Projects.ServiceAccounts.List: %v", err)
 	}
 	for _, account := range response.Accounts {
 		if account.Email == email {
@@ -382,15 +377,10 @@ func (gcpService *GcpServices) AttachOrUpdateRolesForServiceAccounts(roles []str
 }
 
 func (gcpService *GcpServices) getProjectIamPolicy(projectID string) (*projectsManagement.Policy, error) {
-	defer gcpService.Retry.Reset()
 	getPolicyRequest := &projectsManagement.GetIamPolicyRequest{}
 	iamPolicy, err := gcpService.AdminGCPService.cloudProjectsService.Projects.GetIamPolicy(projectID, getPolicyRequest).Do()
 	if err != nil {
-		err = gcpService.Retry.Sleep(err)
-		if err != nil {
-			return nil, err
-		}
-		return gcpService.getProjectIamPolicy(projectID)
+		return nil, fmt.Errorf("Projects.GetIamPolicy: %v", err)
 	}
 	return iamPolicy, nil
 }
@@ -449,18 +439,12 @@ func (gcpService *GcpServices) setProjectIamPolicy(projectID string, etag string
 	}
 	_, err := gcpService.AdminGCPService.cloudProjectsService.Projects.SetIamPolicy(projectID, policyRequest).Do()
 	if err != nil {
-		err = gcpService.Retry.Sleep(err)
-		if err != nil {
-			return fmt.Errorf("Projects.SetIamPolicy: %v", err)
-		}
-		gcpService.Logger.Error("Error setting IAM policy for project", projectID, ":", err)
-		return gcpService.setProjectIamPolicy(projectID, etag, projectIAMPolicyBindings)
+		return fmt.Errorf("Projects.SetIamPolicy: %v", err)
 	}
 	return err
 }
 
 func (gcpService *GcpServices) CreateServiceAccount(createRequest *iam.CreateServiceAccountRequest, projectNumber, email string) (account *iam.ServiceAccount, err error) {
-	defer gcpService.Retry.Reset()
 	account, err = gcpService.AdminGCPService.iamService.Projects.ServiceAccounts.Create("projects/"+projectNumber, createRequest).Do()
 	if gerr, ok := err.(*googleapi.Error); ok {
 		switch gerr.Code {
@@ -472,11 +456,6 @@ func (gcpService *GcpServices) CreateServiceAccount(createRequest *iam.CreateSer
 			account = serviceAccount
 			return account, err
 		}
-		err = gcpService.Retry.Sleep(err)
-		if err != nil {
-			return nil, fmt.Errorf("Projects.ServiceAccounts.Create: %v", err)
-		}
-		return gcpService.CreateServiceAccount(createRequest, projectNumber, email)
 	}
 
 	if err != nil {
@@ -486,14 +465,9 @@ func (gcpService *GcpServices) CreateServiceAccount(createRequest *iam.CreateSer
 }
 
 func (gcpService *GcpServices) IsServiceAccountCreated(email string) (account *iam.ServiceAccount, isSACreated bool, err error) {
-	defer gcpService.Retry.Reset()
 	acc, err := gcpService.GetServiceAccountByEmail(email)
 	if err != nil {
-		err = gcpService.Retry.Sleep(err)
-		if err != nil {
-			return nil, false, fmt.Errorf("Projects.ServiceAccounts.Get: %v", err)
-		}
-		return gcpService.IsServiceAccountCreated(email)
+		return nil, false, fmt.Errorf("Projects.ServiceAccounts.Get: %v", err)
 	}
 	return acc, true, nil
 }
@@ -501,11 +475,7 @@ func (gcpService *GcpServices) IsServiceAccountCreated(email string) (account *i
 func (gcpService *GcpServices) GetServiceAccountByEmail(email string) (*iam.ServiceAccount, error) {
 	account, err := gcpService.AdminGCPService.iamService.Projects.ServiceAccounts.Get("projects/-/serviceAccounts/" + email).Do()
 	if err != nil {
-		err = gcpService.Retry.Sleep(err)
-		if err != nil {
-			return nil, err
-		}
-		return gcpService.GetServiceAccountByEmail(email)
+		return nil, fmt.Errorf("Projects.ServiceAccounts.Get: %v", err)
 	}
 	return account, nil
 }

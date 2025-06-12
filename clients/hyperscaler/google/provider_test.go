@@ -659,14 +659,8 @@ func Test_GetServiceAccount(t *testing.T) {
 	t.Run("WhenGetServiceAccountNotFound", func(tt *testing.T) {
 		defer testReset(tt)
 		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
-		counter := 0
 		resp := &iam.ServiceAccount{Email: "abc"}
 		server := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
-			if counter == 0 {
-				counter = 1
-				rw.WriteHeader(http.StatusInternalServerError) // Simulate HTTP 500 error
-				return
-			}
 			if req.URL.Path == url {
 				response, err := json.Marshal(resp)
 				if err != nil {
@@ -700,7 +694,6 @@ func Test_GetServiceAccount(t *testing.T) {
 	t.Run("WhenGetServiceAccountFound", func(tt *testing.T) {
 		defer testReset(tt)
 		ctx := context.Background()
-		counter := 0
 		r := &iam.ListServiceAccountsResponse{
 			Accounts: []*iam.ServiceAccount{
 				{
@@ -709,11 +702,6 @@ func Test_GetServiceAccount(t *testing.T) {
 			},
 		}
 		server := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
-			if counter == 0 {
-				counter = 1
-				rw.WriteHeader(http.StatusInternalServerError)
-				return
-			}
 			if req.URL.Path == url {
 				response, err := json.Marshal(r)
 				if err != nil {
@@ -743,6 +731,34 @@ func Test_GetServiceAccount(t *testing.T) {
 		assert.NotNil(tt, out)
 		assert.Nil(tt, err, "Expected no error but got one")
 	})
+	t.Run("WhenGetServiceAccountFails", func(tt *testing.T) {
+		defer testReset(tt)
+		ctx := context.Background()
+		server := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
+			if req.URL.Path == url {
+				rw.WriteHeader(http.StatusBadRequest)
+				return
+			}
+			rw.WriteHeader(http.StatusBadRequest)
+		}))
+		iamSvc, err := iam.NewService(
+			ctx, option.WithHTTPClient(&http.Client{Timeout: time.Second}), option.WithEndpoint(server.URL))
+		if err != nil {
+			tt.Errorf("Error getting service up: '%s'", err.Error())
+		}
+
+		gService := &GcpServices{
+			AdminGCPService: &AdminGCPService{
+				iamService: iamSvc,
+			},
+			Ctx:    ctx,
+			Logger: util.GetLogger(ctx),
+			Retry:  NewExponentialRetryStrategy(time.Millisecond, 3),
+		}
+		out, err := gService.GetServiceAccount(projectName, "abc@google.com")
+		assert.Nil(tt, out)
+		assert.NotNil(tt, err, "Expected no error but got one")
+	})
 }
 
 func Test_IsServiceAccountCreated(t *testing.T) {
@@ -751,14 +767,8 @@ func Test_IsServiceAccountCreated(t *testing.T) {
 	t.Run("WhenIsServiceAccountCreatedSuccess", func(tt *testing.T) {
 		defer testReset(tt)
 		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
-		counter := 0
 		resp := &iam.ServiceAccount{Email: "abc@google.com"}
 		server := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
-			if counter == 0 {
-				counter = 1
-				rw.WriteHeader(http.StatusInternalServerError) // Simulate HTTP 500 error
-				return
-			}
 			if req.URL.Path == url {
 				response, err := json.Marshal(resp)
 				if err != nil {
@@ -797,18 +807,12 @@ func TestCreateServiceAccount(t *testing.T) {
 		defer testReset(tt)
 		url := "/v1/projects/test-proj/serviceAccounts"
 		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
-		counter := 0
 		resp := &iam.ServiceAccount{Email: "abc@google.com"}
 		createRequest := &iam.CreateServiceAccountRequest{
 			AccountId:      "abc",
 			ServiceAccount: resp,
 		}
 		server := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
-			if counter == 0 {
-				counter = 1
-				rw.WriteHeader(http.StatusInternalServerError) // Simulate HTTP 500 error
-				return
-			}
 			if req.URL.Path == url {
 				response, err := json.Marshal(resp)
 				if err != nil {
@@ -843,28 +847,17 @@ func TestCreateServiceAccount(t *testing.T) {
 		defer testReset(tt)
 		url := "/v1/projects/test-proj/serviceAccounts"
 		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
-		counter := 0
 		resp := &iam.ServiceAccount{Email: "abc@google.com"}
 		createRequest := &iam.CreateServiceAccountRequest{
 			AccountId:      "abc",
 			ServiceAccount: resp,
 		}
 		server := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
-			if counter == 0 {
-				counter = 1
-				rw.WriteHeader(http.StatusConflict) // Simulate HTTP 500 error
-				return
-			}
 			if req.URL.Path == url {
-				response, err := json.Marshal(resp)
-				if err != nil {
-					rw.WriteHeader(http.StatusBadRequest)
-					return
-				}
-				_, _ = rw.Write(response)
+				rw.WriteHeader(http.StatusConflict)
 				return
 			}
-			rw.WriteHeader(http.StatusBadRequest)
+			rw.WriteHeader(http.StatusConflict)
 		}))
 
 		iamSvc, err := iam.NewService(
@@ -1011,7 +1004,6 @@ func Test_GetProjectIamPolicyd(t *testing.T) {
 	t.Run("WhenGetProjectIamPolicySuccess", func(tt *testing.T) {
 		defer testReset(tt)
 		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
-		counter := 0
 		resp := &cloudresourcemanager.Policy{
 			Bindings: []*cloudresourcemanager.Binding{
 				{
@@ -1021,11 +1013,6 @@ func Test_GetProjectIamPolicyd(t *testing.T) {
 			},
 		}
 		server := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
-			if counter == 0 {
-				counter = 1
-				rw.WriteHeader(http.StatusInternalServerError) // Simulate HTTP 500 error
-				return
-			}
 			if req.URL.Path == url {
 				response, err := json.Marshal(resp)
 				if err != nil {
@@ -1055,6 +1042,34 @@ func Test_GetProjectIamPolicyd(t *testing.T) {
 		assert.NotNil(tt, out)
 		assert.Nil(tt, err)
 	})
+	t.Run("WhenGetProjectIamPolicyFails", func(tt *testing.T) {
+		defer testReset(tt)
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+		server := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
+			if req.URL.Path == url {
+				rw.WriteHeader(http.StatusBadRequest)
+				return
+			}
+			rw.WriteHeader(http.StatusBadRequest)
+		}))
+
+		pjSvc, err := cloudresourcemanager.NewService(ctx, option.WithHTTPClient(&http.Client{Timeout: time.Second}), option.WithEndpoint(server.URL))
+		if err != nil {
+			tt.Errorf("Error getting service up: '%s'", err.Error())
+		}
+
+		gService := &GcpServices{
+			AdminGCPService: &AdminGCPService{
+				cloudProjectsService: pjSvc,
+			},
+			Ctx:    ctx,
+			Logger: util.GetLogger(ctx),
+			Retry:  NewExponentialRetryStrategy(time.Millisecond, 3),
+		}
+		out, err := gService.getProjectIamPolicy(projectName)
+		assert.Nil(tt, out)
+		assert.NotNil(tt, err)
+	})
 }
 
 func Test_SetProjectIamPolicyd(t *testing.T) {
@@ -1063,7 +1078,6 @@ func Test_SetProjectIamPolicyd(t *testing.T) {
 	t.Run("WhenSetProjectIamPolicySuccess", func(tt *testing.T) {
 		defer testReset(tt)
 		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
-		counter := 0
 		resp := &cloudresourcemanager.Policy{
 			Bindings: []*cloudresourcemanager.Binding{
 				{
@@ -1073,11 +1087,6 @@ func Test_SetProjectIamPolicyd(t *testing.T) {
 			},
 		}
 		server := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
-			if counter == 0 {
-				counter = 1
-				rw.WriteHeader(http.StatusInternalServerError) // Simulate HTTP 500 error
-				return
-			}
 			if req.URL.Path == url {
 				response, err := json.Marshal(resp)
 				if err != nil {
@@ -1112,5 +1121,39 @@ func Test_SetProjectIamPolicyd(t *testing.T) {
 		}
 		err = gService.setProjectIamPolicy(projectName, etag, projectIAMPolicyBindings)
 		assert.Nil(tt, err)
+	})
+	t.Run("WhenSetProjectIamPolicyError", func(tt *testing.T) {
+		defer testReset(tt)
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+		server := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
+			if req.URL.Path == url {
+				rw.WriteHeader(http.StatusBadRequest)
+				return
+			}
+			rw.WriteHeader(http.StatusBadRequest)
+		}))
+
+		pjSvc, err := cloudresourcemanager.NewService(ctx, option.WithHTTPClient(&http.Client{Timeout: time.Second}), option.WithEndpoint(server.URL))
+		if err != nil {
+			tt.Errorf("Error getting service up: '%s'", err.Error())
+		}
+		projectIAMPolicyBindings := []*cloudresourcemanager.Binding{
+			{
+				Role:    "roles/viewer",
+				Members: []string{"serviceAccount:existing@example.com"},
+			},
+		}
+		etag := "etag"
+
+		gService := &GcpServices{
+			AdminGCPService: &AdminGCPService{
+				cloudProjectsService: pjSvc,
+			},
+			Ctx:    ctx,
+			Logger: util.GetLogger(ctx),
+			Retry:  NewExponentialRetryStrategy(time.Millisecond, 3),
+		}
+		err = gService.setProjectIamPolicy(projectName, etag, projectIAMPolicyBindings)
+		assert.NotNil(tt, err)
 	})
 }

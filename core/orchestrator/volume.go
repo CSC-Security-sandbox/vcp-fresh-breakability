@@ -15,7 +15,6 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
 	customerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/nillable"
 	workflowengine "github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/temporal"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 	"go.temporal.io/api/enums/v1"
@@ -264,17 +263,6 @@ func _validateCreateVolumeParams(ctx context.Context, se database.Storage, param
 			}
 		}
 	}
-	if params.DataProtection != nil {
-		var scheduledBackupEnabledStr *string
-		if params.DataProtection.ScheduledBackupEnabled != nil && *params.DataProtection.ScheduledBackupEnabled {
-			value := fmt.Sprintf("%v", params.DataProtection.ScheduledBackupEnabled)
-			scheduledBackupEnabledStr = &value
-		}
-
-		if nillable.IsNilOrEmpty(&params.DataProtection.BackupPolicyId) && !nillable.IsNilOrEmpty(scheduledBackupEnabledStr) {
-			return customerrors.NewUserInputValidationErr("BackupPolicyID to be provided to assign/unassign a backup policy to a volume")
-		}
-	}
 
 	return nil
 }
@@ -307,6 +295,11 @@ func convertDatastoreVolumeToModel(volume *datamodel.Volume, ipAddress *string) 
 			OSType:          attributes.BlockProperties.OSType,
 			HostGroupUUIDs:  attributes.BlockProperties.HostGroupUUIDs,
 			LunSerialNumber: attributes.BlockProperties.LunSerialNumber,
+		}
+	}
+	if volume.DataProtection != nil {
+		res.DataProtection = &models.DataProtection{
+			BackupVaultID: volume.DataProtection.BackupVaultID,
 		}
 	}
 

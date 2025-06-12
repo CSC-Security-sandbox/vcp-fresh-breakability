@@ -6,7 +6,6 @@ import (
 
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/cvpapi/backup_vault"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/hyperscaler"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/hyperscaler/google"
 	ontapModels "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/ontap-rest/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
@@ -348,21 +347,9 @@ func (a *VolumeCreateActivity) GenerateResourceNames(ctx context.Context, volume
 }
 
 func (a *VolumeCreateActivity) CreateBucket(ctx context.Context, resourceName *common.ResourceNames, tenancyDetails *common.TenancyInfo, region string) (*common.BucketDetails, error) {
-	logger := util.GetLogger(ctx)
-
-	var gService hyperscaler.GoogleServices
-	gcpService := &google.GcpServices{
-		Ctx:    ctx,
-		Logger: logger,
-	}
-	gService = gcpService
-
-	gcpService.Logger.Debug("gcpService initialized")
-	gcpService.Logger.Debug("Calling InitializeClients")
-	err := gService.InitializeClients()
-	if err != nil || !gService.IsAdminClientInitialized() {
-		gcpService.Logger.Debug("Initialisation of service failed")
-		return nil, errors.New("initialisation of service failed")
+	gcpService, err := GetGCPService(ctx)
+	if err != nil {
+		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
 	}
 	_, bucketDetails, err := GetOrCreateAndGCSResources(gcpService, resourceName.ServiceAccountId, tenancyDetails.RegionalTenantProject, resourceName.Email, resourceName.BucketName, region, "region")
 	if err != nil {
@@ -424,10 +411,11 @@ func _getOrCreateAndGCSResources(gcpServices hyperscaler.GoogleServices, service
 func (a *VolumeCreateActivity) UpdateBackupVaultWithBucketDetails(ctx context.Context, volume *datamodel.Volume, bucketDetails *common.BucketDetails) error {
 	se := a.SE
 
+	saName := bucketDetails.ServiceAccountName + "@" + bucketDetails.TenantProjectNumber + ".iam.gserviceaccount.com"
 	convertCommonToDatamodel := func(bucketDetails *common.BucketDetails) *datamodel.BucketDetails {
 		return &datamodel.BucketDetails{
 			BucketName:          bucketDetails.BucketName,
-			ServiceAccountName:  bucketDetails.ServiceAccountName,
+			ServiceAccountName:  saName,
 			TenantProjectNumber: bucketDetails.TenantProjectNumber,
 			VendorSubnetID:      volume.VolumeAttributes.VendorSubnetID,
 		}

@@ -1067,7 +1067,7 @@ func TestUpdateBackupVaultWithBucketDetails_Success(t *testing.T) {
 		BucketDetails: datamodel.BucketDetailsArray{
 			{
 				BucketName:          "bucket-name",
-				ServiceAccountName:  "service-account",
+				ServiceAccountName:  "service-account@project-number.iam.gserviceaccount.com",
 				TenantProjectNumber: "project-number",
 				VendorSubnetID:      "subnet-id",
 			},
@@ -1103,7 +1103,7 @@ func TestUpdateBackupVaultWithBucketDetails_Failure_UpdateError(t *testing.T) {
 		BucketDetails: datamodel.BucketDetailsArray{
 			{
 				BucketName:          "bucket-name",
-				ServiceAccountName:  "service-account",
+				ServiceAccountName:  "service-account@project-number.iam.gserviceaccount.com",
 				TenantProjectNumber: "project-number",
 				VendorSubnetID:      "subnet-id",
 			},
@@ -1341,7 +1341,7 @@ func TestBucketCreationFails(t *testing.T) {
 	assert.EqualError(t, err, "failed to create bucket")
 }
 
-func TestCreateBucketFails(t *testing.T) {
+func TestCreateBucketSuccess(t *testing.T) {
 	mockGcpService := hyperscaler.NewMockGoogleServices(t)
 	resourceName := &common.ResourceNames{
 		ServiceAccountId: "test-service-account",
@@ -1352,12 +1352,48 @@ func TestCreateBucketFails(t *testing.T) {
 	region := "us-central1"
 
 	originalGetOrCreateAndGCSResources := activities.GetOrCreateAndGCSResources
+	originalGetGCPService := activities.GetGCPService
 	defer func() {
 		activities.GetOrCreateAndGCSResources = originalGetOrCreateAndGCSResources
+		activities.GetGCPService = originalGetGCPService
 	}()
 
+	res := []*common.BucketDetails{
+		{
+			BucketName: "test-bucket",
+		},
+	}
+
+	activities.GetGCPService = func(ctx context.Context) (*google.GcpServices, error) {
+		return &google.GcpServices{}, nil
+	}
 	activities.GetOrCreateAndGCSResources = func(gcpServices hyperscaler.GoogleServices, serviceAccountId, projectNumber, email, bucketName, tenantProjectRegion, locationType string) (*iam.ServiceAccount, []*common.BucketDetails, error) {
-		return nil, nil, errors.New("failed to create bucket")
+		return nil, res, nil
+	}
+	activity := activities.VolumeCreateActivity{}
+	bucketDetails, err := activity.CreateBucket(context.Background(), resourceName, tenancyDetails, region)
+
+	assert.NoError(t, err)
+	assert.NotNil(t, bucketDetails)
+	mockGcpService.AssertExpectations(t)
+}
+
+func TestCreateBucketGetGcpServiceFails(t *testing.T) {
+	mockGcpService := hyperscaler.NewMockGoogleServices(t)
+	resourceName := &common.ResourceNames{
+		ServiceAccountId: "test-service-account",
+		Email:            "test-email",
+		BucketName:       "test-bucket",
+	}
+	tenancyDetails := &common.TenancyInfo{RegionalTenantProject: "test-project"}
+	region := "us-central1"
+	originalGetGCPService := activities.GetGCPService
+	defer func() {
+		activities.GetGCPService = originalGetGCPService
+	}()
+
+	activities.GetGCPService = func(ctx context.Context) (*google.GcpServices, error) {
+		return nil, errors.New("failed to get GCP service")
 	}
 	activity := activities.VolumeCreateActivity{}
 	bucketDetails, err := activity.CreateBucket(context.Background(), resourceName, tenancyDetails, region)
