@@ -9,6 +9,8 @@ import (
 )
 
 func allowRelease(issue *jira.Issue) error {
+	log.Printf("Issue Key: %+v, \nIssue fields: %+v\n", issue, issue.Fields)
+
 	// Check if type is RC/HF only
 	err := ValidateIssueType(issue, "RC/HF Approval", "Issue link type can be only 'RC/HF Approval'")
 	if err != nil {
@@ -116,7 +118,7 @@ func checkMergedPrCount(issue *jira.Issue, fieldKey string) error {
 		return fmt.Errorf("error converting Fields to map: %w", err)
 	}
 
-	if customField, exists := fieldsMap["customfield_17900"]; exists {
+	if customField, exists := fieldsMap[fieldKey]; exists {
 		customFieldStr, ok := customField.(string) // Assert the type as string
 		if !ok {
 			return fmt.Errorf("customfield_17900 is not a string")

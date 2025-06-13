@@ -15,6 +15,7 @@ var CoverageCmd = &cobra.Command{
 	Use:   "coverage",
 	Short: "A cli used to control code coverage functionalities",
 	RunE: func(cmd *cobra.Command, args []string) error {
+		cmd.SilenceUsage = true
 		if err := generateCoverageReport(); err != nil {
 			log.Println("Error generating coverage report:", err)
 			os.Exit(1)

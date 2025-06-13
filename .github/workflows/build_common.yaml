@@ -494,7 +494,7 @@ jobs:
     needs: [ build_and_publish ]
     runs-on: [ ubuntu-22.04 ]
     container:
-      image: ghcr.io/vcp-vsa-control-plane/vsacictl:v22
+      image: ghcr.io/vcp-vsa-control-plane/vsacictl:v24
       options: -v /var/run/docker.sock:/var/run/docker.sock --user root
 
     steps:
@@ -508,11 +508,9 @@ jobs:
 
       - name: Run jira tag_component_version
         env:
-          PR_TITLE: ${{ needs.generate_tag.outputs.pr_title }}
+          PR_TITLE: ${{ inputs.pr_title }}
           JIRA_API_TOKEN: ${{ secrets.VCP_CI_JIRA_BOT_PAT }}
-          GITHUB_TOKEN: ${{ steps.token.outputs.token }}
-          PR_USER: ${{ needs.generate_tag.outputs.pr_user }}
+          PR_USER: ${{ inputs.pr_user }}
           REPOSITORY: VCP-VSA-control-Plane/vsa-control-plane
-          GITHUB_SHA: ${{ github.sha }}
-          NEW_TAG: ${{ needs.generate_tag.outputs.newTag }}
+          NEW_TAG: ${{ inputs.tag }}
         run: vsacictl jira tag_component_version

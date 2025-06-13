@@ -13,6 +13,7 @@ var releaseCmd = &cobra.Command{
 	Use:   "release",
 	Short: "Command to handle release creation logic",
 	RunE: func(cmd *cobra.Command, args []string) error {
+		cmd.SilenceUsage = true
 		ReleaseFunc()
 		return nil
 	},
@@ -23,7 +24,11 @@ func ReleaseFunc() {
 	if err != nil {
 		log.Fatalf("Error opening file for appending: %v", err)
 	}
-	defer file.Close()
+	defer func() {
+		if err := file.Close(); err != nil {
+			log.Printf("Error closing file: %v", err)
+		}
+	}()
 
 	errFetch := FetchTagsPrune()
 	if errFetch != nil {

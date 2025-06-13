@@ -16,6 +16,7 @@ var UnitTestCmd = &cobra.Command{
 	Use:   "unit-test",
 	Short: "A cli used to control unit-test functionalities",
 	RunE: func(cmd *cobra.Command, args []string) error {
+		cmd.SilenceUsage = true
 		if err := runUnitTests(filtered); err != nil {
 			return err
 		}

@@ -5,8 +5,10 @@ import (
 	"fmt"
 	"github.com/andygrunwald/go-jira"
 	"github.com/spf13/cobra"
+	"io"
 	"log"
 	ghutils "main/cmd/github"
+	"net/http"
 	"net/url"
 	"os"
 	"regexp"
@@ -192,6 +194,70 @@ func ValidateCustomField(fieldsMap map[string]interface{}, fieldKey, expectedVal
 		return fmt.Errorf("%s is not a map or is missing", expectedValue)
 	}
 	return nil
+}
+
+func GetJiraFieldValue(issueID, fieldName string, credentials ClientCredentials, baseURL string) (interface{}, error) {
+	// Construct the Jira API URL
+	apiURL := fmt.Sprintf("%s/rest/api/2/issue/%s", baseURL, issueID)
+
+	// Create a BearerAuthTransport for authentication
+	tp := jira.BearerAuthTransport{
+		Token: credentials.Password,
+	}
+
+	// Create an HTTP client using the transport
+	client := tp.Client()
+
+	// Create a new HTTP request
+	req, err := http.NewRequest("GET", apiURL, nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create HTTP request: %w", err)
+	}
+
+	// Set the required headers
+	req.Header.Set("Accept", "application/json")
+
+	// Execute the HTTP request
+	resp, err := client.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("failed to execute HTTP request: %w", err)
+	}
+	defer func() {
+		if err := resp.Body.Close(); err != nil {
+			log.Printf("Error closing file: %v", err)
+		}
+	}()
+
+	// Check for non-200 status codes
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("unexpected status code: %d", resp.StatusCode)
+	}
+
+	// Read the response body
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read response body: %w", err)
+	}
+
+	// Parse the JSON response
+	var issueData map[string]interface{}
+	err = json.Unmarshal(body, &issueData)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse JSON response: %w", err)
+	}
+
+	// Extract the field value
+	fields, ok := issueData["fields"].(map[string]interface{})
+	if !ok {
+		return nil, fmt.Errorf("failed to extract fields from response")
+	}
+
+	fieldValue, exists := fields[fieldName]
+	if !exists {
+		return nil, fmt.Errorf("field '%s' not found in issue", fieldName)
+	}
+
+	return fieldValue, nil
 }
 
 // NormalizeEmail converts the email to lower case
