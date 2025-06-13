@@ -2,6 +2,7 @@ package workflows
 
 import (
 	"context"
+	"errors"
 	"strconv"
 	"time"
 
@@ -106,6 +107,11 @@ func PopulateRetryPolicyParams() (*WorkflowRetryPolicy, error) {
 }
 
 func (bw *BaseWorkflow) UpdateJobStatus(ctx workflow.Context, status string, err error) error {
+	if bw.ID == "" {
+		return vsaerrors.NewVCPError(vsaerrors.ErrWorkflowConfigurationError,
+			errors.New("job uuid cannot be empty"))
+	}
+
 	updatedJob := &datamodel.Job{
 		BaseModel: datamodel.BaseModel{UUID: bw.ID},
 		State:     status,

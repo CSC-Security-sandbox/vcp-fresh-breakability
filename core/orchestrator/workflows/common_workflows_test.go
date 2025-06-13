@@ -149,7 +149,7 @@ func TestUpdateJobStatusWithCustomError(t *testing.T) {
 		return f
 	}
 
-	bw := &BaseWorkflow{}
+	bw := &BaseWorkflow{ID: "test-id"}
 	jobError := temporal.NewApplicationError("test error", "CustomError", 123, "original error details")
 	err := bw.UpdateJobStatus(wfCtx, models.JobStateFailure, jobError)
 
@@ -168,7 +168,7 @@ func TestUpdateJobStatusWithCustomErrorMissingDetails(t *testing.T) {
 		return f
 	}
 
-	bw := &BaseWorkflow{Logger: util.GetLogger(ctx)}
+	bw := &BaseWorkflow{Logger: util.GetLogger(ctx), ID: "test-id"}
 	jobError := temporal.NewApplicationError("test error", "CustomError", nil)
 	err := bw.UpdateJobStatus(wfCtx, models.JobStateFailure, jobError)
 
@@ -187,9 +187,28 @@ func TestUpdateJobStatusWithGenericError(t *testing.T) {
 		return f
 	}
 
-	bw := &BaseWorkflow{Logger: util.GetLogger(ctx)}
+	bw := &BaseWorkflow{Logger: util.GetLogger(ctx), ID: "test-id"}
 	jobError := errors.New("test error")
 	err := bw.UpdateJobStatus(wfCtx, models.JobStateFailure, jobError)
 
 	assert.NoError(t, err)
+}
+
+func TestUpdateJobStatusWithEmptyID(t *testing.T) {
+	ctx := context.TODO()
+	wfCtx := &mockWorkflowContext{base: ctx}
+	origExecuteActivity := executeActivity
+
+	defer func() { executeActivity = origExecuteActivity }()
+	executeActivity = func(ctx workflow.Context, activity interface{}, args ...interface{}) workflow.Future {
+		f := new(mockFuture)
+		f.On("Get", ctx, mock.Anything).Return(nil)
+		return f
+	}
+
+	bw := &BaseWorkflow{ID: ""}
+	err := bw.UpdateJobStatus(wfCtx, models.JobStateFailure, errors.New("test error"))
+
+	assert.Error(t, err)
+	assert.ErrorContains(t, err, "job uuid cannot be empty")
 }

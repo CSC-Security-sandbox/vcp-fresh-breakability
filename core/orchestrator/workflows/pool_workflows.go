@@ -209,8 +209,10 @@ func DeletePoolWorkflow(ctx workflow.Context, params *common.DeletePoolParams, p
 
 func (wf *deletePoolWorkflow) Setup(ctx workflow.Context, input interface{}) error {
 	deletePoolParams := input.(*common.DeletePoolParams)
+	info := workflow.GetInfo(ctx)
 	wf.CustomerID = deletePoolParams.AccountName
 	wf.Status = WorkflowStatusCreated
+	wf.ID = info.WorkflowExecution.ID
 	ctx = util.AddExtraLoggerFields(ctx, map[string]interface{}{"workflowID": wf.ID, "customerID": wf.CustomerID})
 	logger := util.GetLogger(ctx)
 	wf.Logger = logger
