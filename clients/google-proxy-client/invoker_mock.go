@@ -2222,6 +2222,66 @@ func (_c *MockInvoker_V1betaGetMultipleReplications_Call) RunAndReturn(run func(
 	return _c
 }
 
+// V1betaGetMultipleReplicationsInternal provides a mock function with given fields: ctx, request, params
+func (_m *MockInvoker) V1betaGetMultipleReplicationsInternal(ctx context.Context, request *ReplicationIDListV1beta, params V1betaGetMultipleReplicationsInternalParams) (V1betaGetMultipleReplicationsInternalRes, error) {
+	ret := _m.Called(ctx, request, params)
+
+	if len(ret) == 0 {
+		panic("no return value specified for V1betaGetMultipleReplicationsInternal")
+	}
+
+	var r0 V1betaGetMultipleReplicationsInternalRes
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, *ReplicationIDListV1beta, V1betaGetMultipleReplicationsInternalParams) (V1betaGetMultipleReplicationsInternalRes, error)); ok {
+		return rf(ctx, request, params)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, *ReplicationIDListV1beta, V1betaGetMultipleReplicationsInternalParams) V1betaGetMultipleReplicationsInternalRes); ok {
+		r0 = rf(ctx, request, params)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(V1betaGetMultipleReplicationsInternalRes)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, *ReplicationIDListV1beta, V1betaGetMultipleReplicationsInternalParams) error); ok {
+		r1 = rf(ctx, request, params)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockInvoker_V1betaGetMultipleReplicationsInternal_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'V1betaGetMultipleReplicationsInternal'
+type MockInvoker_V1betaGetMultipleReplicationsInternal_Call struct {
+	*mock.Call
+}
+
+// V1betaGetMultipleReplicationsInternal is a helper method to define mock.On call
+//   - ctx context.Context
+//   - request *ReplicationIDListV1beta
+//   - params V1betaGetMultipleReplicationsInternalParams
+func (_e *MockInvoker_Expecter) V1betaGetMultipleReplicationsInternal(ctx interface{}, request interface{}, params interface{}) *MockInvoker_V1betaGetMultipleReplicationsInternal_Call {
+	return &MockInvoker_V1betaGetMultipleReplicationsInternal_Call{Call: _e.mock.On("V1betaGetMultipleReplicationsInternal", ctx, request, params)}
+}
+
+func (_c *MockInvoker_V1betaGetMultipleReplicationsInternal_Call) Run(run func(ctx context.Context, request *ReplicationIDListV1beta, params V1betaGetMultipleReplicationsInternalParams)) *MockInvoker_V1betaGetMultipleReplicationsInternal_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(*ReplicationIDListV1beta), args[2].(V1betaGetMultipleReplicationsInternalParams))
+	})
+	return _c
+}
+
+func (_c *MockInvoker_V1betaGetMultipleReplicationsInternal_Call) Return(_a0 V1betaGetMultipleReplicationsInternalRes, _a1 error) *MockInvoker_V1betaGetMultipleReplicationsInternal_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockInvoker_V1betaGetMultipleReplicationsInternal_Call) RunAndReturn(run func(context.Context, *ReplicationIDListV1beta, V1betaGetMultipleReplicationsInternalParams) (V1betaGetMultipleReplicationsInternalRes, error)) *MockInvoker_V1betaGetMultipleReplicationsInternal_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // V1betaGetMultipleSnapshots provides a mock function with given fields: ctx, request, params
 func (_m *MockInvoker) V1betaGetMultipleSnapshots(ctx context.Context, request *SnapshotIdListV1beta, params V1betaGetMultipleSnapshotsParams) (V1betaGetMultipleSnapshotsRes, error) {
 	ret := _m.Called(ctx, request, params)

@@ -41993,8 +41993,6 @@ func (s *VolumeReplicationCreateInternalV1betaEndpointType) Decode(d *jx.Decoder
 		*s = VolumeReplicationCreateInternalV1betaEndpointTypeSrc
 	case VolumeReplicationCreateInternalV1betaEndpointTypeDst:
 		*s = VolumeReplicationCreateInternalV1betaEndpointTypeDst
-	case VolumeReplicationCreateInternalV1betaEndpointTypeRst:
-		*s = VolumeReplicationCreateInternalV1betaEndpointTypeRst
 	default:
 		*s = VolumeReplicationCreateInternalV1betaEndpointType(v)
 	}
@@ -42137,12 +42135,24 @@ func (s *VolumeReplicationCreateInternalV1betaMirrorState) Decode(d *jx.Decoder)
 	}
 	// Try to use constant string.
 	switch VolumeReplicationCreateInternalV1betaMirrorState(v) {
-	case VolumeReplicationCreateInternalV1betaMirrorStateUninitialized:
-		*s = VolumeReplicationCreateInternalV1betaMirrorStateUninitialized
-	case VolumeReplicationCreateInternalV1betaMirrorStateMirrored:
-		*s = VolumeReplicationCreateInternalV1betaMirrorStateMirrored
-	case VolumeReplicationCreateInternalV1betaMirrorStateBroken:
-		*s = VolumeReplicationCreateInternalV1betaMirrorStateBroken
+	case VolumeReplicationCreateInternalV1betaMirrorStateMIRRORSTATEUNSPECIFIED:
+		*s = VolumeReplicationCreateInternalV1betaMirrorStateMIRRORSTATEUNSPECIFIED
+	case VolumeReplicationCreateInternalV1betaMirrorStatePREPARING:
+		*s = VolumeReplicationCreateInternalV1betaMirrorStatePREPARING
+	case VolumeReplicationCreateInternalV1betaMirrorStateUNINITIALIZED:
+		*s = VolumeReplicationCreateInternalV1betaMirrorStateUNINITIALIZED
+	case VolumeReplicationCreateInternalV1betaMirrorStateMIRRORED:
+		*s = VolumeReplicationCreateInternalV1betaMirrorStateMIRRORED
+	case VolumeReplicationCreateInternalV1betaMirrorStateSTOPPED:
+		*s = VolumeReplicationCreateInternalV1betaMirrorStateSTOPPED
+	case VolumeReplicationCreateInternalV1betaMirrorStateABORTED:
+		*s = VolumeReplicationCreateInternalV1betaMirrorStateABORTED
+	case VolumeReplicationCreateInternalV1betaMirrorStateTRANSFERRING:
+		*s = VolumeReplicationCreateInternalV1betaMirrorStateTRANSFERRING
+	case VolumeReplicationCreateInternalV1betaMirrorStateBASELINETRANSFERRING:
+		*s = VolumeReplicationCreateInternalV1betaMirrorStateBASELINETRANSFERRING
+	case VolumeReplicationCreateInternalV1betaMirrorStateEXTERNALLYMANAGED:
+		*s = VolumeReplicationCreateInternalV1betaMirrorStateEXTERNALLYMANAGED
 	default:
 		*s = VolumeReplicationCreateInternalV1betaMirrorState(v)
 	}
@@ -43080,8 +43090,6 @@ func (s *VolumeReplicationInternalV1betaEndpointType) Decode(d *jx.Decoder) erro
 		*s = VolumeReplicationInternalV1betaEndpointTypeSrc
 	case VolumeReplicationInternalV1betaEndpointTypeDst:
 		*s = VolumeReplicationInternalV1betaEndpointTypeDst
-	case VolumeReplicationInternalV1betaEndpointTypeRst:
-		*s = VolumeReplicationInternalV1betaEndpointTypeRst
 	default:
 		*s = VolumeReplicationInternalV1betaEndpointType(v)
 	}
@@ -43224,12 +43232,24 @@ func (s *VolumeReplicationInternalV1betaMirrorState) Decode(d *jx.Decoder) error
 	}
 	// Try to use constant string.
 	switch VolumeReplicationInternalV1betaMirrorState(v) {
-	case VolumeReplicationInternalV1betaMirrorStateUninitialized:
-		*s = VolumeReplicationInternalV1betaMirrorStateUninitialized
-	case VolumeReplicationInternalV1betaMirrorStateMirrored:
-		*s = VolumeReplicationInternalV1betaMirrorStateMirrored
-	case VolumeReplicationInternalV1betaMirrorStateBroken:
-		*s = VolumeReplicationInternalV1betaMirrorStateBroken
+	case VolumeReplicationInternalV1betaMirrorStateMIRRORSTATEUNSPECIFIED:
+		*s = VolumeReplicationInternalV1betaMirrorStateMIRRORSTATEUNSPECIFIED
+	case VolumeReplicationInternalV1betaMirrorStatePREPARING:
+		*s = VolumeReplicationInternalV1betaMirrorStatePREPARING
+	case VolumeReplicationInternalV1betaMirrorStateUNINITIALIZED:
+		*s = VolumeReplicationInternalV1betaMirrorStateUNINITIALIZED
+	case VolumeReplicationInternalV1betaMirrorStateMIRRORED:
+		*s = VolumeReplicationInternalV1betaMirrorStateMIRRORED
+	case VolumeReplicationInternalV1betaMirrorStateSTOPPED:
+		*s = VolumeReplicationInternalV1betaMirrorStateSTOPPED
+	case VolumeReplicationInternalV1betaMirrorStateABORTED:
+		*s = VolumeReplicationInternalV1betaMirrorStateABORTED
+	case VolumeReplicationInternalV1betaMirrorStateTRANSFERRING:
+		*s = VolumeReplicationInternalV1betaMirrorStateTRANSFERRING
+	case VolumeReplicationInternalV1betaMirrorStateBASELINETRANSFERRING:
+		*s = VolumeReplicationInternalV1betaMirrorStateBASELINETRANSFERRING
+	case VolumeReplicationInternalV1betaMirrorStateEXTERNALLYMANAGED:
+		*s = VolumeReplicationInternalV1betaMirrorStateEXTERNALLYMANAGED
 	default:
 		*s = VolumeReplicationInternalV1betaMirrorState(v)
 	}

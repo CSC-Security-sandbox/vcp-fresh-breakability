@@ -17077,7 +17077,6 @@ type VolumeReplicationCreateInternalV1betaEndpointType string
 const (
 	VolumeReplicationCreateInternalV1betaEndpointTypeSrc VolumeReplicationCreateInternalV1betaEndpointType = "src"
 	VolumeReplicationCreateInternalV1betaEndpointTypeDst VolumeReplicationCreateInternalV1betaEndpointType = "dst"
-	VolumeReplicationCreateInternalV1betaEndpointTypeRst VolumeReplicationCreateInternalV1betaEndpointType = "rst"
 )
 
 // AllValues returns all VolumeReplicationCreateInternalV1betaEndpointType values.
@@ -17085,7 +17084,6 @@ func (VolumeReplicationCreateInternalV1betaEndpointType) AllValues() []VolumeRep
 	return []VolumeReplicationCreateInternalV1betaEndpointType{
 		VolumeReplicationCreateInternalV1betaEndpointTypeSrc,
 		VolumeReplicationCreateInternalV1betaEndpointTypeDst,
-		VolumeReplicationCreateInternalV1betaEndpointTypeRst,
 	}
 }
 
@@ -17095,8 +17093,6 @@ func (s VolumeReplicationCreateInternalV1betaEndpointType) MarshalText() ([]byte
 	case VolumeReplicationCreateInternalV1betaEndpointTypeSrc:
 		return []byte(s), nil
 	case VolumeReplicationCreateInternalV1betaEndpointTypeDst:
-		return []byte(s), nil
-	case VolumeReplicationCreateInternalV1betaEndpointTypeRst:
 		return []byte(s), nil
 	default:
 		return nil, errors.Errorf("invalid value: %q", s)
@@ -17111,9 +17107,6 @@ func (s *VolumeReplicationCreateInternalV1betaEndpointType) UnmarshalText(data [
 		return nil
 	case VolumeReplicationCreateInternalV1betaEndpointTypeDst:
 		*s = VolumeReplicationCreateInternalV1betaEndpointTypeDst
-		return nil
-	case VolumeReplicationCreateInternalV1betaEndpointTypeRst:
-		*s = VolumeReplicationCreateInternalV1betaEndpointTypeRst
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
@@ -17216,28 +17209,52 @@ func (s *VolumeReplicationCreateInternalV1betaLifeCycleState) UnmarshalText(data
 type VolumeReplicationCreateInternalV1betaMirrorState string
 
 const (
-	VolumeReplicationCreateInternalV1betaMirrorStateUninitialized VolumeReplicationCreateInternalV1betaMirrorState = "uninitialized"
-	VolumeReplicationCreateInternalV1betaMirrorStateMirrored      VolumeReplicationCreateInternalV1betaMirrorState = "mirrored"
-	VolumeReplicationCreateInternalV1betaMirrorStateBroken        VolumeReplicationCreateInternalV1betaMirrorState = "broken"
+	VolumeReplicationCreateInternalV1betaMirrorStateMIRRORSTATEUNSPECIFIED VolumeReplicationCreateInternalV1betaMirrorState = "MIRROR_STATE_UNSPECIFIED"
+	VolumeReplicationCreateInternalV1betaMirrorStatePREPARING              VolumeReplicationCreateInternalV1betaMirrorState = "PREPARING"
+	VolumeReplicationCreateInternalV1betaMirrorStateUNINITIALIZED          VolumeReplicationCreateInternalV1betaMirrorState = "UNINITIALIZED"
+	VolumeReplicationCreateInternalV1betaMirrorStateMIRRORED               VolumeReplicationCreateInternalV1betaMirrorState = "MIRRORED"
+	VolumeReplicationCreateInternalV1betaMirrorStateSTOPPED                VolumeReplicationCreateInternalV1betaMirrorState = "STOPPED"
+	VolumeReplicationCreateInternalV1betaMirrorStateABORTED                VolumeReplicationCreateInternalV1betaMirrorState = "ABORTED"
+	VolumeReplicationCreateInternalV1betaMirrorStateTRANSFERRING           VolumeReplicationCreateInternalV1betaMirrorState = "TRANSFERRING"
+	VolumeReplicationCreateInternalV1betaMirrorStateBASELINETRANSFERRING   VolumeReplicationCreateInternalV1betaMirrorState = "BASELINE_TRANSFERRING"
+	VolumeReplicationCreateInternalV1betaMirrorStateEXTERNALLYMANAGED      VolumeReplicationCreateInternalV1betaMirrorState = "EXTERNALLY_MANAGED"
 )
 
 // AllValues returns all VolumeReplicationCreateInternalV1betaMirrorState values.
 func (VolumeReplicationCreateInternalV1betaMirrorState) AllValues() []VolumeReplicationCreateInternalV1betaMirrorState {
 	return []VolumeReplicationCreateInternalV1betaMirrorState{
-		VolumeReplicationCreateInternalV1betaMirrorStateUninitialized,
-		VolumeReplicationCreateInternalV1betaMirrorStateMirrored,
-		VolumeReplicationCreateInternalV1betaMirrorStateBroken,
+		VolumeReplicationCreateInternalV1betaMirrorStateMIRRORSTATEUNSPECIFIED,
+		VolumeReplicationCreateInternalV1betaMirrorStatePREPARING,
+		VolumeReplicationCreateInternalV1betaMirrorStateUNINITIALIZED,
+		VolumeReplicationCreateInternalV1betaMirrorStateMIRRORED,
+		VolumeReplicationCreateInternalV1betaMirrorStateSTOPPED,
+		VolumeReplicationCreateInternalV1betaMirrorStateABORTED,
+		VolumeReplicationCreateInternalV1betaMirrorStateTRANSFERRING,
+		VolumeReplicationCreateInternalV1betaMirrorStateBASELINETRANSFERRING,
+		VolumeReplicationCreateInternalV1betaMirrorStateEXTERNALLYMANAGED,
 	}
 }
 
 // MarshalText implements encoding.TextMarshaler.
 func (s VolumeReplicationCreateInternalV1betaMirrorState) MarshalText() ([]byte, error) {
 	switch s {
-	case VolumeReplicationCreateInternalV1betaMirrorStateUninitialized:
+	case VolumeReplicationCreateInternalV1betaMirrorStateMIRRORSTATEUNSPECIFIED:
 		return []byte(s), nil
-	case VolumeReplicationCreateInternalV1betaMirrorStateMirrored:
+	case VolumeReplicationCreateInternalV1betaMirrorStatePREPARING:
 		return []byte(s), nil
-	case VolumeReplicationCreateInternalV1betaMirrorStateBroken:
+	case VolumeReplicationCreateInternalV1betaMirrorStateUNINITIALIZED:
+		return []byte(s), nil
+	case VolumeReplicationCreateInternalV1betaMirrorStateMIRRORED:
+		return []byte(s), nil
+	case VolumeReplicationCreateInternalV1betaMirrorStateSTOPPED:
+		return []byte(s), nil
+	case VolumeReplicationCreateInternalV1betaMirrorStateABORTED:
+		return []byte(s), nil
+	case VolumeReplicationCreateInternalV1betaMirrorStateTRANSFERRING:
+		return []byte(s), nil
+	case VolumeReplicationCreateInternalV1betaMirrorStateBASELINETRANSFERRING:
+		return []byte(s), nil
+	case VolumeReplicationCreateInternalV1betaMirrorStateEXTERNALLYMANAGED:
 		return []byte(s), nil
 	default:
 		return nil, errors.Errorf("invalid value: %q", s)
@@ -17247,14 +17264,32 @@ func (s VolumeReplicationCreateInternalV1betaMirrorState) MarshalText() ([]byte,
 // UnmarshalText implements encoding.TextUnmarshaler.
 func (s *VolumeReplicationCreateInternalV1betaMirrorState) UnmarshalText(data []byte) error {
 	switch VolumeReplicationCreateInternalV1betaMirrorState(data) {
-	case VolumeReplicationCreateInternalV1betaMirrorStateUninitialized:
-		*s = VolumeReplicationCreateInternalV1betaMirrorStateUninitialized
+	case VolumeReplicationCreateInternalV1betaMirrorStateMIRRORSTATEUNSPECIFIED:
+		*s = VolumeReplicationCreateInternalV1betaMirrorStateMIRRORSTATEUNSPECIFIED
 		return nil
-	case VolumeReplicationCreateInternalV1betaMirrorStateMirrored:
-		*s = VolumeReplicationCreateInternalV1betaMirrorStateMirrored
+	case VolumeReplicationCreateInternalV1betaMirrorStatePREPARING:
+		*s = VolumeReplicationCreateInternalV1betaMirrorStatePREPARING
 		return nil
-	case VolumeReplicationCreateInternalV1betaMirrorStateBroken:
-		*s = VolumeReplicationCreateInternalV1betaMirrorStateBroken
+	case VolumeReplicationCreateInternalV1betaMirrorStateUNINITIALIZED:
+		*s = VolumeReplicationCreateInternalV1betaMirrorStateUNINITIALIZED
+		return nil
+	case VolumeReplicationCreateInternalV1betaMirrorStateMIRRORED:
+		*s = VolumeReplicationCreateInternalV1betaMirrorStateMIRRORED
+		return nil
+	case VolumeReplicationCreateInternalV1betaMirrorStateSTOPPED:
+		*s = VolumeReplicationCreateInternalV1betaMirrorStateSTOPPED
+		return nil
+	case VolumeReplicationCreateInternalV1betaMirrorStateABORTED:
+		*s = VolumeReplicationCreateInternalV1betaMirrorStateABORTED
+		return nil
+	case VolumeReplicationCreateInternalV1betaMirrorStateTRANSFERRING:
+		*s = VolumeReplicationCreateInternalV1betaMirrorStateTRANSFERRING
+		return nil
+	case VolumeReplicationCreateInternalV1betaMirrorStateBASELINETRANSFERRING:
+		*s = VolumeReplicationCreateInternalV1betaMirrorStateBASELINETRANSFERRING
+		return nil
+	case VolumeReplicationCreateInternalV1betaMirrorStateEXTERNALLYMANAGED:
+		*s = VolumeReplicationCreateInternalV1betaMirrorStateEXTERNALLYMANAGED
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
@@ -17958,7 +17993,6 @@ type VolumeReplicationInternalV1betaEndpointType string
 const (
 	VolumeReplicationInternalV1betaEndpointTypeSrc VolumeReplicationInternalV1betaEndpointType = "src"
 	VolumeReplicationInternalV1betaEndpointTypeDst VolumeReplicationInternalV1betaEndpointType = "dst"
-	VolumeReplicationInternalV1betaEndpointTypeRst VolumeReplicationInternalV1betaEndpointType = "rst"
 )
 
 // AllValues returns all VolumeReplicationInternalV1betaEndpointType values.
@@ -17966,7 +18000,6 @@ func (VolumeReplicationInternalV1betaEndpointType) AllValues() []VolumeReplicati
 	return []VolumeReplicationInternalV1betaEndpointType{
 		VolumeReplicationInternalV1betaEndpointTypeSrc,
 		VolumeReplicationInternalV1betaEndpointTypeDst,
-		VolumeReplicationInternalV1betaEndpointTypeRst,
 	}
 }
 
@@ -17976,8 +18009,6 @@ func (s VolumeReplicationInternalV1betaEndpointType) MarshalText() ([]byte, erro
 	case VolumeReplicationInternalV1betaEndpointTypeSrc:
 		return []byte(s), nil
 	case VolumeReplicationInternalV1betaEndpointTypeDst:
-		return []byte(s), nil
-	case VolumeReplicationInternalV1betaEndpointTypeRst:
 		return []byte(s), nil
 	default:
 		return nil, errors.Errorf("invalid value: %q", s)
@@ -17992,9 +18023,6 @@ func (s *VolumeReplicationInternalV1betaEndpointType) UnmarshalText(data []byte)
 		return nil
 	case VolumeReplicationInternalV1betaEndpointTypeDst:
 		*s = VolumeReplicationInternalV1betaEndpointTypeDst
-		return nil
-	case VolumeReplicationInternalV1betaEndpointTypeRst:
-		*s = VolumeReplicationInternalV1betaEndpointTypeRst
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
@@ -18097,28 +18125,52 @@ func (s *VolumeReplicationInternalV1betaLifeCycleState) UnmarshalText(data []byt
 type VolumeReplicationInternalV1betaMirrorState string
 
 const (
-	VolumeReplicationInternalV1betaMirrorStateUninitialized VolumeReplicationInternalV1betaMirrorState = "uninitialized"
-	VolumeReplicationInternalV1betaMirrorStateMirrored      VolumeReplicationInternalV1betaMirrorState = "mirrored"
-	VolumeReplicationInternalV1betaMirrorStateBroken        VolumeReplicationInternalV1betaMirrorState = "broken"
+	VolumeReplicationInternalV1betaMirrorStateMIRRORSTATEUNSPECIFIED VolumeReplicationInternalV1betaMirrorState = "MIRROR_STATE_UNSPECIFIED"
+	VolumeReplicationInternalV1betaMirrorStatePREPARING              VolumeReplicationInternalV1betaMirrorState = "PREPARING"
+	VolumeReplicationInternalV1betaMirrorStateUNINITIALIZED          VolumeReplicationInternalV1betaMirrorState = "UNINITIALIZED"
+	VolumeReplicationInternalV1betaMirrorStateMIRRORED               VolumeReplicationInternalV1betaMirrorState = "MIRRORED"
+	VolumeReplicationInternalV1betaMirrorStateSTOPPED                VolumeReplicationInternalV1betaMirrorState = "STOPPED"
+	VolumeReplicationInternalV1betaMirrorStateABORTED                VolumeReplicationInternalV1betaMirrorState = "ABORTED"
+	VolumeReplicationInternalV1betaMirrorStateTRANSFERRING           VolumeReplicationInternalV1betaMirrorState = "TRANSFERRING"
+	VolumeReplicationInternalV1betaMirrorStateBASELINETRANSFERRING   VolumeReplicationInternalV1betaMirrorState = "BASELINE_TRANSFERRING"
+	VolumeReplicationInternalV1betaMirrorStateEXTERNALLYMANAGED      VolumeReplicationInternalV1betaMirrorState = "EXTERNALLY_MANAGED"
 )
 
 // AllValues returns all VolumeReplicationInternalV1betaMirrorState values.
 func (VolumeReplicationInternalV1betaMirrorState) AllValues() []VolumeReplicationInternalV1betaMirrorState {
 	return []VolumeReplicationInternalV1betaMirrorState{
-		VolumeReplicationInternalV1betaMirrorStateUninitialized,
-		VolumeReplicationInternalV1betaMirrorStateMirrored,
-		VolumeReplicationInternalV1betaMirrorStateBroken,
+		VolumeReplicationInternalV1betaMirrorStateMIRRORSTATEUNSPECIFIED,
+		VolumeReplicationInternalV1betaMirrorStatePREPARING,
+		VolumeReplicationInternalV1betaMirrorStateUNINITIALIZED,
+		VolumeReplicationInternalV1betaMirrorStateMIRRORED,
+		VolumeReplicationInternalV1betaMirrorStateSTOPPED,
+		VolumeReplicationInternalV1betaMirrorStateABORTED,
+		VolumeReplicationInternalV1betaMirrorStateTRANSFERRING,
+		VolumeReplicationInternalV1betaMirrorStateBASELINETRANSFERRING,
+		VolumeReplicationInternalV1betaMirrorStateEXTERNALLYMANAGED,
 	}
 }
 
 // MarshalText implements encoding.TextMarshaler.
 func (s VolumeReplicationInternalV1betaMirrorState) MarshalText() ([]byte, error) {
 	switch s {
-	case VolumeReplicationInternalV1betaMirrorStateUninitialized:
+	case VolumeReplicationInternalV1betaMirrorStateMIRRORSTATEUNSPECIFIED:
 		return []byte(s), nil
-	case VolumeReplicationInternalV1betaMirrorStateMirrored:
+	case VolumeReplicationInternalV1betaMirrorStatePREPARING:
 		return []byte(s), nil
-	case VolumeReplicationInternalV1betaMirrorStateBroken:
+	case VolumeReplicationInternalV1betaMirrorStateUNINITIALIZED:
+		return []byte(s), nil
+	case VolumeReplicationInternalV1betaMirrorStateMIRRORED:
+		return []byte(s), nil
+	case VolumeReplicationInternalV1betaMirrorStateSTOPPED:
+		return []byte(s), nil
+	case VolumeReplicationInternalV1betaMirrorStateABORTED:
+		return []byte(s), nil
+	case VolumeReplicationInternalV1betaMirrorStateTRANSFERRING:
+		return []byte(s), nil
+	case VolumeReplicationInternalV1betaMirrorStateBASELINETRANSFERRING:
+		return []byte(s), nil
+	case VolumeReplicationInternalV1betaMirrorStateEXTERNALLYMANAGED:
 		return []byte(s), nil
 	default:
 		return nil, errors.Errorf("invalid value: %q", s)
@@ -18128,14 +18180,32 @@ func (s VolumeReplicationInternalV1betaMirrorState) MarshalText() ([]byte, error
 // UnmarshalText implements encoding.TextUnmarshaler.
 func (s *VolumeReplicationInternalV1betaMirrorState) UnmarshalText(data []byte) error {
 	switch VolumeReplicationInternalV1betaMirrorState(data) {
-	case VolumeReplicationInternalV1betaMirrorStateUninitialized:
-		*s = VolumeReplicationInternalV1betaMirrorStateUninitialized
+	case VolumeReplicationInternalV1betaMirrorStateMIRRORSTATEUNSPECIFIED:
+		*s = VolumeReplicationInternalV1betaMirrorStateMIRRORSTATEUNSPECIFIED
 		return nil
-	case VolumeReplicationInternalV1betaMirrorStateMirrored:
-		*s = VolumeReplicationInternalV1betaMirrorStateMirrored
+	case VolumeReplicationInternalV1betaMirrorStatePREPARING:
+		*s = VolumeReplicationInternalV1betaMirrorStatePREPARING
 		return nil
-	case VolumeReplicationInternalV1betaMirrorStateBroken:
-		*s = VolumeReplicationInternalV1betaMirrorStateBroken
+	case VolumeReplicationInternalV1betaMirrorStateUNINITIALIZED:
+		*s = VolumeReplicationInternalV1betaMirrorStateUNINITIALIZED
+		return nil
+	case VolumeReplicationInternalV1betaMirrorStateMIRRORED:
+		*s = VolumeReplicationInternalV1betaMirrorStateMIRRORED
+		return nil
+	case VolumeReplicationInternalV1betaMirrorStateSTOPPED:
+		*s = VolumeReplicationInternalV1betaMirrorStateSTOPPED
+		return nil
+	case VolumeReplicationInternalV1betaMirrorStateABORTED:
+		*s = VolumeReplicationInternalV1betaMirrorStateABORTED
+		return nil
+	case VolumeReplicationInternalV1betaMirrorStateTRANSFERRING:
+		*s = VolumeReplicationInternalV1betaMirrorStateTRANSFERRING
+		return nil
+	case VolumeReplicationInternalV1betaMirrorStateBASELINETRANSFERRING:
+		*s = VolumeReplicationInternalV1betaMirrorStateBASELINETRANSFERRING
+		return nil
+	case VolumeReplicationInternalV1betaMirrorStateEXTERNALLYMANAGED:
+		*s = VolumeReplicationInternalV1betaMirrorStateEXTERNALLYMANAGED
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)

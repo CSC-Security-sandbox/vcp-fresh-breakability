@@ -5400,6 +5400,62 @@ func (s *ReplicationDeleteV1beta) Validate() error {
 	return nil
 }
 
+func (s *ReplicationIDListV1beta) Validate() error {
+	if s == nil {
+		return validate.ErrNilPointer
+	}
+
+	var failures []validate.FieldError
+	if err := func() error {
+		if s.ReplicationUUIDs == nil {
+			return errors.New("nil is invalid value")
+		}
+		if err := (validate.Array{
+			MinLength:    1,
+			MinLengthSet: true,
+			MaxLength:    0,
+			MaxLengthSet: false,
+		}).ValidateLength(len(s.ReplicationUUIDs)); err != nil {
+			return errors.Wrap(err, "array")
+		}
+		var failures []validate.FieldError
+		for i, elem := range s.ReplicationUUIDs {
+			if err := func() error {
+				if err := (validate.String{
+					MinLength:    0,
+					MinLengthSet: false,
+					MaxLength:    0,
+					MaxLengthSet: false,
+					Email:        false,
+					Hostname:     false,
+					Regex:        regexMap["^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$"],
+				}).Validate(string(elem)); err != nil {
+					return errors.Wrap(err, "string")
+				}
+				return nil
+			}(); err != nil {
+				failures = append(failures, validate.FieldError{
+					Name:  fmt.Sprintf("[%d]", i),
+					Error: err,
+				})
+			}
+		}
+		if len(failures) > 0 {
+			return &validate.Error{Fields: failures}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "replicationUUIDs",
+			Error: err,
+		})
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+	return nil
+}
+
 func (s *ReplicationURIListV1beta) Validate() error {
 	if s == nil {
 		return validate.ErrNilPointer
@@ -8928,7 +8984,108 @@ func (s *V1betaGetMultipleReplicationsForbidden) Validate() error {
 	return nil
 }
 
+func (s *V1betaGetMultipleReplicationsInternalBadRequest) Validate() error {
+	alias := (*Error)(s)
+	if err := alias.Validate(); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (s *V1betaGetMultipleReplicationsInternalForbidden) Validate() error {
+	alias := (*Error)(s)
+	if err := alias.Validate(); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (s *V1betaGetMultipleReplicationsInternalInternalServerError) Validate() error {
+	alias := (*Error)(s)
+	if err := alias.Validate(); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (s *V1betaGetMultipleReplicationsInternalNotFound) Validate() error {
+	alias := (*Error)(s)
+	if err := alias.Validate(); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (s *V1betaGetMultipleReplicationsInternalNotImplemented) Validate() error {
+	alias := (*Error)(s)
+	if err := alias.Validate(); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (s *V1betaGetMultipleReplicationsInternalOK) Validate() error {
+	if s == nil {
+		return validate.ErrNilPointer
+	}
+
+	var failures []validate.FieldError
+	if err := func() error {
+		var failures []validate.FieldError
+		for i, elem := range s.Replications {
+			if err := func() error {
+				if err := elem.Validate(); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				failures = append(failures, validate.FieldError{
+					Name:  fmt.Sprintf("[%d]", i),
+					Error: err,
+				})
+			}
+		}
+		if len(failures) > 0 {
+			return &validate.Error{Fields: failures}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "replications",
+			Error: err,
+		})
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+	return nil
+}
+
 func (s *V1betaGetMultipleReplicationsInternalServerError) Validate() error {
+	alias := (*Error)(s)
+	if err := alias.Validate(); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (s *V1betaGetMultipleReplicationsInternalTooManyRequests) Validate() error {
+	alias := (*Error)(s)
+	if err := alias.Validate(); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (s *V1betaGetMultipleReplicationsInternalUnauthorized) Validate() error {
+	alias := (*Error)(s)
+	if err := alias.Validate(); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (s *V1betaGetMultipleReplicationsInternalUnprocessableEntity) Validate() error {
 	alias := (*Error)(s)
 	if err := alias.Validate(); err != nil {
 		return err
@@ -12269,8 +12426,6 @@ func (s VolumeReplicationCreateInternalV1betaEndpointType) Validate() error {
 		return nil
 	case "dst":
 		return nil
-	case "rst":
-		return nil
 	default:
 		return errors.Errorf("invalid value: %v", s)
 	}
@@ -12299,11 +12454,23 @@ func (s VolumeReplicationCreateInternalV1betaLifeCycleState) Validate() error {
 
 func (s VolumeReplicationCreateInternalV1betaMirrorState) Validate() error {
 	switch s {
-	case "uninitialized":
+	case "MIRROR_STATE_UNSPECIFIED":
 		return nil
-	case "mirrored":
+	case "PREPARING":
 		return nil
-	case "broken":
+	case "UNINITIALIZED":
+		return nil
+	case "MIRRORED":
+		return nil
+	case "STOPPED":
+		return nil
+	case "ABORTED":
+		return nil
+	case "TRANSFERRING":
+		return nil
+	case "BASELINE_TRANSFERRING":
+		return nil
+	case "EXTERNALLY_MANAGED":
 		return nil
 	default:
 		return errors.Errorf("invalid value: %v", s)
@@ -12828,8 +12995,6 @@ func (s VolumeReplicationInternalV1betaEndpointType) Validate() error {
 		return nil
 	case "dst":
 		return nil
-	case "rst":
-		return nil
 	default:
 		return errors.Errorf("invalid value: %v", s)
 	}
@@ -12858,11 +13023,23 @@ func (s VolumeReplicationInternalV1betaLifeCycleState) Validate() error {
 
 func (s VolumeReplicationInternalV1betaMirrorState) Validate() error {
 	switch s {
-	case "uninitialized":
+	case "MIRROR_STATE_UNSPECIFIED":
 		return nil
-	case "mirrored":
+	case "PREPARING":
 		return nil
-	case "broken":
+	case "UNINITIALIZED":
+		return nil
+	case "MIRRORED":
+		return nil
+	case "STOPPED":
+		return nil
+	case "ABORTED":
+		return nil
+	case "TRANSFERRING":
+		return nil
+	case "BASELINE_TRANSFERRING":
+		return nil
+	case "EXTERNALLY_MANAGED":
 		return nil
 	default:
 		return errors.Errorf("invalid value: %v", s)
@@ -13222,7 +13399,7 @@ func (s *VolumeUpdateV1beta) Validate() error {
 		})
 	}
 	if err := func() error {
-		if value, ok := s.BlockPropertiesV1beta.Get(); ok {
+		if value, ok := s.BlockProperties.Get(); ok {
 			if err := func() error {
 				if err := value.Validate(); err != nil {
 					return err
@@ -13235,7 +13412,7 @@ func (s *VolumeUpdateV1beta) Validate() error {
 		return nil
 	}(); err != nil {
 		failures = append(failures, validate.FieldError{
-			Name:  "BlockProperties_v1beta",
+			Name:  "blockProperties",
 			Error: err,
 		})
 	}

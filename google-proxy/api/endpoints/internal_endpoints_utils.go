@@ -5,6 +5,7 @@ import (
 
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
 	gcpgenserver "github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/api/gcp-servergen"
 )
 
@@ -45,11 +46,11 @@ func mapEndpointTypeToInternal(endpointType string) gcpgenserver.VolumeReplicati
 func mapMirrorStateToInternal(mirrorState string) gcpgenserver.VolumeReplicationInternalV1betaMirrorState {
 	switch mirrorState {
 	case models.OntapUninitialized:
-		return gcpgenserver.VolumeReplicationInternalV1betaMirrorStateUninitialized
+		return gcpgenserver.VolumeReplicationInternalV1betaMirrorStateUNINITIALIZED
 	case models.OntapBrokenOff:
-		return gcpgenserver.VolumeReplicationInternalV1betaMirrorStateBroken
+		return gcpgenserver.VolumeReplicationInternalV1betaMirrorStateSTOPPED
 	case models.OntapSnapmirrored:
-		return gcpgenserver.VolumeReplicationInternalV1betaMirrorStateMirrored
+		return gcpgenserver.VolumeReplicationInternalV1betaMirrorStateMIRRORED
 	default:
 		return ""
 	}
@@ -61,6 +62,19 @@ func mapRelationshipStatusToInternal(relationshipStatus string) gcpgenserver.Vol
 		return gcpgenserver.VolumeReplicationInternalV1betaRelationshipStatusIdle
 	case models.SnapmirrorRelationshipTransferring:
 		return gcpgenserver.VolumeReplicationInternalV1betaRelationshipStatusTransferring
+	default:
+		return ""
+	}
+}
+
+func mapReplicationScheduleToInternal(schedule string) gcpgenserver.VolumeReplicationInternalV1betaReplicationSchedule {
+	switch schedule {
+	case vsa.VolumeReplicationScheduleHourly:
+		return gcpgenserver.VolumeReplicationInternalV1betaReplicationScheduleHourly
+	case vsa.VolumeReplicationScheduleDaily:
+		return gcpgenserver.VolumeReplicationInternalV1betaReplicationScheduleDaily
+	case vsa.VolumeReplicationSchedule10Minutely:
+		return gcpgenserver.VolumeReplicationInternalV1betaReplicationSchedule10minutely
 	default:
 		return ""
 	}
@@ -86,10 +100,11 @@ func convertToVolumeReplicationInternalV1Beta(replication *datamodel.VolumeRepli
 		LifeCycleStateDetails: gcpgenserver.NewOptString(replication.StateDetails),
 		EndpointType:          mapEndpointTypeToInternal(replication.ReplicationAttributes.EndpointType),
 		ReplicationPolicy:     gcpgenserver.NewOptVolumeReplicationInternalV1betaReplicationPolicy(gcpgenserver.VolumeReplicationInternalV1betaReplicationPolicyMirrorAllSnapshots),
-		ReplicationSchedule:   gcpgenserver.OptVolumeReplicationInternalV1betaReplicationSchedule{},
+		ReplicationSchedule:   gcpgenserver.NewOptVolumeReplicationInternalV1betaReplicationSchedule(mapReplicationScheduleToInternal(replication.ReplicationAttributes.ReplicationSchedule)),
 		SourceHostName:        replication.ReplicationAttributes.SourceHostName,
 		SourceServerName:      replication.ReplicationAttributes.SourceSvmName,
 		SourceVolumeName:      replication.ReplicationAttributes.SourceVolumeName,
+		SourceVolumeUuid:      gcpgenserver.NewOptString(replication.ReplicationAttributes.SourceVolumeUUID),
 		DestinationHostName:   replication.ReplicationAttributes.DestinationHostName,
 		DestinationServerName: replication.ReplicationAttributes.DestinationSvmName,
 		DestinationVolumeName: replication.ReplicationAttributes.DestinationVolumeName,
@@ -110,6 +125,7 @@ func convertToVolumeReplicationInternalV1Beta(replication *datamodel.VolumeRepli
 		CreatedAt:             gcpgenserver.NewOptDateTime(replication.CreatedAt),
 		UpdatedAt:             gcpgenserver.NewOptDateTime(replication.UpdatedAt),
 		Description:           gcpgenserver.NewOptString(replication.Description),
+		RemoteRegion:          replication.ReplicationAttributes.DestinationLocation,
 	}
 }
 

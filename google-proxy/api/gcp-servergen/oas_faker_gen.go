@@ -9487,7 +9487,7 @@ func (s *VolumeReplicationCreateInternalV1betaLifeCycleState) SetFake() {
 
 // SetFake set fake values.
 func (s *VolumeReplicationCreateInternalV1betaMirrorState) SetFake() {
-	*s = VolumeReplicationCreateInternalV1betaMirrorStateUninitialized
+	*s = VolumeReplicationCreateInternalV1betaMirrorStateMIRRORSTATEUNSPECIFIED
 }
 
 // SetFake set fake values.
@@ -9729,7 +9729,7 @@ func (s *VolumeReplicationInternalV1betaLifeCycleState) SetFake() {
 
 // SetFake set fake values.
 func (s *VolumeReplicationInternalV1betaMirrorState) SetFake() {
-	*s = VolumeReplicationInternalV1betaMirrorStateUninitialized
+	*s = VolumeReplicationInternalV1betaMirrorStateMIRRORSTATEUNSPECIFIED
 }
 
 // SetFake set fake values.

@@ -249,3 +249,11 @@ type ReplicationInternalGetMultipleParams struct {
 	PoolReplicationsMap map[int64][]*datamodel.VolumeReplication // [poolUUID][]VolumeReplication
 	UpdatedReplications []*datamodel.VolumeReplication           // Replications updated from Ontap
 }
+
+type GetMultipleReplicationsParams struct {
+	ReplicationURIs  []string
+	AccountName      string
+	LocationId       string
+	XCorrelationID   string
+	VolumeResourceId string
+}

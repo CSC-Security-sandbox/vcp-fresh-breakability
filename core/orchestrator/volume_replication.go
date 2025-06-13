@@ -6,14 +6,21 @@ import (
 	"strings"
 	"time"
 
+	"github.com/google/uuid"
+	googleproxyclient "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/google-proxy-client"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
+	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	commonparams "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/replication"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/workflows/replicationWorkflows"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database"
+	gcpgenserver "github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/api/gcp-servergen"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/auth"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
+	logger "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/nillable"
 	workflowengine "github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/temporal"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 	"go.temporal.io/api/enums/v1"
@@ -24,7 +31,16 @@ var (
 	createVolumeReplicationInternal            = _createVolumeReplicationInternal
 	createVolumeReplication                    = _createVolumeReplication
 	convertCreateReplicationParamsToEventParam = _convertCreateReplicationParamsToEventParam
+	getReplicationObjects                      = _getReplicationObjects
+	googleProxyInternalGetMultipleReplications = _googleProxyInternalGetMultipleReplications
 	validateCreateReplicationParams            = replication.ValidateCreateReplicationParams
+
+	utilParseRegionAndZone            = utils.ParseRegionAndZone
+	utilParseAndValidateRegionAndZone = utils.ParseAndValidateRegionAndZone
+	utilsGetPairedRegionUri           = utils.GetPairedRegionURI
+	utilsParseProjectNumberFromURI    = utils.ParseProjectNumberFromURI
+	GetProjectNumberForRegion         = _getProjectNumberForRegion
+	authGetSignedJwtToken             = auth.GetSignedJwtToken
 )
 
 func (o *Orchestrator) CreateVolumeReplicationInternal(ctx context.Context, params *commonparams.CreateVolumeReplicationInternalParams) (*models.VolumeReplication, *datamodel.Job, error) {
@@ -264,12 +280,12 @@ func _createVolumeReplication(ctx context.Context, se database.Storage, temporal
 func _convertCreateReplicationParamsToEventParam(in *commonparams.CreateVolumeReplicationParams, out *replication.CreateReplicationEvent) error {
 	bytes, err := replication.JsonMarshal(in)
 	if err != nil {
-		return errors.NewVCPError(errors.ErrorFailedToMarshalModel, err)
+		return vsaerrors.NewVCPError(vsaerrors.ErrorFailedToMarshalModel, err)
 	}
 
 	err = replication.JsonUnMarshal(bytes, out)
 	if err != nil {
-		return errors.NewVCPError(errors.ErrorFailedToUnmarshal, err)
+		return vsaerrors.NewVCPError(vsaerrors.ErrorFailedToUnmarshal, err)
 	}
 
 	uri := strings.Split(*out.CreateReplicationParams.DestinationVolumeParameters.StoragePool, "/")
@@ -288,4 +304,297 @@ func _convertCreateReplicationParamsToEventParam(in *commonparams.CreateVolumeRe
 	out.XCorrelationID = &in.CorrelationId
 
 	return nil
+}
+
+func (o *Orchestrator) GetMultipleReplications(ctx context.Context, params commonparams.GetMultipleReplicationsParams) ([]gcpgenserver.ReplicationV1beta, error) {
+	return _getMultipleReplications(ctx, o.storage, params)
+}
+
+func _getMultipleReplications(ctx context.Context, se database.Storage, params commonparams.GetMultipleReplicationsParams) ([]gcpgenserver.ReplicationV1beta, error) {
+	logger := util.GetLogger(ctx)
+	resp := []gcpgenserver.ReplicationV1beta{}
+	account, err := getAccountWithName(ctx, se, params.AccountName)
+	if err != nil {
+		logger.Error("Failed to get account", "error", err)
+		return nil, err
+	}
+
+	// Check if replication exists in the database
+	filter := utils.CreateFilterWithConditions([]*utils.FilterCondition{
+		utils.NewFilterCondition().WithConditions("account_id", "=", account.ID),
+		utils.NewFilterCondition().WithConditions("uri", "in", params.ReplicationURIs)})
+	replications, err := se.ListVolumeReplications(ctx, *filter)
+	if err != nil {
+		logger.Errorf("Failed to list replications for account %s: %v", params.AccountName, err)
+		return nil, vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataReadError, err)
+	}
+	if len(replications) == 0 {
+		logger.Warnf("No replications found for account %s with URIs %v", params.AccountName, params.ReplicationURIs)
+		return resp, nil
+	}
+
+	// Create a region - replication UUID map
+	currentRegion, _, parsingErr := utilParseAndValidateRegionAndZone(params.LocationId)
+	if parsingErr != nil {
+		logger.Error("Failed to parse current region", "error", parsingErr)
+		custErr := vsaerrors.CustomError{
+			TrackingID: 0,
+			Message:    parsingErr.Message,
+			Retriable:  false,
+			HttpCode:   nillable.GetIntPtr(500),
+		}
+		return nil, vsaerrors.NewVCPError(vsaerrors.ErrRegionZoneParsingError, &custErr)
+	}
+	regionReplicationMap := make(map[string][]*datamodel.VolumeReplication)
+	emptyUUID := uuid.UUID{}
+	for _, replication := range replications {
+		if replication.ReplicationAttributes.DestinationReplicationUUID != emptyUUID.String() && !nillable.IsNilOrEmpty(&replication.ReplicationAttributes.DestinationLocation) {
+			// Add the replication to the response
+			destRegion, _, err := utilParseRegionAndZone(replication.ReplicationAttributes.DestinationLocation)
+			if err != nil {
+				logger.Error("Failed to parse destination region", "error", err)
+				return nil, vsaerrors.NewVCPError(vsaerrors.ErrRegionZoneParsingError, err)
+			}
+			regionReplicationMap[destRegion] = append(regionReplicationMap[destRegion], replication)
+		} else if replication.ReplicationAttributes.SourceReplicationUUID != emptyUUID.String() && !nillable.IsNilOrEmpty(&replication.ReplicationAttributes.SourceLocation) {
+			// Add the replication to the response
+			srcRegion, _, err := utilParseRegionAndZone(replication.ReplicationAttributes.SourceLocation)
+			if err != nil {
+				logger.Error("Failed to parse source region", "error", err)
+				return nil, vsaerrors.NewVCPError(vsaerrors.ErrRegionZoneParsingError, err)
+			}
+			regionReplicationMap[srcRegion] = append(regionReplicationMap[srcRegion], replication)
+		} else {
+			logger.Warn("Replication does not have a valid source or destination region", "replication", replication.UUID)
+		}
+	}
+
+	// Fetch the replications from the respective regions via internal API calls
+	list, err := getReplicationObjects(ctx, regionReplicationMap, logger, params)
+	if err != nil {
+		logger.Error("Failed to get replication objects", "error", err)
+		return nil, err
+	}
+
+	// Convert the internal replications to the response format
+	for _, repl := range list {
+		resp = append(resp, convertInternalReplicationToCCFEModel(*repl, currentRegion))
+	}
+
+	return resp, nil
+}
+
+func _getReplicationObjects(ctx context.Context, regionReplicationMap map[string][]*datamodel.VolumeReplication, logger logger.Logger, params commonparams.GetMultipleReplicationsParams) ([]*googleproxyclient.VolumeReplicationInternalV1beta, error) {
+	type ReplicationsForProject struct {
+		replicationUUIDs []string
+		token            string
+	}
+	replicationList := make([]*googleproxyclient.VolumeReplicationInternalV1beta, 0)
+
+	for region, replicationsInRegion := range regionReplicationMap {
+		basePath, err := utilsGetPairedRegionUri(region)
+		if err != nil {
+			logger.Error("Failed to get paired region URI", "region", region, "error", err)
+			return nil, vsaerrors.NewVCPError(vsaerrors.ErrRegionZoneParsingError, err)
+		}
+
+		emptyUUID := uuid.UUID{}
+
+		// Build a map with a list of replication UUIDs for each project
+		// Because the replications could use different projects we need to get the token for each project
+		replicationsForProjects := make(map[string]ReplicationsForProject)
+		for _, replication := range replicationsInRegion {
+			projectNumber, err := GetProjectNumberForRegion(replication, region)
+			if err != nil {
+				return nil, vsaerrors.NewVCPError(vsaerrors.ErrProjectParsingError, err)
+			}
+			var replicationUUID string
+			if replication.ReplicationAttributes.DestinationReplicationUUID != emptyUUID.String() {
+				replicationUUID = replication.ReplicationAttributes.DestinationReplicationUUID
+			} else if replication.ReplicationAttributes.SourceReplicationUUID != emptyUUID.String() {
+				replicationUUID = replication.ReplicationAttributes.SourceReplicationUUID
+			}
+
+			found, ok := replicationsForProjects[projectNumber]
+			if !ok {
+				token, err := authGetSignedJwtToken(projectNumber)
+				if err != nil {
+					return nil, vsaerrors.NewVCPError(vsaerrors.ErrFailedToGenerateAccessToken, err)
+				}
+				replicationsForProjects[projectNumber] = ReplicationsForProject{token: token, replicationUUIDs: []string{replicationUUID}}
+			} else {
+				// Project already exists in the map so we don't need to get a new token and just append to the UUID list.
+				found.replicationUUIDs = append(replicationsForProjects[projectNumber].replicationUUIDs, replicationUUID)
+			}
+		}
+
+		// Now we have a map of project numbers to replication UUIDs, we can make the API calls
+		for projectNumber, replicationsForProject := range replicationsForProjects {
+			internalGetReplicationBody := googleproxyclient.ReplicationIDListV1beta{
+				ReplicationUUIDs: replicationsForProject.replicationUUIDs,
+			}
+			list, err := googleProxyInternalGetMultipleReplications(ctx, basePath, projectNumber, region, replicationsForProject.token, internalGetReplicationBody, logger, params)
+			if err != nil {
+				logger.Error("Failed to get multiple replications from Google Proxy", "error", err, "projectNumber", projectNumber, "region", region)
+				return nil, err
+			}
+			if len(list) == 0 {
+				logger.Warn("No replications found for project", "projectNumber", projectNumber, "region", region)
+				continue
+			}
+
+			// Append the replications to the final list
+			for _, replication := range list {
+				replicationList = append(replicationList, &replication)
+			}
+		}
+	}
+	return replicationList, nil
+}
+
+func _googleProxyInternalGetMultipleReplications(ctx context.Context, basePath, projectNumber, location, token string, body googleproxyclient.ReplicationIDListV1beta, logger logger.Logger, paramz commonparams.GetMultipleReplicationsParams) ([]googleproxyclient.VolumeReplicationInternalV1beta, error) {
+	cli := googleproxyclient.GetGProxyClient(basePath, token, logger)
+	params := googleproxyclient.V1betaGetMultipleReplicationsInternalParams{
+		ProjectNumber:  projectNumber,
+		LocationId:     location,
+		XCorrelationID: googleproxyclient.NewOptString(paramz.XCorrelationID),
+	}
+
+	res, err := cli.Invoker.V1betaGetMultipleReplicationsInternal(ctx, &body, params)
+	if err != nil {
+		logger.Error("Failed to get multiple replications from Google Proxy", "error", err)
+		return nil, vsaerrors.NewVCPError(vsaerrors.ErrGoogleProxyInternalGetMultipleReplications, err)
+	}
+
+	switch r := res.(type) {
+	case *googleproxyclient.V1betaGetMultipleReplicationsInternalOK:
+		return r.GetReplications(), nil
+	case *googleproxyclient.V1betaGetMultipleReplicationsInternalBadRequest:
+		return nil, vsaerrors.NewVCPError(vsaerrors.ErrGoogleProxyInternalGetMultipleReplicationsBadRequest, errors.New(r.Message))
+	case *googleproxyclient.V1betaGetMultipleReplicationsInternalInternalServerError:
+		return nil, vsaerrors.NewVCPError(vsaerrors.ErrGoogleProxyInternalGetMultipleReplicationsInternalServerError, errors.New(r.Message))
+	case *googleproxyclient.V1betaGetMultipleReplicationsInternalUnauthorized:
+		return nil, vsaerrors.NewVCPError(vsaerrors.ErrGoogleProxyInternalGetMultipleReplicationsUnauthorized, errors.New(r.Message))
+	case *googleproxyclient.V1betaGetMultipleReplicationsInternalForbidden:
+		return nil, vsaerrors.NewVCPError(vsaerrors.ErrGoogleProxyInternalGetMultipleReplicationsForbidden, errors.New(r.Message))
+	case *googleproxyclient.V1betaGetMultipleReplicationsInternalNotFound:
+		return nil, vsaerrors.NewVCPError(vsaerrors.ErrGoogleProxyInternalGetMultipleReplicationsNotFound, errors.New(r.Message))
+	default:
+		return nil, vsaerrors.NewVCPError(vsaerrors.ErrGoogleProxyInternalGetMultipleReplicationsUnknown, errors.New("unknown response type"))
+	}
+}
+
+func _getProjectNumberForRegion(replication *datamodel.VolumeReplication, region string) (string, error) {
+	if strings.Contains(replication.Uri, region) {
+		return utilsParseProjectNumberFromURI(replication.Uri)
+	}
+	return utilsParseProjectNumberFromURI(replication.RemoteUri)
+}
+
+func convertInternalReplicationToCCFEModel(in googleproxyclient.VolumeReplicationInternalV1beta, currentLocation string) gcpgenserver.ReplicationV1beta {
+	sourceReplication := gcpgenserver.ReplicationVolumeInformationV1beta{
+		VolumeName: gcpgenserver.NewOptString(in.SourceVolumeName),
+		VolumeId:   gcpgenserver.NewOptString(in.SourceVolumeUuid.Value),
+	}
+
+	destinationReplication := gcpgenserver.ReplicationVolumeInformationV1beta{
+		VolumeName: gcpgenserver.NewOptString(in.DestinationVolumeName),
+		VolumeId:   gcpgenserver.NewOptString(in.DestinationVolumeUuid.Value),
+	}
+
+	transferStats := gcpgenserver.TransferStatsV1beta{
+		TotalTransferBytes:    gcpgenserver.NewOptFloat64(float64(in.TotalTransferBytes.Value)),
+		TotalTransferTimeSecs: gcpgenserver.NewOptFloat64(float64(in.TotalTransferTimeSecs.Value)),
+		LastTransferSize:      gcpgenserver.NewOptFloat64(float64(in.LastTransferSize.Value)),
+		LastTransferError:     gcpgenserver.NewOptString(in.LastTransferError.Value),
+		LastTransferDuration:  gcpgenserver.NewOptFloat64(float64(in.LastTransferDuration.Value)),
+		LastTransferEndTime:   gcpgenserver.NewOptDateTime(in.LastTransferEndTime.Value),
+		TotalProgress:         gcpgenserver.NewOptFloat64(float64(in.TotalProgress.Value)),
+		ProgressLastUpdated:   gcpgenserver.NewOptDateTime(in.ProgressLastUpdated.Value),
+		LagTime:               gcpgenserver.NewOptFloat64(float64(in.LagTime.Value)),
+	}
+
+	out := gcpgenserver.ReplicationV1beta{
+		ReplicationId:       gcpgenserver.NewOptString(in.VolumeReplicationUuid.Value),
+		ResourceId:          gcpgenserver.NewOptString(in.Name.Value),
+		Description:         gcpgenserver.NewOptString(in.Description.Value),
+		Source:              gcpgenserver.NewOptReplicationVolumeInformationV1beta(sourceReplication),
+		Destination:         gcpgenserver.NewOptReplicationVolumeInformationV1beta(destinationReplication),
+		State:               gcpgenserver.NewOptReplicationV1betaState(mapInternalReplicationStateToCCFEState(in.LifeCycleState.Value)),
+		StateDetails:        gcpgenserver.NewOptString(in.LifeCycleStateDetails.Value),
+		StateDetailsCode:    gcpgenserver.NewOptInt32(0), // Fixme: add state codes mapping when hybrid replication support is added
+		ReplicationSchedule: gcpgenserver.NewOptReplicationV1betaReplicationSchedule(mapInternalReplicationScheduleToCCFEReschedule(in.ReplicationSchedule.Value)),
+		MirrorState:         gcpgenserver.NewOptReplicationV1betaMirrorState(mapInternalReplicationMirrorStateToCCFEMirrorState(in.MirrorState.Value)),
+		Healthy:             gcpgenserver.NewOptBool(in.Healthy.Value),
+		TransferStats:       gcpgenserver.NewOptTransferStatsV1beta(transferStats),
+		Created:             gcpgenserver.NewOptDateTime(in.CreatedAt.Value),
+		Labels:              gcpgenserver.OptReplicationV1betaLabels{},
+		// Fixme: add remaining fields when hybrid replication support is added
+		ClusterLocation:               gcpgenserver.OptString{},
+		HybridReplicationType:         gcpgenserver.OptReplicationV1betaHybridReplicationType{},
+		HybridPeeringDetails:          gcpgenserver.OptHybridPeeringV1beta{},
+		HybridReplicationUserCommands: gcpgenserver.OptHybridReplicationUserCommandsV1beta{},
+	}
+
+	if in.RemoteRegion == currentLocation {
+		out.Role = gcpgenserver.NewOptReplicationV1betaRole(gcpgenserver.ReplicationV1betaRoleDESTINATION)
+	} else {
+		out.Role = gcpgenserver.NewOptReplicationV1betaRole(gcpgenserver.ReplicationV1betaRoleSOURCE)
+	}
+
+	return out
+}
+
+func mapInternalReplicationStateToCCFEState(state googleproxyclient.VolumeReplicationInternalV1betaLifeCycleState) gcpgenserver.ReplicationV1betaState {
+	// TODO: Add cluster peer states when hybrid replication support is added
+	switch state {
+	case googleproxyclient.VolumeReplicationInternalV1betaLifeCycleStateAvailable:
+		return gcpgenserver.ReplicationV1betaStateREADY
+	case googleproxyclient.VolumeReplicationInternalV1betaLifeCycleStateCreating:
+		return gcpgenserver.ReplicationV1betaStateCREATING
+	case googleproxyclient.VolumeReplicationInternalV1betaLifeCycleStateDeleting:
+		return gcpgenserver.ReplicationV1betaStateDELETING
+	case googleproxyclient.VolumeReplicationInternalV1betaLifeCycleStateUpdating:
+		return gcpgenserver.ReplicationV1betaStateUPDATING
+	case googleproxyclient.VolumeReplicationInternalV1betaLifeCycleStateError:
+		return gcpgenserver.ReplicationV1betaStateERROR
+	case googleproxyclient.VolumeReplicationInternalV1betaLifeCycleStateDisabled:
+		return gcpgenserver.ReplicationV1betaStateDISABLED
+	default:
+		return gcpgenserver.ReplicationV1betaStateSTATEUNSPECIFIED
+	}
+}
+
+func mapInternalReplicationScheduleToCCFEReschedule(schedule googleproxyclient.VolumeReplicationInternalV1betaReplicationSchedule) gcpgenserver.ReplicationV1betaReplicationSchedule {
+	switch schedule {
+	case googleproxyclient.VolumeReplicationInternalV1betaReplicationScheduleHourly:
+		return gcpgenserver.ReplicationV1betaReplicationScheduleHOURLY
+	case googleproxyclient.VolumeReplicationInternalV1betaReplicationScheduleDaily:
+		return gcpgenserver.ReplicationV1betaReplicationScheduleDAILY
+	case googleproxyclient.VolumeReplicationInternalV1betaReplicationSchedule10minutely:
+		return gcpgenserver.ReplicationV1betaReplicationScheduleEVERY10MINUTES
+	default:
+		return gcpgenserver.ReplicationV1betaReplicationScheduleREPLICATIONSCHEDULEUNSPECIFIED
+	}
+}
+
+func mapInternalReplicationMirrorStateToCCFEMirrorState(mirrorState googleproxyclient.VolumeReplicationInternalV1betaMirrorState) gcpgenserver.ReplicationV1betaMirrorState {
+	switch mirrorState {
+	case googleproxyclient.VolumeReplicationInternalV1betaMirrorStateMIRRORED:
+		return gcpgenserver.ReplicationV1betaMirrorStateMIRRORED
+	case googleproxyclient.VolumeReplicationInternalV1betaMirrorStateUNINITIALIZED:
+		return gcpgenserver.ReplicationV1betaMirrorStateUNINITIALIZED
+	case googleproxyclient.VolumeReplicationInternalV1betaMirrorStateSTOPPED:
+		return gcpgenserver.ReplicationV1betaMirrorStateSTOPPED
+	case googleproxyclient.VolumeReplicationInternalV1betaMirrorStateBASELINETRANSFERRING:
+		return gcpgenserver.ReplicationV1betaMirrorStateBASELINETRANSFERRING
+	case googleproxyclient.VolumeReplicationInternalV1betaMirrorStateABORTED:
+		return gcpgenserver.ReplicationV1betaMirrorStateABORTED
+	case googleproxyclient.VolumeReplicationInternalV1betaMirrorStatePREPARING:
+		return gcpgenserver.ReplicationV1betaMirrorStatePREPARING
+	case googleproxyclient.VolumeReplicationInternalV1betaMirrorStateEXTERNALLYMANAGED:
+		return gcpgenserver.ReplicationV1betaMirrorStateEXTERNALLYMANAGED
+	default:
+		return gcpgenserver.ReplicationV1betaMirrorStateMIRRORSTATEUNSPECIFIED
+	}
 }

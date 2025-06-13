@@ -5953,8 +5953,8 @@ func (s *ReplicationVolumeInformationV1beta) Validate() error {
 		if value, ok := s.VolumeName.Get(); ok {
 			if err := func() error {
 				if err := (validate.String{
-					MinLength:    1,
-					MinLengthSet: true,
+					MinLength:    0,
+					MinLengthSet: false,
 					MaxLength:    255,
 					MaxLengthSet: true,
 					Email:        false,
@@ -12427,8 +12427,6 @@ func (s VolumeReplicationCreateInternalV1betaEndpointType) Validate() error {
 		return nil
 	case "dst":
 		return nil
-	case "rst":
-		return nil
 	default:
 		return errors.Errorf("invalid value: %v", s)
 	}
@@ -12457,11 +12455,23 @@ func (s VolumeReplicationCreateInternalV1betaLifeCycleState) Validate() error {
 
 func (s VolumeReplicationCreateInternalV1betaMirrorState) Validate() error {
 	switch s {
-	case "uninitialized":
+	case "MIRROR_STATE_UNSPECIFIED":
 		return nil
-	case "mirrored":
+	case "PREPARING":
 		return nil
-	case "broken":
+	case "UNINITIALIZED":
+		return nil
+	case "MIRRORED":
+		return nil
+	case "STOPPED":
+		return nil
+	case "ABORTED":
+		return nil
+	case "TRANSFERRING":
+		return nil
+	case "BASELINE_TRANSFERRING":
+		return nil
+	case "EXTERNALLY_MANAGED":
 		return nil
 	default:
 		return errors.Errorf("invalid value: %v", s)
@@ -12986,8 +12996,6 @@ func (s VolumeReplicationInternalV1betaEndpointType) Validate() error {
 		return nil
 	case "dst":
 		return nil
-	case "rst":
-		return nil
 	default:
 		return errors.Errorf("invalid value: %v", s)
 	}
@@ -13016,11 +13024,23 @@ func (s VolumeReplicationInternalV1betaLifeCycleState) Validate() error {
 
 func (s VolumeReplicationInternalV1betaMirrorState) Validate() error {
 	switch s {
-	case "uninitialized":
+	case "MIRROR_STATE_UNSPECIFIED":
 		return nil
-	case "mirrored":
+	case "PREPARING":
 		return nil
-	case "broken":
+	case "UNINITIALIZED":
+		return nil
+	case "MIRRORED":
+		return nil
+	case "STOPPED":
+		return nil
+	case "ABORTED":
+		return nil
+	case "TRANSFERRING":
+		return nil
+	case "BASELINE_TRANSFERRING":
+		return nil
+	case "EXTERNALLY_MANAGED":
 		return nil
 	default:
 		return errors.Errorf("invalid value: %v", s)

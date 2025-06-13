@@ -416,6 +416,16 @@ type V1betaGetMultipleReplicationsParams struct {
 	XCorrelationID OptString
 }
 
+// V1betaGetMultipleReplicationsInternalParams is parameters of v1beta_getMultipleReplicationsInternal operation.
+type V1betaGetMultipleReplicationsInternalParams struct {
+	// The project number of the GCP project owning the resource being acted upon.
+	ProjectNumber string
+	// The location/region to perform the operation in.
+	LocationId string
+	// Correlation identifier.
+	XCorrelationID OptString
+}
+
 // V1betaGetMultipleSnapshotsParams is parameters of v1beta_getMultipleSnapshots operation.
 type V1betaGetMultipleSnapshotsParams struct {
 	// The project number of the GCP project owning the resource being acted upon.

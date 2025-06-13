@@ -61,9 +61,9 @@ func TestMapMirrorStateToInternal(t *testing.T) {
 		input    string
 		expected gcpgenserver.VolumeReplicationInternalV1betaMirrorState
 	}{
-		{"Uninitialized", models.OntapUninitialized, gcpgenserver.VolumeReplicationInternalV1betaMirrorStateUninitialized},
-		{"BrokenOff", models.OntapBrokenOff, gcpgenserver.VolumeReplicationInternalV1betaMirrorStateBroken},
-		{"Snapmirrored", models.OntapSnapmirrored, gcpgenserver.VolumeReplicationInternalV1betaMirrorStateMirrored},
+		{"Uninitialized", models.OntapUninitialized, gcpgenserver.VolumeReplicationInternalV1betaMirrorStateUNINITIALIZED},
+		{"BrokenOff", models.OntapBrokenOff, gcpgenserver.VolumeReplicationInternalV1betaMirrorStateSTOPPED},
+		{"Snapmirrored", models.OntapSnapmirrored, gcpgenserver.VolumeReplicationInternalV1betaMirrorStateMIRRORED},
 		{"Unknown", "unknown", ""},
 	}
 
@@ -192,8 +192,8 @@ func TestConvertToVolumeReplicationInternalV1Beta(t *testing.T) {
 	if result.Name.Value != replication.Name {
 		t.Errorf("Expected Name %s, got %s", replication.Name, result.Name.Value)
 	}
-	if result.MirrorState.Value != gcpgenserver.VolumeReplicationInternalV1betaMirrorStateMirrored {
-		t.Errorf("Expected MirrorState %s, got %s", gcpgenserver.VolumeReplicationInternalV1betaMirrorStateMirrored, result.MirrorState.Value)
+	if result.MirrorState.Value != gcpgenserver.VolumeReplicationInternalV1betaMirrorStateMIRRORED {
+		t.Errorf("Expected MirrorState %s, got %s", gcpgenserver.VolumeReplicationInternalV1betaMirrorStateMIRRORED, result.MirrorState.Value)
 	}
 	if result.RelationshipStatus.Value != gcpgenserver.VolumeReplicationInternalV1betaRelationshipStatusIdle {
 		t.Errorf("Expected RelationshipStatus %s, got %s", gcpgenserver.VolumeReplicationInternalV1betaRelationshipStatusIdle, result.RelationshipStatus.Value)

@@ -801,3 +801,75 @@ func TestIsTransitionalState(t *testing.T) {
 		})
 	}
 }
+
+func TestValidateCcfeReplicationUri(t *testing.T) {
+	tests := []struct {
+		name  string
+		uri   string
+		valid bool
+	}{
+		{"ValidURI", "projects/45110233509/locations/us-east4/volumes/gosrcvolume1/replications/replication-name-6", true},
+		{"InvalidURI", "invalid://project/region/volume", false},
+		{"EmptyURI", "", false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := ValidateCcfeReplicationUri(tt.uri)
+			if tt.valid {
+				assert.NoError(t, err, "Expected no error for valid URI")
+			} else {
+				assert.Error(t, err, "Expected error for invalid URI")
+			}
+		})
+	}
+}
+
+func TestCFFEURIToMap(t *testing.T) {
+	tests := []struct {
+		name     string
+		ccfeUri  string
+		expected map[string]string
+	}{
+		{"ValidURI", "projects/45110233509/locations/us-east4/volumes/gosrcvolume1/replications/replication-name-6",
+			map[string]string{"projects": "45110233509", "locations": "us-east4", "volumes": "gosrcvolume1", "replications": "replication-name-6"}},
+		{"InvalidURI", "invalid://project/region/volume", nil},
+		{"EmptyURI", "", nil},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result, err := CFFEURIToMap(tt.ccfeUri)
+			if tt.expected == nil {
+				assert.Error(t, err, "Expected error for invalid URI")
+				assert.Empty(t, result, "Expected result to be nil for invalid URI")
+			} else {
+				assert.NoError(t, err, "Expected no error for valid URI")
+				assert.Equal(t, tt.expected, result, "Expected map to match")
+			}
+		})
+	}
+}
+
+func TestParseProjectNumberFromURI(t *testing.T) {
+	tests := []struct {
+		name     string
+		uri      string
+		expected string
+	}{
+		{"ValidURI", "projects/45110233509/locations/us-east4/volumes/gosrcvolume1/replications/replication-name-6", "45110233509"},
+		{"InvalidURI", "invalid/uri/format", ""},
+		{"EmptyURI", "", ""},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result, err := _parseProjectNumberFromURI(tt.uri)
+			if err != nil {
+				assert.Empty(t, result, "Expected empty result for invalid URI")
+				return
+			}
+			assert.Equal(t, tt.expected, result, "Expected project number to match")
+		})
+	}
+}

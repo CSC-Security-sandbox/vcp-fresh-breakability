@@ -19,9 +19,12 @@ import (
 )
 
 func TestV1betaGetMultipleReplications(t *testing.T) {
-	t.Run("WhenGetMultipleReplicationsFailsWithBadRequest", func(tt *testing.T) {
-		mockClient := replications.NewMockClientService(tt)
+	t.Run("WhenReplicationURIsAreEmpty", func(tt *testing.T) {
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
 
+		handler := Handler{
+			Orchestrator: mockOrchestrator,
+		}
 		params := gcpgenserver.V1betaGetMultipleReplicationsParams{
 			LocationId:       "location-id",
 			ProjectNumber:    "project-number",
@@ -29,7 +32,168 @@ func TestV1betaGetMultipleReplications(t *testing.T) {
 			XCorrelationID:   gcpgenserver.NewOptString("X-Correlation-ID"),
 		}
 		req := &gcpgenserver.ReplicationURIListV1beta{
-			ReplicationUris: []string{"uri1", "uri2"},
+			ReplicationUris: []string{},
+		}
+
+		errorMessage := "Replication URIs cannot be empty"
+		errorCode := float64(400)
+
+		result, err := handler.V1betaGetMultipleReplications(context.Background(), req, params)
+
+		assert.NoError(tt, err)
+		assert.NotNil(tt, result)
+		assert.Equal(tt, errorCode, result.(*gcpgenserver.V1betaGetMultipleReplicationsBadRequest).Code)
+		assert.Equal(tt, errorMessage, result.(*gcpgenserver.V1betaGetMultipleReplicationsBadRequest).Message)
+	})
+	t.Run("WhenAccountNameDoesNotMatch", func(tt *testing.T) {
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+
+		handler := Handler{
+			Orchestrator: mockOrchestrator,
+		}
+		params := gcpgenserver.V1betaGetMultipleReplicationsParams{
+			LocationId:       "location-id",
+			ProjectNumber:    "project-number",
+			VolumeResourceId: "volume-resource-id",
+			XCorrelationID:   gcpgenserver.NewOptString("X-Correlation-ID"),
+		}
+		req := &gcpgenserver.ReplicationURIListV1beta{
+			ReplicationUris: []string{"projects/stargate/locations/location-id/volumes/volume-resource-id/replications/replication-name-6"},
+		}
+
+		errorMessage := "replicationURIs projectNumber in body does not match projectNumber in parameter"
+		errorCode := float64(400)
+
+		result, err := handler.V1betaGetMultipleReplications(context.Background(), req, params)
+
+		assert.NoError(tt, err)
+		assert.NotNil(tt, result)
+		assert.Equal(tt, errorCode, result.(*gcpgenserver.V1betaGetMultipleReplicationsBadRequest).Code)
+		assert.Equal(tt, errorMessage, result.(*gcpgenserver.V1betaGetMultipleReplicationsBadRequest).Message)
+	})
+	t.Run("WhenLocationDoesNotMatch", func(tt *testing.T) {
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+
+		handler := Handler{
+			Orchestrator: mockOrchestrator,
+		}
+		params := gcpgenserver.V1betaGetMultipleReplicationsParams{
+			LocationId:       "location-id",
+			ProjectNumber:    "project-number",
+			VolumeResourceId: "volume-resource-id",
+			XCorrelationID:   gcpgenserver.NewOptString("X-Correlation-ID"),
+		}
+		req := &gcpgenserver.ReplicationURIListV1beta{
+			ReplicationUris: []string{"projects/project-number/locations/location/volumes/volume-resource-id/replications/replication-name-6"},
+		}
+
+		errorMessage := "replicationURIs locationId in body does not match locationId in parameter"
+		errorCode := float64(400)
+
+		result, err := handler.V1betaGetMultipleReplications(context.Background(), req, params)
+
+		assert.NoError(tt, err)
+		assert.NotNil(tt, result)
+		assert.Equal(tt, errorCode, result.(*gcpgenserver.V1betaGetMultipleReplicationsBadRequest).Code)
+		assert.Equal(tt, errorMessage, result.(*gcpgenserver.V1betaGetMultipleReplicationsBadRequest).Message)
+	})
+	t.Run("WhenVolumeDoesNotMatch", func(tt *testing.T) {
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+
+		handler := Handler{
+			Orchestrator: mockOrchestrator,
+		}
+		params := gcpgenserver.V1betaGetMultipleReplicationsParams{
+			LocationId:       "location-id",
+			ProjectNumber:    "project-number",
+			VolumeResourceId: "volume-resource-id",
+			XCorrelationID:   gcpgenserver.NewOptString("X-Correlation-ID"),
+		}
+		req := &gcpgenserver.ReplicationURIListV1beta{
+			ReplicationUris: []string{"projects/project-number/locations/location-id/volumes/volume-resource/replications/replication-name-6"},
+		}
+
+		errorMessage := "replicationURIs volumeId in body does not match volumeResourceId in parameter"
+		errorCode := float64(400)
+
+		result, err := handler.V1betaGetMultipleReplications(context.Background(), req, params)
+
+		assert.NoError(tt, err)
+		assert.NotNil(tt, result)
+		assert.Equal(tt, errorCode, result.(*gcpgenserver.V1betaGetMultipleReplicationsBadRequest).Code)
+		assert.Equal(tt, errorMessage, result.(*gcpgenserver.V1betaGetMultipleReplicationsBadRequest).Message)
+	})
+	t.Run("WhenGetMultipleReplicationsReturnsError", func(tt *testing.T) {
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+
+		handler := Handler{
+			Orchestrator: mockOrchestrator,
+		}
+		params := gcpgenserver.V1betaGetMultipleReplicationsParams{
+			LocationId:       "location-id",
+			ProjectNumber:    "project-number",
+			VolumeResourceId: "volume-resource-id",
+			XCorrelationID:   gcpgenserver.NewOptString("X-Correlation-ID"),
+		}
+		req := &gcpgenserver.ReplicationURIListV1beta{
+			ReplicationUris: []string{"projects/project-number/locations/location-id/volumes/volume-resource-id/replications/replication-name-6"},
+		}
+
+		mockOrchestrator.EXPECT().GetMultipleReplications(mock.Anything, mock.Anything).Return(nil, errors.New("Error retrieving replications from VCP"))
+
+		result, err := handler.V1betaGetMultipleReplications(context.Background(), req, params)
+
+		assert.NoError(tt, err)
+		assert.NotNil(tt, result)
+		assert.Equal(tt, float64(500), result.(*gcpgenserver.V1betaGetMultipleReplicationsInternalServerError).Code)
+		assert.Equal(tt, "Error retrieving replications from VCP", result.(*gcpgenserver.V1betaGetMultipleReplicationsInternalServerError).Message)
+	})
+	t.Run("WhenRelicationsFoundInVCP", func(tt *testing.T) {
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+
+		handler := Handler{
+			Orchestrator: mockOrchestrator,
+		}
+		params := gcpgenserver.V1betaGetMultipleReplicationsParams{
+			LocationId:       "location-id",
+			ProjectNumber:    "project-number",
+			VolumeResourceId: "volume-resource-id",
+			XCorrelationID:   gcpgenserver.NewOptString("X-Correlation-ID"),
+		}
+		req := &gcpgenserver.ReplicationURIListV1beta{
+			ReplicationUris: []string{"projects/project-number/locations/location-id/volumes/volume-resource-id/replications/replication-name-6"},
+		}
+		expResp := []gcpgenserver.ReplicationV1beta{
+			{
+				ReplicationId: gcpgenserver.NewOptString("replication-id-1"),
+				ResourceId:    gcpgenserver.NewOptString("resource-id-1"),
+				MirrorState:   gcpgenserver.NewOptReplicationV1betaMirrorState(gcpgenserver.ReplicationV1betaMirrorStateMIRRORED),
+			},
+		}
+
+		mockOrchestrator.EXPECT().GetMultipleReplications(mock.Anything, mock.Anything).Return(expResp, nil)
+
+		result, err := handler.V1betaGetMultipleReplications(context.Background(), req, params)
+
+		assert.NoError(tt, err)
+		assert.NotNil(tt, result)
+		assert.Equal(tt, 1, len(result.(*gcpgenserver.V1betaGetMultipleReplicationsOK).Replications))
+	})
+	t.Run("WhenGetMultipleReplicationsFailsWithBadRequest", func(tt *testing.T) {
+		mockClient := replications.NewMockClientService(tt)
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+
+		handler := Handler{
+			Orchestrator: mockOrchestrator,
+		}
+		params := gcpgenserver.V1betaGetMultipleReplicationsParams{
+			LocationId:       "location-id",
+			ProjectNumber:    "project-number",
+			VolumeResourceId: "volume-resource-id",
+			XCorrelationID:   gcpgenserver.NewOptString("X-Correlation-ID"),
+		}
+		req := &gcpgenserver.ReplicationURIListV1beta{
+			ReplicationUris: []string{"projects/project-number/locations/location-id/volumes/volume-resource-id/replications/replication-name-6"},
 		}
 
 		errorMessage := "BadRequest error"
@@ -41,6 +205,7 @@ func TestV1betaGetMultipleReplications(t *testing.T) {
 			},
 		}
 		mockClient.EXPECT().V1betaGetMultipleReplications(mock.Anything).Return(nil, mockError)
+		mockOrchestrator.EXPECT().GetMultipleReplications(mock.Anything, mock.Anything).Return([]gcpgenserver.ReplicationV1beta{}, nil)
 		cvpClient := &cvpapi.Cvp{Replications: mockClient}
 		originalClient := createClient
 		defer func() {
@@ -49,7 +214,6 @@ func TestV1betaGetMultipleReplications(t *testing.T) {
 		createClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
 			return *cvpClient
 		}
-		handler := Handler{}
 		result, err := handler.V1betaGetMultipleReplications(context.Background(), req, params)
 
 		assert.NoError(tt, err)
@@ -59,6 +223,11 @@ func TestV1betaGetMultipleReplications(t *testing.T) {
 	})
 	t.Run("WhenGetMultipleReplicationsFailsWithUnauthorized", func(tt *testing.T) {
 		mockClient := replications.NewMockClientService(tt)
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+
+		handler := Handler{
+			Orchestrator: mockOrchestrator,
+		}
 
 		params := gcpgenserver.V1betaGetMultipleReplicationsParams{
 			LocationId:       "location-id",
@@ -67,7 +236,7 @@ func TestV1betaGetMultipleReplications(t *testing.T) {
 			XCorrelationID:   gcpgenserver.NewOptString("X-Correlation-ID"),
 		}
 		req := &gcpgenserver.ReplicationURIListV1beta{
-			ReplicationUris: []string{"uri1", "uri2"},
+			ReplicationUris: []string{"projects/project-number/locations/location-id/volumes/volume-resource-id/replications/replication-name-6"},
 		}
 
 		errorMessage := "Unauthorized error"
@@ -78,6 +247,7 @@ func TestV1betaGetMultipleReplications(t *testing.T) {
 				Message: errorMessage,
 			},
 		}
+		mockOrchestrator.EXPECT().GetMultipleReplications(mock.Anything, mock.Anything).Return([]gcpgenserver.ReplicationV1beta{}, nil)
 		mockClient.EXPECT().V1betaGetMultipleReplications(mock.Anything).Return(nil, mockError)
 		cvpClient := &cvpapi.Cvp{Replications: mockClient}
 		originalClient := createClient
@@ -87,7 +257,6 @@ func TestV1betaGetMultipleReplications(t *testing.T) {
 		createClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
 			return *cvpClient
 		}
-		handler := Handler{}
 		result, err := handler.V1betaGetMultipleReplications(context.Background(), req, params)
 
 		assert.NoError(tt, err)
@@ -97,7 +266,11 @@ func TestV1betaGetMultipleReplications(t *testing.T) {
 	})
 	t.Run("WhenGetMultipleReplicationsFailsWithForbidden", func(tt *testing.T) {
 		mockClient := replications.NewMockClientService(tt)
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
 
+		handler := Handler{
+			Orchestrator: mockOrchestrator,
+		}
 		params := gcpgenserver.V1betaGetMultipleReplicationsParams{
 			LocationId:       "location-id",
 			ProjectNumber:    "project-number",
@@ -105,7 +278,7 @@ func TestV1betaGetMultipleReplications(t *testing.T) {
 			XCorrelationID:   gcpgenserver.NewOptString("X-Correlation-ID"),
 		}
 		req := &gcpgenserver.ReplicationURIListV1beta{
-			ReplicationUris: []string{"uri1", "uri2"},
+			ReplicationUris: []string{"projects/project-number/locations/location-id/volumes/volume-resource-id/replications/replication-name-6"},
 		}
 
 		errorMessage := "Forbidden error"
@@ -116,6 +289,7 @@ func TestV1betaGetMultipleReplications(t *testing.T) {
 				Message: errorMessage,
 			},
 		}
+		mockOrchestrator.EXPECT().GetMultipleReplications(mock.Anything, mock.Anything).Return([]gcpgenserver.ReplicationV1beta{}, nil)
 		mockClient.EXPECT().V1betaGetMultipleReplications(mock.Anything).Return(nil, mockError)
 		cvpClient := &cvpapi.Cvp{Replications: mockClient}
 		originalClient := createClient
@@ -125,7 +299,6 @@ func TestV1betaGetMultipleReplications(t *testing.T) {
 		createClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
 			return *cvpClient
 		}
-		handler := Handler{}
 		result, err := handler.V1betaGetMultipleReplications(context.Background(), req, params)
 
 		assert.NoError(tt, err)
@@ -135,6 +308,11 @@ func TestV1betaGetMultipleReplications(t *testing.T) {
 	})
 	t.Run("WhenGetMultipleReplicationsFailsWithNotFound", func(tt *testing.T) {
 		mockClient := replications.NewMockClientService(tt)
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+
+		handler := Handler{
+			Orchestrator: mockOrchestrator,
+		}
 
 		params := gcpgenserver.V1betaGetMultipleReplicationsParams{
 			LocationId:       "location-id",
@@ -143,7 +321,7 @@ func TestV1betaGetMultipleReplications(t *testing.T) {
 			XCorrelationID:   gcpgenserver.NewOptString("X-Correlation-ID"),
 		}
 		req := &gcpgenserver.ReplicationURIListV1beta{
-			ReplicationUris: []string{"uri1", "uri2"},
+			ReplicationUris: []string{"projects/project-number/locations/location-id/volumes/volume-resource-id/replications/replication-name-6"},
 		}
 
 		errorMessage := "NotFound error"
@@ -154,6 +332,7 @@ func TestV1betaGetMultipleReplications(t *testing.T) {
 				Message: errorMessage,
 			},
 		}
+		mockOrchestrator.EXPECT().GetMultipleReplications(mock.Anything, mock.Anything).Return([]gcpgenserver.ReplicationV1beta{}, nil)
 		mockClient.EXPECT().V1betaGetMultipleReplications(mock.Anything).Return(nil, mockError)
 		cvpClient := &cvpapi.Cvp{Replications: mockClient}
 		originalClient := createClient
@@ -163,7 +342,6 @@ func TestV1betaGetMultipleReplications(t *testing.T) {
 		createClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
 			return *cvpClient
 		}
-		handler := Handler{}
 		result, err := handler.V1betaGetMultipleReplications(context.Background(), req, params)
 
 		assert.NoError(tt, err)
@@ -173,7 +351,11 @@ func TestV1betaGetMultipleReplications(t *testing.T) {
 	})
 	t.Run("WhenGetMultipleReplicationsFailsWithTooManyRequests", func(tt *testing.T) {
 		mockClient := replications.NewMockClientService(tt)
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
 
+		handler := Handler{
+			Orchestrator: mockOrchestrator,
+		}
 		params := gcpgenserver.V1betaGetMultipleReplicationsParams{
 			LocationId:       "location-id",
 			ProjectNumber:    "project-number",
@@ -181,7 +363,7 @@ func TestV1betaGetMultipleReplications(t *testing.T) {
 			XCorrelationID:   gcpgenserver.NewOptString("X-Correlation-ID"),
 		}
 		req := &gcpgenserver.ReplicationURIListV1beta{
-			ReplicationUris: []string{"uri1", "uri2"},
+			ReplicationUris: []string{"projects/project-number/locations/location-id/volumes/volume-resource-id/replications/replication-name-6"},
 		}
 
 		errorMessage := "TooManyRequests error"
@@ -192,6 +374,7 @@ func TestV1betaGetMultipleReplications(t *testing.T) {
 				Message: errorMessage,
 			},
 		}
+		mockOrchestrator.EXPECT().GetMultipleReplications(mock.Anything, mock.Anything).Return([]gcpgenserver.ReplicationV1beta{}, nil)
 		mockClient.EXPECT().V1betaGetMultipleReplications(mock.Anything).Return(nil, mockError)
 		cvpClient := &cvpapi.Cvp{Replications: mockClient}
 		originalClient := createClient
@@ -201,7 +384,6 @@ func TestV1betaGetMultipleReplications(t *testing.T) {
 		createClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
 			return *cvpClient
 		}
-		handler := Handler{}
 		result, err := handler.V1betaGetMultipleReplications(context.Background(), req, params)
 
 		assert.NoError(tt, err)
@@ -211,6 +393,11 @@ func TestV1betaGetMultipleReplications(t *testing.T) {
 	})
 	t.Run("WhenGetMultipleReplicationsFailsWithDefault", func(tt *testing.T) {
 		mockClient := replications.NewMockClientService(tt)
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+
+		handler := Handler{
+			Orchestrator: mockOrchestrator,
+		}
 
 		params := gcpgenserver.V1betaGetMultipleReplicationsParams{
 			LocationId:       "location-id",
@@ -219,7 +406,7 @@ func TestV1betaGetMultipleReplications(t *testing.T) {
 			XCorrelationID:   gcpgenserver.NewOptString("X-Correlation-ID"),
 		}
 		req := &gcpgenserver.ReplicationURIListV1beta{
-			ReplicationUris: []string{"uri1", "uri2"},
+			ReplicationUris: []string{"projects/project-number/locations/location-id/volumes/volume-resource-id/replications/replication-name-6"},
 		}
 
 		errorMessage := "default error"
@@ -230,6 +417,7 @@ func TestV1betaGetMultipleReplications(t *testing.T) {
 				Message: errorMessage,
 			},
 		}
+		mockOrchestrator.EXPECT().GetMultipleReplications(mock.Anything, mock.Anything).Return([]gcpgenserver.ReplicationV1beta{}, nil)
 		mockClient.EXPECT().V1betaGetMultipleReplications(mock.Anything).Return(nil, mockError)
 		cvpClient := &cvpapi.Cvp{Replications: mockClient}
 		originalClient := createClient
@@ -239,7 +427,7 @@ func TestV1betaGetMultipleReplications(t *testing.T) {
 		createClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
 			return *cvpClient
 		}
-		handler := Handler{}
+
 		result, err := handler.V1betaGetMultipleReplications(context.Background(), req, params)
 
 		assert.NoError(tt, err)
@@ -249,7 +437,11 @@ func TestV1betaGetMultipleReplications(t *testing.T) {
 	})
 	t.Run("WhenGetMultipleReplicationsResponseIsNil", func(tt *testing.T) {
 		mockClient := replications.NewMockClientService(tt)
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
 
+		handler := Handler{
+			Orchestrator: mockOrchestrator,
+		}
 		params := gcpgenserver.V1betaGetMultipleReplicationsParams{
 			LocationId:       "location-id",
 			ProjectNumber:    "project-number",
@@ -257,9 +449,10 @@ func TestV1betaGetMultipleReplications(t *testing.T) {
 			XCorrelationID:   gcpgenserver.NewOptString("X-Correlation-ID"),
 		}
 		req := &gcpgenserver.ReplicationURIListV1beta{
-			ReplicationUris: []string{"uri1", "uri2"},
+			ReplicationUris: []string{"projects/project-number/locations/location-id/volumes/volume-resource-id/replications/replication-name-6"},
 		}
 
+		mockOrchestrator.EXPECT().GetMultipleReplications(mock.Anything, mock.Anything).Return([]gcpgenserver.ReplicationV1beta{}, nil)
 		mockClient.EXPECT().V1betaGetMultipleReplications(mock.Anything).Return(nil, nil)
 		cvpClient := &cvpapi.Cvp{Replications: mockClient}
 		originalClient := createClient
@@ -269,7 +462,7 @@ func TestV1betaGetMultipleReplications(t *testing.T) {
 		createClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
 			return *cvpClient
 		}
-		handler := Handler{}
+
 		result, err := handler.V1betaGetMultipleReplications(context.Background(), req, params)
 
 		assert.NoError(tt, err)
@@ -279,7 +472,11 @@ func TestV1betaGetMultipleReplications(t *testing.T) {
 	})
 	t.Run("WhenGetMultipleReplicationsSucceeds", func(tt *testing.T) {
 		mockClient := replications.NewMockClientService(tt)
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
 
+		handler := Handler{
+			Orchestrator: mockOrchestrator,
+		}
 		params := gcpgenserver.V1betaGetMultipleReplicationsParams{
 			LocationId:       "location-id",
 			ProjectNumber:    "project-number",
@@ -287,7 +484,7 @@ func TestV1betaGetMultipleReplications(t *testing.T) {
 			XCorrelationID:   gcpgenserver.NewOptString("X-Correlation-ID"),
 		}
 		req := &gcpgenserver.ReplicationURIListV1beta{
-			ReplicationUris: []string{"uri1", "uri2"},
+			ReplicationUris: []string{"projects/project-number/locations/location-id/volumes/volume-resource-id/replications/replication-name-6"},
 		}
 		clusterLocation := "cluster-location"
 		description := "description"
@@ -307,6 +504,7 @@ func TestV1betaGetMultipleReplications(t *testing.T) {
 				},
 			},
 		}
+		mockOrchestrator.EXPECT().GetMultipleReplications(mock.Anything, mock.Anything).Return([]gcpgenserver.ReplicationV1beta{}, nil)
 		mockClient.EXPECT().V1betaGetMultipleReplications(mock.Anything).Return(mockResponse, nil)
 		cvpClient := &cvpapi.Cvp{Replications: mockClient}
 		originalClient := createClient
@@ -316,7 +514,6 @@ func TestV1betaGetMultipleReplications(t *testing.T) {
 		createClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
 			return *cvpClient
 		}
-		handler := Handler{}
 		result, err := handler.V1betaGetMultipleReplications(context.Background(), req, params)
 
 		assert.NoError(tt, err)

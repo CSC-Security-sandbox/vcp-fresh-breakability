@@ -35,12 +35,15 @@ var (
 	ConvertStringToMap            = _convertStringToMap
 	GetSignedCallbackToken        = _getSignedCallbackToken
 	ConvertBytesToGib             = _convertBytesToGib
+	ValidateCcfeReplicationUri    = _validateCcfeReplicationUri
+	ParseProjectNumberFromURI     = _parseProjectNumberFromURI
 	authGetSignedAccessToken      = auth.GetSignedAccessToken
 	sleep                         = _sleep
 	exponentialBackOffErrors      = []int{429}
 	maxExpBackOffDelay            = time.Duration(80) * time.Second
 	jitterBase                    = time.Millisecond
 	generateRandomString          = _generateRandomString
+	ReplicationUriRegex           = "^projects\\/([^\\/]+)\\/locations/([^\\/]+)/volumes\\/([^\\/]+)\\/replications\\/([^\\/]+)$"
 )
 
 func ValidateIPv4Address(ipAddr string) bool {
@@ -474,4 +477,47 @@ func IsTransitionalState(state string) bool {
 	}
 	_, exists := transitionalStates[state]
 	return exists
+}
+
+var compiledRegex = regexp.MustCompile(ReplicationUriRegex)
+
+func _validateCcfeReplicationUri(uri string) error {
+	uriList := strings.Split(uri, "/")
+	if len(uriList) < 7 {
+		return fmt.Errorf("replicationURIs should match %s", ReplicationUriRegex)
+	}
+
+	valid := compiledRegex.MatchString(uri)
+	if !valid {
+		return fmt.Errorf("replicationURIs should match %s", ReplicationUriRegex)
+	}
+
+	return nil
+}
+
+// CFFEURIToMap Takes CFFEURI and returns a map of that string split by /
+func CFFEURIToMap(uri string) (map[string]string, error) {
+	out := make(map[string]string)
+	// URI must be in the format /projects/project_number/locations/locationid/volumes/volume_name/replications/replication_name
+	// validate the URI
+	err := ValidateCcfeReplicationUri(uri)
+	if err != nil {
+		return out, err
+	}
+
+	uriSlice := strings.Split(uri, "/")
+	out[uriSlice[0]] = uriSlice[1]
+	out[uriSlice[2]] = uriSlice[3]
+	out[uriSlice[4]] = uriSlice[5]
+	out[uriSlice[6]] = uriSlice[7]
+	return out, nil
+}
+
+func _parseProjectNumberFromURI(uri string) (string, error) {
+	uriMap, err := CFFEURIToMap(uri)
+	if err != nil {
+		return "", err
+	}
+
+	return uriMap["projects"], nil
 }

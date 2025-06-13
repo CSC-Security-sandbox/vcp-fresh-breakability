@@ -747,4 +747,56 @@ func TestListVolumeReplications(t *testing.T) {
 		assert.EqualError(t, expectedError, "no filter conditions provided for listing volume replications", "Expected error %v, got %v", expectedError, err)
 		assert.Empty(t, replications, "Expected no volume replications, got %d", len(replications))
 	})
+	t.Run("HappyPathNewFilter", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(t, err, "Failed to set up test database")
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(t, err, "Failed to clean up test database")
+
+		account, _, volume, err := CreateTestData(store)
+		if err != nil {
+			t.Fatalf("Failed to create test data: %v", err)
+		}
+
+		replication1 := &datamodel.VolumeReplication{
+			BaseModel: datamodel.BaseModel{UUID: "replication-1"},
+			Name:      "replication_1",
+			AccountID: account.ID,
+			Account:   account,
+			VolumeID:  volume.ID,
+			Uri:       "projects/45110233509/locations/australia-southeast1/volume/godpvolume4/replications/replication-name-6",
+		}
+		err = store.db.Create(replication1).Error()
+		if err != nil {
+			t.Fatalf("Failed to create replication 1: %v", err)
+		}
+
+		replication2 := &datamodel.VolumeReplication{
+			BaseModel: datamodel.BaseModel{UUID: "replication-2"},
+			Name:      "replication_2",
+			AccountID: account.ID,
+			Account:   account,
+			VolumeID:  volume.ID,
+			RemoteUri: "projects/45110233509/locations/us-east4/volume/gosrcvolume1/replications/replication-name-6",
+		}
+		err = store.db.Create(replication2).Error()
+		if err != nil {
+			t.Fatalf("Failed to create replication 2: %v", err)
+		}
+
+		// replicationUUIDs := []string{replication1.UUID, replication2.UUID}
+		uris := []string{replication1.Uri, replication2.RemoteUri}
+		filter := utils.CreateFilterWithConditions([]*utils.FilterCondition{
+			utils.NewFilterCondition().WithConditions("account_id", "=", account.ID),
+			utils.NewFilterCondition().WithConditions("uri", "in", uris)})
+
+		replications, err := store.ListVolumeReplications(context.Background(), *filter)
+		assert.NoError(t, err, "Expected no error, got %v", err)
+		assert.Len(t, replications, 1, "Expected 2 volume replications, got %d", len(replications))
+		assert.Equal(t, replication1.UUID, replications[0].UUID, "Expected replication 1 UUID %v, got %v", replication1.UUID, replications[0].UUID)
+		assert.Equal(t, "external-cluster", replications[0].Volume.Pool.ClusterDetails.ExternalName, "Expected cluster name %v, got %v", "external-cluster", replications[0].Volume.Pool.ClusterDetails.ExternalName)
+	})
 }

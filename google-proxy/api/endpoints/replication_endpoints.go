@@ -3,9 +3,12 @@ package api
 import (
 	"context"
 	"encoding/json"
+	"fmt"
+	"strings"
 	"time"
 
 	"github.com/go-faster/jx"
+	"github.com/google/uuid"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/cvpapi/replications"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/models"
 	models2 "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
@@ -20,6 +23,7 @@ import (
 
 var (
 	convertModelToVCPVolumeReplication = _convertModelToVCPVolumeReplication
+	validateReplicationURIList         = _validateReplicationURIList
 )
 
 func (h Handler) V1betaCreateReplication(ctx context.Context, req *gcpgenserver.ReplicationCreateV1beta, params gcpgenserver.V1betaCreateReplicationParams) (gcpgenserver.V1betaCreateReplicationRes, error) {
@@ -91,8 +95,53 @@ func (h Handler) V1betaGetReplicationCount(ctx context.Context, params gcpgenser
 func (h Handler) V1betaGetMultipleReplications(ctx context.Context, req *gcpgenserver.ReplicationURIListV1beta, params gcpgenserver.V1betaGetMultipleReplicationsParams) (gcpgenserver.V1betaGetMultipleReplicationsRes, error) {
 	logger := util.GetLogger(ctx)
 	helper.AddLabelerAttributes(ctx, params.ProjectNumber, params.LocationId)
+
+	// Check if replication exists in VCP before making a CVP API call
+	replicationURIs := req.GetReplicationUris()
+	if len(replicationURIs) == 0 {
+		logger.Error("No replication URIs provided")
+		return &gcpgenserver.V1betaGetMultipleReplicationsBadRequest{
+			Code:    400,
+			Message: "Replication URIs cannot be empty",
+		}, nil
+	}
+
+	getReplicationParams := common.GetMultipleReplicationsParams{
+		ReplicationURIs:  req.GetReplicationUris(),
+		AccountName:      params.ProjectNumber,
+		LocationId:       params.LocationId,
+		XCorrelationID:   params.XCorrelationID.Value,
+		VolumeResourceId: params.VolumeResourceId,
+	}
+
+	err := validateReplicationURIList(getReplicationParams)
+	if err != nil {
+		logger.Errorf("Error validating replication URIs: %v", err)
+		return &gcpgenserver.V1betaGetMultipleReplicationsBadRequest{
+			Code:    400,
+			Message: err.Error(),
+		}, nil
+	}
+
+	vcpReplications, err := h.Orchestrator.GetMultipleReplications(ctx, getReplicationParams)
+	if err != nil {
+		logger.Errorf("Error getting multiple replications: %v", err)
+		return &gcpgenserver.V1betaGetMultipleReplicationsInternalServerError{
+			Code:    500,
+			Message: "Error retrieving replications from VCP",
+		}, nil
+	}
+
+	if len(vcpReplications) == len(replicationURIs) {
+		logger.Infof("Returning %d replications found in VCP", len(vcpReplications))
+		reps := make([]gcpgenserver.ReplicationV1beta, len(vcpReplications))
+		copy(reps, vcpReplications)
+		return &gcpgenserver.V1betaGetMultipleReplicationsOK{Replications: reps}, nil
+	}
+
+	// If not all replications are found in VCP, proceed with CVP API call
 	body := &models.ReplicationURIListV1beta{
-		ReplicationUris: req.ReplicationUris,
+		ReplicationUris: replicationURIs,
 	}
 	reqParams := &replications.V1betaGetMultipleReplicationsParams{
 		LocationID:       params.LocationId,
@@ -164,8 +213,38 @@ func (h Handler) V1betaGetMultipleReplications(ctx context.Context, req *gcpgens
 	for _, rep := range resp.Payload.Replications {
 		replicationResp.Replications = append(replicationResp.Replications, convertToReplicationV1Beta(rep))
 	}
+	// append the replications found in VCP
+	if len(vcpReplications) > 0 {
+		replicationResp.Replications = append(replicationResp.Replications, vcpReplications...)
+	}
 
 	return &replicationResp, nil
+}
+
+func _validateReplicationURIList(param common.GetMultipleReplicationsParams) error {
+	for _, uri := range param.ReplicationURIs {
+		err := utils.ValidateCcfeReplicationUri(uri)
+		if err != nil {
+			return err
+		}
+
+		// projects/netapp-prod-prs-14/locations/northAmerica-northeast1/volumes/vol-1/replications/replication-1
+		uriProjectsId := strings.Split(uri, "/")[1]
+		if uriProjectsId != param.AccountName {
+			return fmt.Errorf("replicationURIs projectNumber in body does not match projectNumber in parameter")
+		}
+
+		uriResourceId := strings.Split(uri, "/")[5]
+		if uriResourceId != param.VolumeResourceId && param.VolumeResourceId != "-" {
+			return fmt.Errorf("replicationURIs volumeId in body does not match volumeResourceId in parameter")
+		}
+
+		uriLocationid := strings.Split(uri, "/")[3]
+		if uriLocationid != param.LocationId {
+			return fmt.Errorf("replicationURIs locationId in body does not match locationId in parameter")
+		}
+	}
+	return nil
 }
 
 func convertToReplicationV1Beta(replication *models.ReplicationV1beta) gcpgenserver.ReplicationV1beta {
@@ -188,19 +267,19 @@ func convertToReplicationV1Beta(replication *models.ReplicationV1beta) gcpgenser
 		replicationResp.Description = gcpgenserver.NewOptString(*replication.Description)
 	}
 	if replication.Destination != nil {
-		replicationResp.Destination = gcpgenserver.NewOptReplicationVolumeInformationV1beta(gcpgenserver.ReplicationVolumeInformationV1beta{
-			VolumeName: gcpgenserver.NewOptString(replication.Destination.VolumeName),
-			VolumeId:   gcpgenserver.NewOptString(replication.Destination.VolumeID),
-		})
+		conv := convertVolumeInfoToReplicationVolumeInformationV1beta(replication.Destination)
+		if conv != nil {
+			replicationResp.Destination = gcpgenserver.NewOptReplicationVolumeInformationV1beta(*conv)
+		}
 	}
 	if replication.Healthy != nil {
 		replicationResp.Healthy = gcpgenserver.NewOptBool(*replication.Healthy)
 	}
 	if replication.Source != nil {
-		replicationResp.Source = gcpgenserver.NewOptReplicationVolumeInformationV1beta(gcpgenserver.ReplicationVolumeInformationV1beta{
-			VolumeName: gcpgenserver.NewOptString(replication.Source.VolumeName),
-			VolumeId:   gcpgenserver.NewOptString(replication.Source.VolumeID),
-		})
+		conv := convertVolumeInfoToReplicationVolumeInformationV1beta(replication.Source)
+		if conv != nil {
+			replicationResp.Source = gcpgenserver.NewOptReplicationVolumeInformationV1beta(*conv)
+		}
 	}
 	if replication.TransferStats != nil {
 		replicationResp.TransferStats = gcpgenserver.NewOptTransferStatsV1beta(gcpgenserver.TransferStatsV1beta{
@@ -215,14 +294,16 @@ func convertToReplicationV1Beta(replication *models.ReplicationV1beta) gcpgenser
 	}
 	if replication.HybridPeeringDetails != nil {
 		replicationResp.HybridPeeringDetails = gcpgenserver.NewOptHybridPeeringV1beta(gcpgenserver.HybridPeeringV1beta{
-			SubnetIp:          gcpgenserver.NewOptString(replication.HybridPeeringDetails.SubnetIP),
-			Command:           gcpgenserver.NewOptString(replication.HybridPeeringDetails.Command),
-			Passphrase:        gcpgenserver.NewOptString(*replication.HybridPeeringDetails.Passphrase),
-			PeerVolumeName:    gcpgenserver.NewOptString(*replication.HybridPeeringDetails.PeerVolumeName),
-			PeerClusterName:   gcpgenserver.NewOptString(*replication.HybridPeeringDetails.PeerClusterName),
-			PeerSvmName:       gcpgenserver.NewOptString(*replication.HybridPeeringDetails.PeerSvmName),
-			CommandExpiryTime: gcpgenserver.NewOptDateTime(time.Time(*replication.HybridPeeringDetails.CommandExpiryTime)),
+			SubnetIp:        gcpgenserver.NewOptString(replication.HybridPeeringDetails.SubnetIP),
+			Command:         gcpgenserver.NewOptString(replication.HybridPeeringDetails.Command),
+			Passphrase:      gcpgenserver.NewOptString(nillable.GetString(replication.HybridPeeringDetails.Passphrase, "")),
+			PeerVolumeName:  gcpgenserver.NewOptString(nillable.GetString(replication.HybridPeeringDetails.PeerVolumeName, "")),
+			PeerClusterName: gcpgenserver.NewOptString(nillable.GetString(replication.HybridPeeringDetails.PeerClusterName, "")),
+			PeerSvmName:     gcpgenserver.NewOptString(nillable.GetString(replication.HybridPeeringDetails.PeerSvmName, "")),
 		})
+		if replication.HybridPeeringDetails.CommandExpiryTime != nil {
+			replicationResp.HybridPeeringDetails.Value.CommandExpiryTime = gcpgenserver.NewOptDateTime(time.Time(*replication.HybridPeeringDetails.CommandExpiryTime))
+		}
 	}
 	if replication.HybridReplicationUserCommands != nil {
 		replicationResp.HybridReplicationUserCommands = gcpgenserver.NewOptHybridReplicationUserCommandsV1beta(gcpgenserver.HybridReplicationUserCommandsV1beta{
@@ -234,6 +315,20 @@ func convertToReplicationV1Beta(replication *models.ReplicationV1beta) gcpgenser
 	}
 
 	return replicationResp
+}
+
+func convertVolumeInfoToReplicationVolumeInformationV1beta(in *models.ReplicationVolumeInformationV1beta) *gcpgenserver.ReplicationVolumeInformationV1beta {
+	if in == nil {
+		return nil
+	}
+	emptyUUID := uuid.UUID{}
+	if nillable.IsNilOrEmpty(&in.VolumeName) || nillable.IsNilOrEmpty(&in.VolumeID) || in.VolumeID == emptyUUID.String() {
+		return nil
+	}
+	return &gcpgenserver.ReplicationVolumeInformationV1beta{
+		VolumeName: gcpgenserver.NewOptString(in.VolumeName),
+		VolumeId:   gcpgenserver.NewOptString(in.VolumeID),
+	}
 }
 
 func prepareCreateVolumeReplicationParams(req *gcpgenserver.ReplicationCreateV1beta, params gcpgenserver.V1betaCreateReplicationParams, region string) *common.CreateVolumeReplicationParams {

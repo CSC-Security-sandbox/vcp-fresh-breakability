@@ -4974,7 +4974,6 @@ components:
           enum:
             - src
             - dst
-            - rst
           example: src
         replicationPolicy:
           title: replicationPolicy
@@ -5078,9 +5077,15 @@ components:
           type: string
           description: The mirror state of the volume replication
           enum:
-            - uninitialized
-            - mirrored
-            - broken
+            - MIRROR_STATE_UNSPECIFIED
+            - PREPARING
+            - UNINITIALIZED
+            - MIRRORED
+            - STOPPED
+            - ABORTED
+            - TRANSFERRING
+            - BASELINE_TRANSFERRING
+            - EXTERNALLY_MANAGED
           readOnly: true
         replicationType:
           title: replicationType
@@ -7476,7 +7481,6 @@ components:
           type: string
           description: Full URI of volume
           maxLength: 255
-          minLength: 1
           example: projects/965286636820/locations/australia-southeast1/volumes/ra-2-vol166783690116
         volumeId:
           type: string
