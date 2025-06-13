@@ -1,0 +1,6 @@
+# This file is used to define the code owners for the repository.
+
+#CI Code Owners
+/.github/ @VCP-VSA-control-Plane/vcp-ci-team
+/cicd/ @VCP-VSA-control-Plane/vcp-ci-team
+/tools/vsa-builder @VCP-VSA-control-Plane/vcp-ci-team
