@@ -89,8 +89,8 @@ jobs:
       GCP_vcp_worker_URL: ${{ steps.generate_output_urls.outputs.GCP_vcp-worker_URL }}
       GHCR_vsa_control_plane_HELM_URL: ${{ steps.generate_output_urls.outputs.GHCR_vsa-control-plane_HELM_URL }}
       GCP_vsa_control_plane_HELM_URL: ${{ steps.generate_output_urls.outputs.GCP_vsa-control-plane_HELM_URL }}
-      GHCR_vcp_worker_HELM_URL: ${{ steps.generate_output_urls.outputs.GHCR_vcp-worker_HELM_URL }}
-      GCP_vcp_worker_HELM_URL: ${{ steps.generate_output_urls.outputs.GCP_vcp-worker_HELM_URL }}
+      GHCR_vcp_worker_HELM_URL: ${{ steps.generate_output_urls.outputs.GHCR_vcp-worker-chart_HELM_URL }}
+      GCP_vcp_worker_HELM_URL: ${{ steps.generate_output_urls.outputs.GCP_vcp-worker-chart_HELM_URL }}
 
     steps:
       - name: Check out the repo
