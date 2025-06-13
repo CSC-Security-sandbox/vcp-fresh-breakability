@@ -95,10 +95,12 @@ func _createSnapshot(ctx context.Context, se database.Storage, temporal client.C
 	}
 
 	job := &datamodel.Job{
-		Type:         string(models.JobTypeCreateSnapshot),
-		State:        string(models.JobsStateNEW),
-		ResourceName: params.Name,
-		AccountID:    sql.NullInt64{Int64: account.ID, Valid: true},
+		Type:          string(models.JobTypeCreateSnapshot),
+		State:         string(models.JobsStateNEW),
+		ResourceName:  params.Name,
+		AccountID:     sql.NullInt64{Int64: account.ID, Valid: true},
+		CorrelationID: utils.GetCoRelationIDFromContext(ctx),
+		RequestID:     utils.GetRequestIDFromContext(ctx),
 	}
 
 	job, err = se.CreateJob(ctx, job)
@@ -226,10 +228,12 @@ func _updateSnapshot(ctx context.Context, se database.Storage, temporal client.C
 	}
 
 	job := &datamodel.Job{
-		Type:         string(models.JobTypeUpdateSnapshot),
-		State:        string(models.JobsStateNEW),
-		ResourceName: params.Name,
-		AccountID:    sql.NullInt64{Int64: account.ID, Valid: true},
+		Type:          string(models.JobTypeUpdateSnapshot),
+		State:         string(models.JobsStateNEW),
+		ResourceName:  params.Name,
+		AccountID:     sql.NullInt64{Int64: account.ID, Valid: true},
+		CorrelationID: utils.GetCoRelationIDFromContext(ctx),
+		RequestID:     utils.GetRequestIDFromContext(ctx),
 	}
 
 	job, err = se.CreateJob(ctx, job)
@@ -326,10 +330,12 @@ func _deleteSnapshot(ctx context.Context, se database.Storage, temporal client.C
 	}
 
 	job := &datamodel.Job{
-		Type:         string(models.JobTypeDeleteSnapshot),
-		State:        string(models.JobsStateNEW),
-		ResourceName: snapshot.Name,
-		AccountID:    sql.NullInt64{Int64: snapshot.Account.ID, Valid: true},
+		Type:          string(models.JobTypeDeleteSnapshot),
+		State:         string(models.JobsStateNEW),
+		ResourceName:  snapshot.Name,
+		AccountID:     sql.NullInt64{Int64: snapshot.Account.ID, Valid: true},
+		CorrelationID: utils.GetCoRelationIDFromContext(ctx),
+		RequestID:     utils.GetRequestIDFromContext(ctx),
 	}
 	createdJob, err := se.CreateJob(ctx, job)
 	if err != nil {

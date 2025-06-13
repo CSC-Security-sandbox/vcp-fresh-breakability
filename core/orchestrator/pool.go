@@ -61,10 +61,12 @@ func _createPool(ctx context.Context, se database.Storage, temporal client.Clien
 	}
 
 	job := &datamodel.Job{
-		Type:         string(models.JobTypeCreatePool),
-		State:        string(models.JobsStateNEW),
-		ResourceName: params.Name,
-		AccountID:    sql.NullInt64{Int64: account.ID, Valid: true},
+		Type:          string(models.JobTypeCreatePool),
+		State:         string(models.JobsStateNEW),
+		ResourceName:  params.Name,
+		AccountID:     sql.NullInt64{Int64: account.ID, Valid: true},
+		CorrelationID: utils.GetCoRelationIDFromContext(ctx),
+		RequestID:     utils.GetRequestIDFromContext(ctx),
 	}
 
 	createdJob, err := se.CreateJob(ctx, job)
@@ -189,10 +191,12 @@ func _deletePool(ctx context.Context, temporal client.Client, se database.Storag
 	}
 
 	job := &datamodel.Job{
-		Type:         string(models.JobTypeDeletePool),
-		State:        string(models.JobsStateNEW),
-		ResourceName: pool.Name,
-		AccountID:    sql.NullInt64{Int64: account.ID, Valid: true},
+		Type:          string(models.JobTypeDeletePool),
+		State:         string(models.JobsStateNEW),
+		ResourceName:  pool.Name,
+		AccountID:     sql.NullInt64{Int64: account.ID, Valid: true},
+		CorrelationID: utils.GetCoRelationIDFromContext(ctx),
+		RequestID:     utils.GetRequestIDFromContext(ctx),
 	}
 
 	createdJob, err := se.CreateJob(ctx, job)

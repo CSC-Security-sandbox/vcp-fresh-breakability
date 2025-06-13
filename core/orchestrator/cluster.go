@@ -9,6 +9,7 @@ import (
 	commonparams "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/workflows"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	workflowengine "github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/temporal"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 	"go.temporal.io/api/enums/v1"
@@ -34,10 +35,12 @@ func _acceptClusterPeer(ctx context.Context, se database.Storage, temporal clien
 		return nil, nil, err
 	}
 	job := &datamodel.Job{
-		Type:         string(models.JobTypeAcceptClusterPeer),
-		State:        string(models.JobsStateNEW),
-		ResourceName: string(models.JobTypeAcceptClusterPeer),
-		AccountID:    sql.NullInt64{Int64: account.ID, Valid: true},
+		Type:          string(models.JobTypeAcceptClusterPeer),
+		State:         string(models.JobsStateNEW),
+		ResourceName:  string(models.JobTypeAcceptClusterPeer),
+		AccountID:     sql.NullInt64{Int64: account.ID, Valid: true},
+		CorrelationID: utils.GetCoRelationIDFromContext(ctx),
+		RequestID:     utils.GetRequestIDFromContext(ctx),
 	}
 
 	createdJob, err := se.CreateJob(ctx, job)

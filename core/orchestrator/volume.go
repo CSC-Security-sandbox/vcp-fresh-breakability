@@ -60,10 +60,12 @@ func _createVolume(ctx context.Context, se database.Storage, temporal client.Cli
 	}
 
 	job := &datamodel.Job{
-		Type:         string(models.JobTypeCreateVolume),
-		State:        string(models.JobsStateNEW),
-		ResourceName: params.Name,
-		AccountID:    sql.NullInt64{Int64: account.ID, Valid: true},
+		Type:          string(models.JobTypeCreateVolume),
+		State:         string(models.JobsStateNEW),
+		ResourceName:  params.Name,
+		AccountID:     sql.NullInt64{Int64: account.ID, Valid: true},
+		CorrelationID: utils.GetCoRelationIDFromContext(ctx),
+		RequestID:     utils.GetRequestIDFromContext(ctx),
 	}
 	createdJob, err := se.CreateJob(ctx, job)
 	if err != nil {
@@ -327,10 +329,12 @@ func _deleteVolume(ctx context.Context, se database.Storage, temporal client.Cli
 	}
 
 	job := &datamodel.Job{
-		Type:         string(models.JobTypeDeleteVolume),
-		State:        string(models.JobsStateNEW),
-		ResourceName: volume.Name,
-		AccountID:    sql.NullInt64{Int64: volume.Account.ID, Valid: true},
+		Type:          string(models.JobTypeDeleteVolume),
+		State:         string(models.JobsStateNEW),
+		ResourceName:  volume.Name,
+		AccountID:     sql.NullInt64{Int64: volume.Account.ID, Valid: true},
+		CorrelationID: utils.GetCoRelationIDFromContext(ctx),
+		RequestID:     utils.GetRequestIDFromContext(ctx),
 	}
 	createdJob, err := se.CreateJob(ctx, job)
 	if err != nil {

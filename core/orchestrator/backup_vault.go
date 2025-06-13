@@ -13,6 +13,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/workflows"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database"
 	gcpserver "github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/api/gcp-servergen"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	workflowengine "github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/temporal"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 	"go.temporal.io/api/enums/v1"
@@ -79,10 +80,12 @@ func _createBackupVault(ctx context.Context, se database.Storage, temporal clien
 	}
 
 	job := &datamodel.Job{
-		Type:         string(models.JobTypeCreateBackupVault),
-		State:        string(models.JobsStateNEW),
-		ResourceName: backupVaultParams.Name,
-		AccountID:    sql.NullInt64{Int64: account.ID, Valid: true},
+		Type:          string(models.JobTypeCreateBackupVault),
+		State:         string(models.JobsStateNEW),
+		ResourceName:  backupVaultParams.Name,
+		AccountID:     sql.NullInt64{Int64: account.ID, Valid: true},
+		CorrelationID: utils.GetCoRelationIDFromContext(ctx),
+		RequestID:     utils.GetRequestIDFromContext(ctx),
 	}
 
 	createdJob, err := se.CreateJob(ctx, job)

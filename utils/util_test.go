@@ -651,6 +651,30 @@ func TestConvertsValidJsonToModel(t *testing.T) {
 	})
 }
 
+func TestGetRequestIDFromContext(t *testing.T) {
+	t.Run("RequestIDPresent", func(tt *testing.T) {
+		fields := log.Fields{
+			string(middleware.RequestID): "test-request-id",
+		}
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, fields)
+		got := GetRequestIDFromContext(ctx)
+		assert.Equal(tt, "test-request-id", got)
+	})
+
+	t.Run("RequestIDAbsent", func(tt *testing.T) {
+		fields := log.Fields{}
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, fields)
+		got := GetRequestIDFromContext(ctx)
+		assert.Equal(tt, "", got)
+	})
+
+	t.Run("NoFieldsInContext", func(tt *testing.T) {
+		ctx := context.Background()
+		got := GetRequestIDFromContext(ctx)
+		assert.Equal(tt, "", got)
+	})
+}
+
 func TestGenerateRandomString(t *testing.T) {
 	t.Run("GeneratesRandomStringOfCorrectLength", func(t *testing.T) {
 		result, err := generateRandomString(10)

@@ -11,4 +11,5 @@ const (
 	HeaderContextKey      ContextString = "headerContextKey"
 	TemporalSLoggerKey    ContextString = "fields"
 	RequestCorrelationID  ContextString = "requestCorrelationID"
+	RequestID             ContextString = "requestID"
 )

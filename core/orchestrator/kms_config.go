@@ -71,6 +71,8 @@ func _createKmsConfig(ctx context.Context, se database.Storage, temporal client.
 		ResourceName:  params.Name,
 		AccountID:     sql.NullInt64{Int64: account.ID, Valid: true},
 		JobAttributes: &datamodel.JobAttributes{ResourceUUID: dbKmsConfig.UUID},
+		CorrelationID: utils.GetCoRelationIDFromContext(ctx),
+		RequestID:     utils.GetRequestIDFromContext(ctx),
 	}
 
 	createdJob, err := se.CreateJob(ctx, job)
@@ -201,10 +203,12 @@ func _updateKmsConfig(ctx context.Context, se database.Storage, temporal client.
 	}
 
 	job := &datamodel.Job{
-		Type:         string(models.JobTypeUpdateKmsConfig),
-		State:        string(models.JobsStateNEW),
-		ResourceName: params.Name,
-		AccountID:    sql.NullInt64{Int64: account.ID, Valid: true},
+		Type:          string(models.JobTypeUpdateKmsConfig),
+		State:         string(models.JobsStateNEW),
+		ResourceName:  params.Name,
+		AccountID:     sql.NullInt64{Int64: account.ID, Valid: true},
+		CorrelationID: utils.GetCoRelationIDFromContext(ctx),
+		RequestID:     utils.GetRequestIDFromContext(ctx),
 	}
 	createdJob, err := se.CreateJob(ctx, job)
 	if err != nil {

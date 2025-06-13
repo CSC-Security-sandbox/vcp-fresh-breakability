@@ -399,6 +399,15 @@ func ConvertJsonToModel(jsonb []byte, model any) error {
 	return nil
 }
 
+func GetRequestIDFromContext(ctx context.Context) string {
+	if fields, ok := ctx.Value(middleware.TemporalSLoggerKey).(log.Fields); ok {
+		if requestID, ok := fields[string(middleware.RequestID)]; ok {
+			return requestID.(string)
+		}
+	}
+	return ""
+}
+
 // GenerateResourceNames generates unique service account name, email, and bucket name
 func GetResourcesNameForBackup(gcpRegion, tenantProjectRegion, tenantProjectNumber, backupVaultUUID string) (email, bucketName, serviceAccountId string, err error) {
 	const maxServiceAccountLength = 30
