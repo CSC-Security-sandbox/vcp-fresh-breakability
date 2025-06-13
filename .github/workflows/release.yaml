@@ -6,11 +6,13 @@ on:
       - main
       - release/2*
 
+
 permissions:
   packages: write
   contents: read
   id-token: write
   security-events: write
+
 
 jobs:
   generate_tag:
@@ -87,186 +89,17 @@ jobs:
       newTag: ${{ steps.fetch_new_tag.outputs.newTag }}
       pr_user: ${{ env.PR_USER }}
       pr_title: ${{ env.PR_TITLE }}
+      pr_base_branch: ${{ env.PR_BRANCH }}
 
 
   create_pre_release_vsa_control_plane:
     needs: generate_tag
-    uses: ./.github/workflows/release_resources.yaml
+    uses: ./.github/workflows/build_common.yaml
     secrets: inherit
     with:
       pre_release: true
       tag: ${{ needs.generate_tag.outputs.newTag }}
-
-  update_jira_component_version:
-    name: Update JIRA component version
-    needs: [generate_tag,create_pre_release_vsa_control_plane]
-    runs-on: [ ubuntu-22.04 ]
-    container:
-      image: ghcr.io/vcp-vsa-control-plane/vsacictl:v22
-      options: -v /var/run/docker.sock:/var/run/docker.sock --user root
-
-    steps:
-      - name: Check out the repo
-        uses: actions/checkout@v2
-
-      - name: Set up Go
-        uses: actions/setup-go@v3
-        with:
-          go-version-file: go.mod
-
-      - name: Run jira tag_component_version
-        env:
-          PR_TITLE: ${{ needs.generate_tag.outputs.pr_title }}
-          JIRA_API_TOKEN: ${{ secrets.VCP_CI_JIRA_BOT_PAT }}
-          GITHUB_TOKEN: ${{ steps.token.outputs.token }}
-          PR_USER: ${{ needs.generate_tag.outputs.pr_user }}
-          REPOSITORY: VCP-VSA-control-Plane/vsa-control-plane
-          GITHUB_SHA: ${{ github.sha }}
-          NEW_TAG: ${{ needs.generate_tag.outputs.newTag }}
-        run: vsacictl jira tag_component_version
-
-  black_duck_scan_repo:
-    name: Run black duck scan on the repo
-    needs: create_pre_release_vsa_control_plane
-    runs-on: [ self-hosted,linux,bds ]
-    container:
-      image: ghcr.io/vcp-vsa-control-plane/vsacictl:v22
-      options: -v /var/run/docker.sock:/var/run/docker.sock --mount type=bind,source=/bds-inspect,target=/bds-inspect,ro --user root
-
-    steps:
-      - name: Check out the repo
-        uses: actions/checkout@v2
-        with:
-          path: repo-dir
-
-
-      - name: Set up Go
-        uses: actions/setup-go@v3
-        with:
-          go-version-file: go.mod
-
-      - name: Run BlackDuck Repo Scan
-        run: |
-          keytool -import -alias example -keystore  "/usr/lib/jvm/java-11-openjdk-amd64/lib/security/cacerts" -file /bds-inspect/blackduck.eng.netapp.com.der --storepass changeit --noprompt
-          java -jar /bds-inspect/synopsys-detect-9.10.1.jar --detect.project.name="GCNV VSA Control Plane" \
-          --detect.project.version.name=current --blackduck.url=https://blackduck.eng.netapp.com \
-          --blackduck.api.token=${{ secrets.BLACKDUCKSCANSATOKEN }} --detect.cleanup=false \
-          --detect.source.path=repo-dir/ \
-          --detect.blackduck.signature.scanner.paths=repo-dir/ \
-          --detect.code.location.name=GCNV_VSA_Control_Plane_currrent_code \
-          --detect.tools=DETECTOR,SIGNATURE_SCAN --detect.detector.search.depth=50 \
-          --detect.detector.search.continue=true \
-          --blackduck.trust.cert=true --detect.blackduck.signature.scanner.snippet.matching=SNIPPET_MATCHING \
-          --detect.blackduck.signature.scanner.upload.source.mode=true --logging.level.detect=DEBUG \
-          --detect.go.path=/__w/_tool/go/1.24.1/x64/bin/go \
-          --detect.accuracy.required=NONE  -d
-        shell: bash -e {0}
-
-
-  black_duck_scan_image:
-    name: Run black duck scan on the container images
-    needs: [create_pre_release_vsa_control_plane, generate_tag]
-    runs-on: [ self-hosted,linux,bds ]
-
-    steps:
-      - name: Run BlackDuck Scan for container images
-        shell: bash -e {0}
-        run: |
-          IMAGES=("core" "google-proxy" "vcp-db-migrate" "vcp-worker" "cloud-backup-adc")
-          for IMAGE in "${IMAGES[@]}"; do
-            echo "Image used for scan is ${IMAGE} - $([[ "$IMAGE" == "cloud-backup-adc" ]] && echo "2.7" || echo "${{ needs.generate_tag.outputs.newTag }}")"
-            docker run --rm  --network host -v /home/cvs/opt-dir:/home/cvs/opt-dir -v /var/run/docker.sock:/var/run/docker.sock \
-            --mount type=bind,source=/bds-inspect,target=/bds-inspect,ro --user root \
-            ghcr.io/vcp-vsa-control-plane/vsacictl:v22 \
-            bash -c "keytool -import -alias example -keystore \"/usr/lib/jvm/java-11-openjdk-amd64/lib/security/cacerts\" \
-            -file /bds-inspect/blackduck.eng.netapp.com.der --storepass changeit --noprompt && \
-            echo \"${{ secrets.GHVSA_PAT }}\" | docker login ghcr.io -u \"${{ github.actor }}\" --password-stdin && \
-            java -jar /bds-inspect/synopsys-detect-9.10.1.jar -d --detect.project.name=\"GCNV VSA Control Plane\" \
-            --detect.project.version.name=current --blackduck.url=https://blackduck.eng.netapp.com --blackduck.trust.cert=true \
-            --blackduck.api.token="${{ secrets.BLACKDUCKSCANSATOKEN }}" --detect.cleanup=false --detect.tools=DOCKER \
-            --detect.docker.image=ghcr.io/vcp-vsa-control-plane/${IMAGE}:$([[ "$IMAGE" == "cloud-backup-adc" ]] && echo "2.7" || echo "${{ needs.generate_tag.outputs.newTag }}")  \
-            --detect.code.location.name=GCNV_VSA_Control_Plane_docker_${IMAGE}_code \
-            --detect.docker.path=/__w/_tool/go/1.24.1/x64/bin/docker --detect.tools.excluded=DETECTOR \
-            --detect.docker.inspector.air.gap.path=/bds-inspect/packaged-inspectors/docker/ \
-            --detect.docker.passthrough.shared.dir.path.local=/home/cvs/opt-dir"
-            echo "BlackDuck scan completed for image: ${IMAGE}"
-          done
-
-  trivy_scan_image:
-    name: Run trivy scan on the container images
-    needs: [create_pre_release_vsa_control_plane, generate_tag]
-    runs-on: [ self-hosted,linux ]
-    container:
-      image: ghcr.io/vcp-vsa-control-plane/vsacictl:v22
-      options: -v /var/run/docker.sock:/var/run/docker.sock --user root
-    permissions:
-      contents: read
-      packages: write
-      id-token: write
-      security-events: write
-    strategy:
-      matrix:
-        image:
-          - "google-proxy"
-          - "core"
-          - "vcp-db-migrate"
-          - "vcp-worker"
-          - "cloud-backup-adc"
-
-    steps:
-      - name: Log in to the Container registry
-        run: |
-          echo "${{ secrets.GHVSA_PAT }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
-
-      - name: Ensure output directory exists
-        run: mkdir -p repo-dir2
-
-      - name: Run Trivy vulnerability scanner
-        uses: aquasecurity/trivy-action@7b7aa264d83dc58691451798b4d117d53d21edfe
-        with:
-          image-ref: ${{ matrix.image == 'cloud-backup-adc' && format('ghcr.io/vcp-vsa-control-plane/{0}:2.7', matrix.image) || format('ghcr.io/vcp-vsa-control-plane/{0}:{1}', matrix.image, needs.generate_tag.outputs.newTag) }}
-          format: 'sarif'
-          output: 'repo-dir2/trivy-${{ matrix.image }}.sarif'
-
-      - name: upload trivy scan results
-        shell: bash -e {0}
-        run: |
-          if [ -f repo-dir2/trivy-${{ matrix.image }}.sarif ]; then
-            curl -L -X POST -H "Accept: application/vnd.github+json" \
-            -H "X-GitHub-Api-Version: 2022-11-28" \
-            -H "Authorization: Bearer ${{ secrets.GHVSA_PAT}}" \
-            https://api.github.com/repos/VCP-VSA-control-Plane/vsa-control-plane/code-scanning/sarifs \
-            -d "{\"commit_sha\":\"${{ github.sha }}\",\"ref\":\"refs/heads/main\",\"sarif\":\"$(gzip -c repo-dir2/trivy-${{ matrix.image }}.sarif | base64 -w0)\"}"
-          else
-            echo "SARIF file for ${{ matrix.image }} not found." 
-            exit 1
-          fi          
-          
-
-  send-slack-notification:
-    needs: [generate_tag,create_pre_release_vsa_control_plane, update_jira_component_version]
-    runs-on: [ ubuntu-22.04 ]
-    container:
-      image: ghcr.io/vcp-vsa-control-plane/vsacictl:v21
-      options: -v /var/run/docker.sock:/var/run/docker.sock --user root
-
-    steps:
-      - name: Check out the repo
-        uses: actions/checkout@v2
-
-      - name: Set up Go
-        uses: actions/setup-go@v3
-        with:
-          go-version-file: go.mod
-      - name: Send slack message
-        env:
-          PR_TITLE: ${{ needs.update_jira_component_version.outputs.pr_title }}
-          PR_USER: ${{ needs.update_jira_component_version.outputs.pr_user }}
-          VSABUILDREPORTWEBHOOK: ${{ secrets.VSABUILDREPORTWEBHOOK }}
-          NEW_TAG: ${{ needs.generate_tag.outputs.newTag }}
-          GHCR_vsa_control_plane_HELM_URL: ${{ needs.create_pre_release_vsa_control_plane.outputs.GHCR_vsa_control_plane_HELM_URL }}
-          GCP_vsa_control_plane_HELM_URL: ${{ needs.create_pre_release_vsa_control_plane.outputs.GCP_vsa_control_plane_HELM_URL }}
-          GHCR_vcp_worker_HELM_URL: ${{ needs.create_pre_release_vsa_control_plane.outputs.GHCR_vcp_worker_HELM_URL }}
-          GCP_vcp_worker_HELM_URL: ${{ needs.create_pre_release_vsa_control_plane.outputs.GCP_vcp_worker_HELM_URL }}
-        run: |
-          vsacictl slack notify_build_report
+      pr_user: ${{ needs.generate_tag.outputs.pr_user }}
+      pr_title: ${{ needs.generate_tag.outputs.pr_title }}
+      pr_base_branch: ${{ needs.generate_tag.outputs.pr_base_branch }}
+      component_update: true

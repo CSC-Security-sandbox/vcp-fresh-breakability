@@ -50,8 +50,9 @@ jobs:
 
   create_release_vsa_promotional:
     needs: final_tagging
-    uses: ./.github/workflows/release_resources.yaml
+    uses: ./.github/workflows/build_common.yaml
     secrets: inherit
     with:
       pre_release: false
       tag: ${{ needs.final_tagging.outputs.finalTag }}
+      component_update: false

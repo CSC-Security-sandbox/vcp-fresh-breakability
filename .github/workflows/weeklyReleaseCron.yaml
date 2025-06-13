@@ -60,7 +60,7 @@ jobs:
 
   create_release_vsa_rc:
     needs: [release_branch]
-    uses: ./.github/workflows/release_resources.yaml
+    uses: ./.github/workflows/build_common.yaml
     secrets: inherit
     with:
       pre_release: true
@@ -68,7 +68,7 @@ jobs:
 
   create_release_vsa_dev:
     needs: [release_branch]
-    uses: ./.github/workflows/release_resources.yaml
+    uses: ./.github/workflows/build_common.yaml
     secrets: inherit
     with:
       pre_release: true
