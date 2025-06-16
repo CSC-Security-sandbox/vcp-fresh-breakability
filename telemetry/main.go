@@ -2,6 +2,11 @@ package main
 
 import (
 	"context"
+	"net/http"
+	"os"
+	"os/signal"
+	"syscall"
+
 	"github.com/go-chi/chi/v5"
 	chimiddleware "github.com/go-chi/chi/v5/middleware"
 	"github.com/go-faster/errors"
@@ -9,15 +14,12 @@ import (
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	api "github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/api/endpoints"
 	coreapiserver "github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/api/telemetry-servergen"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware"
 	"golang.org/x/sync/errgroup"
-	"net/http"
-	"os"
-	"os/signal"
-	"syscall"
 )
 
 func main() {
-	ctx := context.WithValue(context.Background(), "", uuid.NewString())
+	ctx := context.WithValue(context.Background(), middleware.CorrelationContextKey, uuid.NewString())
 
 	ctx, cancel := signal.NotifyContext(ctx, syscall.SIGINT, syscall.SIGTERM)
 	defer cancel()
@@ -44,7 +46,7 @@ func main() {
 		Handler: mux,
 	}
 
-	eg, ctx := errgroup.WithContext(ctx)
+	eg, _ := errgroup.WithContext(ctx)
 
 	eg.Go(func() error {
 		if err := httpServer.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {

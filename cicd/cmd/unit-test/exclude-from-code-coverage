@@ -3,6 +3,7 @@ clients/cvp/
 clients/ontap-rest/
 core/core-api/core-servergen/
 google-proxy/api/gcp-servergen/
+telemetry/api/telemetry-servergen/
 clients/google-proxy-client/oas
 common/resource_deployer.go
 _mock.go

@@ -43,12 +43,22 @@ build:
       requires:
         - image: base
           alias: BASE
+    - image: telemetry
+      context: .
+      docker:
+        dockerfile: telemetry/Dockerfile
+        buildArgs:
+          GHVSA_PAT: "{{.GHVSA_PAT}}"
+      requires:
+        - image: base
+          alias: BASE
 manifests:
   rawYaml:
     - google-proxy/kubernetes/*
     - core/kubernetes/*
     - postgres/kubernetes/*
     - worker/kubernetes/*
+    - telemetry/kubernetes/*
   helm:
     releases:
       - name: local-temporal
@@ -79,6 +89,11 @@ portForward:
     namespace: default
     port: 8080
     localPort: 8080
+  - resourceType: service
+    resourceName: metrics-processer-service
+    namespace: vcp
+    port: 8080
+    localPort: 9090
 profiles:
   - name: gcb
     build:
