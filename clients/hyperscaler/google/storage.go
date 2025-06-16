@@ -11,6 +11,7 @@ type StorageClient interface {
 type BucketHandle interface {
 	Attrs(ctx context.Context) (*storage.BucketAttrs, error)
 	Create(ctx context.Context, projectID string, attrs *storage.BucketAttrs) error
+	Delete(ctx context.Context) error
 }
 
 type storageClient struct {
@@ -30,4 +31,8 @@ func (r *bucketHandle) Attrs(ctx context.Context) (*storage.BucketAttrs, error) 
 
 func (r *bucketHandle) Create(ctx context.Context, projectID string, attrs *storage.BucketAttrs) error {
 	return r.handle.Create(ctx, projectID, attrs)
+}
+
+func (r *bucketHandle) Delete(ctx context.Context) error {
+	return r.handle.Delete(ctx)
 }

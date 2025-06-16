@@ -27,35 +27,37 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 	"go.temporal.io/sdk/activity"
+	"google.golang.org/api/iam/v1"
 	"google.golang.org/api/servicenetworking/v1"
 	"gorm.io/gorm"
 	"netapp.com/vsa/lifecycle-manager/pkg/vlmconfig"
 )
 
 var (
-	GetProviderByNode             = _getProviderByNode
-	FindTenancyAndGetSubnetwork   = _findTenancyAndGetSubnetwork
-	DeploymentsInsert             = common.DeploymentsInsert
-	PrepareVlmConfig              = _prepareVlmConfig
-	ReadFile                      = os.ReadFile
-	GetVLMClient                  = _getVLMClient
-	SaveNodeDetails               = _saveNodeDetails
-	DeleteLIFs                    = _deleteLIFs
-	DeleteSVMs                    = _deleteSVMs
-	DeleteNodes                   = _deleteNodes
-	DeletingNodes                 = _deletingNodes
-	DeletingSVMs                  = _deletingSVMs
-	CreateVPC                     = _createVPC
-	InsertSubnet                  = _insertSubnet
-	InsertFirewall                = _insertFirewall
-	GetGCPService                 = _getGCPService
-	NewGcpServices                = _newGcpServices
-	SetupNetworkWithFirewall      = setupNetworkWithFirewall
-	SetupNetworkFirewallsForIscsi = setupNetworkFirewallsForIscsi
-	CreateGCPBucket               = _createGCPBucket
+	GetProviderByNode                 = _getProviderByNode
+	FindTenancyAndGetSubnetwork       = _findTenancyAndGetSubnetwork
+	DeploymentsInsert                 = common.DeploymentsInsert
+	PrepareVlmConfig                  = _prepareVlmConfig
+	ReadFile                          = os.ReadFile
+	GetVLMClient                      = _getVLMClient
+	SaveNodeDetails                   = _saveNodeDetails
+	DeleteLIFs                        = _deleteLIFs
+	DeleteSVMs                        = _deleteSVMs
+	DeleteNodes                       = _deleteNodes
+	DeletingNodes                     = _deletingNodes
+	DeletingSVMs                      = _deletingSVMs
+	CreateVPC                         = _createVPC
+	InsertSubnet                      = _insertSubnet
+	InsertFirewall                    = _insertFirewall
+	GetGCPService                     = _getGCPService
+	NewGcpServices                    = _newGcpServices
+	SetupNetworkWithFirewall          = setupNetworkWithFirewall
+	SetupNetworkFirewallsForIscsi     = setupNetworkFirewallsForIscsi
+	CreateGCPBucket                   = _createGCPBucket
+	CreateServiceAccountAndAttachRole = _createServiceAccountAndAttachRole
+	DeleteSrvcAccount                 = _deleteServiceAccount
+	DeleteGCPBucket                   = _deleteGCPBucket
 )
-
-const defaultServiceAccountPattern = "-compute@developer.gserviceaccount.com"
 
 type PoolActivity struct {
 	SE database.Storage
@@ -347,10 +349,11 @@ func (j *PoolActivity) CreateVSASVM(ctx context.Context, pool *datamodel.Pool, v
 	return nil
 }
 
-func (j *PoolActivity) CreateVSACluster(ctx context.Context, deploymentName, region, primaryZone, secondaryZone, network, subnet, projectId, snHostProject string, sizeInGiB int, throughputMibps, iops int64) (*vlmconfig.VLMConfig, error) {
+func (j *PoolActivity) CreateVSACluster(ctx context.Context, deploymentName, region, primaryZone, secondaryZone, network, subnet, projectId, snHostProject string, sizeInGiB int, throughputMibps, iops int64, saEmail string, autoTierBucket string) (*vlmconfig.VLMConfig, error) {
 	logger := util.GetLogger(ctx)
 	cfg := &vlmconfig.VLMConfig{}
-	err := PrepareVlmConfig(cfg, deploymentName, region, primaryZone, secondaryZone, network, subnet, projectId, snHostProject, sizeInGiB, throughputMibps, iops)
+	err := PrepareVlmConfig(cfg, deploymentName, region, primaryZone, secondaryZone, network, subnet, projectId, snHostProject, sizeInGiB, throughputMibps, iops, saEmail, autoTierBucket)
+
 	if err != nil {
 		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
 	}
@@ -372,7 +375,7 @@ func assignNetworkConfig(cfg *vlmconfig.VLMConfig, lifType vlmconfig.VSALIFType,
 	}
 }
 
-func _prepareVlmConfig(cfg *vlmconfig.VLMConfig, deploymentName, region, primaryZone, secondaryZone, network, subnet, projectId, snHostProject string, sizeInGib int, throughputMibps, iops int64) error {
+func _prepareVlmConfig(cfg *vlmconfig.VLMConfig, deploymentName, region, primaryZone, secondaryZone, network, subnet, projectId, snHostProject string, sizeInGib int, throughputMibps, iops int64, saEmail string, autoTierBucket string) error {
 	vlmContent, err := ReadFile("common/vsa_config/vlm-config.json")
 	if err != nil {
 		return vsaerrors.NewVCPError(vsaerrors.ErrFileReadError, err)
@@ -413,12 +416,11 @@ func _prepareVlmConfig(cfg *vlmconfig.VLMConfig, deploymentName, region, primary
 	// assign network configuration for data LIF from snHostProject
 	assignNetworkConfig(cfg, vlmconfig.LIFTypeInterCluster, network, subnet, snHostProject)
 
-	svcAccount := projectId + defaultServiceAccountPattern // FIXME : need to to discuss on what service account to be passed
-
 	cfg.Deployment.GCPConfig = vlmconfig.GCPConfig{
 		ProjectID:           projectId,
 		ImageProjectID:      projectId,
-		ServiceAccountEmail: svcAccount,
+		ServiceAccountEmail: saEmail,
+		BucketName:          autoTierBucket,
 	}
 
 	cfg.Deployment.OntapCredentials.Username = env.GetString("VSA_NODE_USERNAME", "")
@@ -435,8 +437,11 @@ func (j *PoolActivity) DeleteVSADeployment(ctx context.Context, pool *datamodel.
 
 	logger := util.GetLogger(ctx)
 	cfg := &vlmconfig.VLMConfig{}
+	saEmail := fmt.Sprintf("%s@%s.iam.gserviceaccount.com", pool.ServiceAccountId, pool.ClusterDetails.RegionalTenantProject)
+
 	err := PrepareVlmConfig(cfg, deploymentName, localRegion, pool.PoolAttributes.PrimaryZone, pool.PoolAttributes.SecondaryZone, pool.ClusterDetails.Network, "vsa-"+localRegion, pool.ClusterDetails.RegionalTenantProject, pool.ClusterDetails.SnHostProject,
-		int(pool.SizeInBytes), pool.PoolAttributes.ThroughputMibps, pool.PoolAttributes.Iops)
+		int(pool.SizeInBytes), pool.PoolAttributes.ThroughputMibps, pool.PoolAttributes.Iops, saEmail, pool.AutoTierBucketName)
+
 	if err != nil {
 		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
 	}
@@ -617,20 +622,20 @@ func (j *PoolActivity) DeletePoolResources(ctx context.Context, pool *datamodel.
 	return pool, nil
 }
 
-// EnableAutoTiering creates a GCP bucket for auto-tiering in the specified project and region.
+// CreateAutoTierBucket creates a GCP bucket for auto-tiering in the specified project and region.
 // Parameters:
 // - ctx: The context for managing request-scoped values, deadlines, and cancellation signals.
 // - params: Contains the pool parameters, including the name and region of the pool.
 // - projectId: The ID of the GCP project where the bucket will be created.
 // Returns:
 // - An error if the bucket creation fails or if there is an issue initializing GCP services.
-func (j *PoolActivity) EnableAutoTiering(ctx context.Context, params commonparams.CreatePoolParams, poolId string, projectId string) error {
+func (j *PoolActivity) CreateAutoTierBucket(ctx context.Context, autoTierBucketName string, region string, projectId string) error {
 	gcpService := &google.GcpServices{
 		Ctx:    ctx,
 		Logger: util.GetLogger(ctx),
 	}
 
-	err := CreateGCPBucket(ctx, projectId, poolId, params.Region, gcpService)
+	err := CreateGCPBucket(ctx, projectId, autoTierBucketName, region, gcpService)
 	if err != nil {
 		return vsaerrors.WrapAsTemporalApplicationError(err)
 	}
@@ -638,7 +643,27 @@ func (j *PoolActivity) EnableAutoTiering(ctx context.Context, params commonparam
 	return nil
 }
 
-func _createGCPBucket(ctx context.Context, projectId, poolId, region string, gcpService hyperscaler.GoogleServices) error {
+// DeleteAutoTierBucket deletes the specified GCP bucket used for auto-tiering.
+// It initializes a GCP service client and attempts to delete the bucket.
+// Returns an error if the deletion fails or if GCP service initialization fails.
+func (j *PoolActivity) DeleteAutoTierBucket(ctx context.Context, autoTierBucketName string) error {
+	logger := util.GetLogger(ctx)
+
+	gcpService := &google.GcpServices{
+		Ctx:    ctx,
+		Logger: util.GetLogger(ctx),
+	}
+
+	logger.Debugf("Deleting autoTiering bucket %v", autoTierBucketName)
+	err := DeleteGCPBucket(ctx, autoTierBucketName, gcpService)
+	if err != nil {
+		return vsaerrors.WrapAsTemporalApplicationError(err)
+	}
+
+	return nil
+}
+
+func _createGCPBucket(ctx context.Context, projectId, bucketName, region string, gcpService hyperscaler.GoogleServices) error {
 	logger := util.GetLogger(ctx)
 
 	err := gcpService.InitializeClients()
@@ -647,7 +672,6 @@ func _createGCPBucket(ctx context.Context, projectId, poolId, region string, gcp
 		return err
 	}
 
-	bucketName := fmt.Sprintf("%s-%s", region, poolId)
 	err = gcpService.CreateBucketIfNotExists(ctx, projectId, bucketName, region)
 	if err != nil {
 		logger.Errorf("error creating bucket: %v", err)
@@ -656,6 +680,110 @@ func _createGCPBucket(ctx context.Context, projectId, poolId, region string, gcp
 	logger.Infof("Bucket created successfully %s", bucketName)
 
 	return nil
+}
+
+func _deleteGCPBucket(ctx context.Context, bucketName string, gcpService hyperscaler.GoogleServices) error {
+	logger := util.GetLogger(ctx)
+
+	err := gcpService.InitializeClients()
+	if err != nil {
+		logger.Errorf("Error initializing GCP services: %v", err)
+		return vsaerrors.WrapAsTemporalApplicationError(err)
+	}
+
+	err = gcpService.DeleteBucket(ctx, bucketName)
+	if err != nil {
+		logger.Errorf("error deleting bucket: %v", err)
+		return vsaerrors.NewVCPError(vsaerrors.ErrGCPResourceDeprovisionError, err)
+	}
+	logger.Infof("Bucket deleted successfully %s", bucketName)
+
+	return nil
+}
+
+// CreateServiceAccountWithStorageRole creates a GCP service account with the specified ID and display name,
+// and attaches the "roles/storage.objectUser" role to it in the given project.
+// Parameters:
+// - ctx: Context for request-scoped values and cancellation.
+// - projectID: The GCP project ID where the service account will be created.
+// - saAccountID: The unique ID for the new service account.
+// - saDisplayName: The display name for the new service account.
+// Returns:
+// - The created *iam.ServiceAccount, or an error if creation or role attachment fails.
+func (j *PoolActivity) CreateServiceAccountWithStorageRole(ctx context.Context, projectID string, saAccountID string, saDisplayName string) (*iam.ServiceAccount, error) {
+	gcpService := &google.GcpServices{
+		Ctx:    ctx,
+		Logger: util.GetLogger(ctx),
+	}
+
+	sa, err := CreateServiceAccountAndAttachRole(ctx, projectID, saAccountID, saDisplayName, gcpService)
+	if err != nil {
+		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
+	}
+
+	return sa, nil
+}
+
+func (j *PoolActivity) DeleteServiceAccount(ctx context.Context, projectID string, saAccountID string) error {
+	gcpService := &google.GcpServices{
+		Ctx:    ctx,
+		Logger: util.GetLogger(ctx),
+	}
+
+	err := DeleteSrvcAccount(ctx, projectID, saAccountID, gcpService)
+	if err != nil {
+		return vsaerrors.WrapAsTemporalApplicationError(err)
+	}
+
+	return nil
+}
+
+func _deleteServiceAccount(ctx context.Context, projectID string, saAccountID string, gcpService hyperscaler.GoogleServices) error {
+	logger := util.GetLogger(ctx)
+	err := gcpService.InitializeClients()
+	if err != nil {
+		logger.Errorf("Error initializing GCP services: %v", err)
+		return vsaerrors.WrapAsTemporalApplicationError(err)
+	}
+
+	saEmail := fmt.Sprintf("%s@%s.iam.gserviceaccount.com", saAccountID, projectID)
+	logger.Infof("Deleting service account %s", saEmail)
+	err = gcpService.DeleteServiceAccount(saEmail)
+	if err != nil {
+		return vsaerrors.WrapAsTemporalApplicationError(err)
+	}
+	return nil
+}
+
+func _createServiceAccountAndAttachRole(ctx context.Context, projectID string, saAccountID string, saDisplayName string, gcpService hyperscaler.GoogleServices) (*iam.ServiceAccount, error) {
+	logger := util.GetLogger(ctx)
+
+	err := gcpService.InitializeClients()
+	if err != nil {
+		return nil, err
+	}
+
+	createReq := &iam.CreateServiceAccountRequest{
+		AccountId: saAccountID,
+		ServiceAccount: &iam.ServiceAccount{
+			DisplayName: saDisplayName,
+		},
+	}
+	saEmail := fmt.Sprintf("%s@%s.iam.gserviceaccount.com", saAccountID, projectID)
+
+	logger.Infof("Creating service account with object user role %s", saEmail)
+	sa, err := gcpService.CreateServiceAccount(createReq, projectID, saEmail)
+	if err != nil {
+		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
+	}
+	logger.Infof("Created service account %s", saAccountID)
+	roles := []string{"roles/storage.objectUser"}
+
+	err = gcpService.AttachOrUpdateRolesForServiceAccounts(roles, saEmail, projectID)
+	if err != nil {
+		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
+	}
+	return sa, nil
 }
 
 // deletingSVMs updates svm status to deleting.

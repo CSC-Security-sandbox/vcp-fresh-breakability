@@ -23,11 +23,13 @@ type Services interface {
 	GetFirewall(projectName string, firewallName string) (*models.Firewall, error)
 	ReleaseSubnetwork(region, tenantProjectNumber, subnetwork string) error
 	CreateBucketIfNotExists(ctx context.Context, projectID, bucketName, region string) error
+	DeleteBucket(ctx context.Context, bucketName string) error
 
 	GetServiceAccount(projectID, email string) (*iam.ServiceAccount, error)
 	CreateServiceAccount(createRequest *iam.CreateServiceAccountRequest, projectNumber, email string) (account *iam.ServiceAccount, err error)
 	IsServiceAccountCreated(email string) (account *iam.ServiceAccount, isSACreated bool, err error)
 	AttachOrUpdateRolesForServiceAccounts(roles []string, serviceAccountEmail, projectID string) error
+	DeleteServiceAccount(email string) error
 }
 
 type GoogleServices interface {

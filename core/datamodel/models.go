@@ -31,6 +31,8 @@ type Pool struct {
 	QosType                 string          `gorm:"column:qos_type"`
 	Username                string          `gorm:"column:username"`
 	Password                string          `gorm:"column:password"`
+	AutoTierBucketName      string          `gorm:"column:auto_tier_bucket_name;type:text"`
+	ServiceAccountId        string          `gorm:"column:service_account_id;type:text"`
 }
 
 type PoolView struct {

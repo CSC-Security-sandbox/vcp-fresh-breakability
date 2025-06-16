@@ -3,6 +3,7 @@ package activities_test
 import (
 	"context"
 	"fmt"
+	"google.golang.org/api/iam/v1"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -450,7 +451,7 @@ func Test_prepareVlmConfig_Success(t *testing.T) {
 		return []byte("{}"), nil
 	}
 
-	err := activities.PrepareVlmConfig(cfg, "test-deployment", "test-region", "test-zone1", "test-zone2", "test-network", "test-subnet", "test-project", "test-sn-host-project", 1024, 64, 1024)
+	err := activities.PrepareVlmConfig(cfg, "test-deployment", "test-region", "test-zone1", "test-zone2", "test-network", "test-subnet", "test-project", "test-sn-host-project", 1024, 64, 1024, "test-tenant-project@xyz.com", "test-tenant-project")
 	assert.NoError(t, err)
 	assert.Equal(t, "test-deployment", cfg.Deployment.DeploymentID)
 	assert.Equal(t, "test-region", cfg.Deployment.Region)
@@ -465,7 +466,7 @@ func Test_prepareVlmConfig_Success(t *testing.T) {
 
 func Test_prepareVlmConfig_FileNotFound(t *testing.T) {
 	cfg := &vlmconfig.VLMConfig{}
-	err := activities.PrepareVlmConfig(cfg, "test-deployment", "test-region", "test-zone1", "test-zone2", "test-network", "test-subnet", "test-project", "test-sn-host-project", 1024, 64, 2014)
+	err := activities.PrepareVlmConfig(cfg, "test-deployment", "test-region", "test-zone1", "test-zone2", "test-network", "test-subnet", "test-project", "test-sn-host-project", 1024, 64, 2014, "test-tenant-project@xyz.com", "test-tenant-project")
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "no such file or directory")
 }
@@ -478,7 +479,7 @@ func Test_prepareVlmConfig_InvalidJSON(t *testing.T) {
 	}
 
 	cfg := &vlmconfig.VLMConfig{}
-	err := activities.PrepareVlmConfig(cfg, "test-deployment", "test-region", "test-zone1", "test=zone2", "test-network", "test-subnet", "test-project", "test-sn-host-project", 1024, 64, 1024)
+	err := activities.PrepareVlmConfig(cfg, "test-deployment", "test-region", "test-zone1", "test=zone2", "test-network", "test-subnet", "test-project", "test-sn-host-project", 1024, 64, 1024, "test-tenant-project@xyz.com", "test-tenant-project")
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "invalid character")
 }
@@ -496,7 +497,7 @@ func Test_prepareVlmConfig_EmptyDeploymentName(t *testing.T) {
 	activities.ReadFile = func(filename string) ([]byte, error) {
 		return []byte("{}"), nil
 	}
-	err := activities.PrepareVlmConfig(cfg, "", "test-region", "test-zone", "test-zone", "test-network", "test-subnet", "test-project", "test-sn-host-project", 1099511627776, 64, 1024)
+	err := activities.PrepareVlmConfig(cfg, "", "test-region", "test-zone", "test-zone", "test-network", "test-subnet", "test-project", "test-sn-host-project", 1099511627776, 64, 1024, "test-tenant-project@xyz.com", "test-tenant-project")
 	assert.NoError(t, err)
 	assert.Equal(t, "", cfg.Deployment.DeploymentID)
 	assert.Equal(t, "test-region", cfg.Deployment.Region)
@@ -760,7 +761,7 @@ func Test_CreateVSACluster_Success(t *testing.T) {
 	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
 	cfg := &vlmconfig.VLMConfig{}
 
-	activities.PrepareVlmConfig = func(cfg *vlmconfig.VLMConfig, deploymentName, region, primaryZone, secondaryZone, network, subnet, projectId, snHostProject string, sizeInGib int, throughputMibps, iops int64) error {
+	activities.PrepareVlmConfig = func(cfg *vlmconfig.VLMConfig, deploymentName, region, primaryZone, secondaryZone, network, subnet, projectId, snHostProject string, sizeInGib int, throughputMibps, iops int64, saEmail string, autoTierBucket string) error {
 		return nil
 	}
 	activities.GetVLMClient = func(ctx context.Context, logger log.Logger, vlmConfig *vlmconfig.VLMConfig) vlm.ClientFactory {
@@ -768,7 +769,7 @@ func Test_CreateVSACluster_Success(t *testing.T) {
 	}
 	mockVlmClient.On("VSAClusterDeployCreate", ctx, cfg).Return(nil)
 
-	result, err := activity.CreateVSACluster(ctx, "test-deployment", "test-region", "test-zone1", "test-zone2", "test-network", "test-subnet", "test-project", "test-sn-host-project", 1024, 64, 1024)
+	result, err := activity.CreateVSACluster(ctx, "test-deployment", "test-region", "test-zone1", "test-zone2", "test-network", "test-subnet", "test-project", "test-sn-host-project", 1024, 64, 1024, "test-tenant-project@xyz.com", "test-tenant-project")
 
 	assert.NoError(t, err)
 	assert.NotNil(t, result)
@@ -785,13 +786,13 @@ func Test_CreateVSACluster_FailsToPrepareConfig(t *testing.T) {
 		activities.PrepareVlmConfig = prepareVLMConfig
 	}()
 
-	activities.PrepareVlmConfig = func(cfg *vlmconfig.VLMConfig, deploymentName, region, primaryZone, secondaryZone, network, subnet, projectId, snHostProject string, sizeInGib int, throughPutMibps, iops int64) error {
+	activities.PrepareVlmConfig = func(cfg *vlmconfig.VLMConfig, deploymentName, region, primaryZone, secondaryZone, network, subnet, projectId, snHostProject string, sizeInGib int, throughPutMibps, iops int64, saEmail string, autoTierBucket string) error {
 		return errors.New("failed to prepare VLM config")
 	}
 
 	mockVlmClient.On("VSAClusterDeployGet", ctx, cfg).Return(prepareVLMConfig, nil)
 
-	result, err := activity.CreateVSACluster(ctx, "test-deployment", "test-region", "test-zone1", "test-zone2", "test-network", "test-subnet", "test-project", "test-sn-host-project", 1024, 64, 1024)
+	result, err := activity.CreateVSACluster(ctx, "test-deployment", "test-region", "test-zone1", "test-zone2", "test-network", "test-subnet", "test-project", "test-sn-host-project", 1024, 64, 1024, "test-tenant-project@xyz.com", "test-tenant-project")
 
 	assert.Error(t, err)
 	assert.Nil(t, result)
@@ -810,7 +811,7 @@ func Test_CreateVSACluster_FailsToDeployCluster(t *testing.T) {
 	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
 	cfg := &vlmconfig.VLMConfig{}
 
-	activities.PrepareVlmConfig = func(cfg *vlmconfig.VLMConfig, deploymentName, region, zone1, zone2, network, subnet, projectId, snHostProject string, sizeInGib int, throughPutMibps, iops int64) error {
+	activities.PrepareVlmConfig = func(cfg *vlmconfig.VLMConfig, deploymentName, region, zone1, zone2, network, subnet, projectId, snHostProject string, sizeInGib int, throughPutMibps, iops int64, saEmail string, autoTierBucket string) error {
 		return nil
 	}
 	activities.GetVLMClient = func(ctx context.Context, logger log.Logger, vlmConfig *vlmconfig.VLMConfig) vlm.ClientFactory {
@@ -818,7 +819,7 @@ func Test_CreateVSACluster_FailsToDeployCluster(t *testing.T) {
 	}
 	mockVlmClient.On("VSAClusterDeployCreate", ctx, cfg).Return(errors.New("failed to deploy VSA cluster"))
 
-	result, err := activity.CreateVSACluster(ctx, "test-deployment", "test-region", "test-zone1", "test-zone2", "test-network", "test-subnet", "test-project", "test-sn-host-project", 1024, 64, 1024)
+	result, err := activity.CreateVSACluster(ctx, "test-deployment", "test-region", "test-zone1", "test-zone2", "test-network", "test-subnet", "test-project", "test-sn-host-project", 1024, 64, 1024, "test-tenant-project@xyz.com", "test-tenant-project")
 
 	assert.Error(t, err)
 	assert.Nil(t, result)
@@ -1833,7 +1834,7 @@ func Test_ReturnsErrorWhenVLMConfigPreparationFails(t *testing.T) {
 	pool := &datamodel.Pool{ClusterDetails: datamodel.ClusterDetails{ExternalName: "test-deployment"},
 		PoolAttributes: &datamodel.PoolAttributes{ThroughputMibps: 64, Iops: 1000, PrimaryZone: "zone1"}}
 
-	activities.PrepareVlmConfig = func(cfg *vlmconfig.VLMConfig, deploymentName, region, zone1, zone2, network, subnet, projectId, snHostProject string, sizeInGib int, throughPutMibps, iops int64) error {
+	activities.PrepareVlmConfig = func(cfg *vlmconfig.VLMConfig, deploymentName, region, zone1, zone2, network, subnet, projectId, snHostProject string, sizeInGib int, throughPutMibps, iops int64, saEmail string, autoTierBucket string) error {
 		return errors.New("failed to prepare VLM config")
 	}
 
@@ -1859,7 +1860,7 @@ func Test_ReturnsErrorWhenVSAClusterDeletionFails(t *testing.T) {
 	pool := &datamodel.Pool{ClusterDetails: datamodel.ClusterDetails{ExternalName: "test-deployment"},
 		PoolAttributes: &datamodel.PoolAttributes{ThroughputMibps: 64, Iops: 1000, PrimaryZone: "zone1"}}
 
-	activities.PrepareVlmConfig = func(cfg *vlmconfig.VLMConfig, deploymentName, region, zone1, zone2, network, subnet, projectId, snHostProject string, sizeInGib int, throughPutMibps, iops int64) error {
+	activities.PrepareVlmConfig = func(cfg *vlmconfig.VLMConfig, deploymentName, region, zone1, zone2, network, subnet, projectId, snHostProject string, sizeInGib int, throughPutMibps, iops int64, saEmail string, autoTierBucket string) error {
 		return nil
 	}
 	activities.GetVLMClient = func(ctx context.Context, logger log.Logger, vlmConfig *vlmconfig.VLMConfig) vlm.ClientFactory {
@@ -1890,7 +1891,7 @@ func Test_DeletesVSADeploymentSuccessfully(t *testing.T) {
 	pool := &datamodel.Pool{ClusterDetails: datamodel.ClusterDetails{ExternalName: "test-deployment"},
 		PoolAttributes: &datamodel.PoolAttributes{ThroughputMibps: 64, Iops: 1000, PrimaryZone: "zone1"}}
 
-	activities.PrepareVlmConfig = func(cfg *vlmconfig.VLMConfig, deploymentName, region, zone1, zone2, network, subnet, projectId, snHostProject string, sizeInGib int, throughPutMibps, iops int64) error {
+	activities.PrepareVlmConfig = func(cfg *vlmconfig.VLMConfig, deploymentName, region, zone1, zone2, network, subnet, projectId, snHostProject string, sizeInGib int, throughPutMibps, iops int64, saEmail string, autoTierBucket string) error {
 		return nil
 	}
 	activities.GetVLMClient = func(ctx context.Context, logger log.Logger, vlmConfig *vlmconfig.VLMConfig) vlm.ClientFactory {
@@ -2476,15 +2477,13 @@ func Test_CreateGCPBucket_Success(t *testing.T) {
 	ctx := context.Background()
 	projectId := "test-project"
 	region := "us-central1"
-	poolId := "f2d9e18b-6716-9170-de70-827f5f769907"
+	bucketName := "us-central-poolID"
 
 	mockGcp.EXPECT().InitializeClients().Return(nil)
 
-	bucketName := fmt.Sprintf("%s-%s", region, poolId)
-
 	// Create a bucket in the project if it doesn't exist
 	mockGcp.EXPECT().CreateBucketIfNotExists(ctx, projectId, bucketName, region).Return(nil)
-	err := activities.CreateGCPBucket(ctx, projectId, poolId, region, mockGcp)
+	err := activities.CreateGCPBucket(ctx, projectId, bucketName, region, mockGcp)
 	assert.NoError(t, err)
 }
 
@@ -2493,13 +2492,12 @@ func Test_CreateGCPBucket_Failure(t *testing.T) {
 	ctx := context.Background()
 	projectId := "test-project"
 	region := "us-central1"
-	poolId := "f2d9e18b-6716-9170-de70-827f5f769907"
+	bucketName := "us-central-poolID"
 
 	mockGcp.EXPECT().InitializeClients().Return(nil)
-	bucketName := fmt.Sprintf("%s-%s", region, poolId)
 
 	mockGcp.EXPECT().CreateBucketIfNotExists(ctx, projectId, bucketName, region).Return(errors.New("failed to create bucket"))
-	err := activities.CreateGCPBucket(ctx, projectId, poolId, region, mockGcp)
+	err := activities.CreateGCPBucket(ctx, projectId, bucketName, region, mockGcp)
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "failed to create bucket")
 }
@@ -2507,7 +2505,7 @@ func Test_CreateGCPBucket_Failure(t *testing.T) {
 func Test_EnableAutoTiering_Failure(t *testing.T) {
 	activity := activities.PoolActivity{}
 	ctx := context.Background()
-	params := commonparams.CreatePoolParams{Name: "test-pool"}
+	bucketName := "region-poolId"
 	projectId := "test-project"
 
 	// Save original and mock _createGCPBucket
@@ -2517,7 +2515,220 @@ func Test_EnableAutoTiering_Failure(t *testing.T) {
 		return errors.New("Error 403: The billing account for the owning project is disabled in state absent, accountDisabled")
 	}
 
-	err := activity.EnableAutoTiering(ctx, params, "f2d9e18b-6716-9170-de70-827f5f769907", projectId)
+	err := activity.CreateAutoTierBucket(ctx, bucketName, "region", projectId)
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "Error 403: The billing account for the owning project is disabled in state absent, accountDisabled")
+}
+
+func TestPoolActivity_CreateServiceAccountWithStorageRole(t *testing.T) {
+	activity := activities.PoolActivity{}
+	ctx := context.Background()
+	projectID := "test-project"
+	saAccountID := "test-sa"
+	saDisplayName := "Test Service Account"
+
+	origCreateServiceAccountAndAttachRole := activities.CreateServiceAccountAndAttachRole
+	defer func() { activities.CreateServiceAccountAndAttachRole = origCreateServiceAccountAndAttachRole }()
+
+	t.Run("success", func(t *testing.T) {
+		expectedSA := &iam.ServiceAccount{Name: "projects/test-project/serviceAccounts/test-sa"}
+		activities.CreateServiceAccountAndAttachRole = func(ctx context.Context, projectID, saAccountID, saDisplayName string, gcpService hyperscaler.GoogleServices) (*iam.ServiceAccount, error) {
+			return expectedSA, nil
+		}
+
+		sa, err := activity.CreateServiceAccountWithStorageRole(ctx, projectID, saAccountID, saDisplayName)
+		assert.NoError(t, err)
+		assert.Equal(t, expectedSA, sa)
+	})
+
+	t.Run("error", func(t *testing.T) {
+		activities.CreateServiceAccountAndAttachRole = func(ctx context.Context, projectID, saAccountID, saDisplayName string, gcpService hyperscaler.GoogleServices) (*iam.ServiceAccount, error) {
+			return nil, errors.New("Mock error: failed to create service account")
+		}
+
+		sa, err := activity.CreateServiceAccountWithStorageRole(ctx, projectID, saAccountID, saDisplayName)
+		assert.Error(t, err)
+		assert.Nil(t, sa)
+		assert.Contains(t, err.Error(), "failed to create service account")
+	})
+}
+
+func Test_createServiceAccountAndAttachRole(t *testing.T) {
+	ctx := context.Background()
+	projectID := "test-project"
+	saAccountID := "test-sa"
+	saDisplayName := "Test Service Account"
+	saEmail := fmt.Sprintf("%s@%s.iam.gserviceaccount.com", saAccountID, projectID)
+	expectedSA := &iam.ServiceAccount{Email: saEmail}
+	roles := []string{"roles/storage.objectUser"}
+
+	t.Run("success", func(t *testing.T) {
+		mockGcp := hyperscaler.NewMockGoogleServices(t)
+		createReq := &iam.CreateServiceAccountRequest{
+			AccountId: saAccountID,
+			ServiceAccount: &iam.ServiceAccount{
+				DisplayName: saDisplayName,
+			},
+		}
+		mockGcp.EXPECT().InitializeClients().Return(nil)
+		mockGcp.EXPECT().CreateServiceAccount(createReq, projectID, saEmail).Return(expectedSA, nil)
+		mockGcp.EXPECT().AttachOrUpdateRolesForServiceAccounts(roles, saEmail, projectID).Return(nil)
+
+		sa, err := activities.CreateServiceAccountAndAttachRole(ctx, projectID, saAccountID, saDisplayName, mockGcp)
+		assert.NoError(t, err)
+		assert.Equal(t, expectedSA, sa)
+	})
+
+	t.Run("create service account fails", func(t *testing.T) {
+		mockGcp := hyperscaler.NewMockGoogleServices(t)
+		createReq := &iam.CreateServiceAccountRequest{
+			AccountId: saAccountID,
+			ServiceAccount: &iam.ServiceAccount{
+				DisplayName: saDisplayName,
+			},
+		}
+		mockGcp.EXPECT().InitializeClients().Return(nil)
+		mockGcp.EXPECT().CreateServiceAccount(createReq, projectID, saEmail).Return(nil, errors.New("create error"))
+
+		sa, err := activities.CreateServiceAccountAndAttachRole(ctx, projectID, saAccountID, saDisplayName, mockGcp)
+		assert.Error(t, err)
+		assert.Nil(t, sa)
+		assert.Contains(t, err.Error(), "create error")
+	})
+
+	t.Run("attach roles fails", func(t *testing.T) {
+		mockGcp := hyperscaler.NewMockGoogleServices(t)
+		createReq := &iam.CreateServiceAccountRequest{
+			AccountId: saAccountID,
+			ServiceAccount: &iam.ServiceAccount{
+				DisplayName: saDisplayName,
+			},
+		}
+		mockGcp.EXPECT().InitializeClients().Return(nil)
+		mockGcp.EXPECT().CreateServiceAccount(createReq, projectID, saEmail).Return(expectedSA, nil)
+		mockGcp.EXPECT().AttachOrUpdateRolesForServiceAccounts(roles, saEmail, projectID).Return(errors.New("attach error"))
+
+		sa, err := activities.CreateServiceAccountAndAttachRole(ctx, projectID, saAccountID, saDisplayName, mockGcp)
+		assert.Error(t, err)
+		assert.Nil(t, sa)
+		assert.Contains(t, err.Error(), "attach error")
+	})
+}
+
+func TestPoolActivity_DeleteAutoTierBucket(t *testing.T) {
+	activity := activities.PoolActivity{}
+	ctx := context.Background()
+	bucketName := "us-central1-test-pool"
+
+	// Save and mock DeleteGCPBucket
+	origDeleteGCPBucket := activities.DeleteGCPBucket
+	defer func() { activities.DeleteGCPBucket = origDeleteGCPBucket }()
+
+	t.Run("success", func(t *testing.T) {
+		activities.DeleteGCPBucket = func(ctx context.Context, bucketName string, gcpService hyperscaler.GoogleServices) error {
+			return nil
+		}
+		err := activity.DeleteAutoTierBucket(ctx, bucketName)
+		assert.NoError(t, err)
+	})
+
+	t.Run("failure", func(t *testing.T) {
+		activities.DeleteGCPBucket = func(ctx context.Context, bucketName string, gcpService hyperscaler.GoogleServices) error {
+			return errors.New("delete failed")
+		}
+		err := activity.DeleteAutoTierBucket(ctx, bucketName)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "delete failed")
+	})
+}
+
+func Test_deleteGCPBucket(t *testing.T) {
+	ctx := context.Background()
+	poolId := "test-pool"
+	region := "us-central1"
+	bucketName := fmt.Sprintf("%s-%s", region, poolId)
+
+	t.Run("Success", func(t *testing.T) {
+		mockGcp := hyperscaler.NewMockGoogleServices(t)
+		mockGcp.EXPECT().InitializeClients().Return(nil)
+		mockGcp.EXPECT().DeleteBucket(ctx, bucketName).Return(nil)
+		err := activities.DeleteGCPBucket(ctx, bucketName, mockGcp)
+		assert.NoError(t, err)
+	})
+
+	t.Run("Failure", func(t *testing.T) {
+		mockGcp := hyperscaler.NewMockGoogleServices(t)
+		mockGcp.EXPECT().InitializeClients().Return(nil)
+		mockGcp.EXPECT().DeleteBucket(ctx, bucketName).Return(errors.New("delete failed"))
+		err := activities.DeleteGCPBucket(ctx, bucketName, mockGcp)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "delete failed")
+	})
+
+	t.Run("InitClients fails", func(t *testing.T) {
+		mockGcp := hyperscaler.NewMockGoogleServices(t)
+		mockGcp.EXPECT().InitializeClients().Return(errors.New("init error"))
+		err := activities.DeleteGCPBucket(ctx, bucketName, mockGcp)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "init error")
+	})
+}
+
+func Test_deleteServiceAccount(t *testing.T) {
+	ctx := context.Background()
+	projectID := "test-project"
+	saAccountID := "test-sa"
+	saEmail := fmt.Sprintf("%s@%s.iam.gserviceaccount.com", saAccountID, projectID)
+
+	t.Run("success", func(t *testing.T) {
+		mockGcp := hyperscaler.NewMockGoogleServices(t)
+		mockGcp.EXPECT().InitializeClients().Return(nil)
+		mockGcp.EXPECT().DeleteServiceAccount(saEmail).Return(nil)
+		err := activities.DeleteSrvcAccount(ctx, projectID, saAccountID, mockGcp)
+		assert.NoError(t, err)
+	})
+
+	t.Run("delete fails", func(t *testing.T) {
+		mockGcp := hyperscaler.NewMockGoogleServices(t)
+		mockGcp.EXPECT().InitializeClients().Return(nil)
+		mockGcp.EXPECT().DeleteServiceAccount(saEmail).Return(errors.New("delete failed"))
+		err := activities.DeleteSrvcAccount(ctx, projectID, saAccountID, mockGcp)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "delete failed")
+	})
+
+	t.Run("init fails", func(t *testing.T) {
+		mockGcp := hyperscaler.NewMockGoogleServices(t)
+		mockGcp.EXPECT().InitializeClients().Return(errors.New("init error"))
+		err := activities.DeleteSrvcAccount(ctx, projectID, saAccountID, mockGcp)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "init error")
+	})
+}
+
+func TestPoolActivity_DeleteServiceAccount(t *testing.T) {
+	activity := activities.PoolActivity{}
+	ctx := context.Background()
+	projectID := "test-project"
+	saAccountID := "test-sa"
+
+	origDeleteSrvcAccount := activities.DeleteSrvcAccount
+	defer func() { activities.DeleteSrvcAccount = origDeleteSrvcAccount }()
+
+	t.Run("success", func(t *testing.T) {
+		activities.DeleteSrvcAccount = func(ctx context.Context, projectID, saAccountID string, gcpService hyperscaler.GoogleServices) error {
+			return nil
+		}
+		err := activity.DeleteServiceAccount(ctx, projectID, saAccountID)
+		assert.NoError(t, err)
+	})
+
+	t.Run("failure", func(t *testing.T) {
+		activities.DeleteSrvcAccount = func(ctx context.Context, projectID, saAccountID string, gcpService hyperscaler.GoogleServices) error {
+			return errors.New("delete error")
+		}
+		err := activity.DeleteServiceAccount(ctx, projectID, saAccountID)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "delete error")
+	})
 }

@@ -24,6 +24,8 @@ type Pool struct {
 	PoolAttributes          *PoolAttributes
 	ClusterAttributes       *ClusterAttributes
 	CustomPerformanceParams *CustomPerformanceParams
+	AutoTierBucketName      string
+	SaAccountID             string
 }
 
 // PoolAttributes describes the attributes of a pool model

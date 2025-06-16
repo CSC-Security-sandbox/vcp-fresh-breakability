@@ -14,6 +14,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 	"go.temporal.io/sdk/temporal"
 	"go.temporal.io/sdk/workflow"
+	"google.golang.org/api/iam/v1"
 	"netapp.com/vsa/lifecycle-manager/pkg/vlmconfig"
 )
 
@@ -118,17 +119,25 @@ func (wf *createPoolWorkflow) Run(ctx workflow.Context, args ...interface{}) (in
 		return nil, err
 	}
 
+	serviceAccount := &iam.ServiceAccount{}
+	err = workflow.ExecuteActivity(ctx, poolActivity.CreateServiceAccountWithStorageRole, tenancyDetails.RegionalTenantProject, pool.ServiceAccountId, pool.Name).Get(ctx, serviceAccount)
+	if err != nil {
+		return nil, err
+	}
+	rollbackManager.Add(poolActivity.DeleteServiceAccount, tenancyDetails.RegionalTenantProject, pool.ServiceAccountId)
+
+	err = workflow.ExecuteActivity(ctx, poolActivity.CreateAutoTierBucket, pool.AutoTierBucketName, params.Region, tenancyDetails.RegionalTenantProject).Get(ctx, nil)
+	if err != nil {
+		return nil, err
+	}
+	rollbackManager.Add(poolActivity.DeleteAutoTierBucket, pool.AutoTierBucketName)
+
 	clusterName := params.Name + "-" + params.AccountName
 	sizeInGB := utils.BytesToGigabytes(params.SizeInBytes)
 
 	cfg := &vlmconfig.VLMConfig{}
 	err = workflow.ExecuteActivity(ctx, poolActivity.CreateVSACluster, clusterName, params.Region, params.PrimaryZone, params.SecondaryZone, tenancyDetails.Network, tenancyDetails.SubnetworkName,
-		tenancyDetails.RegionalTenantProject, tenancyDetails.SnHostProject, sizeInGB, params.CustomPerformanceParams.ThroughputMibps, params.CustomPerformanceParams.Iops).Get(ctx, cfg)
-	if err != nil {
-		return nil, err
-	}
-
-	err = workflow.ExecuteActivity(ctx, poolActivity.EnableAutoTiering, params, pool.UUID, tenancyDetails.RegionalTenantProject).Get(ctx, nil)
+		tenancyDetails.RegionalTenantProject, tenancyDetails.SnHostProject, sizeInGB, params.CustomPerformanceParams.ThroughputMibps, params.CustomPerformanceParams.Iops, serviceAccount.Email, pool.AutoTierBucketName).Get(ctx, cfg)
 	if err != nil {
 		return nil, err
 	}
@@ -271,6 +280,16 @@ func (wf *deletePoolWorkflow) Run(ctx workflow.Context, args ...interface{}) (in
 	}
 
 	err = workflow.ExecuteActivity(ctx, poolActivity.DeleteVSADeployment, dbPool).Get(ctx, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	err = workflow.ExecuteActivity(ctx, poolActivity.DeleteAutoTierBucket, dbPool.AutoTierBucketName).Get(ctx, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	err = workflow.ExecuteActivity(ctx, poolActivity.DeleteServiceAccount, dbPool.ClusterDetails.RegionalTenantProject, dbPool.ServiceAccountId).Get(ctx, nil)
 	if err != nil {
 		return nil, err
 	}

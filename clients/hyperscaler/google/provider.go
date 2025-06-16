@@ -329,6 +329,22 @@ func (gcpService *GcpServices) CreateBucketIfNotExists(ctx context.Context, proj
 	return nil
 }
 
+func (gcpService *GcpServices) DeleteBucket(ctx context.Context, bucketName string) error {
+	logger := util.GetLogger(ctx)
+	logger.Debugf("Deleting bucket: %s", bucketName)
+
+	err := gcpService.AdminGCPService.storageService.Bucket(bucketName).Delete(ctx)
+	if err != nil {
+		var gErr *googleapi.Error
+		if errors.As(err, &gErr) && gErr.Code == http.StatusNotFound {
+			// Bucket does not exist, treat as success
+			return nil
+		}
+		return fmt.Errorf("Buckets.Delete: %v", err)
+	}
+	return nil
+}
+
 // GetServiceNetworkingEndpoint returns the service consumer management endpoint
 func (gcpService *GcpServices) GetServiceNetworkingEndpoint() string {
 	if gcpService.serviceNetworkingEndpoint == "" {
@@ -478,4 +494,17 @@ func (gcpService *GcpServices) GetServiceAccountByEmail(email string) (*iam.Serv
 		return nil, fmt.Errorf("Projects.ServiceAccounts.Get: %v", err)
 	}
 	return account, nil
+}
+
+func (gcpService *GcpServices) DeleteServiceAccount(saEmail string) error {
+	name := "projects/-/serviceAccounts/" + saEmail
+	_, err := gcpService.AdminGCPService.iamService.Projects.ServiceAccounts.Delete(name).Do()
+	if err != nil {
+		if gerr, ok := err.(*googleapi.Error); ok && gerr.Code == http.StatusNotFound {
+			// Service account does not exist, treat as success
+			return nil
+		}
+		return fmt.Errorf("Projects.ServiceAccounts.Delete: %v", err)
+	}
+	return nil
 }

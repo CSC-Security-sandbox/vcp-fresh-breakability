@@ -466,8 +466,12 @@ func TestGcpServices_GetLogger(t *testing.T) {
 type mockBucketHandle struct {
 	attrsErr  error
 	createErr error
+	deleteErr error
 }
 
+func (m *mockBucketHandle) Delete(ctx context.Context) error {
+	return m.deleteErr
+}
 func (m *mockBucketHandle) Attrs(ctx context.Context) (*storage.BucketAttrs, error) {
 	return nil, m.attrsErr
 }
@@ -1156,4 +1160,86 @@ func Test_SetProjectIamPolicyd(t *testing.T) {
 		err = gService.setProjectIamPolicy(projectName, etag, projectIAMPolicyBindings)
 		assert.NotNil(tt, err)
 	})
+}
+
+func TestGcpServices_DeleteBucket(t *testing.T) {
+	ctx := context.Background()
+
+	t.Run("delete succeeds", func(t *testing.T) {
+		gcp := &GcpServices{
+			AdminGCPService: &AdminGCPService{
+				storageService: &mockStorageClient{
+					bucket: &mockBucketHandle{deleteErr: nil},
+				},
+			},
+		}
+		err := gcp.DeleteBucket(ctx, "bucket-name")
+		assert.NoError(t, err)
+	})
+
+	t.Run("delete fails", func(t *testing.T) {
+		gcp := &GcpServices{
+			AdminGCPService: &AdminGCPService{
+				storageService: &mockStorageClient{
+					bucket: &mockBucketHandle{deleteErr: errors.New("delete error")},
+				},
+			},
+		}
+		err := gcp.DeleteBucket(ctx, "bucket-name")
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "delete error")
+	})
+}
+
+func TestGcpServices_DeleteServiceAccount(t *testing.T) {
+	tests := []struct {
+		name         string
+		statusCode   int
+		responseBody string
+		wantErr      bool
+	}{
+		{
+			name:       "service account not found",
+			statusCode: http.StatusNotFound,
+			wantErr:    false,
+		},
+		{
+			name:       "delete fails with other error",
+			statusCode: http.StatusInternalServerError,
+			wantErr:    true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			urlPath := "/v1/projects/-/serviceAccounts/test-sa@test-project.iam.gserviceaccount.com"
+			server := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
+				if req.URL.Path == urlPath {
+					rw.WriteHeader(tt.statusCode)
+					if tt.responseBody != "" {
+						_, _ = rw.Write([]byte(tt.responseBody))
+					}
+					return
+				}
+				rw.WriteHeader(http.StatusNotFound)
+			}))
+			defer server.Close()
+
+			ctx := context.Background()
+			iamSvc, err := iam.NewService(ctx, option.WithHTTPClient(&http.Client{Timeout: time.Second}), option.WithEndpoint(server.URL))
+			assert.NoError(t, err)
+
+			gcp := &GcpServices{
+				AdminGCPService: &AdminGCPService{
+					iamService: iamSvc,
+				},
+			}
+			err = gcp.DeleteServiceAccount("test-sa@test-project.iam.gserviceaccount.com")
+			if tt.wantErr {
+				assert.Error(t, err)
+			} else {
+				assert.NoError(t, err)
+			}
+		})
+	}
 }

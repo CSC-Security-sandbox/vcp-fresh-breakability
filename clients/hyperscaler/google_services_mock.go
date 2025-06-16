@@ -334,6 +334,99 @@ func (_c *MockGoogleServices_CreateVPC_Call) RunAndReturn(run func(*models.VPCNe
 	return _c
 }
 
+// DeleteBucket provides a mock function with given fields: ctx, bucketName
+func (_m *MockGoogleServices) DeleteBucket(ctx context.Context, bucketName string) error {
+	ret := _m.Called(ctx, bucketName)
+
+	if len(ret) == 0 {
+		panic("no return value specified for DeleteBucket")
+	}
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(context.Context, string) error); ok {
+		r0 = rf(ctx, bucketName)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// MockGoogleServices_DeleteBucket_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'DeleteBucket'
+type MockGoogleServices_DeleteBucket_Call struct {
+	*mock.Call
+}
+
+// DeleteBucket is a helper method to define mock.On call
+//   - ctx context.Context
+//   - bucketName string
+func (_e *MockGoogleServices_Expecter) DeleteBucket(ctx interface{}, bucketName interface{}) *MockGoogleServices_DeleteBucket_Call {
+	return &MockGoogleServices_DeleteBucket_Call{Call: _e.mock.On("DeleteBucket", ctx, bucketName)}
+}
+
+func (_c *MockGoogleServices_DeleteBucket_Call) Run(run func(ctx context.Context, bucketName string)) *MockGoogleServices_DeleteBucket_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(string))
+	})
+	return _c
+}
+
+func (_c *MockGoogleServices_DeleteBucket_Call) Return(_a0 error) *MockGoogleServices_DeleteBucket_Call {
+	_c.Call.Return(_a0)
+	return _c
+}
+
+func (_c *MockGoogleServices_DeleteBucket_Call) RunAndReturn(run func(context.Context, string) error) *MockGoogleServices_DeleteBucket_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// DeleteServiceAccount provides a mock function with given fields: email
+func (_m *MockGoogleServices) DeleteServiceAccount(email string) error {
+	ret := _m.Called(email)
+
+	if len(ret) == 0 {
+		panic("no return value specified for DeleteServiceAccount")
+	}
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(string) error); ok {
+		r0 = rf(email)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// MockGoogleServices_DeleteServiceAccount_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'DeleteServiceAccount'
+type MockGoogleServices_DeleteServiceAccount_Call struct {
+	*mock.Call
+}
+
+// DeleteServiceAccount is a helper method to define mock.On call
+//   - email string
+func (_e *MockGoogleServices_Expecter) DeleteServiceAccount(email interface{}) *MockGoogleServices_DeleteServiceAccount_Call {
+	return &MockGoogleServices_DeleteServiceAccount_Call{Call: _e.mock.On("DeleteServiceAccount", email)}
+}
+
+func (_c *MockGoogleServices_DeleteServiceAccount_Call) Run(run func(email string)) *MockGoogleServices_DeleteServiceAccount_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(string))
+	})
+	return _c
+}
+
+func (_c *MockGoogleServices_DeleteServiceAccount_Call) Return(_a0 error) *MockGoogleServices_DeleteServiceAccount_Call {
+	_c.Call.Return(_a0)
+	return _c
+}
+
+func (_c *MockGoogleServices_DeleteServiceAccount_Call) RunAndReturn(run func(string) error) *MockGoogleServices_DeleteServiceAccount_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // GetFirewall provides a mock function with given fields: projectName, firewallName
 func (_m *MockGoogleServices) GetFirewall(projectName string, firewallName string) (*models.Firewall, error) {
 	ret := _m.Called(projectName, firewallName)

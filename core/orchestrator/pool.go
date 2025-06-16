@@ -74,6 +74,9 @@ func _createPool(ctx context.Context, se database.Storage, temporal client.Clien
 		logger.Error("Failed to create job in database", "error", err)
 		return nil, "", err
 	}
+	saTimestamp := time.Now().Format("20060102150405")
+	serviceAccountID := fmt.Sprintf("vsa-sa-%s", saTimestamp)
+
 	poolObj := &datamodel.Pool{
 		Name:                    params.Name,
 		Account:                 account,
@@ -89,6 +92,8 @@ func _createPool(ctx context.Context, se database.Storage, temporal client.Clien
 		QosType:                 params.QosType,
 		Username:                nodeUsername,
 		Password:                nodePassword,
+		AutoTierBucketName:      params.Region,
+		ServiceAccountId:        serviceAccountID,
 		PoolAttributes: &datamodel.PoolAttributes{
 			ThroughputMibps: params.CustomPerformanceParams.ThroughputMibps,
 			Iops:            params.CustomPerformanceParams.Iops,
