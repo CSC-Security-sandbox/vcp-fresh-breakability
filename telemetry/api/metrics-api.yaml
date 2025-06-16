@@ -1,0 +1,72 @@
+openapi: 3.0.4
+info:
+  title: Google Cloud NetApp Files API
+  description: '## Google Cloud NetApp Files This is the documentation and examples
+    for the "Google Cloud NetApp Files" or GNF for short'
+  version: "${major_version}.${minor_version}.${patch_version}"
+  x-logo:
+    url: nfsaas-logo.png
+    backgroundColor: '#FFFFFF'
+tags:
+  - name: billing and metrics
+    description: Billing and Metrics operations
+paths:
+  /v1/performance:
+    post:
+      tags:
+        - performance metrics
+      summary: Trigger Performance Metrics Collection.
+      description: Trigger Performance Metrics Collection
+      operationId: v1_performance
+      responses:
+        "202":
+          description: Metrics collection triggered
+        "400":
+          description: Bad request
+        "500":
+          description: Internal server error
+        default:
+          description: Unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /v1/usage:
+    post:
+      tags:
+        - usage metrics
+      summary: Trigger Usage Metrics Collection.
+      description: Trigger Usage Metrics Collection
+      operationId: v1_usage
+      responses:
+        "202":
+          description: Metrics collection triggered
+        "400":
+          description: Bad request
+        "500":
+          description: Internal server error
+        default:
+          description: Unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+components:
+  schemas:
+    Error:
+      required:
+        - code
+        - message
+      type: object
+      properties:
+        code:
+          type: number
+          format: double
+          nullable: false
+        message:
+          type: string
+          nullable: false
+      description: Error response
+      example:
+        code: 1994.0
+        message: Out of cheese error! Please reboot the Universe
