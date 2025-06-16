@@ -31,7 +31,7 @@ const uriFormat = "^projects\\/[^\\/]+\\/locations\\/[^\\/]+\\/keyRings\\/[^\\/]
 
 func (h Handler) V1betaCheckKmsConfig(ctx context.Context, params gcpgenserver.V1betaCheckKmsConfigParams) (gcpgenserver.V1betaCheckKmsConfigRes, error) {
 	logger := util.GetLogger(ctx)
-	helper.AddLabelerAttributes(ctx, params.ProjectNumber, params.LocationId)
+	helper.AddLabelerAttributes(ctx, params.ProjectNumber, params.LocationId, nil)
 	jwtToken := utils.GetJWTTokenFromContext(ctx)
 	cvpClient := createClient(logger, jwtToken)
 	checkKmsConfigParams := &kms_configurations.V1betaCheckKmsConfigParams{
@@ -112,7 +112,7 @@ func (h Handler) V1betaCheckKmsConfig(ctx context.Context, params gcpgenserver.V
 }
 
 func (h Handler) V1betaCreateKmsConfiguration(ctx context.Context, req *gcpgenserver.KmsConfigV1beta, params gcpgenserver.V1betaCreateKmsConfigurationParams) (gcpgenserver.V1betaCreateKmsConfigurationRes, error) {
-	helper.AddLabelerAttributes(ctx, params.ProjectNumber, params.LocationId)
+	helper.AddLabelerAttributes(ctx, params.ProjectNumber, params.LocationId, nil)
 	_, _, parsingErr := parseAndValidateRegionAndZone(params.LocationId)
 	if parsingErr != nil {
 		return &gcpgenserver.V1betaCreateKmsConfigurationBadRequest{
@@ -168,7 +168,7 @@ func (h Handler) V1betaCreateKmsConfiguration(ctx context.Context, req *gcpgense
 
 func (h Handler) V1betaDeleteKmsConfiguration(ctx context.Context, params gcpgenserver.V1betaDeleteKmsConfigurationParams) (gcpgenserver.V1betaDeleteKmsConfigurationRes, error) {
 	logger := util.GetLogger(ctx)
-	helper.AddLabelerAttributes(ctx, params.ProjectNumber, params.LocationId)
+	helper.AddLabelerAttributes(ctx, params.ProjectNumber, params.LocationId, nil)
 	jwtToken := utils.GetJWTTokenFromContext(ctx)
 	cvpClient := createClient(logger, jwtToken)
 	deleteKmsConfigParams := &kms_configurations.V1betaDeleteKmsConfigurationParams{
@@ -242,7 +242,7 @@ func (h Handler) V1betaDeleteKmsConfiguration(ctx context.Context, params gcpgen
 
 func (h Handler) V1betaDescribeKmsConfiguration(ctx context.Context, params gcpgenserver.V1betaDescribeKmsConfigurationParams) (gcpgenserver.V1betaDescribeKmsConfigurationRes, error) {
 	logger := util.GetLogger(ctx)
-	helper.AddLabelerAttributes(ctx, params.ProjectNumber, params.LocationId)
+	helper.AddLabelerAttributes(ctx, params.ProjectNumber, params.LocationId, nil)
 	jwtToken := utils.GetJWTTokenFromContext(ctx)
 	cvpClient := createClient(logger, jwtToken)
 	_, _, parsingErr := parseAndValidateRegionAndZone(params.LocationId)
@@ -350,7 +350,7 @@ func (h Handler) V1betaDescribeKmsConfiguration(ctx context.Context, params gcpg
 
 func (h Handler) V1betaListKmsConfigurations(ctx context.Context, params gcpgenserver.V1betaListKmsConfigurationsParams) (gcpgenserver.V1betaListKmsConfigurationsRes, error) {
 	logger := util.GetLogger(ctx)
-	helper.AddLabelerAttributes(ctx, params.ProjectNumber, params.LocationId)
+	helper.AddLabelerAttributes(ctx, params.ProjectNumber, params.LocationId, nil)
 	jwtToken := utils.GetJWTTokenFromContext(ctx)
 	cvpClient := createClient(logger, jwtToken)
 	listKmsConfigParams := &kms_configurations.V1betaListKmsConfigurationsParams{
@@ -429,7 +429,7 @@ func (h Handler) V1betaListKmsConfigurations(ctx context.Context, params gcpgens
 
 func (h Handler) V1betaUpdateKmsConfiguration(ctx context.Context, req *gcpgenserver.KmsConfigUpdateV1beta, params gcpgenserver.V1betaUpdateKmsConfigurationParams) (gcpgenserver.V1betaUpdateKmsConfigurationRes, error) {
 	logger := util.GetLogger(ctx)
-	helper.AddLabelerAttributes(ctx, params.ProjectNumber, params.LocationId)
+	helper.AddLabelerAttributes(ctx, params.ProjectNumber, params.LocationId, nil)
 	region, _, parsingErr := parseAndValidateRegionAndZone(params.LocationId)
 	if parsingErr != nil {
 		return &gcpgenserver.V1betaUpdateKmsConfigurationBadRequest{

@@ -7,11 +7,13 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	gcpgenserver "github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/api/gcp-servergen"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/helper"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 )
 
 func (h Handler) V1betaInternalAcceptClusterPeer(ctx context.Context, req *gcpgenserver.ClusterPeerV1, params gcpgenserver.V1betaInternalAcceptClusterPeerParams) (gcpgenserver.V1betaInternalAcceptClusterPeerRes, error) {
 	logger := util.GetLogger(ctx)
+	helper.AddLabelerAttributes(ctx, params.ProjectNumber, params.LocationId, nil)
 	_, _, parsingErr := parseAndValidateRegionAndZone(params.LocationId)
 	if parsingErr != nil {
 		return &gcpgenserver.V1betaInternalAcceptClusterPeerBadRequest{

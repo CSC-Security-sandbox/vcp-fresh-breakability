@@ -141,7 +141,7 @@ func safeBoolPointer(opt gcpgenserver.OptBackupRetentionPolicyV1beta, getter fun
 
 func (h Handler) V1betaDeleteBackupVault(ctx context.Context, params gcpgenserver.V1betaDeleteBackupVaultParams) (r gcpgenserver.V1betaDeleteBackupVaultRes, _ error) {
 	logger := util.GetLogger(ctx)
-	helper.AddLabelerAttributes(ctx, params.ProjectNumber, params.LocationId)
+	helper.AddLabelerAttributes(ctx, params.ProjectNumber, params.LocationId, nil)
 
 	deleteParams := &backup_vault.V1betaDeleteBackupVaultParams{
 		LocationID:     params.LocationId,
@@ -218,7 +218,7 @@ func (h Handler) V1betaDeleteBackupVault(ctx context.Context, params gcpgenserve
 
 func (h Handler) V1betaDescribeBackupVault(ctx context.Context, params gcpgenserver.V1betaDescribeBackupVaultParams) (r gcpgenserver.V1betaDescribeBackupVaultRes, _ error) {
 	logger := util.GetLogger(ctx)
-	helper.AddLabelerAttributes(ctx, params.ProjectNumber, params.LocationId)
+	helper.AddLabelerAttributes(ctx, params.ProjectNumber, params.LocationId, nil)
 	describeParams := &backup_vault.V1betaDescribeBackupVaultParams{
 		LocationID:     params.LocationId,
 		ProjectNumber:  params.ProjectNumber,
@@ -287,7 +287,7 @@ func (h Handler) V1betaDescribeBackupVault(ctx context.Context, params gcpgenser
 
 func (h Handler) V1betaGetMultipleBackupVaults(ctx context.Context, req *gcpgenserver.BackupVaultUuidListV1beta, params gcpgenserver.V1betaGetMultipleBackupVaultsParams) (r gcpgenserver.V1betaGetMultipleBackupVaultsRes, _ error) {
 	logger := util.GetLogger(ctx)
-	helper.AddLabelerAttributes(ctx, params.ProjectNumber, params.LocationId)
+	helper.AddLabelerAttributes(ctx, params.ProjectNumber, params.LocationId, nil)
 	body := &models.BackupVaultUUIDListV1beta{
 		BackupVaultUUIDs: req.BackupVaultUuids,
 	}
@@ -355,7 +355,7 @@ func (h Handler) V1betaGetMultipleBackupVaults(ctx context.Context, req *gcpgens
 
 func (h Handler) V1betaListBackupVaults(ctx context.Context, params gcpgenserver.V1betaListBackupVaultsParams) (r gcpgenserver.V1betaListBackupVaultsRes, _ error) {
 	logger := util.GetLogger(ctx)
-	helper.AddLabelerAttributes(ctx, params.ProjectNumber, params.LocationId)
+	helper.AddLabelerAttributes(ctx, params.ProjectNumber, params.LocationId, nil)
 	listParams := &backup_vault.V1betaListBackupVaultsParams{
 		LocationID:     params.LocationId,
 		ProjectNumber:  params.ProjectNumber,
@@ -379,7 +379,7 @@ func (h Handler) V1betaListBackupVaults(ctx context.Context, params gcpgenserver
 
 func (h Handler) V1betaUpdateBackupVault(ctx context.Context, req *gcpgenserver.BackupVaultUpdateV1beta, params gcpgenserver.V1betaUpdateBackupVaultParams) (r gcpgenserver.V1betaUpdateBackupVaultRes, _ error) {
 	logger := util.GetLogger(ctx)
-	helper.AddLabelerAttributes(ctx, params.ProjectNumber, params.LocationId)
+	helper.AddLabelerAttributes(ctx, params.ProjectNumber, params.LocationId, nil)
 	brPolicy := convertBackupRetentionPolicyToCvpModelForUpdate(req.BackupRetentionPolicy)
 	body := &models.BackupVaultUpdateV1beta{
 		BackupRetentionPolicy: brPolicy,

@@ -15,7 +15,7 @@ import (
 
 func (h Handler) V1betaDescribeHostGroup(ctx context.Context, params gcpgenserver.V1betaDescribeHostGroupParams) (gcpgenserver.V1betaDescribeHostGroupRes, error) {
 	logger := util.GetLogger(ctx)
-	helper.AddLabelerAttributes(ctx, params.ProjectNumber, params.LocationId)
+	helper.AddLabelerAttributes(ctx, params.ProjectNumber, params.LocationId, nil)
 	hostGroup, err := h.Orchestrator.GetHostGroup(ctx, params.HostGroupId, params.ProjectNumber)
 	if err != nil {
 		if customerrors.IsNotFoundErr(err) {
@@ -32,7 +32,7 @@ func (h Handler) V1betaDescribeHostGroup(ctx context.Context, params gcpgenserve
 
 func (h Handler) V1betaCreateHostGroup(ctx context.Context, req *gcpgenserver.HostGroupV1beta, params gcpgenserver.V1betaCreateHostGroupParams) (gcpgenserver.V1betaCreateHostGroupRes, error) {
 	logger := util.GetLogger(ctx)
-	helper.AddLabelerAttributes(ctx, params.ProjectNumber, params.LocationId)
+	helper.AddLabelerAttributes(ctx, params.ProjectNumber, params.LocationId, nil)
 	// Validate the location
 	_, _, parsingErr := parseAndValidateRegionAndZone(params.LocationId)
 	if parsingErr != nil {
@@ -119,7 +119,7 @@ func convertToHostGroupV1Beta(hostGroup *models.HostGroup) *gcpgenserver.HostGro
 
 func (h Handler) V1betaDeleteHostGroup(ctx context.Context, params gcpgenserver.V1betaDeleteHostGroupParams) (gcpgenserver.V1betaDeleteHostGroupRes, error) {
 	logger := util.GetLogger(ctx)
-	helper.AddLabelerAttributes(ctx, params.ProjectNumber, params.LocationId)
+	helper.AddLabelerAttributes(ctx, params.ProjectNumber, params.LocationId, nil)
 
 	// Validate the location
 	_, _, parsingErr := parseAndValidateRegionAndZone(params.LocationId)
@@ -160,7 +160,7 @@ func (h Handler) V1betaDeleteHostGroup(ctx context.Context, params gcpgenserver.
 
 func (h Handler) V1betaGetMultipleHostGroups(ctx context.Context, req *gcpgenserver.HostGroupIdListV1beta, params gcpgenserver.V1betaGetMultipleHostGroupsParams) (gcpgenserver.V1betaGetMultipleHostGroupsRes, error) {
 	logger := util.GetLogger(ctx)
-	helper.AddLabelerAttributes(ctx, params.ProjectNumber, params.LocationId)
+	helper.AddLabelerAttributes(ctx, params.ProjectNumber, params.LocationId, nil)
 	hg, err := h.Orchestrator.GetMultipleHostGroups(ctx, params.ProjectNumber, req.HostGroupUuids)
 	if err != nil {
 		logger.Error("Failed to get multiple hostgroup", "error", err.Error())

@@ -34,7 +34,7 @@ const (
 
 func (h Handler) V1betaDescribeVolume(ctx context.Context, params gcpgenserver.V1betaDescribeVolumeParams) (gcpgenserver.V1betaDescribeVolumeRes, error) {
 	logger := util.GetLogger(ctx)
-	helper.AddLabelerAttributes(ctx, params.ProjectNumber, params.LocationId)
+	helper.AddLabelerAttributes(ctx, params.ProjectNumber, params.LocationId, nil)
 	volume, err := h.Orchestrator.GetVolume(ctx, params.VolumeId)
 	if err != nil {
 		if errors.IsNotFoundErr(err) {
@@ -51,7 +51,7 @@ func (h Handler) V1betaDescribeVolume(ctx context.Context, params gcpgenserver.V
 
 func (h Handler) V1betaGetVolumeCount(ctx context.Context, params gcpgenserver.V1betaGetVolumeCountParams) (gcpgenserver.V1betaGetVolumeCountRes, error) {
 	logger := util.GetLogger(ctx)
-	helper.AddLabelerAttributes(ctx, params.ProjectNumber, params.LocationId)
+	helper.AddLabelerAttributes(ctx, params.ProjectNumber, params.LocationId, nil)
 	count, err := h.Orchestrator.GetVolumeCount(ctx, params.ProjectNumber)
 	if err != nil {
 		logger.Error("Error while getting volume count", "error", err.Error())
@@ -62,7 +62,7 @@ func (h Handler) V1betaGetVolumeCount(ctx context.Context, params gcpgenserver.V
 
 func (h Handler) V1betaListVolumes(ctx context.Context, params gcpgenserver.V1betaListVolumesParams) (gcpgenserver.V1betaListVolumesRes, error) {
 	logger := util.GetLogger(ctx)
-	helper.AddLabelerAttributes(ctx, params.ProjectNumber, params.LocationId)
+	helper.AddLabelerAttributes(ctx, params.ProjectNumber, params.LocationId, nil)
 	volumes, err := h.Orchestrator.ListVolumes(ctx, params.ProjectNumber)
 	if err != nil {
 		logger.Error("Failed to list volumes", "error", err.Error())
@@ -85,7 +85,7 @@ func convertModelsToVCPVolumes(volumes []*models.Volume) []gcpgenserver.VolumeV1
 
 func (h Handler) V1betaCreateVolume(ctx context.Context, req *gcpgenserver.VolumeCreateV1beta, params gcpgenserver.V1betaCreateVolumeParams) (gcpgenserver.V1betaCreateVolumeRes, error) {
 	logger := util.GetLogger(ctx)
-	helper.AddLabelerAttributes(ctx, params.ProjectNumber, params.LocationId)
+	helper.AddLabelerAttributes(ctx, params.ProjectNumber, params.LocationId, nil)
 	region, _, parsingErr := utils.ParseAndValidateRegionAndZone(params.LocationId)
 	if parsingErr != nil {
 		return &gcpgenserver.V1betaCreateVolumeBadRequest{
@@ -313,7 +313,7 @@ func _prepareUpdateVolumeParams(req *gcpgenserver.VolumeUpdateV1beta, params gcp
 
 func (h Handler) V1betaDeleteVolume(ctx context.Context, req gcpgenserver.OptV1betaDeleteVolumeReq, params gcpgenserver.V1betaDeleteVolumeParams) (gcpgenserver.V1betaDeleteVolumeRes, error) {
 	logger := util.GetLogger(ctx)
-	helper.AddLabelerAttributes(ctx, params.ProjectNumber, params.LocationId)
+	helper.AddLabelerAttributes(ctx, params.ProjectNumber, params.LocationId, nil)
 	volume, err := h.Orchestrator.GetVolume(ctx, params.VolumeId)
 	if err != nil {
 		if errors.IsNotFoundErr(err) {

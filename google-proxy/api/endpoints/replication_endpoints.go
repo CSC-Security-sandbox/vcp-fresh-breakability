@@ -28,7 +28,7 @@ var (
 
 func (h Handler) V1betaCreateReplication(ctx context.Context, req *gcpgenserver.ReplicationCreateV1beta, params gcpgenserver.V1betaCreateReplicationParams) (gcpgenserver.V1betaCreateReplicationRes, error) {
 	logger := util.GetLogger(ctx)
-	helper.AddLabelerAttributes(ctx, params.ProjectNumber, params.LocationId)
+	helper.AddLabelerAttributes(ctx, params.ProjectNumber, params.LocationId, nil)
 	region, _, parsingErr := parseAndValidateRegionAndZone(params.LocationId)
 	if parsingErr != nil {
 		return &gcpgenserver.V1betaCreateReplicationBadRequest{
@@ -83,7 +83,7 @@ func encodeVolumeReplicationV1(replicationV1beta *gcpgenserver.ReplicationV1beta
 
 func (h Handler) V1betaGetReplicationCount(ctx context.Context, params gcpgenserver.V1betaGetReplicationCountParams) (gcpgenserver.V1betaGetReplicationCountRes, error) {
 	logger := util.GetLogger(ctx)
-	helper.AddLabelerAttributes(ctx, params.ProjectNumber, params.LocationId)
+	helper.AddLabelerAttributes(ctx, params.ProjectNumber, params.LocationId, nil)
 	count, err := h.Orchestrator.GetReplicationCount(ctx, params.ProjectNumber)
 	if err != nil {
 		logger.Error("Error while getting replication count", "error", err.Error())
@@ -94,7 +94,7 @@ func (h Handler) V1betaGetReplicationCount(ctx context.Context, params gcpgenser
 
 func (h Handler) V1betaGetMultipleReplications(ctx context.Context, req *gcpgenserver.ReplicationURIListV1beta, params gcpgenserver.V1betaGetMultipleReplicationsParams) (gcpgenserver.V1betaGetMultipleReplicationsRes, error) {
 	logger := util.GetLogger(ctx)
-	helper.AddLabelerAttributes(ctx, params.ProjectNumber, params.LocationId)
+	helper.AddLabelerAttributes(ctx, params.ProjectNumber, params.LocationId, nil)
 
 	// Check if replication exists in VCP before making a CVP API call
 	replicationURIs := req.GetReplicationUris()

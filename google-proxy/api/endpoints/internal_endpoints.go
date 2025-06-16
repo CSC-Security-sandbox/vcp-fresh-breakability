@@ -14,7 +14,7 @@ import (
 
 func (h Handler) V1betaInternalDescribePool(ctx context.Context, params gcpgenserver.V1betaInternalDescribePoolParams) (gcpgenserver.V1betaInternalDescribePoolRes, error) {
 	logger := util.GetLogger(ctx)
-	helper.AddLabelerAttributes(ctx, params.ProjectNumber, params.LocationId)
+	helper.AddLabelerAttributes(ctx, params.ProjectNumber, params.LocationId, nil)
 	queryDepth := 1
 	pool, err := h.Orchestrator.GetPoolByName(ctx, params.PoolName, params.ProjectNumber, queryDepth)
 	if err != nil {
@@ -37,7 +37,7 @@ func (h Handler) V1betaInternalDescribePool(ctx context.Context, params gcpgense
 
 func (h Handler) V1betaGetMultipleReplicationsInternal(ctx context.Context, req *gcpgenserver.ReplicationIDListV1beta, params gcpgenserver.V1betaGetMultipleReplicationsInternalParams) (gcpgenserver.V1betaGetMultipleReplicationsInternalRes, error) {
 	logger := util.GetLogger(ctx)
-	helper.AddLabelerAttributes(ctx, params.ProjectNumber, params.LocationId)
+	helper.AddLabelerAttributes(ctx, params.ProjectNumber, params.LocationId, nil)
 	replications, err := h.Orchestrator.GetMultipleReplicationsInternal(ctx, params.ProjectNumber, req.GetReplicationUUIDs())
 	if err != nil {
 		if errors.IsNotFoundErr(err) {
@@ -149,7 +149,7 @@ func prepareCreateVolumeReplicationInternalParams(req *gcpgenserver.VolumeReplic
 
 func (h Handler) V1betaInternalGetReplicationJobs(ctx context.Context, params gcpgenserver.V1betaInternalGetReplicationJobsParams) (gcpgenserver.V1betaInternalGetReplicationJobsRes, error) {
 	logger := util.GetLogger(ctx)
-	helper.AddLabelerAttributes(ctx, params.ProjectNumber, params.LocationId)
+	helper.AddLabelerAttributes(ctx, params.ProjectNumber, params.LocationId, nil)
 	jobs, err := h.Orchestrator.GetReplicationJobs(ctx, params.ProjectNumber, params.PoolId)
 	if err != nil {
 		logger.Error("Failed to get replication jobs", "error", err.Error())

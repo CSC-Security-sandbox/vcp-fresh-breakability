@@ -27,7 +27,7 @@ const (
 
 func (h Handler) V1betaDescribeOperation(ctx context.Context, params gcpgenserver.V1betaDescribeOperationParams) (gcpgenserver.V1betaDescribeOperationRes, error) {
 	logger := util.GetLogger(ctx)
-	helper.AddLabelerAttributes(ctx, params.ProjectNumber, params.LocationId)
+	helper.AddLabelerAttributes(ctx, params.ProjectNumber, params.LocationId, nil)
 	_, _, parsingErr := utils.ParseAndValidateRegionAndZone(params.LocationId)
 	if parsingErr != nil {
 		return &gcpgenserver.V1betaDescribeOperationBadRequest{
@@ -51,6 +51,7 @@ func (h Handler) V1betaDescribeOperation(ctx context.Context, params gcpgenserve
 		}, nil
 	}
 	if job != nil {
+		helper.AddLabelerAttributes(ctx, params.ProjectNumber, params.LocationId, job)
 		switch job.State {
 		case models.JobsStateERROR:
 			errMsg := vsaerrors.GetErrorMessageByTrackingID(job.TrackingID)

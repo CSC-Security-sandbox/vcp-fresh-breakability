@@ -26,7 +26,7 @@ const (
 // V1betaDescribePool handles the request to describe a pool.
 func (h Handler) V1betaDescribePool(ctx context.Context, params gcpgenserver.V1betaDescribePoolParams) (gcpgenserver.V1betaDescribePoolRes, error) {
 	logger := util.GetLogger(ctx)
-	helper.AddLabelerAttributes(ctx, params.ProjectNumber, params.LocationId)
+	helper.AddLabelerAttributes(ctx, params.ProjectNumber, params.LocationId, nil)
 	// Validate the location
 	_, _, parsingErr := parseAndValidateRegionAndZone(params.LocationId)
 	if parsingErr != nil {
@@ -53,7 +53,7 @@ func (h Handler) V1betaDescribePool(ctx context.Context, params gcpgenserver.V1b
 // V1betaCreatePool handles the request to create a pool.
 func (h Handler) V1betaCreatePool(ctx context.Context, req *gcpgenserver.PoolV1beta, params gcpgenserver.V1betaCreatePoolParams) (gcpgenserver.V1betaCreatePoolRes, error) {
 	logger := util.GetLogger(ctx)
-	helper.AddLabelerAttributes(ctx, params.ProjectNumber, params.LocationId)
+	helper.AddLabelerAttributes(ctx, params.ProjectNumber, params.LocationId, nil)
 	region, zone, parsingErr := parseAndValidateRegionAndZone(params.LocationId)
 	if parsingErr != nil {
 		return &gcpgenserver.V1betaCreatePoolBadRequest{
@@ -149,7 +149,7 @@ func (h Handler) V1betaCreatePool(ctx context.Context, req *gcpgenserver.PoolV1b
 // V1betaDeletePool handles the request to delete a pool.
 func (h Handler) V1betaDeletePool(ctx context.Context, params gcpgenserver.V1betaDeletePoolParams) (gcpgenserver.V1betaDeletePoolRes, error) {
 	logger := util.GetLogger(ctx)
-	helper.AddLabelerAttributes(ctx, params.ProjectNumber, params.LocationId)
+	helper.AddLabelerAttributes(ctx, params.ProjectNumber, params.LocationId, nil)
 	// Validate the location
 	_, _, parsingErr := parseAndValidateRegionAndZone(params.LocationId)
 	if parsingErr != nil {
@@ -216,7 +216,7 @@ func (h Handler) V1betaDeletePool(ctx context.Context, params gcpgenserver.V1bet
 // V1betaGetMultiplePools handles the request to get multiple pools.
 func (h Handler) V1betaGetMultiplePools(ctx context.Context, req *gcpgenserver.PoolIdListV1beta, params gcpgenserver.V1betaGetMultiplePoolsParams) (gcpgenserver.V1betaGetMultiplePoolsRes, error) {
 	logger := util.GetLogger(ctx)
-	helper.AddLabelerAttributes(ctx, params.ProjectNumber, params.LocationId)
+	helper.AddLabelerAttributes(ctx, params.ProjectNumber, params.LocationId, nil)
 	jwtToken := utils.GetJWTTokenFromContext(ctx)
 	cvpClient := createClient(logger, jwtToken)
 
@@ -312,7 +312,7 @@ func (h Handler) V1betaGetMultiplePools(ctx context.Context, req *gcpgenserver.P
 // V1betaListPools handles the request to list pools.
 func (h Handler) V1betaListPools(ctx context.Context, params gcpgenserver.V1betaListPoolsParams) (gcpgenserver.V1betaListPoolsRes, error) {
 	logger := util.GetLogger(ctx)
-	helper.AddLabelerAttributes(ctx, params.ProjectNumber, params.LocationId)
+	helper.AddLabelerAttributes(ctx, params.ProjectNumber, params.LocationId, nil)
 	// Validate the location
 	_, _, parsingErr := parseAndValidateRegionAndZone(params.LocationId)
 	if parsingErr != nil {

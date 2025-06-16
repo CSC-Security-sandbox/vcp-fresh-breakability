@@ -14,7 +14,7 @@ import (
 
 func (h Handler) V1betaGetMultipleBackups(ctx context.Context, req *gcpgenserver.BackupUuidListV1beta, params gcpgenserver.V1betaGetMultipleBackupsParams) (gcpgenserver.V1betaGetMultipleBackupsRes, error) {
 	logger := util.GetLogger(ctx)
-	helper.AddLabelerAttributes(ctx, params.ProjectNumber, params.LocationId)
+	helper.AddLabelerAttributes(ctx, params.ProjectNumber, params.LocationId, nil)
 	jwtToken := utils.GetJWTTokenFromContext(ctx)
 	cvpClient := createClient(logger, jwtToken)
 

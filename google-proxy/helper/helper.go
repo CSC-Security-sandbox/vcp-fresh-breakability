@@ -3,9 +3,8 @@ package helper
 import (
 	"context"
 
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	gcpgenserver "github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/api/gcp-servergen"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 	"go.opentelemetry.io/otel/attribute"
 )
 
@@ -14,13 +13,20 @@ var (
 )
 
 // AddLabelerAttributes adds custom attributes like project number, location ID, and trace URL to the OpenTelemetry labeler from the context.
-func AddLabelerAttributes(ctx context.Context, projectNumber, locationId string) {
+func AddLabelerAttributes(ctx context.Context, projectNumber, locationId string, job *models.Job) {
 	labeler, _ := gcpgenserverLabelerFromContext(ctx)
-	if loggerFields, ok := ctx.Value(middleware.TemporalSLoggerKey).(log.Fields); ok {
-		if traceURL, ok := loggerFields["traceURL"].(string); ok {
-			labeler.Add(attribute.String("http.route", traceURL))
-		}
-	}
 	labeler.Add(attribute.String("locationID", locationId))
 	labeler.Add(attribute.String("projectNumber", projectNumber))
+	jobType := ""
+	jobState := ""
+	jobTrackingID := 0
+
+	if job != nil {
+		jobType = string(job.Type)
+		jobState = string(job.State)
+		jobTrackingID = job.TrackingID
+	}
+	labeler.Add(attribute.String("Job_Type", jobType))
+	labeler.Add(attribute.String("Job_State", jobState))
+	labeler.Add(attribute.Int("Job_TrackingID", jobTrackingID))
 }
