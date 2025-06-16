@@ -2,6 +2,7 @@ package replicationActivities
 
 import (
 	"context"
+	"strings"
 	"time"
 
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
@@ -73,5 +74,27 @@ func prepareCreateVolumeReplicationParamsVSA(params *common.CreateVolumeReplicat
 	return &vsa.CreateVolumeReplicationParams{
 		VolumeReplication: vrf,
 		ReverseResync:     params.ReverseResync,
+	}
+}
+
+func (a *InternalVolumeReplicationActivity) HydrateReplicationCreate(ctx context.Context, replicationDb *datamodel.VolumeReplication, accountName string) error {
+	if hydrationEnabled {
+		err := HydrateVolumeReplication(ctx, convertReplicationDbModelToDataModel(replicationDb), accountName)
+		if err != nil {
+			util.GetLogger(ctx).Error("Error hydrating replication create", "error", err)
+			return err
+		}
+	}
+	return nil
+}
+
+func convertReplicationDbModelToDataModel(replicationDb *datamodel.VolumeReplication) models.VolumeReplication {
+	return models.VolumeReplication{
+		Name:  replicationDb.Name,
+		State: strings.ToLower(models.LifeCycleStateAvailable),
+		ReplicationAttributes: &models.ReplicationDetails{
+			DestinationRegion:     replicationDb.ReplicationAttributes.DestinationLocation,
+			DestinationVolumeName: replicationDb.ReplicationAttributes.DestinationVolumeName,
+		},
 	}
 }

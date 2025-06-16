@@ -42,7 +42,7 @@ func TestCrrCreateActivity_generatetoken(t *testing.T) {
 	})
 }
 
-func TestVolumeReplicationHydration(t *testing.T) {
+func TestHydrateVolumeReplication(t *testing.T) {
 	createReplicationResponse := &models.VolumeReplication{
 		Name:  "replication-name",
 		State: "creating",
@@ -59,7 +59,7 @@ func TestVolumeReplicationHydration(t *testing.T) {
 			return "", errors.New("some error")
 		}
 		defer func() { utilsGetSignedCallbackToken = originalGetSignedCallbackToken }()
-		err := VolumeReplicationHydration(ctx, *createReplicationResponse, "121")
+		err := HydrateVolumeReplication(ctx, *createReplicationResponse, "121")
 		assert.Error(tt, err)
 		assert.Equal(tt, expectedError, err)
 	})
@@ -80,7 +80,7 @@ func TestVolumeReplicationHydration(t *testing.T) {
 			utilsGetSignedCallbackToken = originalGetSignedCallbackToken
 			hydrateReplicationCreate = originalHydrateReplicationCreate
 		}()
-		err := VolumeReplicationHydration(ctx, *createReplicationResponse, "121")
+		err := HydrateVolumeReplication(ctx, *createReplicationResponse, "121")
 		assert.Error(tt, err)
 		assert.Equal(tt, expectedError, err.(*errs.CustomError).Unwrap())
 	})
@@ -98,7 +98,7 @@ func TestVolumeReplicationHydration(t *testing.T) {
 			utilsGetSignedCallbackToken = originalGetSignedCallbackToken
 			hydrateReplicationCreate = originalHydrateReplicationCreate
 		}()
-		err := VolumeReplicationHydration(ctx, *createReplicationResponse, "121")
+		err := HydrateVolumeReplication(ctx, *createReplicationResponse, "121")
 		assert.NoError(tt, err, nil)
 	})
 }

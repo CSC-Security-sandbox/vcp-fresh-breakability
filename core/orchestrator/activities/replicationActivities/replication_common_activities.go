@@ -2,9 +2,11 @@ package replicationActivities
 
 import (
 	"context"
+
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 )
 
@@ -13,6 +15,8 @@ var (
 	MapReplicationBetaToReplicationHydrateObject                = _mapReplicationBetaToReplicationHydrateObject
 	mapReplicationLifeCycleStateBetaToReplicationHydrationState = _mapReplicationLifeCycleStateBetaToReplicationHydrationState
 	mapVolumeBetaToVolumeHydrateObject                          = _mapVolumeBetaToVolumeHydrateObject
+	HydrateVolumeReplication                                    = _hydrateVolumeReplication
+	hydrationEnabled                                            = env.GetBool("GCP_HYDRATE_ENABLED", true)
 	hydrateReplicationCreate                                    = common.ReplicationCreate
 	hydrateVolumeCreate                                         = common.VolumeCreate
 	hydrateVolumeDelete                                         = common.VolumeDelete
@@ -73,7 +77,7 @@ func GetQuotaLimit(ctx context.Context, region string, project string) (int, err
 	return quota, nil
 }
 
-func VolumeReplicationHydration(ctx context.Context, createReplicationResponse models.VolumeReplication, project string) error {
+func _hydrateVolumeReplication(ctx context.Context, createReplicationResponse models.VolumeReplication, project string) error {
 	logger := util.GetLogger(ctx)
 	callbackToken, err := generateCallbackToken(ctx)
 	if err != nil {
@@ -82,7 +86,7 @@ func VolumeReplicationHydration(ctx context.Context, createReplicationResponse m
 	}
 	replicationHydrateObject := MapReplicationBetaToReplicationHydrateObject(createReplicationResponse)
 	// Hydrate Replication to CFFE
-	err = hydrateReplicationCreate(ctx, logger, replicationHydrateObject, createReplicationResponse.ReplicationAttributes.DestinationRegion, project, createReplicationResponse.ReplicationAttributes.DestinationReplicationUUID, callbackToken)
+	err = hydrateReplicationCreate(ctx, logger, replicationHydrateObject, createReplicationResponse.ReplicationAttributes.DestinationRegion, project, createReplicationResponse.ReplicationAttributes.DestinationVolumeName, callbackToken)
 	if err != nil {
 		logger.Errorf("Error when hydrating replication: %v", err)
 		return err

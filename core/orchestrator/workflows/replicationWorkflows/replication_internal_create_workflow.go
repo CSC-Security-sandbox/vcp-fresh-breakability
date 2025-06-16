@@ -107,7 +107,7 @@ func (wf *internalVolumeReplicationCreateWorkflow) Run(ctx workflow.Context, arg
 		return nil, err
 	}
 
-	// TODO: Add activity for hydrating to CCFE
+	err = workflow.ExecuteActivity(ctx, replicationActivity.HydrateReplicationCreate, replication, params.VolumeReplication.Account.Name).Get(ctx, nil)
 
 	return nil, err
 }

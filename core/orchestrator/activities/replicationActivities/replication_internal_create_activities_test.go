@@ -138,3 +138,57 @@ func TestUpdateVolumeReplicationInternal(t *testing.T) {
 		mockStorage.AssertExpectations(tt)
 	})
 }
+
+func TestHydrateReplicationCreate(t *testing.T) {
+	t.Run("WhenError", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(tt)
+		hydrationEnabled = true
+		activity := InternalVolumeReplicationActivity{SE: mockStorage}
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+		accountName := "project-name"
+		replication := &datamodel.VolumeReplication{
+			Name:  "name",
+			State: "creating",
+			ReplicationAttributes: &datamodel.ReplicationDetails{
+				DestinationLocation:        "destination-location",
+				DestinationReplicationUUID: "uuid",
+			},
+		}
+		originalHydrateVolumeReplication := HydrateVolumeReplication
+		defer func() { HydrateVolumeReplication = originalHydrateVolumeReplication }()
+
+		HydrateVolumeReplication = func(ctx context.Context, createReplicationResponse models.VolumeReplication, project string) error {
+			return errors.New("hydration error")
+		}
+		err := activity.HydrateReplicationCreate(ctx, replication, accountName)
+
+		assert.Error(t, err)
+		assert.Equal(t, "hydration error", err.Error())
+		mockStorage.AssertExpectations(tt)
+	})
+	t.Run("WhenSuccess", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(tt)
+		hydrationEnabled = true
+		activity := InternalVolumeReplicationActivity{SE: mockStorage}
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+		accountName := "project-name"
+		replication := &datamodel.VolumeReplication{
+			Name:  "name",
+			State: "creating",
+			ReplicationAttributes: &datamodel.ReplicationDetails{
+				DestinationLocation:        "destination-location",
+				DestinationReplicationUUID: "uuid",
+			},
+		}
+		originalHydrateVolumeReplication := HydrateVolumeReplication
+		defer func() { HydrateVolumeReplication = originalHydrateVolumeReplication }()
+
+		HydrateVolumeReplication = func(ctx context.Context, createReplicationResponse models.VolumeReplication, project string) error {
+			return nil
+		}
+		err := activity.HydrateReplicationCreate(ctx, replication, accountName)
+
+		assert.NoError(t, err)
+		mockStorage.AssertExpectations(tt)
+	})
+}

@@ -38,6 +38,7 @@ func TestCreateInternalVolumeReplicationWorkflow(t *testing.T) {
 		env.RegisterActivity(commonActivity.GetNode)
 		env.RegisterActivity(internalVolumeCreateReplicationActivity.CreateVolumeReplicationInternal)
 		env.RegisterActivity(internalVolumeCreateReplicationActivity.UpdateVolumeReplicationDetails)
+		env.RegisterActivity(internalVolumeCreateReplicationActivity.HydrateReplicationCreate)
 		env.RegisterActivity(commonActivity.UpdateJobStatus)
 
 		account := &datamodel.Account{
@@ -84,6 +85,7 @@ func TestCreateInternalVolumeReplicationWorkflow(t *testing.T) {
 		env.OnActivity("GetNode", mock.Anything, mock.Anything).Return(&datamodel.Node{EndpointAddress: "127.0.0.1"}, nil)
 		env.OnActivity("CreateVolumeReplicationInternal", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.VolumeReplication{}, nil)
 		env.OnActivity("UpdateVolumeReplicationDetails", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("HydrateReplicationCreate", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		mockStorage.On("UpdateJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.ExecuteWorkflow(CreateInternalVolumeReplicationWorkflow, params, replicationDb)
 
