@@ -328,7 +328,7 @@ func TestCreateLun_Success(t *testing.T) {
 			Name:         "lun_test-volume",
 			ExternalUUID: "lun-uuid-123",
 		},
-		SerialNumber: "lW8B5]YNNUq8",
+		SerialNumber: "6c5738423724595454686164",
 	}
 
 	// Mock LunCreate method
@@ -380,7 +380,7 @@ func TestCreateLun_Success_AlreadyExists(t *testing.T) {
 			Name:         "lun_test-volume",
 			ExternalUUID: "lun-uuid-123",
 		},
-		SerialNumber: "lW8B5]YNNUq8",
+		SerialNumber: "6c5738423724595454686164",
 	}
 	mockProvider.On("LunGet", mock.Anything, mock.Anything, mock.Anything).Return(lunResponse, nil)
 

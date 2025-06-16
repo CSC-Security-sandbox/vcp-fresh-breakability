@@ -74,7 +74,7 @@ func (s *UnitTestSuite) Test_CreateVolumeWorkflow_Success() {
 			Name:         "lun_test",
 			ExternalUUID: "lun-uuid",
 		},
-		SerialNumber: "lW8B5]YNNUq8",
+		SerialNumber: "6c5738423724595454686164",
 	}, nil)
 	s.env.OnActivity(volumeCreateActivity.CreateLunMap, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(volumeCreateActivity.UpdateVolumeDetails, mock.Anything, mock.Anything, mock.Anything).Return(nil)
@@ -120,7 +120,7 @@ func (s *UnitTestSuite) Test_CreateVolumeWorkflow_Failure_UpdateVolumeDetails() 
 			Name:         "lun_test",
 			ExternalUUID: "lun-uuid",
 		},
-		SerialNumber: "lW8B5]YNNUq8",
+		SerialNumber: "6c5738423724595454686164",
 	}, nil)
 	s.env.OnActivity(volumeCreateActivity.CreateLunMap, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(volumeCreateActivity.UpdateVolumeDetails, mock.Anything, mock.Anything, mock.Anything).Return(
@@ -171,7 +171,7 @@ func (s *UnitTestSuite) Test_CreateVolumeWorkflow_FindTenancyError() {
 			Name:         "lun_test",
 			ExternalUUID: "lun-uuid",
 		},
-		SerialNumber: "lW8B5]YNNUq8",
+		SerialNumber: "6c5738423724595454686164",
 	}, nil)
 	s.env.OnActivity(volumeCreateActivity.CreateLunMap, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(volumeCreateActivity.FindTenancy, mock.Anything, mock.Anything).Return(nil, errors.New("failed to find tenancy"))
@@ -220,7 +220,7 @@ func (s *UnitTestSuite) Test_CreateVolumeWorkflow_CheckBackupVaultExistsInVCPErr
 			Name:         "lun_test",
 			ExternalUUID: "lun-uuid",
 		},
-		SerialNumber: "lW8B5]YNNUq8",
+		SerialNumber: "6c5738423724595454686164",
 	}, nil)
 	s.env.OnActivity(volumeCreateActivity.CreateLunMap, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(volumeCreateActivity.FindTenancy, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&common.TenancyInfo{RegionalTenantProject: "tenant-project"}, nil)
@@ -270,7 +270,7 @@ func (s *UnitTestSuite) Test_CreateVolumeWorkflow_CheckForBucketResourceNameErro
 			Name:         "lun_test",
 			ExternalUUID: "lun-uuid",
 		},
-		SerialNumber: "lW8B5]YNNUq8",
+		SerialNumber: "6c5738423724595454686164",
 	}, nil)
 	s.env.OnActivity(volumeCreateActivity.CreateLunMap, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(volumeCreateActivity.FindTenancy, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&common.TenancyInfo{RegionalTenantProject: "tenant-project"}, nil)
@@ -321,7 +321,7 @@ func (s *UnitTestSuite) Test_CreateVolumeWorkflow_GenerateResourceNamesError() {
 			Name:         "lun_test",
 			ExternalUUID: "lun-uuid",
 		},
-		SerialNumber: "lW8B5]YNNUq8",
+		SerialNumber: "6c5738423724595454686164",
 	}, nil)
 	s.env.OnActivity(volumeCreateActivity.CreateLunMap, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(volumeCreateActivity.FindTenancy, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&common.TenancyInfo{RegionalTenantProject: "tenant-project"}, nil)
@@ -373,7 +373,7 @@ func (s *UnitTestSuite) Test_CreateVolumeWorkflow_CreateBucketError() {
 			Name:         "lun_test",
 			ExternalUUID: "lun-uuid",
 		},
-		SerialNumber: "lW8B5]YNNUq8",
+		SerialNumber: "6c5738423724595454686164",
 	}, nil)
 	s.env.OnActivity(volumeCreateActivity.CreateLunMap, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(volumeCreateActivity.FindTenancy, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&common.TenancyInfo{RegionalTenantProject: "tenant-project"}, nil)
@@ -426,7 +426,7 @@ func (s *UnitTestSuite) Test_CreateVolumeWorkflow_UpdateBackupVaultWithBucketDet
 			Name:         "lun_test",
 			ExternalUUID: "lun-uuid",
 		},
-		SerialNumber: "lW8B5]YNNUq8",
+		SerialNumber: "6c5738423724595454686164",
 	}, nil)
 	s.env.OnActivity(volumeCreateActivity.CreateLunMap, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(volumeCreateActivity.FindTenancy, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&common.TenancyInfo{RegionalTenantProject: "tenant-project"}, nil)

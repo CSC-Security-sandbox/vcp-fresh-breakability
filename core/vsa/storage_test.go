@@ -33,9 +33,9 @@ func TestLunCreate_Success(t *testing.T) {
 
 	mockLun := &ontaprest.Lun{
 		Lun: models.Lun{
-			Name:         nillable.ToPointer(lunName),
-			UUID:         nillable.ToPointer("testUUID"),
-			SerialNumber: nillable.ToPointer("lW8B5]YNNUq8"),
+			Name:            nillable.ToPointer(lunName),
+			UUID:            nillable.ToPointer("testUUID"),
+			SerialNumberHex: nillable.ToPointer("6c5738423724595454686164"),
 		},
 	}
 
@@ -609,9 +609,9 @@ func TestLunGet(t *testing.T) {
 
 		mockLun := &ontaprest.Lun{
 			Lun: models.Lun{
-				Name:         nillable.ToPointer("testLun"),
-				UUID:         nillable.ToPointer("uuid-123"),
-				SerialNumber: nillable.ToPointer("serial-456"),
+				Name:            nillable.ToPointer("testLun"),
+				UUID:            nillable.ToPointer("uuid-123"),
+				SerialNumberHex: nillable.ToPointer("6c5738423724595454686164"),
 			},
 		}
 
@@ -628,7 +628,7 @@ func TestLunGet(t *testing.T) {
 		assert.NotNil(tt, resp)
 		assert.Equal(tt, "testLun", resp.Name)
 		assert.Equal(tt, "uuid-123", resp.ExternalUUID)
-		assert.Equal(tt, "serial-456", resp.SerialNumber)
+		assert.Equal(tt, "6c5738423724595454686164", resp.SerialNumber)
 
 		mockSAN.AssertExpectations(tt)
 		mockClient.AssertExpectations(tt)

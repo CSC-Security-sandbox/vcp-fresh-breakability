@@ -5504,7 +5504,7 @@ components:
           readOnly: true
           type: string
           description: LUN Serial Number of the Block Volume.
-          example: lW8B5]YNNUq8
+          example: 6c5738423724595454686164
     OSType_v1beta:
       title: OSType
       type: string

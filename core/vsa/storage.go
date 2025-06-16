@@ -76,7 +76,7 @@ func (rc *OntapRestProvider) LunCreate(params LunCreateParams) (*LunResponse, er
 			Name:         *lun.Name,
 			ExternalUUID: *lun.UUID,
 		},
-		SerialNumber: *lun.SerialNumber,
+		SerialNumber: *lun.SerialNumberHex,
 	}, nil
 }
 
@@ -85,7 +85,7 @@ func (rc *OntapRestProvider) LunGet(params LunGetParams) (*LunResponse, error) {
 	client := getOntapClientFunc(rc.ClientParams)
 	lun, err := client.SAN().LunGet(&ontapRest.LunGetParams{
 		BaseParams: ontapRest.BaseParams{
-			Fields: []string{"status.*", "serial_number", "class", "space.size", "location.*"},
+			Fields: []string{"status.*", "serial_number_hex", "class", "space.size", "location.*"},
 		},
 		SvmName:    &params.SvmName,
 		VolumeName: &params.VolumeName,
@@ -103,7 +103,7 @@ func (rc *OntapRestProvider) LunGet(params LunGetParams) (*LunResponse, error) {
 			Name:         *lun.Name,
 			ExternalUUID: *lun.UUID,
 		},
-		SerialNumber: *lun.SerialNumber,
+		SerialNumber: *lun.SerialNumberHex,
 	}, nil
 }
 
