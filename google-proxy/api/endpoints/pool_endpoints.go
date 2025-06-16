@@ -21,6 +21,7 @@ import (
 
 const (
 	HTTP_BAD_REQUEST_CODE = 400
+	DEFAULT_IOPS          = 1024
 )
 
 // V1betaDescribePool handles the request to describe a pool.
@@ -95,9 +96,21 @@ func (h Handler) V1betaCreatePool(ctx context.Context, req *gcpgenserver.PoolV1b
 		return &gcpgenserver.V1betaCreatePoolInternalServerError{}, err
 	}
 
+	primaryZone := ""
+	if !nillable.IsNilOrEmpty(&zone) {
+		primaryZone = zone
+	} else {
+		primaryZone = req.Zone.Value
+	}
+
+	secondaryZone := ""
+	if req.SecondaryZone.IsSet() {
+		secondaryZone = req.SecondaryZone.Value
+	}
+
 	totalIops := 0
 	if !req.TotalIops.IsSet() {
-		totalIops = 1024 // Default to 1024 IOPS if not provided
+		totalIops = DEFAULT_IOPS // Default to 1024 IOPS if not provided
 	} else {
 		totalIops = int(req.TotalIops.Value)
 	}
@@ -105,8 +118,8 @@ func (h Handler) V1betaCreatePool(ctx context.Context, req *gcpgenserver.PoolV1b
 	param := &common.CreatePoolParams{
 		AccountName:             params.ProjectNumber,
 		Region:                  region,
-		CurrentZone:             zone,
-		Zones:                   []string{req.SecondaryZone.Value},
+		PrimaryZone:             primaryZone,
+		SecondaryZone:           secondaryZone,
 		Name:                    req.ResourceId,
 		VendorID:                vendorId,
 		VendorSubNetID:          req.Network,
@@ -389,6 +402,8 @@ func convertToPoolV1Beta(pool *models.Pool) *gcpgenserver.PoolV1beta {
 		AllocatedBytes:          gcpgenserver.NewOptNilFloat64(pool.PoolAttributes.AllocatedBytes),
 		NumberOfVolumes:         gcpgenserver.NewOptNilInt32(int32(pool.PoolAttributes.NumberOfVolumes)),
 		EncryptionType:          getEncryptionTypeForPool(nil), // pass pool.KmsConfigID
+		Zone:                    gcpgenserver.NewOptString(pool.PoolAttributes.PrimaryZone),
+		SecondaryZone:           gcpgenserver.NewOptString(pool.PoolAttributes.SecondaryZone),
 	}
 }
 
@@ -505,21 +520,21 @@ func validateCreatePoolParams(req *gcpgenserver.PoolV1beta, zone string) *gcpgen
 	}
 
 	if nillable.IsNilOrEmpty(&zone) {
-		if nillable.IsNilOrEmpty(&req.Zone.Value) {
+		if !req.Zone.IsSet() {
 			return &gcpgenserver.Error{
 				Code:    HTTP_BAD_REQUEST_CODE,
 				Message: "Zone cannot be empty for regional pool.",
 			}
 		}
 
-		if nillable.IsNilOrEmpty(&req.SecondaryZone.Value) {
+		if !req.SecondaryZone.IsSet() {
 			return &gcpgenserver.Error{
 				Code:    HTTP_BAD_REQUEST_CODE,
 				Message: "Secondary Zone cannot be empty for regional pool.",
 			}
 		}
 	} else {
-		if !nillable.IsNilOrEmpty(&req.Zone.Value) && req.Zone.Value != zone {
+		if req.Zone.IsSet() && req.Zone.Value != zone {
 			return &gcpgenserver.Error{
 				Code:    HTTP_BAD_REQUEST_CODE,
 				Message: "Multiple Zone values cannot be passed for Pool Creation",

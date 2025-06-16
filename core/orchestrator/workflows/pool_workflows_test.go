@@ -33,12 +33,14 @@ func TestCreatePoolWorkflow(t *testing.T) {
 
 	// Set up test data
 	params := &common.CreatePoolParams{
-		Name:             "test-pool",
-		AccountName:      "test-account",
-		SizeInBytes:      1024 * 1024 * 1024, // 1 GB
-		Region:           "test-region",
-		CurrentZone:      "test-zone",
-		AllowAutoTiering: true,
+		Name:                    "test-pool",
+		AccountName:             "test-account",
+		SizeInBytes:             1024 * 1024 * 1024 * 1024, // 1 TB
+		Region:                  "test-region",
+		PrimaryZone:             "test-zone",
+		SecondaryZone:           "test-secondary-zone",
+		AllowAutoTiering:        true,
+		CustomPerformanceParams: &common.CustomPerformanceParams{Enabled: true, ThroughputMibps: 64, Iops: 1024},
 	}
 	pool := &datamodel.Pool{
 		Username: "test-user",
@@ -55,7 +57,7 @@ func TestCreatePoolWorkflow(t *testing.T) {
 		Gateway:               "192.168.1.254",
 	}, nil)
 	env.OnActivity("SetupNetwork", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
-	env.OnActivity("CreateVSACluster", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+	env.OnActivity("CreateVSACluster", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 	env.OnActivity("SaveVSANodeDetails", mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 	env.OnActivity("CreatedPool", mock.Anything, mock.Anything).Return(nil, nil)
 	env.OnActivity("SavePoolWithClusterDetails", mock.Anything, mock.Anything, mock.Anything).Return(nil)
@@ -143,7 +145,7 @@ func Test_EnableAutoTier_Error_In_CreatePoolWorkflow(t *testing.T) {
 		AccountName:      "test-account",
 		SizeInBytes:      1024 * 1024 * 1024, // 1 GB
 		Region:           "test-region",
-		CurrentZone:      "test-zone",
+		PrimaryZone:      "test-zone",
 		AllowAutoTiering: true,
 	}
 	pool := &datamodel.Pool{

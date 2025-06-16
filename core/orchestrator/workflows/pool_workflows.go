@@ -118,11 +118,12 @@ func (wf *createPoolWorkflow) Run(ctx workflow.Context, args ...interface{}) (in
 		return nil, err
 	}
 
-	clusterName := params.Name + "-vsa"
+	clusterName := params.Name + "-" + params.AccountName
 	sizeInGB := utils.BytesToGigabytes(params.SizeInBytes)
 
 	cfg := &vlmconfig.VLMConfig{}
-	err = workflow.ExecuteActivity(ctx, poolActivity.CreateVSACluster, clusterName, params.Region, params.CurrentZone, tenancyDetails.Network, tenancyDetails.SubnetworkName, tenancyDetails.RegionalTenantProject, tenancyDetails.SnHostProject, sizeInGB).Get(ctx, cfg)
+	err = workflow.ExecuteActivity(ctx, poolActivity.CreateVSACluster, clusterName, params.Region, params.PrimaryZone, params.SecondaryZone, tenancyDetails.Network, tenancyDetails.SubnetworkName,
+		tenancyDetails.RegionalTenantProject, tenancyDetails.SnHostProject, sizeInGB, params.CustomPerformanceParams.ThroughputMibps, params.CustomPerformanceParams.Iops).Get(ctx, cfg)
 	if err != nil {
 		return nil, err
 	}

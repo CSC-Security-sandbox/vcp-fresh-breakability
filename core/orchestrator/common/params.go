@@ -24,9 +24,9 @@ type CreatePoolParams struct {
 	AllowAutoTiering        bool
 	HotTierSizeInBytes      uint64
 	EnableHotTierAutoResize bool
-	CurrentZone             string
+	PrimaryZone             string
 	VendorSubNetID          string
-	Zones                   []string
+	SecondaryZone           string
 	HostUUID                string
 	CustomPerformanceParams *CustomPerformanceParams
 }

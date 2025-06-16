@@ -449,18 +449,23 @@ func Test_prepareVlmConfig_Success(t *testing.T) {
 	activities.ReadFile = func(filename string) ([]byte, error) {
 		return []byte("{}"), nil
 	}
-	err := activities.PrepareVlmConfig(cfg, "test-deployment", "test-region", "test-zone", "test-network", "test-subnet", "test-project", "test-sn-host-project")
+
+	err := activities.PrepareVlmConfig(cfg, "test-deployment", "test-region", "test-zone1", "test-zone2", "test-network", "test-subnet", "test-project", "test-sn-host-project", 1024, 64, 1024)
 	assert.NoError(t, err)
 	assert.Equal(t, "test-deployment", cfg.Deployment.DeploymentID)
 	assert.Equal(t, "test-region", cfg.Deployment.Region)
-	assert.Equal(t, "test-zone", cfg.Deployment.Zone.Zone1)
+	assert.Equal(t, "test-zone1", cfg.Deployment.Zone.Zone1)
+	assert.Equal(t, "test-zone2", cfg.Deployment.Zone.Zone2)
 	assert.Equal(t, "test-network", cfg.Deployment.NetConfig[vlmconfig.LIFTypeInterCluster].VPC)
 	assert.Equal(t, "test-sn-host-project", cfg.Deployment.NetConfig[vlmconfig.LIFTypeInterCluster].GCPNetworkConfig.SubnetProjectID)
+	assert.Equal(t, int64(64), cfg.Deployment.SPConfig.Throughput)
+	assert.Equal(t, int64(1024), cfg.Deployment.SPConfig.IOps)
+	assert.Equal(t, "1024Gi", cfg.Deployment.SPConfig.Size)
 }
 
 func Test_prepareVlmConfig_FileNotFound(t *testing.T) {
 	cfg := &vlmconfig.VLMConfig{}
-	err := activities.PrepareVlmConfig(cfg, "test-deployment", "test-region", "test-zone", "test-network", "test-subnet", "test-project", "test-sn-host-project")
+	err := activities.PrepareVlmConfig(cfg, "test-deployment", "test-region", "test-zone1", "test-zone2", "test-network", "test-subnet", "test-project", "test-sn-host-project", 1024, 64, 2014)
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "no such file or directory")
 }
@@ -473,7 +478,7 @@ func Test_prepareVlmConfig_InvalidJSON(t *testing.T) {
 	}
 
 	cfg := &vlmconfig.VLMConfig{}
-	err := activities.PrepareVlmConfig(cfg, "test-deployment", "test-region", "test-zone", "test-network", "test-subnet", "test-project", "test-sn-host-project")
+	err := activities.PrepareVlmConfig(cfg, "test-deployment", "test-region", "test-zone1", "test=zone2", "test-network", "test-subnet", "test-project", "test-sn-host-project", 1024, 64, 1024)
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "invalid character")
 }
@@ -491,7 +496,7 @@ func Test_prepareVlmConfig_EmptyDeploymentName(t *testing.T) {
 	activities.ReadFile = func(filename string) ([]byte, error) {
 		return []byte("{}"), nil
 	}
-	err := activities.PrepareVlmConfig(cfg, "", "test-region", "test-zone", "test-network", "test-subnet", "test-project", "test-sn-host-project")
+	err := activities.PrepareVlmConfig(cfg, "", "test-region", "test-zone", "test-zone", "test-network", "test-subnet", "test-project", "test-sn-host-project", 1099511627776, 64, 1024)
 	assert.NoError(t, err)
 	assert.Equal(t, "", cfg.Deployment.DeploymentID)
 	assert.Equal(t, "test-region", cfg.Deployment.Region)
@@ -755,7 +760,7 @@ func Test_CreateVSACluster_Success(t *testing.T) {
 	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
 	cfg := &vlmconfig.VLMConfig{}
 
-	activities.PrepareVlmConfig = func(cfg *vlmconfig.VLMConfig, deploymentName, region, zone, network, subnet, projectId, snHostProject string) error {
+	activities.PrepareVlmConfig = func(cfg *vlmconfig.VLMConfig, deploymentName, region, primaryZone, secondaryZone, network, subnet, projectId, snHostProject string, sizeInGib int, throughputMibps, iops int64) error {
 		return nil
 	}
 	activities.GetVLMClient = func(ctx context.Context, logger log.Logger, vlmConfig *vlmconfig.VLMConfig) vlm.ClientFactory {
@@ -763,7 +768,7 @@ func Test_CreateVSACluster_Success(t *testing.T) {
 	}
 	mockVlmClient.On("VSAClusterDeployCreate", ctx, cfg).Return(nil)
 
-	result, err := activity.CreateVSACluster(ctx, "test-deployment", "test-region", "test-zone", "test-network", "test-subnet", "test-project", "test-sn-host-project", 1024)
+	result, err := activity.CreateVSACluster(ctx, "test-deployment", "test-region", "test-zone1", "test-zone2", "test-network", "test-subnet", "test-project", "test-sn-host-project", 1024, 64, 1024)
 
 	assert.NoError(t, err)
 	assert.NotNil(t, result)
@@ -780,13 +785,13 @@ func Test_CreateVSACluster_FailsToPrepareConfig(t *testing.T) {
 		activities.PrepareVlmConfig = prepareVLMConfig
 	}()
 
-	activities.PrepareVlmConfig = func(cfg *vlmconfig.VLMConfig, deploymentName, region, zone, network, subnet, projectId, snHostProject string) error {
+	activities.PrepareVlmConfig = func(cfg *vlmconfig.VLMConfig, deploymentName, region, primaryZone, secondaryZone, network, subnet, projectId, snHostProject string, sizeInGib int, throughPutMibps, iops int64) error {
 		return errors.New("failed to prepare VLM config")
 	}
 
 	mockVlmClient.On("VSAClusterDeployGet", ctx, cfg).Return(prepareVLMConfig, nil)
 
-	result, err := activity.CreateVSACluster(ctx, "test-deployment", "test-region", "test-zone", "test-network", "test-subnet", "test-project", "test-sn-host-project", 1024)
+	result, err := activity.CreateVSACluster(ctx, "test-deployment", "test-region", "test-zone1", "test-zone2", "test-network", "test-subnet", "test-project", "test-sn-host-project", 1024, 64, 1024)
 
 	assert.Error(t, err)
 	assert.Nil(t, result)
@@ -805,7 +810,7 @@ func Test_CreateVSACluster_FailsToDeployCluster(t *testing.T) {
 	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
 	cfg := &vlmconfig.VLMConfig{}
 
-	activities.PrepareVlmConfig = func(cfg *vlmconfig.VLMConfig, deploymentName, region, zone, network, subnet, projectId, snHostProject string) error {
+	activities.PrepareVlmConfig = func(cfg *vlmconfig.VLMConfig, deploymentName, region, zone1, zone2, network, subnet, projectId, snHostProject string, sizeInGib int, throughPutMibps, iops int64) error {
 		return nil
 	}
 	activities.GetVLMClient = func(ctx context.Context, logger log.Logger, vlmConfig *vlmconfig.VLMConfig) vlm.ClientFactory {
@@ -813,7 +818,7 @@ func Test_CreateVSACluster_FailsToDeployCluster(t *testing.T) {
 	}
 	mockVlmClient.On("VSAClusterDeployCreate", ctx, cfg).Return(errors.New("failed to deploy VSA cluster"))
 
-	result, err := activity.CreateVSACluster(ctx, "test-deployment", "test-region", "test-zone", "test-network", "test-subnet", "test-project", "test-sn-host-project", 1024)
+	result, err := activity.CreateVSACluster(ctx, "test-deployment", "test-region", "test-zone1", "test-zone2", "test-network", "test-subnet", "test-project", "test-sn-host-project", 1024, 64, 1024)
 
 	assert.Error(t, err)
 	assert.Nil(t, result)
@@ -1817,22 +1822,6 @@ func Test_ReturnsErrorWhenClusterDetailsAreMissing(t *testing.T) {
 	assert.Contains(t, err.Error(), "pool cannot be deleted with active clusters")
 }
 
-func Test_ReturnsErrorWhenNodesRetrievalFails(t *testing.T) {
-	mockStorage := database.NewMockStorage(t)
-	activity := activities.PoolActivity{SE: mockStorage}
-	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
-	pool := &datamodel.Pool{ClusterDetails: datamodel.ClusterDetails{ExternalName: "test-deployment"}}
-
-	mockStorage.On("GetNodesByPoolID", ctx, pool.ID).Return(nil, errors.New("failed to retrieve nodes"))
-
-	result, err := activity.DeleteVSADeployment(ctx, pool)
-
-	assert.Error(t, err)
-	assert.Nil(t, result)
-	assert.Contains(t, err.Error(), "failed to retrieve nodes")
-	mockStorage.AssertExpectations(t)
-}
-
 func Test_ReturnsErrorWhenVLMConfigPreparationFails(t *testing.T) {
 	mockStorage := database.NewMockStorage(t)
 	activity := activities.PoolActivity{SE: mockStorage}
@@ -1841,11 +1830,10 @@ func Test_ReturnsErrorWhenVLMConfigPreparationFails(t *testing.T) {
 		activities.PrepareVlmConfig = prepareVLMConfig
 	}()
 	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
-	pool := &datamodel.Pool{ClusterDetails: datamodel.ClusterDetails{ExternalName: "test-deployment"}}
-	nodes := []*datamodel.Node{{ZoneName: "zone1"}}
+	pool := &datamodel.Pool{ClusterDetails: datamodel.ClusterDetails{ExternalName: "test-deployment"},
+		PoolAttributes: &datamodel.PoolAttributes{ThroughputMibps: 64, Iops: 1000, PrimaryZone: "zone1"}}
 
-	mockStorage.On("GetNodesByPoolID", ctx, pool.ID).Return(nodes, nil)
-	activities.PrepareVlmConfig = func(cfg *vlmconfig.VLMConfig, deploymentName, region, zone, network, subnet, projectId, snHostProject string) error {
+	activities.PrepareVlmConfig = func(cfg *vlmconfig.VLMConfig, deploymentName, region, zone1, zone2, network, subnet, projectId, snHostProject string, sizeInGib int, throughPutMibps, iops int64) error {
 		return errors.New("failed to prepare VLM config")
 	}
 
@@ -1868,11 +1856,10 @@ func Test_ReturnsErrorWhenVSAClusterDeletionFails(t *testing.T) {
 		activities.GetVLMClient = getVLMClient
 	}()
 	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
-	pool := &datamodel.Pool{ClusterDetails: datamodel.ClusterDetails{ExternalName: "test-deployment"}}
-	nodes := []*datamodel.Node{{ZoneName: "zone1"}}
+	pool := &datamodel.Pool{ClusterDetails: datamodel.ClusterDetails{ExternalName: "test-deployment"},
+		PoolAttributes: &datamodel.PoolAttributes{ThroughputMibps: 64, Iops: 1000, PrimaryZone: "zone1"}}
 
-	mockStorage.On("GetNodesByPoolID", ctx, pool.ID).Return(nodes, nil)
-	activities.PrepareVlmConfig = func(cfg *vlmconfig.VLMConfig, deploymentName, region, zone, network, subnet, projectId, snHostProject string) error {
+	activities.PrepareVlmConfig = func(cfg *vlmconfig.VLMConfig, deploymentName, region, zone1, zone2, network, subnet, projectId, snHostProject string, sizeInGib int, throughPutMibps, iops int64) error {
 		return nil
 	}
 	activities.GetVLMClient = func(ctx context.Context, logger log.Logger, vlmConfig *vlmconfig.VLMConfig) vlm.ClientFactory {
@@ -1900,11 +1887,10 @@ func Test_DeletesVSADeploymentSuccessfully(t *testing.T) {
 		activities.GetVLMClient = getVLMClient
 	}()
 	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
-	pool := &datamodel.Pool{ClusterDetails: datamodel.ClusterDetails{ExternalName: "test-deployment"}}
-	nodes := []*datamodel.Node{{ZoneName: "zone1"}}
+	pool := &datamodel.Pool{ClusterDetails: datamodel.ClusterDetails{ExternalName: "test-deployment"},
+		PoolAttributes: &datamodel.PoolAttributes{ThroughputMibps: 64, Iops: 1000, PrimaryZone: "zone1"}}
 
-	mockStorage.On("GetNodesByPoolID", ctx, pool.ID).Return(nodes, nil)
-	activities.PrepareVlmConfig = func(cfg *vlmconfig.VLMConfig, deploymentName, region, zone, network, subnet, projectId, snHostProject string) error {
+	activities.PrepareVlmConfig = func(cfg *vlmconfig.VLMConfig, deploymentName, region, zone1, zone2, network, subnet, projectId, snHostProject string, sizeInGib int, throughPutMibps, iops int64) error {
 		return nil
 	}
 	activities.GetVLMClient = func(ctx context.Context, logger log.Logger, vlmConfig *vlmconfig.VLMConfig) vlm.ClientFactory {

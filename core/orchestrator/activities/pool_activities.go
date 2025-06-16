@@ -347,10 +347,10 @@ func (j *PoolActivity) CreateVSASVM(ctx context.Context, pool *datamodel.Pool, v
 	return nil
 }
 
-func (j *PoolActivity) CreateVSACluster(ctx context.Context, deploymentName, region, zone, network, subnet, projectId, snHostProject string, size int) (*vlmconfig.VLMConfig, error) {
+func (j *PoolActivity) CreateVSACluster(ctx context.Context, deploymentName, region, primaryZone, secondaryZone, network, subnet, projectId, snHostProject string, sizeInGiB int, throughputMibps, iops int64) (*vlmconfig.VLMConfig, error) {
 	logger := util.GetLogger(ctx)
 	cfg := &vlmconfig.VLMConfig{}
-	err := PrepareVlmConfig(cfg, deploymentName, region, zone, network, subnet, projectId, snHostProject)
+	err := PrepareVlmConfig(cfg, deploymentName, region, primaryZone, secondaryZone, network, subnet, projectId, snHostProject, sizeInGiB, throughputMibps, iops)
 	if err != nil {
 		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
 	}
@@ -372,7 +372,7 @@ func assignNetworkConfig(cfg *vlmconfig.VLMConfig, lifType vlmconfig.VSALIFType,
 	}
 }
 
-func _prepareVlmConfig(cfg *vlmconfig.VLMConfig, deploymentName, region, zone, network, subnet, projectId, snHostProject string) error {
+func _prepareVlmConfig(cfg *vlmconfig.VLMConfig, deploymentName, region, primaryZone, secondaryZone, network, subnet, projectId, snHostProject string, sizeInGib int, throughputMibps, iops int64) error {
 	vlmContent, err := ReadFile("common/vsa_config/vlm-config.json")
 	if err != nil {
 		return vsaerrors.NewVCPError(vsaerrors.ErrFileReadError, err)
@@ -383,11 +383,17 @@ func _prepareVlmConfig(cfg *vlmconfig.VLMConfig, deploymentName, region, zone, n
 	}
 	cfg.Deployment.DeploymentID = deploymentName
 	cfg.Deployment.DeploymentName = deploymentName
-	cfg.Deployment.Zone = vlmconfig.ZoneInfo{
-		Zone1: zone,
-		Zone2: zone,
+
+	cfg.Deployment.Zone.Zone1 = primaryZone
+	cfg.Deployment.Zone.Zone2 = secondaryZone
+	if secondaryZone == "" {
+		cfg.Deployment.Zone.Zone2 = primaryZone
 	}
 	cfg.Deployment.Region = region
+
+	cfg.Deployment.SPConfig.Throughput = throughputMibps
+	cfg.Deployment.SPConfig.IOps = iops
+	cfg.Deployment.SPConfig.Size = fmt.Sprintf("%dGi", sizeInGib)
 
 	networkConfigs := map[vlmconfig.VSALIFType]struct {
 		VPC             string
@@ -426,15 +432,11 @@ func (j *PoolActivity) DeleteVSADeployment(ctx context.Context, pool *datamodel.
 		return nil, vsaerrors.WrapAsTemporalApplicationError(vsaerrors.NewVCPError(vsaerrors.ErrIncorrectVSAClusterState, errors.New("pool cannot be deleted with active clusters")))
 	}
 	deploymentName := pool.ClusterDetails.ExternalName
-	se := j.SE
-	node, err := se.GetNodesByPoolID(ctx, pool.ID)
-	if err != nil {
-		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
-	}
 
 	logger := util.GetLogger(ctx)
 	cfg := &vlmconfig.VLMConfig{}
-	err = PrepareVlmConfig(cfg, deploymentName, localRegion, node[0].ZoneName, pool.ClusterDetails.Network, "vsa-"+localRegion, pool.ClusterDetails.RegionalTenantProject, pool.ClusterDetails.SnHostProject)
+	err := PrepareVlmConfig(cfg, deploymentName, localRegion, pool.PoolAttributes.PrimaryZone, pool.PoolAttributes.SecondaryZone, pool.ClusterDetails.Network, "vsa-"+localRegion, pool.ClusterDetails.RegionalTenantProject, pool.ClusterDetails.SnHostProject,
+		int(pool.SizeInBytes), pool.PoolAttributes.ThroughputMibps, pool.PoolAttributes.Iops)
 	if err != nil {
 		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
 	}

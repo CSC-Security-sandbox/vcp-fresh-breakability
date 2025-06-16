@@ -12,25 +12,25 @@ import (
 
 type Pool struct {
 	BaseModel
-	Name                    string         `gorm:"column:name"`
-	Description             string         `gorm:"column:description"`
-	State                   string         `gorm:"column:state"`
-	StateDetails            string         `gorm:"column:state_details"`
-	VendorID                string         `gorm:"column:vendor_id"`
-	ServiceLevel            string         `gorm:"column:service_level"`
-	SizeInBytes             int64          `gorm:"column:size_in_bytes"`
-	UsedBytes               int64          `gorm:"column:used_bytes"`
-	Network                 string         `gorm:"column:network;type:varchar(2048)"`
-	AllowAutoTiering        bool           `gorm:"column:allow_auto_tiering;default:false"`
-	HotTierSizeInBytes      int64          `gorm:"column:hot_tier_size_in_bytes"`
-	EnableHotTierAutoResize bool           `gorm:"column:enable_hot_tier_auto_resize;default:false"`
-	AccountID               int64          `gorm:"column:account_id"`
-	Account                 *Account       `gorm:"ForeignKey:AccountID;AssociationForeignKey:ID;constraint:OnDelete:CASCADE,OnUpdate:RESTRICT;"`
-	PoolAttributes          JSONB          `gorm:"column:pool_attributes;type:jsonb"`
-	ClusterDetails          ClusterDetails `gorm:"column:cluster_details;type:jsonb"`
-	QosType                 string         `gorm:"column:qos_type"`
-	Username                string         `gorm:"column:username"`
-	Password                string         `gorm:"column:password"`
+	Name                    string          `gorm:"column:name"`
+	Description             string          `gorm:"column:description"`
+	State                   string          `gorm:"column:state"`
+	StateDetails            string          `gorm:"column:state_details"`
+	VendorID                string          `gorm:"column:vendor_id"`
+	ServiceLevel            string          `gorm:"column:service_level"`
+	SizeInBytes             int64           `gorm:"column:size_in_bytes"`
+	UsedBytes               int64           `gorm:"column:used_bytes"`
+	Network                 string          `gorm:"column:network;type:varchar(2048)"`
+	AllowAutoTiering        bool            `gorm:"column:allow_auto_tiering;default:false"`
+	HotTierSizeInBytes      int64           `gorm:"column:hot_tier_size_in_bytes"`
+	EnableHotTierAutoResize bool            `gorm:"column:enable_hot_tier_auto_resize;default:false"`
+	AccountID               int64           `gorm:"column:account_id"`
+	Account                 *Account        `gorm:"ForeignKey:AccountID;AssociationForeignKey:ID;constraint:OnDelete:CASCADE,OnUpdate:RESTRICT;"`
+	PoolAttributes          *PoolAttributes `gorm:"column:pool_attributes;type:jsonb"`
+	ClusterDetails          ClusterDetails  `gorm:"column:cluster_details;type:jsonb"`
+	QosType                 string          `gorm:"column:qos_type"`
+	Username                string          `gorm:"column:username"`
+	Password                string          `gorm:"column:password"`
 }
 
 type PoolView struct {
@@ -48,6 +48,13 @@ type ClusterDetails struct {
 	Network               string `json:"network"`
 }
 
+type PoolAttributes struct {
+	ThroughputMibps int64  `json:"throughput"`
+	Iops            int64  `json:"iops"`
+	PrimaryZone     string `json:"primary_zone"`
+	SecondaryZone   string `json:"secondary_zone"`
+}
+
 // Node represents the public.nodes table in the database
 type Node struct {
 	BaseModel
@@ -62,25 +69,18 @@ type Node struct {
 	AccountID       int64        `gorm:"column:account_id;type:bigint"`
 }
 
-// JSONB is a custom type to handle JSONB columns in PostgreSQL
-type JSONB map[string]interface{}
-
-// Scan implements the Scanner interface for JSONB
-func (j *JSONB) Scan(value interface{}) error {
-	if value == nil {
-		*j = make(JSONB) // Initialize to an empty map
-		return nil
-	}
+// Scan implements the Scanner interface for PoolAttributes
+func (pa *PoolAttributes) Scan(value interface{}) error {
 	bytes, ok := value.([]byte)
 	if !ok {
 		return errors.New("type assertion to []byte failed")
 	}
-	return json.Unmarshal(bytes, j)
+	return json.Unmarshal(bytes, pa)
 }
 
-// Value implements the Valuer interface for JSONB
-func (j JSONB) Value() (driver.Value, error) {
-	return json.Marshal(j)
+// Value implements the Valuer interface for PoolAttributes
+func (pa PoolAttributes) Value() (driver.Value, error) {
+	return json.Marshal(pa)
 }
 
 // Scan implements the sql.Scanner interface for ClusterDetails
@@ -115,6 +115,27 @@ type Volume struct {
 	Svm              *Svm              `gorm:"ForeignKey:SvmID;AssociationForeignKey:ID;constraint:OnDelete:CASCADE,OnUpdate:RESTRICT;"`
 	VolumeAttributes *VolumeAttributes `gorm:"column:volume_attributes;type:jsonb"`
 	DataProtection   *DataProtection   `gorm:"column:data_protection;type:jsonb"`
+}
+
+// JSONB is a custom type to handle JSONB columns in PostgreSQL
+type JSONB map[string]interface{}
+
+// Scan implements the Scanner interface for JSONB
+func (j *JSONB) Scan(value interface{}) error {
+	if value == nil {
+		*j = make(JSONB) // Initialize to an empty map
+		return nil
+	}
+	bytes, ok := value.([]byte)
+	if !ok {
+		return errors.New("type assertion to []byte failed")
+	}
+	return json.Unmarshal(bytes, j)
+}
+
+// Value implements the Valuer interface for JSONB
+func (j JSONB) Value() (driver.Value, error) {
+	return json.Marshal(j)
 }
 
 type VolumeAttributes struct {

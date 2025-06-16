@@ -39,7 +39,13 @@ func TestConvertDatastorePoolToModel_ValidPool_ReturnsCorrectModel(t *testing.T)
 		StateDetails:     "running",
 		AllowAutoTiering: true,
 		Network:          "test-network",
-		ServiceLevel:     "premium",
+		ServiceLevel:     "FLEX",
+		PoolAttributes: &datamodel.PoolAttributes{
+			ThroughputMibps: 64,
+			Iops:            1024,
+			PrimaryZone:     "us-central1-a",
+			SecondaryZone:   "us-central1-b",
+		},
 	}
 	accountName := "test-account"
 
@@ -76,7 +82,13 @@ func TestConvertDatastorePoolToModel_NilDeletedAt_ReturnsNilDeletedAt(t *testing
 		StateDetails:     "running",
 		AllowAutoTiering: true,
 		Network:          "test-network",
-		ServiceLevel:     "premium",
+		ServiceLevel:     "FLEX",
+		PoolAttributes: &datamodel.PoolAttributes{
+			ThroughputMibps: 64,
+			Iops:            1024,
+			PrimaryZone:     "us-central1-a",
+			SecondaryZone:   "us-central1-b",
+		},
 	}
 	accountName := "test-account"
 	dbPoolView := repository.ConvertPoolToPoolView(datastorePool)
@@ -101,7 +113,13 @@ func TestConvertDatastorePoolToModel_InvalidDeletedAt_ReturnsNilDeletedAt(t *tes
 		StateDetails:     "running",
 		AllowAutoTiering: true,
 		Network:          "test-network",
-		ServiceLevel:     "premium",
+		ServiceLevel:     "FLEX",
+		PoolAttributes: &datamodel.PoolAttributes{
+			ThroughputMibps: 64,
+			Iops:            1024,
+			PrimaryZone:     "us-central1-a",
+			SecondaryZone:   "",
+		},
 	}
 	accountName := "test-account"
 	dbPoolView := repository.ConvertPoolToPoolView(datastorePool)
@@ -124,6 +142,8 @@ func TestCreatePool(t *testing.T) {
 		params := &common.CreatePoolParams{
 			AccountName:      "test_account",
 			Region:           "test_region",
+			PrimaryZone:      "test_zone",
+			SecondaryZone:    "",
 			Name:             "test_pool",
 			VendorID:         "test_vendor",
 			SizeInBytes:      1024,
@@ -153,6 +173,8 @@ func TestCreatePool(t *testing.T) {
 		params := &common.CreatePoolParams{
 			AccountName:      "test_account",
 			Region:           "test_region",
+			PrimaryZone:      "test_zone",
+			SecondaryZone:    "",
 			Name:             "test_pool",
 			VendorID:         "test_vendor",
 			SizeInBytes:      1024,
@@ -196,6 +218,8 @@ func TestCreatePool(t *testing.T) {
 		params := &common.CreatePoolParams{
 			AccountName:      "test_account",
 			Region:           "test_region",
+			PrimaryZone:      "test_zone1",
+			SecondaryZone:    "test_zone2",
 			Name:             "test_pool",
 			VendorID:         "test_vendor",
 			SizeInBytes:      1024,
@@ -257,6 +281,8 @@ func TestCreatePool(t *testing.T) {
 		params := &common.CreatePoolParams{
 			AccountName:      "test_account",
 			Region:           "test_region",
+			PrimaryZone:      "test_zone",
+			SecondaryZone:    "",
 			Name:             "test_pool",
 			VendorID:         "test_vendor",
 			SizeInBytes:      1024,
@@ -347,11 +373,17 @@ func TestGetPool(t *testing.T) {
 			BaseModel: datamodel.BaseModel{UUID: "test-pool-uuid"},
 			Name:      "test_pool",
 			AccountID: account.ID,
+			PoolAttributes: &datamodel.PoolAttributes{
+				ThroughputMibps: 64,
+				Iops:            1024,
+				PrimaryZone:     "us-central1-a",
+				SecondaryZone:   "",
+			},
 		}
 		err = store.DB().Create(pool).Error
 		assert.NoError(tt, err, "Failed to create pool")
 
-		result, err := orch.GetPool(ctx, "test-pool-uuid", "")
+		result, err := orch.GetPool(ctx, "test-pool-uuid", "test_account")
 		assert.NoError(tt, err, "Expected no error, got %v", err)
 		assert.Equal(tt, pool.Name, result.Name)
 		assert.Equal(tt, account.Name, result.AccountName)
@@ -414,6 +446,12 @@ func TestGetPoolByVendorID(t *testing.T) {
 			Name:      "test_pool",
 			AccountID: account.ID,
 			VendorID:  "test-vendor-id",
+			PoolAttributes: &datamodel.PoolAttributes{
+				ThroughputMibps: 64,
+				Iops:            1024,
+				PrimaryZone:     "us-central1-a",
+				SecondaryZone:   "",
+			},
 		}
 		err = store.DB().Create(pool).Error
 		if err != nil {
@@ -577,6 +615,12 @@ func TestDeletePool(t *testing.T) {
 			BaseModel: datamodel.BaseModel{UUID: "test-pool-uuid"},
 			Name:      "test_pool",
 			AccountID: account.ID,
+			PoolAttributes: &datamodel.PoolAttributes{
+				ThroughputMibps: 64,
+				Iops:            1024,
+				PrimaryZone:     "us-central1-a",
+				SecondaryZone:   "",
+			},
 		}
 		err = store.DB().Create(pool).Error
 		if err != nil {
@@ -697,11 +741,21 @@ func TestMultiplePools(t *testing.T) {
 			BaseModel: datamodel.BaseModel{UUID: "test-pool-uuid1"},
 			Name:      "test_pool_1",
 			AccountID: account.ID,
+			PoolAttributes: &datamodel.PoolAttributes{
+				ThroughputMibps: 64,
+				Iops:            1024,
+				PrimaryZone:     "us-central1-a",
+			},
 		}
 		pool2 := &datamodel.Pool{
 			BaseModel: datamodel.BaseModel{UUID: "test-pool-uuid2"},
 			Name:      "test_pool_2",
 			AccountID: account.ID,
+			PoolAttributes: &datamodel.PoolAttributes{
+				ThroughputMibps: 128,
+				Iops:            2048,
+				PrimaryZone:     "us-central1-b",
+			},
 		}
 		err = store.DB().Create(pool1).Error
 		if err != nil {
@@ -826,11 +880,22 @@ func TestListPools(t *testing.T) {
 			BaseModel: datamodel.BaseModel{UUID: "test-pool-uuid1"},
 			Name:      "test_pool_1",
 			AccountID: account.ID,
+			PoolAttributes: &datamodel.PoolAttributes{
+				ThroughputMibps: 64,
+				Iops:            1024,
+				PrimaryZone:     "us-central1-a",
+			},
 		}
 		pool2 := &datamodel.Pool{
 			BaseModel: datamodel.BaseModel{UUID: "test-pool-uuid2"},
 			Name:      "test_pool_2",
 			AccountID: account.ID,
+			PoolAttributes: &datamodel.PoolAttributes{
+				ThroughputMibps: 128,
+				Iops:            2048,
+				PrimaryZone:     "us-central1-b",
+				SecondaryZone:   "us-central1-c",
+			},
 		}
 		err = store.DB().Create(pool1).Error
 		if err != nil {
@@ -968,6 +1033,11 @@ func TestGetPoolByName(t *testing.T) {
 		poolResp := &datamodel.Pool{
 			BaseModel: datamodel.BaseModel{UUID: "test-pool-uuid", ID: 1},
 			Name:      "test-pool",
+			PoolAttributes: &datamodel.PoolAttributes{
+				ThroughputMibps: 64,
+				Iops:            1024,
+				PrimaryZone:     "us-central1-a",
+			},
 		}
 		nodeResp := []*datamodel.Node{{
 			BaseModel: datamodel.BaseModel{UUID: "test-node-uuid", ID: 1},
@@ -1007,6 +1077,11 @@ func TestGetPoolByName(t *testing.T) {
 		poolResp := &datamodel.Pool{
 			BaseModel: datamodel.BaseModel{UUID: "test-pool-uuid", ID: 1},
 			Name:      "test-pool",
+			PoolAttributes: &datamodel.PoolAttributes{
+				ThroughputMibps: 64,
+				Iops:            1024,
+				PrimaryZone:     "us-central1-a",
+			},
 		}
 		nodeResp := []*datamodel.Node{
 			{

@@ -89,11 +89,18 @@ func _createPool(ctx context.Context, se database.Storage, temporal client.Clien
 		QosType:                 params.QosType,
 		Username:                nodeUsername,
 		Password:                nodePassword,
+		PoolAttributes: &datamodel.PoolAttributes{
+			ThroughputMibps: params.CustomPerformanceParams.ThroughputMibps,
+			Iops:            params.CustomPerformanceParams.Iops,
+			PrimaryZone:     params.PrimaryZone,
+			SecondaryZone:   params.SecondaryZone,
+		},
 	}
 	dbPool, err := se.CreatingPool(ctx, poolObj)
 	if err != nil {
 		return nil, "", err
 	}
+
 	_, err = temporal.ExecuteWorkflow(ctx,
 		client.StartWorkflowOptions{
 			TaskQueue:             workflowengine.CustomerTaskQueue,
@@ -108,6 +115,7 @@ func _createPool(ctx context.Context, se database.Storage, temporal client.Clien
 		logger.Error("Failed to start pool create workflow: ", "error", err)
 		return nil, "", err
 	}
+
 	poolView := repository.ConvertPoolToPoolView(dbPool)
 	return convertDatastorePoolToModel(poolView, account.Name), createdJob.UUID, nil
 }
@@ -182,11 +190,7 @@ func _deletePool(ctx context.Context, temporal client.Client, se database.Storag
 		return nil, "", err
 	}
 
-	volumeCount, err := se.GetVolumeCountByPoolID(ctx, pool.ID)
-	if err != nil {
-		return nil, "", err
-	}
-	if volumeCount > 0 {
+	if pool.VolumeCount > 0 {
 		return nil, "", customerrors.NewConflictErr("pool cannot be deleted with active volumes")
 	}
 
@@ -217,13 +221,15 @@ func _deletePool(ctx context.Context, temporal client.Client, se database.Storag
 		},
 		workflows.DeletePoolWorkflow,
 		params,
-		pool,
+		dbpool,
 	)
 	if err != nil {
 		logger.Error("Failed to start pool create workflow: ", "error", err)
 		return nil, "", err
 	}
 
+	pool.State = dbpool.State
+	pool.StateDetails = dbpool.StateDetails
 	return convertDatastorePoolToModel(pool, account.Name), createdJob.UUID, nil
 }
 
@@ -398,6 +404,13 @@ func convertDatastorePoolToModel(pool *datamodel.PoolView, accountName string) *
 		PoolAttributes: &models.PoolAttributes{
 			AllocatedBytes:  float64(pool.QuotaInBytes),
 			NumberOfVolumes: pool.VolumeCount,
+			PrimaryZone:     pool.PoolAttributes.PrimaryZone,
+			SecondaryZone:   pool.PoolAttributes.SecondaryZone,
+		},
+		CustomPerformanceParams: &models.CustomPerformanceParams{
+			Enabled:    true,
+			Throughput: float64(pool.PoolAttributes.ThroughputMibps),
+			Iops:       pool.PoolAttributes.Iops,
 		},
 	}
 }
