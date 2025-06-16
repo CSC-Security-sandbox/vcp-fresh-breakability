@@ -169,6 +169,19 @@ func (mock *MockClientService) AssertCloudTargetCreate(params *CloudTargetCreate
 	mock.returns <- []interface{}{&ret0, &ret1, &ret2}
 }
 
+// CloudTargetDeleteCollection mocks a call to ClientService.CloudTargetDeleteCollection
+func (mock *MockClientService) CloudTargetDeleteCollection(params *CloudTargetDeleteCollectionParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*CloudTargetDeleteCollectionOK, *CloudTargetDeleteCollectionAccepted, error) {
+	mock.calls <- &mockClientServiceCall{name: "CloudTargetDeleteCollection", params: []interface{}{&params, &authInfo, &opts}}
+	ret := (<-mock.returns).([]interface{})
+	return *ret[0].(**CloudTargetDeleteCollectionOK), *ret[1].(**CloudTargetDeleteCollectionAccepted), *ret[2].(*error)
+}
+
+// AssertCloudTargetDeleteCollection verifies that CloudTargetDeleteCollection has been invoked
+func (mock *MockClientService) AssertCloudTargetDeleteCollection(params *CloudTargetDeleteCollectionParams, authInfo runtime.ClientAuthInfoWriter, opts []ClientOption, ret0 *CloudTargetDeleteCollectionOK, ret1 *CloudTargetDeleteCollectionAccepted, ret2 error) {
+	mock.assertCall(<-mock.calls, &mockClientServiceCall{name: "CloudTargetDeleteCollection", params: []interface{}{&params, &authInfo, &opts}})
+	mock.returns <- []interface{}{&ret0, &ret1, &ret2}
+}
+
 // CloudTargetModify mocks a call to ClientService.CloudTargetModify
 func (mock *MockClientService) CloudTargetModify(params *CloudTargetModifyParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*CloudTargetModifyOK, *CloudTargetModifyAccepted, error) {
 	mock.calls <- &mockClientServiceCall{name: "CloudTargetModify", params: []interface{}{&params, &authInfo, &opts}}

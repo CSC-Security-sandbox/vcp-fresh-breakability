@@ -749,3 +749,31 @@ func TestLunUpdate(t *testing.T) {
 		mockSAN.AssertExpectations(tt)
 	})
 }
+
+func TestSnapshotGet(t *testing.T) {
+	mockStorage := new(ontaprest.MockStorageClient)
+	mockClient := new(ontaprest.MockRESTClient)
+	mockClient.On("Storage").Return(mockStorage)
+
+	getOntapClientFunc = func(params ontaprest.RESTClientParams) ontaprest.RESTClient {
+		return mockClient
+	}
+	rc := &OntapRestProvider{}
+
+	snapshotUUID := "testSnapshotUUID"
+	volumeUUID := "testVolumeUUID"
+	snapshotName := "testSnapshot"
+	mockSnapshot := &ontaprest.Snapshot{Snapshot: models.Snapshot{Name: &snapshotName, UUID: &snapshotUUID}}
+
+	mockStorage.On("SnapshotGet", mock.Anything).Return(mockSnapshot, nil)
+
+	snapshot, err := rc.SnapshotGet(snapshotUUID, volumeUUID, snapshotName)
+
+	assert.NoError(t, err)
+	assert.NotNil(t, snapshot)
+	assert.Equal(t, snapshotName, *snapshot.Name)
+	assert.Equal(t, snapshotUUID, *snapshot.UUID)
+
+	mockStorage.AssertExpectations(t)
+	mockClient.AssertExpectations(t)
+}

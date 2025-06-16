@@ -7,6 +7,7 @@ import (
 
 	cr "github.com/go-openapi/runtime/client"
 	"github.com/go-openapi/strfmt"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/ontap-rest/client/cloud"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/ontap-rest/client/cluster"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/ontap-rest/client/networking"
 	san "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/ontap-rest/client/s_a_n"
@@ -27,7 +28,15 @@ var (
 	returnTimeout = strconv.FormatInt(int64(utils.GetConstraintInteger(env.GetUint("ONTAP_REST_SYNC_RETURN_TIMEOUT_SECONDS", 15), 0, 15, 15)), 10)
 	// MD: returnTimeoutNoJob signals that we are not interested in getting a job and the entire operation should instead time out
 	// this is useful for resources that in most cases take very little time to delete but may sometimes take longer.
-	returnTimeoutNoJob = nillable.ToPointer(strconv.Itoa(utils.GetConstraintInteger(int(cr.DefaultTimeout), 15, 120, 30)))
+	returnTimeoutNoJob         = nillable.ToPointer(strconv.Itoa(utils.GetConstraintInteger(int(cr.DefaultTimeout), 15, 120, 30)))
+	objStoreProviderType       = env.GetString("OBJECT_STORE_PROVIDER", "googlecloud")
+	objStoreServer             = env.GetString("OBJECT_STORES_SERVER", "storage.googleapis.com")
+	objStoreAuthenticationType = env.GetString("OBJECT_STORE_AUTH_TYPE", "GCP_SA")
+	objStoreSnapmirrorUse      = "data"
+	objStoreOwner              = "snapmirror"
+	// This is just a hack till be find a proper solution. The token expires in every 7 days.
+	// accessToken should be in format "Bearer youRaCCesstOKen"
+	accessToken = env.GetString("SM_ACCESS_TOKEN", "")
 )
 
 // BaseParams contains all the common parameters that ONTAP REST supports
@@ -1500,6 +1509,7 @@ type SnapmirrorRelationshipCreateParams struct {
 	SourcePath      string
 	Policy          string
 	Schedule        *string
+	SetAccessToken  bool
 }
 
 // SnapmirrorRelationshipDeleteParams describes the params to invoke snapmirror relationship delete
@@ -1542,7 +1552,9 @@ type SnapmirrorRelationshipListDestinationsParams struct {
 
 // SnapmirrorRelationshipGetParams represents snapmirror relationship get parameters
 type SnapmirrorRelationshipGetParams struct {
-	UUID string
+	UUID            string
+	DestinationPath *string
+	SourcePath      *string
 }
 
 // SnapmirrorPolicyDeleteCollectionParams is the input param struct for storageClient.
@@ -1550,6 +1562,19 @@ type SnapmirrorPolicyDeleteCollectionParams struct {
 	BaseParams
 	Name    string
 	SvmUUID string
+}
+
+// SnapmirrorRelationshipResyncParams describes the params to invoke snapmirror relationship resync
+type SnapmirrorRelationshipTransferCreateParams struct {
+	UUID           string
+	SnapshotName   string
+	SetAccessToken bool
+}
+
+// SnapmirrorRelationshipTransferGetParams describes the params to invoke snapmirror relationship transfer get
+type SnapmirrorRelationshipTransferGetParams struct {
+	SnapmirrorUUID string
+	SnapshotName   string
 }
 
 // NetworkIPDefaultRouteCreateParams describes the params to invoke Network Route Creation
@@ -2405,24 +2430,28 @@ func snapmirrorRelationshipCreateParamsToONTAP(params *SnapmirrorRelationshipCre
 		return otParams
 	}
 
-	snapmirror := &models.SnapmirrorRelationship{
+	sm := &models.SnapmirrorRelationship{
 		Destination: &models.SnapmirrorEndpoint{
 			Path: &params.DestinationPath,
 		},
 		Source: &models.SnapmirrorSourceEndpoint{
 			Path: &params.SourcePath,
 		},
-		Policy: &models.SnapmirrorRelationshipInlinePolicy{
+	}
+	if params.Policy != "" {
+		sm.Policy = &models.SnapmirrorRelationshipInlinePolicy{
 			Name: &params.Policy,
-		},
+		}
 	}
 	if params.Schedule != nil {
-		snapmirror.TransferSchedule = &models.SnapmirrorRelationshipInlineTransferSchedule{
+		sm.TransferSchedule = &models.SnapmirrorRelationshipInlineTransferSchedule{
 			Name: params.Schedule,
 		}
 	}
-
-	otParams.SetInfo(snapmirror)
+	if params.SetAccessToken && accessToken != "" {
+		otParams.WithXNetappAuthorization(&accessToken)
+	}
+	otParams.SetInfo(sm)
 	returnRecords := "true"
 	otParams.SetReturnRecords(&returnRecords)
 	return otParams
@@ -2434,12 +2463,12 @@ func snapmirrorRelationshipSetStateParamsToONTAP(snapmirrorUUID string, state st
 		return otParams
 	}
 
-	snapmirror := &models.SnapmirrorRelationship{
+	sm := &models.SnapmirrorRelationship{
 		State: &state,
 	}
 
 	otParams.SetUUID(snapmirrorUUID)
-	otParams.SetInfo(snapmirror)
+	otParams.SetInfo(sm)
 	return otParams
 }
 
@@ -2450,6 +2479,10 @@ func snapmirrorRelationshipListParamsToONTAP(params *SnapmirrorRelationshipListP
 	}
 	otParams.SetDestinationPath(&params.DestinationPath)
 	otParams.SetSourcePath(&params.SourcePath)
+	// This checks if the DestinationPath is a cloud object store path.
+	if strings.Contains(params.DestinationPath, ":/objstore/") {
+		otParams.WithFields([]string{"destination.uuid"})
+	}
 	return otParams
 }
 
@@ -2548,5 +2581,63 @@ func snapmirrorRelationshipGetParamsToONTAP(params *SnapmirrorRelationshipGetPar
 		return otParams
 	}
 	otParams.SetUUID(params.UUID)
+	return otParams
+}
+
+type CloudTarget struct {
+	models.CloudTarget
+}
+
+func cloudTargetCreateParamsToONTAP(params *CloudTargetCreateParams) *cloud.CloudTargetCreateParams {
+	otParams := cloud.NewCloudTargetCreateParams()
+	if params == nil {
+		return otParams
+	}
+	otParams.Info = &models.CloudTarget{
+		ProviderType:       &objStoreProviderType,
+		AuthenticationType: &objStoreAuthenticationType,
+		Server:             &objStoreServer,
+		Owner:              &objStoreOwner,
+		SnapmirrorUse:      &objStoreSnapmirrorUse,
+		Name:               params.Name,
+		Container:          params.Container,
+	}
+	return otParams
+}
+
+func cloudTargetCollectionGetParamsToONTAP(params *CloudTargetCollectionGetParams) *cloud.CloudTargetCollectionGetParams {
+	otParams := cloud.NewCloudTargetCollectionGetParams()
+	if params == nil {
+		return otParams
+	}
+	otParams.SetName(params.Name)
+	return otParams
+}
+
+// SnapmirrorTransfer is a simple wrapper of models.SnapmirrorTransfer
+type SnapmirrorTransfer struct {
+	models.SnapmirrorTransfer
+}
+
+func snapmirrorRelationshipTransferCreateParamsToONTAP(params *SnapmirrorRelationshipTransferCreateParams) *snapmirror.SnapmirrorRelationshipTransferCreateParams {
+	otParams := snapmirror.NewSnapmirrorRelationshipTransferCreateParams()
+	if params == nil {
+		return otParams
+	}
+	otParams.SetRelationshipUUID(params.UUID)
+	otParams.SetInfo(&models.SnapmirrorTransfer{SourceSnapshot: &params.SnapshotName})
+	if params.SetAccessToken && accessToken != "" {
+		otParams.WithXNetappAuthorization(&accessToken)
+	}
+	return otParams
+}
+
+func snapmirrorRelationshipTransferGetParamsToONTAP(params *SnapmirrorRelationshipTransferGetParams) *snapmirror.SnapmirrorRelationshipTransfersGetParams {
+	otParams := snapmirror.NewSnapmirrorRelationshipTransfersGetParams()
+	if params == nil {
+		return otParams
+	}
+	otParams.SetRelationshipUUID(params.SnapmirrorUUID)
+	otParams.SetSnapshot(&params.SnapshotName)
 	return otParams
 }

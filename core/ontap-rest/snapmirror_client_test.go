@@ -260,6 +260,77 @@ func TestSnapmirrorRelationshipRelease(t *testing.T) {
 	})
 }
 
+func TestSnapmirrorRelationshipTransferCreate(t *testing.T) {
+	t.Run("WhenRESTCallFails", func(tt *testing.T) {
+		transport := &mockTransport{err: errors.New("something went wrong")}
+		n := snapmirror.New(transport, nil)
+		client := &snapmirrorClient{api: n}
+		err := client.SnapmirrorRelationshipTransferCreate(nil)
+		assert.EqualError(tt, err, transport.err.Error())
+	})
+
+	t.Run("WhenSuccessful", func(tt *testing.T) {
+		transport := &mockTransport{response: &snapmirror.SnapmirrorRelationshipTransferCreateCreated{
+			Location: "transfer-location",
+		}}
+		n := snapmirror.New(transport, nil)
+		client := &snapmirrorClient{api: n}
+		err := client.SnapmirrorRelationshipTransferCreate(nil)
+		assert.NoError(tt, err)
+	})
+
+	t.Run("WhenUnexpectedResponse", func(tt *testing.T) {
+		transport := &mockTransport{response: &snapmirror.SnapmirrorRelationshipTransferCreateCreated{
+			Location: "",
+		}}
+		n := snapmirror.New(transport, nil)
+		client := &snapmirrorClient{api: n}
+		err := client.SnapmirrorRelationshipTransferCreate(nil)
+		assert.EqualError(tt, err, "unexpected response from server while creating Snapmirror Relationship Transfer - received no transfer info")
+	})
+}
+
+func TestSnapmirrorRelationshipTransferGet(t *testing.T) {
+	t.Run("WhenRESTCallFails", func(tt *testing.T) {
+		transport := &mockTransport{err: errors.New("something went wrong")}
+		n := snapmirror.New(transport, nil)
+		client := &snapmirrorClient{api: n}
+		response, err := client.SnapmirrorRelationshipTransferGet(nil)
+		assert.EqualError(tt, err, transport.err.Error())
+		assert.Nil(tt, response)
+	})
+
+	t.Run("WhenSuccessful", func(tt *testing.T) {
+		transport := &mockTransport{response: &snapmirror.SnapmirrorRelationshipTransfersGetOK{
+			Payload: &models.SnapmirrorTransferResponse{
+				NumRecords: nillable.ToPointer(int64(1)),
+				SnapmirrorTransferResponseInlineRecords: []*models.SnapmirrorTransfer{
+					{UUID: nillable.ToPointer(strfmt.UUID("transfer-uuid"))},
+				},
+			},
+		}}
+		n := snapmirror.New(transport, nil)
+		client := &snapmirrorClient{api: n}
+		response, err := client.SnapmirrorRelationshipTransferGet(nil)
+		assert.NoError(tt, err)
+		assert.NotNil(tt, response)
+		assert.Equal(tt, "transfer-uuid", response.UUID.String())
+	})
+
+	t.Run("WhenNoRecords", func(tt *testing.T) {
+		transport := &mockTransport{response: &snapmirror.SnapmirrorRelationshipTransfersGetOK{
+			Payload: &models.SnapmirrorTransferResponse{
+				NumRecords: nillable.ToPointer(int64(0)),
+			},
+		}}
+		n := snapmirror.New(transport, nil)
+		client := &snapmirrorClient{api: n}
+		response, err := client.SnapmirrorRelationshipTransferGet(nil)
+		assert.NoError(tt, err)
+		assert.Nil(tt, response)
+	})
+}
+
 func TestSnapmirrorGetPriv(t *testing.T) {
 	t.Run("WhenRESTCallFails", func(tt *testing.T) {
 		transport := &mockTransport{err: errors.New("something went wrong")}

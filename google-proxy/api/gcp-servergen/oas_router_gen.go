@@ -838,28 +838,121 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 											return
 										}
 										switch elem[0] {
-										case '/': // Prefix: "/getMultipleBackups"
+										case '/': // Prefix: "/"
 
-											if l := len("/getMultipleBackups"); len(elem) >= l && elem[0:l] == "/getMultipleBackups" {
+											if l := len("/"); len(elem) >= l && elem[0:l] == "/" {
 												elem = elem[l:]
 											} else {
 												break
 											}
 
 											if len(elem) == 0 {
-												// Leaf node.
-												switch r.Method {
-												case "POST":
-													s.handleV1betaGetMultipleBackupsRequest([3]string{
-														args[0],
-														args[1],
-														args[2],
-													}, elemIsEscaped, w, r)
-												default:
-													s.notAllowed(w, r, "POST")
+												break
+											}
+											switch elem[0] {
+											case 'b': // Prefix: "backups"
+
+												if l := len("backups"); len(elem) >= l && elem[0:l] == "backups" {
+													elem = elem[l:]
+												} else {
+													break
 												}
 
-												return
+												if len(elem) == 0 {
+													switch r.Method {
+													case "GET":
+														s.handleV1betaListBackupsRequest([3]string{
+															args[0],
+															args[1],
+															args[2],
+														}, elemIsEscaped, w, r)
+													case "POST":
+														s.handleV1betaCreateBackupRequest([3]string{
+															args[0],
+															args[1],
+															args[2],
+														}, elemIsEscaped, w, r)
+													default:
+														s.notAllowed(w, r, "GET,POST")
+													}
+
+													return
+												}
+												switch elem[0] {
+												case '/': // Prefix: "/"
+
+													if l := len("/"); len(elem) >= l && elem[0:l] == "/" {
+														elem = elem[l:]
+													} else {
+														break
+													}
+
+													// Param: "backupId"
+													// Leaf parameter, slashes are prohibited
+													idx := strings.IndexByte(elem, '/')
+													if idx >= 0 {
+														break
+													}
+													args[3] = elem
+													elem = ""
+
+													if len(elem) == 0 {
+														// Leaf node.
+														switch r.Method {
+														case "DELETE":
+															s.handleV1betaDeleteBackupUnderBackupVaultRequest([4]string{
+																args[0],
+																args[1],
+																args[2],
+																args[3],
+															}, elemIsEscaped, w, r)
+														case "GET":
+															s.handleV1betaDescribeBackupRequest([4]string{
+																args[0],
+																args[1],
+																args[2],
+																args[3],
+															}, elemIsEscaped, w, r)
+														case "PUT":
+															s.handleV1betaUpdateBackupRequest([4]string{
+																args[0],
+																args[1],
+																args[2],
+																args[3],
+															}, elemIsEscaped, w, r)
+														default:
+															s.notAllowed(w, r, "DELETE,GET,PUT")
+														}
+
+														return
+													}
+
+												}
+
+											case 'g': // Prefix: "getMultipleBackups"
+
+												if l := len("getMultipleBackups"); len(elem) >= l && elem[0:l] == "getMultipleBackups" {
+													elem = elem[l:]
+												} else {
+													break
+												}
+
+												if len(elem) == 0 {
+													// Leaf node.
+													switch r.Method {
+													case "POST":
+														s.handleV1betaGetMultipleBackupsRequest([3]string{
+															args[0],
+															args[1],
+															args[2],
+														}, elemIsEscaped, w, r)
+													default:
+														s.notAllowed(w, r, "POST")
+													}
+
+													return
+												}
+
 											}
 
 										}
@@ -2728,28 +2821,124 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 											}
 										}
 										switch elem[0] {
-										case '/': // Prefix: "/getMultipleBackups"
+										case '/': // Prefix: "/"
 
-											if l := len("/getMultipleBackups"); len(elem) >= l && elem[0:l] == "/getMultipleBackups" {
+											if l := len("/"); len(elem) >= l && elem[0:l] == "/" {
 												elem = elem[l:]
 											} else {
 												break
 											}
 
 											if len(elem) == 0 {
-												// Leaf node.
-												switch method {
-												case "POST":
-													r.name = V1betaGetMultipleBackupsOperation
-													r.summary = "List specified backups under the backup vault"
-													r.operationID = "v1beta_getMultipleBackups"
-													r.pathPattern = "/v1beta/projects/{projectNumber}/locations/{locationId}/backupVaults/{backupVaultId}/getMultipleBackups"
-													r.args = args
-													r.count = 3
-													return r, true
-												default:
-													return
+												break
+											}
+											switch elem[0] {
+											case 'b': // Prefix: "backups"
+
+												if l := len("backups"); len(elem) >= l && elem[0:l] == "backups" {
+													elem = elem[l:]
+												} else {
+													break
 												}
+
+												if len(elem) == 0 {
+													switch method {
+													case "GET":
+														r.name = V1betaListBackupsOperation
+														r.summary = "Describe all backups for a backup vault"
+														r.operationID = "v1beta_listBackups"
+														r.pathPattern = "/v1beta/projects/{projectNumber}/locations/{locationId}/backupVaults/{backupVaultId}/backups"
+														r.args = args
+														r.count = 3
+														return r, true
+													case "POST":
+														r.name = V1betaCreateBackupOperation
+														r.summary = "Create a new backup"
+														r.operationID = "v1beta_createBackup"
+														r.pathPattern = "/v1beta/projects/{projectNumber}/locations/{locationId}/backupVaults/{backupVaultId}/backups"
+														r.args = args
+														r.count = 3
+														return r, true
+													default:
+														return
+													}
+												}
+												switch elem[0] {
+												case '/': // Prefix: "/"
+
+													if l := len("/"); len(elem) >= l && elem[0:l] == "/" {
+														elem = elem[l:]
+													} else {
+														break
+													}
+
+													// Param: "backupId"
+													// Leaf parameter, slashes are prohibited
+													idx := strings.IndexByte(elem, '/')
+													if idx >= 0 {
+														break
+													}
+													args[3] = elem
+													elem = ""
+
+													if len(elem) == 0 {
+														// Leaf node.
+														switch method {
+														case "DELETE":
+															r.name = V1betaDeleteBackupUnderBackupVaultOperation
+															r.summary = "Delete a backup under backup vault"
+															r.operationID = "v1beta_deleteBackupUnderBackupVault"
+															r.pathPattern = "/v1beta/projects/{projectNumber}/locations/{locationId}/backupVaults/{backupVaultId}/backups/{backupId}"
+															r.args = args
+															r.count = 4
+															return r, true
+														case "GET":
+															r.name = V1betaDescribeBackupOperation
+															r.summary = "Describe a backup under backup vault"
+															r.operationID = "v1beta_describeBackup"
+															r.pathPattern = "/v1beta/projects/{projectNumber}/locations/{locationId}/backupVaults/{backupVaultId}/backups/{backupId}"
+															r.args = args
+															r.count = 4
+															return r, true
+														case "PUT":
+															r.name = V1betaUpdateBackupOperation
+															r.summary = "Update a backup"
+															r.operationID = "v1beta_updateBackup"
+															r.pathPattern = "/v1beta/projects/{projectNumber}/locations/{locationId}/backupVaults/{backupVaultId}/backups/{backupId}"
+															r.args = args
+															r.count = 4
+															return r, true
+														default:
+															return
+														}
+													}
+
+												}
+
+											case 'g': // Prefix: "getMultipleBackups"
+
+												if l := len("getMultipleBackups"); len(elem) >= l && elem[0:l] == "getMultipleBackups" {
+													elem = elem[l:]
+												} else {
+													break
+												}
+
+												if len(elem) == 0 {
+													// Leaf node.
+													switch method {
+													case "POST":
+														r.name = V1betaGetMultipleBackupsOperation
+														r.summary = "List specified backups under the backup vault"
+														r.operationID = "v1beta_getMultipleBackups"
+														r.pathPattern = "/v1beta/projects/{projectNumber}/locations/{locationId}/backupVaults/{backupVaultId}/getMultipleBackups"
+														r.args = args
+														r.count = 3
+														return r, true
+													default:
+														return
+													}
+												}
+
 											}
 
 										}

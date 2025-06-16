@@ -1,8 +1,8 @@
 package ontap_rest
 
 import (
-	"context"
 	"errors"
+	"context"
 	"time"
 
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/ontap-rest/client/snapmirror"
@@ -20,6 +20,8 @@ type SnapmirrorClient interface { // generate:mock
 	SnapmirrorRelationshipList(params *SnapmirrorRelationshipListParams) ([]*SnapmirrorRelationship, error)
 	SnapmirrorRelationshipListDestinations(params *SnapmirrorRelationshipListDestinationsParams) ([]*SnapmirrorRelationship, error)
 	SnapmirrorRelationshipModify(params *SnapmirrorRelationshipModifyParams) (*SnapmirrorRelationship, *JobAccepted, error)
+	SnapmirrorRelationshipTransferCreate(params *SnapmirrorRelationshipTransferCreateParams) error
+	SnapmirrorRelationshipTransferGet(params *SnapmirrorRelationshipTransferGetParams) (*SnapmirrorTransfer, error)
 
 	// Priv Client
 	SnapmirrorGetPriv(ctx context.Context, destinationPath, relationshipID string, relationshipGroupType *string) (*snapmirrorpriv.SnapmirrorGetOK, error)
@@ -109,7 +111,6 @@ func (s *snapmirrorClient) SnapmirrorRelationshipList(params *SnapmirrorRelation
 	if err != nil {
 		return nil, err
 	}
-
 	return convertSnapmirrorRelationshipListFromREST(response), err
 }
 
@@ -118,7 +119,6 @@ func (s *snapmirrorClient) SnapmirrorRelationshipListDestinations(params *Snapmi
 	if err != nil {
 		return nil, err
 	}
-
 	return convertSnapmirrorRelationshipListFromREST(response), nil
 }
 
@@ -135,6 +135,31 @@ func (s *snapmirrorClient) SnapmirrorRelationshipModify(params *SnapmirrorRelati
 		return nil, job, nil
 	}
 	return &SnapmirrorRelationship{SnapmirrorRelationship: *syncResponse.Payload.Records[0]}, nil, nil
+}
+
+func (s *snapmirrorClient) SnapmirrorRelationshipTransferCreate(params *SnapmirrorRelationshipTransferCreateParams) error {
+	created, err := s.api.SnapmirrorRelationshipTransferCreate(snapmirrorRelationshipTransferCreateParamsToONTAP(params), nil)
+
+	if err != nil {
+		return err
+	}
+	if created != nil {
+		if len(created.Location) == 0 {
+			return errors.New("unexpected response from server while creating Snapmirror Relationship Transfer - received no transfer info")
+		}
+	}
+	return nil
+}
+
+func (s *snapmirrorClient) SnapmirrorRelationshipTransferGet(params *SnapmirrorRelationshipTransferGetParams) (*SnapmirrorTransfer, error) {
+	transfer, err := s.api.SnapmirrorRelationshipTransfersGet(snapmirrorRelationshipTransferGetParamsToONTAP(params), nil)
+	if err != nil {
+		return nil, err
+	}
+	if transfer.Payload != nil && *transfer.Payload.NumRecords > 0 {
+		return &SnapmirrorTransfer{SnapmirrorTransfer: *transfer.Payload.SnapmirrorTransferResponseInlineRecords[0]}, nil
+	}
+	return nil, nil
 }
 
 // SnapmirrorGetPriv retrieves the snapmirror relationship details for a given destination path and relationship ID.

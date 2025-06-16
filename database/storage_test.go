@@ -761,6 +761,186 @@ func TestUpdateVolumeFields(t *testing.T) {
 	assert.Error(t, err)
 }
 
+// Test case for VerifyVolumeOwnership
+func TestVerifyVolumeOwnership(t *testing.T) {
+	logger := &log.MockLogger{}
+	store, _ := NewTestStorage(logger)
+	ctx := context.Background()
+	ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, logger)
+
+	// Create account and volume for association
+	acc := &datamodel.Account{Name: "acc_verify"}
+	createdAcc, err := store.CreateAccount(ctx, acc)
+	assert.NoError(t, err)
+	vol := &datamodel.Volume{Name: "vol_verify", AccountID: createdAcc.ID}
+	createdVol, err := store.CreateVolume(ctx, vol)
+	assert.NoError(t, err)
+
+	// Verify ownership
+	found, err := store.VerifyVolumeOwnership(ctx, createdVol.UUID, createdAcc.Name)
+	assert.NoError(t, err)
+	assert.NotNil(t, found)
+	assert.Equal(t, createdVol.UUID, found.UUID)
+
+	// Case: Non-existent volume
+	_, err = store.VerifyVolumeOwnership(ctx, "non-existent-uuid", createdAcc.Name)
+	assert.Error(t, err)
+}
+
+// Test case for IsBackupInCreatingStateByVolume
+func TestIsBackupInCreatingStateByVolume(t *testing.T) {
+	logger := &log.MockLogger{}
+	store, _ := NewTestStorage(logger)
+	ctx := context.Background()
+	ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, logger)
+
+	// Create a volume
+	vol := &datamodel.Volume{Name: "vol_backup_state"}
+	createdVol, err := store.CreateVolume(ctx, vol)
+	assert.NoError(t, err)
+
+	// Check backup state (should be false initially)
+	inCreatingState, err := store.IsBackupInCreatingorDeletingStateByVolume(ctx, createdVol.UUID)
+	assert.NoError(t, err)
+	assert.False(t, inCreatingState)
+
+	// Simulate backup in creating state
+	backup := &datamodel.Backup{VolumeUUID: createdVol.UUID, State: "creating"}
+	_, err = store.CreateBackup(ctx, backup)
+	assert.NoError(t, err)
+
+	// Check backup state again
+	inCreatingState, err = store.IsBackupInCreatingorDeletingStateByVolume(ctx, createdVol.UUID)
+	assert.NoError(t, err)
+	assert.True(t, inCreatingState)
+}
+
+func TestCreateBackup(t *testing.T) {
+	logger := &log.MockLogger{}
+	store, _ := NewTestStorage(logger)
+	ctx := context.Background()
+	ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, logger)
+
+	// Case 1: Successful creation
+	backup := &datamodel.Backup{VolumeUUID: "uuid", State: "CREATING", Name: "test-backup"}
+	created, err := store.CreateBackup(ctx, backup)
+	assert.NoError(t, err)
+	assert.NotNil(t, created)
+	assert.Equal(t, "CREATING", created.State)
+}
+
+func TestGetBackup(t *testing.T) {
+	logger := &log.MockLogger{}
+	store, _ := NewTestStorage(logger)
+	ctx := context.Background()
+	ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, logger)
+
+	// Create a backup
+	backup := &datamodel.Backup{VolumeUUID: "uuid", State: "new"}
+	created, err := store.CreateBackup(ctx, backup)
+	assert.NoError(t, err)
+
+	// Case 1: Successful retrieval
+	found, err := store.GetBackup(ctx, created.UUID)
+	assert.NoError(t, err)
+	assert.NotNil(t, found)
+	assert.Equal(t, created.UUID, found.UUID)
+
+	// Case 2: Error scenario (non-existent UUID)
+	_, err = store.GetBackup(ctx, "non-existent-uuid")
+	assert.Error(t, err)
+}
+
+func TestDeleteBackup(t *testing.T) {
+	logger := &log.MockLogger{}
+	store, _ := NewTestStorage(logger)
+	ctx := context.Background()
+	ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, logger)
+
+	// Create a backup
+	backup := &datamodel.Backup{VolumeUUID: "uuid", State: "new"}
+	created, err := store.CreateBackup(ctx, backup)
+	assert.NoError(t, err)
+
+	// Case 1: Successful deletion
+	deleted, err := store.DeleteBackup(ctx, created.UUID)
+	assert.NoError(t, err)
+	assert.NotNil(t, deleted)
+
+	// Case 2: Error scenario (non-existent UUID)
+	_, err = store.DeleteBackup(ctx, "non-existent-uuid")
+	assert.Error(t, err)
+}
+
+func TestUpdateBackupStateUpdatesStateSuccessfully(t *testing.T) {
+	logger := &log.MockLogger{}
+	store, _ := NewTestStorage(logger)
+	ctx := context.Background()
+	ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, logger)
+
+	// Create a backup
+	backup := &datamodel.Backup{VolumeUUID: "uuid", State: "CREATING"}
+	created, err := store.CreateBackup(ctx, backup)
+	assert.NoError(t, err)
+
+	// Update state
+	created.State = "COMPLETED"
+	updated, err := store.UpdateBackupState(ctx, created)
+	assert.NoError(t, err)
+	assert.NotNil(t, updated)
+	assert.Equal(t, "COMPLETED", updated.State)
+}
+
+func TestUpdateBackupStateFailsForNonExistentBackup(t *testing.T) {
+	logger := &log.MockLogger{}
+	store, _ := NewTestStorage(logger)
+	ctx := context.Background()
+	ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, logger)
+
+	// Case: Non-existent backup
+	nonExistentBackup := &datamodel.Backup{State: "FAILED"}
+	_, err := store.UpdateBackupState(ctx, nonExistentBackup)
+	assert.Error(t, err)
+}
+
+func TestFinishBackup(t *testing.T) {
+	logger := &log.MockLogger{}
+	store, _ := NewTestStorage(logger)
+	ctx := context.Background()
+	ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, logger)
+
+	// Create a backup
+	backup := &datamodel.Backup{VolumeUUID: "uuid", State: "new"}
+	created, err := store.CreateBackup(ctx, backup)
+	assert.NoError(t, err)
+
+	// Case 1: Successful finish
+	created.State = "AVAILABLE"
+	finished, err := store.FinishBackup(ctx, created)
+	assert.NoError(t, err)
+	assert.NotNil(t, finished)
+	assert.Equal(t, "AVAILABLE", finished.State)
+}
+
+func TestUpdateBackup(t *testing.T) {
+	logger := &log.MockLogger{}
+	store, _ := NewTestStorage(logger)
+	ctx := context.Background()
+	ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, logger)
+
+	// Create a backup
+	backup := &datamodel.Backup{VolumeUUID: "uuid", State: "new"}
+	created, err := store.CreateBackup(ctx, backup)
+	assert.NoError(t, err)
+
+	// Case 1: Successful update
+	created.State = "CREATING"
+	updated, err := store.UpdateBackup(ctx, created)
+	assert.NoError(t, err)
+	assert.NotNil(t, updated)
+	assert.Equal(t, "CREATING", updated.State)
+}
+
 func TestListVolumeReplications(t *testing.T) {
 	logger := &log.MockLogger{}
 	store, _ := NewTestStorage(logger)

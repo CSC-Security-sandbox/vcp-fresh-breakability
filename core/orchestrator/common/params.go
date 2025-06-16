@@ -241,6 +241,24 @@ type ResourceNames struct {
 	ServiceAccountId string
 }
 
+type CreateBackupParams struct {
+	AccountName    string
+	BackupVaultID  string
+	VolumeUUID     string
+	BackupName     string
+	Description    string
+	SnapshotID     string
+	BackupType     string
+	LocationID     string
+	XCorrelationID string
+}
+
+type GetBackupsParams struct {
+	AccountName   string
+	BackupVaultID string
+	BackupUUIDs   []string
+}
+
 type ReplicationInternalGetMultipleParams struct {
 	ReplicationUUIDs    []string
 	AccountName         string
@@ -249,6 +267,14 @@ type ReplicationInternalGetMultipleParams struct {
 	PoolNodeMap         map[int64]*datamodel.Node                // [poolUUID]Node
 	PoolReplicationsMap map[int64][]*datamodel.VolumeReplication // [poolUUID][]VolumeReplication
 	UpdatedReplications []*datamodel.VolumeReplication           // Replications updated from Ontap
+}
+
+type CloudTarget struct {
+	Name string
+}
+type SnapmirrorRelationship struct {
+	UUID            string
+	DestinationUUID *string
 }
 
 type GetMultipleReplicationsParams struct {

@@ -63,6 +63,7 @@ type DataStore interface {
 
 	CreateVolume(ctx context.Context, volume *datamodel.Volume) (*datamodel.Volume, error)
 	GetVolume(ctx context.Context, id string) (*datamodel.Volume, error)
+	GetVolumeWithAccountID(ctx context.Context, id string, accountID int64) (*datamodel.Volume, error)
 	GetVolumeCount(ctx context.Context, accountName string) (int64, error)
 	GetVolumeByName(ctx context.Context, name string) (*datamodel.Volume, error)
 	UpdateVolume(ctx context.Context, volume *datamodel.Volume) error
@@ -146,4 +147,14 @@ type DataStore interface {
 	GetBackupVaultByUUID(ctx context.Context, backupVaultUUID string) (*datamodel.BackupVault, error)
 	CreateBackupVaultEntryInVCP(ctx context.Context, bv *datamodel.BackupVault) (*datamodel.BackupVault, error)
 	UpdateBackupVault(ctx context.Context, backupVault *datamodel.BackupVault) error
+	GetBackupVault(ctx context.Context, backupVaultId string) (*datamodel.BackupVault, error)
+
+	CreateBackup(ctx context.Context, backup *datamodel.Backup) (*datamodel.Backup, error)
+	GetBackup(ctx context.Context, backupUUID string) (*datamodel.Backup, error)
+	DeleteBackup(ctx context.Context, backupUUID string) (*datamodel.Backup, error)
+	UpdateBackup(ctx context.Context, backup *datamodel.Backup) (*datamodel.Backup, error)
+	FinishBackup(ctx context.Context, backup *datamodel.Backup) (*datamodel.Backup, error)
+	UpdateBackupState(ctx context.Context, backup *datamodel.Backup) (*datamodel.Backup, error)
+	IsBackupInCreatingorDeletingStateByVolume(ctx context.Context, volumeUUID string) (bool, error)
+	GetBackupsByBackupVault(ctx context.Context, backupVaultUUID string) ([]*datamodel.Backup, error)
 }

@@ -276,6 +276,54 @@ func TestMockClientServiceSetTransport(t *testing.T) {
 	mockClientService.AssertMockClientServiceDone()
 }
 
+func TestMockClientServiceObjectStoreEndpointInfoGet(t *testing.T) {
+	mockClientService := NewMockClientService(t)
+	var params *ObjectStoreEndpointInfoGetParams
+	var authInfo runtime.ClientAuthInfoWriter
+	var opts []ClientOption
+	var ret0 *ObjectStoreEndpointInfoGetOK
+	var ret1 error
+	go func() {
+		defer mockClientService.MockClientServiceDone()
+		_, _ = mockClientService.ObjectStoreEndpointInfoGet(params, authInfo, opts...)
+	}()
+
+	mockClientService.AssertObjectStoreEndpointInfoGet(params, authInfo, opts, ret0, ret1)
+	mockClientService.AssertMockClientServiceDone()
+}
+
+func TestMockClientServiceSnapmirrorObjectStoreEndpointSnapshotCollectionGet(t *testing.T) {
+	mockClientService := NewMockClientService(t)
+	var params *SnapmirrorObjectStoreEndpointSnapshotCollectionGetParams
+	var authInfo runtime.ClientAuthInfoWriter
+	var opts []ClientOption
+	var ret0 *SnapmirrorObjectStoreEndpointSnapshotCollectionGetOK
+	var ret1 error
+	go func() {
+		defer mockClientService.MockClientServiceDone()
+		_, _ = mockClientService.SnapmirrorObjectStoreEndpointSnapshotCollectionGet(params, authInfo, opts...)
+	}()
+
+	mockClientService.AssertSnapmirrorObjectStoreEndpointSnapshotCollectionGet(params, authInfo, opts, ret0, ret1)
+	mockClientService.AssertMockClientServiceDone()
+}
+
+func TestMockClientServiceSnapmirrorObjectStoreEndpointSnapshotGet(t *testing.T) {
+	mockClientService := NewMockClientService(t)
+	var params *SnapmirrorObjectStoreEndpointSnapshotGetParams
+	var authInfo runtime.ClientAuthInfoWriter
+	var opts []ClientOption
+	var ret0 *SnapmirrorObjectStoreEndpointSnapshotGetOK
+	var ret1 error
+	go func() {
+		defer mockClientService.MockClientServiceDone()
+		_, _ = mockClientService.SnapmirrorObjectStoreEndpointSnapshotGet(params, authInfo, opts...)
+	}()
+
+	mockClientService.AssertSnapmirrorObjectStoreEndpointSnapshotGet(params, authInfo, opts, ret0, ret1)
+	mockClientService.AssertMockClientServiceDone()
+}
+
 func TestMockClientServiceSnapmirrorPolicyDeleteCollection(t *testing.T) {
 	mockClientService := NewMockClientService(t)
 	var params *SnapmirrorPolicyDeleteCollectionParams
@@ -357,6 +405,70 @@ func TestMockClientServiceSnapmirrorRelationshipModify(t *testing.T) {
 	}()
 
 	mockClientService.AssertSnapmirrorRelationshipModify(params, authInfo, opts, ret0, ret1, ret2)
+	mockClientService.AssertMockClientServiceDone()
+}
+
+func TestMockClientServiceSnapmirrorRelationshipTransferCreate(t *testing.T) {
+	mockClientService := NewMockClientService(t)
+	var params *SnapmirrorRelationshipTransferCreateParams
+	var authInfo runtime.ClientAuthInfoWriter
+	var opts []ClientOption
+	var ret0 *SnapmirrorRelationshipTransferCreateCreated
+	var ret1 error
+	go func() {
+		defer mockClientService.MockClientServiceDone()
+		_, _ = mockClientService.SnapmirrorRelationshipTransferCreate(params, authInfo, opts...)
+	}()
+
+	mockClientService.AssertSnapmirrorRelationshipTransferCreate(params, authInfo, opts, ret0, ret1)
+	mockClientService.AssertMockClientServiceDone()
+}
+
+func TestMockClientServiceSnapmirrorRelationshipTransferModify(t *testing.T) {
+	mockClientService := NewMockClientService(t)
+	var params *SnapmirrorRelationshipTransferModifyParams
+	var authInfo runtime.ClientAuthInfoWriter
+	var opts []ClientOption
+	var ret0 *SnapmirrorRelationshipTransferModifyOK
+	var ret1 error
+	go func() {
+		defer mockClientService.MockClientServiceDone()
+		_, _ = mockClientService.SnapmirrorRelationshipTransferModify(params, authInfo, opts...)
+	}()
+
+	mockClientService.AssertSnapmirrorRelationshipTransferModify(params, authInfo, opts, ret0, ret1)
+	mockClientService.AssertMockClientServiceDone()
+}
+
+func TestMockClientServiceSnapmirrorRelationshipTransferModifyCollection(t *testing.T) {
+	mockClientService := NewMockClientService(t)
+	var params *SnapmirrorRelationshipTransferModifyCollectionParams
+	var authInfo runtime.ClientAuthInfoWriter
+	var opts []ClientOption
+	var ret0 *SnapmirrorRelationshipTransferModifyCollectionOK
+	var ret1 error
+	go func() {
+		defer mockClientService.MockClientServiceDone()
+		_, _ = mockClientService.SnapmirrorRelationshipTransferModifyCollection(params, authInfo, opts...)
+	}()
+
+	mockClientService.AssertSnapmirrorRelationshipTransferModifyCollection(params, authInfo, opts, ret0, ret1)
+	mockClientService.AssertMockClientServiceDone()
+}
+
+func TestMockClientServiceSnapmirrorRelationshipTransfersGet(t *testing.T) {
+	mockClientService := NewMockClientService(t)
+	var params *SnapmirrorRelationshipTransfersGetParams
+	var authInfo runtime.ClientAuthInfoWriter
+	var opts []ClientOption
+	var ret0 *SnapmirrorRelationshipTransfersGetOK
+	var ret1 error
+	go func() {
+		defer mockClientService.MockClientServiceDone()
+		_, _ = mockClientService.SnapmirrorRelationshipTransfersGet(params, authInfo, opts...)
+	}()
+
+	mockClientService.AssertSnapmirrorRelationshipTransfersGet(params, authInfo, opts, ret0, ret1)
 	mockClientService.AssertMockClientServiceDone()
 }
 

@@ -17,6 +17,53 @@ func (_m *MockRESTClient) EXPECT() *MockRESTClient_Expecter {
 	return &MockRESTClient_Expecter{mock: &_m.Mock}
 }
 
+// Cloud provides a mock function with no fields
+func (_m *MockRESTClient) Cloud() CloudClient {
+	ret := _m.Called()
+
+	if len(ret) == 0 {
+		panic("no return value specified for Cloud")
+	}
+
+	var r0 CloudClient
+	if rf, ok := ret.Get(0).(func() CloudClient); ok {
+		r0 = rf()
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(CloudClient)
+		}
+	}
+
+	return r0
+}
+
+// MockRESTClient_Cloud_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'Cloud'
+type MockRESTClient_Cloud_Call struct {
+	*mock.Call
+}
+
+// Cloud is a helper method to define mock.On call
+func (_e *MockRESTClient_Expecter) Cloud() *MockRESTClient_Cloud_Call {
+	return &MockRESTClient_Cloud_Call{Call: _e.mock.On("Cloud")}
+}
+
+func (_c *MockRESTClient_Cloud_Call) Run(run func()) *MockRESTClient_Cloud_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run()
+	})
+	return _c
+}
+
+func (_c *MockRESTClient_Cloud_Call) Return(_a0 CloudClient) *MockRESTClient_Cloud_Call {
+	_c.Call.Return(_a0)
+	return _c
+}
+
+func (_c *MockRESTClient_Cloud_Call) RunAndReturn(run func() CloudClient) *MockRESTClient_Cloud_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // Cluster provides a mock function with no fields
 func (_m *MockRESTClient) Cluster() ClusterClient {
 	ret := _m.Called()

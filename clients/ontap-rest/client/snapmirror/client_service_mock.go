@@ -143,6 +143,45 @@ func (mock *MockClientService) AssertSetTransport(transport runtime.ClientTransp
 	mock.assertCall(<-mock.calls, &mockClientServiceCall{name: "SetTransport", params: []interface{}{&transport}})
 }
 
+// ObjectStoreEndpointInfoGet mocks a call to ClientService.ObjectStoreEndpointInfoGet
+func (mock *MockClientService) ObjectStoreEndpointInfoGet(params *ObjectStoreEndpointInfoGetParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*ObjectStoreEndpointInfoGetOK, error) {
+	mock.calls <- &mockClientServiceCall{name: "ObjectStoreEndpointInfoGet", params: []interface{}{&params, &authInfo, &opts}}
+	ret := (<-mock.returns).([]interface{})
+	return *ret[0].(**ObjectStoreEndpointInfoGetOK), *ret[1].(*error)
+}
+
+// AssertObjectStoreEndpointInfoGet verifies that ObjectStoreEndpointInfoGet has been invoked
+func (mock *MockClientService) AssertObjectStoreEndpointInfoGet(params *ObjectStoreEndpointInfoGetParams, authInfo runtime.ClientAuthInfoWriter, opts []ClientOption, ret0 *ObjectStoreEndpointInfoGetOK, ret1 error) {
+	mock.assertCall(<-mock.calls, &mockClientServiceCall{name: "ObjectStoreEndpointInfoGet", params: []interface{}{&params, &authInfo, &opts}})
+	mock.returns <- []interface{}{&ret0, &ret1}
+}
+
+// SnapmirrorObjectStoreEndpointSnapshotCollectionGet mocks a call to ClientService.SnapmirrorObjectStoreEndpointSnapshotCollectionGet
+func (mock *MockClientService) SnapmirrorObjectStoreEndpointSnapshotCollectionGet(params *SnapmirrorObjectStoreEndpointSnapshotCollectionGetParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*SnapmirrorObjectStoreEndpointSnapshotCollectionGetOK, error) {
+	mock.calls <- &mockClientServiceCall{name: "SnapmirrorObjectStoreEndpointSnapshotCollectionGet", params: []interface{}{&params, &authInfo, &opts}}
+	ret := (<-mock.returns).([]interface{})
+	return *ret[0].(**SnapmirrorObjectStoreEndpointSnapshotCollectionGetOK), *ret[1].(*error)
+}
+
+// AssertSnapmirrorObjectStoreEndpointSnapshotCollectionGet verifies that SnapmirrorObjectStoreEndpointSnapshotCollectionGet has been invoked
+func (mock *MockClientService) AssertSnapmirrorObjectStoreEndpointSnapshotCollectionGet(params *SnapmirrorObjectStoreEndpointSnapshotCollectionGetParams, authInfo runtime.ClientAuthInfoWriter, opts []ClientOption, ret0 *SnapmirrorObjectStoreEndpointSnapshotCollectionGetOK, ret1 error) {
+	mock.assertCall(<-mock.calls, &mockClientServiceCall{name: "SnapmirrorObjectStoreEndpointSnapshotCollectionGet", params: []interface{}{&params, &authInfo, &opts}})
+	mock.returns <- []interface{}{&ret0, &ret1}
+}
+
+// SnapmirrorObjectStoreEndpointSnapshotGet mocks a call to ClientService.SnapmirrorObjectStoreEndpointSnapshotGet
+func (mock *MockClientService) SnapmirrorObjectStoreEndpointSnapshotGet(params *SnapmirrorObjectStoreEndpointSnapshotGetParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*SnapmirrorObjectStoreEndpointSnapshotGetOK, error) {
+	mock.calls <- &mockClientServiceCall{name: "SnapmirrorObjectStoreEndpointSnapshotGet", params: []interface{}{&params, &authInfo, &opts}}
+	ret := (<-mock.returns).([]interface{})
+	return *ret[0].(**SnapmirrorObjectStoreEndpointSnapshotGetOK), *ret[1].(*error)
+}
+
+// AssertSnapmirrorObjectStoreEndpointSnapshotGet verifies that SnapmirrorObjectStoreEndpointSnapshotGet has been invoked
+func (mock *MockClientService) AssertSnapmirrorObjectStoreEndpointSnapshotGet(params *SnapmirrorObjectStoreEndpointSnapshotGetParams, authInfo runtime.ClientAuthInfoWriter, opts []ClientOption, ret0 *SnapmirrorObjectStoreEndpointSnapshotGetOK, ret1 error) {
+	mock.assertCall(<-mock.calls, &mockClientServiceCall{name: "SnapmirrorObjectStoreEndpointSnapshotGet", params: []interface{}{&params, &authInfo, &opts}})
+	mock.returns <- []interface{}{&ret0, &ret1}
+}
+
 // SnapmirrorPolicyDeleteCollection mocks a call to ClientService.SnapmirrorPolicyDeleteCollection
 func (mock *MockClientService) SnapmirrorPolicyDeleteCollection(params *SnapmirrorPolicyDeleteCollectionParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*SnapmirrorPolicyDeleteCollectionOK, *SnapmirrorPolicyDeleteCollectionAccepted, error) {
 	mock.calls <- &mockClientServiceCall{name: "SnapmirrorPolicyDeleteCollection", params: []interface{}{&params, &authInfo, &opts}}
@@ -206,6 +245,58 @@ func (mock *MockClientService) SnapmirrorRelationshipModify(params *SnapmirrorRe
 func (mock *MockClientService) AssertSnapmirrorRelationshipModify(params *SnapmirrorRelationshipModifyParams, authInfo runtime.ClientAuthInfoWriter, opts []ClientOption, ret0 *SnapmirrorRelationshipModifyOK, ret1 *SnapmirrorRelationshipModifyAccepted, ret2 error) {
 	mock.assertCall(<-mock.calls, &mockClientServiceCall{name: "SnapmirrorRelationshipModify", params: []interface{}{&params, &authInfo, &opts}})
 	mock.returns <- []interface{}{&ret0, &ret1, &ret2}
+}
+
+// SnapmirrorRelationshipTransferCreate mocks a call to ClientService.SnapmirrorRelationshipTransferCreate
+func (mock *MockClientService) SnapmirrorRelationshipTransferCreate(params *SnapmirrorRelationshipTransferCreateParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*SnapmirrorRelationshipTransferCreateCreated, error) {
+	mock.calls <- &mockClientServiceCall{name: "SnapmirrorRelationshipTransferCreate", params: []interface{}{&params, &authInfo, &opts}}
+	ret := (<-mock.returns).([]interface{})
+	return *ret[0].(**SnapmirrorRelationshipTransferCreateCreated), *ret[1].(*error)
+}
+
+// AssertSnapmirrorRelationshipTransferCreate verifies that SnapmirrorRelationshipTransferCreate has been invoked
+func (mock *MockClientService) AssertSnapmirrorRelationshipTransferCreate(params *SnapmirrorRelationshipTransferCreateParams, authInfo runtime.ClientAuthInfoWriter, opts []ClientOption, ret0 *SnapmirrorRelationshipTransferCreateCreated, ret1 error) {
+	mock.assertCall(<-mock.calls, &mockClientServiceCall{name: "SnapmirrorRelationshipTransferCreate", params: []interface{}{&params, &authInfo, &opts}})
+	mock.returns <- []interface{}{&ret0, &ret1}
+}
+
+// SnapmirrorRelationshipTransferModify mocks a call to ClientService.SnapmirrorRelationshipTransferModify
+func (mock *MockClientService) SnapmirrorRelationshipTransferModify(params *SnapmirrorRelationshipTransferModifyParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*SnapmirrorRelationshipTransferModifyOK, error) {
+	mock.calls <- &mockClientServiceCall{name: "SnapmirrorRelationshipTransferModify", params: []interface{}{&params, &authInfo, &opts}}
+	ret := (<-mock.returns).([]interface{})
+	return *ret[0].(**SnapmirrorRelationshipTransferModifyOK), *ret[1].(*error)
+}
+
+// AssertSnapmirrorRelationshipTransferModify verifies that SnapmirrorRelationshipTransferModify has been invoked
+func (mock *MockClientService) AssertSnapmirrorRelationshipTransferModify(params *SnapmirrorRelationshipTransferModifyParams, authInfo runtime.ClientAuthInfoWriter, opts []ClientOption, ret0 *SnapmirrorRelationshipTransferModifyOK, ret1 error) {
+	mock.assertCall(<-mock.calls, &mockClientServiceCall{name: "SnapmirrorRelationshipTransferModify", params: []interface{}{&params, &authInfo, &opts}})
+	mock.returns <- []interface{}{&ret0, &ret1}
+}
+
+// SnapmirrorRelationshipTransferModifyCollection mocks a call to ClientService.SnapmirrorRelationshipTransferModifyCollection
+func (mock *MockClientService) SnapmirrorRelationshipTransferModifyCollection(params *SnapmirrorRelationshipTransferModifyCollectionParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*SnapmirrorRelationshipTransferModifyCollectionOK, error) {
+	mock.calls <- &mockClientServiceCall{name: "SnapmirrorRelationshipTransferModifyCollection", params: []interface{}{&params, &authInfo, &opts}}
+	ret := (<-mock.returns).([]interface{})
+	return *ret[0].(**SnapmirrorRelationshipTransferModifyCollectionOK), *ret[1].(*error)
+}
+
+// AssertSnapmirrorRelationshipTransferModifyCollection verifies that SnapmirrorRelationshipTransferModifyCollection has been invoked
+func (mock *MockClientService) AssertSnapmirrorRelationshipTransferModifyCollection(params *SnapmirrorRelationshipTransferModifyCollectionParams, authInfo runtime.ClientAuthInfoWriter, opts []ClientOption, ret0 *SnapmirrorRelationshipTransferModifyCollectionOK, ret1 error) {
+	mock.assertCall(<-mock.calls, &mockClientServiceCall{name: "SnapmirrorRelationshipTransferModifyCollection", params: []interface{}{&params, &authInfo, &opts}})
+	mock.returns <- []interface{}{&ret0, &ret1}
+}
+
+// SnapmirrorRelationshipTransfersGet mocks a call to ClientService.SnapmirrorRelationshipTransfersGet
+func (mock *MockClientService) SnapmirrorRelationshipTransfersGet(params *SnapmirrorRelationshipTransfersGetParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*SnapmirrorRelationshipTransfersGetOK, error) {
+	mock.calls <- &mockClientServiceCall{name: "SnapmirrorRelationshipTransfersGet", params: []interface{}{&params, &authInfo, &opts}}
+	ret := (<-mock.returns).([]interface{})
+	return *ret[0].(**SnapmirrorRelationshipTransfersGetOK), *ret[1].(*error)
+}
+
+// AssertSnapmirrorRelationshipTransfersGet verifies that SnapmirrorRelationshipTransfersGet has been invoked
+func (mock *MockClientService) AssertSnapmirrorRelationshipTransfersGet(params *SnapmirrorRelationshipTransfersGetParams, authInfo runtime.ClientAuthInfoWriter, opts []ClientOption, ret0 *SnapmirrorRelationshipTransfersGetOK, ret1 error) {
+	mock.assertCall(<-mock.calls, &mockClientServiceCall{name: "SnapmirrorRelationshipTransfersGet", params: []interface{}{&params, &authInfo, &opts}})
+	mock.returns <- []interface{}{&ret0, &ret1}
 }
 
 // SnapmirrorRelationshipsGet mocks a call to ClientService.SnapmirrorRelationshipsGet

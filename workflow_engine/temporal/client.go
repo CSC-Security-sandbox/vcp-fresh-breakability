@@ -102,6 +102,7 @@ func registerWorkflowsAndActivities(worker worker.Worker, dbcon database.Storage
 	worker.RegisterWorkflow(replicationWorkflows.CreateInternalVolumeReplicationWorkflow)
 	worker.RegisterWorkflow(replicationWorkflows.CreateVolumeReplicationWorkflow)
 	worker.RegisterWorkflow(replicationWorkflows.GetMultipleReplicationsInternalWorkflow)
+	worker.RegisterWorkflow(workflows.CreateBackupWorkflow)
 
 	worker.RegisterActivity(&activities.CommonActivities{SE: dbcon})
 	worker.RegisterActivity(&activities.PoolActivity{SE: dbcon})
@@ -113,6 +114,7 @@ func registerWorkflowsAndActivities(worker worker.Worker, dbcon database.Storage
 	worker.RegisterActivity(&kms_activities.KmsConfigActivity{SE: dbcon})
 	worker.RegisterActivity(&replicationActivities.InternalVolumeReplicationActivity{SE: dbcon})
 	worker.RegisterActivity(&replicationActivities.VolumeReplicationCreateActivity{SE: dbcon})
+	worker.RegisterActivity(&activities.BackupActivity{SE: dbcon})
 	worker.RegisterActivity(&replicationActivities.ReplicationInternalGetMultipleActivity{SE: dbcon})
 }
 

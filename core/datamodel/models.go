@@ -489,3 +489,51 @@ func (dp *DataProtection) Scan(value interface{}) error {
 func (dp *DataProtection) Value() (driver.Value, error) {
 	return json.Marshal(dp)
 }
+
+type Backup struct {
+	BaseModel
+	ExternalUUID            string            `gorm:"column:external_uuid;type:text"`
+	Name                    string            `gorm:"column:name;type:text"`
+	Description             string            `gorm:"column:description;type:text"`
+	State                   string            `gorm:"column:state;type:text"`
+	StateDetails            string            `gorm:"column:state_details;type:text"`
+	Attributes              *BackupAttributes `gorm:"column:attributes;type:jsonb"`
+	Type                    string            `gorm:"column:type;type:text"`
+	VolumeUUID              string            `gorm:"column:volume_uuid;type:text"`
+	SizeInBytes             int64             `gorm:"column:size_in_bytes;type:bigint"`
+	BackupVaultID           int64             `gorm:"column:backup_vault_id;type:bigint"`
+	BackupVault             *BackupVault      `gorm:"ForeignKey:BackupVaultID;AssociationForeignKey:ID;constraint:OnDelete:CASCADE,OnUpdate:RESTRICT;"`
+	LatestLogicalBackupSize int64             `gorm:"column:latest_logical_backup_size;type:bigint"`
+}
+
+// BackupAttributes represents the structure of the JSONB data for Backup
+type BackupAttributes struct {
+	BackupPolicyName               string   `json:"backup_policy_name"`
+	SnapshotID                     string   `json:"snapshot_id"`
+	SnapshotName                   string   `json:"snapshot_name"`
+	SnapshotCreationTime           string   `json:"snapshot_creation_time"`
+	CompletionTime                 string   `json:"completion_time"`
+	LifeCycleTrackingID            string   `json:"life_cycle_tracking_id"`
+	ConstituentVolumesPerAggregate string   `json:"constituent_volumes_per_aggregate"`
+	UseExistingSnapshot            bool     `json:"use_existing_snapshot"`
+	NumberOfAggregates             int      `json:"number_of_aggregates"`
+	OntapVolumeStyle               string   `json:"ontap_volume_style"`
+	ServiceAccountName             string   `json:"service_account_name"`
+	EndpointUUID                   string   `json:"endpoint_uuid"`
+	BucketName                     string   `json:"bucket_name"`
+	Protocols                      []string `json:"protocols"`
+	VolumeName                     string   `json:"volume_name"`
+	AccountIdentifier              string   `json:"account_identifier"`
+}
+
+func (b *BackupAttributes) Scan(value interface{}) error {
+	bytes, ok := value.([]byte)
+	if !ok {
+		return errors.New("type assertion to []byte failed")
+	}
+	return json.Unmarshal(bytes, b)
+}
+
+func (b *BackupAttributes) Value() (driver.Value, error) {
+	return json.Marshal(b)
+}

@@ -18,6 +18,7 @@ import (
 type RESTClient interface { // generate:mock
 	Host() string
 	Cluster() ClusterClient
+	Cloud() CloudClient
 	SAN() SANClient
 	Networking() NetworkingClient
 	Security() SecurityClient
@@ -38,6 +39,7 @@ type restClient struct {
 	svm                       *svmClient
 	poller                    Poller
 	snapmirror                *snapmirrorClient
+	cloud                     *cloudClient
 }
 
 // RESTClientParams describes the parameters for creating a new RESTClient
@@ -93,6 +95,7 @@ func NewClient(params RESTClientParams) RESTClient {
 		httpRoundTripperTransport: httpRoundTripperTransport,
 		params:                    params,
 		cluster:                   &clusterClient{api: api.Cluster, apiPriv: &apiPriv.Operations},
+		cloud:                     &cloudClient{api: api.Cloud},
 		svm:                       &svmClient{api: api.Svm, apiPriv: &apiPriv.Operations},
 		networking:                &networkingClient{api: api.Networking, apiPriv: &apiPriv.Operations},
 		storage:                   &storageClient{api: api.Storage},
@@ -154,4 +157,9 @@ func (rc *restClient) SAN() SANClient {
 // Snapmirror returns a Snapmirror client
 func (rc *restClient) Snapmirror() SnapmirrorClient {
 	return rc.snapmirror
+}
+
+// Cloud returns a Cloud client
+func (rc *restClient) Cloud() CloudClient {
+	return rc.cloud
 }

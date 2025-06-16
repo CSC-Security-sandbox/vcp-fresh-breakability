@@ -53,6 +53,12 @@ type Provider interface {
 	GetReplicationDetails(volRep *VolumeReplication) (*VolumeReplication, error)
 	CreateSnapshot(params CreateSnapshotParams) (*SnapshotProviderResponse, error)
 	DeleteSnapshot(snapshotUUID string, volumeUUID string) error
+	CloudTargetGet(name *string) (*ontapRest.CloudTarget, error)
+	CloudTargetCreate(name, containerName string) (*ontapRest.CloudTarget, error)
+	SnapmirrorRelationshipCreate(destinationPath, sourcePath string) (*ontapRest.SnapmirrorRelationship, error)
+	SnapmirrorRelationshipGet(destinationPath, sourcePath string) (*ontapRest.SnapmirrorRelationship, error)
+	SnapmirrorRelationshipTransferCreate(snapmirrorUUID, snapshotName string) error
+	SnapmirrorRelationshipTransferGet(snapmirrorUUID, snapshotName string) (*ontapRest.SnapmirrorTransfer, error)
 	CreateSnapshotPolicy(sp *SnapshotPolicy) error
 }
 

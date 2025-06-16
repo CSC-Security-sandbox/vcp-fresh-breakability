@@ -40,6 +40,15 @@ func (UnimplementedHandler) V1betaCreateActiveDirectory(ctx context.Context, req
 	return r, ht.ErrNotImplemented
 }
 
+// V1betaCreateBackup implements v1beta_createBackup operation.
+//
+// Creates an ad-hoc backup.
+//
+// POST /v1beta/projects/{projectNumber}/locations/{locationId}/backupVaults/{backupVaultId}/backups
+func (UnimplementedHandler) V1betaCreateBackup(ctx context.Context, req *BackupCreateV1beta, params V1betaCreateBackupParams) (r V1betaCreateBackupRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
 // V1betaCreateBackupPolicy implements v1beta_createBackupPolicy operation.
 //
 // Create a new backup policy.
@@ -133,6 +142,15 @@ func (UnimplementedHandler) V1betaDeleteBackupPolicy(ctx context.Context, params
 	return r, ht.ErrNotImplemented
 }
 
+// V1betaDeleteBackupUnderBackupVault implements v1beta_deleteBackupUnderBackupVault operation.
+//
+// Delete a backup under backup vault.
+//
+// DELETE /v1beta/projects/{projectNumber}/locations/{locationId}/backupVaults/{backupVaultId}/backups/{backupId}
+func (UnimplementedHandler) V1betaDeleteBackupUnderBackupVault(ctx context.Context, params V1betaDeleteBackupUnderBackupVaultParams) (r V1betaDeleteBackupUnderBackupVaultRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
 // V1betaDeleteBackupVault implements v1beta_deleteBackupVault operation.
 //
 // Warning! This operation will permanently delete the backup vault.
@@ -208,6 +226,15 @@ func (UnimplementedHandler) V1betaDeleteVolume(ctx context.Context, req OptV1bet
 //
 // GET /v1beta/projects/{projectNumber}/locations/{locationId}/activeDirectories/{activeDirectoryId}
 func (UnimplementedHandler) V1betaDescribeActiveDirectory(ctx context.Context, params V1betaDescribeActiveDirectoryParams) (r V1betaDescribeActiveDirectoryRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// V1betaDescribeBackup implements v1beta_describeBackup operation.
+//
+// Describe a backup present under a backup vault.
+//
+// GET /v1beta/projects/{projectNumber}/locations/{locationId}/backupVaults/{backupVaultId}/backups/{backupId}
+func (UnimplementedHandler) V1betaDescribeBackup(ctx context.Context, params V1betaDescribeBackupParams) (r V1betaDescribeBackupRes, _ error) {
 	return r, ht.ErrNotImplemented
 }
 
@@ -530,6 +557,15 @@ func (UnimplementedHandler) V1betaListBackupVaults(ctx context.Context, params V
 	return r, ht.ErrNotImplemented
 }
 
+// V1betaListBackups implements v1beta_listBackups operation.
+//
+// Returns descriptions of all backups for a backup vault.
+//
+// GET /v1beta/projects/{projectNumber}/locations/{locationId}/backupVaults/{backupVaultId}/backups
+func (UnimplementedHandler) V1betaListBackups(ctx context.Context, params V1betaListBackupsParams) (r V1betaListBackupsRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
 // V1betaListHostGroups implements v1beta_listHostGroups operation.
 //
 // Returns descriptions of all HostGroups owned by the caller.
@@ -626,6 +662,15 @@ func (UnimplementedHandler) V1betaSyncReplication(ctx context.Context, params V1
 //
 // PUT /v1beta/projects/{projectNumber}/locations/{locationId}/activeDirectories/{activeDirectoryId}
 func (UnimplementedHandler) V1betaUpdateActiveDirectory(ctx context.Context, req *ActiveDirectoryUpdateV1beta, params V1betaUpdateActiveDirectoryParams) (r V1betaUpdateActiveDirectoryRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// V1betaUpdateBackup implements v1beta_updateBackup operation.
+//
+// Update the backup. Only the backup description can be updated.
+//
+// PUT /v1beta/projects/{projectNumber}/locations/{locationId}/backupVaults/{backupVaultId}/backups/{backupId}
+func (UnimplementedHandler) V1betaUpdateBackup(ctx context.Context, req *BackupUpdateV1beta, params V1betaUpdateBackupParams) (r V1betaUpdateBackupRes, _ error) {
 	return r, ht.ErrNotImplemented
 }
 

@@ -834,3 +834,163 @@ func TestIscsiServiceCreateParamsToONTAP(t *testing.T) {
 		assert.Equal(tt, "uuid1", *result.Info.Svm.UUID)
 	})
 }
+func TestSnapmirrorRelationshipReleaseParamsToONTAP(t *testing.T) {
+	t.Run("WhenParamsNil", func(tt *testing.T) {
+		otParams := snapmirrorRelationshipReleaseParamsToONTAP(nil)
+		assert.NotNil(tt, otParams)
+	})
+
+	t.Run("WhenParamsSet", func(tt *testing.T) {
+		params := &SnapmirrorRelationshipReleaseParams{
+			UUID: "test-uuid",
+		}
+		otParams := snapmirrorRelationshipReleaseParamsToONTAP(params)
+		assert.Equal(tt, params.UUID, otParams.UUID)
+	})
+}
+
+func TestSnapmirrorRelationshipTransferCreateParamsToONTAP(t *testing.T) {
+	t.Run("WhenParamsNil", func(tt *testing.T) {
+		otParams := snapmirrorRelationshipTransferCreateParamsToONTAP(nil)
+		assert.NotNil(tt, otParams)
+	})
+
+	t.Run("WhenParamsSet", func(tt *testing.T) {
+		params := &SnapmirrorRelationshipTransferCreateParams{
+			UUID: "test-uuid",
+		}
+		otParams := snapmirrorRelationshipTransferCreateParamsToONTAP(params)
+		assert.Equal(tt, params.UUID, otParams.RelationshipUUID)
+	})
+}
+
+func TestSnapmirrorRelationshipTransferGetParamsToONTAP(t *testing.T) {
+	t.Run("WhenParamsNil", func(tt *testing.T) {
+		otParams := snapmirrorRelationshipTransferGetParamsToONTAP(nil)
+		assert.NotNil(tt, otParams)
+	})
+
+	t.Run("WhenParamsSet", func(tt *testing.T) {
+		params := &SnapmirrorRelationshipTransferGetParams{
+			SnapmirrorUUID: "test-uuid",
+			SnapshotName:   "snapshot-1",
+		}
+		otParams := snapmirrorRelationshipTransferGetParamsToONTAP(params)
+		assert.Equal(tt, params.SnapmirrorUUID, otParams.RelationshipUUID)
+		assert.Equal(tt, params.SnapshotName, *otParams.Snapshot)
+	})
+}
+
+func TestCloudTargetCreateParamsToONTAP(t *testing.T) {
+	t.Run("WhenParamsNil", func(tt *testing.T) {
+		otParams := cloudTargetCreateParamsToONTAP(nil)
+		assert.NotNil(tt, otParams)
+	})
+
+	t.Run("WhenParamsSet", func(tt *testing.T) {
+		params := &CloudTargetCreateParams{
+			Name:      nillable.ToPointer("cloud-target"),
+			Container: nillable.ToPointer("cloud-container"),
+		}
+		otParams := cloudTargetCreateParamsToONTAP(params)
+		assert.Equal(tt, *params.Name, *otParams.Info.Name)
+		assert.Equal(tt, *params.Container, *otParams.Info.Container)
+		assert.Equal(tt, objStoreOwner, *otParams.Info.Owner)
+		assert.Equal(tt, objStoreSnapmirrorUse, *otParams.Info.SnapmirrorUse)
+		assert.Equal(tt, objStoreProviderType, *otParams.Info.ProviderType)
+		assert.Equal(tt, objStoreSnapmirrorUse, *otParams.Info.SnapmirrorUse)
+	})
+}
+
+func TestCloudTargetCollectionGetParamsToONTAP(t *testing.T) {
+	t.Run("WhenParamsNil", func(tt *testing.T) {
+		otParams := cloudTargetCollectionGetParamsToONTAP(nil)
+		assert.NotNil(tt, otParams)
+	})
+
+	t.Run("WhenParamsSet", func(tt *testing.T) {
+		params := &CloudTargetCollectionGetParams{
+			Name: nillable.ToPointer("cloud-target"),
+		}
+		otParams := cloudTargetCollectionGetParamsToONTAP(params)
+		assert.Equal(tt, *params.Name, *otParams.Name)
+	})
+}
+func TestSnapmirrorRelationshipReleaseParamsToONTAP2(t *testing.T) {
+	t.Run("WhenParamsNil", func(tt *testing.T) {
+		otParams := snapmirrorRelationshipReleaseParamsToONTAP(nil)
+		assert.NotNil(tt, otParams)
+	})
+
+	t.Run("WhenParamsSet", func(tt *testing.T) {
+		params := &SnapmirrorRelationshipReleaseParams{
+			UUID: "test-uuid",
+		}
+		otParams := snapmirrorRelationshipReleaseParamsToONTAP(params)
+		assert.Equal(tt, params.UUID, otParams.UUID)
+	})
+}
+
+func TestSnapmirrorRelationshipTransferCreateParamsToONTAP2(t *testing.T) {
+	t.Run("WhenParamsNil", func(tt *testing.T) {
+		otParams := snapmirrorRelationshipTransferCreateParamsToONTAP(nil)
+		assert.NotNil(tt, otParams)
+	})
+
+	t.Run("WhenParamsSet", func(tt *testing.T) {
+		params := &SnapmirrorRelationshipTransferCreateParams{
+			UUID: "test-uuid",
+		}
+		otParams := snapmirrorRelationshipTransferCreateParamsToONTAP(params)
+		assert.Equal(tt, params.UUID, otParams.RelationshipUUID)
+	})
+}
+
+func TestSnapmirrorRelationshipTransferGetParamsToONTAP2(t *testing.T) {
+	t.Run("WhenParamsNil", func(tt *testing.T) {
+		otParams := snapmirrorRelationshipTransferGetParamsToONTAP(nil)
+		assert.NotNil(tt, otParams)
+	})
+
+	t.Run("WhenParamsSet", func(tt *testing.T) {
+		params := &SnapmirrorRelationshipTransferGetParams{
+			SnapmirrorUUID: "test-uuid",
+			SnapshotName:   "snapshot-1",
+		}
+		otParams := snapmirrorRelationshipTransferGetParamsToONTAP(params)
+		assert.Equal(tt, params.SnapmirrorUUID, otParams.RelationshipUUID)
+		assert.Equal(tt, params.SnapshotName, *otParams.Snapshot)
+	})
+}
+
+func TestCloudTargetCreateParamsToONTAP2(t *testing.T) {
+	t.Run("WhenParamsNil", func(tt *testing.T) {
+		otParams := cloudTargetCreateParamsToONTAP(nil)
+		assert.NotNil(tt, otParams)
+	})
+
+	t.Run("WhenParamsSet", func(tt *testing.T) {
+		params := &CloudTargetCreateParams{
+			Name:      nillable.ToPointer("cloud-target"),
+			Container: nillable.ToPointer("cloud-container"),
+		}
+		otParams := cloudTargetCreateParamsToONTAP(params)
+		assert.Equal(tt, *params.Name, *otParams.Info.Name)
+		assert.Equal(tt, *params.Container, *otParams.Info.Container)
+	})
+}
+
+func TestCloudTargetCollectionGetParamsToONTAP2(t *testing.T) {
+	t.Run("WhenParamsNil", func(tt *testing.T) {
+		otParams := cloudTargetCollectionGetParamsToONTAP(nil)
+		assert.NotNil(tt, otParams)
+	})
+
+	t.Run("WhenParamsSet", func(tt *testing.T) {
+		params := &CloudTargetCollectionGetParams{
+			Name: nillable.ToPointer("cloud-target"),
+		}
+		otParams := cloudTargetCollectionGetParamsToONTAP(params)
+		assert.Equal(tt, *params.Name, *otParams.Name)
+	})
+}

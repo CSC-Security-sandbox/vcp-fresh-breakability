@@ -588,6 +588,110 @@ func (_c *MockSnapmirrorClient_SnapmirrorRelationshipResyncOrInitializeOrResume_
 	return _c
 }
 
+// SnapmirrorRelationshipTransferCreate provides a mock function with given fields: params
+func (_m *MockSnapmirrorClient) SnapmirrorRelationshipTransferCreate(params *SnapmirrorRelationshipTransferCreateParams) error {
+	ret := _m.Called(params)
+
+	if len(ret) == 0 {
+		panic("no return value specified for SnapmirrorRelationshipTransferCreate")
+	}
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(*SnapmirrorRelationshipTransferCreateParams) error); ok {
+		r0 = rf(params)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// MockSnapmirrorClient_SnapmirrorRelationshipTransferCreate_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'SnapmirrorRelationshipTransferCreate'
+type MockSnapmirrorClient_SnapmirrorRelationshipTransferCreate_Call struct {
+	*mock.Call
+}
+
+// SnapmirrorRelationshipTransferCreate is a helper method to define mock.On call
+//   - params *SnapmirrorRelationshipTransferCreateParams
+func (_e *MockSnapmirrorClient_Expecter) SnapmirrorRelationshipTransferCreate(params interface{}) *MockSnapmirrorClient_SnapmirrorRelationshipTransferCreate_Call {
+	return &MockSnapmirrorClient_SnapmirrorRelationshipTransferCreate_Call{Call: _e.mock.On("SnapmirrorRelationshipTransferCreate", params)}
+}
+
+func (_c *MockSnapmirrorClient_SnapmirrorRelationshipTransferCreate_Call) Run(run func(params *SnapmirrorRelationshipTransferCreateParams)) *MockSnapmirrorClient_SnapmirrorRelationshipTransferCreate_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(*SnapmirrorRelationshipTransferCreateParams))
+	})
+	return _c
+}
+
+func (_c *MockSnapmirrorClient_SnapmirrorRelationshipTransferCreate_Call) Return(_a0 error) *MockSnapmirrorClient_SnapmirrorRelationshipTransferCreate_Call {
+	_c.Call.Return(_a0)
+	return _c
+}
+
+func (_c *MockSnapmirrorClient_SnapmirrorRelationshipTransferCreate_Call) RunAndReturn(run func(*SnapmirrorRelationshipTransferCreateParams) error) *MockSnapmirrorClient_SnapmirrorRelationshipTransferCreate_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// SnapmirrorRelationshipTransferGet provides a mock function with given fields: params
+func (_m *MockSnapmirrorClient) SnapmirrorRelationshipTransferGet(params *SnapmirrorRelationshipTransferGetParams) (*SnapmirrorTransfer, error) {
+	ret := _m.Called(params)
+
+	if len(ret) == 0 {
+		panic("no return value specified for SnapmirrorRelationshipTransferGet")
+	}
+
+	var r0 *SnapmirrorTransfer
+	var r1 error
+	if rf, ok := ret.Get(0).(func(*SnapmirrorRelationshipTransferGetParams) (*SnapmirrorTransfer, error)); ok {
+		return rf(params)
+	}
+	if rf, ok := ret.Get(0).(func(*SnapmirrorRelationshipTransferGetParams) *SnapmirrorTransfer); ok {
+		r0 = rf(params)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*SnapmirrorTransfer)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(*SnapmirrorRelationshipTransferGetParams) error); ok {
+		r1 = rf(params)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockSnapmirrorClient_SnapmirrorRelationshipTransferGet_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'SnapmirrorRelationshipTransferGet'
+type MockSnapmirrorClient_SnapmirrorRelationshipTransferGet_Call struct {
+	*mock.Call
+}
+
+// SnapmirrorRelationshipTransferGet is a helper method to define mock.On call
+//   - params *SnapmirrorRelationshipTransferGetParams
+func (_e *MockSnapmirrorClient_Expecter) SnapmirrorRelationshipTransferGet(params interface{}) *MockSnapmirrorClient_SnapmirrorRelationshipTransferGet_Call {
+	return &MockSnapmirrorClient_SnapmirrorRelationshipTransferGet_Call{Call: _e.mock.On("SnapmirrorRelationshipTransferGet", params)}
+}
+
+func (_c *MockSnapmirrorClient_SnapmirrorRelationshipTransferGet_Call) Run(run func(params *SnapmirrorRelationshipTransferGetParams)) *MockSnapmirrorClient_SnapmirrorRelationshipTransferGet_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(*SnapmirrorRelationshipTransferGetParams))
+	})
+	return _c
+}
+
+func (_c *MockSnapmirrorClient_SnapmirrorRelationshipTransferGet_Call) Return(_a0 *SnapmirrorTransfer, _a1 error) *MockSnapmirrorClient_SnapmirrorRelationshipTransferGet_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockSnapmirrorClient_SnapmirrorRelationshipTransferGet_Call) RunAndReturn(run func(*SnapmirrorRelationshipTransferGetParams) (*SnapmirrorTransfer, error)) *MockSnapmirrorClient_SnapmirrorRelationshipTransferGet_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // NewMockSnapmirrorClient creates a new instance of MockSnapmirrorClient. It also registers a testing interface on the mock and a cleanup function to assert the mocks expectations.
 // The first argument is typically a *testing.T value.
 func NewMockSnapmirrorClient(t interface {

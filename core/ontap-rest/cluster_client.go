@@ -24,6 +24,7 @@ type ClusterClient interface { // generate:mock
 	ClusterPeerGet(clusterPeerID string) (*ClusterPeerResponse, error)
 	ScheduleCreate(params *ScheduleCreateParams) error
 	ScheduleCollectionGet(sfp *ScheduleCollectionGetParams, ucbf UserCallbackFunc[[]*Schedule]) error
+	GetJob(UUID string) (*cluster.JobGetOK, error)
 }
 
 type clusterClient struct {
@@ -151,4 +152,14 @@ func (cc *clusterClient) ScheduleCollectionGet(sfp *ScheduleCollectionGetParams,
 
 		return resp, "", nil
 	}, ucbf)
+}
+
+// GetJob returns the ONTAP Job
+func (cc clusterClient) GetJob(UUID string) (*cluster.JobGetOK, error) {
+	params := cluster.NewJobGetParams().WithUUID(UUID).WithFields([]string{"*", "node.name"})
+	job, err := cc.api.JobGet(params, nil)
+	if err != nil {
+		return nil, err
+	}
+	return job, nil
 }

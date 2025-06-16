@@ -98,6 +98,12 @@ func WithAcceptApplicationJSON(r *runtime.ClientOperation) {
 
 // ClientService is the interface for Client methods
 type ClientService interface {
+	ObjectStoreEndpointInfoGet(params *ObjectStoreEndpointInfoGetParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*ObjectStoreEndpointInfoGetOK, error)
+
+	SnapmirrorObjectStoreEndpointSnapshotCollectionGet(params *SnapmirrorObjectStoreEndpointSnapshotCollectionGetParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*SnapmirrorObjectStoreEndpointSnapshotCollectionGetOK, error)
+
+	SnapmirrorObjectStoreEndpointSnapshotGet(params *SnapmirrorObjectStoreEndpointSnapshotGetParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*SnapmirrorObjectStoreEndpointSnapshotGetOK, error)
+
 	SnapmirrorPolicyDeleteCollection(params *SnapmirrorPolicyDeleteCollectionParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*SnapmirrorPolicyDeleteCollectionOK, *SnapmirrorPolicyDeleteCollectionAccepted, error)
 
 	SnapmirrorRelationshipCreate(params *SnapmirrorRelationshipCreateParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*SnapmirrorRelationshipCreateCreated, *SnapmirrorRelationshipCreateAccepted, error)
@@ -108,9 +114,169 @@ type ClientService interface {
 
 	SnapmirrorRelationshipModify(params *SnapmirrorRelationshipModifyParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*SnapmirrorRelationshipModifyOK, *SnapmirrorRelationshipModifyAccepted, error)
 
+	SnapmirrorRelationshipTransferCreate(params *SnapmirrorRelationshipTransferCreateParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*SnapmirrorRelationshipTransferCreateCreated, error)
+
+	SnapmirrorRelationshipTransferModify(params *SnapmirrorRelationshipTransferModifyParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*SnapmirrorRelationshipTransferModifyOK, error)
+
+	SnapmirrorRelationshipTransferModifyCollection(params *SnapmirrorRelationshipTransferModifyCollectionParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*SnapmirrorRelationshipTransferModifyCollectionOK, error)
+
+	SnapmirrorRelationshipTransfersGet(params *SnapmirrorRelationshipTransfersGetParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*SnapmirrorRelationshipTransfersGetOK, error)
+
 	SnapmirrorRelationshipsGet(params *SnapmirrorRelationshipsGetParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*SnapmirrorRelationshipsGetOK, error)
 
 	SetTransport(transport runtime.ClientTransport)
+}
+
+/*
+	ObjectStoreEndpointInfoGet Retrieves information for the specified object store, endpoint.
+
+### Related ONTAP commands
+* `snapmirror object-store endpoint show`
+### Example
+
+	GET "/api/snapmirror/object-stores/cd9563a0-2e59-11ea-a778-00505682bd8f/endpoints/af86c94c-bcb2-4b4e-b8cc-c294793a310a/"
+*/
+func (a *Client) ObjectStoreEndpointInfoGet(params *ObjectStoreEndpointInfoGetParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*ObjectStoreEndpointInfoGetOK, error) {
+	// TODO: Validate the params before sending
+	if params == nil {
+		params = NewObjectStoreEndpointInfoGetParams()
+	}
+	op := &runtime.ClientOperation{
+		ID:                 "object_store_endpoint_info_get",
+		Method:             "GET",
+		PathPattern:        "/snapmirror/object-stores/{object_store.uuid}/endpoints/{uuid}",
+		ProducesMediaTypes: []string{"application/json", "application/hal+json"},
+		ConsumesMediaTypes: []string{"application/json", "application/hal+json"},
+		Schemes:            []string{"https"},
+		Params:             params,
+		Reader:             &ObjectStoreEndpointInfoGetReader{formats: a.formats},
+		AuthInfo:           authInfo,
+		Context:            params.Context,
+		Client:             params.HTTPClient,
+	}
+	for _, opt := range opts {
+		opt(op)
+	}
+
+	result, err := a.transport.Submit(op)
+	if err != nil {
+		return nil, err
+	}
+	success, ok := result.(*ObjectStoreEndpointInfoGetOK)
+	if ok {
+		return success, nil
+	}
+	// unexpected success response
+	unexpectedSuccess := result.(*ObjectStoreEndpointInfoGetDefault)
+	return nil, runtime.NewAPIError("unexpected success response: content available as default response in error", unexpectedSuccess, unexpectedSuccess.Code())
+}
+
+/*
+	SnapmirrorObjectStoreEndpointSnapshotCollectionGet Retrieves snapshot information associated with an object store endpoint. The object store UUID, together with the endpoint UUID is used to list the snapshots and their information.
+
+### Related ONTAP commands
+* `snapmirror object-store endpoint snapshot show`
+### Important notes
+* By default, only snapshots in the "transferred" state will be returned. You need to specify the states if you want to see snapshots in other states.
+### Examples
+The following examples show how to retrieve the list of snapshots.
+1.  Retrieving the list of snapshots in the "transferred" state by default.
+<br/>
+```
+GET "/api/snapmirror/object-stores/cd9563a0-2e59-11ea-a778-00505682bd8f/endpoints/af86c94c-bcb2-4b4e-b8cc-c294793a310a/snapshots"
+```
+<br/>
+2.  Retrieving the list of snapshots in specified states.
+<br/>
+```
+GET "/api/snapmirror/object-stores/cd9563a0-2e59-11ea-a778-00505682bd8f/endpoints/af86c94c-bcb2-4b4e-b8cc-c294793a310a/snapshots?state=in_transfer|transferred|deleted|delete_cleanup|recyclable"
+```
+<br/>
+*/
+func (a *Client) SnapmirrorObjectStoreEndpointSnapshotCollectionGet(params *SnapmirrorObjectStoreEndpointSnapshotCollectionGetParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*SnapmirrorObjectStoreEndpointSnapshotCollectionGetOK, error) {
+	// TODO: Validate the params before sending
+	if params == nil {
+		params = NewSnapmirrorObjectStoreEndpointSnapshotCollectionGetParams()
+	}
+	op := &runtime.ClientOperation{
+		ID:                 "snapmirror_object_store_endpoint_snapshot_collection_get",
+		Method:             "GET",
+		PathPattern:        "/snapmirror/object-stores/{object_store.uuid}/endpoints/{endpoint.uuid}/snapshots",
+		ProducesMediaTypes: []string{"application/json", "application/hal+json"},
+		ConsumesMediaTypes: []string{"application/json", "application/hal+json"},
+		Schemes:            []string{"https"},
+		Params:             params,
+		Reader:             &SnapmirrorObjectStoreEndpointSnapshotCollectionGetReader{formats: a.formats},
+		AuthInfo:           authInfo,
+		Context:            params.Context,
+		Client:             params.HTTPClient,
+	}
+	for _, opt := range opts {
+		opt(op)
+	}
+
+	result, err := a.transport.Submit(op)
+	if err != nil {
+		return nil, err
+	}
+	success, ok := result.(*SnapmirrorObjectStoreEndpointSnapshotCollectionGetOK)
+	if ok {
+		return success, nil
+	}
+	// unexpected success response
+	unexpectedSuccess := result.(*SnapmirrorObjectStoreEndpointSnapshotCollectionGetDefault)
+	return nil, runtime.NewAPIError("unexpected success response: content available as default response in error", unexpectedSuccess, unexpectedSuccess.Code())
+}
+
+/*
+	SnapmirrorObjectStoreEndpointSnapshotGet Retrieves specific snapshot information given its UUID. The object store UUID, endpoint UUID together with the snapshot UUID is used to list the information for the specific snapshot.
+
+### Related ONTAP commands
+* `snapmirror object-store endpoint snapshot show`
+### Important notes
+* The properties "retention_until_date" and "snapshot_lock_state" are not populated unless the user specifies the snapshot UUID or name.
+### Example
+<br/>
+```
+GET "/api/snapmirror/object-stores/cd9563a0-2e59-11ea-a778-00505682bd8f/endpoints/af86c94c-bcb2-4b4e-b8cc-c294793a310a/snapshots/04fb1ddb-2947-4eb0-af09-3eb6dc538926"
+```
+<br/>
+### Learn more
+* [`DOC /snapmirror/object-stores/{object_store.uuid}/endpoints/{endpoint.uuid}/snapshots`](#docs-snapmirror-snapmirror_object-stores_{object_store.uuid}_endpoints_{endpoint.uuid}_snapshots)
+*/
+func (a *Client) SnapmirrorObjectStoreEndpointSnapshotGet(params *SnapmirrorObjectStoreEndpointSnapshotGetParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*SnapmirrorObjectStoreEndpointSnapshotGetOK, error) {
+	// TODO: Validate the params before sending
+	if params == nil {
+		params = NewSnapmirrorObjectStoreEndpointSnapshotGetParams()
+	}
+	op := &runtime.ClientOperation{
+		ID:                 "snapmirror_object_store_endpoint_snapshot_get",
+		Method:             "GET",
+		PathPattern:        "/snapmirror/object-stores/{object_store.uuid}/endpoints/{endpoint.uuid}/snapshots/{uuid}",
+		ProducesMediaTypes: []string{"application/json", "application/hal+json"},
+		ConsumesMediaTypes: []string{"application/json", "application/hal+json"},
+		Schemes:            []string{"https"},
+		Params:             params,
+		Reader:             &SnapmirrorObjectStoreEndpointSnapshotGetReader{formats: a.formats},
+		AuthInfo:           authInfo,
+		Context:            params.Context,
+		Client:             params.HTTPClient,
+	}
+	for _, opt := range opts {
+		opt(op)
+	}
+
+	result, err := a.transport.Submit(op)
+	if err != nil {
+		return nil, err
+	}
+	success, ok := result.(*SnapmirrorObjectStoreEndpointSnapshotGetOK)
+	if ok {
+		return success, nil
+	}
+	// unexpected success response
+	unexpectedSuccess := result.(*SnapmirrorObjectStoreEndpointSnapshotGetDefault)
+	return nil, runtime.NewAPIError("unexpected success response: content available as default response in error", unexpectedSuccess, unexpectedSuccess.Code())
 }
 
 /*
@@ -735,6 +901,274 @@ func (a *Client) SnapmirrorRelationshipModify(params *SnapmirrorRelationshipModi
 	// unexpected success response
 	unexpectedSuccess := result.(*SnapmirrorRelationshipModifyDefault)
 	return nil, nil, runtime.NewAPIError("unexpected success response: content available as default response in error", unexpectedSuccess, unexpectedSuccess.Code())
+}
+
+/*
+	SnapmirrorRelationshipTransferCreate Starts a SnapMirror transfer operation. This API initiates a restore operation if the SnapMirror relationship is of type "restore". Otherwise, it initiates a SnapMirror "initialize" operation or "update" operation based on the current SnapMirror state.
+
+### Default property values
+* `storage_efficiency_enabled` - _true_
+### Related ONTAP commands
+* `snapmirror update`
+* `snapmirror initialize`
+* `snapmirror restore`
+
+### Important notes
+* The property "archive_retrieval_priority" is only applicable for object store SnapMirror relationships of type "restore".
+* The property "options.preserve_dedup_savings" is only applicable for object store SnapMirror relationships of type "restore". This property is only supported for restoring an entire volume from an object store.
+* The property "options.overwrite" is only applicable for object store SnapMirror relationships of type "restore". This property is only supported for restoring a directory from an object store to a FlexVol volume. Upon restart of an incomplete restore transfer the value of the "options.overwrite" property should match that of the previous request.
+* The property "source_snapshot_uuid" is only applicable for object store SnapMirror relationships of type "restore".
+
+### Examples
+The following examples show how to perform SnapMirror "initialize", "update", and "restore" operations.
+<br/>
+
+	Perform SnapMirror initialize or update
+	<br/>
+	```
+	POST "/api/snapmirror/relationships/e4e7e130-0279-11e9-b566-0050568e9909/transfers" '{}'
+	```
+	<br/>
+	Perform SnapMirror initialize, update or restore with throttle value set
+	<br/>
+	```
+	POST "/api/snapmirror/relationships/e4e7e130-0279-11e9-b566-0050568e9909/transfers" '{"throttle":"100"}'
+	```
+	<br/>
+	Perform SnapMirror restore transfer of a file
+	<br/>
+	```
+	POST "/api/snapmirror/relationships/c8c62a90-0fef-11e9-b09e-0050568e7067/transfers" '{"source_snapshot": "src", "files":[{"source_path": "/a1.txt.0", "destination_path": "/a1-renamed.txt.0"}]}'
+	```
+	<br/>
+	Performing a SnapMirror initialize or update using a particular snapshot.
+	<br/>
+	```
+	POST "/api/snapmirror/relationships/e4e7e130-0279-11e9-b566-0050568e9909/transfers" '{"source_snapshot":"snap1"}'
+	```
+	<br/>
+
+	Performing a SnapMirror initialize or update of an object store SnapMirror relationship and locking snapshot 'snap1' for a period of 40 months.
+	<br/>
+	```
+	POST "/api/snapmirror/relationships/e4e7e130-0279-11e9-b566-0050568e9909/transfers" '{"source_snapshot":"snap1", "snapshot_retention_period":"P40M"}]}'
+	```
+	<br/>
+	Performing a SnapMirror restore transfer of a file with inode number 96 from an object store.
+	<br/>
+	```
+	POST "/api/snapmirror/relationships/5aadf886-2039-11ea-b47a-005056a778b7/transfers" '{"source_snapshot": "snap1", "files":[{"source_path": "96", "destination_path": "/f1"}]}'
+	```
+	<br/>
+	Performing a SnapMirror restore transfer of a whole volume from an object store using a snapshot copy name.
+	<br/>
+	```
+	POST "/api/snapmirror/relationships/5aadf886-2039-11ea-b47a-005056a778b7/transfers" '{"source_snapshot": "snap1"}'
+	```
+	<br/>
+	Performing a SnapMirror restore transfer of a whole volume from an object store using a snapshot copy uuid.
+	<br/>
+	```
+	POST "/api/snapmirror/relationships/5aadf886-2039-11ea-b47a-005056a778b7/transfers" '{"source_snapshot_uuid": "bded03c7-c71b-408e-9e1a-971eb156a2da"}'
+	```
+	<br/>
+	Performing a SnapMirror restore transfer of a whole volume from an object store with archive_retrieval_priority high.
+	<br/>
+	```
+	POST "/api/snapmirror/relationships/5aadf886-2039-11ea-b47a-005056a778b7/transfers" '{"source_snapshot": "snap1", "archive_retrieval_priority": "high"}'
+	```
+	<br/>
+	Performing a SnapMirror on-demand restore transfer of a whole volume from an object store.
+	<br/>
+	```
+	POST "/api/snapmirror/relationships/5aadf886-2039-11ea-b47a-005056a778b7/transfers" '{"source_snapshot": "snap1", "on_demand_attrs":"read_write_with_user_data_pull"}'
+	```
+	<br/>
+	Performing a SnapMirror restore transfer of a whole volume from an object store with deuplication savings preserved.
+	<br/>
+	```
+	POST "/api/snapmirror/relationships/5aadf886-2039-11ea-b47a-005056a778b7/transfers" '{"source_snapshot": "snap1", "options.preserve_dedup_savings":"true"}'
+	```
+	<br/>
+	Performing a SnapMirror restore transfer of a directory from an object store with overwrite.
+	<br/>
+	```
+	POST "/api/snapmirror/relationships/5aadf886-2039-11ea-b47a-005056a778b7/transfers" '{"source_snapshot": "snap1", "files":[{"source_path": "96", "destination_path": "/dir1"}], "options.overwrite":"true"}'
+	```
+	<br/>
+
+### Learn more
+* [`DOC /snapmirror/relationships/{relationship.uuid}/transfers`](#docs-snapmirror-snapmirror_relationships_{relationship.uuid}_transfers)
+*/
+func (a *Client) SnapmirrorRelationshipTransferCreate(params *SnapmirrorRelationshipTransferCreateParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*SnapmirrorRelationshipTransferCreateCreated, error) {
+	// TODO: Validate the params before sending
+	if params == nil {
+		params = NewSnapmirrorRelationshipTransferCreateParams()
+	}
+	op := &runtime.ClientOperation{
+		ID:                 "snapmirror_relationship_transfer_create",
+		Method:             "POST",
+		PathPattern:        "/snapmirror/relationships/{relationship.uuid}/transfers",
+		ProducesMediaTypes: []string{"application/json", "application/hal+json"},
+		ConsumesMediaTypes: []string{"application/json", "application/hal+json"},
+		Schemes:            []string{"https"},
+		Params:             params,
+		Reader:             &SnapmirrorRelationshipTransferCreateReader{formats: a.formats},
+		AuthInfo:           authInfo,
+		Context:            params.Context,
+		Client:             params.HTTPClient,
+	}
+	for _, opt := range opts {
+		opt(op)
+	}
+
+	result, err := a.transport.Submit(op)
+	if err != nil {
+		return nil, err
+	}
+	success, ok := result.(*SnapmirrorRelationshipTransferCreateCreated)
+	if ok {
+		return success, nil
+	}
+	// unexpected success response
+	unexpectedSuccess := result.(*SnapmirrorRelationshipTransferCreateDefault)
+	return nil, runtime.NewAPIError("unexpected success response: content available as default response in error", unexpectedSuccess, unexpectedSuccess.Code())
+}
+
+/*
+	SnapmirrorRelationshipTransferModify Aborts an ongoing SnapMirror transfer. This operation is applicable on asynchronous SnapMirror relationships.
+
+### Related ONTAP commands
+* `snapmirror abort`
+### Example
+<br/>
+```
+PATCH "/api/snapmirror/relationships/293baa53-e63d-11e8-bff1-005056a793dd/transfers/293baa53-e63d-11e8-bff1-005056a793dd" '{"state":"aborted"}'
+```
+<br/>
+### Learn more
+* [`DOC /snapmirror/relationships/{relationship.uuid}/transfers`](#docs-snapmirror-snapmirror_relationships_{relationship.uuid}_transfers)
+*/
+func (a *Client) SnapmirrorRelationshipTransferModify(params *SnapmirrorRelationshipTransferModifyParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*SnapmirrorRelationshipTransferModifyOK, error) {
+	// TODO: Validate the params before sending
+	if params == nil {
+		params = NewSnapmirrorRelationshipTransferModifyParams()
+	}
+	op := &runtime.ClientOperation{
+		ID:                 "snapmirror_relationship_transfer_modify",
+		Method:             "PATCH",
+		PathPattern:        "/snapmirror/relationships/{relationship.uuid}/transfers/{uuid}",
+		ProducesMediaTypes: []string{"application/json", "application/hal+json"},
+		ConsumesMediaTypes: []string{"application/json", "application/hal+json"},
+		Schemes:            []string{"https"},
+		Params:             params,
+		Reader:             &SnapmirrorRelationshipTransferModifyReader{formats: a.formats},
+		AuthInfo:           authInfo,
+		Context:            params.Context,
+		Client:             params.HTTPClient,
+	}
+	for _, opt := range opts {
+		opt(op)
+	}
+
+	result, err := a.transport.Submit(op)
+	if err != nil {
+		return nil, err
+	}
+	success, ok := result.(*SnapmirrorRelationshipTransferModifyOK)
+	if ok {
+		return success, nil
+	}
+	// unexpected success response
+	unexpectedSuccess := result.(*SnapmirrorRelationshipTransferModifyDefault)
+	return nil, runtime.NewAPIError("unexpected success response: content available as default response in error", unexpectedSuccess, unexpectedSuccess.Code())
+}
+
+/*
+SnapmirrorRelationshipTransferModifyCollection snapmirror relationship transfer modify collection API
+*/
+func (a *Client) SnapmirrorRelationshipTransferModifyCollection(params *SnapmirrorRelationshipTransferModifyCollectionParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*SnapmirrorRelationshipTransferModifyCollectionOK, error) {
+	// TODO: Validate the params before sending
+	if params == nil {
+		params = NewSnapmirrorRelationshipTransferModifyCollectionParams()
+	}
+	op := &runtime.ClientOperation{
+		ID:                 "snapmirror_relationship_transfer_modify_collection",
+		Method:             "PATCH",
+		PathPattern:        "/snapmirror/relationships/{relationship.uuid}/transfers",
+		ProducesMediaTypes: []string{"application/json", "application/hal+json"},
+		ConsumesMediaTypes: []string{"application/json", "application/hal+json"},
+		Schemes:            []string{"https"},
+		Params:             params,
+		Reader:             &SnapmirrorRelationshipTransferModifyCollectionReader{formats: a.formats},
+		AuthInfo:           authInfo,
+		Context:            params.Context,
+		Client:             params.HTTPClient,
+	}
+	for _, opt := range opts {
+		opt(op)
+	}
+
+	result, err := a.transport.Submit(op)
+	if err != nil {
+		return nil, err
+	}
+	success, ok := result.(*SnapmirrorRelationshipTransferModifyCollectionOK)
+	if ok {
+		return success, nil
+	}
+	// unexpected success response
+	unexpectedSuccess := result.(*SnapmirrorRelationshipTransferModifyCollectionDefault)
+	return nil, runtime.NewAPIError("unexpected success response: content available as default response in error", unexpectedSuccess, unexpectedSuccess.Code())
+}
+
+/*
+	SnapmirrorRelationshipTransfersGet Retrieves the list of ongoing SnapMirror transfers for the specified relationship.
+
+### Related ONTAP commands
+* `snapmirror show`
+### Example
+<br/>
+```
+GET "/api/snapmirror/relationships/293baa53-e63d-11e8-bff1-005056a793dd/transfers"
+```
+### Learn more
+* [`DOC /snapmirror/relationships/{relationship.uuid}/transfers`](#docs-snapmirror-snapmirror_relationships_{relationship.uuid}_transfers)
+<br/>
+*/
+func (a *Client) SnapmirrorRelationshipTransfersGet(params *SnapmirrorRelationshipTransfersGetParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*SnapmirrorRelationshipTransfersGetOK, error) {
+	// TODO: Validate the params before sending
+	if params == nil {
+		params = NewSnapmirrorRelationshipTransfersGetParams()
+	}
+	op := &runtime.ClientOperation{
+		ID:                 "snapmirror_relationship_transfers_get",
+		Method:             "GET",
+		PathPattern:        "/snapmirror/relationships/{relationship.uuid}/transfers",
+		ProducesMediaTypes: []string{"application/json", "application/hal+json"},
+		ConsumesMediaTypes: []string{"application/json", "application/hal+json"},
+		Schemes:            []string{"https"},
+		Params:             params,
+		Reader:             &SnapmirrorRelationshipTransfersGetReader{formats: a.formats},
+		AuthInfo:           authInfo,
+		Context:            params.Context,
+		Client:             params.HTTPClient,
+	}
+	for _, opt := range opts {
+		opt(op)
+	}
+
+	result, err := a.transport.Submit(op)
+	if err != nil {
+		return nil, err
+	}
+	success, ok := result.(*SnapmirrorRelationshipTransfersGetOK)
+	if ok {
+		return success, nil
+	}
+	// unexpected success response
+	unexpectedSuccess := result.(*SnapmirrorRelationshipTransfersGetDefault)
+	return nil, runtime.NewAPIError("unexpected success response: content available as default response in error", unexpectedSuccess, unexpectedSuccess.Code())
 }
 
 /*

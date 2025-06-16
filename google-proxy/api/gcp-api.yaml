@@ -1260,6 +1260,316 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
       x-codegen-request-body-name: body
+  /v1beta/projects/{projectNumber}/locations/{locationId}/backupVaults/{backupVaultId}/backups:
+    get:
+      operationId: v1beta_listBackups
+      summary: Describe all backups for a backup vault
+      description: Returns descriptions of all backups for a backup vault.
+      tags:
+        - backups
+      parameters:
+        - $ref: '#/components/parameters/projectNumberPathParameter'
+        - $ref: '#/components/parameters/locationIdPathParameter'
+        - $ref: '#/components/parameters/backupVaultIdPathParameter'
+        - $ref: '#/components/parameters/xCorrelationIdHeader'
+        - in: query
+          name: includeDeleted
+          schema:
+            type: boolean
+          required: false
+          allowEmptyValue: true
+          description: 'If true, response will include deleted backups'
+        - in: query
+          name: volumeId
+          schema:
+            type: string
+          allowEmptyValue: true
+          description: 'Volume ID for which the backups are to be listed. If not present, all backups will be returned'
+        - in: query
+          name: onlyOrphanedBackups
+          schema:
+            type: boolean
+          required: false
+          allowEmptyValue: true
+          description: 'If true, response will include only orphaned backups under the mentioned project'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - type: object
+                    properties:
+                      backups:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/Backup_v1beta'
+              example:
+                backups:
+                  - backupId: 9760acf5-4638-11e7-9bdb-020073ca3333
+                    name: manual-backup1
+                    volumeId: 9760acf5-4638-11e7-9bdb-020073ca0001
+                    region: us-east4
+                    created: '2017-02-02T00:00:00.000Z'
+                    lifeCycleState: READY
+                    lifeCycleStateDetails: Available for use
+                    volumeUsageBytes: 387860629999
+                  - backupId: 9760acf5-4638-11e7-9bdb-020073ca3334
+                    name: manual-backup2
+                    volumeId: 9760acf5-4638-11e7-9bdb-020073ca0001
+                    region: us-east4
+                    created: '2017-02-02T00:00:00.000Z'
+                    lifeCycleState: READY
+                    lifeCycleStateDetails: Available for use
+                    volumeUsageBytes: 387860629999
+        '400':
+          $ref: '#/components/responses/StandardError-400'
+        '401':
+          $ref: '#/components/responses/StandardError-401'
+        '403':
+          $ref: '#/components/responses/StandardError-403'
+        '404':
+          $ref: '#/components/responses/StandardError-404'
+        '500':
+          $ref: '#/components/responses/StandardError-500'
+        '501':
+          $ref: '#/components/responses/StandardError-501'
+        default:
+          description: Unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    post:
+      operationId: v1beta_createBackup
+      summary: Create a new backup
+      description: >-
+        Creates an ad-hoc backup.
+      tags:
+        - backups
+      parameters:
+        - $ref: '#/components/parameters/projectNumberPathParameter'
+        - $ref: '#/components/parameters/locationIdPathParameter'
+        - $ref: '#/components/parameters/backupVaultIdPathParameter'
+        - $ref: '#/components/parameters/xCorrelationIdHeader'
+      requestBody:
+        description: The required parameters to create a new backup.
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BackupCreate_v1beta'
+      responses:
+        '201':
+          description: Created backup
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Backup_v1beta'
+        '202':
+          description: Creating backup
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Operation_v1beta'
+        '400':
+          $ref: '#/components/responses/StandardError-400'
+        '401':
+          $ref: '#/components/responses/StandardError-401'
+        '403':
+          $ref: '#/components/responses/StandardError-403'
+        '409':
+          $ref: '#/components/responses/StandardError-409'
+        '422':
+          $ref: '#/components/responses/StandardError-422'
+        '429':
+          $ref: '#/components/responses/StandardError-429'
+        '500':
+          $ref: '#/components/responses/StandardError-500'
+        '501':
+          $ref: '#/components/responses/StandardError-501'
+        default:
+          description: Unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /v1beta/projects/{projectNumber}/locations/{locationId}/backupVaults/{backupVaultId}/backups/{backupId}:
+    get:
+      operationId: v1beta_describeBackup
+      summary: Describe a backup under backup vault
+      description: Describe a backup present under a backup vault
+      tags:
+        - backups
+      parameters:
+        - $ref: '#/components/parameters/projectNumberPathParameter'
+        - $ref: '#/components/parameters/locationIdPathParameter'
+        - $ref: '#/components/parameters/backupVaultIdPathParameter'
+        - $ref: '#/components/parameters/backupIdPathParameter'
+        - $ref: '#/components/parameters/xCorrelationIdHeader'
+        - in: query
+          name: volumeId
+          schema:
+            type: string
+          required: false
+          description: 'Describe a backup under a backup vault'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - type: object
+                    properties:
+                      backups:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/Backup_v1beta'
+              example:
+                backups:
+                  - backupId: 9760acf5-4638-11e7-9bdb-020073ca3333
+                    name: manual-backup1
+                    volumeId: 9760acf5-4638-11e7-9bdb-020073ca0001
+                    region: us-east4
+                    created: '2017-02-02T00:00:00.000Z'
+                    lifeCycleState: READY
+                    lifeCycleStateDetails: Available for use
+                    volumeUsageBytes: 387860629999
+                  - backupId: 9760acf5-4638-11e7-9bdb-020073ca3334
+                    name: manual-backup2
+                    volumeId: 9760acf5-4638-11e7-9bdb-020073ca0001
+                    region: us-east4
+                    created: '2017-02-02T00:00:00.000Z'
+                    lifeCycleState: READY
+                    lifeCycleStateDetails: Available for use
+                    volumeUsageBytes: 387860629999
+        '400':
+          $ref: '#/components/responses/StandardError-400'
+        '401':
+          $ref: '#/components/responses/StandardError-401'
+        '403':
+          $ref: '#/components/responses/StandardError-403'
+        '404':
+          $ref: '#/components/responses/StandardError-404'
+        '429':
+          $ref: '#/components/responses/StandardError-429'
+        '500':
+          $ref: '#/components/responses/StandardError-500'
+        '501':
+          $ref: '#/components/responses/StandardError-501'
+        default:
+          description: Unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    delete:
+      operationId: v1beta_deleteBackupUnderBackupVault
+      summary: Delete a backup under backup vault
+      description: Delete a backup under backup vault
+      tags:
+        - backups
+      parameters:
+        - $ref: '#/components/parameters/projectNumberPathParameter'
+        - $ref: '#/components/parameters/locationIdPathParameter'
+        - $ref: '#/components/parameters/backupVaultIdPathParameter'
+        - $ref: '#/components/parameters/backupIdPathParameter'
+        - $ref: '#/components/parameters/xCorrelationIdHeader'
+      responses:
+        '200':
+          description: Deleted backup
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Backup_v1beta'
+        '202':
+          description: Deleting backup
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Operation_v1beta'
+        '400':
+          $ref: '#/components/responses/StandardError-400'
+        '401':
+          $ref: '#/components/responses/StandardError-401'
+        '403':
+          $ref: '#/components/responses/StandardError-403'
+        '404':
+          $ref: '#/components/responses/StandardError-404'
+        '409':
+          $ref: '#/components/responses/StandardError-409'
+        '422':
+          $ref: '#/components/responses/StandardError-422'
+        '429':
+          $ref: '#/components/responses/StandardError-429'
+        '500':
+          $ref: '#/components/responses/StandardError-500'
+        '501':
+          $ref: '#/components/responses/StandardError-501'
+        default:
+          description: Unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    put:
+      operationId: v1beta_updateBackup
+      summary: Update a backup
+      description: Update the backup. Only the backup description can be updated.
+      tags:
+        - backups
+      parameters:
+        - $ref: '#/components/parameters/projectNumberPathParameter'
+        - $ref: '#/components/parameters/locationIdPathParameter'
+        - $ref: '#/components/parameters/backupVaultIdPathParameter'
+        - $ref: '#/components/parameters/backupIdPathParameter'
+        - $ref: '#/components/parameters/xCorrelationIdHeader'
+      requestBody:
+        description: The parameters that can be updated. Only the backup description can be updated.
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BackupUpdate_v1beta'
+      responses:
+        '200':
+          description: Updated backup
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Backup_v1beta'
+        '202':
+          description: Deleting backup
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Operation_v1beta'
+        '204':
+          description: No content
+        '400':
+          $ref: '#/components/responses/StandardError-400'
+        '401':
+          $ref: '#/components/responses/StandardError-401'
+        '403':
+          $ref: '#/components/responses/StandardError-403'
+        '404':
+          $ref: '#/components/responses/StandardError-404'
+        '422':
+          $ref: '#/components/responses/StandardError-422'
+        '429':
+          $ref: '#/components/responses/StandardError-429'
+        '500':
+          $ref: '#/components/responses/StandardError-500'
+        '501':
+          $ref: '#/components/responses/StandardError-501'
+        default:
+          description: Unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
   /v1beta/projects/{projectNumber}/locations/{locationId}/hostGroups:
     get:
       tags:
@@ -8278,6 +8588,56 @@ components:
           minimum: 0
           maximum: 1019
           default: 0
+    SnapshotId_v1beta:
+      title: SnapshotId
+      type: object
+      description: String describing snapshot ID
+      properties:
+        SnapshotId:
+          type: string
+          description: UUID v4 of the snapshot
+          pattern: >-
+            ^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$
+          maxLength: 36
+          minLength: 36
+          example: 0ddaee2c-a92d-4e6c-bb72-d7d373c1d43
+    VolumeId_v1beta:
+      title: VolumeId
+      type: object
+      description: A required string describing a volume ID
+      required:
+        - volumeId
+      properties:
+        volumeId:
+          type: string
+          description: UUID v4 of the volume
+          pattern: >-
+            ^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$
+          maxLength: 36
+          minLength: 36
+          example: 9760acf5-4638-11e7-9bdb-020073ca0001
+
+    BackupCreate_v1beta:
+      title: BackupCreate
+      type: object
+      description: Request object for creating backups
+      allOf:
+        - $ref: '#/components/schemas/ResourceName_v1beta'
+        - $ref: '#/components/schemas/Description_v1beta'
+        - $ref: '#/components/schemas/VolumeId_v1beta'
+        - $ref: '#/components/schemas/SnapshotId_v1beta'
+    BackupUpdate_v1beta:
+      type: object
+      title: BackupUpdate
+      description: Request object for updating backups
+      required:
+        - description
+      properties:
+        description:
+          type: string
+          example: My Resource Description
+          x-nullable: true
+          maxLength: 2048
     Backup_v1beta:
       type: object
       title: Backup
@@ -9525,6 +9885,17 @@ components:
         minLength: 36
         pattern: ^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$
         type: string
+    backupIdPathParameter:
+      name: backupId
+      in: path
+      schema:
+        maxLength: 36
+        minLength: 36
+        type: string
+        pattern: >-
+          ^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$
+      description: UUID v4 used to identify the backup
+      required: true
     serviceLevelQueryParameter:
       name: serviceLevel
       in: query

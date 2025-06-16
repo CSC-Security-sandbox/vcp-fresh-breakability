@@ -59,6 +59,7 @@ func getModels() []interface{} {
 		datamodel.ServiceAccount{},
 		datamodel.KmsConfig{},
 		datamodel.BackupVault{},
+		datamodel.Backup{},
 	}
 }
 

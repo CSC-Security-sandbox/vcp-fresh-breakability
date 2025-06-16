@@ -98,6 +98,7 @@ func SetupInMemoryDB() (*gorm.DB, error) {
 		&datamodel.ServiceAccount{},
 		&datamodel.KmsConfig{},
 		&datamodel.BackupVault{},
+		&datamodel.Backup{},
 	)
 	if err != nil {
 		return nil, err
@@ -121,6 +122,7 @@ func ClearInMemoryDB(db *gorm.DB) error {
 		&datamodel.KmsConfig{},
 		&datamodel.ServiceAccount{},
 		&datamodel.BackupVault{},
+		&datamodel.Backup{},
 	}
 
 	for _, table := range tables {
@@ -451,6 +453,10 @@ func (s *PersistenceStore) GetVolume(ctx context.Context, id string) (*datamodel
 	return s.dataStore.GetVolume(ctx, id)
 }
 
+func (s *PersistenceStore) GetVolumeWithAccountID(ctx context.Context, id string, accountID int64) (*datamodel.Volume, error) {
+	return s.dataStore.GetVolumeWithAccountID(ctx, id, accountID)
+}
+
 func (s *PersistenceStore) GetVolumeByName(ctx context.Context, name string) (*datamodel.Volume, error) {
 	return s.dataStore.GetVolumeByName(ctx, name)
 }
@@ -684,6 +690,42 @@ func (s *PersistenceStore) CreatingBackupVault(ctx context.Context, bv *datamode
 
 func (s *PersistenceStore) CreateBackupVault(ctx context.Context, backupVault *datamodel.BackupVault, vcpVault *datamodel.BackupVault) (*datamodel.BackupVault, error) {
 	return s.dataStore.CreateBackupVault(ctx, backupVault, vcpVault)
+}
+
+func (s *PersistenceStore) CreateBackup(ctx context.Context, backup *datamodel.Backup) (*datamodel.Backup, error) {
+	return s.dataStore.CreateBackup(ctx, backup)
+}
+
+func (s *PersistenceStore) GetBackup(ctx context.Context, backupUUID string) (*datamodel.Backup, error) {
+	return s.dataStore.GetBackup(ctx, backupUUID)
+}
+
+func (s *PersistenceStore) DeleteBackup(ctx context.Context, backupUUID string) (*datamodel.Backup, error) {
+	return s.dataStore.DeleteBackup(ctx, backupUUID)
+}
+
+func (s *PersistenceStore) UpdateBackup(ctx context.Context, backup *datamodel.Backup) (*datamodel.Backup, error) {
+	return s.dataStore.UpdateBackup(ctx, backup)
+}
+
+func (s *PersistenceStore) FinishBackup(ctx context.Context, backup *datamodel.Backup) (*datamodel.Backup, error) {
+	return s.dataStore.FinishBackup(ctx, backup)
+}
+
+func (s *PersistenceStore) UpdateBackupState(ctx context.Context, backup *datamodel.Backup) (*datamodel.Backup, error) {
+	return s.dataStore.UpdateBackupState(ctx, backup)
+}
+
+func (s *PersistenceStore) GetBackupVault(ctx context.Context, backupVaultId string) (*datamodel.BackupVault, error) {
+	return s.dataStore.GetBackupVault(ctx, backupVaultId)
+}
+
+func (s *PersistenceStore) IsBackupInCreatingorDeletingStateByVolume(ctx context.Context, volumeUUID string) (bool, error) {
+	return s.dataStore.IsBackupInCreatingorDeletingStateByVolume(ctx, volumeUUID)
+}
+
+func (s *PersistenceStore) GetBackupsByBackupVault(ctx context.Context, backupVaultUUID string) ([]*datamodel.Backup, error) {
+	return s.dataStore.GetBackupsByBackupVault(ctx, backupVaultUUID)
 }
 
 func (s *PersistenceStore) GetBackupVaultByUUID(ctx context.Context, backupVaultUUID string) (*datamodel.BackupVault, error) {

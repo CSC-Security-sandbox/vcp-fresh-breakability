@@ -200,3 +200,21 @@ func (rc *OntapRestProvider) IscsiServiceCreate(svmUUID string) error {
 	}
 	return nil
 }
+
+func (rc *OntapRestProvider) SnapshotGet(snapshotUUID, volumeUUID, snapshotName string) (*ontapRest.Snapshot, error) {
+	client := getOntapClientFunc(rc.ClientParams)
+	snapshot, err := client.Storage().SnapshotGet(&ontapRest.SnapshotGetParams{
+		Name:       snapshotName,
+		UUID:       snapshotUUID,
+		VolumeUUID: volumeUUID,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	// Validate the Snapshot response to avoid nil pointer dereferences
+	if snapshot == nil || snapshot.Name == nil || snapshot.UUID == nil {
+		return nil, errors.New("invalid Snapshot response from API")
+	}
+	return snapshot, nil
+}

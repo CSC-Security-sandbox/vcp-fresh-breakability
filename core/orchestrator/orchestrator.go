@@ -57,6 +57,9 @@ type OrchestratorFactory interface {
 
 	GetBackupVaultByNameAndOwnerID(ctx context.Context, bvName, ownerID string) (*models.BackupVaultV1beta, error)
 	CreateBackupVault(ctx context.Context, params *commonparams.BackupVaultParams, paramz gcpserver.V1betaCreateBackupVaultParams) (*models.BackupVaultV1beta, string, error)
+
+	CreateBackup(ctx context.Context, params *commonparams.CreateBackupParams) (*models.Backup, string, error)
+	ListBackups(ctx context.Context, params *commonparams.GetBackupsParams) ([]*datamodel.Backup, error)
 }
 
 type Orchestrator struct {

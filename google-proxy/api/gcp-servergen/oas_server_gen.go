@@ -26,6 +26,12 @@ type Handler interface {
 	//
 	// POST /v1beta/projects/{projectNumber}/locations/{locationId}/activeDirectories
 	V1betaCreateActiveDirectory(ctx context.Context, req *ActiveDirectoryV1beta, params V1betaCreateActiveDirectoryParams) (V1betaCreateActiveDirectoryRes, error)
+	// V1betaCreateBackup implements v1beta_createBackup operation.
+	//
+	// Creates an ad-hoc backup.
+	//
+	// POST /v1beta/projects/{projectNumber}/locations/{locationId}/backupVaults/{backupVaultId}/backups
+	V1betaCreateBackup(ctx context.Context, req *BackupCreateV1beta, params V1betaCreateBackupParams) (V1betaCreateBackupRes, error)
 	// V1betaCreateBackupPolicy implements v1beta_createBackupPolicy operation.
 	//
 	// Create a new backup policy.
@@ -89,6 +95,12 @@ type Handler interface {
 	//
 	// DELETE /v1beta/projects/{projectNumber}/locations/{locationId}/backupPolicies/{backupPolicyId}
 	V1betaDeleteBackupPolicy(ctx context.Context, params V1betaDeleteBackupPolicyParams) (V1betaDeleteBackupPolicyRes, error)
+	// V1betaDeleteBackupUnderBackupVault implements v1beta_deleteBackupUnderBackupVault operation.
+	//
+	// Delete a backup under backup vault.
+	//
+	// DELETE /v1beta/projects/{projectNumber}/locations/{locationId}/backupVaults/{backupVaultId}/backups/{backupId}
+	V1betaDeleteBackupUnderBackupVault(ctx context.Context, params V1betaDeleteBackupUnderBackupVaultParams) (V1betaDeleteBackupUnderBackupVaultRes, error)
 	// V1betaDeleteBackupVault implements v1beta_deleteBackupVault operation.
 	//
 	// Warning! This operation will permanently delete the backup vault.
@@ -143,6 +155,12 @@ type Handler interface {
 	//
 	// GET /v1beta/projects/{projectNumber}/locations/{locationId}/activeDirectories/{activeDirectoryId}
 	V1betaDescribeActiveDirectory(ctx context.Context, params V1betaDescribeActiveDirectoryParams) (V1betaDescribeActiveDirectoryRes, error)
+	// V1betaDescribeBackup implements v1beta_describeBackup operation.
+	//
+	// Describe a backup present under a backup vault.
+	//
+	// GET /v1beta/projects/{projectNumber}/locations/{locationId}/backupVaults/{backupVaultId}/backups/{backupId}
+	V1betaDescribeBackup(ctx context.Context, params V1betaDescribeBackupParams) (V1betaDescribeBackupRes, error)
 	// V1betaDescribeBackupPolicy implements v1beta_describeBackupPolicy operation.
 	//
 	// Returns the description of the specified backup policy by backup policy Id.
@@ -357,6 +375,12 @@ type Handler interface {
 	//
 	// GET /v1beta/projects/{projectNumber}/locations/{locationId}/backupVaults
 	V1betaListBackupVaults(ctx context.Context, params V1betaListBackupVaultsParams) (V1betaListBackupVaultsRes, error)
+	// V1betaListBackups implements v1beta_listBackups operation.
+	//
+	// Returns descriptions of all backups for a backup vault.
+	//
+	// GET /v1beta/projects/{projectNumber}/locations/{locationId}/backupVaults/{backupVaultId}/backups
+	V1betaListBackups(ctx context.Context, params V1betaListBackupsParams) (V1betaListBackupsRes, error)
 	// V1betaListHostGroups implements v1beta_listHostGroups operation.
 	//
 	// Returns descriptions of all HostGroups owned by the caller.
@@ -423,6 +447,12 @@ type Handler interface {
 	//
 	// PUT /v1beta/projects/{projectNumber}/locations/{locationId}/activeDirectories/{activeDirectoryId}
 	V1betaUpdateActiveDirectory(ctx context.Context, req *ActiveDirectoryUpdateV1beta, params V1betaUpdateActiveDirectoryParams) (V1betaUpdateActiveDirectoryRes, error)
+	// V1betaUpdateBackup implements v1beta_updateBackup operation.
+	//
+	// Update the backup. Only the backup description can be updated.
+	//
+	// PUT /v1beta/projects/{projectNumber}/locations/{locationId}/backupVaults/{backupVaultId}/backups/{backupId}
+	V1betaUpdateBackup(ctx context.Context, req *BackupUpdateV1beta, params V1betaUpdateBackupParams) (V1betaUpdateBackupRes, error)
 	// V1betaUpdateBackupPolicy implements v1beta_updateBackupPolicy operation.
 	//
 	// Update the backup policy.

@@ -288,6 +288,24 @@ type LunResponse struct {
 	SerialNumber string
 }
 
+type CloudTargetCreateParams struct {
+	Name      *string
+	Container *string
+}
+
+type CloudTargetModifyParams struct {
+	Name *string
+}
+
+type CloudTargeCollectiontGetParams struct {
+	Name *string
+}
+
+type CloudTarget struct {
+	Name *string
+	UUID *string
+}
+
 // SnapshotPolicy describes a snapshot policy in the cloud volume model
 type SnapshotPolicy struct {
 	Name      string

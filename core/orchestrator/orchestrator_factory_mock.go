@@ -98,6 +98,72 @@ func (_c *MockOrchestratorFactory_AcceptClusterPeer_Call) RunAndReturn(run func(
 	return _c
 }
 
+// CreateBackup provides a mock function with given fields: ctx, params
+func (_m *MockOrchestratorFactory) CreateBackup(ctx context.Context, params *common.CreateBackupParams) (*models.Backup, string, error) {
+	ret := _m.Called(ctx, params)
+
+	if len(ret) == 0 {
+		panic("no return value specified for CreateBackup")
+	}
+
+	var r0 *models.Backup
+	var r1 string
+	var r2 error
+	if rf, ok := ret.Get(0).(func(context.Context, *common.CreateBackupParams) (*models.Backup, string, error)); ok {
+		return rf(ctx, params)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, *common.CreateBackupParams) *models.Backup); ok {
+		r0 = rf(ctx, params)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*models.Backup)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, *common.CreateBackupParams) string); ok {
+		r1 = rf(ctx, params)
+	} else {
+		r1 = ret.Get(1).(string)
+	}
+
+	if rf, ok := ret.Get(2).(func(context.Context, *common.CreateBackupParams) error); ok {
+		r2 = rf(ctx, params)
+	} else {
+		r2 = ret.Error(2)
+	}
+
+	return r0, r1, r2
+}
+
+// MockOrchestratorFactory_CreateBackup_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'CreateBackup'
+type MockOrchestratorFactory_CreateBackup_Call struct {
+	*mock.Call
+}
+
+// CreateBackup is a helper method to define mock.On call
+//   - ctx context.Context
+//   - params *common.CreateBackupParams
+func (_e *MockOrchestratorFactory_Expecter) CreateBackup(ctx interface{}, params interface{}) *MockOrchestratorFactory_CreateBackup_Call {
+	return &MockOrchestratorFactory_CreateBackup_Call{Call: _e.mock.On("CreateBackup", ctx, params)}
+}
+
+func (_c *MockOrchestratorFactory_CreateBackup_Call) Run(run func(ctx context.Context, params *common.CreateBackupParams)) *MockOrchestratorFactory_CreateBackup_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(*common.CreateBackupParams))
+	})
+	return _c
+}
+
+func (_c *MockOrchestratorFactory_CreateBackup_Call) Return(_a0 *models.Backup, _a1 string, _a2 error) *MockOrchestratorFactory_CreateBackup_Call {
+	_c.Call.Return(_a0, _a1, _a2)
+	return _c
+}
+
+func (_c *MockOrchestratorFactory_CreateBackup_Call) RunAndReturn(run func(context.Context, *common.CreateBackupParams) (*models.Backup, string, error)) *MockOrchestratorFactory_CreateBackup_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // CreateBackupVault provides a mock function with given fields: ctx, params, paramz
 func (_m *MockOrchestratorFactory) CreateBackupVault(ctx context.Context, params *common.BackupVaultParams, paramz gcpserver.V1betaCreateBackupVaultParams) (*models.BackupVaultV1beta, string, error) {
 	ret := _m.Called(ctx, params, paramz)
@@ -1944,6 +2010,65 @@ func (_c *MockOrchestratorFactory_GetVolumeCount_Call) Return(_a0 int64, _a1 err
 }
 
 func (_c *MockOrchestratorFactory_GetVolumeCount_Call) RunAndReturn(run func(context.Context, string) (int64, error)) *MockOrchestratorFactory_GetVolumeCount_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// ListBackups provides a mock function with given fields: ctx, params
+func (_m *MockOrchestratorFactory) ListBackups(ctx context.Context, params *common.GetBackupsParams) ([]*datamodel.Backup, error) {
+	ret := _m.Called(ctx, params)
+
+	if len(ret) == 0 {
+		panic("no return value specified for ListBackups")
+	}
+
+	var r0 []*datamodel.Backup
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, *common.GetBackupsParams) ([]*datamodel.Backup, error)); ok {
+		return rf(ctx, params)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, *common.GetBackupsParams) []*datamodel.Backup); ok {
+		r0 = rf(ctx, params)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]*datamodel.Backup)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, *common.GetBackupsParams) error); ok {
+		r1 = rf(ctx, params)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockOrchestratorFactory_ListBackups_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'ListBackups'
+type MockOrchestratorFactory_ListBackups_Call struct {
+	*mock.Call
+}
+
+// ListBackups is a helper method to define mock.On call
+//   - ctx context.Context
+//   - params *common.GetBackupsParams
+func (_e *MockOrchestratorFactory_Expecter) ListBackups(ctx interface{}, params interface{}) *MockOrchestratorFactory_ListBackups_Call {
+	return &MockOrchestratorFactory_ListBackups_Call{Call: _e.mock.On("ListBackups", ctx, params)}
+}
+
+func (_c *MockOrchestratorFactory_ListBackups_Call) Run(run func(ctx context.Context, params *common.GetBackupsParams)) *MockOrchestratorFactory_ListBackups_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(*common.GetBackupsParams))
+	})
+	return _c
+}
+
+func (_c *MockOrchestratorFactory_ListBackups_Call) Return(_a0 []*datamodel.Backup, _a1 error) *MockOrchestratorFactory_ListBackups_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockOrchestratorFactory_ListBackups_Call) RunAndReturn(run func(context.Context, *common.GetBackupsParams) ([]*datamodel.Backup, error)) *MockOrchestratorFactory_ListBackups_Call {
 	_c.Call.Return(run)
 	return _c
 }

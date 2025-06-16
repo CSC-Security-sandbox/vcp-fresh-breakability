@@ -102,6 +102,8 @@ type ClientService interface {
 
 	CloudTargetCreate(params *CloudTargetCreateParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*CloudTargetCreateCreated, *CloudTargetCreateAccepted, error)
 
+	CloudTargetDeleteCollection(params *CloudTargetDeleteCollectionParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*CloudTargetDeleteCollectionOK, *CloudTargetDeleteCollectionAccepted, error)
+
 	CloudTargetModify(params *CloudTargetModifyParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*CloudTargetModifyOK, *CloudTargetModifyAccepted, error)
 
 	SetTransport(transport runtime.ClientTransport)
@@ -242,6 +244,46 @@ func (a *Client) CloudTargetCreate(params *CloudTargetCreateParams, authInfo run
 	}
 	// unexpected success response
 	unexpectedSuccess := result.(*CloudTargetCreateDefault)
+	return nil, nil, runtime.NewAPIError("unexpected success response: content available as default response in error", unexpectedSuccess, unexpectedSuccess.Code())
+}
+
+/*
+CloudTargetDeleteCollection cloud target delete collection API
+*/
+func (a *Client) CloudTargetDeleteCollection(params *CloudTargetDeleteCollectionParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*CloudTargetDeleteCollectionOK, *CloudTargetDeleteCollectionAccepted, error) {
+	// TODO: Validate the params before sending
+	if params == nil {
+		params = NewCloudTargetDeleteCollectionParams()
+	}
+	op := &runtime.ClientOperation{
+		ID:                 "cloud_target_delete_collection",
+		Method:             "DELETE",
+		PathPattern:        "/cloud/targets",
+		ProducesMediaTypes: []string{"application/json", "application/hal+json"},
+		ConsumesMediaTypes: []string{"application/json", "application/hal+json"},
+		Schemes:            []string{"https"},
+		Params:             params,
+		Reader:             &CloudTargetDeleteCollectionReader{formats: a.formats},
+		AuthInfo:           authInfo,
+		Context:            params.Context,
+		Client:             params.HTTPClient,
+	}
+	for _, opt := range opts {
+		opt(op)
+	}
+
+	result, err := a.transport.Submit(op)
+	if err != nil {
+		return nil, nil, err
+	}
+	switch value := result.(type) {
+	case *CloudTargetDeleteCollectionOK:
+		return value, nil, nil
+	case *CloudTargetDeleteCollectionAccepted:
+		return nil, value, nil
+	}
+	// unexpected success response
+	unexpectedSuccess := result.(*CloudTargetDeleteCollectionDefault)
 	return nil, nil, runtime.NewAPIError("unexpected success response: content available as default response in error", unexpectedSuccess, unexpectedSuccess.Code())
 }
 

@@ -110,14 +110,15 @@ func RegisterWorkflowsAndActivities(worker tManagerPkg.Worker, dbcon database.St
 	worker.RegisterWorkflow(workflows.CreateVolumeWorkflow)
 	worker.RegisterWorkflow(workflows.UpdateVolumeWorkflow)
 	worker.RegisterWorkflow(workflows.DeleteVolumeWorkflow)
+	worker.RegisterWorkflow(workflows.DeleteSnapshotWorkflow)
 	worker.RegisterWorkflow(workflows.CreateSnapshotWorkflow)
 	worker.RegisterWorkflow(workflows.UpdateSnapshotWorkflow)
-	worker.RegisterWorkflow(workflows.DeleteSnapshotWorkflow)
 	worker.RegisterWorkflow(workflows.AcceptClusterPeerWorkflow)
 	worker.RegisterWorkflow(kms_workflows.UpdateKmsConfigWorkflow)
 	worker.RegisterWorkflow(kms_workflows.CreateKmsConfigWorkflow)
 	worker.RegisterWorkflow(replicationWorkflows.CreateInternalVolumeReplicationWorkflow)
 	worker.RegisterWorkflow(replicationWorkflows.CreateVolumeReplicationWorkflow)
+	worker.RegisterWorkflow(workflows.CreateBackupWorkflow)
 	worker.RegisterWorkflow(replicationWorkflows.GetMultipleReplicationsInternalWorkflow)
 
 	worker.RegisterActivity(&activities.CommonActivities{SE: dbcon})
@@ -132,5 +133,6 @@ func RegisterWorkflowsAndActivities(worker tManagerPkg.Worker, dbcon database.St
 	worker.RegisterActivity(&kms_activities.KmsConfigActivity{SE: dbcon})
 	worker.RegisterActivity(&replicationActivities.InternalVolumeReplicationActivity{SE: dbcon})
 	worker.RegisterActivity(&replicationActivities.VolumeReplicationCreateActivity{SE: dbcon})
+	worker.RegisterActivity(&activities.BackupActivity{SE: dbcon})
 	worker.RegisterActivity(&replicationActivities.ReplicationInternalGetMultipleActivity{SE: dbcon})
 }
