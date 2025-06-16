@@ -19,6 +19,7 @@ type Volume struct {
 	QuotaInBytes          uint64
 	IsDataProtection      bool
 	BlockProperties       *BlockProperties
+	SnapshotPolicy        *SnapshotPolicy
 	IPAddress             string
 	DataProtection        *DataProtection
 }

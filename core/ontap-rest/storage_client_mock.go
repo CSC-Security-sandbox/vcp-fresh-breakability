@@ -640,6 +640,52 @@ func (_c *MockStorageClient_SnapshotGet_Call) RunAndReturn(run func(*SnapshotGet
 	return _c
 }
 
+// SnapshotPolicyCreate provides a mock function with given fields: params
+func (_m *MockStorageClient) SnapshotPolicyCreate(params *SnapshotPolicyCreateParams) error {
+	ret := _m.Called(params)
+
+	if len(ret) == 0 {
+		panic("no return value specified for SnapshotPolicyCreate")
+	}
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(*SnapshotPolicyCreateParams) error); ok {
+		r0 = rf(params)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// MockStorageClient_SnapshotPolicyCreate_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'SnapshotPolicyCreate'
+type MockStorageClient_SnapshotPolicyCreate_Call struct {
+	*mock.Call
+}
+
+// SnapshotPolicyCreate is a helper method to define mock.On call
+//   - params *SnapshotPolicyCreateParams
+func (_e *MockStorageClient_Expecter) SnapshotPolicyCreate(params interface{}) *MockStorageClient_SnapshotPolicyCreate_Call {
+	return &MockStorageClient_SnapshotPolicyCreate_Call{Call: _e.mock.On("SnapshotPolicyCreate", params)}
+}
+
+func (_c *MockStorageClient_SnapshotPolicyCreate_Call) Run(run func(params *SnapshotPolicyCreateParams)) *MockStorageClient_SnapshotPolicyCreate_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(*SnapshotPolicyCreateParams))
+	})
+	return _c
+}
+
+func (_c *MockStorageClient_SnapshotPolicyCreate_Call) Return(_a0 error) *MockStorageClient_SnapshotPolicyCreate_Call {
+	_c.Call.Return(_a0)
+	return _c
+}
+
+func (_c *MockStorageClient_SnapshotPolicyCreate_Call) RunAndReturn(run func(*SnapshotPolicyCreateParams) error) *MockStorageClient_SnapshotPolicyCreate_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // SnapshotPolicyGet provides a mock function with given fields: params
 func (_m *MockStorageClient) SnapshotPolicyGet(params *SnapshotPolicyGetParams) (*SnapshotPolicy, error) {
 	ret := _m.Called(params)

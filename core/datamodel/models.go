@@ -117,6 +117,7 @@ type Volume struct {
 	Svm              *Svm              `gorm:"ForeignKey:SvmID;AssociationForeignKey:ID;constraint:OnDelete:CASCADE,OnUpdate:RESTRICT;"`
 	VolumeAttributes *VolumeAttributes `gorm:"column:volume_attributes;type:jsonb"`
 	DataProtection   *DataProtection   `gorm:"column:data_protection;type:jsonb"`
+	SnapshotPolicy   *SnapshotPolicy   `gorm:"column:snapshot_policy;type:jsonb"`
 }
 
 // JSONB is a custom type to handle JSONB columns in PostgreSQL
@@ -405,39 +406,6 @@ func (h *Hosts) Scan(value interface{}) error {
 
 func (h Hosts) Value() (driver.Value, error) {
 	return json.Marshal(h)
-}
-
-type Snapshot struct {
-	BaseModel
-	Name               string              `gorm:"column:name"`
-	Description        string              `gorm:"column:description"`
-	State              string              `gorm:"column:state"`
-	StateDetails       string              `gorm:"column:state_details"`
-	AccountID          int64               `gorm:"column:account_id"`
-	VolumeID           int64               `gorm:"column:volume_id"`
-	IsAppConsistent    bool                `gorm:"column:is_app_consistent"`
-	SnapshotAttributes *SnapshotAttributes `gorm:"column:snapshot_attributes;type:jsonb"`
-	Account            *Account            `gorm:"ForeignKey:AccountID;AssociationForeignKey:ID;constraint:OnDelete:CASCADE,OnUpdate:RESTRICT;"`
-	Volume             *Volume             `gorm:"ForeignKey:VolumeID;AssociationForeignKey:ID;constraint:OnDelete:CASCADE,OnUpdate:RESTRICT;"`
-}
-
-type SnapshotAttributes struct {
-	SizeInBytes            int64  `json:"size_in_bytes"`
-	Type                   string `json:"type"`
-	ExternalUUID           string `json:"external_uuid"`
-	LogicalSizeUsedInBytes int64  `json:"logical_size_used_in_bytes"`
-}
-
-func (v *SnapshotAttributes) Scan(value interface{}) error {
-	bytes, ok := value.([]byte)
-	if !ok {
-		return errors.New("type assertion to []byte failed")
-	}
-	return json.Unmarshal(bytes, v)
-}
-
-func (v *SnapshotAttributes) Value() (driver.Value, error) {
-	return json.Marshal(v)
 }
 
 // BackupVault represents the backup vault entity with associated attributes and relationships.

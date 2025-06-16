@@ -69,6 +69,7 @@ type CreateVolumeParams struct {
 	Protocols        []string
 	BlockProperties  *models.BlockProperties
 	DataProtection   *models.DataProtection
+	SnapshotPolicy   *models.SnapshotPolicy
 }
 
 // UpdateVolumeParams describes parameters supplied to UpdateVolume

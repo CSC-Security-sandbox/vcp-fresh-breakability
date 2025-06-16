@@ -491,6 +491,14 @@ func TestV1betaGetMultipleVolumes(t *testing.T) {
 		}
 
 		var vcpVolumes = make([]*models.Volume, 0)
+		schedule := models.Schedule{
+			Name:   "test-schedule",
+			Months: []int{1, 2, 3},
+		}
+		snapshotPolicySchedule := &models.SnapshotPolicySchedule{
+			Count:    1,
+			Schedule: &schedule,
+		}
 		vcpVolumes = append(vcpVolumes, &models.Volume{
 			CreationToken: "test-token",
 			PoolID:        "test-pool",
@@ -501,6 +509,11 @@ func TestV1betaGetMultipleVolumes(t *testing.T) {
 				BackupPolicyId:         "backup-policy-id",
 				BackupChainBytes:       nillable.GetInt64Ptr(10199181),
 				PolicyEnforced:         nillable.GetBoolPtr(true),
+			},
+			SnapshotPolicy: &models.SnapshotPolicy{
+				Name:      "test-snapshot-policy",
+				IsEnabled: true,
+				Schedules: []*models.SnapshotPolicySchedule{snapshotPolicySchedule},
 			},
 		})
 
@@ -619,6 +632,125 @@ func TestConvertVolumeV1betaCVPToModel(t *testing.T) {
 		assert.Equal(tt, int64(10199181), res.BackupConfig.Value.BackupChainBytes.Value)
 		assert.Equal(tt, "backup-policy-id", res.BackupConfig.Value.BackupPolicyId.Value)
 		assert.Equal(tt, "backup-vault-id", res.BackupConfig.Value.BackupVaultId.Value)
+	})
+}
+
+func TestConvertFromSnapshotPolicyV2(t *testing.T) {
+	t.Run("NilInput_ReturnsNil", func(tt *testing.T) {
+		result, err := convertFromSnapshotPolicyV2(nil)
+		assert.NoError(tt, err)
+		assert.Nil(tt, result)
+	})
+
+	t.Run("MonthlySchedule", func(tt *testing.T) {
+		pol := &gcpgenserver.SnapshotPolicyV1beta{
+			Enabled: gcpgenserver.NewOptNilBool(true),
+			MonthlySchedule: gcpgenserver.NewOptMonthlyScheduleV1beta(
+				gcpgenserver.MonthlyScheduleV1beta{
+					SnapshotsToKeep: gcpgenserver.NewOptFloat64(5),
+					DaysOfMonth:     gcpgenserver.NewOptString("1,15"),
+					Hour:            gcpgenserver.NewOptFloat64(2),
+					Minute:          gcpgenserver.NewOptFloat64(30),
+				},
+			),
+		}
+		result, err := convertFromSnapshotPolicyV2(pol)
+		assert.NoError(tt, err)
+		assert.NotNil(tt, result)
+		assert.True(tt, result.IsEnabled)
+		assert.Len(tt, result.Schedules, 1)
+		sched := result.Schedules[0]
+		assert.Equal(tt, int64(5), sched.Count)
+		assert.Equal(tt, "monthly", sched.SnapmirrorLabel)
+		assert.Equal(tt, []int{1, 15}, sched.Schedule.DaysOfMonth)
+		assert.Equal(tt, []int{2}, sched.Schedule.Hours)
+		assert.Equal(tt, []int{30}, sched.Schedule.Minutes)
+	})
+
+	t.Run("WeeklySchedule", func(tt *testing.T) {
+		pol := &gcpgenserver.SnapshotPolicyV1beta{
+			Enabled: gcpgenserver.NewOptNilBool(true),
+			WeeklySchedule: gcpgenserver.NewOptWeeklyScheduleV1beta(
+				gcpgenserver.WeeklyScheduleV1beta{
+					SnapshotsToKeep: gcpgenserver.NewOptFloat64(3),
+					Day:             gcpgenserver.NewOptString("Monday,Tuesday"),
+					Hour:            gcpgenserver.NewOptFloat64(5),
+					Minute:          gcpgenserver.NewOptFloat64(10),
+				},
+			),
+		}
+		result, err := convertFromSnapshotPolicyV2(pol)
+		assert.NoError(tt, err)
+		assert.NotNil(tt, result)
+		assert.True(tt, result.IsEnabled)
+		assert.Len(tt, result.Schedules, 1)
+		sched := result.Schedules[0]
+		assert.Equal(tt, int64(3), sched.Count)
+		assert.Equal(tt, "weekly", sched.SnapmirrorLabel)
+		assert.Equal(tt, []int{1, 2}, sched.Schedule.DaysOfWeek)
+		assert.Equal(tt, []int{5}, sched.Schedule.Hours)
+		assert.Equal(tt, []int{10}, sched.Schedule.Minutes)
+	})
+
+	t.Run("DailySchedule", func(tt *testing.T) {
+		pol := &gcpgenserver.SnapshotPolicyV1beta{
+			Enabled: gcpgenserver.NewOptNilBool(true),
+			DailySchedule: gcpgenserver.NewOptDailyScheduleV1beta(
+				gcpgenserver.DailyScheduleV1beta{
+					SnapshotsToKeep: gcpgenserver.NewOptFloat64(2),
+					Hour:            gcpgenserver.NewOptFloat64(7),
+					Minute:          gcpgenserver.NewOptFloat64(45),
+				},
+			),
+		}
+		result, err := convertFromSnapshotPolicyV2(pol)
+		assert.NoError(tt, err)
+		assert.NotNil(tt, result)
+		assert.True(tt, result.IsEnabled)
+		assert.Len(tt, result.Schedules, 1)
+		sched := result.Schedules[0]
+		assert.Equal(tt, int64(2), sched.Count)
+		assert.Equal(tt, "daily", sched.SnapmirrorLabel)
+		assert.Equal(tt, []int{7}, sched.Schedule.Hours)
+		assert.Equal(tt, []int{45}, sched.Schedule.Minutes)
+	})
+
+	t.Run("HourlySchedule", func(tt *testing.T) {
+		pol := &gcpgenserver.SnapshotPolicyV1beta{
+			Enabled: gcpgenserver.NewOptNilBool(true),
+			HourlySchedule: gcpgenserver.NewOptHourlyScheduleV1beta(
+				gcpgenserver.HourlyScheduleV1beta{
+					SnapshotsToKeep: gcpgenserver.NewOptFloat64(1),
+					Minute:          gcpgenserver.NewOptFloat64(15),
+				},
+			),
+		}
+		result, err := convertFromSnapshotPolicyV2(pol)
+		assert.NoError(tt, err)
+		assert.NotNil(tt, result)
+		assert.True(tt, result.IsEnabled)
+		assert.Len(tt, result.Schedules, 1)
+		sched := result.Schedules[0]
+		assert.Equal(tt, int64(1), sched.Count)
+		assert.Equal(tt, "hourly", sched.SnapmirrorLabel)
+		assert.Equal(tt, []int{15}, sched.Schedule.Minutes)
+	})
+
+	t.Run("WeeklySchedule_InvalidDay_ReturnsError", func(tt *testing.T) {
+		pol := &gcpgenserver.SnapshotPolicyV1beta{
+			Enabled: gcpgenserver.NewOptNilBool(true),
+			WeeklySchedule: gcpgenserver.NewOptWeeklyScheduleV1beta(
+				gcpgenserver.WeeklyScheduleV1beta{
+					SnapshotsToKeep: gcpgenserver.NewOptFloat64(3),
+					Day:             gcpgenserver.NewOptString("Funday"),
+					Hour:            gcpgenserver.NewOptFloat64(5),
+					Minute:          gcpgenserver.NewOptFloat64(10),
+				},
+			),
+		}
+		result, err := convertFromSnapshotPolicyV2(pol)
+		assert.Error(tt, err)
+		assert.Nil(tt, result)
 	})
 }
 
@@ -975,5 +1107,174 @@ func TestV1betaListVolumes(t *testing.T) {
 
 		assert.Error(tt, err)
 		assert.NotNil(tt, result)
+	})
+}
+
+func TestConvertDaysOfWeekToIntArray(t *testing.T) {
+	t.Run("ReturnsSundayByDefaultWhenEmpty", func(tt *testing.T) {
+		result, err := convertDaysOfWeekToIntArray("")
+		assert.NoError(tt, err)
+		assert.Equal(tt, []int{0}, result)
+	})
+
+	t.Run("ReturnsCorrectIntsForFullNames", func(tt *testing.T) {
+		result, err := convertDaysOfWeekToIntArray("Monday,Tuesday,Wednesday")
+		assert.NoError(tt, err)
+		assert.Equal(tt, []int{1, 2, 3}, result)
+	})
+
+	t.Run("ReturnsCorrectIntsForShortNames", func(tt *testing.T) {
+		result, err := convertDaysOfWeekToIntArray("Mon,Tue,Wed")
+		assert.NoError(tt, err)
+		assert.Equal(tt, []int{1, 2, 3}, result)
+	})
+
+	t.Run("ReturnsErrorForInvalidDay", func(tt *testing.T) {
+		result, err := convertDaysOfWeekToIntArray("Funday")
+		assert.Error(tt, err)
+		assert.Nil(tt, result)
+	})
+
+	t.Run("ReturnsErrorForDuplicateDay", func(tt *testing.T) {
+		result, err := convertDaysOfWeekToIntArray("Monday,Monday")
+		assert.Error(tt, err)
+		assert.Nil(tt, result)
+	})
+
+	t.Run("TrimsSpacesAndIsCaseInsensitive", func(tt *testing.T) {
+		result, err := convertDaysOfWeekToIntArray("  tuesday ,  WEDNESDAY ")
+		assert.NoError(tt, err)
+		assert.Equal(tt, []int{2, 3}, result)
+	})
+}
+
+func TestConvertDaysOfWeekFromIntArray(t *testing.T) {
+	t.Run("ReturnsCorrectStringForValidInts", func(tt *testing.T) {
+		result := convertDaysOfWeekFromIntArray([]int{1, 2, 3})
+		assert.Equal(tt, "Monday,Tuesday,Wednesday", result)
+	})
+
+	t.Run("ReturnsSundayForEmptyInput", func(tt *testing.T) {
+		result := convertDaysOfWeekFromIntArray([]int{})
+		assert.Equal(tt, "Sunday", result)
+	})
+
+	t.Run("IgnoresInvalidInts", func(tt *testing.T) {
+		result := convertDaysOfWeekFromIntArray([]int{-1, 0, 6, 7})
+		assert.Equal(tt, "Sunday,Saturday", result)
+	})
+
+	t.Run("HandlesAllWeekdays", func(tt *testing.T) {
+		result := convertDaysOfWeekFromIntArray([]int{0, 1, 2, 3, 4, 5, 6})
+		assert.Equal(tt, "Sunday,Monday,Tuesday,Wednesday,Thursday,Friday,Saturday", result)
+	})
+}
+
+func TestConvertToSnapshotPolicyV2(t *testing.T) {
+	t.Run("NilInput_ReturnsNil", func(tt *testing.T) {
+		result := convertToSnapshotPolicyV2(nil)
+		assert.Nil(tt, result)
+	})
+
+	t.Run("EmptySchedules_ReturnsEnabledWithNoSchedules", func(tt *testing.T) {
+		pol := &models.SnapshotPolicy{
+			IsEnabled: true,
+			Schedules: []*models.SnapshotPolicySchedule{},
+		}
+		result := convertToSnapshotPolicyV2(pol)
+		assert.NotNil(tt, result)
+		assert.True(tt, result.Enabled.Value)
+	})
+
+	t.Run("MonthlySchedule", func(tt *testing.T) {
+		pol := &models.SnapshotPolicy{
+			IsEnabled: true,
+			Schedules: []*models.SnapshotPolicySchedule{
+				{
+					Count:           5,
+					SnapmirrorLabel: "monthly",
+					Schedule: &models.Schedule{
+						DaysOfMonth: []int{1, 15},
+						Hours:       []int{2},
+						Minutes:     []int{30},
+					},
+				},
+			},
+		}
+		result := convertToSnapshotPolicyV2(pol)
+		assert.NotNil(tt, result)
+		assert.True(tt, result.Enabled.Value)
+		assert.True(tt, result.MonthlySchedule.IsSet())
+		assert.Equal(tt, "1,15", result.MonthlySchedule.Value.DaysOfMonth.Value)
+		assert.Equal(tt, float64(2), result.MonthlySchedule.Value.Hour.Value)
+		assert.Equal(tt, float64(30), result.MonthlySchedule.Value.Minute.Value)
+		assert.Equal(tt, float64(5), result.MonthlySchedule.Value.SnapshotsToKeep.Value)
+	})
+
+	t.Run("WeeklySchedule", func(tt *testing.T) {
+		pol := &models.SnapshotPolicy{
+			IsEnabled: true,
+			Schedules: []*models.SnapshotPolicySchedule{
+				{
+					Count:           3,
+					SnapmirrorLabel: "weekly",
+					Schedule: &models.Schedule{
+						DaysOfWeek: []int{1, 2},
+						Hours:      []int{5},
+						Minutes:    []int{10},
+					},
+				},
+			},
+		}
+		result := convertToSnapshotPolicyV2(pol)
+		assert.NotNil(tt, result)
+		assert.True(tt, result.WeeklySchedule.IsSet())
+		assert.Contains(tt, result.WeeklySchedule.Value.Day.Value, "Monday")
+		assert.Contains(tt, result.WeeklySchedule.Value.Day.Value, "Tuesday")
+		assert.Equal(tt, float64(5), result.WeeklySchedule.Value.Hour.Value)
+		assert.Equal(tt, float64(10), result.WeeklySchedule.Value.Minute.Value)
+		assert.Equal(tt, float64(3), result.WeeklySchedule.Value.SnapshotsToKeep.Value)
+	})
+
+	t.Run("DailySchedule", func(tt *testing.T) {
+		pol := &models.SnapshotPolicy{
+			IsEnabled: true,
+			Schedules: []*models.SnapshotPolicySchedule{
+				{
+					Count:           2,
+					SnapmirrorLabel: "daily",
+					Schedule: &models.Schedule{
+						Hours:   []int{7},
+						Minutes: []int{45},
+					},
+				},
+			},
+		}
+		result := convertToSnapshotPolicyV2(pol)
+		assert.NotNil(tt, result)
+		assert.True(tt, result.DailySchedule.IsSet())
+		assert.Equal(tt, float64(7), result.DailySchedule.Value.Hour.Value)
+		assert.Equal(tt, float64(45), result.DailySchedule.Value.Minute.Value)
+		assert.Equal(tt, float64(2), result.DailySchedule.Value.SnapshotsToKeep.Value)
+	})
+
+	t.Run("HourlySchedule", func(tt *testing.T) {
+		pol := &models.SnapshotPolicy{
+			IsEnabled: true,
+			Schedules: []*models.SnapshotPolicySchedule{
+				{
+					Count:           1,
+					SnapmirrorLabel: "hourly",
+					Schedule: &models.Schedule{
+						Minutes: []int{15},
+					},
+				},
+			},
+		}
+		result := convertToSnapshotPolicyV2(pol)
+		assert.NotNil(tt, result)
+		assert.True(tt, result.HourlySchedule.IsSet())
+		assert.Equal(tt, float64(15), result.HourlySchedule.Value.Minute.Value)
+		assert.Equal(tt, float64(1), result.HourlySchedule.Value.SnapshotsToKeep.Value)
 	})
 }

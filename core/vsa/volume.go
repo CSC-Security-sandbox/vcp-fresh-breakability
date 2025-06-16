@@ -17,6 +17,7 @@ func (rc *OntapRestProvider) CreateVolume(params CreateVolumeParams) (*VolumeRes
 		Size:                   params.Size,
 		Svm:                    params.SvmName,
 		Aggregates:             []string{params.AggregateName},
+		SnapshotPolicy:         params.SnapshotPolicyName,
 		SnapshotReservePercent: 0, // Setting it to 0, yields more available space
 	})
 	if err != nil {

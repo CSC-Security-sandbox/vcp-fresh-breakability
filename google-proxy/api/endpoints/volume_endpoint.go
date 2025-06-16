@@ -4,6 +4,8 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"slices"
+	"strconv"
 	"strings"
 	"time"
 
@@ -29,7 +31,14 @@ var (
 )
 
 const (
-	volumeTypeSecondary = "SECONDARY"
+	volumeTypeSecondary          = "SECONDARY"
+	SnapshotScheduleLabelHourly  = "hourly"
+	SnapshotScheduleLabelDaily   = "daily"
+	SnapshotScheduleLabelWeekly  = "weekly"
+	SnapshotScheduleLabelMonthly = "monthly"
+
+	daysOfMonthError = `daysOfMonth must include unique values in the range 1-31 (inclusive).`
+	daysOfWeekError  = `day in weeklySchedule must include 1-7 (inclusive) unique weekdays, that are comma separated.`
 )
 
 func (h Handler) V1betaDescribeVolume(ctx context.Context, params gcpgenserver.V1betaDescribeVolumeParams) (gcpgenserver.V1betaDescribeVolumeRes, error) {
@@ -204,6 +213,20 @@ func prepareCreateVolumeParams(req *gcpgenserver.VolumeCreateV1beta, params gcpg
 		if reqBackupConfig.ScheduledBackupEnabled.IsSet() {
 			param.DataProtection.ScheduledBackupEnabled = &reqBackupConfig.ScheduledBackupEnabled.Value
 		}
+	}
+
+	if req.Volume.SnapshotPolicy.IsSet() {
+		snapShotPolicy, err := convertFromSnapshotPolicyV2(&req.Volume.SnapshotPolicy.Value)
+		if err != nil {
+			return nil, err
+		}
+		if snapShotPolicy != nil {
+			if snapShotPolicy.Schedules == nil || (snapShotPolicy.Schedules != nil && len(snapShotPolicy.Schedules) == 0) {
+				err = errors.NewUserInputValidationErr("SnapshotPolicy parameter must have at least one schedule populated")
+				return nil, err
+			}
+		}
+		param.SnapshotPolicy = snapShotPolicy
 	}
 	return param, nil
 }
@@ -456,6 +479,11 @@ func convertModelToVCPVolume(volume *models.Volume) *gcpgenserver.VolumeV1beta {
 			ScheduledBackupEnabled: gcpgenserver.NewOptNilBool(scheduledBackupEnabled),
 		},
 	)
+
+	if volume.SnapshotPolicy != nil {
+		res.SnapshotPolicy = gcpgenserver.NewOptSnapshotPolicyV1beta(*convertToSnapshotPolicyV2(volume.SnapshotPolicy))
+	}
+
 	return res
 }
 
@@ -855,4 +883,258 @@ func _convertVolumeV1betaCVPToModel(in *cvpmodels.VolumeV1beta) gcpgenserver.Vol
 	}
 
 	return volume
+}
+
+func convertFromSnapshotPolicyV2(snapshotPolicy *gcpgenserver.SnapshotPolicyV1beta) (*models.SnapshotPolicy, error) {
+	if snapshotPolicy == nil {
+		return nil, nil
+	}
+	snapshotPolicySchedule := make([]*models.SnapshotPolicySchedule, 0)
+
+	monthlySchedule := snapshotPolicy.MonthlySchedule
+	if monthlySchedule.IsSet() {
+		count := int64(0)
+		monthly := monthlySchedule.Value
+		if monthly.SnapshotsToKeep.IsSet() {
+			count = int64(monthly.SnapshotsToKeep.Value)
+		}
+		daysOfMonth := []int{}
+		if monthly.DaysOfMonth.IsSet() {
+			days := strings.Split(monthly.DaysOfMonth.Value, ",")
+			for _, day := range days {
+				dayOfMonth, err := strconv.Atoi(strings.TrimSpace(day))
+				if err == nil {
+					daysOfMonth = append(daysOfMonth, dayOfMonth)
+				}
+			}
+		} else {
+			daysOfMonth = append(daysOfMonth, 1)
+		}
+		hours := []int{0}
+		if monthly.Hour.IsSet() {
+			hours[0] = int(monthly.Hour.Value)
+		}
+		minutes := []int{0}
+		if monthly.Minute.IsSet() {
+			minutes[0] = int(monthly.Minute.Value)
+		}
+
+		snapshotPolicySchedule = append(snapshotPolicySchedule, &models.SnapshotPolicySchedule{
+			Count:           count,
+			SnapmirrorLabel: SnapshotScheduleLabelMonthly,
+			Schedule: &models.Schedule{
+				DaysOfMonth: daysOfMonth,
+				Hours:       hours,
+				Minutes:     minutes,
+			},
+		})
+	}
+
+	weeklySchedule := snapshotPolicy.WeeklySchedule
+	if weeklySchedule.IsSet() {
+		count := int64(0)
+		var err error
+		var daysOfWeek []int
+		weekly := weeklySchedule.Value
+		if weekly.SnapshotsToKeep.IsSet() {
+			count = int64(weekly.SnapshotsToKeep.Value)
+		}
+		if weekly.Day.IsSet() && len(weekly.Day.Value) > 0 {
+			daysOfWeek, err = convertDaysOfWeekToIntArray(weekly.Day.Value)
+			if err != nil {
+				return nil, err
+			}
+		}
+		hours := []int{0}
+		if weekly.Hour.IsSet() {
+			hours[0] = int(weekly.Hour.Value)
+		}
+
+		minutes := []int{0}
+		if weekly.Minute.IsSet() {
+			minutes[0] = int(weekly.Minute.Value)
+		}
+
+		snapshotPolicySchedule = append(snapshotPolicySchedule, &models.SnapshotPolicySchedule{
+			Count:           count,
+			SnapmirrorLabel: SnapshotScheduleLabelWeekly,
+			Schedule: &models.Schedule{
+				DaysOfWeek: daysOfWeek,
+				Hours:      hours,
+				Minutes:    minutes,
+			},
+		})
+	}
+
+	dailySchedule := snapshotPolicy.DailySchedule
+	if dailySchedule.IsSet() {
+		count := int64(0)
+		daily := dailySchedule.Value
+		if daily.SnapshotsToKeep.IsSet() {
+			count = int64(daily.SnapshotsToKeep.Value)
+		}
+		hours := []int{0}
+		if daily.Hour.IsSet() {
+			hours[0] = int(daily.Hour.Value)
+		}
+		minutes := []int{0}
+		if daily.Minute.IsSet() {
+			minutes[0] = int(daily.Minute.Value)
+		}
+
+		snapshotPolicySchedule = append(snapshotPolicySchedule, &models.SnapshotPolicySchedule{
+			Count:           count,
+			SnapmirrorLabel: SnapshotScheduleLabelDaily,
+			Schedule: &models.Schedule{
+				Hours:   hours,
+				Minutes: minutes,
+			},
+		})
+	}
+
+	hourlySchedule := snapshotPolicy.HourlySchedule
+	if hourlySchedule.IsSet() {
+		count := int64(0)
+		hourly := hourlySchedule.Value
+		if hourly.SnapshotsToKeep.IsSet() {
+			count = int64(hourly.SnapshotsToKeep.Value)
+		}
+		minutes := []int{0}
+		if hourly.Minute.IsSet() {
+			minutes[0] = int(hourly.Minute.Value)
+		}
+
+		snapshotPolicySchedule = append(snapshotPolicySchedule, &models.SnapshotPolicySchedule{
+			Count:           count,
+			SnapmirrorLabel: SnapshotScheduleLabelHourly,
+			Schedule: &models.Schedule{
+				Minutes: minutes,
+			},
+		})
+	}
+
+	return &models.SnapshotPolicy{
+		IsEnabled: snapshotPolicy.Enabled.IsSet() && snapshotPolicy.Enabled.Value,
+		Schedules: snapshotPolicySchedule,
+	}, nil
+}
+
+func convertDaysOfWeekToIntArray(days string) ([]int, error) {
+	// Return Sunday by default
+	if days == "" {
+		return []int{int(time.Sunday)}, nil
+	}
+
+	splitDays := strings.Split(days, ",")
+	weekdays := []time.Weekday{time.Sunday, time.Monday, time.Tuesday, time.Wednesday, time.Thursday, time.Friday, time.Saturday}
+	var result []int
+
+	for _, day := range splitDays {
+		day := strings.TrimSpace(day)
+		hasFoundDay := false
+		for _, weekday := range weekdays {
+			// Allow for Monday,Tuesday and also MON,TUE
+			if strings.HasPrefix(strings.ToLower(weekday.String()), strings.ToLower(day)) {
+				weekDayValue := int(weekday)
+				if slices.Contains(result, weekDayValue) {
+					return nil, errors.NewUserInputValidationErr(daysOfWeekError)
+				}
+				result = append(result, weekDayValue)
+				hasFoundDay = true
+				break
+			}
+		}
+		if !hasFoundDay {
+			return nil, errors.NewUserInputValidationErr(daysOfWeekError)
+		}
+	}
+
+	return result, nil
+}
+
+func convertToSnapshotPolicyV2(pol *models.SnapshotPolicy) *gcpgenserver.SnapshotPolicyV1beta {
+	if pol == nil {
+		return nil
+	}
+
+	var monthly gcpgenserver.MonthlyScheduleV1beta
+	var weekly gcpgenserver.WeeklyScheduleV1beta
+	var daily gcpgenserver.DailyScheduleV1beta
+	var hourly gcpgenserver.HourlyScheduleV1beta
+
+	for _, sc := range pol.Schedules {
+		schedule := *sc
+		count := float64(schedule.Count)
+
+		var minute float64
+		if len(schedule.Schedule.Minutes) > 0 {
+			minute = float64(schedule.Schedule.Minutes[0])
+		}
+
+		if len(schedule.Schedule.DaysOfMonth) > 0 {
+			var days []string
+			for _, day := range schedule.Schedule.DaysOfMonth {
+				days = append(days, strconv.Itoa(day))
+			}
+			daysOfMonth := strings.Join(days, ",")
+			hour := float64(0)
+			if len(schedule.Schedule.Hours) > 0 {
+				hour = float64(schedule.Schedule.Hours[0])
+			}
+			monthly = gcpgenserver.MonthlyScheduleV1beta{
+				SnapshotsToKeep: gcpgenserver.NewOptFloat64(count),
+				DaysOfMonth:     gcpgenserver.NewOptString(daysOfMonth),
+				Hour:            gcpgenserver.NewOptFloat64(hour),
+				Minute:          gcpgenserver.NewOptFloat64(minute),
+			}
+		} else if len(schedule.Schedule.DaysOfWeek) > 0 {
+			days := convertDaysOfWeekFromIntArray(schedule.Schedule.DaysOfWeek)
+			hour := float64(0)
+			if len(schedule.Schedule.Hours) > 0 {
+				hour = float64(schedule.Schedule.Hours[0])
+			}
+			weekly = gcpgenserver.WeeklyScheduleV1beta{
+				SnapshotsToKeep: gcpgenserver.NewOptFloat64(count),
+				Day:             gcpgenserver.NewOptString(days),
+				Hour:            gcpgenserver.NewOptFloat64(hour),
+				Minute:          gcpgenserver.NewOptFloat64(minute),
+			}
+		} else if len(schedule.Schedule.Hours) > 0 {
+			hour := float64(schedule.Schedule.Hours[0])
+			daily = gcpgenserver.DailyScheduleV1beta{
+				SnapshotsToKeep: gcpgenserver.NewOptFloat64(count),
+				Hour:            gcpgenserver.NewOptFloat64(hour),
+				Minute:          gcpgenserver.NewOptFloat64(minute),
+			}
+		} else {
+			hourly = gcpgenserver.HourlyScheduleV1beta{
+				SnapshotsToKeep: gcpgenserver.NewOptFloat64(count),
+				Minute:          gcpgenserver.NewOptFloat64(minute),
+			}
+		}
+	}
+
+	return &gcpgenserver.SnapshotPolicyV1beta{
+		Enabled:         gcpgenserver.NewOptNilBool(pol.IsEnabled),
+		MonthlySchedule: gcpgenserver.NewOptMonthlyScheduleV1beta(monthly),
+		WeeklySchedule:  gcpgenserver.NewOptWeeklyScheduleV1beta(weekly),
+		DailySchedule:   gcpgenserver.NewOptDailyScheduleV1beta(daily),
+		HourlySchedule:  gcpgenserver.NewOptHourlyScheduleV1beta(hourly),
+	}
+}
+
+func convertDaysOfWeekFromIntArray(days []int) string {
+	var resultDays []string
+	for _, day := range days {
+		if day >= 0 && day <= 6 {
+			resultDays = append(resultDays, time.Weekday(day).String())
+		}
+	}
+
+	// Return Sunday by default
+	if len(resultDays) < 1 {
+		resultDays = append(resultDays, time.Sunday.String())
+	}
+
+	return strings.Join(resultDays, ",")
 }

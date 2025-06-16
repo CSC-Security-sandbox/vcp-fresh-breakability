@@ -1,8 +1,12 @@
 package vsa
 
 import (
+	"fmt"
+	"strings"
+
 	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	ontapRest "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/ontap-rest"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/nillable"
 )
@@ -79,4 +83,93 @@ func (rc *OntapRestProvider) DeleteSnapshot(snapshotUUID string, volumeUUID stri
 	}
 
 	return nil
+}
+
+func (rc *OntapRestProvider) CreateSnapshotPolicy(sp *SnapshotPolicy) error {
+	client := getOntapClientFunc(rc.ClientParams)
+	if len(sp.Schedules) == 0 {
+		return errors.New("must have at least one snapshot policy schedule when creating")
+	}
+	if len(sp.Schedules) > 4 {
+		return errors.New("too many snapshot policy schedules specified")
+	}
+
+	schedules := make([]*ontapRest.SnapshotPolicySchedule, len(sp.Schedules))
+	for i, schedule := range sp.Schedules {
+		schedules[i] = &ontapRest.SnapshotPolicySchedule{
+			Prefix:          schedule.SnapmirrorLabel,
+			Count:           schedule.Count,
+			SnapmirrorLabel: schedule.SnapmirrorLabel,
+			Name:            schedule.Schedule.Name,
+			Months:          schedule.Schedule.Months,
+			DaysOfMonth:     schedule.Schedule.DaysOfMonth,
+			DaysOfWeek:      schedule.Schedule.DaysOfWeek,
+			Hours:           schedule.Schedule.Hours,
+			Minutes:         schedule.Schedule.Minutes,
+		}
+	}
+	for i := 0; i < len(schedules); i++ {
+		schedules[i].Name = generateNameForSchedule(&Schedule{
+			Months:      schedules[i].Months,
+			DaysOfMonth: schedules[i].DaysOfMonth,
+			DaysOfWeek:  schedules[i].DaysOfWeek,
+			Hours:       schedules[i].Hours,
+			Minutes:     schedules[i].Minutes,
+		})
+	}
+
+	err := client.Storage().SnapshotPolicyCreate(&ontapRest.SnapshotPolicyCreateParams{
+		Name:      &sp.Name,
+		Comment:   &sp.Comment,
+		Enabled:   &sp.IsEnabled,
+		Schedules: schedules,
+	})
+
+	if err != nil {
+		if strings.Contains(err.Error(), "not found") && strings.HasPrefix(err.Error(), "Schedule") {
+			for _, schedule := range schedules {
+				err := client.Cluster().ScheduleCreate(&ontapRest.ScheduleCreateParams{
+					Name:        schedule.Name,
+					Months:      schedule.Months,
+					DaysOfMonth: schedule.DaysOfMonth,
+					DaysOfWeek:  schedule.DaysOfWeek,
+					Hours:       schedule.Hours,
+					Minutes:     schedule.Minutes,
+				})
+				if err != nil {
+					if !strings.Contains(err.Error(), "exists") &&
+						!strings.Contains(err.Error(), "duplicate entry") {
+						return err
+					}
+				}
+			}
+
+			return client.Storage().SnapshotPolicyCreate(&ontapRest.SnapshotPolicyCreateParams{
+				Name:      &sp.Name,
+				Comment:   &sp.Comment,
+				Enabled:   &sp.IsEnabled,
+				Schedules: schedules,
+			})
+		}
+
+		if !strings.Contains(err.Error(), "exists") {
+			return err
+		}
+	}
+	return nil
+}
+
+func generateNameForSchedule(schedule *Schedule) string {
+	// generateNameForSchedule returns a name generated for the specified schedule
+	if len(schedule.DaysOfMonth) > 0 {
+		daysOfMonth := strings.ReplaceAll(strings.Trim(fmt.Sprintf("%v", schedule.DaysOfMonth), "[]"), " ", "+")
+		return fmt.Sprintf("monthly-on-day-%s-%s-%s", daysOfMonth, utils.GenerateMinutePartOfScheduleName(schedule.Minutes), utils.GenerateHourPartOfScheduleName(schedule.Hours))
+	}
+	if len(schedule.DaysOfWeek) > 0 {
+		return fmt.Sprintf("weekly-on-%s-%s-%s", utils.GenerateWeekdayPartOfScheduleName(schedule.DaysOfWeek), utils.GenerateMinutePartOfScheduleName(schedule.Minutes), utils.GenerateHourPartOfScheduleName(schedule.Hours))
+	}
+	if len(schedule.Hours) > 0 {
+		return fmt.Sprintf("daily-%s-%s", utils.GenerateMinutePartOfScheduleName(schedule.Minutes), utils.GenerateHourPartOfScheduleName(schedule.Hours))
+	}
+	return fmt.Sprintf("hourly-%s-hour", utils.GenerateMinutePartOfScheduleName(schedule.Minutes))
 }

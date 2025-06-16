@@ -573,6 +573,160 @@ func TestCreateVolume(t *testing.T) {
 	})
 }
 
+func Test_createVolume_WithSnapshotPolicy(t *testing.T) {
+	tt := t
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+
+	mockLogger := log.NewLogger()
+	store, err := database.SetupStorageForTest(mockLogger)
+	if err != nil {
+		tt.Fatalf("Failed to create test storage: %v", err)
+	}
+
+	// Clear the in-memory database
+	err = database.ClearInMemoryDB(store.DB())
+	if err != nil {
+		tt.Fatalf("Failed to clean up test storage: %v", err)
+	}
+
+	account := &datamodel.Account{
+		BaseModel: datamodel.BaseModel{UUID: "test-account-uuid"},
+		Name:      "test_account",
+	}
+	err = store.DB().Create(account).Error
+	if err != nil {
+		tt.Fatalf("Failed to create account: %v", err)
+	}
+
+	pool := &datamodel.Pool{
+		BaseModel: datamodel.BaseModel{UUID: "test-pool-uuid"},
+		Name:      "test_pool",
+		AccountID: account.ID,
+		State:     models.LifeCycleStateREADY,
+		Network:   "somevpc",
+	}
+	err = store.DB().Create(pool).Error
+	if err != nil {
+		tt.Fatalf("Failed to create pool: %v", err)
+	}
+
+	svm := &datamodel.Svm{
+		BaseModel: datamodel.BaseModel{UUID: "test-svm-uuid"},
+		Name:      "test_svm",
+		AccountID: account.ID,
+		PoolID:    pool.ID,
+		Pool:      pool,
+		State:     models.LifeCycleStateREADY,
+	}
+	err = store.DB().Create(svm).Error
+	if err != nil {
+		tt.Fatalf("Failed to create svm: %v", err)
+	}
+
+	node1 := &datamodel.Node{
+		BaseModel:       datamodel.BaseModel{UUID: "test-volume-uuid1"},
+		Name:            "test_node1",
+		AccountID:       account.ID,
+		EndpointAddress: "12.12.12.12",
+		PoolID:          pool.ID,
+		State:           models.LifeCycleStateREADY,
+	}
+	err = store.DB().Create(node1).Error
+	assert.NoError(tt, err, "Failed to create node")
+
+	node2 := &datamodel.Node{
+		BaseModel:       datamodel.BaseModel{UUID: "test-volume-uuid2"},
+		Name:            "test_node2",
+		AccountID:       account.ID,
+		EndpointAddress: "12.12.12.12",
+		PoolID:          pool.ID,
+		State:           models.LifeCycleStateREADY,
+	}
+	err = store.DB().Create(node2).Error
+	assert.NoError(tt, err, "Failed to create node")
+
+	lif1 := &datamodel.Lif{
+		BaseModel: datamodel.BaseModel{UUID: "test-volume-uuid1"},
+		Name:      "test_node1",
+		AccountID: account.ID,
+		IPAddress: "1.1.1.1",
+		NodeID:    node1.ID,
+	}
+	err = store.DB().Create(lif1).Error
+	assert.NoError(tt, err, "Failed to create lif1")
+
+	lif2 := &datamodel.Lif{
+		BaseModel: datamodel.BaseModel{UUID: "test-volume-uuid2"},
+		Name:      "test_node2",
+		AccountID: account.ID,
+		IPAddress: "1.1.1.2",
+		NodeID:    node2.ID,
+	}
+	err = store.DB().Create(lif2).Error
+	assert.NoError(tt, err, "Failed to create lif2")
+
+	params := &common.CreateVolumeParams{
+		AccountName:   "test_account",
+		Region:        "test_region",
+		Name:          "test_volume",
+		VendorID:      "test_vendor",
+		QuotaInBytes:  minQuotaInBytesVolume + 1,
+		Protocols:     []string{"NFS"},
+		Description:   "Some description",
+		DisplayName:   "Some display name",
+		PoolID:        "test-pool-uuid",
+		CreationToken: "test-creation-token",
+		SnapshotPolicy: &models.SnapshotPolicy{
+			IsEnabled: true,
+			Schedules: []*models.SnapshotPolicySchedule{
+				{
+					Count:           3,
+					SnapmirrorLabel: "daily",
+					Schedule: &models.Schedule{
+						DaysOfMonth: []int{1, 15},
+						DaysOfWeek:  []int{2, 3},
+						Hours:       []int{4},
+						Minutes:     []int{30},
+					},
+				},
+			},
+		},
+	}
+
+	dbAccount := &datamodel.Account{
+		BaseModel: datamodel.BaseModel{
+			UUID: "test-uuid",
+			ID:   account.ID,
+		},
+		Name: "test_account",
+	}
+	getOrCreateAccount = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+		return dbAccount, nil
+	}
+	validateCreateVolumeParams = func(ctx context.Context, se database.Storage, params *common.CreateVolumeParams, accountID int64) error {
+		return nil
+	}
+	defer func() {
+		getOrCreateAccount = _getOrCreateAccount
+		validateCreateVolumeParams = _validateCreateVolumeParams
+	}()
+
+	temporal := workflowEngineMock.NewMockTemporalTestClient(t)
+	temporal.EXPECT().ExecuteWorkflow(mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil).Once()
+	volume, _, err := createVolume(ctx, store, temporal, params)
+	assert.NoError(tt, err)
+	assert.NotNil(tt, volume)
+	assert.NotNil(tt, volume.SnapshotPolicy)
+	assert.True(tt, volume.SnapshotPolicy.IsEnabled)
+	assert.Len(tt, volume.SnapshotPolicy.Schedules, 1)
+	assert.Equal(tt, int64(3), volume.SnapshotPolicy.Schedules[0].Count)
+	assert.Equal(tt, "daily", volume.SnapshotPolicy.Schedules[0].SnapmirrorLabel)
+	assert.Equal(tt, []int{1, 15}, volume.SnapshotPolicy.Schedules[0].Schedule.DaysOfMonth)
+	assert.Equal(tt, []int{2, 3}, volume.SnapshotPolicy.Schedules[0].Schedule.DaysOfWeek)
+	assert.Equal(tt, []int{4}, volume.SnapshotPolicy.Schedules[0].Schedule.Hours)
+	assert.Equal(tt, []int{30}, volume.SnapshotPolicy.Schedules[0].Schedule.Minutes)
+}
+
 func TestOrchestrator_CreateVolume(t *testing.T) {
 	// Arrange
 	mockStorage := &database.MockStorage{}
@@ -2419,5 +2573,50 @@ func TestListVolumes(t *testing.T) {
 		volumes, err := orch.ListVolumes(ctx, account.Name)
 		assert.NoError(tt, err, "Failed to list volumes")
 		assert.Len(tt, volumes, 0)
+	})
+}
+
+func TestConvertToDBSnapshotPolicySchedule(t *testing.T) {
+	t.Run("SingleSchedule_MapsFieldsCorrectly", func(tt *testing.T) {
+		schedule := &models.SnapshotPolicySchedule{
+			Count:           5,
+			SnapmirrorLabel: "label1",
+			Schedule: &models.Schedule{
+				DaysOfMonth: []int{1, 15},
+				DaysOfWeek:  []int{2, 3},
+				Hours:       []int{4},
+				Minutes:     []int{30},
+			},
+		}
+		result := convertToDBSnapshotPolicySchedule([]*models.SnapshotPolicySchedule{schedule})
+		assert.Len(tt, result, 1)
+		dbSched := result[0]
+		assert.Equal(tt, int64(5), dbSched.Count)
+		assert.Equal(tt, "label1", dbSched.SnapmirrorLabel)
+		assert.Equal(tt, []int{1, 15}, dbSched.DaysOfMonth)
+		assert.Equal(tt, []int{2, 3}, dbSched.DaysOfWeek)
+		assert.Equal(tt, []int{4}, dbSched.Hours)
+		assert.Equal(tt, []int{30}, dbSched.Minutes)
+	})
+
+	t.Run("MultipleSchedules_MapsAll", func(tt *testing.T) {
+		s1 := &models.SnapshotPolicySchedule{
+			Count:           1,
+			SnapmirrorLabel: "l1",
+			Schedule:        &models.Schedule{DaysOfMonth: []int{1}},
+		}
+		s2 := &models.SnapshotPolicySchedule{
+			Count:           2,
+			SnapmirrorLabel: "l2",
+			Schedule:        &models.Schedule{DaysOfWeek: []int{2}},
+		}
+		result := convertToDBSnapshotPolicySchedule([]*models.SnapshotPolicySchedule{s1, s2})
+		assert.Len(tt, result, 2)
+		assert.Equal(tt, int64(1), result[0].Count)
+		assert.Equal(tt, "l1", result[0].SnapmirrorLabel)
+		assert.Equal(tt, []int{1}, result[0].DaysOfMonth)
+		assert.Equal(tt, int64(2), result[1].Count)
+		assert.Equal(tt, "l2", result[1].SnapmirrorLabel)
+		assert.Equal(tt, []int{2}, result[1].DaysOfWeek)
 	})
 }

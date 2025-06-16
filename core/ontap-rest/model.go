@@ -1161,7 +1161,7 @@ type SnapshotPolicy struct {
 // SnapshotPolicySchedule describes the schedules in SnapshotPolicyCreateParams
 type SnapshotPolicySchedule struct {
 	Prefix          string
-	Count           int
+	Count           int64
 	SnapmirrorLabel string
 	Name            string
 	Months          []int
@@ -1785,6 +1785,9 @@ func volumeCreateParamsToONTAP(params *VolumeCreateParams) *storage.VolumeCreate
 		},
 		Autosize: &models.VolumeInlineAutosize{
 			Mode: nillable.ToPointer("off"),
+		},
+		SnapshotPolicy: &models.VolumeInlineSnapshotPolicy{
+			Name: &params.SnapshotPolicy,
 		},
 	})
 

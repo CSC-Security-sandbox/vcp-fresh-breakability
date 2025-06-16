@@ -36,6 +36,7 @@ type StorageClient interface {
 	SnapshotCreate(params *SnapshotCreateParams) (*Snapshot, *JobAccepted, error)
 	SnapshotGet(params *SnapshotGetParams) (*Snapshot, error)
 	SnapshotDelete(params *SnapshotDeleteParams) error
+	SnapshotPolicyCreate(params *SnapshotPolicyCreateParams) error
 }
 
 var (
@@ -432,6 +433,12 @@ func (sc *storageClient) SnapshotDelete(params *SnapshotDeleteParams) error {
 	return errors.New("no UUID provided for SnapshotDelete")
 }
 
+// SnapshotPolicyCreate invokes pkg/ontap-rest/client/storage/Client.SnapshotPolicyCreate
+func (sc *storageClient) SnapshotPolicyCreate(params *SnapshotPolicyCreateParams) error {
+	_, err := sc.api.SnapshotPolicyCreate(snapshotPolicyCreateParamsToONTAP(params), nil)
+	return err
+}
+
 func snapshotCreateParamsToONTAP(params *SnapshotCreateParams) *storage.SnapshotCreateParams {
 	if params == nil {
 		return nil
@@ -462,5 +469,30 @@ func snapshotDeleteParamsToONTAP(params *SnapshotDeleteParams) *storage.Snapshot
 	otParams.SetUUID(params.UUID)
 	otParams.SetVolumeUUID(params.VolumeUUID)
 	otParams.SetReturnTimeout(&returnTimeout)
+	return otParams
+}
+
+func snapshotPolicyCreateParamsToONTAP(params *SnapshotPolicyCreateParams) *storage.SnapshotPolicyCreateParams {
+	otParams := storage.NewSnapshotPolicyCreateParams()
+	if params == nil {
+		return otParams
+	}
+
+	schedules := make([]*models.SnapshotPolicyInlineCopiesInlineArrayItem, len(params.Schedules))
+	for i, schedule := range params.Schedules {
+		count := schedule.Count
+		schedules[i] = &models.SnapshotPolicyInlineCopiesInlineArrayItem{
+			Count:           &count,
+			Prefix:          &schedule.Prefix,
+			SnapmirrorLabel: &schedule.SnapmirrorLabel,
+			Schedule:        &models.SnapshotPolicyInlineCopiesInlineArrayItemInlineSchedule{Name: &schedule.Name},
+		}
+	}
+	otParams.Info = &models.SnapshotPolicy{
+		Name:                       params.Name,
+		Comment:                    params.Comment,
+		Enabled:                    params.Enabled,
+		SnapshotPolicyInlineCopies: schedules,
+	}
 	return otParams
 }

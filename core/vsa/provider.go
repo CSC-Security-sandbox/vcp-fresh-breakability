@@ -53,6 +53,7 @@ type Provider interface {
 	GetReplicationDetails(volRep *VolumeReplication) (*VolumeReplication, error)
 	CreateSnapshot(params CreateSnapshotParams) (*SnapshotProviderResponse, error)
 	DeleteSnapshot(snapshotUUID string, volumeUUID string) error
+	CreateSnapshotPolicy(sp *SnapshotPolicy) error
 }
 
 type OntapRestProvider struct {

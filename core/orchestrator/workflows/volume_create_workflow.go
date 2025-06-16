@@ -98,6 +98,11 @@ func (wf *volumeCreateWorkflow) Run(ctx workflow.Context, args ...interface{}) (
 	}
 	node := CreateNodeForProvider(dbNode, dbVolume)
 
+	err = workflow.ExecuteActivity(ctx, volumeActivity.CreateSnapshotPolicyInONTAP, &dbVolume, &node).Get(ctx, nil)
+	if err != nil {
+		return nil, err
+	}
+
 	var volCreateResponse *vsa.VolumeResponse
 	err = workflow.ExecuteActivity(ctx, volumeActivity.CreateVolumeInONTAP, &dbVolume, &node).Get(ctx, &volCreateResponse)
 	if err != nil {

@@ -6,6 +6,7 @@ import (
 
 	"github.com/go-openapi/strfmt"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/ontap-rest/client/storage"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/ontap-rest/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/nillable"
@@ -943,5 +944,79 @@ func TestDeleteParamsToONTAP(t *testing.T) {
 		assert.NotNil(tt, result)
 		assert.Equal(tt, uuid, result.UUID)
 		assert.Equal(tt, volumeUUID, result.VolumeUUID)
+	})
+}
+
+func TestSnapshotPolicyCreate(t *testing.T) {
+	t.Run("WhenRESTCallFails_ThenReturnError", func(tt *testing.T) {
+		mockClient := &MockStorageClient{}
+		mockClient.On("SnapshotPolicyCreate", mock.Anything).Return(errors.New("api error"))
+		err := mockClient.SnapshotPolicyCreate(&SnapshotPolicyCreateParams{})
+		assert.EqualError(tt, err, "api error")
+	})
+
+	t.Run("WhenRESTCallSucceeds_ThenReturnNil", func(tt *testing.T) {
+		mockClient := &MockStorageClient{}
+		mockClient.On("SnapshotPolicyCreate", mock.Anything).Return(nil)
+		err := mockClient.SnapshotPolicyCreate(&SnapshotPolicyCreateParams{})
+		assert.NoError(tt, err)
+	})
+}
+
+func TestSnapshotPolicyCreateParamsToONTAP(t *testing.T) {
+	t.Run("NilParams_ReturnsDefaultParams", func(tt *testing.T) {
+		result := snapshotPolicyCreateParamsToONTAP(nil)
+		assert.NotNil(tt, result)
+		assert.Nil(tt, result.Info)
+	})
+
+	t.Run("WithSchedules_MapsFieldsCorrectly", func(tt *testing.T) {
+		name := "policy1"
+		comment := "test policy"
+		enabled := true
+		scheduleName := "sched1"
+		prefix := "prefix1"
+		snapmirrorLabel := "label1"
+		count := int64(5)
+		params := &SnapshotPolicyCreateParams{
+			Name:    &name,
+			Comment: &comment,
+			Enabled: &enabled,
+			Schedules: []*SnapshotPolicySchedule{
+				{
+					Name:            scheduleName,
+					Prefix:          prefix,
+					SnapmirrorLabel: snapmirrorLabel,
+					Count:           count,
+				},
+			},
+		}
+		result := snapshotPolicyCreateParamsToONTAP(params)
+		assert.NotNil(tt, result)
+		assert.NotNil(tt, result.Info)
+		assert.Equal(tt, &name, result.Info.Name)
+		assert.Equal(tt, &comment, result.Info.Comment)
+		assert.Equal(tt, &enabled, result.Info.Enabled)
+		assert.Len(tt, result.Info.SnapshotPolicyInlineCopies, 1)
+		sched := result.Info.SnapshotPolicyInlineCopies[0]
+		assert.Equal(tt, &count, sched.Count)
+		assert.Equal(tt, &prefix, sched.Prefix)
+		assert.Equal(tt, &snapmirrorLabel, sched.SnapmirrorLabel)
+		assert.NotNil(tt, sched.Schedule)
+		assert.Equal(tt, &scheduleName, sched.Schedule.Name)
+	})
+
+	t.Run("EmptySchedules_MapsToEmptyArray", func(tt *testing.T) {
+		name := "policy2"
+		params := &SnapshotPolicyCreateParams{
+			Name:      &name,
+			Schedules: []*SnapshotPolicySchedule{},
+		}
+		result := snapshotPolicyCreateParamsToONTAP(params)
+		assert.NotNil(tt, result)
+		assert.NotNil(tt, result.Info)
+		assert.Equal(tt, &name, result.Info.Name)
+		assert.NotNil(tt, result.Info.SnapshotPolicyInlineCopies)
+		assert.Len(tt, result.Info.SnapshotPolicyInlineCopies, 0)
 	})
 }

@@ -1402,3 +1402,85 @@ func TestCreateBucketGetGcpServiceFails(t *testing.T) {
 	assert.Nil(t, bucketDetails)
 	mockGcpService.AssertExpectations(t)
 }
+
+func TestCreateSnapshotPolicyInONTAP(t *testing.T) {
+	mockProvider := new(vsa.MockProvider)
+	originalGetProviderByNode := activities.GetProviderByNode
+	defer func() { activities.GetProviderByNode = originalGetProviderByNode }()
+
+	activities.GetProviderByNode = func(node *models.Node) vsa.Provider {
+		return mockProvider
+	}
+
+	ctx := context.Background()
+	activity := activities.VolumeCreateActivity{}
+	node := &models.Node{}
+	volume := &datamodel.Volume{
+		SnapshotPolicy: &datamodel.SnapshotPolicy{
+			Name:      "policy1",
+			IsEnabled: true,
+			Schedules: []*datamodel.SnapshotPolicySchedule{
+				{
+					DaysOfMonth:     []int{1, 15},
+					DaysOfWeek:      []int{2},
+					Hours:           []int{3},
+					Minutes:         []int{0},
+					SnapmirrorLabel: "label1",
+					Count:           5,
+				},
+			},
+		},
+	}
+
+	t.Run("Success", func(tt *testing.T) {
+		mockProvider.On("CreateSnapshotPolicy", mock.Anything).Return(nil)
+		err := activity.CreateSnapshotPolicyInONTAP(ctx, volume, node)
+		assert.NoError(tt, err)
+		mockProvider.AssertExpectations(tt)
+	})
+
+	t.Run("NilNodeOrVolumeOrPolicy", func(tt *testing.T) {
+		err := activity.CreateSnapshotPolicyInONTAP(ctx, nil, node)
+		assert.NoError(tt, err)
+		err = activity.CreateSnapshotPolicyInONTAP(ctx, volume, nil)
+		assert.NoError(tt, err)
+		volNoPolicy := &datamodel.Volume{}
+		err = activity.CreateSnapshotPolicyInONTAP(ctx, volNoPolicy, node)
+		assert.NoError(tt, err)
+	})
+}
+
+func TestConvertToVSASnapshotPolicySchedules(t *testing.T) {
+	t.Run("NilSchedules", func(tt *testing.T) {
+		result := activities.ConvertToVSASnapshotPolicySchedules(nil)
+		assert.Nil(tt, result)
+	})
+
+	t.Run("EmptySchedules", func(tt *testing.T) {
+		result := activities.ConvertToVSASnapshotPolicySchedules([]*datamodel.SnapshotPolicySchedule{})
+		assert.Nil(tt, result)
+		assert.Len(tt, result, 0)
+	})
+
+	t.Run("PopulatedSchedules", func(tt *testing.T) {
+		schedules := []*datamodel.SnapshotPolicySchedule{
+			{
+				DaysOfMonth:     []int{1, 2},
+				DaysOfWeek:      []int{3, 4},
+				Hours:           []int{5},
+				Minutes:         []int{0, 30},
+				SnapmirrorLabel: "labelA",
+				Count:           7,
+			},
+		}
+		result := activities.ConvertToVSASnapshotPolicySchedules(schedules)
+		assert.NotNil(tt, result)
+		assert.Len(tt, result, 1)
+		assert.Equal(tt, "labelA", result[0].Prefix)
+		assert.Equal(tt, int64(7), result[0].Count)
+		assert.Equal(tt, []int{1, 2}, result[0].Schedule.DaysOfMonth)
+		assert.Equal(tt, []int{3, 4}, result[0].Schedule.DaysOfWeek)
+		assert.Equal(tt, []int{5}, result[0].Schedule.Hours)
+		assert.Equal(tt, []int{0, 30}, result[0].Schedule.Minutes)
+	})
+}

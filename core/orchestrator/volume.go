@@ -108,10 +108,19 @@ func _createVolume(ctx context.Context, se database.Storage, temporal client.Cli
 		}
 	}
 
+	if params.SnapshotPolicy != nil {
+		volumeObj.SnapshotPolicy = &datamodel.SnapshotPolicy{
+			Name:      volumeObj.Name,
+			IsEnabled: params.SnapshotPolicy.IsEnabled,
+			Schedules: convertToDBSnapshotPolicySchedule(params.SnapshotPolicy.Schedules),
+		}
+	}
+
 	dbVolume, err := se.CreateVolume(ctx, volumeObj)
 	if err != nil {
 		return nil, "", err
 	}
+
 	_, err = temporal.ExecuteWorkflow(ctx,
 		client.StartWorkflowOptions{
 			TaskQueue:             workflowengine.CustomerTaskQueue,
@@ -309,6 +318,14 @@ func convertDatastoreVolumeToModel(volume *datamodel.Volume, ipAddress *string) 
 		res.IPAddress = *ipAddress
 	}
 
+	if volume.SnapshotPolicy != nil {
+		res.SnapshotPolicy = &models.SnapshotPolicy{
+			Name:      volume.SnapshotPolicy.Name,
+			IsEnabled: volume.SnapshotPolicy.IsEnabled,
+			Comment:   volume.SnapshotPolicy.Comment,
+			Schedules: convertToModelSnapshotPolicySchedule(volume.SnapshotPolicy.Schedules),
+		}
+	}
 	return res
 }
 
@@ -472,4 +489,37 @@ func validateUpdateVolumeRequest(volume *datamodel.Volume, params *common.Update
 		return customerrors.NewUserInputValidationErr("volume size cannot be reduced")
 	}
 	return nil
+}
+
+func convertToDBSnapshotPolicySchedule(schedules []*models.SnapshotPolicySchedule) []*datamodel.SnapshotPolicySchedule {
+	var dbSnapshotPolicySchedules []*datamodel.SnapshotPolicySchedule
+	for _, schedule := range schedules {
+		dbSnapshotPolicySchedules = append(dbSnapshotPolicySchedules, &datamodel.SnapshotPolicySchedule{
+			Count:           schedule.Count,
+			SnapmirrorLabel: schedule.SnapmirrorLabel,
+			DaysOfMonth:     schedule.Schedule.DaysOfMonth,
+			DaysOfWeek:      schedule.Schedule.DaysOfWeek,
+			Hours:           schedule.Schedule.Hours,
+			Minutes:         schedule.Schedule.Minutes,
+		})
+	}
+	return dbSnapshotPolicySchedules
+}
+
+func convertToModelSnapshotPolicySchedule(schedules []*datamodel.SnapshotPolicySchedule) []*models.SnapshotPolicySchedule {
+	var dbSnapshotPolicySchedules []*models.SnapshotPolicySchedule
+	for _, schedule := range schedules {
+		dbSnapshotPolicySchedules = append(dbSnapshotPolicySchedules, &models.SnapshotPolicySchedule{
+			Count:           schedule.Count,
+			SnapmirrorLabel: schedule.SnapmirrorLabel,
+			Prefix:          schedule.SnapmirrorLabel,
+			Schedule: &models.Schedule{
+				DaysOfMonth: schedule.DaysOfMonth,
+				DaysOfWeek:  schedule.DaysOfWeek,
+				Hours:       schedule.Hours,
+				Minutes:     schedule.Minutes,
+			},
+		})
+	}
+	return dbSnapshotPolicySchedules
 }

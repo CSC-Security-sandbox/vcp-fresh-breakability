@@ -20,8 +20,9 @@ import (
 )
 
 const (
-	VolumeTypeRW = "rw"
-	VolumeTypeDP = "dp"
+	VolumeTypeRW       = "rw"
+	VolumeTypeDP       = "dp"
+	SnapshotPolicyNone = "none"
 )
 
 type VolumeCreateActivity struct {
@@ -47,12 +48,18 @@ func (a *VolumeCreateActivity) CreateVolumeInONTAP(ctx context.Context, volume *
 	if volume.VolumeAttributes.IsDataProtection {
 		volumeType = VolumeTypeDP
 	}
+
+	snapshotPolicyName := SnapshotPolicyNone
+	if volume.SnapshotPolicy != nil && volume.SnapshotPolicy.Name != "" {
+		snapshotPolicyName = volume.SnapshotPolicy.Name
+	}
 	res, err := provider.CreateVolume(vsa.CreateVolumeParams{
-		VolumeName:    volume.Name,
-		SvmName:       volume.Svm.Name,
-		AggregateName: aggregateName,
-		Size:          volume.SizeInBytes,
-		VolumeType:    volumeType,
+		VolumeName:         volume.Name,
+		SvmName:            volume.Svm.Name,
+		AggregateName:      aggregateName,
+		Size:               volume.SizeInBytes,
+		VolumeType:         volumeType,
+		SnapshotPolicyName: snapshotPolicyName,
 	})
 	if err != nil {
 		if errors.IsConflictErr(err) {
@@ -86,7 +93,6 @@ func HandleVolumeCreateConflict(volume *datamodel.Volume, provider vsa.Provider)
 func (a *VolumeCreateActivity) CreateIgroup(ctx context.Context, volume *datamodel.Volume, hostParams []*common.HostParams, node *models.Node) error {
 	logger := util.GetLogger(ctx)
 	provider := GetProviderByNode(node)
-
 	// FixMe: What if a new host is added to the host group?
 	for _, host := range hostParams {
 		igroupExists, err := provider.IgroupExists(host.HostName, volume.Svm.Name)
@@ -437,4 +443,43 @@ func (a *VolumeCreateActivity) UpdateBackupVaultWithBucketDetails(ctx context.Co
 
 func _getResourceNamesForBackup(gcpRegion, region, tenantProjectNumber, bvID string) (string, string, string, error) {
 	return utils.GetResourcesNameForBackup(gcpRegion, region, tenantProjectNumber, bvID)
+}
+
+func (a *VolumeCreateActivity) CreateSnapshotPolicyInONTAP(ctx context.Context, volume *datamodel.Volume, node *models.Node) error {
+	if node != nil && volume != nil && volume.SnapshotPolicy != nil && volume.SnapshotPolicy.Name != "" {
+		logger := util.GetLogger(ctx)
+		var provider = GetProviderByNode(node)
+		err := provider.CreateSnapshotPolicy(&vsa.SnapshotPolicy{
+			Name:      volume.SnapshotPolicy.Name,
+			IsEnabled: volume.SnapshotPolicy.IsEnabled,
+			Schedules: ConvertToVSASnapshotPolicySchedules(volume.SnapshotPolicy.Schedules),
+		})
+		if err != nil {
+			logger.Errorf("failed to create snapshot policy: %v", err)
+			return err
+		}
+	}
+	return nil
+}
+
+func ConvertToVSASnapshotPolicySchedules(schedules []*datamodel.SnapshotPolicySchedule) []*vsa.SnapshotPolicySchedule {
+	if schedules == nil {
+		return nil
+	}
+	var vsaPolicySchedules []*vsa.SnapshotPolicySchedule
+	for _, schedule := range schedules {
+		vsaSchedule := &vsa.Schedule{
+			DaysOfMonth: schedule.DaysOfMonth,
+			DaysOfWeek:  schedule.DaysOfWeek,
+			Hours:       schedule.Hours,
+			Minutes:     schedule.Minutes,
+		}
+		vsaPolicySchedules = append(vsaPolicySchedules, &vsa.SnapshotPolicySchedule{
+			Schedule:        vsaSchedule,
+			Prefix:          schedule.SnapmirrorLabel,
+			Count:           schedule.Count,
+			SnapmirrorLabel: schedule.SnapmirrorLabel,
+		})
+	}
+	return vsaPolicySchedules
 }

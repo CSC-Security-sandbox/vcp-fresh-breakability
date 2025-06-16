@@ -517,6 +517,52 @@ func (_c *MockProvider_CreateSnapshot_Call) RunAndReturn(run func(CreateSnapshot
 	return _c
 }
 
+// CreateSnapshotPolicy provides a mock function with given fields: sp
+func (_m *MockProvider) CreateSnapshotPolicy(sp *SnapshotPolicy) error {
+	ret := _m.Called(sp)
+
+	if len(ret) == 0 {
+		panic("no return value specified for CreateSnapshotPolicy")
+	}
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(*SnapshotPolicy) error); ok {
+		r0 = rf(sp)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// MockProvider_CreateSnapshotPolicy_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'CreateSnapshotPolicy'
+type MockProvider_CreateSnapshotPolicy_Call struct {
+	*mock.Call
+}
+
+// CreateSnapshotPolicy is a helper method to define mock.On call
+//   - sp *SnapshotPolicy
+func (_e *MockProvider_Expecter) CreateSnapshotPolicy(sp interface{}) *MockProvider_CreateSnapshotPolicy_Call {
+	return &MockProvider_CreateSnapshotPolicy_Call{Call: _e.mock.On("CreateSnapshotPolicy", sp)}
+}
+
+func (_c *MockProvider_CreateSnapshotPolicy_Call) Run(run func(sp *SnapshotPolicy)) *MockProvider_CreateSnapshotPolicy_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(*SnapshotPolicy))
+	})
+	return _c
+}
+
+func (_c *MockProvider_CreateSnapshotPolicy_Call) Return(_a0 error) *MockProvider_CreateSnapshotPolicy_Call {
+	_c.Call.Return(_a0)
+	return _c
+}
+
+func (_c *MockProvider_CreateSnapshotPolicy_Call) RunAndReturn(run func(*SnapshotPolicy) error) *MockProvider_CreateSnapshotPolicy_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // CreateSvmPeering provides a mock function with given fields: srcClusterName, srcSVMName, dstSVMName, snapmirrorApplication
 func (_m *MockProvider) CreateSvmPeering(srcClusterName string, srcSVMName string, dstSVMName string, snapmirrorApplication models.SvmPeerApplications) error {
 	ret := _m.Called(srcClusterName, srcSVMName, dstSVMName, snapmirrorApplication)
