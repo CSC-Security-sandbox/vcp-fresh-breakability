@@ -181,6 +181,104 @@ func (wf *createPoolWorkflow) Run(ctx workflow.Context, args ...interface{}) (in
 	return nil, err
 }
 
+type updatePoolWorkflow struct {
+	BaseWorkflow
+	SE *database.Storage
+}
+
+// Enforcing the WorkflowInterface on createPoolWorkflow
+var _ WorkflowInterface = &updatePoolWorkflow{}
+
+// const customerActionTimeout = 30 * time.Minute
+
+// UpdatePoolWorkflow processes pool related requests from a customer.
+func UpdatePoolWorkflow(ctx workflow.Context, params *common.UpdatePoolParams, pool *datamodel.Pool) (gcpgenserver.V1betaDescribePoolRes, error) {
+	updatePoolWF := new(updatePoolWorkflow)
+	err := updatePoolWF.Setup(ctx, params)
+	if err != nil {
+		return nil, err
+	}
+	updatePoolWF.Status = WorkflowStatusRunning
+	err = updatePoolWF.UpdateJobStatus(ctx, string(models.JobsStatePROCESSING), nil)
+	if err != nil {
+		return nil, err
+	}
+	_, err = updatePoolWF.Run(ctx, params, pool)
+	if err != nil {
+		updatePoolWF.Status = WorkflowStatusFailed
+		err = updatePoolWF.UpdateJobStatus(ctx, string(models.JobsStateDONE), err)
+		if err != nil {
+			return nil, err
+		}
+		return nil, err
+	}
+	updatePoolWF.Status = WorkflowStatusCompleted
+	err = updatePoolWF.UpdateJobStatus(ctx, string(models.JobsStateDONE), nil)
+	return nil, err
+}
+
+func (wf *updatePoolWorkflow) Setup(ctx workflow.Context, input interface{}) error {
+	updatePoolParams := input.(*common.UpdatePoolParams)
+	info := workflow.GetInfo(ctx)
+	wf.ID = info.WorkflowExecution.ID
+	wf.CustomerID = updatePoolParams.AccountName
+	wf.Status = WorkflowStatusCreated
+	ctx = util.AddExtraLoggerFields(ctx, map[string]interface{}{"workflowID": wf.ID, "customerID": wf.CustomerID})
+	logger := util.GetLogger(ctx)
+	wf.Logger = logger
+
+	return workflow.SetQueryHandler(ctx, "status", func() (*WorkflowStatus, error) {
+		return &WorkflowStatus{
+			ID:         wf.ID,
+			Status:     wf.Status,
+			CustomerID: wf.CustomerID,
+		}, nil
+	})
+}
+
+func (wf *updatePoolWorkflow) Run(ctx workflow.Context, args ...interface{}) (interface{}, error) {
+	updatePoolParams := args[0].(*common.UpdatePoolParams)
+	pool := args[1].(*datamodel.Pool)
+	poolActivity := &activities.PoolActivity{}
+	retryPolicy, err := PopulateRetryPolicyParams()
+	if err != nil {
+		return nil, err
+	}
+	ao := workflow.ActivityOptions{
+		StartToCloseTimeout: retryPolicy.StartToCloseTimeout,
+		RetryPolicy: &temporal.RetryPolicy{
+			InitialInterval:    retryPolicy.InitialInterval,
+			BackoffCoefficient: retryPolicy.BackoffCoefficient,
+			MaximumInterval:    retryPolicy.MaximumInterval,
+			MaximumAttempts:    int32(retryPolicy.MaximumAttempts),
+		},
+	}
+	ctx = workflow.WithActivityOptions(ctx, ao)
+	dbPool := pool
+	wf.Logger.Info("Updating pool with new parameters", "params", updatePoolParams) // Update the pool with the new parameters
+
+	poolObj := &datamodel.Pool{
+		BaseModel: datamodel.BaseModel{
+			UUID: dbPool.UUID,
+		},
+		VendorID:                dbPool.VendorID,
+		Network:                 dbPool.Network,
+		SizeInBytes:             int64(updatePoolParams.SizeInBytes),
+		AllowAutoTiering:        updatePoolParams.AllowAutoTiering,
+		QosType:                 updatePoolParams.QosType,
+		HotTierSizeInBytes:      int64(updatePoolParams.HotTierSizeInBytes),
+		EnableHotTierAutoResize: updatePoolParams.EnableHotTierAutoResize,
+		Description:             updatePoolParams.Description,
+		PoolAttributes: &datamodel.PoolAttributes{
+			ThroughputMibps: int64(updatePoolParams.TotalThroughputMibps),
+			Iops:            int64(updatePoolParams.TotalIops),
+		},
+	}
+
+	err = workflow.ExecuteActivity(ctx, poolActivity.UpdatedPool, poolObj).Get(ctx, nil) // replace with the actual activity to update the pool
+	return nil, err
+}
+
 type deletePoolWorkflow struct {
 	BaseWorkflow
 	SE *database.Storage

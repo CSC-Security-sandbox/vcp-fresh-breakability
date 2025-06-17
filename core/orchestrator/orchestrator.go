@@ -13,6 +13,7 @@ import (
 
 type OrchestratorFactory interface {
 	CreatePool(ctx context.Context, params *commonparams.CreatePoolParams) (*models.Pool, string, error)
+	UpdatePool(ctx context.Context, params *commonparams.UpdatePoolParams) (*models.Pool, string, error)
 	GetPool(ctx context.Context, poolId string, accountName string) (*models.Pool, error)
 	DeletePool(ctx context.Context, params *commonparams.DeletePoolParams) (*models.Pool, string, error)
 	GetMultiplePools(ctx context.Context, accountName string, poolUUIDs []string) ([]*models.Pool, error)

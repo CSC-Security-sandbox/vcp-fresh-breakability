@@ -384,9 +384,12 @@ func (s *PersistenceStore) CreatingPool(ctx context.Context, pool *datamodel.Poo
 func (s *PersistenceStore) GetPool(ctx context.Context, poolUUID string, accountID int64) (*datamodel.PoolView, error) {
 	return s.dataStore.GetPool(ctx, poolUUID, accountID)
 }
+func (s *PersistenceStore) UpdatingPool(ctx context.Context, pool *datamodel.Pool) (*datamodel.Pool, error) {
+	return s.dataStore.UpdatingPool(ctx, pool)
+}
 
-func (s *PersistenceStore) UpdatePool(ctx context.Context, pool *datamodel.Pool) error {
-	return s.dataStore.UpdatePool(ctx, pool)
+func (s *PersistenceStore) UpdatedPool(ctx context.Context, pool *datamodel.Pool) (*datamodel.Pool, error) {
+	return s.dataStore.UpdatedPool(ctx, pool)
 }
 
 func (s *PersistenceStore) DeletePool(ctx context.Context, pool *datamodel.Pool) error {

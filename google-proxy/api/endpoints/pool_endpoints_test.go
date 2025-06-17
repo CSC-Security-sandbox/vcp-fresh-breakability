@@ -478,6 +478,140 @@ func TestV1betaCreatePool(t *testing.T) {
 	})
 }
 
+func TestV1betaUpdatePool(t *testing.T) {
+	// Save original parseAndValidateRegionAndZone function and restore at end of test.
+	originalParseAndValidate := parseAndValidateRegionAndZone
+	t.Run("WhenRegionAndZoneParsingFails", func(tt *testing.T) {
+		// Set the function to return a parsing error.
+		parseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
+			return "", "", &gcpgenserver.Error{
+				Code:    400,
+				Message: "Invalid location ID",
+			}
+		}
+		defer func() { parseAndValidateRegionAndZone = originalParseAndValidate }()
+
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		params := gcpgenserver.V1betaUpdatePoolParams{
+			LocationId:    "invalid-location",
+			ProjectNumber: "project-number",
+			PoolId:        "pool-id",
+		}
+		req := &gcpgenserver.PoolUpdateV1beta{
+			Description: gcpgenserver.NewOptNilString("description"),
+		}
+		handler := Handler{Orchestrator: mockOrchestrator}
+		result, err := handler.V1betaUpdatePool(context.Background(), req, params)
+		assert.NoError(tt, err)
+		badReq, ok := result.(*gcpgenserver.V1betaUpdatePoolBadRequest)
+		assert.True(tt, ok)
+		assert.Equal(tt, float64(400), badReq.Code)
+		assert.Equal(tt, "Invalid location ID", badReq.Message)
+	})
+	t.Run("WhenActiveDirectoryConfigIdIsSet", func(tt *testing.T) {
+		parseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
+			return "us-east4", "us-east4", nil
+		}
+		defer func() { parseAndValidateRegionAndZone = originalParseAndValidate }()
+
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		params := gcpgenserver.V1betaUpdatePoolParams{
+			LocationId:    "us-east4",
+			ProjectNumber: "project-number",
+			PoolId:        "pool-id",
+		}
+		req := &gcpgenserver.PoolUpdateV1beta{
+			ActiveDirectoryConfigId: gcpgenserver.NewOptNilString("some-ad-id"),
+		}
+		handler := Handler{Orchestrator: mockOrchestrator}
+		result, err := handler.V1betaUpdatePool(context.Background(), req, params)
+		assert.NoError(tt, err)
+		badReq, ok := result.(*gcpgenserver.V1betaUpdatePoolBadRequest)
+		assert.True(tt, ok)
+		assert.Equal(tt, float64(400), badReq.Code)
+		assert.Equal(tt, "Active directory cannot be assigned to a Storage Pool of type unified", badReq.Message)
+	})
+	t.Run("WhenUpdatePoolFails", func(tt *testing.T) {
+		parseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
+			return "us-east4", "us-east4", nil
+		}
+		defer func() { parseAndValidateRegionAndZone = originalParseAndValidate }()
+
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		// Set orchestrator to return an error when UpdatePool is called.
+		mockOrchestrator.EXPECT().UpdatePool(mock.Anything, mock.Anything).
+			Return(nil, "", fmt.Errorf("update failed"))
+
+		params := gcpgenserver.V1betaUpdatePoolParams{
+			LocationId:    "us-east4",
+			ProjectNumber: "project-number",
+			PoolId:        "pool-id",
+		}
+		req := &gcpgenserver.PoolUpdateV1beta{
+			ActiveDirectoryConfigId:  gcpgenserver.NewOptNilString(""),
+			Description:              gcpgenserver.NewOptNilString("updated description"),
+			SizeInBytes:              gcpgenserver.NewOptNilFloat64(1099511627776),
+			QosType:                  gcpgenserver.NewOptNilString("auto"),
+			CustomPerformanceEnabled: gcpgenserver.NewOptNilBool(true),
+			TotalThroughputMibps:     gcpgenserver.NewOptNilFloat64(128),
+			TotalIops:                gcpgenserver.NewOptNilFloat64(2048),
+			AllowAutoTiering:         gcpgenserver.NewOptNilBool(true),
+			EnableHotTierAutoResize:  gcpgenserver.NewOptNilBool(false),
+			HotTierSizeInBytes:       gcpgenserver.NewOptNilFloat64(0),
+		}
+		handler := Handler{Orchestrator: mockOrchestrator}
+		result, err := handler.V1betaUpdatePool(context.Background(), req, params)
+		assert.NoError(tt, err)
+		internalErr, ok := result.(*gcpgenserver.V1betaUpdatePoolInternalServerError)
+		assert.True(tt, ok)
+		assert.Equal(tt, float64(500), internalErr.Code)
+		assert.Equal(tt, "update failed", internalErr.Message)
+	})
+	t.Run("WhenPoolUpdateSucceeds", func(tt *testing.T) {
+		parseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
+			return "us-east4", "", nil
+		}
+		defer func() { parseAndValidateRegionAndZone = originalParseAndValidate }()
+
+		// Create a dummy pool that represents the updated pool.
+		updatedPool := &models.Pool{
+			BaseModel: models.BaseModel{
+				UUID: "updated-pool-uuid",
+			},
+			PoolAttributes: &models.PoolAttributes{},
+		}
+
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator.EXPECT().UpdatePool(mock.Anything, mock.Anything).
+			Return(updatedPool, "op-123", nil)
+
+		params := gcpgenserver.V1betaUpdatePoolParams{
+			LocationId:    "us-east4",
+			ProjectNumber: "project-number",
+			PoolId:        "pool-id",
+		}
+		req := &gcpgenserver.PoolUpdateV1beta{
+			Description:              gcpgenserver.NewOptNilString("updated description"),
+			SizeInBytes:              gcpgenserver.NewOptNilFloat64(1099511627776),
+			QosType:                  gcpgenserver.NewOptNilString("auto"),
+			CustomPerformanceEnabled: gcpgenserver.NewOptNilBool(true),
+			TotalThroughputMibps:     gcpgenserver.NewOptNilFloat64(128),
+			TotalIops:                gcpgenserver.NewOptNilFloat64(2048),
+			AllowAutoTiering:         gcpgenserver.NewOptNilBool(true),
+			EnableHotTierAutoResize:  gcpgenserver.NewOptNilBool(false),
+			HotTierSizeInBytes:       gcpgenserver.NewOptNilFloat64(0),
+		}
+		handler := Handler{Orchestrator: mockOrchestrator}
+
+		result, err := handler.V1betaUpdatePool(context.Background(), req, params)
+		assert.NoError(tt, err)
+		op, ok := result.(*gcpgenserver.OperationV1beta)
+		assert.True(tt, ok)
+		expectedOpName := fmt.Sprintf("/v1beta/projects/%s/locations/%s/operations/%s", params.ProjectNumber, params.LocationId, "op-123")
+		assert.Equal(tt, expectedOpName, op.Name.Value)
+	})
+}
+
 func TestV1betaDeletePool(t *testing.T) {
 	t.Run("WhenLocationValidationFails", func(tt *testing.T) {
 		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)

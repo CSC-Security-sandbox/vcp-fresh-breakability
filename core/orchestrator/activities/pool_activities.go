@@ -89,7 +89,11 @@ func (j *PoolActivity) FailedPool(ctx context.Context, pool *datamodel.Pool, err
 	se := j.SE
 	pool.State = models.LifeCycleStateError
 	pool.StateDetails = errMessage
-	return se.UpdatePool(ctx, pool)
+	_, err := se.UpdatedPool(ctx, pool)
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 func (j *PoolActivity) CreatedPool(ctx context.Context, pool *datamodel.Pool) (*datamodel.Pool, error) {
@@ -122,8 +126,13 @@ func (j *PoolActivity) ErroredPool(ctx context.Context, pool *datamodel.Pool, er
 
 	pool.State = models.LifeCycleStateError
 	pool.StateDetails = errMessage
-	err := se.UpdatePool(ctx, pool)
+	pool, err := se.UpdatedPool(ctx, pool)
 	return pool, err
+}
+
+func (j *PoolActivity) UpdatedPool(ctx context.Context, pool *datamodel.Pool) (*datamodel.Pool, error) {
+	se := j.SE
+	return se.UpdatedPool(ctx, pool)
 }
 
 func (j *PoolActivity) CreateTenancy(ctx context.Context, params commonparams.CreatePoolParams) (*commonparams.TenancyInfo, error) {

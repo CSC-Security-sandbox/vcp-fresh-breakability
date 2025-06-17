@@ -25,13 +25,16 @@ import (
 )
 
 var (
-	minQuotaInBytesPool          = env.GetUint64("MIN_QUOTA_IN_BYTES_POOL", 1099511627776) // 1TiB
-	minCustomThroughput          = env.GetUint64("MIN_CUSTOM_THROUGHPUT", 64)              // 64 MiBps
+	minQuotaInBytesPool          = env.GetUint64("MIN_QUOTA_IN_BYTES_POOL", 1099511627776)
+	maxQuotaInBytesPool          = env.GetUint64("MAX_QUOTA_IN_BYTES_POOL", 500*1099511627776) // 1TiB
+	minCustomThroughput          = env.GetUint64("MIN_CUSTOM_THROUGHPUT", 64)                  // 64 MiBps
 	minCustomIops                = env.GetUint64("MIN_CUSTOM_IOPS", 1024)
 	minSizeGranularity           = env.GetUint64("MIN_SIZE_GRANULARITY", 1073741824) // 1 GiB
 	createPool                   = _createPool
-	deletePool                   = _deletePool
+	updatePool                   = _updatePool
 	ValidateCreatePoolParams     = _validateCreatePoolParams
+	ValidateUpdatePoolParams     = _validateUpdatePoolParams
+	deletePool                   = _deletePool
 	nodeUsername                 = env.GetString("VSA_NODE_USERNAME", "")
 	nodePassword                 = env.GetString("VSA_NODE_PASSWORD", "")
 	getInterClusterLifsFromONTAP = _getInterClusterLifsFromONTAP
@@ -125,6 +128,68 @@ func _createPool(ctx context.Context, se database.Storage, temporal client.Clien
 	return convertDatastorePoolToModel(poolView, account.Name), createdJob.UUID, nil
 }
 
+// UpdatePool updates the specified pool
+func (o *Orchestrator) UpdatePool(ctx context.Context, params *commonparams.UpdatePoolParams) (*models.Pool, string, error) {
+	return updatePool(ctx, o.storage, o.temporal, params)
+}
+
+// _updatePool updates an existing pool
+func _updatePool(ctx context.Context, se database.Storage, temporal client.Client, params *commonparams.UpdatePoolParams) (*models.Pool, string, error) {
+	logger := util.GetLogger(ctx)
+	account, err := getOrCreateAccount(ctx, se, params.AccountName)
+	if err != nil {
+		return nil, "", err
+	}
+
+	// Get the pool by ID
+	dbPoolView, err := se.GetPool(ctx, params.PoolId, account.ID)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, "", customerrors.NewNotFoundErr("pool not found", nil)
+		}
+		return nil, "", err
+	}
+	dbPool := repository.ConvertPoolViewToPool(dbPoolView)
+	err = ValidateUpdatePoolParams(params, dbPool)
+	if err != nil {
+		return nil, "", err
+	}
+
+	job := &datamodel.Job{
+		Type:         string(models.JobTypeUpdatePool),
+		State:        string(models.JobsStateNEW),
+		ResourceName: params.PoolId,
+		AccountID:    sql.NullInt64{Int64: account.ID, Valid: true},
+	}
+
+	createdJob, err := se.CreateJob(ctx, job)
+	if err != nil {
+		logger.Error("Failed to create job in database", "error", err)
+		return nil, "", err
+	}
+
+	pool, err := se.UpdatingPool(ctx, dbPool)
+	if err != nil {
+		return nil, "", err
+	}
+	_, err = temporal.ExecuteWorkflow(ctx,
+		client.StartWorkflowOptions{
+			TaskQueue:             workflowengine.CustomerTaskQueue,
+			ID:                    createdJob.WorkflowID,
+			WorkflowIDReusePolicy: enums.WORKFLOW_ID_REUSE_POLICY_REJECT_DUPLICATE,
+		},
+		workflows.UpdatePoolWorkflow,
+		params, // this contains the parameters for the update operation
+		pool,
+	)
+	if err != nil {
+		logger.Error("Failed to start pool update workflow: ", "error", err)
+		return nil, "", err
+	}
+	poolView := repository.ConvertPoolToPoolView(pool)
+	return convertDatastorePoolToModel(poolView, account.Name), createdJob.UUID, nil
+}
+
 // GetPool gets the specified pool
 func (o *Orchestrator) GetPool(ctx context.Context, poolId string, accountName string) (*models.Pool, error) {
 	se := o.storage
@@ -170,6 +235,38 @@ func _validateCreatePoolParams(params *commonparams.CreatePoolParams) error {
 			return customerrors.NewUserInputValidationErr(fmt.Sprintf("TotalIops must be greater than %d for Unified Flex Storage Pool", minCustomIops))
 		}
 	}
+	return nil
+}
+
+func _validateUpdatePoolParams(params *commonparams.UpdatePoolParams, pool *datamodel.Pool) error {
+	if pool.QosType == QosTypeAuto && params.QosType != QosTypeAuto {
+		return customerrors.NewUserInputValidationErr("Cannot change qos type from manual to auto")
+	}
+
+	if minQuotaInBytesPool > params.SizeInBytes {
+		return customerrors.NewUserInputValidationErr(fmt.Sprintf("Given pool size not supported. Pool size must be greater than %s and a multiple of 1GiB", utils.FmtUint64Bytes(minQuotaInBytesPool)))
+	}
+
+	if params.SizeInBytes > maxQuotaInBytesPool {
+		return customerrors.NewUserInputValidationErr(fmt.Sprintf("Given pool size not supported. Pool size must be less than %s", utils.FmtUint64Bytes(maxQuotaInBytesPool)))
+	}
+
+	if params.SizeInBytes%minSizeGranularity != 0 {
+		return customerrors.NewUserInputValidationErr(fmt.Sprintf("Given pool size must be a multiple of %s", utils.FmtUint64Bytes(minSizeGranularity)))
+	}
+
+	if !params.CustomPerformanceEnabled {
+		return customerrors.NewUserInputValidationErr("CustomPerformanceEnabled must be true for Unified Flex Storage Pool")
+	} else {
+		if minCustomThroughput > uint64(params.TotalThroughputMibps) {
+			return customerrors.NewUserInputValidationErr(fmt.Sprintf("TotalThroughputMibps must be set and must be greater than %d MiBps for Unified Flex Storage Pool", minCustomThroughput))
+		}
+
+		if minCustomIops > uint64(params.TotalIops) {
+			return customerrors.NewUserInputValidationErr(fmt.Sprintf("TotalIops must be greater than %d for Unified Flex Storage Pool", minCustomIops))
+		}
+	}
+
 	return nil
 }
 

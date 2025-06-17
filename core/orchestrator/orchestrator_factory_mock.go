@@ -2316,6 +2316,72 @@ func (_c *MockOrchestratorFactory_UpdateKmsConfig_Call) RunAndReturn(run func(co
 	return _c
 }
 
+// UpdatePool provides a mock function with given fields: ctx, params
+func (_m *MockOrchestratorFactory) UpdatePool(ctx context.Context, params *common.UpdatePoolParams) (*models.Pool, string, error) {
+	ret := _m.Called(ctx, params)
+
+	if len(ret) == 0 {
+		panic("no return value specified for UpdatePool")
+	}
+
+	var r0 *models.Pool
+	var r1 string
+	var r2 error
+	if rf, ok := ret.Get(0).(func(context.Context, *common.UpdatePoolParams) (*models.Pool, string, error)); ok {
+		return rf(ctx, params)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, *common.UpdatePoolParams) *models.Pool); ok {
+		r0 = rf(ctx, params)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*models.Pool)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, *common.UpdatePoolParams) string); ok {
+		r1 = rf(ctx, params)
+	} else {
+		r1 = ret.Get(1).(string)
+	}
+
+	if rf, ok := ret.Get(2).(func(context.Context, *common.UpdatePoolParams) error); ok {
+		r2 = rf(ctx, params)
+	} else {
+		r2 = ret.Error(2)
+	}
+
+	return r0, r1, r2
+}
+
+// MockOrchestratorFactory_UpdatePool_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'UpdatePool'
+type MockOrchestratorFactory_UpdatePool_Call struct {
+	*mock.Call
+}
+
+// UpdatePool is a helper method to define mock.On call
+//   - ctx context.Context
+//   - params *common.UpdatePoolParams
+func (_e *MockOrchestratorFactory_Expecter) UpdatePool(ctx interface{}, params interface{}) *MockOrchestratorFactory_UpdatePool_Call {
+	return &MockOrchestratorFactory_UpdatePool_Call{Call: _e.mock.On("UpdatePool", ctx, params)}
+}
+
+func (_c *MockOrchestratorFactory_UpdatePool_Call) Run(run func(ctx context.Context, params *common.UpdatePoolParams)) *MockOrchestratorFactory_UpdatePool_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(*common.UpdatePoolParams))
+	})
+	return _c
+}
+
+func (_c *MockOrchestratorFactory_UpdatePool_Call) Return(_a0 *models.Pool, _a1 string, _a2 error) *MockOrchestratorFactory_UpdatePool_Call {
+	_c.Call.Return(_a0, _a1, _a2)
+	return _c
+}
+
+func (_c *MockOrchestratorFactory_UpdatePool_Call) RunAndReturn(run func(context.Context, *common.UpdatePoolParams) (*models.Pool, string, error)) *MockOrchestratorFactory_UpdatePool_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // UpdateSnapshot provides a mock function with given fields: ctx, params
 func (_m *MockOrchestratorFactory) UpdateSnapshot(ctx context.Context, params *common.UpdateSnapshotParams) (*models.Snapshot, string, error) {
 	ret := _m.Called(ctx, params)

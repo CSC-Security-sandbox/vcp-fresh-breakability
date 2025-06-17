@@ -106,6 +106,7 @@ func initializeTemporalClient(logger log.Logger) (workflowEngine.TemporalWorkflo
 // main is the entry point of the worker application. It initializes the Temporal worker
 func RegisterWorkflowsAndActivities(worker tManagerPkg.Worker, dbcon database.Storage) {
 	worker.RegisterWorkflow(workflows.CreatePoolWorkflow)
+	worker.RegisterWorkflow(workflows.UpdatePoolWorkflow)
 	worker.RegisterWorkflow(workflows.DeletePoolWorkflow)
 	worker.RegisterWorkflow(workflows.CreateVolumeWorkflow)
 	worker.RegisterWorkflow(workflows.UpdateVolumeWorkflow)

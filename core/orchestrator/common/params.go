@@ -159,6 +159,30 @@ type ClusterPeer struct {
 	ExpiryTime          *strfmt.DateTime
 }
 
+type UpdatePoolParams struct {
+	AccountName              string
+	Region                   string
+	PoolId                   string
+	Description              string
+	VendorID                 string
+	QosType                  string
+	Tags                     string
+	SizeInBytes              uint64
+	AllowAutoTiering         bool
+	CurrentZone              string
+	VendorSubNetID           string
+	CustomThroughputMibps    uint64
+	HostUUID                 string
+	Zone                     string
+	Labels                   map[string]string
+	ActiveDirectoryConfigId  string
+	HotTierSizeInBytes       float64
+	EnableHotTierAutoResize  bool
+	CustomPerformanceEnabled bool
+	TotalThroughputMibps     float64
+	TotalIops                float64
+}
+
 // UpdateKmsConfigParams describes parameters supplied to UpdateKmsConfig
 type UpdateKmsConfigParams struct {
 	AccountName     string

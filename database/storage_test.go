@@ -126,7 +126,7 @@ func TestUpdatePool(t *testing.T) {
 	created, err := store.CreatingPool(ctx, pool)
 	assert.NoError(t, err)
 	created.Name = "updatedpool"
-	err = store.UpdatePool(ctx, created)
+	_, err = store.UpdatedPool(ctx, created)
 	assert.NoError(t, err)
 }
 

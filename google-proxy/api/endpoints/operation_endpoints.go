@@ -85,7 +85,7 @@ func (h Handler) V1betaDescribeOperation(ctx context.Context, params gcpgenserve
 	}
 	return &gcpgenserver.V1betaDescribeOperationInternalServerError{
 		Code:    500,
-		Message: fmt.Sprintf("Invalid Job State: %s", job.State),
+		Message: "Job not found",
 	}, nil
 }
 func convertOperationToOperationV1Beta(op *cvpmodels.OperationV1beta) *gcpgenserver.OperationV1beta {

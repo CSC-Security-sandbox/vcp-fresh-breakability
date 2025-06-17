@@ -1204,7 +1204,7 @@ func Test_ErroredPool_Success(t *testing.T) {
 	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
 	pool := &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: 1}}
 
-	mockStorage.On("UpdatePool", ctx, pool).Return(nil)
+	mockStorage.On("UpdatedPool", ctx, pool).Return(pool, nil)
 	deleteSVMS := activities.DeleteSVMs
 	deleteNodes := activities.DeleteNodes
 	deleteLIFs := activities.DeleteLIFs

@@ -12,6 +12,7 @@ import (
 	gormWrapper "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/gorm"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	customerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/nillable"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 	"gorm.io/gorm"
 )
@@ -97,28 +98,70 @@ func (d *DataStoreRepository) GetPool(ctx context.Context, poolUUID string, acco
 	return getPoolWithDetails(d.db.GORM().WithContext(ctx), &datamodel.Pool{BaseModel: datamodel.BaseModel{UUID: poolUUID}, AccountID: accountID})
 }
 
-func (d *DataStoreRepository) UpdatePool(ctx context.Context, pool *datamodel.Pool) error {
+func (d *DataStoreRepository) UpdatingPool(ctx context.Context, pool *datamodel.Pool) (*datamodel.Pool, error) {
 	db := d.db.GORM().WithContext(ctx)
 	tx, err := startTransaction(db)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	logger := util.GetLogger(ctx)
 	defer commitOrRollbackOnError(logger, tx, &err)
 
 	dbPoolView, err := getPoolWithDetails(tx, &datamodel.Pool{BaseModel: datamodel.BaseModel{UUID: pool.UUID}})
 	if err != nil {
-		return err
+		return nil, err
 	}
 	dbPool := ConvertPoolViewToPool(dbPoolView)
+	if dbPool.State == models.LifeCycleStateCreating ||
+		dbPool.State == models.LifeCycleStateDeleting ||
+		dbPool.State == models.LifeCycleStateUpdating {
+		return nil, customerrors.NewConflictErr("Pool is already transitioning between states")
+	}
+	dbPool.State = models.LifeCycleStateUpdating
+	dbPool.StateDetails = models.LifeCycleStateUpdatingDetails
+
+	dbPool.SizeInBytes = pool.SizeInBytes
+	if !nillable.IsNilOrEmpty(&pool.Description) {
+		dbPool.Description = pool.Description
+	}
+
 	dbPool.UpdatedAt = time.Now()
-	dbPool.State = pool.State
-	dbPool.StateDetails = pool.StateDetails
 
 	if err = tx.Updates(dbPool).Error; err != nil {
-		return vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataUpdateError, err)
+		return nil, vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataUpdateError, err)
 	}
-	return nil
+
+	updatedPoolView, err := getPoolWithDetails(tx, &datamodel.Pool{BaseModel: datamodel.BaseModel{UUID: pool.UUID}})
+	if err != nil {
+		return nil, err
+	}
+	return ConvertPoolViewToPool(updatedPoolView), nil
+}
+
+func (d *DataStoreRepository) UpdatedPool(ctx context.Context, pool *datamodel.Pool) (*datamodel.Pool, error) {
+	db := d.db.GORM().WithContext(ctx)
+	tx, err := startTransaction(db)
+	if err != nil {
+		return nil, err
+	}
+	logger := util.GetLogger(ctx)
+	defer commitOrRollbackOnError(logger, tx, &err)
+
+	pool.UpdatedAt = time.Now()
+	pool.State = models.LifeCycleStateREADY
+	pool.StateDetails = models.LifeCycleStateAvailableDetails
+
+	// Ensure a WHERE clause by explicitly using the primary key
+	if err = tx.Model(&datamodel.Pool{}).
+		Where("uuid = ?", pool.UUID).
+		Updates(pool).Error; err != nil {
+		return nil, err
+	}
+	updatedPoolView, err := getPoolWithDetails(tx, &datamodel.Pool{BaseModel: datamodel.BaseModel{UUID: pool.UUID}})
+	if err != nil {
+		return nil, err
+	}
+	return ConvertPoolViewToPool(updatedPoolView), nil
 }
 
 // DeletePool deletes a pool from the database

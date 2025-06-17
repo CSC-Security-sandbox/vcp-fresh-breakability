@@ -4996,53 +4996,6 @@ func (_c *MockStorage_UpdateKmsConfigState_Call) RunAndReturn(run func(context.C
 	return _c
 }
 
-// UpdatePool provides a mock function with given fields: ctx, pool
-func (_m *MockStorage) UpdatePool(ctx context.Context, pool *datamodel.Pool) error {
-	ret := _m.Called(ctx, pool)
-
-	if len(ret) == 0 {
-		panic("no return value specified for UpdatePool")
-	}
-
-	var r0 error
-	if rf, ok := ret.Get(0).(func(context.Context, *datamodel.Pool) error); ok {
-		r0 = rf(ctx, pool)
-	} else {
-		r0 = ret.Error(0)
-	}
-
-	return r0
-}
-
-// MockStorage_UpdatePool_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'UpdatePool'
-type MockStorage_UpdatePool_Call struct {
-	*mock.Call
-}
-
-// UpdatePool is a helper method to define mock.On call
-//   - ctx context.Context
-//   - pool *datamodel.Pool
-func (_e *MockStorage_Expecter) UpdatePool(ctx interface{}, pool interface{}) *MockStorage_UpdatePool_Call {
-	return &MockStorage_UpdatePool_Call{Call: _e.mock.On("UpdatePool", ctx, pool)}
-}
-
-func (_c *MockStorage_UpdatePool_Call) Run(run func(ctx context.Context, pool *datamodel.Pool)) *MockStorage_UpdatePool_Call {
-	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context), args[1].(*datamodel.Pool))
-	})
-	return _c
-}
-
-func (_c *MockStorage_UpdatePool_Call) Return(_a0 error) *MockStorage_UpdatePool_Call {
-	_c.Call.Return(_a0)
-	return _c
-}
-
-func (_c *MockStorage_UpdatePool_Call) RunAndReturn(run func(context.Context, *datamodel.Pool) error) *MockStorage_UpdatePool_Call {
-	_c.Call.Return(run)
-	return _c
-}
-
 // UpdateServiceAccountEmailAndKey provides a mock function with given fields: ctx, uuid, email, key
 func (_m *MockStorage) UpdateServiceAccountEmailAndKey(ctx context.Context, uuid string, email string, key string) (*datamodel.ServiceAccount, error) {
 	ret := _m.Called(ctx, uuid, email, key)
@@ -5517,6 +5470,124 @@ func (_c *MockStorage_UpdateVolumeState_Call) Return(_a0 *datamodel.Volume, _a1 
 }
 
 func (_c *MockStorage_UpdateVolumeState_Call) RunAndReturn(run func(context.Context, string, string, string) (*datamodel.Volume, error)) *MockStorage_UpdateVolumeState_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// UpdatedPool provides a mock function with given fields: ctx, pool
+func (_m *MockStorage) UpdatedPool(ctx context.Context, pool *datamodel.Pool) (*datamodel.Pool, error) {
+	ret := _m.Called(ctx, pool)
+
+	if len(ret) == 0 {
+		panic("no return value specified for UpdatedPool")
+	}
+
+	var r0 *datamodel.Pool
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, *datamodel.Pool) (*datamodel.Pool, error)); ok {
+		return rf(ctx, pool)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, *datamodel.Pool) *datamodel.Pool); ok {
+		r0 = rf(ctx, pool)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*datamodel.Pool)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, *datamodel.Pool) error); ok {
+		r1 = rf(ctx, pool)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockStorage_UpdatedPool_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'UpdatedPool'
+type MockStorage_UpdatedPool_Call struct {
+	*mock.Call
+}
+
+// UpdatedPool is a helper method to define mock.On call
+//   - ctx context.Context
+//   - pool *datamodel.Pool
+func (_e *MockStorage_Expecter) UpdatedPool(ctx interface{}, pool interface{}) *MockStorage_UpdatedPool_Call {
+	return &MockStorage_UpdatedPool_Call{Call: _e.mock.On("UpdatedPool", ctx, pool)}
+}
+
+func (_c *MockStorage_UpdatedPool_Call) Run(run func(ctx context.Context, pool *datamodel.Pool)) *MockStorage_UpdatedPool_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(*datamodel.Pool))
+	})
+	return _c
+}
+
+func (_c *MockStorage_UpdatedPool_Call) Return(_a0 *datamodel.Pool, _a1 error) *MockStorage_UpdatedPool_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockStorage_UpdatedPool_Call) RunAndReturn(run func(context.Context, *datamodel.Pool) (*datamodel.Pool, error)) *MockStorage_UpdatedPool_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// UpdatingPool provides a mock function with given fields: ctx, pool
+func (_m *MockStorage) UpdatingPool(ctx context.Context, pool *datamodel.Pool) (*datamodel.Pool, error) {
+	ret := _m.Called(ctx, pool)
+
+	if len(ret) == 0 {
+		panic("no return value specified for UpdatingPool")
+	}
+
+	var r0 *datamodel.Pool
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, *datamodel.Pool) (*datamodel.Pool, error)); ok {
+		return rf(ctx, pool)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, *datamodel.Pool) *datamodel.Pool); ok {
+		r0 = rf(ctx, pool)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*datamodel.Pool)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, *datamodel.Pool) error); ok {
+		r1 = rf(ctx, pool)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockStorage_UpdatingPool_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'UpdatingPool'
+type MockStorage_UpdatingPool_Call struct {
+	*mock.Call
+}
+
+// UpdatingPool is a helper method to define mock.On call
+//   - ctx context.Context
+//   - pool *datamodel.Pool
+func (_e *MockStorage_Expecter) UpdatingPool(ctx interface{}, pool interface{}) *MockStorage_UpdatingPool_Call {
+	return &MockStorage_UpdatingPool_Call{Call: _e.mock.On("UpdatingPool", ctx, pool)}
+}
+
+func (_c *MockStorage_UpdatingPool_Call) Run(run func(ctx context.Context, pool *datamodel.Pool)) *MockStorage_UpdatingPool_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(*datamodel.Pool))
+	})
+	return _c
+}
+
+func (_c *MockStorage_UpdatingPool_Call) Return(_a0 *datamodel.Pool, _a1 error) *MockStorage_UpdatingPool_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockStorage_UpdatingPool_Call) RunAndReturn(run func(context.Context, *datamodel.Pool) (*datamodel.Pool, error)) *MockStorage_UpdatingPool_Call {
 	_c.Call.Return(run)
 	return _c
 }

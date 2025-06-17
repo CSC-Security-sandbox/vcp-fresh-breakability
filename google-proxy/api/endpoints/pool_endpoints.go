@@ -349,8 +349,58 @@ func (h Handler) V1betaListPools(ctx context.Context, params gcpgenserver.V1beta
 }
 
 func (h Handler) V1betaUpdatePool(ctx context.Context, req *gcpgenserver.PoolUpdateV1beta, params gcpgenserver.V1betaUpdatePoolParams) (gcpgenserver.V1betaUpdatePoolRes, error) {
-	// TODO implement me
-	panic("implement me")
+	logger := util.GetLogger(ctx)
+
+	region, zone, parsingErr := parseAndValidateRegionAndZone(params.LocationId)
+	if parsingErr != nil {
+		return &gcpgenserver.V1betaUpdatePoolBadRequest{
+			Code:    parsingErr.Code,
+			Message: parsingErr.Message,
+		}, nil
+	}
+
+	if req.ActiveDirectoryConfigId.Value != "" {
+		return &gcpgenserver.V1betaUpdatePoolBadRequest{
+			Code:    400,
+			Message: "Active directory cannot be assigned to a Storage Pool of type unified",
+		}, nil
+	}
+	param := &common.UpdatePoolParams{
+		AccountName:              params.ProjectNumber,
+		Region:                   region,
+		CurrentZone:              zone,
+		Description:              req.Description.Value,
+		PoolId:                   params.PoolId,
+		SizeInBytes:              uint64(req.SizeInBytes.Value),
+		QosType:                  req.QosType.Value,
+		CustomPerformanceEnabled: req.CustomPerformanceEnabled.Value,
+		TotalThroughputMibps:     req.TotalThroughputMibps.Value,
+		TotalIops:                req.TotalIops.Value,
+		AllowAutoTiering:         req.AllowAutoTiering.Value,
+		EnableHotTierAutoResize:  req.EnableHotTierAutoResize.Value,
+		HotTierSizeInBytes:       req.HotTierSizeInBytes.Value,
+		Labels:                   req.Labels.Value,
+	}
+	updatedPool, operationID, err := h.Orchestrator.UpdatePool(ctx, param)
+	if err != nil {
+		logger.Error("Failed to update pool", "error", err.Error())
+		return &gcpgenserver.V1betaUpdatePoolInternalServerError{
+			Code:    500,
+			Message: err.Error(),
+		}, nil
+	}
+	resp, err := encodePoolV1(convertToPoolV1Beta(updatedPool))
+	if err != nil {
+		return nil, err
+	}
+	if operationID != "" {
+		return &gcpgenserver.OperationV1beta{
+			Name:     gcpgenserver.NewOptString(fmt.Sprintf("/v1beta/projects/%s/locations/%s/operations/%s", params.ProjectNumber, params.LocationId, operationID)),
+			Response: resp,
+			Done:     gcpgenserver.NewOptBool(false),
+		}, nil
+	}
+	return &gcpgenserver.OperationV1beta{}, nil
 }
 
 func convertToPoolsV1Beta(pools []*models.Pool) []gcpgenserver.PoolV1beta {

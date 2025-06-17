@@ -2,7 +2,9 @@ package orchestrator
 
 import (
 	"context"
+	"fmt"
 	"net"
+	"strings"
 	"testing"
 	"time"
 
@@ -11,10 +13,12 @@ import (
 	ontaprestmodel "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/ontap-rest/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/repository"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
@@ -318,6 +322,232 @@ func TestCreatePool(t *testing.T) {
 	})
 }
 
+func TestUpdatePool(t *testing.T) {
+	t.Run("WhenGetOrCreateAccountFails", func(tt *testing.T) {
+		ctx := context.Background()
+		mockLogger := log.NewLogger()
+		temporal := workflow_engine_mock.NewMockTemporalTestClient(t)
+		ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, mockLogger)
+		// Setup test storage instance
+		se, err := database.NewTestStorage(mockLogger)
+		assert.NoError(tt, err, "Failed to create test storage")
+
+		params := &common.UpdatePoolParams{
+			AccountName: "test_account",
+			PoolId:      "test-pool-id",
+		}
+
+		getOrCreateAccount = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return nil, errors.New("account not found")
+		}
+
+		_, _, err = _updatePool(ctx, se, temporal, params)
+		assert.EqualError(tt, err, "account not found")
+	})
+	t.Run("WhenPoolNotFound", func(tt *testing.T) {
+		ctx := context.Background()
+		mockLogger := log.NewLogger()
+		temporal := workflow_engine_mock.NewMockTemporalTestClient(t)
+		ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, mockLogger)
+		// Create a PersistenceStore instance with the in-memory database
+		store, err := database.SetupStorageForTest(mockLogger)
+		if err != nil {
+			t.Fatalf("Failed to create test storage: %v", err)
+		}
+
+		// Clear the in-memory database
+		err = database.ClearInMemoryDB(store.DB())
+		if err != nil {
+			t.Fatalf("Failed to clean up test storage: %v", err)
+		}
+
+		params := &common.UpdatePoolParams{
+			AccountName: "test_account",
+			PoolId:      "non-existent-pool",
+		}
+
+		// Return a valid account
+		dbAccount := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{UUID: "test-uuid", ID: 1},
+			Name:      "test_account",
+		}
+		getOrCreateAccount = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return dbAccount, nil
+		}
+
+		_, _, err = _updatePool(ctx, store, temporal, params)
+		if !strings.Contains(err.Error(), "pool not found") {
+			tt.Errorf("Expected not found error, got %s", err.Error())
+		}
+	})
+	t.Run("WhenValidatePoolParamsFails", func(tt *testing.T) {
+		ctx := context.Background()
+		mockLogger := log.NewLogger()
+		temporal := workflow_engine_mock.NewMockTemporalTestClient(t)
+		ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, mockLogger)
+		// Create a PersistenceStore instance with the in-memory database
+		store, err := database.SetupStorageForTest(mockLogger)
+		if err != nil {
+			t.Fatalf("Failed to create test storage: %v", err)
+		}
+
+		// Clear the in-memory database
+		err = database.ClearInMemoryDB(store.DB())
+		if err != nil {
+			t.Fatalf("Failed to clean up test storage: %v", err)
+		}
+
+		params := &common.UpdatePoolParams{
+			AccountName: "test_account",
+			PoolId:      "test-pool-id",
+		}
+
+		dbAccount := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{UUID: "test-uuid", ID: 1},
+			Name:      "test_account",
+		}
+		err = store.DB().Create(dbAccount).Error
+		assert.NoError(tt, err, "Failed to create account")
+		getOrCreateAccount = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return dbAccount, nil
+		}
+
+		store.DB().Create(&datamodel.Pool{BaseModel: datamodel.BaseModel{UUID: "test-pool-id"}, Name: "test_pool", AccountID: dbAccount.ID})
+
+		ValidateUpdatePoolParams = func(params *common.UpdatePoolParams, pool *datamodel.Pool) error {
+			return errors.New("invalid pool params")
+		}
+
+		_, _, err = _updatePool(ctx, store, temporal, params)
+		assert.EqualError(tt, err, "invalid pool params")
+	})
+	t.Run("WhenUpdatePoolSucceeds", func(tt *testing.T) {
+		ctx := context.Background()
+		mockLogger := log.NewLogger()
+		temporal := workflow_engine_mock.NewMockTemporalTestClient(t)
+		ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, mockLogger)
+		// Create a PersistenceStore instance with the in-memory database
+		store, err := database.SetupStorageForTest(mockLogger)
+		if err != nil {
+			t.Fatalf("Failed to create test storage: %v", err)
+		}
+
+		// Clear the in-memory database
+		err = database.ClearInMemoryDB(store.DB())
+		if err != nil {
+			t.Fatalf("Failed to clean up test storage: %v", err)
+		}
+
+		params := &common.UpdatePoolParams{
+			AccountName: "test_account",
+			PoolId:      "test-pool-id",
+		}
+		temporal.EXPECT().ExecuteWorkflow(mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+
+		dbAccount := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{UUID: "test-uuid", ID: 1},
+			Name:      "test_account",
+		}
+		err = store.DB().Create(dbAccount).Error
+		assert.NoError(tt, err, "Failed to create account")
+
+		getOrCreateAccount = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return dbAccount, nil
+		}
+
+		dbPool := &datamodel.Pool{
+			BaseModel:        datamodel.BaseModel{UUID: "test-pool-id"},
+			Name:             "test_pool",
+			AccountID:        dbAccount.ID,
+			SizeInBytes:      1024,
+			State:            "active",
+			StateDetails:     "running",
+			AllowAutoTiering: true,
+			Network:          "test-network",
+			ServiceLevel:     "FLEX",
+			PoolAttributes: &datamodel.PoolAttributes{
+				ThroughputMibps: 64,
+				Iops:            1024,
+				PrimaryZone:     "us-central1-a",
+				SecondaryZone:   "",
+			},
+		}
+		err = store.DB().Create(dbPool).Error
+		assert.NoError(tt, err, "Failed to create pool")
+
+		ValidateUpdatePoolParams = func(params *common.UpdatePoolParams, pool *datamodel.Pool) error {
+			return nil
+		}
+
+		pool, _, err := _updatePool(ctx, store, temporal, params)
+		assert.NoError(tt, err, "Expected no error on updating pool")
+		assert.Equal(tt, "test_pool", pool.Name)
+		assert.Equal(tt, models.LifeCycleStateUpdating, pool.State)
+	})
+	t.Run("WhenExecuteWorkflowFails", func(tt *testing.T) {
+		ctx := context.Background()
+		mockLogger := log.NewLogger()
+		temporal := workflow_engine_mock.NewMockTemporalTestClient(t)
+		ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, mockLogger)
+		// Create a PersistenceStore instance with the in-memory database
+		store, err := database.SetupStorageForTest(mockLogger)
+		if err != nil {
+			t.Fatalf("Failed to create test storage: %v", err)
+		}
+
+		// Clear the in-memory database
+		err = database.ClearInMemoryDB(store.DB())
+		if err != nil {
+			t.Fatalf("Failed to clean up test storage: %v", err)
+		}
+
+		params := &common.UpdatePoolParams{
+			AccountName: "test_account",
+			PoolId:      "test-pool-id",
+		}
+
+		dbAccount := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{UUID: "test-uuid", ID: 1},
+			Name:      "test_account",
+		}
+		err = store.DB().Create(dbAccount).Error
+		assert.NoError(tt, err, "Failed to create account")
+
+		getOrCreateAccount = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return dbAccount, nil
+		}
+
+		ValidateUpdatePoolParams = func(params *common.UpdatePoolParams, pool *datamodel.Pool) error {
+			return nil
+		}
+
+		dbPool := &datamodel.Pool{
+			BaseModel:        datamodel.BaseModel{UUID: "test-pool-id"},
+			Name:             "test_pool",
+			AccountID:        dbAccount.ID,
+			SizeInBytes:      1024,
+			State:            "active",
+			StateDetails:     "running",
+			AllowAutoTiering: true,
+			Network:          "test-network",
+			ServiceLevel:     "FLEX",
+			PoolAttributes: &datamodel.PoolAttributes{
+				ThroughputMibps: 64,
+				Iops:            1024,
+				PrimaryZone:     "us-central1-a",
+				SecondaryZone:   "",
+			},
+		}
+		store.DB().Create(dbPool)
+		// Fail workflow execution.
+		temporal.EXPECT().ExecuteWorkflow(mock.Anything, mock.Anything, mock.Anything, params, mock.Anything).
+			Return(nil, fmt.Errorf("workflow error"))
+
+		_, _, err = _updatePool(ctx, store, temporal, params)
+		assert.EqualError(tt, err, "workflow error")
+	})
+}
+
 func TestGetPool(t *testing.T) {
 	t.Run("WhenPoolDoesNotExist", func(tt *testing.T) {
 		ctx := context.Background()
@@ -533,6 +763,110 @@ func TestValidateCreatePoolParams(t *testing.T) {
 		}
 		err := _validateCreatePoolParams(params)
 		assert.EqualError(t, err, "TotalIops must be greater than 1024 for Unified Flex Storage Pool")
+	})
+}
+
+func TestValidateUpdatePoolParams(t *testing.T) {
+	t.Run("Rejects changing qos type from manual to auto", func(tt *testing.T) {
+		pool := &datamodel.Pool{QosType: QosTypeAuto}
+		params := &common.UpdatePoolParams{
+			QosType:                  "Manual",
+			SizeInBytes:              minQuotaInBytesPool * 2,
+			CustomPerformanceEnabled: true,
+			TotalThroughputMibps:     float64(minCustomThroughput + 10),
+			TotalIops:                float64(minCustomIops + 100),
+		}
+		err := _validateUpdatePoolParams(params, pool)
+		assert.EqualError(tt, err, "Cannot change qos type from manual to auto")
+	})
+	t.Run("Returns error for pool size below minimum", func(tt *testing.T) {
+		pool := &datamodel.Pool{QosType: "Manual"}
+		params := &common.UpdatePoolParams{
+			QosType:                  "Manual",
+			SizeInBytes:              minQuotaInBytesPool - 1,
+			CustomPerformanceEnabled: true,
+			TotalThroughputMibps:     float64(minCustomThroughput + 10),
+			TotalIops:                float64(minCustomIops + 100),
+		}
+		expectedErr := fmt.Sprintf("Given pool size not supported. Pool size must be greater than %s and a multiple of 1GiB", utils.FmtUint64Bytes(minQuotaInBytesPool))
+		err := _validateUpdatePoolParams(params, pool)
+		assert.EqualError(tt, err, expectedErr)
+	})
+	t.Run("Returns error for pool size above maximum", func(tt *testing.T) {
+		pool := &datamodel.Pool{QosType: "Manual"}
+		params := &common.UpdatePoolParams{
+			QosType:                  "Manual",
+			SizeInBytes:              maxQuotaInBytesPool + 1,
+			CustomPerformanceEnabled: true,
+			TotalThroughputMibps:     float64(minCustomThroughput + 10),
+			TotalIops:                float64(minCustomIops + 100),
+		}
+		expectedErr := fmt.Sprintf("Given pool size not supported. Pool size must be less than %s", utils.FmtUint64Bytes(maxQuotaInBytesPool))
+		err := _validateUpdatePoolParams(params, pool)
+		assert.EqualError(tt, err, expectedErr)
+	})
+	t.Run("Returns error for pool size not multiple of granularity", func(tt *testing.T) {
+		pool := &datamodel.Pool{QosType: "Manual"}
+		// Add 1 to minimum quota to simulate a value that's not divisible by minSizeGranularity.
+		params := &common.UpdatePoolParams{
+			QosType:                  "Manual",
+			SizeInBytes:              minQuotaInBytesPool + 1,
+			CustomPerformanceEnabled: true,
+			TotalThroughputMibps:     float64(minCustomThroughput + 10),
+			TotalIops:                float64(minCustomIops + 100),
+		}
+		expectedErr := fmt.Sprintf("Given pool size must be a multiple of %s", utils.FmtUint64Bytes(minSizeGranularity))
+		err := _validateUpdatePoolParams(params, pool)
+		assert.EqualError(tt, err, expectedErr)
+	})
+	t.Run("Returns error when custom performance is disabled", func(tt *testing.T) {
+		pool := &datamodel.Pool{QosType: "Manual"}
+		params := &common.UpdatePoolParams{
+			QosType:                  "Manual",
+			SizeInBytes:              minQuotaInBytesPool * 2,
+			CustomPerformanceEnabled: false,
+		}
+		err := _validateUpdatePoolParams(params, pool)
+		assert.EqualError(tt, err, "CustomPerformanceEnabled must be true for Unified Flex Storage Pool")
+	})
+	t.Run("Returns error when throughput is below minimum", func(tt *testing.T) {
+		pool := &datamodel.Pool{QosType: "Manual"}
+		params := &common.UpdatePoolParams{
+			QosType:                  "Manual",
+			SizeInBytes:              minQuotaInBytesPool * 2,
+			CustomPerformanceEnabled: true,
+			TotalThroughputMibps:     float64(minCustomThroughput - 1),
+			TotalIops:                float64(minCustomIops + 100),
+		}
+		expectedErr := fmt.Sprintf("TotalThroughputMibps must be set and must be greater than %d MiBps for Unified Flex Storage Pool", minCustomThroughput)
+		err := _validateUpdatePoolParams(params, pool)
+		assert.EqualError(tt, err, expectedErr)
+	})
+	t.Run("Returns error when iops is below minimum", func(tt *testing.T) {
+		pool := &datamodel.Pool{QosType: "Manual"}
+		params := &common.UpdatePoolParams{
+			QosType:                  "Manual",
+			SizeInBytes:              minQuotaInBytesPool * 2,
+			CustomPerformanceEnabled: true,
+			TotalThroughputMibps:     float64(minCustomThroughput + 10),
+			TotalIops:                float64(minCustomIops - 1),
+		}
+		expectedErr := fmt.Sprintf("TotalIops must be greater than %d for Unified Flex Storage Pool", minCustomIops)
+		err := _validateUpdatePoolParams(params, pool)
+		assert.EqualError(tt, err, expectedErr)
+	})
+	t.Run("Succeeds with valid update parameters", func(tt *testing.T) {
+		pool := &datamodel.Pool{QosType: "Manual"}
+		// Use a valid size that is a multiple of minSizeGranularity. For this test, we assume that minQuotaInBytesPool*2 is valid.
+		params := &common.UpdatePoolParams{
+			QosType:                  "Manual",
+			SizeInBytes:              minQuotaInBytesPool * 2,
+			CustomPerformanceEnabled: true,
+			TotalThroughputMibps:     float64(minCustomThroughput + 10),
+			TotalIops:                float64(minCustomIops + 100),
+		}
+		err := _validateUpdatePoolParams(params, pool)
+		assert.NoError(tt, err)
 	})
 }
 

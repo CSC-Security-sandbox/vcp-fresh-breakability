@@ -80,6 +80,63 @@ func TestCreatePoolWorkflow(t *testing.T) {
 	env.AssertExpectations(t)
 }
 
+func TestUpdatePoolWorkflow(t *testing.T) {
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestWorkflowEnvironment()
+
+	// Setup context propagation and header values
+	env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+	encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{})
+	mockHeader := &commonpb.Header{
+		Fields: map[string]*commonpb.Payload{
+			"logParam": encodedValue,
+		},
+	}
+	env.SetHeader(mockHeader)
+
+	// Register required activities
+	env.RegisterActivity(&activities.CommonActivities{})
+	env.RegisterActivity(&activities.PoolActivity{})
+
+	// Setup test input data for update workflow.
+	params := &common.UpdatePoolParams{
+		AccountName:          "test-account",
+		PoolId:               "test-pool-id",
+		SizeInBytes:          2 * 1024 * 1024 * 1024 * 1024, // For example: 2 TB
+		TotalThroughputMibps: 128,
+		TotalIops:            2048,
+		QosType:              "Manual",
+		// Add other parameters as needed.
+	}
+	pool := &datamodel.Pool{
+		Username: "test-user",
+		Password: "test-password",
+		// Set additional fields if required.
+	}
+
+	// Register activity mocks.
+	// The UpdateJobStatus calls return nil.
+	env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).
+		Return(nil)
+	// The UpdatedPool activity is called within updatePoolWorkflow.Run.
+	env.OnActivity("UpdatedPool", mock.Anything, mock.Anything).
+		Return(nil)
+
+	// Execute the workflow.
+	env.ExecuteWorkflow(UpdatePoolWorkflow, params, pool)
+
+	// Optionally query workflow status.
+	_, err := env.QueryWorkflowByID("default-test-workflow-id", "status")
+	if err != nil {
+		t.Fatalf("Failed to query workflow: %v", err)
+	}
+
+	// Assert the workflow has completed successfully.
+	assert.True(t, env.IsWorkflowCompleted())
+	assert.NoError(t, env.GetWorkflowError())
+	env.AssertExpectations(t)
+}
+
 func TestDeletePoolWorkflow(t *testing.T) {
 	var ts testsuite.WorkflowTestSuite
 	env := ts.NewTestWorkflowEnvironment()

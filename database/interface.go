@@ -52,7 +52,8 @@ type (
 type DataStore interface {
 	CreatedPool(ctx context.Context, pool *datamodel.Pool) (*datamodel.Pool, error)
 	CreatingPool(ctx context.Context, pool *datamodel.Pool) (*datamodel.Pool, error)
-	UpdatePool(ctx context.Context, pool *datamodel.Pool) error
+	UpdatingPool(ctx context.Context, pool *datamodel.Pool) (*datamodel.Pool, error)
+	UpdatedPool(ctx context.Context, pool *datamodel.Pool) (*datamodel.Pool, error)
 	DeletePool(ctx context.Context, pool *datamodel.Pool) error
 	DeletingPool(ctx context.Context, pool *datamodel.Pool) error
 	GetPool(ctx context.Context, poolUUID string, accountID int64) (*datamodel.PoolView, error)
