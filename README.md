@@ -44,7 +44,7 @@ The code is organized into the following directories:
 
 ##### 1. Update Environment Variables in Google Proxy Deployment File
 
-Modify the `worker/kubernetes/deployment.yaml` file to include the following environment variables:
+Modify the `google-proxy/kubernetes/deployment.yaml` and `worker/kubernetes/deployment.yaml` file to include the following environment variables:
 
 ```yaml
 - name: VSA_NODE_PASSWORD

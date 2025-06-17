@@ -68,3 +68,7 @@ spec:
               value: "australia-southeast1"
             - name: SETUP_NW_HEARTBEAT_TIMEOUT_SEC
               value: "300"
+            - name: VSA_NODE_PASSWORD
+              value: <vsa_node_password_here>
+            - name: VSA_NODE_USERNAME
+              value: <vsa_node_username_here>
