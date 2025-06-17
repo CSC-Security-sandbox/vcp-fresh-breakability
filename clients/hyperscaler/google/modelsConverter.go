@@ -47,6 +47,17 @@ func convertGoogleSubnetToSubnet(subnet *compute.Subnetwork) *models.Subnet {
 	}
 }
 
+func convertGoogleSubnetsToSubnets(subnets *compute.SubnetworkList) *[]models.Subnet {
+	if subnets == nil {
+		return nil
+	}
+	returnSubnets := make([]models.Subnet, len(subnets.Items))
+	for i, subnet := range subnets.Items {
+		returnSubnets[i] = *convertGoogleSubnetToSubnet(subnet)
+	}
+	return &returnSubnets
+}
+
 func convertSubnetToGoogleSubnet(subnet *models.Subnet) *compute.Subnetwork {
 	if subnet == nil {
 		return nil

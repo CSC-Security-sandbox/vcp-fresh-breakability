@@ -1441,3 +1441,80 @@ func TestReleaseSubnetwork(t *testing.T) {
 		}
 	})
 }
+
+// Unit tests for ListSubnetwork
+func Test_ListSubnetwork(t *testing.T) {
+	projectName := "test-project"
+	region := "us-central1"
+	url := fmt.Sprintf("/projects/%s/regions/%s/subnetworks", projectName, region)
+
+	t.Run("WhenListSubnetworkFails", func(tt *testing.T) {
+		ctx := context.Background()
+		server := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
+			if req.Method == http.MethodGet && req.URL.Path == url {
+				rw.WriteHeader(http.StatusInternalServerError)
+				return
+			}
+			rw.WriteHeader(http.StatusBadRequest)
+		}))
+		defer server.Close()
+
+		computeSvc, err := compute.NewService(
+			ctx, option.WithHTTPClient(&http.Client{Timeout: time.Second}), option.WithEndpoint(server.URL))
+		if err != nil {
+			tt.Fatalf("Failed to create compute service: %v", err)
+		}
+
+		gService := &GcpServices{
+			AdminGCPService: &AdminGCPService{
+				computeService: computeSvc,
+			},
+			Ctx:    ctx,
+			Logger: util.GetLogger(ctx),
+			Retry:  NewExponentialRetryStrategy(time.Millisecond, 3),
+		}
+
+		_, err = gService.ListSubnetwork(projectName, region)
+		if err == nil {
+			tt.Error("Expected an error but got none")
+		}
+	})
+
+	t.Run("WhenListSubnetworkSucceeds", func(tt *testing.T) {
+		ctx := context.Background()
+		resp := &compute.Subnetwork{Name: "test-subnet"}
+		server := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
+			if req.Method == http.MethodGet && req.URL.Path == url {
+				response, _ := json.Marshal(&compute.SubnetworkList{Items: []*compute.Subnetwork{resp}})
+				rw.WriteHeader(http.StatusOK)
+				_, _ = rw.Write(response)
+				return
+			}
+			rw.WriteHeader(http.StatusBadRequest)
+		}))
+		defer server.Close()
+
+		computeSvc, err := compute.NewService(
+			ctx, option.WithHTTPClient(&http.Client{Timeout: time.Second}), option.WithEndpoint(server.URL))
+		if err != nil {
+			tt.Fatalf("Failed to create compute service: %v", err)
+		}
+
+		gService := &GcpServices{
+			AdminGCPService: &AdminGCPService{
+				computeService: computeSvc,
+			},
+			Ctx:    ctx,
+			Logger: util.GetLogger(ctx),
+			Retry:  NewExponentialRetryStrategy(time.Millisecond, 3),
+		}
+
+		out, err := gService.ListSubnetwork(projectName, region)
+		if err != nil {
+			tt.Errorf("Unexpected error: %v", err)
+		}
+		if out == nil || len(*out) != 1 || (*out)[0].Name != "test-subnet" {
+			tt.Errorf("Unexpected subnetwork list: %+v", out)
+		}
+	})
+}
