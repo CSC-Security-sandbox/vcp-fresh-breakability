@@ -35,7 +35,11 @@ func ReleaseFunc() {
 		log.Printf("Failed to fetch tags: %v", errFetch)
 		return
 	}
-	CurrentTag := FetchDevTag()
+	CurrentTag := FetchTag("2*-DEV.*")
+	if CurrentTag == "" {
+		log.Println("No current DEV tag found, exiting.")
+		return
+	}
 	sprint := strings.Split(CurrentTag, ".")[0]
 	log.Printf("Checking if branch exists for release --> %s\n", sprint)
 
@@ -81,6 +85,9 @@ func ReleaseFunc() {
 		if _, errWrite := file.WriteString(fmt.Sprintf("RC_TAG=%s\n", rcTag)); errWrite != nil {
 			log.Fatalf("Error writing RC_TAG: %v", errWrite)
 		}
+		if _, errWrite := file.WriteString(fmt.Sprintf("RC_BRANCH=%s\n", latestSprintBranch)); errWrite != nil {
+			log.Fatalf("Error writing RC_BRANCH: %v", errWrite)
+		}
 	} else {
 		log.Printf("Branch exists")
 	}
@@ -100,5 +107,8 @@ func DevTagCreation(currTag string, file *os.File) {
 	}
 	if _, errWrite := file.WriteString(fmt.Sprintf("DEV_TAG=%s\n", devTag)); errWrite != nil {
 		log.Fatalf("Error writing DEV_TAG: %v", errWrite)
+	}
+	if _, errWrite := file.WriteString(fmt.Sprintf("DEV_BRANCH=%s\n", "main")); errWrite != nil {
+		log.Fatalf("Error writing DEV_BRANCH: %v", errWrite)
 	}
 }

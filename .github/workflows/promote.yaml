@@ -9,9 +9,9 @@ jobs:
       actions: read
       packages: write
 
-    runs-on: [ cvs-u24-sunilt-01 ,linux ]
+    runs-on: [ self-hosted ,linux ]
     container:
-      image: ghcr.io/vcp-vsa-control-plane/vsacictl:v22
+      image: ghcr.io/vcp-vsa-control-plane/vsacictl:v28
       options: --user root
 
     steps:
@@ -45,8 +45,13 @@ jobs:
           GH_PAT: ${{ secrets.GHVSA_PAT }}
           GITHUB_OUTPUT: $GITHUB_ENV
 
+      - name: Output printout
+        run: |
+          echo "FINAL_TAG=${{ steps.promotional_logic_binary.outputs.FINAL_TAG }}"
+
     outputs:
       finalTag: ${{ steps.promotional_logic_binary.outputs.FINAL_TAG }}
+      finalBranch: ${{ steps.promotional_logic_binary.outputs.FINAL_BRANCH }}
 
   create_release_vsa_promotional:
     needs: final_tagging
@@ -56,3 +61,4 @@ jobs:
       pre_release: false
       tag: ${{ needs.final_tagging.outputs.finalTag }}
       component_update: false
+      pr_base_branch: ${{ needs.final_tagging.outputs.finalBranch }}

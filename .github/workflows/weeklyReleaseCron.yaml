@@ -13,9 +13,9 @@ jobs:
       actions: read
       packages: write
 
-    runs-on: [ cvs-u24-sunilt-01 ,linux ]
+    runs-on: [ self-hosted ,linux ]
     container:
-      image: ghcr.io/vcp-vsa-control-plane/vsacictl:v22
+      image: ghcr.io/vcp-vsa-control-plane/vsacictl:v28
       options: --user root
 
     steps:
@@ -53,10 +53,14 @@ jobs:
         run: |
           echo "RC_TAG=${{ steps.release_logic_binary.outputs.RC_TAG }}" 
           echo "DEV_TAG=${{ steps.release_logic_binary.outputs.DEV_TAG }}" 
+          echo "RC_BRANCH=${{ steps.release_logic_binary.outputs.RC_BRANCH }}"
+          echo "DEV_BRANCH=${{ steps.release_logic_binary.outputs.DEV_BRANCH }}"
 
     outputs:
       rcTAG: ${{ steps.release_logic_binary.outputs.RC_TAG }}
       devTAG: ${{ steps.release_logic_binary.outputs.DEV_TAG }}
+      rcBranch: ${{ steps.release_logic_binary.outputs.RC_BRANCH }}
+      devBranch: ${{ steps.release_logic_binary.outputs.DEV_BRANCH }}
 
   create_release_vsa_rc:
     needs: [release_branch]
@@ -65,6 +69,7 @@ jobs:
     with:
       pre_release: true
       tag: ${{ needs.release_branch.outputs.rcTAG }}
+      pr_base_branch: ${{ needs.release_branch.outputs.rcBranch }}
 
   create_release_vsa_dev:
     needs: [release_branch]
@@ -73,3 +78,4 @@ jobs:
     with:
       pre_release: true
       tag: ${{ needs.release_branch.outputs.devTAG }}
+      pr_base_branch: ${{ needs.release_branch.outputs.devBranch }}

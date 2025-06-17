@@ -6,6 +6,7 @@ import (
 	"log"
 	"os"
 	"os/exec"
+	"strconv"
 	"strings"
 	"time"
 
@@ -13,8 +14,9 @@ import (
 )
 
 type SetupConfig struct {
-	BaseRelease  string `yaml:"base_tag"`
-	FinalRelease string `yaml:"target_tag"`
+	BaseRelease   string `yaml:"base_tag"`
+	FinalRelease  string `yaml:"target_tag"`
+	OperationType string `yaml:"operation_type"`
 }
 
 var SetupConfigobject SetupConfig
@@ -123,27 +125,7 @@ func FetchReleaseBranch(BranchName string) (string, error) {
 	return branch, nil
 }
 
-func ReleaseGithub(preRelease bool, tagName string) {
-	repo := os.Getenv("GITHUB_REPOSITORY")
-	token := os.Getenv("GH_PAT")
-	cmdArgs := []string{"release", "create", "-R", fmt.Sprintf("https://github.com/%s", repo), "--generate-notes"}
-	if preRelease == true {
-		cmdArgs = append(cmdArgs, "--prerelease")
-	}
-	cmdArgs = append(cmdArgs, tagName)
-	cmd := exec.Command("gh", cmdArgs...)
-	cmd.Env = append(os.Environ(), fmt.Sprintf("GITHUB_TOKEN=%s", token))
-	output, err := cmd.CombinedOutput()
-	if err != nil {
-		log.Printf("Error: %v\n", err)
-		log.Printf("Output: %s\n", string(output))
-		return
-	}
-	log.Println("Release created successfully!")
-}
-
-func FetchDevTag() string {
-	tagPattern := "2*-DEV.*"
+func FetchTag(tagPattern string) string {
 	cmd := exec.Command("git", "tag", "-l", "--sort=-v:refname", tagPattern)
 	output, err := cmd.Output()
 	if err != nil {
@@ -152,8 +134,8 @@ func FetchDevTag() string {
 	}
 	tags := strings.Split(strings.TrimSpace(string(output)), "\n")
 	if len(tags) == 0 || tags[0] == "" {
-		log.Printf("No tags found matching the pattern:", tagPattern)
-		os.Exit(0)
+		log.Printf("No tags found matching the pattern: %s", tagPattern)
+		return ""
 	}
 	return tags[0]
 }
@@ -165,4 +147,33 @@ func NewSprintName() string {
 	currMonth := fmt.Sprintf("%02d", currentDate.Month())
 	output := currYear + currMonth + weekNumber
 	return output
+}
+
+func CheckForHFfinalName() bool {
+	obj := SetupConfigobject
+
+	if len(obj.BaseRelease) != 9 {
+		log.Printf("HF base name %s is not valid, should be 9 characters long.\n", obj.BaseRelease)
+		return false
+	}
+
+	num, err := strconv.Atoi(string(obj.BaseRelease[8]))
+	if err != nil {
+		log.Printf("HF base name %s is not a valid number: %v\n", obj.BaseRelease, err)
+		return false
+	}
+
+	finalNum, errFinal := strconv.Atoi(string(obj.FinalRelease[8]))
+	if errFinal != nil {
+		log.Printf("HF final name %s is not a valid number: %v\n", obj.FinalRelease, errFinal)
+		return false
+	}
+
+	if finalNum != num+1 {
+		log.Printf("HF final name %s is not valid, should be one greater than base release %s.\n", obj.FinalRelease, obj.BaseRelease)
+		return false
+	} else {
+		log.Printf("HF final name %s is valid, should be one greater than base release %s.\n", obj.FinalRelease, obj.BaseRelease)
+		return true
+	}
 }
