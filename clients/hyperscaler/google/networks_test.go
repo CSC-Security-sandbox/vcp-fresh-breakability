@@ -1295,7 +1295,7 @@ func Test_insertFirewall(t *testing.T) {
 func TestReleaseSubnetwork(t *testing.T) {
 	ctx := context.Background()
 	region := "us-central1"
-	tenantProjectNumber := "test-project"
+	snhost := "test-project"
 	subnetwork := "test-subnet"
 	deleteUrl := "/projects/test-project/regions/us-central1/subnetworks/test-subnet"
 
@@ -1331,7 +1331,7 @@ func TestReleaseSubnetwork(t *testing.T) {
 			Logger: util.GetLogger(ctx),
 		}
 
-		err = gService.ReleaseSubnetwork(region, tenantProjectNumber, subnetwork)
+		err = gService.ReleaseSubnetwork(region, snhost, subnetwork)
 		if err != nil {
 			tt.Errorf("Unexpected error: %v", err)
 		}
@@ -1362,7 +1362,7 @@ func TestReleaseSubnetwork(t *testing.T) {
 			Logger: util.GetLogger(ctx),
 		}
 
-		err = gService.ReleaseSubnetwork(region, tenantProjectNumber, subnetwork)
+		err = gService.ReleaseSubnetwork(region, snhost, subnetwork)
 		if err == nil || !strings.Contains(err.Error(), "internal error") {
 			tt.Errorf("Expected internal error, got: %v", err)
 		}
@@ -1394,7 +1394,7 @@ func TestReleaseSubnetwork(t *testing.T) {
 			Ctx:    ctx,
 			Logger: util.GetLogger(ctx),
 		}
-		err = gService.ReleaseSubnetwork(region, tenantProjectNumber, subnetwork)
+		err = gService.ReleaseSubnetwork(region, snhost, subnetwork)
 		if err == nil || (!strings.Contains(err.Error(), "notFound") && !strings.Contains(err.Error(), "not found")) {
 			tt.Errorf("Expected notFound error, got: %v", err)
 		}
@@ -1418,7 +1418,7 @@ func TestReleaseSubnetwork(t *testing.T) {
 		}
 		defer func() { waitForComputeOperation = origDelete }()
 		gService := &GcpServices{AdminGCPService: &AdminGCPService{computeService: computeSvc}, Ctx: ctx, Logger: util.GetLogger(ctx)}
-		err = gService.ReleaseSubnetwork(region, tenantProjectNumber, subnetwork)
+		err = gService.ReleaseSubnetwork(region, snhost, subnetwork)
 		if err == nil || !strings.Contains(err.Error(), "wait operation failed") {
 			tt.Errorf("Expected wait operation failed error, got: %v", err)
 		}
@@ -1515,6 +1515,186 @@ func Test_ListSubnetwork(t *testing.T) {
 		}
 		if out == nil || len(*out) != 1 || (*out)[0].Name != "test-subnet" {
 			tt.Errorf("Unexpected subnetwork list: %+v", out)
+		}
+	})
+}
+
+func Test_GetSnHost(t *testing.T) {
+	t.Run("WhenGetSnHostFails", func(tt *testing.T) {
+		defer testReset(tt)
+		ctx := context.Background()
+		projectName := "1079058383248"
+		url := fmt.Sprintf("/projects/%s/getXpnHost", projectName)
+		counter := 0
+		server := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
+			if counter == 0 {
+				counter = 1
+				rw.WriteHeader(http.StatusInternalServerError)
+				return
+			}
+			if req.URL.Path == url {
+				rw.WriteHeader(http.StatusBadRequest)
+				return
+			}
+		}))
+		computeSvc, err := compute.NewService(
+			ctx, option.WithHTTPClient(&http.Client{Timeout: time.Second}), option.WithEndpoint(server.URL))
+		if err != nil {
+			t.Errorf("Error getting service up: '%s'", err.Error())
+		}
+
+		gService := &GcpServices{
+			AdminGCPService: &AdminGCPService{
+				computeService: computeSvc,
+			},
+			Logger: util.GetLogger(ctx),
+			Retry:  NewExponentialRetryStrategy(time.Millisecond, 3),
+		}
+		_, err = gService.GetSnHost(projectName)
+		if err == nil {
+			tt.Error("Expected an error but got nothing")
+		} else {
+			if !strings.Contains(err.Error(), "googleapi: got HTTP response code 400 with body") {
+				tt.Errorf("Unexpected error: %s", err.Error())
+			}
+		}
+	})
+	t.Run("WhenGetSnHostNotFound", func(tt *testing.T) {
+		defer testReset(tt)
+		ctx := context.Background()
+		projectName := "1079058383248"
+		url := fmt.Sprintf("/projects/%s/getXpnHost", projectName)
+		counter := 0
+		server := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
+			if counter == 0 {
+				counter = 1
+				rw.WriteHeader(http.StatusInternalServerError)
+				return
+			}
+			if req.URL.Path == url {
+				rw.WriteHeader(http.StatusNotFound)
+				_, _ = rw.Write([]byte(`{"error": {"message": "notFound"}}`))
+				return
+			}
+		}))
+		computeSvc, err := compute.NewService(
+			ctx, option.WithHTTPClient(&http.Client{Timeout: time.Second}), option.WithEndpoint(server.URL))
+		if err != nil {
+			t.Errorf("Error getting service up: '%s'", err.Error())
+		}
+
+		gService := &GcpServices{
+			AdminGCPService: &AdminGCPService{
+				computeService: computeSvc,
+			},
+			Logger: util.GetLogger(ctx),
+			Retry:  NewExponentialRetryStrategy(time.Millisecond, 3),
+		}
+		_, err = gService.GetSnHost(projectName)
+		if err == nil {
+			tt.Error("Expected an error but got nothing")
+		} else {
+			if !strings.Contains(err.Error(), "not found") {
+				tt.Errorf("Unexpected error: %s", err.Error())
+			}
+		}
+	})
+
+	t.Run("WhenSnHostEmpty", func(tt *testing.T) {
+		defer testReset(tt)
+		ctx := context.Background()
+		projectName := "1079058383248"
+		url := fmt.Sprintf("/projects/%s/getXpnHost", projectName)
+		counter := 0
+		resp := &compute.Project{Name: ""}
+		server := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
+			if counter == 0 {
+				counter = 1
+				rw.WriteHeader(http.StatusInternalServerError)
+				return
+			}
+			if req.URL.Path == url {
+				response, err := json.Marshal(resp)
+				if err != nil {
+					rw.WriteHeader(http.StatusBadRequest)
+					return
+				}
+				_, _ = rw.Write(response)
+				return
+			}
+			rw.WriteHeader(http.StatusBadRequest)
+		}))
+		computeSvc, err := compute.NewService(
+			ctx, option.WithHTTPClient(&http.Client{Timeout: time.Second}), option.WithEndpoint(server.URL))
+		if err != nil {
+			t.Errorf("Error getting service up: '%s'", err.Error())
+		}
+
+		gService := &GcpServices{
+			AdminGCPService: &AdminGCPService{
+				computeService: computeSvc,
+			},
+			Ctx:    ctx,
+			Logger: util.GetLogger(ctx),
+			Retry:  NewExponentialRetryStrategy(time.Millisecond, 3),
+		}
+		_, err = gService.GetSnHost(projectName)
+		if err == nil {
+			tt.Error("Expected an error but got nothing")
+		} else {
+			if !strings.Contains(err.Error(), "SN Producer Host Project") {
+				tt.Errorf("Unexpected error: %s", err.Error())
+			}
+		}
+	})
+	t.Run("WhenSuccess", func(tt *testing.T) {
+		defer testReset(tt)
+		ctx := context.Background()
+		projectName := "1079058383248"
+		url := fmt.Sprintf("/projects/%s/getXpnHost", projectName)
+		counter := 0
+		resp := &compute.Project{Name: "sn-host-project"}
+		server := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
+			if counter == 0 {
+				counter = 1
+				rw.WriteHeader(http.StatusInternalServerError)
+				return
+			}
+			if req.URL.Path == url {
+				response, err := json.Marshal(resp)
+				if err != nil {
+					rw.WriteHeader(http.StatusBadRequest)
+					return
+				}
+				_, _ = rw.Write(response)
+				return
+			}
+			rw.WriteHeader(http.StatusBadRequest)
+		}))
+		computeSvc, err := compute.NewService(
+			ctx, option.WithHTTPClient(&http.Client{Timeout: time.Second}), option.WithEndpoint(server.URL))
+		if err != nil {
+			t.Errorf("Error getting service up: '%s'", err.Error())
+		}
+
+		gService := &GcpServices{
+			AdminGCPService: &AdminGCPService{
+				computeService: computeSvc,
+			},
+			Ctx:    ctx,
+			Logger: util.GetLogger(ctx),
+			Retry:  NewExponentialRetryStrategy(time.Millisecond, 3),
+		}
+		out, err := gService.GetSnHost(projectName)
+		if err != nil {
+			tt.Errorf("Unexpected error: %s", err.Error())
+		} else {
+			if out == "" {
+				tt.Errorf("Output unexpectedly nil")
+			}
+			if gService.Retry.GetRetryCount() != 0 {
+				tt.Errorf("RetryStrategy was not reset %d", gService.Retry.GetRetryCount())
+			}
 		}
 	})
 }

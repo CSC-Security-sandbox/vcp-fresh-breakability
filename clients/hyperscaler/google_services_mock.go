@@ -592,6 +592,62 @@ func (_c *MockGoogleServices_GetServiceAccount_Call) RunAndReturn(run func(strin
 	return _c
 }
 
+// GetSnHost provides a mock function with given fields: project
+func (_m *MockGoogleServices) GetSnHost(project string) (string, error) {
+	ret := _m.Called(project)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetSnHost")
+	}
+
+	var r0 string
+	var r1 error
+	if rf, ok := ret.Get(0).(func(string) (string, error)); ok {
+		return rf(project)
+	}
+	if rf, ok := ret.Get(0).(func(string) string); ok {
+		r0 = rf(project)
+	} else {
+		r0 = ret.Get(0).(string)
+	}
+
+	if rf, ok := ret.Get(1).(func(string) error); ok {
+		r1 = rf(project)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockGoogleServices_GetSnHost_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetSnHost'
+type MockGoogleServices_GetSnHost_Call struct {
+	*mock.Call
+}
+
+// GetSnHost is a helper method to define mock.On call
+//   - project string
+func (_e *MockGoogleServices_Expecter) GetSnHost(project interface{}) *MockGoogleServices_GetSnHost_Call {
+	return &MockGoogleServices_GetSnHost_Call{Call: _e.mock.On("GetSnHost", project)}
+}
+
+func (_c *MockGoogleServices_GetSnHost_Call) Run(run func(project string)) *MockGoogleServices_GetSnHost_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(string))
+	})
+	return _c
+}
+
+func (_c *MockGoogleServices_GetSnHost_Call) Return(_a0 string, _a1 error) *MockGoogleServices_GetSnHost_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockGoogleServices_GetSnHost_Call) RunAndReturn(run func(string) (string, error)) *MockGoogleServices_GetSnHost_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // GetSubnetwork provides a mock function with given fields: projectName, region, subnetName
 func (_m *MockGoogleServices) GetSubnetwork(projectName string, region string, subnetName string) (*models.Subnet, error) {
 	ret := _m.Called(projectName, region, subnetName)
@@ -970,9 +1026,9 @@ func (_c *MockGoogleServices_IsServiceAccountCreated_Call) RunAndReturn(run func
 	return _c
 }
 
-// ReleaseSubnetwork provides a mock function with given fields: region, tenantProjectNumber, subnetwork
-func (_m *MockGoogleServices) ReleaseSubnetwork(region string, tenantProjectNumber string, subnetwork string) error {
-	ret := _m.Called(region, tenantProjectNumber, subnetwork)
+// ReleaseSubnetwork provides a mock function with given fields: region, projectNumber, subnetwork
+func (_m *MockGoogleServices) ReleaseSubnetwork(region string, projectNumber string, subnetwork string) error {
+	ret := _m.Called(region, projectNumber, subnetwork)
 
 	if len(ret) == 0 {
 		panic("no return value specified for ReleaseSubnetwork")
@@ -980,7 +1036,7 @@ func (_m *MockGoogleServices) ReleaseSubnetwork(region string, tenantProjectNumb
 
 	var r0 error
 	if rf, ok := ret.Get(0).(func(string, string, string) error); ok {
-		r0 = rf(region, tenantProjectNumber, subnetwork)
+		r0 = rf(region, projectNumber, subnetwork)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -995,13 +1051,13 @@ type MockGoogleServices_ReleaseSubnetwork_Call struct {
 
 // ReleaseSubnetwork is a helper method to define mock.On call
 //   - region string
-//   - tenantProjectNumber string
+//   - projectNumber string
 //   - subnetwork string
-func (_e *MockGoogleServices_Expecter) ReleaseSubnetwork(region interface{}, tenantProjectNumber interface{}, subnetwork interface{}) *MockGoogleServices_ReleaseSubnetwork_Call {
-	return &MockGoogleServices_ReleaseSubnetwork_Call{Call: _e.mock.On("ReleaseSubnetwork", region, tenantProjectNumber, subnetwork)}
+func (_e *MockGoogleServices_Expecter) ReleaseSubnetwork(region interface{}, projectNumber interface{}, subnetwork interface{}) *MockGoogleServices_ReleaseSubnetwork_Call {
+	return &MockGoogleServices_ReleaseSubnetwork_Call{Call: _e.mock.On("ReleaseSubnetwork", region, projectNumber, subnetwork)}
 }
 
-func (_c *MockGoogleServices_ReleaseSubnetwork_Call) Run(run func(region string, tenantProjectNumber string, subnetwork string)) *MockGoogleServices_ReleaseSubnetwork_Call {
+func (_c *MockGoogleServices_ReleaseSubnetwork_Call) Run(run func(region string, projectNumber string, subnetwork string)) *MockGoogleServices_ReleaseSubnetwork_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		run(args[0].(string), args[1].(string), args[2].(string))
 	})

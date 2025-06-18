@@ -245,7 +245,17 @@ func Test_FindTenancyAndGetSubnetwork(t *testing.T) {
 	snHostProject := "1234321"
 	tenantProjectRegion := "us-central1"
 	logger := util.GetLogger(ctx)
+	snhostSubnetName := "vsa-us-central1"
 
+	t.Run("WhenRegionNil", func(tt *testing.T) {
+		mgs := hyperscaler.NewMockGoogleServices(tt)
+		mgs.On("GetLogger").Return(logger)
+		mgs.On("GetTenantProject", consumerVPC, customerProjectNumber, "").Return("", errors.New("Error finding tenancy unit"))
+
+		tenancyInfo, err := activities.FindTenancyAndGetSubnetwork(ctx, mgs, consumerVPC, customerProjectNumber, nil)
+		assert.Error(tt, err)
+		assert.Nil(tt, tenancyInfo)
+	})
 	t.Run("WhenGetTenantProjectFails", func(tt *testing.T) {
 		mgs := hyperscaler.NewMockGoogleServices(tt)
 		mgs.On("GetLogger").Return(logger)
@@ -255,10 +265,35 @@ func Test_FindTenancyAndGetSubnetwork(t *testing.T) {
 		assert.Error(tt, err)
 		assert.Nil(tt, tenancyInfo)
 	})
+	t.Run("WhenGetSnHostFails", func(tt *testing.T) {
+		mgs := hyperscaler.NewMockGoogleServices(t)
+		mgs.On("GetLogger").Return(logger)
+		mgs.On("GetTenantProject", consumerVPC, customerProjectNumber, tenantProjectRegion).Return(tenantProjectNumber, nil)
+		mgs.On("GetSnHost", tenantProjectNumber).Return("", errors.New("Error getting sn host"))
+
+		tenancyInfo, err := activities.FindTenancyAndGetSubnetwork(ctx, mgs, consumerVPC, customerProjectNumber, &tenantProjectRegion)
+		assert.Error(tt, err)
+		assert.Nil(tt, tenancyInfo)
+	})
+	t.Run("WhenGetSnHostNotFoundAndSuccess", func(tt *testing.T) {
+		mgs := hyperscaler.NewMockGoogleServices(t)
+		mgs.On("GetLogger").Return(logger)
+		mgs.On("GetTenantProject", consumerVPC, customerProjectNumber, tenantProjectRegion).Return(tenantProjectNumber, nil)
+		mgs.On("GetSnHost", tenantProjectNumber).Return("", errors.New("Error getting sn host not found"))
+
+		mgs.On("CreateSubnetworkForTenantProject", tenantProjectNumber, consumerVPC, tenantProjectRegion).Return([]byte("{\"Name\": \"vsa-us-central1\", \"Network\": \"projects/1234321/global/networks/host-network\"}"), nil)
+		mgs.On("GetSubnetwork", snHostProject, tenantProjectRegion, snhostSubnetName).Return(&models.Subnet{Name: snhostSubnetName, Network: "projects/1234321/global/networks/host-network", GatewayAddress: "10.0.0.3"}, nil).Once()
+
+		tenancyInfo, err := activities.FindTenancyAndGetSubnetwork(ctx, mgs, consumerVPC, customerProjectNumber, &tenantProjectRegion)
+		assert.Nil(tt, err)
+		assert.NotNil(tt, tenancyInfo)
+	})
 	t.Run("WhenGetSubnetworkFails", func(tt *testing.T) {
 		mgs := hyperscaler.NewMockGoogleServices(t)
+		mgs.On("GetLogger").Return(logger)
 		mgs.On("GetTenantProject", consumerVPC, customerProjectNumber, tenantProjectRegion).Return(tenantProjectNumber, nil)
-		mgs.On("GetSubnetwork", tenantProjectNumber, tenantProjectRegion, "vsa-us-central1").Return(nil, errors.New("Error getting subnetwork"))
+		mgs.On("GetSnHost", tenantProjectNumber).Return(snHostProject, nil)
+		mgs.On("GetSubnetwork", snHostProject, tenantProjectRegion, snhostSubnetName).Return(nil, errors.New("Error getting subnetwork"))
 
 		tenancyInfo, err := activities.FindTenancyAndGetSubnetwork(ctx, mgs, consumerVPC, customerProjectNumber, &tenantProjectRegion)
 		assert.Error(tt, err)
@@ -268,17 +303,19 @@ func Test_FindTenancyAndGetSubnetwork(t *testing.T) {
 		mgs := hyperscaler.NewMockGoogleServices(t)
 		mgs.On("GetTenantProject", consumerVPC, customerProjectNumber, tenantProjectRegion).Return(tenantProjectNumber, nil)
 		mgs.On("GetLogger").Return(logger)
-		mgs.On("GetSubnetwork", tenantProjectNumber, tenantProjectRegion, "vsa-us-central1").Return(&models.Subnet{Name: "vsa-us-central1"}, nil)
+		mgs.On("GetSnHost", tenantProjectNumber).Return(snHostProject, nil)
+		mgs.On("GetSubnetwork", snHostProject, tenantProjectRegion, snhostSubnetName).Return(&models.Subnet{Name: snhostSubnetName}, nil)
 
 		tenancyInfo, err := activities.FindTenancyAndGetSubnetwork(ctx, mgs, consumerVPC, customerProjectNumber, &tenantProjectRegion)
 		assert.NoError(tt, err)
-		assert.Nil(tt, tenancyInfo)
+		assert.NotEqual(tt, tenancyInfo.SnHostProject, snhostSubnetName)
 	})
 	t.Run("WhenCreateSubnetworkForTenantProjectFails", func(tt *testing.T) {
 		mgs := hyperscaler.NewMockGoogleServices(t)
 		mgs.On("GetTenantProject", consumerVPC, customerProjectNumber, tenantProjectRegion).Return(tenantProjectNumber, nil)
 		mgs.On("GetLogger").Return(logger)
-		mgs.On("GetSubnetwork", tenantProjectNumber, tenantProjectRegion, "vsa-us-central1").Return(nil, errors.New("Subnetwork not found"))
+		mgs.On("GetSnHost", tenantProjectNumber).Return(snHostProject, nil)
+		mgs.On("GetSubnetwork", snHostProject, tenantProjectRegion, snhostSubnetName).Return(nil, errors.New("Subnetwork not found"))
 		mgs.On("CreateSubnetworkForTenantProject", tenantProjectNumber, consumerVPC, tenantProjectRegion).Return(nil, errors.New("Error creating subnetwork"))
 
 		tenancyInfo, err := activities.FindTenancyAndGetSubnetwork(ctx, mgs, consumerVPC, customerProjectNumber, &tenantProjectRegion)
@@ -289,7 +326,8 @@ func Test_FindTenancyAndGetSubnetwork(t *testing.T) {
 		mgs := hyperscaler.NewMockGoogleServices(t)
 		mgs.On("GetTenantProject", consumerVPC, customerProjectNumber, tenantProjectRegion).Return(tenantProjectNumber, nil)
 		mgs.On("GetLogger").Return(logger)
-		mgs.On("GetSubnetwork", tenantProjectNumber, tenantProjectRegion, "vsa-us-central1").Return(nil, errors.New("Subnetwork not found"))
+		mgs.On("GetSnHost", tenantProjectNumber).Return(snHostProject, nil)
+		mgs.On("GetSubnetwork", snHostProject, tenantProjectRegion, snhostSubnetName).Return(nil, errors.New("Subnetwork not found"))
 		mgs.On("CreateSubnetworkForTenantProject", tenantProjectNumber, consumerVPC, tenantProjectRegion).Return([]byte("Invalid Response"), nil)
 
 		tenancyInfo, err := activities.FindTenancyAndGetSubnetwork(ctx, mgs, consumerVPC, customerProjectNumber, &tenantProjectRegion)
@@ -300,7 +338,8 @@ func Test_FindTenancyAndGetSubnetwork(t *testing.T) {
 		mgs := hyperscaler.NewMockGoogleServices(t)
 		mgs.On("GetTenantProject", consumerVPC, customerProjectNumber, tenantProjectRegion).Return(tenantProjectNumber, nil)
 		mgs.On("GetLogger").Return(logger)
-		mgs.On("GetSubnetwork", tenantProjectNumber, tenantProjectRegion, "vsa-us-central1").Return(nil, errors.New("Subnetwork not found"))
+		mgs.On("GetSnHost", tenantProjectNumber).Return(snHostProject, nil)
+		mgs.On("GetSubnetwork", snHostProject, tenantProjectRegion, snhostSubnetName).Return(nil, errors.New("Subnetwork not found"))
 		mgs.On("CreateSubnetworkForTenantProject", tenantProjectNumber, consumerVPC, tenantProjectRegion).Return([]byte("{\"Network\": \"host-network\"}"), nil)
 
 		tenancyInfo, err := activities.FindTenancyAndGetSubnetwork(ctx, mgs, consumerVPC, customerProjectNumber, &tenantProjectRegion)
@@ -311,9 +350,10 @@ func Test_FindTenancyAndGetSubnetwork(t *testing.T) {
 		mgs := hyperscaler.NewMockGoogleServices(t)
 		mgs.On("GetTenantProject", consumerVPC, customerProjectNumber, tenantProjectRegion).Return(tenantProjectNumber, nil)
 		mgs.On("GetLogger").Return(logger)
-		mgs.On("GetSubnetwork", tenantProjectNumber, tenantProjectRegion, "vsa-us-central1").Return(nil, errors.New("Subnetwork not found")).Once()
-		mgs.On("CreateSubnetworkForTenantProject", tenantProjectNumber, consumerVPC, tenantProjectRegion).Return([]byte("{\"Name\": \"test-subnet\", \"Network\": \"projects/1234321/global/networks/host-network\"}"), nil)
-		mgs.On("GetSubnetwork", snHostProject, tenantProjectRegion, "test-subnet").Return(nil, errors.New("Error getting subnetwork")).Once()
+		mgs.On("GetSnHost", tenantProjectNumber).Return(snHostProject, nil)
+		mgs.On("GetSubnetwork", snHostProject, tenantProjectRegion, snhostSubnetName).Return(nil, errors.New("Subnetwork not found")).Once()
+		mgs.On("CreateSubnetworkForTenantProject", tenantProjectNumber, consumerVPC, tenantProjectRegion).Return([]byte("{\"Name\": \"vsa-us-central1\", \"Network\": \"projects/1234321/global/networks/host-network\"}"), nil)
+		mgs.On("GetSubnetwork", snHostProject, tenantProjectRegion, snhostSubnetName).Return(nil, errors.New("Error getting subnetwork")).Once()
 
 		tenancyInfo, err := activities.FindTenancyAndGetSubnetwork(ctx, mgs, consumerVPC, customerProjectNumber, &tenantProjectRegion)
 		assert.Error(tt, err)
@@ -323,9 +363,10 @@ func Test_FindTenancyAndGetSubnetwork(t *testing.T) {
 		mgs := hyperscaler.NewMockGoogleServices(t)
 		mgs.On("GetTenantProject", consumerVPC, customerProjectNumber, tenantProjectRegion).Return(tenantProjectNumber, nil)
 		mgs.On("GetLogger").Return(logger)
-		mgs.On("GetSubnetwork", tenantProjectNumber, tenantProjectRegion, "vsa-us-central1").Return(nil, errors.New("Subnetwork not found")).Once()
-		mgs.On("CreateSubnetworkForTenantProject", tenantProjectNumber, consumerVPC, tenantProjectRegion).Return([]byte("{\"Name\": \"test-subnet\", \"Network\": \"projects/1234321/global/networks/host-network\"}"), nil)
-		mgs.On("GetSubnetwork", snHostProject, tenantProjectRegion, "test-subnet").Return(&models.Subnet{Name: "test-subnet", Network: "projects/1234321/global/networks/host-network", GatewayAddress: "10.0.0.3"}, nil).Once()
+		mgs.On("GetSnHost", tenantProjectNumber).Return(snHostProject, nil)
+		mgs.On("GetSubnetwork", snHostProject, tenantProjectRegion, snhostSubnetName).Return(nil, errors.New("Subnetwork not found")).Once()
+		mgs.On("CreateSubnetworkForTenantProject", tenantProjectNumber, consumerVPC, tenantProjectRegion).Return([]byte("{\"Name\": \"vsa-us-central1\", \"Network\": \"projects/1234321/global/networks/host-network\"}"), nil)
+		mgs.On("GetSubnetwork", snHostProject, tenantProjectRegion, snhostSubnetName).Return(&models.Subnet{Name: snhostSubnetName, Network: "projects/1234321/global/networks/host-network", GatewayAddress: "10.0.0.3"}, nil).Once()
 
 		tenancyInfo, err := activities.FindTenancyAndGetSubnetwork(ctx, mgs, consumerVPC, customerProjectNumber, &tenantProjectRegion)
 		assert.NoError(tt, err)
@@ -1921,6 +1962,183 @@ func Test_ReturnsErrorWhenListPoolsFails(t *testing.T) {
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "failed to list pools")
 	mockStorage.AssertExpectations(t)
+}
+
+// Unit tests for ReleaseSubnet in core/orchestrator/activities/pool_activities.go
+func TestPoolActivity_ReleaseSubnetN(t *testing.T) {
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	pool := datamodel.Pool{
+		AccountID: 1,
+		Network:   "test-network",
+		Account:   &datamodel.Account{Name: "test-account"},
+	}
+	poolView := &datamodel.PoolView{Pool: pool}
+
+	pool2 := datamodel.Pool{
+		AccountID: 1,
+		Network:   "test-network-2",
+		Account:   &datamodel.Account{Name: "test-account"},
+	}
+	poolView2 := &datamodel.PoolView{Pool: pool2}
+	t.Run("listPoolsFails", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(t)
+
+		mockStorage.On("ListPools", ctx, mock.Anything).Return(nil, errors.New("list pools error"))
+		activity := activities.PoolActivity{SE: mockStorage}
+		err := activity.ReleaseSubnet(ctx, &pool)
+		assert.Error(tt, err)
+		assert.Contains(tt, err.Error(), "list pools error")
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("multiplePoolsExist", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(t)
+
+		mockStorage.On("ListPools", ctx, mock.Anything).Return([]*datamodel.PoolView{poolView, poolView2}, nil)
+		activity := activities.PoolActivity{SE: mockStorage}
+		err := activity.ReleaseSubnet(ctx, &pool)
+		assert.NoError(tt, err)
+		mockStorage.AssertExpectations(tt)
+	})
+	t.Run("GetGCPServiceFails", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(t)
+		activities.GetGCPService = func(ctx context.Context) (*google.GcpServices, error) {
+			return nil, errors.New("initialisation of Google GCP service failed")
+		}
+		GetGCPService := activities.GetGCPService
+		defer func() {
+			activities.GetGCPService = GetGCPService
+		}()
+		mockStorage.On("ListPools", ctx, mock.Anything).Return([]*datamodel.PoolView{{}}, nil)
+		activity := activities.PoolActivity{SE: mockStorage}
+		err := activity.ReleaseSubnet(ctx, &pool)
+		assert.Error(tt, err)
+		assert.Contains(tt, err.Error(), "initialisation of Google GCP service failed")
+		mockStorage.AssertExpectations(tt)
+	})
+	t.Run("getSubnetForConsumerProjectAndReleaseFails", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(t)
+		GetGCPService := activities.GetGCPService
+		GetSubnetForConsumerProjectAndRelease := activities.GetSubnetForConsumerProjectAndRelease
+		defer func() {
+			activities.GetGCPService = GetGCPService
+			activities.GetSubnetForConsumerProjectAndRelease = GetSubnetForConsumerProjectAndRelease
+		}()
+		activities.GetGCPService = func(ctx context.Context) (*google.GcpServices, error) {
+			return &google.GcpServices{}, nil
+		}
+		mockStorage.On("ListPools", ctx, mock.Anything).Return([]*datamodel.PoolView{{}}, nil)
+		activities.GetSubnetForConsumerProjectAndRelease = func(gcpService hyperscaler.GoogleServices, consumerVpc, accountName, region, subnetworkName string, clusterDetails datamodel.ClusterDetails) error {
+			return errors.New("release subnet error")
+		}
+		defer func() {}()
+		activity := activities.PoolActivity{SE: mockStorage}
+		err := activity.ReleaseSubnet(ctx, &pool)
+		assert.Error(tt, err)
+		assert.Contains(tt, err.Error(), "release subnet error")
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("releasesSubnet", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(t)
+		GetGCPService := activities.GetGCPService
+		GetSubnetForConsumerProjectAndRelease := activities.GetSubnetForConsumerProjectAndRelease
+		defer func() {
+			activities.GetGCPService = GetGCPService
+			activities.GetSubnetForConsumerProjectAndRelease = GetSubnetForConsumerProjectAndRelease
+		}()
+		activities.GetGCPService = func(ctx context.Context) (*google.GcpServices, error) {
+			return &google.GcpServices{}, nil
+		}
+		mockStorage.On("ListPools", ctx, mock.Anything).Return([]*datamodel.PoolView{{}}, nil)
+		activities.GetSubnetForConsumerProjectAndRelease = func(gcpService hyperscaler.GoogleServices, consumerVpc, accountName, region, subnetworkName string, clusterDetails datamodel.ClusterDetails) error {
+			return nil
+		}
+		activity := activities.PoolActivity{SE: mockStorage}
+		err := activity.ReleaseSubnet(ctx, &pool)
+		assert.NoError(tt, err)
+		mockStorage.AssertExpectations(tt)
+	})
+}
+
+// Unit tests for _getSubnetForConsumerProjectAndRelease
+func Test_getSubnetForConsumerProjectAndRelease(t *testing.T) {
+	consumerVpc := "test-vpc"
+	accountName := "test-account"
+	localRegion := "us-central1"
+	subnetworkName := "vsa-us-central1"
+	tenantProjectNumber := "tenant-project"
+	snHost := "sn-host"
+	clusterDetails := datamodel.ClusterDetails{
+		ExternalName:          "test-cluster",
+		SnHostProject:         snHost,
+		RegionalTenantProject: tenantProjectNumber,
+	}
+	t.Run("getTenantProjectFails", func(tt *testing.T) {
+		mockService := hyperscaler.NewMockGoogleServices(t)
+
+		mockService.On("GetLogger").Return(util.GetLogger(context.TODO()))
+		mockService.On("GetTenantProject", consumerVpc, accountName, localRegion).Return("", errors.New("tenant error"))
+		err := activities.GetSubnetForConsumerProjectAndRelease(mockService, consumerVpc, accountName, localRegion, subnetworkName, datamodel.ClusterDetails{})
+		assert.Error(tt, err)
+		mockService.AssertExpectations(tt)
+	})
+
+	t.Run("getSnHostFails", func(tt *testing.T) {
+		mockService := hyperscaler.NewMockGoogleServices(t)
+
+		mockService.On("GetLogger").Return(util.GetLogger(context.TODO()))
+		mockService.On("GetTenantProject", consumerVpc, accountName, localRegion).Return(tenantProjectNumber, nil)
+		mockService.On("GetSnHost", tenantProjectNumber).Return("", errors.New("sn host error"))
+		err := activities.GetSubnetForConsumerProjectAndRelease(mockService, consumerVpc, accountName, localRegion, subnetworkName, datamodel.ClusterDetails{})
+		assert.Error(tt, err, errors.New("sn host error"))
+		mockService.AssertExpectations(tt)
+	})
+
+	t.Run("GetSubnetworkFails", func(tt *testing.T) {
+		mockService := hyperscaler.NewMockGoogleServices(t)
+
+		mockService.On("GetLogger").Return(util.GetLogger(context.TODO()))
+		mockService.On("GetSubnetwork", snHost, localRegion, subnetworkName).Return(nil, errors.New("subnet not found"))
+		err := activities.GetSubnetForConsumerProjectAndRelease(mockService, consumerVpc, accountName, localRegion, subnetworkName, clusterDetails)
+		assert.Error(tt, err, errors.New("subnet not found"))
+		mockService.AssertExpectations(tt)
+	})
+	t.Run("GetSubnetworkFails", func(tt *testing.T) {
+		mockService := hyperscaler.NewMockGoogleServices(t)
+
+		mockService.On("GetLogger").Return(util.GetLogger(context.TODO()))
+		mockService.On("GetTenantProject", consumerVpc, accountName, localRegion).Return(tenantProjectNumber, nil)
+		mockService.On("GetSnHost", tenantProjectNumber).Return(snHost, nil)
+		mockService.On("GetSubnetwork", snHost, localRegion, subnetworkName).Return(nil, errors.New("subnet not found"))
+		err := activities.GetSubnetForConsumerProjectAndRelease(mockService, consumerVpc, accountName, localRegion, subnetworkName, datamodel.ClusterDetails{})
+		assert.Error(tt, err, errors.New("subnet not found"))
+		mockService.AssertExpectations(tt)
+	})
+
+	t.Run("releaseSubnetworkFails", func(tt *testing.T) {
+		mockService := hyperscaler.NewMockGoogleServices(t)
+		mockService.On("GetLogger").Return(util.GetLogger(context.TODO()))
+		mockService.On("GetTenantProject", consumerVpc, accountName, localRegion).Return(tenantProjectNumber, nil)
+		mockService.On("GetSnHost", tenantProjectNumber).Return(snHost, nil)
+		mockService.On("GetSubnetwork", snHost, localRegion, subnetworkName).Return(&models.Subnet{}, nil)
+		mockService.On("ReleaseSubnetwork", localRegion, snHost, subnetworkName).Return(errors.New("release error"))
+		err := activities.GetSubnetForConsumerProjectAndRelease(mockService, consumerVpc, accountName, localRegion, subnetworkName, datamodel.ClusterDetails{})
+		assert.Error(tt, err)
+		mockService.AssertExpectations(tt)
+	})
+
+	t.Run("releasesSubnet successfully", func(tt *testing.T) {
+		mockService := hyperscaler.NewMockGoogleServices(t)
+		mockService.On("GetLogger").Return(util.GetLogger(context.TODO()))
+		mockService.On("GetTenantProject", consumerVpc, accountName, localRegion).Return(tenantProjectNumber, nil)
+		mockService.On("GetSnHost", tenantProjectNumber).Return(snHost, nil)
+		mockService.On("GetSubnetwork", snHost, localRegion, subnetworkName).Return(&models.Subnet{}, nil)
+		mockService.On("ReleaseSubnetwork", localRegion, snHost, subnetworkName).Return(nil)
+		err := activities.GetSubnetForConsumerProjectAndRelease(mockService, consumerVpc, accountName, localRegion, subnetworkName, datamodel.ClusterDetails{})
+		assert.NoError(tt, err)
+		mockService.AssertExpectations(tt)
+	})
 }
 
 func Test_SkipsSubnetReleaseWhenMultiplePoolsExist(t *testing.T) {

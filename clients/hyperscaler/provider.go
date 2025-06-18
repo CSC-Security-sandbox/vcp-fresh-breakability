@@ -18,10 +18,11 @@ type Services interface {
 
 	CreateSubnetwork(request *models.Subnet) error
 	GetSubnetwork(projectName, region, subnetName string) (*models.Subnet, error)
+	ReleaseSubnetwork(region, projectNumber, subnetwork string) error
 
 	InsertFirewall(firewallRule *models.Firewall) error
 	GetFirewall(projectName string, firewallName string) (*models.Firewall, error)
-	ReleaseSubnetwork(region, tenantProjectNumber, subnetwork string) error
+
 	CreateBucketIfNotExists(ctx context.Context, projectID, bucketName, region string) error
 	DeleteBucket(ctx context.Context, bucketName string) error
 
@@ -37,6 +38,7 @@ type GoogleServices interface {
 	IsAdminClientInitialized() bool
 
 	GetTenantProject(consumerNetwork, customerProjectNumber, tenantProjectRegion string) (string, error)
+	GetSnHost(project string) (string, error)
 
 	CreateSubnetworkForTenantProject(tenantProjectNumber, consumerNetwork, region string) ([]byte, error)
 }

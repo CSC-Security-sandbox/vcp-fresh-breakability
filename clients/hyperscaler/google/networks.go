@@ -92,24 +92,50 @@ func (gcpService *GcpServices) CreateSubnetworkForTenantProject(tenantProjectNum
 }
 
 // ReleaseSubnetwork calls GCP releaseSubnetwork API and return a long-running operation.
-func (gcpService *GcpServices) ReleaseSubnetwork(region, tenantProjectNumber, subnetwork string) error {
-	op, err := gcpService.AdminGCPService.computeService.Subnetworks.Delete(tenantProjectNumber, region, subnetwork).Do()
+func (gcpService *GcpServices) ReleaseSubnetwork(region, projectNumber, subnetwork string) error {
+	op, err := gcpService.AdminGCPService.computeService.Subnetworks.Delete(projectNumber, region, subnetwork).Do()
 	if err != nil {
 		if strings.Contains(err.Error(), "notFound") {
 			return vsaerrors.NewVCPError(vsaerrors.ErrResourceNotFound, errors.NewNotFoundErr("compute.Subnetwork", &subnetwork))
+		}
+		if strings.Contains(err.Error(), "resourceInUseByAnotherResource") {
+			gcpService.Logger.Debugf("Failed to delete subnetwork because it is in use by another resource: %s, error : %s", subnetwork, err.Error())
+			return nil
 		}
 		gcpService.Logger.Debug("Failed to delete subnetwork...")
 		return vsaerrors.NewVCPError(vsaerrors.ErrGCPResourceDeprovisionError, err)
 	}
 
-	err = waitForComputeOperation(*gcpService, tenantProjectNumber, region, op.Name)
+	err = waitForComputeOperation(*gcpService, projectNumber, region, op.Name)
 	if err != nil {
 		// TODO: Add VCP Error for this
-		gcpService.Logger.Errorf("Failed to delete subnetwork %s in project %s with error: %v", subnetwork, tenantProjectNumber, err)
+		gcpService.Logger.Error(fmt.Sprintf("Failed to delete subnetwork %s in project %s with error: %v", subnetwork, projectNumber, err))
 		return vsaerrors.NewVCPError(vsaerrors.ErrGCPResourceDeprovisionError, err)
 	}
 
 	return nil
+}
+
+// GetSnHost returns host project peered with the given service project
+func (gcpService *GcpServices) GetSnHost(project string) (string, error) {
+	snProject, err := gcpService.AdminGCPService.computeService.Projects.GetXpnHost(project).Do()
+	if err != nil {
+		err = gcpService.Retry.Sleep(err)
+		if err != nil {
+			if strings.Contains(err.Error(), "notFound") {
+				return "", errors.NewNotFoundErr("SN Producer Host Project", &project)
+			}
+			return "", err
+		}
+		gcpService.Logger.Info(fmt.Sprintf("Retrying GetSnHost for project %s", project))
+		return gcpService.GetSnHost(project)
+	}
+	gcpService.Retry.Reset()
+	// for a new VPC, snhost project will be empty. we need to return empty in this case to establish datalink
+	if snProject != nil && snProject.Name == "" {
+		return "", errors.NewNotFoundErr("SN Producer Host Project", &project)
+	}
+	return snProject.Name, nil
 }
 
 // _createSubnetworkForTenantProject creates GCP subnetwork in a producer tenant project. This method will make producer's tenant project to be a shared VPC service project as needed. Reference : https://cloud.google.com/service-infrastructure/docs/service-networking/reference/rest/v1/services/addSubnetwork
@@ -133,7 +159,7 @@ func _createSubnetworkForTenantProject(gcpService *GcpServices, request *service
 	return convertServiceNetOpToComputeOp(tu), nil
 }
 
-// GetSubnetwork retrieves a subnetwork for a given project name, region and subnetwork name using compute API. Reference : https://cloud.google.com/compute/docs/reference/rest/v1/subnetworks/get
+// GetSubnetwork retrieves a subnetwork for a given project name, region and subnetwork name using compute API. Reference : https://cloud.goog	le.com/compute/docs/reference/rest/v1/subnetworks/get
 func (gcpService *GcpServices) GetSubnetwork(projectName, region, subnetName string) (*models.Subnet, error) {
 	defer gcpService.Retry.Reset()
 	gcpService.Logger.Debugf("Calling GetSubnetwork for project name : %s, region : %s, subnet name : %s", projectName, region, subnetName)

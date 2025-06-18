@@ -34,29 +34,30 @@ import (
 )
 
 var (
-	GetProviderByNode                 = _getProviderByNode
-	FindTenancyAndGetSubnetwork       = _findTenancyAndGetSubnetwork
-	DeploymentsInsert                 = common.DeploymentsInsert
-	PrepareVlmConfig                  = _prepareVlmConfig
-	ReadFile                          = os.ReadFile
-	GetVLMClient                      = _getVLMClient
-	SaveNodeDetails                   = _saveNodeDetails
-	DeleteLIFs                        = _deleteLIFs
-	DeleteSVMs                        = _deleteSVMs
-	DeleteNodes                       = _deleteNodes
-	DeletingNodes                     = _deletingNodes
-	DeletingSVMs                      = _deletingSVMs
-	CreateVPC                         = _createVPC
-	InsertSubnet                      = _insertSubnet
-	InsertFirewall                    = _insertFirewall
-	GetGCPService                     = _getGCPService
-	NewGcpServices                    = _newGcpServices
-	SetupNetworkWithFirewall          = setupNetworkWithFirewall
-	SetupNetworkFirewallsForIscsi     = setupNetworkFirewallsForIscsi
-	CreateGCPBucket                   = _createGCPBucket
-	CreateServiceAccountAndAttachRole = _createServiceAccountAndAttachRole
-	DeleteSrvcAccount                 = _deleteServiceAccount
-	DeleteGCPBucket                   = _deleteGCPBucket
+	GetProviderByNode                     = _getProviderByNode
+	FindTenancyAndGetSubnetwork           = _findTenancyAndGetSubnetwork
+	DeploymentsInsert                     = common.DeploymentsInsert
+	PrepareVlmConfig                      = _prepareVlmConfig
+	ReadFile                              = os.ReadFile
+	GetVLMClient                          = _getVLMClient
+	SaveNodeDetails                       = _saveNodeDetails
+	DeleteLIFs                            = _deleteLIFs
+	DeleteSVMs                            = _deleteSVMs
+	DeleteNodes                           = _deleteNodes
+	DeletingNodes                         = _deletingNodes
+	DeletingSVMs                          = _deletingSVMs
+	CreateVPC                             = _createVPC
+	InsertSubnet                          = _insertSubnet
+	InsertFirewall                        = _insertFirewall
+	GetGCPService                         = _getGCPService
+	NewGcpServices                        = _newGcpServices
+	SetupNetworkWithFirewall              = setupNetworkWithFirewall
+	SetupNetworkFirewallsForIscsi         = setupNetworkFirewallsForIscsi
+	CreateGCPBucket                       = _createGCPBucket
+	CreateServiceAccountAndAttachRole     = _createServiceAccountAndAttachRole
+	DeleteSrvcAccount                     = _deleteServiceAccount
+	DeleteGCPBucket                       = _deleteGCPBucket
+	GetSubnetForConsumerProjectAndRelease = _getSubnetForConsumerProjectAndRelease
 )
 
 type PoolActivity struct {
@@ -162,19 +163,35 @@ func _findTenancyAndGetSubnetwork(ctx context.Context, gcpService hyperscaler.Go
 		return nil, err
 	}
 
-	// check if subnet already exists
-	subnetName := "vsa-" + *tenantProjectRegion
-	subnetReceived, err := gcpService.GetSubnetwork(tenantProjectNumber, *tenantProjectRegion, subnetName)
+	snHost, err := gcpService.GetSnHost(tenantProjectNumber)
 	if err != nil {
-		resourceNotFound, errReceived := resourceNotFoundCheck(err.Error(), tenantProjectNumber, "", subnetName, "")
-		if !resourceNotFound {
-			return nil, errReceived
+		if !strings.Contains(err.Error(), "not found") {
+			gcpService.GetLogger().Errorf("Error getting service networking host project: %v", err)
+			return nil, vsaerrors.NewVCPError(vsaerrors.ErrGCPResourceFetchError, err)
+		}
+	} else {
+		// if snHost is found, check if the subnetwork already exists in the tenant project
+		subnetName := "vsa-" + *tenantProjectRegion
+		subnetReceived, err := gcpService.GetSubnetwork(snHost, *tenantProjectRegion, subnetName)
+		if err != nil {
+			resourceNotFound, errReceived := resourceNotFoundCheck(err.Error(), tenantProjectNumber, "", subnetName, "")
+			if !resourceNotFound {
+				gcpService.GetLogger().Errorf("Error getting subnetwork for tenant project: %s, SN host : %s, region %s. Error : %s", tenantProjectNumber, snHost, *tenantProjectRegion, err.Error())
+				return nil, errReceived
+			}
+		}
+		if subnetReceived != nil && subnetReceived.Name == subnetName {
+			gcpService.GetLogger().Debug(fmt.Sprintf("Subnetwork %s already exists in tenant project %s and region %s. Won't create another subnet for this region", subnetName, tenantProjectNumber, *tenantProjectRegion))
+			return &commonparams.TenancyInfo{
+				RegionalTenantProject: tenantProjectNumber,
+				Network:               strings.Split(subnetReceived.Network, "/")[len(strings.Split(subnetReceived.Network, "/"))-1],
+				SubnetworkName:        subnetReceived.Name,
+				SnHostProject:         snHost,
+				Gateway:               subnetReceived.GatewayAddress,
+			}, nil
 		}
 	}
-	if subnetReceived != nil && subnetReceived.Name == subnetName {
-		gcpService.GetLogger().Debug(fmt.Sprintf("Subnetwork %s already exists in tenant project %s and region %s. Won't create another subnet for this region", subnetName, tenantProjectNumber, *tenantProjectRegion))
-		return nil, nil
-	}
+	// if snHost is not found, create a new subnetwork for the tenant project. If subnet is not found, create a new subnetwork
 	subnetInBytes, err := gcpService.CreateSubnetworkForTenantProject(tenantProjectNumber, consumerVPC, *tenantProjectRegion)
 	if err != nil {
 		gcpService.GetLogger().Errorf("Error adding subnetwork: %v", err)
@@ -573,34 +590,64 @@ func (j *PoolActivity) DeletingPoolResources(ctx context.Context, pool *datamode
 }
 
 func (j *PoolActivity) ReleaseSubnet(ctx context.Context, pool *datamodel.Pool) error {
-	se := j.SE
 	logger := util.GetLogger(ctx)
+	se := j.SE
 	conditions := [][]interface{}{{"account_id = ?", pool.AccountID}}
 	conditions = append(conditions, []interface{}{"network = ?", pool.Network})
 	pools, err := se.ListPools(ctx, conditions)
 	if err != nil {
+		logger.Errorf("Failed to get pools for account: %s, network: %s, error: %s", pool.AccountID, pool.Network, err.Error())
 		return vsaerrors.WrapAsTemporalApplicationError(err)
 	}
 	if len(pools) > 1 {
 		logger.Info("Skipping release subnetwork as there are other pools in the same region for the account")
 		return nil
 	}
-	var gService hyperscaler.GoogleServices
-	gcpService := NewGcpServices(ctx)
 
 	consumerVpc := pool.Network
 	accountName := pool.Account.Name
-	subnetwork := "vsa-" + localRegion
+	subnetworkName := "vsa-" + localRegion
 
-	tenantProjectNumber, err := gService.GetTenantProject(consumerVpc, accountName, localRegion)
+	gcpService, err := GetGCPService(ctx)
 	if err != nil {
-		gcpService.Logger.Errorf("Error finding tenancy unit: %v", err)
+		return vsaerrors.WrapAsTemporalApplicationError(err)
+	}
+	err = GetSubnetForConsumerProjectAndRelease(gcpService, consumerVpc, accountName, localRegion, subnetworkName, pool.ClusterDetails)
+	if err != nil {
+		logger.Errorf("Error releasing subnetwork: %v", err)
+		return vsaerrors.WrapAsTemporalApplicationError(err)
+	}
+	return nil
+}
+
+func _getSubnetForConsumerProjectAndRelease(service hyperscaler.GoogleServices, consumerVpc, accountName, localRegion, subnetworkName string, clusterDetails datamodel.ClusterDetails) error {
+	logger := service.GetLogger()
+	snHostProject := ""
+	var err error
+	if clusterDetails.RegionalTenantProject != "" && clusterDetails.SnHostProject != "" {
+		snHostProject = clusterDetails.SnHostProject
+	} else {
+		tenantProjectNumber, err := service.GetTenantProject(consumerVpc, accountName, localRegion)
+		if err != nil {
+			logger.Errorf("Error finding tenancy unit: %v", err)
+			return err
+		}
+
+		snHostProject, err = service.GetSnHost(tenantProjectNumber)
+		if err != nil {
+			logger.Errorf("Error getting SN host for subnet: %s with tenant project %s, skipping release", subnetworkName, tenantProjectNumber)
+			return err
+		}
+	}
+	// Check if the subnetwork exists
+	_, err = service.GetSubnetwork(snHostProject, localRegion, subnetworkName)
+	if err != nil {
+		logger.Errorf("Error getting Subnetwork %s project %s, skipping release", subnetworkName, accountName)
 		return err
 	}
-
-	err = gService.ReleaseSubnetwork(localRegion, tenantProjectNumber, subnetwork)
+	err = service.ReleaseSubnetwork(localRegion, snHostProject, subnetworkName)
 	if err != nil {
-		gcpService.Logger.Errorf("Error Releasing subnetwork: %v", err)
+		logger.Errorf("Error Releasing subnetwork: %v", err)
 		return err
 	}
 	return nil
