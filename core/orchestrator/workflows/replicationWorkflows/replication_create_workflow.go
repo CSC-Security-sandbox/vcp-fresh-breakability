@@ -103,7 +103,7 @@ func (wf *createVolumeReplicationWorkflow) Run(ctx workflow.Context, args ...int
 		DbVolReplication: dbVolumeRep,
 	}
 
-	var dbNodeSrc *datamodel.Node
+	var dbNodes []*datamodel.Node
 
 	err = workflow.ExecuteActivity(ctx, replicationActivity.GetSrcBasePath, &replicationResult).Get(ctx, &replicationResult)
 	if err != nil {
@@ -125,11 +125,11 @@ func (wf *createVolumeReplicationWorkflow) Run(ctx workflow.Context, args ...int
 		return nil, err
 	}
 
-	err = workflow.ExecuteActivity(ctx, activities.CommonActivities.GetNode, &replicationResult.Event.SourcePool.ID).Get(ctx, &dbNodeSrc)
+	err = workflow.ExecuteActivity(ctx, activities.CommonActivities.GetNode, &replicationResult.Event.SourcePool.ID).Get(ctx, &dbNodes)
 	if err != nil {
 		return nil, err
 	}
-	srcNode := workflows.CreateNodeForProviderWithPool(dbNodeSrc, &replicationResult.Event.SourcePool)
+	srcNode := workflows.CreateNodeForProviderWithPool(dbNodes, &replicationResult.Event.SourcePool)
 
 	replicationResult.SrcNode = srcNode
 	err = workflow.ExecuteActivity(ctx, replicationActivity.GetSourceInterclusterLifs, &replicationResult).Get(ctx, &replicationResult)

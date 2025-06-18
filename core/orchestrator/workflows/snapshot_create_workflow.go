@@ -95,12 +95,12 @@ func (wf *snapshotCreateWorkflow) Run(ctx workflow.Context, args ...interface{})
 	dbSnapshot.Description = wf.ID // Storing the job UUID in the comments param while requesting ONTAP
 
 	logger.Infof("Starting the snapshot creation workflow for snapshot: %s", dbSnapshot.Name)
-	var dbNode *datamodel.Node
-	err = workflow.ExecuteActivity(ctx, activities.CommonActivities.GetNode, &dbSnapshot.Volume.PoolID).Get(ctx, &dbNode)
+	var dbNodes []*datamodel.Node
+	err = workflow.ExecuteActivity(ctx, activities.CommonActivities.GetNode, &dbSnapshot.Volume.PoolID).Get(ctx, &dbNodes)
 	if err != nil {
 		return nil, err
 	}
-	node := CreateNodeForProvider(dbNode, dbSnapshot.Volume)
+	node := CreateNodeForProviderWithPool(dbNodes, dbSnapshot.Volume.Pool)
 	var snapshotCreateResponse *vsa.SnapshotProviderResponse
 	defer func() {
 		updateErr := workflow.ExecuteActivity(ctx, snapshotActivity.UpdateSnapshotDetails, &dbSnapshot, snapshotCreateResponse).Get(ctx, nil)

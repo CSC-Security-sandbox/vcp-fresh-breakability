@@ -87,13 +87,13 @@ func (wf *internalVolumeReplicationCreateWorkflow) Run(ctx workflow.Context, arg
 	}
 	ctx = workflow.WithActivityOptions(ctx, ao)
 
-	var dbNode *datamodel.Node
-	err = workflow.ExecuteActivity(ctx, activities.CommonActivities.GetNode, replication.Volume.PoolID).Get(ctx, &dbNode)
+	var dbNodes []*datamodel.Node
+	err = workflow.ExecuteActivity(ctx, activities.CommonActivities.GetNode, replication.Volume.PoolID).Get(ctx, &dbNodes)
 	if err != nil {
 		return nil, err
 	}
 
-	node := createNodeForProvider(dbNode, replication.Volume)
+	node := workflows.CreateNodeForProviderWithPool(dbNodes, replication.Volume.Pool)
 
 	var replicationCreateResponse *vsa.VolumeReplication
 	volumeExternalUUID := replication.Volume.VolumeAttributes.ExternalUUID
@@ -110,13 +110,4 @@ func (wf *internalVolumeReplicationCreateWorkflow) Run(ctx workflow.Context, arg
 	err = workflow.ExecuteActivity(ctx, replicationActivity.HydrateReplicationCreate, replication, params.VolumeReplication.Account.Name).Get(ctx, nil)
 
 	return nil, err
-}
-
-func createNodeForProvider(dbNode *datamodel.Node, volume *datamodel.Volume) *models.Node {
-	node := &models.Node{
-		EndpointAddress: dbNode.EndpointAddress,
-		Username:        volume.Pool.Username,
-		Password:        volume.Pool.Password,
-	}
-	return node
 }

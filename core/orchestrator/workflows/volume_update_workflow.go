@@ -104,13 +104,13 @@ func (wf *volumeUpdateWorkflow) Run(ctx workflow.Context, args ...interface{}) (
 		}
 	}()
 
-	var dbNode *datamodel.Node
-	err = workflow.ExecuteActivity(ctx, activities.CommonActivities.GetNode, volume.Pool.ID).Get(ctx, &dbNode)
+	var dbNodes []*datamodel.Node
+	err = workflow.ExecuteActivity(ctx, activities.CommonActivities.GetNode, volume.Pool.ID).Get(ctx, &dbNodes)
 	if err != nil {
 		return nil, err
 	}
 
-	node := CreateNodeForProvider(dbNode, volume)
+	node := CreateNodeForProviderWithPool(dbNodes, volume.Pool)
 
 	volResponse := &vsa.VolumeResponse{}
 	err = workflow.ExecuteActivity(ctx, updateActivity.GetVolumeFromONTAP, volume, &node).Get(ctx, &volResponse)

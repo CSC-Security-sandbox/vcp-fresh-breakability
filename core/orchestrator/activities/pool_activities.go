@@ -40,7 +40,6 @@ import (
 )
 
 var (
-	GetProviderByNode                         = _getProviderByNode
 	FindTenancyAndGetSubnetwork               = _findTenancyAndGetSubnetwork
 	DeploymentsInsert                         = common.DeploymentsInsert
 	PrepareVlmConfig                          = _prepareVlmConfig
@@ -94,7 +93,6 @@ var (
 	maxRetries              = env.GetInt("GOOGLE_API_MAX_RETRIES", 6)
 	localRegion             = env.GetString("REGION", "")
 	firewallSourceRange     = env.GetString("FIREWALL_SOURCE_RANGE", "10.0.0.0/8,172.16.0.0/12,192.168.0.0/16,34.0.0.0/8,46.149.16.0/20,52.94.203.152/29,52.94.203.160/29,185.35.244.0/22,202.3.112.0/20,216.240.16.0/20,217.70.208.0/20,198.18.0.0/15")
-	homePort                = env.GetString("VSA_NODE_HOME_PORT", "e0e")
 	caName                  = env.GetString("CA_NAME", "")
 	caPoolName              = env.GetString("CA_POOL_NAME", "")
 	caPoolDeployedProjectID = env.GetString("CA_POOL_DEPLOYED_PROJECT_ID", "")
@@ -352,23 +350,6 @@ func (j *PoolActivity) SavePoolWithClusterDetails(ctx context.Context, dbPool *d
 	return nil
 }
 
-func _getProviderByNode(ctx context.Context, node *models.Node) vsa.Provider {
-	// As we don't have any other provider, we can directly return the ontap_rest provider
-	var password string
-	if node.SecretID != "" {
-		password = GetPasswordFromCacheOrSecretManager(ctx, node.SecretID)
-	} else {
-		password = node.Password
-	}
-	return vsa.NewProvider(vsa.ProviderDetails{
-		IPAddress: node.EndpointAddress,
-		UserName:  node.Username,
-		Password:  password,
-		// TODO : need to fix once we have certs
-		InsecureSkipVerify: true,
-	})
-}
-
 func _getVLMClient(ctx context.Context, logger log.Logger, vlmConfig *vlmconfig.VLMConfig) vlm.ClientFactory {
 	return vlm.NewClient(ctx, logger, vlmConfig)
 }
@@ -606,43 +587,6 @@ func _saveNodeDetails(ctx context.Context, se database.Storage, vmConfig vlmconf
 		return nil, err
 	}
 	return rec, nil
-}
-
-func (j *PoolActivity) CreateLifForSvm(ctx context.Context, node *models.Node, cluster []map[string]string, pool *datamodel.Pool, svm *datamodel.Svm) error {
-	provider := GetProviderByNode(ctx, node)
-	se := j.SE
-	nodes, err := se.GetNodesByPoolID(ctx, pool.ID)
-	if err != nil {
-		return err
-	}
-	if len(nodes) < 2 {
-		return errors.New("not enough nodes in the cluster to create LIFs for SVM " + svm.Name)
-	}
-
-	for i, node := range nodes {
-		dataLif, ok := cluster[i]["dataLif"]
-		if !ok {
-			return fmt.Errorf("missing dataLif in cluster details for node index %d", i)
-		}
-		ip := strings.Split(dataLif, "/")[0]
-		lifName := fmt.Sprintf(lifNameFormat, node.Name)
-		lifResponse, err := provider.CreateDataLIF(vsa.CreateLifParams{Name: lifName, SvmName: svm.Name, IpAddress: ip, NodeName: node.Name, HomePort: homePort})
-		if err != nil {
-			return err
-		}
-		lifRec := &datamodel.Lif{
-			Name:       lifResponse.Name,
-			AccountID:  pool.AccountID,
-			NodeID:     node.ID,
-			LifDetails: &datamodel.LifDetails{ExternalUUID: lifResponse.ExternalUUID},
-			IPAddress:  lifResponse.IPAddress,
-			SubnetMask: lifResponse.SubnetMask,
-		}
-		if _, err = se.CreateLif(ctx, lifRec); err != nil {
-			return err
-		}
-	}
-	return nil
 }
 
 func (j *PoolActivity) GetPool(ctx context.Context, pool *datamodel.Pool) (*datamodel.Pool, error) {

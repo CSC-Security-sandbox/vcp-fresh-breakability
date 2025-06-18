@@ -101,13 +101,13 @@ func (wf *volumeDeleteWorkflow) Run(ctx workflow.Context, args ...interface{}) (
 		}
 	}()
 
-	var dbNode *datamodel.Node
-	err = workflow.ExecuteActivity(ctx, activities.CommonActivities.GetNode, &volume.Pool.ID).Get(ctx, &dbNode)
+	var dbNodes []*datamodel.Node
+	err = workflow.ExecuteActivity(ctx, activities.CommonActivities.GetNode, &volume.Pool.ID).Get(ctx, &dbNodes)
 	if err != nil {
 		return nil, err
 	}
 
-	node := CreateNodeForProvider(dbNode, volume)
+	node := CreateNodeForProviderWithPool(dbNodes, volume.Pool)
 
 	err = workflow.ExecuteActivity(ctx, deleteActivity.DeleteVolumeInONTAP, volume.VolumeAttributes.ExternalUUID, volume.Name, node).Get(ctx, nil)
 	if err != nil {

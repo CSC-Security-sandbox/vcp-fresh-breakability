@@ -92,7 +92,7 @@ func (wf *snapshotDeleteWorkflow) Run(ctx workflow.Context, args ...interface{})
 	dbSnapshot := snapshot
 	logger.Infof("Starting the snapshot deletion workflow for snapshot: %s", dbSnapshot.Name)
 
-	var dbNode *datamodel.Node
+	var dbNodes []*datamodel.Node
 	defer func() {
 		if err != nil {
 			dbSnapshot.State = models.LifeCycleStateError
@@ -100,12 +100,12 @@ func (wf *snapshotDeleteWorkflow) Run(ctx workflow.Context, args ...interface{})
 			workflow.ExecuteActivity(ctx, deleteActivity.UpdateDeleteSnapshotDetails, &dbSnapshot)
 		}
 	}()
-	err = workflow.ExecuteActivity(ctx, activities.CommonActivities.GetNode, &dbSnapshot.Volume.PoolID).Get(ctx, &dbNode)
+	err = workflow.ExecuteActivity(ctx, activities.CommonActivities.GetNode, &dbSnapshot.Volume.PoolID).Get(ctx, &dbNodes)
 	if err != nil {
 		return nil, err
 	}
 
-	node := CreateNodeForProvider(dbNode, dbSnapshot.Volume)
+	node := CreateNodeForProviderWithPool(dbNodes, dbSnapshot.Volume.Pool)
 	err = workflow.ExecuteActivity(ctx, deleteActivity.DeleteSnapshotInONTAP, &dbSnapshot, &node).Get(ctx, nil)
 	if err != nil {
 		return nil, err

@@ -82,7 +82,7 @@ func TestCreateInternalVolumeReplicationWorkflow(t *testing.T) {
 			Volume:    volume,
 		}
 		mockStorage.On("UpdateJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
-		env.OnActivity("GetNode", mock.Anything, mock.Anything).Return(&datamodel.Node{EndpointAddress: "127.0.0.1"}, nil)
+		env.OnActivity("GetNode", mock.Anything, mock.Anything).Return([]*datamodel.Node{{EndpointAddress: "127.0.0.1"}}, nil)
 		env.OnActivity("CreateVolumeReplicationInternal", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.VolumeReplication{}, nil)
 		env.OnActivity("UpdateVolumeReplicationDetails", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("HydrateReplicationCreate", mock.Anything, mock.Anything, mock.Anything).Return(nil)

@@ -74,6 +74,7 @@ func NewProvider(provider ProviderDetails) *OntapRestProvider {
 		Provider: provider,
 		ClientParams: ontapRest.RESTClientParams{
 			Host:               provider.IPAddress,
+			Hosts:              provider.IPAddresses,
 			Username:           provider.UserName,
 			Password:           log.Secret(provider.Password),
 			InsecureSkipVerify: provider.InsecureSkipVerify,

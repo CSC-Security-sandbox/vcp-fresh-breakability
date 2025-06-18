@@ -157,12 +157,18 @@ func (wf *createPoolWorkflow) Run(ctx workflow.Context, args ...interface{}) (in
 		return nil, err
 	}
 
-	node := &models.Node{}
 
-	err = workflow.ExecuteActivity(ctx, poolActivity.SaveVSANodeDetails, dbPool, cfg).Get(ctx, node)
+	err = workflow.ExecuteActivity(ctx, poolActivity.SaveVSANodeDetails, dbPool, cfg).Get(ctx, nil)
 	if err != nil {
 		return nil, err
 	}
+	var dbNodes []*datamodel.Node
+	err = workflow.ExecuteActivity(ctx, activities.CommonActivities.GetNode, pool.ID).Get(ctx, &dbNodes)
+	if err != nil {
+		return nil, err
+	}
+	node := CreateNodeForProviderWithPool(dbNodes, pool)
+
 
 	node.Username = pool.Username
 	if secretManagerEnabled {

@@ -335,7 +335,7 @@ func _deletePool(ctx context.Context, temporal client.Client, se database.Storag
 		dbpool,
 	)
 	if err != nil {
-		logger.Error("Failed to start pool create workflow: ", "error", err)
+		logger.Error("Failed to start pool delete workflow: ", "error", err)
 		return nil, "", err
 	}
 

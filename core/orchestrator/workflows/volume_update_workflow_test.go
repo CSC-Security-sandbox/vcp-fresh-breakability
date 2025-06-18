@@ -60,7 +60,7 @@ func (s *VolumeUpdateTestSuite) Test_UpdateVolumeWorkflow_Success() {
 	s.env.RegisterActivity(updateActivity.UpdateVolumeInDB)
 
 	// Mock activities
-	s.env.OnActivity(commonActivity.GetNode, mock.Anything, mock.Anything).Return(&datamodel.Node{EndpointAddress: "127.0.0.1"}, nil)
+	s.env.OnActivity(commonActivity.GetNode, mock.Anything, mock.Anything).Return([]*datamodel.Node{{EndpointAddress: "127.0.0.1"}}, nil)
 	s.env.OnActivity(updateActivity.GetVolumeFromONTAP, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.VolumeResponse{
 		ProviderResponse: vsa.ProviderResponse{
 			ExternalUUID: "test-external-uuid",
@@ -107,7 +107,7 @@ func (s *VolumeUpdateTestSuite) Test_UpdateVolumeWorkflow_NoSizeChange() {
 	s.env.RegisterActivity(updateActivity.UpdateVolumeInDB)
 
 	// Mock activities
-	s.env.OnActivity(commonActivity.GetNode, mock.Anything, mock.Anything).Return(&datamodel.Node{EndpointAddress: "127.0.0.1"}, nil)
+	s.env.OnActivity(commonActivity.GetNode, mock.Anything, mock.Anything).Return([]*datamodel.Node{{EndpointAddress: "127.0.0.1"}}, nil)
 	s.env.OnActivity(updateActivity.GetVolumeFromONTAP, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.VolumeResponse{
 		ProviderResponse: vsa.ProviderResponse{
 			ExternalUUID: "test-external-uuid",

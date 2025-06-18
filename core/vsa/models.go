@@ -10,13 +10,14 @@ import (
 )
 
 type ProviderDetails struct {
-	IPAddress          string `json:"ipAddress"`
-	UserName           string `json:"userName"`
-	Password           string `json:"password"`
-	Port               *int   `json:"port"`
-	UseHTTPS           bool   `json:"useHTTPS"`
-	Protocol           string `json:"protocol"`
-	InsecureSkipVerify bool   `json:"insecureSkipVerify"`
+	IPAddress          string   `json:"ipAddress"`
+	IPAddresses        []string `json:"ipAddresses"`
+	UserName           string   `json:"userName"`
+	Password           string   `json:"password"`
+	Port               *int     `json:"port"`
+	UseHTTPS           bool     `json:"useHTTPS"`
+	Protocol           string   `json:"protocol"`
+	InsecureSkipVerify bool     `json:"insecureSkipVerify"`
 }
 
 type CreateSvmParams struct {

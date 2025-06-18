@@ -6,6 +6,8 @@ import (
 	googleproxyclient "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/google-proxy-client"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	errors2 "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
@@ -14,6 +16,10 @@ import (
 type CommonActivities struct {
 	SE database.Storage
 }
+
+var (
+	GetProviderByNode = _getProviderByNode
+)
 
 // UpdateJobStatus updates the status of a job in the database.
 func (ca CommonActivities) UpdateJobStatus(ctx context.Context, job *datamodel.Job) error {
@@ -51,7 +57,7 @@ func DescribeJob(ctx context.Context, jobId, basepath, jwtToken, projectNumber, 
 }
 
 // GetNode retrieves the node associated with the given pool ID.
-func (ca CommonActivities) GetNode(ctx context.Context, poolId int64) (*datamodel.Node, error) {
+func (ca CommonActivities) GetNode(ctx context.Context, poolId int64) ([]*datamodel.Node, error) {
 	se := ca.SE
 
 	nodes, err := se.GetNodesByPoolID(ctx, poolId)
@@ -62,5 +68,30 @@ func (ca CommonActivities) GetNode(ctx context.Context, poolId int64) (*datamode
 		return nil, errors.New("no node found for the pool")
 	}
 
-	return nodes[0], nil
+	return nodes, nil
+}
+
+func _getProviderByNode(ctx context.Context, node *models.Node) vsa.Provider {
+	var password string
+	if node.SecretID != "" {
+		password = GetPasswordFromCacheOrSecretManager(ctx, node.SecretID)
+	} else {
+		password = node.Password
+	}
+
+	// if ipAddress in empty, populate it with the node's endpoint address
+	if len(node.EndpointAddresses) == 0 {
+		if node.EndpointAddress == "" {
+			return nil
+		}
+		node.EndpointAddresses = []string{node.EndpointAddress}
+	}
+
+	return vsa.NewProvider(vsa.ProviderDetails{
+		IPAddresses: node.EndpointAddresses,
+		UserName:    node.Username,
+		Password:    password,
+		// TODO : need to fix once we have certs
+		InsecureSkipVerify: true,
+	})
 }

@@ -97,12 +97,12 @@ func (wf *BackupCreateWorkflow) Run(ctx workflow.Context, args ...interface{}) (
 	// Or just have a common object which contains everything and pass it in and out of the activities
 
 	ctx = workflow.WithActivityOptions(ctx, ao)
-	var dbNode *datamodel.Node
-	err = workflow.ExecuteActivity(ctx, activities.CommonActivities.GetNode, &volume.PoolID).Get(ctx, &dbNode)
+	var dbNodes []*datamodel.Node
+	err = workflow.ExecuteActivity(ctx, activities.CommonActivities.GetNode, &volume.PoolID).Get(ctx, &dbNodes)
 	if err != nil {
 		return nil, err
 	}
-	node := CreateNodeForProvider(dbNode, volume)
+	node := CreateNodeForProviderWithPool(dbNodes, volume.Pool)
 	objStore := &commonparams.CloudTarget{}
 	objStoreName, err := getObjStoreName(backupVault, volume)
 	if err != nil {
@@ -186,12 +186,12 @@ func (wf *BackupCreateWorkflow) Revert(ctx workflow.Context, backup *datamodel.B
 	}
 	// If the backup has a snapshot ID, delete the snapshot
 	if backup.Attributes.SnapshotID != "" {
-		var dbNode *datamodel.Node
-		err = workflow.ExecuteActivity(ctx, activities.CommonActivities.GetNode, &volume.PoolID).Get(ctx, &dbNode)
+		var dbNodes []*datamodel.Node
+		err = workflow.ExecuteActivity(ctx, activities.CommonActivities.GetNode, &volume.PoolID).Get(ctx, &dbNodes)
 		if err != nil {
 			return err
 		}
-		node := CreateNodeForProvider(dbNode, volume)
+		node := CreateNodeForProviderWithPool(dbNodes, volume.Pool)
 		err = workflow.ExecuteActivity(ctx, backupActivity.DeleteBackupSnapshot, node, backup.Attributes.SnapshotID, volume.VolumeAttributes.ExternalUUID).Get(ctx, nil)
 		if err != nil {
 			return err

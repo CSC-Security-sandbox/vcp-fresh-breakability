@@ -60,7 +60,7 @@ func TestBackupWorkflow(t *testing.T) {
 
 	// Mock activity responses
 	env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
-	env.OnActivity("GetNode", mock.Anything, mock.Anything).Return(&datamodel.Node{EndpointAddress: "127.0.0.1"}, nil)
+	env.OnActivity("GetNode", mock.Anything, mock.Anything).Return([]*datamodel.Node{{EndpointAddress: "127.0.0.1"}}, nil)
 	env.OnActivity("GetOrCreateObjectStore", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&common.CloudTarget{}, nil)
 	env.OnActivity("SnapmirrorGetorCreate", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&common.SnapmirrorRelationship{UUID: "uuid", DestinationUUID: nillable.ToPointer("snapmirror-uuid")}, nil)
 	env.OnActivity("SnapshotCreate", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.SnapshotProviderResponse{ProviderResponse: vsa.ProviderResponse{ExternalUUID: "uuid"}}, nil)
@@ -121,7 +121,7 @@ func TestBackupWorkflowFail(t *testing.T) {
 
 	// Mock activity responses
 	env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
-	env.OnActivity("GetNode", mock.Anything, mock.Anything).Return(&datamodel.Node{EndpointAddress: "127.0.0.1"}, nil)
+	env.OnActivity("GetNode", mock.Anything, mock.Anything).Return([]*datamodel.Node{{EndpointAddress: "127.0.0.1"}}, nil)
 	env.OnActivity("GetOrCreateObjectStore", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&common.CloudTarget{}, errors.New("failed to get or create object store"))
 	env.OnActivity("UpdateBackupError", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
@@ -178,7 +178,7 @@ func TestBackupWorkflowFailAfterSnapshot(t *testing.T) {
 
 	// Mock activity responses
 	env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
-	env.OnActivity("GetNode", mock.Anything, mock.Anything).Return(&datamodel.Node{EndpointAddress: "127.0.0.1"}, nil)
+	env.OnActivity("GetNode", mock.Anything, mock.Anything).Return([]*datamodel.Node{{EndpointAddress: "127.0.0.1"}}, nil)
 	env.OnActivity("GetOrCreateObjectStore", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&common.CloudTarget{}, nil)
 	env.OnActivity("SnapmirrorGetorCreate", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&common.SnapmirrorRelationship{UUID: "uuid", DestinationUUID: nillable.ToPointer("snapmirror-uuid")}, nil)
 	env.OnActivity("SnapshotCreate", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.SnapshotProviderResponse{ProviderResponse: vsa.ProviderResponse{ExternalUUID: "uuid"}}, nil)

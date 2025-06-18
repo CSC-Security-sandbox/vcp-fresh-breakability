@@ -583,10 +583,19 @@ func TestIscsiServiceCreate(t *testing.T) {
 func TestGetOntapClient(t *testing.T) {
 	t.Run("WhenValidClientParamsProvided_ThenReturnOntapRestClient", func(tt *testing.T) {
 		clientParams := ontaprest.RESTClientParams{
+			Hosts:    []string{"test-host"},
 			Host:     "test-host",
 			Username: "test-user",
 			Password: "test-password",
 			Trace:    log.NewLogger().(*log.Slogger),
+		}
+		orginalTestConnection := ontaprest.TestConnection
+		defer func() {
+			ontaprest.TestConnection = orginalTestConnection // Reset to original after test
+		}()
+
+		ontaprest.TestConnection = func(params *ontaprest.OntapRestClient) error {
+			return nil
 		}
 
 		client := getOntapClient(clientParams)

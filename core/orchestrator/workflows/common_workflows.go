@@ -163,11 +163,18 @@ func QueryWorkflowStatus(ctx context.Context, tempClient client.Client, workflow
 	return &status, nil
 }
 
-func CreateNodeForProviderWithPool(dbNode *datamodel.Node, pool *datamodel.Pool) *models.Node {
+func CreateNodeForProviderWithPool(dbNodes []*datamodel.Node, pool *datamodel.Pool) *models.Node {
+	ipAddrs := make([]string, 0)
+	for _, node := range dbNodes {
+		if node.EndpointAddress != "" {
+			ipAddrs = append(ipAddrs, node.EndpointAddress)
+		}
+	}
+
 	node := &models.Node{
-		EndpointAddress: dbNode.EndpointAddress,
-		Username:        pool.Username,
-		Password:        pool.Password,
+		EndpointAddresses: ipAddrs,
+		Username:          pool.Username,
+		Password:          pool.Password,
 	}
 	return node
 }

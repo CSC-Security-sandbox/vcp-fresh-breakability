@@ -102,12 +102,12 @@ func (wf *volumeCreateWorkflow) Run(ctx workflow.Context, args ...interface{}) (
 		return nil, err
 	}
 
-	var dbNode *datamodel.Node
-	err = workflow.ExecuteActivity(ctx, activities.CommonActivities.GetNode, &dbVolume.Pool.ID).Get(ctx, &dbNode)
+	var dbNodes []*datamodel.Node
+	err = workflow.ExecuteActivity(ctx, activities.CommonActivities.GetNode, &dbVolume.Pool.ID).Get(ctx, &dbNodes)
 	if err != nil {
 		return nil, err
 	}
-	node := CreateNodeForProvider(dbNode, dbVolume)
+	node := CreateNodeForProviderWithPool(dbNodes, dbVolume.Pool)
 
 	err = workflow.ExecuteActivity(ctx, volumeActivity.CreateSnapshotPolicyInONTAP, &dbVolume, &node).Get(ctx, nil)
 	if err != nil {
@@ -188,19 +188,6 @@ func (wf *volumeCreateWorkflow) Run(ctx workflow.Context, args ...interface{}) (
 	}
 
 	return nil, err
-}
-
-func CreateNodeForProvider(dbNode *datamodel.Node, volume *datamodel.Volume) *models.Node {
-	node := &models.Node{
-		EndpointAddress: dbNode.EndpointAddress,
-		Username:        volume.Pool.Username,
-	}
-	if volume.Pool.SecretID != "" {
-		node.SecretID = volume.Pool.SecretID
-	} else {
-		node.Password = volume.Pool.Password
-	}
-	return node
 }
 
 func createHostParamsFromHostGroups(hostGroups []*datamodel.HostGroup, volume *datamodel.Volume) []*common.HostParams {

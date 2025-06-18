@@ -20,7 +20,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/nillable"
 )
 
-func TestPollKmsConfigOperationActivityy(t *testing.T) {
+func TestPollKmsConfigOperationActivity(t *testing.T) {
 	t.Run("PollKmsConfigOperationActivityReturnsErrorWhenResponseIsNil", func(tt *testing.T) {
 		mockLogger := log.NewLogger()
 		ctx := context.WithValue(context.Background(), middleware.ContextSLoggerKey, mockLogger)

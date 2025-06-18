@@ -67,14 +67,16 @@ func TestGetNode(t *testing.T) {
 		activity := CommonActivities{SE: mockStorage}
 		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
 		poolId := int64(1)
-		expectedNode := &datamodel.Node{
-			BaseModel: datamodel.BaseModel{
-				ID: 1,
+		expectedNode := []*datamodel.Node{
+			{
+				BaseModel: datamodel.BaseModel{
+					ID: 1,
+				},
+				Name: "test-node",
 			},
-			Name: "test-node",
 		}
 
-		mockStorage.On("GetNodesByPoolID", ctx, poolId).Return([]*datamodel.Node{expectedNode}, nil)
+		mockStorage.On("GetNodesByPoolID", ctx, poolId).Return(expectedNode, nil)
 
 		node, err := activity.GetNode(ctx, poolId)
 

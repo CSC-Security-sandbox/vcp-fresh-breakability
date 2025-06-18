@@ -76,12 +76,12 @@ func (wf *clusterPeerWorkflow) Run(ctx workflow.Context, args ...interface{}) (i
 	}
 	ctx = workflow.WithActivityOptions(ctx, ao)
 
-	var dbNode *datamodel.Node
-	err = workflow.ExecuteActivity(ctx, activities.CommonActivities.GetNode, pool.ID).Get(ctx, &dbNode)
+	var dbNodes []*datamodel.Node
+	err = workflow.ExecuteActivity(ctx, activities.CommonActivities.GetNode, pool.ID).Get(ctx, &dbNodes)
 	if err != nil {
 		return nil, err
 	}
-	node := CreateNodeForProviderWithPool(dbNode, pool)
+	node := CreateNodeForProviderWithPool(dbNodes, pool)
 
 	clusterPeer := &common.ClusterPeerParams{}
 	err = workflow.ExecuteActivity(ctx, clusterPeerActivity.AcceptClusterPeer, params, node).Get(ctx, &clusterPeer)
