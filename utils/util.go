@@ -44,6 +44,14 @@ var (
 	jitterBase                    = time.Millisecond
 	generateRandomString          = _generateRandomString
 	ReplicationUriRegex           = "^projects\\/([^\\/]+)\\/locations/([^\\/]+)/volumes\\/([^\\/]+)\\/replications\\/([^\\/]+)$"
+	GenerateStrongPassword        = _generateStrongPassword
+)
+
+const (
+	lowercaseLetters = "abcdefghijklmnopqrstuvwxyz"
+	uppercaseLetters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+	digits           = "0123456789"
+	specialChars     = "!@#$%^&*()-_=+[]{}|;:,.<>?/`~"
 )
 
 func ValidateIPv4Address(ipAddr string) bool {
@@ -391,6 +399,55 @@ func GetCoRelationIDFromContext(ctx context.Context) string {
 		return fields[string(middleware.RequestCorrelationID)].(string)
 	}
 	return ""
+}
+
+func _generateStrongPassword(length int) (string, error) {
+	if length < 8 {
+		return "", fmt.Errorf("password length should be at least 8 characters")
+	}
+
+	allChars := lowercaseLetters + uppercaseLetters + digits + specialChars
+	password := make([]byte, length)
+
+	// Ensure the password contains at least one character from each category
+	charCategories := []string{lowercaseLetters, uppercaseLetters, digits, specialChars}
+	for i := 0; i < 4; i++ {
+		char, err := randomCharFrom(charCategories[i])
+		if err != nil {
+			return "", err
+		}
+		password[i] = char
+	}
+
+	// Fill the remaining characters randomly
+	for i := 4; i < length; i++ {
+		char, err := randomCharFrom(allChars)
+		if err != nil {
+			return "", err
+		}
+		password[i] = char
+	}
+
+	// Shuffle the password to ensure randomness
+	shuffle(password)
+
+	return string(password), nil
+}
+
+func randomCharFrom(chars string) (byte, error) {
+	maxValue := big.NewInt(int64(len(chars)))
+	n, err := rand.Int(rand.Reader, maxValue)
+	if err != nil {
+		return 0, err
+	}
+	return chars[n.Int64()], nil
+}
+
+func shuffle(data []byte) {
+	for i := len(data) - 1; i > 0; i-- {
+		j, _ := rand.Int(rand.Reader, big.NewInt(int64(i+1)))
+		data[i], data[j.Int64()] = data[j.Int64()], data[i]
+	}
 }
 
 func ConvertJsonToModel(jsonb []byte, model any) error {

@@ -194,7 +194,11 @@ func CreateNodeForProvider(dbNode *datamodel.Node, volume *datamodel.Volume) *mo
 	node := &models.Node{
 		EndpointAddress: dbNode.EndpointAddress,
 		Username:        volume.Pool.Username,
-		Password:        volume.Pool.Password,
+	}
+	if volume.Pool.SecretID != "" {
+		node.SecretID = volume.Pool.SecretID
+	} else {
+		node.Password = volume.Pool.Password
 	}
 	return node
 }

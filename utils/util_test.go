@@ -6,6 +6,7 @@ import (
 	"strings"
 	"testing"
 	"time"
+	"unicode"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -504,6 +505,42 @@ func TestGetCoRelationIDFromContext(t *testing.T) {
 		result := GetCoRelationIDFromContext(ctx)
 		assert.Equal(t, "", result)
 	})
+}
+
+func TestGenerateStrongPassword(t *testing.T) {
+	// Test valid password generation
+	length := 12
+	password, err := GenerateStrongPassword(length)
+	if err != nil {
+		t.Fatalf("expected no error, but got: %v", err)
+	}
+	if len(password) != length {
+		t.Errorf("expected password length %d, but got %d", length, len(password))
+	}
+
+	// Check if the password contains at least one character from each category
+	hasLower, hasUpper, hasDigit, hasSpecial := false, false, false, false
+	for _, char := range password {
+		switch {
+		case unicode.IsLower(char):
+			hasLower = true
+		case unicode.IsUpper(char):
+			hasUpper = true
+		case unicode.IsDigit(char):
+			hasDigit = true
+		case unicode.IsPunct(char) || unicode.IsSymbol(char):
+			hasSpecial = true
+		}
+	}
+	if !hasLower || !hasUpper || !hasDigit || !hasSpecial {
+		t.Errorf("password does not contain all required character types: %s", password)
+	}
+
+	// Test invalid password length
+	_, err = GenerateStrongPassword(6)
+	if err == nil {
+		t.Errorf("expected error for password length less than 8, but got none")
+	}
 }
 
 func TestRetrierOnCodes(t *testing.T) {

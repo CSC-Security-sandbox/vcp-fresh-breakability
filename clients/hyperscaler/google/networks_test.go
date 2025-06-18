@@ -29,6 +29,8 @@ func testReset(t *testing.T) {
 	createSubnetwork = _createSubnetwork
 	createVPC = _createVPC
 	insertFirewall = _insertFirewall
+	AddSecretVersion = _addSecretVersion
+	GetSecretVersion = _getSecretVersion
 }
 
 func Test_GetTenantProject(t *testing.T) {

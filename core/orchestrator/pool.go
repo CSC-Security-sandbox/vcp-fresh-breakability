@@ -35,6 +35,7 @@ var (
 	ValidateCreatePoolParams     = _validateCreatePoolParams
 	ValidateUpdatePoolParams     = _validateUpdatePoolParams
 	deletePool                   = _deletePool
+	secretManagerEnabled         = env.GetBool("SECRET_MANAGER_ENABLED", false)
 	nodeUsername                 = env.GetString("VSA_NODE_USERNAME", "")
 	nodePassword                 = env.GetString("VSA_NODE_PASSWORD", "")
 	getInterClusterLifsFromONTAP = _getInterClusterLifsFromONTAP
@@ -104,6 +105,14 @@ func _createPool(ctx context.Context, se database.Storage, temporal client.Clien
 			SecondaryZone:   params.SecondaryZone,
 		},
 	}
+
+	if secretManagerEnabled {
+		poolObj.SecretID = utils.RandomUUID()
+	} else {
+		poolObj.Password = nodePassword
+		poolObj.SecretID = ""
+	}
+
 	dbPool, err := se.CreatingPool(ctx, poolObj)
 	if err != nil {
 		return nil, "", err
@@ -441,14 +450,19 @@ func _getInterClusterLifsFromONTAP(ctx context.Context, nodes []*datamodel.Node,
 }
 
 func prepareNodeForProvider(nodes *datamodel.Node, pools *datamodel.PoolView) *models.Node {
-	return &models.Node{
+	node := &models.Node{
 		Name:            nodes.Name,
 		EndpointAddress: nodes.EndpointAddress,
 		Username:        pools.Username,
-		Password:        pools.Password,
 		Zone:            nodes.ZoneName,
 		InstanceType:    nodes.NodeAttributes.InstanceType,
 	}
+	if secretManagerEnabled {
+		node.SecretID = pools.SecretID
+	} else {
+		node.Password = pools.Password
+	}
+	return node
 }
 
 func convertDatastorePoolToModelWithIClifdetails(pools *datamodel.PoolView, interClusterLifs []*vsa.InterclusterLif, accountName string) *models.Pool {

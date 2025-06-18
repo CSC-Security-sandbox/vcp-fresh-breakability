@@ -20,7 +20,7 @@ type InternalVolumeReplicationActivity struct {
 
 func (a *InternalVolumeReplicationActivity) CreateVolumeReplicationInternal(ctx context.Context, params *common.CreateVolumeReplicationInternalParams, node *models.Node, volumeExternalUUID string) (*vsa.VolumeReplication, error) {
 	logger := util.GetLogger(ctx)
-	provider := activities.GetProviderByNode(node)
+	provider := activities.GetProviderByNode(ctx, node)
 	vsaCreateVolumeReplicationParams := prepareCreateVolumeReplicationParamsVSA(params, volumeExternalUUID)
 	res, err := provider.CreateVolumeReplication(vsaCreateVolumeReplicationParams)
 	if err != nil {

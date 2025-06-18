@@ -33,6 +33,7 @@ type Pool struct {
 	Password                string          `gorm:"column:password"`
 	AutoTierBucketName      string          `gorm:"column:auto_tier_bucket_name;type:text"`
 	ServiceAccountId        string          `gorm:"column:service_account_id;type:text"`
+	SecretID                string         `gorm:"column:secret_id"`
 }
 
 type PoolView struct {

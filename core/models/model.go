@@ -72,3 +72,9 @@ type BaseModel struct {
 	UpdatedAt time.Time
 	DeletedAt *time.Time
 }
+
+type UserCache struct {
+	Time     time.Time
+	SecretID string
+	Password string
+}

@@ -6,6 +6,7 @@ type Node struct {
 	EndpointAddress string
 	Username        string
 	Password        string
+	SecretID        string
 	InstanceType    string
 	ExternalUUID    string
 	Zone            string

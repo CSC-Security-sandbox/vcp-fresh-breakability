@@ -385,7 +385,7 @@ func TestGetReplicationsFromOntap(t *testing.T) {
 		mockProvider := new(vsa.MockProvider)
 		defer func() { activitiesGetProviderByNode = activities.GetProviderByNode }()
 
-		activitiesGetProviderByNode = func(node *models.Node) vsa.Provider {
+		activitiesGetProviderByNode = func(ctx context.Context, node *models.Node) vsa.Provider {
 			return mockProvider
 		}
 
@@ -451,7 +451,7 @@ func TestGetReplicationsFromOntap(t *testing.T) {
 		mockProvider := new(vsa.MockProvider)
 		defer func() { activitiesGetProviderByNode = activities.GetProviderByNode }()
 
-		activitiesGetProviderByNode = func(node *models.Node) vsa.Provider {
+		activitiesGetProviderByNode = func(ctx context.Context, node *models.Node) vsa.Provider {
 			return mockProvider
 		}
 
@@ -518,7 +518,7 @@ func TestGetReplicationsFromOntap(t *testing.T) {
 		mockProvider := new(vsa.MockProvider)
 		defer func() { activitiesGetProviderByNode = activities.GetProviderByNode }()
 
-		activitiesGetProviderByNode = func(node *models.Node) vsa.Provider {
+		activitiesGetProviderByNode = func(ctx context.Context, node *models.Node) vsa.Provider {
 			return mockProvider
 		}
 
@@ -604,7 +604,7 @@ func TestGetReplicationsFromOntap(t *testing.T) {
 		mockProvider := new(vsa.MockProvider)
 		defer func() { activitiesGetProviderByNode = activities.GetProviderByNode }()
 
-		activitiesGetProviderByNode = func(node *models.Node) vsa.Provider {
+		activitiesGetProviderByNode = func(ctx context.Context, node *models.Node) vsa.Provider {
 			return mockProvider
 		}
 

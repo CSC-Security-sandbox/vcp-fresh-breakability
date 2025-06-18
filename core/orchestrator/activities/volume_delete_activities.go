@@ -16,7 +16,7 @@ type VolumeDeleteActivity struct {
 
 func (va VolumeDeleteActivity) DeleteVolumeInONTAP(ctx context.Context, volumeExternalUUID, volumeName string, node *models.Node) error {
 	logger := util.GetLogger(ctx)
-	provider := GetProviderByNode(node)
+	provider := GetProviderByNode(ctx,node)
 	err := provider.DeleteVolume(volumeExternalUUID, volumeName)
 	if err != nil {
 		return err

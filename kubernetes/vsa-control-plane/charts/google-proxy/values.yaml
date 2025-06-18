@@ -13,6 +13,14 @@ runMigrationOnStart: true
 temporalAddress: "temporal-frontend.temporal.svc.cluster.local:7233"
 vsaNodeUsername: ""
 vsaNodePassword: ""
+secretManagerEnabled: false
+certificateLifetime: "25920000s"
+caName: ""
+caPoolName: ""
+caPoolDeployedProjectId: ""
+vsaDeployedDnsName: ""
+vsaSecretCacheCleanupIntervalMinutes: 5
+vsaSecretAuthCacheExpirationMinutes: 5
 
 images:
   googleProxy:

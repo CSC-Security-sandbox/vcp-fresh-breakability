@@ -23,7 +23,7 @@ func TestCreateVolumeReplicationInternal(t *testing.T) {
 		originalGetProviderByNode := activities.GetProviderByNode
 		defer func() { activities.GetProviderByNode = originalGetProviderByNode }()
 
-		activities.GetProviderByNode = func(node *models.Node) vsa.Provider {
+		activities.GetProviderByNode = func(ctx context.Context, node *models.Node) vsa.Provider {
 			return mockProvider
 		}
 
@@ -60,7 +60,7 @@ func TestCreateVolumeReplicationInternal(t *testing.T) {
 		originalGetProviderByNode := activities.GetProviderByNode
 		defer func() { activities.GetProviderByNode = originalGetProviderByNode }()
 
-		activities.GetProviderByNode = func(node *models.Node) vsa.Provider {
+		activities.GetProviderByNode = func(ctx context.Context, node *models.Node) vsa.Provider {
 			return mockProvider
 		}
 

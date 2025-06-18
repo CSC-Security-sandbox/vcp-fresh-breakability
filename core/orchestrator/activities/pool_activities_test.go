@@ -2,8 +2,10 @@ package activities_test
 
 import (
 	"context"
+	"crypto/rand"
+	"crypto/rsa"
+	digitalCert "crypto/x509"
 	"fmt"
-	"google.golang.org/api/iam/v1"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -20,11 +22,13 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/repository"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 	"go.temporal.io/sdk/testsuite"
+	"google.golang.org/api/iam/v1"
 	"gorm.io/gorm"
 	"netapp.com/vsa/lifecycle-manager/pkg/vlmconfig"
 )
@@ -435,7 +439,7 @@ func TestGetONTAPProvider_Success(t *testing.T) {
 	defer func() { activities.GetProviderByNode = originalGetProviderByNode }() // Restore original function after test
 
 	// Mock GetProviderByNode to return the mock provider
-	activities.GetProviderByNode = func(node *coremodel.Node) vsa.Provider {
+	activities.GetProviderByNode = func(ctx context.Context, node *coremodel.Node) vsa.Provider {
 		return mockProvider
 	}
 
@@ -461,7 +465,7 @@ func TestGetONTAPProvider_Failure(t *testing.T) {
 	defer func() { activities.GetProviderByNode = originalGetProviderByNode }() // Restore original function after test
 
 	// Mock GetProviderByNode to return the mock provider
-	activities.GetProviderByNode = func(node *coremodel.Node) vsa.Provider {
+	activities.GetProviderByNode = func(ctx context.Context, node *coremodel.Node) vsa.Provider {
 		return mockProvider
 	}
 
@@ -492,7 +496,7 @@ func Test_prepareVlmConfig_Success(t *testing.T) {
 		return []byte("{}"), nil
 	}
 
-	err := activities.PrepareVlmConfig(cfg, "test-deployment", "test-region", "test-zone1", "test-zone2", "test-network", "test-subnet", "test-project", "test-sn-host-project", 1024, 64, 1024, "test-tenant-project@xyz.com", "test-tenant-project")
+	err := activities.PrepareVlmConfig(cfg, "test-deployment", "test-region", "test-zone1", "test-zone2", "test-network", "test-subnet", "test-project", "test-sn-host-project", "password", 1024, 64, 1024, "test-tenant-project@xyz.com", "test-tenant-project")
 	assert.NoError(t, err)
 	assert.Equal(t, "test-deployment", cfg.Deployment.DeploymentID)
 	assert.Equal(t, "test-region", cfg.Deployment.Region)
@@ -507,7 +511,7 @@ func Test_prepareVlmConfig_Success(t *testing.T) {
 
 func Test_prepareVlmConfig_FileNotFound(t *testing.T) {
 	cfg := &vlmconfig.VLMConfig{}
-	err := activities.PrepareVlmConfig(cfg, "test-deployment", "test-region", "test-zone1", "test-zone2", "test-network", "test-subnet", "test-project", "test-sn-host-project", 1024, 64, 2014, "test-tenant-project@xyz.com", "test-tenant-project")
+	err := activities.PrepareVlmConfig(cfg, "test-deployment", "test-region", "test-zone1", "test-zone2", "test-network", "test-subnet", "test-project", "test-sn-host-project", "password", 1024, 64, 2014, "test-tenant-project@xyz.com", "test-tenant-project")
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "no such file or directory")
 }
@@ -520,7 +524,7 @@ func Test_prepareVlmConfig_InvalidJSON(t *testing.T) {
 	}
 
 	cfg := &vlmconfig.VLMConfig{}
-	err := activities.PrepareVlmConfig(cfg, "test-deployment", "test-region", "test-zone1", "test=zone2", "test-network", "test-subnet", "test-project", "test-sn-host-project", 1024, 64, 1024, "test-tenant-project@xyz.com", "test-tenant-project")
+	err := activities.PrepareVlmConfig(cfg, "test-deployment", "test-region", "test-zone1", "test=zone2", "test-network", "test-subnet", "test-project", "test-sn-host-project", "password", 1024, 64, 1024, "test-tenant-project@xyz.com", "test-tenant-project")
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "invalid character")
 }
@@ -538,7 +542,7 @@ func Test_prepareVlmConfig_EmptyDeploymentName(t *testing.T) {
 	activities.ReadFile = func(filename string) ([]byte, error) {
 		return []byte("{}"), nil
 	}
-	err := activities.PrepareVlmConfig(cfg, "", "test-region", "test-zone", "test-zone", "test-network", "test-subnet", "test-project", "test-sn-host-project", 1099511627776, 64, 1024, "test-tenant-project@xyz.com", "test-tenant-project")
+	err := activities.PrepareVlmConfig(cfg, "", "test-region", "test-zone", "test-zone", "test-network", "test-subnet", "test-project", "test-sn-host-project", "password", 1099511627776, 64, 1024, "test-tenant-project@xyz.com", "test-tenant-project")
 	assert.NoError(t, err)
 	assert.Equal(t, "", cfg.Deployment.DeploymentID)
 	assert.Equal(t, "test-region", cfg.Deployment.Region)
@@ -793,16 +797,22 @@ func Test_CreateVSASVM_FailsToCreateLif(t *testing.T) {
 func Test_CreateVSACluster_Success(t *testing.T) {
 	mockVlmClient := new(vlm.MockClientFactory)
 	activity := activities.PoolActivity{}
+	getPasswordForVSACluster := activities.GetPasswordForVSACluster
 	prepareVLMConfig := activities.PrepareVlmConfig
 	getVLMClient := activities.GetVLMClient
+
 	defer func() {
+		activities.GetPasswordForVSACluster = getPasswordForVSACluster
 		activities.PrepareVlmConfig = prepareVLMConfig
 		activities.GetVLMClient = getVLMClient
 	}()
 	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
 	cfg := &vlmconfig.VLMConfig{}
+	activities.GetPasswordForVSACluster = func(ctx context.Context, projectId, userName string) (*models.CustomSecret, error) {
+		return &models.CustomSecret{SecretVersion: &models.CustomSecretVersion{Value: "password"}}, nil
+	}
 
-	activities.PrepareVlmConfig = func(cfg *vlmconfig.VLMConfig, deploymentName, region, primaryZone, secondaryZone, network, subnet, projectId, snHostProject string, sizeInGib int, throughputMibps, iops int64, saEmail string, autoTierBucket string) error {
+	activities.PrepareVlmConfig = func(cfg *vlmconfig.VLMConfig, deploymentName, region, primaryZone, secondaryZone, network, subnet, projectId, snHostProject, password string, sizeInGib int, throughputMibps, iops int64, saEmail string, autoTierBucket string) error {
 		return nil
 	}
 	activities.GetVLMClient = func(ctx context.Context, logger log.Logger, vlmConfig *vlmconfig.VLMConfig) vlm.ClientFactory {
@@ -810,7 +820,7 @@ func Test_CreateVSACluster_Success(t *testing.T) {
 	}
 	mockVlmClient.On("VSAClusterDeployCreate", ctx, cfg).Return(nil)
 
-	result, err := activity.CreateVSACluster(ctx, "test-deployment", "test-region", "test-zone1", "test-zone2", "test-network", "test-subnet", "test-project", "test-sn-host-project", 1024, 64, 1024, "test-tenant-project@xyz.com", "test-tenant-project")
+	result, err := activity.CreateVSACluster(ctx, "test-deployment", "test-region", "test-zone1", "test-zone2", "test-network", "test-subnet", "test-project", "test-sn-host-project", "poolSecretId", 1024, 64, 1024, "test-tenant-project@xyz.com", "test-tenant-project")
 
 	assert.NoError(t, err)
 	assert.NotNil(t, result)
@@ -826,14 +836,17 @@ func Test_CreateVSACluster_FailsToPrepareConfig(t *testing.T) {
 	defer func() {
 		activities.PrepareVlmConfig = prepareVLMConfig
 	}()
+	activities.GetPasswordForVSACluster = func(ctx context.Context, projectId, userName string) (*models.CustomSecret, error) {
+		return &models.CustomSecret{SecretVersion: &models.CustomSecretVersion{Value: "password"}}, nil
+	}
 
-	activities.PrepareVlmConfig = func(cfg *vlmconfig.VLMConfig, deploymentName, region, primaryZone, secondaryZone, network, subnet, projectId, snHostProject string, sizeInGib int, throughPutMibps, iops int64, saEmail string, autoTierBucket string) error {
+	activities.PrepareVlmConfig = func(cfg *vlmconfig.VLMConfig, deploymentName, region, primaryZone, secondaryZone, network, subnet, projectId, snHostProject, password string, sizeInGib int, throughPutMibps, iops int64, saEmail string, autoTierBucket string) error {
 		return errors.New("failed to prepare VLM config")
 	}
 
 	mockVlmClient.On("VSAClusterDeployGet", ctx, cfg).Return(prepareVLMConfig, nil)
 
-	result, err := activity.CreateVSACluster(ctx, "test-deployment", "test-region", "test-zone1", "test-zone2", "test-network", "test-subnet", "test-project", "test-sn-host-project", 1024, 64, 1024, "test-tenant-project@xyz.com", "test-tenant-project")
+	result, err := activity.CreateVSACluster(ctx, "test-deployment", "test-region", "test-zone1", "test-zone2", "test-network", "test-subnet", "test-project", "test-sn-host-project", "poolSecretId", 1024, 64, 1024, "test-tenant-project@xyz.com", "test-tenant-project")
 
 	assert.Error(t, err)
 	assert.Nil(t, result)
@@ -843,16 +856,21 @@ func Test_CreateVSACluster_FailsToPrepareConfig(t *testing.T) {
 func Test_CreateVSACluster_FailsToDeployCluster(t *testing.T) {
 	mockVlmClient := new(vlm.MockClientFactory)
 	activity := activities.PoolActivity{}
+	getPasswordForVSACluster := activities.GetPasswordForVSACluster
 	prepareVLMConfig := activities.PrepareVlmConfig
 	getVLMClient := activities.GetVLMClient
 	defer func() {
+		activities.GetPasswordForVSACluster = getPasswordForVSACluster
 		activities.PrepareVlmConfig = prepareVLMConfig
 		activities.GetVLMClient = getVLMClient
 	}()
 	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
 	cfg := &vlmconfig.VLMConfig{}
+	activities.GetPasswordForVSACluster = func(ctx context.Context, projectId, userName string) (*models.CustomSecret, error) {
+		return &models.CustomSecret{SecretVersion: &models.CustomSecretVersion{Value: "password"}}, nil
+	}
 
-	activities.PrepareVlmConfig = func(cfg *vlmconfig.VLMConfig, deploymentName, region, zone1, zone2, network, subnet, projectId, snHostProject string, sizeInGib int, throughPutMibps, iops int64, saEmail string, autoTierBucket string) error {
+	activities.PrepareVlmConfig = func(cfg *vlmconfig.VLMConfig, deploymentName, region, zone1, zone2, network, subnet, projectId, snHostProject, password string, sizeInGib int, throughPutMibps, iops int64, saEmail string, autoTierBucket string) error {
 		return nil
 	}
 	activities.GetVLMClient = func(ctx context.Context, logger log.Logger, vlmConfig *vlmconfig.VLMConfig) vlm.ClientFactory {
@@ -860,7 +878,7 @@ func Test_CreateVSACluster_FailsToDeployCluster(t *testing.T) {
 	}
 	mockVlmClient.On("VSAClusterDeployCreate", ctx, cfg).Return(errors.New("failed to deploy VSA cluster"))
 
-	result, err := activity.CreateVSACluster(ctx, "test-deployment", "test-region", "test-zone1", "test-zone2", "test-network", "test-subnet", "test-project", "test-sn-host-project", 1024, 64, 1024, "test-tenant-project@xyz.com", "test-tenant-project")
+	result, err := activity.CreateVSACluster(ctx, "test-deployment", "test-region", "test-zone1", "test-zone2", "test-network", "test-subnet", "test-project", "test-sn-host-project", "poolSecretId", 1024, 64, 1024, "test-tenant-project@xyz.com", "test-tenant-project")
 
 	assert.Error(t, err)
 	assert.Nil(t, result)
@@ -875,7 +893,7 @@ func Test_SaveNodeDetails_Success(t *testing.T) {
 	defer func() { activities.GetProviderByNode = originalGetProviderByNode }() // Restore original function after test
 
 	// Mock GetProviderByNode to return the mock provider
-	activities.GetProviderByNode = func(node *coremodel.Node) vsa.Provider {
+	activities.GetProviderByNode = func(ctx context.Context, node *coremodel.Node) vsa.Provider {
 		return mockProvider
 	}
 	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
@@ -914,7 +932,7 @@ func Test_SaveNodeDetails_FailsToCreateNode(t *testing.T) {
 	defer func() { activities.GetProviderByNode = originalGetProviderByNode }() // Restore original function after test
 
 	// Mock GetProviderByNode to return the mock provider
-	activities.GetProviderByNode = func(node *coremodel.Node) vsa.Provider {
+	activities.GetProviderByNode = func(ctx context.Context, node *coremodel.Node) vsa.Provider {
 		return mockProvider
 	}
 	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
@@ -953,7 +971,7 @@ func Test_SaveNodeDetails_FailsToFetchNodeByName(t *testing.T) {
 	defer func() { activities.GetProviderByNode = originalGetProviderByNode }() // Restore original function after test
 
 	// Mock GetProviderByNode to return the mock provider
-	activities.GetProviderByNode = func(node *coremodel.Node) vsa.Provider {
+	activities.GetProviderByNode = func(ctx context.Context, node *coremodel.Node) vsa.Provider {
 		return mockProvider
 	}
 	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
@@ -1139,7 +1157,7 @@ func Test_CreateLifForSvm_Success(t *testing.T) {
 	}, nil).Once()
 	mockStorage.On("CreateLif", ctx, mock.Anything).Return(&datamodel.Lif{}, nil)
 
-	activities.GetProviderByNode = func(node *coremodel.Node) vsa.Provider {
+	activities.GetProviderByNode = func(ctx context.Context, node *coremodel.Node) vsa.Provider {
 		return mockProvider
 	}
 
@@ -1186,7 +1204,7 @@ func Test_CreateLifForSvm_MissingDataLif(t *testing.T) {
 		{BaseModel: datamodel.BaseModel{ID: 1}, Name: "node1"},
 		{BaseModel: datamodel.BaseModel{ID: 2}, Name: "node2"},
 	}
-	activities.GetProviderByNode = func(node *coremodel.Node) vsa.Provider {
+	activities.GetProviderByNode = func(ctx context.Context, node *coremodel.Node) vsa.Provider {
 		return mockProvider
 	}
 
@@ -1227,7 +1245,7 @@ func Test_CreateLifForSvm_FailsToCreateLif(t *testing.T) {
 	mockStorage.On("GetNodesByPoolID", ctx, pool.ID).Return(nodes, nil)
 	mockProvider.On("CreateDataLIF", mock.Anything).Return(nil, errors.New("failed to create LIF")).Once()
 
-	activities.GetProviderByNode = func(node *coremodel.Node) vsa.Provider {
+	activities.GetProviderByNode = func(ctx context.Context, node *coremodel.Node) vsa.Provider {
 		return mockProvider
 	}
 
@@ -1867,15 +1885,21 @@ func Test_ReturnsErrorWhenClusterDetailsAreMissing(t *testing.T) {
 func Test_ReturnsErrorWhenVLMConfigPreparationFails(t *testing.T) {
 	mockStorage := database.NewMockStorage(t)
 	activity := activities.PoolActivity{SE: mockStorage}
+	getPasswordForVSACluster := activities.GetPasswordForVSACluster
 	prepareVLMConfig := activities.PrepareVlmConfig
 	defer func() {
+		activities.GetPasswordForVSACluster = getPasswordForVSACluster
 		activities.PrepareVlmConfig = prepareVLMConfig
 	}()
 	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+	activities.GetPasswordForVSACluster = func(ctx context.Context, projectId, userName string) (*models.CustomSecret, error) {
+		return &models.CustomSecret{SecretVersion: &models.CustomSecretVersion{Value: "password"}}, nil
+	}
 	pool := &datamodel.Pool{ClusterDetails: datamodel.ClusterDetails{ExternalName: "test-deployment"},
 		PoolAttributes: &datamodel.PoolAttributes{ThroughputMibps: 64, Iops: 1000, PrimaryZone: "zone1"}}
 
-	activities.PrepareVlmConfig = func(cfg *vlmconfig.VLMConfig, deploymentName, region, zone1, zone2, network, subnet, projectId, snHostProject string, sizeInGib int, throughPutMibps, iops int64, saEmail string, autoTierBucket string) error {
+	activities.PrepareVlmConfig = func(cfg *vlmconfig.VLMConfig, deploymentName, region, zone1, zone2, network, subnet, projectId, snHostProject, password string, sizeInGib int, throughPutMibps, iops int64, saEmail string, autoTierBucket string) error {
 		return errors.New("failed to prepare VLM config")
 	}
 
@@ -1891,9 +1915,11 @@ func Test_ReturnsErrorWhenVSAClusterDeletionFails(t *testing.T) {
 	mockStorage := database.NewMockStorage(t)
 	mockVlmClient := new(vlm.MockClientFactory)
 	activity := activities.PoolActivity{SE: mockStorage}
+	getPasswordForVSACluster := activities.GetPasswordForVSACluster
 	prepareVLMConfig := activities.PrepareVlmConfig
 	getVLMClient := activities.GetVLMClient
 	defer func() {
+		activities.GetPasswordForVSACluster = getPasswordForVSACluster
 		activities.PrepareVlmConfig = prepareVLMConfig
 		activities.GetVLMClient = getVLMClient
 	}()
@@ -1901,7 +1927,10 @@ func Test_ReturnsErrorWhenVSAClusterDeletionFails(t *testing.T) {
 	pool := &datamodel.Pool{ClusterDetails: datamodel.ClusterDetails{ExternalName: "test-deployment"},
 		PoolAttributes: &datamodel.PoolAttributes{ThroughputMibps: 64, Iops: 1000, PrimaryZone: "zone1"}}
 
-	activities.PrepareVlmConfig = func(cfg *vlmconfig.VLMConfig, deploymentName, region, zone1, zone2, network, subnet, projectId, snHostProject string, sizeInGib int, throughPutMibps, iops int64, saEmail string, autoTierBucket string) error {
+	activities.GetPasswordForVSACluster = func(ctx context.Context, projectId, userName string) (*models.CustomSecret, error) {
+		return &models.CustomSecret{SecretVersion: &models.CustomSecretVersion{Value: "password"}}, nil
+	}
+	activities.PrepareVlmConfig = func(cfg *vlmconfig.VLMConfig, deploymentName, region, zone1, zone2, network, subnet, projectId, snHostProject, password string, sizeInGib int, throughPutMibps, iops int64, saEmail string, autoTierBucket string) error {
 		return nil
 	}
 	activities.GetVLMClient = func(ctx context.Context, logger log.Logger, vlmConfig *vlmconfig.VLMConfig) vlm.ClientFactory {
@@ -1922,9 +1951,11 @@ func Test_DeletesVSADeploymentSuccessfully(t *testing.T) {
 	mockStorage := database.NewMockStorage(t)
 	mockVlmClient := new(vlm.MockClientFactory)
 	activity := activities.PoolActivity{SE: mockStorage}
+	getPasswordForVSACluster := activities.GetPasswordForVSACluster
 	prepareVLMConfig := activities.PrepareVlmConfig
 	getVLMClient := activities.GetVLMClient
 	defer func() {
+		activities.GetPasswordForVSACluster = getPasswordForVSACluster
 		activities.PrepareVlmConfig = prepareVLMConfig
 		activities.GetVLMClient = getVLMClient
 	}()
@@ -1932,7 +1963,10 @@ func Test_DeletesVSADeploymentSuccessfully(t *testing.T) {
 	pool := &datamodel.Pool{ClusterDetails: datamodel.ClusterDetails{ExternalName: "test-deployment"},
 		PoolAttributes: &datamodel.PoolAttributes{ThroughputMibps: 64, Iops: 1000, PrimaryZone: "zone1"}}
 
-	activities.PrepareVlmConfig = func(cfg *vlmconfig.VLMConfig, deploymentName, region, zone1, zone2, network, subnet, projectId, snHostProject string, sizeInGib int, throughPutMibps, iops int64, saEmail string, autoTierBucket string) error {
+	activities.GetPasswordForVSACluster = func(ctx context.Context, projectId, userName string) (*models.CustomSecret, error) {
+		return &models.CustomSecret{SecretVersion: &models.CustomSecretVersion{Value: "password"}}, nil
+	}
+	activities.PrepareVlmConfig = func(cfg *vlmconfig.VLMConfig, deploymentName, region, zone1, zone2, network, subnet, projectId, snHostProject, password string, sizeInGib int, throughPutMibps, iops int64, saEmail string, autoTierBucket string) error {
 		return nil
 	}
 	activities.GetVLMClient = func(ctx context.Context, logger log.Logger, vlmConfig *vlmconfig.VLMConfig) vlm.ClientFactory {
@@ -2690,6 +2724,293 @@ func TestPoolActivity_SetupNetwork(t *testing.T) {
 	})
 }
 
+func Test_generateAndCreateCertificateForVSACluster(t *testing.T) {
+	key, _ := rsa.GenerateKey(rand.Reader, 3072)
+	secretValue := google.ConvertPrivateKeyToString(key, activities.RsaKeyType)
+	param := &models.CustomCertificate{
+		CertificateId: "certid",
+		CaName:        "ca",
+		AccountId:     "pid",
+		Region:        "us",
+		CaGroupName:   "pool",
+		PemCsr:        "-----BEGIN CERTIFICATE REQUEST-----\nY3Ny\n-----END CERTIFICATE REQUEST-----\n",
+	}
+	reqParam := &models.CustomCertificateParam{
+		CertificateId: "certid",
+		CaName:        "ca",
+		AccountId:     "pid",
+		Region:        "us",
+		CaPoolName:    "pool",
+		CommonName:    "test-cn",
+		Domains:       []string{"*.test.com"},
+	}
+
+	t.Run("success", func(tt *testing.T) {
+		gService := hyperscaler.NewMockGoogleServices(tt)
+		generateCSR := activities.GenerateCSR
+		defer func() {
+			activities.GenerateCSR = generateCSR
+		}()
+
+		activities.GenerateCSR = func(commonName string, domains []string) ([]byte, *rsa.PrivateKey, error) {
+			return []byte("csr"), key, nil
+		}
+
+		gService.On("GetLogger").Return(log.NewLogger())
+		gService.On("CreateCertificate", param).Return(param, nil)
+		gService.On("CreateSecret", param.AccountId, mock.Anything, mock.Anything, mock.Anything).Return(&models.CustomSecret{Name: "pid"}, nil)
+
+		certificate, secret, err := activities.GenerateAndCreateCertificateForVSACluster(gService, reqParam)
+
+		assert.NoError(t, err)
+		assert.NotNil(t, certificate)
+		assert.NotNil(t, secret)
+		gService.AssertNumberOfCalls(t, "CreateCertificate", 1)
+		gService.AssertNumberOfCalls(t, "CreateSecret", 1)
+		gService.AssertExpectations(tt)
+	})
+	t.Run("CreateCertificate fails", func(tt *testing.T) {
+		gService := hyperscaler.NewMockGoogleServices(tt)
+		generateCSR := activities.GenerateCSR
+		defer func() {
+			activities.GenerateCSR = generateCSR
+		}()
+
+		activities.GenerateCSR = func(commonName string, domains []string) ([]byte, *rsa.PrivateKey, error) {
+			return []byte("csr"), key, nil
+		}
+
+		gService.On("GetLogger").Return(log.NewLogger())
+		gService.On("CreateCertificate", param).Return(nil, fmt.Errorf("cert error"))
+		certificate, secret, err := activities.GenerateAndCreateCertificateForVSACluster(gService, reqParam)
+		assert.Nil(t, certificate)
+		assert.Nil(t, secret)
+		assert.EqualError(t, err, "cert error")
+		gService.AssertExpectations(tt)
+	})
+	t.Run("CreateSecret fails and revoke fails", func(tt *testing.T) {
+		gService := hyperscaler.NewMockGoogleServices(tt)
+		generateCSR := activities.GenerateCSR
+		defer func() {
+			activities.GenerateCSR = generateCSR
+		}()
+
+		activities.GenerateCSR = func(commonName string, domains []string) ([]byte, *rsa.PrivateKey, error) {
+			return []byte("csr"), key, nil
+		}
+
+		gService.On("GetLogger").Return(log.NewLogger())
+		gService.On("CreateCertificate", param).Return(param, nil)
+		gService.On("CreateSecret", param.AccountId, mock.Anything, mock.Anything, secretValue).Return(nil, errors.New("secret error"))
+		gService.On("RevokeCertificate", param).Return("", errors.New("revoke error"))
+		certificate, secret, err := activities.GenerateAndCreateCertificateForVSACluster(gService, reqParam)
+		assert.EqualError(t, err, "revoke error")
+		assert.Nil(t, certificate)
+		assert.Nil(t, secret)
+		gService.AssertExpectations(tt)
+	})
+
+	t.Run("CreateSecret fails and revoke succeeds", func(tt *testing.T) {
+		gService := hyperscaler.NewMockGoogleServices(tt)
+		generateCSR := activities.GenerateCSR
+		defer func() {
+			activities.GenerateCSR = generateCSR
+		}()
+
+		activities.GenerateCSR = func(commonName string, domains []string) ([]byte, *rsa.PrivateKey, error) {
+			return []byte("csr"), key, nil
+		}
+		gService.On("GetLogger").Return(log.NewLogger())
+		gService.On("CreateCertificate", param).Return(param, nil)
+		gService.On("CreateSecret", param.AccountId, mock.Anything, mock.Anything, secretValue).Return(nil, errors.New("secret error"))
+		gService.On("RevokeCertificate", param).Return(param.CertificateId, nil)
+		certificate, secret, err := activities.GenerateAndCreateCertificateForVSACluster(gService, reqParam)
+		assert.EqualError(t, err, "secret error")
+		assert.Nil(t, certificate)
+		assert.Nil(t, secret)
+		gService.AssertExpectations(tt)
+	})
+}
+
+func TestPoolActivity_CreateCertificate(t *testing.T) {
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	region := "us-central1"
+	clusterName := "test-cluster"
+	mockStorage := database.NewMockStorage(t)
+	pa := &activities.PoolActivity{SE: mockStorage}
+	t.Run("Success", func(tt *testing.T) {
+		getGCPService := activities.GetGCPService
+		generateAndCreateCertificateForVSACluster := activities.GenerateAndCreateCertificateForVSACluster
+
+		defer func() {
+			activities.GetGCPService = getGCPService
+			activities.GenerateAndCreateCertificateForVSACluster = generateAndCreateCertificateForVSACluster
+		}()
+		activities.GetGCPService = func(ctx context.Context) (*google.GcpServices, error) {
+			return &google.GcpServices{}, nil
+		}
+
+		activities.GenerateAndCreateCertificateForVSACluster = func(gcpService hyperscaler.GoogleServices, param *models.CustomCertificateParam) (*models.CustomCertificate, *models.CustomSecret, error) {
+			return &models.CustomCertificate{}, &models.CustomSecret{}, nil
+		}
+		err := pa.CreateCertificate(ctx, region, clusterName)
+		assert.NoError(t, err)
+		mockStorage.AssertExpectations(t)
+	})
+
+	t.Run("GetGCPService fails", func(tt *testing.T) {
+		originalGetGCPService := activities.GetGCPService
+		defer func() {
+			activities.GetGCPService = originalGetGCPService
+		}()
+		activities.GetGCPService = func(ctx context.Context) (*google.GcpServices, error) {
+			return nil, errors.New("gcp service error")
+		}
+		err := pa.CreateCertificate(ctx, region, clusterName)
+		assert.Error(tt, err)
+		assert.Contains(tt, err.Error(), "gcp service error")
+	})
+	t.Run("GenerateAndCreateCertificateForVSACluster Fails", func(tt *testing.T) {
+		getGCPService := activities.GetGCPService
+		generateAndCreateCertificateForVSACluster := activities.GenerateAndCreateCertificateForVSACluster
+
+		defer func() {
+			activities.GetGCPService = getGCPService
+			activities.GenerateAndCreateCertificateForVSACluster = generateAndCreateCertificateForVSACluster
+		}()
+		activities.GetGCPService = func(ctx context.Context) (*google.GcpServices, error) {
+			return &google.GcpServices{}, nil
+		}
+		activities.GenerateAndCreateCertificateForVSACluster = func(gcpService hyperscaler.GoogleServices, param *models.CustomCertificateParam) (*models.CustomCertificate, *models.CustomSecret, error) {
+			return nil, nil, errors.New("certificate error")
+		}
+		err := pa.CreateCertificate(ctx, region, clusterName)
+		assert.EqualError(t, err, "certificate error")
+		mockStorage.AssertExpectations(t)
+	})
+}
+
+func Test_GeneratePasswordForVSACluster(t *testing.T) {
+	projectId := "test-project"
+	userName := "test-user"
+	region := "test-region"
+
+	t.Run("PasswordGenerationFails", func(tt *testing.T) {
+		mockGCPService := new(hyperscaler.MockGoogleServices)
+		originalGeneratePassword := utils.GenerateStrongPassword
+		utils.GenerateStrongPassword = func(length int) (string, error) {
+			return "", errors.New("password generation failed")
+		}
+		defer func() { utils.GenerateStrongPassword = originalGeneratePassword }()
+
+		mockGCPService.On("GetLogger").Return(log.NewLogger())
+		secret, err := activities.GeneratePasswordForVSACluster(mockGCPService, projectId, region, userName)
+
+		assert.Error(tt, err)
+		assert.Nil(tt, secret)
+		assert.Contains(tt, err.Error(), "password generation failed")
+	})
+
+	t.Run("SecretCreationFails", func(tt *testing.T) {
+		mockGCPService := new(hyperscaler.MockGoogleServices)
+		originalGeneratePassword := utils.GenerateStrongPassword
+		utils.GenerateStrongPassword = func(length int) (string, error) {
+			return "xyzpassword", nil
+		}
+		defer func() { utils.GenerateStrongPassword = originalGeneratePassword }()
+
+		mockGCPService.On("GetLogger").Return(log.NewLogger())
+		mockGCPService.On("GetSecretWithLatestVersion", mock.Anything, mock.Anything).Return(nil, fmt.Errorf("secret get error"))
+		mockGCPService.On("CreateSecret", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, fmt.Errorf("secret creation failed"))
+
+		secret, err := activities.GeneratePasswordForVSACluster(mockGCPService, projectId, region, userName)
+
+		assert.Error(tt, err)
+		assert.Nil(tt, secret)
+		assert.Contains(tt, err.Error(), "secret creation failed")
+		mockGCPService.AssertExpectations(tt)
+	})
+	t.Run("GetSecretWithLatestVersion success", func(tt *testing.T) {
+		mockGCPService := new(hyperscaler.MockGoogleServices)
+		mockGCPService.On("GetLogger").Return(log.NewLogger())
+		mockGCPService.On("GetSecretWithLatestVersion", mock.Anything, mock.Anything).Return(&models.CustomSecret{}, nil)
+
+		secret, err := activities.GeneratePasswordForVSACluster(mockGCPService, projectId, region, userName)
+
+		assert.NoError(tt, err)
+		assert.NotNil(tt, secret)
+		mockGCPService.AssertExpectations(tt)
+	})
+	t.Run("Success", func(tt *testing.T) {
+		mockGCPService := new(hyperscaler.MockGoogleServices)
+		mockGCPService.On("GetLogger").Return(log.NewLogger())
+		mockGCPService.On("GetSecretWithLatestVersion", mock.Anything, mock.Anything).Return(nil, fmt.Errorf("secret get error"))
+		mockGCPService.On("CreateSecret", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&models.CustomSecret{}, nil)
+
+		secret, err := activities.GeneratePasswordForVSACluster(mockGCPService, projectId, region, userName)
+
+		assert.NoError(tt, err)
+		assert.NotNil(tt, secret)
+		mockGCPService.AssertExpectations(tt)
+	})
+}
+
+func TestPoolActivity_CreateSecret(t *testing.T) {
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	secretID := "test-secret"
+	region := "test-region"
+	mockStorage := database.NewMockStorage(t)
+	pa := &activities.PoolActivity{SE: mockStorage}
+
+	t.Run("Success", func(tt *testing.T) {
+		originalGetGCPService := activities.GetGCPService
+		originalGeneratePassword := activities.GeneratePasswordForVSACluster
+		defer func() {
+			activities.GetGCPService = originalGetGCPService
+			activities.GeneratePasswordForVSACluster = originalGeneratePassword
+		}()
+		activities.GetGCPService = func(ctx context.Context) (*google.GcpServices, error) {
+			return &google.GcpServices{}, nil
+		}
+		activities.GeneratePasswordForVSACluster = func(gcpService hyperscaler.GoogleServices, projectId, region, secretId string) (*models.CustomSecret, error) {
+			return &models.CustomSecret{}, nil
+		}
+		_, err := pa.CreateSecret(ctx, region, secretID)
+		assert.NoError(tt, err)
+	})
+
+	t.Run("GetGCPService fails", func(tt *testing.T) {
+		originalGetGCPService := activities.GetGCPService
+		defer func() {
+			activities.GetGCPService = originalGetGCPService
+		}()
+		activities.GetGCPService = func(ctx context.Context) (*google.GcpServices, error) {
+			return nil, errors.New("gcp service error")
+		}
+		_, err := pa.CreateSecret(ctx, region, secretID)
+		assert.Error(tt, err)
+		assert.Contains(tt, err.Error(), "gcp service error")
+	})
+
+	t.Run("GeneratePasswordForVSACluster fails", func(tt *testing.T) {
+		originalGetGCPService := activities.GetGCPService
+		originalGeneratePassword := activities.GeneratePasswordForVSACluster
+		defer func() {
+			activities.GetGCPService = originalGetGCPService
+			activities.GeneratePasswordForVSACluster = originalGeneratePassword
+		}()
+		activities.GetGCPService = func(ctx context.Context) (*google.GcpServices, error) {
+			return &google.GcpServices{}, nil
+		}
+		activities.GeneratePasswordForVSACluster = func(gcpService hyperscaler.GoogleServices, projectId, region, secretId string) (*models.CustomSecret, error) {
+			return nil, errors.New("password error")
+		}
+		_, err := pa.CreateSecret(ctx, region, secretID)
+		assert.Error(tt, err)
+		assert.Contains(tt, err.Error(), "password error")
+	})
+}
+
 func Test_CreateGCPBucket_Success(t *testing.T) {
 	mockGcp := hyperscaler.NewMockGoogleServices(t)
 	ctx := context.Background()
@@ -2948,5 +3269,77 @@ func TestPoolActivity_DeleteServiceAccount(t *testing.T) {
 		err := activity.DeleteServiceAccount(ctx, projectID, saAccountID)
 		assert.Error(t, err)
 		assert.Contains(t, err.Error(), "delete error")
+	})
+}
+
+func TestGenerateCSR(t *testing.T) {
+	commonName := "test.example.com"
+	domains := []string{"test.example.com", "www.test.example.com"}
+	csrDER, key, err := activities.GenerateCSR(commonName, domains)
+	if err != nil {
+		t.Fatalf("GenerateCSR returned error: %v", err)
+	}
+	if csrDER == nil {
+		t.Error("Expected non-nil csrDER")
+	}
+	if key == nil {
+		t.Error("Expected non-nil private key")
+	}
+	csr, err := digitalCert.ParseCertificateRequest(csrDER)
+	if err != nil {
+		t.Fatalf("Failed to parse CSR: %v", err)
+	}
+	if err := csr.CheckSignature(); err != nil {
+		t.Errorf("CSR signature check failed: %v", err)
+	}
+	if csr.Subject.CommonName != commonName {
+		t.Errorf("Expected CommonName %s, got %s", commonName, csr.Subject.CommonName)
+	}
+	if len(csr.DNSNames) != len(domains) {
+		t.Errorf("Expected %d DNSNames, got %d", len(domains), len(csr.DNSNames))
+	}
+}
+
+func Test_getPasswordFromCacheOrSecretManager(t *testing.T) {
+	ctx := context.Background()
+	secretID := "test-secret"
+
+	t.Run("PasswordExistsInCache", func(tt *testing.T) {
+		commonparams.AddToAuthCache(secretID, "cached-password")
+		getPasswordForVSACluster := activities.GetPasswordForVSACluster
+		defer func() {
+			activities.GetPasswordForVSACluster = getPasswordForVSACluster
+		}()
+		activities.GetPasswordForVSACluster = func(ctx context.Context, projectId, secretID string) (*models.CustomSecret, error) {
+			return &models.CustomSecret{SecretVersion: &models.CustomSecretVersion{Value: "cached-password"}}, nil
+		}
+		password := activities.GetPasswordFromCacheOrSecretManager(ctx, secretID)
+		assert.Equal(tt, "cached-password", password)
+	})
+
+	t.Run("PasswordNotInCacheAndSecretManagerSucceeds", func(tt *testing.T) {
+		commonparams.RemoveFromCache(secretID)
+		getPasswordForVSACluster := activities.GetPasswordForVSACluster
+		defer func() {
+			activities.GetPasswordForVSACluster = getPasswordForVSACluster
+		}()
+		activities.GetPasswordForVSACluster = func(ctx context.Context, projectId, secretID string) (*models.CustomSecret, error) {
+			return &models.CustomSecret{SecretVersion: &models.CustomSecretVersion{Value: "secret-manager-password"}}, nil
+		}
+		password := activities.GetPasswordFromCacheOrSecretManager(ctx, secretID)
+		assert.Equal(tt, "secret-manager-password", password)
+	})
+
+	t.Run("PasswordNotInCacheAndSecretManagerFails", func(tt *testing.T) {
+		commonparams.RemoveFromCache(secretID)
+		getPasswordForVSACluster := activities.GetPasswordForVSACluster
+		defer func() {
+			activities.GetPasswordForVSACluster = getPasswordForVSACluster
+		}()
+		activities.GetPasswordForVSACluster = func(ctx context.Context, projectId, secretID string) (*models.CustomSecret, error) {
+			return nil, assert.AnError
+		}
+		password := activities.GetPasswordFromCacheOrSecretManager(ctx, secretID)
+		assert.Equal(tt, "", password)
 	})
 }

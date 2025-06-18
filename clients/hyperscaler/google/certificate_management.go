@@ -1,0 +1,85 @@
+package google
+
+import (
+	"fmt"
+	"time"
+
+	models "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/hyperscaler/models"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
+	"google.golang.org/api/privateca/v1"
+)
+
+const (
+	LatestVersion      = "latest"
+	PrivilegeWithdrawn = "PRIVILEGE_WITHDRAWN"
+)
+
+var (
+	CertificateLifetime                                       = env.GetString("CERTIFICATE_LIFETIME", "25920000s") // Default to 300 days
+	validateAndConvertPrivateCACertificateToCustomCertificate = _validateAndConvertPrivateCACertificateToCustomCertificate
+)
+
+// CreateCertificate creates a new certificate in the specified CA.
+func (gcpService *GcpServices) CreateCertificate(cert *models.CustomCertificate) (*models.CustomCertificate, error) {
+	gcpService.Logger.Debug(fmt.Sprintf("Calling CreateCertificate for project name : %s, region : %s, pool : %s, certificate id : %s", cert.AccountId, cert.Region, cert.CaGroupName, cert.CertificateId))
+
+	caResourceName := fmt.Sprintf("projects/%s/locations/%s/caPools/%s/certificateAuthorities/%s", cert.AccountId, cert.Region, cert.CaGroupName, cert.CaName)
+	parent := fmt.Sprintf("projects/%s/locations/%s/caPools/%s", cert.AccountId, cert.Region, cert.CaGroupName)
+
+	certificate := &privateca.Certificate{
+		PemCsr:                     cert.PemCsr,
+		Lifetime:                   CertificateLifetime,
+		IssuerCertificateAuthority: caResourceName,
+		CreateTime:                 time.Now().UTC().Format(time.RFC3339),
+	}
+
+	certificate, err := gcpService.AdminGCPService.privateCaService.Projects.Locations.CaPools.Certificates.Create(parent, certificate).CertificateId(cert.CertificateId).Context(gcpService.Ctx).Do()
+	if err != nil {
+		gcpService.Logger.Errorf("Failed to create certificate: %v", err)
+		return nil, err
+	}
+
+	customCertificate, err := validateAndConvertPrivateCACertificateToCustomCertificate(cert.CertificateId, certificate)
+	if err != nil {
+		return nil, err
+	}
+	return customCertificate, nil
+}
+
+// RevokeCertificate revokes a certificate in the specified CA.
+func (gcpService *GcpServices) RevokeCertificate(cert *models.CustomCertificate) (string, error) {
+	gcpService.Logger.Debug(fmt.Sprintf("Calling CreateCertificate for project name : %s, region : %s, pool : %s, certificate id : %s", cert.AccountId, cert.Region, cert.CaGroupName, cert.CertificateId))
+
+	resourceName := fmt.Sprintf("projects/%s/locations/%s/caPools/%s/certificates/%s", cert.AccountId, cert.Region, cert.CaGroupName, cert.CertificateId)
+	revokeCertificateRequest := &privateca.RevokeCertificateRequest{
+		Reason: PrivilegeWithdrawn,
+	}
+
+	_, err := gcpService.AdminGCPService.privateCaService.Projects.Locations.CaPools.Certificates.Revoke(resourceName, revokeCertificateRequest).Context(gcpService.Ctx).Do()
+	if err != nil {
+		gcpService.Logger.Errorf("Failed to revoke certificate: %v", err)
+		return "", err
+	}
+
+	return resourceName, nil
+}
+
+// GetCertificate retrieves a certificate in the specified CA.
+func (gcpService *GcpServices) GetCertificate(projectID, region, poolName, certificateID string) (*models.CustomCertificate, error) {
+	gcpService.Logger.Debug(fmt.Sprintf("Calling GetCertificate for project name : %s, region : %s, pool : %s, certificate id : %s", projectID, region, poolName, certificateID))
+
+	certificateName := fmt.Sprintf("projects/%s/locations/%s/caPools/%s/certificates/%s", projectID, region, poolName, certificateID)
+	certificate, err := gcpService.AdminGCPService.privateCaService.Projects.Locations.CaPools.Certificates.Get(certificateName).Context(gcpService.Ctx).Do()
+
+	if err != nil {
+		gcpService.Logger.Errorf("GetCertificate failed for certificate : %s", certificateName)
+		return nil, err
+	}
+
+	gcpService.Logger.Debug(fmt.Sprintf("GetCertificate success with response :  %s", certificateID))
+	customCertificate, err := validateAndConvertPrivateCACertificateToCustomCertificate(certificateID, certificate)
+	if err != nil {
+		return nil, err
+	}
+	return customCertificate, nil
+}

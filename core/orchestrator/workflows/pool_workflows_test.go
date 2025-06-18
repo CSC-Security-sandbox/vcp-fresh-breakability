@@ -45,9 +45,12 @@ func TestCreatePoolWorkflow(t *testing.T) {
 	pool := &datamodel.Pool{
 		Username: "test-user",
 		Password: "test-password",
+		SecretID: "",
 	}
 
-	// Mock activity responses
+	if secretManagerEnabled {
+		env.OnActivity("CreateSecret", params.Region, pool.SecretID).Return(nil)
+	}
 	env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
 	env.OnActivity("CreateTenancy", mock.Anything, mock.Anything).Return(&common.TenancyInfo{
 		Network:               "test-network",
@@ -57,7 +60,7 @@ func TestCreatePoolWorkflow(t *testing.T) {
 		Gateway:               "192.168.1.254",
 	}, nil)
 	env.OnActivity("SetupNetwork", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
-	env.OnActivity("CreateVSACluster", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+	env.OnActivity("CreateVSACluster", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 	env.OnActivity("SaveVSANodeDetails", mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 	env.OnActivity("CreatedPool", mock.Anything, mock.Anything).Return(nil, nil)
 	env.OnActivity("SavePoolWithClusterDetails", mock.Anything, mock.Anything, mock.Anything).Return(nil)
@@ -223,7 +226,7 @@ func Test_EnableAutoTier_Error_In_CreatePoolWorkflow(t *testing.T) {
 		Gateway:               "192.168.1.254",
 	}, nil)
 	env.OnActivity("SetupNetwork", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
-	env.OnActivity("CreateVSACluster", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+	env.OnActivity("CreateVSACluster", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 	env.OnActivity("SaveVSANodeDetails", mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 	env.OnActivity("GetOntapVersion", mock.Anything, mock.Anything).Return(nil, nil)
 	env.OnActivity("SavePoolWithClusterDetails", mock.Anything, mock.Anything, mock.Anything).Return(nil)

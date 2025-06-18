@@ -2,7 +2,6 @@ package activities
 
 import (
 	"context"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 	"time"
 
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
@@ -13,6 +12,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/nillable"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 )
 
 var (
@@ -53,7 +53,7 @@ func (a *BackupActivity) UpdateBackupError(ctx context.Context, backup *datamode
 }
 
 func (a *BackupActivity) GetOrCreateObjectStore(ctx context.Context, node *models.Node, name, containerName string) (*commonparams.CloudTarget, error) {
-	provider := GetProviderByNode(node)
+	provider := GetProviderByNode(ctx, node)
 	// Handle both return values from CloudTargetGet
 	objectStore, err := provider.CloudTargetGet(&name)
 	// Check if the error is nil, which means the object store already exists
@@ -72,7 +72,7 @@ func (a *BackupActivity) GetOrCreateObjectStore(ctx context.Context, node *model
 
 func (a *BackupActivity) SnapmirrorGetorCreate(ctx context.Context, node *models.Node, sourcePath, destinationPath string) (*commonparams.SnapmirrorRelationship, error) {
 	logger := util.GetLogger(ctx)
-	provider := GetProviderByNode(node)
+	provider := GetProviderByNode(ctx, node)
 	snapmirror, err := provider.SnapmirrorRelationshipGet(destinationPath, sourcePath)
 	if err != nil {
 		// Log the error but continue to create a new snapmirror relationship
@@ -97,7 +97,7 @@ func (a *BackupActivity) SnapmirrorGetorCreate(ctx context.Context, node *models
 }
 
 func (a *BackupActivity) SnapshotCreate(ctx context.Context, node *models.Node, volumeUUID, name, comment string) (*vsa.SnapshotProviderResponse, error) {
-	provider := GetProviderByNode(node)
+	provider := GetProviderByNode(ctx, node)
 	return provider.CreateSnapshot(vsa.CreateSnapshotParams{
 		VolumeUUID: volumeUUID,
 		Name:       name,
@@ -106,12 +106,12 @@ func (a *BackupActivity) SnapshotCreate(ctx context.Context, node *models.Node, 
 }
 
 func (a *BackupActivity) SnapmirrorTransfer(ctx context.Context, node *models.Node, snapmirrorUUID, snapshotName string) error {
-	provider := GetProviderByNode(node)
+	provider := GetProviderByNode(ctx, node)
 	return provider.SnapmirrorRelationshipTransferCreate(snapmirrorUUID, snapshotName)
 }
 
 func (a *BackupActivity) SnapmirrorTransferPoll(ctx context.Context, node *models.Node, snapmirrorUUID, snapshotName string) error {
-	provider := GetProviderByNode(node)
+	provider := GetProviderByNode(ctx, node)
 	// Start polling for the snapmirror transfer status
 	// Keep polling until the transfer is either successful or failed
 	for {
@@ -134,6 +134,6 @@ func (a *BackupActivity) SnapmirrorTransferPoll(ctx context.Context, node *model
 }
 
 func (a *BackupActivity) DeleteBackupSnapshot(ctx context.Context, node *models.Node, snapshotUUID, volumeUUID string) error {
-	provider := GetProviderByNode(node)
+	provider := GetProviderByNode(ctx, node)
 	return provider.DeleteSnapshot(snapshotUUID, volumeUUID)
 }

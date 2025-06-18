@@ -43,7 +43,7 @@ func (a VolumeCreateActivity) CreateVolume(ctx context.Context, volume *datamode
 
 func (a VolumeCreateActivity) CreateVolumeInONTAP(ctx context.Context, volume *datamodel.Volume, node *models.Node) (*vsa.VolumeResponse, error) {
 	logger := util.GetLogger(ctx)
-	provider := GetProviderByNode(node)
+	provider := GetProviderByNode(ctx, node)
 	volumeType := VolumeTypeRW
 	if volume.VolumeAttributes.IsDataProtection {
 		volumeType = VolumeTypeDP
@@ -92,7 +92,7 @@ func HandleVolumeCreateConflict(volume *datamodel.Volume, provider vsa.Provider)
 
 func (a VolumeCreateActivity) CreateIgroup(ctx context.Context, volume *datamodel.Volume, hostParams []*common.HostParams, node *models.Node) error {
 	logger := util.GetLogger(ctx)
-	provider := GetProviderByNode(node)
+	provider := GetProviderByNode(ctx, node)
 	// FixMe: What if a new host is added to the host group?
 	for _, host := range hostParams {
 		igroupExists, err := provider.IgroupExists(host.HostName, volume.Svm.Name)
@@ -123,7 +123,7 @@ func (a VolumeCreateActivity) CreateLun(ctx context.Context, volume *datamodel.V
 		logger.Info("Skipping lun creation for data protection volume")
 		return &vsa.LunResponse{}, nil
 	}
-	provider := GetProviderByNode(node)
+	provider := GetProviderByNode(ctx,node)
 	lunName := utils.GetLunName(volume.Name)
 
 	lun, err := provider.LunCreate(vsa.LunCreateParams{
@@ -180,7 +180,7 @@ func (a VolumeCreateActivity) CreateLunMap(ctx context.Context, volume *datamode
 		logger.Info("Skipping CreateLunMap for data protection volume")
 		return nil
 	}
-	var provider = GetProviderByNode(node)
+	var provider = GetProviderByNode(ctx, node)
 	err := provider.LunMapCreate(vsa.LunMapCreateParams{
 		LunName:    params.LunName,
 		SvmName:    params.SvmName,
@@ -462,7 +462,7 @@ func _getResourceNamesForBackup(gcpRegion, region, tenantProjectNumber, bvID str
 func (a VolumeCreateActivity) CreateSnapshotPolicyInONTAP(ctx context.Context, volume *datamodel.Volume, node *models.Node) error {
 	if node != nil && volume != nil && volume.SnapshotPolicy != nil && volume.SnapshotPolicy.Name != "" {
 		logger := util.GetLogger(ctx)
-		var provider = GetProviderByNode(node)
+		var provider = GetProviderByNode(ctx,node)
 		err := provider.CreateSnapshotPolicy(&vsa.SnapshotPolicy{
 			Name:      volume.SnapshotPolicy.Name,
 			IsEnabled: volume.SnapshotPolicy.IsEnabled,

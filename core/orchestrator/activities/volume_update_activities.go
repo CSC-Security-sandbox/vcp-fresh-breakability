@@ -22,8 +22,7 @@ type VolumeUpdateActivity struct {
 // UpdateVolumeInONTAP updates the volume in ONTAP
 func (a *VolumeUpdateActivity) UpdateVolumeInONTAP(ctx context.Context, volume *datamodel.Volume, params *common.UpdateVolumeParams, node *models.Node) error {
 	logger := util.GetLogger(ctx)
-	provider := GetProviderByNode(node)
-
+	provider := GetProviderByNode(ctx, node)
 	err := provider.UpdateVolume(vsa.UpdateVolumeParams{
 		// Set the necessary parameters for updating the volume
 		UUID: volume.VolumeAttributes.ExternalUUID,
@@ -41,7 +40,7 @@ func (a *VolumeUpdateActivity) UpdateVolumeInONTAP(ctx context.Context, volume *
 // GetVolumeFromONTAP retrieves the volume from ONTAP
 func (a *VolumeUpdateActivity) GetVolumeFromONTAP(ctx context.Context, volume *datamodel.Volume, node *models.Node) (*vsa.VolumeResponse, error) {
 	logger := util.GetLogger(ctx)
-	provider := GetProviderByNode(node)
+	provider := GetProviderByNode(ctx,node)
 
 	volumeRes, err := provider.GetVolume(vsa.GetVolumeParams{
 		UUID:       volume.VolumeAttributes.ExternalUUID,
@@ -59,7 +58,7 @@ func (a *VolumeUpdateActivity) GetVolumeFromONTAP(ctx context.Context, volume *d
 // UpdateLun updates the LUN associated with the volume in the VSA cluster
 func (a *VolumeUpdateActivity) UpdateLun(ctx context.Context, volume *datamodel.Volume, quotaInBytes int64, node *models.Node) error {
 	logger := util.GetLogger(ctx)
-	provider := GetProviderByNode(node)
+	provider := GetProviderByNode(ctx,node)
 	lunName := utils.GetLunName(volume.Name)
 	err := provider.LunUpdate(vsa.LunUpdateParams{
 		// Set the necessary parameters for updating the volume

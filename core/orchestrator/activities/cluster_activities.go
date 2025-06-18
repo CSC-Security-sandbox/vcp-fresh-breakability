@@ -2,6 +2,7 @@ package activities
 
 import (
 	"context"
+
 	"github.com/go-openapi/strfmt"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	commonparams "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
@@ -21,7 +22,7 @@ type ClusterPeerActivity struct {
 }
 
 func (j *ClusterPeerActivity) AcceptClusterPeer(ctx context.Context, params *commonparams.ClusterPeerParams, node *models.Node) (*commonparams.ClusterPeerParams, error) {
-	provider := GetProviderByNode(node)
+	provider := GetProviderByNode(ctx, node)
 	var expiryTime *strfmt.DateTime
 	if params.ExpiryTime != nil {
 		convertedTime := strfmt.DateTime(*params.ExpiryTime)
@@ -70,7 +71,7 @@ func (j *ClusterPeerActivity) CreateClusterPeer(ctx context.Context, params *com
 }
 
 func CreateClusterPeer(ctx context.Context, params *commonparams.ClusterPeerParams, node *models.Node) (*commonparams.ClusterPeerParams, error) {
-	provider := GetProviderByNode(node)
+	provider := GetProviderByNode(ctx, node)
 	clusterPeers, err := provider.ListClusterPeers()
 	if err != nil {
 		return nil, err

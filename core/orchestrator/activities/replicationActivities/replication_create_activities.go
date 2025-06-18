@@ -31,7 +31,7 @@ type VolumeReplicationCreateActivity struct {
 func (a *VolumeReplicationCreateActivity) GetSourceInterclusterLifs(ctx context.Context, result *replication.CreateReplicationResult) (*replication.CreateReplicationResult, error) {
 	logger := util.GetLogger(ctx)
 	logger.Debugf("GetSourcePoolDetails for pool: %s", result.Event.SourcePool.Name)
-	provider := activities.GetProviderByNode(result.SrcNode)
+	provider := activities.GetProviderByNode(ctx, result.SrcNode)
 
 	interClusterLifs, err := provider.GetInterclusterLIFs("default-intercluster")
 	if err != nil {
@@ -248,7 +248,7 @@ func (a *VolumeReplicationCreateActivity) UpdateReplicationDetails(ctx context.C
 
 func (a *VolumeReplicationCreateActivity) AcceptSvmPeer(ctx context.Context, result *replication.CreateReplicationResult) (*replication.CreateReplicationResult, error) {
 	logger := util.GetLogger(ctx)
-	provider := activities.GetProviderByNode(result.SrcNode)
+	provider := activities.GetProviderByNode(ctx, result.SrcNode)
 
 	svmPeer, err := provider.GetSVMPeer(result.SrcSvm, result.DstSvm)
 	if err != nil {

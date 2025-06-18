@@ -117,7 +117,7 @@ func (r *ReplicationInternalGetMultipleActivity) GetReplicationsFromOntap(ctx co
 		}
 
 		// Get Ontap provider
-		prov := activitiesGetProviderByNode(nodeModel)
+		prov := activitiesGetProviderByNode(ctx, nodeModel)
 		for _, replication := range replications {
 			replFromOntap, err := prov.GetReplicationDetails(convertToSnapmirrorGetParams(replication, params.AccountName))
 			if err != nil {

@@ -122,6 +122,125 @@ func (_c *MockGoogleServices_CreateBucketIfNotExists_Call) RunAndReturn(run func
 	return _c
 }
 
+// CreateCertificate provides a mock function with given fields: cert
+func (_m *MockGoogleServices) CreateCertificate(cert *models.CustomCertificate) (*models.CustomCertificate, error) {
+	ret := _m.Called(cert)
+
+	if len(ret) == 0 {
+		panic("no return value specified for CreateCertificate")
+	}
+
+	var r0 *models.CustomCertificate
+	var r1 error
+	if rf, ok := ret.Get(0).(func(*models.CustomCertificate) (*models.CustomCertificate, error)); ok {
+		return rf(cert)
+	}
+	if rf, ok := ret.Get(0).(func(*models.CustomCertificate) *models.CustomCertificate); ok {
+		r0 = rf(cert)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*models.CustomCertificate)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(*models.CustomCertificate) error); ok {
+		r1 = rf(cert)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockGoogleServices_CreateCertificate_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'CreateCertificate'
+type MockGoogleServices_CreateCertificate_Call struct {
+	*mock.Call
+}
+
+// CreateCertificate is a helper method to define mock.On call
+//   - cert *models.CustomCertificate
+func (_e *MockGoogleServices_Expecter) CreateCertificate(cert interface{}) *MockGoogleServices_CreateCertificate_Call {
+	return &MockGoogleServices_CreateCertificate_Call{Call: _e.mock.On("CreateCertificate", cert)}
+}
+
+func (_c *MockGoogleServices_CreateCertificate_Call) Run(run func(cert *models.CustomCertificate)) *MockGoogleServices_CreateCertificate_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(*models.CustomCertificate))
+	})
+	return _c
+}
+
+func (_c *MockGoogleServices_CreateCertificate_Call) Return(_a0 *models.CustomCertificate, _a1 error) *MockGoogleServices_CreateCertificate_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockGoogleServices_CreateCertificate_Call) RunAndReturn(run func(*models.CustomCertificate) (*models.CustomCertificate, error)) *MockGoogleServices_CreateCertificate_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// CreateSecret provides a mock function with given fields: projectID, region, secretID, secretValue
+func (_m *MockGoogleServices) CreateSecret(projectID string, region string, secretID string, secretValue string) (*models.CustomSecret, error) {
+	ret := _m.Called(projectID, region, secretID, secretValue)
+
+	if len(ret) == 0 {
+		panic("no return value specified for CreateSecret")
+	}
+
+	var r0 *models.CustomSecret
+	var r1 error
+	if rf, ok := ret.Get(0).(func(string, string, string, string) (*models.CustomSecret, error)); ok {
+		return rf(projectID, region, secretID, secretValue)
+	}
+	if rf, ok := ret.Get(0).(func(string, string, string, string) *models.CustomSecret); ok {
+		r0 = rf(projectID, region, secretID, secretValue)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*models.CustomSecret)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(string, string, string, string) error); ok {
+		r1 = rf(projectID, region, secretID, secretValue)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockGoogleServices_CreateSecret_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'CreateSecret'
+type MockGoogleServices_CreateSecret_Call struct {
+	*mock.Call
+}
+
+// CreateSecret is a helper method to define mock.On call
+//   - projectID string
+//   - region string
+//   - secretID string
+//   - secretValue string
+func (_e *MockGoogleServices_Expecter) CreateSecret(projectID interface{}, region interface{}, secretID interface{}, secretValue interface{}) *MockGoogleServices_CreateSecret_Call {
+	return &MockGoogleServices_CreateSecret_Call{Call: _e.mock.On("CreateSecret", projectID, region, secretID, secretValue)}
+}
+
+func (_c *MockGoogleServices_CreateSecret_Call) Run(run func(projectID string, region string, secretID string, secretValue string)) *MockGoogleServices_CreateSecret_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(string), args[1].(string), args[2].(string), args[3].(string))
+	})
+	return _c
+}
+
+func (_c *MockGoogleServices_CreateSecret_Call) Return(_a0 *models.CustomSecret, _a1 error) *MockGoogleServices_CreateSecret_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockGoogleServices_CreateSecret_Call) RunAndReturn(run func(string, string, string, string) (*models.CustomSecret, error)) *MockGoogleServices_CreateSecret_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // CreateServiceAccount provides a mock function with given fields: createRequest, projectNumber, email
 func (_m *MockGoogleServices) CreateServiceAccount(createRequest *iam.CreateServiceAccountRequest, projectNumber string, email string) (*iam.ServiceAccount, error) {
 	ret := _m.Called(createRequest, projectNumber, email)
@@ -381,6 +500,53 @@ func (_c *MockGoogleServices_DeleteBucket_Call) RunAndReturn(run func(context.Co
 	return _c
 }
 
+// DeleteSecret provides a mock function with given fields: projectID, secretID
+func (_m *MockGoogleServices) DeleteSecret(projectID string, secretID string) error {
+	ret := _m.Called(projectID, secretID)
+
+	if len(ret) == 0 {
+		panic("no return value specified for DeleteSecret")
+	}
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(string, string) error); ok {
+		r0 = rf(projectID, secretID)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// MockGoogleServices_DeleteSecret_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'DeleteSecret'
+type MockGoogleServices_DeleteSecret_Call struct {
+	*mock.Call
+}
+
+// DeleteSecret is a helper method to define mock.On call
+//   - projectID string
+//   - secretID string
+func (_e *MockGoogleServices_Expecter) DeleteSecret(projectID interface{}, secretID interface{}) *MockGoogleServices_DeleteSecret_Call {
+	return &MockGoogleServices_DeleteSecret_Call{Call: _e.mock.On("DeleteSecret", projectID, secretID)}
+}
+
+func (_c *MockGoogleServices_DeleteSecret_Call) Run(run func(projectID string, secretID string)) *MockGoogleServices_DeleteSecret_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(string), args[1].(string))
+	})
+	return _c
+}
+
+func (_c *MockGoogleServices_DeleteSecret_Call) Return(_a0 error) *MockGoogleServices_DeleteSecret_Call {
+	_c.Call.Return(_a0)
+	return _c
+}
+
+func (_c *MockGoogleServices_DeleteSecret_Call) RunAndReturn(run func(string, string) error) *MockGoogleServices_DeleteSecret_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // DeleteServiceAccount provides a mock function with given fields: email
 func (_m *MockGoogleServices) DeleteServiceAccount(email string) error {
 	ret := _m.Called(email)
@@ -423,6 +589,67 @@ func (_c *MockGoogleServices_DeleteServiceAccount_Call) Return(_a0 error) *MockG
 }
 
 func (_c *MockGoogleServices_DeleteServiceAccount_Call) RunAndReturn(run func(string) error) *MockGoogleServices_DeleteServiceAccount_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// GetCertificate provides a mock function with given fields: projectID, region, poolName, certificateID
+func (_m *MockGoogleServices) GetCertificate(projectID string, region string, poolName string, certificateID string) (*models.CustomCertificate, error) {
+	ret := _m.Called(projectID, region, poolName, certificateID)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetCertificate")
+	}
+
+	var r0 *models.CustomCertificate
+	var r1 error
+	if rf, ok := ret.Get(0).(func(string, string, string, string) (*models.CustomCertificate, error)); ok {
+		return rf(projectID, region, poolName, certificateID)
+	}
+	if rf, ok := ret.Get(0).(func(string, string, string, string) *models.CustomCertificate); ok {
+		r0 = rf(projectID, region, poolName, certificateID)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*models.CustomCertificate)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(string, string, string, string) error); ok {
+		r1 = rf(projectID, region, poolName, certificateID)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockGoogleServices_GetCertificate_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetCertificate'
+type MockGoogleServices_GetCertificate_Call struct {
+	*mock.Call
+}
+
+// GetCertificate is a helper method to define mock.On call
+//   - projectID string
+//   - region string
+//   - poolName string
+//   - certificateID string
+func (_e *MockGoogleServices_Expecter) GetCertificate(projectID interface{}, region interface{}, poolName interface{}, certificateID interface{}) *MockGoogleServices_GetCertificate_Call {
+	return &MockGoogleServices_GetCertificate_Call{Call: _e.mock.On("GetCertificate", projectID, region, poolName, certificateID)}
+}
+
+func (_c *MockGoogleServices_GetCertificate_Call) Run(run func(projectID string, region string, poolName string, certificateID string)) *MockGoogleServices_GetCertificate_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(string), args[1].(string), args[2].(string), args[3].(string))
+	})
+	return _c
+}
+
+func (_c *MockGoogleServices_GetCertificate_Call) Return(_a0 *models.CustomCertificate, _a1 error) *MockGoogleServices_GetCertificate_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockGoogleServices_GetCertificate_Call) RunAndReturn(run func(string, string, string, string) (*models.CustomCertificate, error)) *MockGoogleServices_GetCertificate_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -529,6 +756,65 @@ func (_c *MockGoogleServices_GetLogger_Call) Return(_a0 log.Logger) *MockGoogleS
 }
 
 func (_c *MockGoogleServices_GetLogger_Call) RunAndReturn(run func() log.Logger) *MockGoogleServices_GetLogger_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// GetSecretWithLatestVersion provides a mock function with given fields: projectID, secretID
+func (_m *MockGoogleServices) GetSecretWithLatestVersion(projectID string, secretID string) (*models.CustomSecret, error) {
+	ret := _m.Called(projectID, secretID)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetSecretWithLatestVersion")
+	}
+
+	var r0 *models.CustomSecret
+	var r1 error
+	if rf, ok := ret.Get(0).(func(string, string) (*models.CustomSecret, error)); ok {
+		return rf(projectID, secretID)
+	}
+	if rf, ok := ret.Get(0).(func(string, string) *models.CustomSecret); ok {
+		r0 = rf(projectID, secretID)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*models.CustomSecret)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(string, string) error); ok {
+		r1 = rf(projectID, secretID)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockGoogleServices_GetSecretWithLatestVersion_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetSecretWithLatestVersion'
+type MockGoogleServices_GetSecretWithLatestVersion_Call struct {
+	*mock.Call
+}
+
+// GetSecretWithLatestVersion is a helper method to define mock.On call
+//   - projectID string
+//   - secretID string
+func (_e *MockGoogleServices_Expecter) GetSecretWithLatestVersion(projectID interface{}, secretID interface{}) *MockGoogleServices_GetSecretWithLatestVersion_Call {
+	return &MockGoogleServices_GetSecretWithLatestVersion_Call{Call: _e.mock.On("GetSecretWithLatestVersion", projectID, secretID)}
+}
+
+func (_c *MockGoogleServices_GetSecretWithLatestVersion_Call) Run(run func(projectID string, secretID string)) *MockGoogleServices_GetSecretWithLatestVersion_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(string), args[1].(string))
+	})
+	return _c
+}
+
+func (_c *MockGoogleServices_GetSecretWithLatestVersion_Call) Return(_a0 *models.CustomSecret, _a1 error) *MockGoogleServices_GetSecretWithLatestVersion_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockGoogleServices_GetSecretWithLatestVersion_Call) RunAndReturn(run func(string, string) (*models.CustomSecret, error)) *MockGoogleServices_GetSecretWithLatestVersion_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -1070,6 +1356,62 @@ func (_c *MockGoogleServices_ReleaseSubnetwork_Call) Return(_a0 error) *MockGoog
 }
 
 func (_c *MockGoogleServices_ReleaseSubnetwork_Call) RunAndReturn(run func(string, string, string) error) *MockGoogleServices_ReleaseSubnetwork_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// RevokeCertificate provides a mock function with given fields: cert
+func (_m *MockGoogleServices) RevokeCertificate(cert *models.CustomCertificate) (string, error) {
+	ret := _m.Called(cert)
+
+	if len(ret) == 0 {
+		panic("no return value specified for RevokeCertificate")
+	}
+
+	var r0 string
+	var r1 error
+	if rf, ok := ret.Get(0).(func(*models.CustomCertificate) (string, error)); ok {
+		return rf(cert)
+	}
+	if rf, ok := ret.Get(0).(func(*models.CustomCertificate) string); ok {
+		r0 = rf(cert)
+	} else {
+		r0 = ret.Get(0).(string)
+	}
+
+	if rf, ok := ret.Get(1).(func(*models.CustomCertificate) error); ok {
+		r1 = rf(cert)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockGoogleServices_RevokeCertificate_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'RevokeCertificate'
+type MockGoogleServices_RevokeCertificate_Call struct {
+	*mock.Call
+}
+
+// RevokeCertificate is a helper method to define mock.On call
+//   - cert *models.CustomCertificate
+func (_e *MockGoogleServices_Expecter) RevokeCertificate(cert interface{}) *MockGoogleServices_RevokeCertificate_Call {
+	return &MockGoogleServices_RevokeCertificate_Call{Call: _e.mock.On("RevokeCertificate", cert)}
+}
+
+func (_c *MockGoogleServices_RevokeCertificate_Call) Run(run func(cert *models.CustomCertificate)) *MockGoogleServices_RevokeCertificate_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(*models.CustomCertificate))
+	})
+	return _c
+}
+
+func (_c *MockGoogleServices_RevokeCertificate_Call) Return(_a0 string, _a1 error) *MockGoogleServices_RevokeCertificate_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockGoogleServices_RevokeCertificate_Call) RunAndReturn(run func(*models.CustomCertificate) (string, error)) *MockGoogleServices_RevokeCertificate_Call {
 	_c.Call.Return(run)
 	return _c
 }

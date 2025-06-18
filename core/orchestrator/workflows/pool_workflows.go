@@ -3,6 +3,7 @@ package workflows
 import (
 	"time"
 
+	hyperscaler_models "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/hyperscaler/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
@@ -19,6 +20,7 @@ import (
 )
 
 var (
+	secretManagerEnabled    = env.GetBool("SECRET_MANAGER_ENABLED", false)
 	setupNwHeartbeatTimeout = env.GetUint64("SETUP_NW_HEARTBEAT_TIMEOUT_SEC", 300)
 )
 
@@ -106,6 +108,14 @@ func (wf *createPoolWorkflow) Run(ctx workflow.Context, args ...interface{}) (in
 	}()
 
 	rollbackManager.Add(poolActivity.ErroredPool, dbPool)
+	secret := &hyperscaler_models.CustomSecret{}
+	if secretManagerEnabled {
+		err = workflow.ExecuteActivity(ctx, poolActivity.CreateSecret, params.Region, pool.SecretID).Get(ctx, secret)
+		if err != nil {
+			return nil, err
+		}
+	}
+
 	tenancyDetails := &common.TenancyInfo{}
 	err = workflow.ExecuteActivity(ctx, poolActivity.CreateTenancy, params).Get(ctx, &tenancyDetails)
 	if err != nil {
@@ -134,21 +144,33 @@ func (wf *createPoolWorkflow) Run(ctx workflow.Context, args ...interface{}) (in
 
 	clusterName := params.Name + "-" + params.AccountName
 	sizeInGB := utils.BytesToGigabytes(params.SizeInBytes)
-
 	cfg := &vlmconfig.VLMConfig{}
+	var vsaClusterPassword string
+	if secretManagerEnabled {
+		vsaClusterPassword = secret.SecretVersion.Value
+	} else {
+		vsaClusterPassword = pool.Password
+	}
 	err = workflow.ExecuteActivity(ctx, poolActivity.CreateVSACluster, clusterName, params.Region, params.PrimaryZone, params.SecondaryZone, tenancyDetails.Network, tenancyDetails.SubnetworkName,
-		tenancyDetails.RegionalTenantProject, tenancyDetails.SnHostProject, sizeInGB, params.CustomPerformanceParams.ThroughputMibps, params.CustomPerformanceParams.Iops, serviceAccount.Email, pool.AutoTierBucketName).Get(ctx, cfg)
+		tenancyDetails.RegionalTenantProject, tenancyDetails.SnHostProject, vsaClusterPassword, sizeInGB, params.CustomPerformanceParams.ThroughputMibps, params.CustomPerformanceParams.Iops, serviceAccount.Email, pool.AutoTierBucketName).Get(ctx, cfg)
 	if err != nil {
 		return nil, err
 	}
 
 	node := &models.Node{}
+
 	err = workflow.ExecuteActivity(ctx, poolActivity.SaveVSANodeDetails, dbPool, cfg).Get(ctx, node)
 	if err != nil {
 		return nil, err
 	}
+
 	node.Username = pool.Username
-	node.Password = pool.Password
+	if secretManagerEnabled {
+		node.SecretID = pool.SecretID
+	} else {
+		node.Password = pool.Password
+	}
+
 	var ontapVersion string
 	err = workflow.ExecuteActivity(ctx, poolActivity.GetOntapVersion, node).Get(ctx, &ontapVersion)
 	if err != nil {

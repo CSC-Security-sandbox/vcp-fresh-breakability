@@ -2,6 +2,7 @@ package hyperscaler
 
 import (
 	"context"
+
 	models "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/hyperscaler/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 	"google.golang.org/api/iam/v1"
@@ -31,6 +32,14 @@ type Services interface {
 	IsServiceAccountCreated(email string) (account *iam.ServiceAccount, isSACreated bool, err error)
 	AttachOrUpdateRolesForServiceAccounts(roles []string, serviceAccountEmail, projectID string) error
 	DeleteServiceAccount(email string) error
+
+	CreateCertificate(cert *models.CustomCertificate) (*models.CustomCertificate, error)
+	RevokeCertificate(cert *models.CustomCertificate) (string, error)
+	GetCertificate(projectID, region, poolName, certificateID string) (*models.CustomCertificate, error)
+
+	CreateSecret(projectID, region, secretID, secretValue string) (*models.CustomSecret, error)
+	GetSecretWithLatestVersion(projectID, secretID string) (*models.CustomSecret, error)
+	DeleteSecret(projectID, secretID string) error
 }
 
 type GoogleServices interface {

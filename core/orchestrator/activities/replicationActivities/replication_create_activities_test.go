@@ -1151,7 +1151,7 @@ func TestAcceptSvmPeer(t *testing.T) {
 			State:       "peered",
 		}
 		mockProvider.On("GetSVMPeer", result.SrcSvm, result.DstSvm).Return(svmPeer, nil)
-		activities.GetProviderByNode = func(node *models.Node) vsa.Provider {
+		activities.GetProviderByNode = func(ctx context.Context, node *models.Node) vsa.Provider {
 			return mockProvider
 		}
 
@@ -1181,7 +1181,7 @@ func TestAcceptSvmPeer(t *testing.T) {
 		}
 		mockProvider.On("GetSVMPeer", result.SrcSvm, result.DstSvm).Return(svmPeer, nil)
 		mockProvider.On("AcceptSvmPeering", srcSvm, dstSvm).Return(nil)
-		activities.GetProviderByNode = func(node *models.Node) vsa.Provider {
+		activities.GetProviderByNode = func(ctx context.Context, node *models.Node) vsa.Provider {
 			return mockProvider
 		}
 
@@ -1211,7 +1211,7 @@ func TestAcceptSvmPeer(t *testing.T) {
 		}
 		mockProvider.On("GetSVMPeer", &srcSvm, &dstSvm).Return(svmPeer, nil)
 		mockProvider.On("AcceptSvmPeering", srcSvm, dstSvm).Return(errors.New("some-error"))
-		activities.GetProviderByNode = func(node *models.Node) vsa.Provider {
+		activities.GetProviderByNode = func(ctx context.Context, node *models.Node) vsa.Provider {
 			return mockProvider
 		}
 
@@ -1237,7 +1237,7 @@ func TestAcceptSvmPeer(t *testing.T) {
 		}
 
 		mockProvider.On("GetSVMPeer", &srcSvm, &dstSvm).Return(nil, errors.New("some-error"))
-		activities.GetProviderByNode = func(node *models.Node) vsa.Provider {
+		activities.GetProviderByNode = func(ctx context.Context, node *models.Node) vsa.Provider {
 			return mockProvider
 		}
 
@@ -1272,7 +1272,7 @@ func TestGetSourceInterclusterLifs(t *testing.T) {
 			&vsa.InterclusterLif{Address: "10.1.1.2"},
 		}
 		mockProvider.On("GetInterclusterLIFs", "default-intercluster").Return(interclusterLifs, nil)
-		activities.GetProviderByNode = func(node *models.Node) vsa.Provider {
+		activities.GetProviderByNode = func(ctx context.Context, node *models.Node) vsa.Provider {
 			return mockProvider
 		}
 
@@ -1302,7 +1302,7 @@ func TestGetSourceInterclusterLifs(t *testing.T) {
 		}
 
 		mockProvider.On("GetInterclusterLIFs", "default-intercluster").Return(nil, errors.New("failed to fetch intercluster LIFs"))
-		activities.GetProviderByNode = func(node *models.Node) vsa.Provider {
+		activities.GetProviderByNode = func(ctx context.Context, node *models.Node) vsa.Provider {
 			return mockProvider
 		}
 
@@ -1403,7 +1403,7 @@ func TestCreateClusterPeer(t *testing.T) {
 		defer func() { activities.GetProviderByNode = originalGetProviderByNode }() // Restore original function after test
 
 		// Mock GetProviderByNode to return the mock provider
-		activities.GetProviderByNode = func(node *models.Node) vsa.Provider {
+		activities.GetProviderByNode = func(ctx context.Context, node *models.Node) vsa.Provider {
 			return mockProvider
 		}
 
@@ -1438,7 +1438,7 @@ func TestCreateClusterPeer(t *testing.T) {
 		originalGetProviderByNode := activities.GetProviderByNode
 		defer func() { activities.GetProviderByNode = originalGetProviderByNode }()
 
-		activities.GetProviderByNode = func(node *models.Node) vsa.Provider {
+		activities.GetProviderByNode = func(ctx context.Context, node *models.Node) vsa.Provider {
 			return mockProvider
 		}
 

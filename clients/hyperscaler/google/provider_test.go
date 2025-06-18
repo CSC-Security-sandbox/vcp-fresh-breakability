@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -20,6 +21,8 @@ import (
 	"google.golang.org/api/googleapi"
 	"google.golang.org/api/iam/v1"
 	"google.golang.org/api/option"
+	"google.golang.org/api/privateca/v1"
+	"google.golang.org/api/secretmanager/v1"
 	"google.golang.org/api/serviceconsumermanagement/v1"
 	"google.golang.org/api/servicenetworking/v1"
 	scopesHttp "google.golang.org/api/transport/http"
@@ -224,6 +227,88 @@ func TestNewGoogleClient(t *testing.T) {
 		initializeStorageService = _initializeStorageService
 		initializeCloudProjectsService = _initializeCloudProjectsService
 	})
+	t.Run("initializePrivateCaServiceFails", func(t *testing.T) {
+		originalCertificateBasedAuthEnabled := certificateBasedAuthEnabled
+		certificateBasedAuthEnabled = true
+		defer func() {
+			certificateBasedAuthEnabled = originalCertificateBasedAuthEnabled
+		}()
+		initializeManagementService = func(ctx context.Context) (*serviceconsumermanagement.APIService, error) {
+			return &serviceconsumermanagement.APIService{
+				BasePath: "",
+			}, nil
+		}
+		initializeNetworkingService = func(ctx context.Context) (*servicenetworking.APIService, error) {
+			return nil, nil
+		}
+		initializeComputeService = func(ctx context.Context) (*compute.Service, error) {
+			return nil, nil
+		}
+		initializeStorageService = func(ctx context.Context) (*storage.Client, error) {
+			return nil, nil
+		}
+		initializeCloudProjectsService = func(ctx context.Context) (*cloudresourcemanager.Service, error) { return nil, nil }
+		initializePrivateCaService = func(ctx context.Context) (*privateca.Service, error) {
+			return nil, fmt.Errorf("initializePrivateCaService failed")
+		}
+		res, err := _newGoogleClient(context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{}))
+		if res != nil {
+			t.Error("unexpected result returned")
+		}
+		if err == nil {
+			t.Error("error was expected")
+		}
+
+		if err.Error() != "initializePrivateCaService failed" {
+			t.Error("Incorrect error response")
+		}
+		initializeManagementService = _initializeManagementService
+		initializeNetworkingService = _initializeNetworkingService
+		initializeComputeService = _initializeComputeService
+		initializeStorageService = _initializeStorageService
+		initializeCloudProjectsService = _initializeCloudProjectsService
+		initializePrivateCaService = _initializePrivateCaService
+	})
+	t.Run("initializeSecretManagerServiceFails", func(t *testing.T) {
+		initializeManagementService = func(ctx context.Context) (*serviceconsumermanagement.APIService, error) {
+			return &serviceconsumermanagement.APIService{
+				BasePath: "",
+			}, nil
+		}
+		initializeNetworkingService = func(ctx context.Context) (*servicenetworking.APIService, error) {
+			return nil, nil
+		}
+		initializeComputeService = func(ctx context.Context) (*compute.Service, error) {
+			return nil, nil
+		}
+		initializeStorageService = func(ctx context.Context) (*storage.Client, error) {
+			return nil, nil
+		}
+		initializeCloudProjectsService = func(ctx context.Context) (*cloudresourcemanager.Service, error) { return nil, nil }
+		initializePrivateCaService = func(ctx context.Context) (*privateca.Service, error) {
+			return nil, nil
+		}
+		initializeSecretManagerService = func(ctx context.Context) (*secretmanager.Service, error) {
+			return nil, errors.New("initializeSecretManagerService failed")
+		}
+		res, err := _newGoogleClient(context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{}))
+		if res != nil {
+			t.Error("unexpected result returned")
+		}
+		if err == nil {
+			t.Error("error was expected")
+		}
+		if err.Error() != "initializeSecretManagerService failed" {
+			t.Error("Incorrect error response")
+		}
+		initializeManagementService = _initializeManagementService
+		initializeNetworkingService = _initializeNetworkingService
+		initializeComputeService = _initializeComputeService
+		initializeStorageService = _initializeStorageService
+		initializeCloudProjectsService = _initializeCloudProjectsService
+		initializePrivateCaService = _initializePrivateCaService
+		initializeSecretManagerService = _initializeSecretManagerService
+	})
 	t.Run("WhenOK", func(t *testing.T) {
 		initializeManagementService = func(ctx context.Context) (*serviceconsumermanagement.APIService, error) {
 			return &serviceconsumermanagement.APIService{
@@ -237,6 +322,16 @@ func TestNewGoogleClient(t *testing.T) {
 		}
 		initializeComputeService = func(ctx context.Context) (*compute.Service, error) {
 			return &compute.Service{
+				BasePath: "",
+			}, nil
+		}
+		initializePrivateCaService = func(ctx context.Context) (*privateca.Service, error) {
+			return &privateca.Service{
+				BasePath: "",
+			}, nil
+		}
+		initializeSecretManagerService = func(ctx context.Context) (*secretmanager.Service, error) {
+			return &secretmanager.Service{
 				BasePath: "",
 			}, nil
 		}
@@ -264,6 +359,8 @@ func TestNewGoogleClient(t *testing.T) {
 		initializeManagementService = _initializeManagementService
 		initializeNetworkingService = _initializeNetworkingService
 		initializeComputeService = _initializeComputeService
+		initializePrivateCaService = _initializePrivateCaService
+		initializeSecretManagerService = _initializeSecretManagerService
 		initializeStorageService = _initializeStorageService
 		initializeIamService = _initializeIamService
 		initializeCloudProjectsService = _initializeCloudProjectsService
@@ -369,6 +466,78 @@ func TestInitializeComputeService(t *testing.T) {
 			return &http.Client{Timeout: time.Second}, MockMetaDataHost, errors.New("client creation failed")
 		}
 		wi, err := initializeComputeService(context.Background())
+		if err != nil {
+			return
+		}
+		assert.NotNil(t, err)
+		assert.Equal(t, "client creation failed", err.Error())
+		assert.NotNil(t, wi)
+	})
+}
+
+func TestInitializePrivateCaService(t *testing.T) {
+	t.Run("whenOk", func(t *testing.T) {
+		defer func() {
+			newClient = scopesHttp.NewClient
+			MockMetaDataHost = env.GetString("GCP_MOCK_METADATA_HOST", "")
+		}()
+		MockMetaDataHost = "sample-server.com"
+		newClient = func(ctx context.Context, opts ...option.ClientOption) (*http.Client, string, error) {
+			return &http.Client{Timeout: time.Second}, MockMetaDataHost, nil
+		}
+		wi, err := initializePrivateCaService(context.Background())
+		if err != nil {
+			return
+		}
+		assert.Nil(t, err, "Unexpected error received")
+		assert.NotNil(t, wi)
+	})
+	t.Run("whenNewClientFails", func(t *testing.T) {
+		defer func() {
+			newClient = scopesHttp.NewClient
+			MockMetaDataHost = env.GetString("GCP_MOCK_METADATA_HOST", "")
+		}()
+		MockMetaDataHost = "sample-server.com"
+		newClient = func(ctx context.Context, opts ...option.ClientOption) (*http.Client, string, error) {
+			return &http.Client{Timeout: time.Second}, MockMetaDataHost, errors.New("client creation failed")
+		}
+		wi, err := initializePrivateCaService(context.Background())
+		if err != nil {
+			return
+		}
+		assert.NotNil(t, err)
+		assert.Equal(t, "client creation failed", err.Error())
+		assert.NotNil(t, wi)
+	})
+}
+
+func TestInitializeSecretManagerService(t *testing.T) {
+	t.Run("whenOk", func(t *testing.T) {
+		defer func() {
+			newClient = scopesHttp.NewClient
+			MockMetaDataHost = env.GetString("GCP_MOCK_METADATA_HOST", "")
+		}()
+		MockMetaDataHost = "sample-server.com"
+		newClient = func(ctx context.Context, opts ...option.ClientOption) (*http.Client, string, error) {
+			return &http.Client{Timeout: time.Second}, MockMetaDataHost, nil
+		}
+		wi, err := initializeSecretManagerService(context.Background())
+		if err != nil {
+			return
+		}
+		assert.Nil(t, err, "Unexpected error received")
+		assert.NotNil(t, wi)
+	})
+	t.Run("whenNewClientFails", func(t *testing.T) {
+		defer func() {
+			newClient = scopesHttp.NewClient
+			MockMetaDataHost = env.GetString("GCP_MOCK_METADATA_HOST", "")
+		}()
+		MockMetaDataHost = "sample-server.com"
+		newClient = func(ctx context.Context, opts ...option.ClientOption) (*http.Client, string, error) {
+			return &http.Client{Timeout: time.Second}, MockMetaDataHost, errors.New("client creation failed")
+		}
+		wi, err := initializeSecretManagerService(context.Background())
 		if err != nil {
 			return
 		}

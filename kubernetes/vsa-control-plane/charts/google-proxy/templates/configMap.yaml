@@ -30,8 +30,14 @@ data:
   OBJECT_STORE_PROVIDER: "{{ index .Values "objectStoreProvider" }}"
   OBJECT_STORES_SERVER: "{{ index .Values "objectStoresServer" }}"
   OBJECT_STORE_AUTH_TYPE: "{{ index .Values "objectStoreAuthType" }}"
-
-
+  SECRET_MANAGER_ENABLED: "{{ index .Values  "secretManagerEnabled" }}"
+  CERTIFICATE_LIFETIME: "{{ index .Values "certificateLifetime" }}"
+  CA_POOL_NAME: "{{ index .Values "caPoolName" }}"
+  CA_NAME: "{{ index .Values "caName" }}"
+  CA_POOL_DEPLOYED_PROJECT_ID: "{{ index .Values "caPoolDeployedProjectId" }}"
+  VSA_DEPLOYED_DNS_NAME: "{{ index .Values "vsaDeployedDnsName" }}"
+  VSA_SECRET_CACHE_CLEANUP_INTERVAL_MINUTES: "{{ index .Values "vsaSecretCacheCleanupIntervalMinutes" }}"
+  VSA_SECRET_AUTH_CACHE_EXPIRATION_MINUTES: "{{ index .Values "vsaSecretAuthCacheExpirationMinutes" }}"
   config.yaml: |
     DB_HOST: {{ index .Values "database" "host" }}
     DB_USER: {{ index .Values "database" "user"  }}

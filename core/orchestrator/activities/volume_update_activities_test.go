@@ -21,7 +21,7 @@ func TestUpdateVolumeInONTAP_Success(t *testing.T) {
 	originalGetProviderByNode := GetProviderByNode
 	defer func() { GetProviderByNode = originalGetProviderByNode }()
 
-	GetProviderByNode = func(node *models.Node) vsa.Provider {
+	GetProviderByNode = func(ctx context.Context, node *models.Node) vsa.Provider {
 		return mockProvider
 	}
 
@@ -53,7 +53,7 @@ func TestUpdateVolumeInONTAP_Failure(t *testing.T) {
 	originalGetProviderByNode := GetProviderByNode
 	defer func() { GetProviderByNode = originalGetProviderByNode }()
 
-	GetProviderByNode = func(node *models.Node) vsa.Provider {
+	GetProviderByNode = func(ctx context.Context, node *models.Node) vsa.Provider {
 		return mockProvider
 	}
 
@@ -87,7 +87,7 @@ func TestUpdateLun_Success(t *testing.T) {
 	originalGetProviderByNode := GetProviderByNode
 	defer func() { GetProviderByNode = originalGetProviderByNode }()
 
-	GetProviderByNode = func(node *models.Node) vsa.Provider {
+	GetProviderByNode = func(ctx context.Context, node *models.Node) vsa.Provider {
 		return mockProvider
 	}
 
@@ -125,7 +125,7 @@ func TestUpdateLun_Failure(t *testing.T) {
 	originalGetProviderByNode := GetProviderByNode
 	defer func() { GetProviderByNode = originalGetProviderByNode }()
 
-	GetProviderByNode = func(node *models.Node) vsa.Provider {
+	GetProviderByNode = func(ctx context.Context, node *models.Node) vsa.Provider {
 		return mockProvider
 	}
 
@@ -187,7 +187,7 @@ func TestUpdateLun_ConflictError(t *testing.T) {
 	originalGetProviderByNode := GetProviderByNode
 	defer func() { GetProviderByNode = originalGetProviderByNode }()
 
-	GetProviderByNode = func(node *models.Node) vsa.Provider {
+	GetProviderByNode = func(ctx context.Context, node *models.Node) vsa.Provider {
 		return mockProvider
 	}
 
@@ -382,7 +382,7 @@ func TestGetVolumeFromONTAP_Success(t *testing.T) {
 	mockProvider := new(vsa.MockProvider)
 	originalGetProviderByNode := GetProviderByNode
 	defer func() { GetProviderByNode = originalGetProviderByNode }()
-	GetProviderByNode = func(node *models.Node) vsa.Provider {
+	GetProviderByNode = func(ctx context.Context, node *models.Node) vsa.Provider {
 		return mockProvider
 	}
 
@@ -414,7 +414,7 @@ func TestGetVolumeFromONTAP_Error(t *testing.T) {
 	mockProvider := new(vsa.MockProvider)
 	originalGetProviderByNode := GetProviderByNode
 	defer func() { GetProviderByNode = originalGetProviderByNode }()
-	GetProviderByNode = func(node *models.Node) vsa.Provider {
+	GetProviderByNode = func(ctx context.Context, node *models.Node) vsa.Provider {
 		return mockProvider
 	}
 

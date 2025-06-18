@@ -18,19 +18,22 @@ import (
 	"google.golang.org/api/googleapi"
 	"google.golang.org/api/iam/v1"
 	"google.golang.org/api/option"
+	"google.golang.org/api/privateca/v1"
+	"google.golang.org/api/secretmanager/v1"
 	"google.golang.org/api/serviceconsumermanagement/v1"
 	"google.golang.org/api/servicenetworking/v1"
 	scopesHttp "google.golang.org/api/transport/http"
 )
 
 var (
-
 	// serviceNetworkingEndpoint is the endpoint for the Service Networking API.
 	serviceNetworkingEndpoint = env.GetString("GCP_SERVICE_NETWORKING_ENDPOINT_URL", "")
 	// serviceConsumerManagementEndpoint is the endpoint for the Service Consumer Management API.
 	serviceConsumerManagementEndpoint = env.GetString("GCP_CONSUMER_MGMT_ENDPOINT_URL", "")
 	// MockMetaDataHost is the endpoint for the metadata server.
 	MockMetaDataHost = env.GetString("GCE_METADATA_HOST", "")
+
+	certificateBasedAuthEnabled = env.GetBool("CERTIFICATE_BASED_AUTH_ENABLED", false)
 
 	newClient = _newClient
 
@@ -41,6 +44,8 @@ var (
 	initializeStorageService       = _initializeStorageService
 	initializeIamService           = _initializeIamService
 	initializeCloudProjectsService = _initializeCloudProjectsService
+	initializePrivateCaService     = _initializePrivateCaService
+	initializeSecretManagerService = _initializeSecretManagerService
 )
 
 type GcpServices struct {
@@ -59,8 +64,10 @@ type AdminGCPService struct {
 	networkingService    *servicenetworking.APIService
 	computeService       *compute.Service
 	storageService       StorageClient
-	cloudProjectsService *projectsManagement.Service
 	iamService           *iam.Service
+	privateCaService     *privateca.Service
+	secretManagerService *secretmanager.Service
+	cloudProjectsService *projectsManagement.Service
 }
 
 // _newClient redirects to third party library HTTP NewClient for networking, while it helps to mock the function for init_test
@@ -104,27 +111,27 @@ func _newGoogleClient(ctx context.Context) (*AdminGCPService, error) {
 	log.Debug("Calling initializeManagementService")
 	managementService, err := initializeManagementService(ctx)
 	if err != nil {
-		log.Error("Error initializeManagementService", err)
+		log.Errorf("Error initializeManagementService : %s", err.Error())
 		return nil, err
 	}
 
 	log.Debug("Calling initializeNetworkingService")
 	networkingService, err := initializeNetworkingService(ctx)
 	if err != nil {
-		log.Error("Error initializeNetworkingService", err)
+		log.Errorf("Error initializeNetworkingService : %s", err.Error())
 		return nil, err
 	}
 
 	log.Debug("Calling initializeComputeService")
 	computeService, err := initializeComputeService(ctx)
 	if err != nil {
-		log.Error("Error initializeComputeService", err)
+		log.Errorf("Error initializeComputeService : %s", err.Error())
 		return nil, err
 	}
 
 	storageService, err := initializeStorageService(ctx)
 	if err != nil {
-		log.Error("Error initializeStorageService", err)
+		log.Errorf("Error initializeStorageService :%s", err.Error())
 		return nil, err
 	}
 
@@ -134,18 +141,40 @@ func _newGoogleClient(ctx context.Context) (*AdminGCPService, error) {
 		return nil, err
 	}
 
+	var privateCaService *privateca.Service
+	if certificateBasedAuthEnabled {
+		log.Debug("Calling initializePrivateCaService")
+		privateCaService, err = initializePrivateCaService(ctx)
+		if err != nil {
+			log.Errorf("Error initializePrivateCaService :%s", err.Error())
+			return nil, err
+		}
+	}
+
+	log.Debug("Calling initializeSecretManagerService")
+	secretManagerService, err := initializeSecretManagerService(ctx)
+	if err != nil {
+		log.Errorf("Error initializeSecretManagerService :%s", err.Error())
+		return nil, err
+	}
+
 	iamService, err := initializeIamService(ctx)
 	if err != nil {
 		log.Error("Error initializeIamService", err)
 		return nil, err
 	}
+
 	gServices := AdminGCPService{
 		networkingService:    networkingService,
 		managementService:    managementService,
 		computeService:       computeService,
 		storageService:       &storageClient{client: storageService},
 		iamService:           iamService,
+		secretManagerService: secretManagerService,
 		cloudProjectsService: cloudProjectservice,
+	}
+	if certificateBasedAuthEnabled {
+		gServices.privateCaService = privateCaService
 	}
 	return &gServices, nil
 }
@@ -160,16 +189,15 @@ func _initializeManagementService(ctx context.Context) (*serviceconsumermanageme
 	if MockMetaDataHost != "" {
 		opts = append(opts, option.WithTokenSource(google.ComputeTokenSource("", serviceconsumermanagement.CloudPlatformScope)))
 	}
-	logger.Debug("creating newClient")
 	client, endpoint, err := newClient(ctx, opts...)
 	if err != nil {
-		logger.Error("error while creating new client for _initializeManagementService", err)
+		logger.Errorf("error while creating new client for _initializeManagementService : %v", err.Error())
 		return nil, vsaerrors.NewVCPError(vsaerrors.ErrGCPClientInitializationError, err)
 	}
 	client.Timeout = waitTimeoutMinutes
 	svc, err := serviceconsumermanagement.NewService(ctx, option.WithHTTPClient(client))
 	if err != nil {
-		logger.Error("serviceconsumermanagement.NewService error", err)
+		logger.Errorf("serviceconsumermanagement.NewService error : %s", err.Error())
 		return nil, vsaerrors.NewVCPError(vsaerrors.ErrGCPClientInitializationError, err)
 	}
 	if endpoint != "" {
@@ -190,13 +218,13 @@ func _initializeNetworkingService(ctx context.Context) (*servicenetworking.APISe
 	logger.Debug("creating newClient")
 	client, endpoint, err := newClient(ctx, opts...)
 	if err != nil {
-		logger.Error("error while creating new client for _initializeNetworkingService", err)
+		logger.Errorf("error while creating new client for _initializeNetworkingService : %s", err.Error())
 		return nil, vsaerrors.NewVCPError(vsaerrors.ErrGCPClientInitializationError, err)
 	}
-	client.Timeout = defaultSleepTime
+	client.Timeout = waitTimeoutMinutes
 	svc, err := servicenetworking.NewService(ctx, option.WithHTTPClient(client))
 	if err != nil {
-		logger.Error("servicenetworking.NewService error", err)
+		logger.Errorf("servicenetworking.NewService error : %s", err.Error())
 		return nil, vsaerrors.NewVCPError(vsaerrors.ErrGCPClientInitializationError, err)
 	}
 	if endpoint != "" {
@@ -276,14 +304,76 @@ func _initializeComputeService(ctx context.Context) (*compute.Service, error) {
 	logger.Debug("creating newClient")
 	client, endpoint, err := newClient(ctx, opts...)
 	if err != nil {
-		logger.Error("error while creating new client for _initializeComputeService", err)
+		logger.Errorf("error while creating new client for _initializeComputeService : %s", err.Error())
 		return nil, vsaerrors.NewVCPError(vsaerrors.ErrGCPClientInitializationError, err)
 	}
-	client.Timeout = defaultSleepTime
+	client.Timeout = waitTimeoutMinutes
 
 	svc, err := compute.NewService(ctx, option.WithHTTPClient(client))
 	if err != nil {
-		logger.Error("compute.NewService error", err)
+		logger.Errorf("compute.NewService error : %s", err.Error())
+		return nil, vsaerrors.NewVCPError(vsaerrors.ErrGCPClientInitializationError, err)
+	}
+
+	if endpoint != "" {
+		svc.BasePath = endpoint
+	}
+
+	return svc, nil
+}
+
+// _initializePrivateCaService initializes the private CA API service in GCP
+func _initializePrivateCaService(ctx context.Context) (*privateca.Service, error) {
+	logger := util.GetLogger(ctx)
+	scopesOption := option.WithScopes(privateca.CloudPlatformScope)
+	opts := []option.ClientOption{scopesOption}
+	logger.Debug(fmt.Sprintf("opts: %#v", opts))
+
+	if MockMetaDataHost != "" {
+		opts = append(opts, option.WithTokenSource(google.ComputeTokenSource("", privateca.CloudPlatformScope)))
+	}
+	logger.Debug("creating newClient")
+	client, endpoint, err := newClient(ctx, opts...)
+	if err != nil {
+		logger.Errorf("error while creating new client for _initializePrivateCaService : %s", err.Error())
+		return nil, vsaerrors.NewVCPError(vsaerrors.ErrGCPClientInitializationError, err)
+	}
+	client.Timeout = waitTimeoutMinutes
+
+	svc, err := privateca.NewService(ctx, option.WithHTTPClient(client))
+	if err != nil {
+		logger.Errorf("privateca.NewService error : %v", err)
+		return nil, vsaerrors.NewVCPError(vsaerrors.ErrGCPClientInitializationError, err)
+	}
+
+	if endpoint != "" {
+		svc.BasePath = endpoint
+	}
+
+	return svc, nil
+}
+
+// _initializeSecretManagerService initializes the Secret Manager API service in GCP
+func _initializeSecretManagerService(ctx context.Context) (*secretmanager.Service, error) {
+	logger := util.GetLogger(ctx)
+	scopesOption := option.WithScopes(secretmanager.CloudPlatformScope)
+	opts := []option.ClientOption{scopesOption}
+	logger.Debug(fmt.Sprintf("opts: %#v", opts))
+
+	if MockMetaDataHost != "" {
+		opts = append(opts, option.WithTokenSource(google.ComputeTokenSource("", secretmanager.CloudPlatformScope)))
+	}
+	logger.Debug("creating newClient")
+	client, endpoint, err := newClient(ctx, opts...)
+	if err != nil {
+		logger.Errorf("error while creating new client for _initializeSecretManagerService : %s", err.Error())
+		return nil, vsaerrors.NewVCPError(vsaerrors.ErrGCPClientInitializationError, err)
+	}
+	client.Timeout = waitTimeoutMinutes
+
+	svc, err := secretmanager.NewService(ctx, option.WithHTTPClient(client))
+	if err != nil {
+		logger.Errorf("secretmanager.NewService error : %v", err)
 		return nil, vsaerrors.NewVCPError(vsaerrors.ErrGCPClientInitializationError, err)
 	}
 

@@ -292,6 +292,7 @@ func ConvertPoolViewToPool(view *datamodel.PoolView) *datamodel.Pool {
 		Password:                view.Password,
 		AutoTierBucketName:      view.AutoTierBucketName,
 		ServiceAccountId:        view.ServiceAccountId,
+		SecretID:                view.SecretID,
 	}
 }
 
