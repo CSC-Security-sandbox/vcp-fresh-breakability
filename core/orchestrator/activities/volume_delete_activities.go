@@ -14,21 +14,21 @@ type VolumeDeleteActivity struct {
 	SE database.Storage
 }
 
-func (a *VolumeDeleteActivity) DeleteVolumeInONTAP(ctx context.Context, volume *datamodel.Volume, node *models.Node) error {
+func (va VolumeDeleteActivity) DeleteVolumeInONTAP(ctx context.Context, volumeExternalUUID, volumeName string, node *models.Node) error {
 	logger := util.GetLogger(ctx)
 	provider := GetProviderByNode(node)
-	err := provider.DeleteVolume(volume.VolumeAttributes.ExternalUUID, volume.Name)
+	err := provider.DeleteVolume(volumeExternalUUID, volumeName)
 	if err != nil {
 		return err
 	}
-	logger.Debugf("Volume %s deleted successfully from the vsa cluster", volume.Name)
+	logger.Debugf("Volume %s deleted successfully from the vsa cluster", volumeName)
 
 	return nil
 }
 
-func (a *VolumeDeleteActivity) DeleteVolume(ctx context.Context, volume *datamodel.Volume) error {
+func (va VolumeDeleteActivity) DeleteVolume(ctx context.Context, volume *datamodel.Volume) error {
 	logger := util.GetLogger(ctx)
-	se := a.SE
+	se := va.SE
 
 	_, err := se.DeleteVolume(ctx, volume.UUID)
 	if err != nil {

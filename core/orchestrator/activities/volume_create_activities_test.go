@@ -1484,3 +1484,41 @@ func TestConvertToVSASnapshotPolicySchedules(t *testing.T) {
 		assert.Equal(tt, []int{0, 30}, result[0].Schedule.Minutes)
 	})
 }
+
+func TestUpdateVolumeStateInDB_Success(t *testing.T) {
+	mockStorage := database.NewMockStorage(t)
+	activity := activities.VolumeCreateActivity{SE: mockStorage}
+	ctx := context.Background()
+	volumeUUID := "vol-uuid-1"
+	state := "READY"
+	stateDetails := "Available"
+
+	mockStorage.On("UpdateVolumeFields", ctx, volumeUUID, map[string]interface{}{
+		"state":         state,
+		"state_details": stateDetails,
+	}).Return(nil)
+
+	err := activity.UpdateVolumeStateInDB(ctx, volumeUUID, state, stateDetails)
+	assert.NoError(t, err)
+	mockStorage.AssertExpectations(t)
+}
+
+func TestUpdateVolumeStateInDB_Error(t *testing.T) {
+	mockStorage := database.NewMockStorage(t)
+	activity := activities.VolumeCreateActivity{SE: mockStorage}
+	ctx := context.Background()
+	volumeUUID := "vol-uuid-2"
+	state := "FAILED"
+	stateDetails := "Error"
+	expectedErr := errors.New("db error")
+
+	mockStorage.On("UpdateVolumeFields", ctx, volumeUUID, map[string]interface{}{
+		"state":         state,
+		"state_details": stateDetails,
+	}).Return(expectedErr)
+
+	err := activity.UpdateVolumeStateInDB(ctx, volumeUUID, state, stateDetails)
+	assert.Error(t, err)
+	assert.Equal(t, expectedErr, err)
+	mockStorage.AssertExpectations(t)
+}

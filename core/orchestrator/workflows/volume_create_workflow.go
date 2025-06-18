@@ -65,7 +65,8 @@ func (wf *volumeCreateWorkflow) Setup(ctx workflow.Context, input interface{}) e
 }
 
 func (wf *volumeCreateWorkflow) Run(ctx workflow.Context, args ...interface{}) (interface{}, error) {
-	volume := args[0].(*datamodel.Volume)
+	log := util.GetLogger(ctx)
+	dbVolume := args[0].(*datamodel.Volume)
 	region := args[1].(string)
 	volumeActivity := &activities.VolumeCreateActivity{}
 	retryPolicy, err := PopulateRetryPolicyParams()
@@ -83,10 +84,20 @@ func (wf *volumeCreateWorkflow) Run(ctx workflow.Context, args ...interface{}) (
 	}
 	ctx = workflow.WithActivityOptions(ctx, ao)
 
-	dbVolume := volume
+	rollbackManager := common.NewRollbackManager()
+	defer func() {
+		if err != nil {
+			err2 := workflow.ExecuteActivity(ctx, volumeActivity.UpdateVolumeStateInDB, dbVolume.UUID, models.LifeCycleStateError, models.LifeCycleStateCreationErrorDetails).Get(ctx, nil)
+			if err2 != nil {
+				log.Errorf("Failed to update volume state in DB to error: %v", err2)
+			}
+			disconnectedCtx, _ := workflow.NewDisconnectedContext(ctx)
+			rollbackManager.ExecuteRollback(disconnectedCtx, err)
+		}
+	}()
 
 	var hostGroups []*datamodel.HostGroup
-	err = workflow.ExecuteActivity(ctx, volumeActivity.GetHosts, &volume).Get(ctx, &hostGroups)
+	err = workflow.ExecuteActivity(ctx, volumeActivity.GetHosts, &dbVolume).Get(ctx, &hostGroups)
 	if err != nil {
 		return nil, err
 	}
@@ -108,6 +119,7 @@ func (wf *volumeCreateWorkflow) Run(ctx workflow.Context, args ...interface{}) (
 	if err != nil {
 		return nil, err
 	}
+	rollbackManager.Add(activities.VolumeDeleteActivity.DeleteVolumeInONTAP, volCreateResponse.ExternalUUID, dbVolume.Name, &node) // This will delete the lunMap & lun if exists
 
 	hostParams := createHostParamsFromHostGroups(hostGroups, dbVolume)
 	err = workflow.ExecuteActivity(ctx, volumeActivity.CreateIgroup, &dbVolume, &hostParams, &node).Get(ctx, nil)
@@ -129,7 +141,7 @@ func (wf *volumeCreateWorkflow) Run(ctx workflow.Context, args ...interface{}) (
 
 	if dbVolume.DataProtection != nil && dbVolume.DataProtection.BackupVaultID != "" {
 		tenancyDetails := &common.TenancyInfo{}
-		err = workflow.ExecuteActivity(ctx, volumeActivity.FindTenancy, volume.VolumeAttributes.VendorSubnetID, volume.Account.Name, &region).Get(ctx, &tenancyDetails)
+		err = workflow.ExecuteActivity(ctx, volumeActivity.FindTenancy, dbVolume.VolumeAttributes.VendorSubnetID, dbVolume.Account.Name, &region).Get(ctx, &tenancyDetails)
 		if err != nil {
 			return nil, err
 		}

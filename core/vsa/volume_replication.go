@@ -792,8 +792,8 @@ func isNonExistentVserverEntryError(err error) bool {
 }
 
 // GetReplicationDetails retrieves the details of a specific Volume Replication
-func (provider *OntapRestProvider) GetReplicationDetails(volRep *VolumeReplication) (*VolumeReplication, error) {
-	client := getOntapClientFunc(provider.ClientParams)
+func (rc *OntapRestProvider) GetReplicationDetails(volRep *VolumeReplication) (*VolumeReplication, error) {
+	client := getOntapClientFunc(rc.ClientParams)
 
 	snapmirrorOkResp, err := client.Snapmirror().SnapmirrorGetPriv(context.TODO(), volRep.DestinationPath(), volRep.ExternalUUID, nil)
 	if err != nil {

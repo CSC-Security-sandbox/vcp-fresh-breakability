@@ -39,6 +39,7 @@ const (
 	LifeCycleStateRetainedDetails      = "Retained"
 	LifeCycleStateOngoingDetails       = "Ongoing"
 	LifeCycleStateCreationErrorDetails = "Error in creating"
+	LifeCycleStateUpdateErrorDetails   = "Error in updating"
 	LifeCycleStateDeletionErrorDetails = "Error in deleting"
 	LifeCycleStateReadyDetails         = "Ready for use"
 	LifeCycleStateCreatedDetails       = "Created successfully"

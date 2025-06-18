@@ -5,6 +5,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
 	gcpgenserver "github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/api/gcp-servergen"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 	"go.temporal.io/sdk/temporal"
@@ -72,6 +73,7 @@ func (wf *volumeUpdateWorkflow) Setup(ctx workflow.Context, input interface{}) e
 }
 
 func (wf *volumeUpdateWorkflow) Run(ctx workflow.Context, args ...interface{}) (interface{}, error) {
+	log := util.GetLogger(ctx)
 	params := args[0].(*common.UpdateVolumeParams)
 	volume := args[1].(*datamodel.Volume)
 	updateActivity := &activities.VolumeUpdateActivity{}
@@ -90,29 +92,50 @@ func (wf *volumeUpdateWorkflow) Run(ctx workflow.Context, args ...interface{}) (
 		},
 	}
 	ctx = workflow.WithActivityOptions(ctx, options)
+	rollbackManager := common.NewRollbackManager()
+	defer func() {
+		if err != nil {
+			err2 := workflow.ExecuteActivity(ctx, activities.VolumeCreateActivity.UpdateVolumeStateInDB, volume.UUID, models.LifeCycleStateError, models.LifeCycleStateUpdateErrorDetails).Get(ctx, nil)
+			if err2 != nil {
+				log.Errorf("Failed to update volume state in DB to error: %v", err2)
+			}
+			disconnectedCtx, _ := workflow.NewDisconnectedContext(ctx)
+			rollbackManager.ExecuteRollback(disconnectedCtx, err)
+		}
+	}()
 
 	var dbNode *datamodel.Node
-	err = workflow.ExecuteActivity(ctx, activities.CommonActivities.GetNode, &volume.Pool.ID).Get(ctx, &dbNode)
+	err = workflow.ExecuteActivity(ctx, activities.CommonActivities.GetNode, volume.Pool.ID).Get(ctx, &dbNode)
 	if err != nil {
 		return nil, err
 	}
 
 	node := CreateNodeForProvider(dbNode, volume)
 
-	err = workflow.ExecuteActivity(ctx, updateActivity.UpdateVolumeInONTAP, &volume, &params, &node).Get(ctx, nil)
+	volResponse := &vsa.VolumeResponse{}
+	err = workflow.ExecuteActivity(ctx, updateActivity.GetVolumeFromONTAP, volume, &node).Get(ctx, &volResponse)
 	if err != nil {
 		return nil, err
 	}
 
-	// Avoid updating the lun if the size is not changed
-	if params.QuotaInBytes > volume.SizeInBytes {
-		err = workflow.ExecuteActivity(ctx, updateActivity.UpdateLun, &volume, &params, &node).Get(ctx, nil)
+	if isUpdateRequired(volResponse, params) {
+		err = workflow.ExecuteActivity(ctx, updateActivity.UpdateVolumeInONTAP, volume, params, node).Get(ctx, nil)
 		if err != nil {
 			return nil, err
 		}
+		rollbackManager.Add(updateActivity.UpdateVolumeInONTAP, volume, getUpdateParamsForRollback(volResponse), node)
 	}
 
-	err = workflow.ExecuteActivity(ctx, updateActivity.UpdateVolumeInDB, &volume, &params).Get(ctx, nil)
+	// Avoid updating the lun if the size is not changed
+	if params.QuotaInBytes > volume.SizeInBytes {
+		err = workflow.ExecuteActivity(ctx, updateActivity.UpdateLun, volume, params.QuotaInBytes, node).Get(ctx, nil)
+		if err != nil {
+			return nil, err
+		}
+		// No rollback for LUN because we cannot decrease the size of a LUN in ONTAP.
+	}
+
+	err = workflow.ExecuteActivity(ctx, updateActivity.UpdateVolumeInDB, volume, &params).Get(ctx, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -122,4 +145,19 @@ func (wf *volumeUpdateWorkflow) Run(ctx workflow.Context, args ...interface{}) (
 	// Then Find out which host groups to add and which to remove
 
 	return nil, err
+}
+
+func isUpdateRequired(response *vsa.VolumeResponse, params *common.UpdateVolumeParams) bool {
+	if response.Size < params.QuotaInBytes {
+		return true
+	}
+	// Add checks for other fields as and when required
+	return false
+}
+
+func getUpdateParamsForRollback(volResponse *vsa.VolumeResponse) *common.UpdateVolumeParams {
+	return &common.UpdateVolumeParams{
+		// Set the necessary parameters for rolling back the volume update
+		QuotaInBytes: volResponse.Size,
+	}
 }

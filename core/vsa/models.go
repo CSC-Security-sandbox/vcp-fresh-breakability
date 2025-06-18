@@ -36,6 +36,7 @@ type ProviderResponse struct {
 type VolumeResponse struct {
 	ProviderResponse
 	AvailableSpace int64
+	Size           int64
 	State          string
 }
 

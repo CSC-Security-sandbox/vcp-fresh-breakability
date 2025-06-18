@@ -433,9 +433,11 @@ func _updateVolume(ctx context.Context, se database.Storage, temporal client.Cli
 	job := &datamodel.Job{
 		Type:          string(models.JobTypeUpdateVolume),
 		State:         string(models.JobsStateNEW),
-		ResourceName:  params.Name,
+		ResourceName:  dbVolume.Name,
 		AccountID:     sql.NullInt64{Int64: dbVolume.AccountID, Valid: true},
 		JobAttributes: &datamodel.JobAttributes{ResourceUUID: dbVolume.UUID},
+		CorrelationID: utils.GetCoRelationIDFromContext(ctx),
+		RequestID:     utils.GetRequestIDFromContext(ctx),
 	}
 	createdJob, err := se.CreateJob(ctx, job)
 	if err != nil {

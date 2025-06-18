@@ -1,4 +1,4 @@
-package activities_test
+package activities
 
 import (
 	"context"
@@ -8,7 +8,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database"
 	utilErrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
@@ -19,7 +18,7 @@ import (
 func TestDeleteVolume_Success(t *testing.T) {
 	// Arrange
 	mockStorage := database.NewMockStorage(t)
-	activity := activities.VolumeDeleteActivity{
+	activity := VolumeDeleteActivity{
 		SE: mockStorage,
 	}
 	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
@@ -39,7 +38,7 @@ func TestDeleteVolume_Success(t *testing.T) {
 func TestDeleteVolume_Success_VolumeAlreadyDeleted(t *testing.T) {
 	// Arrange
 	mockStorage := database.NewMockStorage(t)
-	activity := activities.VolumeDeleteActivity{
+	activity := VolumeDeleteActivity{
 		SE: mockStorage,
 	}
 	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
@@ -59,7 +58,7 @@ func TestDeleteVolume_Success_VolumeAlreadyDeleted(t *testing.T) {
 func TestDeleteVolume_Failure(t *testing.T) {
 	// Arrange
 	mockStorage := database.NewMockStorage(t)
-	activity := activities.VolumeDeleteActivity{SE: mockStorage}
+	activity := VolumeDeleteActivity{SE: mockStorage}
 	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
 	volumeID := "test-volume-id"
 	expectedError := errors.New("volume not found")
@@ -78,32 +77,26 @@ func TestDeleteVolume_Failure(t *testing.T) {
 func TestDeleteVolumeInONTAP_Success(t *testing.T) {
 	// Arrange
 	mockProvider := new(vsa.MockProvider) // Use the mock provider
-	originalGetProviderByNode := activities.GetProviderByNode
-	defer func() { activities.GetProviderByNode = originalGetProviderByNode }() // Restore original function after test
+	originalGetProviderByNode := GetProviderByNode
+	defer func() { GetProviderByNode = originalGetProviderByNode }() // Restore original function after test
 
 	// Mock GetProviderByNode to return the mock provider
-	activities.GetProviderByNode = func(node *models.Node) vsa.Provider {
+	GetProviderByNode = func(node *models.Node) vsa.Provider {
 		return mockProvider
 	}
 
-	activity := activities.VolumeDeleteActivity{}
+	activity := VolumeDeleteActivity{}
 	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
-	volume := &datamodel.Volume{
-		Name: "test-volume",
-		VolumeAttributes: &datamodel.VolumeAttributes{
-			ExternalUUID: "uuid-123",
-		},
-		Svm: &datamodel.Svm{
-			Name: "test-svm",
-		},
-	}
+	volumeExternalUUID := "uuid-123"
+	volumeName := "test-volume"
+
 	node := &models.Node{}
 
 	// Mock the DeleteVolume method
-	mockProvider.On("DeleteVolume", volume.VolumeAttributes.ExternalUUID, volume.Name).Return(nil)
+	mockProvider.On("DeleteVolume", volumeExternalUUID, volumeName).Return(nil)
 
 	// Act
-	err := activity.DeleteVolumeInONTAP(ctx, volume, node)
+	err := activity.DeleteVolumeInONTAP(ctx, volumeExternalUUID, volumeName, node)
 
 	// Assert
 	assert.NoError(t, err)
@@ -113,33 +106,27 @@ func TestDeleteVolumeInONTAP_Success(t *testing.T) {
 func TestDeleteVolumeInONTAP_Failure(t *testing.T) {
 	// Arrange
 	mockProvider := new(vsa.MockProvider) // Use the mock provider
-	originalGetProviderByNode := activities.GetProviderByNode
-	defer func() { activities.GetProviderByNode = originalGetProviderByNode }() // Restore original function after test
+	originalGetProviderByNode := GetProviderByNode
+	defer func() { GetProviderByNode = originalGetProviderByNode }() // Restore original function after test
 
 	// Mock GetProviderByNode to return the mock provider
-	activities.GetProviderByNode = func(node *models.Node) vsa.Provider {
+	GetProviderByNode = func(node *models.Node) vsa.Provider {
 		return mockProvider
 	}
 
-	activity := activities.VolumeDeleteActivity{}
+	activity := VolumeDeleteActivity{}
 	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
-	volume := &datamodel.Volume{
-		Name: "test-volume",
-		VolumeAttributes: &datamodel.VolumeAttributes{
-			ExternalUUID: "uuid-123",
-		},
-		Svm: &datamodel.Svm{
-			Name: "test-svm",
-		},
-	}
+	volumeExternalUUID := "uuid-123"
+	volumeName := "test-volume"
+
 	node := &models.Node{}
 	expectedError := errors.New("failed to delete volume in ONTAP")
 
 	// Mock the DeleteVolume method
-	mockProvider.On("DeleteVolume", volume.VolumeAttributes.ExternalUUID, volume.Name).Return(expectedError)
+	mockProvider.On("DeleteVolume", volumeExternalUUID, volumeName).Return(expectedError)
 
 	// Act
-	err := activity.DeleteVolumeInONTAP(ctx, volume, node)
+	err := activity.DeleteVolumeInONTAP(ctx, volumeExternalUUID, volumeName, node)
 
 	// Assert
 	assert.Error(t, err)

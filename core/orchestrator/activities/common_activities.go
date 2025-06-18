@@ -2,6 +2,7 @@ package activities
 
 import (
 	"context"
+
 	googleproxyclient "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/google-proxy-client"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	errors2 "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
@@ -15,9 +16,9 @@ type CommonActivities struct {
 }
 
 // UpdateJobStatus updates the status of a job in the database.
-func (j CommonActivities) UpdateJobStatus(ctx context.Context, job *datamodel.Job) error {
+func (ca CommonActivities) UpdateJobStatus(ctx context.Context, job *datamodel.Job) error {
 	logger := util.GetLogger(ctx)
-	se := j.SE
+	se := ca.SE
 	logger.Infof("updating job: %s with status: %s", job.UUID, job.State)
 	return se.UpdateJob(ctx, job.UUID, job.State, job.TrackingID, job.ErrorDetails)
 }
@@ -50,8 +51,8 @@ func DescribeJob(ctx context.Context, jobId, basepath, jwtToken, projectNumber, 
 }
 
 // GetNode retrieves the node associated with the given pool ID.
-func (j CommonActivities) GetNode(ctx context.Context, poolId int64) (*datamodel.Node, error) {
-	se := j.SE
+func (ca CommonActivities) GetNode(ctx context.Context, poolId int64) (*datamodel.Node, error) {
+	se := ca.SE
 
 	nodes, err := se.GetNodesByPoolID(ctx, poolId)
 	if err != nil {

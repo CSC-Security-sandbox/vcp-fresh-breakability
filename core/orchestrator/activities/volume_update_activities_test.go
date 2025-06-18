@@ -115,7 +115,7 @@ func TestUpdateLun_Success(t *testing.T) {
 		Size:       int64(params.QuotaInBytes),
 	}).Return(nil)
 
-	err := activity.UpdateLun(ctx, volume, params, node)
+	err := activity.UpdateLun(ctx, volume, params.QuotaInBytes, node)
 	assert.NoError(t, err)
 	mockProvider.AssertExpectations(t)
 }
@@ -154,7 +154,7 @@ func TestUpdateLun_Failure(t *testing.T) {
 		Size:       int64(params.QuotaInBytes),
 	}).Return(expectedErr)
 
-	err := activity.UpdateLun(ctx, volume, params, node)
+	err := activity.UpdateLun(ctx, volume, params.QuotaInBytes, node)
 	assert.Error(t, err)
 	assert.EqualError(t, err, expectedErr.Error())
 	mockProvider.AssertExpectations(t)
@@ -217,7 +217,7 @@ func TestUpdateLun_ConflictError(t *testing.T) {
 		Size:       int64(params.QuotaInBytes),
 	}).Return(conflictErr)
 
-	err := activity.UpdateLun(ctx, volume, params, node)
+	err := activity.UpdateLun(ctx, volume, params.QuotaInBytes, node)
 	assert.NoError(t, err)
 	mockProvider.AssertExpectations(t)
 }
@@ -376,4 +376,69 @@ func TestGetUpdatedFieldsFromParams(t *testing.T) {
 			tt.check(t, fields, tt.volume)
 		})
 	}
+}
+
+func TestGetVolumeFromONTAP_Success(t *testing.T) {
+	mockProvider := new(vsa.MockProvider)
+	originalGetProviderByNode := GetProviderByNode
+	defer func() { GetProviderByNode = originalGetProviderByNode }()
+	GetProviderByNode = func(node *models.Node) vsa.Provider {
+		return mockProvider
+	}
+
+	activity := VolumeUpdateActivity{SE: database.NewMockStorage(t)}
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	volume := &datamodel.Volume{
+		Name: "test-volume",
+		Svm:  &datamodel.Svm{Name: "test-svm"},
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			ExternalUUID: "uuid-123",
+		},
+	}
+	node := &models.Node{}
+	expectedRes := &vsa.VolumeResponse{Size: 12345}
+
+	mockProvider.On("GetVolume", vsa.GetVolumeParams{
+		UUID:       volume.VolumeAttributes.ExternalUUID,
+		VolumeName: volume.Name,
+		SvmName:    volume.Svm.Name,
+	}).Return(expectedRes, nil)
+
+	res, err := activity.GetVolumeFromONTAP(ctx, volume, node)
+	assert.NoError(t, err)
+	assert.Equal(t, expectedRes, res)
+	mockProvider.AssertExpectations(t)
+}
+
+func TestGetVolumeFromONTAP_Error(t *testing.T) {
+	mockProvider := new(vsa.MockProvider)
+	originalGetProviderByNode := GetProviderByNode
+	defer func() { GetProviderByNode = originalGetProviderByNode }()
+	GetProviderByNode = func(node *models.Node) vsa.Provider {
+		return mockProvider
+	}
+
+	activity := VolumeUpdateActivity{SE: database.NewMockStorage(t)}
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	volume := &datamodel.Volume{
+		Name: "test-volume",
+		Svm:  &datamodel.Svm{Name: "test-svm"},
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			ExternalUUID: "uuid-123",
+		},
+	}
+	node := &models.Node{}
+	expectedErr := errors.New("get failed")
+
+	mockProvider.On("GetVolume", vsa.GetVolumeParams{
+		UUID:       volume.VolumeAttributes.ExternalUUID,
+		VolumeName: volume.Name,
+		SvmName:    volume.Svm.Name,
+	}).Return(nil, expectedErr)
+
+	res, err := activity.GetVolumeFromONTAP(ctx, volume, node)
+	assert.Error(t, err)
+	assert.Nil(t, res)
+	assert.EqualError(t, err, expectedErr.Error())
+	mockProvider.AssertExpectations(t)
 }

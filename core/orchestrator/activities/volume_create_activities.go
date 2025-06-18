@@ -35,13 +35,13 @@ var (
 	GetOrCreateAndGCSResources = _getOrCreateAndGCSResources
 )
 
-func (a *VolumeCreateActivity) CreateVolume(ctx context.Context, volume *datamodel.Volume) (*datamodel.Volume, error) {
+func (a VolumeCreateActivity) CreateVolume(ctx context.Context, volume *datamodel.Volume) (*datamodel.Volume, error) {
 	se := a.SE
 
 	return se.CreateVolume(ctx, volume)
 }
 
-func (a *VolumeCreateActivity) CreateVolumeInONTAP(ctx context.Context, volume *datamodel.Volume, node *models.Node) (*vsa.VolumeResponse, error) {
+func (a VolumeCreateActivity) CreateVolumeInONTAP(ctx context.Context, volume *datamodel.Volume, node *models.Node) (*vsa.VolumeResponse, error) {
 	logger := util.GetLogger(ctx)
 	provider := GetProviderByNode(node)
 	volumeType := VolumeTypeRW
@@ -90,7 +90,7 @@ func HandleVolumeCreateConflict(volume *datamodel.Volume, provider vsa.Provider)
 	return volumeRes, nil
 }
 
-func (a *VolumeCreateActivity) CreateIgroup(ctx context.Context, volume *datamodel.Volume, hostParams []*common.HostParams, node *models.Node) error {
+func (a VolumeCreateActivity) CreateIgroup(ctx context.Context, volume *datamodel.Volume, hostParams []*common.HostParams, node *models.Node) error {
 	logger := util.GetLogger(ctx)
 	provider := GetProviderByNode(node)
 	// FixMe: What if a new host is added to the host group?
@@ -117,7 +117,7 @@ func (a *VolumeCreateActivity) CreateIgroup(ctx context.Context, volume *datamod
 	return nil
 }
 
-func (a *VolumeCreateActivity) CreateLun(ctx context.Context, volume *datamodel.Volume, node *models.Node, availableSpace int64) (*vsa.LunResponse, error) {
+func (a VolumeCreateActivity) CreateLun(ctx context.Context, volume *datamodel.Volume, node *models.Node, availableSpace int64) (*vsa.LunResponse, error) {
 	logger := util.GetLogger(ctx)
 	if volume.VolumeAttributes.IsDataProtection {
 		logger.Info("Skipping lun creation for data protection volume")
@@ -144,6 +144,20 @@ func (a *VolumeCreateActivity) CreateLun(ctx context.Context, volume *datamodel.
 	return lun, nil
 }
 
+func (a VolumeCreateActivity) UpdateVolumeStateInDB(ctx context.Context, volumeUUID, state, stateDetails string) error {
+	se := a.SE
+
+	err := se.UpdateVolumeFields(ctx, volumeUUID, map[string]interface{}{
+		"state":         state,
+		"state_details": stateDetails,
+	})
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
 func LunGet(ctx context.Context, lunName, volumeName, svmName string, provider vsa.Provider) (*vsa.LunResponse, error) {
 	logger := util.GetLogger(ctx)
 
@@ -160,7 +174,7 @@ func LunGet(ctx context.Context, lunName, volumeName, svmName string, provider v
 	return lun, nil
 }
 
-func (a *VolumeCreateActivity) CreateLunMap(ctx context.Context, volume *datamodel.Volume, params *common.CreateLunMapParams, node *models.Node) error {
+func (a VolumeCreateActivity) CreateLunMap(ctx context.Context, volume *datamodel.Volume, params *common.CreateLunMapParams, node *models.Node) error {
 	logger := util.GetLogger(ctx)
 	if volume.VolumeAttributes.IsDataProtection {
 		logger.Info("Skipping CreateLunMap for data protection volume")
@@ -183,7 +197,7 @@ func (a *VolumeCreateActivity) CreateLunMap(ctx context.Context, volume *datamod
 	return nil
 }
 
-func (a *VolumeCreateActivity) UpdateVolumeDetails(ctx context.Context, volume *datamodel.Volume, volCreateResponse *vsa.ProviderResponse) error {
+func (a VolumeCreateActivity) UpdateVolumeDetails(ctx context.Context, volume *datamodel.Volume, volCreateResponse *vsa.ProviderResponse) error {
 	se := a.SE
 
 	volume.VolumeAttributes.ExternalUUID = volCreateResponse.ExternalUUID
@@ -197,7 +211,7 @@ func (a *VolumeCreateActivity) UpdateVolumeDetails(ctx context.Context, volume *
 	return nil
 }
 
-func (a *VolumeCreateActivity) GetHosts(ctx context.Context, volume *datamodel.Volume) ([]*datamodel.HostGroup, error) {
+func (a VolumeCreateActivity) GetHosts(ctx context.Context, volume *datamodel.Volume) ([]*datamodel.HostGroup, error) {
 	se := a.SE
 
 	if volume.VolumeAttributes.BlockProperties == nil {
@@ -235,7 +249,7 @@ func _findTenancy(ctx context.Context, gcpService hyperscaler.GoogleServices, co
 	}, nil
 }
 
-func (a *VolumeCreateActivity) FindTenancy(ctx context.Context, consumerVPC string, customerProjectNumber string, tenantProjectRegion *string) (*common.TenancyInfo, error) {
+func (a VolumeCreateActivity) FindTenancy(ctx context.Context, consumerVPC string, customerProjectNumber string, tenantProjectRegion *string) (*common.TenancyInfo, error) {
 	gcpService, err := GetGCPService(ctx)
 	if err != nil {
 		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
@@ -244,7 +258,7 @@ func (a *VolumeCreateActivity) FindTenancy(ctx context.Context, consumerVPC stri
 	return FindTenancy(ctx, gcpService, consumerVPC, customerProjectNumber, tenantProjectRegion)
 }
 
-func (a *VolumeCreateActivity) CheckBackupVaultExistsInVCP(ctx context.Context, volume *datamodel.Volume, region string) error {
+func (a VolumeCreateActivity) CheckBackupVaultExistsInVCP(ctx context.Context, volume *datamodel.Volume, region string) error {
 	se := a.SE
 
 	bvId := volume.DataProtection.BackupVaultID
@@ -297,10 +311,10 @@ func (a *VolumeCreateActivity) CheckBackupVaultExistsInVCP(ctx context.Context, 
 	return nil
 }
 
-func (a *VolumeCreateActivity) CheckForBucketResourceName(ctx context.Context, volume *datamodel.Volume) (*common.BucketDetails, error) {
+func (a VolumeCreateActivity) CheckForBucketResourceName(ctx context.Context, volume *datamodel.Volume) (*common.BucketDetails, error) {
 	logger := util.GetLogger(ctx)
 
-	bvDetails, err := getBackupVaultDetails(a, ctx, volume.DataProtection.BackupVaultID)
+	bvDetails, err := getBackupVaultDetails(&a, ctx, volume.DataProtection.BackupVaultID)
 	if err != nil {
 		logger.Errorf("Error getting backup vault details: %v", err)
 		return nil, err
@@ -337,7 +351,7 @@ func getBackupVaultDetails(a *VolumeCreateActivity, ctx context.Context, bvID st
 	return backupVault, nil
 }
 
-func (a *VolumeCreateActivity) GenerateResourceNames(ctx context.Context, volume *datamodel.Volume, tenancyDetails *common.TenancyInfo, gcpRegion string) (*common.ResourceNames, error) {
+func (a VolumeCreateActivity) GenerateResourceNames(ctx context.Context, volume *datamodel.Volume, tenancyDetails *common.TenancyInfo, gcpRegion string) (*common.ResourceNames, error) {
 	logger := util.GetLogger(ctx)
 
 	email, bucketName, serviceAccountId, err := GetResourceNamesForBackup(gcpRegion, gcpRegion, tenancyDetails.RegionalTenantProject, volume.DataProtection.BackupVaultID)
@@ -352,7 +366,7 @@ func (a *VolumeCreateActivity) GenerateResourceNames(ctx context.Context, volume
 	}, nil
 }
 
-func (a *VolumeCreateActivity) CreateBucket(ctx context.Context, resourceName *common.ResourceNames, tenancyDetails *common.TenancyInfo, region string) (*common.BucketDetails, error) {
+func (a VolumeCreateActivity) CreateBucket(ctx context.Context, resourceName *common.ResourceNames, tenancyDetails *common.TenancyInfo, region string) (*common.BucketDetails, error) {
 	gcpService, err := GetGCPService(ctx)
 	if err != nil {
 		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
@@ -414,7 +428,7 @@ func _getOrCreateAndGCSResources(gcpServices hyperscaler.GoogleServices, service
 	return account, bucketDetailsArr, nil
 }
 
-func (a *VolumeCreateActivity) UpdateBackupVaultWithBucketDetails(ctx context.Context, volume *datamodel.Volume, bucketDetails *common.BucketDetails) error {
+func (a VolumeCreateActivity) UpdateBackupVaultWithBucketDetails(ctx context.Context, volume *datamodel.Volume, bucketDetails *common.BucketDetails) error {
 	se := a.SE
 
 	saName := bucketDetails.ServiceAccountName + "@" + bucketDetails.TenantProjectNumber + ".iam.gserviceaccount.com"
@@ -445,7 +459,7 @@ func _getResourceNamesForBackup(gcpRegion, region, tenantProjectNumber, bvID str
 	return utils.GetResourcesNameForBackup(gcpRegion, region, tenantProjectNumber, bvID)
 }
 
-func (a *VolumeCreateActivity) CreateSnapshotPolicyInONTAP(ctx context.Context, volume *datamodel.Volume, node *models.Node) error {
+func (a VolumeCreateActivity) CreateSnapshotPolicyInONTAP(ctx context.Context, volume *datamodel.Volume, node *models.Node) error {
 	if node != nil && volume != nil && volume.SnapshotPolicy != nil && volume.SnapshotPolicy.Name != "" {
 		logger := util.GetLogger(ctx)
 		var provider = GetProviderByNode(node)

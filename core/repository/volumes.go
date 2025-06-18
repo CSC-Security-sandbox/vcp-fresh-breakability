@@ -49,7 +49,7 @@ func (d *DataStoreRepository) CreateVolume(ctx context.Context, volume *datamode
 	} else if err2 != nil {
 		return nil, err1
 	}
-	return nil, customerrors.NewConflictErr("volume already exists")
+	return nil, customerrors.NewUserInputValidationErr("volume already exists")
 }
 
 func (d *DataStoreRepository) GetVolume(ctx context.Context, volUUID string) (*datamodel.Volume, error) {
@@ -97,6 +97,7 @@ func (d *DataStoreRepository) UpdateVolumeFields(ctx context.Context, volumeUUID
 	}
 	logger := util.GetLogger(ctx)
 	defer commitOrRollbackOnError(logger, tx, &err)
+
 	dbVolume, err := getVolumeWithDetails(tx, &datamodel.Volume{BaseModel: datamodel.BaseModel{UUID: volumeUUID}})
 	if err != nil {
 		return err

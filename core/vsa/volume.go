@@ -85,6 +85,7 @@ func (rc *OntapRestProvider) GetVolume(params GetVolumeParams) (*VolumeResponse,
 			ExternalUUID: *vol.UUID,
 		},
 		AvailableSpace: *vol.Space.Available,
+		Size:           *vol.Space.Size,
 		State:          *vol.State,
 	}, nil
 }

@@ -4,6 +4,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	gcpgenserver "github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/api/gcp-servergen"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 	"go.temporal.io/sdk/temporal"
@@ -20,6 +21,7 @@ var _ WorkflowInterface = &volumeDeleteWorkflow{}
 
 // DeleteVolumeWorkflow Delete Volume Workflow process volume related requests from a customer.
 func DeleteVolumeWorkflow(ctx workflow.Context, volume *datamodel.Volume) (gcpgenserver.V1betaDescribeVolumeRes, error) {
+	log := util.GetLogger(ctx)
 	volumeWf := new(volumeDeleteWorkflow)
 	err := volumeWf.Setup(ctx, volume)
 	if err != nil {
@@ -30,16 +32,23 @@ func DeleteVolumeWorkflow(ctx workflow.Context, volume *datamodel.Volume) (gcpge
 	if err != nil {
 		return nil, err
 	}
+
+	defer func() {
+		if err != nil {
+			volumeWf.Status = WorkflowStatusFailed
+			err = volumeWf.UpdateJobStatus(ctx, string(models.JobsStateERROR), err)
+		} else {
+			volumeWf.Status = WorkflowStatusCompleted
+			err = volumeWf.UpdateJobStatus(ctx, string(models.JobsStateDONE), nil)
+		}
+	}()
+
 	_, err = volumeWf.Run(ctx, volume)
 	if err != nil {
-		volumeWf.Status = WorkflowStatusFailed
-		err = volumeWf.UpdateJobStatus(ctx, string(models.JobsStateDONE), err)
-		if err != nil {
-			return nil, err
-		}
+		log.Errorf("Volume delete workflow completed with error: %v", err)
+		return nil, err
 	}
-	volumeWf.Status = WorkflowStatusCompleted
-	err = volumeWf.UpdateJobStatus(ctx, string(models.JobsStateDONE), nil)
+	log.Infof("Volume delete workflow completed successfully")
 	return nil, err
 }
 
@@ -63,6 +72,7 @@ func (wf *volumeDeleteWorkflow) Setup(ctx workflow.Context, input interface{}) e
 }
 
 func (wf *volumeDeleteWorkflow) Run(ctx workflow.Context, args ...interface{}) (interface{}, error) {
+	log := util.GetLogger(ctx)
 	volume := args[0].(*datamodel.Volume)
 	deleteActivity := &activities.VolumeDeleteActivity{}
 	retryPolicy, err := PopulateRetryPolicyParams()
@@ -79,6 +89,17 @@ func (wf *volumeDeleteWorkflow) Run(ctx workflow.Context, args ...interface{}) (
 		},
 	}
 	ctx = workflow.WithActivityOptions(ctx, options)
+	rollbackManager := common.NewRollbackManager()
+	defer func() {
+		if err != nil {
+			err2 := workflow.ExecuteActivity(ctx, activities.VolumeCreateActivity.UpdateVolumeStateInDB, volume.UUID, models.LifeCycleStateError, models.LifeCycleStateDeletionErrorDetails).Get(ctx, nil)
+			if err2 != nil {
+				log.Errorf("Failed to update volume state in DB to error: %v", err2)
+			}
+			disconnectedCtx, _ := workflow.NewDisconnectedContext(ctx)
+			rollbackManager.ExecuteRollback(disconnectedCtx, err)
+		}
+	}()
 
 	var dbNode *datamodel.Node
 	err = workflow.ExecuteActivity(ctx, activities.CommonActivities.GetNode, &volume.Pool.ID).Get(ctx, &dbNode)
@@ -88,7 +109,7 @@ func (wf *volumeDeleteWorkflow) Run(ctx workflow.Context, args ...interface{}) (
 
 	node := CreateNodeForProvider(dbNode, volume)
 
-	err = workflow.ExecuteActivity(ctx, deleteActivity.DeleteVolumeInONTAP, &volume, &node).Get(ctx, nil)
+	err = workflow.ExecuteActivity(ctx, deleteActivity.DeleteVolumeInONTAP, volume.VolumeAttributes.ExternalUUID, volume.Name, node).Get(ctx, nil)
 	if err != nil {
 		return nil, err
 	}
