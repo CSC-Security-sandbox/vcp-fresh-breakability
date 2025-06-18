@@ -1,0 +1,31 @@
+vmrs:
+  disk_limits:
+    - disk_type: hyperdisk_balanced
+      qualified_vms:
+      - vm_type: c4-standard-4
+        ontap_perf:
+          iops: 1
+          throughput_in_mibs: 2
+          capacity_in_gib: 3
+        relative_cost: 4
+      - vm_type: c4-standard-8
+        ontap_perf:
+          iops: 8
+          throughput_in_mibs: 9
+          capacity_in_gib: 10
+        relative_cost: 8
+  ontap_overheads:
+    amplification_factors:
+      iops: 1.1
+      throughput: 1.1
+      capacity: 1.1
+    num_disks_per_zone: 8
+    workload_headroom:
+      - workload: all
+        headroom:
+          iops: 0.05
+          throughput: 0.02
+    hotspot_prevention_factors:
+      iops: 1.1
+      throughput: 1.1
+  max_num_ha_pairs: 12

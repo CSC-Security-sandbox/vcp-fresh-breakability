@@ -1,0 +1,174 @@
+package config
+
+import (
+	// testify - assert and mock packages for testing.
+	"testing"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vmrs"
+)
+
+func TestParseConfig(t *testing.T) {
+	cases := []struct {
+		name           string
+		configFilename string
+		expectedError  string
+		expectedConfig *vmrs.VMRSConfig
+	}{
+		{
+			name:           "ValidConfig",
+			configFilename: "testdata/valid.yaml",
+			expectedError:  "",
+			expectedConfig: &vmrs.VMRSConfig{
+				HyperscalerPerfLimits: vmrs.HyperscalerPerfLimits{
+					MaxNumHAPairs: 12,
+					OntapOverheads: vmrs.OntapOverheads{
+						AmplificationFactors: vmrs.AmplificationFactors{
+							PerfAmplificationFactors: vmrs.PerfAmplificationFactors{
+								IOPS:       1.1,
+								Throughput: 1.2,
+							},
+							Capacity: 1.3,
+						},
+						NumDisksPerZone: 4,
+						WorkloadHeadroom: []vmrs.WorkloadHeadroom{
+							{
+								WorkloadName: "workload1",
+								Headroom: vmrs.PerfAmplificationFactors{
+									IOPS:       1.4,
+									Throughput: 1.5,
+								},
+							},
+							{
+								WorkloadName: "workload2",
+								Headroom: vmrs.PerfAmplificationFactors{
+									IOPS:       1.7,
+									Throughput: 1.8,
+								},
+							},
+						},
+						HotspotPreventionFactors: vmrs.PerfAmplificationFactors{
+							IOPS:       1.9,
+							Throughput: 2.0,
+						},
+					},
+					DiskPerfLimits: []vmrs.DiskTypePerfLimit{
+						{
+							DiskType: "hyperdisk_balanced",
+							QualifiedVMs: []vmrs.VMPerfLimit{
+								{
+									VMType: "c4-standard-4",
+									OntapLimits: vmrs.OntapPerfLimit{
+										IOPS:             1,
+										ThroughputInMiBs: 2,
+										CapacityInGiB:    3,
+									},
+									DiskLimits: vmrs.DiskPerfLimit{
+										IOPS:             4,
+										ThroughputInMiBs: 5,
+										CapacityInGiB:    6,
+									},
+									RelativeCost: 4.0,
+								},
+								{
+									VMType: "c4-standard-8",
+									OntapLimits: vmrs.OntapPerfLimit{
+										IOPS:             8,
+										ThroughputInMiBs: 9,
+										CapacityInGiB:    10,
+									},
+									DiskLimits: vmrs.DiskPerfLimit{
+										IOPS:             11,
+										ThroughputInMiBs: 12,
+										CapacityInGiB:    13,
+									},
+									RelativeCost: 8.0,
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			name:           "MissingFile",
+			configFilename: "testdata/missing_file.yaml",
+			expectedError:  `[vmrs] ConfigParseError: failed to read config file due to error: open testdata/missing_file.yaml: no such file or directory (path: testdata/missing_file.yaml)`,
+			expectedConfig: nil,
+		},
+		{
+			name:           "MissingDiskTypeField",
+			configFilename: "testdata/missing_disk_type.yaml",
+			expectedError: `[vmrs] ConfigParseError: failed to parse config file due to error: [3:5] Key: 'DiskTypePerfLimit.DiskType' Error:Field validation for 'DiskType' failed on the 'required' tag
+   1 | vmrs:
+   2 |   disk_limits:
+>  3 |     - qualified_vms:
+           ^
+   4 |       - vm_type: c4-standard-4
+   5 |         ontap_perf:
+   6 |           iops: 1
+   7 |            (path: testdata/missing_disk_type.yaml)`,
+			expectedConfig: nil,
+		},
+		{
+			name:           "MissingDiskPerfLimitsField",
+			configFilename: "testdata/missing_disk_perf.yaml",
+			expectedError: `[vmrs] ConfigParseError: failed to parse config file due to error: Key: 'VMPerfLimit.DiskLimits.IOPS' Error:Field validation for 'IOPS' failed on the 'required' tag
+Key: 'VMPerfLimit.DiskLimits.ThroughputInMiBs' Error:Field validation for 'ThroughputInMiBs' failed on the 'required' tag
+Key: 'VMPerfLimit.DiskLimits.CapacityInGiB' Error:Field validation for 'CapacityInGiB' failed on the 'required' tag (path: testdata/missing_disk_perf.yaml)`,
+			expectedConfig: nil,
+		},
+		{
+			name:           "MissingRelativeCostField",
+			configFilename: "testdata/missing_relative_cost.yaml",
+			expectedError: `[vmrs] ConfigParseError: failed to parse config file due to error: [23:7] Key: 'VMPerfLimit.RelativeCost' Error:Field validation for 'RelativeCost' failed on the 'required' tag
+  20 |   disk_limits:
+  21 |     - disk_type: hyperdisk_balanced
+  22 |       qualified_vms:
+> 23 |       - vm_type: c4-standard-4
+             ^
+  24 |         ontap_perf:
+  25 |           iops: 1
+  26 |           throughput_in_mibs: 2
+  27 |            (path: testdata/missing_relative_cost.yaml)`,
+			expectedConfig: nil,
+		},
+		{
+			name:           "MissingOntapOverheadsField",
+			configFilename: "testdata/missing_ontap_overheads.yaml",
+			expectedError: `[vmrs] ConfigParseError: failed to parse config file due to error: Key: 'HyperscalerPerfLimits.OntapOverheads.AmplificationFactors.PerfAmplificationFactors.IOPS' Error:Field validation for 'IOPS' failed on the 'required' tag
+Key: 'HyperscalerPerfLimits.OntapOverheads.AmplificationFactors.PerfAmplificationFactors.Throughput' Error:Field validation for 'Throughput' failed on the 'required' tag
+Key: 'HyperscalerPerfLimits.OntapOverheads.AmplificationFactors.Capacity' Error:Field validation for 'Capacity' failed on the 'required' tag
+Key: 'HyperscalerPerfLimits.OntapOverheads.NumDisksPerZone' Error:Field validation for 'NumDisksPerZone' failed on the 'required' tag
+Key: 'HyperscalerPerfLimits.OntapOverheads.HotspotPreventionFactors.IOPS' Error:Field validation for 'IOPS' failed on the 'required' tag
+Key: 'HyperscalerPerfLimits.OntapOverheads.HotspotPreventionFactors.Throughput' Error:Field validation for 'Throughput' failed on the 'required' tag (path: testdata/missing_ontap_overheads.yaml)`,
+			expectedConfig: nil,
+		},
+		{
+			name:           "MissingMaxNumHAPairsField",
+			configFilename: "testdata/missing_max_num_ha_pairs.yaml",
+			expectedError: `[vmrs] ConfigParseError: failed to parse config file due to error: [1:5] Key: 'HyperscalerPerfLimits.MaxNumHAPairs' Error:Field validation for 'MaxNumHAPairs' failed on the 'required' tag
+>  1 | vmrs:
+           ^
+   2 |   ontap_overheads:
+   3 |     amplification_factors:
+   4 |       iops: 1.1
+   5 |        (path: testdata/missing_max_num_ha_pairs.yaml)`,
+			expectedConfig: nil,
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			config, err := LoadConfig(tc.configFilename)
+
+			if tc.expectedError != "" {
+				assert.NotNil(t, err)
+				assert.EqualError(t, err, tc.expectedError)
+			} else {
+				assert.Nil(t, err)
+				assert.Equal(t, tc.expectedConfig, config)
+			}
+		})
+	}
+}

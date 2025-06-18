@@ -6,6 +6,26 @@
 # The structure of this config is as follows:
 #
 # vmrs: # top level namespace disambiguator
+#   max_num_ha_pairs: 12 # The max. number of HA pairs that we are allowed. This field constraints the max. performance/capacity that a single storage pool can be provisioned for.
+#   ontap_overheads: # This data is provided by the perf team. The data in this section should be hyperscaler agnostic.
+#     amplification_factors:
+#     # We expect a multiplication factor.
+#     # For example, if we want to allocate a 10% overhead, please input 1.1
+#       iops: 1.1 # Overhead to overprovision by to guarantee that customer observes the IOPs they requested.
+#       throughput: 1.1 # Overhead to overprovision by to guarantee that customer observes the throughput they requested.
+#       capacity: 1.1 # WAFL overhead.
+#     num_disks_per_zone: 8 # The number of disks that will be attached to each HA-pair (shared zonal mode), or VM (non-shared regional mode) to form an aggregate.
+#     workload_headroom:
+#       - workload: backup # The name of the feature which is enabled.
+#         headroom: # Additional headroom to provision in case this feature is enabled.
+#           iops : 0.05
+#           throughput: 0.05
+#           capacity: 0
+#     hotspot_prevention_factors: # Additional overhead to provision to prevent hot-spotting.
+#     # We expect a multiplication factor.
+#     # For example, if we want to allocate a 10% overhead, please input 1.1
+#       iops: 1.1
+#       throughput: 1.1
 #   - disk_type: hyperdisk_balanced # for this specific disk type, this element will contain a list of VMs that were qualified by the perf team.
 #     qualified_vms:  # we consolidate by vm_type to prevent operator errors.
 #     - vm_type: c4-standard-4 # data for a specific vm/instance type.
@@ -20,8 +40,26 @@
 #         iops: I
 #         throughput_in_mibs: T
 #         capacity_in_gib: C
-#         max_num_disks: M
+#       relative_cost: 4 # cost of this VM relative to the smallest instance type that is available from the hyperscaler.
+#                          The relative cost is *USUALLY* linear w.r.t the number of vCPUs/GPUs that the VM makes available for use.
+#                          It is recommended to always provide this cost as a ratio (this_vm_cost/smallest_vm_cost). This will allow for
+#                          qualifying smaller instances at a later point in time.
 vmrs:
+  max_num_ha_pairs: 12
+  ontap_overheads:
+    amplification_factors:
+      iops: 1
+      throughput: 1
+      capacity: 1.2
+    num_disks_per_zone: 8
+    workload_headroom:
+      - workload: all
+        headroom:
+          iops: 0
+          throughput: 0
+    hotspot_prevention_factors:
+      iops: 1.1
+      throughput: 1.1
   # GCP specific configuration.
   # GCP organizes hyperdisk limits as follows (https://cloud.google.com/compute/docs/disks/hyperdisk-perf-limits#per-vm-limits-summary):
   #   1. Overall throughput limits irrespective of hyperdisk type: https://cloud.google.com/compute/docs/disks/hyperdisk-perf-limits#machine-type-limits
@@ -47,68 +85,56 @@ vmrs:
   #   iops: 50000 # Max. IOPS allowed for this VM/instance type, with an I/O size of 4 KiB. From section 2 above.
   #   throughput_in_mibs: 400 # Max. throughput allowed for this VM/instance type, with an I/O size of at-least 256 KiB. From section 2 above.
   #   capacity_in_gib: 257000 # Max. capacity allowed for this VM/instance type. From section 3 above.
-  #   max_num_disks: 24 # Max. number of disks that can be attached to this VM/instance type. From section 3 above.
   disk_limits:
-    - disk_type: hyperdisk_balanced
+    - disk_type: hyperdisk-balanced
       qualified_vms:
-      - vm_type: c4-standard-4
+      - vm_type: c3-standard-4-lssd
         ontap_perf:
-          iops: 6559
-          throughput_in_mibs: 168
-          capacity_in_gib: 213000
-        disk_perf:
-          iops: 50000
+          iops: 25000
           throughput_in_mibs: 400
           capacity_in_gib: 257000
-          max_num_disks: 24
-      - vm_type: c4-standard-8
+        disk_perf:
+          iops: 25000
+          throughput_in_mibs: 400
+          capacity_in_gib: 257000
+        relative_cost: 4
+      - vm_type: c3-standard-8-lssd
         ontap_perf:
-          iops: 15260
-          throughput_in_mibs: 335
-          capacity_in_gib: 213000
+          iops: 50000
+          throughput_in_mibs: 800
+          capacity_in_gib: 257000
         disk_perf:
           iops: 50000
           throughput_in_mibs: 800
           capacity_in_gib: 257000
-          max_num_disks: 32
-      - vm_type: c4-standard-16
+        relative_cost: 8
+      - vm_type: c3-standard-22-lssd
         ontap_perf:
-          iops: 35422
-          throughput_in_mibs: 630
-          capacity_in_gib: 213000
-        disk_perf:
-          iops: 100000
-          throughput_in_mibs: 1600
+          iops: 120000
+          throughput_in_mibs: 1800
           capacity_in_gib: 257000
-          max_num_disks: 48
-      - vm_type: c4-standard-32
-        ontap_perf:
-          iops: 54760
-          throughput_in_mibs: 1119
-          capacity_in_gib: 426000
         disk_perf:
-          iops: 100000
-          throughput_in_mibs: 1600
-          capacity_in_gib: 512000
-          max_num_disks: 64
-      - vm_type: c4-standard-48
+          iops: 120000
+          throughput_in_mibs: 1800
+          capacity_in_gib: 257000
+        relative_cost: 22
+      - vm_type: c4-standard-44-lssd
         ontap_perf:
-          iops: 86958
-          throughput_in_mibs: 1678
-          capacity_in_gib: 426000
+          iops: 160000
+          throughput_in_mibs: 2400
+          capacity_in_gib: 512000
         disk_perf:
           iops: 160000
           throughput_in_mibs: 2400
           capacity_in_gib: 512000
-          max_num_disks: 64
-      - vm_type: c4a-standard-64
+        relative_cost: 44
+      - vm_type: c4-standard-88-lssd
         ontap_perf:
           iops: 160000
-          throughput_in_mibs: 5120
-          capacity_in_gib: 426000
-        disk_perf:
-          iops: 240000
-          throughput_in_mibs: 4400
+          throughput_in_mibs: 4800
           capacity_in_gib: 512000
-          max_num_disks: 128
-
+        disk_perf:
+          iops: 160000
+          throughput_in_mibs: 4800
+          capacity_in_gib: 512000
+        relative_cost: 88

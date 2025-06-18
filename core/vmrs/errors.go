@@ -17,3 +17,11 @@ type ConfigParseError struct {
 func (e *ConfigParseError) Error() string {
     return fmt.Sprintf("[vmrs] ConfigParseError: %s (path: %s)", e.Message, e.Path)
 }
+
+// This error is returned when we are unable to find a VM that satisfies the customer requested performance.
+type NoSuitableVMError struct {
+    // The error message.
+    Message string
+    // The customer requested performance that could not be satisfied.
+    CustomerRequest CustomerRequestedPerformance
+}
