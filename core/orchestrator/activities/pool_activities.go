@@ -66,7 +66,7 @@ type PoolActivity struct {
 
 const (
 	aggregateName  = "aggr1"
-	defaultSvmName = "gcnv-default-svm"
+	DefaultSvmName = "gcnv"
 	lifNameFormat  = "san_lif_%s"
 	enableIscsi    = true
 
@@ -321,7 +321,7 @@ func (j *PoolActivity) CreateVSASVM(ctx context.Context, pool *datamodel.Pool, v
 	vlmClient := GetVLMClient(ctx, logger, vlmConfig)
 	se := j.SE
 	svmParam := &vlmconfig.SVMConfigParams{
-		Name:      defaultSvmName,
+		Name:      DefaultSvmName,
 		VlmConfig: vlmConfig,
 	}
 
@@ -331,7 +331,7 @@ func (j *PoolActivity) CreateVSASVM(ctx context.Context, pool *datamodel.Pool, v
 		return vsaerrors.WrapAsTemporalApplicationError(err)
 	}
 
-	name := vlmConfig.Deployment.DeploymentID + "-datasvm-" + defaultSvmName
+	name := vlmConfig.Deployment.DeploymentID + "-datasvm-" + DefaultSvmName
 	svm := vlmConfig.Svm[name]
 
 	svmRec := &datamodel.Svm{

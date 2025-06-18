@@ -584,7 +584,7 @@ func validateCreatePoolParams(req *gcpgenserver.PoolV1beta, zone string) *gcpgen
 			}
 		}
 	} else {
-		if req.Zone.IsSet() && req.Zone.Value != zone {
+		if req.Zone.IsSet() && req.Zone.Value != "" && req.Zone.Value != zone {
 			return &gcpgenserver.Error{
 				Code:    HTTP_BAD_REQUEST_CODE,
 				Message: "Multiple Zone values cannot be passed for Pool Creation",

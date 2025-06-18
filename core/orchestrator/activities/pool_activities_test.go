@@ -562,7 +562,7 @@ func Test_CreateVSASVM_Success(t *testing.T) {
 	vlmConfig := &vlmconfig.VLMConfig{
 		Deployment: vlmconfig.DeploymentConfig{DeploymentID: "test-deployment"},
 		Svm: map[string]vlmconfig.SvmConfig{
-			"test-deployment-datasvm-gcnv-default-svm": {
+			"test-deployment-datasvm-gcnv": {
 				Svmname: "test-svm",
 				Svmuuid: "test-uuid",
 				SVMLIFs: map[vlmconfig.VSALIFType][]vlmconfig.LIFConfig{
@@ -759,7 +759,7 @@ func Test_CreateVSASVM_FailsToCreateLif(t *testing.T) {
 	vlmConfig := &vlmconfig.VLMConfig{
 		Deployment: vlmconfig.DeploymentConfig{DeploymentID: "test-deployment"},
 		Svm: map[string]vlmconfig.SvmConfig{
-			"test-deployment-datasvm-gcnv-default-svm": {
+			"test-deployment-datasvm-gcnv": {
 				Svmname: "test-svm",
 				Svmuuid: "test-uuid",
 				SVMLIFs: map[vlmconfig.VSALIFType][]vlmconfig.LIFConfig{

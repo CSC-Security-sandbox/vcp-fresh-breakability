@@ -269,9 +269,9 @@ func (a *VolumeReplicationCreateActivity) AcceptSvmPeer(ctx context.Context, res
 
 func (a *VolumeReplicationCreateActivity) GetVolumeSVMNames(ctx context.Context, result *replication.CreateReplicationResult) (*replication.CreateReplicationResult, error) {
 	srcClusterName := result.Event.SourcePool.ClusterDetails.ExternalName
-	srcSvm := srcClusterName[:strings.LastIndex(srcClusterName, "-")] + "-datasvm-gcnv-default-svm"
+	srcSvm := srcClusterName[:strings.LastIndex(srcClusterName, "-")] + "-datasvm-" + activities.DefaultSvmName
 	dstClusterName := result.DstPool.ClusterName.Value
-	dstSvm := dstClusterName[:strings.LastIndex(dstClusterName, "-")] + "-datasvm-gcnv-default-svm"
+	dstSvm := dstClusterName[:strings.LastIndex(dstClusterName, "-")] + "-datasvm-" + activities.DefaultSvmName
 
 	result.SrcSvm = &srcSvm
 	result.DstSvm = &dstSvm

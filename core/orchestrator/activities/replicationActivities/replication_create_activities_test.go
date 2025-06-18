@@ -929,8 +929,8 @@ func TestGetVolumePlacement(t *testing.T) {
 		assert.NoError(tt, err)
 		assert.NotNil(tt, updatedResult.SrcSvm)
 		assert.NotNil(tt, updatedResult.DstSvm)
-		assert.Equal(tt, "src-datasvm-gcnv-default-svm", *updatedResult.SrcSvm)
-		assert.Equal(tt, "dst-datasvm-gcnv-default-svm", *updatedResult.DstSvm)
+		assert.Equal(tt, "src-datasvm-gcnv", *updatedResult.SrcSvm)
+		assert.Equal(tt, "dst-datasvm-gcnv", *updatedResult.DstSvm)
 	})
 }
 
