@@ -6,7 +6,7 @@ images:
     name: cloud-backup-adc
     tag: "2.7" #NOTE: Please also update the tag for "cloud-backup-adc" in the blackduck scan CI job in release.yaml in case of a tag update here if useTags is set to true in global values.yaml
     digest: "sha256:86e301917e86880e5b65bfecc7a97e44abd13d970db775e91a6a13b6d52fa88a" #Update digest here if useTags is set to false in global values.yaml
-    secondary: false
+    secondary: true
     pullPolicy: IfNotPresent
 
 # Enabled

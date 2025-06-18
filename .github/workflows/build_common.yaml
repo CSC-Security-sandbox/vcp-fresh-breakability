@@ -247,7 +247,6 @@ jobs:
           echo "PUBLIC_KEY_ID=${PUBLIC_KEY_ID}" >> $GITHUB_ENV
 
       - name: Generate Artifact URLs
-        if: ${{ env.ALL_DIGESTS_EXIST == '0' }}
         id: generate_artifact_urls
         shell: bash -e {0}
         run: |
@@ -299,8 +298,13 @@ jobs:
           helm registry login ghcr.io -u ${{github.actor}} --password ${{ secrets.GHVSA_PAT }}
 
       - name: Update Versions of helm charts
+        shell: bash
         run: |
-          env vcp-worker-digest=$vcp-worker-digest core-digest=$core-digest google-proxy-digest=$google-proxy-digest vcp-db-migrate-digest=$vcp-db-migrate-digest go run ./.github/scripts/updateHelmVersion.go ${{ inputs.tag }} ./.github/scripts/fileToFieldsMapping.json
+          env vcp_worker_digest_gcp=$(echo "$vcp-worker_ARTIFACT_URL" | awk -F'@' '{print $2}') \
+          core_digest_gcp=$(echo "$core_ARTIFACT_URL" | awk -F'@' '{print $2}') \
+          google_proxy_digest_gcp=$(echo "$google-proxy_ARTIFACT_URL" | awk -F'@' '{print $2}') \
+          vcp_db_migrate_digest_gcp=$(echo "$vcp-db-migrate_ARTIFACT_URL" | awk -F'@' '{print $2}') \
+          go run ./.github/scripts/updateHelmVersion.go ${{ inputs.tag }} ./.github/scripts/fileToFieldsMapping.json
 
       - name: Package Helm Charts
         run: |

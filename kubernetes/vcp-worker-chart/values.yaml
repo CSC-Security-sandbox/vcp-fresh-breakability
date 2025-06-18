@@ -6,7 +6,7 @@ global:
   secondaryImageRegistry: "europe-north1-docker.pkg.dev/gcnv-artifact-registry-nonprod"
   secondaryImageRegistryPath: "vcp-container-images-us"
   secondaryImageRegistryPasswordAuth: false
-  useTags: true
+  useTags: false
   nodeSelector:
     nodeType: vsacp-nodes
   chartPrimaryImageRegistry: ""

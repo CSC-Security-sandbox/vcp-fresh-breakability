@@ -17,10 +17,10 @@ type UpdateConfig struct {
 }
 
 var digestYAMLPathToEnv = map[string]string{
-	".images.core.digest":         "core-digest",
-	".images.vcpDbMigrate.digest": "vcp-db-migrate-digest",
-	".images.googleProxy.digest":  "google-proxy-digest",
-	".images.vcpWorker.digest":    "vcp-worker-digest",
+	".images.core.digest":         "core_digest_gcp",
+	".images.vcpDbMigrate.digest": "vcp_db_migrate_digest_gcp",
+	".images.googleProxy.digest":  "google_proxy_digest_gcp",
+	".images.vcpWorker.digest":    "vcp_worker_digest_gcp",
 }
 
 func UpdateKeys(file string, yamlPaths []string, version string) error {
