@@ -45,7 +45,7 @@ jobs:
   common:
     runs-on: [ ubuntu-22.04 ]
     container:
-      image: ghcr.io/vcp-vsa-control-plane/vsacictl:v22
+      image: ghcr.io/vcp-vsa-control-plane/vsacictl:v29
       options: -v /var/run/docker.sock:/var/run/docker.sock --user root
     steps:
       - name: Checkout codes
@@ -93,7 +93,6 @@ jobs:
       - name: Configure Git for private modules
         run: |
           git config --global url."https://${{ secrets.GHVSA_PAT }}@github.com/".insteadOf "https://github.com/"
-          
 
       - name: Run golang unit tests with coverage
         run: vsacictl unit-test --filtered
@@ -216,7 +215,6 @@ jobs:
       - name: Configure Git for private modules
         run: |
           git config --global url."https://${{ secrets.GHVSA_PAT }}@github.com/".insteadOf "https://github.com/"
-          
 
       - name: Build images
         env:
@@ -226,7 +224,6 @@ jobs:
           skaffold config set default-repo ""
           skaffold build || exit 1
           make vcp-db-migrate-image imageVersion=test-build || exit 1
-    
 
   lint:
     runs-on: [self-hosted, linux]
@@ -246,7 +243,6 @@ jobs:
       - name: Configure Git for private modules
         run: |
           git config --global url."https://${{ secrets.GHVSA_PAT }}@github.com/".insteadOf "https://github.com/"
-          
 
       - name: Run golangci-lint script
         run: vsacictl lint
