@@ -86,13 +86,8 @@ func TestAcceptClusterPeer(t *testing.T) {
 		ctx := context.Background()
 		mockLogger := log.NewLogger()
 		ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, mockLogger)
-		store, err := database.SetupStorageForTest(mockLogger)
-		assert.NoError(tt, err, "Failed to create test storage")
-		// Clear the in-memory database
-		err = database.ClearInMemoryDB(store.DB())
-		assert.NoError(tt, err, "Failed to clean up test storage")
 		temporal1 := workflow_engine_mock.NewMockTemporalTestClient(t)
-		temporal1.EXPECT().ExecuteWorkflow(mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+		mockStorage := new(database.MockStorage)
 
 		pass := "testpass"
 		var params = &common.ClusterPeerParams{
@@ -113,12 +108,25 @@ func TestAcceptClusterPeer(t *testing.T) {
 			Name:      "test_pool",
 			AccountID: 123,
 		}
-		_ = store.DB().Create(pool).Error
 		getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
 			return dbAccount, nil
 		}
+		poolView := &datamodel.PoolView{
+			Pool: *pool,
+		}
+		jobResponse := &datamodel.Job{
+			BaseModel: datamodel.BaseModel{
+				ID:   1,
+				UUID: "job-uuid",
+			},
+			WorkflowID: "workflow-id",
+		}
+		mockStorage.On("GetPool", ctx, "poolID", mock.AnythingOfType("int64")).Return(poolView, nil)
+		mockStorage.On("CreateJob", ctx, mock.Anything).Return(jobResponse, nil)
 
-		_, _, err = acceptClusterPeer(ctx, store, temporal1, params, "poolID")
+		temporal1.EXPECT().ExecuteWorkflow(mock.Anything, mock.Anything, mock.Anything, params, &poolView.Pool).Return(nil, nil)
+
+		_, _, err := acceptClusterPeer(ctx, mockStorage, temporal1, params, "poolID")
 		if err != nil {
 			t.Errorf("Expected nil, got error")
 		}

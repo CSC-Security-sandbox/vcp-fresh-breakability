@@ -44,6 +44,7 @@ func _acceptClusterPeer(ctx context.Context, se database.Storage, temporal clien
 	}
 
 	createdJob, err := se.CreateJob(ctx, job)
+
 	if err != nil {
 		logger.Error("Failed to create job in database", "error", err)
 		return nil, nil, err
@@ -57,10 +58,10 @@ func _acceptClusterPeer(ctx context.Context, se database.Storage, temporal clien
 		},
 		workflows.AcceptClusterPeerWorkflow,
 		params,
-		dbPool,
+		&dbPool.Pool,
 	)
 	if err != nil {
-		logger.Error("Failed to start  AcceptClusterPeer Workflow: ", "error", err)
+		logger.Error("Failed to start AcceptClusterPeer Workflow: ", "error", err)
 		return nil, nil, err
 	}
 	return params, job, nil
