@@ -151,12 +151,20 @@ func (wf *createPoolWorkflow) Run(ctx workflow.Context, args ...interface{}) (in
 	} else {
 		vsaClusterPassword = pool.Password
 	}
+
+	poolWithClusterDetails := dbPool
+	poolWithClusterDetails.ClusterDetails = datamodel.ClusterDetails{
+		ExternalName:          clusterName,
+		RegionalTenantProject: tenancyDetails.RegionalTenantProject,
+		SnHostProject:         tenancyDetails.SnHostProject,
+		Network:               tenancyDetails.Network}
+	rollbackManager.Add(poolActivity.DeleteVSADeployment, poolWithClusterDetails)
+
 	err = workflow.ExecuteActivity(ctx, poolActivity.CreateVSACluster, clusterName, params.Region, params.PrimaryZone, params.SecondaryZone, tenancyDetails.Network, tenancyDetails.SubnetworkName,
 		tenancyDetails.RegionalTenantProject, tenancyDetails.SnHostProject, vsaClusterPassword, sizeInGB, params.CustomPerformanceParams.ThroughputMibps, params.CustomPerformanceParams.Iops, serviceAccount.Email, pool.AutoTierBucketName).Get(ctx, cfg)
 	if err != nil {
 		return nil, err
 	}
-
 
 	err = workflow.ExecuteActivity(ctx, poolActivity.SaveVSANodeDetails, dbPool, cfg).Get(ctx, nil)
 	if err != nil {
@@ -168,7 +176,6 @@ func (wf *createPoolWorkflow) Run(ctx workflow.Context, args ...interface{}) (in
 		return nil, err
 	}
 	node := CreateNodeForProviderWithPool(dbNodes, pool)
-
 
 	node.Username = pool.Username
 	if secretManagerEnabled {
@@ -190,10 +197,6 @@ func (wf *createPoolWorkflow) Run(ctx workflow.Context, args ...interface{}) (in
 		SnHostProject:         tenancyDetails.SnHostProject,
 		Network:               tenancyDetails.Network,
 	}
-
-	poolWithClusterDetails := dbPool
-	poolWithClusterDetails.ClusterDetails = *clusterDetails
-	rollbackManager.Add(poolActivity.DeleteVSADeployment, poolWithClusterDetails)
 
 	err = workflow.ExecuteActivity(ctx, poolActivity.SavePoolWithClusterDetails, dbPool, clusterDetails).Get(ctx, nil)
 	if err != nil {
