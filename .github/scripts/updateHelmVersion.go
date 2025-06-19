@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bufio"
 	"bytes"
 	"encoding/json"
 	"fmt"
@@ -16,31 +17,50 @@ type UpdateConfig struct {
 	YamlPath []string `json:"yamlPath"`
 }
 
-var digestYAMLPathToEnv = map[string]string{
+var digestYAMLPathToKey = map[string]string{
 	".images.core.digest":         "core_digest_gcp",
 	".images.vcpDbMigrate.digest": "vcp_db_migrate_digest_gcp",
 	".images.googleProxy.digest":  "google_proxy_digest_gcp",
 	".images.vcpWorker.digest":    "vcp_worker_digest_gcp",
 }
 
-func UpdateKeys(file string, yamlPaths []string, version string) error {
+func readDigestsFromFile(filePath string) (map[string]string, error) {
+	file, err := os.Open(filePath)
+	if err != nil {
+		return nil, fmt.Errorf("error opening file: %v", err)
+	}
+	defer file.Close()
+
+	digests := make(map[string]string)
+	scanner := bufio.NewScanner(file)
+	for scanner.Scan() {
+		line := scanner.Text()
+		parts := strings.SplitN(line, "=", 2)
+		if len(parts) == 2 {
+			digests[parts[0]] = parts[1]
+		}
+	}
+
+	if err := scanner.Err(); err != nil {
+		return nil, fmt.Errorf("error reading file: %v", err)
+	}
+
+	return digests, nil
+}
+
+func UpdateKeys(file string, yamlPaths []string, version string, digests map[string]string) error {
 	if _, err := os.Stat(file); os.IsNotExist(err) {
 		return fmt.Errorf("file %s not found", file)
 	}
 
 	log.Printf("Updating %s...\n", file)
 	for _, yamlPath := range yamlPaths {
-		// Prefix the path with a dot if not already present
 		if !strings.HasPrefix(yamlPath, ".") {
 			yamlPath = "." + yamlPath
 		}
 
-		// Handle array paths dynamically
 		if strings.Contains(yamlPath, "[]") {
-			// Extract the base path before the array indicator
 			basePath := strings.Split(yamlPath, "[]")[0]
-
-			// Use yq to iterate over array elements and update each one
 			cmd := exec.Command("yq", "eval", "-i", fmt.Sprintf(`with(%s[]; .version = "%s")`, basePath, version), file)
 			var stderr bytes.Buffer
 			cmd.Stderr = &stderr
@@ -48,22 +68,18 @@ func UpdateKeys(file string, yamlPaths []string, version string) error {
 				return fmt.Errorf("failed to update array path %s in file %s: %v\nstderr: %s", yamlPath, file, err, stderr.String())
 			}
 		} else if strings.HasSuffix(yamlPath, "digest") {
-			envVar, exists := digestYAMLPathToEnv[yamlPath]
+			digestKey := digestYAMLPathToKey[yamlPath]
+			digestValue, exists := digests[digestKey]
 			if !exists {
-				return fmt.Errorf("unknown digest path %s in file %s", yamlPath, file)
+				return fmt.Errorf("digest key %s not found in file", digestKey)
 			}
-			envValue := os.Getenv(envVar)
-			if envValue == "" {
-				return fmt.Errorf("environment variable %s is not set", envVar)
-			}
-			cmd := exec.Command("yq", "eval", "-i", fmt.Sprintf(`%s = "%s"`, yamlPath, envValue), file)
+			cmd := exec.Command("yq", "eval", "-i", fmt.Sprintf(`%s = "%s"`, yamlPath, digestValue), file)
 			var stderr bytes.Buffer
 			cmd.Stderr = &stderr
 			if err := cmd.Run(); err != nil {
 				return fmt.Errorf("failed to update digest key %s in file %s: %v\nstderr: %s", yamlPath, file, err, stderr.String())
 			}
 		} else {
-			// Update simple paths
 			updatedVersion := version
 			if strings.HasSuffix(yamlPath, ".tag") {
 				updatedVersion = "v" + updatedVersion
@@ -80,15 +96,21 @@ func UpdateKeys(file string, yamlPaths []string, version string) error {
 }
 
 func main() {
-	if len(os.Args) != 3 {
-		log.Println("Usage: ./updateHelmVersion <version> <config.json>")
+	if len(os.Args) != 4 {
+		log.Println("Usage: ./updateHelmVersion <version> <config.json> <tempFile>")
 		os.Exit(1)
 	}
 
-	version := strings.TrimPrefix(os.Args[1], "v") // Remove 'v' prefix if present
+	version := strings.TrimPrefix(os.Args[1], "v")
 	configFile := os.Args[2]
+	tempFile := os.Args[3]
 
-	// Read and parse the JSON file
+	digests, err := readDigestsFromFile(tempFile)
+	if err != nil {
+		log.Printf("Error reading digests from file: %v\n", err)
+		os.Exit(1)
+	}
+
 	data, err := ioutil.ReadFile(configFile)
 	if err != nil {
 		log.Printf("Error reading config file: %v\n", err)
@@ -101,9 +123,8 @@ func main() {
 		os.Exit(1)
 	}
 
-	// Update YAML files based on the JSON configuration
 	for _, config := range configs {
-		if err := UpdateKeys(config.FilePath, config.YamlPath, version); err != nil {
+		if err := UpdateKeys(config.FilePath, config.YamlPath, version, digests); err != nil {
 			log.Printf("Error updating keys in file %s: %v\n", config.FilePath, err)
 			os.Exit(1)
 		}
