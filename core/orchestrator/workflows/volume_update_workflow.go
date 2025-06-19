@@ -7,6 +7,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
 	gcpgenserver "github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/api/gcp-servergen"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 	"go.temporal.io/sdk/temporal"
 	"go.temporal.io/sdk/workflow"
@@ -112,6 +113,40 @@ func (wf *volumeUpdateWorkflow) Run(ctx workflow.Context, args ...interface{}) (
 
 	node := CreateNodeForProviderWithPool(dbNodes, volume.Pool)
 
+	// Update the snapshot policy if it is provided in the params
+	if params.SnapshotPolicy != nil && params.SnapshotPolicy.Name != "" {
+		updatingPolicy := populateSnapshotPolicyFromParams(params.SnapshotPolicy)
+
+		// If the volume does not have an existing snapshot policy, we need create a new one using the provided snapshot policy
+		if volume.SnapshotPolicy == nil || volume.SnapshotPolicy.Name == "" {
+			if len(updatingPolicy.Schedules) == 0 {
+				wf.Logger.Error("No existing snapshot policy found for the volume, and no schedules provided in the update request. Cannot create a new snapshot policy without schedules.")
+				return nil, errors.New("no existing snapshot policy found for the volume and no schedules provided in the update request. Cannot create a new snapshot policy without schedules")
+			}
+			createActivity := &activities.VolumeCreateActivity{}
+			volume.SnapshotPolicy = updatingPolicy
+
+			err = workflow.ExecuteActivity(ctx, createActivity.CreateSnapshotPolicyInONTAP, &volume, &node).Get(ctx, nil)
+			if err != nil {
+				return nil, err
+			}
+		} else // If the volume has an existing snapshot policy, we need to update it with only the changes
+		{
+			if len(updatingPolicy.Schedules) == 0 {
+				// If the schedules are not populated in update, we want to set them as the existing schedules
+				// This is done because ONTAP cannot update the snapshot policy without any schedules
+				// This will happen when the user is trying to enable/disable the snapshot policy, without any change to schedules
+				updatingPolicy.Schedules = volume.SnapshotPolicy.Schedules
+			}
+			// Passing the current & new snapshot policy to the activity to find the delta & update the snapshot policy in ONTAP
+			err = workflow.ExecuteActivity(ctx, updateActivity.UpdateSnapshotPolicyInOntap, &node, &volume.SnapshotPolicy, updatingPolicy).Get(ctx, nil)
+			if err != nil {
+				return nil, err
+			}
+			volume.SnapshotPolicy = updatingPolicy
+		}
+	}
+
 	volResponse := &vsa.VolumeResponse{}
 	err = workflow.ExecuteActivity(ctx, updateActivity.GetVolumeFromONTAP, volume, &node).Get(ctx, &volResponse)
 	if err != nil {
@@ -181,6 +216,27 @@ func (wf *volumeUpdateWorkflow) Run(ctx workflow.Context, args ...interface{}) (
 	// Then Find out which host groups to add and which to remove
 
 	return nil, err
+}
+
+func populateSnapshotPolicyFromParams(params *models.SnapshotPolicy) *datamodel.SnapshotPolicy {
+	snapshotPolicy := &datamodel.SnapshotPolicy{
+		Name:      params.Name,
+		IsEnabled: params.IsEnabled,
+		Schedules: []*datamodel.SnapshotPolicySchedule{},
+	}
+
+	for _, schedule := range params.Schedules {
+		snapshotPolicy.Schedules = append(snapshotPolicy.Schedules, &datamodel.SnapshotPolicySchedule{
+			DaysOfMonth:     schedule.Schedule.DaysOfMonth,
+			DaysOfWeek:      schedule.Schedule.DaysOfWeek,
+			Hours:           schedule.Schedule.Hours,
+			Minutes:         schedule.Schedule.Minutes,
+			Count:           schedule.Count,
+			SnapmirrorLabel: schedule.SnapmirrorLabel,
+		})
+	}
+
+	return snapshotPolicy
 }
 
 func isUpdateRequired(response *vsa.VolumeResponse, params *common.UpdateVolumeParams) bool {

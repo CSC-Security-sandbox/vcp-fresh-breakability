@@ -23,10 +23,16 @@ type VolumeUpdateActivity struct {
 func (a *VolumeUpdateActivity) UpdateVolumeInONTAP(ctx context.Context, volume *datamodel.Volume, params *common.UpdateVolumeParams, node *models.Node) error {
 	logger := util.GetLogger(ctx)
 	provider := GetProviderByNode(ctx, node)
+	snapshotPolicyName := SnapshotPolicyNone
+	if volume.SnapshotPolicy != nil && volume.SnapshotPolicy.Name != "" {
+		snapshotPolicyName = volume.SnapshotPolicy.Name
+	}
+
 	err := provider.UpdateVolume(vsa.UpdateVolumeParams{
 		// Set the necessary parameters for updating the volume
-		UUID: volume.VolumeAttributes.ExternalUUID,
-		Size: params.QuotaInBytes,
+		UUID:         volume.VolumeAttributes.ExternalUUID,
+		Size:         params.QuotaInBytes,
+		SnapshotName: snapshotPolicyName,
 	})
 	if err != nil {
 		logger.Errorf("Failed to update volume %s in ontap: %v", volume.Name, err)
@@ -120,6 +126,10 @@ func getUpdatedFieldsFromParams(volume *datamodel.Volume, params *common.UpdateV
 		updates["volume_attributes"] = volume.VolumeAttributes
 	}
 
+	if params.SnapshotPolicy != nil {
+		updates["snapshot_policy"] = volume.SnapshotPolicy
+	}
+
 	if params.DataProtection != nil {
 		if volume.DataProtection == nil {
 			volume.DataProtection = &datamodel.DataProtection{}
@@ -132,6 +142,32 @@ func getUpdatedFieldsFromParams(volume *datamodel.Volume, params *common.UpdateV
 	updates["state_details"] = models.LifeCycleStateAvailableDetails
 
 	return updates
+}
+
+// UpdateSnapshotPolicyInOntap updates the snapshot policy for the given volume in ONTAP.
+func (a *VolumeUpdateActivity) UpdateSnapshotPolicyInOntap(ctx context.Context, node *models.Node, currentPolicy, updatingPolicy *datamodel.SnapshotPolicy) error {
+	logger := util.GetLogger(ctx)
+	provider := GetProviderByNode(ctx, node)
+
+	err := provider.UpdateSnapshotPolicy(ctx, &vsa.UpdateSnapshotPolicyParams{
+		CurrentSnapshotPolicy: &vsa.SnapshotPolicy{
+			Name:      currentPolicy.Name,
+			IsEnabled: currentPolicy.IsEnabled,
+			Schedules: ConvertToVSASnapshotPolicySchedules(currentPolicy.Schedules),
+		},
+		UpdatingSnapshotPolicy: &vsa.SnapshotPolicy{
+			Name:      currentPolicy.Name,
+			IsEnabled: updatingPolicy.IsEnabled,
+			Schedules: ConvertToVSASnapshotPolicySchedules(updatingPolicy.Schedules),
+		},
+	})
+	if err != nil {
+		logger.Errorf("Failed to update snapshot policy %s in ONTAP: %v", updatingPolicy.Name, err)
+		return err
+	}
+
+	logger.Debugf("Snapshot policy %s updated successfully in ONTAP", updatingPolicy.Name)
+	return nil
 }
 
 // FindTenancyDetails retrieves the tenancy information for the given consumer VPC and customer project number

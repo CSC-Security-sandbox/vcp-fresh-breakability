@@ -1021,6 +1021,54 @@ func TestPrepareUpdateVolumeParams(t *testing.T) {
 		_, err := _prepareUpdateVolumeParams(req, params, region)
 		assert.Error(t, err)
 	})
+
+	t.Run("WhenSnapshotPolicySet_ThenFieldsAreMapped", func(t *testing.T) {
+		req := &gcpgenserver.VolumeUpdateV1beta{
+			SnapshotPolicy: gcpgenserver.NewOptSnapshotPolicyV1beta(
+				gcpgenserver.SnapshotPolicyV1beta{
+					Enabled: gcpgenserver.NewOptNilBool(true),
+					MonthlySchedule: gcpgenserver.NewOptMonthlyScheduleV1beta(
+						gcpgenserver.MonthlyScheduleV1beta{
+							SnapshotsToKeep: gcpgenserver.NewOptFloat64(2),
+							DaysOfMonth:     gcpgenserver.NewOptString("1,15"),
+							Hour:            gcpgenserver.NewOptFloat64(2),
+							Minute:          gcpgenserver.NewOptFloat64(30),
+						},
+					),
+				},
+			),
+		}
+		out, err := _prepareUpdateVolumeParams(req, params, region)
+		assert.NoError(t, err)
+		assert.NotNil(t, out.SnapshotPolicy)
+		assert.True(t, out.SnapshotPolicy.IsEnabled)
+		if len(out.SnapshotPolicy.Schedules) > 0 {
+			assert.Equal(t, int64(2), out.SnapshotPolicy.Schedules[0].Count)
+			assert.Equal(t, "monthly", out.SnapshotPolicy.Schedules[0].SnapmirrorLabel)
+			assert.Equal(t, []int{1, 15}, out.SnapshotPolicy.Schedules[0].Schedule.DaysOfMonth)
+		}
+	})
+
+	t.Run("WhenSnapshotPolicySetWithInvalidWeeklyDay_ThenError", func(t *testing.T) {
+		req := &gcpgenserver.VolumeUpdateV1beta{
+			SnapshotPolicy: gcpgenserver.NewOptSnapshotPolicyV1beta(
+				gcpgenserver.SnapshotPolicyV1beta{
+					Enabled: gcpgenserver.NewOptNilBool(true),
+					WeeklySchedule: gcpgenserver.NewOptWeeklyScheduleV1beta(
+						gcpgenserver.WeeklyScheduleV1beta{
+							SnapshotsToKeep: gcpgenserver.NewOptFloat64(2),
+							Day:             gcpgenserver.NewOptString("Funday"),
+							Hour:            gcpgenserver.NewOptFloat64(2),
+							Minute:          gcpgenserver.NewOptFloat64(30),
+						},
+					),
+				},
+			),
+		}
+		out, err := _prepareUpdateVolumeParams(req, params, region)
+		assert.Error(t, err)
+		assert.Nil(t, out)
+	})
 }
 
 func TestV1betaGetVolumeCount(t *testing.T) {

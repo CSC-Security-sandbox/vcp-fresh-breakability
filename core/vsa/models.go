@@ -99,6 +99,7 @@ type UpdateVolumeParams struct {
 	SvmName       string
 	AggregateName string
 	Size          int64
+	SnapshotName  string
 }
 
 type GetVolumeParams struct {
@@ -334,4 +335,16 @@ type Schedule struct {
 	DaysOfWeek  []int
 	Hours       []int
 	Minutes     []int
+}
+
+// UpdateSnapshotPolicyParams describes parameters supplied to Provider.UpdateSnapshotPolicy
+type UpdateSnapshotPolicyParams struct {
+	CurrentSnapshotPolicy  *SnapshotPolicy
+	UpdatingSnapshotPolicy *SnapshotPolicy
+}
+
+// SnapshotPolicyScheduleUpdate describes a snapshot policy schedule update payload
+type SnapshotPolicyScheduleUpdate struct {
+	Action                 action
+	SnapshotPolicySchedule SnapshotPolicySchedule
 }

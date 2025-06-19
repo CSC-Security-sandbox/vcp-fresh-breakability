@@ -1,6 +1,7 @@
 package vsa
 
 import (
+	"context"
 	ontaprestmodels "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/ontap-rest/models"
 	ontapRest "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/ontap-rest"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
@@ -53,13 +54,14 @@ type Provider interface {
 	GetReplicationDetails(volRep *VolumeReplication) (*VolumeReplication, error)
 	CreateSnapshot(params CreateSnapshotParams) (*SnapshotProviderResponse, error)
 	DeleteSnapshot(snapshotUUID string, volumeUUID string) error
+	CreateSnapshotPolicy(sp *SnapshotPolicy) error
+	UpdateSnapshotPolicy(ctx context.Context, params *UpdateSnapshotPolicyParams) error
 	CloudTargetGet(name *string) (*ontapRest.CloudTarget, error)
 	CloudTargetCreate(name, containerName string) (*ontapRest.CloudTarget, error)
 	SnapmirrorRelationshipCreate(destinationPath, sourcePath string) (*ontapRest.SnapmirrorRelationship, error)
 	SnapmirrorRelationshipGet(destinationPath, sourcePath string) (*ontapRest.SnapmirrorRelationship, error)
 	SnapmirrorRelationshipTransferCreate(snapmirrorUUID, snapshotName string) error
 	SnapmirrorRelationshipTransferGet(snapmirrorUUID, snapshotName string) (*ontapRest.SnapmirrorTransfer, error)
-	CreateSnapshotPolicy(sp *SnapshotPolicy) error
 }
 
 type OntapRestProvider struct {

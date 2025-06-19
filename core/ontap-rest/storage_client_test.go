@@ -963,6 +963,147 @@ func TestSnapshotPolicyCreate(t *testing.T) {
 	})
 }
 
+func TestSnapshotPolicyFind(t *testing.T) {
+	t.Run("WhenNameIsEmpty_ThenReturnError", func(tt *testing.T) {
+		client := &storageClient{api: storage.New(&mockTransport{}, nil)}
+		_, err := client.SnapshotPolicyFind(&SnapshotPolicyFindParams{})
+		assert.Error(tt, err)
+		assert.EqualError(tt, err, "no name filter provided for SnapshotPolicyFind")
+	})
+
+	t.Run("WhenRESTCallFails_ThenReturnError", func(tt *testing.T) {
+		transport := &mockTransport{err: errors.New("something went wrong")}
+		storageAPI := storage.New(transport, nil)
+		client := &storageClient{api: storageAPI}
+		_, err := client.SnapshotPolicyFind(&SnapshotPolicyFindParams{Name: "policy1"})
+		assert.EqualError(tt, err, transport.err.Error())
+	})
+
+	t.Run("WhenNoPoliciesReturned_ThenReturnNotFoundError", func(tt *testing.T) {
+		transport := &mockTransport{response: &storage.SnapshotPolicyCollectionGetOK{
+			Payload: &models.SnapshotPolicyResponse{
+				SnapshotPolicyResponseInlineRecords: []*models.SnapshotPolicy{},
+			},
+		}}
+		storageAPI := storage.New(transport, nil)
+		client := &storageClient{api: storageAPI}
+		_, err := client.SnapshotPolicyFind(&SnapshotPolicyFindParams{Name: "policy1"})
+		assert.Error(tt, err)
+		assert.Contains(tt, err.Error(), "not found")
+	})
+
+	t.Run("WhenSinglePolicyReturned_ThenReturnPolicy", func(tt *testing.T) {
+		policyName := "policy1"
+		transport := &mockTransport{response: &storage.SnapshotPolicyCollectionGetOK{
+			Payload: &models.SnapshotPolicyResponse{
+				SnapshotPolicyResponseInlineRecords: []*models.SnapshotPolicy{
+					{Name: &policyName},
+				},
+			},
+		}}
+		storageAPI := storage.New(transport, nil)
+		client := &storageClient{api: storageAPI}
+		policy, err := client.SnapshotPolicyFind(&SnapshotPolicyFindParams{Name: policyName})
+		assert.NoError(tt, err)
+		assert.NotNil(tt, policy)
+		assert.Equal(tt, policyName, *policy.Name)
+	})
+}
+
+func TestSnapshotPolicyDelete(t *testing.T) {
+	t.Run("WhenRESTCallFails_ThenReturnError", func(tt *testing.T) {
+		transport := &mockTransport{err: errors.New("something went wrong")}
+		storageAPI := storage.New(transport, nil)
+		client := &storageClient{api: storageAPI}
+		err := client.SnapshotPolicyDelete(&SnapshotPolicyDeleteParams{})
+		assert.EqualError(tt, err, transport.err.Error())
+	})
+
+	t.Run("WhenRESTCallSucceeds_ThenReturnNil", func(tt *testing.T) {
+		transport := &mockTransport{response: &storage.SnapshotPolicyDeleteCollectionOK{}}
+		storageAPI := storage.New(transport, nil)
+		client := &storageClient{api: storageAPI}
+		err := client.SnapshotPolicyDelete(&SnapshotPolicyDeleteParams{})
+		assert.NoError(tt, err)
+	})
+}
+
+func TestSnapshotPolicyModify(t *testing.T) {
+	t.Run("WhenRESTCallFails_ThenReturnError", func(tt *testing.T) {
+		transport := &mockTransport{err: errors.New("something went wrong")}
+		storageAPI := storage.New(transport, nil)
+		client := &storageClient{api: storageAPI}
+		err := client.SnapshotPolicyModify(&SnapshotPolicyModifyParams{})
+		assert.EqualError(tt, err, transport.err.Error())
+	})
+
+	t.Run("WhenRESTCallSucceeds_ThenReturnNil", func(tt *testing.T) {
+		transport := &mockTransport{response: &storage.SnapshotPolicyModifyOK{}}
+		storageAPI := storage.New(transport, nil)
+		client := &storageClient{api: storageAPI}
+		err := client.SnapshotPolicyModify(&SnapshotPolicyModifyParams{})
+		assert.NoError(tt, err)
+	})
+}
+
+func TestSnapshotPolicyScheduleCreate(t *testing.T) {
+	t.Run("WhenRESTCallFails_ThenReturnError", func(tt *testing.T) {
+		transport := &mockTransport{err: errors.New("something went wrong")}
+		storageAPI := storage.New(transport, nil)
+		client := &storageClient{api: storageAPI}
+		_, err := client.SnapshotPolicyScheduleCreate(&SnapshotPolicyScheduleCreateParams{})
+		assert.EqualError(tt, err, transport.err.Error())
+	})
+
+	t.Run("WhenRESTCallSucceeds_ThenReturnID", func(tt *testing.T) {
+		location := "/api/storage/snapshot-policies/123/schedules/456"
+		transport := &mockTransport{response: &storage.SnapshotPolicyScheduleCreateCreated{
+			Location: location,
+		}}
+		storageAPI := storage.New(transport, nil)
+		client := &storageClient{api: storageAPI}
+		id, err := client.SnapshotPolicyScheduleCreate(&SnapshotPolicyScheduleCreateParams{})
+		assert.NoError(tt, err)
+		assert.Equal(tt, "456", id)
+	})
+}
+
+func TestSnapshotPolicyScheduleModify(t *testing.T) {
+	t.Run("WhenRESTCallFails_ThenReturnError", func(tt *testing.T) {
+		transport := &mockTransport{err: errors.New("something went wrong")}
+		storageAPI := storage.New(transport, nil)
+		client := &storageClient{api: storageAPI}
+		err := client.SnapshotPolicyScheduleModify(&SnapshotPolicyScheduleModifyParams{})
+		assert.EqualError(tt, err, transport.err.Error())
+	})
+
+	t.Run("WhenRESTCallSucceeds_ThenReturnNil", func(tt *testing.T) {
+		transport := &mockTransport{response: &storage.SnapshotPolicyScheduleModifyOK{}}
+		storageAPI := storage.New(transport, nil)
+		client := &storageClient{api: storageAPI}
+		err := client.SnapshotPolicyScheduleModify(&SnapshotPolicyScheduleModifyParams{})
+		assert.NoError(tt, err)
+	})
+}
+
+func TestSnapshotPolicyScheduleDelete(t *testing.T) {
+	t.Run("WhenRESTCallFails_ThenReturnError", func(tt *testing.T) {
+		transport := &mockTransport{err: errors.New("something went wrong")}
+		storageAPI := storage.New(transport, nil)
+		client := &storageClient{api: storageAPI}
+		err := client.SnapshotPolicyScheduleDelete(&SnapshotPolicyScheduleDeleteParams{})
+		assert.EqualError(tt, err, transport.err.Error())
+	})
+
+	t.Run("WhenRESTCallSucceeds_ThenReturnNil", func(tt *testing.T) {
+		transport := &mockTransport{response: &storage.SnapshotPolicyScheduleDeleteOK{}}
+		storageAPI := storage.New(transport, nil)
+		client := &storageClient{api: storageAPI}
+		err := client.SnapshotPolicyScheduleDelete(&SnapshotPolicyScheduleDeleteParams{})
+		assert.NoError(tt, err)
+	})
+}
+
 func TestSnapshotPolicyCreateParamsToONTAP(t *testing.T) {
 	t.Run("NilParams_ReturnsDefaultParams", func(tt *testing.T) {
 		result := snapshotPolicyCreateParamsToONTAP(nil)

@@ -3,6 +3,8 @@
 package vsa
 
 import (
+	context "context"
+
 	mock "github.com/stretchr/testify/mock"
 	models "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/ontap-rest/models"
 	ontap_rest "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/ontap-rest"
@@ -2428,6 +2430,53 @@ func (_c *MockProvider_SnapmirrorRelationshipTransferGet_Call) Return(_a0 *ontap
 }
 
 func (_c *MockProvider_SnapmirrorRelationshipTransferGet_Call) RunAndReturn(run func(string, string) (*ontap_rest.SnapmirrorTransfer, error)) *MockProvider_SnapmirrorRelationshipTransferGet_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// UpdateSnapshotPolicy provides a mock function with given fields: ctx, params
+func (_m *MockProvider) UpdateSnapshotPolicy(ctx context.Context, params *UpdateSnapshotPolicyParams) error {
+	ret := _m.Called(ctx, params)
+
+	if len(ret) == 0 {
+		panic("no return value specified for UpdateSnapshotPolicy")
+	}
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(context.Context, *UpdateSnapshotPolicyParams) error); ok {
+		r0 = rf(ctx, params)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// MockProvider_UpdateSnapshotPolicy_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'UpdateSnapshotPolicy'
+type MockProvider_UpdateSnapshotPolicy_Call struct {
+	*mock.Call
+}
+
+// UpdateSnapshotPolicy is a helper method to define mock.On call
+//   - ctx context.Context
+//   - params *UpdateSnapshotPolicyParams
+func (_e *MockProvider_Expecter) UpdateSnapshotPolicy(ctx interface{}, params interface{}) *MockProvider_UpdateSnapshotPolicy_Call {
+	return &MockProvider_UpdateSnapshotPolicy_Call{Call: _e.mock.On("UpdateSnapshotPolicy", ctx, params)}
+}
+
+func (_c *MockProvider_UpdateSnapshotPolicy_Call) Run(run func(ctx context.Context, params *UpdateSnapshotPolicyParams)) *MockProvider_UpdateSnapshotPolicy_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(*UpdateSnapshotPolicyParams))
+	})
+	return _c
+}
+
+func (_c *MockProvider_UpdateSnapshotPolicy_Call) Return(_a0 error) *MockProvider_UpdateSnapshotPolicy_Call {
+	_c.Call.Return(_a0)
+	return _c
+}
+
+func (_c *MockProvider_UpdateSnapshotPolicy_Call) RunAndReturn(run func(context.Context, *UpdateSnapshotPolicyParams) error) *MockProvider_UpdateSnapshotPolicy_Call {
 	_c.Call.Return(run)
 	return _c
 }

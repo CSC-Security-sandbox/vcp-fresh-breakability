@@ -1,7 +1,10 @@
 package vsa
 
 import (
+	"context"
 	"fmt"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
+	"sort"
 	"strings"
 
 	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
@@ -10,6 +13,27 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/nillable"
 )
+
+type action int
+
+const (
+	add action = iota
+	rem
+	mod
+	tmpScheduleName    = "vsa-tmp"
+	tmpSnapMirrorLabel = "vsa-tmp-sml"
+)
+
+func (a action) String() string {
+	switch a {
+	case add:
+		return "add"
+	case rem:
+		return "rem"
+	default:
+		return "mod"
+	}
+}
 
 // CreateSnapshot creates a snapshot by calling the ONTAP REST Client
 func (rc *OntapRestProvider) CreateSnapshot(params CreateSnapshotParams) (*SnapshotProviderResponse, error) {
@@ -172,4 +196,317 @@ func generateNameForSchedule(schedule *Schedule) string {
 		return fmt.Sprintf("daily-%s-%s", utils.GenerateMinutePartOfScheduleName(schedule.Minutes), utils.GenerateHourPartOfScheduleName(schedule.Hours))
 	}
 	return fmt.Sprintf("hourly-%s-hour", utils.GenerateMinutePartOfScheduleName(schedule.Minutes))
+}
+
+// UpdateSnapshotPolicy updates volume snapshot policy
+func (rc *OntapRestProvider) UpdateSnapshotPolicy(ctx context.Context, params *UpdateSnapshotPolicyParams) error {
+	client := getOntapClientFunc(rc.ClientParams)
+
+	return updateSnapshotPolicy(ctx, client, params)
+}
+
+var generateSnapshotPolicyScheduleUpdateStrategy = _generateSnapshotPolicyScheduleUpdateStrategy
+
+func _generateSnapshotPolicyScheduleUpdateStrategy(updatingSchedules, currentSchedules []*SnapshotPolicySchedule) []*SnapshotPolicyScheduleUpdate {
+	// MD: Ontap snapshot policy update rules -
+	//   1) Snapshot policy must have at least one schedule
+	//   2) Snapshot policy cannot have more than five schedules
+	//   3) Two different schedule names cannot reference the same prefix in the same schedule
+	var actions []*SnapshotPolicyScheduleUpdate
+	var stats struct {
+		add     int
+		del     int
+		mod     int
+		withTmp bool
+	}
+	var remScheds map[string]SnapshotPolicySchedule
+	var visited map[string]struct{}
+	var tmpSchedule = SnapshotPolicySchedule{
+		Schedule: &Schedule{
+			Name:    tmpScheduleName,
+			Minutes: []int{0},
+		},
+		Count:           0,
+		SnapmirrorLabel: tmpSnapMirrorLabel,
+	}
+	for _, currentSchedule := range currentSchedules {
+		equalFoundFlag := false
+		for _, updatingSchedule := range updatingSchedules {
+			if equalSnapshotPolicySchedule(*updatingSchedule, *currentSchedule) {
+				if visited == nil {
+					visited = make(map[string]struct{})
+				}
+				visited[updatingSchedule.SnapmirrorLabel] = struct{}{}
+
+				// MD: We can avoid a full rem/add cycle if just the count has changed
+				if updatingSchedule.Count != currentSchedule.Count {
+					stats.mod++
+					actions = append(actions, &SnapshotPolicyScheduleUpdate{
+						Action:                 mod,
+						SnapshotPolicySchedule: *updatingSchedule,
+					})
+				}
+				equalFoundFlag = true
+				break
+			}
+		}
+		if equalFoundFlag {
+			continue
+		}
+
+		if remScheds == nil {
+			remScheds = make(map[string]SnapshotPolicySchedule)
+		}
+
+		remScheds[currentSchedule.SnapmirrorLabel] = *currentSchedule
+	}
+
+	prepended, mightNeedTmpSchedule := false, false
+	for _, updatingSchedule := range updatingSchedules {
+		if _, ok := visited[updatingSchedule.SnapmirrorLabel]; ok {
+			continue
+		}
+
+		if re, ok := remScheds[updatingSchedule.SnapmirrorLabel]; ok {
+			// MD: Policy update where type is the same but schedule is changed. Rule 1 and 2.
+			stats.del++
+			actions = append(actions, &SnapshotPolicyScheduleUpdate{
+				Action:                 rem,
+				SnapshotPolicySchedule: re,
+			})
+
+			stats.add++
+			actions = append(actions, &SnapshotPolicyScheduleUpdate{
+				Action:                 add,
+				SnapshotPolicySchedule: *updatingSchedule,
+			})
+
+			mightNeedTmpSchedule = true
+			delete(remScheds, updatingSchedule.SnapmirrorLabel)
+			continue
+		}
+
+		stats.add++
+		if !prepended {
+			// MD: Must assert at least 1 schedule to be specified at all times. Rule 1.
+			prepended = true
+
+			actions = append([]*SnapshotPolicyScheduleUpdate{{
+				Action:                 add,
+				SnapshotPolicySchedule: *updatingSchedule,
+			}}, actions...)
+		} else {
+			actions = append(actions, &SnapshotPolicyScheduleUpdate{
+				Action:                 add,
+				SnapshotPolicySchedule: *updatingSchedule,
+			})
+		}
+	}
+
+	for _, remSched := range remScheds {
+		stats.del++
+		actions = append(actions, &SnapshotPolicyScheduleUpdate{
+			Action:                 rem,
+			SnapshotPolicySchedule: remSched,
+		})
+	}
+
+	// If we have a single schedule in the current policy and that single schedule is differing from the updating schedule but prefix is same.
+	// Since prefix is same, we cannot add the updating schedule without removing the current schedule first (Rule 3).
+	// We need to remove the current schedule, but that would leave us with no schedules in the policy. This will lead to ONTAP rejecting the update (Rule 1).
+	// So we need to add a temporary schedule to the policy, then remove the current schedule, and finally add the updating schedule.
+	// And then remove the temporary schedule.
+	if mightNeedTmpSchedule && len(actions) == 2 && len(currentSchedules) == 1 {
+		// MD: The schedule name to prefix relationship is a many-to-one kind, except when in the same policy.
+		// We must use a temporary schedule to dance with ONTAP. Rule 3
+
+		stats.withTmp = true
+		actions = append([]*SnapshotPolicyScheduleUpdate{{
+			Action:                 add,
+			SnapshotPolicySchedule: tmpSchedule,
+		}}, actions...)
+
+		actions = append(actions, &SnapshotPolicyScheduleUpdate{
+			Action:                 rem,
+			SnapshotPolicySchedule: tmpSchedule,
+		})
+	}
+
+	for _, a := range actions {
+		if a.SnapshotPolicySchedule.Schedule.Name != tmpScheduleName {
+			a.SnapshotPolicySchedule.Schedule.Name = generateNameForSchedule(a.SnapshotPolicySchedule.Schedule)
+		}
+	}
+
+	return actions
+}
+
+func equalSnapshotPolicySchedule(sspc1, sspc2 SnapshotPolicySchedule) bool {
+	return equalIntArrays(sspc1.Schedule.Minutes, sspc2.Schedule.Minutes) &&
+		equalIntArrays(sspc1.Schedule.Hours, sspc2.Schedule.Hours) &&
+		equalIntArrays(sspc1.Schedule.DaysOfWeek, sspc2.Schedule.DaysOfWeek) &&
+		equalIntArrays(sspc1.Schedule.DaysOfMonth, sspc2.Schedule.DaysOfMonth) &&
+		equalIntArrays(sspc1.Schedule.Months, sspc2.Schedule.Months)
+}
+
+func equalIntArrays(arr1, arr2 []int) bool {
+	if len(arr1) != len(arr2) {
+		return false
+	}
+
+	sort.Ints(arr1)
+	sort.Ints(arr2)
+	for i := 0; i < len(arr1); i++ {
+		if arr1[i] != arr2[i] {
+			return false
+		}
+	}
+
+	return true
+}
+
+var updateSnapshotPolicy = _updateSnapshotPolicy
+
+func _updateSnapshotPolicy(ctx context.Context, api ontapRest.RESTClient, params *UpdateSnapshotPolicyParams) error {
+	sp, err := api.Storage().SnapshotPolicyFind(&ontapRest.SnapshotPolicyFindParams{
+		Name: params.UpdatingSnapshotPolicy.Name,
+		Fields: []string{
+			"uuid",
+			"name",
+			"copies.schedule.uuid",
+			"copies.schedule.name",
+			"copies.snapmirror_label",
+		},
+	})
+	if err != nil {
+		return err
+	}
+
+	if params.UpdatingSnapshotPolicy.IsEnabled != params.CurrentSnapshotPolicy.IsEnabled {
+		err := api.Storage().SnapshotPolicyModify(&ontapRest.SnapshotPolicyModifyParams{UUID: *sp.UUID, Enabled: &params.UpdatingSnapshotPolicy.IsEnabled})
+		if err != nil {
+			return err
+		}
+	}
+
+	tempSchdUUID := ""
+	for _, up := range generateSnapshotPolicyScheduleUpdateStrategy(params.UpdatingSnapshotPolicy.Schedules, params.CurrentSnapshotPolicy.Schedules) {
+		switch up.Action {
+		case add:
+			recordUUID, err := addSnapshotPolicySchedule(ctx, api, *sp.UUID, &up.SnapshotPolicySchedule)
+			if err != nil {
+				return err
+			}
+			if up.SnapshotPolicySchedule.Schedule.Name == tmpScheduleName {
+				tempSchdUUID = recordUUID
+			}
+		case rem:
+			for _, sched := range sp.SnapshotPolicyInlineCopies {
+				if *sched.Schedule.Name == up.SnapshotPolicySchedule.Schedule.Name || *sched.SnapmirrorLabel == up.SnapshotPolicySchedule.SnapmirrorLabel {
+					err = removeSnapshotPolicySchedule(ctx, api, *sp.UUID, *sched.Schedule.UUID)
+					if err != nil {
+						return err
+					}
+					break
+				} else if up.SnapshotPolicySchedule.Schedule.Name == tmpScheduleName {
+					err = removeSnapshotPolicySchedule(ctx, api, *sp.UUID, tempSchdUUID)
+					if err != nil {
+						return err
+					}
+					break
+				}
+			}
+		default:
+			for _, sched := range sp.SnapshotPolicyInlineCopies {
+				if *sched.Schedule.Name == up.SnapshotPolicySchedule.Schedule.Name || *sched.SnapmirrorLabel == up.SnapshotPolicySchedule.SnapmirrorLabel {
+					err = modifySnapshotPolicySchedule(ctx, api, *sp.UUID, *sched.Schedule.UUID, &up.SnapshotPolicySchedule)
+					if err != nil {
+						return err
+					}
+					break
+				}
+			}
+		}
+	}
+
+	return nil
+}
+
+var addSnapshotPolicySchedule = _addSnapshotPolicySchedule
+
+func _addSnapshotPolicySchedule(ctx context.Context, api ontapRest.RESTClient, policyUUID string, schedule *SnapshotPolicySchedule) (string, error) {
+	recordUUID, err := api.Storage().SnapshotPolicyScheduleCreate(&ontapRest.SnapshotPolicyScheduleCreateParams{
+		SnapshotPolicyUUID: policyUUID,
+		ScheduleName:       schedule.Schedule.Name,
+		SnapmirrorLabel:    schedule.SnapmirrorLabel,
+		Count:              schedule.Count,
+	})
+	if err != nil {
+		if strings.Contains(err.Error(), "not found") {
+			err := api.Cluster().ScheduleCreate(&ontapRest.ScheduleCreateParams{
+				Name:        schedule.Schedule.Name,
+				Months:      schedule.Schedule.Months,
+				DaysOfMonth: schedule.Schedule.DaysOfMonth,
+				DaysOfWeek:  schedule.Schedule.DaysOfWeek,
+				Hours:       schedule.Schedule.Hours,
+				Minutes:     schedule.Schedule.Minutes,
+			})
+			if err != nil {
+				if !strings.Contains(err.Error(), "exists") &&
+					!strings.Contains(err.Error(), "duplicate entry") {
+					return "", err
+				}
+			}
+
+			return api.Storage().SnapshotPolicyScheduleCreate(&ontapRest.SnapshotPolicyScheduleCreateParams{
+				SnapshotPolicyUUID: policyUUID,
+				ScheduleName:       schedule.Schedule.Name,
+				SnapmirrorLabel:    schedule.SnapmirrorLabel,
+				Count:              schedule.Count,
+			})
+		}
+
+		if !strings.Contains(err.Error(), "exists") {
+			return "", err
+		}
+	}
+
+	return recordUUID, nil
+}
+
+var modifySnapshotPolicySchedule = _modifySnapshotPolicySchedule
+
+func _modifySnapshotPolicySchedule(ctx context.Context, api ontapRest.RESTClient, policyUUID string, scheduleUUID string, schedule *SnapshotPolicySchedule) error {
+	logger := util.GetLogger(ctx)
+	err := api.Storage().SnapshotPolicyScheduleModify(&ontapRest.SnapshotPolicyScheduleModifyParams{
+		ScheduleUUID:       scheduleUUID,
+		SnapshotPolicyUUID: policyUUID,
+		SnapmirrorLabel:    schedule.SnapmirrorLabel,
+		Count:              int(schedule.Count),
+	})
+	if err != nil {
+		if !strings.Contains(err.Error(), "not found") &&
+			!strings.Contains(err.Error(), "does not exist") {
+			return err
+		}
+		logger.Debugf("Snapshot policy schedule %s not found, hence skipping", scheduleUUID)
+	}
+
+	return nil
+}
+
+var removeSnapshotPolicySchedule = _removeSnapshotPolicySchedule
+
+func _removeSnapshotPolicySchedule(ctx context.Context, api ontapRest.RESTClient, policyUUID string, scheduleUUID string) error {
+	logger := util.GetLogger(ctx)
+	err := api.Storage().SnapshotPolicyScheduleDelete(&ontapRest.SnapshotPolicyScheduleDeleteParams{ScheduleUUID: scheduleUUID, SnapshotPolicyUUID: policyUUID})
+	if err != nil {
+		if !strings.Contains(err.Error(), "not found") &&
+			!strings.Contains(err.Error(), "does not exist") {
+			return err
+		}
+		logger.Debugf("Snapshot policy schedule %s not found, hence skipping", scheduleUUID)
+	}
+
+	return nil
 }

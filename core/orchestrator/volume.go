@@ -464,6 +464,10 @@ func _updateVolume(ctx context.Context, se database.Storage, temporal client.Cli
 		return nil, "", err
 	}
 
+	if params.SnapshotPolicy != nil {
+		params.SnapshotPolicy.Name = dbVolume.Name
+	}
+
 	dbVolume, err = updateVolumeStatus(ctx, se, dbVolume)
 	if err != nil {
 		logger.Error("Failed to update volume state in database", "error", err)

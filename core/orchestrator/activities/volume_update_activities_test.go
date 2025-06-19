@@ -32,6 +32,9 @@ func TestUpdateVolumeInONTAP_Success(t *testing.T) {
 		VolumeAttributes: &datamodel.VolumeAttributes{
 			ExternalUUID: "uuid-123",
 		},
+		SnapshotPolicy: &datamodel.SnapshotPolicy{
+			Name: "default-snapshot-policy",
+		},
 	}
 	params := &common.UpdateVolumeParams{
 		QuotaInBytes: 1024,
@@ -39,8 +42,9 @@ func TestUpdateVolumeInONTAP_Success(t *testing.T) {
 	node := &models.Node{}
 
 	mockProvider.On("UpdateVolume", vsa.UpdateVolumeParams{
-		UUID: volume.VolumeAttributes.ExternalUUID,
-		Size: int64(params.QuotaInBytes),
+		UUID:         volume.VolumeAttributes.ExternalUUID,
+		Size:         int64(params.QuotaInBytes),
+		SnapshotName: "default-snapshot-policy",
 	}).Return(nil)
 
 	err := activity.UpdateVolumeInONTAP(ctx, volume, params, node)
@@ -72,8 +76,9 @@ func TestUpdateVolumeInONTAP_Failure(t *testing.T) {
 	expectedErr := errors.New("update failed")
 
 	mockProvider.On("UpdateVolume", vsa.UpdateVolumeParams{
-		UUID: volume.VolumeAttributes.ExternalUUID,
-		Size: int64(params.QuotaInBytes),
+		UUID:         volume.VolumeAttributes.ExternalUUID,
+		Size:         int64(params.QuotaInBytes),
+		SnapshotName: SnapshotPolicyNone,
 	}).Return(expectedErr)
 
 	err := activity.UpdateVolumeInONTAP(ctx, volume, params, node)
@@ -286,7 +291,8 @@ func TestGetUpdatedFieldsFromParams(t *testing.T) {
 				DataProtection:   &datamodel.DataProtection{},
 			},
 			params: &common.UpdateVolumeParams{
-				Description: "desc",
+				Description:    "desc",
+				SnapshotPolicy: &models.SnapshotPolicy{Name: "test-policy"},
 				DataProtection: &models.DataProtection{
 					BackupVaultID: "vault-123",
 				},
@@ -464,6 +470,99 @@ func TestGetVolumeFromONTAP_Error(t *testing.T) {
 	res, err := activity.GetVolumeFromONTAP(ctx, volume, node)
 	assert.Error(t, err)
 	assert.Nil(t, res)
+	assert.EqualError(t, err, expectedErr.Error())
+	mockProvider.AssertExpectations(t)
+}
+
+func TestUpdateSnapshotPolicyInOntap_Success(t *testing.T) {
+	mockProvider := new(vsa.MockProvider)
+	originalGetProviderByNode := GetProviderByNode
+	defer func() { GetProviderByNode = originalGetProviderByNode }()
+
+	GetProviderByNode = func(ctx context.Context, node *models.Node) vsa.Provider {
+		return mockProvider
+	}
+
+	activity := VolumeUpdateActivity{SE: database.NewMockStorage(t)}
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	node := &models.Node{}
+
+	currentPolicy := &datamodel.SnapshotPolicy{
+		Name:      "policy1",
+		IsEnabled: true,
+		Schedules: []*datamodel.SnapshotPolicySchedule{
+			{Count: 2},
+		},
+	}
+	updatingPolicy := &datamodel.SnapshotPolicy{
+		Name:      "policy1",
+		IsEnabled: false,
+		Schedules: []*datamodel.SnapshotPolicySchedule{
+			{Count: 2},
+		},
+	}
+
+	mockProvider.On("UpdateSnapshotPolicy", ctx, &vsa.UpdateSnapshotPolicyParams{
+		CurrentSnapshotPolicy: &vsa.SnapshotPolicy{
+			Name:      currentPolicy.Name,
+			IsEnabled: currentPolicy.IsEnabled,
+			Schedules: ConvertToVSASnapshotPolicySchedules(currentPolicy.Schedules),
+		},
+		UpdatingSnapshotPolicy: &vsa.SnapshotPolicy{
+			Name:      currentPolicy.Name,
+			IsEnabled: updatingPolicy.IsEnabled,
+			Schedules: ConvertToVSASnapshotPolicySchedules(updatingPolicy.Schedules),
+		},
+	}).Return(nil)
+
+	err := activity.UpdateSnapshotPolicyInOntap(ctx, node, currentPolicy, updatingPolicy)
+	assert.NoError(t, err)
+	mockProvider.AssertExpectations(t)
+}
+
+func TestUpdateSnapshotPolicyInOntap_Error(t *testing.T) {
+	mockProvider := new(vsa.MockProvider)
+	originalGetProviderByNode := GetProviderByNode
+	defer func() { GetProviderByNode = originalGetProviderByNode }()
+
+	GetProviderByNode = func(ctx context.Context, node *models.Node) vsa.Provider {
+		return mockProvider
+	}
+
+	activity := VolumeUpdateActivity{SE: database.NewMockStorage(t)}
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	node := &models.Node{}
+
+	currentPolicy := &datamodel.SnapshotPolicy{
+		Name:      "policy1",
+		IsEnabled: true,
+		Schedules: []*datamodel.SnapshotPolicySchedule{
+			{Count: 2},
+		},
+	}
+	updatingPolicy := &datamodel.SnapshotPolicy{
+		Name:      "policy1",
+		IsEnabled: false,
+		Schedules: []*datamodel.SnapshotPolicySchedule{
+			{Count: 2},
+		},
+	}
+	expectedErr := errors.New("update failed")
+	mockProvider.On("UpdateSnapshotPolicy", ctx, &vsa.UpdateSnapshotPolicyParams{
+		CurrentSnapshotPolicy: &vsa.SnapshotPolicy{
+			Name:      currentPolicy.Name,
+			IsEnabled: currentPolicy.IsEnabled,
+			Schedules: ConvertToVSASnapshotPolicySchedules(currentPolicy.Schedules),
+		},
+		UpdatingSnapshotPolicy: &vsa.SnapshotPolicy{
+			Name:      currentPolicy.Name,
+			IsEnabled: updatingPolicy.IsEnabled,
+			Schedules: ConvertToVSASnapshotPolicySchedules(updatingPolicy.Schedules),
+		},
+	}).Return(expectedErr)
+
+	err := activity.UpdateSnapshotPolicyInOntap(ctx, node, currentPolicy, updatingPolicy)
+	assert.Error(t, err)
 	assert.EqualError(t, err, expectedErr.Error())
 	mockProvider.AssertExpectations(t)
 }

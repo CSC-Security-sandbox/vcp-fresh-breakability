@@ -86,6 +86,7 @@ type UpdateVolumeParams struct {
 	Protocols       []string
 	Labels          map[string]string
 	BlockProperties *models.BlockProperties
+	SnapshotPolicy  *models.SnapshotPolicy
 	DataProtection  *models.DataProtection
 }
 

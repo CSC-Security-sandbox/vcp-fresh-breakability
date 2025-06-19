@@ -8,6 +8,7 @@ import (
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/suite"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
@@ -91,6 +92,421 @@ func (s *VolumeUpdateTestSuite) Test_UpdateVolumeWorkflow_Success() {
 	assert.True(s.T(), s.env.IsWorkflowCompleted())
 	assert.Nil(s.T(), s.env.GetWorkflowError())
 	mockStorage.AssertNumberOfCalls(s.T(), "UpdateJob", 2)
+}
+
+func (s *VolumeUpdateTestSuite) Test_UpdateVolumeWorkflow_Success_WithSnapshotPolicy_NoExistingWithNew() {
+	mockStorage := database.NewMockStorage(s.T())
+	commonActivity := activities.CommonActivities{SE: mockStorage}
+	updateActivity := activities.VolumeUpdateActivity{SE: mockStorage}
+	createActivity := activities.VolumeCreateActivity{SE: mockStorage}
+
+	mockStorage.On("UpdateJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+
+	// Register activities
+	s.env.RegisterActivity(commonActivity.UpdateJobStatus)
+	s.env.RegisterActivity(updateActivity.UpdateVolumeInONTAP)
+	s.env.RegisterActivity(updateActivity.UpdateLun)
+	s.env.RegisterActivity(updateActivity.UpdateVolumeInDB)
+	s.env.RegisterActivity(createActivity.CreateSnapshotPolicyInONTAP)
+	s.env.RegisterActivity(updateActivity.UpdateSnapshotPolicyInOntap)
+
+	// Mock activities
+	s.env.OnActivity(commonActivity.GetNode, mock.Anything, mock.Anything).Return([]*datamodel.Node{{EndpointAddress: "127.0.0.1"}}, nil)
+	s.env.OnActivity(updateActivity.GetVolumeFromONTAP, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.VolumeResponse{
+		ProviderResponse: vsa.ProviderResponse{
+			ExternalUUID: "test-external-uuid",
+			Name:         "test_volume",
+		},
+		AvailableSpace: 1000,
+		Size:           1000,
+		State:          "online",
+	}, nil)
+	s.env.OnActivity(updateActivity.UpdateVolumeInONTAP, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(updateActivity.UpdateLun, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(updateActivity.UpdateVolumeInDB, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(createActivity.CreateSnapshotPolicyInONTAP, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(updateActivity.UpdateSnapshotPolicyInOntap, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+
+	// Case : No existing snapshot policy, new policy provided
+	volume1 := &datamodel.Volume{
+		Pool:           &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: int64(1)}},
+		Account:        &datamodel.Account{Name: "test_account"},
+		SizeInBytes:    100,
+		SnapshotPolicy: nil,
+	}
+	params1 := &common.UpdateVolumeParams{
+		QuotaInBytes: 200,
+		SnapshotPolicy: &models.SnapshotPolicy{
+			Name:      "policy1",
+			IsEnabled: true,
+			Schedules: []*models.SnapshotPolicySchedule{
+				{
+					Schedule: &models.Schedule{
+						DaysOfMonth: []int{1, 2},
+						DaysOfWeek:  []int{1},
+						Hours:       []int{0},
+						Minutes:     []int{0},
+					},
+					Count:           3,
+					SnapmirrorLabel: "label1",
+				},
+			},
+		},
+	}
+	s.env.ExecuteWorkflow(UpdateVolumeWorkflow, params1, volume1)
+	assert.True(s.T(), s.env.IsWorkflowCompleted())
+	assert.Nil(s.T(), s.env.GetWorkflowError())
+}
+
+func (s *VolumeUpdateTestSuite) Test_UpdateVolumeWorkflow_Success_WithSnapshotPolicy_NoExistingWithNew_Error() {
+	mockStorage := database.NewMockStorage(s.T())
+	commonActivity := activities.CommonActivities{SE: mockStorage}
+	updateActivity := activities.VolumeUpdateActivity{SE: mockStorage}
+	createActivity := activities.VolumeCreateActivity{SE: mockStorage}
+
+	mockStorage.On("UpdateJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+
+	// Register activities
+	s.env.RegisterActivity(commonActivity.UpdateJobStatus)
+	s.env.RegisterActivity(updateActivity.UpdateVolumeInONTAP)
+	s.env.RegisterActivity(updateActivity.UpdateLun)
+	s.env.RegisterActivity(updateActivity.UpdateVolumeInDB)
+	s.env.RegisterActivity(createActivity.CreateSnapshotPolicyInONTAP)
+	s.env.RegisterActivity(updateActivity.UpdateSnapshotPolicyInOntap)
+
+	// Mock activities
+	s.env.OnActivity(commonActivity.GetNode, mock.Anything, mock.Anything).Return(&datamodel.Node{EndpointAddress: "127.0.0.1"}, nil)
+	s.env.OnActivity(updateActivity.GetVolumeFromONTAP, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.VolumeResponse{
+		ProviderResponse: vsa.ProviderResponse{
+			ExternalUUID: "test-external-uuid",
+			Name:         "test_volume",
+		},
+		AvailableSpace: 1000,
+		Size:           1000,
+		State:          "online",
+	}, nil)
+	s.env.OnActivity(updateActivity.UpdateVolumeInONTAP, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(updateActivity.UpdateLun, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(updateActivity.UpdateVolumeInDB, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(createActivity.CreateSnapshotPolicyInONTAP, mock.Anything, mock.Anything, mock.Anything).Return(errors.New("error"))
+	s.env.OnActivity(updateActivity.UpdateSnapshotPolicyInOntap, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+
+	// Case : No existing snapshot policy, new policy provided
+	volume1 := &datamodel.Volume{
+		Pool:           &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: int64(1)}},
+		Account:        &datamodel.Account{Name: "test_account"},
+		SizeInBytes:    100,
+		SnapshotPolicy: nil,
+	}
+	params1 := &common.UpdateVolumeParams{
+		QuotaInBytes: 200,
+		SnapshotPolicy: &models.SnapshotPolicy{
+			Name:      "policy1",
+			IsEnabled: true,
+			Schedules: []*models.SnapshotPolicySchedule{
+				{
+					Schedule: &models.Schedule{
+						DaysOfMonth: []int{1, 2},
+						DaysOfWeek:  []int{1},
+						Hours:       []int{0},
+						Minutes:     []int{0},
+					},
+					Count:           3,
+					SnapmirrorLabel: "label1",
+				},
+			},
+		},
+	}
+	s.env.ExecuteWorkflow(UpdateVolumeWorkflow, params1, volume1)
+	assert.True(s.T(), s.env.IsWorkflowCompleted())
+	assert.Error(s.T(), s.env.GetWorkflowError())
+}
+
+func (s *VolumeUpdateTestSuite) Test_UpdateVolumeWorkflow_Success_WithSnapshotPolicy_ExistingWithNew() {
+	mockStorage := database.NewMockStorage(s.T())
+	commonActivity := activities.CommonActivities{SE: mockStorage}
+	updateActivity := activities.VolumeUpdateActivity{SE: mockStorage}
+	createActivity := activities.VolumeCreateActivity{SE: mockStorage}
+
+	mockStorage.On("UpdateJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+
+	// Register activities
+	s.env.RegisterActivity(commonActivity.UpdateJobStatus)
+	s.env.RegisterActivity(updateActivity.UpdateVolumeInONTAP)
+	s.env.RegisterActivity(updateActivity.UpdateLun)
+	s.env.RegisterActivity(updateActivity.UpdateVolumeInDB)
+	s.env.RegisterActivity(createActivity.CreateSnapshotPolicyInONTAP)
+	s.env.RegisterActivity(updateActivity.UpdateSnapshotPolicyInOntap)
+
+	// Mock activities
+	s.env.OnActivity(commonActivity.GetNode, mock.Anything, mock.Anything).Return([]*datamodel.Node{{EndpointAddress: "127.0.0.1"}}, nil)
+	s.env.OnActivity(updateActivity.GetVolumeFromONTAP, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.VolumeResponse{
+		ProviderResponse: vsa.ProviderResponse{
+			ExternalUUID: "test-external-uuid",
+			Name:         "test_volume",
+		},
+		AvailableSpace: 1000,
+		Size:           1000,
+		State:          "online",
+	}, nil)
+	s.env.OnActivity(updateActivity.UpdateVolumeInONTAP, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(updateActivity.UpdateLun, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(updateActivity.UpdateVolumeInDB, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(createActivity.CreateSnapshotPolicyInONTAP, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(updateActivity.UpdateSnapshotPolicyInOntap, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+
+	// Case : Existing snapshot policy, new policy provided (update)
+	volume2 := &datamodel.Volume{
+		Pool:        &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: int64(1)}},
+		Account:     &datamodel.Account{Name: "test_account"},
+		SizeInBytes: 100,
+		SnapshotPolicy: &datamodel.SnapshotPolicy{
+			Name:      "policy1",
+			IsEnabled: true,
+			Schedules: []*datamodel.SnapshotPolicySchedule{},
+		},
+	}
+	params2 := &common.UpdateVolumeParams{
+		QuotaInBytes: 200,
+		SnapshotPolicy: &models.SnapshotPolicy{
+			Name:      "policy2",
+			IsEnabled: false,
+			Schedules: []*models.SnapshotPolicySchedule{
+				{
+					Schedule: &models.Schedule{
+						DaysOfMonth: []int{3, 4},
+						DaysOfWeek:  []int{2},
+						Hours:       []int{1},
+						Minutes:     []int{30},
+					},
+					Count:           2,
+					SnapmirrorLabel: "label2",
+				},
+			},
+		},
+	}
+	s.env.ExecuteWorkflow(UpdateVolumeWorkflow, params2, volume2)
+	assert.True(s.T(), s.env.IsWorkflowCompleted())
+	assert.Nil(s.T(), s.env.GetWorkflowError())
+}
+
+func (s *VolumeUpdateTestSuite) Test_UpdateVolumeWorkflow_Success_WithSnapshotPolicy_ExistingWithNew_Error() {
+	mockStorage := database.NewMockStorage(s.T())
+	commonActivity := activities.CommonActivities{SE: mockStorage}
+	updateActivity := activities.VolumeUpdateActivity{SE: mockStorage}
+	createActivity := activities.VolumeCreateActivity{SE: mockStorage}
+
+	mockStorage.On("UpdateJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+
+	// Register activities
+	s.env.RegisterActivity(commonActivity.UpdateJobStatus)
+	s.env.RegisterActivity(updateActivity.UpdateVolumeInONTAP)
+	s.env.RegisterActivity(updateActivity.UpdateLun)
+	s.env.RegisterActivity(updateActivity.UpdateVolumeInDB)
+	s.env.RegisterActivity(createActivity.CreateSnapshotPolicyInONTAP)
+	s.env.RegisterActivity(updateActivity.UpdateSnapshotPolicyInOntap)
+
+	// Mock activities
+	s.env.OnActivity(commonActivity.GetNode, mock.Anything, mock.Anything).Return(&datamodel.Node{EndpointAddress: "127.0.0.1"}, nil)
+	s.env.OnActivity(updateActivity.GetVolumeFromONTAP, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.VolumeResponse{
+		ProviderResponse: vsa.ProviderResponse{
+			ExternalUUID: "test-external-uuid",
+			Name:         "test_volume",
+		},
+		AvailableSpace: 1000,
+		Size:           1000,
+		State:          "online",
+	}, nil)
+	s.env.OnActivity(updateActivity.UpdateVolumeInONTAP, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(updateActivity.UpdateLun, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(updateActivity.UpdateVolumeInDB, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(createActivity.CreateSnapshotPolicyInONTAP, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(updateActivity.UpdateSnapshotPolicyInOntap, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(errors.New("error"))
+
+	// Case : Existing snapshot policy, new policy provided (update)
+	volume2 := &datamodel.Volume{
+		Pool:        &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: int64(1)}},
+		Account:     &datamodel.Account{Name: "test_account"},
+		SizeInBytes: 100,
+		SnapshotPolicy: &datamodel.SnapshotPolicy{
+			Name:      "policy1",
+			IsEnabled: true,
+			Schedules: []*datamodel.SnapshotPolicySchedule{},
+		},
+	}
+	params2 := &common.UpdateVolumeParams{
+		QuotaInBytes: 200,
+		SnapshotPolicy: &models.SnapshotPolicy{
+			Name:      "policy2",
+			IsEnabled: false,
+			Schedules: []*models.SnapshotPolicySchedule{
+				{
+					Schedule: &models.Schedule{
+						DaysOfMonth: []int{3, 4},
+						DaysOfWeek:  []int{2},
+						Hours:       []int{1},
+						Minutes:     []int{30},
+					},
+					Count:           2,
+					SnapmirrorLabel: "label2",
+				},
+			},
+		},
+	}
+	s.env.ExecuteWorkflow(UpdateVolumeWorkflow, params2, volume2)
+	assert.True(s.T(), s.env.IsWorkflowCompleted())
+	assert.Error(s.T(), s.env.GetWorkflowError())
+}
+
+func (s *VolumeUpdateTestSuite) Test_UpdateVolumeWorkflow_Success_WithSnapshotPolicy_NoExisting() {
+	mockStorage := database.NewMockStorage(s.T())
+	commonActivity := activities.CommonActivities{SE: mockStorage}
+	updateActivity := activities.VolumeUpdateActivity{SE: mockStorage}
+	createActivity := activities.VolumeCreateActivity{SE: mockStorage}
+
+	mockStorage.On("UpdateJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+
+	// Register activities
+	s.env.RegisterActivity(commonActivity.UpdateJobStatus)
+	s.env.RegisterActivity(updateActivity.UpdateVolumeInONTAP)
+	s.env.RegisterActivity(updateActivity.UpdateLun)
+	s.env.RegisterActivity(updateActivity.UpdateVolumeInDB)
+	s.env.RegisterActivity(createActivity.CreateSnapshotPolicyInONTAP)
+	s.env.RegisterActivity(updateActivity.UpdateSnapshotPolicyInOntap)
+
+	// Mock activities
+	s.env.OnActivity(commonActivity.GetNode, mock.Anything, mock.Anything).Return([]*datamodel.Node{{EndpointAddress: "127.0.0.1"}}, nil)
+	s.env.OnActivity(updateActivity.GetVolumeFromONTAP, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.VolumeResponse{
+		ProviderResponse: vsa.ProviderResponse{
+			ExternalUUID: "test-external-uuid",
+			Name:         "test_volume",
+		},
+		AvailableSpace: 1000,
+		Size:           1000,
+		State:          "online",
+	}, nil)
+	s.env.OnActivity(updateActivity.UpdateVolumeInONTAP, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(updateActivity.UpdateLun, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(updateActivity.UpdateVolumeInDB, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(createActivity.CreateSnapshotPolicyInONTAP, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(updateActivity.UpdateSnapshotPolicyInOntap, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+
+	// Case : No snapshot policy provided in params (should skip snapshot policy logic)
+	volume3 := &datamodel.Volume{
+		Pool:        &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: int64(1)}},
+		Account:     &datamodel.Account{Name: "test_account"},
+		SizeInBytes: 100,
+	}
+	params3 := &common.UpdateVolumeParams{
+		QuotaInBytes:   200,
+		SnapshotPolicy: nil,
+	}
+	s.env.ExecuteWorkflow(UpdateVolumeWorkflow, params3, volume3)
+	assert.True(s.T(), s.env.IsWorkflowCompleted())
+	assert.Nil(s.T(), s.env.GetWorkflowError())
+}
+
+func (s *VolumeUpdateTestSuite) Test_UpdateVolumeWorkflow_SnapshotPolicy_OnlyEnableDisable() {
+	mockStorage := database.NewMockStorage(s.T())
+	commonActivity := activities.CommonActivities{SE: mockStorage}
+	updateActivity := activities.VolumeUpdateActivity{SE: mockStorage}
+	createActivity := activities.VolumeCreateActivity{SE: mockStorage}
+
+	mockStorage.On("UpdateJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+
+	// Register activities
+	s.env.RegisterActivity(commonActivity.UpdateJobStatus)
+	s.env.RegisterActivity(updateActivity.UpdateVolumeInONTAP)
+	s.env.RegisterActivity(updateActivity.UpdateLun)
+	s.env.RegisterActivity(updateActivity.UpdateVolumeInDB)
+	s.env.RegisterActivity(createActivity.CreateSnapshotPolicyInONTAP)
+	s.env.RegisterActivity(updateActivity.UpdateSnapshotPolicyInOntap)
+
+	// Mock activities
+	s.env.OnActivity(commonActivity.GetNode, mock.Anything, mock.Anything).Return([]*datamodel.Node{{EndpointAddress: "127.0.0.1"}}, nil)
+	s.env.OnActivity(updateActivity.GetVolumeFromONTAP, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.VolumeResponse{
+		ProviderResponse: vsa.ProviderResponse{
+			ExternalUUID: "test-external-uuid",
+			Name:         "test_volume",
+		},
+		AvailableSpace: 1000,
+		Size:           1000,
+		State:          "online",
+	}, nil)
+	s.env.OnActivity(updateActivity.UpdateVolumeInONTAP, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(updateActivity.UpdateLun, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(updateActivity.UpdateVolumeInDB, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(createActivity.CreateSnapshotPolicyInONTAP, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(updateActivity.UpdateSnapshotPolicyInOntap, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+
+	volume := &datamodel.Volume{
+		Pool:        &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: int64(1)}},
+		Account:     &datamodel.Account{Name: "test_account"},
+		SizeInBytes: 100,
+		SnapshotPolicy: &datamodel.SnapshotPolicy{
+			Name:      "policy1",
+			IsEnabled: true,
+			Schedules: []*datamodel.SnapshotPolicySchedule{
+				// Existing schedules
+			},
+		},
+	}
+	params := &common.UpdateVolumeParams{
+		QuotaInBytes: 200,
+		SnapshotPolicy: &models.SnapshotPolicy{
+			Name:      "policy1",
+			IsEnabled: true,
+			Schedules: []*models.SnapshotPolicySchedule{}, // Empty schedules
+		},
+	}
+	s.env.ExecuteWorkflow(UpdateVolumeWorkflow, params, volume)
+	assert.True(s.T(), s.env.IsWorkflowCompleted())
+	assert.Nil(s.T(), s.env.GetWorkflowError())
+}
+
+func (s *VolumeUpdateTestSuite) Test_UpdateVolumeWorkflow_NoExistingSnapshotPolicy_NoSchedulesInUpdate() {
+	mockStorage := database.NewMockStorage(s.T())
+	commonActivity := activities.CommonActivities{SE: mockStorage}
+	updateActivity := activities.VolumeUpdateActivity{SE: mockStorage}
+	createActivity := activities.VolumeCreateActivity{SE: mockStorage}
+
+	mockStorage.On("UpdateJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+
+	// Register activities
+	s.env.RegisterActivity(commonActivity.UpdateJobStatus)
+	s.env.RegisterActivity(updateActivity.UpdateVolumeInONTAP)
+	s.env.RegisterActivity(updateActivity.UpdateLun)
+	s.env.RegisterActivity(updateActivity.UpdateVolumeInDB)
+	s.env.RegisterActivity(createActivity.CreateSnapshotPolicyInONTAP)
+	s.env.RegisterActivity(updateActivity.UpdateSnapshotPolicyInOntap)
+
+	// Mock activities
+	s.env.OnActivity(commonActivity.GetNode, mock.Anything, mock.Anything).Return([]*datamodel.Node{{EndpointAddress: "127.0.0.1"}}, nil)
+	s.env.OnActivity(updateActivity.UpdateVolumeInONTAP, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(updateActivity.UpdateLun, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(updateActivity.UpdateVolumeInDB, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(createActivity.CreateSnapshotPolicyInONTAP, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(updateActivity.UpdateSnapshotPolicyInOntap, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+
+	// Case: No existing snapshot policy and no schedules provided in update (should error)
+	volume := &datamodel.Volume{
+		Pool:           &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: int64(1)}},
+		Account:        &datamodel.Account{Name: "test_account"},
+		SizeInBytes:    100,
+		SnapshotPolicy: nil,
+	}
+	params := &common.UpdateVolumeParams{
+		QuotaInBytes: 200,
+		SnapshotPolicy: &models.SnapshotPolicy{
+			Name:      "policy1",
+			IsEnabled: true,
+			Schedules: []*models.SnapshotPolicySchedule{}, // No schedules
+		},
+	}
+	s.env.ExecuteWorkflow(UpdateVolumeWorkflow, params, volume)
+	assert.True(s.T(), s.env.IsWorkflowCompleted())
+	assert.Error(s.T(), s.env.GetWorkflowError())
+	assert.Contains(s.T(), s.env.GetWorkflowError().Error(), "no existing snapshot policy found for the volume and no schedules provided in the update request")
 }
 
 func (s *VolumeUpdateTestSuite) Test_UpdateVolumeWorkflow_NoSizeChange() {

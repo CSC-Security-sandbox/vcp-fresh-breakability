@@ -346,6 +346,15 @@ func _prepareUpdateVolumeParams(req *gcpgenserver.VolumeUpdateV1beta, params gcp
 		}
 		param.Labels = labels
 	}
+
+	if req.SnapshotPolicy.IsSet() {
+		snapShotPolicy, err := convertFromSnapshotPolicyV2(&req.SnapshotPolicy.Value)
+		if err != nil {
+			return nil, err
+		}
+		param.SnapshotPolicy = snapShotPolicy
+	}
+
 	return param, nil
 }
 

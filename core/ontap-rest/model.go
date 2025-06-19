@@ -1162,6 +1162,17 @@ type SnapshotPolicyDeleteParams struct {
 	Name string
 }
 
+// snapshotPolicyDeleteParamsToONTAPCollectionDelete converts SnapshotPolicyDeleteParams to ONTAP storage.SnapshotPolicyDeleteCollectionParams
+func snapshotPolicyDeleteParamsToONTAPCollectionDelete(params *SnapshotPolicyDeleteParams) *storage.SnapshotPolicyDeleteCollectionParams {
+	otParams := storage.NewSnapshotPolicyDeleteCollectionParams()
+	if params == nil {
+		return otParams
+	}
+
+	otParams.SetName(&params.Name)
+	return otParams
+}
+
 // SnapshotPolicy is a simple wrapper of models.SnapshotPolicy
 type SnapshotPolicy struct {
 	models.SnapshotPolicy
@@ -1197,12 +1208,45 @@ type SnapshotPolicyModifyParams struct {
 	Enabled *bool
 }
 
+// convertSnapshotPolicyModifyParamsToOntap converts SnapshotPolicyCreateParams to ONTAP storage.SnapshotPolicyCreateParams
+func convertSnapshotPolicyModifyParamsToOntap(params *SnapshotPolicyModifyParams) *storage.SnapshotPolicyModifyParams {
+	otParams := storage.NewSnapshotPolicyModifyParams()
+	if params == nil {
+		return otParams
+	}
+
+	otParams.UUID = params.UUID
+	otParams.Info = &models.SnapshotPolicy{
+		Comment: params.Comment,
+		Enabled: params.Enabled,
+	}
+	return otParams
+}
+
 // SnapshotPolicyScheduleCreateParams is the input param struct SnapshotPolicyScheduleCreate
 type SnapshotPolicyScheduleCreateParams struct {
 	SnapshotPolicyUUID string
 	ScheduleName       string
-	Count              int
+	Count              int64
 	SnapmirrorLabel    string
+}
+
+// convertSnapshotPolicyScheduleCreateParamsToONTAP converts SnapshotPolicyScheduleCreateParams to ONTAP storage.SnapshotPolicyScheduleCreateParams
+func convertSnapshotPolicyScheduleCreateParamsToONTAP(params *SnapshotPolicyScheduleCreateParams) *storage.SnapshotPolicyScheduleCreateParams {
+	otParams := storage.NewSnapshotPolicyScheduleCreateParams()
+	if params == nil {
+		return otParams
+	}
+
+	otParams.SnapshotPolicyUUID = params.SnapshotPolicyUUID
+	count := params.Count
+	otParams.Info = &models.SnapshotPolicySchedule{
+		Count:           &count,
+		SnapmirrorLabel: &params.SnapmirrorLabel,
+		Prefix:          &params.SnapmirrorLabel,
+		Schedule:        &models.SnapshotPolicyScheduleInlineSchedule{Name: &params.ScheduleName},
+	}
+	return otParams
 }
 
 // SnapshotPolicyScheduleModifyParams is the input param struct SnapshotPolicyScheduleModify
@@ -1213,10 +1257,45 @@ type SnapshotPolicyScheduleModifyParams struct {
 	SnapmirrorLabel    string
 }
 
+// convertSnapshotPolicyScheduleModifyParamsToONTAP converts SnapshotPolicyScheduleCreateParams to ONTAP storage.SnapshotPolicyScheduleCreateParams
+func convertSnapshotPolicyScheduleModifyParamsToONTAP(params *SnapshotPolicyScheduleModifyParams) *storage.SnapshotPolicyScheduleModifyParams {
+	otParams := storage.NewSnapshotPolicyScheduleModifyParams()
+	if params == nil {
+		return otParams
+	}
+
+	otParams.SnapshotPolicyUUID = params.SnapshotPolicyUUID
+	otParams.ScheduleUUID = params.ScheduleUUID
+
+	count := int64(params.Count)
+	otParams.Info = &models.SnapshotPolicySchedule{
+		Count:           &count,
+		SnapmirrorLabel: &params.SnapmirrorLabel,
+	}
+	return otParams
+}
+
 // SnapshotPolicyScheduleDeleteParams is the input param struct SnapshotPolicyScheduleDelete
 type SnapshotPolicyScheduleDeleteParams struct {
 	ScheduleUUID       string
 	SnapshotPolicyUUID string
+}
+
+// convertSnapshotPolicyScheduleDeleteParamsToONTAP converts SnapshotPolicyScheduleDeleteParams to ONTAP storage.SnapshotPolicyScheduleDeleteParams
+func convertSnapshotPolicyScheduleDeleteParamsToONTAP(params *SnapshotPolicyScheduleDeleteParams) *storage.SnapshotPolicyScheduleDeleteParams {
+	otParams := storage.NewSnapshotPolicyScheduleDeleteParams()
+	if params == nil {
+		return otParams
+	}
+
+	otParams.ScheduleUUID = params.ScheduleUUID
+	otParams.SnapshotPolicyUUID = params.SnapshotPolicyUUID
+	return otParams
+}
+
+type SnapshotPolicyFindParams struct {
+	Name   string
+	Fields []string
 }
 
 // ScheduleCreateParams is the input param struct ScheduleCreate

@@ -37,6 +37,12 @@ type StorageClient interface {
 	SnapshotGet(params *SnapshotGetParams) (*Snapshot, error)
 	SnapshotDelete(params *SnapshotDeleteParams) error
 	SnapshotPolicyCreate(params *SnapshotPolicyCreateParams) error
+	SnapshotPolicyFind(fspp *SnapshotPolicyFindParams) (*models.SnapshotPolicy, error)
+	SnapshotPolicyDelete(params *SnapshotPolicyDeleteParams) error
+	SnapshotPolicyModify(params *SnapshotPolicyModifyParams) error
+	SnapshotPolicyScheduleCreate(params *SnapshotPolicyScheduleCreateParams) (string, error)
+	SnapshotPolicyScheduleModify(params *SnapshotPolicyScheduleModifyParams) error
+	SnapshotPolicyScheduleDelete(params *SnapshotPolicyScheduleDeleteParams) error
 }
 
 var (
@@ -436,6 +442,60 @@ func (sc *storageClient) SnapshotDelete(params *SnapshotDeleteParams) error {
 // SnapshotPolicyCreate invokes pkg/ontap-rest/client/storage/Client.SnapshotPolicyCreate
 func (sc *storageClient) SnapshotPolicyCreate(params *SnapshotPolicyCreateParams) error {
 	_, err := sc.api.SnapshotPolicyCreate(snapshotPolicyCreateParamsToONTAP(params), nil)
+	return err
+}
+
+// SnapshotPolicyFind invokes SnapshotPolicyCollectionGet to find exactly one SnapshotPolicy
+func (sc *storageClient) SnapshotPolicyFind(fspp *SnapshotPolicyFindParams) (*models.SnapshotPolicy, error) {
+	if fspp.Name == "" {
+		return nil, errors.New("no name filter provided for SnapshotPolicyFind")
+	}
+
+	resp, err := sc.api.SnapshotPolicyCollectionGet(storage.NewSnapshotPolicyCollectionGetParams().WithName(&fspp.Name).WithFields(fspp.Fields).
+		WithMaxRecords(nillable.ToPointer("1")), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	if len(resp.Payload.SnapshotPolicyResponseInlineRecords) == 0 {
+		return nil, errors.NewNotFoundErr("snapshotPolicy", &fspp.Name)
+	}
+
+	return resp.Payload.SnapshotPolicyResponseInlineRecords[0], nil
+}
+
+// SnapshotPolicyDelete invokes clients/ontap-rest/client/storage/Client.SnapshotPolicyDeleteCollection
+func (sc *storageClient) SnapshotPolicyDelete(params *SnapshotPolicyDeleteParams) error {
+	_, err := sc.api.SnapshotPolicyDeleteCollection(snapshotPolicyDeleteParamsToONTAPCollectionDelete(params), nil)
+	return err
+}
+
+// SnapshotPolicyModify invokes clients/ontap-rest/client/storage/Client.SnapshotPolicyModify
+func (sc *storageClient) SnapshotPolicyModify(params *SnapshotPolicyModifyParams) error {
+	_, err := sc.api.SnapshotPolicyModify(convertSnapshotPolicyModifyParamsToOntap(params), nil)
+	return err
+}
+
+// SnapshotPolicyScheduleCreate invokes clients/ontap-rest/client/storage/Client.SnapshotPolicyScheduleCreate
+func (sc *storageClient) SnapshotPolicyScheduleCreate(params *SnapshotPolicyScheduleCreateParams) (string, error) {
+	result, err := sc.api.SnapshotPolicyScheduleCreate(convertSnapshotPolicyScheduleCreateParamsToONTAP(params), nil)
+	if err != nil {
+		return "", err
+	}
+
+	recordParts := strings.Split(result.Location, "/")
+	return recordParts[len(recordParts)-1], nil
+}
+
+// SnapshotPolicyScheduleModify invokes clients/ontap-rest/client/storage/Client.SnapshotPolicyScheduleModify
+func (sc *storageClient) SnapshotPolicyScheduleModify(params *SnapshotPolicyScheduleModifyParams) error {
+	_, err := sc.api.SnapshotPolicyScheduleModify(convertSnapshotPolicyScheduleModifyParamsToONTAP(params), nil)
+	return err
+}
+
+// SnapshotPolicyScheduleDelete invokes clients/ontap-rest/client/storage/Client.SnapshotPolicyScheduleDelete
+func (sc *storageClient) SnapshotPolicyScheduleDelete(params *SnapshotPolicyScheduleDeleteParams) error {
+	_, err := sc.api.SnapshotPolicyScheduleDelete(convertSnapshotPolicyScheduleDeleteParamsToONTAP(params), nil)
 	return err
 }
 
