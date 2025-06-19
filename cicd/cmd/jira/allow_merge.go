@@ -32,7 +32,7 @@ func allowMerge() error {
 		log.Println("Error:", err)
 		os.Exit(1)
 	}
-	client, err := GetJiraClient(credentials, defaultUrl)
+	client, err := GetJiraClient(credentials, DefaultUrl)
 	if err != nil {
 		log.Println("Error creating jira client:", err)
 		os.Exit(1)

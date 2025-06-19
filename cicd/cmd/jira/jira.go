@@ -28,7 +28,7 @@ var ExpectedStatusMap = map[string]string{
 	"RC/HF Approval": "In Development",
 }
 
-const defaultUrl = "https://jira.ngage.netapp.com"
+const DefaultUrl = "https://jira.ngage.netapp.com"
 const jiraApiUser = "JIRA_API_USER"
 const jiraApiToken = "JIRA_API_TOKEN"
 const jiraServer = "JIRA_SERVER"
@@ -51,7 +51,7 @@ func GetJiraUrlCredentials() (BaseURL, ClientCredentials) {
 	if jiraServerUrl != "" {
 		Url = jiraServerUrl
 	} else {
-		Url = defaultUrl
+		Url = DefaultUrl
 	}
 
 	jiraUrl := BaseURL(Url)
@@ -287,7 +287,7 @@ func extractMergedCount(customField string) (int, error) {
 	return mergedCount, nil
 }
 
-func extractFieldsAsMap(issue *jira.Issue) (map[string]interface{}, error) {
+func ExtractFieldsAsMap(issue *jira.Issue) (map[string]interface{}, error) {
 	// Marshal the Fields struct into JSON
 	fieldsJSON, err := json.Marshal(issue.Fields)
 	if err != nil {

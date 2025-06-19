@@ -3,6 +3,7 @@ package jira
 import (
 	"fmt"
 	"log"
+	ghutils "main/cmd/github"
 	"os"
 	"os/exec"
 	"strings"
@@ -17,7 +18,7 @@ func allowRelease(issue *jira.Issue) error {
 		log.Println(err)
 		os.Exit(1)
 	}
-	fieldsMap, err := extractFieldsAsMap(issue)
+	fieldsMap, err := ExtractFieldsAsMap(issue)
 	if err != nil {
 		log.Println("Error converting Fields to map:", err)
 		os.Exit(1)
@@ -47,16 +48,9 @@ func allowRelease(issue *jira.Issue) error {
 		os.Exit(1)
 	}
 	// Get target release version
-	var targetVersionName string
-	if targetVersion, ok := fieldsMap["customfield_19600"].(map[string]interface{}); ok {
-		if targetVersionName, ok = targetVersion["name"].(string); ok {
-			log.Printf("RC/HF Target Version: %s\n", targetVersionName)
-		} else {
-			log.Println("\"RC/HF Target Version is not a string or is missing")
-			os.Exit(1)
-		}
-	} else {
-		log.Println("RC/HF Target Version value is not set in the given RC/HF issue")
+	targetVersionName, err := GetTargetVersionName(fieldsMap)
+	if err != nil {
+		log.Println("Error obtaining RC targetVersion: ", err)
 		os.Exit(1)
 	}
 	// RC/HF main/Hotfix backport
@@ -69,9 +63,22 @@ func allowRelease(issue *jira.Issue) error {
 	return nil
 }
 
+func GetTargetVersionName(fieldsMap map[string]interface{}) (string, error) {
+	if targetVersion, ok := fieldsMap["customfield_19600"].(map[string]interface{}); ok {
+		if targetVersionName, ok := targetVersion["name"].(string); ok {
+			log.Printf("RC/HF Target Version: %s\n", targetVersionName)
+			return targetVersionName, nil
+		} else {
+			return "", fmt.Errorf("RC/HF Target Version is not a string or is missing")
+		}
+	} else {
+		return "", fmt.Errorf("RC/HF Target Version value is not set in the given RC/HF issue")
+	}
+}
+
 // RCHF main backport
 func validateTargetVersionBranchMatch(targetVersion string) error {
-	err := fetchTags()
+	err := ghutils.FetchTags()
 	if err != nil {
 		log.Printf("Error fetching tags: %s", err)
 		os.Exit(1)
@@ -97,7 +104,7 @@ func validateTargetVersionBranchMatch(targetVersion string) error {
 	// Ensure release branch is not final tagged
 	tagExists, err := checkGitTagExists(targetVersion)
 	if err != nil {
-		return err
+		return fmt.Errorf("error checking git tag for release: %w", err)
 	} else if tagExists {
 		return fmt.Errorf("Git tag '%s' exists. Please choose the next hotfix/backport branch version\n", targetVersion)
 	} else {
@@ -167,7 +174,7 @@ func checkLinkedIssuesStatus(issue *jira.Issue) error {
 		os.Exit(1)
 	}
 	_, credentials := GetJiraUrlCredentials()
-	client, err := GetJiraClient(credentials, defaultUrl)
+	client, err := GetJiraClient(credentials, DefaultUrl)
 	if err != nil {
 		return fmt.Errorf("failed to create Jira client: %w", err)
 	}
@@ -210,7 +217,7 @@ func checkLinkedIssuesStatus(issue *jira.Issue) error {
 }
 
 func checkMergedPrCount(issue *jira.Issue, fieldKey string) error {
-	fieldsMap, err := extractFieldsAsMap(issue)
+	fieldsMap, err := ExtractFieldsAsMap(issue)
 	if err != nil {
 		return fmt.Errorf("error converting Fields to map: %w", err)
 	}
@@ -233,16 +240,6 @@ func checkMergedPrCount(issue *jira.Issue, fieldKey string) error {
 	} else {
 		log.Println("No PR's on the linked issue")
 		os.Exit(1)
-	}
-	return nil
-}
-
-// fetchTags fetches the latest tags from the remote repository
-func fetchTags() error {
-	cmd := exec.Command("git", "fetch", "--tags")
-	output, err := cmd.CombinedOutput()
-	if err != nil {
-		return fmt.Errorf("failed to fetch tags: %s, output: %s", err, string(output))
 	}
 	return nil
 }

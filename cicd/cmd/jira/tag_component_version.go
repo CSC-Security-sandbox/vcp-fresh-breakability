@@ -34,7 +34,7 @@ func updateComponentVersionTag() error {
 	}
 
 	// Retrieve the current value of the custom field
-	currentValue, err := GetJiraFieldValue(jiraID, "customfield_15918", credentials, defaultUrl)
+	currentValue, err := GetJiraFieldValue(jiraID, "customfield_15918", credentials, DefaultUrl)
 	if err != nil {
 		log.Println("Error retrieving current value:", err)
 		os.Exit(1)
@@ -72,7 +72,7 @@ func updateComponentVersionTag() error {
 		},
 	}
 
-	err = UpdateJiraWithPayload(updatedPayload, jiraID, credentials, defaultUrl)
+	err = UpdateJiraWithPayload(updatedPayload, jiraID, credentials, DefaultUrl)
 	if err != nil {
 		log.Println("Error updating Jira:", err)
 		os.Exit(1)

@@ -11,23 +11,20 @@ permissions:
   packages: write
   contents: read
   id-token: write
+  actions: read
   security-events: write
 
 
 jobs:
-  generate_tag:
-    name: Generate Tag
+  obtain_pr_details:
+    name: Obtain PR details
     runs-on: [self-hosted,linux]
     container:
-      image: ghcr.io/vcp-vsa-control-plane/vsacictl:v22
+      image: ghcr.io/vcp-vsa-control-plane/vsacictl:v30
       options: --user root
-    permissions:
-      contents: read
-      packages: write
-      id-token: write
 
     steps:
-      - name: Check out the repo
+      - name: Checkout code
         uses: actions/checkout@v2
 
       - name: Set up Go
@@ -77,29 +74,77 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GHVSA_PAT }}
 
-      - name: Fetch new tag
-        id: fetch_new_tag
-        run: |
-          echo "PR_BASE_BRANCH:" ${{ env.PR_BRANCH}}
-          echo "newTag=$(go run .github/scripts/fetchLatestBuild.go 2>&1)" >> $GITHUB_OUTPUT
-        env:
-          GITHUB_BASE: ${{ env.PR_BRANCH}}
-
     outputs:
-      newTag: ${{ steps.fetch_new_tag.outputs.newTag }}
       pr_user: ${{ env.PR_USER }}
       pr_title: ${{ env.PR_TITLE }}
       pr_base_branch: ${{ env.PR_BRANCH }}
 
+  generate_tag:
+    runs-on: [ self-hosted, linux ]
+    needs: obtain_pr_details
+    container:
+      image: ghcr.io/vcp-vsa-control-plane/vsacictl:v30
+      options: -v /var/run/docker.sock:/var/run/docker.sock --user root
+    permissions:
+      contents: read
+      packages: read
+      actions: read
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      - name: Set up Go
+        uses: actions/setup-go@v3
+        with:
+          go-version-file: go.mod
+
+      - name: Fetch token
+        uses: actions/create-github-app-token@v1
+        id: token
+        with:
+          owner: ${{ github.repository_owner }}
+          app-id: ${{ secrets.VCP_CI_GH_APP_ID }}
+          private-key: ${{ secrets.VCP_CI_GH_PRIVATE_KEY }}
+          repositories: |
+            vsa-control-plane
+
+      - name: Fetch new tag
+        id: fetch_new_tag
+        env:
+          GITHUB_BASE: ${{ needs.obtain_pr_details.outputs.pr_base_branch }}
+          PR_TITLE: ${{ needs.obtain_pr_details.outputs.pr_title }}
+          JIRA_API_TOKEN: ${{ secrets.VCP_CI_JIRA_BOT_PAT }}
+        shell: bash
+        run: |
+          # Ensure the command runs successfully and capture the output
+          newTag=$(vsacictl tag fetch_latest_build)
+          if [[ $? -ne 0 || -z "$newTag" ]]; then
+            echo "Error: Failed to fetch new tag or output is empty."
+            exit 1
+          fi
+          
+          # Write the newTag value to GITHUB_ENV
+          echo "newTag=$newTag" >> "$GITHUB_ENV"
+
+      - name: Output new tag
+        run: |
+          echo "New tag is ${{ env.newTag }}"
+          echo "PR_BASE_BRANCH=${{ needs.obtain_pr_details.outputs.pr_base_branch }}"
+
+        shell: bash
+
+    outputs:
+      newTag: ${{ env.newTag }}
 
   create_pre_release_vsa_control_plane:
-    needs: generate_tag
+    needs: [obtain_pr_details,generate_tag]
     uses: ./.github/workflows/build_common.yaml
     secrets: inherit
     with:
       pre_release: true
       tag: ${{ needs.generate_tag.outputs.newTag }}
-      pr_user: ${{ needs.generate_tag.outputs.pr_user }}
-      pr_title: ${{ needs.generate_tag.outputs.pr_title }}
-      pr_base_branch: ${{ needs.generate_tag.outputs.pr_base_branch }}
+      pr_user: ${{ needs.obtain_pr_details.outputs.pr_user }}
+      pr_title: ${{ needs.obtain_pr_details.outputs.pr_title }}
+      pr_base_branch: ${{ needs.obtain_pr_details.outputs.pr_base_branch }}
       component_update: true

@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"os/exec"
 
 	gh "github.com/google/go-github/v50/github"
 	"golang.org/x/oauth2"
@@ -37,6 +38,16 @@ func GetGithubUser(ghToken, prUser string) (*gh.User, error) {
 	}
 
 	return user, nil
+}
+
+// fetchTags fetches the latest tags from the remote repository
+func FetchTags() error {
+	cmd := exec.Command("git", "fetch", "--tags")
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		return fmt.Errorf("failed to fetch tags: %s, output: %s", err, string(output))
+	}
+	return nil
 }
 
 func init() {
