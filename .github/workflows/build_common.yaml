@@ -256,7 +256,7 @@ jobs:
             --include-tags \
             --format="value(DIGEST)" \
             --filter="TAGS:${{ inputs.tag }}" | awk '{print "${{vars.AR_GCP_REGION}}-docker.pkg.dev/${{vars.AR_GCP_PROJ}}/${{vars.AR_GCP_REPO}}/'${IMAGE}'@" $1}')
-            echo "${IMAGE}_ARTIFACT_URL=${ARTIFACT_URL}" >> $GITHUB_ENV
+            echo "${IMAGE//-/_}_ARTIFACT_URL=${ARTIFACT_URL}" >> $GITHUB_ENV
           done
 
       - name: Generate and Sign Payloads
@@ -265,7 +265,7 @@ jobs:
         run: |
           IMAGES=("core" "google-proxy" "vcp-db-migrate" "vcp-worker")
           for IMAGE in "${IMAGES[@]}"; do
-            ARTIFACT_URL=$(printenv "${IMAGE}_ARTIFACT_URL")
+            ARTIFACT_URL=$(printenv "${IMAGE//-/_}_ARTIFACT_URL")
             gcloud container binauthz create-signature-payload \
             --artifact-url=${ARTIFACT_URL} > /tmp/${IMAGE}_payload.json
             openssl dgst -sha256 -sign /tmp/ec_private.pem /tmp/${IMAGE}_payload.json > /tmp/${IMAGE}_signature
@@ -278,7 +278,7 @@ jobs:
           IMAGES=("core" "google-proxy" "vcp-db-migrate" "vcp-worker")
           for IMAGE in "${IMAGES[@]}"; do
             if [[ "$(printenv "${IMAGE}_DIGEST_EXISTS")" == "0" ]]; then
-              ARTIFACT_URL=$(printenv "${IMAGE}_ARTIFACT_URL")
+              ARTIFACT_URL=$(printenv "${IMAGE//-/_}_ARTIFACT_URL")
               gcloud container binauthz attestations create \
               --project="${{vars.AR_GCP_PROJ}}" \
               --artifact-url="${ARTIFACT_URL}" \
@@ -299,11 +299,20 @@ jobs:
 
       - name: Update Versions of helm charts
         shell: bash
+        env:
+          vcp_worker_ARTIFACT_URL: ${{ env.vcp_worker_ARTIFACT_URL }}
+          core_ARTIFACT_URL: ${{ env.core_ARTIFACT_URL }}
+          google_proxy_ARTIFACT_URL: ${{ env.google_proxy_ARTIFACT_URL }}
+          vcp_db_migrate_ARTIFACT_URL: ${{ env.vcp_db_migrate_ARTIFACT_URL }}
         run: |
-          env vcp_worker_digest_gcp=$(echo "$vcp-worker_ARTIFACT_URL" | awk -F'@' '{print $2}') \
-          core_digest_gcp=$(echo "$core_ARTIFACT_URL" | awk -F'@' '{print $2}') \
-          google_proxy_digest_gcp=$(echo "$google-proxy_ARTIFACT_URL" | awk -F'@' '{print $2}') \
-          vcp_db_migrate_digest_gcp=$(echo "$vcp-db-migrate_ARTIFACT_URL" | awk -F'@' '{print $2}') \
+          vcp_worker_digest_gcp=$(echo "${vcp_worker_ARTIFACT_URL}" | awk -F'@' '{print $2}')
+          core_digest_gcp=$(echo "${core_ARTIFACT_URL}" | awk -F'@' '{print $2}')
+          google_proxy_digest_gcp=$(echo "${google_proxy_ARTIFACT_URL}" | awk -F'@' '{print $2}')
+          vcp_db_migrate_digest_gcp=$(echo "${vcp_db_migrate_ARTIFACT_URL}" | awk -F'@' '{print $2}')
+          echo "vcp_worker_digest_gcp=${vcp_worker_digest_gcp}"
+          echo "core_digest_gcp=${core_digest_gcp}"
+          echo "google_proxy_digest_gcp=${google_proxy_digest_gcp}"
+          echo "vcp_db_migrate_digest_gcp=${vcp_db_migrate_digest_gcp}"
           go run ./.github/scripts/updateHelmVersion.go ${{ inputs.tag }} ./.github/scripts/fileToFieldsMapping.json
 
       - name: Package Helm Charts
