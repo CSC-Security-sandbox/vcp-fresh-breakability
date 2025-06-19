@@ -417,7 +417,7 @@ func TestCheckBackupVaultExistsInSDE(tt *testing.T) {
 
 		assert.Error(t, err)
 		assert.Nil(t, result)
-		assert.Contains(t, err.Error(), "Backup vault not found in SDE")
+		assert.Contains(t, err.Error(), "not found")
 		mockClient.AssertCalled(t, "V1betaListBackupVaults", mock.Anything)
 	})
 }

@@ -135,6 +135,42 @@ func (wf *volumeUpdateWorkflow) Run(ctx workflow.Context, args ...interface{}) (
 		// No rollback for LUN because we cannot decrease the size of a LUN in ONTAP.
 	}
 
+	if volume.DataProtection != nil && volume.DataProtection.BackupVaultID != "" {
+		tenancyDetails := &common.TenancyInfo{}
+		err = workflow.ExecuteActivity(ctx, updateActivity.FindTenancyDetails, volume.VolumeAttributes.VendorSubnetID, volume.Account.Name, &params.Region).Get(ctx, &tenancyDetails)
+		if err != nil {
+			return nil, err
+		}
+
+		err = workflow.ExecuteActivity(ctx, updateActivity.CheckBackupVaultExistInVCP, &volume, &params.Region).Get(ctx, nil)
+		if err != nil {
+			return nil, err
+		}
+
+		bucketDetails := &common.BucketDetails{}
+		err = workflow.ExecuteActivity(ctx, updateActivity.CheckBucketResourceName, &volume).Get(ctx, &bucketDetails)
+		if err != nil {
+			return nil, err
+		}
+		if bucketDetails.BucketName == "" && bucketDetails.ServiceAccountName == "" && bucketDetails.TenantProjectNumber == "" {
+			resourceName := &common.ResourceNames{}
+			err = workflow.ExecuteActivity(ctx, updateActivity.GenerateResourceNamesForBackupVault, &volume, &tenancyDetails, params.Region).Get(ctx, &resourceName)
+			if err != nil {
+				return nil, err
+			}
+
+			err = workflow.ExecuteActivity(ctx, updateActivity.CreateBucketForBackupVault, &resourceName, &tenancyDetails, params.Region).Get(ctx, &bucketDetails)
+			if err != nil {
+				return nil, err
+			}
+
+			err = workflow.ExecuteActivity(ctx, updateActivity.UpdateBucketDetailsOfBackupVault, &volume, &bucketDetails).Get(ctx, nil)
+			if err != nil {
+				return nil, err
+			}
+		}
+	}
+
 	err = workflow.ExecuteActivity(ctx, updateActivity.UpdateVolumeInDB, volume, &params).Get(ctx, nil)
 	if err != nil {
 		return nil, err

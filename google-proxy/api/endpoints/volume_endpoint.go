@@ -322,6 +322,20 @@ func _prepareUpdateVolumeParams(req *gcpgenserver.VolumeUpdateV1beta, params gcp
 		}
 	}
 
+	if req.BackupConfig.IsSet() {
+		param.DataProtection = &models.DataProtection{}
+		reqBackupConfig, _ := req.BackupConfig.Get()
+		if reqBackupConfig.BackupVaultId.IsSet() {
+			param.DataProtection.BackupVaultID = reqBackupConfig.BackupVaultId.Value
+		}
+		if reqBackupConfig.BackupPolicyId.IsSet() {
+			param.DataProtection.BackupPolicyId = reqBackupConfig.BackupPolicyId.Value
+		}
+		if reqBackupConfig.ScheduledBackupEnabled.IsSet() {
+			param.DataProtection.ScheduledBackupEnabled = &reqBackupConfig.ScheduledBackupEnabled.Value
+		}
+	}
+
 	if req.Labels.IsSet() {
 		labels := make(map[string]string)
 		for key, value := range req.Labels.Value {

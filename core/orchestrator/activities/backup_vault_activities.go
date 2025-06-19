@@ -71,10 +71,6 @@ func _checkBackupVaultExistsInSDE(ctx context.Context, bvParams *datamodel.Backu
 		XCorrelationID: &xCorrelationID,
 	})
 	if err != nil {
-		if errors2.IsNotFoundErr(err) {
-			logger.Info("Backup vault not found in SDE, proceeding to create a new one")
-			return nil, errors2.NewNotFoundErr("Backup vault", nil)
-		}
 		logger.Error("Error checking backupVault : ", err)
 		return nil, err
 	}
@@ -90,7 +86,8 @@ func _checkBackupVaultExistsInSDE(ctx context.Context, bvParams *datamodel.Backu
 			return bvModel, nil
 		}
 	}
-	return nil, errors.New("Backup vault not found in SDE")
+	logger.Info("Backup vault not found in SDE, proceeding to create a new one")
+	return nil, errors2.NewNotFoundErr("Backup vault", nil)
 }
 
 func _createBvToSde(ctx context.Context, bvParams *datamodel.BackupVault, paramz gcpgenserver.V1betaCreateBackupVaultParams) (*datamodel.BackupVault, error) {

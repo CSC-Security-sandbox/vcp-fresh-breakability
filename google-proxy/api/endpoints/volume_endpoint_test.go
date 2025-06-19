@@ -954,6 +954,13 @@ func TestPrepareUpdateVolumeParams(t *testing.T) {
 					OsType: gcpgenserver.NewOptBlockPropertiesV1betaOsType("LINUX"),
 				},
 			),
+			BackupConfig: gcpgenserver.NewOptBackupConfigV1beta(
+				gcpgenserver.BackupConfigV1beta{
+					BackupVaultId:          gcpgenserver.NewOptNilString("backup-vault-id"),
+					BackupPolicyId:         gcpgenserver.NewOptNilString("backup-policy-id"),
+					BackupChainBytes:       gcpgenserver.NewOptNilInt64(10199181),
+					ScheduledBackupEnabled: gcpgenserver.NewOptNilBool(true),
+				}),
 			Labels: gcpgenserver.NewOptVolumeUpdateV1betaLabels(map[string]string{"k": "v"}),
 		}
 		out, err := _prepareUpdateVolumeParams(req, params, region)

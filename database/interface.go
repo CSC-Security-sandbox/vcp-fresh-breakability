@@ -145,7 +145,7 @@ type DataStore interface {
 	GetBackupVaultByNameAndOwnerID(ctx context.Context, backupVaultName, ownerID string) (*datamodel.BackupVault, error)
 	CreatingBackupVault(ctx context.Context, bv *datamodel.BackupVault) (*datamodel.BackupVault, error)
 	CreateBackupVault(ctx context.Context, vault *datamodel.BackupVault, vcpVault *datamodel.BackupVault) (*datamodel.BackupVault, error)
-	GetBackupVaultByUUID(ctx context.Context, backupVaultUUID string) (*datamodel.BackupVault, error)
+	GetBackupVaultByUUID(ctx context.Context, backupVaultUUID string, accountID int64) (*datamodel.BackupVault, error)
 	CreateBackupVaultEntryInVCP(ctx context.Context, bv *datamodel.BackupVault) (*datamodel.BackupVault, error)
 	UpdateBackupVault(ctx context.Context, backupVault *datamodel.BackupVault) error
 	GetBackupVault(ctx context.Context, backupVaultId string) (*datamodel.BackupVault, error)

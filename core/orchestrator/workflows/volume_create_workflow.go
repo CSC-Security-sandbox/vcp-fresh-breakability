@@ -163,20 +163,15 @@ func (wf *volumeCreateWorkflow) Run(ctx workflow.Context, args ...interface{}) (
 				return nil, err
 			}
 
-			BucketDetails := &common.BucketDetails{}
-			err = workflow.ExecuteActivity(ctx, volumeActivity.CreateBucket, &resourceName, &tenancyDetails, region).Get(ctx, &BucketDetails)
+			err = workflow.ExecuteActivity(ctx, volumeActivity.CreateBucket, &resourceName, &tenancyDetails, region).Get(ctx, &bucketDetails)
 			if err != nil {
 				return nil, err
 			}
-			bucketDetails.BucketName = BucketDetails.BucketName
-			bucketDetails.ServiceAccountName = BucketDetails.ServiceAccountName
-			bucketDetails.TenantProjectNumber = BucketDetails.TenantProjectNumber
-			bucketDetails.VendorSubnetID = BucketDetails.VendorSubnetID
-		}
 
-		err = workflow.ExecuteActivity(ctx, volumeActivity.UpdateBackupVaultWithBucketDetails, &dbVolume, &bucketDetails).Get(ctx, nil)
-		if err != nil {
-			return nil, err
+			err = workflow.ExecuteActivity(ctx, volumeActivity.UpdateBackupVaultWithBucketDetails, &dbVolume, &bucketDetails).Get(ctx, nil)
+			if err != nil {
+				return nil, err
+			}
 		}
 	}
 

@@ -2,8 +2,8 @@ package activities
 
 import (
 	"context"
-
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
+	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
@@ -40,7 +40,7 @@ func (a *VolumeUpdateActivity) UpdateVolumeInONTAP(ctx context.Context, volume *
 // GetVolumeFromONTAP retrieves the volume from ONTAP
 func (a *VolumeUpdateActivity) GetVolumeFromONTAP(ctx context.Context, volume *datamodel.Volume, node *models.Node) (*vsa.VolumeResponse, error) {
 	logger := util.GetLogger(ctx)
-	provider := GetProviderByNode(ctx,node)
+	provider := GetProviderByNode(ctx, node)
 
 	volumeRes, err := provider.GetVolume(vsa.GetVolumeParams{
 		UUID:       volume.VolumeAttributes.ExternalUUID,
@@ -58,7 +58,7 @@ func (a *VolumeUpdateActivity) GetVolumeFromONTAP(ctx context.Context, volume *d
 // UpdateLun updates the LUN associated with the volume in the VSA cluster
 func (a *VolumeUpdateActivity) UpdateLun(ctx context.Context, volume *datamodel.Volume, quotaInBytes int64, node *models.Node) error {
 	logger := util.GetLogger(ctx)
-	provider := GetProviderByNode(ctx,node)
+	provider := GetProviderByNode(ctx, node)
 	lunName := utils.GetLunName(volume.Name)
 	err := provider.LunUpdate(vsa.LunUpdateParams{
 		// Set the necessary parameters for updating the volume
@@ -120,8 +120,50 @@ func getUpdatedFieldsFromParams(volume *datamodel.Volume, params *common.UpdateV
 		updates["volume_attributes"] = volume.VolumeAttributes
 	}
 
+	if params.DataProtection != nil {
+		if volume.DataProtection == nil {
+			volume.DataProtection = &datamodel.DataProtection{}
+		}
+		volume.DataProtection.BackupVaultID = params.DataProtection.BackupVaultID
+		updates["data_protection"] = volume.DataProtection
+	}
+
 	updates["state"] = models.LifeCycleStateREADY
 	updates["state_details"] = models.LifeCycleStateAvailableDetails
 
 	return updates
+}
+
+// FindTenancyDetails retrieves the tenancy information for the given consumer VPC and customer project number
+func (a *VolumeUpdateActivity) FindTenancyDetails(ctx context.Context, consumerVPC string, customerProjectNumber string, tenantProjectRegion *string) (*common.TenancyInfo, error) {
+	gcpService, err := GetGCPService(ctx)
+	if err != nil {
+		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
+	}
+	return FindTenancy(gcpService, consumerVPC, customerProjectNumber, tenantProjectRegion)
+}
+
+// CheckBackupVaultExistInVCP checks if a backup vault exists in the VCP
+func (a *VolumeUpdateActivity) CheckBackupVaultExistInVCP(ctx context.Context, volume *datamodel.Volume, region string) error {
+	return CheckBackupVaultExistsInVCP(ctx, a.SE, volume, region)
+}
+
+// CreateBucketForBackupVault creates a bucket in the specified region for the given resource name and tenancy details
+func (a *VolumeUpdateActivity) CreateBucketForBackupVault(ctx context.Context, resourceName *common.ResourceNames, tenancyDetails *common.TenancyInfo, region string) (*common.BucketDetails, error) {
+	return CreateBucket(ctx, resourceName, tenancyDetails, region)
+}
+
+// GenerateResourceNamesForBackupVault generates resource names for the volume based on the tenancy details and GCP region
+func (a *VolumeUpdateActivity) GenerateResourceNamesForBackupVault(ctx context.Context, volume *datamodel.Volume, tenancyDetails *common.TenancyInfo, gcpRegion string) (*common.ResourceNames, error) {
+	return GenerateResourceNames(ctx, volume, tenancyDetails, gcpRegion)
+}
+
+// CheckBucketResourceName checks if the volume has a bucket resource name and returns the bucket details
+func (a *VolumeUpdateActivity) CheckBucketResourceName(ctx context.Context, volume *datamodel.Volume) (*common.BucketDetails, error) {
+	return CheckForBucketResourceName(ctx, a.SE, volume)
+}
+
+// UpdateBucketDetailsOfBackupVault updates the backup vault with the bucket details
+func (a *VolumeUpdateActivity) UpdateBucketDetailsOfBackupVault(ctx context.Context, volume *datamodel.Volume, bucketDetails *common.BucketDetails) error {
+	return UpdateBackupVaultWithBucketDetails(a.SE, ctx, volume, bucketDetails)
 }

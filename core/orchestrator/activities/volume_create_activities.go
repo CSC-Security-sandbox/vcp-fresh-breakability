@@ -30,9 +30,13 @@ type VolumeCreateActivity struct {
 }
 
 var (
-	GetResourceNamesForBackup  = _getResourceNamesForBackup
-	FindTenancy                = _findTenancy
-	GetOrCreateAndGCSResources = _getOrCreateAndGCSResources
+	GetResourceNamesForBackup   = _getResourceNamesForBackup
+	FindTenancy                 = _findTenancy
+	CreateBucket                = _createBucket
+	GenerateResourceNames       = _generateResourceNames
+	GetOrCreateAndGCSResources  = _getOrCreateAndGCSResources
+	CheckBackupVaultExistsInVCP = _checkBackupVaultExistsInVCP
+	CheckForBucketResourceName  = _checkForBucketResourceName
 )
 
 func (a VolumeCreateActivity) CreateVolume(ctx context.Context, volume *datamodel.Volume) (*datamodel.Volume, error) {
@@ -123,7 +127,7 @@ func (a VolumeCreateActivity) CreateLun(ctx context.Context, volume *datamodel.V
 		logger.Info("Skipping lun creation for data protection volume")
 		return &vsa.LunResponse{}, nil
 	}
-	provider := GetProviderByNode(ctx,node)
+	provider := GetProviderByNode(ctx, node)
 	lunName := utils.GetLunName(volume.Name)
 
 	lun, err := provider.LunCreate(vsa.LunCreateParams{
@@ -232,7 +236,7 @@ func (a VolumeCreateActivity) GetHosts(ctx context.Context, volume *datamodel.Vo
 	return dbHostGroups, nil
 }
 
-func _findTenancy(ctx context.Context, gcpService hyperscaler.GoogleServices, consumerVPC string, customerProjectNumber string, tenantProjectRegion *string) (*common.TenancyInfo, error) {
+func _findTenancy(gcpService hyperscaler.GoogleServices, consumerVPC string, customerProjectNumber string, tenantProjectRegion *string) (*common.TenancyInfo, error) {
 	// need to pass tenantProjectRegion only in case of CBR where region != the regional region as set from env variable
 	if tenantProjectRegion == nil {
 		tenantProjectRegion = &localRegion
@@ -255,16 +259,14 @@ func (a VolumeCreateActivity) FindTenancy(ctx context.Context, consumerVPC strin
 		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
 	}
 	gcpService.Logger.Debug("gcpService initialized")
-	return FindTenancy(ctx, gcpService, consumerVPC, customerProjectNumber, tenantProjectRegion)
+	return FindTenancy(gcpService, consumerVPC, customerProjectNumber, tenantProjectRegion)
 }
 
-func (a VolumeCreateActivity) CheckBackupVaultExistsInVCP(ctx context.Context, volume *datamodel.Volume, region string) error {
-	se := a.SE
-
+func _checkBackupVaultExistsInVCP(ctx context.Context, se database.Storage, volume *datamodel.Volume, region string) error {
 	bvId := volume.DataProtection.BackupVaultID
-	backupVault, err := se.GetBackupVaultByUUID(ctx, bvId)
+	backupVault, err := se.GetBackupVaultByUUID(ctx, bvId, volume.AccountID)
 	if err != nil {
-		if !strings.Contains(err.Error(), "backup vault not found") {
+		if !strings.Contains(err.Error(), "not found") {
 			return err
 		}
 	}
@@ -303,6 +305,7 @@ func (a VolumeCreateActivity) CheckBackupVaultExistsInVCP(ctx context.Context, v
 		}
 	}
 
+	bvParams.AccountID = volume.AccountID
 	_, err = se.CreateBackupVaultEntryInVCP(ctx, bvParams)
 	if err != nil {
 		return err
@@ -311,10 +314,18 @@ func (a VolumeCreateActivity) CheckBackupVaultExistsInVCP(ctx context.Context, v
 	return nil
 }
 
-func (a VolumeCreateActivity) CheckForBucketResourceName(ctx context.Context, volume *datamodel.Volume) (*common.BucketDetails, error) {
+func (a VolumeCreateActivity) CheckBackupVaultExistsInVCP(ctx context.Context, volume *datamodel.Volume, region string) error {
+	return CheckBackupVaultExistsInVCP(ctx, a.SE, volume, region)
+}
+
+func (a *VolumeCreateActivity) CheckForBucketResourceName(ctx context.Context, volume *datamodel.Volume) (*common.BucketDetails, error) {
+	return CheckForBucketResourceName(ctx, a.SE, volume)
+}
+
+func _checkForBucketResourceName(ctx context.Context, se database.Storage, volume *datamodel.Volume) (*common.BucketDetails, error) {
 	logger := util.GetLogger(ctx)
 
-	bvDetails, err := getBackupVaultDetails(&a, ctx, volume.DataProtection.BackupVaultID)
+	bvDetails, err := getBackupVaultDetails(se, ctx, volume.DataProtection.BackupVaultID, volume.AccountID)
 	if err != nil {
 		logger.Errorf("Error getting backup vault details: %v", err)
 		return nil, err
@@ -338,20 +349,21 @@ func (a VolumeCreateActivity) CheckForBucketResourceName(ctx context.Context, vo
 	return nil, nil
 }
 
-func getBackupVaultDetails(a *VolumeCreateActivity, ctx context.Context, bvID string) (*datamodel.BackupVault, error) {
-	se := a.SE
-
-	backupVault, err := se.GetBackupVaultByUUID(ctx, bvID)
+func getBackupVaultDetails(se database.Storage, ctx context.Context, bvID string, accountId int64) (*datamodel.BackupVault, error) {
+	backupVault, err := se.GetBackupVaultByUUID(ctx, bvID, accountId)
 	if err != nil {
 		if !strings.Contains(err.Error(), "backup vault not found") {
 			return nil, err
 		}
 	}
-
 	return backupVault, nil
 }
 
-func (a VolumeCreateActivity) GenerateResourceNames(ctx context.Context, volume *datamodel.Volume, tenancyDetails *common.TenancyInfo, gcpRegion string) (*common.ResourceNames, error) {
+func (a *VolumeCreateActivity) GenerateResourceNames(ctx context.Context, volume *datamodel.Volume, tenancyDetails *common.TenancyInfo, gcpRegion string) (*common.ResourceNames, error) {
+	return GenerateResourceNames(ctx, volume, tenancyDetails, gcpRegion)
+}
+
+func _generateResourceNames(ctx context.Context, volume *datamodel.Volume, tenancyDetails *common.TenancyInfo, gcpRegion string) (*common.ResourceNames, error) {
 	logger := util.GetLogger(ctx)
 
 	email, bucketName, serviceAccountId, err := GetResourceNamesForBackup(gcpRegion, gcpRegion, tenancyDetails.RegionalTenantProject, volume.DataProtection.BackupVaultID)
@@ -366,7 +378,11 @@ func (a VolumeCreateActivity) GenerateResourceNames(ctx context.Context, volume 
 	}, nil
 }
 
-func (a VolumeCreateActivity) CreateBucket(ctx context.Context, resourceName *common.ResourceNames, tenancyDetails *common.TenancyInfo, region string) (*common.BucketDetails, error) {
+func (a *VolumeCreateActivity) CreateBucket(ctx context.Context, resourceName *common.ResourceNames, tenancyDetails *common.TenancyInfo, region string) (*common.BucketDetails, error) {
+	return CreateBucket(ctx, resourceName, tenancyDetails, region)
+}
+
+func _createBucket(ctx context.Context, resourceName *common.ResourceNames, tenancyDetails *common.TenancyInfo, region string) (*common.BucketDetails, error) {
 	gcpService, err := GetGCPService(ctx)
 	if err != nil {
 		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
@@ -377,6 +393,31 @@ func (a VolumeCreateActivity) CreateBucket(ctx context.Context, resourceName *co
 		return nil, err
 	}
 	return bucketDetails[0], err
+}
+
+func UpdateBackupVaultWithBucketDetails(se database.Storage, ctx context.Context, volume *datamodel.Volume, bucketDetails *common.BucketDetails) error {
+	saName := bucketDetails.ServiceAccountName + "@" + bucketDetails.TenantProjectNumber + ".iam.gserviceaccount.com"
+	convertCommonToDatamodel := func(bucketDetails *common.BucketDetails) *datamodel.BucketDetails {
+		return &datamodel.BucketDetails{
+			BucketName:          bucketDetails.BucketName,
+			ServiceAccountName:  saName,
+			TenantProjectNumber: bucketDetails.TenantProjectNumber,
+			VendorSubnetID:      volume.VolumeAttributes.VendorSubnetID,
+		}
+	}
+	backupVault := &datamodel.BackupVault{
+		BaseModel: datamodel.BaseModel{
+			UUID: volume.DataProtection.BackupVaultID,
+		},
+	}
+	backupVault.BucketDetails = append(backupVault.BucketDetails, convertCommonToDatamodel(bucketDetails))
+
+	err := se.UpdateBackupVault(ctx, backupVault)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func _getOrCreateAndGCSResources(gcpServices hyperscaler.GoogleServices, serviceAccountId, projectNumber, email, bucketName, tenantProjectRegion, locationType string) (*iam.ServiceAccount, []*common.BucketDetails, error) {
@@ -428,31 +469,8 @@ func _getOrCreateAndGCSResources(gcpServices hyperscaler.GoogleServices, service
 	return account, bucketDetailsArr, nil
 }
 
-func (a VolumeCreateActivity) UpdateBackupVaultWithBucketDetails(ctx context.Context, volume *datamodel.Volume, bucketDetails *common.BucketDetails) error {
-	se := a.SE
-
-	saName := bucketDetails.ServiceAccountName + "@" + bucketDetails.TenantProjectNumber + ".iam.gserviceaccount.com"
-	convertCommonToDatamodel := func(bucketDetails *common.BucketDetails) *datamodel.BucketDetails {
-		return &datamodel.BucketDetails{
-			BucketName:          bucketDetails.BucketName,
-			ServiceAccountName:  saName,
-			TenantProjectNumber: bucketDetails.TenantProjectNumber,
-			VendorSubnetID:      volume.VolumeAttributes.VendorSubnetID,
-		}
-	}
-	backupVault := &datamodel.BackupVault{
-		BaseModel: datamodel.BaseModel{
-			UUID: volume.DataProtection.BackupVaultID,
-		},
-	}
-	backupVault.BucketDetails = append(backupVault.BucketDetails, convertCommonToDatamodel(bucketDetails))
-
-	err := se.UpdateBackupVault(ctx, backupVault)
-	if err != nil {
-		return err
-	}
-
-	return nil
+func (a *VolumeCreateActivity) UpdateBackupVaultWithBucketDetails(ctx context.Context, volume *datamodel.Volume, bucketDetails *common.BucketDetails) error {
+	return UpdateBackupVaultWithBucketDetails(a.SE, ctx, volume, bucketDetails)
 }
 
 func _getResourceNamesForBackup(gcpRegion, region, tenantProjectNumber, bvID string) (string, string, string, error) {
@@ -462,7 +480,7 @@ func _getResourceNamesForBackup(gcpRegion, region, tenantProjectNumber, bvID str
 func (a VolumeCreateActivity) CreateSnapshotPolicyInONTAP(ctx context.Context, volume *datamodel.Volume, node *models.Node) error {
 	if node != nil && volume != nil && volume.SnapshotPolicy != nil && volume.SnapshotPolicy.Name != "" {
 		logger := util.GetLogger(ctx)
-		var provider = GetProviderByNode(ctx,node)
+		var provider = GetProviderByNode(ctx, node)
 		err := provider.CreateSnapshotPolicy(&vsa.SnapshotPolicy{
 			Name:      volume.SnapshotPolicy.Name,
 			IsEnabled: volume.SnapshotPolicy.IsEnabled,

@@ -1997,9 +1997,9 @@ func (_c *MockDataStore_GetBackupVaultByNameAndOwnerID_Call) RunAndReturn(run fu
 	return _c
 }
 
-// GetBackupVaultByUUID provides a mock function with given fields: ctx, backupVaultUUID
-func (_m *MockDataStore) GetBackupVaultByUUID(ctx context.Context, backupVaultUUID string) (*datamodel.BackupVault, error) {
-	ret := _m.Called(ctx, backupVaultUUID)
+// GetBackupVaultByUUID provides a mock function with given fields: ctx, backupVaultUUID, accountID
+func (_m *MockDataStore) GetBackupVaultByUUID(ctx context.Context, backupVaultUUID string, accountID int64) (*datamodel.BackupVault, error) {
+	ret := _m.Called(ctx, backupVaultUUID, accountID)
 
 	if len(ret) == 0 {
 		panic("no return value specified for GetBackupVaultByUUID")
@@ -2007,19 +2007,19 @@ func (_m *MockDataStore) GetBackupVaultByUUID(ctx context.Context, backupVaultUU
 
 	var r0 *datamodel.BackupVault
 	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, string) (*datamodel.BackupVault, error)); ok {
-		return rf(ctx, backupVaultUUID)
+	if rf, ok := ret.Get(0).(func(context.Context, string, int64) (*datamodel.BackupVault, error)); ok {
+		return rf(ctx, backupVaultUUID, accountID)
 	}
-	if rf, ok := ret.Get(0).(func(context.Context, string) *datamodel.BackupVault); ok {
-		r0 = rf(ctx, backupVaultUUID)
+	if rf, ok := ret.Get(0).(func(context.Context, string, int64) *datamodel.BackupVault); ok {
+		r0 = rf(ctx, backupVaultUUID, accountID)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).(*datamodel.BackupVault)
 		}
 	}
 
-	if rf, ok := ret.Get(1).(func(context.Context, string) error); ok {
-		r1 = rf(ctx, backupVaultUUID)
+	if rf, ok := ret.Get(1).(func(context.Context, string, int64) error); ok {
+		r1 = rf(ctx, backupVaultUUID, accountID)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -2035,13 +2035,14 @@ type MockDataStore_GetBackupVaultByUUID_Call struct {
 // GetBackupVaultByUUID is a helper method to define mock.On call
 //   - ctx context.Context
 //   - backupVaultUUID string
-func (_e *MockDataStore_Expecter) GetBackupVaultByUUID(ctx interface{}, backupVaultUUID interface{}) *MockDataStore_GetBackupVaultByUUID_Call {
-	return &MockDataStore_GetBackupVaultByUUID_Call{Call: _e.mock.On("GetBackupVaultByUUID", ctx, backupVaultUUID)}
+//   - accountID int64
+func (_e *MockDataStore_Expecter) GetBackupVaultByUUID(ctx interface{}, backupVaultUUID interface{}, accountID interface{}) *MockDataStore_GetBackupVaultByUUID_Call {
+	return &MockDataStore_GetBackupVaultByUUID_Call{Call: _e.mock.On("GetBackupVaultByUUID", ctx, backupVaultUUID, accountID)}
 }
 
-func (_c *MockDataStore_GetBackupVaultByUUID_Call) Run(run func(ctx context.Context, backupVaultUUID string)) *MockDataStore_GetBackupVaultByUUID_Call {
+func (_c *MockDataStore_GetBackupVaultByUUID_Call) Run(run func(ctx context.Context, backupVaultUUID string, accountID int64)) *MockDataStore_GetBackupVaultByUUID_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context), args[1].(string))
+		run(args[0].(context.Context), args[1].(string), args[2].(int64))
 	})
 	return _c
 }
@@ -2051,7 +2052,7 @@ func (_c *MockDataStore_GetBackupVaultByUUID_Call) Return(_a0 *datamodel.BackupV
 	return _c
 }
 
-func (_c *MockDataStore_GetBackupVaultByUUID_Call) RunAndReturn(run func(context.Context, string) (*datamodel.BackupVault, error)) *MockDataStore_GetBackupVaultByUUID_Call {
+func (_c *MockDataStore_GetBackupVaultByUUID_Call) RunAndReturn(run func(context.Context, string, int64) (*datamodel.BackupVault, error)) *MockDataStore_GetBackupVaultByUUID_Call {
 	_c.Call.Return(run)
 	return _c
 }

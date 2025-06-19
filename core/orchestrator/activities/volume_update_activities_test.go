@@ -257,11 +257,15 @@ func TestGetUpdatedFieldsFromParams(t *testing.T) {
 			name: "AllFields",
 			volume: &datamodel.Volume{
 				VolumeAttributes: &datamodel.VolumeAttributes{},
+				DataProtection:   &datamodel.DataProtection{},
 			},
 			params: &common.UpdateVolumeParams{
 				Description:  "desc",
 				QuotaInBytes: 12345,
 				Labels:       map[string]string{"env": "prod", "team": "devops"},
+				DataProtection: &models.DataProtection{
+					BackupVaultID: "vault-123",
+				},
 			},
 			check: func(t *testing.T, fields map[string]interface{}, volume *datamodel.Volume) {
 				assert.Equal(t, "desc", fields["description"])
@@ -279,9 +283,13 @@ func TestGetUpdatedFieldsFromParams(t *testing.T) {
 			name: "OnlyDescription",
 			volume: &datamodel.Volume{
 				VolumeAttributes: &datamodel.VolumeAttributes{},
+				DataProtection:   &datamodel.DataProtection{},
 			},
 			params: &common.UpdateVolumeParams{
 				Description: "desc",
+				DataProtection: &models.DataProtection{
+					BackupVaultID: "vault-123",
+				},
 			},
 			check: func(t *testing.T, fields map[string]interface{}, _ *datamodel.Volume) {
 				assert.Equal(t, "desc", fields["description"])
@@ -297,9 +305,13 @@ func TestGetUpdatedFieldsFromParams(t *testing.T) {
 			name: "OnlyQuota",
 			volume: &datamodel.Volume{
 				VolumeAttributes: &datamodel.VolumeAttributes{},
+				DataProtection:   &datamodel.DataProtection{},
 			},
 			params: &common.UpdateVolumeParams{
 				QuotaInBytes: 999,
+				DataProtection: &models.DataProtection{
+					BackupVaultID: "vault-123",
+				},
 			},
 			check: func(t *testing.T, fields map[string]interface{}, _ *datamodel.Volume) {
 				assert.Equal(t, int64(999), fields["size_in_bytes"])
@@ -315,9 +327,13 @@ func TestGetUpdatedFieldsFromParams(t *testing.T) {
 			name: "OnlyLabels",
 			volume: &datamodel.Volume{
 				VolumeAttributes: &datamodel.VolumeAttributes{},
+				DataProtection:   &datamodel.DataProtection{},
 			},
 			params: &common.UpdateVolumeParams{
 				Labels: map[string]string{"foo": "bar"},
+				DataProtection: &models.DataProtection{
+					BackupVaultID: "vault-123",
+				},
 			},
 			check: func(t *testing.T, fields map[string]interface{}, volume *datamodel.Volume) {
 				va, ok := fields["volume_attributes"].(*datamodel.VolumeAttributes)
@@ -336,8 +352,13 @@ func TestGetUpdatedFieldsFromParams(t *testing.T) {
 			name: "EmptyParams",
 			volume: &datamodel.Volume{
 				VolumeAttributes: &datamodel.VolumeAttributes{},
+				DataProtection:   &datamodel.DataProtection{},
 			},
-			params: &common.UpdateVolumeParams{},
+			params: &common.UpdateVolumeParams{
+				DataProtection: &models.DataProtection{
+					BackupVaultID: "",
+				},
+			},
 			check: func(t *testing.T, fields map[string]interface{}, _ *datamodel.Volume) {
 				assert.Equal(t, models.LifeCycleStateREADY, fields["state"])
 				assert.Equal(t, models.LifeCycleStateAvailableDetails, fields["state_details"])
@@ -353,9 +374,13 @@ func TestGetUpdatedFieldsFromParams(t *testing.T) {
 			name: "LabelsWithNilVolumeAttributes",
 			volume: &datamodel.Volume{
 				VolumeAttributes: nil,
+				DataProtection:   &datamodel.DataProtection{},
 			},
 			params: &common.UpdateVolumeParams{
 				Labels: map[string]string{"foo": "bar"},
+				DataProtection: &models.DataProtection{
+					BackupVaultID: "vault-123",
+				},
 			},
 			check: func(t *testing.T, fields map[string]interface{}, volume *datamodel.Volume) {
 				va, ok := fields["volume_attributes"].(*datamodel.VolumeAttributes)

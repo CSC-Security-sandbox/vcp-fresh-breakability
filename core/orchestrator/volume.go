@@ -425,6 +425,25 @@ func _updateVolume(ctx context.Context, se database.Storage, temporal client.Cli
 		return convertDatastoreVolumeToModel(dbVolume, nil), job.UUID, nil
 	}
 
+	if params.DataProtection != nil {
+		if dbVolume.DataProtection == nil {
+			dbVolume.DataProtection = &datamodel.DataProtection{
+				BackupVaultID: params.DataProtection.BackupVaultID,
+			}
+		} else if dbVolume.DataProtection.BackupVaultID != "" && (params.DataProtection.BackupVaultID == "" || params.DataProtection.BackupVaultID != dbVolume.DataProtection.BackupVaultID) {
+			backups, err := se.GetBackupsByBackupVault(ctx, dbVolume.DataProtection.BackupVaultID)
+			if err != nil {
+				return nil, "", err
+			}
+			if len(backups) > 0 {
+				return nil, "", customerrors.NewUserInputValidationErr("cannot remove backup vault as there are backups associated with it")
+			}
+			dbVolume.DataProtection.BackupVaultID = params.DataProtection.BackupVaultID
+		} else {
+			dbVolume.DataProtection.BackupVaultID = params.DataProtection.BackupVaultID
+		}
+	}
+
 	err = validateUpdateVolumeRequest(dbVolume, params)
 	if err != nil {
 		return nil, "", err

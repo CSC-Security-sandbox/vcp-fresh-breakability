@@ -2408,7 +2408,9 @@ func TestUpdateVolume(t *testing.T) {
 	t.Run("WhenUpdateVolumeSuccess", func(tt *testing.T) {
 		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
 		se := &database.MockStorage{}
-		param := &common.UpdateVolumeParams{AccountName: "acc", VolumeId: "vid", QuotaInBytes: 200, Name: "vol"}
+		param := &common.UpdateVolumeParams{AccountName: "acc", VolumeId: "vid", QuotaInBytes: 200, Name: "vol", DataProtection: &models.DataProtection{
+			BackupVaultID: "vault-1",
+		}}
 		dbVolume := &datamodel.Volume{
 			BaseModel:   datamodel.BaseModel{UUID: "vid"},
 			SizeInBytes: 100,
@@ -2420,7 +2422,182 @@ func TestUpdateVolume(t *testing.T) {
 			VolumeAttributes: &datamodel.VolumeAttributes{
 				IsDataProtection: false,
 			},
+			DataProtection: &datamodel.DataProtection{
+				BackupVaultID: "vault-2",
+			},
 			State: "READY",
+		}
+
+		job := &datamodel.Job{WorkflowID: "wid"}
+
+		se.On("GetVolume", ctx, "vid").Return(dbVolume, nil)
+		se.On("GetBackupsByBackupVault", ctx, "vault-2").Return([]*datamodel.Backup{}, nil)
+		se.On("CreateJob", ctx, mock.Anything).Return(job, nil)
+		se.On("UpdateVolumeFields", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+		temporal := workflowEngineMock.NewMockTemporalTestClient(t)
+		temporal.EXPECT().ExecuteWorkflow(mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil).Once()
+		volume, _, err := updateVolume(ctx, se, temporal, param)
+		assert.NoError(tt, err)
+		assert.NotNil(tt, volume)
+		assert.Equal(tt, "vol", volume.DisplayName)
+	})
+	t.Run("WhenUpdateVolumeSuccessWithNoBackupVaultIDInDB", func(tt *testing.T) {
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+		se := &database.MockStorage{}
+		param := &common.UpdateVolumeParams{AccountName: "acc", VolumeId: "vid", QuotaInBytes: 200, Name: "vol", DataProtection: &models.DataProtection{
+			BackupVaultID: "vault-1",
+		}}
+		dbVolume := &datamodel.Volume{
+			BaseModel:   datamodel.BaseModel{UUID: "vid"},
+			SizeInBytes: 100,
+			Name:        "vol",
+			Pool:        &datamodel.Pool{BaseModel: datamodel.BaseModel{UUID: "1"}, Name: "pool"},
+			Account: &datamodel.Account{
+				Name: "acc",
+			},
+			VolumeAttributes: &datamodel.VolumeAttributes{
+				IsDataProtection: false,
+			},
+			DataProtection: &datamodel.DataProtection{
+				BackupVaultID: "",
+			},
+			State: "READY",
+		}
+
+		job := &datamodel.Job{WorkflowID: "wid"}
+
+		se.On("GetVolume", ctx, "vid").Return(dbVolume, nil)
+		se.On("CreateJob", ctx, mock.Anything).Return(job, nil)
+		se.On("UpdateVolumeFields", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+		temporal := workflowEngineMock.NewMockTemporalTestClient(t)
+		temporal.EXPECT().ExecuteWorkflow(mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil).Once()
+		volume, _, err := updateVolume(ctx, se, temporal, param)
+		assert.NoError(tt, err)
+		assert.NotNil(tt, volume)
+		assert.Equal(tt, "vol", volume.DisplayName)
+	})
+	t.Run("WhenUpdateVolumeSuccessWithDetachBackupVault", func(tt *testing.T) {
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+		se := &database.MockStorage{}
+		param := &common.UpdateVolumeParams{AccountName: "acc", VolumeId: "vid", QuotaInBytes: 200, Name: "vol", DataProtection: &models.DataProtection{
+			BackupVaultID: "",
+		}}
+		dbVolume := &datamodel.Volume{
+			BaseModel:   datamodel.BaseModel{UUID: "vid"},
+			SizeInBytes: 100,
+			Name:        "vol",
+			Pool:        &datamodel.Pool{BaseModel: datamodel.BaseModel{UUID: "1"}, Name: "pool"},
+			Account: &datamodel.Account{
+				Name: "acc",
+			},
+			VolumeAttributes: &datamodel.VolumeAttributes{
+				IsDataProtection: false,
+			},
+			DataProtection: &datamodel.DataProtection{
+				BackupVaultID: "vault-1",
+			},
+			State: "READY",
+		}
+
+		job := &datamodel.Job{WorkflowID: "wid"}
+
+		se.On("GetVolume", ctx, "vid").Return(dbVolume, nil)
+		se.On("GetBackupsByBackupVault", ctx, "vault-1").Return([]*datamodel.Backup{}, nil)
+		se.On("CreateJob", ctx, mock.Anything).Return(job, nil)
+		se.On("UpdateVolumeFields", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+		temporal := workflowEngineMock.NewMockTemporalTestClient(t)
+		temporal.EXPECT().ExecuteWorkflow(mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil).Once()
+		volume, _, err := updateVolume(ctx, se, temporal, param)
+		assert.NoError(tt, err)
+		assert.NotNil(tt, volume)
+		assert.Equal(tt, "vol", volume.DisplayName)
+	})
+	t.Run("WhenUpdateVolumeGetBackupsByBackupVaultErrors", func(tt *testing.T) {
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+		se := &database.MockStorage{}
+		param := &common.UpdateVolumeParams{AccountName: "acc", VolumeId: "vid", QuotaInBytes: 200, Name: "vol", DataProtection: &models.DataProtection{
+			BackupVaultID: "",
+		}}
+		dbVolume := &datamodel.Volume{
+			BaseModel:   datamodel.BaseModel{UUID: "vid"},
+			SizeInBytes: 100,
+			Name:        "vol",
+			Pool:        &datamodel.Pool{BaseModel: datamodel.BaseModel{UUID: "1"}, Name: "pool"},
+			Account: &datamodel.Account{
+				Name: "acc",
+			},
+			VolumeAttributes: &datamodel.VolumeAttributes{
+				IsDataProtection: false,
+			},
+			DataProtection: &datamodel.DataProtection{
+				BackupVaultID: "vault-1",
+			},
+			State: "READY",
+		}
+
+		se.On("GetVolume", ctx, "vid").Return(dbVolume, nil)
+		se.On("GetBackupsByBackupVault", ctx, "vault-1").Return(nil, errors.New("no backups found"))
+		temporal := workflowEngineMock.NewMockTemporalTestClient(t)
+		volume, _, err := updateVolume(ctx, se, temporal, param)
+		assert.Error(tt, err)
+		assert.Nil(tt, volume)
+	})
+	t.Run("WhenUpdateVolumeGetBackupsByBackupVaultErrors", func(tt *testing.T) {
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+		se := &database.MockStorage{}
+		param := &common.UpdateVolumeParams{AccountName: "acc", VolumeId: "vid", QuotaInBytes: 200, Name: "vol", DataProtection: &models.DataProtection{
+			BackupVaultID: "",
+		}}
+		dbVolume := &datamodel.Volume{
+			BaseModel:   datamodel.BaseModel{UUID: "vid"},
+			SizeInBytes: 100,
+			Name:        "vol",
+			Pool:        &datamodel.Pool{BaseModel: datamodel.BaseModel{UUID: "1"}, Name: "pool"},
+			Account: &datamodel.Account{
+				Name: "acc",
+			},
+			VolumeAttributes: &datamodel.VolumeAttributes{
+				IsDataProtection: false,
+			},
+			DataProtection: &datamodel.DataProtection{
+				BackupVaultID: "vault-1",
+			},
+			State: "READY",
+		}
+
+		backups := []*datamodel.Backup{
+			{
+				BaseModel: datamodel.BaseModel{UUID: "backup-1"},
+				Name:      "backup1",
+			},
+		}
+
+		se.On("GetVolume", ctx, "vid").Return(dbVolume, nil)
+		se.On("GetBackupsByBackupVault", ctx, "vault-1").Return(backups, nil)
+		temporal := workflowEngineMock.NewMockTemporalTestClient(t)
+		volume, _, err := updateVolume(ctx, se, temporal, param)
+		assert.Error(tt, err)
+		assert.Nil(tt, volume)
+	})
+	t.Run("WhenUpdateVolumeSuccessWithAttachBackupVault", func(tt *testing.T) {
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+		se := &database.MockStorage{}
+		param := &common.UpdateVolumeParams{AccountName: "acc", VolumeId: "vid", QuotaInBytes: 200, Name: "vol", DataProtection: &models.DataProtection{
+			BackupVaultID: "",
+		}}
+		dbVolume := &datamodel.Volume{
+			BaseModel:   datamodel.BaseModel{UUID: "vid"},
+			SizeInBytes: 100,
+			Name:        "vol",
+			Pool:        &datamodel.Pool{BaseModel: datamodel.BaseModel{UUID: "1"}, Name: "pool"},
+			Account: &datamodel.Account{
+				Name: "acc",
+			},
+			VolumeAttributes: &datamodel.VolumeAttributes{
+				IsDataProtection: false,
+			},
+			DataProtection: nil,
+			State:          "READY",
 		}
 
 		job := &datamodel.Job{WorkflowID: "wid"}

@@ -960,6 +960,7 @@ func TestCheckForBucketResourceName_ReturnsBucketDetails(t *testing.T) {
 			VolumeAttributes: &datamodel.VolumeAttributes{
 				VendorSubnetID: "subnet-id",
 			},
+			AccountID: 123,
 		}
 		bucketDetails := &datamodel.BucketDetails{
 			BucketName:          "bucket-vault-id",
@@ -971,7 +972,7 @@ func TestCheckForBucketResourceName_ReturnsBucketDetails(t *testing.T) {
 			BucketDetails: datamodel.BucketDetailsArray{bucketDetails},
 		}
 
-		mockStorage.On("GetBackupVaultByUUID", ctx, "vault-id").Return(backupVault, nil)
+		mockStorage.On("GetBackupVaultByUUID", ctx, "vault-id", int64(123)).Return(backupVault, nil)
 
 		result, err := activity.CheckForBucketResourceName(ctx, volume)
 
@@ -992,6 +993,7 @@ func TestCheckForBucketResourceName_ReturnsBucketDetails(t *testing.T) {
 			VolumeAttributes: &datamodel.VolumeAttributes{
 				VendorSubnetID: "subnet-id",
 			},
+			AccountID: 123,
 		}
 		bucketDetails := &datamodel.BucketDetails{
 			BucketName:          "bucket-other-id",
@@ -1003,7 +1005,7 @@ func TestCheckForBucketResourceName_ReturnsBucketDetails(t *testing.T) {
 			BucketDetails: datamodel.BucketDetailsArray{bucketDetails},
 		}
 
-		mockStorage.On("GetBackupVaultByUUID", ctx, "vault-id").Return(backupVault, nil)
+		mockStorage.On("GetBackupVaultByUUID", ctx, "vault-id", int64(123)).Return(backupVault, nil)
 
 		result, err := activity.CheckForBucketResourceName(ctx, volume)
 
@@ -1017,10 +1019,11 @@ func TestCheckForBucketResourceName_ReturnsBucketDetails(t *testing.T) {
 		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
 		volume := &datamodel.Volume{
 			DataProtection: &datamodel.DataProtection{BackupVaultID: "vault-id"},
+			AccountID:      123,
 		}
 
 		expectedError := errors.New("failed to fetch backup vault")
-		mockStorage.On("GetBackupVaultByUUID", ctx, "vault-id").Return(nil, expectedError)
+		mockStorage.On("GetBackupVaultByUUID", ctx, "vault-id", int64(123)).Return(nil, expectedError)
 
 		result, err := activity.CheckForBucketResourceName(ctx, volume)
 
@@ -1035,9 +1038,10 @@ func TestCheckForBucketResourceName_ReturnsBucketDetails(t *testing.T) {
 		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
 		volume := &datamodel.Volume{
 			DataProtection: &datamodel.DataProtection{BackupVaultID: "vault-id"},
+			AccountID:      123,
 		}
 
-		mockStorage.On("GetBackupVaultByUUID", ctx, "vault-id").Return(nil, errors.New("backup vault not found"))
+		mockStorage.On("GetBackupVaultByUUID", ctx, "vault-id", int64(123)).Return(nil, errors.New("backup vault not found"))
 
 		result, err := activity.CheckForBucketResourceName(ctx, volume)
 
@@ -1128,10 +1132,11 @@ func TestBackupVaultExists_ReturnsNil(t *testing.T) {
 	volume := &datamodel.Volume{
 		DataProtection: &datamodel.DataProtection{BackupVaultID: "vault-id"},
 		Account:        &datamodel.Account{Name: "project-number"},
+		AccountID:      123,
 	}
 	backupVault := &datamodel.BackupVault{}
 
-	mockStorage.On("GetBackupVaultByUUID", ctx, "vault-id").Return(backupVault, nil)
+	mockStorage.On("GetBackupVaultByUUID", ctx, "vault-id", int64(123)).Return(backupVault, nil)
 
 	err := activity.CheckBackupVaultExistsInVCP(ctx, volume, "region")
 
@@ -1146,9 +1151,10 @@ func TestBackupVaultExists_ReturnsNotFound(t *testing.T) {
 	volume := &datamodel.Volume{
 		DataProtection: &datamodel.DataProtection{BackupVaultID: "vault-id"},
 		Account:        &datamodel.Account{Name: "project-number"},
+		AccountID:      123,
 	}
 
-	mockStorage.On("GetBackupVaultByUUID", ctx, "vault-id").Return(nil, errors.New("backup vault not found"))
+	mockStorage.On("GetBackupVaultByUUID", ctx, "vault-id", int64(123)).Return(nil, errors.New("backup vault not found"))
 
 	err := activity.CheckBackupVaultExistsInVCP(ctx, volume, "region")
 
@@ -1163,9 +1169,10 @@ func TestBackupVaultVCPError(t *testing.T) {
 	volume := &datamodel.Volume{
 		DataProtection: &datamodel.DataProtection{BackupVaultID: "vault-id"},
 		Account:        &datamodel.Account{Name: "project-number"},
+		AccountID:      123,
 	}
 
-	mockStorage.On("GetBackupVaultByUUID", ctx, "vault-id").Return(nil, errors.New("some error"))
+	mockStorage.On("GetBackupVaultByUUID", ctx, "vault-id", int64(123)).Return(nil, errors.New("some error"))
 
 	err := activity.CheckBackupVaultExistsInVCP(ctx, volume, "region")
 
@@ -1184,7 +1191,7 @@ func Test_FindTenancy(t *testing.T) {
 		mgs.On("GetLogger").Return(logger)
 		mgs.On("GetTenantProject", consumerVPC, customerProjectNumber, tenantProjectRegion).Return("", errors.New("Error finding tenancy unit"))
 
-		tenancyInfo, err := activities.FindTenancy(ctx, mgs, consumerVPC, customerProjectNumber, &tenantProjectRegion)
+		tenancyInfo, err := activities.FindTenancy(mgs, consumerVPC, customerProjectNumber, &tenantProjectRegion)
 		assert.Error(tt, err)
 		assert.Nil(tt, tenancyInfo)
 	})
@@ -1192,7 +1199,7 @@ func Test_FindTenancy(t *testing.T) {
 		mgs := hyperscaler.NewMockGoogleServices(tt)
 		mgs.On("GetTenantProject", consumerVPC, customerProjectNumber, tenantProjectRegion).Return("tp-projct", nil)
 
-		tenancyInfo, err := activities.FindTenancy(ctx, mgs, consumerVPC, customerProjectNumber, &tenantProjectRegion)
+		tenancyInfo, err := activities.FindTenancy(mgs, consumerVPC, customerProjectNumber, &tenantProjectRegion)
 		assert.NoError(tt, err)
 		assert.NotNil(tt, tenancyInfo)
 	})
@@ -1200,7 +1207,7 @@ func Test_FindTenancy(t *testing.T) {
 		mgs := hyperscaler.NewMockGoogleServices(tt)
 		mgs.On("GetTenantProject", consumerVPC, customerProjectNumber, "").Return("tp-projct", nil)
 
-		tenancyInfo, err := activities.FindTenancy(ctx, mgs, consumerVPC, customerProjectNumber, nil)
+		tenancyInfo, err := activities.FindTenancy(mgs, consumerVPC, customerProjectNumber, nil)
 		assert.NoError(tt, err)
 		assert.NotNil(tt, tenancyInfo)
 	})

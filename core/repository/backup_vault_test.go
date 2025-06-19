@@ -123,7 +123,7 @@ func TestGetBackupVaultByUUID(t *testing.T) {
 			return backupVault, nil
 		}
 
-		result, err := store.GetBackupVaultByUUID(context.Background(), backupVault.UUID)
+		result, err := store.GetBackupVaultByUUID(context.Background(), backupVault.UUID, int64(123))
 		if err != nil {
 			tt.Errorf("Expected no error, got %v", err)
 		}
@@ -149,7 +149,7 @@ func TestGetBackupVaultByUUID(t *testing.T) {
 			return nil, gorm.ErrRecordNotFound
 		}
 
-		_, err = store.GetBackupVaultByUUID(context.Background(), "non-existent-uuid")
+		_, err = store.GetBackupVaultByUUID(context.Background(), "non-existent-uuid", int64(123))
 		if err == nil {
 			tt.Errorf("Expected error, got nil")
 		}
