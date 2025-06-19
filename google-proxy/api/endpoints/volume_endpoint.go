@@ -28,6 +28,7 @@ var (
 	convertVolumeV1betaToCVPModel = _convertVolumeV1betaCVPToModel
 	getMultipleVolumesFromCVP     = _getMultipleVolumesFromCVP
 	prepareUpdateVolumeParams     = _prepareUpdateVolumeParams
+	prepareCreateVolumeParams     = _prepareCreateVolumeParams
 )
 
 const (
@@ -135,7 +136,7 @@ func (h Handler) V1betaCreateVolume(ctx context.Context, req *gcpgenserver.Volum
 	}
 
 	operationID := "/v1beta/projects/" + params.ProjectNumber + "/locations/" + params.LocationId + "/operations/" + jobUUID
-	if volume.LifeCycleState == models.LifeCycleStateCreatingDetails {
+	if volume.LifeCycleState == models.LifeCycleStateCreating {
 		return &gcpgenserver.OperationV1beta{
 			Name:     gcpgenserver.NewOptString(operationID),
 			Response: resp,
@@ -149,7 +150,7 @@ func (h Handler) V1betaCreateVolume(ctx context.Context, req *gcpgenserver.Volum
 	}, nil
 }
 
-func prepareCreateVolumeParams(req *gcpgenserver.VolumeCreateV1beta, params gcpgenserver.V1betaCreateVolumeParams, region string) (*common.CreateVolumeParams, error) {
+func _prepareCreateVolumeParams(req *gcpgenserver.VolumeCreateV1beta, params gcpgenserver.V1betaCreateVolumeParams, region string) (*common.CreateVolumeParams, error) {
 	vendorId := fmt.Sprintf("/projects/%v/locations/%v/volumes/%s", params.ProjectNumber, params.LocationId, req.Volume.ResourceId)
 
 	param := &common.CreateVolumeParams{
@@ -499,7 +500,7 @@ On Ubuntu or Debian instances:
 $ sudo apt-get install open-iscsi
 2. Discover the ISCSi target
 Use the target IP address and port (default 3260).
-$ sudo iscsind -m discovery -t sendtargets -p %s:3260
+$ sudo iscsiadm -m discovery -t sendtargets -p %s:3260
 3. Log in to the ISCSI target
 Use the target initiator with the provided IQN.
 $ sudo iscsiadm -m node -T <<target-iqn>> -p %s:3260 -l

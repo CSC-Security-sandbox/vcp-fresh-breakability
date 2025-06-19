@@ -1278,3 +1278,249 @@ func TestConvertToSnapshotPolicyV2(t *testing.T) {
 		assert.Equal(tt, float64(1), result.HourlySchedule.Value.SnapshotsToKeep.Value)
 	})
 }
+
+func TestV1betaCreateVolume(t *testing.T) {
+	originalParseAndValidateRegionAndZone := utils.ParseAndValidateRegionAndZone
+	mockParseAndValidateRegionAndZone := func(region string) (string, string, *gcpgenserver.Error) {
+		return "test-region", "test-location", nil
+	}
+	utils.ParseAndValidateRegionAndZone = mockParseAndValidateRegionAndZone
+	defer func() { utils.ParseAndValidateRegionAndZone = originalParseAndValidateRegionAndZone }()
+
+	t.Run("ValidCreateVolume", func(tt *testing.T) {
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		handler := Handler{Orchestrator: mockOrchestrator}
+
+		params := gcpgenserver.V1betaCreateVolumeParams{
+			LocationId:    "location-id",
+			ProjectNumber: "project-number",
+		}
+		req := &gcpgenserver.VolumeCreateV1beta{
+			Volume: gcpgenserver.VolumeV1beta{
+				ResourceId:    "test-volume",
+				CreationToken: gcpgenserver.NewOptString("test-token"),
+				PoolId:        gcpgenserver.NewNilString("test-pool"),
+				QuotaInBytes:  gcpgenserver.NewOptFloat64(1024),
+				Protocols:     []gcpgenserver.ProtocolsV1beta{gcpgenserver.ProtocolsV1betaISCSI},
+			},
+			VolumeType: gcpgenserver.NewOptVolumeCreateV1betaVolumeType("SECONDARY"),
+		}
+		volume := &models.Volume{
+			BaseModel:      models.BaseModel{UUID: "vol-1"},
+			LifeCycleState: "CREATING",
+		}
+		jobUUID := "job-uuid"
+		mockOrchestrator.EXPECT().CreateVolume(mock.Anything, mock.Anything).Return(volume, jobUUID, nil)
+
+		result, err := handler.V1betaCreateVolume(context.Background(), req, params)
+		assert.NoError(tt, err)
+		op, ok := result.(*gcpgenserver.OperationV1beta)
+		assert.True(tt, ok)
+		assert.Equal(tt, "/v1beta/projects/project-number/locations/location-id/operations/job-uuid", op.Name.Value)
+	})
+
+	t.Run("UserInputValidationError", func(tt *testing.T) {
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		handler := Handler{Orchestrator: mockOrchestrator}
+		params := gcpgenserver.V1betaCreateVolumeParams{
+			ProjectNumber: "test-project",
+			LocationId:    "test-location",
+		}
+		req := &gcpgenserver.VolumeCreateV1beta{}
+		prepareCreateVolumeParams = func(req *gcpgenserver.VolumeCreateV1beta, params gcpgenserver.V1betaCreateVolumeParams, region string) (*common.CreateVolumeParams, error) {
+			return nil, errors.NewUserInputValidationErr("invalid input")
+		}
+		defer func() { prepareCreateVolumeParams = _prepareCreateVolumeParams }()
+
+		result, err := handler.V1betaCreateVolume(context.Background(), req, params)
+		assert.NoError(tt, err)
+		badReq, ok := result.(*gcpgenserver.V1betaCreateVolumeBadRequest)
+		assert.True(tt, ok)
+		assert.Equal(tt, float64(400), badReq.Code)
+		assert.Contains(tt, badReq.Message, "invalid input")
+	})
+
+	t.Run("InternalServerError", func(tt *testing.T) {
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		handler := Handler{Orchestrator: mockOrchestrator}
+		params := gcpgenserver.V1betaCreateVolumeParams{
+			ProjectNumber: "test-project",
+			LocationId:    "test-location",
+		}
+		req := &gcpgenserver.VolumeCreateV1beta{}
+		prepareCreateVolumeParams = func(req *gcpgenserver.VolumeCreateV1beta, params gcpgenserver.V1betaCreateVolumeParams, region string) (*common.CreateVolumeParams, error) {
+			return nil, fmt.Errorf("unexpected error")
+		}
+		defer func() { prepareCreateVolumeParams = _prepareCreateVolumeParams }()
+
+		result, err := handler.V1betaCreateVolume(context.Background(), req, params)
+		assert.Error(tt, err)
+		internalErr, ok := result.(*gcpgenserver.V1betaCreateVolumeInternalServerError)
+		assert.True(tt, ok)
+		assert.Equal(tt, float64(500), internalErr.Code)
+		assert.Contains(tt, internalErr.Message, "unexpected error")
+	})
+
+	t.Run("BadRequest_InvalidLocation", func(tt *testing.T) {
+		utils.ParseAndValidateRegionAndZone = originalParseAndValidateRegionAndZone
+		defer func() { utils.ParseAndValidateRegionAndZone = mockParseAndValidateRegionAndZone }()
+
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		handler := Handler{Orchestrator: mockOrchestrator}
+		params := gcpgenserver.V1betaCreateVolumeParams{
+			ProjectNumber: "test-project",
+			LocationId:    "test-location",
+		}
+		req := &gcpgenserver.VolumeCreateV1beta{}
+		prepareCreateVolumeParams = func(req *gcpgenserver.VolumeCreateV1beta, params gcpgenserver.V1betaCreateVolumeParams, region string) (*common.CreateVolumeParams, error) {
+			return nil, fmt.Errorf("unexpected error")
+		}
+		defer func() { prepareCreateVolumeParams = _prepareCreateVolumeParams }()
+
+		result, err := handler.V1betaCreateVolume(context.Background(), req, params)
+		assert.NoError(tt, err)
+		internalErr, ok := result.(*gcpgenserver.V1betaCreateVolumeBadRequest)
+		assert.True(tt, ok)
+		assert.Equal(tt, float64(400), internalErr.Code)
+		assert.Contains(tt, internalErr.Message, "LocationID represents neither a region nor a zone")
+	})
+
+	t.Run("WhenOrchestratorValidationThrowsAnError_Return400BadRequest", func(tt *testing.T) {
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		handler := Handler{Orchestrator: mockOrchestrator}
+
+		params := gcpgenserver.V1betaCreateVolumeParams{
+			LocationId:    "location-id",
+			ProjectNumber: "project-number",
+		}
+		req := &gcpgenserver.VolumeCreateV1beta{
+			Volume: gcpgenserver.VolumeV1beta{
+				ResourceId:    "test-volume",
+				CreationToken: gcpgenserver.NewOptString("test-token"),
+				PoolId:        gcpgenserver.NewNilString("test-pool"),
+				QuotaInBytes:  gcpgenserver.NewOptFloat64(1024),
+				Protocols:     []gcpgenserver.ProtocolsV1beta{gcpgenserver.ProtocolsV1betaISCSI},
+			},
+		}
+
+		mockOrchestrator.EXPECT().CreateVolume(mock.Anything, mock.Anything).Return(nil, "", errors.NewUserInputValidationErr("An error occurred"))
+
+		result, err := handler.V1betaCreateVolume(context.Background(), req, params)
+		assert.NoError(tt, err)
+		internalErr, ok := result.(*gcpgenserver.V1betaCreateVolumeBadRequest)
+		assert.True(tt, ok)
+		assert.Equal(tt, float64(400), internalErr.Code)
+		assert.Contains(tt, internalErr.Message, "An error occurred")
+	})
+
+	t.Run("WhenOrchestratorThrowsAnError_ReturnError", func(tt *testing.T) {
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		handler := Handler{Orchestrator: mockOrchestrator}
+
+		params := gcpgenserver.V1betaCreateVolumeParams{
+			LocationId:    "location-id",
+			ProjectNumber: "project-number",
+		}
+		req := &gcpgenserver.VolumeCreateV1beta{
+			Volume: gcpgenserver.VolumeV1beta{
+				ResourceId:    "test-volume",
+				CreationToken: gcpgenserver.NewOptString("test-token"),
+				PoolId:        gcpgenserver.NewNilString("test-pool"),
+				QuotaInBytes:  gcpgenserver.NewOptFloat64(1024),
+				Protocols:     []gcpgenserver.ProtocolsV1beta{gcpgenserver.ProtocolsV1betaISCSI},
+			},
+		}
+
+		mockOrchestrator.EXPECT().CreateVolume(mock.Anything, mock.Anything).Return(nil, "", errors.New("An error occurred"))
+
+		result, err := handler.V1betaCreateVolume(context.Background(), req, params)
+		assert.Error(tt, err)
+		internalErr, ok := result.(*gcpgenserver.V1betaCreateVolumeInternalServerError)
+		assert.True(tt, ok)
+		assert.Equal(tt, float64(500), internalErr.Code)
+		assert.Contains(tt, internalErr.Message, "An error occurred")
+	})
+
+	t.Run("WhenLifeCycleStateCreating_ThenReturnDoneAsFalse", func(tt *testing.T) {
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		handler := Handler{Orchestrator: mockOrchestrator}
+
+		params := gcpgenserver.V1betaCreateVolumeParams{
+			LocationId:    "location-id",
+			ProjectNumber: "project-number",
+		}
+		req := &gcpgenserver.VolumeCreateV1beta{
+			Volume: gcpgenserver.VolumeV1beta{
+				ResourceId:    "test-volume",
+				CreationToken: gcpgenserver.NewOptString("test-token"),
+				PoolId:        gcpgenserver.NewNilString("test-pool"),
+				QuotaInBytes:  gcpgenserver.NewOptFloat64(1024),
+				Protocols:     []gcpgenserver.ProtocolsV1beta{gcpgenserver.ProtocolsV1betaISCSI},
+			},
+		}
+		volume := &models.Volume{
+			BaseModel:      models.BaseModel{UUID: "vol-1"},
+			LifeCycleState: "CREATING",
+		}
+		jobUUID := "job-uuid"
+		mockOrchestrator.EXPECT().CreateVolume(mock.Anything, mock.Anything).Return(volume, jobUUID, nil)
+
+		result, err := handler.V1betaCreateVolume(context.Background(), req, params)
+		assert.NoError(tt, err)
+		op, ok := result.(*gcpgenserver.OperationV1beta)
+		assert.True(tt, ok)
+		assert.Equal(tt, "/v1beta/projects/project-number/locations/location-id/operations/job-uuid", op.Name.Value)
+		assert.False(tt, op.Done.Value)
+	})
+
+	t.Run("WhenLifeCycleStateCreating_ThenReturnDoneAsFalse", func(tt *testing.T) {
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		handler := Handler{Orchestrator: mockOrchestrator}
+
+		params := gcpgenserver.V1betaCreateVolumeParams{
+			LocationId:    "location-id",
+			ProjectNumber: "project-number",
+		}
+		req := &gcpgenserver.VolumeCreateV1beta{
+			Volume: gcpgenserver.VolumeV1beta{
+				ResourceId:    "test-volume",
+				CreationToken: gcpgenserver.NewOptString("test-token"),
+				PoolId:        gcpgenserver.NewNilString("test-pool"),
+				QuotaInBytes:  gcpgenserver.NewOptFloat64(1024),
+				Protocols:     []gcpgenserver.ProtocolsV1beta{gcpgenserver.ProtocolsV1betaISCSI},
+			},
+		}
+		volume := &models.Volume{
+			BaseModel:      models.BaseModel{UUID: "vol-1"},
+			LifeCycleState: "ERROR",
+		}
+		jobUUID := "job-uuid"
+		mockOrchestrator.EXPECT().CreateVolume(mock.Anything, mock.Anything).Return(volume, jobUUID, nil)
+
+		result, err := handler.V1betaCreateVolume(context.Background(), req, params)
+		assert.NoError(tt, err)
+		op, ok := result.(*gcpgenserver.OperationV1beta)
+		assert.True(tt, ok)
+		assert.Equal(tt, "/v1beta/projects/project-number/locations/location-id/operations/job-uuid", op.Name.Value)
+		assert.True(tt, op.Done.Value)
+	})
+}
+
+func TestConvertModelToVCPVolume(t *testing.T) {
+	t.Run("AllFieldsSet", func(t *testing.T) {
+		vol := &models.Volume{
+			CreationToken:   "token",
+			PoolID:          "pool",
+			QuotaInBytes:    1234,
+			BlockProperties: &models.BlockProperties{OSType: "LINUX"},
+			ProtocolTypes:   []string{"ISCSI"},
+			LifeCycleState:  "READY",
+			IPAddress:       "10.72.177.17",
+		}
+		out := convertModelToVCPVolume(vol)
+		assert.NotNil(t, out)
+		assert.Equal(t, "token", out.CreationToken.Value)
+		assert.Equal(t, "LINUX", string(out.BlockProperties.Value.OsType.Value))
+		assert.Equal(t, "ISCSI", string(out.Protocols[0]))
+	})
+}
