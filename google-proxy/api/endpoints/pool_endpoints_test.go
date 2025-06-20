@@ -772,8 +772,8 @@ func TestV1betaDescribePool(t *testing.T) {
 
 		assert.NoError(tt, err)
 		assert.NotNil(tt, result)
-		assert.Equal(tt, float64(404), result.(*gcpgenserver.V1betaDescribePoolBadRequest).Code)
-		assert.Equal(tt, "Pool not found", result.(*gcpgenserver.V1betaDescribePoolBadRequest).Message)
+		assert.Equal(tt, float64(404), result.(*gcpgenserver.V1betaDescribePoolNotFound).Code)
+		assert.Equal(tt, "Pool not found", result.(*gcpgenserver.V1betaDescribePoolNotFound).Message)
 	})
 
 	t.Run("WhenDescribePoolFailsWithInternalError", func(tt *testing.T) {
@@ -812,6 +812,7 @@ func TestV1betaDescribePool(t *testing.T) {
 			},
 			PoolAttributes: &models.PoolAttributes{},
 			Name:           "test-pool",
+			Description:    "This is a test pool",
 		}
 		parseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
 			return "us-east4", "us-east4", nil
@@ -826,6 +827,7 @@ func TestV1betaDescribePool(t *testing.T) {
 		assert.NoError(tt, err)
 		assert.NotNil(tt, result)
 		assert.Equal(tt, "existing-pool-id", result.(*gcpgenserver.PoolV1beta).PoolId.Value)
+		assert.Equal(tt, "This is a test pool", result.(*gcpgenserver.PoolV1beta).Description.Value)
 	})
 }
 

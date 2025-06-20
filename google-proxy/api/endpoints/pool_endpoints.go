@@ -40,7 +40,7 @@ func (h Handler) V1betaDescribePool(ctx context.Context, params gcpgenserver.V1b
 	if err != nil {
 		if errors.IsNotFoundErr(err) {
 			logger.Info("Pool not found", "uuid", params.PoolId)
-			return &gcpgenserver.V1betaDescribePoolBadRequest{
+			return &gcpgenserver.V1betaDescribePoolNotFound{
 				Code:    404,
 				Message: "Pool not found",
 			}, nil
@@ -434,6 +434,7 @@ func convertToPoolV1Beta(pool *models.Pool) *gcpgenserver.PoolV1beta {
 		UpdatedAt:                gcpgenserver.NewOptDateTime(pool.UpdatedAt),
 		DeletedAt:                gcpgenserver.NewOptNilDateTime(deletedAt),
 		ResourceId:               pool.Name,
+		Description:              gcpgenserver.NewOptNilString(pool.Description),
 		Network:                  pool.VendorSubNetID,
 		SizeInBytes:              float64(pool.SizeInBytes),
 		TotalThroughputMibps:     gcpgenserver.NewOptNilFloat64(throughputValue),
