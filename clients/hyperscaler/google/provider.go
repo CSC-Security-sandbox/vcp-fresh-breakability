@@ -63,7 +63,7 @@ type AdminGCPService struct {
 	managementService    *serviceconsumermanagement.APIService
 	networkingService    *servicenetworking.APIService
 	computeService       *compute.Service
-	storageService       StorageClient
+	storageService       *storage.Client
 	iamService           *iam.Service
 	privateCaService     *privateca.Service
 	secretManagerService *secretmanager.Service
@@ -168,7 +168,7 @@ func _newGoogleClient(ctx context.Context) (*AdminGCPService, error) {
 		networkingService:    networkingService,
 		managementService:    managementService,
 		computeService:       computeService,
-		storageService:       &storageClient{client: storageService},
+		storageService:       storageService,
 		iamService:           iamService,
 		secretManagerService: secretManagerService,
 		cloudProjectsService: cloudProjectservice,

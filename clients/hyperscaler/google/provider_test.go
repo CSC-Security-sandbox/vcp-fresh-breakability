@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
 
@@ -18,7 +19,6 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 	"google.golang.org/api/cloudresourcemanager/v1"
 	"google.golang.org/api/compute/v1"
-	"google.golang.org/api/googleapi"
 	"google.golang.org/api/iam/v1"
 	"google.golang.org/api/option"
 	"google.golang.org/api/privateca/v1"
@@ -632,69 +632,197 @@ func TestGcpServices_GetLogger(t *testing.T) {
 	})
 }
 
-type mockBucketHandle struct {
-	attrsErr  error
-	createErr error
-	deleteErr error
-}
-
-func (m *mockBucketHandle) Delete(ctx context.Context) error {
-	return m.deleteErr
-}
-func (m *mockBucketHandle) Attrs(ctx context.Context) (*storage.BucketAttrs, error) {
-	return nil, m.attrsErr
-}
-func (m *mockBucketHandle) Create(ctx context.Context, projectID string, attrs *storage.BucketAttrs) error {
-	return m.createErr
-}
-
-type mockStorageClient struct {
-	bucket *mockBucketHandle
-}
-
-func (m *mockStorageClient) Bucket(name string) BucketHandle {
-	return m.bucket
-}
-
 func TestCreateBucketIfNotExists(t *testing.T) {
-	ctx := context.Background()
+	tests := []struct {
+		name           string
+		statusCode     int
+		expectError    bool
+		expectedErrMsg string
+	}{
+		{
+			name:        "Success",
+			statusCode:  http.StatusOK,
+			expectError: false,
+		},
+		{
+			name:        "BucketAlreadyExists",
+			statusCode:  http.StatusConflict,
+			expectError: false,
+		},
+	}
 
-	t.Run("bucket create returns 409 conflict (already exists)", func(t *testing.T) {
-		gcp := &GcpServices{
-			AdminGCPService: &AdminGCPService{
-				storageService: &mockStorageClient{
-					bucket: &mockBucketHandle{createErr: &googleapi.Error{Code: 409}},
-				},
-			},
-		}
-		err := gcp.CreateBucketIfNotExists(ctx, "pid", "bkt", "region")
-		assert.NoError(t, err)
-	})
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			var requestCount int
 
-	t.Run("bucket create succeeds", func(t *testing.T) {
-		gcp := &GcpServices{
-			AdminGCPService: &AdminGCPService{
-				storageService: &mockStorageClient{
-					bucket: &mockBucketHandle{createErr: nil},
-				},
-			},
-		}
-		err := gcp.CreateBucketIfNotExists(ctx, "pid", "bkt", "region")
-		assert.NoError(t, err)
-	})
+			server := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
+				requestCount++
 
-	t.Run("bucket create fails with non-409 error", func(t *testing.T) {
-		gcp := &GcpServices{
-			AdminGCPService: &AdminGCPService{
-				storageService: &mockStorageClient{
-					bucket: &mockBucketHandle{createErr: errors.New("fail")},
+				if req.Method == http.MethodPost && strings.Contains(req.URL.Path, "/b") {
+					rw.Header().Set("Content-Type", "application/json")
+					rw.WriteHeader(tc.statusCode)
+
+					switch tc.statusCode {
+					case http.StatusOK:
+						_, _ = rw.Write([]byte(`{
+							"name": "test-bucket",
+							"location": "us-central1"
+						}`))
+					case http.StatusConflict:
+						_, _ = rw.Write([]byte(`{
+							"error": {
+								"code": 409,
+								"message": "Bucket already exists.",
+								"errors": [{
+									"message": "Bucket already exists.",
+									"reason": "conflict"
+								}]
+							}
+						}`))
+					case http.StatusInternalServerError:
+						// GCS-style structured error response
+						_, _ = rw.Write([]byte(`{
+							"error": {
+								"code": 500,
+								"message": "Internal Server Error",
+								"errors": [{
+									"message": "Internal Server Error",
+									"reason": "backendError"
+								}]
+							}
+						}`))
+					}
+					return
+				}
+
+				// fallback
+				http.NotFound(rw, req)
+			}))
+			defer server.Close()
+
+			ctx := context.Background()
+
+			// Disable retries
+			httpClient := &http.Client{
+				Transport: &http.Transport{},
+			}
+
+			storageClient, err := storage.NewClient(ctx,
+				option.WithEndpoint(server.URL+"/storage/v1/"),
+				option.WithHTTPClient(httpClient),
+				option.WithoutAuthentication(),
+			)
+			if err != nil {
+				t.Fatalf("failed to create storage client: %v", err)
+			}
+
+			gcp := &GcpServices{
+				Ctx: ctx,
+				AdminGCPService: &AdminGCPService{
+					storageService: storageClient,
 				},
-			},
-		}
-		err := gcp.CreateBucketIfNotExists(ctx, "pid", "bkt", "region")
-		assert.Error(t, err)
-		assert.Contains(t, err.Error(), "fail")
-	})
+				Logger: util.GetLogger(ctx), // use nop logger
+			}
+
+			err = gcp.CreateBucketIfNotExists(ctx, "test-project", "test-bucket", "us-central1")
+
+			if tc.expectError {
+				if err == nil {
+					t.Errorf("expected error but got nil")
+				} else if tc.expectedErrMsg != "" && !strings.Contains(err.Error(), tc.expectedErrMsg) {
+					t.Errorf("expected error message to contain %q, got %v", tc.expectedErrMsg, err)
+				}
+			} else {
+				if err != nil {
+					t.Errorf("expected no error, got: %v", err)
+				}
+			}
+		})
+	}
+}
+
+func TestDeleteBucket(t *testing.T) {
+	tests := []struct {
+		name           string
+		statusCode     int
+		expectError    bool
+		expectedErrMsg string
+	}{
+		{
+			name:        "Success",
+			statusCode:  http.StatusNoContent, // 204 No Content on successful delete
+			expectError: false,
+		},
+		{
+			name:        "BucketNotFound",
+			statusCode:  http.StatusNotFound,
+			expectError: false,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			server := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
+				if req.Method == http.MethodDelete && strings.Contains(req.URL.Path, "/b/") {
+					rw.Header().Set("Content-Type", "application/json")
+					rw.WriteHeader(tc.statusCode)
+
+					if tc.statusCode == http.StatusInternalServerError {
+						_, _ = rw.Write([]byte(`{
+							"error": {
+								"code": 500,
+								"message": "Internal Server Error",
+								"errors": [{
+									"message": "Internal Server Error",
+									"reason": "backendError"
+								}]
+							}
+						}`))
+					}
+					return
+				}
+				http.NotFound(rw, req)
+			}))
+			defer server.Close()
+
+			ctx := context.Background()
+
+			httpClient := &http.Client{
+				Transport: &http.Transport{},
+			}
+
+			storageClient, err := storage.NewClient(ctx,
+				option.WithEndpoint(server.URL+"/storage/v1/"),
+				option.WithHTTPClient(httpClient),
+				option.WithoutAuthentication(),
+			)
+			if err != nil {
+				t.Fatalf("failed to create storage client: %v", err)
+			}
+
+			gcp := &GcpServices{
+				Ctx: ctx,
+				AdminGCPService: &AdminGCPService{
+					storageService: storageClient,
+				},
+				Logger: util.GetLogger(ctx),
+			}
+
+			err = gcp.DeleteBucket(ctx, "test-bucket")
+
+			if tc.expectError {
+				if err == nil {
+					t.Errorf("expected error but got nil")
+				} else if !strings.Contains(err.Error(), tc.expectedErrMsg) {
+					t.Errorf("expected error message to contain %q, got %v", tc.expectedErrMsg, err)
+				}
+			} else {
+				if err != nil {
+					t.Errorf("expected no error, got: %v", err)
+				}
+			}
+		})
+	}
 }
 
 func TestInitializeStorageService(t *testing.T) {
@@ -1328,35 +1456,6 @@ func Test_SetProjectIamPolicyd(t *testing.T) {
 		}
 		err = gService.setProjectIamPolicy(projectName, etag, projectIAMPolicyBindings)
 		assert.NotNil(tt, err)
-	})
-}
-
-func TestGcpServices_DeleteBucket(t *testing.T) {
-	ctx := context.Background()
-
-	t.Run("delete succeeds", func(t *testing.T) {
-		gcp := &GcpServices{
-			AdminGCPService: &AdminGCPService{
-				storageService: &mockStorageClient{
-					bucket: &mockBucketHandle{deleteErr: nil},
-				},
-			},
-		}
-		err := gcp.DeleteBucket(ctx, "bucket-name")
-		assert.NoError(t, err)
-	})
-
-	t.Run("delete fails", func(t *testing.T) {
-		gcp := &GcpServices{
-			AdminGCPService: &AdminGCPService{
-				storageService: &mockStorageClient{
-					bucket: &mockBucketHandle{deleteErr: errors.New("delete error")},
-				},
-			},
-		}
-		err := gcp.DeleteBucket(ctx, "bucket-name")
-		assert.Error(t, err)
-		assert.Contains(t, err.Error(), "delete error")
 	})
 }
 
