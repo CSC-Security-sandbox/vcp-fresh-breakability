@@ -3,8 +3,10 @@ package api
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 
 	"github.com/go-faster/jx"
+	"github.com/google/uuid"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator"
 	gcpgenserver "github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/api/gcp-servergen"
@@ -12,6 +14,8 @@ import (
 	customerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 )
+
+var operationPathFormat = "/v1beta/projects/%s/locations/%s/operations/%s"
 
 func (h Handler) V1betaDescribeHostGroup(ctx context.Context, params gcpgenserver.V1betaDescribeHostGroupParams) (gcpgenserver.V1betaDescribeHostGroupRes, error) {
 	logger := util.GetLogger(ctx)
@@ -80,10 +84,11 @@ func (h Handler) V1betaCreateHostGroup(ctx context.Context, req *gcpgenserver.Ho
 	if err != nil {
 		return nil, err
 	}
-
+	operationID := fmt.Sprintf(operationPathFormat, params.ProjectNumber, params.LocationId, uuid.UUID{}.String())
 	return &gcpgenserver.V1betaCreateHostGroupOK{
 		Response: resp,
 		Done:     gcpgenserver.NewOptBool(true),
+		Name:     gcpgenserver.NewOptString(operationID),
 	}, nil
 }
 
