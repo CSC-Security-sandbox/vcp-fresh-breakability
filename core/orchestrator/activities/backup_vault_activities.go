@@ -31,15 +31,6 @@ type BackupVaultActivity struct {
 	SE database.Storage
 }
 
-func (j *BackupVaultActivity) CheckBackupVaultExistsInVCP(ctx context.Context, vaultName string, ownerID string) (*datamodel.BackupVault, error) {
-	se := j.SE
-	BackupVault, err := se.GetBackupVaultByNameAndOwnerID(ctx, vaultName, ownerID)
-	if err != nil {
-		return nil, err
-	}
-	return BackupVault, nil
-}
-
 // CreateBackupVaultInSDE ensures idempotency by checking existing BackupVault before creation.
 func (j *BackupVaultActivity) CreateBackupVaultInSDE(ctx context.Context, bvParams *datamodel.BackupVault, paramz gcpgenserver.V1betaCreateBackupVaultParams) (*datamodel.BackupVault, error) {
 	return createBackupVaultInSDE(ctx, bvParams, paramz)
@@ -96,16 +87,20 @@ func _createBvToSde(ctx context.Context, bvParams *datamodel.BackupVault, paramz
 	cvpClient := cvpCreateClient(logger, GetSignedJwtToken)
 	xCorrelationID := utils.GetCoRelationIDFromContext(ctx)
 
+	body := &models.BackupVaultCreateV1beta{
+		BackupRegion: bvParams.BackupRegionName,
+		Description:  bvParams.Description,
+		ResourceID:   bvParams.Name,
+	}
+	retentionPolicy := convertImmutableAttributesToBackupRetentionPolicy(bvParams.ImmutableAttributes)
+	if retentionPolicy != nil {
+		body.BackupRetentionPolicy = retentionPolicy
+	}
 	vault, err := cvpClient.BackupVault.V1betaCreateBackupVault(&backup_vault.V1betaCreateBackupVaultParams{
 		LocationID:     paramz.LocationId,
 		ProjectNumber:  paramz.ProjectNumber,
 		XCorrelationID: &xCorrelationID,
-		Body: &models.BackupVaultCreateV1beta{
-			BackupRegion:          bvParams.BackupRegionName,
-			BackupRetentionPolicy: convertImmutableAttributesToBackupRetentionPolicy(bvParams.ImmutableAttributes),
-			Description:           bvParams.Description,
-			ResourceID:            bvParams.Name,
-		},
+		Body:           body,
 	})
 	if err != nil {
 		logger.Error("Error creating BackupVault : ", err)
@@ -145,6 +140,11 @@ func _convertImmutableAttributesToBackupRetentionPolicy(attrs *datamodel.Immutab
 		return nil
 	}
 
+	minEnforcedRetentionDuration := int64(0)
+	if *attrs.BackupMinimumEnforcedRetentionDuration == minEnforcedRetentionDuration && !attrs.IsDailyBackupImmutable && !attrs.IsWeeklyBackupImmutable && !attrs.IsMonthlyBackupImmutable && !attrs.IsAdhocBackupImmutable {
+		return nil
+	}
+
 	return &models.BackupRetentionPolicyV1beta{
 		BackupMinimumEnforcedRetentionDays: attrs.BackupMinimumEnforcedRetentionDuration,
 		DailyBackupImmutable:               attrs.IsDailyBackupImmutable,
@@ -169,10 +169,10 @@ func _convertToBackupVaultDataModel(bv *models.BackupVaultV1beta, locationId str
 	if bv.Description != nil {
 		description = bv.Description
 	}
-	var mrd *int64
+	var minEnforcedRetentionDuration *int64
 	var isDaily, isWeekly, isMonthly, isAdhoc bool
 	if bv.BackupRetentionPolicy != nil {
-		mrd = bv.BackupRetentionPolicy.BackupMinimumEnforcedRetentionDays
+		minEnforcedRetentionDuration = bv.BackupRetentionPolicy.BackupMinimumEnforcedRetentionDays
 		isDaily = bv.BackupRetentionPolicy.DailyBackupImmutable
 		isWeekly = bv.BackupRetentionPolicy.WeeklyBackupImmutable
 		isMonthly = bv.BackupRetentionPolicy.MonthlyBackupImmutable
@@ -180,7 +180,7 @@ func _convertToBackupVaultDataModel(bv *models.BackupVaultV1beta, locationId str
 	}
 
 	immutableFields := &datamodel.ImmutableAttributes{
-		BackupMinimumEnforcedRetentionDuration: mrd,
+		BackupMinimumEnforcedRetentionDuration: minEnforcedRetentionDuration,
 		IsDailyBackupImmutable:                 isDaily,
 		IsWeeklyBackupImmutable:                isWeekly,
 		IsMonthlyBackupImmutable:               isMonthly,

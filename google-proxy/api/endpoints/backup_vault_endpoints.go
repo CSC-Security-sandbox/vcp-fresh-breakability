@@ -3,12 +3,11 @@ package api
 import (
 	"context"
 	"encoding/json"
-	"fmt"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp"
 	"time"
 
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/cvpapi/backup_vault"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/models"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	gcpgenserver "github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/api/gcp-servergen"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/helper"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
@@ -16,9 +15,16 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 )
 
+var (
+	utilsConvertJsonToModel = utils.ConvertJsonToModel
+	cvpCreateClient         = cvp.CreateClient
+)
+
+const ErrBackupVaultNotFound = "backup vault not found"
+
 func (h Handler) V1betaCreateBackupVault(ctx context.Context, req *gcpgenserver.BackupVaultCreateV1beta, reqPayloadparams gcpgenserver.V1betaCreateBackupVaultParams) (gcpgenserver.V1betaCreateBackupVaultRes, error) {
 	logger := util.GetLogger(ctx)
-	region, _, parsingErr := parseAndValidateRegionAndZone(reqPayloadparams.LocationId)
+	_, _, parsingErr := parseAndValidateRegionAndZone(reqPayloadparams.LocationId)
 	if parsingErr != nil {
 		return &gcpgenserver.V1betaCreateBackupVaultBadRequest{
 			Code:    parsingErr.Code,
@@ -32,26 +38,28 @@ func (h Handler) V1betaCreateBackupVault(ctx context.Context, req *gcpgenserver.
 		resourceID = "" // Or handle the unset case appropriately
 	}
 	req.ResourceId.Value = resourceID
+	var description string
+	if req.Description.IsSet() {
+		description = req.Description.Value
+	}
+	req.Description.Value = description
+
+	var backupRegion *string
+	if req.BackupRegion.IsSet() {
+		backupRegion = &req.BackupRegion.Value
+	}
+
 	// Check if the BackupVault already exists
 	existingBackupVault, err := h.Orchestrator.GetBackupVaultByNameAndOwnerID(ctx, req.ResourceId.Value, reqPayloadparams.ProjectNumber)
 	if err == nil && existingBackupVault != nil {
 		logger.Infof("backupVault with name: %s already exists ", req.ResourceId)
-		bvResp := &models.BackupVaultCreateV1beta{
-			BackupRegion: nil,
-			BackupRetentionPolicy: &models.BackupRetentionPolicyV1beta{
-				BackupMinimumEnforcedRetentionDays: existingBackupVault.BackupRetentionPolicy.BackupMinimumEnforcedRetentionDuration,
-				DailyBackupImmutable:               existingBackupVault.BackupRetentionPolicy.IsDailyBackupImmutable,
-				ManualBackupImmutable:              existingBackupVault.BackupRetentionPolicy.IsAdhocBackupImmutable,
-				MonthlyBackupImmutable:             existingBackupVault.BackupRetentionPolicy.IsMonthlyBackupImmutable,
-				WeeklyBackupImmutable:              existingBackupVault.BackupRetentionPolicy.IsWeeklyBackupImmutable,
-			},
-			Description: existingBackupVault.Description,
-			ResourceID:  existingBackupVault.Name,
-		}
-		bvJSON, err := json.Marshal(bvResp)
+		bvJSON, err := json.Marshal(existingBackupVault)
 		if err != nil {
 			logger.Error("Failed to marshal backup vault", "error", err)
-			return &gcpgenserver.V1betaCreateBackupVaultInternalServerError{}, err
+			return &gcpgenserver.V1betaCreateBackupVaultInternalServerError{
+				Code:    500,
+				Message: "Failed to marshal Backup vault",
+			}, err
 		}
 
 		return &gcpgenserver.OperationV1beta{
@@ -59,76 +67,148 @@ func (h Handler) V1betaCreateBackupVault(ctx context.Context, req *gcpgenserver.
 			Done:     gcpgenserver.NewOptBool(true),
 			Response: bvJSON,
 		}, nil
-	} else if err.Error() != "backup vault not found" {
+	} else if err != nil && err.Error() != ErrBackupVaultNotFound {
 		logger.Error("Failed to check existing backupVault", "error", err)
-		return &gcpgenserver.V1betaCreateBackupVaultInternalServerError{}, err
+		return &gcpgenserver.V1betaCreateBackupVaultInternalServerError{
+			Code:    500,
+			Message: "Failed to check existing Backup vault",
+		}, err
 	}
 
-	createBvParams := createBackupVaultParams(req, reqPayloadparams, region)
+	// not exists in VCP, Call SDE for Creating
+	GetSignedJwtToken := utils.GetJWTTokenFromContext(ctx)
+	cvpClient := cvpCreateClient(logger, GetSignedJwtToken)
+	xCorrelationID := utils.GetCoRelationIDFromContext(ctx)
 
-	created, operationID, err := h.Orchestrator.CreateBackupVault(ctx, createBvParams, reqPayloadparams)
+	body := &models.BackupVaultCreateV1beta{
+		BackupRegion: backupRegion,
+		Description:  &req.Description.Value,
+		ResourceID:   req.ResourceId.Value,
+	}
+	brPolicy := convertBackupRetentionPolicyToCvpModelForCreate(req.BackupRetentionPolicy)
+	if brPolicy != nil {
+		body.BackupRetentionPolicy = brPolicy
+	}
+	vault, err := cvpClient.BackupVault.V1betaCreateBackupVault(&backup_vault.V1betaCreateBackupVaultParams{
+		LocationID:     reqPayloadparams.LocationId,
+		ProjectNumber:  reqPayloadparams.ProjectNumber,
+		XCorrelationID: &xCorrelationID,
+		Body:           body,
+	})
 	if err != nil {
-		logger.Error("Failed to create backupVault", err.Error())
-		return &gcpgenserver.V1betaCreateBackupVaultInternalServerError{}, err
+		switch e := err.(type) {
+		case *backup_vault.V1betaCreateBackupVaultUnprocessableEntity:
+			msg := nillable.GetString(&e.Payload.Message, "")
+			code := float64(nillable.GetFloat64(&e.Payload.Code, 0))
+			return &gcpgenserver.V1betaCreateBackupVaultUnprocessableEntity{
+				Code:    code,
+				Message: msg,
+			}, nil
+		case *backup_vault.V1betaCreateBackupVaultConflict:
+			msg := nillable.GetString(&e.Payload.Message, "")
+			code := float64(nillable.GetFloat64(&e.Payload.Code, 0))
+			return &gcpgenserver.V1betaCreateBackupVaultConflict{
+				Code:    code,
+				Message: msg,
+			}, nil
+		case *backup_vault.V1betaCreateBackupVaultBadRequest:
+			msg := nillable.GetString(&e.Payload.Message, "")
+			code := float64(nillable.GetFloat64(&e.Payload.Code, 0))
+			return &gcpgenserver.V1betaCreateBackupVaultBadRequest{
+				Code:    code,
+				Message: msg,
+			}, nil
+		case *backup_vault.V1betaCreateBackupVaultUnauthorized:
+			msg := nillable.GetString(&e.Payload.Message, "")
+			code := float64(nillable.GetFloat64(&e.Payload.Code, 0))
+			return &gcpgenserver.V1betaCreateBackupVaultUnauthorized{
+				Code:    code,
+				Message: msg,
+			}, nil
+
+		case *backup_vault.V1betaCreateBackupVaultForbidden:
+			msg := nillable.GetString(&e.Payload.Message, "")
+			code := float64(nillable.GetFloat64(&e.Payload.Code, 0))
+			return &gcpgenserver.V1betaCreateBackupVaultForbidden{
+				Code:    code,
+				Message: msg,
+			}, nil
+
+		case *backup_vault.V1betaCreateBackupVaultTooManyRequests:
+			msg := nillable.GetString(&e.Payload.Message, "")
+			code := float64(nillable.GetFloat64(&e.Payload.Code, 0))
+			return &gcpgenserver.V1betaCreateBackupVaultTooManyRequests{
+				Code:    code,
+				Message: msg,
+			}, nil
+		case *backup_vault.V1betaCreateBackupVaultDefault:
+			return &gcpgenserver.V1betaCreateBackupVaultInternalServerError{
+				Code:    500,
+				Message: err.Error(),
+			}, nil
+		default:
+			return &gcpgenserver.V1betaCreateBackupVaultInternalServerError{
+				Code:    500,
+				Message: err.Error(),
+			}, nil
+		}
 	}
-	// Convert the created backup vault to the response model
-	bvResp := &models.BackupVaultCreateV1beta{
-		BackupRegion: nil,
-		BackupRetentionPolicy: &models.BackupRetentionPolicyV1beta{
-			BackupMinimumEnforcedRetentionDays: created.BackupRetentionPolicy.BackupMinimumEnforcedRetentionDuration,
-			DailyBackupImmutable:               created.BackupRetentionPolicy.IsDailyBackupImmutable,
-			ManualBackupImmutable:              created.BackupRetentionPolicy.IsAdhocBackupImmutable,
-			MonthlyBackupImmutable:             created.BackupRetentionPolicy.IsMonthlyBackupImmutable,
-			WeeklyBackupImmutable:              created.BackupRetentionPolicy.IsWeeklyBackupImmutable,
-		},
-		Description: created.Description,
-		ResourceID:  created.Name,
+
+	responseBytes, err := json.MarshalIndent(vault.Payload.Response, "", "  ")
+	if err != nil {
+		logger.Error("Failed to marshal response from SDE BackupVault creation", "error", err)
+		return &gcpgenserver.V1betaCreateBackupVaultInternalServerError{
+			Code:    500,
+			Message: "Failed to marshal response from SDE BackupVault creation",
+		}, err
 	}
-	bvJSON, err := json.Marshal(bvResp)
+	data := models.BackupVaultV1beta{}
+	err = utilsConvertJsonToModel(responseBytes, &data)
+	if err != nil {
+		return &gcpgenserver.V1betaCreateBackupVaultInternalServerError{
+			Code:    500,
+			Message: "Failed to convert response from SDE BackupVault creation to model",
+		}, err
+	}
+
+	bvJSON, err := json.Marshal(data)
 	if err != nil {
 		logger.Error("Failed to marshal backup vault", err.Error())
-		return &gcpgenserver.V1betaCreateBackupVaultInternalServerError{}, err
+		return &gcpgenserver.V1betaCreateBackupVaultInternalServerError{
+			Code:    500,
+			Message: "Failed to marshal Backup vault",
+		}, err
 	}
-	if operationID != "" {
-		return &gcpgenserver.OperationV1beta{
-			Name:     gcpgenserver.NewOptString(fmt.Sprintf("/v1beta/projects/%s/locations/%s/operations/%s", reqPayloadparams.ProjectNumber, reqPayloadparams.LocationId, operationID)),
-			Response: bvJSON,
-			Done:     gcpgenserver.NewOptBool(false),
-		}, nil
-	}
-	return &gcpgenserver.OperationV1beta{}, nil
+	return &gcpgenserver.OperationV1beta{
+		Name:     gcpgenserver.OptString{Value: vault.Payload.Name},
+		Done:     gcpgenserver.NewOptBool(true),
+		Response: bvJSON,
+	}, nil
 }
 
-func createBackupVaultParams(req *gcpgenserver.BackupVaultCreateV1beta, params gcpgenserver.V1betaCreateBackupVaultParams, region string) *common.BackupVaultParams {
-	var description, backupRegion *string
-	if req.Description.IsSet() {
-		description = &req.Description.Value
+func convertBackupRetentionPolicyToCvpModelForCreate(brPolicy gcpgenserver.OptBackupRetentionPolicyV1beta) *models.BackupRetentionPolicyV1beta {
+	if brPolicy.IsSet() {
+		brPolicyValue := brPolicy.Value
+		brModel := &models.BackupRetentionPolicyV1beta{}
+		if brPolicyValue.BackupMinimumEnforcedRetentionDays.IsSet() {
+			retentionDays := int64(brPolicyValue.BackupMinimumEnforcedRetentionDays.Value)
+			brModel.BackupMinimumEnforcedRetentionDays = &retentionDays
+		}
+		if brPolicy.Value.DailyBackupImmutable.IsSet() {
+			brModel.DailyBackupImmutable = brPolicyValue.DailyBackupImmutable.Value
+		}
+		if brPolicy.Value.ManualBackupImmutable.IsSet() {
+			brModel.ManualBackupImmutable = brPolicyValue.ManualBackupImmutable.Value
+		}
+		if brPolicy.Value.MonthlyBackupImmutable.IsSet() {
+			brModel.MonthlyBackupImmutable = brPolicyValue.MonthlyBackupImmutable.Value
+		}
+		if brPolicy.Value.WeeklyBackupImmutable.IsSet() {
+			brModel.WeeklyBackupImmutable = brPolicyValue.WeeklyBackupImmutable.Value
+		}
+		return brModel
 	}
-	if req.BackupRegion.IsSet() {
-		backupRegion = &req.BackupRegion.Value
-	}
-
-	var backupMinimumEnforcedRetentionDuration *int64
-	if req.BackupRetentionPolicy.IsSet() && req.BackupRetentionPolicy.Value.BackupMinimumEnforcedRetentionDays.IsSet() {
-		val := int64(req.BackupRetentionPolicy.Value.BackupMinimumEnforcedRetentionDays.Value)
-		backupMinimumEnforcedRetentionDuration = &val
-	}
-
-	return &common.BackupVaultParams{
-		OwnerID:      params.ProjectNumber,
-		Name:         req.ResourceId.Value,
-		Description:  description,
-		BackupRegion: backupRegion,
-		SourceRegion: &params.LocationId,
-		Region:       region,
-		BackupRetentionPolicy: common.BackupRetentionPolicyParams{
-			BackupMinimumEnforcedRetentionDuration: backupMinimumEnforcedRetentionDuration,
-			IsDailyBackupImmutable:                 safeBoolPointer(req.BackupRetentionPolicy, func() bool { return req.BackupRetentionPolicy.Value.DailyBackupImmutable.Value }),
-			IsWeeklyBackupImmutable:                safeBoolPointer(req.BackupRetentionPolicy, func() bool { return req.BackupRetentionPolicy.Value.WeeklyBackupImmutable.Value }),
-			IsMonthlyBackupImmutable:               safeBoolPointer(req.BackupRetentionPolicy, func() bool { return req.BackupRetentionPolicy.Value.MonthlyBackupImmutable.Value }),
-			IsAdhocBackupImmutable:                 safeBoolPointer(req.BackupRetentionPolicy, func() bool { return req.BackupRetentionPolicy.Value.ManualBackupImmutable.Value }),
-		},
-	}
+	return nil
 }
 
 func safeBoolPointer(opt gcpgenserver.OptBackupRetentionPolicyV1beta, getter func() bool) *bool {

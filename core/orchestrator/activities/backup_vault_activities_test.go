@@ -87,9 +87,9 @@ func Test_ConvertImmutableAttributesToBackupRetentionPolicy(tt *testing.T) {
 		assert.Nil(t, result)
 	})
 	tt.Run("ConvertsValidImmutableAttributesToRetentionPolicy", func(t *testing.T) {
-		mrd := int64(30)
+		minEnforcedRetentionDuration := int64(30)
 		attrs := &datamodel.ImmutableAttributes{
-			BackupMinimumEnforcedRetentionDuration: &mrd,
+			BackupMinimumEnforcedRetentionDuration: &minEnforcedRetentionDuration,
 			IsDailyBackupImmutable:                 true,
 			IsWeeklyBackupImmutable:                false,
 			IsMonthlyBackupImmutable:               true,
@@ -97,7 +97,7 @@ func Test_ConvertImmutableAttributesToBackupRetentionPolicy(tt *testing.T) {
 		}
 
 		expected := &models.BackupRetentionPolicyV1beta{
-			BackupMinimumEnforcedRetentionDays: &mrd,
+			BackupMinimumEnforcedRetentionDays: &minEnforcedRetentionDuration,
 			DailyBackupImmutable:               true,
 			ManualBackupImmutable:              false,
 			MonthlyBackupImmutable:             true,
@@ -111,17 +111,15 @@ func Test_ConvertImmutableAttributesToBackupRetentionPolicy(tt *testing.T) {
 	tt.Run("ConvertsEmptyImmutableAttributesToRetentionPolicy", func(t *testing.T) {
 		attrs := &datamodel.ImmutableAttributes{}
 
-		expected := &models.BackupRetentionPolicyV1beta{
-			BackupMinimumEnforcedRetentionDays: nil,
-			DailyBackupImmutable:               false,
-			ManualBackupImmutable:              false,
-			MonthlyBackupImmutable:             false,
-			WeeklyBackupImmutable:              false,
-		}
-
+		minEnforcedRetentionDuration := int64(0)
+		attrs.BackupMinimumEnforcedRetentionDuration = &minEnforcedRetentionDuration
+		attrs.IsDailyBackupImmutable = false
+		attrs.IsWeeklyBackupImmutable = false
+		attrs.IsMonthlyBackupImmutable = false
+		attrs.IsAdhocBackupImmutable = false
 		result := _convertImmutableAttributesToBackupRetentionPolicy(attrs)
 
-		assert.Equal(t, expected, result)
+		assert.Nil(t, result)
 	})
 }
 
@@ -131,7 +129,7 @@ func TestConvertsValidBackupVaultV1betaToDataModel(tt *testing.T) {
 		backupRegion := "us-central1"
 		bvType := "STANDARD"
 		desc := "test-descriptopn"
-		mrd := int64(30)
+		minEnforcedRetentionDuration := int64(30)
 		dstBVname := "cross-region-vault"
 		bv := &models.BackupVaultV1beta{
 			ResourceID:      &reourceID,
@@ -139,7 +137,7 @@ func TestConvertsValidBackupVaultV1betaToDataModel(tt *testing.T) {
 			BackupVaultType: &bvType,
 			Description:     &desc,
 			BackupRetentionPolicy: &models.BackupRetentionPolicyV1beta{
-				BackupMinimumEnforcedRetentionDays: &mrd,
+				BackupMinimumEnforcedRetentionDays: &minEnforcedRetentionDuration,
 				DailyBackupImmutable:               true,
 				WeeklyBackupImmutable:              false,
 				MonthlyBackupImmutable:             true,
@@ -168,7 +166,7 @@ func TestConvertsValidBackupVaultV1betaToDataModel(tt *testing.T) {
 			BackupVaultType:       "STANDARD",
 			Description:           &desc,
 			ImmutableAttributes: &datamodel.ImmutableAttributes{
-				BackupMinimumEnforcedRetentionDuration: &mrd,
+				BackupMinimumEnforcedRetentionDuration: &minEnforcedRetentionDuration,
 				IsDailyBackupImmutable:                 true,
 				IsWeeklyBackupImmutable:                false,
 				IsMonthlyBackupImmutable:               true,
@@ -568,59 +566,5 @@ func TestCreateBackupVaultInSDE(tt *testing.T) {
 		// Assertions
 		assert.Error(t, err)
 		assert.Nil(t, bv)
-	})
-}
-
-func TestCheckBackupVaultExistsInVCP_ReturnsBackupVaultWhenExists(tt *testing.T) {
-	tt.Run("WhenBackupVaultExists", func(t *testing.T) {
-		mockStorage := database.NewMockStorage(tt)
-		activity := &BackupVaultActivity{SE: mockStorage}
-
-		ctx := context.Background()
-		vaultName := "test-vault"
-		ownerID := "owner-123"
-		expectedBackupVault := &datamodel.BackupVault{Name: vaultName, AccountID: 123}
-
-		mockStorage.On("GetBackupVaultByNameAndOwnerID", ctx, vaultName, ownerID).Return(expectedBackupVault, nil)
-
-		result, err := activity.CheckBackupVaultExistsInVCP(ctx, vaultName, ownerID)
-
-		assert.NoError(tt, err)
-		assert.Equal(tt, expectedBackupVault, result)
-		mockStorage.AssertCalled(tt, "GetBackupVaultByNameAndOwnerID", ctx, vaultName, ownerID)
-	})
-	tt.Run("WhenBackupVaultDoesNotExist", func(tt *testing.T) {
-		mockStorage := database.NewMockStorage(tt)
-		activity := &BackupVaultActivity{SE: mockStorage}
-
-		ctx := context.Background()
-		vaultName := "non-existent-vault"
-		ownerID := "owner-123"
-
-		mockStorage.On("GetBackupVaultByNameAndOwnerID", ctx, vaultName, ownerID).Return(nil, errors.New("vault not found"))
-
-		result, err := activity.CheckBackupVaultExistsInVCP(ctx, vaultName, ownerID)
-
-		assert.Error(tt, err)
-		assert.Nil(tt, result)
-		assert.Contains(tt, err.Error(), "vault not found")
-		mockStorage.AssertCalled(tt, "GetBackupVaultByNameAndOwnerID", ctx, vaultName, ownerID)
-	})
-	tt.Run("WhenStorageFails", func(tt *testing.T) {
-		mockStorage := database.NewMockStorage(tt)
-		activity := &BackupVaultActivity{SE: mockStorage}
-
-		ctx := context.Background()
-		vaultName := "test-vault"
-		ownerID := "owner-123"
-
-		mockStorage.On("GetBackupVaultByNameAndOwnerID", ctx, vaultName, ownerID).Return(nil, errors.New("storage error"))
-
-		result, err := activity.CheckBackupVaultExistsInVCP(ctx, vaultName, ownerID)
-
-		assert.Error(tt, err)
-		assert.Nil(tt, result)
-		assert.Contains(tt, err.Error(), "storage error")
-		mockStorage.AssertCalled(tt, "GetBackupVaultByNameAndOwnerID", ctx, vaultName, ownerID)
 	})
 }

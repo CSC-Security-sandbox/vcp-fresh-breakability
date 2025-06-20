@@ -208,9 +208,6 @@ func _prepareCreateVolumeParams(req *gcpgenserver.VolumeCreateV1beta, params gcp
 		if reqBackupConfig.BackupPolicyId.IsSet() {
 			param.DataProtection.BackupPolicyId = reqBackupConfig.BackupPolicyId.Value
 		}
-		if reqBackupConfig.BackupChainBytes.IsSet() {
-			param.DataProtection.BackupChainBytes = &reqBackupConfig.BackupChainBytes.Value
-		}
 		if reqBackupConfig.ScheduledBackupEnabled.IsSet() {
 			param.DataProtection.ScheduledBackupEnabled = &reqBackupConfig.ScheduledBackupEnabled.Value
 		}

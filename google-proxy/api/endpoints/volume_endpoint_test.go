@@ -40,7 +40,6 @@ func TestPrepareCreateVolumeParams(t *testing.T) {
 				),
 				BackupConfig: gcpgenserver.NewOptBackupConfigV1beta(
 					gcpgenserver.BackupConfigV1beta{
-						BackupChainBytes:       gcpgenserver.NewOptNilInt64(10199181),
 						BackupPolicyId:         gcpgenserver.NewOptNilString("backup-policy-id"),
 						BackupVaultId:          gcpgenserver.NewOptNilString("backup-vault-id"),
 						ScheduledBackupEnabled: gcpgenserver.NewOptNilBool(true),
@@ -74,7 +73,6 @@ func TestPrepareCreateVolumeParams(t *testing.T) {
 				ScheduledBackupEnabled: nillable.GetBoolPtr(true),
 				BackupVaultID:          "backup-vault-id",
 				BackupPolicyId:         "backup-policy-id",
-				BackupChainBytes:       nillable.GetInt64Ptr(10199181),
 			},
 		}
 		result, err := prepareCreateVolumeParams(req, params, region)
