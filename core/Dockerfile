@@ -1,5 +1,5 @@
 ARG BASE
-FROM golang:1.24.1 as builder
+FROM golang:1.24.1 AS builder
 
 # Pass GitHub token as a build argument
 ARG GHVSA_PAT

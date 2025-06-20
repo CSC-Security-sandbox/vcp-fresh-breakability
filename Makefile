@@ -39,7 +39,7 @@ generate-google-proxy-client:
 .PHONY: test
 PACKAGES="./..."
 test:
-	go test $(PACKAGES)
+	go test -coverprofile=vcp-coverage.out $(PACKAGES)
 
 %:
 	@:
