@@ -9,6 +9,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/ontap-rest/models"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 	"go.temporal.io/sdk/temporal"
@@ -211,4 +212,38 @@ func TestUpdateJobStatusWithEmptyID(t *testing.T) {
 
 	assert.Error(t, err)
 	assert.ErrorContains(t, err, "job uuid cannot be empty")
+}
+
+func TestGetSnapshotPolicyName(t *testing.T) {
+	t.Run("ReturnsPolicyName", func(t *testing.T) {
+		volume := &datamodel.Volume{
+			SnapshotPolicy: &datamodel.SnapshotPolicy{
+				Name: "policy1",
+			},
+		}
+		result := getSnapshotPolicyName(volume)
+		assert.Equal(t, "policy1", result)
+	})
+
+	t.Run("ReturnsEmptyString_WhenVolumeIsNil", func(t *testing.T) {
+		var volume *datamodel.Volume
+		result := getSnapshotPolicyName(volume)
+		assert.Equal(t, "", result)
+	})
+
+	t.Run("ReturnsEmptyString_WhenSnapshotPolicyIsNil", func(t *testing.T) {
+		volume := &datamodel.Volume{}
+		result := getSnapshotPolicyName(volume)
+		assert.Equal(t, "", result)
+	})
+
+	t.Run("ReturnsEmptyString_WhenPolicyNameIsEmpty", func(t *testing.T) {
+		volume := &datamodel.Volume{
+			SnapshotPolicy: &datamodel.SnapshotPolicy{
+				Name: "",
+			},
+		}
+		result := getSnapshotPolicyName(volume)
+		assert.Equal(t, "", result)
+	})
 }

@@ -1012,18 +1012,16 @@ func TestSnapshotPolicyFind(t *testing.T) {
 
 func TestSnapshotPolicyDelete(t *testing.T) {
 	t.Run("WhenRESTCallFails_ThenReturnError", func(tt *testing.T) {
-		transport := &mockTransport{err: errors.New("something went wrong")}
-		storageAPI := storage.New(transport, nil)
-		client := &storageClient{api: storageAPI}
-		err := client.SnapshotPolicyDelete(&SnapshotPolicyDeleteParams{})
-		assert.EqualError(tt, err, transport.err.Error())
+		mockClient := &MockStorageClient{}
+		mockClient.On("SnapshotPolicyDelete", mock.Anything).Return(errors.New("api error"))
+		err := mockClient.SnapshotPolicyDelete(&SnapshotPolicyDeleteParams{})
+		assert.EqualError(tt, err, "api error")
 	})
 
 	t.Run("WhenRESTCallSucceeds_ThenReturnNil", func(tt *testing.T) {
-		transport := &mockTransport{response: &storage.SnapshotPolicyDeleteCollectionOK{}}
-		storageAPI := storage.New(transport, nil)
-		client := &storageClient{api: storageAPI}
-		err := client.SnapshotPolicyDelete(&SnapshotPolicyDeleteParams{})
+		mockClient := &MockStorageClient{}
+		mockClient.On("SnapshotPolicyDelete", mock.Anything).Return(nil)
+		err := mockClient.SnapshotPolicyDelete(&SnapshotPolicyDeleteParams{})
 		assert.NoError(tt, err)
 	})
 }
@@ -1043,6 +1041,20 @@ func TestSnapshotPolicyModify(t *testing.T) {
 		client := &storageClient{api: storageAPI}
 		err := client.SnapshotPolicyModify(&SnapshotPolicyModifyParams{})
 		assert.NoError(tt, err)
+	})
+}
+
+func TestSnapshotPolicyDeleteParamsToONTAP(t *testing.T) {
+	t.Run("WhenParamsIsEmpty", func(tt *testing.T) {
+		otParams := snapshotPolicyDeleteParamsToONTAPCollectionDelete(&SnapshotPolicyDeleteParams{})
+		assert.NotNil(tt, otParams)
+	})
+	t.Run("WhenParamsIsSet", func(tt *testing.T) {
+		params := &SnapshotPolicyDeleteParams{
+			Name: "snap-policy-1",
+		}
+		otParams := snapshotPolicyDeleteParamsToONTAPCollectionDelete(params)
+		assert.Equal(tt, params.Name, *otParams.Name)
 	})
 }
 

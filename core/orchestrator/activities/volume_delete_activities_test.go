@@ -133,3 +133,91 @@ func TestDeleteVolumeInONTAP_Failure(t *testing.T) {
 	assert.EqualError(t, err, expectedError.Error())
 	mockProvider.AssertExpectations(t)
 }
+
+func TestDeleteSnapshotPolicyInONTAP_Success(t *testing.T) {
+	// Arrange
+	mockProvider := new(vsa.MockProvider) // Use the mock provider
+	originalGetProviderByNode := GetProviderByNode
+	defer func() { GetProviderByNode = originalGetProviderByNode }() // Restore original function after test
+
+	// Mock GetProviderByNode to return the mock provider
+	GetProviderByNode = func(ctx context.Context, node *models.Node) vsa.Provider {
+		return mockProvider
+	}
+
+	activity := VolumeDeleteActivity{}
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	volume := &datamodel.Volume{
+		SnapshotPolicy: &datamodel.SnapshotPolicy{
+			Name:      "policy1",
+			IsEnabled: true,
+			Schedules: []*datamodel.SnapshotPolicySchedule{
+				{
+					DaysOfMonth:     []int{1, 15},
+					DaysOfWeek:      []int{2},
+					Hours:           []int{3},
+					Minutes:         []int{0},
+					SnapmirrorLabel: "label1",
+					Count:           5,
+				},
+			},
+		},
+	}
+
+	node := &models.Node{}
+
+	// Mock the DeleteSnapshotPolicy method
+	mockProvider.On("DeleteSnapshotPolicy", volume.SnapshotPolicy.Name).Return(nil)
+
+	// Act
+	err := activity.DeleteSnapshotPolicyInONTAP(ctx, volume.SnapshotPolicy.Name, node)
+
+	// Assert
+	assert.NoError(t, err)
+	mockProvider.AssertExpectations(t)
+}
+
+func TestDeleteSnapshotPolicyInONTAP_Failure(t *testing.T) {
+	// Arrange
+	mockProvider := new(vsa.MockProvider) // Use the mock provider
+	originalGetProviderByNode := GetProviderByNode
+	defer func() { GetProviderByNode = originalGetProviderByNode }() // Restore original function after test
+
+	// Mock GetProviderByNode to return the mock provider
+	GetProviderByNode = func(ctx context.Context, node *models.Node) vsa.Provider {
+		return mockProvider
+	}
+
+	activity := VolumeDeleteActivity{}
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	volume := &datamodel.Volume{
+		SnapshotPolicy: &datamodel.SnapshotPolicy{
+			Name:      "policy1",
+			IsEnabled: true,
+			Schedules: []*datamodel.SnapshotPolicySchedule{
+				{
+					DaysOfMonth:     []int{1, 15},
+					DaysOfWeek:      []int{2},
+					Hours:           []int{3},
+					Minutes:         []int{0},
+					SnapmirrorLabel: "label1",
+					Count:           5,
+				},
+			},
+		},
+	}
+
+	node := &models.Node{}
+	expectedError := errors.New("failed to delete snapshotPolicy in ONTAP")
+
+	// Mock the DeleteSnapshotPolicy method
+	mockProvider.On("DeleteSnapshotPolicy", volume.SnapshotPolicy.Name).Return(expectedError)
+
+	// Act
+	err := activity.DeleteSnapshotPolicyInONTAP(ctx, volume.SnapshotPolicy.Name, node)
+
+	// Assert
+	assert.Error(t, err)
+	assert.EqualError(t, err, expectedError.Error())
+	mockProvider.AssertExpectations(t)
+}

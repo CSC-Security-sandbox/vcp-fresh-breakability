@@ -183,6 +183,18 @@ func (rc *OntapRestProvider) CreateSnapshotPolicy(sp *SnapshotPolicy) error {
 	return nil
 }
 
+// DeleteSnapshotPolicy deletes a snapshot policy in ONTAP using the provided snapshot policy name.
+func (rc *OntapRestProvider) DeleteSnapshotPolicy(snapshotPolicyName string) error {
+	client := getOntapClientFunc(rc.ClientParams)
+	err := client.Storage().SnapshotPolicyDelete(&ontapRest.SnapshotPolicyDeleteParams{
+		Name: snapshotPolicyName,
+	})
+	if err != nil {
+		return vsaerrors.NewVCPError(vsaerrors.ErrOntapRestAPIError, err)
+	}
+	return nil
+}
+
 func generateNameForSchedule(schedule *Schedule) string {
 	// generateNameForSchedule returns a name generated for the specified schedule
 	if len(schedule.DaysOfMonth) > 0 {

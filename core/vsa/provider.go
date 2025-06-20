@@ -62,6 +62,7 @@ type Provider interface {
 	SnapmirrorRelationshipGet(destinationPath, sourcePath string) (*ontapRest.SnapmirrorRelationship, error)
 	SnapmirrorRelationshipTransferCreate(snapmirrorUUID, snapshotName string) error
 	SnapmirrorRelationshipTransferGet(snapmirrorUUID, snapshotName string) (*ontapRest.SnapmirrorTransfer, error)
+	DeleteSnapshotPolicy(snapshotPolicyName string) error
 }
 
 type OntapRestProvider struct {

@@ -178,3 +178,10 @@ func CreateNodeForProviderWithPool(dbNodes []*datamodel.Node, pool *datamodel.Po
 	}
 	return node
 }
+
+func getSnapshotPolicyName(volume *datamodel.Volume) string {
+	if volume != nil && volume.SnapshotPolicy != nil && volume.SnapshotPolicy.Name != "" {
+		return volume.SnapshotPolicy.Name
+	}
+	return ""
+}

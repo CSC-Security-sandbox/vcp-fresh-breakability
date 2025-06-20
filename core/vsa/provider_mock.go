@@ -987,6 +987,52 @@ func (_c *MockProvider_DeleteSnapshot_Call) RunAndReturn(run func(string, string
 	return _c
 }
 
+// DeleteSnapshotPolicy provides a mock function with given fields: snapshotPolicyName
+func (_m *MockProvider) DeleteSnapshotPolicy(snapshotPolicyName string) error {
+	ret := _m.Called(snapshotPolicyName)
+
+	if len(ret) == 0 {
+		panic("no return value specified for DeleteSnapshotPolicy")
+	}
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(string) error); ok {
+		r0 = rf(snapshotPolicyName)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// MockProvider_DeleteSnapshotPolicy_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'DeleteSnapshotPolicy'
+type MockProvider_DeleteSnapshotPolicy_Call struct {
+	*mock.Call
+}
+
+// DeleteSnapshotPolicy is a helper method to define mock.On call
+//   - snapshotPolicyName string
+func (_e *MockProvider_Expecter) DeleteSnapshotPolicy(snapshotPolicyName interface{}) *MockProvider_DeleteSnapshotPolicy_Call {
+	return &MockProvider_DeleteSnapshotPolicy_Call{Call: _e.mock.On("DeleteSnapshotPolicy", snapshotPolicyName)}
+}
+
+func (_c *MockProvider_DeleteSnapshotPolicy_Call) Run(run func(snapshotPolicyName string)) *MockProvider_DeleteSnapshotPolicy_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(string))
+	})
+	return _c
+}
+
+func (_c *MockProvider_DeleteSnapshotPolicy_Call) Return(_a0 error) *MockProvider_DeleteSnapshotPolicy_Call {
+	_c.Call.Return(_a0)
+	return _c
+}
+
+func (_c *MockProvider_DeleteSnapshotPolicy_Call) RunAndReturn(run func(string) error) *MockProvider_DeleteSnapshotPolicy_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // DeleteVolume provides a mock function with given fields: volumeUUID, volumeName
 func (_m *MockProvider) DeleteVolume(volumeUUID string, volumeName string) error {
 	ret := _m.Called(volumeUUID, volumeName)

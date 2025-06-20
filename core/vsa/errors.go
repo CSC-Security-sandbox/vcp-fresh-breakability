@@ -13,11 +13,12 @@ var (
 	defaultRetrySleepInterval = 5
 	maxRetryCount             = env.GetInt("ONTAP_TRANSIENT_ERROR_RETRIES", defaultMaxRetryCount)
 	retrySleepInterval        = time.Duration(env.GetInt("ONTAP_TRANSIENT_ERROR_SLEEP_SECONDS", defaultRetrySleepInterval)) * time.Second
+	RetryOnErrors             = _retryOnErrors
 )
 
 type operation func() error
 
-func retryOnErrors(op operation, errs []string) (err error) {
+func _retryOnErrors(op operation, errs []string) (err error) {
 	err = op()
 	for i := 0; i < maxRetryCount && err != nil && shouldRetry(err, errs); i++ {
 		time.Sleep(retrySleepInterval)

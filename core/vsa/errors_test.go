@@ -37,7 +37,7 @@ func TestRetryOnErrors(t *testing.T) {
 		testRetryOnErrors(tt, errs, errors.New("now for something completely different"))
 	})
 	t.Run("WhenSuccessful", func(tt *testing.T) {
-		err := retryOnErrors(func() error { return nil }, []string{"busy", "is in use"})
+		err := _retryOnErrors(func() error { return nil }, []string{"busy", "is in use"})
 		if err != nil {
 			tt.Fail()
 		}
@@ -55,7 +55,7 @@ func testRetryOnErrors(t *testing.T, retryErrs []error, expected error) {
 	}
 
 	before := time.Now()
-	err := retryOnErrors(op, []string{"busy", "is in use"})
+	err := _retryOnErrors(op, []string{"busy", "is in use"})
 	after := time.Now()
 	if err != expected {
 		t.Fail()
