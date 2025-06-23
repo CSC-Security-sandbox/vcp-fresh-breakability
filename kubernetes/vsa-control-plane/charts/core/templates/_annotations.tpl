@@ -19,4 +19,5 @@ Extra annotations specific for core serviceAccount. Fetched from .Values.service
 
 {{- define "vcp-dbmigrate.helmchart.annotations" -}}
 helm.sh/deprecated: {{ .Chart.Deprecated | quote }}
+sidecar.istio.io/inject: {{ "false" | quote }}
 {{- end -}}
