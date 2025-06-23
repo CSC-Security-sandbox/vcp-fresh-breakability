@@ -7,6 +7,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 	"gorm.io/gorm"
 )
@@ -83,6 +84,9 @@ func _getJobWithDetails(db *gorm.DB, query *datamodel.Job) (*datamodel.Job, erro
 	job := &datamodel.Job{}
 	err := db.First(&job, query).Error
 	if err != nil {
+		if vsaerrors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataNotFoundError, errors.NewNotFoundErr("job", nil))
+		}
 		return nil, vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataReadError, err)
 	}
 	return job, nil

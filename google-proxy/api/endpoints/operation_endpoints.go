@@ -4,14 +4,18 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	customerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
+
 	"github.com/go-faster/jx"
 	"github.com/google/uuid"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/cvpapi/async"
 	cvpmodels "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/models"
 	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	gcpgenserver "github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/api/gcp-servergen"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/helper"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/nillable"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 )
 
@@ -43,13 +47,14 @@ func (h Handler) V1betaDescribeOperation(ctx context.Context, params gcpgenserve
 		}, nil
 	}
 	job, err := h.Orchestrator.GetJob(ctx, jobUUID.String())
-	if err != nil {
+	if err != nil && customerrors.IsNotFoundErr(err) {
 		logger.Error("Failed to describe operation", "error", err.Error())
 		return &gcpgenserver.V1betaDescribeOperationInternalServerError{
 			Code:    500,
 			Message: err.Error(),
 		}, nil
 	}
+
 	if job != nil {
 		helper.AddLabelerAttributes(ctx, params.ProjectNumber, params.LocationId, job)
 		switch job.State {
@@ -82,11 +87,97 @@ func (h Handler) V1betaDescribeOperation(ctx context.Context, params gcpgenserve
 				Message: fmt.Sprintf("Invalid Job State: %s", job.State),
 			}, nil
 		}
+	} else {
+		// If the job is not found, we will check the CVP operation
+		// Create a CVP client to check the operation
+		jwtToken := utils.GetJWTTokenFromContext(ctx)
+		logger := util.GetLogger(ctx)
+		cvpClient := createClient(logger, jwtToken)
+		operationUUID := utils.GetOperationUUID(params.OperationId)
+		operationParams := async.NewV1betaDescribeOperationParams()
+		operationParams.OperationID = operationUUID
+		operationParams.ProjectNumber = params.ProjectNumber
+		operationParams.LocationID = params.LocationId
+		// Call the CVP operation
+		operationResponse, err := cvpClient.Async.V1betaDescribeOperation(operationParams)
+		if err != nil {
+			switch e := err.(type) {
+			case *async.V1betaDescribeOperationUnprocessableEntity:
+				msg := nillable.GetString(&e.Payload.Message, "")
+				code := float64(nillable.GetFloat64(&e.Payload.Code, 0))
+				return &gcpgenserver.V1betaDescribeOperationUnprocessableEntity{
+					Code:    code,
+					Message: msg,
+				}, nil
+			case *async.V1betaDescribeOperationTooManyRequests:
+				msg := nillable.GetString(&e.Payload.Message, "")
+				code := float64(nillable.GetFloat64(&e.Payload.Code, 0))
+				return &gcpgenserver.V1betaDescribeOperationTooManyRequests{
+					Code:    code,
+					Message: msg,
+				}, nil
+			case *async.V1betaDescribeOperationBadRequest:
+				msg := nillable.GetString(&e.Payload.Message, "")
+				code := float64(nillable.GetFloat64(&e.Payload.Code, 0))
+				return &gcpgenserver.V1betaDescribeOperationBadRequest{
+					Code:    code,
+					Message: msg,
+				}, nil
+			case *async.V1betaDescribeOperationUnauthorized:
+				msg := nillable.GetString(&e.Payload.Message, "")
+				code := float64(nillable.GetFloat64(&e.Payload.Code, 0))
+				return &gcpgenserver.V1betaDescribeOperationUnauthorized{
+					Code:    code,
+					Message: msg,
+				}, nil
+
+			case *async.V1betaDescribeOperationForbidden:
+				msg := nillable.GetString(&e.Payload.Message, "")
+				code := float64(nillable.GetFloat64(&e.Payload.Code, 0))
+				return &gcpgenserver.V1betaDescribeOperationForbidden{
+					Code:    code,
+					Message: msg,
+				}, nil
+
+			case *async.V1betaDescribeOperationNotFound:
+				msg := nillable.GetString(&e.Payload.Message, "")
+				code := float64(nillable.GetFloat64(&e.Payload.Code, 0))
+				return &gcpgenserver.V1betaDescribeOperationNotFound{
+					Code:    code,
+					Message: msg,
+				}, nil
+			case *async.V1betaDescribeOperationInternalServerError:
+				return &gcpgenserver.V1betaDescribeOperationInternalServerError{
+					Code:    500,
+					Message: err.Error(),
+				}, nil
+			default:
+				return &gcpgenserver.V1betaDescribeOperationInternalServerError{
+					Code:    500,
+					Message: err.Error(),
+				}, nil
+			}
+		}
+		if operationResponse == nil || operationResponse.Payload == nil {
+			return &gcpgenserver.V1betaDescribeOperationInternalServerError{
+				Code:    500,
+				Message: "unknown error during the get job",
+			}, nil
+		}
+		// Check if there is an error in the operation
+		if operationResponse.Payload.Error != nil {
+			return &gcpgenserver.V1betaDescribeOperationBadRequest{
+				Code:    operationResponse.Payload.Error.Code,
+				Message: operationResponse.Payload.Error.Message,
+			}, nil
+		}
+		// Convert the CVP operation to gcpgenserver operation
+		convertedOperation := convertOperationToOperationV1Beta(operationResponse.Payload)
+		// Set the name of the operation
+		convertedOperation.Name = gcpgenserver.NewOptString(fmt.Sprintf("/v1beta/projects/%s/locations/%s/operations/%s", params.ProjectNumber, params.LocationId, params.OperationId))
+		// Return the converted operation
+		return convertedOperation, nil
 	}
-	return &gcpgenserver.V1betaDescribeOperationInternalServerError{
-		Code:    500,
-		Message: "Job not found",
-	}, nil
 }
 func convertOperationToOperationV1Beta(op *cvpmodels.OperationV1beta) *gcpgenserver.OperationV1beta {
 	// TODO: Convert the CVP operation model to gcpgenserver model

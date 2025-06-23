@@ -49,7 +49,7 @@ func TestGetJob(t *testing.T) {
 		_, err1 := store.GetJob(context.Background(), "test-job-uuid")
 		var customErr *vsaerrors.CustomError
 		if vsaerrors.As(err1, &customErr) {
-			assert.EqualError(tt, customErr.Unwrap(), "record not found")
+			assert.EqualError(tt, customErr.Unwrap(), "job not found")
 		} else {
 			tt.Fatalf("Expected a CustomError, got %v", err)
 		}

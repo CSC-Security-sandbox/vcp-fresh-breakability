@@ -110,7 +110,6 @@ func (h Handler) V1betaCreateBackup(ctx context.Context, req *gcpgenserver.Backu
 
 	// Check if volume exist in the VSA if not call CVP API to create the backup
 	if (err != nil && errors.IsNotFoundErr(err)) || vol == nil {
-		// TODO:  VSCP-631 Handle Polling of CVP using temporal
 		jwtToken := utils.GetJWTTokenFromContext(ctx)
 		cvpClient := createClient(logger, jwtToken)
 

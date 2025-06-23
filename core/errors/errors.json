@@ -83,6 +83,12 @@
     "retriable": false,
     "http_code": 500
   },
+  "2007": {
+    "description": "Requested Resource is not found in the database",
+    "message": "Resource not found",
+    "retriable": false,
+    "http_code": 404
+  },
   "3001": {
     "description": "GCP Client Initialization Error",
     "message": "An internal error occurred.",
