@@ -1,4 +1,4 @@
 
-base_tag: ""
-target_tag: ""
-operation_type: "" #This value be either HFFirstRelease or FinalTag
+base_tag: "25055.0.0-RC.3"
+target_tag: "25055.0.0"
+operation_type: "FinalTag" #This value be either HFFirstRelease or FinalTag
