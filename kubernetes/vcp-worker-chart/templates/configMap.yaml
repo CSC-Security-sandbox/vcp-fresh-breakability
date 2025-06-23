@@ -29,4 +29,11 @@ data:
   GCP_SERVICE_NETWORKING_ENDPOINT_URL: {{ .Values.workerConfig.gcpServiceNetworkingEndpointUrl | quote }}
   LOCAL_REGION: {{ .Values.workerConfig.localRegion | quote }}
   VSA_NODE_USERNAME: {{ .Values.workerConfig.vsaNodeUsername | quote }}
+  GCP_HYDRATE_AUTH_SERVICE_ACCOUNT: "{{ index .Values "gcpHydrateAuthServiceAccount" }}"
+  GCP_HYDRATE_BASE_URL: "{{ index .Values "gcpHydrateBaseUrl" }}"
+  PROXY_CLIENT_TRANSPORT_SCHEMA: "{{ index .Values "proxyClientTransportSchema" }}"
+  VCP_PAIRED_REGIONS: "{{ index .Values "vcpPairedRegions" }}"
+  GCP_AUTH_SERVICE_ACCOUNT: "{{ index .Values "gcpAuthServiceAccount" }}"
+  GCP_SERVICE_URL: "{{ index .Values "gcpServiceUrl" }}"
+  LOGGER_LEVEL: "{{ index .Values "loggerLevel" }}"
 

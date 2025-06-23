@@ -6,7 +6,7 @@ env: ""  # To be kept empty for GKE
 acceptedSAs: "" # Comma-separated list of service account emails that are allowed to access the Google Proxy APIs.
 gcpConsumerMgmtEndpointUrl: ""
 gcpServiceNetworkingEndpointUrl: ""
-gcpServiceUrl: ""
+gcpServiceUrl: "https://cloudvolumesgcp-api.netapp.com"
 localRegion: ""
 otelGoogleProjectId: ""
 runMigrationOnStart: true
@@ -21,6 +21,13 @@ caPoolDeployedProjectId: ""
 vsaDeployedDnsName: ""
 vsaSecretCacheCleanupIntervalMinutes: 5
 vsaSecretAuthCacheExpirationMinutes: 5
+gcpHydrateAuthServiceAccount: ""
+gcpAuthServiceAccount: ""
+gcpHydrateBaseUrl: ""
+proxyClientTransportSchema: "https"
+vcpPairedRegions: ""
+loggerLevel: "info"
+cvpHost: ""
 
 images:
   googleProxy:

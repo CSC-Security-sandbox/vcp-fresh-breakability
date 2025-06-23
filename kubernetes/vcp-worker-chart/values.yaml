@@ -45,6 +45,13 @@ workerConfig:
   objectStoreProvider: "gcp"
   objectStoresServer: "storage.googleapis.com"
   objectStoreAuthType: "GCP_SA"
+  gcpHydrateAuthServiceAccount: ""
+  gcpHydrateBaseUrl: ""
+  proxyClientTransportSchema: "https"
+  vcpPairedRegions: ""
+  gcpAuthServiceAccount: ""
+  gcpServiceUrl: "https://cloudvolumesgcp-api.netapp.com"
+  loggerLevel: "info"
 
   # Database configuration
   database:

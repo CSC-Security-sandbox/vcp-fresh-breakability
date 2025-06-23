@@ -38,6 +38,13 @@ data:
   VSA_DEPLOYED_DNS_NAME: "{{ index .Values "vsaDeployedDnsName" }}"
   VSA_SECRET_CACHE_CLEANUP_INTERVAL_MINUTES: "{{ index .Values "vsaSecretCacheCleanupIntervalMinutes" }}"
   VSA_SECRET_AUTH_CACHE_EXPIRATION_MINUTES: "{{ index .Values "vsaSecretAuthCacheExpirationMinutes" }}"
+  GCP_HYDRATE_AUTH_SERVICE_ACCOUNT: "{{ index .Values "gcpHydrateAuthServiceAccount" }}"
+  GCP_AUTH_SERVICE_ACCOUNT: "{{ index .Values "gcpAuthServiceAccount" }}"
+  GCP_HYDRATE_BASE_URL: "{{ index .Values "gcpHydrateBaseUrl" }}"
+  PROXY_CLIENT_TRANSPORT_SCHEMA: "{{ index .Values "proxyClientTransportSchema" }}"
+  VCP_PAIRED_REGIONS: "{{ index .Values "vcpPairedRegions" }}"
+  LOGGER_LEVEL: "{{ index .Values "loggerLevel" }}"
+  CVP_HOST: "{{ index .Values "cvpHost" }}"
   config.yaml: |
     DB_HOST: {{ index .Values "database" "host" }}
     DB_USER: {{ index .Values "database" "user"  }}
