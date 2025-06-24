@@ -427,12 +427,12 @@ func TestBetaInternalmountVolumeReplication(t *testing.T) {
 			Return(nil, errors.New("mount check failed"))
 
 		handler := Handler{Orchestrator: mockOrchestrator}
-		params := gcpgenserver.V1betaInternalmountVolumeReplicationParams{
+		params := gcpgenserver.V1betaInternalMountVolumeReplicationParams{
 			VolumeReplicationId: "volume-replication-id",
 			ProjectNumber:       "project-number",
 		}
-		result, _ := handler.V1betaInternalmountVolumeReplication(context.Background(), params)
-		assert.IsType(tt, &gcpgenserver.V1betaInternalmountVolumeReplicationInternalServerError{Code: 500, Message: "mount check failed"}, result)
+		result, _ := handler.V1betaInternalMountVolumeReplication(context.Background(), params)
+		assert.IsType(tt, &gcpgenserver.V1betaInternalMountVolumeReplicationInternalServerError{Code: 500, Message: "mount check failed"}, result)
 		mockOrchestrator.AssertExpectations(tt)
 	})
 	t.Run("ReturnsVolumeReplicationInternalWhenMountCheckSucceeds", func(tt *testing.T) {
@@ -449,11 +449,11 @@ func TestBetaInternalmountVolumeReplication(t *testing.T) {
 			Return(mockJob, nil)
 
 		handler := Handler{Orchestrator: mockOrchestrator}
-		params := gcpgenserver.V1betaInternalmountVolumeReplicationParams{
+		params := gcpgenserver.V1betaInternalMountVolumeReplicationParams{
 			VolumeReplicationId: "volume-replication-id",
 			ProjectNumber:       "project-number",
 		}
-		result, err := handler.V1betaInternalmountVolumeReplication(context.Background(), params)
+		result, err := handler.V1betaInternalMountVolumeReplication(context.Background(), params)
 
 		assert.NoError(tt, err)
 		assert.IsType(tt, &gcpgenserver.InternalJobV1beta{}, result)

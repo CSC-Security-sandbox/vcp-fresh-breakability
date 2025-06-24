@@ -167,12 +167,13 @@ func (h Handler) V1betaInternalGetReplicationJobs(ctx context.Context, params gc
 	}, nil
 }
 
-func (h Handler) V1betaInternalmountVolumeReplication(ctx context.Context, params gcpgenserver.V1betaInternalmountVolumeReplicationParams) (gcpgenserver.V1betaInternalmountVolumeReplicationRes, error) {
+func (h Handler) V1betaInternalMountVolumeReplication(ctx context.Context, params gcpgenserver.V1betaInternalMountVolumeReplicationParams) (gcpgenserver.V1betaInternalMountVolumeReplicationRes, error) {
 	logger := util.GetLogger(ctx)
+	helper.AddLabelerAttributes(ctx, params.ProjectNumber, params.LocationId, nil)
 	job, err := h.Orchestrator.PerformMountCheck(ctx, params.VolumeReplicationId, params.ProjectNumber)
 	if err != nil {
 		logger.Error("Failed to PerformMountCheck", "error", err.Error())
-		return &gcpgenserver.V1betaInternalmountVolumeReplicationInternalServerError{Code: 500, Message: err.Error()}, nil
+		return &gcpgenserver.V1betaInternalMountVolumeReplicationInternalServerError{Code: 500, Message: err.Error()}, nil
 	}
 	internalJob := convertJobToInternalJobV1Beta(job)
 	return &internalJob, nil

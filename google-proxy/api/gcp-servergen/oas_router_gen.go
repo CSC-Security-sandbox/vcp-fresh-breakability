@@ -442,7 +442,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 													// Leaf node.
 													switch r.Method {
 													case "POST":
-														s.handleV1betaInternalmountVolumeReplicationRequest([3]string{
+														s.handleV1betaInternalMountVolumeReplicationRequest([3]string{
 															args[0],
 															args[1],
 															args[2],
@@ -2424,9 +2424,9 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 													// Leaf node.
 													switch method {
 													case "POST":
-														r.name = V1betaInternalmountVolumeReplicationOperation
+														r.name = V1betaInternalMountVolumeReplicationOperation
 														r.summary = "Mount a volume replication"
-														r.operationID = "v1beta_internalmountVolumeReplication"
+														r.operationID = "v1beta_internalMountVolumeReplication"
 														r.pathPattern = "/v1beta/internal/projects/{projectNumber}/locations/{locationId}/volumeReplication/{volumeReplicationId}/mount"
 														r.args = args
 														r.count = 3

@@ -4058,7 +4058,7 @@ func (s *InternalJobV1beta) SetScheduledAt(val OptDateTime) {
 	s.ScheduledAt = val
 }
 
-func (*InternalJobV1beta) v1betaInternalmountVolumeReplicationRes() {}
+func (*InternalJobV1beta) v1betaInternalMountVolumeReplicationRes() {}
 
 // Ref: #/components/schemas/Job_v1beta
 type JobV1beta struct {
@@ -15642,6 +15642,41 @@ type V1betaInternalGetReplicationJobsUnprocessableEntity Error
 
 func (*V1betaInternalGetReplicationJobsUnprocessableEntity) v1betaInternalGetReplicationJobsRes() {}
 
+type V1betaInternalMountVolumeReplicationBadRequest Error
+
+func (*V1betaInternalMountVolumeReplicationBadRequest) v1betaInternalMountVolumeReplicationRes() {}
+
+type V1betaInternalMountVolumeReplicationConflict Error
+
+func (*V1betaInternalMountVolumeReplicationConflict) v1betaInternalMountVolumeReplicationRes() {}
+
+type V1betaInternalMountVolumeReplicationForbidden Error
+
+func (*V1betaInternalMountVolumeReplicationForbidden) v1betaInternalMountVolumeReplicationRes() {}
+
+type V1betaInternalMountVolumeReplicationInternalServerError Error
+
+func (*V1betaInternalMountVolumeReplicationInternalServerError) v1betaInternalMountVolumeReplicationRes() {
+}
+
+type V1betaInternalMountVolumeReplicationMethodNotAllowed Error
+
+func (*V1betaInternalMountVolumeReplicationMethodNotAllowed) v1betaInternalMountVolumeReplicationRes() {
+}
+
+type V1betaInternalMountVolumeReplicationNotFound Error
+
+func (*V1betaInternalMountVolumeReplicationNotFound) v1betaInternalMountVolumeReplicationRes() {}
+
+type V1betaInternalMountVolumeReplicationUnauthorized Error
+
+func (*V1betaInternalMountVolumeReplicationUnauthorized) v1betaInternalMountVolumeReplicationRes() {}
+
+type V1betaInternalMountVolumeReplicationUnprocessableEntity Error
+
+func (*V1betaInternalMountVolumeReplicationUnprocessableEntity) v1betaInternalMountVolumeReplicationRes() {
+}
+
 type V1betaInternalReleaseVolumeReplicationBadRequest Error
 
 func (*V1betaInternalReleaseVolumeReplicationBadRequest) v1betaInternalReleaseVolumeReplicationRes() {
@@ -15805,41 +15840,6 @@ func (*V1betaInternalUpdateVolumeReplicationUnauthorized) v1betaInternalUpdateVo
 type V1betaInternalUpdateVolumeReplicationUnprocessableEntity Error
 
 func (*V1betaInternalUpdateVolumeReplicationUnprocessableEntity) v1betaInternalUpdateVolumeReplicationRes() {
-}
-
-type V1betaInternalmountVolumeReplicationBadRequest Error
-
-func (*V1betaInternalmountVolumeReplicationBadRequest) v1betaInternalmountVolumeReplicationRes() {}
-
-type V1betaInternalmountVolumeReplicationConflict Error
-
-func (*V1betaInternalmountVolumeReplicationConflict) v1betaInternalmountVolumeReplicationRes() {}
-
-type V1betaInternalmountVolumeReplicationForbidden Error
-
-func (*V1betaInternalmountVolumeReplicationForbidden) v1betaInternalmountVolumeReplicationRes() {}
-
-type V1betaInternalmountVolumeReplicationInternalServerError Error
-
-func (*V1betaInternalmountVolumeReplicationInternalServerError) v1betaInternalmountVolumeReplicationRes() {
-}
-
-type V1betaInternalmountVolumeReplicationMethodNotAllowed Error
-
-func (*V1betaInternalmountVolumeReplicationMethodNotAllowed) v1betaInternalmountVolumeReplicationRes() {
-}
-
-type V1betaInternalmountVolumeReplicationNotFound Error
-
-func (*V1betaInternalmountVolumeReplicationNotFound) v1betaInternalmountVolumeReplicationRes() {}
-
-type V1betaInternalmountVolumeReplicationUnauthorized Error
-
-func (*V1betaInternalmountVolumeReplicationUnauthorized) v1betaInternalmountVolumeReplicationRes() {}
-
-type V1betaInternalmountVolumeReplicationUnprocessableEntity Error
-
-func (*V1betaInternalmountVolumeReplicationUnprocessableEntity) v1betaInternalmountVolumeReplicationRes() {
 }
 
 type V1betaListActiveDirectoriesBadRequest Error

@@ -490,6 +490,15 @@ func (UnimplementedHandler) V1betaInternalGetReplicationJobs(ctx context.Context
 	return r, ht.ErrNotImplemented
 }
 
+// V1betaInternalMountVolumeReplication implements v1beta_internalMountVolumeReplication operation.
+//
+// Mounts the DP volume once the baseline transfer is complete.
+//
+// POST /v1beta/internal/projects/{projectNumber}/locations/{locationId}/volumeReplication/{volumeReplicationId}/mount
+func (UnimplementedHandler) V1betaInternalMountVolumeReplication(ctx context.Context, params V1betaInternalMountVolumeReplicationParams) (r V1betaInternalMountVolumeReplicationRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
 // V1betaInternalReleaseVolumeReplication implements v1beta_internalReleaseVolumeReplication operation.
 //
 // Release a volume replication on the source.
@@ -527,15 +536,6 @@ func (UnimplementedHandler) V1betaInternalStopVolumeReplication(ctx context.Cont
 //
 // PUT /v1beta/internal/projects/{projectNumber}/locations/{locationId}/volumeReplication/{volumeReplicationId}
 func (UnimplementedHandler) V1betaInternalUpdateVolumeReplication(ctx context.Context, req *VolumeReplicationUpdateInternalV1beta, params V1betaInternalUpdateVolumeReplicationParams) (r V1betaInternalUpdateVolumeReplicationRes, _ error) {
-	return r, ht.ErrNotImplemented
-}
-
-// V1betaInternalmountVolumeReplication implements v1beta_internalmountVolumeReplication operation.
-//
-// Mounts for a volume replications.
-//
-// POST /v1beta/internal/projects/{projectNumber}/locations/{locationId}/volumeReplication/{volumeReplicationId}/mount
-func (UnimplementedHandler) V1betaInternalmountVolumeReplication(ctx context.Context, params V1betaInternalmountVolumeReplicationParams) (r V1betaInternalmountVolumeReplicationRes, _ error) {
 	return r, ht.ErrNotImplemented
 }
 

@@ -329,6 +329,12 @@ type Handler interface {
 	//
 	// GET /v1beta/internal/projects/{projectNumber}/locations/{locationId}/pools/{poolId}/ReplicationJobs
 	V1betaInternalGetReplicationJobs(ctx context.Context, params V1betaInternalGetReplicationJobsParams) (V1betaInternalGetReplicationJobsRes, error)
+	// V1betaInternalMountVolumeReplication implements v1beta_internalMountVolumeReplication operation.
+	//
+	// Mounts the DP volume once the baseline transfer is complete.
+	//
+	// POST /v1beta/internal/projects/{projectNumber}/locations/{locationId}/volumeReplication/{volumeReplicationId}/mount
+	V1betaInternalMountVolumeReplication(ctx context.Context, params V1betaInternalMountVolumeReplicationParams) (V1betaInternalMountVolumeReplicationRes, error)
 	// V1betaInternalReleaseVolumeReplication implements v1beta_internalReleaseVolumeReplication operation.
 	//
 	// Release a volume replication on the source.
@@ -357,12 +363,6 @@ type Handler interface {
 	//
 	// PUT /v1beta/internal/projects/{projectNumber}/locations/{locationId}/volumeReplication/{volumeReplicationId}
 	V1betaInternalUpdateVolumeReplication(ctx context.Context, req *VolumeReplicationUpdateInternalV1beta, params V1betaInternalUpdateVolumeReplicationParams) (V1betaInternalUpdateVolumeReplicationRes, error)
-	// V1betaInternalmountVolumeReplication implements v1beta_internalmountVolumeReplication operation.
-	//
-	// Mounts for a volume replications.
-	//
-	// POST /v1beta/internal/projects/{projectNumber}/locations/{locationId}/volumeReplication/{volumeReplicationId}/mount
-	V1betaInternalmountVolumeReplication(ctx context.Context, params V1betaInternalmountVolumeReplicationParams) (V1betaInternalmountVolumeReplicationRes, error)
 	// V1betaListActiveDirectories implements v1beta_listActiveDirectories operation.
 	//
 	// Returns descriptions of all Active Directory credentials owned by the caller.

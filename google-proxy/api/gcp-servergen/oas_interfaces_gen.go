@@ -209,6 +209,10 @@ type V1betaInternalGetReplicationJobsRes interface {
 	v1betaInternalGetReplicationJobsRes()
 }
 
+type V1betaInternalMountVolumeReplicationRes interface {
+	v1betaInternalMountVolumeReplicationRes()
+}
+
 type V1betaInternalReleaseVolumeReplicationRes interface {
 	v1betaInternalReleaseVolumeReplicationRes()
 }
@@ -223,10 +227,6 @@ type V1betaInternalStopVolumeReplicationRes interface {
 
 type V1betaInternalUpdateVolumeReplicationRes interface {
 	v1betaInternalUpdateVolumeReplicationRes()
-}
-
-type V1betaInternalmountVolumeReplicationRes interface {
-	v1betaInternalmountVolumeReplicationRes()
 }
 
 type V1betaListActiveDirectoriesRes interface {
