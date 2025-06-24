@@ -538,21 +538,40 @@ func (_c *MockStorageClient_SnapshotCreate_Call) RunAndReturn(run func(*Snapshot
 }
 
 // SnapshotDelete provides a mock function with given fields: params
-func (_m *MockStorageClient) SnapshotDelete(params *SnapshotDeleteParams) error {
+func (_m *MockStorageClient) SnapshotDelete(params *SnapshotDeleteParams) (bool, *JobAccepted, error) {
 	ret := _m.Called(params)
 
 	if len(ret) == 0 {
 		panic("no return value specified for SnapshotDelete")
 	}
 
-	var r0 error
-	if rf, ok := ret.Get(0).(func(*SnapshotDeleteParams) error); ok {
+	var r0 bool
+	var r1 *JobAccepted
+	var r2 error
+	if rf, ok := ret.Get(0).(func(*SnapshotDeleteParams) (bool, *JobAccepted, error)); ok {
+		return rf(params)
+	}
+	if rf, ok := ret.Get(0).(func(*SnapshotDeleteParams) bool); ok {
 		r0 = rf(params)
 	} else {
-		r0 = ret.Error(0)
+		r0 = ret.Get(0).(bool)
 	}
 
-	return r0
+	if rf, ok := ret.Get(1).(func(*SnapshotDeleteParams) *JobAccepted); ok {
+		r1 = rf(params)
+	} else {
+		if ret.Get(1) != nil {
+			r1 = ret.Get(1).(*JobAccepted)
+		}
+	}
+
+	if rf, ok := ret.Get(2).(func(*SnapshotDeleteParams) error); ok {
+		r2 = rf(params)
+	} else {
+		r2 = ret.Error(2)
+	}
+
+	return r0, r1, r2
 }
 
 // MockStorageClient_SnapshotDelete_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'SnapshotDelete'
@@ -573,12 +592,12 @@ func (_c *MockStorageClient_SnapshotDelete_Call) Run(run func(params *SnapshotDe
 	return _c
 }
 
-func (_c *MockStorageClient_SnapshotDelete_Call) Return(_a0 error) *MockStorageClient_SnapshotDelete_Call {
-	_c.Call.Return(_a0)
+func (_c *MockStorageClient_SnapshotDelete_Call) Return(_a0 bool, _a1 *JobAccepted, _a2 error) *MockStorageClient_SnapshotDelete_Call {
+	_c.Call.Return(_a0, _a1, _a2)
 	return _c
 }
 
-func (_c *MockStorageClient_SnapshotDelete_Call) RunAndReturn(run func(*SnapshotDeleteParams) error) *MockStorageClient_SnapshotDelete_Call {
+func (_c *MockStorageClient_SnapshotDelete_Call) RunAndReturn(run func(*SnapshotDeleteParams) (bool, *JobAccepted, error)) *MockStorageClient_SnapshotDelete_Call {
 	_c.Call.Return(run)
 	return _c
 }

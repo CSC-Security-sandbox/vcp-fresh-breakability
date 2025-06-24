@@ -35,7 +35,7 @@ type StorageClient interface {
 
 	SnapshotCreate(params *SnapshotCreateParams) (*Snapshot, *JobAccepted, error)
 	SnapshotGet(params *SnapshotGetParams) (*Snapshot, error)
-	SnapshotDelete(params *SnapshotDeleteParams) error
+	SnapshotDelete(params *SnapshotDeleteParams) (bool, *JobAccepted, error)
 	SnapshotPolicyCreate(params *SnapshotPolicyCreateParams) error
 	SnapshotPolicyFind(fspp *SnapshotPolicyFindParams) (*models.SnapshotPolicy, error)
 	SnapshotPolicyDelete(params *SnapshotPolicyDeleteParams) error
@@ -431,12 +431,18 @@ func (sc *storageClient) SnapshotGet(params *SnapshotGetParams) (*Snapshot, erro
 }
 
 // SnapshotDelete invokes pkg/ontap-rest/client/storage/Client.SnapshotDelete to delete Snapshot in a volume
-func (sc *storageClient) SnapshotDelete(params *SnapshotDeleteParams) error {
+func (sc *storageClient) SnapshotDelete(params *SnapshotDeleteParams) (bool, *JobAccepted, error) {
 	if params != nil && params.UUID != "" {
-		_, _, err := sc.api.SnapshotDelete(snapshotDeleteParamsToONTAP(params), nil)
-		return err
+		done, res, err := sc.api.SnapshotDelete(snapshotDeleteParamsToONTAP(params), nil)
+		if err != nil {
+			return false, nil, err
+		}
+		if done != nil {
+			return true, nil, nil
+		}
+		return false, &JobAccepted{JobUUID: string(*res.Payload.Job.UUID)}, nil
 	}
-	return errors.New("no UUID provided for SnapshotDelete")
+	return false, nil, errors.New("no UUID provided for SnapshotDelete")
 }
 
 // SnapshotPolicyCreate invokes pkg/ontap-rest/client/storage/Client.SnapshotPolicyCreate

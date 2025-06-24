@@ -910,25 +910,37 @@ func TestSnapshotDelete(t *testing.T) {
 		transport := &mockTransport{err: errors.New("something went wrong")}
 		storageAPI := storage.New(transport, nil)
 		client := &storageClient{api: storageAPI}
-		err := client.SnapshotDelete(&SnapshotDeleteParams{UUID: "someUUID"})
+		_, jj, err := client.SnapshotDelete(&SnapshotDeleteParams{UUID: "someUUID"})
 		assert.EqualError(tt, err, transport.err.Error())
+		assert.Nil(tt, jj)
 	})
 
 	t.Run("WhenUuidIsEmpty_ThenThrowError", func(tt *testing.T) {
 		transport := &mockTransport{}
 		storageAPI := storage.New(transport, nil)
 		client := &storageClient{api: storageAPI}
-		err := client.SnapshotDelete(&SnapshotDeleteParams{})
+		_, jj, err := client.SnapshotDelete(&SnapshotDeleteParams{})
+		assert.Nil(tt, jj)
 		assert.Error(tt, err)
 		assert.EqualError(tt, err, "no UUID provided for SnapshotDelete")
 	})
 
 	t.Run("WhenSnapshotUUIDIsPassed_ThenSuccessfullyDeleteSnapshot", func(tt *testing.T) {
-		transport := &mockTransport{response: &storage.SnapshotDeleteOK{}}
+		snapshotName := "test-snapshot"
+		UUID := "uuid"
+		jobUUID := "job-uuid"
+		transport := &mockTransport{response: &storage.SnapshotDeleteAccepted{
+			Payload: &models.SnapshotJobLinkResponse{
+				Records: []*models.Snapshot{{Name: &snapshotName, UUID: &UUID}},
+				Job:     &models.JobLink{UUID: nillable.ToPointer(strfmt.UUID(jobUUID))},
+			},
+		}}
 		storageAPI := storage.New(transport, nil)
 		client := &storageClient{api: storageAPI}
-		err := client.SnapshotDelete(&SnapshotDeleteParams{UUID: "someUUID"})
+		_, job, err := client.SnapshotDelete(&SnapshotDeleteParams{UUID: "someUUID"})
 		assert.NoError(tt, err)
+		assert.NotNil(tt, job)
+		assert.Equal(tt, jobUUID, job.JobUUID)
 	})
 }
 

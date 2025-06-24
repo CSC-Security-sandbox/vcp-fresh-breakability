@@ -11,6 +11,7 @@ import (
 	ontapRest "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/ontap-rest"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/nillable"
 )
 
@@ -97,13 +98,62 @@ func (rc *OntapRestProvider) CreateSnapshot(params CreateSnapshotParams) (*Snaps
 // DeleteSnapshot deletes a snapshot by calling the ONTAP REST Client
 func (rc *OntapRestProvider) DeleteSnapshot(snapshotUUID string, volumeUUID string) error {
 	client := getOntapClientFunc(rc.ClientParams)
-	err := client.Storage().SnapshotDelete(&ontapRest.SnapshotDeleteParams{
+	sc := client.Storage()
+	snapshot, err := sc.SnapshotGet(&ontapRest.SnapshotGetParams{
+		BaseParams: ontapRest.BaseParams{Fields: []string{"name", "owners"}},
 		UUID:       snapshotUUID,
 		VolumeUUID: volumeUUID,
 	})
-
 	if err != nil {
-		return vsaerrors.NewVCPError(vsaerrors.ErrOntapRestAPIError, err)
+		if !errors.IsNotFoundErr(err) {
+			return err
+		}
+
+		var volume *ontapRest.Volume
+		volume, err = sc.VolumeGet(&ontapRest.VolumeGetParams{
+			BaseParams: ontapRest.BaseParams{Fields: []string{"state"}},
+			UUID:       volumeUUID,
+		})
+		if err != nil {
+			if errors.IsNotFoundErr(err) {
+				return nil
+			}
+			return err
+		}
+
+		if *volume.State != "online" {
+			return errors.NewUnavailableErr("Cannot delete snapshot because volume is not online")
+		}
+		rc.Logger.With(log.Fields{
+			"snapshotUUID":       snapshotUUID,
+			"volumeExternalUUID": volumeUUID,
+		}).Warn("Missing snapshot from online volume")
+		return nil
+	}
+
+	if len(snapshot.Owners) != 0 {
+		return errors.NewConflictErrWithTrackingID("Cannot delete a snapshot that is being actively used in a Volume Replication relationship or a file clone split triggered by Snapshot RestoreFiles operation or used a reference snapshot for a backup.", errors.CannotDeleteSnapshotInUse)
+	}
+
+	_, accepted, err := client.Storage().SnapshotDelete(&ontapRest.SnapshotDeleteParams{
+		UUID:       *snapshot.UUID,
+		VolumeUUID: volumeUUID,
+	})
+	if err != nil {
+		rc.Logger.With(log.Fields{
+			"snapshotUUID":       snapshotUUID,
+			"volumeExternalUUID": volumeUUID,
+			"error":              err,
+		}).Error("Failed to delete snapshot")
+		return err
+	}
+
+	if accepted != nil {
+		if err = client.Poll(accepted.JobUUID); err != nil {
+			if !errors.IsNotFoundErr(err) && !strings.Contains(err.Error(), "entry doesn't exist") {
+				return err
+			}
+		}
 	}
 
 	return nil
