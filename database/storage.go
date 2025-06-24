@@ -42,7 +42,7 @@ type PersistenceStore struct {
 	mu     sync.RWMutex
 	logger log.Logger
 
-	dataStore *repository.DataStoreRepository
+	dataStore retryEngine
 }
 
 func init() {
@@ -69,7 +69,7 @@ func NewTestStorage(logger log.Logger) (Storage, error) {
 	return &PersistenceStore{
 		db:        wrapper,
 		logger:    logger,
-		dataStore: repository.NewDataStoreRepository(wrapper),
+		dataStore: retryEngine{dataStore: repository.NewDataStoreRepository(wrapper)},
 		config: DbConfig{
 			Type: DatabaseTypeSQLite,
 		},
@@ -162,7 +162,7 @@ func (s *PersistenceStore) connect(isAdmin bool) error {
 	}
 
 	s.db = gormwrapper.New(db)
-	s.dataStore = repository.NewDataStoreRepository(s.db)
+	s.dataStore = retryEngine{repository.NewDataStoreRepository(s.db)}
 	return nil
 }
 
@@ -612,7 +612,7 @@ func (s *PersistenceStore) UpdateSnapshot(ctx context.Context, snapshot *datamod
 	return s.dataStore.UpdateSnapshot(ctx, snapshot)
 }
 
-func (s *PersistenceStore) GetSnapshot(ctx context.Context, uuid string) (*datamodel.Snapshot, error) {
+func (s *PersistenceStore) GetSnapshotByUUID(ctx context.Context, uuid string) (*datamodel.Snapshot, error) {
 	return s.dataStore.GetSnapshotByUUID(ctx, uuid)
 }
 

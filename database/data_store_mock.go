@@ -3006,12 +3006,12 @@ func (_c *MockDataStore_GetPoolByVendorID_Call) RunAndReturn(run func(context.Co
 	return _c
 }
 
-// GetSnapshot provides a mock function with given fields: ctx, uuid
-func (_m *MockDataStore) GetSnapshot(ctx context.Context, uuid string) (*datamodel.Snapshot, error) {
+// GetSnapshotByUUID provides a mock function with given fields: ctx, uuid
+func (_m *MockDataStore) GetSnapshotByUUID(ctx context.Context, uuid string) (*datamodel.Snapshot, error) {
 	ret := _m.Called(ctx, uuid)
 
 	if len(ret) == 0 {
-		panic("no return value specified for GetSnapshot")
+		panic("no return value specified for GetSnapshotByUUID")
 	}
 
 	var r0 *datamodel.Snapshot
@@ -3036,31 +3036,31 @@ func (_m *MockDataStore) GetSnapshot(ctx context.Context, uuid string) (*datamod
 	return r0, r1
 }
 
-// MockDataStore_GetSnapshot_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetSnapshot'
-type MockDataStore_GetSnapshot_Call struct {
+// MockDataStore_GetSnapshotByUUID_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetSnapshotByUUID'
+type MockDataStore_GetSnapshotByUUID_Call struct {
 	*mock.Call
 }
 
-// GetSnapshot is a helper method to define mock.On call
+// GetSnapshotByUUID is a helper method to define mock.On call
 //   - ctx context.Context
 //   - uuid string
-func (_e *MockDataStore_Expecter) GetSnapshot(ctx interface{}, uuid interface{}) *MockDataStore_GetSnapshot_Call {
-	return &MockDataStore_GetSnapshot_Call{Call: _e.mock.On("GetSnapshot", ctx, uuid)}
+func (_e *MockDataStore_Expecter) GetSnapshotByUUID(ctx interface{}, uuid interface{}) *MockDataStore_GetSnapshotByUUID_Call {
+	return &MockDataStore_GetSnapshotByUUID_Call{Call: _e.mock.On("GetSnapshotByUUID", ctx, uuid)}
 }
 
-func (_c *MockDataStore_GetSnapshot_Call) Run(run func(ctx context.Context, uuid string)) *MockDataStore_GetSnapshot_Call {
+func (_c *MockDataStore_GetSnapshotByUUID_Call) Run(run func(ctx context.Context, uuid string)) *MockDataStore_GetSnapshotByUUID_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		run(args[0].(context.Context), args[1].(string))
 	})
 	return _c
 }
 
-func (_c *MockDataStore_GetSnapshot_Call) Return(_a0 *datamodel.Snapshot, _a1 error) *MockDataStore_GetSnapshot_Call {
+func (_c *MockDataStore_GetSnapshotByUUID_Call) Return(_a0 *datamodel.Snapshot, _a1 error) *MockDataStore_GetSnapshotByUUID_Call {
 	_c.Call.Return(_a0, _a1)
 	return _c
 }
 
-func (_c *MockDataStore_GetSnapshot_Call) RunAndReturn(run func(context.Context, string) (*datamodel.Snapshot, error)) *MockDataStore_GetSnapshot_Call {
+func (_c *MockDataStore_GetSnapshotByUUID_Call) RunAndReturn(run func(context.Context, string) (*datamodel.Snapshot, error)) *MockDataStore_GetSnapshotByUUID_Call {
 	_c.Call.Return(run)
 	return _c
 }

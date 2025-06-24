@@ -120,7 +120,7 @@ type DataStore interface {
 
 	CreatingSnapshot(ctx context.Context, snapshot *datamodel.Snapshot) (*datamodel.Snapshot, error)
 	UpdateSnapshot(ctx context.Context, snapshot *datamodel.Snapshot) (*datamodel.Snapshot, error)
-	GetSnapshot(ctx context.Context, uuid string) (*datamodel.Snapshot, error)
+	GetSnapshotByUUID(ctx context.Context, uuid string) (*datamodel.Snapshot, error)
 	GetSnapshotsByVolumeID(ctx context.Context, volumeID int64) ([]*datamodel.Snapshot, error)
 	GetSnapshotsWithCondition(ctx context.Context, filter utils.Filter) ([]*datamodel.Snapshot, error)
 	GetAppConsistentSnapshotsForVolume(ctx context.Context, accountID, volumeID int64) ([]*datamodel.Snapshot, error)

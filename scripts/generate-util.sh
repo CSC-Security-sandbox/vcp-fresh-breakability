@@ -38,3 +38,11 @@ generate_ontap_priv_checksums() {
   LC_ALL=C sort -k 3 "$checksum_file" > newChecksumsFile.checksum
   rm -f "$checksum_file"
 }
+
+generate_retryEngineWrapper_checksums() {
+  check_required_files sewrapper.go
+  local checksum_file="tempChecksumsFile.checksum"
+  generate_checksums "$checksum_file" "sewrapper.go"
+  LC_ALL=C sort -k 3 "$checksum_file" > newChecksumsFile.checksum
+  rm -f "$checksum_file"
+}

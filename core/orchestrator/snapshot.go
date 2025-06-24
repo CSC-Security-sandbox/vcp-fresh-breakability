@@ -161,7 +161,7 @@ func _getSnapshot(ctx context.Context, se database.Storage, params *common.GetSn
 		return nil, err
 	}
 
-	snapshot, err := se.GetSnapshot(ctx, params.SnapshotUUID)
+	snapshot, err := se.GetSnapshotByUUID(ctx, params.SnapshotUUID)
 	if err != nil {
 		logger.Errorf("Failed to get snapshot: %s. Error: %v", params.SnapshotUUID, err)
 		return nil, err
@@ -216,7 +216,7 @@ func _updateSnapshot(ctx context.Context, se database.Storage, temporal client.C
 		return nil, "", err
 	}
 
-	snapshot, err := se.GetSnapshot(ctx, params.SnapshotUUID)
+	snapshot, err := se.GetSnapshotByUUID(ctx, params.SnapshotUUID)
 	if err != nil {
 		logger.Errorf("Failed to get snapshot: %s. Error: %v", params.SnapshotUUID, err)
 		return nil, "", err
@@ -317,7 +317,7 @@ func _deleteSnapshot(ctx context.Context, se database.Storage, temporal client.C
 		return nil, "", err
 	}
 
-	snapshot, err := se.GetSnapshot(ctx, params.SnapshotID)
+	snapshot, err := se.GetSnapshotByUUID(ctx, params.SnapshotID)
 	if err != nil {
 		return nil, "", err
 	}

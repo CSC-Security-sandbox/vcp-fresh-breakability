@@ -58,6 +58,10 @@ spec:
               value: testpass
             - name: RUN_MIGRATION_ON_START
               value: "true"
+            - name: VCP_DB_RETRY_MAX
+              value: "10"
+            - name: VCP_DB_RETRY_DELAY_MS
+              value: "250"
             - name: TEMPORAL_ADDRESS
               value: "local-temporal-frontend.default.svc.cluster.local:7233"
             - name: TEMPORAL_NAMESPACE

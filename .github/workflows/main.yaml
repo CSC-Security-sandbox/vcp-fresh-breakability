@@ -193,6 +193,22 @@ jobs:
           cd ./scripts
           ./verify-ontap.sh
 
+      - name: Verify generated retry engine wrapper for DB
+        run: |
+          # Get the PR branch name
+          PR_BRANCH=$(echo $GITHUB_HEAD_REF)
+          echo "Pull request branch: $PR_BRANCH"
+          
+          # Fetch the PR branch
+          git fetch origin $PR_BRANCH
+          
+          # Switch to the PR branch
+          git checkout $PR_BRANCH
+          
+          # Verify retry engine code
+          cd ./scripts
+          ./verify-retry-engine.sh
+
   verify_build:
     name: Verify build
     runs-on: [ self-hosted, linux ]
