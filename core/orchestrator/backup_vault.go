@@ -42,6 +42,29 @@ type BackupRetentionPolicyV2params struct {
 	IsAdhocBackupImmutable                 bool
 }
 
+func (o *Orchestrator) ListBackupVaults(ctx context.Context, accountName string) ([]*models.BackupVaultV1beta, error) {
+	se := o.storage
+	account, err := getAccountWithName(ctx, se, accountName)
+	if err != nil {
+		return nil, err
+	}
+
+	return ListBackupVaultsByOwnerID(ctx, se, account.ID)
+}
+
+func ListBackupVaultsByOwnerID(ctx context.Context, se database.Storage, ownerID int64) ([]*models.BackupVaultV1beta, error) {
+	bvDetails, err := se.ListBackupVaults(ctx, ownerID)
+	if err != nil {
+		return nil, err
+	}
+
+	var backupVaults []*models.BackupVaultV1beta
+	for _, bv := range bvDetails {
+		backupVaults = append(backupVaults, convertDatastoreBackupVaultToModel(bv))
+	}
+	return backupVaults, nil
+}
+
 func (o *Orchestrator) GetBackupVaultByNameAndOwnerID(ctx context.Context, bvName, ownerID string) (*models.BackupVaultV1beta, error) {
 	se := o.storage
 	bvDetails, err := getBackupVaultByNameAndOwnerID(ctx, se, bvName, ownerID)

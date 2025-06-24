@@ -750,3 +750,105 @@ func TestUpdateBackupVaultUpdatesBucketDetailsSuccessfully(tt *testing.T) {
 		}
 	})
 }
+
+func TestListBackupVaultsReturnsBackupVaultsWhenAccountHasVaults(tt *testing.T) {
+	db, err := SetupTestDB()
+	if err != nil {
+		tt.Fatalf("Failed to set up test database: %v", err)
+	}
+	wrapper := gormwrapper.New(db)
+	store := NewDataStoreRepository(wrapper)
+
+	err = ClearInMemoryDB(store.db.GORM())
+	if err != nil {
+		tt.Fatalf("Failed to clean up test database: %v", err)
+	}
+
+	account := &datamodel.Account{
+		BaseModel: datamodel.BaseModel{UUID: "test-account-uuid"},
+		Name:      "test_account",
+	}
+	err = store.db.Create(account).Error()
+	if err != nil {
+		tt.Fatalf("Failed to create account: %v", err)
+	}
+
+	backupVault := &datamodel.BackupVault{
+		BaseModel: datamodel.BaseModel{UUID: "test-backup-vault-uuid"},
+		Name:      "test_backup_vault",
+		AccountID: account.ID,
+		Account:   account,
+	}
+	err = store.db.Create(backupVault).Error()
+	if err != nil {
+		tt.Fatalf("Failed to create backup vault: %v", err)
+	}
+
+	result, err := store.ListBackupVaults(context.Background(), account.ID)
+	if err != nil {
+		tt.Errorf("Expected no error, got %v", err)
+	}
+	if len(result) != 1 {
+		tt.Errorf("Expected 1 backup vault, got %v", len(result))
+	}
+	if result[0].UUID != backupVault.UUID {
+		tt.Errorf("Expected backup vault UUID %v, got %v", backupVault.UUID, result[0].UUID)
+	}
+}
+
+func TestListBackupVaultsReturnsEmptyListWhenNoVaultsExist(tt *testing.T) {
+	db, err := SetupTestDB()
+	if err != nil {
+		tt.Fatalf("Failed to set up test database: %v", err)
+	}
+	wrapper := gormwrapper.New(db)
+	store := NewDataStoreRepository(wrapper)
+
+	err = ClearInMemoryDB(store.db.GORM())
+	if err != nil {
+		tt.Fatalf("Failed to clean up test database: %v", err)
+	}
+
+	account := &datamodel.Account{
+		BaseModel: datamodel.BaseModel{UUID: "test-account-uuid"},
+		Name:      "test_account",
+	}
+	err = store.db.Create(account).Error()
+	if err != nil {
+		tt.Fatalf("Failed to create account: %v", err)
+	}
+
+	result, err := store.ListBackupVaults(context.Background(), account.ID)
+	if err != nil {
+		tt.Errorf("Expected no error, got %v", err)
+	}
+	if len(result) != 0 {
+		tt.Errorf("Expected 0 backup vaults, got %v", len(result))
+	}
+}
+
+func TestListBackupVaultsReturnsErrorWhenDatabaseFails(tt *testing.T) {
+	db, err := SetupTestDB()
+	if err != nil {
+		tt.Fatalf("Failed to set up test database: %v", err)
+	}
+	wrapper := gormwrapper.New(db)
+	store := NewDataStoreRepository(wrapper)
+
+	err = ClearInMemoryDB(store.db.GORM())
+	if err != nil {
+		tt.Fatalf("Failed to clean up test database: %v", err)
+	}
+
+	// Simulate database failure by closing the connection
+	sqlDB, _ := db.DB()
+	err = sqlDB.Close()
+	if err != nil {
+		return
+	}
+
+	_, err = store.ListBackupVaults(context.Background(), 123)
+	if err == nil {
+		tt.Errorf("Expected error, got nil")
+	}
+}

@@ -3943,6 +3943,65 @@ func (_c *MockDataStore_IsBackupInCreatingorDeletingStateByVolume_Call) RunAndRe
 	return _c
 }
 
+// ListBackupVaults provides a mock function with given fields: ctx, accountID
+func (_m *MockDataStore) ListBackupVaults(ctx context.Context, accountID int64) ([]*datamodel.BackupVault, error) {
+	ret := _m.Called(ctx, accountID)
+
+	if len(ret) == 0 {
+		panic("no return value specified for ListBackupVaults")
+	}
+
+	var r0 []*datamodel.BackupVault
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, int64) ([]*datamodel.BackupVault, error)); ok {
+		return rf(ctx, accountID)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, int64) []*datamodel.BackupVault); ok {
+		r0 = rf(ctx, accountID)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]*datamodel.BackupVault)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, int64) error); ok {
+		r1 = rf(ctx, accountID)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockDataStore_ListBackupVaults_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'ListBackupVaults'
+type MockDataStore_ListBackupVaults_Call struct {
+	*mock.Call
+}
+
+// ListBackupVaults is a helper method to define mock.On call
+//   - ctx context.Context
+//   - accountID int64
+func (_e *MockDataStore_Expecter) ListBackupVaults(ctx interface{}, accountID interface{}) *MockDataStore_ListBackupVaults_Call {
+	return &MockDataStore_ListBackupVaults_Call{Call: _e.mock.On("ListBackupVaults", ctx, accountID)}
+}
+
+func (_c *MockDataStore_ListBackupVaults_Call) Run(run func(ctx context.Context, accountID int64)) *MockDataStore_ListBackupVaults_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(int64))
+	})
+	return _c
+}
+
+func (_c *MockDataStore_ListBackupVaults_Call) Return(_a0 []*datamodel.BackupVault, _a1 error) *MockDataStore_ListBackupVaults_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockDataStore_ListBackupVaults_Call) RunAndReturn(run func(context.Context, int64) ([]*datamodel.BackupVault, error)) *MockDataStore_ListBackupVaults_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // ListPools provides a mock function with given fields: ctx, conditions
 func (_m *MockDataStore) ListPools(ctx context.Context, conditions [][]interface{}) ([]*datamodel.PoolView, error) {
 	ret := _m.Called(ctx, conditions)

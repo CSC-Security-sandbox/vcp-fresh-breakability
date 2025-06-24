@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp"
+	coremodels "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"time"
 
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/cvpapi/backup_vault"
@@ -451,10 +452,33 @@ func (h Handler) V1betaListBackupVaults(ctx context.Context, params gcpgenserver
 	bvResponse := gcpgenserver.V1betaListBackupVaultsOK{
 		BackupVaults: []gcpgenserver.BackupVaultV1beta{},
 	}
-	for _, bv := range cvpResponse.Payload.BackupVaults {
+
+	bvs, err := h.Orchestrator.ListBackupVaults(ctx, params.ProjectNumber)
+	if err != nil {
+		logger.Error("Failed to list backup vaults", "error", err)
+		return &gcpgenserver.V1betaListBackupVaultsInternalServerError{
+			Code:    500,
+			Message: "failed to list backup vaults",
+		}, nil
+	}
+	res := updateBackupVaultStateDetails(bvs, cvpResponse.Payload.BackupVaults)
+	for _, bv := range res {
 		bvResponse.BackupVaults = append(bvResponse.BackupVaults, convertBackupVaultV1Beta(bv))
 	}
 	return &bvResponse, nil
+}
+
+func updateBackupVaultStateDetails(bvs []*coremodels.BackupVaultV1beta, cvpBvs []*models.BackupVaultV1beta) []*models.BackupVaultV1beta {
+	for _, bv := range bvs {
+		for _, cvpBv := range cvpBvs {
+			if bv.Name == *cvpBv.ResourceID {
+				cvpBv.State = bv.LifeCycleState
+				cvpBv.StateDetails = bv.LifeCycleStateDetails
+				break
+			}
+		}
+	}
+	return cvpBvs
 }
 
 func (h Handler) V1betaUpdateBackupVault(ctx context.Context, req *gcpgenserver.BackupVaultUpdateV1beta, params gcpgenserver.V1betaUpdateBackupVaultParams) (r gcpgenserver.V1betaUpdateBackupVaultRes, _ error) {

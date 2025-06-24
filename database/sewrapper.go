@@ -1597,6 +1597,26 @@ func (re *retryEngine) CreatingBackupVault(ctx context.Context, bv *datamodel.Ba
 	return var0, err
 }
 
+func (re *retryEngine) ListBackupVaults(ctx context.Context, accountID int64) ([]*datamodel.BackupVault, error) {
+	var var0 []*datamodel.BackupVault
+	err := retry.Do(func(attempt int) (bool, error) {
+		var err error
+		var0, err = re.dataStore.ListBackupVaults(ctx, accountID)
+		if err != nil {
+			re.logError("ListBackupVaults", err)
+			if !isTransientErr(err) {
+				return false, err
+			}
+		}
+		return true, err
+	})
+	if isTransientErr(err) {
+		err = errors.NewTransientErr("Internal error. Please try again later.")
+	}
+
+	return var0, err
+}
+
 func (re *retryEngine) CreateBackupVault(ctx context.Context, vault *datamodel.BackupVault, vcpVault *datamodel.BackupVault) (*datamodel.BackupVault, error) {
 	var var0 *datamodel.BackupVault
 	err := retry.Do(func(attempt int) (bool, error) {

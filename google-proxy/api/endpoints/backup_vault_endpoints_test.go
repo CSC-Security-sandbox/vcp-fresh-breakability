@@ -14,6 +14,7 @@ import (
 	mod "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator"
 	gcpgenserver "github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/api/gcp-servergen"
+	errors2 "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/nillable"
 )
@@ -35,12 +36,26 @@ func TestV1betaListBackupVaults(t *testing.T) {
 		Payload: &backup_vault.V1betaListBackupVaultsOKBody{
 			BackupVaults: []*models.BackupVaultV1beta{
 				{
+					ResourceID:    nillable.GetStringPtr("bv-1"),
 					BackupRegion:  nillable.GetStringPtr("backup-region"),
 					BackupVaultID: "backup-id",
 				},
 			},
 		},
 	}
+
+	mockOrchestrator := orchestrator.NewMockOrchestratorFactory(t)
+	res := []*mod.BackupVaultV1beta{
+		{
+			Name:                  "bv-1",
+			BackupRegion:          nillable.GetStringPtr("backup-region"),
+			BackupVaultID:         "backup-id",
+			LifeCycleState:        "CREATING",
+			LifeCycleStateDetails: "Creation in progress",
+		},
+	}
+	mockOrchestrator.On("ListBackupVaults", mock.Anything, "12345").Return(res, nil)
+	handler := Handler{Orchestrator: mockOrchestrator}
 
 	// Set up the mock client behavior
 	mockClient.EXPECT().
@@ -52,7 +67,6 @@ func TestV1betaListBackupVaults(t *testing.T) {
 	createClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
 		return *cvpClient
 	}
-	handler := Handler{}
 	// Call the method under test
 	result, err := handler.V1betaListBackupVaults(context.Background(), params)
 
@@ -61,6 +75,53 @@ func TestV1betaListBackupVaults(t *testing.T) {
 	assert.NotNil(t, result)
 	assert.Equal(t, 1, len(result.(*gcpgenserver.V1betaListBackupVaultsOK).BackupVaults))
 	assert.Equal(t, "backup-id", result.(*gcpgenserver.V1betaListBackupVaultsOK).BackupVaults[0].BackupVaultId.Value)
+}
+
+func TestV1betaListBackupVaultsOrchError(t *testing.T) {
+	// Create a mock client
+	mockClient := backup_vault.NewMockClientService(t)
+
+	// Define input parameters
+	params := gcpgenserver.V1betaListBackupVaultsParams{
+		LocationId:     "test-location",
+		ProjectNumber:  "12345",
+		XCorrelationID: gcpgenserver.NewOptString("test-correlation-id"),
+	}
+
+	// Define mock response
+	mockResponse := &backup_vault.V1betaListBackupVaultsOK{
+		Payload: &backup_vault.V1betaListBackupVaultsOKBody{
+			BackupVaults: []*models.BackupVaultV1beta{
+				{
+					ResourceID:    nillable.GetStringPtr("bv-1"),
+					BackupRegion:  nillable.GetStringPtr("backup-region"),
+					BackupVaultID: "backup-id",
+				},
+			},
+		},
+	}
+
+	mockOrchestrator := orchestrator.NewMockOrchestratorFactory(t)
+	mockOrchestrator.On("ListBackupVaults", mock.Anything, "12345").Return(nil, errors2.New("orchestrator error"))
+	handler := Handler{Orchestrator: mockOrchestrator}
+
+	// Set up the mock client behavior
+	mockClient.EXPECT().
+		V1betaListBackupVaults(mock.Anything).
+		Return(mockResponse, nil)
+	cvpClient := &cvpapi.Cvp{BackupVault: mockClient}
+	originalCreateClient := createClient
+	defer func() { createClient = originalCreateClient }()
+	createClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
+		return *cvpClient
+	}
+	// Call the method under test
+	result, err := handler.V1betaListBackupVaults(context.Background(), params)
+
+	// Assertions
+	assert.NoError(t, err)
+	assert.NotNil(t, result)
+	assert.IsType(t, &gcpgenserver.V1betaListBackupVaultsInternalServerError{}, result)
 }
 
 // V1betaDeleteBackupVault unittests

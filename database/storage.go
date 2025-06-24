@@ -691,6 +691,10 @@ func (s *PersistenceStore) CreatingBackupVault(ctx context.Context, bv *datamode
 	return s.dataStore.CreatingBackupVault(ctx, bv)
 }
 
+func (s *PersistenceStore) ListBackupVaults(ctx context.Context, accountID int64) ([]*datamodel.BackupVault, error) {
+	return s.dataStore.ListBackupVaults(ctx, accountID)
+}
+
 func (s *PersistenceStore) CreateBackupVault(ctx context.Context, backupVault *datamodel.BackupVault, vcpVault *datamodel.BackupVault) (*datamodel.BackupVault, error) {
 	return s.dataStore.CreateBackupVault(ctx, backupVault, vcpVault)
 }

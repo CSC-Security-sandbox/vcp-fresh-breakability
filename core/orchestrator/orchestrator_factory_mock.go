@@ -1947,6 +1947,65 @@ func (_c *MockOrchestratorFactory_GetVolumeCount_Call) RunAndReturn(run func(con
 	return _c
 }
 
+// ListBackupVaults provides a mock function with given fields: ctx, accountName
+func (_m *MockOrchestratorFactory) ListBackupVaults(ctx context.Context, accountName string) ([]*models.BackupVaultV1beta, error) {
+	ret := _m.Called(ctx, accountName)
+
+	if len(ret) == 0 {
+		panic("no return value specified for ListBackupVaults")
+	}
+
+	var r0 []*models.BackupVaultV1beta
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, string) ([]*models.BackupVaultV1beta, error)); ok {
+		return rf(ctx, accountName)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, string) []*models.BackupVaultV1beta); ok {
+		r0 = rf(ctx, accountName)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]*models.BackupVaultV1beta)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, string) error); ok {
+		r1 = rf(ctx, accountName)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockOrchestratorFactory_ListBackupVaults_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'ListBackupVaults'
+type MockOrchestratorFactory_ListBackupVaults_Call struct {
+	*mock.Call
+}
+
+// ListBackupVaults is a helper method to define mock.On call
+//   - ctx context.Context
+//   - accountName string
+func (_e *MockOrchestratorFactory_Expecter) ListBackupVaults(ctx interface{}, accountName interface{}) *MockOrchestratorFactory_ListBackupVaults_Call {
+	return &MockOrchestratorFactory_ListBackupVaults_Call{Call: _e.mock.On("ListBackupVaults", ctx, accountName)}
+}
+
+func (_c *MockOrchestratorFactory_ListBackupVaults_Call) Run(run func(ctx context.Context, accountName string)) *MockOrchestratorFactory_ListBackupVaults_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(string))
+	})
+	return _c
+}
+
+func (_c *MockOrchestratorFactory_ListBackupVaults_Call) Return(_a0 []*models.BackupVaultV1beta, _a1 error) *MockOrchestratorFactory_ListBackupVaults_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockOrchestratorFactory_ListBackupVaults_Call) RunAndReturn(run func(context.Context, string) ([]*models.BackupVaultV1beta, error)) *MockOrchestratorFactory_ListBackupVaults_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // ListBackups provides a mock function with given fields: ctx, params
 func (_m *MockOrchestratorFactory) ListBackups(ctx context.Context, params *common.GetBackupsParams) ([]*datamodel.Backup, error) {
 	ret := _m.Called(ctx, params)

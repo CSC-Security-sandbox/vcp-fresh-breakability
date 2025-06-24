@@ -57,6 +57,7 @@ type OrchestratorFactory interface {
 	UpdateKmsConfig(ctx context.Context, params *commonparams.UpdateKmsConfigParams) (*models.KmsConfig, string, error)
 
 	GetBackupVaultByNameAndOwnerID(ctx context.Context, bvName, ownerID string) (*models.BackupVaultV1beta, error)
+	ListBackupVaults(ctx context.Context, accountName string) ([]*models.BackupVaultV1beta, error)
 
 	CreateBackup(ctx context.Context, params *commonparams.CreateBackupParams) (*models.Backup, string, error)
 	ListBackups(ctx context.Context, params *commonparams.GetBackupsParams) ([]*datamodel.Backup, error)

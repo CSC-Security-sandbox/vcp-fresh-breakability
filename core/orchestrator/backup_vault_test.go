@@ -9,6 +9,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 )
 
@@ -198,4 +199,75 @@ func TestReturnsErrorWhenAccountNotFound(tt *testing.T) {
 	assert.Error(tt, err, "Expected error")
 	assert.Nil(tt, result, "Expected result to be nil")
 	assert.Equal(tt, "account not found", err.Error(), "Expected error message to match")
+}
+
+func TestListBackupVaults(t *testing.T) {
+	t.Run("WhenNoBackupVaultsExist", func(tt *testing.T) {
+		mockLogger := log.NewLogger()
+		se, err := database.NewTestStorage(mockLogger)
+		assert.NoError(tt, err, "Failed to create test storage")
+		account := &datamodel.Account{BaseModel: datamodel.BaseModel{ID: 1, UUID: "owner-uuid"}}
+		getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return nil, errors.New("account not found")
+		}
+
+		o := &Orchestrator{storage: se}
+		result, err := o.ListBackupVaults(context.Background(), account.UUID)
+		assert.Error(tt, err)
+		assert.Nil(tt, result)
+	})
+}
+
+func TestListBackupVaultsByOwnerID(t *testing.T) {
+	t.Run("WhenListBackupVaultsErrors", func(t *testing.T) {
+		ctx := context.Background()
+		mockLogger := log.NewLogger()
+		ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, mockLogger)
+		mockStorage := new(database.MockStorage)
+
+		mockStorage.On("ListBackupVaults", ctx, int64(1)).Return(nil, errors.New("failed to list backup vaults"))
+		bvs, err := ListBackupVaultsByOwnerID(ctx, mockStorage, 1)
+		assert.Error(t, err, "Expected error when listing backup vaults")
+		assert.Nil(t, bvs, "Expected backup vaults to be nil")
+	})
+	t.Run("WhenListBackupVaultsSuccess", func(t *testing.T) {
+		ctx := context.Background()
+		mockLogger := log.NewLogger()
+		ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, mockLogger)
+		mockStorage := new(database.MockStorage)
+
+		desc := "desc"
+		bRegionName := "us-central1"
+		sRegionName := "us-west1"
+		minEnforcedDuration := int64(10)
+		bVaults := []*datamodel.BackupVault{
+			{
+				BaseModel: datamodel.BaseModel{ID: 1, UUID: "uuid1", CreatedAt: time.Now(), UpdatedAt: time.Now()},
+				Name:      "vault-1",
+				Account: &datamodel.Account{
+					BaseModel: datamodel.BaseModel{ID: 1},
+				},
+				AccountID:             1,
+				RegionName:            "us-east1",
+				BackupRegionName:      &bRegionName,
+				SourceRegionName:      &sRegionName,
+				LifeCycleState:        "Available",
+				LifeCycleStateDetails: "Available for use",
+				BackupVaultType:       "IN_REGION",
+				AccountVendorID:       "vendor1",
+				Description:           &desc,
+				ImmutableAttributes: &datamodel.ImmutableAttributes{
+					BackupMinimumEnforcedRetentionDuration: &minEnforcedDuration,
+					IsDailyBackupImmutable:                 false,
+					IsWeeklyBackupImmutable:                false,
+					IsMonthlyBackupImmutable:               false,
+					IsAdhocBackupImmutable:                 false,
+				},
+			},
+		}
+		mockStorage.On("ListBackupVaults", ctx, int64(1)).Return(bVaults, nil)
+		bvs, err := ListBackupVaultsByOwnerID(ctx, mockStorage, 1)
+		assert.NoError(t, err)
+		assert.NotNil(t, bvs)
+	})
 }

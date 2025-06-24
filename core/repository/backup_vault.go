@@ -159,6 +159,16 @@ func (d *DataStoreRepository) UpdateBackupVault(ctx context.Context, bv *datamod
 	return nil
 }
 
+func (d *DataStoreRepository) ListBackupVaults(ctx context.Context, accountID int64) ([]*datamodel.BackupVault, error) {
+	db := d.db.GORM().WithContext(ctx)
+	var backupVaults []*datamodel.BackupVault
+	err := db.Preload("Account").Where("account_id = ?", accountID).Find(&backupVaults).Error
+	if err != nil {
+		return nil, err
+	}
+	return backupVaults, nil
+}
+
 // CreatingBackupVault creates a new backup vault in the database
 func (d *DataStoreRepository) CreatingBackupVault(ctx context.Context, bv *datamodel.BackupVault) (*datamodel.BackupVault, error) {
 	db := d.db.GORM().WithContext(ctx)
